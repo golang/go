@@ -6,11 +6,6 @@ package wasmyield
 
 import "cmd/compile/internal/base"
 
-// solve propagates yielding backwards over the call graph. A function
-// yields when it has a yield source of its own or reaches a function that
-// yields; the least fixpoint leaves pure recursion pure. A callee that is
-// not recorded, or that is duplicate-OK, yields, unless an imported
-// package has a fact that says otherwise (calleeYield).
 func solve(all []*unit) {
 	callers := make(map[*unit][]*unit)
 	var work []*unit

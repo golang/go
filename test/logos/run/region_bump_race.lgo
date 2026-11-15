@@ -1,0 +1,103 @@
+// run -goexperiment logosarena -race
+package main
+
+import (
+	"fmt"
+	"logos/arena"
+	"logos/rt"
+	"os"
+)
+
+var regionSink int
+
+type regionPad512 [512]byte
+
+//go:noinline
+func regionUse(p *int) int {
+	*p++
+	return *p
+}
+
+var failed bool
+
+func check(name string, ok bool, got, want any) {
+	if !ok {
+		fmt.Printf("FAIL %s: got %v, want %v\n", name, got, want)
+		failed = true
+		return
+	}
+	fmt.Printf("ok %s\n", name)
+}
+
+// regionBump8 mirrors the int placement of the logos_region_bump_race script
+// test. Under -race the placement lowers to the logosRegionAllocNoscan slow
+// path, so every check below observes that slow path's behavior.
+//go:noinline
+func regionBump8() int {
+	r := arena.Open()
+	p := arena.New[int](r)
+	held := rt.RegionBytes()
+	check("race-bump8-new-zeroed", *p == 0, *p, 0)
+	check("race-bump8-region-holds-placement", held >= 8, held, "at least 8 region bytes")
+	got := regionUse(p)
+	check("race-bump8-mutation-persists", got == 1 && *p == 1, got, 1)
+	regionSink += *p
+	return held
+}
+
+// regionBump512 mirrors the [512]byte placement of the script test.
+//go:noinline
+func regionBump512(fill byte) byte {
+	r := arena.Open()
+	p := arena.New[regionPad512](r)
+	held := rt.RegionBytes()
+	fresh := p[0] == 0 && p[255] == 0 && p[511] == 0
+	check("race-bump512-new-zeroed", fresh, "stale bytes", "zeroed placement")
+	check("race-bump512-region-holds-placement", held >= 512, held, "at least 512 region bytes")
+	p[0] = fill
+	p[511] = ^fill
+	check("race-bump512-writes-persist", p[0] == fill && p[511] == ^fill, "lost bytes", "both ends keep their fill")
+	regionSink += int(p[0]) + int(p[511])
+	return p[511]
+}
+
+func main() {
+	regionBump8()
+	regionBump512(0xAA)
+
+	// Both placements share one region: the bump slots must be distinct
+	// storage, so a write through one placement leaves the other intact.
+	{
+		r := arena.Open()
+		i := arena.New[int](r)
+		pad := arena.New[regionPad512](r)
+		held := rt.RegionBytes()
+		check("race-bump-region-holds-both-placements", held >= 8+512, held, "at least 520 region bytes")
+		check("race-bump-placements-zeroed", *i == 0 && pad[0] == 0 && pad[511] == 0, "stale bytes", "zeroed placements")
+		pad[0] = 0x7F
+		check("race-bump-placements-distinct", *i == 0, *i, 0)
+		*i = 0x7E
+		check("race-bump-int-write-left-pad-intact", pad[0] == 0x7F && *i == 0x7E, "aliased bytes", "independent placements")
+		regionSink += int(pad[0]) + *i
+	}
+	if rb := rt.RegionBytes(); rb != 0 {
+		fmt.Printf("FAIL race-bump-region-released-after-owner-block: got %d bytes, want 0\n", rb)
+		os.Exit(1)
+	}
+	fmt.Println("ok race-bump-region-released-after-owner-block")
+
+	// Reuse round: the released region's chunk must serve fresh zeroed
+	// storage again, so stale bytes or a shadow that survived release
+	// without racefree would show up as non-zero placements here.
+	regionBump8()
+	tail := regionBump512(0x55)
+	check("race-bump-reuse-round-values", tail == 0xAA && regionSink == 765, regionSink, 765)
+	if rb := rt.RegionBytes(); rb != 0 {
+		fmt.Printf("FAIL race-bump-region-released-after-reuse: got %d bytes, want 0\n", rb)
+		os.Exit(1)
+	}
+	fmt.Println("ok race-bump-region-released-after-reuse")
+	if failed {
+		os.Exit(1)
+	}
+}

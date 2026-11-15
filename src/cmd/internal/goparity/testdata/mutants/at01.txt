@@ -1,0 +1,8 @@
+kind: compiler
+file: src/cmd/compile/internal/escape/arena_logos.go
+expect: at01_arena_escape
+config: K5
+-- old --
+	if n.Op() != ir.OMAKESLICE || n.Esc() != ir.EscNone {
+-- new --
+	if n.Op() != ir.OMAKESLICE {

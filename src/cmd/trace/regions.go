@@ -19,10 +19,8 @@ import (
 	"time"
 )
 
-// UserRegionsHandlerFunc returns a HandlerFunc that reports all regions found in the trace.
 func UserRegionsHandlerFunc(t *parsedTrace) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Summarize all the regions.
 		summary := make(map[regionFingerprint]regionStats)
 		for _, g := range t.summary.Goroutines {
 			for _, r := range g.Regions {
@@ -35,7 +33,6 @@ func UserRegionsHandlerFunc(t *parsedTrace) http.HandlerFunc {
 				summary[id] = stats
 			}
 		}
-		// Sort regions by PC and name.
 		userRegions := make([]regionStats, 0, len(summary))
 		for _, stats := range summary {
 			userRegions = append(userRegions, stats)
@@ -46,7 +43,6 @@ func UserRegionsHandlerFunc(t *parsedTrace) http.HandlerFunc {
 			}
 			return cmp.Compare(a.Frame.PC, b.Frame.PC)
 		})
-		// Emit table.
 		err := templUserRegionTypes.Execute(w, userRegions)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to execute template: %v", err), http.StatusInternalServerError)
@@ -55,8 +51,6 @@ func UserRegionsHandlerFunc(t *parsedTrace) http.HandlerFunc {
 	}
 }
 
-// regionFingerprint is a way to categorize regions that goes just one step beyond the region's Type
-// by including the top stack frame.
 type regionFingerprint struct {
 	Frame trace.StackFrame
 	Type  string
@@ -152,17 +146,14 @@ and user-defined task.
 </html>
 `))
 
-// UserRegionHandlerFunc returns a HandlerFunc that presents the details of the selected regions.
 func UserRegionHandlerFunc(t *parsedTrace) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Construct the filter from the request.
 		filter, err := newRegionFilter(r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		// Collect all the regions with their goroutines.
 		type region struct {
 			*trace.UserRegionSummary
 			Goroutine           trace.GoID
@@ -199,20 +190,17 @@ func UserRegionHandlerFunc(t *parsedTrace) http.HandlerFunc {
 			}
 		}
 
-		// Sort.
 		sortBy := r.FormValue("sortby")
 		if _, ok := validNonOverlappingStats[sortBy]; ok {
 			slices.SortFunc(regions, func(a, b region) int {
 				return cmp.Compare(b.NonOverlappingStats[sortBy], a.NonOverlappingStats[sortBy])
 			})
 		} else {
-			// Sort by total time by default.
 			slices.SortFunc(regions, func(a, b region) int {
 				return cmp.Compare(b.TotalTime, a.TotalTime)
 			})
 		}
 
-		// Write down all the non-overlapping stats and sort them.
 		allNonOverlappingStats := make([]string, 0, len(validNonOverlappingStats))
 		for name := range validNonOverlappingStats {
 			allNonOverlappingStats = append(allNonOverlappingStats, name)
@@ -230,7 +218,6 @@ func UserRegionHandlerFunc(t *parsedTrace) http.HandlerFunc {
 			return cmp.Compare(a, b)
 		})
 
-		// Write down all the range stats and sort them.
 		allRangeStats := make([]string, 0, len(validRangeStats))
 		for name := range validRangeStats {
 			allRangeStats = append(allRangeStats, name)
@@ -444,15 +431,12 @@ This must be taken into account when interpreting the data.
 </table>
 `))
 
-// regionFilter represents a region filter specified by a user of cmd/trace.
 type regionFilter struct {
 	name   string
 	params url.Values
 	cond   []func(*parsedTrace, *trace.UserRegionSummary) bool
 }
 
-// match returns true if a region, described by its ID and summary, matches
-// the filter.
 func (f *regionFilter) match(t *parsedTrace, s *trace.UserRegionSummary) bool {
 	for _, c := range f.cond {
 		if !c(t, s) {
@@ -462,7 +446,6 @@ func (f *regionFilter) match(t *parsedTrace, s *trace.UserRegionSummary) bool {
 	return true
 }
 
-// newRegionFilter creates a new region filter from URL query variables.
 func newRegionFilter(r *http.Request) (*regionFilter, error) {
 	if err := r.ParseForm(); err != nil {
 		return nil, err

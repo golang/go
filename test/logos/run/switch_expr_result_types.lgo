@@ -1,0 +1,213 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type pc struct {
+	id int
+}
+
+type box struct {
+	o int?
+	p int
+}
+
+var errLoad = errors.New("load")
+
+func load(v int, fail bool) (int, error) {
+	if fail {
+		return 0, errLoad
+	}
+	return v, nil
+}
+
+func maybe(n int) int? {
+	if n == 7 {
+		return 7
+	}
+	return nil
+}
+
+func maybeP(n int) *pc? {
+	if n == 7 {
+		return &pc{id: 7}
+	}
+	return nil
+}
+
+func optPlain(v int) int {
+	r := switch v {
+	case 7 => maybe(7)
+	default => maybe(0)
+	}
+	return r ?? -1
+}
+
+func ptrPlain(v int) int {
+	r := switch v {
+	case 7 => maybeP(7)
+	default => maybeP(0)
+	}
+	return r?.id ?? -1
+}
+
+func tuplePlain(v int) (int, string) {
+	r := switch v {
+	case 7 => (1, "a")
+	default => (2, "b")
+	}
+	a, b := r
+	return a, b
+}
+
+func viewPlain(v int, a const []int, b const []int) int {
+	r := switch v {
+	case 7 => a
+	default => b
+	}
+	return len(r)
+}
+
+func optTry(v int, fail bool) (int, error) {
+	r := switch n := load(v, fail)?; n {
+	case 7 => maybe(7)
+	default => maybe(0)
+	}
+	return r ?? -1, nil
+}
+
+func optField(v int, fail bool) (int, error) {
+	b := box{o: switch n := load(v, fail)?; n {
+	case 7 => maybe(7)
+	default => maybe(0)
+	}, p: 1}
+	return b.o ?? -1, nil
+}
+
+func ptrTry(v int, fail bool) (int, error) {
+	r := switch n := load(v, fail)?; n {
+	case 7 => maybeP(7)
+	default => maybeP(0)
+	}
+	return r?.id ?? -1, nil
+}
+
+func tupleTry(v int, fail bool, x (int, string), y (int, string)) (int, string, error) {
+	r := switch n := load(v, fail)?; n {
+	case 7 => x
+	default => y
+	}
+	a, b := r
+	return a, b, nil
+}
+
+func viewTry(v int, fail bool, a const []int, b const []int) (int, error) {
+	r := switch n := load(v, fail)?; n {
+	case 7 => a
+	default => b
+	}
+	return len(r), nil
+}
+
+//logos:allow(complexity::cognitive_overflow)
+func main() {
+	check("opt", optPlain(7) == 7 && optPlain(1) == -1, []int{optPlain(7), optPlain(1)}, []int{7, -1})
+	check("ptr", ptrPlain(7) == 7 && ptrPlain(1) == -1, []int{ptrPlain(7), ptrPlain(1)}, []int{7, -1})
+	a1, b1 := tuplePlain(7)
+	a2, b2 := tuplePlain(1)
+	check("tuple", a1 == 1 && b1 == "a" && a2 == 2 && b2 == "b", fmt.Sprint(a1, b1, a2, b2), "1 a 2 b")
+	check("view", viewPlain(7, []int{1}, []int{2, 3}) == 1 && viewPlain(1, []int{1}, []int{2, 3}) == 2, []int{viewPlain(7, []int{1}, []int{2, 3}), viewPlain(1, []int{1}, []int{2, 3})}, []int{1, 2})
+	n, err := optTry(7, false)
+	if err != nil {
+		check("opt-try", false, err, 7)
+	} else {
+		check("opt-try", err == nil && n == 7, n, 7)
+	}
+	var one struct {
+		v   int
+		err error
+	}
+	one.v, one.err = optTry(7, true)
+	n, err = one.v, one.err
+	if err == nil {
+		check("opt-try-fail", false, "no error", 0)
+	} else {
+		check("opt-try-fail", err == errLoad && n == 0, n, 0)
+	}
+	n, err = optField(7, false)
+	if err != nil {
+		check("opt-field", false, err, 7)
+	} else {
+		check("opt-field", err == nil && n == 7, n, 7)
+	}
+	one.v, one.err = optField(7, true)
+	n, err = one.v, one.err
+	if err == nil {
+		check("opt-field-fail", false, "no error", 0)
+	} else {
+		check("opt-field-fail", err == errLoad && n == 0, n, 0)
+	}
+	n, err = ptrTry(7, false)
+	if err != nil {
+		check("ptr-try", false, err, 7)
+	} else {
+		check("ptr-try", err == nil && n == 7, n, 7)
+	}
+	one.v, one.err = ptrTry(7, true)
+	n, err = one.v, one.err
+	if err == nil {
+		check("ptr-try-fail", false, "no error", 0)
+	} else {
+		check("ptr-try-fail", err == errLoad && n == 0, n, 0)
+	}
+	ta, tb, err := tupleTry(7, false, (1, "a"), (2, "b"))
+	if err != nil {
+		check("tuple-try", false, err, "1 a")
+	} else {
+		check("tuple-try", err == nil && ta == 1 && tb == "a", fmt.Sprint(ta, tb), "1 a")
+	}
+	var two struct {
+		a   int
+		b   string
+		err error
+	}
+	two.a, two.b, two.err = tupleTry(7, true, (1, "a"), (2, "b"))
+	ta, tb, err = two.a, two.b, two.err
+	if err == nil {
+		check("tuple-try-fail", false, "no error", "0 ")
+	} else {
+		check("tuple-try-fail", err == errLoad && ta == 0 && tb == "", fmt.Sprint(ta, tb), "0 ")
+	}
+	n, err = viewTry(7, false, []int{1}, []int{2, 3})
+	if err != nil {
+		check("view-try", false, err, 1)
+	} else {
+		check("view-try", err == nil && n == 1, n, 1)
+	}
+	one.v, one.err = viewTry(7, true, []int{1}, []int{2, 3})
+	n, err = one.v, one.err
+	if err == nil {
+		check("view-try-fail", false, "no error", 0)
+	} else {
+		check("view-try-fail", err == errLoad && n == 0, n, 0)
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

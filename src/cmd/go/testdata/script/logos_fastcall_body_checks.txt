@@ -1,0 +1,22 @@
+# The checks on the fast trampoline body read a listing that exists only when
+# GOEXPERIMENT=logosfastcgo is on: without it runtime.logosCgocallFast is not
+# linked and the listing is empty. This script turns the experiment on and fails
+# if any of the three tests skips or does not run.
+[!cgo] skip 'needs cgo'
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env CGO_ENABLED=1
+env GOEXPERIMENT=logosfastcgo
+go test -v -count=1 -run '^(TestFastcallNoClockInFastBody|TestFastcallStructure|TestFastcallOneTrampoline)$' cmd/cgo/internal/testlogos
+stdout '--- PASS: TestFastcallNoClockInFastBody'
+stdout '--- PASS: TestFastcallStructure'
+stdout '--- PASS: TestFastcallOneTrampoline'
+! stdout 'SKIP'
+stdout '^ok\s+cmd/cgo/internal/testlogos'
+! stderr 'no tests to run'
+! stdout 'no tests to run'
+
+-- go.mod --
+module example.com/fastcallbody
+
+go 1.27

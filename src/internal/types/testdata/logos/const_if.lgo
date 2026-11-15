@@ -4,9 +4,7 @@
 
 package p
 
-// M7-S1 const if (SPEC Sec 2.5, T-205): the condition must be a constant
-// boolean; both branches type-check, so an undefined name in the dead
-// branch is an error (#174).
+import "comptime"
 
 func constIfLive() int {
 	const if 1 == 1 {
@@ -21,6 +19,14 @@ func constIfDeadChecked() int {
 		return undefinedInDeadBranch // ERROR "undefined: undefinedInDeadBranch"
 	} else {
 		return 3
+	}
+}
+
+func constIfDeadElseChecked() int {
+	const if 1 == 1 {
+		return 1
+	} else {
+		return undefinedInDeadElse // ERROR "undefined: undefinedInDeadElse"
 	}
 }
 
@@ -66,4 +72,14 @@ unused /* ERROR "label unused declared and not used" */ :
 			break
 		}
 	}
+}
+
+func constIfDeadForExempt() int {
+	const if 1 == 2 {
+		const for _, f := range comptime.Fields[int]() {
+			_ = f
+		}
+		return undefinedInDeadForBranch // ERROR "undefined: undefinedInDeadForBranch"
+	}
+	return 4
 }

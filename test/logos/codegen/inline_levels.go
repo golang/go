@@ -2,13 +2,6 @@
 
 package main
 
-// M13-S1 -O levels (SPEC T-105), Go twin of inline_levels.lgo: mediumCost
-// costs 167 inline nodes, above the O1 budget of 80 and the O2 budget of
-// 120, so it inlines only at O3 (budget 400). recF and recG are mutually
-// recursive at 176 nodes each: above the O3 recursive-cycle budget of 80,
-// so neither inlines at O3. Run with go under the same directives. main
-// stays empty so call-site and escape notes never appear.
-
 func mediumCost(a, b, c, d int) int { // ERROR "can inline mediumCost"
 	x1 := a + b
 	x2 := c + d

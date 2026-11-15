@@ -1,1 +1,5 @@
-pool: 64 2080
+ok syncpool-clobber-sane
+ok syncpool-type-kept
+ok syncpool-len-kept
+ok syncpool-contents-kept
+ok syncpool-first-kept

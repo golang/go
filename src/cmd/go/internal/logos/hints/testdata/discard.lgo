@@ -1,6 +1,17 @@
 package p
 
-func f() error { return nil }
+import "errors"
+
+var errDiscard = errors.New("discard")
+
+var failDiscard = false
+
+func f() error {
+	if failDiscard {
+		return errDiscard
+	}
+	return nil
+}
 
 func g() error {
 	f()

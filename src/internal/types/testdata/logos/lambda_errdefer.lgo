@@ -1,0 +1,70 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+import "context"
+
+func note(s string) {}
+
+func apply(f func(int) (int, error), v int) (int, error) { return f(v) }
+
+func applyPlain(f func(int) int, v int) int { return f(v) }
+
+func lambdaWithErrorResult() error {
+	_, err := apply(x => {
+		errdefer note("e")
+		return x, nil
+	}, 1)
+	return err
+}
+
+func lambdaAssignedWithErrorResult() error {
+	var f func(int) (int, error) = x => {
+		errdefer note("e")
+		return x, nil
+	}
+	_, err := f(1)
+	return err
+}
+
+func lambdaWithoutErrorResult() int {
+	return applyPlain(x => {
+		errdefer /* ERROR "errdefer_needs_error_result" */ note("e")
+		return x
+	}, 1)
+}
+
+func lambdaAssignedWithoutErrorResult() int {
+	var f func(int) int = x => {
+		errdefer /* ERROR "errdefer_needs_error_result" */ note("e")
+		return x
+	}
+	return f(1)
+}
+
+func chainFilterBlock(xs []int) error {
+	_ = xs.filter(x => {
+		errdefer /* ERROR "errdefer_needs_error_result" */ note("e")
+		return x > 1
+	})
+	return nil
+}
+
+func chainNestedBlock(xs []int) error {
+	_ = xs.map(x => {
+		if x > 1 {
+			errdefer /* ERROR "errdefer_needs_error_result" */ note("e")
+		}
+		return x
+	})
+	return nil
+}
+
+func stageFilterBlock(ctx context.Context, xs []int) ([]int, error) {
+	return xs.group(ctx, limit = 2).filter(x => {
+		errdefer /* ERROR "errdefer_needs_error_result" */ note("e")
+		return x > 1
+	})
+}

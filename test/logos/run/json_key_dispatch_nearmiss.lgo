@@ -1,0 +1,103 @@
+// run
+
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
+)
+
+type Eight struct {
+	Alpha   int64 `json:"alpha"`
+	Bravo   int64 `json:"bravo"`
+	Charlie int64 `json:"charlie"`
+	Delta   int64 `json:"delta"`
+	Echo    int64 `json:"echo"`
+	Foxtrot int64 `json:"foxtrot"`
+	Golf    int64 `json:"golf"`
+	Hotel   int64 `json:"hotel"`
+}
+
+type Twelve struct {
+	Alpha   int64 `json:"alpha"`
+	Bravo   int64 `json:"bravo"`
+	Charlie int64 `json:"charlie"`
+	Delta   int64 `json:"delta"`
+	Echo    int64 `json:"echo"`
+	Foxtrot int64 `json:"foxtrot"`
+	Golf    int64 `json:"golf"`
+	Hotel   int64 `json:"hotel"`
+	India   int64 `json:"india"`
+	Juliet  int64 `json:"juliet"`
+	Kilo    int64 `json:"kilo"`
+	Lima    int64 `json:"lima"`
+}
+
+var eightKeys = []string{"alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel"}
+var twelveKeys = []string{"alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel", "india", "juliet", "kilo", "lima"}
+
+func failf(format string, args ...any) {
+	fmt.Printf("FAIL %s\n", fmt.Sprintf(format, args...))
+	os.Exit(1)
+}
+
+func variants(key string, declared []string) []string {
+	last := len(key) - 1
+	var out []string
+	for _, v := range []string{key[:last] + "z", "z" + key[1:], key[:last], key + "z", strings.ToUpper(key[:last]) + "z"} {
+		if !strings.EqualFold(v, key) && !isDeclared(v, declared) {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
+func isDeclared(key string, declared []string) bool {
+	for _, d := range declared {
+		if strings.EqualFold(key, d) {
+			return true
+		}
+	}
+	return false
+}
+
+func decodeOne[T comparable](doc string) T {
+	var v T
+	if err := json.Unmarshal([]byte(doc), &v); err != nil {
+		failf("decode %s: %v", doc, err)
+	}
+	return v
+}
+
+func checkNearMisses[T comparable](name string, keys []string) {
+	var zero T
+	for _, k := range keys {
+		for _, nm := range variants(k, keys) {
+			if decodeOne[T](`{`+strconv.Quote(nm)+`:7}`) != zero {
+				failf("%s: key %q accepted as declared key %q", name, nm, k)
+			}
+		}
+	}
+	fmt.Println("ok " + name + "-near-miss-ignored")
+}
+
+func checkExact[T comparable](name string, keys []string, want T) {
+	var parts []string
+	for i, k := range keys {
+		parts = append(parts, strconv.Quote(k)+":"+strconv.Itoa(100+i))
+	}
+	if got := decodeOne[T]("{" + strings.Join(parts, ",") + "}"); got != want {
+		failf("%s: declared keys decoded to %+v, want %+v", name, got, want)
+	}
+	fmt.Println("ok " + name + "-exact-accepted")
+}
+
+func main() {
+	checkExact("switch", eightKeys, Eight{100, 101, 102, 103, 104, 105, 106, 107})
+	checkNearMisses[Eight]("switch", eightKeys)
+	checkExact("table", twelveKeys, Twelve{100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111})
+	checkNearMisses[Twelve]("table", twelveKeys)
+}

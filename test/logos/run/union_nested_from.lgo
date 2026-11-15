@@ -1,0 +1,151 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+
+	"logos/rt"
+)
+
+type Circle struct{ R int }
+type Square struct{ S int }
+type Text struct{ T string }
+type Shape interface{ Circle | Square }
+type Any interface{ Shape | Text }
+type ClashU interface{ int | string }
+type ClashA struct{}
+type ClashA2 struct{}
+
+func checkNestedMember() {
+	var a Any = Circle{R: 7}
+	c, ok := a.(Circle)
+	if !ok || c.R != 7 {
+		fmt.Println("FAIL nested-member-comma:", ok, c)
+		os.Exit(1)
+	}
+	fmt.Println("ok nested-member-comma")
+	s := a.(Circle)
+	if s.R != 7 {
+		fmt.Println("FAIL nested-member-single:", s)
+		os.Exit(1)
+	}
+	fmt.Println("ok nested-member-single")
+}
+
+func checkNestedMember2() {
+	var q Any = Square{S: 3}
+	sq, ok := q.(Square)
+	if !ok || sq.S != 3 {
+		fmt.Println("FAIL nested-member2-comma:", ok, sq)
+		os.Exit(1)
+	}
+	fmt.Println("ok nested-member2-comma")
+	sq2 := q.(Square)
+	if sq2.S != 3 {
+		fmt.Println("FAIL nested-member2-single:", sq2)
+		os.Exit(1)
+	}
+	fmt.Println("ok nested-member2-single")
+}
+
+func checkTopMember() {
+	var t Any = Text{T: "hi"}
+	tx, ok := t.(Text)
+	if !ok || tx.T != "hi" {
+		fmt.Println("FAIL top-member-comma:", ok, tx)
+		os.Exit(1)
+	}
+	fmt.Println("ok top-member-comma")
+	tx2 := t.(Text)
+	if tx2.T != "hi" {
+		fmt.Println("FAIL top-member-single:", tx2)
+		os.Exit(1)
+	}
+	fmt.Println("ok top-member-single")
+	tc, tok := t.(Circle)
+	if tok || tc.R != 0 {
+		fmt.Println("FAIL nested-dynamic-mismatch-comma:", tok, tc)
+		os.Exit(1)
+	}
+	fmt.Println("ok nested-dynamic-mismatch-comma")
+}
+
+func checkNonmemberComma() {
+	var a Any = Circle{R: 7}
+	v, ok := a.(float64)
+	if ok || v != 0 {
+		fmt.Println("FAIL nonmember-comma:", ok, v)
+		os.Exit(1)
+	}
+	fmt.Println("ok nonmember-comma")
+}
+
+func checkNonmemberSingle() {
+	var a Any = Circle{R: 7}
+	defer func() {
+		r := recover()
+		e, ok := r.(*rt.UnionAssertionError)
+		if !ok {
+			fmt.Println("FAIL nonmember-single-kind:", r)
+			os.Exit(1)
+		}
+		want := "interface conversion: float64 is not a member of main.Any"
+		if e.Error() != want {
+			fmt.Println("FAIL nonmember-single-text: got", e.Error(), "want", want)
+			os.Exit(1)
+		}
+		fmt.Println("ok nonmember-single-panic")
+	}()
+	_ = a.(float64)
+	fmt.Println("FAIL nonmember-single: no panic")
+	os.Exit(1)
+}
+
+func checkNonmemberSingleText() {
+	var t Any = Text{T: "hi"}
+	defer func() {
+		r := recover()
+		e, ok := r.(*rt.UnionAssertionError)
+		if !ok {
+			fmt.Println("FAIL nonmember-single-text-kind:", r)
+			os.Exit(1)
+		}
+		want := "interface conversion: float64 is not a member of main.Any"
+		if e.Error() != want {
+			fmt.Println("FAIL nonmember-single-text: got", e.Error(), "want", want)
+			os.Exit(1)
+		}
+		fmt.Println("ok nonmember-single-text")
+	}()
+	_ = t.(float64)
+	fmt.Println("FAIL nonmember-single-text: no panic")
+	os.Exit(1)
+}
+
+func checkClash() {
+	var cu ClashU = 5
+	_, ok := cu.(ClashA)
+	if ok {
+		fmt.Println("FAIL clash-a-comma")
+		os.Exit(1)
+	}
+	fmt.Println("ok clash-a-comma")
+	_, ok = cu.(ClashA2)
+	if ok {
+		fmt.Println("FAIL clash-a2-comma")
+		os.Exit(1)
+	}
+	fmt.Println("ok clash-a2-comma")
+}
+
+func main() {
+	checkNestedMember()
+	checkNestedMember2()
+	checkTopMember()
+	checkNonmemberComma()
+	checkNonmemberSingle()
+	checkNonmemberSingleText()
+	checkClash()
+}

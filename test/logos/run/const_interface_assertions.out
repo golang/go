@@ -1,7 +1,7 @@
-a
-b
-c 9
-no extra
-plus:b
-qualified:s
-good:b
+ok concrete
+ok narrow
+ok assert-values
+ok assert-miss
+ok qualified-plus
+ok qualified-small
+ok plus-good

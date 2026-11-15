@@ -1,13 +1,5 @@
 // errorcheck
 
-// correctness::typed_nil_return (SPEC Sec 1.2, T-102): a function returns a
-// possibly nil pointer as an interface or error result without a dominating
-// nil check. The interface that holds a nil pointer is itself not nil, so the
-// caller's `err != nil` is true. Three forms are active in loGo/s: the
-// conversion (*T)(nil), an option value, and a platform pointer (a pointer
-// from a Go declaration). The rule is forbid, so no //logos:allow silences it.
-// Only the (*T)(nil) form is active in Go (typed_nil_return_go.go).
-
 package p
 
 import (
@@ -20,8 +12,6 @@ var touched bool
 type Err struct{ msg string }
 
 func (e *Err) Error() string { return e.msg }
-
-// ---- (*T)(nil) ----
 
 func explicitError() error {
 	return (*Err)(nil) // ERROR "\[correctness::typed_nil_return\] \(\*Err\)\(nil\) returned as error result is a typed nil"
@@ -67,8 +57,6 @@ func notAnInterface() *Err? {
 func notTheInterfaceSlot() (*Err?, error) {
 	return (*Err)(nil), nil
 }
-
-// ---- option ----
 
 func optionAny(p *Err?) any {
 	return p // ERROR "\[correctness::typed_nil_return\] option p \(\*Err\?\) returned as any result without a dominating nil check"
@@ -222,8 +210,6 @@ func optionNotBoxed(p *Err?) (*Err?, any) {
 	return p, nil
 }
 
-// ---- platform pointer ----
-
 func platformLocal() io.Closer {
 	f := os.Stdout
 	return f // ERROR "\[correctness::typed_nil_return\] platform pointer f \(\*os.File\) returned as io.Closer result without a dominating nil check"
@@ -327,8 +313,6 @@ func optionNestedBlockKilled(p *Err?, q *Err?) any {
 	}
 	return p // ERROR "\[correctness::typed_nil_return\] option p \(\*Err\?\) returned as any result without a dominating nil check"
 }
-
-// ---- forbid ----
 
 //logos:allow(correctness::typed_nil_return) // ERROR "\[correctness::allow_forbidden_rule\]"
 func allowIgnored() error {

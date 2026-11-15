@@ -1,3 +1,17 @@
-true
-false true
-false false
+ok iface-size
+ok present-some
+ok absent-none
+ok bytes-size
+ok bytes-none
+ok map-size
+ok map-present-nil
+ok map-absent
+ok chan-size
+ok chan-present-nil
+ok chan-absent
+ok func-size
+ok func-present-nil
+ok func-absent
+ok pointer-size
+ok pointer-present-nil
+ok pointer-absent

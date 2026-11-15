@@ -4,12 +4,10 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"runtime"
 )
 
-// #82: unions use the upstream interface representation, so no custom
-// GC bitmap or two-tier tag layout exists; ordinary collection reclaims
-// union values stored in slices and maps.
 type U interface {
 	int | string
 }
@@ -31,13 +29,47 @@ func sum(us []U) int {
 	return n
 }
 
+var failed bool
+
+func check(name string, cond bool, got, want string) {
+	if !cond {
+		fmt.Printf("FAIL %s: got %s want %s\n", name, got, want)
+		failed = true
+		return
+	}
+	fmt.Printf("ok %s\n", name)
+}
+
 func main() {
-	us := make([]U, 0, 2000)
-	for i := 0; i < 1000; i++ {
+	const pairs = 1000
+	us := make([]U, 0, 2*pairs)
+	for i := 0; i < pairs; i++ {
 		us = append(us, i)
 		us = append(us, "s")
 	}
+	runtime.GC()
+	want := pairs*(pairs-1)/2 + pairs
+	check("union-gc-shape-survives-gc", len(us) == 2*pairs && sum(us) == want, fmt.Sprint(len(us), sum(us)), fmt.Sprint(2*pairs, want))
 	m := map[string]U{"a": 1, "b": "bb"}
 	runtime.GC()
-	fmt.Println(len(us), sum(us), len(m))
+	msum := 0
+	for _, u := range m {
+		switch v := u.(type) {
+		case int:
+			msum += v
+		case string:
+			msum += len(v)
+		case nil:
+			continue
+		}
+	}
+	check("union-gc-shape-map-intact", len(m) == 2 && msum == 3, fmt.Sprint(len(m), msum), "2 3")
+	if w, ok := us[0].(U); ok {
+		check("union-gc-shape-assert-to-union", sum([]U{w, us[1]}) == 1, fmt.Sprint(sum([]U{w, us[1]})), "1")
+	} else {
+		check("union-gc-shape-assert-to-union", false, "not-member", "1")
+	}
+	if failed {
+		os.Exit(1)
+	}
 }

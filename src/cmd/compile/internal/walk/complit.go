@@ -6,6 +6,7 @@ package walk
 
 import (
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/escape"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/staticdata"
@@ -504,6 +505,7 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
 		} else {
 			r = ir.NewUnaryExpr(base.Pos, ir.ONEW, ir.TypeNode(n.X.Type()))
 			r.SetEsc(n.Esc())
+			escape.LogosArenaTransferObject(n, r, ir.CurFunc)
 		}
 		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, var_, r))
 

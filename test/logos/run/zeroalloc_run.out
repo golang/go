@@ -1,0 +1,8 @@
+ok zeroalloc-constBox
+ok zeroalloc-byteBox
+ok zeroalloc-staticClosure
+ok zeroalloc-emptyPtr
+ok zeroalloc-emptySlice
+ok zeroalloc-zeroBox
+ok zeroalloc-record
+ok zeroalloc-push

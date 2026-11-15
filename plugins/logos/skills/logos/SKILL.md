@@ -12,7 +12,7 @@ metadata:
 
 loGo/s is Go with checked error propagation. You write `.lgo` files. The `logos` command checks them, lowers them to plain Go, and builds them with the Go 1.27 backend.
 
-Coverage: M1 error propagation, M2 closed unions, M3 options and nil flow, M4 interface properties, M5 const composites with CTFE, read-only placement, const views, zero-copy conversions, const maps and `logos/rt.Freeze`, M6 interpolation, address-of, defaults, spread, tuples, lambdas, chains, leading-dot, yield and scope defer, M7 comptime (`const if`, `const for`, `const switch T`, `comptime.ViewAs`), M8 structured concurrency, M9 lints, M10 migration tooling, M11 static JSON, M12 capabilities, M13 optimization tiers (`-O`), M21 language server (`logos lsp`).
+Coverage: M1 error propagation, M2 closed unions, M3 options and nil flow, M4 interface properties, M5 const composites with CTFE, read-only placement, const views, zero-copy conversions, const maps and `logos/rt.Freeze`, M6 interpolation, address-of, defaults, spread, tuples, lambdas, chains, leading-dot, yield and scope defer, M7 comptime (`const if`, `const for`, `const switch T`, `comptime.ViewAs`), M8 structured concurrency, M9 lints, M10 migration tooling, M11 static JSON, M12 capabilities, M13 optimization tiers (`-O`), M14 fixed-array SIMD, M16 WASM profile, M17 stack sizing, M18 arena allocation, M20 fast cgo, M21 language server (`logos lsp`), M22 zero-allocation enforcement.
 
 ## Procedure
 
@@ -21,7 +21,7 @@ Coverage: M1 error propagation, M2 closed unions, M3 options and nil flow, M4 in
 3. Write new code with the "Syntax" tables. Done when each error path uses a shipped form and no hand-written `if err != nil { return ..., err }` remains where `?` applies.
 4. Apply "Best practices". Done when each practice holds.
 5. Lint: run `logos lint ./...` to check against forbidden and denied lint rules. Fix each finding or silence a deny rule with `//logos:allow(<rule>)`.
-6. Build and test: run `logos build ./...` and `logos test ./...`. Done when both exit 0. Fix each diagnostic by its rule ID in the "Diagnostics" table. Tune performance with `-O=0|1|2|3|s|z` flags or `logos.toml [build] opt_level` and `target_cpu`.
+6. Build and test: run `logos build ./...` and `logos test ./...`. Done when both exit 0. Fix each diagnostic by its rule ID in the "Diagnostics" table. Tune performance with `-O=0|1|2|3|s` flags or `logos.toml [build] opt_level` and `target_cpu`.
 7. Context lookup: run `logos context <package>#<symbol>` to inspect declaration signatures without function bodies.
 8. Editor setup: run `logos lsp` to launch the language server proxy for gopls with `.lgo` position and overlay mapping.
 9. When the user needs plain Go, eject (see "Eject"). Done when `go build ./...` and `go test ./...` both exit 0 inside the ejected directory.
@@ -31,14 +31,14 @@ Coverage: M1 error propagation, M2 closed unions, M3 options and nil flow, M4 in
 - One kind per module: a loGo/s module holds only `.lgo` packages (tests are `_test.lgo`); a Go module holds only `.go` packages. A package holds one kind. A workspace may hold both kinds.
 - Imports cross kinds in both directions, per import: a `.lgo` package may import any Go package, and a Go package may import any loGo/s package. A Go package sees a loGo/s package through its plain-Go form, the one `logos eject` writes.
 - Build with `logos`. Plain `go` ignores `.lgo` files, so it cannot build a loGo/s package or a Go package that imports one.
-- `logos.toml` sits at the module root. It uses a strict TOML subset (tables, `key = value`, basic and literal strings, integers, booleans, string arrays, `#` comments; 1 MB cap). Unknown tables or keys are errors, reported as `logos.toml:<line>:<col>: <message>`. Keys shipped so far: `[project] name`, `edition`, `strict_files`; `[build] cgo`, `cgo_allowlist`, `opt_level`, `target_cpu`, `synthetic_pgo`, `arena`, `gc`; `[capabilities]` severity and allowlist keys (M12, below).
+- `logos.toml` sits at the module root. It uses a strict TOML subset (tables, `key = value`, basic and literal strings, integers, booleans, string arrays, `#` comments; 1 MiB cap). Unknown tables or keys are errors, reported as `logos.toml:<line>:<col>: <message>`. Keys shipped so far: `[project] strict_files`; `[build] cgo`, `cgo_allowlist`, `opt_level`, `target_cpu`, `arena`; `[capabilities]` severity and allowlist keys (M12, below); `[lints]` group and threshold keys (M9, below).
 - cgo is off by default in loGo/s modules (`[build] cgo = "forbid"`). Set `"restricted"` with `cgo_allowlist` globs, or `"allow"`, to use it.
 - Closed unions (M2): a Go importer sees a value-used union as its methods-only interface, the declaration `logos eject` writes (terms dropped, methods kept, with a `// loGo/s union: A | B` comment). A union used both as a type constraint and as a value type has no Go form; the Go import fails with `logos build: union U is used as a type constraint and as a value type; Go cannot express both`.
 - Options and platform pointers (M3): declarations from Go packages are platform declarations for `.lgo` code. Call, field, and element results from Go are platform values: usable after the error check and comparable to nil. Storing a nil Go value into a declared non-nil location panics with `logos: nil from Go value stored into non-nil *T at <file>:<line>`. A Go importer sees `*T?` as a bare pointer (nil as none) or as `logos/rt.Option[T]`, and non-nil `*T` as a bare pointer. A Go caller built by `logos` gets the same nil-store panic on direct calls (calls through function values are not checked); code built by upstream `go` from ejected output has no checks.
 - Cross-package facts (M3; proven by `src/cmd/go/testdata/script/logos_facts.txt`, `src/cmd/go/testdata/script/logos_facts_nil.txt`): option positions in exported declarations travel in the `__.LOGOS` archive member beside `__.PKGDEF`; only `.lgo` importers apply them. Rebuilding a dependency without its importers fails the import with `logos: stale facts for <module> (fingerprint mismatch)`. The linker skips the member.
 - Properties (M4): a Go importer sees each property element as its `Logos_GetF`/`Logos_SetF` accessor methods.
 - Const views (M5): a Go importer sees the plain type; views are erased.
-- Capabilities (M12; proven by `src/cmd/go/testdata/script/logos_cap_unsafe.txt`, `src/cmd/go/testdata/script/logos_cap_exec.txt`): `logos.toml` holds a `[capabilities]` table with severity keys `direct_reflect`, `transitive_reflect`, `transitive_exec`, `transitive_net`, `transitive_unsafe` (each `deny`, `warn`, or `allow`; every key defaults to `deny` except `transitive_reflect`, which defaults to `warn`) and allowlist keys `reflect_allowlist`, `transitive_exec_allowlist`, `transitive_net_allowlist`, `transitive_unsafe_allowlist` (path globs). `logos` fails the build when a dependency reaches a protected sink (reflect constructors, process spawn, socket creation, `unsafe`, cgo entry) unless the dependency is allowlisted; `warn` prints and continues. Plain `go` runs no audit.
+- Capabilities (M12; proven by `src/cmd/go/testdata/script/logos_cap_unsafe.txt`, `src/cmd/go/testdata/script/logos_cap_exec.txt`): `logos.toml` holds a `[capabilities]` table with severity keys `transitive_reflect`, `transitive_exec`, `transitive_net`, `transitive_unsafe` (each `deny`, `warn`, or `allow`; every key defaults to `deny` except `transitive_reflect`, which defaults to `warn`) and allowlist keys `reflect_allowlist`, `transitive_exec_allowlist`, `transitive_net_allowlist`, `transitive_unsafe_allowlist` (path globs). `logos` fails the build when a dependency reaches a protected sink (reflect constructors, process spawn, socket creation, `unsafe`, cgo entry) unless the dependency is allowlisted; `warn` prints and continues. Plain `go` runs no audit.
 - Lint rules (M9): `logos lint` checks `.lgo` packages with all rules, and Go packages of the main module with language-neutral rules. Forbid rules on Go packages are clamped to deny so `//logos:allow(<rule>)` can silence false positives. `logos build` and plain `go` run no lints on Go packages.
 
 ## Syntax (M1)
@@ -102,7 +102,7 @@ Rules:
 - `nil` and `T` assign into `T?`; `T?` never converts back to `T`. `(T?)?` nests and stays distinct from `T?`; `T??` is rejected, write `(T?)?`. Options whose payload admits nil as a valid value (slices, funcs, chans, interfaces) use `logos/rt.Option[T]` so present-nil stays distinct from absent.
 - `?.` and `??` need an option on the left. A plain method call, field selection, or dereference on an option is an error until narrowing proves `!= nil`. `?.` flattens when the selected field is already an option.
 - `*T` in `.lgo` code is non-nil: `var p *T`, arrays of non-nil pointers without initializers, `make` with nonzero length, `new` of a pointer or of a type with a non-nil field, composite literals missing a non-nil field, and zero-clearing stores are errors. Assigning `nil` to a non-nil location is an error. Use `T?` for a pointer that may be nil.
-- Narrowing: `if x != nil` narrows locals and parameters in the block, through `&&` chains, and after an early exit (`return`, `panic`, `break`, `continue`) on `x == nil`. Assignment ends it. Fields never narrow (copy to a local first). Taking the address, or assigning in a closure or a loop body, disables narrowing for the whole function.
+- Narrowing: `if x != nil` narrows locals and parameters in the block, through `&&` chains, and after an early exit (`return`, `panic`, `break`, `continue`) on `x == nil`. Assignment ends it. Fields never narrow (copy to a local first). Taking the address or assigning in a closure disables narrowing for that variable only.
 - Error-first guard: for a callee declared in `.lgo`, reading a result before the `err` check is an error; the fall-through of `if err != nil { exit }` or the inside of `if err == nil {}` discharges it. Calls into other packages keep their own contracts.
 - Map reads: `m[k] ?? d` types as the element type. `v, ok := m[k]`, stores, `++`, compound assignment, and `delete` keep Go meaning.
 
@@ -130,7 +130,7 @@ Proven by `test/logos/run/ctfe.lgo`, `test/logos/run/const_init_read.lgo`, `test
 | loGo/s | Plain Go |
 |---|---|
 | `const func Fib(n int) int { ... }` then `const fib20 = Fib(20)` | evaluated at compile time; the result is a real constant |
-| `const primes = []int{2, 3, 5}` | package-level `var` with `//logos:rodata`, in read-only data |
+| `const primes = []int{2, 3, 5}` | package-level `var` with `//logos:rodata`, in read-only data (Sec 2.1) |
 | `const scores = map[string]int{"a": 1}` | generated lookup: `switch` up to 8 keys, perfect-hash table above |
 | `scores["a"] ?? -1` | probing lookup that returns an option; absent keys read as none |
 | `func sum(xs const []int) int` | function over the plain type; the view is erased |
@@ -141,8 +141,8 @@ Proven by `test/logos/run/ctfe.lgo`, `test/logos/run/const_init_read.lgo`, `test
 
 Rules:
 
-- `const func` bodies stay pure: no I/O, goroutine, package-variable read or write, `recover`, `uintptr`, map range, pointer, `defer`, `goto`, function literal, or method call. Violations are `[correctness::const_func_impure]`. Evaluation stops at 100,000 steps (`[comptime::ctfe_step_limit]`) and 1 MB values (`[comptime::const_too_large]`); an overflow, a NaN or duplicate map key, an executed panic, or an unsupported form reports `[correctness::const_eval]`. Integers use target widths (`1 << 32` is exact on 64-bit). A single-value map-index read is not constant. The step-limit knob has no `logos.toml` key yet.
-- Read-only placement: package-level const composites land in read-only data (`RODATA`, or relro with pointers); the backing array of a const slice is a named symbol (`go tool nm` type `R`), and a write through `unsafe` faults. `reflect.DeepEqual` and `fmt.Println` accept them. Function-scope const composites stay writable stack values. A named map type reached through a const keeps dynamic initialization.
+- `const func` bodies stay pure: no I/O, goroutine spawn, mutable package-variable read, `recover`, pointer-to-`uintptr` conversion, dynamic map range, or pointer use. Violations are `[correctness::const_func_impure]`. Evaluation stops at the `max_ctfe_steps` limit in `[lints.thresholds]` (default 100,000 steps, `[comptime::ctfe_step_limit]`) and 1 MB values (`[comptime::const_too_large]`); an overflow, a NaN or duplicate map key, an executed panic, or an unsupported form reports `[correctness::const_eval]`. Integers use target widths (`1 << 32` is exact on 64-bit). A single-value map-index read is not constant. The limit may be raised in `logos.toml`.
+- Read-only placement: pointer-free const data is read-only before any init; const data with pointers is read-only so a write faults. The backing array of a const slice is a named symbol (`go tool nm` type `R`), and a write through `unsafe` faults. `reflect.DeepEqual` and `fmt.Println` accept them. A named map type reached through a const keeps dynamic initialization.
 - Const maps: up to 8 keys lower to a `switch` (no `_tab` symbol); more keys lower to bucketed perfect-hash tables (`B = ceil(N/8)`) with constant-time metadata reads plus exactly one key/value-slot probe with full-key validation. `range` visits keys in sorted order; `len` is constant; use as a plain map materializes one copy. Keys are strings, numbers, bools, or structs or arrays of those, else `[comptime::constmap_key_type]`; `-0.0` canonicalizes to `+0.0` and `NaN` keys fail. Construction tries 8 salts of 125,000 seed trials (1,000,000 total); exhaustion reports `[comptime::constmap_seed_not_found]`. Lookup cost is report-only and slower than a runtime map: never claim a speedup.
 - `const T` parses in parameter, receiver, result, variable, and field types. Reads through a view stay usable and yield const views (transitive). Reference-free values copy out of a view; `nil` converts into a view only when the element admits nil.
 - Each of these through a view is an error: index or field assignment, `append`, `copy` into the view, `delete`, `clear`, slicing past `len`, calling a method whose receiver lacks `const` (a `const` pointer receiver is allowed), passing to a non-const `.lgo` parameter, and passing to a standard-library parameter without a non-mutating fact. Assigning a reference-carrying view to a plain type is an error. A non-constant bound past `len` on a `const []byte` view traps at run time.
@@ -169,7 +169,7 @@ Proven by `test/logos/run/interp.lgo`, `test/logos/run/addr_lit.lgo`, `test/logo
 
 Rules:
 
-- Interpolation operands are strings, any integer, bools, float32/float64, `[]byte`, `error` (calls `Error()`), or `fmt.Stringer` (calls `String()`); other types report `[correctness::interp_type]`. `{{` and `}}` are literal braces. Operands evaluate once, left to right. An unmatched `{` is `syntax error: unterminated interpolation`; an unescaped `}` is a syntax error. Lowering imports `strconv` and `unsafe` implicitly; the capabilities audit reads declared imports only.
+- Interpolation operands are strings, any integer, bools, float32/float64, `[]byte`, `error` (calls `Error()`), or `fmt.Stringer` (calls `String()`); other types report `[correctness::interp_type]`. `{{` and `}}` are literal braces. Operands evaluate once, left to right. An unmatched `{` is `syntax error: unterminated interpolation`; an unescaped `}` is a syntax error. Lowered files use reserved `_logos_` aliases for standard-library imports; the capabilities audit follows relocations, so a dependency that imports a sink but never calls it passes.
 - `&expr` takes the address of any operand and lowers to `new(expr)`. Each evaluation is fresh (`*p = 1` leaves a second `&100` unchanged).
 - Field defaults are constant expressions (or composite literals of constants) written before the tag; anything else reports `[correctness::default_not_constant]`. `Cfg{}`, `&Cfg{}`, and `Cfg{Host: "x"}` get the defaults, including through other packages via facts `default` records. `var c Cfg` and `new(Cfg)` stay zero and warn `[suspicious::unapplied_struct_default]`, which never fails the build. A struct literal in a Go package gets the zero value (documented hole).
 - Spread copies fields with identical names and identical types; the same name with a different type reports `[correctness::spread_type_mismatch]`, unless an explicit field of that name wins. The source evaluates once (other operands bind to a temporary); a source with no copied fields still evaluates. `s = State{A: s.B, B: s.A, ..s}` swaps through one tuple assignment with no 4 KB `memmove`. The source must be a struct; `..` in an array literal or as a field key is an error.
@@ -197,7 +197,7 @@ Rules:
 
 * `const if` requires a constant boolean expression (including `comptime.IsStruct[T]()` and combinations with `!`, `&&`, `||`). Both branches type-check, but only the live branch reaches lowering. Non-constant conditions report `[comptime::not_constant]`.
 * `const for` iterates over struct fields in declaration order via `comptime.Fields[T]()`. Unexported fields of the current package are included; unexported fields of foreign packages are excluded. `val.[f]` reads or writes the projected field. Unrolled bodies take the `const for` source position for line reporting.
-* Comptime generics expand into non-generic copies `<f>·logosct<N>` per concrete type argument list. Linker pclntab strips the suffix so stack traces display the base function name. Circular instantiation reports `[comptime::circular_instantiation]`. Expansions exceeding the AST node limit report `[comptime::node_limit]`.
+* Comptime generics expand into non-generic copies `<f>_logosct<N>` per concrete type argument list. Linker pclntab strips the suffix so stack traces display the base function name. Circular instantiation reports `[comptime::circular_instantiation]`. Expansions exceeding the AST node limit report `[comptime::node_limit]`.
 * `const switch T` cases match top-down; shadowed cases report `[comptime::unreachable_case]`. Exact cases rebind `T`; `~` cases match underlying basic types; interface cases rebind with the interface method set. Outside comptime generics, lowering produces a runtime type switch on `any((*T)(nil))`.
 * `comptime.ViewAs[T](b)` requires `T` to be a POD struct without padding, booleans, pointers, interfaces, slices, maps, or strings, else `[comptime::viewas_not_pod]`. Buffers shorter than `sizeof(T)` panic at run time.
 * Comptime reflection constructs exist only at compile time; runtime use reports `[comptime::runtime_use]`.
@@ -232,6 +232,7 @@ Rules:
 | `portability::alias_extension` (warning) | Rename the alias-extension file to `.lgo` before publish. |
 | `correctness::open_union_value` | Use a closed union (no `~` terms, no `comparable`) in value positions. |
 | `correctness::union_nonmember` | Use a member type in the conversion, assertion, or case. |
+| `correctness::union_member_method` | Give the member the declared method (a value member needs a value receiver), or drop the member. |
 | `correctness::nonexhaustive_switch` | Cover the listed members and `nil`, or add `default`. |
 | `correctness::switch_arm_mismatch` | Give every switch-expression arm one common type. |
 | `correctness::switch_expr_needs_default` | Add a `default` arm to the value switch. |
@@ -287,10 +288,9 @@ Rules:
 | `concurrency::reentrant_withlock_deadlock` | Do not call WithLock on the same Locked receiver inside its callback. |
 | `slop::err_chain_reset` | Wrap errors with %w instead of formatting with %v or err.Error(). |
 | `slop::discarded_error` | Check or return error instead of ignoring it, or use ? in functions returning error. |
-| `slop::todo_placeholder` | Implement functionality or remove placeholder comments and panic stubs. |
 | `complexity::cognitive_overflow` | Decompose complex functions to stay within threshold limits. |
 | `perf::large_backing_array_pin` | Copy needed elements instead of slicing large backing arrays. |
-| `perf::time_after_in_loop` | Move timer outside loop or use time.NewTimer with proper reset and drain. |
+| `perf::time_after_in_loop` | Do not call `time.After` inside a loop body; the compiler never hoists the timer. |
 | `suspicious::side_effect_before_sort` | Avoid side-effect expressions in sort comparisons. |
 | `portability::serialized_unsized_int` | Use sized integers (int32, int64) in serialized binary layouts. |
 | `pedantic::exhaustive_union_switch` | Remove redundant default clause from exhaustive switch on closed union. |
@@ -302,7 +302,7 @@ This covers both `.lgo` and Go lint targets, and findings report original source
 
 1. Run `logos eject -o DIR` (or `logos build --emit-go=DIR`). DIR must not exist or must be empty. Done when the command exits 0.
 2. Inside DIR, run `go build ./...` and `go test ./...` with an upstream Go 1.27 toolchain. Done when both exit 0.
-3. Ejected files are plain Go with your comments kept. Value-used unions become methods-only interfaces with a `// loGo/s union: A | B` comment; options become plain pointers and `logos/rt.Option[T]`; property accessors stay as ordinary methods; const views are erased. Read them with `references/lowering.md` when a line needs explanation.
+3. Ejected files are plain Go with your comments kept. Value-used unions become methods-only interfaces with a `// loGo/s union: A | B` comment; options become plain pointers and `github.com/gosuda/loGos/rt.Option[T]`; property accessors stay as ordinary methods; const views are erased. Read them with `references/lowering.md` when a line needs explanation.
 4. A union used both as a type constraint and as a value type has no Go form: `logos eject` fails instead of writing broken code.
 
 ## References

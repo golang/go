@@ -4,20 +4,11 @@
 
 package p
 
-// M4-S1 property interfaces (SPEC Sec 2.3, T-203.2): `const F T` is a
-// read-only property, `F T` a read-write one, mixed with methods and
-// embedded interfaces. A struct satisfies a property interface only
-// through an explicit `: I` declaration, sourced per property from an
-// exported field or a method `F() T` (plus `SetF(T)` for read-write).
-
 type Creature interface {
 	const Name string
 	HP int
 	Start() error
 }
-
-// Field sources satisfy every property; the value-receiver Start keeps
-// both Monster and *Monster in the method set.
 
 type Monster struct : Creature {
 	Name string
@@ -32,9 +23,6 @@ var monsterVal = Monster{}
 
 var _ Creature = monsterVal /* ERROR "correctness::property_needs_pointer" */
 
-// A read-only interface accepts a value: no setter means no pointer
-// requirement.
-
 type Being interface {
 	const Name string
 	Greet() string
@@ -48,8 +36,6 @@ func (p Peasant) Greet() string { return "hi" }
 
 var _ Being = Peasant{}
 
-// A method with no backing field sources a read-only property.
-
 type Named interface {
 	const Name string
 }
@@ -59,9 +45,8 @@ type Ghost struct : Named {
 
 func (g Ghost) Name() string { return "boo" }
 
-var _ Named = Ghost{}
 
-// Embedded struct fields satisfy by Go selector depth.
+var _ Named = Ghost{}
 
 type Base struct {
 	HP int
@@ -75,9 +60,6 @@ type Child struct : Creature {
 func (c Child) Start() error { return nil }
 
 var _ Creature = &Child{}
-
-// An embedded property interface contributes its properties; the
-// read-only Name and the read-write HP merge with the local Nick.
 
 type Pet interface {
 	Creature
@@ -96,10 +78,6 @@ func (p Pup) Speak() string { return "woof" }
 
 var _ Pet = &Pup{}
 
-// Read-only and read-write declarations of one name in one interface
-// merge into read-write (#131): no error here, but a value still needs
-// a pointer.
-
 type Merged interface {
 	const Val int
 	Val int
@@ -115,14 +93,10 @@ var hasVal = HasVal{}
 
 var _ Merged = hasVal /* ERROR "correctness::property_needs_pointer" */
 
-// The same name with different types in one interface conflicts.
-
 type BadIface interface {
 	const ID int64
 	ID /* ERROR "correctness::property_conflict" */ string
 }
-
-// Conflicting property types across listed interfaces fail.
 
 type HasID64 interface {
 	ID int64
@@ -136,9 +110,6 @@ type Mixed struct : HasID64, HasIDStr /* ERROR "correctness::property_conflict" 
 	ID int64
 }
 
-// The right fields without the declaration fail: the fix is to add
-// `: Creature`.
-
 type Drifter struct {
 	Name string
 	HP   int
@@ -150,13 +121,9 @@ var drifter = &Drifter{}
 
 var _ Creature = drifter /* ERROR "correctness::property_requires_conformance" */
 
-// A declaration without a source for HP fails.
-
 type Wisp struct : Creature /* ERROR "correctness::property_unsatisfied" */ {
 	Name string
 }
-
-// An equal-depth embedded match is ambiguous, not a source.
 
 type Left struct {
 	HP int
@@ -172,13 +139,9 @@ type Ambig struct : Creature /* ERROR "ambiguous selector" */ {
 	Name string
 }
 
-// Taking the address of a property fails.
-
 func takeAddr(c Creature) {
 	_ = &c.HP /* ERROR "correctness::property_address" */
 }
-
-// Property reads through the interface check with the property type.
 
 func readName(c Creature) string {
 	return c.Name
@@ -188,22 +151,15 @@ func readHP(c Creature) int {
 	return c.HP
 }
 
-// A read-write property is assignable through the interface.
-
 func writeHP(c Creature, v int) {
 	c.HP = v
 }
-
-// A declared Logos_ method hits the reserved identifier rule.
 
 type BadName struct {
 	X int
 }
 
 func (b BadName) Logos_GetX /* ERROR "correctness::reserved_identifier" */ () int { return 0 }
-
-// A declared Logos_GetHP method on a conforming type still hits the
-// reserved identifier rule: it is never an accessor source.
 
 type Sneaky struct : Creature {
 	Name string
@@ -213,3 +169,13 @@ type Sneaky struct : Creature {
 func (s Sneaky) Start() error { return nil }
 
 func (s Sneaky) Logos_GetHP /* ERROR "correctness::reserved_identifier" */ () int { return 0 }
+
+type Token int
+
+var _ Named = Token /* ERROR "does not implement" */ (0)
+
+type Tok2 int
+
+func (t Tok2) Name() string { return "t" }
+
+var _ Named = Tok2 /* ERRORx "correctness::property_requires_conformance" */ (0)

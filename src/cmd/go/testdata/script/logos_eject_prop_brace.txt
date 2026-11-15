@@ -1,0 +1,76 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# The right-hand side of a property write that holds a brace literal ends
+# at its last token: an address of a composite literal, a parenthesised
+# one, and a method call on one. The module runs natively, ejects, and
+# the ejected module builds and runs with go and with go1.27.2 from
+# $UPROOT1272 and prints the same output.
+cd m
+logos run .
+stdout '^5 6 7 8$'
+cp stdout $WORK/native.txt
+logos eject -o out
+exists out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $WORK/native.txt
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
+exec $WORK/upstream$GOEXE
+cmp stdout $WORK/native.txt
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ..
+
+-- m/go.mod --
+module example.com/propbrace
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import "fmt"
+
+type Item struct {
+	N int
+}
+
+func (i Item) Ptr() *Item {
+	return &Item{N: i.N + 1}
+}
+
+type Holder interface {
+	Cur *Item
+}
+
+type Box struct : Holder {
+	cur *Item
+}
+
+func (b *Box) Cur() *Item {
+	return b.cur
+}
+
+func (b *Box) SetCur(v *Item) {
+	b.cur = v
+}
+
+func main() {
+	b := Box{cur: &Item{}}
+	var h Holder = &b
+	h.Cur = &Item{N: 5}
+	first := h.Cur.N
+	h.Cur = (&Item{N: 6}) // comment after a parenthesised literal
+	second := h.Cur.N
+	h.Cur = Item{N: 6}.Ptr() /* block comment after a call on a literal */
+	third := h.Cur.N
+	h.Cur = &Item{
+		N: 8,
+	}
+	fmt.Println(first, second, third, h.Cur.N)
+}

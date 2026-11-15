@@ -1,0 +1,63 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd af
+logos build -o $WORK/af.a .
+cd ..
+go tool pack p $WORK/af.a __.LOGOS
+stdout '^logos-facts 3$'
+stdout '^fingerprint [0-9a-f]{16}$'
+stdout '^fn F AssertTP=1,AssertRTP=0$'
+stdout '^fn H AssertTP=2,AssertRTP=0$'
+
+env GOOS=js
+env GOARCH=wasm
+cd af
+logos build -o $WORK/af-wasm.a .
+cd ..
+go tool pack p $WORK/af-wasm.a __.LOGOS
+stdout '^fn F AssertTP=1,AssertRTP=0$'
+env GOOS=
+env GOARCH=
+cd af
+logos build -O=0 -o $WORK/af-o0.a .
+cd ..
+go tool pack p $WORK/af-o0.a __.LOGOS
+stdout '^fn F AssertTP=1,AssertRTP=0$'
+cd af
+logos build -O=3 -o $WORK/af-o3.a .
+cd ..
+go tool pack p $WORK/af-o3.a __.LOGOS
+stdout '^fn F AssertTP=1,AssertRTP=0$'
+env GOARCH=386
+cd af
+logos build -o $WORK/af-386.a .
+cd ..
+go tool pack p $WORK/af-386.a __.LOGOS
+stdout '^fn F AssertTP=1,AssertRTP=0$'
+env GOARCH=
+cd af
+go tool compile -p example.com/af -o $WORK/af-go.a af.lgo
+cd ..
+go tool pack p $WORK/af-go.a __.LOGOS
+stdout '^fn F AssertTP=1,AssertRTP=0$'
+
+-- af/go.mod --
+module example.com/af
+
+go 1.27
+
+-- af/af.lgo --
+package af
+
+func F[P any](x any) {
+	const switch P {
+	case *P:
+	}
+}
+
+func H[A, B any](x any) {
+	const switch B {
+	case *B:
+	}
+}

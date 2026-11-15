@@ -1,0 +1,63 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type U interface {
+	int | string
+}
+
+type Point struct {
+	X int
+	Y int
+}
+
+func (p Point) Area() int { return p.X * p.Y }
+
+type Square struct {
+	Side int
+}
+
+func (s Square) Area() int { return s.Side * s.Side }
+
+type Shape interface {
+	Point | Square
+	Area() int
+}
+
+func main() {
+	var i int = 7
+	u := U(i)
+	n, ok := u.(int)
+	check("typed-member-holds", ok && n == 7, fmt.Sprint(ok, n), "true 7")
+
+	var s string = "seven"
+	us := U(s)
+	str, oks := us.(string)
+	check("typed-member-string", oks && str == "seven", fmt.Sprint(oks, str), "true seven")
+
+	pt := Point{X: 2, Y: 5}
+	sh := Shape(pt)
+	p, okp := sh.(Point)
+	check("named-member-holds", okp && p == pt, fmt.Sprint(okp, p), "true {2 5}")
+	check("named-member-method", sh.Area() == 10, sh.Area(), 10)
+
+	if failed {
+		os.Exit(1)
+	}
+}

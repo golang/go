@@ -1,0 +1,151 @@
+// run
+
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+	"fmt"
+	"strings"
+)
+
+type P struct {
+	N int
+}
+
+func show(args ...any) string {
+	return strings.TrimSuffix(fmt.Sprintln(args...), "\n")
+}
+
+func cell(name string, got func() string, want string) {
+	if g := got(); g != want {
+		fmt.Println("FAIL", name, "got", g, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func retTupLit() ((int, int), (int, int)) {
+	return ((1, 2), (3, 4))
+}
+
+func retTupVar() ((int, int), (int, int)) {
+	t := ((1, 2), (3, 4))
+	return t
+}
+
+func retOptLit(m map[string]int) (int?, int?) {
+	return (m["a"], m["b"])
+}
+
+func retOptVar(m map[string]int) (int?, int?) {
+	t := (m["a"], m["b"])
+	return t
+}
+
+func retNamedLit() ((x int, y int), (x int, y int)) {
+	var n (x int, y int) = (5, 6)
+	return (n, n)
+}
+
+func retNamedVar() ((x int, y int), (x int, y int)) {
+	var n (x int, y int) = (5, 6)
+	t := (n, n)
+	return t
+}
+
+func retPtrLit(p *P?) (*P?, *P?) {
+	return (p, p)
+}
+
+func retPtrVar(p *P?) (*P?, *P?) {
+	t := (p, p)
+	return t
+}
+
+func tupCells() {
+	cell("tup__define_lit", func() string { a, b := ((1, 2), (3, 4)); return show(a, b) }, "{1 2} {3 4}")
+	cell("tup__define_var", func() string { t := ((1, 2), (3, 4)); a, b := t; return show(a, b) }, "{1 2} {3 4}")
+	cell("tup__assign_lit", func() string { var a, b (int, int); a, b = ((1, 2), (3, 4)); return show(a, b) }, "{1 2} {3 4}")
+	cell("tup__assign_var", func() string { t := ((1, 2), (3, 4)); var a, b (int, int); a, b = t; return show(a, b) }, "{1 2} {3 4}")
+	cell("tup__var_lit", func() string { var a, b = ((1, 2), (3, 4)); return show(a, b) }, "{1 2} {3 4}")
+	cell("tup__var_var", func() string { t := ((1, 2), (3, 4)); var a, b = t; return show(a, b) }, "{1 2} {3 4}")
+	cell("tup__return_lit", func() string { a, b := retTupLit(); return show(a, b) }, "{1 2} {3 4}")
+	cell("tup__return_var", func() string { a, b := retTupVar(); return show(a, b) }, "{1 2} {3 4}")
+	cell("tup__triple", func() string { a, b, c := (1, (2, 3), 4); return show(a, b, c) }, "1 {2 3} 4")
+	cell("tup__again", func() string { t := ((1, 2), (3, 4)); a, b := t; w, x := a; y, z := b; return show(w, x, y, z) }, "1 2 3 4")
+}
+
+func optCells() {
+	m := map[string]int{"a": 1, "b": 2}
+	cell("opt__define_lit", func() string { a, b := (m["a"], m["b"]); return show(a ?? -1, b ?? -1) }, "1 2")
+	cell("opt__define_var", func() string { t := (m["a"], m["b"]); a, b := t; return show(a ?? -1, b ?? -1) }, "1 2")
+	cell("opt__assign_lit", func() string { var a, b int?; a, b = (m["a"], m["zz"]); return show(a ?? -1, b ?? -1) }, "1 -1")
+	cell("opt__assign_var", func() string { t := (m["a"], m["zz"]); var a, b int?; a, b = t; return show(a ?? -1, b ?? -1) }, "1 -1")
+	cell("opt__var_lit", func() string { var a, b = (m["a"], m["b"]); return show(a ?? -1, b ?? -1) }, "1 2")
+	cell("opt__var_var", func() string { t := (m["a"], m["b"]); var a, b = t; return show(a ?? -1, b ?? -1) }, "1 2")
+	cell("opt__return_lit", func() string { a, b := retOptLit(m); return show(a ?? -1, b ?? -1) }, "1 2")
+	cell("opt__return_var", func() string { a, b := retOptVar(m); return show(a ?? -1, b ?? -1) }, "1 2")
+}
+
+func namedCells() {
+	var n (x int, y int) = (5, 6)
+	cell("named__define_lit", func() string { a, b := (n, n); return show(a.x, b.y) }, "5 6")
+	cell("named__define_var", func() string { t := (n, n); a, b := t; return show(a.x, b.y) }, "5 6")
+	cell("named__assign_lit", func() string { var a, b (x int, y int); a, b = (n, n); return show(a.x, b.y) }, "5 6")
+	cell("named__assign_var", func() string { t := (n, n); var a, b (x int, y int); a, b = t; return show(a.x, b.y) }, "5 6")
+	cell("named__var_lit", func() string { var a, b = (n, n); return show(a.x, b.y) }, "5 6")
+	cell("named__var_var", func() string { t := (n, n); var a, b = t; return show(a.x, b.y) }, "5 6")
+	cell("named__return_lit", func() string { a, b := retNamedLit(); return show(a.x, b.y) }, "5 6")
+	cell("named__return_var", func() string { a, b := retNamedVar(); return show(a.x, b.y) }, "5 6")
+}
+
+func ptrCells() {
+	var p *P? = &P{N: 4}
+	cell("ptr__define_lit", func() string { a, b := (p, p); return show(a?.N ?? -1, b?.N ?? -1) }, "4 4")
+	cell("ptr__define_var", func() string { t := (p, p); a, b := t; return show(a?.N ?? -1, b?.N ?? -1) }, "4 4")
+	cell("ptr__assign_lit", func() string { var a, b *P?; a, b = (p, p); return show(a?.N ?? -1, b?.N ?? -1) }, "4 4")
+	cell("ptr__assign_var", func() string { t := (p, p); var a, b *P?; a, b = t; return show(a?.N ?? -1, b?.N ?? -1) }, "4 4")
+	cell("ptr__var_lit", func() string { var a, b = (p, p); return show(a?.N ?? -1, b?.N ?? -1) }, "4 4")
+	cell("ptr__var_var", func() string { t := (p, p); var a, b = t; return show(a?.N ?? -1, b?.N ?? -1) }, "4 4")
+	cell("ptr__return_lit", func() string { a, b := retPtrLit(p); return show(a?.N ?? -1, b?.N ?? -1) }, "4 4")
+	cell("ptr__return_var", func() string { a, b := retPtrVar(p); return show(a?.N ?? -1, b?.N ?? -1) }, "4 4")
+}
+
+var pt = (1, 2)
+
+var pa, pb = (1, 2)
+
+var pc, pd = pt
+
+var (
+	ga, gb = pt
+	gc     = 7
+)
+
+func varCells() {
+	t := (1, 2)
+	cell("var__plain_lit", func() string { var a, b = (1, 2); return show(a, b) }, "1 2")
+	cell("var__plain_var", func() string { var a, b = t; return show(a, b) }, "1 2")
+	cell("var__typed", func() string { var a, b int = t; return show(a, b) }, "1 2")
+	cell("var__triple", func() string { var a, b, c = (1, (2, 3), 4); return show(a, b, c) }, "1 {2 3} 4")
+	cell("var__package", func() string { return show(pa, pb, pc, pd) }, "1 2 1 2")
+	cell("var__package_group", func() string { return show(ga, gb, gc) }, "1 2 7")
+	cell("var__local_group", func() string {
+		var (
+			a, b = t
+			c    = 3
+		)
+		return show(a, b, c)
+	}, "1 2 3")
+}
+
+func main() {
+	tupCells()
+	optCells()
+	namedCells()
+	ptrCells()
+	varCells()
+}

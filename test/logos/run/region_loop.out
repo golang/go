@@ -1,0 +1,3 @@
+ok fresh-region-backing-is-zeroed
+ok region-holds-bytes-inside-owner-block
+ok per-iteration-region-reused-with-bounded-peak

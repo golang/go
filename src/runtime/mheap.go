@@ -177,15 +177,6 @@ type mheap struct {
 	// then release mheap_.lock.
 	heapArenas []arenaIdx
 
-	// userArenaArenas is the arenaIndex of every mapped arena mapped for
-	// user arenas.
-	//
-	// Access is protected by mheap_.lock. However, since this is
-	// append-only and old backing arrays are never freed, it is
-	// safe to acquire mheap_.lock, copy the slice header, and
-	// then release mheap_.lock.
-	userArenaArenas []arenaIdx
-
 	// sweepArenas is a snapshot of heapArenas taken at the
 	// beginning of the sweep cycle. This can be read safely by
 	// simply blocking GC (by disabling preemption).
@@ -228,25 +219,6 @@ type mheap struct {
 	specialSecretAlloc         fixalloc // allocator for specialSecret
 	speciallock                mutex    // lock for special record allocators.
 	arenaHintAlloc             fixalloc // allocator for arenaHints
-
-	// User arena state.
-	//
-	// Protected by mheap_.lock.
-	userArena struct {
-		// arenaHints is a list of addresses at which to attempt to
-		// add more heap arenas for user arena chunks. This is initially
-		// populated with a set of general hint addresses, and grown with
-		// the bounds of actual heap arena ranges.
-		arenaHints *arenaHint
-
-		// quarantineList is a list of user arena spans that have been set to fault, but
-		// are waiting for all pointers into them to go away. Sweeping handles
-		// identifying when this is true, and moves the span to the ready list.
-		quarantineList mSpanList
-
-		// readyList is a list of empty user arena spans that are ready for reuse.
-		readyList mSpanList
-	}
 
 	// cleanupID is a counter which is incremented each time a cleanup special is added
 	// to a span. It's used to create globally unique identifiers for individual cleanup.
@@ -319,9 +291,6 @@ type heapArena struct {
 	// The bit indicates that the span has a spanInlineMarkBits struct
 	// stored directly at the top end of the span's memory.
 	pageUseSpanInlineMarkBits [pagesPerArena / 8]uint8
-
-	// logosCards is the card table of amd64 GreenTea builds; nil otherwise.
-	logosCards *logosGenCardTable
 
 	// checkmarks stores the debug.gccheckmark state. It is only
 	// used if debug.gccheckmark > 0 or debug.checkfinalizers > 0.
@@ -508,24 +477,13 @@ type mspan struct {
 	spanclass             spanClass     // size class and noscan (uint8)
 	state                 mSpanStateBox // mSpanInUse etc; accessed atomically (get/set methods)
 	needzero              uint8         // needs to be zeroed before allocation
-	isUserArenaChunk      bool          // whether or not this span represents a user arena
 	isLogosArenaChunk     bool          // whether or not this span is a loGo/s arena chunk (arena_logos.go)
 	allocCountBeforeCache uint16        // a copy of allocCount that is stored just before this span is cached
 	elemsize              uintptr       // computed from sizeclass or from npages
 	limit                 uintptr       // end of data in span
 	speciallock           mutex         // guards specials list and changes to pinnerBits
 	specials              *special      // linked list of special records sorted by offset.
-	logosNoReloc          bool          // finalizer or cleanup ever attached; excludes relocation until init; guarded by speciallock
-	logosPinned           atomic.Bool   // an object of the span feeds an address hash; excludes relocation until init
-	logosFwd              uintptr       // address of the forwarding table of an evacuated span (nelems entries) while the world is stopped
-	userArenaChunkFree    addrRange     // interval for managing chunk allocation
 	largeType             *_type        // malloc header for large objects.
-	logosAge              uint8         // cycles survived, saturating at logosGenMatureAge (amd64 GreenTea builds)
-	logosImmixBlock       *logosImmixBlock
-	logosImmixActive      bool
-	logosImmixCursor      uint32
-	logosImmixLimit       uint32
-	logosImmixNext        uint16
 }
 
 func (s *mspan) base() uintptr {
@@ -695,28 +653,7 @@ func inHeapOrStack(b uintptr) bool {
 // explicitly.
 //
 // Must be nosplit because it has callers that are nosplit.
-
-// zgcHeapArenasLive is 1 once the first heap arena map (L2) is published,
-// and never cleared: arena maps are never freed. spanOf assumes the map is
-// live — its bounds checks are complete only then, and it dereferences the
-// L2 without a nil check when arenaL1Bits == 0 ("should never happen if
-// there's no L1"). Colors may be armed (gcinit → zgcInit) before the first
-// arena reservation publishes the map, and in that window any
-// validation-passing word reaches spanOfHeap through the canonicalisation
-// paths. Those paths consult zgcHeapArenaLive first and pass the word
-// through unchanged until the map is live; a GC cannot run before
-// initialisation completes, so nothing is lost.
-var zgcHeapArenasLive uintptr
-
-// zgcHeapArenaLive reports whether spanOf-style arena lookups are safe:
-// true once the arena map is published, false before. Set once, never
-// cleared.
 //
-//go:nosplit
-func zgcHeapArenaLive() bool {
-	return atomic.Loaduintptr(&zgcHeapArenasLive) != 0
-}
-
 //go:nosplit
 func spanOf(p uintptr) *mspan {
 	// This function looks big, but we use a lot of constant
@@ -762,7 +699,7 @@ func spanOfUnchecked(p uintptr) *mspan {
 // heap object.
 //
 // Must be nosplit because it has callers that are nosplit.
-
+//
 //go:nosplit
 func spanOfHeap(p uintptr) *mspan {
 	s := spanOf(p)
@@ -1257,19 +1194,12 @@ func (h *mheap) allocSpan(npages uintptr, typ spanAllocType, spanclass spanClass
 	// allocations. Where the page size is less than the physical page
 	// size, we already manage to do this by default.
 	needPhysPageAlign := physPageAlignedStacks && typ == spanAllocStack && pageSize < physPageSize
-	needImmixAlign := false
-	if goexperiment.LogosGCMoving {
-		needImmixAlign = logosImmixNeedsAlignedSpan(spanclass, typ)
-		if needImmixAlign {
-			npages = logosPagesPerBlock
-		}
-	}
 
 	// If the allocation is small enough, try the page cache!
 	// The page cache does not support aligned allocations, so we cannot use
 	// it if we need to provide a physical page aligned stack allocation.
 	pp := gp.m.p.ptr()
-	if !needPhysPageAlign && !needImmixAlign && pp != nil && npages < pageCachePages/4 {
+	if !needPhysPageAlign && pp != nil && npages < pageCachePages/4 {
 		c := &pp.pcache
 
 		// If the cache is empty, refill it.
@@ -1321,54 +1251,6 @@ func (h *mheap) allocSpan(npages uintptr, typ spanAllocType, spanclass spanClass
 			}
 		}
 		base = alignUp(base, physPageSize)
-		scav = h.pages.allocRange(base, npages)
-	}
-
-	if needImmixAlign && base == 0 {
-		extraPages := uintptr(logosImmixBlockBytes / pageSize)
-
-		// Honor pageAlloc.alloc's exhausted-heap guard before searching
-		// directly: find walks the summary radix tree, and before the
-		// first growth sysGrow has mapped none of it, so a search with
-		// searchAddr at or past p.end reads summary memory that was
-		// reserved but never committed. In that state alloc reports
-		// failure and the caller grows; do the same instead of
-		// searching, then let the existing growth path retry find.
-		//
-		// Note that we skip updates to searchAddr here. It's OK if
-		// it's stale and higher than normal; it'll operate correctly,
-		// just come with a performance cost.
-		if chunkIndex(h.pages.searchAddr.addr()) < h.pages.end {
-			base, _ = h.pages.find(npages + extraPages)
-		}
-		if base == 0 {
-			var ok bool
-			growth, ok = h.grow(npages + extraPages)
-			if !ok {
-				unlock(&h.lock)
-				return nil
-			}
-			base, _ = h.pages.find(npages + extraPages)
-			if base == 0 {
-				// The first grow marks a random prefix of the fresh palloc
-				// chunk as allocated (markRandomPaddingPages), which may leave
-				// fewer than npages+extraPages contiguous free pages. Retry
-				// grow+find once: later grows have no random padding, so this
-				// retry is deterministic.
-				var moreGrowth uintptr
-				moreGrowth, ok = h.grow(npages + extraPages)
-				growth += moreGrowth
-				if !ok {
-					unlock(&h.lock)
-					return nil
-				}
-				base, _ = h.pages.find(npages + extraPages)
-				if base == 0 {
-					throw("grew heap, but no adequate free space found")
-				}
-			}
-		}
-		base = alignUp(base, logosImmixBlockBytes)
 		scav = h.pages.allocRange(base, npages)
 	}
 
@@ -1581,9 +1463,6 @@ func (h *mheap) initSpan(s *mspan, typ spanAllocType, spanclass spanClass, base,
 		// only ever updated with the world stopped and we run on the
 		// systemstack which blocks a STW transition.
 		atomic.Store(&s.sweepgen, h.sweepgen)
-		if goexperiment.LogosGCMoving {
-			logosImmixInitSpan(s)
-		}
 
 		// Now that the span is filled in, set its state. This
 		// is a publication barrier for the other fields in
@@ -1674,9 +1553,6 @@ func (h *mheap) grow(npage uintptr) (uintptr, bool) {
 				// Transition this space from Reserved to Prepared and mark it
 				// as released since we'll be able to start using it after updating
 				// the page allocator and releasing the lock at any time.
-				if logosZgcCommitLedgerDebug {
-					logosZgcCommitLedgerAssertGrant(h.curArena.base, size, "grow:remainder")
-				}
 				sysMap(unsafe.Pointer(h.curArena.base), size, &gcController.heapReleased, "heap")
 				// Update stats.
 				stats := memstats.heapStats.acquire()
@@ -1685,9 +1561,6 @@ func (h *mheap) grow(npage uintptr) (uintptr, bool) {
 				// Update the page allocator's structures to make this
 				// space ready for allocation.
 				h.pages.grow(h.curArena.base, size)
-				if logosZgcCommitLedgerDebug {
-					logosZgcCommitLedgerAdd(h.curArena.base, size)
-				}
 				totalGrowth += size
 			}
 			// Switch to the new space.
@@ -1701,9 +1574,7 @@ func (h *mheap) grow(npage uintptr) (uintptr, bool) {
 				// h.curArena.base is aligned to pallocChunkBytes.
 				bits := logHeapArenaBytes - logPallocChunkBytes
 				offset := nextHeapRandBits(bits)
-				if !logosZgcHeapEnabled() {
-					h.curArena.base = alignDown(h.curArena.base|(offset<<logPallocChunkBytes), pallocChunkBytes)
-				}
+				h.curArena.base = alignDown(h.curArena.base|(offset<<logPallocChunkBytes), pallocChunkBytes)
 			}
 		}
 
@@ -1723,9 +1594,6 @@ func (h *mheap) grow(npage uintptr) (uintptr, bool) {
 	// The allocation is always aligned to the heap arena
 	// size which is always > physPageSize, so its safe to
 	// just add directly to heapReleased.
-	if logosZgcCommitLedgerDebug {
-		logosZgcCommitLedgerAssertGrant(v, nBase-v, "grow")
-	}
 	sysMap(unsafe.Pointer(v), nBase-v, &gcController.heapReleased, "heap")
 
 	// The memory just allocated counts as both released
@@ -1737,9 +1605,6 @@ func (h *mheap) grow(npage uintptr) (uintptr, bool) {
 	// Update the page allocator's structures to make this
 	// space ready for allocation.
 	h.pages.grow(v, nBase-v)
-	if logosZgcCommitLedgerDebug {
-		logosZgcCommitLedgerAdd(v, nBase-v)
-	}
 	totalGrowth += nBase - v
 
 	if firstGrow && randomizeHeapBase {
@@ -1834,9 +1699,6 @@ func (h *mheap) freeSpanLocked(s *mspan, typ spanAllocType) {
 			throw("mheap.freeSpanLocked - invalid stack free")
 		}
 	case mSpanInUse:
-		if s.isUserArenaChunk {
-			throw("mheap.freeSpanLocked - invalid free of user arena chunk")
-		}
 		if s.allocCount != 0 || s.sweepgen != h.sweepgen {
 			print("mheap.freeSpanLocked - span ", s, " ptr ", hex(s.base()), " allocCount ", s.allocCount, " sweepgen ", s.sweepgen, "/", h.sweepgen, "\n")
 			throw("mheap.freeSpanLocked - invalid free")
@@ -1874,26 +1736,9 @@ func (h *mheap) freeSpanLocked(s *mspan, typ spanAllocType) {
 		atomic.Xaddint64(&stats.inWorkBufs, -int64(nbytes))
 	}
 	memstats.heapStats.release()
-	if goexperiment.LogosGCMoving {
-		logosImmixFreeSpan(s)
-		// Invariant: span metadata must outlive every record that names it.
-		// The forwarding table is freed at evacuation end, so the span-side
-		// record must die no later than span death; the next span.init also
-		// clears it, but a retired span must never name freed table memory
-		// in between. logosForward fails fast on any record that survives
-		// this point.
-		s.logosFwd = 0
-	}
 
 	// Mark the space as free.
 	h.pages.free(s.base(), s.npages)
-	if logosZgcCommitLedgerDebug {
-		// Ownership restore: freeing returns the span's pages to the heap,
-		// so record them again. Idempotent for ordinary spans; restores
-		// exactly what a zgc source release removed once the page retires,
-		// so post-retire reuse never names a false absent grant.
-		logosZgcCommitLedgerAdd(s.base(), s.npages*pageSize)
-	}
 
 	// Free the span structure. We no longer have a use for it.
 	s.state.set(mSpanDead)
@@ -1944,15 +1789,6 @@ func (span *mspan) init(base uintptr, npages uintptr) {
 	span.elemsize = 0
 	span.speciallock.key = 0
 	span.specials = nil
-	span.logosNoReloc = false
-	span.logosPinned.Store(false)
-	span.logosFwd = 0
-	span.logosAge = 0
-	span.logosImmixBlock = nil
-	span.logosImmixActive = false
-	span.logosImmixCursor = 0
-	span.logosImmixLimit = 0
-	span.logosImmixNext = 0
 	span.needzero = 0
 	span.isLogosArenaChunk = false
 	span.freeindex = 0
@@ -2125,31 +1961,34 @@ func spanHasNoSpecials(s *mspan) {
 // Returns true if the special was successfully added, false otherwise.
 // (The add will fail only if a record with the same p and s->kind
 // already exists unless force is set to true.)
-//
-// Finalizer and cleanup records never attach here: they take addspecialStable,
-// because a record spliced onto storage that a mark-termination pause is
-// about to quarantine is lost when the page is released. Every other kind
-// rides the span's existing lifecycle through canonicalization alone.
 func addspecial(p unsafe.Pointer, s *special, force bool) bool {
-	if s.kind == _KindSpecialFinalizer || s.kind == _KindSpecialCleanup {
-		throw("addspecial: finalizer and cleanup records attach through addspecialStable")
-	}
-	// Canonicalize before offset math so the copy's span is the one that
-	// carries the record. Without a cycle this is the identity.
-	p = logosZgcAttachSpecial(p)
-
-	// Ensure that the span is swept.
-	// Sweeping accesses the specials list w/o locks, so we have
-	// to synchronize with it. And it's just much safer.
-	// The span is resolved with the M pinned, so it cannot change
-	// hands between this lookup and the splice below.
-	mp := acquirem()
 	span := spanOfHeap(uintptr(p))
 	if span == nil {
 		throw("addspecial on invalid pointer")
 	}
+
+	// Ensure that the span is swept.
+	// Sweeping accesses the specials list w/o locks, so we have
+	// to synchronize with it. And it's just much safer.
+	mp := acquirem()
 	span.ensureSwept()
-	exists := span.spliceSpecial(uintptr(p), s, force)
+
+	offset := uintptr(p) - span.base()
+	kind := s.kind
+
+	lock(&span.speciallock)
+
+	// Find splice point, check for existing record.
+	iter, exists := span.specialFindSplicePoint(offset, kind)
+	if !exists || force {
+		// Splice in record, fill in offset.
+		s.offset = offset
+		s.next = *iter
+		*iter = s
+		spanHasSpecials(span)
+	}
+
+	unlock(&span.speciallock)
 	releasem(mp)
 	// We're converting p to a uintptr and looking it up, and we
 	// don't want it to die and get swept while we're doing so.
@@ -2157,121 +1996,10 @@ func addspecial(p unsafe.Pointer, s *special, force bool) bool {
 	return !exists || force // already exists or addition was forced
 }
 
-// specialAttach is the outcome of one addspecialStable attempt.
-type specialAttach uint8
-
-const (
-	// specialAttachUnstable: nothing was spliced. p named storage that is
-	// no longer the object's home: a published copy exists, its span is a
-	// quarantined source, or its page is registered for relocation and not
-	// yet copied. The caller copies the object into to-space at a
-	// preemptible point and attempts again with the returned home.
-	specialAttachUnstable specialAttach = iota
-	// specialAttachExists: a record of the kind is already attached and
-	// force was false; nothing was spliced.
-	specialAttachExists
-	// specialAttachAdded: the record is spliced in.
-	specialAttachAdded
-)
-
-// addspecialStable attaches a finalizer or cleanup record to the object p
-// if p is still the object's home, and reports where it looked. The record
-// pins its span (logosNoReloc, set under speciallock by the splice), but a
-// mark-termination pause that selects the object's page after the caller
-// copied the object and before this M is pinned would quarantine the span
-// the record lands on and lose it at release. So the attempt pins the M
-// first (acquirem), resolves and sweeps the span, and only then asks
-// zgcAttachStable whether p is still canonical, unquarantined and
-// unregistered. While the M cannot be preempted no pause starts, and the
-// splice makes selection skip the span from then on, so a true answer
-// stays true through the splice. The commit keeps M -> speciallock -> gate
-// order (gate leaf-last, taken only inside the typed helpers; never
-// gate -> speciallock, no allocation under NoP): the stability check may
-// take the gate leaf-last with no speciallock held, the splice takes
-// speciallock, and no copy ever runs under the M.
-//
-// It never copies: it runs on g0 (SetFinalizer's systemstack) and under
-// addCleanup's pinned M, where the to-space refill a copy may need is not
-// allowed. On specialAttachUnstable nothing was spliced and the M is
-// released; the caller returns to a preemptible point, copies the object
-// again (zgcAttachEnsureCopy) and retries with home. Unstable now means
-// only real pause instability (a published copy appeared or the copy's
-// page was selected after the copy): each such report witnesses a pause
-// that began after the caller's previous copy, so the retry loop makes
-// progress with the pauses and needs no budget. A lawful foreign-exposed
-// source never reports unstable: the typed ensure-copy returns the source
-// (Refused, never OOM) and the typed stability check pins it in place,
-// so the splice lands with the M held and a same-G callback scope never
-// waits for its own unexposure. On every outcome home is the canonical
-// address the span lookup used, which is the address a handle must keep
-// to find the record again: the home span carries a record, so selection
-// excludes it and the home never moves.
-func addspecialStable(p unsafe.Pointer, s *special, force bool) (home unsafe.Pointer, st specialAttach) {
-	p = logosZgcAttachSpecial(p)
-
-	// Ensure that the span is swept; the span is resolved with the M
-	// pinned so it cannot change hands before the splice.
-	mp := acquirem()
-	span := spanOfHeap(uintptr(p))
-	if span == nil {
-		throw("addspecial on invalid pointer")
-	}
-	span.ensureSwept()
-	if !zgcAttachStable(span, uintptr(p)) {
-		releasem(mp)
-		return p, specialAttachUnstable
-	}
-	exists := span.spliceSpecial(uintptr(p), s, force)
-	releasem(mp)
-	// We're converting p to a uintptr and looking it up, and we
-	// don't want it to die and get swept while we're doing so.
-	KeepAlive(p)
-	if exists && !force {
-		return p, specialAttachExists
-	}
-	return p, specialAttachAdded
-}
-
-// spliceSpecial links s into the sorted special list at the offset of p
-// unless a record of s's kind already sits there and force is false, and
-// reports whether such a record existed. The caller holds its M
-// non-preemptible and has swept the span.
-func (span *mspan) spliceSpecial(p uintptr, s *special, force bool) bool {
-	offset := p - span.base()
-
-	lock(&span.speciallock)
-
-	// Find splice point, check for existing record.
-	iter, exists := span.specialFindSplicePoint(offset, s.kind)
-	if !exists || force {
-		// Splice in record, fill in offset.
-		s.offset = offset
-		s.next = *iter
-		*iter = s
-		spanHasSpecials(span)
-		span.logosExcludeRelocation(s.kind)
-		if s.kind == _KindSpecialFinalizer || s.kind == _KindSpecialCleanup {
-			// Arm the sticky veto the copy commit actually reads
-			// (preparation and gate-held commit refuse a pinned
-			// span/object; selection already skips NoReloc). Same
-			// M -> speciallock critical section as the splice, no
-			// allocation, off-experiment safe.
-			span.logosPinned.Store(true)
-		}
-	}
-
-	unlock(&span.speciallock)
-	return exists
-}
-
 // Removes the Special record of the given kind for the object p.
 // Returns the record if the record existed, nil otherwise.
 // The caller must FixAlloc_Free the result.
 func removespecial(p unsafe.Pointer, kind uint8) *special {
-	// Canonicalize only: removal must find the existing record on the
-	// copy's span, never copy. Interior offset is preserved, so the
-	// splice-point search below compares like with like.
-	p = logosZgcAttachSpecial(p)
 	span := spanOfHeap(uintptr(p))
 	if span == nil {
 		throw("removespecial on invalid pointer")
@@ -2339,13 +2067,8 @@ type specialfinalizer struct {
 	ot      *ptrtype // May be a heap pointer, but always live.
 }
 
-// Adds a finalizer to the object p in one addspecialStable attempt and
-// reports the outcome with the canonical address the record landed on (or
-// was refused at). specialAttachUnstable asks the caller to copy the
-// object at a preemptible point and retry with home; specialAttachExists
-// means the object already has a finalizer. It runs on g0 and never
-// copies.
-func addfinalizer(p unsafe.Pointer, f *funcval, nret uintptr, fint *_type, ot *ptrtype) (home unsafe.Pointer, st specialAttach) {
+// Adds a finalizer to the object p. Returns true if it succeeded.
+func addfinalizer(p unsafe.Pointer, f *funcval, nret uintptr, fint *_type, ot *ptrtype) bool {
 	lock(&mheap_.speciallock)
 	s := (*specialfinalizer)(mheap_.specialfinalizeralloc.alloc())
 	unlock(&mheap_.speciallock)
@@ -2354,14 +2077,13 @@ func addfinalizer(p unsafe.Pointer, f *funcval, nret uintptr, fint *_type, ot *p
 	s.nret = nret
 	s.fint = fint
 	s.ot = ot
-	home, st = addspecialStable(p, &s.special, false)
-	if st == specialAttachAdded {
+	if addspecial(p, &s.special, false) {
 		// This is responsible for maintaining the same
 		// GC-related invariants as markrootSpans in any
 		// situation where it's possible that markrootSpans
 		// has already run but mark termination hasn't yet.
 		if gcphase != _GCoff {
-			base, span, _ := findObject(uintptr(home), 0, 0)
+			base, span, _ := findObject(uintptr(p), 0, 0)
 			mp := acquirem()
 			gcw := &mp.p.ptr().gcw
 			// Mark everything reachable from the object
@@ -2374,15 +2096,14 @@ func addfinalizer(p unsafe.Pointer, f *funcval, nret uintptr, fint *_type, ot *p
 			scanblock(uintptr(unsafe.Pointer(&s.fn)), goarch.PtrSize, &oneptrmask[0], gcw, nil)
 			releasem(mp)
 		}
-		return home, st
+		return true
 	}
 
-	// There was an old finalizer, or p stopped being the object's home
-	// before the record could attach.
+	// There was an old finalizer
 	lock(&mheap_.speciallock)
 	mheap_.specialfinalizeralloc.free(unsafe.Pointer(s))
 	unlock(&mheap_.speciallock)
-	return home, st
+	return false
 }
 
 // Removes the finalizer (if any) from the object p.
@@ -2408,16 +2129,8 @@ type specialCleanup struct {
 // addCleanup attaches a cleanup function to the object. Multiple
 // cleanups are allowed on an object, and even the same pointer.
 // A cleanup id is returned which can be used to uniquely identify
-// the cleanup. It also returns home, the canonical address the record was
-// attached at: the to-space copy when the object was unpublished on a
-// registered page, the object itself otherwise. A handle that must find
-// the record again (Cleanup.Stop) keeps home, not p: the home span carries
-// the record, so selection never moves it, while the forwarding entry of
-// the old address is retired after its cycle.
-//
-// It must run in a preemptible context (a user goroutine, no locks): the
-// copy may refill a to-space reservation.
-func addCleanup(p unsafe.Pointer, c cleanupFn) (id uint64, home unsafe.Pointer) {
+// the cleanup.
+func addCleanup(p unsafe.Pointer, c cleanupFn) uint64 {
 	// TODO(mknyszek): Consider pooling specialCleanups on the P
 	// so we don't have to take the lock every time. Just locking
 	// is a considerable part of the cost of AddCleanup. This
@@ -2425,34 +2138,14 @@ func addCleanup(p unsafe.Pointer, c cleanupFn) (id uint64, home unsafe.Pointer) 
 	lock(&mheap_.speciallock)
 	s := (*specialCleanup)(mheap_.specialCleanupAlloc.alloc())
 	mheap_.cleanupID++ // Increment first. ID 0 is reserved.
-	id = mheap_.cleanupID
+	id := mheap_.cleanupID
 	unlock(&mheap_.speciallock)
 	s.special.kind = _KindSpecialCleanup
 	s.cleanup = c
 	s.id = id
 
-	// The M must stay pinned from the splice through the scan below, so
-	// the copy happens first, at a preemptible point. A pause that selects
-	// the copy's page before the pin makes the attempt report unstable
-	// with nothing spliced; the pin is released and the loop copies again
-	// here, never under the pin. A lawful foreign-exposed source never
-	// loops: the typed ensure-copy returns the source (Refused, never
-	// OOM) and the typed stability check pins it in place, so the splice
-	// lands with the M held and no wait for unexposure. Cleanups are
-	// forced, so exists cannot occur: the loop leaves with the record
-	// spliced.
-	var mp *m
-	for {
-		p = zgcAttachEnsureCopy(p)
-		mp = acquirem()
-		var st specialAttach
-		home, st = addspecialStable(p, &s.special, true)
-		if st != specialAttachUnstable {
-			break
-		}
-		releasem(mp)
-		p = home
-	}
+	mp := acquirem()
+	addspecial(p, &s.special, true)
 	// This is responsible for maintaining the same
 	// GC-related invariants as markrootSpans in any
 	// situation where it's possible that markrootSpans
@@ -2468,7 +2161,7 @@ func addCleanup(p unsafe.Pointer, c cleanupFn) (id uint64, home unsafe.Pointer) 
 	// been added to the specials list yet. This is similar to a bug
 	// discovered for weak handles, see #70455.
 	KeepAlive(c)
-	return id, home
+	return id
 }
 
 // Always paired with a specialCleanup or specialfinalizer, adds context.

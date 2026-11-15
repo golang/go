@@ -11,17 +11,6 @@ import (
 	"cmd/compile/internal/types2"
 )
 
-// bareExpr returns e without its enclosing parentheses.
-func bareExpr(e syntax.Expr) syntax.Expr {
-	for {
-		p, ok := e.(*syntax.ParenExpr)
-		if !ok {
-			return e
-		}
-		e = p.X
-	}
-}
-
 // elemTypes returns the types of the values of an expression of type t: the
 // members of a tuple, or t itself. A nil t has none.
 func elemTypes(t types2.Type) []types2.Type {
@@ -64,7 +53,7 @@ func declPairs(d *syntax.VarDecl) (lhs, rhs []syntax.Expr, ok bool) {
 
 // callsBuiltin reports whether call calls the predeclared function name.
 func callsBuiltin(pass *Pass, call *syntax.CallExpr, name string) bool {
-	id, ok := bareExpr(call.Fun).(*syntax.Name)
+	id, ok := syntax.Unparen(call.Fun).(*syntax.Name)
 	if !ok || id.Value != name {
 		return false
 	}

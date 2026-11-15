@@ -1,0 +1,102 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+	"testing"
+)
+
+type box struct {
+	v  int
+	vs []int
+}
+
+var (
+	sinkAny   any
+	sinkAny2  any
+	sinkFn    func() int
+	sinkEmpty = new(struct{})
+	sinkInts  []int
+)
+
+//logos:zeroalloc
+//go:noinline
+func constBox() any {
+	return 1000
+}
+
+//logos:zeroalloc
+//go:noinline
+func byteBox(b byte, ok bool) (any, any) {
+	return b, ok
+}
+
+//logos:zeroalloc
+//go:noinline
+func staticClosure() func() int {
+	return func() int { return 7 }
+}
+
+//logos:zeroalloc
+//go:noinline
+func emptyPtr() *struct{} {
+	return new(struct{})
+}
+
+//logos:zeroalloc
+//go:noinline
+func emptySlice() []int {
+	return []int{}
+}
+
+//logos:zeroalloc
+//go:noinline
+func zeroBox() any {
+	return struct{}{}
+}
+
+//logos:zeroalloc
+//go:noinline
+func (b *box) record(vs []int) {
+	b.vs = append(b.vs, vs...)
+}
+
+//logos:zeroalloc
+//go:noinline
+func push(dst []int, v int) []int {
+	return append(dst, v)
+}
+
+func main() {
+	b := &box{vs: make([]int, 0, 64)}
+	src := []int{1, 2, 3}
+	buf := make([]int, 0, 64)
+	cases := []struct {
+		name string
+		run  func()
+	}{
+		{"constBox", func() { sinkAny = constBox() }},
+		{"byteBox", func() { sinkAny, sinkAny2 = byteBox(7, true) }},
+		{"staticClosure", func() { sinkFn = staticClosure() }},
+		{"emptyPtr", func() { sinkEmpty = emptyPtr() }},
+		{"emptySlice", func() { sinkInts = emptySlice() }},
+		{"zeroBox", func() { sinkAny = zeroBox() }},
+		{"record", func() { b.vs = b.vs[:0]; b.record(src) }},
+		{"push", func() { sinkInts = push(buf[:0], 1) }},
+	}
+	failed := false
+	for _, c := range cases {
+		n := testing.AllocsPerRun(100, c.run)
+		if n != 0 {
+			fmt.Printf("FAIL zeroalloc-%s: allocates %v times per call\n", c.name, n)
+			failed = true
+			continue
+		}
+		fmt.Printf("ok zeroalloc-%s\n", c.name)
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

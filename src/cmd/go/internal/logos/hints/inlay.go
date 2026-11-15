@@ -10,10 +10,6 @@ import (
 	"strings"
 )
 
-// InlayHints returns the inlay hints of the file named file that lie in rng:
-// the narrowed type of each narrowed use, the member list at each union type
-// switch, and the allocation tier of each allocation (SPEC Sec 21.2). A file
-// the report does not cover has none. The hints come in position order.
 func InlayHints(r *Report, file string, rng Range) []InlayHint {
 	f := r.file(file)
 	if f == nil {
@@ -35,7 +31,6 @@ func InlayHints(r *Report, file string, rng Range) []InlayHint {
 	return out
 }
 
-// appendIn appends h to hs when its position lies in rng.
 func appendIn(hs []InlayHint, rng Range, h InlayHint) []InlayHint {
 	if rng.touches(h.Position) {
 		return append(hs, h)
@@ -43,7 +38,6 @@ func appendIn(hs []InlayHint, rng Range, h InlayHint) []InlayHint {
 	return hs
 }
 
-// narrowedHint renders `/* narrowed: *User */` after a narrowed use.
 func narrowedHint(n Narrowed) InlayHint {
 	return InlayHint{
 		Position:    n.Position,
@@ -54,7 +48,6 @@ func narrowedHint(n Narrowed) InlayHint {
 	}
 }
 
-// unionHint renders `/* union: A | B */` at a union type switch.
 func unionHint(u Union) InlayHint {
 	return InlayHint{
 		Position:    u.Position,
@@ -65,8 +58,6 @@ func unionHint(u Union) InlayHint {
 	}
 }
 
-// allocHint renders the tier badge `[heap]`, `[stack]`, `[arena]`, or
-// `[rodata]`; the tooltip is the compiler's -m text and its reason.
 func allocHint(a Alloc) InlayHint {
 	tip := a.Message
 	if a.Reason != "" {

@@ -184,7 +184,7 @@ func synctestRun(f func()) {
 	lockInit(&bubble.mu, lockRankSynctest)
 	lockInit(&bubble.timers.mu, lockRankTimers)
 
-	gp.bubble = logosPinSynctestBubble(bubble)
+	gp.bubble = bubble
 	defer func() {
 		gp.bubble = nil
 	}()

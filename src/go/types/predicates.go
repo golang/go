@@ -291,18 +291,19 @@ func (c *comparer) identical(x, y Type, p *ifacePair) bool {
 		// and identical tags. Two embedded fields are considered to have the same
 		// name. Lower-case field names from different packages are always different.
 		if y, ok := y.(*Struct); ok {
-			if x.NumFields() == y.NumFields() {
-				for i, f := range x.fields {
-					g := y.fields[i]
-					if f.embedded != g.embedded ||
-						!c.ignoreTags && x.Tag(i) != y.Tag(i) ||
-						!f.sameId(g.pkg, g.name, false) ||
-						!c.identical(f.typ, g.typ, p) {
-						return false
-					}
-				}
-				return true
+			if x.NumFields() != y.NumFields() {
+				return false
 			}
+			for i, f := range x.fields {
+				g := y.fields[i]
+				if f.embedded != g.embedded ||
+					!c.ignoreTags && x.Tag(i) != y.Tag(i) ||
+					!f.sameId(g.pkg, g.name, false) ||
+					!c.identical(f.typ, g.typ, p) {
+					return false
+				}
+			}
+			return true
 		}
 
 	case *Pointer:

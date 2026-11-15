@@ -1,0 +1,96 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type Named interface {
+	const Name string
+	HP int
+}
+
+type Core struct {
+	Name string
+	HP   int
+}
+
+type ByPointer struct : Named {
+	*Core
+}
+
+type Layer struct {
+	*Core
+}
+
+type ByDepth struct : Named {
+	Layer
+}
+
+type Accessor interface {
+	HP() int
+	SetHP(int)
+}
+
+type store struct {
+	hp int
+}
+
+func (s store) HP() int     { return s.hp }
+func (s *store) SetHP(v int) { s.hp = v }
+
+type Quest interface {
+	HP int
+}
+
+type ByInterface struct : Quest {
+	Accessor
+}
+
+type Plain struct {
+	*Core
+}
+
+func main() {
+	core := &Core{Name: "imp", HP: 2}
+	bp := &ByPointer{Core: core}
+	var n Named = bp
+	n.HP += 3
+	check("embedded-pointer-write", core.HP == 5, core.HP, 5)
+	check("embedded-pointer-read", n.Name == "imp" && n.HP == 5, n.HP, 5)
+
+	bd := &ByDepth{Layer: Layer{Core: core}}
+	var d Named = bd
+	d.HP = 8
+	check("embedded-depth-two-write", core.HP == 8, core.HP, 8)
+	check("embedded-depth-two-read", d.Name == "imp", d.Name, "imp")
+
+	st := &store{hp: 3}
+	bi := &ByInterface{Accessor: st}
+	var q Quest = bi
+	q.HP += 4
+	check("embedded-interface-write", st.hp == 7, st.hp, 7)
+	check("embedded-interface-read", q.HP == 7, q.HP, 7)
+
+	p := Plain{Core: core}
+	p.HP++
+	check("promoted-field-direct", core.HP == 9 && p.HP == 9, p.HP, 9)
+	var viaIface Named = &ByPointer{Core: p.Core}
+	check("same-struct-through-two-paths", viaIface.HP == 9, viaIface.HP, 9)
+	if failed {
+		os.Exit(1)
+	}
+}

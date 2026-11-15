@@ -1,0 +1,542 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+cd imp
+! logos build -o $WORK/c1spawn$GOEXE ./badc1spawn
+stderr 'const_view_mutation'
+stderr 'parameter b'
+! logos build -o $WORK/c1run$GOEXE ./badc1run
+stderr 'const_view_mutation'
+stderr 'parameter b'
+! logos build -o $WORK/c1defer$GOEXE ./badc1defer
+stderr 'const_view_mutation'
+stderr 'parameter b'
+! logos build -o $WORK/c2$GOEXE ./badc2
+stderr 'const_view_mutation'
+stderr 'parameter b'
+! logos build -o $WORK/c3$GOEXE ./badc3
+stderr 'const_view_mutation'
+stderr 'parameter b'
+! logos build -o $WORK/h1$GOEXE ./badh1
+stderr 'const_view_mutation'
+stderr 'parameter b'
+! logos build -o $WORK/h2$GOEXE ./badh2
+stderr 'const_view_mutation'
+stderr 'parameter xs'
+! logos build -o $WORK/h3$GOEXE ./badh3
+stderr 'const_view_mutation'
+stderr 'parameter b'
+! logos build -o $WORK/h4$GOEXE ./badh4
+stderr 'const_view_mutation'
+stderr 'parameter b'
+! logos build -o $WORK/h5$GOEXE ./badh5
+stderr 'const_view_mutation'
+stderr 'parameter b'
+! logos build -o $WORK/h6push$GOEXE ./badh6push
+stderr 'const_view_mutation'
+stderr 'parameter b'
+! logos build -o $WORK/h6keep$GOEXE ./badh6keep
+stderr 'const_view_mutation'
+stderr 'parameter b'
+! logos build -o $WORK/h6copy$GOEXE ./badh6copy
+stderr 'const_view_mutation'
+stderr 'parameter src'
+! logos build -o $WORK/h7$GOEXE ./badh7
+stderr 'const_view_mutation'
+stderr 'parameter rows'
+! logos build -o $WORK/c2lo$GOEXE ./badc2lo
+stderr 'const_view_mutation'
+! logos build -o $WORK/h7map$GOEXE ./badh7map
+stderr 'const_view_mutation'
+stderr 'parameter rows'
+! logos build -o $WORK/h8ptr$GOEXE ./badh8ptr
+stderr 'const_view_mutation'
+stderr 'parameter b'
+! logos build -o $WORK/h8pkg$GOEXE ./badh8pkg
+stderr 'const_view_mutation'
+stderr 'parameter b'
+! logos build -o $WORK/h9$GOEXE ./badh9
+stderr 'const_view_mutation'
+stderr 'parameter b'
+! logos build -o $WORK/h10cond$GOEXE ./badh10cond
+stderr 'const_view_mutation'
+stderr 'parameter b'
+! logos build -o $WORK/h10post$GOEXE ./badh10post
+stderr 'const_view_mutation'
+stderr 'parameter b'
+! logos build -o $WORK/h11$GOEXE ./badh11
+stderr 'const_view_mutation'
+stderr 'parameter b'
+! logos build -o $WORK/retcall$GOEXE ./badretcall
+stderr 'const_view_mutation'
+stderr 'parameter xs'
+! logos build -o $WORK/m1clone$GOEXE ./badm1clone
+stderr 'const_view'
+! logos build -o $WORK/m1all$GOEXE ./badm1all
+stderr 'const_view'
+env GOOS=js
+env GOARCH=wasm
+logos build -o $WORK/l2eq$GOEXE ./l2eq
+env GOOS=
+env GOARCH=
+cd ..
+
+-- dep/go.mod --
+module example.com/snd
+
+go 1.27
+
+require example.com/oth v0.0.0
+
+replace example.com/oth => ../oth
+
+-- dep/snd.go --
+package snd
+
+func Spawn(b []byte) { go func() { b[0] = 1 }() }
+
+func Run(b []byte) { func() { b[0] = 1 }() }
+
+func Later(b []byte) { defer func() { b[0] = 1 }() }
+
+type Box struct{ N int }
+
+func (b *Box) Set(v int) { b.N = v }
+
+func (b *Box) Fill(xs []byte, v byte) { xs[0] = v }
+
+func Write(b []byte) int { return len(b) }
+
+type Zed struct{ n int }
+
+func (z *Zed) Write(b []byte) { b[0] = 1; z.n++ }
+
+func Pick(b []byte) (r []byte) { r = b; return }
+
+func Pass(b []byte) ([]byte, int) { x, n := b, 1; return x, n }
+
+func Pick2(b []byte, c bool) []byte {
+	x := b
+	if c {
+		x = nil
+	}
+	return x
+}
+
+type Holder struct{ items [][]byte }
+
+func (h *Holder) Push(b []byte) { h.items = append(h.items, b) }
+
+func Keep(dst [][]byte, b []byte) [][]byte { return append(dst, b) }
+
+func CopyRefs(dst, src [][]byte) { copy(dst, src) }
+
+func Offer(ch chan []byte, b []byte) {
+	select {
+	case ch <- b:
+	default:
+	}
+}
+
+func Fill2(b []byte) int { b[0] = 1; return 1 }
+
+func Total2(b []byte) int {
+	total := 0
+	total += Fill2(b)
+	return total
+}
+
+func Scrub(rows [][]byte) {
+	for _, r := range rows {
+		r[0] = 0
+	}
+}
+
+func ScrubMap(rows map[string][]byte) {
+	for _, r := range rows {
+		r[0] = 0
+	}
+}
+
+var Held []byte
+
+func LeakPtr(b []byte) { p := &Held; *p = b }
+
+func Mutate(b []byte) int { b[0] = 1; return 1 }
+
+func CondCall(b []byte) bool {
+	if n := Mutate(b); n > 0 {
+		return true
+	}
+	return false
+}
+
+func PostW(b []byte) {
+	for i := 0; i < 1; b[0]++ {
+	}
+}
+
+func Zero2(bs ...[]byte) {
+	for i := range bs {
+		bs[i][0] = 0
+	}
+}
+
+func Wrap2(b []byte) { Zero2(nil, b) }
+
+var pool [][]byte
+
+func regs() [][]byte { return pool }
+
+func Store(xs []byte) { regs()[0] = xs }
+
+-- dep/other.go --
+package snd
+
+import "example.com/oth"
+
+func LeakOther(b []byte) { oth.Held2 = b }
+
+-- dep/mid/mid.go --
+package mid
+
+import "example.com/snd"
+
+func ViaZed(b []byte) { var z snd.Zed; z.Write(b) }
+
+func Use(b *snd.Box) { b.Set(1) }
+
+-- oth/go.mod --
+module example.com/oth
+
+go 1.27
+
+-- oth/oth.go --
+package oth
+
+var Held2 []byte
+
+-- imp/go.mod --
+module example.com/sndimp
+
+go 1.27
+
+require (
+	example.com/snd v0.0.0
+	example.com/oth v0.0.0
+)
+
+replace example.com/snd => ../dep
+
+replace example.com/oth => ../oth
+
+-- imp/lib/lib.lgo --
+package lib
+
+import "example.com/snd"
+
+type U struct {
+	box *snd.Box
+}
+
+func (u U) Reset() {
+	u.box.Set(1)
+}
+
+-- imp/badc1spawn/main.lgo --
+package main
+
+import "example.com/snd"
+
+func main() {
+	b := []byte{1}
+	var view const []byte = b
+	snd.Spawn(view)
+}
+
+-- imp/badc1run/main.lgo --
+package main
+
+import "example.com/snd"
+
+func main() {
+	b := []byte{1}
+	var view const []byte = b
+	snd.Run(view)
+}
+
+-- imp/badc1defer/main.lgo --
+package main
+
+import "example.com/snd"
+
+func main() {
+	b := []byte{1}
+	var view const []byte = b
+	snd.Later(view)
+}
+
+-- imp/badc2/main.lgo --
+package main
+
+import (
+	"example.com/snd"
+	"example.com/snd/mid"
+)
+
+func main() {
+	bx := snd.Box{}
+	var view const *snd.Box = &bx
+	mid.Use(view)
+}
+
+-- imp/badc2lo/main.lgo --
+package main
+
+import "example.com/sndimp/lib"
+
+func main() {
+	cu := lib.U{}
+	var view const lib.U = cu
+	view.Reset()
+}
+
+-- imp/badc3/main.lgo --
+package main
+
+import "example.com/snd"
+
+func main() {
+	p := []byte{1, 2}
+	var view const []byte = p
+	snd.Total2(view)
+}
+
+-- imp/badh1/main.lgo --
+package main
+
+import "example.com/snd/mid"
+
+func main() {
+	b := []byte{1}
+	var view const []byte = b
+	mid.ViaZed(view)
+}
+
+-- imp/badh2/main.lgo --
+package main
+
+import "example.com/snd"
+
+func main() {
+	bx := snd.Box{}
+	b := []byte{1}
+	var view const []byte = b
+	(*snd.Box).Fill(&bx, view, 1)
+}
+
+-- imp/badh3/main.lgo --
+package main
+
+import "example.com/snd"
+
+func main() {
+	b := []byte{1}
+	var view const []byte = b
+	snd.Pick(view)[0] = 1
+}
+
+-- imp/badh4/main.lgo --
+package main
+
+import "example.com/snd"
+
+func main() {
+	b := []byte{1}
+	var view const []byte = b
+	snd.Pass(view)
+}
+
+-- imp/badh5/main.lgo --
+package main
+
+import "example.com/snd"
+
+func main() {
+	b := []byte{1}
+	var view const []byte = b
+	snd.Pick2(view, false)
+}
+
+-- imp/badh6push/main.lgo --
+package main
+
+import "example.com/snd"
+
+func main() {
+	b := []byte{1}
+	var view const []byte = b
+	h := snd.Holder{}
+	h.Push(view)
+}
+
+-- imp/badh6keep/main.lgo --
+package main
+
+import "example.com/snd"
+
+func main() {
+	var dst [][]byte
+	b := []byte{1}
+	var view const []byte = b
+	snd.Keep(dst, view)
+}
+
+-- imp/badh6copy/main.lgo --
+package main
+
+import "example.com/snd"
+
+func main() {
+	dst := [][]byte{{9}}
+	src := [][]byte{{1}}
+	var view const [][]byte = src
+	snd.CopyRefs(dst, view)
+}
+
+-- imp/badh7/main.lgo --
+package main
+
+import "example.com/snd"
+
+func main() {
+	rows := [][]byte{{1}}
+	var view const [][]byte = rows
+	snd.Scrub(view)
+}
+
+-- imp/badh7map/main.lgo --
+package main
+
+import "example.com/snd"
+
+func main() {
+	rows := map[string][]byte{"k": {1}}
+	var view const map[string][]byte = rows
+	snd.ScrubMap(view)
+}
+
+-- imp/badh8ptr/main.lgo --
+package main
+
+import "example.com/snd"
+
+func main() {
+	b := []byte{1}
+	var view const []byte = b
+	snd.LeakPtr(view)
+}
+
+-- imp/badh8pkg/main.lgo --
+package main
+
+import "example.com/snd"
+
+func main() {
+	b := []byte{1}
+	var view const []byte = b
+	snd.LeakOther(view)
+}
+
+-- imp/badh9/main.lgo --
+package main
+
+import "example.com/snd"
+
+func main() {
+	ch := make(chan []byte, 1)
+	b := []byte{1}
+	var view const []byte = b
+	snd.Offer(ch, view)
+}
+
+-- imp/badh10cond/main.lgo --
+package main
+
+import "example.com/snd"
+
+func main() {
+	b := []byte{1}
+	var view const []byte = b
+	snd.CondCall(view)
+}
+
+-- imp/badh10post/main.lgo --
+package main
+
+import "example.com/snd"
+
+func main() {
+	b := []byte{1}
+	var view const []byte = b
+	snd.PostW(view)
+}
+
+-- imp/badh11/main.lgo --
+package main
+
+import "example.com/snd"
+
+func main() {
+	b := []byte{1}
+	var view const []byte = b
+	snd.Wrap2(view)
+}
+
+-- imp/badretcall/main.lgo --
+package main
+
+import "example.com/snd"
+
+func main() {
+	xs := []byte{1}
+	var view const []byte = xs
+	snd.Store(view)
+}
+
+-- imp/badm1clone/main.lgo --
+package main
+
+import "maps"
+
+func main() {
+	src := map[string][]byte{"k": {1}}
+	var m const map[string][]byte = src
+	c := maps.Clone(m)
+	c["k"][0] = 1
+}
+
+-- imp/badm1all/main.lgo --
+package main
+
+import "maps"
+
+func main() {
+	src := map[string][]byte{"k": {1}}
+	var m const map[string][]byte = src
+	for _, v := range maps.All(m) {
+		v[0] = 1
+	}
+}
+
+-- imp/l2eq/main.lgo --
+package main
+
+import "bytes"
+
+func main() {
+	a := []byte{1, 2, 3}
+	var va const []byte = a
+	println(bytes.Equal(va, a))
+}

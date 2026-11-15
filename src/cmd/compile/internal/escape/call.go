@@ -10,7 +10,6 @@ import (
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
-	"internal/buildcfg"
 	"strings"
 )
 
@@ -120,6 +119,8 @@ func (e *escape) call(ks []hole, call ir.Node) {
 			for _, arg := range args {
 				argument(k, arg)
 			}
+		} else if e.logosGroupGo(call, recvArg, args) {
+			e.logosGroupGoArgs(call, recvArg, args, argument)
 		} else {
 			if recvArg != nil {
 				e.rewriteArgument(recvArg, call, fns)
@@ -127,7 +128,7 @@ func (e *escape) call(ks []hole, call ir.Node) {
 			}
 			for i := range fntype.Params() {
 				e.rewriteArgument(args[i], call, fns)
-				argument(e.mergedTagHole(ks, fns, i, len(fntype.Params())), args[i])
+				argument(e.logosTagHole(ks, fns, len(fntype.Params()), args, i), args[i])
 			}
 		}
 		// Caller-region result modeling: records the static call result as a
@@ -135,6 +136,7 @@ func (e *escape) call(ks []hole, call ir.Node) {
 		// RetSet. Vetoes (defer/goto/loop/foreign/heap) stay in arena
 		// metadata; this only records flow.
 		e.logosArenaCall(ks, call, fns)
+		e.logosRegionCall(ks, call)
 
 	case ir.OINLCALL:
 		call := call.(*ir.InlinedCallExpr)
@@ -249,6 +251,9 @@ func (e *escape) goDeferStmt(n *ir.GoDeferStmt) {
 		// force stack allocation of defer record, unless
 		// open-coded defers are used (see ssa.go)
 		n.SetEsc(ir.EscNever)
+	} else if clo := pooledTryDeferClosure(n); clo != nil {
+		clo.DeferTryErr = n.DeferTry
+		k = e.later(e.discardHole())
 	}
 
 	// If the function is already a zero argument/result function call,
@@ -281,12 +286,6 @@ func (e *escape) rewriteArgument(arg ir.Node, call *ir.CallExpr, fns []*ir.Name)
 		if fn.Func != nil {
 			pragma |= fn.Func.Pragma
 		}
-	}
-	// For dynamic callees under the moving collector on supported architectures,
-	// keep pointer operands alive across the call so the indirect syscall admission
-	// lane can inspect the target at runtime and pin any foreign referents.
-	if len(fns) == 0 && ir.IsUintptrConv(arg) && buildcfg.Experiment.LogosGCMoving && (buildcfg.GOARCH == "amd64" || buildcfg.GOARCH == "arm64") {
-		pragma |= ir.UintptrKeepAlive
 	}
 	if pragma&(ir.UintptrKeepAlive|ir.UintptrEscapes) == 0 {
 		return

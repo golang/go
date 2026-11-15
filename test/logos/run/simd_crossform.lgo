@@ -1,0 +1,90 @@
+// run -goexperiment simd
+
+package main
+
+import (
+	"fmt"
+	"math"
+	"os"
+)
+
+type lane float64
+
+func pairwiseSum(t [8]float64) float64 {
+	lo := (t[0] + t[1]) + (t[2] + t[3])
+	hi := (t[4] + t[5]) + (t[6] + t[7])
+	return lo + hi
+}
+
+func leftSum(t [8]float64) float64 {
+	s := 0.0
+	for _, v := range t {
+		s += v
+	}
+	return s
+}
+
+func pairwiseDot(a, b [4]float64) float64 {
+	return (a[0]*b[0] + a[1]*b[1]) + (a[2]*b[2] + a[3]*b[3])
+}
+
+func leftDot4(a, b [4]float64) float64 {
+	s := 0.0
+	for i := 0; i < 4; i++ {
+		s += a[i] * b[i]
+	}
+	return s
+}
+
+func checkCrossFormSum() {
+	t := [8]float64{1e16, 1, 1, 1, 1, 1, 1, -1e16}
+	var u [8]lane
+	for i := range t {
+		u[i] = lane(t[i])
+	}
+	vec := t.sum()
+	sca := float64(u.sum())
+	if math.Float64bits(vec) != math.Float64bits(sca) {
+		fmt.Println("FAIL sum")
+		os.Exit(1)
+	}
+	if want := pairwiseSum(t); vec != want {
+		fmt.Println("FAIL sum")
+		os.Exit(1)
+	}
+	if leftSum(t) == pairwiseSum(t) {
+		fmt.Println("FAIL sum")
+		os.Exit(1)
+	}
+	fmt.Println("ok sum")
+}
+
+func checkCrossFormDot() {
+	a := [4]float64{1e16, 1, -1e16, 1}
+	b := [4]float64{1, 1, 1, 1}
+	var c, d [4]lane
+	for i := range a {
+		c[i] = lane(a[i])
+		d[i] = lane(b[i])
+	}
+	if leftDot4(a, b) == pairwiseDot(a, b) {
+		fmt.Println("FAIL dot")
+		os.Exit(1)
+	}
+	vec := a.dot(b)
+	sca := float64(c.dot(d))
+	if math.Float64bits(vec) != math.Float64bits(sca) {
+		fmt.Println("FAIL dot")
+		os.Exit(1)
+	}
+	if want := pairwiseDot(a, b); math.Float64bits(vec) != math.Float64bits(want) {
+		fmt.Println("FAIL dot")
+		os.Exit(1)
+	}
+	fmt.Println("ok dot")
+}
+
+func main() {
+	checkCrossFormSum()
+	checkCrossFormDot()
+}

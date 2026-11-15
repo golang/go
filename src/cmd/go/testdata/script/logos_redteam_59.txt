@@ -1,26 +1,16 @@
-# REDTEAM #59 (SPEC Sec 8.3, T-301.1; IMPLEMENTATION.md M18-S1): cgo
-# pointer checks panicking on arena addresses. Cgo pointer checks MUST
-# accept arena addresses without panic: an arena address is Go memory, so
-# storing into it is not a store into non-Go memory and no argument,
-# result, or copy involving arena memory may panic.
-#
-# A live cgo bridge cannot carry this proof: any make that flows into a
-# cgo call argument or an unsafe.Pointer conversion is forced to the heap
-# by the foreign-flow rule (M17-S1), so the C call would exercise only a
-# heap pointer and pass while the attack stays open. The faithful gate is
-# the dedicated runtime test, which allocates noscan and scan objects
-# directly in the arena via the test seam and drives every check path
-# (pointer to noscan object, pointer to scan object, unsafe.Pointer to
-# arena, slice over arena bytes, arena struct holding an arena pointer,
-# result holding an arena pointer, and heap-pointer stores in both
-# directions). The default cgocheck level already executes these checks
-# (cgocheck=2 is a build-time GOEXPERIMENT in this tree, not a GODEBUG
-# setting, so no GODEBUG line appears here).
 env GOPROXY=off
 env GOTOOLCHAIN=local
 env GOEXPERIMENT=logosarena
-go test -count=1 -run 'TestLogosArenaCgoChecksAcceptArenaAddresses' runtime
-go test -race -count=1 -run 'TestLogosArenaCgoChecksAcceptArenaAddresses' runtime
+go test -v -count=1 -run 'TestLogosArenaCgoChecksAcceptArenaAddresses' runtime
+stdout '--- PASS: TestLogosArenaCgoChecksAcceptArenaAddresses'
+stdout '^ok\s+runtime'
+! stderr 'no tests to run'
+! stdout 'no tests to run'
+go test -race -v -count=1 -run 'TestLogosArenaCgoChecksAcceptArenaAddresses' runtime
+stdout '--- PASS: TestLogosArenaCgoChecksAcceptArenaAddresses'
+stdout '^ok\s+runtime'
+! stderr 'no tests to run'
+! stdout 'no tests to run'
 
 -- go.mod --
 module example.com/redteam59

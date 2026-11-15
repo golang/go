@@ -1,0 +1,186 @@
+ok coalesce false false false
+ok coalesce false true false
+ok coalesce true false false
+ok coalesce false false true
+ok coalesce false true true
+ok coalesce true false true
+ok coalesce-pointer false false false
+ok coalesce-pointer false true false
+ok coalesce-pointer true false false
+ok coalesce-pointer false false true
+ok coalesce-pointer false true true
+ok coalesce-pointer true false true
+ok map-value false false false
+ok map-value false true false
+ok map-value true false false
+ok map-value false false true
+ok map-value false true true
+ok map-value true false true
+ok map-pointer false false false
+ok map-pointer false true false
+ok map-pointer true false false
+ok map-pointer false false true
+ok map-pointer false true true
+ok map-pointer true false true
+ok select false false false
+ok select false true false
+ok select true false false
+ok select false false true
+ok select false true true
+ok select true false true
+ok optional-zero false false false
+ok optional-zero false true false
+ok optional-zero true false false
+ok optional-zero false false true
+ok optional-zero false true true
+ok optional-zero true false true
+ok optional-one false false false
+ok optional-one false true false
+ok optional-one true false false
+ok optional-one false false true
+ok optional-one false true true
+ok optional-one true false true
+ok optional-many false false false
+ok optional-many false true false
+ok optional-many true false false
+ok optional-many false false true
+ok optional-many false true true
+ok optional-many true false true
+ok switch-arm false false false
+ok switch-arm false true false
+ok switch-arm true false false
+ok switch-arm false false true
+ok switch-arm false true true
+ok switch-arm true false true
+ok switch-tag false false false
+ok switch-tag false true false
+ok switch-tag true false false
+ok switch-tag false false true
+ok switch-tag false true true
+ok switch-tag true false true
+ok switch-case false false false
+ok switch-case false true false
+ok switch-case true false false
+ok switch-case false false true
+ok switch-case false true true
+ok switch-case true false true
+ok union-arm false false false
+ok union-arm false true false
+ok union-arm true false false
+ok union-arm false false true
+ok union-arm false true true
+ok union-arm true false true
+ok stage coalesce false false
+ok stage coalesce false true
+ok stage coalesce true false
+ok stage optional-one false false
+ok stage optional-one false true
+ok stage optional-one true false
+ok stage switch-arm false false
+ok stage switch-arm false true
+ok stage switch-arm true false
+ok stage arm-option false false
+ok stage arm-option false true
+ok stage arm-option true false
+ok attack fallback-field some false false
+ok attack fallback-field some false true
+ok attack fallback-field none false false
+ok attack fallback-field none false true
+ok attack fallback-field none true false
+ok attack fallback-field none true true
+ok attack fallback-chain some false false
+ok attack fallback-chain some false true
+ok attack fallback-chain none false false
+ok attack fallback-chain none false true
+ok attack fallback-chain inner false false
+ok attack fallback-chain inner false true
+ok attack fallback-chain none true false
+ok attack fallback-chain none true true
+ok attack head-chain some false false
+ok attack head-chain some false true
+ok attack head-chain none false false
+ok attack head-chain none false true
+ok attack head-chain inner false false
+ok attack head-chain inner false true
+ok attack head-chain some true false
+ok attack head-chain some true true
+ok attack head-field some false false
+ok attack head-field some false true
+ok attack head-field none false false
+ok attack head-field none false true
+ok attack head-field some true false
+ok attack head-field some true true
+ok attack arg-chain some false false
+ok attack arg-chain some false true
+ok attack arg-chain none false false
+ok attack arg-chain none false true
+ok attack arg-chain inner false false
+ok attack arg-chain inner false true
+ok attack arg-chain some true false
+ok attack arg-chain some true true
+ok attack arm-coalesce some false false
+ok attack arm-coalesce some false true
+ok attack arm-coalesce none false false
+ok attack arm-coalesce none false true
+ok attack arm-coalesce other false false
+ok attack arm-coalesce other false true
+ok attack arm-coalesce other true false
+ok attack arm-coalesce other true true
+ok attack arm-chain some false false
+ok attack arm-chain some false true
+ok attack arm-chain none false false
+ok attack arm-chain none false true
+ok attack arm-chain other false false
+ok attack arm-chain other false true
+ok attack arm-chain other true false
+ok attack arm-chain other true true
+ok attack arm-narrow some false false
+ok attack arm-narrow some false true
+ok attack arm-narrow other false false
+ok attack arm-narrow other false true
+ok attack arm-narrow other true false
+ok attack arm-narrow other true true
+ok attack arm-recv-coalesce some false false
+ok attack arm-recv-coalesce some false true
+ok attack arm-recv-coalesce none false false
+ok attack arm-recv-coalesce none false true
+ok attack arm-recv-coalesce other false false
+ok attack arm-recv-coalesce other false true
+ok attack arm-recv-coalesce none true false
+ok attack arm-recv-coalesce none true true
+ok attack direct-one some false false
+ok attack direct-one none false false
+ok attack direct-one some true false
+ok attack direct-pair some false false
+ok attack direct-pair none false false
+ok attack direct-pair some true false
+ok attack discard-one some false false
+ok attack discard-one none false false
+ok attack discard-one some true false
+ok attack discard-pair some false false
+ok attack discard-pair none false false
+ok attack discard-pair some true false
+ok attack discard-go-one some false false
+ok attack discard-go-one none false false
+ok attack discard-go-one some true false
+ok attack discard-go-pair some false false
+ok attack discard-go-pair none false false
+ok attack discard-go-pair some true false
+ok attack discard-if some false false
+ok attack discard-if none false false
+ok attack discard-if some true false
+ok attack discard-if-pair some false false
+ok attack discard-if-pair none false false
+ok attack discard-if-pair some true false
+ok attack zero-if some false false
+ok attack zero-if none false false
+ok attack zero-if some true false
+ok attack discard-for some false false
+ok attack discard-for none false false
+ok attack discard-for some true false
+ok attack discard-for-pair some false false
+ok attack discard-for-pair none false false
+ok attack discard-for-pair some true false
+ok attack zero-for some false false
+ok attack zero-for none false false
+ok attack zero-for some true false

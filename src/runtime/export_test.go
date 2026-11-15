@@ -380,9 +380,6 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 			if s.state.get() != mSpanInUse {
 				continue
 			}
-			if s.isUnusedUserArenaChunk() {
-				continue
-			}
 			if sizeclass := s.spanclass.sizeclass(); sizeclass == 0 {
 				slow.Mallocs++
 				slow.Alloc += uint64(s.elemsize)
@@ -1821,50 +1818,6 @@ const GTrackingPeriod = gTrackingPeriod
 
 var ZeroBase = unsafe.Pointer(&zerobase)
 
-const UserArenaChunkBytes = userArenaChunkBytes
-
-type UserArena struct {
-	arena *userArena
-}
-
-func NewUserArena() *UserArena {
-	return &UserArena{newUserArena()}
-}
-
-func (a *UserArena) New(out *any) {
-	i := efaceOf(out)
-	typ := i._type
-	if typ.Kind() != abi.Pointer {
-		panic("new result of non-ptr type")
-	}
-	typ = (*ptrtype)(unsafe.Pointer(typ)).Elem
-	i.data = a.arena.new(typ)
-}
-
-func (a *UserArena) Slice(sl any, cap int) {
-	a.arena.slice(sl, cap)
-}
-
-func (a *UserArena) Free() {
-	a.arena.free()
-}
-
-func GlobalWaitingArenaChunks() int {
-	n := 0
-	systemstack(func() {
-		lock(&mheap_.lock)
-		for s := mheap_.userArena.quarantineList.first; s != nil; s = s.next {
-			n++
-		}
-		unlock(&mheap_.lock)
-	})
-	return n
-}
-
-func UserArenaClone[T any](s T) T {
-	return arena_heapify(s).(T)
-}
-
 var AlignUp = alignUp
 
 func BlockUntilEmptyFinalizerQueue(timeout int64) bool {
@@ -2133,6 +2086,38 @@ func FuncNamePiecesForPrint(name string) (string, string, string, string, string
 	return funcNamePiecesForPrint(name)
 }
 
-// LogosForeignGBytes re-exports the g-size floor the size test asserts;
-// the const itself stays unexported so it does not widen the public API.
-const LogosForeignGBytes = logosForeignGBytes
+func DeferTryPack(t unsafe.Pointer, ctype unsafe.Pointer, clo unsafe.Pointer, roff uintptr) {
+	packDeferTry((*_deferTry)(t), (*_type)(ctype), clo, roff)
+}
+
+func DeferTryRec(t unsafe.Pointer) unsafe.Pointer {
+	return unsafe.Pointer(&(*_deferTry)(t).fv)
+}
+
+func DeferTryUnpackRec(rec unsafe.Pointer, ctype unsafe.Pointer, dst unsafe.Pointer, roff uintptr) {
+	deferTryUnpack(rec, (*_type)(ctype), dst, roff)
+}
+
+func DeferTryNew() unsafe.Pointer {
+	return unsafe.Pointer(newdeferTry())
+}
+
+func DeferTryFree(t unsafe.Pointer) {
+	freeDeferTry((*_deferTry)(t))
+}
+
+func DeferTryTypeOf(v any) unsafe.Pointer {
+	return unsafe.Pointer(efaceOf(&v)._type)
+}
+
+func DeferTryOffset(p unsafe.Pointer) uintptr {
+	return getg().stack.hi - uintptr(p)
+}
+
+func DeferTryResolve(off uintptr) unsafe.Pointer {
+	return unsafe.Pointer(getg().stack.hi - off)
+}
+
+func DeferTryStackHi() uintptr {
+	return getg().stack.hi
+}

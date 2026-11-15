@@ -1,0 +1,30 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+
+cd a
+cp $GOROOT/test/logos/run/const_composite_imported_named.lgo main.lgo
+logos eject -o out
+cd out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/const_composite_imported_named.out
+cd ..
+rm out
+
+cp $GOROOT/test/logos/run/const_composite_imported_zero.lgo main.lgo
+logos eject -o out
+cd out
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/const_composite_imported_zero.out
+cd ..
+rm out
+
+-- a/go.mod --
+module example.com/ccimported
+
+go 1.27

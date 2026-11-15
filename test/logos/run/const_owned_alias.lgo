@@ -1,0 +1,92 @@
+// run
+
+package main
+
+import "fmt"
+
+type runInner struct {
+	V []int
+}
+
+func (r runInner) total() int {
+	n := 0
+	for _, v := range r.V {
+		n += v
+	}
+	return n
+}
+
+type runOuter struct {
+	Inner runInner
+}
+
+const ownedSlice = runOuter{Inner: runInner{V: []int{2, 3, 5}}}
+
+const ownedMap = map[string]int{"a": 40, "b": 2}
+
+func sumView(xs const []int) int {
+	total := 0
+	for _, x := range xs {
+		total += x
+	}
+	return total
+}
+
+func readAddr(v const []int) int {
+	p := &v[0]
+	return *p
+}
+
+func readDeep(xs const []runInner) int {
+	p := &xs[0].V[2]
+	return *p
+}
+
+func readSlice(v const []int) int {
+	w := v[1:3]
+	return w[0]*10 + w[1]
+}
+
+func readElemMethod(xs const []runInner) int {
+	return xs[0].total()
+}
+
+func mapCopyField(m const map[string]int, k string) int {
+	got := m[k] ?? -1
+	got++
+	return got
+}
+
+func strOf(b const []byte) string {
+	return string(b)
+}
+
+func check(name string, got int, want int) {
+	if got != want {
+		fmt.Println("FAIL", name, "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func main() {
+	check("owned-read", ownedSlice.Inner.V[0]+ownedSlice.Inner.V[1]+ownedSlice.Inner.V[2], 10)
+	a := ownedSlice
+	check("alias-read", a.Inner.V[1], 3)
+	xs := []int{7, 8, 9}
+	check("sum", sumView(xs), 24)
+	check("addr-read", readAddr(xs), 7)
+	check("deep-read", readDeep([]runInner{{V: []int{7, 8, 9}}}), 9)
+	check("slice-read", readSlice(xs), 89)
+	check("method-read", readElemMethod([]runInner{{V: []int{1, 2}}}), 3)
+	mm := map[string]int{"a": 7}
+	check("map-copy", mapCopyField(mm, "a"), 8)
+	check("map-kept", mm["a"] ?? -1, 7)
+	check("constmap", (ownedMap["a"] ?? -1)+(ownedMap["b"] ?? -1), 42)
+	check("constmap-len", len(ownedMap), 2)
+	if strOf([]byte{'h', 'i'}) != "hi" {
+		fmt.Println("FAIL str")
+		return
+	}
+	fmt.Println("ok str")
+}

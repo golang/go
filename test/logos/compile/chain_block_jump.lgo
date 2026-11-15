@@ -1,0 +1,164 @@
+// errorcheck
+
+package p
+
+func jumpBreak(xs []int) []int {
+	return xs.map(x => {
+		if x == 3 {
+			break // ERROR "chain_jump"
+		}
+		return x * 10
+	})
+}
+
+func jumpContinue(xs []int) []int {
+	return xs.map(x => {
+		if x == 3 {
+			continue // ERROR "chain_jump"
+		}
+		return x * 10
+	})
+}
+
+func jumpTopBreak(xs []int) []int {
+	return xs.map(x => {
+		break // ERROR "chain_jump"
+		return x
+	})
+}
+
+func jumpTopFallthrough(xs []int) []int {
+	return xs.map(x => {
+		fallthrough // ERROR "chain_jump"
+		return x
+	})
+}
+
+func jumpGotoOut(xs []int) []int {
+	r := xs.map(x => {
+		if x == 3 {
+			goto out // ERROR "chain_jump"
+		}
+		return x * 10
+	})
+	goto out
+out:
+	return r
+}
+
+func jumpBreakOuter(xs []int) []int {
+	var r []int
+outer:
+	for range []int{1} {
+		r = xs.map(x => {
+			if x == 3 {
+				break outer // ERROR "chain_jump"
+			}
+			return x
+		})
+		break outer
+	}
+	return r
+}
+
+func jumpContinueOuter(xs []int) []int {
+	var r []int
+outer:
+	for range []int{1} {
+		r = xs.map(x => {
+			if x == 3 {
+				continue outer // ERROR "chain_jump"
+			}
+			return x
+		})
+		continue outer
+	}
+	return r
+}
+
+func okNestedBreak(xs []int) []int {
+	return xs.map(x => {
+		s := 0
+		for i := 0; i < x; i++ {
+			if i == 2 {
+				break
+			}
+			s += i
+		}
+		return s
+	})
+}
+
+func okNestedContinue(xs []int) []int {
+	return xs.map(x => {
+		s := 0
+		for i := 0; i < x; i++ {
+			if i == 2 {
+				continue
+			}
+			s += i
+		}
+		return s
+	})
+}
+
+func okNestedSwitch(xs []int) []int {
+	return xs.map(x => {
+		v := 0
+		switch x {
+		case 1:
+			v = 10
+		default:
+			v = x
+		}
+		return v
+	})
+}
+
+func okInnerGoto(xs []int) []int {
+	return xs.map(x => {
+		v := x * 10
+		if x == 3 {
+			goto fin
+		}
+		v = v + 1
+	fin:
+		v = v * 2
+		return v
+	})
+}
+
+func okSelectBreak(xs []int) []int {
+	return xs.map(x => {
+		c := make(chan int, 1)
+		c <- x
+		v := 0
+		select {
+		case n := <-c:
+			if n == 0 {
+				break
+			}
+			v = n * 2
+		default:
+			v = -1
+		}
+		return v
+	})
+}
+
+func okLabeledInner(xs []int) []int {
+	return xs.map(x => {
+		s := 0
+	inner:
+		for i := 0; i < x; i++ {
+			if i == 1 {
+				continue inner
+			}
+			if i == 3 {
+				break inner
+			}
+			s += i
+		}
+		return s
+	})
+}

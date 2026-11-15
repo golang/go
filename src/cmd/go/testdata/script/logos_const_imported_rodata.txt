@@ -1,0 +1,164 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# Ordinary Go imports erase const qualifiers; native placement is still protected.
+# Checked loGo/s alias rejection is covered separately, not bypassed here.
+cd prog
+logos build -o prog.exe .
+exec ./prog.exe
+stdout '^read 2s 1.000042ms March drwxr-xr-x 2 2 3ns true 3 2 true 5$'
+stdout '^ok slice-fault$'
+stdout '^ok months-fault$'
+stdout '^ok modes-fault$'
+stdout '^ok nested-fault$'
+stdout '^ok anon-fault$'
+stdout '^ok lists-fault$'
+stdout '^ok stamps-fault$'
+stdout '^ok recs-fault$'
+! stdout 'FAIL'
+
+exec go tool nm prog.exe
+stdout ' R example\.com/rodvalues/p\.Slice$'
+stdout ' R example\.com/rodvalues/p\.Slice\.logos_backing0$'
+stdout ' R example\.com/rodvalues/p\.Array$'
+stdout ' R example\.com/rodvalues/p\.Months$'
+stdout ' R example\.com/rodvalues/p\.Months\.logos_backing0$'
+stdout ' R example\.com/rodvalues/p\.Modes$'
+stdout ' R example\.com/rodvalues/p\.Modes\.logos_backing0$'
+stdout ' R example\.com/rodvalues/p\.Nested$'
+stdout ' R example\.com/rodvalues/p\.Anon$'
+stdout ' R example\.com/rodvalues/p\.ListsValue$'
+stdout ' R example\.com/rodvalues/p\.ListsValue\.logos_backing0$'
+stdout ' R example\.com/rodvalues/p\.Stamps$'
+stdout ' R example\.com/rodvalues/p\.Stamps\.logos_backing0$'
+stdout ' R example\.com/rodvalues/p\.Recs$'
+stdout ' R example\.com/rodvalues/p\.Recs\.logos_backing0$'
+! stdout ' [Tt] (main|example\.com/rodvalues/p)\.init'
+
+-- prog/go.mod --
+module example.com/rodimported
+
+go 1.27
+
+require example.com/rodvalues v0.0.0
+
+replace example.com/rodvalues => ../lib
+
+-- lib/go.mod --
+module example.com/rodvalues
+
+go 1.27
+
+-- lib/p/values.lgo --
+package p
+
+import (
+	"os"
+	"time"
+)
+
+type Rec struct {
+	At time.Time
+	N  int
+}
+
+type Lists struct {
+	L []time.Duration
+	N int
+}
+
+const Slice = []time.Duration{time.Second, 2 * time.Second}
+const Array = [8]time.Duration{time.Millisecond, 3, 4, 5, 6, 7, 8, 9}
+const Months = []time.Month{time.March, 12}
+const Modes = []os.FileMode{0o644, os.ModeDir | 0o755}
+const Nested = [][]time.Duration{{1, 2}, {3}}
+const Anon = []struct{ D time.Duration }{{time.Second}, {2}}
+const ListsValue = Lists{L: []time.Duration{time.Minute, 5}, N: 3}
+const Stamps = []time.Time{{}, {}}
+const Recs = []Rec{{N: 4}, {N: 5}}
+
+-- prog/main.go --
+package main
+
+import (
+	"bytes"
+	"fmt"
+	"os"
+	"os/exec"
+	"strings"
+	"time"
+	"unsafe"
+
+	. "example.com/rodvalues/p"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func poke(name string) {
+	switch name {
+	case "slice":
+		*unsafe.SliceData(Slice) = 0
+	case "months":
+		*unsafe.SliceData(Months) = 0
+	case "modes":
+		*unsafe.SliceData(Modes) = 0
+	case "nested":
+		*unsafe.SliceData(Nested[0]) = 0
+	case "anon":
+		*(*time.Duration)(unsafe.Pointer(unsafe.SliceData(Anon))) = 0
+	case "stamps":
+		*unsafe.SliceData(Stamps) = time.Time{}
+	case "recs":
+		*unsafe.SliceData(Recs) = Rec{}
+	case "lists":
+		*unsafe.SliceData(ListsValue.L) = 0
+	}
+	fmt.Println("STORE-SUCCEEDED")
+}
+
+func faults(self, name string) {
+	cmd := exec.Command(self, name)
+	var buf bytes.Buffer
+	cmd.Stdout = &buf
+	cmd.Stderr = &buf
+	runErr := cmd.Run()
+	code := -1
+	if ee, ok := runErr.(*exec.ExitError); ok {
+		code = ee.ExitCode()
+	}
+	out := buf.String()
+	check(name+"-fault", runErr != nil && code == 2 && strings.Contains(out, "fault") && !strings.Contains(out, "STORE-SUCCEEDED"), out, "fault without STORE-SUCCEEDED")
+}
+
+func main() {
+	if len(os.Args) > 1 {
+		poke(os.Args[1])
+		return
+	}
+	at := len(os.Args) - 1
+	var sum time.Duration
+	for _, d := range Array {
+		sum += d
+	}
+	fmt.Println("read", Slice[1], sum, Months[at], Modes[1], len(Nested), len(Nested[0]), Nested[1][0], Anon[at].D == time.Second, ListsValue.N, len(Stamps), Stamps[1].IsZero(), Recs[1].N)
+	self, err := os.Executable()
+	if err != nil {
+		fmt.Println("FAIL executable:", err)
+		os.Exit(1)
+	}
+	for _, name := range []string{"slice", "months", "modes", "nested", "anon", "lists", "stamps", "recs"} {
+		faults(self, name)
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

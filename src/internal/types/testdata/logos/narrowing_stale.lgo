@@ -1,0 +1,238 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+import "context"
+
+type U struct{ Name string }
+
+func take(u U) string { return u.Name }
+
+func pair() (int, U?) { return 1, nil }
+
+func opt(o U) U? { return o }
+
+func redeclParam(q U?) func() string {
+	var g func() string
+	if q != nil {
+		g = func() string { return take(q /* ERROR "[correctness::nil_deref_unproven]" */) }
+	}
+	n, q := pair()
+	_, _ = n, q
+	return g
+}
+
+func redeclVar(o U) func() string {
+	var q U? = o
+	var g func() string
+	if q != nil {
+		g = func() string { return take(q /* ERROR "[correctness::nil_deref_unproven]" */) }
+	}
+	n, q := pair()
+	_, _ = n, q
+	return g
+}
+
+func redeclResult() (q U?, g func() string) {
+	if q != nil {
+		g = func() string { return take(q /* ERROR "[correctness::nil_deref_unproven]" */) }
+	}
+	n, q := pair()
+	_ = n
+	return
+}
+
+func redeclShort(o U) func() string {
+	n, q := 1, opt(o)
+	var g func() string
+	if q != nil {
+		g = func() string { return take(q /* ERROR "[correctness::nil_deref_unproven]" */) }
+	}
+	m, q := pair()
+	_, _, _ = n, m, q
+	return g
+}
+
+func shadowBlock(q U?) func() string {
+	var g func() string
+	if q != nil {
+		g = func() string { return take(q) }
+	}
+	{
+		n, q := pair()
+		_, _ = n, q
+	}
+	return g
+}
+
+func shadowSiblings(q U?) func() string {
+	var g func() string
+	if q != nil {
+		g = func() string { return take(q) }
+	}
+	{
+		n, q := pair()
+		_, _ = n, q
+	}
+	{
+		n, q := pair()
+		_, _ = n, q
+	}
+	return g
+}
+
+func shadowHeader(q U?) func() string {
+	var g func() string
+	if q != nil {
+		g = func() string { return take(q) }
+	}
+	if n, q := pair(); n > 0 {
+		_ = q
+	}
+	for n, q := pair(); n > 5; {
+		_ = q
+	}
+	return g
+}
+
+func shadowClosure(q U?) func() string {
+	var g func() string
+	if q != nil {
+		g = func() string { return take(q) }
+	}
+	h := func() {
+		n, q := pair()
+		_, _ = n, q
+	}
+	h()
+	return g
+}
+
+func childReadsAssignedLater(ctx context.Context, o U) error {
+	var q U? = o
+	if q != nil {
+		go group (ctx) {
+			go {
+				_ = take(q /* ERROR "[correctness::nil_deref_unproven]" */)
+			}
+			q = nil
+		}
+	}
+	return nil
+}
+
+func childReadsAssignedInSibling(ctx context.Context, o U) error {
+	var q U? = o
+	if q != nil {
+		go group (ctx) {
+			go {
+				_ = take(q /* ERROR "[correctness::nil_deref_unproven]" */)
+			}
+			go {
+				q = nil
+			}
+		}
+	}
+	return nil
+}
+
+func stageLambdaAssignedInSibling(ctx context.Context, o U, xs []int) error {
+	var q U? = o
+	if q != nil {
+		_, err := xs.group(ctx, limit = 2).map(x => len(take(q /* ERROR "[correctness::nil_deref_unproven]" */)) + x).filter(x => {
+			q = nil
+			return true
+		})
+		return err
+	}
+	return nil
+}
+
+func childReadsUnassigned(ctx context.Context, q U?) error {
+	if q != nil {
+		go group (ctx) {
+			go {
+				_ = take(q)
+			}
+		}
+	}
+	return nil
+}
+
+func stageLambdaReadsUnassigned(ctx context.Context, q U?, xs []int) error {
+	if q != nil {
+		_, err := xs.group(ctx, limit = 2).map(x => len(take(q)) + x)
+		return err
+	}
+	return nil
+}
+
+func stageLambdaReadsThenAssignedAfterJoin(ctx context.Context, q U?, xs []int) error {
+	if q != nil {
+		_, err := xs.group(ctx, limit = 2).map(x => len(take(q)) + x)
+		q = nil
+		return err
+	}
+	return nil
+}
+
+func andLiteral(q U?) bool {
+	return q != nil && func() bool { return take(q) != "" }()
+}
+
+func andLiteralChain(q, r U?) bool {
+	return q != nil && r != nil && func() bool { return take(q) != take(r) }()
+}
+
+func andLiteralInIf(q U?) string {
+	if q != nil && func() bool { return take(q) != "" }() {
+		return take(q)
+	}
+	return ""
+}
+
+func andLiteralNested(q U?) bool {
+	return q != nil && func() bool {
+		return func() bool { return take(q) != "" }()
+	}()
+}
+
+func andLiteralAssigned(q U?) bool {
+	ok := q != nil && func() bool { return take(q /* ERROR "[correctness::nil_deref_unproven]" */) != "" }()
+	q = nil
+	return ok
+}
+
+func andLiteralLeft(q U?) bool {
+	return func() bool { return take(q /* ERROR "[correctness::nil_deref_unproven]" */) != "" }() && q != nil
+}
+
+func orLiteral(q U?) bool {
+	return q == nil || func() bool { return take(q /* ERROR "[correctness::nil_deref_unproven]" */) != "" }()
+}
+
+func operandsReadInPlace(ctx context.Context, q U?) error {
+	if q != nil {
+		defer take(q)
+		go group (ctx) {
+			_ = take(q)
+			go take(q)
+			go {
+				_ = take(q /* ERROR "[correctness::nil_deref_unproven]" */)
+			}
+		}
+		q = nil
+	}
+	return nil
+}
+
+func operandsUnnarrowed(ctx context.Context, q U?) error {
+	defer take(q /* ERROR "[correctness::nil_deref_unproven]" */)
+	go group (ctx) {
+		_ = take(q /* ERROR "[correctness::nil_deref_unproven]" */)
+		go take(q /* ERROR "[correctness::nil_deref_unproven]" */)
+	}
+	return nil
+}

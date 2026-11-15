@@ -1,0 +1,116 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+cd a
+logos run .
+stdout '^ok$'
+logos eject -o ../out
+exists ../out/main.go
+! exists ../out/main.lgo
+cd ../out
+exists $UPROOT1273/bin/go
+exec $UPROOT1273/bin/go version
+stdout '^go version go1\.27\.3 '
+exec env -u GOROOT $UPROOT1273/bin/go build -o probe .
+exec ./probe
+stdout '^ok$'
+
+-- a/go.mod --
+module example.com/selectassigntarget
+
+go 1.27
+
+-- a/main.lgo --
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+)
+
+type target struct {
+	value int
+	ok bool
+	calls int
+}
+
+func (s *target) after(c chan int) *target {
+	if len(c) != 0 {
+		panic("target evaluated before comm receive")
+	}
+	s.calls++
+	return s
+}
+
+func blocked(ctx context.Context, c chan int, index chan int, s *target) error {
+	bools := []bool{false}
+	go group (ctx) {
+		go {
+			select {
+			case s.after(c).value, bools[<-index] = <-c:
+			}
+		}
+	}
+	return nil
+}
+
+//logos:allow(correctness::unbounded_channel_op)
+func run() error {
+	ctx := context.Background()
+	c := make(chan int, 1)
+	index := make(chan int, 1)
+	a := []int{0}
+	s := &target{}
+	c <- 11
+	index <- 0
+	go group (ctx) {
+		go {
+			select {
+			case a[<-index] = <-c:
+			}
+		}
+	}
+	if a[0] != 11 || len(index) != 0 {
+		panic("index receive target")
+	}
+	c <- 23
+	index <- 0
+	go group (ctx) {
+		go {
+			select {
+			case a[<-index], s.ok = <-c:
+			}
+		}
+	}
+	if a[0] != 23 || !s.ok {
+		panic("two-value index target")
+	}
+	c <- 37
+	index <- 0
+	bools := []bool{false}
+	go group (ctx) {
+		go {
+			select {
+			case s.after(c).value, bools[<-index] = <-c:
+			}
+		}
+	}
+	if s.value != 37 || !bools[0] || s.calls != 1 {
+		panic("two-value selector order")
+	}
+	cancelCtx, stop := context.WithCancel(ctx)
+	stop()
+	index <- 0
+	err := blocked(cancelCtx, c, index, s)
+	if !errors.Is(err, context.Canceled) || s.calls != 1 || len(index) != 1 {
+		panic("canceled comm evaluated target")
+	}
+	return nil
+}
+
+func main() {
+	if err := run(); err != nil {
+		panic(err)
+	}
+	fmt.Println("ok")
+}

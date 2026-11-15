@@ -1,0 +1,301 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+cd cross
+logos build ./...
+logos build -o $WORK/bin/cross$GOEXE ./cmd
+exec $WORK/bin/cross$GOEXE
+stdout '^crosspkg-ok$'
+logos run ./cmd
+stdout '^crosspkg-ok$'
+logos eject -o eject
+exists eject/go.mod
+cd eject
+go build ./lib ./cmd
+go run ./cmd
+stdout '^crosspkg-ok$'
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+cd ../..
+
+cd neg
+! logos build -o $WORK/bin/negslice$GOEXE ./negslice
+stderr 'cannot use'
+! logos build -o $WORK/bin/negmap$GOEXE ./negmap
+stderr 'cannot use'
+! logos build -o $WORK/bin/negfunc$GOEXE ./negfunc
+stderr 'cannot use'
+! logos build -o $WORK/bin/negchan$GOEXE ./negchan
+stderr 'cannot use'
+! logos build -o $WORK/bin/neggeneric$GOEXE ./neggeneric
+stderr 'cannot use|const_view'
+! logos build -o $WORK/bin/negmutate$GOEXE ./negmutate
+stderr 'const_view_mutation'
+cd ..
+
+-- cross/go.mod --
+module example.com/cross
+
+go 1.27
+
+-- cross/lib/lib.lgo --
+package lib
+
+func SliceFn(xs const []int) int {
+	n := 0
+	for _, v := range xs {
+		n += v
+	}
+	return n
+}
+
+func MapFn(m const map[string]int, k string) int {
+	return m[k] ?? 0
+}
+
+func ArrayFn(a const [3]int) int {
+	return a[0] + a[1] + a[2]
+}
+
+type Config struct {
+	N    int
+	Name string
+}
+
+func PtrFn(p const *Config) int {
+	return p.N
+}
+
+func VariadicFn(xs ...const []int) int {
+	n := 0
+	for _, s := range xs {
+		for _, v := range s {
+			n += v
+		}
+	}
+	return n
+}
+
+type Getter interface {
+	Get(xs const []int) int
+}
+
+func Use(g Getter, xs const []int) int {
+	return g.Get(xs)
+}
+
+type C struct {
+	V int
+}
+
+func (c const *C) Get() int {
+	return c.V
+}
+
+-- cross/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/cross/lib"
+)
+
+type Impl struct{}
+
+func (Impl) Get(xs const []int) int {
+	n := 0
+	for _, v := range xs {
+		n += v
+	}
+	return n
+}
+
+func main() {
+	xs := []int{1, 2, 3}
+	if got := lib.SliceFn(xs); got != 6 {
+		fmt.Println("slice-bad")
+		return
+	}
+	m := map[string]int{"a": 2}
+	if got := lib.MapFn(m, "a"); got != 2 {
+		fmt.Println("map-bad")
+		return
+	}
+	a := [3]int{1, 2, 3}
+	if got := lib.ArrayFn(a); got != 6 {
+		fmt.Println("array-bad")
+		return
+	}
+	c := &lib.Config{N: 7, Name: "s"}
+	if got := lib.PtrFn(c); got != 7 {
+		fmt.Println("ptr-bad")
+		return
+	}
+	av := []int{1}
+	bv := []int{2}
+	if got := lib.VariadicFn(av, bv); got != 3 {
+		fmt.Println("variadic-bad")
+		return
+	}
+	var g lib.Getter = Impl{}
+	if got := lib.Use(g, []int{1, 2}); got != 3 {
+		fmt.Println("iface-bad")
+		return
+	}
+	rc := &lib.C{V: 5}
+	if got := rc.Get(); got != 5 {
+		fmt.Println("recv-bad")
+		return
+	}
+	fmt.Println("crosspkg-ok")
+}
+
+-- neg/go.mod --
+module example.com/neg
+
+go 1.27
+
+-- neg/lib/lib.lgo --
+package lib
+
+func SliceNested(xs []const []int) int {
+	n := 0
+	for _, s := range xs {
+		for _, v := range s {
+			n += v
+		}
+	}
+	return n
+}
+
+func MapNested(m map[string]const []int) int {
+	s := m["a"] ?? []int{}
+	n := 0
+	for _, v := range s {
+		n += v
+	}
+	return n
+}
+
+func FuncParam(f func(const []int) int, xs const []int) int {
+	return f(xs)
+}
+
+type BoxNested struct {
+	F func(const []int) int
+	S []const []int
+	Ch chan const []int
+}
+
+func UseBoxNested(b BoxNested, xs const []int) int {
+	return b.F(xs)
+}
+
+func ChanFn(c chan const []int) int {
+	return 1
+}
+
+type G[T any] struct {
+	X T
+}
+
+func UseG(g G[const []int]) int {
+	n := 0
+	for _, v := range g.X {
+		n += v
+	}
+	return n
+}
+
+func GetConst() const []int {
+	return []int{1, 2}
+}
+
+-- neg/negslice/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/neg/lib"
+)
+
+func main() {
+	xs := [][]int{{1, 2}}
+	fmt.Println(lib.SliceNested(xs))
+}
+
+-- neg/negmap/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/neg/lib"
+)
+
+func main() {
+	m := map[string][][]int{"a": {{1}}}
+	fmt.Println(lib.MapNested(m))
+}
+
+-- neg/negfunc/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/neg/lib"
+)
+
+func plain(xs []int) int {
+	return len(xs)
+}
+
+func main() {
+	fmt.Println(lib.FuncParam(plain, []int{1}))
+}
+
+-- neg/negchan/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/neg/lib"
+)
+
+func main() {
+	c := make(chan []int, 1)
+	fmt.Println(lib.ChanFn(c))
+}
+
+-- neg/neggeneric/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/neg/lib"
+)
+
+func main() {
+	g := lib.G[const []int]{X: []int{1}}
+	fmt.Println(lib.UseG(g))
+}
+
+-- neg/negmutate/main.lgo --
+package main
+
+import (
+	"example.com/neg/lib"
+)
+
+func main() {
+	lib.GetConst()[0] = 1
+}

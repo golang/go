@@ -8,9 +8,12 @@ import (
 	"testing"
 
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logos/facts"
+	"cmd/compile/internal/types"
 	"cmd/internal/goobj"
 	"cmd/internal/obj"
+	"cmd/internal/obj/wasm"
 )
 
 func internalSym(name string) *obj.LSym {
@@ -190,7 +193,7 @@ func TestImportedYieldReadsFacts(t *testing.T) {
 }
 
 func TestMergeFnsKeepsOtherFlags(t *testing.T) {
-	cur := &facts.Facts{Fns: []facts.FnFact{{Object: "F", ReturnsNonNil: true}}}
+	cur := &facts.Facts{Fns: []facts.FnFact{{Object: "F", Readonly: true}}}
 	got := mergeFns(cur, []facts.FnFact{
 		{Object: "F", MayYield: true, HasMayYield: true},
 		{Object: "G", HasMayYield: true},
@@ -198,10 +201,78 @@ func TestMergeFnsKeepsOtherFlags(t *testing.T) {
 	if len(got) != 2 {
 		t.Fatalf("got %d records, want 2: %+v", len(got), got)
 	}
-	if !got[0].ReturnsNonNil || !got[0].MayYield || !got[0].HasMayYield {
+	if !got[0].Readonly || !got[0].MayYield || !got[0].HasMayYield {
 		t.Errorf("F lost a flag: %+v", got[0])
 	}
 	if got[1].Object != "G" || got[1].MayYield || !got[1].HasMayYield {
 		t.Errorf("G = %+v, want MayYield=0", got[1])
+	}
+}
+
+func TestAddCallYieldSources(t *testing.T) {
+	resetUnits(t)
+	callee := internalSym("p.callee")
+	u := &unit{}
+	u.addCall(obj.Addr{Type: obj.TYPE_MEM, Sym: callee})
+	if len(u.calls) != 1 || u.calls[0] != callee || u.hard {
+		t.Fatalf("direct call: calls=%v hard=%v", u.calls, u.hard)
+	}
+	u.addCall(obj.Addr{Type: obj.TYPE_MEM, Sym: ir.Syms.Deferreturn})
+	if !u.hard {
+		t.Fatal("deferreturn must be a yield source")
+	}
+	v := &unit{}
+	v.addCall(obj.Addr{Type: obj.TYPE_MEM})
+	if !v.hard {
+		t.Fatal("missing callee must be a yield source")
+	}
+	w := &unit{}
+	w.addCall(obj.Addr{Type: obj.TYPE_NONE, Sym: callee})
+	if !w.hard {
+		t.Fatal("indirect call must be a yield source")
+	}
+}
+
+func wasmProfileCtxt(t *testing.T) {
+	t.Helper()
+	prev := base.Ctxt
+	base.Ctxt = &obj.Link{WasmProfile: true}
+	t.Cleanup(func() { base.Ctxt = prev })
+	prevPkg := types.LocalPkg
+	types.LocalPkg = types.NewPkg("example.com/wasmyield/lib", "lib")
+	t.Cleanup(func() { types.LocalPkg = prevPkg })
+}
+
+func TestSummarizeNilCheckYields(t *testing.T) {
+	wasmProfileCtxt(t)
+	nilText := &obj.Prog{From: obj.Addr{Sym: internalSym("p.nilfn")}}
+	nilText.Link = &obj.Prog{As: wasm.ACALLNORESUME, To: obj.Addr{Type: obj.TYPE_MEM, Sym: ir.Syms.SigPanic}}
+	if u := summarize(internalSym("p.nilfn"), nilText); !u.hard {
+		t.Fatal("a nil check that can panic must be a yield source")
+	}
+	quiet := &obj.Prog{From: obj.Addr{Sym: internalSym("p.quiet")}}
+	quiet.Link = &obj.Prog{As: wasm.ACALLNORESUME, To: obj.Addr{Type: obj.TYPE_MEM, Sym: internalSym("p.other")}}
+	if u := summarize(internalSym("p.quiet"), quiet); u.hard {
+		t.Fatal("a resumeless call to a known symbol must not yield by itself")
+	}
+}
+
+func TestSummarizeStackCheckYields(t *testing.T) {
+	wasmProfileCtxt(t)
+	frame := func(offset int64, link *obj.Prog) *obj.Prog {
+		p := &obj.Prog{From: obj.Addr{Sym: internalSym("p.stackfn")}}
+		p.To.Offset = offset
+		p.Link = link
+		return p
+	}
+	call := &obj.Prog{As: obj.ACALL, To: obj.Addr{Type: obj.TYPE_MEM, Sym: internalSym("p.callee")}}
+	if u := summarize(internalSym("p.stackfn"), frame(8, call)); !u.hard {
+		t.Fatal("a prologue stack check that unwinds through morestack must be a yield source")
+	}
+	if u := summarize(internalSym("p.smallleaf"), frame(8, nil)); u.hard {
+		t.Fatal("a small call-free leaf skips the stack check and must stay pure")
+	}
+	if u := summarize(internalSym("p.frameless"), frame(0, call)); u.hard {
+		t.Fatal("a frameless function has no prologue check and must stay pure")
 	}
 }

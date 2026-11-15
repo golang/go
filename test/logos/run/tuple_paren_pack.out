@@ -1,4 +1,4 @@
-{3 <nil>}
-{3 <nil>}
-{3 <nil>}
-{3 <nil>}
+ok paren-around-call-keeps-tuple
+ok double-paren-around-call-keeps-tuple
+ok paren-assign-keeps-tuple
+ok double-paren-assign-keeps-tuple

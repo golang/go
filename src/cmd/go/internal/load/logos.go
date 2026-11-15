@@ -7,6 +7,7 @@ package load
 import (
 	"context"
 	"fmt"
+	"internal/logosfile"
 	"maps"
 	"slices"
 	"strings"
@@ -25,10 +26,21 @@ import (
 func (p *Package) IsLogos() bool {
 	for _, files := range [][]string{p.GoFiles, p.CgoFiles, p.TestGoFiles, p.XTestGoFiles} {
 		if len(files) > 0 {
-			return cfg.IsLogosFile(files[0])
+			return logosfile.Is(files[0])
 		}
 	}
 	return false
+}
+
+func logosScrubGoFactsFlags(flags []string) []string {
+	kept := make([]string, 0, len(flags))
+	for _, f := range flags {
+		if f == "-logos.gofacts" || strings.HasPrefix(f, "-logos.gofacts=") {
+			continue
+		}
+		kept = append(kept, f)
+	}
+	return kept
 }
 
 // moduleKinds groups one module's loaded packages by kind, keyed by import

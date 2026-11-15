@@ -1,0 +1,54 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func someNone() (int?)? {
+	var inner int? = nil
+	return inner
+}
+
+func pick(a (int?)?, b int?, c int) int? {
+	return a ?? b ?? c
+}
+
+func main() {
+	var none int?
+	var two int? = 2
+	var absent (int?)?
+	var five (int?)? = 5
+
+	r := pick(absent, none, 9)
+	check("group-first-absent-falls-through", r != nil && (r ?? -1) == 9, r != nil, true)
+
+	r = pick(absent, two, 9)
+	check("group-second-present-wins", r != nil && (r ?? -1) == 2, r != nil, true)
+
+	r = pick(five, none, 9)
+	check("group-first-present-wins", r != nil && (r ?? -1) == 5, r != nil, true)
+
+	r = pick(someNone(), none, 9)
+	check("group-present-outer-stops-at-first-operand", r == nil, r == nil, true)
+
+	r = pick(someNone(), two, 9)
+	check("group-present-outer-ignores-later-operands", r == nil, r == nil, true)
+
+	if failed {
+		os.Exit(1)
+	}
+}

@@ -1,0 +1,160 @@
+// run
+
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+	"fmt"
+	"os"
+	"strings"
+)
+
+type Inner struct {
+	X int64 `json:"x"`
+}
+
+type Holder struct {
+	P *Inner  `json:"p"`
+	Q *Inner? `json:"q"`
+}
+
+type slot = struct {
+	P *Inner `json:"p"`
+}
+
+type mid = struct {
+	M slot `json:"m"`
+}
+
+type Anon struct {
+	N struct {
+		P *Inner `json:"p"`
+	} `json:"n"`
+}
+
+type Nested struct {
+	N struct {
+		M struct {
+			P *Inner `json:"p"`
+		} `json:"m"`
+	} `json:"n"`
+}
+
+type InArray struct {
+	A [2]struct {
+		P *Inner `json:"p"`
+	} `json:"a"`
+}
+
+type InSlice struct {
+	S []struct {
+		P *Inner `json:"p"`
+	} `json:"s"`
+}
+
+var failed bool
+
+func report(name string, ok bool, format string, args ...any) {
+	if ok {
+		fmt.Println("ok", name)
+		return
+	}
+	failed = true
+	fmt.Println("FAIL", name+":", fmt.Sprintf(format, args...))
+}
+
+func mustBytes(b []byte, err error) []byte {
+	if err != nil {
+		fmt.Println("FAIL", err)
+		os.Exit(1)
+	}
+	return b
+}
+
+func mustNil(err error) {
+	if err != nil {
+		fmt.Println("FAIL", err)
+		os.Exit(1)
+	}
+}
+
+func checkRoundTrip() {
+	src := Holder{P: &Inner{X: 7}, Q: &Inner{X: 9}}
+	wire := mustBytes(src.MarshalBinary())
+	dst := Holder{P: &Inner{X: 1}}
+	mustNil(dst.UnmarshalBinary(wire))
+	q := dst.Q
+	report("nonnil-pointer-roundtrip", dst.P != nil && dst.P.X == 7 && q != nil && q.X == 9, "decoded %v %v", dst.P, q)
+}
+
+func checkAbsentOption() {
+	src := Holder{P: &Inner{X: 3}}
+	wire := mustBytes(src.MarshalBinary())
+	dst := Holder{P: &Inner{X: 1}, Q: &Inner{X: 2}}
+	mustNil(dst.UnmarshalBinary(wire))
+	q := dst.Q
+	report("nonnil-pointer-absent-option-stays-none", dst.P != nil && dst.P.X == 3 && q == nil, "decoded %v %v", dst.P, q)
+}
+
+func checkMissing() {
+	dst := Holder{P: &Inner{X: 1}}
+	err := dst.UnmarshalBinary([]byte{1, 0, 0})
+	if err == nil {
+		report("nonnil-pointer-missing-rejected", false, "accepted a nil non-nil pointer, P is %v", dst.P)
+		return
+	}
+	msg := err.Error()
+	report("nonnil-pointer-missing-rejected", strings.Contains(msg, "Holder.P"), "error %q does not name the field", msg)
+	report("nonnil-pointer-missing-offset", strings.Contains(msg, "offset 1"), "error %q does not name the offset", msg)
+}
+
+func rejectsMissing(name string, err error, field string, offset int) {
+	if err == nil {
+		report(name, false, "accepted a missing non-nil pointer")
+		return
+	}
+	msg := err.Error()
+	report(name, strings.Contains(msg, field), "error %q does not name the field %s", msg, field)
+	report(name+"-offset", strings.Contains(msg, fmt.Sprintf("offset %d", offset)), "error %q does not name offset %d", msg, offset)
+}
+
+func checkAnonymousRoundTrip() {
+	anon := Anon{N: slot{P: &Inner{X: 1}}}
+	nested := Nested{N: mid{M: slot{P: &Inner{X: 2}}}}
+	array := InArray{A: [2]slot{{P: &Inner{X: 3}}, {P: &Inner{X: 4}}}}
+	items := InSlice{S: []slot{{P: &Inner{X: 5}}, {P: &Inner{X: 6}}}}
+	anon2 := Anon{N: slot{P: &Inner{}}}
+	nested2 := Nested{N: mid{M: slot{P: &Inner{}}}}
+	array2 := InArray{A: [2]slot{{P: &Inner{}}, {P: &Inner{}}}}
+	items2 := InSlice{S: []slot{{P: &Inner{}}}}
+	mustNil(anon2.UnmarshalBinary(mustBytes(anon.MarshalBinary())))
+	mustNil(nested2.UnmarshalBinary(mustBytes(nested.MarshalBinary())))
+	mustNil(array2.UnmarshalBinary(mustBytes(array.MarshalBinary())))
+	mustNil(items2.UnmarshalBinary(mustBytes(items.MarshalBinary())))
+	report("anonymous-roundtrip", anon2.N.P.X == 1 && nested2.N.M.P.X == 2 && array2.A[1].P.X == 4 && len(items2.S) == 2 && items2.S[1].P.X == 6, "decoded %v %v %v %v", anon2, nested2, array2, items2)
+}
+
+func checkAnonymousMissing() {
+	anon := Anon{N: slot{P: &Inner{}}}
+	rejectsMissing("anonymous-struct-missing", anon.UnmarshalBinary([]byte{1, 0}), "Anon.N.P", 1)
+	nested := Nested{N: mid{M: slot{P: &Inner{}}}}
+	rejectsMissing("anonymous-nested-missing", nested.UnmarshalBinary([]byte{1, 0}), "Nested.N.M.P", 1)
+	array := InArray{A: [2]slot{{P: &Inner{}}, {P: &Inner{}}}}
+	rejectsMissing("anonymous-array-missing", array.UnmarshalBinary([]byte{1, 2, 0}), "InArray.A.P", 2)
+	items := InSlice{S: []slot{{P: &Inner{}}}}
+	rejectsMissing("anonymous-slice-missing", items.UnmarshalBinary([]byte{1, 1, 0}), "InSlice.S.P", 2)
+}
+
+func main() {
+	checkRoundTrip()
+	checkAbsentOption()
+	checkMissing()
+	checkAnonymousRoundTrip()
+	checkAnonymousMissing()
+	if failed {
+		os.Exit(1)
+	}
+}

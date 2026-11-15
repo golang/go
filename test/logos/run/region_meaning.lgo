@@ -1,0 +1,72 @@
+// run -goexperiment logosarena -arena=false
+// run -goexperiment logosarena
+package main
+
+import (
+	"fmt"
+	"logos/arena"
+	"os"
+)
+
+type node struct {
+	next *node
+	v    int
+}
+
+type lone struct {
+	v int
+}
+
+var escaped = new(lone)
+
+//go:noinline
+func build() int {
+	sum := 0
+	r := arena.Open()
+	head := arena.New[node](r)
+	tail := head
+	for i := range 100 {
+		n := arena.New[node](r)
+		n.v = i
+		tail.next = n
+		tail = n
+	}
+	tail.next = head
+	keep := arena.New[lone](r)
+	keep.v = 1000
+	escaped = keep
+	for h := head.next; h != head; h = h.next {
+		sum += h.v
+	}
+	s := arena.Make[int](r, 4)
+	for i := range s {
+		s[i] = i * i
+		sum += s[i]
+	}
+	t := arena.Append[int](r, nil, 1, 2, 3)
+	for _, v := range t {
+		sum += v
+	}
+	return sum
+}
+
+func heapOracle() int {
+	sum := 99 * 100 / 2
+	sum += 0 + 1 + 4 + 9
+	sum += 1 + 2 + 3
+	return sum
+}
+
+func main() {
+	sum := build()
+	if sum != heapOracle() {
+		fmt.Printf("FAIL region-list-make-append-sum-matches-heap-oracle: got %d want %d\n", sum, heapOracle())
+		os.Exit(1)
+	}
+	fmt.Println("ok region-list-make-append-sum-matches-heap-oracle")
+	if escaped.v != 1000 {
+		fmt.Printf("FAIL escaping-region-value-survives-block: got %d want 1000\n", escaped.v)
+		os.Exit(1)
+	}
+	fmt.Println("ok escaping-region-value-survives-block")
+}

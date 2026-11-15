@@ -1,0 +1,36 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+logos lint ./...
+! stderr .
+! stdout .
+
+-- go.mod --
+module example.com/lintschema
+
+go 1.27
+
+-- logos.toml --
+[lints]
+correctness = "forbid"
+concurrency = "forbid"
+slop = "deny"
+complexity = "deny"
+perf = "warn"
+style = "warn"
+suspicious = "warn"
+portability = "warn"
+pedantic = "allow"
+
+[lints.thresholds]
+max_nesting_depth = 3
+max_cognitive_complexity = 15
+max_function_lines = 60
+max_function_params = 4
+max_comptime_ast_nodes = 4096
+max_ctfe_steps = 100000
+
+-- main.lgo --
+package main
+
+func main() {}

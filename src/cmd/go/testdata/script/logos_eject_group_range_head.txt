@@ -1,0 +1,94 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+logos run .
+stdout '^39 <nil>$'
+cp stdout $WORK/native.txt
+logos eject -o out
+exists out/main.go
+grep '/\* a \*/' out/main.go
+grep '/\* b \*/' out/main.go
+grep '// c' out/main.go
+grep '/\* e \*/' out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $WORK/native.txt
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
+exec $WORK/upstream$GOEXE
+cmp stdout $WORK/native.txt
+cd ..
+
+-- m/go.mod --
+module example.com/grouprangehead
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import (
+	"context"
+	"fmt"
+	"sync/atomic"
+)
+
+func feed1(a int) chan int {
+	ch := make(chan int, 1)
+	ch <- a
+	close(ch)
+	return ch
+}
+
+func feed2(a, b int) chan int {
+	ch := make(chan int, 2)
+	ch <- a
+	ch <- b
+	close(ch)
+	return ch
+}
+
+func drain(ctx context.Context, total *atomic.Int64) error {
+	go group (ctx) {
+		go {
+			for v := /* a */ range feed2(1, 2) {
+				total.Add(int64(v))
+			}
+		}
+		go {
+			for v /* b */ := range feed2(3, 4) {
+				total.Add(int64(v))
+			}
+		}
+		go {
+			for w := // c
+				range feed2(5, 6) {
+				total.Add(int64(w))
+			}
+		}
+		go {
+			n := 0
+			for /* d */ range feed1(7) {
+				n++
+			}
+			total.Add(int64(n))
+		}
+		go {
+			var v int
+			for v = /* e */ range feed2(8, 9) {
+				total.Add(int64(v))
+			}
+		}
+	}
+	return nil
+}
+
+func main() {
+	var total atomic.Int64
+	err := drain(context.Background(), &total)
+	fmt.Println(total.Load(), err)
+}

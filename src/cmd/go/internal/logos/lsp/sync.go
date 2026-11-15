@@ -7,11 +7,12 @@ package lsp
 import (
 	"context"
 	"encoding/json"
+	"os"
 	"path/filepath"
-	"time"
+	"slices"
+	"strings"
 )
 
-// textDocumentItem is the document of a didOpen notification.
 type textDocumentItem struct {
 	URI        string `json:"uri"`
 	LanguageID string `json:"languageId"`
@@ -19,49 +20,39 @@ type textDocumentItem struct {
 	Text       string `json:"text"`
 }
 
-// didOpenParams are the params of textDocument/didOpen.
 type didOpenParams struct {
 	TextDocument textDocumentItem `json:"textDocument"`
 }
 
-// contentChange is one change of a didChange notification: a whole new
-// text when Range is nil, else a replacement of Range.
 type contentChange struct {
 	Range *Range `json:"range,omitempty"`
 	Text  string `json:"text"`
 }
 
-// docIdentifier names a document by its URI.
 type docIdentifier struct {
 	URI string `json:"uri"`
 }
 
-// versionedID names a document by its URI and version.
 type versionedID struct {
 	URI     string `json:"uri"`
 	Version int    `json:"version"`
 }
 
-// didChangeParams are the params of textDocument/didChange.
 type didChangeParams struct {
 	TextDocument   versionedID     `json:"textDocument"`
 	ContentChanges []contentChange `json:"contentChanges"`
 }
 
-// docParams are the params of notifications and requests that carry only
-// a text document identifier.
 type docParams struct {
 	TextDocument docIdentifier `json:"textDocument"`
 }
 
-// watchedParams are the params of workspace/didChangeWatchedFiles.
 type watchedParams struct {
 	Changes []struct {
 		URI string `json:"uri"`
 	} `json:"changes"`
 }
 
-// fromClient handles one message from the client.
 func (p *Proxy) fromClient(ctx context.Context, m *message) {
 	switch {
 	case m.isResponse():
@@ -73,53 +64,135 @@ func (p *Proxy) fromClient(ctx context.Context, m *message) {
 	}
 }
 
-// clientNotification handles one notification from the client. The
-// document notifications of loGo/s sources stop here, since gopls knows
-// those files only through the lowered documents; everything else goes on
-// to gopls.
 func (p *Proxy) clientNotification(ctx context.Context, m *message) {
 	switch m.Method {
 	case "textDocument/didOpen":
-		p.didOpen(ctx, m)
+		p.didOpen(m)
 	case "textDocument/didChange":
-		p.didChange(ctx, m)
+		p.didChange(m)
 	case "textDocument/didSave":
 		p.didSave(ctx, m)
 	case "textDocument/didClose":
 		p.didClose(ctx, m)
 	case "workspace/didChangeWatchedFiles":
-		p.watched(ctx, m)
+		p.watched(m)
+	case "workspace/didChangeWorkspaceFolders":
+		p.changeWorkspaceFolders(m.Params)
+		p.send(p.server, m)
+	case "$/cancelRequest":
+		p.cancelPending(m)
+		p.send(p.server, m)
 	default:
 		p.send(p.server, m)
 	}
 }
 
-// trackedPath reports whether path is a source the proxy compiles: a Go or
-// loGo/s file.
+func (p *Proxy) cancelPending(m *message) {
+	v, err := decode(m.Params)
+	root, _ := v.(map[string]any)
+	if err != nil || root == nil {
+		return
+	}
+	raw, err := encode(root["id"])
+	if err != nil {
+		return
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	delete(p.pending, string(raw))
+}
+
 func trackedPath(path string) bool { return isLogosPath(path) || isGoPath(path) }
 
-// docPath returns the file path of the document a notification names, or
-// "" when it names none the proxy follows.
-func docPath(uri string) string {
+func (p *Proxy) docPath(uri string) string {
 	path, err := uriPath(uri)
 	if err != nil || !trackedPath(path) {
 		return ""
 	}
-	return path
+	if p.st.open(path) {
+		return path
+	}
+	return p.contain(path)
 }
 
-// forwardUnlessLogos sends m on to gopls unless it concerns the loGo/s
-// source path.
+func (p *Proxy) contain(path string) string {
+	p.rootsMu.RLock()
+	defer p.rootsMu.RUnlock()
+	if len(p.roots) == 0 {
+		return path
+	}
+	for _, root := range p.roots {
+		prefix := root
+		if !strings.HasSuffix(prefix, string(os.PathSeparator)) {
+			prefix += string(os.PathSeparator)
+		}
+		if path == root || strings.HasPrefix(path, prefix) {
+			return path
+		}
+	}
+	return ""
+}
+
+func (p *Proxy) rememberRoots(params any) {
+	root, _ := params.(map[string]any)
+	var uris []string
+	if uri, _ := root["rootUri"].(string); uri != "" {
+		uris = append(uris, uri)
+	}
+	folders, _ := root["workspaceFolders"].([]any)
+	for _, f := range folders {
+		if m, _ := f.(map[string]any); m != nil {
+			if uri, _ := m["uri"].(string); uri != "" {
+				uris = append(uris, uri)
+			}
+		}
+	}
+	var roots []string
+	for _, uri := range uris {
+		if path, err := uriPath(uri); err == nil && path != "" {
+			roots = append(roots, path)
+		}
+	}
+	p.rootsMu.Lock()
+	p.roots = roots
+	p.rootsMu.Unlock()
+}
+
+func (p *Proxy) changeWorkspaceFolders(raw json.RawMessage) {
+	type folder struct {
+		URI string `json:"uri"`
+	}
+	var params struct {
+		Event struct {
+			Added   []folder `json:"added"`
+			Removed []folder `json:"removed"`
+		} `json:"event"`
+	}
+	if err := json.Unmarshal(raw, &params); err != nil {
+		p.logf("didChangeWorkspaceFolders: %v", err)
+		return
+	}
+	p.rootsMu.Lock()
+	defer p.rootsMu.Unlock()
+	for _, f := range params.Event.Removed {
+		if path, err := uriPath(f.URI); err == nil && path != "" {
+			p.roots = slices.DeleteFunc(p.roots, func(root string) bool { return root == path })
+		}
+	}
+	for _, f := range params.Event.Added {
+		if path, err := uriPath(f.URI); err == nil && path != "" && !slices.Contains(p.roots, path) {
+			p.roots = append(p.roots, path)
+		}
+	}
+}
+
 func (p *Proxy) forwardUnlessLogos(m *message, path string) {
 	if !isLogosPath(path) {
 		p.send(p.server, m)
 	}
 }
 
-// didOpen records the opened document, compiles its package, and then
-// tells gopls: the compile has put the lowered documents the package needs
-// in gopls before gopls first loads the package.
-func (p *Proxy) didOpen(ctx context.Context, m *message) {
+func (p *Proxy) didOpen(m *message) {
 	var params didOpenParams
 	if err := json.Unmarshal(m.Params, &params); err != nil {
 		p.logf("didOpen: %v", err)
@@ -127,55 +200,47 @@ func (p *Proxy) didOpen(ctx context.Context, m *message) {
 		return
 	}
 	item := params.TextDocument
-	path := docPath(item.URI)
+	path := p.docPath(item.URI)
 	if path != "" {
-		p.mu.Lock()
-		p.docs[path] = &document{uri: item.URI, path: path, version: item.Version, text: newText([]byte(item.Text))}
-		p.touchLocked(path)
-		p.mu.Unlock()
-		p.refresh(ctx)
+		if len(item.Text) > maxDocBytes {
+			p.logf("didOpen: ignoring oversized document %s", path)
+		} else {
+			p.st.setDoc(item.URI, path, item.Version, newText([]byte(item.Text)))
+		}
 	}
 	p.forwardUnlessLogos(m, path)
 }
 
-// didChange applies the changes to the recorded text and schedules a
-// compile.
-func (p *Proxy) didChange(ctx context.Context, m *message) {
+func (p *Proxy) didChange(m *message) {
 	var params didChangeParams
 	if err := json.Unmarshal(m.Params, &params); err != nil {
 		p.logf("didChange: %v", err)
 		p.send(p.server, m)
 		return
 	}
-	path := docPath(params.TextDocument.URI)
-	p.mu.Lock()
-	doc := p.docs[path]
-	if doc != nil {
-		doc.text = applyChanges(doc.text, params.ContentChanges)
-		doc.version = params.TextDocument.Version
-		p.touchLocked(path)
-	}
-	p.mu.Unlock()
-	if doc != nil {
-		p.schedule(ctx)
+	path := p.docPath(params.TextDocument.URI)
+	if path != "" && !p.st.change(path, params.TextDocument.Version, params.ContentChanges) {
+		p.logf("didChange: ignoring change for %s version %d", path, params.TextDocument.Version)
+		return
 	}
 	p.forwardUnlessLogos(m, path)
 }
 
-// applyChanges applies the changes of one didChange notification, in order,
-// each against the text the previous one left.
 func applyChanges(t *text, changes []contentChange) *text {
 	for _, c := range changes {
 		if c.Range == nil {
 			t = newText([]byte(c.Text))
 			continue
 		}
-		t = t.replace(t.offset(c.Range.Start), t.offset(c.Range.End), c.Text)
+		start, end := t.offset(c.Range.Start), t.offset(c.Range.End)
+		if start > end {
+			continue
+		}
+		t = t.replace(start, end, c.Text)
 	}
 	return t
 }
 
-// didSave compiles the package of the saved document.
 func (p *Proxy) didSave(ctx context.Context, m *message) {
 	var params docParams
 	if err := json.Unmarshal(m.Params, &params); err != nil {
@@ -183,26 +248,13 @@ func (p *Proxy) didSave(ctx context.Context, m *message) {
 		p.send(p.server, m)
 		return
 	}
-	path := docPath(params.TextDocument.URI)
-	p.mu.Lock()
-	known := p.docs[path] != nil
-	if known {
-		p.touchLocked(path)
-	}
-	p.mu.Unlock()
-	if known {
-		p.refresh(ctx)
+	path := p.docPath(params.TextDocument.URI)
+	if p.st.open(path) {
+		p.ensure(ctx)
 	}
 	p.forwardUnlessLogos(m, path)
 }
 
-// didClose forgets the document and what the compiles took from its
-// buffer. Closing discards the client's unsaved text, so every package
-// compiled with it, the package of the document and each one whose
-// closure holds that package, is marked dirty and recompiled from what is
-// on disk. The package of the document stays compiled while another of its
-// documents is open; when none is, the unit goes away, and with it the
-// lowered documents only it needed.
 func (p *Proxy) didClose(ctx context.Context, m *message) {
 	var params docParams
 	if err := json.Unmarshal(m.Params, &params); err != nil {
@@ -210,51 +262,36 @@ func (p *Proxy) didClose(ctx context.Context, m *message) {
 		p.send(p.server, m)
 		return
 	}
-	path := docPath(params.TextDocument.URI)
+	path := p.docPath(params.TextDocument.URI)
+	unsaved := p.st.forget(path)
+	p.mu.Lock()
+	delete(p.srvDiags, params.TextDocument.URI)
+	p.mu.Unlock()
+	p.forwardUnlessLogos(m, path)
+	if unsaved {
+		p.ensure(ctx)
+	}
+	p.st.mu.Lock()
+	need := p.st.unitNeed()
+	p.st.mu.Unlock()
 	p.work.Lock()
 	defer p.work.Unlock()
-	open := p.forget(path)
-	p.forwardUnlessLogos(m, path)
-	if open {
-		p.refreshLocked(ctx)
-	}
+	p.mu.Lock()
+	p.pruneLocked(need)
+	p.mu.Unlock()
 	p.syncGopls()
 	p.publishAll()
 }
 
-// forget removes the open document at path, marks dirty the units that
-// compiled with its buffer, and drops the unit of its package when no
-// open document is left there. It reports whether the document was open.
-// The caller holds p.work.
-func (p *Proxy) forget(path string) bool {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	_, open := p.docs[path]
-	if open {
-		// The touch comes before the drop: touchLocked makes a unit for
-		// the package of path when it has none, so touching after the
-		// drop would bring back a unit no open document holds.
-		delete(p.docs, path)
-		p.touchLocked(path)
-		p.dropUnitLocked(filepath.Dir(path))
-	}
-	p.pruneLocked()
-	return open
-}
-
-// watched marks every package for recompilation when a watched file that
-// can change a compile changed on disk, and passes the notification on.
-func (p *Proxy) watched(ctx context.Context, m *message) {
+func (p *Proxy) watched(m *message) {
 	var params watchedParams
 	if err := json.Unmarshal(m.Params, &params); err == nil {
-		p.markIfRelevant(ctx, params)
+		p.markIfRelevant(params)
 	}
 	p.send(p.server, m)
 }
 
-// markIfRelevant marks every unit dirty when one of the changed files is a
-// source or a module file.
-func (p *Proxy) markIfRelevant(ctx context.Context, params watchedParams) {
+func (p *Proxy) markIfRelevant(params watchedParams) {
 	relevant := false
 	for _, c := range params.Changes {
 		path, err := uriPath(c.URI)
@@ -265,68 +302,21 @@ func (p *Proxy) markIfRelevant(ctx context.Context, params watchedParams) {
 	if !relevant {
 		return
 	}
-	p.mu.Lock()
-	for _, u := range p.units {
+	p.st.mu.Lock()
+	defer p.st.mu.Unlock()
+	for _, u := range p.st.units {
 		u.dirty = true
 		u.gen++
 	}
-	p.mu.Unlock()
-	p.schedule(ctx)
+	if len(p.st.units) > 0 {
+		p.opts.Compiler.DiskChanged()
+	}
 }
 
-// isModuleFile reports whether path names a file that defines the module
-// graph.
 func isModuleFile(path string) bool {
 	switch filepath.Base(path) {
 	case "go.mod", "go.sum", "go.work", "go.work.sum", "logos.toml":
 		return true
 	}
 	return false
-}
-
-// touchLocked records that the document at path changed: its package gets
-// a unit, and every unit whose closure holds that package needs a compile.
-func (p *Proxy) touchLocked(path string) {
-	dir := filepath.Dir(path)
-	if p.units[dir] == nil {
-		p.units[dir] = &unit{dir: dir}
-	}
-	for _, u := range p.units {
-		if u.dir == dir || u.dirs[dir] {
-			u.dirty = true
-			u.gen++
-		}
-	}
-}
-
-// dropUnitLocked removes the unit of dir when no open document is left in
-// it.
-func (p *Proxy) dropUnitLocked(dir string) {
-	for path := range p.docs {
-		if filepath.Dir(path) == dir {
-			return
-		}
-	}
-	delete(p.units, dir)
-}
-
-// schedule recompiles in the background once the edits have been quiet for
-// the debounce delay.
-func (p *Proxy) schedule(ctx context.Context) {
-	if p.opts.Debounce < 0 {
-		return
-	}
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	if p.stopped {
-		return
-	}
-	if p.timer != nil && p.timer.Stop() {
-		p.tasks.Done()
-	}
-	p.tasks.Add(1)
-	p.timer = time.AfterFunc(p.opts.Debounce, func() {
-		defer p.tasks.Done()
-		p.refresh(ctx)
-	})
 }

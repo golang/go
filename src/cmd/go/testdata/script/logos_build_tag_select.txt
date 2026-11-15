@@ -1,0 +1,124 @@
+env GOTOOLCHAIN=local
+
+logos run .
+stdout '^tagged$'
+go run .
+stdout '^plain$'
+
+cd exp
+logos run .
+stdout '^arena$'
+go run .
+stdout '^noarena$'
+env GOOS=js
+env GOARCH=wasm
+logos list -f '{{.GoFiles}}' .
+stdout 'arena_on\.go'
+stdout 'preempt_on\.go'
+env GOOS=
+env GOARCH=
+cd ../expnoarena
+logos run .
+stdout '^noarena$'
+cd ..
+
+-- go.mod --
+module example.com/tagdiff
+
+go 1.27
+
+-- main.go --
+//go:build !logos
+
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("plain")
+}
+
+-- tag_logos.go --
+//go:build logos
+
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("tagged")
+}
+
+-- exp/go.mod --
+module example.com/tagexp
+
+go 1.27
+
+-- exp/main.go --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println(tag())
+}
+
+-- exp/arena_on.go --
+//go:build goexperiment.logosarena
+
+package main
+
+func tag() string { return "arena" }
+
+-- exp/arena_off.go --
+//go:build !goexperiment.logosarena
+
+package main
+
+func tag() string { return "noarena" }
+
+-- exp/preempt_on.go --
+//go:build goexperiment.preemptibleloops
+
+package main
+
+func preempt() string { return "preempt" }
+
+-- exp/preempt_off.go --
+//go:build !goexperiment.preemptibleloops
+
+package main
+
+func preempt() string { return "nopreempt" }
+
+-- expnoarena/go.mod --
+module example.com/tagnoarena
+
+go 1.27
+
+-- expnoarena/logos.toml --
+[build]
+arena = false
+
+-- expnoarena/main.go --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println(tag())
+}
+
+-- expnoarena/arena_on.go --
+//go:build goexperiment.logosarena
+
+package main
+
+func tag() string { return "arena" }
+
+-- expnoarena/arena_off.go --
+//go:build !goexperiment.logosarena
+
+package main
+
+func tag() string { return "noarena" }

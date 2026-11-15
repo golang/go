@@ -4,13 +4,6 @@
 
 package types2
 
-// This file implements the M5-S2 Host adapter (SPEC Sec 2.1, T-201):
-// it answers the interpreter's identifier, selector, and type queries
-// from checked state (Info maps, package scope, and recorded const
-// func bodies). Resolution prefers Info.Uses for checked code and
-// falls back to package scope and universe for bodies that are still
-// unchecked when const initializers evaluate.
-
 import (
 	"cmd/compile/internal/logos/ctfe"
 	"cmd/compile/internal/syntax"
@@ -19,16 +12,10 @@ import (
 	"strconv"
 )
 
-// ctfeHost implements ctfe.Host for one check.
 type ctfeHost struct {
 	check *Checker
 }
 
-func (h *ctfeHost) WordSize() int64 {
-	return h.check.logosWordSize()
-}
-
-// Resolve maps an identifier to its entity.
 func (h *ctfeHost) Resolve(id *syntax.Name) ctfe.Entity {
 	check := h.check
 	if u := check.logosUnitForNode(id); u != nil {
@@ -55,7 +42,6 @@ func (h *ctfeHost) Resolve(id *syntax.Name) ctfe.Entity {
 	return ctfe.Entity{Kind: ctfe.EntNone, Name: id.Value}
 }
 
-// entityOf classifies one object.
 func (h *ctfeHost) entityOf(obj Object, name string) (ctfe.Entity, bool) {
 	check := h.check
 	switch obj := obj.(type) {
@@ -80,8 +66,6 @@ func (h *ctfeHost) entityOf(obj Object, name string) (ctfe.Entity, bool) {
 			return ctfe.Entity{}, false
 		}
 		if obj.val.Kind() != constant.Unknown {
-			// A valid constant value stays exact: scalar consts
-			// keep constant semantics downstream.
 			v, ok := h.constToValue(obj.val, h.fromType(obj.typ))
 			if !ok {
 				return ctfe.Entity{}, false
@@ -99,8 +83,6 @@ func (h *ctfeHost) entityOf(obj Object, name string) (ctfe.Entity, bool) {
 		if obj.pkg != nil && obj.pkg != check.pkg {
 			return ctfe.Entity{Kind: ctfe.EntPackageVar, Name: obj.pkg.path + "." + obj.name}, true
 		}
-		// Function locals and parameters are not compile-time
-		// known; the interpreter reports the use.
 		return ctfe.Entity{Kind: ctfe.EntNone, Name: obj.name}, true
 	case *Func:
 		if obj.pkg == check.pkg {
@@ -111,10 +93,6 @@ func (h *ctfeHost) entityOf(obj Object, name string) (ctfe.Entity, bool) {
 				}
 				_, isConst := check.logosConstSyntax[body]
 				h.logosRecordConstFunc(obj.name, body, isConst)
-				// Lowered code spells this body as a plain declaration,
-				// so a later check sharing this Info sees a false local
-				// verdict. The Info proof preserves the first check's
-				// declared-const verdict; it only ever upgrades.
 				if rec, ok := h.logosInfoConstFunc(obj.name); ok && rec.Const {
 					isConst = true
 				}
@@ -124,11 +102,6 @@ func (h *ctfeHost) entityOf(obj Object, name string) (ctfe.Entity, bool) {
 				}
 				return ctfe.Entity{Kind: ctfe.EntPlainFunc, Fn: fn}, true
 			}
-			// Copies check on a fresh checker whose body maps are
-			// empty, so the local lookup above misses. Resolve the
-			// callee from the first check's Info proof instead of a
-			// package-level global, keeping the proof
-			// invocation-owned like the other Logos Info hooks.
 			if rec, ok := h.logosInfoConstFunc(obj.name); ok {
 				fn := h.buildFunc(obj, rec.Decl)
 				if fn == nil {
@@ -157,7 +130,6 @@ func (h *ctfeHost) entityOf(obj Object, name string) (ctfe.Entity, bool) {
 	return ctfe.Entity{}, false
 }
 
-// ResolveSel maps a selector to its entity.
 func (h *ctfeHost) ResolveSel(sel *syntax.SelectorExpr) ctfe.Entity {
 	if u := h.check.logosUnitForNode(sel); u != nil {
 		return h.resolveUnitSel(u, sel)
@@ -166,7 +138,7 @@ func (h *ctfeHost) ResolveSel(sel *syntax.SelectorExpr) ctfe.Entity {
 	if !ok {
 		return ctfe.Entity{}
 	}
-	pkgName := h.pkgNameOf(x)
+	pkgName := logosPkgName(h.check, x)
 	if pkgName == nil {
 		return ctfe.Entity{}
 	}
@@ -191,11 +163,6 @@ func (h *ctfeHost) ResolveSel(sel *syntax.SelectorExpr) ctfe.Entity {
 	case *Var:
 		return ctfe.Entity{Kind: ctfe.EntPackageVar, Name: pkgName.name + "." + obj.name}
 	case *Func:
-		// Admitted const targets execute from the validated record
-		// body; every other shape keeps EntImport so evaluation
-		// reports the established detail. Admission failures cannot
-		// reach here unreported: initializers prescan (and abort) in
-		// logosConstCompute, bodies report in the purity check.
 		if u, fn, body, err := h.check.logosResolveImportedConstFunc(imp.path, obj.name); err == nil && u != nil {
 			if callee := h.buildFunc(fn, body); callee != nil {
 				callee.Const = true
@@ -209,10 +176,7 @@ func (h *ctfeHost) ResolveSel(sel *syntax.SelectorExpr) ctfe.Entity {
 	return ctfe.Entity{}
 }
 
-// pkgNameOf resolves a package qualifier through Uses, package scope,
-// and universe.
-func (h *ctfeHost) pkgNameOf(x *syntax.Name) *PkgName {
-	check := h.check
+func logosPkgName(check *Checker, x *syntax.Name) *PkgName {
 	if obj, ok := check.Info.Uses[x].(*PkgName); ok {
 		return obj
 	}
@@ -222,8 +186,6 @@ func (h *ctfeHost) pkgNameOf(x *syntax.Name) *PkgName {
 	return nil
 }
 
-// constToValue converts a constant.Value to an interpreter scalar of
-// the given descriptor (nil descriptor keeps the untyped shape).
 func (h *ctfeHost) constToValue(c constant.Value, t *ctfe.Type) (ctfe.Value, bool) {
 	switch c.Kind() {
 	case constant.Bool:
@@ -276,13 +238,18 @@ func (h *ctfeHost) constToValue(c constant.Value, t *ctfe.Type) (ctfe.Value, boo
 		}
 		f, _ := constant.Float64Val(c)
 		return ctfe.FloatValue(f, typ), true
+	case constant.Complex:
+		typ := ctfe.UntypedComplex()
+		if t != nil && (t.Kind == ctfe.KComplex64 || t.Kind == ctfe.KComplex128) {
+			typ = t
+		}
+		re, _ := constant.Float64Val(constant.Real(c))
+		im, _ := constant.Float64Val(constant.Imag(c))
+		return ctfe.ComplexValue(complex(re, im), typ), true
 	}
 	return ctfe.Value{}, false
 }
 
-// TypeOf returns the static type of e: checked expressions consult
-// Info.Types; unchecked bodies (and type expressions) resolve
-// structurally through package scope, universe, and imports.
 func (h *ctfeHost) TypeOf(e syntax.Expr) *ctfe.Type {
 	check := h.check
 	if u := check.logosUnitForNode(e); u != nil {
@@ -296,19 +263,18 @@ func (h *ctfeHost) TypeOf(e syntax.Expr) *ctfe.Type {
 	return h.resolveTypeExpr(e)
 }
 
-// resolveTypeExpr resolves a type expression syntactically.
 func (h *ctfeHost) resolveTypeExpr(e syntax.Expr) *ctfe.Type {
 	check := h.check
 	switch e := syntax.Unparen(e).(type) {
 	case *syntax.Name:
-		if t := ctfe.BasicType(e.Value, check.logosWordSize()); t != nil {
+		if t := ctfe.BasicType(e.Value); t != nil {
 			return t
 		}
 		if e.Value == "byte" {
-			return ctfe.BasicType("uint8", check.logosWordSize())
+			return ctfe.BasicType("uint8")
 		}
 		if e.Value == "rune" {
-			return ctfe.BasicType("int32", check.logosWordSize())
+			return ctfe.BasicType("int32")
 		}
 		if e.Value == "any" || e.Value == "error" {
 			return nil
@@ -363,7 +329,6 @@ func (h *ctfeHost) resolveTypeExpr(e syntax.Expr) *ctfe.Type {
 	case *syntax.ConstType:
 		return h.resolveTypeExpr(e.Elem)
 	case *syntax.CallExpr:
-		// A conversion target resolves like its type expression.
 		if _, ok := syntax.Unparen(e.Fun).(*syntax.Name); ok {
 			return h.resolveTypeExpr(e.Fun)
 		}
@@ -376,7 +341,6 @@ func (h *ctfeHost) resolveTypeExpr(e syntax.Expr) *ctfe.Type {
 	return nil
 }
 
-// resolveQualified resolves pkg.T through the checker's import list.
 func (h *ctfeHost) resolveQualified(sel *syntax.SelectorExpr) *ctfe.Type {
 	check := h.check
 	x, ok := syntax.Unparen(sel.X).(*syntax.Name)
@@ -404,8 +368,6 @@ func (h *ctfeHost) resolveQualified(sel *syntax.SelectorExpr) *ctfe.Type {
 	return nil
 }
 
-// arrayLength folds an array length expression: literals directly,
-// package consts through resolution.
 func (h *ctfeHost) arrayLength(e syntax.Expr) (int64, bool) {
 	if lit, ok := syntax.Unparen(e).(*syntax.BasicLit); ok && lit.Kind == syntax.IntLit {
 		var n int64
@@ -423,9 +385,6 @@ func (h *ctfeHost) arrayLength(e syntax.Expr) (int64, bool) {
 	return 0, false
 }
 
-// fromType converts a types2 type to a descriptor. Pointers, channels,
-// and unsafe pointers behind names arrive with Impure set; interfaces,
-// signatures, unions, and type parameters return nil.
 func (h *ctfeHost) fromType(t Type) *ctfe.Type {
 	switch t := Unalias(t).(type) {
 	case *Basic:
@@ -460,6 +419,10 @@ func (h *ctfeHost) fromType(t Type) *ctfe.Type {
 			return &ctfe.Type{Kind: ctfe.KFloat32}
 		case Float64:
 			return &ctfe.Type{Kind: ctfe.KFloat64}
+		case Complex64:
+			return &ctfe.Type{Kind: ctfe.KComplex64}
+		case Complex128:
+			return &ctfe.Type{Kind: ctfe.KComplex128}
 		case UnsafePointer:
 			return &ctfe.Type{Impure: "pointer type in const func"}
 		case UntypedBool:
@@ -470,6 +433,8 @@ func (h *ctfeHost) fromType(t Type) *ctfe.Type {
 			return ctfe.UntypedRune()
 		case UntypedFloat:
 			return ctfe.UntypedFloat()
+		case UntypedComplex:
+			return ctfe.UntypedComplex()
 		case UntypedString:
 			return ctfe.UntypedString()
 		case UntypedNil:
@@ -521,25 +486,17 @@ func (h *ctfeHost) fromType(t Type) *ctfe.Type {
 		return &ctfe.Type{Impure: "channel type in const func"}
 	case *ConstView:
 		return h.fromType(t.Elem)
+	case *ReadonlyDescendants:
+		return &ctfe.Type{Impure: "readonly-descendant capability in const func"}
 	}
 	return nil
 }
 
-// LogosConstFunc is the Info-carried CTFE proof for one same-package
-// function (SPEC Sec 2.1, T-201). Decl is the recorded body for
-// transitive evaluation from copies sharing the same Info, and Const
-// reports whether the first check saw the body through a `const func`
-// declaration. The static purity scan still reports impurities in the
-// first check; the proof carries only the declared-const fact the
-// evaluator needs to stay silent inside const bodies.
 type LogosConstFunc struct {
 	Decl  *syntax.FuncDecl
 	Const bool
 }
 
-// logosRecordConstFunc stores the first check's proof for one
-// same-package function name. The first record wins, so a later
-// observation through a plain declaration cannot downgrade the proof.
 func (h *ctfeHost) logosRecordConstFunc(name string, body *syntax.FuncDecl, isConst bool) {
 	if body == nil || h.check.Info == nil {
 		return
@@ -553,8 +510,6 @@ func (h *ctfeHost) logosRecordConstFunc(name string, body *syntax.FuncDecl, isCo
 	h.check.Info.LogosConstFuncs[name] = LogosConstFunc{Decl: body, Const: isConst}
 }
 
-// logosInfoConstFunc reports the Info proof for one same-package
-// function name. A nil body never resolves, so it reports missing.
 func (h *ctfeHost) logosInfoConstFunc(name string) (LogosConstFunc, bool) {
 	if h.check.Info == nil {
 		return LogosConstFunc{}, false
@@ -566,8 +521,6 @@ func (h *ctfeHost) logosInfoConstFunc(name string) (LogosConstFunc, bool) {
 	return rec, true
 }
 
-// buildFunc assembles an interpreter function from a checked signature
-// and recorded syntax.
 func (h *ctfeHost) buildFunc(obj *Func, body *syntax.FuncDecl) *ctfe.Func {
 	sig, ok := obj.typ.(*Signature)
 	if !ok || body.Body == nil {
@@ -582,9 +535,6 @@ func (h *ctfeHost) buildFunc(obj *Func, body *syntax.FuncDecl) *ctfe.Func {
 	for _, f := range body.Type.ParamList {
 		name := f.Name
 		if name == nil {
-			// Anonymous parameter: retain a discard entry with the
-			// checked type so arity and positional binding match the
-			// signature. The empty name is unreferenceable.
 			name = syntax.NewName(syntax.StartPos(f.Type), "")
 		}
 		var pt *ctfe.Type
@@ -614,7 +564,6 @@ func (h *ctfeHost) buildFunc(obj *Func, body *syntax.FuncDecl) *ctfe.Func {
 	return fn
 }
 
-// resultNames lists declared result names ("", one per result field).
 func resultNames(body *syntax.FuncDecl) []string {
 	var out []string
 	for _, f := range body.Type.ResultList {
@@ -627,7 +576,6 @@ func resultNames(body *syntax.FuncDecl) []string {
 	return out
 }
 
-// isCTFEIntKind reports integer descriptors.
 func isCTFEIntKind(k ctfe.Kind) bool {
 	switch k {
 	case ctfe.KInt, ctfe.KInt8, ctfe.KInt16, ctfe.KInt32, ctfe.KInt64,
@@ -638,7 +586,6 @@ func isCTFEIntKind(k ctfe.Kind) bool {
 	return false
 }
 
-// parseConstInt parses a decimal integer literal.
 func parseConstInt(s string) (*big.Int, bool) {
 	n, ok := new(big.Int).SetString(s, 0)
 	if !ok {
@@ -647,7 +594,6 @@ func parseConstInt(s string) (*big.Int, bool) {
 	return n, true
 }
 
-// parseDecimal parses a plain decimal length.
 func parseDecimal(s string, out *int64) (int64, error) {
 	n, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {

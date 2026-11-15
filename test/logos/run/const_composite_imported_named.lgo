@@ -1,0 +1,51 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+	"time"
+)
+
+type Box struct {
+	M map[string]time.Duration
+}
+
+type Lists struct {
+	L []time.Duration
+}
+
+type Local int64
+
+const slice = []time.Duration{time.Second, 2 * time.Second}
+const array = [2]time.Duration{time.Millisecond, 3}
+const months = []time.Month{time.March, 12}
+const modes = []os.FileMode{0o644, os.ModeDir | 0o755}
+const nested = [][]time.Duration{{1, 2}, {3}}
+const anon = []struct{ D time.Duration }{{time.Second}, {2}}
+const lists = Lists{L: []time.Duration{time.Minute, 5}}
+const box = Box{M: map[string]time.Duration{"a": time.Second, "b": 2 * time.Minute}}
+const boxes = []Box{{M: map[string]time.Duration{"x": 5}}}
+const local = []Local{1, 2}
+
+func check(name string, good bool) {
+	if !good {
+		fmt.Println("FAIL", name)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func main() {
+	check("slice", slice[1] == 2*time.Second && len(slice) == 2)
+	check("array", array[0] == time.Millisecond && array[1] == 3 && len(array) == 2)
+	check("months", months[0] == time.March && months[1] == time.December)
+	check("modes", modes[0] == 0o644 && modes[1] == os.ModeDir|0o755)
+	check("nested", nested[0][1] == 2 && nested[1][0] == 3 && len(nested) == 2)
+	check("anon", anon[0].D == time.Second && anon[1].D == 2)
+	check("lists", lists.L[0] == time.Minute && lists.L[1] == 5)
+	check("box", (box.M["a"] ?? 0) == time.Second && (box.M["b"] ?? 0) == 2*time.Minute && len(box.M) == 2)
+	check("boxes", (boxes[0].M["x"] ?? 0) == 5)
+	check("local", local[1] == 2 && len(local) == 2)
+}

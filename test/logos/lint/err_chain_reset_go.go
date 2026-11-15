@@ -8,12 +8,6 @@ import (
 	"os"
 )
 
-// M9-S2 slop::err_chain_reset (SPEC Sec 1.2), Go twin: logos lint applies
-// the rule to Go packages. fmt.Errorf that formats an error operand with a
-// verb other than %w, or that passes err.Error(), cuts the chain errors.Is
-// and errors.As follow. The rule is deny, so the findings below fail the
-// lint run and //logos:allow silences one.
-
 var errBase = errors.New("base")
 
 type codeErr struct{ code int }
@@ -55,7 +49,7 @@ func errorCallV(err error) error {
 }
 
 func errorCallConcat(err error) error {
-	return fmt.Errorf("read: " + err.Error()) // ERROR "err_chain_reset.*passes err.Error" "\[nogo::printf\]"
+	return fmt.Errorf("read: " + err.Error()) // ERROR "err_chain_reset.*passes err.Error"
 }
 
 func concreteOperand(ce *codeErr) error {

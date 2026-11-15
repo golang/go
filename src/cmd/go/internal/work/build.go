@@ -325,7 +325,6 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 	cmd.Flag.Var((*buildvcsFlag)(&cfg.BuildBuildvcs), "buildvcs", "")
 	cmd.Flag.Var(&load.BuildGcflags, "gcflags", "")
 	cmd.Flag.Var(&load.BuildGccgoflags, "gccgoflags", "")
-	addLogosGCFlag(cmd)
 	if mask&OmitModFlag == 0 {
 		base.AddModFlag(&cmd.Flag)
 	}

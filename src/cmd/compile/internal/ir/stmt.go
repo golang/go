@@ -244,8 +244,9 @@ func NewForStmt(pos src.XPos, init Node, cond, post Node, body []Node, distinctV
 // in a different context (a separate goroutine or a later time).
 type GoDeferStmt struct {
 	miniStmt
-	Call    Node
-	DeferAt Expr
+	Call     Node
+	DeferAt  Expr
+	DeferTry *Name `mknode:"-"`
 }
 
 func NewGoDeferStmt(pos src.XPos, op Op, call Node) *GoDeferStmt {

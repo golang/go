@@ -15,18 +15,6 @@ import (
 	"logos/rt"
 )
 
-// The group tag of a goroutine is a slot index the runtime lends to one
-// logos/rt.Group at a time (SPEC Sec 2.6, T-206). These tests pin the
-// lifetime the slot bookkeeping buys, through public Groups and
-// blocking reads: a slot stays with its group until the join, so the
-// failure of another group never wakes the joining group's blocked
-// child; and a slot lent out again after a failure starts clean, so the
-// next group's child blocks until data arrives instead of timing out
-// spuriously.
-
-// A group whose Wait is still joining keeps its slot: groups created
-// meanwhile get other slots, so their failures never wake the joining
-// group's blocked child.
 func TestLogosGroupNetpollSlotHeldUntilJoin(t *testing.T) {
 	joinClient, joinServer := logosConnPair(t)
 	joining, _ := rt.NewGroup(t.Context(), 0)
@@ -42,7 +30,6 @@ func TestLogosGroupNetpollSlotHeldUntilJoin(t *testing.T) {
 	joinDone := make(chan error, 1)
 	go func() { joinDone <- joining.Wait() }()
 	<-started
-	// Let the child park in the netpoll wait before other groups fail.
 	time.Sleep(100 * time.Millisecond)
 
 	const failing = 8
@@ -73,9 +60,6 @@ func TestLogosGroupNetpollSlotHeldUntilJoin(t *testing.T) {
 	}
 }
 
-// A slot lent out again after its group's failure starts clean: the next
-// group's child blocks until data arrives instead of timing out from the
-// old failure.
 func TestLogosGroupSlotReusedAfterJoinStartsClean(t *testing.T) {
 	failed, _ := rt.NewGroup(t.Context(), 0)
 	failed.Go(func(ctx context.Context) error { return errLogosSibling })
@@ -95,8 +79,6 @@ func TestLogosGroupSlotReusedAfterJoinStartsClean(t *testing.T) {
 		return nil
 	})
 	<-started
-	// Let the child park. A stale cancellation from the released slot
-	// would wake it promptly with a timeout; still-blocked proves clean reuse.
 	time.Sleep(100 * time.Millisecond)
 	select {
 	case err := <-readDone:

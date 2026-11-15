@@ -15,30 +15,17 @@ import (
 	"cmd/compile/internal/types2"
 )
 
-// This file builds the synthetic syntax nodes of the M1-S5 lowering. Each
-// template constructor takes ordinary expression arguments, so callers run
-// it once with the user nodes for the native tree and once with marker
-// names for the eject text. Markers print verbatim and are replaced with
-// the original source text after printing.
-
-// rtImportPath is the only support import lowered files may carry.
 const rtImportPath = "logos/rt"
 
-// rtAlias is the reserved local name of the support import.
 const rtAlias = "_logos_rt"
 
-// markerPrefix tags placeholder names that renderText replaces.
 const markerPrefix = "\x00logosP"
 
-// textSub replaces one printed marker with composed text.
 type textSub struct {
 	marker string
 	text   otext
 }
 
-// markerText returns a placeholder name standing for text and records it.
-// The name carries pos: renderText prints through the syntax printer,
-// which requires known positions on every node.
 func markerText(subs *[]textSub, seq *int, pos syntax.Pos, text otext) *syntax.Name {
 	m := fmt.Sprintf("%s%d\x00", markerPrefix, *seq)
 	*seq++
@@ -46,10 +33,6 @@ func markerText(subs *[]textSub, seq *int, pos syntax.Pos, text otext) *syntax.N
 	return nameOf(pos, m)
 }
 
-// renderText prints stmts and replaces every marker with its text. The
-// printed scaffolding is generated; every marker substitution embeds
-// the origin chunks of its text, so the result says which bytes are
-// verbatim source. The bytes equal the plain-Replacer output.
 func renderText(stmts []syntax.Stmt, subs []textSub) otext {
 	var buf bytes.Buffer
 	for _, s := range stmts {
@@ -70,9 +53,6 @@ func renderText(stmts []syntax.Stmt, subs []textSub) otext {
 	})
 }
 
-// leftmostOf returns the position of the leftmost token of e. Selector,
-// index, slice, assertion, and call nodes sit at an interior token, so
-// the start must descend to the operand.
 func leftmostOf(e syntax.Expr) syntax.Pos {
 	for {
 		switch n := syntax.Unparen(e).(type) {
@@ -91,67 +71,64 @@ func leftmostOf(e syntax.Expr) syntax.Pos {
 				return e.Pos()
 			}
 			e = n.X
+		case *syntax.CompositeLit:
+			if n.Type == nil {
+				return e.Pos()
+			}
+			e = n.Type
 		default:
 			return e.Pos()
 		}
 	}
 }
 
-// renderExpr prints one expression without ShortForm truncation.
 func renderExpr(e syntax.Expr) string {
 	var buf bytes.Buffer
 	_, _ = syntax.Fprint(&buf, e, syntax.LineForm)
 	return buf.String()
 }
 
-// at returns n positioned at pos.
 func at[T syntax.Node](n T, pos syntax.Pos) T {
 	n.SetPos(pos)
 	return n
 }
 
-// nameOf builds a name at pos.
 func nameOf(pos syntax.Pos, value string) *syntax.Name {
 	return at(syntax.NewName(pos, value), pos)
 }
 
-// litOf builds a basic literal at pos.
 func litOf(pos syntax.Pos, value string, kind syntax.LitKind) *syntax.BasicLit {
 	return at(&syntax.BasicLit{Value: value, Kind: kind}, pos)
 }
 
-// nilOf builds a nil name at pos.
 func nilOf(pos syntax.Pos) *syntax.Name {
 	return nameOf(pos, "nil")
 }
 
-// callOf builds Fun(args...) at pos.
+func addrOf(pos syntax.Pos, x syntax.Expr) *syntax.Operation {
+	return at(&syntax.Operation{Op: syntax.And, X: x}, pos)
+}
+
 func callOf(pos syntax.Pos, fun syntax.Expr, args []syntax.Expr) *syntax.CallExpr {
 	return at(&syntax.CallExpr{Fun: fun, ArgList: args}, pos)
 }
 
-// selOf builds X.Sel at pos.
 func selOf(pos syntax.Pos, x syntax.Expr, sel string) *syntax.SelectorExpr {
 	return at(&syntax.SelectorExpr{X: x, Sel: nameOf(pos, sel)}, pos)
 }
 
-// notNil builds X != nil at pos.
 func notNil(pos syntax.Pos, x syntax.Expr) *syntax.Operation {
 	return at(&syntax.Operation{Op: syntax.Neq, X: x, Y: nilOf(pos)}, pos)
 }
 
-// assignOf builds Lhs = Rhs at pos.
 func assignOf(pos syntax.Pos, lhs, rhs []syntax.Expr) *syntax.AssignStmt {
 	return at(&syntax.AssignStmt{Lhs: listOf(pos, lhs), Rhs: listOf(pos, rhs)}, pos)
 }
 
-// defineOf builds Lhs := Rhs at pos.
 func defineOf(pos syntax.Pos, lhs, rhs []syntax.Expr) *syntax.AssignStmt {
 	return at(&syntax.AssignStmt{Op: syntax.Def, Lhs: listOf(pos, lhs), Rhs: listOf(pos, rhs)}, pos)
 }
 
-// listOf packs exprs for an assignment side at pos. A multi-name list
-// renders a ListExpr, which must carry pos like every printed node.
 func listOf(pos syntax.Pos, exprs []syntax.Expr) syntax.Expr {
 	if len(exprs) == 1 {
 		return exprs[0]
@@ -159,30 +136,26 @@ func listOf(pos syntax.Pos, exprs []syntax.Expr) syntax.Expr {
 	return at(&syntax.ListExpr{ElemList: exprs}, pos)
 }
 
-// exprStmtOf builds an expression statement at pos.
 func exprStmtOf(pos syntax.Pos, x syntax.Expr) *syntax.ExprStmt {
 	return at(&syntax.ExprStmt{X: x}, pos)
 }
 
-// blockOf builds a statement block at pos. The closing brace has no source
-// text, so Rbrace takes pos as well: the unified IR writer closes the
-// block's scope at Rbrace, and a zero position there is the "unknown scope
-// position" ICE.
 func blockOf(pos syntax.Pos, list []syntax.Stmt) *syntax.BlockStmt {
-	return at(&syntax.BlockStmt{List: list, Rbrace: pos}, pos)
+	return blockEndingAt(pos, pos, list)
 }
 
-// ifOf builds if Init; Cond Then at pos.
+func blockEndingAt(pos, end syntax.Pos, list []syntax.Stmt) *syntax.BlockStmt {
+	return at(&syntax.BlockStmt{List: list, Rbrace: end}, pos)
+}
+
 func ifOf(pos syntax.Pos, init syntax.SimpleStmt, cond syntax.Expr, then []syntax.Stmt) *syntax.IfStmt {
 	return at(&syntax.IfStmt{Init: init, Cond: cond, Then: blockOf(pos, then)}, pos)
 }
 
-// ifElseOf builds if Init; Cond Then Else at pos.
 func ifElseOf(pos syntax.Pos, init syntax.SimpleStmt, cond syntax.Expr, then []syntax.Stmt, els syntax.Stmt) *syntax.IfStmt {
 	return at(&syntax.IfStmt{Init: init, Cond: cond, Then: blockOf(pos, then), Else: els}, pos)
 }
 
-// returnOf builds a return statement at pos.
 func returnOf(pos syntax.Pos, results []syntax.Expr) *syntax.ReturnStmt {
 	var r syntax.Expr
 	if len(results) > 0 {
@@ -191,39 +164,67 @@ func returnOf(pos syntax.Pos, results []syntax.Expr) *syntax.ReturnStmt {
 	return at(&syntax.ReturnStmt{Results: r}, pos)
 }
 
-// deferOf builds a defer statement at pos.
 func deferOf(pos syntax.Pos, call syntax.Expr) *syntax.CallStmt {
 	return at(&syntax.CallStmt{Tok: syntax.Defer, Call: call}, pos)
 }
 
-// rtSel builds _logos_rt.Sel at pos.
 func rtSel(pos syntax.Pos, sel string) *syntax.SelectorExpr {
 	return selOf(pos, nameOf(pos, rtAlias), sel)
 }
 
-// zeroForType builds the zero value of typ at pos. typeExpr supplies the
-// source spelling of struct and array types; type parameters lower to
-// *new(T).
-func zeroForType(typ types2.Type, typeExpr syntax.Expr, pos syntax.Pos) syntax.Expr {
-	typ = types2.Unalias(typ)
-	if _, ok := typ.(*types2.TypeParam); ok {
-		return at(&syntax.Operation{
-			Op: syntax.Mul,
-			X:  callOf(pos, nameOf(pos, "new"), []syntax.Expr{cloneType(typeExpr, pos)}),
-		}, pos)
+func (fl *fileLower) exprSpan(e syntax.Expr) span {
+	if ws, ok := fl.wrapSpan[e]; ok {
+		return ws
 	}
-	if b, ok := typ.(*types2.Basic); ok {
-		return zeroBasic(b, pos)
+	return span{fl.exprStart(e), fl.exprEndOf(e)}
+}
+
+func (fl *fileLower) carryType(dst, src syntax.Expr) {
+	if dst == src {
+		return
 	}
-	switch typ.Underlying().(type) {
-	case *types2.Struct, *types2.Array:
-		return at(&syntax.CompositeLit{Type: cloneType(typeExpr, pos), Rbrace: pos}, pos)
-	default:
-		return nilOf(pos)
+	if tv, ok := fl.pkg.info.Types[src]; ok && !tv.IsType() {
+		if _, has := fl.pkg.info.Types[dst]; !has {
+			fl.pkg.info.Types[dst] = tv
+		}
+	}
+	if tv := src.GetTypeInfo(); tv.Type != nil && !tv.IsType() && dst.GetTypeInfo().Type == nil {
+		dst.SetTypeInfo(tv)
 	}
 }
 
-// zeroBasic builds the zero value of a basic type at pos.
+func (fl *fileLower) zeroValue(typ types2.Type, pos syntax.Pos) syntax.Expr {
+	if c := constAsView(typ); c != nil {
+		return fl.zeroValue(c.Elem, pos)
+	}
+	if o := fl.asOption(typ); o != nil && types2.LogosOptionIsBare(o.Elem) {
+		return nilOf(pos)
+	}
+	u := types2.Unalias(typ)
+	if n, ok := u.(*types2.Named); ok {
+		u = n.Underlying()
+	}
+	switch u := u.(type) {
+	case *types2.Basic:
+		return zeroBasic(u, pos)
+	case *types2.Pointer, *types2.Slice, *types2.Map, *types2.Chan, *types2.Signature, *types2.Interface:
+		return nilOf(pos)
+	default:
+		spelled, ok := fl.spellLowered(typ)
+		if !ok {
+			spelled, _ = fl.spellType(typ)
+		}
+		tn, ok := typeExprAt(spelled, pos)
+		if !ok {
+			return nilOf(pos)
+		}
+		if _, ok := u.(*types2.TypeParam); ok {
+			return at(&syntax.Operation{Op: syntax.Mul, X: callOf(pos, nameOf(pos, "new"), []syntax.Expr{tn})}, pos)
+		}
+		return at(&syntax.CompositeLit{Type: tn, Rbrace: pos}, pos)
+	}
+}
+
 func zeroBasic(b *types2.Basic, pos syntax.Pos) syntax.Expr {
 	switch {
 	case b.Kind() == types2.Bool:
@@ -237,9 +238,6 @@ func zeroBasic(b *types2.Basic, pos syntax.Pos) syntax.Expr {
 	}
 }
 
-// cloneType copies a type expression by printing and re-parsing it, then
-// moves every node to pos. The re-parse gives the clone its own nodes. A
-// type that does not respell becomes any.
 func cloneType(e syntax.Expr, pos syntax.Pos) syntax.Expr {
 	if decl, ok := respellType(e, pos); ok {
 		return decl
@@ -247,8 +245,6 @@ func cloneType(e syntax.Expr, pos syntax.Pos) syntax.Expr {
 	return nameOf(pos, "any")
 }
 
-// mustCloneType is cloneType for a declared type, where a stand-in would
-// give the variable the wrong type; it stops the compiler instead.
 func mustCloneType(e syntax.Expr, pos syntax.Pos) syntax.Expr {
 	decl, ok := respellType(e, pos)
 	if !ok {
@@ -257,8 +253,6 @@ func mustCloneType(e syntax.Expr, pos syntax.Pos) syntax.Expr {
 	return decl
 }
 
-// respellType prints and re-parses e and moves every node of the copy to
-// pos. It reports false when the printed text is not a type.
 func respellType(e syntax.Expr, pos syntax.Pos) (syntax.Expr, bool) {
 	decl, ok := reparseType(renderExpr(e))
 	if !ok {
@@ -273,7 +267,6 @@ func respellType(e syntax.Expr, pos syntax.Pos) (syntax.Expr, bool) {
 	return decl, true
 }
 
-// reparseType parses "package p;var _ T" and returns the type.
 func reparseType(text string) (syntax.Expr, bool) {
 	file, err := syntax.Parse(syntax.NewFileBase("logos-clone"), strings.NewReader("package logosclone\nvar _ "+text), nil, nil, 0)
 	if err != nil || file == nil || len(file.DeclList) != 1 {
@@ -286,7 +279,6 @@ func reparseType(text string) (syntax.Expr, bool) {
 	return decl.Type, true
 }
 
-// typeConst reports the constant value of e.
 func typeConst(info *types2.Info, e syntax.Expr) (constant.Value, bool) {
 	if info.Types != nil {
 		if tv, ok := info.Types[e]; ok && tv.Value != nil {

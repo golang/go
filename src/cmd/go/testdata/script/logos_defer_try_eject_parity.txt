@@ -1,0 +1,114 @@
+# S2 eject parity: the semantics program prints identical output under
+# logos build and under logos eject plus plain go build.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+
+logos run .
+cp stdout $WORK/logos-stdout.txt
+
+logos eject -o out
+exists out/main.go
+
+cd out
+go run .
+cp stdout $WORK/eject-stdout.txt
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $WORK/logos-stdout.txt
+cd ..
+
+cmp $WORK/logos-stdout.txt $WORK/eject-stdout.txt
+cmp $WORK/logos-stdout.txt want-stdout.txt
+
+-- m/go.mod --
+module example.com/defereject
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import "fmt"
+
+func failAt(n int) error {
+	if n%2 == 0 {
+		return nil
+	}
+	return fmt.Errorf("fail %d", n)
+}
+
+func loop(n int) (err error) {
+	for i := 0; i < n; i++ {
+		defer failAt(i)?
+	}
+	return nil
+}
+
+type box struct{ v int }
+
+func (b *box) close() error {
+	b.v++
+	return nil
+}
+
+func method(b *box) (err error) {
+	defer b.close()?
+	return nil
+}
+
+func join2() (err error) {
+	defer failAt(1)?
+	defer failAt(3)?
+	return nil
+}
+
+var seen any = "unset"
+
+func probe() error {
+	seen = recover()
+	return nil
+}
+
+func recoverInF() (err error) {
+	defer probe()?
+	panic("boom")
+}
+
+func recoverProbe() {
+	defer func() {
+		fmt.Println("recover in f:", seen, "outer:", recover())
+	}()
+	if err := recoverInF(); err != nil {
+		fmt.Println("unexpected", err)
+	}
+}
+
+func main() {
+	if err := loop(3); err != nil {
+		fmt.Println("loop err:", err)
+	} else {
+		fmt.Println("loop ok")
+	}
+	b := &box{}
+	if err := method(b); err != nil {
+		fmt.Println("method err:", err)
+	} else {
+		fmt.Println("method ok", b.v)
+	}
+	if err := join2(); err != nil {
+		fmt.Println("join err:", err)
+	} else {
+		fmt.Println("join ok")
+	}
+	recoverProbe()
+}
+
+-- m/want-stdout.txt --
+loop err: fail 1
+method ok 1
+join err: fail 3
+fail 1
+recover in f: <nil> outer: boom

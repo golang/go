@@ -1,0 +1,77 @@
+// run
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want string) {
+	if !cond {
+		fmt.Println("FAIL", name, "got", got, "want", want)
+		failed = true
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+var errStep = errors.New("step")
+var errRollback = errors.New("rollback")
+
+var order []string
+var calls []int
+
+func note(s string) {
+	order = append(order, s)
+}
+
+func step(x int) (int, error) {
+	calls = append(calls, x)
+	if x == 2 {
+		return 0, errStep
+	}
+	return 2 * x, nil
+}
+
+func rollbackFail() error {
+	note("rollback")
+	return errRollback
+}
+
+func fusedFails() (err error) {
+	errdefer rollbackFail()?
+	xs := []int{1, 2, 3}
+	out := xs.map(x => step(x)?)
+	_ = out
+	return nil
+}
+
+func fusedOK() (err error) {
+	errdefer rollbackFail()?
+	xs := []int{1, 3, 5}
+	out := xs.map(x => step(x)?)
+	_ = out
+	return nil
+}
+
+func main() {
+	order = nil
+	calls = nil
+	err := fusedFails()
+	check("fused-rollback-ran", len(order) == 1 && order[0] == "rollback", fmt.Sprint(order), "[rollback]")
+	check("fused-stops-at-failure", fmt.Sprint(calls) == "[1 2]", fmt.Sprint(calls), "[1 2]")
+	check("fused-joins-primary", errors.Is(err, errStep), fmt.Sprint(err), errStep.Error())
+	check("fused-joins-rollback", errors.Is(err, errRollback), fmt.Sprint(err), errRollback.Error())
+	order = nil
+	calls = nil
+	err = fusedOK()
+	check("fused-success-skips-rollback", len(order) == 0, fmt.Sprint(order), "[]")
+	check("fused-success-runs-all", fmt.Sprint(calls) == "[1 3 5]", fmt.Sprint(calls), "[1 3 5]")
+	check("fused-success-nil", err == nil, fmt.Sprint(err), "<nil>")
+	if failed {
+		os.Exit(1)
+	}
+}

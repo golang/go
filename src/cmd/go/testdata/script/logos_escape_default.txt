@@ -1,0 +1,58 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+go build -o $WORK/off$GOEXE ./call
+exec $WORK/off$GOEXE
+stdout '^allocs [1-9][0-9]*$'
+stdout '^sink 1$'
+env GOEXPERIMENT=logosescape
+go build -o $WORK/on$GOEXE ./call
+exec $WORK/on$GOEXE
+stdout '^allocs 0$'
+stdout '^sink 1$'
+env GOEXPERIMENT=
+
+-- m/go.mod --
+module example.com/pointeego
+
+go 1.27
+
+-- m/p.go --
+package p
+
+type node struct {
+	next *node
+	v    int
+}
+
+//go:noinline
+func linkThrough(p, q *node) {
+	p.next = q
+}
+
+var Sink int
+
+//go:noinline
+func Make() {
+	var y node
+	x := &node{v: 1}
+	linkThrough(&y, x)
+	Sink = x.v + y.v
+}
+
+-- m/call/main.go --
+package main
+
+import (
+	"fmt"
+	"testing"
+
+	p "example.com/pointeego"
+)
+
+func main() {
+	a := testing.AllocsPerRun(20, func() { p.Make() })
+	fmt.Println("allocs", a)
+	fmt.Println("sink", p.Sink)
+}

@@ -1316,25 +1316,6 @@ func runTestTracesSTW(t *testing.T, run int, name, stwType string) (err error) {
 		return nil
 	}
 
-	// GC background mark workers, identified by entrypoint the same way as
-	// the targets below.
-	var gcWorkers []trace.GoID
-	isGCWorker := func(goid trace.GoID) bool {
-		return slices.Contains(gcWorkers, goid)
-	}
-	// Under elastic pacing (greentea and empty collector modes) a cycle
-	// that starts near its heap goal fields up to three quarters of the Ps
-	// as dedicated mark workers instead of upstream's fixed quarter, per
-	// the PLAN curve. This test's first cycle starts with live over goal
-	// near one (goal pinned at the heap minimum), so it fields six
-	// dedicated workers on eight Ps against two spinning targets and the
-	// allocating parent: nine threads on eight Ps, where upstream fields
-	// five. A worker may therefore legitimately run on a target P before
-	// the target resumes. That is designed sharing, not an STW
-	// regression: P-to-M affinity and user-goroutine placement below still
-	// fail one. STW-forced modes keep the upstream split and stay strict.
-	elasticWorkers := runtime.LogosGCModeName() == "greentea" || runtime.LogosGCModeName() == ""
-
 	// 1. Find the goroutine IDs for the target goroutines. This will be in
 	// the StateTransition from NotExist.
 	//
@@ -1375,9 +1356,6 @@ findStart:
 					if sf.Func == "main.traceSTWTarget" {
 						targetGoroutines = append(targetGoroutines, newGoroutineState(goid))
 						t.Logf("Identified target goroutine id %d", goid)
-					} else if sf.Func == "runtime.gcBgMarkWorker" {
-						gcWorkers = append(gcWorkers, goid)
-						t.Logf("Identified GC worker goroutine id %d", goid)
 					}
 
 					// Always break, the goroutine entrypoint is always the
@@ -1548,17 +1526,6 @@ findEnd:
 							// means that this P was slow to start, so
 							// another P stole it. That isn't ideal, but
 							// we'll allow it.
-							continue
-						}
-
-						if elasticWorkers && isGCWorker(goid) {
-							// A background mark worker may legitimately
-							// run on a target P first under elastic
-							// pacing (see above). Log it like the
-							// tolerated target migrations below; P-to-M
-							// affinity and user-goroutine placement
-							// still fail real regressions.
-							t.Logf("GC worker %d running on P %d M %d want this P to run G %d", goid, p, m, gs.G)
 							continue
 						}
 

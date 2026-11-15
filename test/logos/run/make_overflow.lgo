@@ -2,13 +2,12 @@
 
 package main
 
-// M15-S2 (SPEC Sec 15.2, T-303; #169): `*` inside a make length or
-// capacity lowers to _logos_rt.MulLen, which panics with
-// `logos: make length overflow: w * h` on overflow instead of
-// allocating a wrapped small buffer. Small products keep their length,
-// and a zero factor stays zero without panicking.
-
-import "fmt"
+import (
+	"fmt"
+	"os"
+	"runtime/debug"
+	"strings"
+)
 
 type Pixel struct {
 	R, G, B, A uint8
@@ -36,9 +35,176 @@ func tryCap(w, h int) (out string) {
 	return out
 }
 
+func negativePanics(w, h int) (panicked bool) {
+	defer func() {
+		if recover() != nil {
+			panicked = true
+		}
+	}()
+	buf := make([]Pixel, w*h)
+	_ = buf
+	return false
+}
+
+func negativeSinglePanics(n int) (panicked bool) {
+	defer func() {
+		if recover() != nil {
+			panicked = true
+		}
+	}()
+	buf := make([]Pixel, n)
+	_ = buf
+	return false
+}
+
+func tryLenNested(n int) (out string) {
+	defer func() {
+		if r := recover(); r != nil {
+			out = fmt.Sprint(r)
+		}
+	}()
+	buf := make([]Pixel, n*(n*2))
+	out = fmt.Sprintf("len=%d", len(buf))
+	return out
+}
+
+func guard(out, stack *string) {
+	if r := recover(); r != nil {
+		*out = fmt.Sprint(r)
+		*stack = string(debug.Stack())
+	}
+}
+
+func tryU8(a, b int) (out, stack string) {
+	defer guard(&out, &stack)
+	buf := make([]byte, uint8(a)*uint8(b))
+	out = fmt.Sprintf("len=%d", len(buf))
+	return
+}
+
+func tryI8(a, b int) (out, stack string) {
+	defer guard(&out, &stack)
+	buf := make([]byte, int8(a)*int8(b))
+	out = fmt.Sprintf("len=%d", len(buf))
+	return
+}
+
+func tryI32(a, b int) (out, stack string) {
+	defer guard(&out, &stack)
+	buf := make([]byte, int32(a)*int32(b))
+	out = fmt.Sprintf("len=%d", len(buf))
+	return
+}
+
+func tryI64(a, b int64) (out, stack string) {
+	defer guard(&out, &stack)
+	buf := make([]byte, a*b)
+	out = fmt.Sprintf("len=%d", len(buf))
+	return
+}
+
+func tryU16(a, b int) (out, stack string) {
+	defer guard(&out, &stack)
+	buf := make([]byte, uint16(a)*uint16(b))
+	out = fmt.Sprintf("len=%d", len(buf))
+	return
+}
+
+func tryThree(w, h, d int) (out, stack string) {
+	defer guard(&out, &stack)
+	buf := make([]byte, w*h*d)
+	out = fmt.Sprintf("len=%d", len(buf))
+	return
+}
+
+func tryVarTimesConst(w int) (out, stack string) {
+	defer guard(&out, &stack)
+	buf := make([]byte, w*8)
+	out = fmt.Sprintf("len=%d", len(buf))
+	return
+}
+
+func tryConstTimesVar(w int) (out, stack string) {
+	defer guard(&out, &stack)
+	buf := make([]byte, 8*w)
+	out = fmt.Sprintf("len=%d", len(buf))
+	return
+}
+
+func tryCapTimesConst(w int) (out, stack string) {
+	defer guard(&out, &stack)
+	buf := make([]Pixel, 1, w*8)
+	out = fmt.Sprintf("len=%d cap=%d", len(buf), cap(buf))
+	return
+}
+
+func overflowViaMulLen(out, stack string) bool {
+	return strings.Contains(out, "logos: make length overflow: ") && strings.Contains(stack, "logos/rt.MulLen")
+}
+
 func main() {
-	fmt.Println(tryLen(1<<32, 1<<32))
-	fmt.Println(tryLen(3, 4))
-	fmt.Println(tryCap(1<<32, 1<<32))
-	fmt.Println(tryLen(0, 1<<32))
+	ok := strings.Contains(tryLen(1<<32, 1<<32), "logos: make length overflow: w * h") &&
+		tryLen(3, 4) == "len=12" &&
+		strings.Contains(tryCap(1<<32, 1<<32), "logos: make length overflow: w * h") &&
+		tryLen(0, 1<<32) == "len=0" &&
+		negativePanics(-3, 4) && negativeSinglePanics(-7) &&
+		strings.Contains(tryLenNested(1<<32), "logos: make length overflow: n * (n * 2)") &&
+		tryLenNested(3) == "len=18"
+	if !ok {
+		fmt.Println("FAIL make-overflow-checked")
+		os.Exit(1)
+	}
+	fmt.Println("ok make-overflow-checked")
+	if !checkMulLenForms() {
+		os.Exit(1)
+	}
+}
+
+func checkMulLenForms() bool {
+	failed := false
+	check := func(name string, cond bool) {
+		if cond {
+			fmt.Printf("ok %s\n", name)
+			return
+		}
+		fmt.Printf("FAIL %s\n", name)
+		failed = true
+	}
+	out, stack := tryU8(200, 200)
+	check("mul-len-uint8-overflow-panics-via-mullen", overflowViaMulLen(out, stack))
+	out, _ = tryU8(10, 20)
+	check("mul-len-uint8-exact-length", out == "len=200")
+	out, stack = tryI8(16, 16)
+	check("mul-len-int8-overflow-panics-via-mullen", overflowViaMulLen(out, stack))
+	out, _ = tryI8(5, 6)
+	check("mul-len-int8-exact-length", out == "len=30")
+	out, stack = tryI32(1<<20, 1<<20)
+	check("mul-len-int32-overflow-panics-via-mullen", overflowViaMulLen(out, stack))
+	out, _ = tryI32(300, 400)
+	check("mul-len-int32-exact-length", out == "len=120000")
+	out, stack = tryI64(1<<32, 1<<32)
+	check("mul-len-int64-overflow-panics-via-mullen", overflowViaMulLen(out, stack))
+	out, _ = tryI64(1<<15, 8)
+	check("mul-len-int64-exact-length", out == "len=262144")
+	out, stack = tryU16(300, 300)
+	check("mul-len-uint16-overflow-panics-via-mullen", overflowViaMulLen(out, stack))
+	out, _ = tryU16(100, 200)
+	check("mul-len-uint16-exact-length", out == "len=20000")
+	out, stack = tryThree(1<<22, 1<<22, 1<<22)
+	check("mul-len-three-operands-overflow-panics-via-mullen", overflowViaMulLen(out, stack))
+	out, _ = tryThree(3, 4, 5)
+	check("mul-len-three-operands-exact-length", out == "len=60")
+	out, stack = tryVarTimesConst(1 << 60)
+	check("mul-len-var-times-const-overflow-panics-via-mullen", overflowViaMulLen(out, stack))
+	out, _ = tryVarTimesConst(3)
+	check("mul-len-var-times-const-exact-length", out == "len=24")
+	out, stack = tryConstTimesVar(1 << 60)
+	check("mul-len-const-times-var-overflow-panics-via-mullen", overflowViaMulLen(out, stack))
+	out, _ = tryConstTimesVar(3)
+	check("mul-len-const-times-var-exact-length", out == "len=24")
+	out, stack = tryCapTimesConst(1 << 60)
+	check("mul-cap-var-times-const-overflow-panics-via-mullen", overflowViaMulLen(out, stack))
+	out, _ = tryCapTimesConst(5)
+	check("mul-cap-var-times-const-exact-capacity", out == "len=1 cap=40")
+	return !failed
 }

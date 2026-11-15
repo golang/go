@@ -1,0 +1,218 @@
+// run
+
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type pair (int, int)
+
+type named (x int, y int)
+
+type tup = (int, int)
+
+type namedTup = (x int, y int)
+
+type shape = struct {
+	T_0 int
+	T_1 int
+}
+
+type bits struct {
+	T_0 int
+	T_1 int
+}
+
+type Box[T any] (T, T)
+
+type holder struct{ p pair }
+
+func (p pair) sum() int {
+	var t tup = p
+	a, b := t
+	return a + b
+}
+
+func (n named) diff() int {
+	var t namedTup = n
+	return t.x - t.y
+}
+
+func (b Box[T]) first() T {
+	var t (T, T) = b
+	a, _ := t
+	return a
+}
+
+func same[T any](a, b T) bool { return true }
+
+func retPair() pair { return (1, 2) }
+
+func retNamed() named { return (9, 4) }
+
+func takePair(p pair) int { return p.sum() }
+
+func takeNamed(n named) int { return n.diff() }
+
+func assignCells() {
+	var t tup = (3, 4)
+	var p pair = t
+	check("tuple-to-defined", p.sum() == 7, p.sum(), 7)
+	var back tup = p
+	a, b := back
+	check("defined-to-tuple", a == 3 && b == 4, fmt.Sprint(a, b), "3 4")
+	var q pair
+	q = (5, 6)
+	check("assign-literal", q.sum() == 11, q.sum(), 11)
+	var r pair = (7, 8)
+	check("var-literal", r.sum() == 15, r.sum(), 15)
+	var nt namedTup = (9, 4)
+	var n named = nt
+	check("named-tuple-to-defined", n.diff() == 5, n.diff(), 5)
+	var nb namedTup = n
+	check("named-defined-to-tuple", nb.x == 9 && nb.y == 4, fmt.Sprint(nb.x, nb.y), "9 4")
+}
+
+func literalCells() {
+	check("return-literal", retPair().sum() == 3, retPair().sum(), 3)
+	check("return-named-literal", retNamed().diff() == 5, retNamed().diff(), 5)
+	check("call-literal", takePair((10, 20)) == 30, takePair((10, 20)), 30)
+	check("call-named-literal", takeNamed((10, 4)) == 6, takeNamed((10, 4)), 6)
+	ps := []pair{(1, 2), (3, 4)}
+	check("slice-literal", ps[0].sum() == 3 && ps[1].sum() == 7, fmt.Sprint(ps[0].sum(), ps[1].sum()), "3 7")
+	arr := [2]named{(5, 1), (8, 2)}
+	check("array-literal", arr[0].diff() == 4 && arr[1].diff() == 6, fmt.Sprint(arr[0].diff(), arr[1].diff()), "4 6")
+	ms := map[string]pair{"a": (5, 6)}
+	v, ok := ms["a"]
+	check("map-literal", ok && v.sum() == 11, v.sum(), 11)
+	h := holder{p: (2, 3)}
+	check("field-literal", h.p.sum() == 5, h.p.sum(), 5)
+	ch := make(chan pair, 1)
+	ch <- (6, 7)
+	got := <-ch
+	check("send-literal", got.sum() == 13, got.sum(), 13)
+	cn := make(chan named, 1)
+	cn <- (6, 1)
+	gn := <-cn
+	check("send-named-literal", gn.diff() == 5, gn.diff(), 5)
+}
+
+func convertCells() {
+	t := (3, 4)
+	p := pair(t)
+	check("convert-to-defined", p.sum() == 7, p.sum(), 7)
+	u := tup(p)
+	a, b := u
+	check("convert-from-defined", a == 3 && b == 4, fmt.Sprint(a, b), "3 4")
+	check("method-on-conversion", pair(t).sum() == 7, pair(t).sum(), 7)
+	var nt namedTup = (9, 4)
+	n := named(nt)
+	check("convert-named-to-defined", n.diff() == 5, n.diff(), 5)
+	back := namedTup(n)
+	check("convert-named-from-defined", back.x == 9 && back.y == 4, fmt.Sprint(back.x, back.y), "9 4")
+	check("method-on-named-conversion", named(nt).diff() == 5, named(nt).diff(), 5)
+}
+
+func structCells() {
+	var s shape
+	s.T_0 = 4
+	s.T_1 = 5
+	var p pair = s
+	check("struct-to-defined", p.sum() == 9, p.sum(), 9)
+	var out shape = p
+	check("defined-to-struct", out.T_0 == 4 && out.T_1 == 5, fmt.Sprint(out.T_0, out.T_1), "4 5")
+	var t tup = s
+	check("struct-to-tuple", t == (4, 5), t, "(4, 5)")
+	var again shape = t
+	check("tuple-to-struct", again == s, again, s)
+	check("struct-equal-defined", p == s && s == p, p == s, true)
+	b := bits(p)
+	check("convert-defined-struct", b.T_0 == 4 && b.T_1 == 5, fmt.Sprint(b.T_0, b.T_1), "4 5")
+	back := pair(b)
+	check("convert-from-defined-struct", back.sum() == 9, back.sum(), 9)
+}
+
+func equalCells() {
+	var p pair = (1, 2)
+	var t tup = (1, 2)
+	check("equal-defined-tuple", p == t, p == t, true)
+	check("equal-tuple-defined", t == p, t == p, true)
+	var o tup = (1, 3)
+	check("unequal-defined-tuple", p != o, p != o, true)
+	check("unequal-tuple-defined", o != p, o != p, true)
+}
+
+func genericCells() {
+	var p pair = (1, 2)
+	var t tup = (1, 2)
+	check("infer-defined-tuple", same(p, t), same(p, t), true)
+	check("infer-tuple-defined", same(t, p), same(t, p), true)
+	var bx Box[int] = (1, 2)
+	check("generic-literal", bx.first() == 1, bx.first(), 1)
+	check("generic-convert", Box[int](t).first() == 1, Box[int](t).first(), 1)
+	var bt (int, int) = bx
+	a, b := bt
+	check("generic-to-tuple", a == 1 && b == 2, fmt.Sprint(a, b), "1 2")
+}
+
+func namedSelections() {
+	var n named = (9, 4)
+	check("defined-named-fields", n.x == 9 && n.y == 4, n.x-n.y, 5)
+	check("defined-method-expression", named.diff(n) == 5, named.diff(n), 5)
+	var p pair = (3, 4)
+	check("pair-method-expression", pair.sum(p) == 7, pair.sum(p), 7)
+	var bx Box[int] = (6, 7)
+	check("generic-method-expression", Box[int].first(bx) == 6, Box[int].first(bx), 6)
+	var present named? = n
+	var absent named? = nil
+	check("defined-option-present", (present?.x ?? -1) == 9, present?.x ?? -1, 9)
+	check("defined-option-absent", (absent?.x ?? -1) == -1, absent?.x ?? -1, -1)
+	var plain namedTup = n
+	var plainPresent namedTup? = plain
+	var plainAbsent namedTup? = nil
+	check("tuple-option-present", (plainPresent?.x ?? -1) == 9, plainPresent?.x ?? -1, 9)
+	check("tuple-option-absent", (plainAbsent?.x ?? -1) == -1, plainAbsent?.x ?? -1, -1)
+	var value int? = 7
+	var none int? = nil
+	var full (x int?, y int) = (value, 2)
+	var empty (x int?, y int) = (none, 2)
+	var fullOption ((x int?, y int)?) = full
+	var emptyOption ((x int?, y int)?) = empty
+	var absentOption ((x int?, y int)?) = nil
+	var flatFull int? = fullOption?.x
+	var flatEmpty int? = emptyOption?.x
+	var flatAbsent int? = absentOption?.x
+	check("option-field-flattens-present", (flatFull ?? -1) == 7, flatFull ?? -1, 7)
+	check("option-field-flattens-empty", (flatEmpty ?? -1) == -1, flatEmpty ?? -1, -1)
+	check("option-field-flattens-absent", (flatAbsent ?? -1) == -1, flatAbsent ?? -1, -1)
+}
+
+func main() {
+	assignCells()
+	literalCells()
+	convertCells()
+	structCells()
+	equalCells()
+	genericCells()
+	namedSelections()
+	if failed {
+		os.Exit(1)
+	}
+}

@@ -1,0 +1,18 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+cd m
+! logos build ./...
+stderr 'correctness::reserved_identifier'
+cd ..
+
+-- m/go.mod --
+module example.com/ri
+
+go 1.27
+
+-- m/m/m.lgo --
+package m
+
+import _logos_rt "logos/rt"
+
+var _ = _logos_rt.MustNonNil

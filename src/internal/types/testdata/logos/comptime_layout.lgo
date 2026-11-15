@@ -1,0 +1,77 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+import "comptime"
+
+type LayoutPair struct {
+	X *int
+	Y int
+}
+
+type LayoutZero [0]*int
+
+type LayoutCells struct {
+	A int32
+	B *int
+	C LayoutZero
+	D [4]float64
+}
+
+func layoutGeneric[T any]() int {
+	var b [comptime.SizeOf[T]()]byte
+	_ = b
+	return comptime.AlignOf[T]() + comptime.SizeOf[T]()
+}
+
+func layoutGenericBool[T any]() bool {
+	return comptime.HasPointers[T]()
+}
+
+func layoutGenericCond[T any]() bool {
+	const if comptime.HasPointers[T]() {
+		return true
+	}
+	return false
+}
+
+func layoutGenericSizeCond[T any]() bool {
+	const if comptime.SizeOf[T]() == 8 {
+		return true
+	}
+	return false
+}
+
+func layoutFieldLoop() int {
+	n := 0
+	const for _, f := range comptime.Fields[LayoutCells]() {
+		var b [comptime.SizeOf[f.Type]()]byte
+		n += len(b)
+		const if comptime.HasPointers[f.Type]() {
+			n++
+		}
+	}
+	return n
+}
+
+func layoutConcreteCond() bool {
+	const if comptime.AlignOf[LayoutPair]() == 8 && !comptime.HasPointers[LayoutZero]() {
+		return true
+	}
+	return false
+}
+
+func layoutRuntimeSize() int {
+	return comptime /* ERROR "comptime::runtime_use" */ .SizeOf[LayoutPair]()
+}
+
+func layoutRuntimeAlign() int {
+	_ = comptime /* ERROR "comptime::runtime_use" */ .AlignOf[LayoutPair]()
+	return 0
+}
+
+func layoutRuntimeHasPointers() bool {
+	return comptime /* ERROR "comptime::runtime_use" */ .HasPointers[LayoutPair]()
+}

@@ -2,7 +2,21 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 // M7-S1/M7-S4 comment preservation (SPEC Sec 2.5, T-205; A7): comments
 // inside a folded span survive in the ejected text.
@@ -25,6 +39,11 @@ func kind() string {
 }
 
 func main() {
-	fmt.Println(choose())
-	fmt.Println(kind())
+	gotChoose := choose()
+	check("choose", gotChoose == 1, gotChoose, 1)
+	gotKind := kind()
+	check("kind", gotKind == "int", gotKind, "int")
+	if failed {
+		os.Exit(1)
+	}
 }

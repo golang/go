@@ -1,0 +1,76 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type NumOrStr interface {
+	int | string
+}
+
+var armI, armS, armD int
+
+func armInt() string { armI++; return "int" }
+func armStr() string { armS++; return "str" }
+func armOther() string { armD++; return "other" }
+
+func stmtKind(u NumOrStr) string {
+	k := "?"
+	switch u.(type) {
+	case int:
+		k = armInt()
+	case string:
+		k = armStr()
+	default:
+		k = armOther()
+	}
+	return k
+}
+
+func exprKind(u NumOrStr) string {
+	return switch u.(type) {
+	case int => armInt()
+	case string => armStr()
+	default => armOther()
+	}
+}
+
+func main() {
+	var u NumOrStr = 7
+	var z NumOrStr
+	k := stmtKind(u)
+	check("stmt-chosen-int-arm", k == "int", k, "int")
+	check("stmt-only-int-arm-ran", armI == 1 && armS == 0 && armD == 0, fmt.Sprintf("%d%d%d", armI, armS, armD), "100")
+	k = stmtKind("s")
+	check("stmt-chosen-str-arm", k == "str", k, "str")
+	check("stmt-only-str-arm-ran", armI == 1 && armS == 1 && armD == 0, fmt.Sprintf("%d%d%d", armI, armS, armD), "110")
+	k = stmtKind(z)
+	check("stmt-chosen-default-arm", k == "other", k, "other")
+	check("stmt-only-default-arm-ran", armI == 1 && armS == 1 && armD == 1, fmt.Sprintf("%d%d%d", armI, armS, armD), "111")
+	e := exprKind(u)
+	check("expr-chosen-int-arm", e == "int", e, "int")
+	check("expr-only-int-arm-ran", armI == 2 && armS == 1 && armD == 1, fmt.Sprintf("%d%d%d", armI, armS, armD), "211")
+	e = exprKind("s")
+	check("expr-chosen-str-arm", e == "str", e, "str")
+	check("expr-only-str-arm-ran", armI == 2 && armS == 2 && armD == 1, fmt.Sprintf("%d%d%d", armI, armS, armD), "221")
+	e = exprKind(z)
+	check("expr-chosen-default-arm", e == "other", e, "other")
+	check("expr-only-default-arm-ran", armI == 2 && armS == 2 && armD == 2, fmt.Sprintf("%d%d%d", armI, armS, armD), "222")
+	if failed {
+		os.Exit(1)
+	}
+}

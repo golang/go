@@ -1,0 +1,16 @@
+Module example.com/godep is a pure Go dependency module for eject tests.
+It exports one constant and holds no logos files.
+-- .mod --
+module example.com/godep
+
+go 1.27
+-- .info --
+{"Version":"v1.0.0"}
+-- go.mod --
+module example.com/godep
+
+go 1.27
+-- godep.go --
+package godep
+
+const Hello = "godep hello"

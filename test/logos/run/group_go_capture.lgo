@@ -1,20 +1,5 @@
 // run -t 30
 
-// PRRT_kwDOVOeymc6vs5oM (lowerGroupGo): operands of `go f(args)` in a group
-// body evaluate in the calling goroutine at the go statement, before
-// Group.Go, in source order (callee or receiver, then arguments). The child
-// runs only the call. Success prints nothing and exits 0, so the expected
-// stdout is empty and no .out file is needed.
-//
-// Truth source: Go spec, "Go statements": the function value and parameters
-// are evaluated as usual in the calling goroutine; the invoked function runs
-// without the caller waiting for it. The same program with plain go
-// statements (no limit) is valid Go and prints nothing.
-//
-// Channel barriers only, no sleeps. operandsBeforeGo is written so that the
-// operand closes the gate that the token-holding child waits on. Under
-// evaluation-in-child lowering, the second Group.Go blocks on the single
-// token, the holder waits on the gate, and nothing else can run.
 
 package main
 
@@ -32,9 +17,6 @@ func ignoreArg(s string) error {
 	return nil
 }
 
-// panicUnwindsParent: an argument panic must unwind the caller at the go
-// statement. A group error (a *rt.PanicError) means the argument ran in the
-// child.
 func panicUnwindsParent(ctx context.Context) (err error) {
 	defer func() {
 		r := recover()
@@ -69,8 +51,6 @@ func sumWorker(out chan string, tag string, nums ...int) error {
 	return nil
 }
 
-// multiValuedArgs: a multi-valued call as the sole argument, a variadic
-// spread, and variadic literals must keep every value.
 //logos:allow(correctness::unbounded_channel_op)
 func multiValuedArgs(ctx context.Context) error {
 	pair := make(chan string, 1)
@@ -109,9 +89,6 @@ func (s *svc) Work(v int) error {
 	return nil
 }
 
-// receiverOnce: the receiver expression and the callee expression each
-// evaluate exactly once, and each argument expression evaluates exactly once.
-// Counts are read after the group joins, so they are final.
 //logos:allow(correctness::unbounded_channel_op)
 func receiverOnce(ctx context.Context) error {
 	recv := make(chan string, 1)
@@ -160,8 +137,6 @@ func recordInt(got chan int, v int) error {
 	return nil
 }
 
-// releaseWith records that its operand was evaluated, then closes the gate
-// that holdToken waits on, and returns the operand value.
 //logos:allow(correctness::unbounded_channel_op)
 func releaseWith(hold chan struct{}, trace chan string, v int) int {
 	trace <- "arg"
@@ -169,11 +144,6 @@ func releaseWith(hold chan struct{}, trace chan string, v int) int {
 	return v
 }
 
-// operandsBeforeGo: with limit = 1, holdToken occupies the only token until
-// the second go statement's operand closes hold. The operand must run in the
-// parent before Group.Go, and the parent's next statement must run after it.
-// The second child must receive x as it was at the go statement (10), not
-// after the parent's later write (999).
 //logos:allow(correctness::unbounded_channel_op)
 func operandsBeforeGo(ctx context.Context) error {
 	hold := make(chan struct{})
@@ -198,20 +168,19 @@ func operandsBeforeGo(ctx context.Context) error {
 
 func report(name string, err error) bool {
 	if err == nil {
+		fmt.Println("ok", name)
 		return false
 	}
-	fmt.Println("FAIL", name+":", err)
+	fmt.Println("FAIL "+name+":", err)
 	return true
 }
 
 func main() {
 	ctx := context.Background()
-	bad := report("panicUnwindsParent", panicUnwindsParent(ctx))
-	bad = report("multiValuedArgs", multiValuedArgs(ctx)) || bad
-	bad = report("receiverOnce", receiverOnce(ctx)) || bad
-	// Last: under evaluation-in-child lowering this check deadlocks, so the
-	// checks above print their FAIL lines first.
-	bad = report("operandsBeforeGo", operandsBeforeGo(ctx)) || bad
+	bad := report("group-parent-arg-panic-propagates", panicUnwindsParent(ctx))
+	bad = report("group-multivalue-and-spread-args", multiValuedArgs(ctx)) || bad
+	bad = report("group-receiver-and-callee-once", receiverOnce(ctx)) || bad
+	bad = report("group-args-evaluated-before-submit", operandsBeforeGo(ctx)) || bad
 	if bad {
 		os.Exit(1)
 	}

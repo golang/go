@@ -1,0 +1,67 @@
+// errorcheck -0 -m -goexperiment logosarena
+
+package p
+
+import (
+	"context"
+	"logos/arena"
+)
+
+type node struct { // ERROR ".*"
+	v    int
+	next *node
+}
+
+func sumConst(n const *node) error { // ERROR "can inline sumConst" "n does not escape"
+	_ = n.v
+	return nil
+}
+
+func touch(n *node) error { // ERROR "can inline touch" "n does not escape"
+	n.v = 1
+	return nil
+}
+
+func groupRead(ctx context.Context) error { // ERROR "leaking param: ctx"
+	r := arena.Open()
+	p := arena.New[node](r) // ERROR "placed in region"
+	p.v = 1
+	var c const *node = p
+	go group (ctx) { // ERROR "can inline groupRead.func1" "func literal does not escape"
+		go sumConst(c) // ERROR "_logos_gctx0 does not escape" "can inline groupRead.func2" "func literal escapes to heap" "inlining call to sumConst"
+	} // ERROR "inlining call to rt.TraceErr"
+	return nil
+}
+
+func groupWrite(ctx context.Context) error { // ERROR "leaking param: ctx"
+	r := arena.Open()
+	q := arena.New[node](r) // ERROR "region fallback: .* group child" "perf::arena_fallback.*falls back to the heap: value reaches group child"
+	go group (ctx) { // ERROR "can inline groupWrite.func1" "func literal does not escape"
+		go touch(q) // ERROR "_logos_gctx0 does not escape" "can inline groupWrite.func2" "func literal escapes to heap" "inlining call to touch"
+	} // ERROR "inlining call to rt.TraceErr"
+	return nil
+}
+
+func groupUserDefer(ctx context.Context) error { // ERROR "leaking param: ctx"
+	r := arena.Open()
+	p := arena.New[node](r) // ERROR "region fallback: function contains defer" "perf::arena_fallback.*falls back to the heap: function contains defer"
+	p.v = 1
+	var c const *node = p
+	defer func() { _ = 1 }() // ERROR "can inline groupUserDefer.func1" "func literal does not escape"
+	go group (ctx) { // ERROR "can inline groupUserDefer.func2" "func literal does not escape"
+		go sumConst(c) // ERROR "_logos_gctx0 does not escape" "can inline groupUserDefer.func3" "func literal escapes to heap" "inlining call to sumConst"
+	} // ERROR "inlining call to rt.TraceErr"
+	return nil
+}
+
+func groupInnerBlock(ctx context.Context) error { // ERROR "leaking param: ctx"
+	go group (ctx) { // ERROR "can inline groupInnerBlock.func1" "func literal does not escape"
+		{
+			r := arena.Open()
+			p := arena.New[node](r) // ERROR "placed in region"
+			var c const *node = p
+			go sumConst(c) // ERROR "_logos_gctx0 does not escape" "can inline groupInnerBlock.func2" "func literal escapes to heap" "inlining call to sumConst"
+		}
+	} // ERROR "inlining call to rt.TraceErr"
+	return nil
+}

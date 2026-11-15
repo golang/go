@@ -1,0 +1,212 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+type node struct{ id int }
+
+type recv struct{}
+
+func (recv) take(i int) int { return i }
+
+func newRecv() recv { return recv{} }
+
+func twoResults() (int, error) { return 0, nil }
+
+func oneInt(i int) int { return i }
+
+func oneIntErr(i int) (int, error) { return i, nil }
+
+func maybeInt() int? { return nil }
+
+func maybeNode() *node? { return nil }
+
+func tupFirst(t (int, string)) int {
+	a, _ := t
+	return a
+}
+
+func callArg() (int, error) {
+	_ = oneInt(switch n := twoResults()?; n { case 0 => 1; default => 2 })
+	return 0, nil
+}
+
+func callArgAfter(v int) (int, error) {
+	_ = oneInt(v) + oneInt(switch n := twoResults()?; n { case 0 => 1; default => 2 })
+	return 0, nil
+}
+
+func callArgTry() (int, error) {
+	r := oneIntErr(switch n := twoResults()?; n { case 0 => 1; default => 2 })?
+	return r, nil
+}
+
+func methodArg() (int, error) {
+	_ = newRecv().take(switch n := twoResults()?; n { case 0 => 1; default => 2 })
+	return 0, nil
+}
+
+func deferArg() (int, error) {
+	defer oneInt(switch n := twoResults()?; n { case 0 => 1; default => 2 })
+	return 0, nil
+}
+
+func exprStmtArg() (int, error) {
+	oneInt(switch n := twoResults()?; n { case 0 => 1; default => 2 })
+	return 0, nil
+}
+
+func sendValue(ch chan int) (int, error) {
+	ch <- switch n := twoResults()?; n { case 0 => 1; default => 2 }
+	return 0, nil
+}
+
+func sendChannel(chans []chan int) (int, error) {
+	chans[switch n := twoResults()?; n { case 0 => 0; default => 1 }] <- 1
+	return 0, nil
+}
+
+func rangeOver() (int, error) {
+	for range switch n := twoResults()?; n { case 0 => 1; default => 2 } {
+		return 1, nil
+	}
+	return 0, nil
+}
+
+func rangeWithVar() (int, error) {
+	for i := range switch n := twoResults()?; n { case 0 => 1; default => 2 } {
+		return i, nil
+	}
+	return 0, nil
+}
+
+func interpHole() (string, error) {
+	return $"a={switch n := twoResults()?; n { case 0 => 1; default => 2 }}", nil
+}
+
+func tupleElem() (int, error) {
+	t := (switch n := twoResults()?; n { case 0 => 1; default => 2 }, "a")
+	return tupFirst(t), nil
+}
+
+func optSelectBase() (int, error) {
+	r := (switch n := twoResults()?; n { case 0 => maybeNode(); default => maybeNode() })?.id ?? -1
+	return r, nil
+}
+
+func coalesceLeft() (int, error) {
+	r := switch n := twoResults()?; n { case 0 => maybeInt(); default => maybeInt() } ?? -1
+	return r, nil
+}
+
+func coalesceLeftParen() (int, error) {
+	r := (switch n := twoResults()?; n { case 0 => maybeInt(); default => maybeInt() }) ?? -1
+	return r, nil
+}
+
+func labeledForInit() (int, error) {
+loop:
+	for i := (switch n := twoResults()?; n { case 0 => 1; default => 2 }); i < 3; i++ {
+		continue loop
+	}
+	return 0, nil
+}
+
+func labeledForRange() (int, error) {
+loop:
+	for range switch n := twoResults()?; n { case 0 => 1; default => 2 } {
+		break loop
+	}
+	return 0, nil
+}
+
+func labeledSwitchTag() (int, error) {
+pick:
+	switch (switch n := twoResults()?; n { case 0 => 1; default => 2 }) {
+	case 1:
+		break pick
+	}
+	return 0, nil
+}
+
+func labeledSwitchInit() (int, error) {
+pick:
+	switch x := (switch n := twoResults()?; n { case 0 => 1; default => 2 }); x {
+	case 1:
+		break pick
+	}
+	return 0, nil
+}
+
+func armOfSwitch(v int) (int, error) {
+	r := switch v {
+	case 0 => switch n := twoResults()?; n { case 0 => 1; default => 2 }
+	default => 1
+	}
+	return r, nil
+}
+
+func armOfTrySwitch() (int, error) {
+	r := switch m := twoResults()?; m {
+	case 0 => switch n := twoResults()?; n { case 0 => 1; default => 2 }
+	default => 1
+	}
+	return r, nil
+}
+
+func armOfOptionSwitch(v int) (int, error) {
+	r := switch v {
+	case 0 => switch n := twoResults()?; n { case 0 => maybeInt(); default => maybeInt() }
+	default => nil
+	}
+	return r ?? -1, nil
+}
+
+func caseOfSwitchExpr(v int) (int, error) {
+	r := switch v {
+	case (switch n := twoResults()?; n { case 0 => 1; default => 2 }), 3 => 1
+	default => 0
+	}
+	return r, nil
+}
+
+func caseOfTaglessSwitchExpr(v int) (int, error) {
+	r := switch {
+	case v > 0 => 1
+	case (switch n := twoResults()?; n { case 0 => true; default => false }) => 2
+	default => 0
+	}
+	return r, nil
+}
+
+func armNested(v int) (int, error) {
+	r := switch v {
+	case 0 => oneInt(switch n := twoResults()?; n { case 0 => 1; default => 2 })
+	default => 1
+	}
+	return r, nil
+}
+
+func initOfSwitch() (int, error) {
+	r := switch n := oneIntErr(switch m := twoResults()?; m { case 0 => 1; default => 2 })?; n {
+	case 0 => 1
+	default => 2
+	}
+	return r, nil
+}
+
+func tagOfSwitch(v int) (int, error) {
+	r := switch oneInt(switch m := twoResults()?; m { case 0 => 1; default => 2 }) {
+	case 0 => 1
+	default => 2
+	}
+	return r + v, nil
+}
+
+func initOfIf() (int, error) {
+	if x := oneInt(switch n := twoResults()?; n { case 0 => 1; default => 2 }); x > 0 {
+		return x, nil
+	}
+	return 0, nil
+}

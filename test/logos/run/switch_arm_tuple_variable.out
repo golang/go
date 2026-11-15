@@ -1,0 +1,6 @@
+ok variable-arm-taken
+ok variable-arm-skipped
+ok variable-default-skipped
+ok variable-default-taken
+ok variable-arm-value
+ok variable-arm-label

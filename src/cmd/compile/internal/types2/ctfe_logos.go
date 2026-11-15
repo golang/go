@@ -4,13 +4,6 @@
 
 package types2
 
-// This file implements the M5-S2 types2 hooks for const composites and
-// const func calls (SPEC Sec 2.1, T-201): unwrapping ConstFuncDecl into
-// the ordinary function path, evaluating const initializers of
-// composite type or const-func calls, and recording values for
-// lowering. The Host adapter lives in ctfe_host_logos.go; the static
-// purity check lives in ctfe_purity_logos.go.
-
 import (
 	"cmd/compile/internal/logos/ctfe"
 	"cmd/compile/internal/syntax"
@@ -20,9 +13,6 @@ import (
 	"strconv"
 )
 
-// logosConstFuncBodies records plain package-level function bodies by
-// name for transitive const evaluation, and logosConstFuncSyntax marks
-// the inner FuncDecls declared through `const func`.
 func (check *Checker) logosConstFuncBodies() (map[string]*syntax.FuncDecl, map[*syntax.FuncDecl]bool) {
 	if check.logosBodies == nil {
 		check.logosBodies = map[string]*syntax.FuncDecl{}
@@ -31,11 +21,6 @@ func (check *Checker) logosConstFuncBodies() (map[string]*syntax.FuncDecl, map[*
 	return check.logosBodies, check.logosConstSyntax
 }
 
-// logosUnwrapConstFunc normalizes a file-scope declaration for the
-// resolver loop: a ConstFuncDecl contributes its inner FuncDecl to the
-// ordinary path while recording constness; plain FuncDecls record
-// their bodies for transitive const evaluation. Every other
-// declaration passes through untouched.
 func (check *Checker) logosUnwrapConstFunc(decl syntax.Decl) syntax.Decl {
 	if !check.conf.Logos {
 		return decl
@@ -81,13 +66,6 @@ func (check *Checker) logosConstNeedsEval(init syntax.Expr) bool {
 	return needed
 }
 
-// logosConstEval evaluates a const initializer that upstream cannot:
-// composite literals, calls to const funcs (and builtins over const
-// composites), and aliases of const composites. Scalar results become
-// real constants through the ordinary initConst path; composite results
-// are recorded in Info.LogosCTFE for lowering. It reports whether it
-// handled the declaration (including failures, which invalidate the
-// object to avoid follow-on errors).
 func (check *Checker) logosConstEval(obj *Const, init syntax.Expr, x *operand) bool {
 	if !check.conf.Logos || init == nil || !x.isValid() {
 		return false
@@ -109,10 +87,6 @@ func (check *Checker) logosConstEval(obj *Const, init syntax.Expr, x *operand) b
 	return check.logosConstCompute(obj, init, x)
 }
 
-// logosConstUse reads a recorded const composite as a value operand,
-// keeping unknown-valued composites out of the constant invariant
-// (which only basic const types satisfy). Recorded scalars keep their
-// constant behavior. It reports whether it handled the use.
 func (check *Checker) logosConstUse(obj *Const, x *operand) bool {
 	if !check.conf.Logos {
 		return false
@@ -121,10 +95,9 @@ func (check *Checker) logosConstUse(obj *Const, x *operand) bool {
 	if !ok {
 		return false
 	}
-	return isCompositeValue(v)
+	return v.IsComposite()
 }
 
-// logosConstAlias copies a recorded const composite value.
 func (check *Checker) logosConstAlias(obj *Const, init syntax.Expr) bool {
 	name, ok := syntax.Unparen(init).(*syntax.Name)
 	if !ok {
@@ -135,7 +108,6 @@ func (check *Checker) logosConstAlias(obj *Const, init syntax.Expr) bool {
 		return false
 	}
 	if ref.val != nil && ref.val.Kind() != constant.Unknown {
-		// A scalar constant: the ordinary path handles it.
 		return false
 	}
 	v, ok := check.logosRecorded(ref)
@@ -149,14 +121,22 @@ func (check *Checker) logosConstAlias(obj *Const, init syntax.Expr) bool {
 	return true
 }
 
-// logosConstCompute runs the interpreter over a composite or call
-// initializer.
 func (check *Checker) logosConstCompute(obj *Const, init syntax.Expr, x *operand) bool {
 	if v, ok := check.logosMemo(init); ok {
 		return check.logosApplyMemo(obj, init, x, v)
 	}
 	if perr := check.logosPrescanImportedCalls(obj, init); perr != nil {
 		check.errorf(obj, InvalidConstInit, "%s %s", logosConstEvalRule, perr)
+		obj.typ = Typ[Invalid]
+		return true
+	}
+	if t := x.typ(); t == nil {
+		check.errorf(obj, InvalidConstInit, "%s const with unknown type", logosConstEvalRule)
+		obj.typ = Typ[Invalid]
+		return true
+	}
+	if mt, ok := x.typ().Underlying().(*Map); ok && !logosConstMapKeyOK(mt.Key()) {
+		check.errorf(obj, InvalidConstInit, "[comptime::constmap_key_type] const map key type %s cannot be hashed: use a string, number, bool, or a struct or array of them", mt.Key())
 		obj.typ = Typ[Invalid]
 		return true
 	}
@@ -167,34 +147,35 @@ func (check *Checker) logosConstCompute(obj *Const, init syntax.Expr, x *operand
 		return check.logosCTFEFailed(obj, init, err)
 	}
 	check.logosMemoize(init, v)
-	// Every evaluated value records for lowering's literal splice
-	// (scalars keep flowing through initConst for typing below).
 	check.logosRecord(obj, v)
-	if isCompositeValue(v) || !isConstType(x.typ()) {
-		// Composite values and values of non-basic const type
-		// (such as option results of map indexes) record for
-		// lowering instead of flowing through initConst, whose
-		// constant invariant covers basic types only.
-		return check.logosRecordComposite(obj, init, x, v)
-	}
-	return check.logosApplyScalar(obj, init, x, v)
+	return check.logosApplyValue(obj, init, x, v)
 }
 
-// logosApplyMemo replays a memoized initializer result.
 func (check *Checker) logosApplyMemo(obj *Const, init syntax.Expr, x *operand, v ctfe.Value) bool {
 	if !v.IsValid() {
 		obj.typ = Typ[Invalid]
 		return true
 	}
 	check.logosRecord(obj, v)
-	if isCompositeValue(v) || !isConstType(x.typ()) {
+	return check.logosApplyValue(obj, init, x, v)
+}
+
+func (check *Checker) logosApplyValue(obj *Const, init syntax.Expr, x *operand, v ctfe.Value) bool {
+	if !v.IsComposite() {
+		logosDetachScalarView(x)
+	}
+	if v.IsComposite() || !isConstType(x.typ()) {
 		return check.logosRecordComposite(obj, init, x, v)
 	}
 	return check.logosApplyScalar(obj, init, x, v)
 }
 
-// logosApplyScalar converts an evaluated scalar into a constant
-// operand for the ordinary initConst path.
+func logosDetachScalarView(x *operand) {
+	if c := logosAsConstView(x.typ()); c != nil && logosReferenceFree(c.Elem) {
+		x.typ_ = c.Elem
+	}
+}
+
 func (check *Checker) logosApplyScalar(obj *Const, init syntax.Expr, x *operand, v ctfe.Value) bool {
 	c, ok := ctfeScalarConstant(v)
 	if !ok {
@@ -207,9 +188,6 @@ func (check *Checker) logosApplyScalar(obj *Const, init syntax.Expr, x *operand,
 	return false
 }
 
-// logosRecordComposite records a composite value and finishes the
-// declaration without initConst (whose constant requirement cannot
-// hold). A declared type must accept the value's Go type.
 func (check *Checker) logosRecordComposite(obj *Const, init syntax.Expr, x *operand, v ctfe.Value) bool {
 	if obj.typ != nil {
 		if ok, _ := x.assignableTo(check, obj.typ, nil); !ok {
@@ -225,7 +203,6 @@ func (check *Checker) logosRecordComposite(obj *Const, init syntax.Expr, x *oper
 		base = cv.Elem
 	}
 	if mt, ok := base.Underlying().(*Map); ok && v.Type().Kind == ctfe.KMap {
-		// A const map is a const view of its map type (M5-S4, SPEC T-Sec9).
 		if !logosConstMapKeyOK(mt.Key()) {
 			check.errorf(obj, InvalidConstInit, "[comptime::constmap_key_type] const map key type %s cannot be hashed: use a string, number, bool, or a struct or array of them", mt.Key())
 			obj.typ = Typ[Invalid]
@@ -233,19 +210,165 @@ func (check *Checker) logosRecordComposite(obj *Const, init syntax.Expr, x *oper
 		}
 		obj.typ = &ConstView{Elem: base, ConstMap: true}
 	}
+	if _, ok := base.Underlying().(*Map); (!ok || v.Type().Kind != ctfe.KMap) && logosTypeHasMap(base) {
+		if bad := logosBadNestedMapKey(base); bad != nil {
+			check.errorf(obj, InvalidConstInit, "[comptime::constmap_key_type] const map key type %s cannot be hashed: use a string, number, bool, or a struct or array of them", bad)
+			obj.typ = Typ[Invalid]
+			return true
+		}
+	}
 	check.logosRecord(obj, v)
 	return true
 }
 
-// logosCTFEFailed reports an evaluation failure once per initializer;
-// later names sharing the initializer invalidate silently.
+func logosBadNestedMapKey(t Type) Type {
+	seen := map[Type]bool{}
+	var bad Type
+	var walk func(t Type)
+	walk = func(t Type) {
+		if t == nil || seen[t] || bad != nil {
+			return
+		}
+		seen[t] = true
+		u := Unalias(t)
+		if n, ok := u.(*Named); ok {
+			u = n.Underlying()
+		}
+		switch u := u.(type) {
+		case *Map:
+			if !logosConstMapKeyOK(u.Key()) {
+				bad = u.Key()
+				return
+			}
+			walk(u.Key())
+			walk(u.Elem())
+		case *Struct:
+			for i := range u.NumFields() {
+				walk(u.Field(i).Type())
+			}
+		case *Slice:
+			walk(u.Elem())
+		case *Array:
+			walk(u.Elem())
+		case *Pointer:
+			walk(u.Elem())
+		}
+	}
+	walk(t)
+	return bad
+}
+
+func logosTypeHasMap(t Type) bool {
+	seen := map[Type]bool{}
+	var walk func(t Type) bool
+	walk = func(t Type) bool {
+		if t == nil || seen[t] {
+			return false
+		}
+		seen[t] = true
+		u := Unalias(t)
+		if n, ok := u.(*Named); ok {
+			u = n.Underlying()
+		}
+		switch u := u.(type) {
+		case *Map:
+			return true
+		case *Struct:
+			for i := range u.NumFields() {
+				if walk(u.Field(i).Type()) {
+					return true
+				}
+			}
+		case *Slice:
+			return walk(u.Elem())
+		case *Array:
+			return walk(u.Elem())
+		case *Pointer:
+			return walk(u.Elem())
+		}
+		return false
+	}
+	return walk(t)
+}
+
+type logosReceiverPath struct {
+	expr    syntax.Expr
+	indices []int
+	next    *logosReceiverPath
+}
+
+func (check *Checker) logosReceiverValueSafe(e syntax.Expr, root *syntax.Name, v ctfe.Value, path *logosReceiverPath) bool {
+	e = syntax.Unparen(e)
+	if e != root {
+		step := logosReceiverPath{expr: e, next: path}
+		switch e := e.(type) {
+		case *syntax.SelectorExpr:
+			return check.logosReceiverValueSafe(e.X, root, v, &step)
+		case *syntax.IndexExpr:
+			return check.logosReceiverValueSafe(e.X, root, v, &step)
+		}
+		return false
+	}
+	return check.logosReceiverPathSafe(v, path)
+}
+
+func (check *Checker) logosReceiverPathSafe(v ctfe.Value, path *logosReceiverPath) bool {
+	if !v.IsValid() {
+		return false
+	}
+	if path == nil {
+		return v.NoLiveReferences()
+	}
+	switch e := path.expr.(type) {
+	case *syntax.SelectorExpr:
+		indices := path.indices
+		if path.next != nil {
+			sel := check.Selections[e]
+			if sel == nil || sel.Kind() != FieldVal {
+				return false
+			}
+			indices = sel.Index()
+		}
+		for _, index := range indices {
+			fields := v.Fields()
+			if v.Type().Kind != ctfe.KStruct || index >= len(fields) {
+				return false
+			}
+			v = fields[index]
+		}
+		return check.logosReceiverPathSafe(v, path.next)
+	case *syntax.IndexExpr:
+		var elems []ctfe.Value
+		switch v.Type().Kind {
+		case ctfe.KArray:
+			elems = v.Elems()
+		case ctfe.KSlice:
+			backing, lo, length, _, ok := v.SliceHeader()
+			if !ok && !v.IsNilValue() {
+				return false
+			}
+			elems = backing[lo : lo+length]
+		default:
+			return false
+		}
+		if index, known := check.constBoundValue(e.Index); known {
+			return index >= 0 && index < int64(len(elems)) && check.logosReceiverPathSafe(elems[index], path.next)
+		}
+		for _, elem := range elems {
+			if !check.logosReceiverPathSafe(elem, path.next) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
 func (check *Checker) logosCTFEFailed(obj *Const, init syntax.Expr, err error) bool {
 	check.logosMemoizeFailure(init)
 	if cerr, ok := err.(*ctfe.Error); ok {
 		switch cerr.Code {
 		case ctfe.CodeSilent:
-			// The impurity sits in a const func body; the static
-			// purity check reports it.
 			obj.typ = Typ[Invalid]
 			return true
 		case ctfe.CodeStepLimit:
@@ -263,7 +386,6 @@ func (check *Checker) logosCTFEFailed(obj *Const, init syntax.Expr, err error) b
 	return true
 }
 
-// logosRecord stores an evaluated value for lowering.
 func (check *Checker) logosRecord(obj *Const, v ctfe.Value) {
 	if check.Info.LogosCTFE == nil {
 		check.Info.LogosCTFE = map[*Const]ctfe.Value{}
@@ -271,13 +393,11 @@ func (check *Checker) logosRecord(obj *Const, v ctfe.Value) {
 	check.Info.LogosCTFE[obj] = v
 }
 
-// logosRecorded returns a recorded value.
 func (check *Checker) logosRecorded(obj *Const) (ctfe.Value, bool) {
 	v, ok := check.Info.LogosCTFE[obj]
 	return v, ok
 }
 
-// logosWordSize returns the target int width in bytes.
 func (check *Checker) logosWordSize() int64 {
 	if check.conf.Sizes != nil {
 		if w := check.conf.Sizes.Sizeof(Typ[Int]); w == 4 || w == 8 {
@@ -287,7 +407,6 @@ func (check *Checker) logosWordSize() int64 {
 	return 8
 }
 
-// logosMemo caches one evaluation per initializer expression.
 func (check *Checker) logosMemo(init syntax.Expr) (ctfe.Value, bool) {
 	if check.logosMemoized == nil {
 		return ctfe.Value{}, false
@@ -299,7 +418,6 @@ func (check *Checker) logosMemo(init syntax.Expr) (ctfe.Value, bool) {
 	return m.val, true
 }
 
-// logosMemoize stores a successful evaluation.
 func (check *Checker) logosMemoize(init syntax.Expr, v ctfe.Value) {
 	if check.logosMemoized == nil {
 		check.logosMemoized = map[syntax.Expr]ctfeMemo{}
@@ -307,7 +425,6 @@ func (check *Checker) logosMemoize(init syntax.Expr, v ctfe.Value) {
 	check.logosMemoized[init] = ctfeMemo{val: v}
 }
 
-// logosMemoizeFailure stores a failed evaluation.
 func (check *Checker) logosMemoizeFailure(init syntax.Expr) {
 	if check.logosMemoized == nil {
 		check.logosMemoized = map[syntax.Expr]ctfeMemo{}
@@ -315,8 +432,6 @@ func (check *Checker) logosMemoizeFailure(init syntax.Expr) {
 	check.logosMemoized[init] = ctfeMemo{}
 }
 
-// ctfeMemo is one memoized initializer result: an invalid value marks
-// a reported failure.
 type ctfeMemo struct {
 	val ctfe.Value
 }
@@ -328,22 +443,6 @@ const (
 	logosImpureRule    = "[correctness::const_func_impure]"
 )
 
-// isCompositeValue reports whether v needs a composite literal in
-// lowering (and a var declaration instead of a const).
-func isCompositeValue(v ctfe.Value) bool {
-	t := v.Type()
-	if t == nil {
-		return false
-	}
-	switch t.Kind {
-	case ctfe.KSlice, ctfe.KArray, ctfe.KMap, ctfe.KStruct:
-		return true
-	}
-	return false
-}
-
-// ctfeScalarConstant converts an evaluated scalar to a constant.Value
-// for the ordinary initConst path.
 func ctfeScalarConstant(v ctfe.Value) (constant.Value, bool) {
 	t := v.Type()
 	if t == nil {

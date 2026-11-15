@@ -1,1 +1,6 @@
-true false
+ok union-equality-equal-true
+ok union-equality-mismatch-false
+ok union-equality-assert-to-union
+ok union-equality-slice-union-comparable-members
+ok union-equality-slice-member-panics
+ok union-equality-cross-member-false

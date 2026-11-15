@@ -1,0 +1,285 @@
+// run
+
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"iter"
+	"os"
+	"runtime"
+	"sync/atomic"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+var (
+	closes     [6]atomic.Int64
+	itemCloses [6]atomic.Int64
+	others     atomic.Int64
+)
+
+var errExamined = errors.New("examined")
+
+type handle struct{ id int }
+
+func (h *handle) Close() error {
+	closes[h.id].Add(1)
+	return nil
+}
+
+func open(id int) *handle { return &handle{id: id} }
+
+type boxed struct{ h *handle }
+
+func (b *boxed) Close() error { return b.h.Close() }
+
+type fragile struct{ id int }
+
+func (f *fragile) Close() error {
+	closes[f.id].Add(1)
+	if f.id == 2 {
+		panic("close boom")
+	}
+	return nil
+}
+
+type item struct{ id int }
+
+func (i *item) Close() error {
+	itemCloses[i.id].Add(1)
+	return nil
+}
+
+func items() []*item {
+	return []*item{{0}, {1}, {2}, {3}, {4}, {5}}
+}
+
+func itemSeq() iter.Seq[*item] {
+	for _, i := range items() {
+		yield i
+	}
+}
+
+//logos:allow(correctness::unbounded_channel_op)
+func itemChan() chan *item {
+	ch := make(chan *item, 6)
+	for _, i := range items() {
+		ch <- i
+	}
+	close(ch)
+	return ch
+}
+
+func counts(c *[6]atomic.Int64) []int64 {
+	out := make([]int64, len(c))
+	for i := range c {
+		out[i] = c[i].Load()
+	}
+	return out
+}
+
+func reset() {
+	for i := range closes {
+		closes[i].Store(0)
+		itemCloses[i].Store(0)
+	}
+	others.Store(0)
+}
+
+func untouched(c *[6]atomic.Int64) bool {
+	return fmt.Sprint(counts(c)) == fmt.Sprint([]int64{0, 0, 0, 0, 0, 0})
+}
+
+func caseFilterDropClosesOnceDeliveredStayOpen(ctx context.Context) {
+	reset()
+	got, err := []int{0, 1, 2, 3, 4, 5}.group(ctx, limit = 3).map(id => open(id)).filter(h => h.id%2 == 0)
+	want := []int64{0, 1, 0, 1, 0, 1}
+	if err != nil {
+		check("closers-delivered-stay-open", false, err, 3)
+	} else {
+		check("closers-delivered-stay-open", err == nil && len(got) == 3, len(got), 3)
+	}
+	check("closers-filter-drop-closed-once", fmt.Sprint(counts(&closes)) == fmt.Sprint(want), counts(&closes), want)
+}
+
+func caseFilterOnlySlice(ctx context.Context) {
+	reset()
+	got, err := items().group(ctx, limit = 3).filter(i => i.id%2 == 0)
+	check("closers-filter-only-slice", err == nil && len(got) == 3 && untouched(&itemCloses), counts(&itemCloses), "no close")
+}
+
+func caseFilterOnlySliceUnordered(ctx context.Context) {
+	reset()
+	got, err := items().group(ctx, limit = 3).unordered().filter(i => i.id%2 == 0)
+	check("closers-filter-only-slice-unordered", err == nil && len(got) == 3 && untouched(&itemCloses), counts(&itemCloses), "no close")
+}
+
+func caseFilterOnlyChan(ctx context.Context) {
+	reset()
+	got, err := itemChan().group(ctx, limit = 3).filter(i => i.id%2 == 0)
+	check("closers-filter-only-chan", err == nil && len(got) == 3 && untouched(&itemCloses), counts(&itemCloses), "no close")
+}
+
+func caseFilterOnlyChanUnordered(ctx context.Context) {
+	reset()
+	got, err := itemChan().group(ctx, limit = 3).unordered().filter(i => i.id%2 == 0)
+	check("closers-filter-only-chan-unordered", err == nil && len(got) == 3 && untouched(&itemCloses), counts(&itemCloses), "no close")
+}
+
+func caseFilterOnlySeq(ctx context.Context) {
+	reset()
+	got, err := itemSeq().group(ctx, limit = 3).filter(i => i.id%2 == 0)
+	check("closers-filter-only-seq", err == nil && len(got) == 3 && untouched(&itemCloses), counts(&itemCloses), "no close")
+}
+
+func caseFilterOnlySeqUnordered(ctx context.Context) {
+	reset()
+	got, err := itemSeq().group(ctx, limit = 3).unordered().filter(i => i.id%2 == 0)
+	check("closers-filter-only-seq-unordered", err == nil && len(got) == 3 && untouched(&itemCloses), counts(&itemCloses), "no close")
+}
+
+func caseMapAfterFilter(ctx context.Context) {
+	reset()
+	got, err := items().group(ctx, limit = 3).filter(i => i.id%2 == 0).map(i => open(i.id))
+	ok := err == nil && len(got) == 3 && untouched(&itemCloses) && untouched(&closes)
+	check("closers-map-after-filter", ok, fmt.Sprint(counts(&itemCloses), counts(&closes)), "no close")
+}
+
+func caseFilterMapFilter(ctx context.Context) {
+	reset()
+	got, err := items().group(ctx, limit = 3).filter(i => i.id%2 == 0).map(i => open(i.id)).filter(h => h.id%4 == 0)
+	want := []int64{0, 0, 1, 0, 0, 0}
+	ok := err == nil && len(got) == 2 && untouched(&itemCloses) && fmt.Sprint(counts(&closes)) == fmt.Sprint(want)
+	check("closers-filter-map-filter", ok, fmt.Sprint(counts(&itemCloses), counts(&closes)), want)
+}
+
+func caseMapFilterMap(ctx context.Context) {
+	reset()
+	got, err := []int{0, 1, 2, 3, 4, 5}.group(ctx, limit = 3).map(id => open(id)).filter(h => h.id%2 == 0).map(h => &boxed{h})
+	want := []int64{0, 1, 0, 1, 0, 1}
+	ok := err == nil && len(got) == 3 && fmt.Sprint(counts(&closes)) == fmt.Sprint(want)
+	check("closers-map-filter-map", ok, counts(&closes), want)
+}
+
+func waitOthers() {
+	for others.Load() < 5 {
+		runtime.Gosched()
+	}
+}
+
+func caseUnownedUndelivered(ctx context.Context) {
+	reset()
+	got, err := items().group(ctx, limit = 6).map(i => {
+		if i.id == 0 {
+			waitOthers()
+		} else {
+			others.Add(1)
+		}
+		return i
+	}).take(1)
+	check("closers-unowned-undelivered-left-open", err == nil && len(got) == 1 && untouched(&itemCloses), counts(&itemCloses), "no close")
+}
+
+var table = []*handle{open(4), open(5)}
+
+func caseBorrowedReadsLeftOpen(ctx context.Context) {
+	reset()
+	got, err := []int{0, 1, 2, 3}.group(ctx, limit = 2).map(i => table[i%2]).filter(h => h.id < 0)
+	check("closers-indexed-read-left-open", err == nil && len(got) == 0 && untouched(&closes), counts(&closes), "no close")
+	reset()
+	keep := open(3)
+	got, err = []int{0, 1, 2, 3}.group(ctx, limit = 2).map(i => keep).filter(h => h.id < 0)
+	check("closers-captured-read-left-open", err == nil && len(got) == 0 && untouched(&closes), counts(&closes), "no close")
+}
+
+func caseOwnedUndelivered(ctx context.Context) {
+	reset()
+	got, err := items().group(ctx, limit = 6).map(i => {
+		if i.id == 0 {
+			waitOthers()
+		} else {
+			others.Add(1)
+		}
+		return open(i.id)
+	}).take(1)
+	want := []int64{0, 1, 1, 1, 1, 1}
+	check("closers-owned-undelivered-closed", err == nil && len(got) == 1 && fmt.Sprint(counts(&closes)) == fmt.Sprint(want), counts(&closes), want)
+}
+
+func caseSourceElementLeftOpen(ctx context.Context) {
+	reset()
+	got, err := itemSeq().group(ctx, limit = 1).map(i => open(i.id)).take(1)
+	check("closers-source-element-left-open", err == nil && len(got) == 1 && untouched(&itemCloses), counts(&itemCloses), "no close")
+}
+
+func decide(h *handle) (bool, error) {
+	if h.id == 3 {
+		return false, errExamined
+	}
+	return h.id%2 == 0, nil
+}
+
+func caseFilterPredicateFailure(ctx context.Context) {
+	reset()
+	_, err := []int{0, 1, 2, 3, 4, 5}.group(ctx, limit = 1).map(id => open(id)).filter(h => decide(h)?)
+	ok := err != nil && closes[3].Load() == 1
+	check("closers-filter-predicate-failure-closes-examined", ok, counts(&closes), "closes[3] == 1")
+}
+
+func closePanics(ctx context.Context) (recovered any) {
+	defer func() { recovered = recover() }()
+	got, err := items().group(ctx, limit = 6).map(i => {
+		if i.id == 0 {
+			waitOthers()
+		} else {
+			others.Add(1)
+		}
+		return &fragile{i.id}
+	}).take(1)
+	if err != nil {
+		return err
+	}
+	return len(got)
+}
+
+func caseClosePanic(ctx context.Context) {
+	reset()
+	recovered := closePanics(ctx)
+	want := []int64{1, 1, 1, 1, 1, 1}
+	ok := recovered == "close boom" && fmt.Sprint(counts(&closes)) == fmt.Sprint(want)
+	check("closers-close-panic-propagates-after-join", ok, fmt.Sprint(recovered, counts(&closes)), want)
+}
+
+func main() {
+	ctx := context.Background()
+	caseFilterDropClosesOnceDeliveredStayOpen(ctx)
+	caseFilterOnlySlice(ctx)
+	caseFilterOnlySliceUnordered(ctx)
+	caseFilterOnlyChan(ctx)
+	caseFilterOnlyChanUnordered(ctx)
+	caseFilterOnlySeq(ctx)
+	caseFilterOnlySeqUnordered(ctx)
+	caseMapAfterFilter(ctx)
+	caseFilterMapFilter(ctx)
+	caseMapFilterMap(ctx)
+	caseUnownedUndelivered(ctx)
+	caseBorrowedReadsLeftOpen(ctx)
+	caseOwnedUndelivered(ctx)
+	caseSourceElementLeftOpen(ctx)
+	caseFilterPredicateFailure(ctx)
+	caseClosePanic(ctx)
+	if failed {
+		os.Exit(1)
+	}
+}

@@ -1,4 +1,4 @@
-buffered flushed flushed
-1 3 2
-buffered flushed
-flushed 4
+ok type-assert-direct
+ok type-assert-counts
+ok type-assert-funcvalue
+ok type-assert-dynamic

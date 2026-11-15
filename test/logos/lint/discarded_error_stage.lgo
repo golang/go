@@ -1,0 +1,15 @@
+// errorcheck
+
+package p
+
+import "context"
+
+func src() []int { return nil }
+
+func cx() context.Context { return context.Background() }
+
+func lim() int { return 2 }
+
+func droppedStage() {
+	src().group(cx(), limit = lim()).map(x => x * 2) // ERROR "limit = lim\(\)"
+}

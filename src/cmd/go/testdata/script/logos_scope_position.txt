@@ -1,0 +1,50 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd positive
+logos run -p=1 .
+stdout '^ok scope-position$'
+cd ../negative
+! logos build -p=1 .
+
+-- positive/go.mod --
+module example.com/scopepositive
+
+go 1.27
+
+-- positive/main.lgo --
+package main
+
+import "fmt"
+
+var value int
+
+func finish() { value = 7 }
+
+func exercise() {
+	{
+		scope defer finish()
+	}
+	if value != 7 {
+		panic(value)
+	}
+}
+
+func main() {
+	exercise()
+	fmt.Println("ok scope-position")
+}
+
+-- negative/go.mod --
+module example.com/scopenegative
+
+go 1.27
+
+-- negative/main.lgo --
+package main
+
+func finish() {}
+
+func main() {
+	scope finish()
+}

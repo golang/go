@@ -4,10 +4,6 @@ package p
 
 import "logos/rt"
 
-// M5-S6: rt.Freeze returns a const view (SPEC T-201). Stores through
-// the frozen view fail exactly like stores through a declared const
-// view, which proves the call result type is const *FCConfig.
-
 type FCChild struct {
 	N int
 }
@@ -21,7 +17,7 @@ type FCConfig struct {
 func fcFreeze() {
 	cfg := FCConfig{Name: "n", Tags: []string{"a"}, Child: &FCChild{N: 1}}
 	f := rt.Freeze(&cfg)
-	f.Name = "x" // ERROR "cannot assign field through const view"
-	f.Tags[0] = "x" // ERROR "cannot assign index through const view"
+	f.Name = "x" // ERROR "\[correctness::const_view_mutation\]"
+	f.Tags[0] = "x" // ERROR "\[correctness::const_view_mutation\]"
 	_ = f
 }

@@ -1,0 +1,53 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+	"reflect"
+)
+
+type U interface {
+	int | string
+}
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func describe(u U) string {
+	return switch u.(type) {
+	case int => "int"
+	case string => "string"
+	case nil => "nil"
+	default => "other"
+	}
+}
+
+func main() {
+	var held U = 7
+	rv := reflect.ValueOf(&held).Elem()
+	rv.Set(reflect.ValueOf(1.5))
+	a := any(held)
+	f, ok := a.(float64)
+	check("stored-type", ok, ok, true)
+	check("stored-value", f == 1.5, f, 1.5)
+	gotDesc := describe(held)
+	check("switch-default", gotDesc == "other", gotDesc, "other")
+	_, okInt := held.(int)
+	check("member-assert-false", !okInt, okInt, false)
+	var m U = "s"
+	gotMember := describe(m)
+	check("member-still-works", gotMember == "string", gotMember, "string")
+	if failed {
+		os.Exit(1)
+	}
+}

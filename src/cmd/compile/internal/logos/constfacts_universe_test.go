@@ -10,15 +10,12 @@ import (
 	"path/filepath"
 	"testing"
 
+	"cmd/compile/internal/logos/facts"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types2"
 )
 
-// TestEmitConstFactsUniverseMethod checks that a call of error.Error, a
-// method of the predeclared error type that belongs to no package, is a
-// fail-closed callee and not a nil dereference: slop::err_chain_reset code
-// passes err.Error() as an argument.
-func TestEmitConstFactsUniverseMethod(t *testing.T) {
+func TestConstFactsUniverseMethod(t *testing.T) {
 	const src = `package factstest
 
 func take(s string) {}
@@ -51,5 +48,5 @@ func Wrap(err error) {
 	if err := errors.Join(checkErrs...); err != nil {
 		t.Fatalf("check: %v", err)
 	}
-	EmitConstFacts(pkg, info, []*syntax.File{file}, nil)
+	facts.Write(pkg, info, []*syntax.File{file}, nil)
 }

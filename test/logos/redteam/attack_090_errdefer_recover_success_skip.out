@@ -1,2 +1,2 @@
-ran: failed-cleanup
-count: 1
+ok errdefer-recover-skipped-on-success
+ok errdefer-recover-runs-on-failure

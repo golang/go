@@ -27,6 +27,7 @@ import (
 
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/gover"
+	"cmd/go/internal/logos/settings"
 	"cmd/go/internal/vcweb/vcstest"
 	"cmd/internal/script"
 	"cmd/internal/script/scripttest"
@@ -232,7 +233,7 @@ func scriptEnv(srv *vcstest.Server, srvCertFile string) ([]string, error) {
 		"GOCOVERDIR=" + os.Getenv("GOCOVERDIR"),
 		"GODEBUG=" + os.Getenv("GODEBUG"),
 		"GOEXE=" + cfg.ExeSuffix,
-		"GOEXPERIMENT=" + os.Getenv("GOEXPERIMENT"),
+		"GOEXPERIMENT=" + settings.DropLogosExperiments(os.Getenv("GOEXPERIMENT")),
 		"GOOS=" + runtime.GOOS,
 		"TESTGO_GOHOSTOS=" + goHostOS,
 		"GOPROXY=" + proxyURL,
@@ -300,6 +301,9 @@ var extraEnvKeys = []string{
 	"GO_TESTING_GOTOOLS", // for gccgo testing
 	"GCCGO",              // for gccgo testing
 	"GCCGOTOOLDIR",       // for gccgo testing
+	"UPROOT1272",
+	"UPROOT1273",
+	"UPROOT1274",
 }
 
 // updateSum runs 'go mod tidy', 'go list -mod=mod -m all', or

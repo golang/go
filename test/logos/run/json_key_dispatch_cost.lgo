@@ -1,0 +1,156 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strconv"
+	"strings"
+)
+
+const manyKeys = 1024
+const fewKeys = 8
+const docRepeats = 8
+const rounds = 3
+const limit = 8
+
+func costKey(i int) string {
+	return fmt.Sprintf("costkeypadding%04d", i)
+}
+
+func costStruct(name string, from int) string {
+	var b strings.Builder
+	b.WriteString("type " + name + " struct {\n")
+	for i := from; i < manyKeys; i++ {
+		b.WriteString(fmt.Sprintf("\tF%04d int64 `json:%s`\n", i, strconv.Quote(costKey(i))))
+	}
+	b.WriteString("}\n")
+	return b.String()
+}
+
+func sharedSum() string {
+	var terms []string
+	for i := manyKeys - fewKeys; i < manyKeys; i++ {
+		terms = append(terms, fmt.Sprintf("v.F%04d", i))
+	}
+	return strings.Join(terms, " + ")
+}
+
+func sharedDoc() string {
+	var parts []string
+	for r := 0; r < docRepeats; r++ {
+		for i := manyKeys - fewKeys; i < manyKeys; i++ {
+			parts = append(parts, strconv.Quote(costKey(i))+":1")
+		}
+	}
+	return "{" + strings.Join(parts, ",") + "}"
+}
+
+const costBody = `
+func decodeFew(doc []byte) int64 {
+	var v Few
+	if err := json.Unmarshal(doc, &v); err != nil {
+		panic(err)
+	}
+	return SUM
+}
+
+func decodeMany(doc []byte) int64 {
+	var v Many
+	if err := json.Unmarshal(doc, &v); err != nil {
+		panic(err)
+	}
+	return SUM
+}
+
+func timed(doc []byte, decode func([]byte) int64, reps int) int64 {
+	start := time.Now()
+	for j := 0; j < reps; j++ {
+		if got := decode(doc); got != WANT {
+			fmt.Println("decoded", got, "want WANT")
+			os.Exit(1)
+		}
+	}
+	return time.Since(start).Nanoseconds() / int64(reps)
+}
+
+func main() {
+	doc := []byte(DOC)
+	few, many := int64(1<<62), int64(1<<62)
+	for i := 0; i < 100; i++ {
+		few = min(few, timed(doc, decodeFew, 50))
+		many = min(many, timed(doc, decodeMany, 50))
+	}
+	fmt.Println(few, many)
+}
+`
+
+func costSource() string {
+	var b strings.Builder
+	b.WriteString("package main\n\nimport (\n\t\"encoding/json\"\n\t\"fmt\"\n\t\"os\"\n\t\"time\"\n)\n\n")
+	b.WriteString(costStruct("Few", manyKeys-fewKeys))
+	b.WriteString("\n")
+	b.WriteString(costStruct("Many", 0))
+	b.WriteString(strings.NewReplacer("SUM", sharedSum(), "WANT", strconv.Itoa(fewKeys), "DOC", strconv.Quote(sharedDoc())).Replace(costBody))
+	return b.String()
+}
+
+func buildProbe(dir string) (string, error) {
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module probe\n\ngo 1.27\n"), 0644); err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(filepath.Join(dir, "main.lgo"), []byte(costSource()), 0644); err != nil {
+		return "", err
+	}
+	cmd := exec.Command(filepath.Join(runtime.GOROOT(), "bin", "logos"), "build", "-o", "probe.exe", ".")
+	cmd.Dir = dir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return "", fmt.Errorf("probe build: %w\n%s", err, out)
+	}
+	return filepath.Join(dir, "probe.exe"), nil
+}
+
+func measure(exe string) (few, many int64, err error) {
+	out, err := exec.Command(exe).CombinedOutput()
+	if err != nil {
+		return 0, 0, fmt.Errorf("probe run: %w\n%s", err, out)
+	}
+	if _, err := fmt.Sscan(string(out), &few, &many); err != nil {
+		return 0, 0, fmt.Errorf("probe output %q: %w", out, err)
+	}
+	return few, many, nil
+}
+
+func verdict() error {
+	dir, err := os.MkdirTemp("", "keycost")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(dir)?
+	exe, err := buildProbe(dir)
+	if err != nil {
+		return err
+	}
+	var few, many int64
+	for round := 0; round < rounds; round++ {
+		if few, many, err = measure(exe); err != nil {
+			return err
+		}
+		if many <= limit*max(few, 1) {
+			fmt.Println("ok decode-cost-independent-of-key-count")
+			return nil
+		}
+	}
+	return fmt.Errorf("decoding costs %d ns at %d keys and %d ns at %d keys", few, fewKeys, many, manyKeys)
+}
+
+func main() {
+	if err := verdict(); err != nil {
+		fmt.Printf("FAIL %v\n", err)
+		os.Exit(1)
+	}
+}

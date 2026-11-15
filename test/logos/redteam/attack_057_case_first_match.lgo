@@ -2,11 +2,11 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
-// #57: cases evaluate top-down in first-match order. A member case ahead
-// of a sub-union case wins for that member; other members still reach
-// the sub-union case (SPEC Sec 2.3 case coverage, T-203.1).
 type Sub interface {
 	int | string
 }
@@ -24,7 +24,21 @@ func show(a any) string {
 	}
 }
 
+var failed bool
+
+func check(name string, cond bool, got, want string) {
+	if !cond {
+		fmt.Printf("FAIL %s: got %s want %s\n", name, got, want)
+		failed = true
+		return
+	}
+	fmt.Printf("ok %s\n", name)
+}
+
 func main() {
-	fmt.Println(show(1))
-	fmt.Println(show("s"))
+	check("const-switch-int-first-match", show(1) == "first 1", show(1), "first 1")
+	check("const-switch-sub-fallback", show("s") == "sub s", show("s"), "sub s")
+	if failed {
+		os.Exit(1)
+	}
 }

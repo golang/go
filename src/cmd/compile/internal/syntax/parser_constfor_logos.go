@@ -4,17 +4,6 @@
 
 package syntax
 
-// This file holds the loGo/s parser logic for M7-S2 (`const for` over
-// concrete types) and M7-S3 (comptime generics) (SPEC Sec 2.5, T-205).
-// parser.go calls into it through hook lines only (G3); every rule below
-// runs solely in LogosMode, so plain Go parses exactly as upstream.
-
-// logosConstForStmt recognizes a `const for` statement and returns it.
-// It returns nil unless LogosMode is on and the word after `const` is
-// `for`, leaving every ordinary `const` declaration on the upstream
-// path. The peek is a read-only byte scan: blanks and comments are
-// skipped, the buffer is filled as needed, and nothing is consumed, so
-// positions stay exact when the rule does not fire.
 func (p *parser) logosConstForStmt() Stmt {
 	if p.mode&LogosMode == 0 || !p.peekConstWord() {
 		return nil
@@ -45,10 +34,6 @@ func (p *parser) logosConstForStmt() Stmt {
 	return s
 }
 
-// peekConstWord reports whether the next source word after the current
-// `const` token is `for`. It mirrors the logosLeadingDot fill
-// discipline: offsets stay valid across fills, and the scan never
-// consumes.
 func (p *parser) peekConstWord() bool {
 	q := p.r - p.chw
 	get := func() (byte, bool) {
@@ -124,20 +109,10 @@ func (p *parser) peekConstWord() bool {
 		if !ok2 {
 			return true
 		}
-		return !isWordChar(c2)
+		return !isWordByte(c2)
 	}
 }
 
-// isWordChar reports whether c continues an identifier word.
-func isWordChar(c byte) bool {
-	return c == '_' || 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || '0' <= c && c <= '9'
-}
-
-// logosFieldProj recognizes a `.[f]` projection on x and returns it. It
-// returns nil unless LogosMode is on and the token after `.` is `[`,
-// leaving every ordinary selector and the error paths on the upstream
-// way. Only a bare name is accepted between the brackets (SPEC Sec 2.5
-// FieldProj); anything else is a syntax error.
 func (p *parser) logosFieldProj(x Expr, pos Pos) Expr {
 	if p.mode&LogosMode == 0 || p.tok != _Lbrack {
 		return nil

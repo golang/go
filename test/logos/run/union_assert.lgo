@@ -2,15 +2,48 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+	"strings"
+)
 
-// Closed union over two members (SPEC Sec 2.3, M2-S4): assertions and
-// case types check membership at run time.
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
 type U interface {
 	int | string
 }
+type Empty struct{}
+type ZU interface {
+	Empty | int
+}
+func showZ(a any) string {
+	if _, ok := a.(ZU); ok {
+		return "zok"
+	}
+	return "znot"
+}
+func whichZ(a any) string {
+	switch v := a.(type) {
+	case ZU:
+		var _ ZU = v
+		return "Z"
+	case nil:
+		return "nil"
+	default:
+		return "other"
+	}
+}
 
-// Comma-ok assertion: a non-member yields ok == false.
 func show(a any) string {
 	if _, ok := a.(U); ok {
 		return "ok"
@@ -18,7 +51,6 @@ func show(a any) string {
 	return "not ok"
 }
 
-// Single-value assertion: a non-member panics with the membership message.
 func mustPan(a any) (s string) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -29,8 +61,6 @@ func mustPan(a any) (s string) {
 	return "no panic"
 }
 
-// Union case: taken only for members, binding v to the union type;
-// nil keeps going to case nil.
 func which(a any) string {
 	switch v := a.(type) {
 	case U:
@@ -43,9 +73,6 @@ func which(a any) string {
 	}
 }
 
-// A clause after one that names every member is unreachable. A plain
-// case U: would match 1.5 through the run-time interface, so 1.5 must
-// reach default.
 func shadow(a any) string {
 	switch a.(type) {
 	case int, string:
@@ -59,14 +86,25 @@ func shadow(a any) string {
 
 func main() {
 	var a any = 1.5
-	fmt.Println(show(a))
-	fmt.Println(mustPan(a))
-	fmt.Println(which(a))
+	check("non-member-assertion-reports-not-ok", show(a) == "not ok", show(a), "not ok")
+	r := mustPan(a)
+	check("failed-assertion-panics-naming-union", r != "no panic" && strings.Contains(r, "main.U"), r, "panic naming main.U")
+	check("non-member-switch-falls-to-other", which(a) == "other", which(a), "other")
 	var b any = 1
-	fmt.Println(show(b))
-	fmt.Println(which(b))
+	check("member-assertion-reports-ok", show(b) == "ok", show(b), "ok")
+	check("member-switch-selects-union", which(b) == "U", which(b), "U")
 	var z any
-	fmt.Println(which(z))
-	fmt.Println(shadow(a))
-	fmt.Println(shadow(b))
+	check("nil-switch-selects-nil", which(z) == "nil", which(z), "nil")
+	check("concrete-case-shadows-union", shadow(a) == "other" && shadow(b) == "m", shadow(a)+"/"+shadow(b), "other/m")
+	var ze any = Empty{}
+	check("empty-struct-asserts-empty-union", showZ(ze) == "zok", showZ(ze), "zok")
+	check("empty-struct-switch-selects-union", whichZ(ze) == "Z", whichZ(ze), "Z")
+	var zi any = 7
+	check("int-asserts-empty-union", showZ(zi) == "zok", showZ(zi), "zok")
+	check("int-switch-selects-empty-union", whichZ(zi) == "Z", whichZ(zi), "Z")
+	var zn any
+	check("nil-switch-selects-nil-empty-union", whichZ(zn) == "nil", whichZ(zn), "nil")
+	if failed {
+		os.Exit(1)
+	}
 }

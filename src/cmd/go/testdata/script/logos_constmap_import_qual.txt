@@ -1,0 +1,312 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+# Cross-package const maps with named key and value types, a third-package
+# value type, a same-named importer type, and a shadowed field name.
+cd m
+logos build -o $WORK/bin/qual$GOEXE ./app
+exec $WORK/bin/qual$GOEXE
+stdout '^ok origin-hit$'
+stdout '^ok origin-miss$'
+stdout '^ok color-hit$'
+stdout '^ok color-miss$'
+stdout '^ok key-hit$'
+stdout '^ok third-hit$'
+stdout '^ok len-const$'
+stdout '^ok range-sorted$'
+stdout '^ok copy-isolation$'
+stdout '^ok field-shadow$'
+stdout '^ok pkg-level$'
+stdout '^ok holder-literal$'
+cp stdout $WORK/want.txt
+logos eject -o out
+exists out/app/main.go
+exists out/lib/lib.go
+exists out/third/third.go
+cd out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+go run ./app
+cmp stdout $WORK/want.txt
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+cd ..
+cd ..
+
+# An unexported named key type cannot be named in the importer.
+cd badunexp
+! logos build ./...
+stderr 'app/main\.lgo:10:'
+stderr 'lib\.K'
+cd ..
+
+# An unexported field cannot be named in the importer.
+cd badfield
+! logos build ./...
+stderr 'app/main\.lgo:10:'
+stderr 'lib\.H'
+cd ..
+
+# A nested unexported named type cannot be named in the importer.
+cd badnested
+! logos build ./...
+stderr 'app/main\.lgo:10:'
+stderr 'lib\.O'
+cd ..
+
+-- m/go.mod --
+module example.com/cmqual
+
+go 1.27
+
+-- m/third/third.lgo --
+package third
+
+type Widget struct {
+	N int
+}
+
+-- m/lib/lib.lgo --
+package lib
+
+import "example.com/cmqual/third"
+
+type Color string
+type Point struct {
+	X int
+	Y int
+}
+
+type Key struct {
+	A int
+	B int
+}
+
+type Holder struct {
+	M const map[string]int
+}
+
+const Origin = map[string]Point{"o": {X: 0, Y: 0}, "z": {X: 1, Y: 1}}
+const ByKey = map[Key]int{Key{A: 1, B: 2}: 10, Key{A: 3, B: 4}: 30}
+
+const ByColor = map[Color]Point{
+	"c00": {X: 0, Y: 0},
+	"c01": {X: 1, Y: 1},
+	"c02": {X: 2, Y: 4},
+	"c03": {X: 3, Y: 9},
+	"c04": {X: 4, Y: 16},
+	"c05": {X: 5, Y: 25},
+	"c06": {X: 6, Y: 36},
+	"c07": {X: 7, Y: 49},
+	"c08": {X: 8, Y: 64},
+	"c09": {X: 9, Y: 81},
+}
+
+const Third = map[string]third.Widget{"a": {N: 1}}
+
+const M = map[string]int{"a": 1}
+
+func NewHolder() Holder {
+	return Holder{M: map[string]int{"a": 2}}
+}
+
+-- m/app/main.lgo --
+package main
+
+import (
+	"fmt"
+	"os"
+
+	"example.com/cmqual/lib"
+)
+
+type Point struct {
+	X int
+}
+
+func fail(msg string) {
+	fmt.Println("FAIL " + msg)
+	os.Exit(1)
+}
+
+func checkOrigin() {
+	if v, ok := lib.Origin["o"]; v.X != 0 || v.Y != 0 || !ok {
+		fail("origin-hit")
+	}
+	fmt.Println("ok origin-hit")
+	if _, ok := lib.Origin["zz"]; ok {
+		fail("origin-miss")
+	}
+	fmt.Println("ok origin-miss")
+}
+
+func checkColor() {
+	if v, ok := lib.ByColor["c04"]; v.X != 4 || v.Y != 16 || !ok {
+		fail("color-hit")
+	}
+	fmt.Println("ok color-hit")
+	if _, ok := lib.ByColor["zz"]; ok {
+		fail("color-miss")
+	}
+	fmt.Println("ok color-miss")
+}
+
+func checkKeys() {
+	if v, ok := lib.ByKey[lib.Key{A: 1, B: 2}]; v != 10 || !ok {
+		fail("key-hit")
+	}
+	fmt.Println("ok key-hit")
+	if v, ok := lib.Third["a"]; v.N != 1 || !ok {
+		fail("third-hit")
+	}
+	fmt.Println("ok third-hit")
+	if len(lib.Origin) != 2 || len(lib.ByColor) != 10 || len(lib.ByKey) != 2 || len(lib.Third) != 1 {
+		fail("len-const")
+	}
+	fmt.Println("ok len-const")
+}
+
+func checkRange() {
+	keys := ""
+	sum := 0
+	n := 0
+	for k, v := range lib.ByColor {
+		keys += string(k) + ";"
+		sum += v.X + v.Y
+		n++
+	}
+	if keys != "c00;c01;c02;c03;c04;c05;c06;c07;c08;c09;" || sum != 330 || n != 10 {
+		fail("range-sorted")
+	}
+	fmt.Println("ok range-sorted")
+}
+
+func checkCopy() {
+	copied := lib.Origin
+	copied["o"] = lib.Point{X: 9, Y: 9}
+	if v, ok := lib.Origin["o"]; v.X != 0 || v.Y != 0 || !ok {
+		fail("copy-isolation")
+	}
+	fmt.Println("ok copy-isolation")
+}
+
+func checkShadow() {
+	h := lib.NewHolder()
+	if v, ok := h.M["a"]; v != 2 || !ok {
+		fail("field-shadow")
+	}
+	fmt.Println("ok field-shadow")
+	if v, ok := lib.M["a"]; v != 1 || !ok {
+		fail("pkg-level")
+	}
+	fmt.Println("ok pkg-level")
+	h2 := lib.Holder{M: map[string]int{"a": 5}}
+	if v, ok := h2.M["a"]; v != 5 || !ok {
+		fail("holder-literal")
+	}
+	fmt.Println("ok holder-literal")
+}
+
+func main() {
+	checkOrigin()
+	checkColor()
+	checkKeys()
+	checkRange()
+	checkCopy()
+	checkShadow()
+}
+
+-- badunexp/go.mod --
+module example.com/cmbadunexp
+
+go 1.27
+
+-- badunexp/lib/lib.lgo --
+package lib
+
+type secret string
+
+const K = map[secret]int{"a": 1}
+
+-- badunexp/app/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/cmbadunexp/lib"
+)
+
+func main() {
+	if v, ok := lib.K["a"]; ok {
+		fmt.Println(v)
+	}
+}
+
+-- badfield/go.mod --
+module example.com/cmbadfield
+
+go 1.27
+
+-- badfield/lib/lib.lgo --
+package lib
+
+type Holder struct {
+	hidden int
+	Shown  int
+}
+
+const H = map[string]Holder{"a": {hidden: 1, Shown: 2}}
+
+-- badfield/app/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/cmbadfield/lib"
+)
+
+func main() {
+	if v, ok := lib.H["a"]; ok {
+		fmt.Println(v.Shown)
+	}
+}
+
+-- badnested/go.mod --
+module example.com/cmbadnested
+
+go 1.27
+
+-- badnested/lib/lib.lgo --
+package lib
+
+type inner struct {
+	V int
+}
+
+type Outer struct {
+	In inner
+	N  int
+}
+
+const O = map[string]Outer{"a": {In: inner{V: 1}, N: 2}}
+
+-- badnested/app/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/cmbadnested/lib"
+)
+
+func main() {
+	if v, ok := lib.O["a"]; ok {
+		fmt.Println(v.N)
+	}
+}

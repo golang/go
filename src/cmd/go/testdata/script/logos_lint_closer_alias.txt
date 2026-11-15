@@ -1,0 +1,68 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd probe
+! logos lint ./alias
+stderr 'alias.go:[0-9]+:[0-9]+: \[correctness::unclosed_io_closer\]'
+! logos lint ./chain
+stderr 'chain.go:[0-9]+:[0-9]+: \[correctness::unclosed_io_closer\]'
+logos lint ./closed
+! stderr .
+logos lint ./transfer
+! stderr .
+
+-- probe/go.mod --
+module example.com/closeralias
+
+go 1.27
+-- probe/alias/alias.go --
+package alias
+
+import "os"
+
+func Open(path string) error {
+	f, err := os.Open(path)
+	if err != nil { return err }
+	c := f
+	_ = c
+	return nil
+}
+-- probe/chain/chain.go --
+package chain
+
+import "os"
+
+func Open(path string) error {
+	f, err := os.Open(path)
+	if err != nil { return err }
+	c := f
+	d := c
+	_ = d
+	return nil
+}
+-- probe/closed/closed.go --
+package closed
+
+import "os"
+
+func Open(path string) error {
+	f, err := os.Open(path)
+	if err != nil { return err }
+	defer func() {
+		if err := f.Close(); err != nil { panic(err) }
+	}()
+	c := f
+	_ = c
+	return nil
+}
+-- probe/transfer/transfer.go --
+package transfer
+
+import "os"
+
+func Open(path string) (*os.File, error) {
+	f, err := os.Open(path)
+	if err != nil { return nil, err }
+	c := f
+	return c, nil
+}

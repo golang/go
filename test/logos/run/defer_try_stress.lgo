@@ -1,0 +1,367 @@
+// run
+
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"runtime"
+	"runtime/debug"
+	"strings"
+	"sync/atomic"
+	"time"
+)
+
+var failed bool
+
+func check(name string, ok bool, detail string) {
+	if !ok {
+		fmt.Println("FAIL", name+":", detail)
+		failed = true
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+var cleaned atomic.Int64
+
+var workerFailures atomic.Int64
+
+var sink atomic.Int64
+
+type sentinel struct {
+	v   int
+	pad [48]byte
+}
+
+func mkSentinel(v int) *sentinel {
+	s := &sentinel{v: v}
+	runtime.AddCleanup(s, func(int) { cleaned.Add(1) }, v)
+	return s
+}
+
+func cycleCleanups() {
+	var seen atomic.Bool
+	runtime.AddCleanup(new([64]byte), func(int) { seen.Store(true) }, 0)
+	deadline := time.Now().Add(5 * time.Minute)
+	for !seen.Load() {
+		runtime.GC()
+		runtime.Gosched()
+		if time.Now().After(deadline) {
+			fmt.Println("FAIL cleanup worker did not cycle")
+			os.Exit(1)
+		}
+	}
+}
+
+var cleanedWhileLive int64
+
+//go:noinline
+func collectNil() error {
+	cycleCleanups()
+	if n := cleaned.Load(); n > cleanedWhileLive {
+		cleanedWhileLive = n
+	}
+	return nil
+}
+
+//go:noinline
+func hold(s *sentinel, want int) error {
+	if s.v != want {
+		return fmt.Errorf("sentinel %d reads %d", want, s.v)
+	}
+	return nil
+}
+
+func sentinelRun(n int) (err error) {
+	for i := 0; i < n; i++ {
+		defer hold(mkSentinel(i), i)?
+	}
+	for i := 0; i < 3; i++ {
+		defer collectNil()?
+	}
+	return nil
+}
+
+func sentinelCase() {
+	const n = 40
+	cleaned.Store(0)
+	cleanedWhileLive = 0
+	err := sentinelRun(n)
+	check("sentinel-values", err == nil, fmt.Sprint(err))
+	check("sentinel-live", cleanedWhileLive == 0, fmt.Sprint(cleanedWhileLive, " cleanups ran while records were pending"))
+	deadline := time.Now().Add(5 * time.Minute)
+	for cleaned.Load() != n && time.Now().Before(deadline) {
+		cycleCleanups()
+	}
+	check("sentinel-released", cleaned.Load() == n, fmt.Sprint(cleaned.Load(), " of ", n, " cleanups after return"))
+}
+
+var aliasLog []int
+
+//go:noinline
+func logPtr(p *int) error {
+	aliasLog = append(aliasLog, *p)
+	return nil
+}
+
+func aliasRun(n int) (err error) {
+	for i := 0; i < n; i++ {
+		x := i * 10
+		defer logPtr(&x)?
+	}
+	return nil
+}
+
+func aliasCase() {
+	const n = 8
+	aliasLog = nil
+	err := aliasRun(n)
+	want := []int{70, 60, 50, 40, 30, 20, 10, 0}
+	ok := err == nil && len(aliasLog) == len(want)
+	for i := 0; ok && i < len(want); i++ {
+		ok = aliasLog[i] == want[i]
+	}
+	check("alias", ok, fmt.Sprint(err, aliasLog))
+}
+
+var errsSet = func() []error {
+	out := make([]error, 64)
+	for i := range out {
+		out[i] = fmt.Errorf("failure %d", i)
+	}
+	return out
+}()
+
+//go:noinline
+func failWith(e error) error { return e }
+
+//go:noinline
+func deep(d int) int {
+	var pad [512]byte
+	for i := range pad {
+		pad[i] = byte(d + i)
+	}
+	if d == 0 {
+		return int(pad[3])
+	}
+	return deep(d-1) + int(pad[d%512])
+}
+
+func growRun(n, depth int) (err error) {
+	for i := 0; i < n; i++ {
+		defer failWith(errsSet[i])?
+	}
+	sink.Add(int64(deep(depth)))
+	return nil
+}
+
+func joinedAll(err error, n int) bool {
+	for i := 0; i < n; i++ {
+		if !errors.Is(err, errsSet[i]) {
+			return false
+		}
+	}
+	return err != nil
+}
+
+func growChild(res *error) error {
+	*res = growRun(33, 512)
+	return nil
+}
+
+func growCase() (err error) {
+	var res error
+	go group (context.Background()) {
+		go growChild(&res)
+	}
+	check("grow-join", joinedAll(res, 33), fmt.Sprint(res))
+	return nil
+}
+
+func panicRun(n int, order *[]int) (err error) {
+	for i := 0; i < n; i++ {
+		defer noteOrder(order, i)?
+	}
+	sink.Add(int64(deep(256)))
+	panic("stress-boom")
+}
+
+//go:noinline
+func noteOrder(order *[]int, i int) error {
+	*order = append(*order, i)
+	return nil
+}
+
+//logos:allow(slop::discarded_error)
+func panicCase() {
+	var order []int
+	var got any
+	func() {
+		defer func() { got = recover() }()
+		_ = panicRun(12, &order)
+	}()
+	ok := got == "stress-boom" && len(order) == 12
+	for i := 0; ok && i < 12; i++ {
+		ok = order[i] == 11-i
+	}
+	check("panic-order", ok, fmt.Sprint(got, order))
+}
+
+func overflowRun(n int, order *[]int) (err error) {
+	for i := 0; i < n; i++ {
+		defer noteOrder(order, i)?
+		if i%25 == 24 {
+			runtime.GC()
+		}
+	}
+	return nil
+}
+
+func overflowCase() {
+	const n = 100
+	var order []int
+	err := overflowRun(n, &order)
+	ok := err == nil && len(order) == n
+	for i := 0; ok && i < n; i++ {
+		ok = order[i] == n-1-i
+	}
+	check("overflow-gc", ok, fmt.Sprint(err, len(order)))
+}
+
+var frameNames []string
+
+//go:noinline
+func probeFrames() error {
+	pcs := make([]uintptr, 16)
+	n := runtime.Callers(0, pcs)
+	frames := runtime.CallersFrames(pcs[:n])
+	for {
+		f, more := frames.Next()
+		frameNames = append(frameNames, f.Function)
+		if !more {
+			break
+		}
+	}
+	return nil
+}
+
+func frameRun(n int) (err error) {
+	for i := 0; i < n; i++ {
+		defer probeFrames()?
+	}
+	return nil
+}
+
+func frameCase() {
+	frameNames = nil
+	err := frameRun(3)
+	wrapper, thunk := false, false
+	for _, name := range frameNames {
+		wrapper = wrapper || strings.Contains(name, "frameRun.deferwrap")
+		thunk = thunk || strings.HasSuffix(name, ".try")
+	}
+	check("frames", err == nil && wrapper && !thunk, fmt.Sprint(err, frameNames))
+}
+
+func recoverRun(n int) (res int, err error) {
+	defer func() {
+		if recover() != nil {
+			res += 100
+		}
+	}()
+	for i := 0; i < n; i++ {
+		defer collectedZero()?
+	}
+	res = 7
+	sink.Add(int64(deep(64)))
+	panic("recover-result")
+}
+
+//go:noinline
+func collectedZero() error { return nil }
+
+func recoverCase() {
+	res, err := recoverRun(5)
+	if err != nil {
+		check("recover-result", false, fmt.Sprint(err))
+		return
+	}
+	check("recover-result", res == 107, fmt.Sprint(res))
+}
+
+var leakedResult any
+
+var errHeapResult = errors.New("heap result")
+
+func heapResultRun(n int) (err error) {
+	leakedResult = &err
+	defer func() { _ = recover() }()
+	for i := 0; i < n; i++ {
+		defer collectedZero()?
+	}
+	err = errHeapResult
+	sink.Add(int64(deep(32)))
+	panic("heap-result")
+}
+
+func heapResultCase() {
+	err := heapResultRun(5)
+	p, ok := leakedResult.(*error)
+	check("heap-result", errors.Is(err, errHeapResult) && ok && *p == err, fmt.Sprint(err))
+}
+
+func worker(id int) error {
+	for round := 0; round < 12; round++ {
+		n := (id + round) % 40
+		var order []int
+		if err := overflowRun(n, &order); err != nil || len(order) != n {
+			workerFailures.Add(1)
+			continue
+		}
+		for i := 0; i < n; i++ {
+			if order[i] != n-1-i {
+				workerFailures.Add(1)
+				break
+			}
+		}
+		if !joinedAll(growRun(n%30+1, 16), n%30+1) {
+			workerFailures.Add(1)
+		}
+	}
+	return nil
+}
+
+func concurrentCase() (err error) {
+	go group (context.Background()) {
+		for i := 0; i < 64; i++ {
+			go worker(i)
+		}
+	}
+	check("concurrent", workerFailures.Load() == 0, fmt.Sprint(workerFailures.Load(), " worker failures"))
+	return nil
+}
+
+func main() {
+	debug.SetGCPercent(1)
+	sentinelCase()
+	aliasCase()
+	if err := growCase(); err != nil {
+		fmt.Println("FAIL grow-group", err)
+		os.Exit(1)
+	}
+	panicCase()
+	frameCase()
+	recoverCase()
+	heapResultCase()
+	overflowCase()
+	if err := concurrentCase(); err != nil {
+		fmt.Println("FAIL concurrent-group", err)
+		os.Exit(1)
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

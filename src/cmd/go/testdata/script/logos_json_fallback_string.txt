@@ -1,24 +1,3 @@
-# M11-S1/S2: IsZero-only named scalars stay scalar under static JSON
-# (r4373037368). A named int/string/bool implementing only IsZero must
-# encode as a plain scalar, honor the `string` tag option in both
-# directions, consult IsZero for omitzero, and keep custom-marshaler
-# precedence. The walk already does this; the generated MarshalJSON and
-# UnmarshalJSON must match encoding/json byte for byte. Before the fix
-# the static classifier put IsZero-only types in shapeFallback, dropped
-# the `string` option on encode (bare scalar) and rejected quoted input
-# on decode. This is the first public installed-logos generated
-# serializer attack for the finding: it runs the generated methods via
-# `logos run` and compares against the reflective oracle in the same
-# process, under both default and jsonv2 modes via the parent harness.
-# Error parity covers bare unquoted inputs and malformed quoted values
-# per kind (int/string/bool readers differ): presence/class plus shared
-# Value/Type/Field/Offset with literal per-target Struct roots (Obj vs
-# empty anonymous); plain errors compare exact text. The combined `string,omitzero` field,
-# pointer fields (nil and non-nil), and pointer-receiver IsZero
-# (addressability) are covered as controls that must keep passing.
-# Error flow discipline: every fallible call checks its error in explicit
-# control flow before its result is read, so the result is never
-# observed on the error path.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 

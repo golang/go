@@ -1,15 +1,7 @@
-# M12-S1: transitive unsafe imports fail under logos, pass allowlisted/warn/allow.
-# Plain go runs no audit. Each case uses its own fixture with a
-# replace-based dependency so the dep is not a main module.
-# RED expectation: cases A, C, F fail red because no audit exists yet,
-# so `! logos build` sees a successful build; case E fails red because
-# no warning is printed.
-
 env GOPROXY=off
 env GOTOOLCHAIN=local
 mkdir $WORK/bin
 
-# Case A: loGo/s main, Go dep importing unsafe, explicit deny -> fail with chain.
 cd a/main
 ! logos build ./...
 stderr 'ERROR \[capabilities::unauthorized_unsafe\]: Transitive dependency ''example\.com/dep'' imports ''unsafe'''
@@ -19,41 +11,60 @@ stderr '-> unsafe'
 stderr 'transitive_unsafe_allowlist'
 cd ../..
 
-# Case B: same shape, dep allowlisted -> build passes and runs.
 cd b/main
 logos build -o $WORK/bin/b$GOEXE ./cmd
 exec $WORK/bin/b$GOEXE
 stdout '^42$'
 cd ../..
 
-# Case C: Go main, Go dep importing unsafe, explicit deny -> fail with chain.
 cd c/main
 ! logos build ./...
 stderr 'ERROR \[capabilities::unauthorized_unsafe\]: Transitive dependency ''example\.com/cdep'' imports ''unsafe'''
 stderr '-> unsafe'
 cd ../..
 
-# Case D: plain go runs no audit on the same fixture -> passes.
 cd c/main
 go build -o $WORK/bin/d$GOEXE ./cmd
+! stderr 'capabilities::'
 cd ../..
 
-# Case E: warn severity -> build passes but prints the warning.
 cd e/main
 logos build -o $WORK/bin/e$GOEXE ./cmd
 stderr '\[capabilities::unauthorized_unsafe\].*example\.com/edep'
 cd ../..
 
-# Case F: no logos.toml at all -> deny default -> fail with chain.
 cd f/main
 ! logos build ./...
 stderr 'ERROR \[capabilities::unauthorized_unsafe\]: Transitive dependency ''example\.com/fdep'' imports ''unsafe'''
 cd ../..
 
-# Case G: explicit allow -> build passes silently.
 cd g/main
 logos build -o $WORK/bin/g$GOEXE ./cmd
 ! stderr '\[capabilities::unauthorized_unsafe\]'
+
+cd ../..
+cd h/main
+! logos build ./...
+stderr 'ERROR \[capabilities::unauthorized_unsafe\]: Transitive dependency ''example\.com/hshort'' imports ''unsafe'''
+stderr '-> example\.com/hshort'
+stderr '-> unsafe'
+! stderr 'hlong'
+! stderr 'hmid'
+cd ../..
+cd q/main
+! logos build ./...
+stderr 'ERROR \[capabilities::unauthorized_unsafe\]: Transitive dependency ''example\.com/qdep'' imports ''unsafe'''
+stderr '-> example\.com/anear'
+stderr '-> example\.com/qdep'
+stderr '-> unsafe'
+! stderr 'zfar'
+! stderr 'zmid'
+cd ../..
+
+cd r/main
+! logos build ./...
+stderr 'ERROR \[capabilities::unauthorized_unsafe\]: Transitive dependency ''mylib'' imports ''unsafe'''
+cd ../..
 
 -- a/main/go.mod --
 module example.com/main
@@ -293,6 +304,209 @@ go 1.27
 
 -- g/dep/dep.go --
 package dep
+
+import (
+	"strconv"
+	"unsafe"
+)
+
+func Msg() string {
+	var x = 42
+	return strconv.Itoa(*(*int)(unsafe.Pointer(&x)))
+}
+
+-- h/main/go.mod --
+module example.com/hmain
+
+go 1.27
+
+require (
+	example.com/hshort v0.0.0
+	example.com/hlong v0.0.0
+	example.com/hmid v0.0.0
+)
+
+replace example.com/hshort => ../short
+
+replace example.com/hlong => ../long
+
+replace example.com/hmid => ../mid
+
+-- h/main/logos.toml --
+[capabilities]
+transitive_unsafe = "deny"
+
+-- h/main/cmd/main.go --
+package main
+
+import (
+	_ "example.com/hlong"
+	_ "example.com/hshort"
+)
+
+func main() {}
+
+-- h/short/go.mod --
+module example.com/hshort
+
+go 1.27
+
+-- h/short/short.go --
+package hshort
+
+import "unsafe"
+
+var _ = unsafe.Sizeof(0)
+
+-- h/long/go.mod --
+module example.com/hlong
+
+go 1.27
+
+require (
+	example.com/hmid v0.0.0
+)
+
+replace example.com/hmid => ../mid
+
+-- h/long/long.go --
+package hlong
+
+import _ "example.com/hmid"
+
+-- h/mid/go.mod --
+module example.com/hmid
+
+go 1.27
+
+require example.com/hshort v0.0.0
+
+replace example.com/hshort => ../short
+
+-- h/mid/mid.go --
+package hmid
+
+import _ "example.com/hshort"
+
+-- q/main/go.mod --
+module example.com/qmain
+
+go 1.27
+
+require (
+example.com/anear v0.0.0
+example.com/zfar v0.0.0
+example.com/qmid v0.0.0
+example.com/qdep v0.0.0
+)
+
+replace example.com/anear => ../anear
+
+replace example.com/zfar => ../zfar
+
+replace example.com/qmid => ../qmid
+
+replace example.com/qdep => ../qdep
+
+-- q/main/logos.toml --
+[capabilities]
+transitive_unsafe = "deny"
+
+-- q/main/cmd/main.go --
+package main
+
+import (
+_ "example.com/anear"
+_ "example.com/zfar"
+)
+
+func main() {}
+
+-- q/anear/go.mod --
+module example.com/anear
+
+go 1.27
+
+require example.com/qdep v0.0.0
+
+replace example.com/qdep => ../qdep
+
+-- q/anear/anear.go --
+package anear
+
+import _ "example.com/qdep"
+
+-- q/zfar/go.mod --
+module example.com/zfar
+
+go 1.27
+
+require example.com/qmid v0.0.0
+
+replace example.com/qmid => ../qmid
+
+-- q/zfar/zfar.go --
+package zfar
+
+import _ "example.com/qmid"
+
+-- q/qmid/go.mod --
+module example.com/qmid
+
+go 1.27
+
+require example.com/qdep v0.0.0
+
+replace example.com/qdep => ../qdep
+
+-- q/qmid/qmid.go --
+package qmid
+
+import _ "example.com/qdep"
+
+-- q/qdep/go.mod --
+module example.com/qdep
+
+go 1.27
+
+-- q/qdep/qdep.go --
+package qdep
+
+import "unsafe"
+
+var _ = unsafe.Sizeof(0)
+
+-- r/main/go.mod --
+module example.com/rmain
+
+go 1.27
+
+require mylib v0.0.0
+
+replace mylib => ../dep
+
+-- r/main/logos.toml --
+[capabilities]
+transitive_unsafe = "deny"
+
+-- r/main/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"mylib"
+)
+
+func main() { fmt.Println(mylib.Msg()) }
+
+-- r/dep/go.mod --
+module mylib
+
+go 1.27
+
+-- r/dep/dep.go --
+package mylib
 
 import (
 	"strconv"

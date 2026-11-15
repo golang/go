@@ -1,0 +1,45 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+	"unsafe"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type pairFaultAdjacent struct {
+	a, b int64
+}
+
+var pairFaultSeen int64
+
+func main() {
+	pairFaultSeen = 1
+	p := (*pairFaultAdjacent)(unsafe.Pointer(nil))
+	caught := false
+	func() {
+		defer func() {
+			caught = recover() != nil
+		}()
+		a := p.a
+		_ = a
+		_ = p.b
+	}()
+	check("trap", caught, caught, true)
+	check("store", pairFaultSeen == 1, pairFaultSeen, 1)
+	if failed {
+		os.Exit(1)
+	}
+}

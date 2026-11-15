@@ -1,0 +1,82 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+type Item struct {
+	N int
+}
+
+type Num interface {
+	const N int?
+}
+
+type Name interface {
+	const S string?
+}
+
+type Items interface {
+	const L []int?
+}
+
+type Link interface {
+	const P *Item?
+}
+
+type Both interface {
+	Cur *Item?
+	Count int?
+}
+
+type OkNum struct : Num {
+	n int?
+}
+
+func (o OkNum) N() int? {
+	return o.n
+}
+
+type OkName struct : Name {
+	s string?
+}
+
+func (o *OkName) S() string? {
+	return o.s
+}
+
+type BadItems struct : Items /* ERROR "const_view_mutation" */ {
+	l []int?
+}
+
+func (b *BadItems) L() []int? {
+	return b.l
+}
+
+type BadLink struct : Link /* ERROR "const_view_mutation" */ {
+	p *Item?
+}
+
+func (b BadLink) P() *Item? {
+	return b.p
+}
+
+type FieldLink struct : Link {
+	P *Item?
+}
+
+type Slots struct : Both {
+	Cur   *Item?
+	Count int?
+}
+
+type Skew struct : Link /* ERROR "property_unsatisfied" */ {
+	P *Item
+}
+
+func use() {
+	var _ Num = OkNum{}
+	var _ Name = &OkName{}
+	var _ Link = FieldLink{}
+	var _ Both = &Slots{}
+}

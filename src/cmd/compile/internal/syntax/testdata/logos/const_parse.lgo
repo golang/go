@@ -4,11 +4,6 @@
 
 package p
 
-// M5-S1 const-view type positions (SPEC Sec 2.1, T-201): `const T`
-// parses as a ConstType in parameter, receiver, result, variable, and
-// field types in LogosMode only. Valid positions below carry no ERROR
-// comment; the trailing cases pin the diagnostics.
-
 type CVParseItem struct {
 	Name string
 }
@@ -36,3 +31,7 @@ func CVParseBad() {
 	var v const; // ERROR expected type
 	_ = v
 }
+
+const type T = int // ERROR syntax error: unexpected keyword type, expected name
+
+const var X = 1 // ERROR syntax error: unexpected keyword var, expected name

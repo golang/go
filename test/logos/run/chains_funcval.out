@@ -1,14 +1,14 @@
-[5 6]
-[2 4 6]
-[5 6]
-[1 2 3 4 5 6]
-[2 4 6 8 10 12]
-[2 4 6 8 10 12]
-2
-true
-false
-3
-[1 2 3 4 5 6]
-[2 4 6]
-1
-[1 2 3 4 5]
+ok filter-func-lit
+ok filter-func-ref
+ok filter-named-pred
+ok map-stdlib
+ok map-named
+ok map-then-filter
+ok find-first-even
+ok any-over4
+ok all-even
+ok count-even
+ok sortby-key
+ok filter-mkpred
+ok mkpred-called-once
+ok filter-closure-capture

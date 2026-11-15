@@ -150,6 +150,9 @@ func (check *Checker) unary(x *operand, e *syntax.Operation) {
 			return
 		}
 		x.mode_ = value
+		if check.logosExprAddr(x) {
+			return
+		}
 		x.typ_ = &Pointer{base: x.typ()}
 		return
 
@@ -529,6 +532,9 @@ func (check *Checker) comparison(x, y *operand, op syntax.Operator, switchCase b
 		// know after seeing the 2nd operand whether we have
 		// a type mismatch.
 		errOp = y
+		if !switchCase && check.logosUnionCompareMiss(x, y, op) {
+			return
+		}
 		cause = check.sprintf("mismatched types %s and %s", x.typ(), y.typ())
 		goto Error
 	}
@@ -803,12 +809,7 @@ func init() {
 func (check *Checker) binary(x *operand, e syntax.Expr, lhs, rhs syntax.Expr, op syntax.Operator) {
 	var y operand
 
-	check.expr(nil, x, lhs)
-	anded := check.logosPushAndCond(op, lhs) // logos M3-S4 hook: `x != nil && rest` narrows x for rest.
-	check.expr(nil, &y, rhs)
-	if anded {
-		check.logosPopNarrow() // logos M3-S4 hook.
-	}
+	check.logosExprOperands(x, &y, e, lhs, rhs, op)
 
 	if e == nil {
 		check.logosUnwrapMapIndex(x) // logos M3-S6 hook: `m[k] += v` stores V.
@@ -955,6 +956,9 @@ func (check *Checker) matchTypes(x, y *operand) {
 	}
 
 	if mayConvert(x, y) {
+		if check.logosExprUnionConstMiss(x, y) {
+			return
+		}
 		check.convertUntyped(x, y.typ())
 		if !x.isValid() {
 			return
@@ -988,7 +992,7 @@ type target struct {
 // The result is nil if typ is not a signature.
 func newTarget(typ Type, desc string) *target {
 	if typ != nil {
-		if u, _ := commonUnder(typ, nil); u != nil {
+		if u, _ := commonUnder(logosTargetType(typ), nil); u != nil {
 			if sig, _ := u.(*Signature); sig != nil {
 				return &target{sig, desc}
 			}
@@ -1089,6 +1093,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 
 	case *syntax.FuncLit:
 		check.funcLit(x, e)
+		check.logosExprRegionLitMark(x, e)
 		if !x.isValid() {
 			goto Error
 		}
@@ -1224,11 +1229,15 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 					check.validVarType(e.X, x.typ())
 					x.typ_ = &Pointer{base: x.typ()}
 				default:
+					readonlyContainer := check.logosExprReadonlyPrepare(x)
 					check.logosConstUnwrapBase(x) // logos M5-S1 hook: dereference through const views.
 					var base Type
 					if !underIs(x.typ(), func(u Type) bool {
 						p, _ := u.(*Pointer)
 						if p == nil {
+							if check.logosOptionIndirect(x) {
+								return false
+							}
 							check.errorf(x, InvalidIndirection, invalidOp+"cannot indirect %s", x)
 							return false
 						}
@@ -1248,6 +1257,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 					x.mode_ = variable
 					x.typ_ = base
 					check.logosConstWrapBase(x, e.X) // logos M5-S1 hook: dereference reads through const views.
+					check.logosExprReadonlyProject(x, readonlyContainer)
 				}
 				break
 			}
@@ -1342,6 +1352,9 @@ func keyVal(x constant.Value) any {
 
 // typeAssertion checks x.(T). The type of x must be an interface.
 func (check *Checker) typeAssertion(e syntax.Expr, x *operand, T Type, typeSwitch bool) {
+	if check.logosExprReadonlyAssert(e, x, T) {
+		return
+	}
 	if check.logosNonMemberAssert(e, x, T) { // logos M2-S2 hook.
 		return
 	}

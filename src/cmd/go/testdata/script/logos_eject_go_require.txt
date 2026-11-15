@@ -1,0 +1,46 @@
+env GOTOOLCHAIN=local
+
+cd m
+go get example.com/godep@v1.0.0
+env GOPROXY=off
+logos run .
+stdout '^godep: godep hello$'
+cp stdout $WORK/run-stdout.txt
+
+logos eject -o out
+exists out/main.go
+exists out/go.mod
+grep '^require example\.com/godep v1\.0\.0' out/go.mod
+! grep '^replace example\.com/godep' out/go.mod
+! exists out/_logos_deps/example.com/godep@v1.0.0
+
+cd out
+go mod tidy
+go run .
+cmp stdout $WORK/run-stdout.txt
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+cd ..
+
+-- m/go.mod --
+module example.com/goreq
+
+go 1.27
+
+require example.com/godep v1.0.0
+
+-- m/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/godep"
+)
+
+func main() {
+	fmt.Println("godep:", godep.Hello)
+}

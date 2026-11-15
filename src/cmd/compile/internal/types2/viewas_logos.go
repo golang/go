@@ -9,18 +9,8 @@ import (
 	. "internal/types/errors"
 )
 
-// LoGo/s M7-S5 checking for comptime.ViewAs (SPEC Sec 2.5, T-205).
-//
-// ViewAs reinterprets bytes as a POD struct. The virtual comptime
-// package is provided by comptime_logos.go in Logos mode, so the types2
-// tests, the eject oracle, and the compiler all resolve
-// `import "comptime"` the same way; it declares ViewAs through
-// logosEnsureComptimeViewAs below.
-
 const logosViewAsNotPOD = "[comptime::viewas_not_pod]"
 
-// logosEnsureComptimeViewAs inserts the ViewAs declaration unless the
-// package already has one.
 func logosEnsureComptimeViewAs(pkg *Package) {
 	if pkg.Scope().Lookup("ViewAs") != nil {
 		return
@@ -28,7 +18,6 @@ func logosEnsureComptimeViewAs(pkg *Package) {
 	pkg.Scope().Insert(logosMakeComptimeViewAs(pkg))
 }
 
-// logosMakeComptimeViewAs builds `func ViewAs[T any](b const []byte) const *T`.
 func logosMakeComptimeViewAs(pkg *Package) *Func {
 	tname := NewTypeName(nopos, pkg, "T", nil)
 	tparam := NewTypeParam(tname, Universe.Lookup("any").Type())
@@ -38,12 +27,6 @@ func logosMakeComptimeViewAs(pkg *Package) *Func {
 	return NewFunc(nopos, pkg, "ViewAs", sig)
 }
 
-// logosViewAsInstCheck validates the type argument of every
-// comptime.ViewAs instantiation, called or not: T must be a struct
-// with no padding and no reference-carrying fields, else
-// [comptime::viewas_not_pod] naming the offset. A bare
-// `f := comptime.ViewAs[Bad]` validates here; the call form needs no
-// second check.
 func (check *Checker) logosViewAsInstCheck(expr syntax.Expr, targs []Type) {
 	if !check.conf.Logos || len(targs) != 1 {
 		return
@@ -68,7 +51,7 @@ func (check *Checker) logosViewAsInstCheck(expr syntax.Expr, targs []Type) {
 		name = named.Obj().Name()
 	}
 	if _, ok := Unalias(t).Underlying().(*Struct); !ok {
-		check.errorf(at, InvalidTypeArg, "%s %s is not a struct", logosViewAsNotPOD, name)
+		check.errorf(at, InvalidTypeArg, "%s %s is not a struct at offset 0", logosViewAsNotPOD, name)
 		return
 	}
 	if off := logosViewasScan(check, t); off != nil {
@@ -80,15 +63,11 @@ func (check *Checker) logosViewAsInstCheck(expr syntax.Expr, targs []Type) {
 	}
 }
 
-// logosViewasOffense describes one POD violation and its byte offset.
 type logosViewasOffense struct {
 	kind   string
 	offset int64
 }
 
-// logosViewasScan scans T for the first POD violation: padding, bool,
-// pointer, interface, slice, map, string, channel, or func fields, at
-// absolute struct offsets.
 func logosViewasScan(check *Checker, T Type) *logosViewasOffense {
 	st, _ := Unalias(T).Underlying().(*Struct)
 	offsets := check.conf.offsetsof(st)
@@ -110,8 +89,6 @@ func logosViewasScan(check *Checker, T Type) *logosViewasOffense {
 	return nil
 }
 
-// logosViewasField checks one field at absolute offset off, recursing
-// into structs and arrays.
 func logosViewasField(check *Checker, T Type, off int64) *logosViewasOffense {
 	if named, ok := Unalias(T).(*Named); ok {
 		T = named.Underlying()

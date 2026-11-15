@@ -1,0 +1,193 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+cd m
+logos build -o $WORK/bin/first$GOEXE ./cmd
+exec $WORK/bin/first$GOEXE
+stdout '^order-ok name 1$'
+! logos build -o $WORK/bin/badfirst$GOEXE ./bcmd
+stderr 'const_view_mutation'
+! exists $WORK/bin/badfirst$GOEXE
+cd ..
+
+cd p
+logos build -o $WORK/bin/perm$GOEXE ./cmd
+exec $WORK/bin/perm$GOEXE
+stdout '^order-ok name 1$'
+! logos build -o $WORK/bin/badperm$GOEXE ./bcmd
+stderr 'const_view_mutation'
+! exists $WORK/bin/badperm$GOEXE
+cd ..
+
+-- m/go.mod --
+module example.com/order
+
+go 1.27
+
+-- m/c/c.lgo --
+package c
+
+type Namer interface {
+	const Name() string
+}
+
+-- m/u/u.lgo --
+package u
+
+import "example.com/order/c"
+
+type Good struct {
+	N int
+}
+
+var _ c.Namer = &Good{}
+
+func (g *Good) Name() string {
+	return "name"
+}
+
+func (g *Good) Mutate() {
+	g.N++
+}
+
+-- m/u/read.lgo --
+package u
+
+import "example.com/order/c"
+
+func ReadName(n c.Namer) string {
+	return n.Name()
+}
+
+-- m/u/bad/bad.lgo --
+package bad
+
+import "example.com/order/c"
+
+type Bad struct {
+	N int
+}
+
+var _ c.Namer = &Bad{}
+
+func (b *Bad) Name() string {
+	b.N++
+	return "bad"
+}
+
+-- m/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/order/u"
+)
+
+func main() {
+	g := &u.Good{}
+	g.Mutate()
+	fmt.Println("order-ok", u.ReadName(g), g.N)
+}
+
+-- m/bcmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/order/u/bad"
+)
+
+var _ = bad.Bad{}
+
+func main() {
+	fmt.Println("unused")
+}
+
+-- p/go.mod --
+module example.com/order
+
+go 1.27
+
+-- p/c/c.lgo --
+package c
+
+type Namer interface {
+	const Name() string
+}
+
+-- p/u/u.lgo --
+package u
+
+import "example.com/order/c"
+
+type Good struct {
+	N int
+}
+
+func (g *Good) Name() string {
+	return "name"
+}
+
+func (g *Good) Mutate() {
+	g.N++
+}
+
+var _ c.Namer = &Good{}
+
+-- p/u/read.lgo --
+package u
+
+import "example.com/order/c"
+
+func ReadName(n c.Namer) string {
+	return n.Name()
+}
+
+-- p/u/bad/bad.lgo --
+package bad
+
+import "example.com/order/c"
+
+type Bad struct {
+	N int
+}
+
+func (b *Bad) Name() string {
+	b.N++
+	return "bad"
+}
+
+var _ c.Namer = &Bad{}
+
+-- p/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/order/u"
+)
+
+func main() {
+	g := &u.Good{}
+	g.Mutate()
+	fmt.Println("order-ok", u.ReadName(g), g.N)
+}
+
+-- p/bcmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/order/u/bad"
+)
+
+var _ = bad.Bad{}
+
+func main() {
+	fmt.Println("unused")
+}

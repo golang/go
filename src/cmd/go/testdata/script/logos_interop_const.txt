@@ -1,11 +1,3 @@
-# M5-S6: Go importers of loGo/s const views (R-U2, T-Sec6).
-# Package c exports Primes (a const view over a package-level slice;
-# M5-S2 const composites are not on this base), Count (a const map
-# parameter), Config, and Snapshot (a const pointer result through
-# rt.Freeze). A Go package in another workspace module sees plain
-# []int, map[string]int, and *Config types, builds under logos, and
-# runs. A Go write through the Primes result is a documented hole
-# (A-GOBOUNDARY) and is not asserted here.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 mkdir $WORK/bin
@@ -14,7 +6,7 @@ cd w
 logos build ./...
 logos build -o $WORK/bin/interopconst$GOEXE ./g/cmd
 exec $WORK/bin/interopconst$GOEXE
-stdout '^primes-ok count-ok snapshot-ok$'
+stdout '^primes-ok count-ok snapshot-ok vals-ok$'
 cd ..
 
 -- w/go.work --
@@ -36,6 +28,7 @@ package c
 import "logos/rt"
 
 var primesData = []int{2, 3, 5, 7, 11}
+const Vals = []int{2, 3, 5}
 
 func Primes() const []int {
 	return primesData
@@ -67,6 +60,7 @@ import (
 
 	"example.com/l/c"
 )
+var _ []int = c.Vals
 
 var _ func() []int = c.Primes
 var _ func(map[string]int, string) int = c.Count
@@ -75,6 +69,9 @@ var _ func(*c.Config) *c.Config = c.Snapshot
 func Run() string {
 	if !slices.Equal(c.Primes(), []int{2, 3, 5, 7, 11}) {
 		return "primes-bad"
+	}
+	if !slices.Equal(c.Vals, []int{2, 3, 5}) {
+		return "vals-bad"
 	}
 	if got := c.Count(map[string]int{"a": 2}, "a"); got != 2 {
 		return "count-bad"
@@ -86,7 +83,7 @@ func Run() string {
 	if snap.Name != "s" || snap.N != 3 {
 		return "snapshot-bad"
 	}
-	return "primes-ok count-ok snapshot-ok"
+	return "primes-ok count-ok snapshot-ok vals-ok"
 }
 
 -- w/g/cmd/main.go --

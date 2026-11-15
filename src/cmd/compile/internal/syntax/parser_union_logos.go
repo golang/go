@@ -4,18 +4,6 @@
 
 package syntax
 
-// This file holds the loGo/s parser logic for M2: switch expressions with
-// `=>` arms (M2-S5) and struct declarations with inline interface
-// assertions (M2-S6). parser.go calls into it through hook lines only
-// (G3); every rule below runs solely in LogosMode, so plain Go parses
-// exactly as upstream. Closed unions need no grammar of their own: the
-// SPEC spelling is an interface whose type set is a finite union, which
-// the upstream interface grammar already parses.
-
-// logosOperand parses the loGo/s operands that start with a keyword Go
-// does not accept in operand position. It returns nil, consuming nothing,
-// when the current token starts none of them, so the caller reports the
-// upstream "expected expression" error.
 func (p *parser) logosOperand() Expr {
 	if p.mode&LogosMode == 0 {
 		return nil
@@ -27,14 +15,6 @@ func (p *parser) logosOperand() Expr {
 	return nil
 }
 
-// switchExpr parses a switch expression:
-//
-//	SwitchExpr = "switch" [ SimpleStmt ";" ] [ Tag ] "{" { Arm ";" } "}" .
-//
-// The header grammar is the one of a switch statement, so a type switch
-// guard `[ v := ] x.(type)` reaches the node as a *TypeSwitchGuard tag.
-// Arms are separated by semicolons, written or inserted at a line end;
-// the semicolon before `}` is optional.
 func (p *parser) switchExpr() *SwitchExpr {
 	if trace {
 		defer p.trace("switchExpr")()
@@ -50,8 +30,6 @@ func (p *parser) switchExpr() *SwitchExpr {
 		p.syntaxError("missing { after switch clause")
 		p.advance(_Case, _Default, _Rbrace)
 	}
-	// Composite literals are valid inside arms, even when the switch
-	// expression itself sits in a statement header.
 	p.xnest++
 	for p.tok != _EOF && p.tok != _Rbrace {
 		e.Arms = append(e.Arms, p.armClause())
@@ -68,9 +46,6 @@ func (p *parser) switchExpr() *SwitchExpr {
 	return e
 }
 
-// armClause parses one switch expression arm:
-//
-//	Arm = "case" ExpressionList "=>" Expression | "default" "=>" Expression .
 func (p *parser) armClause() *ArmClause {
 	if trace {
 		defer p.trace("armClause")()
@@ -101,16 +76,6 @@ func (p *parser) armClause() *ArmClause {
 	return c
 }
 
-// logosTypeDeclType parses the right-hand side of the non-generic type
-// declaration d. In LogosMode a struct type may list the interfaces the
-// declared type's pointer must implement between `struct` and `{`:
-//
-//	StructDecl = "struct" [ ":" Type { "," Type } ] "{" { FieldDecl ";" } "}" .
-//
-// Without a list it returns the ordinary *StructType, so every other
-// right-hand side (including aliases, which carry no assertions) takes
-// the upstream path. A list on any other type stays a syntax error: the
-// type ends before the `:`.
 func (p *parser) logosTypeDeclType(d *TypeDecl) Expr {
 	if p.mode&LogosMode == 0 || d.Alias || p.tok != _Struct {
 		return p.typeOrNil()
@@ -155,10 +120,6 @@ func (p *parser) logosTypeDeclType(d *TypeDecl) Expr {
 	return a
 }
 
-// logosAdvanceSelector recovers from a selector that lacks a name after
-// the dot. In LogosMode a closing brace ends the skip, so the enclosing
-// block still closes where the source closes it instead of swallowing the
-// following declarations as part of the broken statement.
 func (p *parser) logosAdvanceSelector() {
 	if p.mode&LogosMode != 0 {
 		p.advance(_Semi, _Rparen, _Rbrace)

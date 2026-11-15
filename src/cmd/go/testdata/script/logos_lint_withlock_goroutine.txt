@@ -1,0 +1,72 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd probe
+! logos lint ./direct
+stderr 'direct.go:16:[0-9]+: \[correctness::withlock_leak\]'
+! logos lint ./capture
+stderr 'capture.go:16:[0-9]+: \[correctness::withlock_leak\]'
+logos lint ./copy
+! stderr .
+
+-- probe/go.mod --
+module example.com/lockgoroutine
+
+go 1.27
+-- probe/direct/direct.go --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package direct
+
+import "logos/sync"
+
+type Box struct { N int }
+func use(b *Box) { b.N++ }
+func useValue(n int) {}
+
+func Use() {
+	var lock sync.Locked[Box]
+	lock.WithLock(func(b *Box) {
+		go use(b)
+	})
+}
+-- probe/capture/capture.go --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package capture
+
+import "logos/sync"
+
+type Box struct { N int }
+func use(b *Box) { b.N++ }
+func useValue(n int) {}
+
+func Use() {
+	var lock sync.Locked[Box]
+	lock.WithLock(func(b *Box) {
+		go func() { use(b) }()
+	})
+}
+-- probe/copy/copy.go --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package copy
+
+import "logos/sync"
+
+type Box struct { N int }
+func use(b *Box) { b.N++ }
+func useValue(n int) {}
+
+func Use() {
+	var lock sync.Locked[Box]
+	lock.WithLock(func(b *Box) {
+		go useValue(b.N)
+	})
+}

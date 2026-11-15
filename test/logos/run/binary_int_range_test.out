@@ -1,0 +1,8 @@
+ok int-range-in-range
+ok int-range-wire-stable
+ok int-range-int8-above
+ok int-range-int8-positive-255
+ok int-range-uint16-above
+ok int-range-int32-above
+ok int-range-uint32-above
+ok int-range-uint8-above

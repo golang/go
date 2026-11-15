@@ -1,0 +1,212 @@
+// run
+
+package main
+
+import (
+	"context"
+	"fmt"
+	"iter"
+	"os"
+	"runtime"
+	"slices"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type ids struct {
+	mu  sync.Mutex
+	set map[int]bool
+}
+
+func (s *ids) add() {
+	id := gid()
+	s.mu.Lock()
+	if s.set == nil {
+		s.set = map[int]bool{}
+	}
+	s.set[id] = true
+	s.mu.Unlock()
+}
+
+func (s *ids) only(id int) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, ok := s.set[id]
+	return len(s.set) == 1 && ok
+}
+
+func (s *ids) has(id int) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, ok := s.set[id]
+	return ok
+}
+
+func gid() int {
+	var buf [64]byte
+	n := runtime.Stack(buf[:], false)
+	id, err := strconv.Atoi(strings.Fields(string(buf[:n]))[1])
+	if err != nil {
+		return -1
+	}
+	return id
+}
+
+func recordingSource(src *ids) iter.Seq[int] {
+	for i := 1; i <= 6; i++ {
+		src.add()
+		yield i
+	}
+}
+
+func caseCallingGoroutine(ctx context.Context) {
+	caller := gid()
+	var src, child, post ids
+	got, err := recordingSource(&src).group(ctx, limit = 3).map(x => {
+		child.add()
+		return x * 2
+	}).take(6).map(y => {
+		post.add()
+		return y + 1
+	})
+	if err != nil {
+		check("sources-values", false, err, []int{3, 5, 7, 9, 11, 13})
+	} else {
+		check("sources-values", err == nil && slices.Equal(got, []int{3, 5, 7, 9, 11, 13}), got, []int{3, 5, 7, 9, 11, 13})
+	}
+	check("sources-source-on-calling-goroutine", src.only(caller), "other goroutine", caller)
+	check("sources-later-stage-on-calling-goroutine", post.only(caller), "other goroutine", caller)
+	check("sources-children-elsewhere", !child.has(caller), "caller ran a child", "children on other goroutines")
+}
+
+func bodyGoroutine(ctx context.Context, body *ids) error {
+	for y := range recordingSource(&ids{}).group(ctx, limit = 3).map(x => x * 2) {
+		_ = y
+		body.add()
+	}
+	return nil
+}
+
+func caseBodyGoroutine(ctx context.Context) {
+	var body ids
+	err := bodyGoroutine(ctx, &body)
+	check("sources-body-on-calling-goroutine", err == nil && body.only(gid()), err, nil)
+}
+
+func quietChannel() chan int {
+	ch := make(chan int, 1)
+	ch <- 2
+	return ch
+}
+
+func quietFirst(ctx context.Context) (int, error) {
+	ch := quietChannel()
+	for y := range ch.group(ctx, limit = 2).map(x => x * 10) {
+		return y, nil
+	}
+	return 0, nil
+}
+
+func caseQuietChannelDelivers(ctx context.Context) {
+	short, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	first, err := quietFirst(short)
+	if err != nil {
+		check("sources-quiet-channel-delivers", false, err, "20 <nil>")
+	} else {
+		check("sources-quiet-channel-delivers", err == nil && first == 20, fmt.Sprint(first, err), "20 <nil>")
+	}
+}
+
+type emptyGrid [0]int
+
+func closedChannel() chan int {
+	ch := make(chan int)
+	close(ch)
+	return ch
+}
+
+func emptySeq(yield func(int) bool) {}
+
+func caseEmptySources(ctx context.Context) {
+	var none []int
+	a, errA := none.group(ctx, limit = 2).map(x => x + 1)
+	if errA != nil {
+		check("sources-empty-slice", false, errA, "empty")
+	} else {
+		check("sources-empty-slice", errA == nil && len(a) == 0, a, "empty")
+	}
+	var grid emptyGrid
+	b, errB := grid.group(ctx, limit = 2).map(x => x + 1)
+	if errB != nil {
+		check("sources-empty-array", false, errB, "empty")
+	} else {
+		check("sources-empty-array", errB == nil && len(b) == 0, b, "empty")
+	}
+	var seq iter.Seq[int] = emptySeq
+	c, errC := seq.group(ctx, limit = 2).map(x => x + 1)
+	if errC != nil {
+		check("sources-empty-seq", false, errC, "empty")
+	} else {
+		check("sources-empty-seq", errC == nil && len(c) == 0, c, "empty")
+	}
+	d, errD := closedChannel().group(ctx, limit = 2).map(x => x + 1)
+	if errD != nil {
+		check("sources-empty-channel", false, errD, "empty")
+	} else {
+		check("sources-empty-channel", errD == nil && len(d) == 0, d, "empty")
+	}
+}
+
+func caseTerminalGoroutine(ctx context.Context) {
+	caller := gid()
+	var pred, key ids
+	_, err := []int{1, 2, 3, 4}.group(ctx, limit = 2).map(x => x * 2).any(y => {
+		pred.add()
+		return false
+	})
+	if err != nil {
+		check("sources-terminal-on-calling-goroutine", false, err, caller)
+		return
+	}
+	_, err = []int{1, 2, 3, 4}.group(ctx, limit = 2).map(x => x * 2).sortBy(y => {
+		key.add()
+		return y
+	})
+	if err != nil {
+		check("sources-sortby-key-on-calling-goroutine", false, err, caller)
+		return
+	}
+	check("sources-terminal-on-calling-goroutine", pred.only(caller), "other goroutine", caller)
+	check("sources-sortby-key-on-calling-goroutine", key.only(caller), "other goroutine", caller)
+}
+
+func run(f func(context.Context)) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	f(ctx)
+}
+
+func main() {
+	run(caseCallingGoroutine)
+	run(caseBodyGoroutine)
+	run(caseTerminalGoroutine)
+	run(caseQuietChannelDelivers)
+	run(caseEmptySources)
+	if failed {
+		os.Exit(1)
+	}
+}

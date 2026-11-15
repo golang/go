@@ -266,13 +266,15 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
 		return false
 	}
 
-	// logos M4-S1 hook: a property interface is satisfied only through
-	// an explicit `: I` declaration with per-property sources. Struct
-	// values never carry the generated accessors, so the method-set
-	// check below cannot see field sources; interfaces still compare
-	// by method set, where the lowered accessors exist on both sides.
-	if check.logosPropGate(Ti, Vu, constraint) {
-		return check.logosImplementsProperty(V, T, Ti, cause)
+	if constraint {
+		if check.logosPropGateConstraint(Ti, Vu) {
+			return check.logosImplementsProperty(V, T, Ti, cause, nopos)
+		}
+	}
+	if !constraint {
+		if check.logosPropGate(Ti, Vu) {
+			return check.logosImplementsProperty(V, T, Ti, cause, nopos)
+		}
 	}
 
 	// Every type satisfies the empty interface.

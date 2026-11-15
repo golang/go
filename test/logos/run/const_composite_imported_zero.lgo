@@ -1,0 +1,36 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"net/netip"
+	"time"
+)
+
+type Rec struct {
+	At time.Time
+	N  int
+}
+
+const stamps = []time.Time{{}, {}}
+const pair = [2]time.Time{}
+const addrs = []netip.Addr{{}}
+const rec = Rec{N: 3}
+const recs = []Rec{{N: 4}, {N: 5}}
+
+func check(name string, good bool) {
+	if !good {
+		fmt.Println("FAIL", name)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func main() {
+	check("slice", len(stamps) == 2 && stamps[0].IsZero() && stamps[1].IsZero())
+	check("array", len(pair) == 2 && pair[1].IsZero())
+	check("addr", len(addrs) == 1 && !addrs[0].IsValid())
+	check("field", rec.At.IsZero() && rec.N == 3)
+	check("elements", recs[0].At.IsZero() && recs[0].N == 4 && recs[1].N == 5)
+}

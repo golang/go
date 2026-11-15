@@ -1,0 +1,6 @@
+ok array-values
+ok struct-string-field
+ok struct-int-field
+ok nested-struct
+ok array-of-struct-values
+ok ranged-array

@@ -1,6 +1,3 @@
-// Fast-call fixture (M20-S1): Go-syntax .lgo cgo file using the
-// //logos:cgo_fastcall spelling. Built, run, and inspected by the
-// testlogos battery.
 package main
 
 /*

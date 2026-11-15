@@ -1312,14 +1312,7 @@ retry:
 	// TODO: Consider passing g.m.p in as an argument so they can be shared
 	// across a sequence of write barriers.
 	MOVQ	g_m(R14), R13
-#ifdef GOEXPERIMENT_logosgen
-	MOVQ	m_p(R13), R12
-	TESTQ	R12, R12
-	JEQ	nop
-	MOVQ	R12, R13
-#else
 	MOVQ	m_p(R13), R13
-#endif
 	// Get current buffer write position.
 	MOVQ	(p_wbBuf+wbBuf_next)(R13), R12	// original next position
 	ADDQ	R11, R12			// new next position
@@ -1335,47 +1328,6 @@ retry:
 	MOVQ	96(SP), R12
 	MOVQ	104(SP), R13
 	RET
-
-#ifdef GOEXPERIMENT_logosgen
-nop:
-	// A store made without a P has no buffer; its entries land in the
-	// M's scratch space. Drain the previous call's entries first so at
-	// most one barrier call's entries are ever pending.
-	MOVQ	DI, 0(SP)
-	MOVQ	AX, 8(SP)
-	MOVQ	BX, 16(SP)
-	MOVQ	CX, 24(SP)
-	MOVQ	DX, 32(SP)
-	MOVQ	SI, 40(SP)
-	MOVQ	BP, 48(SP)
-	MOVQ	R8, 56(SP)
-	MOVQ	R9, 64(SP)
-	MOVQ	R10, 72(SP)
-	MOVQ	R11, 80(SP)
-	// R12 already saved
-	// R13 already saved
-	// R14 is g
-	MOVQ	R15, 88(SP)
-	MOVQ	R13, AX
-	CALL	runtime·logosGenDrainMScratch<ABIInternal>(SB)
-	MOVQ	0(SP), DI
-	MOVQ	8(SP), AX
-	MOVQ	16(SP), BX
-	MOVQ	24(SP), CX
-	MOVQ	32(SP), DX
-	MOVQ	40(SP), SI
-	MOVQ	48(SP), BP
-	MOVQ	56(SP), R8
-	MOVQ	64(SP), R9
-	MOVQ	72(SP), R10
-	MOVQ	80(SP), R11
-	MOVQ	88(SP), R15
-	MOVQ	g_m(R14), R13
-	LEAQ	m_logosWbScratch(R13), R11
-	MOVQ	96(SP), R12
-	MOVQ	104(SP), R13
-	RET
-#endif
 
 flush:
 	// Save all general purpose registers since these could be

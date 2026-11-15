@@ -1,0 +1,64 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# The elements of a tuple literal keep their whole text when they end in
+# a call, an index, a slice, a parenthesis, a string holding closers or a
+# raw string over two lines, and the literal keeps its own parentheses
+# when it is wrapped in more. The module runs natively, ejects, and the
+# ejected module builds and runs with go and with go1.27.2 from
+# $UPROOT1272 and prints the same output.
+cd m
+logos run .
+stdout '^1 2 2 3 1 3 \) \)\}// 4 3 5 6 9 10 7 8$'
+cp stdout $WORK/native.txt
+logos eject -o out
+exists out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $WORK/native.txt
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
+exec $WORK/upstream$GOEXE
+cmp stdout $WORK/native.txt
+cd ..
+
+-- m/go.mod --
+module example.com/tupleelems
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import "fmt"
+
+type P struct{ X, Y int }
+
+func id(n int) int {
+	return n
+}
+
+func ret() (int, int) {
+	return (id(9), id(10))
+}
+
+func wrapped() (int, int) {
+	return ((7, 8))
+}
+
+func main() {
+	xs := []int{1, 2, 3}
+	a, b := (id(1), id(2))
+	c, d := (xs[1], xs[2:][0])
+	e, f := (P{1, 2}.X, (id(3)))
+	g, h := (")", ")}//")
+	i, j := (id(id(4)), `r
+)`)
+	k, l := ((5, 6))
+	m, n := ret()
+	o, p := wrapped()
+	fmt.Println(a, b, c, d, e, f, g, h, i, len(j), k, l, m, n, o, p)
+}

@@ -1,0 +1,47 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type Pair struct {
+	N int
+	B bool
+}
+
+const boolMap = map[bool]string{false: "f", true: "t"}
+const pairMap = map[Pair]string{Pair{7, true}: "p"}
+const arrayMap = map[[2]int]string{[2]int{3, 4}: "a"}
+const floatMap = map[float64]string{-0.0: "z", 1.0: "one", 2.0: "two", 3.0: "three", 4.0: "four", 5.0: "five", 6.0: "six", 7.0: "seven", 8.0: "eight"}
+const source = map[string]int{"a": 1}
+
+func main() {
+	pair := Pair{7, true}
+	array := [2]int{3, 4}
+	check("bool-false", (boolMap[false] ?? "?") == "f", (boolMap[false] ?? "?"), "f")
+	check("bool-true", (boolMap[true] ?? "?") == "t", (boolMap[true] ?? "?"), "t")
+	check("pair", (pairMap[pair] ?? "?") == "p", (pairMap[pair] ?? "?"), "p")
+	check("array", (arrayMap[array] ?? "?") == "a", (arrayMap[array] ?? "?"), "a")
+	check("float-negzero", (floatMap[0.0] ?? "?") == "z", (floatMap[0.0] ?? "?"), "z")
+	m := source
+	m["a"] = 2
+	check("map-copy", (m["a"] ?? -1) == 2, (m["a"] ?? -1), 2)
+	check("map-const", (source["a"] ?? -1) == 1, (source["a"] ?? -1), 1)
+	if failed {
+		os.Exit(1)
+	}
+}

@@ -1,0 +1,427 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+import (
+	"context"
+	"iter"
+	"strconv"
+)
+
+type box struct{ n int }
+
+func (b box) add(n int) int { return b.n + n }
+
+type mapper struct{}
+
+func (mapper) take(n int) int { return n }
+
+type nums []int
+
+type grid [3]int
+
+type feed <-chan int
+
+type pipe chan int
+
+type seq iter.Seq[int]
+
+type store struct{}
+
+func (store) group(n int) int { return n }
+
+type tagged []int
+
+func (t tagged) group(n int) int { return n }
+
+type outcome struct {
+	v   int
+	err error
+}
+
+func plain(x int) int { return x }
+
+func pair(x int) (int, error) { return x, nil }
+
+func namedFunction() {
+	_ = plain(x /* ERROR "named_argument" */ = 1)
+}
+
+func namedBuiltin(xs []int) {
+	_ = len(s /* ERROR "named_argument" */ = xs)
+}
+
+func namedConversion() {
+	_ = int(v /* ERROR "named_argument" */ = 1)
+}
+
+func namedPackageFunction() {
+	_ = strconv.Itoa(i /* ERROR "named_argument" */ = 1)
+}
+
+func namedMethod(b box) {
+	_ = b.add(n /* ERROR "named_argument" */ = 1)
+}
+
+func namedChainMethod(xs []int) {
+	_ = xs.take(n /* ERROR "named_argument" */ = 1)
+}
+
+func namedChainMethodDeclared(m mapper) {
+	_ = m.take(n /* ERROR "named_argument" */ = 1)
+}
+
+func namedChainMethodOfInt(n int) {
+	_ = n.map /* ERROR "undefined" */ (a = 1)
+}
+
+func namedChainMethodOfStruct(b box) {
+	_ = b.take /* ERROR "undefined" */ (n = 1)
+}
+
+func namedChainMethodOfArray(a [3]int) {
+	_ = a.map /* ERROR "undefined" */ (v = 1)
+}
+
+func namedChainMethodOfMap(m map[string]int) {
+	_ = m.filter /* ERROR "undefined" */ (v = 1)
+}
+
+func namedSecond() {
+	_ = plain(1, y /* ERROR "named_argument" */ = 2)
+}
+
+func namedBoth() {
+	_ = plain(a /* ERROR "named_argument" */ = 1, b /* ERROR "named_argument" */ = 2)
+}
+
+func namedUnderTry() (int, error) {
+	v := pair(x /* ERROR "named_argument" */ = 1)?
+	return v, nil
+}
+
+func namedKeepsOperands(xs []int) {
+	n := len(xs)
+	_ = plain(x /* ERROR "named_argument" */ = n)
+}
+
+func stageSlice(ctx context.Context, xs []int) ([]string, error) {
+	return xs.group(ctx, limit = 8).map(x => strconv.Itoa(x))
+}
+
+func stageArray(ctx context.Context, xs [3]int) ([]int, error) {
+	return xs.group(ctx, limit = 2).map(x => x + 1)
+}
+
+func stageSeq(ctx context.Context, xs iter.Seq[int]) ([]int, error) {
+	return xs.group(ctx, limit = 2).map(x => x + 1)
+}
+
+func stageRecvChan(ctx context.Context, ch <-chan int) ([]int, error) {
+	return ch.group(ctx, limit = 2).map(x => x + 1)
+}
+
+func stageChan(ctx context.Context, ch chan int) ([]int, error) {
+	return ch.group(ctx, limit = 2).map(x => x + 1)
+}
+
+func stageNamedSlice(ctx context.Context, xs nums) ([]int, error) {
+	return xs.group(ctx, limit = 2).map(x => x + 1)
+}
+
+func stageNamedArray(ctx context.Context, xs grid) ([]int, error) {
+	return xs.group(ctx, limit = 2).map(x => x + 1)
+}
+
+func stageNamedRecvChan(ctx context.Context, ch feed) ([]int, error) {
+	return ch.group(ctx, limit = 2).map(x => x + 1)
+}
+
+func stageNamedChan(ctx context.Context, ch pipe) ([]int, error) {
+	return ch.group(ctx, limit = 2).map(x => x + 1)
+}
+
+func stageNamedSeq(ctx context.Context, xs seq) ([]int, error) {
+	return xs.group(ctx, limit = 2).map(x => x + 1)
+}
+
+func stageElementType(ctx context.Context, xs []int) {
+	ys, err := xs.group(ctx, limit = 4).map(x => strconv.Itoa(x))
+	if err != nil {
+		return
+	}
+	var names []string = ys
+	var failure error = err
+	_, _ = names, failure
+}
+
+func stageAfterOrdinaryChain(ctx context.Context, xs []int) ([]int, error) {
+	return xs.filter(x => x > 0).group(ctx, limit = 2).map(x => x * 2)
+}
+
+func stageFilterThenMap(ctx context.Context, xs []int) ([]string, error) {
+	return xs.group(ctx, limit = 4).filter(x => x > 0).map(x => strconv.Itoa(x))
+}
+
+func stageMapThenFilter(ctx context.Context, xs []int) ([]int, error) {
+	return xs.group(ctx, limit = 4).map(x => x * 2).filter(x => x > 2)
+}
+
+func stageUnordered(ctx context.Context, xs []int) ([]int, error) {
+	return xs.group(ctx, limit = 4).unordered().map(x => x * 2)
+}
+
+func stageLimitExpression(ctx context.Context, xs []int, n int) ([]int, error) {
+	return xs.group(ctx, limit = n * 2).map(x => x)
+}
+
+func stageTry(ctx context.Context, xs []int) ([]int, error) {
+	ys := xs.group(ctx, limit = 8).map(x => x * 2)?
+	return ys, nil
+}
+
+func stageTryType(ctx context.Context, xs []int) error {
+	var ys []string
+	ys = xs.group(ctx, limit = 8).map(x => strconv.Itoa(x))?
+	_ = ys
+	return nil
+}
+
+func stageTupleNoErrorResult(ctx context.Context, xs []int) {
+	ys, err := xs.group(ctx, limit = 8).map(x => x * 2)
+	if err != nil {
+		return
+	}
+	var ints []int = ys
+	_ = ints
+}
+
+func stageThunks(ctx context.Context, tasks []func() (int, error)) ([]int, error) {
+	return tasks.group(ctx, limit = 2).map(t => t()?)
+}
+
+func stageThunksNoErrorResult(ctx context.Context, tasks []func() (int, error)) {
+	rs, err := tasks.group(ctx, limit = 2).map(t => t()?)
+	if err != nil {
+		return
+	}
+	var ints []int = rs
+	_ = ints
+}
+
+func stageErrorInValue(ctx context.Context, xs []int) ([]outcome, error) {
+	return xs.group(ctx, limit = 2).map(x => outcome{v: x})
+}
+
+func stageNested(ctx context.Context, xs, ys []int) ([]int, error) {
+	return xs.group(ctx, limit = 2).map(x => ys.group(ctx, limit = 3).map(y => x * y).sum()?)
+}
+
+func stageSum(ctx context.Context, xs []int) {
+	n, err := xs.group(ctx, limit = 4).map(x => x * 2).sum()
+	if err != nil {
+		return
+	}
+	var total int = n
+	_ = total
+}
+
+func stageAfterSegmentMethods(ctx context.Context, xs []int) {
+	first, e1 := xs.group(ctx, limit = 4).map(x => x * 2).sortBy(x => x).first()
+	if e1 != nil {
+		return
+	}
+	some, e2 := xs.group(ctx, limit = 4).map(x => x * 2).any(x => x > 1)
+	if e2 != nil {
+		return
+	}
+	var found bool = some
+	var most []int
+	var e3 error
+	most, e3 = xs.group(ctx, limit = 4).map(x => x * 2).take(2)
+	if e3 != nil {
+		return
+	}
+	_, _, _ = first, found, most
+}
+
+func stageRange(ctx context.Context, xs []int) error {
+	for y := range xs.group(ctx, limit = 8).map(x => strconv.Itoa(x)) {
+		var s string = y
+		_ = s
+	}
+	return nil
+}
+
+func stageRangeUnordered(ctx context.Context, xs []int) error {
+	for y := range xs.group(ctx, limit = 8).unordered().filter(x => x > 0) {
+		var n int = y
+		_ = n
+	}
+	return nil
+}
+
+func stageRangeChan(ctx context.Context, ch <-chan int) error {
+	for y := range ch.group(ctx, limit = 2).map(x => x + 1) {
+		_ = y
+	}
+	return nil
+}
+
+func stageRangeSeq(ctx context.Context, xs iter.Seq[int]) error {
+	for y := range xs.group(ctx, limit = 2).map(x => x + 1) {
+		_ = y
+	}
+	return nil
+}
+
+func stageRangeNoErrorResult(ctx context.Context, xs []int) {
+	for y := range xs.group /* ERROR "group_needs_error_result" */ (ctx, limit = 2).map(x => x) {
+		_ = y
+	}
+}
+
+func stageRangeTerminal(ctx context.Context, xs []int) error {
+	for y := range xs.group(ctx, limit = 2).map(x => x).sum /* ERROR "may follow group" */ () {
+		_ = y
+	}
+	return nil
+}
+
+func stageRangeTake(ctx context.Context, xs []int) error {
+	for y := range xs.group(ctx, limit = 2).map(x => x).take /* ERROR "may follow group" */ (1) {
+		_ = y
+	}
+	return nil
+}
+
+func stageRangeTwoVariables(ctx context.Context, xs []int) error {
+	for i, y /* ERROR "only one iteration variable" */ := range xs.group(ctx, limit = 2).map(x => x) {
+		_, _ = i, y
+	}
+	return nil
+}
+
+func stageMissingLimit(ctx context.Context, xs []int) {
+	_, _ = xs.group /* ERROR "requires limit" */ (ctx).map(x => x)
+}
+
+func stageNoArguments(xs []int) {
+	_, _ = xs.group /* ERROR "requires a context" */ ().map(x => x)
+}
+
+func stageLimitNotInt(ctx context.Context, xs []int) {
+	_, _ = xs.group(ctx, limit = "8" /* ERROR "as int value" */).map(x => x)
+}
+
+func stageLimitFloat(ctx context.Context, xs []int) {
+	var f float64 = 2
+	_, _ = xs.group(ctx, limit = f /* ERROR "as int value" */).map(x => x)
+}
+
+func stageLimitPositional(ctx context.Context, xs []int) {
+	_, _ = xs.group(ctx, 4 /* ERROR "limit = N" */).map(x => x)
+}
+
+func stageOtherName(ctx context.Context, xs []int) {
+	_, _ = xs.group(ctx, size /* ERROR "named_argument" */ = 4).map(x => x)
+}
+
+func stageThirdArgument(ctx context.Context, xs []int) {
+	_, _ = xs.group(ctx, limit = 4, 1 /* ERROR "too many arguments" */).map(x => x)
+}
+
+func stageNamedContext(ctx context.Context, xs []int) {
+	_, _ = xs.group(c /* ERROR "named_argument" */ = ctx, limit = 4).map(x => x)
+}
+
+func stageBadContext(xs []int) {
+	_, _ = xs.group(0 /* ERROR "context.Context" */, limit = 4).map(x => x)
+}
+
+func stageWithoutSegment(ctx context.Context, xs []int) {
+	_, _ = xs.group /* ERROR "needs map or filter" */ (ctx, limit = 2)
+}
+
+func stageUnorderedWithoutSegment(ctx context.Context, xs []int) {
+	_, _ = xs.group /* ERROR "needs map or filter" */ (ctx, limit = 2).unordered()
+}
+
+func stageSortAfterGroup(ctx context.Context, xs []int) {
+	_, _ = xs.group /* ERROR "needs map or filter" */ (ctx, limit = 2).sortBy(x => x)
+}
+
+func stageTryNoErrorResult(ctx context.Context, xs []int) {
+	_ = xs.group(ctx, limit = 2).map(x => x)? /* ERROR "requires enclosing function to return error" */
+}
+
+func unorderedAfterMap(ctx context.Context, xs []int) {
+	_, _ = xs.group(ctx, limit = 2).map(x => x).unordered /* ERROR "directly follow group" */ ()
+}
+
+func unorderedTwice(ctx context.Context, xs []int) {
+	_, _ = xs.group(ctx, limit = 2).unordered().unordered /* ERROR "directly follow group" */ ().map(x => x)
+}
+
+func unorderedArgument(ctx context.Context, xs []int) {
+	_, _ = xs /* ERROR "wrong number of arguments" */ .group(ctx, limit = 2).unordered(1).map(x => x)
+}
+
+func unorderedBare(xs []int) {
+	_ = xs.unordered /* ERROR "unordered" */ ()
+}
+
+func unorderedOrdinaryChain(xs []int) {
+	_ = xs.map(x => x).unordered /* ERROR "unordered" */ ()
+}
+
+func mapSource(ctx context.Context, m map[string]int) {
+	_ = m.group /* ERROR "undefined" */ (ctx, limit = 2)
+}
+
+func sendOnlySource(ctx context.Context, ch chan<- int) {
+	_ = ch.group /* ERROR "undefined" */ (ctx, limit = 2).map(x => x)
+}
+
+func intSource(ctx context.Context, n int) {
+	_ = n.group /* ERROR "undefined" */ (ctx, limit = 2)
+}
+
+func pointerToArraySource(ctx context.Context, p *[3]int) {
+	_ = p.group /* ERROR "undefined" */ (ctx, limit = 2).map(x => x)
+}
+
+func typeParameterSource[S ~[]int](ctx context.Context, xs S) {
+	_ = xs.group /* ERROR "undefined" */ (ctx, limit = 2).map(x => x)
+}
+
+func pairs() ([]int, error) { return nil, nil }
+
+func optionalChainSource(ctx context.Context) {
+	_ = pairs /* ERROR "multiple-value" */ ()?.group(ctx, limit = 2).map(x => x)
+}
+
+func userMethodNamedLimit(s store) {
+	_ = s.group(limit /* ERROR "named_argument" */ = 2)
+}
+
+func goMeaningStruct(s store) int {
+	return s.group(1)
+}
+
+func goMeaningNamedSlice(t tagged) int {
+	return t.group(2)
+}
+
+func goMeaningMethodExpression(s store) int {
+	return store.group(s, 3)
+}
+
+func stageBlockErrdefer(ctx context.Context, xs []int) ([]int, error) {
+	return xs.group(ctx, limit = 2).map(x => {
+		errdefer /* ERROR "errdefer_needs_error_result" */ plain(x)
+		return x
+	})
+}

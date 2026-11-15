@@ -17,11 +17,6 @@ import (
 	"logos/rt"
 )
 
-// M8-S4 documented limit (SPEC Sec 2.6): only netpoll-backed descriptors
-// wake. An os.File over a blocking descriptor is not registered with the
-// poller (the same class as regular files and cgo calls), so a child
-// blocked in its Read stays blocked after a sibling fails, and the group
-// joins once the read completes.
 func TestLogosGroupNetpollSkipsBlockingDescriptor(t *testing.T) {
 	var fds [2]int
 	if err := syscall.Pipe(fds[:]); err != nil {

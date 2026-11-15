@@ -1,7 +1,5 @@
-joined-return child-done
-q-err: q-fail
-joined-q child-done
-joined-break child-done
-panic: body-boom
-joined-panic child-done
-return-err: child-failed
+ok group-exit-early-return-joins
+ok group-exit-error-propagates-like-q
+ok group-exit-break-joins
+ok group-exit-panic-joins
+ok group-exit-child-failure-overrides-return

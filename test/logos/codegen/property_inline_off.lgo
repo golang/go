@@ -4,10 +4,6 @@ package main
 
 import "fmt"
 
-// M13-S1 control for property_inline.lgo: at -O=0 (-N -l) the same body
-// keeps a CALL to the generated accessor, so the -O=2 absence of a CALL
-// there is the inliner's work and not a lowering that never calls.
-
 type Creature interface {
 	const Name string
 	HP int

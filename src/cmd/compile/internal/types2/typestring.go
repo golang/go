@@ -189,6 +189,10 @@ func (w *typeWriter) typ(typ Type) {
 		w.string("const ")
 		w.typ(t.Elem)
 
+	case *ReadonlyDescendants:
+		w.string("readonly descendants ")
+		w.typ(t.Elem)
+
 	case *LogosTuple: // logos M6-S5 hook: loGo/s tuple `(A, B)` prints in source form.
 		w.byte('(')
 		for i := range t.Len() {

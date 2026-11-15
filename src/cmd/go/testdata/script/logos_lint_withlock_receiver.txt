@@ -1,0 +1,73 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd probe
+! logos lint ./direct
+stderr 'direct.go:11:[0-9]+: \[correctness::withlock_leak\]'
+! logos lint ./paren
+stderr 'paren.go:11:[0-9]+: \[correctness::withlock_leak\]'
+! logos lint ./expression
+stderr 'expression.go:11:[0-9]+: \[correctness::withlock_leak\]'
+logos lint ./synchronous
+! stderr .
+
+-- probe/go.mod --
+module example.com/lockreceiver
+
+go 1.27
+-- probe/direct/direct.go --
+package direct
+
+import "logos/sync"
+
+type Box struct { N int }
+func (b *Box) Increment() { b.N++ }
+
+func Use() {
+	var lock sync.Locked[Box]
+	lock.WithLock(func(b *Box) {
+		go b.Increment()
+	})
+}
+-- probe/paren/paren.go --
+package paren
+
+import "logos/sync"
+
+type Box struct { N int }
+func (b *Box) Increment() { b.N++ }
+
+func Use() {
+	var lock sync.Locked[Box]
+	lock.WithLock(func(b *Box) {
+		go (b).Increment()
+	})
+}
+-- probe/expression/expression.go --
+package expression
+
+import "logos/sync"
+
+type Box struct { N int }
+func (b *Box) Increment() { b.N++ }
+
+func Use() {
+	var lock sync.Locked[Box]
+	lock.WithLock(func(b *Box) {
+		go (*Box).Increment(b)
+	})
+}
+-- probe/synchronous/synchronous.go --
+package synchronous
+
+import "logos/sync"
+
+type Box struct { N int }
+func (b *Box) Increment() { b.N++ }
+
+func Use() {
+	var lock sync.Locked[Box]
+	lock.WithLock(func(b *Box) {
+		b.Increment()
+	})
+}

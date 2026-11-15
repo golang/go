@@ -164,6 +164,9 @@ func (check *Checker) recordDef(id *syntax.Name, obj Object) {
 func (check *Checker) recordUse(id *syntax.Name, obj Object) {
 	assert(id != nil)
 	assert(obj != nil)
+	if _, ok := obj.(*PkgName); !ok {
+		check.logosReservedIdent(id) // logos M1-S3 hook.
+	}
 	if m := check.Uses; m != nil {
 		m[id] = obj
 	}

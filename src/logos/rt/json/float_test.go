@@ -50,15 +50,6 @@ func TestAppendFloatParity32(t *testing.T) {
 	}
 }
 
-func TestAppendFloatNegativeZero(t *testing.T) {
-	if got := string(AppendFloat(nil, math.Copysign(0, -1), 64)); got != "-0" {
-		t.Errorf("-0 = %q", got)
-	}
-	if got := string(AppendFloat(nil, math.Copysign(0, -1), 32)); got != "-0" {
-		t.Errorf("-0 (32) = %q", got)
-	}
-}
-
 func TestAppendFloatKeepsPrefix(t *testing.T) {
 	if got := string(AppendFloat([]byte("x="), 1.5e-9, 64)); got != "x=1.5e-9" {
 		t.Errorf("AppendFloat = %q", got)

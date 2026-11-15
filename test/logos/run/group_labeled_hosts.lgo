@@ -1,0 +1,539 @@
+// run
+
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"time"
+)
+
+const waitBound = 5 * time.Second
+
+type env struct {
+	in    chan int
+	rows  chan []int
+	chain chan chan int
+	out   int
+	calls int
+}
+
+func tick(e *env, v int) int {
+	e.calls++
+	return v
+}
+
+func childRangeSlice(ctx context.Context, e *env) error {
+	go group (ctx) {
+		go {
+		L:
+			for _, v := range <-e.rows {
+				if v == 2 {
+					continue L
+				}
+				if v == 4 {
+					break L
+				}
+				e.out += v
+			}
+		}
+	}
+	return nil
+}
+
+func childRangeSliceGoto(ctx context.Context, e *env) error {
+	go group (ctx) {
+		go {
+			pass := 0
+		L:
+			for _, v := range <-e.rows {
+				if v == 2 {
+					continue L
+				}
+				if v == 4 {
+					break L
+				}
+				e.out += v
+			}
+			pass++
+			if pass < 2 {
+				goto L
+			}
+		}
+	}
+	return nil
+}
+
+func childRangeChan(ctx context.Context, e *env) error {
+	go group (ctx) {
+		go {
+		L:
+			for v := range <-e.chain {
+				if v == 2 {
+					continue L
+				}
+				if v == 4 {
+					break L
+				}
+				e.out += v
+			}
+		}
+	}
+	return nil
+}
+
+func childRangeChanGoto(ctx context.Context, e *env) error {
+	go group (ctx) {
+		go {
+			pass := 0
+		L:
+			for v := range <-e.chain {
+				if v == 2 {
+					continue L
+				}
+				if v == 4 {
+					break L
+				}
+				e.out += v
+			}
+			pass++
+			if pass < 2 {
+				goto L
+			}
+		}
+	}
+	return nil
+}
+
+func childForPost(ctx context.Context, e *env) error {
+	go group (ctx) {
+		go {
+			i := 0
+		L:
+			for i = 0; i < 20; i += <-e.in {
+				if i == 2 {
+					continue L
+				}
+				if i >= 6 {
+					break L
+				}
+				e.out += i
+			}
+		}
+	}
+	return nil
+}
+
+func childForPostGoto(ctx context.Context, e *env) error {
+	go group (ctx) {
+		go {
+			i := 0
+			pass := 0
+		L:
+			for i = 0; i < 20; i += <-e.in {
+				if i == 2 {
+					continue L
+				}
+				if i >= 6 {
+					break L
+				}
+				e.out += i
+			}
+			pass++
+			if pass < 2 {
+				goto L
+			}
+		}
+	}
+	return nil
+}
+
+func childSwitchInit(ctx context.Context, e *env) error {
+	go group (ctx) {
+		go {
+		L:
+			switch x := tick(e, 1); <-e.in + x {
+			case 3:
+				e.out += 3
+				if e.calls == 1 {
+					break L
+				}
+				e.out += 1000
+			default:
+				e.out += 100
+			}
+			e.out += 10
+		}
+	}
+	return nil
+}
+
+func childSwitchInitGoto(ctx context.Context, e *env) error {
+	go group (ctx) {
+		go {
+			pass := 0
+		L:
+			switch x := tick(e, 1); <-e.in + x {
+			case 3:
+				e.out += 3
+				if e.calls == 1 {
+					break L
+				}
+				e.out += 1000
+			default:
+				e.out += 100
+			}
+			e.out += 10
+			pass++
+			if pass < 2 {
+				goto L
+			}
+		}
+	}
+	return nil
+}
+
+func childSwitchCases(ctx context.Context, e *env) error {
+	go group (ctx) {
+		go {
+		L:
+			switch {
+			case <-e.in == 1:
+				e.out += 1
+				break L
+			default:
+				e.out += 100
+			}
+			e.out += 10
+		}
+	}
+	return nil
+}
+
+func childSwitchCasesGoto(ctx context.Context, e *env) error {
+	go group (ctx) {
+		go {
+			pass := 0
+		L:
+			switch {
+			case <-e.in == 1:
+				e.out += 1
+				break L
+			default:
+				e.out += 100
+			}
+			e.out += 10
+			pass++
+			if pass < 2 {
+				goto L
+			}
+		}
+	}
+	return nil
+}
+
+func childIfInitGoto(ctx context.Context, e *env) error {
+	go group (ctx) {
+		go {
+			pass := 0
+		L:
+			if v := tick(e, 1); <-e.in > v {
+				e.out += 1
+			} else {
+				e.out += 100
+			}
+			pass++
+			if pass < 2 {
+				goto L
+			}
+		}
+	}
+	return nil
+}
+
+func childIfElseGoto(ctx context.Context, e *env) error {
+	go group (ctx) {
+		go {
+			pass := 0
+		L:
+			if v := tick(e, 1); <-e.in == v {
+				e.out += 1
+			} else if w := tick(e, 2); <-e.in == w {
+				e.out += 10
+			} else {
+				e.out += 100
+			}
+			pass++
+			if pass < 2 {
+				goto L
+			}
+		}
+	}
+	return nil
+}
+
+func segRangeSlice(ctx context.Context, e *env) error {
+	got, err := []int{0}.group(ctx, limit = 1).map(x => {
+		t := x
+	L:
+		for _, v := range <-e.rows {
+			if v == 2 {
+				continue L
+			}
+			if v == 4 {
+				break L
+			}
+			t += v
+		}
+		return t
+	})
+	if err != nil {
+		return err
+	}
+	e.out = got[0]
+	return nil
+}
+
+func segRangeSliceGoto(ctx context.Context, e *env) error {
+	got, err := []int{0}.group(ctx, limit = 1).map(x => {
+		t := x
+		pass := 0
+	L:
+		for _, v := range <-e.rows {
+			if v == 2 {
+				continue L
+			}
+			if v == 4 {
+				break L
+			}
+			t += v
+		}
+		pass++
+		if pass < 2 {
+			goto L
+		}
+		return t
+	})
+	if err != nil {
+		return err
+	}
+	e.out = got[0]
+	return nil
+}
+
+func segForPost(ctx context.Context, e *env) error {
+	got, err := []int{0}.group(ctx, limit = 1).map(x => {
+		t := x
+		i := 0
+	L:
+		for i = 0; i < 20; i += <-e.in {
+			if i == 2 {
+				continue L
+			}
+			if i >= 6 {
+				break L
+			}
+			t += i
+		}
+		return t
+	})
+	if err != nil {
+		return err
+	}
+	e.out = got[0]
+	return nil
+}
+
+func segForPostGoto(ctx context.Context, e *env) error {
+	got, err := []int{0}.group(ctx, limit = 1).map(x => {
+		t := x
+		i := 0
+		pass := 0
+	L:
+		for i = 0; i < 20; i += <-e.in {
+			if i == 2 {
+				continue L
+			}
+			if i >= 6 {
+				break L
+			}
+			t += i
+		}
+		pass++
+		if pass < 2 {
+			goto L
+		}
+		return t
+	})
+	if err != nil {
+		return err
+	}
+	e.out = got[0]
+	return nil
+}
+
+func segSwitchInit(ctx context.Context, e *env) error {
+	got, err := []int{0}.group(ctx, limit = 1).map(x => {
+		t := x
+	L:
+		switch y := x + 1; <-e.in + y {
+		case 3:
+			t += 3
+			if y == 1 {
+				break L
+			}
+			t += 1000
+		default:
+			t += 100
+		}
+		t += 10
+		return t
+	})
+	if err != nil {
+		return err
+	}
+	e.out = got[0]
+	return nil
+}
+
+func segSwitchInitGoto(ctx context.Context, e *env) error {
+	got, err := []int{0}.group(ctx, limit = 1).map(x => {
+		t := x
+		pass := 0
+	L:
+		switch y := x + 1; <-e.in + y {
+		case 3:
+			t += 3
+			if y == 1 {
+				break L
+			}
+			t += 1000
+		default:
+			t += 100
+		}
+		t += 10
+		pass++
+		if pass < 2 {
+			goto L
+		}
+		return t
+	})
+	if err != nil {
+		return err
+	}
+	e.out = got[0]
+	return nil
+}
+
+func segIfInitGoto(ctx context.Context, e *env) error {
+	got, err := []int{0}.group(ctx, limit = 1).map(x => {
+		t := x
+		pass := 0
+	L:
+		if v := x + 1; <-e.in > v {
+			t += 1
+		} else {
+			t += 100
+		}
+		pass++
+		if pass < 2 {
+			goto L
+		}
+		return t
+	})
+	if err != nil {
+		return err
+	}
+	e.out = got[0]
+	return nil
+}
+
+type cell struct {
+	name   string
+	run    func(ctx context.Context, e *env) error
+	feed   []int
+	rows   [][]int
+	inners [][]int
+	want   int
+	left   int
+	calls  int
+}
+
+func cells() []cell {
+	five := []int{1, 2, 3, 4, 5}
+	return []cell{
+		{name: "child-range-slice", run: childRangeSlice, rows: [][]int{five}, want: 4},
+		{name: "child-range-slice-goto", run: childRangeSliceGoto, rows: [][]int{five, five}, want: 8},
+		{name: "child-range-chan", run: childRangeChan, inners: [][]int{five}, want: 4},
+		{name: "child-range-chan-goto", run: childRangeChanGoto, inners: [][]int{five, five}, want: 8},
+		{name: "child-for-post", run: childForPost, feed: []int{1, 1, 2, 2}, want: 5},
+		{name: "child-for-post-goto", run: childForPostGoto, feed: []int{1, 1, 2, 2, 1, 1, 2, 2}, want: 10},
+		{name: "child-switch-init", run: childSwitchInit, feed: []int{2}, want: 13, calls: 1},
+		{name: "child-switch-init-goto", run: childSwitchInitGoto, feed: []int{2, 9}, want: 3 + 10 + 100 + 10, calls: 2},
+		{name: "child-switch-cases", run: childSwitchCases, feed: []int{1}, want: 11},
+		{name: "child-switch-cases-goto", run: childSwitchCasesGoto, feed: []int{1, 5}, want: 1 + 10 + 100 + 10},
+		{name: "child-if-init-goto", run: childIfInitGoto, feed: []int{5, 0}, want: 101, calls: 2},
+		{name: "child-if-else-goto", run: childIfElseGoto, feed: []int{1, 0, 2}, want: 11, calls: 3},
+		{name: "seg-range-slice", run: segRangeSlice, rows: [][]int{five}, want: 4},
+		{name: "seg-range-slice-goto", run: segRangeSliceGoto, rows: [][]int{five, five}, want: 8},
+		{name: "seg-for-post", run: segForPost, feed: []int{1, 1, 2, 2}, want: 5},
+		{name: "seg-for-post-goto", run: segForPostGoto, feed: []int{1, 1, 2, 2, 1, 1, 2, 2}, want: 10},
+		{name: "seg-switch-init", run: segSwitchInit, feed: []int{2}, want: 3 + 10},
+		{name: "seg-switch-init-goto", run: segSwitchInitGoto, feed: []int{2, 9}, want: 3 + 10 + 100 + 10},
+		{name: "seg-if-init-goto", run: segIfInitGoto, feed: []int{5, 0}, want: 101},
+	}
+}
+
+//logos:allow(correctness::unbounded_channel_op)
+func exercise(c cell) string {
+	e := &env{in: make(chan int, len(c.feed)), rows: make(chan []int, len(c.rows)), chain: make(chan chan int, len(c.inners))}
+	for _, vals := range c.inners {
+		inner := make(chan int, len(vals))
+		for _, v := range vals {
+			inner <- v
+		}
+		close(inner)
+		e.chain <- inner
+	}
+	for _, r := range c.rows {
+		e.rows <- r
+	}
+	for _, v := range c.feed {
+		e.in <- v
+	}
+	watchdog := time.AfterFunc(waitBound, func() {
+		fmt.Printf("FAIL %s: group did not return within the bound\n", c.name)
+		os.Exit(1)
+	})
+	err := c.run(context.Background(), e)
+	watchdog.Stop()
+	if err != nil {
+		return fmt.Sprintf("got error %v", err)
+	}
+	if e.out != c.want {
+		return fmt.Sprintf("got %d want %d", e.out, c.want)
+	}
+	if e.calls != c.calls {
+		return fmt.Sprintf("got %d evaluations want %d", e.calls, c.calls)
+	}
+	if len(e.in) != c.left || len(e.rows) != 0 {
+		return fmt.Sprintf("got %d and %d values left want %d and 0", len(e.in), len(e.rows), c.left)
+	}
+	return ""
+}
+
+func main() {
+	failed := false
+	for _, c := range cells() {
+		if problem := exercise(c); problem != "" {
+			fmt.Printf("FAIL %s: %s\n", c.name, problem)
+			failed = true
+			continue
+		}
+		fmt.Printf("ok %s\n", c.name)
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

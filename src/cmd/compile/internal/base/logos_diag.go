@@ -15,28 +15,19 @@ import (
 	"cmd/internal/src"
 )
 
-// This file holds the loGo/s diagnostic sink (SPEC Sec 16). Lint findings
-// and every ErrorfAt or WarnfAt diagnostic print as text, or as one JSON
-// object per line when -logos.json is set. print.go carries only the hook
-// lines.
-
-// LogosFix is one autofix candidate of a diagnostic.
 type LogosFix struct {
 	Description      string
 	Replacement      string
 	InsertBeforeLine int
+	Note             string
 }
 
-// LogosDiag is a lint finding with its severity already resolved.
 type LogosDiag struct {
-	// Rule is the rule ID, "group::name".
-	Rule string
-	// Severity is "forbid", "deny", or "warn". Anything but "warn" fails
-	// the compile.
+	Rule     string
 	Severity string
-	// Pos and End bound the flagged source; an unknown End means Pos.
 	Pos, End src.XPos
 	Message  string
+	Note     string
 
 	OriginExpr   string
 	OriginLine   int
@@ -44,15 +35,12 @@ type LogosDiag struct {
 	Fixes        []LogosFix
 }
 
-// logosMsg is the loGo/s part of a queued errorMsg.
 type logosMsg struct {
-	raw  string     // the message without its position prefix
-	warn bool       // a warning, not an error
-	diag *LogosDiag // the structured finding, nil for ErrorfAt and WarnfAt
+	raw  string
+	warn bool
+	diag *LogosDiag
 }
 
-// LogosReport queues a lint finding. It counts as an error unless its
-// severity is "warn".
 func LogosReport(d LogosDiag) {
 	text := "[" + d.Rule + "] " + d.Message
 	warn := d.Severity == "warn"
@@ -73,14 +61,10 @@ func LogosReport(d LogosDiag) {
 	}
 }
 
-// logosMarkWarn marks the last queued message, just added by WarnfAt, as a
-// warning.
 func logosMarkWarn() {
 	errorMsgs[len(errorMsgs)-1].logos.warn = true
 }
 
-// logosText returns the text FlushErrors prints for m: the queued text, or
-// its JSON record under -logos.json.
 func logosText(m errorMsg) string {
 	if !LogosJSON {
 		return m.msg
@@ -88,8 +72,6 @@ func logosText(m errorMsg) string {
 	return logosRecord(m) + "\n"
 }
 
-// printTooManyErrors prints the line that ends an error flood: text, or a
-// JSON record under -logos.json.
 func printTooManyErrors(pos src.XPos) {
 	if !LogosJSON {
 		fmt.Printf("%v: too many errors\n", FmtPos(pos))
@@ -99,7 +81,6 @@ func printTooManyErrors(pos src.XPos) {
 	fmt.Println(logosRecord(m))
 }
 
-// jsonSpan is the span object of SPEC Sec 16.3.
 type jsonSpan struct {
 	StartLine  int `json:"start_line"`
 	StartCol   int `json:"start_col"`
@@ -109,21 +90,19 @@ type jsonSpan struct {
 	ByteLen    int `json:"byte_len"`
 }
 
-// jsonProvenance is the provenance object of SPEC Sec 16.4.
 type jsonProvenance struct {
 	OriginExpr   string `json:"origin_expr"`
 	OriginLine   int    `json:"origin_line"`
 	InferredType string `json:"inferred_type"`
 }
 
-// jsonFix is an autofix object of SPEC Sec 16.5.
 type jsonFix struct {
 	Description      string `json:"description"`
 	Replacement      string `json:"replacement"`
 	InsertBeforeLine int    `json:"insert_before_line,omitzero"`
+	Note             string `json:"note,omitzero"`
 }
 
-// jsonRecord is one diagnostic line of SPEC Sec 16.2.
 type jsonRecord struct {
 	SchemaVersion     string         `json:"schema_version"`
 	Severity          string         `json:"severity"`
@@ -131,17 +110,13 @@ type jsonRecord struct {
 	File              string         `json:"file"`
 	Span              jsonSpan       `json:"span"`
 	Message           string         `json:"message"`
+	Note              string         `json:"note,omitzero"`
 	Provenance        jsonProvenance `json:"provenance"`
 	AutofixCandidates []jsonFix      `json:"autofix_candidates"`
 }
 
-// ruleTag matches the "[group::name] " prefix of a diagnostic that names its
-// rule.
 var ruleTag = regexp.MustCompile(`^\[([a-z]+::[a-z_]+)\] `)
 
-// logosRecord renders m as one JSON object. It uses encoding/json, not
-// encoding/json/v2: the bootstrap toolchain builds this package, and v2 is
-// an experiment there.
 func logosRecord(m errorMsg) string {
 	rec := jsonRecord{
 		SchemaVersion:     "1.0",
@@ -149,6 +124,7 @@ func logosRecord(m errorMsg) string {
 	}
 	if d := m.logos.diag; d != nil {
 		rec.RuleID, rec.Severity, rec.Message = d.Rule, d.Severity, m.logos.raw
+		rec.Note = d.Note
 		rec.Provenance = jsonProvenance{OriginExpr: d.OriginExpr, OriginLine: d.OriginLine, InferredType: d.InferredType}
 		for _, f := range d.Fixes {
 			rec.AutofixCandidates = append(rec.AutofixCandidates, jsonFix(f))
@@ -173,7 +149,6 @@ func logosRecord(m errorMsg) string {
 	return strings.TrimSuffix(out.String(), "\n")
 }
 
-// splitRuleTag splits a leading "[group::name] " off msg.
 func splitRuleTag(msg string) (rule, rest string) {
 	m := ruleTag.FindStringSubmatch(msg)
 	if m == nil {
@@ -182,9 +157,6 @@ func splitRuleTag(msg string) (rule, rest string) {
 	return m[1], msg[len(m[0]):]
 }
 
-// compilerSeverity returns the severity of a compiler error: forbid for an
-// error of a correctness or concurrency rule, and deny for every other
-// error, including each Go compiler error.
 func compilerSeverity(rule string) string {
 	if strings.HasPrefix(rule, "correctness::") || strings.HasPrefix(rule, "concurrency::") {
 		return "forbid"
@@ -192,7 +164,6 @@ func compilerSeverity(rule string) string {
 	return "deny"
 }
 
-// logosFile returns the file name text diagnostics print for pos.
 func logosFile(pos src.XPos) string {
 	if !pos.IsKnown() || Ctxt == nil {
 		return ""
@@ -200,9 +171,6 @@ func logosFile(pos src.XPos) string {
 	return Ctxt.OutermostPos(pos).RelFilename()
 }
 
-// logosSpan returns the span of pos through end. Lines and columns match
-// the text diagnostic; the byte range is measured in the file on disk, and
-// is zero when the file cannot be read.
 func logosSpan(pos, end src.XPos) jsonSpan {
 	if !pos.IsKnown() || Ctxt == nil {
 		return jsonSpan{}
@@ -223,12 +191,8 @@ func logosSpan(pos, end src.XPos) jsonSpan {
 	return s
 }
 
-// lineStarts caches the byte offset of each line start of the files named
-// in diagnostics.
 var lineStarts = make(map[string][]int)
 
-// byteOffset returns the byte offset of line, col (both 1-based) in the
-// named file.
 func byteOffset(name string, line, col uint) (int, bool) {
 	starts, ok := lineStarts[name]
 	if !ok {
@@ -241,8 +205,6 @@ func byteOffset(name string, line, col uint) (int, bool) {
 	return starts[line-1] + int(col) - 1, true
 }
 
-// readLineStarts returns the offset of every line start of the named file,
-// or nil when it cannot be read.
 func readLineStarts(name string) []int {
 	data, err := os.ReadFile(name)
 	if err != nil {

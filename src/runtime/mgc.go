@@ -173,7 +173,7 @@ const (
 //
 //go:linkname heapObjectsCanMove
 func heapObjectsCanMove() bool {
-	return logosHeapObjectsCanMove()
+	return false
 }
 
 func gcinit() {
@@ -186,7 +186,7 @@ func gcinit() {
 	// Initialize GC pacer state.
 	// Use the environment variable GOGC for the initial gcPercent value.
 	// Use the environment variable GOMEMLIMIT for the initial memoryLimit value.
-	gcController.init(logosGCInit(readGOGC(), readGOMEMLIMIT()))
+	gcController.init(readGOGC(), readGOMEMLIMIT())
 
 	// Set up the cleanup block ptr mask.
 	for i := range cleanupBlockPtrMask {
@@ -216,9 +216,6 @@ func gcenable() {
 	<-c
 	<-c
 	memstats.enablegc = true // now that runtime is initialized, GC is okay
-	// Start card recording for amd64 GreenTea builds run without -gc or
-	// under -gc=greentea; other modes stay non-generational.
-	logosGenEnable()
 }
 
 // Garbage collector phase.
@@ -241,8 +238,7 @@ var gcphase uint32
 //go:linkname writeBarrier
 var writeBarrier struct {
 	enabled bool    // compiler emits a check of this before calling write barrier
-	cards   bool    // pointer stores record their slots for the card table on amd64 GreenTea
-	pad     [2]byte // compiler uses 32-bit load for "enabled" field
+	pad     [3]byte // compiler uses 32-bit load for "enabled" field
 	alignme uint64  // guarantee alignment so that compiler can use a 32 or 64-bit load
 }
 
@@ -323,7 +319,7 @@ func pollFractionalWorkerExit() bool {
 	selfTime := p.gcFractionalMarkTime.Load() + (now - p.gcMarkWorkerStartTime)
 	// Add some slack to the utilization goal so that the
 	// fractional worker isn't behind again the instant it exits.
-	return float64(selfTime)/float64(delta) > 1.2*gcController.fractionalUtilizationGoal.Load()
+	return float64(selfTime)/float64(delta) > 1.2*gcController.fractionalUtilizationGoal
 }
 
 var work workType
@@ -711,13 +707,10 @@ func (t gcTrigger) test() bool {
 	if !memstats.enablegc || panicking.Load() != 0 || gcphase != _GCoff {
 		return false
 	}
-	if logosGCRefuses(t) {
-		return false
-	}
 	switch t.kind {
 	case gcTriggerHeap:
 		trigger, _ := gcController.trigger()
-		return gcController.heapLive.Load() >= logosGenHeapTrigger(trigger)
+		return gcController.heapLive.Load() >= trigger
 	case gcTriggerTime:
 		if gcController.gcPercent.Load() < 0 {
 			return false
@@ -858,11 +851,6 @@ func gcStart(trigger gcTrigger) {
 	systemstack(func() {
 		finishsweep_m()
 	})
-	logosGenBeginCycle(trigger)
-	// Immix O4: flip to a clean active dirty table. World stopped (after
-	// stopTheWorldWithSema above), so no barrier is in flight — lossless.
-	// Incoming table was cleared at the previous termination.
-	logosImmixFlipDirtyEpoch()
 
 	// clearpools before we start the GC. If we wait the memory will not be
 	// reclaimed until the next GC cycle.
@@ -907,7 +895,6 @@ func gcStart(trigger gcTrigger) {
 	// allocations are blocked until assists can
 	// happen, we want to enable assists as early as
 	// possible.
-	logosGenSettle()
 	setGCPhase(_GCmark)
 
 	gcBgMarkPrepare() // Must happen before assists are enabled.
@@ -919,13 +906,6 @@ func gcStart(trigger gcTrigger) {
 	// the tiny block on every allocation from it, which
 	// would slow down the tiny allocator.
 	gcMarkTinyAllocs()
-	logosGenMarkCards()
-
-	// The zgc hook finishes in-flight relocation, rewrites every
-	// reachable slot, releases completed pages, flips the good color,
-	// and snapshots the stacks before marking begins. The world is
-	// stopped.
-	zgcGCStartHook()
 
 	// At this point all Ps have enabled the write
 	// barrier, thus maintaining the no white to
@@ -1409,12 +1389,6 @@ func gcMarkTermination(stw worldStop) {
 		// before continuing.
 	})
 
-	// The zgc hook opens the relocation phase: it retires the previous
-	// generation, selects and registers pages, fixes the roots into the
-	// relocation set, flips the good color, and starts the background
-	// workers. No object copying happens in the pause.
-	zgcMarkTerminationHook()
-
 	var stwSwept bool
 	systemstack(func() {
 		work.heap2 = work.bytesMarked
@@ -1424,13 +1398,6 @@ func gcMarkTermination(stw worldStop) {
 		if debug.checkfinalizers > 0 {
 			checkFinalizersAndCleanups()
 		}
-		logosGenEndCycle()
-		logosMovingMarkTermination()
-		// Immix O4: selection has read the active dirty plane; clear the
-		// incoming table for exactly the previous cycle's dirtied blocks.
-		// Still STW (world restarts below), bounded work, no whole-heap
-		// scan. Stale dirt would only over-pin (underselect), never free.
-		logosImmixClearIncomingDirty()
 
 		// marking is complete so we can turn the write barrier off
 		setGCPhase(_GCoff)
@@ -1683,15 +1650,6 @@ func gcMarkTermination(stw worldStop) {
 		cn := max(int64(cq)-int64(ce), 0)
 
 		println("checkfinalizers: queue:", fn, "finalizers +", cn, "cleanups")
-	}
-
-	// Set any arena chunks that were deferred to fault.
-	lock(&userArenaState.lock)
-	faultList := userArenaState.fault
-	userArenaState.fault = nil
-	unlock(&userArenaState.lock)
-	for _, lc := range faultList {
-		lc.mspan.setUserArenaChunkToFault()
 	}
 
 	// Enable huge pages on some metadata if we cross a heap threshold.
@@ -2038,7 +1996,6 @@ func gcMark(startTime int64) {
 		// ensured all reachable objects were marked, all of
 		// these must be pointers to black objects. Hence we
 		// can just discard the write barrier buffer.
-		logosGenDrainCards(p)
 		if debug.gccheckmark > 0 {
 			// For debugging, flush the buffer and make
 			// sure it really was all marked.
@@ -2086,7 +2043,6 @@ func gcMark(startTime int64) {
 	}
 
 	// Reset controller state.
-	work.bytesMarked += logosGenMatureBytes()
 	gcController.resetLive(work.bytesMarked)
 }
 
@@ -2113,7 +2069,6 @@ func gcSweep(mode gcMode) bool {
 	mheap_.reclaimIndex.Store(0)
 	mheap_.reclaimCredit.Store(0)
 	unlock(&mheap_.lock)
-	zgcRefreshDeferredSpans()
 
 	sweep.centralIndex.clear()
 
@@ -2244,6 +2199,7 @@ func clearpools() {
 		d.link = nil
 	}
 	sched.deferpool = nil
+	logosClearDeferTryPoolLocked()
 	unlock(&sched.deferlock)
 }
 

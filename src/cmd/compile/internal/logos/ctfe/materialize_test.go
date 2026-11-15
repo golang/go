@@ -34,7 +34,7 @@ func TestMaterializeSliceHeaderPlain(t *testing.T) {
 	if v.SliceNeedsBacking() {
 		t.Fatalf("plain literal slice must not need backing emission")
 	}
-	vis := v.SliceVisible()
+	vis := v.sliceVisible()
 	if len(vis) != 3 || vis[0].Int64() != 1 || vis[2].Int64() != 3 {
 		t.Fatalf("visible elements mismatch")
 	}
@@ -52,11 +52,11 @@ func TestMaterializeSliceHeaderWindow(t *testing.T) {
 	if !v.SliceNeedsBacking() {
 		t.Fatalf("sliced window with spare capacity must need backing emission")
 	}
-	acc := v.SliceAccessible()
+	acc := v.sliceAccessible()
 	if len(acc) != 3 || acc[0].Int64() != 2 || acc[2].Int64() != 4 {
 		t.Fatalf("accessible window must preserve tail values, got %d elements", len(acc))
 	}
-	vis := v.SliceVisible()
+	vis := v.sliceVisible()
 	if len(vis) != 2 || vis[0].Int64() != 2 || vis[1].Int64() != 3 {
 		t.Fatalf("visible window mismatch")
 	}
@@ -72,10 +72,10 @@ func TestMaterializeSliceWindowBounds(t *testing.T) {
 		typ:   &Type{Kind: KSlice, Elem: &Type{Kind: KInt}},
 		slice: &sliceVal{backing: &store, lo: 0, length: 1, cap_: 9},
 	}
-	if v.SliceAccessible() != nil {
+	if v.sliceAccessible() != nil {
 		t.Fatalf("out-of-range accessible window must be nil")
 	}
-	if v.SliceVisible() == nil {
+	if v.sliceVisible() == nil {
 		t.Fatalf("in-range visible window must not be nil")
 	}
 }

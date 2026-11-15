@@ -1,11 +1,5 @@
 // errorcheck -0
 
-// perf::large_backing_array_pin on a Go package (R-U1): logos lint runs the
-// rule inside escape analysis of Go code, so the Go twin of the loGo/s attack
-// file reports the same slices. The limit is 65536 bytes: one byte below and
-// exactly at it do not warn, one byte above does. A slice that covers the
-// whole backing store is the allocation itself and does not warn.
-
 package p
 
 type holder struct {
@@ -32,7 +26,7 @@ func arrayAt() []byte {
 
 func arrayAbove() []byte {
 	var buf [65537]byte
-	return buf[:10] // ERROR "\[perf::large_backing_array_pin\] subslice of a 65537-byte backing array escapes"
+	return buf[:10] // ERROR "\[perf::large_backing_array_pin\]"
 }
 
 func wordsBelow() []int64 {
@@ -47,7 +41,7 @@ func wordsAt() []int64 {
 
 func wordsAbove() []int64 {
 	var buf [8193]int64
-	return buf[:10] // ERROR "subslice of a 65544-byte backing array escapes"
+	return buf[:10] // ERROR "\[perf::large_backing_array_pin\]"
 }
 
 func makeBelow() []byte {
@@ -62,23 +56,23 @@ func makeAt() []byte {
 
 func makeAbove() []byte {
 	b := make([]byte, 65537)
-	return b[:10] // ERROR "subslice of a 65537-byte backing array escapes"
+	return b[:10] // ERROR "\[perf::large_backing_array_pin\]"
 }
 
 func makeCapAbove() []byte {
 	b := make([]byte, 0, 65537)
-	return b[:10] // ERROR "subslice of a 65537-byte backing array escapes"
+	return b[:10] // ERROR "\[perf::large_backing_array_pin\]"
 }
 
 func makeConstSize() []byte {
 	const n = 1 << 17
 	b := make([]byte, n)
-	return b[:10] // ERROR "subslice of a 131072-byte backing array escapes"
+	return b[:10] // ERROR "\[perf::large_backing_array_pin\]"
 }
 
 func newArrayAbove() []byte {
 	p := new([65537]byte)
-	return p[:10] // ERROR "subslice of a 65537-byte backing array escapes"
+	return p[:10] // ERROR "\[perf::large_backing_array_pin\]"
 }
 
 func newArrayAt() []byte {
@@ -87,7 +81,7 @@ func newArrayAt() []byte {
 }
 
 func arrayPointerParam(p *[65537]byte) []byte {
-	return p[:10] // ERROR "subslice of a 65537-byte backing array escapes"
+	return p[:10] // ERROR "\[perf::large_backing_array_pin\]"
 }
 
 func arrayPointerParamAt(p *[65536]byte) []byte {
@@ -97,43 +91,43 @@ func arrayPointerParamAt(p *[65536]byte) []byte {
 func resliced() []byte {
 	var buf [65537]byte
 	b := buf[:]
-	return b[:10] // ERROR "subslice of a 65537-byte backing array escapes"
+	return b[:10] // ERROR "\[perf::large_backing_array_pin\]"
 }
 
 func dynamicBound(n int) []byte {
 	var buf [65537]byte
-	return buf[:n] // ERROR "subslice of a 65537-byte backing array escapes"
+	return buf[:n] // ERROR "\[perf::large_backing_array_pin\]"
 }
 
 func lowBound(n int) []byte {
 	var buf [65537]byte
-	return buf[n:] // ERROR "subslice of a 65537-byte backing array escapes"
+	return buf[n:] // ERROR "\[perf::large_backing_array_pin\]"
 }
 
 func threeIndex() []byte {
 	var buf [65537]byte
-	return buf[:10:10] // ERROR "subslice of a 65537-byte backing array escapes"
+	return buf[:10:10] // ERROR "\[perf::large_backing_array_pin\]"
 }
 
 func storedGlobal() {
 	var buf [65537]byte
-	sinkBytes = buf[:10] // ERROR "subslice of a 65537-byte backing array escapes"
+	sinkBytes = buf[:10] // ERROR "\[perf::large_backing_array_pin\]"
 }
 
 func passedToLeakingParam() {
 	var buf [65537]byte
-	keep(buf[:10]) // ERROR "subslice of a 65537-byte backing array escapes"
+	keep(buf[:10]) // ERROR "\[perf::large_backing_array_pin\]"
 }
 
 func sentOnChannel(ch chan []byte) {
 	var buf [65537]byte
 	//logos:allow(correctness::unbounded_channel_op)
-	ch <- buf[:10] // ERROR "subslice of a 65537-byte backing array escapes"
+	ch <- buf[:10] // ERROR "\[perf::large_backing_array_pin\]"
 }
 
 func storedInParameter(h *holder) {
 	var buf [65537]byte
-	h.b = buf[:10] // ERROR "subslice of a 65537-byte backing array escapes"
+	h.b = buf[:10] // ERROR "\[perf::large_backing_array_pin\]"
 }
 
 func substringBelow() string {
@@ -151,24 +145,24 @@ func substringAt() string {
 func substringAbove() string {
 	var buf [65537]byte
 	s := string(buf[:])
-	return s[:10] // ERROR "\[perf::large_backing_array_pin\] substring of a 65537-byte backing string escapes"
+	return s[:10] // ERROR "\[perf::large_backing_array_pin\]"
 }
 
 func substringOfMade() string {
 	s := string(make([]byte, 1<<17))
-	return s[:10] // ERROR "substring of a 131072-byte backing string escapes"
+	return s[:10] // ERROR "\[perf::large_backing_array_pin\]"
 }
 
 func substringStored() {
 	var buf [65537]byte
 	s := string(buf[:])
-	sinkString = s[2:12] // ERROR "substring of a 65537-byte backing string escapes"
+	sinkString = s[2:12] // ERROR "\[perf::large_backing_array_pin\]"
 }
 
 func substringOfBoundedConversion() string {
 	var buf [65537]byte
 	s := string(buf[:65537])
-	return s[1:] // ERROR "substring of a 65537-byte backing string escapes"
+	return s[1:] // ERROR "\[perf::large_backing_array_pin\]"
 }
 
 func substringOfPartial() string {

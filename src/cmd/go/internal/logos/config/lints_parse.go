@@ -6,20 +6,6 @@ package config
 
 import "strconv"
 
-// lintsOwner returns the table that owns a [lints] key: "lints" for a group
-// key, "lints.thresholds" for a threshold key, and "" for any other key.
-func lintsOwner(key string) string {
-	switch {
-	case isLintGroup(key):
-		return "lints"
-	case isLintThreshold(key):
-		return "lints.thresholds"
-	}
-	return ""
-}
-
-// assignLintGroup validates and stores one group severity. A group that
-// defaults to forbid cannot be set to anything else.
 func (p *parser) assignLintGroup(group, s string, valStart int) error {
 	switch s {
 	case "forbid", "deny", "warn", "allow":
@@ -36,12 +22,10 @@ func (p *parser) assignLintGroup(group, s string, valStart int) error {
 	return nil
 }
 
-// parseIntValue parses the positive decimal integer of a [lints.thresholds]
-// key. The cursor is at the value.
 func (p *parser) parseIntValue(key string, valStart int) error {
 	c := p.peek()
 	if !isBareChar(c) {
-		return p.intValueError(key, valStart, c)
+		return p.scalarValueError(key, valStart, "integer")
 	}
 	tok, start := p.readBare()
 	if classifyBare(tok) != bareInt {
@@ -58,15 +42,20 @@ func (p *parser) parseIntValue(key string, valStart int) error {
 	return nil
 }
 
-// intValueError reports a value that does not start like an integer.
-func (p *parser) intValueError(key string, valStart int, c byte) error {
+func (p *parser) scalarValueError(key string, valStart int, want string) error {
+	c := p.peek()
 	switch c {
 	case '\n', 0, '#':
 		return p.errorf(valStart, "expected value for key %q", key)
 	case '"', '\'':
-		return p.errorf(valStart, "want integer for key %q", key)
+		if want == "boolean" {
+			if _, err := p.parseString(); err != nil {
+				return err
+			}
+		}
+		return p.errorf(valStart, "want %s for key %q", want, key)
 	case '[':
-		return p.errorf(valStart, "want integer for key %q", key)
+		return p.errorf(valStart, "want %s for key %q", want, key)
 	case '{':
 		return p.errorf(valStart, "inline table not allowed")
 	}

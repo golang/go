@@ -4,17 +4,6 @@ package main
 
 import "fmt"
 
-// #33: Stack-first allocation exceeding its frame buffer
-// (SPEC Sec 3.2, T-302, T-301.1). The variable-size make stack buffer
-// MUST hold 256 bytes at O2 and 4096 bytes at O3. Larger allocations
-// MUST use the enabled arena when eligible, or the heap otherwise. At
-// -O=2 each variable-size make site takes its own 256-byte frame buffer;
-// a recursive function keeps the upstream 32 bytes so depth does not
-// multiply tier buffers. A constant-cap make bypasses the threshold and
-// never needs runtime.makeslice, while a variable make keeps the slow
-// branch. morestack would grow any frame, so content checks cannot prove
-// thresholds; these patterns pin the tier buffers and the slow branch.
-
 func c33const() int {
 	// amd64:-"CALL.*runtime.makeslice" arm64:-"CALL.*runtime.makeslice"
 	s := make([]byte, 0, 100)
@@ -23,7 +12,7 @@ func c33const() int {
 
 //go:noinline
 func c33var(n int) int {
-	// amd64:"CALL.*runtime.makeslice" arm64:"CALL.*runtime.makeslice"
+	// amd64:1"CALL.*runtime\\.logosArenaMakeSlice" amd64:-"CALL.*runtime\\.makeslice" arm64:"CALL.*runtime.makeslice"
 	s := make([]byte, n)
 	for i := range s {
 		s[i] = byte(i)
@@ -44,8 +33,6 @@ func c33sum(b []byte) int {
 	return len(buf)
 }
 
-// Recursive cycle keeps the 32-byte buffer, so the frame stays small.
-//
 // amd64:"TEXT .*, [$][0-9]{1,3}-"
 // arm64:"TEXT .*, [$][0-9]{1,3}-"
 func c33rec(n *c33node) int {
@@ -60,9 +47,6 @@ func c33rec(n *c33node) int {
 	return s
 }
 
-// Non-recursive with four inlined variable sites keeps four 256-byte
-// buffers, so the frame reaches four digits.
-//
 // amd64:"TEXT .*, [$][0-9]{4,}-"
 // arm64:"TEXT .*, [$][0-9]{4,}-"
 func c33flat(n *c33node) int {

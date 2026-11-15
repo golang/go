@@ -1,0 +1,135 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+cd w
+logos build ./...
+logos build -o $WORK/bin/hole$GOEXE ./g/cmd
+exec $WORK/bin/hole$GOEXE
+stdout '^6/14$'
+cd ..
+
+cd neg
+! logos build ./...
+stderr 'const_view_mutation'
+cd ..
+
+cd view/imp
+! logos build ./...
+stderr 'main\.lgo:10:.*const_view_mutation'
+stderr 'main\.lgo:11:.*const_view_mutation'
+cd ../..
+
+
+-- w/go.work --
+go 1.27
+
+use (
+	./l
+	./g
+)
+
+-- w/l/go.mod --
+module example.com/l
+
+go 1.27
+
+-- w/l/c/c.lgo --
+package c
+
+var owned = []int{1, 2, 3}
+
+func Base() const []int {
+	return owned
+}
+
+func Sum(xs const []int) int {
+	total := 0
+	for _, v := range xs {
+		total += v
+	}
+	return total
+}
+
+-- w/g/go.mod --
+module example.com/g
+
+go 1.27
+
+-- w/g/q/q.go --
+package q
+
+import (
+	"fmt"
+
+	"example.com/l/c"
+)
+
+func Run() string {
+	b := c.Base()
+	first := c.Sum(b)
+	b[0] = 9
+	second := c.Sum(b)
+	return fmt.Sprintf("%d/%d", first, second)
+}
+
+-- w/g/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/g/q"
+)
+
+func main() {
+	fmt.Println(q.Run())
+}
+
+-- neg/go.mod --
+module example.com/neg
+
+go 1.27
+
+-- neg/neg.lgo --
+package neg
+
+func Bad(xs const []int) {
+	xs[0] = 1
+}
+
+-- view/go/go.mod --
+module example.com/viewgo
+
+go 1.27
+
+-- view/go/take.go --
+package viewgo
+
+func Take[T any](v T) T {
+	var a any = v
+	return a.(T)
+}
+
+-- view/imp/go.mod --
+module example.com/viewimp
+
+go 1.27
+
+require example.com/viewgo v1.0.0
+
+replace example.com/viewgo => ../go
+
+-- view/imp/main.lgo --
+package main
+
+import (
+	"example.com/viewgo"
+)
+
+func main() {
+	s := []int{1, 2, 3}
+	var view const []int = s
+	_ = viewgo.Take(view)
+	_ = viewgo.Take[[]int](view)
+}

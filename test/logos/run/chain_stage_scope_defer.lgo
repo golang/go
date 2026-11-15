@@ -1,0 +1,93 @@
+// run
+
+package main
+
+import (
+	"context"
+	"fmt"
+	"slices"
+	"sync"
+
+	"logos/rt"
+)
+
+var mu sync.Mutex
+var logs [4][]string
+
+func note(x int, s string) {
+	mu.Lock()
+	defer mu.Unlock()
+	logs[x] = append(logs[x], s)
+}
+
+func check(name string, got, want []int, order []string) {
+	mu.Lock()
+	defer mu.Unlock()
+	if !slices.Equal(got, want) {
+		panic(fmt.Sprint(name, ": ", got))
+	}
+	for x := 1; x <= 3; x++ {
+		if !slices.Equal(logs[x], order) {
+			panic(fmt.Sprint(name, ": ", x, " ", logs[x]))
+		}
+	}
+	logs = [4][]string{}
+}
+
+type observed[T any] struct {
+	v T
+	err error
+}
+
+func observe[T any](v T, err error) observed[T] {
+	return observed[T]{v, err}
+}
+
+func run(limit int) {
+	ctx := context.Background()
+	got, err := []int{1, 2, 3}.group(ctx, limit = limit).map(x => {
+		defer note(x, "function")
+		scope defer note(x, "outer")
+		{
+			scope defer note(x, "inner1")
+			scope defer note(x, "inner2")
+			note(x, "body")
+		}
+		note(x, "after")
+		return x * 10
+	})
+	if err != nil {
+		panic(err)
+	}
+	check("map", got, []int{10, 20, 30}, []string{"body", "inner2", "inner1", "after", "outer", "function"})
+	got, err = []int{1, 2, 3}.group(ctx, limit = limit).filter(x => {
+		scope defer note(x, "scope")
+		note(x, "body")
+		return x != 2
+	}).map(x => x * 10)
+	if err != nil {
+		panic(err)
+	}
+	check("filter", got, []int{10, 30}, []string{"body", "scope"})
+	res := observe([]int{1}.group(ctx, limit = limit).map(x => {
+		defer note(x, "function")
+		scope defer note(x, "scope1")
+		scope defer note(x, "scope2")
+		panic("boom")
+		return x
+	}))
+	got, err = res.v, res.err
+	pe, ok := err.(*rt.PanicError)
+	mu.Lock()
+	defer mu.Unlock()
+	if !ok || pe.Value != "boom" || got != nil || !slices.Equal(logs[1], []string{"scope2", "scope1", "function"}) {
+		panic(fmt.Sprint("panic: ", got, " ", err, " ", logs[1]))
+	}
+	logs = [4][]string{}
+	fmt.Println("ok scope-defer", limit)
+}
+
+func main() {
+	run(1)
+	run(4)
+}

@@ -1,0 +1,333 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+	"runtime"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+var (
+	errLoad = errors.New("load")
+	picks   int
+)
+
+type Slot interface {
+	P int
+}
+
+type PQ interface {
+	P int
+	Q int
+}
+
+type Title interface {
+	const Name string
+}
+
+type Tagged interface {
+	const Tags const []string
+}
+
+type Wide interface {
+	Slot
+	Extra() int
+}
+
+type Gen[T any] interface {
+	Item T
+}
+
+type impl struct : Slot {
+	P int
+}
+
+type titled struct : Title {
+	Name string
+}
+
+type tagged struct : Tagged {
+	Tags const []string
+}
+
+type wide struct : Wide {
+	P int
+}
+
+func (w wide) Extra() int {
+	return w.P * 10
+}
+
+type genImpl[T any] struct : Gen[T] {
+	Item T
+}
+
+type Box struct {
+	Slot
+}
+
+type Wrap struct {
+	Box
+}
+
+type PBox struct {
+	*Box
+}
+
+type Label struct {
+	Title
+}
+
+type Shelf struct {
+	Tagged
+}
+
+type WBox struct {
+	Wide
+}
+
+type GBox[T any] struct {
+	Gen[T]
+}
+
+type Sub struct : Slot {
+	Slot
+}
+
+type MixedDecl struct : PQ {
+	Slot
+	Q int
+}
+
+type Shadow struct {
+	Slot
+	P string
+}
+
+type Far struct {
+	P string
+}
+
+type Near struct {
+	Far
+}
+
+type Top struct {
+	Slot
+	Near
+}
+
+func pick(b *Box) *Box {
+	picks++
+	return b
+}
+
+func load(v int, fail bool) (int, error) {
+	if fail {
+		return 0, errLoad
+	}
+	return v, nil
+}
+
+func storeTry(b *Box, v int, fail bool) error {
+	b.P = load(v, fail)?
+	return nil
+}
+
+func recovered(f func()) (r any) {
+	defer func() { r = recover() }()
+	f()
+	return nil
+}
+
+func isRuntimeError(r any) bool {
+	_, ok := r.(runtime.Error)
+	return ok
+}
+
+func checkRead() {
+	b := &Box{Slot: &impl{P: 5}}
+	check("promoted-read", b.P == 5, b.P, 5)
+	var s Slot = b
+	check("promoted-read-through-interface", s.P == 5, s.P, 5)
+	w := &Wrap{Box: *b}
+	check("depth-two-read", w.P == 5, w.P, 5)
+	p := PBox{Box: b}
+	check("embedded-pointer-read", p.P == 5, p.P, 5)
+}
+
+func checkWrite() {
+	im := &impl{P: 1}
+	b := &Box{Slot: im}
+	b.P = 7
+	check("promoted-write-reaches-implementation", im.P == 7, im.P, 7)
+	b.P += 3
+	check("promoted-compound", im.P == 10, im.P, 10)
+	b.P++
+	check("promoted-increment", im.P == 11, im.P, 11)
+	b.P--
+	b.P--
+	check("promoted-decrement", im.P == 9, im.P, 9)
+}
+
+func checkOnce() {
+	im := &impl{P: 2}
+	b := &Box{Slot: im}
+	picks = 0
+	pick(b).P += 5
+	check("compound-receiver-once", picks == 1 && im.P == 7, picks, 1)
+	pick(b).P++
+	check("increment-receiver-once", picks == 2 && im.P == 8, picks, 2)
+	pick(b).P = 4
+	check("assign-receiver-once", picks == 3 && im.P == 4, picks, 3)
+	v := pick(b).P
+	check("read-receiver-once", picks == 4 && v == 4, picks, 4)
+}
+
+func checkConform() {
+	im := &impl{P: 3}
+	var a Slot = &Box{Slot: im}
+	a.P = 9
+	check("conforms-without-declaration", im.P == 9, im.P, 9)
+	var dyn any = &Box{Slot: im}
+	s, ok := dyn.(Slot)
+	check("dynamic-assertion-pointer", ok && s.P == 9, ok, true)
+	sub := &Sub{Slot: im}
+	var d Slot = sub
+	d.P = 12
+	check("declared-through-embedding", im.P == 12 && sub.P == 12, im.P, 12)
+}
+
+func checkMixed() {
+	im := &impl{P: 1}
+	m := &MixedDecl{Slot: im, Q: 4}
+	var pq PQ = m
+	pq.Q = 6
+	pq.P = 8
+	check("mixed-sources-field", m.Q == 6, m.Q, 6)
+	check("mixed-sources-promoted", im.P == 8 && m.P == 8, im.P, 8)
+}
+
+func checkDepth() {
+	im := &impl{P: 1}
+	sh := &Shadow{Slot: im, P: "own"}
+	check("field-at-depth-zero-shadows", sh.P == "own" && im.P == 1, sh.P, "own")
+	top := &Top{Slot: im, Near: Near{Far: Far{P: "deep"}}}
+	check("property-at-depth-one-beats-field-at-depth-two", top.P == 1, top.P, 1)
+	top.P = 6
+	check("shallower-property-write", im.P == 6 && top.Far.P == "deep", im.P, 6)
+}
+
+func checkGeneric() {
+	gi := &genImpl[int]{Item: 1}
+	gb := &GBox[int]{Gen: gi}
+	gb.Item += 4
+	check("generic-promoted-write", gi.Item == 5 && gb.Item == 5, gi.Item, 5)
+	var g Gen[int] = gb
+	g.Item = 8
+	check("generic-conforms-without-declaration", gi.Item == 8, gi.Item, 8)
+}
+
+func checkWide() {
+	w := &wide{P: 2}
+	wb := &WBox{Wide: w}
+	wb.P = 4
+	check("interface-embedding-interface-write", w.P == 4 && wb.Extra() == 40, w.P, 4)
+	var sl Slot = wb
+	check("embedded-wide-satisfies-narrow", sl.P == 4, sl.P, 4)
+}
+
+func checkConst() {
+	l := Label{Title: titled{Name: "orc"}}
+	check("const-property-promoted-read", l.Name == "orc", l.Name, "orc")
+	var t Title = l
+	check("const-property-value-conforms", t.Name == "orc", t.Name, "orc")
+	lp := &Label{Title: &titled{Name: "imp"}}
+	check("const-property-pointer", lp.Name == "imp", lp.Name, "imp")
+}
+
+func checkShelf() {
+	sh := &Shelf{Tagged: tagged{Tags: []string{"ab", "c"}}}
+	check("const-view-property-length", len(sh.Tags) == 2, len(sh.Tags), 2)
+	check("const-view-property-element", sh.Tags[1] == "c", sh.Tags[1], "c")
+	n := 0
+	for _, s := range sh.Tags {
+		n += len(s)
+	}
+	check("const-view-property-range", n == 3, n, 3)
+}
+
+func checkNil() {
+	var b Box
+	r := recovered(func() { _ = b.P })
+	check("nil-embedded-read-panics-like-go", isRuntimeError(r), r, "runtime.Error")
+	r = recovered(func() { b.P = 1 })
+	check("nil-embedded-write-panics-like-go", isRuntimeError(r), r, "runtime.Error")
+}
+
+func checkClauses() {
+	im := &impl{}
+	b := &Box{Slot: im}
+	for b.P = 1; b.P < 3; b.P++ {
+	}
+	check("promoted-for-clauses", im.P == 3, im.P, 3)
+	if b.P = 20; b.P > 0 {
+		b.P += 1
+	}
+	check("promoted-if-init", im.P == 21, im.P, 21)
+	switch b.P++; b.P {
+	case 22:
+		b.P = 100
+	}
+	check("promoted-switch-init", im.P == 100, im.P, 100)
+}
+
+func checkTry() {
+	im := &impl{P: 1}
+	b := &Box{Slot: im}
+	err := storeTry(b, 5, false)
+	check("promoted-try-write", err == nil && im.P == 5, im.P, 5)
+	err = storeTry(b, 6, true)
+	check("promoted-try-write-failed", err == errLoad && im.P == 0, im.P, 0)
+}
+
+func checkMulti() {
+	i1, i2 := &impl{}, &impl{}
+	x := &Box{Slot: i1}
+	y := &Wrap{Box: Box{Slot: i2}}
+	x.P, y.P = 3, 4
+	check("promoted-multi-assign", i1.P == 3 && i2.P == 4, i2.P, 4)
+}
+
+func main() {
+	checkRead()
+	checkWrite()
+	checkOnce()
+	checkConform()
+	checkMixed()
+	checkDepth()
+	checkGeneric()
+	checkWide()
+	checkConst()
+	checkShelf()
+	checkNil()
+	checkClauses()
+	checkTry()
+	checkMulti()
+	if failed {
+		os.Exit(1)
+	}
+}

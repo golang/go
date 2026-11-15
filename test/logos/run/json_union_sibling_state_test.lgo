@@ -1,0 +1,70 @@
+// run
+
+package jsonunion
+
+import (
+	"encoding/json"
+	"errors"
+	"testing"
+)
+
+var gateCalls int
+
+type GateFirst struct {
+	N int64 `json:"n"`
+}
+
+func (g *GateFirst) UnmarshalJSON(data []byte) error {
+	call := gateCalls
+	gateCalls++
+	if call != 0 {
+		return errors.New("GateFirst is closed")
+	}
+	type plain GateFirst
+	return json.Unmarshal(data, (*plain)(g))
+}
+
+type GateSecond struct {
+	N int64 `json:"n"`
+}
+
+func (g *GateSecond) UnmarshalJSON(data []byte) error {
+	call := gateCalls
+	gateCalls++
+	if call < 2 {
+		return errors.New("GateSecond is closed")
+	}
+	type plain GateSecond
+	return json.Unmarshal(data, (*plain)(g))
+}
+
+type GateUnion interface {
+	*GateFirst | *GateSecond
+}
+
+type GateHolder struct {
+	A GateUnion `json:"a"`
+	B GateUnion `json:"b"`
+}
+
+func TestUnionSiblingTrialsUseFreshState(t *testing.T) {
+	gateCalls = 0
+	var h GateHolder
+	if err := json.Unmarshal([]byte(`{"a":{"n":1},"b":{"n":1}}`), &h); err != nil {
+		t.Fatalf("sibling union trials must decode independently: %v", err)
+	}
+	a, ok := h.A.(*GateFirst)
+	if !ok {
+		t.Fatalf("expected A to hold *GateFirst, got %T: %#v", h.A, h.A)
+	}
+	if a.N != 1 {
+		t.Fatalf("expected A.N = 1, got %d", a.N)
+	}
+	b, ok := h.B.(*GateSecond)
+	if !ok {
+		t.Fatalf("expected B to hold *GateSecond, got %T: %#v", h.B, h.B)
+	}
+	if b.N != 1 {
+		t.Fatalf("expected B.N = 1, got %d", b.N)
+	}
+}

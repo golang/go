@@ -1,16 +1,16 @@
-simple 2-index beyond len panicked
-3-index beyond len panicked
-compound base beyond len panicked
-compound base evaluated exactly once
-full-slice legal succeeded
-exact-len 2-index legal succeeded
-exact-len 3-index legal succeeded
-compound base legal exact len succeeded
-compound base legal evaluated exactly once
-2-index eval order: base -> low -> high
-3-index eval order: base -> low -> high -> max
-eval order on 2-index panic panicked
-2-index panic eval order: base -> low -> high
-eval order on 3-index panic panicked
-3-index panic eval order: base -> low -> high -> max
-recover bound in caller frame succeeded
+ok trap-2index
+ok trap-3index
+ok trap-compound
+ok compound-once
+ok legal-full
+ok legal-2index
+ok legal-3index
+ok legal-compound
+ok legal-compound-once
+ok eval-2index
+ok eval-3index
+ok eval-panic-2index-trap
+ok eval-panic-2index-order
+ok eval-panic-3index-trap
+ok eval-panic-3index-order
+ok recover-caller

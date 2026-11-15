@@ -6,7 +6,6 @@ package objabi
 
 import "strings"
 
-// StripExperiment strips experiment suffixes from a tool version string.
 func StripExperiment(version string) string {
 	if before, _, ok := strings.Cut(version, " X:"); ok {
 		return before

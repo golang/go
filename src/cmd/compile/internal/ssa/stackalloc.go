@@ -18,7 +18,7 @@ type stackAllocState struct {
 
 	// live is the output of stackalloc.
 	// live[b.id] = live values at the end of block b.
-	live [][]ID
+	live stackLive
 
 	// The following slices are reused across multiple users
 	// of stackAllocState.
@@ -51,7 +51,7 @@ func putStackAllocState(s *stackAllocState) {
 	clear(s.names)
 	s.f.Cache.stackAllocState = s
 	s.f = nil
-	s.live = nil
+	s.clearLiveLogos()
 	s.nArgSlot, s.nNotNeed, s.nNamedSlot, s.nReuse, s.nAuto, s.nSelfInterfere = 0, 0, 0, 0, 0, 0
 }
 
@@ -90,7 +90,7 @@ type stackUseBlock struct {
 // stackalloc allocates storage in the stack frame for
 // all Values that did not get a register.
 // Returns a map from block ID to the stack values live at the end of that block.
-func stackalloc(f *Func, spillLive [][]ID) [][]ID {
+func stackalloc(f *Func, spillLive [][]ID) stackLive {
 	if f.pass.debug > stackDebug {
 		fmt.Println("before stackalloc")
 		fmt.Println(f.String())
@@ -318,93 +318,7 @@ func (s *stackAllocState) stackalloc() {
 // computeLive computes a map from block ID to a list of
 // stack-slot-needing value IDs live at the end of that block.
 func (s *stackAllocState) computeLive(spillLive [][]ID) {
-
-	// Because values using stack slots are few and far inbetween
-	// (compared to the set of all values), we use a path exploration
-	// algorithm to calculate liveness here.
-	f := s.f
-	for _, b := range f.Blocks {
-		for _, spillvid := range spillLive[b.ID] {
-			val := &s.values[spillvid]
-			val.addUseBlock(b, true)
-		}
-		for _, v := range b.Values {
-			for i, a := range v.Args {
-				val := &s.values[a.ID]
-				useBlock := b
-				forceLiveout := false
-				if v.Op == OpPhi {
-					useBlock = b.Preds[i].b
-					forceLiveout = true
-					if spill := val.spill; spill != nil {
-						//TODO: remove?  Subsumed by SpillUse?
-						s.values[spill.ID].addUseBlock(useBlock, true)
-					}
-				}
-				if !val.needSlot {
-					continue
-				}
-				val.addUseBlock(useBlock, forceLiveout)
-			}
-		}
-	}
-
-	s.live = make([][]ID, f.NumBlocks())
-	push := func(bid, vid ID) {
-		l := s.live[bid]
-		if l == nil || l[len(l)-1] != vid {
-			l = append(l, vid)
-			s.live[bid] = l
-		}
-	}
-	// TODO: If we can help along the interference graph by calculating livein sets,
-	// we can do so trivially by turning this sparse set into an array of arrays
-	// and checking the top for the current value instead of inclusion in the sparse set.
-	seen := f.newSparseSet(f.NumBlocks())
-	defer f.retSparseSet(seen)
-	// instead of pruning out duplicate blocks when we build the useblocks slices
-	// or when we add them to the queue, rely on the seen set to stop considering
-	// them. This is slightly faster than building the workqueues as sets
-	//
-	// However, this means that the queue can grow larger than the number of blocks,
-	// usually in very short functions. Returning a slice with values appended beyond the
-	// original allocation can corrupt the allocator state, so cap the queue and return
-	// the originally allocated slice regardless.
-	allocedBqueue := f.Cache.allocBlockSlice(f.NumBlocks())
-	defer f.Cache.freeBlockSlice(allocedBqueue)
-	bqueue := allocedBqueue[:0:f.NumBlocks()]
-
-	for vid, v := range s.values {
-		if !v.needSlot {
-			continue
-		}
-		seen.clear()
-		bqueue = bqueue[:0]
-		for _, b := range v.useBlocks {
-			if b.liveout {
-				push(b.b.ID, ID(vid))
-			}
-			bqueue = append(bqueue, b.b)
-		}
-		for len(bqueue) > 0 {
-			work := bqueue[len(bqueue)-1]
-			bqueue = bqueue[:len(bqueue)-1]
-			if seen.contains(work.ID) || work.ID == v.defBlock {
-				continue
-			}
-			seen.add(work.ID)
-			for _, e := range work.Preds {
-				push(e.b.ID, ID(vid))
-				bqueue = append(bqueue, e.b)
-			}
-		}
-	}
-
-	if s.f.pass.debug > stackDebug {
-		for _, b := range s.f.Blocks {
-			fmt.Printf("stacklive %s %v\n", b, s.live[b.ID])
-		}
-	}
+	s.computeLiveLogos(spillLive)
 }
 
 func (f *Func) getHome(vid ID) Location {
@@ -434,7 +348,7 @@ func (s *stackAllocState) buildInterferenceGraph() {
 		// Propagate liveness backwards to the start of the block.
 		// Two values interfere if one is defined while the other is live.
 		live.clear()
-		live.addAll(s.live[b.ID])
+		s.addLiveLogos(live, b.ID)
 		for i := len(b.Values) - 1; i >= 0; i-- {
 			v := b.Values[i]
 			if s.values[v.ID].needSlot {

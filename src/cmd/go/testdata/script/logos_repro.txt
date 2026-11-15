@@ -1,34 +1,28 @@
-# M22-S5: .lgo builds are reproducible (SPEC Sec 22.5).
-# The example module builds twice from clean caches for linux/amd64,
-# linux/arm64, and js/wasm; each pair must have identical SHA-256 digests.
-# A throwaway copy of the embedded .lgo sources under a fresh go.mod must
-# build byte-identical output, proving the M22-S6 integration pattern
-# (copied .lgo files plus a fresh go.mod) without touching
-# test/logos/example. The stripped wasm size is gated against
-# test/logos/size/wasm_size.txt: growth above 1% fails. Second-host
-# comparison reuses the printed digests.
-
 env GOPROXY=off
 env GOTOOLCHAIN=local
 env CGO_ENABLED=0
 
-# Parameter: the example module directory this gate verifies. It defaults
-# to the embedded multi-package .lgo fixture below, named as an archive
-# directory. It also accepts an absolute directory: to verify the M22-S6
-# example instead, copy its .lgo files into a scratch directory preserving
-# package layout, write a go.mod with module example.com/order and go 1.27
-# beside them, and set this variable to that directory. Every transition
-# below anchors at $GOPATH/src first, so relative and absolute values work.
 env LOGOS_EXAMPLE=repro
 
-# The fixture runs before the matrix, proving it is a working program.
-# It uses ? propagation, so the gate also pins lowering stability.
+cd $GOPATH/src
+cd tools
+go run . sizegate ../bound/exact1010.bin ../bound/rec1000.txt
+stdout 'wasm size ok'
+! go run . sizegate ../bound/over1011.bin ../bound/rec1000.txt
+stderr 'exceeds recorded'
+go run . gen $WORK/meas1000.bin 1000
+go run . sizegate $WORK/meas1000.bin ../bound/rec1010.txt
+stdout 'wasm size ok'
+# A record above the real size fails as stale: the gate fires on
+# shrinkage past 1% as well as on growth.
+! go run . sizegate $WORK/meas1000.bin ../bound/rec1011.txt
+stderr 'stale'
+
 cd $GOPATH/src
 cd $LOGOS_EXAMPLE
 logos run .
 stdout '^42$'
 
-# linux/amd64: two clean-cache builds must agree.
 cd $GOPATH/src
 cd $LOGOS_EXAMPLE
 env GOOS=linux
@@ -44,7 +38,6 @@ env GOARCH=
 go run . equal $WORK/exe-amd64-a$GOEXE $WORK/exe-amd64-b$GOEXE
 stdout '^identical$'
 
-# linux/arm64: two clean-cache cross builds must agree.
 cd $GOPATH/src
 cd $LOGOS_EXAMPLE
 env GOOS=linux
@@ -60,7 +53,6 @@ env GOARCH=
 go run . equal $WORK/exe-arm64-a $WORK/exe-arm64-b
 stdout '^identical$'
 
-# js/wasm: two clean-cache cross builds must agree.
 cd $GOPATH/src
 cd $LOGOS_EXAMPLE
 env GOOS=js
@@ -76,8 +68,6 @@ env GOARCH=
 go run . equal $WORK/wasm-a.wasm $WORK/wasm-b.wasm
 stdout '^identical$'
 
-# Throwaway staging: the embedded .lgo sources under a fresh go.mod build
-# byte-identical output to the embedded module build.
 cd $GOPATH/src
 mkdir staged
 mkdir staged/calc
@@ -96,7 +86,6 @@ env GOARCH=
 go run . equal $WORK/exe-staged$GOEXE $WORK/exe-amd64-a$GOEXE
 stdout '^identical$'
 
-# Stripped wasm size gate: growth above 1% against the recorded value fails.
 cd $GOPATH/src
 cd $LOGOS_EXAMPLE
 env GOOS=js
@@ -109,6 +98,21 @@ env GOOS=
 env GOARCH=
 go run . sizegate $WORK/example.wasm $GOROOT/test/logos/size/wasm_size.txt
 stdout '^wasm size ok: '
+
+cd $GOPATH/src
+cd tools
+env GOOS=
+env GOARCH=
+! go run . sizegate $WORK/example.wasm ../bound/tiny.txt
+stderr 'exceeds recorded'
+# A record far above the real size fails as stale: a stale record
+# must never let a size regression hide behind an old number.
+! go run . sizegate $WORK/example.wasm ../bound/huge.txt
+stderr 'stale'
+
+# A missing record fails instead of passing silently.
+! go run . sizegate $WORK/example.wasm ../bound/missing.txt
+stderr 'no such file'
 
 -- repro/go.mod --
 module example.com/repro
@@ -164,7 +168,7 @@ import (
 	"strings"
 )
 
-var errUsage = errors.New("usage: reprocheck equal <a> <b> | sizegate <wasm> <sizefile>")
+var errUsage = errors.New("usage: reprocheck equal <a> <b> | sizegate <wasm> <sizefile> | gen <out> <size>")
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
@@ -183,6 +187,8 @@ func run(args []string) error {
 		return equal(args[1:])
 	case "sizegate":
 		return sizegate(args[1:])
+	case "gen":
+		return gen(args[1:])
 	default:
 		return errUsage
 	}
@@ -219,8 +225,22 @@ func equal(args []string) error {
 	fmt.Println("identical")
 	return nil
 }
+// gen writes size bytes of 'a' to out for fixed-size boundary probes.
+func gen(args []string) error {
+	if len(args) != 2 {
+		return errUsage
+	}
+	n, err := strconv.Atoi(args[1])
+	if err != nil || n <= 0 {
+		return errUsage
+	}
+	return os.WriteFile(args[0], []byte(strings.Repeat("a", n)), 0o666)
+}
 
-// sizegate fails when wasm grew over 1% past the recorded size.
+// sizegate fails when the measured wasm size exceeds the recorded size
+// by over 1%, when the record is missing or unparsable, and when the
+// record exceeds the measured size by over 1%: a stale record fails
+// instead of hiding regressions behind an old number.
 func sizegate(args []string) error {
 	if len(args) != 2 {
 		return errUsage
@@ -238,9 +258,28 @@ func sizegate(args []string) error {
 		return err
 	}
 	actual := info.Size()
-	fmt.Printf("wasm size ok: %d bytes (recorded %d)\n", actual, recorded)
 	if actual*100 > recorded*101 {
-		return fmt.Errorf("wasm size %d exceeds recorded %d by over 1%%", actual, recorded)
+		return fmt.Errorf("wasm size %d exceeds recorded %d by over 1%%; update the record at %s", actual, recorded, args[1])
 	}
+	if recorded*100 > actual*101 {
+		return fmt.Errorf("wasm size %d is more than 1%% below recorded %d; record at %s is stale", actual, recorded, args[1])
+	}
+	fmt.Printf("wasm size ok: %d bytes (recorded %d)\n", actual, recorded)
 	return nil
 }
+
+-- bound/tiny.txt --
+100
+-- bound/rec1000.txt --
+1000
+-- bound/huge.txt --
+999999999
+
+-- bound/exact1010.bin --
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+-- bound/over1011.bin --
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+-- bound/rec1010.txt --
+1010
+-- bound/rec1011.txt --
+1011

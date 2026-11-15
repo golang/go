@@ -1,7 +1,7 @@
-int
-str
-nil
-one
-many
-hi ada
-12
+ok type-switch-names-int-member
+ok type-switch-names-string-member
+ok type-switch-names-nil-union
+ok expr-switch-matches-value
+ok expr-switch-falls-to-default
+ok union-member-dispatches-method
+ok shape-union-dispatches-area

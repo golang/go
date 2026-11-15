@@ -1,0 +1,156 @@
+// run
+
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"strings"
+	"sync"
+	"time"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+var errBoom = errors.New("boom")
+
+var mu sync.Mutex
+var events []string
+
+func note(s string) {
+	mu.Lock()
+	defer mu.Unlock()
+	events = append(events, s)
+}
+
+func reset() {
+	mu.Lock()
+	defer mu.Unlock()
+	events = nil
+}
+
+func seen() string {
+	mu.Lock()
+	defer mu.Unlock()
+	return strings.Join(events, ",")
+}
+
+func work(tag string) error {
+	note(tag)
+	return nil
+}
+
+func failing(tag string) error {
+	note(tag)
+	return errBoom
+}
+
+func callFormUnderLimitOne(ctx context.Context) error {
+	go group (ctx, limit = 1) {
+		go {
+			go work("inner")
+			note("outer")
+		}
+	}
+	return nil
+}
+
+func blockFormUnderLimitOne(ctx context.Context) error {
+	go group (ctx, limit = 1) {
+		go {
+			go {
+				note("inner")
+			}
+			note("outer")
+		}
+	}
+	return nil
+}
+
+func manyUnderLimitOne(ctx context.Context) error {
+	go group (ctx, limit = 1) {
+		go {
+			for range 3 {
+				go work("inner")
+			}
+			note("outer")
+		}
+	}
+	return nil
+}
+
+func failureUnderLimitOne(ctx context.Context) error {
+	go group (ctx, limit = 1) {
+		go {
+			go failing("inner")
+			note("outer")
+		}
+	}
+	return nil
+}
+
+func deepUnderLimitOne(ctx context.Context) error {
+	go group (ctx, limit = 1) {
+		go {
+			go {
+				go work("innermost")
+				note("inner")
+			}
+			note("outer")
+		}
+	}
+	return nil
+}
+
+func unboundedControl(ctx context.Context) error {
+	go group (ctx) {
+		go {
+			go work("inner")
+			note("outer")
+		}
+	}
+	return nil
+}
+
+func watchdog(name string) func() {
+	t := time.AfterFunc(10*time.Second, func() {
+		fmt.Println("FAIL", name+": hung")
+		os.Exit(1)
+	})
+	return func() { t.Stop() }
+}
+
+func isBoom(err error) bool { return errors.Is(err, errBoom) }
+
+func isNil(err error) bool { return err == nil }
+
+func scenario(name string, f func(context.Context) error, want string, errOK func(error) bool) {
+	reset()
+	stop := watchdog(name)
+	err := f(context.Background())
+	stop()
+	check(name, seen() == want && errOK(err), seen()+" / "+fmt.Sprint(err), want)
+}
+
+func main() {
+	scenario("nested-call-form-under-limit-one", callFormUnderLimitOne, "outer,inner", isNil)
+	scenario("nested-block-form-under-limit-one", blockFormUnderLimitOne, "outer,inner", isNil)
+	scenario("nested-many-under-limit-one", manyUnderLimitOne, "outer,inner,inner,inner", isNil)
+	scenario("nested-failure-under-limit-one", failureUnderLimitOne, "outer,inner", isBoom)
+	scenario("nested-deep-under-limit-one", deepUnderLimitOne, "outer,inner,innermost", isNil)
+	scenario("nested-unbounded-control", unboundedControl, "outer,inner", isNil)
+	if failed {
+		os.Exit(1)
+	}
+}

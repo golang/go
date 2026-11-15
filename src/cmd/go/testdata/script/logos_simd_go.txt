@@ -1,0 +1,28 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+! logos build -o op.bin ./op
+stderr 'invalid operation'
+! logos build -o method.bin ./method
+stderr 'no field or method'
+
+-- go.mod --
+module example.com/simdgo
+
+go 1.27
+
+-- op/main.go --
+package main
+
+func main() {
+	var a, b [4]int
+	_ = a + b
+}
+
+-- method/main.go --
+package main
+
+func main() {
+	var a [4]int
+	_ = a.sum()
+}

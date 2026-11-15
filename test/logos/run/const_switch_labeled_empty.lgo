@@ -2,19 +2,33 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
-// M7-S4 labeled const switch with no live case (SPEC Sec 2.5, T-205):
-// no case matches, so the switch folds away and control reaches the
-// code after the label.
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 func main() {
 	goto L
 	fmt.Println("skipped")
 L:
+	hit := false
 	const switch int {
 	case interface{ M() }:
-		fmt.Println("unreachable")
+		hit = true
 	}
-	fmt.Println("done")
+	check("empty-nomatch", !hit, hit, false)
+	if failed {
+		os.Exit(1)
+	}
 }

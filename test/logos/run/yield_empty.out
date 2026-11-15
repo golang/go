@@ -1,0 +1,7 @@
+ok no-yield-is-empty
+ok no-yield-pairs-is-empty
+ok no-yield-is-a-sequence
+ok returned-iterator-is-discarded
+ok guarded-skips-yield
+ok guarded-reaches-yield
+ok no-yield-method-is-empty

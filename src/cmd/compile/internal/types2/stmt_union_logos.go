@@ -10,18 +10,6 @@ import (
 	"strings"
 )
 
-// LoGo/s M2-S3 exhaustive statement type switches on closed unions
-// (SPEC Sec 2.3, T-203.1). typeSwitchStmt calls in through one hook line
-// after the clause loop, once the seen map is complete.
-//
-// A type switch without default over a closed union operand must cover
-// every member in declaration order, then nil: a missing member reports
-// nonexhaustive_switch listing the misses. A default clause covers
-// everything, as does a case naming a sub-union for its members (via
-// logosCovers, shared with the switch-expression check). A switch on any
-// other interface type has no finite member set, so only default covers
-// it and nothing is reported here. The existing duplicate-case check in
-// caseTypes is unaffected.
 func (check *Checker) logosExhaustiveStmtSwitch(s *syntax.SwitchStmt, sx *operand, seen map[Type]syntax.Expr) {
 	if !check.conf.Logos || sx == nil {
 		return

@@ -10,17 +10,6 @@ import (
 	"testing"
 )
 
-// PR3 review semantics regressions:
-// - Mixed untyped float arithmetic and ordering
-// - float32/64 ++/--
-// - Standalone nested block scope and control flow
-// - Legal backward-key slice literal []int{2:3,0:1,2}
-// - Unnamed []byte/[]rune conversions
-// - Nil slice/map rendering with nonnil-empty controls
-// - Nil append destination
-// - Zero-length make with capacity exceeding a small custom MaxValueBytes
-// - len/index of untyped string literals
-
 func TestReviewMixedUntypedFloatArithmetic(t *testing.T) {
 	cfg := Config{MaxSteps: 100000, MaxValueBytes: 1 << 20, WordSize: 8}
 	cases := []struct {
@@ -38,7 +27,7 @@ func TestReviewMixedUntypedFloatArithmetic(t *testing.T) {
 	for _, tc := range cases {
 		v, _, err := evalConstFunc(t, cfg, constSpec{
 			src:    tc.src,
-			rtypes: []*Type{BasicType("int", 8)},
+			rtypes: []*Type{BasicType("int")},
 			name:   tc.name,
 			call:   tc.name + "()",
 		})
@@ -68,7 +57,7 @@ func TestReviewMixedUntypedFloatOrdering(t *testing.T) {
 	for _, tc := range cases {
 		v, _, err := evalConstFunc(t, cfg, constSpec{
 			src:    tc.src,
-			rtypes: []*Type{BasicType("int", 8)},
+			rtypes: []*Type{BasicType("int")},
 			name:   tc.name,
 			call:   tc.name + "()",
 		})
@@ -91,7 +80,7 @@ func TestReviewFloat64IncDec(t *testing.T) {
 	for _, tc := range cases {
 		v, _, err := evalConstFunc(t, cfg, constSpec{
 			src:    tc.src,
-			rtypes: []*Type{BasicType("int", 8)},
+			rtypes: []*Type{BasicType("int")},
 			name:   tc.name,
 			call:   tc.name + "()",
 		})
@@ -114,7 +103,7 @@ func TestReviewFloat32IncDec(t *testing.T) {
 	for _, tc := range cases {
 		v, _, err := evalConstFunc(t, cfg, constSpec{
 			src:    tc.src,
-			rtypes: []*Type{BasicType("int", 8)},
+			rtypes: []*Type{BasicType("int")},
 			name:   tc.name,
 			call:   tc.name + "()",
 		})
@@ -165,7 +154,7 @@ func NestedShadowing() int {
 	for _, tc := range cases {
 		v, _, err := evalConstFunc(t, cfg, constSpec{
 			src:    tc.src,
-			rtypes: []*Type{BasicType("int", 8)},
+			rtypes: []*Type{BasicType("int")},
 			name:   tc.name,
 			call:   tc.name + "()",
 		})
@@ -235,7 +224,7 @@ func ContinueInBlock() int {
 	for _, tc := range cases {
 		v, _, err := evalConstFunc(t, cfg, constSpec{
 			src:    tc.src,
-			rtypes: []*Type{BasicType("int", 8)},
+			rtypes: []*Type{BasicType("int")},
 			name:   tc.name,
 			call:   tc.name + "()",
 		})
@@ -260,7 +249,7 @@ func BackwardKey() int {
 	}
 	return 1
 }`,
-		rtypes: []*Type{BasicType("int", 8)},
+		rtypes: []*Type{BasicType("int")},
 		name:   "BackwardKey",
 		call:   "BackwardKey()",
 	})
@@ -269,7 +258,7 @@ func BackwardKey() int {
 	}
 	mustInt(t, v, 1, "[]int{2: 3, 0: 1, 2}")
 
-	h := newFakeHost(t, 8)
+	h := newFakeHost(t)
 	expr := parseExpr(t, `[]int{2: 3, 0: 1, 2}`)
 	val, _, err := Eval(h, cfg, expr)
 	if err != nil {
@@ -307,7 +296,7 @@ func ParenByteConvLen() int { return len(([]byte)("zz")) }`, 2},
 	for _, tc := range cases {
 		v, _, err := evalConstFunc(t, cfg, constSpec{
 			src:    tc.src,
-			rtypes: []*Type{BasicType("int", 8)},
+			rtypes: []*Type{BasicType("int")},
 			name:   tc.name,
 			call:   tc.name + "()",
 		})
@@ -320,10 +309,10 @@ func ParenByteConvLen() int { return len(([]byte)("zz")) }`, 2},
 
 func TestReviewNilSliceRenderingRoundTrip(t *testing.T) {
 	cfg := Config{MaxSteps: 100000, MaxValueBytes: 1 << 20, WordSize: 8}
-	h := newFakeHost(t, 8)
+	h := newFakeHost(t)
 	v, _, err := evalConstFunc(t, cfg, constSpec{
 		src:    "package p\nfunc MakeNilSlice() []int { var s []int; return s }",
-		rtypes: []*Type{&Type{Kind: KSlice, Elem: BasicType("int", 8)}},
+		rtypes: []*Type{&Type{Kind: KSlice, Elem: BasicType("int")}},
 		name:   "MakeNilSlice",
 		call:   "MakeNilSlice()",
 	})
@@ -359,10 +348,10 @@ func TestReviewNilSliceRenderingRoundTrip(t *testing.T) {
 
 func TestReviewNilMapRenderingRoundTrip(t *testing.T) {
 	cfg := Config{MaxSteps: 100000, MaxValueBytes: 1 << 20, WordSize: 8}
-	h := newFakeHost(t, 8)
+	h := newFakeHost(t)
 	v, _, err := evalConstFunc(t, cfg, constSpec{
 		src:    "package p\nfunc MakeNilMap() map[string]int { var m map[string]int; return m }",
-		rtypes: []*Type{&Type{Kind: KMap, Key: BasicType("string", 8), Elem: BasicType("int", 8)}},
+		rtypes: []*Type{&Type{Kind: KMap, Key: BasicType("string"), Elem: BasicType("int")}},
 		name:   "MakeNilMap",
 		call:   "MakeNilMap()",
 	})
@@ -398,12 +387,11 @@ func TestReviewNilMapRenderingRoundTrip(t *testing.T) {
 
 func TestReviewNonNilEmptySliceMapRenderingControl(t *testing.T) {
 	cfg := Config{MaxSteps: 100000, MaxValueBytes: 1 << 20, WordSize: 8}
-	h := newFakeHost(t, 8)
+	h := newFakeHost(t)
 
-	// Control 1: empty slice literal must remain non-nil
 	vSlice, _, err := evalConstFunc(t, cfg, constSpec{
 		src:    "package p\nfunc EmptySlice() []int { return []int{} }",
-		rtypes: []*Type{&Type{Kind: KSlice, Elem: BasicType("int", 8)}},
+		rtypes: []*Type{&Type{Kind: KSlice, Elem: BasicType("int")}},
 		name:   "EmptySlice",
 		call:   "EmptySlice()",
 	})
@@ -433,10 +421,9 @@ func TestReviewNonNilEmptySliceMapRenderingControl(t *testing.T) {
 		t.Fatalf("emptySlice == nil is true, want false")
 	}
 
-	// Control 2: empty map literal must remain non-nil
 	vMap, _, err := evalConstFunc(t, cfg, constSpec{
 		src:    "package p\nfunc EmptyMap() map[string]int { return map[string]int{} }",
-		rtypes: []*Type{&Type{Kind: KMap, Key: BasicType("string", 8), Elem: BasicType("int", 8)}},
+		rtypes: []*Type{&Type{Kind: KMap, Key: BasicType("string"), Elem: BasicType("int")}},
 		name:   "EmptyMap",
 		call:   "EmptyMap()",
 	})
@@ -482,7 +469,7 @@ func NilAppend() int {
 	}
 	return s[0] + s[1] + s[2]
 }`,
-		rtypes: []*Type{BasicType("int", 8)},
+		rtypes: []*Type{BasicType("int")},
 		name:   "NilAppend",
 		call:   "NilAppend()",
 	})
@@ -497,7 +484,7 @@ func NilAppendDirect() int {
 	s := append([]int(nil), 42)
 	return s[0]
 }`,
-		rtypes: []*Type{BasicType("int", 8)},
+		rtypes: []*Type{BasicType("int")},
 		name:   "NilAppendDirect",
 		call:   "NilAppendDirect()",
 	})
@@ -509,12 +496,12 @@ func NilAppendDirect() int {
 
 func TestReviewMakeZeroLenExceedingCapBudget(t *testing.T) {
 	cfg := Config{MaxSteps: 100000, MaxValueBytes: 10, WordSize: 8}
-	h := newFakeHost(t, 8)
+	h := newFakeHost(t)
 	fn := parseFunc(t, `package p
 func MakeCapOver() int {
 	s := make([]byte, 0, 15)
 	return len(s)
-}`, true, nil, []*Type{BasicType("int", 8)})
+}`, true, nil, []*Type{BasicType("int")})
 	h.funcs["MakeCapOver"] = fn
 	call := parseExpr(t, `MakeCapOver()`)
 	_, _, err := Eval(h, cfg, call)
@@ -530,7 +517,7 @@ func MakeCapOver() int {
 func MakeCapWithin() int {
 	s := make([]byte, 0, 8)
 	return cap(s)
-}`, true, nil, []*Type{BasicType("int", 8)})
+}`, true, nil, []*Type{BasicType("int")})
 	h.funcs["MakeCapWithin"] = fnOk
 	callOk := parseExpr(t, `MakeCapWithin()`)
 	v, _, err := Eval(h, cfg, callOk)
@@ -547,7 +534,7 @@ func TestReviewUntypedStringLen(t *testing.T) {
 func UntypedStrLen() int {
 	return len("hello world")
 }`,
-		rtypes: []*Type{BasicType("int", 8)},
+		rtypes: []*Type{BasicType("int")},
 		name:   "UntypedStrLen",
 		call:   "UntypedStrLen()",
 	})
@@ -556,7 +543,7 @@ func UntypedStrLen() int {
 	}
 	mustInt(t, v, 11, `len("hello world")`)
 
-	h := newFakeHost(t, 8)
+	h := newFakeHost(t)
 	expr := parseExpr(t, `len("abc")`)
 	v2, _, err := Eval(h, cfg, expr)
 	if err != nil {
@@ -572,7 +559,7 @@ func TestReviewUntypedStringIndex(t *testing.T) {
 func UntypedStrIndex() int {
 	return int("hello"[1])
 }`,
-		rtypes: []*Type{BasicType("int", 8)},
+		rtypes: []*Type{BasicType("int")},
 		name:   "UntypedStrIndex",
 		call:   "UntypedStrIndex()",
 	})
@@ -581,7 +568,7 @@ func UntypedStrIndex() int {
 	}
 	mustInt(t, v, int64('e'), `"hello"[1]`)
 
-	h := newFakeHost(t, 8)
+	h := newFakeHost(t)
 	expr := parseExpr(t, `"hello"[0]`)
 	v2, _, err := Eval(h, cfg, expr)
 	if err != nil {
@@ -592,11 +579,9 @@ func UntypedStrIndex() int {
 
 func TestReviewRenderFloatLexicalKindPreservation(t *testing.T) {
 	cfg := Config{MaxSteps: 100000, MaxValueBytes: 1 << 20, WordSize: 8}
-	h := newFakeHost(t, 8)
+	h := newFakeHost(t)
 
-	// A float value like 2.0 rendered as an AST expression and serialized
-	// into source text must reparse and evaluate as a float rather than an integer.
-	v := FloatValue(2.0, BasicType("float64", 8))
+	v := FloatValue(2.0, BasicType("float64"))
 	rendered, err := v.Expr(syntax.Pos{})
 	if err != nil {
 		t.Fatalf("v.Expr: %v", err)

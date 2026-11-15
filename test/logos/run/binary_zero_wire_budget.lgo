@@ -2,36 +2,15 @@
 
 package main
 
-// M11-S3 zero-wire count cap (SPEC Sec 12.3, red-team #139): the count
-// header is charged against no total budget, so a count whose element
-// bytes are present is lawful and must decode even when the total exceeds
-// 1 MiB. For slices whose elements encode zero wire bytes, only the count
-// itself is capped, at 1,048,576; a larger count is rejected with a
-// count-out-of-range error, encoder symmetric with the decoder, checked
-// before allocation and without per-element iteration. The generated
-// decoder allocates the slice directly from the count, so it never loops
-// over elements, and the compiler unit test TestBinaryZeroWireBudget pins
-// that shape. The cap applies to each count independently: two fields,
-// and a top-level field plus a slice nested inside a struct, are never
-// rejected for their sum, even when that sum of element storage exceeds
-// 1 MiB. Accepted values keep their exact wire bytes: version 0x01, then
-// fields in declaration order, a zero-wire slice as its uvarint count
-// alone, and a nested struct inline. ZeroPad carries storage (int64)
-// under `json:"-"` so each element has nonzero Sizeof with zero wire
-// bytes; that seam is admissible because LogosJSONFieldOf skips "-" and
-// LogosBinaryTypeOK skips ignored fields. ZeroEmpty has Sizeof 0 and takes
-// the same cap, so the size-0 path is covered too. ZeroFat is the finding's
-// own shape, 4 KiB of ignored storage per element, where a second
-// per-count byte budget of (1<<26)/zsize binds before the count cap:
-// 16384 fat elements are exactly 64 MiB and lawful, 16385 are rejected by
-// encoder and decoder alike.
 
 import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
+	"testing"
 	"unsafe"
 )
 
@@ -63,9 +42,6 @@ type ZeroSizedHolder struct {
 	Items []ZeroEmpty `json:"items"`
 }
 
-// ZeroFat carries 4 KiB of storage under `json:"-"`, so each element is
-// zero-wire while fat. For such slices the per-count byte budget of
-// (1<<26)/zsize binds before the 1,048,576 count cap.
 type ZeroFat struct {
 	Scratch [4096]byte `json:"-"`
 }
@@ -74,8 +50,6 @@ type ZeroFatHolder struct {
 	Items []ZeroFat `json:"items"`
 }
 
-// encoder is the pair of generated encode methods every holder below has,
-// and decoder the generated decode method.
 type encoder interface {
 	MarshalBinary() ([]byte, error)
 	AppendBinary([]byte) ([]byte, error)
@@ -85,9 +59,6 @@ type decoder interface {
 	UnmarshalBinary([]byte) error
 }
 
-// zeroCap is the 1 MiB prealloc bound applied to the count itself at unit
-// 1, so the accepted maximum is 1,048,576 elements whatever the element
-// size. It is compared against the count, never against count*sizeof.
 func zeroCap() int {
 	return 1 << 20
 }
@@ -96,15 +67,10 @@ func padSize() int {
 	return int(unsafe.Sizeof(ZeroPad{}))
 }
 
-// fatCap is the per-count byte budget for fat zero-wire elements:
-// (1<<26)/4096 = 16384. It binds before the count cap.
 func fatCap() int {
-	return (1 << 26) / int(unsafe.Sizeof(ZeroFat{}))
+	return (1 << 23) / int(unsafe.Sizeof(ZeroFat{}))
 }
 
-// wireOfUint64 renders the expected encoding of a struct whose fields are
-// all zero-wire slices: version 0x01 then one uvarint per count. It takes
-// uint64 so a count beyond the int range on a 32-bit target still encodes.
 func wireOfUint64(counts ...uint64) []byte {
 	out := []byte{1}
 	for _, c := range counts {
@@ -121,19 +87,12 @@ func wireOf(counts ...int) []byte {
 	return wireOfUint64(wide...)
 }
 
-// caseTag names one assertion: the label of the case, the field the
-// decoder error must name, and the rejected count. The empty field marks
-// an encoder case, whose error reports the count alone because a count cap
-// needs no nesting context.
 type caseTag struct {
 	label string
 	field string
 	count uint64
 }
 
-// requireRejected asserts that the count was rejected with the
-// count-out-of-range error naming that count, and for a decoder case also
-// the field and offset.
 func (t caseTag) requireRejected(err error) error {
 	if err == nil {
 		return fmt.Errorf("%s: accepted count %d, want count-out-of-range rejection", t.label, t.count)
@@ -157,8 +116,6 @@ func (t caseTag) requireRejected(err error) error {
 	return nil
 }
 
-// encodersRejected is encoder symmetry: MarshalBinary and AppendBinary
-// reject the same count with the same count-out-of-range error.
 func encodersRejected(v encoder, tag caseTag) error {
 	encTag := tag
 	encTag.label += " MarshalBinary"
@@ -172,8 +129,6 @@ func encodersRejected(v encoder, tag caseTag) error {
 	return appTag.requireRejected(appErr)
 }
 
-// decodeRejected asserts one decode of wire failed with the
-// count-out-of-range error the tag demands.
 func decodeRejected(wire []byte, tag caseTag, target decoder) error {
 	decTag := tag
 	decTag.label += " UnmarshalBinary"
@@ -220,10 +175,6 @@ func literalSmall() error {
 	return nil
 }
 
-// literalCapWire pins the accepted boundary encoding literally: version
-// 0x01 plus the uvarint of 1,048,576 (0x80 0x80 0x40). Expected bytes
-// elsewhere are built with encoding/binary, the same helper the generated
-// code uses, so this literal proves the wire itself is unchanged.
 func literalCapWire() error {
 	limit := zeroCap()
 	one := []byte{0x01, 0x80, 0x80, 0x40}
@@ -241,10 +192,6 @@ func literalCapWire() error {
 	return nil
 }
 
-// singleAtCap is the lawful side of the single-field boundary: every count
-// up to and including 1,048,576 is accepted by all three methods, and the
-// wire bytes carry the version byte plus the count and nothing else, so no
-// resource bound moved the bytes of an accepted value.
 func singleAtCap() error {
 	limit := zeroCap()
 	for _, c := range []int{0, 1, 2, 4096, limit - 1, limit} {
@@ -276,10 +223,6 @@ func singleAtCap() error {
 	return nil
 }
 
-// singleOverCap is the rejecting side: 1,048,577 fails in the encoder and
-// the decoder with the same count-out-of-range class, and a count far
-// above the cap fails on the count alone, so the decoder never reaches a
-// per-element loop or an allocation sized by it.
 func singleOverCap() error {
 	over := zeroCap() + 1
 	v := ZeroSingle{Items: make([]ZeroPad, over)}
@@ -295,9 +238,6 @@ func singleOverCap() error {
 	return decodeRejected(wireOfUint64(huge), caseTag{label: "single 2^40", field: ".Items", count: huge}, &hugeGot)
 }
 
-// twoFieldsAccepted is the lawful side of per-count independence: both
-// fields at the cap encode and decode, and their combined 2 MiB of element
-// storage is charged against no total budget.
 func twoFieldsAccepted() error {
 	limit := zeroCap()
 	if (limit+limit)*padSize() <= 1<<20 {
@@ -341,9 +281,6 @@ func twoFieldsAccepted() error {
 	return nil
 }
 
-// twoFieldsOver is the rejecting side: one field over the cap fails in both
-// encoders and in the decoder, names its own field, and never draws a
-// rejection from the other field, which stays at the cap.
 func twoFieldsOver() error {
 	limit := zeroCap()
 	over := limit + 1
@@ -364,10 +301,6 @@ func twoFieldsOver() error {
 	return decodeRejected(wireOf(limit, over), caseTag{label: "two fields B over", field: ".B", count: uint64(over)}, &gotBOver)
 }
 
-// nestedIndependent is the lawful side across a nesting level: a top-level
-// field and a slice inside a nested struct are each capped on their own
-// count, so both at the cap encode and decode with no total-budget
-// rejection.
 func nestedIndependent() error {
 	limit := zeroCap()
 	both := ZeroNested{Direct: make([]ZeroPad, limit), Sub: ZeroInner{Items: make([]ZeroPad, limit)}}
@@ -396,8 +329,6 @@ func nestedIndependent() error {
 	return nil
 }
 
-// nestedOver is the rejecting side: the direct field and the nested slice
-// each fail on their own count and name their own path.
 func nestedOver() error {
 	limit := zeroCap()
 	over := limit + 1
@@ -418,9 +349,6 @@ func nestedOver() error {
 	return decodeRejected(wireOf(limit, over), caseTag{label: "nested sub over", field: ".Sub.Items", count: uint64(over)}, &gotSubOver)
 }
 
-// zeroSizedAtCap pins the same boundary on the size-0 element path, where
-// the count is the only thing that can bound a decode and each accepted
-// count costs no storage at all.
 func zeroSizedAtCap() error {
 	if s := int(unsafe.Sizeof(ZeroEmpty{})); s != 0 {
 		return fmt.Errorf("ZeroEmpty size %d, want 0 for the zero-size path", s)
@@ -459,20 +387,13 @@ func zeroSizedAtCap() error {
 	return decodeRejected(wireOf(over), caseTag{label: "zero-size over", field: ".Items", count: uint64(over)}, &gotOver)
 }
 
-// fatBoundary pins the byte-budget edge on the finding's fat ignored
-// element: 16384 elements of 4096 bytes are exactly the 64 MiB per-count
-// budget and lawful on all three methods, 16385 are rejected by both
-// encoders and by the decoder with the same count-out-of-range error
-// before any allocation. One make of limit+1 elements hosts both sides,
-// so the fixture's only fat allocations are that single shared slice and
-// the accepted decode's own 64 MiB of zero values.
 func fatBoundary() error {
 	if size := int(unsafe.Sizeof(ZeroFat{})); size != 4096 {
 		return fmt.Errorf("ZeroFat size %d, want 4096 for the fat boundary", size)
 	}
 	limit := fatCap()
-	if limit != 16384 {
-		return fmt.Errorf("fat byte budget %d, want 16384", limit)
+	if limit != 2048 {
+		return fmt.Errorf("fat byte budget %d, want 2048", limit)
 	}
 	if limit >= zeroCap() {
 		return fmt.Errorf("fat byte budget %d does not bind before the count cap", limit)
@@ -488,8 +409,8 @@ func fatBoundary() error {
 	}
 	at := ZeroFatHolder{Items: storage[:limit]}
 	want := wireOf(limit)
-	if !bytes.Equal(want, []byte{0x01, 0x80, 0x80, 0x01}) {
-		return fmt.Errorf("fat cap wire %x, want the version byte plus the uvarint of 16384", want)
+	if !bytes.Equal(want, []byte{0x01, 0x80, 0x10}) {
+		return fmt.Errorf("fat cap wire %x, want the version byte plus the uvarint of 2048", want)
 	}
 	enc, err := at.MarshalBinary()
 	if err != nil {
@@ -517,6 +438,76 @@ func fatBoundary() error {
 		return fmt.Errorf("fat at budget: decoded elements are not zero values")
 	}
 	return nil
+}
+
+func fatRejectBeforeAlloc() error {
+	limit := fatCap()
+	overTag := caseTag{label: "fat over", field: ".Items", count: uint64(limit + 1)}
+	overTag.label += " UnmarshalBinary"
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	var gotOver ZeroFatHolder
+	overErr := gotOver.UnmarshalBinary(wireOf(limit + 1))
+	runtime.ReadMemStats(&after)
+	if err := overTag.requireRejected(overErr); err != nil {
+		return err
+	}
+	if delta := after.TotalAlloc - before.TotalAlloc; delta >= 1<<20 {
+		return fmt.Errorf("fat over: rejected count %d only after allocating %d bytes, want rejection before the 8MiB make", limit+1, delta)
+	}
+	for _, c := range []int{0, 1, 3} {
+		var small ZeroFatHolder
+		if err := small.UnmarshalBinary(wireOf(c)); err != nil {
+			return fmt.Errorf("fat small %d: UnmarshalBinary rejected lawful count: %w", c, err)
+		}
+		if len(small.Items) != c {
+			return fmt.Errorf("fat small %d: decoded %d items, want %d", len(small.Items), c, c)
+		}
+	}
+	return nil
+}
+
+func zeroWireCountIndependentAllocs() error {
+	limit := zeroCap()
+	small := ZeroSingle{Items: make([]ZeroPad, 1)}
+	big := ZeroSingle{Items: make([]ZeroPad, limit)}
+	if _, err := small.MarshalBinary(); err != nil {
+		return err
+	}
+	if _, err := big.MarshalBinary(); err != nil {
+		return err
+	}
+	if _, err := small.AppendBinary(nil); err != nil {
+		return err
+	}
+	if _, err := big.AppendBinary(nil); err != nil {
+		return err
+	}
+	wireSmall := wireOf(1)
+	wireBig := wireOf(limit)
+	var sink ZeroSingle
+	enc1 := testing.AllocsPerRun(20, func() { _, err := small.MarshalBinary(); mustZeroWireAlloc(err) })
+	encN := testing.AllocsPerRun(20, func() { _, err := big.MarshalBinary(); mustZeroWireAlloc(err) })
+	if enc1 != encN {
+		return fmt.Errorf("MarshalBinary allocates %v at count 1 and %v at count %d", enc1, encN, limit)
+	}
+	app1 := testing.AllocsPerRun(20, func() { _, err := small.AppendBinary(nil); mustZeroWireAlloc(err) })
+	appN := testing.AllocsPerRun(20, func() { _, err := big.AppendBinary(nil); mustZeroWireAlloc(err) })
+	if app1 != appN {
+		return fmt.Errorf("AppendBinary allocates %v at count 1 and %v at count %d", app1, appN, limit)
+	}
+	dec1 := testing.AllocsPerRun(20, func() { mustZeroWireAlloc(sink.UnmarshalBinary(wireSmall)) })
+	decN := testing.AllocsPerRun(20, func() { mustZeroWireAlloc(sink.UnmarshalBinary(wireBig)) })
+	if dec1 != decN {
+		return fmt.Errorf("UnmarshalBinary allocates %v at count 1 and %v at count %d", dec1, decN, limit)
+	}
+	return nil
+}
+
+func mustZeroWireAlloc(err error) {
+	if err != nil {
+		panic(err)
+	}
 }
 
 func run() error {
@@ -554,16 +545,83 @@ func run() error {
 	if err := fatBoundary(); err != nil {
 		failures = append(failures, "fat-boundary: "+err.Error())
 	}
+	if err := fatRejectBeforeAlloc(); err != nil {
+		failures = append(failures, "fat-noalloc: "+err.Error())
+	}
+	if err := zeroWireCountIndependentAllocs(); err != nil {
+		failures = append(failures, "zero-count-allocs: "+err.Error())
+	}
 	if len(failures) != 0 {
 		return fmt.Errorf("%s", strings.Join(failures, "; "))
 	}
 	return nil
 }
 
+//logos:allow(complexity::cognitive_overflow)
 func main() {
-	if err := run(); err != nil {
-		fmt.Println("binary:", err)
-		os.Exit(1)
-	}
-	fmt.Println("binary zero-wire budget: PASS")
+if zeroCap() != 1048576 {
+fmt.Println("FAIL budget-cap: zero-wire cap is not 1,048,576")
+os.Exit(1)
+}
+fmt.Println("ok budget-cap")
+if err := literalSmall(); err != nil {
+fmt.Println("FAIL budget-literal:", err)
+os.Exit(1)
+}
+fmt.Println("ok budget-literal")
+if err := literalCapWire(); err != nil {
+fmt.Println("FAIL budget-capwire:", err)
+os.Exit(1)
+}
+fmt.Println("ok budget-capwire")
+if err := singleAtCap(); err != nil {
+fmt.Println("FAIL budget-single:", err)
+os.Exit(1)
+}
+fmt.Println("ok budget-single")
+if err := singleOverCap(); err != nil {
+fmt.Println("FAIL budget-single-over:", err)
+os.Exit(1)
+}
+fmt.Println("ok budget-single-over")
+if err := twoFieldsAccepted(); err != nil {
+fmt.Println("FAIL budget-two:", err)
+os.Exit(1)
+}
+fmt.Println("ok budget-two")
+if err := twoFieldsOver(); err != nil {
+fmt.Println("FAIL budget-two-over:", err)
+os.Exit(1)
+}
+fmt.Println("ok budget-two-over")
+if err := nestedIndependent(); err != nil {
+fmt.Println("FAIL budget-nested:", err)
+os.Exit(1)
+}
+fmt.Println("ok budget-nested")
+if err := nestedOver(); err != nil {
+fmt.Println("FAIL budget-nested-over:", err)
+os.Exit(1)
+}
+fmt.Println("ok budget-nested-over")
+if err := zeroSizedAtCap(); err != nil {
+fmt.Println("FAIL budget-zerosize:", err)
+os.Exit(1)
+}
+fmt.Println("ok budget-zerosize")
+if err := fatBoundary(); err != nil {
+fmt.Println("FAIL budget-fat:", err)
+os.Exit(1)
+}
+fmt.Println("ok budget-fat")
+if err := fatRejectBeforeAlloc(); err != nil {
+fmt.Println("FAIL budget-fat-noalloc:", err)
+os.Exit(1)
+}
+fmt.Println("ok budget-fat-noalloc")
+if err := zeroWireCountIndependentAllocs(); err != nil {
+fmt.Println("FAIL budget-allocs:", err)
+os.Exit(1)
+}
+fmt.Println("ok budget-allocs")
 }

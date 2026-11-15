@@ -1,0 +1,171 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+	"slices"
+	"testing"
+)
+
+var closed []int
+
+var bad bool
+
+type pc struct{ id int }
+
+func (c *pc) Close() error {
+	closed = append(closed, c.id)
+	return nil
+}
+
+func mkcloser(x int) *pc { return &pc{id: x} }
+
+func panicking(x *pc) *pc {
+	if x.id == 2 {
+		panic("boom")
+	}
+	return x
+}
+
+func identity(x *pc) *pc { return x }
+
+func chainPanic() {
+	xs := []int{0, 1, 2, 3}
+	_ = xs.map(mkcloser).map(panicking)
+}
+
+//logos:allow(slop::discarded_error)
+func loopPanic() {
+	xs := []int{0, 1, 2, 3}
+	var out []*pc
+	done := false
+	defer func() {
+		if !done {
+			for i := len(out) - 1; i >= 0; i-- {
+				if c, ok := any(out[i]).(interface{ Close() error }); ok {
+					c.Close()
+				}
+			}
+		}
+	}()
+	for _, e := range xs {
+		m := mkcloser(e)
+		cur := panicking(m)
+		out = append(out, cur)
+	}
+	done = true
+	_ = out
+}
+
+func runChain() []int {
+	closed = nil
+	func() {
+		defer func() {
+			_ = recover()
+		}()
+		chainPanic()
+	}()
+	return append([]int(nil), closed...)
+}
+
+func runLoop() []int {
+	closed = nil
+	func() {
+		defer func() {
+			_ = recover()
+		}()
+		loopPanic()
+	}()
+	return append([]int(nil), closed...)
+}
+
+func chainCalm() []*pc {
+	return []int{0, 1, 2}.map(mkcloser).map(identity)
+}
+
+//logos:allow(slop::discarded_error)
+func loopCalm() []*pc {
+	xs := []int{0, 1, 2}
+	var out []*pc
+	done := false
+	defer func() {
+		if !done {
+			for i := len(out) - 1; i >= 0; i-- {
+				if c, ok := any(out[i]).(interface{ Close() error }); ok {
+					c.Close()
+				}
+			}
+		}
+	}()
+	for _, e := range xs {
+		out = append(out, identity(mkcloser(e)))
+	}
+	done = true
+	return out
+}
+func allocChain() {
+	closed = nil
+	defer func() {
+		_ = recover()
+	}()
+	_ = []int{0, 1, 2}.map(mkcloser).map(identity)
+}
+
+//logos:allow(slop::discarded_error)
+func allocLoop() {
+	closed = nil
+	defer func() {
+		_ = recover()
+	}()
+	rcv := []int{0, 1, 2}
+	var out []*pc
+	for _, e := range rcv {
+		m0 := mkcloser(e)
+		m1 := identity(m0)
+		out = append(out, m1)
+	}
+	_ = out
+}
+
+func main() {
+	if got, want := runChain(), []int{1, 0}; !slices.Equal(got, want) {
+		fmt.Println("FAIL panic-close: got", got, "want", want)
+		bad = true
+	} else {
+		fmt.Println("ok panic-close")
+	}
+	if got, want := runLoop(), []int{1, 0}; !slices.Equal(got, want) {
+		fmt.Println("FAIL loop-oracle got", got, "want", want)
+		bad = true
+	} else {
+		fmt.Println("ok loop-oracle")
+	}
+	if got := runChain(); !slices.Equal(got, runLoop()) {
+		fmt.Println("FAIL chain-loop-parity got", got)
+		bad = true
+	} else {
+		fmt.Println("ok chain-loop-parity")
+	}
+	closed = nil
+	calm := chainCalm()
+	if len(calm) != 3 || len(closed) != 0 {
+		fmt.Println("FAIL calm-path", len(calm), closed)
+		bad = true
+	} else {
+		fmt.Println("ok calm-path")
+	}
+	_ = loopCalm()
+	ac := testing.AllocsPerRun(100, allocChain)
+	al := testing.AllocsPerRun(100, allocLoop)
+	if ac != al {
+		fmt.Println("FAIL alloc-parity chain", ac, "loop", al)
+		bad = true
+	} else {
+		fmt.Println("ok alloc-parity")
+	}
+	if bad {
+		os.Exit(1)
+	}
+}

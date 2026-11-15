@@ -5,6 +5,7 @@
 package eject
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"go/build/constraint"
 	"go/parser"
 	"go/token"
+	"internal/logosfile"
 	"maps"
 	"os"
 	"path/filepath"
@@ -25,34 +27,7 @@ import (
 	"cmd/internal/logosowned"
 )
 
-// emitOwnedHelpers merges every logos_owned.json sidecar staged by the
-// compiler into the copied owner packages. It runs after package copy
-// and emission, so generated files land only in the output tree, and
-// before go.mod rewriting, so a dependency module pulled in only by an
-// owned helper still gets its require and replace lines. It reports
-// whether any helper, or any dependency module copied for one, uses the
-// support module.
-//
-// Three passes:
-//  1. resolve each owner to its destination (copying a dependency
-//     module if the helper is the first thing that needs it),
-//  2. per package: compute each request's effective condition
-//     (consumer condition AND its declaration conditions), OR
-//     identical-body variants, check declaration collisions against
-//     the copied source, and finalize each helper (format, output
-//     hash, output name),
-//  3. write the helper files.
-//
-// One owner keeps one package: each request is emitted in its defining
-// package and the consumer hosts cross-owner tables, so no import edge
-// between unrelated owners is added here.
-//
-// Consistency: dedupe is idempotent and deterministic (snapshot of the
-// staged sidecars sorted before decode and again by owner, package, ID,
-// and provenance). There is no exactly-once delivery across compiler
-// actions; identical requests deduplicate and same-source distinct
-// provenance survives until condition composition merges it.
-func emitOwnedHelpers(plan *ejectPlan, staging, out string, ejected map[string]string) (bool, error) {
+func emitOwnedHelpers(ctx context.Context, plan *ejectPlan, staging, out string, ejected map[string]string) (bool, error) {
 	reqs, err := gatherOwnedRequests(staging)
 	if err != nil {
 		return false, err
@@ -65,7 +40,6 @@ func emitOwnedHelpers(plan *ejectPlan, staging, out string, ejected map[string]s
 		return false, fmt.Errorf("resolve output: %v", err)
 	}
 
-	// Pass 1 — resolve owners to destinations.
 	dests := make([]*ownedDest, 0, len(reqs))
 	copiedRT := false
 	for i := range reqs {
@@ -98,16 +72,11 @@ func emitOwnedHelpers(plan *ejectPlan, staging, out string, ejected map[string]s
 		dests = append(dests, &ownedDest{req: req, owner: owner, dstRoot: dstRoot, dstDir: dstDir})
 	}
 
-	// Pass 2 — per package: conditions, collisions, final names. One
-	// writer per body group comes back (same-body variants absorbed).
-	dests, err = applyOwnedConditionsAndCollisions(plan, dests)
+	dests, err = applyOwnedConditionsAndCollisions(ctx, plan, dests)
 	if err != nil {
 		return false, err
 	}
 
-	// Pass 3 — write final bytes (never the input source: the output
-	// hash names the final file independently of the input ID). The
-	// result also carries support use of modules copied in pass 1.
 	usedRT := copiedRT
 	for _, d := range dests {
 		if _, err := os.Lstat(d.dst); err == nil {
@@ -127,28 +96,22 @@ func emitOwnedHelpers(plan *ejectPlan, staging, out string, ejected map[string]s
 		if err := os.WriteFile(d.dst, d.fixed, 0666); err != nil {
 			return false, fmt.Errorf("write owned helper: %v", err)
 		}
+		queueEjectGofmt(d.dst)
 	}
 	return usedRT, nil
 }
 
-// ownedDest gathers everything needed to emit one helper file. ID is
-// the transport integrity of the input request; name and dst come from
-// the hash of the FINAL output source, set in pass 2 along with the
-// final bytes and the support-module flag.
 type ownedDest struct {
 	req     *logosowned.Request
 	owner   *load.Package
 	dstRoot string
 	dstDir  string
-	name    string // logos_owned_<outputHash>.go (or _test.go for test-only)
+	name    string
 	dst     string
-	fixed   []byte // final formatted output bytes (set in pass 2)
-	usedRT  bool   // output uses the support module (set in pass 2)
+	fixed   []byte
+	usedRT  bool
 }
 
-// gatherOwnedRequests reads every sidecar under staging. Paths sort
-// before decoding, and requests sort again at dedupe time, so the
-// merged order is deterministic no matter how consumers compiled.
 func gatherOwnedRequests(staging string) ([]logosowned.Request, error) {
 	var sidecars []string
 	err := filepath.WalkDir(staging, func(path string, d os.DirEntry, err error) error {
@@ -179,14 +142,6 @@ func gatherOwnedRequests(staging string) ([]logosowned.Request, error) {
 	return dedupeOwnedRequests(all)
 }
 
-// dedupeOwnedRequests drops byte-identical requests and sorts the rest
-// by owner, package, content ID, and provenance. The key is owner plus
-// content ID plus canonical declarations: the same Source with
-// distinct provenance keeps the same ID by contract and must survive
-// until condition composition merges same-body variants, so only the
-// same owner with the same ID, same source, and same declarations
-// deduplicates. The same owner with the same ID but different content
-// is a loud conflict, never a silent overwrite.
 func dedupeOwnedRequests(reqs []logosowned.Request) ([]logosowned.Request, error) {
 	seen := map[string]logosowned.Request{}
 	for _, r := range reqs {
@@ -218,8 +173,6 @@ func dedupeOwnedRequests(reqs []logosowned.Request) ([]logosowned.Request, error
 	return out, nil
 }
 
-// ownedDeclarationsKey renders the canonical declaration list for
-// dedupe keys and deterministic ordering.
 func ownedDeclarationsKey(decls []logosowned.Declaration) string {
 	var b strings.Builder
 	for _, d := range decls {
@@ -231,7 +184,6 @@ func ownedDeclarationsKey(decls []logosowned.Declaration) string {
 	return b.String()
 }
 
-// ownedRequestsEqual compares two requests with slice provenance.
 func ownedRequestsEqual(a, b logosowned.Request) bool {
 	if a.Owner != b.Owner || a.Package != b.Package || a.ID != b.ID || a.Source != b.Source {
 		return false
@@ -247,15 +199,11 @@ func ownedRequestsEqual(a, b logosowned.Request) bool {
 	return true
 }
 
-// findOwnedOwner resolves an owner import path to the real package
-// plan, preferring the non-test package when a test variant shares
-// the path. Standard library packages never reach the plan, so a nil
-// result names an unsupported destination at the caller.
-func findOwnedOwner(plan *ejectPlan, owner string) *load.Package {
+func selectOwnedPackage(pkgs []*load.Package, owner string) *load.Package {
 	var fallback *load.Package
-	consider := func(p *load.Package) *load.Package {
+	for _, p := range pkgs {
 		if p.ImportPath != owner {
-			return nil
+			continue
 		}
 		if p.ForTest == "" && p.Internal.TestmainGo == nil {
 			return p
@@ -263,66 +211,35 @@ func findOwnedOwner(plan *ejectPlan, owner string) *load.Package {
 		if fallback == nil {
 			fallback = p
 		}
-		return nil
 	}
-	for _, p := range plan.main.pkgs {
-		if hit := consider(p); hit != nil {
-			return hit
-		}
-	}
-	for _, path := range slices.Sorted(maps.Keys(plan.depByPath)) {
-		for _, p := range plan.depByPath[path].pkgs {
-			if hit := consider(p); hit != nil {
-				return hit
-			}
-		}
-	}
-	// Provenance-only packages (standard, test variants) never resolve
-	// to a writable destination; they stay read-only for conditions.
 	return fallback
 }
 
-// ownedFindDeclPackage resolves a declaration owner to its package
-// inventory for read-only condition reads. It prefers the non-test
-// variant when several share the path and includes standard packages
-// from the retained provenance. Emission never writes through this
-// path.
+func findOwnedOwner(plan *ejectPlan, owner string) *load.Package {
+	all := slices.Clone(plan.main.pkgs)
+	for _, path := range slices.Sorted(maps.Keys(plan.depByPath)) {
+		all = append(all, plan.depByPath[path].pkgs...)
+	}
+	return selectOwnedPackage(all, owner)
+}
+
 func ownedFindDeclPackage(plan *ejectPlan, owner string) *load.Package {
 	if plan != nil && plan.provenance != nil {
 		if pkgs, ok := plan.provenance[owner]; ok && len(pkgs) > 0 {
-			var fallback *load.Package
-			for _, p := range pkgs {
-				if p.ImportPath != owner {
-					continue
-				}
-				if p.ForTest == "" && p.Internal.TestmainGo == nil {
-					return p
-				}
-				if fallback == nil {
-					fallback = p
-				}
-			}
-			if fallback != nil {
-				return fallback
+			if hit := selectOwnedPackage(pkgs, owner); hit != nil {
+				return hit
 			}
 		}
 	}
 	return findOwnedOwner(plan, owner)
 }
 
-// ownedOutputRoots returns the output and module roots for owner: the
-// main tree for main-module owners, the ejected copy for dependency
-// owners. A dependency module with no other ejected content is copied
-// now, so the helper still lands in a complete module the go.mod
-// rewriting below covers. usesRT reports whether that copy imports the
-// support packages; it is false when nothing was copied.
 func ownedOutputRoots(plan *ejectPlan, owner *load.Package, out, abs string, ejected map[string]string) (dstRoot, modRoot string, usesRT bool) {
 	if owner.Module.Main {
 		return out, plan.main.dir, false
 	}
 	m := plan.depByPath[owner.Module.Path]
 	if m == nil {
-		// Unreachable: findOwnedOwner only returns planned packages.
 		base.Fatalf("logos eject: owned request for %q has no module", owner.ImportPath)
 	}
 	if dst, ok := ejected[m.path]; ok {
@@ -336,9 +253,6 @@ func ownedOutputRoots(plan *ejectPlan, owner *load.Package, out, abs string, eje
 	return dst, m.dir, usesRT
 }
 
-// ownedCheckDir rejects a destination outside dstRoot or behind a
-// symlink. Missing trailing components are fine: they are created on
-// emission. Existing components must all be real directories.
 func ownedCheckDir(dstRoot, dst string) error {
 	rel, err := filepath.Rel(dstRoot, dst)
 	if err != nil {
@@ -363,8 +277,6 @@ func ownedCheckDir(dstRoot, dst string) error {
 	return nil
 }
 
-// ownedCheckSymlink rejects symlinks and non-directories, so a link
-// can never pull outside bytes into the tree or redirect a write.
 func ownedCheckSymlink(path string) error {
 	fi, err := os.Lstat(path)
 	if err != nil {
@@ -379,9 +291,6 @@ func ownedCheckSymlink(path string) error {
 	return nil
 }
 
-// gorootContains reports whether dir sits inside the toolchain root.
-// Owned helpers never write there: the coordinator rejects those
-// owners before any output path is built.
 func gorootContains(dir string) bool {
 	goroot := cfg.GOROOT
 	if goroot == "" || dir == "" {
@@ -394,13 +303,7 @@ func gorootContains(dir string) bool {
 	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
-// applyOwnedConditionsAndCollisions resolves, for each destination
-// package: the effective build condition of every helper, the
-// declaration collisions against the copied source, and the final
-// output names (hash of the formatted output source). It returns the
-// reduced writer list: one destination per body group, same-body
-// variants absorbed.
-func applyOwnedConditionsAndCollisions(plan *ejectPlan, dests []*ownedDest) ([]*ownedDest, error) {
+func applyOwnedConditionsAndCollisions(ctx context.Context, plan *ejectPlan, dests []*ownedDest) ([]*ownedDest, error) {
 	groups := map[string][]*ownedDest{}
 	var keys []string
 	for _, d := range dests {
@@ -412,7 +315,7 @@ func applyOwnedConditionsAndCollisions(plan *ejectPlan, dests []*ownedDest) ([]*
 	slices.Sort(keys)
 	writers := make([]*ownedDest, 0, len(dests))
 	for _, dir := range keys {
-		groupWriters, err := ownedResolveGroup(plan, dir, groups[dir])
+		groupWriters, err := ownedResolveGroup(ctx, plan, dir, groups[dir])
 		if err != nil {
 			return nil, fmt.Errorf("owned request for %q: %v", groups[dir][0].req.Owner, err)
 		}
@@ -421,20 +324,9 @@ func applyOwnedConditionsAndCollisions(plan *ejectPlan, dests []*ownedDest) ([]*
 	return writers, nil
 }
 
-// ownedResolveGroup analyzes one destination package using explicit
-// declaration provenance: no second type checker, no guessed
-// identifiers, no all-files scan. Each request's effective condition is
-// its consumer condition ANDed with its declaration conditions; then
-// identical bodies OR their effective conditions. Collisions and final
-// output names are computed here too. It returns one writer per body
-// group.
-func ownedResolveGroup(plan *ejectPlan, dir string, dests []*ownedDest) ([]*ownedDest, error) {
+func ownedResolveGroup(ctx context.Context, plan *ejectPlan, dir string, dests []*ownedDest) ([]*ownedDest, error) {
 	pkgName := dests[0].owner.Name
 
-	// Copied owner source for collisions: every .go file whose package
-	// clause names the owner package. A file name starting with the
-	// generated prefix is not ownership: copied plain-Go source may
-	// carry such a name and its declarations must collide with helpers.
 	srcDecls := map[string]string{}
 	entries, err := os.ReadDir(dir)
 	if err != nil && !os.IsNotExist(err) {
@@ -454,7 +346,7 @@ func ownedResolveGroup(plan *ejectPlan, dir string, dests []*ownedDest) ([]*owne
 			return nil, fmt.Errorf("parse owner file %s: %v", e.Name(), err)
 		}
 		if f.Name.Name != pkgName {
-			continue // another namespace (ex. sub_test): never collides
+			continue
 		}
 		for _, name := range ownedFileDeclNames(f) {
 			if name == "_" || name == "init" || strings.Contains(name, ".") {
@@ -468,15 +360,12 @@ func ownedResolveGroup(plan *ejectPlan, dir string, dests []*ownedDest) ([]*owne
 		}
 	}
 
-	// Helpers of this group, parsed for per-file duplicates.
 	for _, d := range dests {
 		if _, err := ownedDeclNames(d.req.Owner, []byte(d.req.Source)); err != nil {
 			return nil, err
 		}
 	}
 
-	// Same-body variants share one writer; distinct bodies with the
-	// same declaration conflict instead of deduplicating.
 	variants, err := ownedGroupVariants(dests)
 	if err != nil {
 		return nil, err
@@ -498,7 +387,6 @@ func ownedResolveGroup(plan *ejectPlan, dir string, dests []*ownedDest) ([]*owne
 		}
 	}
 
-	// Collisions vs copied source.
 	for _, group := range variants {
 		names, err := ownedDeclNames(group[0].req.Owner, []byte(group[0].req.Source))
 		if err != nil {
@@ -511,15 +399,6 @@ func ownedResolveGroup(plan *ejectPlan, dir string, dests []*ownedDest) ([]*owne
 		}
 	}
 
-	// Effective condition per body group: per-request consumer AND
-	// declarations, then OR across the group's variants. Production and
-	// test-only availability stay separate: P is the OR of non-test
-	// requests, T is the OR of test requests AND NOT P when production
-	// exists. A mixed group keeps its production file instead of
-	// collapsing to _test.go, and the test file excludes P so the same
-	// body never builds twice when P holds. With unconditional P the
-	// extra test file is unnecessary; with no production requests only
-	// _test.go is emitted.
 	var writers []*ownedDest
 	for _, group := range variants {
 		slices.SortFunc(group, func(a, b *ownedDest) int {
@@ -552,10 +431,11 @@ func ownedResolveGroup(plan *ejectPlan, dir string, dests []*ownedDest) ([]*owne
 		emitOne := func(rep *ownedDest, cond constraint.Expr, test bool) error {
 			header := ownedRenderHeader(cond)
 			finalSource := header + body
-			fixed, uses, ok := convertGoFile([]byte(finalSource))
+			fixed, uses, ok := remapEjectedFile([]byte(finalSource), "")
 			if !ok {
 				return fmt.Errorf("helper %s does not parse after condition merge", rep.req.ID)
 			}
+			fixed = gofmtRun(ctx, []string{gofmtBinary()}, fixed)
 			sum := sha256.Sum256(fixed)
 			hash := hex.EncodeToString(sum[:])
 			if test {
@@ -591,7 +471,7 @@ func ownedResolveGroup(plan *ejectPlan, dir string, dests []*ownedDest) ([]*owne
 			continue
 		}
 		notProd := &constraint.NotExpr{X: prodCond}
-		testCond := ownedAndExprs([]constraint.Expr{testOr, notProd})
+		testCond := ownedCombineAnd([]constraint.Expr{testOr, notProd})
 		if err := emitOne(testDests[0], testCond, true); err != nil {
 			return nil, err
 		}
@@ -602,11 +482,6 @@ func ownedResolveGroup(plan *ejectPlan, dir string, dests []*ownedDest) ([]*owne
 	return writers, nil
 }
 
-// ownedEffectiveCondition computes one request's effective condition:
-// its consumer condition ANDed with the conditions of its declaration
-// files. It also reports whether any declaration is test-only, which
-// selects a _test.go output filename. Caller test status never makes
-// a dependency helper test-only.
 func ownedEffectiveCondition(plan *ejectPlan, req *logosowned.Request) (constraint.Expr, bool, error) {
 	consumer, err := ownedHeaderExprOf(req.Source)
 	if err != nil {
@@ -624,16 +499,9 @@ func ownedEffectiveCondition(plan *ejectPlan, req *logosowned.Request) (constrai
 			isTest = true
 		}
 	}
-	return ownedAndExprs(conds), isTest, nil
+	return ownedCombineAnd(conds), isTest, nil
 }
 
-// ownedDeclarationCondition resolves one provenance entry to the build
-// condition of its genuinely selected file. The file must belong to
-// the declaration owner's selected source set (GoFiles, CgoFiles, and
-// TestGoFiles, with every Logos variant normalized to Go form only for
-// copy lookup). Original source is read for conditions. Missing
-// or unselected files, missing inventories, and generated cgo outputs
-// without a source mapping are explicit errors, never silent omissions.
 func ownedDeclarationCondition(plan *ejectPlan, declOwner, declFile string) (constraint.Expr, bool, error) {
 	pkg := ownedFindDeclPackage(plan, declOwner)
 	if pkg == nil {
@@ -662,9 +530,6 @@ func ownedDeclarationCondition(plan *ejectPlan, declOwner, declFile string) (con
 	return cond, isTest, nil
 }
 
-// ownedSelectedFile maps a declaration basename to its selected source
-// entry. It returns the original inventory name and whether the entry
-// is test-only.
 func ownedSelectedFile(pkg *load.Package, declFile string) (string, bool, error) {
 	if len(pkg.GoFiles) == 0 && len(pkg.CgoFiles) == 0 && len(pkg.TestGoFiles) == 0 && len(pkg.CompiledGoFiles) == 0 && len(pkg.IgnoredGoFiles) == 0 {
 		return "", false, fmt.Errorf("owner %q has no source inventory (no all-files scan)", pkg.ImportPath)
@@ -694,30 +559,19 @@ func ownedSelectedFile(pkg *load.Package, declFile string) (string, bool, error)
 			return name, true, nil
 		}
 	}
-	// A Logos source's copied output is .go while the inventory holds
-	// .lgo: normalize only for this lookup, keeping the original for
-	// condition reads.
 	for _, name := range pkg.GoFiles {
-		if cfg.IsLogosFile(name) && logosStem(name)+".go" == declFile {
+		if logosfile.Is(name) && logosStem(name)+".go" == declFile {
 			return name, false, nil
 		}
 	}
 	for _, name := range pkg.TestGoFiles {
-		if cfg.IsLogosFile(name) && logosStem(name)+".go" == declFile {
+		if logosfile.Is(name) && logosStem(name)+".go" == declFile {
 			return name, true, nil
 		}
 	}
 	return "", false, fmt.Errorf("declaration file %q not in selected sources of %q", declFile, pkg.ImportPath)
 }
 
-// ownedGroupVariants groups the destinations of one package by
-// canonical body (source with its build header stripped). Groups of
-// more than one are same-body variants that differ only in consumer
-// headers or provenance: they emit ONE file, whose condition is the OR
-// of the variants' effective conditions. Destinations keep their own
-// req (input IDs stay intact for diagnostics); the representative is
-// the first variant (sorted by input ID, so deterministic). A body
-// that fails to strip is an explicit error, never a raw fallback.
 func ownedGroupVariants(dests []*ownedDest) ([][]*ownedDest, error) {
 	byBody := map[string][]*ownedDest{}
 	var bodies []string
@@ -739,8 +593,6 @@ func ownedGroupVariants(dests []*ownedDest) ([][]*ownedDest, error) {
 	return groups, nil
 }
 
-// ownedStripHeader removes the build constraint lines before the
-// package clause, keeping other leading comments.
 func ownedStripHeader(source string) (string, error) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "", []byte(source), parser.PackageClauseOnly)
@@ -762,7 +614,6 @@ func ownedStripHeader(source string) (string, error) {
 	return strings.Join(kept, "\n") + "\n" + source[pkgOffset:], nil
 }
 
-// ownedHeaderExprOf parses the build constraints of one helper source.
 func ownedHeaderExprOf(source string) (constraint.Expr, error) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "owned.go", []byte(source), parser.ParseComments)
@@ -772,16 +623,10 @@ func ownedHeaderExprOf(source string) (constraint.Expr, error) {
 	return ownedHeaderExpr(f)
 }
 
-// ownedGoosTags and ownedGoarchTags are the platform suffixes a file
-// name may carry, sorted for deterministic iteration.
 var ownedGoosTags = []string{"aix", "android", "darwin", "dragonfly", "freebsd", "hurd", "illumos", "ios", "js", "linux", "nacl", "netbsd", "openbsd", "plan9", "solaris", "windows", "zos"}
 
 var ownedGoarchTags = []string{"386", "amd64", "arm", "arm64", "loong64", "mips", "mips64", "mips64le", "mipsle", "ppc64", "ppc64le", "riscv", "riscv64", "s390x", "sparc64", "wasm"}
 
-// ownedFileCondition derives the build condition of one Go file: its
-// explicit //go:build / // +build lines, the implicit GOOS/GOARCH tags
-// of its file name, and the cgo tag if it imports "C". nil means the
-// file builds in every configuration.
 func ownedFileCondition(name string, f *ast.File) (constraint.Expr, error) {
 	var parts []constraint.Expr
 	h, err := ownedHeaderExpr(f)
@@ -797,12 +642,9 @@ func ownedFileCondition(name string, f *ast.File) (constraint.Expr, error) {
 	if ownedHasCgo(f) {
 		parts = append(parts, &constraint.TagExpr{Tag: "cgo"})
 	}
-	return ownedAndExprs(parts), nil
+	return ownedCombineAnd(parts), nil
 }
 
-// ownedHeaderExpr parses the build constraints declared before the
-// package clause. A //go:build line wins over // +build lines; several
-// legacy lines AND together.
 func ownedHeaderExpr(f *ast.File) (constraint.Expr, error) {
 	var modern, legacy constraint.Expr
 	for _, cg := range f.Comments {
@@ -836,14 +678,9 @@ func ownedHeaderExpr(f *ast.File) (constraint.Expr, error) {
 	return legacy, nil
 }
 
-// ownedFilenameTags returns the platform tags implied by a file name:
-// name_GOOS_GOARCH.go, name_GOOS.go and name_GOARCH.go follow the go
-// tool's file name rules. Every Logos variant owned by cfg.IsLogosFile
-// normalizes through logosStem to Go form only for this suffix
-// analysis and copy lookup; condition reads use the original source.
 func ownedFilenameTags(name string) []string {
 	var base string
-	if cfg.IsLogosFile(name) {
+	if logosfile.Is(name) {
 		base = logosStem(name)
 	} else {
 		base = strings.TrimSuffix(name, ".go")
@@ -868,7 +705,6 @@ func ownedFilenameTags(name string) []string {
 	return nil
 }
 
-// ownedHasCgo reports whether the file imports "C".
 func ownedHasCgo(f *ast.File) bool {
 	for _, imp := range f.Imports {
 		if path, err := strconv.Unquote(imp.Path.Value); err == nil && path == "C" {
@@ -878,14 +714,6 @@ func ownedHasCgo(f *ast.File) bool {
 	return false
 }
 
-// ownedAndExprs ANDs conditions, dropping duplicates and nils. Nil is
-// the true condition, so AND drops it.
-func ownedAndExprs(conds []constraint.Expr) constraint.Expr {
-	return ownedCombineAnd(conds)
-}
-
-// ownedOrExprs ORs conditions, dropping duplicates. Nil is the true
-// condition, so any nil OR makes the whole OR true (nil).
 func ownedOrExprs(conds []constraint.Expr) constraint.Expr {
 	for _, c := range conds {
 		if c == nil {
@@ -916,8 +744,6 @@ func ownedOrExprs(conds []constraint.Expr) constraint.Expr {
 	return out
 }
 
-// ownedCombineAnd folds conditions with AND, dropping duplicates and
-// nils.
 func ownedCombineAnd(conds []constraint.Expr) constraint.Expr {
 	seen := map[string]bool{}
 	var uniq []constraint.Expr
@@ -943,9 +769,6 @@ func ownedCombineAnd(conds []constraint.Expr) constraint.Expr {
 	return out
 }
 
-// ownedRenderHeader renders a normalized build header: the //go:build
-// line plus its legacy // +build rendering. Empty condition means no
-// header at all.
 func ownedRenderHeader(expr constraint.Expr) string {
 	if expr == nil {
 		return ""
@@ -957,12 +780,6 @@ func ownedRenderHeader(expr constraint.Expr) string {
 	return header + "\n"
 }
 
-// ownedDeclNames collects the top-level declared identifiers of a
-// rewritten helper: named types, values, functions, and methods
-// qualified by their receiver so overloads across types stay distinct.
-// A duplicate name inside one file cannot compile, so it fails here
-// with the owner context instead of after output. Repeated blank
-// identifiers and package-level init functions stay legal Go and pass.
 func ownedDeclNames(owner string, data []byte) ([]string, error) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "owned.go", data, parser.SkipObjectResolution)
@@ -972,9 +789,6 @@ func ownedDeclNames(owner string, data []byte) ([]string, error) {
 	var names []string
 	seen := map[string]bool{}
 	bump := func(name string) error {
-		// Repeated blank identifiers and package-level init functions
-		// are legal Go: neither leaves the generated namespace, so
-		// neither can collide with copied source or other helpers.
 		if name == "_" || name == "init" {
 			return nil
 		}
@@ -1017,8 +831,6 @@ func ownedDeclNames(owner string, data []byte) ([]string, error) {
 	return names, nil
 }
 
-// ownedFileDeclNames lists the top-level declared identifiers of one
-// already-valid file (no duplicate check).
 func ownedFileDeclNames(f *ast.File) []string {
 	var names []string
 	for _, decl := range f.Decls {
@@ -1045,7 +857,6 @@ func ownedFileDeclNames(f *ast.File) []string {
 	return names
 }
 
-// ownedReceiver names the base type of a method receiver.
 func ownedReceiver(fields []*ast.Field) string {
 	if len(fields) == 0 {
 		return ""
@@ -1065,7 +876,6 @@ func ownedReceiver(fields []*ast.Field) string {
 	}
 }
 
-// ownedTypeName renders the dotted path of a receiver base type.
 func ownedTypeName(e ast.Expr) string {
 	switch v := e.(type) {
 	case *ast.Ident:

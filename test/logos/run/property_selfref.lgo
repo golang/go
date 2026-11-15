@@ -1,0 +1,105 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type ITree interface {
+	const Kids []*Tree
+	const Label string
+}
+
+type Tree struct : ITree {
+	Kids  []*Tree
+	Label string
+}
+
+type IPeer interface {
+	const Others []*Right
+	const Name string
+}
+
+type IOther interface {
+	const Others []*Left
+	const Name string
+}
+
+type Left struct : IPeer {
+	Others []*Right
+	Name   string
+}
+
+type Right struct : IOther {
+	Others []*Left
+	Name   string
+}
+
+type IBox[T any] interface {
+	const Rest []*Box
+	const Val T
+}
+
+type Box struct : IBox[int] {
+	Rest []*Box
+	Val  int
+}
+
+func label(t ITree) string {
+	return t.Label
+}
+
+func kids(t ITree) int {
+	return len(t.Kids)
+}
+
+func name(p IPeer) string {
+	return p.Name
+}
+
+func peers(p IPeer) int {
+	return len(p.Others)
+}
+
+func value(b IBox[int]) int {
+	return b.Val
+}
+
+func depth(b IBox[int]) int {
+	return len(b.Rest)
+}
+
+func main() {
+	leaf := &Tree{Label: "leaf"}
+	root := &Tree{Kids: []*Tree{leaf, leaf}, Label: "root"}
+	check("self-reference-label", label(root) == "root", label(root), "root")
+	check("self-reference-kids", kids(root) == 2 && kids(leaf) == 0, kids(root), 2)
+
+	r := &Right{Name: "right"}
+	l := &Left{Others: []*Right{r}, Name: "left"}
+	r.Others = []*Left{l}
+	check("two-type-cycle-name", name(l) == "left", name(l), "left")
+	check("two-type-cycle-link", peers(l) == 1 && r.Others[0] == l, peers(l), 1)
+
+	b := &Box{Val: 7}
+	b.Rest = []*Box{b}
+	check("generic-interface-cycle-value", value(b) == 7, value(b), 7)
+	check("generic-interface-cycle-link", depth(b) == 1 && b.Rest[0] == b, depth(b), 1)
+
+	if failed {
+		os.Exit(1)
+	}
+}

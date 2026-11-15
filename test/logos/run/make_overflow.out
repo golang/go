@@ -1,4 +1,19 @@
-logos: make length overflow: w * h
-len=12
-logos: make length overflow: w * h
-len=0
+ok make-overflow-checked
+ok mul-len-uint8-overflow-panics-via-mullen
+ok mul-len-uint8-exact-length
+ok mul-len-int8-overflow-panics-via-mullen
+ok mul-len-int8-exact-length
+ok mul-len-int32-overflow-panics-via-mullen
+ok mul-len-int32-exact-length
+ok mul-len-int64-overflow-panics-via-mullen
+ok mul-len-int64-exact-length
+ok mul-len-uint16-overflow-panics-via-mullen
+ok mul-len-uint16-exact-length
+ok mul-len-three-operands-overflow-panics-via-mullen
+ok mul-len-three-operands-exact-length
+ok mul-len-var-times-const-overflow-panics-via-mullen
+ok mul-len-var-times-const-exact-length
+ok mul-len-const-times-var-overflow-panics-via-mullen
+ok mul-len-const-times-var-exact-length
+ok mul-cap-var-times-const-overflow-panics-via-mullen
+ok mul-cap-var-times-const-exact-capacity

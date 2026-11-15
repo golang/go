@@ -1,0 +1,134 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strconv"
+	"strings"
+)
+
+var shapeKeys8 = []string{"a1", "a10", "b", "c", "d", "e", "g", "h"}
+var shapeKeys9 = []string{"a1", "a10", "a11", "b", "c", "d", "e", "g", "h"}
+
+const shapeDoc8 = `{"h":8,"g":7,"e":6,"d":5,"c":4,"b":3,"a10":10,"a1":1}`
+const shapeDoc9 = `{"h":8,"a11":11,"g":7,"e":6,"d":5,"c":4,"b":3,"a10":10,"a1":1}`
+
+func probeField(key string) string {
+	return "\tF" + strings.ToUpper(key) + " int64 " + string(96) + `json:"` + key + `"` + string(96) + "\n"
+}
+
+func probeStruct(name string, keys []string) string {
+	var b strings.Builder
+	b.WriteString("type " + name + " struct {\n")
+	for _, k := range keys {
+		b.WriteString(probeField(k))
+	}
+	b.WriteString("}\n")
+	return b.String()
+}
+
+func probePrints(keys []string) string {
+	parts := make([]string, 0, len(keys))
+	for _, k := range keys {
+		parts = append(parts, "v.F"+strings.ToUpper(k))
+	}
+	return strings.Join(parts, ", ")
+}
+
+func probeSrc() string {
+	var b strings.Builder
+	b.WriteString("package main\n\nimport (\n\t\"encoding/json\"\n\t\"fmt\"\n\t\"os\"\n)\n\n")
+	b.WriteString(probeStruct("Keyed8", shapeKeys8))
+	b.WriteString("\n")
+	b.WriteString(probeStruct("Keyed9", shapeKeys9))
+	b.WriteString("\nfunc main() {\n")
+	b.WriteString("\tvar e8 Keyed8\n")
+	b.WriteString("\tif err := json.Unmarshal([]byte(" + strconv.Quote(shapeDoc8) + "), &e8); err != nil {\n")
+	b.WriteString("\t\tfmt.Println(\"decode8:\", err)\n\t\tos.Exit(1)\n\t}\n")
+	b.WriteString(fmt.Sprintf("\tfmt.Println(%s)\n", strings.Replace(probePrints(shapeKeys8), "v.", "e8.", -1)))
+	b.WriteString("\tvar e9 Keyed9\n")
+	b.WriteString("\tif err := json.Unmarshal([]byte(" + strconv.Quote(shapeDoc9) + "), &e9); err != nil {\n")
+	b.WriteString("\t\tfmt.Println(\"decode9:\", err)\n\t\tos.Exit(1)\n\t}\n")
+	b.WriteString(fmt.Sprintf("\tfmt.Println(%s)\n", strings.Replace(probePrints(shapeKeys9), "v.", "e9.", -1)))
+	b.WriteString("}\n")
+	return b.String()
+}
+
+func buildShapeProbe(logosBin string) string {
+	dir, err := os.MkdirTemp("", "keyshape")
+	if err != nil {
+		fmt.Printf("FAIL tempdir: %v\n", err)
+		os.Exit(1)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module probe\n\ngo 1.27\n"), 0644); err != nil {
+		fmt.Printf("FAIL gomode: %v\n", err)
+		os.Exit(1)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "main.lgo"), []byte(probeSrc()), 0644); err != nil {
+		fmt.Printf("FAIL source: %v\n", err)
+		os.Exit(1)
+	}
+	cmd := exec.Command(logosBin, "build", "-o", "probe.exe", ".")
+	cmd.Dir = dir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		fmt.Printf("FAIL probe build: %v\n%s", err, out)
+		os.Exit(1)
+	}
+	return dir
+}
+
+func shapeSymType(nmOut []byte, want string) string {
+	for _, line := range strings.Split(string(nmOut), "\n") {
+		if f := strings.Fields(line); len(f) >= 3 {
+			if strings.Contains(f[len(f)-1], want) {
+				return f[1]
+			}
+		}
+	}
+	return ""
+}
+
+func main() {
+	binDir := filepath.Join(runtime.GOROOT(), "bin")
+	goBin := filepath.Join(binDir, "go")
+	logosBin := filepath.Join(binDir, "logos")
+	if runtime.GOOS == "windows" {
+		goBin += ".exe"
+		logosBin += ".exe"
+	}
+	dir := buildShapeProbe(logosBin)
+	runOut, err := exec.Command(filepath.Join(dir, "probe.exe")).CombinedOutput()
+	if err != nil {
+		fmt.Println("FAIL decode")
+		os.Exit(1)
+	}
+	if string(runOut) != "1 10 3 4 5 6 7 8\n1 10 11 3 4 5 6 7 8\n" {
+		fmt.Println("FAIL decode")
+		os.Exit(1)
+	}
+	fmt.Println("ok decode")
+	nmOut, err := exec.Command(goBin, "tool", "nm", filepath.Join(dir, "probe.exe")).CombinedOutput()
+	if err != nil {
+		fmt.Println("FAIL table")
+		os.Exit(1)
+	}
+	for _, sym := range []string{"_logos_jsonkeys_Keyed8", "_logos_jsonfolds_Keyed8"} {
+		if kind := shapeSymType(nmOut, sym); kind != "" {
+			fmt.Println("FAIL switch")
+			os.Exit(1)
+		}
+	}
+	fmt.Println("ok switch")
+	keysTab := shapeSymType(nmOut, "_logos_jsonkeys_Keyed9")
+	foldsTab := shapeSymType(nmOut, "_logos_jsonfolds_Keyed9")
+	if keysTab == "" || foldsTab == "" {
+		fmt.Println("FAIL table")
+		os.Exit(1)
+	}
+	fmt.Println("ok table")
+}

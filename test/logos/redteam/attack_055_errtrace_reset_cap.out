@@ -1,3 +1,3 @@
-trace-alpha: 2
-trace-beta-reset: 1
-trace-cap: 8
+ok errtrace-records-propagation-sites
+ok errtrace-resets-on-new-error
+ok errtrace-keeps-last-eight

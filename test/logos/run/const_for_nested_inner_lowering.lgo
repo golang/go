@@ -1,11 +1,5 @@
 // run
 
-// M7-S2 nested const for with inner lowering (SPEC Sec 2.5, T-205; #76):
-// a `?` call, a `$"..."` interpolation over both loop variables, and a
-// chain call whose lambda reads both loop variables sit in the body of
-// an inner const for. Every (outer, inner) copy lowers on its own: the
-// `?` exit of a copy leaves the function at that copy, and the ejected
-// text matches the native lowering.
 
 package main
 
@@ -13,8 +7,20 @@ import (
 	"comptime"
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 )
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 type Outer struct {
 	Alpha int
@@ -37,13 +43,13 @@ func step(in string) (int, error) {
 	return strconv.Atoi(in)
 }
 
-func grid(in string) (int, error) {
+func grid(in string, log *[]string) (int, error) {
 	sum := 0
 	const for _, f := range comptime.Fields[Outer]() {
 		const for _, g := range comptime.Fields[Inner]() {
 			n := step(in)?
 			sum += n
-			fmt.Println($"{f.Name}.{g.Name}={sum}")
+			*log = append(*log, $"{f.Name}.{g.Name}={sum}")
 		}
 	}
 	return sum, nil
@@ -61,8 +67,32 @@ func weights() int {
 
 func main() {
 	calls = 0
-	fmt.Println(grid("2"))
+	var log1 []string
+	var res1 struct {
+		sum int
+		err error
+	}
+	res1.sum, res1.err = grid("2", &log1)
+	got1, err1 := res1.sum, res1.err
+	want1 := []string{"Alpha.X=2", "Alpha.Y=4", "Alpha.Z=6"}
+	check("grid-lines", fmt.Sprint(log1) == fmt.Sprint(want1), log1, want1)
+	if err1 == nil {
+		check("grid-stopped", false, "nil error", 0)
+	} else {
+		check("grid-stopped", got1 == 0, got1, 0)
+	}
 	calls = 100
-	fmt.Println(grid("2"))
-	fmt.Println(weights())
+	var log2 []string
+	got2, err2 := grid("2", &log2)
+	want2 := []string{"Alpha.X=2", "Alpha.Y=4", "Alpha.Z=6", "Beta.X=8", "Beta.Y=10", "Beta.Z=12"}
+	check("grid-full-lines", fmt.Sprint(log2) == fmt.Sprint(want2), log2, want2)
+	if err2 != nil {
+		check("grid-full-sum", false, err2, 12)
+	} else {
+		check("grid-full-sum", got2 == 12, got2, 12)
+	}
+	check("weights", weights() == 144, weights(), 144)
+	if failed {
+		os.Exit(1)
+	}
 }

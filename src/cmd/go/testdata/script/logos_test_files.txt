@@ -1,13 +1,10 @@
-# M0-S2: .lgo test files are discovered; mixed .go test files are rejected.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
-# Pure .lgo package with a .lgo test runs.
 logos test ./ok
 stdout '^ok'
 ! stdout 'no test files'
 
-# .lgo beside .go test file fails.
 ! logos test ./mix
 stderr 'correctness::mixed_package'
 

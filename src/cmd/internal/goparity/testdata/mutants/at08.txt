@@ -1,0 +1,8 @@
+kind: compiler
+file: src/cmd/compile/internal/inline/stackbuf_logos.go
+expect: at08_recursion_bound
+config: K3
+-- old --
+	if t > logosUpstreamVariableMakeThreshold && logosRecursiveMarks[fn] {
+-- new --
+	if t > logosUpstreamVariableMakeThreshold && false {

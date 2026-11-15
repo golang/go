@@ -1,9 +1,5 @@
 // errorcheck
 
-// M7-S3 circular comptime instantiation (SPEC Sec 2.5, T-205, #129):
-// BuildA over ServiceA needs BuildB over ServiceB, which needs BuildA
-// over ServiceA again. The diagnostic names the chain by type arguments.
-
 package p
 
 import "comptime"

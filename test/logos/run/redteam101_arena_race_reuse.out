@@ -1,1 +1,4 @@
-r101 ok
+ok arena-race-noscan-total
+ok arena-race-scan-total
+ok arena-race-first-snapshot
+ok arena-race-reuse

@@ -2,11 +2,21 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
-// M22-S6 defect D2 (SPEC T-104.3, T-201): an option field read through a
-// const view is typed `const string?` and `??` must recognize it as an
-// option.
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 type P struct {
 	O string?
@@ -18,5 +28,10 @@ func (p const *P) Get() string {
 
 func main() {
 	p := P{}
-	fmt.Println(p.Get())
+	check("coalesce-selects-fallback-for-empty", p.Get() == "none", p.Get(), "none")
+	q := P{O: "hi"}
+	check("coalesce-selects-value-for-present", q.Get() == "hi", q.Get(), "hi")
+	if failed {
+		os.Exit(1)
+	}
 }

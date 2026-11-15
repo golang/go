@@ -1,0 +1,8 @@
+kind: compiler
+file: src/cmd/compile/internal/ssagen/ssa.go
+expect: at11_float_rounding
+config: K5
+-- old --
+	{types.TFLOAT64, types.TFLOAT64}: {ssa.OpRound64F, ssa.OpCopy, types.TFLOAT64},
+-- new --
+	{types.TFLOAT64, types.TFLOAT64}: {ssa.OpCopy, ssa.OpCopy, types.TFLOAT64},

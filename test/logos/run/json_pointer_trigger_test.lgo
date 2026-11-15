@@ -1,0 +1,40 @@
+// run
+
+package jsonpointertrigger
+
+import (
+	"bytes"
+	"encoding/json"
+	"testing"
+)
+
+type PtrLeaf struct {
+	Bio string `json:"bio"`
+}
+
+type PtrOnly struct {
+	Inner *PtrLeaf
+	Other int64
+}
+
+type ptrOnlyMirror struct {
+	Inner *PtrLeaf
+	Other int64
+	NoGen any `json:"-"`
+}
+
+func must(b []byte, err error) []byte {
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
+
+func TestPointerOnlyTriggersMarshalJSON(t *testing.T) {
+	v := PtrOnly{Inner: &PtrLeaf{Bio: "b"}, Other: 3}
+	got := must(v.MarshalJSON())
+	want := must(json.Marshal(ptrOnlyMirror{Inner: v.Inner, Other: v.Other}))
+	if !bytes.Equal(got, want) {
+		t.Fatalf("pointer-only MarshalJSON\n got %s\nwant %s", got, want)
+	}
+}

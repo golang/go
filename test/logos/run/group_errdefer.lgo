@@ -1,0 +1,250 @@
+// run
+
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"runtime"
+	"strings"
+	"sync"
+	"time"
+
+	"logos/rt"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+var errBoom = errors.New("boom")
+var errRoll = errors.New("rollback")
+
+var mu sync.Mutex
+var events []string
+
+func note(s string) {
+	mu.Lock()
+	defer mu.Unlock()
+	events = append(events, s)
+}
+
+func reset() {
+	mu.Lock()
+	defer mu.Unlock()
+	events = nil
+}
+
+func seen() string {
+	mu.Lock()
+	defer mu.Unlock()
+	return strings.Join(events, ",")
+}
+
+func boom() error { return errBoom }
+
+func fine() error { return nil }
+
+func rollback() error {
+	note("rollback")
+	return errRoll
+}
+
+//logos:allow(correctness::unbounded_channel_op)
+func awaitStarted(started chan struct{}) {
+	<-started
+}
+
+func work() error {
+	errdefer note("errdefer in callee")
+	return boom()
+}
+
+func childFails(ctx context.Context) error {
+	go group (ctx, limit = 1) {
+		go {
+			errdefer note("errdefer")
+			boom()?
+		}
+	}
+	return nil
+}
+
+func childDeferOrder(ctx context.Context) error {
+	errdefer note("enclosing errdefer")
+	go group (ctx, limit = 1) {
+		go {
+			defer note("defer")
+			errdefer note("errdefer")
+			boom()?
+		}
+	}
+	return nil
+}
+
+func childSucceeds(ctx context.Context) error {
+	go group (ctx, limit = 1) {
+		go {
+			defer note("defer")
+			errdefer note("errdefer")
+			fine()?
+		}
+	}
+	note("joined")
+	return nil
+}
+
+func childPanics(ctx context.Context) error {
+	go group (ctx, limit = 1) {
+		go {
+			errdefer note("errdefer")
+			panic("kapow")
+		}
+	}
+	return nil
+}
+
+func childGoexit(ctx context.Context) error {
+	go group (ctx, limit = 1) {
+		go {
+			errdefer note("errdefer")
+			runtime.Goexit()
+		}
+	}
+	note("joined")
+	return nil
+}
+
+func siblingCancelled(ctx context.Context) error {
+	never := make(chan int)
+	started := make(chan struct{})
+	go group (ctx, limit = 2) {
+		go {
+			defer note("B defer")
+			errdefer note("B errdefer")
+			close(started)
+			<-never
+		}
+		go {
+			errdefer note("A errdefer")
+			awaitStarted(started)
+			boom()?
+		}
+	}
+	return nil
+}
+
+func rollbackJoins(ctx context.Context) error {
+	go group (ctx, limit = 1) {
+		go {
+			errdefer rollback()?
+			boom()?
+		}
+	}
+	return nil
+}
+
+func nestedGroup(ctx context.Context) error {
+	go group (ctx, limit = 1) {
+		go group (ctx, limit = 1) {
+			go {
+				errdefer note("errdefer")
+				boom()?
+			}
+		}
+	}
+	return nil
+}
+
+func namedResult(ctx context.Context) (err error) {
+	go group (ctx, limit = 1) {
+		go {
+			errdefer note("errdefer")
+			boom()?
+		}
+	}
+	return nil
+}
+
+func deferTryFails(ctx context.Context) error {
+	go group (ctx, limit = 1) {
+		go {
+			defer rollback()?
+			boom()?
+		}
+	}
+	return nil
+}
+
+func deferTrySucceeds(ctx context.Context) error {
+	go group (ctx, limit = 1) {
+		go {
+			defer rollback()?
+			fine()?
+		}
+	}
+	return nil
+}
+
+func callForm(ctx context.Context) error {
+	go group (ctx, limit = 1) {
+		go work()
+	}
+	return nil
+}
+
+func watchdog(name string) func() {
+	t := time.AfterFunc(10*time.Second, func() {
+		fmt.Println("FAIL", name+": hung")
+		os.Exit(1)
+	})
+	return func() { t.Stop() }
+}
+
+func isBoom(err error) bool { return errors.Is(err, errBoom) }
+
+func isNil(err error) bool { return err == nil }
+
+func isBoomAndRollback(err error) bool { return errors.Is(err, errBoom) && errors.Is(err, errRoll) }
+
+func isRollback(err error) bool { return errors.Is(err, errRoll) && !errors.Is(err, errBoom) }
+
+func isPanic(err error) bool {
+	pe, ok := errors.AsType[*rt.PanicError](err)
+	return ok && pe.Value == "kapow"
+}
+
+func scenario(name string, f func(context.Context) error, want string, errOK func(error) bool) {
+	reset()
+	stop := watchdog(name)
+	err := f(context.Background())
+	stop()
+	check(name, seen() == want && errOK(err), seen()+" / "+fmt.Sprint(err), want)
+}
+
+func main() {
+	scenario("errdefer-child-fails", childFails, "errdefer", isBoom)
+	scenario("errdefer-child-defer-order-before-join", childDeferOrder, "errdefer,defer,enclosing errdefer", isBoom)
+	scenario("errdefer-child-succeeds-skipped", childSucceeds, "defer,joined", isNil)
+	scenario("errdefer-child-panic", childPanics, "errdefer", isPanic)
+	scenario("errdefer-child-goexit", childGoexit, "errdefer,joined", isNil)
+	scenario("errdefer-child-sibling-cancelled", siblingCancelled, "A errdefer,B errdefer,B defer", isBoom)
+	scenario("errdefer-child-rollback-joins", rollbackJoins, "rollback", isBoomAndRollback)
+	scenario("defer-try-child-joins-rollback", deferTryFails, "rollback", isBoomAndRollback)
+	scenario("defer-try-child-sets-rollback-error", deferTrySucceeds, "rollback", isRollback)
+	scenario("errdefer-child-nested-group", nestedGroup, "errdefer", isBoom)
+	scenario("errdefer-child-named-result", namedResult, "errdefer", isBoom)
+	scenario("errdefer-callee-of-call-form", callForm, "errdefer in callee", isBoom)
+	if failed {
+		os.Exit(1)
+	}
+}

@@ -1,0 +1,40 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+logos build -o app$GOEXE .
+exec ./app$GOEXE
+stdout '^jsonv2=on$'
+
+env GOEXPERIMENT=nojsonv2
+logos build -o appoff$GOEXE .
+exec ./appoff$GOEXE
+stdout '^jsonv2=off$'
+! stdout '^jsonv2=on$'
+
+-- go.mod --
+module example.com/jsonv2default
+
+go 1.27
+
+-- main.go --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Printf("jsonv2=%s\n", mode)
+}
+
+-- mode_off.go --
+//go:build !goexperiment.jsonv2
+
+package main
+
+const mode = "off"
+
+-- mode_on.go --
+//go:build goexperiment.jsonv2
+
+package main
+
+const mode = "on"

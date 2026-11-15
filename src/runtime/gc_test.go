@@ -166,9 +166,6 @@ func TestHugeGCInfo(t *testing.T) {
 }
 
 func TestPeriodicGC(t *testing.T) {
-	if runtime.LogosGCModeIsSTW() {
-		t.Skipf("stop-the-world GC mode (batch or epsilon): the periodic gcTriggerTime collection is refused by design")
-	}
 	if runtime.GOARCH == "wasm" {
 		t.Skip("no sysmon on wasm yet")
 	}

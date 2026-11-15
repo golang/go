@@ -1,0 +1,57 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+
+	"logos/rt"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type zeroA struct{}
+
+func (zeroA) Error() string { return "a" }
+
+type zeroB struct{}
+
+func (zeroB) Error() string { return "b" }
+
+func main() {
+	a := zeroA{}
+	b := zeroB{}
+	sa := rt.Site{File: "zero_a.go", Line: 1}
+	sb := rt.Site{File: "zero_b.go", Line: 2}
+	rt.TraceErr(a, &sa)
+	first := rt.ErrorTrace()
+	check("first-len", len(first) == 1, len(first), 1)
+	if len(first) == 1 {
+		check("first-site", first[0] == sa, first[0], sa)
+	}
+	rt.TraceErr(b, &sb)
+	second := rt.ErrorTrace()
+	check("second-len", len(second) == 1, len(second), 1)
+	if len(second) == 1 {
+		check("second-site", second[0] == sb, second[0], sb)
+	}
+	rt.TraceErr(b, &sb)
+	continued := rt.ErrorTrace()
+	check("same-error-len", len(continued) == 2, len(continued), 2)
+	if len(continued) == 2 {
+		check("same-error-sites", continued[0] == sb && continued[1] == sb, continued, []rt.Site{sb, sb})
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

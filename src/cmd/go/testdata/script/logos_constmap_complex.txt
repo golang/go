@@ -1,0 +1,96 @@
+# Const map range visits keys in sorted order [T-201]: complex keys
+# sort by real part then imaginary part, so the orders below are exact.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd consumer
+logos run .
+cp stdout $WORK/want.txt
+stdout '^c128: hit=13 miss=false negzero=0 nan=false len=5$'
+stdout '^c64: hit=b miss=false len=3$'
+stdout '^t128: hit=45 miss=false negzero=0 len=10$'
+stdout '^t64: hit=103 miss=false len=10$'
+stdout '^c128-order: \(0\+0i\),\(1\+2i\),\(1\+3i\),\(3-4i\),\(5\+6i\),$'
+stdout '^t128-order: \(-4\+5i\),\(0\+0i\),\(1\+1i\),\(1\+2i\),\(1\+3i\),\(2\+2i\),\(3\+3i\),\(4\+0i\),\(6-7i\),\(9\+9i\),$'
+
+logos eject -o ../eject_out
+exists ../eject_out/main.go
+cd ../eject_out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+go run .
+cmp stdout $WORK/want.txt
+cd ../consumer
+cd ..
+
+-- consumer/go.mod --
+module example.com/cmcomplex
+
+go 1.27
+
+-- consumer/main.lgo --
+package main
+
+import (
+	"fmt"
+	"math"
+)
+
+const c128 = map[complex128]int{1 + 2i: 12, 1 + 3i: 13, 3 - 4i: 34, complex(5, 6): 56, 0 + 0i: 0}
+
+const c64 = map[complex64]string{1 + 2i: "a", 1 + 3i: "b", complex(7, -8): "c"}
+
+const t128 = map[complex128]int{complex(1, 1): 11, complex(1, 2): 12, complex(1, 3): 13, complex(2, 2): 22, complex(3, 3): 33, complex(-4, 5): 45, complex(6, -7): 67, complex(0, 0): 0, complex(9, 9): 99, complex(4, 0): 40}
+
+const t64 = map[complex64]int{complex(1, 1): 11, complex(1, 2): 12, complex(1, 3): 13, complex(2, 2): 22, complex(3, 3): 33, complex(-4, 5): 45, complex(6, -7): 67, complex(0, 0): 0, complex(0.1, 0.2): 102, complex(0.1, 0.3): 103}
+
+func probe128(nz float64, nan float64) {
+	cv, cok := c128[1+3i]
+	_, mok := c128[9+9i]
+	zv, zok := c128[complex(nz, nz)]
+	_, nok := c128[complex(nan, 1)]
+	fmt.Printf("c128: hit=%d miss=%v negzero=%d nan=%v len=%d\n", cv, mok, zv, nok, len(c128))
+	_ = cok
+	_ = zok
+}
+
+func probe64() {
+	cv, cok := c64[1+3i]
+	_, mok := c64[0+0i]
+	fmt.Printf("c64: hit=%s miss=%v len=%d\n", cv, mok, len(c64))
+	_ = cok
+}
+
+func probeTables(nz float64) {
+	cv, cok := t128[complex(-4, 5)]
+	_, mok := t128[8+8i]
+	zv, zok := t128[complex(nz, 0)]
+	fmt.Printf("t128: hit=%d miss=%v negzero=%d len=%d\n", cv, mok, zv, len(t128))
+	_ = cok
+	_ = zok
+	gv, gok := t64[complex(0.1, 0.3)]
+	_, gmok := t64[complex(8, 8)]
+	fmt.Printf("t64: hit=%d miss=%v len=%d\n", gv, gmok, len(t64))
+	_ = gok
+}
+
+func probeOrder() {
+	fmt.Print("c128-order: ")
+	for k := range c128 {
+		fmt.Printf("%v,", k)
+	}
+	fmt.Println()
+	fmt.Print("t128-order: ")
+	for k := range t128 {
+		fmt.Printf("%v,", k)
+	}
+	fmt.Println()
+}
+
+func main() {
+	nz := math.Copysign(0, -1)
+	probe128(nz, math.NaN())
+	probe64()
+	probeTables(nz)
+	probeOrder()
+}

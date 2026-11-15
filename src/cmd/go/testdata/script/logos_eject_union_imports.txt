@@ -1,0 +1,310 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# SPEC 0.3: an ejected package keeps only the imports its text uses, so a
+# union term that was the last use of an import does not break the build.
+cd w
+logos run .
+stdout '^plain$'
+stdout '^dot$'
+stdout '^alias$'
+stdout '^blank$'
+stdout '^lib$'
+stdout '^used 1$'
+stdout '^dotjson m\.A$'
+stdout '^dotjson m\.B$'
+stdout '^nest m\.A$'
+stdout '^nest nest\.C$'
+stdout '^bindings ok$'
+cp stdout $WORK/native.txt
+
+logos eject -o $WORK/out
+cd $WORK/out
+exists $UPROOT1272/bin/go
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $WORK/native.txt
+
+-- w/go.mod --
+module example.com/ej
+
+go 1.27
+
+-- w/m/m.lgo --
+package m
+
+type A struct {
+	X int64 `json:"x"`
+}
+
+type B struct {
+	Y string `json:"y"`
+}
+
+-- w/lib/lib.lgo --
+package lib
+
+import "example.com/ej/m"
+
+type U interface {
+	m.A | m.B
+}
+
+func Make() U {
+	return nil
+}
+
+-- w/plain/plain.lgo --
+package plain
+
+import "example.com/ej/m"
+
+type U interface {
+	m.A | m.B
+}
+
+func Show() string {
+	var u U
+	if u == nil {
+		return "plain"
+	}
+	return "other"
+}
+
+-- w/dotp/dotp.lgo --
+package dotp
+
+import . "example.com/ej/m"
+
+type U interface {
+	A | B
+}
+
+func shadow(A int) int {
+	type B struct {
+		n int
+	}
+	return A + B{n: 2}.n
+}
+
+func Show() string {
+	if shadow(3) != 5 {
+		panic("dot import shadow")
+	}
+	var u U
+	if u == nil {
+		return "dot"
+	}
+	return "other"
+}
+
+-- w/aliasp/aliasp.lgo --
+package aliasp
+
+import mm "example.com/ej/m"
+
+type U interface {
+	mm.A | mm.B
+}
+
+func Show() string {
+	var u U
+	mm := 3
+	if mm != 3 {
+		panic("aliased import shadow")
+	}
+	if u == nil {
+		return "alias"
+	}
+	return "other"
+}
+
+-- w/blankp/blankp.lgo --
+package blankp
+
+import (
+	"example.com/ej/lib"
+	_ "example.com/ej/m"
+)
+
+func Show() string {
+	u := lib.Make()
+	if u == nil {
+		return "blank"
+	}
+	return "other"
+}
+
+-- w/usedp/usedp.lgo --
+package usedp
+
+import (
+	"fmt"
+
+	"example.com/ej/m"
+)
+
+type U interface {
+	m.A | m.B
+}
+
+func Show() string {
+	var u U = m.A{X: 1}
+	if a, ok := u.(m.A); ok {
+		return fmt.Sprint("used ", a.X)
+	}
+	return "other"
+}
+
+-- w/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/ej/aliasp"
+	"example.com/ej/blankp"
+	"example.com/ej/dotp"
+	"example.com/ej/dotjson"
+	"example.com/ej/lib"
+	"example.com/ej/nest"
+	"example.com/ej/plain"
+	"example.com/ej/shadows"
+	"example.com/ej/usedp"
+)
+
+func main() {
+	fmt.Println(plain.Show())
+	fmt.Println(dotp.Show())
+	fmt.Println(aliasp.Show())
+	fmt.Println(blankp.Show())
+	if lib.Make() == nil {
+		fmt.Println("lib")
+	}
+	for _, line := range dotjson.Show() {
+		fmt.Println(line)
+	}
+	for _, line := range nest.Show() {
+		fmt.Println(line)
+	}
+	fmt.Println(usedp.Show())
+	shadows.Check()
+	fmt.Println("bindings ok")
+}
+
+-- w/dotjson/dotjson.lgo --
+package dotjson
+
+import (
+	"encoding/json"
+	"fmt"
+
+	. "example.com/ej/m"
+)
+
+type N interface {
+	A | B
+}
+
+type H struct {
+	V N `json:"v"`
+}
+
+func Show() []string {
+	var out []string
+	for _, in := range []string{`{"v":{"x":1}}`, `{"v":{"y":"b"}}`} {
+		var h H
+		if err := json.Unmarshal([]byte(in), &h); err != nil {
+			return []string{err.Error()}
+		}
+		out = append(out, fmt.Sprintf("dotjson %T", h.V))
+	}
+	return out
+}
+
+-- w/nest/nest.lgo --
+package nest
+
+import (
+	"encoding/json"
+	"fmt"
+
+	"example.com/ej/lib"
+)
+
+type C struct {
+	Z int64 `json:"z"`
+}
+
+type V interface {
+	lib.U | C
+}
+
+type H struct {
+	V V `json:"v"`
+}
+
+func Show() []string {
+	var out []string
+	for _, in := range []string{`{"v":{"x":1}}`, `{"v":{"z":2}}`} {
+		var h H
+		if err := json.Unmarshal([]byte(in), &h); err != nil {
+			return []string{err.Error()}
+		}
+		out = append(out, fmt.Sprintf("nest %T", h.V))
+	}
+	return out
+}
+
+-- w/state/state.lgo --
+package state
+
+var Ready bool
+
+-- w/shadowdep/shadowdep.lgo --
+package shadowdep
+
+import "example.com/ej/state"
+
+type A struct {}
+type B struct {}
+
+func init() {
+	state.Ready = true
+}
+
+-- w/shadows/shadows.lgo --
+package shadows
+
+import (
+	m "example.com/ej/shadowdep"
+	"example.com/ej/state"
+)
+
+type U interface {
+	m.A | m.B
+}
+
+type record struct {
+	m int
+}
+
+func parameter(m int) int {
+	return m
+}
+
+func localType() int {
+	type m struct {
+		n int
+	}
+	return m{n: 7}.n
+}
+
+func Check() {
+	m := 3
+	r := record{m: 5}
+	var u U
+	if m != 3 || parameter(4) != 4 || r.m != 5 || localType() != 7 || u != nil || !state.Ready {
+		panic("erased import binding or initialization")
+	}
+}

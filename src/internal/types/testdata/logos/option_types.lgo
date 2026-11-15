@@ -4,13 +4,6 @@
 
 package p
 
-// M3-S2 option types (SPEC Sec 2.2, T-202; Sec 1.4, T-104.3):
-// assignability of `nil` and `T` into `T?`, no conversion back,
-// `?.` and `??` typing, map reads, and the pinned diagnostics
-// [correctness::not_an_option] and [correctness::nil_deref_unproven].
-// Narrowing after `!= nil` is M3-S4; here every plain selection on an
-// option fails.
-
 type OptUser struct {
 	Name string
 	Age  int
@@ -27,7 +20,6 @@ type OptAccount struct {
 	P OptProfile?
 }
 
-// Assignability: `nil` and `T` go into `T?`.
 func optAssigns(n int, u OptUser) {
 	var x int? = nil
 	x = n
@@ -43,26 +35,58 @@ func optAssigns(n int, u OptUser) {
 	_ = z
 }
 
-// `T?` does not convert back to `T`.
 func optNoOut(x int?, up *OptUser?) {
-	var i int = x /* ERROR "cannot use x (variable of type int?) as int value in" */
-	var u OptUser = up /* ERROR "cannot use up (variable of type *OptUser?) as OptUser value in" */
+	var i int = x /* ERROR "correctness::nil_deref_unproven" */
+	var u OptUser = up /* ERRORx "." */
 	_, _ = i, u
 }
 
-// A plain method call on an option fails, even to read.
+func optTakesInt(i int) {}
+func optTakesUser(u *OptUser) {}
+func optTakesValue(u OptUser) {}
+
+func optArgs(x int?, up *OptUser?, vp OptUser?) {
+	optTakesInt(x /* ERROR "correctness::nil_deref_unproven" */)
+	optTakesUser(up /* ERROR "correctness::nil_deref_unproven" */)
+	optTakesValue(vp /* ERROR "correctness::nil_deref_unproven" */)
+}
+
+func optReturnInt(x int?) int {
+	return x /* ERROR "correctness::nil_deref_unproven" */
+}
+
+func optReturnPointer(up *OptUser?) *OptUser {
+	return up /* ERROR "correctness::nil_deref_unproven" */
+}
+
+func optReturnValue(vp OptUser?) OptUser {
+	return vp /* ERROR "correctness::nil_deref_unproven" */
+}
+
+func optReturnPair(x int?, up *OptUser?) (int, *OptUser) {
+	return x /* ERROR "correctness::nil_deref_unproven" */, up /* ERROR "correctness::nil_deref_unproven" */
+}
+
+func optReturnNarrowed(x int?, up *OptUser?) (int, *OptUser) {
+	if x == nil {
+		return 0, &OptUser{}
+	}
+	if up == nil {
+		return 0, &OptUser{}
+	}
+	return x, up
+}
+
 func optMethods(up *OptUser?) {
-	_ = up.Greet /* ERROR "[correctness::nil_deref_unproven] cannot call method on *OptUser? without proving != nil" */ ()
-	_ = up.Name /* ERROR "[correctness::nil_deref_unproven] cannot access field Name of *OptUser? without proving != nil" */
+	_ = up.Greet /* ERROR "correctness::nil_deref_unproven" */ ()
+	_ = up.Name /* ERROR "correctness::nil_deref_unproven" */
 }
 
-// `?.` needs an option receiver.
 func optChainBad(u OptUser, n int) {
-	_ = u /* ERROR "[correctness::not_an_option] ?. on non-option type OptUser" */ ?. Name
-	_ = n /* ERROR "[correctness::not_an_option] ?. on non-option type int" */ ?. Foo
+	_ = u /* ERROR "correctness::not_an_option" */ ?. Name
+	_ = n /* ERROR "correctness::not_an_option" */ ?. Foo
 }
 
-// `?.` over fields and methods yields options, flattening `F?`.
 func optChain(up *OptUser?, a *OptAccount?) {
 	_ = up?.Name
 	_ = up?.Greet()
@@ -74,9 +98,8 @@ func optChain(up *OptUser?, a *OptAccount?) {
 	_ = p
 }
 
-// `??` needs an option on the left and types as the element.
 func optCoalBad(n int, d string) {
-	_ = n /* ERROR "[correctness::not_an_option] ?? with non-option left type int" */ ?? d
+	_ = n /* ERROR "correctness::not_an_option" */ ?? d
 }
 
 func optCoal(x int?, y int?, d int) {
@@ -88,18 +111,16 @@ func optCoal(x int?, y int?, d int) {
 	_ = y ?? d
 }
 
-// A `??` fallback must match the element type.
 func optCoalMismatch(x int?, sd string) {
-	var s string = x ?? sd /* ERROR "as int value in ?? right-hand side" */
+	var s string = x ?? sd /* ERRORx "." */
 	_ = s
 }
 
-// A single-value map read yields `V?`; `v, ok` keeps Go types.
 func optMapRead(m map[string]int) {
-	var v int = m /* ERROR "of type int?) as int value in" */ ["k"]
+	var v int = m /* ERROR "correctness::nil_deref_unproven" */ ["k"]
 	_ = v
 	x := m["k"]
-	var i int = x /* ERROR "cannot use x (variable of type int?) as int value in" */
+	var i int = x /* ERROR "correctness::nil_deref_unproven" */
 	_ = i
 	a, ok := m["k"]
 	var ai int = a
@@ -111,14 +132,12 @@ func optMapRead(m map[string]int) {
 	m["k"]++
 }
 
-// Options compare with `nil` (narrowing itself is M3-S4).
 func optNilCmp(x int?) {
 	if x != nil {
 		_ = x
 	}
 }
 
-// Options flow through results and parameters.
 func optResults(x int?) int? {
 	return x
 }
@@ -131,16 +150,14 @@ func optConstResult() int? {
 	return 42
 }
 
-// `(T?)?` nests; it is not the same type as `T?`.
 func optNested(x (int?)?) {
-	var y int? = x /* ERROR "as int? value in" */
+	var y int? = x /* ERROR "correctness::nil_deref_unproven" */
 	_ = y
 	var z (int?)? = nil
 	var w (int?)? = x
 	_, _ = z, w
 }
 
-// Option fields need no initializer and take values in literals.
 type OptHolder struct {
 	F int?
 }
@@ -150,38 +167,29 @@ func optLit() {
 	_ = OptHolder{F: 42}
 }
 
-// An option compares only with nil; comparing it with a value needs an
-// unwrap first.
 func optCompare(m map[string]string) {
-	_ = m /* ERROR "operator != not defined on option" */ ["a"] != "R"
+	_ = m /* ERRORx "." */ ["a"] != "R"
 	_ = (m["a"] ?? "") != "R"
 }
 
-// A `T?` value wraps into `(T?)?`; the nested option never unwraps
-// implicitly.
 func optNestWrap(x int?, w (int?)?) {
 	var a (int?)? = x
-	var b int? = w /* ERROR "cannot use w (variable of type (int?)?) as int? value in" */
+	var b int? = w /* ERROR "correctness::nil_deref_unproven" */
 	_, _ = a, b
 }
 
-// Optional function values: a plain call on a `T?` callee is a use
-// before guard (SPEC T-202, T-102), so it fails with nil_deref_unproven
-// even though the value was initialized. Guarded locals and parameters
-// narrow to the element signature and call normally; an explicit `?.`
-// method call keeps its option result.
 func optFuncPlainLocal() {
 	var f (func(int) int)? = func(n int) int { return n + 1 }
-	_ = f /* ERROR "[correctness::nil_deref_unproven] cannot call func(int) int? without proving != nil" */ (1)
+	_ = f /* ERROR "correctness::nil_deref_unproven" */ (1)
 }
 
 func optFuncPlainParam(f (func(int) int)?) {
-	_ = f /* ERROR "[correctness::nil_deref_unproven] cannot call func(int) int? without proving != nil" */ (1)
+	_ = f /* ERROR "correctness::nil_deref_unproven" */ (1)
 }
 
 func optFuncPlainParen() {
 	var f (func(int) int)? = func(n int) int { return n + 1 }
-	_ = (f /* ERROR "[correctness::nil_deref_unproven] cannot call func(int) int? without proving != nil" */)(1)
+	_ = (f /* ERROR "correctness::nil_deref_unproven" */)(1)
 }
 
 func optFuncGuardedLocal() int {

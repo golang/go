@@ -4,17 +4,6 @@
 
 package p
 
-// A constraint built from nested unions, none of which the package
-// itself instantiates, still supports the ordered operators and
-// addition on a type parameter and on type-asserted values of it. This
-// is the shape of golang.org/x/tools/gopls/internal/util/constraints
-// and persistent.Map.
-//
-// Checker-level guard only: this single-package check passes with or
-// without the exporter fix. The RED regression coverage for the export
-// bug lives in test/typeparam/logos_union_constraint_export and
-// test/typeparam/logos_union_constraint_misuse.
-
 type Signed interface {
 	~int | ~int8 | ~int16 | ~int32 | ~int64
 }

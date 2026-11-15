@@ -1,0 +1,716 @@
+[GOOS:plan9] skip 'fixtures use a plan9 file-name suffix as the excluded configuration'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+cd a/main
+! logos build -o $WORK/bin/cfga$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_unsafe\]: Transitive dependency ''example\.com/adep'' imports ''unsafe'''
+stderr 'example\.com/amain/cmd'
+stderr '-> example\.com/adep'
+stderr '-> unsafe'
+cd ../..
+
+cd b/main
+! logos build -o $WORK/bin/cfgb$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_unsafe\]: Transitive dependency ''example\.com/bdep'' imports ''unsafe'''
+cd ../..
+
+cd c/main
+logos build -o $WORK/bin/cfgc$GOEXE ./cmd
+! stderr 'capabilities::'
+exec $WORK/bin/cfgc$GOEXE
+stdout '^ignored$'
+cd ../..
+
+cd d/main
+logos build -o $WORK/bin/cfgd$GOEXE ./cmd
+! stderr 'capabilities::'
+exec $WORK/bin/cfgd$GOEXE
+stdout '^granted$'
+cd ../..
+
+cd e/main
+! logos build -o $WORK/bin/cfge$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unclassified_assembly\]: Transitive dependency ''example\.com/edep'' holds assembly files'
+cd ../..
+
+cd f/main
+logos build -o $WORK/bin/cfgf$GOEXE ./cmd
+stderr '\[capabilities::unauthorized_unsafe\].*example\.com/fdep'
+exec $WORK/bin/cfgf$GOEXE
+stdout '^warned$'
+cd ../..
+
+cd g/main
+logos build -o $WORK/bin/cfgg$GOEXE ./cmd
+! stderr 'capabilities::'
+exec $WORK/bin/cfgg$GOEXE
+stdout '^std-ok$'
+cd ../..
+
+cd h/main
+! logos build -o $WORK/bin/cfgh$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_unsafe\]: Transitive dependency ''example\.com/hdep'' imports ''unsafe'''
+cd ../..
+
+cd i/main
+logos build -o $WORK/bin/cfgi$GOEXE ./cmd
+! stderr 'capabilities::'
+exec $WORK/bin/cfgi$GOEXE
+stdout '^dead-everywhere$'
+cd ../..
+
+cd j/main
+logos build -o $WORK/bin/cfgj$GOEXE ./cmd
+! stderr 'capabilities::'
+exec $WORK/bin/cfgj$GOEXE
+stdout '^malformed-excluded$'
+cd ../dep
+go mod tidy
+! grep 'ghost' go.mod
+cd ../..
+
+cd k/main
+! logos build -o $WORK/bin/cfgk$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_unsafe\]: Transitive dependency ''example\.com/kdep'' imports ''unsafe'''
+cd ../..
+
+cd m/main
+! logos build -o $WORK/bin/cfgm$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unclassified_assembly\]: Transitive dependency ''example\.com/mdep'' holds assembly files'
+cd ../..
+
+cd n/main
+! logos build -o $WORK/bin/cfgn$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unclassified_assembly\]: Transitive dependency ''example\.com/ndep'' holds assembly files'
+cd ../..
+
+cd l/main
+logos build -o $WORK/bin/cfgl$GOEXE ./cmd
+! stderr 'capabilities::'
+exec $WORK/bin/cfgl$GOEXE
+stdout '^host-clean$'
+[short] skip 'cross-links the standard library for plan9'
+env GOOS=plan9 GOARCH=amd64 CGO_ENABLED=0
+! logos build -o $WORK/bin/cfgl9 ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/ldep'' reaches ''os\.StartProcess'''
+! stderr 'ghost'
+cd ../..
+
+-- a/main/go.mod --
+module example.com/amain
+
+go 1.27
+
+require example.com/adep v0.0.0
+
+replace example.com/adep => ../dep
+
+-- a/main/logos.toml --
+[capabilities]
+transitive_unsafe = "deny"
+
+-- a/main/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/adep"
+)
+
+func main() { fmt.Println(adep.Name()) }
+
+-- a/dep/go.mod --
+module example.com/adep
+
+go 1.27
+
+-- a/dep/dep.go --
+package adep
+
+func Name() string { return name() }
+
+-- a/dep/name_other.go --
+//go:build !plan9
+
+package adep
+
+func name() string { return "portable" }
+
+-- a/dep/name_plan9.go --
+package adep
+
+import "unsafe"
+
+func name() string { return string([]byte{byte(unsafe.Sizeof(0))}) }
+
+-- b/main/go.mod --
+module example.com/bmain
+
+go 1.27
+
+require example.com/bdep v0.0.0
+
+replace example.com/bdep => ../dep
+
+-- b/main/logos.toml --
+[capabilities]
+transitive_unsafe = "deny"
+
+-- b/main/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/bdep"
+)
+
+func main() { fmt.Println(bdep.Name()) }
+
+-- b/dep/go.mod --
+module example.com/bdep
+
+go 1.27
+
+-- b/dep/dep.go --
+package bdep
+
+func Name() string { return "portable" }
+
+-- b/dep/tagged.go --
+//go:build never_set_tag
+
+package bdep
+
+import "unsafe"
+
+var _ = unsafe.Sizeof(0)
+
+-- c/main/go.mod --
+module example.com/cmain
+
+go 1.27
+
+require example.com/cdep v0.0.0
+
+replace example.com/cdep => ../dep
+
+-- c/main/logos.toml --
+[capabilities]
+transitive_unsafe = "deny"
+
+-- c/main/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/cdep"
+)
+
+func main() { fmt.Println(cdep.Name()) }
+
+-- c/dep/go.mod --
+module example.com/cdep
+
+go 1.27
+
+-- c/dep/dep.go --
+package cdep
+
+func Name() string { return "ignored" }
+
+-- c/dep/gen.go --
+//go:build ignore
+
+package main
+
+import "unsafe"
+
+func main() { _ = unsafe.Sizeof(0) }
+
+-- d/main/go.mod --
+module example.com/dmain
+
+go 1.27
+
+require example.com/ddep v0.0.0
+
+replace example.com/ddep => ../dep
+
+-- d/main/logos.toml --
+[capabilities]
+transitive_unsafe = "deny"
+transitive_unsafe_allowlist = ["example.com/ddep/**"]
+
+-- d/main/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/ddep"
+)
+
+func main() { fmt.Println(ddep.Name()) }
+
+-- d/dep/go.mod --
+module example.com/ddep
+
+go 1.27
+
+-- d/dep/dep.go --
+package ddep
+
+func Name() string { return "granted" }
+
+-- d/dep/name_plan9.go --
+package ddep
+
+import "unsafe"
+
+var _ = unsafe.Sizeof(0)
+
+-- e/main/go.mod --
+module example.com/emain
+
+go 1.27
+
+require example.com/edep v0.0.0
+
+replace example.com/edep => ../dep
+
+-- e/main/logos.toml --
+[capabilities]
+transitive_unsafe = "deny"
+
+-- e/main/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/edep"
+)
+
+func main() { fmt.Println(edep.Name()) }
+
+-- e/dep/go.mod --
+module example.com/edep
+
+go 1.27
+
+-- e/dep/dep.go --
+package edep
+
+func Name() string { return "portable" }
+
+-- e/dep/stub_plan9.s --
+#include "textflag.h"
+
+TEXT ·stub(SB), NOSPLIT, $0-0
+	RET
+
+-- f/main/go.mod --
+module example.com/fmain
+
+go 1.27
+
+require example.com/fdep v0.0.0
+
+replace example.com/fdep => ../dep
+
+-- f/main/logos.toml --
+[capabilities]
+transitive_unsafe = "warn"
+
+-- f/main/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/fdep"
+)
+
+func main() { fmt.Println(fdep.Name()) }
+
+-- f/dep/go.mod --
+module example.com/fdep
+
+go 1.27
+
+-- f/dep/dep.go --
+package fdep
+
+func Name() string { return "warned" }
+
+-- f/dep/name_plan9.go --
+package fdep
+
+import "unsafe"
+
+var _ = unsafe.Sizeof(0)
+
+-- g/main/go.mod --
+module example.com/gmain
+
+go 1.27
+
+require example.com/gdep v0.0.0
+
+replace example.com/gdep => ../dep
+
+-- g/main/logos.toml --
+[capabilities]
+transitive_unsafe = "deny"
+
+-- g/main/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/gdep"
+)
+
+func main() { fmt.Println(gdep.Name()) }
+
+-- g/dep/go.mod --
+module example.com/gdep
+
+go 1.27
+
+-- g/dep/dep.go --
+package gdep
+
+import (
+	"os"
+	"strings"
+)
+
+func Name() string {
+	_ = os.Getpid()
+	if strings.HasPrefix("std-ok", "std") {
+		return "std-ok"
+	}
+	return "bad"
+}
+
+-- h/main/go.mod --
+module example.com/hmain
+
+go 1.27
+
+require example.com/hdep v0.0.0
+
+replace example.com/hdep => ../dep
+
+-- h/main/logos.toml --
+[capabilities]
+transitive_unsafe = "deny"
+
+-- h/main/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/hdep"
+)
+
+func main() { fmt.Println(hdep.Name()) }
+
+-- h/dep/go.mod --
+module example.com/hdep
+
+go 1.27
+
+-- h/dep/dep.go --
+package hdep
+
+func Name() string { return "portable" }
+
+-- h/dep/semi_plan9.go --
+package hdep
+
+import ("os"; "unsafe")
+
+var _ = os.Args
+var _ = unsafe.Sizeof(0)
+
+-- i/main/go.mod --
+module example.com/imain
+
+go 1.27
+
+require example.com/idep v0.0.0
+
+replace example.com/idep => ../dep
+
+-- i/main/logos.toml --
+[capabilities]
+transitive_unsafe = "deny"
+
+-- i/main/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/idep"
+)
+
+func main() { fmt.Println(idep.Name()) }
+
+-- i/dep/go.mod --
+module example.com/idep
+
+go 1.27
+
+-- i/dep/dep.go --
+package idep
+
+func Name() string { return "dead-everywhere" }
+
+-- i/dep/dep_plan9_test.go --
+package idep
+
+import "unsafe"
+
+var _ = unsafe.Sizeof(0)
+
+-- i/dep/ignored.s --
+//go:build ignore
+
+TEXT ·ignored(SB), 0, $0-0
+	RET
+
+-- j/main/go.mod --
+module example.com/jmain
+
+go 1.27
+
+require example.com/jdep v0.0.0
+
+replace example.com/jdep => ../dep
+
+-- j/main/logos.toml --
+[capabilities]
+transitive_unsafe = "deny"
+
+-- j/main/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/jdep"
+)
+
+func main() { fmt.Println(jdep.Name()) }
+
+-- j/dep/go.mod --
+module example.com/jdep
+
+go 1.27
+
+-- j/dep/dep.go --
+package jdep
+
+func Name() string { return "malformed-excluded" }
+
+-- j/dep/bad_plan9.go --
+//go:build (
+
+package jdep
+
+import (
+	"unsafe"
+
+	"example.com/ghost"
+)
+
+var _ = unsafe.Sizeof(0)
+
+var _ = ghost.Run
+
+-- k/main/go.mod --
+module example.com/kmain
+
+go 1.27
+
+require example.com/kdep v0.0.0
+
+replace example.com/kdep => ../dep
+
+-- k/main/logos.toml --
+[capabilities]
+transitive_unsafe = "deny"
+
+-- k/main/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/kdep"
+)
+
+func main() { fmt.Println(kdep.Name()) }
+
+-- k/dep/go.mod --
+module example.com/kdep
+
+go 1.27
+
+-- k/dep/dep.go --
+package kdep
+
+func Name() string { return "header-only" }
+
+-- k/dep/late_plan9.go --
+package kdep
+
+import "unsafe"
+
+var _ = unsafe.Sizeof(0)
+
+func (
+
+-- l/main/go.mod --
+module example.com/lmain
+
+go 1.27
+
+require example.com/ldep v0.0.0
+
+replace example.com/ldep => ../dep
+
+-- l/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_net = "deny"
+
+-- l/main/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/ldep"
+)
+
+func main() { fmt.Println(ldep.Name()) }
+
+-- l/dep/go.mod --
+module example.com/ldep
+
+go 1.27
+
+-- l/dep/dep.go --
+package ldep
+
+func Name() string { return "host-clean" }
+
+-- l/dep/exec_plan9.go --
+package ldep
+
+import "os"
+
+func init() {
+	if len(os.Args) > 99 {
+		os.StartProcess("/bin/true", nil, &os.ProcAttr{})
+	}
+}
+
+-- l/dep/ghost_windows.go --
+package ldep
+
+import "example.com/ghost"
+
+func init() { ghost.Run() }
+
+-- m/main/go.mod --
+module example.com/mmain
+
+go 1.27
+
+require example.com/mdep v0.0.0
+
+replace example.com/mdep => ../dep
+
+-- m/main/logos.toml --
+[capabilities]
+transitive_unsafe = "deny"
+
+-- m/main/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/mdep"
+)
+
+func main() { fmt.Println(mdep.Name()) }
+
+-- m/dep/go.mod --
+module example.com/mdep
+
+go 1.27
+
+-- m/dep/dep.go --
+package mdep
+
+func Name() string { return "excluded-S" }
+
+-- m/dep/stub_plan9.S --
+#include "textflag.h"
+
+TEXT ·stub(SB), NOSPLIT, $0-0
+	RET
+
+-- n/main/go.mod --
+module example.com/nmain
+
+go 1.27
+
+require example.com/ndep v0.0.0
+
+replace example.com/ndep => ../dep
+
+-- n/main/logos.toml --
+[capabilities]
+transitive_unsafe = "deny"
+
+-- n/main/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/ndep"
+)
+
+func main() { fmt.Println(ndep.Name()) }
+
+-- n/dep/go.mod --
+module example.com/ndep
+
+go 1.27
+
+-- n/dep/dep.go --
+package ndep
+
+func Name() string { return "excluded-sx" }
+
+-- n/dep/stub_plan9.sx --
+#include "textflag.h"
+
+TEXT ·stub(SB), NOSPLIT, $0-0
+	RET

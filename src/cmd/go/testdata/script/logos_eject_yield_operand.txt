@@ -1,0 +1,69 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# A yield statement and a discarded return value keep their whole operands
+# when the first one opens with a slice expression, when an operand is
+# parenthesised, and when the statement ends in a line or a block comment.
+# The module runs natively, ejects, and the ejected module builds and runs
+# with go and with go1.27.2 from $UPROOT1272 and prints the same output.
+cd m
+logos run .
+stdout '^\[2 4 3 4\]\n2 3\n1 3\n\[1\]$'
+cp stdout $WORK/native.txt
+logos eject -o out
+exists out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $WORK/native.txt
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
+exec $WORK/upstream$GOEXE
+cmp stdout $WORK/native.txt
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ..
+
+-- m/go.mod --
+module example.com/yieldoperand
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import (
+	"fmt"
+	"iter"
+	"slices"
+)
+
+func Forms(xs []int) iter.Seq[int] {
+	yield xs[1:][0]
+	yield xs[0] + xs[1:][1] // trailing
+	yield (xs[2])
+	yield len(")}//")
+}
+
+func Pairs(xs []int) iter.Seq2[int, int] {
+	yield xs[1:][0], xs[1:][1] /* block */
+	yield (xs[0]), xs[2]
+}
+
+func Returned(xs []int) iter.Seq[int] {
+	yield xs[0]
+	if len(xs) > 1 {
+		return slices.Values(xs[1:][:1]) // the value is discarded
+	}
+}
+
+func main() {
+	xs := []int{1, 2, 3}
+	fmt.Println(slices.Collect(Forms(xs)))
+	for a, b := range Pairs(xs) {
+		fmt.Println(a, b)
+	}
+	fmt.Println(slices.Collect(Returned(xs)))
+}

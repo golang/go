@@ -2,7 +2,10 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
 var n = 1
 
@@ -43,39 +46,47 @@ func logTake(v int) int {
 	return v
 }
 
+var orderFailed bool
+
+func orderCheck(name string, got any, want string) {
+	if g := fmt.Sprint(got); g != want {
+		fmt.Printf("FAIL %s: got %s want %s\n", name, g, want)
+		orderFailed = true
+		return
+	}
+	fmt.Printf("ok %s\n", name)
+}
+
 func main() {
 	xs := []int{10, 20, 30}
 
-	// Pure controls: baseline behavior without mutation or side effects.
-	fmt.Println(xs.take(1).map(x => x))
-	fmt.Println(xs.drop(1).map(x => x))
-	fmt.Println(xs.drop(1).map(x => x).take(1))
+	orderCheck("take-map", xs.take(1).map(x => x), "[10]")
+	orderCheck("drop-map", xs.drop(1).map(x => x), "[20 30]")
+	orderCheck("drop-map-take", xs.drop(1).map(x => x).take(1), "[20]")
 
-	// Take before callable: makeMapper sets n = 0, but take(n) must evaluate
-	// n before map's callable argument executes. Result retains 1 element.
 	n = 1
-	fmt.Println(xs.take(n).map(makeMapper()))
-	fmt.Println(n)
+	orderCheck("take-count-read-before-mapper", xs.take(n).map(makeMapper()), "[10]")
+	orderCheck("take-mapper-ran", n, "0")
 
-	// Drop before callable: makeDropMapper sets m = 0, but drop(m) must evaluate
-	// m before map's callable argument executes. Result drops 1 element.
 	m = 1
-	fmt.Println(xs.drop(m).map(makeDropMapper()))
-	fmt.Println(m)
+	orderCheck("drop-count-read-before-mapper", xs.drop(m).map(makeDropMapper()), "[20 30]")
+	orderCheck("drop-mapper-ran", m, "0")
 
-	// Call order and single evaluation: arguments evaluate once in source order.
 	orderLog = nil
 	takeCalls = 0
 	mapCalls = 0
-	fmt.Println(xs.take(logTake(1)).map(logMap()))
-	fmt.Println(orderLog)
-	fmt.Println(takeCalls, mapCalls)
+	orderCheck("take-map-result", xs.take(logTake(1)).map(logMap()), "[10]")
+	orderCheck("take-map-order", orderLog, "[take map]")
+	orderCheck("take-map-calls", []int{takeCalls, mapCalls}, "[1 1]")
 
 	orderLog = nil
 	dropCalls = 0
 	mapCalls = 0
 	takeCalls = 0
-	fmt.Println(xs.drop(logDrop(1)).map(logMap()).take(logTake(1)))
-	fmt.Println(orderLog)
-	fmt.Println(dropCalls, mapCalls, takeCalls)
+	orderCheck("drop-map-take-result", xs.drop(logDrop(1)).map(logMap()).take(logTake(1)), "[20]")
+	orderCheck("drop-map-take-order", orderLog, "[drop map take]")
+	orderCheck("drop-map-take-calls", []int{dropCalls, mapCalls, takeCalls}, "[1 1 1]")
+	if orderFailed {
+		os.Exit(1)
+	}
 }

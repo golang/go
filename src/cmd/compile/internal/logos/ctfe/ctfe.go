@@ -4,51 +4,15 @@
 
 package ctfe
 
-// This package implements the M5-S2 compile-time interpreter (SPEC Sec
-// 2.1, T-201): a tree-walking evaluator over checked syntax for const
-// composite initializers and calls to const funcs. Values cover
-// integers with target widths, floats, strings, bools, arrays, slices,
-// structs, and maps, plus control flow and calls to const funcs.
-//
-// The interpreter is deliberately independent of types2 (which would be
-// an import cycle): all type information arrives through the Host
-// interface, implemented by types2 on the checking side and by a fake
-// in tests. Identifiers inside function bodies resolve through the
-// interpreter's own block-structured scopes; only package-level and
-// universe names reach the host.
-//
-// Sharing matches Go: slices alias their backing store (append
-// reallocates exactly when the capacity is exhausted), maps are
-// reference values, and arrays and structs copy on assignment. A
-// recorded const composite read from the host enters the evaluation as
-// a fresh copy (SPEC T-201, T-Sec9), so a const func that writes through
-// it never reaches the host's stored value and two reads of one const
-// never alias. Values built inside one evaluation keep the sharing
-// above across calls, and f(xs...) binds xs itself.
-
 import (
 	"cmd/compile/internal/syntax"
 	"math/big"
 )
 
-// Config controls evaluation limits (SPEC T-201, T-102).
 type Config struct {
-	// MaxSteps bounds evaluation; a run that exceeds it fails with
-	// CodeStepLimit. Zero means DefaultConfig's value.
-	MaxSteps int
-	// MaxValueBytes caps the total distinct bytes of a const value;
-	// a larger value fails with CodeTooLarge. Zero means default.
+	MaxSteps      int
 	MaxValueBytes int64
-	// WordSize is the target width of int, uint, and uintptr in
-	// bytes (4 or 8). Zero means 8.
-	WordSize int64
-}
-
-// DefaultConfig returns the SPEC defaults: 100,000 steps, a 1 MB value
-// cap, and 64-bit words. The word size is always overridden by the
-// caller with the target width.
-func DefaultConfig() Config {
-	return Config{MaxSteps: 100000, MaxValueBytes: 1 << 20, WordSize: 8}
+	WordSize      int64
 }
 
 func (c Config) withDefaults() Config {
@@ -64,29 +28,19 @@ func (c Config) withDefaults() Config {
 	return c
 }
 
-// ErrorCode classifies an evaluation failure.
 type ErrorCode int
 
 const (
-	// CodeStepLimit reports [comptime::ctfe_step_limit].
 	CodeStepLimit ErrorCode = iota
-	// CodeTooLarge reports [comptime::const_too_large].
 	CodeTooLarge
-	// CodeEval reports [correctness::const_eval] with Detail.
 	CodeEval
-	// CodeSilent aborts without reporting: the impurity sits in a
-	// const func body, whose static purity check reports it.
 	CodeSilent
 )
 
-// Error is an evaluation failure at Pos with a Detail reason.
 type Error struct {
 	Code   ErrorCode
 	Detail string
 	Pos    syntax.Pos
-	// silentIn marks the const function whose body holds the
-	// impurity, for junctions that must not convert silence.
-	silentIn *Func
 }
 
 func (e *Error) Error() string {
@@ -101,7 +55,6 @@ func (e *Error) Error() string {
 	return e.Detail
 }
 
-// Kind describes the shape of a static type.
 type Kind int
 
 const (
@@ -131,21 +84,16 @@ const (
 	KUntypedString
 	KUntypedBool
 	KUntypedNil
+	KComplex64
+	KComplex128
+	KUntypedComplex
 )
 
-// Type is a compile-time type descriptor. Named carries a same-package
-// defined type name for literal synthesis; PkgPath carries the defining
-// package path of a named type (empty for predeclared and structural
-// types), so later spelling can qualify or refuse foreign names without
-// a native compiler type; Opaque marks types that cannot be spelled at
-// the use site (lowering keeps the original call for those instead of
-// a literal); Impure carries a purity-class reason for named types
-// resolving behind pointers, channels, or uintptr.
 type Type struct {
 	Kind    Kind
-	Len     int64 // arrays
-	Elem    *Type // slice and array elements
-	Key     *Type // map keys
+	Len     int64
+	Elem    *Type
+	Key     *Type
 	Fields  []Field
 	Named   string
 	PkgPath string
@@ -153,31 +101,25 @@ type Type struct {
 	Impure  string
 }
 
-// Field is one struct field.
 type Field struct {
 	Name     string
 	Type     *Type
 	Embedded bool
 }
 
-// UntypedInt returns the type of an untyped integer constant.
 func UntypedInt() *Type { return &Type{Kind: KUntypedInt} }
 
-// UntypedFloat returns the type of an untyped floating constant.
 func UntypedFloat() *Type { return &Type{Kind: KUntypedFloat} }
 
-// UntypedRune returns the type of an untyped rune constant.
+func UntypedComplex() *Type { return &Type{Kind: KUntypedComplex} }
+
 func UntypedRune() *Type { return &Type{Kind: KUntypedRune} }
 
-// UntypedString returns the type of an untyped string constant.
 func UntypedString() *Type { return &Type{Kind: KUntypedString} }
 
-// UntypedBool returns the type of an untyped boolean constant.
 func UntypedBool() *Type { return &Type{Kind: KUntypedBool} }
 
-// BasicType returns the descriptor for a predeclared basic type name.
-// It returns nil for unknown names.
-func BasicType(name string, word int64) *Type {
+func BasicType(name string) *Type {
 	switch name {
 	case "bool":
 		return &Type{Kind: KBool}
@@ -207,13 +149,16 @@ func BasicType(name string, word int64) *Type {
 		return &Type{Kind: KFloat32}
 	case "float64":
 		return &Type{Kind: KFloat64}
+	case "complex64":
+		return &Type{Kind: KComplex64}
+	case "complex128":
+		return &Type{Kind: KComplex128}
 	case "string":
 		return &Type{Kind: KString}
 	}
 	return nil
 }
 
-// intWidth returns the width in bits of an integer kind.
 func intWidth(k Kind, word int64) int64 {
 	switch k {
 	case KInt8, KUint8:
@@ -222,8 +167,10 @@ func intWidth(k Kind, word int64) int64 {
 		return 16
 	case KInt32, KUint32, KFloat32:
 		return 32
-	case KInt64, KUint64, KFloat64:
+	case KInt64, KUint64, KFloat64, KComplex64:
 		return 64
+	case KComplex128:
+		return 128
 	case KInt, KUint, KUintptr:
 		return word * 8
 	}
@@ -252,9 +199,13 @@ func isFloat(k Kind) bool {
 	return k == KFloat32 || k == KFloat64 || k == KUntypedFloat
 }
 
+func isComplex(k Kind) bool {
+	return k == KComplex64 || k == KComplex128 || k == KUntypedComplex
+}
+
 func isUntyped(k Kind) bool {
 	switch k {
-	case KUntypedInt, KUntypedFloat, KUntypedRune, KUntypedString, KUntypedBool:
+	case KUntypedInt, KUntypedFloat, KUntypedComplex, KUntypedRune, KUntypedString, KUntypedBool:
 		return true
 	}
 	return false
@@ -265,16 +216,17 @@ func isStringLike(k Kind) bool {
 }
 
 func isNumeric(k Kind) bool {
-	return isInteger(k) || isFloat(k)
+	return isInteger(k) || isFloat(k) || isComplex(k)
 }
 
-// defaultType maps an untyped kind to its default type.
-func defaultType(k Kind, word int64) *Type {
+func defaultType(k Kind) *Type {
 	switch k {
 	case KUntypedInt:
 		return &Type{Kind: KInt}
 	case KUntypedFloat:
 		return &Type{Kind: KFloat64}
+	case KUntypedComplex:
+		return &Type{Kind: KComplex128}
 	case KUntypedRune:
 		return &Type{Kind: KInt32}
 	case KUntypedString:
@@ -285,8 +237,6 @@ func defaultType(k Kind, word int64) *Type {
 	return &Type{Kind: KInvalid}
 }
 
-// sliceVal is a shared slice header: backing is aliased across copies
-// until append exhausts the capacity, exactly like Go.
 type sliceVal struct {
 	backing *[]Value
 	lo      int
@@ -294,22 +244,19 @@ type sliceVal struct {
 	cap_    int
 }
 
-// mapVal is a reference map value preserving insertion order.
 type mapVal struct {
 	keys []Value
 	vals []Value
 }
 
-// Value is one compile-time value. The constant flag selects Go
-// constant semantics (exact arithmetic, range-checked conversions) for
-// literal- and const-derived values, and variable semantics (wrapping)
-// for parameters, locals, and values loaded out of composites.
 type Value struct {
 	typ      *Type
 	constant bool
 	ival     *big.Int
 	fval     *big.Rat
 	f64      float64
+	cval     complex128
+	cparts   *[2]big.Rat
 	sval     string
 	bval     bool
 	slice    *sliceVal
@@ -319,19 +266,19 @@ type Value struct {
 	isNil    bool
 }
 
-// Int64 returns the integer payload (tests and rendering).
 func (v Value) Int64() int64 { return v.ival.Int64() }
 
-// BigInt returns the exact integer payload; callers must not mutate it.
-func (v Value) BigInt() *big.Int { return v.ival }
+func (v Value) BigInt() *big.Int {
+	if v.ival == nil {
+		return nil
+	}
+	return new(big.Int).Set(v.ival)
+}
 
-// Bool returns the boolean payload.
 func (v Value) Bool() bool { return v.bval }
 
-// Str returns the string payload.
 func (v Value) Str() string { return v.sval }
 
-// Float64 returns the float payload in 64-bit form.
 func (v Value) Float64() float64 {
 	if v.fval != nil {
 		f, _ := v.fval.Float64()
@@ -340,21 +287,26 @@ func (v Value) Float64() float64 {
 	return v.f64
 }
 
-// MapLen returns the number of map entries.
-func (v Value) MapLen() int {
+func (v Value) Complex() complex128 {
+	if v.cparts != nil {
+		re, _ := v.cparts[0].Float64()
+		im, _ := v.cparts[1].Float64()
+		return complex(re, im)
+	}
+	return v.cval
+}
+
+func (v Value) mapLen() int {
 	if v.mval == nil {
 		return 0
 	}
 	return len(v.mval.keys)
 }
 
-// Fields returns the field values of a struct value in declaration order.
 func (v Value) Fields() []Value { return v.strct }
 
-// Elems returns the element values of an array value in index order.
 func (v Value) Elems() []Value { return v.array }
 
-// MapEntries returns the keys and values of a map value in insertion order.
 func (v Value) MapEntries() (keys, vals []Value) {
 	if v.mval == nil {
 		return nil, nil
@@ -362,69 +314,54 @@ func (v Value) MapEntries() (keys, vals []Value) {
 	return v.mval.keys, v.mval.vals
 }
 
-// MapKeyBits returns the float64 bits of map key i (tests).
-func (v Value) MapKeyBits(i int) uint64 {
+func (v Value) mapKeyBits(i int) uint64 {
 	return v.mval.keys[i].floatBits()
 }
 
-// Type returns the value's descriptor.
 func (v Value) Type() *Type { return v.typ }
 
-// IsConstant reports constant semantics.
-func (v Value) IsConstant() bool { return v.constant }
+func (v Value) isConstant() bool { return v.constant }
 
-// IsValid reports whether the value holds a computed result (as
-// opposed to a memoized failure marker).
 func (v Value) IsValid() bool { return v.typ != nil }
 
-// EntityKind classifies a resolved identifier.
+func (v Value) IsComposite() bool {
+	if v.typ == nil {
+		return false
+	}
+	switch v.typ.Kind {
+	case KSlice, KArray, KMap, KStruct:
+		return true
+	}
+	return false
+}
+
 type EntityKind int
 
 const (
-	// EntNone resolves to nothing usable (universe constants like
-	// true/nil, or unknown names the checker already rejected).
 	EntNone EntityKind = iota
-	// EntBuiltin is a builtin function call.
 	EntBuiltin
-	// EntConstFunc is a call to a const func.
 	EntConstFunc
-	// EntPlainFunc is a call to a same-package plain func, evaluated
-	// transitively after its own purity scan.
 	EntPlainFunc
-	// EntConst is a compile-time known value (constant or recorded
-	// const composite).
 	EntConst
-	// EntPackageVar is a package-level variable: reading or writing
-	// one is impure.
 	EntPackageVar
-	// EntImport is an imported function, variable, or package use.
 	EntImport
-	// EntType is a type name in value position.
 	EntType
-	// EntPackage is a package name: selectors on it resolve through
-	// ResolveSel.
 	EntPackage
 )
 
-// Entity is one resolved identifier.
 type Entity struct {
 	Kind    EntityKind
 	Builtin string
 	Fn      *Func
 	Const   Value
 	Name    string
-	Type    *Type
 }
 
-// Param is one function parameter or result.
 type Param struct {
 	Decl *syntax.Name
 	Type *Type
 }
 
-// Func is one callable function body. ResultNames parallels Results
-// with "" for unnamed results. Generic marks an uninstantiated generic
-// function, which const evaluation refuses.
 type Func struct {
 	Name        string
 	Params      []Param
@@ -436,26 +373,16 @@ type Func struct {
 	Generic     bool
 }
 
-// Host abstracts the type checker for the interpreter.
 type Host interface {
-	// Resolve maps an identifier to its entity.
 	Resolve(id *syntax.Name) Entity
-	// ResolveSel maps a selector to its entity (qualified
-	// references and method calls).
 	ResolveSel(sel *syntax.SelectorExpr) Entity
-	// TypeOf returns the static type of e: composite literal types,
-	// conversion targets, declared variable types, and make operands.
 	TypeOf(e syntax.Expr) *Type
-	// WordSize is the target int/uint width in bytes.
-	WordSize() int64
 }
 
-// Stats carries evaluation measurements.
 type Stats struct {
 	Steps int
 }
 
-// Eval evaluates a single-valued const initializer.
 func Eval(h Host, cfg Config, e syntax.Expr) (Value, Stats, error) {
 	ev := &evaluator{h: h, cfg: cfg.withDefaults()}
 	top := ev.top()
@@ -464,7 +391,7 @@ func Eval(h Host, cfg Config, e syntax.Expr) (Value, Stats, error) {
 	if err != nil {
 		return Value{}, Stats{Steps: ev.steps}, err
 	}
-	if err := ev.checkSize(v); err != nil {
+	if _, err := ev.checkSize(v); err != nil {
 		return Value{}, Stats{Steps: ev.steps}, err
 	}
 	return v, Stats{Steps: ev.steps}, nil

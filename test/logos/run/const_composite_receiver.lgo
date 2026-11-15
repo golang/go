@@ -1,0 +1,97 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type box struct {
+	M map[string]int
+	N int
+}
+
+type wrap struct {
+	In box
+	K  int
+}
+
+func (r const *box) Get() int { return r.N }
+
+func (r const *box) Look(k string) int { return r.M[k] ?? -1 }
+
+func (b box) Total() int { return b.N + len(b.M) }
+
+const cfg = box{M: map[string]int{"a": 1}, N: 7}
+
+const w = wrap{In: box{M: map[string]int{"z": 5}, N: 3}, K: 1}
+
+func test() {
+	check("receiver-const-pointer", cfg.Get() == 7, cfg.Get(), 7)
+	check("receiver-const-pointer-map", cfg.Look("a") == 1, cfg.Look("a"), 1)
+	check("receiver-value", cfg.Total() == 8, cfg.Total(), 8)
+	check("receiver-nested", w.In.Get() == 3, w.In.Get(), 3)
+	check("receiver-nested-map", w.In.Look("z") == 5, w.In.Look("z"), 5)
+}
+
+type shelf struct {
+	Items []box
+}
+
+func (b *box) Peek() int { return b.N }
+
+const boxes = []box{{M: map[string]int{"a": 1}, N: 4}, {M: map[string]int{"b": 2}, N: 9}}
+
+const grid = [2]box{{M: map[string]int{"a": 1}, N: 4}, {M: map[string]int{"b": 2}, N: 9}}
+
+const sh = shelf{Items: []box{{M: map[string]int{"a": 1}, N: 4}, {M: map[string]int{"b": 2}, N: 9}}}
+
+func testElements() {
+	i := 1
+	check("receiver-slice-element-const-pointer", boxes[1].Get() == 9, boxes[1].Get(), 9)
+	check("receiver-slice-element-map", boxes[1].Look("b") == 2, boxes[1].Look("b"), 2)
+	check("receiver-slice-element-value", boxes[0].Total() == 5, boxes[0].Total(), 5)
+	check("receiver-slice-element-readonly-pointer", boxes[1].Peek() == 9, boxes[1].Peek(), 9)
+	check("receiver-slice-element-variable", boxes[i].Get() == 9, boxes[i].Get(), 9)
+	check("receiver-array-element", grid[1].Get() == 9, grid[1].Get(), 9)
+	check("receiver-array-element-variable", grid[i].Look("b") == 2, grid[i].Look("b"), 2)
+	check("receiver-field-slice-element", sh.Items[1].Get() == 9, sh.Items[1].Get(), 9)
+	check("receiver-field-slice-element-variable", sh.Items[i].Look("b") == 2, sh.Items[i].Look("b"), 2)
+}
+
+type pt struct{ X, Y int }
+
+func (p *pt) PeekX() int { return p.X }
+
+const P = pt{3, 4}
+
+func testReadonlyPointer() {
+	check("receiver-readonly-pointer", cfg.Peek() == 7, cfg.Peek(), 7)
+	check("receiver-readonly-pointer-nested", w.In.Peek() == 3, w.In.Peek(), 3)
+	check("receiver-readonly-pointer-array-element", grid[1].Peek() == 9, grid[1].Peek(), 9)
+	check("receiver-readonly-pointer-plain", P.PeekX() == 3, P.PeekX(), 3)
+	check("receiver-readonly-pointer-declared-later", cfg.LatePeek() == 7, cfg.LatePeek(), 7)
+}
+
+func (b *box) LatePeek() int { return b.N }
+
+func main() {
+	test()
+	testElements()
+	testReadonlyPointer()
+	if failed {
+		os.Exit(1)
+	}
+}

@@ -1,7 +1,3 @@
-# M3-S5: platform pointers from a Go package in another workspace module.
-# A loGo/s package imports Go declarations as platform pointers: call and
-# field results are usable after the error check and comparable to nil,
-# and a nil stored into a non-nil location panics with file:line.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 mkdir $WORK/bin
@@ -14,8 +10,19 @@ stdout '^find-ok: true gadget$'
 stdout '^lookup-nil$'
 stdout '^lookup-store: gadget$'
 stdout '^generic: gadget false$'
+stdout '^panic-generic: logos: nil from Go value stored into non-nil \*item\.Item at main\.lgo:[0-9]+$'
 stdout '^panic-store: logos: nil from Go value stored into non-nil \*item\.Item at main\.lgo:[0-9]+$'
 stdout '^panic-call: logos: nil from Go value stored into non-nil \*item\.Item at main\.lgo:[0-9]+$'
+stdout '^field-store: gadget$'
+stdout '^method-store: gadget$'
+stdout '^panic-field: logos: nil from Go value stored into non-nil \*item\.Item at main\.lgo:[0-9]+$'
+stdout '^panic-method: logos: nil from Go value stored into non-nil \*item\.Item at main\.lgo:[0-9]+$'
+stdout '^stdlib-parse: true example\.com$'
+stdout '^stdlib-nil$'
+stdout '^stdlib-store: example\.com$'
+stdout '^panic-stdlib: logos: nil from Go value stored into non-nil \*url\.URL at main\.lgo:[0-9]+$'
+stdout '^pkgvar-store: gadget$'
+stdout '^panic-pkgvar: logos: nil from Go value stored into non-nil \*item\.Item at main\.lgo:[0-9]+$'
 cd ..
 
 -- w/go.work --
@@ -41,6 +48,9 @@ type Item struct {
 }
 
 var errMissing = errors.New("no such item")
+var NilItem *Item
+
+var HaveItem = &Item{Name: "gadget"}
 
 func Find(name string) (*Item, error) {
 	if name == "x" {
@@ -56,6 +66,22 @@ func Lookup(name string) *Item {
 	return nil
 }
 
+type Box struct {
+	Inner *Item
+}
+
+func NewBox(name string) *Box {
+	return &Box{Inner: Lookup(name)}
+}
+
+func (b *Box) Get() *Item {
+	return b.Inner
+}
+
+func NilSlice() []*Item {
+	return []*Item{nil}
+}
+
 -- w/l/go.mod --
 module example.com/l
 
@@ -66,6 +92,7 @@ package main
 
 import (
 	"fmt"
+	"net/url"
 
 	"example.com/g/item"
 )
@@ -97,6 +124,62 @@ func tryCall() (msg string) {
 	return useItem(item.Lookup("missing"))
 }
 
+func tryField() (msg string) {
+	defer func() {
+		if r := recover(); r != nil {
+			msg = fmt.Sprint(r)
+		}
+	}()
+	empty := item.NewBox("missing")
+	var it *item.Item = empty.Inner
+	return "no-panic:" + it.Name
+}
+
+func tryMethod() (msg string) {
+	defer func() {
+		if r := recover(); r != nil {
+			msg = fmt.Sprint(r)
+		}
+	}()
+	empty := item.NewBox("missing")
+	return useItem(empty.Get())
+}
+
+func tryPkgVar() (msg string) {
+	defer func() {
+		if r := recover(); r != nil {
+			msg = fmt.Sprint(r)
+		}
+	}()
+	var it *item.Item = item.NilItem
+	return "no-panic:" + it.Name
+}
+
+func tryStdlibStore() (msg string) {
+	defer func() {
+		if r := recover(); r != nil {
+			msg = fmt.Sprint(r)
+		}
+	}()
+	bad, berr := url.Parse("://bad-url")
+	if berr == nil {
+		return "unexpected-no-error"
+	}
+	var keep *url.URL = bad
+	return "no-panic:" + keep.Host
+}
+
+func tryGenericNil() (msg string) {
+	defer func() {
+		if r := recover(); r != nil {
+			msg = fmt.Sprint(r)
+		}
+	}()
+	got := First(item.NilSlice())
+	var keep *item.Item = got
+	return "no-panic:" + keep.Name
+}
+
 func main() {
 	it, err := item.Find("x")
 	if err != nil {
@@ -115,7 +198,34 @@ func main() {
 
 	got := First([]*item.Item{here})
 	fmt.Println("generic:", got.Name, got == nil)
+	fmt.Println("panic-generic:", tryGenericNil())
 
 	fmt.Println("panic-store:", tryStore())
 	fmt.Println("panic-call:", tryCall())
+	full := item.NewBox("x")
+	var kept *item.Item = full.Inner
+	fmt.Println("field-store:", kept.Name)
+	fmt.Println("method-store:", useItem(full.Get()))
+
+	fmt.Println("panic-field:", tryField())
+	fmt.Println("panic-method:", tryMethod())
+	parsed, perr := url.Parse("https://example.com/gadget")
+	if perr != nil {
+		fmt.Println("stdlib-err:", perr)
+		return
+	}
+	fmt.Println("stdlib-parse:", parsed != nil, parsed.Host)
+	badProbe, badErr := url.Parse("://bad-url")
+	if badErr == nil {
+		fmt.Println("unexpected-no-error")
+	}
+	if badProbe == nil {
+		fmt.Println("stdlib-nil")
+	}
+	var keepStd *url.URL = parsed
+	fmt.Println("stdlib-store:", keepStd.Host)
+	fmt.Println("panic-stdlib:", tryStdlibStore())
+	var keptPkg *item.Item = item.HaveItem
+	fmt.Println("pkgvar-store:", keptPkg.Name)
+	fmt.Println("panic-pkgvar:", tryPkgVar())
 }

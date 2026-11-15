@@ -1,0 +1,69 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+	str "strings"
+)
+
+type U interface {
+	int | string
+}
+
+type Cat struct{}
+
+type Box[T any] struct{ v T }
+
+type Pair[K comparable, V any] struct {
+	k K
+	v V
+}
+
+var failed bool
+
+func panicText(f func()) (text string) {
+	defer func() { text = fmt.Sprint(recover()) }()
+	f()
+	return "no panic"
+}
+
+func check[T any](name string, assert func()) {
+	var zero T
+	want := "interface conversion: " + fmt.Sprintf("%T", zero) + " is not a member of main.U"
+	got := panicText(assert)
+	if got != want {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func main() {
+	var u U = 5
+	check[Cat]("named", func() { _ = u.(Cat) })
+	check[str.Builder]("aliased-import", func() { _ = u.(str.Builder) })
+	check[Box[int]]("generic", func() { _ = u.(Box[int]) })
+	check[Box[Cat]]("generic-of-named", func() { _ = u.(Box[Cat]) })
+	check[Pair[string, Cat]]("generic-two", func() { _ = u.(Pair[string, Cat]) })
+	check[*Cat]("pointer", func() { _ = u.(*Cat) })
+	check[[]Cat]("slice", func() { _ = u.([]Cat) })
+	check[[2]Cat]("array", func() { _ = u.([2]Cat) })
+	check[map[string]Cat]("map", func() { _ = u.(map[string]Cat) })
+	check[func(Cat) int]("func", func() { _ = u.(func(Cat) int) })
+	check[float64]("predeclared", func() { _ = u.(float64) })
+	var x any = Cat{}
+	got := panicText(func() { _ = x.(U) })
+	want := "interface conversion: main.Cat is not a member of main.U"
+	if got != want {
+		failed = true
+		fmt.Println("FAIL any-to-union: got", got, "want", want)
+	} else {
+		fmt.Println("ok any-to-union")
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

@@ -10,9 +10,6 @@ import (
 	"testing"
 )
 
-// scanCommaFunc scans one source snippet and returns its first function
-// declaration. Each caller uses a fresh FileSet so repeated scans of the
-// same filename do not share file backing.
 func scanCommaFunc(t *testing.T, src string) *ast.FuncDecl {
 	t.Helper()
 	fset := token.NewFileSet()
@@ -29,15 +26,11 @@ func scanCommaFunc(t *testing.T, src string) *ast.FuncDecl {
 	return nil
 }
 
-// TestLogosScanTrailingComma is the regression test for r4373037373:
-// paramFields strips one optional trailing comma, so the standard test,
-// benchmark, and fuzz signatures keep their *testing.T/B/F shape with or
-// without the comma, while a malformed double comma still yields BadExpr.
 func TestLogosScanTrailingComma(t *testing.T) {
 	tests := []struct {
 		name     string
 		src      string
-		wantArg  string // "T", "B", "F", or "" to expect BadExpr
+		wantArg  string
 		wantName string
 	}{
 		{

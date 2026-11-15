@@ -2,12 +2,6 @@
 
 package p
 
-// PRRT_kwDOVOeymc6veVY- (SPEC Sec 2.1, T-201): builtins cannot store,
-// escape, or mutate reference-carrying const views. Passing a
-// reference-carrying const []byte to panic escapes the view into any,
-// and closing a channel reached through a const pointer mutates the channel.
-// Non-mutating builtins (len, cap) and permitted scalar reads remain valid.
-
 type Stream struct {
 	ID int
 	Ch chan int
@@ -25,16 +19,68 @@ func rejectCloseChan(c const chan int) {
 	close(c) // ERROR "const_view_mutation"
 }
 
+func rejectAppend(v const []byte) {
+	_ = append(v, 1) // ERROR "const_view_mutation"
+}
+
+func rejectCopy(dst const []byte, src []byte) {
+	_ = copy(dst, src) // ERROR "const_view_mutation"
+}
+
+func rejectDelete(m const map[string]int) {
+	delete(m, "a") // ERROR "const_view_mutation"
+}
+
+func rejectClearMap(m const map[string]int) {
+	clear(m) // ERROR "const_view_mutation"
+}
+
+func rejectClearSlice(s const []int) {
+	clear(s) // ERROR "const_view_mutation"
+}
+
+func rejectCapBound(v const []byte) {
+	_ = v[:cap(v)] // ERROR "const_view_mutation"
+}
+
+type RangeBox struct {
+	S []int
+}
+
+func rejectRangeStore(xs const []RangeBox) {
+	for _, v := range xs {
+		v.S[0] = 1 // ERROR "const_view_mutation"
+	}
+}
+
+func rejectEscapePtrSlice(v const []*Stream) {
+	var plain []*Stream = v // ERROR "const_view_escape"
+	_ = plain
+}
+type RefPoint struct {
+	X int
+	Y int
+}
+
+func acceptRefFree(v const RefPoint) {
+	var p RefPoint = v
+	_ = p
+}
+
+func acceptRefFreeArray(v const [3]int, ps const [2]RefPoint) {
+	var a [3]int = v
+	var q [2]RefPoint = ps
+	_, _ = a, q
+}
+
+
 func validControls(v const []byte, s const *Stream) {
-	// len and cap on const []byte remain valid.
 	_ = len(v)
 	_ = cap(v)
 
-	// len and cap on channel through const pointer remain valid.
 	_ = len(s.Ch)
 	_ = cap(s.Ch)
 
-	// Permitted scalar reads through const views remain valid.
 	if len(v) > 0 {
 		var b byte = v[0]
 		_ = b

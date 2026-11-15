@@ -5,18 +5,15 @@
 package rt
 
 import (
+	"cmp"
 	"iter"
 	"math"
+	"reflect"
+	"slices"
+	"strings"
 	"sync"
 )
 
-// This file holds the runtime half of M5-S4 const maps (SPEC T-Sec9).
-// The compiler lays out a const map as bucketed perfect-hash tables and
-// emits a lookup function that computes a base hash with the functions
-// below and calls ConstTable.Get. Compiler and runtime share these
-// definitions: a change here changes the layout the compiler must emit.
-
-// finalize is the splitmix64 finalizer: a full-diffusion avalanche.
 func finalize(x uint64) uint64 {
 	x ^= x >> 30
 	x *= 0xbf58476d1ce4e5b9
@@ -73,7 +70,7 @@ func ConstMix(seed, h uint64) uint64 {
 }
 
 // ConstMapMaterialization is zero-initialized once-only storage for one
-// top-level regular-map materialization (SPEC T-Sec9). The generated code
+// top-level regular-map materialization (SPEC T-Sec7). The generated code
 // declares one zero value per const map, one pure builder that rebuilds
 // the full regular map, and one accessor that returns
 // storage.Get(builder). The first Get runs the builder exactly once;
@@ -134,12 +131,18 @@ type ConstTable[K comparable, V any] struct {
 // read, one slot probe, then full-key validation. An unoccupied slot answers
 // absent before any key comparison.
 func (t *ConstTable[K, V]) Get(h uint64, k K) (V, bool) {
-	b := &t.Buckets[ConstMix(t.Salt, h)%uint64(len(t.Buckets))]
-	s := &t.Slots[b.Off+uint32(ConstMix(b.Seed, h)%uint64(b.Size))]
+	var zero V
+	if t == nil || len(t.Buckets) == 0 {
+		return zero, false
+	}
+	b := &t.Buckets[ConstMix(t.Salt, h)&uint64(len(t.Buckets)-1)]
+	if b.Size == 0 {
+		return zero, false
+	}
+	s := &t.Slots[b.Off+uint32(ConstMix(b.Seed, h)&uint64(b.Size-1))]
 	if s.Occ && s.Key == k {
 		return s.Val, true
 	}
-	var zero V
 	return zero, false
 }
 
@@ -162,6 +165,89 @@ func ConstAll[K comparable, V any](sorted []ConstEntry[K, V]) iter.Seq2[K, V] {
 	}
 }
 
+// SortedAll returns the range iterator of a map over its keys in the order
+// SPEC Sec 7 gives a const map: a string by its bytes, an integer or float
+// by numeric value, false before true, a complex number by real part and
+// then imaginary part, and a struct or array field by field or element by
+// element. Keys of any other kind, and keys of different dynamic types,
+// keep no defined relative order. Each captured entry is yielded once,
+// without looking its key up again (a NaN key cannot be looked up).
+func SortedAll[K comparable, V any](m map[K]V) iter.Seq2[K, V] {
+	return func(yield func(K, V) bool) {
+		entries := make([]ConstEntry[K, V], 0, len(m))
+		var types map[reflect.Type]int
+		if reflect.TypeFor[K]().Kind() == reflect.Interface {
+			types = make(map[reflect.Type]int)
+		}
+		for k, v := range m {
+			entries = append(entries, ConstEntry[K, V]{Key: k, Val: v})
+			if types != nil {
+				t := reflect.TypeOf(k)
+				if _, ok := types[t]; !ok {
+					types[t] = len(types)
+				}
+			}
+		}
+		slices.SortStableFunc(entries, func(a, b ConstEntry[K, V]) int {
+			if types != nil {
+				if c := cmp.Compare(types[reflect.TypeOf(a.Key)], types[reflect.TypeOf(b.Key)]); c != 0 {
+					return c
+				}
+			}
+			return compareKeys(reflect.ValueOf(a.Key), reflect.ValueOf(b.Key))
+		})
+		for _, entry := range entries {
+			if !yield(entry.Key, entry.Val) {
+				return
+			}
+		}
+	}
+}
+
+func compareKeys(a, b reflect.Value) int {
+	switch a.Kind() {
+	case reflect.String:
+		return strings.Compare(a.String(), b.String())
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return cmp.Compare(a.Int(), b.Int())
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return cmp.Compare(a.Uint(), b.Uint())
+	case reflect.Float32, reflect.Float64:
+		return cmp.Compare(a.Float(), b.Float())
+	case reflect.Bool:
+		return compareBools(a.Bool(), b.Bool())
+	case reflect.Complex64, reflect.Complex128:
+		x, y := a.Complex(), b.Complex()
+		if c := cmp.Compare(real(x), real(y)); c != 0 {
+			return c
+		}
+		return cmp.Compare(imag(x), imag(y))
+	case reflect.Struct:
+		for i := range a.NumField() {
+			if c := compareKeys(a.Field(i), b.Field(i)); c != 0 {
+				return c
+			}
+		}
+	case reflect.Array:
+		for i := range a.Len() {
+			if c := compareKeys(a.Index(i), b.Index(i)); c != 0 {
+				return c
+			}
+		}
+	}
+	return 0
+}
+
+func compareBools(a, b bool) int {
+	switch {
+	case a == b:
+		return 0
+	case b:
+		return -1
+	}
+	return 1
+}
+
 // Opt converts a lookup result to the option form of a single-value read
 // (SPEC T-202): present is some, absent is none.
 func Opt[V any](v V, ok bool) Option[V] {
@@ -179,7 +265,7 @@ func Bare[V any](v V, ok bool) V {
 }
 
 // Materialize returns the function that builds a const map's regular map
-// once, on first use, and returns that same map afterwards (SPEC T-Sec9).
+// once, on first use, and returns that same map afterwards (SPEC T-Sec7).
 // Concurrent first uses share one build.
 func Materialize[M any](f func() M) func() M {
 	return sync.OnceValue(f)

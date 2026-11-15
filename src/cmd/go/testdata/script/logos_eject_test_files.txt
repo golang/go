@@ -1,0 +1,152 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+logos test -count=1 -v ./...
+stdout '^--- PASS: TestDouble '
+stdout '^--- PASS: TestParse '
+stdout '^--- PASS: TestFindExternal '
+stdout '^--- PASS: TestOnlyTests '
+logos eject -o out
+exists out/x.go
+exists out/x_test.go
+exists out/ext_test.go
+exists out/sub/s_test.go
+! exists out/x_test.lgo
+! exists out/ext_test.lgo
+! exists out/sub/s_test.lgo
+cd out
+go test -count=1 -v ./...
+stdout '^--- PASS: TestDouble '
+stdout '^--- PASS: TestParse '
+stdout '^--- PASS: TestFindExternal '
+stdout '^--- PASS: TestOnlyTests '
+! stdout '^--- FAIL'
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go test -count=1 -v ./...
+stdout '^--- PASS: TestDouble '
+stdout '^--- PASS: TestParse '
+stdout '^--- PASS: TestFindExternal '
+stdout '^--- PASS: TestOnlyTests '
+! stdout '^--- FAIL'
+go vet ./...
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ../..
+
+cd bad
+! logos test -count=1 -v ./...
+stdout '^--- FAIL: TestBroken '
+logos eject -o out
+cd out
+! go test -count=1 -v ./...
+stdout '^--- FAIL: TestBroken '
+exec env -u GOROOT $UPROOT1272/bin/go version
+! exec env -u GOROOT $UPROOT1272/bin/go test -count=1 -v ./...
+stdout '^--- FAIL: TestBroken '
+cd ../..
+
+-- m/go.mod --
+module example.com/ejecttests
+
+go 1.27
+
+-- m/x.lgo --
+package ejt
+
+import "strconv"
+
+func double(n int) int { return n * 2 }
+
+func Parse(s string) (int, error) {
+	n := strconv.Atoi(s)?
+	return double(n), nil
+}
+
+func Find(xs []int, v int) int? {
+	for _, x := range xs {
+		if x == v {
+			return x
+		}
+	}
+	return nil
+}
+
+-- m/x_test.lgo --
+package ejt
+
+import "testing"
+
+func TestDouble(t *testing.T) {
+	if double(21) != 42 {
+		t.Errorf("double(21) = %d", double(21))
+	}
+}
+
+func TestParse(t *testing.T) {
+	n, err := Parse("21")
+	if err != nil {
+		t.Errorf("Parse: %v", err)
+		return
+	}
+	if n != 42 {
+		t.Errorf("Parse = %d", n)
+	}
+	_, err = Parse("zz")
+	if err == nil {
+		t.Error("want an error")
+	}
+}
+
+-- m/ext_test.lgo --
+package ejt_test
+
+import (
+	"testing"
+
+	"example.com/ejecttests"
+)
+
+func TestFindExternal(t *testing.T) {
+	if got := ejt.Find([]int{1, 2, 3}, 2) ?? -1; got != 2 {
+		t.Errorf("found %d", got)
+	}
+	if got := ejt.Find([]int{1, 2, 3}, 9) ?? -1; got != -1 {
+		t.Errorf("found %d", got)
+	}
+}
+
+-- m/sub/s_test.lgo --
+package sub
+
+import "testing"
+
+func TestOnlyTests(t *testing.T) {
+	var o int? = 5
+	if (o ?? 0) != 5 {
+		t.Error("option lost")
+	}
+}
+
+-- bad/go.mod --
+module example.com/ejectbad
+
+go 1.27
+
+-- bad/b.lgo --
+package bad
+
+func One() int { return 1 }
+
+-- bad/b_test.lgo --
+package bad
+
+import "testing"
+
+func TestBroken(t *testing.T) {
+	if One() != 2 {
+		t.Errorf("One() = %d", One())
+	}
+}

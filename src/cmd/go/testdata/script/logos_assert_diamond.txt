@@ -1,19 +1,3 @@
-# T-201 generic assertion effects: import-boundary nominal identity.
-# A Go package with exported generics (p) carries an assert-only
-# __.LOGOS member (HasAssert records, proven-zero included). Declaration-
-# only members must stamp per-Func metadata in place on the canonical
-# imported objects: no package clone, no packages[path] replacement. RED
-# on the clone fan-out: q decodes first and captures p's placeholder
-# nominals, the later direct import of p replaces packages[p] with a
-# clone, and r fails with "cannot use q.Take (variable of type
-# func(*p.Box[int])) as func(*p.Box[int])" -- identical spellings,
-# distinct *types2.Named. GREEN after the in-place repair: p.Box and
-# p.New are pointer-identical through both import orders and the build
-# succeeds; the metadata still lands (the unsafe and known-zero
-# instantiation semantics are pinned by logos_const_interface_generic_assert).
-# Case F imports q before p (placeholder-then-clone order); case R
-# imports p before q (order independence).
-
 env GOPROXY=off
 env GOTOOLCHAIN=local
 

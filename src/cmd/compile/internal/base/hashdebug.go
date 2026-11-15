@@ -61,6 +61,10 @@ var LiteralAllocHash *HashDebug // for debugging literal allocation optimization
 var MergeLocalsHash *HashDebug  // for debugging local stack slot merging changes
 var VariableMakeHash *HashDebug // for debugging variable-sized make optimizations
 
+func VariableMakeEnabled(pos src.XPos) bool {
+	return (Flag.N == 0 || Debug.VariableMakeUnderN != 0) && VariableMakeHash.MatchPos(pos, nil)
+}
+
 // DebugHashMatchPkgFunc reports whether debug variable Gossahash
 //
 //  1. is empty (returns true; this is a special more-quickly implemented case of 4 below)

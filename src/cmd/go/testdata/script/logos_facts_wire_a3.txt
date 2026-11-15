@@ -1,0 +1,258 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd lgo
+logos build -o $WORK/lgo.a .
+cd ..
+go tool pack p $WORK/lgo.a __.LOGOS
+stdout '^logos-facts 3$'
+stdout '^fingerprint [0-9a-f]{16}$'
+stdout '^comptime Generate [0-9]+$'
+stdout '^const Box FF0$'
+stdout '^fn Add ParamMutated=1$'
+stdout '^fn ReadIface.Name Readonly$'
+stdout '^fn Assert AssertTP=1,AssertRTP=0$'
+stdout '^constfn GenerateConst [0-9]+$'
+! stdout '^lang go$'
+
+cd go
+logos build -o $WORK/go.a .
+cd ..
+go tool pack p $WORK/go.a __.LOGOS
+cp stdout $WORK/go.facts
+grep '^fn GoAssert AssertTP=1,AssertRTP=0$' $WORK/go.facts
+grep '^fn ReadAll ParamMutated=0$' $WORK/go.facts
+grep '^fn WriteAt ParamMutated=1$' $WORK/go.facts
+grep -count=1 '^lang go$' $WORK/go.facts
+! grep 'ReceiverMutated' $WORK/go.facts
+! grep '^constfn' $WORK/go.facts
+! grep 'Readonly' $WORK/go.facts
+! grep '^opt ' $WORK/go.facts
+! grep '^prop ' $WORK/go.facts
+! grep '^const ' $WORK/go.facts
+! grep '^comptime' $WORK/go.facts
+! grep '^default ' $WORK/go.facts
+! grep '^conforms ' $WORK/go.facts
+! grep '^readonly ' $WORK/go.facts
+env GOOS=js
+env GOARCH=wasm
+cd go
+logos build -o $WORK/go-wasm.a .
+cd ..
+go tool pack p $WORK/go-wasm.a __.LOGOS
+stdout '^logos-facts 3$'
+stdout '^fn GoAssert AssertTP=1,AssertRTP=0$'
+stdout '^fn ReadAll ParamMutated=0,MayYield=1$'
+stdout '^fn WriteAt ParamMutated=1,MayYield=1$'
+stdout '^lang go$'
+cd go
+go build -o $WORK/go-wasm-plain.a .
+cd ..
+go tool pack p $WORK/go-wasm-plain.a __.LOGOS
+stdout '^lang go$'
+stdout '^fn ReadAll MayYield=[01]$'
+stdout '^fn WriteAt MayYield=[01]$'
+! stdout 'ParamMutated'
+env GOOS=
+env GOARCH=
+cd go
+logos build -O=0 -o $WORK/go-o0.a .
+cd ..
+go tool pack p $WORK/go-o0.a __.LOGOS
+stdout '^logos-facts 3$'
+stdout '^fn GoAssert AssertTP=1,AssertRTP=0$'
+stdout '^fn ReadAll ParamMutated=0$'
+stdout '^fn WriteAt ParamMutated=1$'
+stdout '^lang go$'
+cd go
+go tool compile -p example.com/go -o $WORK/go-go.a wire.go
+cd ..
+go tool pack p $WORK/go-go.a __.LOGOS
+stdout '^logos-facts 3$'
+stdout '^fn GoAssert AssertTP=1,AssertRTP=0$'
+stdout '^lang go$'
+! stdout 'ParamMutated'
+cd go
+go build -o $WORK/go-build.a .
+cd ..
+go tool pack p $WORK/go-build.a __.LOGOS
+stdout '^logos-facts 3$'
+stdout '^fn GoAssert AssertTP=1,AssertRTP=0$'
+stdout '^lang go$'
+! stdout 'ParamMutated'
+cd go
+go tool compile -logos.gofacts -p example.com/go -o $WORK/go-flagged.a wire.go
+cd ..
+go tool pack p $WORK/go-flagged.a __.LOGOS
+stdout '^logos-facts 3$'
+stdout '^fn ReadAll ParamMutated=0$'
+stdout '^fn WriteAt ParamMutated=1$'
+cd mut
+logos build -o $WORK/mut.a .
+cd ..
+go tool pack p $WORK/mut.a __.LOGOS
+stdout '^logos-facts 3$'
+cd mut
+go build -o $WORK/mut-plain.a .
+cd ..
+! go tool pack p $WORK/mut-plain.a __.LOGOS
+cd quiet
+go build -o $WORK/quiet-go.a .
+logos build -o $WORK/quiet-logos.a .
+cd ..
+! go tool pack p $WORK/quiet-go.a __.LOGOS
+! go tool pack p $WORK/quiet-logos.a __.LOGOS
+mkdir $WORK/bin
+cd imp
+logos build -o $WORK/bin/imp$GOEXE .
+exec $WORK/bin/imp$GOEXE
+stdout '^imp-mut: 14$'
+stdout '^imp-assert: 7$'
+! logos build -o $WORK/badinc$GOEXE ./badinc
+stderr '\[correctness::const_view_mutation\]'
+cd ..
+
+-- lgo/go.mod --
+module example.com/lgo
+
+go 1.27
+
+-- lgo/wire.lgo --
+package wire
+
+import "comptime"
+
+type Box struct {
+	F0 const []int
+}
+
+type ReadIface interface {
+	const Name() string
+}
+
+type Row struct {
+	X int
+}
+
+func Add(p *int) {
+	*p = 1
+}
+
+func Assert[T any](x any) T {
+	return x.(T)
+}
+
+func Generate[T any]() int {
+	const for _, f := range comptime.Fields[T]() {
+		return f.Index
+	}
+	return 0
+}
+
+const func GenerateConst(x int) int {
+	return x + 1
+}
+
+-- go/go.mod --
+module example.com/go
+
+go 1.27
+
+-- go/wire.go --
+package wire
+
+func GoAssert[T any](x any) T {
+	return x.(T)
+}
+
+func GetItems() []int {
+	return []int{1, 2, 3}
+}
+
+func ReadAll(b []byte) int {
+	n := 0
+	for _, v := range b {
+		n += int(v)
+	}
+	return n
+}
+
+func WriteAt(b []byte, v byte) {
+	b[0] = v
+}
+
+type Counter struct {
+	N int
+}
+
+func (c *Counter) Inc() {
+	c.N++
+}
+
+func NewCounter() *Counter {
+	return &Counter{}
+}
+
+-- mut/go.mod --
+module example.com/mut
+
+go 1.27
+
+-- mut/mut.go --
+package mut
+
+type Acc struct {
+	N int
+}
+
+func (a *Acc) Add(n int) {
+	a.N += n
+}
+
+-- imp/go.mod --
+module example.com/imp
+
+go 1.27
+
+require example.com/go v1.0.0
+
+replace example.com/go => ../go
+
+-- imp/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/go"
+)
+
+func main() {
+	s := wire.GetItems()
+	s[0] = 9
+	fmt.Println("imp-mut:", s[0]+s[1]+s[2])
+	fmt.Println("imp-assert:", wire.GoAssert[int](any(7)))
+}
+
+-- imp/badinc/main.lgo --
+package main
+
+import "example.com/go"
+
+func main() {
+	c := wire.NewCounter()
+	var view const *wire.Counter = c
+	view.Inc()
+}
+
+-- quiet/go.mod --
+module example.com/quiet
+
+go 1.27
+
+-- quiet/quiet.go --
+package quiet
+
+func Make() []int {
+	return make([]int, 8)
+}

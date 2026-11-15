@@ -1,0 +1,3 @@
+package p
+
+const complexKeys = map[complex128]int{1 + 2i: 1}

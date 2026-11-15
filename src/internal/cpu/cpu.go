@@ -43,10 +43,15 @@ var X86 struct {
 	HasAVX512VPCLMULQDQ bool
 	HasBMI1             bool
 	HasBMI2             bool
+	HasCX16             bool
 	HasERMS             bool
+	HasF16C             bool
 	HasFSRM             bool
 	HasFMA              bool
 	HasGFNI             bool
+	HasLAHF             bool
+	HasLZCNT            bool
+	HasMOVBE            bool
 	HasOSXSAVE          bool
 	HasPCLMULQDQ        bool
 	HasPOPCNT           bool

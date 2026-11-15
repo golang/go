@@ -2,32 +2,7 @@
 
 package main
 
-// M18-S3 attack (IMPLEMENTATION.md M18-S3, PLAN:531). A constant-size make of
-// noscan bytes that stays inside its frame lowers to the inline noscan bump
-// when the payload is at most 512 bytes. Walk calls runtime.logosArenaBump
-// with the payload rounded up to 8, ssagen intrinsifies that call into one
-// LoweredLogosArenaBump value, and the amd64 emitter writes a nil-chunk test,
-// an align step (add 7, mask with -8), an add of the rounded size, a compare
-// against the chunk limit at offset 24, a store of the new watermark at
-// offset 16, and an exit that yields nil so the caller takes the slow call.
-// The op is an async-preemption unsafe point: its instructions sit between a
-// PCDATA unsafe marker (-2) and the next safe marker (-1).
-//
-// Payloads 511 and 512 both round to 512 and take the inline sequence, so the
-// 512 threshold is checked from both sides. Payload 513 is over the threshold
-// and calls runtime.logosArenaAlloc directly with no inline sequence, no
-// bump call, and no unsafe marker. Two controls follow: a slice stored in a
-// global stays on the heap through runtime.makeslice, and a pointer-bearing
-// make of dynamic size takes runtime.logosArenaMakeSlice, never the noscan
-// bump, which has no GC header. Only amd64 lowers makes to the arena, so no
-// other architecture is checked here.
-//
-// Every make shares its source line with the call that consumes it. The
 // asmcheck match is per source line, so the closing safe marker lands on the
-// same line as the sequence it closes. Each consumer is noinline and does not
-// let its argument escape, so the make stays arena-eligible and is not
-// dropped. A make under a return statement is treated as returned and kept
-// out of this path, so each result is bound to a variable first.
 
 var (
 	bumpSink   int
@@ -48,9 +23,6 @@ func bumpUsePtr(b []*int) int {
 	return len(b) + cap(b)
 }
 
-// The largest payload below the threshold. It rounds to 512, so the inline
-// add uses 512 and never the unrounded 511.
-//
 //go:noinline
 func bumpInline511() int {
 	// amd64:"LEAQ 7\\("
@@ -71,8 +43,6 @@ func bumpInline511() int {
 	return used
 }
 
-// The payload exactly at the threshold still takes the inline sequence.
-//
 //go:noinline
 func bumpInline512() int {
 	// amd64:"LEAQ 7\\("
@@ -92,8 +62,6 @@ func bumpInline512() int {
 	return used
 }
 
-// One byte over the threshold takes the slow call alone.
-//
 //go:noinline
 func bumpSlow513() int {
 	// amd64:1"CALL.*runtime\\.logosArenaAlloc"
@@ -106,8 +74,6 @@ func bumpSlow513() int {
 	return used
 }
 
-// A slice stored in a global is not arena-eligible, whatever its size.
-//
 //go:noinline
 func bumpEscapes511() int {
 	// amd64:1"CALL.*runtime\\.makeslice"
@@ -118,10 +84,6 @@ func bumpEscapes511() int {
 	return len(b)
 }
 
-// Pointer-bearing elements of dynamic size go through the dispatching helper
-// and never the noscan bump. The make has length 0 because a plain pointer in
-// loGo/s is non-null and has no zero value to fill a longer slice with.
-//
 //go:noinline
 func bumpPointerDynamic(n int) int {
 	// amd64:1"CALL.*runtime\\.logosArenaMakeSlice"

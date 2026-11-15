@@ -2,10 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// M1-S2 parser attacks: `?` postfix and errdefer statements.
-// Every form without an ERROR comment must parse cleanly in LogosMode;
-// each ERROR comment pins the exact syntax error text.
-
 package p
 
 func f() (int, error) { return 0, nil }
@@ -155,8 +151,6 @@ func keepAddAssign(errdefer int) {
 	errdefer += 1
 }
 
-// M3-S2 scans `??` with no gap as one _Coalesce token, so a doubled `?`
-// needs a gap to stay two postfix operators.
 func badDeferParenTryTry() error {
 	defer (g())? ? // ERROR expression in defer must not be parenthesized
 	return nil
@@ -165,4 +159,9 @@ func badDeferParenTryTry() error {
 func badGoParenTryTry() error {
 	go (g())? ? // ERROR expression in go must not be parenthesized
 	return nil
+}
+
+func badPrefixTry() (int, error) {
+	x := (?f) // ERROR syntax error: unexpected \?, expected expression
+	return x, nil
 }

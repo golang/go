@@ -1,11 +1,5 @@
 // errorcheck
 
-// M7-S3 nested comptime call without explicit type arguments (SPEC Sec
-// 2.5, T-205): a call to a comptime generic inside an expansion must
-// spell its type arguments explicitly, even when inference could fill
-// them in. Identity below infers U from its argument during checking,
-// so only the expansion rule rejects the call.
-
 package p
 
 import "comptime"

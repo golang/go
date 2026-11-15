@@ -12,22 +12,10 @@ import (
 	"strings"
 )
 
-// LogosWasmProfile is the -logos.wasmprofile flag (M16-S1): on GOARCH=wasm
-// the backend compiles calls whose callee cannot unwind without a resume
-// point and drops the resume dispatch of functions that need none. The go
-// command passes it for every package of a logos build that targets wasm.
-// Plain go keeps it off until the G3 flip.
 var LogosWasmProfile bool
 
-// LogosWasmFeatures is the -logos.wasmfeatures flag: a comma-separated list
-// of optional wasm features. The only name the compiler knows is
-// stack-switching, and any entry implies the profile.
 var LogosWasmFeatures string
 
-// LogosWasmAssume is the -logos.wasmassume flag: a comma-separated list of
-// symbol names whose callers treat them as MayYield=0 whatever their bodies
-// do. It injects a wrong fact so a test can prove that a wrong MayYield=0
-// traps instead of hanging (SPEC Sec 14.1).
 var LogosWasmAssume string
 
 var logosWasmFeatureNames = []string{"stack-switching"}
@@ -38,13 +26,10 @@ func init() {
 	flag.StringVar(&LogosWasmAssume, "logos.wasmassume", "", "treat the comma-separated `symbols` as MayYield=0 (fault injection for tests)")
 }
 
-// LogosWasmAssumed reports whether name is listed in -logos.wasmassume.
 func LogosWasmAssumed(name string) bool {
 	return LogosWasmAssume != "" && slices.Contains(strings.Split(LogosWasmAssume, ","), name)
 }
 
-// logosWasmApply copies the wasm profile flags into the link context. It
-// runs once after flag parsing; a non-wasm target ignores every flag.
 func logosWasmApply() {
 	if buildcfg.GOARCH != "wasm" {
 		return
@@ -57,9 +42,6 @@ func logosWasmApply() {
 	Ctxt.KeepProgs = LogosWasmProfile
 }
 
-// logosWasmCheckFeatures rejects an unknown feature name and switches on
-// the backend of each known one: stack-switching runs every goroutine on
-// a WebAssembly continuation (obj/wasm/stackswitch_logos.go).
 func logosWasmCheckFeatures() {
 	for f := range strings.SplitSeq(LogosWasmFeatures, ",") {
 		if !slices.Contains(logosWasmFeatureNames, f) {

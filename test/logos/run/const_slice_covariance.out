@@ -1,11 +1,11 @@
-orc,troll,goblin,imp
-rock:a,rock:b
-troll:grok,troll:ug 6
-troll:grok,troll:ug
-gnoll
-0 0 0
-orc,imp 1
-orc,troll,goblin,imp
-orc,TROLL,goblin,imp
-ogre,TROLL,goblin,imp
-dwarf
+ok names-ms
+ok names-rocks
+ok names-trolls
+ok names-named
+ok names-monsters
+ok names-empty
+ok eval-once
+ok view-snapshot
+ok view-pointee
+ok view-source
+ok view-shared

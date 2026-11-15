@@ -11,11 +11,6 @@ import (
 
 type UserID int
 
-// M7-S4 const switch (SPEC Sec 2.5, T-205): exact cases rebind T,
-// tilde cases match the underlying type, interface cases gain the
-// case methods while the outer constraint methods keep working, and a
-// slice of T never rebinds as a slice of the interface (#45).
-
 func validSwitch[T any](v T, items []T) string {
 	_, _ = v, items
 	const switch T {
@@ -36,6 +31,17 @@ func shadowedAfterBroader[T any](v T) string {
 		return "tilde"
 	case int /* ERROR "comptime::unreachable_case" */ :
 		return "int"
+	}
+	return "other"
+}
+
+func shadowedDuplicateExact[T any](v T) string {
+	_ = v
+	const switch T {
+	case int:
+		return "int"
+	case int /* ERROR "comptime::unreachable_case" */ :
+		return "again"
 	}
 	return "other"
 }
@@ -98,6 +104,15 @@ func exactRebindsAssign[T any](v T) {
 	}
 }
 
+func exactRebindsTypeName[T any](v T) {
+	const switch T {
+	case int:
+		var z T = v
+		var n int = z
+		_, _ = n, v
+	}
+}
+
 func tildeKeepsDeclaredType(v UserID) int {
 	const switch UserID {
 	case ~int:
@@ -146,6 +161,20 @@ func tildeComposite[T any](v T) {
 	_ = v
 	const switch T {
 	case ~ /* ERROR "comptime::tilde_not_basic" */ []int :
+	}
+}
+
+func caseList[T any](v T) {
+	_ = v
+	const switch T {
+	case int, /* ERROR "const switch case takes a single type, not a list" */ string :
+	}
+}
+
+func caseDefault[T any](v T) {
+	_ = v
+	const switch T {
+	default /* ERROR "expected case or }" */ :
 	}
 }
 

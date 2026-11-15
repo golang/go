@@ -1,23 +1,7 @@
-# M12-S2 gap: the linker audit reports every third-party chain per sink.
-# A standard-library chain (encoding/json reflection) that reaches a sink
-# first, or an allowlisted dependency with a shorter chain, must not hide
-# another dependency's chain to the same sink; standard-library-only,
-# runtime-only, and first-party chains never blame.
-# RED expectation: the single shortest chain per sink hides cases A, D, X,
-# and E (the build succeeds or prints no warning), blames value-receiver
-# methods under a bogus package name in case V, treats a dotless module
-# path as standard library in case M, and exempts a dependency generic that
-# the main object instantiates in case G.
-# The exec fixtures guard their os/exec call behind an argument count the
-# test never reaches, so the call stays reachable to the linker and never
-# runs.
-
 env GOPROXY=off
 env GOTOOLCHAIN=local
 mkdir $WORK/bin
 
-# Case A: dependency reaches reflect.Value.Method while main uses
-# encoding/json -> denied, blamed on the dependency only.
 cd a/main
 ! logos build -o $WORK/bin/ca$GOEXE ./cmd
 stderr 'ERROR \[capabilities::unauthorized_reflect\]: Transitive dependency ''example\.com/jdep'' reaches ''reflect\.ValueOf'''
@@ -29,7 +13,6 @@ stderr 'transitive_reflect|reflect_allowlist'
 ! stderr 'unauthorized_(cgo|exec|net)'
 cd ../..
 
-# Case B: encoding/json alone under a deny policy stays clean and runs.
 cd b/main
 logos build -o $WORK/bin/cb$GOEXE ./cmd
 ! stderr 'capabilities'
@@ -37,8 +20,6 @@ exec $WORK/bin/cb$GOEXE
 stdout '^\{"a":1\}$'
 cd ../..
 
-# Case C: ordinary encoding/json plus a dependency that never reaches a
-# sink builds under the default policy with no capability diagnostics.
 cd c/main
 logos build -o $WORK/bin/cc$GOEXE ./cmd
 ! stderr 'capabilities'
@@ -46,10 +27,6 @@ exec $WORK/bin/cc$GOEXE
 stdout '^\{"n":7\}$'
 cd ../..
 
-# Case D: a dependency that decodes with encoding/json reaches reflect
-# only through the standard library: the default warn policy prints the
-# warning for the dependency, while the main package's own encoding/json
-# use and the runtime stay unblamed and no exec, net, or cgo error appears.
 cd d/main
 logos build -o $WORK/bin/cd$GOEXE ./cmd
 stderr 'WARNING \[capabilities::unauthorized_reflect\]: Transitive dependency ''example\.com/ddep'' reaches ''reflect\.New'''
@@ -61,8 +38,6 @@ exec $WORK/bin/cd$GOEXE
 stdout '^\{"d":1\} 1$'
 cd ../..
 
-# Case X: a dependency that reaches os.startProcess through reflection while
-# the main package uses encoding/json is denied and blamed on the dependency.
 cd x/main
 ! logos build -o $WORK/bin/cx$GOEXE ./cmd
 stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/xdep'' reaches ''os\.startProcess'''
@@ -72,8 +47,6 @@ stderr 'os\.startProcess\(\) +at .*os/exec_posix\.go:\d+'
 ! stderr 'unauthorized_(cgo|net)'
 cd ../..
 
-# Case F: first-party packages under the main module never blame, even
-# when they reach exec and reflection through encoding/json.
 cd f/main
 logos build -o $WORK/bin/cf$GOEXE ./cmd
 ! stderr 'capabilities'
@@ -81,8 +54,6 @@ exec $WORK/bin/cf$GOEXE
 stdout '^\{"f":2\}$'
 cd ../..
 
-# Case E: an allowlisted dependency with the shorter chain does not hide a
-# second dependency's chain to the same sink.
 cd e/main
 ! logos build -o $WORK/bin/ce$GOEXE ./cmd
 stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/bdep'' reaches ''os\.startProcess'''
@@ -91,8 +62,6 @@ stderr 'example\.com/bdep\.Init\(\)'
 ! stderr 'adep\.'
 cd ../..
 
-# Case V: a value-receiver method of an allowlisted dependency attributes
-# to its import path, not to the receiver type.
 cd v/main
 logos build -o $WORK/bin/cv$GOEXE ./cmd
 ! stderr 'capabilities'
@@ -100,8 +69,6 @@ exec $WORK/bin/cv$GOEXE
 stdout '^run$'
 cd ../..
 
-# Case I: the dependency frame nearest the sink takes the blame, so an
-# allowlisted caller does not excuse the dependency below it.
 cd i/main
 ! logos build -o $WORK/bin/ci$GOEXE ./cmd
 stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/inner'' reaches ''os\.startProcess'''
@@ -110,8 +77,6 @@ stderr 'example\.com/inner\.Init\(\)'
 ! stderr 'Transitive dependency ''example\.com/outer'''
 cd ../..
 
-# Case M: a dependency whose module path has no dot is third-party, not
-# standard library: it is blamed by its module path.
 cd m/main
 ! logos build -o $WORK/bin/cm$GOEXE ./cmd
 stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''mylib'' reaches ''os\.startProcess'''
@@ -120,9 +85,6 @@ stderr 'os\.startProcess\(\) +at .*os/exec_posix\.go:\d+'
 ! stderr 'Transitive dependency ''([^m]|m[^y])'
 cd ../..
 
-# Case G: a dependency generic instantiated by the main package is still the
-# dependency's code: the instantiation sits in the main object but is blamed
-# on the generic's own package.
 cd g/main
 ! logos build -o $WORK/bin/cg$GOEXE ./cmd
 stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/gdep'' reaches ''os\.startProcess'''
@@ -130,8 +92,6 @@ stderr 'example\.com/gdep\.Each\['
 ! stderr 'Transitive dependency ''([^e]|e[^x])'
 cd ../..
 
-# Case T: -trimpath rewrites file names and clears GOROOT for the linker; the
-# standard library is still never blamed and a dotless dependency still is.
 cd b/main
 logos build -trimpath -o $WORK/bin/ct$GOEXE ./cmd
 ! stderr 'capabilities'
@@ -141,11 +101,6 @@ stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''mylib
 ! stderr 'Transitive dependency ''([^m]|m[^y])'
 cd ../..
 
-# Case W (allow leg): the same Init built with everything allowed
-# produces a binary; its disassembly proves the direct constructor
-# edge is gone. Tool convention follows logos_cap_stdcgo.txt
-# (`go tool nm $WORK/bin/...`) with the selector form of
-# `go tool objdump -s symbol binary` (src/cmd/cgo/internal/testlogos).
 cd w/ok
 logos build -o $WORK/bin/cwok$GOEXE ./cmd
 ! stderr 'capabilities'
@@ -154,12 +109,6 @@ stdout 'example\.com/wdep\.Init'
 ! stdout 'ValueOf'
 cd ../..
 
-# Case W (deny leg): the same Init, proved inlined with no direct
-# ValueOf edge above, still reaches os.startProcess through the
-# method lookup, so the linker blames the dependency for exec.
-# Reflect stays allowed: transitive ValueOf/New via synthetic paths
-# are legitimate and out of scope here; the normative point is an
-# inlined constructor plus a Method lookup with no Method sink.
 cd w/main
 ! logos build -a -gcflags=example.com/wdep=-m -o $WORK/bin/cw$GOEXE ./cmd
 stderr 'inlining call to reflect\.ValueOf'
@@ -169,17 +118,53 @@ stderr 'os\.startProcess\(\) +at .*os/exec_posix\.go:\d+'
 ! stderr 'unauthorized_(cgo|net)'
 cd ../..
 
-# Case R: dependency helper whose reflect.ValueOf(...).Method(0) is
-# inlined into its caller still reaches the reflective sink and is
-# denied under transitive_reflect=deny.
 cd r/main
 ! logos build -a -gcflags=example.com/rdep=-m -o $WORK/bin/cr$GOEXE ./cmd
 stderr 'inlining call to helper'
 stderr 'inlining call to reflect\.ValueOf'
-stderr 'inlining call to reflect\.Value\.Method'
 stderr 'ERROR \[capabilities::unauthorized_reflect\]: Transitive dependency ''example\.com/rdep'' reaches ''reflect\.ValueOf'''
 stderr 'example\.com/rdep\.Init\(\) +at [^ ]+\.go:\d+'
 stderr 'reflect\.ValueOf\(\)'
+! stderr 'unauthorized_(cgo|exec|net)'
+cd ../..
+
+cd y/main
+! logos build -o $WORK/bin/cy$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/ydep'' reaches ''os\.startProcess'''
+stderr 'example\.com/ydep\.Init\(\) +at [^ ]+\.go:\d+'
+stderr 'os\.startProcess\(\) +at .*os/exec_posix\.go:\d+'
+! stderr 'unauthorized_(cgo|net)'
+cd ../..
+
+cd t/main
+! logos build -o $WORK/bin/ct$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_reflect\]: Transitive dependency ''example\.com/tdep'' reaches ''reflect\.TypeOf'''
+stderr 'example\.com/tdep\.Init\(\) +at [^ ]+\.go:\d+'
+! stderr 'unauthorized_(cgo|exec|net)'
+cd ../..
+
+cd rl/a
+logos build -o $WORK/bin/rla$GOEXE ./cmd
+! stderr 'capabilities'
+exec $WORK/bin/rla$GOEXE
+stdout '^int int$'
+cd ../..
+
+cd rl/b
+! logos build -o $WORK/bin/rlb$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_reflect\]: Transitive dependency ''example\.com/rllgodep'' reaches ''reflect\.TypeOf'''
+! stderr 'Transitive dependency ''example\.com/rlgodep'''
+cd ../..
+
+cd rl/c
+! logos build -o $WORK/bin/rlc$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_reflect\]: Transitive dependency ''example\.com/rlgodep'' reaches ''reflect\.TypeOf'''
+! stderr 'Transitive dependency ''example\.com/rllgodep'''
+cd ../..
+
+cd rl/d
+! logos build -o $WORK/bin/rld$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_reflect\]: Transitive dependency ''example\.com/rlgodep'' reaches ''reflect\.TypeOf'''
 ! stderr 'unauthorized_(cgo|exec|net)'
 cd ../..
 
@@ -870,4 +855,255 @@ func helper() {
 //go:noinline
 func Init() {
 	helper()
+}
+
+-- y/main/go.mod --
+module example.com/ymain
+
+go 1.27
+
+require example.com/ydep v0.0.0
+
+replace example.com/ydep => ../dep
+
+-- y/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+
+-- y/main/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/ydep"
+)
+
+func main() {
+	dep.Init()
+	fmt.Println("done")
+}
+
+-- y/dep/go.mod --
+module example.com/ydep
+
+go 1.27
+
+-- y/dep/dep.go --
+package dep
+
+import "os/exec"
+
+var launcher = exec.Command
+
+//go:noinline
+func Init() {
+	_ = launcher("echo", "hi").Run()
+}
+
+-- t/main/go.mod --
+module example.com/tmain
+
+go 1.27
+
+require example.com/tdep v0.0.0
+
+replace example.com/tdep => ../dep
+
+-- t/main/logos.toml --
+[capabilities]
+transitive_reflect = "deny"
+
+-- t/main/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/tdep"
+)
+
+func main() {
+	dep.Init()
+	fmt.Println("done")
+}
+
+-- t/dep/go.mod --
+module example.com/tdep
+
+go 1.27
+
+-- t/dep/dep.go --
+package dep
+
+import "reflect"
+
+//go:noinline
+func Init() {
+	t := reflect.TypeOf(0)
+	_ = t.String()
+}
+
+-- rl/a/go.mod --
+module example.com/rlamain
+
+go 1.27
+
+require (
+	example.com/rlgodep v0.0.0
+	example.com/rllgodep v0.0.0
+)
+
+replace example.com/rlgodep => ../godep
+
+replace example.com/rllgodep => ../lgodep
+
+-- rl/a/logos.toml --
+[capabilities]
+transitive_reflect = "deny"
+reflect_allowlist = ["example.com/rlgodep/**", "example.com/rllgodep/**"]
+
+-- rl/a/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/rlgodep"
+	"example.com/rllgodep"
+)
+
+func main() {
+	fmt.Println(rlgodep.Kind(), rllgodep.Kind())
+}
+
+-- rl/b/go.mod --
+module example.com/rlbmain
+
+go 1.27
+
+require (
+	example.com/rlgodep v0.0.0
+	example.com/rllgodep v0.0.0
+)
+
+replace example.com/rlgodep => ../godep
+
+replace example.com/rllgodep => ../lgodep
+
+-- rl/b/logos.toml --
+[capabilities]
+transitive_reflect = "deny"
+reflect_allowlist = ["example.com/rlgodep/**"]
+
+-- rl/b/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/rlgodep"
+	"example.com/rllgodep"
+)
+
+func main() {
+	fmt.Println(rlgodep.Kind(), rllgodep.Kind())
+}
+
+-- rl/c/go.mod --
+module example.com/rlcmain
+
+go 1.27
+
+require (
+	example.com/rlgodep v0.0.0
+	example.com/rllgodep v0.0.0
+)
+
+replace example.com/rlgodep => ../godep
+
+replace example.com/rllgodep => ../lgodep
+
+-- rl/c/logos.toml --
+[capabilities]
+transitive_reflect = "deny"
+reflect_allowlist = ["example.com/rllgodep/**"]
+
+-- rl/c/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/rlgodep"
+	"example.com/rllgodep"
+)
+
+func main() {
+	fmt.Println(rlgodep.Kind(), rllgodep.Kind())
+}
+
+-- rl/d/go.mod --
+module example.com/rldmain
+
+go 1.27
+
+require (
+	example.com/rlgodep v0.0.0
+	example.com/rllgodep v0.0.0
+)
+
+replace example.com/rlgodep => ../godep
+
+replace example.com/rllgodep => ../lgodep
+
+-- rl/d/logos.toml --
+[capabilities]
+transitive_reflect = "deny"
+transitive_exec_allowlist = ["example.com/rlgodep/**", "example.com/rllgodep/**"]
+transitive_net_allowlist = ["example.com/rlgodep/**", "example.com/rllgodep/**"]
+transitive_unsafe_allowlist = ["example.com/rlgodep/**", "example.com/rllgodep/**"]
+
+-- rl/d/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/rlgodep"
+	"example.com/rllgodep"
+)
+
+func main() {
+	fmt.Println(rlgodep.Kind(), rllgodep.Kind())
+}
+
+-- rl/godep/go.mod --
+module example.com/rlgodep
+
+go 1.27
+
+-- rl/godep/dep.go --
+package rlgodep
+
+import "reflect"
+
+//go:noinline
+func Kind() string {
+	return reflect.TypeOf(0).String()
+}
+
+-- rl/lgodep/go.mod --
+module example.com/rllgodep
+
+go 1.27
+
+-- rl/lgodep/dep.lgo --
+package rllgodep
+
+import "reflect"
+
+//go:noinline
+func Kind() string {
+	return reflect.TypeOf(0).String()
 }

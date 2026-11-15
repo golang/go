@@ -1,0 +1,71 @@
+// run -goexperiment logosarena
+// run -goexperiment logosarena -arena=false
+package main
+
+import (
+	"fmt"
+	"logos/arena"
+	"os"
+	"reflect"
+	"runtime"
+)
+
+func makeNegativeDynamic() {
+	r := arena.Open()
+	n := -1
+	_ = arena.Make[int](r, n)
+}
+
+func makeNegativeLiteral() {
+	r := arena.Open()
+	_ = arena.Make[int](r, -1)
+}
+
+func main() {
+	failed := false
+	var normalType reflect.Type
+	check := func(name string, rec any) string {
+		err, ok := rec.(runtime.Error)
+		if !ok {
+			fmt.Printf("FAIL %s: panic = %v, want runtime error\n", name, rec)
+			failed = true
+			return ""
+		}
+		message := err.Error()
+		if normalType == nil {
+			normalType = reflect.TypeOf(rec)
+		} else if reflect.TypeOf(rec) != normalType {
+			fmt.Printf("FAIL %s: panic type = %T, want %v\n", name, rec, normalType)
+			failed = true
+		}
+		fmt.Printf("ok %s\n", name)
+		return message
+	}
+	var normal, dynamic, literal string
+	func() {
+		defer func() {
+			normal = check("normal-make-negative-length", recover())
+		}()
+		n := -1
+		_ = make([]int, n)
+	}()
+	func() {
+		defer func() {
+			dynamic = check("negative-length-makeslice-panics-len-out-of-range", recover())
+		}()
+		makeNegativeDynamic()
+	}()
+	func() {
+		defer func() {
+			literal = check("negative-length-literal-panics-len-out-of-range", recover())
+		}()
+		makeNegativeLiteral()
+	}()
+	if dynamic != normal || literal != normal {
+		fmt.Printf("FAIL region make panic differs from normal make: dynamic %q literal %q normal %q\n", dynamic, literal, normal)
+		failed = true
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

@@ -1,0 +1,24 @@
+// run
+package main
+
+import (
+	"fmt"
+	"logos/arena"
+	"logos/rt"
+)
+
+func acceptArena(r arena.Region) {
+	_ = r
+}
+
+func acceptRuntime(r rt.Region) {
+	_ = r
+}
+
+func main() {
+	var toRuntime func(rt.Region) = acceptArena
+	var toArena func(arena.Region) = acceptRuntime
+	toRuntime(rt.Region{})
+	toArena(arena.Region{})
+	fmt.Println("ok region-alias-type-identity")
+}

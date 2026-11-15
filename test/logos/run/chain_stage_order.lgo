@@ -1,0 +1,111 @@
+// run
+
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"slices"
+	"sync"
+	"time"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type finishLog struct {
+	mu    sync.Mutex
+	order []int
+}
+
+func (l *finishLog) add(i int) {
+	l.mu.Lock()
+	l.order = append(l.order, i)
+	l.mu.Unlock()
+}
+
+func awaitDone(ctx context.Context, done chan struct{}) error {
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func finishAfterNext(ctx context.Context, i int, done []chan struct{}, log *finishLog) (int, error) {
+	if i+1 < len(done) {
+		awaitDone(ctx, done[i+1])?
+	}
+	log.add(i)
+	close(done[i])
+	return i * 10, nil
+}
+
+func gates(n int) []chan struct{} {
+	out := make([]chan struct{}, n)
+	for i := range out {
+		out[i] = make(chan struct{})
+	}
+	return out
+}
+
+func caseOrderedReverseFinish(ctx context.Context) {
+	done := gates(4)
+	var log finishLog
+	got, err := []int{0, 1, 2, 3}.group(ctx, limit = 4).map(i => finishAfterNext(ctx, i, done, &log)?)
+	check("ordered-finish-reversed", err == nil && slices.Equal(log.order, []int{3, 2, 1, 0}), log.order, []int{3, 2, 1, 0})
+	if err != nil {
+		check("ordered-input-order", false, err, []int{0, 10, 20, 30})
+	} else {
+		check("ordered-input-order", err == nil && slices.Equal(got, []int{0, 10, 20, 30}), got, []int{0, 10, 20, 30})
+	}
+}
+
+func releasedByDelivery(ctx context.Context, i, last int, release []chan struct{}) (int, error) {
+	if i != last {
+		awaitDone(ctx, release[i])?
+	}
+	return i * 10, nil
+}
+
+func deliveryOrder(ctx context.Context) ([]int, error) {
+	release := gates(4)
+	var order []int
+	for y := range []int{0, 1, 2, 3}.group(ctx, limit = 4).unordered().map(i => releasedByDelivery(ctx, i, 3, release)?) {
+		order = append(order, y)
+		if next := y/10 - 1; next >= 0 {
+			close(release[next])
+		}
+	}
+	return order, nil
+}
+
+func caseUnorderedCompletionOrder(ctx context.Context) {
+	short, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	order, err := deliveryOrder(short)
+	if err != nil {
+		check("unordered-completion-order", false, err, []int{30, 20, 10, 0})
+	} else {
+		check("unordered-completion-order", err == nil && slices.Equal(order, []int{30, 20, 10, 0}), order, []int{30, 20, 10, 0})
+	}
+}
+
+func main() {
+	ctx := context.Background()
+	caseOrderedReverseFinish(ctx)
+	caseUnorderedCompletionOrder(ctx)
+	if failed {
+		os.Exit(1)
+	}
+}

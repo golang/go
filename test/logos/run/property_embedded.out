@@ -1,0 +1,8 @@
+ok embedded-pointer-write
+ok embedded-pointer-read
+ok embedded-depth-two-write
+ok embedded-depth-two-read
+ok embedded-interface-write
+ok embedded-interface-read
+ok promoted-field-direct
+ok same-struct-through-two-paths

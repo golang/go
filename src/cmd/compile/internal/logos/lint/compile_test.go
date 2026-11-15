@@ -52,7 +52,20 @@ func compileFile(t *testing.T, name, src string, flags ...string) compileResult 
 
 const compileSrc = `package p
 
-func f() error { return nil }
+type errString string
+
+func (e errString) Error() string { return string(e) }
+
+var errSentinel = errString("boom")
+
+var fail = false
+
+func f() error {
+	if fail {
+		return errSentinel
+	}
+	return nil
+}
 
 func g() {
 	f()
@@ -66,6 +79,11 @@ func TestLintOnlyStopsBeforeBackend(t *testing.T) {
 	res := compileFile(t, "x.go", compileSrc, "-logos.lintonly")
 	if res.exitCode != 2 || !strings.Contains(res.output, "[slop::discarded_error]") {
 		t.Errorf("lintonly Go compile: exit %d, output %q", res.exitCode, res.output)
+	}
+	for line := range strings.SplitSeq(strings.TrimSpace(res.output), "\n") {
+		if !strings.Contains(line, "[slop::") {
+			t.Errorf("lintonly output holds a non-diagnostic line: %q (full %q)", line, res.output)
+		}
 	}
 	if res.objectOK {
 		t.Error("lintonly compile wrote an object file")
@@ -94,7 +112,8 @@ func TestGoPackageNeedsLintOnly(t *testing.T) {
 // ordinary compile, and writes no object on failure.
 func TestLgoPackageLintsEveryCompile(t *testing.T) {
 	res := compileFile(t, "x.lgo", compileSrc)
-	if res.exitCode != 2 || !strings.Contains(res.output, "x.lgo:6:2: [slop::discarded_error]") || res.objectOK {
+	lines := strings.Split(strings.TrimSpace(res.output), "\n")
+	if res.exitCode != 2 || len(lines) != 1 || !strings.Contains(lines[0], "[slop::discarded_error]") || res.objectOK {
 		t.Errorf("lgo compile: exit %d, output %q, object %v", res.exitCode, res.output, res.objectOK)
 	}
 }

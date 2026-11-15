@@ -1,0 +1,40 @@
+// run -goexperiment logosarena
+package main
+
+import (
+	"fmt"
+	"logos/arena"
+	"logos/rt"
+	"os"
+)
+
+func main() {
+	n := 0
+	for range 8 {
+		n += 128
+	}
+	peak := 0
+	for range 1000000 {
+		r := arena.Open()
+		b := arena.Make[byte](r, n)
+		b[0] = 1
+		if b[n-1] != 0 {
+			fmt.Println("FAIL fresh-region-backing-is-zeroed: got nonzero tail")
+			os.Exit(1)
+		}
+		if rb := rt.RegionBytes(); rb > peak {
+			peak = rb
+		}
+	}
+	fmt.Println("ok fresh-region-backing-is-zeroed")
+	if peak <= 0 {
+		fmt.Printf("FAIL region-holds-bytes-inside-owner-block: got %d want >0\n", peak)
+		os.Exit(1)
+	}
+	fmt.Println("ok region-holds-bytes-inside-owner-block")
+	if peak > 65536 {
+		fmt.Printf("FAIL per-iteration-region-reused-with-bounded-peak: got %d want <=65536\n", peak)
+		os.Exit(1)
+	}
+	fmt.Println("ok per-iteration-region-reused-with-bounded-peak")
+}

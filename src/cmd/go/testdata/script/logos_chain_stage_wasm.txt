@@ -1,0 +1,33 @@
+# The group stage keeps its order and its cancellation rules under
+# js/wasm: the order and cancel fixtures build with logos for the wasm
+# target and print the same lines under the tree's node wrapper.
+
+[!exec:node] skip 'node is required to run js/wasm binaries'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOOS=js
+env GOARCH=wasm
+
+cp $GOROOT/test/logos/run/chain_stage_order.lgo order/main.lgo
+cp $GOROOT/test/logos/run/chain_stage_cancel.lgo cancel/main.lgo
+
+cd order
+logos build -o order.wasm .
+exec $GOROOT/lib/wasm/go_js_wasm_exec order.wasm
+cmp stdout $GOROOT/test/logos/run/chain_stage_order.out
+cd ../cancel
+logos build -o cancel.wasm .
+exec $GOROOT/lib/wasm/go_js_wasm_exec cancel.wasm
+cmp stdout $GOROOT/test/logos/run/chain_stage_cancel.out
+cd ..
+
+-- order/go.mod --
+module example.com/chainstageorder
+
+go 1.27
+
+-- cancel/go.mod --
+module example.com/chainstagecancel
+
+go 1.27

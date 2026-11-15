@@ -5,6 +5,7 @@
 package imports
 
 import (
+	"internal/logosfile"
 	"path/filepath"
 	"strings"
 
@@ -15,9 +16,9 @@ import (
 // such as p_test.lgo or a p_test file with an alias extension.
 // Logos-gated so plain go never classifies .lgo tests. Selectors sit
 // after the extension, so the stem check needs no stripping of its own;
-// cfg.IsLogosFile handles recognition.
+// logosfile.Is handles recognition.
 func isLogosTestFile(name string) bool {
-	if !cfg.Logos || !cfg.IsLogosFile(name) {
+	if !cfg.Logos || !logosfile.Is(name) {
 		return false
 	}
 	stem, _ := strings.CutSuffix(name, filepath.Ext(name))

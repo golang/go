@@ -17,8 +17,6 @@ func TestForeignLeaksAllResultLevelsRoundTrip(t *testing.T) {
 	}
 	want.AddForeign(5)
 
-	// escf stores the three legacy sink bytes, all five result bytes, and
-	// the foreign byte in order; each dereference count is stored plus one.
 	const encoded = "escf:\x00\x00\x00\x01\x02\x03\x04\x05\x06"
 	if got := want.Encode(); got != encoded {
 		t.Fatalf("Encode() = %q, want %q", got, encoded)
@@ -66,10 +64,6 @@ func TestForeignLeaksUnknownPrefixFailsHeap(t *testing.T) {
 	assertForeignLeakLevels(t, got, [9]int{0, -1, -1, -1, -1, -1, -1, -1, -1})
 }
 
-// Invariant exact-makes-to-foreign: a variable-capacity make is
-// foreignBacking-shaped and, once the solver marks it EscHeap, arena
-// placement vetoes it; the same shape at EscNone stays placeable, so the
-// test asserts heap placement for the forced make and non-escape for the control.
 func TestForeignExactMakesPlacementAndNonEscape(t *testing.T) {
 	enableLogosArena(t)
 	control := logosArenaDynamicMake(ir.EscNone)

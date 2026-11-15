@@ -1,2 +1,4 @@
-int 3
-node 5
+ok split-union-int-roundtrip
+ok split-union-pointer-roundtrip
+ok split-union-assert-to-union
+ok split-union-nil-arm

@@ -1,0 +1,3 @@
+ok caller-owned-return-values-survive
+ok caller-owned-return-survives-gc
+ok caller-owned-return-placed-in-region-not-heap

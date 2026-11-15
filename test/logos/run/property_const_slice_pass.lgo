@@ -1,0 +1,34 @@
+// run
+
+package main
+
+import "fmt"
+
+type RO interface {
+	const ID int
+	const Start() error
+}
+
+type Gadget struct : RO {
+	ID int
+}
+
+func (m Gadget) Start() error { return nil }
+
+func useROs(xs const []RO) int { return len(xs) }
+
+func view(gs const []Gadget) const []Gadget { return gs }
+
+func check(name string, got, want int) {
+	if got != want {
+		fmt.Println("FAIL", name, got, want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func main() {
+	gs := []Gadget{{ID: 1}, {ID: 2}}
+	check("plain", useROs(gs), 2)
+	check("passthrough", useROs(view(gs)), 2)
+}

@@ -1,171 +1,115 @@
-# REDTEAM #80 (SPEC Sec 22.1, T-Sec22; IMPLEMENTATION.md M22): cross-layer
-# regression matrix verification. `logos test -O=1 std cmd`,
-# `logos test -O=2 std cmd`, and `logos test -O=3 std cmd` MUST all pass
-# without -short on the full unmodified `std` and `cmd` suites, except for
-# the fetch-dependent tests named below. The matrix itself is graded by the
-# orchestrator's own legs, NOT by executing it here: this file is part of
-# cmd/go's own script suite, so launching the sweep here would re-enter
-# this file through `cmd` and re-run the entire gate from inside the gate.
-# This script asserts the gate's shape declaratively (six leg definitions
-# present below, each its own grep invocation) instead of launching the
-# sweep recursively. No -short, no package subset, no representative probe:
-# the orchestrator runs the full matrix, so a smaller gate here cannot prove
-# it and a full gate here cannot terminate. Per SPEC Sec 22.3 the -race and
-# per-gc-mode dimensions are proved by the individual runtime attack
-# fixtures, not here.
 env GOPROXY=off
 env GOTOOLCHAIN=local
-
-# Repair choice (b): narrow the run by a named -skip exclusion, not (a) a
-# trusted local file proxy. The modules the tests below download at run
-# time through crypto/internal/cryptotest.FetchModule
-# (github.com/c2sp/wycheproof, filippo.io/mostly-harmless/ed25519vectors,
-# boringssl.googlesource.com/boringssl.git, github.com/geomys/acvp-testdata,
-# github.com/C2SP/x509-limbo, golang.org/x/tools for runtime/_mkmalloc)
-# are not in the tree, not in cmd/go/testdata/mod, and not in any module
-# cache this hermetic script can reach, and the harness forbids the
-# network (TESTGONETWORK=panic) while this script deliberately sets
-# GOPROXY=off, so the downloads cannot succeed: each fetch-dependent
-# test fails with "module lookup disabled by GOPROXY=off" before it can
-# run, which says nothing about -O. Vendoring megabytes of third-party
-# vectors we do not have (option a) is not an honest repair, so each leg
-# of the orchestrator matrix skips exactly those tests by name. No package is dropped:
-# every std and cmd package still compiles and runs at each -O level, the
-# exclusion names each fetch-dependent test (each name verified to occur
-# exactly once in the tree, so those names skip nothing else), and a new
-# fetch-dependent test would fail instead of being silently skipped:
-#   crypto/cipher: TestCBCAESWycheproof TestGCMWycheproof
-#   crypto/dsa: TestDSAWycheproof
-#   crypto/ecdh: TestSecpECDHWycheproof TestSecpECDHSPKIWycheproof TestX25519ECDHWycheproof
-#   crypto/ecdsa: TestECDSAWycheproof
-#   crypto/ed25519: TestEd25519Wycheproof TestEd25519Vectors
-#   crypto/hkdf: TestHKDFWycheproof
-#   crypto/hmac: TestHMACWycheproof
-#   crypto/internal/cryptotest: TestChaCha20Poly1305Wycheproof
-#   crypto/internal/fips140test: TestACVP TestCMACWycheproof
-#   crypto/mldsa: TestVerifyWycheproof TestSignSeedWycheproof TestMLDSASignSeedRandomizedWycheproof TestMLDSANoSeedWycheproof
-#   crypto/mlkem: TestKeyGenWycheproof TestMLKEMEncapsWycheproof TestMLKEMDecapsWycheproof TestMLKEMSemiExpandedDecapsWycheproof
-#   crypto/pbkdf2: TestWycheproof
-#   crypto/rsa: TestRSAOAEPDecryptWycheproof TestRSAPKCS1DecryptWycheproof TestRSAPKCS1SignaturesWycheproof TestRSAPSSSignaturesWycheproof
-#   crypto/tls: TestBogoSuite
-#   crypto/x509: TestX509Limbo
-#   runtime: TestMkmalloc
-#
-# One host-limit exclusion, not a fetch one: os.TestPipeThreads raises
-# debug.SetMaxThreads to half its pipe count and then opens that many pipes,
-# which on a many-core host exceeds the kernel's thread headroom and dies with
-# "fatal error: thread exhaustion" inside runtime.checkmcount. The same
-# failure reproduces under plain `go` on the same host, so it carries no
-# information about generated code. The test is excluded by name here, is
-# still compiled, and remains covered wherever the host offers thread
-# headroom.
-#
-# Non-recursion boundary: this script MUST NOT launch `logos test` or
-# `go test` over `std`/`cmd`. `cmd` includes cmd/go, whose TestScript runs
-# every testdata/script/*.txt file including this one, so any sweep here
-# would re-enter row80 and spawn the entire matrix again from inside the
-# gate (observed: 549.68s of 571s in cmd/go re-running this file). The old
-# nested-`^TestScript$/^logos_redteam_80$` skip branch died with the sweeps
-# it bounded: a skip only bounds the recursion, it still executes the full
-# gate, so the sweeps are gone instead of skipped. The exclusion below now
-# names only the fetch-dependent tests plus the one host-limit test. This
-# file names no other logos_redteam_* script and suppresses none. The row
-# stays planned: graded by the orchestrator's own legs, never completed here.
 env REDTEAM80_SKIP='^(TestACVP|TestBogoSuite|TestCBCAESWycheproof|TestCMACWycheproof|TestChaCha20Poly1305Wycheproof|TestDSAWycheproof|TestECDSAWycheproof|TestEd25519Vectors|TestEd25519Wycheproof|TestGCMWycheproof|TestHKDFWycheproof|TestHMACWycheproof|TestKeyGenWycheproof|TestMkmalloc|TestPipeThreads|TestMLKEMDecapsWycheproof|TestMLKEMEncapsWycheproof|TestMLKEMSemiExpandedDecapsWycheproof|TestMLDSANoSeedWycheproof|TestMLDSASignSeedRandomizedWycheproof|TestRSAOAEPDecryptWycheproof|TestRSAPKCS1DecryptWycheproof|TestRSAPKCS1SignaturesWycheproof|TestRSAPSSSignaturesWycheproof|TestSecpECDHSPKIWycheproof|TestSecpECDHWycheproof|TestSignSeedWycheproof|TestVerifyWycheproof|TestWycheproof|TestX509Limbo|TestX25519ECDHWycheproof)$'
+env REDTEAM80_SKIP
+stdout '\)\$$'
 
-# Host limit: AF_UNIX sun_path caps at 108 bytes, so t.TempDir paths under the
-# deep harness $WORK tree overflow the cap and net TestUnixConnReadEOF fails at
-# bind; point TMPDIR at a fixed short path under /tmp so socket paths fit. The
-# directory is private to this script: an orchestrator may run its bulk legs
-# with TMPDIR=/tmp/rt80, so this file must not create or remove that root.
-mkdir /tmp/rt80-redteam80
-env TMPDIR=/tmp/rt80-redteam80
+mkdir $WORK/rt80
+env TMPDIR=$WORK/rt80
+env GOMODCACHE=$WORK/rt80/modcache
 
-# Host limit: os parallel tests exceed the host thread limit (fatal error:
-# thread exhaustion), and -p only caps package-level parallelism, so that
-# package runs serialized with -parallel 1 while the rest keep -p 4. The bulk
-# run covers std minus exactly os (os/exec, os/signal, os/user and the
-# vendored std packages stay in the parallel run); os gets its own serialized
-# run at each -O level, so every package is still covered at every level.
-# Shape assertion, logos half: the three SPEC Sec 22.1 logos legs the
-# orchestrator runs (one invocation per -O level, each over the full
-# unmodified std and cmd suites with the exclusions above, bulk at -p 4
-# plus os serialized with -parallel 1). Each grep below is one leg
-# definition asserted present against the inventory pinned at the end.
-# M22-S1 requires the same -O=1|2|3 std cmd matrix under plain go (no logos
-# wrapper) as under logos: each O level gets a bulk run plus a serialized os
-# run, so a logos-only pass cannot hide a plain-go regression at any -O.
-# Shape assertion, plain-go half (M22-S1): the same three legs under plain
-# `go` the orchestrator runs, so a logos-only pass cannot hide a plain-go
-# regression at any -O. Each grep is one leg definition asserted present.
-# The leg inventory those comments describe is gone: a file cannot attest
-# to its own pinned copy, so gate-legs.txt and its six greps are removed.
-# The leg lists above now document the orchestrator matrix only. What this
-# file asserts instead is skip-name freshness: every name in REDTEAM80_SKIP
-# must still denote a real test in the toolchain tree. Each grep below pins
-# one skip name to the exact file that defines it (package order follows the
-# list in the repair-choice comment), so a rename, a move across packages,
-# or a deleted test fails its grep here instead of letting the exclusion
-# silently match nothing while the orchestrator leg runs that test
-# unskipped. These greps read the toolchain source under $GOROOT/src,
-# which drifts independently of this file, so each one can fail on a real
-# regression.
-# crypto/cipher
 grep -count=1 'func TestCBCAESWycheproof\(' $GOROOT/src/crypto/cipher/cbc_aes_wycheproof_test.go
 grep -count=1 'func TestGCMWycheproof\(' $GOROOT/src/crypto/cipher/gcm_wycheproof_test.go
-# crypto/dsa
 grep -count=1 'func TestDSAWycheproof\(' $GOROOT/src/crypto/dsa/dsa_wycheproof_test.go
-# crypto/ecdh
 grep -count=1 'func TestSecpECDHWycheproof\(' $GOROOT/src/crypto/ecdh/ecdh_wycheproof_test.go
 grep -count=1 'func TestSecpECDHSPKIWycheproof\(' $GOROOT/src/crypto/ecdh/ecdh_wycheproof_test.go
 grep -count=1 'func TestX25519ECDHWycheproof\(' $GOROOT/src/crypto/ecdh/ecdh_wycheproof_test.go
-# crypto/ecdsa
 grep -count=1 'func TestECDSAWycheproof\(' $GOROOT/src/crypto/ecdsa/ecdsa_wycheproof_test.go
-# crypto/ed25519
 grep -count=1 'func TestEd25519Wycheproof\(' $GOROOT/src/crypto/ed25519/ed25519_wycheproof_test.go
 grep -count=1 'func TestEd25519Vectors\(' $GOROOT/src/crypto/ed25519/ed25519vectors_test.go
-# crypto/hkdf
 grep -count=1 'func TestHKDFWycheproof\(' $GOROOT/src/crypto/hkdf/hkdf_wycheproof_test.go
-# crypto/hmac
 grep -count=1 'func TestHMACWycheproof\(' $GOROOT/src/crypto/hmac/hmac_wycheproof_test.go
-# crypto/internal/cryptotest
 grep -count=1 'func TestChaCha20Poly1305Wycheproof\(' $GOROOT/src/crypto/internal/cryptotest/chacha20poly1305_wycheproof_test.go
-# crypto/internal/fips140test
 grep -count=1 'func TestACVP\(' $GOROOT/src/crypto/internal/fips140test/acvp_test.go
 grep -count=1 'func TestCMACWycheproof\(' $GOROOT/src/crypto/internal/fips140test/cmac_wycheproof_test.go
-# crypto/mldsa
 grep -count=1 'func TestVerifyWycheproof\(' $GOROOT/src/crypto/mldsa/mldsa_wycheproof_test.go
 grep -count=1 'func TestSignSeedWycheproof\(' $GOROOT/src/crypto/mldsa/mldsa_wycheproof_test.go
 grep -count=1 'func TestMLDSASignSeedRandomizedWycheproof\(' $GOROOT/src/crypto/mldsa/mldsa_wycheproof_test.go
 grep -count=1 'func TestMLDSANoSeedWycheproof\(' $GOROOT/src/crypto/mldsa/mldsa_wycheproof_test.go
-# crypto/mlkem
 grep -count=1 'func TestKeyGenWycheproof\(' $GOROOT/src/crypto/mlkem/mlkem_wycheproof_test.go
 grep -count=1 'func TestMLKEMEncapsWycheproof\(' $GOROOT/src/crypto/mlkem/mlkem_wycheproof_test.go
 grep -count=1 'func TestMLKEMDecapsWycheproof\(' $GOROOT/src/crypto/mlkem/mlkem_wycheproof_test.go
 grep -count=1 'func TestMLKEMSemiExpandedDecapsWycheproof\(' $GOROOT/src/crypto/mlkem/mlkem_wycheproof_test.go
-# crypto/pbkdf2
 grep -count=1 'func TestWycheproof\(' $GOROOT/src/crypto/pbkdf2/pbkdf2_wycheproof_test.go
-# crypto/rsa
 grep -count=1 'func TestRSAOAEPDecryptWycheproof\(' $GOROOT/src/crypto/rsa/rsa_wycheproof_test.go
 grep -count=1 'func TestRSAPKCS1DecryptWycheproof\(' $GOROOT/src/crypto/rsa/rsa_wycheproof_test.go
 grep -count=1 'func TestRSAPKCS1SignaturesWycheproof\(' $GOROOT/src/crypto/rsa/rsa_wycheproof_test.go
 grep -count=1 'func TestRSAPSSSignaturesWycheproof\(' $GOROOT/src/crypto/rsa/rsa_wycheproof_test.go
-# crypto/tls
 grep -count=1 'func TestBogoSuite\(' $GOROOT/src/crypto/tls/bogo_shim_test.go
-# crypto/x509
 grep -count=1 'func TestX509Limbo\(' $GOROOT/src/crypto/x509/x509limbo_test.go
-# runtime
 grep -count=1 'func TestMkmalloc\(' $GOROOT/src/runtime/malloc_test.go
-# os (host-limit exclusion, not fetch-dependent)
 grep -count=1 'func TestPipeThreads\(' $GOROOT/src/os/os_test.go
-# Non-recursion guard (negative control, the only assertion allowed to read
-# this file, and only to prove an absence): no sweep over std/cmd may be
-# launched here, since `cmd` includes cmd/go whose TestScript would re-enter
-# this file and recurse. Fails if a sweep line is ever added.
-! grep '^(env GOFLAGS=-buildvcs=false )?(logos|go) test ' $GOROOT/src/cmd/go/testdata/script/logos_redteam_80.txt
-rm /tmp/rt80-redteam80
+go run ./skipcheck
+stdout '^skip names ok: 31$'
+
+go test -v -count=1 -skip $REDTEAM80_SKIP -run 'TestHMAC$|TestHMACWycheproof$' crypto/hmac
+stdout '--- PASS: TestHMAC'
+stdout -count=1 '--- PASS'
+stdout '^ok'
+! stderr 'no tests to run'
+go test -v -count=1 -skip $REDTEAM80_SKIP -run 'TestGCM$|TestGCMWycheproof$' crypto/cipher
+stdout '--- PASS: TestGCM'
+stdout -count=1 '--- PASS'
+stdout '^ok'
+! stderr 'no tests to run'
 
 -- go.mod --
 module example.com/redteam80
 
 go 1.27
+
+-- skipcheck/main.go --
+package main
+
+import (
+	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+func main() {
+	skip := os.Getenv("REDTEAM80_SKIP")
+	skip = strings.TrimPrefix(skip, "^(")
+	skip = strings.TrimSuffix(skip, ")$")
+	names := strings.Split(skip, "|")
+	roots := []string{
+		filepath.Join(os.Getenv("GOROOT"), "src", "crypto"),
+		filepath.Join(os.Getenv("GOROOT"), "src", "os"),
+		filepath.Join(os.Getenv("GOROOT"), "src", "runtime"),
+	}
+	found := map[string]bool{}
+	for _, root := range roots {
+		filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() || !strings.HasSuffix(p, "_test.go") {
+				return nil
+			}
+			b, err := os.ReadFile(p)
+			if err != nil {
+				return nil
+			}
+			for _, line := range strings.Split(string(b), "\n") {
+				line = strings.TrimSpace(line)
+				if !strings.HasPrefix(line, "func Test") {
+					continue
+				}
+				if end := strings.Index(line, "("); end > 5 {
+					found[strings.TrimSpace(line[len("func "):end])] = true
+				}
+			}
+			return nil
+		})
+	}
+	failed := false
+	for _, n := range names {
+		if !found[n] {
+			fmt.Println("skip name not found upstream:", n)
+			failed = true
+		}
+	}
+	if failed {
+		os.Exit(1)
+	}
+	fmt.Println("skip names ok:", len(names))
+}

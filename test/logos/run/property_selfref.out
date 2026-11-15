@@ -1,0 +1,6 @@
+ok self-reference-label
+ok self-reference-kids
+ok two-type-cycle-name
+ok two-type-cycle-link
+ok generic-interface-cycle-value
+ok generic-interface-cycle-link

@@ -1,0 +1,60 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+	"reflect"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type U interface {
+	int | string
+}
+
+type Box struct {
+	Item U
+}
+
+func first(u U) U {
+	return u
+}
+
+func main() {
+	var u U = 7
+	vals := map[string]U{"a": u, "b": "x"}
+	dflt := vals["a"] ?? "dflt"
+	check("union-map-lookup-hits", dflt == 7, dflt, 7)
+	bhit := vals["b"] ?? "dflt"
+	check("union-map-second-key-hits", bhit == "x", bhit, "x")
+	miss := vals["zzz"] ?? "dflt"
+	check("union-map-miss-coalesces", miss == "dflt", miss, "dflt")
+	keys := map[U]int{u: 1, "x": 2}
+	hit := keys[u] ?? -1
+	check("union-map-key-hits", hit == 1, hit, 1)
+	str := keys["x"] ?? -1
+	check("union-map-string-key-hits", str == 2, str, 2)
+	s := []U{u, "seven"}
+	check("union-slice-keeps-members", len(s) == 2 && s[0] == 7 && s[1] == "seven", fmt.Sprint(len(s), s[0], s[1]), "2 7 seven")
+	b := Box{Item: u}
+	check("union-struct-field-keeps-member", b.Item == 7, b.Item, 7)
+	check("union-param-passes-member", first("done") == "done", first("done"), "done")
+	var held U = 7
+	rv := reflect.ValueOf(&held).Elem()
+	rv.Set(reflect.ValueOf(1.5))
+	check("reflect-set-through-union-interface", fmt.Sprint(held) == "1.5", held, 1.5)
+	if failed {
+		os.Exit(1)
+	}
+}

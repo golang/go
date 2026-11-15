@@ -5,6 +5,8 @@
 package lint
 
 import (
+	"fmt"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -151,9 +153,9 @@ func TestDeferErasesErrdeferState(t *testing.T) {
 	expect(t, KindLgo, nil, testSource{"x.lgo", deferErasesSrc}, finding{"correctness::defer_erases_errdefer_state", Forbid})
 }
 
-// TestDeferErasesErrdeferStateMessage checks the text and span of a finding:
-// the span is the assignment, and the message names the result.
-func TestDeferErasesErrdeferStateMessage(t *testing.T) {
+// TestDeferErasesErasureSpan checks the span of a finding: the assignment,
+// +// which tools splice by this byte range.
+func TestDeferErasesErasureSpan(t *testing.T) {
 	const src = `package p
 
 func rollback() {}
@@ -170,25 +172,28 @@ func f() (failed error) {
 	if len(got) != 1 {
 		t.Fatalf("results %q, want one", summarize(got))
 	}
-	if want := "deferred function literal assigns nil to result failed, erasing the error state that errdefer reads"; got[0].Message != want {
-		t.Errorf("message %q, want %q", got[0].Message, want)
-	}
 	if text := spanText(src, got[0]); text != "failed = nil" {
 		t.Errorf("span %q, want %q", text, "failed = nil")
 	}
 }
 
-// TestDeferErasesErrdeferStateForbid checks that a //logos:allow directive
-// does not silence the rule and is itself reported.
 func TestDeferErasesErrdeferStateForbid(t *testing.T) {
 	src := strings.Replace(deferErasesSrc, "func after() (err error) {", "//logos:allow(correctness::defer_erases_errdefer_state)\nfunc after() (err error) {", 1)
-	var got []string
-	for _, line := range summarize(Run(check(t, KindLgo, "x.lgo", src))) {
-		if strings.Contains(line, "allow_forbidden_rule") {
-			got = append(got, line)
+	got := summarize(Run(check(t, KindLgo, "x.lgo", src)))
+	want := wantMarked(src, "correctness::defer_erases_errdefer_state", Forbid)
+	directive := 0
+	for i, line := range strings.Split(src, "\n") {
+		if strings.Contains(line, "logos:allow(correctness::defer_erases_errdefer_state)") {
+			directive = i + 1
 		}
 	}
-	if len(got) != 1 {
-		t.Errorf("allow_forbidden_rule results %q, want one", got)
+	if directive == 0 {
+		t.Fatal("allow directive lost from source")
+	}
+	want = append(want, fmt.Sprintf("%d %s %s", directive, AllowForbiddenRule, Forbid))
+	slices.Sort(got)
+	slices.Sort(want)
+	if !slices.Equal(got, want) {
+		t.Errorf("results = %q, want %q", got, want)
 	}
 }

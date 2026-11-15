@@ -1,0 +1,115 @@
+// errorcheck
+
+package p
+
+type Creature interface {
+	const Name string
+	HP int
+	Start() error
+}
+
+type Monster struct : Creature {
+	Name string
+	HP   int
+}
+
+func (m Monster) Start() error { return nil }
+
+func needPointer(m Monster) {
+	var _ Creature = m // ERROR "property_needs_pointer"
+}
+
+func takeAddress(c Creature) {
+	_ = &c.HP // ERROR "property_address"
+}
+
+type NoSource struct : Creature { // ERROR "property_unsatisfied"
+	Name string
+}
+
+type FieldsOnly struct {
+	Name string
+	HP   int
+}
+
+func (FieldsOnly) Start() error { return nil }
+
+func requireDecl(f FieldsOnly) {
+	var _ Creature = &f // ERROR "correctness::property_requires_conformance"
+}
+
+type HPInt interface {
+	HP int
+}
+
+type HPString interface {
+	HP string
+}
+
+type Clash struct : HPInt, HPString { // ERROR "property_conflict"
+	HP int
+}
+
+type Num int
+
+func (n Num) Name() string { return "x" }
+
+func (n Num) HP() int { return 0 }
+func (n *Num) SetHP(v int) {}
+
+func (n Num) Start() error { return nil }
+
+func rejectNonStruct(n Num) {
+	var _ Creature = n // ERROR "assertion_failed"
+}
+
+func rejectNonStructPtr(n Num) {
+	var _ Creature = &n // ERROR "property_requires_conformance"
+}
+
+type E1 struct {
+	HP int
+}
+
+type E2 struct {
+	HP int
+}
+
+type Ambig struct : HPInt { // ERROR "ambiguous"
+	E1
+	E2
+}
+
+type HasM interface {
+	M() int
+}
+
+type HasMS struct : HasM {
+}
+
+func (s *HasMS) M() int { return 1 }
+
+type NeedM interface {
+	Missing() int
+}
+
+type BadImpl struct : NeedM { // ERROR "assertion_failed"
+}
+
+type RWOnly interface {
+	ID int
+}
+
+type RWValue struct {
+	ID int
+}
+
+func needPointerUndeclared(v RWValue) {
+	var _ RWOnly = v // ERROR "property_requires_conformance"
+}
+
+func hintStaysBroken(v RWValue) {
+	var _ RWOnly = &v // ERROR "property_requires_conformance"
+}
+
+var _ Creature = &Monster{Name: "g", HP: 1}

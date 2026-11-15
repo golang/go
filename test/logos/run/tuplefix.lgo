@@ -2,29 +2,39 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
-func g(m, n int) {
-	fmt.Println(m, n)
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
 }
 
 func main() {
 	a, b, c, d := 1, 2, 3, 4
-	// A parenthesized expression without a top-level comma stays a
-	// parenthesized expression, exactly as in Go (SPEC Sec 5.2).
 	x := ((a+b) + (c+d))
-	fmt.Println(x)
+	check("nested-paren-add", x == 10, x, 10)
 	y := ((a+b) * (c+d))
-	fmt.Println(y)
+	check("nested-paren-mul", y == 21, y, 21)
 	z := (a+b)*c + d
-	fmt.Println(z)
-	g((a+b), c)
-	g(10, 5)
+	check("paren-binds-tighter-than-mul", z == 13, z, 13)
 	var inc func(int) int = (a) => a + 1
-	fmt.Println(inc(41))
+	plainInc := func(a int) int { return a + 1 }
+	check("paren-param-arrow-applies", inc(41) == 42 && inc(41) == plainInc(41), inc(41), 42)
 	var add func(int, int) int = (a, b) => a + b
-	fmt.Println(add(20, 22))
-	// A tuple literal needs a comma at its top level.
+	plainAdd := func(a, b int) int { return a + b }
+	check("paren-param-list-arrow-applies", add(20, 22) == 42 && add(20, 22) == plainAdd(20, 22), add(20, 22), 42)
 	p, q := (a+b, c+d)
-	fmt.Println(p, q)
+	check("paren-tuple-unpacks", p == 3 && q == 7, fmt.Sprint(p, q), "3 7")
+	if failed {
+		os.Exit(1)
+	}
 }

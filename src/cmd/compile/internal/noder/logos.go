@@ -5,6 +5,7 @@
 package noder
 
 import (
+	"internal/logosfile"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -17,26 +18,8 @@ import (
 
 // This file holds the loGo/s source classification for the compiler
 // frontend. Upstream files carry only hook lines; all logic lives here.
-// The extension set and the mixed-package message match
-// src/go/build/logos.go exactly.
-
-// logosExts lists the loGo/s source extensions, dot included.
-var logosExts = []string{".lgo", ".📜", ".⚡", ".ʕ◔ϖ◔ʔ"}
-
-// stripLogosVarSel trims trailing U+FE0E and U+FE0F runes from an extension.
-func stripLogosVarSel(ext string) string {
-	for strings.HasSuffix(ext, "\uFE0E") || strings.HasSuffix(ext, "\uFE0F") {
-		ext = ext[:len(ext)-3]
-	}
-	return ext
-}
-
-// isLogosFile reports whether name carries a loGo/s extension, after
-// stripping trailing variation selectors from the extension.
-func isLogosFile(name string) bool {
-	ext := stripLogosVarSel(filepath.Ext(name))
-	return slices.Contains(logosExts, ext)
-}
+// The extension set comes from internal/logosfile; the mixed-package
+// message matches src/go/build/logos.go exactly.
 
 // isCgoOutput reports whether name is a compiler-generated cgo output.
 // Such files are exempt from the mixed-package check.
@@ -53,7 +36,7 @@ func isCgoOutput(name string) bool {
 // loGo/s files of the package; "_cgo_*" files stay Go-mode.
 func isLogosCgoUser(name string) bool {
 	stem, ok := strings.CutSuffix(filepath.Base(name), ".cgo1.go")
-	return ok && isLogosFile(stem)
+	return ok && logosfile.Is(stem)
 }
 
 // hasMethodTable reports whether the unified IR reader sees iface as a
@@ -69,7 +52,7 @@ func hasMethodTable(iface types2.Type) bool {
 
 // logosMode returns syntax.LogosMode for loGo/s files and 0 otherwise.
 func logosMode(filename string) syntax.Mode {
-	if isLogosFile(filename) {
+	if logosfile.Is(filename) {
 		return syntax.LogosMode
 	}
 	return 0
@@ -89,12 +72,12 @@ func allLogos(noders []*noder) bool {
 		pos := p.file.Pos()
 		name := pos.FileBase().Filename()
 		if isCgoOutput(name) {
-			if isLogosFile(pos.RelFilename()) {
+			if logosfile.Is(pos.RelFilename()) {
 				sawLogos = true
 			}
 			continue
 		}
-		if !isLogosFile(name) {
+		if !logosfile.Is(name) {
 			return false
 		}
 		sawLogos = true
@@ -111,7 +94,7 @@ func checkLogosMixedPackage(filenames []string) {
 		if isCgoOutput(name) {
 			continue
 		}
-		if isLogosFile(name) {
+		if logosfile.Is(name) {
 			logosFiles = append(logosFiles, filepath.Base(name))
 		} else if filepath.Ext(name) == ".go" {
 			goFiles = append(goFiles, filepath.Base(name))

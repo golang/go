@@ -2,21 +2,10 @@
 
 package main
 
-// M18 caller-region attack (SPEC Sec 8.3): a noinline producer returning a
-// runtime-sized noscan slice must allocate in the caller's region when the
-// caller keeps the result locally (Local consent, always) or returns it
-// through a static chain (Chain consent). This fixture is intentionally RED
-// until walk lowers LogosArenaRetMake with the RetSet/RetTake token: escape
-// records retSites/live/candidate/consent, but walk/arena_logos.go lowers
-// only ConstMake/Make (EscNone), so every returned make still takes the
-// heap path. Allocation attacks below expect 0 for caller-owned cases
-// (currently 1, retain 2) and 1 for false-consent/global-escape controls.
-// Correctness checksums are separate lines so the red is alloc-driven, not
-// value-driven. Defer/panic preservation is correctness-only: a user defer
-// vetoes placement per LogosArenaPlaceable, so it stays heap by rule.
 
 import (
 	"fmt"
+	"os"
 	"testing"
 )
 
@@ -87,8 +76,6 @@ func retainOverwrite(n int) (int, int) {
 	a := produce(n)
 	_ = sumBytes(a)
 	b := produceB(n)
-	// Re-sum a after b: a premature callee restore would let b reuse a's
-	// region and clobber a from 3s to 7s, turning 192 into 448.
 	sa := sumBytes(a)
 	sb := sumBytes(b)
 	return sa, sb
@@ -119,12 +106,12 @@ func unrelatedBetween(n int) int {
 	for i := range x {
 		x[i] = 11
 	}
-	s1 := sumBytes(x)
-	v := callViaValue(n)
 	y := make([]byte, n)
 	for i := range y {
 		y[i] = 13
 	}
+	v := callViaValue(n)
+	s1 := sumBytes(x)
 	s2 := sumBytes(y)
 	return s1 + v + s2
 }
@@ -143,23 +130,51 @@ func deferRecover(n int) (sum int, rec any) {
 }
 
 func main() {
-	fmt.Println("local-sum:", consumeLocal(callSize))
-	fmt.Println("chain-sum:", consumeChain(callSize))
-	fmt.Println("nested-sum:", consumeNested(callSize))
+	failed := false
+	check := func(name string, got, want int) {
+		if got != want {
+			fmt.Printf("FAIL %s: got %d want %d\n", name, got, want)
+			failed = true
+			return
+		}
+		fmt.Printf("ok %s\n", name)
+	}
+	checkAlloc := func(name string, got float64, wantZero bool) {
+		zero := got == 0
+		if wantZero != zero {
+			fmt.Printf("FAIL %s: got %v wantZero %v\n", name, got, wantZero)
+			failed = true
+			return
+		}
+		fmt.Printf("ok %s\n", name)
+	}
+	check("local-result-matches-fill-3-rule", consumeLocal(callSize), 3*callSize)
+	check("chain-result-matches-fill-3-rule", consumeChain(callSize), 3*callSize)
+	check("nested-result-matches-fill-3-rule", consumeNested(callSize), 3*callSize)
 	aSum, bSum := retainOverwrite(callSize)
-	fmt.Println("retain:", aSum, bSum)
-	fmt.Println("viavalue-sum:", callViaValue(callSize))
-	fmt.Println("leak-sum:", consumeLeak(callSize))
-	fmt.Println("leak-global-sum:", sumBytes(globalSink))
-	fmt.Println("unrelated-sum:", unrelatedBetween(callSize))
+	check("retained-first-buffer-keeps-fill-3", aSum, 3*callSize)
+	check("retained-second-buffer-holds-fill-7", bSum, 7*callSize)
+	check("func-value-call-matches-fill-3-rule", callViaValue(callSize), 3*callSize)
+	check("leaked-buffer-value-matches-fill-3-rule", consumeLeak(callSize), 3*callSize)
+	check("global-sink-keeps-leaked-value", sumBytes(globalSink), 3*callSize)
+	check("unrelated-live-buffers-do-not-corrupt-result", unrelatedBetween(callSize), 11*callSize+3*callSize+13*callSize)
 	dSum, dRec := deferRecover(callSize)
-	fmt.Println("defer-sum:", dSum, dRec)
-	fmt.Println("alloc-local:", testing.AllocsPerRun(100, func() { sinkInt = consumeLocal(callSize) }))
-	fmt.Println("alloc-chain:", testing.AllocsPerRun(100, func() { sinkInt = consumeChain(callSize) }))
-	fmt.Println("alloc-nested:", testing.AllocsPerRun(100, func() { sinkInt = consumeNested(callSize) }))
-	fmt.Println("alloc-retain:", testing.AllocsPerRun(100, func() { sinkInt = retainTotal(callSize) }))
-	fmt.Println("alloc-leak:", testing.AllocsPerRun(100, func() { sinkInt = consumeLeak(callSize) }))
-	fmt.Println("alloc-viavalue:", testing.AllocsPerRun(100, func() { sinkInt = callViaValue(callSize) }))
-	fmt.Println("alloc-unrelated:", testing.AllocsPerRun(100, func() { sinkInt = unrelatedBetween(callSize) }))
+	check("deferred-panic-path-keeps-value", dSum, 3*callSize)
+	if dRec != "boom" {
+		fmt.Printf("FAIL deferred-panic-value-survives: got %v want boom\n", dRec)
+		failed = true
+	} else {
+		fmt.Println("ok deferred-panic-value-survives")
+	}
+	checkAlloc("local-alloc-avoided", testing.AllocsPerRun(100, func() { sinkInt = consumeLocal(callSize) }), true)
+	checkAlloc("chain-alloc-avoided", testing.AllocsPerRun(100, func() { sinkInt = consumeChain(callSize) }), true)
+	checkAlloc("nested-alloc-avoided", testing.AllocsPerRun(100, func() { sinkInt = consumeNested(callSize) }), true)
+	checkAlloc("retain-alloc-avoided", testing.AllocsPerRun(100, func() { sinkInt = retainTotal(callSize) }), true)
+	checkAlloc("leak-forces-heap-alloc", testing.AllocsPerRun(100, func() { sinkInt = consumeLeak(callSize) }), false)
+	checkAlloc("func-value-forces-heap-alloc", testing.AllocsPerRun(100, func() { sinkInt = callViaValue(callSize) }), false)
+	checkAlloc("unrelated-live-buffer-forces-heap-alloc", testing.AllocsPerRun(100, func() { sinkInt = unrelatedBetween(callSize) }), false)
 	_ = sinkInt
+	if failed {
+		os.Exit(1)
+	}
 }

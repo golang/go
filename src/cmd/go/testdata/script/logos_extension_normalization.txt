@@ -1,0 +1,22 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+! logos build ./lookalike
+stderr 'no Go files|build constraints exclude all Go files'
+logos build -o exact$GOEXE ./exact
+exists exact$GOEXE
+
+-- go.mod --
+module example.com/normalization
+
+go 1.27
+
+-- exact/main.ʕ◔ϖ◔ʔ --
+package main
+
+func main() {}
+
+-- lookalike/main.ʕ◔π◔ʔ --
+package main
+
+func main() {}

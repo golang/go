@@ -6,6 +6,10 @@ package main
 
 import (
 	"internal/platform"
+	"io/fs"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -39,5 +43,24 @@ func TestRequiredBootstrapVersion(t *testing.T) {
 		if got := requiredBootstrapVersion(v); got != want {
 			t.Errorf("requiredBootstrapVersion(%v): got %v, want %v", v, got, want)
 		}
+	}
+}
+
+func TestNoSourceFileNamedLikeATest(t *testing.T) {
+	err := filepath.WalkDir(filepath.Join(runtime.GOROOT(), "src", "cmd"), func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		name := d.Name()
+		if d.IsDir() && name == "testdata" {
+			return filepath.SkipDir
+		}
+		if strings.HasSuffix(name, ".go") && !strings.HasSuffix(name, "_test.go") && strings.Contains(name, "_test") {
+			t.Errorf("%s: shouldbuild omits every file whose name contains _test", path)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 }

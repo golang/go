@@ -15,16 +15,8 @@ import (
 	"testing"
 )
 
-// dumpAddr matches the raw pointer values that Fdump prints, unquoted,
-// for arrays of node pointers such as IndexExpr.Index; they differ
-// between any two parses. Hex literals print quoted and stay compared.
 var dumpAddr = regexp.MustCompile(`[ \[]0x[0-9a-f]+`)
 
-// TestLogosModeParsesGo checks that LogosMode parses plain Go exactly
-// like the default mode: every .go file under testdata yields identical
-// errors and an identical Fdump under CheckBranches|LogosMode and
-// CheckBranches. Files that fail in plain mode must fail identically,
-// never be skipped silently.
 func TestLogosModeParsesGo(t *testing.T) {
 	var files []string
 	err := filepath.WalkDir("testdata", func(path string, d fs.DirEntry, err error) error {
@@ -79,12 +71,8 @@ func TestLogosModeParsesGo(t *testing.T) {
 	}
 }
 
-// TestLogosErrors runs testdata/logos/*.lgo through the same ERROR-comment
-// matcher as TestSyntaxErrors (error_test.go), with LogosMode. Plain.lgo
-// carries no ERROR comments and must parse cleanly; every other file must
-// report exactly the errors its ERROR comments declare.
 func TestLogosErrors(t *testing.T) {
-	testenv.MustHaveGoBuild(t) // we need access to source (testdata/logos)
+	testenv.MustHaveGoBuild(t)
 
 	list, err := os.ReadDir("testdata/logos")
 	if err != nil {

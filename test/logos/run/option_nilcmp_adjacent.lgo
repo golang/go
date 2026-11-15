@@ -2,23 +2,27 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
-// Adjacent option nil comparisons (seed 12 root class): the eject splices
-// of one comparison must not overlap the next. Forward (`x != nil`) and
-// reverse (`nil == x`) orders mix in one chain and one expression list,
-// with name, call, and map-index operands.
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 func fwd(x int?, y int?) bool { return x != nil && y != nil }
-
 func rev(x int?, y int?) bool { return nil == x && nil == y }
-
 func mixed(x int?, y string?) bool { return nil != x && y == nil }
-
 func ident(x int?) bool { return x == nil }
-
 func revIdent(x int?) bool { return nil != x }
-
 func give(x int?) int? { return x }
 
 var m map[int]int
@@ -30,12 +34,23 @@ func main() {
 	var b int? = 3
 	var s string?
 	var t string? = "hi"
-	fmt.Println(fwd(a, a), fwd(b, b), fwd(a, b), fwd(b, a))
-	fmt.Println(rev(a, a), rev(b, b), rev(a, b), rev(b, a))
-	fmt.Println(mixed(a, s), mixed(b, s), mixed(a, t), mixed(b, t))
-	fmt.Println(ident(a), ident(b), revIdent(a), revIdent(b))
-	fmt.Println(give(b) != nil, give(a) == nil, m[1] != nil, m[2] == nil)
-	fmt.Println(nil != give(b), nil == give(a), m[1] != nil && give(a) == nil)
-	fmt.Println(a != (nil), (nil) != a, b == (nil), (nil) == b)
-	fmt.Println((nil) == a, (nil) != b)
+	gotFwd := fmt.Sprint(fwd(a, a), fwd(b, b), fwd(a, b), fwd(b, a))
+	check("fwd", gotFwd == "false true false false", gotFwd, "false true false false")
+	gotRev := fmt.Sprint(rev(a, a), rev(b, b), rev(a, b), rev(b, a))
+	check("rev", gotRev == "true false false false", gotRev, "true false false false")
+	gotMixed := fmt.Sprint(mixed(a, s), mixed(b, s), mixed(a, t), mixed(b, t))
+	check("mixed", gotMixed == "false true false false", gotMixed, "false true false false")
+	gotIdent := fmt.Sprint(ident(a), ident(b), revIdent(a), revIdent(b))
+	check("ident", gotIdent == "true false false true", gotIdent, "true false false true")
+	gotGive := fmt.Sprint(give(b) != nil, give(a) == nil, m[1] != nil, m[2] == nil)
+	check("give", gotGive == "true true true true", gotGive, "true true true true")
+	gotNil := fmt.Sprint(nil != give(b), nil == give(a), m[1] != nil && give(a) == nil)
+	check("nil-expr", gotNil == "true true true", gotNil, "true true true")
+	gotParen := fmt.Sprint(a != (nil), (nil) != a, b == (nil), (nil) == b)
+	check("paren", gotParen == "false false false false", gotParen, "false false false false")
+	gotParen2 := fmt.Sprint((nil) == a, (nil) != b)
+	check("paren-rev", gotParen2 == "true true", gotParen2, "true true")
+	if failed {
+		os.Exit(1)
+	}
 }

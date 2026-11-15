@@ -1,0 +1,32 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# A plain chain whose block lambda holds ? is a ?-chain for the guard order
+# of && and ||, and every return of the block, const if and const switch
+# bodies included, yields the element result. The ejected module builds and
+# prints the native output.
+cp $GOROOT/test/logos/run/lambda_block_try.lgo a/main.lgo
+
+cd a
+logos run .
+cmp stdout $GOROOT/test/logos/run/lambda_block_try.out
+logos eject -o out
+exists out/main.go
+! exists out/main.lgo
+cd out
+go run .
+cmp stdout $GOROOT/test/logos/run/lambda_block_try.out
+# SPEC 0.3: ejected output builds and runs with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/lambda_block_try.out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ../..
+
+-- a/go.mod --
+module example.com/lambdablocktry
+
+go 1.27

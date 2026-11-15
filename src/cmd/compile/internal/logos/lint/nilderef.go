@@ -147,16 +147,21 @@ func (d derefSite) originLine() int {
 
 // offset returns the byte offset of pos in the source.
 func (d derefSite) offset(pos syntax.Pos) (int, bool) {
+	return sourceOffset(d.src, pos)
+}
+
+// sourceOffset returns the byte offset of pos in src.
+func sourceOffset(src []byte, pos syntax.Pos) (int, bool) {
 	off := 0
 	for line := uint(1); line < pos.Line(); line++ {
-		i := bytes.IndexByte(d.src[off:], '\n')
+		i := bytes.IndexByte(src[off:], '\n')
 		if i < 0 {
 			return 0, false
 		}
 		off += i + 1
 	}
 	off += int(pos.Col()) - 1
-	return off, off >= 0 && off <= len(d.src)
+	return off, off >= 0 && off <= len(src)
 }
 
 // chainFix offers optional chaining: the target with `?.` in place of the

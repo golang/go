@@ -1,0 +1,117 @@
+// errorcheck
+
+package p
+
+type box struct {
+	M map[string]int
+	L []int
+	A [3]int
+	N int
+}
+
+const cfg = box{M: map[string]int{"a": 1}, L: []int{1, 2, 3}, A: [3]int{1, 2, 3}, N: 7}
+
+type item struct {
+	M map[string]int
+	N int
+}
+
+const items = []item{{M: map[string]int{"a": 1}, N: 10}, {M: map[string]int{"b": 2}, N: 20}}
+
+func rejectSliceOfSliceStore() {
+	items[:][0].N = 5 // ERROR "const_view_mutation"
+}
+
+func rejectBoundedSliceStore() {
+	items[0:1][0].N = 6 // ERROR "const_view_mutation"
+}
+
+func rejectSliceIncrement() {
+	items[1:][0].N++ // ERROR "const_view_mutation"
+}
+
+func rejectSliceCopyItems() {
+	_ = copy(items[:], []item{{N: 9}}) // ERROR "const_view_mutation"
+}
+
+func rejectSliceClearItems() {
+	clear(items[:1]) // ERROR "const_view_mutation"
+}
+
+func rejectSliceStore() {
+	cfg.L[0] = 9 // ERROR "const_view_mutation"
+}
+
+func rejectArrayStore() {
+	cfg.A[0] = 9 // ERROR "const_view_mutation"
+}
+
+func rejectFieldStore() {
+	cfg.N = 9 // ERROR "const_view_mutation"
+}
+
+func rejectMapStore() {
+	cfg.M["b"] = 2 // ERROR "const_view_mutation"
+}
+
+func rejectIncrement() {
+	cfg.L[0]++ // ERROR "const_view_mutation"
+}
+
+func rejectCopy() {
+	_ = copy(cfg.L, []int{7, 7, 7}) // ERROR "const_view_mutation"
+}
+
+func rejectClear() {
+	clear(cfg.L) // ERROR "const_view_mutation"
+}
+
+func rejectAppend() {
+	_ = append(cfg.L, 4) // ERROR "const_view_mutation"
+}
+
+func rejectDelete() {
+	delete(cfg.M, "a") // ERROR "const_view_mutation"
+}
+
+func rejectSliceExprCopy() {
+	_ = copy(cfg.L[1:], []int{7, 7}) // ERROR "const_view_mutation"
+}
+
+func rejectSliceExprClear() {
+	clear(cfg.L[:1]) // ERROR "const_view_mutation"
+}
+
+func rejectSliceExprAppend() {
+	_ = append(cfg.L[:0], 5) // ERROR "const_view_mutation"
+}
+
+func rejectParenSliceExprCopy() {
+	_ = copy((cfg.L)[1:], []int{7}) // ERROR "const_view_mutation"
+}
+
+func rejectSliceOfSliceExprClear() {
+	clear(cfg.L[1:][:1]) // ERROR "const_view_mutation"
+}
+
+func allowReadsAndCopies() {
+	_ = cfg.L[0] + cfg.A[1] + cfg.N + len(cfg.L)
+	_ = append([]int(nil), cfg.L...)
+	_ = copy(make([]int, 3), cfg.L)
+	_ = append([]int(nil), cfg.L[1:]...)
+	_ = copy(make([]int, 2), cfg.L[:2])
+	d := cfg.L[1:]
+	_ = len(d)
+	c := cfg
+	c.N = 9
+	c.A[0] = 9
+	_ = copy(make([]int, 3), c.L)
+	_ = len(c.M) + c.L[0]
+}
+
+func rejectCopyReferenceWrites() {
+	c := cfg
+	c.L[0] = 9      // ERROR "const_view_mutation"
+	c.M["z"] = 1    // ERROR "const_view_mutation"
+	delete(c.M, "a") // ERROR "const_view_mutation"
+}

@@ -1,0 +1,38 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func main() {
+	m := map[string]int{"a": 0, "b": 5}
+	gotZero := m["a"] ?? -1
+	check("present-zero", gotZero == 0, gotZero, 0)
+	gotFive := m["b"] ?? -1
+	check("present-nonzero", gotFive == 5, gotFive, 5)
+	gotAbsent := m["zzz"] ?? -1
+	check("absent", gotAbsent == -1, gotAbsent, -1)
+	v := m["a"]
+	gotRead := v ?? -1
+	check("present-zero-read", gotRead == 0, gotRead, 0)
+	w := m["zzz"]
+	gotAbsentRead := w ?? -1
+	check("absent-read", gotAbsentRead == -1, gotAbsentRead, -1)
+	if failed {
+		os.Exit(1)
+	}
+}

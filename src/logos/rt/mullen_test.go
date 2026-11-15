@@ -5,7 +5,6 @@
 package rt
 
 import (
-	"strings"
 	"testing"
 )
 
@@ -105,8 +104,14 @@ func TestMulLenBoundaries(t *testing.T) {
 
 func TestMulLenPanicText(t *testing.T) {
 	_, r := mulLenResult(t, 1<<32, 1<<32)
+	if r == nil {
+		t.Fatal("MulLen did not panic on overflow")
+	}
 	msg, ok := r.(string)
-	if !ok || !strings.Contains(msg, "logos: make length overflow: w * h") {
-		t.Fatalf("panic = %v, want text containing %q", r, "logos: make length overflow: w * h")
+	if !ok {
+		t.Fatalf("MulLen panic type = %T, want string", r)
+	}
+	if msg != "logos: make length overflow: w * h" {
+		t.Fatalf("panic = %q, want %q", msg, "logos: make length overflow: w * h")
 	}
 }

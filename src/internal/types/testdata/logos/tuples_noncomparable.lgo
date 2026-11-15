@@ -1,0 +1,9 @@
+package p
+
+func tupleMapBad(a, b (map[int]int, string)) {
+	_ = a /* ERRORx "." */ == b
+}
+
+func tupleFuncBad(a, b (func(), string)) {
+	_ = a /* ERRORx "." */ == b
+}

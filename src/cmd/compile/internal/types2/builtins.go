@@ -50,7 +50,9 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 	switch id {
 	default:
 		// check all arguments
-		args = check.exprList(argList)
+		if !check.logosAppendArgs(id, argList, &args) {
+			args = check.exprList(argList)
+		}
 		nargs = len(args)
 		for _, a := range args {
 			if !a.isValid() {
@@ -80,8 +82,11 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		}
 	}
 
+	if check.logosRejectReadonlyBuiltinArgs(x, args, id) {
+		return false
+	}
 	if check.logosConstBuiltin(x, call, id, args) { // logos M5-S1 hook: builtins over const views.
-		return
+		return x.isValid()
 	}
 
 	switch id {
@@ -789,6 +794,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		if !x.isValid() {
 			return
 		}
+		check.logosObservedOperand(x)
 
 		base := derefStructPtr(x.typ())
 		sel := selx.Sel.Value
@@ -1070,6 +1076,13 @@ func (check *Checker) hasVarSize(t Type) bool {
 				return true
 			}
 		}
+
+	case *Option:
+		return check.hasVarSize(t.Elem)
+	case *ConstView:
+		return check.hasVarSize(t.Elem)
+	case *LogosTuple:
+		return check.hasVarSize(t.Underlying())
 
 	case *TypeParam:
 		return true

@@ -1,0 +1,41 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"iter"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func Values() iter.Seq[int] {
+	yield 1
+	return 99
+	yield 2
+}
+
+func main() {
+	n := 0
+	first := 0
+	for value := range Values() {
+		if n == 0 {
+			first = value
+		}
+		n++
+	}
+	check("values", n == 1 && first == 1, fmt.Sprint(n, first), "1 1")
+	if failed {
+		os.Exit(1)
+	}
+}

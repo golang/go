@@ -6,6 +6,7 @@ package lsp
 
 import (
 	"encoding/json"
+	"fmt"
 	"internal/testenv"
 	"os"
 	"path/filepath"
@@ -14,15 +15,6 @@ import (
 	"testing"
 )
 
-// realWorkspace writes a workspace of a loGo/s module (package a) and a Go
-// module (packages b and plain, b importing a), the shape SPEC Sec 0.1
-// allows, and returns the toolchain the tests drive: the go binary of the
-// toolchain under test, run as logos, as logos lsp runs it.
-
-// workspaceA is the loGo/s source realWorkspace writes for package a:
-// aLgo with an accurate package comment, so the good package is
-// ST1000-clean under the default full nogo registry. The body matches
-// aLgo one line down; fixtures derived from it keep exact coordinates.
 const workspaceA = "// Package a reads files.\n" + aLgo
 
 func realWorkspace(t *testing.T) (root string, tc *toolchain) {
@@ -52,23 +44,10 @@ func realWorkspace(t *testing.T) (root string, tc *toolchain) {
 			t.Fatal(err)
 		}
 	}
-	tc, err = newToolchain(testenv.GoToolPath(t))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		if err := tc.Close(); err != nil {
-			t.Errorf("cleaning up toolchain: %v", err)
-		}
-	})
+	tc = newToolchain(testenv.GoToolPath(t))
 	return root, tc
 }
 
-// TestToolchainLowersImportedLogosPackage runs the production compiler
-// path over a Go package that imports a loGo/s package: the lowering holds
-// the loGo/s file with an edit map that fits its texts, the ? statement's
-// operand maps exactly, nothing lands in the workspace, and an unsaved
-// buffer replaces the file on disk.
 func TestToolchainLowersImportedLogosPackage(t *testing.T) {
 	root, tc := realWorkspace(t)
 	ctx := t.Context()
@@ -134,10 +113,6 @@ func TestToolchainLowersImportedLogosPackage(t *testing.T) {
 	}
 }
 
-// TestToolchainWritesNoBinaryForMainPackage checks that lowering a main
-// package leaves the workspace as it was: a build of one main package
-// writes its executable into the current directory unless told otherwise,
-// and the current directory here is the user's package directory.
 func TestToolchainWritesNoBinaryForMainPackage(t *testing.T) {
 	root, tc := realWorkspace(t)
 	appDir := filepath.Join(root, "lmod", "app")
@@ -152,13 +127,8 @@ func TestToolchainWritesNoBinaryForMainPackage(t *testing.T) {
 	if after := listDir(t, appDir); !slices.Equal(before, after) {
 		t.Errorf("the package directory held %v and holds %v after lowering", before, after)
 	}
-	bin, err := os.ReadDir(filepath.Join(tc.stage, "bin"))
-	if err == nil && len(bin) != 0 {
-		t.Errorf("the scratch executable directory keeps %d entries", len(bin))
-	}
 }
 
-// listDir returns the sorted names in dir.
 func listDir(t *testing.T, dir string) []string {
 	t.Helper()
 	entries, err := os.ReadDir(dir)
@@ -173,10 +143,6 @@ func listDir(t *testing.T, dir string) []string {
 	return names
 }
 
-// TestToolchainReportsBrokenSourceAsMissing checks that a package that
-// does not compile yields no lowered file for its sources, and that
-// Diagnose names the error under the source's own path, not under the
-// scratch copy of an unsaved buffer.
 func TestToolchainReportsBrokenSourceAsMissing(t *testing.T) {
 	root, tc := realWorkspace(t)
 	ctx := t.Context()
@@ -210,9 +176,6 @@ func TestToolchainReportsBrokenSourceAsMissing(t *testing.T) {
 	}
 }
 
-// TestToolchainDiagnosesGoPackages checks that the same path serves a Go
-// package: logos lint reports its errors as JSON diagnostics of the .go
-// file.
 func TestToolchainDiagnosesGoPackages(t *testing.T) {
 	root, tc := realWorkspace(t)
 	pDir := filepath.Join(root, "gomod", "plain")
@@ -228,9 +191,6 @@ func TestToolchainDiagnosesGoPackages(t *testing.T) {
 	}
 }
 
-// TestToolchainHints runs the hints runner over a loGo/s package importing os
-// across default and explicit GOEXPERIMENT settings (logosfastcgo, nologosfastcgo,
-// none), verifying that the compiler and list exports align and emit valid hints.
 func TestToolchainHints(t *testing.T) {
 	root, tc := realWorkspace(t)
 	pkgDir := filepath.Join(root, "lmod", "a")
@@ -290,122 +250,184 @@ func TestToolchainHints(t *testing.T) {
 	}
 }
 
-// TestImportConfigAndHintSources checks the two pure steps of the hints
-// runner: the importcfg holds the dependencies' export data but not the
-// target's own, and unsaved buffers are written under their base names.
-func TestImportConfigAndHintSources(t *testing.T) {
-	target := pkgInfo{importPath: "example.com/m/a", dir: "/w/a", files: []string{"a.lgo", "b.lgo"}, export: "/cache/a.a"}
-	pkgs := []pkgInfo{
-		{importPath: "fmt", export: "/cache/fmt.a", standard: true},
-		{importPath: "broken"},
-		target,
+func TestToolchainOneRunYieldsAllOutputs(t *testing.T) {
+	root, _ := realWorkspace(t)
+	scratch := t.TempDir()
+	logPath := filepath.Join(scratch, "argv.log")
+	wrapper := filepath.Join(scratch, "wrap.sh")
+	script := fmt.Sprintf("#!/bin/bash\nprintf '%%s\\n' \"$*\" >>%q\nexec -a logos %q \"$@\"\n", logPath, testenv.GoToolPath(t))
+	if err := os.WriteFile(wrapper, []byte(script), 0o777); err != nil {
+		t.Fatal(err)
 	}
-	if got, want := string(importConfig(pkgs, target)), "packagefile fmt=/cache/fmt.a\n"; got != want {
-		t.Errorf("importConfig = %q, want %q", got, want)
-	}
-	work := t.TempDir()
-	files, err := hintSources(work, target, map[string][]byte{"/w/a/b.lgo": []byte("unsaved")})
+	tc := newToolchain(wrapper)
+	ctx := t.Context()
+	pkgDir := filepath.Join(root, "lmod", "a")
+	low, err := tc.Lower(ctx, pkgDir, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := []string{"/w/a/a.lgo", filepath.Join(work, "src", "b.lgo")}; !slices.Equal(files, want) {
-		t.Errorf("hintSources = %v, want %v", files, want)
+	if len(low.Files) != 1 || len(low.Files[0].Out) == 0 || len(low.Files[0].Map.Segments) == 0 {
+		t.Fatalf("lowering = %+v, want the one file with lowered text and an edit map", low)
 	}
-	if data, _ := os.ReadFile(files[1]); string(data) != "unsaved" {
-		t.Errorf("the buffer copy holds %q", data)
+	diags, err := tc.Diagnose(ctx, pkgDir, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(diags) != 0 {
+		t.Errorf("diagnostics of the good package = %+v, want none", diags)
+	}
+	hints, err := tc.Hints(ctx, pkgDir, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var report struct {
+		SchemaVersion string `json:"schemaVersion"`
+		Package       string `json:"package"`
+	}
+	if err := json.Unmarshal(hints, &report); err != nil || report.Package != "example.com/lmod/a" {
+		t.Fatalf("hints = %s, %v, want the report for example.com/lmod/a", hints, err)
+	}
+	argv, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(argv)), "\n")
+	if len(lines) != 1 {
+		t.Fatalf("Lower, Diagnose and Hints ran %d list invocations, want one: %q", len(lines), argv)
+	}
+	if !strings.Contains(lines[0], "-compiled") || !strings.Contains(lines[0], "-json") || !strings.Contains(lines[0], "-overlay=") {
+		t.Errorf("the one run was %q, want -compiled -json -overlay", lines[0])
 	}
 }
 
-// TestHintsArchLevelsFollowsModuleTargetCPU checks that the hints compile
-// environment follows the module's target_cpu and that an explicit user
-// setting wins over the file: a baseline module selects the baseline
-// levels, a module without logos.toml selects the deterministic levels,
-// the file's levels reach the compile environment, and GOAMD64/GOARM64
-// in the environment override the file.
-func TestHintsArchLevelsFollowsModuleTargetCPU(t *testing.T) {
-	root := t.TempDir()
-	writeFile := func(dir, name, content string) {
+func TestToolchainDiskChangedRefreshesDiagnostics(t *testing.T) {
+	root, _ := realWorkspace(t)
+	scratch := t.TempDir()
+	logPath := filepath.Join(scratch, "argv.log")
+	wrapper := filepath.Join(scratch, "wrap.sh")
+	script := fmt.Sprintf("#!/bin/bash\nprintf '%%s\\n' \"$*\" >>%q\nexec -a logos %q \"$@\"\n", logPath, testenv.GoToolPath(t))
+	if err := os.WriteFile(wrapper, []byte(script), 0o777); err != nil {
+		t.Fatal(err)
+	}
+	tc := newToolchain(wrapper)
+	dir := filepath.Join(root, "gomod", "plain")
+	buffers := map[string][]byte{
+		filepath.Join(dir, "p.go"): []byte("package plain\n\nfunc F() int { return 1 }\n"),
+	}
+	diagnose := func() []Diagnostic {
 		t.Helper()
-		if err := os.MkdirAll(dir, 0o777); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o666); err != nil {
-			t.Fatal(err)
-		}
-	}
-	baseline := filepath.Join(root, "baseline")
-	writeFile(baseline, "go.mod", "module example.com/base\n\ngo 1.27\n")
-	writeFile(baseline, "logos.toml", "[build]\ntarget_cpu = \"baseline\"\n")
-	if amd64, arm64 := hintsArchLevels(baseline); amd64 != "v1" || arm64 != "v8.0" {
-		t.Errorf("baseline levels = (%q, %q), want (v1, v8.0)", amd64, arm64)
-	}
-	plain := filepath.Join(root, "plain")
-	writeFile(plain, "go.mod", "module example.com/plain\n\ngo 1.27\n")
-	if amd64, arm64 := hintsArchLevels(plain); amd64 != "v3" || arm64 != "v8.2" {
-		t.Errorf("default levels = (%q, %q), want (v3, v8.2)", amd64, arm64)
-	}
-	// Without explicit settings the file's levels reach the compile
-	// environment: empty process values count as unset here, as in
-	// hintsEnv, so the file path is exercised deterministically.
-	t.Setenv("GOAMD64", "")
-	t.Setenv("GOARM64", "")
-	if env := hintsEnv(baseline); !slices.Contains(env, "GOAMD64=v1") || !slices.Contains(env, "GOARM64=v8.0") {
-		t.Errorf("file levels missing from hints env: %q", env)
-	}
-	// An explicit user setting wins over the file: the file's levels
-	// must not reach the compile environment.
-	t.Setenv("GOAMD64", "v4")
-	t.Setenv("GOARM64", "v8.1")
-	if env := hintsEnv(baseline); !slices.Contains(env, "GOAMD64=v4") || !slices.Contains(env, "GOARM64=v8.1") ||
-		slices.Contains(env, "GOAMD64=v1") || slices.Contains(env, "GOARM64=v8.0") {
-		t.Errorf("explicit environment lost in hints env: %q", env)
-	}
-}
-
-// TestExecutableDirFlag checks that only a single-main build gets an output
-// override, and that the override is the null device.
-func TestExecutableDirFlag(t *testing.T) {
-	bin := filepath.Join(t.TempDir(), "bin")
-	lib, app := pkgInfo{importPath: "m/lib", name: "lib"}, pkgInfo{importPath: "m/app", name: "main"}
-	cases := []struct {
-		name    string
-		targets []pkgInfo
-		want    bool
-	}{
-		{"one main package", []pkgInfo{app}, true},
-		{"one library", []pkgInfo{lib}, false},
-		{"a library and a main package", []pkgInfo{lib, app}, false},
-		{"two main packages", []pkgInfo{app, app}, false},
-	}
-	for _, c := range cases {
-		flag, err := executableDirFlag(c.targets, bin)
+		diags, err := tc.Diagnose(t.Context(), dir, buffers)
 		if err != nil {
-			t.Fatalf("%s: %v", c.name, err)
+			t.Fatal(err)
 		}
-		if got := len(flag) > 0; got != c.want {
-			t.Errorf("%s: flag = %v, want one: %v", c.name, flag, c.want)
+		return diags
+	}
+	assertRuns := func(want int) {
+		t.Helper()
+		argv, err := os.ReadFile(logPath)
+		if err != nil {
+			t.Fatal(err)
 		}
-		if c.want && (len(flag) != 2 || flag[0] != "-o" || flag[1] != os.DevNull) {
-			t.Errorf("%s: flag = %v, want -o %s", c.name, flag, os.DevNull)
+		if got := len(strings.Split(strings.TrimSpace(string(argv)), "\n")); got != want {
+			t.Fatalf("list invocations = %d, want %d: %q", got, want, argv)
 		}
 	}
-}
-
-// TestParseClosure checks the list output parser, including a package with
-// no files and a malformed line.
-func TestParseClosure(t *testing.T) {
-	out := "fmt\t/g/fmt\tfmt\ttrue\t/c/fmt.a\tprint.go\tformat.go\nexample.com/m/a\t/w/a\ta\tfalse\t\ta.lgo\nexample.com/m/empty\t/w/e\tmain\tfalse\t\n"
-	pkgs, err := parseClosure([]byte(out))
-	if err != nil {
+	if diags := diagnose(); len(diags) != 0 {
+		t.Fatalf("initial diagnostics = %+v, want none", diags)
+	}
+	path := filepath.Join(dir, "unopened.go")
+	if err := os.WriteFile(path, []byte("package plain\n\nfunc G() { var unused int }\n"), 0o666); err != nil {
 		t.Fatal(err)
 	}
-	if len(pkgs) != 3 || !pkgs[0].standard || pkgs[0].export != "/c/fmt.a" || !slices.Equal(pkgs[0].files, []string{"print.go", "format.go"}) {
-		t.Errorf("packages = %+v", pkgs)
+	if diags := diagnose(); len(diags) != 0 {
+		t.Fatalf("diagnostics before disk notification = %+v, want the cached empty result", diags)
 	}
-	if pkgs[1].standard || pkgs[1].name != "a" || pkgs[1].export != "" || !slices.Equal(pkgs[1].logosFiles(), []string{"a.lgo"}) || len(pkgs[2].files) != 0 || pkgs[2].name != "main" {
-		t.Errorf("packages = %+v", pkgs)
+	assertRuns(1)
+	tc.DiskChanged()
+	diags := diagnose()
+	if len(diags) != 1 || diags[0].File != path || !strings.Contains(diags[0].Message, "declared and not used") {
+		t.Fatalf("diagnostics after disk notification = %+v, want an unused variable in %s", diags, path)
 	}
-	if _, err := parseClosure([]byte("only\ttwo\tthree\tfour\n")); err == nil {
-		t.Error("parseClosure accepted a short line")
+	assertRuns(2)
+}
+
+func TestWatchedFilesInvalidateCompilerRun(t *testing.T) {
+	compiler := newFakeCompiler()
+	p := newProxy(discardWriter{}, Options{Compiler: compiler})
+	p.server = &writer{w: discardWriter{}}
+	dir := t.TempDir()
+	notify := func(name string) {
+		t.Helper()
+		raw, err := encode(map[string]any{
+			"changes": []any{map[string]any{"uri": pathURI(filepath.Join(dir, name)), "type": 2}},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		p.clientNotification(t.Context(), &message{Method: "workspace/didChangeWatchedFiles", Params: raw})
+	}
+	notify("a.go")
+	if compiler.changes != 0 {
+		t.Fatal("a watched change with no units invalidated the compiler")
+	}
+	u := &unit{dir: dir}
+	p.st.units[dir] = u
+	notify("README")
+	if compiler.changes != 0 || u.dirty || u.gen != 0 {
+		t.Fatal("an unrelated watched change invalidated a unit or the compiler")
+	}
+	for i, name := range []string{"a.go", "a.lgo", "go.mod"} {
+		u.dirty = false
+		notify(name)
+		if compiler.changes != i+1 || !u.dirty || u.gen != i+1 {
+			t.Fatalf("watched %s: invalidations = %d, dirty = %v, generation = %d; want %d, true, %d", name, compiler.changes, u.dirty, u.gen, i+1, i+1)
+		}
+	}
+}
+
+func failingToolchain(t *testing.T) *toolchain {
+	t.Helper()
+	wrapper := filepath.Join(t.TempDir(), "failing-logos")
+	script := "#!/bin/sh\necho 'go: writing build cache: no space left on device' >&2\nexit 1\n"
+	if err := os.WriteFile(wrapper, []byte(script), 0o777); err != nil {
+		t.Fatal(err)
+	}
+	return newToolchain(wrapper)
+}
+
+func TestToolchainReportsAFailedRun(t *testing.T) {
+	tc := failingToolchain(t)
+	dir := t.TempDir()
+	runs := map[string]func() error{
+		"Lower": func() error {
+			_, err := tc.Lower(t.Context(), dir, nil)
+			return err
+		},
+		"Diagnose": func() error {
+			_, err := tc.Diagnose(t.Context(), dir, nil)
+			return err
+		},
+		"Hints": func() error {
+			_, err := tc.Hints(t.Context(), dir, nil)
+			return err
+		},
+	}
+	for name, run := range runs {
+		if err := run(); err == nil || !strings.Contains(err.Error(), "no space left on device") {
+			t.Errorf("%s after a run that printed no package = %v, want an error that carries the tool's own complaint", name, err)
+		}
+	}
+}
+
+func TestProxyAnswersALoweringFailureWithAnError(t *testing.T) {
+	tc := failingToolchain(t)
+	f := newFixture(t, map[string]string{"a/a.lgo": aLgo}, fixtureOptions{
+		Tune: func(f *fixture, o *Options) { o.Compiler = tc },
+	})
+	f.open("a/a.lgo", 1)
+	operand := shift(findPos(t, aLgo, "ReadFile(path)?", 0), len("ReadFile("))
+	m := f.client.callMessage("textDocument/hover", positionParams(f.uri("a/a.lgo"), operand))
+	if len(m.Error) == 0 {
+		t.Errorf("hover on a document that could not be lowered = %s, want an error response", m.Result)
 	}
 }

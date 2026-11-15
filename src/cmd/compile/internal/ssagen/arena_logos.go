@@ -16,18 +16,8 @@ import (
 	"internal/buildcfg"
 )
 
-// LogosArenaBumpMaxBytes caps the inline bump fast path: ssagen intrinsifies
-// only rounded payloads at or below it, larger or non-constant sizes fall
-// back to nil so walk's logosArenaAlloc slow call runs. Walk shares this
-// single definition for its bump gate. It is distinct from
-// escape.LogosArenaMaxBytes, which bounds chunk fit: keep the two limits
-// separate.
 const LogosArenaBumpMaxBytes = 512
 
-// logosArenaBumpBuilder implements the runtime.logosArenaBump intrinsic on amd64.
-// It emits OpLogosArenaBump with chunk and memory args fetched via OpGetG
-// plus logosArenaGOffset, rounded size as auxint, returning nil when the
-// watermark check fails.
 func logosArenaBumpBuilder(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 	if !buildcfg.Experiment.LogosArena || Arch.LinkArch.Family != sys.AMD64 || base.Flag.Race {
 		return s.constNil(types.Types[types.TUNSAFEPTR])
@@ -59,8 +49,6 @@ func logosArenaBumpBuilder(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Val
 	return ptr
 }
 
-// hasArenaBump reports whether fn's walked body contains a call to runtime.logosArenaBump,
-// runtime.logosArenaAlloc, runtime.logosArenaMakeSlice, or runtime.logosArenaAllocScan.
 func hasArenaBump(fn *ir.Func) bool {
 	if fn == nil {
 		return false
@@ -82,7 +70,6 @@ func hasArenaBump(fn *ir.Func) bool {
 	return found
 }
 
-// logosRegisterArena registers the logosArenaBump intrinsic.
 func logosRegisterArena(add func(string, string, intrinsicBuilder, ...*sys.Arch)) {
 	add("runtime", "logosArenaBump", logosArenaBumpBuilder, sys.ArchAMD64)
 }
@@ -107,20 +94,10 @@ func (s *state) logosArenaFrameExit() {
 	s.rtcall(restoreFn, true, nil, s.arenaMarkChunk, s.arenaMarkNoscan, s.arenaMarkScan)
 }
 
-// logosArenaLoopEligible mirrors the walk placement gate: experiment on,
-// amd64 only. Walk lowers arena makes via runtime calls under race, so a
-// race gate here would leak eligible loop allocations instead of restoring
-// them. Cond/Post allocation safety is the escape owner's veto, not a
-// second check here.
 func logosArenaLoopEligible() bool {
 	return buildcfg.Experiment.LogosArena && Arch.LinkArch.Family == sys.AMD64
 }
 
-// logosArenaLoopSave emits one mark-save at the top of bBody and records
-// the three mark values under the loop node. The save dominates every
-// in-body exit edge; the cond-false edge never passes through bBody, so it
-// never observes an uninitialized mark. A second save for the same node is
-// a no-op: the single static save already executes each dynamic iteration.
 func (s *state) logosArenaLoopSave(loop ir.Node) {
 	if !logosArenaLoopEligible() || loop == nil {
 		return
@@ -135,12 +112,6 @@ func (s *state) logosArenaLoopSave(loop ir.Node) {
 	s.arenaLoopMarks[loop] = [3]*ssa.Value{res[0], res[1], res[2]}
 }
 
-// logosArenaLoopRestore emits a restore to the loop's saved mark. It never
-// deletes the mark: multiple CFG edges (fallthrough, continue, break,
-// labeled exits) share one lowering, and every edge needs the same
-// dominating save values. Missing marks (ineligible loops in an exited
-// suffix) restore nothing. Return and panic paths emit no loop restore;
-// the synthetic frame defer restores the earlier frame mark last.
 func (s *state) logosArenaLoopRestore(loop ir.Node) {
 	if !logosArenaLoopEligible() || loop == nil {
 		return
@@ -156,12 +127,6 @@ func (s *state) logosArenaLoopRestore(loop ir.Node) {
 	s.rtcall(restoreFn, true, nil, m[0], m[1], m[2])
 }
 
-// logosArenaLoopRestoreDepth restores the top-down suffix of the arena
-// loop stack starting at depth, the index recorded when a labeled
-// break/continue target was installed. Innermost first. Out-of-range
-// depths restore nothing. Entries without a saved mark restore nothing
-// via logosArenaLoopRestore. Callers emit this before the jump so the
-// restore dominates the exit edge.
 func (s *state) logosArenaLoopRestoreDepth(depth int) {
 	if depth < 0 || depth > len(s.arenaLoopStack) {
 		return
@@ -169,4 +134,17 @@ func (s *state) logosArenaLoopRestoreDepth(depth int) {
 	for i := len(s.arenaLoopStack) - 1; i >= depth; i-- {
 		s.logosArenaLoopRestore(s.arenaLoopStack[i].loop)
 	}
+}
+
+func (s *state) logosArenaNew(n *ir.UnaryExpr) *ssa.Value {
+	if x, ok := n.X.(*ir.DynamicType); ok && x.Op() == ir.ODYNAMICTYPE {
+		return s.logosArenaNewObject(n.Type().Elem(), s.expr(x.RType))
+	}
+	return s.logosArenaNewObject(n.Type().Elem(), s.reflectType(n.Type().Elem()))
+}
+
+func (s *state) logosArenaNewObject(typ *types.Type, rtype *ssa.Value) *ssa.Value {
+	one := s.constInt(types.Types[types.TINT64], 1)
+	return s.rtcall(typecheck.LookupRuntimeFunc("logosArenaMakeSlice"), true,
+		[]*types.Type{types.NewPtr(typ)}, rtype, one, one)[0]
 }

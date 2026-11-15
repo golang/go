@@ -1,0 +1,589 @@
+[short] skip 'cross-links the standard library for windows'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOOS=windows
+env GOARCH=amd64
+env CGO_ENABLED=0
+mkdir $WORK/bin
+
+cd a/main
+! logos build -o $WORK/bin/wina.exe ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/adep'' reaches ''syscall\.\(\*LazyProc\)\.Call'''
+stderr 'ERROR \[capabilities::unauthorized_net\]: Transitive dependency ''example\.com/adep'' reaches ''syscall\.\(\*LazyProc\)\.Call'''
+cd ../..
+
+cd b/main
+! logos build -o $WORK/bin/winb.exe ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/bdep'' reaches ''syscall\.\(\*Proc\)\.Call'''
+stderr 'ERROR \[capabilities::unauthorized_net\]: Transitive dependency ''example\.com/bdep'' reaches ''syscall\.\(\*Proc\)\.Call'''
+cd ../..
+
+cd c/main
+logos build -o $WORK/bin/winc.exe ./cmd
+! stderr 'capabilities::'
+cd ../..
+
+cd d/main
+logos build -o $WORK/bin/wind.exe ./cmd
+! stderr 'capabilities::'
+cd ../..
+
+cd e/main
+! logos build -o $WORK/bin/wine.exe ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/edep'' reaches ''golang\.org/x/sys/windows\.\(\*LazyProc\)\.Call'''
+stderr 'ERROR \[capabilities::unauthorized_net\]: Transitive dependency ''example\.com/edep'' reaches ''golang\.org/x/sys/windows\.\(\*LazyProc\)\.Call'''
+! stderr 'Transitive dependency ''golang\.org/x/sys/windows'''
+cd ../..
+
+cd f/main
+! logos build -o $WORK/bin/winf.exe ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/fdep'' reaches ''golang\.org/x/sys/windows\.\(\*Proc\)\.Call'''
+stderr 'ERROR \[capabilities::unauthorized_net\]: Transitive dependency ''example\.com/fdep'' reaches ''golang\.org/x/sys/windows\.\(\*Proc\)\.Call'''
+! stderr 'Transitive dependency ''golang\.org/x/sys/windows'''
+cd ../..
+
+cd g/main
+logos build -o $WORK/bin/wing.exe ./cmd
+! stderr 'capabilities::'
+cd ../..
+
+cd h/main
+! logos build -o $WORK/bin/winh.exe ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''golang\.org/x/sys/windows'' reaches ''syscall\.SyscallN'''
+stderr 'ERROR \[capabilities::unauthorized_net\]: Transitive dependency ''golang\.org/x/sys/windows'' reaches ''syscall\.SyscallN'''
+! stderr 'Transitive dependency ''example\.com/hdep'''
+cd ../..
+
+cd i/main
+! logos build -o $WORK/bin/wini.exe ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/idep'' reaches ''syscall\.Syscall9'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/idep'' reaches ''syscall\.Syscall12'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/idep'' reaches ''syscall\.Syscall15'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/idep'' reaches ''syscall\.Syscall18'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/idep'' reaches ''syscall\.SyscallN'''
+cd ../..
+
+cd j/main
+! logos build -o $WORK/bin/winj.exe ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/jdep'' reaches ''golang\.org/x/sys/windows\.\(\*LazyProc\)\.Call'''
+stderr 'ERROR \[capabilities::unauthorized_net\]: Transitive dependency ''example\.com/jdep'' reaches ''golang\.org/x/sys/windows\.\(\*LazyProc\)\.Call'''
+! stderr 'Transitive dependency ''golang\.org/x/sys/windows'''
+cd ../..
+
+cd k/main
+! logos build -o $WORK/bin/wink.exe ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/kdep'' reaches ''syscall\.\(\*LazyProc\)\.Call'''
+stderr 'ERROR \[capabilities::unauthorized_net\]: Transitive dependency ''example\.com/kdep'' reaches ''syscall\.\(\*LazyProc\)\.Call'''
+cd ../..
+
+-- a/main/go.mod --
+module example.com/amain
+
+go 1.27
+
+require example.com/adep v0.0.0
+
+replace example.com/adep => ../dep
+
+-- a/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_net = "deny"
+
+-- a/main/cmd/main.go --
+package main
+
+import "example.com/adep"
+
+func main() { adep.Init() }
+
+-- a/dep/go.mod --
+module example.com/adep
+
+go 1.27
+
+-- a/dep/dep.go --
+package adep
+
+import "syscall"
+
+//go:noinline
+func Init() {
+	syscall.NewLazyDLL("kernel32.dll").NewProc("GetCurrentProcessId").Call()
+}
+
+-- b/main/go.mod --
+module example.com/bmain
+
+go 1.27
+
+require example.com/bdep v0.0.0
+
+replace example.com/bdep => ../dep
+
+-- b/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_net = "deny"
+
+-- b/main/cmd/main.go --
+package main
+
+import "example.com/bdep"
+
+func main() { bdep.Init() }
+
+-- b/dep/go.mod --
+module example.com/bdep
+
+go 1.27
+
+-- b/dep/dep.go --
+package bdep
+
+import "syscall"
+
+//go:noinline
+func Init() {
+	syscall.MustLoadDLL("kernel32.dll").MustFindProc("GetCurrentProcessId").Call()
+}
+
+-- c/main/go.mod --
+module example.com/cmain
+
+go 1.27
+
+require example.com/cdep v0.0.0
+
+replace example.com/cdep => ../dep
+
+-- c/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_net = "deny"
+transitive_exec_allowlist = ["example.com/cdep/**"]
+transitive_net_allowlist = ["example.com/cdep/**"]
+
+-- c/main/cmd/main.go --
+package main
+
+import "example.com/cdep"
+
+func main() { cdep.Init() }
+
+-- c/dep/go.mod --
+module example.com/cdep
+
+go 1.27
+
+-- c/dep/dep.go --
+package cdep
+
+import "syscall"
+
+//go:noinline
+func Init() {
+	syscall.NewLazyDLL("kernel32.dll").NewProc("GetCurrentProcessId").Call()
+}
+
+-- d/main/go.mod --
+module example.com/dmain
+
+go 1.27
+
+require example.com/ddep v0.0.0
+
+replace example.com/ddep => ../dep
+
+-- d/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_net = "deny"
+
+-- d/main/cmd/main.go --
+package main
+
+import "example.com/ddep"
+
+func main() { ddep.Init() }
+
+-- d/dep/go.mod --
+module example.com/ddep
+
+go 1.27
+
+-- d/dep/dep.go --
+package ddep
+
+import (
+	"os"
+	"syscall"
+)
+
+//go:noinline
+func Init() {
+	syscall.Getpid()
+	os.Getpid()
+	os.ReadFile("go.mod")
+}
+
+-- sys/go.mod --
+module golang.org/x/sys
+
+go 1.27
+
+-- sys/windows/windows.go --
+package windows
+
+import "syscall"
+
+type Proc struct {
+	addr uintptr
+}
+
+func (p *Proc) Addr() uintptr { return p.addr }
+
+//go:noinline
+func (p *Proc) Call(a ...uintptr) (r1, r2 uintptr, lastErr error) {
+	r1, r2, e := syscall.SyscallN(p.Addr(), a...)
+	return r1, r2, e
+}
+
+type DLL struct {
+	Name string
+}
+
+func MustLoadDLL(name string) *DLL { return &DLL{Name: name} }
+
+func (d *DLL) MustFindProc(name string) *Proc { return &Proc{} }
+
+type LazyDLL struct {
+	Name string
+}
+
+type LazyProc struct {
+	Name string
+	proc *Proc
+}
+
+func NewLazyDLL(name string) *LazyDLL { return &LazyDLL{Name: name} }
+
+func (d *LazyDLL) NewProc(name string) *LazyProc { return &LazyProc{Name: name} }
+
+//go:noinline
+func (p *LazyProc) Call(a ...uintptr) (r1, r2 uintptr, lastErr error) {
+	if p.proc == nil {
+		p.proc = &Proc{}
+	}
+	return p.proc.Call(a...)
+}
+
+var procGetCurrentProcessId = &Proc{}
+
+//go:noinline
+func GetCurrentProcessId() uint32 {
+	r0, _, _ := syscall.SyscallN(procGetCurrentProcessId.Addr(), 0)
+	return uint32(r0)
+}
+
+-- e/main/go.mod --
+module example.com/emain
+
+go 1.27
+
+require (
+	example.com/edep v0.0.0
+	golang.org/x/sys v0.0.0
+)
+
+replace example.com/edep => ../dep
+
+replace golang.org/x/sys => ../../sys
+
+-- e/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_exec_allowlist = ["golang.org/x/sys/**"]
+transitive_net = "deny"
+transitive_net_allowlist = ["golang.org/x/sys/**"]
+
+-- e/main/cmd/main.go --
+package main
+
+import "example.com/edep"
+
+func main() { edep.Init() }
+
+-- e/dep/go.mod --
+module example.com/edep
+
+go 1.27
+
+require golang.org/x/sys v0.0.0
+
+-- e/dep/dep.go --
+package edep
+
+import "golang.org/x/sys/windows"
+
+//go:noinline
+func Init() {
+	windows.NewLazyDLL("kernel32.dll").NewProc("GetCurrentProcessId").Call()
+}
+
+-- f/main/go.mod --
+module example.com/fmain
+
+go 1.27
+
+require (
+	example.com/fdep v0.0.0
+	golang.org/x/sys v0.0.0
+)
+
+replace example.com/fdep => ../dep
+
+replace golang.org/x/sys => ../../sys
+
+-- f/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_exec_allowlist = ["golang.org/x/sys/**"]
+transitive_net = "deny"
+transitive_net_allowlist = ["golang.org/x/sys/**"]
+
+-- f/main/cmd/main.go --
+package main
+
+import "example.com/fdep"
+
+func main() { fdep.Init() }
+
+-- f/dep/go.mod --
+module example.com/fdep
+
+go 1.27
+
+require golang.org/x/sys v0.0.0
+
+-- f/dep/dep.go --
+package fdep
+
+import "golang.org/x/sys/windows"
+
+//go:noinline
+func Init() {
+	windows.MustLoadDLL("kernel32.dll").MustFindProc("GetCurrentProcessId").Call()
+}
+
+-- g/main/go.mod --
+module example.com/gmain
+
+go 1.27
+
+require (
+	example.com/gdep v0.0.0
+	golang.org/x/sys v0.0.0
+)
+
+replace example.com/gdep => ../dep
+
+replace golang.org/x/sys => ../../sys
+
+-- g/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_exec_allowlist = ["golang.org/x/sys/**"]
+transitive_net = "deny"
+transitive_net_allowlist = ["golang.org/x/sys/**"]
+
+-- g/main/cmd/main.go --
+package main
+
+import "example.com/gdep"
+
+func main() { gdep.Init() }
+
+-- g/dep/go.mod --
+module example.com/gdep
+
+go 1.27
+
+require golang.org/x/sys v0.0.0
+
+-- g/dep/dep.go --
+package gdep
+
+import "golang.org/x/sys/windows"
+
+//go:noinline
+func Init() {
+	windows.GetCurrentProcessId()
+}
+
+-- h/main/go.mod --
+module example.com/hmain
+
+go 1.27
+
+require (
+	example.com/hdep v0.0.0
+	golang.org/x/sys v0.0.0
+)
+
+replace example.com/hdep => ../dep
+
+replace golang.org/x/sys => ../../sys
+
+-- h/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_net = "deny"
+
+-- h/main/cmd/main.go --
+package main
+
+import "example.com/hdep"
+
+func main() { hdep.Init() }
+
+-- h/dep/go.mod --
+module example.com/hdep
+
+go 1.27
+
+require golang.org/x/sys v0.0.0
+
+-- h/dep/dep.go --
+package hdep
+
+import "golang.org/x/sys/windows"
+
+//go:noinline
+func Init() {
+	windows.GetCurrentProcessId()
+}
+
+-- i/main/go.mod --
+module example.com/imain
+
+go 1.27
+
+require example.com/idep v0.0.0
+
+replace example.com/idep => ../dep
+
+-- i/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_net = "deny"
+
+-- i/main/cmd/main.go --
+package main
+
+import "example.com/idep"
+
+func main() { idep.Init() }
+
+-- i/dep/go.mod --
+module example.com/idep
+
+go 1.27
+
+-- i/dep/dep.go --
+package idep
+
+import "syscall"
+
+//go:noinline
+func Init() {
+	syscall.Syscall9(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+	syscall.Syscall12(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+	syscall.Syscall15(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+	syscall.Syscall18(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+	syscall.SyscallN(0)
+}
+
+-- j/main/go.mod --
+module example.com/jmain
+
+go 1.27
+
+require (
+	example.com/jdep v0.0.0
+	golang.org/x/sys v0.0.0
+)
+
+replace example.com/jdep => ../dep
+
+replace golang.org/x/sys => ../../sys
+
+-- j/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_exec_allowlist = ["golang.org/x/sys/**"]
+transitive_net = "deny"
+transitive_net_allowlist = ["golang.org/x/sys/**"]
+
+-- j/main/cmd/main.go --
+package main
+
+import "example.com/jdep"
+
+func main() { jdep.Init() }
+
+-- j/dep/go.mod --
+module example.com/jdep
+
+go 1.27
+
+require golang.org/x/sys v0.0.0
+
+-- j/dep/dep.go --
+package jdep
+
+import "golang.org/x/sys/windows"
+
+//go:noinline
+func Init() {
+	f := windows.NewLazyDLL("kernel32.dll").NewProc("GetCurrentProcessId").Call
+	f()
+}
+
+-- k/main/go.mod --
+module example.com/kmain
+
+go 1.27
+
+require example.com/kdep v0.0.0
+
+replace example.com/kdep => ../dep
+
+-- k/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_net = "deny"
+
+-- k/main/cmd/main.go --
+package main
+
+import "example.com/kdep"
+
+func main() { kdep.Init() }
+
+-- k/dep/go.mod --
+module example.com/kdep
+
+go 1.27
+
+-- k/dep/dep.go --
+package kdep
+
+import "syscall"
+
+//go:noinline
+func Init() {
+	f := syscall.NewLazyDLL("kernel32.dll").NewProc("GetCurrentProcessId").Call
+	f()
+}

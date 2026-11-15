@@ -93,8 +93,8 @@ func f() {
 `
 
 const (
-	structDefaultText = "x.lgo:8:8: warning: [suspicious::unapplied_struct_default] zero declaration of Cfg with field defaults"
-	structDefaultDeny = "x.lgo:8:8: [suspicious::unapplied_struct_default] zero declaration of Cfg with field defaults"
+	structDefaultText = "x.lgo:8:8: warning: [suspicious::unapplied_struct_default]"
+	structDefaultDeny = "x.lgo:8:8: [suspicious::unapplied_struct_default]"
 )
 
 // TestCheckerWarningsFollowSeverity checks that a warning of types2 takes

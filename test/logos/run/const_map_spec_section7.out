@@ -1,0 +1,7 @@
+ok const-string-bytes
+ok const-integer-numeric
+ok const-float-numeric
+ok const-bool
+ok const-struct-fields
+ok const-array-elements
+ok view-unordered-key-kinds

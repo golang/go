@@ -12,41 +12,8 @@ import (
 	"cmd/compile/internal/types2"
 )
 
-// This file lowers M6-S9 `yield` generators (T-104.8): a function whose
-// single result is `iter.Seq[T]` or `iter.Seq2[K, V]` becomes a function
-// that returns an iterator closure over its body:
-//
-//	func Count(n int) iter.Seq[int] {
-//		return func(_logos_yield func(int) bool) {
-//			for i := range n {
-//				if !_logos_yield(i) {
-//					return
-//				}
-//			}
-//		}
-//	}
-//
-// Each `yield e` becomes `if !_logos_yield(e) { return }`, so an early
-// `break` in the consumer (which makes the range body return false)
-// stops the generator with no further body running. A `return` with
-// values inside a generator becomes a bare `return`: the value is
-// discarded (the function always returns the sequence), so explicit
-// `return nil` and a bare `return` both mean stop.
-//
-// Element spellings come from the checked type arguments, so aliases of
-// `iter.Seq` lower as well as the direct spelling. The pass runs before
-// statement lowering; nested function literals are left for their own
-// funcLower (a `yield` there is a types2 error and never reaches this
-// pass from valid code).
-
-// yieldParam is the name of the iterator closure's yield function. User
-// code cannot collide with it: identifiers starting with `_logos_` are
-// reserved in `.lgo` files (C6).
 const yieldParam = "_logos_yield"
 
-// generatorTarget reports the element types of fc's function when its
-// single result is `iter.Seq[T]` or `iter.Seq2[K, V]`, matched
-// semantically like the types2 generator check.
 func (fc *funcLower) generatorTarget() ([]types2.Type, bool) {
 	if len(fc.ft.ResultList) != 1 {
 		return nil, false
@@ -76,9 +43,6 @@ func (fc *funcLower) generatorTarget() ([]types2.Type, bool) {
 	return nil, false
 }
 
-// yieldQualifier spells type arguments for the eject text: the current
-// package needs no qualifier, every other package prints with the name
-// that denotes it in the file (aliases and dot imports included).
 func (fc *funcLower) yieldQualifier(p *types2.Package) string {
 	if p == fc.fl.pkg.tpkg {
 		return ""
@@ -89,8 +53,6 @@ func (fc *funcLower) yieldQualifier(p *types2.Package) string {
 	return p.Name()
 }
 
-// lowerYield wraps a generator body in the iterator closure. It reports
-// whether the function was a generator.
 func (fc *funcLower) lowerYield() bool {
 	targs, ok := fc.generatorTarget()
 	if !ok {
@@ -114,7 +76,7 @@ func (fc *funcLower) lowerYield() bool {
 		})
 		natives[i] = decl
 	}
-	fc.rewriteYields(natives)
+	fc.body.List = fc.rewriteYieldList(fc.body.List)
 	params := make([]*syntax.Field, len(natives))
 	for i, typ := range natives {
 		params[i] = at(&syntax.Field{Type: typ}, pos)
@@ -140,14 +102,6 @@ func (fc *funcLower) lowerYield() bool {
 	return true
 }
 
-// rewriteYields replaces every yield and valued return of the generator
-// body with its lowered form, descending everywhere except nested
-// function literals (which lower on their own).
-func (fc *funcLower) rewriteYields(types []syntax.Expr) {
-	fc.body.List = fc.rewriteYieldList(fc.body.List)
-}
-
-// rewriteYieldList rewrites one statement list.
 func (fc *funcLower) rewriteYieldList(list []syntax.Stmt) []syntax.Stmt {
 	for i, s := range list {
 		list[i] = fc.rewriteYieldStmt(s)
@@ -155,7 +109,6 @@ func (fc *funcLower) rewriteYieldList(list []syntax.Stmt) []syntax.Stmt {
 	return list
 }
 
-// rewriteYieldStmt rewrites one statement, returning its replacement.
 func (fc *funcLower) rewriteYieldStmt(s syntax.Stmt) syntax.Stmt {
 	switch s := s.(type) {
 	case *syntax.YieldStmt:
@@ -195,13 +148,12 @@ func (fc *funcLower) rewriteYieldStmt(s syntax.Stmt) syntax.Stmt {
 		s.Stmt = fc.rewriteYieldStmt(s.Stmt)
 		return s
 	case *syntax.GroupStmt:
-		return fc.yieldGroupStmt(s) // M8-S2 hook: yields stay synchronous in group bodies.
+		return fc.yieldGroupStmt(s)
 	default:
 		return s
 	}
 }
 
-// lowerYieldStmt rewrites `yield e` to `if !_logos_yield(e) { return }`.
 func (fc *funcLower) lowerYieldStmt(s *syntax.YieldStmt) syntax.Stmt {
 	fl := fc.fl
 	pos := s.Pos()
@@ -211,22 +163,21 @@ func (fc *funcLower) lowerYieldStmt(s *syntax.YieldStmt) syntax.Stmt {
 	call := callOf(pos, nameOf(pos, yieldParam), args)
 	cond := at(&syntax.Operation{Op: syntax.Not, X: call}, pos)
 	native := ifOf(pos, nil, cond, []syntax.Stmt{returnOf(pos, nil)})
-	valStart := fl.off(syntax.StartPos(s.Value))
-	valEnd := fl.off(syntax.EndPos(s.Value))
+	valStart := fl.off(pos) + len("yield")
+	valEnd := fl.exprSpan(vals[len(vals)-1]).end
+	tail := fl.wrapperTail(vals[len(vals)-1])
 	fl.addT(fl.off(pos), valEnd, cat(
 		gen("if !"+yieldParam+"("),
-		fl.textOf(span{start: valStart, end: valEnd}),
+		fl.lazyText(span{start: valStart, end: valEnd}),
+		tail,
 		gen(") { return }")))
 	return native
 }
 
-// dropReturnValues erases the values of a generator `return`, leaving a
-// bare stop. The values are discarded: the function always returns the
-// iterator closure built by lowerYield.
 func (fc *funcLower) dropReturnValues(s *syntax.ReturnStmt) {
 	fl := fc.fl
 	vals := syntax.UnpackListExpr(s.Results)
-	start := fl.off(syntax.StartPos(vals[0]))
-	end := fl.off(syntax.EndPos(vals[len(vals)-1]))
-	fl.add(start, end, "")
+	end := fl.exprSpan(vals[len(vals)-1]).end
+	_ = fl.wrapperTail(vals[len(vals)-1])
+	fl.moveRegion(span{start: fl.off(s.Pos()) + len("return"), end: end}, "")
 }

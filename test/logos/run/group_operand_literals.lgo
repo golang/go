@@ -1,0 +1,121 @@
+// run
+
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"sync/atomic"
+	"time"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type load struct {
+	cur, peak, ran atomic.Int32
+}
+
+func (l *load) hold() {
+	n := l.cur.Add(1)
+	for {
+		p := l.peak.Load()
+		if n <= p || l.peak.CompareAndSwap(p, n) {
+			break
+		}
+	}
+	time.Sleep(10 * time.Millisecond)
+	l.cur.Add(-1)
+	l.ran.Add(1)
+}
+
+func ownContext(f func() context.Context) context.Context { return f() }
+
+func apply(f func() int) int { return f() }
+
+func two() int { return 2 }
+
+func limitLiteral(ctx context.Context, l *load) error {
+	go group (ctx, limit = func() int { return 2 }()) {
+		for range 4 {
+			go {
+				l.hold()
+			}
+		}
+	}
+	return nil
+}
+
+func limitCallWithLiteral(ctx context.Context, l *load) error {
+	go group (ctx, limit = apply(func() int { return 2 })) {
+		for range 4 {
+			go {
+				l.hold()
+			}
+		}
+	}
+	return nil
+}
+
+func ctxCallWithLiteral(ctx context.Context, l *load) error {
+	go group (ownContext(func() context.Context { return ctx }), limit = 1) {
+		for range 3 {
+			go {
+				l.hold()
+			}
+		}
+	}
+	return nil
+}
+
+func bothLiterals(ctx context.Context, l *load) error {
+	go group (ownContext(func() context.Context { return ctx }), limit = func() int { return 2 }()) {
+		for range 4 {
+			go {
+				l.hold()
+			}
+		}
+	}
+	return nil
+}
+
+func limitCall(ctx context.Context, l *load) error {
+	go group (ctx, limit = two()) {
+		for range 4 {
+			go {
+				l.hold()
+			}
+		}
+	}
+	return nil
+}
+
+func bounded(name string, f func(context.Context, *load) error, limit, n int32) {
+	var l load
+	err := f(context.Background(), &l)
+	if err != nil {
+		check(name, false, err, "no error")
+		return
+	}
+	check(name, l.ran.Load() == n && l.peak.Load() <= limit, fmt.Sprint(l.ran.Load(), " ", l.peak.Load()), fmt.Sprint(n, " <=", limit))
+}
+
+func main() {
+	bounded("limit-is-a-call-of-a-function-literal", limitLiteral, 2, 4)
+	bounded("limit-is-a-call-holding-a-function-literal", limitCallWithLiteral, 2, 4)
+	bounded("context-is-a-call-holding-a-function-literal", ctxCallWithLiteral, 1, 3)
+	bounded("context-and-limit-hold-function-literals", bothLiterals, 2, 4)
+	bounded("limit-is-a-plain-call", limitCall, 2, 4)
+	if failed {
+		os.Exit(1)
+	}
+}

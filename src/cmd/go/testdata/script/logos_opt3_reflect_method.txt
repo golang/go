@@ -1,0 +1,84 @@
+# Reflect method lookup must keep the target method reachable at every
+# -O level. -O=3 raises the inliner budget enough to inline
+# reflect.Value.Method into the caller, erasing the call the linker
+# reachability mark depends on and pruning the method.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+go build -O=0 -o $WORK/r0 .
+exec $WORK/r0
+stdout 'called'
+stdout 'ok'
+exec $WORK/r0
+stdout 'called'
+stdout 'ok'
+exec $WORK/r0
+stdout 'called'
+stdout 'ok'
+
+go build -O=1 -o $WORK/r1 .
+exec $WORK/r1
+stdout 'called'
+stdout 'ok'
+exec $WORK/r1
+stdout 'called'
+stdout 'ok'
+exec $WORK/r1
+stdout 'called'
+stdout 'ok'
+
+go build -O=2 -o $WORK/r2 .
+exec $WORK/r2
+stdout 'called'
+stdout 'ok'
+exec $WORK/r2
+stdout 'called'
+stdout 'ok'
+exec $WORK/r2
+stdout 'called'
+stdout 'ok'
+
+go build -O=3 -o $WORK/r3 .
+exec $WORK/r3
+stdout 'called'
+stdout 'ok'
+exec $WORK/r3
+stdout 'called'
+stdout 'ok'
+exec $WORK/r3
+stdout 'called'
+stdout 'ok'
+
+go build -O=s -o $WORK/rs .
+exec $WORK/rs
+stdout 'called'
+stdout 'ok'
+exec $WORK/rs
+stdout 'called'
+stdout 'ok'
+exec $WORK/rs
+stdout 'called'
+stdout 'ok'
+
+-- go.mod --
+module example.com/reflectmethod
+
+go 1.27
+-- main.go --
+package main
+
+import (
+	"fmt"
+	"reflect"
+)
+
+type M int
+
+func (m M) UniqueMethodName() {
+	fmt.Println("called")
+}
+
+func main() {
+	reflect.ValueOf(M(0)).Method(0).Interface().(func())()
+	fmt.Println("ok")
+}

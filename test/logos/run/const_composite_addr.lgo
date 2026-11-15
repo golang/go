@@ -1,0 +1,69 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type box struct {
+	M map[string]int
+	L []int
+	A [3]int
+	N int
+}
+
+type wrap struct {
+	In box
+	K  int
+}
+
+const cfg = box{M: map[string]int{"a": 1}, L: []int{1, 2, 3}, A: [3]int{1, 2, 3}, N: 7}
+
+const w = wrap{In: box{M: map[string]int{"z": 5}, N: 3}, K: 1}
+
+func main() {
+	n := &cfg.N
+	*n = 5
+	check("field", cfg.N == 7 && *n == 5, cfg.N, 7)
+
+	a := &cfg.A
+	a[0] = 9
+	check("array", cfg.A[0] == 1 && a[0] == 9, cfg.A[0], 1)
+
+	e := &cfg.A[1]
+	*e = 8
+	check("array-element", cfg.A[1] == 2 && *e == 8, cfg.A[1], 2)
+
+	m := &cfg
+	m.N = 4
+	m.A[2] = 6
+	check("whole", cfg.N == 7 && cfg.A[2] == 3 && len(cfg.M) == 1 && m.N == 4 && m.A[2] == 6, cfg.N, 7)
+
+	k := &w.In.N
+	*k = 6
+	check("nested-field", w.In.N == 3 && *k == 6, w.In.N, 3)
+
+	x := &cfg.N
+	y := &cfg.N
+	check("fresh-per-evaluation", x != y, x, y)
+
+	pm := cfg.M
+	check("map-field-readonly", len(cfg.M) == 1 && len(pm) == 1 && (pm["a"] ?? -1) == 1, len(pm), 1)
+
+	if failed {
+		os.Exit(1)
+	}
+}

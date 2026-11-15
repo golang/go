@@ -1,0 +1,119 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOEXPERIMENT=simd
+
+logos build -o $WORK/pair-native$GOEXE .
+exec $WORK/pair-native$GOEXE
+stdout '^1 2$'
+stdout '^10 20$'
+stdout '^3 99$'
+stdout '^\[0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15\]$'
+stdout '^\[16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31\]$'
+stdout '^5 7$'
+stdout '^11 22$'
+stdout '^panicked$'
+stdout '^pair ok$'
+cp stdout $WORK/native.txt
+
+[!exec:qemu-aarch64] skip 'qemu-aarch64 is required for the arm64 leg'
+env GOARCH=arm64
+logos build -o $WORK/pair-arm64$GOEXE .
+env GOARCH=
+
+exec qemu-aarch64 $WORK/pair-arm64$GOEXE
+stdout '^1 2$'
+stdout '^10 20$'
+stdout '^3 99$'
+stdout '^\[0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15\]$'
+stdout '^\[16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31\]$'
+stdout '^5 7$'
+stdout '^11 22$'
+stdout '^panicked$'
+stdout '^pair ok$'
+cp stdout $WORK/arm64.txt
+cmp $WORK/native.txt $WORK/arm64.txt
+
+-- go.mod --
+module example.com/paircross
+
+go 1.27
+
+-- main.lgo --
+package main
+
+import (
+	"fmt"
+	"simd/archsimd"
+	"sync/atomic"
+)
+
+type pair struct {
+	A int64
+	B int64
+}
+
+var atomicCell atomic.Int64
+
+var gp = &pair{A: 5, B: 6}
+func mutate() { gp.B = 7 }
+
+type vecPair struct {
+	A [16]byte
+	B [16]byte
+}
+
+func main() {
+	p := &pair{A: 1, B: 2}
+	fmt.Println(p.A, p.B)
+	p.A = 10
+	p.B = 20
+	fmt.Println(p.A, p.B)
+	q := &pair{A: 3, B: 4}
+	a := q.A
+	q.B = 99
+	b := q.B
+	fmt.Println(a, b)
+	c := gp.A
+	mutate()
+	d := gp.B
+	fmt.Println(c, d)
+	e := q.A
+	atomicCell.Add(1)
+	f := q.B
+	fmt.Println(e, f)
+	tail := []int64{11, 22}
+	fmt.Println(tail[0], tail[1])
+	v := &vecPair{
+		A: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+		B: [16]byte{16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31},
+	}
+	va := archsimd.LoadUint8x16Array(&v.A)
+	vb := archsimd.LoadUint8x16Array(&v.B)
+	var oa, ob [16]byte
+	va.StoreArray(&oa)
+	vb.StoreArray(&ob)
+	fmt.Println(oa)
+	fmt.Println(ob)
+	w := &vecPair{
+		A: [16]byte{32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47},
+		B: [16]byte{48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63},
+	}
+	wa := archsimd.LoadUint8x16Array(&w.A)
+	wb := archsimd.LoadUint8x16Array(&w.B)
+	var oc, od [16]byte
+	wa.StoreArray(&oc)
+	wb.StoreArray(&od)
+	fmt.Println(oc)
+	fmt.Println(od)
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				fmt.Println("panicked")
+			}
+		}()
+		s := []int64{1, 2}
+		i := 5
+		fmt.Println(s[i])
+	}()
+	fmt.Println("pair ok")
+}

@@ -1,0 +1,12 @@
+ok errdefer-child-fails
+ok errdefer-child-defer-order-before-join
+ok errdefer-child-succeeds-skipped
+ok errdefer-child-panic
+ok errdefer-child-goexit
+ok errdefer-child-sibling-cancelled
+ok errdefer-child-rollback-joins
+ok defer-try-child-joins-rollback
+ok defer-try-child-sets-rollback-error
+ok errdefer-child-nested-group
+ok errdefer-child-named-result
+ok errdefer-callee-of-call-form

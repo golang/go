@@ -1,0 +1,104 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+cd m
+logos run .
+cmp stdout expected.txt
+logos eject -o out
+cd out
+go run .
+cmp stdout ../expected.txt
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o upstream .
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout ../expected.txt
+
+-- m/go.mod --
+module example.com/constforkeys
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import (
+	"comptime"
+	"fmt"
+)
+
+type Fields struct { A, B, C int }
+type Record struct { i int }
+type Dict[T any] map[int]T
+type List[T any] []T
+type DictAlias[T any] = Dict[T]
+type ListAlias[T any] = List[T]
+type RecordOf[T any] struct { i T }
+type RecordAlias[T any] = RecordOf[T]
+
+func check(label string, ok bool) {
+	if !ok {
+		panic(label)
+	}
+	fmt.Println("ok", label)
+}
+
+func main() {
+	const for i, _ := range comptime.Fields[Fields]() {
+		m := map[int]int{i: i + 10}
+		mv, mok := m[i]
+		check("map-key", len(m) == 1 && mok && mv == i + 10)
+		a := [3]int{i: i + 10}
+		s := []int{i: i + 10}
+		compound := [3]int{i + 0: i + 10}
+		reverse := []int{2 - i: i + 10}
+		const for j, _ := range comptime.Fields[Fields]() {
+			nested := [3]int{i + 0: j + 10}
+			if nested[i] != j + 10 {
+				panic("nested-outer-index")
+			}
+		}
+		check("array-slice-index", a[i] == i + 10 && len(s) == i + 1 && s[i] == i + 10 && compound[i] == i + 10 && len(reverse) == 3 - i && reverse[2 - i] == i + 10)
+		r := Record{i: i}
+		check("struct-field-value", r.i == i)
+		n := map[int][]Record{i: {{i: i}}}
+		nv, nok := n[i]
+		aa := [3][3]int{i: {i: i + 10}}
+		ss := [][]int{i: {i: i + 10}}
+		ps := []*Record{{i: i}}
+		mm := map[int]map[int]int{i: {i: i + 10}}
+		mi, miok := mm[i]
+		miv, mivok := mi[i]
+		check("nested-elided", len(n) == 1 && nok && len(nv) == 1 && nv[0].i == i && aa[i][i] == i + 10 && len(ss) == i + 1 && len(ss[i]) == i + 1 && ss[i][i] == i + 10 && ps[0].i == i && miok && mivok && miv == i + 10)
+		d := Dict[int]{i: i + 10}
+		l := List[int]{i: i + 10}
+		g := RecordOf[int]{i: i}
+		dv, dok := d[i]
+		check("generic-defined", dok && dv == i + 10 && len(l) == i + 1 && l[i] == i + 10 && g.i == i)
+		da := DictAlias[int]{i: i + 10}
+		la := ListAlias[int]{i: i + 10}
+		ga := RecordAlias[int]{i: i}
+		dav, daok := da[i]
+		check("generic-alias", daok && dav == i + 10 && len(la) == i + 1 && la[i] == i + 10 && ga.i == i)
+	}
+}
+
+-- m/expected.txt --
+ok map-key
+ok array-slice-index
+ok struct-field-value
+ok nested-elided
+ok generic-defined
+ok generic-alias
+ok map-key
+ok array-slice-index
+ok struct-field-value
+ok nested-elided
+ok generic-defined
+ok generic-alias
+ok map-key
+ok array-slice-index
+ok struct-field-value
+ok nested-elided
+ok generic-defined
+ok generic-alias

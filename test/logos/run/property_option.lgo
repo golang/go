@@ -1,0 +1,144 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type Item struct {
+	N int
+}
+
+type Shown interface {
+	const Opt *Item?
+	const Num int?
+}
+
+type Slot interface {
+	Cur *Item?
+	Count int?
+}
+
+type Numbered interface {
+	const Num int?
+}
+
+type Holder struct : Shown, Slot {
+	Opt   *Item?
+	Num   int?
+	Cur   *Item?
+	Count int?
+}
+
+type Half struct : Numbered {
+	n int?
+}
+
+func (h Half) Num() int? {
+	return h.n
+}
+
+type OptFirst interface {
+	Cnt int?
+	W   int
+}
+
+type OptMiddle interface {
+	A int
+	// a comment between elements
+	Cnt int?
+
+	// another comment after a blank line
+	B string
+}
+
+type PtrMiddle interface {
+	A   int
+	Cur *Item?
+	B   string
+}
+
+type OptThenMethod interface {
+	Cnt   int?
+	Twice() int
+}
+
+type OptThenConst interface {
+	Cnt int?
+	const W int
+}
+
+type Rec struct : OptFirst, OptMiddle, PtrMiddle, OptThenMethod, OptThenConst {
+	Cnt int?
+	W   int
+	A   int
+	B   string
+	Cur *Item?
+}
+
+func (r Rec) Twice() int {
+	return (r.Cnt ?? 0) * 2
+}
+
+func nOf(p *Item?) int {
+	return p?.N ?? -1
+}
+
+func main() {
+	h := &Holder{Opt: &Item{N: 4}, Num: 7}
+	var s Shown = h
+	check("pointer-option-present", nOf(s.Opt) == 4, nOf(s.Opt), 4)
+	check("value-option-present", (s.Num ?? 0) == 7, s.Num ?? 0, 7)
+
+	var empty Shown = Holder{}
+	check("pointer-option-absent", nOf(empty.Opt) == -1, nOf(empty.Opt), -1)
+	check("value-option-absent", (empty.Num ?? 0) == 0, empty.Num ?? 0, 0)
+
+	var w Slot = h
+	check("slot-starts-absent", nOf(w.Cur) == -1, nOf(w.Cur), -1)
+	item := &Item{N: 9}
+	w.Cur = item
+	check("pointer-option-write", nOf(h.Cur) == 9, nOf(h.Cur), 9)
+	w.Cur = nil
+	check("pointer-option-write-none", nOf(h.Cur) == -1, nOf(h.Cur), -1)
+	w.Count = 3
+	check("value-option-write", (h.Count ?? 0) == 3, h.Count ?? 0, 3)
+	w.Count = nil
+	check("value-option-write-none", (h.Count ?? 7) == 7, h.Count ?? 7, 7)
+
+	var n Numbered = Half{n: 5}
+	check("method-sourced-option", (n.Num ?? 0) == 5, n.Num ?? 0, 5)
+	n = Half{}
+	check("method-sourced-option-absent", (n.Num ?? 0) == 0, n.Num ?? 0, 0)
+
+	rec := &Rec{Cnt: 7, W: 3, A: 1, B: "b", Cur: &Item{N: 5}}
+	var first OptFirst = rec
+	check("option-first", (first.Cnt ?? 0) == 7 && first.W == 3, first.Cnt ?? 0, 7)
+	var middle OptMiddle = rec
+	check("option-middle", (middle.Cnt ?? 0) == 7 && middle.A == 1 && middle.B == "b", middle.Cnt ?? 0, 7)
+	var ptr PtrMiddle = rec
+	check("pointer-option-middle", nOf(ptr.Cur) == 5 && ptr.A == 1 && ptr.B == "b", nOf(ptr.Cur), 5)
+	var method OptThenMethod = rec
+	check("option-then-method", method.Twice() == 14 && (method.Cnt ?? 0) == 7, method.Twice(), 14)
+	var cst OptThenConst = rec
+	check("option-then-const", (cst.Cnt ?? 0) == 7 && cst.W == 3, cst.Cnt ?? 0, 7)
+	first.Cnt = nil
+	check("option-first-write-none", (rec.Cnt ?? -1) == -1 && first.W == 3, rec.Cnt ?? -1, -1)
+
+	if failed {
+		os.Exit(1)
+	}
+}

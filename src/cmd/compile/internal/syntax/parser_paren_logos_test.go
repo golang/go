@@ -10,12 +10,6 @@ import (
 	"time"
 )
 
-// TestLogosParenNoBacktrack proves SPEC #38: `(` parses its element
-// list once and then branches. A backtracking parser would re-parse
-// every alternative at every level, so depth-500 nesting is infeasible
-// for anything but a single linear pass; completing the parse is the
-// proof. The 30s bound is orders of magnitude above the millisecond
-// single-pass cost, so it only trips on algorithmic blowup.
 func TestLogosParenNoBacktrack(t *testing.T) {
 	const depth = 500
 	var sb strings.Builder
@@ -33,8 +27,6 @@ func TestLogosParenNoBacktrack(t *testing.T) {
 	if d := time.Since(start); d > 30*time.Second {
 		t.Fatalf("depth-%d paren parse took %v, want well under 30s (single linear pass)", depth, d)
 	}
-	// Each level wraps exactly once around x: the single-element
-	// branch ran at every level, never a tuple, never dropped.
 	stmts := funcBodyStmts(t, f, "f")
 	if len(stmts) != 2 {
 		t.Fatalf("got %d statements, want 2 (_ = (...) and return)", len(stmts))

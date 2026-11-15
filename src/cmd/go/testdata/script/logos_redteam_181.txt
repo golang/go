@@ -1,7 +1,3 @@
-# REDTEAM #181 (SPEC Sec 8.3, T-301.1): a loop back-edge MUST restore the
-# watermark for iteration-local objects; a loop with only iteration-local
-# allocation MUST NOT grow arena use across iterations. This script runs the
-# bounded-watermark unit gates under the arena experiment.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 env GOEXPERIMENT=logosarena

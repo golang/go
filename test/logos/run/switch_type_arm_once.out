@@ -1,0 +1,12 @@
+ok stmt-chosen-int-arm
+ok stmt-only-int-arm-ran
+ok stmt-chosen-str-arm
+ok stmt-only-str-arm-ran
+ok stmt-chosen-default-arm
+ok stmt-only-default-arm-ran
+ok expr-chosen-int-arm
+ok expr-only-int-arm-ran
+ok expr-chosen-str-arm
+ok expr-only-str-arm-ran
+ok expr-chosen-default-arm
+ok expr-only-default-arm-ran

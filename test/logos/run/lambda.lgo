@@ -2,23 +2,49 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 func adder(n int) func(int) int {
 	return x => x + n
 }
 
+func plainAdder(n int) func(int) int {
+	return func(x int) int { return x + n }
+}
+
 func main() {
 	add3 := adder(3)
-	fmt.Println(add3(4))
+	check("arrow-captures-enclosing-param", add3(4) == 7 && add3(4) == plainAdder(3)(4), add3(4), 7)
 	f := 10
 	var g func() int = () => f
-	fmt.Println(g())
+	plainG := func() int { return f }
+	check("arrow-sees-current-variable-value", g() == 10 && g() == plainG(), g(), 10)
 	f = 20
-	fmt.Println(g())
+	check("arrow-captures-variable-not-value", g() == 20 && g() == plainG(), g(), 20)
 	var h func(int) int = x => {
 		y := x * 2
 		return y + 1
 	}
-	fmt.Println(h(5))
+	plainH := func(x int) int {
+		y := x * 2
+		return y + 1
+	}
+	check("arrow-block-body-returns-tail-value", h(5) == 11 && h(5) == plainH(5), h(5), 11)
+	if failed {
+		os.Exit(1)
+	}
 }

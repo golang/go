@@ -1,0 +1,66 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+logos run .
+stdout '^embedded ok$'
+logos eject -o out
+! grep 'WithEmbedded\) MarshalJSON' out/main.go
+grep 'Base\) MarshalJSON' out/main.go
+cd out
+go build ./...
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+cd ..
+
+-- m/go.mod --
+module example.com/jsonembedded
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"os"
+)
+
+type Base struct {
+	X int64 `json:"x"`
+}
+
+type WithEmbedded struct {
+	Base
+	Y string `json:"y"`
+}
+
+type embeddedMirror struct {
+	Base
+	Y     string `json:"y"`
+	NoGen any    `json:"-"`
+}
+
+func main() {
+	ev := WithEmbedded{Base: Base{X: 3}, Y: "y"}
+	got, err := json.Marshal(ev)
+	if err != nil {
+		fmt.Println("embedded marshal:", err)
+		os.Exit(1)
+	}
+	want, err := json.Marshal(embeddedMirror{Base: Base{X: 3}, Y: "y"})
+	if err != nil {
+		fmt.Println("embedded oracle:", err)
+		os.Exit(1)
+	}
+	if !bytes.Equal(got, want) {
+		fmt.Printf("embedded bytes %s, want %s\n", got, want)
+		os.Exit(1)
+	}
+	fmt.Println("embedded ok")
+}

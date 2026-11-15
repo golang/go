@@ -9,47 +9,28 @@ import (
 	. "internal/types/errors"
 )
 
-// This file gives the M5-S4 const map view its standard-library rule (SPEC
-// T-201, T-Sec9): a const map passes to a standard-library parameter only
-// when that parameter is read-only (fact ParamMutated=0).
-//
-// Facts travel in __.LOGOS, and no standard-library package carries that
-// member: the compiler writes facts only for loGo/s packages (noder
-// logosGoCallerHook never lowers Go packages), so the fact reader has
-// nothing to read for "maps". This table is the stand-in until std facts
-// exist. Each entry lists the parameters the function mutates as a bit
-// mask (bit i set means parameter i is mutated, the ParamMutated encoding).
-// A function missing from the table fails closed, as a const view
-// argument always did. An admitted imported const func takes the same
-// read-only path as a same-package const func (see logosConstMapReadOnly).
-
-// logosStdMutatedParams maps "importpath.Func" to its ParamMutated mask.
 var logosStdMutatedParams = map[string]uint64{
-	"fmt.Print":          0,
-	"fmt.Printf":         0,
-	"fmt.Println":        0,
-	"fmt.Sprint":         0,
-	"fmt.Sprintf":        0,
-	"fmt.Sprintln":       0,
-	"fmt.Append":         0,
-	"fmt.Appendf":        0,
-	"fmt.Appendln":       0,
-	"maps.All":        0, // m: read
-	"maps.Clone":      0, // m: read
-	"maps.Collect":    0, // no map parameter
-	"maps.Copy":       1, // dst: written; src: read
-	"maps.DeleteFunc": 1, // m: deleted from
-	"maps.Equal":      0, // m1, m2: read
-	"maps.EqualFunc":  0, // m1, m2: read
-	"maps.Insert":     1, // m: written
-	"maps.Keys":       0, // m: read
-	"maps.Values":     0, // m: read
+	"fmt.Print":       0,
+	"fmt.Printf":      0,
+	"fmt.Println":     0,
+	"fmt.Sprint":      0,
+	"fmt.Sprintf":     0,
+	"fmt.Sprintln":    0,
+	"fmt.Append":      0,
+	"fmt.Appendf":     0,
+	"fmt.Appendln":    0,
+	"maps.All":        0,
+	"maps.Clone":      0,
+	"maps.Collect":    0,
+	"maps.Copy":       1,
+	"maps.DeleteFunc": 1,
+	"maps.Equal":      0,
+	"maps.EqualFunc":  0,
+	"maps.Insert":     1,
+	"maps.Keys":       0,
+	"maps.Values":     0,
 }
 
-// logosImportedCallMask resolves the callee of call when it names a function
-// of an imported package (pkg.F). It returns the callee's ParamMutated mask
-// from the table, whether the callee is imported at all, and whether the table
-// knows it.
 func logosImportedCallMask(check *Checker, call *syntax.CallExpr) (mask uint64, imported, known bool) {
 	sel, ok := call.Fun.(*syntax.SelectorExpr)
 	if !ok {
@@ -67,10 +48,6 @@ func logosImportedCallMask(check *Checker, call *syntax.CallExpr) (mask uint64, 
 	return mask, true, known
 }
 
-// logosImportedCallee resolves the callee of call when it names a function
-// of an imported package (pkg.F), reporting the import path and object name.
-// It mirrors logosImportedCallMask's qualifier resolution and additionally
-// fails closed when the qualifier's package is unavailable.
 func logosImportedCallee(check *Checker, call *syntax.CallExpr) (path, name string, ok bool) {
 	sel, ok := call.Fun.(*syntax.SelectorExpr)
 	if !ok {
@@ -87,14 +64,10 @@ func logosImportedCallee(check *Checker, call *syntax.CallExpr) (path, name stri
 	return pkg.Imported().Path(), sel.Sel.Value, true
 }
 
-// logosConstMapKeyOK reports whether a const map key of type t has a base
-// hash the lowering can compute (SPEC T-Sec9): strings, numbers, and bools,
-// and structs and arrays of them. Interfaces, pointers, channels, and complex
-// numbers have none.
 func logosConstMapKeyOK(t Type) bool {
 	switch u := t.Underlying().(type) {
 	case *Basic:
-		return u.info&(IsString|IsBoolean|IsInteger|IsFloat) != 0
+		return u.info&(IsString|IsBoolean|IsInteger|IsFloat|IsComplex) != 0
 	case *Struct:
 		for i := range u.NumFields() {
 			if f := u.Field(i); f.Name() != "_" && !logosConstMapKeyOK(f.Type()) {
@@ -108,16 +81,6 @@ func logosConstMapKeyOK(t Type) bool {
 	return false
 }
 
-// logosConstMapReadOnly reports whether argument i of call may take a const
-// map's materialized copy. An imported callee decides by its table mask,
-// except an admitted imported const func, which decides like a same-package
-// const func: both evaluate in the caller's CTFE with deep-copied arguments
-// (copyArg copies maps, slices, arrays and structs recursively), so a write
-// through a parameter stays in the callee and never reaches the caller's
-// recorded const value. A function of this package takes it only when the
-// callee is a const func. The purity check covers package variables only, so
-// it is not the guard here. Every other .lgo parameter fails closed, as
-// T-201 requires for non-const parameters of .lgo functions.
 func (check *Checker) logosConstMapReadOnly(call *syntax.CallExpr, imported, known bool, mask uint64, i int) bool {
 	if imported {
 		if known && i < 64 && mask&(1<<uint(i)) == 0 {
@@ -143,14 +106,6 @@ func (check *Checker) logosConstMapReadOnly(call *syntax.CallExpr, imported, kno
 	return ok && consts[fd]
 }
 
-// logosConstMapArgs decides the const map arguments of a call before type
-// inference (SPEC T-201, T-Sec9). A const map reaches a const parameter as its
-// view. Every other parameter takes the materialized map (the element type),
-// which is what inference must see for a ~map[K]V constraint, unless the
-// callee mutates it: a standard-library function the table marks mutating
-// (maps.DeleteFunc), an imported function the table does not know, and a
-// non-const function of this package all fail with const_view_mutation. A
-// const func of this package takes the materialized copy.
 func (check *Checker) logosConstMapArgs(call *syntax.CallExpr, sigParams *Tuple, args []*operand) {
 	if !check.conf.Logos || sigParams == nil {
 		return

@@ -8,9 +8,6 @@ import (
 	"testing"
 )
 
-// TestNextShadowedZeroNamesStayTasks pins PR2 VV2t: a name that spells a
-// zero value is a zero only when its object is the universe constant.
-// Shadowed spellings must not rewrite to ?.
 func TestNextShadowedZeroNamesStayTasks(t *testing.T) {
 	imp := newTestImporter(t)
 	call := "func op() error { return nil }\n"

@@ -18,172 +18,127 @@ import (
 	"time"
 )
 
-// defaultDebounce is how long the proxy waits after the last edit before
-// it recompiles in the background.
-const defaultDebounce = 300 * time.Millisecond
-
-// stopGrace is how long a stopping proxy waits for gopls to exit before it
-// kills it.
 const stopGrace = 3 * time.Second
 
-// drainLimit is how long a proxy whose client closed its output waits for
-// the answers to the requests still in flight.
 const drainLimit = 30 * time.Second
 
-// Options configures a Proxy.
+const outboxCap = 64
+
+const outboxStall = 2 * time.Second
+
+const maxPending = 1024
+
+const maxDiagURIs = 4096
+
+const maxDocBytes = 8 << 20
+
+const maxLowerErrs = 64
+
+const maxHintTasks = 4
+
 type Options struct {
-	// Gopls is the command that runs gopls over stdio, program first.
 	Gopls []string
 
-	// Env is the environment of gopls; nil inherits the proxy's.
 	Env []string
 
-	// Stderr receives the stderr of gopls and the proxy's own log lines;
-	// nil means os.Stderr.
 	Stderr io.Writer
 
-	// Compiler lowers sources and reports compiler diagnostics.
 	Compiler Compiler
 
-	// Debounce is the delay between the last edit and the background
-	// recompile. Zero means 300 ms; a negative value turns background
-	// recompiles off, leaving the recompile before each request and on
-	// open and save.
-	Debounce time.Duration
-
-	// Hints serves compiler hints for inlayHint and hover requests, and
-	// HintsJSON produces the hints JSON of one package. Both nil means the
-	// proxy serves only what gopls reports. See HintsFunc.
 	Hints     HintsFunc
 	HintsJSON HintsJSONFunc
 
-	// CodeActions adds the code actions of the compiler autofix candidates
-	// to the answer of a codeAction request. See CodeActionsFunc.
 	CodeActions CodeActionsFunc
 }
 
-// document is an open document of the client.
-type document struct {
-	uri     string
-	path    string
-	version int
-	text    *text
-}
-
-// unit is one open package directory: the dependency closure it was last
-// compiled with, and what that compile produced.
-type unit struct {
-	dir   string
-	dirs  map[string]bool
-	paths map[string]bool
-	diags []Diagnostic
-	dirty bool
-
-	// diagVersions holds the version of each open document at the time diags
-	// was computed, so diagnostics are never shown against a newer text.
-	diagVersions map[string]int
-
-	// gen counts the changes of the unit's inputs and results, so work
-	// computed from an older state is never stored as current.
-	gen int
-
-	hints   json.RawMessage
-	hintsOK bool
-}
-
-// virtDoc is a lowered document open in gopls.
 type virtDoc struct {
 	lw      *lowered
 	version int
 }
 
-// serverDiags are the diagnostics gopls last published for one document,
-// with the version of the document they describe.
 type serverDiags struct {
 	version int
 	hasVer  bool
 	raw     json.RawMessage
 }
 
-// pending is a request forwarded to gopls whose response is yet to come.
-// It keeps the tables the request was mapped with, so the response maps
-// back through the same lowerings even when a recompile has replaced them.
-// A codeAction request also keeps the version of the document it was
-// asked about, so a crossed edit drops the whole codeAction answer
-// instead of mixing the old range with new diagnostics.
 type pending struct {
-	method string
-	path   string
-	lw     *lowered
-	tb     *tables
-	params json.RawMessage
-	// fixVersion is the version of the document at request time, and
-	// fixHas reports whether the document was open then. Only codeAction
-	// requests set them.
+	method     string
+	path       string
+	lw         *lowered
+	tb         *tables
+	params     json.RawMessage
 	fixVersion int
 	fixHas     bool
 }
 
-// Proxy sits between an LSP client and gopls. Positions and URIs of loGo/s
-// sources travel to gopls as the lowered Go documents the compiler produces
-// for them, and travel back as positions in the sources.
 type Proxy struct {
 	opts   Options
 	client *writer
 	server *writer
 	tables atomic.Pointer[tables]
 
-	// work serializes every sequence that compiles, updates the lowered
-	// documents of gopls, or forwards a request to it, so a request always
-	// meets the lowerings it was mapped with. It is never taken by the
-	// loop that reads gopls.
 	work sync.Mutex
 
-	// pub serializes diagnostics publication.
 	pub sync.Mutex
 
-	// tasks counts the background work: the debounce timer callback and
-	// the hint merges.
-	tasks sync.WaitGroup
+	tasks   sync.WaitGroup
+	hintSem chan struct{}
+	st      store
 
-	mu       sync.Mutex
-	docs     map[string]*document
-	units    map[string]*unit
-	files    map[string]*lowered
-	virt     map[string]*virtDoc
-	pending  map[string]pending
-	srvDiags map[string]serverDiags
-	sent     map[string]string
-	timer      *time.Timer
-	stopped    bool
-	shutdown   bool
-	settled    chan struct{}
+	mu            sync.Mutex
+	files         map[string]*lowered
+	virt          map[string]*virtDoc
+	rootsMu       sync.RWMutex
+	roots         []string
+	pending       map[string]pending
+	srvDiags      map[string]serverDiags
+	sent          map[string]string
+	lowerErr      map[string]error
+	toClient      chan *message
+	toServer      chan *message
+	done          chan struct{}
+	cancel        context.CancelFunc
+	in            io.Reader
+	sendErr       error
+	clientPending atomic.Int64
+	clientServed  atomic.Int64
+	serverServed  atomic.Int64
+	failed        atomic.Bool
+	stopMu        sync.Mutex
+	stopped       bool
+	shutdown      bool
+	ended         bool
+	endedErr      error
+	settled       chan struct{}
+
 	lastLogErr error
 }
 
-// newProxy returns a proxy writing client messages to out.
 func newProxy(out io.Writer, opts Options) *Proxy {
 	if opts.Stderr == nil {
 		opts.Stderr = os.Stderr
 	}
-	opts.Debounce = cmp.Or(opts.Debounce, defaultDebounce)
 	p := &Proxy{
 		opts:     opts,
 		client:   &writer{w: out},
-		docs:     make(map[string]*document),
-		units:    make(map[string]*unit),
 		files:    make(map[string]*lowered),
 		virt:     make(map[string]*virtDoc),
 		pending:  make(map[string]pending),
 		srvDiags: make(map[string]serverDiags),
 		sent:     make(map[string]string),
+		lowerErr: make(map[string]error),
+		toClient: make(chan *message, outboxCap),
+		toServer: make(chan *message, outboxCap),
+		done:     make(chan struct{}),
+		hintSem:  make(chan struct{}, maxHintTasks),
 		settled:  make(chan struct{}, 1),
 	}
+	p.st.init()
 	p.tables.Store(&tables{})
 	return p
 }
 
-// logf writes one line to the proxy's log.
 func (p *Proxy) logf(format string, args ...any) {
 	if _, err := fmt.Fprintf(p.opts.Stderr, "logos lsp: "+format+"\n", args...); err != nil {
 		p.mu.Lock()
@@ -192,26 +147,12 @@ func (p *Proxy) logf(format string, args ...any) {
 	}
 }
 
-// server is the running gopls process. done closes when the loop that
-// reads its output has ended, and err then holds why. reap alone waits for
-// cmd, and kills it when it ignores the closed input; exec.CommandContext
-// also kills it when the context given to start ends.
 type server struct {
 	cmd  *exec.Cmd
 	done chan struct{}
 	err  error
 }
 
-// reap waits for gopls to end after its input is closed, kills it when it
-// outlives stopGrace, and collects the process. Whatever it returns, gopls
-// is waited for. ctx is the context given to start.
-//
-// It returns how gopls ended only when a clean exit or a signal sent on
-// purpose does not explain it: reap's own kill, or the kill that the
-// cancellation of ctx delivers. A kill that finds gopls already gone is no
-// error. A kill that fails is returned together with the wait error; reap
-// still waits for the process then, because returning without Wait would
-// leave the child unreaped, and a canceled ctx may still end it.
 func (s *server) reap(ctx context.Context) error {
 	var errs []error
 	killed := false
@@ -235,11 +176,6 @@ func (s *server) reap(ctx context.Context) error {
 	return errors.Join(errs...)
 }
 
-// Serve runs a proxy that reads client messages from in and writes
-// responses and notifications to out, until the client sends exit, closes
-// in, or gopls dies. When the client closes in, the proxy first answers the
-// requests still in flight. It starts gopls itself, and stops it, and its
-// own background work, before it returns.
 func Serve(ctx context.Context, in io.Reader, out io.Writer, opts Options) error {
 	if len(opts.Gopls) == 0 || opts.Compiler == nil {
 		return errors.New("logos lsp: no gopls command or compiler")
@@ -251,6 +187,11 @@ func Serve(ctx context.Context, in io.Reader, out io.Writer, opts Options) error
 	if err != nil {
 		return err
 	}
+	p.mu.Lock()
+	p.cancel, p.in = cancelWork, in
+	p.mu.Unlock()
+	go p.pump(p.client, p.toClient)
+	go p.pump(p.server, p.toServer)
 	clientDone := make(chan struct{})
 	var clientErr error
 	go func() {
@@ -265,19 +206,25 @@ func Serve(ctx context.Context, in io.Reader, out io.Writer, opts Options) error
 		}
 	case <-srv.done:
 		err = cmp.Or(srv.err, errors.New("gopls exited unexpectedly"))
+		p.mu.Lock()
+		bye, byeErr := p.ended, p.endedErr
+		p.mu.Unlock()
+		if bye {
+			err = byeErr
+		}
+	}
+	if err == nil {
+		err = p.flushClient(workCtx)
 	}
 	p.stop(ctx, srv, cancelWork)
 	p.closeInput(in, clientDone)
 	p.mu.Lock()
 	logErr := p.lastLogErr
+	sendErr := p.sendErr
 	p.mu.Unlock()
-	return errors.Join(err, logErr)
+	return errors.Join(err, logErr, sendErr)
 }
 
-// closeInput closes the client's input, when it can be closed, to end the
-// loop that reads it, and waits for that loop, but not for long: a reader
-// that closing cannot interrupt, a terminal, may keep it for the life of
-// the process.
 func (p *Proxy) closeInput(in io.Reader, loopDone <-chan struct{}) {
 	if c, ok := in.(io.Closer); ok {
 		if err := c.Close(); err != nil {
@@ -290,8 +237,6 @@ func (p *Proxy) closeInput(in io.Reader, loopDone <-chan struct{}) {
 	}
 }
 
-// start launches gopls and the loop that forwards its messages. Canceling
-// ctx kills gopls; workCtx is the context of the proxy's own work.
 func (p *Proxy) start(ctx, workCtx context.Context) (*server, error) {
 	cmd := exec.CommandContext(ctx, p.opts.Gopls[0], p.opts.Gopls[1:]...)
 	cmd.Env = p.opts.Env
@@ -316,13 +261,11 @@ func (p *Proxy) start(ctx, workCtx context.Context) (*server, error) {
 	return srv, nil
 }
 
-// drain waits until no request is in flight, gopls is gone, or the limit
-// passes.
 func (p *Proxy) drain(gopls <-chan struct{}) {
 	limit := time.After(drainLimit)
 	for {
 		p.mu.Lock()
-		n := len(p.pending)
+		n := len(p.pending) + len(p.toClient) + len(p.toServer)
 		p.mu.Unlock()
 		if n == 0 {
 			return
@@ -337,22 +280,13 @@ func (p *Proxy) drain(gopls <-chan struct{}) {
 	}
 }
 
-// stop ends the background work, closes gopls's input, and waits for it,
-// killing it when it ignores the closed input, then releases the compiler.
-// No background work starts after stop marks the proxy stopped, and a
-// compile already running is canceled with cancelWork and awaited. An end
-// of gopls that the shutdown does not explain (see server.reap) goes to the
-// log; it does not change what Serve returns. ctx is the context given to
-// start.
 func (p *Proxy) stop(ctx context.Context, srv *server, cancelWork context.CancelFunc) {
-	p.mu.Lock()
+	p.stopMu.Lock()
 	p.stopped = true
-	if p.timer != nil && p.timer.Stop() {
-		p.tasks.Done()
-	}
-	p.mu.Unlock()
+	close(p.done)
 	cancelWork()
 	p.tasks.Wait()
+	p.stopMu.Unlock()
 	if c, ok := p.server.w.(io.Closer); ok {
 		if err := c.Close(); err != nil {
 			p.logf("closing gopls input: %v", err)
@@ -370,12 +304,17 @@ func (p *Proxy) stop(ctx context.Context, srv *server, cancelWork context.Cancel
 	}
 }
 
-// clientLoop handles client messages until the client exits. It returns
-// nil at the end of input, and an error for an exit without a shutdown.
 func (p *Proxy) clientLoop(ctx context.Context, rd *reader) error {
 	for {
 		m, err := rd.read()
+		if _, ok := errors.AsType[*parseError](err); ok {
+			p.fail(json.RawMessage("null"), codeParseError, "parse error")
+			continue
+		}
 		if errors.Is(err, io.EOF) {
+			p.mu.Lock()
+			p.ended = true
+			p.mu.Unlock()
 			return nil
 		}
 		if err != nil {
@@ -388,22 +327,25 @@ func (p *Proxy) clientLoop(ctx context.Context, rd *reader) error {
 	}
 }
 
-// exit forwards the exit notification and reports whether the client shut
-// the server down first.
 func (p *Proxy) exit(m *message) error {
-	p.send(p.server, m)
 	p.mu.Lock()
-	defer p.mu.Unlock()
+	endedErr := p.endedErr
 	if !p.shutdown {
-		return errors.New("logos lsp: exit without shutdown")
+		endedErr = errors.New("logos lsp: exit without shutdown")
 	}
-	return nil
+	p.ended, p.endedErr = true, endedErr
+	p.mu.Unlock()
+	p.send(p.server, m)
+	return endedErr
 }
 
-// serverLoop handles gopls messages until its output ends.
 func (p *Proxy) serverLoop(ctx context.Context, rd *reader) error {
 	for {
 		m, err := rd.read()
+		if _, ok := errors.AsType[*parseError](err); ok {
+			p.logf("gopls sent a bad frame: %v", err)
+			continue
+		}
 		if errors.Is(err, io.EOF) {
 			return nil
 		}
@@ -414,22 +356,152 @@ func (p *Proxy) serverLoop(ctx context.Context, rd *reader) error {
 	}
 }
 
-// send writes m to w and logs a failure. A failed write means the peer is
-// gone; the read loops notice that on their own.
-func (p *Proxy) send(w *writer, m *message) {
-	if err := w.write(m); err != nil {
-		p.logf("write: %v", err)
+func (p *Proxy) flushClient(ctx context.Context) error {
+	limit := time.NewTimer(stopGrace)
+	defer limit.Stop()
+	for {
+		n := p.clientPending.Load()
+		if err := p.sendError(); err != nil {
+			return err
+		}
+		if n == 0 {
+			return nil
+		}
+		select {
+		case <-p.settled:
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-limit.C:
+			return errors.New("logos lsp: timed out delivering client replies")
+		}
 	}
 }
 
-// addPending records the request id as awaiting its response.
+func (p *Proxy) send(w *writer, m *message) {
+	ch := p.toClient
+	if w == p.server {
+		ch = p.toServer
+	}
+	if w == p.client {
+		p.clientPending.Add(1)
+	}
+	queued := false
+	select {
+	case ch <- m:
+		queued = true
+	case <-p.done:
+	default:
+		queued = p.enqueueBounded(w, ch, m)
+	}
+	if w == p.client && !queued {
+		p.clientDelivered()
+	}
+}
+
+func (p *Proxy) enqueueBounded(w *writer, ch chan *message, m *message) bool {
+	if p.failed.Load() {
+		return false
+	}
+	served := &p.serverServed
+	if w == p.client {
+		served = &p.clientServed
+	}
+	delivered := served.Load()
+	timer := time.NewTimer(outboxStall)
+	defer timer.Stop()
+	for {
+		select {
+		case ch <- m:
+			return true
+		case <-timer.C:
+		case <-p.done:
+			return false
+		}
+		now := served.Load()
+		if now == delivered {
+			p.failSession(errors.New("logos lsp: outbound queue full"))
+			return false
+		}
+		delivered = now
+		timer.Reset(outboxStall)
+	}
+}
+
+func (p *Proxy) clientDelivered() {
+	p.clientPending.Add(-1)
+	select {
+	case p.settled <- struct{}{}:
+	default:
+	}
+}
+
+func (p *Proxy) pump(w *writer, ch chan *message) {
+	served := &p.serverServed
+	if w == p.client {
+		served = &p.clientServed
+	}
+	for {
+		select {
+		case m := <-ch:
+			if err := w.write(m); err != nil {
+				p.failSession(err)
+				return
+			}
+			served.Add(1)
+			if w == p.client {
+				p.clientDelivered()
+			}
+		case <-p.done:
+			return
+		}
+	}
+}
+
+func (p *Proxy) fail(id json.RawMessage, code int, text string) {
+	raw, err := json.Marshal(rpcError{Code: code, Message: text})
+	if err != nil {
+		p.logf("encoding an error: %v", err)
+		return
+	}
+	p.send(p.client, &message{ID: id, Error: raw})
+}
+
+func (p *Proxy) failSession(err error) {
+	p.failed.Store(true)
+	if !p.stopMu.TryLock() {
+		return
+	}
+	stopped := p.stopped
+	p.stopMu.Unlock()
+	if stopped {
+		return
+	}
+	p.mu.Lock()
+	if p.sendErr == nil {
+		p.sendErr = err
+	}
+	cancel, in := p.cancel, p.in
+	p.mu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
+	if c, ok := in.(io.Closer); ok && c != nil {
+		_ = c.Close()
+	}
+}
+
+func (p *Proxy) sendError() error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.sendErr
+}
+
 func (p *Proxy) addPending(id json.RawMessage, pend pending) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.pending[string(id)] = pend
 }
 
-// finish removes the request id from the pending set, and wakes a drain.
 func (p *Proxy) finish(id json.RawMessage) {
 	p.mu.Lock()
 	delete(p.pending, string(id))

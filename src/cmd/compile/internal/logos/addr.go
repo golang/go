@@ -6,22 +6,11 @@ package logos
 
 import (
 	"go/token"
-	"reflect"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/syntax"
 )
 
-// M6-S2 lowering of `&expr` over non-addressable operands (SPEC
-// T-104.5): each recorded operation becomes `new(expr)`, so every
-// evaluation yields a fresh variable. The native tree moves the operand
-// under a new call; the eject text replaces `&` with `new(` and closes
-// past the operand end. Small splices keep nested fresh operations
-// composable in input order.
-
-// lowerAddrFresh rewrites every fresh `&expr` of one file. It runs after
-// every pass that records splices inside operands, so operand text is
-// final when the closing splice lands.
 func (fl *fileLower) lowerAddrFresh() {
 	fresh := fl.pkg.info.LogosAddrFresh
 	if len(fresh) == 0 {
@@ -31,51 +20,16 @@ func (fl *fileLower) lowerAddrFresh() {
 		if n == nil {
 			return true
 		}
-		replaceAddrFresh(n, fresh, fl.lowerAddrOp)
+		replaceFieldExprs(n, anyInterfaceFields, func(x syntax.Expr) syntax.Expr {
+			if op, ok := x.(*syntax.Operation); ok && op.Op == syntax.And && fresh[op] {
+				return fl.lowerAddrOp(op)
+			}
+			return x
+		})
 		return true
 	})
 }
 
-// replaceAddrFresh replaces each recorded fresh `&` operation held
-// directly by n with repl of it. The caller walks n's children after
-// the call, so nested operations lower inside out through input-ordered
-// splices.
-func replaceAddrFresh(n syntax.Node, fresh map[syntax.Expr]bool, repl func(*syntax.Operation) syntax.Expr) {
-	v := reflect.ValueOf(n)
-	if v.Kind() != reflect.Pointer || v.IsNil() {
-		return
-	}
-	v = v.Elem()
-	if v.Kind() != reflect.Struct {
-		return
-	}
-	typ := v.Type()
-	for i := range v.NumField() {
-		if typ.Field(i).IsExported() {
-			replaceAddrField(v.Field(i), fresh, repl)
-		}
-	}
-}
-
-// replaceAddrField replaces a recorded fresh `&` operation held by the
-// interface value f, or by an element of the slice or array f.
-func replaceAddrField(f reflect.Value, fresh map[syntax.Expr]bool, repl func(*syntax.Operation) syntax.Expr) {
-	switch f.Kind() {
-	case reflect.Interface:
-		if f.IsNil() || !f.CanSet() {
-			return
-		}
-		if op, ok := f.Elem().Interface().(*syntax.Operation); ok && op.Op == syntax.And && fresh[op] {
-			f.Set(reflect.ValueOf(repl(op)))
-		}
-	case reflect.Slice, reflect.Array:
-		for i := range f.Len() {
-			replaceAddrField(f.Index(i), fresh, repl)
-		}
-	}
-}
-
-// lowerAddrOp lowers one fresh `&expr` to `new(expr)`.
 func (fl *fileLower) lowerAddrOp(e *syntax.Operation) syntax.Expr {
 	amp := fl.off(e.Pos())
 	fl.add(amp, amp+1, "new(")
@@ -84,15 +38,9 @@ func (fl *fileLower) lowerAddrOp(e *syntax.Operation) syntax.Expr {
 	return at(&syntax.CallExpr{Fun: nameOf(pos, "new"), ArgList: []syntax.Expr{e.X}}, pos)
 }
 
-// unaryOperandEnd returns the offset just past the unary operand opening
-// at from, where from holds the leading `&`. Depth-zero tokens that end
-// an operand stop the scan: binary operators, commas, semicolons,
-// colons, assignments, closing brackets, and block braces. Brackets of
-// any kind nest; a `?` followed by another `?` ends (the `??` fallback
-// binds looser than `&`), while any other `?` continues (postfix `?`
-// and `?.` bind tighter).
 func (fl *fileLower) unaryOperandEnd(from int) int {
-	end := len(fl.src)
+	last, lastBeforeQuestion := from, from
+	end := -1
 	const (
 		needOperand  = false
 		needOperator = true
@@ -109,10 +57,12 @@ func (fl *fileLower) unaryOperandEnd(from int) int {
 			return true
 		}
 		if t.auto {
-			end = t.start
+			end = last
 			done = true
 			return false
 		}
+		prev := last
+		last = t.end
 		if question >= 0 && t.kind != token.ILLEGAL {
 			question = -1
 		}
@@ -122,7 +72,7 @@ func (fl *fileLower) unaryOperandEnd(from int) int {
 			operator = needOperand
 		case token.RPAREN, token.RBRACK, token.RBRACE:
 			if depth == 0 {
-				end = t.start
+				end = prev
 				done = true
 				return false
 			}
@@ -130,7 +80,7 @@ func (fl *fileLower) unaryOperandEnd(from int) int {
 			operator = needOperator
 		case token.COMMA, token.SEMICOLON, token.COLON, token.ASSIGN, token.DEFINE:
 			if depth == 0 {
-				end = t.start
+				end = prev
 				done = true
 				return false
 			}
@@ -141,11 +91,12 @@ func (fl *fileLower) unaryOperandEnd(from int) int {
 			if string(fl.src[t.start:t.end]) == "?" {
 				if depth == 0 && operator {
 					if question >= 0 {
-						end = question
+						end = lastBeforeQuestion
 						done = true
 						return false
 					}
 					question = t.start
+					lastBeforeQuestion = prev
 				}
 				return true
 			}
@@ -154,14 +105,14 @@ func (fl *fileLower) unaryOperandEnd(from int) int {
 			operator = needOperand
 		case token.ARROW:
 			if depth == 0 && operator {
-				end = t.start
+				end = prev
 				done = true
 				return false
 			}
 		default:
 			if isUnaryOperandEndOp(t.kind) {
 				if depth == 0 && operator {
-					end = t.start
+					end = prev
 					done = true
 					return false
 				}
@@ -171,12 +122,12 @@ func (fl *fileLower) unaryOperandEnd(from int) int {
 		}
 		return true
 	})
+	if !done {
+		end = last
+	}
 	return end
 }
 
-// isUnaryOperandEndOp reports whether kind is a binary operator: one
-// that ends a unary operand after a complete operand but continues it
-// in operand position as a unary operator.
 func isUnaryOperandEndOp(kind token.Token) bool {
 	switch kind {
 	case token.ADD, token.SUB, token.MUL, token.QUO, token.REM,

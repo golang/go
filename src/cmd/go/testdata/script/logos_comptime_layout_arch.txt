@@ -1,0 +1,26 @@
+# SPEC 2.5: comptime.SizeOf, AlignOf, and HasPointers equal unsafe.Sizeof,
+# unsafe.Alignof, and the garbage collector pointer map of the lowered type on
+# the target. The run fixture compares each form with the compiled type on a
+# 64-bit and a 32-bit target and builds for arm64.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env CGO_ENABLED=0
+
+cp $GOROOT/test/logos/run/comptime_layout_forms.lgo a/main.lgo
+cd a
+
+env GOARCH=amd64
+logos run .
+cmp stdout $GOROOT/test/logos/run/comptime_layout_forms.out
+
+env GOARCH=386
+logos run .
+cmp stdout $GOROOT/test/logos/run/comptime_layout_forms.out
+
+env GOARCH=arm64
+logos build -o forms_arm64.exe .
+
+-- a/go.mod --
+module example.com/layoutforms
+
+go 1.27

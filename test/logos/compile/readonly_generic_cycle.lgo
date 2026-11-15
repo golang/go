@@ -1,0 +1,27 @@
+// compile
+
+package p
+
+type Mutual[T interface{ ~struct{ f U } }, U interface{ ~struct{ g T } }] struct {
+	v T
+}
+
+func (b *Mutual[T, U]) Get() T { return b.v }
+
+type SelfRef[T interface{ ~struct{ f T } }] struct {
+	v T
+}
+
+func (b *SelfRef[T]) Get() T { return b.v }
+
+type Ring[A interface{ ~struct{ f B } }, B interface{ ~struct{ g C } }, C interface{ ~struct{ h A } }] struct {
+	v A
+}
+
+func (b *Ring[A, B, C]) Get() A { return b.v }
+
+type Cells[T interface{ ~[1]U }, U interface{ ~[1]T }] struct {
+	v T
+}
+
+func (b *Cells[T, U]) Get() T { return b.v }

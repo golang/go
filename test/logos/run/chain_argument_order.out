@@ -1,13 +1,13 @@
-[10]
-[20 30]
-[20]
-[10]
-0
-[20 30]
-0
-[10]
-[take map]
-1 1
-[20]
-[drop map take]
-1 1 1
+ok take-map
+ok drop-map
+ok drop-map-take
+ok take-count-read-before-mapper
+ok take-mapper-ran
+ok drop-count-read-before-mapper
+ok drop-mapper-ran
+ok take-map-result
+ok take-map-order
+ok take-map-calls
+ok drop-map-take-result
+ok drop-map-take-order
+ok drop-map-take-calls

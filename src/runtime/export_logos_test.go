@@ -6,26 +6,48 @@ package runtime
 
 import "unsafe"
 
-// LogosEnterFastCallForTest records a fast-call entry on the current M and
-// reports the observed slots, timestamp, and flag.
-func LogosEnterFastCallForTest(arg unsafe.Pointer, now int64) (slots [4]uintptr, stamp int64, flag bool) {
+func LogosEnterFastCallForTest(arg unsafe.Pointer) (slots [4]uintptr, flag bool) {
 	mp := getg().m
-	logosRecordFastCall(mp, arg, now)
-	return mp.fastCgoFrame, mp.fastCallEnterNano, mp.inFastCall
+	logosRecordFastCall(mp, arg)
+	return mp.fastCgoFrame, mp.inFastCall
 }
 
-// LogosExitFastCallForTest clears a fast-call record on the current M and
-// reports the observed slots, timestamp, and flag.
-func LogosExitFastCallForTest() (slots [4]uintptr, stamp int64, flag bool) {
+func LogosExitFastCallForTest() (slots [4]uintptr, flag bool) {
 	mp := getg().m
 	logosClearFastCall(mp)
-	return mp.fastCgoFrame, mp.fastCallEnterNano, mp.inFastCall
+	return mp.fastCgoFrame, mp.inFastCall
+}
+func LogosFastCallStateForTest() (slots [4]uintptr, flag bool) {
+	mp := getg().m
+	return mp.fastCgoFrame, mp.inFastCall
 }
 
-// LogosGrowsliceBufForTest calls growsliceBuf for elements of the dynamic
-// type of elem, using buf (bufLen elements, already holding newLen-num
-// elements) as the backing store, and reports the resulting slice header.
+func LogosDirtyFastCallSlotsForTest(slots [4]uintptr, flag bool) {
+	mp := getg().m
+	mp.fastCgoFrame = slots
+	mp.inFastCall = flag
+}
+
+func LogosFastCallPassedMCheckForTest(arg unsafe.Pointer) (touchedCurrent, recordOK, clearOK bool) {
+	cur := getg().m
+	savedSlots := cur.fastCgoFrame
+	savedFlag := cur.inFastCall
+	fake := new(m)
+	logosRecordFastCall(fake, arg)
+	recordOK = fake.inFastCall && fake.fastCgoFrame[0] == uintptr(arg)
+	touchedCurrent = cur.inFastCall != savedFlag || cur.fastCgoFrame != savedSlots
+	logosClearFastCall(fake)
+	clearOK = !fake.inFastCall && fake.fastCgoFrame == [4]uintptr{}
+	cur.fastCgoFrame = savedSlots
+	cur.inFastCall = savedFlag
+	return touchedCurrent, recordOK, clearOK
+}
+
 func LogosGrowsliceBufForTest(elem any, buf unsafe.Pointer, bufLen, newLen, num int) (array unsafe.Pointer, length, capacity int) {
 	s := growsliceBuf(buf, newLen, bufLen, num, efaceOf(&elem)._type, buf, bufLen)
 	return s.array, s.len, s.cap
+}
+
+func SetLogosWaitAfterRegisterHookForTest(fn func()) {
+	logosWaitAfterRegisterHook = fn
 }

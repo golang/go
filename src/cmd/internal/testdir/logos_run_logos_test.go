@@ -17,22 +17,8 @@ import (
 	"time"
 )
 
-// logosGoTestModule is the throwaway main module for plain-Go twins under
-// test/logos. It matches the module staged for .lgo cases in runLogos
-// (module logostest, go 1.27) so `go` resolves the staged file inside the
-// test-local directory instead of walking up to an unrelated parent
-// go.mod such as /tmp/go.mod. Without a local go.mod, the go command
-// prints "go: warning: ignoring go.mod in system temp root /tmp" to
-// stderr; the harness merges stdout and stderr, so the warning alone
-// mismatches the .out fixture even when the program output is correct.
 var logosGoTestModule = []byte("module logostest\n\ngo 1.27\n")
 
-// runLogosGoIsolated runs one staged .go twin under test/logos (non-lint)
-// in a throwaway module. Staging, target pinning, -O handling, and output
-// enforcement mirror runLogos; only the module isolation lives here so the
-// shared runLogosGo recipes never observe a parent go.mod. Lint twins
-// already run in a throwaway module via runLogosLint and .lgo cases via
-// runLogosLgo, so the caller routes only non-lint .go here.
 func (t test) runLogosGoIsolated(c logosCase) error {
 	c = pinTargetFlags(c)
 	base := path.Base(t.goFile)
@@ -99,15 +85,6 @@ func (t test) runLogosGoIsolated(c logosCase) error {
 	return t.runLogosGo(c, base, tempDir, runcmd)
 }
 
-// runLogosGoAsmcheckIsolated runs one .go twin asmcheck case with the same
-// semantics as runLogosGoAsmcheck (expectations from the source tree file,
-// built with -S=2), except the linked binary goes to a throwaway -o path
-// under t.TempDir(). The shared runLogosGoAsmcheck builds without -o, so
-// `go build` writes the executable named after the source stem into the
-// test process working directory (src/cmd/internal/testdir), recreating
-// the stale logos_greentea_load blob on every run. Cases carrying
-// -O=<level> already build with -o via runLogosGoAsmcheckOpt, so they
-// delegate directly.
 func (t test) runLogosGoAsmcheckIsolated(c logosCase) error {
 	buildFlags, optFlags := splitOptFlags(c.flags)
 	long := filepath.Join(t.gorootTestDir, t.goFileName())

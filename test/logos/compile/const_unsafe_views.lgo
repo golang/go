@@ -1,0 +1,39 @@
+// errorcheck
+
+package p
+
+import "unsafe"
+
+func sliceConstLenStore(p const *int, n const int) {
+	s := unsafe.Slice(p, n)
+	s[0] = 9 // ERROR "const_view_mutation"
+}
+
+func sliceBadLen(p const *int) {
+	s := unsafe.Slice(p, -1) // ERROR "must not be negative"
+	s[0] = 9
+	_ = s
+}
+
+func sliceDataStore(v const []int) {
+	p := unsafe.SliceData(v)
+	*p = 1 // ERROR "const_view_mutation"
+}
+
+func stringDataStore(s const string) {
+	p := unsafe.StringData(s)
+	*p = 'x' // ERROR "const_view_mutation"
+}
+
+func addEscape(p const unsafe.Pointer) {
+	_ = (*byte)(unsafe.Add(p, 1)) // ERROR "const_view_escape"
+}
+
+func convEscape(p const unsafe.Pointer) {
+	_ = (*int)(p) // ERROR "const_view_escape"
+}
+
+func stringLenView(p const *byte, n const int) {
+	s := unsafe.String(p, n)
+	_ = s
+}

@@ -5,43 +5,21 @@
 package logos
 
 import (
-	"strings"
-
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types2"
+	"fmt"
 	"reflect"
 )
 
-// M5-S5 zero-copy conversions (SPEC Sec 2.1, T-201). A `string` becomes
-// a `const []byte` through unsafe.Slice(unsafe.StringData(s), len(s)),
-// and a `const []byte` whose value is string-derived or a fresh
-// composite literal becomes a `string` through
-// unsafe.String(unsafe.SliceData(b), len(b)). Every other const view
-// keeps the ordinary copying conversion.
-//
-// Soundness rests on three facts. Only plain names and literals are
-// rewritten, so no operand evaluates twice. A rewritten string source
-// is immutable, and a rewritten literal backing is fresh and reachable
-// only through const views, which the checker keeps mutation-free; a
-// view of a mutable slice stays a copy. Provenance meets
-// downgrade-only across each function body, so a later Other write
-// always wins. Package-level variables never qualify: cross-function
-// write order is invisible here.
-//
-// The parent wires one call into lower.go ahead of eraseConstViews,
-// which deletes the `const` markers this pass reads.
-
 type zeroCopy struct {
-	fl       *fileLower
-	info     *types2.Info
-	ok       map[*types2.Var]bool
-	seen     map[*types2.Var]bool
-	pkgVars  map[*types2.Var]bool
-	rewrite  bool
-	unsafeOK int
+	fl      *fileLower
+	info    *types2.Info
+	ok      map[*types2.Var]bool
+	seen    map[*types2.Var]bool
+	pkgVars map[*types2.Var]bool
 }
 
-// lowerZeroCopy rewrites the zero-copy conversions of one file.
 func (fl *fileLower) lowerZeroCopy() {
 	z := &zeroCopy{
 		fl:      fl,
@@ -49,10 +27,6 @@ func (fl *fileLower) lowerZeroCopy() {
 		ok:      make(map[*types2.Var]bool),
 		seen:    make(map[*types2.Var]bool),
 		pkgVars: make(map[*types2.Var]bool),
-	}
-	if z.scanFile() {
-		z.eraseSurvivingConstFuns()
-		return
 	}
 	for _, decl := range fl.file.DeclList {
 		if vd, ok := decl.(*syntax.VarDecl); ok {
@@ -65,17 +39,9 @@ func (fl *fileLower) lowerZeroCopy() {
 	}
 	syntax.Inspect(fl.file, func(n syntax.Node) bool { z.collect(n); return true })
 	syntax.Inspect(fl.file, func(n syntax.Node) bool { return z.visit(n) })
-	if z.rewrite {
-		z.ensureUnsafeImport()
-	}
 	z.eraseSurvivingConstFuns()
 }
 
-// eraseSurvivingConstFuns erases every ConstType conversion function
-// the rewrite left behind: non-bytes targets, operands the unsafe
-// forms cannot take, and shadow-pruned regions all keep the ordinary
-// copying conversion. eraseConstViews never visits CallExpr funs, so
-// without this the recheck would reject the admitted conversion.
 func (z *zeroCopy) eraseSurvivingConstFuns() {
 	syntax.Inspect(z.fl.file, func(n syntax.Node) bool {
 		if call, ok := n.(*syntax.CallExpr); ok {
@@ -87,8 +53,6 @@ func (z *zeroCopy) eraseSurvivingConstFuns() {
 	})
 }
 
-// eraseConstFun replaces ConstType layers with their elements,
-// splicing each `const ` prefix out of the eject text.
 func (z *zeroCopy) eraseConstFun(e syntax.Expr) syntax.Expr {
 	for {
 		c, ok := e.(*syntax.ConstType)
@@ -104,91 +68,11 @@ func (z *zeroCopy) eraseConstFun(e syntax.Expr) syntax.Expr {
 	}
 }
 
-// visit runs the rewrite step with shadowing-safe function pruning.
 func (z *zeroCopy) visit(n syntax.Node) bool {
-	switch n := n.(type) {
-	case *syntax.FuncDecl:
-		if n.Body != nil && z.funcShadowed(n.Body) {
-			return false
-		}
-	case *syntax.FuncLit:
-		if z.funcShadowed(n.Body) {
-			return false
-		}
-	}
 	z.rewriteNode(n)
 	return true
 }
 
-// scanFile rejects files where synthesized unsafe or len names collide.
-func (z *zeroCopy) scanFile() bool {
-	bad := false
-	for _, decl := range z.fl.file.DeclList {
-		switch n := decl.(type) {
-		case *syntax.VarDecl:
-			for _, name := range n.NameList {
-				bad = bad || name.Value == "unsafe" || name.Value == "len"
-			}
-		case *syntax.ConstDecl:
-			for _, name := range n.NameList {
-				bad = bad || name.Value == "unsafe" || name.Value == "len"
-			}
-		case *syntax.FuncDecl:
-			if n.Recv == nil {
-				bad = bad || n.Name.Value == "unsafe" || n.Name.Value == "len"
-			}
-		case *syntax.TypeDecl:
-			bad = bad || n.Name.Value == "unsafe" || n.Name.Value == "len"
-		case *syntax.ImportDecl:
-			if n.LocalPkgName != nil && (n.LocalPkgName.Value == "unsafe" || n.LocalPkgName.Value == "len") {
-				return true
-			}
-			if n.Path != nil && n.Path.Value == `"unsafe"` {
-				if n.LocalPkgName == nil || n.LocalPkgName.Value == "unsafe" {
-					z.unsafeOK = 2
-				} else {
-					return true
-				}
-			}
-		}
-	}
-	return bad
-}
-
-// funcShadowed reports bindings of unsafe or len inside one body.
-func (z *zeroCopy) funcShadowed(body *syntax.BlockStmt) bool {
-	shadowed := false
-	syntax.Inspect(body, func(n syntax.Node) bool {
-		switch n := n.(type) {
-		case *syntax.VarDecl:
-			for _, name := range n.NameList {
-				shadowed = shadowed || name.Value == "unsafe" || name.Value == "len"
-			}
-		case *syntax.AssignStmt:
-			if n.Op == syntax.Def {
-				for _, lhs := range unlistExpr(n.Lhs) {
-					if name, ok := syntax.Unparen(lhs).(*syntax.Name); ok {
-						shadowed = shadowed || name.Value == "unsafe" || name.Value == "len"
-					}
-				}
-			}
-		case *syntax.FuncType:
-			for _, list := range [][]*syntax.Field{n.ParamList, n.ResultList} {
-				for _, f := range list {
-					if f.Name != nil {
-						shadowed = shadowed || f.Name.Value == "unsafe" || f.Name.Value == "len"
-					}
-				}
-			}
-		case *syntax.TypeDecl:
-			shadowed = shadowed || n.Name.Value == "unsafe" || n.Name.Value == "len"
-		}
-		return !shadowed
-	})
-	return shadowed
-}
-
-// collect records const-view variable provenance, downgrade-only.
 func (z *zeroCopy) collect(n syntax.Node) {
 	switch n := n.(type) {
 	case *syntax.VarDecl:
@@ -230,7 +114,6 @@ func (z *zeroCopy) collect(n syntax.Node) {
 	}
 }
 
-// setVar meets one write into downgrade-only provenance.
 func (z *zeroCopy) setVar(v *types2.Var, p bool) {
 	if z.pkgVars[v] {
 		return
@@ -243,7 +126,6 @@ func (z *zeroCopy) setVar(v *types2.Var, p bool) {
 	z.ok[v] = z.ok[v] && p
 }
 
-// provOf classifies one const-view value for zero-copy-back.
 func (z *zeroCopy) provOf(e syntax.Expr) bool {
 	if e == nil {
 		return false
@@ -259,7 +141,6 @@ func (z *zeroCopy) provOf(e syntax.Expr) bool {
 	return false
 }
 
-// convProv classifies a conversion result.
 func (z *zeroCopy) convProv(call *syntax.CallExpr) bool {
 	switch syntax.Unparen(call.Fun).(type) {
 	case *syntax.ConstType:
@@ -276,7 +157,6 @@ func (z *zeroCopy) convProv(call *syntax.CallExpr) bool {
 	return false
 }
 
-// stringOrVarProv accepts string-derived values and known-good views.
 func (z *zeroCopy) stringOrVarProv(e syntax.Expr) bool {
 	a := syntax.Unparen(e)
 	if z.isStringType(z.info.TypeOf(a)) {
@@ -288,7 +168,6 @@ func (z *zeroCopy) stringOrVarProv(e syntax.Expr) bool {
 	return false
 }
 
-// varProv reads function-local provenance; package variables fail closed.
 func (z *zeroCopy) varProv(name *syntax.Name) bool {
 	v, ok := z.info.ObjectOf(name).(*types2.Var)
 	if !ok || z.pkgVars[v] || !z.isViewBytes(v.Type()) {
@@ -297,8 +176,6 @@ func (z *zeroCopy) varProv(name *syntax.Name) bool {
 	return z.ok[v]
 }
 
-// rewriteNode rewrites destination-gated plain conversions, then every
-// nested conversion through the field pass.
 func (z *zeroCopy) rewriteNode(n syntax.Node) {
 	switch n := n.(type) {
 	case *syntax.VarDecl:
@@ -327,7 +204,6 @@ func (z *zeroCopy) rewriteNode(n syntax.Node) {
 	z.rewriteFields(n)
 }
 
-// rewritePlainConv rewrites one []byte(string) value to its unsafe form.
 func (z *zeroCopy) rewritePlainConv(e syntax.Expr) syntax.Expr {
 	call, ok := syntax.Unparen(e).(*syntax.CallExpr)
 	if !ok {
@@ -346,7 +222,6 @@ func (z *zeroCopy) rewritePlainConv(e syntax.Expr) syntax.Expr {
 	return z.sliceOfString(call, arg)
 }
 
-// rewriteFields rewrites the conversions held directly by n.
 func (z *zeroCopy) rewriteFields(n syntax.Node) {
 	rv := reflect.ValueOf(n)
 	if rv.Kind() != reflect.Pointer || rv.IsNil() {
@@ -389,8 +264,6 @@ func (z *zeroCopy) rewriteFields(n syntax.Node) {
 	}
 }
 
-// rewriteCall rewrites one conversion to its unsafe form when the
-// checker proved its shape and provenance.
 func (z *zeroCopy) rewriteCall(e syntax.Expr) (syntax.Expr, bool) {
 	call, ok := syntax.Unparen(e).(*syntax.CallExpr)
 	if !ok {
@@ -422,8 +295,6 @@ func (z *zeroCopy) rewriteCall(e syntax.Expr) (syntax.Expr, bool) {
 	return nil, false
 }
 
-// bareStringName accepts the builtin conversion and the universe type
-// use, and rejects a shadowed string value.
 func (z *zeroCopy) bareStringName(name *syntax.Name) bool {
 	if obj := z.info.ObjectOf(name); obj != nil {
 		_, ok := obj.(*types2.TypeName)
@@ -432,7 +303,6 @@ func (z *zeroCopy) bareStringName(name *syntax.Name) bool {
 	return true
 }
 
-// singleEval allows operands that read twice without effects.
 func (z *zeroCopy) singleEval(e syntax.Expr) bool {
 	switch e.(type) {
 	case *syntax.Name, *syntax.BasicLit:
@@ -441,84 +311,57 @@ func (z *zeroCopy) singleEval(e syntax.Expr) bool {
 	return false
 }
 
-// sliceOfString builds unsafe.Slice(unsafe.StringData(arg), len(arg)).
 func (z *zeroCopy) sliceOfString(call *syntax.CallExpr, arg syntax.Expr) syntax.Expr {
-	return z.unsafeConvert(call, arg, "Slice", "StringData", "unsafe.Slice(unsafe.StringData(%s), len(%s))")
+	return z.runtimeConvert(call, arg, types2.Uint8)
 }
 
-// stringOfSlice builds unsafe.String(unsafe.SliceData(arg), len(arg)).
 func (z *zeroCopy) stringOfSlice(call *syntax.CallExpr, arg syntax.Expr) syntax.Expr {
-	return z.unsafeConvert(call, arg, "String", "SliceData", "unsafe.String(unsafe.SliceData(%s), len(%s))")
+	return z.runtimeConvert(call, arg, types2.String)
 }
 
-// unsafeConvert builds one unsafe conversion call and records its eject
-// splice. The original operand fills the data slot; a clone fills len.
-func (z *zeroCopy) unsafeConvert(call *syntax.CallExpr, arg syntax.Expr, outer, inner, form string) syntax.Expr {
+func (z *zeroCopy) runtimeConvert(call *syntax.CallExpr, arg syntax.Expr, target types2.BasicKind) syntax.Expr {
 	pos := call.Pos()
+	split, ok := splitCall(z.fl.src, z.fl.off(pos))
+	if !ok || len(split.args) != 1 {
+		base.Fatalf("logos: conversion at %s has no single operand", pos.String())
+	}
 	start := z.fl.off(syntax.Unparen(call.Fun).Pos())
-	end := z.fl.exprEnd(start)
-	argStart := z.fl.off(arg.Pos())
-	argEnd := z.fl.exprEnd(argStart)
-	text := z.fl.textOf(span{start: argStart, end: argEnd})
-	out := callOf(pos,
-		selOf(pos, nameOf(pos, "unsafe"), outer),
-		[]syntax.Expr{
-			callOf(pos, selOf(pos, nameOf(pos, "unsafe"), inner), []syntax.Expr{arg}),
-			callOf(pos, nameOf(pos, "len"), []syntax.Expr{z.dupOf(pos, arg)}),
-		})
-	parts := strings.Split(form, "%s")
-	z.fl.addT(start, end, cat(gen(parts[0]), text, gen(parts[1]), text, gen(parts[2])))
-	z.rewrite = true
-	return out
+	text := z.fl.textOf(split.args[0])
+	qual := z.fl.synthQualifier(types2.Unsafe)
+	name := fmt.Sprintf("_logos_zeroCopy_%x", pos.String())
+	header := "struct { data " + qual + ".Pointer; length Length }"
+	decl := "func " + name + "[Source, Result, Length interface{}](source Source, result Result, _ Length) Result {\n" +
+		"header := *(*" + header + ")(" + qual + ".Pointer(&source))\n"
+	zero := qual + ".String(" + qual + ".StringData(\"\"), 0)"
+	if target == types2.Uint8 {
+		sliceHeader := "struct { data " + qual + ".Pointer; length, capacity Length }"
+		decl += "*(*" + sliceHeader + ")(" + qual + ".Pointer(&result)) = " + sliceHeader + "{header.data, header.length, header.length}\n"
+		zero = qual + ".Slice(" + qual + ".StringData(\"\"), 0)"
+	} else {
+		decl += "*(*" + header + ")(" + qual + ".Pointer(&result)) = header\n"
+	}
+	decl += "return result\n}\n"
+	z.fl.constDecls = append(z.fl.constDecls, parseGeneratedDecls(decl, pos)...)
+	z.fl.constText += "\n" + decl
+	z.fl.addT(start, split.end, cat(gen(name+"("), text, gen(", "+zero+", 0)")))
+	generated, ok := parseConstMapEntryExpr(name+"(operand, "+zero+", 0)", pos)
+	if !ok {
+		base.Fatalf("logos: cannot generate zero-copy conversion at %s", pos.String())
+	}
+	converted := generated.(*syntax.CallExpr)
+	converted.ArgList[0] = arg
+	return converted
 }
 
-// dupOf clones a single-evaluation operand for its second read.
-func (z *zeroCopy) dupOf(pos syntax.Pos, arg syntax.Expr) syntax.Expr {
-	switch arg := arg.(type) {
-	case *syntax.Name:
-		return nameOf(pos, arg.Value)
-	case *syntax.BasicLit:
-		return litOf(pos, arg.Value, arg.Kind)
-	}
-	return nameOf(pos, "_")
-}
-
-// ensureUnsafeImport prepends the unsafe import the rewrites need.
-func (z *zeroCopy) ensureUnsafeImport() {
-	if z.unsafeOK == 2 {
-		return
-	}
-	pos := z.fl.file.Pos()
-	z.fl.file.DeclList = append([]syntax.Decl{
-		at(&syntax.ImportDecl{Path: litOf(pos, `"unsafe"`, syntax.StringLit)}, pos),
-	}, z.fl.file.DeclList...)
-	off := z.fl.off(z.fl.file.PkgName.Pos())
-	ins := -1
-	scanSegment(z.fl.src, off, len(z.fl.src), func(t tok) bool {
-		if t.comment || t.auto {
-			return true
-		}
-		ins = t.end
-		return false
-	})
-	if ins < 0 {
-		ins = off
-	}
-	z.fl.add(ins, ins, "\nimport \"unsafe\"")
-}
-
-// isViewBytesCall reports a recorded const-view-of-bytes conversion.
 func (z *zeroCopy) isViewBytesCall(call *syntax.CallExpr) bool {
 	return z.isViewBytes(z.info.TypeOf(call))
 }
 
-// isViewBytes reports const views of byte slices.
 func (z *zeroCopy) isViewBytes(t types2.Type) bool {
 	c := constAsView(t)
 	return c != nil && z.isByteSlice(c.Elem)
 }
 
-// isByteSlice reports []byte.
 func (z *zeroCopy) isByteSlice(t types2.Type) bool {
 	s, ok := types2.Unalias(t).(*types2.Slice)
 	if !ok {
@@ -528,13 +371,11 @@ func (z *zeroCopy) isByteSlice(t types2.Type) bool {
 	return ok && b.Kind() == types2.Uint8
 }
 
-// isStringType reports string types, including untyped constants.
 func (z *zeroCopy) isStringType(t types2.Type) bool {
 	b, ok := types2.Unalias(t).(*types2.Basic)
 	return ok && (b.Kind() == types2.String || b.Kind() == types2.UntypedString)
 }
 
-// unlistExpr unpacks a possibly-listed expression side.
 func unlistExpr(e syntax.Expr) []syntax.Expr {
 	if e == nil {
 		return nil

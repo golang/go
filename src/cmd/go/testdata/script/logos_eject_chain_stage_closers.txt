@@ -1,0 +1,31 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# A group stage closes a dropped or undelivered value only when the chain
+# owns it, natively and in the ejected module: a filter-only stage closes
+# no element of its source, a filter between maps closes the owned value
+# it drops, and a failed filter predicate closes the value it examined.
+# chain_stage_closers.lgo prints one ok line per form.
+cp $GOROOT/test/logos/run/chain_stage_closers.lgo a/main.lgo
+
+cd a
+logos run .
+cmp stdout $GOROOT/test/logos/run/chain_stage_closers.out
+logos eject -o out
+exists out/main.go
+! exists out/main.lgo
+cd out
+go run .
+cmp stdout $GOROOT/test/logos/run/chain_stage_closers.out
+# SPEC 0.3: ejected output builds and runs with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/chain_stage_closers.out
+cd ../..
+
+-- a/go.mod --
+module example.com/chainstageclosers
+
+go 1.27

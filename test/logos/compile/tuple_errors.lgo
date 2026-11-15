@@ -1,0 +1,53 @@
+// errorcheck
+
+package p
+
+func compareSliceTuple() {
+	var t ([]int, error)
+	_ = t == t // ERROR "."
+}
+
+func compareMapTuple() {
+	var t (map[string]int, int)
+	_ = t == t // ERROR "."
+}
+
+func compareFuncTuple() {
+	var t (func(), int)
+	_ = t == t // ERROR "."
+}
+
+func compareStructTuple() {
+	var t (struct{ s []int }, int)
+	_ = t == t // ERROR "."
+}
+
+func compareArrayTuple() {
+	var t ([1][]int, int)
+	_ = t == t // ERROR "."
+}
+
+func compareStructMapTuple() {
+	var t (struct{ m map[string]int }, int)
+	_ = t == t // ERROR "."
+}
+
+func compareStructFuncTuple() {
+	var t (struct{ f func() }, int)
+	_ = t == t // ERROR "."
+}
+
+func compareArrayMapTuple() {
+	var t ([1]map[string]int, int)
+	_ = t == t // ERROR "."
+}
+
+func compareArrayFuncTuple() {
+	var t ([1]func(), int)
+	_ = t == t // ERROR "."
+}
+
+func compareComparableStructTuple() {
+	var t (struct{ n int }, int)
+	_ = t == t
+}

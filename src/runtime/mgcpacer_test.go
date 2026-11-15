@@ -16,10 +16,6 @@ import (
 func TestGcPacer(t *testing.T) {
 	t.Parallel()
 
-	if LogosGCModeIsSTW() {
-		t.Skipf("stop-the-world GC mode (batch or epsilon): every collection stops the world, so the concurrent pacing the utilization assertions assume cannot hold")
-	}
-
 	const initialHeapBytes = 256 << 10
 	for _, e := range []*gcExecTest{
 		{

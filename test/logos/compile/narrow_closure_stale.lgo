@@ -1,0 +1,148 @@
+// errorcheck
+
+package p
+
+import "context"
+
+type stUser struct {
+	stName string
+}
+
+func stTake(u stUser) string {
+	return u.stName
+}
+
+func stGoroutine() string {
+	o := stUser{stName: "a"}
+	var q stUser? = o
+	if q != nil {
+		g := func() string { return stTake(q) } // ERROR "nil_deref_unproven"
+		q = nil
+		return g()
+	}
+	return "none"
+}
+
+func stDeferred() string {
+	o := stUser{stName: "a"}
+	var q stUser? = o
+	if q != nil {
+		defer func() { _ = stTake(q) }() // ERROR "nil_deref_unproven"
+		q = nil
+	}
+	return "none"
+}
+
+func stStored() string {
+	o := stUser{stName: "a"}
+	var q stUser? = o
+	var f func() string
+	if q != nil {
+		f = func() string { return stTake(q) } // ERROR "nil_deref_unproven"
+	}
+	q = nil
+	if f == nil {
+		return "none"
+	}
+	return f()
+}
+
+func stNested() string {
+	o := stUser{stName: "a"}
+	var q stUser? = o
+	if q != nil {
+		f := func() string {
+			g := func() string { return stTake(q) } // ERROR "nil_deref_unproven"
+			return g()
+		}
+		q = nil
+		return f()
+	}
+	return "none"
+}
+
+func stLoopAfter() string {
+	o := stUser{stName: "a"}
+	var q stUser? = o
+	out := "none"
+	for i := 0; i < 2; i++ {
+		if q != nil {
+			f := func() string { return stTake(q) } // ERROR "nil_deref_unproven"
+			q = nil
+			out = f()
+			_ = i
+		}
+	}
+	return out
+}
+
+func stAssignBefore() string {
+	var q stUser?
+	q = stUser{stName: "re"}
+	if q != nil {
+		f := func() string { return stTake(q) } // ERROR "nil_deref_unproven"
+		return f()
+	}
+	return "none"
+}
+
+func stGoStmt(ctx context.Context, done chan string) error {
+	o := stUser{stName: "a"}
+	var q stUser? = o
+	if q != nil {
+		go group (ctx) {
+			go func() { done <- stTake(q) }() // ERROR "nil_deref_unproven"
+		}
+		q = nil
+	}
+	return nil
+}
+
+func stImmediateAssignAfter() string {
+	o := stUser{stName: "a"}
+	var q stUser? = o
+	if q != nil {
+		got := func() string { return stTake(q) }() // ERROR "nil_deref_unproven"
+		q = nil
+		return got
+	}
+	return "none"
+}
+
+func stLoopVarAssigned(us [](stUser?)) string {
+	out := ""
+	for _, u := range us {
+		if u != nil {
+			f := func() string { return stTake(u) } // ERROR "nil_deref_unproven"
+			u = nil
+			out += f()
+		}
+	}
+	return out
+}
+
+type stNamer interface {
+	stWho() string
+}
+
+type stImpl struct {
+	stN string
+}
+
+func (i stImpl) stWho() string {
+	return i.stN
+}
+
+func stNamerTake(n stNamer) string {
+	return n.stWho()
+}
+
+func stMethodValueInClosure() string {
+	var o stNamer? = stNamer(stImpl{stN: "x"})
+	if o != nil {
+		f := func() string { return stNamerTake(o) } // ERROR "nil_deref_unproven"
+		o = nil
+		return f()
+	}
+	return "none"
+}

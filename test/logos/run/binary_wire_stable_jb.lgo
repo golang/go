@@ -1,0 +1,114 @@
+// run
+
+package main
+
+import (
+	"bytes"
+	"encoding/binary"
+	"fmt"
+	"math"
+	"os"
+	"reflect"
+)
+
+type StableSized struct {
+	Items []uint64 `json:"items"`
+}
+
+type StableBytes struct {
+	Raw []byte `json:"raw"`
+}
+
+func stableSlices() error {
+	const n = 200000
+	items := make([]uint64, n)
+	for i := range items {
+		items[i] = uint64(i)
+	}
+	v := StableSized{Items: items}
+	enc, err := v.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	want := []byte{1}
+	want = binary.AppendUvarint(want, n)
+	for _, e := range items {
+		want = binary.LittleEndian.AppendUint64(want, e)
+	}
+	if !bytes.Equal(enc, want) {
+		return fmt.Errorf("large slice wire differs from hand-computed header plus payload at offset %d of %d bytes", stableFirstDiff(enc, want), len(want))
+	}
+	if app, err := v.AppendBinary(nil); err != nil || !bytes.Equal(app, enc) {
+		return fmt.Errorf("large slice AppendBinary differs from MarshalBinary")
+	}
+	before := append([]byte(nil), enc...)
+	var got StableSized
+	if err := got.UnmarshalBinary(enc); err != nil {
+		return fmt.Errorf("lawful large slice rejected: %w", err)
+	}
+	if !bytes.Equal(enc, before) {
+		return fmt.Errorf("large slice decode mutated its input")
+	}
+	if !reflect.DeepEqual(got, v) {
+		return fmt.Errorf("large slice decoded %d items, want %d intact", len(got.Items), n)
+	}
+	return nil
+}
+
+func stableFirstDiff(a []byte, b []byte) int {
+	for i := 0; i < len(a) && i < len(b); i++ {
+		if a[i] != b[i] {
+			return i
+		}
+	}
+	return int(math.Min(float64(len(a)), float64(len(b))))
+}
+
+func stableBytes() error {
+	raw := make([]byte, 2<<20)
+	for i := range raw {
+		raw[i] = byte(i * 31)
+	}
+	v := StableBytes{Raw: raw}
+	enc, err := v.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	want := []byte{1}
+	want = binary.AppendUvarint(want, uint64(len(raw)))
+	want = append(want, raw...)
+	if !bytes.Equal(enc, want) {
+		return fmt.Errorf("large bytes wire differs from hand-computed header plus payload")
+	}
+	before := append([]byte(nil), enc...)
+	var got StableBytes
+	if err := got.UnmarshalBinary(enc); err != nil {
+		return fmt.Errorf("lawful large bytes rejected: %w", err)
+	}
+	if !bytes.Equal(enc, before) {
+		return fmt.Errorf("large bytes decode mutated its input")
+	}
+	if !bytes.Equal(got.Raw, raw) {
+		return fmt.Errorf("large bytes round trip changed %d bytes", len(raw))
+	}
+	return nil
+}
+
+func run() error {
+if err := stableSlices(); err != nil {
+return err
+}
+return stableBytes()
+}
+func main() {
+if err := stableSlices(); err != nil {
+fmt.Println("FAIL wire-slices:", err)
+os.Exit(1)
+}
+fmt.Println("ok wire-slices")
+if err := stableBytes(); err != nil {
+fmt.Println("FAIL wire-bytes:", err)
+os.Exit(1)
+}
+fmt.Println("ok wire-bytes")
+}

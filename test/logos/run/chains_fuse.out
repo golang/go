@@ -1,0 +1,6 @@
+ok fuse-values
+ok fuse-calls
+ok fuse-allocs
+ok fuse-allocs-exact
+ok fuse-empty-nil
+ok fuse-order

@@ -15,7 +15,10 @@ import (
 type capEdge [2]loader.Sym
 
 func buildCapGraph(roots []loader.Sym, edges []capEdge) *capGraph {
-	g := newCapGraph()
+	g := &capGraph{
+		parent: make(map[loader.Sym]loader.Sym),
+		preds:  make(map[loader.Sym][]loader.Sym),
+	}
 	adj := make(map[loader.Sym][]loader.Sym)
 	for _, e := range edges {
 		adj[e[0]] = append(adj[e[0]], e[1])
@@ -51,7 +54,10 @@ func capChainNames(chain []loader.Sym, names map[loader.Sym]string) []string {
 }
 
 func TestCapGraphVisitDedupesEdges(t *testing.T) {
-	g := newCapGraph()
+	g := &capGraph{
+		parent: make(map[loader.Sym]loader.Sym),
+		preds:  make(map[loader.Sym][]loader.Sym),
+	}
 	if !g.visit(1, 0) {
 		t.Fatal("root must be new")
 	}
@@ -214,11 +220,6 @@ func TestCapGraphChainsAreSortedByDependency(t *testing.T) {
 	}
 }
 
-// capOracleChains computes the same answer by exhaustive search over
-// (symbol, last blamed dependency, wall crossed since it) states: the
-// length in symbols of the shortest walk from a root to the sink for each
-// dependency, where the walk's last blamed frame carries that dependency
-// and no wall follows it.
 func capOracleChains(roots []loader.Sym, edges []capEdge, sink loader.Sym, role func(loader.Sym) capRole) map[string]int {
 	type state struct {
 		node loader.Sym

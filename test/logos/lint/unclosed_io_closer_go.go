@@ -103,7 +103,7 @@ func reassigned() {
 func wrongVar() {
 	g := mustOpen()
 	f := mustOpen() // ERROR "unclosed_io_closer"
-	defer g.Close()
+	defer g.Close() // ERROR "discarded_error"
 	_ = f.Name()
 }
 
@@ -129,7 +129,7 @@ func blankDiscardsPair() {
 
 func shadow() {
 	f := mustOpen()
-	defer f.Close()
+	defer f.Close() // ERROR "discarded_error"
 	{
 		f := mustOpen() // ERROR "unclosed_io_closer"
 		_ = f.Name()
@@ -138,14 +138,14 @@ func shadow() {
 
 func deferred() {
 	f := mustOpen()
-	defer f.Close()
+	defer f.Close() // ERROR "discarded_error"
 	_ = f.Name()
 }
 
 func deferredInIf(ok bool) {
 	f := mustOpen()
 	if ok {
-		defer f.Close()
+		defer f.Close() // ERROR "discarded_error"
 	}
 	_ = f.Name()
 }

@@ -1,0 +1,51 @@
+// errorcheck
+
+package p
+
+func wrongType(xs []int) []int {
+	return xs.map(x => {
+		if x <= 1 {
+			return x
+		}
+		return "big" // ERROR "."
+	})
+}
+
+func twoValues(xs []int) []int {
+	return xs.map(x => {
+		if x > 1 {
+			return 0, 1 // ERROR "provides 2 values, want 1"
+		}
+		return x
+	})
+}
+
+func bareReturn(xs []int) []int {
+	return xs.map(x => {
+		if x > 1 {
+			return // ERROR "."
+		}
+		return x
+	})
+}
+
+func predWrong(xs []int) []int {
+	return xs.filter(x => {
+		if x > 1 {
+			return 0 // ERROR "."
+		}
+		return true
+	})
+}
+
+func conv(x int) (int, error) { return x, nil }
+
+func constIfBare(xs []int) ([]int, error) {
+	return xs.map(x => {
+		v := conv(x)?
+		const if true {
+			return // ERROR "provides 0 values, want 1"
+		}
+		return v
+	}), nil
+}

@@ -173,15 +173,16 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 			continue
 		}
 		par := params.At(i)
-		if isParameterized(tparams, par.typ) || isParameterized(tparams, arg.typ()) {
+		parTyp, argTyp := par.typ, arg.typ()
+		if isParameterized(tparams, parTyp) || isParameterized(tparams, argTyp) {
 			// Function parameters are always typed. Arguments may be untyped.
 			// Collect the indices of untyped arguments and handle them later.
-			if isTyped(arg.typ()) {
-				if !u.unify(par.typ, arg.typ(), assign) {
-					errorf(par.typ, arg.typ(), arg)
+			if isTyped(argTyp) {
+				if !u.unify(parTyp, argTyp, assign) {
+					errorf(parTyp, argTyp, arg)
 					return nil
 				}
-			} else if _, ok := par.typ.(*TypeParam); ok && !arg.isNil() {
+			} else if _, ok := parTyp.(*TypeParam); ok && !arg.isNil() {
 				// Since default types are all basic (i.e., non-composite) types, an
 				// untyped argument will never match a composite parameter type; the
 				// only parameter type it can possibly match against is a *TypeParam.
@@ -332,7 +333,8 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	// maximum untyped type for each of those parameters, if possible.
 	var maxUntyped map[*TypeParam]Type // lazily allocated (we may not need it)
 	for _, index := range untyped {
-		tpar := params.At(index).typ.(*TypeParam) // is type parameter (no alias) by construction of untyped
+		parTyp, argTyp := params.At(index).typ, args[index].typ()
+		tpar := parTyp.(*TypeParam) // is type parameter (no alias) by construction of untyped
 		if u.at(tpar) == nil {
 			arg := args[index] // arg corresponding to tpar
 			if maxUntyped == nil {
@@ -340,11 +342,11 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 			}
 			max := maxUntyped[tpar]
 			if max == nil {
-				max = arg.typ()
+				max = argTyp
 			} else {
-				m := maxType(max, arg.typ())
+				m := maxType(max, argTyp)
 				if m == nil {
-					err.addf(arg, "mismatched types %s and %s (cannot infer %s)", max, arg.typ(), tpar)
+					err.addf(arg, "mismatched types %s and %s (cannot infer %s)", max, argTyp, tpar)
 					return nil
 				}
 				max = m

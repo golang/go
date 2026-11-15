@@ -1,0 +1,36 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# A spread literal lowers in every statement and expression position:
+# the arguments of a call-form child (copied before the source changes), the body of a block child, the
+# children of a limited group, a scope defer call, an errdefer call, a
+# select clause body, a labeled loop, a defer call argument, each case of
+# a type switch, each arm of a switch expression, the init and post of
+# for, if and switch, a chain stage lambda that runs in order and one that
+# runs concurrently, a send, elided composite elements, map keys and
+# values, a range expression, a switch tag and case, a return operand, an
+# interface conversion and a condition. The module runs natively, ejects,
+# and the ejected module builds and runs with go and with go1.27.2 from
+# $UPROOT1272 and prints the same ok lines.
+cp $GOROOT/test/logos/run/spread_statement_positions.lgo m/main.lgo
+cd m
+logos run .
+cmp stdout $GOROOT/test/logos/run/spread_statement_positions.out
+logos eject -o out
+exists out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $GOROOT/test/logos/run/spread_statement_positions.out
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
+exec $WORK/upstream$GOEXE
+cmp stdout $GOROOT/test/logos/run/spread_statement_positions.out
+cd ../..
+
+-- m/go.mod --
+module example.com/spreadstatementpositions
+
+go 1.27

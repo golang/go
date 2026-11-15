@@ -1,0 +1,8 @@
+kind: runtime
+file: src/runtime/mbitmap.go
+expect: at22_gc_churn
+config: K1
+-- old --
+		*dst = (*dst)&^(((1<<bits)-1)<<j) | (src << j)
+-- new --
+		*dst = (*dst) &^ (((1 << bits) - 1) << j)

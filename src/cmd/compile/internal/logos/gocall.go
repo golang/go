@@ -58,7 +58,7 @@ type goCallLower struct {
 	file     *syntax.File
 	baseName string
 	siteSeq  int
-	sites    []*syntax.VarDecl
+	sites    []syntax.Decl
 	needRT   bool
 }
 
@@ -76,9 +76,7 @@ func (g *goCallLower) run() bool {
 	})
 	if g.needRT {
 		g.file.DeclList = append([]syntax.Decl{rtImport(g.file.Pos())}, g.file.DeclList...)
-		for _, d := range g.sites {
-			g.file.DeclList = append(g.file.DeclList, d)
-		}
+		g.file.DeclList = append(g.file.DeclList, g.sites...)
 	}
 	return changed
 }
@@ -143,7 +141,7 @@ func (g *goCallLower) wrapArgs(call *syntax.CallExpr, sig *types2.Signature, pos
 		if arg == nil || isMustNonNilCall(arg) {
 			continue
 		}
-		site := g.newSite(arg.Pos())
+		site := g.newSite(call.Pos())
 		fun := syntax.Expr(rtSel(arg.Pos(), "MustNonNil"))
 		if isNilLiteral(arg) {
 			if targ, ok := explicitTypeArg(params.At(i).Type(), arg.Pos()); ok {
@@ -235,11 +233,9 @@ func optParamSet(fn *types2.Func) map[int]bool {
 	obj := fn.Name()
 	if sig, ok := fn.Type().(*types2.Signature); ok && sig.Recv() != nil {
 		recv := sig.Recv().Type()
-		if _, ok := types2.Unalias(recv).(*types2.Pointer); ok {
-			if p, ok := types2.Unalias(recv).(*types2.Pointer); ok {
-				if n, ok := types2.Unalias(p.Elem()).(*types2.Named); ok && n.Obj() != nil {
-					obj = "(*" + n.Obj().Name() + ")." + fn.Name()
-				}
+		if p, ok := types2.Unalias(recv).(*types2.Pointer); ok {
+			if n, ok := types2.Unalias(p.Elem()).(*types2.Named); ok && n.Obj() != nil {
+				obj = "(*" + n.Obj().Name() + ")." + fn.Name()
 			}
 		} else if n, ok := types2.Unalias(recv).(*types2.Named); ok && n.Obj() != nil {
 			obj = n.Obj().Name() + "." + fn.Name()

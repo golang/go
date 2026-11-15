@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"runtime"
 	"time"
 )
@@ -39,6 +40,26 @@ func spawnGoexit(done chan string) error {
 	return nil
 }
 
+var failed bool
+
+func check(name string, cond bool, got, want string) {
+	if !cond {
+		fmt.Printf("FAIL %s: got %s want %s\n", name, got, want)
+		failed = true
+		return
+	}
+	fmt.Printf("ok %s\n", name)
+}
+
+func has(s string) bool {
+	for _, e := range order {
+		if e == s {
+			return true
+		}
+	}
+	return false
+}
+
 //logos:allow(correctness::unbounded_channel_op)
 //logos:allow(slop::discarded_error)
 func main() {
@@ -46,19 +67,23 @@ func main() {
 		defer func() { _ = recover() }()
 		_ = onPanic()
 	}()
+	check("errdefer-runs-on-panic", has("panic-cleanup"), fmt.Sprint(order), "[panic-cleanup]")
 	func() {
 		defer func() { _ = recover() }()
 		_, _ = returnEvalPanics()
 	}()
+	check("errdefer-runs-on-return-eval-panic", has("eval-cleanup"), fmt.Sprint(order), "[panic-cleanup eval-cleanup]")
 	done := make(chan string, 1)
 	_ = spawnGoexit(done)
 	select {
 	case msg := <-done:
 		order = append(order, msg)
 	case <-time.After(2 * time.Second):
-		order = append(order, "goexit-timeout")
+		check("errdefer-runs-on-goexit", false, "goexit-timeout", "goexit-cleanup")
+		os.Exit(1)
 	}
-	for _, s := range order {
-		fmt.Println("ran:", s)
+	check("errdefer-runs-on-goexit", has("goexit-cleanup"), fmt.Sprint(order), "[panic-cleanup eval-cleanup goexit-cleanup]")
+	if failed {
+		os.Exit(1)
 	}
 }

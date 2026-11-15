@@ -2,11 +2,6 @@
 
 package main
 
-// M13-S1 -O levels (SPEC T-105), O1 side of inline_levels.go: at O1 the
-// upstream budget of 80 applies, so neither the 167-node mediumCost nor
-// the recursive pair inlines. main stays empty so call-site and escape
-// notes never appear.
-
 func mediumCost(a, b, c, d int) int { // ERROR "cannot inline mediumCost"
 	x1 := a + b
 	x2 := c + d

@@ -1,0 +1,5 @@
+ok limit-is-a-call-of-a-function-literal
+ok limit-is-a-call-holding-a-function-literal
+ok context-is-a-call-holding-a-function-literal
+ok context-and-limit-hold-function-literals
+ok limit-is-a-plain-call

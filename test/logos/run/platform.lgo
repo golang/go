@@ -6,8 +6,23 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"logos/rt"
 	"slices"
+	"reflect"
+	"strings"
 )
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
 
 type User struct {
 	Name string
@@ -25,34 +40,58 @@ func useFlag(f *flag.Flag) string {
 	return f.Name
 }
 
-func tryDeclaredStore() (msg string) {
+func tryDeclaredStore() (value any) {
 	defer func() {
 		if r := recover(); r != nil {
-			msg = fmt.Sprint(r)
+			value = r
 		}
 	}()
 	var fl *flag.Flag = flag.Lookup("missing")
 	return "no-panic:" + fl.Name
 }
 
-func tryCallStore() (msg string) {
+func tryCallStore() (value any) {
 	defer func() {
 		if r := recover(); r != nil {
-			msg = fmt.Sprint(r)
+			value = r
 		}
 	}()
 	return useFlag(flag.Lookup("missing"))
 }
 
-func tryGenericStore() (msg string) {
+func tryGenericStore() (value any) {
 	defer func() {
 		if r := recover(); r != nil {
-			msg = fmt.Sprint(r)
+			value = r
 		}
 	}()
 	var qf *flag.Flag = Id(flag.Lookup("missing"))
 	_ = qf
 	return "no-panic"
+}
+
+func nilStoreOracle() (value any) {
+	defer func() { value = recover() }()
+	rt.MustNonNil(flag.Lookup("missing"), &rt.Site{})
+	return
+}
+
+func checkNilStore(name string, value, oracle any) {
+	got, ok := value.(string)
+	want, wok := oracle.(string)
+	gi := strings.LastIndex(got, " ")
+	wi := strings.LastIndex(want, " ")
+	check(name, ok && wok && reflect.TypeOf(value) == reflect.TypeOf(oracle) && gi >= 0 && wi >= 0 && got[:gi] == want[:wi], value, oracle)
+}
+
+func trySiteStore() (value any) {
+	defer func() {
+		if r := recover(); r != nil {
+			value = r
+		}
+	}()
+	var siteStoreTarget *flag.Flag = flag.Lookup("missing")
+	return "no-panic:" + siteStoreTarget.Name
 }
 
 //logos:allow(correctness::unclosed_io_closer)
@@ -63,39 +102,44 @@ func main() {
 
 	f, err := os.Open(os.Args[0])
 	if err != nil {
-		fmt.Println("open-err:", err)
-		return
+		check("file-open", false, fmt.Sprint(err), "open")
+		os.Exit(1)
 	}
-	fmt.Println("file-open:", f != nil)
-	fmt.Println("file-name:", len(f.Name()) > 0)
+	check("file-open", f != nil, f != nil, true)
+	check("file-name", f.Name() == os.Args[0], f.Name(), os.Args[0])
 	_ = f.Close()
 
-	fmt.Println("global:", flag.CommandLine != nil)
+	check("global", flag.CommandLine != nil, flag.CommandLine != nil, true)
 
 	good := flag.Lookup("have")
 	var fl *flag.Flag = good
-	fmt.Println("declared-store:", fl.Name)
+	check("declared-store", fl.Name == "have", fl.Name, "have")
+	deref := *good
+	check("explicit-deref", deref.Name == "have" && deref.DefValue == "HAVE", fmt.Sprint(deref.Name, deref.DefValue), "haveHAVE")
 
 	inferred := flag.Lookup("missing")
-	if inferred == nil {
-		fmt.Println("nil-branch")
-	}
+	check("nil-branch", inferred == nil, inferred == nil, true)
 
 	list := []*flag.Flag{good}
 	lm := map[string]*flag.Flag{"have": good}
-	fmt.Println("opt-to-go:", slices.Contains[[]*flag.Flag, *flag.Flag](list, lm["have"]))
-	fmt.Println("opt-nil:", lm["missing"] == nil)
+	check("opt-to-go", slices.Contains[[]*flag.Flag, *flag.Flag](list, lm["have"]), slices.Contains[[]*flag.Flag, *flag.Flag](list, lm["have"]), true)
+	check("opt-nil", lm["missing"] == nil, lm["missing"] == nil, true)
 
 	cloned := slices.Clone(list)
-	fmt.Println("elem:", cloned[0].Name, cloned[0] == nil)
+	check("elem", cloned[0].Name == "have" && cloned[0] != nil, fmt.Sprint(cloned[0].Name, cloned[0] == nil), "havefalse")
 
 	alice := &User{Name: "alice"}
 	got := First([]*User{alice})
-	fmt.Println("generic:", got.Name, got == nil)
+	check("generic", got.Name == "alice" && got != nil, fmt.Sprint(got.Name, got == nil), "alicefalse")
 	var q *User = got
-	fmt.Println("generic-store:", q.Name)
+	check("generic-store", q.Name == "alice", q.Name, "alice")
 
-	fmt.Println("panic-declared:", tryDeclaredStore())
-	fmt.Println("panic-call:", tryCallStore())
-	fmt.Println("panic-generic:", tryGenericStore())
+	oracle := nilStoreOracle()
+	checkNilStore("panic-declared", tryDeclaredStore(), oracle)
+	checkNilStore("panic-call", tryCallStore(), oracle)
+	checkNilStore("panic-generic", tryGenericStore(), oracle)
+	checkNilStore("panic-lgo-site", trySiteStore(), oracle)
+	if failed {
+		os.Exit(1)
+	}
 }

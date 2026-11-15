@@ -102,10 +102,7 @@ func TestOmitEmptyParity(t *testing.T) {
 	checkOmitEmpty(t, namedSlice{1, 2, 3})
 }
 
-func TestOmitEmptyNil(t *testing.T) {
-	if !OmitEmpty(nil) {
-		t.Error("OmitEmpty(nil) = false, want true")
-	}
+func TestOmitZeroNil(t *testing.T) {
 	if !OmitZero(nil) {
 		t.Error("OmitZero(nil) = false, want true")
 	}

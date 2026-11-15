@@ -1,0 +1,65 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd w
+logos build -o $WORK/lib.a ./lib
+go tool pack p $WORK/lib.a __.LOGOS
+stdout '^fn \(\*Reader\)\.Name Readonly,ParamMutated=0$'
+! stdout '^fn \(\*Mutator\)\.Name Readonly'
+
+logos build -o $WORK/good.a ./good
+! logos build -o $WORK/bad.a ./bad
+stderr 'bad.lgo:.*const_view_mutation'
+! stderr 'good\.lgo'
+! exists $WORK/bad.a
+
+-- w/go.mod --
+module example.com/getter
+
+go 1.27
+
+-- w/lib/lib.lgo --
+package lib
+
+type Reader struct {
+	S string
+}
+
+func (r *Reader) Name() string {
+	return r.S
+}
+
+type Mutator struct {
+	N int
+}
+
+func (m *Mutator) Name() string {
+	m.N++
+	return "mutator"
+}
+
+-- w/good/good.lgo --
+package good
+
+import "example.com/getter/lib"
+
+type Named interface {
+	const Name string
+}
+
+type Wrap struct : Named {
+	*lib.Reader
+}
+
+-- w/bad/bad.lgo --
+package bad
+
+import "example.com/getter/lib"
+
+type Named interface {
+	const Name string
+}
+
+type Wrap struct : Named {
+	*lib.Mutator
+}

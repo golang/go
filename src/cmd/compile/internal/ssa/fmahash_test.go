@@ -36,7 +36,7 @@ func TestFmaHash(t *testing.T) {
 	cmd := testenv.Command(t, gocmd, "build", "-o", output, source)
 	// The hash-dependence on file path name is dodged by specifying "all hashes ending in 1" plus "all hashes ending in 0"
 	// i.e., all hashes.  This will print all the FMAs; this test is only interested in one of them (that should appear near the end).
-	cmd.Env = append(cmd.Env, "GOCOMPILEDEBUG=fmahash=1/0", "GOOS=linux", "GOARCH=arm64", "HOME="+tmpdir)
+	cmd.Env = append(cmd.Env, "GOCOMPILEDEBUG=fmahash=1/0", "GOOS=linux", "GOARCH=arm64", "HOME="+tmpdir, "TMPDIR="+tmpdir)
 	t.Logf("%v", cmd)
 	t.Logf("%v", cmd.Env)
 	b, e := cmd.CombinedOutput()

@@ -5,7 +5,19 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os"
 )
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 var errComment = errors.New("comment")
 
@@ -32,15 +44,17 @@ func run() error {
 		// convert the input
 		"hello",
 	/* trailing block */)?
-	fmt.Println("value:", v)
+	check("value", v == 5, v, 5)
 	defer g.Close(/* idempotent close */)?
 	errdefer rollback(/* undo nothing */)?
 	return nil
 }
 
 func main() {
-	if err := run(); err != nil {
-		fmt.Println("fatal:", err)
+	err := run()
+	check("run-err", err == nil, fmt.Sprint(err), "<nil>")
+	check("closed", g.closed == true, g.closed, true)
+	if failed {
+		os.Exit(1)
 	}
-	fmt.Println("closed:", g.closed)
 }

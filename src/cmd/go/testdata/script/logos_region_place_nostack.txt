@@ -1,0 +1,49 @@
+# M18-S7 unit C companion: a variable-length region allocation that escape
+# analysis proves frame-local but that cannot live on the stack must land in
+# the frame region.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOEXPERIMENT=logosarena
+
+cd m
+logos build -gcflags=-m -o $WORK/placenostack$GOEXE .
+stderr 'main\.go:.*placed in region'
+logos run .
+stdout '^sum 524800$'
+stdout '^bytes true$'
+
+-- m/go.mod --
+module example.com/regionplacenostack
+
+go 1.27
+
+-- m/main.go --
+package main
+
+import (
+	"fmt"
+
+	"logos/arena"
+	"logos/rt"
+)
+
+func build(n int) (int, bool) {
+	r := arena.Open()
+	s := arena.Make[int](r, n)
+	for i := range s {
+		s[i] = i + 1
+	}
+	total := 0
+	for _, v := range s {
+		total += v
+	}
+	inside := rt.RegionBytes() > 0
+	_ = r
+	return total, inside
+}
+
+func main() {
+	total, inside := build(1024)
+	fmt.Println("sum", total)
+	fmt.Println("bytes", inside)
+}

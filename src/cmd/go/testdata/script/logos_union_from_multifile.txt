@@ -1,0 +1,83 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+
+logos run .
+stdout '^true 7 true true$'
+stdout '^\{7\}$'
+cp stdout $WORK/native-stdout.txt
+
+logos eject -o out
+exists out/a.go
+exists out/b.go
+exists out/c.go
+exists out/go.mod
+exists out/_logos_deps/rt/go.mod
+
+cd out
+go run .
+cmp stdout $WORK/native-stdout.txt
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+cd ..
+
+-- m/go.mod --
+module example.com/unionfrom
+
+go 1.27
+
+-- m/a.lgo --
+package main
+
+func beforeOk(u Any) bool {
+	_, ok := u.(float64)
+	return !ok
+}
+
+-- m/b.lgo --
+package main
+
+type Circle struct {
+	R int
+}
+
+type Square struct {
+	S int
+}
+
+type Text struct {
+	T string
+}
+
+type Shape interface {
+	Circle | Square
+}
+
+type Any interface {
+	Shape | Text
+}
+
+func asAny(x any) Any {
+	v, _ := x.(Any)
+	return v
+}
+
+-- m/c.lgo --
+package main
+
+import "fmt"
+
+func afterOk(u Any) bool {
+	_, ok := u.(float64)
+	return !ok
+}
+
+func main() {
+	var a Any = Circle{R: 7}
+	c, ok := a.(Circle)
+	fmt.Println(ok, c.R, beforeOk(a), afterOk(a))
+	fmt.Println(asAny(a))
+}

@@ -1,0 +1,52 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cp $GOROOT/test/logos/run/spread.lgo a/main.lgo
+
+cd a
+logos run .
+cmp stdout $GOROOT/test/logos/run/spread.out
+logos eject -o out
+exists out/main.go
+! exists out/main.lgo
+cd out
+go run .
+cmp stdout $GOROOT/test/logos/run/spread.out
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/spread.out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ../..
+
+cp $GOROOT/test/logos/run/spread_positions.lgo b/main.lgo
+
+cd b
+logos run .
+cmp stdout $GOROOT/test/logos/run/spread_positions.out
+logos eject -o out
+exists out/main.go
+! exists out/main.lgo
+cd out
+go run .
+cmp stdout $GOROOT/test/logos/run/spread_positions.out
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/spread_positions.out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ../..
+
+-- a/go.mod --
+module example.com/ejectspread
+
+go 1.27
+
+-- b/go.mod --
+module example.com/ejectspreadpositions
+
+go 1.27

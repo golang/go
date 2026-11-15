@@ -1,15 +1,10 @@
 // run
-
-// M7-S3 comptime generics (SPEC Sec 2.5, T-205): Autowire[T] expands
-// once per instantiation into a non-generic copy in this package;
-// Resolve[f.Type](c) resolves per field (#128); two instantiations over
-// different types coexist, and a repeated instantiation reuses its copy.
-
 package main
 
 import (
 	"comptime"
 	"fmt"
+	"os"
 )
 
 type Container struct {
@@ -47,12 +42,34 @@ func Autowire[T any](c *Container) *T {
 	return &v
 }
 
+func TypeKind[T any]() string {
+	_ = comptime.TypeOf[T]()
+	return "type"
+}
+
+var failed bool
+
+func check(name, got, want string) {
+	if got != want {
+		fmt.Println("FAIL", name, "got", got, "want", want)
+		failed = true
+		return
+	}
+	fmt.Println("ok", name)
+}
+
 func main() {
 	c := &Container{Port: 8080, Host: "db"}
 	a := Autowire[ServiceA](c)
-	fmt.Println(a.Port, a.Host)
+	check("autowire-assigns-all-fields", fmt.Sprintf("%d %s", a.Port, a.Host), "8080 db")
 	b := Autowire[ServiceB](c)
-	fmt.Println(b.Host, b.Port)
+	check("field-order-independent", fmt.Sprintf("%s %d", b.Host, b.Port), "db 8080")
 	a2 := Autowire[ServiceA](c)
-	fmt.Println(a2.Port, a2.Host)
+	check("autowire-repeatable", fmt.Sprintf("%d %s", a2.Port, a2.Host), "8080 db")
+	check("autowire-matches-hand-struct", fmt.Sprint(*a), fmt.Sprint(ServiceA{Port: 8080, Host: "db"}))
+	check("typeof-instantiates-int", TypeKind[int](), "type")
+	check("typeof-instantiates-string", TypeKind[string](), "type")
+	if failed {
+		os.Exit(1)
+	}
 }

@@ -1,11 +1,5 @@
 // errorcheck
 
-// correctness::defer_erases_errdefer_state (SPEC Sec 1.2, #77, T-102): in a
-// function with errdefer, a plain deferred function literal assigns nil to the
-// error result. The plain defer runs before the errdefer cleanup, clears the
-// result, and the errdefer then sees a success and skips its rollback. The
-// rule is forbid and applies to loGo/s packages only.
-
 package p
 
 import "errors"
@@ -14,8 +8,6 @@ var failure = errors.New("failed")
 
 func rollback() {}
 func rollbackE() error { return nil }
-
-// ---- reported ----
 
 func eraseAfterErrdefer() (err error) {
 	errdefer rollback()
@@ -163,8 +155,6 @@ func eraseInnerOuterIndependent() (err error) {
 	return run()
 }
 
-// ---- not reported ----
-
 func noErrdefer() (err error) {
 	defer func() {
 		err = nil
@@ -296,8 +286,6 @@ func plainClosureNoDefer() (err error) {
 	_ = clear
 	return failure
 }
-
-// ---- forbid ----
 
 //logos:allow(correctness::defer_erases_errdefer_state) // ERROR "\[correctness::allow_forbidden_rule\]"
 func allowIgnored() (err error) {

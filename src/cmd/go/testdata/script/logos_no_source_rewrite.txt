@@ -1,0 +1,86 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+mkdir $WORK/orig
+cp main.lgo $WORK/orig/main.lgo
+cp go.mod $WORK/orig/go.mod
+
+logos build .
+logos lint .
+logos context 'example.com/readonly#Main'
+logos eject -o out
+logos test ./...
+logos vet ./...
+logos list ./...
+logos run .
+! logos lsp unexpected-arg
+stderr 'unexpected argument'
+mkdir $WORK/fixorig
+cp fixable/main.lgo $WORK/fixorig/main.lgo
+cd fixable
+! logos lint .
+stderr '\[slop::discarded_error\]'
+cmp main.lgo $WORK/fixorig/main.lgo
+cd ..
+
+mkdir $WORK/origgo
+cp goapp/main.go $WORK/origgo/main.go
+cd goapp
+logos next
+cmp main.go $WORK/origgo/main.go
+! exists next_tasks.json
+cd ..
+
+cmp main.lgo $WORK/orig/main.lgo
+cmp go.mod $WORK/orig/go.mod
+exists out/main.go
+
+-- goapp/go.mod --
+module example.com/goapp
+
+go 1.27
+
+-- goapp/main.go --
+package main
+
+import "fmt"
+
+func double(xs []int) []int {
+	var ys []int
+	for i := range xs {
+		ys = append(ys, 2*xs[i])
+	}
+	return ys
+}
+
+func main() {
+	fmt.Println(double([]int{1, 2, 3}))
+}
+
+-- go.mod --
+module example.com/readonly
+
+go 1.27
+
+-- main.lgo --
+package main
+
+import "fmt"
+
+func Main() string { return "unchanged" }
+
+func main() { fmt.Println(Main()) }
+
+-- fixable/go.mod --
+module example.com/fixable
+
+go 1.27
+
+-- fixable/main.lgo --
+package main
+
+import "os"
+
+func main() {
+	os.Remove("missing")
+}

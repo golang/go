@@ -1,0 +1,3 @@
+ok zero-wire-bound-encodes
+ok zero-wire-above-bound-rejected
+ok zero-wire-error-writes-no-count

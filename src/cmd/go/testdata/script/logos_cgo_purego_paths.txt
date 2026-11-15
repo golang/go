@@ -1,0 +1,26 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env CGO_ENABLED=
+
+logos list -f '{{.ImportPath}} {{len .CgoFiles}}' net
+stdout '^net 0$'
+logos list -f '{{.ImportPath}} {{len .CgoFiles}}' os/user
+stdout '^os/user 0$'
+logos list -f '{{join .GoFiles " "}}' net
+stdout 'cgo_stub.go'
+logos list -f '{{join .GoFiles " "}}' os/user
+stdout 'lookup_unix.go'
+! stdout 'cgo_lookup_unix.go'
+
+[cgo] env CGO_ENABLED=1
+[cgo] go list -f '{{.ImportPath}} {{len .CgoFiles}}' net
+[cgo] stdout '^net [1-9][0-9]*$'
+[cgo] go list -f '{{.ImportPath}} {{len .CgoFiles}}' os/user
+[cgo] stdout '^os/user [1-9][0-9]*$'
+-- go.mod --
+module example.com/purego
+
+go 1.27
+
+-- marker.lgo --
+package marker

@@ -1,6 +1,7 @@
-100 100
-1 100
-true
-s
-1 1
-2 2
+ok address-of-literal-reads-literal-value
+ok address-of-literals-are-distinct-allocations
+ok address-of-string-literal-reads-value
+ok address-of-call-evaluates-call-once
+ok each-address-of-call-allocates-fresh-result
+ok first-call-address-keeps-its-value
+ok loop-call-addresses-are-fresh

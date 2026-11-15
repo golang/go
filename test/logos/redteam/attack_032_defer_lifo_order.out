@@ -1,4 +1,5 @@
-fail: alpha
-ok: <nil>
-late: alpha
-order: A-defer,B-defertry-ok,C-defer,E-errdefer,A2-defer,B2-defertry-ok,C2-defer,A3-defer,B3-defertry-fail,E3-errdefer
+ok defer-lifo-runs-innermost-first
+ok defer-lifo-failure-returns-error
+ok defer-lifo-success-skips-errdefer
+ok defer-lifo-success-returns-nil
+ok defer-lifo-late-error-joins

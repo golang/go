@@ -2,7 +2,23 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"iter"
+	"os"
+	"slices"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 func apply(f func(int) int, x int) int {
 	return f(x)
@@ -16,17 +32,149 @@ func mk(f func(int) []int, x int) []int {
 	return f(x)
 }
 
+func only[V any](m map[string]V) V {
+	var found V
+	for _, v := range m {
+		found = v
+	}
+	return found
+}
+
+type handler struct{ f func(int) int }
+
+type pairFns struct {
+	one func(int) int
+	two func(int, int) int
+}
+
+type namedFn func(int) int
+
+func callNamed(f namedFn, x int) int {
+	return f(x)
+}
+
+func sumFuncs(x int, fs ...func(int) int) int {
+	total := 0
+	for _, f := range fs {
+		total += f(x)
+	}
+	return total
+}
+
+func reduce[T, A any](xs []T, init A, f func(A, T) A) A {
+	acc := init
+	for _, x := range xs {
+		acc = f(acc, x)
+	}
+	return acc
+}
+
+func takeOpt(f (func(int) int)?) int {
+	g := f ?? (x => 0)
+	return g(1)
+}
+
+func optionalInc() (func(int) int)? {
+	return x => x + 1
+}
+
+func funcSeq() iter.Seq[func(int) int] {
+	yield x => x + 1
+	yield (x => x * 3)
+}
+
+func runWrapped() {
+	var o (func(int) int)? = x => x + 10
+	inOption := o ?? (x => 0)
+	check("arrow-in-option-location", inOption(1) == 11, inOption(1), 11)
+	var none (func(int) int)?
+	fallback := none ?? (x => x * 2)
+	check("arrow-on-right-of-coalesce", fallback(4) == 8, fallback(4), 8)
+	m := map[string]func(int) int{"k": x => x + 1}
+	absent := m["missing"] ?? (x => x + 100)
+	check("arrow-on-right-of-coalesce-on-map-index", absent(1) == 101, absent(1), 101)
+	check("arrow-to-option-parameter", takeOpt(x => x + 5) == 6, takeOpt(x => x + 5), 6)
+	returned := optionalInc() ?? (x => 0)
+	check("arrow-returned-as-option", returned(1) == 2, returned(1), 2)
+	total := 0
+	for f := range funcSeq() {
+		total += f(2)
+	}
+	check("arrow-yielded-by-generator", total == 9, total, 9)
+	var t (func(int) int, int) = (x => x + 1, 5)
+	tf, tn := t
+	check("arrow-in-tuple-element", tf(1) == 2 && tn == 5, tf(1), 2)
+	var nested ((func(int) int, int), int) = ((x => x * 4, 1), 2)
+	inner, outer := nested
+	nf, ni := inner
+	check("arrow-in-nested-tuple-element", nf(2) == 8 && ni == 1 && outer == 2, nf(2), 8)
+}
+
+func runPositions() {
+	h := handler{f: x => x + 1}
+	check("arrow-in-keyed-struct-field", h.f(1) == 2, h.f(1), 2)
+	p := pairFns{x => x * 3, (a, b) => a - b}
+	check("arrow-in-positional-struct-field", p.one(2) == 6 && p.two(5, 3) == 2, p.one(2), 6)
+	q := pairFns{..p, one: x => x * 4}
+	check("arrow-in-spread-literal-keeps-base", q.one(2) == 8 && q.two(5, 3) == 2, q.one(2), 8)
+	r := pairFns{..p, two: ((a, b) => { return a * b })}
+	check("arrow-in-spread-literal-block-parenthesised", r.two(5, 3) == 15 && r.one(2) == 6, r.two(5, 3), 15)
+	fs := []func(int) int{x => x + 1, x => x * 2}
+	check("arrow-in-slice-literal", fs[0](3) == 4 && fs[1](3) == 6, fs[0](3), 4)
+	ks := []func(int) int{2: x => x + 5}
+	check("arrow-in-keyed-slice-literal", len(ks) == 3 && ks[0] == nil && ks[2](1) == 6, len(ks), 3)
+	arr := [2]func(int) int{x => x, x => x * 2}
+	check("arrow-in-array-literal", arr[0](4) == 4 && arr[1](4) == 8, arr[1](4), 8)
+	m := map[string]func(int) int{"k": x => x + 1}
+	check("arrow-in-map-literal", only(m)(1) == 2, only(m)(1), 2)
+	nested := map[string]handler{"k": {f: x => x * 7}}
+	check("arrow-in-elided-struct-literal", only(nested).f(2) == 14, only(nested).f(2), 14)
+	ch := make(chan func(int) int, 2)
+	ch <- x => x + 10
+	select {
+	case ch <- x => x + 20:
+	default:
+	}
+	first, second := <-ch, <-ch
+	check("arrow-sent-on-channel", first(1) == 11 && second(1) == 21, first(1), 11)
+	fs = append(fs, x => x - 1, (x => x - 2))
+	check("arrow-appended", len(fs) == 4 && fs[2](5) == 4 && fs[3](5) == 3, len(fs), 4)
+	check("arrow-to-named-func-type", callNamed(x => x + 3, 1) == 4, callNamed(x => x + 3, 1), 4)
+	got := sumFuncs(2, x => x, x => x * 2, x => x + 3)
+	check("arrow-in-variadic-call", got == 11, got, 11)
+	idx := slices.IndexFunc([]int{1, 2, 3}, x => x > 1)
+	check("arrow-to-generic-callee-with-inferred-parameter", idx == 1, idx, 1)
+	total := reduce([]string{"a", "bcd"}, 0, (n, s) => n+len(s))
+	check("arrow-to-generic-callee-fixed-by-other-arguments", total == 4, total, 4)
+}
+
 func main() {
-	fmt.Println(apply(x => dbl(x), 21))
-	fmt.Println(mk(x => []int{x, x}, 3))
+	gotApply := apply(x => dbl(x), 21)
+	check("arrow-forwards-to-named-func", gotApply == 42 && gotApply == dbl(21), gotApply, 42)
+	s := mk(x => []int{x, x}, 3)
+	check("arrow-builds-slice-from-param", len(s) == 2 && s[0] == 3 && s[1] == 3, s, []int{3, 3})
 	var abs func(int) int = x => {
 		if x > 0 {
 			return x
 		}
 		return -x
 	}
-	fmt.Println(abs(-4))
-	fmt.Println(abs(5))
+	plainAbs := func(x int) int {
+		if x > 0 {
+			return x
+		}
+		return -x
+	}
+	check("arrow-branch-negates-negative", abs(-4) == 4 && abs(-4) == plainAbs(-4), abs(-4), 4)
+	check("arrow-branch-keeps-positive", abs(5) == 5 && abs(5) == plainAbs(5), abs(5), 5)
 	var add func(int) func(int) int = x => y => x + y
-	fmt.Println(add(2)(3))
+	plainCurry := func(x int) func(int) int {
+		return func(y int) int { return x + y }
+	}
+	check("curried-arrow-applies-left-to-right", add(2)(3) == 5 && add(2)(3) == plainCurry(2)(3), add(2)(3), 5)
+	runPositions()
+	runWrapped()
+	if failed {
+		os.Exit(1)
+	}
 }

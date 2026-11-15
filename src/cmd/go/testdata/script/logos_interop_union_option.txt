@@ -1,0 +1,299 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+mkdir y/exp
+mkdir y/zimp
+cp x/go.mod y/go.mod
+cp x/exp/exp.lgo y/exp/exp.lgo
+cp x/aimp/imp.lgo y/zimp/imp.lgo
+mkdir z/dep/exp
+mkdir z/app/imp
+cp x/exp/exp.lgo z/dep/exp/exp.lgo
+cp x/aimp/imp.lgo z/app/imp/imp.lgo
+
+cd twin
+logos run .
+! stdout 'FAIL'
+cp stdout ../twin.txt
+cd ..
+
+cd x
+logos run .
+! stdout 'FAIL'
+cmp stdout ../twin.txt
+logos eject -o out
+exists out/main.go
+cd out
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout ../../twin.txt
+cd ../..
+
+cd y
+logos build ./exp
+logos run .
+! stdout 'FAIL'
+cmp stdout ../twin.txt
+cd ..
+
+cd z/app
+logos run .
+! stdout 'FAIL'
+cmp stdout ../../twin.txt
+logos eject -o out
+exists out/main.go
+cd out
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout ../../../twin.txt
+cd ../../..
+
+-- twin/go.mod --
+module example.com/twin
+
+go 1.27
+
+-- twin/main.lgo --
+package main
+
+import "fmt"
+
+type Left struct{ N int }
+
+type Right struct{ S string }
+
+func (l Left) Name() string { return "left" }
+
+func (r Right) Name() string { return "right" }
+
+type Choice interface {
+	Left | Right
+	Name() string
+}
+
+type Scalar interface {
+	int | string
+}
+
+type Nilable interface {
+	int | []int
+}
+
+type Holder struct {
+	C Choice?
+}
+
+func Pick(i int) Choice? {
+	switch i {
+	case 0:
+		return Choice(Left{N: 7})
+	case 1:
+		return Choice(Right{S: "r"})
+	}
+	return nil
+}
+
+func FindU(ok bool) Scalar? {
+	if ok {
+		return Scalar(5)
+	}
+	return nil
+}
+
+func Slice(ok bool) Nilable? {
+	if ok {
+		return Nilable([]int(nil))
+	}
+	return nil
+}
+
+func Describe(c Choice?) string {
+	if c != nil {
+		return c.Name()
+	}
+	return "absent"
+}
+
+func Wrap(c Choice?) Holder {
+	return Holder{C: c}
+}
+
+func report(name string, ok bool) {
+	if ok {
+		fmt.Println("ok", name)
+		return
+	}
+	fmt.Println("FAIL", name)
+}
+
+func main() {
+	report("pick-left", Describe(Pick(0)) == "left")
+	report("pick-right", Describe(Pick(1)) == "right")
+	report("pick-absent", Describe(Pick(2)) == "absent")
+	report("absent-nil", Pick(2) == nil)
+	report("present-not-nil", Pick(0) != nil)
+	var local Choice? = nil
+	report("local-absent", Describe(local) == "absent")
+	local = Choice(Left{N: 1})
+	report("local-member", Describe(local) == "left")
+	held := Wrap(Pick(1))
+	report("field-roundtrip", Describe(held.C) == "right")
+	if c := Pick(0); c != nil {
+		report("narrowed-method", c.Name() == "left")
+	}
+	scalar := FindU(true)
+	report("scalar-coalesce", fmt.Sprint(scalar ?? "none") == "5")
+	report("scalar-absent", fmt.Sprint(FindU(false) ?? "none") == "none")
+	report("scalar-present", scalar != nil)
+	report("nilable-present-nil", Slice(true) != nil)
+	report("nilable-absent", Slice(false) == nil)
+}
+
+-- x/go.mod --
+module example.com/ord
+
+go 1.27
+
+-- x/exp/exp.lgo --
+package exp
+
+type Left struct{ N int }
+
+type Right struct{ S string }
+
+func (l Left) Name() string { return "left" }
+
+func (r Right) Name() string { return "right" }
+
+type Choice interface {
+	Left | Right
+	Name() string
+}
+
+type Scalar interface {
+	int | string
+}
+
+type Nilable interface {
+	int | []int
+}
+
+type Holder struct {
+	C Choice?
+}
+
+func Pick(i int) Choice? {
+	switch i {
+	case 0:
+		return Choice(Left{N: 7})
+	case 1:
+		return Choice(Right{S: "r"})
+	}
+	return nil
+}
+
+func FindU(ok bool) Scalar? {
+	if ok {
+		return Scalar(5)
+	}
+	return nil
+}
+
+func Slice(ok bool) Nilable? {
+	if ok {
+		return Nilable([]int(nil))
+	}
+	return nil
+}
+
+func Describe(c Choice?) string {
+	if c != nil {
+		return c.Name()
+	}
+	return "absent"
+}
+
+func Wrap(c Choice?) Holder {
+	return Holder{C: c}
+}
+
+-- x/aimp/imp.lgo --
+package imp
+
+import (
+	"fmt"
+
+	a "example.com/ord/exp"
+)
+
+func report(name string, ok bool) {
+	if ok {
+		fmt.Println("ok", name)
+		return
+	}
+	fmt.Println("FAIL", name)
+}
+
+func Run() {
+	report("pick-left", a.Describe(a.Pick(0)) == "left")
+	report("pick-right", a.Describe(a.Pick(1)) == "right")
+	report("pick-absent", a.Describe(a.Pick(2)) == "absent")
+	report("absent-nil", a.Pick(2) == nil)
+	report("present-not-nil", a.Pick(0) != nil)
+	var local a.Choice? = nil
+	report("local-absent", a.Describe(local) == "absent")
+	local = a.Choice(a.Left{N: 1})
+	report("local-member", a.Describe(local) == "left")
+	held := a.Wrap(a.Pick(1))
+	report("field-roundtrip", a.Describe(held.C) == "right")
+	if c := a.Pick(0); c != nil {
+		report("narrowed-method", c.Name() == "left")
+	}
+	scalar := a.FindU(true)
+	report("scalar-coalesce", fmt.Sprint(scalar ?? "none") == "5")
+	report("scalar-absent", fmt.Sprint(a.FindU(false) ?? "none") == "none")
+	report("scalar-present", scalar != nil)
+	report("nilable-present-nil", a.Slice(true) != nil)
+	report("nilable-absent", a.Slice(false) == nil)
+}
+
+-- x/main.lgo --
+package main
+
+import "example.com/ord/aimp"
+
+func main() {
+	imp.Run()
+}
+
+-- y/main.lgo --
+package main
+
+import "example.com/ord/zimp"
+
+func main() {
+	imp.Run()
+}
+
+-- z/dep/go.mod --
+module example.com/ord
+
+go 1.27
+
+-- z/app/go.mod --
+module example.com/app
+
+go 1.27
+
+require example.com/ord v1.0.0
+
+replace example.com/ord v1.0.0 => ../dep
+
+-- z/app/main.lgo --
+package main
+
+import "example.com/app/imp"
+
+func main() {
+	imp.Run()
+}

@@ -1,0 +1,141 @@
+// run
+
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"iter"
+	"os"
+	"sync/atomic"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type Tri struct {
+	A int
+	B int
+	C int
+}
+
+var base = Tri{A: 1, B: 2, C: 3}
+
+func setTri(p *Tri, t Tri) {
+	*p = t
+}
+
+func inGroupBody(ctx context.Context) (Tri, error) {
+	var out Tri
+	go group (ctx) {
+		out = Tri{A: 9, ..base}
+	}
+	return out, nil
+}
+
+func inGroupCallChild(ctx context.Context) (Tri, error) {
+	var out atomic.Pointer[Tri]
+	go group (ctx) {
+		go func() error {
+			v := Tri{B: 8, ..base}
+			out.Store(&v)
+			return nil
+		}()
+	}
+	return *out.Load(), nil
+}
+
+func inGroupBlockChild(ctx context.Context) (Tri, error) {
+	var out atomic.Pointer[Tri]
+	go group (ctx) {
+		go {
+			v := Tri{C: 7, ..base}
+			out.Store(&v)
+		}
+	}
+	return *out.Load(), nil
+}
+
+func inErrdefer(sink *Tri) (err error) {
+	errdefer setTri(sink, Tri{A: 5, ..base})
+	return errors.New("failed")
+}
+
+func errdeferNotRunOnSuccess(sink *Tri) (err error) {
+	errdefer setTri(sink, Tri{A: 5, ..base})
+	return nil
+}
+
+func inYield() iter.Seq[Tri] {
+	yield Tri{A: 5, ..base}
+	yield Tri{B: 6, ..base}
+}
+
+func lambdaCells() {
+	exprForm := []int{1, 2}.map(i => Tri{A: i, ..base})
+	check("spread-in-chain-expression-lambda", len(exprForm) == 2 && exprForm[0] == Tri{A: 1, B: 2, C: 3} && exprForm[1] == Tri{A: 2, B: 2, C: 3}, exprForm, "[{1 2 3} {2 2 3}]")
+	blockForm := []int{3}.map(i => {
+		return Tri{A: i, ..base}
+	})
+	check("spread-in-chain-block-lambda", len(blockForm) == 1 && blockForm[0] == Tri{A: 3, B: 2, C: 3}, blockForm, "[{3 2 3}]")
+	zeroed := []Tri{{A: 4, B: 5, C: 6}}.map(t => Tri{A: 0, ..t})
+	check("spread-from-chain-lambda-parameter", len(zeroed) == 1 && zeroed[0] == Tri{A: 0, B: 5, C: 6}, zeroed, "[{0 5 6}]")
+	srcs := []Tri{{A: 4, B: 5, C: 6}, {A: 7, B: 8, C: 9}}
+	picked := Tri{A: 0, ..srcs.filter(t => t.A > 5)[0]}
+	check("spread-source-is-a-chain", picked == Tri{A: 0, B: 8, C: 9}, picked, Tri{A: 0, B: 8, C: 9})
+	var plain func(int) Tri = i => Tri{A: i, ..base}
+	check("spread-in-plain-expression-lambda", plain(7) == Tri{A: 7, B: 2, C: 3}, plain(7), Tri{A: 7, B: 2, C: 3})
+	var plainBlock func(int) Tri = i => {
+		return Tri{B: i, ..base}
+	}
+	check("spread-in-plain-block-lambda", plainBlock(8) == Tri{A: 1, B: 8, C: 3}, plainBlock(8), Tri{A: 1, B: 8, C: 3})
+}
+
+func must(t Tri, err error) Tri {
+	if err != nil {
+		fmt.Println("FAIL group:", err)
+		os.Exit(1)
+	}
+	return t
+}
+
+func main() {
+	ctx := context.Background()
+
+	body := must(inGroupBody(ctx))
+	check("spread-in-group-body", body == Tri{A: 9, B: 2, C: 3}, body, Tri{A: 9, B: 2, C: 3})
+
+	call := must(inGroupCallChild(ctx))
+	check("spread-in-group-call-child", call == Tri{A: 1, B: 8, C: 3}, call, Tri{A: 1, B: 8, C: 3})
+
+	block := must(inGroupBlockChild(ctx))
+	check("spread-in-group-block-child", block == Tri{A: 1, B: 2, C: 7}, block, Tri{A: 1, B: 2, C: 7})
+
+	var sink Tri
+	failure := inErrdefer(&sink)
+	check("spread-in-errdefer-argument", failure != nil && sink == Tri{A: 5, B: 2, C: 3}, fmt.Sprint(failure, sink), "failed {5 2 3}")
+
+	var quiet Tri
+	success := errdeferNotRunOnSuccess(&quiet)
+	check("spread-in-errdefer-argument-skipped-on-success", success == nil && quiet == Tri{}, fmt.Sprint(success, quiet), "<nil> {0 0 0}")
+
+	var seen []Tri
+	for t := range inYield() {
+		seen = append(seen, t)
+	}
+	check("spread-in-yield-value", len(seen) == 2 && seen[0] == Tri{A: 5, B: 2, C: 3} && seen[1] == Tri{A: 1, B: 6, C: 3}, seen, "[{5 2 3} {1 6 3}]")
+	lambdaCells()
+
+	if failed {
+		os.Exit(1)
+	}
+}

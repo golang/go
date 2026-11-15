@@ -13,6 +13,9 @@ import (
 	"os/exec"
 	"testing"
 	"time"
+
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/modinfo"
 )
 
 const offendingSource = `package jsonmarshal
@@ -39,13 +42,11 @@ func TestMarshalMatchesEncodingJSONSweep(t *testing.T) {
 }
 `
 
-// TestLogosScanChild is the child process helper executed with a process-level timeout.
 func TestLogosScanChild(t *testing.T) {
 	if os.Getenv("GO_LOGOS_SCAN_HELPER") != "1" {
 		return
 	}
 	fset := token.NewFileSet()
-	// Test the real offending shape
 	file := scanLogosTestFile(fset, "json_marshal_test.lgo", []byte(offendingSource))
 	if file == nil {
 		fmt.Fprintf(os.Stderr, "scanLogosTestFile returned nil\n")
@@ -75,7 +76,6 @@ func TestLogosScanChild(t *testing.T) {
 		}
 	}
 
-	// Test malformed cases
 	for _, bad := range []string{
 		"package p\nfunc foo() {\n",
 		"package p\nfunc foo() { if true {\n",
@@ -90,9 +90,6 @@ func TestLogosScanChild(t *testing.T) {
 	os.Exit(0)
 }
 
-// TestLogosScanProgressBounded executes the scanner in a child process
-// with a hard timeout via exec.CommandContext so that any scanner livelock
-// is terminated with bounded cancellation and cannot hang the test suite.
 func TestLogosScanProgressBounded(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
@@ -105,5 +102,31 @@ func TestLogosScanProgressBounded(t *testing.T) {
 			t.Fatalf("scanLogosTestFile livelocked: child process timed out and was killed: %v", err)
 		}
 		t.Fatalf("child helper failed: %v\n%s", err, out)
+	}
+}
+func TestLogosLintMarkSkipsNonMainModules(t *testing.T) {
+	old := cfg.Logos
+	cfg.Logos = true
+	t.Cleanup(func() { cfg.Logos = old })
+	std := &Package{Standard: true}
+	if std.Internal.LogosLint != nil {
+		t.Errorf("standard package LogosLint = %q, want nil", std.Internal.LogosLint)
+	}
+	dep := &Package{Module: &modinfo.ModulePublic{Path: "example.com/dep", Main: false}}
+	logosLintMark(nil, dep)
+	if dep.Internal.LogosLint != nil {
+		t.Errorf("third-party module LogosLint = %q, want nil", dep.Internal.LogosLint)
+	}
+	bare := &Package{}
+	logosLintMark(nil, bare)
+	if bare.Internal.LogosLint != nil {
+		t.Errorf("module-less package LogosLint = %q, want nil", bare.Internal.LogosLint)
+	}
+	main := []byte("package main\n")
+	testmain := &Package{Module: &modinfo.ModulePublic{Path: "example.com/m", Main: true}}
+	testmain.Internal.TestmainGo = &main
+	logosLintMark(nil, testmain)
+	if testmain.Internal.LogosLint != nil {
+		t.Errorf("testmain package LogosLint = %q, want nil", testmain.Internal.LogosLint)
 	}
 }

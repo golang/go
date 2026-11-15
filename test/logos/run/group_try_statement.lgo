@@ -1,0 +1,182 @@
+// run
+
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"strings"
+	"sync"
+	"time"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+var errBoom = errors.New("boom")
+
+var mu sync.Mutex
+var events []string
+
+func note(s string) {
+	mu.Lock()
+	defer mu.Unlock()
+	events = append(events, s)
+}
+
+func reset() {
+	mu.Lock()
+	defer mu.Unlock()
+	events = nil
+}
+
+func seen() string {
+	mu.Lock()
+	defer mu.Unlock()
+	return strings.Join(events, ",")
+}
+
+func slow(tag string) {
+	time.Sleep(30 * time.Millisecond)
+	note(tag)
+}
+
+func use(ctx context.Context) error { return ctx.Err() }
+
+func fetch(ctx context.Context) (int, error) {
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+	return 1, nil
+}
+
+func boom() error { return errBoom }
+
+func tryExprAfterChild(ctx context.Context) error {
+	go group (ctx) {
+		go {
+			_ = ctx
+		}
+		use(ctx)?
+	}
+	return nil
+}
+
+func tryAssignAfterChild(ctx context.Context) error {
+	go group (ctx) {
+		go {
+			_ = ctx
+		}
+		n := fetch(ctx)?
+		note(fmt.Sprint("n=", n))
+	}
+	return nil
+}
+
+func tryBeforeChild(ctx context.Context) error {
+	go group (ctx) {
+		use(ctx)?
+		go {
+			note("child")
+		}
+	}
+	return nil
+}
+
+func spawnAfterTry(ctx context.Context) error {
+	go group (ctx) {
+		n := fetch(ctx)?
+		go {
+			note(fmt.Sprint("child n=", n))
+		}
+	}
+	return nil
+}
+
+func tryAssignExisting(ctx context.Context) error {
+	var n int
+	go group (ctx) {
+		go {
+			_ = ctx
+		}
+		n = fetch(ctx)?
+	}
+	note(fmt.Sprint("n=", n))
+	return nil
+}
+
+func tryWithErrdefer(ctx context.Context) error {
+	errdefer note("errdefer")
+	go group (ctx) {
+		go {
+			_ = ctx
+		}
+		use(ctx)?
+	}
+	return nil
+}
+
+func tryFailureJoinsChildren(ctx context.Context) error {
+	go group (ctx) {
+		go {
+			slow("child-done")
+		}
+		boom()?
+	}
+	return nil
+}
+
+func tryFailureErrdefer(ctx context.Context) error {
+	errdefer note("errdefer")
+	go group (ctx) {
+		go {
+			slow("child-done")
+		}
+		boom()?
+	}
+	return nil
+}
+
+func watchdog(name string) func() {
+	t := time.AfterFunc(10*time.Second, func() {
+		fmt.Println("FAIL", name+": hung")
+		os.Exit(1)
+	})
+	return func() { t.Stop() }
+}
+
+func scenario(name string, f func(context.Context) error, want string, errOK func(error) bool) {
+	reset()
+	stop := watchdog(name)
+	err := f(context.Background())
+	stop()
+	check(name, seen() == want && errOK(err), seen()+" / "+fmt.Sprint(err), want)
+}
+
+func isNil(err error) bool { return err == nil }
+
+func isBoom(err error) bool { return errors.Is(err, errBoom) }
+
+func main() {
+	scenario("try-expr-statement-sees-live-group-context", tryExprAfterChild, "", isNil)
+	scenario("try-assign-statement-sees-live-group-context", tryAssignAfterChild, "n=1", isNil)
+	scenario("try-statement-before-the-first-child", tryBeforeChild, "child", isNil)
+	scenario("child-spawned-after-a-try-statement", spawnAfterTry, "child n=1", isNil)
+	scenario("try-assigns-an-existing-variable", tryAssignExisting, "n=1", isNil)
+	scenario("try-statement-with-errdefer-skips-it", tryWithErrdefer, "", isNil)
+	scenario("failed-try-statement-joins-the-children", tryFailureJoinsChildren, "child-done", isBoom)
+	scenario("failed-try-statement-runs-errdefer-after-the-join", tryFailureErrdefer, "child-done,errdefer", isBoom)
+	if failed {
+		os.Exit(1)
+	}
+}

@@ -1,0 +1,36 @@
+// run
+package main
+
+import (
+	"fmt"
+	"strings"
+	"testing"
+	u "unsafe"
+)
+
+var unsafe = 1
+
+var shadowBytes const []byte
+var shadowString string
+
+func main() {
+	s := strings.Repeat("zero-copy-shadow", 16)
+	var b const []byte = const []byte(s)
+	if testing.AllocsPerRun(100, func() { shadowBytes = const []byte(s) }) != 0 {
+		panic("string to const bytes allocated")
+	}
+	if testing.AllocsPerRun(100, func() { shadowString = string(b) }) != 0 {
+		panic("const bytes to string allocated")
+	}
+	if u.StringData(shadowString) != u.StringData(s) {
+		panic("const bytes to string copied data")
+	}
+	var c const []byte = []byte{1, 2, 3, 4}
+	if testing.AllocsPerRun(100, func() { shadowString = string(c) }) != 0 {
+		panic("composite const bytes to string allocated")
+	}
+	if u.StringData(shadowString) != u.StringData(string(c)) {
+		panic("composite const bytes to string copied data")
+	}
+	fmt.Println("ok zerocopy-unsafe")
+}

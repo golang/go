@@ -2,16 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// M6-S5 parser attacks: tuple types `(A, B)` and `(a A, b B)`, tuple
-// literals `(a, b)`, and the shared `(` rule with lambdas and plain
-// parenthesized expressions (SPEC Sec 2.4, T-204.1; Sec 5.2-5.3,
-// T-104.6). Every form without an ERROR comment must parse cleanly in
-// LogosMode; each ERROR comment pins a parse error that M6-S5 keeps
-// (regex against the parser message, same matcher as TestSyntaxErrors).
-
 package p
 
-// Tuple types in every non-result position.
 var _ (int, error)
 var _ chan (int, error)
 var _ [](x int, y int)
@@ -37,7 +29,6 @@ func params(t (x int, y string), u (int, error)) (int, error) {
 	return a, nil
 }
 
-// Tuple literals pack positionally; a single element stays parenthesized.
 func lits(a int, b string) {
 	u := (1, "s")
 	_ = u
@@ -49,7 +40,6 @@ func lits(a int, b string) {
 	_ = ((a, b))
 }
 
-// Lambdas share the `(` rule: `=>` after `)` forms one over names.
 func lambdas(f func(int, int) bool) {
 	g := (a, b) => a < b
 	_ = g
@@ -62,7 +52,6 @@ func lambdas(f func(int, int) bool) {
 	_ = f
 }
 
-// Plain parenthesized expressions and types parse exactly as in Go.
 func parens(x int) int {
 	y := (x + 1) * 2
 	_ = y
@@ -74,13 +63,10 @@ func parens(x int) int {
 	return x
 }
 
-// Index-style access is not a tuple operation.
 func badAccess(t (x int, y int)) {
 	_ = t.0 // ERROR syntax error: unexpected literal
 }
 
-// A tuple type needs at least two element types.
 var _ (x int) // ERROR syntax error: tuple type needs at least two element types
 
-// Lambda parameters must be names.
 var _ = (a, 1) => a // ERROR syntax error: lambda parameters must be names

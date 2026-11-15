@@ -1,0 +1,142 @@
+# M18-S8b: a go group child reads parent-region objects through const
+# views while any other capture escapes. The const tree program runs
+# race-clean with its allocation in the region; the mutating child
+# falls back with one perf::arena_fallback naming the group child, and
+# its object adds no region bytes.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOEXPERIMENT=logosarena
+env CGO_ENABLED=1
+
+logos run -race ./const
+stdout '^524800$'
+stdout '^rt\.RegionBytes\(\) > 0: true$'
+! stderr 'DATA RACE'
+
+logos build -gcflags=-m -o $WORK/c$GOEXE ./const
+! stderr 'perf::arena_fallback'
+
+logos build -gcflags=-m -o $WORK/n$GOEXE ./nonconst
+stderr -count=1 'perf::arena_fallback'
+stderr 'group child'
+
+logos run ./nonconst
+stdout '^region bytes for fallback object: 0$'
+
+-- go.mod --
+module example.com/regiongroup
+
+go 1.27
+
+-- const/region_group.lgo --
+package main
+
+import (
+	"context"
+	"fmt"
+	"logos/arena"
+	"logos/rt"
+)
+
+type node struct {
+	l const *node
+	r const *node
+	v int
+}
+
+func sumTree(n const *node) int {
+	if n == nil {
+		return 0
+	}
+	return n.v + sumTree(n.l) + sumTree(n.r)
+}
+
+func fill(dst *int, n const *node) {
+	*dst = sumTree(n)
+}
+
+func run(ctx context.Context) error {
+	r := arena.Open()
+	nodes := arena.Make[node](r, 1024)
+	for i := range nodes {
+		nodes[i].v = i + 1
+	}
+	for i := range nodes {
+		if l := 2*i + 1; l < len(nodes) {
+			nodes[i].l = &nodes[l]
+		}
+		if rr := 2*i + 2; rr < len(nodes) {
+			nodes[i].r = &nodes[rr]
+		}
+	}
+	var head const *node = &nodes[0]
+	seq := sumTree(head)
+	var roots [8]const *node = [8]const *node{
+		&nodes[7], &nodes[8], &nodes[9], &nodes[10],
+		&nodes[11], &nodes[12], &nodes[13], &nodes[14],
+	}
+	var parts [8]int
+	go group (ctx) {
+		for k := range 8 {
+			go fill(&parts[k], roots[k])
+		}
+	}
+	par := 0
+	for _, p := range parts {
+		par += p
+	}
+	for i := range 7 {
+		par += nodes[i].v
+	}
+	if seq != par {
+		panic("parallel total differs from sequential total")
+	}
+	if seq != 524800 {
+		panic("bad total")
+	}
+	fmt.Println(seq)
+	fmt.Println("rt.RegionBytes() > 0:", rt.RegionBytes() > 0)
+	return nil
+}
+
+func main() {
+	if err := run(context.Background()); err != nil {
+		panic(err)
+	}
+}
+
+-- nonconst/main.lgo --
+package main
+
+import (
+	"context"
+	"fmt"
+	"logos/arena"
+	"logos/rt"
+)
+
+type node struct {
+	v int
+}
+
+func touch(n *node) error {
+	n.v = 1
+	return nil
+}
+
+func run(ctx context.Context) error {
+	r := arena.Open()
+	before := rt.RegionBytes()
+	q := arena.New[node](r)
+	go group (ctx) {
+		go touch(q)
+	}
+	fmt.Println("region bytes for fallback object:", rt.RegionBytes()-before)
+	return nil
+}
+
+func main() {
+	if err := run(context.Background()); err != nil {
+		panic(err)
+	}
+}

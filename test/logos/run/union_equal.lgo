@@ -1,0 +1,34 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type U interface {
+	*int | int | string
+}
+
+func main() {
+	check("same-union-value-equals", U(1) == U(1), U(1) == U(1), true)
+	check("different-union-members-differ", U(1) != U("1"), U(1) == U("1"), false)
+	check("nil-union-equals-nil", U(nil) == U(nil), U(nil) == U(nil), true)
+	var typed U = (*int)(nil)
+	check("typed-nil-differs-from-nil-union", typed != U(nil), typed == U(nil), false)
+	if failed {
+		os.Exit(1)
+	}
+}

@@ -114,6 +114,74 @@ func TestLogosJSONDiagnostics(t *testing.T) {
 		checkLogosRule(t, records[0], "slop::discarded_error")
 	})
 
+	t.Run("Allow", func(t *testing.T) {
+		for _, level := range []string{"warn", "allow"} {
+			t.Run(level, func(t *testing.T) {
+				dir := logosJSONFixture(t, map[string]string{
+					"go.mod":     "module example.com/jsonallow\n\ngo 1.27\n",
+					"logos.toml": "[lints]\nslop = \"" + level + "\"\n",
+					"main.lgo":   "package main\n\nimport \"os\"\n\nfunc loop(n int) int {\n\treturn loop(n)\n}\n\nfunc main() {\n\tos.Remove(\"missing\")\n\tprintln(loop(1))\n}\n",
+				})
+				code, records := runLogosJSON(t, dir, "lint", "--json-diagnostics", "./...")
+				if code == 0 {
+					t.Errorf("logos lint exit status 0, want nonzero for independent forbidden rule")
+				}
+				checkLogosAnyRecord(t, records, "correctness::infinite_recursion", "forbid")
+				want := 1
+				if level == "warn" {
+					want = 2
+					checkLogosAnyRecord(t, records, "slop::discarded_error", "warn")
+				}
+				if len(records) != want {
+					t.Fatalf("got %d records, want %d: %v", len(records), want, records)
+				}
+				for _, m := range records {
+					checkLogosEnvelope(t, m, "main.lgo")
+					if level == "allow" && m["rule_id"] == "slop::discarded_error" {
+						t.Errorf("allowed rule emitted a diagnostic: %v", m)
+					}
+				}
+			})
+		}
+	})
+
+	t.Run("AutofixInsertion", func(t *testing.T) {
+		dir := logosJSONFixture(t, map[string]string{
+			"go.mod":   "module example.com/jsonfix\n\ngo 1.27\n",
+			"main.lgo": "package main\n\ntype User struct{ Name string }\n\nfunc name(u *User?) string {\n\treturn u.Name\n}\n\nfunc main() {}\n",
+		})
+		code, records := runLogosJSON(t, dir, "lint", "--json-diagnostics", "./...")
+		if code == 0 {
+			t.Errorf("logos lint exit status 0, want nonzero")
+		}
+		if len(records) != 1 {
+			t.Fatalf("got %d records, want 1: %v", len(records), records)
+		}
+		m := records[0]
+		checkLogosEnvelope(t, m, "main.lgo")
+		checkLogosRule(t, m, "correctness::nil_deref_unproven")
+		candidates, ok := m["autofix_candidates"].([]any)
+		if !ok || len(candidates) == 0 {
+			t.Fatalf("autofix_candidates = %v, want non-empty array", m["autofix_candidates"])
+		}
+		insertion := false
+		for _, candidate := range candidates {
+			fix, ok := candidate.(map[string]any)
+			if !ok {
+				t.Fatalf("autofix candidate is not an object: %v", candidate)
+			}
+			if line, ok := fix["insert_before_line"]; ok {
+				if line != float64(6) {
+					t.Errorf("insert_before_line = %v, want integer 6", line)
+				}
+				insertion = true
+			}
+		}
+		if !insertion {
+			t.Error("no insertion candidate for nullable receiver guard")
+		}
+	})
+
 	t.Run("GoTypeError", func(t *testing.T) {
 		dir := logosJSONFixture(t, map[string]string{
 			"go.mod":  "module example.com/gotypeerr\n\ngo 1.27\n",
@@ -128,6 +196,143 @@ func TestLogosJSONDiagnostics(t *testing.T) {
 		}
 		m := records[0]
 		checkLogosEnvelope(t, m, ".go")
+		checkLogosSeverity(t, m, "deny")
+		checkLogosRule(t, m, "")
+		msg, ok := m["message"].(string)
+		if !ok || !strings.Contains(msg, "undefined") {
+			t.Errorf("message = %v, want a string containing %q", m["message"], "undefined")
+		}
+	})
+	t.Run("List", func(t *testing.T) {
+		dir := logosJSONFixture(t, map[string]string{
+			"go.mod":   "module example.com/jsonlist\n\ngo 1.27\n",
+			"main.lgo": "package main\n\nfunc main() {\n\tundefinedFn()\n}\n",
+		})
+		code, records := runLogosJSON(t, dir, "list", "-export", "-compiled", "-json", "--json-diagnostics", ".")
+		if code == 0 {
+			t.Errorf("logos list exit status 0, want nonzero")
+		}
+		if len(records) != 1 {
+			t.Fatalf("got %d records, want 1: %v", len(records), records)
+		}
+		m := records[0]
+		checkLogosEnvelope(t, m, "main.lgo")
+		checkLogosSeverity(t, m, "deny")
+		checkLogosRule(t, m, "")
+		if got := logosJSONSpan(t, m)["start_line"]; got != float64(4) {
+			t.Errorf("span.start_line = %v, want 4", got)
+		}
+		msg, ok := m["message"].(string)
+		if !ok || !strings.Contains(msg, "undefined") {
+			t.Errorf("message = %v, want a string containing %q", m["message"], "undefined")
+		}
+	})
+	t.Run("ListEveryInput", func(t *testing.T) {
+		for _, tc := range []struct {
+			name   string
+			file   string
+			source string
+			rule   string
+		}{
+			{
+				name:   "GoTypeError",
+				file:   "main.go",
+				source: "package main\nfunc main(){ undefinedFn() }\n",
+				rule:   "",
+			},
+			{
+				name:   "LgoLint",
+				file:   "main.lgo",
+				source: "package main\nimport \"os\"\nfunc main() { os.Remove(\"missing\") }\n",
+				rule:   "slop::discarded_error",
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				dir := logosJSONFixture(t, map[string]string{
+					"go.mod": "module example.com/jsonlisteveryinput\n\ngo 1.27\n",
+					tc.file:  tc.source,
+				})
+				code, records := runLogosJSON(t, dir, "list", "-export", "-compiled", "-json", "--json-diagnostics", ".")
+				if code == 0 {
+					t.Errorf("logos list exit status 0, want nonzero")
+				}
+				if len(records) != 1 {
+					t.Fatalf("got %d records, want 1: %v", len(records), records)
+				}
+				m := records[0]
+				checkLogosEnvelope(t, m, tc.file)
+				checkLogosRule(t, m, tc.rule)
+				if got := logosJSONNumber(t, logosJSONSpan(t, m), "start_line"); got <= 0 {
+					t.Errorf("span.start_line = %v, want > 0", got)
+				}
+			})
+		}
+	})
+
+	for _, tc := range []struct {
+		command string
+		file    string
+	}{
+		{command: "build", file: "main.go"},
+		{command: "build", file: "main.lgo"},
+		{command: "lint", file: "main.go"},
+		{command: "lint", file: "main.lgo"},
+	} {
+		t.Run("SyntaxError/"+tc.command+"/"+tc.file, func(t *testing.T) {
+			dir := logosJSONFixture(t, map[string]string{
+				"go.mod": "module example.com/jsonsyntax\n\ngo 1.27\n",
+				tc.file:  "package main\nfunc main( {\n",
+			})
+			code, records := runLogosJSON(t, dir, tc.command, "--json-diagnostics", ".")
+			if code == 0 {
+				t.Errorf("logos %s exit status 0, want nonzero", tc.command)
+			}
+			for _, m := range records {
+				checkLogosEnvelope(t, m, tc.file)
+				checkLogosRule(t, m, "")
+				if got := logosJSONNumber(t, logosJSONSpan(t, m), "start_line"); got <= 0 {
+					t.Errorf("span.start_line = %v, want > 0", got)
+				}
+			}
+		})
+	}
+
+	t.Run("GoLintTypeError", func(t *testing.T) {
+		dir := logosJSONFixture(t, map[string]string{
+			"go.mod":  "module example.com/golinttypeerr\n\ngo 1.27\n",
+			"main.go": "package main\n\nfunc main() {\n\tundefinedFn()\n}\n",
+		})
+		code, records := runLogosJSON(t, dir, "lint", "--json-diagnostics", "./...")
+		if code == 0 {
+			t.Errorf("logos lint exit status 0, want nonzero")
+		}
+		if len(records) != 1 {
+			t.Fatalf("got %d records, want 1: %v", len(records), records)
+		}
+		m := records[0]
+		checkLogosEnvelope(t, m, ".go")
+		checkLogosSeverity(t, m, "deny")
+		checkLogosRule(t, m, "")
+		msg, ok := m["message"].(string)
+		if !ok || !strings.Contains(msg, "undefined") {
+			t.Errorf("message = %v, want a string containing %q", m["message"], "undefined")
+		}
+	})
+
+	t.Run("LgoLintTypeError", func(t *testing.T) {
+		dir := logosJSONFixture(t, map[string]string{
+			"go.mod":   "module example.com/lgolinttypeerr\n\ngo 1.27\n",
+			"main.lgo": "package main\n\nfunc main() {\n\tundefinedFn()\n}\n",
+		})
+		code, records := runLogosJSON(t, dir, "lint", "--json-diagnostics", "./...")
+		if code == 0 {
+			t.Errorf("logos lint exit status 0, want nonzero")
+		}
+		if len(records) != 1 {
+			t.Fatalf("got %d records, want 1: %v", len(records), records)
+		}
+		m := records[0]
+		checkLogosEnvelope(t, m, ".lgo")
 		checkLogosSeverity(t, m, "deny")
 		checkLogosRule(t, m, "")
 		msg, ok := m["message"].(string)
@@ -306,8 +511,26 @@ func checkLogosEnvelopeSuffix(t *testing.T, m map[string]any, suffix string) {
 	if _, ok := prov["inferred_type"].(string); !ok {
 		t.Errorf("provenance.inferred_type = %v, want a string", prov["inferred_type"])
 	}
-	if _, ok := m["autofix_candidates"].([]any); !ok {
-		t.Errorf("autofix_candidates is not an array: %v", m["autofix_candidates"])
+	candidates, ok := m["autofix_candidates"].([]any)
+	if !ok {
+		t.Fatalf("autofix_candidates is not an array: %v", m["autofix_candidates"])
+	}
+	for _, candidate := range candidates {
+		fix, ok := candidate.(map[string]any)
+		if !ok {
+			t.Fatalf("autofix candidate is not an object: %v", candidate)
+		}
+		for _, key := range []string{"description", "replacement"} {
+			if _, ok := fix[key].(string); !ok {
+				t.Errorf("autofix candidate %s = %v, want a string", key, fix[key])
+			}
+		}
+		if line, exists := fix["insert_before_line"]; exists {
+			n, ok := line.(float64)
+			if !ok || n < 1 || n != float64(int(n)) {
+				t.Errorf("insert_before_line = %v, want a positive integer", line)
+			}
+		}
 	}
 }
 

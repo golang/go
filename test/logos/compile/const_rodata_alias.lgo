@@ -1,0 +1,44 @@
+// errorcheck
+
+package p
+
+import "unsafe"
+
+const faultSlice = []int{11, 22, 33}
+
+const names = []string{"alice", "bob", "carol"}
+
+type Rec struct {
+	Name string
+	Age  int
+}
+
+const recs = []Rec{{Name: "a", Age: 1}, {Name: "b", Age: 2}}
+
+const (
+	roGrouped = []int{9, 8, 7}
+	roGlen    = len(roGrouped)
+)
+
+func storeInt() {
+	p := unsafe.SliceData(faultSlice)
+	*p = 0xDEAD // ERROR "const_view_mutation"
+}
+
+func storeString() {
+	sp := unsafe.SliceData(names)
+	*sp = "X" // ERROR "const_view_mutation"
+}
+
+func storeField() {
+	rp := unsafe.SliceData(recs)
+	rp.Age = 99 // ERROR "const_view_mutation"
+}
+
+func escapeSlice() uintptr {
+	return uintptr(unsafe.Pointer(unsafe.SliceData(faultSlice))) // ERROR "const_view_escape"
+}
+
+func escapeGrouped() uintptr {
+	return uintptr(unsafe.Pointer(unsafe.SliceData(roGrouped))) + uintptr(roGlen) // ERROR "const_view_escape"
+}

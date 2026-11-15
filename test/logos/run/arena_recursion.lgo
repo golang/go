@@ -1,0 +1,74 @@
+// run -goexperiment logosarena
+package main
+
+import (
+	"fmt"
+	"os"
+
+	"logos/arena"
+	"logos/rt"
+)
+
+func fibFill(r arena.Region, out []int, n int) int {
+	t := arena.New[int](r)
+	*t = n
+	if n < 2 {
+		out[n] = *t
+		return *t
+	}
+	a := fibFill(r, out, n-1)
+	b := fibFill(r, out, n-2)
+	*t = a + b
+	out[n] = *t
+	return *t
+}
+
+func fibPtr(r arena.Region, n int) *int {
+	if n < 2 {
+		p := arena.New[int](r)
+		*p = n
+		return p
+	}
+	a := fibPtr(r, n-1)
+	b := fibPtr(r, n-2)
+	p := arena.New[int](r)
+	*p = *a + *b
+	return p
+}
+
+func fibHeap(n int) int {
+	if n < 2 {
+		return n
+	}
+	return fibHeap(n-1) + fibHeap(n-2)
+}
+
+func main() {
+	failed := false
+	check := func(name string, ok bool, detail string) {
+		if !ok {
+			fmt.Printf("FAIL %s: %s\n", name, detail)
+			failed = true
+			return
+		}
+		fmt.Printf("ok %s\n", name)
+	}
+	r := arena.Open()
+	out := arena.Make[int](r, 11)
+	got := fibFill(r, out, 10)
+	ptr := fibPtr(r, 10)
+	want := fibHeap(10)
+	check("recursive-fill-matches-heap-fibonacci", got == want && want == 55, fmt.Sprintf("got %d want %d", got, want))
+	check("recursive-pointer-matches-heap-fibonacci", *ptr == 55, fmt.Sprintf("got %d want 55", *ptr))
+	tableOK := true
+	for i := range out {
+		if out[i] != fibHeap(i) {
+			tableOK = false
+		}
+	}
+	check("recursive-memo-table-matches-heap-oracle", tableOK, "memo table differs from heap oracle")
+	check("recursive-region-holds-bytes", rt.RegionBytes() > 0, fmt.Sprintf("got %d want >0", rt.RegionBytes()))
+	if failed {
+		os.Exit(1)
+	}
+}

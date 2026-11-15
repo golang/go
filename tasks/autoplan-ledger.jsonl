@@ -1,9 +1,8 @@
-{"id": "CEO-01", "description": "P0-S1 Rename logos-docs/PLAN.md to logos-docs/SPEC.md (pure rename) and P0-S2 rewrite SPEC.md as the tailored spec (tables T, T-PERF, N, Section 23)", "phase": "CEO"}
-{"id": "CEO-02", "description": "P0-S5 Create logos-docs/REDTEAM.md with 182 attack rows", "phase": "CEO"}
+{"id": "CEO-01", "description": "P0-S1 Rename logos-doc/PLAN.md to logos-doc/SPEC.md (pure rename) and P0-S2 rewrite SPEC.md as the tailored spec (tables T, N, Section 18)", "phase": "CEO"}
+{"id": "CEO-02", "description": "P0-S5 Create logos-doc/REDTEAM.md with 182 attack rows", "phase": "CEO"}
 {"id": "CEO-03", "description": "P0-S6 Create tasks/autoplan-ledger.jsonl from this ledger", "phase": "CEO"}
 {"id": "CEO-04", "description": "P0-S7 Replace the session todo list with one item per slice", "phase": "CEO"}
-{"id": "CEO-05", "description": "P0-S3 Archive the original spec by section in logos-docs/archive/ (table A, byte-exact cmp check)", "phase": "CEO"}
-{"id": "CEO-06", "description": "P0-S4 Commit this plan as logos-docs/IMPLEMENTATION.md without session-only references", "phase": "CEO"}
+{"id": "CEO-06", "description": "P0-S4 Commit this plan as logos-doc/IMPLEMENTATION.md without session-only references", "phase": "CEO"}
 {"id": "CEO-07", "description": "P0-S8 Create the root AGENTS.md for agents working on loGos (commands, gotchas, workflow, references)", "phase": "CEO"}
 {"id": "DX-01", "description": "M0-S1 The logos command", "phase": "DX"}
 {"id": "DX-02", "description": "M0-S2 Package classification in cmd/go and go/build", "phase": "DX"}
@@ -72,9 +71,6 @@
 {"id": "ENG-03", "description": "M12-S1 Policy and unsafe imports (cmd/go)", "phase": "ENG"}
 {"id": "ENG-04", "description": "M12-S2 Reachability sinks (linker)", "phase": "ENG"}
 {"id": "ENG-05", "description": "M13-S1 -O levels and CPU targets", "phase": "ENG"}
-{"id": "ENG-06", "description": "M13-S2 Synthetic PGO", "phase": "ENG"}
-{"id": "ENG-07", "description": "M13-S3 Clone specialization", "phase": "ENG"}
-{"id": "ENG-08", "description": "M13-S4 Identical code folding at Os/Oz", "phase": "ENG"}
 {"id": "ENG-09", "description": "M14-S1 Operators and reductions", "phase": "ENG"}
 {"id": "ENG-10", "description": "M15-S1 ARM64 load/store pairing", "phase": "ENG"}
 {"id": "ENG-11", "description": "M15-S2 amd64 masked tails, BMI2, CMOV, checked make", "phase": "ENG"}
@@ -86,11 +82,6 @@
 {"id": "ENG-17", "description": "M18-S1 Chunks, lease, release", "phase": "ENG"}
 {"id": "ENG-18", "description": "M18-S2 Compiler placement", "phase": "ENG"}
 {"id": "ENG-19", "description": "M18-S3 Inline noscan bump and GC scanning", "phase": "ENG"}
-{"id": "ENG-20", "description": "M19-S1 batch and epsilon", "phase": "ENG"}
-{"id": "ENG-21", "description": "M19-S2 greentea with elastic workers", "phase": "ENG"}
-{"id": "ENG-22", "description": "M19-S3 wasm idle marking", "phase": "ENG"}
-{"id": "ENG-23", "description": "M19-S4 Generational card table (GOEXPERIMENT=logosgen)", "phase": "ENG"}
-{"id": "ENG-24", "description": "M19-S5 Moving modes: immix (phase 1) and zgc (phase 2), GOEXPERIMENT=logosgcmoving", "phase": "ENG"}
 {"id": "ENG-25", "description": "M20-S0 cgo in .lgo packages", "phase": "ENG"}
 {"id": "ENG-26", "description": "M20-S1 //logos:cgo_fastcall (GOEXPERIMENT=logosfastcgo)", "phase": "ENG"}
 {"id": "DX-16", "description": "M21-S1 Proxy and position mapping", "phase": "DX"}
@@ -106,7 +97,177 @@
 {"id": "ENG-33", "description": "M11-S3 Binary encoding", "phase": "ENG"}
 {"id": "ENG-34", "description": "M11-S4 Unions, generics, and call sites", "phase": "ENG"}
 {"id": "ENG-35", "description": "M18-S4 Go-group cancellation without a g field", "phase": "ENG"}
-{"id": "ENG-36", "description": "M19-S6 Green Tea span deck", "phase": "ENG"}
-{"id": "ENG-37", "description": "M19-S7 zgc colored pointers", "phase": "ENG"}
-{"id": "ENG-38", "description": "M19-S8 immix blocks and lines", "phase": "ENG"}
 {"id": "DX-20", "description": "M0-S8 Go and loGo/s interop (replaces the import-edge rejection of M0-S2)", "phase": "DX"}
+{"id": "ENG-39", "description": "M18-S5 Comptime layout intrinsics", "phase": "ENG"}
+{"id": "ENG-40", "description": "M18-S6 Pointee-leak escape tag", "phase": "ENG"}
+{"id": "ENG-41", "description": "M18-S7 logos/arena and explicit placement", "phase": "ENG"}
+{"id": "ENG-42", "description": "M18-S8 Group read sharing", "phase": "ENG"}
+{"id": "ENG-43", "description": "M18-S9 Implicit placement on by default under logos", "phase": "ENG"}
+{"id": "ENG-44", "description": "M9-S9 Native nogo rules", "phase": "ENG"}
+{"id": "ENG-45", "description": "M21-S3 Pull-model proxy", "phase": "ENG"}
+{"id": "ENG-46", "description": "M23-S1 One facts writer", "phase": "ENG"}
+{"id": "ENG-47", "description": "M23-S2 Shared edit map package", "phase": "ENG"}
+{"id": "ENG-48", "description": "M23-S3 One eject printer", "phase": "ENG"}
+{"id": "ENG-49", "description": "M23-S4 One cmd/go settings path", "phase": "ENG"}
+{"id": "AUD-01", "description": "M3-A-S3 Reject facts object names with an invalid tag", "phase": "AUD"}
+{"id": "AUD-02", "description": "M8-A Assert Hot values remain GC managed", "phase": "AUD"}
+{"id": "AUD-03", "description": "M6-A Enforce generator returns and ejected traces", "phase": "AUD"}
+{"id": "AUD-04", "description": "M14-A Assert tuple and SIMD interop", "phase": "AUD"}
+{"id": "AUD-05", "description": "M0-A-S1 Assert module and toolchain class rules", "phase": "AUD"}
+{"id": "AUD-06", "description": "M1-A-S2 Assert parser position and scanner rules", "phase": "AUD"}
+{"id": "AUD-07", "description": "M1-A-S1 Assert eject support import rules", "phase": "AUD"}
+{"id": "AUD-08", "description": "M0-A-S2 Assert extension normalization and zip rejection", "phase": "AUD"}
+{"id": "AUD-09", "description": "M0-A-S3 Assert cgo defaults and zig targets", "phase": "AUD"}
+{"id": "AUD-10", "description": "M10-A Assert no command rewrites sources", "phase": "AUD"}
+{"id": "AUD-11", "description": "M13-A-S1 Assert optimization tier scope", "phase": "AUD"}
+{"id": "AUD-12", "description": "M0-A-S4 Cover every alias in module zip rejection", "phase": "AUD"}
+{"id": "AUD-13", "description": "M5-A Assert const composite boundaries", "phase": "AUD"}
+{"id": "AUD-14", "description": "M3-A Assert option representations", "phase": "AUD"}
+{"id": "AUD-15", "description": "M2-A Assert closed unions and inline assertions", "phase": "AUD"}
+{"id": "AUD-16", "description": "M4-A Assert property accessor receiver kinds", "phase": "AUD"}
+{"id": "AUD-17", "description": "M7-A Assert comptime field type mismatches", "phase": "AUD"}
+{"id": "AUD-18", "description": "M11-A Assert static serializer semantics", "phase": "AUD"}
+{"id": "AUD-19", "description": "M16-A Assert wasm yield call barriers", "phase": "AUD"}
+{"id": "AUD-20", "description": "M18-A-S1 Add comptime layout intrinsics", "phase": "AUD"}
+{"id": "AUD-21", "description": "M1-A-S4 Find gofmt like go fmt and bound eject gofmt argument lists", "phase": "AUD"}
+{"id": "AUD-22", "description": "M1-A-S5 Format owned helper output before naming it", "phase": "AUD"}
+{"id": "AUD-23", "description": "M13-A-S2 Pin the standard-library variable-make strip", "phase": "AUD"}
+{"id": "AUD-24", "description": "M7-A-S1 Pin the comptime node limit from logos.toml", "phase": "AUD"}
+{"id": "AUD-25", "description": "M7-A-S2 Copy ViewAs input on riscv64", "phase": "AUD"}
+{"id": "AUD-26", "description": "M18-A-S2 Record pointee-only parameter leaks in escape analysis", "phase": "AUD"}
+{"id": "AUD-27", "description": "M1-A-S3 Assert lambda and coalesce parsing rules", "phase": "AUD"}
+{"id": "AUD-28", "description": "M5-A-S1 Assert const map contract rules", "phase": "AUD"}
+{"id": "AUD-29", "description": "M18-A-S3 Record const view declarations for group capture checks", "phase": "AUD"}
+{"id": "AUD-30", "description": "M3-A-S4 Assert the const switch assertion mask reaches the facts", "phase": "AUD"}
+{"id": "AUD-31", "description": "M16-A-S1 Assert wasm profile activation and branch dispatch evidence", "phase": "AUD"}
+{"id": "AUD-32", "description": "M16-A-S2 Assert wasm yield sources for nil checks and stack growth", "phase": "AUD"}
+{"id": "AUD-33", "description": "M18-A-S4 Pin the reassigned-target case of the pointee leak tag", "phase": "AUD"}
+{"id": "AUD-34", "description": "M18-A-S5 Pin the pointee leak call shapes that stay conservative", "phase": "AUD"}
+{"id": "AUD-35", "description": "M11-A-S1 Enforce binary slice prealloc bound", "phase": "AUD"}
+{"id": "AUD-36", "description": "M11-A-S2 Assert static JSON marshal and unmarshal rules", "phase": "AUD"}
+{"id": "AUD-37", "description": "M18-A-S6 Reject oversize types in comptime SizeOf", "phase": "AUD"}
+{"id": "AUD-38", "description": "M21-A-S1 Fix Serve misclassifying simultaneous client close and gopls exit", "phase": "AUD"}
+{"id": "AUD-39", "description": "M9-A-S1 Attack the native nogo rule ports", "phase": "AUD"}
+{"id": "AUD-40", "description": "M9-A-S2 Remove the logos-nogo helper", "phase": "AUD"}
+{"id": "AUD-41", "description": "M9-A-S3 Repair the native nogo attack fixtures", "phase": "AUD"}
+{"id": "AUD-42", "description": "M9-A-S4 Write locks and allocfree facts records", "phase": "AUD"}
+{"id": "AUD-43", "description": "M9-A-S5 Port the gVisor nogo checkers into logos lint", "phase": "AUD"}
+{"id": "AUD-44", "description": "M23-A-S1 load: read logos.toml through settings.ModuleAt", "phase": "AUD"}
+{"id": "AUD-45", "description": "M23-A-S2 cfg: apply settings decisions to the environment", "phase": "AUD"}
+{"id": "AUD-46", "description": "M23-A-S3 Load logos settings once", "phase": "AUD"}
+{"id": "AUD-47", "description": "M20-A-S1 Assert fast-cgo call accounting", "phase": "AUD"}
+{"id": "AUD-48", "description": "M20-A-S2 Assert runtime structs carry no new padding", "phase": "AUD"}
+{"id": "AUD-49", "description": "M3-A-S5 Assert readonly erasure and const-view hole", "phase": "AUD"}
+{"id": "AUD-50", "description": "M0-A-S5 Assert plain go reads no logos.toml", "phase": "AUD"}
+{"id": "AUD-51", "description": "M2-A-S1 Assert union constant comparison and non-struct rejection", "phase": "AUD"}
+{"id": "AUD-52", "description": "M11-A-S3 Assert union marshal uses member static helper", "phase": "AUD"}
+{"id": "AUD-53", "description": "M0-A-S6 Assert plain-go upstream CGO default", "phase": "AUD"}
+{"id": "AUD-54", "description": "M13-A-S3 Assert recursive inline budget and frame", "phase": "AUD"}
+{"id": "AUD-55", "description": "M15-A-S1 Assert default ARM64 target level", "phase": "AUD"}
+{"id": "AUD-56", "description": "M18-A-S7 Assert pointee precision scope and default", "phase": "AUD"}
+{"id": "AUD-57", "description": "M8-A-S1 Assert group cancel spares files and cgo calls", "phase": "AUD"}
+{"id": "AUD-58", "description": "M9-A-S6 Enforce correctness::withlock_leak", "phase": "AUD"}
+{"id": "AUD-59", "description": "M9-A-S7 Assert portability autofix and tag gate", "phase": "AUD"}
+{"id": "AUD-60", "description": "M9-A-S8 Assert perf no-hoist and zeroalloc local", "phase": "AUD"}
+{"id": "AUD-61", "description": "M4-A-S1 Assert contextual word and colon rejection rules", "phase": "AUD"}
+{"id": "AUD-62", "description": "M3-A-S6 Assert Readonly survives the facts round trip", "phase": "AUD"}
+{"id": "AUD-63", "description": "M0-A-S7 Assert plain go version and help stay upstream", "phase": "AUD"}
+{"id": "AUD-64", "description": "M21-A-S2 Assert allocation badges for Go packages", "phase": "AUD"}
+{"id": "AUD-65", "description": "M0-A-S8 Assert workspace vet and test over both module kinds", "phase": "AUD"}
+{"id": "AUD-66", "description": "M0-A-S9 Assert plain-go help stays upstream across topics", "phase": "AUD"}
+{"id": "AUD-67", "description": "M0-A-S10 Assert experiment defaults stay scoped", "phase": "AUD"}
+{"id": "AUD-68", "description": "M1-A-S6 Assert ejected files carry the unsafe alias", "phase": "AUD"}
+{"id": "AUD-69", "description": "M6-A-S1 Assert cross-architecture chain sum bit identity", "phase": "AUD"}
+{"id": "AUD-70", "description": "M15-A-S2 Assert arm64 pair shapes execute identically", "phase": "AUD"}
+{"id": "AUD-71", "description": "M16-A-S3 Assert wasm profile size and reflect retention", "phase": "AUD"}
+{"id": "AUD-72", "description": "M16-A-S4 Document wasm export int64 acceptance", "phase": "AUD"}
+{"id": "AUD-73", "description": "M8-A-S2 Assert scope defer open-coded funcdata", "phase": "AUD"}
+{"id": "AUD-74", "description": "M8-A-S3 Assert no vector staging outside bare sums", "phase": "AUD"}
+{"id": "AUD-75", "description": "M21-A-S3 Enforce lsp hints snapshot versions", "phase": "AUD"}
+{"id": "AUD-76", "description": "M22-A-S1 Enforce zeroalloc conversion exclusion", "phase": "AUD"}
+{"id": "AUD-77", "description": "M20-A-S3 Add fast-path soak, blocking, and platform coverage tests", "phase": "AUD"}
+{"id": "AUD-78", "description": "M21-A-S4 Reject stale document changes and stop forwarding them", "phase": "AUD"}
+{"id": "AUD-79", "description": "M21-A-S5 Reject duplicate Content-Length headers", "phase": "AUD"}
+{"id": "AUD-80", "description": "M21-A-S6 Skip compilation when the request context is cancelled", "phase": "AUD"}
+{"id": "AUD-81", "description": "M21-A-S7 Pin UTF-16 astral mapping and overlay release", "phase": "AUD"}
+{"id": "AUD-82", "description": "M0-A-S11 Assert cmd/go plain-go parity, help hiding, and generator rules", "phase": "AUD"}
+{"id": "AUD-83", "description": "M3-A-S7 Assert Go importers see plain readonly method signatures", "phase": "AUD"}
+{"id": "AUD-84", "description": "M3-A-S8 Pin nil-check hole for method values and interfaces", "phase": "AUD"}
+{"id": "AUD-85", "description": "M15-A-S3 Assert arm64 pair ops never write back base register", "phase": "AUD"}
+{"id": "AUD-86", "description": "M20-A-S4 Fold fast-cgo nocallback guards into the trampoline", "phase": "AUD"}
+{"id": "AUD-87", "description": "M20-A-S5 Drop dead fastCallEnterNano stores and field", "phase": "AUD"}
+{"id": "AUD-88", "description": "M9-A-S9 Harden WithLock leak, deadlock, and lock-flow analysis", "phase": "AUD"}
+{"id": "AUD-89", "description": "M3-A-S9 Assert ?? laziness with counting fallback", "phase": "AUD"}
+{"id": "AUD-90", "description": "M2-A-S2 Assert union representation and positions", "phase": "AUD"}
+{"id": "AUD-91", "description": "M7-A-S3 Enforce comptime TypeOf compile-time-only", "phase": "AUD"}
+{"id": "AUD-92", "description": "M9-A-S10 Pin diagnostics by rule ID in zeroalloc and nil fixtures", "phase": "AUD"}
+{"id": "AUD-93", "description": "M9-A-S11 Assert every lint rule has a positive fixture", "phase": "AUD"}
+{"id": "AUD-94", "description": "M1-A-S7 Assert every grammar production has a positive fixture", "phase": "AUD"}
+{"id": "AUD-95", "description": "M3-A-S10 Assert Go declarations are platform pointers", "phase": "AUD"}
+{"id": "AUD-96", "description": "M3-A-S11 Assert Go-facing signatures and facts emission", "phase": "AUD"}
+{"id": "AUD-97", "description": "M1-A-S8 Assert paren-once branches", "phase": "AUD"}
+{"id": "AUD-98", "description": "M5-A-S2 Pin const satisfaction across declaration orders", "phase": "AUD"}
+{"id": "AUD-99", "description": "M4-A-S2 Pin readonly property eject signature", "phase": "AUD"}
+{"id": "AUD-100", "description": "M9-A-S12 Hold TryLock in the taken branch of if", "phase": "AUD"}
+{"id": "AUD-101", "description": "M9-A-S13 Match guarded paths through indexes", "phase": "AUD"}
+{"id": "AUD-102", "description": "M9-A-S14 Drop aliases reassigned off the WithLock argument", "phase": "AUD"}
+{"id": "AUD-103", "description": "M9-A-S15 Refine backward goto label lock sets", "phase": "AUD"}
+{"id": "AUD-104", "description": "M9-A-S16 Apply defers of directly invoked closures at the call", "phase": "AUD"}
+{"id": "AUD-105", "description": "M3-A-S12 Assert Go package facts match across GOARCH", "phase": "AUD"}
+{"id": "AUD-106", "description": "M22-A-S2 Assert zeroalloc ignores heap fallback", "phase": "AUD"}
+{"id": "AUD-107", "description": "M1-A-S9 Capture defer try receiver once per iteration", "phase": "AUD"}
+{"id": "AUD-108", "description": "M3-A-S13 Prove always nil error callees in facts", "phase": "AUD"}
+{"id": "AUD-109", "description": "M3-A-S14 Pin C returned platform pointer stores", "phase": "AUD"}
+{"id": "AUD-110", "description": "M4-A-S3 Route qualified targets through conformance", "phase": "AUD"}
+{"id": "AUD-111", "description": "M7-A-S4 Fold constant Tag Get keys", "phase": "AUD"}
+{"id": "AUD-112", "description": "M11-A-S4 Route string tagged methods through raw fallback", "phase": "AUD"}
+{"id": "AUD-113", "description": "M11-A-S5 Enforce keyed trial for closed union decode", "phase": "AUD"}
+{"id": "AUD-114", "description": "M12-A-S1 Prove wasm deadcode drops unreachable code", "phase": "AUD"}
+{"id": "AUD-115", "description": "M13-A-S4 Serve variable make buffer at O0", "phase": "AUD"}
+{"id": "AUD-116", "description": "M13-A-S5 Pin Go package breadth with three scripts", "phase": "AUD"}
+{"id": "AUD-117", "description": "M14-A-S1 Allow float array bitwise operators", "phase": "AUD"}
+{"id": "AUD-118", "description": "M21-A-S8 Report retained snapshots per package", "phase": "AUD"}
+{"id": "AUD-119", "description": "M21-A-S9 Serve stock clients through proxy", "phase": "AUD"}
+{"id": "AUD-120", "description": "M22-A-S3 Run goparity fast oracle off and release tiers", "phase": "AUD"}
+{"id": "AUD-121", "description": "M1-A-S10 Pin the pooled try-defer record and its eject twin", "phase": "AUD"}
+{"id": "AUD-122", "description": "M5-A-S3 Gate const views on proven-zero Go parameters", "phase": "AUD"}
+{"id": "AUD-123", "description": "M15-A-S4 Pin 16-byte pair limits and fault equivalence", "phase": "AUD"}
+{"id": "AUD-124", "description": "M15-A-S5 Pin the masked tail loads of vector sums", "phase": "AUD"}
+{"id": "AUD-125", "description": "M6-A-S2 Hoist loop-body scope guards out of loops", "phase": "AUD"}
+{"id": "AUD-126", "description": "M8-A-S4 Run chain stages on group workers", "phase": "AUD"}
+{"id": "AUD-127", "description": "M16-A-S5 Assert the js/wasm default loader behaves as upstream", "phase": "AUD"}
+{"id": "AUD-128", "description": "M18-A-S8 Reject region-capturing closures smuggled through aliases", "phase": "AUD"}
+{"id": "AUD-129", "description": "M18-A-S9 Cover inner-region stores into outer objects across calls", "phase": "AUD"}
+{"id": "AUD-130", "description": "M18-A-S10 Close init-owned regions after their statement", "phase": "AUD"}
+{"id": "AUD-131", "description": "M18-A-S11 Exempt guard defers from the user-defer veto", "phase": "AUD"}
+{"id": "AUD-132", "description": "M18-A-S12 Lower placed region calls with dictionary arguments", "phase": "AUD"}
+{"id": "AUD-133", "description": "M18-A-S13 Attach region bump checks to the placed New line", "phase": "AUD"}
+{"id": "AUD-134", "description": "M22-A-S4 Pin the size gate boundary and failure", "phase": "AUD"}
+{"id": "AUD-135", "description": "M18-A-S14 Isolate arena park tests from transient chunk holders", "phase": "AUD"}
+{"id": "AUD-136", "description": "M18-A-S15 Add positive evidence for the region lint rules", "phase": "AUD"}
+{"id": "AUD-137", "description": "M18-A-S16 Keep region close temps defined under race instrumentation", "phase": "AUD"}
+{"id": "AUD-138", "description": "M18-A-S17 Place block-local holders in the region", "phase": "AUD"}
+{"id": "AUD-139", "description": "M18-A-S18 Run the region escape verdicts as a script", "phase": "AUD"}
+{"id": "AUD-140", "description": "M18-A-S19 Carry the copyright header in the arena test file", "phase": "AUD"}
+{"id": "AUD-141", "description": "M8-A-S5 Rebind the context name inside group scopes", "phase": "AUD"}
+{"id": "AUD-142", "description": "M8-A-S6 Fail an ordered group stage at the lowest failed index", "phase": "AUD"}
+{"id": "AUD-143", "description": "M22-A-S5 Harden the goparity harness gates", "phase": "AUD"}
+{"id": "AUD-144", "description": "M1-A-S11 Pin that recover in the callee of defer f()? does not recover", "phase": "AUD"}
+{"id": "AUD-145", "description": "M1-A-S12 Reject errdefer in a Go file beside the identifier legs", "phase": "AUD"}
+{"id": "AUD-146", "description": "M3-A-S15 Pin that a build without the driver carries no AlwaysNilError line", "phase": "AUD"}
+{"id": "AUD-147", "description": "M3-A-S16 State the absent-receiver and stale-narrowing option rules", "phase": "AUD"}
+{"id": "AUD-148", "description": "M3-A-S17 Test the Go importer view of union and pointer options", "phase": "AUD"}
+{"id": "AUD-149", "description": "M3-A-S18 Reject writes through an imported const view in both import orders", "phase": "AUD"}
+{"id": "AUD-150", "description": "M4-A-S4 Cover getters that return an array holding a reference", "phase": "AUD"}
+{"id": "AUD-151", "description": "M6-A-S3 Pin lowering allocation growth of interpolations and lambdas", "phase": "AUD"}
+{"id": "AUD-152", "description": "M9-A-S17 Pin rule IDs in the errorcheck fixtures", "phase": "AUD"}
+{"id": "AUD-153", "description": "M11-A-S6 Test lawful binary counts above 8 MiB and hostile counts", "phase": "AUD"}
+{"id": "AUD-154", "description": "M13-A-S6 Pin the O2 inline budget between two functions", "phase": "AUD"}
+{"id": "AUD-155", "description": "M13-A-S7 Judge archsimd availability against a build without the experiment", "phase": "AUD"}
+{"id": "AUD-156", "description": "M0-A-S12 Delete the dead unsupported_action fixture", "phase": "AUD"}
+{"id": "AUD-157", "description": "M0-A-S13 Judge the jsonv2 default against an explicit nojsonv2 build", "phase": "AUD"}
+{"id": "AUD-158", "description": "M13-A-S8 Baseline sets its levels whatever the environment holds", "phase": "AUD"}
+{"id": "AUD-159", "description": "M13-A-S9 Pin native target_cpu on a cross build", "phase": "AUD"}
+{"id": "AUD-160", "description": "M13-A-S10 Eject writes the test files of a main module", "phase": "AUD"}
+{"id": "AUD-161", "description": "M14-A-S2 Read array operator object code of arm64 and riscv64 builds", "phase": "AUD"}
+{"id": "AUD-162", "description": "M14-A-S3 Round each scalar lane product of dot", "phase": "AUD"}

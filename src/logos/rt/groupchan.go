@@ -9,16 +9,14 @@ import (
 	"iter"
 )
 
-// This file implements the M8-S3 channel helpers (SPEC Sec 2.6, T-206):
-// range over a channel in a group child iterates until close or child
-// cancellation. Cancellation itself arrives through the lowered select
-// arms; this helper only has to stop iteration so the post-loop check
-// can return the context error.
-
 // Chan adapts ch for `for v := range` in a group child: values flow
 // until the channel closes or ctx is done. Either stop ends the range;
 // the lowering checks ctx afterwards to report cancellation.
 func Chan[T any](ctx context.Context, ch <-chan T) iter.Seq[T] {
+	var done <-chan struct{}
+	if ctx != nil {
+		done = ctx.Done()
+	}
 	return func(yield func(T) bool) {
 		for {
 			select {
@@ -29,9 +27,15 @@ func Chan[T any](ctx context.Context, ch <-chan T) iter.Seq[T] {
 				if !yield(v) {
 					return
 				}
-			case <-ctx.Done():
+			case <-done:
 				return
 			}
 		}
 	}
+}
+
+// ElemZero returns the zero value of the element type of ch, so that
+// lowered code can declare a temporary of a type it cannot name.
+func ElemZero[T any](ch <-chan T) (zero T) {
+	return
 }

@@ -1,0 +1,86 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env SRC=$PWD
+[!exec:sed] skip 'needs sed to edit the facts'
+[!exec:sh] skip 'needs sh to extend the import config'
+
+# A composite record whose path does not match the variable's type is rejected.
+go list -export -deps -f '{{if .Export}}packagefile {{.ImportPath}}={{.Export}}{{end}}' fmt logos/rt
+cp stdout $WORK/cfg.base
+go tool compile -p example.com/forge/lib -importcfg $WORK/cfg.base -o $WORK/lib.a lib/lib.lgo
+go tool pack p $WORK/lib.a __.LOGOS
+stdout '^constcomp C$'
+stdout '^constmap C [0-9]+ \.M$'
+cp stdout $WORK/facts.orig
+exec sh -c 'cat $WORK/cfg.base > $WORK/cfg.ok; echo packagefile example.com/forge/lib=$WORK/lib.a >> $WORK/cfg.ok'
+go tool compile -p main -importcfg $WORK/cfg.ok -o $WORK/ok.a app/main.lgo
+
+mkdir $WORK/m1
+cd $WORK/m1
+go tool pack x $WORK/lib.a
+cd $SRC
+exec sed 's/^\(constmap C [0-9]* \)\.M$/\1.N/' $WORK/facts.orig
+rm $WORK/m1/__.LOGOS
+cp stdout $WORK/m1/__.LOGOS
+cd $WORK/m1
+go tool pack c $WORK/bad1.a __.PKGDEF __.LOGOS _go_.o
+cd $SRC
+go tool pack p $WORK/bad1.a __.LOGOS
+stdout '^constmap C [0-9]+ \.N$'
+exec sh -c 'cat $WORK/cfg.base > $WORK/cfg.bad1; echo packagefile example.com/forge/lib=$WORK/bad1.a >> $WORK/cfg.bad1'
+! go tool compile -p main -importcfg $WORK/cfg.bad1 -o $WORK/bad1.o app/main.lgo
+stdout 'app/main\.lgo:10:14: .*example\.com/forge/lib\.C\.N'
+! stdout 'internal compiler error'
+
+mkdir $WORK/m2
+cd $WORK/m2
+go tool pack x $WORK/lib.a
+cd $SRC
+exec sed 's/^\(constmap C [0-9]* \)\.M$/\1.M[0]/' $WORK/facts.orig
+rm $WORK/m2/__.LOGOS
+cp stdout $WORK/m2/__.LOGOS
+cd $WORK/m2
+go tool pack c $WORK/bad2.a __.PKGDEF __.LOGOS _go_.o
+cd $SRC
+exec sh -c 'cat $WORK/cfg.base > $WORK/cfg.bad2; echo packagefile example.com/forge/lib=$WORK/bad2.a >> $WORK/cfg.bad2'
+! go tool compile -p main -importcfg $WORK/cfg.bad2 -o $WORK/bad2.o app/main.lgo
+stdout 'app/main\.lgo:10:14: .*example\.com/forge/lib\.C\.M\[0\]'
+! stdout 'internal compiler error'
+
+mkdir $WORK/m3
+cd $WORK/m3
+go tool pack x $WORK/lib.a
+cd $SRC
+exec sed 's/^\(constmap C [0-9]* \)\.M$/\1.Missing/' $WORK/facts.orig
+rm $WORK/m3/__.LOGOS
+cp stdout $WORK/m3/__.LOGOS
+cd $WORK/m3
+go tool pack c $WORK/bad3.a __.PKGDEF __.LOGOS _go_.o
+cd $SRC
+exec sh -c 'cat $WORK/cfg.base > $WORK/cfg.bad3; echo packagefile example.com/forge/lib=$WORK/bad3.a >> $WORK/cfg.bad3'
+! go tool compile -p main -importcfg $WORK/cfg.bad3 -o $WORK/bad3.o app/main.lgo
+stdout '^app/main\.lgo:10:14: '
+! stdout 'internal compiler error'
+
+-- lib/lib.lgo --
+package lib
+
+type S struct {
+	M map[string]int
+	N int
+}
+
+const C = S{M: map[string]int{"a": 1, "b": 2}, N: 7}
+
+-- app/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/forge/lib"
+)
+
+func main() {
+	fmt.Println(lib.C.M["a"] ?? -1)
+}

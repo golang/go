@@ -1,0 +1,38 @@
+// asmcheck -l
+
+package p
+
+import "errors"
+
+//go:noinline
+func closeNil() error { return nil }
+
+// amd64:-"CALL runtime\\.(newobject|mallocgc)"
+// arm64:-"CALL runtime\\.(newobject|mallocgc)"
+func pooled(n int) (err error) {
+	for i := 0; i < n; i++ {
+		// amd64:"CALL runtime\\.deferprocTry" -"CALL runtime\\.(newobject|mallocgc)" -"CALL runtime\\.deferproc\\b"
+		// arm64:"CALL runtime\\.deferprocTry" -"CALL runtime\\.(newobject|mallocgc)" -"CALL runtime\\.deferproc\\b"
+		defer closeNil()?
+	}
+	return nil
+	// amd64:2"CALL runtime\\.deferreturn"
+	// arm64:2"CALL runtime\\.deferreturn"
+}
+
+// amd64:"CALL runtime\\.(newobject|mallocgc)"
+// arm64:"CALL runtime\\.(newobject|mallocgc)"
+func hand(n int) (err error) {
+	for i := 0; i < n; i++ {
+		// amd64:"CALL runtime\\.deferproc\\b" "CALL runtime\\.(newobject|mallocgc)" -"CALL runtime\\.deferprocTry"
+		// arm64:"CALL runtime\\.deferproc\\b" "CALL runtime\\.(newobject|mallocgc)" -"CALL runtime\\.deferprocTry"
+		defer func() {
+			if e := closeNil(); e != nil {
+				err = errors.Join(err, e)
+			}
+		}()
+	}
+	return nil
+	// amd64:2"CALL runtime\\.deferreturn"
+	// arm64:2"CALL runtime\\.deferreturn"
+}

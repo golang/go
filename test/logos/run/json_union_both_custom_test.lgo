@@ -1,0 +1,58 @@
+// run
+
+package jsonunion
+
+import (
+	"encoding/json"
+	"testing"
+)
+
+type BothCircle struct {
+	Radius float64 `json:"radius"`
+}
+
+func (c *BothCircle) UnmarshalJSON(b []byte) error {
+	type plain BothCircle
+	var p plain
+	if err := json.Unmarshal(b, (*plain)(&p)); err != nil {
+		return err
+	}
+	*c = BothCircle(p)
+	return nil
+}
+
+type BothSquare struct {
+	Side float64 `json:"side"`
+}
+
+func (s *BothSquare) UnmarshalJSON(b []byte) error {
+	type plain BothSquare
+	var p plain
+	if err := json.Unmarshal(b, (*plain)(&p)); err != nil {
+		return err
+	}
+	*s = BothSquare(p)
+	return nil
+}
+
+type BothShape interface {
+	*BothCircle | *BothSquare
+}
+
+type BothHolder struct {
+	S BothShape `json:"s"`
+}
+
+func TestBothPermissiveKeyedSquareWins(t *testing.T) {
+	var h BothHolder
+	if err := json.Unmarshal([]byte(`{"s":{"side":2}}`), &h); err != nil {
+		t.Fatalf("both permissive input must select Square, got error: %v", err)
+	}
+	s, ok := h.S.(*BothSquare)
+	if !ok {
+		t.Fatalf("expected *BothSquare, got %T: %#v", h.S, h.S)
+	}
+	if s.Side != 2 {
+		t.Fatalf("expected Side 2, got %v", s.Side)
+	}
+}

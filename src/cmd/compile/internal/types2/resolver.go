@@ -706,6 +706,7 @@ func (check *Checker) packageObjects() {
 		for _, obj := range othersList {
 			check.objDecl(obj)
 		}
+		check.logosCheckUnionJSONMembers()
 	}
 
 	// At this point we may have a non-empty check.methods map; this means that not all

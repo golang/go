@@ -1,0 +1,134 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# Row O-A10: every flag that plain go gains from the logos registrations
+# must stay absent from the plain `go help build` and `go help test`
+# prose. The checked names are derived at run time: flagcheck.go scans
+# the logos-owned registration sites and keeps the names that plain go
+# accepts (a bogus value fails value validation, never flag parsing),
+# so a future flag ships with a failing test instead of a stale list.
+go run flagcheck.go
+stdout 'hidden from plain help'
+
+-- flagcheck.go --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"regexp"
+	"strings"
+)
+
+var callPattern = regexp.MustCompile(`(?:\.Flag\.|\bfs\.)(?:StringVar|BoolVar|Var)\(\s*[^,]+,\s*"([^"]+)"`)
+
+func runGo(goBin string, args ...string) string {
+	return runGoDir("", goBin, args...)
+}
+
+func runGoDir(dir, goBin string, args ...string) string {
+	cmd := exec.Command(goBin, args...)
+	cmd.Env = os.Environ()
+	if dir != "" {
+		cmd.Dir = dir
+	}
+	out, _ := cmd.CombinedOutput()
+	return string(out)
+}
+
+
+func gained(goBin, dir, name string) bool {
+	out := runGoDir(dir, goBin, "build", "-"+name+"=__w5bogus__")
+	return !strings.Contains(out, "not defined")
+}
+
+
+func leaked(prose, name string) bool {
+	if len(name) == 1 {
+		pat := regexp.MustCompile(`\s-` + regexp.QuoteMeta(name) + `(?:[\s=]|$)`)
+		return pat.FindStringIndex(prose) != nil
+	}
+	return strings.Contains(prose, name)
+}
+
+func main() {
+	goroot := os.Getenv("GOROOT")
+	if goroot == "" {
+		fmt.Fprintln(os.Stderr, "no GOROOT in environment")
+		os.Exit(2)
+	}
+	files, err := filepath.Glob(filepath.Join(goroot, "src", "cmd", "go", "internal", "work", "logos_*.go"))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
+	files = append(files, filepath.Join(goroot, "src", "cmd", "go", "internal", "logos", "command.go"))
+	seen := map[string]bool{}
+	var candidates []string
+	for _, path := range files {
+		if strings.HasSuffix(path, "_test.go") {
+			continue
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "read %s: %v\n", path, err)
+			os.Exit(2)
+		}
+		for _, m := range callPattern.FindAllStringSubmatch(string(data), -1) {
+			if !seen[m[1]] {
+				seen[m[1]] = true
+				candidates = append(candidates, m[1])
+			}
+		}
+	}
+	if len(candidates) == 0 {
+		fmt.Fprintln(os.Stderr, "no logos flag registrations found")
+		os.Exit(1)
+	}
+	goBin := os.Getenv("TESTGO_EXE")
+	if goBin == "" {
+		goBin = filepath.Join(goroot, "bin", "go")
+	}
+	plainBuild := runGo(goBin, "help", "build")
+	plainTest := runGo(goBin, "help", "test")
+	dir, err := os.MkdirTemp("", "flagcheck")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
+	defer os.RemoveAll(dir)
+	var kept, skipped []string
+	for _, name := range candidates {
+		if gained(goBin, dir, name) {
+			kept = append(kept, name)
+		} else {
+			skipped = append(skipped, name)
+		}
+	}
+	if len(kept) == 0 {
+		fmt.Fprintln(os.Stderr, "no logos flag is registered under plain go")
+		os.Exit(1)
+	}
+	failed := false
+	for _, name := range kept {
+		if leaked(plainBuild, name) {
+			fmt.Printf("PLAIN HELP LEAK: -%s present in go help build\n", name)
+			failed = true
+		}
+		if leaked(plainTest, name) {
+			fmt.Printf("PLAIN HELP LEAK: -%s present in go help test\n", name)
+			failed = true
+		}
+	}
+	if failed {
+		os.Exit(1)
+	}
+	fmt.Printf("logos-only flags hidden from plain help: %s (logos-only: %s)\n",
+		strings.Join(kept, " "), strings.Join(skipped, " "))
+}

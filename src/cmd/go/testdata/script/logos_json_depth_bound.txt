@@ -1,0 +1,76 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd w
+logos run .
+stdout '^static bound ok$'
+stdout '^fallback bound ok$'
+stdout '^mutual bound ok$'
+stdout '^shallow ok$'
+
+-- w/go.mod --
+module example.com/depthbound
+
+go 1.27
+
+-- w/main.lgo --
+package main
+
+import (
+	"fmt"
+	"runtime/debug"
+	"strings"
+)
+
+type N struct {
+	Next *N? `json:"next"`
+}
+
+type MF struct {
+	M    map[string]any `json:"m"`
+	Next *MF?           `json:"next"`
+}
+
+type A struct {
+	Next *B? `json:"next"`
+}
+
+type B struct {
+	Next *A? `json:"next"`
+}
+
+func nest(open string, depth int) string {
+	var b strings.Builder
+	for range depth {
+		b.WriteString(open)
+	}
+	b.WriteString(`null`)
+	for range depth {
+		b.WriteString(`}`)
+	}
+	return b.String()
+}
+
+func checkBound(name string, doc string, decode func([]byte) error) {
+	if err := decode([]byte(doc)); err == nil {
+		panic(name + " deep input decoded without a depth error")
+	} else if !strings.Contains(err.Error(), "exceeded max depth") {
+		panic(name + " want depth error, got " + err.Error())
+	}
+	fmt.Println(name + " bound ok")
+}
+
+func main() {
+	debug.SetMaxStack(64 << 20)
+	var n N
+	checkBound("static", nest(`{"next":`, 20000), n.UnmarshalJSON)
+	var mf MF
+	checkBound("fallback", nest(`{"m":{},"next":`, 20000), mf.UnmarshalJSON)
+	var m A
+	checkBound("mutual", nest(`{"next":`, 20000), m.UnmarshalJSON)
+	var s N
+	if err := s.UnmarshalJSON([]byte(nest(`{"next":`, 500))); err != nil {
+		panic("shallow valid input rejected: " + err.Error())
+	}
+	fmt.Println("shallow ok")
+}

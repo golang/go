@@ -1,0 +1,93 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+logos build -o $WORK/sum-native$GOEXE .
+exec $WORK/sum-native$GOEXE
+stdout '^0$'
+stdout '^4341c37937e08000$'
+stdout '^4b189680$'
+cp stdout $WORK/native.txt
+
+env GOARCH=arm64
+logos build -o $WORK/sum-arm64$GOEXE .
+env GOARCH=
+
+[!exec:qemu-aarch64] skip 'qemu-aarch64 is required for the arm64 leg'
+exec qemu-aarch64 $WORK/sum-arm64$GOEXE
+cp stdout $WORK/arm64.txt
+
+cmp $WORK/native.txt $WORK/arm64.txt
+
+-- go.mod --
+module example.com/sumcross
+
+go 1.27
+
+-- main.lgo --
+package main
+
+import (
+	"fmt"
+	"math"
+)
+func f64v(i int) float64 {
+	switch i % 5 {
+	case 0:
+		return 1e16
+	case 1:
+		return -1e16
+	case 2:
+		return 1.0
+	case 3:
+		return 0.1
+	}
+	return -0.5
+}
+
+func f32v(i int) float32 {
+	switch i % 5 {
+	case 0:
+		return 1e7
+	case 1:
+		return -1e7
+	case 2:
+		return 1.0
+	case 3:
+		return 0.1
+	}
+	return -0.5
+}
+
+func main() {
+	ns := []int{0, 1, 2, 3, 7, 8, 9, 1000, 1023, 1024, 1025}
+	for _, n := range ns {
+		xs := make([]float64, n)
+		for i := range xs {
+			xs[i] = f64v(i)
+		}
+		fmt.Printf("%x\n", math.Float64bits(xs.sum()))
+	}
+	for _, n := range ns {
+		xs := make([]float32, n)
+		for i := range xs {
+			xs[i] = f32v(i)
+		}
+		fmt.Printf("%x\n", math.Float32bits(xs.sum()))
+	}
+	k64 := 0.1
+	for _, n := range ns {
+		xs := make([]float64, n)
+		for i := range xs {
+			xs[i] = f64v(i)
+		}
+		fmt.Printf("%x\n", math.Float64bits(xs.map(x => k64*x).sum()))
+	}
+	k32 := float32(0.1)
+	for _, n := range ns {
+		xs := make([]float32, n)
+		for i := range xs {
+			xs[i] = f32v(i)
+		}
+		fmt.Printf("%x\n", math.Float32bits(xs.map(x => k32*x).sum()))
+	}
+}

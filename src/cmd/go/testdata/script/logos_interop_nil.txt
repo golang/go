@@ -1,9 +1,3 @@
-# M3-S7: Go importers of loGo/s option and non-nil signatures (R-U2, T-Sec6).
-# Package a exports F, Box, G, H; a Go package in another workspace module
-# sees plain pointers and rt.Option, builds under logos, and gets
-# MustNonNil panics on direct, go, defer, and method calls with nil.
-# Calls through func values stay unchecked; eject plus upstream go stays
-# unchecked too.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 mkdir $WORK/bin
@@ -12,30 +6,46 @@ cd w
 logos build ./...
 logos build -o $WORK/bin/interopnil$GOEXE ./g/cmd
 exec $WORK/bin/interopnil$GOEXE
-stdout '^F-nil H-none G-ok: gadget defer-ok: logos: nil from Go value stored into non-nil \*a\.User at q\.go:[0-9]+ method-ok: logos: nil from Go value stored into non-nil \*a\.User at q\.go:[0-9]+ func-value-ok$'
+stdout '^F-nil H-none I-seven G-ok: gadget defer-ok: logos: nil from Go value stored into non-nil \*a\.User at q\.go:[0-9]+ method-ok: logos: nil from Go value stored into non-nil \*a\.User at q\.go:[0-9]+ func-value-ok speak-ok: gadget$'
 stdout '^direct-ok: logos: nil from Go value stored into non-nil \*a\.User at q\.go:[0-9]+$'
 cd ..
 
-# go statements evaluate MustNonNil immediately and crash with the call position.
 cd w
 logos build -o $WORK/bin/interopnil-go$GOEXE ./g/cmdgo
 ! exec $WORK/bin/interopnil-go$GOEXE
 stderr 'logos: nil from Go value stored into non-nil \*a\.User at main\.go:[0-9]+'
 cd ..
 
-# Eject a Go main over a loGo/s dep via replace; upstream go has no checks.
 cd e/gapp
 logos run .
 stdout '^dep-ok$'
 stdout '^eject-check: logos$'
+stdout '^pointer-option: found true$'
+stdout '^union-option: true true 7 true r$'
+stdout '^union-param: absent right left$'
 logos eject -o bout
 exists bout/main.go
 exists bout/_logos_deps/example.com/lp@v1.2.3/p/p.go
+grep 'Speak\(\) string' bout/_logos_deps/example.com/lp@v1.2.3/p/p.go
+! grep 'const Speak' bout/_logos_deps/example.com/lp@v1.2.3/p/p.go
 cd bout
 go build ./...
 go run .
 stdout '^dep-ok$'
 stdout '^eject-check: no-logos$'
+stdout '^pointer-option: found true$'
+stdout '^union-option: true true 7 true r$'
+stdout '^union-param: absent right left$'
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+exec env -u GOROOT $UPROOT1272/bin/go run .
+stdout '^dep-ok$'
+stdout '^pointer-option: found true$'
+stdout '^union-option: true true 7 true r$'
+stdout '^union-param: absent right left$'
 cd ..
 cd ..
 cd ..
@@ -84,6 +94,55 @@ func H() []int? {
 	return nil
 }
 
+func I() int? {
+	return 7
+}
+
+func N() (int?)? {
+	var i int? = 7
+	return i
+}
+
+func PickAny() any? {
+	return nil
+}
+
+func PickError() error? {
+	return nil
+}
+
+func PickMap() map[string]int? {
+	return nil
+}
+
+func PickFunc() (func() int)? {
+	return nil
+}
+
+func PickChan() chan int? {
+	return nil
+}
+
+type MapOrStr interface {
+	map[string]int | string
+}
+
+func PickMapUnion() MapOrStr? {
+	return nil
+}
+
+type Speaker interface {
+	const Speak() string
+}
+
+type Person struct {
+	Name string
+}
+
+func (p Person) Speak() string {
+	return p.Name
+}
+
 -- w/g/go.mod --
 module example.com/g
 
@@ -103,7 +162,21 @@ import (
 var _ func() *a.User = a.F
 var _ func(*a.User) string = a.G
 var _ func() rt.Option[[]int] = a.H
+var _ func() rt.Option[int] = a.I
+var _ func() rt.Option[rt.Option[int]] = a.N
+var _ func() rt.Option[any] = a.PickAny
+var _ func() rt.Option[error] = a.PickError
+var _ func() rt.Option[map[string]int] = a.PickMap
+var _ func() rt.Option[func() int] = a.PickFunc
+var _ func() rt.Option[chan int] = a.PickChan
+var _ func() rt.Option[a.MapOrStr] = a.PickMapUnion
 var _ *a.T = a.Box{}.P
+var _ a.Speaker = a.Person{}
+
+func SpeakUp() string {
+	var s a.Speaker = a.Person{Name: "gadget"}
+	return s.Speak()
+}
 
 func Run() string {
 	if a.F() != nil {
@@ -111,10 +184,18 @@ func Run() string {
 	}
 	h := a.H()
 	if h.Present {
-		return "H-present"
+		return "F-nil H-present"
+	}
+	i := a.I()
+	if !i.Present || i.Value != 7 {
+		return "F-nil H-none I-bad"
+	}
+	n := a.N()
+	if !n.Present || !n.Value.Present || n.Value.Value != 7 {
+		return "F-nil H-none I-seven N-bad"
 	}
 	got := a.G(&a.User{Name: "gadget"})
-	out := "F-nil H-none G-ok: " + got
+	out := "F-nil H-none I-seven G-ok: " + got
 
 	func() {
 		defer func() {
@@ -150,6 +231,8 @@ func Run() string {
 		_ = f(nil)
 		out += " func-value-no-panic"
 	}()
+
+	out += " speak-ok: " + SpeakUp()
 
 	return out
 }
@@ -215,6 +298,61 @@ func Msg() string {
 	return "dep-ok"
 }
 
+type Speaker interface {
+	const Speak() string
+}
+
+type Person struct {
+	Name string
+}
+
+func (p Person) Speak() string {
+	return p.Name
+}
+
+func Find(ok bool) *User? {
+	if ok {
+		return &User{Name: "found"}
+	}
+	return nil
+}
+
+type Left struct {
+	N int
+}
+
+func (l Left) Name() string { return "left" }
+
+type Right struct {
+	S string
+}
+
+func (r Right) Name() string { return "right" }
+
+type Choice interface {
+	Left | Right
+	Name() string
+}
+
+func Pick(i int) Choice? {
+	if i == 0 {
+		var c Choice = Left{N: 7}
+		return c
+	}
+	if i == 1 {
+		var c Choice = Right{S: "r"}
+		return c
+	}
+	return nil
+}
+
+func Describe(c Choice?) string {
+	if c != nil {
+		return c.Name()
+	}
+	return "absent"
+}
+
 -- e/gapp/go.mod --
 module example.com/gapp
 
@@ -234,8 +372,30 @@ import (
 	"example.com/lp/p"
 )
 
+var _ func(bool) *p.User = p.Find
+var _ func(int) p.Choice = p.Pick
+var _ func(p.Choice) string = p.Describe
+
+func pointerOption() {
+	var found *p.User = p.Find(true)
+	var absent *p.User = p.Find(false)
+	fmt.Println("pointer-option:", found.Name, absent == nil)
+}
+
+func unionOption() {
+	var absent p.Choice = p.Pick(2)
+	var left p.Choice = p.Pick(0)
+	var right p.Choice = p.Pick(1)
+	l, leftOK := left.(p.Left)
+	r, rightOK := right.(p.Right)
+	fmt.Println("union-option:", absent == nil, leftOK, l.N, rightOK, r.S)
+	fmt.Println("union-param:", p.Describe(nil), p.Describe(p.Right{S: "x"}), p.Describe(left))
+}
+
 func main() {
 	fmt.Println(p.Msg())
+	pointerOption()
+	unionOption()
 	func() {
 		defer func() {
 			if r := recover(); r != nil {

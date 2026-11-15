@@ -1,0 +1,212 @@
+# M18-S7 REDTEAM #194: eject keeps a region program's output.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOEXPERIMENT=logosarena
+
+cd m
+logos run .
+stdout '^7 42 6$'
+cp stdout $WORK/native-stdout.txt
+env GOEXPERIMENT=
+
+logos eject -o out
+cd out
+go run .
+cmp stdout $WORK/native-stdout.txt
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+cd ../..
+cd m2
+env GOEXPERIMENT=logosarena
+logos run .
+stdout '^5200 18 55$'
+cp stdout $WORK/native2-stdout.txt
+env GOEXPERIMENT=
+logos eject -o out
+cd out
+go run .
+cmp stdout $WORK/native2-stdout.txt
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+cd ../..
+cd m3
+env GOEXPERIMENT=logosarena
+logos eject -o out
+grep '_ = grouped' out/main.go
+grep '_ = ifRegion' out/main.go
+grep '_ = forRegion' out/main.go
+grep '_ = switchRegion' out/main.go
+env GOEXPERIMENT=
+cd out
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+cd ../..
+cd m4
+env GOEXPERIMENT=logosarena
+logos run .
+stdout '^7 11$'
+cp stdout $WORK/native4-stdout.txt
+env GOEXPERIMENT=
+logos eject -o out
+cd out
+go run .
+cmp stdout $WORK/native4-stdout.txt
+# REDTEAM #194: type-switch shadowing preserves native/eject parity.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+
+-- m/go.mod --
+module example.com/regionparity
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"logos/arena"
+)
+
+type node struct {
+	v int
+}
+
+func main() {
+	r := arena.Open()
+	p := arena.New[node](r)
+	p.v = 7
+	s := arena.Make[int](r, 3)
+	for i := range s {
+		s[i] = i * i
+	}
+	t := arena.Append[int](r, nil, 1, 2, 3)
+	sum := 0
+	for _, v := range t {
+		sum += v
+	}
+	fmt.Println(p.v, p.v*6, sum)
+}
+-- m2/go.mod --
+module example.com/regionparity2
+
+go 1.27
+
+-- m2/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"logos/arena"
+)
+
+func fibR(r arena.Region, n int) int {
+	t := arena.New[int](r)
+	*t = n
+	if n < 2 {
+		return *t
+	}
+	a := fibR(r, n - 1)
+	b := fibR(r, n - 2)
+	*t = a + b
+	return *t
+}
+
+func main() {
+	r := arena.Open()
+	total := 0
+	for i := range 50 {
+		s := arena.Make[int](r, 4)
+		for j := range s {
+			s[j] = i + j
+		}
+		for _, v := range s {
+			total += v
+		}
+	}
+	inner := 0
+	{
+		rIn := arena.Open()
+		t := arena.Append[int](rIn, nil, 5, 6, 7)
+		for _, v := range t {
+			inner += v
+		}
+	}
+	fmt.Println(total, inner, fibR(r, 10))
+}
+-- m3/go.mod --
+module example.com/regionunused
+
+go 1.27
+
+-- m3/main.lgo --
+package main
+
+import "logos/arena"
+
+func main() {
+	var (
+		grouped = arena.Open()
+	)
+	_ = arena.New[int](grouped)
+	if ifRegion := arena.Open(); true {
+		_ = arena.New[int](ifRegion)
+	}
+	for forRegion := arena.Open(); false; {
+		_ = arena.New[int](forRegion)
+	}
+	switch switchRegion := arena.Open(); {
+	default:
+		_ = arena.New[int](switchRegion)
+	}
+}
+
+-- m4/go.mod --
+module example.com/regionparity3
+
+go 1.27
+
+-- m4/main.lgo --
+package main
+
+import (
+	"context"
+	"fmt"
+
+	"logos/arena"
+)
+
+func run() error {
+	shadow := 0
+	switch r := arena.Open(); r := any(arena.New[int](r)).(type) {
+	case *int:
+		shadow = *r + 7
+		go group (context.Background(), limit = 2) {}
+		go group (context.Background(), limit = 2) { shadow += *r }
+	}
+	distinct := 0
+	switch r := arena.Open(); q := any(arena.New[int](r)).(type) {
+	case *int:
+		distinct = *q + 11
+	}
+	fmt.Println(shadow, distinct)
+	return nil
+}
+
+func main() {
+	if err := run(); err != nil {
+		panic(err)
+	}
+}

@@ -1,0 +1,36 @@
+// errorcheck
+
+package p
+
+func captureTakeInt(i int) int { return i }
+
+func captureReassigned(o int?) int {
+	if o != nil {
+		g := func() int { return captureTakeInt(o) } // ERROR "nil_deref_unproven"
+		o = nil
+		return g()
+	}
+	return -1
+}
+
+func captureDeferred(o int?) {
+	if o != nil {
+		defer func() { _ = captureTakeInt(o) }() // ERROR "nil_deref_unproven"
+		o = nil
+	}
+}
+
+func captureStable(o int?) int {
+	if o != nil {
+		g := func() int { return captureTakeInt(o) }
+		return g()
+	}
+	return -1
+}
+
+func captureStableDeferred(o int?) {
+	if o != nil {
+		defer func() { _ = captureTakeInt(o) }()
+	}
+}
+

@@ -1,22 +1,14 @@
-# M7 eject (SPEC Sec 2.5, T-205; T-0.3): a module that imports the virtual
-# comptime package ejects to plain Go. main.lgo uses comptime.ViewAs and a
-# const for comptime generic with a grouped import; names/names.lgo uses
-# const for with an ungrouped import. The ejected tree drops every comptime
-# import, runs under plain go with the output logos run prints, and stays
-# vet- and gofmt-clean.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
 cd m
 
-# logos runs the module before eject.
 logos run .
 stdout '^header 1 2$'
 stdout '^fields \[X Y\]$'
 stdout '^names \[Left Right\]$'
 cp stdout $WORK/native.txt
 
-# Snapshot the source tree; eject must never write into it (#112).
 mkdir $WORK/orig
 cp main.lgo $WORK/orig/main.lgo
 cp names/names.lgo $WORK/orig/names.lgo
@@ -25,21 +17,23 @@ logos eject -o out
 exists out/main.go
 exists out/names/names.go
 
-# No ejected file imports comptime, and no bare import keyword is left.
 ! grep '"comptime"' out/main.go
 ! grep '"comptime"' out/names/names.go
 ! grep '^import$' out/names/names.go
 
-# The ejected tree runs under plain go with identical output.
 cd out
 go run .
 cmp stdout $WORK/native.txt
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
 go vet ./...
 exec $GOROOT/bin/gofmt -l .
 ! stdout .
 cd ..
 
-# The source tree is unchanged after eject (#112).
 cmp main.lgo $WORK/orig/main.lgo
 cmp names/names.lgo $WORK/orig/names.lgo
 

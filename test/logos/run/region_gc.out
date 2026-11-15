@@ -1,0 +1,6 @@
+ok cleanup-held-alive-inside-region-block
+ok cleanup-runs-after-region-exit
+ok cleanup-held-alive-by-make-in-region
+ok cleanup-runs-after-make-region-exit
+ok cleanup-held-alive-by-append-in-region
+ok cleanup-runs-after-append-region-exit

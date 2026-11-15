@@ -9,24 +9,8 @@ import (
 	. "internal/types/errors"
 )
 
-// LoGo/s M6-S1 type rules for `$"..."` interpolated strings (SPEC Sec
-// 1.4, T-104.4). Upstream files call in through one hook line only:
-// expr.go. The rule applies in loGo/s packages; the parser only builds
-// InterpExpr in LogosMode, so plain Go never reaches it.
-//
-// Each `{expr}` operand must have one of the allowed types: string, any
-// integer, bool, float32 or float64, `[]byte`, `error` (bound to its
-// `Error()` string by lowering), or `fmt.Stringer` (bound to its
-// `String()` string). Anything else reports interp_type. Kind checks
-// precede method checks, so a named integer with a String method still
-// formats as an integer. The result is always string. Operands are typed
-// once, left to right; single evaluation is lowering's job (M6-S1).
-
 const logosInterpType = "[correctness::interp_type] cannot interpolate value of type %s"
 
-// LogosInterpKind is one allowed `$"..."` operand kind (SPEC T-104.4).
-// Lowering (cmd/compile/internal/logos) switches on it, so the checker
-// and the generated appends agree by construction.
 type LogosInterpKind int
 
 const (
@@ -41,29 +25,16 @@ const (
 	LogosInterpStringer
 )
 
-// LogosInterpKindOf classifies T for `$"..."` (SPEC T-104.4): string,
-// any integer, bool, float32/float64, `[]byte`, `error`, or
-// `fmt.Stringer`. Method checks precede kind checks, so a named string
-// with a String method calls it, matching fmt. It reports false for
-// anything else, including type parameters (whose core cannot size the
-// buffer).
 func LogosInterpKindOf(T Type) (LogosInterpKind, bool) {
-	// A nil type is never allowed; note isValid(nil) is true, so the
-	// nil check cannot fold into it.
 	if T == nil || !isValid(T) {
 		return 0, false
 	}
-	// A const view reads as its element (SPEC T-201: the qualifier is
-	// erased before code generation), so a scalar read through a view
-	// interpolates like the plain value.
 	if c, ok := Unalias(T).(*ConstView); ok {
 		return LogosInterpKindOf(c.Elem)
 	}
 	if _, ok := Unalias(T).(*TypeParam); ok {
 		return 0, false
 	}
-	// universeError is the defined type error; its underlying interface
-	// is the Implements target.
 	if errIface, ok := universeError.Underlying().(*Interface); ok && Implements(T, errIface) {
 		return LogosInterpError, true
 	}
@@ -104,9 +75,6 @@ func LogosInterpKindOf(T Type) (LogosInterpKind, bool) {
 	return 0, false
 }
 
-// logosHasStringMethod reports whether the method set of T (with T
-// addressable, matching lowering's operand temporaries) holds
-// `String() string`.
 func logosHasStringMethod(T Type) bool {
 	obj, _, _ := LookupFieldOrMethod(T, true, nil, "String")
 	fn, ok := obj.(*Func)
@@ -123,10 +91,6 @@ func logosHasStringMethod(T Type) bool {
 	return false
 }
 
-// logosInterp type-checks an *syntax.InterpExpr node: every operand must
-// have an allowed type, and the expression has type string. A disallowed
-// operand is reported at the `$`, because the operand sits inside the
-// literal where no error pin can name its column.
 func (check *Checker) logosInterp(x *operand, e *syntax.InterpExpr) exprKind {
 	for _, op := range e.Exprs {
 		var o operand

@@ -4,11 +4,6 @@
 
 package p
 
-// M2 inline struct assertions (SPEC Sec 2.3, T-203.3): `type S struct :
-// I, J { ... }` asserts *S implements each listed interface. A missing
-// method fails with [correctness::assertion_failed]; satisfied, promoted,
-// and value-receiver methods pass.
-
 type I interface {
 	M()
 }
@@ -17,26 +12,22 @@ type J interface {
 	N()
 }
 
-// FAIL: *SNoM has no M.
-type SNoM struct : I /* ERROR "correctness::assertion_failed" */ {
+type SNoM struct : I /* ERRORx "correctness::assertion_failed.*missing method M" */ {
 	X int
 }
 
-// PASS: a value-receiver M is in *SVal's method set.
 type SVal struct : I {
 	X int
 }
 
 func (s SVal) M() {}
 
-// FAIL: I is satisfied but J is missing N.
 type SMulti struct : I, J /* ERROR "correctness::assertion_failed" */ {
 	X int
 }
 
 func (s SMulti) M() {}
 
-// PASS: M is promoted from the embedded S2.
 type S2 struct {
 	Y int
 }
@@ -46,3 +37,5 @@ func (s S2) M() {}
 type SEmbed struct : I {
 	S2
 }
+
+type NonStruct int : /* ERROR "syntax error" */ I

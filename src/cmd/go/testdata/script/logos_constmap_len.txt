@@ -1,0 +1,46 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# A non-const map in the same positions stays rejected.
+cd bad
+! logos build ./...
+stderr 'array length len\(dyn\) \(value of type int\) must be constant'
+stderr 'array length len\(dyn\) \* 2 \+ 1 \(value of type int\) must be constant'
+stderr '\[correctness::const_eval\] read of package variable dyn in const func'
+cd ..
+
+-- bad/go.mod --
+module example.com/cmlenbad
+
+go 1.27
+
+-- bad/main.lgo --
+package main
+
+var dyn = map[int]string{1: "a"}
+
+var _ [len(dyn)]int
+
+var _ = [len(dyn)]int{1}
+
+func take(a [len(dyn)]int) [len(dyn)]int {
+	return a
+}
+
+type strct struct {
+	f [len(dyn)]int
+}
+
+type arr [len(dyn)]int
+
+type box[T any] struct {
+	v T
+}
+
+var _ box[[len(dyn)]int]
+
+var _ [len(dyn)*2 + 1]int
+
+const sh = 1 << len(dyn)
+
+func main() {}

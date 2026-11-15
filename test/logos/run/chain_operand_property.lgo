@@ -1,0 +1,74 @@
+// run
+
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, got, want any) {
+	if got != want {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type Counter interface {
+	N int
+}
+
+type counter struct : Counter {
+	N int
+}
+
+func maybe(n int) int? {
+	if n == 7 {
+		return 7
+	}
+	return nil
+}
+
+func takeCount(c Counter, xs []int) int {
+	return xs.take(c.N).count()
+}
+
+func dropSum(c Counter, xs []int) int {
+	return xs.drop(c.N).sum()
+}
+
+func takeFallback(c Counter, xs []int, v int) int {
+	return xs.take(maybe(v) ?? c.N).count()
+}
+
+func filterBound(c Counter, xs []int) int {
+	return xs.filter(x => x > c.N).count()
+}
+
+func mapOffset(c Counter, xs []int) int {
+	return xs.map(x => x + c.N).sum()
+}
+
+func main() {
+	xs := []int{1, 2, 3, 4}
+	var b counter
+	b.N = 2
+	var c Counter = &b
+	check("take-property", takeCount(c, xs), 2)
+	check("drop-property", dropSum(c, xs), 7)
+	check("take-fallback-property", takeFallback(c, xs, 0), 2)
+	check("take-fallback-present", takeFallback(c, xs, 7), 4)
+	check("filter-property", filterBound(c, xs), 2)
+	check("map-property", mapOffset(c, xs), 18)
+	if failed {
+		os.Exit(1)
+	}
+}

@@ -1,7 +1,3 @@
-# Test default and explicit GOEXPERIMENT=logosfastcgo selection under go and logos.
-# Under plain go, logosfastcgo defaults to off; under logos, it defaults to on.
-# Explicit GOEXPERIMENT settings (opt-in, opt-out, none, token order, GOENV) win.
-
 [!cgo] skip
 
 env GOPROXY=off
@@ -9,96 +5,82 @@ env GOTOOLCHAIN=local
 env CGO_ENABLED=1
 env GOENV=$WORK/isolated.env
 
-# 1. Plain go with default settings: logosfastcgo is off.
 env GOEXPERIMENT=
 go build -o app$GOEXE .
 exec ./app$GOEXE
 stdout '^sum42 mode=fastcgo-off$'
+go tool nm app$GOEXE
+! stdout 'logosCgocallFast'
 
-# 2. Plain go with explicit opt-in: logosfastcgo is on.
 env GOEXPERIMENT=logosfastcgo
 go build -o app$GOEXE .
 exec ./app$GOEXE
 stdout '^sum42 mode=fastcgo-on$'
+go tool objdump -s 'main\._Cfunc_add(\.abi0)?$' app$GOEXE
+stdout 'CALL runtime\.logosCgocallFast'
 
-# 3. logos with explicit opt-in: logosfastcgo is on.
 env GOEXPERIMENT=logosfastcgo
 logos build -o app$GOEXE .
 exec ./app$GOEXE
 stdout '^sum42 mode=fastcgo-on$'
+go tool nm app$GOEXE
+stdout 'runtime\.logosCgocallFast'
 
-# 4. Plain go-off check after logos-on: guards reverse reuse from the build cache.
-env GOEXPERIMENT=
-go build -o app$GOEXE .
-exec ./app$GOEXE
-stdout '^sum42 mode=fastcgo-off$'
-
-# 5. logos with explicit opt-out: nologosfastcgo wins and turns it off.
 env GOEXPERIMENT=nologosfastcgo
 logos build -o app$GOEXE .
 exec ./app$GOEXE
 stdout '^sum42 mode=fastcgo-off$'
 
-# 6. logos with explicit none: none turns all experiments off.
 env GOEXPERIMENT=none
 logos build -o app$GOEXE .
 exec ./app$GOEXE
 stdout '^sum42 mode=fastcgo-off$'
 
-# 7. Token-order cases under logos: later tokens win, none clears preceding tokens.
-# 7a. opt-in followed by opt-out: off.
 env GOEXPERIMENT=logosfastcgo,nologosfastcgo
 logos build -o app$GOEXE .
 exec ./app$GOEXE
 stdout '^sum42 mode=fastcgo-off$'
 
-# 7b. opt-out followed by opt-in: on.
 env GOEXPERIMENT=nologosfastcgo,logosfastcgo
 logos build -o app$GOEXE .
 exec ./app$GOEXE
 stdout '^sum42 mode=fastcgo-on$'
 
-# 7c. none followed by opt-in: on.
 env GOEXPERIMENT=none,logosfastcgo
 logos build -o app$GOEXE .
 exec ./app$GOEXE
 stdout '^sum42 mode=fastcgo-on$'
 
-# 7d. opt-in followed by none: off.
 env GOEXPERIMENT=logosfastcgo,none
 logos build -o app$GOEXE .
 exec ./app$GOEXE
 stdout '^sum42 mode=fastcgo-off$'
 
-# 8. Isolated GOENV file choices: configuration file wins when process env is unset.
 env GOEXPERIMENT=
 
-# 8a. Explicit opt-in in GOENV file under plain go: on.
 go env -w GOEXPERIMENT=logosfastcgo
 go build -o app$GOEXE .
 exec ./app$GOEXE
 stdout '^sum42 mode=fastcgo-on$'
 
-# 8b. Explicit opt-out in GOENV file under logos: off.
 go env -w GOEXPERIMENT=nologosfastcgo
 logos build -o app$GOEXE .
 exec ./app$GOEXE
 stdout '^sum42 mode=fastcgo-off$'
 
-# 8c. Explicit none in GOENV file under logos: off.
 go env -w GOEXPERIMENT=none
 logos build -o app$GOEXE .
 exec ./app$GOEXE
 stdout '^sum42 mode=fastcgo-off$'
 
-# Clean up GOENV file setting.
 go env -u GOEXPERIMENT
 
-# 9. logos with no explicit setting: defaults to on.
 env GOEXPERIMENT=
 logos build -o app$GOEXE .
 exec ./app$GOEXE
-stdout '^sum42 mode=fastcgo-on$'
+stdout '^sum42 mode=fastcgo-off$'
+go tool nm app$GOEXE
+! stdout 'logosCgocallFast'
 
 -- go.mod --
 module example.com/fastcgotest

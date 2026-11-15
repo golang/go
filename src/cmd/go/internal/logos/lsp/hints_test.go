@@ -16,10 +16,10 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"cmd/go/internal/logos/hints"
 )
 
-// hintsRecorder is a HintsFunc and HintsJSONFunc pair that records its
-// calls, standing in for M21-S2's package.
 type hintsRecorder struct {
 	mu       sync.Mutex
 	runs     int
@@ -28,14 +28,12 @@ type hintsRecorder struct {
 	failWith error
 }
 
-// hintCall is one call of the hints hook.
 type hintCall struct {
 	method string
 	params json.RawMessage
 	hints  json.RawMessage
 }
 
-// run is the HintsJSON hook: it returns a document that numbers the runs.
 func (h *hintsRecorder) run(ctx context.Context, dir string, buffers map[string][]byte) (json.RawMessage, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -44,7 +42,6 @@ func (h *hintsRecorder) run(ctx context.Context, dir string, buffers map[string]
 	return json.RawMessage(`{"run":` + strconv.Itoa(h.runs) + `}`), nil
 }
 
-// serve is the Hints hook.
 func (h *hintsRecorder) serve(method string, params, hints json.RawMessage) (json.RawMessage, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -58,15 +55,12 @@ func (h *hintsRecorder) serve(method string, params, hints json.RawMessage) (jso
 	return json.RawMessage(`{"contents":{"kind":"markdown","value":"Fixed: 12B + dynamic"}}`), nil
 }
 
-// snapshot returns the recorded runs and calls.
 func (h *hintsRecorder) snapshot() (int, []hintCall) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return h.runs, slices.Clone(h.calls)
 }
 
-// hintsFixture serves aLgo with a fake gopls that answers hover and
-// inlayHint, and the recorder wired as the hints hooks.
 func hintsFixture(t *testing.T, rec *hintsRecorder) *fixture {
 	t.Helper()
 	low, _, _ := lowerQuestion([]byte(aLgo))
@@ -91,11 +85,6 @@ func hintsFixture(t *testing.T, rec *hintsRecorder) *fixture {
 	return f
 }
 
-// TestProxyHintsHook checks the M21-S2 hook: for inlayHint and hover the
-// proxy calls the hints function with the method, the client's own params,
-// and the package's hints JSON, appends its hints to gopls's, joins its
-// hover text under gopls's, runs the hints runner once per compile, and
-// keeps the answer of gopls when the hook fails.
 func TestProxyHintsHook(t *testing.T) {
 	rec := new(hintsRecorder)
 	f := hintsFixture(t, rec)
@@ -155,9 +144,6 @@ func TestProxyHintsHook(t *testing.T) {
 	sameJSON(t, "inlay hints when the hook fails", res, []any{map[string]any{"position": origData, "label": ": []byte"}})
 }
 
-// TestProxyHintsOnGoDocuments checks that hints reach Go documents too:
-// the request goes to gopls unchanged, and the hook's hints join its
-// answer.
 func TestProxyHintsOnGoDocuments(t *testing.T) {
 	rec := new(hintsRecorder)
 	f := newFixture(t, map[string]string{"p/p.go": "package p\n\nvar x = 1\n"}, fixtureOptions{
@@ -182,8 +168,6 @@ func TestProxyHintsOnGoDocuments(t *testing.T) {
 	})
 }
 
-// TestProxyWithoutHintsHookServesGopls checks that the hook is optional:
-// with none set, inlay hints are what gopls answered.
 func TestProxyWithoutHintsHookServesGopls(t *testing.T) {
 	low, _, _ := lowerQuestion([]byte(aLgo))
 	lowData := shift(findPos(t, string(low), "data", 0), len("data"))
@@ -204,9 +188,6 @@ func TestProxyWithoutHintsHookServesGopls(t *testing.T) {
 	})
 }
 
-// TestProxyCodeActionsHook checks the autofix hook: it gets the compiler
-// diagnostic lines of the document, its URI and text, and the request
-// range as the client sent it, and its actions follow gopls's.
 func TestProxyCodeActionsHook(t *testing.T) {
 	type call struct {
 		diags [][]byte
@@ -265,39 +246,6 @@ func TestProxyCodeActionsHook(t *testing.T) {
 	sameJSON(t, "range given to the hook", c.rng, rng)
 }
 
-// TestProxyRecompilesAfterDebounce checks the background path: with a
-// debounce delay set, an edit reaches gopls without any request, and one
-// recompile covers a burst of edits.
-func TestProxyRecompilesAfterDebounce(t *testing.T) {
-	f := newFixture(t, map[string]string{"a/a.lgo": aLgo}, fixtureOptions{
-		Tune: func(f *fixture, o *Options) { o.Debounce = 80 * time.Millisecond },
-	})
-	f.open("a/a.lgo", 1)
-	f.sync()
-	before := len(f.comp.lowerCalls())
-	for v := 2; v <= 4; v++ {
-		f.client.notify("textDocument/didChange", map[string]any{
-			"textDocument":   map[string]any{"uri": f.uri("a/a.lgo"), "version": v},
-			"contentChanges": []any{map[string]any{"text": aLgo + "// v\n"}},
-		})
-	}
-	eventually(t, "the background recompile", func() bool { return len(f.comp.lowerCalls()) > before })
-	f.sync()
-	if got := len(f.receivedMethod("textDocument/didChange")); got != 1 {
-		t.Errorf("gopls got %d lowered changes, want the one of the background recompile", got)
-	}
-	if got := len(f.comp.lowerCalls()) - before; got != 1 {
-		t.Errorf("a burst of 3 edits caused %d recompiles, want 1", got)
-	}
-	data, _ := os.ReadFile(f.path("a/a.lgo"))
-	if string(data) != aLgo {
-		t.Errorf("the file on disk changed to %q", data)
-	}
-}
-
-// TestProxyHintsCacheKeepsEmptyAnswer checks the cache keys on a hit flag,
-// not on the content: a runner whose answer is JSON null is not run again
-// for the next request.
 func TestProxyHintsCacheKeepsEmptyAnswer(t *testing.T) {
 	var mu sync.Mutex
 	runs := 0
@@ -327,9 +275,6 @@ func TestProxyHintsCacheKeepsEmptyAnswer(t *testing.T) {
 	}
 }
 
-// TestProxyDoesNotCacheHintsOfAnOlderCompile checks the generation guard: a
-// hints run that finishes after the package was edited and compiled again
-// is not kept, so the next request runs the runner on the new text.
 func TestProxyDoesNotCacheHintsOfAnOlderCompile(t *testing.T) {
 	started, release := make(chan struct{}), make(chan struct{})
 	var mu sync.Mutex
@@ -377,14 +322,150 @@ func TestProxyDoesNotCacheHintsOfAnOlderCompile(t *testing.T) {
 	}
 }
 
-// eventually polls cond until it holds, failing after waitLimit.
-func eventually(t *testing.T, what string, cond func() bool) {
-	t.Helper()
-	deadline := time.Now().Add(waitLimit)
-	for !cond() {
-		if time.Now().After(deadline) {
-			t.Fatalf("timed out waiting for %s", what)
-		}
-		time.Sleep(20 * time.Millisecond)
+func TestProxyHintsSupersededBufferAreDropped(t *testing.T) {
+	low, _, _ := lowerQuestion([]byte(aLgo))
+	lowData := shift(findPos(t, string(low), "data", 0), len("data"))
+	started, release := make(chan struct{}), make(chan struct{})
+	var mu sync.Mutex
+	runs := 0
+	f := newFixture(t, map[string]string{"a/a.lgo": aLgo}, fixtureOptions{
+		Script: func(string) fakeScript {
+			return fakeScript{Responses: map[string]json.RawMessage{
+				"textDocument/inlayHint": toJSON(t, []any{map[string]any{"position": lowData, "label": ": []byte"}}),
+			}}
+		},
+		Tune: func(f *fixture, o *Options) {
+			o.Hints = func(string, json.RawMessage, json.RawMessage) (json.RawMessage, error) {
+				return json.RawMessage(`[{"position":{"line":5,"character":5},"label":"/* stale */"}]`), nil
+			}
+			o.HintsJSON = func(context.Context, string, map[string][]byte) (json.RawMessage, error) {
+				mu.Lock()
+				runs++
+				first := runs == 1
+				mu.Unlock()
+				if first {
+					close(started)
+					<-release
+				}
+				return json.RawMessage(`{"run":1}`), nil
+			}
+		},
+	})
+	f.open("a/a.lgo", 1)
+	params := map[string]any{
+		"textDocument": map[string]any{"uri": f.uri("a/a.lgo")},
+		"range":        Range{Start: Position{Line: 0}, End: Position{Line: 8}},
 	}
+	id := f.client.request("textDocument/inlayHint", params)
+	select {
+	case <-started:
+	case <-time.After(waitLimit):
+		t.Fatal("the hints runner never started")
+	}
+	f.client.notify("textDocument/didChange", map[string]any{
+		"textDocument":   map[string]any{"uri": f.uri("a/a.lgo"), "version": 2},
+		"contentChanges": []any{map[string]any{"text": aLgo + "\n"}},
+	})
+	f.sync()
+	close(release)
+	m := f.client.await("textDocument/inlayHint", id)
+	sameJSON(t, "hints from a superseded buffer", m.Result, []any{
+		map[string]any{"position": lowData, "label": ": []byte"},
+	})
+}
+
+func TestProxyHintsEditBeforeResponseRecomputes(t *testing.T) {
+	rec := new(hintsRecorder)
+	f := newFixture(t, map[string]string{"a/a.lgo": aLgo}, fixtureOptions{
+		Script: func(string) fakeScript {
+			return fakeScript{
+				DelayMillis: 200,
+				Responses: map[string]json.RawMessage{
+					"textDocument/inlayHint": toJSON(t, []any{}),
+				},
+			}
+		},
+		Tune: func(f *fixture, o *Options) {
+			o.Hints = rec.serve
+			o.HintsJSON = rec.run
+		},
+	})
+	f.open("a/a.lgo", 1)
+	params := map[string]any{
+		"textDocument": map[string]any{"uri": f.uri("a/a.lgo")},
+		"range":        Range{Start: Position{Line: 0}, End: Position{Line: 8}},
+	}
+	f.client.call("textDocument/inlayHint", params)
+	if runs, _ := rec.snapshot(); runs != 1 {
+		t.Fatalf("the hints runner ran %d times for one request, want once", runs)
+	}
+	id := f.client.request("textDocument/inlayHint", params)
+	f.client.notify("textDocument/didChange", map[string]any{
+		"textDocument":   map[string]any{"uri": f.uri("a/a.lgo"), "version": 2},
+		"contentChanges": []any{map[string]any{"text": aLgo + "\n"}},
+	})
+	f.client.await("textDocument/inlayHint", id)
+	if runs, _ := rec.snapshot(); runs != 2 {
+		t.Errorf("the hints runner ran %d times across an edit, want 2: cached hints of the older buffer must not be reused", runs)
+	}
+	rec.mu.Lock()
+	defer rec.mu.Unlock()
+	last := rec.buffers[len(rec.buffers)-1]
+	if !bytes.Equal(last[f.path("a/a.lgo")], []byte(aLgo+"\n")) {
+		t.Errorf("the recompute used %q, want the edited text", last[f.path("a/a.lgo")])
+	}
+}
+
+func TestProxyHintsGoPackageAlloc(t *testing.T) {
+	root, tc := realWorkspace(t)
+	dir := filepath.Join(root, "gomod", "alloc")
+	if err := os.MkdirAll(dir, 0o777); err != nil {
+		t.Fatal(err)
+	}
+	src := "package alloc\n\nfunc F(v int) []int { return []int{v} }\n"
+	if err := os.WriteFile(filepath.Join(dir, "a.go"), []byte(src), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	scratch := t.TempDir()
+	scriptPath := filepath.Join(scratch, "script.json")
+	scriptData, err := json.Marshal(fakeScript{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(scriptPath, scriptData, 0o666); err != nil {
+		t.Fatal(err)
+	}
+	client := startProxy(t, Options{
+		Gopls:     []string{os.Args[0], "-mode=stdio"},
+		Env:       append(os.Environ(), fakeEnv+"="+scriptPath, fakeLogEnv+"="+filepath.Join(scratch, "gopls.log")),
+		Compiler:  tc,
+		HintsJSON: tc.Hints,
+		Hints:     hints.Serve,
+	})
+	client.call("initialize", map[string]any{
+		"processId": nil,
+		"rootUri":   pathURI(root),
+		"capabilities": map[string]any{
+			"general": map[string]any{"positionEncodings": []string{"utf-8", "utf-16"}},
+		},
+	})
+	client.notify("initialized", map[string]any{})
+	uri := pathURI(filepath.Join(dir, "a.go"))
+	client.notify("textDocument/didOpen", map[string]any{
+		"textDocument": map[string]any{"uri": uri, "languageId": "go", "version": 1, "text": src},
+	})
+	res := client.call("textDocument/inlayHint", map[string]any{
+		"textDocument": map[string]any{"uri": uri},
+		"range":        Range{Start: Position{Line: 0}, End: Position{Line: 10}},
+	})
+	var items []map[string]any
+	if err := json.Unmarshal(res, &items); err != nil {
+		t.Fatalf("inlayHint result is not a list: %v (%s)", err, res)
+	}
+	for _, it := range items {
+		if label, _ := it["label"].(string); label == "[heap]" || label == "[stack]" || label == "[arena]" || label == "[rodata]" {
+			return
+		}
+	}
+	t.Errorf("no allocation badge for the Go package in %s", res)
 }

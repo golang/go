@@ -1,0 +1,78 @@
+[!GOOS:linux] skip 'assembly syscall fixture uses the Linux syscall ABI'
+[!GOARCH:amd64] skip 'assembly syscall fixture uses amd64'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+cd main
+! logos build -o $WORK/bin/asmsys$GOEXE .
+stderr '\[capabilities::unclassified_assembly\]'
+stderr 'example\.com/amain'
+stderr '-> example\.com/adep'
+! stderr '\[capabilities::unauthorized_unsafe\]'
+cp ../granted.toml logos.toml
+logos build -o $WORK/bin/asmsys$GOEXE .
+! stderr 'capabilities::'
+exec $WORK/bin/asmsys$GOEXE
+stdout '^ok$'
+
+-- main/go.mod --
+module example.com/amain
+
+go 1.27
+
+require example.com/adep v0.0.0
+
+replace example.com/adep => ../dep
+
+-- main/logos.toml --
+[capabilities]
+transitive_unsafe = "deny"
+
+-- main/main.go --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+	"fmt"
+	"os"
+
+	"example.com/adep"
+)
+
+func main() {
+	if adep.Pid() != os.Getpid() { panic("pid") }
+	fmt.Println("ok")
+}
+
+-- dep/go.mod --
+module example.com/adep
+
+go 1.27
+
+-- dep/pid.go --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package adep
+
+func Pid() int
+
+-- dep/pid_amd64.s --
+#include "textflag.h"
+
+TEXT ·Pid(SB), NOSPLIT, $0-8
+	MOVQ $39, AX
+	SYSCALL
+	MOVQ AX, ret+0(FP)
+	RET
+
+-- granted.toml --
+[capabilities]
+transitive_unsafe = "deny"
+transitive_unsafe_allowlist = ["example.com/adep/**"]

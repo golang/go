@@ -1,0 +1,27 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+type RO3 interface {
+	const ID int
+	const Name string
+	Start() error
+}
+type A struct {
+	ID int
+}
+
+var a = A{ID: 1}
+
+var _ RO3 = a /* ERRORx "correctness::assertion_failed.*missing method Name" */
+
+type B struct {
+	ID   int
+	Name string
+}
+
+var b = B{ID: 1, Name: "x"}
+
+var _ RO3 = b /* ERRORx "correctness::assertion_failed.*missing method Start" */

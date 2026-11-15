@@ -183,6 +183,11 @@ type Config struct {
 	// MAY raise it through max_ctfe_steps.
 	LogosCTFEMaxSteps int
 
+	// LogosComptimeNodeLimit bounds const-for checking and expansion.
+	// Zero selects 4096 nodes; configuration MAY raise it through
+	// max_comptime_ast_nodes.
+	LogosComptimeNodeLimit int
+
 	// LogosOwnedTypes carries exact-node owned-type descriptors for the
 	// final recheck of native private-type support. Keys are
 	// compiler-created nodes; type nodes carry a full descriptor while
@@ -350,6 +355,7 @@ type Info struct {
 	LogosChecks        map[syntax.Expr]LogosCheck      // logos M3-S5 hook: MustNonNil sites for platform-pointer stores.
 	LogosAddrFresh     map[syntax.Expr]bool            // logos M6-S2 hook: `&expr` operations lowering to new(expr).
 	LogosFieldDefaults map[*Struct][]LogosFieldDefault // logos M6-S3 hook: struct field defaults.
+	LogosStaticJSON    map[*Named]bool
 
 	LogosConstSlices map[syntax.Expr]bool                   // logos M5-S1 hook: slice expressions over const views with non-constant bounds, for the lowering-time runtime check.
 	LogosPropDecls   []*LogosPropDecl                       // logos M4-S2 hook: asserted property interfaces per declaring struct.

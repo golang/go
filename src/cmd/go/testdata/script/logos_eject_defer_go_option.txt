@@ -1,0 +1,143 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cp $GOROOT/test/logos/run/defer_opt_eval.lgo eval/main.lgo
+cp $GOROOT/test/logos/run/defer_opt_recv_value.lgo recv/main.lgo
+cp $GOROOT/test/logos/run/defer_opt_args.lgo args/main.lgo
+cp $GOROOT/test/logos/run/defer_opt_lambda.lgo lambda/main.lgo
+cp $GOROOT/test/logos/run/defer_opt_chain.lgo chain/main.lgo
+cp $GOROOT/test/logos/run/defer_opt_field.lgo field/main.lgo
+cp $GOROOT/test/logos/run/option_call_field.lgo call/main.lgo
+
+cd eval
+logos run .
+cmp stdout $GOROOT/test/logos/run/defer_opt_eval.out
+logos eject -o out
+exists out/main.go
+cd out
+go run .
+cmp stdout $GOROOT/test/logos/run/defer_opt_eval.out
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/defer_opt_eval.out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ../..
+
+cd recv
+logos run .
+cmp stdout $GOROOT/test/logos/run/defer_opt_recv_value.out
+logos eject -o out
+exists out/main.go
+cd out
+go run .
+cmp stdout $GOROOT/test/logos/run/defer_opt_recv_value.out
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/defer_opt_recv_value.out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ../..
+
+cd args
+logos run .
+cmp stdout $GOROOT/test/logos/run/defer_opt_args.out
+logos eject -o out
+exists out/main.go
+cd out
+go run .
+cmp stdout $GOROOT/test/logos/run/defer_opt_args.out
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/defer_opt_args.out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ../..
+
+cd lambda
+logos run .
+cmp stdout $GOROOT/test/logos/run/defer_opt_lambda.out
+logos eject -o out
+exists out/main.go
+cd out
+go run .
+cmp stdout $GOROOT/test/logos/run/defer_opt_lambda.out
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/defer_opt_lambda.out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ../..
+
+cd chain
+logos run .
+cmp stdout $GOROOT/test/logos/run/defer_opt_chain.out
+logos eject -o out
+exists out/main.go
+cd out
+go run .
+cmp stdout $GOROOT/test/logos/run/defer_opt_chain.out
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/defer_opt_chain.out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ../..
+
+cd call
+logos run .
+cmp stdout $GOROOT/test/logos/run/option_call_field.out
+logos eject -o out
+exists out/main.go
+cd out
+go run .
+cmp stdout $GOROOT/test/logos/run/option_call_field.out
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/option_call_field.out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ../..
+
+cd field
+logos run .
+cmp stdout $GOROOT/test/logos/run/defer_opt_field.out
+logos eject -o out
+exists out/main.go
+cd out
+go run .
+cmp stdout $GOROOT/test/logos/run/defer_opt_field.out
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/defer_opt_field.out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ../..
+
+-- eval/go.mod --
+module example.com/deferopteval
+
+go 1.27
+
+-- recv/go.mod --
+module example.com/deferoptrecv
+
+go 1.27
+
+-- args/go.mod --
+module example.com/deferoptargs
+
+go 1.27
+
+-- lambda/go.mod --
+module example.com/deferoptlambda
+
+go 1.27
+
+-- chain/go.mod --
+module example.com/deferoptchain
+
+go 1.27
+
+-- field/go.mod --
+module example.com/deferoptfield
+
+go 1.27
+
+-- call/go.mod --
+module example.com/optcallfield
+
+go 1.27

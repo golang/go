@@ -2,49 +2,18 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package rt
+//go:build !logosejected
 
-// PR3 group parent-cancel regression. Parent cancel and parent deadline
-// must wake a child held in netpoll-backed Read. Uses loopback TCP only,
-// bounded waits, no ambient dials. Sync uses child-started channels, not
-// scheduler sleeps; slot-reuse checks the received byte, not elapsed time.
-//
-// RED: on the head snapshot the held Read never wakes, so Wait hangs and
-// the bounded selects below time out.
+package rt
 
 import (
 	"context"
-	"net"
+	"errors"
+	"runtime"
+	"strings"
 	"testing"
 	"time"
 )
-
-func pr3DialPair(t *testing.T) (cli, srv net.Conn) {
-	t.Helper()
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Skipf("loopback unavailable: %v", err)
-	}
-	defer ln.Close()
-	done := make(chan net.Conn, 1)
-	go func() {
-		c, err := ln.Accept()
-		if err == nil {
-			done <- c
-		}
-	}()
-	cli, err = net.Dial("tcp", ln.Addr().String())
-	if err != nil {
-		t.Skipf("loopback dial unavailable: %v", err)
-	}
-	select {
-	case srv = <-done:
-	case <-time.After(2 * time.Second):
-		cli.Close()
-		t.Fatalf("accept timeout")
-	}
-	return cli, srv
-}
 
 func TestPR3GroupParentCancelWakesNetpoll(t *testing.T) {
 	cli, srv := pr3DialPair(t)
@@ -195,5 +164,63 @@ func TestPR3GroupSlotReuseNotSpurious(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatalf("reader byte missing")
+	}
+}
+
+func TestPR3GroupFailureLeavesOutsiderNetpollBlocked(t *testing.T) {
+	outCli, outSrv := pr3DialPair(t)
+	defer outCli.Close()
+	defer outSrv.Close()
+	cli, srv := pr3DialPair(t)
+	defer cli.Close()
+	defer srv.Close()
+	outsider := make(chan error, 1)
+	reading := make(chan uint64, 1)
+	go func() {
+		reading <- goroutineID()
+		_, err := outSrv.Read(make([]byte, 1))
+		outsider <- err
+	}()
+	id := <-reading
+	deadline := time.Now().Add(2 * time.Second)
+	for !strings.Contains(goroutineStack(id), "[IO wait]") {
+		select {
+		case err := <-outsider:
+			t.Fatalf("outsider Read returned before group failure: %v", err)
+		default:
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("outsider did not block in netpoll")
+		}
+		runtime.Gosched()
+	}
+	errChild := errors.New("child failed")
+	g, _ := NewGroup(context.Background(), 0)
+	started := make(chan struct{})
+	g.Go(func(context.Context) error {
+		close(started)
+		_, err := srv.Read(make([]byte, 1))
+		return err
+	})
+	<-started
+	g.Go(func(context.Context) error { return errChild })
+	if err := g.Wait(); !errors.Is(err, errChild) {
+		t.Fatalf("Wait = %v, want %v", err, errChild)
+	}
+	select {
+	case err := <-outsider:
+		t.Fatalf("outsider Read returned %v after group failure", err)
+	default:
+	}
+	if _, err := outCli.Write([]byte{1}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case err := <-outsider:
+		if err != nil {
+			t.Fatalf("outsider Read = %v, want the written byte", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatalf("outsider Read did not complete after the write")
 	}
 }

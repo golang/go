@@ -37,9 +37,6 @@ func run() error {
 }
 `
 
-// fixDiag describes a compiler diagnostic for autofixLine: a nil
-// dereference of Len characters from Start in File, with one autofix
-// candidate, in the diagnostic schema Schema.
 type fixDiag struct {
 	Schema, File             string
 	Start                    Position
@@ -47,8 +44,6 @@ type fixDiag struct {
 	Description, Replacement string
 }
 
-// autofixLine returns the diagnostic line of d, with the 1-based lines and
-// columns of SPEC Sec 16.
 func autofixLine(t *testing.T, d fixDiag) json.RawMessage {
 	t.Helper()
 	end := shift(d.Start, d.Len)
@@ -69,13 +64,6 @@ func autofixLine(t *testing.T, d fixDiag) json.RawMessage {
 	})
 }
 
-// TestProxyHintsEndToEnd runs the proxy with the hooks runLSP serves,
-// hints.Serve and codeActionsAdapter, over a compiler that reports a
-// hints JSON and diagnostic lines, one of them of another schema version.
-// An .lgo file with a narrowed variable and a ? statement gets an
-// inlayHint with narrowed:, a hover that keeps the text of gopls and adds
-// the lowered code, and, besides the action of gopls, the quick fix of the
-// autofix candidate of the diagnostic the adapter can read.
 func TestProxyHintsEndToEnd(t *testing.T) {
 	narrowed := shift(findPos(t, wiringLgo, "u.Greet", 0), len("u.Greet"))
 	q := findPos(t, wiringLgo, "get()?", 0)
@@ -152,11 +140,19 @@ func TestProxyHintsEndToEnd(t *testing.T) {
 		"textDocument": map[string]any{"uri": f.uri("a/a.lgo")},
 		"position":     q,
 	})
-	if !strings.Contains(string(hover), "_e != nil") {
-		t.Errorf("hover lacks the lowered code: %s", hover)
+	var hoverBody struct {
+		Contents struct {
+			Value string `json:"value"`
+		} `json:"contents"`
 	}
-	if !strings.Contains(string(hover), "gopls hover") {
-		t.Errorf("hover lost the gopls text: %s", hover)
+	if err := json.Unmarshal(hover, &hoverBody); err != nil {
+		t.Fatalf("hover response is not JSON: %v\n%s", err, hover)
+	}
+	if !strings.Contains(hoverBody.Contents.Value, lowered) {
+		t.Errorf("hover lacks the reported lowered code %q:\n%s", lowered, hoverBody.Contents.Value)
+	}
+	if !strings.Contains(hoverBody.Contents.Value, "gopls hover") {
+		t.Errorf("hover lost the gopls text: %s", hoverBody.Contents.Value)
 	}
 
 	actions := f.client.call("textDocument/codeAction", map[string]any{
@@ -175,10 +171,8 @@ func TestProxyHintsEndToEnd(t *testing.T) {
 	}
 }
 
-// adapterSrc is the document the adapter tests read.
 const adapterSrc = "package p\n\nfunc name(u *User?) string {\n\treturn u.Name\n}\n"
 
-// nameSpan returns the position and range of u.Name in adapterSrc.
 func nameSpan(t *testing.T) (Position, json.RawMessage) {
 	t.Helper()
 	off := strings.Index(adapterSrc, "u.Name")
@@ -186,8 +180,6 @@ func nameSpan(t *testing.T) (Position, json.RawMessage) {
 	return start, toJSON(t, span(start, len("u.Name")))
 }
 
-// titles returns the titles of the actions in raw, which must be a JSON
-// array of code actions.
 func titles(t *testing.T, raw json.RawMessage) []string {
 	t.Helper()
 	var acts []hints.CodeAction
@@ -201,10 +193,6 @@ func titles(t *testing.T, raw json.RawMessage) []string {
 	return out
 }
 
-// TestCodeActionsAdapterAppliesAutofix checks the adapter runLSP serves: it
-// turns a compiler diagnostic line and the request range into the quick
-// fix of hints.CodeActions, whose edit replaces the span of the
-// diagnostic.
 func TestCodeActionsAdapterAppliesAutofix(t *testing.T) {
 	start, rng := nameSpan(t)
 	line := autofixLine(t, fixDiag{Schema: "1.0", File: "/w/fixes.lgo", Start: start, Len: len("u.Name"), Description: "use optional chaining with a ?? default", Replacement: `(u?.Name ?? "")`})
@@ -230,10 +218,6 @@ func TestCodeActionsAdapterAppliesAutofix(t *testing.T) {
 	}
 }
 
-// TestCodeActionsAdapterSkipsBadLines checks that a diagnostic line the
-// adapter cannot read costs only itself: lines that are not JSON, not an
-// object of the diagnostic shape, or of another schema version are
-// skipped wherever they stand, and the fixes of the valid lines stay.
 func TestCodeActionsAdapterSkipsBadLines(t *testing.T) {
 	start, rng := nameSpan(t)
 	const uri = "file:///w/fixes.lgo"
@@ -257,10 +241,6 @@ func TestCodeActionsAdapterSkipsBadLines(t *testing.T) {
 	}
 }
 
-// TestCodeActionsAdapterEmptyIsArray checks that an answer without actions
-// is the JSON array [] the CodeActionsFunc contract promises, not null, for
-// no diagnostics, for no readable diagnostic, and for a range no
-// diagnostic touches.
 func TestCodeActionsAdapterEmptyIsArray(t *testing.T) {
 	start, rng := nameSpan(t)
 	good := autofixLine(t, fixDiag{Schema: "1.0", File: "/w/fixes.lgo", Start: start, Len: len("u.Name"), Description: "fix", Replacement: "x"})
@@ -285,9 +265,6 @@ func TestCodeActionsAdapterEmptyIsArray(t *testing.T) {
 	}
 }
 
-// TestCodeActionsAdapterRejectsBadRange checks that a request range the
-// adapter cannot read is an error, which leaves the answer of gopls as it
-// is, and not an empty answer that would hide the problem.
 func TestCodeActionsAdapterRejectsBadRange(t *testing.T) {
 	if raw, err := codeActionsAdapter(nil, "file:///w/fixes.lgo", []byte(adapterSrc), json.RawMessage(`{"start":"here"}`)); err == nil {
 		t.Errorf("adapter result = %s, want an error for an unreadable range", raw)

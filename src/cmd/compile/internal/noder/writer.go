@@ -514,13 +514,7 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
 	// bodies anyway. Otherwise, they can cause types.Sym collisions
 	// (e.g., "main.C" for both of the local type aliases in
 	// test/fixedbugs/issue50190.go).
-	for {
-		if alias, ok := typ.(*types2.Alias); ok && !isGlobal(alias.Obj()) {
-			typ = alias.Rhs()
-		} else {
-			break
-		}
-	}
+	typ = logosWriterNormalizeType(typ)
 
 	if idx, ok := pw.typsIdx[typ]; ok {
 		return typeInfo{idx: idx, derived: false}
@@ -1930,7 +1924,7 @@ func (w *writer) expr(expr syntax.Expr) {
 			return
 		}
 
-		if _, isNil := obj.(*types2.Nil); isNil {
+		if logosWriterIsNil(obj, tv) {
 			w.Code(exprZero)
 			w.pos(expr)
 			w.typ(tv.Type)
@@ -2463,16 +2457,9 @@ func (w *writer) implicitConvExpr(dst types2.Type, expr syntax.Expr) {
 
 func (w *writer) convertExpr(dst types2.Type, expr syntax.Expr, implicit bool) {
 	src := w.p.typeOf(expr)
-
-	// Omit implicit no-op conversions.
-	identical := dst == nil || types2.Identical(src, dst)
-	if implicit && identical {
-		w.expr(expr)
+	identical, done := w.logosWriterConvertExpr(src, dst, expr, implicit)
+	if done {
 		return
-	}
-
-	if implicit && !types2.AssignableTo(src, dst) {
-		w.p.fatalf(expr, "%v is not assignable to %v", src, dst)
 	}
 
 	w.Code(exprConvert)

@@ -50,6 +50,9 @@ type Fix struct {
 	// InsertBeforeLine is the 1-based line a candidate that inserts text
 	// goes before; 0 means the candidate replaces the diagnostic span.
 	InsertBeforeLine int
+	// Note states the behavior rule the candidate applies, or why a
+	// candidate is absent.
+	Note string
 }
 
 // Diagnostic is one finding of a rule. Pos and End bound the flagged
@@ -72,6 +75,7 @@ type Result struct {
 	Pos        syntax.Pos
 	End        syntax.Pos
 	Message    string
+	Note       string
 	Provenance Provenance
 	Fixes      []Fix
 }
@@ -103,6 +107,7 @@ type Pass struct {
 	Policy *Policy
 	in     *Input
 	diags  []Diagnostic
+	locks  *lockAudit
 }
 
 // Report records a finding of the rule being checked.

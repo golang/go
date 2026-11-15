@@ -4,11 +4,6 @@ package p
 
 import "logos/sync"
 
-// Go twin of concurrent_multiword_race.lgo: the go statement leg of
-// concurrency::concurrent_multiword_race (SPEC Sec 1.2, #13, #148) on a Go
-// package, where it runs at deny. The group child, the union, and the const
-// view of the .lgo file have no Go form; the logos/sync exemption stays.
-
 type Pair struct {
 	A, B int
 }
@@ -398,4 +393,268 @@ func passFieldOfPointer(p *Named) {
 		p.Name = "a"
 	}()
 	p.Name = "b"
+}
+
+func thunkGoWritten() {
+	var s string
+	t := func() {
+		s = "a"
+	}
+	go t() // ERROR "\[concurrency::concurrent_multiword_race\]"
+	println(s)
+}
+
+func thunkRangedGoWritten() {
+	var s string
+	tasks := []func(){
+		func() {
+			s = "a"
+		},
+	}
+	for _, t := range tasks {
+		go t() // ERROR "\[concurrency::concurrent_multiword_race\]"
+	}
+	println(s)
+}
+
+func passThunkNotVisible(t func()) {
+	go t()
+}
+
+func passThunkWritesOneWord() {
+	n := 0
+	t := func() {
+		n = 1
+	}
+	go t()
+	println(n)
+}
+
+func passThunkCalledInPlace() {
+	var s string
+	t := func() {
+		s = "a"
+	}
+	t()
+	println(s)
+}
+
+func loopWriteBeforeGo(n int) {
+	var s string
+	for i := 0; i < n; i++ {
+		s = "a"
+		go func() { // ERROR "\[concurrency::concurrent_multiword_race\]"
+			println(s)
+		}()
+	}
+}
+
+func passLoopLocalGo(n int) {
+	for i := 0; i < n; i++ {
+		s := "a"
+		s = "b"
+		go func() {
+			println(s)
+		}()
+	}
+}
+
+func thunkWrapperGoWritten() {
+	var s string
+	a := func() {
+		s = "a"
+	}
+	b := func() {
+		a()
+	}
+	go b() // ERROR "\[concurrency::concurrent_multiword_race\]"
+	println(s)
+}
+
+func thunkWrapperOfWrapperGoWritten() {
+	var s string
+	a := func() {
+		s = "a"
+	}
+	b := func() {
+		a()
+	}
+	c := func() {
+		b()
+	}
+	go c() // ERROR "\[concurrency::concurrent_multiword_race\]"
+	println(s)
+}
+
+func thunkWrapperCalledInLiteral() {
+	var s string
+	a := func() {
+		s = "a"
+	}
+	b := func() {
+		a()
+	}
+	go func() { // ERROR "\[concurrency::concurrent_multiword_race\]"
+		b()
+	}()
+	println(s)
+}
+
+func thunkMutualCycleGoWritten() {
+	var s string
+	var a, b func()
+	a = func() {
+		s = "a"
+		b()
+	}
+	b = func() {
+		a()
+	}
+	go b() // ERROR "\[concurrency::concurrent_multiword_race\]"
+	println(s)
+}
+
+func passWrapperNeverReachesWriter() {
+	var s string
+	a := func() {
+		s = "a"
+	}
+	b := func() {}
+	_ = a
+	go b()
+	println(s)
+}
+
+func passWrapperWritesOneWord() {
+	n := 0
+	a := func() {
+		n = 1
+	}
+	b := func() {
+		a()
+	}
+	go b()
+	println(n)
+}
+
+func passWrapperCallsOpaque(f func()) {
+	var s string
+	b := func() {
+		f()
+	}
+	go b()
+	println(s)
+}
+
+func passArgumentEvaluatedByCaller() {
+	var s string
+	t := func(x string) {
+		println(x)
+	}
+	go t(func() string {
+		s = "copy"
+		return s
+	}())
+}
+
+func passLiteralArgumentEvaluatedByCaller() {
+	var s string
+	go func(x string) {
+		println(x)
+	}(func() string {
+		s = "copy"
+		return s
+	}())
+}
+
+func passVariableArgumentCopied() {
+	var s string
+	t := func(x string) {
+		println(x)
+	}
+	go t(s)
+	s = "b"
+}
+
+func thunkStoredTargetCapture() {
+	var s string
+	t := func(x string) {
+		println(s, x)
+	}
+	go t("a") // ERROR "\[concurrency::concurrent_multiword_race\]"
+	s = "b"
+}
+
+func thunkStoredTargetWithArgument() {
+	var s string
+	t := func(x string) {
+		s = x
+	}
+	go t(func() string { // ERROR "\[concurrency::concurrent_multiword_race\]"
+		return "copy"
+	}())
+	println(s)
+}
+
+func loopConditionWriteBeforeGo(n int) {
+	var s string
+	for i := 0; func() bool {
+		s = "a"
+		return i < n
+	}(); i++ {
+		go func() { // ERROR "\[concurrency::concurrent_multiword_race\]"
+			println(s)
+		}()
+	}
+}
+
+func loopPostWriteBeforeGo(n int) {
+	var s string
+	for i := 0; i < n; i, s = i+1, "a" {
+		go func() { // ERROR "\[concurrency::concurrent_multiword_race\]"
+			println(s)
+		}()
+	}
+}
+
+func loopConditionWriteBeforeThunkGo(n int) {
+	var s string
+	t := func() {
+		println(s)
+	}
+	for i := 0; func() bool {
+		s = "a"
+		return i < n
+	}(); i++ {
+		go t() // ERROR "\[concurrency::concurrent_multiword_race\]"
+	}
+}
+
+func passLoopInitWriteGo(n int) {
+	var s string
+	for s = "a"; n > 0; n-- {
+		go func() {
+			println(s)
+		}()
+	}
+}
+
+func passLoopInitDeclaredGo(n int) {
+	for s := "a"; n > 0; n-- {
+		go func() {
+			println(s)
+		}()
+	}
+}
+
+func passLoopConditionWritesOneWordGo(n int) {
+	count := 0
+	for i := 0; func() bool {
+		count = i
+		return i < n
+	}(); i++ {
+		go func() {
+			println(count)
+		}()
+	}
 }

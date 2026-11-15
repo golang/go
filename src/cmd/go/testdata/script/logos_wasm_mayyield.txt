@@ -1,0 +1,163 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOOS=js
+env GOARCH=wasm
+
+logos build -gcflags=-S=2 -o $WORK/plain.wasm .
+stderr '(?s)main\.via<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\tBrTable'
+stderr '(?s)main\.doblock<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\tBrTable'
+! stderr '(?s)main\.nilderef<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\tBrTable'
+stderr '(?s)main\.usenil<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\tBrTable'
+stderr '(?s)main\.condnil<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\tBrTable'
+! stderr '(?s)main\.bigframe<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\tBrTable'
+stderr '(?s)main\.usebig<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\tBrTable'
+! stderr '(?s)main\.usepure<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\tBrTable'
+stderr '(?s)main\.usesleepy<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\tBrTable'
+! stderr '(?s)main\.usenano<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\tBrTable'
+
+
+cd zw
+logos build -gcflags=-S=2 -o $WORK/zero.wasm .
+! stderr '(?s)main\.ZeroHolder\.MarshalBinary<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\tLoop'
+! stderr '(?s)main\._logos_bin_ZeroHolder_d[0-9]+<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*growslice'
+cd ..
+
+logos build -wasm-features=stack-switching -gcflags=-S=2 -o $WORK/switch.wasm .
+! stderr '(?s)main\.plainyield<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\tBrTable'
+stderr '(?s)main\.withdeferyield<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\tBrTable'
+
+-- go.mod --
+module example.com/mayyield
+
+go 1.27
+
+-- main.go --
+package main
+
+import "example.com/mayyield/lib"
+
+//go:wasmimport env blocky
+func blocky()
+
+//go:wasmimport gojs runtime.nanotime1
+func nanotime1() int64
+
+//go:noinline
+func via(f func() int) int { return f() }
+
+//go:noinline
+func doblock() { blocky() }
+
+//go:noinline
+func nilderef(p *int) int { return *p }
+
+//go:noinline
+func usenil(p *int) int { return nilderef(p) }
+
+//go:noinline
+func condnil(p *int) int {
+	if *p > 0 {
+		return 1
+	}
+	return 0
+}
+
+//go:noinline
+func leaf2(x int) int { return x + 1 }
+
+//go:noinline
+func bigframe(v int) int {
+	var buf [8192]byte
+	buf[0] = byte(leaf2(v))
+	buf[8191] = byte(v >> 8)
+	return int(buf[0]) + int(buf[8191]) + leaf2(v)
+}
+
+//go:noinline
+func usebig(v int) int { return bigframe(v) }
+
+//go:noinline
+func usepure(x int) int { return lib.Pure(x) }
+
+//go:noinline
+func usesleepy(x int) int { return lib.Sleepy(x) }
+
+//go:noinline
+func usenano() int64 { return nanotime1() }
+
+//go:noinline
+func plainyield() int {
+	c := make(chan int, 1)
+	c <- 1
+	return <-c
+}
+
+//go:noinline
+func withdeferyield() (r int) {
+	defer func() { r += 1 }()
+	c := make(chan int, 1)
+	c <- 1
+	r = <-c
+	return r
+}
+
+func main() {
+	println(via(func() int { return 3 }))
+	doblock()
+	x := 7
+	println(nilderef(&x), usenil(&x), condnil(&x))
+	println(bigframe(x), usebig(x))
+	println(usepure(3), usesleepy(4))
+	println(usenano())
+	println(plainyield(), withdeferyield())
+}
+
+-- lib/lib.go --
+package lib
+
+import "time"
+
+//go:noinline
+func Pure(x int) int { return x*2 + 1 }
+
+//go:noinline
+func Sleepy(x int) int {
+	time.Sleep(time.Duration(x))
+	return x
+}
+
+-- zw/go.mod --
+module example.com/zerowire
+
+go 1.27
+
+-- zw/main.lgo --
+package main
+
+type ZeroEmpty struct{}
+
+type ZeroHolder struct {
+	Items []ZeroEmpty `json:"items"`
+}
+
+//go:noinline
+func zeroenc(v ZeroHolder) ([]byte, error) { return v.MarshalBinary() }
+
+//go:noinline
+func zerodec(b []byte) (ZeroHolder, error) {
+	var v ZeroHolder
+	err := v.UnmarshalBinary(b)
+	return v, err
+}
+
+func main() {
+	b, err := zeroenc(ZeroHolder{})
+	if err != nil {
+		panic(err)
+	}
+	v, err := zerodec(b)
+	if err != nil {
+		panic(err)
+	}
+	println(len(v.Items))
+}

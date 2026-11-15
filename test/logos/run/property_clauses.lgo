@@ -1,0 +1,241 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type Cnt struct {
+	n int
+}
+
+func (c *Cnt) Inc() {
+	c.n++
+}
+
+type Slot interface {
+	P int
+	Q int
+	C Cnt
+}
+
+type slot struct : Slot {
+	P int
+	Q int
+	C Cnt
+}
+
+var (
+	picks int
+	hits  int
+)
+
+func pick(w Slot) Slot {
+	picks++
+	return w
+}
+
+type cell struct {
+	name  string
+	run   func(w Slot)
+	p, q  int
+	cn    int
+	picks int
+	hits  int
+}
+
+func runCells(cells []cell) {
+	for _, c := range cells {
+		picks, hits = 0, 0
+		s := &slot{}
+		c.run(s)
+		got := fmt.Sprint(s.P, s.Q, s.C.n, picks, hits)
+		want := fmt.Sprint(c.p, c.q, c.cn, c.picks, c.hits)
+		check(c.name, got == want, got, want)
+	}
+}
+
+func checkForInit() {
+	runCells([]cell{
+		{"for-init-assign", func(w Slot) {
+			for pick(w).P = 5; hits < 2; hits++ {
+			}
+		}, 5, 0, 0, 1, 2},
+		{"for-init-compound", func(w Slot) {
+			for pick(w).P += 5; hits < 2; hits++ {
+			}
+		}, 5, 0, 0, 1, 2},
+		{"for-init-inc", func(w Slot) {
+			for pick(w).P++; hits < 2; hits++ {
+			}
+		}, 1, 0, 0, 1, 2},
+		{"for-init-dec", func(w Slot) {
+			for pick(w).P--; hits < 2; hits++ {
+			}
+		}, -1, 0, 0, 1, 2},
+		{"for-init-multi", func(w Slot) {
+			for pick(w).P, w.Q = 1, 2; hits < 2; hits++ {
+			}
+		}, 1, 2, 0, 1, 2},
+		{"for-init-call", func(w Slot) {
+			for pick(w).C.Inc(); hits < 2; hits++ {
+			}
+		}, 0, 0, 1, 1, 2},
+	})
+}
+
+func checkForPost() {
+	runCells([]cell{
+		{"for-post-assign", func(w Slot) {
+			for n := 0; n < 3; pick(w).P = n {
+				n++
+			}
+		}, 3, 0, 0, 3, 0},
+		{"for-post-compound", func(w Slot) {
+			for n := 0; n < 3; pick(w).P += 2 {
+				n++
+			}
+		}, 6, 0, 0, 3, 0},
+		{"for-post-inc", func(w Slot) {
+			for n := 0; n < 3; pick(w).P++ {
+				n++
+			}
+		}, 3, 0, 0, 3, 0},
+		{"for-post-dec", func(w Slot) {
+			for n := 0; n < 3; pick(w).P-- {
+				n++
+			}
+		}, -3, 0, 0, 3, 0},
+		{"for-post-multi", func(w Slot) {
+			for n := 0; n < 3; pick(w).P, w.Q = n, n*2 {
+				n++
+			}
+		}, 3, 6, 0, 3, 0},
+		{"for-post-call", func(w Slot) {
+			for n := 0; n < 3; pick(w).C.Inc() {
+				n++
+			}
+		}, 0, 0, 3, 3, 0},
+	})
+}
+
+func checkIfInit() {
+	runCells([]cell{
+		{"if-init-assign", func(w Slot) {
+			if pick(w).P = 5; w.P > 0 {
+				hits++
+			}
+		}, 5, 0, 0, 1, 1},
+		{"if-init-compound", func(w Slot) {
+			if pick(w).P += 5; w.P > 0 {
+				hits++
+			}
+		}, 5, 0, 0, 1, 1},
+		{"if-init-inc", func(w Slot) {
+			if pick(w).P++; w.P > 0 {
+				hits++
+			}
+		}, 1, 0, 0, 1, 1},
+		{"if-init-dec", func(w Slot) {
+			if pick(w).P--; w.P < 0 {
+				hits++
+			}
+		}, -1, 0, 0, 1, 1},
+		{"if-init-multi", func(w Slot) {
+			if pick(w).P, w.Q = 1, 2; w.Q > 0 {
+				hits++
+			}
+		}, 1, 2, 0, 1, 1},
+		{"if-init-call", func(w Slot) {
+			if pick(w).C.Inc(); w.C.n > 0 {
+				hits++
+			}
+		}, 0, 0, 1, 1, 1},
+		{"else-if-init-assign", func(w Slot) {
+			if hits > 0 {
+				hits = 10
+			} else if pick(w).P = 5; w.P > 0 {
+				hits++
+			}
+		}, 5, 0, 0, 1, 1},
+	})
+}
+
+func checkSwitchInit() {
+	runCells([]cell{
+		{"switch-init-assign", func(w Slot) {
+			switch pick(w).P = 7; w.P {
+			case 7:
+				hits++
+			}
+		}, 7, 0, 0, 1, 1},
+		{"switch-init-compound", func(w Slot) {
+			switch pick(w).P += 7; w.P {
+			case 7:
+				hits++
+			}
+		}, 7, 0, 0, 1, 1},
+		{"switch-init-inc", func(w Slot) {
+			switch pick(w).P++; w.P {
+			case 1:
+				hits++
+			}
+		}, 1, 0, 0, 1, 1},
+		{"switch-init-dec", func(w Slot) {
+			switch pick(w).P--; w.P {
+			case -1:
+				hits++
+			}
+		}, -1, 0, 0, 1, 1},
+		{"switch-init-multi", func(w Slot) {
+			switch pick(w).P, w.Q = 1, 2; w.Q {
+			case 2:
+				hits++
+			}
+		}, 1, 2, 0, 1, 1},
+		{"switch-init-call", func(w Slot) {
+			switch pick(w).C.Inc(); w.C.n {
+			case 1:
+				hits++
+			}
+		}, 0, 0, 1, 1, 1},
+	})
+}
+
+func checkLabeled() {
+	runCells([]cell{
+		{"labeled-for-init-post", func(w Slot) {
+		outer:
+			for pick(w).P = 1; hits < 5; w.P++ {
+				hits++
+				if hits == 2 {
+					continue outer
+				}
+			}
+		}, 6, 0, 0, 1, 5},
+	})
+}
+
+func main() {
+	checkForInit()
+	checkForPost()
+	checkIfInit()
+	checkSwitchInit()
+	checkLabeled()
+	if failed {
+		os.Exit(1)
+	}
+}

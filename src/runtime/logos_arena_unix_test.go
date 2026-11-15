@@ -13,9 +13,6 @@ import (
 	"unsafe"
 )
 
-// M18-S1 (#59): the cgocheck2 write checks accept arena addresses that reach
-// non-Go memory. The checks throw rather than panic, so a failure kills the
-// test binary.
 func TestLogosArenaCgoWriteChecksToNonGoMemory(t *testing.T) {
 	type holder struct{ p *int }
 	buf, err := syscall.Mmap(-1, 0, 4096, syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_ANON|syscall.MAP_PRIVATE)

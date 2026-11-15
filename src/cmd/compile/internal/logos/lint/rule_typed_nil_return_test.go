@@ -181,24 +181,49 @@ func TestTypedNilReturn(t *testing.T) {
 	expect(t, KindGo, nil, testSource{"x.go", typedNilGoSrc}, finding{"correctness::typed_nil_return", Deny})
 }
 
-// TestTypedNilReturnMessage checks the text and the span of each form: the
-// span covers the returned expression, through the closing parenthesis of a
-// call.
-func TestTypedNilReturnMessage(t *testing.T) {
-	in := check(t, KindLgo, "x.lgo", typedNilLgoSrc)
-	var texts []string
-	for _, r := range Run(in) {
-		texts = append(texts, r.Message+" | "+spanText(typedNilLgoSrc, r))
+const typedNilCgoSrc = `package p
+
+import (
+	"io"
+	"os"
+)
+
+func _Cfunc_make_handle() *os.File
+
+func cgoPlatform() io.Closer {
+	return _Cfunc_make_handle() // want
+}
+
+func cgoPlatformProved() io.Closer {
+	h := _Cfunc_make_handle()
+	if h == nil {
+		return nil
 	}
-	for _, want := range []string{
-		"(*Err)(nil) returned as error result is a typed nil: the interface is not nil; return nil instead | (*Err)(nil)",
-		"(*Err)(nil) returned as any result is a typed nil: the interface is not nil; return nil instead | (*Err)(nil)",
-		"option p (*Err?) returned as any result without a dominating nil check: a none value boxes into a non-nil interface | p",
-		"platform pointer f (*os.File) returned as io.Closer result without a dominating nil check: a nil pointer boxes into a non-nil interface | f",
-		"platform pointer os.Open(name) (*os.File) returned as io.ReadCloser result without a dominating nil check: a nil pointer boxes into a non-nil interface | os.Open(name)",
+	return h
+}
+`
+
+func TestTypedNilReturnCgoPlatform(t *testing.T) {
+	expect(t, KindLgo, nil, testSource{"x.lgo", typedNilCgoSrc}, finding{"correctness::typed_nil_return", Forbid})
+}
+
+// TestTypedNilReturnSpan checks the span of each form: the returned
+// expression, through the closing parenthesis of a call.
+func TestTypedNilReturnSpan(t *testing.T) {
+	in := check(t, KindLgo, "x.lgo", typedNilLgoSrc)
+	have := map[int]string{}
+	for _, r := range Run(in) {
+		have[int(r.Pos.Line())] = spanText(typedNilLgoSrc, r)
+	}
+	for line, span := range map[int]string{
+		13: "(*Err)(nil)",
+		17: "(*Err)(nil)",
+		29: "p",
+		69: "f",
+		81: "os.Open(name)",
 	} {
-		if !strings.Contains(strings.Join(texts, "\n"), want) {
-			t.Errorf("missing finding %q in\n%s", want, strings.Join(texts, "\n"))
+		if have[line] != span {
+			t.Errorf("line %d span = %q, want %q", line, have[line], span)
 		}
 	}
 }

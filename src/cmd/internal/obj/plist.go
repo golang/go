@@ -216,6 +216,7 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int, start src.XPos) {
 	s.Set(AttrNeedCtxt, flag&NEEDCTXT != 0)
 	s.Set(AttrNoFrame, flag&NOFRAME != 0)
 	s.Set(AttrPkgInit, flag&PKGINIT != 0)
+	s.Set(AttrLogosCtClone, flag&LOGOSCTCLONE != 0)
 	s.Type = objabi.STEXT
 	s.setFIPSType(ctxt)
 	ctxt.Text = append(ctxt.Text, s)

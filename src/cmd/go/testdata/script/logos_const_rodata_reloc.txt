@@ -1,0 +1,68 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd caller
+logos run .
+stdout '^7 reloc$'
+stdout '^reloc-write-fault$'
+cd ..
+
+-- lib/go.mod --
+module example.com/reloc
+
+go 1.27
+
+-- lib/p/values.lgo --
+package p
+
+type Data struct {
+	N int
+	Text string
+}
+
+const func makeData() Data {
+	return Data{N: 7, Text: "reloc"}
+}
+
+const Exported = makeData()
+
+-- caller/go.mod --
+module example.com/caller
+
+go 1.27
+
+require example.com/reloc v0.0.0
+
+replace example.com/reloc => ../lib
+
+-- caller/main.go --
+package main
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+	"strings"
+	"unsafe"
+
+	"example.com/reloc/p"
+)
+
+func main() {
+	if len(os.Args) > 1 {
+		q := unsafe.Pointer(&p.Exported.N)
+		*(*int)(q) = 9
+		fmt.Println("STORE-SUCCEEDED")
+		return
+	}
+	fmt.Println(p.Exported.N, p.Exported.Text)
+	exe, err := os.Executable()
+	if err != nil {
+		panic(err)
+	}
+	out, err := exec.Command(exe, "child").CombinedOutput()
+	if err == nil || strings.Contains(string(out), "STORE-SUCCEEDED") {
+		panic("relocation store did not fault")
+	}
+	fmt.Println("reloc-write-fault")
+}

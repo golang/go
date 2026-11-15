@@ -254,12 +254,6 @@ func xinit() {
 	// always go to GOROOT/bin anyway.
 	os.Setenv("GOBIN", gorootBin)
 
-	// Remember the author's GOENV, GOPATH and GOPROXY before dist
-	// isolates them (GOENV=off just below, GOPATH and GOPROXY in
-	// cmdbootstrap). Only the logos-nogo helper build uses them, to
-	// resolve the author's module cache and proxy/checksum policy.
-	captureLogosNogoAuthorEnv()
-
 	// Make the environment more predictable.
 	os.Setenv("LANG", "C")
 	os.Setenv("LANGUAGE", "en_US.UTF8")
@@ -1466,11 +1460,6 @@ func cmdbootstrap() {
 	// the GOPATH set above to be inside GOROOT. The modcache is read
 	// only so if we downloaded to the modcache, we'd create readonly
 	// files in GOROOT, which is undesirable. See #67463)
-	//
-	// This isolation covers toolchain1/2/3 and std/cmd only. The
-	// logos-nogo helper is the one build that needs modules; it is
-	// built with the author's module policy captured in xinit, see
-	// installLogosNogo.
 	os.Setenv("GOPROXY", "off")
 
 	// Use a build cache separate from the default user one.
@@ -1656,7 +1645,6 @@ func cmdbootstrap() {
 	goInstall(nil, goBootstrap, "std")
 	goInstall(toolenv(), goBootstrap, toolsToInstall...)
 	installLogos()
-	installLogosNogo(gorootBinGo)
 	checkNotStale(toolenv(), goBootstrap, toolchain...)
 	checkNotStale(nil, goBootstrap, "std")
 	checkNotStale(toolenv(), goBootstrap, toolsToInstall...)

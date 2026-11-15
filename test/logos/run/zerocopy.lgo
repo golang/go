@@ -1,18 +1,11 @@
 // run
-
 package main
 
 import (
 	"fmt"
+	"os"
 	"testing"
 )
-
-// M5-S5 zero-copy conversions (SPEC T-201): string to const []byte and
-// back allocate nothing when provenance is a string or a const
-// composite; any other provenance copies to the Go heap (#152: the
-// copy allocates at least once, and the string survives later
-// mutation of the source). A plain []byte conversion stays a copy
-// even when its source is a string.
 
 var zbSinkB const []byte
 var zbSinkS string
@@ -24,33 +17,45 @@ func zbComposite() string {
 }
 
 func main() {
+	failed := false
+	check := func(name string, ok bool) {
+		if !ok {
+			fmt.Printf("FAIL %s\n", name)
+			failed = true
+			return
+		}
+		fmt.Printf("ok %s\n", name)
+	}
 	s := "hello world, zero copy me"
 	var b const []byte = const []byte(s)
 	zbSinkS = string(b)
-	fmt.Println(zbSinkS == s)
-	fmt.Println(testing.AllocsPerRun(100, func() {
+	check("const-view-roundtrip-preserves-string", zbSinkS == s)
+	check("string-to-const-needs-no-alloc", testing.AllocsPerRun(100, func() {
 		zbSinkB = const []byte(s)
-	}))
-	fmt.Println(testing.AllocsPerRun(100, func() {
+	}) == 0)
+	check("const-to-string-needs-no-alloc", testing.AllocsPerRun(100, func() {
 		zbSinkS = string(b)
-	}))
-	fmt.Println(zbSinkS == s)
+	}) == 0)
+	check("const-view-still-valid-after-checks", zbSinkS == s)
 	var c const []byte = []byte{7, 8, 9}
-	fmt.Println(testing.AllocsPerRun(100, func() {
+	check("composite-const-to-string-needs-no-alloc", testing.AllocsPerRun(100, func() {
 		zbSinkS = string(c)
-	}))
+	}) == 0)
 	zbSinkC = zbComposite()
-	fmt.Println(zbSinkC == string([]byte{7, 8, 9}))
+	check("composite-const-roundtrip-preserves-bytes", zbSinkC == string([]byte{7, 8, 9}))
 	mut := []byte("hello world, zero copy me")
 	var v const []byte = mut
 	t := string(v)
 	mut[0] = 'X'
-	fmt.Println(t)
-	fmt.Println(testing.AllocsPerRun(100, func() {
+	check("mutable-source-snapshot-is-immutable", t == s)
+	check("mutated-source-conversion-allocates", testing.AllocsPerRun(100, func() {
 		zbSinkS = string(v)
 	}) >= 1)
 	p := []byte(s)
 	p[0] = 'X'
 	_ = p
-	fmt.Println(s)
+	check("unrelated-mutation-keeps-source-string", s == "hello world, zero copy me")
+	if failed {
+		os.Exit(1)
+	}
 }

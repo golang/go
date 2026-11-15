@@ -1,0 +1,66 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# A group whose body shares its line with the closing brace, alone or
+# nested in another group, with a plain call or a child block, ejects to
+# Go that builds and prints what the native run prints. The ejected
+# module builds and runs with go and with go1.27.2 from $UPROOT1272.
+cd m
+logos run .
+stdout '^15$'
+cp stdout $WORK/native.txt
+logos eject -o out
+exists out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $WORK/native.txt
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
+exec $WORK/upstream$GOEXE
+cmp stdout $WORK/native.txt
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ..
+
+-- m/go.mod --
+module example.com/grouponeline
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"sync/atomic"
+)
+
+var total atomic.Int64
+
+func add(n int64) {
+	total.Add(n)
+}
+
+func run(ctx context.Context) error {
+	go group (ctx) { go add(1) }
+	go group (ctx) {
+		go add(2)
+		go group (ctx) { go add(3) }
+	}
+	go group (ctx) { go add(4) } // comment after a one-line group
+	go group (ctx) { go { add(5) } }
+	return nil
+}
+
+func main() {
+	if err := run(context.Background()); err != nil {
+		fmt.Println("run failed:", err)
+		os.Exit(1)
+	}
+	fmt.Println(total.Load())
+}

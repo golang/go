@@ -113,7 +113,7 @@ A type switch expression lowers to an immediately invoked function returning the
 
 ## Options and nil flow (M3)
 
-`*T?` stays the bare pointer with nil as none. Every other option lowers to `logos/rt.Option[T]` (a value plus a present flag), so a present nil payload stays distinct from absent. `a ?? b` evaluates `a` once and `b` only when `a` is none. `a?.f` evaluates `a` once and yields none when `a` is none.
+`*T?` stays the bare pointer with nil as none. An interface-backed union option with no nil-capable member uses the interface nil value for absence. Every other option lowers to `logos/rt.Option[T]` in lowered files (`github.com/gosuda/loGos/rt.Option[T]` in ejected output) (a value plus a present flag), so a present nil payload stays distinct from absent. `a ?? b` evaluates `a` once and `b` only when `a` is none. `a?.f` evaluates `a` once and yields none when `a` is none.
 
 A single-value map read `m[k]` lowers to a presence-checked lookup returning the element option, except for non-nil pointer elements, which keep the plain `m[k]` read with nil as none. `v, ok := m[k]`, stores, `++`, compound assignment, and `delete` lower unchanged.
 

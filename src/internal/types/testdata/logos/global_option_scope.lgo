@@ -4,21 +4,14 @@
 
 package p
 
-// SPEC 1201 (Sec 6.2, T-202) scope: nil narrowing carries locals and
-// function parameters (receiver, parameter, and result kinds included).
-// A package-level option variable is never narrowed, through any of the
-// four narrowing forms.
-
 var g (func(int) int)?
 
-// The then block of `g != nil` does not narrow a package global.
 func globalThen() {
 	if g != nil {
 		g /* ERROR "correctness::nil_deref_unproven" */ (1)
 	}
 }
 
-// The else branch of `g == nil` does not narrow a package global.
 func globalElse() {
 	if g == nil {
 	} else {
@@ -26,7 +19,6 @@ func globalElse() {
 	}
 }
 
-// The early exit on `g == nil` does not narrow a package global.
 func globalEarlyExit() {
 	if g == nil {
 		return
@@ -34,13 +26,11 @@ func globalEarlyExit() {
 	g /* ERROR "correctness::nil_deref_unproven" */ (3)
 }
 
-// A `&&`-chain guard does not narrow a package global.
 func globalAnd() {
 	if g != nil && g /* ERROR "correctness::nil_deref_unproven" */ (4) > 0 {
 	}
 }
 
-// Copying the global into a local narrows the local in place.
 func copyLocal(n int) {
 	h := g
 	if h != nil {
@@ -48,14 +38,12 @@ func copyLocal(n int) {
 	}
 }
 
-// An input parameter narrows in place.
 func inputParam(f (func(int) int)?, n int) {
 	if f != nil {
 		f(n)
 	}
 }
 
-// A named result narrows in place.
 func namedResult(n int) (r (func(int) int)?) {
 	if r != nil {
 		r(n)

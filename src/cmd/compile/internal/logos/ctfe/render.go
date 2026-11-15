@@ -4,24 +4,15 @@
 
 package ctfe
 
-// This file implements M5-S2 literal synthesis (SPEC Sec 2.1, T-201):
-// a computed value becomes composite literal syntax for lowering.
-// Opaque types (imported named types) cannot be spelled and report an
-// error so lowering keeps the original call instead.
-
 import (
 	"cmd/compile/internal/syntax"
 	"fmt"
 	"math"
+	"math/big"
 	"strconv"
 	"strings"
 )
 
-// Expr renders v as a composite literal expression. Named same-package
-// types spell by name; slices, arrays, maps, and anonymous structs
-// spell structurally. Floats use round-trip formatting with an exact
-// -0.0 spelling. Every node takes pos, so errors and traces point into
-// the source const declaration.
 func (v Value) Expr(pos syntax.Pos) (syntax.Expr, error) {
 	r := &renderer{pos: pos}
 	x, err := r.expr(v)
@@ -57,6 +48,8 @@ func (r *renderer) expr(v Value) (syntax.Expr, error) {
 		return r.intLit(v)
 	case v.fval != nil || (v.typ != nil && isFloat(v.typ.Kind)):
 		return r.floatLit(v)
+	case v.typ != nil && isComplex(v.typ.Kind):
+		return r.complexLit(v)
 	case v.typ != nil && (v.typ.Kind == KString || v.typ.Kind == KUntypedString):
 		return &syntax.BasicLit{Value: strconv.Quote(v.sval), Kind: syntax.StringLit}, nil
 	case v.typ != nil && (v.typ.Kind == KBool || v.typ.Kind == KUntypedBool):
@@ -108,8 +101,54 @@ func (r *renderer) floatLit(v Value) (syntax.Expr, error) {
 	return lit, nil
 }
 
-// floatText formats f for a literal: negatives split into unary minus
-// plus magnitude, with an exact -0.0 spelling (0-0.0 would read +0.0).
+func (r *renderer) complexLit(v Value) (syntax.Expr, error) {
+	var rexp, iexp syntax.Expr
+	if v.constant && kindOf(v) == KUntypedComplex {
+		re, im := complexParts(v)
+		if re == nil || im == nil {
+			return nil, fmt.Errorf("cannot spell non-finite complex constant in const evaluation")
+		}
+		rexp, iexp = r.ratLit(re), r.ratLit(im)
+	} else {
+		c := v.Complex()
+		re, im := real(c), imag(c)
+		if v.typ != nil && v.typ.Kind == KComplex64 {
+			re = float64(float32(re))
+			im = float64(float32(im))
+		}
+		rs, rneg := r.floatText(re)
+		is, ineg := r.floatText(im)
+		rexp, iexp = &syntax.BasicLit{Value: rs, Kind: syntax.FloatLit}, &syntax.BasicLit{Value: is, Kind: syntax.FloatLit}
+		if rneg {
+			rexp = &syntax.Operation{Op: syntax.Sub, X: rexp}
+		}
+		if ineg {
+			iexp = &syntax.Operation{Op: syntax.Sub, X: iexp}
+		}
+	}
+	return &syntax.ParenExpr{X: &syntax.Operation{
+		Op: syntax.Add,
+		X:  &syntax.ParenExpr{X: rexp},
+		Y: &syntax.Operation{
+			Op: syntax.Mul,
+			X:  &syntax.ParenExpr{X: iexp},
+			Y:  &syntax.BasicLit{Value: "1i", Kind: syntax.ImagLit},
+		},
+	}}, nil
+}
+
+func (r *renderer) ratLit(v *big.Rat) syntax.Expr {
+	s := v.Num().String()
+	var x syntax.Expr = &syntax.BasicLit{Value: strings.TrimPrefix(s, "-") + ".0", Kind: syntax.FloatLit}
+	if v.Sign() < 0 {
+		x = &syntax.Operation{Op: syntax.Sub, X: x}
+	}
+	if !v.IsInt() {
+		x = &syntax.Operation{Op: syntax.Div, X: x, Y: &syntax.BasicLit{Value: v.Denom().String() + ".0", Kind: syntax.FloatLit}}
+	}
+	return x
+}
+
 func (r *renderer) floatText(f float64) (string, bool) {
 	if math.Signbit(f) {
 		if f == 0 {
@@ -147,10 +186,6 @@ func (r *renderer) sliceLit(v Value) (syntax.Expr, error) {
 	return &syntax.CompositeLit{Type: t, ElemList: elems, Rbrace: r.pos}, nil
 }
 
-// backedSliceLit spells a slice with spare capacity or a nonzero lower
-// bound as a full backing literal plus a three-index slice, preserving
-// length, capacity, and tail values. A plain literal would silently
-// truncate the capacity to the length.
 func (r *renderer) backedSliceLit(v Value, t syntax.Expr) (syntax.Expr, error) {
 	backing, lo, length, cap_, ok := v.SliceHeader()
 	if !ok || lo < 0 || length < 0 || lo > cap_ || lo+length > cap_ || cap_ > len(backing) {
@@ -181,14 +216,10 @@ func (r *renderer) arrayLit(v Value) (syntax.Expr, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Spell an explicit length: [...] would also work, but the exact
-	// length keeps the recheck independent of inference.
 	if at, ok := t.(*syntax.ArrayType); ok {
 		at.Len = &syntax.BasicLit{Value: strconv.Itoa(len(v.array)), Kind: syntax.IntLit}
 	}
 	elems := make([]syntax.Expr, 0, len(v.array))
-	// Trailing zero values stay explicit: trimming them would change
-	// nothing semantically, and explicitness keeps rendering uniform.
 	for _, el := range v.array {
 		x, err := r.expr(el)
 		if err != nil {
@@ -235,13 +266,11 @@ func (r *renderer) mapLit(v Value) (syntax.Expr, error) {
 	return &syntax.CompositeLit{Type: t, ElemList: elems, NKeys: len(elems), Rbrace: r.pos}, nil
 }
 
-// typeExpr spells a descriptor structurally. Named same-package types
-// spell by name; anything Opaque or imported errors.
 func (r *renderer) typeExpr(t *Type) (syntax.Expr, error) {
 	if t == nil {
 		return nil, fmt.Errorf("missing type in const evaluation")
 	}
-	if t.Opaque || (t.Named != "" && !samePackageName(t)) {
+	if t.Opaque {
 		return nil, fmt.Errorf("cannot spell type in const evaluation")
 	}
 	if t.Named != "" {
@@ -276,6 +305,10 @@ func (r *renderer) typeExpr(t *Type) (syntax.Expr, error) {
 		return syntax.NewName(r.pos, "float32"), nil
 	case KFloat64:
 		return syntax.NewName(r.pos, "float64"), nil
+	case KComplex64:
+		return syntax.NewName(r.pos, "complex64"), nil
+	case KComplex128:
+		return syntax.NewName(r.pos, "complex128"), nil
 	case KString:
 		return syntax.NewName(r.pos, "string"), nil
 	case KSlice:
@@ -313,8 +346,3 @@ func (r *renderer) typeExpr(t *Type) (syntax.Expr, error) {
 	}
 	return nil, fmt.Errorf("cannot spell type in const evaluation")
 }
-
-// samePackageName reports whether a named type spells by bare name.
-// Descriptors from other packages arrive Opaque, so Named alone
-// implies same-package here.
-func samePackageName(t *Type) bool { return !t.Opaque }

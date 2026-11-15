@@ -1,0 +1,58 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+var evals int
+var armRuns int
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func taggedKind(n int) int {
+	evals++
+	return n
+}
+
+func armA() string {
+	armRuns++
+	return "a"
+}
+
+func armB() string {
+	armRuns++
+	return "b"
+}
+
+func pick(n int) string {
+	return switch taggedKind(n) {
+	case 1 => armA()
+	default => armB()
+	}
+}
+
+func main() {
+	got := pick(1)
+	check("switch-evaluates-scrutinee-once", evals == 1, evals, 1)
+	check("switch-runs-taken-arm-once", armRuns == 1, armRuns, 1)
+	check("switch-selects-matching-arm", got == "a", got, "a")
+	got = pick(9)
+	check("switch-evaluates-second-scrutinee-once", evals == 2, evals, 2)
+	check("switch-runs-default-arm-once", armRuns == 2, armRuns, 2)
+	check("switch-selects-default-arm", got == "b", got, "b")
+	if failed {
+		os.Exit(1)
+	}
+}

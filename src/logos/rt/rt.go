@@ -23,9 +23,22 @@ type Site struct {
 	Line int
 }
 
-// Cold marks a branch unlikely. The backend lowers it to BranchUnlikely;
-// it emits no code and costs nothing at run time.
-func Cold() {}
+// DeferTry joins a deferred call result into an error result. A nil
+// result leaves the target alone, a nil target takes the result
+// as is, and two non-nil errors join with Join semantics.
+func DeferTry(errp *error, e error) {
+	if errp == nil {
+		panic("logos: DeferTry with nil error target")
+	}
+	if e == nil {
+		return
+	}
+	if *errp == nil {
+		*errp = e
+		return
+	}
+	*errp = Join(*errp, e)
+}
 
 // Join combines two errors, matching errors.Join semantics. The lowering
 // keeps a nil result alone and calls Join only for two non-nil errors.
@@ -40,14 +53,19 @@ type Context = context.Context
 // MustNonNil checks a platform pointer stored into a declared non-nil
 // location (SPEC T-202): it returns its argument, and panics with
 // `logos: nil from Go value stored into non-nil *T at <file>:<line>`
-// when the value is nil. Only pointer-shaped values can be nil; every
-// other value passes through untouched.
+// when the value is nil. A nil site reports the position as unknown.
+// Only pointer-shaped values can be nil; every other value passes
+// through untouched.
 func MustNonNil[T any](p T, site *Site) T {
 	v := reflect.ValueOf(p)
 	switch v.Kind() {
 	case reflect.Ptr, reflect.Map, reflect.Slice, reflect.Func, reflect.Chan, reflect.Interface, reflect.UnsafePointer:
 		if v.IsNil() {
-			panic("logos: nil from Go value stored into non-nil " + reflect.TypeOf(p).String() + " at " + site.File + ":" + strconv.Itoa(site.Line))
+			at := "unknown"
+			if site != nil {
+				at = site.File + ":" + strconv.Itoa(site.Line)
+			}
+			panic("logos: nil from Go value stored into non-nil " + reflect.TypeOf(p).String() + " at " + at)
 		}
 	}
 	return p
@@ -89,21 +107,93 @@ func Lookup[M ~map[K]V, K comparable, V any](m M, k K) Option[V] {
 }
 
 // UnionAssertionError is the panic value of a failed single-value
-// assertion to a closed union: x.(U) panics with
-// &UnionAssertionError{Value: x, Union: "<pkg>.U"} when the dynamic type
-// of x is not a member of U.
+// assertion to a closed union. When x.(U) fails because the dynamic type
+// of x is not a member of U, it panics with
+// &UnionAssertionError{Value: x, Union: "<pkg>.U"}. When u.(T) fails
+// because T is not a member of U, it panics with the same error plus
+// Asserted holding TypeName[T]().
 type UnionAssertionError struct {
-	Value any
-	Union string
+	Value    any
+	Union    string
+	Asserted string
 }
 
 // Error formats the Go assertion message with the union in place of the
 // asserted type: `interface conversion: <T> is not a member of <pkg>.U`,
-// where <T> is the dynamic type of Value, or `nil` when Value is nil.
+// where <T> is Asserted when set, else the dynamic type of Value, or
+// `nil` when Value is nil.
 func (e *UnionAssertionError) Error() string {
 	actual := "nil"
-	if e.Value != nil {
+	if e.Asserted != "" {
+		actual = e.Asserted
+	} else if e.Value != nil {
 		actual = reflect.TypeOf(e.Value).String()
 	}
 	return "interface conversion: " + actual + " is not a member of " + e.Union
+}
+
+// TypeName returns the name of T as Go prints it in an interface
+// conversion panic: qualified by the package name, never by the
+// spelling or the import alias used where T was written.
+func TypeName[T any]() string {
+	return reflect.TypeFor[T]().String()
+}
+
+func AppendInt(b []byte, x int64, base int) []byte {
+	return strconv.AppendInt(b, x, base)
+}
+
+func AppendUint(b []byte, x uint64, base int) []byte {
+	return strconv.AppendUint(b, x, base)
+}
+
+func AppendFloat(b []byte, f float64, fmt byte, prec, bitSize int) []byte {
+	return strconv.AppendFloat(b, f, fmt, prec, bitSize)
+}
+
+func AppendBool(b []byte, x bool) []byte {
+	return strconv.AppendBool(b, x)
+}
+
+type PanicFormatter func(...any) string
+
+type stringer interface{ String() string }
+
+func InterpError(v error, format PanicFormatter) (s string) {
+	if v == nil {
+		return "<nil>"
+	}
+	return InterpErrorValue(v, format)
+}
+
+func InterpErrorValue[T error](v T, format PanicFormatter) (s string) {
+	defer func() {
+		if r := recover(); r != nil {
+			s = methodPanicText(v, "Error", r, format)
+		}
+	}()
+	return v.Error()
+}
+
+func InterpStringer(v stringer, format PanicFormatter) (s string) {
+	if v == nil {
+		return "<nil>"
+	}
+	return InterpStringerValue(v, format)
+}
+
+func InterpStringerValue[T stringer](v T, format PanicFormatter) (s string) {
+	defer func() {
+		if r := recover(); r != nil {
+			s = methodPanicText(v, "String", r, format)
+		}
+	}()
+	return v.String()
+}
+
+func methodPanicText(receiver any, method string, panicValue any, format PanicFormatter) string {
+	if rv := reflect.ValueOf(receiver); rv.Kind() == reflect.Pointer && rv.IsNil() {
+		return "<nil>"
+	}
+	return "%!v(PANIC=" + method + " method: " + format(panicValue) + ")"
 }

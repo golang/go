@@ -1,0 +1,175 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+# An address into the value of an imported const composite points at a fresh variable, never at the exporter's storage.
+cd m
+logos build -o $WORK/bin/addrcc$GOEXE ./app
+exec $WORK/bin/addrcc$GOEXE
+cmp stdout want.txt
+logos eject -o out
+cd out
+exists $UPROOT1272/bin/go
+exec env -u GOROOT $UPROOT1272/bin/go run ./app
+cmp stdout ../want.txt
+cd ../..
+
+# An address into the storage of an imported const composite, a slice of its array,
+# or a write through a reference held by a fresh copy of it fails with the rule ID.
+cd bad
+! logos build ./...
+stderr -count=7 '\[correctness::const_view_mutation\]'
+! logos eject -o $WORK/bad-out
+stderr -count=7 '\[correctness::const_view_mutation\]'
+cd ..
+
+-- m/go.mod --
+module example.com/ccaddr
+
+go 1.27
+
+-- m/want.txt --
+ok qualified-field
+ok qualified-array
+ok qualified-array-element
+ok qualified-whole
+ok qualified-nested-field
+ok qualified-fresh-per-evaluation
+ok dot-field
+ok dot-array
+ok dot-whole
+ok read-after-writes
+-- m/lib/lib.lgo --
+package lib
+
+type Box struct {
+	M map[string]int
+	L []int
+	A [3]int
+	N int
+}
+
+type Wrap struct {
+	In Box
+	K  int
+}
+
+const C = Box{M: map[string]int{"a": 1}, L: []int{1, 2, 3}, A: [3]int{1, 2, 3}, N: 7}
+
+const W = Wrap{In: Box{M: map[string]int{"z": 5}, N: 3}, K: 1}
+-- m/app/main.lgo --
+package main
+
+import (
+	"fmt"
+	"os"
+
+	"example.com/ccaddr/lib"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func qualified() {
+	n := &lib.C.N
+	*n = 5
+	check("qualified-field", lib.C.N == 7 && *n == 5, lib.C.N, 7)
+
+	a := &lib.C.A
+	a[0] = 9
+	check("qualified-array", lib.C.A[0] == 1 && a[0] == 9, lib.C.A[0], 1)
+
+	e := &lib.C.A[1]
+	*e = 8
+	check("qualified-array-element", lib.C.A[1] == 2 && *e == 8, lib.C.A[1], 2)
+
+	m := &lib.C
+	m.N = 4
+	m.A[2] = 6
+	check("qualified-whole", lib.C.N == 7 && lib.C.A[2] == 3 && len(lib.C.M) == 1 && len(m.M) == 1 && m.N == 4 && m.A[2] == 6, lib.C.N, 7)
+
+	k := &lib.W.In.N
+	*k = 6
+	check("qualified-nested-field", lib.W.In.N == 3 && *k == 6, lib.W.In.N, 3)
+
+	x := &lib.C.N
+	y := &lib.C.N
+	check("qualified-fresh-per-evaluation", x != y, x, y)
+}
+
+func main() {
+	qualified()
+	dotted()
+	check("read-after-writes", lib.C.L[0] == 1 && lib.C.A[0] == 1 && lib.C.A[1] == 2 && lib.C.N == 7 && lib.W.In.N == 3, lib.C.N, "declared value")
+	if failed {
+		os.Exit(1)
+	}
+}
+-- m/app/dot.lgo --
+package main
+
+import . "example.com/ccaddr/lib"
+
+func dotted() {
+	n := &C.N
+	*n = 5
+	check("dot-field", C.N == 7 && *n == 5, C.N, 7)
+
+	a := &C.A
+	a[0] = 9
+	check("dot-array", C.A[0] == 1 && a[0] == 9, C.A[0], 1)
+
+	m := &C
+	m.N = 4
+	check("dot-whole", C.N == 7 && C.L[0] == 1 && m.N == 4 && m.L[0] == 1, C.N, 7)
+}
+-- bad/go.mod --
+module example.com/ccaddrbad
+
+go 1.27
+
+-- bad/lib/lib.lgo --
+package lib
+
+type Item struct {
+	M map[string]int
+	N int
+}
+
+type S struct {
+	M map[string]int
+	L []int
+	A [3]int
+	I []Item
+}
+
+const C = S{M: map[string]int{"a": 1}, L: []int{1, 2, 3}, A: [3]int{1, 2, 3}, I: []Item{{N: 1}, {N: 2}}}
+-- bad/app/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/ccaddrbad/lib"
+)
+
+func main() {
+	p := &lib.C.L[0]
+	q := &lib.C.I[1].N
+	s := lib.C.A[:]
+	r := &lib.C.L[1:][0]
+	m := &lib.C
+	m.M["b"] = 2
+	m.L[0] = 3
+	w := lib.C
+	w.L[1] = 4
+	fmt.Println(p, q, s, r)
+}

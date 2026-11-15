@@ -12,10 +12,6 @@ import (
 	"cmd/internal/obj"
 )
 
-// logosWasmHold is the M16-S1 hook of Compile. On GOARCH=wasm it records
-// the MayYield summary of fn; with the WASM profile on it also takes
-// ownership of the assembly, which wasmyield.Finish performs once every
-// callee fact of the package is known, and Compile returns early.
 func logosWasmHold(fn *ir.Func, pp *objw.Progs) bool {
 	if !wasmyield.Active() {
 		return false
@@ -30,8 +26,6 @@ func logosWasmHold(fn *ir.Func, pp *objw.Progs) bool {
 	})
 }
 
-// logosWasmImport is the M16-S1 hook of CreateWasmImportWrapper: it records
-// the import wrapper so callers see the yield fact of the import.
 func logosWasmImport(fn *ir.Func) {
 	wasmyield.RecordImport(fn)
 }

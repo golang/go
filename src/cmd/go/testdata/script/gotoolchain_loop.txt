@@ -1,21 +1,21 @@
 env GOTOOLCHAIN=auto
-env TESTGO_VERSION=go1.21.1
+env TESTGO_VERSION=go1.27.0
 
 # Basic switch should work.
 env TESTGO_VERSION_SWITCH=switch
 go version
-stdout go1.21.99
+stdout go1.27.99
 
 # Toolchain target mismatch should be detected.
 env TESTGO_VERSION_SWITCH=mismatch
 ! go version
-stderr '^go: toolchain go1.21.1 invoked to provide go1.21.99$'
+stderr '^go: toolchain go1.27.0 invoked to provide go1.27.99$'
 
 # Toolchain loop should be detected.
 env TESTGO_VERSION_SWITCH=loop
 ! go version
-stderr -count=10 '^go: switching from go1.21.1 to go1.21.99 \[depth 9[0-9]\]$'
-stderr -count=1 '^go: switching from go1.21.1 to go1.21.99 \[depth 100\]$'
+stderr -count=10 '^go: switching from go1.27.0 to go1.27.99 \[depth 9[0-9]\]$'
+stderr -count=1 '^go: switching from go1.27.0 to go1.27.99 \[depth 100\]$'
 stderr '^go: too many toolchain switches$'
 
 [short] skip
@@ -23,7 +23,7 @@ stderr '^go: too many toolchain switches$'
 # Internal env vars should not leak to go test or go run.
 env TESTGO_VERSION_SWITCH=switch
 go version
-stdout go1.21.99
+stdout go1.27.99
 go test
 stdout clean
 go run .
@@ -31,7 +31,7 @@ stdout clean
 
 -- go.mod --
 module m
-go 1.21.99
+go 1.27.99
 
 -- m_test.go --
 package main

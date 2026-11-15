@@ -1,0 +1,54 @@
+// run -goexperiment logosarena
+package main
+
+import (
+	"fmt"
+	"logos/arena"
+	"logos/rt"
+	"os"
+)
+
+type node struct {
+	next *node
+	v    int
+}
+
+func heapSeries(n int) int {
+	return (n - 1) * n / 2
+}
+
+func main() {
+	sum := 0
+	inside := false
+	{
+		r := arena.Open()
+		head := arena.New[node](r)
+		tail := head
+		for i := range 10000 {
+			n := arena.New[node](r)
+			n.v = i
+			tail.next = n
+			tail = n
+		}
+		tail.next = head
+		for h := head.next; h != head; h = h.next {
+			sum += h.v
+		}
+		inside = rt.RegionBytes() > 0
+	}
+	if sum != heapSeries(10000) {
+		fmt.Printf("FAIL cyclic-list-sum-matches-arithmetic-series: got %d want %d\n", sum, heapSeries(10000))
+		os.Exit(1)
+	}
+	fmt.Println("ok cyclic-list-sum-matches-arithmetic-series")
+	if !inside {
+		fmt.Println("FAIL region-holds-bytes-inside-owner-block: got false want true")
+		os.Exit(1)
+	}
+	fmt.Println("ok region-holds-bytes-inside-owner-block")
+	if rt.RegionBytes() != 0 {
+		fmt.Printf("FAIL region-released-after-owner-block: got %d want 0\n", rt.RegionBytes())
+		os.Exit(1)
+	}
+	fmt.Println("ok region-released-after-owner-block")
+}

@@ -1,0 +1,42 @@
+# go tool nm: a const map of at most 8 keys lowers to a switch lookup,
+# so the binary holds no table symbol for it; a 9-key map lowers to a
+# static perfect-hash table, and that table symbol sits in read-only data.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+cd main
+logos build -o $WORK/bin/switchmap$GOEXE .
+! stderr .
+go tool nm $WORK/bin/switchmap$GOEXE
+! stdout 'main\._logos_cm0_small_tab'
+stdout ' R main\._logos_cm1_big_tab'
+exec $WORK/bin/switchmap$GOEXE
+stdout '^ok$'
+cd ..
+
+-- main/go.mod --
+module example.com/switchmap
+
+go 1.27
+
+-- main/main.lgo --
+package main
+
+import "fmt"
+
+const small = map[string]int{
+	"s0": 0, "s1": 1, "s2": 2, "s3": 3, "s4": 4, "s5": 5, "s6": 6, "s7": 7,
+}
+
+const big = map[string]int{
+	"b0": 0, "b1": 1, "b2": 2, "b3": 3, "b4": 4, "b5": 5, "b6": 6, "b7": 7, "b8": 8,
+}
+
+func main() {
+	if (small["s1"] ?? -1) != 1 || (big["b1"] ?? -1) != 1 {
+		fmt.Println("bad")
+		return
+	}
+	fmt.Println("ok")
+}

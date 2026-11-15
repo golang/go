@@ -1,0 +1,104 @@
+// run
+
+package jsonunion
+
+import (
+	"encoding/json"
+	"errors"
+	"strings"
+	"testing"
+
+	"logos/rt"
+)
+
+type PromBase struct {
+	X int64 `json:"x"`
+}
+
+func (b *PromBase) UnmarshalJSON(data []byte) error {
+	var v map[string]int64
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+	x, ok := v["x"]
+	if !ok {
+		return errors.New("PromBase requires x")
+	}
+	b.X = x
+	return nil
+}
+
+type PromEvent struct {
+	PromBase
+	Name string
+}
+
+type PromOther struct {
+	N int64 `json:"n"`
+}
+
+type PromShape interface {
+	*PromEvent | *PromOther
+}
+
+type PromHolder struct {
+	Name string    `json:"name"`
+	S    PromShape `json:"s"`
+}
+
+func TestPromKeyedSibling(t *testing.T) {
+	var h PromHolder
+	if err := json.Unmarshal([]byte(`{"name":"d","s":{"n":3}}`), &h); err != nil {
+		t.Fatal(err)
+	}
+	o, ok := h.S.(*PromOther)
+	if !ok {
+		t.Fatalf("expected *PromOther, got %T: %#v", h.S, h.S)
+	}
+	if o.N != 3 {
+		t.Fatalf("expected N 3, got %d", o.N)
+	}
+}
+
+func TestPromDecoderDecides(t *testing.T) {
+	var h PromHolder
+	if err := json.Unmarshal([]byte(`{"name":"d","s":{"x":11}}`), &h); err != nil {
+		t.Fatal(err)
+	}
+	e, ok := h.S.(*PromEvent)
+	if !ok {
+		t.Fatalf("expected *PromEvent, got %T: %#v", h.S, h.S)
+	}
+	var oc PromBase
+	if err := json.Unmarshal([]byte(`{"x":11}`), &oc); err != nil {
+		t.Fatal(err)
+	}
+	if e.X != oc.X {
+		t.Fatalf("trial X = %d, want oracle %d", e.X, oc.X)
+	}
+	if e.Name != "" {
+		t.Fatalf("expected zero Name, got %q", e.Name)
+	}
+}
+
+func TestPromNoMatchLeavesHolder(t *testing.T) {
+	want := &PromOther{N: 9}
+	h := PromHolder{Name: "d", S: want}
+	err := json.Unmarshal([]byte(`{"name":"d","s":{"bogus":1}}`), &h)
+	if err == nil {
+		t.Fatal("expected trial error, got nil")
+	}
+	var trialErr rt.UnionTrialError
+	if !errors.As(err, &trialErr) {
+		t.Fatalf("expected rt.UnionTrialError, got %T: %v", err, err)
+	}
+	if trialErr.Matched != 0 {
+		t.Fatalf("expected Matched 0, got %d", trialErr.Matched)
+	}
+	if !strings.Contains(err.Error(), "PromShape") {
+		t.Fatalf("trial error %q must name union PromShape", err.Error())
+	}
+	if h.S != want {
+		t.Fatalf("failed trials left the target touched: %#v", h.S)
+	}
+}

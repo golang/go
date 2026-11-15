@@ -1,0 +1,72 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+logos run .
+stdout '^names-main \[Port Host hidden\]$'
+stdout '^names-cfg \[Port\]$'
+cp stdout $WORK/native.txt
+
+logos eject -o out
+exists out/main.go
+exists out/wire/wire.go
+grep '^func Names_logosct' out/main.go
+grep -count=2 '^func .*_logosct[0-9][(]' out/main.go
+! grep 'Names_logosct[0-9][[]' out/main.go
+! grep 'Names_logosct' out/wire/wire.go
+
+cd out
+go run .
+cmp stdout $WORK/native.txt
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+go vet ./...
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ..
+
+-- m/go.mod --
+module example.com/xcopyct
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/xcopyct/wire"
+)
+
+type Service struct {
+	Port   int
+	Host   string
+	hidden int
+}
+
+func main() {
+	fmt.Println("names-main", wire.Names[Service]())
+	fmt.Println("names-cfg", wire.Names[wire.Config]())
+}
+
+-- m/wire/wire.lgo --
+package wire
+
+import "comptime"
+
+type Config struct {
+	Port   int
+	secret int
+}
+
+func Names[T any]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		out = append(out, f.Name)
+	}
+	return out
+}

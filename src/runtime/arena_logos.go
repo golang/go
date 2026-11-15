@@ -14,31 +14,18 @@ import (
 )
 
 const (
-	// logosArenaChunkBytes is the size of one arena chunk (SPEC Sec 3.1).
 	logosArenaChunkBytes = 64 << 10
 	logosArenaChunkPages = logosArenaChunkBytes / pageSize
 
-	// logosArenaUnit is the size and alignment unit of the scan region and
-	// the minimum alignment of the noscan region.
 	logosArenaUnit = 2 * goarch.PtrSize
 
-	// logosArenaHeaderBytes is the chunk header size, rounded up to the unit.
 	logosArenaHeaderBytes = (unsafe.Sizeof(sideStackChunk{}) + logosArenaUnit - 1) &^ (logosArenaUnit - 1)
 
-	// logosArenaScanHeaderBytes is the size of the type word block that
-	// precedes each scan-region object.
 	logosArenaScanHeaderBytes = unsafe.Sizeof(logosArenaScanHeader{})
 
-	// logosArenaDefaultLimit caps the chunks that exist at once, in use or
-	// cached (1 GiB). Past it an allocation falls back to mallocgc, which is
-	// always safe because the heap outlives every frame.
 	logosArenaDefaultLimit = 1 << 14
 )
 
-// The compiler's inline bump hard-codes the g.logosArena field offset
-// (4*goarch.PtrSize, right after stackguard1) and the noscanCur/scanCur
-// field offsets of sideStackChunk (2 and 3 words). Both directions fail to
-// compile if a layout change moves any of them.
 const (
 	_ = uint(4*goarch.PtrSize - unsafe.Offsetof(g{}.logosArena))
 	_ = uint(unsafe.Offsetof(g{}.logosArena) - 4*goarch.PtrSize)
@@ -48,12 +35,6 @@ const (
 	_ = uint(unsafe.Offsetof(sideStackChunk{}.scanCur) - 3*goarch.PtrSize)
 )
 
-// sideStackChunk is one leased arena chunk (PLAN Sec 8.1). Its header sits at
-// the start of the chunk, which is a manual span of its own. The noscan
-// region grows up from noscanBase to noscanCur, the scan region grows down
-// from scanBase to scanCur, and noscanCur <= scanCur always holds. Chunks of
-// one goroutine link newest first through next; the same field links the
-// chunks cached in a P.
 type sideStackChunk struct {
 	_          sys.NotInHeap
 	next       *sideStackChunk
@@ -63,17 +44,11 @@ type sideStackChunk struct {
 	scanBase   uintptr
 }
 
-// logosArenaScanHeader precedes every scan-region object: the type word that
-// the stack scan reads (AR3) and the allocated byte size. Objects sit densely:
-// the next header starts at the object address plus size rounded up to
-// logosArenaUnit.
 type logosArenaScanHeader struct {
 	typ  *_type
 	size uintptr
 }
 
-// logosArenaMark is a watermark saved at frame entry. The zero mark stands
-// for a goroutine that holds no live arena memory.
 type logosArenaMark struct {
 	chunk  *sideStackChunk
 	noscan uintptr
@@ -129,9 +104,6 @@ func (c *sideStackChunk) tryScan(typ *_type, size uintptr) unsafe.Pointer {
 	return unsafe.Pointer(hdr + logosArenaScanHeaderBytes)
 }
 
-// popScan raises scanCur to to, then zeroes the popped scan memory (AR2,
-// #71, #81): the watermark moves first so the collector never scans memory
-// that is about to be cleared.
 func (c *sideStackChunk) popScan(to uintptr) {
 	old := c.scanCur
 	if to < old || to > c.scanBase {
@@ -156,10 +128,6 @@ func logosArenaNoscanFits(size, align uintptr) bool {
 }
 
 func logosArenaScanFits(typ *_type, size uintptr) bool {
-	// tryScan carves alignUp(size, logosArenaUnit) plus one header, so the
-	// fit check rounds the payload the same way: admitting the unrounded
-	// size would pass the gate and then throw on a fresh chunk in
-	// logosArenaScanLinked for payloads within one unit of the limit.
 	return uintptr(typ.Align_) <= logosArenaUnit &&
 		alignUp(size, logosArenaUnit) <= logosArenaChunkBytes-logosArenaHeaderBytes-logosArenaScanHeaderBytes
 }
@@ -168,12 +136,6 @@ func logosArenaUsable(gp *g) bool {
 	return gp.m.curg == gp
 }
 
-// logosArenaAlloc returns zeroed, pointer-free memory of size bytes aligned
-// for typ from the calling goroutine's arena, leasing a chunk on first use.
-// A request that the current chunk cannot hold links a fresh chunk and leaves
-// earlier objects in place. When no chunk can be had, or the object cannot
-// fit any chunk, it falls back to mallocgc. The memory lives until the
-// allocating frame restores its watermark.
 func logosArenaAlloc(typ *_type, size uintptr) unsafe.Pointer {
 	if size == 0 {
 		return unsafe.Pointer(&zerobase)
@@ -200,16 +162,6 @@ func logosArenaAlloc(typ *_type, size uintptr) unsafe.Pointer {
 	return p
 }
 
-// logosArenaMakeSlice is makeslice64 for a dynamic-size make that the
-// compiler places in the arena: it validates len and cap with the same
-// checks, in the same order, as makeslice64 and makeslice, so the panics
-// match the heap path, and only then allocates, so a size that overflows
-// uintptr or exceeds maxAlloc never reaches the allocator. typ is the
-// element type; pointer-bearing types allocate in the scan region via
-// logosArenaAllocScan (with GC header + zeroed payload), pointer-free
-// types in the noscan region via logosArenaAlloc. The dispatch runs after
-// all validation, so overflow, maxAlloc, and len-before-cap verdicts are
-// identical for both regions and the allocator never sees a bad size.
 func logosArenaMakeSlice(typ *_type, len64, cap64 int64) unsafe.Pointer {
 	len := int(len64)
 	if int64(len) != len64 {
@@ -223,8 +175,6 @@ func logosArenaMakeSlice(typ *_type, len64, cap64 int64) unsafe.Pointer {
 
 	mem, overflow := math.MulUintptr(typ.Size_, uintptr(cap))
 	if overflow || mem > maxAlloc || len < 0 || len > cap {
-		// As in makeslice: report 'len out of range' when len alone is
-		// already out of range, because the cap may be implicit.
 		mem, overflow := math.MulUintptr(typ.Size_, uintptr(len))
 		if overflow || mem > maxAlloc || len < 0 {
 			panicmakeslicelen()
@@ -238,8 +188,6 @@ func logosArenaMakeSlice(typ *_type, len64, cap64 int64) unsafe.Pointer {
 	return logosArenaAlloc(typ, mem)
 }
 
-// logosArenaNoscanLinked links a fresh chunk to gp and carves a noscan
-// object from it. It returns nil when no chunk can be had.
 func logosArenaNoscanLinked(gp *g, size, align uintptr) unsafe.Pointer {
 	c := logosArenaPush(gp)
 	if c == nil {
@@ -252,8 +200,6 @@ func logosArenaNoscanLinked(gp *g, size, align uintptr) unsafe.Pointer {
 	return p
 }
 
-// logosArenaScanLinked links a fresh chunk to gp and carves a scan object
-// from it. It returns nil when no chunk can be had.
 func logosArenaScanLinked(gp *g, typ *_type, size uintptr) unsafe.Pointer {
 	c := logosArenaPush(gp)
 	if c == nil {
@@ -266,12 +212,6 @@ func logosArenaScanLinked(gp *g, typ *_type, size uintptr) unsafe.Pointer {
 	return p
 }
 
-// logosArenaAllocScan is logosArenaAlloc for objects that contain pointers.
-// The object is preceded by a logosArenaScanHeader carrying typ, and the
-// memory is zero on return: tryScan clears it, because the span of a scan
-// object may overlay noscan bytes that an earlier frame left dirty. The
-// collector sees the pointers through logosArenaScanStack, which scans
-// [scanCur, scanBase) of every chunk of each scanned goroutine (AR3).
 func logosArenaAllocScan(typ *_type, size uintptr) unsafe.Pointer {
 	if size == 0 {
 		return unsafe.Pointer(&zerobase)
@@ -296,9 +236,6 @@ func logosArenaAllocScan(typ *_type, size uintptr) unsafe.Pointer {
 	return p
 }
 
-// logosArenaSave returns the watermark to restore at frame exit. A goroutine
-// whose arena is empty yields the zero mark, because gopark may return its
-// chunk before the frame restores.
 func logosArenaSave() logosArenaMark {
 	c := getg().logosArena
 	if c == nil || (c.next == nil && c.empty()) {
@@ -307,10 +244,6 @@ func logosArenaSave() logosArenaMark {
 	return logosArenaMark{chunk: c, noscan: c.noscanCur, scan: c.scanCur}
 }
 
-// logosArenaRestore pops the arena back to m (AR2): chunks linked since the
-// save return to the P cache, the scan watermark rises before the popped scan
-// memory is zeroed, and the noscan watermark drops. The zero mark empties the
-// arena but keeps the goroutine's first chunk until it parks or exits.
 func logosArenaRestore(m logosArenaMark) {
 	gp := getg()
 	c := gp.logosArena
@@ -337,42 +270,20 @@ func logosArenaRestore(m logosArenaMark) {
 	c.noscanCur = m.noscan
 }
 
-// logosArenaMarkSave returns the calling goroutine's arena watermark as the
-// same three words the compiler's inline bump spills at frame entry: the
-// newest chunk, the noscan watermark, and the scan watermark. The zero
-// triple stands for an empty arena, exactly like the zero logosArenaMark.
 func logosArenaMarkSave() (chunk, noscan, scan uintptr) {
 	m := logosArenaSave()
 	return uintptr(unsafe.Pointer(m.chunk)), m.noscan, m.scan
 }
 
-// logosArenaMarkRestore pops the calling goroutine's arena back to the
-// watermark the three words describe (AR2). It is logosArenaRestore for the
-// values logosArenaMarkSave returned. The chunk word came from a
-// *sideStackChunk, but the memory is a manual span the checkptr tables do
-// not know, so the round trip back to a pointer skips instrumentation.
-//
 //go:nocheckptr
 func logosArenaMarkRestore(chunk, noscan, scan uintptr) {
 	logosArenaRestore(logosArenaMark{chunk: (*sideStackChunk)(unsafe.Pointer(chunk)), noscan: noscan, scan: scan})
 }
 
-// logosArenaRetSet records that the call the compiler emits right after it
-// consents to the callee allocating returned objects in the caller's arena
-// region (SPEC Sec 8.3). The compiler emits it only after every argument has
-// been evaluated and only before a static call to a function that takes the
-// token first thing, so no other code can run between the set and the take.
-// A function that sets the token passes it down only through a callee that
-// takes it, which is why the token never outlives that one call.
 func logosArenaRetSet(ok bool) {
 	getg().logosArenaRetOK = ok
 }
 
-// logosArenaRetTake returns the consent token and clears it. A function that
-// receives true may allocate objects that flow only to its results in the
-// arena without restoring the watermark at exit: the caller keeps them until
-// its own exit. False means the caller did not consent, so such objects must
-// come from the heap.
 func logosArenaRetTake() bool {
 	gp := getg()
 	ok := gp.logosArenaRetOK
@@ -380,38 +291,28 @@ func logosArenaRetTake() bool {
 	return ok
 }
 
-// logosArenaScanStack shades every heap object referenced from the scan
-// region of each chunk leased to gp (AR3, #46). The caller holds gp stopped
-// for a stack scan; scanstack calls this for every scanned goroutine that
-// holds chunks. Scan-region objects are laid out densely from scanCur up to
-// scanBase, each preceded by a logosArenaScanHeader carrying its element
-// type, so the scan tiles each type's GC mask over its elements exactly
-// like scanObject does for heap objects.
-//
 //go:nowritebarrier
 func logosArenaScanStack(gp *g, gcw *gcWork, state *stackScanState) {
 	for c := gp.logosArena; c != nil; c = c.next {
-		for hdrAddr := c.scanCur; hdrAddr < c.scanBase; {
-			hdr := (*logosArenaScanHeader)(unsafe.Pointer(hdrAddr))
-			obj := hdrAddr + logosArenaScanHeaderBytes
-			hdrAddr = obj + alignUp(hdr.size, logosArenaUnit)
-			if hdr.typ != nil && hdr.size != 0 {
-				logosArenaScanObject(hdr.typ, obj, hdr.size, gcw, state)
-			}
+		logosArenaScanChunk(c, gcw, state)
+	}
+}
+
+//go:nowritebarrier
+func logosArenaScanChunk(c *sideStackChunk, gcw *gcWork, state *stackScanState) {
+	for hdrAddr := c.scanCur; hdrAddr < c.scanBase; {
+		hdr := (*logosArenaScanHeader)(unsafe.Pointer(hdrAddr))
+		obj := hdrAddr + logosArenaScanHeaderBytes
+		hdrAddr = obj + alignUp(hdr.size, logosArenaUnit)
+		if hdr.typ != nil && hdr.size != 0 {
+			logosArenaScanObject(hdr.typ, obj, hdr.size, gcw, state)
 		}
 	}
 }
 
-// logosArenaScanObject shades the heap objects referenced from one arena
-// scan object: size/typ.Size_ consecutive elements of typ at obj.
-//
 //go:nowritebarrier
 func logosArenaScanObject(typ *_type, obj, size uintptr, gcw *gcWork, state *stackScanState) {
 	limit := obj + size
-	// nextFast trusts the mask, and next clips to limit only when it
-	// advances, so the first mask must be clipped here: bits of words at or
-	// past limit would otherwise be dereferenced. fastForward by zero clips
-	// the mask to limit, or empties the iterator when obj is already there.
 	tp := typePointers{elem: obj, addr: obj, mask: readUintptr(getGCMask(typ)), typ: typ}.fastForward(0, limit)
 	for {
 		var addr uintptr
@@ -437,8 +338,6 @@ func logosArenaScanObject(typ *_type, obj, size uintptr, gcw *gcWork, state *sta
 	}
 }
 
-// logosArenaPush leases a chunk and links it as the newest chunk of gp. It
-// returns nil when the chunk limit is reached or the heap cannot grow.
 func logosArenaPush(gp *g) *sideStackChunk {
 	c := logosArenaTake()
 	if c == nil {
@@ -464,13 +363,16 @@ func logosArenaTake() *sideStackChunk {
 	releasem(mp)
 	if c == nil {
 		c = logosArenaNewChunk()
+	} else if asanenabled {
+		asanunpoison(unsafe.Pointer(c), logosArenaChunkBytes)
 	}
 	return c
 }
 
-// logosArenaRelease caches a chunk whose regions are at base and whose scan
-// memory is zero in the P of the calling M.
 func logosArenaRelease(c *sideStackChunk) {
+	if asanenabled {
+		asanpoison(unsafe.Pointer(c), logosArenaChunkBytes)
+	}
 	mp := acquirem()
 	pp := mp.p.ptr()
 	c.next = pp.logosArenaPool
@@ -498,11 +400,12 @@ func logosArenaNewChunk() *sideStackChunk {
 	}
 	c := (*sideStackChunk)(unsafe.Pointer(s.base()))
 	c.reset()
+	if asanenabled {
+		asanunpoison(unsafe.Pointer(s.base()), logosArenaChunkBytes)
+	}
 	return c
 }
 
-// logosArenaDrop returns every chunk of gp to the P cache, clearing leftover
-// scan memory first (AR2).
 func logosArenaDrop(gp *g) {
 	c := gp.logosArena
 	gp.logosArena = nil
@@ -515,11 +418,12 @@ func logosArenaDrop(gp *g) {
 	}
 }
 
-// logosArenaPark is the gopark hook: a goroutine parking returns every empty
-// chunk to the P cache, keeping the live chunks linked in order (AR4, #4).
 func logosArenaPark(gp *g) {
 	if goexperiment.LogosArena && gp.logosArena != nil {
 		logosArenaParkChain(gp)
+	}
+	if goexperiment.LogosArena && gp.logosRegions != nil {
+		logosRegionPark(gp)
 	}
 }
 
@@ -544,8 +448,6 @@ func logosArenaParkChain(gp *g) {
 	}
 }
 
-// logosArenaExit is the gdestroy hook: an exiting goroutine returns its
-// chunks even when an unwind skipped the frame restores.
 func logosArenaExit(gp *g) {
 	if !goexperiment.LogosArena {
 		return
@@ -554,10 +456,11 @@ func logosArenaExit(gp *g) {
 	if gp.logosArena != nil {
 		logosArenaDrop(gp)
 	}
+	if gp.logosRegions != nil || gp.logosRegionFree != nil {
+		logosRegionExit(gp)
+	}
 }
 
-// logosArenaFlushP is the hook for the end of a GC cycle and for P
-// destruction: it frees the chunks cached in pp, the way stack caches clear.
 func logosArenaFlushP(pp *p) {
 	if goexperiment.LogosArena && pp.logosArenaPool != nil {
 		systemstack(func() {
@@ -575,22 +478,20 @@ func logosArenaFreePool(pp *p) {
 		next := c.next
 		s := spanOf(uintptr(unsafe.Pointer(c)))
 		s.isLogosArenaChunk = false
+		if asanenabled {
+			asanpoison(unsafe.Pointer(c), logosArenaChunkBytes)
+		}
 		mheap_.freeManual(s, spanAllocLogosArena)
 		logosArenaChunkTotal.Add(-1)
 		c = next
 	}
 }
 
-// inLogosArenaChunk reports whether p points into an arena chunk. The chunks
-// are manual spans, so the span flag is the only record of their kind.
 func inLogosArenaChunk(p uintptr) bool {
 	s := spanOf(p)
 	return s != nil && s.isLogosArenaChunk && s.state.get() == mSpanManual && p >= s.base() && p < s.limit
 }
 
-// logosArenaReject panics when p is an arena object and api would attach
-// runtime state to it (#106). Arena memory is reused at frame exit, so no
-// finalizer or cleanup may reference it.
 func logosArenaReject(p unsafe.Pointer, api string) {
 	if goexperiment.LogosArena && inLogosArenaChunk(uintptr(p)) {
 		panic(plainError("runtime: " + api + " on loGo/s arena object"))

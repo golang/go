@@ -1,17 +1,22 @@
 // run
 
-// BUG (eject): taking the address of a spread literal, `&S{B: 5, ..a}`,
-// builds and runs natively but the ejected Go does not compile. The
-// spread lowering turns the literal into an immediately called function
-// literal, and eject keeps the `&` in front of the call:
-//   invalid operation: cannot take address of func() *S {...}() (value of type *S)
-// SPEC Sec 1.4 (T-104.5): `T{..src}` is a composite literal of type T,
-// so `&T{..src}` is the address of a fresh T; SPEC Sec 0.3 (T-0.3):
-// ejected output MUST build and behave as the native build.
-// Expected stdout: {1 2} {9 5}.
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 type S struct {
 	A int
@@ -21,6 +26,12 @@ type S struct {
 func main() {
 	a := S{A: 1, B: 2}
 	q := &S{B: 5, ..a}
+	plain := &S{A: 1, B: 5}
+	check("spread-pointer-literal-fills-from-base", *q == *plain, *q, *plain)
 	q.A = 9
-	fmt.Println(a, *q)
+	check("spread-pointer-write-hits-literal", *q == S{A: 9, B: 5}, *q, S{A: 9, B: 5})
+	check("spread-pointer-write-leaves-base-alone", a == S{A: 1, B: 2}, a, S{A: 1, B: 2})
+	if failed {
+		os.Exit(1)
+	}
 }

@@ -1,0 +1,91 @@
+// run
+
+package main
+
+import (
+	"bytes"
+	"fmt"
+	"os"
+	"os/exec"
+	"strconv"
+	"strings"
+	"unsafe"
+)
+
+const faultSlice = []int{11, 22, 33}
+const faultStr = "hello"
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func childTarget() string {
+	if len(os.Args) > 1 {
+		return os.Args[1]
+	}
+	return ""
+}
+
+func forged(addr string) unsafe.Pointer {
+	u, err := strconv.ParseUint(strings.TrimPrefix(addr, "0x"), 16, 64)
+	if err != nil {
+		panic(err)
+	}
+	return unsafe.Pointer(uintptr(u))
+}
+
+func runChild(target string) {
+	base := forged(fmt.Sprintf("%p", faultSlice))
+	switch target {
+	case "slice-uintptr":
+		q := (*int)(base)
+		*q = 0xDEAD
+	case "stringdata":
+		s := faultStr
+		p := (*byte)(unsafe.Pointer((*[2]uintptr)(unsafe.Pointer(&s))[0]))
+		*p = 'X'
+	case "add":
+		q := unsafe.Add(base, 8)
+		*(*int)(q) = 0xDEAD
+	case "slice":
+		s := unsafe.Slice((*int)(base), 2)
+		s[1] = 0xDEAD
+	}
+	fmt.Println("STORE-SUCCEEDED")
+}
+
+func main() {
+	if childTarget() != "" {
+		runChild(childTarget())
+		return
+	}
+	self, err := os.Executable()
+	if err != nil {
+		fmt.Printf("FAIL self=%v\n", err)
+		os.Exit(1)
+	}
+	for _, target := range []string{"slice-uintptr", "stringdata", "add", "slice"} {
+		cmd := exec.Command(self, target)
+		var buf bytes.Buffer
+		cmd.Stdout = &buf
+		cmd.Stderr = &buf
+		runErr := cmd.Run()
+		code := -1
+		if ee, ok := runErr.(*exec.ExitError); ok {
+			code = ee.ExitCode()
+		}
+		out := buf.String()
+		check(target+"-fault-code", runErr != nil && code == 2, code, 2)
+		check(target+"-fault-output", strings.Contains(out, "fault") && !strings.Contains(out, "STORE-SUCCEEDED"), out, "fault without STORE-SUCCEEDED")
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

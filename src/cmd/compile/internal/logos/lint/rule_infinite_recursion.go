@@ -190,6 +190,8 @@ func (r *recursion) stmtCalls(s syntax.Stmt) bool {
 		return r.switchCalls(s)
 	case *syntax.ConstSwitchStmt:
 		return r.constSwitchCalls(s)
+	case *syntax.ForStmt:
+		return r.forCalls(s)
 	}
 	return false
 }
@@ -240,6 +242,10 @@ func (r *recursion) switchCalls(s *syntax.SwitchStmt) bool {
 func (r *recursion) constSwitchCalls(s *syntax.ConstSwitchStmt) bool {
 	sel, static := types2.LogosConstSelectedCase(r.pass.Info, s)
 	return static && sel != nil && r.always(sel.Body)
+}
+
+func (r *recursion) forCalls(s *syntax.ForStmt) bool {
+	return s.Init == nil && s.Cond == nil && r.always(s.Body.List)
 }
 
 // exitsCovered reports whether every path through s that leaves the
@@ -456,8 +462,9 @@ func isFunctionBody(n syntax.Node) bool {
 }
 
 // leavesSequence reports whether n itself is a return, a branch, a loGo/s
-// early exit (? and yield) or concurrency block, a call that panics or ends
-// the process, or a for statement with no condition and no range.
+// early exit (? and yield), concurrency block or range over a group stage,
+// a call that panics or ends the process, or a for statement with no
+// condition and no range.
 func (r *recursion) leavesSequence(n syntax.Node) bool {
 	switch n := n.(type) {
 	case *syntax.ReturnStmt, *syntax.BranchStmt, *syntax.TryExpr, *syntax.YieldStmt, *syntax.GroupStmt, *syntax.GroupChild:
@@ -465,8 +472,10 @@ func (r *recursion) leavesSequence(n syntax.Node) bool {
 	case *syntax.CallExpr:
 		return r.endsProcess(n)
 	case *syntax.ForStmt:
-		_, ranged := n.Init.(*syntax.RangeClause)
-		return n.Cond == nil && !ranged
+		if clause, ranged := n.Init.(*syntax.RangeClause); ranged {
+			return onStage(r.pass, clause.X)
+		}
+		return n.Cond == nil
 	}
 	return false
 }

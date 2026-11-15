@@ -2,26 +2,12 @@
 
 package jsongeneric
 
-// M11-S4 generic static JSON fixture (SPEC Sec 12.1, T-205).
-// Anchor: Tony Hoare, Edsger W. Dijkstra
-//
-// Comptime generics and generic static JSON helpers:
-// 1. Two instantiations of one generic static-JSON struct produce two distinct
-//    _logos_h<N> helper sets in the binary, asserted via go tool nm.
-// 2. Both instantiations match the reflective oracle (method-less mirror).
-// 3. Repeated instantiation over the same type argument reuses its helpers,
-//    emitting no third helper set (memo reuse).
-// 4. A non-spellable type argument (unnamed struct literal) falls back to walk,
-//    compiles without error, and matches the reflective oracle.
 
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -36,8 +22,6 @@ type ServiceB struct {
 	Port int64  `json:"port"`
 }
 
-// Method-less mirror types for the reflective oracle.
-// An open interface field (NoGen any) disqualifies the type from static methods.
 type ServiceAMirror struct {
 	Port  int64  `json:"port"`
 	Host  string `json:"host"`
@@ -50,7 +34,6 @@ type ServiceBMirror struct {
 	NoGen any    `json:"-"`
 }
 
-// Generic static-JSON struct instantiated over multiple types.
 type Container[T any] struct {
 	Item T `json:"item"`
 }
@@ -60,8 +43,6 @@ type ContainerMirror[T any] struct {
 	NoGen any `json:"-"`
 }
 
-// Parent struct exercising two distinct instantiations, a repeated instantiation,
-// and a non-spellable argument.
 type Registry struct {
 	A1   Container[ServiceA] `json:"a1"`
 	B    Container[ServiceB] `json:"b"`
@@ -81,8 +62,6 @@ type RegistryMirror struct {
 	NoGen any `json:"-"`
 }
 
-// TestGenericParityWithOracle verifies that both instantiations of the generic
-// struct match the reflective oracle byte for byte.
 func TestGenericParityWithOracle(t *testing.T) {
 	instA := Container[ServiceA]{Item: ServiceA{Port: 8080, Host: "srv-a"}}
 	gotA, err := json.Marshal(instA)
@@ -113,9 +92,6 @@ func TestGenericParityWithOracle(t *testing.T) {
 	}
 }
 
-// TestGenericNonSpellableFallback verifies that a type argument that cannot be spelled
-// (an unnamed struct literal) routes to the walk fallback without failing compilation,
-// and produces byte-identical output to the reflective oracle.
 func TestGenericNonSpellableFallback(t *testing.T) {
 	anon := Container[struct {
 		Count int64 `json:"count"`
@@ -144,167 +120,72 @@ func TestGenericNonSpellableFallback(t *testing.T) {
 	}
 }
 
-const probeSource = `package main
+type Probe struct{ N int64 }
 
-import (
-	"encoding/json"
-	"fmt"
-)
+var chains [][]uintptr
 
-type ServiceA struct {
-	Port int64  ` + "`json:\"port\"`" + `
-	Host string ` + "`json:\"host\"`" + `
-}
-
-type ServiceB struct {
-	Host string ` + "`json:\"host\"`" + `
-	Port int64  ` + "`json:\"port\"`" + `
-}
-
-type Container[T any] struct {
-	Item T ` + "`json:\"item\"`" + `
-}
-
-type Registry struct {
-	A1   Container[ServiceA] ` + "`json:\"a1\"`" + `
-	B    Container[ServiceB] ` + "`json:\"b\"`" + `
-	A2   Container[ServiceA] ` + "`json:\"a2\"`" + `
-	Anon Container[struct {
-		Count int64 ` + "`json:\"count\"`" + `
-	}] ` + "`json:\"anon\"`" + `
-}
-
-func main() {
-	r := Registry{
-		A1: Container[ServiceA]{Item: ServiceA{Port: 1, Host: "h1"}},
-		B:  Container[ServiceB]{Item: ServiceB{Host: "h2", Port: 2}},
-		A2: Container[ServiceA]{Item: ServiceA{Port: 3, Host: "h3"}},
+func (p Probe) MarshalJSON() ([]byte, error) {
+	self, _, _, _ := runtime.Caller(0)
+	prefix := strings.TrimSuffix(runtime.FuncForPC(self).Name(), "Probe.MarshalJSON")
+	pcs := make([]uintptr, 64)
+	frames := runtime.CallersFrames(pcs[:runtime.Callers(2, pcs)])
+	var chain []uintptr
+	for {
+		fr, more := frames.Next()
+		if strings.HasPrefix(fr.Function, prefix) {
+			chain = append(chain, fr.Entry)
+		}
+		if !more {
+			break
+		}
 	}
-	b, err := json.Marshal(r)
+	chains = append(chains, chain)
+	return []byte("1"), nil
+}
+
+type HelperA struct {
+	Port int64 `json:"port"`
+	P    Probe `json:"p"`
+}
+
+type HelperB struct {
+	Host string `json:"host"`
+	P    Probe  `json:"p"`
+}
+
+type HelperRegistry struct {
+	A1 Container[HelperA] `json:"a1"`
+	B  Container[HelperB] `json:"b"`
+	A2 Container[HelperA] `json:"a2"`
+}
+
+func TestGenericHelperIdentity(t *testing.T) {
+	chains = nil
+	_, err := json.Marshal(HelperRegistry{})
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(string(b))
-}
-`
-
-func parseNMSymbols(out []byte) []string {
-	seen := make(map[string]bool)
-	var syms []string
-	for _, line := range strings.Split(string(out), "\n") {
-		f := strings.Fields(line)
-		if len(f) >= 3 && strings.Contains(f[len(f)-1], "_logos_h") {
-			name := f[len(f)-1]
-			if strings.Contains(name, ".deferwrap") || strings.Contains(name, ".abi") {
-				continue
-			}
-			if _, ok := seen[name]; !ok {
-				seen[name] = true
-				syms = append(syms, name)
-			}
-		}
-	}
-	return syms
-}
-
-//logos:allow(complexity::cognitive_overflow)
-// findHelperSymbols locates _logos_h<N> helper symbols in the current test executable
-// or by building a probe with logos build (pattern from constmap_init.lgo and rodata.lgo).
-func findHelperSymbols() ([]string, error) {
-	binDir := filepath.Join(runtime.GOROOT(), "bin")
-	goBin := filepath.Join(binDir, "go")
-	logosBin := filepath.Join(binDir, "logos")
-	if runtime.GOOS == "windows" {
-		goBin += ".exe"
-		logosBin += ".exe"
-	}
-	if _, err := os.Stat(goBin); err != nil {
-		if p, err := exec.LookPath("go"); err == nil {
-			goBin = p
-		}
-	}
-	if _, err := os.Stat(logosBin); err != nil {
-		if p, err := exec.LookPath("logos"); err == nil {
-			logosBin = p
-		}
-	}
-
-	// First try nm on the running test binary.
-	if exe, err := os.Executable(); err == nil {
-		if out, err := exec.Command(goBin, "tool", "nm", exe).CombinedOutput(); err == nil {
-			syms := parseNMSymbols(out)
-			if len(syms) >= 4 {
-				return syms, nil
-			}
-		}
-	}
-
-	// Probe build fallback (matches constmap_init.lgo).
-	dir, err := os.MkdirTemp("", "jsongenericnm")
-	if err != nil {
-		return nil, err
-	}
-	defer os.RemoveAll(dir)
-	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module probe\n\ngo 1.27\n"), 0644); err != nil {
-		return nil, err
-	}
-	if err := os.WriteFile(filepath.Join(dir, "main.lgo"), []byte(probeSource), 0644); err != nil {
-		return nil, err
-	}
-	probeExe := filepath.Join(dir, "probe.exe")
-	cmd := exec.Command(logosBin, "build", "-o", probeExe, ".")
-	cmd.Dir = dir
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return nil, fmt.Errorf("probe build failed: %w\n%s", err, out)
-	}
-	nmOut, err := exec.Command(goBin, "tool", "nm", probeExe).CombinedOutput()
-	if err != nil {
-		return nil, fmt.Errorf("probe nm failed: %w\n%s", err, nmOut)
-	}
-	return parseNMSymbols(nmOut), nil
-}
-
-// TestGenericHelperSetsNM asserts that:
-// 1. Distinct instantiations Container[ServiceA] and Container[ServiceB] emit
-//    two distinct _logos_h<N> helper sets (value and pointer helpers per instantiation).
-// 2. Repeated instantiation Container[ServiceA] reuses existing helpers (memo reuse),
-//    emitting no third set.
-// 3. Non-spellable type arguments route to walk, generating no additional helper symbols.
-func TestGenericHelperSetsNM(t *testing.T) {
-	// Reference Registry to ensure symbols are linked.
-	r := Registry{
-		A1: Container[ServiceA]{Item: ServiceA{Port: 10, Host: "host1"}},
-		B:  Container[ServiceB]{Item: ServiceB{Host: "host2", Port: 20}},
-		A2: Container[ServiceA]{Item: ServiceA{Port: 30, Host: "host3"}},
-	}
-	b, err := json.Marshal(r)
-	if err != nil {
-		panic(err)
-	}
-	if len(b) == 0 {
-		t.Fatal("empty marshal output")
+	if len(chains) != 3 {
+		t.Fatalf("probe ran %d times, want 3", len(chains))
 		return
 	}
-
-	syms, err := findHelperSymbols()
-	if err != nil {
-		panic(err)
-	}
-
-	// The binary contains helpers for Registry, Container[ServiceA], ServiceA,
-	// Container[ServiceB], ServiceB (5 primary value helpers linked).
-	// Memo reuse means repeated instantiation A2 adds no new helper symbols,
-	// and non-spellable Anon adds no helper symbols (falls back to walk).
-	if len(syms) != 5 {
-		t.Fatalf("expected exactly 5 helper symbols (proving distinct instantiations and memo reuse), got %d: %v", len(syms), syms)
+	a1, b, a2 := chains[0], chains[1], chains[2]
+	if !slices.Equal(a1, a2) {
+		t.Fatalf("one instantiation reached two helper chains %v and %v", a1, a2)
 		return
 	}
-
-	// Verify symbol naming convention: each symbol contains _logos_h<N>.
-	for _, sym := range syms {
-		if !strings.Contains(sym, "_logos_h") {
-			t.Fatalf("unexpected helper symbol name: %s", sym)
-			return
+	if len(a1) != len(b) {
+		t.Fatalf("chains of different depth %d and %d", len(a1), len(b))
+		return
+	}
+	differ := 0
+	for i := range a1 {
+		if a1[i] != b[i] {
+			differ++
 		}
+	}
+	if differ == 0 {
+		t.Fatalf("Container[HelperA] and Container[HelperB] share every helper: %v", a1)
+		return
 	}
 }

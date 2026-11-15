@@ -4,17 +4,6 @@
 
 package syntax
 
-// This file holds the loGo/s printing logic for M1-S2 and M2 (G3: hook
-// lines only in printer.go; the logic lives here).
-
-// printLogos prints loGo/s nodes in source form: `..src` for SpreadExpr,
-// `X?` for TryExpr,
-// `T?` for OptionType, `x ?? y` for CoalesceExpr, `x?.Sel` for
-// OptSelectExpr, `const T` for ConstType, `errdefer <call>` for
-// ErrdeferStmt, `switch ... { case ... => ... }` for SwitchExpr and
-// ArmClause, and `struct : I, J { ... }` for AssertedStruct. Every form
-// reparses to the same tree, so printing is idempotent. ShortForm
-// elides the arms of a SwitchExpr like the body of a function literal.
 func printLogos(p *printer, n Node) {
 	switch n := n.(type) {
 	case *TryExpr:
@@ -22,26 +11,20 @@ func printLogos(p *printer, n Node) {
 	case *SpreadExpr:
 		p.print(_Dot, _Dot, n.X)
 	case *InterpExpr:
-		// The raw spelling reparse to the same tree, so printing
-		// stays idempotent (like BasicLit, which prints its Value).
 		p.print(_Name, n.Raw)
 	case *OptionType:
-		// A nested option needs parentheses (`(T?)?`), because the
-		// joined spelling `T??` is a syntax error (SPEC T-202).
 		if _, ok := n.Elem.(*OptionType); ok {
 			p.print(_Lparen, n.Elem, _Rparen, _Question)
 		} else {
 			p.print(n.Elem, _Question)
 		}
 	case *CoalesceExpr:
-		// Flat like a binary Operation; precedence parens stay the
-		// caller's house-wide TODO.
 		p.print(n.X, blank, _Coalesce, blank, n.Y)
 	case *OptSelectExpr:
 		p.print(n.X, _QuestionDot, n.Sel)
 	case *ConstType:
 		p.print(_Const, blank, n.Elem)
-	case *ConstFuncDecl: // M5-S2: `const func` reparses through the parser hook.
+	case *ConstFuncDecl:
 		p.print(_Const, blank, n.Func)
 	case *ErrdeferStmt:
 		p.print(_Name, "errdefer", blank, n.Call)
@@ -49,13 +32,13 @@ func printLogos(p *printer, n Node) {
 		p.print(_Name, "yield", blank, n.Value)
 	case *ScopeDeferStmt:
 		p.print(_Name, "scope", blank, _Defer, blank, n.Call)
-	case *GroupStmt: // M8-S2: `go group (ctx)` prints its source form.
+	case *GroupStmt:
 		p.print(_Go, blank, _Name, "group", blank, _Lparen, n.Ctx)
 		if n.Limit != nil {
 			p.print(_Comma, blank, _Name, "limit", blank, _Assign, blank, n.Limit)
 		}
 		p.print(_Rparen, blank, n.Body)
-	case *GroupChild: // M8-S2: `go { }` prints its source form.
+	case *GroupChild:
 		p.print(_Go, blank, n.Body)
 	case *SwitchExpr:
 		p.print(_Switch, blank)
@@ -184,9 +167,6 @@ func printLogos(p *printer, n Node) {
 	}
 }
 
-// logosPrintProperty prints one property interface element in source
-// form: `const F T` for a read-only property, `F T` otherwise. Both
-// reparse to the same tree, so printing stays idempotent.
 func logosPrintProperty(p *printer, name *Name, pt *PropertyType) {
 	if pt.Const {
 		p.print(_Const, blank)
@@ -196,9 +176,6 @@ func logosPrintProperty(p *printer, name *Name, pt *PropertyType) {
 	p.printNode(pt.Type)
 }
 
-// logosImpliesSemi reports whether a loGo/s token ends an operand like a
-// name or `)`: `?` implies a semicolon, so the printer elides the
-// redundant `;` after `?` between statements.
 func logosImpliesSemi(tok token) bool {
 	return tok == _Question
 }

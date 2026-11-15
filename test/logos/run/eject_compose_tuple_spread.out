@@ -1,0 +1,17 @@
+ok spread-base__spread
+ok spread-elem__chainc
+ok spread-elem__coal
+ok spread-elem__lamapply
+ok spread-elem__optcomp
+ok spread-elem__propcoal
+ok spread-elem__proplam
+ok spread-elem__propr
+ok spread-elem__sw
+ok tuple-elem__chainc
+ok tuple-elem__coal
+ok tuple-elem__cv
+ok tuple-elem__lamapply
+ok tuple-elem__propcoal
+ok tuple-elem__proplam
+ok tuple-elem__propr
+ok tuple-elem__sw

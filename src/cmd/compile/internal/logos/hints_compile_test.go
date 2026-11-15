@@ -15,7 +15,6 @@ import (
 	"testing"
 )
 
-// hintsRun is the outcome of one compile in hints mode.
 type hintsRun struct {
 	report *HintsReport
 	output string
@@ -23,8 +22,6 @@ type hintsRun struct {
 	object bool
 }
 
-// importConfig writes an import config for logos/rt and its dependencies,
-// which every loGo/s option lowering imports, and returns its path.
 func importConfig(t *testing.T, dir string) string {
 	t.Helper()
 	cmd := exec.Command(testenv.GoToolPath(t), "list", "-export", "-deps",
@@ -41,8 +38,6 @@ func importConfig(t *testing.T, dir string) string {
 	return path
 }
 
-// runHints compiles the named fixtures of testdata/hints as package p with
-// -logos.mode=hints and reads the report the compiler wrote, when it wrote one.
 func runHints(t *testing.T, flags []string, names ...string) hintsRun {
 	t.Helper()
 	testenv.MustHaveGoBuild(t)
@@ -78,7 +73,6 @@ func runHints(t *testing.T, flags []string, names ...string) hintsRun {
 	return run
 }
 
-// allocAt returns the allocation hint at pos, or false.
 func allocAt(allocs []AllocHint, pos HintPos) (AllocHint, bool) {
 	for _, a := range allocs {
 		if a.Position == pos {
@@ -88,9 +82,6 @@ func allocAt(allocs []AllocHint, pos HintPos) (AllocHint, bool) {
 	return AllocHint{}, false
 }
 
-// TestCompileHintsGoPackage checks the escape decisions of a plain Go
-// package: the same -m decisions as the compiler prints, as tiers at the
-// positions -m prints (SPEC Sec 21.2: badges appear for Go packages too).
 func TestCompileHintsGoPackage(t *testing.T) {
 	run := runHints(t, []string{"-logos.mode=hints"}, "alloc.go")
 	if run.exit != 0 || run.report == nil {
@@ -122,9 +113,42 @@ func TestCompileHintsGoPackage(t *testing.T) {
 	}
 }
 
-// TestCompileHintsLgoPackage checks one compile of a loGo/s package: the
-// checker facts, the lowering sites, the rodata placement, and the escape
-// tiers all land in one report keyed by the original file.
+func TestCompileHintsRelativeFileName(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	dir := t.TempDir()
+	src, err := os.ReadFile(filepath.Join("testdata", "hints", "alloc.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "alloc.go"), src, 0o666); err != nil {
+		t.Fatal(err)
+	}
+	hints := filepath.Join(dir, "hints.json")
+	args := []string{"tool", "compile", "-p", "p", "-importcfg", importConfig(t, dir),
+		"-logos.mode=hints", "-logos.hintsout=" + hints, "-o", filepath.Join(dir, "out.a"), "alloc.go"}
+	cmd := exec.Command(testenv.GoToolPath(t), args...)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("hints compile of a relative name: %v\n%s", err, out)
+	}
+	data, err := os.ReadFile(hints)
+	if err != nil {
+		t.Fatalf("hints file unreadable: %v", err)
+	}
+	report := new(HintsReport)
+	if err := json.Unmarshal(data, report); err != nil {
+		t.Fatalf("hints file is not JSON: %v\n%s", err, data)
+	}
+	if len(report.Files) != 1 {
+		t.Fatalf("report holds %d files, want the one compiled", len(report.Files))
+	}
+	allocs := report.Files[0].Allocs
+	if a, ok := allocAt(allocs, startOf(t, src, "&T{1, 2}")); !ok || a.Tier != TierHeap {
+		t.Errorf("heap badge at &T{1, 2} after a relative-name compile: got %+v (found %v), want tier %s", a, ok, TierHeap)
+	}
+}
+
 func TestCompileHintsLgoPackage(t *testing.T) {
 	run := runHints(t, []string{"-logos.mode=hints"}, "sites.lgo")
 	if run.exit != 0 || run.report == nil {
@@ -173,9 +197,6 @@ func TestCompileHintsLgoPackage(t *testing.T) {
 	}
 }
 
-// TestCompileHintsOneAllocPerPosition checks that the compiler's own report
-// holds at most one allocation hint per source position, so an editor shows
-// one badge there: lowering stacks an append and a make on one interpolation.
 func TestCompileHintsOneAllocPerPosition(t *testing.T) {
 	run := runHints(t, []string{"-logos.mode=hints"}, "sites.lgo")
 	if run.report == nil {
@@ -190,8 +211,6 @@ func TestCompileHintsOneAllocPerPosition(t *testing.T) {
 	}
 }
 
-// TestCompileHintsWritesNoObject checks that hints mode ends after escape
-// analysis, like -logos.lintonly: no object file, exit status zero.
 func TestCompileHintsWritesNoObject(t *testing.T) {
 	run := runHints(t, []string{"-logos.mode=hints"}, "alloc.go")
 	if run.exit != 0 || run.object {
@@ -199,8 +218,6 @@ func TestCompileHintsWritesNoObject(t *testing.T) {
 	}
 }
 
-// TestCompileHintsNeedsOutputFile checks that hints mode without a report
-// path is a build error and not a silent compile.
 func TestCompileHintsNeedsOutputFile(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	dir := t.TempDir()
@@ -214,8 +231,6 @@ func TestCompileHintsNeedsOutputFile(t *testing.T) {
 	}
 }
 
-// TestCompileHintsWritesNothingOnError checks that a package with a type
-// error produces no report: the diagnostics speak, and half a report lies.
 func TestCompileHintsWritesNothingOnError(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	dir := t.TempDir()

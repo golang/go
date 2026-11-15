@@ -8,7 +8,6 @@ import (
 	"cmd/compile/internal/syntax"
 )
 
-// spanScanner walks one rewrite span tracking comment state.
 type spanScanner struct {
 	src      []byte
 	end      int
@@ -18,9 +17,6 @@ type spanScanner struct {
 	i        int
 }
 
-// scanComments finds comments inside a rewrite span. A // comment on
-// the first line past the leading expression survives as trailing text;
-// any other comment blocks the rewrite so no comment is ever lost.
 func scanComments(src []byte, start, firstEnd, end int) (string, bool) {
 	s := &spanScanner{src: src, end: end, firstEnd: firstEnd, i: start}
 	s.markLineEnd(start)
@@ -32,7 +28,6 @@ func scanComments(src []byte, start, firstEnd, end int) (string, bool) {
 	return s.trailing, false
 }
 
-// markLineEnd records the end of the first line at or past start.
 func (s *spanScanner) markLineEnd(start int) {
 	s.lineEnd = len(s.src)
 	for i := start; i < len(s.src); i++ {
@@ -43,8 +38,6 @@ func (s *spanScanner) markLineEnd(start int) {
 	}
 }
 
-// step advances past one byte, literal, or comment, reporting whether
-// a blocking comment ends the scan.
 func (s *spanScanner) step() bool {
 	c := s.src[s.i]
 	if c == '"' || c == '`' {
@@ -62,8 +55,6 @@ func (s *spanScanner) step() bool {
 	return false
 }
 
-// slash handles one slash at the cursor, reporting whether a blocking
-// comment ends the scan.
 func (s *spanScanner) slash() bool {
 	if s.src[s.i+1] == '/' {
 		return s.lineComment()
@@ -75,8 +66,6 @@ func (s *spanScanner) slash() bool {
 	return false
 }
 
-// lineComment consumes one line comment, keeping first-line trailing
-// text and reporting whether a blocking comment ends the scan.
 func (s *spanScanner) lineComment() bool {
 	ls := s.i
 	for s.i < s.end && s.src[s.i] != '\n' {
@@ -89,8 +78,6 @@ func (s *spanScanner) lineComment() bool {
 	return true
 }
 
-// isGapComment reports whether the bytes between an expression end and
-// a comment hold only whitespace.
 func isGapComment(gap []byte) bool {
 	for _, c := range gap {
 		if c != ' ' && c != '\t' {
@@ -100,7 +87,6 @@ func isGapComment(gap []byte) bool {
 	return true
 }
 
-// skipQuoted skips a string literal starting at the quote in src[i].
 func skipQuoted(src []byte, i int) int {
 	q := src[i]
 	i++
@@ -120,7 +106,6 @@ func skipQuoted(src []byte, i int) int {
 	return i
 }
 
-// skipChar skips a rune literal starting at the quote in src[i].
 func skipChar(src []byte, i int) int {
 	i++
 	if i < len(src) && src[i] == '\\' {
@@ -135,8 +120,6 @@ func skipChar(src []byte, i int) int {
 	return i
 }
 
-// endOf resolves the exact end offset of an expression: one past its
-// final byte in src.
 func (s *nextScan) endOf(e syntax.Expr) (int, bool) {
 	switch n := e.(type) {
 	case *syntax.Name:
@@ -160,7 +143,6 @@ func (s *nextScan) endOf(e syntax.Expr) (int, bool) {
 	}
 }
 
-// endOfParen resolves the end of a parenthesized expression.
 func (s *nextScan) endOfParen(n *syntax.ParenExpr) (int, bool) {
 	off, err := offsetOf(s.starts, len(s.src), n.Pos())
 	if err != nil {
@@ -169,8 +151,6 @@ func (s *nextScan) endOfParen(n *syntax.ParenExpr) (int, bool) {
 	return matchClose(s.src, off, '(')
 }
 
-// endOfCall resolves the end of a call expression past its argument
-// closer.
 func (s *nextScan) endOfCall(n *syntax.CallExpr) (int, bool) {
 	fun, ok := s.endOf(n.Fun)
 	if !ok {
@@ -179,8 +159,6 @@ func (s *nextScan) endOfCall(n *syntax.CallExpr) (int, bool) {
 	return s.closeFrom(fun, '(')
 }
 
-// endOfIndexed resolves the end of an index or slice expression past
-// its bracket closer.
 func (s *nextScan) endOfIndexed(x syntax.Expr) (int, bool) {
 	start, ok := s.endOf(x)
 	if !ok {
@@ -189,8 +167,6 @@ func (s *nextScan) endOfIndexed(x syntax.Expr) (int, bool) {
 	return s.closeFrom(start, '[')
 }
 
-// endOfOp resolves the end of an operator expression at its rightmost
-// operand.
 func (s *nextScan) endOfOp(n *syntax.Operation) (int, bool) {
 	if n.Y != nil {
 		return s.endOf(n.Y)
@@ -198,8 +174,6 @@ func (s *nextScan) endOfOp(n *syntax.Operation) (int, bool) {
 	return s.endOf(n.X)
 }
 
-// endOfComposite resolves the end of composite and literal
-// expressions.
 func (s *nextScan) endOfComposite(e syntax.Expr) (int, bool) {
 	switch n := e.(type) {
 	case *syntax.ListExpr:
@@ -220,7 +194,6 @@ func (s *nextScan) endOfComposite(e syntax.Expr) (int, bool) {
 	return 0, false
 }
 
-// endOfList resolves the end of a list expression at its last element.
 func (s *nextScan) endOfList(n *syntax.ListExpr) (int, bool) {
 	if len(n.ElemList) == 0 {
 		return 0, false
@@ -228,8 +201,6 @@ func (s *nextScan) endOfList(n *syntax.ListExpr) (int, bool) {
 	return s.endOf(n.ElemList[len(n.ElemList)-1])
 }
 
-// endOfFunc resolves the end of a function literal past its body
-// closer.
 func (s *nextScan) endOfFunc(n *syntax.FuncLit) (int, bool) {
 	if n.Body == nil {
 		return 0, false
@@ -237,7 +208,6 @@ func (s *nextScan) endOfFunc(n *syntax.FuncLit) (int, bool) {
 	return s.after(n.Body.Rbrace, 1)
 }
 
-// callText slices the exact source of a call expression.
 func (s *nextScan) callText(call *syntax.CallExpr) (string, bool) {
 	start, ok := s.startOf(call)
 	if !ok {
@@ -250,9 +220,6 @@ func (s *nextScan) callText(call *syntax.CallExpr) (string, bool) {
 	return string(s.src[start:end]), true
 }
 
-// startOf resolves the exact start offset of an expression: its first
-// byte in src. Composite positions name interior tokens, so the walk
-// descends to the leftmost leaf.
 func (s *nextScan) startOf(e syntax.Expr) (int, bool) {
 	switch n := e.(type) {
 	case *syntax.CallExpr:
@@ -281,7 +248,6 @@ func (s *nextScan) startOf(e syntax.Expr) (int, bool) {
 	return start, true
 }
 
-// after converts a position plus a byte length to an end offset.
 func (s *nextScan) after(pos syntax.Pos, n int) (int, bool) {
 	start, err := offsetOf(s.starts, len(s.src), pos)
 	if err != nil {
@@ -293,8 +259,6 @@ func (s *nextScan) after(pos syntax.Pos, n int) (int, bool) {
 	return start + n, true
 }
 
-// closeFrom finds the bracket matching the opener past off: the first
-// opener past skipped whitespace, then its matching closer.
 func (s *nextScan) closeFrom(off int, open byte) (int, bool) {
 	i := off
 	for i < len(s.src) && (s.src[i] == ' ' || s.src[i] == '\t' || s.src[i] == '\n' || s.src[i] == '\r') {
@@ -306,8 +270,6 @@ func (s *nextScan) closeFrom(off int, open byte) (int, bool) {
 	return matchClose(s.src, i, open)
 }
 
-// closeScanner tracks bracket depth while skipping literals and
-// comments.
 type closeScanner struct {
 	src   []byte
 	want  byte
@@ -316,7 +278,6 @@ type closeScanner struct {
 	i     int
 }
 
-// matchClose returns one past the closer matching the opener at open.
 func matchClose(src []byte, open int, want byte) (int, bool) {
 	close, ok := closeFor(want)
 	if !ok {
@@ -331,7 +292,6 @@ func matchClose(src []byte, open int, want byte) (int, bool) {
 	return 0, false
 }
 
-// closeFor maps one opener to its closer.
 func closeFor(want byte) (byte, bool) {
 	switch want {
 	case '(':
@@ -344,8 +304,6 @@ func closeFor(want byte) (byte, bool) {
 	return 0, false
 }
 
-// step advances past one unit, reporting the match end when the depth
-// returns to zero.
 func (s *closeScanner) step() (int, bool) {
 	c := s.src[s.i]
 	if c == '"' || c == '`' {
@@ -362,8 +320,6 @@ func (s *closeScanner) step() (int, bool) {
 	return s.bracket(c)
 }
 
-// skipComment skips one comment at the cursor, reporting whether one
-// was consumed.
 func (s *closeScanner) skipComment() bool {
 	if s.src[s.i] != '/' || s.i+1 >= len(s.src) {
 		return false
@@ -379,14 +335,12 @@ func (s *closeScanner) skipComment() bool {
 	return true
 }
 
-// skipLineComment advances past one line comment.
 func (s *closeScanner) skipLineComment() {
 	for s.i < len(s.src) && s.src[s.i] != '\n' {
 		s.i++
 	}
 }
 
-// skipBlockComment advances past one block comment.
 func (s *closeScanner) skipBlockComment() {
 	s.i += 2
 	for s.i+1 < len(s.src) && (s.src[s.i] != '*' || s.src[s.i+1] != '/') {
@@ -395,8 +349,6 @@ func (s *closeScanner) skipBlockComment() {
 	s.i += 2
 }
 
-// bracket folds one bracket byte into the depth, reporting the match
-// end when the depth returns to zero.
 func (s *closeScanner) bracket(c byte) (int, bool) {
 	switch c {
 	case s.want:

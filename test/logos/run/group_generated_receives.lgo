@@ -1,0 +1,1037 @@
+// run
+
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"time"
+)
+
+var siblingError = errors.New("sibling")
+
+type receiver struct { Value int }
+
+type choice interface { int | string }
+
+func (r *receiver) Add(v int) int { return r.Value + v }
+func (r *receiver) Put(dst *int, v int) { *dst = r.Value + v }
+func (r *receiver) Pair(v int) (int, int) { return r.Value, v }
+
+type sink struct { out *int }
+
+func (s sink) Value(v int) { *s.out = v }
+func (s sink) Pair(a, b int?) { *s.out = (a ?? 0) + (b ?? 3) }
+
+func failSibling() error { return siblingError }
+
+type receiveCase struct {
+	kind string
+	cancel bool
+	skip bool
+	call bool
+}
+
+type receiveState struct {
+	in chan int
+	ptrs chan (*receiver?)
+	option int?
+	pointer *receiver?
+	bare *receiver?
+	values map[string]int
+	pointers map[string]*receiver
+	tag choice
+	out int
+}
+
+//logos:allow(correctness::unbounded_channel_op)
+func newReceiveState(c receiveCase) *receiveState {
+	s := &receiveState{in: make(chan int, 2), ptrs: make(chan (*receiver?), 2), values: map[string]int{}, pointers: map[string]*receiver{}, tag: 0}
+	if !c.cancel {
+		s.in <- 7
+		s.in <- 99
+		s.ptrs <- &receiver{Value: 7}
+		s.ptrs <- &receiver{Value: 99}
+	}
+	if c.skip {
+		s.option = 3
+		s.bare = &receiver{Value: 3}
+		s.values["x"] = 3
+		s.pointers["x"] = &receiver{Value: 3}
+		s.tag = "skip"
+	} else {
+		s.pointer = &receiver{Value: 0}
+	}
+	return s
+}
+
+func exercise(kind string, cancel, skip, call bool) {
+	c := receiveCase{kind: kind, cancel: cancel, skip: skip, call: call}
+	s := newReceiveState(c)
+	watchdog := time.AfterFunc(5*time.Second, func() {
+		fmt.Println("FAIL", kind, cancel, skip, call, "blocked")
+		os.Exit(1)
+	})
+	defer watchdog.Stop()
+	var err error
+	if call { err = runCall(context.Background(), c, s) } else { err = run(context.Background(), c, s) }
+	checkReceive(c, s, err)
+	fmt.Println("ok", kind, cancel, skip, call)
+}
+
+func checkReceive(c receiveCase, s *receiveState, err error) {
+	if c.cancel {
+		if !errors.Is(err, siblingError) { panic(fmt.Sprintf("%s: cancelled: %v", c.kind, err)) }
+		if s.out != 0 { panic(fmt.Sprintf("%s: cancelled side effect: out=%d", c.kind, s.out)) }
+		return
+	}
+	if err != nil { panic(fmt.Sprintf("%s: value: %v", c.kind, err)) }
+	want, left := 7, 1
+	if c.skip { want, left = 3, 2 }
+	if s.out != want { panic(fmt.Sprintf("%s: out=%d want=%d", c.kind, s.out, want)) }
+	remaining := len(s.in)
+	if c.kind == "select" { remaining = len(s.ptrs) }
+	if remaining != left { panic(fmt.Sprintf("%s: consumed %d values; want %d left", c.kind, 2-remaining, left)) }
+}
+
+func run(ctx context.Context, c receiveCase, s *receiveState) error {
+	switch c.kind {
+	case "coalesce", "coalesce-pointer":
+		return runDomain0(ctx, c, s)
+	case "map-value", "map-pointer":
+		return runDomain1(ctx, c, s)
+	case "select", "optional-zero":
+		return runDomain2(ctx, c, s)
+	case "optional-one", "optional-many":
+		return runDomain3(ctx, c, s)
+	case "switch-arm", "switch-tag":
+		return runDomain4(ctx, c, s)
+	case "switch-case", "union-arm":
+		return runDomain5(ctx, c, s)
+	}
+	panic("unknown receive case")
+}
+
+func runDomain0(ctx context.Context, c receiveCase, s *receiveState) error {
+	go group (ctx) {
+		go {
+			switch c.kind {
+			case "coalesce":
+				s.out = s.option ?? <-s.in
+			case "coalesce-pointer":
+				s.out = (s.bare ?? &receiver{Value: <-s.in}).Value
+			}
+		}
+		go {
+			if c.cancel { failSibling()? }
+		}
+	}
+	return nil
+}
+
+func runDomain1(ctx context.Context, c receiveCase, s *receiveState) error {
+	go group (ctx) {
+		go {
+			switch c.kind {
+			case "map-value":
+				s.out = s.values["x"] ?? <-s.in
+			case "map-pointer":
+				s.out = (s.pointers["x"] ?? &receiver{Value: <-s.in}).Value
+			}
+		}
+		go {
+			if c.cancel { failSibling()? }
+		}
+	}
+	return nil
+}
+
+func runDomain2(ctx context.Context, c receiveCase, s *receiveState) error {
+	go group (ctx) {
+		go {
+			switch c.kind {
+			case "select":
+				if c.skip { s.out = 3 } else { s.out = (<-s.ptrs)?.Value ?? -1 }
+			case "optional-zero":
+				s.pointer?.Put(&s.out, <-s.in)
+				if c.skip { s.out = 3 }
+			}
+		}
+		go {
+			if c.cancel { failSibling()? }
+		}
+	}
+	return nil
+}
+
+func runDomain3(ctx context.Context, c receiveCase, s *receiveState) error {
+	go group (ctx) {
+		go {
+			switch c.kind {
+			case "optional-one":
+				s.out = s.pointer?.Add(<-s.in) ?? 3
+			case "optional-many":
+				a, b := s.pointer?.Pair(<-s.in)
+				s.out = (a ?? 0) + (b ?? 3)
+			}
+		}
+		go {
+			if c.cancel { failSibling()? }
+		}
+	}
+	return nil
+}
+
+func runDomain4(ctx context.Context, c receiveCase, s *receiveState) error {
+	switch c.kind {
+	case "switch-arm":
+		return runSwitchArm(ctx, c, s)
+	case "switch-tag":
+		return runSwitchTag(ctx, c, s)
+	}
+	return nil
+}
+
+func runSwitchArm(ctx context.Context, c receiveCase, s *receiveState) error {
+	go group (ctx) {
+		go {
+			s.out = switch c.skip { case true => 3; default => <-s.in }
+		}
+		go {
+			if c.cancel { failSibling()? }
+		}
+	}
+	return nil
+}
+
+func runSwitchTag(ctx context.Context, c receiveCase, s *receiveState) error {
+	go group (ctx) {
+		go {
+			if c.skip { s.out = 3 } else { s.out = switch <-s.in { case 7 => 7; default => -1 } }
+		}
+		go {
+			if c.cancel { failSibling()? }
+		}
+	}
+	return nil
+}
+
+func runDomain5(ctx context.Context, c receiveCase, s *receiveState) error {
+	switch c.kind {
+	case "switch-case":
+		return runSwitchCase(ctx, c, s)
+	case "union-arm":
+		return runUnionArm(ctx, c, s)
+	}
+	return nil
+}
+
+func runSwitchCase(ctx context.Context, c receiveCase, s *receiveState) error {
+	go group (ctx) {
+		go {
+			s.out = switch true { case c.skip => 3; case <-s.in == 7 => 7; default => -1 }
+		}
+		go {
+			if c.cancel { failSibling()? }
+		}
+	}
+	return nil
+}
+
+func runUnionArm(ctx context.Context, c receiveCase, s *receiveState) error {
+	go group (ctx) {
+		go {
+			s.out = switch s.tag.(type) { case int => <-s.in; case string => 3; default => -1 }
+		}
+		go {
+			if c.cancel { failSibling()? }
+		}
+	}
+	return nil
+}
+
+func runCall(ctx context.Context, c receiveCase, s *receiveState) error {
+	switch c.kind {
+	case "coalesce", "coalesce-pointer":
+		return runCallDomain0(ctx, c, s)
+	case "map-value", "map-pointer":
+		return runCallDomain1(ctx, c, s)
+	case "select", "optional-zero":
+		return runCallDomain2(ctx, c, s)
+	case "optional-one", "optional-many":
+		return runCallDomain3(ctx, c, s)
+	case "switch-arm", "switch-tag":
+		return runCallDomain4(ctx, c, s)
+	case "switch-case", "union-arm":
+		return runCallDomain5(ctx, c, s)
+	}
+	panic("unknown receive case")
+}
+
+func runCallDomain0(ctx context.Context, c receiveCase, s *receiveState) error {
+	dst := sink{out: &s.out}
+	go group (ctx) {
+		go {
+			switch c.kind {
+			case "coalesce":
+				go dst.Value(s.option ?? <-s.in)
+			case "coalesce-pointer":
+				go dst.Value((s.bare ?? &receiver{Value: <-s.in}).Value)
+			}
+		}
+		go {
+			if c.cancel { failSibling()? }
+		}
+	}
+	return nil
+}
+
+func runCallDomain1(ctx context.Context, c receiveCase, s *receiveState) error {
+	dst := sink{out: &s.out}
+	go group (ctx) {
+		go {
+			switch c.kind {
+			case "map-value":
+				go dst.Value(s.values["x"] ?? <-s.in)
+			case "map-pointer":
+				go dst.Value((s.pointers["x"] ?? &receiver{Value: <-s.in}).Value)
+			}
+		}
+		go {
+			if c.cancel { failSibling()? }
+		}
+	}
+	return nil
+}
+
+func runCallDomain2(ctx context.Context, c receiveCase, s *receiveState) error {
+	dst := sink{out: &s.out}
+	go group (ctx) {
+		go {
+			switch c.kind {
+			case "select":
+				if c.skip { go dst.Value(3) } else { go dst.Value((<-s.ptrs)?.Value ?? -1) }
+			case "optional-zero":
+				go s.pointer?.Put(&s.out, <-s.in)
+				if c.skip { s.out = 3 }
+			}
+		}
+		go {
+			if c.cancel { failSibling()? }
+		}
+	}
+	return nil
+}
+
+func runCallDomain3(ctx context.Context, c receiveCase, s *receiveState) error {
+	dst := sink{out: &s.out}
+	go group (ctx) {
+		go {
+			switch c.kind {
+			case "optional-one":
+				go dst.Value(s.pointer?.Add(<-s.in) ?? 3)
+			case "optional-many":
+				go dst.Pair(s.pointer?.Pair(<-s.in))
+			}
+		}
+		go {
+			if c.cancel { failSibling()? }
+		}
+	}
+	return nil
+}
+
+func runCallDomain4(ctx context.Context, c receiveCase, s *receiveState) error {
+	switch c.kind {
+	case "switch-arm":
+		return runCallSwitchArm(ctx, c, s)
+	case "switch-tag":
+		return runCallSwitchTag(ctx, c, s)
+	}
+	return nil
+}
+
+func runCallSwitchArm(ctx context.Context, c receiveCase, s *receiveState) error {
+	dst := sink{out: &s.out}
+	go group (ctx) {
+		go {
+			go dst.Value(switch c.skip { case true => 3; default => <-s.in })
+		}
+		go {
+			if c.cancel { failSibling()? }
+		}
+	}
+	return nil
+}
+
+func runCallSwitchTag(ctx context.Context, c receiveCase, s *receiveState) error {
+	dst := sink{out: &s.out}
+	go group (ctx) {
+		go {
+			if c.skip { go dst.Value(3) } else { go dst.Value(switch <-s.in { case 7 => 7; default => -1 }) }
+		}
+		go {
+			if c.cancel { failSibling()? }
+		}
+	}
+	return nil
+}
+
+func runCallDomain5(ctx context.Context, c receiveCase, s *receiveState) error {
+	switch c.kind {
+	case "switch-case":
+		return runCallSwitchCase(ctx, c, s)
+	case "union-arm":
+		return runCallUnionArm(ctx, c, s)
+	}
+	return nil
+}
+
+func runCallSwitchCase(ctx context.Context, c receiveCase, s *receiveState) error {
+	dst := sink{out: &s.out}
+	go group (ctx) {
+		go {
+			go dst.Value(switch true { case c.skip => 3; case <-s.in == 7 => 7; default => -1 })
+		}
+		go {
+			if c.cancel { failSibling()? }
+		}
+	}
+	return nil
+}
+
+func runCallUnionArm(ctx context.Context, c receiveCase, s *receiveState) error {
+	dst := sink{out: &s.out}
+	go group (ctx) {
+		go {
+			go dst.Value(switch s.tag.(type) { case int => <-s.in; case string => 3; default => -1 })
+		}
+		go {
+			if c.cancel { failSibling()? }
+		}
+	}
+	return nil
+}
+
+func reached(in chan int, entered chan struct{}) chan int {
+	close(entered)
+	return in
+}
+
+func observed(v int, calls *int) int {
+	*calls = *calls + 1
+	return v
+}
+
+type stageState struct {
+	in chan int
+	entered chan struct{}
+	option int?
+	pointer *receiver?
+	calls int
+}
+
+//logos:allow(correctness::unbounded_channel_op)
+func newStageState(c receiveCase) *stageState {
+	s := &stageState{in: make(chan int, 2), entered: make(chan struct{})}
+	if !c.cancel { s.in <- 7; s.in <- 99 }
+	if c.skip { s.option = 3 } else { s.pointer = &receiver{Value: 0} }
+	return s
+}
+
+func cancelOnEntry(ctx context.Context, stop context.CancelFunc, entered chan struct{}) *time.Timer {
+	return time.AfterFunc(0, func() {
+		select {
+		case <-entered:
+			stop()
+		case <-ctx.Done():
+		}
+	})
+}
+
+func exerciseStage(kind string, cancelStage, skip bool) {
+	c := receiveCase{kind: kind, cancel: cancelStage, skip: skip}
+	s := newStageState(c)
+	ctx, stop := context.WithCancel(context.Background())
+	defer stop()
+	if cancelStage {
+		cancelTimer := cancelOnEntry(ctx, stop, s.entered)
+		defer cancelTimer.Stop()
+	}
+	watchdog := time.AfterFunc(5*time.Second, func() {
+		fmt.Println("FAIL stage", kind, cancelStage, skip, "blocked")
+		os.Exit(1)
+	})
+	defer watchdog.Stop()
+	got, err := runStage(ctx, c, s)
+	checkStageError(c, s, err)
+	if err == nil {
+		if !cancelStage { checkStageValue(c, s, got) }
+	}
+	fmt.Println("ok stage", kind, cancelStage, skip)
+}
+
+func runStage(ctx context.Context, c receiveCase, s *stageState) ([]int, error) {
+	var got []int
+	var err error
+	switch c.kind {
+	case "coalesce":
+		got, err = []int{0}.group(ctx, limit = 1).map(x => observed(s.option ?? <-reached(s.in, s.entered), &s.calls))
+	case "optional-one":
+		got, err = []int{0}.group(ctx, limit = 1).map(x => observed(s.pointer?.Add(<-reached(s.in, s.entered)) ?? 3, &s.calls))
+	case "switch-arm":
+		got, err = []int{0}.group(ctx, limit = 1).map(x => observed(switch c.skip { case true => 3; default => <-reached(s.in, s.entered) }, &s.calls))
+	case "arm-option":
+		got, err = []int{0}.group(ctx, limit = 1).map(x => observed(switch c.skip { case true => s.option ?? 3; default => <-reached(s.in, s.entered) }, &s.calls))
+	}
+	return got, err
+}
+
+func checkStageError(c receiveCase, s *stageState, err error) {
+	if c.cancel {
+		if !errors.Is(err, context.Canceled) { panic(fmt.Sprintf("stage %s: cancel: %v", c.kind, err)) }
+		if s.calls != 0 { panic(fmt.Sprintf("stage %s: evaluated a later operand after cancellation", c.kind)) }
+		return
+	}
+	if err != nil { panic(fmt.Sprintf("stage %s: error: %v", c.kind, err)) }
+}
+
+func checkStageValue(c receiveCase, s *stageState, got []int) {
+	want, left := 7, 1
+	if c.skip { want, left = 3, 2 }
+	if len(got) != 1 || got[0] != want || len(s.in) != left || s.calls != 1 {
+		panic(fmt.Sprintf("stage %s: value: %v left=%d calls=%d", c.kind, got, len(s.in), s.calls))
+	}
+}
+
+// Attacks on generated closures that share source offsets with option text:
+// nested option heads and tails, switch arms that end in option tails, and
+// discarded results of optional calls. Each cell checks a literal value, the
+// number of received values, and the effect left after a sibling cancels.
+type atkUser struct { Name string }
+type atkTeam struct { Lead *atkUser? }
+
+func (u *atkUser) Add(v int) int { return len(u.Name) + v }
+func (r *receiver) Note(dst *int, v int) int { *dst = r.Value + v; return *dst }
+func (r *receiver) NotePair(dst *int, v int) (int, int) { *dst = r.Value + v; return *dst, v }
+
+type atkSink struct {
+	out *int
+	name *string
+}
+
+func (d atkSink) Out(v int) { *d.out = v }
+func (d atkSink) Name(v string) { *d.name = v }
+
+type atkCell struct {
+	kind string
+	mode string
+	cancel bool
+	out int
+	name string
+	used int
+	hits int
+}
+
+type atkState struct {
+	in chan int
+	names chan string
+	teams chan (*atkTeam?)
+	users chan (*atkUser?)
+	option int?
+	pointer *receiver?
+	team *atkTeam?
+	pick bool
+	fed int
+	out int
+	name string
+	hits int
+}
+
+// Modes: "some" leaves every operand present, "none" leaves every operand
+// absent, "inner" keeps the team and drops its lead, and "other" keeps every
+// operand and takes the other switch arm. A cancelled cell feeds no values.
+
+//logos:allow(correctness::unbounded_channel_op)
+func newAtkState(c atkCell) *atkState {
+	s := &atkState{in: make(chan int, 2), names: make(chan string, 2), teams: make(chan (*atkTeam?), 2), users: make(chan (*atkUser?), 2), pick: c.mode != "other"}
+	var team *atkTeam?
+	var user *atkUser?
+	switch c.mode {
+	case "some", "other":
+		s.option = 5
+		s.pointer = &receiver{Value: 10}
+		team = &atkTeam{Lead: &atkUser{Name: "lead"}}
+		user = &atkUser{Name: "ann"}
+	case "inner":
+		team = &atkTeam{}
+	}
+	s.team = team
+	if !c.cancel {
+		s.in <- 7
+		s.in <- 99
+		s.names <- "ann"
+		s.names <- "zed"
+		s.teams <- team
+		s.teams <- &atkTeam{Lead: &atkUser{Name: "decoy"}}
+		s.users <- user
+		s.users <- &atkUser{Name: "decoy"}
+		s.fed = 8
+	}
+	return s
+}
+
+func atkValueCells() []atkCell {
+	return []atkCell{
+		{kind: "fallback-field", mode: "some", out: 10},
+		{kind: "fallback-field", mode: "none", out: 7, used: 1},
+		{kind: "fallback-field", mode: "none", cancel: true},
+		{kind: "fallback-chain", mode: "some", name: "lead"},
+		{kind: "fallback-chain", mode: "none", name: "ann", used: 1},
+		{kind: "fallback-chain", mode: "inner", name: "ann", used: 1},
+		{kind: "fallback-chain", mode: "none", cancel: true},
+		{kind: "head-chain", mode: "some", name: "lead", used: 1},
+		{kind: "head-chain", mode: "none", name: "anon", used: 1},
+		{kind: "head-chain", mode: "inner", name: "anon", used: 1},
+		{kind: "head-chain", mode: "some", cancel: true},
+		{kind: "head-field", mode: "some", name: "ann", used: 1},
+		{kind: "head-field", mode: "none", name: "anon", used: 1},
+		{kind: "head-field", mode: "some", cancel: true},
+		{kind: "arg-chain", mode: "some", out: 11, used: 1},
+		{kind: "arg-chain", mode: "none", out: 3},
+		{kind: "arg-chain", mode: "inner", out: 3},
+		{kind: "arg-chain", mode: "some", cancel: true},
+		{kind: "arm-coalesce", mode: "some", out: 5},
+		{kind: "arm-coalesce", mode: "none", out: 3},
+		{kind: "arm-coalesce", mode: "other", out: 7, used: 1},
+		{kind: "arm-coalesce", mode: "other", cancel: true},
+		{kind: "arm-chain", mode: "some", out: 10},
+		{kind: "arm-chain", mode: "none", out: 3},
+		{kind: "arm-chain", mode: "other", out: 7, used: 1},
+		{kind: "arm-chain", mode: "other", cancel: true},
+		{kind: "arm-narrow", mode: "some", out: 5},
+		{kind: "arm-narrow", mode: "other", out: 7, used: 1},
+		{kind: "arm-narrow", mode: "other", cancel: true},
+		{kind: "arm-recv-coalesce", mode: "some", out: 5},
+		{kind: "arm-recv-coalesce", mode: "none", out: 7, used: 1},
+		{kind: "arm-recv-coalesce", mode: "other", out: 3},
+		{kind: "arm-recv-coalesce", mode: "none", cancel: true},
+	}
+}
+
+// A body statement that runs before a for post statement leaves its effect
+// even when the post statement is cancelled.
+func atkStmtCells() []atkCell {
+	return []atkCell{
+		{kind: "direct-one", mode: "some", out: 17, used: 1},
+		{kind: "direct-one", mode: "none"},
+		{kind: "direct-one", mode: "some", cancel: true},
+		{kind: "direct-pair", mode: "some", out: 17, used: 1},
+		{kind: "direct-pair", mode: "none"},
+		{kind: "direct-pair", mode: "some", cancel: true},
+		{kind: "discard-one", mode: "some", out: 17, used: 1},
+		{kind: "discard-one", mode: "none"},
+		{kind: "discard-one", mode: "some", cancel: true},
+		{kind: "discard-pair", mode: "some", out: 17, used: 1},
+		{kind: "discard-pair", mode: "none"},
+		{kind: "discard-pair", mode: "some", cancel: true},
+		{kind: "discard-go-one", mode: "some", out: 17, used: 1},
+		{kind: "discard-go-one", mode: "none"},
+		{kind: "discard-go-one", mode: "some", cancel: true},
+		{kind: "discard-go-pair", mode: "some", out: 17, used: 1},
+		{kind: "discard-go-pair", mode: "none"},
+		{kind: "discard-go-pair", mode: "some", cancel: true},
+		{kind: "discard-if", mode: "some", out: 17, used: 1, hits: 1},
+		{kind: "discard-if", mode: "none"},
+		{kind: "discard-if", mode: "some", cancel: true},
+		{kind: "discard-if-pair", mode: "some", out: 17, used: 1, hits: 1},
+		{kind: "discard-if-pair", mode: "none"},
+		{kind: "discard-if-pair", mode: "some", cancel: true},
+		{kind: "zero-if", mode: "some", out: 17, used: 1, hits: 1},
+		{kind: "zero-if", mode: "none"},
+		{kind: "zero-if", mode: "some", cancel: true},
+		{kind: "discard-for", mode: "some", out: 17, used: 1, hits: 1},
+		{kind: "discard-for", mode: "none", hits: 1},
+		{kind: "discard-for", mode: "some", cancel: true, hits: 1},
+		{kind: "discard-for-pair", mode: "some", out: 17, used: 1, hits: 1},
+		{kind: "discard-for-pair", mode: "none", hits: 1},
+		{kind: "discard-for-pair", mode: "some", cancel: true, hits: 1},
+		{kind: "zero-for", mode: "some", out: 17, used: 1, hits: 1},
+		{kind: "zero-for", mode: "none", hits: 1},
+		{kind: "zero-for", mode: "some", cancel: true, hits: 1},
+	}
+}
+
+func exerciseAtk(c atkCell, call bool) {
+	s := newAtkState(c)
+	watchdog := time.AfterFunc(5*time.Second, func() {
+		fmt.Println("FAIL attack", c.kind, c.mode, c.cancel, call, "blocked")
+		os.Exit(1)
+	})
+	defer watchdog.Stop()
+	var err error
+	if call { err = runAtkCall(context.Background(), c, s) } else { err = runAtk(context.Background(), c, s) }
+	checkAtk(c, s, call, err)
+	fmt.Println("ok attack", c.kind, c.mode, c.cancel, call)
+}
+
+func checkAtk(c atkCell, s *atkState, call bool, err error) {
+	where := fmt.Sprintf("attack %s/%s cancel=%v call=%v", c.kind, c.mode, c.cancel, call)
+	if c.cancel {
+		if !errors.Is(err, siblingError) { panic(fmt.Sprintf("%s: cancelled: %v", where, err)) }
+	} else if err != nil {
+		panic(fmt.Sprintf("%s: value: %v", where, err))
+	}
+	used := s.fed - len(s.in) - len(s.names) - len(s.teams) - len(s.users)
+	if s.out != c.out || s.name != c.name || used != c.used || s.hits != c.hits {
+		panic(fmt.Sprintf("%s: got out=%d name=%q used=%d hits=%d; want out=%d name=%q used=%d hits=%d", where, s.out, s.name, used, s.hits, c.out, c.name, c.used, c.hits))
+	}
+}
+
+func runAtk(ctx context.Context, c atkCell, s *atkState) error {
+	switch c.kind {
+	case "fallback-field", "fallback-chain":
+		return runAtkFallback(ctx, c, s)
+	case "head-chain", "head-field":
+		return runAtkHead(ctx, c, s)
+	case "arg-chain":
+		return runAtkArg(ctx, c, s)
+	case "arm-coalesce", "arm-chain":
+		return runAtkArm(ctx, c, s)
+	case "arm-narrow":
+		return runAtkNarrow(ctx, c, s)
+	case "arm-recv-coalesce":
+		return runAtkArmRecv(ctx, c, s)
+	case "direct-one":
+		return runAtkDirectOne(ctx, c, s)
+	case "direct-pair":
+		return runAtkDirectPair(ctx, c, s)
+	case "discard-one", "discard-pair", "discard-go-one", "discard-go-pair":
+		return runAtkDiscard(ctx, c, s)
+	case "discard-if", "discard-if-pair", "zero-if":
+		return runAtkIf(ctx, c, s)
+	case "discard-for", "discard-for-pair", "zero-for":
+		return runAtkFor(ctx, c, s)
+	}
+	panic("unknown attack case")
+}
+
+func runAtkFallback(ctx context.Context, c atkCell, s *atkState) error {
+	go group (ctx) {
+		go {
+			switch c.kind {
+			case "fallback-field":
+				s.out = s.pointer?.Value ?? <-s.in
+			case "fallback-chain":
+				s.name = s.team?.Lead?.Name ?? <-s.names
+			}
+		}
+		go {
+			if c.cancel { failSibling()? }
+		}
+	}
+	return nil
+}
+
+func runAtkHead(ctx context.Context, c atkCell, s *atkState) error {
+	go group (ctx) {
+		go {
+			switch c.kind {
+			case "head-chain":
+				s.name = (<-s.teams)?.Lead?.Name ?? "anon"
+			case "head-field":
+				s.name = (<-s.users)?.Name ?? "anon"
+			}
+		}
+		go {
+			if c.cancel { failSibling()? }
+		}
+	}
+	return nil
+}
+
+func runAtkArg(ctx context.Context, c atkCell, s *atkState) error {
+	go group (ctx) {
+		go {
+			s.out = s.team?.Lead?.Add(<-s.in) ?? 3
+		}
+		go {
+			if c.cancel { failSibling()? }
+		}
+	}
+	return nil
+}
+
+func runAtkArm(ctx context.Context, c atkCell, s *atkState) error {
+	go group (ctx) {
+		go {
+			switch c.kind {
+			case "arm-coalesce":
+				s.out = switch s.pick { case true => s.option ?? 3; default => <-s.in }
+			case "arm-chain":
+				s.out = switch s.pick { case true => s.pointer?.Value ?? 3; default => <-s.in }
+			}
+		}
+		go {
+			if c.cancel { failSibling()? }
+		}
+	}
+	return nil
+}
+
+func runAtkNarrow(ctx context.Context, c atkCell, s *atkState) error {
+	go group (ctx) {
+		go {
+			x := s.option
+			if x != nil {
+				s.out = switch s.pick { case true => x; default => <-s.in }
+			}
+		}
+		go {
+			if c.cancel { failSibling()? }
+		}
+	}
+	return nil
+}
+
+func runAtkArmRecv(ctx context.Context, c atkCell, s *atkState) error {
+	go group (ctx) {
+		go {
+			s.out = switch s.pick { case true => s.option ?? <-s.in; default => 3 }
+		}
+		go {
+			if c.cancel { failSibling()? }
+		}
+	}
+	return nil
+}
+
+func runAtkDirectOne(ctx context.Context, c atkCell, s *atkState) error {
+	go group (ctx) {
+		go {
+			s.pointer?.Note(&s.out, <-s.in)
+		}
+		go {
+			if c.cancel { failSibling()? }
+		}
+	}
+	return nil
+}
+
+func runAtkDirectPair(ctx context.Context, c atkCell, s *atkState) error {
+	go group (ctx) {
+		go {
+			s.pointer?.NotePair(&s.out, <-s.in)
+		}
+		go {
+			if c.cancel { failSibling()? }
+		}
+	}
+	return nil
+}
+
+func runAtkDiscard(ctx context.Context, c atkCell, s *atkState) error {
+	go group (ctx) {
+		go {
+			switch c.kind {
+			case "discard-one":
+				s.pointer?.Note(&s.out, <-s.in)
+			case "discard-pair":
+				s.pointer?.NotePair(&s.out, <-s.in)
+			case "discard-go-one":
+				go s.pointer?.Note(&s.out, <-s.in)
+			case "discard-go-pair":
+				go s.pointer?.NotePair(&s.out, <-s.in)
+			}
+		}
+		go {
+			if c.cancel { failSibling()? }
+		}
+	}
+	return nil
+}
+
+func runAtkIf(ctx context.Context, c atkCell, s *atkState) error {
+	go group (ctx) {
+		go {
+			switch c.kind {
+			case "discard-if":
+				if s.pointer?.Note(&s.out, <-s.in); s.out == 17 { s.hits++ }
+			case "discard-if-pair":
+				if s.pointer?.NotePair(&s.out, <-s.in); s.out == 17 { s.hits++ }
+			case "zero-if":
+				if s.pointer?.Put(&s.out, <-s.in); s.out == 17 { s.hits++ }
+			}
+		}
+		go {
+			if c.cancel { failSibling()? }
+		}
+	}
+	return nil
+}
+
+func runAtkFor(ctx context.Context, c atkCell, s *atkState) error {
+	go group (ctx) {
+		go {
+			switch c.kind {
+			case "discard-for":
+				for i := 0; i < 1; s.pointer?.Note(&s.out, <-s.in) {
+					i++
+					s.hits++
+				}
+			case "discard-for-pair":
+				for i := 0; i < 1; s.pointer?.NotePair(&s.out, <-s.in) {
+					i++
+					s.hits++
+				}
+			case "zero-for":
+				for i := 0; i < 1; s.pointer?.Put(&s.out, <-s.in) {
+					i++
+					s.hits++
+				}
+			}
+		}
+		go {
+			if c.cancel { failSibling()? }
+		}
+	}
+	return nil
+}
+
+func runAtkCall(ctx context.Context, c atkCell, s *atkState) error {
+	switch c.kind {
+	case "fallback-field", "fallback-chain":
+		return runAtkFallbackCall(ctx, c, s)
+	case "head-chain", "head-field":
+		return runAtkHeadCall(ctx, c, s)
+	case "arg-chain":
+		return runAtkArgCall(ctx, c, s)
+	case "arm-coalesce", "arm-chain":
+		return runAtkArmCall(ctx, c, s)
+	case "arm-narrow":
+		return runAtkNarrowCall(ctx, c, s)
+	case "arm-recv-coalesce":
+		return runAtkArmRecvCall(ctx, c, s)
+	}
+	panic("unknown attack call case")
+}
+
+func runAtkFallbackCall(ctx context.Context, c atkCell, s *atkState) error {
+	dst := atkSink{out: &s.out, name: &s.name}
+	go group (ctx) {
+		go {
+			switch c.kind {
+			case "fallback-field":
+				go dst.Out(s.pointer?.Value ?? <-s.in)
+			case "fallback-chain":
+				go dst.Name(s.team?.Lead?.Name ?? <-s.names)
+			}
+		}
+		go {
+			if c.cancel { failSibling()? }
+		}
+	}
+	return nil
+}
+
+func runAtkHeadCall(ctx context.Context, c atkCell, s *atkState) error {
+	dst := atkSink{out: &s.out, name: &s.name}
+	go group (ctx) {
+		go {
+			switch c.kind {
+			case "head-chain":
+				go dst.Name((<-s.teams)?.Lead?.Name ?? "anon")
+			case "head-field":
+				go dst.Name((<-s.users)?.Name ?? "anon")
+			}
+		}
+		go {
+			if c.cancel { failSibling()? }
+		}
+	}
+	return nil
+}
+
+func runAtkArgCall(ctx context.Context, c atkCell, s *atkState) error {
+	dst := atkSink{out: &s.out, name: &s.name}
+	go group (ctx) {
+		go {
+			go dst.Out(s.team?.Lead?.Add(<-s.in) ?? 3)
+		}
+		go {
+			if c.cancel { failSibling()? }
+		}
+	}
+	return nil
+}
+
+func runAtkArmCall(ctx context.Context, c atkCell, s *atkState) error {
+	dst := atkSink{out: &s.out, name: &s.name}
+	go group (ctx) {
+		go {
+			switch c.kind {
+			case "arm-coalesce":
+				go dst.Out(switch s.pick { case true => s.option ?? 3; default => <-s.in })
+			case "arm-chain":
+				go dst.Out(switch s.pick { case true => s.pointer?.Value ?? 3; default => <-s.in })
+			}
+		}
+		go {
+			if c.cancel { failSibling()? }
+		}
+	}
+	return nil
+}
+
+func runAtkNarrowCall(ctx context.Context, c atkCell, s *atkState) error {
+	dst := atkSink{out: &s.out, name: &s.name}
+	go group (ctx) {
+		go {
+			x := s.option
+			if x != nil {
+				go dst.Out(switch s.pick { case true => x; default => <-s.in })
+			}
+		}
+		go {
+			if c.cancel { failSibling()? }
+		}
+	}
+	return nil
+}
+
+func runAtkArmRecvCall(ctx context.Context, c atkCell, s *atkState) error {
+	dst := atkSink{out: &s.out, name: &s.name}
+	go group (ctx) {
+		go {
+			go dst.Out(switch s.pick { case true => s.option ?? <-s.in; default => 3 })
+		}
+		go {
+			if c.cancel { failSibling()? }
+		}
+	}
+	return nil
+}
+
+func main() {
+	for _, kind := range []string{"coalesce", "coalesce-pointer", "map-value", "map-pointer", "select", "optional-zero", "optional-one", "optional-many", "switch-arm", "switch-tag", "switch-case", "union-arm"} {
+		for _, call := range []bool{false, true} {
+			exercise(kind, false, false, call)
+			exercise(kind, false, true, call)
+			exercise(kind, true, false, call)
+		}
+	}
+	for _, kind := range []string{"coalesce", "optional-one", "switch-arm", "arm-option"} {
+		exerciseStage(kind, false, false)
+		exerciseStage(kind, false, true)
+		exerciseStage(kind, true, false)
+	}
+	for _, c := range atkValueCells() {
+		exerciseAtk(c, false)
+		exerciseAtk(c, true)
+	}
+	for _, c := range atkStmtCells() {
+		exerciseAtk(c, false)
+	}
+}

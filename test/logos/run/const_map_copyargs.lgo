@@ -1,0 +1,194 @@
+// run
+
+package main
+
+import "fmt"
+
+type Box struct {
+	M map[string]int
+}
+
+type SB struct {
+	S []map[string]int
+}
+
+const func touchSlice(m []map[string]int) int {
+	row := m[0]
+	row["a"] = 99
+	m[0] = row
+	got := m[0]
+	return got["a"] ?? -1
+}
+
+const func outerSlice() int {
+	s := []map[string]int{{"a": 1}}
+	r := touchSlice(s)
+	if r != 99 {
+		return -1
+	}
+	got := s[0]
+	return got["a"] ?? -1
+}
+
+const func touchArray(m [1]map[string]int) int {
+	row := m[0]
+	row["a"] = 99
+	m[0] = row
+	return m[0]["a"] ?? -1
+}
+
+const func outerArray() int {
+	a := [1]map[string]int{{"a": 1}}
+	r := touchArray(a)
+	if r != 99 {
+		return -1
+	}
+	return a[0]["a"] ?? -2
+}
+
+const func touchStruct(b Box) int {
+	mm := b.M
+	mm["a"] = 99
+	b.M = mm
+	got := b.M
+	return got["a"] ?? -1
+}
+
+const func outerStruct() int {
+	b := Box{M: map[string]int{"a": 1}}
+	r := touchStruct(b)
+	if r != 99 {
+		return -1
+	}
+	got := b.M
+	return got["a"] ?? -2
+}
+
+const func touchMapMap(m map[string]map[string]int) int {
+	inner := m["k"] ?? map[string]int{}
+	inner["a"] = 99
+	m["k"] = inner
+	got := m["k"] ?? map[string]int{}
+	return got["a"] ?? -1
+}
+
+const func outerMapMap() int {
+	m := map[string]map[string]int{"k": {"a": 1}}
+	r := touchMapMap(m)
+	if r != 99 {
+		return -1
+	}
+	got := m["k"] ?? map[string]int{}
+	if len(got) != 1 {
+		return -3
+	}
+	return got["a"] ?? -2
+}
+
+const func touchSliceStruct(s []Box) int {
+	b := s[0]
+	mm := b.M
+	mm["a"] = 99
+	b.M = mm
+	s[0] = b
+	got := s[0]
+	res := got.M
+	return res["a"] ?? -1
+}
+
+const func outerSliceStruct() int {
+	s := []Box{{M: map[string]int{"a": 1}}}
+	r := touchSliceStruct(s)
+	if r != 99 {
+		return -1
+	}
+	got := s[0]
+	res := got.M
+	return res["a"] ?? -2
+}
+
+const func touchNested(m map[string][]map[string]int) int {
+	inner := m["k"] ?? []map[string]int{}
+	one := inner[0]
+	one["a"] = 99
+	inner[0] = one
+	m["k"] = inner
+	got := m["k"] ?? []map[string]int{}
+	first := got[0]
+	return first["a"] ?? -1
+}
+
+const func outerNested() int {
+	m := map[string][]map[string]int{"k": {{"a": 1}}}
+	r := touchNested(m)
+	if r != 99 {
+		return -1
+	}
+	got := m["k"] ?? []map[string]int{}
+	first := got[0]
+	return first["a"] ?? -2
+}
+
+const func touchStructSlice(b SB) int {
+	s := b.S
+	row := s[0]
+	row["a"] = 99
+	s[0] = row
+	b.S = s
+	got := b.S
+	first := got[0]
+	return first["a"] ?? -1
+}
+
+const func outerStructSlice() int {
+	b := SB{S: []map[string]int{{"a": 1}}}
+	r := touchStructSlice(b)
+	if r != 99 {
+		return -1
+	}
+	got := b.S
+	first := got[0]
+	return first["a"] ?? -2
+}
+
+const func touchInts(s []int) int {
+	s[0] = 99
+	return s[0]
+}
+
+const func outerInts() int {
+	s := []int{1}
+	r := touchInts(s)
+	if r != 99 {
+		return -1
+	}
+	return s[0]
+}
+
+const rSlice = outerSlice()
+const rArray = outerArray()
+const rStruct = outerStruct()
+const rMapMap = outerMapMap()
+const rSliceStruct = outerSliceStruct()
+const rNested = outerNested()
+const rStructSlice = outerStructSlice()
+const rInts = outerInts()
+
+func check(name string, got int, want int) {
+	if got != want {
+		fmt.Println("FAIL", name, "got", got)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func main() {
+	check("slice", rSlice, 99)
+	check("array", rArray, 99)
+	check("struct", rStruct, 99)
+	check("map", rMapMap, 99)
+	check("slice-struct", rSliceStruct, 99)
+	check("nested", rNested, 99)
+	check("struct-slice", rStructSlice, 99)
+	check("ints", rInts, 99)
+}

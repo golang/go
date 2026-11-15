@@ -981,6 +981,8 @@ const (
 	// LinknameStd indicates this is a go:linknamestd'd symbol.
 	AttrLinknameStd
 
+	AttrLogosCtClone
+
 	// attrABIBase is the value at which the ABI is encoded in
 	// Attribute. This must be last; all bits after this are
 	// assumed to be an ABI value.
@@ -1012,6 +1014,7 @@ func (a *Attribute) IsPcdata() bool           { return a.load()&AttrPcdata != 0 
 func (a *Attribute) IsPkgInit() bool          { return a.load()&AttrPkgInit != 0 }
 func (a *Attribute) IsLinkname() bool         { return a.load()&AttrLinkname != 0 }
 func (a *Attribute) IsLinknameStd() bool      { return a.load()&AttrLinknameStd != 0 }
+func (a *Attribute) LogosCtClone() bool       { return a.load()&AttrLogosCtClone != 0 }
 
 func (a *Attribute) Set(flag Attribute, value bool) {
 	for {

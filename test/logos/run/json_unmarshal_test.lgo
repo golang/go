@@ -2,17 +2,10 @@
 
 package jsonunmarshal
 
-// M11-S2 attack (SPEC Sec 12.2, T-Sec12; rows #7, #123, #139): the generated
-// UnmarshalJSON fills defaults first, enforces required non-nil fields
-// through a seen mask, dispatches keys by switch or perfect-hash table,
-// skips unknown keys, keeps the last duplicate, grows arrays as elements
-// arrive, and is the method encoding/json reaches for both json.Unmarshal
-// and json.NewDecoder. JSON has no length header, so a hostile array claim
-// is only as large as the bytes that arrive.
-
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"math/rand"
@@ -215,8 +208,6 @@ func missing(typ, field string) error {
 	return rt.MissingFieldError{Type: typ, Field: field}
 }
 
-// TestMissingRequiredField is red-team row #7: a required non-nil field
-// that is absent fails with MissingFieldError naming type and field.
 func TestMissingRequiredField(t *testing.T) {
 	_, err := decode[User](`{"id":1,"name":"a"}`)
 	if err != missing("User", "Profile") {
@@ -239,8 +230,28 @@ func TestNullForNonNilFieldIsMissing(t *testing.T) {
 	}
 }
 
-// TestDefaultsAppliedFirst is red-team row #123: defaults go in before
-// the document is read, so an explicit false overrides a true default.
+func TestNullRequiredDefersPastLaterFields(t *testing.T) {
+	doc := `{"id":1,"name":"a","profile":null,"profile":{"bio":"b"}}`
+	if err := decodeErr[User](doc); err != nil {
+		t.Fatalf("duplicate keeps last, got error %v", err)
+	}
+	u := decodeOK[User](doc)
+	if u.Profile == nil || u.Profile.Bio != "b" {
+		t.Fatalf("duplicate keeps last, got %+v", u.Profile)
+	}
+	if err := decodeErr[User](`{"id":1,"name":"a","profile":{"bio":"b"},"profile":null}`); err != missing("User", "Profile") {
+		t.Fatalf("null last wins, got %v, want MissingFieldError{User, Profile}", err)
+	}
+	if err := decodeErr[User](`{"profile":null,"id":"boom"}`); err == nil {
+		t.Fatal("later field error must win over deferred null, got nil")
+	} else {
+		var mf rt.MissingFieldError
+		if errors.As(err, &mf) {
+			t.Fatalf("later field error must win over deferred null, got %v", err)
+		}
+	}
+}
+
 func TestDefaultsAppliedFirst(t *testing.T) {
 	cases := []struct {
 		doc  string
@@ -255,6 +266,30 @@ func TestDefaultsAppliedFirst(t *testing.T) {
 	}
 	for _, c := range cases {
 		got := decodeOK[Cfg](c.doc)
+		if *got != c.want {
+			t.Fatalf("%s: got %+v, want %+v", c.doc, *got, c.want)
+		}
+	}
+}
+
+type DefaultsOnly struct {
+	Port int32  = 8080
+	Host string = "localhost"
+}
+
+func TestDefaultsOnlyStructAppliesDefaults(t *testing.T) {
+	cases := []struct {
+		doc  string
+		want DefaultsOnly
+	}{
+		{`{}`, DefaultsOnly{Port: 8080, Host: "localhost"}},
+		{`{"Port":9}`, DefaultsOnly{Port: 9, Host: "localhost"}},
+		{`{"host":"h"}`, DefaultsOnly{Port: 8080, Host: "h"}},
+		{`{"PORT":0,"Host":""}`, DefaultsOnly{Port: 0, Host: ""}},
+		{`{"Port":1,"Port":2}`, DefaultsOnly{Port: 2, Host: "localhost"}},
+	}
+	for _, c := range cases {
+		got := decodeOK[DefaultsOnly](c.doc)
 		if *got != c.want {
 			t.Fatalf("%s: got %+v, want %+v", c.doc, *got, c.want)
 		}
@@ -293,8 +328,6 @@ func TestSyntaxErrorsMatchEncodingJSON(t *testing.T) {
 
 type userMirror User
 
-// TestDecoderUsesTheSameMethod covers json.NewDecoder: Decode reads one
-// value and reaches UnmarshalJSON through the Unmarshaler interface.
 func TestDecoderUsesTheSameMethod(t *testing.T) {
 	dec := json.NewDecoder(strings.NewReader(`{"id":1,"name":"a","profile":{"bio":"x"}} {"id":2,"name":"b"} {"id":3,"name":"c","profile":{"bio":"z"}}`))
 	first := User{Profile: &Profile{}}
@@ -349,9 +382,6 @@ func decodeReq(typ string, doc string) error {
 	return err
 }
 
-// TestSeenMask drives the one-word (64 required fields) and two-word (65)
-// masks: each required key missing alone, keys in reverse order, duplicate
-// keys, unknown keys, and null.
 func TestSeenMask(t *testing.T) {
 	for _, tc := range []struct {
 		typ string
@@ -403,31 +433,38 @@ func allocated() uint64 {
 	return m.TotalAlloc
 }
 
-// TestHostileArrayCostsOnArrival is red-team row #139 for JSON: no
-// pre-allocation cap exists, because JSON carries no length header; an
-// array costs memory as its elements arrive and not before.
 func TestHostileArrayCostsOnArrival(t *testing.T) {
-	prefix := `{"items":[` + strings.Repeat("0,", 9)
-	before := allocated()
-	var p Items
-	err := p.UnmarshalJSON([]byte(prefix))
-	if err == nil {
-		t.Fatal("truncated array decoded")
+	prefix := []byte(`{"items":[` + strings.Repeat("0,", 9))
+	least := ^uint64(0)
+	for range 8 {
+		before := allocated()
+		var p Items
+		err := p.UnmarshalJSON(prefix)
+		grew := allocated() - before
+		if err == nil {
+			t.Fatal("truncated array decoded")
+		}
+		least = min(least, grew)
 	}
-	if grew := allocated() - before; grew > 1<<20 {
-		t.Fatalf("a 10-element prefix allocated %d bytes", grew)
+	if least > 1<<12 {
+		t.Fatalf("a 10-element prefix allocated at least %d bytes", least)
 	}
 }
 
 func TestLargeArrayDecodesIncrementally(t *testing.T) {
 	const n = 200000
+	const elemBytes = 8
+	const growthFactor = 8
 	doc := `{"items":[` + strings.Repeat("7,", n-1) + `7]}`
 	before := allocated()
 	p := decodeOK[Items](doc)
 	if len(p.Items) != n {
 		t.Fatalf("decoded %d items", len(p.Items))
 	}
-	if grew := allocated() - before; grew > 80*n {
+	if c := cap(p.Items); c > 4*n {
+		t.Fatalf("incremental growth holds cap %d for %d elements, want at most %d", c, n, 4*n)
+	}
+	if grew := allocated() - before; grew > uint64(elemBytes*growthFactor*n) {
 		t.Fatalf("%d elements allocated %d bytes", n, grew)
 	}
 }
@@ -480,11 +517,6 @@ type Quoted struct {
 
 type quotedMirror Quoted
 
-// TestQuotedOptionMatchesEncodingJSON covers the `string` tag option on
-// decode. The generated decoder follows the v1 rule that the quoted
-// content must be a valid literal, so inputs only the jsonv2 legacy mode
-// tolerates (`"+1"`, `"01"`) are left out; every other case must agree on
-// success and on the decoded value.
 func TestQuotedOptionMatchesEncodingJSON(t *testing.T) {
 	for _, doc := range []string{
 		`{"qi":"12","qf":"1.5","qb":"true","qs":"\"x\""}`, `{"qi":"-9223372036854775808"}`, `{"qf":"1e300"}`,
@@ -521,10 +553,6 @@ func samePlain(t *testing.T, doc []byte) {
 	}
 }
 
-// TestTypeErrorsKeepDecoding checks that a type mismatch is saved and the
-// rest of the object still decodes, like the reflective path, for fields
-// without a nested Unmarshaler (whose errors encoding/json v1 treats as
-// fatal and the jsonv2 legacy mode does not).
 func TestTypeErrorsKeepDecoding(t *testing.T) {
 	for _, doc := range []string{
 		`{"i8":"x","s":"kept","i64":5}`, `{"u16":-1,"strs":["a"],"f64":2.5}`, `{"b":1,"fls":[1,2],"s":"z"}`,
@@ -589,8 +617,6 @@ type data struct {
 	N int32 `json:"n"`
 }
 
-// TestTypeNamedLikeAGeneratedLocal checks that every generated name carries
-// the reserved prefix: a type named data compiles and decodes.
 func TestTypeNamedLikeAGeneratedLocal(t *testing.T) {
 	if got := decodeOK[data](`{"n":4}`); got.N != 4 {
 		t.Fatalf("got %+v", got)
@@ -602,9 +628,6 @@ func prefilled() Plain {
 	return Plain{Strs: []string{"a", "b", "c"}, Ints: []int16{7, 8, 9}, Fls: []float64{1, 2}, PS: &s, In: Profile{Bio: "keep"}}
 }
 
-// TestPrefilledTargetMatchesEncodingJSON checks decoding into a target that
-// already holds values: array elements decode into the existing elements,
-// null and absent keys leave values alone, and pointers keep their pointee.
 func TestPrefilledTargetMatchesEncodingJSON(t *testing.T) {
 	for _, doc := range []string{
 		`{"ints":[null,5]}`, `{"strs":[null,"z"],"fls":[null]}`, `{"ps":"new"}`, `{"ps":null}`,
@@ -623,10 +646,6 @@ func TestPrefilledTargetMatchesEncodingJSON(t *testing.T) {
 	}
 }
 
-// PRRT_kwDOVOeymc6wGfHR (r4373037368) on decode: a named int carrying
-// only IsZero() bool keeps the string option, and the quoted token is
-// read by the typed quoted reader with the exact value instead of the
-// reflective fallback.
 type ZInt int64
 
 func (z ZInt) IsZero() bool { return z == 42 }
@@ -661,5 +680,101 @@ func TestQuotedNamedIntWithIsZero(t *testing.T) {
 		if errX == nil && !reflect.DeepEqual(x, IsZeroQuoted(y)) {
 			t.Fatalf("%s: generated %+v, reflective %+v", doc, x, IsZeroQuoted(y))
 		}
+	}
+}
+
+type MaybeRec struct {
+	Maybe int64? `json:"maybe"`
+}
+
+func TestAbsentOptionalReadsNone(t *testing.T) {
+	u := decodeOK[MaybeRec](`{}`)
+	if u.Maybe != nil {
+		t.Fatalf("{}: Maybe = %+v, want none", u.Maybe)
+	}
+	if (u.Maybe ?? -1) != -1 {
+		t.Fatalf("{}: Maybe ?? -1 = %d, want -1", u.Maybe ?? -1)
+	}
+	v := decodeOK[MaybeRec](`{"maybe":{"Value":0,"Present":true}}`)
+	if v.Maybe == nil {
+		t.Fatalf(`{"maybe":{"Value":0,"Present":true}}: got none, want some 0`)
+	}
+	if (v.Maybe ?? -1) != 0 {
+		t.Fatalf(`{"maybe":{"Value":0,"Present":true}}: Maybe ?? -1 = %d, want 0`, v.Maybe ?? -1)
+	}
+}
+
+type Keyed8 struct {
+	A1  int64 `json:"a1"`
+	A10 int64 `json:"a10"`
+	B   int64 `json:"b"`
+	C   int64 `json:"c"`
+	D   int64 `json:"d"`
+	E   int64 `json:"e"`
+	G   int64 `json:"g"`
+	H   int64 `json:"h"`
+}
+
+type Keyed9 struct {
+	A1  int64 `json:"a1"`
+	A10 int64 `json:"a10"`
+	A11 int64 `json:"a11"`
+	B   int64 `json:"b"`
+	C   int64 `json:"c"`
+	D   int64 `json:"d"`
+	E   int64 `json:"e"`
+	G   int64 `json:"g"`
+	H   int64 `json:"h"`
+}
+
+type keyed8Mirror struct {
+	A1    int64 `json:"a1"`
+	A10   int64 `json:"a10"`
+	B     int64 `json:"b"`
+	C     int64 `json:"c"`
+	D     int64 `json:"d"`
+	E     int64 `json:"e"`
+	G     int64 `json:"g"`
+	H     int64 `json:"h"`
+	NoGen any   `json:"-"`
+}
+
+type keyed9Mirror struct {
+	A1    int64 `json:"a1"`
+	A10   int64 `json:"a10"`
+	A11   int64 `json:"a11"`
+	B     int64 `json:"b"`
+	C     int64 `json:"c"`
+	D     int64 `json:"d"`
+	E     int64 `json:"e"`
+	G     int64 `json:"g"`
+	H     int64 `json:"h"`
+	NoGen any   `json:"-"`
+}
+
+func TestKeyDispatchAtTheSwitchTableBoundary(t *testing.T) {
+	doc8 := `{"h":8,"g":7,"e":6,"d":5,"c":4,"b":3,"a10":10,"a1":1}`
+	doc9 := `{"h":8,"a11":11,"g":7,"e":6,"d":5,"c":4,"b":3,"a10":10,"a1":1}`
+	got8 := decodeOK[Keyed8](doc8)
+	var want8 keyed8Mirror
+	if err8m := json.Unmarshal([]byte(doc8), &want8); err8m != nil {
+		t.Fatal(err8m)
+	}
+	if got8.A1 != want8.A1 || got8.A10 != want8.A10 || got8.B != want8.B || got8.C != want8.C || got8.D != want8.D || got8.E != want8.E || got8.G != want8.G || got8.H != want8.H {
+		t.Fatalf("8-key dispatch: got %+v, want %+v", *got8, want8)
+	}
+	if got8.A1 != 1 || got8.A10 != 10 {
+		t.Fatalf("prefix keys crossed: a1=%d a10=%d, want 1 and 10", got8.A1, got8.A10)
+	}
+	got9 := decodeOK[Keyed9](doc9)
+	var want9 keyed9Mirror
+	if err9m := json.Unmarshal([]byte(doc9), &want9); err9m != nil {
+		t.Fatal(err9m)
+	}
+	if got9.A1 != want9.A1 || got9.A10 != want9.A10 || got9.A11 != want9.A11 || got9.B != want9.B || got9.C != want9.C || got9.D != want9.D || got9.E != want9.E || got9.G != want9.G || got9.H != want9.H {
+		t.Fatalf("9-key dispatch: got %+v, want %+v", *got9, want9)
+	}
+	if got9.A1 != 1 || got9.A10 != 10 || got9.A11 != 11 {
+		t.Fatalf("table probe lost full-key validation: a1=%d a10=%d a11=%d, want 1, 10 and 11", got9.A1, got9.A10, got9.A11)
 	}
 }

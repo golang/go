@@ -1,0 +1,40 @@
+// run
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"sync/atomic"
+)
+
+var atomicConcurrentCell atomic.Int64
+
+func atomicAddThousand() {
+	for range 1000 {
+		atomicConcurrentCell.Add(1)
+	}
+}
+
+func hammerConcurrent(ctx context.Context) error {
+	go group (ctx) {
+		for range 8 {
+			go atomicAddThousand()
+		}
+	}
+	return nil
+}
+
+func main() {
+	ctx := context.Background()
+	if err := hammerConcurrent(ctx); err != nil {
+		fmt.Printf("FAIL concurrent-add-spawns-group: got %v want nil\n", err)
+		os.Exit(1)
+	}
+	fmt.Println("ok concurrent-add-spawns-group")
+	if got := atomicConcurrentCell.Load(); got != 8*1000 {
+		fmt.Printf("FAIL eight-goroutines-each-add-a-thousand: got %d want %d\n", got, 8*1000)
+		os.Exit(1)
+	}
+	fmt.Println("ok eight-goroutines-each-add-a-thousand")
+}

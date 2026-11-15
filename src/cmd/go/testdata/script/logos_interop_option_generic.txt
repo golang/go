@@ -1,0 +1,171 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+mkdir negmod/a
+cp pos/go.mod negmod/go.mod
+cp pos/a/a.lgo negmod/a/a.lgo
+
+cd negmod
+! logos build -o $WORK/bin/neg$GOEXE ./field
+stderr 'correctness::nil_deref_unproven'
+! logos build -o $WORK/bin/neg$GOEXE ./prop
+stderr 'correctness::nil_deref_unproven'
+! logos build -o $WORK/bin/neg$GOEXE ./result
+stderr 'correctness::nil_deref_unproven'
+cd ..
+
+cd pos
+logos run .
+stdout '^ok field-absent$'
+stdout '^ok field-pointer$'
+stdout '^ok field-int$'
+stdout '^ok assert-field$'
+stdout '^ok assert-property$'
+stdout '^ok prop-absent$'
+stdout '^ok prop-pointer$'
+stdout '^ok func-result$'
+stdout '^ok func-absent$'
+stdout '^ok func-param$'
+stdout '^ok func-nil$'
+! stdout 'FAIL'
+cp stdout ../native.txt
+logos eject -o out
+exists out/main.go
+cd out
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout ../../native.txt
+cd ../..
+
+-- pos/go.mod --
+module example.com/gen
+
+go 1.27
+
+-- pos/a/a.lgo --
+package a
+
+type Item struct{ N int }
+
+type Counter interface {
+	Cnt int?
+}
+
+type Box[T any] struct {
+	Opt *Item?
+	Cnt int?
+	V   T
+}
+
+type Held[T any] struct : Counter {
+	Cnt int?
+	V   T
+}
+
+type Prop[T any] interface {
+	Opt *Item?
+	V   T
+}
+
+type Impl[T any] struct : Prop[T] {
+	Opt *Item?
+	V   T
+}
+
+func Find[T any](v T, ok bool) *Item? {
+	if ok {
+		return &Item{N: 5}
+	}
+	return nil
+}
+
+func Keep[T any](v T, c int?) int? {
+	return c
+}
+
+-- pos/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/gen/a"
+)
+
+func report(name string, ok bool) {
+	if ok {
+		fmt.Println("ok", name)
+		return
+	}
+	fmt.Println("FAIL", name)
+}
+
+func main() {
+	b := &a.Box[int]{V: 1}
+	report("field-absent", b.Opt == nil && b.Cnt == nil)
+	b.Opt = &a.Item{N: 4}
+	b.Cnt = 3
+	report("field-pointer", (b.Opt?.N ?? -1) == 4)
+	report("field-int", (b.Cnt ?? 0) == 3)
+
+	h := &a.Held[int]{V: 1}
+	h.Cnt = 3
+	report("assert-field", (h.Cnt ?? 0) == 3)
+	var c a.Counter = h
+	c.Cnt = 5
+	report("assert-property", (c.Cnt ?? 0) == 5 && (h.Cnt ?? 0) == 5)
+
+	var p a.Prop[int] = &a.Impl[int]{V: 2}
+	report("prop-absent", p.Opt == nil)
+	item := &a.Item{N: 6}
+	p.Opt = item
+	report("prop-pointer", (p.Opt?.N ?? -1) == 6)
+
+	report("func-result", (a.Find(1, true)?.N ?? -1) == 5)
+	report("func-absent", a.Find(1, false) == nil)
+	report("func-param", (a.Keep[int](1, 7) ?? -1) == 7)
+	report("func-nil", a.Keep[int](1, nil) == nil)
+}
+
+-- negmod/field/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/gen/a"
+)
+
+func main() {
+	g := &a.Box[int]{}
+	fmt.Println(g.Opt.N)
+}
+
+-- negmod/prop/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/gen/a"
+)
+
+func main() {
+	var p a.Prop[int] = &a.Impl[int]{}
+	fmt.Println(p.Opt.N)
+}
+
+-- negmod/result/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/gen/a"
+)
+
+func main() {
+	fmt.Println(a.Find(1, true).N)
+}

@@ -5,6 +5,7 @@
 package noder
 
 import (
+	"internal/logosfile"
 	"internal/pkgbits"
 
 	"cmd/compile/internal/base"
@@ -13,40 +14,19 @@ import (
 	"cmd/compile/internal/types2"
 )
 
-// This file rejects a Go import of a loGo/s package whose export
-// declares a dual-use union (M2-S7). A union used both as a type
-// constraint and as a value type has no Go form, so the import fails
-// with the eject diagnostic prefixed once by the command. Native
-// loGo/s importers keep the full union and never run this check.
-
-// logosExportHasLogosFile reports whether the export data pr describes
-// a package compiled from loGo/s sources: any position base naming
-// one. Position bases decode standalone through TempDecoder, so this
-// resolves nothing. Plain-Go archives never carry such bases (a .lgo
-// file cannot compile as Go), which keeps the union-import check off
-// every foreign lazy scope: resolving those tripped importer asserts.
 func logosExportHasLogosFile(pr *pkgbits.PkgDecoder) bool {
 	n := pr.NumElems(pkgbits.SectionPosBase)
 	for i := range n {
 		r := pr.TempDecoder(pkgbits.SectionPosBase, pkgbits.RelElemIdx(i), pkgbits.SyncPosBase)
 		name := r.String()
 		pr.RetireDecoder(&r)
-		if isLogosFile(name) {
+		if logosfile.Is(name) {
 			return true
 		}
 	}
 	return false
 }
 
-// checkLogosGoImport fails when pkg, imported by a Go package, exports
-// a union that is also used in a value position of its own API. The
-// export carries no explicit union-use marks, but the combination is
-// still exact: value-only unions export methods-only (no terms), and
-// constraint-only unions never appear in value positions of valid
-// code, so terms plus a value mention means dual use. Anonymous unions
-// in signatures and uses visible only through skipped generic
-// declarations miss this check and fail later with the upstream
-// diagnostic instead.
 func checkLogosGoImport(pkg *types2.Package) {
 	scope := pkg.Scope()
 	if scope == nil {
@@ -91,10 +71,6 @@ func checkLogosGoImport(pkg *types2.Package) {
 	}
 }
 
-// unionMentionWalker finds value-position mentions of candidate unions
-// in an imported package's API. Interface embeddings and union terms
-// are constraint-transitive and skipped; everything else (parameters,
-// results, fields, variables, method signatures) is a value position.
 type unionMentionWalker struct {
 	cands map[*types2.TypeName]bool
 	seen  map[types2.Type]bool
@@ -128,10 +104,8 @@ func (v *unionMentionWalker) value(t types2.Type) {
 	case *types2.Basic:
 		return
 	case *types2.TypeParam:
-		// Bounds are constraint positions.
 		return
 	case *types2.Union:
-		// Terms are constraint positions.
 		return
 	case *types2.Alias:
 		v.value(types2.Unalias(t))
@@ -172,21 +146,8 @@ func (v *unionMentionWalker) value(t types2.Type) {
 	}
 }
 
-// logosUnions classifies the declared unions of a loGo/s package for
-// the Go-facing export. It is keyed by writer because pkgWriter is an
-// upstream type that takes hook lines only. A missing entry behaves
-// like a nil map: every lookup misses, so plain Go packages encode
-// exactly as before.
 var logosUnions = make(map[*pkgWriter]map[*types2.TypeName]logos.UnionUse)
 
-// logosUnderlying writes the underlying type of a named type, dropping
-// union terms for a value-used loGo/s union so Go importers see the
-// same methods-only interface logos eject writes. The synthesized
-// interface routes through typ like every other type, so interning and
-// the decoder stay consistent. Every other type, including dual-use
-// unions (which keep the full union for .lgo importers; Go importers
-// fail at the import) and constraint-only unions, encodes exactly as
-// before.
 func (w *writer) logosUnderlying(obj *types2.TypeName, under types2.Type) {
 	iface, ok := under.(*types2.Interface)
 	if !ok || logosUnions[w.p][obj] != logos.UnionValueOnly {
@@ -206,13 +167,6 @@ func (w *writer) logosUnderlying(obj *types2.TypeName, under types2.Type) {
 	w.typ(types2.NewInterfaceType(methods, kept))
 }
 
-// logosClassifyUnionUses classifies the declared unions of the package
-// once, before either export root encodes anything. The public root
-// writes object definitions before pkgInit runs, so classifying in
-// pkgInit would leave the public root on the pre-M2-S7 rules while the
-// private root used the new ones. A plain Go package is never
-// classified: its interfaces with type terms are constraints even when
-// the package never names them, and the export keeps them whole.
 func (pw *pkgWriter) logosClassifyUnionUses(info *types2.Info, noders []*noder) {
 	if !base.Logos {
 		return
@@ -226,10 +180,6 @@ func (pw *pkgWriter) logosClassifyUnionUses(info *types2.Info, noders []*noder) 
 	logosUnions[pw] = logos.ClassifyDeclaredUnions(info, files)
 }
 
-// logosSkipUnionDecl reports whether the export writer skips the type
-// declaration for name, an interface with an empty method set. A
-// value-used loGo/s union keeps its declaration: Go importers read the
-// methods-only interface the object encoding writes.
 func logosSkipUnionDecl(p *pkgWriter, name *types2.TypeName) bool {
 	return !logos.KeepUnionDecl(logosUnions[p], name)
 }

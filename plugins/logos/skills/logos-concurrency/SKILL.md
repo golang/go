@@ -18,7 +18,7 @@ loGo/s provides structured concurrency through goroutine groups and panic-safe s
 2. Structure goroutines with `go group`: define child tasks inside `go group (ctx, limit = N) { ... }` blocks.
 3. Propagate errors: use `?` on fallible calls inside child tasks or invoke an error-last child call to yield errors to the group (direct `return` inside a child is rejected with `correctness::return_in_group_child`). Ensure the function enclosing the `go group` returns an `error`.
 4. Guard shared state: wrap mutable state with `logos/sync.Locked[T]` for mutex protection or `logos/sync.Hot[T]` for atomic read-mostly pointers.
-5. Verify with race detector: run `logos test -race ./...` to confirm absence of data races. Fix any diagnostics reported by `logos build` or `logos lint`.
+5. Verify with race detector: run `logos test -race ./...` to detect exercised races; `-race` reports only exercised races and gives no universal data-race freedom. Fix any diagnostics reported by `logos build` or `logos lint`.
 
 ## Group syntax
 
@@ -26,8 +26,8 @@ Each row contrasts the loGo/s form with the plain Go pattern it replaces.
 
 | loGo/s | Plain Go |
 |---|---|
-| `go group (ctx, limit = N) { go { work()? } }` | `g, gctx := rt.NewGroup(ctx, N)` followed by `g.Go(func() error { return work() })` and `g.Wait()` |
-| `go group (ctx) { go { work()? } }` | `g, gctx := rt.NewGroup(ctx, 0)` followed by `g.Go(func() error { return work() })` and `g.Wait()` |
+| `go group (ctx, limit = N) { go { work()? } }` | `g, gctx := rt.NewGroup(ctx, N)` followed by `g.Go(func(ctx context.Context) error { return work() })` and `g.Wait()` |
+| `go group (ctx) { go { work()? } }` | `g, gctx := rt.NewGroup(ctx, 0)` followed by `g.Go(func(ctx context.Context) error { return work() })` and `g.Wait()` |
 
 ## Group semantics
 
@@ -36,7 +36,7 @@ The compiler lowers `go group` blocks to `logos/rt.Group`. The following invaria
 - Cancellation: the group context cancels upon the first child error or panic.
 - Joining: the group statement joins all child goroutines before proceeding. The enclosing function propagates any group error like `?`.
 - Concurrency limit: when `limit = N` is specified, an internal semaphore bounds concurrent execution to at most N child goroutines.
-- Child block contract: each child block has type `func() error`. Using `?` inside a child returns the error directly to the group.
+- Child block contract: using `?` inside a child returns the error directly to the group.
 - Disallowed return: a bare `return` inside a child block is rejected with `correctness::return_in_group_child`.
 - Channel operations: direct channel send, receive, and range operations inside a child block automatically select on context cancellation.
 - Netpoll integration: children blocked on netpoll-backed network I/O wake within 100 ms of group cancellation with a timeout error.

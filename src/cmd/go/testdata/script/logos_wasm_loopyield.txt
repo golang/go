@@ -1,0 +1,62 @@
+# logos wasm back-edge stride keeps a call-free loop from starving
+# peers: a lost yield must fail the step instead of hanging the suite,
+# so the run goes through timeout and only the fixed markers assert
+# the schedule.
+[!exec:node] skip 'node not in PATH'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOOS=wasip1
+env GOARCH=wasm
+
+logos build -o $WORK/exe.wasm .
+exec timeout 60 node run.mjs $WORK/exe.wasm
+stdout '^peer-ran$'
+stdout '^done$'
+
+-- go.mod --
+module example.com/loopyield
+
+go 1.27
+
+-- main.go --
+package main
+
+import (
+	"fmt"
+	"runtime"
+)
+
+var done bool
+
+//go:noinline
+func spin(c chan int) {
+	acc := 0
+	for i := 0; !done; i++ {
+		if acc == -1 {
+			done = true
+		}
+		acc = acc*3 + i
+	}
+	c <- acc
+}
+
+func main() {
+	c := make(chan int, 1)
+	go spin(c)
+	runtime.Gosched()
+	done = true
+	fmt.Println("peer-ran")
+	v := <-c
+	fmt.Println(v & 1023)
+	fmt.Println("done")
+}
+
+-- run.mjs --
+import { readFileSync } from 'node:fs';
+import { WASI } from 'node:wasi';
+
+const wasi = new WASI({ version: 'preview1', args: [], env: {}, returnOnExit: true });
+const mod = await WebAssembly.compile(readFileSync(process.argv[2]));
+const inst = await WebAssembly.instantiate(mod, wasi.getImportObject());
+process.exitCode = wasi.start(inst);

@@ -6,8 +6,6 @@ package p
 
 import "comptime"
 
-// Valid POD structs pass: no padding, no bool, no references.
-
 type Header struct {
 	Tag [3]byte
 	N   uint32
@@ -36,14 +34,10 @@ func viewOK(b []byte) {
 	_ = c
 }
 
-// A const byte view passes directly.
-
 func viewConst(b const []byte) {
 	h := comptime.ViewAs[Aligned](b)
 	_ = h
 }
-
-// A bool field fails, naming its offset.
 
 type WithBool struct {
 	A uint32
@@ -55,8 +49,6 @@ func viewBool(b []byte) {
 	_ = comptime.ViewAs[WithBool /* ERROR "[comptime::viewas_not_pod] WithBool has bool field at offset 4" */](b)
 }
 
-// A pointer field fails, naming its offset.
-
 type WithPtr struct {
 	P *uint32
 	A uint64
@@ -65,8 +57,6 @@ type WithPtr struct {
 func viewPtr(b []byte) {
 	_ = comptime.ViewAs[WithPtr /* ERROR "[comptime::viewas_not_pod] WithPtr has pointer field at offset 0" */](b)
 }
-
-// Slice, map, string, and interface fields fail, naming each offset.
 
 type WithSlice struct {
 	A uint64
@@ -104,8 +94,6 @@ func viewIface(b []byte) {
 	_ = comptime.ViewAs[WithIface /* ERROR "[comptime::viewas_not_pod] WithIface has interface field at offset 8" */](b)
 }
 
-// Padding nested inside a field fails at the absolute offset.
-
 type Inner struct {
 	A byte
 	B uint32
@@ -120,8 +108,6 @@ func viewNested(b []byte) {
 	_ = comptime.ViewAs[Outer /* ERROR "[comptime::viewas_not_pod] Outer has padding at offset 1" */](b)
 }
 
-// Trailing size padding fails at the end of the last field.
-
 type Trailing struct {
 	A uint32
 	B uint16
@@ -131,13 +117,9 @@ func viewTrailing(b []byte) {
 	_ = comptime.ViewAs[Trailing /* ERROR "[comptime::viewas_not_pod] Trailing has padding at offset 6" */](b)
 }
 
-// A non-struct type argument fails.
-
 func viewInt(b []byte) {
-	_ = comptime.ViewAs[int /* ERROR "[comptime::viewas_not_pod] int is not a struct" */](b)
+	_ = comptime.ViewAs[int /* ERROR "[comptime::viewas_not_pod] int is not a struct at offset 0" */](b)
 }
-
-// A bare instantiation without a call validates too.
 
 func viewValue(b []byte) {
 	f := comptime.ViewAs[Header /* ERROR "[comptime::viewas_not_pod] Header has padding at offset 3" */]

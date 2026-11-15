@@ -1,0 +1,227 @@
+// run
+
+package jsonunsup
+
+import (
+	"bytes"
+	"encoding/json"
+	"testing"
+)
+
+type WithAny struct {
+	A any    `json:"a"`
+	B string `json:"b"`
+}
+
+type WithIntKeyMap struct {
+	M map[int]string `json:"m"`
+}
+
+type Base struct {
+	X int64 `json:"x"`
+}
+
+type WithEmbedded struct {
+	Base
+	Y string `json:"y"`
+}
+
+type NoBinaryBase struct {
+	M map[int]string `json:"m"`
+}
+
+type WithBadEmbedded struct {
+	NoBinaryBase
+	Y string `json:"y"`
+}
+
+type Shape interface {
+	Area() int64
+}
+
+type Square struct {
+	S int64 `json:"s"`
+}
+
+func (s Square) Area() int64 {
+	return s.S * s.S
+}
+
+type WithShape struct {
+	Item Shape `json:"item"`
+	N    int64 `json:"n"`
+}
+
+type shapeMirror struct {
+	Item  Shape `json:"item"`
+	N     int64 `json:"n"`
+	NoGen any   `json:"-"`
+}
+
+
+func hasGeneratedMethods(v any) bool {
+	if _, ok := v.(json.Marshaler); ok {
+		return true
+	}
+	if _, ok := v.(json.Unmarshaler); ok {
+		return true
+	}
+	return false
+}
+
+func hasGeneratedBinaryMethods(v any) bool {
+	if _, ok := v.(interface{ MarshalBinary() ([]byte, error) }); ok {
+		return true
+	}
+	if _, ok := v.(interface{ AppendBinary([]byte) ([]byte, error) }); ok {
+		return true
+	}
+	if _, ok := v.(interface{ UnmarshalBinary([]byte) error }); ok {
+		return true
+	}
+	return false
+}
+
+func TestAnyFieldUsesTheReflectivePath(t *testing.T) {
+	av := WithAny{A: 7, B: "b"}
+	if hasGeneratedMethods(av) || hasGeneratedMethods(&av) {
+		t.Fatalf("WithAny carries generated methods: %#v", av)
+	}
+	got, err := json.Marshal(av)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != `{"a":7,"b":"b"}` {
+		t.Fatalf("WithAny marshaled as %s", got)
+	}
+	var back WithAny
+	if err := json.Unmarshal(got, &back); err != nil {
+		t.Fatal(err)
+	}
+	num, ok := back.A.(float64)
+	if !ok || num != 7 || back.B != "b" {
+		t.Fatalf("round trip lost the value: %#v", back)
+	}
+}
+
+func TestIntKeyMapUsesTheReflectivePath(t *testing.T) {
+	mv := WithIntKeyMap{M: map[int]string{1: "x"}}
+	if hasGeneratedMethods(mv) || hasGeneratedMethods(&mv) {
+		t.Fatalf("WithIntKeyMap carries generated methods: %#v", mv)
+	}
+	mout, merr := json.Marshal(mv)
+	if merr != nil {
+		t.Fatalf("encoding/json rejects map[int]string: %v", merr)
+	}
+	var mback WithIntKeyMap
+	if err := json.Unmarshal(mout, &mback); err != nil {
+		t.Fatal(err)
+	}
+	if len(mback.M) != 1 || (mback.M[1] ?? "") != "x" {
+		t.Fatalf("reflective map round trip lost the value: %s %#v", mout, mback)
+	}
+}
+
+type embeddedMirror struct {
+	Base
+	Y     string `json:"y"`
+	NoGen any    `json:"-"`
+}
+
+func TestEmbeddedUsesTheReflectivePath(t *testing.T) {
+	if !hasGeneratedMethods(Base{X: 3}) {
+		t.Fatal("eligible Base lost its generated methods")
+	}
+	ev := WithEmbedded{Base: Base{X: 3}, Y: "y"}
+	got, err := json.Marshal(ev)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, werr := json.Marshal(embeddedMirror{Base: Base{X: 3}, Y: "y"})
+	if werr != nil {
+		t.Fatal(werr)
+	}
+	if !bytes.Equal(got, want) {
+		t.Fatalf("WithEmbedded marshaled as %s, want the promoted reflective bytes %s", got, want)
+	}
+	var eback WithEmbedded
+	if err := json.Unmarshal(got, &eback); err != nil {
+		t.Fatal(err)
+	}
+	if eback.X != 3 {
+		t.Fatalf("round trip lost the promoted field: %#v", eback)
+	}
+}
+
+func TestNamedInterfaceUsesTheReflectivePath(t *testing.T) {
+	sv := WithShape{Item: Square{S: 3}, N: 1}
+	if hasGeneratedMethods(sv) || hasGeneratedMethods(&sv) {
+		t.Fatalf("WithShape carries generated methods: %#v", sv)
+	}
+	got, err := json.Marshal(sv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, werr := json.Marshal(shapeMirror{Item: Square{S: 3}, N: 1})
+	if werr != nil {
+		t.Fatal(werr)
+	}
+	if !bytes.Equal(got, want) || string(got) != `{"item":{"s":3},"n":1}` {
+		t.Fatalf("WithShape marshaled as %s, want %s", got, want)
+	}
+	for _, in := range []string{`{"item":null,"n":2}`, `{"item":{"s":3},"n":2}`} {
+		var a WithShape
+		var b shapeMirror
+		aerr := json.Unmarshal([]byte(in), &a)
+		berr := json.Unmarshal([]byte(in), &b)
+		if (aerr == nil) != (berr == nil) || a.N != b.N || (a.Item == nil) != (b.Item == nil) {
+			t.Fatalf("decode of %s differs from the reflective oracle: %#v %v vs %#v %v", in, a, aerr, b, berr)
+		}
+	}
+}
+
+type SeparatorTagged struct {
+	Odd  string `json:"a\u2028b"`
+	Even string `json:"c\u2029d"`
+}
+
+func TestInvalidTagNameUsesTheReflectivePath(t *testing.T) {
+	v := SeparatorTagged{Odd: "x", Even: "y"}
+	if hasGeneratedMethods(v) || hasGeneratedMethods(&v) {
+		t.Fatalf("SeparatorTagged carries generated methods: %#v", v)
+	}
+	got, err := json.Marshal(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, werr := json.Marshal(map[string]string{"a\u2028b": "x", "c\u2029d": "y"})
+	if werr != nil {
+		t.Fatal(werr)
+	}
+	if !bytes.Equal(got, want) {
+		t.Fatalf("SeparatorTagged marshaled as %s, want the reflective bytes %s", got, want)
+	}
+	var back SeparatorTagged
+	if err := json.Unmarshal(got, &back); err != nil {
+		t.Fatal(err)
+	}
+	if back != v {
+		t.Fatalf("round trip changed %+v into %+v", v, back)
+	}
+}
+
+func TestIneligibleStructsLackBinaryMethods(t *testing.T) {
+	if !hasGeneratedBinaryMethods(Base{X: 3}) {
+		t.Fatal("eligible Base lost its generated binary methods")
+	}
+	if hasGeneratedBinaryMethods(WithAny{A: 7, B: "b"}) || hasGeneratedBinaryMethods(&WithAny{A: 7}) {
+		t.Fatal("WithAny carries generated binary methods")
+	}
+	if hasGeneratedBinaryMethods(WithIntKeyMap{M: map[int]string{1: "x"}}) || hasGeneratedBinaryMethods(&WithIntKeyMap{}) {
+		t.Fatal("WithIntKeyMap carries generated binary methods")
+	}
+	be := WithBadEmbedded{Y: "y"}
+	if hasGeneratedBinaryMethods(be) || hasGeneratedBinaryMethods(&be) {
+		t.Fatal("WithBadEmbedded carries generated binary methods")
+	}
+}

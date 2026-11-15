@@ -1,0 +1,89 @@
+# Bare returns must check the actual result bindings, including containment.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+! logos lint --json-diagnostics ./direct
+stderr '"rule_id":"correctness::region_escape"'
+! logos lint --json-diagnostics ./holder
+stderr '"rule_id":"correctness::region_escape"'
+! logos lint --json-diagnostics ./nested
+stderr '"rule_id":"correctness::region_escape"'
+logos run ./safe
+stdout '^ok named-result-region-controls$'
+
+-- go.mod --
+module example.com/regionnamed
+
+go 1.27
+
+-- direct/direct.lgo --
+package direct
+
+import "logos/arena"
+
+func Leak() (out arena.Region) {
+	r := arena.Open()
+	out = r
+	return
+}
+
+-- holder/holder.lgo --
+package holder
+
+import "logos/arena"
+
+type box struct { r arena.Region }
+
+func Leak() (out *box) {
+	r := arena.Open()
+	out = &box{r: r}
+	return
+}
+
+-- nested/nested.lgo --
+package nested
+
+import "logos/arena"
+
+type box struct { r arena.Region }
+type wrapper struct { b *box }
+
+func Leak() (out *wrapper) {
+	r := arena.Open()
+	b := &box{r: r}
+	out = &wrapper{b: b}
+	return
+}
+
+-- safe/main.lgo --
+package main
+
+import (
+	"fmt"
+	"logos/arena"
+)
+
+type box struct { n int }
+
+func named() (out *box, n int) {
+	r := arena.Open()
+	s := arena.Make[int](r, 3)
+	s[2] = 7
+	out = &box{n: s[2]}
+	n = len(s)
+	return
+}
+
+func explicit() int {
+	r := arena.Open()
+	s := arena.Make[int](r, 2)
+	return len(s)
+}
+
+func main() {
+	b, n := named()
+	if b.n != 7 || n != 3 || explicit() != 2 {
+		panic("safe region result changed")
+	}
+	fmt.Println("ok named-result-region-controls")
+}

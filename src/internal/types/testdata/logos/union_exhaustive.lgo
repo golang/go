@@ -4,23 +4,22 @@
 
 package p
 
-// M2-S3 statement-switch exhaustiveness (SPEC Sec 2.3, T-203.1): a type
-// switch without default over the closed union U must cover every member
-// and nil; a default clause or full coverage satisfies; a sub-union case
-// covers its members; duplicate cases still fail via the upstream check.
-
 type A int
 type B string
+type C bool
 
 type U interface {
 	A | B
+}
+
+type V3 interface {
+	A | B | C
 }
 
 type Sub interface {
 	A
 }
 
-// Missing member B.
 func missMember(x U) {
 	switch /* ERRORx "nonexhaustive_switch.*misses: .*B" */ x.(type) {
 	case A:
@@ -28,7 +27,6 @@ func missMember(x U) {
 	}
 }
 
-// All members covered but nil missing.
 func missNil(x U) {
 	switch /* ERRORx "nonexhaustive_switch.*misses: nil" */ x.(type) {
 	case A:
@@ -36,7 +34,12 @@ func missNil(x U) {
 	}
 }
 
-// Default satisfies despite missing members and nil.
+func missTwo(x V3) {
+	switch /* ERRORx "nonexhaustive_switch.*misses: B, C, nil" */ x.(type) {
+	case A:
+	}
+}
+
 func withDefault(x U) {
 	switch x.(type) {
 	case A:
@@ -44,7 +47,6 @@ func withDefault(x U) {
 	}
 }
 
-// A sub-union case covers its members.
 func subUnion(x U) {
 	switch x.(type) {
 	case Sub:
@@ -53,7 +55,6 @@ func subUnion(x U) {
 	}
 }
 
-// Full coverage without default compiles.
 func exhaustive(x U) {
 	switch x.(type) {
 	case A:
@@ -62,7 +63,6 @@ func exhaustive(x U) {
 	}
 }
 
-// Duplicate cases still fail via the upstream check.
 func dupCase(x U) {
 	switch x.(type) {
 	case A:

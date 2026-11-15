@@ -1,14 +1,7 @@
-# M12-S2 net: direct syscall.Socket is a CapNet sink (PR3 PRRT_kwDOVOeymc6vVa8U).
-# An unallowlisted third-party package that calls syscall.Socket without
-# importing net or unsafe must fail under default transitive_net=deny.
-# RED: capabilitySinks lacks syscall.Socket, so the build succeeds and the
-# `!` expectation fails. No ambient network: the sink is linked, never run.
-
 env GOPROXY=off
 env GOTOOLCHAIN=local
 mkdir $WORK/bin
 
-# Case A: dep reaches syscall.Socket -> deny.
 cd neta/main
 ! logos build -o $WORK/bin/netsock$GOEXE ./cmd
 stderr 'ERROR \[capabilities::unauthorized_net\]: Transitive dependency ''example\.com/ndep'' reaches ''syscall\.Socket'''
@@ -16,18 +9,22 @@ stderr 'example\.com/ndep\.Init\(\)'
 stderr 'transitive_net_allowlist'
 cd ../..
 
-# Case B: dep imports syscall but never calls Socket (deadcode) -> passes.
 cd netb/main
 logos build -o $WORK/bin/netsockb$GOEXE ./cmd
 exec $WORK/bin/netsockb$GOEXE
 stdout '^dead-ok$'
 cd ../..
 
-# Case C: allowlisted dep reaches syscall.Socket -> passes and runs.
 cd netc/main
 logos build -o $WORK/bin/netsockc$GOEXE ./cmd
 exec $WORK/bin/netsockc$GOEXE
 stdout '^net-ok$'
+cd ../..
+
+cd netd/main
+! logos build -o $WORK/bin/netsockd$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_net\]: Transitive dependency ''example\.com/ndep'' reaches ''net\.sysSocket'''
+stderr 'example\.com/ndep\.Init\(\)'
 cd ../..
 
 -- neta/main/go.mod --
@@ -144,4 +141,42 @@ func Hello() string {
 		syscall.Close(fd)
 	}
 	return "net-ok"
+}
+
+-- netd/main/go.mod --
+module example.com/ndmain
+
+go 1.27
+
+require example.com/ndep v0.0.0
+
+replace example.com/ndep => ../ndep
+
+-- netd/main/logos.toml --
+[capabilities]
+transitive_net = "deny"
+
+-- netd/main/cmd/main.go --
+package main
+
+import "example.com/ndep"
+
+func main() { ndep.Init() }
+
+-- netd/ndep/go.mod --
+module example.com/ndep
+
+go 1.27
+
+-- netd/ndep/ndep.go --
+package ndep
+
+import "net"
+
+//go:noinline
+func Init() {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err == nil {
+		_ = ln.Close()
+	}
 }

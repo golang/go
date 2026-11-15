@@ -2,11 +2,21 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
-// M7-S1 const if in nested positions (SPEC Sec 2.5, T-205): a const if
-// prunes inside range and for bodies, switch and select clauses, function
-// literals, labeled statements, and the live branch of another const if.
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 func inRange(xs []int) string {
 	out := ""
@@ -106,14 +116,17 @@ func onlyStatement() string {
 }
 
 func main() {
-	fmt.Println(inRange([]int{1, 2}))
-	fmt.Println(inSwitch(1))
-	fmt.Println(inSwitch(2))
-	fmt.Println(inTypeSwitch(3))
-	fmt.Println(inTypeSwitch("s"))
-	fmt.Println(inSelect())
-	fmt.Println(inClosure())
-	fmt.Println(inLabel())
-	fmt.Println(nestedLive())
-	fmt.Println(onlyStatement())
+	check("range", inRange([]int{1, 2}) == "live1;live2;", inRange([]int{1, 2}), "live1;live2;")
+	check("switch-one", inSwitch(1) == "one", inSwitch(1), "one")
+	check("switch-default", inSwitch(2) == "default", inSwitch(2), "default")
+	check("typeswitch-int", inTypeSwitch(3) == "int", inTypeSwitch(3), "int")
+	check("typeswitch-other", inTypeSwitch("s") == "other", inTypeSwitch("s"), "other")
+	check("select", inSelect() == "recv", inSelect(), "recv")
+	check("closure", inClosure() == "closure", inClosure(), "closure")
+	check("label", inLabel() == "n=3", inLabel(), "n=3")
+	check("nested", nestedLive() == "nested", nestedLive(), "nested")
+	check("kept", onlyStatement() == "kept", onlyStatement(), "kept")
+	if failed {
+		os.Exit(1)
+	}
 }

@@ -4,9 +4,6 @@
 
 package p
 
-// M7-S1 const if (SPEC Sec 2.5, T-205): `const if` selects the live
-// branch at compile time, with else and else-const-if chains.
-
 func constIfPick() int {
 	const if 1 == 1 {
 		return 1

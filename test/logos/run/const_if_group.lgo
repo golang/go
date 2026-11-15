@@ -1,16 +1,25 @@
 // run
 
-// M7-S1 const if inside go group (SPEC Sec 2.5, T-205, Sec 2.6): the
-// live branch of a const if in a group body, and in a child block of a
-// group, survives with its children; the dead branch lowers to nothing.
 
 package main
 
 import (
 	"context"
 	"fmt"
+	"os"
 	"sync/atomic"
 )
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 const on = true
 
@@ -41,8 +50,12 @@ func fill(ctx context.Context) error {
 
 func main() {
 	if err := fill(context.Background()); err != nil {
-		fmt.Println("error:", err)
-		return
+		check("fill", false, err, nil)
+		os.Exit(1)
 	}
-	fmt.Println(total.Load())
+	got := total.Load()
+	check("total", got == 21, got, 21)
+	if failed {
+		os.Exit(1)
+	}
 }

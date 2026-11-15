@@ -1,6 +1,3 @@
-# M3-S7: cross-package option facts for .lgo importers (T-Sec6).
-# Package a exports option positions; package b sees them as options
-# (narrowing required) and sees plain pointers as non-nil.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 mkdir $WORK/bin
@@ -12,7 +9,6 @@ exec $WORK/bin/factsnil$GOEXE
 stdout '^facts ok: gadget$'
 cd ..
 
-# Direct use of an option without narrowing fails.
 cd neg
 ! logos build ./...
 stderr 'nil_deref_unproven'

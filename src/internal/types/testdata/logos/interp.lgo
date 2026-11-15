@@ -6,10 +6,6 @@ package p
 
 import "fmt"
 
-// M6-S1 types2 attacks: `$"..."` operand kinds (SPEC T-104.4).
-// Every allowed kind checks cleanly; each disallowed kind pins
-// [correctness::interp_type].
-
 type point struct{ X, Y int }
 
 type shout string
@@ -69,25 +65,25 @@ func badStructLit() string {
 }
 
 func badSlice(xs []int) string {
-	return $"xs={xs}" /* ERROR "cannot interpolate value of type []int" */
+	return $"xs={xs}" /* ERROR "[correctness::interp_type] cannot interpolate value of type []int" */
 }
 
 func badMap(m map[string]int) string {
-	return $"m={m}" /* ERROR "cannot interpolate value of type map[string]int" */
+	return $"m={m}" /* ERROR "[correctness::interp_type] cannot interpolate value of type map[string]int" */
 }
 
 func badNil() string {
-	return $"n={nil}" /* ERROR "cannot interpolate value of type untyped nil" */
+	return $"n={nil}" /* ERROR "[correctness::interp_type] cannot interpolate value of type untyped nil" */
 }
 
 func badComplex(c complex128) string {
-	return $"c={c}" /* ERROR "cannot interpolate value of type complex128" */
+	return $"c={c}" /* ERROR "[correctness::interp_type] cannot interpolate value of type complex128" */
 }
 
 func badPtr(p *int) string {
-	return $"p={p}" /* ERROR "cannot interpolate value of type *int" */
+	return $"p={p}" /* ERROR "[correctness::interp_type] cannot interpolate value of type *int" */
 }
 
 func badFunc(f func()) string {
-	return $"f={f}" /* ERROR "cannot interpolate value of type func()" */
+	return $"f={f}" /* ERROR "[correctness::interp_type] cannot interpolate value of type func()" */
 }

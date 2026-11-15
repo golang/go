@@ -1,0 +1,12 @@
+ok spread-in-group-body
+ok spread-in-group-call-child
+ok spread-in-group-block-child
+ok spread-in-errdefer-argument
+ok spread-in-errdefer-argument-skipped-on-success
+ok spread-in-yield-value
+ok spread-in-chain-expression-lambda
+ok spread-in-chain-block-lambda
+ok spread-from-chain-lambda-parameter
+ok spread-source-is-a-chain
+ok spread-in-plain-expression-lambda
+ok spread-in-plain-block-lambda

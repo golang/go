@@ -1,17 +1,25 @@
 // run
 
-// M7-S2 const for over concrete types (SPEC Sec 2.5, T-205): fields
-// visit in declaration order (#114); val.[f] reads and writes the named
-// field; f.Name and f.Tag.Get("json") fold to constants; unexported
-// fields of the current package are included (#65).
 
 package main
 
 import (
 	"comptime"
 	"fmt"
+	"os"
 	"strings"
 )
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 type Account struct {
 	Name    string `json:"name"`
@@ -70,12 +78,19 @@ func nameLenSum(a Account) int {
 }
 
 func main() {
-	fmt.Println(names())
-	fmt.Println(tags())
-	fmt.Println(indexes())
+	gotNames := names()
+	check("names", fmt.Sprint(gotNames) == "[Name balance Active]", gotNames, "[Name balance Active]")
+	gotTags := tags()
+	check("tags", fmt.Sprint(gotTags) == "[name  active]", gotTags, "[name  active]")
+	gotIndexes := indexes()
+	check("indexes", fmt.Sprint(gotIndexes) == "[0 2 4]", gotIndexes, "[0 2 4]")
 	src := Account{Name: "ann", Active: true}
-	dst := copyAccount(src)
-	fmt.Println(dst)
-	fmt.Println(nameLenSum(src))
-	fmt.Println(foreignNames())
+	gotCopy := copyAccount(src)
+	check("copy", gotCopy == src, gotCopy, src)
+	check("namelensum", nameLenSum(src) == 17, nameLenSum(src), 17)
+	gotForeign := foreignNames()
+	check("foreign", fmt.Sprint(gotForeign) == "[]", gotForeign, "[]")
+	if failed {
+		os.Exit(1)
+	}
 }

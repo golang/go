@@ -1,0 +1,16 @@
+ok c128-hit
+ok c128-negzero
+ok c128-nan
+ok c128-len
+ok c64-hit
+ok c64-negzero-miss
+ok c64-len
+ok t128-hit
+ok t128-negzero
+ok t128-nan
+ok t128-len
+ok t64-hit
+ok t64-len
+ok c128-order
+ok t128-order
+ok t64-order

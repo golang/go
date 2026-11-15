@@ -1,0 +1,43 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+cd w
+logos build -o $WORK/bin/tuples$GOEXE ./g
+exec $WORK/bin/tuples$GOEXE
+stdout '^7 true$'
+
+-- w/go.work --
+go 1.27
+
+use (
+	./l
+	./g
+)
+
+-- w/l/go.mod --
+module example.com/tuplel
+
+go 1.27
+
+-- w/l/pair/pair.lgo --
+package pair
+
+var V (id int, err error) = (7, nil)
+
+-- w/g/go.mod --
+module example.com/tupleg
+
+go 1.27
+
+-- w/g/main.go --
+package main
+
+import (
+	"fmt"
+	"example.com/tuplel/pair"
+)
+
+func main() {
+	fmt.Println(pair.V.T_id, pair.V.T_err == nil)
+}

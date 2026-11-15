@@ -1,14 +1,10 @@
 // run
-
-// M7-S3 field copies through f.Type (SPEC Sec 2.5, T-205, #130): MapTo
-// copies every field of the destination from the source by name; the
-// expansion compares the compile-time types per field.
-
 package main
 
 import (
 	"comptime"
 	"fmt"
+	"os"
 )
 
 type Dst struct {
@@ -22,6 +18,17 @@ type Src struct {
 	Extra bool
 }
 
+var failed bool
+
+func check(name, got, want string) {
+	if got != want {
+		fmt.Println("FAIL", name, "got", got, "want", want)
+		failed = true
+		return
+	}
+	fmt.Println("ok", name)
+}
+
 func MapTo[D, S any](dst *D, src *S) {
 	const for _, f := range comptime.Fields[D]() {
 		dst.[f] = src.[f]
@@ -31,5 +38,9 @@ func MapTo[D, S any](dst *D, src *S) {
 func main() {
 	var d Dst
 	MapTo[Dst, Src](&d, &Src{ID: 7, Name: "x", Extra: true})
-	fmt.Println(d.ID, d.Name)
+	check("mapto-copies-shared-fields", fmt.Sprintf("%d %s", d.ID, d.Name), "7 x")
+	check("mapto-matches-hand-struct", fmt.Sprint(d), fmt.Sprint(Dst{ID: 7, Name: "x"}))
+	if failed {
+		os.Exit(1)
+	}
 }

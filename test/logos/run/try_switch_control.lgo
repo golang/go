@@ -1,0 +1,225 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+	"slices"
+)
+
+var ev []string
+
+func rec(s string) { ev = append(ev, s) }
+
+var errBad = errors.New("bad")
+
+func load(tag string, v int) (int, error) {
+	rec("load:" + tag)
+	if tag == "bad" {
+		return 0, errBad
+	}
+	return v, nil
+}
+
+func forwardGoto(skip bool) (int, error) {
+	x := 0
+	if skip {
+		goto L
+	}
+	x = 5
+L:
+	y := switch n := load("s", 7)?; n { case 7 => 1; default => 2 }
+	return x + y, nil
+}
+
+func gotoOverAssign(jump bool) (int, error) {
+	x := 3
+	if jump {
+		goto done
+	}
+	x = switch n := load("s", 7)?; n { default => 9 }
+done:
+	return x, nil
+}
+
+func backwardGoto() (int, error) {
+	n := 0
+again:
+	y := switch k := load("s", n)?; k { default => k + 1 }
+	n = y
+	if n < 3 {
+		goto again
+	}
+	return n, nil
+}
+
+func labeledIf() (int, error) {
+	n := 0
+top:
+	if (switch k := load("s", n)?; k { case 2 => false; default => true }) {
+		n++
+		goto top
+	}
+	return n, nil
+}
+
+func continueOuter() (int, error) {
+	c := 0
+outer:
+	for i := 0; (switch k := load("c", i)?; k { case 2 => false; default => true }); i++ {
+		for j := 0; j < 2; j++ {
+			if j == 1 {
+				continue outer
+			}
+			rec("in")
+			c++
+		}
+	}
+	return c, nil
+}
+
+func breakOuter() (int, error) {
+	c := 0
+outer:
+	for i := 0; (switch k := load("c", i)?; k { default => k < 5 }); i++ {
+		for {
+			c++
+			if c == 2 {
+				break outer
+			}
+			break
+		}
+	}
+	return c, nil
+}
+
+func continueWithCond() (int, error) {
+	c := 0
+	for i := 0; (switch k := load("c", i)?; k { case 3 => false; default => true }); i++ {
+		if i == 1 {
+			continue
+		}
+		rec("body")
+		c++
+	}
+	return c, nil
+}
+
+func fallthroughHost() (int, error) {
+	switch (switch n := load("s", 7)?; n { case 7 => 1; default => 0 }) {
+	case 1:
+		rec("c1")
+		fallthrough
+	case 2:
+		rec("c2")
+	case 3:
+		rec("c3")
+	}
+	return 0, nil
+}
+
+func breakInHost() (int, error) {
+	switch (switch n := load("s", 7)?; n { case 7 => 1; default => 0 }) {
+	case 1:
+		rec("a")
+		break
+	}
+	rec("after")
+	return 0, nil
+}
+
+func fallthroughBody(tag string) (int, error) {
+	r := 0
+	switch v := 1; v {
+	case 1:
+		rec("c1")
+		x := switch n := load(tag, 7)?; n { default => n + 2 }
+		rec("x")
+		r = x
+		fallthrough
+	case 2:
+		rec("c2")
+	}
+	return r, nil
+}
+
+func fallthroughGuardChain() (int, error) {
+	xs := []int{1}
+	switch 1 {
+	case 1:
+		rec("c1")
+		fallthrough
+	case len(xs.map(x => load("guard", x)?)) + 1:
+		rec("c2")
+	case 3:
+		rec("c3")
+	}
+	return 0, nil
+}
+
+type cell struct {
+	name string
+	run  func() (string, error)
+	ev   []string
+	want string
+}
+
+func show[T any](f func() (T, error)) func() (string, error) {
+	return func() (string, error) {
+		r, err := f()
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprint(r), nil
+	}
+}
+
+func caught(f func() (int, error)) func() (string, error) {
+	return func() (string, error) {
+		r, err := f()
+		if err != nil {
+			return "err " + err.Error(), nil
+		}
+		return fmt.Sprint(r), nil
+	}
+}
+
+func main() {
+	cells := []cell{
+		{"goto-forward-skip", show(func() (int, error) { return forwardGoto(true) }), []string{"load:s"}, "1"},
+		{"goto-forward-run", show(func() (int, error) { return forwardGoto(false) }), []string{"load:s"}, "6"},
+		{"goto-over-assign-jump", show(func() (int, error) { return gotoOverAssign(true) }), nil, "3"},
+		{"goto-over-assign-run", show(func() (int, error) { return gotoOverAssign(false) }), []string{"load:s"}, "9"},
+		{"goto-backward", show(backwardGoto), []string{"load:s", "load:s", "load:s"}, "3"},
+		{"labeled-if", show(labeledIf), []string{"load:s", "load:s", "load:s"}, "2"},
+		{"continue-outer", show(continueOuter), []string{"load:c", "in", "load:c", "in", "load:c"}, "2"},
+		{"break-outer", show(breakOuter), []string{"load:c", "load:c"}, "2"},
+		{"continue-with-cond", show(continueWithCond), []string{"load:c", "body", "load:c", "load:c", "body", "load:c"}, "2"},
+		{"fallthrough-host", show(fallthroughHost), []string{"load:s", "c1", "c2"}, "0"},
+		{"break-in-host", show(breakInHost), []string{"load:s", "a", "after"}, "0"},
+		{"fallthrough-body", caught(func() (int, error) { return fallthroughBody("s") }), []string{"c1", "load:s", "x", "c2"}, "9"},
+		{"fallthrough-body-fail", caught(func() (int, error) { return fallthroughBody("bad") }), []string{"c1", "load:bad"}, "err bad"},
+		{"fallthrough-guard-chain", show(fallthroughGuardChain), []string{"c1", "c2"}, "0"},
+	}
+	failed := false
+	for _, c := range cells {
+		ev = nil
+		got, err := c.run()
+		if err != nil {
+			failed = true
+			fmt.Println("FAIL", c.name+":", err, ev)
+			continue
+		}
+		if got != c.want || !slices.Equal(ev, c.ev) {
+			failed = true
+			fmt.Println("FAIL", c.name+":", "got", got, ev, "want", c.want, c.ev)
+			continue
+		}
+		fmt.Println("ok", c.name)
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

@@ -1,0 +1,530 @@
+// run
+
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, got, want string) {
+	if got != want {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type D struct {
+	N int = 5
+}
+
+type Prop interface {
+	P int
+}
+
+type propBox struct : Prop {
+	P int
+}
+
+type State struct {
+	A int
+	B int
+}
+
+type pc struct {
+	id int
+}
+
+func maybeP(n int) *pc? {
+	if n == 7 {
+		return &pc{id: 7}
+	}
+	return nil
+}
+
+var last int
+
+func note(n int) { last = n }
+
+func apply(f func(int) int, n int) int { return f(n) }
+
+type cell struct {
+	name string
+	run  func() (string, string)
+}
+
+func stmtSdef() (string, string) {
+	got := D{}.N
+	return fmt.Sprint(got), fmt.Sprint(5)
+}
+
+func stmtInterp2() (string, string) {
+	n := 7
+	got := len($"{len($"a{n}")}")
+	tmp := len($"a{n}")
+	want := len($"{tmp}")
+	return fmt.Sprint(got), fmt.Sprint(want)
+}
+
+func chainFilterSdef() (string, string) {
+	xs := []int{1, 2, 3}
+	got := xs.filter(x => x > D{}.N).count()
+	tmp := D{}.N
+	want := xs.filter(x => x > tmp).count()
+	return fmt.Sprint(got), fmt.Sprint(want)
+}
+
+func chainBlockSdef() (string, string) {
+	xs := []int{1, 2, 3}
+	got := xs.map(x => {
+		y := x + D{}.N
+		return y
+	}).sum()
+	tmp := D{}.N
+	want := xs.map(x => {
+		y := x + tmp
+		return y
+	}).sum()
+	return fmt.Sprint(got), fmt.Sprint(want)
+}
+
+func chainArgSdef() (string, string) {
+	xs := []int{1, 2, 3}
+	got := xs.take(D{}.N % 3).count()
+	tmp := D{}.N
+	want := xs.take(tmp % 3).count()
+	return fmt.Sprint(got), fmt.Sprint(want)
+}
+
+func lambdaSdef() (string, string) {
+	got := apply(y => y + D{}.N, 1)
+	tmp := D{}.N
+	want := apply(y => y + tmp, 1)
+	return fmt.Sprint(got), fmt.Sprint(want)
+}
+
+func propWriteSdef() (string, string) {
+	var wb propBox
+	var w Prop = &wb
+	w.P = D{}.N
+	got := wb.P
+	tmp := D{}.N
+	w.P = tmp
+	return fmt.Sprint(got), fmt.Sprint(wb.P)
+}
+
+func propOpSdef() (string, string) {
+	var wb propBox
+	var w Prop = &wb
+	w.P = 4
+	w.P += D{}.N
+	got := wb.P
+	tmp := D{}.N
+	w.P = 4
+	w.P += tmp
+	return fmt.Sprint(got), fmt.Sprint(wb.P)
+}
+
+func deferSdef() (string, string) {
+	last = 0
+	func() {
+		defer note(D{}.N)
+	}()
+	got := last
+	last = 0
+	tmp := D{}.N
+	func() {
+		defer note(tmp)
+	}()
+	return fmt.Sprint(got), fmt.Sprint(last)
+}
+
+func errdeferHostSdef() (err error) {
+	errdefer note(D{}.N)
+	return errors.New("failed")
+}
+
+func errdeferHostRef(tmp int) (err error) {
+	errdefer note(tmp)
+	return errors.New("failed")
+}
+
+func errdeferSdef() (string, string) {
+	last = 0
+	if errdeferHostSdef() == nil {
+		return "no error", ""
+	}
+	got := last
+	last = 0
+	if errdeferHostRef(D{}.N) == nil {
+		return "no error", ""
+	}
+	return fmt.Sprint(got), fmt.Sprint(last)
+}
+
+func tupA(t (int, string)) int {
+	a, _ := t
+	return a
+}
+
+func stmtTup() (string, string) {
+	got := tupA((1, "s"))
+	return fmt.Sprint(got), fmt.Sprint(1)
+}
+
+func stmtInterp() (string, string) {
+	n := 7
+	got := len($"a{n}")
+	return fmt.Sprint(got), fmt.Sprint(2)
+}
+
+func stmtMklen() (string, string) {
+	v := 7
+	got := len(make([]int, v*2+2))
+	return fmt.Sprint(got), fmt.Sprint(16)
+}
+
+func chainFilterTup() (string, string) {
+	xs := []int{1, 2, 3}
+	got := xs.filter(x => x > tupA((1, "s"))).count()
+	tmp := tupA((1, "s"))
+	want := xs.filter(x => x > tmp).count()
+	return fmt.Sprint(got), fmt.Sprint(want)
+}
+
+func chainFilterInterp() (string, string) {
+	xs := []int{1, 2, 3}
+	n := 7
+	got := xs.filter(x => x > len($"a{n}")).count()
+	tmp := len($"a{n}")
+	want := xs.filter(x => x > tmp).count()
+	return fmt.Sprint(got), fmt.Sprint(want)
+}
+
+func chainFilterInterp2() (string, string) {
+	xs := []int{1, 2, 3}
+	n := 7
+	got := xs.filter(x => x > len($"{len($"a{n}")}")).count()
+	tmp := len($"{len($"a{n}")}")
+	want := xs.filter(x => x > tmp).count()
+	return fmt.Sprint(got), fmt.Sprint(want)
+}
+
+func chainFilterMklen() (string, string) {
+	xs := []int{1, 2, 3}
+	v := 7
+	got := xs.filter(x => x < len(make([]int, v*2+2))).count()
+	tmp := len(make([]int, v*2+2))
+	want := xs.filter(x => x < tmp).count()
+	return fmt.Sprint(got), fmt.Sprint(want)
+}
+
+func chainBlockTup() (string, string) {
+	xs := []int{1, 2, 3}
+	got := xs.map(x => {
+		y := x + tupA((1, "s"))
+		return y
+	}).sum()
+	tmp := tupA((1, "s"))
+	want := xs.map(x => {
+		y := x + tmp
+		return y
+	}).sum()
+	return fmt.Sprint(got), fmt.Sprint(want)
+}
+
+func chainBlockInterp() (string, string) {
+	xs := []int{1, 2, 3}
+	n := 7
+	got := xs.map(x => {
+		y := x + len($"a{n}")
+		return y
+	}).sum()
+	tmp := len($"a{n}")
+	want := xs.map(x => {
+		y := x + tmp
+		return y
+	}).sum()
+	return fmt.Sprint(got), fmt.Sprint(want)
+}
+
+func chainBlockInterp2() (string, string) {
+	xs := []int{1, 2, 3}
+	n := 7
+	got := xs.map(x => {
+		y := x + len($"{len($"a{n}")}")
+		return y
+	}).sum()
+	tmp := len($"{len($"a{n}")}")
+	want := xs.map(x => {
+		y := x + tmp
+		return y
+	}).sum()
+	return fmt.Sprint(got), fmt.Sprint(want)
+}
+
+func chainBlockMklen() (string, string) {
+	xs := []int{1, 2, 3}
+	v := 7
+	got := xs.map(x => {
+		y := x + len(make([]int, v*2+2))
+		return y
+	}).sum()
+	tmp := len(make([]int, v*2+2))
+	want := xs.map(x => {
+		y := x + tmp
+		return y
+	}).sum()
+	return fmt.Sprint(got), fmt.Sprint(want)
+}
+
+func chainArgTup() (string, string) {
+	xs := []int{1, 2, 3}
+	got := xs.take(tupA((2, "s"))).count()
+	tmp := tupA((2, "s"))
+	want := xs.take(tmp).count()
+	return fmt.Sprint(got), fmt.Sprint(want)
+}
+
+func chainArgInterp() (string, string) {
+	xs := []int{1, 2, 3}
+	n := 7
+	got := xs.take(len($"a{n}")).count()
+	tmp := len($"a{n}")
+	want := xs.take(tmp).count()
+	return fmt.Sprint(got), fmt.Sprint(want)
+}
+
+func chainArgInterp2() (string, string) {
+	xs := []int{1, 2, 3}
+	n := 7
+	got := xs.take(len($"{len($"a{n}")}")).count()
+	tmp := len($"{len($"a{n}")}")
+	want := xs.take(tmp).count()
+	return fmt.Sprint(got), fmt.Sprint(want)
+}
+
+func chainArgMklen() (string, string) {
+	xs := []int{1, 2, 3}
+	v := 1
+	got := xs.take(len(make([]int, v*2))).count()
+	tmp := len(make([]int, v*2))
+	want := xs.take(tmp).count()
+	return fmt.Sprint(got), fmt.Sprint(want)
+}
+
+func propWriteInterp() (string, string) {
+	n := 7
+	var wb propBox
+	var w Prop = &wb
+	w.P = len($"a{n}")
+	got := wb.P
+	tmp := len($"a{n}")
+	w.P = tmp
+	return fmt.Sprint(got), fmt.Sprint(wb.P)
+}
+
+func propWriteMklen() (string, string) {
+	v := 7
+	var wb propBox
+	var w Prop = &wb
+	w.P = len(make([]int, v*2+2))
+	got := wb.P
+	tmp := len(make([]int, v*2+2))
+	w.P = tmp
+	return fmt.Sprint(got), fmt.Sprint(wb.P)
+}
+
+func propWriteSw() (string, string) {
+	v := 7
+	var wb propBox
+	var w Prop = &wb
+	w.P = (switch v {
+	case 7 => 70
+	default => 1
+	})
+	got := wb.P
+	tmp := (switch v {
+	case 7 => 70
+	default => 1
+	})
+	w.P = tmp
+	return fmt.Sprint(got), fmt.Sprint(wb.P)
+}
+
+func propWriteOptsel() (string, string) {
+	v := 7
+	var wb propBox
+	var w Prop = &wb
+	w.P = (maybeP(v)?.id ?? 0)
+	got := wb.P
+	tmp := (maybeP(v)?.id ?? 0)
+	w.P = tmp
+	return fmt.Sprint(got), fmt.Sprint(wb.P)
+}
+
+func propWriteSpread() (string, string) {
+	v := 7
+	st := State{A: 1, B: 2}
+	var wb propBox
+	var w Prop = &wb
+	w.P = State{A: v, ..st}.A
+	got := wb.P
+	tmp := State{A: v, ..st}.A
+	w.P = tmp
+	return fmt.Sprint(got), fmt.Sprint(wb.P)
+}
+
+func propOpInterp() (string, string) {
+	n := 7
+	var wb propBox
+	var w Prop = &wb
+	w.P = 4
+	w.P += len($"a{n}")
+	got := wb.P
+	tmp := len($"a{n}")
+	w.P = 4
+	w.P += tmp
+	return fmt.Sprint(got), fmt.Sprint(wb.P)
+}
+
+func propOpMklen() (string, string) {
+	v := 7
+	var wb propBox
+	var w Prop = &wb
+	w.P = 4
+	w.P += len(make([]int, v*2+2))
+	got := wb.P
+	tmp := len(make([]int, v*2+2))
+	w.P = 4
+	w.P += tmp
+	return fmt.Sprint(got), fmt.Sprint(wb.P)
+}
+
+func propOpSw() (string, string) {
+	v := 7
+	var wb propBox
+	var w Prop = &wb
+	w.P = 4
+	w.P += (switch v {
+	case 7 => 70
+	default => 1
+	})
+	got := wb.P
+	tmp := (switch v {
+	case 7 => 70
+	default => 1
+	})
+	w.P = 4
+	w.P += tmp
+	return fmt.Sprint(got), fmt.Sprint(wb.P)
+}
+
+func propOpOptsel() (string, string) {
+	v := 7
+	var wb propBox
+	var w Prop = &wb
+	w.P = 4
+	w.P += (maybeP(v)?.id ?? 0)
+	got := wb.P
+	tmp := (maybeP(v)?.id ?? 0)
+	w.P = 4
+	w.P += tmp
+	return fmt.Sprint(got), fmt.Sprint(wb.P)
+}
+
+func propOpSpread() (string, string) {
+	v := 7
+	st := State{A: 1, B: 2}
+	var wb propBox
+	var w Prop = &wb
+	w.P = 4
+	w.P += State{A: v, ..st}.A
+	got := wb.P
+	tmp := State{A: v, ..st}.A
+	w.P = 4
+	w.P += tmp
+	return fmt.Sprint(got), fmt.Sprint(wb.P)
+}
+
+func lambdaMklen() (string, string) {
+	v := 7
+	got := apply(y => y + len(make([]int, v*2+2)), 1)
+	tmp := len(make([]int, v*2+2))
+	want := apply(y => y + tmp, 1)
+	return fmt.Sprint(got), fmt.Sprint(want)
+}
+
+func optionTupleDecl() (string, string) {
+	var got (int, int)? = (5, 6)
+	tmp := (5, 6)
+	var want (int, int)? = tmp
+	return fmt.Sprint(got), fmt.Sprint(want)
+}
+
+func optionTupleSlice() (string, string) {
+	got := []((int, int)?){(1, 2), nil}
+	tmp := (1, 2)
+	want := []((int, int)?){tmp, nil}
+	return fmt.Sprint(got), fmt.Sprint(want)
+}
+
+var cells = []cell{
+	{"stmt__sdef", stmtSdef},
+	{"stmt__interp2", stmtInterp2},
+	{"chainfilter__sdef", chainFilterSdef},
+	{"chainblock__sdef", chainBlockSdef},
+	{"chainarg__sdef", chainArgSdef},
+	{"lambda__sdef", lambdaSdef},
+	{"propwrite__sdef", propWriteSdef},
+	{"propop__sdef", propOpSdef},
+	{"defer__sdef", deferSdef},
+	{"errdefer__sdef", errdeferSdef},
+	{"stmt__tup", stmtTup},
+	{"stmt__interp", stmtInterp},
+	{"stmt__mklen", stmtMklen},
+	{"chainfilter__tup", chainFilterTup},
+	{"chainfilter__interp", chainFilterInterp},
+	{"chainfilter__interp2", chainFilterInterp2},
+	{"chainfilter__mklen", chainFilterMklen},
+	{"chainblock__tup", chainBlockTup},
+	{"chainblock__interp", chainBlockInterp},
+	{"chainblock__interp2", chainBlockInterp2},
+	{"chainblock__mklen", chainBlockMklen},
+	{"chainarg__tup", chainArgTup},
+	{"chainarg__interp", chainArgInterp},
+	{"chainarg__interp2", chainArgInterp2},
+	{"chainarg__mklen", chainArgMklen},
+	{"propwrite__interp", propWriteInterp},
+	{"propwrite__mklen", propWriteMklen},
+	{"propwrite__sw", propWriteSw},
+	{"propwrite__optsel", propWriteOptsel},
+	{"propwrite__spread", propWriteSpread},
+	{"propop__interp", propOpInterp},
+	{"propop__mklen", propOpMklen},
+	{"propop__sw", propOpSw},
+	{"propop__optsel", propOpOptsel},
+	{"propop__spread", propOpSpread},
+	{"lambda__mklen", lambdaMklen},
+	{"option__tuple_decl", optionTupleDecl},
+	{"option__tuple_slice", optionTupleSlice},
+}
+
+func main() {
+	for _, c := range cells {
+		got, want := c.run()
+		check(c.name, got, want)
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

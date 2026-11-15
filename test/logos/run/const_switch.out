@@ -1,9 +1,19 @@
-nums:123 <nil>
-words:ab <nil>
-exact-int
-tilde-int
-other
-exact
-tilde
-writer
-other
+ok encode-int
+ok encode-iface
+ok describe-int
+ok describe-named
+ok describe-other
+ok classify-int
+ok classify-named
+ok classify-writer
+ok classify-other
+ok exact-slice-shared
+ok exact-slice-other-type
+ok exact-pointer-shared
+ok exact-pointer-other-type
+ok describe-interface-argument
+ok exact-map-shared
+ok exact-map-other-type
+ok iface-case-runs-value-method
+ok iface-case-chosen-by-argument
+ok assign-only-rebound

@@ -6,14 +6,19 @@ package p
 
 import "comptime"
 
-// M7-S2 const for attacks (SPEC Sec 2.5, T-205): the range operand must
-// be a comptime.Fields call; val.[f] needs a struct value and the field
-// variable of an enclosing const for; comptime package calls outside
-// their compile-time positions report runtime_use.
-
 type CFWidget struct {
 	Name  string
 	Count int
+}
+
+type CFOther struct {
+	Name string
+}
+
+func cfOtherStructVal(v CFOther) {
+	const for _, f := range comptime.Fields[CFWidget]() {
+		_ = v./* ERROR "comptime::const_for_projection" */[f]
+	}
 }
 
 func cfNonStruct() {
@@ -24,6 +29,14 @@ func cfNonStruct() {
 
 func cfNotFields(n int) {
 	const for _, f := range n /* ERROR "comptime::const_for_fields" */ {
+		_ = f
+	}
+}
+
+func cfOther() []int { return nil }
+
+func cfNotFieldsCall() {
+	const for _, f := range cfOther( /* ERROR "comptime::const_for_fields" */ ) {
 		_ = f
 	}
 }
@@ -49,6 +62,9 @@ func cfRuntimeFields() {
 func cfRuntimeIsStruct() bool {
 	return comptime /* ERROR "comptime::runtime_use" */ .IsStruct[CFWidget]()
 }
+func cfRuntimeTypeOf() {
+	_ = comptime /* ERROR "comptime::runtime_use" */ .TypeOf[int]()
+}
 
 func cfErrorLive() {
 	comptime.Error("live fire" /* ERROR "live fire" */)
@@ -63,4 +79,13 @@ func cfFieldTypeValue(v CFWidget) {
 		_ = f /* ERROR "comptime::runtime_use" */ .Type
 		_ = v.[f]
 	}
+}
+
+func cfOutsideLoop(v CFWidget) {
+	const for _, f := range comptime.Fields[CFWidget]() {
+		_ = v.[f]
+	}
+	_ = f/* ERROR "undefined: f" */.Name
+	_ = v.[f/* ERROR "comptime::const_for_projection" */]
+	_ = f/* ERROR "undefined: f" */.Tag.Get("json")
 }

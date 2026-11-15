@@ -1,45 +1,21 @@
-# REDTEAM #144 (SPEC Sec 3.2, T-302): stack slice passed to cgo invalidated.
-# A slice make with variable effective capacity that flows into a cgo
-# argument or an unsafe.Pointer conversion MUST NOT use the stack buffer
-# and MUST allocate its backing storage on the heap. Fixed-effective-capacity
-# makes MUST retain ordinary escape and size behavior, not a guarantee of
-# stack allocation. Effective capacity is the explicit capacity when present,
-# otherwise the length; it is fixed only when the compiler proves it constant
-# with ir.IsSmallIntConst after literal rewriting.
-#
-# This script pins the narrow rule from both sides without touching budgets:
-# dynamic-capacity makes flowing to unsafe.Pointer (builtin println sink, no
-# other heap edge) and to a real cgo call MUST escape to heap, while a
-# fixed-capacity make through the same unsafe sink and a dynamic make with
-# only local use MUST stay stack-eligible (no heap line). The println sink
-# is a builtin with no heap edge, so the unsafe cases isolate the foreign
-# flow; the cgo case proves the backing stays valid across the call.
-# Fixed 16 bytes fits the 32-byte default buffer and the 64KB implicit
-# limit, so a heap line there would mean the rule was widened beyond
-# variable capacity. Budgets (32/256/4096) are unchanged by this gate.
-
 [!cgo] skip
 env GOPROXY=off
 env GOTOOLCHAIN=local
 env CGO_ENABLED=1
 
-# Dynamic unsafe.Pointer case: variable effective capacity (param len, no
-# explicit cap) flowing to unsafe.Pointer must escape to heap.
 go build -gcflags=-m ./dyn
 stderr 'dyn\.go:.*make\(\[\]byte.*escapes to heap'
 
-# Fixed-capacity and local-use controls: no make escapes to heap
-# (stack-eligible, budgets preserved). The pattern names the make so the
-# incidental panic-string heap line cannot trip it.
 go build -gcflags=-m ./fix
 ! stderr 'make\(\[\]byte.*escapes to heap'
 
-# Dynamic cgo case: variable capacity through a real cgo call must escape
-# to heap, and the call must run correctly on the heap backing.
 go build -gcflags=-m -o $WORK/cgodyn$GOEXE ./cgodyn
 stderr 'cgodyn\.go:.*make\(\[\]byte.*escapes to heap'
 go run ./cgodyn
 stdout '^cgo ok$'
+go run -race ./cgodyn
+stdout '^cgo ok$'
+
 
 -- go.mod --
 module example.com/redteam144

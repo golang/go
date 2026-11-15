@@ -2,39 +2,62 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+	"strings"
+)
 
-// M22-S6 defect D9 (SPEC T-104.2 / Sec 20 RFC-206): `scope defer` inside a
-// lambda body is lowered like the same statement inside a `func` literal:
-// it runs at lambda block exit. `logos eject` output matches.
+var failed bool
+var order []string
+
+func log(s string) {
+	order = append(order, s)
+}
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 func call(g func(int)) { g(1) }
 
 func callv(g func(int) int) int { return g(1) }
 
-// A result-bearing outer function holding a lambda scope defer: the outer
-// flag fires spuriously but its scope pass is a no-op, and the lambda body
-// gets its own lowering.
 func outerv(n int) int {
 	call(x => {
-		scope defer fmt.Println("s")
-		fmt.Println(x + n)
+		scope defer log("s")
+		log(fmt.Sprint(x + n))
 	})
 	return n * 2
 }
 
 func main() {
 	call(x => {
-		scope defer fmt.Println("s")
-		fmt.Println(x)
+		scope defer log("s")
+		log(fmt.Sprint(x))
 	})
-	fmt.Println(callv(x => {
-		scope defer fmt.Println("t")
+	check("scope-defer-runs-after-body", fmt.Sprint(order) == "[1 s]", fmt.Sprint(order), "[1 s]")
+	gotv := callv(x => {
+		scope defer log("t")
 		return x + 1
-	}))
-	call(func(x int) {
-		scope defer fmt.Println("s")
-		fmt.Println(x)
 	})
-	fmt.Println(outerv(1))
+	log(fmt.Sprint(gotv))
+	check("scope-defer-runs-before-return-lands", fmt.Sprint(order) == "[1 s t 2]", fmt.Sprint(order), "[1 s t 2]")
+	check("scope-defer-keeps-return-value", gotv == 2, gotv, 2)
+	call(func(x int) {
+		scope defer log("s")
+		log(fmt.Sprint(x))
+	})
+	gotOuter := outerv(1)
+	log(fmt.Sprint(gotOuter))
+	check("scope-defer-orders-nested-lambda", strings.Join(order, " ") == "1 s t 2 1 s 2 s 2", strings.Join(order, " "), "1 s t 2 1 s 2 s 2")
+	check("scope-defer-keeps-outer-return", gotOuter == 2, gotOuter, 2)
+	if failed {
+		os.Exit(1)
+	}
 }

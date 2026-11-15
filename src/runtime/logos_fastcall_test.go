@@ -5,38 +5,100 @@
 package runtime_test
 
 import (
+	"internal/goexperiment"
+	"internal/testenv"
 	"runtime"
 	"testing"
 	"unsafe"
 )
 
-// TestCgoFastcallPinSlots checks the fast-call record: enter writes the
-// argument frame, the diagnostic stamp it is handed, and the flag; exit
-// clears all three. The value here is injected, so the test says nothing
-// about what a production trampoline stores, which is zero by the
-// no-clock rule in SPEC 3.4.
 func TestCgoFastcallPinSlots(t *testing.T) {
 	var probe int
 	arg := unsafe.Pointer(&probe)
-	slots, stamp, flag := runtime.LogosEnterFastCallForTest(arg, 12345)
+	slots, flag := runtime.LogosEnterFastCallForTest(arg)
 	if !flag {
 		t.Fatal("inFastCall not set by enter")
 	}
 	if want := [4]uintptr{uintptr(arg), 0, 0, 0}; slots != want {
 		t.Fatalf("slots = %v, want %v", slots, want)
 	}
-	if stamp != 12345 {
-		t.Fatalf("fastCallEnterNano = %d, want 12345", stamp)
-	}
 
-	slots, stamp, flag = runtime.LogosExitFastCallForTest()
+	slots, flag = runtime.LogosExitFastCallForTest()
 	if flag {
 		t.Fatal("inFastCall still set after exit")
 	}
 	if slots != [4]uintptr{} {
 		t.Fatalf("slots = %v after exit, want zeros", slots)
 	}
-	if stamp != 0 {
-		t.Fatalf("fastCallEnterNano = %d after exit, want 0", stamp)
+}
+func TestLogosFastCallRecordZeroesIdleSlots(t *testing.T) {
+	runtime.LogosDirtyFastCallSlotsForTest([4]uintptr{11, 22, 33, 44}, false)
+	var probe int
+	arg := unsafe.Pointer(&probe)
+	slots, _ := runtime.LogosEnterFastCallForTest(arg)
+	defer runtime.LogosExitFastCallForTest()
+	if want := [4]uintptr{uintptr(arg), 0, 0, 0}; slots != want {
+		t.Fatalf("slots = %v, want %v", slots, want)
+	}
+}
+
+func TestLogosFastCallClearsAllSlots(t *testing.T) {
+	runtime.LogosDirtyFastCallSlotsForTest([4]uintptr{11, 22, 33, 44}, true)
+	slots, flag := runtime.LogosExitFastCallForTest()
+	if flag {
+		t.Fatal("inFastCall still set after exit")
+	}
+	if slots != [4]uintptr{} {
+		t.Fatalf("slots = %v after exit, want zeros", slots)
+	}
+}
+
+func TestLogosFastCallPreservesCallerArgs(t *testing.T) {
+	v := 12345
+	arg := unsafe.Pointer(&v)
+	runtime.LogosEnterFastCallForTest(arg)
+	slots, _ := runtime.LogosFastCallStateForTest()
+	if slots[0] != uintptr(arg) {
+		runtime.LogosExitFastCallForTest()
+		t.Fatalf("slot0 = %x, want %x", slots[0], uintptr(arg))
+	}
+	if v != 12345 {
+		runtime.LogosExitFastCallForTest()
+		t.Fatalf("caller value = %d, want 12345", v)
+	}
+	slots, flag := runtime.LogosExitFastCallForTest()
+	if flag || slots != [4]uintptr{} {
+		t.Fatalf("after exit = %v %v, want zeros", slots, flag)
+	}
+	if v != 12345 {
+		t.Fatalf("caller value after exit = %d, want 12345", v)
+	}
+}
+
+func TestLogosFastCallStaysOnOriginalM(t *testing.T) {
+	var probe int
+	arg := unsafe.Pointer(&probe)
+	touched, recordOK, clearOK := runtime.LogosFastCallPassedMCheckForTest(arg)
+	if !recordOK {
+		t.Fatal("record did not set flag and slot on passed m")
+	}
+	if touched {
+		t.Fatal("record touched current m instead of passed m")
+	}
+	if !clearOK {
+		t.Fatal("clear did not zero the passed m")
+	}
+}
+
+func TestLogosFastCgoFrameSlotsAreNotRoots(t *testing.T) {
+	testenv.MustHaveCGO(t)
+	t.Logf("logosfastcgo = %v", goexperiment.LogosFastCgo)
+	if !goexperiment.LogosFastCgo {
+		t.Skip("fast-call slot property is vacuous with GOEXPERIMENT=logosfastcgo off")
+	}
+	got := runTestProg(t, "testprogcgo", "LogosFastCgoSlotsNotRoots")
+	want := "OK\n"
+	if got != want {
+		t.Fatalf("expected %q, but got:\n%s", want, got)
 	}
 }

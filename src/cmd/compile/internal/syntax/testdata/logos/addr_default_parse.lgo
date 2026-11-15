@@ -2,10 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// M6-S2 `&expr` operands and M6-S3 field defaults parse in LogosMode.
-// Every form without an ERROR comment must parse cleanly; each ERROR
-// comment pins the exact syntax error text.
-
 package p
 
 type Point struct {

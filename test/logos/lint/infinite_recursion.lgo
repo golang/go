@@ -1,11 +1,8 @@
 // errorcheck
 
-// correctness::infinite_recursion (SPEC Sec 1.2, #157): a function whose
-// every path from entry calls itself with identical arguments before any
-// return. The rule is forbid in loGo/s and deny in Go (twin file
-// infinite_recursion_go.go).
-
 package p
+
+import "context"
 
 func selfDirect(n int) int { return selfDirect(n) } // ERROR "correctness::infinite_recursion"
 
@@ -99,8 +96,6 @@ func reassigned(n int) int {
 	return reassigned(n)
 }
 
-// Cases pinned by the M9-S2 callee-rule slice.
-
 func loop(n int) int { return loop(n) } // ERROR "infinite_recursion"
 
 func tick() { tick() } // ERROR "infinite_recursion"
@@ -135,4 +130,28 @@ func pong(n int) int { return ping(n) }
 func read(n int) int {
 	println(n)
 	return n
+}
+
+func rangeStage(ctx context.Context, xs []int) error {
+	for range xs.group(ctx, limit = 2).map(x => x) {
+	}
+	return rangeStage(ctx, xs)
+}
+
+func rangeStageUnordered(ctx context.Context, xs []int) error {
+	for range xs.group(ctx, limit = 2).unordered().map(x => x) {
+	}
+	return rangeStageUnordered(ctx, xs)
+}
+
+func valueStage(ctx context.Context, xs []int) error { // ERROR "correctness::infinite_recursion"
+	_, err := xs.group(ctx, limit = 2).map(x => x)
+	println(err == nil)
+	return valueStage(ctx, xs)
+}
+
+func rangePlainChain(ctx context.Context, xs []int) error { // ERROR "correctness::infinite_recursion"
+	for range xs.map(x => x) {
+	}
+	return rangePlainChain(ctx, xs)
 }

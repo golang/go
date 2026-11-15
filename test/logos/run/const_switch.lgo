@@ -6,13 +6,20 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"os"
 	"strconv"
 )
 
-// M7-S4 const switch (SPEC Sec 2.5, T-205): the PLAN Sec 7.2 example.
-// An exact case rebinds the Items through unsafe, an interface case
-// asserts on the value, and the same output comes back natively and
-// ejected (logos_eject_const_switch.txt, #37, #108).
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 func EncodeSlice[T any](buf []byte, items []T) ([]byte, error) {
 	const switch T {
@@ -22,7 +29,6 @@ func EncodeSlice[T any](buf []byte, items []T) ([]byte, error) {
 		}
 		return buf, nil
 	case io.WriterTo:
-		// Constraint intersection: T keeps concrete layout, gains WriteTo.
 		var b bytes.Buffer
 		for _, v := range items {
 			v.WriteTo(&b)?
@@ -66,16 +72,97 @@ func classify[T any](v T) string {
 	return "other"
 }
 
+func fill[T any](items []T) {
+	const switch T {
+	case int64:
+		for i := range items {
+			items[i] = 7
+		}
+	}
+}
+
+func store[T any](p *T) {
+	const switch T {
+	case int:
+		*p = 42
+	}
+}
+
+func mark[T any](m map[string]T) {
+	const switch T {
+	case int:
+		m["k"] = 5
+	}
+}
+
+func emit[T any](v T, s string) int {
+	const switch T {
+	case io.Writer:
+		n, err := v.Write([]byte(s))
+		if err != nil {
+			return -1
+		}
+		return n
+	}
+	return 0
+}
+
+func assignOnly[T any](x T) (out T) {
+	out = x
+	const switch T {
+	case int:
+		out = 100
+	}
+	return out
+}
+
 func main() {
 	b, err := EncodeSlice([]byte("nums:"), []int64{1, 2, 3})
-	fmt.Printf("%s %v\n", b, err)
+	if err != nil {
+		check("encode-int", false, err, nil)
+	} else {
+		check("encode-int", string(b) == "nums:123", string(b), "nums:123")
+	}
 	b, err = EncodeSlice([]byte("words:"), []Word{{"a"}, {"b"}})
-	fmt.Printf("%s %v\n", b, err)
-	fmt.Println(describe(3))
-	fmt.Println(describe(UserID(3)))
-	fmt.Println(describe("s"))
-	fmt.Println(classify(1))
-	fmt.Println(classify(UserID(1)))
-	fmt.Println(classify(&bytes.Buffer{}))
-	fmt.Println(classify("s"))
+	if err != nil {
+		check("encode-iface", false, err, nil)
+	} else {
+		check("encode-iface", string(b) == "words:ab", string(b), "words:ab")
+	}
+	check("describe-int", describe(3) == "exact-int", describe(3), "exact-int")
+	check("describe-named", describe(UserID(3)) == "tilde-int", describe(UserID(3)), "tilde-int")
+	check("describe-other", describe("s") == "other", describe("s"), "other")
+	check("classify-int", classify(1) == "exact", classify(1), "exact")
+	check("classify-named", classify(UserID(1)) == "tilde", classify(UserID(1)), "tilde")
+	check("classify-writer", classify(&bytes.Buffer{}) == "writer", classify(&bytes.Buffer{}), "writer")
+	check("classify-other", classify("s") == "other", classify("s"), "other")
+	ids := []int64{1, 2, 3}
+	fill(ids)
+	check("exact-slice-shared", fmt.Sprint(ids) == "[7 7 7]", ids, "[7 7 7]")
+	words := []string{"a", "b"}
+	fill(words)
+	check("exact-slice-other-type", fmt.Sprint(words) == "[a b]", words, "[a b]")
+	n := 0
+	store(&n)
+	check("exact-pointer-shared", n == 42, n, 42)
+	s := "x"
+	store(&s)
+	check("exact-pointer-other-type", s == "x", s, "x")
+	check("describe-interface-argument", describe[any](3) == "other", describe[any](3), "other")
+	m := map[string]int{}
+	mark(m)
+	got, ok := m["k"]
+	check("exact-map-shared", ok && got == 5, got, 5)
+	ms := map[string]string{}
+	mark(ms)
+	check("exact-map-other-type", len(ms) == 0, len(ms), 0)
+	buf := &bytes.Buffer{}
+	var rw io.ReadWriter = buf
+	check("iface-case-runs-value-method", emit(rw, "hey") == 3 && buf.String() == "hey", buf.String(), "hey")
+	check("iface-case-chosen-by-argument", emit[io.Reader](buf, "z") == 0 && buf.String() == "hey", buf.String(), "hey")
+	assignOnly(1)
+	check("assign-only-rebound", assignOnly("s") == "s", assignOnly("s"), "s")
+	if failed {
+		os.Exit(1)
+	}
 }

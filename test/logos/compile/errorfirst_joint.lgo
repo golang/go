@@ -1,0 +1,388 @@
+// errorcheck
+
+package p
+
+import "strconv"
+
+type efP struct {
+	X int
+}
+
+func efFetch() (int, error) {
+	return 1, nil
+}
+
+func efRec() (efP, error) {
+	return efP{X: 1}, nil
+}
+
+func efSlice() ([]int, error) {
+	return []int{1}, nil
+}
+
+func efUse(n int) {}
+
+func efTest(n int) bool {
+	return n > 0
+}
+
+func efPrintErrFirst() {
+	n, err := efFetch()
+	println(err, n) // ERROR "result_before_error_check"
+}
+
+func efPrintErrLast() {
+	n, err := efFetch()
+	println(n, err) // ERROR "result_before_error_check"
+}
+
+func efUseThenDiscard() {
+	n, err := efFetch()
+	efUse(n) // ERROR "result_before_error_check"
+	_ = err
+}
+
+func efBlankPair() {
+	n, err := efFetch()
+	_, _ = n, err
+}
+
+func efBlankOnly() {
+	n, err := efFetch()
+	_ = n
+	_ = err
+}
+
+func efReturnExpr() (int, error) {
+	n, err := efFetch()
+	return n + 1, err // ERROR "result_before_error_check"
+}
+
+func efReturnDropsErr() (int, error) {
+	n, err := efFetch()
+	_ = err
+	return n, nil // ERROR "result_before_error_check"
+}
+
+func efReturnForward() (int, error) {
+	n, err := efFetch()
+	return n, err
+}
+
+func efForwardCall() (int, error) {
+	return efFetch()
+}
+
+func efFieldRead() {
+	p, err := efRec()
+	println(p.X) // ERROR "result_before_error_check"
+	_ = err
+}
+
+func efIndexRead() {
+	s, err := efSlice()
+	println(s[0]) // ERROR "result_before_error_check"
+	_ = err
+}
+
+func efHeaderThenBody() {
+	n, err := efFetch()
+	if efTest(n) { // ERROR "result_before_error_check"
+		println(err)
+	}
+}
+
+func efLiteralBody() {
+	n, err := efFetch()
+	f := func() {
+		efUse(n) // ERROR "result_before_error_check"
+		_ = err
+	}
+	f()
+}
+
+func efCheckedFirst() {
+	n, err := efFetch()
+	if err != nil {
+		return
+	}
+	println(err, n)
+}
+
+func efCheckedPositive() {
+	n, err := efFetch()
+	if err == nil {
+		println(err, n)
+	}
+}
+
+func efGoCalleeKeepsContract() {
+	n, err := strconv.Atoi("7")
+	println(err, n)
+}
+
+func efChainTestFirst() bool {
+	n, err := efFetch()
+	return err == nil && n > 0
+}
+
+func efChainTestFirstFailure() bool {
+	n, err := efFetch()
+	return err != nil && n == 0 // ERROR "result_before_error_check"
+}
+
+func efChainOrFirst() bool {
+	n, err := efFetch()
+	return err != nil || n > 0
+}
+
+func efChainTestLast() bool {
+	n, err := efFetch()
+	return n > 0 && err == nil // ERROR "result_before_error_check"
+}
+
+func efChainOrLast() bool {
+	n, err := efFetch()
+	return n > 0 || err != nil // ERROR "result_before_error_check"
+}
+
+func efChainSentinel(sentinel error) bool {
+	n, err := efFetch()
+	return err == sentinel && n == 0 // ERROR "result_before_error_check"
+}
+
+func efCapturedReassigned() {
+	n, err := efFetch()
+	if err != nil {
+		return
+	}
+	f := func() {
+		efUse(n) // ERROR "result_before_error_check"
+	}
+	n, err = efFetch()
+	_ = err
+	f()
+}
+
+func efCapturedBeforeTracked() {
+	var n int
+	var err error
+	f := func() {
+		efUse(n) // ERROR "result_before_error_check"
+		_ = err
+	}
+	n, err = efFetch()
+	_ = err
+	f()
+}
+
+func efCapturedAlias() {
+	n, err := efFetch()
+	if err != nil {
+		return
+	}
+	alias := &n
+	f := func() {
+		efUse(n) // ERROR "result_before_error_check"
+	}
+	*alias = 2
+	f()
+}
+
+func efCapturedLoop() {
+	n, err := efFetch()
+	if err != nil {
+		return
+	}
+	f := func() {
+		efUse(n) // ERROR "result_before_error_check"
+	}
+	for range 2 {
+		n, err = efFetch()
+		_ = err
+		f()
+	}
+}
+
+type efAmount int
+
+func (n *efAmount) touch() { *n = 2 }
+func (n efAmount) value() int { return int(n) }
+
+func efLoadAmount() (efAmount, error) {
+	return 1, nil
+}
+
+func efCapturedImplicitAddress() {
+	n, err := efLoadAmount()
+	if err != nil {
+		return
+	}
+	later := func() {
+		println(n) // ERROR "result_before_error_check"
+	}
+	n.touch()
+	later()
+}
+
+func efCapturedImplicitMethodValue() {
+	n, err := efLoadAmount()
+	if err != nil {
+		return
+	}
+	later := func() {
+		println(n) // ERROR "result_before_error_check"
+	}
+	touch := n.touch
+	touch()
+	later()
+}
+
+type efAmountFields struct {
+	n efAmount
+}
+
+func efLoadAmountFields() (efAmountFields, error) {
+	return efAmountFields{}, nil
+}
+
+func efCapturedImplicitFieldAddress() {
+	n, err := efLoadAmountFields()
+	if err != nil {
+		return
+	}
+	later := func() {
+		println(n.n) // ERROR "result_before_error_check"
+	}
+	touch := n.n.touch
+	touch()
+	later()
+}
+
+func efLoadAmountArray() ([1]efAmount, error) {
+	return [1]efAmount{}, nil
+}
+
+func efCapturedImplicitArrayAddress() {
+	n, err := efLoadAmountArray()
+	if err != nil {
+		return
+	}
+	later := func() {
+		println(n[0]) // ERROR "result_before_error_check"
+	}
+	n[0].touch()
+	later()
+}
+
+type efEmbeddedAmount struct {
+	efAmount
+}
+
+func efLoadEmbeddedAmount() (efEmbeddedAmount, error) {
+	return efEmbeddedAmount{}, nil
+}
+
+func efCapturedPromotedImplicitAddress() {
+	n, err := efLoadEmbeddedAmount()
+	if err != nil {
+		return
+	}
+	later := func() {
+		println(n.efAmount) // ERROR "result_before_error_check"
+	}
+	n.touch()
+	later()
+}
+
+func efCapturedValueReceiver() {
+	n, err := efLoadAmount()
+	if err != nil {
+		return
+	}
+	later := func() { println(n) }
+	value := n.value
+	println(n.value(), value())
+	later()
+}
+
+func efLoadAmountPointer() (*efAmount, error) {
+	n := efAmount(1)
+	return &n, nil
+}
+
+func efCapturedPointerReceiver() {
+	n, err := efLoadAmountPointer()
+	if err != nil {
+		return
+	}
+	later := func() { println(*n) }
+	touch := n.touch
+	n.touch()
+	touch()
+	later()
+}
+
+type efNamedAmountArray [1]efAmount
+type efAmountArrayAlias = efNamedAmountArray
+
+func efLoadGenericAmount[T any]() (T, error) {
+	var n T
+	return n, nil
+}
+
+func efCapturedNamedArrayAliasAddress() {
+	n, err := efLoadGenericAmount[efAmountArrayAlias]()
+	if err != nil {
+		return
+	}
+	later := func() {
+		println(n[0]) // ERROR "result_before_error_check"
+	}
+	n[0].touch()
+	later()
+}
+
+func efCapturedGenericArrayAddress[T ~[1]efAmount]() {
+	n, err := efLoadGenericAmount[T]()
+	if err != nil {
+		return
+	}
+	later := func() {
+		println(n[0]) // ERROR "result_before_error_check"
+	}
+	n[0].touch()
+	later()
+}
+
+func efCapturedGenericArrayOrSliceAddress[T ~[1]efAmount | ~[]efAmount]() {
+	n, err := efLoadGenericAmount[T]()
+	if err != nil {
+		return
+	}
+	later := func() {
+		println(n[0]) // ERROR "result_before_error_check"
+	}
+	n[0].touch()
+	later()
+}
+
+func efCapturedGenericSliceAddress[T ~[]efAmount]() {
+	n, err := efLoadGenericAmount[T]()
+	if err != nil {
+		return
+	}
+	later := func() { println(n[0]) }
+	n[0].touch()
+	later()
+}
+
+func efCapturedArrayPointerAddress() {
+	n, err := efLoadGenericAmount[*[1]efAmount]()
+	if err != nil {
+		return
+	}
+	later := func() { println(n[0]) }
+	n[0].touch()
+	later()
+}

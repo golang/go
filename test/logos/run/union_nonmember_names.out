@@ -1,0 +1,12 @@
+ok named
+ok aliased-import
+ok generic
+ok generic-of-named
+ok generic-two
+ok pointer
+ok slice
+ok array
+ok map
+ok func
+ok predeclared
+ok any-to-union

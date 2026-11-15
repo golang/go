@@ -1,0 +1,83 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type item struct {
+	M map[string]int
+}
+
+const items = []item{
+	{M: map[string]int{"id": 0}}, {M: map[string]int{"id": 1}}, {M: map[string]int{"id": 2}}, {M: map[string]int{"id": 3}},
+	{M: map[string]int{"id": 4}}, {M: map[string]int{"id": 5}}, {M: map[string]int{"id": 6}}, {M: map[string]int{"id": 7}},
+	{M: map[string]int{"id": 8}}, {M: map[string]int{"id": 9}}, {M: map[string]int{"id": 10}},
+}
+
+type idx int
+
+const typedByte byte = 8
+
+const typedInt8 int8 = 8
+
+const typedUint64 uint64 = 10
+
+const typedNamed idx = 9
+
+func testLiterals() {
+	octal := items[010].M["id"] ?? -1
+	check("index-octal", octal == 8, octal, 8)
+	hex := items[0x8].M["id"] ?? -1
+	check("index-hex", hex == 8, hex, 8)
+	under := items[1_0].M["id"] ?? -1
+	check("index-underscore", under == 10, under, 10)
+	bin := items[0b1000].M["id"] ?? -1
+	check("index-binary", bin == 8, bin, 8)
+	check("index-octal-len", len(items[010].M) == 1, len(items[010].M), 1)
+	prefixed := items[0o10].M["id"] ?? -1
+	check("index-octal-prefix", prefixed == 8, prefixed, 8)
+	rn := items['\b'].M["id"] ?? -1
+	check("index-rune", rn == 8, rn, 8)
+	shift := items[1<<3].M["id"] ?? -1
+	check("index-shift", shift == 8, shift, 8)
+	paren := items[(8)].M["id"] ?? -1
+	check("index-parenthesized", paren == 8, paren, 8)
+	sum := items[4+4].M["id"] ?? -1
+	check("index-sum", sum == 8, sum, 8)
+	whole := items[8.0].M["id"] ?? -1
+	check("index-whole-float", whole == 8, whole, 8)
+}
+
+func testTyped() {
+	b := items[typedByte].M["id"] ?? -1
+	check("index-typed-byte", b == 8, b, 8)
+	i8 := items[typedInt8].M["id"] ?? -1
+	check("index-typed-int8", i8 == 8, i8, 8)
+	u64 := items[typedUint64].M["id"] ?? -1
+	check("index-typed-uint64", u64 == 10, u64, 10)
+	named := items[typedNamed].M["id"] ?? -1
+	check("index-typed-named", named == 9, named, 9)
+	check("index-typed-len", len(items[typedInt8].M) == 1, len(items[typedInt8].M), 1)
+}
+
+func main() {
+	testLiterals()
+	testTyped()
+	if failed {
+		os.Exit(1)
+	}
+}

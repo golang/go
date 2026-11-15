@@ -1,0 +1,202 @@
+// run
+
+package main
+
+import (
+	"encoding/binary"
+	"fmt"
+	"maps"
+	"os"
+	"runtime"
+	"slices"
+	"strconv"
+	"strings"
+)
+
+type BigSlice struct {
+	Items []uint64 `json:"items"`
+}
+
+type BigBytes struct {
+	Raw []byte `json:"raw"`
+}
+
+type BigText struct {
+	S string `json:"s"`
+}
+
+type BigDict struct {
+	M map[string]uint64 `json:"m"`
+}
+
+type decoder interface {
+	UnmarshalBinary(data []byte) error
+}
+
+const overMiB8 = 8<<20 + 1
+
+func lawfulSlice() error {
+	items := make([]uint64, 1<<20+1)
+	for i := range items {
+		items[i] = uint64(i) * 2654435761
+	}
+	in := BigSlice{Items: items}
+	wire, err := in.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	if len(wire) <= 8<<20 {
+		return fmt.Errorf("wire is %d bytes, want above 8 MiB", len(wire))
+	}
+	var out BigSlice
+	if err := out.UnmarshalBinary(wire); err != nil {
+		return fmt.Errorf("lawful slice above 8 MiB rejected: %w", err)
+	}
+	if !slices.Equal(out.Items, items) {
+		return fmt.Errorf("slice of %d items changed in the round trip", len(items))
+	}
+	return nil
+}
+
+func lawfulBytes() error {
+	raw := make([]byte, overMiB8)
+	for i := range raw {
+		raw[i] = byte(i * 7)
+	}
+	in := BigBytes{Raw: raw}
+	wire, err := in.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	var out BigBytes
+	if err := out.UnmarshalBinary(wire); err != nil {
+		return fmt.Errorf("lawful byte slice above 8 MiB rejected: %w", err)
+	}
+	if !slices.Equal(out.Raw, raw) {
+		return fmt.Errorf("byte slice of %d bytes changed in the round trip", len(raw))
+	}
+	return nil
+}
+
+func lawfulString() error {
+	text := strings.Repeat("abcdefgh", overMiB8/8) + "tail"
+	in := BigText{S: text}
+	wire, err := in.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	var out BigText
+	if err := out.UnmarshalBinary(wire); err != nil {
+		return fmt.Errorf("lawful string above 8 MiB rejected: %w", err)
+	}
+	if out.S != text {
+		return fmt.Errorf("string of %d bytes changed in the round trip", len(text))
+	}
+	return nil
+}
+
+func lawfulMap() error {
+	entries := make(map[string]uint64, 700000)
+	for i := range 700000 {
+		entries[strconv.Itoa(i)] = uint64(i) * 3
+	}
+	in := BigDict{M: entries}
+	wire, err := in.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	if len(wire) <= 8<<20 {
+		return fmt.Errorf("wire is %d bytes, want above 8 MiB", len(wire))
+	}
+	var out BigDict
+	if err := out.UnmarshalBinary(wire); err != nil {
+		return fmt.Errorf("lawful map above 8 MiB rejected: %w", err)
+	}
+	if !maps.Equal(out.M, entries) {
+		return fmt.Errorf("map of %d entries changed in the round trip", len(entries))
+	}
+	return nil
+}
+
+func leastAlloc(run func()) uint64 {
+	least := ^uint64(0)
+	for range 8 {
+		var before, after runtime.MemStats
+		runtime.ReadMemStats(&before)
+		run()
+		runtime.ReadMemStats(&after)
+		least = min(least, after.TotalAlloc-before.TotalAlloc)
+	}
+	return least
+}
+
+func countedBody(count uint64, body []byte) []byte {
+	return append(binary.AppendUvarint([]byte{1}, count), body...)
+}
+
+func hostile(field string, fresh func() decoder, wire []byte) error {
+	const limit = 1 << 20
+	var failure error
+	least := leastAlloc(func() {
+		err := fresh().UnmarshalBinary(wire)
+		switch {
+		case err == nil:
+			failure = fmt.Errorf("a count above the %d input bytes was accepted", len(wire))
+		case !strings.Contains(err.Error(), field) || !strings.Contains(err.Error(), "offset"):
+			failure = fmt.Errorf("error does not name the field and the offset: %w", err)
+		}
+	})
+	if failure != nil {
+		return failure
+	}
+	if least > limit {
+		return fmt.Errorf("a %d-byte input allocated %d bytes, want at most %d", len(wire), least, limit)
+	}
+	return nil
+}
+
+func hostileCases() []namedCase {
+	body := make([]byte, 1024)
+	over := countedBody(1<<40, body)
+	next := countedBody(uint64(len(body))+1, body)
+	text := func() decoder { return new(BigText) }
+	raw := func() decoder { return new(BigBytes) }
+	items := func() decoder { return new(BigSlice) }
+	dict := func() decoder { return new(BigDict) }
+	return []namedCase{
+		{"hostile-string-count", func() error { return hostile(".S", text, over) }},
+		{"hostile-string-next-byte", func() error { return hostile(".S", text, next) }},
+		{"hostile-bytes-count", func() error { return hostile(".Raw", raw, over) }},
+		{"hostile-bytes-next-byte", func() error { return hostile(".Raw", raw, next) }},
+		{"hostile-slice-count", func() error { return hostile(".Items", items, over) }},
+		{"hostile-slice-next-byte", func() error { return hostile(".Items", items, next) }},
+		{"hostile-map-count", func() error { return hostile(".M", dict, over) }},
+	}
+}
+
+type namedCase struct {
+	name string
+	run  func() error
+}
+
+func main() {
+	cases := []namedCase{
+		{"lawful-slice-above-8mib", lawfulSlice},
+		{"lawful-bytes-above-8mib", lawfulBytes},
+		{"lawful-string-above-8mib", lawfulString},
+		{"lawful-map-above-8mib", lawfulMap},
+	}
+	cases = append(cases, hostileCases()...)
+	failed := false
+	for _, c := range cases {
+		if err := c.run(); err != nil {
+			failed = true
+			fmt.Println("FAIL", c.name+":", err)
+			continue
+		}
+		fmt.Println("ok", c.name)
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

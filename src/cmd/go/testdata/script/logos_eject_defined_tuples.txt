@@ -1,0 +1,297 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd app
+logos run .
+stdout '^defined-tuples-foreign-ok$'
+logos eject -o ../appout
+cd ../appout
+exists $UPROOT1272/bin/go
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+exec env -u GOROOT $UPROOT1272/bin/go run .
+stdout '^defined-tuples-foreign-ok$'
+cd ../goapp
+logos run .
+stdout '^defined-tuples-go-importer-ok$'
+logos eject -o ../goout
+cd ../goout
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+exec env -u GOROOT $UPROOT1272/bin/go run .
+stdout '^defined-tuples-go-importer-ok$'
+cd ../reject
+! logos build ./forward
+! logos build ./reverse
+! logos build ./struct_forward
+! logos build ./struct_reverse
+! logos build ./missing_field
+! logos build ./missing_defined_field
+! logos build ./inference_forward
+! logos build ./inference_reverse
+! logos build ./equality
+! logos build ./equality_elements
+! logos build ./tagged_forward
+stderr 'cannot use t \(variable of type \(int, int\)\) as struct\{T_0 int "json:\\"a\\""; T_1 int\} value'
+! logos build ./tagged_reverse
+stderr 'cannot use s \(variable of type struct\{T_0 int "json:\\"a\\""; T_1 int\}\) as \(int, int\) value'
+! logos build ./embedded_forward
+stderr 'cannot use t \(variable of type \(T_0, int\)\) as struct\{T_0; T_1 int\} value'
+! logos build ./embedded_reverse
+stderr 'cannot use s \(variable of type struct\{T_0; T_1 int\}\) as \(T_0, int\) value'
+
+-- dep/go.mod --
+module example.com/tupledep
+
+go 1.27
+-- dep/p/p.lgo --
+package p
+
+type Pair (int, int)
+type Other (int, int)
+type FieldTuple = (x int?, y int)
+type Named (x int, y int)
+type OptionalFields (x int?, y int)
+type Box[T any] (T, T)
+
+func Make() Pair { return (3, 4) }
+func MakeOther() Other { return (3, 4) }
+func MakeNamed() Named { return (9, 4) }
+func (p Pair) Sum() int {
+	var t (int, int) = p
+	a, b := t
+	return a + b
+}
+func (n Named) Diff() int { return n.x - n.y }
+func (b Box[T]) First() T {
+	var t (T, T) = b
+	a, _ := t
+	return a
+}
+func Fields(present bool) OptionalFields {
+	var x int? = nil
+	if present { x = 7 }
+	return (x, 2)
+}
+func TupleFields(present bool) FieldTuple { return Fields(present) }
+
+-- gostruct/go.mod --
+module example.com/tuplestruct
+
+go 1.27
+-- gostruct/s/s.go --
+package s
+
+type Shape = struct { T_0 int; T_1 int }
+type Bits struct { T_0 int; T_1 int }
+type Named = struct { T_x int; T_y int }
+func Make() Shape { return Shape{3, 4} }
+func MakeNamed() Named { return Named{9, 4} }
+
+-- app/go.mod --
+module example.com/tupleapp
+
+go 1.27
+
+require (
+	example.com/tupledep v0.0.0
+	example.com/tuplestruct v0.0.0
+)
+replace example.com/tupledep => ../dep
+replace example.com/tuplestruct => ../gostruct
+-- app/main.lgo --
+package main
+
+import (
+	"fmt"
+	"example.com/tupledep/p"
+	"example.com/tuplestruct/s"
+)
+
+func require(ok bool, name string) {
+	if !ok { panic(name) }
+}
+func same[T any](a, b T) bool { return true }
+type Tuple = (int, int)
+type NamedTuple = (x int, y int)
+func main() {
+	var t (int, int) = (3, 4)
+	var pair p.Pair = t
+	var back (int, int) = pair
+	require(pair.Sum() == 7 && back == t, "imported assignment both ways")
+	require(pair == t && t == pair, "imported equality both ways")
+	require(p.Pair(t).Sum() == 7 && Tuple(pair) == t, "imported conversions both ways")
+	require(p.Pair.Sum(pair) == 7, "imported method expression")
+	require(same(pair, t) && same(t, pair), "imported inference both orders")
+	var shape s.Shape = pair
+	var fromShape p.Pair = shape
+	require(fromShape.Sum() == 7 && shape == pair && pair == shape, "Go struct assignment equality")
+	var fromGo (int, int) = s.Make()
+	var toGo s.Shape = fromGo
+	require(toGo.T_0 == 3 && toGo.T_1 == 4, "Go struct tuple symmetry")
+	bits := s.Bits(pair)
+	require(p.Pair(bits).Sum() == 7, "defined Go struct conversions")
+	other := p.Other(pair)
+	require(p.Pair(other).Sum() == 7, "distinct defined conversion")
+	var box p.Box[int] = t
+	var boxBack (int, int) = box
+	require(boxBack == t && p.Box[int](t).First() == 3, "imported generic conversion")
+	require(p.Box[int].First(box) == 3, "generic method expression")
+	var named p.Named = p.MakeNamed()
+	require(named.x == 9 && named.y == 4 && named.Diff() == 5, "imported named fields methods")
+	require(p.Named.Diff(named) == 5, "named method expression")
+	var namedTuple (x int, y int) = named
+	var namedBack p.Named = namedTuple
+	var namedStruct s.Named = namedBack
+	var fromNamedStruct p.Named = namedStruct
+	require(fromNamedStruct.Diff() == 5 && namedTuple.x == 9, "named struct tuple assignment")
+	require(named == namedTuple && namedTuple == named, "named equality")
+	require(p.Named(namedTuple).Diff() == 5 && NamedTuple(named).y == 4, "named conversion")
+	var present p.Named? = named
+	var absent p.Named? = nil
+	require((present?.x ?? -1) == 9 && (absent?.x ?? -1) == -1, "imported named optional selection")
+	var importedStruct s.Named = s.MakeNamed()
+	require(importedStruct.x == 9, "Go struct named source selector")
+	var structPresent s.Named? = importedStruct
+	var structAbsent s.Named? = nil
+	require((structPresent?.x ?? -1) == 9 && (structAbsent?.x ?? -1) == -1, "Go struct optional selector")
+	var full p.OptionalFields? = p.Fields(true)
+	var empty p.OptionalFields? = p.Fields(false)
+	var missing p.OptionalFields? = nil
+	var fullField int? = full?.x
+	var emptyField int? = empty?.x
+	var missingField int? = missing?.x
+	var anonymous ((x int?, y int)?) = p.TupleFields(true)
+	var anonymousField int? = anonymous?.x
+	require((anonymousField ?? -1) == 7, "imported anonymous optional field flattened")
+	require((fullField ?? -1) == 7, "imported optional field present flattened")
+	require((emptyField ?? -1) == -1 && (missingField ?? -1) == -1, "imported optional field absent flattened")
+	fmt.Println("defined-tuples-foreign-ok")
+}
+
+-- goapp/go.mod --
+module example.com/tuplegoapp
+
+go 1.27
+
+require example.com/tupledep v0.0.0
+replace example.com/tupledep => ../dep
+-- goapp/main.go --
+package main
+
+import (
+	"fmt"
+	"example.com/tupledep/p"
+)
+
+func main() {
+	pair := p.Make()
+	var shape struct { T_0 int; T_1 int } = pair
+	var back p.Pair = shape
+	if shape.T_0 != 3 || shape.T_1 != 4 || back.Sum() != 7 || pair != shape || shape != pair {
+		panic("Go importer assignment equality")
+	}
+	type bits struct { T_0 int; T_1 int }
+	b := bits(pair)
+	if p.Pair(b).Sum() != 7 || p.Pair.Sum(pair) != 7 { panic("Go importer conversion methods") }
+	named := p.MakeNamed()
+	var namedShape struct { T_x int; T_y int } = named
+	var namedBack p.Named = namedShape
+	if namedShape.T_x != 9 || namedShape.T_y != 4 || p.Named.Diff(namedBack) != 5 {
+		panic("Go importer named lowered fields")
+	}
+	var box p.Box[int] = shape
+	if box.First() != 3 || p.Box[int].First(box) != 3 { panic("Go importer generic methods") }
+	fmt.Println("defined-tuples-go-importer-ok")
+}
+
+-- reject/go.mod --
+module example.com/tuplereject
+
+go 1.27
+
+require (
+	example.com/tupledep v0.0.0
+	example.com/tuplestruct v0.0.0
+)
+replace example.com/tupledep => ../dep
+replace example.com/tuplestruct => ../gostruct
+-- reject/forward/main.lgo --
+package forward
+import "example.com/tupledep/p"
+var _ p.Other = p.Make()
+-- reject/reverse/main.lgo --
+package reverse
+import "example.com/tupledep/p"
+var _ p.Pair = p.MakeOther()
+-- reject/struct_forward/main.lgo --
+package struct_forward
+import (
+	"example.com/tupledep/p"
+	"example.com/tuplestruct/s"
+)
+var _ s.Bits = p.Make()
+-- reject/struct_reverse/main.lgo --
+package struct_reverse
+import (
+	"example.com/tupledep/p"
+	"example.com/tuplestruct/s"
+)
+var b s.Bits
+var _ p.Pair = b
+-- reject/equality/main.lgo --
+package equality
+import "example.com/tupledep/p"
+var _ = p.Make() == p.MakeOther()
+
+-- reject/missing_field/main.lgo --
+package missing_field
+var tuple (x int, y string)
+var _ = tuple.z
+-- reject/missing_defined_field/main.lgo --
+package missing_defined_field
+import "example.com/tupledep/p"
+var _ = p.MakeNamed().z
+-- reject/inference_forward/main.lgo --
+package inference_forward
+import "example.com/tupledep/p"
+func same[T any](a, b T) bool { return true }
+var _ = same(p.Make(), p.MakeOther())
+-- reject/inference_reverse/main.lgo --
+package inference_reverse
+import "example.com/tupledep/p"
+func same[T any](a, b T) bool { return true }
+var _ = same(p.MakeOther(), p.Make())
+-- reject/equality_elements/main.lgo --
+package equality_elements
+import "example.com/tupledep/p"
+var tuple (int, string)
+var _ = p.Make() == tuple
+-- reject/tagged_forward/main.lgo --
+package tagged_forward
+var t (int, int)
+var _ struct {
+	T_0 int `json:"a"`
+	T_1 int
+} = t
+-- reject/tagged_reverse/main.lgo --
+package tagged_reverse
+var s struct {
+	T_0 int `json:"a"`
+	T_1 int
+}
+var _ (int, int) = s
+-- reject/embedded_forward/main.lgo --
+package embedded_forward
+type T_0 int
+var t (T_0, int)
+var _ struct {
+	T_0
+	T_1 int
+} = t
+-- reject/embedded_reverse/main.lgo --
+package embedded_reverse
+type T_0 int
+var s struct {
+	T_0
+	T_1 int
+}
+var _ (T_0, int) = s

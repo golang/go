@@ -1,17 +1,22 @@
--1
-0
-5
-{0 true}
-{0 false}
-0
--1
-0 true
-44
--1
-[]
-[9]
-{[] true}
-{[] false}
-2
-ann
-guest
+ok missing-key-falls-back-to-default
+ok present-zero-key-yields-zero
+ok present-nonzero-key-yields-value
+ok direct-index-of-present-binds-value
+ok direct-index-of-missing-binds-zero
+ok direct-index-of-missing-reports-not-ok
+ok bound-present-value-falls-back-to-itself
+ok bound-missing-value-falls-back-to-default
+ok comma-ok-value
+ok comma-ok-present
+ok write-read-modify-cycle
+ok deleted-key-falls-back-to-default
+ok present-nil-payload-keeps-nil-against-default
+ok direct-index-of-nil-payload-is-present
+ok missing-key-yields-default-length
+ok direct-index-of-missing-slice-is-nil
+ok direct-index-of-missing-slice-reports-not-ok
+ok comma-ok-keeps-nil-payload-with-ok
+ok nil-payload-coalesces-to-nil-not-default
+ok present-slice-length-ignores-default
+ok present-pointer-selects-field
+ok missing-pointer-falls-back-to-guest

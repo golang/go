@@ -1,0 +1,688 @@
+// run
+
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"time"
+)
+
+var errSib = errors.New("sibling failed")
+
+const waitBound = 5 * time.Second
+
+func failSibling() error { return errSib }
+
+type env struct {
+	in   chan int
+	mid  chan int
+	gate chan struct{}
+	out  int
+}
+
+type box struct {
+	V int
+}
+
+type holder struct {
+	c chan int
+}
+
+func one() int {
+	return 1
+}
+
+func use2(a, b int) int {
+	return a*10 + b
+}
+
+func set2(e *env, a, b int) {
+	e.out = use2(a, b)
+}
+
+func (e *env) open(v int) int {
+	close(e.gate)
+	return v
+}
+
+func openGate(e *env, v int) int {
+	return e.open(v)
+}
+
+func sumBoxes(bs []box) int {
+	return bs[0].V*10 + bs[1].V
+}
+
+func sumBoxPtrs(bs []*box) int {
+	return bs[0].V*10 + bs[1].V
+}
+
+func sumNested(bs [][]box) int {
+	return bs[0][0].V*10 + bs[1][0].V
+}
+
+func sumMap(m map[box]int) int {
+	return (m[box{V: 2}] ?? 0)*10 + (m[box{V: 1}] ?? 0)
+}
+
+func recvFuncLitOperand(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			e.out = use2(func() int { return 1 }(), <-e.in)
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvCompositeOperand(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			e.out = use2(box{V: 2}.V, <-e.in)
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvParenOperand(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			e.out = use2((e.out+one())*2, <-e.in)
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvCommentOperand(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			e.out = use2(one() /* a */ + /* b */ one(), <-e.in /* c */)
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvCommentArrow(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			e.out = <- /* c */ e.in
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvFuncLitChannel(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			e.out = <-func() chan int { return e.in }()
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvFuncLitStatement(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			<-func() chan int { return e.in }()
+			e.out = 7
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvCompositeChannel(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			e.out = <-holder{c: e.in}.c
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func sendFuncLitValue(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			e.mid <- func() int { return 7 }()
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func sendCompositeValue(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			e.mid <- box{V: 4}.V
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func sendComments(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			e.mid /* a */ <- /* b */ 3
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvMixedFuncLit(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			a, b := <-e.in, func() int { return 2 }()
+			e.out = use2(a, b)
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvGoFuncLit(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			go set2(e, func() int { return 1 }(), <-e.in)
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func condAndFuncLit(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			if one() == 1 && use2(func() int { return 1 }(), <-e.in) == 15 {
+				e.out = 1
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func condAndParenComment(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			if one() == 1 && /* a */ (<-e.in /* b */ + 1) == 6 {
+				e.out = 1
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func condForFuncLit(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			for func() bool { return true }() && <-e.in < 3 {
+				e.out++
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func condForPostFuncLit(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			for i := 0; i < 20; i += use2(func() int { return 0 }(), <-e.in /* c */) {
+				e.out++
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func condCaseFuncLit(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			switch {
+			case func() bool { return false }():
+				e.out = 1
+			case <-e.in == 2:
+				e.out = 2
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func condInitFuncLit(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			if v := func() int { return 3 }(); <-e.in == v {
+				e.out = v
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func condDeferFuncLit(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			defer set2(e, func() int { return 1 }(), <-e.in)
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvCallOrder(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			e.out = use2(openGate(e, <-e.in), <-e.mid)
+		}
+		go {
+			if fail {
+				failSibling()?
+			} else {
+				<-e.gate
+				e.mid <- 7
+			}
+		}
+	}
+	return nil
+}
+
+func recvCallOrderMethod(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			e.out = use2(e.open(<-e.in), <-e.mid)
+		}
+		go {
+			if fail {
+				failSibling()?
+			} else {
+				<-e.gate
+				e.mid <- 7
+			}
+		}
+	}
+	return nil
+}
+
+func recvCallOrderOperator(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			e.out = openGate(e, <-e.in)*10 + <-e.mid
+		}
+		go {
+			if fail {
+				failSibling()?
+			} else {
+				<-e.gate
+				e.mid <- 7
+			}
+		}
+	}
+	return nil
+}
+
+func recvElidedElement(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			e.out = sumBoxes([]box{{V: one()}, {V: <-e.in}})
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvElidedPointer(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			e.out = sumBoxPtrs([]*box{{V: one()}, {V: <-e.in}})
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvElidedNested(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			e.out = sumNested([][]box{{{V: one()}}, {{V: <-e.in}}})
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvElidedMapKey(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			e.out = sumMap(map[box]int{{V: one()}: 1, {V: 2}: <-e.in})
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+type user struct{ N int }
+
+func findUser(n int) *user? {
+	if n > 0 {
+		return &user{n}
+	}
+	return nil
+}
+
+func takeUser(u *user?, v int) int {
+	x := u ?? &user{-1}
+	return x.N*10 + v
+}
+
+func findInt(n int) int? {
+	if n > 0 {
+		return n
+	}
+	return nil
+}
+
+func takeInt(o int?, v int) int {
+	x := o ?? -1
+	return x*10 + v
+}
+
+func takePair(t (int, int), v int) int {
+	a, b := t
+	return a*100 + b*10 + v
+}
+
+func recvOptionOperand(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			e.out = takeInt(findInt(2), <-e.in)
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvPtrOptionOperand(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			e.out = takeUser(findUser(3), <-e.in)
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvTupleOperand(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			e.out = takePair((one(), 2), <-e.in)
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+type cell struct {
+	name    string
+	run     func(ctx context.Context, e *env, fail bool) error
+	feed    []int
+	want    int
+	left    int
+	observe func(e *env) int
+}
+
+//logos:allow(correctness::unbounded_channel_op)
+func fromMid(e *env) int {
+	select {
+	case v := <-e.mid:
+		return v
+	default:
+		return -1
+	}
+}
+
+func valueCells() []cell {
+	return []cell{
+		{name: "funclit-operand", run: recvFuncLitOperand, feed: []int{5, 99}, want: 15, left: 1},
+		{name: "composite-operand", run: recvCompositeOperand, feed: []int{5, 99}, want: 25, left: 1},
+		{name: "paren-operand", run: recvParenOperand, feed: []int{5, 99}, want: 25, left: 1},
+		{name: "comment-operand", run: recvCommentOperand, feed: []int{5, 99}, want: 25, left: 1},
+		{name: "comment-arrow", run: recvCommentArrow, feed: []int{5, 99}, want: 5, left: 1},
+		{name: "funclit-channel", run: recvFuncLitChannel, feed: []int{5, 99}, want: 5, left: 1},
+		{name: "funclit-statement", run: recvFuncLitStatement, feed: []int{5, 99}, want: 7, left: 1},
+		{name: "composite-channel", run: recvCompositeChannel, feed: []int{5, 99}, want: 5, left: 1},
+		{name: "send-funclit", run: sendFuncLitValue, want: 7, observe: fromMid},
+		{name: "send-composite", run: sendCompositeValue, want: 4, observe: fromMid},
+		{name: "send-comments", run: sendComments, want: 3, observe: fromMid},
+		{name: "mixed-funclit", run: recvMixedFuncLit, feed: []int{5, 99}, want: 52, left: 1},
+		{name: "go-funclit", run: recvGoFuncLit, feed: []int{5, 99}, want: 15, left: 1},
+		{name: "and-funclit", run: condAndFuncLit, feed: []int{5, 99}, want: 1, left: 1},
+		{name: "and-paren-comment", run: condAndParenComment, feed: []int{5, 99}, want: 1, left: 1},
+		{name: "for-funclit", run: condForFuncLit, feed: []int{1, 5}, want: 1},
+		{name: "for-post-funclit", run: condForPostFuncLit, feed: []int{5, 5, 5, 5, 99}, want: 4, left: 1},
+		{name: "case-funclit", run: condCaseFuncLit, feed: []int{2, 99}, want: 2, left: 1},
+		{name: "init-funclit", run: condInitFuncLit, feed: []int{3, 99}, want: 3, left: 1},
+		{name: "defer-funclit", run: condDeferFuncLit, feed: []int{5, 99}, want: 15, left: 1},
+		{name: "call-order", run: recvCallOrder, feed: []int{5, 99}, want: 57, left: 1},
+		{name: "call-order-method", run: recvCallOrderMethod, feed: []int{5, 99}, want: 57, left: 1},
+		{name: "call-order-operator", run: recvCallOrderOperator, feed: []int{5, 99}, want: 57, left: 1},
+		{name: "elided-element", run: recvElidedElement, feed: []int{5, 99}, want: 15, left: 1},
+		{name: "elided-pointer", run: recvElidedPointer, feed: []int{5, 99}, want: 15, left: 1},
+		{name: "elided-nested", run: recvElidedNested, feed: []int{5, 99}, want: 15, left: 1},
+		{name: "elided-map-key", run: recvElidedMapKey, feed: []int{5, 99}, want: 51, left: 1},
+		{name: "option-operand", run: recvOptionOperand, feed: []int{5, 99}, want: 25, left: 1},
+		{name: "ptr-option-operand", run: recvPtrOptionOperand, feed: []int{5, 99}, want: 35, left: 1},
+		{name: "tuple-operand", run: recvTupleOperand, feed: []int{5, 99}, want: 125, left: 1},
+	}
+}
+
+func cancelCells() []cell {
+	return []cell{
+		{name: "funclit-operand-cancel", run: recvFuncLitOperand},
+		{name: "composite-operand-cancel", run: recvCompositeOperand},
+		{name: "paren-operand-cancel", run: recvParenOperand},
+		{name: "comment-arrow-cancel", run: recvCommentArrow},
+		{name: "funclit-channel-cancel", run: recvFuncLitChannel},
+		{name: "funclit-statement-cancel", run: recvFuncLitStatement},
+		{name: "composite-channel-cancel", run: recvCompositeChannel},
+		{name: "mixed-funclit-cancel", run: recvMixedFuncLit},
+		{name: "go-funclit-cancel", run: recvGoFuncLit},
+		{name: "and-funclit-cancel", run: condAndFuncLit},
+		{name: "and-paren-comment-cancel", run: condAndParenComment},
+		{name: "for-funclit-cancel", run: condForFuncLit},
+		{name: "for-post-funclit-cancel", run: condForPostFuncLit, want: 1},
+		{name: "case-funclit-cancel", run: condCaseFuncLit},
+		{name: "init-funclit-cancel", run: condInitFuncLit},
+		{name: "defer-funclit-cancel", run: condDeferFuncLit},
+		{name: "call-order-cancel", run: recvCallOrder},
+		{name: "call-order-method-cancel", run: recvCallOrderMethod},
+		{name: "call-order-operator-cancel", run: recvCallOrderOperator},
+		{name: "elided-element-cancel", run: recvElidedElement},
+		{name: "elided-pointer-cancel", run: recvElidedPointer},
+		{name: "elided-nested-cancel", run: recvElidedNested},
+		{name: "elided-map-key-cancel", run: recvElidedMapKey},
+		{name: "option-operand-cancel", run: recvOptionOperand},
+		{name: "ptr-option-operand-cancel", run: recvPtrOptionOperand},
+		{name: "tuple-operand-cancel", run: recvTupleOperand},
+	}
+}
+
+//logos:allow(correctness::unbounded_channel_op)
+func exercise(c cell, fail bool) string {
+	e := &env{in: make(chan int, len(c.feed)), mid: make(chan int, 1), gate: make(chan struct{})}
+	for _, v := range c.feed {
+		e.in <- v
+	}
+	watchdog := time.AfterFunc(waitBound, func() {
+		fmt.Printf("FAIL %s: group did not return within the bound\n", c.name)
+		os.Exit(1)
+	})
+	err := c.run(context.Background(), e, fail)
+	watchdog.Stop()
+	if fail != errors.Is(err, errSib) || (!fail && err != nil) {
+		return fmt.Sprintf("got error %v", err)
+	}
+	got := e.out
+	if c.observe != nil {
+		got = c.observe(e)
+	}
+	if got != c.want {
+		return fmt.Sprintf("got %d want %d", got, c.want)
+	}
+	if len(e.in) != c.left {
+		return fmt.Sprintf("got %d values left want %d", len(e.in), c.left)
+	}
+	return ""
+}
+
+func selected(name string) bool {
+	return len(os.Args) < 2 || os.Args[1] == name
+}
+
+func main() {
+	failed := false
+	report := func(name, problem string) {
+		if problem != "" {
+			fmt.Printf("FAIL %s: %s\n", name, problem)
+			failed = true
+			return
+		}
+		fmt.Printf("ok %s\n", name)
+	}
+	for _, c := range valueCells() {
+		if selected(c.name) {
+			report(c.name, exercise(c, false))
+		}
+	}
+	for _, c := range cancelCells() {
+		if selected(c.name) {
+			report(c.name, exercise(c, true))
+		}
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

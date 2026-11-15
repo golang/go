@@ -1,21 +1,14 @@
-# REDTEAM #81 (SPEC Sec 8.3, T-301.1; IMPLEMENTATION.md M18-S3): concurrent
-# collector racing scan zeroing. After a frame exit, collection MUST find no
-# stale pointers in popped scan memory: a restore zeroes the popped scan
-# region before it can be reused, so the collector never retains dead
-# referents and never feeds barrier garbage to the next allocation. Values
-# alone pass on an unzeroed region, so this script runs the byte-level
-# zeroing gates that fail on residue, not values, under -race: the race
-# detector covers the concurrent-collector dimension (watermark moves stay
-# visible, no false race on reuse), which is what distinguishes this row
-# from the non-race #71 script over the same units. TestLogosArenaGCScansScanRegion
-# is the companion proof that scan-region objects keep their heap referents
-# alive across collection, so zeroing never overreaches into live memory.
-# The instrumented build needs cgo.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 env GOEXPERIMENT=logosarena
 env CGO_ENABLED=1
-go test -race -count=1 -run 'TestLogosArenaScanLayoutAndZeroing|TestLogosArenaRestorePopsLinkedChunks|TestLogosArenaGCScansScanRegion' runtime
+go test -race -v -count=1 -run 'TestLogosArenaScanLayoutAndZeroing|TestLogosArenaRestorePopsLinkedChunks|TestLogosArenaScanRootsKeepReferentAlive' runtime
+stdout '--- PASS: TestLogosArenaScanLayoutAndZeroing'
+stdout '--- PASS: TestLogosArenaRestorePopsLinkedChunks'
+stdout '--- PASS: TestLogosArenaScanRootsKeepReferentAlive'
+stdout '^ok\s+runtime'
+! stderr 'no tests to run'
+! stdout 'no tests to run'
 
 -- go.mod --
 module example.com/redteam81

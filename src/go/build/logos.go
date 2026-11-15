@@ -6,6 +6,7 @@ package build
 
 import (
 	"fmt"
+	"internal/logosfile"
 	"slices"
 	"strings"
 )
@@ -16,42 +17,15 @@ import (
 // Context carries the "logos" tool tag; plain contexts ignore loGo/s
 // files exactly as upstream did.
 //
-// The lineage rule (SPEC Sec 1.1, T-101.1): the loader recognizes
-// ".lgo" and the three alias extensions (U+1F4DC scroll, U+26A1
-// lightning, U+0295 U+25D4 U+03D6 U+25D4 U+0294 gopher) after
-// stripping trailing U+FE0E/U+FE0F variation selectors from the
-// extension. No normalizer runs: NFC is the identity on all four
-// extension strings.
-
-// logosExts lists the loGo/s source extensions, dot included.
-var logosExts = []string{".lgo", ".📜", ".⚡", ".ʕ◔ϖ◔ʔ"}
+// The lineage rule (SPEC Sec 1.1, T-101.1) lives in internal/logosfile:
+// the loader recognizes ".lgo" and the three alias extensions after
+// stripping trailing U+FE0E/U+FE0F variation selectors. Only the
+// comparison sees the stripped form; on-disk names and names recorded
+// in Package lists keep their bytes.
 
 // logosMode reports whether the Context enables loGo/s classification.
 func (ctxt *Context) logosMode() bool {
 	return slices.Contains(ctxt.ToolTags, "logos")
-}
-
-// stripLogosVarSel trims trailing U+FE0E and U+FE0F runes from an
-// extension. Only the comparison sees the stripped form; on-disk
-// names and names recorded in Package lists keep their bytes.
-func stripLogosVarSel(ext string) string {
-	for strings.HasSuffix(ext, "\uFE0E") || strings.HasSuffix(ext, "\uFE0F") {
-		ext = ext[:len(ext)-3]
-	}
-	return ext
-}
-
-// isLogosExt reports whether ext is a loGo/s extension, after
-// stripping trailing variation selectors. Mode-independent: cache
-// writers and readers share it.
-func isLogosExt(ext string) bool {
-	ext = stripLogosVarSel(ext)
-	for _, e := range logosExts {
-		if ext == e {
-			return true
-		}
-	}
-	return false
 }
 
 // isGoFamilyExt reports whether ext denotes a Go-family source file
@@ -60,7 +34,7 @@ func (ctxt *Context) isGoFamilyExt(ext string) bool {
 	if ext == ".go" {
 		return true
 	}
-	return ctxt.logosMode() && isLogosExt(ext)
+	return ctxt.logosMode() && logosfile.Is(ext)
 }
 
 // isGoFamilyFile reports whether name is a Go-family source file in
@@ -82,19 +56,6 @@ func isTestFile(name string, ctxt *Context) bool {
 	return strings.HasSuffix(name[:len(name)-len(ext)], "_test")
 }
 
-// logosStem returns name with its loGo/s extension removed, keeping
-// everything before it (including any "_test" suffix). The removed
-// span is the full on-disk extension, variation selectors included,
-// so "x.⚡️" yields stem "x". For names without a loGo/s extension it
-// returns the name unchanged.
-func logosStem(name string) string {
-	ext := nameExt(name)
-	if !isLogosExt(ext) {
-		return name
-	}
-	return name[:len(name)-len(ext)]
-}
-
 // logosPackageFiles splits the admitted Go-family files of p into
 // plain Go files and loGo/s files, sorted for deterministic errors.
 // Only files that reached the buildable lists (GoFiles, CgoFiles,
@@ -103,7 +64,7 @@ func logosStem(name string) string {
 func logosPackageFiles(p *Package) (goFiles, logosFiles []string) {
 	for _, list := range [][]string{p.GoFiles, p.CgoFiles, p.TestGoFiles, p.XTestGoFiles} {
 		for _, name := range list {
-			if isLogosExt(nameExt(name)) {
+			if logosfile.Is(name) {
 				logosFiles = append(logosFiles, name)
 			} else {
 				goFiles = append(goFiles, name)
@@ -144,7 +105,7 @@ func checkLogosMix(goFiles, logosFiles []string) error {
 func checkLogosDuplicateStems(logosFiles []string) error {
 	seen := make(map[string]string, len(logosFiles))
 	for _, name := range logosFiles {
-		stem := logosStem(name)
+		stem, _, _ := logosfile.Split(name)
 		if prev, ok := seen[stem]; ok {
 			return fmt.Errorf("[correctness::duplicate_stem_filename] files %s and %s share stem %q",
 				prev, name, stem)

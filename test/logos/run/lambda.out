@@ -1,4 +1,4 @@
-7
-10
-20
-11
+ok arrow-captures-enclosing-param
+ok arrow-sees-current-variable-value
+ok arrow-captures-variable-not-value
+ok arrow-block-body-returns-tail-value

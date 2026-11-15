@@ -1,4 +1,6 @@
-val: [4 3 2 1]
-ptr: [40 30 20 10]
-slice: [400 300 200 100]
-pair: {2 1}
+ok rvo-self-alias-value
+ok rvo-pointer-destination
+ok rvo-slice-alias-reverse
+ok rvo-struct-pointer-swap
+ok rvo-guarded-self-alias-value
+ok rvo-guarded-cleanup-skipped-on-success

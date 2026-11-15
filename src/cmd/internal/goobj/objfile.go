@@ -288,7 +288,6 @@ const (
 	ObjFlagStd                      // standard library package
 )
 
-// Sym.Flag
 const (
 	SymFlagDupok = 1 << iota
 	SymFlagLocal
@@ -297,6 +296,7 @@ const (
 	SymFlagNoSplit
 	SymFlagReflectMethod
 	SymFlagGoType
+	SymFlagLogosCtClone
 )
 
 // Sym.Flag2
@@ -336,6 +336,7 @@ func (s *Sym) Leaf() bool          { return s.Flag()&SymFlagLeaf != 0 }
 func (s *Sym) NoSplit() bool       { return s.Flag()&SymFlagNoSplit != 0 }
 func (s *Sym) ReflectMethod() bool { return s.Flag()&SymFlagReflectMethod != 0 }
 func (s *Sym) IsGoType() bool      { return s.Flag()&SymFlagGoType != 0 }
+func (s *Sym) LogosCtClone() bool  { return s.Flag()&SymFlagLogosCtClone != 0 }
 func (s *Sym) UsedInIface() bool   { return s.Flag2()&SymFlagUsedInIface != 0 }
 func (s *Sym) IsItab() bool        { return s.Flag2()&SymFlagItab != 0 }
 func (s *Sym) IsDict() bool        { return s.Flag2()&SymFlagDict != 0 }

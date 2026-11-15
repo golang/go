@@ -1,0 +1,199 @@
+// run
+package jsonunion
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"strings"
+	"sync"
+	"testing"
+
+	"logos/rt"
+)
+
+type MemoA struct {
+	K    int64     `json:"k"`
+	Next MemoUnion `json:"next"`
+	W    int64     `json:"w"`
+}
+
+type MemoB struct {
+	K    int64     `json:"k"`
+	Next MemoUnion `json:"next"`
+	W    string    `json:"w"`
+}
+
+type MemoLeaf struct {
+	K    int64     `json:"k"`
+	Next MemoUnion `json:"next"`
+	W    string    `json:"w"`
+}
+
+var memoLeafCalls int
+
+var memoLeafProbe func(b []byte)
+
+func (m *MemoLeaf) UnmarshalJSON(b []byte) error {
+	memoLeafCalls++
+	if memoLeafProbe != nil {
+		memoLeafProbe(b)
+	}
+	type memoPlain MemoLeaf
+	return json.Unmarshal(b, (*memoPlain)(m))
+}
+
+type MemoUnion interface {
+	*MemoA | *MemoB | *MemoLeaf
+}
+
+type MemoHolder struct {
+	Item MemoUnion `json:"item"`
+}
+
+func memoDoc(depth int, tag int64) string {
+	s := fmt.Sprintf(`{"k":%d,"w":"boom"}`, tag)
+	for i := 0; i < depth; i++ {
+		s = fmt.Sprintf(`{"k":%d,"w":"boom","next":%s}`, tag, s)
+	}
+	return `{"item":` + s + `}`
+}
+
+func memoTrialErr(t *testing.T, data string) rt.UnionTrialError {
+	t.Helper()
+	var h MemoHolder
+	err := json.Unmarshal([]byte(data), &h)
+	if err == nil {
+		t.Fatalf("expected trial error, got %T(%v)", h.Item, h.Item)
+	}
+	var trialErr rt.UnionTrialError
+	if !errors.As(err, &trialErr) {
+		t.Fatalf("expected rt.UnionTrialError, got %T: %v", err, err)
+	}
+	if h.Item != nil {
+		t.Fatalf("failed trials left the target touched: %#v", h.Item)
+	}
+	return trialErr
+}
+
+func TestMemoEvenDepthIsAmbiguous(t *testing.T) {
+	trialErr := memoTrialErr(t, memoDoc(4, 1))
+	if trialErr.Matched != 2 || trialErr.Total != 3 {
+		t.Fatalf("expected 2 of 3 matches, got %d of %d", trialErr.Matched, trialErr.Total)
+	}
+	msg := trialErr.Error()
+	for _, want := range []string{"MemoUnion", "MemoA", "MemoB", "MemoLeaf"} {
+		if !strings.Contains(msg, want) {
+			t.Fatalf("trial error %q must name %s", msg, want)
+		}
+	}
+}
+
+func TestMemoOddDepthSelectsSurvivor(t *testing.T) {
+	const data = `{"item":{"k":7,"w":"boom","next":{"k":7,"w":"boom"}}}`
+	var h MemoHolder
+	if err := json.Unmarshal([]byte(data), &h); err != nil {
+		t.Fatalf("odd depth must select the survivor, got error: %v", err)
+	}
+	sel, ok := h.Item.(*MemoLeaf)
+	if !ok || sel.K != 7 {
+		t.Fatalf("expected *MemoLeaf{7}, got %T(%v)", h.Item, h.Item)
+	}
+}
+
+func TestMemoTrialWorkScalesPolynomially(t *testing.T) {
+	memoLeafCalls = 0
+	trialErr8 := memoTrialErr(t, memoDoc(8, 8))
+	if trialErr8.Matched != 2 {
+		t.Fatalf("expected depth 8 ambiguity with 2 matches, got %d", trialErr8.Matched)
+	}
+	calls8 := memoLeafCalls
+	if calls8 < 9 {
+		t.Fatalf("counting leaf ran %d times at depth 8, want at least 9", calls8)
+	}
+	memoLeafCalls = 0
+	trialErr16 := memoTrialErr(t, memoDoc(16, 16))
+	if trialErr16.Matched != 2 {
+		t.Fatalf("expected depth 16 ambiguity with 2 matches, got %d", trialErr16.Matched)
+	}
+	calls16 := memoLeafCalls
+	if calls16 > 8*calls8 {
+		t.Fatalf("trial work not polynomial: depth 16 leaf calls %d exceed 8x depth 8 calls %d", calls16, calls8)
+	}
+}
+
+func TestMemoNoMatchLeavesTargetUntouched(t *testing.T) {
+	trialErr := memoTrialErr(t, `{"item":{"bogus":1}}`)
+	if trialErr.Matched != 0 || trialErr.Total != 3 {
+		t.Fatalf("expected 0 of 3 matches, got %d of %d", trialErr.Matched, trialErr.Total)
+	}
+}
+
+type MemoSolo struct {
+	Only int64 `json:"only"`
+}
+
+type MemoDuo struct {
+	Only  int64 `json:"only"`
+	Extra int64 `json:"extra"`
+}
+
+type MemoPick interface {
+	MemoSolo | MemoDuo
+}
+
+type MemoPickHolder struct {
+	Item MemoPick `json:"item"`
+}
+
+func TestMemoSingleMatchReplaysIdentically(t *testing.T) {
+	const data = `{"item":{"only":1,"extra":2}}`
+	var first MemoPickHolder
+	if err := json.Unmarshal([]byte(data), &first); err != nil {
+		t.Fatalf("single match must select MemoDuo, got error: %v", err)
+	}
+	sel, ok := first.Item.(MemoDuo)
+	if !ok || sel.Only != 1 || sel.Extra != 2 {
+		t.Fatalf("expected MemoDuo{1 2}, got %T(%v)", first.Item, first.Item)
+	}
+	var second MemoPickHolder
+	if err := json.Unmarshal([]byte(data), &second); err != nil {
+		t.Fatalf("replay must select MemoDuo, got error: %v", err)
+	}
+	sel2, ok := second.Item.(MemoDuo)
+	if !ok || sel2.Only != 1 || sel2.Extra != 2 {
+		t.Fatalf("expected replay MemoDuo{1 2}, got %T(%v)", second.Item, second.Item)
+	}
+}
+
+func TestMemoSeparateBufferRunsItsOwnTrials(t *testing.T) {
+	doc := memoDoc(8, 9)
+	memoLeafCalls = 0
+	memoTrialErr(t, doc)
+	alone := memoLeafCalls
+	item := len(doc) - len(`{"item":}`)
+	during := -1
+	var separateErr error
+	memoLeafProbe = func(b []byte) {
+		if len(b) != item {
+			return
+		}
+		memoLeafProbe = nil
+		before := memoLeafCalls
+		var wg sync.WaitGroup
+		wg.Go(func() {
+			var h MemoHolder
+			separateErr = json.Unmarshal([]byte(doc), &h)
+		})
+		wg.Wait()
+		during = memoLeafCalls - before
+	}
+	defer func() { memoLeafProbe = nil }()
+	memoTrialErr(t, doc)
+	if separateErr == nil {
+		t.Fatalf("the separate decode of an ambiguous document returned no error")
+	}
+	if during != alone {
+		t.Fatalf("a decode of a separate buffer ran the leaf decoder %d times while another decode was in flight, want %d as when alone", during, alone)
+	}
+}

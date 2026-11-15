@@ -1,0 +1,17 @@
+ok kind-struct
+ok kind-scalar
+ok negated-struct
+ok negated-scalar
+ok combined-struct
+ok combined-scalar
+ok release-struct
+ok release-scalar
+ok or-struct
+ok or-scalar
+ok eq-struct
+ok eq-scalar
+ok ne-struct
+ok ne-scalar
+ok shape
+ok shape-or
+ok shape-ne

@@ -1,0 +1,24 @@
+# The run-time checks of the fast call path reach it only in a binary built
+# with GOEXPERIMENT=logosfastcgo: without it the same calls take the plain cgo
+# path and pass. This script turns the experiment on and fails if any of the
+# five tests skips or does not run.
+[!cgo] skip 'needs cgo'
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env CGO_ENABLED=1
+env GOEXPERIMENT=logosfastcgo
+go test -v -count=1 -run '^(TestFastcallBlockingParity|TestFastcallSigprofSurvives|TestFastcallProfileAttribution|TestFastcallNoCallbackViolation|TestFastcallPinStackUnderCollection)$' cmd/cgo/internal/testlogos
+stdout '--- PASS: TestFastcallBlockingParity'
+stdout '--- PASS: TestFastcallSigprofSurvives'
+stdout '--- PASS: TestFastcallProfileAttribution'
+stdout '--- PASS: TestFastcallNoCallbackViolation'
+stdout '--- PASS: TestFastcallPinStackUnderCollection'
+! stdout 'SKIP'
+stdout '^ok\s+cmd/cgo/internal/testlogos'
+! stderr 'no tests to run'
+! stdout 'no tests to run'
+
+-- go.mod --
+module example.com/fastcallruntime
+
+go 1.27

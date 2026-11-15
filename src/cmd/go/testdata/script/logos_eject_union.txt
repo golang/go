@@ -1,10 +1,3 @@
-# M2-S7: eject rewrites value-used unions to methods-only interfaces.
-# The m module uses union values, an exhaustive type switch, assertions,
-# and a switch expression; the ejected tree builds with plain go and
-# prints the same output. The mdual module uses one union as a
-# constraint and as a value, so logos eject fails with the pinned text
-# while the native run still works.
-
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
@@ -17,16 +10,26 @@ stdout '^pick A$'
 stdout '^assert A: 1$'
 stdout '^member$'
 stdout '^non-member$'
+stdout '^2$'
+stdout '^key one$'
+stdout '^key two$'
+stdout '^key none$'
 cp stdout $WORK/eject-stdout.txt
 
 logos eject -o out
-exists out/main.go
+grep 'var _ Asserted = \(\*Checked\)\(nil\)' out/main.go
+grep 'switch' out/main.go
 exists out/go.mod
 grep 'loGo/s union: A \| B' out/main.go
 cd out
 go build ./...
 go run .
 cmp stdout $WORK/eject-stdout.txt
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
 cd ..
 cd out
 go vet ./...
@@ -35,7 +38,6 @@ exec $GOROOT/bin/gofmt -l .
 cd ..
 cd ..
 
-# A dual-use union is valid native code but has no Go form.
 cd mdual
 logos run .
 stdout '^B$'
@@ -117,7 +119,27 @@ func Check(v any) string {
 // methods: a methods-only interface (which is what eject writes for U)
 // would accept any non-member that implements M, so the shared output
 // below only asserts membership behavior that native and ejected code
-// agree on.
+type Asserted interface {
+	Mark()
+}
+
+type Checked struct : Asserted {
+}
+
+func (Checked) Mark() {}
+
+type Counted interface {
+	Mark()
+	N() int
+}
+
+type Tally struct : Counted {
+	n int
+}
+
+func (t *Tally) Mark() { t.n++ }
+func (t *Tally) N() int { return t.n }
+
 type C struct {
 	Z int
 }
@@ -133,6 +155,15 @@ func main() {
 	}
 	fmt.Println(Check(A{X: 2}))
 	fmt.Println(Check(C{}))
+	t := &Tally{}
+	var c Counted = t
+	c.Mark()
+	c.Mark()
+	fmt.Println(c.N())
+	m := map[U]string{A{X: 1}: "one", B{Y: "y"}: "two"}
+	fmt.Println("key", m[A{X: 1}] ?? "none")
+	fmt.Println("key", m[B{Y: "y"}] ?? "none")
+	fmt.Println("key", m[A{X: 9}] ?? "none")
 }
 
 -- mdual/go.mod --

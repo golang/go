@@ -1,0 +1,113 @@
+# SPEC T-303: in .lgo a constant product in a make length stays a
+# constant, so the buffer is fixed-size and never reaches the heap; the
+# same product of variables lowers to logos/rt.MulLen, takes the
+# variable-size path, and allocates once it outgrows the 32-byte stack
+# buffer at -O=1.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+logos test -count=1 -O=1 .
+
+cd ../nested
+logos run -p=1 .
+stdout '^ok mullen-nested-and-capacity$'
+logos eject -o out
+grep 'MulLen\(len\(make\(\[\]struct\{\}, _logos_rt\.MulLen\(a, b,' out/main.go
+grep 'MulLen\(.*\), c,' out/main.go
+grep 'make\(\[\]struct\{\}, n, _logos_rt\.MulLen\(a, b,' out/main.go
+
+-- m/go.mod --
+module example.com/makelenconst
+
+go 1.27
+
+-- m/logos.toml --
+[build]
+arena = false
+
+-- m/make.lgo --
+package makelenconst
+
+const rows = 8
+
+var cols = 8
+
+//go:noinline
+func constProduct() byte {
+	b := make([]byte, rows*8)
+	b[0] = 3
+	return b[63]
+}
+
+//go:noinline
+func variableProduct() byte {
+	b := make([]byte, rows*cols)
+	b[0] = 3
+	return b[63]
+}
+
+-- m/make_test.lgo --
+package makelenconst
+
+import "testing"
+
+var sink byte
+
+func TestConstProductStaysFixed(t *testing.T) {
+	if got := testing.AllocsPerRun(20, func() { sink = constProduct() }); got != 0 {
+		t.Errorf("constant product make took %v allocations, want none", got)
+	}
+}
+
+func TestVariableProductTakesChecked(t *testing.T) {
+	if got := testing.AllocsPerRun(20, func() { sink = variableProduct() }); got < 1 {
+		t.Errorf("variable product make took %v allocations, want the variable-size path", got)
+	}
+}
+
+-- nested/go.mod --
+module example.com/mullennested
+
+go 1.27
+
+-- nested/main.lgo --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import "fmt"
+
+func nested(a, b, c int) int {
+	return len(make([]struct{}, len(make([]struct{}, a*b))*c))
+}
+
+func capacity(n, a, b int) (int, int) {
+	x := make([]struct{}, n, a*b)
+	return len(x), cap(x)
+}
+
+func expectPanic(f func(), want string) {
+	defer func() {
+		if got := recover(); got != want {
+			panic(fmt.Sprintf("panic=%v want=%s", got, want))
+		}
+	}()
+	f()
+}
+
+func main() {
+	if got := nested(3, 4, 5); got != 60 {
+		panic(got)
+	}
+	if n, c := capacity(1, 3, 4); n != 1 || c != 12 {
+		panic(fmt.Sprintf("len=%d cap=%d", n, c))
+	}
+	max := int(^uint(0) >> 1)
+	expectPanic(func() { nested(max, 2, 1) }, "logos: make length overflow: a * b")
+	expectPanic(func() { nested(1, max, 2) }, "logos: make length overflow: len(make([]struct{}, a * b)) * c")
+	expectPanic(func() { capacity(1, max, 2) }, "logos: make length overflow: a * b")
+	fmt.Println("ok mullen-nested-and-capacity")
+}

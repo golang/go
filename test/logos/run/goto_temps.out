@@ -1,0 +1,14 @@
+ok goto-defertry
+ok run-defertry
+ok goto-errdefer
+ok run-errdefer
+ok run-errdefer-clean
+ok goto-scopedefer
+ok run-scopedefer
+ok goto-scopeloop
+ok loop-scopedefer
+ok loop-defertry
+ok loop-errdefer
+ok loop-errdefer-try
+ok local-scopedefer
+ok local-errdefer

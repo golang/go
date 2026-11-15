@@ -1,0 +1,55 @@
+// asmcheck -goexperiment simd
+
+package main
+
+//go:noinline
+func dotF64(a, b [4]float64) float64 {
+	// amd64/v1:"VMULPD" "CALL simd/archsimd\\.X86Features\\.AVX\\(SB\\)"
+	// amd64/v2:"VMULPD" "CALL simd/archsimd\\.X86Features\\.AVX\\(SB\\)"
+	// amd64/v3:"VMULPD" -"CALL simd/archsimd\\." -"CMPB internal/cpu\\.X86"
+	// amd64/v4:"VMULPD" -"CALL simd/archsimd\\." -"CMPB internal/cpu\\.X86"
+	// arm64:"VFMUL V[0-9]+\\.D2" -"CALL simd/archsimd"
+	return a.dot(b)
+}
+
+//go:noinline
+func addI8(a, b [16]int8) [16]int8 {
+	// amd64/v1:"VPADDB" "CALL simd/archsimd\\.X86Features\\.AVX\\(SB\\)"
+	// amd64/v2:"VPADDB" "CALL simd/archsimd\\.X86Features\\.AVX\\(SB\\)"
+	// amd64/v3:"VPADDB" -"CALL simd/archsimd\\." -"CMPB internal/cpu\\.X86"
+	// amd64/v4:"VPADDB" -"CALL simd/archsimd\\." -"CMPB internal/cpu\\.X86"
+	// arm64:"VADD V[0-9]+\\.B16" -"CALL simd/archsimd"
+	return a + b
+}
+
+//go:noinline
+func addI16(a, b [8]int16) [8]int16 {
+	// amd64/v1:"VPADDW" "CALL simd/archsimd\\.X86Features\\.AVX\\(SB\\)"
+	// amd64/v2:"VPADDW" "CALL simd/archsimd\\.X86Features\\.AVX\\(SB\\)"
+	// amd64/v3:"VPADDW" -"CALL simd/archsimd\\." -"CMPB internal/cpu\\.X86"
+	// amd64/v4:"VPADDW" -"CALL simd/archsimd\\." -"CMPB internal/cpu\\.X86"
+	// arm64:"VADD V[0-9]+\\.H8" -"CALL simd/archsimd"
+	return a + b
+}
+
+//go:noinline
+func sumF64(a [4]float64) float64 {
+	// amd64:"ADDSD" -"VADDPD" -"CALL simd/archsimd"
+	// arm64:"FADDD" -"VFADD" -"CALL simd/archsimd"
+	return a.sum()
+}
+
+//go:noinline
+func sumUptr(a [2]uintptr) uintptr {
+	// amd64:"ADDQ" -"VPADD" -"JMP" -"CALL simd/archsimd"
+	// arm64:"ADD" -"VADD" -"CALL simd/archsimd"
+	return a.sum()
+}
+
+func main() {
+	var a [4]float64
+	var d, e [16]int8
+	var f, g [8]int16
+	var u [2]uintptr
+	println(dotF64(a, a), addI8(d, e)[0], addI16(f, g)[0], sumF64(a), sumUptr(u))
+}

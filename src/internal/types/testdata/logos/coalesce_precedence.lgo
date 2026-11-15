@@ -1,0 +1,9 @@
+package p
+
+func precedence(a, b bool, c bool?) {
+	_ = a /* ERROR "correctness::not_an_option" */ || b ?? c
+}
+
+func rightGrouped(a, b bool?, c bool) bool {
+	return a ?? b ?? c
+}

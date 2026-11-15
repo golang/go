@@ -1,12 +1,9 @@
-sum: 10
-sq: 0 0
-sq: 1 1
-sq: 2 4
-sq: 3 9
-seen: 3 steps: 3
-logged: 0
-logged: 1
-logged: 2
-glog: [start done]
-dur: 1s
-dur: 1m0s
+ok sum
+ok pairs
+ok early-break
+ok logged
+ok scope-cleanup
+ok durs
+ok return-ends
+ok generator-body-waits-for-iteration
+ok generator-body-restarts-for-each-iteration

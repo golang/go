@@ -2,8 +2,26 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 func main() {
-	fmt.Println("hello")
+	s := "hello"
+	check("hello", s == "hello", s, "hello")
+	if failed {
+		os.Exit(1)
+	}
 }

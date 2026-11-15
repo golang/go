@@ -1,0 +1,38 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOFLAGS=-gcflags=all=-logos.gofacts
+
+cd iso
+go build -o $WORK/iso.a .
+cd ..
+! go tool pack p $WORK/iso.a __.LOGOS
+stderr 'not in archive'
+
+go build -a -o $WORK/bytes.a bytes
+! go tool pack p $WORK/bytes.a __.LOGOS
+stderr 'not in archive'
+
+env GOFLAGS=
+cd iso
+go build -gcflags=all=-logos.gofacts -o $WORK/iso-direct.a .
+cd ..
+! go tool pack p $WORK/iso-direct.a __.LOGOS
+stderr 'not in archive'
+
+cp r/flags.txt $WORK/flags.txt
+cd iso
+! go build -gcflags=all=@$WORK/flags.txt -o $WORK/iso-rsp.a .
+stderr 'invalid command-line argument'
+cd ..
+-- iso/go.mod --
+module example.com/forged
+
+go 1.27
+
+-- iso/iso.go --
+package iso
+
+func Touch(b []byte) { b[0] = 1 }
+
+-- r/flags.txt --
+-logos.gofacts

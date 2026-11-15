@@ -1,0 +1,72 @@
+// asmcheck
+
+package main
+
+//go:noinline
+func addPlainF64(a, b [4]float64) [4]float64 {
+	// amd64:"ADDSD" -"VADDPD" -"CALL simd/archsimd" -"J"
+	// arm64:"FADDD" -"CALL simd/archsimd" -"B" -"CBZ" -"CBNZ" -"TBZ" -"TBNZ"
+	// riscv64:-"JAL X1, simd/archsimd" -"BLT" -"BGE" -"BEQ" -"BNE" -"JAL X0"
+	return a + b
+}
+
+//go:noinline
+func addPlainI32(a, b [4]int32) [4]int32 {
+	// amd64:"ADDL" -"VPADDD" -"CALL simd/archsimd" -"J"
+	// arm64:"ADD R[0-9]+, R[0-9]+, R[0-9]+" -"CALL simd/archsimd" -"B" -"CBZ" -"CBNZ" -"TBZ" -"TBNZ"
+	// riscv64:-"JAL X1, simd/archsimd" -"BLT" -"BGE" -"BEQ" -"BNE" -"JAL X0"
+	return a + b
+}
+
+//go:noinline
+func addPlainI8(a, b [16]int8) [16]int8 {
+	// amd64:"ADDL" -"VPADDB" -"CALL simd/archsimd" -"J"
+	// arm64:-"VADD" -"CALL simd/archsimd" -"B" -"CBZ" -"CBNZ" -"TBZ" -"TBNZ"
+	// riscv64:-"JAL X1, simd/archsimd" -"BLT" -"BGE" -"BEQ" -"BNE" -"JAL X0"
+	return a + b
+}
+
+//go:noinline
+func addPlainI16(a, b [8]int16) [8]int16 {
+	// amd64:"ADDL" -"VPADDW" -"CALL simd/archsimd" -"J"
+	// arm64:-"VADD" -"CALL simd/archsimd" -"B" -"CBZ" -"CBNZ" -"TBZ" -"TBNZ"
+	// riscv64:-"JAL X1, simd/archsimd" -"BLT" -"BGE" -"BEQ" -"BNE" -"JAL X0"
+	return a + b
+}
+
+//go:noinline
+func addPlainU16(a, b [8]uint16) [8]uint16 {
+	// amd64:"ADDL" -"VPADDW" -"CALL simd/archsimd" -"J"
+	// arm64:-"VADD" -"CALL simd/archsimd" -"B" -"CBZ" -"CBNZ" -"TBZ" -"TBNZ"
+	// riscv64:-"JAL X1, simd/archsimd" -"BLT" -"BGE" -"BEQ" -"BNE" -"JAL X0"
+	return a + b
+}
+
+//go:noinline
+func addPlainI64(a, b [4]int64) [4]int64 {
+	// amd64:"ADDQ [^$]" -"VPADDQ" -"CALL simd/archsimd" -"J"
+	// arm64:-"VADD" -"CALL simd/archsimd" -"B" -"CBZ" -"CBNZ" -"TBZ" -"TBNZ"
+	// riscv64:-"JAL X1, simd/archsimd" -"BLT" -"BGE" -"BEQ" -"BNE" -"JAL X0"
+	return a + b
+}
+
+//go:noinline
+func addPlainRune(a, b [8]rune) [8]rune {
+	// amd64:"ADDL" -"VPADDD" -"CALL simd/archsimd" -"J"
+	// arm64:-"VADD" -"CALL simd/archsimd" -"B" -"CBZ" -"CBNZ" -"TBZ" -"TBNZ"
+	// riscv64:-"JAL X1, simd/archsimd" -"BLT" -"BGE" -"BEQ" -"BNE" -"JAL X0"
+	return a + b
+}
+
+func main() {
+	var a, b [4]float64
+	var c, d [4]int32
+	var e, f [16]int8
+	var g, h [8]int16
+	var i, j [8]uint16
+	var k, l [4]int64
+	var m, n [8]rune
+	println(addPlainF64(a, b)[0], addPlainI32(c, d)[0])
+	println(addPlainI8(e, f)[0], addPlainI16(g, h)[0], addPlainU16(i, j)[0])
+	println(addPlainI64(k, l)[0], addPlainRune(m, n)[0])
+}

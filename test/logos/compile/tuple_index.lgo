@@ -1,0 +1,7 @@
+// errorcheck
+
+package p
+
+func f(t (int, error)) {
+	_ = t.0 // ERROR "."
+}

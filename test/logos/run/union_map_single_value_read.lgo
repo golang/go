@@ -1,0 +1,42 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed = false
+
+func check(name, got, want string) {
+	if got != want {
+		fmt.Printf("FAIL %s: got %q want %q\n", name, got, want)
+		failed = true
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type AEx struct{}
+type BEx struct{}
+type U interface {
+	AEx | BEx
+}
+
+func main() {
+	m := map[U]string{AEx{}: "one"}
+	single := m[AEx{}] ?? "none"
+	two, ok := m[AEx{}]
+	var key U = AEx{}
+	exact := m[key] ?? "none"
+	explicit := m[U(AEx{})] ?? "none"
+	check("single-value", single, "one")
+	check("two-value-present", fmt.Sprint(ok), "true")
+	check("two-value-equal", two, single)
+	check("exact-key-equal", exact, single)
+	check("explicit-key-equal", explicit, single)
+	if failed {
+		os.Exit(1)
+	}
+}

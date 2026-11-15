@@ -2,10 +2,21 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
-// M7-S4 const switch with a generic-instance case (SPEC Sec 2.5, T-205):
-// the case type spells past the index bracket.
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 type List[T any] struct {
 	head T
@@ -20,6 +31,9 @@ func describe[T any]() string {
 }
 
 func main() {
-	fmt.Println(describe[List[int]]())
-	fmt.Println(describe[string]())
+	check("list-int", describe[List[int]]() == "list-int", describe[List[int]](), "list-int")
+	check("other", describe[string]() == "other", describe[string](), "other")
+	if failed {
+		os.Exit(1)
+	}
 }

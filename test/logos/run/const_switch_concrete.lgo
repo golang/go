@@ -5,14 +5,21 @@ package main
 import (
 	"fmt"
 	"io"
+	"os"
 	"strings"
+	"unsafe"
 )
 
-// M7-S4 const switch over a concrete type (SPEC Sec 2.5, T-205): the
-// switch folds to its first matching case in source order, a tilde case
-// matches the underlying type, an interface case matches an implementer,
-// and a tag that matches no case removes the statement so the code after
-// it runs (#57, #91, #86).
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 type UserID int
 
@@ -76,10 +83,41 @@ func ifaceBody(w Word) string {
 	return "after"
 }
 
+var ifaceLayoutRan bool
+
+func ifaceLayout(w Word) {
+	const switch Word {
+	case io.WriterTo:
+		if unsafe.Sizeof(w) != unsafe.Sizeof(Word{}) {
+			panic("iface layout size")
+		}
+		if unsafe.Alignof(w) != unsafe.Alignof(Word{}) {
+			panic("iface layout align")
+		}
+		if unsafe.Offsetof(w.S) != unsafe.Offsetof(Word{}.S) {
+			panic("iface layout offset")
+		}
+		var b strings.Builder
+		n, err := w.WriteTo(&b)
+		if err != nil || n != int64(len(w.S)) {
+			panic("iface method set")
+		}
+		if b.String() != w.S {
+			panic("iface method set")
+		}
+		ifaceLayoutRan = true
+	}
+}
+
 func main() {
-	fmt.Println(exactFirst())
-	fmt.Println(tildeBeforeIface())
-	fmt.Println(ifaceBeforeIface())
-	fmt.Println(noMatch())
-	fmt.Println(ifaceBody(Word{"body"}))
+	check("exact", exactFirst() == "exact", exactFirst(), "exact")
+	check("tilde", tildeBeforeIface() == "tilde", tildeBeforeIface(), "tilde")
+	check("writer-to", ifaceBeforeIface() == "writer-to", ifaceBeforeIface(), "writer-to")
+	check("nomatch", noMatch() == "after", noMatch(), "after")
+	check("iface-body", ifaceBody(Word{"body"}) == "body", ifaceBody(Word{"body"}), "body")
+	ifaceLayout(Word{"body"})
+	check("iface-layout", ifaceLayoutRan, ifaceLayoutRan, true)
+	if failed {
+		os.Exit(1)
+	}
 }

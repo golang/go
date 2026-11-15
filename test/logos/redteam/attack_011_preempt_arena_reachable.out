@@ -1,4 +1,4 @@
-scan-reachable: ok
-preempt-reachable: ok
-alloc-noscan: 0
-alloc-scan: 0
+ok arena-scan-reachable
+ok arena-preempt-reachable
+ok arena-noscan-zero-alloc
+ok arena-scan-zero-alloc

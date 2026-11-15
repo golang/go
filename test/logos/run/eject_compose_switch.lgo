@@ -1,0 +1,269 @@
+// run
+
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"iter"
+	"os"
+)
+
+var _ iter.Seq[int]
+
+type pc struct {
+	id int
+}
+
+type box struct {
+	o int?
+	p int
+}
+
+type State struct {
+	A int
+	B int
+}
+
+type Prop interface {
+	P int
+}
+
+type propBox struct : Prop {
+	P int
+}
+
+var errLoad = errors.New("load")
+
+var last int
+
+func load(v int, fail bool) (int, error) {
+	if fail {
+		return 0, errLoad
+	}
+	return v, nil
+}
+
+func maybe(n int) int? {
+	if n == 7 {
+		return 7
+	}
+	return nil
+}
+
+func maybeP(n int) *pc? {
+	if n == 7 {
+		return &pc{id: 7}
+	}
+	return nil
+}
+
+func apply(f func(int) int, n int) int { return f(n) }
+
+func viewLen(xs const []int) int { return len(xs) }
+
+func record(n int) error {
+	last = n
+	return nil
+}
+
+func mkState(n int) State { return State{A: n, B: n + 1} }
+
+func pair(n int) (int, string) { return n, "p" }
+
+func tupA(t (int, string)) int {
+	a, _ := t
+	return a
+}
+
+var failed bool
+
+func line(f func(int, bool) (int, error), fail bool) string {
+	last = 0
+	got, err := f(7, fail)
+	if err != nil {
+		return fmt.Sprintln(0, err, last)
+	}
+	return fmt.Sprintln(got, err, last)
+}
+
+func run(name string, f func(int, bool) (int, error), want string) {
+	got := line(f, false) + line(f, true)
+	if got != want {
+		failed = true
+		fmt.Printf("FAIL %s: got %q want %q\n", name, got, want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func c_interp_propcoal(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	s := $"a={(maybe(v) ?? w.P)}"
+	r := len(s)
+	return r, nil
+}
+
+func c_interp_proplam(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	s := $"a={apply(x => x + w.P, v)}"
+	r := len(s)
+	return r, nil
+}
+
+func c_interp_propr(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	s := $"a={w.P}"
+	r := len(s)
+	return r, nil
+}
+
+func c_sw_arm_propcoal(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	r := switch v {
+	case 7 => maybe(v) ?? w.P
+	default => 1
+	}
+	return r, nil
+}
+
+func c_sw_arm_proplam(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	r := switch v {
+	case 7 => apply(x => x + w.P, v)
+	default => 1
+	}
+	return r, nil
+}
+
+func c_sw_arm_propr(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	r := switch v {
+	case 7 => w.P
+	default => 1
+	}
+	return r, nil
+}
+
+func c_sw_case_propcoal(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	r := switch v {
+	case (maybe(v) ?? w.P) => 70
+	default => 1
+	}
+	return r, nil
+}
+
+func c_sw_case_propr(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	r := switch v {
+	case (w.P) => 70
+	default => 1
+	}
+	return r, nil
+}
+
+func c_sw_tag_propcoal(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	r := switch (maybe(v) ?? w.P) {
+	case 7 => 70
+	default => 1
+	}
+	return r, nil
+}
+
+func c_sw_tag_proplam(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	r := switch (apply(x => x + w.P, v)) {
+	case 7 => 70
+	default => 1
+	}
+	return r, nil
+}
+
+func c_sw_tag_propr(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	r := switch (w.P) {
+	case 7 => 70
+	default => 1
+	}
+	return r, nil
+}
+
+func main() {
+	_ = context.Background
+	run("interp__propcoal", c_interp_propcoal, "3 <nil> 0\n3 <nil> 0\n")
+	run("interp__proplam", c_interp_proplam, "4 <nil> 0\n4 <nil> 0\n")
+	run("interp__propr", c_interp_propr, "3 <nil> 0\n3 <nil> 0\n")
+	run("sw-arm__propcoal", c_sw_arm_propcoal, "7 <nil> 0\n7 <nil> 0\n")
+	run("sw-arm__proplam", c_sw_arm_proplam, "11 <nil> 0\n11 <nil> 0\n")
+	run("sw-arm__propr", c_sw_arm_propr, "4 <nil> 0\n4 <nil> 0\n")
+	run("sw-case__propcoal", c_sw_case_propcoal, "70 <nil> 0\n70 <nil> 0\n")
+	run("sw-case__propr", c_sw_case_propr, "1 <nil> 0\n1 <nil> 0\n")
+	run("sw-tag__propcoal", c_sw_tag_propcoal, "70 <nil> 0\n70 <nil> 0\n")
+	run("sw-tag__proplam", c_sw_tag_proplam, "1 <nil> 0\n1 <nil> 0\n")
+	run("sw-tag__propr", c_sw_tag_propr, "1 <nil> 0\n1 <nil> 0\n")
+	if failed {
+		os.Exit(1)
+	}
+}

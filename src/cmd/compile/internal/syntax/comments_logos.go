@@ -9,9 +9,6 @@ import (
 	"io"
 )
 
-// CommentsDoMode is CommentsDo with the scanner mode of the source: a
-// loGo/s file is scanned with LogosMode so interpolated strings and the ?
-// token cannot hide or invent a comment.
 func CommentsDoMode(src io.Reader, mode Mode, handler func(line, col uint, text string)) {
 	var s scanner
 	s.init(src, handler, comments|uint(mode))
@@ -20,25 +17,14 @@ func CommentsDoMode(src io.Reader, mode Mode, handler func(line, col uint, text 
 	}
 }
 
-// ParenEnd returns the position just after the parenthesis that closes the
-// one at open, scanning src, the whole text of the file open belongs to,
-// with the tokens of the given mode. Strings, runes, and comments cannot
-// hide or invent a parenthesis. It reports false when open is not a
-// parenthesis of src or no closing parenthesis follows.
 func ParenEnd(src []byte, open Pos, mode Mode) (Pos, bool) {
 	return closeEnd(src, open, mode, _Lparen, _Rparen)
 }
 
-// BracketEnd is ParenEnd for brackets: it returns the position just after the
-// bracket that closes the "[" at open, the opening bracket of an index or
-// slice expression, under the same rules.
 func BracketEnd(src []byte, open Pos, mode Mode) (Pos, bool) {
 	return closeEnd(src, open, mode, _Lbrack, _Rbrack)
 }
 
-// closeEnd returns the position just after the token that closes the openTok
-// at open, scanning src with the tokens of the given mode. Only openTok and
-// closeTok are counted, so other kinds of bracket inside are skipped.
 func closeEnd(src []byte, open Pos, mode Mode, openTok, closeTok token) (Pos, bool) {
 	from, ok := lineOffset(src, open.Line())
 	if !ok {
@@ -67,7 +53,6 @@ func closeEnd(src []byte, open Pos, mode Mode, openTok, closeTok token) (Pos, bo
 	return Pos{}, false
 }
 
-// lineOffset returns the byte offset of the start of the 1-based line.
 func lineOffset(src []byte, line uint) (int, bool) {
 	off := 0
 	for l := uint(linebase); l < line; l++ {

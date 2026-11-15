@@ -28,6 +28,7 @@ const (
 // (T-202) and stay opaque; option types (M3-S2) are never a bare
 // *Pointer.
 func (check *Checker) logosIsNonNilPointer(t Type) bool {
+	t, _, _ = logosReadonlyBase(t)
 	if t == nil || isTypeParam(t) || check.logosOpaqueType(t) {
 		return false
 	}
@@ -40,6 +41,7 @@ func (check *Checker) logosIsNonNilPointer(t Type) bool {
 // C.struct_x types of _cgo_gotypes.go). Its interior (e.g. Go pointer
 // fields) is platform territory: nilable, with no zero-value rules.
 func (check *Checker) logosOpaqueType(t Type) bool {
+	t, _, _ = logosReadonlyBase(t)
 	n, _ := t.(*Named)
 	return n != nil && n.obj != nil && (n.obj.pkg != check.pkg || logosGoModePos(n.obj.pos))
 }
@@ -47,6 +49,7 @@ func (check *Checker) logosOpaqueType(t Type) bool {
 // logosZeroNeedsInit reports whether the zero value of t is illegal in
 // .lgo code: t is or transitively holds a non-nil pointer.
 func (check *Checker) logosZeroNeedsInit(t Type, seen map[Type]bool) bool {
+	t, _, _ = logosReadonlyBase(t)
 	if t == nil || isTypeParam(t) || check.logosOpaqueType(t) {
 		return false
 	}
@@ -74,7 +77,7 @@ func (check *Checker) logosMissingNonNilField(st *Struct, seen map[Type]bool) *V
 		seen = make(map[Type]bool)
 	}
 	for _, fld := range st.fields {
-		ft := fld.typ
+		ft, _, _ := logosReadonlyBase(fld.typ)
 		if !isValid(ft) || isTypeParam(ft) || check.logosOpaqueType(ft) {
 			continue
 		}
@@ -112,9 +115,10 @@ func (check *Checker) logosZeroDecl(obj *Var) {
 		return
 	}
 	var missing *Var
-	if u, _ := obj.typ.Underlying().(*Struct); u != nil {
+	base, _, _ := logosReadonlyBase(obj.typ)
+	if u, _ := base.Underlying().(*Struct); u != nil {
 		missing = check.logosMissingNonNilField(u, nil)
-	} else if u, _ := obj.typ.Underlying().(*Array); u != nil {
+	} else if u, _ := base.Underlying().(*Array); u != nil {
 		if check.logosZeroNeedsInit(u.elem, nil) {
 			check.errorf(obj.pos, BadDecl, "%s var %s %s needs initializers; non-nil pointer elements have no zero value", logosNonNilUninit, obj.name, obj.typ)
 			return
@@ -167,7 +171,8 @@ func (check *Checker) logosZeroMakeElem(T Type) bool {
 	if !isValid(T) {
 		return false
 	}
-	u, _ := T.Underlying().(*Slice)
+	base, _, _ := logosReadonlyBase(T)
+	u, _ := base.Underlying().(*Slice)
 	return u != nil && check.logosZeroNeedsInit(u.elem, nil)
 }
 
@@ -201,11 +206,12 @@ func (check *Checker) logosZeroNew(arg syntax.Expr, T Type) {
 		check.errorf(arg, BadDecl, "%s new(%s) would leave a non-nil pointer without a value", logosNonNilUninit, T)
 		return
 	}
-	if st, _ := T.Underlying().(*Struct); st != nil {
+	base, _, _ := logosReadonlyBase(T)
+	if st, _ := base.Underlying().(*Struct); st != nil {
 		if missing := check.logosMissingNonNilField(st, nil); missing != nil {
 			check.errorf(arg, BadDecl, "%s field %s.%s (type %s) needs a value", logosNonNilUninit, T, missing.name, missing.typ)
 		}
-	} else if au, _ := T.Underlying().(*Array); au != nil {
+	} else if au, _ := base.Underlying().(*Array); au != nil {
 		if check.logosZeroNeedsInit(au.elem, nil) {
 			check.errorf(arg, BadDecl, "%s new(%s) would leave non-nil elements without values", logosNonNilUninit, T)
 		}

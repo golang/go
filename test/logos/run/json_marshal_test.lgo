@@ -2,21 +2,19 @@
 
 package jsonmarshal
 
-// M11-S1 attack (SPEC Sec 12.1, T-Sec12): the generated MarshalJSON is
-// byte-identical to the reflective encoding/json output, compact, exact in
-// length for the User shape, and one allocation for a struct of scalars.
-// `mirror` is a method-less copy of the type, so it takes the reflective
-// path; json.Marshal(v) reaches the generated method by interface dispatch.
 
 import (
 	"bytes"
 	"encoding/json"
+	"maps"
 	"math"
 	"math/rand"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
-
-	rtjson "logos/rt/json"
 )
 
 type Dur int64
@@ -87,9 +85,135 @@ type Every struct {
 	Dur         Dur         `json:"dur"`
 }
 
-type mirror Every
-
 type innerMirror Inner
+
+type everyMirror struct {
+	B        bool            `json:"b"`
+	NoGen    any             `json:"-"`
+	I        int             `json:"i"`
+	I8       int8            `json:"i8"`
+	I16      int16           `json:"i16"`
+	I32      int32           `json:"i32"`
+	I64      int64           `json:"i64"`
+	U        uint            `json:"u"`
+	U8       uint8           `json:"u8"`
+	U16      uint16          `json:"u16"`
+	U32      uint32          `json:"u32"`
+	U64      uint64          `json:"u64"`
+	Uptr     uintptr         `json:"uptr"`
+	F32      float32         `json:"f32"`
+	F64      float64         `json:"f64"`
+	S        string          `json:"s"`
+	Named    Label           `json:"named"`
+	NoTag    int64
+	Renamed  string          `json:"renamed_key"`
+	HTMLKey  string          `json:"<&>"`
+	Skip     string          `json:"-"`
+	hidden   string
+	OmitStr   string  `json:"os,omitempty"`
+	OmitInt   int64   `json:"oi,omitempty"`
+	OmitFloat float64 `json:"of,omitempty"`
+	OmitBool  bool    `json:"ob,omitempty"`
+	ZeroInt   int64   `json:"zi,omitzero"`
+	ZeroStr   string  `json:"zs,omitzero"`
+	ZeroFloat float32 `json:"zf,omitzero"`
+	Both      string  `json:"both,omitempty,omitzero"`
+	QInt      int64   `json:"qi,string"`
+	QUint     uint64  `json:"qu,string"`
+	QFloat    float64 `json:"qf,string"`
+	QF32      float32 `json:"qf32,string"`
+	QBool     bool    `json:"qb,string"`
+	QStr      string  `json:"qs,string"`
+	QOmit     int32   `json:"qo,string,omitempty"`
+	PS        *string?  `json:"ps"`
+	PSOmit    *string?  `json:"pso,omitempty"`
+	PInt      *int64?   `json:"pi,string"`
+	PFloat    *float64? `json:"pf,omitzero"`
+	PBool     *bool?    `json:"pb"`
+	OptInt    int64?    `json:"optint"`
+	OptStr    string?   `json:"optstr,omitempty"`
+	Req       *innerMirror `json:"req"`
+	ReqInt    *int64       `json:"reqi"`
+	Strs      []string     `json:"strs"`
+	StrsOmit  []string     `json:"strs_omit,omitempty"`
+	StrsZero  []string     `json:"strs_zero,omitzero"`
+	Ints      []int64      `json:"ints"`
+	Floats    []float64    `json:"floats"`
+	Bools     []bool       `json:"bools"`
+	Bytes     []byte       `json:"bytes"`
+	Arr       [3]int16     `json:"arr"`
+	Map       map[string]int `json:"m"`
+	Nested    innerMirror  `json:"nested"`
+	Dur       Dur           `json:"dur"`
+}
+
+func mirrorScalars(m *everyMirror, v Every) {
+	m.B = v.B
+	m.I = v.I
+	m.I8 = v.I8
+	m.I16 = v.I16
+	m.I32 = v.I32
+	m.I64 = v.I64
+	m.U = v.U
+	m.U8 = v.U8
+	m.U16 = v.U16
+	m.U32 = v.U32
+	m.U64 = v.U64
+	m.Uptr = v.Uptr
+	m.F32 = v.F32
+	m.F64 = v.F64
+	m.S = v.S
+	m.Named = v.Named
+	m.NoTag = v.NoTag
+	m.Renamed = v.Renamed
+	m.HTMLKey = v.HTMLKey
+	m.Skip = v.Skip
+	m.hidden = v.hidden
+	m.OmitStr = v.OmitStr
+	m.OmitInt = v.OmitInt
+	m.OmitFloat = v.OmitFloat
+	m.OmitBool = v.OmitBool
+	m.ZeroInt = v.ZeroInt
+	m.ZeroStr = v.ZeroStr
+	m.ZeroFloat = v.ZeroFloat
+	m.Both = v.Both
+	m.QInt = v.QInt
+	m.QUint = v.QUint
+	m.QFloat = v.QFloat
+	m.QF32 = v.QF32
+	m.QBool = v.QBool
+	m.QStr = v.QStr
+	m.QOmit = v.QOmit
+	m.PS = v.PS
+	m.PSOmit = v.PSOmit
+	m.PInt = v.PInt
+	m.PFloat = v.PFloat
+	m.PBool = v.PBool
+	m.OptInt = v.OptInt
+	m.OptStr = v.OptStr
+}
+
+func mirrorEvery(v Every) everyMirror {
+	m := everyMirror{Req: &innerMirror{}, ReqInt: new(int64)}
+	mirrorScalars(&m, v)
+	if v.Req != nil {
+		in := innerMirror(*v.Req)
+		m.Req = &in
+	}
+	m.ReqInt = v.ReqInt
+	m.Strs = v.Strs
+	m.StrsOmit = v.StrsOmit
+	m.StrsZero = v.StrsZero
+	m.Ints = v.Ints
+	m.Floats = v.Floats
+	m.Bools = v.Bools
+	m.Bytes = v.Bytes
+	m.Arr = v.Arr
+	m.Map = v.Map
+	m.Nested = innerMirror(v.Nested)
+	m.Dur = v.Dur
+	return m
+}
 
 type draw struct {
 	r    *rand.Rand
@@ -330,7 +454,7 @@ func compareValid(t *testing.T, v Every, want []byte) {
 
 func compare(t *testing.T, v Every) {
 	t.Helper()
-	want, werr := json.Marshal(mirror(v))
+	want, werr := json.Marshal(mirrorEvery(v))
 	if werr != nil {
 		compareFailing(t, v, werr)
 		return
@@ -394,19 +518,16 @@ type User struct {
 	Role *string? `json:"role,omitempty"`
 }
 
-func userLen(u User) int {
-	n := 17 + rtjson.IntLen(u.ID) + rtjson.EscapedLen(u.Name)
-	r := u.Role
-	if r != nil {
-		n += 10 + rtjson.EscapedLen(*r)
-	}
-	return n
+type userMirror User
+
+func userWant(u User) []byte {
+	return must(json.Marshal(userMirror(u)))
 }
 
 var (
 	ids     = []int64{0, -1, 123456789, -123456789, 1234567890, -1234567890, math.MaxInt64, math.MinInt64}
 	lengths = []int{0, 1, 64, 4095, 4096, 4097}
-	units   = []string{"a", "<&\"\n"}
+	units   = []string{"a", "<&\"\n", "a\u2028b", "\xff"}
 )
 
 func usersFor(name, role string) []User {
@@ -425,16 +546,23 @@ func usersOfLen(n int) []User {
 	return out
 }
 
-// TestUserExactLen asserts len(buf) == cap(buf) == 17 + IntLen(id) +
-// EscapedLen(name) + (role present ? 10 + EscapedLen(*role) : 0).
 func TestUserExactLen(t *testing.T) {
 	for _, n := range lengths {
 		for _, u := range usersOfLen(n) {
-			buf := must(u.MarshalJSON())
-			if want := userLen(u); len(buf) != want || cap(buf) != want {
-				t.Fatalf("id=%d name=%d: len=%d cap=%d, want both %d", u.ID, len(u.Name), len(buf), cap(buf), want)
+			got := must(u.MarshalJSON())
+			want := userWant(u)
+			if !bytes.Equal(got, want) {
+				t.Fatalf("id=%d name=%d: got %s, want %s", u.ID, len(u.Name), got, want)
 			}
 		}
+	}
+	role := "r"
+	full := User{ID: -123456789, Name: strings.Repeat("a\u2028b", 64), Role: &role}
+	allocs := testing.AllocsPerRun(100, func() {
+		sink = must(full.MarshalJSON())
+	})
+	if allocs != 1 {
+		t.Fatalf("MarshalJSON of User allocates %v times, want 1", allocs)
 	}
 }
 
@@ -482,13 +610,6 @@ func TestOutputIsCompact(t *testing.T) {
 	}
 }
 
-// PRRT_kwDOVOeymc6wGfHR (r4373037368) end to end: a named int carrying
-// only IsZero() bool still classifies as a plain scalar, so the string
-// option quotes it and omitzero consults IsZero: IsZero() { z == 42 }
-// overrides the default zero, so only 42 omits and the naive zero 0
-// stays. Custom-marshal
-// precedence (MarshalJSON, MarshalText, json.Number) stays covered by
-// the Every matrix above.
 type ZInt int64
 
 func (z ZInt) IsZero() bool { return z == 42 }
@@ -519,5 +640,167 @@ func TestNamedIntIsZeroQuotedAndOmitZero(t *testing.T) {
 		if via := must(json.Marshal(c.v)); !bytes.Equal(via, want) {
 			t.Fatalf("json.Marshal(v)\n got %s\nwant %s", via, want)
 		}
+	}
+}
+
+type KeyEscapes struct {
+	LT  string `json:"a<b"`
+	GT  string `json:"c>d"`
+	AMP string `json:"e&f"`
+}
+
+type keyEscapesMirror KeyEscapes
+
+func TestKeyNamesEscapePerEncodingJSON(t *testing.T) {
+	v := KeyEscapes{LT: "x", GT: "y", AMP: "z"}
+	got := must(v.MarshalJSON())
+	want := must(json.Marshal(keyEscapesMirror(v)))
+	if !bytes.Equal(got, want) {
+		t.Fatalf("key escapes differ\n got %s\nwant %s", got, want)
+	}
+	for _, literal := range []string{`"a\u003cb":"x"`, `"c\u003ed":"y"`, `"e\u0026f":"z"`} {
+		if !bytes.Contains(got, []byte(literal)) {
+			t.Fatalf("output %s lacks hand-written key literal %s", got, literal)
+		}
+	}
+}
+
+type Separators struct {
+	Text string            `json:"text"`
+	Tags map[string]string `json:"tags"`
+}
+
+type separatorsMirror Separators
+
+func TestSeparatorsEncodeAndDecodePerEncodingJSON(t *testing.T) {
+	v := Separators{
+		Text: "a\u2028b\u2029c",
+		Tags: map[string]string{"k\u2028": "v\u2029", "\u2029\u2028": "x<&>"},
+	}
+	want := must(json.Marshal(separatorsMirror(v)))
+	got := must(v.MarshalJSON())
+	if !bytes.Equal(got, want) {
+		t.Fatalf("separators differ\n got %s\nwant %s", got, want)
+	}
+	for _, escape := range []string{`\u2028`, `\u2029`} {
+		if !bytes.Contains(got, []byte(escape)) {
+			t.Fatalf("output %s lacks the escape %s", got, escape)
+		}
+	}
+	var back Separators
+	if err := json.Unmarshal(got, &back); err != nil {
+		t.Fatal(err)
+	}
+	if back.Text != v.Text || !maps.Equal(back.Tags, v.Tags) {
+		t.Fatalf("round trip changed %+v into %+v", v, back)
+	}
+}
+
+func TestDefaultBuildUsesJSONv2(t *testing.T) {
+	got := must(Inner{N: 1, S: "\xff"}.MarshalJSON())
+	if !bytes.Contains(got, []byte("�")) {
+		t.Fatalf("default build does not emit the v2 replacement character: %q", got)
+	}
+	if bytes.Contains(got, []byte(`\ufffd`)) {
+		t.Fatalf("default build emits the v1 escape sequence: %q", got)
+	}
+}
+
+type scalarsMirror struct {
+	A     int64   `json:"a"`
+	B     string  `json:"b"`
+	C     bool    `json:"c"`
+	D     uint8   `json:"d"`
+	E     float64 `json:"e"`
+	NoGen any     `json:"-"`
+}
+
+func TestHugeValueHasNoSizeThreshold(t *testing.T) {
+	v := Scalars{A: -7, B: strings.Repeat("<&", 400000), C: true, D: 3, E: 1.5}
+	want := must(json.Marshal(scalarsMirror{A: v.A, B: v.B, C: v.C, D: v.D, E: v.E}))
+	got := must(v.MarshalJSON())
+	if !bytes.Equal(got, want) {
+		t.Fatalf("marshal of a %d byte value differs from encoding/json\n got %.120q...\nwant %.120q...", len(got), got, want)
+	}
+	allocs := testing.AllocsPerRun(20, func() { sink = must(v.MarshalJSON()) })
+	if allocs != 1 {
+		t.Fatalf("marshal of a %d byte output allocates %v times, want 1", len(got), allocs)
+	}
+}
+
+const portableProbe = `package main
+
+import "encoding/json"
+
+type Scalars struct {
+	A int64  ` + "`json:\"a\"`" + `
+	B string ` + "`json:\"b\"`" + `
+	C bool   ` + "`json:\"c\"`" + `
+}
+
+func main() {
+	s := Scalars{A: -2, B: "h<i>", C: true}
+	b, err := json.Marshal(s)
+	if err != nil {
+		panic(err)
+	}
+	if len(b) == 0 {
+		panic("empty marshal output")
+	}
+}
+`
+
+func toolBin(name string) string {
+	p := filepath.Join(runtime.GOROOT(), "bin", name)
+	if _, err := os.Stat(p); err != nil {
+		if found, err := exec.LookPath(name); err == nil {
+			return found
+		}
+	}
+	return p
+}
+
+func checkPortableArch(t *testing.T, dir, arch string) {
+	t.Helper()
+	logosBin := toolBin("logos")
+	exe := filepath.Join(dir, "probe_"+arch)
+	cmd := exec.Command(logosBin, "build", "-o", exe, ".")
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "GOARCH="+arch, "GOOS=linux", "CGO_ENABLED=0")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("GOARCH=%s build failed: %v\n%s", arch, err, out)
+	}
+}
+
+func TestGeneratedMarshalerBuildsEverywhere(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module jsonportable\n\ngo 1.27\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "main.lgo"), []byte(portableProbe), 0644); err != nil {
+		t.Fatal(err)
+	}
+	for _, arch := range []string{"386", "arm64"} {
+		checkPortableArch(t, dir, arch)
+	}
+}
+
+type DefaultsOnly struct {
+	Port int32  = 8080
+	Host string = "localhost"
+}
+
+type defaultsOnlyMirror struct {
+	Port  int32
+	Host  string
+	NoGen any `json:"-"`
+}
+
+func TestDefaultsOnlyTriggersMarshalJSON(t *testing.T) {
+	v := DefaultsOnly{Port: 8080, Host: "localhost"}
+	got := must(v.MarshalJSON())
+	want := must(json.Marshal(defaultsOnlyMirror{Port: v.Port, Host: v.Host}))
+	if !bytes.Equal(got, want) {
+		t.Fatalf("defaults-only MarshalJSON\n got %s\nwant %s", got, want)
 	}
 }

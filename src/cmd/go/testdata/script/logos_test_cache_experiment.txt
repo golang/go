@@ -1,0 +1,57 @@
+# The script env command sets empty values but cannot unset a variable.
+# Use the host env utility to remove GOEXPERIMENT from the driver environment.
+[short] skip 'links and runs test binaries'
+[GOOS:windows] skip 'requires env -u'
+[GOOS:plan9] skip 'requires env -u'
+[!exec:env] skip 'requires env -u'
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# logos: absent and present-empty select the same effective experiment.
+# The old cache hashes logosarena for both and replays present=false.
+exec env -u GOEXPERIMENT logos test -v .
+! stdout '\(cached\)'
+stdout 'GOEXPERIMENT present=false'
+exec env -u GOEXPERIMENT logos test -v .
+stdout '\(cached\)'
+stdout 'GOEXPERIMENT present=false'
+env GOEXPERIMENT=
+logos test -v .
+! stdout '\(cached\)'
+stdout 'GOEXPERIMENT present=true'
+logos test -v .
+stdout '\(cached\)'
+stdout 'GOEXPERIMENT present=true'
+
+# Plain go uses the same test-process environment and must distinguish presence.
+exec env -u GOEXPERIMENT go test -v .
+! stdout '\(cached\)'
+stdout 'GOEXPERIMENT present=false'
+exec env -u GOEXPERIMENT go test -v .
+stdout '\(cached\)'
+stdout 'GOEXPERIMENT present=false'
+env GOEXPERIMENT=
+go test -v .
+! stdout '\(cached\)'
+stdout 'GOEXPERIMENT present=true'
+go test -v .
+stdout '\(cached\)'
+stdout 'GOEXPERIMENT present=true'
+
+-- go.mod --
+module example.com/testcacheexperiment
+
+go 1.27
+
+-- experiment_test.go --
+package experiment
+
+import (
+	"os"
+	"testing"
+)
+
+func TestExperimentPresence(t *testing.T) {
+	_, present := os.LookupEnv("GOEXPERIMENT")
+	t.Logf("GOEXPERIMENT present=%t", present)
+}

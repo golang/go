@@ -1,0 +1,89 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd w
+logos build -o $WORK/hole$GOEXE ./g/nil
+cd ..
+! exec $WORK/hole$GOEXE
+stderr 'panic: own nil receiver'
+! stderr 'logos: nil from Go value'
+cd w
+logos build ./l/...
+cd ..
+cd w/g
+logos build -o $WORK/leak$GOEXE ./cmd
+cd ../..
+exec $WORK/leak$GOEXE
+stdout '^leak hole ok$'
+
+-- w/go.work --
+go 1.27
+
+use (
+	./l
+	./g
+)
+
+-- w/l/go.mod --
+module example.com/l
+
+go 1.27
+
+-- w/l/c/c.lgo --
+package c
+
+type T struct{}
+
+func (t *T) M() string {
+	if t == nil {
+		panic("own nil receiver")
+	}
+	return "ok"
+}
+
+var PrimesData = []int{2, 3, 5}
+
+func Primes() const []int { return PrimesData }
+
+-- w/g/go.mod --
+module example.com/g
+
+go 1.27
+
+require example.com/l v0.0.0
+
+replace example.com/l => ../l
+
+-- w/g/nil/main.go --
+package main
+
+import "example.com/l/c"
+
+func main() {
+	var t *c.T
+	t.M()
+}
+
+-- w/g/cmd/main.go --
+package main
+
+import (
+	"fmt"
+	"example.com/g/q"
+)
+
+func main() { fmt.Println(q.Run()) }
+
+-- w/g/q/q.go --
+package q
+
+import "example.com/l/c"
+
+func Run() string {
+	v := c.Primes()
+	v[0] = 99
+	if c.Primes()[0] != 99 {
+		return "leak blocked"
+	}
+	return "leak hole ok"
+}

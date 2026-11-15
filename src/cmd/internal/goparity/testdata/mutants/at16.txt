@@ -1,0 +1,10 @@
+kind: compiler
+file: src/cmd/compile/internal/escape/foreign_logos.go
+expect: at16_xpkg_escape
+config: K5
+-- old --
+	default:
+		l.AddHeap(0)
+-- new --
+	default:
+		break

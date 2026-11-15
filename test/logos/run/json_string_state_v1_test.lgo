@@ -1,0 +1,83 @@
+// run -goexperiment nojsonv2
+
+package jsonstringstatev1
+
+import (
+	"encoding/json"
+	"reflect"
+	"strings"
+	"testing"
+)
+
+type StrState struct {
+	B bool    `json:"B,string"`
+	I int64   `json:"I"`
+	S string  `json:"S,string"`
+	F float64 `json:"F,string"`
+	J int64   `json:"J,string"`
+}
+
+type strStateMirror struct {
+	B     bool    `json:"B,string"`
+	I     int64   `json:"I"`
+	J     int64   `json:"J,string"`
+	S     string  `json:"S,string"`
+	F     float64 `json:"F,string"`
+	NoGen any     `json:"-"`
+}
+
+var stringStateDocs = []string{
+	`{"B":"maybe","I":42}`,
+	`{"S":123,"I":42}`,
+	`{"J":"abc","I":42}`,
+	`{"J":"+1","I":42}`,
+	`{"B":"1","I":42}`,
+	`{"B":"True","I":42}`,
+	`{"F":"+1","I":42}`,
+	`{"S":"\"a\\x\""}`,
+	`{"S":"x","I":42}`,
+	`{"B":"true","I":42}`,
+	`{"B":"nul","I":42}`,
+	`{"I":42,"B":"maybe"}`,
+}
+
+type decoded struct {
+	got     StrState
+	gotErr  error
+	want    strStateMirror
+	wantErr error
+}
+
+func decodePair(doc string) decoded {
+	var d decoded
+	d.gotErr = json.Unmarshal([]byte(doc), &d.got)
+	d.wantErr = json.Unmarshal([]byte(doc), &d.want)
+	return d
+}
+
+func TestStringTagStateMatchesEncodingJSONV1(t *testing.T) {
+	for _, doc := range stringStateDocs {
+		d := decodePair(doc)
+		got, gotErr, want, wantErr := d.got, d.gotErr, d.want, d.wantErr
+		wantState := StrState{B: want.B, I: want.I, S: want.S, F: want.F, J: want.J}
+		if !reflect.DeepEqual(got, wantState) {
+			t.Fatalf("%s: logos state %+v, encoding/json state %+v (logos err %v, std err %v)", doc, got, wantState, gotErr, wantErr)
+		}
+	}
+}
+
+func TestStringTagErrorsMatchEncodingJSONV1(t *testing.T) {
+	for _, doc := range stringStateDocs {
+		d := decodePair(doc)
+		gotErr, wantErr := d.gotErr, d.wantErr
+		if (gotErr == nil) != (wantErr == nil) {
+			t.Fatalf("%s: logos error %v, encoding/json error %v", doc, gotErr, wantErr)
+		}
+		if gotErr != nil && wantErr != nil {
+			wantMsg := strings.ReplaceAll(wantErr.Error(), "strStateMirror", "StrState")
+			if gotErr.Error() != wantMsg {
+				t.Fatalf("%s: logos error %q, encoding/json error %q", doc, gotErr, wantMsg)
+			}
+		}
+	}
+}

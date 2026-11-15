@@ -1,0 +1,259 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"logos/rt"
+	"os"
+	"runtime"
+)
+
+type U interface {
+	int | string
+}
+
+type V interface {
+	[]int | string
+}
+
+type T interface {
+	int8 | uint8
+}
+
+type Cat struct{ lives int }
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func returnForm(u U) float64 {
+	return u.(float64)
+}
+
+func which(a any) string {
+	switch v := a.(type) {
+	case U:
+		var _ U = v
+		return "U"
+	case nil:
+		return "nil"
+	default:
+		return "other"
+	}
+}
+
+func checkMessages(u U) {
+	func() {
+		defer func() {
+			r := recover()
+			got := fmt.Sprint(r)
+			want := "interface conversion: float64 is not a member of main.U"
+			check("single-message", got == want, got, want)
+			_, typeOk := r.(*rt.UnionAssertionError)
+			check("single-type", typeOk, fmt.Sprintf("%T", r), "*rt.UnionAssertionError")
+		}()
+		_ = u.(float64)
+	}()
+	func() {
+		defer func() {
+			r := recover()
+			got := fmt.Sprint(r)
+			want := "interface conversion: float64 is not a member of main.U"
+			check("return-message", got == want, got, want)
+			_, typeOk := r.(*rt.UnionAssertionError)
+			check("return-type", typeOk, fmt.Sprintf("%T", r), "*rt.UnionAssertionError")
+		}()
+		_ = returnForm(u)
+	}()
+}
+
+func checkXU() {
+	func() {
+		defer func() {
+			r := recover()
+			got := fmt.Sprint(r)
+			want := "interface conversion: float64 is not a member of main.U"
+			check("xu-nonmember-message", got == want, got, want)
+			_, typeOk := r.(*rt.UnionAssertionError)
+			check("xu-nonmember-type", typeOk, fmt.Sprintf("%T", r), "*rt.UnionAssertionError")
+		}()
+		var x any = 1.5
+		_ = x.(U)
+	}()
+	func() {
+		defer func() {
+			r := recover()
+			got := fmt.Sprint(r)
+			want := "interface conversion: nil is not a member of main.U"
+			check("xu-nil-message", got == want, got, want)
+			_, typeOk := r.(*rt.UnionAssertionError)
+			check("xu-nil-type", typeOk, fmt.Sprintf("%T", r), "*rt.UnionAssertionError")
+		}()
+		var x any
+		_ = x.(U)
+	}()
+}
+
+func checkCases() {
+	gotInt := which(42)
+	check("case-member-int", gotInt == "U", gotInt, "U")
+	gotStr := which("s")
+	check("case-member-string", gotStr == "U", gotStr, "U")
+	gotNon := "panic"
+	func() {
+		defer func() {
+			_ = recover()
+		}()
+		gotNon = which(1.5)
+	}()
+	var z any
+	gotNil := which(z)
+	check("case-nil", gotNil == "nil", gotNil, "nil")
+	check("case-nonmember", gotNon == "other", gotNon, "other")
+}
+
+func asLocal(u U) (r string) {
+	type local struct{ a int }
+	defer func() { r = fmt.Sprint(recover()) }()
+	_ = u.(local)
+	return "ok"
+}
+
+func asOtherLocal(u U) (ok bool, r string) {
+	type local struct{ b string }
+	defer func() { r = fmt.Sprint(recover()) }()
+	_, ok = u.(local)
+	_ = u.(local)
+	return ok, "ok"
+}
+
+func checkLocals(u U) {
+	want := "interface conversion: main.local is not a member of main.U"
+	got := asLocal(u)
+	check("local-single-message", got == want, got, want)
+	ok, got := asOtherLocal(u)
+	check("local-other-shape-message", got == want, got, want)
+	check("local-comma-ok", !ok, ok, false)
+	func() {
+		type inner int
+		v, ok := u.(inner)
+		check("closure-local-comma-ok", !ok && v == 0, ok, false)
+		defer func() {
+			r := recover()
+			_, typeOk := r.(*rt.UnionAssertionError)
+			check("closure-local-type", typeOk, fmt.Sprintf("%T", r), "*rt.UnionAssertionError")
+		}()
+		_ = u.(inner)
+	}()
+}
+
+func asParam[T any](u U) (r any) {
+	defer func() { r = recover() }()
+	_ = u.(T)
+	return nil
+}
+
+func asParamOk[T any](u U) (T, bool) {
+	v, ok := u.(T)
+	return v, ok
+}
+
+func asSlice[T any](v V) (r any) {
+	defer func() { r = recover() }()
+	_ = v.([]T)
+	return nil
+}
+
+func asNamed[X any](t T) (r any) {
+	defer func() { r = recover() }()
+	_ = t.(X)
+	return nil
+}
+
+func checkParams(u U) {
+	var r any
+	r = asParam[Cat](u)
+	e, typeOk := r.(*rt.UnionAssertionError)
+	check("param-nonmember-type", typeOk, fmt.Sprintf("%T", r), "*rt.UnionAssertionError")
+	if typeOk {
+		want := "interface conversion: main.Cat is not a member of main.U"
+		check("param-nonmember-message", e.Error() == want, e.Error(), want)
+	}
+	r = asParam[int](u)
+	check("param-member-ok", r == nil, r, nil)
+	r = asParam[string](u)
+	_, native := r.(*runtime.TypeAssertionError)
+	check("param-member-mismatch-native", native, fmt.Sprintf("%T", r), "*runtime.TypeAssertionError")
+	r = asParam[any](u)
+	check("param-interface-ok", r == nil, r, nil)
+	r = asParam[fmt.Stringer](u)
+	_, native = r.(*runtime.TypeAssertionError)
+	check("param-interface-native", native, fmt.Sprintf("%T", r), "*runtime.TypeAssertionError")
+	cat, ok := asParamOk[Cat](u)
+	check("param-comma-nonmember", !ok && cat == Cat{}, ok, false)
+	n, ok := asParamOk[int](u)
+	check("param-comma-member", ok && n == 42, n, 42)
+	s, ok := asParamOk[string](u)
+	check("param-comma-member-mismatch", !ok && s == "", ok, false)
+	var v V = []int{1}
+	r = asSlice[int](v)
+	check("param-slice-member", r == nil, r, nil)
+	r = asSlice[string](v)
+	e, typeOk = r.(*rt.UnionAssertionError)
+	check("param-slice-nonmember-type", typeOk, fmt.Sprintf("%T", r), "*rt.UnionAssertionError")
+	if typeOk {
+		want := "interface conversion: []string is not a member of main.V"
+		check("param-slice-nonmember-message", e.Error() == want, e.Error(), want)
+	}
+	var t T = int8(1)
+	r = asNamed[Cat](t)
+	e, typeOk = r.(*rt.UnionAssertionError)
+	check("param-union-named-T-type", typeOk, fmt.Sprintf("%T", r), "*rt.UnionAssertionError")
+	if typeOk {
+		want := "interface conversion: main.Cat is not a member of main.T"
+		check("param-union-named-T-message", e.Error() == want, e.Error(), want)
+	}
+}
+
+func main() {
+	var u U = 42
+	v, ok := u.(float64)
+	if ok || v != 0 {
+		fmt.Println("comma-ok nonmember: FAIL", v, ok)
+		os.Exit(1)
+	}
+	fmt.Println("ok comma-false")
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				fmt.Println("single nonmember: FAIL no panic")
+				os.Exit(1)
+			}
+			fmt.Println("ok single-panic")
+		}()
+		_ = u.(float64)
+	}()
+	w, ok := u.(int)
+	if !ok || w != 42 {
+		fmt.Println("member: FAIL", w, ok)
+		os.Exit(1)
+	}
+	fmt.Println("ok member-true")
+	checkMessages(u)
+	checkXU()
+	checkCases()
+	checkLocals(u)
+	checkParams(u)
+	if failed {
+		os.Exit(1)
+	}
+}

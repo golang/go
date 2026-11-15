@@ -1,0 +1,48 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+
+logos build -p=1 -gcflags=-logos.eject=$WORK/lowered .
+exists $WORK/lowered/main.go
+grep '_logos_rt "logos/rt"' $WORK/lowered/main.go
+grep '_logos_json "logos/rt/json"' $WORK/lowered/main.go
+grep '_logos_unsafe "unsafe"' $WORK/lowered/main.go
+exec grep -E '"logos/[^" ]+"' $WORK/lowered/main.go
+cp stdout $WORK/support-imports.txt
+! exec grep -vE '^import _logos_(rt "logos/rt"|json "logos/rt/json")$' $WORK/support-imports.txt
+! grep '_logos_errors' $WORK/lowered/main.go
+! grep '^//go:build !logos' $WORK/lowered/main.go
+
+logos run -p=1 .
+stdout '^\{"tag":"ok"\}$'
+stdout '^n1$'
+
+-- m/go.mod --
+module example.com/supportimports
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import "fmt"
+
+type Pay struct {
+	Tag string `json:"tag"`
+}
+
+func load(s string) (string, error) {
+	p := Pay{Tag: s}
+	buf := p.MarshalJSON()?
+	return string(buf), nil
+}
+
+func main() {
+	out, err := load("ok")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(out)
+	fmt.Println($"n{1}")
+}

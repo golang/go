@@ -1,24 +1,6 @@
-# M5-S2: imported const func boundary values and types (T-201, T-Sec6, R-U2).
-# Anchor: Tony Hoare, Richard Feynman
-#
-# Tests cross-package compile-time evaluation and boundary behavior:
-# 1. Private named integer result as package const and local const,
-#    verifying constant array bounds, methods, and %T representation,
-#    with exported named and basic typed scalar controls.
-# 2. Private struct result with an unexported field exposed only through
-#    an exported read method, surviving native execution and plain-Go eject.
-# 3. Named private slice result with len < cap and initialized tail,
-#    preserving len/cap, elements, and methods while respecting const-view
-#    len-bound policy in Logos; Go caller inspects spare capacity tail.
-# 4. Const map with private named value type passed to const funcs,
-#    verifying copy-on-argument protection and comma-ok lookup/iteration.
-# 5. Readonly storage witness for a foreign-imported computed slice with
-#    spare capacity, using a separate Go child process attempting a write.
-
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
-# 1. Consumer module evaluates imported const funcs at compile time.
 cd consumer
 logos run .
 cp stdout $WORK/want.txt
@@ -43,17 +25,19 @@ stdout '^map-entry-method: 20$'
 stdout '^map-order: alpha,beta$'
 stdout '^opaque-slice: len=3 cap=5 elems=1000,3000$'
 
-# 2. Eject consumer module to plain Go and verify parity.
 logos eject -o ../eject_out
 exists ../eject_out/main.go
 cd ../eject_out
 go run .
 cmp stdout $WORK/want.txt
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
 cd ../consumer
 cd ..
 
-# 3. Plain Go caller module sees ordinary function semantics, inspects tails,
-# and executes the readonly storage witness child process.
 cd gocaller
 logos run .
 stdout '^gocaller-struct: code=99 realm=go-secret$'

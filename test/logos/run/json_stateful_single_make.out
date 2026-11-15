@@ -1,0 +1,6 @@
+n=1 stateful=6 ordinary=1
+ok stateful-single-make 1
+n=1024 stateful=6 ordinary=1
+ok stateful-single-make 1024
+n=16384 stateful=6 ordinary=1
+ok stateful-single-make 16384

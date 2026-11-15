@@ -1,0 +1,531 @@
+// run
+
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"time"
+)
+
+const waitBound = 5 * time.Second
+
+type box struct {
+	V int
+}
+
+type env struct {
+	in    chan int
+	boxes chan box
+	mid   chan int
+	log   []int
+}
+
+var table = []int{0, 10, 20, 30}
+
+func twice(v int) int { return 2 * v }
+
+func use(v int) int { return v }
+
+func add2(a, b int) int { return a*100 + b }
+
+func lenIn(e *env) int { return len(e.in) }
+
+func peekIn(e *env, v int) int { return v*100 + len(e.in) }
+
+func sumBoxes(bs []box) int { return bs[0].V*100 + bs[1].V }
+
+func check(v int) (int, error) { return v, nil }
+
+func b2i(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
+func note(e *env, v int) {
+	e.log = append(e.log, v)
+}
+
+func render[T any](got []T, err error) (string, error) {
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprint(got), nil
+}
+
+func vExpr(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => <-e.in))
+}
+
+func vExprAdd(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => x + <-e.in))
+}
+
+func vExprBinop(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => <-e.in - <-e.in))
+}
+
+func vExprCallarg(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => twice(<-e.in)))
+}
+
+func vExprCallorder(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => add2(lenIn(e), <-e.in)))
+}
+
+func vExprRecvCallorder(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => add2(peekIn(e, <-e.in), <-e.in)))
+}
+
+func vExprElided(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => sumBoxes([]box{{V: lenIn(e)}, {V: <-e.in}})))
+}
+
+func vExprUnary(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => -<-e.in))
+}
+
+func vExprIndex(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => table[<-e.in]))
+}
+
+func vExprComposite(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => (box{V: <-e.in}).V))
+}
+
+func vExprSelector(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => (<-e.boxes).V))
+}
+
+func vExprTry(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => check(<-e.in)?))
+}
+
+func vExprString(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => fmt.Sprint(<-e.in)))
+}
+
+func vExprStruct(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => box{V: <-e.in}))
+}
+
+func vFilter(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).filter(x => <-e.in > 5))
+}
+
+func vBlockReturn(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => {
+		return <-e.in
+	}))
+}
+
+func vBlockNested(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => {
+		y := 1 + <-e.in
+		return y
+	}))
+}
+
+func vBlockArg(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => {
+		r := use(<-e.in)
+		return r
+	}))
+}
+
+func vBlockIfInit(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => {
+		r := 0
+		if v := <-e.in; v > 5 {
+			r = v
+		}
+		return r
+	}))
+}
+
+func vBlockIfCond(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => {
+		r := 0
+		if <-e.in == 1 {
+			r = 1
+		} else if <-e.in == 2 {
+			r = 2
+		}
+		return r
+	}))
+}
+
+func vBlockSwitchTag(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => {
+		r := 0
+		switch <-e.in {
+		case 1:
+			r = 1
+		case 2:
+			r = 20
+		}
+		return r
+	}))
+}
+
+func vBlockSwitchInit(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => {
+		r := 0
+		switch v := <-e.in + 1; v {
+		case 6:
+			r = v
+		}
+		return r
+	}))
+}
+
+func vBlockAssign(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => {
+		v := <-e.in
+		return v
+	}))
+}
+
+func vBlockVar(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => {
+		var v = <-e.in
+		return v
+	}))
+}
+
+func vBlockCommaOk(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => {
+		r := -1
+		v, ok := <-e.in
+		if ok {
+			r = v
+		}
+		return r
+	}))
+}
+
+func vBlockCompound(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => {
+		r := x
+		r += <-e.in
+		return r
+	}))
+}
+
+func vBlockRecvStmt(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => {
+		<-e.in
+		return x
+	}))
+}
+
+func vBlockSend(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => {
+		e.mid <- x
+		return x
+	}))
+}
+
+func vBlockRange(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => {
+		s := 0
+		for v := range e.in {
+			s += v
+		}
+		return s
+	}))
+}
+
+func vBlockSelect(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => {
+		r := 0
+		select {
+		case v := <-e.in:
+			r = v
+		}
+		return r
+	}))
+}
+
+func vUnordered(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).unordered().map(x => 1 + <-e.in))
+}
+
+func vRangeForm(ctx context.Context, e *env) (string, error) {
+	var out []int
+	for y := range []int{1, 2}.group(ctx, limit = 1).map(x => <-e.in) {
+		out = append(out, y)
+	}
+	return fmt.Sprint(out), nil
+}
+
+func vSecondStage(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => x + 1).map(y => y + <-e.in))
+}
+
+func vChanSource(ctx context.Context, e *env) (string, error) {
+	src := make(chan int, 2)
+	src <- 1
+	src <- 2
+	close(src)
+	return render(src.group(ctx, limit = 1).map(x => x + <-e.in))
+}
+
+func vBlockForCond(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => {
+		n := 0
+		for <-e.in < 3 {
+			n++
+		}
+		return n
+	}))
+}
+
+func vBlockForPost(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => {
+		s := 0
+		for i := 0; i < 5; i += <-e.in {
+			if i == 1 {
+				continue
+			}
+			s += i
+		}
+		return s
+	}))
+}
+
+func vBlockAnd(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => {
+		r := 0
+		if x > 1 && <-e.in == 1 {
+			r = 1
+		}
+		return r
+	}))
+}
+
+func vBlockAndIndex(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => {
+		r := 0
+		if x > 1 && table[<-e.in] == 10 {
+			r = 1
+		}
+		return r
+	}))
+}
+
+func vBlockOr(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => {
+		return b2i(x < 2 || <-e.in == 1)
+	}))
+}
+
+func vBlockCase(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => {
+		r := 0
+		switch {
+		case x == 1:
+			r = 1
+		case <-e.in == 7:
+			r = 7
+		default:
+			r = 3
+		}
+		return r
+	}))
+}
+
+func vBlockIfInitCond(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => {
+		r := 0
+		if v := x; <-e.in == v {
+			r = 1
+		} else if v > 1 {
+			r = 2
+		}
+		return r
+	}))
+}
+
+func vBlockSwitchInitTag(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).map(x => {
+		r := 0
+		switch v := x; <-e.in {
+		case v:
+			r = 10
+		default:
+			r = v + 100
+		}
+		return r
+	}))
+}
+
+func vFilterAnd(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).filter(x => x > 1 && <-e.in > 0))
+}
+
+func vFilterOr(ctx context.Context, e *env) (string, error) {
+	return render([]int{1, 2}.group(ctx, limit = 1).filter(x => x < 2 || <-e.in > 0))
+}
+
+func vBlockDefer(ctx context.Context, e *env) (string, error) {
+	got, err := render([]int{1, 2}.group(ctx, limit = 1).map(x => {
+		defer note(e, <-e.in)
+		return x
+	}))
+	if err != nil {
+		return "", err
+	}
+	return got + fmt.Sprint(e.log), nil
+}
+
+type cell struct {
+	name   string
+	run    func(ctx context.Context, e *env) (string, error)
+	feed   []int
+	boxes  []int
+	midCap int
+	closed bool
+	want   string
+	left   int
+}
+
+func cells() []cell {
+	return []cell{
+		{name: "expr", run: vExpr, feed: []int{10, 20}, want: "[10 20]"},
+		{name: "expr-add", run: vExprAdd, feed: []int{10, 20}, want: "[11 22]"},
+		{name: "expr-binop", run: vExprBinop, feed: []int{10, 3, 8, 2}, want: "[7 6]"},
+		{name: "expr-callarg", run: vExprCallarg, feed: []int{5, 6}, want: "[10 12]"},
+		{name: "expr-callorder", run: vExprCallorder, feed: []int{5, 6}, want: "[205 106]"},
+		{name: "expr-recv-callorder", run: vExprRecvCallorder, feed: []int{5, 6, 7, 8}, want: "[50306 70108]"},
+		{name: "expr-elided", run: vExprElided, feed: []int{5, 6, 7, 8}, want: "[405 306]", left: 2},
+		{name: "expr-unary", run: vExprUnary, feed: []int{5, 6}, want: "[-5 -6]"},
+		{name: "expr-index", run: vExprIndex, feed: []int{2, 3}, want: "[20 30]"},
+		{name: "expr-composite", run: vExprComposite, feed: []int{5, 6}, want: "[5 6]"},
+		{name: "expr-selector", run: vExprSelector, boxes: []int{9, 8}, want: "[9 8]"},
+		{name: "expr-try", run: vExprTry, feed: []int{4, 5}, want: "[4 5]"},
+		{name: "expr-string", run: vExprString, feed: []int{7, 8}, want: "[7 8]"},
+		{name: "expr-struct", run: vExprStruct, feed: []int{5, 6}, want: "[{5} {6}]"},
+		{name: "filter", run: vFilter, feed: []int{10, 3}, want: "[1]"},
+		{name: "block-return", run: vBlockReturn, feed: []int{10, 20}, want: "[10 20]"},
+		{name: "block-nested", run: vBlockNested, feed: []int{10, 20}, want: "[11 21]"},
+		{name: "block-arg", run: vBlockArg, feed: []int{10, 20}, want: "[10 20]"},
+		{name: "block-ifinit", run: vBlockIfInit, feed: []int{10, 3}, want: "[10 0]"},
+		{name: "block-ifcond", run: vBlockIfCond, feed: []int{3, 2, 1}, want: "[2 1]"},
+		{name: "block-switchtag", run: vBlockSwitchTag, feed: []int{2, 1}, want: "[20 1]"},
+		{name: "block-switchinit", run: vBlockSwitchInit, feed: []int{5, 9}, want: "[6 0]"},
+		{name: "block-assign", run: vBlockAssign, feed: []int{10, 20}, want: "[10 20]"},
+		{name: "block-var", run: vBlockVar, feed: []int{10, 20}, want: "[10 20]"},
+		{name: "block-commaok", run: vBlockCommaOk, feed: []int{5}, closed: true, want: "[5 -1]"},
+		{name: "block-compound", run: vBlockCompound, feed: []int{10, 20}, want: "[11 22]"},
+		{name: "block-recvstmt", run: vBlockRecvStmt, feed: []int{1, 1}, want: "[1 2]"},
+		{name: "block-send", run: vBlockSend, midCap: 2, want: "[1 2]"},
+		{name: "block-range", run: vBlockRange, feed: []int{1, 2, 3}, closed: true, want: "[6 0]"},
+		{name: "block-select", run: vBlockSelect, feed: []int{5, 6}, want: "[5 6]"},
+		{name: "unordered", run: vUnordered, feed: []int{10, 20}, want: "[11 21]"},
+		{name: "range-form", run: vRangeForm, feed: []int{10, 20}, want: "[10 20]"},
+		{name: "second-stage", run: vSecondStage, feed: []int{10, 20}, want: "[12 23]"},
+		{name: "block-forcond", run: vBlockForCond, feed: []int{1, 5, 2, 5}, want: "[1 1]"},
+		{name: "block-forpost", run: vBlockForPost, feed: []int{1, 2, 5, 5}, want: "[3 0]"},
+		{name: "block-and", run: vBlockAnd, feed: []int{1, 99}, want: "[0 1]", left: 1},
+		{name: "block-andindex", run: vBlockAndIndex, feed: []int{1, 99}, want: "[0 1]", left: 1},
+		{name: "block-or", run: vBlockOr, feed: []int{5, 99}, want: "[1 0]", left: 1},
+		{name: "block-case", run: vBlockCase, feed: []int{7, 99}, want: "[1 7]", left: 1},
+		{name: "block-ifinitcond", run: vBlockIfInitCond, feed: []int{1, 5}, want: "[1 2]"},
+		{name: "block-switchinittag", run: vBlockSwitchInitTag, feed: []int{1, 9}, want: "[10 102]"},
+		{name: "block-defer", run: vBlockDefer, feed: []int{5, 6}, want: "[1 2][5 6]"},
+		{name: "filter-and", run: vFilterAnd, feed: []int{5, 99}, want: "[2]", left: 1},
+		{name: "filter-or", run: vFilterOr, feed: []int{-5, 99}, want: "[1]", left: 1},
+		{name: "chan-source", run: vChanSource, feed: []int{10, 20}, want: "[11 22]"},
+	}
+}
+
+//logos:allow(correctness::unbounded_channel_op)
+func newEnv(c cell, cancelled bool) *env {
+	midCap := c.midCap
+	if cancelled {
+		midCap = 0
+	}
+	e := &env{in: make(chan int, len(c.feed)), boxes: make(chan box, len(c.boxes)), mid: make(chan int, midCap)}
+	if !cancelled {
+		for _, v := range c.feed {
+			e.in <- v
+		}
+		for _, v := range c.boxes {
+			e.boxes <- box{V: v}
+		}
+		if c.closed {
+			close(e.in)
+		}
+	}
+	return e
+}
+
+func exercise(c cell, cancelled bool) string {
+	e := newEnv(c, cancelled)
+	ctx := context.Background()
+	cancel := func() {}
+	if cancelled {
+		ctx, cancel = context.WithTimeout(ctx, 100*time.Millisecond)
+	}
+	defer cancel()
+	name := c.name
+	if cancelled {
+		name += "-cancel"
+	}
+	watchdog := time.AfterFunc(waitBound, func() {
+		fmt.Printf("FAIL %s: the stage did not return within the bound\n", name)
+		os.Exit(1)
+	})
+	got, err := c.run(ctx, e)
+	watchdog.Stop()
+	if cancelled {
+		if !errors.Is(err, context.DeadlineExceeded) {
+			return fmt.Sprintf("got error %v, want the deadline of the group context", err)
+		}
+		return ""
+	}
+	if err != nil {
+		return fmt.Sprintf("got error %v", err)
+	}
+	if got != c.want {
+		return fmt.Sprintf("got %s want %s", got, c.want)
+	}
+	if len(e.in) != c.left {
+		return fmt.Sprintf("got %d values left want %d", len(e.in), c.left)
+	}
+	return ""
+}
+
+func selected(name string) bool {
+	return len(os.Args) < 2 || os.Args[1] == name
+}
+
+func main() {
+	failed := false
+	report := func(name, problem string) {
+		if problem != "" {
+			fmt.Printf("FAIL %s: %s\n", name, problem)
+			failed = true
+			return
+		}
+		fmt.Printf("ok %s\n", name)
+	}
+	for _, c := range cells() {
+		if selected(c.name) {
+			report(c.name, exercise(c, false))
+		}
+	}
+	for _, c := range cells() {
+		if selected(c.name + "-cancel") {
+			report(c.name+"-cancel", exercise(c, true))
+		}
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

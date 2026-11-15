@@ -12,10 +12,6 @@ import (
 	"cmd/internal/src"
 )
 
-// LogosHintDecision is one escape decision that -logos.mode=hints reports
-// (SPEC Sec 21.2): where the allocation sits, whether it reaches the heap,
-// the text -m prints for it, and the reason the compiler forced it onto the
-// heap when it had one.
 type LogosHintDecision struct {
 	Pos     src.XPos
 	Heap    bool
@@ -26,15 +22,10 @@ type LogosHintDecision struct {
 
 var logosHintDecisions []LogosHintDecision
 
-// LogosHintDecisions returns the decisions recorded so far, in analysis
-// order. A source allocation that the compiler analyzes more than once, such
-// as an inlined body, appears once per analysis.
 func LogosHintDecisions() []LogosHintDecision {
 	return logosHintDecisions
 }
 
-// logosHintOps are the nodes that allocate: the ones a programmer writes as
-// an allocation, and the conversions and concatenations that copy.
 var logosHintOps = map[ir.Op]bool{
 	ir.OPTRLIT:    true,
 	ir.ONEW:       true,
@@ -52,9 +43,6 @@ var logosHintOps = map[ir.Op]bool{
 	ir.OADDSTR:    true,
 }
 
-// logosCollectHints records the decisions of the solved batch in hints mode.
-// It reads the results the way the -m diagnostics of finish do, and prints
-// and changes nothing.
 func (b *batch) logosCollectHints() {
 	if base.LogosMode != "hints" {
 		return
@@ -66,7 +54,6 @@ func (b *batch) logosCollectHints() {
 	}
 }
 
-// logosArenaHint reports whether n is an allocation placed in an arena.
 func logosArenaHint(n ir.Node, fn *ir.Func) bool {
 	if !LogosArenaEnabled() || fn == nil {
 		return false
@@ -78,8 +65,6 @@ func logosArenaHint(n ir.Node, fn *ir.Func) bool {
 	return LogosArenaMake(m, fn) || LogosArenaConstMake(m, fn) || LogosArenaRetMake(m, fn)
 }
 
-// logosHintOf returns the decision for loc, or false when loc is not an
-// allocation or a named variable that moved to the heap.
 func logosHintOf(loc *location) (LogosHintDecision, bool) {
 	n := loc.n
 	heap := loc.hasAttr(attrEscapes)
@@ -99,9 +84,6 @@ func logosHintOf(loc *location) (LogosHintDecision, bool) {
 	return d, true
 }
 
-// logosHintNode reports whether n is reported: a user variable only when it
-// moved to the heap, an allocation node always, and never a go or defer
-// wrapper closure, which -m omits too.
 func logosHintNode(n ir.Node, heap bool) bool {
 	if name, ok := n.(*ir.Name); ok {
 		return heap && !name.AutoTemp() && name.Sym() != nil && !name.Sym().IsBlank()
@@ -112,7 +94,6 @@ func logosHintNode(n ir.Node, heap bool) bool {
 	return logosHintOps[n.Op()]
 }
 
-// logosHintMessage returns the -m text for n and its decision.
 func logosHintMessage(n ir.Node, heap bool) string {
 	switch {
 	case n.Op() == ir.ONAME:

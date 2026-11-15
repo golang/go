@@ -1,0 +1,109 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+)
+
+type bothVal struct{ s string }
+
+func (b bothVal) Error() string  { return "E:" + b.s }
+func (b bothVal) String() string { return "S:" + b.s }
+
+type ptrStr struct{ s string }
+
+func (p *ptrStr) String() string {
+	if p == nil {
+		return "nilptr"
+	}
+	return "P:" + p.s
+}
+
+type ptrErr struct{ s string }
+
+func (p *ptrErr) Error() string {
+	if p == nil {
+		return "nilerr"
+	}
+	return "Q:" + p.s
+}
+
+type panStr struct{}
+
+func (panStr) String() string { panic("kaboom") }
+
+type panErr struct{}
+
+func (panErr) Error() string { panic("ebang") }
+
+type nilSlice []int
+
+func (m nilSlice) Error() string { return "slice:E" }
+
+type nilMap map[string]int
+
+func (m nilMap) String() string { return "map:S" }
+
+type nilFunc func(int) int
+
+func (f nilFunc) String() string { return "func:S" }
+
+type valStr struct{ s string }
+
+func (v valStr) String() string { return "S:" + v.s }
+
+type valErr struct{ s string }
+
+func (v valErr) Error() string { return "E:" + v.s }
+
+type derefStr struct{ s string }
+
+func (p *derefStr) String() string { return "D:" + p.s }
+
+type derefErr struct{ s string }
+
+func (p *derefErr) Error() string { return "D:" + p.s }
+
+func check(name, got, want string) {
+	if got != want {
+		fmt.Println("FAIL", name, "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func main() {
+	var nilerr error
+	check("nil-error", $"nilerr {nilerr}", fmt.Sprintf("nilerr %s", fmt.Sprint(nilerr)))
+	check("nonnil-error", $"boom {errors.New("boom")}", fmt.Sprintf("boom %s", fmt.Sprint(errors.New("boom"))))
+	var nilstr fmt.Stringer
+	check("nil-stringer", $"s {nilstr}", fmt.Sprintf("s %s", fmt.Sprint(nilstr)))
+	ps := (*ptrStr)(nil)
+	check("typed-nil-stringer", $"p {ps}", fmt.Sprintf("p %s", fmt.Sprint(ps)))
+	check("nonnil-ptr-stringer", $"p {&ptrStr{s: "a"}}", fmt.Sprintf("p %s", fmt.Sprint(&ptrStr{s: "a"})))
+	pe := (*ptrErr)(nil)
+	check("typed-nil-error", $"e {pe}", fmt.Sprintf("e %s", fmt.Sprint(pe)))
+	check("panic-stringer", $"p {panStr{}}", fmt.Sprintf("p %s", fmt.Sprint(panStr{})))
+	check("panic-error", $"e {panErr{}}", fmt.Sprintf("e %s", fmt.Sprint(panErr{})))
+	var ns nilSlice
+	check("nil-slice-error", $"m {ns}", fmt.Sprintf("m %s", fmt.Sprint(ns)))
+	var nm nilMap
+	check("nil-map-stringer", $"m {nm}", fmt.Sprintf("m %s", fmt.Sprint(nm)))
+	var nf nilFunc
+	check("nil-func-stringer", $"f {nf}", fmt.Sprintf("f %s", fmt.Sprint(nf)))
+	check("value-stringer", $"v {valStr{s: "x"}}", fmt.Sprintf("v %s", fmt.Sprint(valStr{s: "x"})))
+	check("value-error", $"v {valErr{s: "y"}}", fmt.Sprintf("v %s", fmt.Sprint(valErr{s: "y"})))
+	check("both-prefers-error", $"b {bothVal{s: "z"}}", fmt.Sprintf("b %s", fmt.Sprint(bothVal{s: "z"})))
+	ds := (*derefStr)(nil)
+	check("nil-receiver-deref-stringer", $"p {ds}", fmt.Sprintf("p %s", fmt.Sprint(ds)))
+	de := (*derefErr)(nil)
+	check("nil-receiver-deref-error", $"e {de}", fmt.Sprintf("e %s", fmt.Sprint(de)))
+	var is fmt.Stringer = ds
+	check("nil-receiver-deref-stringer-iface", $"p {is}", fmt.Sprintf("p %s", fmt.Sprint(is)))
+	var ie error = de
+	check("nil-receiver-deref-error-iface", $"e {ie}", fmt.Sprintf("e %s", fmt.Sprint(ie)))
+	n := 42
+	check("int-control", $"n={n}", fmt.Sprintf("n=%s", fmt.Sprint(n)))
+}

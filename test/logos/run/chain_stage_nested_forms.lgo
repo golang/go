@@ -1,0 +1,167 @@
+// run
+
+package main
+
+import (
+	"comptime"
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"slices"
+	"strconv"
+	"sync/atomic"
+	"time"
+
+	"logos/rt"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type observed[T any] struct {
+	v   T
+	err error
+}
+
+func observe[T any](v T, err error) observed[T] {
+	return observed[T]{v, err}
+}
+
+var live atomic.Int64
+
+type pair struct{ A, B int }
+
+func conv(x int) (int, error) { return strconv.Atoi(strconv.Itoa(x)) }
+
+func unwrap(f func() (int, error)) int {
+	v, err := f()
+	if err != nil {
+		return -1
+	}
+	return v
+}
+
+func run(f func(context.Context)) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	f(ctx)
+}
+
+func caseNestedGroup(ctx context.Context) {
+	got, err := []int{1, 2, 3}.group(ctx, limit = 2).map(x => {
+		a, b := 0, 0
+		go group (ctx) {
+			go {
+				a = x
+			}
+			go {
+				b = x * 10
+			}
+		}
+		return a + b
+	})
+	check("nested-group", err == nil && slices.Equal(got, []int{11, 22, 33}), err, []int{11, 22, 33})
+}
+
+func caseNestedFails(ctx context.Context) {
+	res := observe([]int{1, 2, 3}.group(ctx, limit = 1).map(x => {
+		n := 0
+		go group (ctx) {
+			go {
+				if x == 2 {
+					panic("nested boom")
+				}
+				n = x
+			}
+		}
+		return n
+	}))
+	got, err := res.v, res.err
+	pe, ok := errors.AsType[*rt.PanicError](err)
+	check("nested-child-fails", err != nil && ok && pe.Value == "nested boom" && got == nil, err, "*rt.PanicError")
+}
+
+func caseNestedCancelled(ctx context.Context) {
+	never := make(chan int)
+	short, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
+	defer cancel()
+	res := observe([]int{1, 2}.group(short, limit = 2).map(x => {
+		n := 0
+		go group (short) {
+			go {
+				live.Add(1)
+				defer live.Add(-1)
+				n = <-never
+			}
+		}
+		return n + x
+	}))
+	got, err := res.v, res.err
+	check("nested-group-cancelled", err != nil && got == nil && errors.Is(err, context.DeadlineExceeded) && live.Load() == 0, fmt.Sprint(err, " with ", live.Load(), " children live"), "deadline with 0 children live")
+}
+
+func caseFuncLitTryExpression(ctx context.Context) {
+	got, err := []int{1, 2}.group(ctx, limit = 2).map(x => unwrap(func() (int, error) {
+		v := conv(x)?
+		return v * 3, nil
+	}))
+	check("funclit-try-expression", err == nil && slices.Equal(got, []int{3, 6}), err, []int{3, 6})
+}
+
+func caseConstFor(ctx context.Context) {
+	got, err := []int{1, 2}.group(ctx, limit = 2).map(x => {
+		n := 0
+		const for _, f := range comptime.Fields[pair]() {
+			n += len(f.Name)
+		}
+		return n + x
+	})
+	check("const-for", err == nil && slices.Equal(got, []int{3, 4}), err, []int{3, 4})
+}
+
+func caseConstIf(ctx context.Context) {
+	got, err := []int{1, 2}.group(ctx, limit = 2).map(x => {
+		r := 0
+		const if 1 == 1 {
+			r = 5
+		} else {
+			r = 6
+		}
+		return r + x
+	})
+	check("const-if", err == nil && slices.Equal(got, []int{6, 7}), err, []int{6, 7})
+}
+
+func caseScopeDefer(ctx context.Context) {
+	got, err := []int{1, 2}.group(ctx, limit = 2).map(x => {
+		n := 0
+		{
+			scope defer func() { n += 10 }()
+			n = 1
+		}
+		return n + x
+	})
+	check("scope-defer", err == nil && slices.Equal(got, []int{12, 13}), err, []int{12, 13})
+}
+
+func main() {
+	run(caseNestedGroup)
+	run(caseNestedFails)
+	run(caseNestedCancelled)
+	run(caseFuncLitTryExpression)
+	run(caseConstFor)
+	run(caseConstIf)
+	run(caseScopeDefer)
+	if failed {
+		os.Exit(1)
+	}
+}

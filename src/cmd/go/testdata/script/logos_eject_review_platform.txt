@@ -1,50 +1,34 @@
-# Review follow-up for logos eject (PRRT_kwDOVOeymc6vU0Cj).
-#
-# Case 2 (PRRT_kwDOVOeymc6vU0Cj): Excluded platform-specific (Windows) and
-# custom-tagged .lgo files using real loGo/s syntax (?, defer?, errdefer) must
-# be lowered to valid Go sources during host eject. The ejected output must
-# build and run natively on the host, cross-build for Windows without executing
-# foreign binaries, and build with the custom tag under plain Go.
-#
-# The support-import scenario (PRRT_kwDOVOeymc6vU0Cb) lives in
-# logos_eject_review_complete.txt.
-
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
-# -----------------------------------------------------------------------------
-# Case 2: Excluded platform-specific and custom-tagged .lgo with real loGo/s syntax
-# -----------------------------------------------------------------------------
 cd plat_variants
 
-# Matched native build controls before eject:
-# Host execution
 logos run .
 stdout '^host-ok:linux-plat:notag-ok$'
 cp stdout $WORK/plat-want.txt
 
-# Cross-compilation and custom-tag build controls with logos on host
 env GOOS=windows
 logos build ./...
 env GOOS=$TESTGO_GOHOSTOS
 
 logos build -tags customtag ./...
 
-# Eject on host: excluded variants must be lowered to .go files
 logos eject -o out
 
-# Ejected tree builds and runs natively under plain Go
 cd out
 go build ./...
 go run .
 cmp stdout $WORK/plat-want.txt
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
 
-# Cross-build Go output for Windows (requires lowered plat_windows.go; no native execution of foreign binary)
 env GOOS=windows
 go build ./...
 env GOOS=$TESTGO_GOHOSTOS
 
-# Build with custom build tag under plain Go (requires lowered plat_custom.go)
 go build -tags customtag ./...
 cd ../..
 

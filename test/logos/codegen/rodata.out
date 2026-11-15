@@ -1,4 +1,5 @@
-[2 3 5 7 11]
-a d 5
-roSlice.backing=R roArray=R roGrouped.backing=R roMutable=D
-rodata OK
+ok const-slice-holds-literal-values
+ok const-array-holds-literal-values
+ok const-indexing-and-len-rules
+ok const-composites-live-in-rodata
+ok mutable-slice-stays-writable

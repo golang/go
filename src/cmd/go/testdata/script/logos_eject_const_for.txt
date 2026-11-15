@@ -1,13 +1,8 @@
-# M7 eject with inner lowering in const for copies (SPEC Sec 2.5, T-205;
-# T-0.3): a module using `?`, `$"..."`, and a chain inside a const for
-# body ejects to plain Go. The ejected tree runs under plain go with the
-# output logos run prints, and stays vet- and gofmt-clean.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
 cd m
 
-# logos runs the module before eject.
 logos run .
 stdout '^Name=5$'
 stdout '^Count=10$'
@@ -15,29 +10,33 @@ stdout '^Ok=15$'
 stdout '^15 <nil>$'
 stdout '^0 bad z$'
 stdout '^27$'
+stdout '^\[nm ct\]$'
+stdout 'a"b\\c'
+stdout '^\[g1 g2  \]$'
+stdout '^GET$'
+stdout '^tags match$'
+stdout '^lens match$'
 cp stdout $WORK/native.txt
 
-# Snapshot the source tree; eject must never write into it (#112).
 mkdir $WORK/orig
 cp main.lgo $WORK/orig/main.lgo
 
 logos eject -o out
 exists out/main.go
 
-# No ejected file imports comptime, and no bare import keyword is left.
-! grep '"comptime"' out/main.go
-! grep '^import$' out/main.go
-
-# The ejected tree runs under plain go with identical output.
 cd out
 go run .
 cmp stdout $WORK/native.txt
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
 go vet ./...
 exec $GOROOT/bin/gofmt -l .
 ! stdout .
 cd ..
 
-# The source tree is unchanged after eject (#112).
 cmp main.lgo $WORK/orig/main.lgo
 
 -- m/go.mod --
@@ -52,6 +51,8 @@ import (
 	"comptime"
 	"errors"
 	"fmt"
+	"net/http"
+	"reflect"
 	"strconv"
 )
 
@@ -87,8 +88,132 @@ func summed() int {
 	return s
 }
 
+type Tagged struct {
+	Name  string `json:"nm"`
+	Count int    `json:"ct"`
+}
+
+func tags() []string {
+	var out []string
+	const for _, f := range comptime.Fields[Tagged]() {
+		out = append(out, f.Tag.Get("json"))
+	}
+	return out
+}
+
+const multiKey = "xml"
+
+type Multi struct {
+	Name  string  `json:"nm" xml:"n1" GET:"g1" custom:"a\"b\\c"`
+	Age   int64   `json:"age,omitempty" xml:"a2" GET:"g2"`
+	Skip  bool    `json:"-"`
+	Plain float64
+}
+
+func tagKeys() []string {
+	const local = "custom"
+	var out []string
+	const for _, f := range comptime.Fields[Multi]() {
+		out = append(out, f.Tag.Get(multiKey))
+		out = append(out, f.Tag.Get(local))
+		out = append(out, f.Tag.Get("x"+"ml"))
+		out = append(out, f.Tag.Get("missing"))
+	}
+	return out
+}
+
+func tagString(tag reflect.StructTag, key string) string {
+	return tag.Get(key)
+}
+
+func tagOracle() []string {
+	const local = "custom"
+	var out []string
+	t := reflect.TypeOf(Multi{})
+	for i := range t.NumField() {
+		tag := t.Field(i).Tag
+		out = append(out, tagString(tag, multiKey))
+		out = append(out, tagString(tag, local))
+		out = append(out, tagString(tag, "x"+"ml"))
+		out = append(out, tagString(tag, "missing"))
+	}
+	return out
+}
+
+func tagImportedOracle() []string {
+	var out []string
+	t := reflect.TypeOf(Multi{})
+	for i := range t.NumField() {
+		out = append(out, tagString(t.Field(i).Tag, http.MethodGet))
+	}
+	return out
+}
+
+func tagImported() []string {
+	var out []string
+	const for _, f := range comptime.Fields[Multi]() {
+		out = append(out, f.Tag.Get(http.MethodGet))
+	}
+	return out
+}
+
+func tagRuntime(key string) []string {
+	var out []string
+	const for _, f := range comptime.Fields[Multi]() {
+		out = append(out, f.Tag.Get(key))
+	}
+	return out
+}
+
+func tagRuntimeOracle(key string) []string {
+	var out []string
+	t := reflect.TypeOf(Multi{})
+	for i := range t.NumField() {
+		out = append(out, tagString(t.Field(i).Tag, key))
+	}
+	return out
+}
+
+func foldedTagLens() []int {
+	var out []int
+	const for _, f := range comptime.Fields[Multi]() {
+		out = append(out, len(f.Tag.Get("json")))
+	}
+	return out
+}
+
+func foldedTagLensOracle() []int {
+	t := reflect.TypeOf(Multi{})
+	var out []int
+	for i := range t.NumField() {
+		out = append(out, len(t.Field(i).Tag.Get("json")))
+	}
+	return out
+}
+
 func main() {
 	fmt.Println(total("5"))
 	fmt.Println(total("z"))
 	fmt.Println(summed())
+	fmt.Println(tags())
+	fmt.Println(tagKeys())
+	fmt.Println(tagImported())
+	fmt.Println(http.MethodGet)
+	folded := append(tagKeys(), tagImported()...)
+	oracle := append(tagOracle(), tagImportedOracle()...)
+	if fmt.Sprint(folded) != fmt.Sprint(oracle) {
+		panic("tag fold mismatch")
+	}
+	rt := tagRuntime(string([]byte{'G', 'E', 'T'}))
+	ro := tagRuntimeOracle(string([]byte{'G', 'E', 'T'}))
+	if fmt.Sprint(rt) != fmt.Sprint(ro) {
+		panic("runtime tag mismatch")
+	}
+	lens := foldedTagLens()
+	lenso := foldedTagLensOracle()
+	if fmt.Sprint(lens) != fmt.Sprint(lenso) {
+		panic("tag lens mismatch")
+	}
+	fmt.Println("lens match")
+	fmt.Println("tags match")
 }

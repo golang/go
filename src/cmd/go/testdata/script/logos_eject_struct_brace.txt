@@ -1,0 +1,46 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+logos run .
+stdout '^1 2 0 3$'
+cp stdout $WORK/native.txt
+logos eject -o out
+exists out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $WORK/native.txt
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
+exec $WORK/upstream$GOEXE
+cmp stdout $WORK/native.txt
+cd ..
+
+-- m/go.mod --
+module example.com/structbrace
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import "fmt"
+
+func main() {
+	a := struct {
+		A int = 1
+		B struct{}
+	}{}
+	c := struct {
+		N int = 2
+		M map[string]struct{}
+	}{}
+	d := struct {
+		K int = 3
+		I interface{ M() }
+	}{}
+	fmt.Println(a.A, c.N, len(c.M), d.K)
+}

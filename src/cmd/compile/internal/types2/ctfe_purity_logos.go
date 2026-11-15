@@ -4,22 +4,12 @@
 
 package types2
 
-// This file implements the M5-S2 static purity check for const funcs
-// (SPEC Sec 2.1, T-201). Every const func body is scanned after it is
-// type-checked; the first impurity reports
-// [correctness::const_func_impure] with its reason. Dynamic evaluation
-// mirrors the same impurity class (silently inside const bodies), so
-// each construct reports exactly once.
-
 import (
 	"cmd/compile/internal/syntax"
 	"fmt"
 	. "internal/types/errors"
 )
 
-// logosSchedulePurity enqueues a const func purity check behind the
-// body check the caller just scheduled, so Info maps resolve precisely.
-// Non-const functions return without scheduling anything.
 func (check *Checker) logosSchedulePurity(obj *Func, fdecl *syntax.FuncDecl) {
 	if !check.conf.Logos {
 		return
@@ -32,9 +22,6 @@ func (check *Checker) logosSchedulePurity(obj *Func, fdecl *syntax.FuncDecl) {
 	}).describef(obj, "const func %s purity", obj.name)
 }
 
-// logosCheckConstFunc scans one const func for purity violations. It
-// runs after the body is checked, so Info maps resolve precisely. Only
-// the first violation in source order reports.
 func (check *Checker) logosCheckConstFunc(obj *Func, fdecl *syntax.FuncDecl) {
 	if !check.conf.Logos {
 		return
@@ -49,7 +36,6 @@ func (check *Checker) logosCheckConstFunc(obj *Func, fdecl *syntax.FuncDecl) {
 	}
 }
 
-// logosPurity holds scanner state.
 type logosPurity struct {
 	check  *Checker
 	at     syntax.Node
@@ -67,7 +53,6 @@ func (s *logosPurity) fail(at syntax.Node, format string, args ...any) bool {
 	return false
 }
 
-// scanSignature checks receiver, parameter, and result types.
 func (s *logosPurity) scanSignature(fdecl *syntax.FuncDecl) {
 	if fdecl.Recv != nil {
 		s.scanType(fdecl.Recv.Type)
@@ -80,8 +65,6 @@ func (s *logosPurity) scanSignature(fdecl *syntax.FuncDecl) {
 	}
 }
 
-// scanType flags pointer, channel, uintptr, interface, function, and
-// option shapes in type positions, resolving names through scope.
 func (s *logosPurity) scanType(te syntax.Expr) {
 	if s.done || te == nil {
 		return
@@ -110,11 +93,8 @@ func (s *logosPurity) scanType(te syntax.Expr) {
 		}
 	case *syntax.SelectorExpr:
 		if x, ok := syntax.Unparen(te.X).(*syntax.Name); ok && x.Value == "unsafe" && te.Sel.Value == "Pointer" {
-			// Invariant (unsafe): unsafe.Pointer is a pointer type in const funcs.
 			s.fail(te, "pointer type in const func")
 		} else {
-			// Invariant (qualified): pkg.T resolves through the same
-			// impurity check as bare names.
 			s.scanSelected(te)
 		}
 	case *syntax.SliceType:
@@ -140,7 +120,6 @@ func (s *logosPurity) scanType(te syntax.Expr) {
 	}
 }
 
-// scanNamed resolves a type name and flags impurity behind it.
 func (s *logosPurity) scanNamed(id *syntax.Name) {
 	obj := s.lookup(id.Value)
 	tn, ok := obj.(*TypeName)
@@ -150,17 +129,11 @@ func (s *logosPurity) scanNamed(id *syntax.Name) {
 	s.scanNamedType(id, tn.Type())
 }
 
-// scanNamedType flags pointer, channel, uintptr, interface, function,
-// and option shapes behind a resolved type name. Defined types are
-// judged by underlying type after alias removal, so `type P *int`
-// cannot bypass the check; struct and other composite underlyings stay
-// legal, matching the syntactic cases in scanType.
 func (s *logosPurity) scanNamedType(at syntax.Node, typ Type) {
 	t := Unalias(typ)
 	if t == nil {
 		return
 	}
-	// Invariant (option): named option types carry the option obligation.
 	if logosAsOption(t) != nil {
 		s.fail(at, "option type in const func")
 		return
@@ -185,10 +158,6 @@ func (s *logosPurity) scanNamedType(at syntax.Node, typ Type) {
 	}
 }
 
-// scanSelected resolves a qualified type name (pkg.T) and flags impurity
-// behind it, so imported named pointer, channel, interface, and function
-// types cannot bypass the signature scan through qualification.
-// Unresolved names keep the upstream diagnostic.
 func (s *logosPurity) scanSelected(te *syntax.SelectorExpr) {
 	if s.done {
 		return
@@ -211,7 +180,6 @@ func (s *logosPurity) scanSelected(te *syntax.SelectorExpr) {
 	}
 }
 
-// lookup resolves a package-level or universe name.
 func (s *logosPurity) lookup(name string) Object {
 	check := s.check
 	if obj := check.pkg.scope.Lookup(name); obj != nil {
@@ -220,9 +188,6 @@ func (s *logosPurity) lookup(name string) Object {
 	return Universe.Lookup(name)
 }
 
-// visit inspects one node; returning false prunes reported subtrees.
-// Declarations and composite literals carry type positions, so they
-// descend manually: types through scanType, values through Inspect.
 func (s *logosPurity) visit(n syntax.Node) bool {
 	if s.done || n == nil {
 		return false
@@ -300,8 +265,6 @@ func (s *logosPurity) visit(n syntax.Node) bool {
 		return true
 	case *syntax.Operation:
 		if n.Y == nil && (n.Op == syntax.Mul || n.Op == syntax.And) {
-			// Type positions never reach here (scanType owns
-			// them), so a bare & or * operates on a value.
 			if n.Op == syntax.Mul {
 				s.fail(n, "pointer dereference in const func")
 			} else {
@@ -314,9 +277,6 @@ func (s *logosPurity) visit(n syntax.Node) bool {
 	return true
 }
 
-// visitStore flags package-variable stores in an assignment target:
-// bare names and the bases of selectors and indexes. It reports
-// whether it failed so the caller prunes the subtree.
 func (s *logosPurity) visitStore(lhs syntax.Expr) bool {
 	found := false
 	var walk func(e syntax.Expr)
@@ -339,16 +299,14 @@ func (s *logosPurity) visitStore(lhs syntax.Expr) bool {
 			walk(e.X)
 		}
 	}
-	for _, le := range unpackLogosList(lhs) {
+	for _, le := range syntax.UnpackListExpr(lhs) {
 		walk(le)
 	}
 	return found || s.done
 }
 
-// visitRange flags ranging over dynamic maps, named map types included.
-// A const view is not a *Map, so ranging a const map stays legal.
 func (s *logosPurity) visitRange(rc *syntax.RangeClause) {
-	if s.done {
+	if s.done || s.constRooted(rc.X) {
 		return
 	}
 	typ := s.check.Info.TypeOf(rc.X)
@@ -362,9 +320,25 @@ func (s *logosPurity) visitRange(rc *syntax.RangeClause) {
 	}
 }
 
-// visitName flags package-variable uses: stores report writes, all
-// other positions report reads. Declarations never reach here (Defs,
-// not Uses, records them). It reports whether it failed.
+func (s *logosPurity) constRooted(e syntax.Expr) bool {
+	for {
+		switch x := syntax.Unparen(e).(type) {
+		case *syntax.Name:
+			_, ok := s.check.Info.Uses[x].(*Const)
+			return ok
+		case *syntax.SelectorExpr:
+			if _, ok := s.check.Info.Uses[x.Sel].(*Const); ok {
+				return true
+			}
+			e = x.X
+		case *syntax.IndexExpr:
+			e = x.X
+		default:
+			return false
+		}
+	}
+}
+
 func (s *logosPurity) visitName(id *syntax.Name, store bool) bool {
 	if s.done {
 		return false
@@ -388,7 +362,6 @@ func (s *logosPurity) visitName(id *syntax.Name, store bool) bool {
 	return false
 }
 
-// visitCall checks call targets.
 func (s *logosPurity) visitCall(c *syntax.CallExpr) bool {
 	check := s.check
 	switch fun := syntax.Unparen(c.Fun).(type) {
@@ -438,7 +411,7 @@ func (s *logosPurity) visitCall(c *syntax.CallExpr) bool {
 		}
 	case *syntax.SelectorExpr:
 		if x, ok := syntax.Unparen(fun.X).(*syntax.Name); ok {
-			if pn, ok := s.pkgName(x); ok {
+			if pn := logosPkgName(s.check, x); pn != nil {
 				path := ""
 				if imp := pn.Imported(); imp != nil {
 					path = imp.Path()
@@ -462,8 +435,6 @@ func (s *logosPurity) visitCall(c *syntax.CallExpr) bool {
 		s.fail(c, "function literal in const func")
 		return false
 	default:
-		// A composite type in function position converts; its
-		// shapes belong to scanType rather than the walk.
 		s.scanType(c.Fun)
 		if s.done {
 			return false
@@ -479,24 +450,6 @@ func (s *logosPurity) visitCall(c *syntax.CallExpr) bool {
 	return true
 }
 
-// pkgName reports whether x names an imported package.
-func (s *logosPurity) pkgName(x *syntax.Name) (*PkgName, bool) {
-	check := s.check
-	if obj, ok := check.Info.Uses[x].(*PkgName); ok {
-		return obj, true
-	}
-	if obj, ok := check.pkg.scope.Lookup(x.Value).(*PkgName); ok {
-		return obj, true
-	}
-	return nil, false
-}
-
-// unpackLogosList splits an assignment left-hand side.
-func unpackLogosList(e syntax.Expr) []syntax.Expr {
-	return syntax.UnpackListExpr(e)
-}
-
-// selText renders pkg.Func for messages.
 func selText(sel *syntax.SelectorExpr) string {
 	if x, ok := syntax.Unparen(sel.X).(*syntax.Name); ok {
 		return x.Value + "." + sel.Sel.Value

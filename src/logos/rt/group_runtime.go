@@ -8,11 +8,6 @@ package rt
 
 import _ "unsafe"
 
-// Pull of the runtime group-slot primitives. The definitions live in
-// src/runtime/logos_group.go and logos_group_netpoll.go and carry a
-// push-style //go:linkname mark, so the linker's linkname check accepts
-// these references. The signatures must match the runtime side exactly.
-
 //go:linkname logosGroupAcquire runtime.logosGroupAcquire
 func logosGroupAcquire() uint32
 

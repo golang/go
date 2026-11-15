@@ -1,0 +1,251 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"math"
+)
+
+// Switch form: at most 8 keys. c128 holds two keys that differ
+// only in the imaginary part.
+const c128 = map[complex128]int{
+	1 + 2i:        12,
+	1 + 3i:        13,
+	3 - 4i:        34,
+	complex(5, 6): 56,
+	0 + 0i:        0,
+}
+
+const c64 = map[complex64]string{
+	1 + 2i:          "a",
+	1 + 3i:          "b",
+	complex(7, -8): "c",
+}
+
+// Table form: more than 8 keys. t128 holds three keys that share
+// the real part; t64 holds a fractional pair that differs only
+// in the imaginary part after complex64 rounding.
+const t128 = map[complex128]int{
+	complex(1, 1):  11,
+	complex(1, 2):  12,
+	complex(1, 3):  13,
+	complex(2, 2):  22,
+	complex(3, 3):  33,
+	complex(-4, 5): 45,
+	complex(6, -7): 67,
+	complex(0, 0):  0,
+	complex(9, 9):  99,
+	complex(4, 0):  40,
+}
+
+const t64 = map[complex64]int{
+	complex(1, 1):     11,
+	complex(1, 2):     12,
+	complex(1, 3):     13,
+	complex(2, 2):     22,
+	complex(3, 3):     33,
+	complex(-4, 5):    45,
+	complex(6, -7):    67,
+	complex(0, 0):     0,
+	complex(0.1, 0.2): 102,
+	complex(0.1, 0.3): 103,
+}
+
+const c128n = len(c128)
+
+var _ [c128n]int
+
+var gm128 = map[complex128]int{1 + 2i: 12, 1 + 3i: 13, 3 - 4i: 34, complex(5, 6): 56, 0 + 0i: 0}
+var gm64 = map[complex64]string{1 + 2i: "a", 1 + 3i: "b", complex(7, -8): "c"}
+var gt128 = map[complex128]int{complex(1, 1): 11, complex(1, 2): 12, complex(1, 3): 13, complex(2, 2): 22, complex(3, 3): 33, complex(-4, 5): 45, complex(6, -7): 67, complex(0, 0): 0, complex(9, 9): 99, complex(4, 0): 40}
+var gt64 = map[complex64]int{complex(1, 1): 11, complex(1, 2): 12, complex(1, 3): 13, complex(2, 2): 22, complex(3, 3): 33, complex(-4, 5): 45, complex(6, -7): 67, complex(0, 0): 0, complex(0.1, 0.2): 102, complex(0.1, 0.3): 103}
+
+func check(cond bool, name string) {
+	if cond {
+		fmt.Println("ok " + name)
+	} else {
+		fmt.Println("FAIL " + name)
+	}
+}
+
+func zeroKeys() []complex128 {
+	nz := math.Copysign(0, -1)
+	return []complex128{complex(nz, 0), complex(0, nz), complex(nz, nz)}
+}
+
+func nanKeys() []complex128 {
+	nan := math.NaN()
+	return []complex128{complex(nan, 1), complex(1, nan), complex(nan, nan)}
+}
+
+func check128() {
+	hit128 := []complex128{1 + 2i, 1 + 3i, 3 - 4i, complex(5, 6), 0 + 0i}
+	miss128 := []complex128{9 + 9i, complex(1, 4)}
+	hit, agree := true, true
+	for _, k := range hit128 {
+		cv, cok := c128[k]
+		gv, gok := gm128[k]
+		hit = hit && cok && cv == gv && gok
+		agree = agree && cok == gok && cv == gv
+	}
+	for _, k := range miss128 {
+		_, cok := c128[k]
+		_, gok := gm128[k]
+		hit = hit && !cok && !gok
+	}
+	check(hit && agree, "c128-hit")
+	hit, agree = true, true
+	for _, k := range zeroKeys() {
+		cv, cok := c128[k]
+		gv, gok := gm128[k]
+		hit = hit && cok && cv == 0
+		agree = agree && cok == gok && cv == gv
+	}
+	check(hit && agree, "c128-negzero")
+	hit = true
+	for _, k := range nanKeys() {
+		_, cok := c128[k]
+		_, gok := gm128[k]
+		hit = hit && !cok && !gok
+	}
+	check(hit, "c128-nan")
+	check(len(c128) == 5 && len(gm128) == 5, "c128-len")
+}
+
+func check64() {
+	hit64 := []complex64{1 + 2i, 1 + 3i, complex(7, -8)}
+	miss64 := []complex64{0 + 0i, 9 + 9i}
+	hit, agree := true, true
+	for _, k := range hit64 {
+		cv, cok := c64[k]
+		gv, gok := gm64[k]
+		hit = hit && cok && cv == gv && gok
+		agree = agree && cok == gok && cv == gv
+	}
+	for _, k := range miss64 {
+		_, cok := c64[k]
+		_, gok := gm64[k]
+		hit = hit && !cok && !gok
+	}
+	check(hit && agree, "c64-hit")
+	hit, agree = true, true
+	for _, k := range zeroKeys() {
+		ck := complex64(k)
+		_, cok := c64[ck]
+		_, gok := gm64[ck]
+		hit = hit && !cok && !gok
+		agree = agree && cok == gok
+	}
+	check(hit && agree, "c64-negzero-miss")
+	check(len(c64) == 3, "c64-len")
+}
+
+func checkT128() {
+	hitT := []complex128{complex(1, 1), complex(1, 2), complex(1, 3), complex(2, 2), complex(3, 3), complex(-4, 5), complex(6, -7), complex(0, 0), complex(9, 9), complex(4, 0)}
+	missT := []complex128{8 + 8i, complex(1, 4)}
+	hit, agree := true, true
+	for _, k := range hitT {
+		cv, cok := t128[k]
+		gv, gok := gt128[k]
+		hit = hit && cok && cv == gv && gok
+		agree = agree && cok == gok && cv == gv
+	}
+	for _, k := range missT {
+		_, cok := t128[k]
+		_, gok := gt128[k]
+		hit = hit && !cok && !gok
+	}
+	check(hit && agree, "t128-hit")
+	hit, agree = true, true
+	for _, k := range zeroKeys() {
+		cv, cok := t128[k]
+		gv, gok := gt128[k]
+		hit = hit && cok && cv == 0
+		agree = agree && cok == gok && cv == gv
+	}
+	check(hit && agree, "t128-negzero")
+	hit = true
+	for _, k := range nanKeys() {
+		_, cok := t128[k]
+		_, gok := gt128[k]
+		hit = hit && !cok && !gok
+	}
+	check(hit, "t128-nan")
+	check(len(t128) == 10, "t128-len")
+}
+
+func checkT64() {
+	hitT64 := []complex64{complex(1, 1), complex(1, 2), complex(1, 3), complex(2, 2), complex(3, 3), complex(-4, 5), complex(6, -7), complex(0, 0), complex(0.1, 0.2), complex(0.1, 0.3)}
+	hit, agree := true, true
+	for _, k := range hitT64 {
+		cv, cok := t64[k]
+		gv, gok := gt64[k]
+		hit = hit && cok && cv == gv && gok
+		agree = agree && cok == gok && cv == gv
+	}
+	_, cok := t64[complex(8, 8)]
+	_, gok := gt64[complex(8, 8)]
+	hit = hit && !cok && !gok
+	check(hit && agree, "t64-hit")
+	check(len(t64) == 10, "t64-len")
+}
+
+type kv128 struct {
+	k complex128
+	v int
+}
+
+func checkOrder128() {
+	want128 := []kv128{{0, 0}, {1 + 2i, 12}, {1 + 3i, 13}, {3 - 4i, 34}, {complex(5, 6), 56}}
+	i := 0
+	good := true
+	for k, v := range c128 {
+		if i >= len(want128) || k != want128[i].k || v != want128[i].v {
+			good = false
+		}
+		i++
+	}
+	check(good && i == len(want128), "c128-order")
+}
+
+func checkOrderT128() {
+	wantT := []kv128{{complex(-4, 5), 45}, {complex(0, 0), 0}, {complex(1, 1), 11}, {complex(1, 2), 12}, {complex(1, 3), 13}, {complex(2, 2), 22}, {complex(3, 3), 33}, {complex(4, 0), 40}, {complex(6, -7), 67}, {complex(9, 9), 99}}
+	i := 0
+	good := true
+	for k, v := range t128 {
+		if i >= len(wantT) || k != wantT[i].k || v != wantT[i].v {
+			good = false
+		}
+		i++
+	}
+	check(good && i == len(wantT), "t128-order")
+}
+
+type kv64 struct {
+	k complex64
+	v int
+}
+
+func checkOrderT64() {
+	wantT64 := []kv64{{complex(-4, 5), 45}, {complex(0, 0), 0}, {complex(0.1, 0.2), 102}, {complex(0.1, 0.3), 103}, {complex(1, 1), 11}, {complex(1, 2), 12}, {complex(1, 3), 13}, {complex(2, 2), 22}, {complex(3, 3), 33}, {complex(6, -7), 67}}
+	i := 0
+	good := true
+	for k, v := range t64 {
+		if i >= len(wantT64) || k != wantT64[i].k || v != wantT64[i].v {
+			good = false
+		}
+		i++
+	}
+	check(good && i == len(wantT64), "t64-order")
+}
+
+func main() {
+	check128()
+	check64()
+	checkT128()
+	checkT64()
+	checkOrder128()
+	checkOrderT128()
+	checkOrderT64()
+}

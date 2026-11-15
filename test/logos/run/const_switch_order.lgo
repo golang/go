@@ -6,12 +6,19 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"os"
 )
 
-// M7-S4 const switch case order in the run-time form (SPEC Sec 2.5, T-205):
-// cases evaluate top-down in first-match order whatever mix of exact,
-// tilde, and interface cases appears. A case body that does not return
-// still ends the switch: no later case runs after a match (#57, #91).
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 type UserID int
 
@@ -99,10 +106,19 @@ func looped[T any](items []T) string {
 }
 
 func main() {
-	fmt.Println(tildeThenAny(3), tildeThenAny(UserID(3)), tildeThenAny("s"))
-	fmt.Println(ifaceThenExact("s"), ifaceThenExact(&bytes.Buffer{}), ifaceThenExact(1))
-	fmt.Println(mixed(3), mixed(UserID(4)), mixed("s"), mixed(&bytes.Buffer{}), mixed(1.5), mixed(true))
-	fmt.Println(trail(3), trail("s"), trail(1.5))
-	fmt.Println(nested(3), nested(UserID(1)), nested("s"), nested(1.5))
-	fmt.Println(looped([]int{1, 2}), looped([]string{"a"}), looped([]float64{1}))
+	gotTilde := tildeThenAny(3) + " " + tildeThenAny(UserID(3)) + " " + tildeThenAny("s")
+	check("tilde-any", gotTilde == "tilde tilde any", gotTilde, "tilde tilde any")
+	gotIface := ifaceThenExact("s") + " " + ifaceThenExact(&bytes.Buffer{}) + " " + ifaceThenExact(1)
+	check("iface-exact", gotIface == "string reader any", gotIface, "string reader any")
+	gotMixed := mixed(3) + " " + mixed(UserID(4)) + " " + mixed("s") + " " + mixed(&bytes.Buffer{}) + " " + mixed(1.5) + " " + mixed(true)
+	check("mixed", gotMixed == "tilde-int tilde-int string writer float other", gotMixed, "tilde-int tilde-int string writer float other")
+	gotTrail := trail(3) + " " + trail("s") + " " + trail(1.5)
+	check("trail", gotTrail == "tilde;end string;end any;end", gotTrail, "tilde;end string;end any;end")
+	gotNested := nested(3) + " " + nested(UserID(1)) + " " + nested("s") + " " + nested(1.5)
+	check("nested", gotNested == "int;end tilde;end string;end end", gotNested, "int;end tilde;end string;end end")
+	gotLooped := looped([]int{1, 2}) + " " + looped([]string{"a"}) + " " + looped([]float64{1})
+	check("looped", gotLooped == "ii. s. .", gotLooped, "ii. s. .")
+	if failed {
+		os.Exit(1)
+	}
 }

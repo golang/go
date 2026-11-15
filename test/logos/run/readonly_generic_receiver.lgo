@@ -1,0 +1,130 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type Counter interface {
+	const Count() int
+}
+
+type Sized interface {
+	const Size() int
+}
+
+type FloatGetter interface {
+	const Get() float64
+}
+
+type HasV interface {
+	const V int
+}
+
+type Num interface {
+	~int | ~float64
+}
+
+type Box[T any] struct {
+	n  int
+	xs []T
+}
+
+func (b *Box[T]) Count() int { return b.n }
+
+func (b Box[T]) Size() int { return len(b.xs) }
+
+type Relay[T any] struct {
+	n int
+}
+
+func (r *Relay[T]) peek() int { return r.n }
+
+func (r *Relay[T]) Count() int { return r.peek() + 1 }
+
+type Scalar[T Num] struct {
+	v T
+}
+
+func (s *Scalar[T]) Get() T { return s.v }
+
+type Holder[T Num] struct {
+	v T
+}
+
+func (h *Holder[T]) V() T { return h.v }
+
+type Wrap struct : HasV {
+	Holder[int]
+}
+
+type GenProp[T any] interface {
+	const V T
+}
+
+type Tally[T any] struct : Counter {
+	n  int
+	xs []T
+}
+
+func (t *Tally[T]) Count() int { return t.n + len(t.xs) }
+
+type Slot[T Num] struct : GenProp[T] {
+	v T
+}
+
+func (s *Slot[T]) V() T { return s.v }
+
+func viewSize(b const Box[string]) int { return b.Size() }
+
+func viewNested(b const Box[[]int]) int { return b.Size() }
+
+func main() {
+	var c Counter = &Box[string]{n: 3}
+	check("pointer-reader", c.Count() == 3, c.Count(), 3)
+
+	var sv Sized = Box[[]int]{xs: [][]int{{1}, {2}}}
+	check("value-reader", sv.Size() == 2, sv.Size(), 2)
+
+	var sp Sized = &Box[string]{xs: []string{"a", "b", "c"}}
+	check("value-reader-via-pointer", sp.Size() == 3, sp.Size(), 3)
+
+	var cr Counter = &Relay[int]{n: 4}
+	check("helper-reader", cr.Count() == 5, cr.Count(), 5)
+
+	b := Box[string]{xs: []string{"x", "y"}}
+	check("const-view-call", viewSize(b) == 2, viewSize(b), 2)
+
+	nested := Box[[]int]{xs: [][]int{{1}, {2}, {3}}}
+	check("const-view-call-nested", viewNested(nested) == 3, viewNested(nested), 3)
+
+	var tally Counter = &Tally[string]{n: 2, xs: []string{"a", "b", "c"}}
+	check("asserted-reader", tally.Count() == 5, tally.Count(), 5)
+
+	var slot GenProp[float64] = &Slot[float64]{v: 1.5}
+	check("asserted-property", slot.V == 1.5, slot.V, 1.5)
+
+	var fg FloatGetter = &Scalar[float64]{v: 2.5}
+	check("type-set-reader", fg.Get() == 2.5, fg.Get(), 2.5)
+
+	w := &Wrap{Holder[int]{v: 9}}
+	var hv HasV = w
+	check("property-getter", hv.V == 9, hv.V, 9)
+
+	if failed {
+		os.Exit(1)
+	}
+}

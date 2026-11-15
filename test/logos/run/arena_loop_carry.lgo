@@ -1,31 +1,15 @@
 // run -goexperiment logosarena
+// run -goexperiment logosarena -arena=false
 
 package main
 
-// M18 loop-carry attack (SPEC Sec 3.1, Sec 8.3): loop back-edges must
-// restore only iteration-local objects while retaining loop-carried state.
-// Each loop below allocates a runtime-sized 1024-byte slice per iteration
-// (size arrives as a function parameter, so the make is dynamic, not a
-// constant). The first iteration saves its slice into an outer local; later
-// iterations write different values into fresh makes. The saved checksum and
-// edge bytes must stay independent after the loop and across runtime.GC().
-// A buggy watermark that reclaims carried backing would alias the saved
-// slice to a later iteration (e.g. basic keepSum 1024 becomes 4096).
-// Value checks only: the existing loop-watermark pass proves bounded reuse
-// for iteration-local loops but cannot prove carried retention, so no alloc
-// counters are asserted here. Closures and a noinline callee retain the
-// carried value; one loop threads the carried slice through Cond/Post;
-// nested sibling inner loops split eligibility (first carries, second is
-// iteration-local). The sole global is the genuine heap-escape control.
-// No unsafe, no manual marks, all expected numbers are immutable.
 
 import (
 	"fmt"
+	"os"
 	"runtime"
 )
 
-// Genuine escape control only: a slice stored to a global must stay heap
-// and stay correct. No other package-level state.
 var escapeSink []byte
 
 //go:noinline
@@ -77,9 +61,6 @@ func carryClosure(n int) (direct, via, after, viaAfter int) {
 			kept = b
 		}
 	}
-	// Closure captures the outer carried slice after the loop, so the
-	// captured backing is the loop-carried value itself; the closure never
-	// escapes this function.
 	get := func() int { return sumBytes(kept) }
 	direct = sumBytes(kept)
 	via = get()
@@ -97,12 +78,6 @@ func carryCondPost(n int) (total, ks, ksGC, os, osGC int) {
 		outer[j] = 9
 	}
 	var kept []byte
-	// Direct header makes: the Cond and Post expressions each contain a real
-	// runtime-sized make in the loop-header block itself (not in a callee, so
-	// header-visitor vetoes see it). Each header make is zeroed and consumed
-	// by the noinline sumBytes, so the allocation is real and iteration-local
-	// (dead after the check/step) while kept/outer stay live across it.
-	// Cond is true 4 times then false; Post preserves i (x*0 terms vanish).
 	for i := 0; i < 4 && len(kept) <= n && sumBytes(make([]byte, n)) == 0; i = i + 1 + sumBytes(make([]byte, n))*0 + len(kept)*0 {
 		b := make([]byte, n)
 		v := byte(40 + i)
@@ -140,9 +115,6 @@ func carryNested(n int) (ks, kf, innerTotal, ksGC int) {
 				innerTotal += int(b[0])
 			}
 		}
-		// Sibling inner loop at the same depth: purely iteration-local,
-		// so it stays eligible for per-iteration reclaim while kept above
-		// must be retained.
 		for k := 0; k < 3; k++ {
 			t := make([]byte, n)
 			v := byte(90 + k)
@@ -186,16 +158,46 @@ func carryEscape(n int) (ks, es, ksGC, esGC int) {
 	runtime.KeepAlive(escapeSink)
 	return ks, es, ksGC, esGC
 }
-
 func main() {
+	failed := false
+	eq := func(name string, got, want int) {
+		if got != want {
+			fmt.Printf("FAIL %s: got %d want %d\n", name, got, want)
+			failed = true
+			return
+		}
+		fmt.Printf("ok %s\n", name)
+	}
 	ks, kf, kl, ls, lf, ksGC, lsGC := carryBasic(1024)
-	fmt.Println("basic:", ks, kf, kl, ls, lf, ksGC, lsGC)
+	eq("basic-kept-sum-matches-fill-1-rule", ks, 1024*1)
+	eq("basic-kept-first-byte-is-1", kf, 1)
+	eq("basic-kept-last-byte-is-1", kl, 1)
+	eq("basic-last-sum-matches-fill-4-rule", ls, 1024*4)
+	eq("basic-last-first-byte-is-4", lf, 4)
+	eq("basic-gc-preserves-kept-sum", ksGC, ks)
+	eq("basic-gc-preserves-last-sum", lsGC, ls)
 	direct, via, after, viaAfter := carryClosure(1024)
-	fmt.Println("closure:", direct, via, after, viaAfter)
+	eq("closure-direct-matches-fill-20-rule", direct, 1024*20)
+	eq("closure-captured-matches-direct", via, direct)
+	eq("closure-gc-preserves-direct", after, direct)
+	eq("closure-gc-preserves-captured", viaAfter, direct)
 	total, cks, cksGC, osum, osumGC := carryCondPost(1024)
-	fmt.Println("condpost:", total, cks, cksGC, osum, osumGC)
+	eq("condpost-kept-sum-matches-fill-40-rule", cks, 1024*40)
+	eq("condpost-gc-preserves-kept-sum", cksGC, cks)
+	eq("condpost-outer-sum-matches-fill-9-rule", osum, 1024*9)
+	eq("condpost-gc-preserves-outer-sum", osumGC, osum)
+	eq("condpost-endpoints-match-arithmetic-series", total, 2*(4*40+4*3/2))
 	nks, nkf, ntotal, nksGC := carryNested(1024)
-	fmt.Println("nested:", nks, nkf, ntotal, nksGC)
+	eq("nested-kept-sum-matches-fill-50-rule", nks, 1024*50)
+	eq("nested-kept-first-byte-is-50", nkf, 50)
+	eq("nested-gc-preserves-kept-sum", nksGC, nks)
+	eq("nested-consumed-fills-match-grid-and-series", ntotal, 9*50+3*10*(0+1+2)+3*(0+1+2)-50+3*(3*90+3*2/2))
 	eks, ees, eksGC, eesGC := carryEscape(1024)
-	fmt.Println("escape:", eks, ees, eksGC, eesGC)
+	eq("escape-kept-sum-matches-fill-60-rule", eks, 1024*60)
+	eq("escape-sink-sum-matches-fill-61-rule", ees, 1024*61)
+	eq("escape-gc-preserves-kept-sum", eksGC, eks)
+	eq("escape-gc-preserves-sink-sum", eesGC, ees)
+	if failed {
+		os.Exit(1)
+	}
 }

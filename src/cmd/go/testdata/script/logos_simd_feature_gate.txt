@@ -1,0 +1,270 @@
+# The amd64 slice-sum vector form runs only when the archsimd feature
+# check is true: the check dominates the masked tail load in the binary,
+# the run reports the check value the vector path consults, and a
+# check-off run still matches the scalar oracle in the program.
+[!GOARCH:amd64] skip 'simd feature gate needs amd64'
+[!GOOS:linux] skip 'host cpu probe reads /proc/cpuinfo'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOEXPERIMENT=simd
+env GOAMD64=v1
+
+cd m
+logos run .
+stdout '^sums ok$'
+cp stdout $WORK/on.txt
+exec go run ./hostprobe $WORK/on.txt baseline
+stdout 'host probe ok baseline'
+# The feature check precedes the masked tail load in sumI32 and sumU8.
+logos build -o $WORK/exe .
+go tool objdump -s '^main\.sumI32$' $WORK/exe
+cp stdout $WORK/sumI32.txt
+exec go run ./checkorder $WORK/sumI32.txt avx2
+stdout '^order ok avx2$'
+go tool objdump -s '^main\.sumU8$' $WORK/exe
+cp stdout $WORK/sumU8.txt
+exec go run ./checkorder $WORK/sumU8.txt avx512
+stdout '^order ok avx512$'
+
+env GODEBUG=cpu.avx2=off
+logos run .
+stdout '^sums ok$'
+cp stdout $WORK/off-avx2.txt
+exec go run ./hostprobe $WORK/off-avx2.txt avx2off
+stdout 'host probe ok avx2off'
+
+env GODEBUG=cpu.avx512f=off
+logos run .
+stdout '^sums ok$'
+cp stdout $WORK/off-avx512.txt
+exec go run ./hostprobe $WORK/off-avx512.txt avx512off
+stdout 'host probe ok avx512off'
+
+# GOAMD64=v3 guarantees AVX2: sumI32 drops the check but keeps the
+# masked tail load, while sumU8 keeps its AVX512 check in order.
+env GOAMD64=v3
+env GODEBUG=
+logos run .
+stdout '^avx2 true$'
+stdout '^sums ok$'
+logos build -o $WORK/exe-v3 .
+go tool objdump -s '^main\.sumI32$' $WORK/exe-v3
+cp stdout $WORK/sumI32-v3.txt
+exec go run ./checkorder $WORK/sumI32-v3.txt noavx2
+stdout '^order ok noavx2$'
+go tool objdump -s '^main\.sumU8$' $WORK/exe-v3
+cp stdout $WORK/sumU8-v3.txt
+exec go run ./checkorder $WORK/sumU8-v3.txt avx512
+stdout '^order ok avx512$'
+
+# GOAMD64=v4 guarantees AVX512 as well: sumU8 drops its check too.
+env GOAMD64=v4
+logos build -o $WORK/exe-v4 .
+go tool objdump -s '^main\.sumU8$' $WORK/exe-v4
+cp stdout $WORK/sumU8-v4.txt
+exec go run ./checkorder $WORK/sumU8-v4.txt noavx512
+stdout '^order ok noavx512$'
+env GOAMD64=v1
+
+
+-- m/go.mod --
+module example.com/featuregate
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"simd/archsimd"
+)
+
+//go:noinline
+func sumI32(xs []int32) int32 { return xs.sum() }
+
+//go:noinline
+func sumU8(xs []uint8) uint8 { return xs.sum() }
+
+func oracleI32(xs []int32) int32 {
+	t := int32(0)
+	for _, v := range xs {
+		t += v
+	}
+	return t
+}
+
+func oracleU8(xs []uint8) uint8 {
+	t := uint8(0)
+	for _, v := range xs {
+		t += v
+	}
+	return t
+}
+
+func main() {
+	fmt.Println("avx2", archsimd.X86.AVX2())
+	fmt.Println("avx512", archsimd.X86.AVX512())
+	xs := make([]int32, 70)
+	us := make([]uint8, 70)
+	for i := range xs {
+		xs[i] = int32(i*7 - 100)
+		us[i] = uint8(i * 3)
+	}
+	if sumI32(xs) != oracleI32(xs) {
+		panic("int32 sum mismatch")
+	}
+	if sumU8(us) != oracleU8(us) {
+		panic("uint8 sum mismatch")
+	}
+	fmt.Println("sums ok")
+}
+
+-- m/hostprobe/main.go --
+package main
+
+import (
+	"fmt"
+	"os"
+	"strings"
+)
+
+func main() {
+	if len(os.Args) != 3 {
+		fmt.Fprintln(os.Stderr, "usage: hostprobe <output> <mode>")
+		os.Exit(2)
+	}
+	data, err := os.ReadFile("/proc/cpuinfo")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "read cpuinfo:", err)
+		os.Exit(2)
+	}
+	set := map[string]bool{}
+	for _, line := range strings.Split(string(data), "\n") {
+		if !strings.HasPrefix(line, "flags") {
+			continue
+		}
+		parts := strings.SplitN(line, ":", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		for _, f := range strings.Fields(parts[1]) {
+			set[f] = true
+		}
+		break
+	}
+	hostAvx2 := set["avx2"]
+	hostAvx512 := set["avx512f"] && set["avx512bw"] && set["avx512cd"] && set["avx512dq"] && set["avx512vl"]
+	out, err := os.ReadFile(os.Args[1])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "read output:", err)
+		os.Exit(2)
+	}
+	got := map[string]string{}
+	sums := false
+	for _, line := range strings.Split(string(out), "\n") {
+		f := strings.Fields(line)
+		if len(f) == 2 && (f[0] == "avx2" || f[0] == "avx512") {
+			got[f[0]] = f[1]
+		}
+		if strings.TrimSpace(line) == "sums ok" {
+			sums = true
+		}
+	}
+	if !sums {
+		fmt.Fprintln(os.Stderr, "missing sums ok")
+		os.Exit(1)
+	}
+	want := map[string]bool{"avx2": hostAvx2, "avx512": hostAvx512}
+	switch os.Args[2] {
+	case "baseline":
+	case "avx2off":
+		want["avx2"] = false
+	case "avx512off":
+		want["avx512"] = false
+	default:
+		fmt.Fprintln(os.Stderr, "unknown mode:", os.Args[2])
+		os.Exit(2)
+	}
+	for k, w := range want {
+		g, ok := got[k]
+		if !ok {
+			fmt.Fprintln(os.Stderr, "missing", k)
+			os.Exit(1)
+		}
+		ws := "false"
+		if w {
+			ws = "true"
+		}
+		if g != ws {
+			fmt.Fprintf(os.Stderr, "%s = %s, cpuinfo wants %s\n", k, g, ws)
+			os.Exit(1)
+		}
+	}
+	fmt.Printf("host probe ok %s\n", os.Args[2])
+}
+
+-- m/checkorder/main.go --
+package main
+
+import (
+	"fmt"
+	"os"
+	"strings"
+)
+
+func fail(msg string) {
+	fmt.Fprintln(os.Stderr, msg)
+	os.Exit(1)
+}
+
+func main() {
+	if len(os.Args) != 3 {
+		fmt.Fprintln(os.Stderr, "usage: checkorder <objdump> <mode>")
+		os.Exit(2)
+	}
+	data, err := os.ReadFile(os.Args[1])
+	if err != nil {
+		fail("read objdump: " + err.Error())
+	}
+	text := string(data)
+	checks, load := tokens(os.Args[2])
+	if load == "" {
+		fail("unknown mode: " + os.Args[2])
+	}
+	li := strings.Index(text, load)
+	if li < 0 {
+		fail("missing " + load)
+	}
+	first := -1
+	hit := ""
+	for _, c := range checks {
+		if i := strings.Index(text, c); i >= 0 && (first < 0 || i < first) {
+			first = i
+			hit = c
+		}
+	}
+	if os.Args[2] == "avx2" || os.Args[2] == "avx512" {
+		if first < 0 {
+			fail("missing check before " + load)
+		}
+		if first > li {
+			fail(hit + " follows " + load)
+		}
+	} else if first >= 0 {
+		fail("unexpected " + hit)
+	}
+	fmt.Printf("order ok %s\n", os.Args[2])
+}
+
+func tokens(mode string) ([]string, string) {
+	switch mode {
+	case "avx2", "noavx2":
+		return []string{"X86Features.AVX2", "HasAVX2"}, "VPMASKMOVD"
+	case "avx512", "noavx512":
+		return []string{"X86Features.AVX512", "HasAVX512"}, "VMOVDQU8"
+	}
+	return nil, ""
+}

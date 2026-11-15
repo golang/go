@@ -1,1 +1,3 @@
-scan-gc: 2016 2016
+ok arena-scan-gc-before
+ok arena-scan-gc-after
+ok arena-scan-gc-stable

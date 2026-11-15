@@ -1,0 +1,66 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd w
+logos run .
+stdout '^container ok$'
+
+-- w/go.mod --
+module example.com/containeronly
+
+go 1.27
+
+-- w/a/a.lgo --
+package a
+
+type Circle struct {
+  R int64 `json:"r"`
+}
+
+type Square struct {
+  S int64 `json:"s"`
+}
+
+type Shape interface {
+  Circle | Square
+}
+
+-- w/main.lgo --
+package main
+
+import (
+  "encoding/json"
+  "fmt"
+
+  "example.com/containeronly/a"
+)
+
+type Holder struct {
+  Vs []a.Shape `json:"vs"`
+}
+
+func main() {
+  var h Holder
+  err := json.Unmarshal([]byte(`{"vs":[{"s":7},{"r":3}]}`), &h)
+  if err != nil {
+    panic("container unmarshal: " + err.Error())
+  }
+  if len(h.Vs) != 2 {
+    panic("container len")
+  }
+  sq, ok := h.Vs[0].(a.Square)
+  if !ok {
+    panic(fmt.Sprintf("container want Square got %T", h.Vs[0]))
+  }
+  if sq.S != 7 {
+    panic("container want S=7")
+  }
+  c, ok := h.Vs[1].(a.Circle)
+  if !ok {
+    panic(fmt.Sprintf("container want Circle got %T", h.Vs[1]))
+  }
+  if c.R != 3 {
+    panic("container want R=3")
+  }
+  fmt.Println("container ok")
+}

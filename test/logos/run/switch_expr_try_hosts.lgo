@@ -1,0 +1,203 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+	"slices"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type observed[T any] struct {
+	v   T
+	err error
+}
+
+func observe[T any](v T, err error) observed[T] {
+	return observed[T]{v, err}
+}
+
+var errLoad = errors.New("load")
+
+var trace []string
+
+func load(v int, fail bool) (int, error) {
+	trace = append(trace, fmt.Sprint("load", v))
+	if fail {
+		return 0, errLoad
+	}
+	return v, nil
+}
+
+func tag(s string, n int) int {
+	trace = append(trace, s)
+	return n
+}
+
+func operand(v int, fail bool) (int, error) {
+	r := 100 + switch n := load(v, fail)?; n {
+	case 7 => 70
+	default => 1
+	}
+	return r, nil
+}
+
+func trailing(v int, fail bool) (int, error) {
+	r := switch n := load(v, fail)?; n {
+	case 7 => 70
+	default => 1
+	} + 5
+	return r, nil
+}
+
+func between(v int, fail bool) (int, error) {
+	r := tag("a", 1) + switch n := load(v, fail)?; n {
+	case 7 => 70
+	default => 1
+	} + tag("b", 2)
+	return r, nil
+}
+
+func twoSwitches(v, w int, failV, failW bool) (int, error) {
+	r := switch n := load(v, failV)?; n {
+	case 7 => 70
+	default => 1
+	} + switch m := load(w, failW)?; m {
+	case 8 => 80
+	default => 2
+	}
+	return r, nil
+}
+
+func indexed(v int, fail bool) (int, error) {
+	xs := []int{10, 20}
+	r := xs[switch n := load(v, fail)?; n {
+	case 7 => 1
+	default => 0
+	}]
+	return r, nil
+}
+
+func element(v int, fail bool) (int, error) {
+	xs := []int{1, switch n := load(v, fail)?; n {
+	case 7 => 70
+	default => 2
+	}}
+	return xs[1], nil
+}
+
+func multiline(v int, fail bool) (int, error) {
+	r := 100 +
+		switch n := load(v, fail)?; n {
+		case 7 => 70
+		default => 1
+		}
+	return r, nil
+}
+
+func compound(v int, fail bool) (int, error) {
+	r := 1
+	r += 100 + switch n := load(v, fail)?; n {
+	case 7 => 70
+	default => 1
+	}
+	return r, nil
+}
+
+func labeled(v int, fail bool) (int, error) {
+	r := 0
+loop:
+	r = 100 + switch n := load(v, fail)?; n {
+	case 7 => 70
+	default => 1
+	}
+	if r < 0 {
+		goto loop
+	}
+	return r, nil
+}
+
+func loopCond(v int, fail bool) (int, error) {
+	n := 0
+	for 1 + switch k := load(v, fail)?; k {
+	case 7 => 70
+	default => 1
+	} > 50 && n < 2 {
+		n++
+	}
+	return n, nil
+}
+
+func run(name string, f func(int, bool) (int, error), want int, wantTrace []string) {
+	trace = nil
+	got, err := f(7, false)
+	if err != nil {
+		check(name, false, err, []any{want, nil, wantTrace})
+	} else {
+		check(name, err == nil && got == want && slices.Equal(trace, wantTrace), []any{got, err, trace}, []any{want, nil, wantTrace})
+	}
+	trace = nil
+	res := observe(f(7, true))
+	got, err = res.v, res.err
+	if err == nil {
+		check(name+"-fail", false, "no error", []any{0, errLoad, []string{"load7"}})
+	} else {
+		check(name+"-fail", err == errLoad && got == 0 && slices.Equal(trace, []string{"load7"}), []any{got, err, trace}, []any{0, errLoad, []string{"load7"}})
+	}
+}
+
+func main() {
+	run("operand", operand, 170, []string{"load7"})
+	run("trailing", trailing, 75, []string{"load7"})
+	run("indexed", indexed, 20, []string{"load7"})
+	run("element", element, 70, []string{"load7"})
+	run("multiline", multiline, 170, []string{"load7"})
+	run("compound", compound, 171, []string{"load7"})
+	run("labeled", labeled, 170, []string{"load7"})
+	run("loop", loopCond, 2, []string{"load7", "load7", "load7"})
+	trace = nil
+	got, err := between(7, false)
+	if err != nil {
+		check("between", false, err, []any{73, nil, []string{"a", "load7", "b"}})
+	} else {
+		check("between", err == nil && got == 73 && slices.Equal(trace, []string{"a", "load7", "b"}), []any{got, err, trace}, []any{73, nil, []string{"a", "load7", "b"}})
+	}
+	trace = nil
+	got, err = twoSwitches(7, 8, false, false)
+	if err != nil {
+		check("two", false, err, []any{150, nil, []string{"load7", "load8"}})
+	} else {
+		check("two", err == nil && got == 150 && slices.Equal(trace, []string{"load7", "load8"}), []any{got, err, trace}, []any{150, nil, []string{"load7", "load8"}})
+	}
+	trace = nil
+	first := observe(twoSwitches(7, 8, true, false))
+	got, err = first.v, first.err
+	if err == nil {
+		check("two-first-fails", false, "no error", []any{0, errLoad, []string{"load7"}})
+	} else {
+		check("two-first-fails", err == errLoad && got == 0 && slices.Equal(trace, []string{"load7"}), []any{got, err, trace}, []any{0, errLoad, []string{"load7"}})
+	}
+	trace = nil
+	second := observe(twoSwitches(7, 8, false, true))
+	got, err = second.v, second.err
+	if err == nil {
+		check("two-second-fails", false, "no error", []any{0, errLoad, []string{"load7", "load8"}})
+	} else {
+		check("two-second-fails", err == errLoad && got == 0 && slices.Equal(trace, []string{"load7", "load8"}), []any{got, err, trace}, []any{0, errLoad, []string{"load7", "load8"}})
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

@@ -1,2 +1,2 @@
-n=3 s=x
-3
+ok interp-method-formats-fields
+ok interp-method-reads-const-receiver

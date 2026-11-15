@@ -1,0 +1,694 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+	"slices"
+)
+
+var closed []int
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type observed[T any] struct {
+	v   T
+	err error
+}
+
+func observe[T any](v T, err error) observed[T] {
+	return observed[T]{v, err}
+}
+
+type lk struct {
+	id int
+}
+
+func (l lk) Close() error {
+	closed = append(closed, l.id)
+	return nil
+}
+
+func mk(i int) lk { return lk{id: i} }
+
+var errFail = errors.New("no three")
+
+func tryMk(i int) (lk, error) { return mk(i), nil }
+
+func tryMkErr(i int) (lk, error) {
+	if i == 3 {
+		return mk(i), errFail
+	}
+	return mk(i), nil
+}
+
+func boom3(i int) lk {
+	if i == 3 {
+		panic("boom")
+	}
+	return mk(i)
+}
+
+func boom1(i int) lk {
+	if i == 1 {
+		panic("boom")
+	}
+	return mk(i)
+}
+
+func boomTry3(i int) (lk, error) {
+	if i == 3 {
+		panic("boom")
+	}
+	return mk(i), nil
+}
+
+func xs3() []int { return []int{1, 2, 3} }
+
+func xs0() []int { return []int{} }
+
+//logos:allow(slop::discarded_error)
+func shut(v lk?) { v?.Close() }
+
+//logos:allow(slop::discarded_error)
+func shutP(c lk) { c.Close() }
+
+func recovers(f func()) bool {
+	hit := false
+	func() {
+		defer func() {
+			if recover() != nil {
+				hit = true
+			}
+		}()
+		f()
+	}()
+	return hit
+}
+
+func eq(a, b []int) bool { return slices.Equal(a, b) }
+
+func legFindHit() {
+	closed = nil
+	v := xs3().map(i => mk(i)).find(t => t.id == 2)
+	id := v?.id ?? -1
+	shut(v)
+	check("find-hit", id == 2 && eq(closed, []int{1, 2}), closed, []int{1, 2})
+}
+
+func legFindMiss() {
+	closed = nil
+	v := xs3().map(i => mk(i)).find(t => t.id == 99)
+	id := v?.id ?? -1
+	check("find-miss", id == -1 && eq(closed, []int{3, 2, 1}), closed, []int{3, 2, 1})
+}
+
+func legFindPanic() {
+	closed = nil
+	rec := recovers(func() {
+		_ = xs3().map(i => boom3(i)).find(t => t.id == 99)
+	})
+	check("find-panic", rec && eq(closed, []int{2, 1}), closed, []int{2, 1})
+}
+
+func legAnyHit() {
+	closed = nil
+	b := xs3().map(i => mk(i)).any(t => t.id == 2)
+	check("any-hit", b && eq(closed, []int{2, 1}), closed, []int{2, 1})
+}
+
+func legAnyMiss() {
+	closed = nil
+	b := xs3().map(i => mk(i)).any(t => t.id == 99)
+	check("any-miss", !b && eq(closed, []int{3, 2, 1}), closed, []int{3, 2, 1})
+}
+
+func legAnyPanic() {
+	closed = nil
+	rec := recovers(func() {
+		_ = xs3().map(i => boom3(i)).any(t => t.id == 99)
+	})
+	check("any-panic", rec && eq(closed, []int{2, 1}), closed, []int{2, 1})
+}
+
+func legAllEarly() {
+	closed = nil
+	b := xs3().map(i => mk(i)).all(t => t.id != 2)
+	check("all-early", !b && eq(closed, []int{2, 1}), closed, []int{2, 1})
+}
+
+func legAllFull() {
+	closed = nil
+	b := xs3().map(i => mk(i)).all(t => t.id != 99)
+	check("all-full", b && eq(closed, []int{3, 2, 1}), closed, []int{3, 2, 1})
+}
+
+func legAllPanic() {
+	closed = nil
+	rec := recovers(func() {
+		_ = xs3().map(i => boom3(i)).all(t => t.id != 99)
+	})
+	check("all-panic", rec && eq(closed, []int{2, 1}), closed, []int{2, 1})
+}
+
+func legCount() {
+	closed = nil
+	n := xs3().map(i => mk(i)).count()
+	check("count", n == 3 && eq(closed, []int{3, 2, 1}), closed, []int{3, 2, 1})
+}
+
+func legCountPred() {
+	closed = nil
+	n := xs3().map(i => mk(i)).count(t => t.id == 2)
+	check("count-pred", n == 1 && eq(closed, []int{3, 2, 1}), closed, []int{3, 2, 1})
+}
+
+func legCountPanic() {
+	closed = nil
+	rec := recovers(func() {
+		_ = xs3().map(i => boom3(i)).count()
+	})
+	check("count-panic", rec && eq(closed, []int{2, 1}), closed, []int{2, 1})
+}
+
+func legFirstHit() {
+	closed = nil
+	v := xs3().map(i => mk(i)).first()
+	id := v?.id ?? -1
+	shut(v)
+	check("first-hit", id == 1 && eq(closed, []int{1}), closed, []int{1})
+}
+
+func legFirstEmpty() {
+	closed = nil
+	v := xs0().map(i => mk(i)).first()
+	id := v?.id ?? -1
+	check("first-empty", id == -1 && eq(closed, []int{}), closed, []int{})
+}
+
+func legFirstPanic() {
+	closed = nil
+	rec := recovers(func() {
+		_ = xs3().map(i => boom1(i)).first()
+	})
+	check("first-panic", rec && eq(closed, []int{}), closed, []int{})
+}
+
+func legLast() {
+	closed = nil
+	v := xs3().map(i => mk(i)).last()
+	id := v?.id ?? -1
+	shut(v)
+	check("last", id == 3 && eq(closed, []int{2, 1, 3}), closed, []int{2, 1, 3})
+}
+
+func legLastEmpty() {
+	closed = nil
+	v := xs0().map(i => mk(i)).last()
+	id := v?.id ?? -1
+	check("last-empty", id == -1 && eq(closed, []int{}), closed, []int{})
+}
+
+func legLastPanic() {
+	closed = nil
+	rec := recovers(func() {
+		_ = xs3().map(i => boom3(i)).last()
+	})
+	check("last-panic", rec && eq(closed, []int{2, 1}), closed, []int{2, 1})
+}
+
+func legGet() {
+	closed = nil
+	v := xs3().map(i => mk(i)).get(1)
+	id := v?.id ?? -1
+	shut(v)
+	check("get", id == 2 && eq(closed, []int{3, 1, 2}), closed, []int{3, 1, 2})
+}
+
+func legGetOob() {
+	closed = nil
+	v := xs3().map(i => mk(i)).get(9)
+	id := v?.id ?? -1
+	check("get-oob", id == -1 && eq(closed, []int{3, 2, 1}), closed, []int{3, 2, 1})
+}
+
+func legGetPanic() {
+	closed = nil
+	rec := recovers(func() {
+		_ = xs3().map(i => boom3(i)).get(1)
+	})
+	check("get-panic", rec && eq(closed, []int{2, 1}), closed, []int{2, 1})
+}
+
+func legCollect() {
+	closed = nil
+	got := xs3().map(i => mk(i))
+	byChain := len(closed)
+	for _, c := range got {
+		shutP(c)
+	}
+	check("collect", len(got) == 3 && byChain == 0 && eq(closed, []int{1, 2, 3}), closed, []int{1, 2, 3})
+}
+
+func legCollectPanic() {
+	closed = nil
+	rec := recovers(func() {
+		_ = xs3().map(i => boom3(i))
+	})
+	check("collect-panic", rec && eq(closed, []int{2, 1}), closed, []int{2, 1})
+}
+
+func tryFindHit() (int, error) {
+	v := xs3().map(i => tryMk(i)?).find(t => t.id == 2)
+	return v?.id ?? -1, nil
+}
+
+func tryFindMiss() (int, error) {
+	v := xs3().map(i => tryMk(i)?).find(t => t.id == 99)
+	return v?.id ?? -1, nil
+}
+
+func tryFindFail() (int, error) {
+	v := xs3().map(i => tryMkErr(i)?).find(t => t.id == 99)
+	return v?.id ?? -1, nil
+}
+
+func tryFindPanic() (int, error) {
+	v := xs3().map(i => boomTry3(i)?).find(t => t.id == 99)
+	return v?.id ?? -1, nil
+}
+
+func tryAnyHit() (bool, error) {
+	b := xs3().map(i => tryMk(i)?).any(t => t.id == 2)
+	return b, nil
+}
+
+func tryAnyMiss() (bool, error) {
+	b := xs3().map(i => tryMk(i)?).any(t => t.id == 99)
+	return b, nil
+}
+
+func tryAllEarly() (bool, error) {
+	b := xs3().map(i => tryMk(i)?).all(t => t.id != 2)
+	return b, nil
+}
+
+func tryAllFull() (bool, error) {
+	b := xs3().map(i => tryMk(i)?).all(t => t.id != 99)
+	return b, nil
+}
+
+func tryCount() (int, error) {
+	n := xs3().map(i => tryMk(i)?).count()
+	return n, nil
+}
+
+func tryCountPred() (int, error) {
+	n := xs3().map(i => tryMk(i)?).count(t => t.id == 2)
+	return n, nil
+}
+
+func tryFirst() (int, error) {
+	v := xs3().map(i => tryMk(i)?).first()
+	return v?.id ?? -1, nil
+}
+
+func tryLast() (int, error) {
+	v := xs3().map(i => tryMk(i)?).last()
+	return v?.id ?? -1, nil
+}
+
+func tryLastEmpty() (int, error) {
+	v := xs0().map(i => tryMk(i)?).last()
+	return v?.id ?? -1, nil
+}
+
+func tryGet() (int, error) {
+	v := xs3().map(i => tryMk(i)?).get(1)
+	return v?.id ?? -1, nil
+}
+
+func tryGetOob() (int, error) {
+	v := xs3().map(i => tryMk(i)?).get(9)
+	return v?.id ?? -1, nil
+}
+
+func tryCollect() ([]lk, error) {
+	got := xs3().map(i => tryMk(i)?)
+	return got, nil
+}
+
+func tryCollectFail() ([]lk, error) {
+	got := xs3().map(i => tryMkErr(i)?)
+	return got, nil
+}
+
+func drvTryFindHit() {
+	closed = nil
+	n, err := tryFindHit()
+	check("try-find-hit", err == nil && n == 2 && eq(closed, []int{1}), closed, []int{1})
+}
+
+func drvTryFindMiss() {
+	closed = nil
+	n, err := tryFindMiss()
+	check("try-find-miss", err == nil && n == -1 && eq(closed, []int{3, 2, 1}), closed, []int{3, 2, 1})
+}
+
+func drvTryFindFail() {
+	closed = nil
+	res := observe(tryFindFail())
+	n, err := res.v, res.err
+	check("try-find-fail", err != nil && err == errFail && n == 0 && eq(closed, []int{2, 1}), closed, []int{2, 1})
+}
+
+//logos:allow(slop::discarded_error)
+func drvTryFindPanic() {
+	closed = nil
+	rec := recovers(func() {
+		_, _ = tryFindPanic()
+	})
+	check("try-find-panic", rec && eq(closed, []int{2, 1}), closed, []int{2, 1})
+}
+
+func drvTryAnyHit() {
+	closed = nil
+	b, err := tryAnyHit()
+	check("try-any-hit", err == nil && b && eq(closed, []int{2, 1}), closed, []int{2, 1})
+}
+
+func drvTryAnyMiss() {
+	closed = nil
+	b, err := tryAnyMiss()
+	check("try-any-miss", err == nil && !b && eq(closed, []int{3, 2, 1}), closed, []int{3, 2, 1})
+}
+
+func drvTryAllEarly() {
+	closed = nil
+	b, err := tryAllEarly()
+	check("try-all-early", err == nil && !b && eq(closed, []int{2, 1}), closed, []int{2, 1})
+}
+
+func drvTryAllFull() {
+	closed = nil
+	b, err := tryAllFull()
+	check("try-all-full", err == nil && b && eq(closed, []int{3, 2, 1}), closed, []int{3, 2, 1})
+}
+
+func drvTryCount() {
+	closed = nil
+	n, err := tryCount()
+	check("try-count", err == nil && n == 3 && eq(closed, []int{3, 2, 1}), closed, []int{3, 2, 1})
+}
+
+func drvTryCountPred() {
+	closed = nil
+	n, err := tryCountPred()
+	check("try-count-pred", err == nil && n == 1 && eq(closed, []int{3, 2, 1}), closed, []int{3, 2, 1})
+}
+
+//logos:allow(slop::discarded_error)
+func drvTryFirst() {
+	closed = nil
+	n, err := tryFirst()
+	check("try-first", err == nil && n == 1 && eq(closed, []int{}), closed, []int{})
+}
+
+//logos:allow(slop::discarded_error)
+func drvTryLast() {
+	closed = nil
+	n, err := tryLast()
+	check("try-last", err == nil && n == 3 && eq(closed, []int{2, 1}), closed, []int{2, 1})
+}
+
+func drvTryLastEmpty() {
+	closed = nil
+	n, err := tryLastEmpty()
+	check("try-last-empty", err == nil && n == -1 && eq(closed, []int{}), closed, []int{})
+}
+
+//logos:allow(slop::discarded_error)
+func drvTryGet() {
+	closed = nil
+	n, err := tryGet()
+	check("try-get", err == nil && n == 2 && eq(closed, []int{3, 1}), closed, []int{3, 1})
+}
+
+func drvTryGetOob() {
+	closed = nil
+	n, err := tryGetOob()
+	check("try-get-oob", err == nil && n == -1 && eq(closed, []int{3, 2, 1}), closed, []int{3, 2, 1})
+}
+
+//logos:allow(slop::discarded_error)
+func drvTryCollect() {
+	closed = nil
+	got, err := tryCollect()
+	byChain := -1
+	if err == nil {
+		byChain = len(closed)
+		for _, c := range got {
+			shutP(c)
+		}
+	}
+	check("try-collect", err == nil && len(got) == 3 && byChain == 0 && eq(closed, []int{1, 2, 3}), closed, []int{1, 2, 3})
+}
+
+func drvTryCollectFail() {
+	closed = nil
+	res := observe(tryCollectFail())
+	got, err := res.v, res.err
+	check("try-collect-fail", err != nil && err == errFail && len(got) == 0 && eq(closed, []int{2, 1}), closed, []int{2, 1})
+}
+
+type holder struct{ l lk }
+
+func hs3() []holder { return []holder{{mk(1)}, {mk(2)}, {mk(3)}} }
+
+var sharedLk = lk{id: 9}
+
+func passLk(t lk) (bool, error) {
+	switch t.id {
+	case 1:
+		return false, nil
+	case 3:
+		return false, errFail
+	}
+	return true, nil
+}
+
+func boomPred(t lk) bool {
+	if t.id == 3 {
+		panic("boom")
+	}
+	return true
+}
+
+func legBorrowCount() {
+	closed = nil
+	n := hs3().map(h => h.l).count()
+	check("borrow-count", n == 3 && eq(closed, []int{}), closed, []int{})
+}
+
+func legBorrowFind() {
+	closed = nil
+	v := hs3().map(h => h.l).find(t => t.id == 2)
+	id := v?.id ?? -1
+	check("borrow-find", id == 2 && eq(closed, []int{}), closed, []int{})
+}
+
+func legBorrowLast() {
+	closed = nil
+	v := hs3().map(h => h.l).last()
+	id := v?.id ?? -1
+	check("borrow-last", id == 3 && eq(closed, []int{}), closed, []int{})
+}
+
+func legBorrowCollect() {
+	closed = nil
+	got := hs3().map(h => h.l)
+	check("borrow-collect", len(got) == 3 && eq(closed, []int{}), closed, []int{})
+}
+
+func legSharedCount() {
+	closed = nil
+	n := xs3().map(i => sharedLk).count()
+	check("shared-count", n == 3 && eq(closed, []int{}), closed, []int{})
+}
+
+func legSharedAny() {
+	closed = nil
+	b := xs3().map(i => sharedLk).any(t => t.id == 7)
+	check("shared-any", !b && eq(closed, []int{}), closed, []int{})
+}
+
+func legFilterCount() {
+	closed = nil
+	n := xs3().map(i => mk(i)).filter(t => t.id != 2).count()
+	check("filter-count", n == 2 && eq(closed, []int{2, 3, 1}), closed, []int{2, 3, 1})
+}
+
+func legFilterCollect() {
+	closed = nil
+	got := xs3().map(i => mk(i)).filter(t => t.id != 2)
+	byChain := slices.Clone(closed)
+	for _, c := range got {
+		shutP(c)
+	}
+	check("filter-collect", len(got) == 2 && eq(byChain, []int{2}) && eq(closed, []int{2, 1, 3}), closed, []int{2, 1, 3})
+}
+
+func legDropCount() {
+	closed = nil
+	n := xs3().map(i => mk(i)).drop(1).count()
+	check("drop-count", n == 2 && eq(closed, []int{1, 3, 2}), closed, []int{1, 3, 2})
+}
+
+func legDropCollect() {
+	closed = nil
+	got := xs3().map(i => mk(i)).drop(1)
+	byChain := slices.Clone(closed)
+	for _, c := range got {
+		shutP(c)
+	}
+	check("drop-collect", len(got) == 2 && eq(byChain, []int{1}) && eq(closed, []int{1, 2, 3}), closed, []int{1, 2, 3})
+}
+
+func legTakeCount() {
+	closed = nil
+	n := xs3().map(i => mk(i)).take(2).count()
+	check("take-count", n == 2 && eq(closed, []int{2, 1}), closed, []int{2, 1})
+}
+
+func legTakeCollect() {
+	closed = nil
+	got := xs3().map(i => mk(i)).take(2)
+	byChain := len(closed)
+	for _, c := range got {
+		shutP(c)
+	}
+	check("take-collect", len(got) == 2 && byChain == 0 && eq(closed, []int{1, 2}), closed, []int{1, 2})
+}
+
+func legFilterFirst() {
+	closed = nil
+	v := xs3().map(i => mk(i)).filter(t => t.id != 1).first()
+	id := v?.id ?? -1
+	shut(v)
+	check("filter-first", id == 2 && eq(closed, []int{1, 2}), closed, []int{1, 2})
+}
+
+func legFilterLast() {
+	closed = nil
+	v := xs3().map(i => mk(i)).filter(t => t.id != 2).last()
+	id := v?.id ?? -1
+	shut(v)
+	check("filter-last", id == 3 && eq(closed, []int{2, 1, 3}), closed, []int{2, 1, 3})
+}
+
+func legFilterBetweenMaps() {
+	closed = nil
+	n := xs3().map(i => mk(i)).filter(t => t.id != 2).map(t => t.id).count()
+	check("filter-between-maps", n == 2 && eq(closed, []int{2}), closed, []int{2})
+}
+
+func legFilterPanic() {
+	closed = nil
+	rec := recovers(func() {
+		_ = xs3().map(i => mk(i)).filter(t => boomPred(t))
+	})
+	check("filter-panic", rec && eq(closed, []int{3, 2, 1}), closed, []int{3, 2, 1})
+}
+
+func tryFilterFail() (int, error) {
+	n := xs3().map(i => mk(i)).filter(t => passLk(t)?).count()
+	return n, nil
+}
+
+func drvTryFilterFail() {
+	closed = nil
+	res := observe(tryFilterFail())
+	n, err := res.v, res.err
+	if err == nil {
+		check("try-filter-fail", false, "no error", []int{1, 3, 2})
+	} else {
+		check("try-filter-fail", err == errFail && n == 0 && eq(closed, []int{1, 3, 2}), closed, []int{1, 3, 2})
+	}
+}
+
+func main() {
+	legFindHit()
+	legFindMiss()
+	legFindPanic()
+	legAnyHit()
+	legAnyMiss()
+	legAnyPanic()
+	legAllEarly()
+	legAllFull()
+	legAllPanic()
+	legCount()
+	legCountPred()
+	legCountPanic()
+	legFirstHit()
+	legFirstEmpty()
+	legFirstPanic()
+	legLast()
+	legLastEmpty()
+	legLastPanic()
+	legGet()
+	legGetOob()
+	legGetPanic()
+	legCollect()
+	legCollectPanic()
+	drvTryFindHit()
+	drvTryFindMiss()
+	drvTryFindFail()
+	drvTryFindPanic()
+	drvTryAnyHit()
+	drvTryAnyMiss()
+	drvTryAllEarly()
+	drvTryAllFull()
+	drvTryCount()
+	drvTryCountPred()
+	drvTryFirst()
+	drvTryLast()
+	drvTryLastEmpty()
+	drvTryGet()
+	drvTryGetOob()
+	drvTryCollect()
+	drvTryCollectFail()
+	ownershipLegs()
+	if failed {
+		os.Exit(1)
+	}
+}
+
+func ownershipLegs() {
+	legBorrowCount()
+	legBorrowFind()
+	legBorrowLast()
+	legBorrowCollect()
+	legSharedCount()
+	legSharedAny()
+	legFilterCount()
+	legFilterCollect()
+	legDropCount()
+	legDropCollect()
+	legTakeCount()
+	legTakeCollect()
+	legFilterFirst()
+	legFilterLast()
+	legFilterBetweenMaps()
+	legFilterPanic()
+	drvTryFilterFail()
+}

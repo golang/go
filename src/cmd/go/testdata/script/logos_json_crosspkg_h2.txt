@@ -1,0 +1,57 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd w
+logos run .
+stdout '^mixed selects local$'
+stdout '^mixed bothkeys ambiguous$'
+
+-- w/go.mod --
+module example.com/mixed
+
+go 1.27
+
+-- w/a/a.lgo --
+package a
+
+type Circle struct {
+  R int64 `json:"r"`
+}
+
+-- w/main.lgo --
+package main
+
+import (
+  "encoding/json"
+  "fmt"
+
+  "example.com/mixed/a"
+)
+
+type Local struct {
+  S int64 `json:"s"`
+}
+
+type MixedUnion interface {
+  Local | a.Circle
+}
+
+type MixedHolder struct {
+  Item MixedUnion `json:"item"`
+}
+
+func main() {
+  var m MixedHolder
+  if err := json.Unmarshal([]byte(`{"item":{"s":9}}`), &m); err != nil {
+    panic("mixed unmarshal: " + err.Error())
+  }
+  if l, ok := m.Item.(Local); !ok || l.S != 9 {
+    panic(fmt.Sprintf("mixed want Local S=9 got %T %#v", m.Item, m.Item))
+  }
+  fmt.Println("mixed selects local")
+  var mb MixedHolder
+  if err := json.Unmarshal([]byte(`{"item":{"r":1,"s":2}}`), &mb); err == nil {
+    panic("mixed bothkeys want error got nil")
+  }
+  fmt.Println("mixed bothkeys ambiguous")
+}

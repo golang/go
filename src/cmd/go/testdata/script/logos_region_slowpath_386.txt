@@ -1,0 +1,61 @@
+# On targets without the inline bump sequence, constant-size noscan
+# arena.New calls the region slow path and never the bump helper.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOEXPERIMENT=logosarena
+env CGO_ENABLED=0
+env GOARCH=386
+
+cd m
+logos build -o slow386.exe .
+go tool objdump -s 'main\.regionNew8' slow386.exe
+stdout 'logosRegionAllocNoscan'
+! stdout 'logosRegionBump'
+go tool objdump -s 'main\.regionNew512' slow386.exe
+stdout 'logosRegionAllocNoscan'
+! stdout 'logosRegionBump'
+
+-- m/go.mod --
+module example.com/regionslowpath386
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import "logos/arena"
+
+var regionSink int
+
+type regionPad512 [512]byte
+
+//go:noinline
+func regionUse(p *int) int {
+	*p++
+	return *p
+}
+
+//go:noinline
+func regionNew8() int {
+	{
+		r := arena.Open()
+		p := arena.New[int](r)
+		return regionUse(p)
+	}
+}
+
+//go:noinline
+func regionNew512() int {
+	{
+		r := arena.Open()
+		p := arena.New[regionPad512](r)
+		p[0] = 1
+		return int(p[511])
+	}
+}
+
+func main() {
+	regionSink += regionNew8()
+	regionSink += regionNew512()
+	_ = regionSink
+}

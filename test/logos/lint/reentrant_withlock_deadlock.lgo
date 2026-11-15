@@ -7,11 +7,6 @@ import (
 	"logos/sync"
 )
 
-// concurrency::reentrant_withlock_deadlock (SPEC Sec 1.2, #167): inside a
-// WithLock lambda, a call to WithLock on the same receiver expression,
-// directly or through the synchronous call graph of same-package
-// functions at any depth. A different receiver passes.
-
 var global sync.Locked[int]
 
 var other sync.Locked[int]
@@ -46,7 +41,7 @@ func lockParam(l *sync.Locked[int]) {
 	l.WithLock(func(n *int) { *n++ })
 }
 
-func lockByValue(l sync.Locked[int]) { // ERROR "\[suspicious::copy_lock\]"
+func lockByValue(l sync.Locked[int]) {
 	l.WithLock(func(n *int) { *n++ })
 }
 
@@ -222,7 +217,7 @@ func passDifferentParameter() {
 func passByValueCopy() {
 	var l sync.Locked[int]
 	l.WithLock(func(n *int) {
-		lockByValue(l) // ERROR "\[suspicious::copy_lock\]"
+		lockByValue(l)
 	})
 }
 
@@ -440,6 +435,22 @@ func passGoSpawnedLiteral(ctx context.Context) {
 	})
 }
 
+func passGoGroupInCallback(ctx context.Context, l *sync.Locked[int]) {
+	l.WithLock(func(n *int) {
+		err := func() error {
+			go group (ctx) {
+				go func() {
+					l.WithLock(func(m *int) { *m++ })
+				}()
+			}
+			return nil
+		}()
+		if err != nil {
+			panic(err)
+		}
+	})
+}
+
 func spawnFuncArgLock(ctx context.Context, l *sync.Locked[int]) error {
 	go group (ctx) {
 		go sinkFunc(func() {
@@ -537,5 +548,337 @@ func methodCallbackTransitive() {
 	var c, o Counter
 	c.mu.WithLock(func(n *int) {
 		c.grabOther(&o) // ERROR "reentrant_withlock_deadlock"
+	})
+}
+
+func chainMapRelock(xs []int) {
+	var l sync.Locked[int]
+	l.WithLock(func(n *int) {
+		_ = xs.map(x => {
+			l.WithLock(func(m *int) { *m++ }) // ERROR "reentrant_withlock_deadlock"
+			return x
+		})
+	})
+}
+
+func chainFilterRelock(xs []int) {
+	var l sync.Locked[int]
+	l.WithLock(func(n *int) {
+		_ = xs.filter(x => {
+			l.WithLock(func(m *int) { *m++ }) // ERROR "reentrant_withlock_deadlock"
+			return x > 0
+		})
+	})
+}
+
+func chainSecondStageRelock(xs []int) {
+	var l sync.Locked[int]
+	l.WithLock(func(n *int) {
+		_ = xs.map(x => x).filter(x => {
+			l.WithLock(func(m *int) { *m++ }) // ERROR "reentrant_withlock_deadlock"
+			return x > 0
+		})
+	})
+}
+
+func chainAnyRelock(xs []int) {
+	var l sync.Locked[int]
+	l.WithLock(func(n *int) {
+		_ = xs.any(x => {
+			l.WithLock(func(m *int) { *m++ }) // ERROR "reentrant_withlock_deadlock"
+			return x > 0
+		})
+	})
+}
+
+func chainSortByRelock(xs []int) {
+	var l sync.Locked[int]
+	l.WithLock(func(n *int) {
+		_ = xs.sortBy(x => {
+			l.WithLock(func(m *int) { *m++ }) // ERROR "reentrant_withlock_deadlock"
+			return x
+		})
+	})
+}
+
+func chainOnFieldRelock(c *Counter, xs []int) {
+	c.mu.WithLock(func(n *int) {
+		_ = xs.map(x => {
+			c.mu.WithLock(func(m *int) { *m++ }) // ERROR "reentrant_withlock_deadlock"
+			return x
+		})
+	})
+}
+
+func chainThroughHelper(l *sync.Locked[int], xs []int) int {
+	return len(xs.map(x => {
+		l.WithLock(func(m *int) { *m++ })
+		return x
+	}))
+}
+
+func chainHelperRelock(xs []int) {
+	var l sync.Locked[int]
+	l.WithLock(func(n *int) {
+		chainThroughHelper(&l, xs) // ERROR "reentrant_withlock_deadlock"
+	})
+}
+
+func segmentMapRelock(ctx context.Context, xs []int) {
+	var l sync.Locked[int]
+	l.WithLock(func(n *int) {
+		_, err := xs.group(ctx, limit = 2).map(x => {
+			l.WithLock(func(m *int) { *m++ }) // ERROR "reentrant_withlock_deadlock"
+			return x
+		})
+		println(err == nil)
+	})
+}
+
+func segmentUnorderedFilterRelock(ctx context.Context, xs []int) {
+	var l sync.Locked[int]
+	l.WithLock(func(n *int) {
+		_, err := xs.group(ctx, limit = 2).unordered().filter(x => {
+			l.WithLock(func(m *int) { *m++ }) // ERROR "reentrant_withlock_deadlock"
+			return x > 0
+		})
+		println(err == nil)
+	})
+}
+
+func segmentFuncLiteralRelock(ctx context.Context, xs []int) {
+	var l sync.Locked[int]
+	l.WithLock(func(n *int) {
+		_, err := xs.group(ctx, limit = 2).map(func(x int) int {
+			l.WithLock(func(m *int) { *m++ }) // ERROR "reentrant_withlock_deadlock"
+			return x
+		})
+		println(err == nil)
+	})
+}
+
+func segmentLaterStageRelock(ctx context.Context, xs []int) {
+	var l sync.Locked[int]
+	l.WithLock(func(n *int) {
+		_, err := xs.group(ctx, limit = 2).map(x => x).sortBy(x => {
+			l.WithLock(func(m *int) { *m++ }) // ERROR "reentrant_withlock_deadlock"
+			return x
+		})
+		println(err == nil)
+	})
+}
+
+func segmentRangeHelper(ctx context.Context, l *sync.Locked[int], xs []int) error {
+	for y := range xs.group(ctx, limit = 2).map(x => {
+		l.WithLock(func(m *int) { *m++ })
+		return x
+	}) {
+		println(y)
+	}
+	return nil
+}
+
+func segmentRangeRelock(ctx context.Context, xs []int) {
+	var l sync.Locked[int]
+	l.WithLock(func(n *int) {
+		err := segmentRangeHelper(ctx, &l, xs) // ERROR "reentrant_withlock_deadlock"
+		println(err == nil)
+	})
+}
+
+func passChainOtherLock(xs []int) {
+	var l sync.Locked[int]
+	l.WithLock(func(n *int) {
+		_ = xs.map(x => {
+			other.WithLock(func(m *int) { *m++ })
+			return x
+		})
+	})
+}
+
+func passChainOutsideCallback(xs []int) {
+	var l sync.Locked[int]
+	_ = xs.map(x => {
+		l.WithLock(func(m *int) { *m++ })
+		return x
+	})
+}
+
+func passChainShadowedReceiver(xs []int) {
+	var l sync.Locked[int]
+	l.WithLock(func(n *int) {
+		_ = xs.map(x => {
+			var l sync.Locked[int]
+			l.WithLock(func(m *int) { *m++ })
+			return x
+		})
+	})
+}
+
+func passChainHelperOtherLock(xs []int) {
+	var l sync.Locked[int]
+	var o sync.Locked[int]
+	l.WithLock(func(n *int) {
+		chainThroughHelper(&o, xs)
+	})
+}
+
+func passSegmentOtherLock(ctx context.Context, xs []int) {
+	var l sync.Locked[int]
+	l.WithLock(func(n *int) {
+		_, err := xs.group(ctx, limit = 2).map(x => {
+			other.WithLock(func(m *int) { *m++ })
+			return x
+		})
+		println(err == nil)
+	})
+}
+
+type picker struct{}
+
+func (picker) filter(f func(int) bool) bool { return false }
+
+func passLiteralToMethodNamedFilter(p picker) {
+	var l sync.Locked[int]
+	l.WithLock(func(n *int) {
+		_ = p.filter(x => {
+			l.WithLock(func(m *int) { *m++ })
+			return true
+		})
+	})
+}
+
+func passLiteralToUnknownFunction() {
+	var l sync.Locked[int]
+	l.WithLock(func(n *int) {
+		sinkFunc(func() {
+			l.WithLock(func(m *int) { *m++ })
+		})
+	})
+}
+
+func relockValue(x int) int {
+	global.WithLock(func(n *int) { *n++ })
+	return x
+}
+
+func lockOtherValue(x int) int {
+	other.WithLock(func(n *int) { *n++ })
+	return x
+}
+
+func relockPicked(x int) bool {
+	global.WithLock(func(n *int) { *n++ })
+	return true
+}
+
+func (c *Counter) relockEach(x int) int {
+	c.mu.WithLock(func(n *int) { *n++ })
+	return x
+}
+
+func chainNamedFunctionRelock(xs []int) {
+	global.WithLock(func(n *int) {
+		_ = xs.map(relockValue) // ERROR "\[concurrency::reentrant_withlock_deadlock\]"
+	})
+}
+
+func chainMethodValueRelock(c *Counter, xs []int) {
+	c.mu.WithLock(func(n *int) {
+		_ = xs.map(c.relockEach) // ERROR "\[concurrency::reentrant_withlock_deadlock\]"
+	})
+}
+
+func chainStoredLiteralRelock(xs []int) {
+	f := func(x int) int {
+		global.WithLock(func(m *int) { *m++ }) // ERROR "\[concurrency::reentrant_withlock_deadlock\]"
+		return x
+	}
+	global.WithLock(func(n *int) {
+		_ = xs.map(f)
+	})
+}
+
+func segmentNamedFunctionRelock(ctx context.Context, xs []int) {
+	global.WithLock(func(n *int) {
+		_, err := xs.group(ctx, limit = 2).map(relockValue) // ERROR "\[concurrency::reentrant_withlock_deadlock\]"
+		println(err == nil)
+	})
+}
+
+func passChainNamedFunctionOtherLock(xs []int) {
+	global.WithLock(func(n *int) {
+		_ = xs.map(lockOtherValue)
+	})
+}
+
+func passChainMethodValueOtherReceiver(c, d *Counter, xs []int) {
+	c.mu.WithLock(func(n *int) {
+		_ = xs.map(d.relockEach)
+	})
+}
+
+func passChainNamedFunctionOutsideCallback(xs []int) {
+	_ = xs.map(relockValue)
+}
+
+func passNamedFunctionToUnknownMethod(p picker) {
+	global.WithLock(func(n *int) {
+		_ = p.filter(relockPicked)
+	})
+}
+
+func relockGeneric[T any](x T) T {
+	global.WithLock(func(n *int) { *n++ })
+	return x
+}
+
+func lockOtherGeneric[T any](x T) T {
+	other.WithLock(func(n *int) { *n++ })
+	return x
+}
+
+func relockCallbackGeneric[T any](n *T) {
+	byName.WithLock(func(k *int) { // ERROR "\[concurrency::reentrant_withlock_deadlock\]"
+		*k++
+	})
+}
+
+func instantiatedCallbackPositive() {
+	byName.WithLock(relockCallbackGeneric[int])
+}
+
+func chainInstantiatedFunctionRelock(xs []int) {
+	global.WithLock(func(n *int) {
+		_ = xs.map(relockGeneric[int]) // ERROR "\[concurrency::reentrant_withlock_deadlock\]"
+	})
+}
+
+func segmentInstantiatedFunctionRelock(ctx context.Context, xs []int) {
+	global.WithLock(func(n *int) {
+		_, err := xs.group(ctx, limit = 2).map(relockGeneric[int]) // ERROR "\[concurrency::reentrant_withlock_deadlock\]"
+		println(err == nil)
+	})
+}
+
+func directInstantiatedCallRelock() {
+	global.WithLock(func(n *int) {
+		_ = relockGeneric[int](1) // ERROR "\[concurrency::reentrant_withlock_deadlock\]"
+	})
+}
+
+func passChainInstantiatedFunctionOtherLock(xs []int) {
+	global.WithLock(func(n *int) {
+		_ = xs.map(lockOtherGeneric[int])
+	})
+}
+
+func passChainInstantiatedFunctionOutsideCallback(xs []int) {
+	_ = xs.map(relockGeneric[int])
+}
+
+func passDirectInstantiatedCallOtherLock() {
+	global.WithLock(func(n *int) {
+		_ = lockOtherGeneric[int](1)
 	})
 }

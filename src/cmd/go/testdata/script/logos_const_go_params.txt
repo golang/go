@@ -1,0 +1,419 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+cd dep
+logos build -o $WORK/dep.a .
+cd ..
+go tool pack p $WORK/dep.a __.LOGOS
+cp stdout $WORK/dep.facts
+grep '^fn Read ParamMutated=0$' $WORK/dep.facts
+grep '^fn Write ParamMutated=1$' $WORK/dep.facts
+grep '^fn \(\*Counter\)\.Add ReceiverMutated,ParamMutated=0$' $WORK/dep.facts
+grep '^fn \(\*Counter\)\.Stash ReceiverMutated,ParamMutated=1$' $WORK/dep.facts
+grep '^fn Counter\.Total ParamMutated=0$' $WORK/dep.facts
+! grep '^fn Counter\.Total ReceiverMutated' $WORK/dep.facts
+grep '^fn Leak ParamMutated=1$' $WORK/dep.facts
+
+cd imp
+logos build -o $WORK/bin/ok$GOEXE ./ok
+exec $WORK/bin/ok$GOEXE
+stdout '^read: 6$'
+stdout '^show: shown$'
+stdout '^sum: 6$'
+stdout '^total: 13$'
+stdout '^add: 14$'
+stdout '^equal: true$'
+cd ..
+
+cd imp
+! logos build -o $WORK/badwrite$GOEXE ./badwrite
+stderr 'const_view_mutation'
+stderr 'parameter b'
+! logos build -o $WORK/badtrans$GOEXE ./badtrans
+stderr 'const_view_mutation'
+stderr 'parameter b'
+! logos build -o $WORK/badstash$GOEXE ./badstash
+stderr 'const_view_mutation'
+stderr 'parameter xs'
+! logos build -o $WORK/badleak$GOEXE ./badleak
+stderr 'const_view_mutation'
+stderr 'parameter b'
+! logos build -o $WORK/badfillany$GOEXE ./badfillany
+stderr 'const_view_mutation'
+stderr 'parameter v'
+! logos build -o $WORK/badapply$GOEXE ./badapply
+stderr 'const_view_mutation'
+stderr 'parameter b'
+! logos build -o $WORK/badfuncval$GOEXE ./badfuncval
+stderr 'const_view_mutation'
+! logos build -o $WORK/badsink$GOEXE ./badsink
+stderr 'const_view_mutation'
+stderr 'parameter b'
+! logos build -o $WORK/badzero$GOEXE ./badzero
+stderr 'const_view_mutation'
+stderr 'parameter xs'
+cd ..
+
+# An archive built by plain go build has no ParamMutated summary for Read:
+# unknown, never the proven zero that logos build records for it.
+mkdir $WORK/withfacts/example.com
+cp $WORK/dep.a $WORK/withfacts/example.com/gopdep.a
+env GOAMD64=v3
+env GOEXPERIMENT=logosarena
+go tool compile -I $WORK/withfacts -p example.com/absentuse -o $WORK/absentuse-facts.a absent/use.lgo
+env GOAMD64=
+env GOEXPERIMENT=
+mkdir $WORK/nofacts/example.com
+cd dep
+go build -o $WORK/nofacts/example.com/gopdep.a .
+cd ..
+! go tool pack p $WORK/nofacts/example.com/gopdep.a __.LOGOS
+! go tool compile -I $WORK/nofacts -p example.com/absentuse -o $WORK/absentuse-nofacts.a absent/use.lgo
+stdout 'const_view_mutation'
+stdout 'parameter b'
+
+cd imp
+cp ../dep/dep.go.next ../dep/dep.go
+! logos build -o $WORK/ok2$GOEXE ./ok
+stderr 'const_view_mutation'
+cd ..
+cd dep
+go build -o $WORK/dep-plain.a .
+cd ..
+! go tool pack p $WORK/dep-plain.a __.LOGOS
+
+-- absent/use.lgo --
+package absentuse
+
+import "example.com/gopdep"
+
+func Use(xs []byte) int {
+	var v const []byte = xs
+	return dep.Read(v)
+}
+
+-- dep/go.mod --
+module example.com/gopdep
+
+go 1.27
+
+-- dep/dep.go --
+package dep
+
+func Read(b []byte) int {
+	n := 0
+	for _, v := range b {
+		n += int(v)
+	}
+	return n
+}
+
+func Write(b []byte, v byte) {
+	b[0] = v
+}
+
+func Transitive(b []byte) {
+	Write(b, 0)
+}
+
+func Show(v any) string {
+	return "shown"
+}
+
+func FillAny(v any) {
+	v.([]byte)[0] = 1
+}
+
+func Apply(f func([]byte) int, b []byte) int {
+	return f(b)
+}
+
+func SumBytes(xs ...byte) int {
+	n := 0
+	for _, v := range xs {
+		n += int(v)
+	}
+	return n
+}
+
+func ZeroAll(xs ...byte) {
+	for i := range xs {
+		xs[i] = 0
+	}
+}
+
+var Held []byte
+
+func Leak(b []byte) {
+	Held = b
+}
+
+type Sinker interface {
+	Sink(b []byte)
+}
+
+type Box struct {
+	V int
+}
+
+func (b *Box) Sink(x []byte) {
+	x[0] = byte(b.V)
+}
+
+func Drain(s Sinker, b []byte) {
+	s.Sink(b)
+}
+
+type Counter struct {
+	N     int
+	saved []byte
+}
+
+func (c Counter) Total(xs []int) int {
+	n := c.N
+	for _, v := range xs {
+		n += v
+	}
+	return n
+}
+
+func (c *Counter) Add(xs []int) {
+	for _, x := range xs {
+		c.N += x
+	}
+}
+
+func (c *Counter) Stash(xs []byte) {
+	c.saved = xs
+}
+
+-- dep/dep.go.next --
+package dep
+
+func Read(b []byte) int {
+	b[0] = 1
+	n := 0
+	for _, v := range b {
+		n += int(v)
+	}
+	return n
+}
+
+func Write(b []byte, v byte) {
+	b[0] = v
+}
+
+func Transitive(b []byte) {
+	Write(b, 0)
+}
+
+func Show(v any) string {
+	return "shown"
+}
+
+func FillAny(v any) {
+	v.([]byte)[0] = 1
+}
+
+func Apply(f func([]byte) int, b []byte) int {
+	return f(b)
+}
+
+func SumBytes(xs ...byte) int {
+	n := 0
+	for _, v := range xs {
+		n += int(v)
+	}
+	return n
+}
+
+func ZeroAll(xs ...byte) {
+	for i := range xs {
+		xs[i] = 0
+	}
+}
+
+var Held []byte
+
+func Leak(b []byte) {
+	Held = b
+}
+
+type Sinker interface {
+	Sink(b []byte)
+}
+
+type Box struct {
+	V int
+}
+
+func (b *Box) Sink(x []byte) {
+	x[0] = byte(b.V)
+}
+
+func Drain(s Sinker, b []byte) {
+	s.Sink(b)
+}
+
+type Counter struct {
+	N     int
+	saved []byte
+}
+
+func (c Counter) Total(xs []int) int {
+	n := c.N
+	for _, v := range xs {
+		n += v
+	}
+	return n
+}
+
+func (c *Counter) Add(xs []int) {
+	for _, x := range xs {
+		c.N += x
+	}
+}
+
+func (c *Counter) Stash(xs []byte) {
+	c.saved = xs
+}
+
+-- imp/go.mod --
+module example.com/gopimp
+
+go 1.27
+
+require example.com/gopdep v0.0.0
+
+replace example.com/gopdep => ../dep
+
+-- imp/ok/main.lgo --
+package main
+
+import (
+	"bytes"
+	"fmt"
+
+	"example.com/gopdep"
+)
+
+func main() {
+	b := []byte{1, 2, 3}
+	var view const []byte = b
+	fmt.Println("read:", dep.Read(view))
+	fmt.Println("show:", dep.Show(view))
+	fmt.Println("sum:", dep.SumBytes(view...))
+	fmt.Println("equal:", bytes.Equal(view, b))
+	is := []int{1, 2}
+	var iview const []int = is
+	js := []int{4}
+	var jview const []int = js
+	c := dep.Counter{N: 10}
+	fmt.Println("total:", c.Total(iview))
+	c.Add(jview)
+	fmt.Println("add:", c.N)
+}
+
+-- imp/badwrite/main.lgo --
+package main
+
+import "example.com/gopdep"
+
+func main() {
+	b := []byte{1, 2, 3}
+	var view const []byte = b
+	dep.Write(view, 1)
+}
+
+-- imp/badtrans/main.lgo --
+package main
+
+import "example.com/gopdep"
+
+func main() {
+	b := []byte{1, 2, 3}
+	var view const []byte = b
+	dep.Transitive(view)
+}
+
+-- imp/badstash/main.lgo --
+package main
+
+import "example.com/gopdep"
+
+func main() {
+	xs := []byte{1, 2}
+	var view const []byte = xs
+	c := dep.Counter{}
+	c.Stash(view)
+}
+
+-- imp/badleak/main.lgo --
+package main
+
+import "example.com/gopdep"
+
+func main() {
+	b := []byte{1, 2, 3}
+	var view const []byte = b
+	dep.Leak(view)
+}
+
+-- imp/badfillany/main.lgo --
+package main
+
+import "example.com/gopdep"
+
+func main() {
+	b := []byte{1, 2, 3}
+	var view const []byte = b
+	dep.FillAny(view)
+}
+
+-- imp/badapply/main.lgo --
+package main
+
+import "example.com/gopdep"
+
+func main() {
+	b := []byte{1, 2, 3}
+	var view const []byte = b
+	dep.Apply(func(x []byte) int { return len(x) }, view)
+}
+
+-- imp/badfuncval/main.lgo --
+package main
+
+import "example.com/gopdep"
+
+func main() {
+	b := []byte{1, 2, 3}
+	var view const []byte = b
+	w := dep.Write
+	w(view, 1)
+}
+
+-- imp/badsink/main.lgo --
+package main
+
+import "example.com/gopdep"
+
+func main() {
+	b := &dep.Box{V: 1}
+	var s dep.Sinker = b
+	buf := []byte{0}
+	var view const []byte = buf
+	dep.Drain(s, view)
+}
+
+-- imp/badzero/main.lgo --
+package main
+
+import "example.com/gopdep"
+
+func main() {
+	b := []byte{1, 2, 3}
+	var view const []byte = b
+	dep.ZeroAll(view...)
+}

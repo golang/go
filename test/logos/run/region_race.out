@@ -1,0 +1,3 @@
+ok race-region-squares-match-heap-oracle
+ok race-region-holds-bytes-inside-owner-block
+ok race-region-released-after-owner-block

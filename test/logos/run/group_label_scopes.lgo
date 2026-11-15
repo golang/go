@@ -1,0 +1,82 @@
+// run
+
+package main
+
+import (
+	"context"
+	"fmt"
+	"time"
+)
+
+func checkExit(joined <-chan int, cleaned []int, want int) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if len(cleaned) != want || len(joined) != want {
+		panic("group exit skipped cleanup or join")
+	}
+	for i := 0; i < want; i++ {
+		if cleaned[i] != i {
+			panic("group exit changed cleanup values or order")
+		}
+		select {
+		case child := <-joined:
+			if child != i {
+				panic("group exit changed child values or order")
+			}
+		case <-ctx.Done():
+			panic("group exit did not join child")
+		}
+	}
+}
+
+func breakExit() error {
+	joined := make(chan int, 2)
+	var cleaned []int
+Outer:
+	for i := 0; i < 2; i++ {
+		go group (context.Background()) {
+			scope defer func() { cleaned = append(cleaned, i) }()
+			go { joined <- i }
+			break Outer
+		}
+	}
+	checkExit(joined, cleaned, 1)
+	return nil
+}
+
+func gotoExit() error {
+	joined := make(chan int, 2)
+	var cleaned []int
+	for i := 0; i < 2; i++ {
+		go group (context.Background()) {
+			scope defer func() { cleaned = append(cleaned, i) }()
+			go { joined <- i }
+			goto Done
+		}
+	}
+Done:
+	checkExit(joined, cleaned, 1)
+	return nil
+}
+
+func continueExit() error {
+	joined := make(chan int, 2)
+	var cleaned []int
+Outer:
+	for i := 0; i < 2; i++ {
+		go group (context.Background()) {
+			scope defer func() { cleaned = append(cleaned, i) }()
+			go { joined <- i }
+			continue Outer
+		}
+	}
+	checkExit(joined, cleaned, 2)
+	return nil
+}
+
+func main() {
+	for kind, exit := range []func() error{breakExit, gotoExit, continueExit} {
+		if err := exit(); err != nil { panic(err) }
+		fmt.Println("ok", []string{"break", "goto", "continue"}[kind])
+	}
+}

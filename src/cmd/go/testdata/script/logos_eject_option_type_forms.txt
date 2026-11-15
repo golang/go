@@ -1,0 +1,27 @@
+# Every type expression lowers and ejects the same way as a variable type, as an
+# alias, as a defined type, and as a generic alias. The ejected module prints the
+# same lines as the native build and builds with upstream go1.27.2.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cp $GOROOT/test/logos/run/option_type_forms.lgo a/main.lgo
+
+cd a
+logos run .
+cmp stdout $GOROOT/test/logos/run/option_type_forms.out
+logos eject -o out
+exists out/main.go
+! exists out/main.lgo
+cd out
+go run .
+cmp stdout $GOROOT/test/logos/run/option_type_forms.out
+exists $UPROOT1272/bin/go
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ../..
+
+-- a/go.mod --
+module example.com/optiontypeforms
+
+go 1.27

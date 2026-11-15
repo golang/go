@@ -1,23 +1,40 @@
-# M3-S7: eject keeps option behavior with Go-facing signatures (T-Sec6).
-# The ejected module builds with plain go and prints the same output;
-# ejected signatures use plain pointers and rt.Option[T].
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
 cd m
 logos run .
 stdout '^eject ok: gadget$'
+stdout '^options: true true 7 true$'
+stdout '^presence: true false 0 1$'
+stdout '^chain: anon hi ann ann ann$'
+stdout '^chainnil: bob anon anon anon$'
+stdout '^log ann$'
+stdout '^once: hi ann anon ann 4$'
+stdout '^nested: true true 3$'
 cp stdout $WORK/eject-stdout.txt
 
 logos eject -o out
 exists out/main.go
 exists out/go.mod
+grep 'func H.*_logos_rt\.Option' out/main.go
+grep '^func F\(\) \*User \{' out/main.go
+grep '^func \(b \*Box\) Get\(\) \*T \{' out/main.go
+! grep 'Option\[\*User\]' out/main.go
+grep '^func N\(\) _logos_rt\.Option\[_logos_rt\.Option\[int\]\] \{' out/main.go
+grep 'func I.*_logos_rt\.Option' out/main.go
+grep 'func None\(\) Choice' out/main.go
 grep '_logos_rt\.Option' out/main.go
 ! grep '\*User\?' out/main.go
 ! grep '\[\]int\?' out/main.go
 cd out
 go build ./...
 go run .
+cmp stdout $WORK/eject-stdout.txt
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+exec env -u GOROOT $UPROOT1272/bin/go run .
 cmp stdout $WORK/eject-stdout.txt
 cd ..
 cd out
@@ -61,10 +78,114 @@ func H() []int? {
 	return nil
 }
 
+func PNil() []int? {
+	m := map[string][]int{"n": nil}
+	return m["n"]
+}
+
+func NNone() []int? {
+	return nil
+}
+
 func G(u *User) string {
 	return u.Name
 }
 
+func I() int? {
+	return 7
+}
+
+func N() (int?)? {
+	var i int?
+	return i
+}
+
+func NSome() (int?)? {
+	var i int? = 3
+	return i
+}
+
+func (u *User) Greet(prefix string) string {
+	return prefix + u.Name
+}
+
+func (u User) Pair() (string, int) {
+	return u.Name, 7
+}
+
+func (u *User) Log() {
+	fmt.Println("log " + u.Name)
+}
+
+type Team struct {
+	Lead *User?
+}
+
+func FieldOf(u *User?) string {
+	return u?.Name ?? "anon"
+}
+
+func CallOf(u *User?) string {
+	return u?.Greet("hi ") ?? "anon"
+}
+
+func ChainOf(t *Team?) string {
+	return t?.Lead?.Name ?? "anon"
+}
+
+func IndexOf(m map[string]*User) string {
+	return m["a"]?.Name ?? "anon"
+}
+
+func VoidOf(u *User?) {
+	u?.Log()
+}
+
+var recvCalls int
+
+func Recv(present bool) *User? {
+	recvCalls++
+	if present {
+		return &User{Name: "ann"}
+	}
+	return nil
+}
+
+func OnceOf() string {
+	recvCalls = 0
+	call := Recv(true)?.Greet("hi ") ?? "anon"
+	absent := Recv(false)?.Greet("hi ") ?? "anon"
+	Recv(true)?.Log()
+	field := Recv(true)?.Name ?? "anon"
+	return fmt.Sprintf("%s %s %s %d", call, absent, field, recvCalls)
+}
+
 func main() {
 	fmt.Println("eject ok: " + G(&User{Name: "gadget"}))
+	fmt.Printf("options: %t %t %d %t\n", F() != nil, len(H() ?? []int{9}) == 1, I() ?? 0, None() == nil)
+	fmt.Printf("presence: %t %t %d %d\n", PNil() != nil, NNone() != nil, len(PNil() ?? []int{9}), len(NNone() ?? []int{9}))
+	fmt.Printf("chain: %s %s %s %s\n", FieldOf(nil), CallOf(&User{Name: "ann"}), ChainOf(&Team{Lead: &User{Name: "ann"}}), IndexOf(map[string]*User{"a": {Name: "ann"}}))
+	fmt.Printf("chainnil: %s %s %s %s\n", FieldOf(&User{Name: "bob"}), CallOf(nil), ChainOf(nil), IndexOf(map[string]*User{}))
+	VoidOf(&User{Name: "ann"})
+	fmt.Printf("once: %s\n", OnceOf())
+	fmt.Printf("nested: %t %t %d\n", N() != nil, (N() ?? I()) == nil, (NSome() ?? I()) ?? 0)
 }
+
+type A struct{}
+
+func (A) Name() string { return "a" }
+
+type B struct{}
+
+func (B) Name() string { return "b" }
+
+type Choice interface {
+	A | B
+	Name() string
+}
+
+func None() Choice? {
+	return nil
+}
+
+

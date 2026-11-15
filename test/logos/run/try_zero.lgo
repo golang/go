@@ -5,7 +5,19 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os"
 )
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 var errZero = errors.New("zero")
 
@@ -57,19 +69,49 @@ func takeGen[T any](v T) (T, error) {
 	return g, nil
 }
 
+var observedAssign Point
+
+func takeAssign() (Point, error) {
+	observedAssign = Point{X: 9, Y: 9}
+	observedAssign = failPoint()?
+	return observedAssign, nil
+}
+
+func zeroCase[T any](name string, f func() (T, error), zero func(T) bool, want string) {
+	var res struct {
+		v   T
+		err error
+	}
+	res.v, res.err = f()
+	v, err := res.v, res.err
+	if err == nil {
+		check(name, false, "nil error", want)
+		return
+	}
+	check(name, zero(v) && err == errZero, fmt.Sprint(v, err), want)
+}
+
 func main() {
-	p, errP := takePoint()
-	fmt.Printf("point=%v err=%v\n", p, errP)
-	a, errA := takeArray()
-	fmt.Printf("array=%v err=%v\n", a, errA)
-	pt, errPt := takePtr()
-	fmt.Printf("ptr=%v err=%v\n", pt, errPt)
-	s, errS := takeSlice()
-	fmt.Printf("slice=%v err=%v\n", s, errS)
-	m, errM := takeMap()
-	fmt.Printf("map=%v err=%v\n", m, errM)
-	st, errSt := takeString()
-	fmt.Printf("str=%q err=%v\n", st, errSt)
-	g, errG := takeGen(7)
-	fmt.Printf("gen=%v err=%v\n", g, errG)
+	zeroCase("point", takePoint, func(p Point) bool { return p == (Point{}) }, "{0 0} zero")
+	zeroCase("array", takeArray, func(a [3]int) bool { return a == ([3]int{}) }, "[0 0 0] zero")
+	zeroCase("ptr", takePtr, func(p *int) bool { return p == nil }, "<nil> zero")
+	zeroCase("slice", takeSlice, func(s []int) bool { return s == nil }, "[] zero")
+	zeroCase("map", takeMap, func(m map[string]int) bool { return len(m) == 0 }, "map[] zero")
+	zeroCase("str", takeString, func(s string) bool { return s == "" }, " zero")
+	zeroCase("gen", func() (int, error) { return takeGen(7) }, func(g int) bool { return g == 0 }, "0 zero")
+	_, errAssign := takeAssign()
+	var wantRes struct {
+		v   Point
+		err error
+	}
+	wantRes.v, wantRes.err = failPoint()
+	want, wantErr := wantRes.v, wantRes.err
+	if wantErr == nil {
+		check("assign", false, "nil error", "{5 6} zero")
+	} else {
+		check("assign", errAssign != nil && observedAssign == want, fmt.Sprint(observedAssign, errAssign), "{5 6} zero")
+	}
+	if failed {
+		os.Exit(1)
+	}
 }

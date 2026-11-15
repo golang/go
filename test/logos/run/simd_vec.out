@@ -1,0 +1,4 @@
+ok vec-pairwise-order-holds
+ok vec-arith-matches-scalar
+ok vec-minmax-matches-scalar
+ok vec-u64-matches-scalar

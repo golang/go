@@ -2,12 +2,6 @@
 
 package main
 
-// M14-S1 attack (SPEC Sec 2.4, T-204.2): an alias of a fixed-width
-// numeric kind is the same type as its target, so it takes the vector
-// form exactly as the predeclared kind does. byte is an alias of uint8
-// and vectorizes. int stays scalar: its pointer is not the *[N]int64
-// the archsimd loaders take.
-
 type f32 = float32
 
 //go:noinline
@@ -26,8 +20,32 @@ func addByte(a, b [32]byte) [32]byte {
 
 //go:noinline
 func addInt(a, b [4]int) [4]int {
-	// amd64:-"VPADD"
+	// amd64:"ADDQ [^$]" -"VPADD" -"JMP"
 	// arm64:-"VADD"
+	return a + b
+}
+
+//go:noinline
+func addUint(a, b [4]uint) [4]uint {
+	// amd64:"ADDQ [^$]" -"VPADD" -"JMP" -"CALL simd/archsimd"
+	// arm64:-"VADD" -"CALL simd/archsimd"
+	return a + b
+}
+
+//go:noinline
+func addUintptr(a, b [2]uintptr) [2]uintptr {
+	// amd64:"ADDQ [^$]" -"VPADD" -"JMP" -"CALL simd/archsimd"
+	// arm64:-"VADD" -"CALL simd/archsimd"
+	return a + b
+}
+
+
+type lane float64
+
+//go:noinline
+func addLane(a, b [4]lane) [4]lane {
+	// amd64:"ADDSD" -"VADDPD" -"CALL simd/archsimd" -"JMP"
+	// arm64:-"VFADD" -"CALL simd/archsimd"
 	return a + b
 }
 
@@ -35,5 +53,9 @@ func main() {
 	var a, b [8]f32
 	var c, d [32]byte
 	var e, f [4]int
-	println(addAlias(a, b)[0], addByte(c, d)[0], addInt(e, f)[0])
+	var g, h [4]lane
+	println(addAlias(a, b)[0], addByte(c, d)[0], addInt(e, f)[0], addLane(g, h)[0])
+	var u1, u2 [4]uint
+	var p1, p2 [2]uintptr
+	println(addUint(u1, u2)[0], addUintptr(p1, p2)[0])
 }

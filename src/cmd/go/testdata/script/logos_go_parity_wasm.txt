@@ -1,0 +1,248 @@
+# AT-18: js/wasm with the default loader behaves as upstream.
+# go build -o p.wasm (loader default on) run through the tree's
+# lib/wasm/go_js_wasm_exec gives the same stdout and exit as the
+# upstream build run through upstream's exec. The same holds for logos build.
+
+[!exec:node] skip 'node is required to run js/wasm binaries'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env UPROOT=$UPROOT1274
+
+# Q3 pin: exactly oracle go1.27.4 against fork base go1.27.4.
+exec $UPROOT/bin/go version
+stdout '^go version go1\.27\.4 '
+# Check the installed plain driver, not the potentially experiment-built test binary.
+exec $TESTGO_GOROOT/bin/go$GOEXE version
+stdout '^go version go1\.27\.4 '
+
+env GOOS=js
+env GOARCH=wasm
+
+# Init order across three packages.
+cd initorder
+go build -o init.wasm .
+exists init.loader.mjs
+exec $GOROOT/lib/wasm/go_js_wasm_exec init.wasm
+stdout '(?m)^p1 init$'
+stdout '(?m)^p2 init$'
+stdout '(?m)^main init$'
+stdout '(?m)^p1 p2\+p1 main main$'
+! stdout '(?m)^rt$'
+! stderr '(?m)^rt$'
+cp stdout $WORK/init-our.txt
+exec env GOROOT=$UPROOT $UPROOT/bin/go build -o init-up.wasm .
+exec $UPROOT/lib/wasm/go_js_wasm_exec init-up.wasm
+cp stdout $WORK/init-up.txt
+cmp $WORK/init-our.txt $WORK/init-up.txt
+logos build -o init-logos.wasm .
+exists init-logos.loader.mjs
+exec $GOROOT/lib/wasm/go_js_wasm_exec init-logos.wasm
+! stdout '(?m)^rt$'
+! stderr '(?m)^rt$'
+cp stdout $WORK/init-logos.txt
+cmp $WORK/init-logos.txt $WORK/init-up.txt
+cd ..
+
+# Goroutine ping-pong over unbuffered channels.
+cd pingpong
+go build -o pong.wasm .
+exec $GOROOT/lib/wasm/go_js_wasm_exec pong.wasm
+stdout '(?m)^1000$'
+cp stdout $WORK/pong-our.txt
+exec env GOROOT=$UPROOT $UPROOT/bin/go build -o pong-up.wasm .
+exec $UPROOT/lib/wasm/go_js_wasm_exec pong-up.wasm
+cp stdout $WORK/pong-up.txt
+cmp $WORK/pong-our.txt $WORK/pong-up.txt
+logos build -o pong-logos.wasm .
+exec $GOROOT/lib/wasm/go_js_wasm_exec pong-logos.wasm
+cp stdout $WORK/pong-logos.txt
+cmp $WORK/pong-logos.txt $WORK/pong-up.txt
+cd ..
+
+# Unrecovered panic: nonzero exit with the upstream header.
+cd panicexit
+go build -o panic.wasm .
+! exec $GOROOT/lib/wasm/go_js_wasm_exec panic.wasm
+stderr 'panic: boom-wasm'
+! stdout .
+exec env GOROOT=$UPROOT $UPROOT/bin/go build -o panic-up.wasm .
+! exec $UPROOT/lib/wasm/go_js_wasm_exec panic-up.wasm
+stderr 'panic: boom-wasm'
+! stdout .
+logos build -o panic-logos.wasm .
+! exec $GOROOT/lib/wasm/go_js_wasm_exec panic-logos.wasm
+stderr 'panic: boom-wasm'
+! stdout .
+cd ..
+
+# os.Exit(3): same stdout and exact exit code on every build.
+cd exitcode
+go build -o exit.wasm .
+! exec $GOROOT/lib/wasm/go_js_wasm_exec exit.wasm
+stdout '(?m)^before-exit$'
+cp stdout $WORK/exit-our.txt
+exec env GOROOT=$UPROOT $UPROOT/bin/go build -o exit-up.wasm .
+! exec $UPROOT/lib/wasm/go_js_wasm_exec exit-up.wasm
+stdout '(?m)^before-exit$'
+cp stdout $WORK/exit-up.txt
+cmp $WORK/exit-our.txt $WORK/exit-up.txt
+logos build -o exit-logos.wasm .
+! exec $GOROOT/lib/wasm/go_js_wasm_exec exit-logos.wasm
+stdout '(?m)^before-exit$'
+cp stdout $WORK/exit-logos.txt
+cmp $WORK/exit-logos.txt $WORK/exit-up.txt
+[!GOOS:windows] exec sh -c '$GOROOT/lib/wasm/go_js_wasm_exec exit.wasm; echo exit=$?'
+[!GOOS:windows] stdout '(?m)^exit=3$'
+[!GOOS:windows] exec sh -c '$UPROOT/lib/wasm/go_js_wasm_exec exit-up.wasm; echo exit=$?'
+[!GOOS:windows] stdout '(?m)^exit=3$'
+[!GOOS:windows] exec sh -c '$GOROOT/lib/wasm/go_js_wasm_exec exit-logos.wasm; echo exit=$?'
+[!GOOS:windows] stdout '(?m)^exit=3$'
+cd ..
+
+# syscall/js calls.
+cd jsvalue
+go build -o js.wasm .
+exec $GOROOT/lib/wasm/go_js_wasm_exec js.wasm
+stdout '(?m)^42$'
+stdout '(?m)^hi-wasm$'
+stdout '(?m)^9007199254740991$'
+cp stdout $WORK/js-our.txt
+exec env GOROOT=$UPROOT $UPROOT/bin/go build -o js-up.wasm .
+exec $UPROOT/lib/wasm/go_js_wasm_exec js-up.wasm
+cp stdout $WORK/js-up.txt
+cmp $WORK/js-our.txt $WORK/js-up.txt
+logos build -o js-logos.wasm .
+exec $GOROOT/lib/wasm/go_js_wasm_exec js-logos.wasm
+cp stdout $WORK/js-logos.txt
+cmp $WORK/js-logos.txt $WORK/js-up.txt
+cd ..
+
+-- initorder/go.mod --
+module example.com/initorder
+
+go 1.27
+
+-- initorder/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/initorder/p1"
+	"example.com/initorder/p2"
+)
+
+func init() {
+	fmt.Println("main init")
+}
+
+func main() {
+	fmt.Println(p1.Name(), p2.Both(), "main main")
+}
+
+-- initorder/p1/p1.go --
+package p1
+
+import "fmt"
+
+func init() {
+	fmt.Println("p1 init")
+}
+
+func Name() string {
+	return "p1"
+}
+
+-- initorder/p2/p2.go --
+package p2
+
+import (
+	"fmt"
+
+	"example.com/initorder/p1"
+)
+
+func init() {
+	fmt.Println("p2 init")
+}
+
+func Both() string {
+	return "p2+" + p1.Name()
+}
+
+-- pingpong/go.mod --
+module example.com/pingpong
+
+go 1.27
+
+-- pingpong/main.go --
+package main
+
+import "fmt"
+
+func main() {
+	c1 := make(chan int)
+	c2 := make(chan int)
+	go func() {
+		for i := 0; i < 1000; i++ {
+			v := <-c1
+			c2 <- v + 1
+		}
+	}()
+	v := 0
+	for i := 0; i < 1000; i++ {
+		c1 <- v
+		v = <-c2
+	}
+	fmt.Println(v)
+}
+
+-- panicexit/go.mod --
+module example.com/panicexit
+
+go 1.27
+
+-- panicexit/main.go --
+package main
+
+func main() {
+	panic("boom-wasm")
+}
+
+-- exitcode/go.mod --
+module example.com/exitcode
+
+go 1.27
+
+-- exitcode/main.go --
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+func main() {
+	fmt.Println("before-exit")
+	os.Exit(3)
+}
+
+-- jsvalue/go.mod --
+module example.com/jsvalue
+
+go 1.27
+
+-- jsvalue/main.go --
+package main
+
+import (
+	"fmt"
+	"syscall/js"
+)
+
+func main() {
+	fmt.Println(js.ValueOf(21 * 2).Int())
+	fmt.Println(js.ValueOf("hi-wasm").String())
+	fmt.Println(js.Global().Get("Number").Get("MAX_SAFE_INTEGER").Int())
+}

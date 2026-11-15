@@ -1,11 +1,5 @@
 // errorcheck --pedantic -0
 
-// pedantic::exhaustive_union_switch (SPEC Sec 1.2, #10): a default clause
-// in a switch over a closed union. The group defaults to allow, so this
-// case runs under --pedantic, where the rule warns. It covers the switch
-// statement and the loGo/s switch expression alike. An exhaustive switch
-// and a value switch pass.
-
 package p
 
 type Shape interface {

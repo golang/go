@@ -1,0 +1,17 @@
+ok spread-keeps-map
+ok spread-keeps-entry
+ok spread-override
+ok spread-scalar-write
+ok spread-whole
+ok spread-fresh-map
+ok spread-keeps-slice
+ok spread-keeps-array
+ok spread-slot-writes
+ok spread-fresh-slice
+ok spread-fresh-array
+ok spread-override-map
+ok spread-override-keeps-slice
+ok spread-element-fields
+ok spread-element-map
+ok spread-variable-index-fresh
+ok spread-variable-source

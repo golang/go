@@ -1,0 +1,10 @@
+ok pointer-getter-reads-field
+ok pointer-getter-keeps-receiver
+ok value-getter-reads-field
+ok helper-getter-reads-field
+ok helper-getter-keeps-receiver
+ok local-write-getter-reads-copy
+ok local-write-getter-keeps-label
+ok field-getter-reads-field
+ok mutating-getter-of-read-write-property
+ok read-write-setter-reaches-struct

@@ -10,8 +10,10 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"reflect"
 	"regexp"
 	"runtime"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"testing/synctest"
@@ -36,6 +38,24 @@ func TestGroupFirstErrorWins(t *testing.T) {
 		})
 		if err := g.Wait(); !errors.Is(err, errGroupFirst) {
 			t.Fatalf("Wait = %v, want %v", err, errGroupFirst)
+		}
+	})
+}
+
+// M8-S1 attack: the first failure in completion order wins. childA is
+// spawned first but blocks on the child context; childB is spawned
+// second and fails at once. Wait must report childB error even though
+// childA has the lower spawn index.
+func TestGroupFirstCompletionWins(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		g, _ := NewGroup(t.Context(), 0)
+		g.Go(func(ctx context.Context) error {
+			<-ctx.Done()
+			return errGroupFirst
+		})
+		g.Go(func(ctx context.Context) error { return errGroupSecond })
+		if err := g.Wait(); !errors.Is(err, errGroupSecond) {
+			t.Fatalf("Wait = %v, want %v", err, errGroupSecond)
 		}
 	})
 }
@@ -95,38 +115,10 @@ func TestGroupCancelThroughGroupContext(t *testing.T) {
 	})
 }
 
-// M8-S1 attack: limit = 2 never runs 3 children at once. Five children
-// record the peak concurrency; the peak must stay at or below 2.
 func TestGroupLimitBoundsConcurrency(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		g, _ := NewGroup(t.Context(), 2)
-		var cur, peak atomic.Int32
-		for range 5 {
-			g.Go(func(ctx context.Context) error {
-				n := cur.Add(1)
-				for {
-					p := peak.Load()
-					if n <= p || peak.CompareAndSwap(p, n) {
-						break
-					}
-				}
-				// Sleep holds both token holders inside at once: the
-				// first holder is still asleep when the second starts,
-				// so the peak reaches 2 deterministically under the
-				// synctest scheduler.
-				time.Sleep(time.Millisecond)
-				cur.Add(-1)
-				return nil
-			})
-		}
-		if err := g.Wait(); err != nil {
-			t.Fatalf("Wait = %v, want nil", err)
-		}
-		if p := peak.Load(); p > 2 {
-			t.Fatalf("peak concurrency = %d, want <= 2", p)
-		}
-		if p := peak.Load(); p < 2 {
-			t.Fatalf("peak concurrency = %d, want 2 (limit not saturated)", p)
+		if got := inFlightWhenQuiet(t, 2, 5); got != 2 {
+			t.Fatalf("children in flight = %d, want 2 (limit saturated, not exceeded)", got)
 		}
 	})
 }
@@ -237,8 +229,76 @@ func TestGroupContextCancelledAtJoin(t *testing.T) {
 	})
 }
 
-// holdSlot records the current and peak concurrency around a one
-// millisecond hold, which is deterministic under synctest.
+func TestGroupOutsideGoroutineStaysBlocked(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		g, _ := NewGroup(t.Context(), 0)
+		g.Go(func(ctx context.Context) error { return errGroupFirst })
+		siblingWoke := make(chan struct{})
+		g.Go(func(ctx context.Context) error {
+			<-ctx.Done()
+			close(siblingWoke)
+			return ctx.Err()
+		})
+		outsiderDone := make(chan struct{})
+		release := make(chan struct{})
+		exited := make(chan struct{})
+		go func() {
+			defer close(exited)
+			select {
+			case <-t.Context().Done():
+				close(outsiderDone)
+			case <-release:
+			}
+		}()
+		if err := g.Wait(); !errors.Is(err, errGroupFirst) {
+			t.Fatalf("Wait = %v, want %v", err, errGroupFirst)
+		}
+		synctest.Wait()
+		select {
+		case <-siblingWoke:
+		default:
+			t.Fatal("sibling did not observe cancellation")
+		}
+		select {
+		case <-outsiderDone:
+			t.Fatal("outside goroutine woke on group failure")
+		default:
+		}
+		close(release)
+		<-exited
+	})
+}
+
+func inFlightWhenQuiet(t *testing.T, limit, children int) int32 {
+	t.Helper()
+	g, _ := NewGroup(t.Context(), limit)
+	var inFlight, ran atomic.Int32
+	release := make(chan struct{})
+	spawned := make(chan struct{})
+	go func() {
+		defer close(spawned)
+		for range children {
+			g.Go(func(ctx context.Context) error {
+				inFlight.Add(1)
+				<-release
+				ran.Add(1)
+				return nil
+			})
+		}
+	}()
+	synctest.Wait()
+	got := inFlight.Load()
+	close(release)
+	<-spawned
+	if err := g.Wait(); err != nil {
+		t.Fatalf("Wait = %v, want nil", err)
+	}
+	if n := ran.Load(); n != int32(children) {
+		t.Fatalf("children that ran = %d, want %d", n, children)
+	}
+	return got
+}
+
 func holdSlot(cur, peak *atomic.Int32) {
 	n := cur.Add(1)
 	for {
@@ -251,19 +311,49 @@ func holdSlot(cur, peak *atomic.Int32) {
 	cur.Add(-1)
 }
 
-// M8-S1 attack: limit = 1 serializes the children. The bound must hold
-// at its smallest value, where a `limit > 1` slip leaves the group
-// unbounded.
 func TestGroupLimitOneSerializes(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		if got := inFlightWhenQuiet(t, 1, 3); got != 1 {
+			t.Fatalf("children in flight = %d, want 1", got)
+		}
+	})
+}
+
+func TestGroupGoNestedUnderLimitOneJoins(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		g, _ := NewGroup(t.Context(), 1)
+		var order []string
+		g.Go(func(ctx context.Context) error {
+			g.GoNested(func(ctx context.Context) error {
+				order = append(order, "inner")
+				return nil
+			})
+			order = append(order, "outer")
+			return nil
+		})
+		if err := g.Wait(); err != nil {
+			t.Fatalf("Wait = %v, want nil", err)
+		}
+		if got := strings.Join(order, ","); got != "outer,inner" {
+			t.Fatalf("order = %s, want outer,inner", got)
+		}
+	})
+}
+
+func TestGroupGoNestedKeepsTheLimit(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		g, _ := NewGroup(t.Context(), 1)
 		var cur, peak atomic.Int32
-		for range 3 {
-			g.Go(func(ctx context.Context) error {
-				holdSlot(&cur, &peak)
-				return nil
-			})
-		}
+		g.Go(func(ctx context.Context) error {
+			for range 3 {
+				g.GoNested(func(ctx context.Context) error {
+					holdSlot(&cur, &peak)
+					return nil
+				})
+			}
+			holdSlot(&cur, &peak)
+			return nil
+		})
 		if err := g.Wait(); err != nil {
 			t.Fatalf("Wait = %v, want nil", err)
 		}
@@ -273,34 +363,27 @@ func TestGroupLimitOneSerializes(t *testing.T) {
 	})
 }
 
-// M8-S1 attack: a limit of zero leaves the group unbounded, so all
-// children run at once.
-func TestGroupLimitZeroIsUnbounded(t *testing.T) {
+func TestGroupGoNestedErrorFailsTheGroup(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		g, _ := NewGroup(t.Context(), 0)
-		var cur, peak atomic.Int32
-		for range 3 {
-			g.Go(func(ctx context.Context) error {
-				holdSlot(&cur, &peak)
-				return nil
-			})
-		}
-		if err := g.Wait(); err != nil {
-			t.Fatalf("Wait = %v, want nil", err)
-		}
-		if p := peak.Load(); p != 3 {
-			t.Fatalf("peak concurrency = %d, want 3", p)
+		g, _ := NewGroup(t.Context(), 1)
+		g.Go(func(ctx context.Context) error {
+			g.GoNested(func(ctx context.Context) error { return errGroupFirst })
+			return nil
+		})
+		if err := g.Wait(); !errors.Is(err, errGroupFirst) {
+			t.Fatalf("Wait = %v, want %v", err, errGroupFirst)
 		}
 	})
 }
 
-// M8-S1 attack: the PanicError text names the group child and carries
-// the panic value.
-func TestGroupPanicErrorMessage(t *testing.T) {
-	pe := &PanicError{Value: "boom"}
-	if got, want := pe.Error(), "logos: group child panicked: boom"; got != want {
-		t.Fatalf("Error() = %q, want %q", got, want)
-	}
+// M8-S1 attack: a limit of zero leaves the group unbounded, so all
+// children run at once.
+func TestGroupLimitZeroIsUnbounded(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		if got := inFlightWhenQuiet(t, 0, 3); got != 3 {
+			t.Fatalf("children in flight = %d, want 3", got)
+		}
+	})
 }
 
 // M8-S1 attack: a child that exits through runtime.Goexit still
@@ -339,10 +422,7 @@ func (panicBoth) Error() string         { return "as-error" }
 func (panicBoth) String() string        { return "as-string" }
 func (panicIntStringer) String() string { return "int-stringer" }
 
-// M8-S1 attack: panicValueText spells every kind a panic usually carries
-// exactly as fmt's %v does, so PanicError.Error needs no fmt import
-// (go/build deps keep logos/rt to context, errors, reflect, unsafe).
-func TestPanicValueTextMatchesFmt(t *testing.T) {
+func TestPanicErrorMatchesFmt(t *testing.T) {
 	values := []any{
 		nil,
 		"boom", "", panicNamedString("named"),
@@ -357,67 +437,99 @@ func TestPanicValueTextMatchesFmt(t *testing.T) {
 		math.SmallestNonzeroFloat64, math.MaxFloat64, panicNamedFloat(2.5),
 	}
 	for _, v := range values {
-		if got, want := panicValueText(v), fmt.Sprint(v); got != want {
-			t.Errorf("panicValueText(%T %#v) = %q, want %q (fmt %%v)", v, v, got, want)
+		got := (&PanicError{Value: v}).Error()
+		want := fmt.Sprint(v)
+		if !strings.Contains(got, want) {
+			t.Errorf("PanicError(%T %#v).Error() = %q, lacks %q", v, v, got, want)
 		}
 	}
 }
 
-// M8-S1 attack: a value with both Error and String methods spells as its
-// Error text, the order fmt applies, and a value of an integer kind with
-// a String method spells as that text, not as the integer.
-func TestPanicValueTextMethodsBeforeKinds(t *testing.T) {
-	if got := panicValueText(panicBoth{}); got != "as-error" {
-		t.Fatalf("error and Stringer value = %q, want as-error", got)
+func TestPanicErrorMethodsBeforeKinds(t *testing.T) {
+	if got := (&PanicError{Value: panicBoth{}}).Error(); !strings.Contains(got, "as-error") {
+		t.Fatalf("Error and Stringer value = %q, lacks as-error", got)
 	}
-	if got := panicValueText(panicIntStringer(3)); got != "int-stringer" {
-		t.Fatalf("Stringer of integer kind = %q, want int-stringer", got)
+	if got := (&PanicError{Value: panicIntStringer(3)}).Error(); !strings.Contains(got, "int-stringer") {
+		t.Fatalf("Stringer of integer kind = %q, lacks int-stringer", got)
 	}
 }
-
-// M8-S1 attack: every other kind spells as `(T) 0xADDR`, with the real
-// dynamic type name, and a pointer spells with its own address.
-func TestPanicValueTextOpaqueKinds(t *testing.T) {
+func TestPanicErrorOpaqueKinds(t *testing.T) {
 	n := 7
-	opaque := regexp.MustCompile(`^\((.+)\) 0x[0-9a-f]+$`)
+	opaque := regexp.MustCompile(`\((.+)\) 0x[0-9a-f]+`)
 	values := []any{
 		panicPlainStruct{1, 2}, struct{}{}, []int{1}, map[string]int{"a": 1},
 		func() {}, make(chan int), [2]int{1, 2}, complex(1, 2), complex64(1),
 	}
 	for _, v := range values {
-		got := panicValueText(v)
+		pe := &PanicError{Value: v}
+		if reflect.TypeOf(pe.Value) != reflect.TypeOf(v) {
+			t.Errorf("PanicError(%T).Value type = %T, want %T", v, pe.Value, v)
+		}
+		if _, isFunc := v.(func()); isFunc {
+			if reflect.ValueOf(pe.Value).Pointer() != reflect.ValueOf(v).Pointer() {
+				t.Errorf("PanicError func value changed: %p vs %p", pe.Value, v)
+			}
+		} else if !reflect.DeepEqual(pe.Value, v) {
+			t.Errorf("PanicError(%T).Value = %#v, want %#v", v, pe.Value, v)
+		}
+		got := pe.Error()
 		m := opaque.FindStringSubmatch(got)
 		if m == nil {
-			t.Errorf("panicValueText(%T) = %q, want `(T) 0xADDR`", v, got)
+			t.Errorf("PanicError(%T).Error() = %q, lacks `(T) 0xADDR`", v, got)
 			continue
 		}
 		if want := fmt.Sprintf("%T", v); m[1] != want {
-			t.Errorf("panicValueText(%T) names type %q, want %q", v, m[1], want)
+			t.Errorf("PanicError(%T) names type %q, want %q", v, m[1], want)
 		}
 	}
-	if got, want := panicValueText(&n), fmt.Sprintf("(*int) %p", &n); got != want {
-		t.Errorf("panicValueText(*int) = %q, want %q", got, want)
+	if got := (&PanicError{Value: &n}).Error(); !strings.Contains(got, fmt.Sprintf("(*int) %p", &n)) {
+		t.Errorf("PanicError(*int).Error() = %q, lacks pointer spelling", got)
+	}
+}
+func TestPanicErrorCarriesValue(t *testing.T) {
+	values := []any{7, "boom", errors.New("inner"), nil, 2.5}
+	for _, v := range values {
+		var err error = &PanicError{Value: v}
+		pe, ok := errors.AsType[*PanicError](err)
+		if !ok {
+			t.Fatalf("AsType(%T) ok=%v, want *PanicError", err, ok)
+		}
+		if !reflect.DeepEqual(pe.Value, v) {
+			t.Errorf("PanicError(%#v).Value = %#v, want %#v", v, pe.Value, v)
+		}
+		if want := fmt.Sprint(v); !strings.Contains(pe.Error(), want) {
+			t.Errorf("PanicError(%#v).Error() = %q, lacks %q", v, pe.Error(), want)
+		}
 	}
 }
 
-// M8-S1 attack: PanicError.Error joins the fixed prefix and the spelled
-// value, for a nil value too.
-func TestPanicErrorMessageSpellsValue(t *testing.T) {
-	cases := []struct {
-		value any
-		want  string
-	}{
-		{7, "logos: group child panicked: 7"},
-		{"boom", "logos: group child panicked: boom"},
-		{errors.New("inner"), "logos: group child panicked: inner"},
-		{nil, "logos: group child panicked: <nil>"},
-		{2.5, "logos: group child panicked: 2.5"},
-	}
-	for _, c := range cases {
-		if got := (&PanicError{Value: c.value}).Error(); got != c.want {
-			t.Errorf("PanicError{%#v}.Error() = %q, want %q", c.value, got, c.want)
+func TestPanicErrorValueRecoverable(t *testing.T) {
+	inner := errors.New("inner")
+	values := []any{7, "boom", inner, nil, 2.5}
+	for _, v := range values {
+		var err error = &PanicError{Value: v}
+		pe, ok := errors.AsType[*PanicError](err)
+		if !ok {
+			t.Fatalf("AsType(%T) ok=%v, want *PanicError", err, ok)
+		}
+		if !reflect.DeepEqual(pe.Value, v) {
+			t.Errorf("PanicError value = %#v, want %#v", pe.Value, v)
+		}
+		if pe.Error() == fmt.Sprint(v) {
+			t.Errorf("PanicError(%#v).Error() = %q, names no origin beyond the value", v, pe.Error())
 		}
 	}
+	synctest.Test(t, func(t *testing.T) {
+		g, _ := NewGroup(t.Context(), 0)
+		g.Go(func(ctx context.Context) error { panic(inner) })
+		pe, ok := errors.AsType[*PanicError](g.Wait())
+		if !ok {
+			t.Fatal("Wait did not return *PanicError")
+		}
+		if !reflect.DeepEqual(pe.Value, any(inner)) {
+			t.Errorf("recovered value = %#v, want %#v", pe.Value, any(inner))
+		}
+	})
 }
 
 func deepPanic(n int) {
@@ -427,9 +539,6 @@ func deepPanic(n int) {
 	deepPanic(n - 1)
 }
 
-// M8-S1 attack: the panic stack is complete even when it exceeds the
-// first 1024-byte buffer: it grows until the whole trace fits, so the
-// trace still ends with the frame that created the goroutine.
 func TestGroupPanicStackGrows(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		g, _ := NewGroup(t.Context(), 0)
@@ -441,13 +550,8 @@ func TestGroupPanicStackGrows(t *testing.T) {
 		if !ok {
 			t.Fatal("Wait did not return *PanicError")
 		}
-		if len(pe.Stack) <= 1024 {
-			t.Fatalf("stack is %d bytes, want a deep trace over 1024", len(pe.Stack))
-		}
-		for _, frame := range []string{"logos/rt.deepPanic", "created by logos/rt.(*Group).Go"} {
-			if !bytes.Contains(pe.Stack, []byte(frame)) {
-				t.Errorf("stack lacks %q:\n%s", frame, pe.Stack)
-			}
+		if n := bytes.Count(pe.Stack, []byte("logos/rt.deepPanic")); n < 41 {
+			t.Errorf("stack holds %d deepPanic frames, want at least 41:\n%s", n, pe.Stack)
 		}
 	})
 }

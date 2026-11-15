@@ -1,16 +1,7 @@
-# M2-S7: a Go package imports a loGo/s union package (R-U2).
-# The Go side sees U as the methods-only interface eject writes: it
-# calls functions taking and returning U, holds U in a struct field,
-# and type-switches on a result. A Go caller assigning a non-member
-# still compiles (a documented hole; loGo/s rejects it, and x.(U)
-# checks membership at run time). A union used both as a constraint
-# and as a value type fails at the Go import with the pinned text.
-
 env GOPROXY=off
 env GOTOOLCHAIN=local
 mkdir $WORK/bin
 
-# A Go workspace module imports the loGo/s union package.
 cd w
 logos build ./...
 logos build -o $WORK/bin/union$GOEXE ./g/cmd
@@ -18,13 +9,11 @@ exec $WORK/bin/union$GOEXE
 stdout '^A:1/A:1/A:1/N/member/non-member$'
 cd ..
 
-# loGo/s still rejects a non-member statically.
 cd neg
 ! logos build ./...
 stderr 'cannot use .+ as U value'
 cd ..
 
-# A dual-use union fails at the Go import.
 cd w2
 ! logos build ./...
 stderr 'logos build: union D is used as a type constraint and as a value type; Go cannot express both'

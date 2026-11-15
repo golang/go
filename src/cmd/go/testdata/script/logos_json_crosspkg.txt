@@ -1,0 +1,135 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd w
+logos run .
+stdout '^h1 circle r=3$'
+stdout '^h2 square s=7$'
+stdout '^bothkeys ambiguous$'
+stdout '^unknown fails$'
+stdout '^mixed selects local$'
+stdout '^mixed bothkeys ambiguous$'
+stdout '^differential ok$'
+
+-- w/go.mod --
+module example.com/cross
+
+go 1.27
+
+-- w/a/a.lgo --
+package a
+
+type Circle struct {
+  R int64 `json:"r"`
+}
+
+type Square struct {
+  S int64 `json:"s"`
+}
+
+type Shape interface {
+  Circle | Square
+}
+
+-- w/b/b.lgo --
+package b
+
+import "example.com/cross/a"
+
+type Holder struct {
+  Item a.Shape `json:"item"`
+}
+
+-- w/main.lgo --
+package main
+
+import (
+  "encoding/json"
+  "fmt"
+
+  "example.com/cross/a"
+  "example.com/cross/b"
+)
+
+type Local struct {
+  S int64 `json:"s"`
+}
+
+type Circle2 struct {
+  R int64 `json:"r"`
+}
+
+type SingleShape interface {
+  Circle2 | Local
+}
+
+type SingleHolder struct {
+  Item SingleShape `json:"item"`
+}
+
+type MixedUnion interface {
+  Local | a.Circle
+}
+
+type MixedHolder struct {
+  Item MixedUnion `json:"item"`
+}
+
+func main() {
+  var h b.Holder
+  if err := json.Unmarshal([]byte(`{"item":{"r":3}}`), &h); err != nil {
+    panic("h1 unmarshal: " + err.Error())
+  }
+  c, ok := h.Item.(a.Circle)
+  if !ok || c.R != 3 {
+    panic(fmt.Sprintf("h1 want a.Circle R=3 got %T %#v", h.Item, h.Item))
+  }
+  fmt.Println("h1 circle r=3")
+  var h2 b.Holder
+  if err := json.Unmarshal([]byte(`{"item":{"s":7}}`), &h2); err != nil {
+    panic("h2 unmarshal: " + err.Error())
+  }
+  sq, ok := h2.Item.(a.Square)
+  if !ok || sq.S != 7 {
+    panic(fmt.Sprintf("h2 want a.Square S=7 got %T %#v", h2.Item, h2.Item))
+  }
+  fmt.Println("h2 square s=7")
+  var hb b.Holder
+  if err := json.Unmarshal([]byte(`{"item":{"r":1,"s":2}}`), &hb); err == nil {
+    panic("bothkeys want error got nil")
+  }
+  fmt.Println("bothkeys ambiguous")
+  var hu b.Holder
+  if err := json.Unmarshal([]byte(`{"item":{"zzz":1}}`), &hu); err == nil {
+    panic("unknown want error got nil")
+  }
+  var su SingleHolder
+  if err := json.Unmarshal([]byte(`{"item":{"zzz":1}}`), &su); err == nil {
+    panic("single unknown want error got nil")
+  }
+  fmt.Println("unknown fails")
+  var m MixedHolder
+  if err := json.Unmarshal([]byte(`{"item":{"s":9}}`), &m); err != nil {
+    panic("mixed unmarshal: " + err.Error())
+  }
+  if l, ok := m.Item.(Local); !ok || l.S != 9 {
+    panic(fmt.Sprintf("mixed want Local S=9 got %T %#v", m.Item, m.Item))
+  }
+  fmt.Println("mixed selects local")
+  var mb MixedHolder
+  if err := json.Unmarshal([]byte(`{"item":{"r":1,"s":2}}`), &mb); err == nil {
+    panic("mixed bothkeys want error got nil")
+  }
+  fmt.Println("mixed bothkeys ambiguous")
+  inputs := []string{`{"item":{"r":3}}`, `{"item":{"s":7}}`, `{"item":{"r":1,"s":2}}`, `{"item":{"zzz":1}}`, `{"item":{}}`}
+  for _, in := range inputs {
+    var sh SingleHolder
+    var mh MixedHolder
+    serr := json.Unmarshal([]byte(in), &sh)
+    merr := json.Unmarshal([]byte(in), &mh)
+    if (serr == nil) != (merr == nil) {
+      panic(fmt.Sprintf("differential mismatch for %s single=%v mixed=%v", in, serr, merr))
+    }
+  }
+  fmt.Println("differential ok")
+}

@@ -1,18 +1,54 @@
-false
-[]
-true
-[9]
-false
-3
-3
-true
-43
-5
--1
-true
-8
-true
-true
-6
-none
-5
+ok present-is-none
+ok present-fallback
+ok absent-is-none
+ok absent-fallback
+ok nested-some
+ok nested-inner
+ok nested-use
+ok nested-none
+ok nested-none-use
+ok map-present
+ok map-zero
+ok map-missing
+ok func-none
+ok func-some
+ok chan-none
+ok any-none
+ok any-some
+ok if-none
+ok if-some
+ok any-present-nil-is-some
+ok any-present-nil-payload
+ok any-absent-is-none
+ok any-absent-fallback
+ok error-present-nil-is-some
+ok error-present-nil-payload
+ok error-absent-is-none
+ok error-absent-fallback
+ok map-present-nil-is-some
+ok map-present-nil-payload
+ok map-absent-is-none
+ok map-absent-fallback
+ok func-present-nil-is-some
+ok func-present-nil-payload
+ok func-absent-is-none
+ok func-absent-fallback
+ok chan-present-nil-is-some
+ok chan-present-nil-payload
+ok chan-absent-is-none
+ok chan-absent-fallback
+ok pointer-present-nil-is-some
+ok pointer-present-nil-payload
+ok pointer-absent-is-none
+ok pointer-absent-fallback
+ok any-value-present-nil-is-some
+ok any-value-present-nil-payload
+ok any-value-absent-is-none
+ok error-value-present-nil-is-some
+ok error-value-absent-is-none
+ok map-value-present-nil-is-some
+ok map-value-absent-is-none
+ok func-value-present-nil-is-some
+ok func-value-absent-is-none
+ok chan-value-present-nil-is-some
+ok chan-value-absent-is-none

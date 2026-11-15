@@ -1,0 +1,375 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+)
+
+type pc struct {
+	id int
+}
+
+var errLoad = errors.New("load")
+
+var ev []string
+
+var failAt string
+
+func rec(s string) { ev = append(ev, s) }
+
+func load(tag string, v int) (int, error) {
+	rec("load:" + tag)
+	if tag == failAt {
+		return 0, errLoad
+	}
+	return v, nil
+}
+
+func g(tag string, n int) int {
+	rec(tag)
+	return n
+}
+
+func add3(a, b, c int) int { return a + b + c }
+
+func maybe(v int) int? {
+	if v == 7 {
+		return 7
+	}
+	return nil
+}
+
+func maybeP(v int) *pc? {
+	if v == 7 {
+		return &pc{id: 7}
+	}
+	return nil
+}
+
+func armPlain(v int) (int, error) {
+	r := switch v {
+	case 7 => switch n := load("s", v)?; n { case 7 => 70; default => 1 }
+	default => 1
+	}
+	return r, nil
+}
+
+func armPlainRef(v int) (int, error) {
+	r := 0
+	switch v {
+	case 7:
+		n := load("s", v)?
+		if n == 7 {
+			r = 70
+		} else {
+			r = 1
+		}
+	default:
+		r = 1
+	}
+	return r, nil
+}
+
+func armOpt(v int) (int, error) {
+	o := switch v {
+	case 7 => switch n := load("s", v)?; n { case 7 => maybe(7); default => maybe(0) }
+	default => nil
+	}
+	return o ?? -1, nil
+}
+
+func armOptRef(v int) (int, error) {
+	var o int?
+	switch v {
+	case 7:
+		n := load("s", v)?
+		if n == 7 {
+			o = maybe(7)
+		} else {
+			o = maybe(0)
+		}
+	default:
+		o = nil
+	}
+	return o ?? -1, nil
+}
+
+func armPtr(v int) (int, error) {
+	p := switch v {
+	case 7 => switch n := load("s", v)?; n { case 7 => maybeP(7); default => maybeP(0) }
+	default => maybeP(0)
+	}
+	return p?.id ?? -1, nil
+}
+
+func armPtrRef(v int) (int, error) {
+	var p *pc?
+	switch v {
+	case 7:
+		n := load("s", v)?
+		if n == 7 {
+			p = maybeP(7)
+		} else {
+			p = maybeP(0)
+		}
+	default:
+		p = maybeP(0)
+	}
+	return p?.id ?? -1, nil
+}
+
+func tryOuter(v int) (int, error) {
+	r := switch k := load("o", v)?; k {
+	case 7 => switch n := load("s", v)?; n { case 7 => 70; default => 1 }
+	default => 1
+	}
+	return r, nil
+}
+
+func tryOuterRef(v int) (int, error) {
+	k := load("o", v)?
+	r := 0
+	switch k {
+	case 7:
+		n := load("s", v)?
+		if n == 7 {
+			r = 70
+		} else {
+			r = 1
+		}
+	default:
+		r = 1
+	}
+	return r, nil
+}
+
+func initInInit(v int) (int, error) {
+	r := switch n := load("o", switch m := load("s", v)?; m { case 7 => 7; default => 0 })?; n { case 7 => 70; default => 1 }
+	return r, nil
+}
+
+func initInInitRef(v int) (int, error) {
+	m := load("s", v)?
+	a := 0
+	if m == 7 {
+		a = 7
+	}
+	n := load("o", a)?
+	r := 1
+	if n == 7 {
+		r = 70
+	}
+	return r, nil
+}
+
+func armCall(v int) (int, error) {
+	r := switch v {
+	case 7 => add3(g("a", 1), switch n := load("s", v)?; n { case 7 => 70; default => 1 }, g("b", 2))
+	default => 0
+	}
+	return r, nil
+}
+
+func armCallRef(v int) (int, error) {
+	r := 0
+	switch v {
+	case 7:
+		x := g("a", 1)
+		n := load("s", v)?
+		s := 1
+		if n == 7 {
+			s = 70
+		}
+		y := g("b", 2)
+		r = x + s + y
+	default:
+		r = 0
+	}
+	return r, nil
+}
+
+func armTwo(v int) (int, error) {
+	r := switch v {
+	case 7 => switch n := load("s", v)?; n { case 7 => 70; default => 1 }
+	case 5 => switch n := load("t", v)?; n { case 5 => 50; default => 2 }
+	default => 1
+	}
+	return r, nil
+}
+
+func armTwoRef(v int) (int, error) {
+	r := 0
+	switch v {
+	case 7:
+		n := load("s", v)?
+		if n == 7 {
+			r = 70
+		} else {
+			r = 1
+		}
+	case 5:
+		n := load("t", v)?
+		if n == 5 {
+			r = 50
+		} else {
+			r = 2
+		}
+	default:
+		r = 1
+	}
+	return r, nil
+}
+
+func caseGuard(v int) (int, error) {
+	r := switch v {
+	case (switch n := load("s", v)?; n { case 7 => 7; default => 5 }) => 70
+	default => 1
+	}
+	return r, nil
+}
+
+func caseGuardRef(v int) (int, error) {
+	n := load("s", v)?
+	g := 5
+	if n == 7 {
+		g = 7
+	}
+	r := 1
+	if v == g {
+		r = 70
+	}
+	return r, nil
+}
+
+func caseLater(v int) (int, error) {
+	r := switch v {
+	case 7 => 1
+	case (switch n := load("s", v)?; n { case 7 => 7; default => 5 }) => 2
+	default => 3
+	}
+	return r, nil
+}
+
+func defaultFirst(v int) (int, error) {
+	r := switch v {
+	default => 3
+	case 7 => 1
+	case (switch n := load("s", v)?; n { case 7 => 7; default => 5 }) => 2
+	}
+	return r, nil
+}
+
+func caseTagless(v int) (int, error) {
+	r := switch {
+	case v == 7 => 1
+	case (switch n := load("s", v)?; n { case 7 => true; default => false }) => 2
+	default => 3
+	}
+	return r, nil
+}
+
+func caseLaterRef(v int) (int, error) {
+	r := 0
+	switch {
+	case v == 7:
+		r = 1
+	default:
+		n := load("s", v)?
+		g := 5
+		if n == 7 {
+			g = 7
+		}
+		if v == g {
+			r = 2
+		} else {
+			r = 3
+		}
+	}
+	return r, nil
+}
+
+func caseList(v int) (int, error) {
+	r := switch v {
+	case (switch n := load("s", v)?; n { case 7 => 7; default => 5 }), 9 => 2
+	default => 3
+	}
+	return r, nil
+}
+
+func caseListRef(v int) (int, error) {
+	n := load("s", v)?
+	g := 5
+	if n == 7 {
+		g = 7
+	}
+	r := 3
+	if v == g || v == 9 {
+		r = 2
+	}
+	return r, nil
+}
+
+type tc struct {
+	v    int
+	fail string
+	want string
+}
+
+type cell struct {
+	name   string
+	nested func(int) (int, error)
+	ref    func(int) (int, error)
+	cases  []tc
+}
+
+func show(f func(int) (int, error), c tc) string {
+	ev = nil
+	failAt = c.fail
+	r, err := f(c.v)
+	if err != nil {
+		return fmt.Sprint("err ", err, " ", ev)
+	}
+	return fmt.Sprint(r, " ", ev)
+}
+
+func cells() []cell {
+	failS := "err load [load:s]"
+	return []cell{
+		{"arm-plain", armPlain, armPlainRef, []tc{{7, "", "70 [load:s]"}, {7, "s", failS}, {0, "", "1 []"}, {0, "s", "1 []"}}},
+		{"arm-option", armOpt, armOptRef, []tc{{7, "", "7 [load:s]"}, {7, "s", failS}, {0, "", "-1 []"}, {0, "s", "-1 []"}}},
+		{"arm-pointer", armPtr, armPtrRef, []tc{{7, "", "7 [load:s]"}, {7, "s", failS}, {0, "", "-1 []"}, {0, "s", "-1 []"}}},
+		{"try-outer", tryOuter, tryOuterRef, []tc{{7, "", "70 [load:o load:s]"}, {7, "o", "err load [load:o]"}, {7, "s", "err load [load:o load:s]"}, {0, "", "1 [load:o]"}, {0, "s", "1 [load:o]"}, {0, "o", "err load [load:o]"}}},
+		{"init-in-init", initInInit, initInInitRef, []tc{{7, "", "70 [load:s load:o]"}, {7, "s", failS}, {7, "o", "err load [load:s load:o]"}, {0, "", "1 [load:s load:o]"}, {0, "s", failS}, {0, "o", "err load [load:s load:o]"}}},
+		{"arm-call", armCall, armCallRef, []tc{{7, "", "73 [a load:s b]"}, {7, "s", "err load [a load:s]"}, {0, "", "0 []"}, {0, "s", "0 []"}}},
+		{"arm-two", armTwo, armTwoRef, []tc{{7, "", "70 [load:s]"}, {5, "", "50 [load:t]"}, {5, "t", "err load [load:t]"}, {5, "s", "50 [load:t]"}, {7, "t", "70 [load:s]"}, {3, "", "1 []"}}},
+		{"case-guard", caseGuard, caseGuardRef, []tc{{7, "", "70 [load:s]"}, {7, "s", failS}, {0, "", "1 [load:s]"}, {0, "s", failS}}},
+		{"case-later", caseLater, caseLaterRef, []tc{{7, "", "1 []"}, {7, "s", "1 []"}, {0, "", "3 [load:s]"}, {0, "s", failS}}},
+		{"default-first", defaultFirst, caseLaterRef, []tc{{7, "", "1 []"}, {7, "s", "1 []"}, {0, "", "3 [load:s]"}, {0, "s", failS}}},
+		{"case-tagless", caseTagless, caseLaterRef, []tc{{7, "", "1 []"}, {7, "s", "1 []"}, {0, "", "3 [load:s]"}, {0, "s", failS}}},
+		{"case-list", caseList, caseListRef, []tc{{9, "", "2 [load:s]"}, {9, "s", failS}, {7, "", "2 [load:s]"}, {0, "", "3 [load:s]"}}},
+	}
+}
+
+func main() {
+	failed := false
+	for _, c := range cells() {
+		ok := true
+		for _, k := range c.cases {
+			got, ref := show(c.nested, k), show(c.ref, k)
+			if got != ref || got != k.want {
+				ok = false
+				failed = true
+				fmt.Println("FAIL", c.name, k.v, k.fail, "got", got, "reference", ref, "want", k.want)
+			}
+		}
+		if ok {
+			fmt.Println("ok", c.name)
+		}
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

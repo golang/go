@@ -1,0 +1,282 @@
+// run
+
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"slices"
+	"strconv"
+	"sync/atomic"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+var deferred atomic.Int64
+
+func note() { deferred.Add(1) }
+
+func conv(x int) (int, error) { return strconv.Atoi(strconv.Itoa(x)) }
+
+var errBoom = errors.New("boom")
+
+func convFail(x int) (int, error) {
+	if x == 2 {
+		return 0, errBoom
+	}
+	return x, nil
+}
+
+func reject(x int) error {
+	if x == 2 {
+		return errBoom
+	}
+	return nil
+}
+
+func formSelect(ctx context.Context) {
+	got, err := []int{1, 2}.group(ctx, limit = 2).map(x => {
+		ch := make(chan int, 1)
+		ch <- x
+		r := 0
+		select {
+		case v := <-ch:
+			r = v
+		default:
+		}
+		return r
+	})
+	check("select", err == nil && slices.Equal(got, []int{1, 2}), err, []int{1, 2})
+}
+
+func formSwitchInit(ctx context.Context) {
+	got, err := []int{1, 2}.group(ctx, limit = 2).map(x => {
+		r := 0
+		switch y := x * 2; y {
+		case 2:
+			r = 20
+		default:
+			r = y
+		}
+		return r
+	})
+	check("switch-init", err == nil && slices.Equal(got, []int{20, 4}), err, []int{20, 4})
+}
+
+func formLabeled(ctx context.Context) {
+	got, err := []int{1, 2}.group(ctx, limit = 2).map(x => {
+		r := 0
+	outer:
+		for i := 0; i < 3; i++ {
+			if i == 1 {
+				continue outer
+			}
+			r += i
+		}
+		return r + x
+	})
+	check("labeled", err == nil && slices.Equal(got, []int{3, 4}), err, []int{3, 4})
+}
+
+func formDefer(ctx context.Context) {
+	deferred.Store(0)
+	got, err := []int{1, 2}.group(ctx, limit = 2).map(x => {
+		defer note()
+		return x * 2
+	})
+	check("defer", err == nil && slices.Equal(got, []int{2, 4}), err, []int{2, 4})
+	check("defer-ran", deferred.Load() == 2, deferred.Load(), 2)
+}
+
+func formDeferClosure(ctx context.Context) {
+	var ran atomic.Int64
+	got, err := []int{1, 2}.group(ctx, limit = 2).map(x => {
+		n := x
+		defer func() { ran.Add(int64(n)) }()
+		n *= 10
+		return n
+	})
+	check("defer-closure", err == nil && slices.Equal(got, []int{10, 20}), err, []int{10, 20})
+	check("defer-closure-ran", ran.Load() == 30, ran.Load(), 30)
+}
+
+func formFuncLitTry(ctx context.Context) {
+	got, err := []int{1, 2}.group(ctx, limit = 2).map(x => {
+		f := func() (int, error) {
+			v := conv(x)?
+			return v + 1, nil
+		}
+		r := 0
+		w, e := f()
+		if e == nil {
+			r = w
+		}
+		return r
+	})
+	check("funclit-try", err == nil && slices.Equal(got, []int{2, 3}), err, []int{2, 3})
+}
+
+func formGoto(ctx context.Context) {
+	got, err := []int{1, 2}.group(ctx, limit = 2).map(x => {
+		i := 0
+	again:
+		i++
+		if i < 3 {
+			goto again
+		}
+		return i + x
+	})
+	check("goto", err == nil && slices.Equal(got, []int{4, 5}), err, []int{4, 5})
+}
+
+func formNestedStage(ctx context.Context) {
+	got, err := []int{1, 2}.group(ctx, limit = 2).map(x => {
+		n := 0
+		ys, e := []int{1, 2}.group(ctx, limit = 2).map(y => y * x)
+		if e == nil {
+			n = len(ys)
+		}
+		return n + x
+	})
+	check("nested-stage", err == nil && slices.Equal(got, []int{3, 4}), err, []int{3, 4})
+}
+
+func formNestedBlockLambda(ctx context.Context) {
+	got, err := []int{1, 2}.group(ctx, limit = 2).map(x => {
+		s := []int{1, 2}.map(y => {
+			z := y * x
+			return z
+		}).sum()
+		return s
+	})
+	check("nested-block-lambda", err == nil && slices.Equal(got, []int{3, 6}), err, []int{3, 6})
+}
+
+func formSwitchExpr(ctx context.Context) {
+	got, err := []int{1, 2}.group(ctx, limit = 2).map(x => {
+		r := switch x {
+			case 1 => 10
+			default => 20
+		}
+		return r
+	})
+	check("switch-expr", err == nil && slices.Equal(got, []int{10, 20}), err, []int{10, 20})
+}
+
+func formOptionCoalesce(ctx context.Context) {
+	got, err := []int{1, 2}.group(ctx, limit = 2).map(x => {
+		m := map[string]int{"a": x}
+		v := m["a"] ?? 0
+		return v
+	})
+	check("option-coalesce", err == nil && slices.Equal(got, []int{1, 2}), err, []int{1, 2})
+}
+
+func formInterpolation(ctx context.Context) {
+	got, err := []int{1, 2}.group(ctx, limit = 2).map(x => {
+		s := $"v{x}"
+		return len(s)
+	})
+	check("interpolation", err == nil && slices.Equal(got, []int{2, 2}), err, []int{2, 2})
+}
+
+func formTypeSwitch(ctx context.Context) {
+	got, err := []int{1, 2}.group(ctx, limit = 2).map(x => {
+		var a any = x
+		r := 0
+		switch v := a.(type) {
+		case int:
+			r = v
+		}
+		return r
+	})
+	check("type-switch", err == nil && slices.Equal(got, []int{1, 2}), err, []int{1, 2})
+}
+
+func formRangeInt(ctx context.Context) {
+	got, err := []int{1, 2}.group(ctx, limit = 2).map(x => {
+		r := 0
+		for i := range 3 {
+			r += i
+		}
+		return r + x
+	})
+	check("range-int", err == nil && slices.Equal(got, []int{4, 5}), err, []int{4, 5})
+}
+
+func formConstIfReturn(ctx context.Context) {
+	got, err := []int{1, 2}.group(ctx, limit = 2).map(x => {
+		v := conv(x)?
+		const if true {
+			return v + 10
+		}
+		return v
+	})
+	check("const-if-return", err == nil && slices.Equal(got, []int{11, 12}), err, []int{11, 12})
+}
+
+func formConstSwitchReturn(ctx context.Context) {
+	got, err := []int{1, 2}.group(ctx, limit = 2).map(x => {
+		const switch int {
+		case int:
+			v := conv(x)?
+			return v + 10
+		}
+		return x
+	})
+	check("const-switch-return", err == nil && slices.Equal(got, []int{11, 12}), err, []int{11, 12})
+}
+
+func formAssignTryFails(ctx context.Context) {
+	_, err := []int{1, 2, 3}.group(ctx, limit = 2).map(x => {
+		v := convFail(x)?
+		return v
+	})
+	check("assign-try-fails-element", errors.Is(err, errBoom), err, errBoom)
+}
+
+func formIfExprTryFails(ctx context.Context) {
+	_, err := []int{1, 2, 3}.group(ctx, limit = 2).map(x => {
+		if x > 0 {
+			reject(x)?
+		}
+		return x
+	})
+	check("if-expr-try-fails-element", errors.Is(err, errBoom), err, errBoom)
+}
+
+func main() {
+	ctx := context.Background()
+	formSelect(ctx)
+	formSwitchInit(ctx)
+	formLabeled(ctx)
+	formDefer(ctx)
+	formDeferClosure(ctx)
+	formFuncLitTry(ctx)
+	formGoto(ctx)
+	formNestedStage(ctx)
+	formNestedBlockLambda(ctx)
+	formSwitchExpr(ctx)
+	formOptionCoalesce(ctx)
+	formInterpolation(ctx)
+	formTypeSwitch(ctx)
+	formRangeInt(ctx)
+	formConstIfReturn(ctx)
+	formConstSwitchReturn(ctx)
+	formAssignTryFails(ctx)
+	formIfExprTryFails(ctx)
+	if failed {
+		os.Exit(1)
+	}
+}

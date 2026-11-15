@@ -5,7 +5,20 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os"
+	"strings"
 )
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 var log []string
 
@@ -21,8 +34,9 @@ func reset() {
 	log = nil
 }
 
-func show(tag string) {
-	fmt.Println(tag, log)
+func show(tag, want string) {
+	got := strings.Join(log, ",")
+	check(tag, got == want, got, want)
 	reset()
 }
 
@@ -34,7 +48,7 @@ func basic() {
 		note("body")
 	}
 	note("after")
-	show("basic:")
+	show("basic:", "work,lock,body,unlock,after")
 }
 
 func lifo() {
@@ -44,7 +58,7 @@ func lifo() {
 		scope defer note("third")
 		note("body")
 	}
-	show("lifo:")
+	show("lifo:", "body,third,second,first")
 }
 
 func argEval() {
@@ -54,7 +68,7 @@ func argEval() {
 		x = 2
 		note("body")
 	}
-	show("argeval:")
+	show("argeval:", "body,arg:1")
 }
 
 func earlyReturn(n int) int {
@@ -78,7 +92,7 @@ func breakOut() {
 			note(fmt.Sprint("body:", i))
 		}
 	}
-	show("break:")
+	show("break:", "body:0,iter:0,body:1,iter:1,iter:2")
 }
 
 func continueOut() {
@@ -91,7 +105,7 @@ func continueOut() {
 			note(fmt.Sprint("cbody:", i))
 		}
 	}
-	show("continue:")
+	show("continue:", "cbody:0,citer:0,citer:1,cbody:2,citer:2")
 }
 
 func labeledBreak() {
@@ -106,7 +120,7 @@ Outer:
 			}
 		}
 	}
-	show("labeled:")
+	show("labeled:", "lbl:0 0,lbl:0 1")
 }
 
 func labeledContinue() {
@@ -120,7 +134,7 @@ Outer:
 			note(fmt.Sprint("lb:", i))
 		}
 	}
-	show("labeled-continue:")
+	show("labeled-continue:", "lb:0,lc:0,lc:1,lb:2,lc:2")
 }
 
 func gotoOut() {
@@ -129,13 +143,13 @@ func gotoOut() {
 		goto Done
 	}
 Done:
-	show("goto:")
+	show("goto:", "gcleanup")
 }
 
 func panicOut() {
 	defer func() {
 		_ = recover()
-		show("panic:")
+		show("panic:", "pcleanup")
 	}()
 	{
 		scope defer note("pcleanup")
@@ -148,7 +162,38 @@ func loopIter() {
 		scope defer note(fmt.Sprint("loop:", i))
 		note(fmt.Sprint("work:", i))
 	}
-	show("loop:")
+	show("loop:", "work:0,loop:0,work:1,loop:1,work:2,loop:2")
+}
+
+func panicInLoop() {
+	defer func() {
+		_ = recover()
+		show("ploop:", "pwork:0,ploop:0,ploop:1")
+	}()
+	for i := 0; i < 3; i++ {
+		scope defer note(fmt.Sprint("ploop:", i))
+		if i == 1 {
+			panic("boom")
+		}
+		note(fmt.Sprint("pwork:", i))
+	}
+}
+
+func nestedLoopPanic() {
+	defer func() {
+		_ = recover()
+		show("nploop:", "work:0 0,inner:0 0,work:0 1,inner:0 1,outer:0,work:1 0,inner:1 0,inner:1 1,outer:1")
+	}()
+	for i := 0; i < 2; i++ {
+		scope defer note(fmt.Sprint("outer:", i))
+		for j := 0; j < 2; j++ {
+			scope defer note(fmt.Sprint("inner:", i, j))
+			if i == 1 && j == 1 {
+				panic("boom")
+			}
+			note(fmt.Sprint("work:", i, j))
+		}
+	}
 }
 
 func gotoLabel() {
@@ -159,7 +204,7 @@ func gotoLabel() {
 		scope defer note("relbl")
 		note("after")
 	}
-	show("rellbl:")
+	show("rellbl:", "start,after,relbl")
 }
 
 func switchOut(x int) {
@@ -176,7 +221,11 @@ func switchOut(x int) {
 		}
 		note("swafter")
 	}
-	show("switch:")
+	if x == 1 {
+		show("switch-1:", "one,swafter,swcleanup")
+	} else {
+		show("switch-2:", "two,three,swafter,swcleanup")
+	}
 }
 
 func switchInner(x int) {
@@ -189,7 +238,7 @@ func switchInner(x int) {
 		note("ctwo")
 	}
 	note("innerafter")
-	show("swinner:")
+	show("swinner:", "cone,c1cleanup,ctwo,innerafter")
 }
 
 func tryInTail() (int, error) {
@@ -202,8 +251,6 @@ func tryInTail() (int, error) {
 	return 0, nil
 }
 
-// The deferred function value is bound at the statement (#56): the
-// reassignment below never takes effect for the pending cleanup.
 func funcVarDefer() {
 	f := func(s string) { note("f1:" + s) }
 	{
@@ -211,15 +258,13 @@ func funcVarDefer() {
 		f = func(s string) { note("f2:" + s) }
 		note("body")
 	}
-	show("funcvar:")
+	show("funcvar:", "body,f1:done")
 }
 
 type rec struct{ id int }
 
 func (r *rec) mark(s string) { note(fmt.Sprintf("r%d:%s", r.id, s)) }
 
-// The receiver is bound at the statement too: the pending call sees
-// id 1, not the replacement.
 func recvDefer() {
 	r := &rec{id: 1}
 	{
@@ -227,7 +272,7 @@ func recvDefer() {
 		r = &rec{id: 2}
 		note("body")
 	}
-	show("recv:")
+	show("recv:", "body,r1:done")
 }
 
 func nested() {
@@ -240,7 +285,7 @@ func nested() {
 		}
 		note("o2")
 	}
-	show("nested:")
+	show("nested:", "o1,i1,inner,o2,outer")
 }
 
 func namedResult() (x int) {
@@ -255,9 +300,11 @@ func main() {
 	basic()
 	lifo()
 	argEval()
-	fmt.Println("return:", earlyReturn(1), log)
+	r1 := earlyReturn(1)
+	check("return-1:", r1 == 1 && fmt.Sprint(log) == "[cleanup]", fmt.Sprint(r1, log), "1 [cleanup]")
 	reset()
-	fmt.Println("return:", earlyReturn(0), log)
+	r0 := earlyReturn(0)
+	check("return-0:", r0 == 0 && fmt.Sprint(log) == "[fallthrough cleanup]", fmt.Sprint(r0, log), "0 [fallthrough cleanup]")
 	reset()
 	breakOut()
 	continueOut()
@@ -270,12 +317,17 @@ func main() {
 	switchOut(1)
 	switchOut(2)
 	switchInner(1)
-	_, err := tryInTail()
-	fmt.Println("trytail:", err, log)
+	_, te := tryInTail()
+	check("trytail:", te == errBoom && fmt.Sprint(log) == "[trycleanup]", fmt.Sprint(te, log), "boom [trycleanup]")
 	reset()
 	loopIter()
+	panicInLoop()
+	nestedLoopPanic()
 	namedResult()
-	show("named:")
+	show("named:", "saw:42")
 	funcVarDefer()
 	recvDefer()
+	if failed {
+		os.Exit(1)
+	}
 }

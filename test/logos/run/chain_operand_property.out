@@ -1,0 +1,6 @@
+ok take-property
+ok drop-property
+ok take-fallback-property
+ok take-fallback-present
+ok filter-property
+ok map-property

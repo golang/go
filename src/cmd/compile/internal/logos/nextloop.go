@@ -12,8 +12,6 @@ import (
 	"cmd/compile/internal/types2"
 )
 
-// loopMatch is one index-range append loop whose element passed the
-// purity walk.
 type loopMatch struct {
 	loop  *syntax.ForStmt
 	iv    string
@@ -23,17 +21,26 @@ type loopMatch struct {
 	spans [][2]int
 }
 
-// loopAppend matches an index-range loop appending one pure element per
-// iteration to a slice declared right before it in the same block. It
-// reports whether the loop was rewritten or listed as a task.
 func (s *nextScan) loopAppend(list []syntax.Stmt, i int, ctx nextCtx) bool {
 	loop, ok := list[i].(*syntax.ForStmt)
 	if !ok || loop.Body == nil {
 		return false
 	}
-	iv, xs, ok := s.loopHeader(loop)
+	if s.rangeTwoVar(loop) {
+		return s.taskLoop(loop, ctx, "the range binds both index and value, so the loop needs a manual rewrite")
+	}
+	if s.isRangeFunc(loop) {
+		return s.taskLoop(loop, ctx, "the ranged value is a function, so the loop needs a manual rewrite")
+	}
+	iv, xs, val, ok := s.loopHeader(loop)
 	if !ok {
+		if _, ok := loop.Init.(*syntax.RangeClause); ok {
+			return s.taskLoop(loop, ctx, "the range shape needs a manual rewrite")
+		}
 		return false
+	}
+	if !s.loopSliceOk(loop, xs) {
+		return s.taskLoop(loop, ctx, "the ranged value is not a slice, so the loop needs a manual rewrite")
 	}
 	ys, call, ok := s.loopBody(loop.Body)
 	if !ok {
@@ -43,21 +50,17 @@ func (s *nextScan) loopAppend(list []syntax.Stmt, i int, ctx nextCtx) bool {
 		return s.taskLoop(loop, ctx, "the loop body does more than append one element, so no single chain expresses it")
 	}
 	m := loopMatch{loop: loop, iv: iv, xs: xs, ys: ys, elem: call.ArgList[1]}
-	if s.receiverUnsafe(loop, xs, ctx) {
-		m.spans, ok = s.elemSpansUnsafe(m.elem, xs, iv, ys)
-	} else {
-		m.spans, ok = s.elemSpansSafe(m.elem, xs, iv, ys)
-	}
-	if !ok {
+	c := &elemCheck{scan: s, xs: xs, iv: iv, ys: ys, val: val, unsafeCalls: s.receiverUnsafe(loop, xs, ctx)}
+	if !c.expr(m.elem) {
 		return s.taskLoop(loop, ctx, "the appended element escapes the chain form, so the loop needs a manual rewrite")
 	}
+	m.spans = c.spans
 	if len(m.spans) == 0 {
 		return false
 	}
 	return s.loopPair(list, i, m, ctx)
 }
 
-// appends reports whether a loop body calls the append builtin.
 func (s *nextScan) appends(body *syntax.BlockStmt) bool {
 	found := false
 	syntax.Inspect(body, func(n syntax.Node) bool {
@@ -70,12 +73,6 @@ func (s *nextScan) appends(body *syntax.BlockStmt) bool {
 	return found
 }
 
-// loopPair pairs the loop at list[i] with the declaration of its target.
-// The rewrite replaces every byte from the declaration to the end of the
-// loop, so it applies only when the declaration is the statement right
-// before the loop and introduces a nil-initialized slice. A distant
-// declaration whose target is named in between lists the loop as a task;
-// otherwise the loop stays as written.
 func (s *nextScan) loopPair(list []syntax.Stmt, i int, m loopMatch, ctx nextCtx) bool {
 	start, declIdx, declEnd := s.findDecl(list, i, m.ys)
 	if start < 0 {
@@ -83,7 +80,7 @@ func (s *nextScan) loopPair(list []syntax.Stmt, i int, m loopMatch, ctx nextCtx)
 	}
 	if declIdx != i-1 {
 		if !touchedBetween(list, declIdx, i, m.ys) {
-			return false
+			return s.taskLoop(m.loop, ctx, "an unrelated statement sits between the declaration and the loop, so the loop needs a manual rewrite")
 		}
 		return s.taskLoop(m.loop, ctx, "the target accumulates before the loop, so no single chain expresses it")
 	}
@@ -93,8 +90,6 @@ func (s *nextScan) loopPair(list []syntax.Stmt, i int, m loopMatch, ctx nextCtx)
 	return s.spliceLoop(m, start, declEnd, ctx)
 }
 
-// spliceLoop emits the map chain replacing the declaration starting at
-// start and the loop, or lists the loop when a comment sits inside.
 func (s *nextScan) spliceLoop(m loopMatch, start, declEnd int, ctx nextCtx) bool {
 	end, err := offsetOf(s.starts, len(s.src), m.loop.Body.Rbrace)
 	if err != nil {
@@ -113,17 +108,62 @@ func (s *nextScan) spliceLoop(m loopMatch, start, declEnd int, ctx nextCtx) bool
 	return true
 }
 
-// taskLoop lists one loop for AI patching and keeps scanning inside it.
 func (s *nextScan) taskLoop(loop syntax.Stmt, ctx nextCtx, instruction string) bool {
 	s.children(loop, ctx)
 	s.task(loop, ctx, nextRuleLoopChain, instruction)
 	return true
 }
+func (s *nextScan) rangeTwoVar(loop *syntax.ForStmt) bool {
+	rc, ok := loop.Init.(*syntax.RangeClause)
+	if !ok {
+		return false
+	}
+	l, ok := rc.Lhs.(*syntax.ListExpr)
+	if !ok || len(l.ElemList) != 2 {
+		return false
+	}
+	idx, ok := l.ElemList[0].(*syntax.Name)
+	if !ok {
+		return false
+	}
+	return idx.Value != "_"
+}
+func (s *nextScan) loopSliceOk(loop *syntax.ForStmt, xs string) bool {
+	obj := s.loopReceiverObj(loop, xs)
+	if obj == nil {
+		return false
+	}
+	t := obj.Type()
+	if t == nil {
+		return false
+	}
+	if _, ok := t.(*types2.TypeParam); ok {
+		return false
+	}
+	_, ok := t.(*types2.Slice)
+	return ok
+}
+func (s *nextScan) isRangeFunc(loop *syntax.ForStmt) bool {
+	rc, ok := loop.Init.(*syntax.RangeClause)
+	if !ok || s.info == nil {
+		return false
+	}
+	if t := s.info.TypeOf(rc.X); t != nil {
+		_, ok = t.Underlying().(*types2.Signature)
+		return ok
+	}
+	name, ok := rc.X.(*syntax.Name)
+	if !ok {
+		return false
+	}
+	obj := s.loopReceiverObj(loop, name.Value)
+	if obj == nil || obj.Type() == nil {
+		return true
+	}
+	_, ok = obj.Type().Underlying().(*types2.Signature)
+	return ok
+}
 
-// findDecl finds the nearest earlier declaration of the loop target,
-// returning its start and end offsets and its index. Declaration
-// positions name keywords or operators, so bounds come from the
-// declared name and type instead. Missing declarations report -1.
 func (s *nextScan) findDecl(list []syntax.Stmt, i int, ys string) (int, int, int) {
 	for j := i - 1; j >= 0; j-- {
 		start, declEnd, ok := s.declBounds(list[j], ys)
@@ -135,8 +175,6 @@ func (s *nextScan) findDecl(list []syntax.Stmt, i int, ys string) (int, int, int
 	return -1, 0, 0
 }
 
-// touchedBetween reports whether the target is named between its
-// declaration and the loop.
 func touchedBetween(list []syntax.Stmt, decl, i int, ys string) bool {
 	for _, between := range list[decl+1 : i] {
 		if mentions(between, ys) {
@@ -146,7 +184,6 @@ func touchedBetween(list []syntax.Stmt, decl, i int, ys string) bool {
 	return false
 }
 
-// mentions reports whether a statement names a variable.
 func mentions(stmt syntax.Stmt, name string) bool {
 	found := false
 	syntax.Inspect(stmt, func(n syntax.Node) bool {
@@ -162,8 +199,6 @@ func mentions(stmt syntax.Stmt, name string) bool {
 	return found
 }
 
-// declBounds matches one declaration of the loop target, returning its
-// start and end offsets for splicing and comments.
 func (s *nextScan) declBounds(prev syntax.Stmt, ys string) (int, int, bool) {
 	switch n := prev.(type) {
 	case *syntax.DeclStmt:
@@ -174,8 +209,6 @@ func (s *nextScan) declBounds(prev syntax.Stmt, ys string) (int, int, bool) {
 	return 0, 0, false
 }
 
-// declBoundsVarDecl matches a var declaration of the loop target,
-// returning its start and end offsets for splicing and comments.
 func (s *nextScan) declBoundsVarDecl(n *syntax.DeclStmt, ys string) (int, int, bool) {
 	if len(n.DeclList) != 1 {
 		return 0, 0, false
@@ -198,8 +231,6 @@ func (s *nextScan) declBoundsVarDecl(n *syntax.DeclStmt, ys string) (int, int, b
 	return start, end, true
 }
 
-// declBoundsVarForm reports whether a variable declaration introduces
-// the loop target as a valueless slice.
 func declBoundsVarForm(decl *syntax.VarDecl, ys string) bool {
 	if len(decl.NameList) != 1 {
 		return false
@@ -213,8 +244,6 @@ func declBoundsVarForm(decl *syntax.VarDecl, ys string) bool {
 	return decl.NameList[0].Value == ys
 }
 
-// declNilSlice reports whether stmt introduces the target as a nil-initialized
-// var declaration rather than a non-nil slice literal.
 func declNilSlice(stmt syntax.Stmt, ys string) bool {
 	n, ok := stmt.(*syntax.DeclStmt)
 	if !ok || len(n.DeclList) != 1 {
@@ -224,8 +253,6 @@ func declNilSlice(stmt syntax.Stmt, ys string) bool {
 	return ok && declBoundsVarForm(decl, ys)
 }
 
-// declBoundsAssign matches a short declaration of the loop target,
-// returning its start and end offsets for splicing and comments.
 func (s *nextScan) declBoundsAssign(n *syntax.AssignStmt, ys string) (int, int, bool) {
 	if !declBoundsEmptySlice(n, ys) {
 		return 0, 0, false
@@ -241,8 +268,6 @@ func (s *nextScan) declBoundsAssign(n *syntax.AssignStmt, ys string) (int, int, 
 	return start, end, true
 }
 
-// declBoundsEmptySlice reports whether an assignment declares the loop
-// target as an empty slice literal.
 func declBoundsEmptySlice(n *syntax.AssignStmt, ys string) bool {
 	if n.Op != syntax.Def {
 		return false
@@ -259,25 +284,58 @@ func declBoundsEmptySlice(n *syntax.AssignStmt, ys string) bool {
 	return ok
 }
 
-// loopHeader verifies the classic index loop over len(xs), returning
-// the index and receiver names.
-func (s *nextScan) loopHeader(loop *syntax.ForStmt) (string, string, bool) {
+func (s *nextScan) loopHeader(loop *syntax.ForStmt) (string, string, string, bool) {
+	if rc, ok := loop.Init.(*syntax.RangeClause); ok {
+		return s.loopHeaderRange(loop, rc)
+	}
 	iv, ok := loopHeaderIndex(loop)
 	if !ok {
-		return "", "", false
+		return "", "", "", false
 	}
 	xs, ok := s.loopHeaderBound(loop, iv)
 	if !ok {
-		return "", "", false
+		return "", "", "", false
 	}
 	if !loopHeaderPost(loop, iv) {
-		return "", "", false
+		return "", "", "", false
 	}
-	return iv, xs, true
+	return iv, xs, "", true
 }
 
-// loopHeaderIndex verifies the zero-based index initialization,
-// returning the index name.
+func (s *nextScan) loopHeaderRange(loop *syntax.ForStmt, rc *syntax.RangeClause) (string, string, string, bool) {
+	if !rc.Def || loop.Cond != nil || loop.Post != nil {
+		return "", "", "", false
+	}
+	xsName, ok := rc.X.(*syntax.Name)
+	if !ok || xsName.Value == "_" {
+		return "", "", "", false
+	}
+	var iv, val string
+	switch lhs := rc.Lhs.(type) {
+	case *syntax.Name:
+		iv = lhs.Value
+	case *syntax.ListExpr:
+		if len(lhs.ElemList) != 2 {
+			return "", "", "", false
+		}
+		idx, ok := lhs.ElemList[0].(*syntax.Name)
+		if !ok || idx.Value != "_" {
+			return "", "", "", false
+		}
+		v, ok := lhs.ElemList[1].(*syntax.Name)
+		if !ok {
+			return "", "", "", false
+		}
+		iv, val = "_", v.Value
+	default:
+		return "", "", "", false
+	}
+	if iv == "_" && val == "" || iv == xsName.Value || val == "_" || val == xsName.Value {
+		return "", "", "", false
+	}
+	return iv, xsName.Value, val, true
+}
+
 func loopHeaderIndex(loop *syntax.ForStmt) (string, bool) {
 	init, ok := loop.Init.(*syntax.AssignStmt)
 	if !ok || init.Op != syntax.Def {
@@ -294,8 +352,6 @@ func loopHeaderIndex(loop *syntax.ForStmt) (string, bool) {
 	return iv.Value, true
 }
 
-// loopHeaderBound verifies the loop condition against the receiver
-// length, returning the receiver name.
 func (s *nextScan) loopHeaderBound(loop *syntax.ForStmt, iv string) (string, bool) {
 	cond, ok := unwrapParen(loop.Cond).(*syntax.Operation)
 	if !ok || cond.Op != syntax.Lss || cond.Y == nil {
@@ -312,8 +368,6 @@ func (s *nextScan) loopHeaderBound(loop *syntax.ForStmt, iv string) (string, boo
 	return s.loopHeaderLen(bound, iv)
 }
 
-// loopHeaderLen verifies one len call over the receiver, returning the
-// receiver name.
 func (s *nextScan) loopHeaderLen(bound *syntax.CallExpr, iv string) (string, bool) {
 	if len(bound.ArgList) != 1 || bound.HasDots {
 		return "", false
@@ -328,8 +382,6 @@ func (s *nextScan) loopHeaderLen(bound *syntax.CallExpr, iv string) (string, boo
 	return xs.Value, true
 }
 
-// loopHeaderPost verifies the index increment of the loop post
-// statement.
 func loopHeaderPost(loop *syntax.ForStmt, iv string) bool {
 	post, ok := loop.Post.(*syntax.AssignStmt)
 	if !ok || post.Op != syntax.Add || post.Rhs != nil {
@@ -342,8 +394,6 @@ func loopHeaderPost(loop *syntax.ForStmt, iv string) bool {
 	return true
 }
 
-// loopBody verifies a body holding one append of one element, returning
-// the target and call.
 func (s *nextScan) loopBody(body *syntax.BlockStmt) (string, *syntax.CallExpr, bool) {
 	assign, ok := loopBodySingle(body)
 	if !ok {
@@ -360,7 +410,6 @@ func (s *nextScan) loopBody(body *syntax.BlockStmt) (string, *syntax.CallExpr, b
 	return target.Value, call, true
 }
 
-// loopBodySingle extracts the single plain assignment from a loop body.
 func loopBodySingle(body *syntax.BlockStmt) (*syntax.AssignStmt, bool) {
 	if len(body.List) != 1 {
 		return nil, false
@@ -372,8 +421,6 @@ func loopBodySingle(body *syntax.BlockStmt) (*syntax.AssignStmt, bool) {
 	return assign, true
 }
 
-// loopBodyAppend verifies the append call assigning to the target,
-// returning the call.
 func (s *nextScan) loopBodyAppend(assign *syntax.AssignStmt, target *syntax.Name) (*syntax.CallExpr, bool) {
 	call, ok := unwrapParen(assign.Rhs).(*syntax.CallExpr)
 	if !ok {
@@ -392,7 +439,6 @@ func (s *nextScan) loopBodyAppend(assign *syntax.AssignStmt, target *syntax.Name
 	return call, true
 }
 
-// isBuiltin reports whether a call names one language builtin.
 func (s *nextScan) isBuiltin(call *syntax.CallExpr, name string) bool {
 	fun, ok := call.Fun.(*syntax.Name)
 	if !ok || fun.Value != name {
@@ -402,8 +448,6 @@ func (s *nextScan) isBuiltin(call *syntax.CallExpr, name string) bool {
 	return ok && obj.Name() == name
 }
 
-// initFileFacts scans the file once to record variables whose addresses
-// are taken and variables written inside function literals.
 func (s *nextScan) initFileFacts(f *syntax.File) {
 	s.addrTaken = make(map[types2.Object]bool)
 	s.closureWritten = make(map[types2.Object]bool)
@@ -419,13 +463,10 @@ func (s *nextScan) initFileFacts(f *syntax.File) {
 	}
 }
 
-// scanFuncFacts records address-taking and closure writes in one function.
 func (s *nextScan) scanFuncFacts(fn *syntax.FuncDecl) {
 	syntax.Walk(fn.Body, factVisitor{scan: s})
 }
 
-// factVisitor walks a function body, recording &x address-taking and
-// assignments to outer variables from within function literals.
 type factVisitor struct {
 	scan         *nextScan
 	inClosure    bool
@@ -506,7 +547,6 @@ func (v factVisitor) isOuterVar(obj types2.Object) bool {
 	return true
 }
 
-// scopeEncloses reports whether child is equal to or nested inside ancestor.
 func scopeEncloses(ancestor, child *types2.Scope) bool {
 	for cur := child; cur != nil; cur = cur.Parent() {
 		if cur == ancestor {
@@ -516,7 +556,6 @@ func scopeEncloses(ancestor, child *types2.Scope) bool {
 	return false
 }
 
-// assignedNames extracts all identifier names that receive a value.
 func assignedNames(lhs syntax.Expr) []*syntax.Name {
 	switch n := lhs.(type) {
 	case *syntax.Name:
@@ -533,42 +572,16 @@ func assignedNames(lhs syntax.Expr) []*syntax.Name {
 	return nil
 }
 
-// elemSpansSafe checks the appended element when the receiver is an
-// unaliased local variable. Pure calls stay convertible.
-func (s *nextScan) elemSpansSafe(elem syntax.Expr, xs, iv, ys string) ([][2]int, bool) {
-	c := &elemCheck{scan: s, xs: xs, iv: iv, ys: ys, unsafeCalls: false}
-	if !c.expr(elem) {
-		return nil, false
-	}
-	return c.spans, true
-}
-
-// elemSpansUnsafe checks the appended element when the receiver is
-// unsafe across unknown calls (package variable, address-taken, or
-// mutated by a closure). Calls to user functions stay tasks. Len and cap
-// stay pure.
-func (s *nextScan) elemSpansUnsafe(elem syntax.Expr, xs, iv, ys string) ([][2]int, bool) {
-	c := &elemCheck{scan: s, xs: xs, iv: iv, ys: ys, unsafeCalls: true}
-	if !c.expr(elem) {
-		return nil, false
-	}
-	return c.spans, true
-}
-
-// elemCheck carries one purity walk.
 type elemCheck struct {
 	scan        *nextScan
 	xs          string
 	iv          string
 	ys          string
+	val         string
 	unsafeCalls bool
 	spans       [][2]int
 }
 
-// receiverUnsafe reports whether the loop receiver may be rebound or
-// mutated across an unknown call. Package variables can be mutated by
-// any function. A local receiver can be mutated if its address was taken
-// or if a closure writes to it.
 func (s *nextScan) receiverUnsafe(loop *syntax.ForStmt, xs string, ctx nextCtx) bool {
 	obj := s.loopReceiverObj(loop, xs)
 	if obj == nil {
@@ -577,27 +590,27 @@ func (s *nextScan) receiverUnsafe(loop *syntax.ForStmt, xs string, ctx nextCtx) 
 	if isPackageVar(obj) {
 		return true
 	}
-	if ctx.fn == nil || s.addrTaken == nil || s.closureWritten == nil {
-		return true
-	}
 	return s.addrTaken[obj] || s.closureWritten[obj]
 }
 
-// loopReceiverObj resolves the types2 object for the receiver in loop.Cond.
 func (s *nextScan) loopReceiverObj(loop *syntax.ForStmt, xs string) types2.Object {
 	var found types2.Object
-	syntax.Inspect(loop.Cond, func(n syntax.Node) bool {
-		if name, ok := n.(*syntax.Name); ok && name.Value == xs && found == nil {
-			found = s.nameObj(name)
+	inspect := func(n syntax.Node) {
+		if n == nil || found != nil {
+			return
 		}
-		return found == nil
-	})
+		syntax.Inspect(n, func(n syntax.Node) bool {
+			if name, ok := n.(*syntax.Name); ok && name.Value == xs && found == nil {
+				found = s.nameObj(name)
+			}
+			return found == nil
+		})
+	}
+	inspect(loop.Cond)
+	inspect(loop.Init)
 	return found
 }
 
-// isPackageVar reports whether obj is a package-level variable: its
-// package scope resolves the same name to the same object. Locals,
-// parameters, universe objects, and non-variables never count.
 func isPackageVar(obj types2.Object) bool {
 	v, ok := obj.(*types2.Var)
 	if !ok || v.Name() == "" {
@@ -609,12 +622,12 @@ func isPackageVar(obj types2.Object) bool {
 	}
 	return pkg.Scope().Lookup(v.Name()) == obj
 }
-
-// expr verifies one element expression. The loop index may appear only
-// as the subscript of the receiver.
 func (c *elemCheck) expr(e syntax.Expr) bool {
 	switch n := unwrapParen(e).(type) {
 	case *syntax.Name:
+		if c.val != "" && n.Value == c.val {
+			return c.elemRef(n)
+		}
 		return exprName(n, c.ys, c.iv)
 	case *syntax.BasicLit:
 		return true
@@ -631,14 +644,23 @@ func (c *elemCheck) expr(e syntax.Expr) bool {
 	}
 	return false
 }
+func (c *elemCheck) elemRef(n *syntax.Name) bool {
+	start, err := offsetOf(c.scan.starts, len(c.scan.src), n.Pos())
+	if err != nil {
+		return false
+	}
+	end, ok := c.scan.endOf(n)
+	if !ok {
+		return false
+	}
+	c.spans = append(c.spans, [2]int{start, end})
+	return true
+}
 
-// exprName reports whether a name avoids the loop target and index.
 func exprName(n *syntax.Name, ys, iv string) bool {
 	return n.Value != ys && n.Value != iv
 }
 
-// exprOp verifies one operator expression, rejecting address and
-// receive operators.
 func (c *elemCheck) exprOp(n *syntax.Operation) bool {
 	if n.Op == syntax.And || n.Op == syntax.Recv {
 		return false
@@ -649,7 +671,6 @@ func (c *elemCheck) exprOp(n *syntax.Operation) bool {
 	return c.expr(n.X) && c.expr(n.Y)
 }
 
-// index verifies one index expression and records xs[i].
 func (c *elemCheck) index(n *syntax.IndexExpr) bool {
 	x, ok := n.X.(*syntax.Name)
 	if !ok || x.Value != c.xs {
@@ -671,7 +692,6 @@ func (c *elemCheck) index(n *syntax.IndexExpr) bool {
 	return true
 }
 
-// call verifies one element call.
 func (c *elemCheck) call(n *syntax.CallExpr) bool {
 	if n.HasDots {
 		return false
@@ -682,7 +702,6 @@ func (c *elemCheck) call(n *syntax.CallExpr) bool {
 	return c.callArgs(n)
 }
 
-// callFun verifies the function of one element call.
 func (c *elemCheck) callFun(fun syntax.Expr) bool {
 	switch f := fun.(type) {
 	case *syntax.Name:
@@ -693,11 +712,6 @@ func (c *elemCheck) callFun(fun syntax.Expr) bool {
 	return false
 }
 
-// callName verifies a plain function name of one element call. Len and
-// cap cannot rebind the receiver. Any other user function may rebind an
-// unsafe receiver (package-scoped or aliased), so those calls fail when
-// the receiver is unsafe. Builtins other than append/len/cap keep their
-// existing verdict.
 func (c *elemCheck) callName(fun *syntax.Name) bool {
 	if fun.Value == "append" {
 		return false
@@ -715,8 +729,6 @@ func (c *elemCheck) callName(fun *syntax.Name) bool {
 	return callObjFunc(obj)
 }
 
-// callObjFunc reports whether a resolved object is a function or a
-// builtin callable from an element.
 func callObjFunc(obj types2.Object) bool {
 	if _, ok := obj.(*types2.Func); ok {
 		return true
@@ -737,7 +749,6 @@ func (c *elemCheck) callSelector(fun *syntax.SelectorExpr) bool {
 	return ok
 }
 
-// callArgs verifies every argument of one element call.
 func (c *elemCheck) callArgs(n *syntax.CallExpr) bool {
 	for _, arg := range n.ArgList {
 		if !c.expr(arg) {
@@ -747,7 +758,6 @@ func (c *elemCheck) callArgs(n *syntax.CallExpr) bool {
 	return true
 }
 
-// chainParam picks the lambda parameter name.
 func chainParam(elem syntax.Expr, xs, iv string) string {
 	used := map[string]bool{xs: true, iv: true}
 	syntax.Inspect(elem, func(n syntax.Node) bool {
@@ -769,7 +779,6 @@ func chainParam(elem syntax.Expr, xs, iv string) string {
 	}
 }
 
-// substitute splices the element source with the parameter.
 func (s *nextScan) substitute(elem syntax.Expr, spans [][2]int, param string) (string, bool) {
 	start, ok := s.startOf(elem)
 	if !ok {

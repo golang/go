@@ -1,0 +1,32 @@
+# The ejected group child builds with upstream Go and prints the same ok
+# lines as the native build: a receive in every statement position (hoisted
+# into a select that waits on the group context) and the cancellation cell
+# of each position.
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cp $GOROOT/test/logos/run/group_chan_positions.lgo a/main.lgo
+
+cd a
+logos run .
+cmp stdout $GOROOT/test/logos/run/group_chan_positions.out
+cp stdout $WORK/native.txt
+logos eject -o out
+exists out/main.go
+! exists out/main.lgo
+cd out
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $WORK/native.txt
+cmp stdout $GOROOT/test/logos/run/group_chan_positions.out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ../..
+
+-- a/go.mod --
+module example.com/groupchanpositionseject
+
+go 1.27

@@ -1,0 +1,60 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+type Creature interface {
+	const Name string
+	HP int
+	Start() error
+}
+
+type Num int
+
+func (n Num) Name() string { return "x" }
+
+func (n Num) HP() int { return 0 }
+
+func (n *Num) SetHP(v int) {}
+
+func (n Num) Start() error { return nil }
+
+type Monster struct : Creature {
+	Name string
+	HP int
+}
+func (m Monster) Start() error { return nil }
+func check(cond bool, name string) {
+	failed := false
+	if cond {
+		fmt.Println("ok " + name)
+	} else {
+		fmt.Println("FAIL " + name)
+		failed = true
+	}
+	if failed {
+		os.Exit(1)
+	}
+}
+func main() {
+	var n Num = 5
+	_, ok := any(n).(Creature)
+	_, ok2 := any(&n).(Creature)
+	check(!ok && !ok2, "nonstruct")
+	m := Monster{Name: "g", HP: 10}
+	c, ok3 := any(&m).(Creature)
+	check(ok3 && c.Name == "g", "struct")
+	_, ok4 := any(7).(Creature)
+	check(!ok4, "reject")
+	switch v := any(&m).(type) {
+	case Creature:
+		check(v.Name == "g", "switch")
+	default:
+		fmt.Println("FAIL switch")
+		os.Exit(1)
+	}
+}

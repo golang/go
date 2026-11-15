@@ -101,7 +101,8 @@ type batch struct {
 	foreignLoc location
 	blankLoc   location
 
-	logosArena logosArenaBatch // logos M18: shadow locations for caller-region returns.
+	logosArena  logosArenaBatch // logos M18: shadow locations for caller-region returns.
+	logosRegion logosRegionBatch
 }
 
 // A closure holds a closure expression and its spill hole (i.e.,
@@ -173,6 +174,8 @@ func Batch(fns []*ir.Func, reassignOracles map[*ir.Func]*ir.ReassignOracle) {
 	}
 	b.closures = nil
 
+	arenaObjects := b.logosArenaObjectShadows()
+
 	for _, loc := range b.allLocs {
 		// Try to replace some non-constant expressions with literals.
 		b.rewriteWithLiterals(loc.n, loc.curfn)
@@ -188,6 +191,8 @@ func Batch(fns []*ir.Func, reassignOracles map[*ir.Func]*ir.ReassignOracle) {
 	b.finish(fns)
 	b.logosCollect()      // logos M9: escaping subslices of large backing stores.
 	b.logosArenaMark(fns) // logos M18-S2: arena vetoes and caller-region verdicts.
+	b.logosArenaMarkObjects(arenaObjects)
+	b.logosRegionMark(fns)
 	b.logosCollectHints() // logos M18-S2: hints mode escape and arena decisions.
 }
 
@@ -271,7 +276,7 @@ func (b *batch) flowClosure(k hole, clo *ir.ClosureExpr) {
 		}
 
 		// Capture by value for variables <= 128 bytes that are never reassigned.
-		n.SetByval(!loc.addrtaken && !loc.reassigned && n.Type().Size() <= 128)
+		skip, pooled := b.logosEscapeCapture(clo, cv, n, loc)
 		if !n.Byval() {
 			n.SetAddrtaken(true)
 			if n.Sym().Name == typecheck.LocalDictName {
@@ -289,10 +294,11 @@ func (b *batch) flowClosure(k hole, clo *ir.ClosureExpr) {
 
 		// Flow captured variables to closure.
 		k := k
+		k = b.logosEscapeCaptureHole(k, pooled)
 		if !cv.Byval() {
 			k = k.addr(cv, "reference")
 		}
-		b.flow(k.note(cv, "captured by a closure"), loc)
+		b.logosEscapeFlowCapture(k, cv, loc, skip)
 	}
 }
 
@@ -302,7 +308,7 @@ func (b *batch) finish(fns []*ir.Func) {
 		fn.SetEsc(escFuncTagged)
 
 		for i, param := range fn.Type().RecvParams() {
-			param.Note = b.paramTag(fn, 1+i, param)
+			param.Note = b.logosParamTag(fn, 1+i, param)
 		}
 	}
 

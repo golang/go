@@ -6,6 +6,7 @@ package logos
 
 import (
 	"fmt"
+	"go/token"
 	"reflect"
 	"slices"
 	"strings"
@@ -15,25 +16,10 @@ import (
 	"cmd/compile/internal/types2"
 )
 
-// This file lowers the M6-S5 tuple nodes (SPEC Sec 2.4, T-204.1):
-// TupleType becomes the struct with exported `T_` fields, TupleLit
-// becomes a composite literal of that struct, `t.x` selections become
-// `t.T_x`, and pack/unpack assignments bind calls and tuple values
-// through field accesses. Every rewrite builds the native tree and the
-// eject text together, through small splices over exact token spans.
-//
-// The pass runs after the statement lowering, so `?` and `errdefer`
-// templates never see tuple forms. Replacement spans never contain a
-// later splice: selectors and right-hand sides splice exact tokens,
-// struct spellings compose earlier splices through textOf, and generated
-// statements hold no logos nodes.
-
-// tupleTempKey builds a per-site temporary name from a position.
 func tupleTempKey(pos syntax.Pos, i int) string {
 	return fmt.Sprintf("_logos_tup%d_%d_%d", pos.Line(), pos.Col(), i)
 }
 
-// joinO concatenates parts with sep between them, rebasing origins.
 func joinO(parts []otext, sep string) otext {
 	var out otext
 	for i, p := range parts {
@@ -45,7 +31,6 @@ func joinO(parts []otext, sep string) otext {
 	return out
 }
 
-// genList spells each string of list as generated text.
 func genList(list []string) []otext {
 	out := make([]otext, len(list))
 	for i, s := range list {
@@ -54,16 +39,21 @@ func genList(list []string) []otext {
 	return out
 }
 
-// tupleCallSpan reports the source span of a call, including its
-// argument parentheses (the node end sits at the function).
-func (fl *fileLower) tupleCallSpan(call *syntax.CallExpr) span {
-	start := fl.off(leftmostOf(call))
-	_, rparen := fl.findCallParens(fl.off(syntax.EndPos(syntax.Unparen(call.Fun))))
-	return span{start, rparen + 1}
+func (fl *fileLower) tupleSplit(pos syntax.Pos, n int) callSplit {
+	split, ok := splitCall(fl.src, fl.off(pos))
+	if !ok || len(split.args) != n {
+		base.Fatalf("logos: tuple at %s has no matching parentheses", pos.String())
+	}
+	return split
 }
 
-// lowerTuples rewrites every tuple form of one file.
+func (fl *fileLower) exprListSpan(e syntax.Expr) span {
+	elems := syntax.UnpackListExpr(e)
+	return span{fl.off(syntax.StartPos(elems[0])), fl.exprEndOf(elems[len(elems)-1])}
+}
+
 func (fl *fileLower) lowerTuples() {
+	fl.tupleArity = -1
 	fl.lowerTupleTypes()
 	syntax.Inspect(fl.file, func(n syntax.Node) bool {
 		if e, ok := n.(*syntax.SelectorExpr); ok {
@@ -75,15 +65,13 @@ func (fl *fileLower) lowerTuples() {
 	fl.flushTypeImports()
 }
 
-// lowerTupleDeclList lowers tuple forms in declarations, splicing
-// pack hoists in place.
 func (fl *fileLower) lowerTupleDeclList(decls []syntax.Decl) []syntax.Decl {
 	var out []syntax.Decl
 	for _, decl := range decls {
 		switch decl := decl.(type) {
 		case *syntax.FuncDecl:
 			if decl.Body != nil {
-				decl.Body.List = fl.lowerTupleList(decl.Body.List)
+				decl.Body.List = fl.lowerTupleBody(len(decl.Type.ResultList), decl.Body.List)
 			}
 			out = append(out, decl)
 		case *syntax.VarDecl:
@@ -95,8 +83,6 @@ func (fl *fileLower) lowerTupleDeclList(decls []syntax.Decl) []syntax.Decl {
 	return out
 }
 
-// lowerTuplePackDecl lowers pack shapes in one var declaration,
-// returning the replacement declarations.
 func (fl *fileLower) lowerTuplePackDecl(decl *syntax.VarDecl) []syntax.Decl {
 	if decl.Values != nil {
 		vals := syntax.UnpackListExpr(decl.Values)
@@ -106,14 +92,71 @@ func (fl *fileLower) lowerTuplePackDecl(decl *syntax.VarDecl) []syntax.Decl {
 					return repl
 				}
 			}
+			if repl := fl.lowerTupleUnpackDecl(decl, vals[0]); repl != nil {
+				return repl
+			}
 		}
 	}
 	fl.lowerTupleVarValues(decl)
 	return []syntax.Decl{decl}
 }
 
-// lowerTuplePackValues lowers `var t T = f()` and `var t = f()` over a
-// multi-value call into a temporary declaration plus the composite.
+func (fl *fileLower) lowerTupleUnpackDecl(decl *syntax.VarDecl, val syntax.Expr) []syntax.Decl {
+	fields, _ := fl.tupleTargetOfType(fl.pkg.info.TypeOf(val))
+	if len(decl.NameList) < 2 || len(fields) != len(decl.NameList) {
+		return nil
+	}
+	pos := decl.Pos()
+	r := syntax.Unparen(val)
+	if lit, ok := r.(*syntax.TupleLit); ok {
+		split := fl.tupleSplit(lit.Pos(), len(lit.Elems))
+		start, end := extendParens(fl.src, fl.off(syntax.StartPos(lit)), split.end)
+		fl.cutTupleLit(start, end, split, otext{}, otext{})
+		decl.Values = listOf(pos, slices.Clone(lit.Elems))
+		fl.lowerTupleVarValues(decl)
+		return []syntax.Decl{decl}
+	}
+	tn := tupleTempKey(pos, 0)
+	last := decl.NameList[len(decl.NameList)-1]
+	nameStart := fl.off(decl.NameList[0].Pos())
+	namesEnd := fl.off(last.Pos()) + len(last.Value)
+	if decl.Type != nil {
+		namesEnd = fl.exprEndNested(fl.off(syntax.StartPos(decl.Type)))
+	}
+	start, end := fl.tupleOperandSpan(r)
+	reads, texts := tupleReads(pos, tn, fields)
+	next := "\nvar "
+	if decl.Group != nil {
+		next = "\n\t"
+	}
+	fl.add(nameStart, start, tn+" = ")
+	fl.addT(end, end, cat(gen(next), fl.lazyText(span{nameStart, namesEnd}), gen(" = "+texts)))
+	hoist := &syntax.VarDecl{NameList: []*syntax.Name{nameOf(pos, tn)}, Group: decl.Group, Values: val}
+	hoist.SetPos(pos)
+	decl.Values = listOf(pos, reads)
+	return []syntax.Decl{hoist, decl}
+}
+
+func (fl *fileLower) tupleOperandSpan(r syntax.Expr) (int, int) {
+	rs := fl.exprSpan(r)
+	return extendParens(fl.src, rs.start, rs.end)
+}
+
+func tupleReads(pos syntax.Pos, base string, fields []string) ([]syntax.Expr, string) {
+	reads := make([]syntax.Expr, len(fields))
+	texts := make([]string, len(fields))
+	for i, f := range fields {
+		reads[i] = selOf(pos, nameOf(pos, base), f)
+		texts[i] = base + "." + f
+	}
+	return reads, strings.Join(texts, ", ")
+}
+
+func (fl *fileLower) isMultiValueCall(call *syntax.CallExpr) bool {
+	_, ok := fl.pkg.info.TypeOf(call).(*types2.Tuple)
+	return ok
+}
+
 func (fl *fileLower) lowerTuplePackValues(decl *syntax.VarDecl, call *syntax.CallExpr) []syntax.Decl {
 	tup, ok := fl.pkg.info.TypeOf(call).(*types2.Tuple)
 	if !ok || tup.Len() < 2 || len(decl.NameList) != 1 {
@@ -130,12 +173,17 @@ func (fl *fileLower) lowerTuplePackValues(decl *syntax.VarDecl, call *syntax.Cal
 		tempNames[i] = tupleTempKey(pos, i)
 		nameList[i] = nameOf(pos, tempNames[i])
 	}
-	callSpan := fl.tupleCallSpan(call)
+	callSpan := fl.callBodySpan(call)
 	callText := fl.textOf(callSpan)
-	comp, compText := fl.tupleComposite(pos, names, types, tempNamesAsExpr(pos, tempNames), genList(tempNames))
-	parts := []otext{gen("var " + strings.Join(tempNames, ", ") + " = "), callText, gen("\nvar " + decl.NameList[0].Value)}
+	comp, compText := fl.tupleComposite(pos, names, types, tempNodes(pos, tempNames), genList(tempNames))
+	next := "\nvar "
+	if decl.Group != nil {
+		next = "\n\t"
+	}
+	parts := []otext{gen(strings.Join(tempNames, ", ") + " = "), callText, gen(next + decl.NameList[0].Value)}
 	if decl.Type != nil {
-		parts = append(parts, gen(" "), fl.textOf(span{fl.off(syntax.StartPos(decl.Type)), fl.off(syntax.EndPos(decl.Type))}))
+		typeStart := fl.off(syntax.StartPos(decl.Type))
+		parts = append(parts, gen(" "), fl.textOf(span{typeStart, fl.exprEndNested(typeStart)}))
 	}
 	parts = append(parts, gen(" = "), compText)
 	fl.addT(fl.off(syntax.StartPos(decl)), callSpan.end, cat(parts...))
@@ -146,8 +194,6 @@ func (fl *fileLower) lowerTuplePackValues(decl *syntax.VarDecl, call *syntax.Cal
 	return []syntax.Decl{hoist, decl}
 }
 
-// packDeclTypes reports the lowered names and element types for a var
-// pack target: the declared type, else the call result names and types.
 func (fl *fileLower) packDeclTypes(decl *syntax.VarDecl, tup *types2.Tuple) ([]string, []types2.Type) {
 	if decl.Type != nil {
 		if obj, ok := fl.pkg.info.Defs[decl.NameList[0]]; ok {
@@ -173,8 +219,6 @@ func (fl *fileLower) packDeclTypes(decl *syntax.VarDecl, tup *types2.Tuple) ([]s
 	return names, types
 }
 
-// lowerTupleTypes rewrites every TupleType to its struct, innermost
-// first so each eject splice composes the ones inside it through textOf.
 func (fl *fileLower) lowerTupleTypes() {
 	var types []*syntax.TupleType
 	syntax.Inspect(fl.file, func(n syntax.Node) bool {
@@ -189,9 +233,6 @@ func (fl *fileLower) lowerTupleTypes() {
 	}
 }
 
-// lowerTupleList lowers tuple statements in list, splicing replacement
-// statement lists in place, then recurses into child bodies including
-// function literals (temporary names are file-unique).
 func (fl *fileLower) lowerTupleList(list []syntax.Stmt) []syntax.Stmt {
 	var out []syntax.Stmt
 	for _, s := range list {
@@ -214,7 +255,17 @@ func (fl *fileLower) lowerTupleList(list []syntax.Stmt) []syntax.Stmt {
 	return out
 }
 
-// tupleChildLists reports the statement lists nested directly under s.
+func (fl *fileLower) lowerTupleBody(results int, list []syntax.Stmt) []syntax.Stmt {
+	saved := fl.tupleArity
+	fl.tupleArity = results
+	defer func() { fl.tupleArity = saved }()
+	return fl.lowerTupleList(list)
+}
+
+func (fl *fileLower) returnsArity(n int) bool {
+	return fl.tupleArity < 0 || fl.tupleArity == n
+}
+
 func tupleChildLists(s syntax.Stmt) []*[]syntax.Stmt {
 	switch s := s.(type) {
 	case *syntax.BlockStmt:
@@ -245,14 +296,22 @@ func tupleChildLists(s syntax.Stmt) []*[]syntax.Stmt {
 	return nil
 }
 
-// lowerTupleNested lowers tuple expressions under s: call arguments,
-// composite elements, stray literals, and local declarations.
-func (fl *fileLower) lowerTupleNested(s syntax.Stmt) {
+func (fl *fileLower) lowerTupleNested(s syntax.Node) {
+	saved := fl.tupleScope
+	fl.tupleScope = s
+	defer func() { fl.tupleScope = saved }()
 	syntax.Inspect(s, func(n syntax.Node) bool {
 		switch n := n.(type) {
 		case *syntax.FuncLit:
-			n.Body.List = fl.lowerTupleList(n.Body.List)
+			n.Body.List = fl.lowerTupleBody(len(n.Type.ResultList), n.Body.List)
 			return false
+		case *syntax.LambdaExpr:
+			if block, ok := n.Body.(*syntax.BlockStmt); ok {
+				if sig, ok := fl.pkg.info.TypeOf(n).(*types2.Signature); ok {
+					block.List = fl.lowerTupleBody(sig.Results().Len(), block.List)
+					return false
+				}
+			}
 		case *syntax.CallExpr:
 			fl.lowerTupleCallArgs(n)
 		case *syntax.CompositeLit:
@@ -266,8 +325,6 @@ func (fl *fileLower) lowerTupleNested(s syntax.Stmt) {
 	})
 }
 
-// lowerTupleStmt lowers tuple shapes in one statement, returning the
-// replacement list or nil to keep the statement.
 func (fl *fileLower) lowerTupleStmt(s syntax.Stmt) []syntax.Stmt {
 	switch s := s.(type) {
 	case *syntax.AssignStmt:
@@ -278,8 +335,6 @@ func (fl *fileLower) lowerTupleStmt(s syntax.Stmt) []syntax.Stmt {
 	return nil
 }
 
-// lowerTupleVarValues lowers TupleLit values of one declaration,
-// through the declared type or the literal's own type.
 func (fl *fileLower) lowerTupleVarValues(decl *syntax.VarDecl) {
 	if decl.Values == nil {
 		return
@@ -298,9 +353,6 @@ func (fl *fileLower) lowerTupleVarValues(decl *syntax.VarDecl) {
 	}
 }
 
-// tupleDeclTarget reports the declared tuple target of a var
-// declaration as lowered field names and element types, through the
-// declared variable object.
 func (fl *fileLower) tupleDeclTarget(decl *syntax.VarDecl) ([]string, []types2.Type) {
 	if decl.Type == nil || len(decl.NameList) == 0 {
 		return nil, nil
@@ -313,12 +365,11 @@ func (fl *fileLower) tupleDeclTarget(decl *syntax.VarDecl) ([]string, []types2.T
 	return nil, nil
 }
 
-// tupleTargetOfType maps a checked type to lowered tuple field names
-// and element types, or nil when it is not a tuple.
 func (fl *fileLower) tupleTargetOfType(t types2.Type) ([]string, []types2.Type) {
 	if t == nil {
 		return nil, nil
 	}
+	t = tupleUnderlying(t)
 	if tup, ok := types2.Unalias(t).(*types2.LogosTuple); ok {
 		names := make([]string, tup.Len())
 		types := make([]types2.Type, tup.Len())
@@ -340,7 +391,6 @@ func (fl *fileLower) tupleTargetOfType(t types2.Type) ([]string, []types2.Type) 
 	return nil, nil
 }
 
-// tupleLoweredName spells the lowered field of a source element name.
 func tupleLoweredName(name string, i int) string {
 	if name == "" {
 		return fmt.Sprintf("T_%d", i)
@@ -348,7 +398,6 @@ func tupleLoweredName(name string, i int) string {
 	return "T_" + name
 }
 
-// tupleStructShaped reports whether st is the lowered tuple shape.
 func tupleStructShaped(st *types2.Struct) bool {
 	if st.NumFields() < 2 {
 		return false
@@ -362,76 +411,30 @@ func tupleStructShaped(st *types2.Struct) bool {
 	return true
 }
 
-// lowerTupleType rewrites one TupleType to its struct. Field types move
-// into the struct, keeping their checked identity; the eject text
-// composes earlier splices inside them.
 func (fl *fileLower) lowerTupleType(t *syntax.TupleType) {
 	pos := t.Pos()
 	st := &syntax.StructType{}
 	st.SetPos(pos)
-	var parts []otext
-	parts = append(parts, gen("struct{ "))
+	split := fl.tupleSplit(pos, len(t.Fields))
+	from := fl.off(syntax.StartPos(t))
+	sep := "struct{ "
 	for i, f := range t.Fields {
 		name := ""
-		typ := f.Type
+		to := split.args[i].start
 		if f.Name != nil {
 			name = f.Name.Value
+			to += len(name)
 		}
 		lname := tupleLoweredName(name, i)
-		st.FieldList = append(st.FieldList, &syntax.Field{Name: nameOf(pos, lname), Type: typ})
-		if i > 0 {
-			parts = append(parts, gen("; "))
-		}
-		tspan := span{fl.off(syntax.StartPos(typ)), fl.off(syntax.EndPos(typ))}
-		parts = append(parts, gen(lname+" "), fl.textOf(tspan))
+		st.FieldList = append(st.FieldList, &syntax.Field{Name: nameOf(pos, lname), Type: f.Type})
+		fl.add(from, to, sep+lname+" ")
+		sep = "; "
+		from = split.args[i].end
 	}
-	parts = append(parts, gen(" }"))
-	fl.addT(fl.off(syntax.StartPos(t)), extendPastComma(fl.src, fl.off(syntax.EndPos(t))), cat(parts...))
-	replaceTupleExpr(fl.file, t, st)
+	fl.add(from, split.end, " }")
+	fl.replaceTuple(t, st)
 }
 
-// extendPastComma extends end past a trailing comma, its trivia, and
-// the closing paren of the tuple form.
-func extendPastComma(src []byte, end int) int {
-	i := end
-	for i < len(src) {
-		switch src[i] {
-		case ' ', '\t', '\n', '\r':
-			i++
-		case ',':
-			i++
-			for i < len(src) {
-				switch src[i] {
-				case ' ', '\t', '\n', '\r':
-					i++
-				case '/':
-					i = skipComment(src, i)
-					if i < 0 {
-						return end
-					}
-				case ')':
-					return i + 1
-				default:
-					return end
-				}
-			}
-			return end
-		case '/':
-			i = skipComment(src, i)
-			if i < 0 {
-				return end
-			}
-		case ')':
-			return i + 1
-		default:
-			return end
-		}
-	}
-	return end
-}
-
-// extendParens extends [start, end) past every level of directly
-// adjacent redundant parentheses left behind by dropped groupings.
 func extendParens(src []byte, start, end int) (int, int) {
 	for {
 		s, e, ok := wrapParenPair(src, start, end)
@@ -442,67 +445,39 @@ func extendParens(src []byte, start, end int) (int, int) {
 	}
 }
 
-// wrapParenPair widens [start, end) by one directly adjacent `(` ... `)`
-// pair, blanks allowed between each paren and the span, and reports
-// whether such a pair exists.
 func wrapParenPair(src []byte, start, end int) (int, int, bool) {
-	i := start
-	for i > 0 {
-		c := src[i-1]
-		if c == ' ' || c == '\t' || c == '\n' || c == '\r' {
-			i--
-			continue
-		}
-		break
-	}
+	i := skipBlankBack(src, start)
 	if i <= 0 || src[i-1] != '(' {
 		return start, end, false
 	}
-	j := end
-	for j < len(src) {
-		c := src[j]
-		if c == ' ' || c == '\t' || c == '\n' || c == '\r' {
-			j++
-			continue
+	closer := -1
+	scanSegment(src, end, len(src), func(t tok) bool {
+		if t.comment {
+			return true
 		}
-		break
-	}
-	if j >= len(src) || src[j] != ')' {
+		if t.kind == token.RPAREN {
+			closer = t.end
+		}
+		return false
+	})
+	if closer < 0 {
 		return start, end, false
 	}
-	return i - 1, j + 1, true
+	return i - 1, closer, true
 }
 
-// skipComment skips a comment at i, or reports -1.
-func skipComment(src []byte, i int) int {
-	if i+1 < len(src) && src[i+1] == '/' {
-		for i < len(src) && src[i] != '\n' {
-			i++
-		}
-		return i
+func (fl *fileLower) replaceTuple(old, repl syntax.Expr) {
+	var root syntax.Node = fl.file
+	if fl.tupleScope != nil {
+		root = fl.tupleScope
 	}
-	if i+1 < len(src) && src[i+1] == '*' {
-		j := i + 2
-		for j+1 < len(src) && (src[j] != '*' || src[j+1] != '/') {
-			j++
-		}
-		return j + 2
-	}
-	return -1
+	replaceTupleExpr(root, old, repl)
 }
 
-// replaceTupleExpr swaps the tuple node old for repl wherever the file
-// holds it directly.
 func replaceTupleExpr(root syntax.Node, old, repl syntax.Expr) {
 	replaceTupleField(reflect.ValueOf(root), reflect.ValueOf(old), reflect.ValueOf(repl))
 }
 
-// replaceTupleField swaps old for repl in interfaces, slices, and child
-// nodes reachable through f. A branch statement is a leaf: its Target
-// points to the enclosing loop, switch, or select, or to a labeled
-// statement elsewhere in the tree, so following it walks a cycle from
-// every `break` and `continue`, as syntax.Inspect notes. It holds no
-// expression, so no replacement is lost.
 func replaceTupleField(f, old, repl reflect.Value) bool {
 	switch f.Kind() {
 	case reflect.Interface:
@@ -557,40 +532,172 @@ func replaceTupleField(f, old, repl reflect.Value) bool {
 	}
 	return false
 }
+func (fl *fileLower) stageReplacement(old, repl syntax.Expr) {
+	if fl.stagedReplacements == nil {
+		fl.stagedReplacements = make(map[syntax.Expr]syntax.Expr)
+	}
+	fl.stagedReplacements[old] = repl
+}
 
-// lowerTupleSelect rewrites `t.x` over a tuple to `t.T_x`.
-func (fl *fileLower) lowerTupleSelect(e *syntax.SelectorExpr) {
-	base := fl.pkg.info.TypeOf(e.X)
-	if base == nil {
+func (fl *fileLower) flushOuterFirst() {
+	fl.flushStaged(false)
+}
+
+func (fl *fileLower) flushInnerFirst() {
+	fl.flushStaged(true)
+}
+
+func (fl *fileLower) flushStaged(innerFirst bool) {
+	if len(fl.stagedReplacements) == 0 {
 		return
 	}
-	sel := e.Sel.Value
-	if tup, ok := types2.Unalias(base).(*types2.LogosTuple); ok {
-		for i := range tup.Len() {
-			if tup.Name(i) == sel || tupleLoweredName(tup.Name(i), i) == sel {
-				fl.renameTupleSel(e, tupleLoweredName(tup.Name(i), i))
+	if innerFirst {
+		replaceInnerFirst(fl.file, fl.stagedReplacements)
+	} else {
+		replaceOuterFirst(fl.file, fl.stagedReplacements)
+	}
+	fl.stagedReplacements = nil
+}
+
+// replaceOuterFirst swaps each staged original in one walk, parents before
+// children. A nested original inside a swapped parent leaves with the
+// detached subtree, whose replacement text already covers it.
+func replaceOuterFirst(root syntax.Node, reps map[syntax.Expr]syntax.Expr) {
+	sweepExpr(reflect.ValueOf(root), reps, false)
+}
+
+// replaceInnerFirst swaps each staged original children before parents,
+// matching sequential inner-first replacement for nested lambdas, whose
+// replacements share nodes with the originals.
+func replaceInnerFirst(root syntax.Node, reps map[syntax.Expr]syntax.Expr) {
+	sweepExpr(reflect.ValueOf(root), reps, true)
+}
+
+func sweepExpr(f reflect.Value, reps map[syntax.Expr]syntax.Expr, innerFirst bool) {
+	switch f.Kind() {
+	case reflect.Interface:
+		sweepInterface(f, reps, innerFirst)
+	case reflect.Slice, reflect.Array:
+		for i := range f.Len() {
+			sweepExpr(f.Index(i), reps, innerFirst)
+		}
+	case reflect.Pointer:
+		sweepPointer(f, reps, innerFirst)
+	}
+}
+
+func sweepInterface(f reflect.Value, reps map[syntax.Expr]syntax.Expr, innerFirst bool) {
+	if f.IsNil() {
+		return
+	}
+	if !innerFirst && swapStaged(f, reps) {
+		return
+	}
+	descendNode(f.Elem(), reps, innerFirst)
+	if innerFirst {
+		swapStaged(f, reps)
+	}
+}
+
+func swapStaged(f reflect.Value, reps map[syntax.Expr]syntax.Expr) bool {
+	e, ok := f.Elem().Interface().(syntax.Expr)
+	if !ok {
+		return false
+	}
+	r, ok := reps[e]
+	if !ok {
+		return false
+	}
+	if f.CanSet() {
+		f.Set(reflect.ValueOf(r))
+	}
+	return true
+}
+
+func descendNode(v reflect.Value, reps map[syntax.Expr]syntax.Expr, innerFirst bool) {
+	if v.Kind() != reflect.Pointer || v.IsNil() {
+		return
+	}
+	if _, ok := v.Interface().(syntax.Node); !ok {
+		return
+	}
+	sweepExpr(v, reps, innerFirst)
+}
+
+func sweepPointer(f reflect.Value, reps map[syntax.Expr]syntax.Expr, innerFirst bool) {
+	if f.IsNil() {
+		return
+	}
+	n, ok := f.Interface().(syntax.Node)
+	if !ok || n == nil {
+		return
+	}
+	if _, leaf := n.(*syntax.BranchStmt); leaf {
+		return
+	}
+	if !innerFirst {
+		if e, ok := n.(syntax.Expr); ok {
+			if _, want := reps[e]; want {
 				return
 			}
 		}
+	}
+	sweepStructFields(f.Elem(), reps, innerFirst)
+}
+
+func sweepStructFields(v reflect.Value, reps map[syntax.Expr]syntax.Expr, innerFirst bool) {
+	if v.Kind() != reflect.Struct {
 		return
 	}
-	if st, ok := types2.Unalias(base).(*types2.Struct); ok && tupleStructShaped(st) {
+	typ := v.Type()
+	for i := range v.NumField() {
+		if !typ.Field(i).IsExported() && !v.Field(i).CanSet() {
+			continue
+		}
+		sweepExpr(v.Field(i), reps, innerFirst)
+	}
+}
+
+func tupleUnderlying(t types2.Type) types2.Type {
+	t = types2.Unalias(t)
+	if n, ok := t.(*types2.Named); ok {
+		return n.Underlying()
+	}
+	return t
+}
+
+func tupleSelectionName(t types2.Type, sel string) string {
+	if t == nil {
+		return sel
+	}
+	t = compositeUnderlying(t)
+	if tup, ok := t.(*types2.LogosTuple); ok {
+		for i := range tup.Len() {
+			if tup.Name(i) == sel || tupleLoweredName(tup.Name(i), i) == sel {
+				return tupleLoweredName(tup.Name(i), i)
+			}
+		}
+	}
+	if st, ok := t.(*types2.Struct); ok && tupleStructShaped(st) {
 		for i := range st.NumFields() {
 			if st.Field(i).Name() == sel {
-				return
+				return sel
 			}
 		}
 		want := "T_" + sel
 		for i := range st.NumFields() {
 			if st.Field(i).Name() == want {
-				fl.renameTupleSel(e, want)
-				return
+				return want
 			}
 		}
 	}
+	return sel
 }
 
-// renameTupleSel renames the selector to the lowered field.
+func (fl *fileLower) lowerTupleSelect(e *syntax.SelectorExpr) {
+	fl.renameTupleSel(e, tupleSelectionName(fl.pkg.info.TypeOf(e.X), e.Sel.Value))
+}
+
 func (fl *fileLower) renameTupleSel(e *syntax.SelectorExpr, want string) {
 	if e.Sel.Value == want {
 		return
@@ -600,8 +707,6 @@ func (fl *fileLower) renameTupleSel(e *syntax.SelectorExpr, want string) {
 	e.Sel.Value = want
 }
 
-// lowerTupleAssignStmt lowers tuple shapes in one assignment,
-// returning the replacement list or nil to keep the statement.
 func (fl *fileLower) lowerTupleAssignStmt(s *syntax.AssignStmt) []syntax.Stmt {
 	if s.Op != syntax.Def && s.Op != 0 {
 		return nil
@@ -612,7 +717,7 @@ func (fl *fileLower) lowerTupleAssignStmt(s *syntax.AssignStmt) []syntax.Stmt {
 		return nil
 	}
 	r := syntax.Unparen(rhs[0])
-	if call, ok := r.(*syntax.CallExpr); ok {
+	if call, ok := r.(*syntax.CallExpr); ok && fl.isMultiValueCall(call) {
 		return fl.lowerTuplePackStmt(s, lhs, call)
 	}
 	if len(lhs) == 1 {
@@ -625,9 +730,6 @@ func (fl *fileLower) lowerTupleAssignStmt(s *syntax.AssignStmt) []syntax.Stmt {
 	return fl.lowerTupleUnpackStmt(s, lhs, r)
 }
 
-// tupleAssignTarget reports the lowered names and types for a
-// single-target tuple literal: the declared variable type, else the
-// literal's own type.
 func (fl *fileLower) tupleAssignTarget(lhs syntax.Expr, lit *syntax.TupleLit) ([]string, []types2.Type) {
 	if nm, ok := syntax.Unparen(lhs).(*syntax.Name); ok {
 		if obj, ok := fl.pkg.info.Uses[nm]; ok {
@@ -652,8 +754,6 @@ func (fl *fileLower) tupleAssignTarget(lhs syntax.Expr, lit *syntax.TupleLit) ([
 	return fl.tupleTargetOfType(fl.pkg.info.TypeOf(lit))
 }
 
-// lowerTuplePackStmt lowers `t := f()` and `t = f()` over a
-// multi-value call into temporaries plus a composite.
 func (fl *fileLower) lowerTuplePackStmt(s *syntax.AssignStmt, lhs []syntax.Expr, call *syntax.CallExpr) []syntax.Stmt {
 	tup, ok := fl.pkg.info.TypeOf(call).(*types2.Tuple)
 	if !ok || tup.Len() < 2 || len(lhs) != 1 {
@@ -670,14 +770,14 @@ func (fl *fileLower) lowerTuplePackStmt(s *syntax.AssignStmt, lhs []syntax.Expr,
 		tempNames[i] = tupleTempKey(pos, i)
 		temps[i] = nameOf(pos, tempNames[i])
 	}
-	callSpan := fl.tupleCallSpan(call)
+	callSpan := fl.callBodySpan(call)
 	callText := fl.textOf(callSpan)
-	comp, compText := fl.tupleComposite(pos, names, types, tempNamesAsExpr(pos, tempNames), genList(tempNames))
+	comp, compText := fl.tupleComposite(pos, names, types, tempNodes(pos, tempNames), genList(tempNames))
 	parts := []otext{
 		gen(strings.Join(tempNames, ", ") + " := "),
 		callText,
 		gen("; "),
-		fl.textOf(span{fl.off(syntax.StartPos(s.Lhs)), fl.off(syntax.EndPos(s.Lhs))}),
+		fl.textOf(fl.exprListSpan(s.Lhs)),
 	}
 	if s.Op == syntax.Def {
 		parts = append(parts, gen(" := "))
@@ -692,18 +792,6 @@ func (fl *fileLower) lowerTuplePackStmt(s *syntax.AssignStmt, lhs []syntax.Expr,
 	return []syntax.Stmt{hoist, s}
 }
 
-// tempNamesAsExpr builds name expressions for temps.
-func tempNamesAsExpr(pos syntax.Pos, temps []string) []syntax.Expr {
-	out := make([]syntax.Expr, len(temps))
-	for i, tn := range temps {
-		out[i] = nameOf(pos, tn)
-	}
-	return out
-}
-
-// packTargetTypes reports the lowered names and element types for a
-// pack target: the declared variable type, else the call result names
-// and types. The blank identifier stays an upstream mismatch.
 func (fl *fileLower) packTargetTypes(lhs syntax.Expr, tup *types2.Tuple) ([]string, []types2.Type) {
 	if nm, ok := syntax.Unparen(lhs).(*syntax.Name); ok {
 		if nm.Value == "_" {
@@ -735,21 +823,14 @@ func (fl *fileLower) packTargetTypes(lhs syntax.Expr, tup *types2.Tuple) ([]stri
 	return names, types
 }
 
-// lowerTupleUnpackStmt lowers `a, b := t` and `a, b = t` over a single
-// tuple value into field accesses, binding non-trivial sources once. A
-// literal unpacks to its elements directly.
 func (fl *fileLower) lowerTupleUnpackStmt(s *syntax.AssignStmt, lhs []syntax.Expr, r syntax.Expr) []syntax.Stmt {
 	if lit, ok := r.(*syntax.TupleLit); ok {
 		if len(lit.Elems) != len(lhs) {
 			return nil
 		}
-		var texts []otext
-		for _, e := range lit.Elems {
-			texts = append(texts, fl.textOf(span{fl.off(syntax.StartPos(e)), fl.off(syntax.EndPos(e))}))
-		}
-		start := fl.off(syntax.StartPos(r))
-		end := extendPastComma(fl.src, fl.off(syntax.EndPos(r)))
-		fl.addT(start, end, joinO(texts, ", "))
+		split := fl.tupleSplit(lit.Pos(), len(lit.Elems))
+		start, end := extendParens(fl.src, fl.off(syntax.StartPos(r)), split.end)
+		fl.cutTupleLit(start, end, split, otext{}, otext{})
 		s.Rhs = listOf(s.Pos(), append([]syntax.Expr{}, lit.Elems...))
 		return nil
 	}
@@ -772,57 +853,48 @@ func (fl *fileLower) lowerTupleUnpackStmt(s *syntax.AssignStmt, lhs []syntax.Exp
 		return nil
 	}
 	tn := tupleTempKey(pos, 0)
-	rSpan := span{fl.off(syntax.StartPos(r)), fl.off(syntax.EndPos(r))}
-	if _, ok := r.(*syntax.CallExpr); ok {
-		rSpan = fl.tupleCallSpan(r.(*syntax.CallExpr))
-	}
-	rText := fl.textOf(rSpan)
-	reads := make([]syntax.Expr, len(lhs))
-	var texts []string
-	for i := range lhs {
-		reads[i] = selOf(pos, nameOf(pos, tn), elems[i])
-		texts = append(texts, tn+"."+elems[i])
-	}
-	parts := []otext{gen(tn + " := "), rText, gen("; "), fl.textOf(span{fl.off(syntax.StartPos(s.Lhs)), fl.off(syntax.EndPos(s.Lhs))})}
+	start, end := fl.tupleOperandSpan(r)
+	reads, texts := tupleReads(pos, tn, elems)
+	op := " = "
 	if s.Op == syntax.Def {
-		parts = append(parts, gen(" := "))
-	} else {
-		parts = append(parts, gen(" = "))
+		op = " := "
 	}
-	parts = append(parts, gen(strings.Join(texts, ", ")))
-	_, rEnd := extendParens(fl.src, rSpan.start, rSpan.end)
-	fl.addT(fl.off(syntax.StartPos(s)), rEnd, cat(parts...))
+	fl.add(fl.off(syntax.StartPos(s)), start, tn+" := ")
+	fl.addT(end, end, cat(gen("; "), fl.lazyText(fl.exprListSpan(s.Lhs)), gen(op+texts)))
 	hoist := defineOf(pos, []syntax.Expr{nameOf(pos, tn)}, []syntax.Expr{r})
 	s.Rhs = listOf(pos, reads)
 	return []syntax.Stmt{hoist, s}
 }
 
-// lowerTupleReturnStmt lowers `return t` and `return (1, 2)` over a
-// single tuple into field reads, hoisting non-trivial sources. A
-// literal returns its elements directly.
+func (fl *fileLower) recordArmResult(s *syntax.ReturnStmt, typ types2.Type) {
+	if fl.armResult == nil {
+		fl.armResult = make(map[*syntax.ReturnStmt]types2.Type)
+	}
+	fl.armResult[s] = typ
+}
+
 func (fl *fileLower) lowerTupleReturnStmt(s *syntax.ReturnStmt) []syntax.Stmt {
 	results := syntax.UnpackListExpr(s.Results)
 	if len(results) != 1 {
 		return nil
 	}
 	r := syntax.Unparen(results[0])
-	if _, ok := r.(*syntax.CallExpr); ok {
+	if call, ok := r.(*syntax.CallExpr); ok && fl.isMultiValueCall(call) {
 		return nil
 	}
 	pos := s.Pos()
-	if lit, ok := r.(*syntax.TupleLit); ok {
-		var texts []otext
-		for _, e := range lit.Elems {
-			texts = append(texts, fl.textOf(span{fl.off(syntax.StartPos(e)), fl.off(syntax.EndPos(e))}))
-		}
-		start := fl.off(syntax.StartPos(r))
-		end := extendPastComma(fl.src, fl.off(syntax.EndPos(r)))
-		fl.addT(start, end, joinO(texts, ", "))
+	if lit, ok := r.(*syntax.TupleLit); ok && fl.returnsArity(len(lit.Elems)) {
+		split := fl.tupleSplit(lit.Pos(), len(lit.Elems))
+		start, end := extendParens(fl.src, fl.off(syntax.StartPos(r)), split.end)
+		fl.cutTupleLit(start, end, split, otext{}, otext{})
 		s.Results = listOf(pos, append([]syntax.Expr{}, lit.Elems...))
 		return nil
 	}
+	if _, arm := fl.armResult[s]; arm {
+		return nil
+	}
 	elems, _ := fl.tupleTargetOfType(fl.pkg.info.TypeOf(results[0]))
-	if len(elems) == 0 {
+	if len(elems) == 0 || !fl.returnsArity(len(elems)) {
 		return nil
 	}
 	if _, ok := syntax.Unparen(r).(*syntax.Name); ok {
@@ -839,22 +911,15 @@ func (fl *fileLower) lowerTupleReturnStmt(s *syntax.ReturnStmt) []syntax.Stmt {
 		return nil
 	}
 	tn := tupleTempKey(pos, 0)
-	rText := fl.textOf(span{fl.off(syntax.StartPos(r)), fl.off(syntax.EndPos(r))})
-	fl.addT(fl.off(syntax.StartPos(s)), fl.off(syntax.StartPos(s)), cat(gen(tn+" := "), rText, gen("; ")))
+	start, end := fl.tupleOperandSpan(r)
+	reads, texts := tupleReads(pos, tn, elems)
+	fl.add(fl.off(syntax.StartPos(s)), start, tn+" := ")
+	fl.add(end, end, "; return "+texts)
 	hoist := defineOf(pos, []syntax.Expr{nameOf(pos, tn)}, []syntax.Expr{r})
-	reads := make([]syntax.Expr, len(elems))
-	var texts []string
-	for i := range elems {
-		reads[i] = selOf(pos, nameOf(pos, tn), elems[i])
-		texts = append(texts, tn+"."+elems[i])
-	}
 	s.Results = listOf(pos, reads)
-	start, end := extendParens(fl.src, fl.off(syntax.StartPos(r)), fl.off(syntax.EndPos(r)))
-	fl.add(start, end, strings.Join(texts, ", "))
 	return []syntax.Stmt{hoist, s}
 }
 
-// lowerTupleCallArgs lowers TupleLit arguments through parameter types.
 func (fl *fileLower) lowerTupleCallArgs(call *syntax.CallExpr) {
 	var targets []types2.Type
 	if sig := fl.callSig(call); sig != nil {
@@ -874,8 +939,6 @@ func (fl *fileLower) lowerTupleCallArgs(call *syntax.CallExpr) {
 	}
 }
 
-// lowerTupleCompositeElems lowers TupleLit elements through the
-// composite element, key, or field types.
 func (fl *fileLower) lowerTupleCompositeElems(comp *syntax.CompositeLit) {
 	ct := fl.pkg.info.TypeOf(comp)
 	lower := func(e syntax.Expr, names []string, types []types2.Type) {
@@ -936,7 +999,6 @@ func (fl *fileLower) lowerTupleCompositeElems(comp *syntax.CompositeLit) {
 	}
 }
 
-// bareTupleValue unwraps a key-value element to its value.
 func bareTupleValue(e syntax.Expr) syntax.Expr {
 	if kv, ok := e.(*syntax.KeyValueExpr); ok {
 		return kv.Value
@@ -944,7 +1006,6 @@ func bareTupleValue(e syntax.Expr) syntax.Expr {
 	return e
 }
 
-// tupleStructField reports the type of the struct field name.
 func tupleStructField(st *types2.Struct, name string) types2.Type {
 	for i := range st.NumFields() {
 		if st.Field(i).Name() == name {
@@ -954,14 +1015,11 @@ func tupleStructField(st *types2.Struct, name string) types2.Type {
 	return nil
 }
 
-// lowerTupleLitOwn lowers a TupleLit through its own type.
 func (fl *fileLower) lowerTupleLitOwn(lit *syntax.TupleLit) {
 	names, types := fl.tupleTargetOfType(fl.pkg.info.TypeOf(lit))
 	fl.lowerTupleLitTargeted(lit, names, types)
 }
 
-// lowerTupleLitTargeted lowers lit to a composite of the struct spelled
-// by names and types, defaulting to the literal's own type.
 func (fl *fileLower) lowerTupleLitTargeted(lit *syntax.TupleLit, names []string, types []types2.Type) {
 	if names == nil {
 		names, types = fl.tupleTargetOfType(fl.pkg.info.TypeOf(lit))
@@ -978,19 +1036,13 @@ func (fl *fileLower) lowerTupleLitTargeted(lit *syntax.TupleLit, names []string,
 		fl.lowerTupleNestedExprTargeted(e, subNames, subTypes)
 	}
 	pos := lit.Pos()
-	vals := make([]syntax.Expr, len(lit.Elems))
-	texts := make([]otext, len(lit.Elems))
-	for i, e := range lit.Elems {
-		vals[i] = e
-		texts[i] = fl.textOf(span{fl.off(syntax.StartPos(e)), fl.off(syntax.EndPos(e))})
-	}
-	comp, compText := fl.tupleComposite(pos, names, types, vals, texts)
-	fl.addT(fl.off(syntax.StartPos(lit)), extendPastComma(fl.src, fl.off(syntax.EndPos(lit))), compText)
-	replaceTupleExpr(fl.file, lit, comp)
+	split := fl.tupleSplit(pos, len(lit.Elems))
+	comp, head := fl.tupleLiteral(pos, names, types, slices.Clone(lit.Elems))
+	fl.cutTupleLit(fl.off(syntax.StartPos(lit)), split.end, split, gen(head), gen("}"))
+	fl.stashBodyType(fl.pkg.info.TypeOf(lit), lit, comp)
+	fl.replaceTuple(lit, comp)
 }
 
-// lowerTupleNestedExprTargeted lowers tuple forms under e, spelling
-// nested literals through their element targets.
 func (fl *fileLower) lowerTupleNestedExprTargeted(e syntax.Expr, names []string, types []types2.Type) {
 	switch e := syntax.Unparen(e).(type) {
 	case *syntax.TupleLit:
@@ -1002,19 +1054,24 @@ func (fl *fileLower) lowerTupleNestedExprTargeted(e syntax.Expr, names []string,
 	}
 }
 
-// tupleComposite builds the composite literal and its text for names
-// and types over vals with precomputed texts.
 func (fl *fileLower) tupleComposite(pos syntax.Pos, names []string, types []types2.Type, vals []syntax.Expr, texts []otext) (*syntax.CompositeLit, otext) {
+	comp, head := fl.tupleLiteral(pos, names, types, vals)
+	return comp, cat(gen(head), joinO(texts, ", "), gen("}"))
+}
+
+func (fl *fileLower) tupleLiteral(pos syntax.Pos, names []string, types []types2.Type, vals []syntax.Expr) (*syntax.CompositeLit, string) {
 	st, structText := fl.spellTupleStruct(pos, names, types)
 	comp := &syntax.CompositeLit{Type: st, Rbrace: pos}
 	comp.SetPos(pos)
 	comp.ElemList = vals
-	return comp, cat(gen(structText+"{"), joinO(texts, ", "), gen("}"))
+	return comp, structText + "{"
 }
 
-// spellTupleStruct spells `struct{ T0 ...; ... }` for names and types
-// and parses it back. It stops the compiler when a type has no Go
-// spelling, like the neighboring spell helpers.
+func (fl *fileLower) cutTupleLit(start, end int, split callSplit, head, tail otext) {
+	fl.addT(start, split.args[0].start, head)
+	fl.addT(split.args[len(split.args)-1].end, end, tail)
+}
+
 func (fl *fileLower) spellTupleStruct(pos syntax.Pos, names []string, types []types2.Type) (syntax.Expr, string) {
 	var text strings.Builder
 	text.WriteString("struct{ ")
@@ -1029,7 +1086,9 @@ func (fl *fileLower) spellTupleStruct(pos syntax.Pos, names []string, types []ty
 				base.Fatalf("logos: tuple element type %s has no Go spelling", types[i].String())
 			}
 		}
-		text.WriteString(names[i] + " " + spelled)
+		text.WriteString(names[i])
+		text.WriteString(" ")
+		text.WriteString(spelled)
 	}
 	text.WriteString(" }")
 	st, ok := typeExprAt(text.String(), pos)

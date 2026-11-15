@@ -1,0 +1,41 @@
+// run
+
+package main
+
+import "fmt"
+
+const small = map[int][]int{0: {10}, 1: {11}}
+const large = map[int][]int{
+	0: {20}, 1: {21}, 2: {22}, 3: {23}, 4: {24},
+	5: {25}, 6: {26}, 7: {27}, 8: {28},
+}
+
+func replace(m map[int][]int, key int) {
+	v := m[key] ?? []int{}
+	v[0] = 99
+	m[key] = []int{100}
+	m[100] = []int{101}
+}
+
+func main() {
+	var a map[int][]int = small
+	b := large
+	replace(a, 0)
+	replace(b, 8)
+	if (a[0] ?? []int{})[0] != 100 || (b[8] ?? []int{})[0] != 100 {
+		panic("materialized maps are not writable")
+	}
+	if (small[0] ?? []int{})[0] != 10 || (large[8] ?? []int{})[0] != 28 {
+		panic("materialization changed constant elements")
+	}
+	if len(small) != 2 || len(large) != 9 {
+		panic("materialization changed constant keys")
+	}
+	if (a[100] ?? []int{})[0] != 101 || (b[100] ?? []int{})[0] != 101 {
+		panic("replace did not insert key 100 with value 101")
+	}
+	if len(a) != len(small)+1 || len(b) != len(large)+1 {
+		panic("replace did not grow materialized maps by exactly one key")
+	}
+	fmt.Println("ok const map reference copy")
+}

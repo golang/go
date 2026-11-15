@@ -5,7 +5,6 @@
 package logos
 
 import (
-	"go/token"
 	"slices"
 
 	"cmd/compile/internal/syntax"
@@ -91,84 +90,28 @@ func (fl *fileLower) lowerPlatform() {
 		inner := fl.textOf(j.span)
 		pos := j.expr.Pos()
 		site := fl.newSite(pos, pos.Line())
-		j.set(callOf(pos, rtSel(pos, "MustNonNil"), []syntax.Expr{
+		wrapped := callOf(pos, rtSel(pos, "MustNonNil"), []syntax.Expr{
 			j.expr,
 			at(&syntax.Operation{Op: syntax.And, X: nameOf(pos, site)}, pos),
-		}))
+		})
+		j.set(wrapped)
+		fl.wrapSpan[wrapped] = j.span
 		fl.addT(j.span.start, j.span.end, cat(
 			gen(rtAlias+".MustNonNil("), inner, gen(", &"+site+")")))
 	}
 }
 
-// platformLeftmost finds the leftmost token of e, descending through
-// selectors, indexes, slices, assertions, calls, and binary operations,
-// whose Pos sits at an interior token.
-func platformLeftmost(e syntax.Expr) syntax.Pos {
-	for {
-		switch n := syntax.Unparen(e).(type) {
-		case *syntax.SelectorExpr:
-			e = n.X
-		case *syntax.IndexExpr:
-			e = n.X
-		case *syntax.SliceExpr:
-			e = n.X
-		case *syntax.AssertExpr:
-			e = n.X
-		case *syntax.CallExpr:
-			e = n.Fun
-		case *syntax.Operation:
-			if n.Y == nil {
-				return e.Pos()
-			}
-			e = n.X
-		default:
-			return e.Pos()
-		}
-	}
-}
-
 // platformSpan resolves the exact source span of a recorded expression.
+// The end is the expression's own end: the generic scanner stops before
+// a depth-zero brace, so a for-post check cannot swallow the loop body.
 func (fl *fileLower) platformSpan(e syntax.Expr) (span, bool) {
-	start := fl.off(platformLeftmost(e))
-	end, ok := platformEnd(fl.src, start)
-	if !ok || end <= start {
+	if ws, ok := fl.wrapSpan[syntax.Unparen(e)]; ok {
+		return ws, true
+	}
+	start := fl.exprStart(e)
+	end := fl.exprEndOf(e)
+	if end <= start {
 		return span{}, false
 	}
 	return span{start: start, end: end}, true
-}
-
-// platformEnd scans one complete expression from off, tracking bracket
-// depth, and stops before a depth-zero separator or closer, an
-// automatic semicolon, or EOF.
-func platformEnd(src []byte, off int) (int, bool) {
-	end := -1
-	depth := 0
-	scanSegment(src, off, len(src), func(t tok) bool {
-		if t.auto {
-			return false
-		}
-		if t.comment {
-			end = t.end
-			return true
-		}
-		switch t.kind {
-		case token.LPAREN, token.LBRACK, token.LBRACE:
-			depth++
-		case token.RPAREN, token.RBRACK, token.RBRACE:
-			if depth == 0 {
-				return false
-			}
-			depth--
-		case token.COMMA, token.SEMICOLON:
-			if depth == 0 {
-				return false
-			}
-		}
-		end = t.end
-		return true
-	})
-	if end < 0 {
-		return 0, false
-	}
-	return end, true
 }

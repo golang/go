@@ -67,6 +67,17 @@ const (
 	cpuid_RDTSCP = 1 << 27
 )
 
+const (
+	cpuidExt1ECX_LAHF  = 1 << 0
+	cpuidExt1ECX_LZCNT = 1 << 5
+)
+
+const (
+	cpuid1ECX_CX16  = 1 << 13
+	cpuid1ECX_MOVBE = 1 << 22
+	cpuid1ECX_F16C  = 1 << 29
+)
+
 var maxExtendedFunctionInformation uint32
 
 func doinit() {
@@ -130,6 +141,8 @@ func doinit() {
 	X86.HasSSE41 = isSet(ecx1, cpuid_SSE41)
 	X86.HasSSE42 = isSet(ecx1, cpuid_SSE42)
 	X86.HasPOPCNT = isSet(ecx1, cpuid_POPCNT)
+	X86.HasCX16 = isSet(ecx1, cpuid1ECX_CX16)
+	X86.HasMOVBE = isSet(ecx1, cpuid1ECX_MOVBE)
 	X86.HasAES = isSet(ecx1, cpuid_AES)
 
 	// OSXSAVE can be false when using older Operating Systems
@@ -161,6 +174,7 @@ func doinit() {
 	// See Intel 64 and IA-32 Architecture Software Developer’s Manual Volume 2
 	// Section 2.4 "AVX and SSE Instruction Exception Specification"
 	X86.HasFMA = isSet(ecx1, cpuid_FMA) && X86.HasAVX && X86.HasOSXSAVE
+	X86.HasF16C = isSet(ecx1, cpuid1ECX_F16C) && X86.HasAVX
 
 	if maxID < 7 {
 		osInit()
@@ -207,8 +221,10 @@ func doinit() {
 		return
 	}
 
-	_, _, _, edxExt1 := cpuid(0x80000001, 0)
+	_, _, ecxExt1, edxExt1 := cpuid(0x80000001, 0)
 	X86.HasRDTSCP = isSet(edxExt1, cpuid_RDTSCP)
+	X86.HasLAHF = isSet(ecxExt1, cpuidExt1ECX_LAHF)
+	X86.HasLZCNT = isSet(ecxExt1, cpuidExt1ECX_LZCNT)
 
 	doDerived = func() {
 		// Rather than carefully gating on fundamental AVX-512 features, we have

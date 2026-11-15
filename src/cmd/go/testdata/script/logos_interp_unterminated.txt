@@ -1,0 +1,23 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+! logos build .
+stderr 'expected .}. to close interpolation'
+
+-- go.mod --
+module example.com/frag
+
+go 1.27
+
+-- main.lgo --
+package main
+
+import "fmt"
+
+func msg(name string, n int) string {
+	return $"User {name} has {n"
+}
+
+func main() {
+	fmt.Println(msg("a", 1))
+}

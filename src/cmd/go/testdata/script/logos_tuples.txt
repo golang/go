@@ -1,4 +1,3 @@
-# M6-S5: tuples lower to structs; cross-package identity of (id int64, err error).
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
@@ -7,6 +6,7 @@ stdout '^1 <nil>$'
 stdout '^\{2 <nil>\}$'
 stdout '^7 <nil>$'
 stdout '^42 <nil>$'
+stdout '^9 <nil>$'
 
 -- go.mod --
 module example.com/tuples
@@ -31,6 +31,8 @@ func main() {
 	fmt.Println(n.id, n.err)
 	fmt.Println(pair.Show((42, nil)))
 	fmt.Println(pair.Show(t))
+	var mine (id int64, err error) = (9, nil)
+	fmt.Println(pair.Show(mine))
 }
 
 -- pair/pair.lgo --

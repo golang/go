@@ -1,20 +1,14 @@
-# M0-S5: an explicit logos.toml cgo policy wins over CGO_ENABLED in
-# both directions, and Go modules keep upstream CGO_ENABLED handling.
-# Every phase sets CGO_ENABLED explicitly so phases stay hermetic.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
-# Default CC: a host compiler setting must not drive the build.
 env CC=
 
-# Explicit forbid stays enforced with CGO_ENABLED=1.
 cd forbid
 [cgo] env CGO_ENABLED=1
 [cgo] ! logos build .
 [cgo] stderr '\[restriction::cgo_usage\]'
 cd ..
 
-# Restricted keeps its allowlist with CGO_ENABLED=1.
 cd res
 [cgo] env CGO_ENABLED=1
 [cgo] logos build -o ok.bin ./ok
@@ -22,8 +16,6 @@ cd res
 [cgo] stderr '\[restriction::cgo_usage\] package example\.com/m/bad uses cgo and is not in cgo_allowlist'
 cd ..
 
-# Restricted keeps its allowlist with CGO_ENABLED=0: explicit wins the
-# other way too.
 cd res
 [cgo] env CGO_ENABLED=0
 [cgo] logos build -o ok.bin ./ok
@@ -31,32 +23,39 @@ cd res
 [cgo] stderr '\[restriction::cgo_usage\] package example\.com/m/bad uses cgo and is not in cgo_allowlist'
 cd ..
 
-# Explicit allow stays enabled with CGO_ENABLED=0.
 cd allow
 [cgo] env CGO_ENABLED=0
 [cgo] logos build .
 cd ..
 
-# No cgo key with CGO_ENABLED=0 stays disabled.
 cd nokey
 [cgo] env CGO_ENABLED=0
 [cgo] ! logos build .
 [cgo] stderr '\[restriction::cgo_usage\]'
 cd ..
+cd nokey
+[cgo] env CGO_ENABLED=1
+[cgo] logos build .
+cd ..
 
-# A Go module with no logos.toml keeps upstream handling: logos build
-# and go build agree.
 cd gom
 [cgo] env CGO_ENABLED=1
 [cgo] logos build .
 [cgo] go build .
 cd ..
 
-# A cgo key in a Go module's logos.toml has no effect: CGO_ENABLED=1
-# still builds its cgo package under logos build.
 cd goign
 [cgo] env CGO_ENABLED=1
 [cgo] logos build .
+cd ..
+
+# Unset CGO_ENABLED on a Go-only module: logos keeps the upstream default.
+cd godefault
+env CGO_ENABLED=
+[cgo] go env CGO_ENABLED
+[cgo] cp stdout $WORK/go-cgo-default.txt
+[cgo] logos env CGO_ENABLED
+[cgo] cmp stdout $WORK/go-cgo-default.txt
 cd ..
 
 -- forbid/go.mod --
@@ -189,3 +188,15 @@ import "C"
 import "fmt"
 
 func main() { fmt.Println("goign:", C.answer()) }
+
+-- godefault/go.mod --
+module example.com/godefault
+
+go 1.27
+
+-- godefault/main.go --
+package main
+
+import "fmt"
+
+func main() { fmt.Println("godefault") }

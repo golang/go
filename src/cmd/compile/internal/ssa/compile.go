@@ -486,7 +486,6 @@ var passes = [...]pass{
 	{name: "check bce", fn: checkbce},
 	{name: "dse", fn: dse},
 	{name: "memcombine", fn: memcombine},
-	{name: "logos load barrier", fn: logosLoadBarrier, required: true},
 	{name: "writebarrier", fn: writebarrier, required: true}, // expand write barrier ops
 	{name: "insert resched checks", fn: insertLoopReschedChecks,
 		disabled: !buildcfg.Experiment.PreemptibleLoops}, // insert resched checks in loops.

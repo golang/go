@@ -1,0 +1,31 @@
+# test/logos/run/wasm_loop_preempt.lgo is build-tagged js && wasm, so
+# testdir skips it on every host; this script is its committed runner.
+# A logos build for js/wasm defaults GOEXPERIMENT to include
+# preemptibleloops and injects -d=logosloopstride=4096
+# (work/logos_stride.go), the same flags the fixture's // run line
+# carries, so a plain logos build reproduces the testdir invocation.
+# The wasm binary then runs under the tree's node wrapper and must
+# print exactly the fixture's .out verdict.
+
+[!exec:node] skip 'node is required to run js/wasm binaries'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOOS=js
+env GOARCH=wasm
+
+cp $GOROOT/test/logos/run/wasm_loop_preempt.lgo preempt/main.lgo
+
+cd preempt
+logos build -o ../preempt.wasm .
+cd ..
+
+exec $GOROOT/lib/wasm/go_js_wasm_exec preempt.wasm
+cmp stdout $GOROOT/test/logos/run/wasm_loop_preempt.out
+env GOOS=
+env GOARCH=
+
+-- preempt/go.mod --
+module example.com/wasmpreempt
+
+go 1.27

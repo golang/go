@@ -1,0 +1,5 @@
+ok option-param-value
+ok option-param-absent
+ok option-inferred-as-type-argument
+ok tuple-of-type-parameters
+ok tuple-inferred-as-type-argument

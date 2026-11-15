@@ -1,0 +1,53 @@
+// errorcheck
+
+package p
+
+type box struct {
+	M map[string]int
+	N int
+}
+
+type wrap struct {
+	In box
+	K  int
+}
+
+type pt struct{ X, Y int }
+
+func (b *box) Peek() int { return b.N }
+
+func (b *box) Set() { b.N = 1 }
+
+func (p *pt) PeekX() int { return p.X }
+
+func (p *pt) SetX(x int) { p.X = x }
+
+const cfg = box{M: map[string]int{"a": 1}, N: 7}
+
+const w = wrap{In: box{M: map[string]int{"a": 1}, N: 7}}
+
+const P = pt{1, 2}
+
+const L = []pt{{1, 2}}
+
+func allowReadonlyPointerMethods() int {
+	return cfg.Peek() + w.In.Peek() + P.PeekX() + L[0].PeekX() + cfg.LatePeek() + P.LatePeekX()
+}
+
+func rejectMutatingPointerMethods() {
+	cfg.Set()    // ERROR "const_view_mutation"
+	w.In.Set()   // ERROR "const_view_mutation"
+	P.SetX(1)    // ERROR "const_view_mutation"
+	L[0].SetX(1) // ERROR "const_view_mutation"
+	cfg.LateSet() // ERROR "const_view_mutation"
+}
+
+func rejectPlainValueStores() {
+	P.X = 9 // ERROR "\[correctness::const_view_mutation\]"
+}
+
+func (b *box) LatePeek() int { return b.N }
+
+func (b *box) LateSet() { b.N = 2 }
+
+func (p *pt) LatePeekX() int { return p.X }

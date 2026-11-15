@@ -391,9 +391,6 @@ func (p *pageAlloc) grow(base, size uintptr) {
 	// range inUse because grow only ever adds never-used memory
 	// regions to the page allocator.
 	p.inUse.add(makeAddrRange(base, limit))
-	if logosZgcCommitLedgerDebug && !p.test {
-		logosZgcCommitLedgerAssertGrant(base, limit-base, "palloc-grow")
-	}
 
 	// A grow operation is a lot like a free operation, so if our
 	// chunk ends up below p.searchAddr, update p.searchAddr to the
@@ -923,9 +920,6 @@ func (p *pageAlloc) alloc(npages uintptr) (addr uintptr, scav uintptr) {
 Found:
 	// Go ahead and actually mark the bits now that we have an address.
 	scav = p.allocRange(addr, npages)
-	if logosZgcCommitLedgerDebug && !p.test {
-		logosZgcCommitLedgerAssertGrant(addr, npages*pageSize, "pagealloc")
-	}
 
 	// If we found a higher searchAddr, we know that all the
 	// heap memory before that searchAddr in an offset address space is

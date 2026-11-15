@@ -1,0 +1,75 @@
+// run
+
+package main
+
+import (
+	"bytes"
+	"comptime"
+	"fmt"
+	"io"
+	"strconv"
+)
+
+func EncodeSwitch[T any](buf []byte, items []T) ([]byte, error) {
+	const switch T {
+	case int64:
+		for _, v := range items {
+			buf = strconv.AppendInt(buf, v, 10)
+		}
+		return buf, nil
+	case io.WriterTo:
+		var b bytes.Buffer
+		for _, v := range items {
+			v.WriteTo(&b)?
+		}
+		return append(buf, b.Bytes()...), nil
+	}
+	const if comptime.IsStruct[T]() {
+		buf = append(buf, 'S')
+	}
+	return buf, nil
+}
+
+type Word struct {
+	S string
+}
+
+func (w Word) WriteTo(dst io.Writer) (int64, error) {
+	n, err := dst.Write([]byte(w.S))
+	return int64(n), err
+}
+
+type Point struct {
+	X int
+	Y int
+}
+
+func check(name, want string) func([]byte, error) {
+	return func(got []byte, gotErr error) {
+		if gotErr != nil || string(got) != want {
+			fmt.Println("FAIL", name, "got", string(got), gotErr, "want", want)
+			return
+		}
+		fmt.Println("ok", name)
+	}
+}
+
+func main() {
+	want := []byte("nums:")
+	for _, v := range []int64{1, 2, 3} {
+		want = strconv.AppendInt(want, v, 10)
+	}
+	check("exact", string(want))(EncodeSwitch([]byte("nums:"), []int64{1, 2, 3}))
+
+	var wb bytes.Buffer
+	for _, w := range []Word{{"a"}, {"b"}} {
+		wb.WriteString(w.S)
+	}
+	check("iface", "words:"+wb.String())(EncodeSwitch([]byte("words:"), []Word{{"a"}, {"b"}}))
+
+	check("struct-default", "point:S")(EncodeSwitch([]byte("point:"), []Point{{1, 2}}))
+
+	check("plain-default", "keep:")(EncodeSwitch([]byte("keep:"), []string{"x", "y"}))
+
+	check("iface-typed-T", "wi:ab")(EncodeSwitch([]byte("wi:"), []io.WriterTo{Word{"a"}, Word{"b"}}))
+}

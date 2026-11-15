@@ -2,23 +2,6 @@
 
 package jsonunion
 
-// M11-S4 union JSON fixture (SPEC Sec 12.1, Sec 12.2, T-Sec12, T-203.1).
-// Anchor: Tony Hoare, Edsger W. Dijkstra
-//
-// Closed union marshaling and unmarshaling:
-// 1. A closed-union value marshals to its dynamic member's static bytes.
-// 2. Unmarshal tries members in declaration order into fresh scratch values.
-// 3. Exactly one success assigns the target.
-// 4. Ambiguity returns an error naming the union and all member names; it is
-//    neither MissingFieldError nor a Scanner syntax error.
-// 5. Failed trials (both 0-match and ambiguous >1-match) leave the target
-//    untouched, preserving pre-existing values.
-// 6. Pointer members allocate fresh scratch per trial, never corrupting target
-//    pointees on trial failure.
-// 7. A member with an unmodeled field round-trips through its per-field
-//    reflective fallback.
-// 8. JSON null leaves the union field absent (nil).
-
 import (
 	"bytes"
 	"encoding/json"
@@ -30,7 +13,6 @@ import (
 	"logos/rt"
 )
 
-// Closed union over two tagged struct members.
 type Shape interface {
 	Circle | Square
 }
@@ -43,8 +25,6 @@ type Square struct {
 	S int64 `json:"s"`
 }
 
-// Method-less mirror types for reflective oracle comparison.
-// An open interface field (NoGen any) disqualifies the type from static methods.
 type CircleMirror struct {
 	R     int64 `json:"r"`
 	NoGen any   `json:"-"`
@@ -64,7 +44,6 @@ type ShapeHolderMirror struct {
 	NoGen any `json:"-"`
 }
 
-// Overlapping union: both Alpha and Beta accept {"id":1}.
 type OverlapUnion interface {
 	Alpha | Beta
 }
@@ -81,8 +60,6 @@ type OverlapHolder struct {
 	Item OverlapUnion `json:"item"`
 }
 
-// Pointer-term closed union (*Circle | *Square): proves scratch allocation
-// freshness for pointer members.
 type PtrShape interface {
 	*Circle | *Square
 }
@@ -91,7 +68,6 @@ type PtrShapeHolder struct {
 	Item PtrShape `json:"item"`
 }
 
-// Pointer field union: verifies scratch allocation isolation for struct fields.
 type PtrMemberA struct {
 	Val *int64 `json:"val"`
 	Tag string `json:"tag"`
@@ -110,7 +86,6 @@ type PtrHolder struct {
 	Item PtrUnion `json:"item"`
 }
 
-// Union member with an unmodeled field (map[string]string falls back to reflection).
 type FallbackMember struct {
 	Name string            `json:"name"`
 	Data map[string]string `json:"data"`
@@ -140,8 +115,6 @@ func mustUnmarshal(t *testing.T, data []byte, dst any) {
 	}
 }
 
-// TestUnionMarshal verifies S1: a closed-union value marshals to its dynamic
-// member's static bytes, matching both the member's MarshalJSON and reflective oracle.
 func TestUnionMarshal(t *testing.T) {
 	var v Shape = Circle{R: 3}
 	gotTop := mustMarshal(t, v)
@@ -176,8 +149,67 @@ func TestUnionMarshal(t *testing.T) {
 	}
 }
 
-// TestUnionTrialOrder verifies S4: unmarshal tries members in declaration order,
-// and a document accepted by exactly one member is assigned.
+type Tagged string
+
+func (v *Tagged) UnmarshalJSON(b []byte) error {
+	var s string
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+	*v = Tagged(s)
+	return nil
+}
+
+type Rank int64
+
+func (v *Rank) UnmarshalJSON(b []byte) error {
+	var n int64
+	if err := json.Unmarshal(b, &n); err != nil {
+		return err
+	}
+	*v = Rank(n)
+	return nil
+}
+
+type MemberKinds interface {
+	Circle | *Square | Tagged | Rank
+}
+
+type MemberKindsHolder struct {
+	Item MemberKinds `json:"item"`
+}
+
+func TestUnionMarshalEqualsMemberBytes(t *testing.T) {
+	sq := &Square{S: 4}
+	tag := Tagged("a<b>&\u2028\u2029\xff\"\\")
+	cases := []struct {
+		name   string
+		item   MemberKinds
+		member any
+	}{
+		{"struct", Circle{R: 3}, Circle{R: 3}},
+		{"pointer", sq, sq},
+		{"string", tag, tag},
+		{"integer", Rank(-7), Rank(-7)},
+		{"nil", nil, nil},
+	}
+	for _, c := range cases {
+		want := append(append([]byte(`{"item":`), mustMarshal(t, c.member)...), '}')
+		h := MemberKindsHolder{Item: c.item}
+		if got := mustMarshal(t, h); !bytes.Equal(got, want) {
+			t.Errorf("%s: json.Marshal got %s, want %s", c.name, got, want)
+		}
+		direct, err := h.MarshalJSON()
+		if err != nil {
+			t.Errorf("%s: MarshalJSON: %v", c.name, err)
+			continue
+		}
+		if !bytes.Equal(direct, want) {
+			t.Errorf("%s: MarshalJSON got %s, want %s", c.name, direct, want)
+		}
+	}
+}
+
 func TestUnionTrialOrder(t *testing.T) {
 	var hSquare ShapeHolder
 	mustUnmarshal(t, []byte(`{"item":{"s":7}}`), &hSquare)
@@ -198,8 +230,6 @@ func TestUnionTrialOrder(t *testing.T) {
 	if ci.R != 11 {
 		t.Fatalf("expected Circle.R = 11, got %d", ci.R)
 	}
-	// SPEC sec 12.2: unknown fields are ignored. An extra unknown key must not
-	// reject the otherwise-matching member — {"s":7,"extra":true} is Square.
 	var hSquareExtra ShapeHolder
 	mustUnmarshal(t, []byte(`{"item":{"s":7,"extra":true}}`), &hSquareExtra)
 	sqX, ok := hSquareExtra.Item.(Square)
@@ -211,8 +241,47 @@ func TestUnionTrialOrder(t *testing.T) {
 	}
 }
 
-// TestUnionAmbiguityError verifies S6: overlapping documents accepted by multiple
-// members return an ambiguity error naming the union and member names.
+func TestUnionSiblingKeyDisqualifies(t *testing.T) {
+	var h ShapeHolder
+	err := json.Unmarshal([]byte(`{"item":{"r":1,"s":2}}`), &h)
+	if err == nil {
+		t.Fatal("expected trial error, got nil")
+	}
+	var trialErr rt.UnionTrialError
+	if !errors.As(err, &trialErr) {
+		t.Fatalf("expected rt.UnionTrialError, got %T: %v", err, err)
+	}
+	if trialErr.Matched != 0 {
+		t.Fatalf("expected Matched 0, got %d", trialErr.Matched)
+	}
+}
+func TestUnionZeroMatchNamesMembers(t *testing.T) {
+	var h ShapeHolder
+	err := json.Unmarshal([]byte(`{"item":{"r":1,"s":2}}`), &h)
+	if err == nil {
+		t.Fatal("expected trial error, got nil")
+		return
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "Shape") {
+		t.Fatalf("zero-match error %q must name union Shape", msg)
+		return
+	}
+	if !strings.Contains(msg, "Circle") || !strings.Contains(msg, "Square") {
+		t.Fatalf("zero-match error %q must name members Circle and Square", msg)
+		return
+	}
+	var trialErr rt.UnionTrialError
+	if !errors.As(err, &trialErr) {
+		t.Fatalf("expected rt.UnionTrialError, got %T: %v", err, err)
+		return
+	}
+	if trialErr.Matched != 0 {
+		t.Fatalf("expected Matched 0, got %d", trialErr.Matched)
+		return
+	}
+}
+
 func TestUnionAmbiguityError(t *testing.T) {
 	var oh OverlapHolder
 	err := json.Unmarshal([]byte(`{"item":{"id":1}}`), &oh)
@@ -247,8 +316,6 @@ func TestUnionAmbiguityError(t *testing.T) {
 	}
 }
 
-// TestUnionFailedTrialsLeaveTargetUntouched verifies S5 and S7: pre-filled
-// destinations remain byte-identical after failed trials (ambiguous or 0-match).
 func TestUnionFailedTrialsLeaveTargetUntouched(t *testing.T) {
 	oh := OverlapHolder{Item: Alpha{ID: 42}}
 	err := json.Unmarshal([]byte(`{"item":{"id":1}}`), &oh)
@@ -275,9 +342,6 @@ func TestUnionFailedTrialsLeaveTargetUntouched(t *testing.T) {
 	}
 }
 
-// TestUnionPointerMembersFresh verifies S5/S7 for pointer-term members:
-// failed trials leave pre-filled pointer target untouched, and successful
-// trials allocate fresh pointer members.
 func TestUnionPointerMembersFresh(t *testing.T) {
 	cOrig := Circle{R: 50}
 	psh := PtrShapeHolder{Item: &cOrig}
@@ -304,8 +368,6 @@ func TestUnionPointerMembersFresh(t *testing.T) {
 	}
 }
 
-// TestUnionPointerFieldsFresh verifies S5/S7 for struct members with pointer fields:
-// failed trials do not mutate pointees, and successful trials allocate fresh pointers.
 func TestUnionPointerFieldsFresh(t *testing.T) {
 	var origVal int64 = 100
 	ph := PtrHolder{Item: PtrMemberA{Val: &origVal, Tag: "orig"}}
@@ -341,8 +403,6 @@ func TestUnionPointerFieldsFresh(t *testing.T) {
 	}
 }
 
-// TestUnionFallbackMemberRoundTrip verifies that a union member with an
-// unmodeled field round-trips through its per-field reflective fallback.
 func TestUnionFallbackMemberRoundTrip(t *testing.T) {
 	fh := FallbackHolder{
 		Item: FallbackMember{
@@ -358,11 +418,105 @@ func TestUnionFallbackMemberRoundTrip(t *testing.T) {
 	}
 }
 
-// TestUnionNullLeavesFieldAbsent verifies that JSON null leaves a union field absent (nil).
 func TestUnionNullLeavesFieldAbsent(t *testing.T) {
 	sh := ShapeHolder{Item: Circle{R: 12}}
 	mustUnmarshal(t, []byte(`{"item":null}`), &sh)
 	if sh.Item != nil {
 		t.Fatalf("expected nil union field after null, got %#v", sh.Item)
+	}
+}
+
+var anythingCalls int
+
+type Anything string
+
+func (a Anything) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + string(a) + `"`), nil
+}
+
+func (a *Anything) UnmarshalJSON(b []byte) error {
+	anythingCalls++
+	*a = Anything(string(b))
+	return nil
+}
+
+type MixedUnion interface {
+	Circle | Anything
+}
+
+type MixedHolder struct {
+	Item MixedUnion `json:"item"`
+}
+
+var zeroCheckSawNonZero bool
+
+type ZeroCheck struct {
+	N int64 `json:"n"`
+}
+
+func (z *ZeroCheck) UnmarshalJSON(b []byte) error {
+	if *z != (ZeroCheck{}) {
+		zeroCheckSawNonZero = true
+	}
+	type plain ZeroCheck
+	return json.Unmarshal(b, (*plain)(z))
+}
+
+type Rejector struct {
+	R string `json:"r"`
+}
+
+type FreshUnion interface {
+	Rejector | ZeroCheck
+}
+
+type FreshHolder struct {
+	Item FreshUnion `json:"item"`
+}
+
+func TestUnionTrialsUseFreshScratch(t *testing.T) {
+	zeroCheckSawNonZero = false
+	var h FreshHolder
+	mustUnmarshal(t, []byte(`{"item":{"n":5}}`), &h)
+	zc, ok := h.Item.(ZeroCheck)
+	if !ok {
+		t.Fatalf("expected ZeroCheck, got %T: %#v", h.Item, h.Item)
+		return
+	}
+	if zc.N != 5 {
+		t.Fatalf("expected ZeroCheck.N = 5, got %d", zc.N)
+		return
+	}
+	if zeroCheckSawNonZero {
+		t.Fatal("ZeroCheck trial started from a non-zero scratch")
+		return
+	}
+	zeroCheckSawNonZero = false
+	var h2 FreshHolder
+	mustUnmarshal(t, []byte(`{"item":{"n":6}}`), &h2)
+	zc2, ok := h2.Item.(ZeroCheck)
+	if !ok || zc2.N != 6 {
+		t.Fatalf("expected ZeroCheck{N: 6}, got %T: %#v", h2.Item, h2.Item)
+		return
+	}
+	if zeroCheckSawNonZero {
+		t.Fatal("second ZeroCheck trial reused state from the first call")
+		return
+	}
+}
+
+func TestUnionNullRunsNoTrial(t *testing.T) {
+	anythingCalls = 0
+	h := MixedHolder{Item: Circle{R: 3}}
+	mustUnmarshal(t, []byte(`{"item":null}`), &h)
+	if anythingCalls != 0 {
+		t.Fatalf("null ran %d member trials, want none", anythingCalls)
+	}
+	if h.Item != nil {
+		t.Fatalf("expected nil union field after null, got %#v", h.Item)
+	}
+	mustUnmarshal(t, []byte(`{"item":"text"}`), &h)
+	if anythingCalls == 0 {
+		t.Fatal("a non-null value ran no member trial, so the call counter observes nothing")
 	}
 }

@@ -1,13 +1,3 @@
-# M5-S4: nested const-map storage (SPEC T-Sec9).
-# Anchor: Tony Hoare, David Parnas, John Carmack
-#
-# Offline cases for map-bearing const maps in both lowerings:
-# 1. Small (switch) and big (table) direct nested maps with copy isolation,
-#    sorted range, early break, materialized reuse, and lookup isolation.
-# 2. Nil versus empty nested maps stay distinct.
-# 3. Nested struct/slice/array values carrying maps, plus private named
-#    boxed values through an owner package, in both switch and table sizes.
-
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
@@ -45,8 +35,15 @@ stdout '^boxed-types: map\[int\]nest\.boxed map\[int\]nest\.boxed$'
 logos eject -o ../eject_out
 exists ../eject_out/main.go
 cd ../eject_out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
 go run .
 cmp stdout $WORK/want.txt
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
 cd ../consumer
 cd ..
 

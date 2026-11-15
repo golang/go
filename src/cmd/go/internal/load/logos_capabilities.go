@@ -6,29 +6,26 @@ package load
 
 import (
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fsys"
+	"cmd/go/internal/imports"
 	"cmd/go/internal/logos/capabilities"
 	"cmd/go/internal/modload"
 )
 
-// checkLogosLoaded runs the whole load-census hook for logos mode: module
-// purity (checkLogosModules) and the capabilities audit below. Both exits
-// of PackagesAndErrors call it, so file-argument and pattern builds are
-// policed identically.
 func checkLogosLoaded(ld *modload.Loader, all []*Package) {
 	checkLogosModules(all)
 	checkLogosCapabilities(ld, all)
 	noteLogosBuildModules(all)
 }
 
-// noteLogosBuildModules records the build-module census feeding the
-// link-time capabilities policy (M12-S2): every loaded module path is
-// recorded for capabilities.PolicyForLink, which filters the set to nested
-// roots. Standard-library and module-less packages contribute nothing.
 func noteLogosBuildModules(all []*Package) {
 	if !cfg.Logos {
 		return
@@ -40,19 +37,6 @@ func noteLogosBuildModules(all []*Package) {
 	}
 }
 
-// checkLogosCapabilities enforces the logos.toml [capabilities]
-// transitive_unsafe policy over the loaded package graph (M12-S1). It runs
-// after imports resolve, beside checkLogosModules, so the check sees every
-// module in the build. Plain go never reaches past the logos guard.
-//
-// A non-standard, non-main-module package that imports "unsafe" and matches
-// no transitive_unsafe_allowlist glob is a violation with the shortest
-// import chain from a main-module package. Severity deny attaches one error
-// carrying every violation to the first error-free main-module package;
-// warn prints each violation and lets the build continue; allow skips the
-// walk. Config parse failures are left to checkLogosConfig, which already
-// reported them; an unreadable policy fails closed with deny and no
-// allowlists.
 func checkLogosCapabilities(ld *modload.Loader, all []*Package) {
 	if !cfg.Logos {
 		return
@@ -72,14 +56,9 @@ func checkLogosCapabilities(ld *modload.Loader, all []*Package) {
 		if p.Internal.TestmainGo != nil {
 			continue
 		}
-		nodes = append(nodes, capabilities.Node{
-			ImportPath: p.ImportPath,
-			Imports:    p.Imports,
-			Goroot:     p.Goroot || p.Standard,
-			Main:       capIsMain(p),
-		})
+		nodes = append(nodes, capNode(p))
 	}
-	violations := capabilities.CheckUnsafe(sev, allowlist, nodes)
+	violations := capabilities.Check(sev, allowlist, nodes)
 	if len(violations) == 0 {
 		return
 	}
@@ -99,11 +78,83 @@ func checkLogosCapabilities(ld *modload.Loader, all []*Package) {
 	}
 }
 
-// capIsMain reports whether p is first-party for the audit: a main-module
-// package or the module-less command-line-arguments file list. Workspace
-// members count as main modules, so a workspace member importing "unsafe"
-// answers to its own module instead; use a replace-based dependency to
-// police a transitive import.
+func capNode(p *Package) capabilities.Node {
+	n := capabilities.Node{
+		ImportPath: p.ImportPath,
+		Imports:    p.Imports,
+		Goroot:     p.Goroot || p.Standard,
+		Main:       capIsMain(p),
+	}
+	if n.Goroot || n.Main {
+		return n
+	}
+	n.Imports = slices.Concat(p.Imports, capExcludedImports(p))
+	n.Asm = capHoldsAssembly(p)
+	return n
+}
+
+func capExcludedImports(p *Package) []string {
+	var out []string
+	for _, name := range p.IgnoredGoFiles {
+		if !capIsTestFile(name) {
+			out = append(out, capFileImports(filepath.Join(p.Dir, name))...)
+		}
+	}
+	return out
+}
+
+func capIsTestFile(name string) bool {
+	return strings.HasSuffix(strings.TrimSuffix(name, filepath.Ext(name)), "_test")
+}
+
+func capFileImports(file string) []string {
+	fsys.Trace("capRead", file)
+	f, err := fsys.Open(file)
+	if err != nil {
+		return nil
+	}
+	defer f.Close()
+	var quoted []string
+	head, err := imports.ReadImports(f, false, &quoted)
+	if err != nil || !imports.ShouldBuild(head, imports.AnyTags()) {
+		return nil
+	}
+	var out []string
+	for _, q := range quoted {
+		if path, err := strconv.Unquote(q); err == nil {
+			out = append(out, path)
+		}
+	}
+	return out
+}
+
+func capHoldsAssembly(p *Package) bool {
+	if len(p.SFiles) > 0 || len(p.SysoFiles) > 0 {
+		return true
+	}
+	return slices.ContainsFunc(p.IgnoredOtherFiles, func(name string) bool {
+		return capIsObject(name) || capIsAssembly(name) && capBuildsAnywhere(filepath.Join(p.Dir, name))
+	})
+}
+
+func capIsObject(name string) bool {
+	return filepath.Ext(name) == ".syso"
+}
+
+func capIsAssembly(name string) bool {
+	return slices.Contains([]string{".s", ".S", ".sx"}, filepath.Ext(name))
+}
+
+func capBuildsAnywhere(file string) bool {
+	f, err := fsys.Open(file)
+	if err != nil {
+		return true
+	}
+	defer f.Close()
+	head, err := io.ReadAll(io.LimitReader(f, 1<<16))
+	return err != nil || imports.ShouldBuild(head, imports.AnyTags())
+}
+
 func capIsMain(p *Package) bool {
 	if p.ImportPath == "command-line-arguments" {
 		return true
@@ -111,10 +162,6 @@ func capIsMain(p *Package) bool {
 	return p.Module != nil && p.Module.Main
 }
 
-// firstMainPackage returns the lexicographically first error-free
-// main-module package, or nil when every such package already has an
-// error. The capabilities diagnostic lands there so it never overwrites a
-// more specific error.
 func firstMainPackage(all []*Package) *Package {
 	var mains []*Package
 	for _, p := range all {

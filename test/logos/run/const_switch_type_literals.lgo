@@ -2,10 +2,21 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
-// M7-S4 const switch with literal case types (SPEC Sec 2.5, T-205):
-// empty-interface, func, and struct spellings keep their closers.
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 func kind[T any]() string {
 	const switch T {
@@ -28,8 +39,11 @@ func shape[T any]() string {
 }
 
 func main() {
-	fmt.Println(kind[func()]())
-	fmt.Println(kind[int]())
-	fmt.Println(shape[struct{ X int }]())
-	fmt.Println(shape[int]())
+	check("kind-func", kind[func()]() == "func", kind[func()](), "func")
+	check("kind-any", kind[int]() == "any", kind[int](), "any")
+	check("shape-struct", shape[struct{ X int }]() == "struct", shape[struct{ X int }](), "struct")
+	check("shape-any", shape[int]() == "any", shape[int](), "any")
+	if failed {
+		os.Exit(1)
+	}
 }

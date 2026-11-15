@@ -1,0 +1,40 @@
+// run
+
+package main
+
+import "fmt"
+
+const table = map[int][]int{
+	0: {20}, 1: {21}, 2: {22}, 3: {23}, 4: {24},
+	5: {25}, 6: {26}, 7: {27}, 8: {28},
+}
+
+func lookup(key int) []int {
+	return table[key] ?? []int{}
+}
+
+func main() {
+	for key := 0; key < 9; key++ {
+		v := lookup(key)
+		if len(v) != 1 || v[0] != 20+key {
+			panic("incorrect constant lookup")
+		}
+		v[0] = 99
+		if lookup(key)[0] != 20+key {
+			panic("lookup exposed writable constant storage")
+		}
+		if v := lookup(-key - 1); len(v) != 0 {
+			panic("negative absent key did not fall back to empty result")
+		}
+	}
+	if v := lookup(9); len(v) != 0 {
+		panic("absent key did not fall back to empty result")
+	}
+	miss := lookup(9)
+	miss = append(miss, 5)
+	miss[0] = 99
+	if v := lookup(9); len(v) != 0 {
+		panic("write through fallback result leaked into later lookup")
+	}
+	fmt.Println("ok const map reference lookup")
+}

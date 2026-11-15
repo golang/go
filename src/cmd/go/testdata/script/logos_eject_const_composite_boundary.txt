@@ -1,0 +1,67 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# A const declaration lowered to a package registry or a variable is cut
+# at its own tokens, including the separator that follows it: a block
+# comment before an explicit semicolon, a semicolon between declarations
+# on one line, and a block comment or line break in any gap of a use
+# change nothing. The module runs natively, ejects, and the ejected
+# module builds and runs with go and with go1.27.2 from $UPROOT1272 and
+# prints the same output.
+cd m
+logos run .
+stdout '^1 4 5 8 8 10 5$'
+stdout '^1 2 7$'
+stdout '^22$'
+cp stdout $WORK/native.txt
+logos eject -o out
+exists out/main.go
+cd out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+go build ./...
+go run .
+cmp stdout $WORK/native.txt
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
+exec $WORK/upstream$GOEXE
+cmp stdout $WORK/native.txt
+cd ..
+
+-- m/go.mod --
+module example.com/constcompositeboundary
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import "fmt"
+
+type Item struct{ N int }
+
+const func mkc(n int) []int { return []int{n, n + 1} }
+
+const C1 = []int{1, 2} /*c*/ ; const C2 = []int{3, 4} ; var v1 = 5
+const (
+	C3 = []int{5, 6} /*c*/ ; C4 = mkc(7) /*c*/ ;
+	C5 = mkc(8) /*c*/ ; C6 = []int{9, 10}
+)
+const MS = map[string]int{"a": 1} /*c*/ ; var vm = 2
+const It = Item{N: 3} /*c*/ ; var vi = 4
+
+func local() int {
+	const L1 = []int{1, 2} /*c*/ ; const L2 = mkc(3) /*c*/ ; var x = 4
+	const (
+		L3 = []int{5, 6} /*c*/ ; L4 = mkc(7)
+	)
+	return L1[0] + L2[1] + x + L3[1] + L4[0]
+}
+
+func main() {
+	fmt.Println(C1 /*c*/ [ /*c*/ 0 /*c*/ ], C2[1], C3[0], C4[1], C5[0], C6[1], v1)
+	fmt.Println(MS["a"] ?? 0, vm, It.N+vi)
+	fmt.Println(local())
+}

@@ -14,19 +14,12 @@ func init() {
 	bootstrapDirs = append(bootstrapDirs, "cmd/internal/logosowned")
 }
 
-// bootstrapLogosVendorModules lists the exact vendored x/mod packages
-// required by cmd/internal/logosowned (via golang.org/x/mod/module).
-// module imports semver and internal/lazyregexp; both use only the
-// standard library. Sources live at src/cmd/vendor/<module> and are
-// copied to unvendored bootstrap logical paths bootstrap/<module>.
 var bootstrapLogosVendorModules = []string{
 	"golang.org/x/mod/module",
 	"golang.org/x/mod/semver",
 	"golang.org/x/mod/internal/lazyregexp",
 }
 
-// bootstrapRewriteLogosImport rewrites an unvendored x/mod import to its
-// bootstrap logical path. Unknown paths are returned unchanged.
 func bootstrapRewriteLogosImport(path string) string {
 	for _, mod := range bootstrapLogosVendorModules {
 		if path == mod {
@@ -36,9 +29,6 @@ func bootstrapRewriteLogosImport(path string) string {
 	return path
 }
 
-// bootstrapCopyLogosVendor copies the vendored x/mod sources above into
-// unvendored bootstrap logical paths under base, rewriting imports with
-// the same bootstrapRewriteFile machinery as the main bootstrap walk.
 func bootstrapCopyLogosVendor(base string) {
 	for _, mod := range bootstrapLogosVendorModules {
 		srcRoot := pathf("%s/src/cmd/vendor/%s", goroot, mod)
@@ -76,8 +66,6 @@ func bootstrapCopyLogosVendor(base string) {
 	}
 }
 
-// relToDst maps "." (the module root itself) to "" so the root mkdir
-// targets dstRoot instead of dstRoot/..
 func relToDst(rel string) string {
 	if rel == "." {
 		return ""
@@ -85,8 +73,6 @@ func relToDst(rel string) string {
 	return rel
 }
 
-// installLogos copies the just installed go binary to logos in the same
-// directory, using the suffix for the current target.
 func installLogos() {
 	dir := gorootBin
 	suffix := exe

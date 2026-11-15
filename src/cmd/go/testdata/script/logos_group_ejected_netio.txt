@@ -1,0 +1,36 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+go test -v -count=1 -tags logosejected -run 'TestEjectedGroupCancelLeavesNetworkReadToComplete$' logos/rt
+stdout '--- PASS: TestEjectedGroupCancelLeavesNetworkReadToComplete'
+stdout '^ok\s+logos/rt'
+! stderr 'no tests to run'
+! stdout 'no tests to run'
+
+cp $GOROOT/test/logos/group_ejected_netio.lgo a/main.lgo
+mkdir outsider
+cp $GOROOT/test/logos/group_ejected_netio_outsider/launch.go outsider/launch.go
+cp $GOROOT/test/logos/group_ejected_netio_outsider/go.mod outsider/go.mod
+cd a
+logos eject -o ../out
+exists ../out/main.go
+! exists ../out/main.lgo
+cd ../out
+exists $UPROOT1273/bin/go
+exec $UPROOT1273/bin/go version
+stdout '^go version go1\.27\.3 '
+exec env -u GOROOT $UPROOT1273/bin/go run .
+cd ..
+
+-- go.mod --
+module example.com/groupejectednetio
+
+go 1.27
+
+-- a/go.mod --
+module example.com/groupejectedconsumer
+
+go 1.27
+
+require example.com/groupejectedoutsider v1.0.0
+
+replace example.com/groupejectedoutsider v1.0.0 => ../outsider

@@ -1,0 +1,32 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# A block segment lambda of a group stage takes every statement form the
+# checker accepts, natively and in the ejected module: select, switch with
+# an init, labeled and goto jumps, defer, a function literal with ?, a
+# nested stage, a nested block lambda, a switch expression, ??,
+# interpolation, a type switch, and a range over an integer.
+# chain_stage_block_forms.lgo prints one ok line per form.
+cp $GOROOT/test/logos/run/chain_stage_block_forms.lgo a/main.lgo
+
+cd a
+logos run .
+cmp stdout $GOROOT/test/logos/run/chain_stage_block_forms.out
+logos eject -o out
+exists out/main.go
+! exists out/main.lgo
+cd out
+go run .
+cmp stdout $GOROOT/test/logos/run/chain_stage_block_forms.out
+# SPEC 0.3: ejected output builds and runs with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/chain_stage_block_forms.out
+cd ../..
+
+-- a/go.mod --
+module example.com/chainstageblockforms
+
+go 1.27

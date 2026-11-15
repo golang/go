@@ -1,0 +1,191 @@
+# A variable-size make that reaches a cgo call argument or an
+# unsafe.Pointer conversion heaps its backing store; the same make without
+# those flows uses the stack buffer. A fixed-effective-capacity make keeps
+# ordinary escape behavior instead: it stays on the stack with no flow or
+# with only a dereferenced unsafe.Pointer, and it heaps only when ordinary
+# escape says so (a cgo call argument).
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env CGO_ENABLED=1
+
+cd m
+go test -count=1 .
+stdout '^ok'
+! stdout 'no tests to run'
+logos test -count=1 .
+stdout '^ok'
+! stdout 'no tests to run'
+go test -count=1 -O=3 .
+stdout '^ok'
+! stdout 'no tests to run'
+logos test -count=1 -O=3 .
+stdout '^ok'
+! stdout 'no tests to run'
+
+-- m/go.mod --
+module example.com/stackbufflows
+
+go 1.27
+
+-- m/flow.go --
+package stackbufflows
+
+/*
+#include <stdint.h>
+static uint8_t firstByte(uint8_t *p) { return p ? *p : 0; }
+*/
+import "C"
+
+import "unsafe"
+
+//go:noinline
+func control(n int) byte {
+	b := make([]byte, n)
+	b[0] = 7
+	return b[n-1]
+}
+
+//go:noinline
+func unsafeFlow(n int) byte {
+	b := make([]byte, n)
+	b[0] = 7
+	up := unsafe.Pointer(&b[0])
+	return *(*byte)(up)
+}
+
+//go:noinline
+func cgoFlow(n int) byte {
+	b := make([]byte, n)
+	b[0] = 7
+	return byte(C.firstByte((*C.uint8_t)(unsafe.Pointer(&b[0]))))
+}
+
+//go:noinline
+func cgoDirectFlow(n int) byte {
+	b := make([]byte, n)
+	b[0] = 7
+	return byte(C.firstByte((*C.uint8_t)(&b[0])))
+}
+
+//go:noinline
+func controlConst() byte {
+	b := make([]byte, 16)
+	b[0] = 7
+	return b[15]
+}
+
+//go:noinline
+func unsafeFlowConst() byte {
+	b := make([]byte, 16)
+	b[0] = 7
+	up := unsafe.Pointer(&b[0])
+	return *(*byte)(up)
+}
+
+//go:noinline
+func cgoFlowConst() byte {
+	b := make([]byte, 16)
+	b[0] = 7
+	return byte(C.firstByte((*C.uint8_t)(unsafe.Pointer(&b[0]))))
+}
+
+//go:noinline
+func cgoDirectFlowConst() byte {
+	b := make([]byte, 16)
+	b[0] = 7
+	return byte(C.firstByte((*C.uint8_t)(&b[0])))
+}
+
+//go:noinline
+func controlConstCap() byte {
+	b := make([]byte, 0, 16)
+	b = append(b, 7)
+	return b[0]
+}
+
+//go:noinline
+func unsafeFlowConstCap() byte {
+	b := make([]byte, 0, 16)
+	b = append(b, 7)
+	up := unsafe.Pointer(&b[0])
+	return *(*byte)(up)
+}
+
+//go:noinline
+func controlExplicitCap(n int) byte {
+	b := make([]byte, 0, n)
+	b = b[:1]
+	b[0] = 7
+	return b[0]
+}
+
+//go:noinline
+func unsafeFlowExplicitCap(n int) byte {
+	b := make([]byte, 0, n)
+	b = b[:1]
+	b[0] = 7
+	up := unsafe.Pointer(&b[0])
+	return *(*byte)(up)
+}
+
+//go:noinline
+func cgoFlowExplicitCap(n int) byte {
+	b := make([]byte, 0, n)
+	b = b[:1]
+	b[0] = 7
+	return byte(C.firstByte((*C.uint8_t)(unsafe.Pointer(&b[0]))))
+}
+-- m/flow_test.go --
+package stackbufflows
+
+import "testing"
+
+func TestStackBufferFlows(t *testing.T) {
+	const n = 16
+	if got := testing.AllocsPerRun(20, func() { _ = control(n) }); got != 0 {
+		t.Errorf("control make took %v allocations, want none (stack buffer)", got)
+	}
+	if got := testing.AllocsPerRun(20, func() { _ = unsafeFlow(n) }); got < 1 {
+		t.Errorf("unsafe.Pointer make took %v allocations, want the heap", got)
+	}
+	if got := testing.AllocsPerRun(20, func() { _ = cgoFlow(n) }); got < 1 {
+		t.Errorf("cgo make took %v allocations, want the heap", got)
+	}
+	if got := testing.AllocsPerRun(20, func() { _ = cgoDirectFlow(n) }); got < 1 {
+		t.Errorf("direct cgo make took %v allocations, want the heap", got)
+	}
+}
+
+func TestStackBufferFixedCapFlows(t *testing.T) {
+	if got := testing.AllocsPerRun(20, func() { _ = controlConst() }); got != 0 {
+		t.Errorf("fixed-cap control make took %v allocations, want none (ordinary escape)", got)
+	}
+	if got := testing.AllocsPerRun(20, func() { _ = unsafeFlowConst() }); got != 0 {
+		t.Errorf("fixed-cap unsafe.Pointer make took %v allocations, want none (ordinary escape)", got)
+	}
+	if got := testing.AllocsPerRun(20, func() { _ = controlConstCap() }); got != 0 {
+		t.Errorf("fixed-cap control make took %v allocations, want none (ordinary escape)", got)
+	}
+	if got := testing.AllocsPerRun(20, func() { _ = unsafeFlowConstCap() }); got != 0 {
+		t.Errorf("fixed-cap unsafe.Pointer make took %v allocations, want none (ordinary escape)", got)
+	}
+	if got := testing.AllocsPerRun(20, func() { _ = cgoFlowConst() }); got < 1 {
+		t.Errorf("fixed-cap cgo make took %v allocations, want the heap (ordinary escape)", got)
+	}
+	if got := testing.AllocsPerRun(20, func() { _ = cgoDirectFlowConst() }); got < 1 {
+		t.Errorf("fixed-cap direct cgo make took %v allocations, want the heap (ordinary escape)", got)
+	}
+}
+
+func TestStackBufferExplicitCapFlows(t *testing.T) {
+	const n = 16
+	if got := testing.AllocsPerRun(20, func() { _ = controlExplicitCap(n) }); got != 0 {
+		t.Errorf("explicit-cap control make took %v allocations, want none (stack buffer)", got)
+	}
+	if got := testing.AllocsPerRun(20, func() { _ = unsafeFlowExplicitCap(n) }); got < 1 {
+		t.Errorf("explicit-cap unsafe.Pointer make took %v allocations, want the heap", got)
+	}
+	if got := testing.AllocsPerRun(20, func() { _ = cgoFlowExplicitCap(n) }); got < 1 {
+		t.Errorf("explicit-cap cgo make took %v allocations, want the heap", got)
+	}
+}

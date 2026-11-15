@@ -1,0 +1,140 @@
+# Each vector tail must load exactly once through its masked loader:
+# one masked mnemonic per sum function (the tail), none in the body.
+# The double pattern fails when a second masked load appears.
+[!GOARCH:amd64] skip 'tail-once objdump needs amd64'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOEXPERIMENT=simd
+env GOAMD64=v1
+
+cd m
+logos build -o $WORK/exe .
+logos run .
+stdout '^sums ok$'
+
+go tool objdump -s '^main\.sumI32$' $WORK/exe
+stdout 'VPMASKMOVD'
+! stdout '(?s)VPMASKMOVD.*VPMASKMOVD'
+
+go tool objdump -s '^main\.sumU32$' $WORK/exe
+stdout 'VPMASKMOVD'
+! stdout '(?s)VPMASKMOVD.*VPMASKMOVD'
+
+go tool objdump -s '^main\.sumF32$' $WORK/exe
+stdout 'VPMASKMOVD'
+! stdout '(?s)VPMASKMOVD.*VPMASKMOVD'
+
+go tool objdump -s '^main\.sumU64$' $WORK/exe
+stdout 'VPMASKMOVQ'
+! stdout '(?s)VPMASKMOVQ.*VPMASKMOVQ'
+
+go tool objdump -s '^main\.sumI64$' $WORK/exe
+stdout 'VPMASKMOVQ'
+! stdout '(?s)VPMASKMOVQ.*VPMASKMOVQ'
+
+go tool objdump -s '^main\.sumF64$' $WORK/exe
+stdout 'VPMASKMOVQ'
+! stdout '(?s)VPMASKMOVQ.*VPMASKMOVQ'
+
+go tool objdump -s '^main\.sumAlias$' $WORK/exe
+stdout 'VPMASKMOVQ'
+! stdout '(?s)VPMASKMOVQ.*VPMASKMOVQ'
+
+go tool objdump -s '^main\.sumU16$' $WORK/exe
+stdout 'VMOVDQU16\.Z'
+! stdout '(?s)VMOVDQU16\.Z.*VMOVDQU16\.Z'
+
+go tool objdump -s '^main\.sumI16$' $WORK/exe
+stdout 'VMOVDQU16\.Z'
+! stdout '(?s)VMOVDQU16\.Z.*VMOVDQU16\.Z'
+
+go tool objdump -s '^main\.sumU8$' $WORK/exe
+stdout 'VMOVDQU8\.Z'
+! stdout '(?s)VMOVDQU8\.Z.*VMOVDQU8\.Z'
+
+go tool objdump -s '^main\.sumI8$' $WORK/exe
+stdout 'VMOVDQU8\.Z'
+! stdout '(?s)VMOVDQU8\.Z.*VMOVDQU8\.Z'
+
+-- m/go.mod --
+module example.com/tailonce
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import "fmt"
+
+//go:noinline
+func sumI32(xs []int32) int32 { return xs.sum() }
+
+//go:noinline
+func sumU32(xs []uint32) uint32 { return xs.sum() }
+
+//go:noinline
+func sumF32(xs []float32) float32 { return xs.sum() }
+
+//go:noinline
+func sumU64(xs []uint64) uint64 { return xs.sum() }
+
+//go:noinline
+func sumI64(xs []int64) int64 { return xs.sum() }
+
+//go:noinline
+func sumF64(xs []float64) float64 { return xs.sum() }
+
+type watt = float64
+
+//go:noinline
+func sumAlias(xs []watt) float64 { return xs.sum() }
+
+//go:noinline
+func sumU16(xs []uint16) uint16 { return xs.sum() }
+
+//go:noinline
+func sumI16(xs []int16) int16 { return xs.sum() }
+
+//go:noinline
+func sumU8(xs []uint8) uint8 { return xs.sum() }
+
+//go:noinline
+func sumI8(xs []int8) int8 { return xs.sum() }
+
+func main() {
+	if sumI32([]int32{1, 2, 3}) != 6 {
+		panic("i32")
+	}
+	if sumU32([]uint32{1, 2, 3}) != 6 {
+		panic("u32")
+	}
+	if sumF32([]float32{1, 2, 3}) != 6 {
+		panic("f32")
+	}
+	if sumU64([]uint64{1, 2, 3}) != 6 {
+		panic("u64")
+	}
+	if sumI64([]int64{1, 2, 3}) != 6 {
+		panic("i64")
+	}
+	if sumF64([]float64{1, 2, 3}) != 6 {
+		panic("f64")
+	}
+	if sumAlias([]watt{1, 2, 3}) != 6 {
+		panic("alias")
+	}
+	if sumU16([]uint16{1, 2, 3}) != 6 {
+		panic("u16")
+	}
+	if sumI16([]int16{1, 2, 3}) != 6 {
+		panic("i16")
+	}
+	if sumU8([]uint8{1, 2, 3}) != 6 {
+		panic("u8")
+	}
+	if sumI8([]int8{1, 2, 3}) != 6 {
+		panic("i8")
+	}
+	fmt.Println("sums ok")
+}

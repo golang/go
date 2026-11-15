@@ -1,12 +1,31 @@
 // run
-
 package main
 
-// Single-line grouped composite: the moved var must land after the
-// semicolon that terminates the group, not before it.
+import (
+	"fmt"
+	"os"
+)
 
-const ( rows = []map[string]int{{"a": 1}} ); var first = rows[0]["a"] ?? -1
+const ( rows = map[string]int{"a": 1} ); var first = rows["a"] ?? -1
+
+const firstConst = rows["a"] ?? -1
+
+var failed bool
+
+func check(name, got, want string) {
+	if got != want {
+		fmt.Println("FAIL", name, "got", got, "want", want)
+		failed = true
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 func main() {
-	println(first, len(rows))
+	check("semicolon-const-map-index", fmt.Sprint(first), "1")
+	check("semicolon-const-len", fmt.Sprint(len(rows)), "1")
+	check("semicolon-const-coalesce", fmt.Sprint(firstConst), "1")
+	if failed {
+		os.Exit(1)
+	}
 }

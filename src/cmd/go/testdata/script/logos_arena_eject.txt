@@ -1,0 +1,147 @@
+# M18-S7 unit D, REDTEAM #194: eject lowers the four logos/arena calls
+# to plain Go while keeping the evaluation order. A call whose region
+# argument is a side-effecting index expression goes through the closure
+# form, so the increment survives in the ejected program; a locally
+# opened region loses its only use and needs the blank use after its
+# declaration. A Go package of a second module keeps importing
+# logos/arena, so the support module must vendor it.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+
+# logos runs the module before eject.
+logos run .
+stdout '^3 7 42 1 3 9 2$'
+cp stdout $WORK/eject-stdout.txt
+
+# Snapshot the source tree; eject must never write into it (#112).
+mkdir $WORK/orig
+cp main.lgo $WORK/orig/main.lgo
+cp go.mod $WORK/orig/go.mod
+cp ../dep/go.mod $WORK/orig/dep-go.mod
+cp ../dep/heap/heap.go $WORK/orig/heap.go
+
+# Eject the main module.
+logos eject -o out
+exists out/main.go
+exists out/_logos_deps/example.com/arenadep@v0.0.0/heap/heap.go
+exists out/_logos_deps/rt/go.mod
+exists out/_logos_deps/rt/arena/arena.go
+
+# The ejected main drops every arena call: no arena call survives, the
+# opened region reads _logos_rt.Region{}, and the side-effecting region
+# arguments evaluate inside the closure form.
+! grep 'arena\.New\|arena\.Make\|arena\.Append\|arena\.Open' out/main.go
+grep 'return new\(node\)' out/main.go
+grep 'return make\(\[\]node' out/main.go
+grep -count=1 '_ = r' out/main.go
+grep '_logos_rt\.Region{}' out/main.go
+grep -count=3 'func\(_ _logos_rt\.Region' out/main.go
+grep -count=3 'regs\[bump\(\)\]' out/main.go
+grep -count=1 '_logos_e1 \.\.\.node' out/main.go
+grep -count=1 'append\(_logos_e0, _logos_e1\.\.\.\)' out/main.go
+
+# The copied Go package keeps its logos/arena import remapped, and the
+# support module serves it.
+grep -count=1 'gosuda/loGos/rt/arena' out/_logos_deps/example.com/arenadep@v0.0.0/heap/heap.go
+grep -count=1 'arena\.New' out/_logos_deps/example.com/arenadep@v0.0.0/heap/heap.go
+
+# The ejected tree runs under plain go with identical output.
+cd out
+go run .
+cmp stdout $WORK/eject-stdout.txt
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $WORK/eject-stdout.txt
+cd ..
+
+# The source tree is unchanged after the eject (#112).
+cmp main.lgo $WORK/orig/main.lgo
+cmp go.mod $WORK/orig/go.mod
+cmp ../dep/go.mod $WORK/orig/dep-go.mod
+cmp ../dep/heap/heap.go $WORK/orig/heap.go
+
+-- m/go.mod --
+module example.com/arenaeject
+
+go 1.27
+
+require example.com/arenadep v0.0.0
+
+replace example.com/arenadep v0.0.0 => ../dep
+
+-- m/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"logos/arena"
+
+	"example.com/arenadep/heap"
+)
+
+type node struct {
+	v int
+}
+
+var seq int
+
+var regs [2]arena.Region
+
+func bump() int {
+	seq++
+	return seq % 2
+}
+
+func locals() []node {
+	r := arena.Open()
+	s := arena.Append[node](r, nil, node{3})
+	return s
+}
+
+func rangeCell() {
+	for _, slot := range regs {
+		p := arena.New[node](slot)
+		p.v = 11
+		if p.v != 11 {
+			panic("rangeCell")
+		}
+	}
+}
+
+func main() {
+	rangeCell()
+	nodes := arena.Make[node](regs[bump()], 3)
+	nodes[1].v = 42
+	p := arena.New[node](regs[bump()])
+	p.v = 7
+	s := locals()
+	extra := []node{{5}}
+	others := []node{{6}}
+	u := arena.Append[node](regs[bump()], extra, others...)
+	fmt.Println(seq, p.v, nodes[1].v, len(s), s[0].v, *heap.Node(), len(u))
+}
+
+-- dep/go.mod --
+module example.com/arenadep
+
+go 1.27
+
+-- dep/heap/heap.go --
+package heap
+
+import "logos/arena"
+
+// Node allocates one int through logos/arena with a zero Region.
+func Node() *int {
+	r := arena.Region{}
+	p := arena.New[int](r)
+	*p = 9
+	return p
+}

@@ -1,0 +1,5 @@
+ok nested-store
+ok nested-store-get
+ok nested-box-as
+ok nested-pick-box
+ok nested-pick-store

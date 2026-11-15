@@ -197,6 +197,9 @@ func tcFor(n *ir.ForStmt) ir.Node {
 
 // tcGoDefer typechecks (normalizes) an OGO/ODEFER statement.
 func tcGoDefer(n *ir.GoDeferStmt) {
+	if isLogosDeferTry(n) && normalizeDeferTryCall(n, n.Call, n.PtrInit()) {
+		return
+	}
 	call := normalizeGoDeferCall(n.Pos(), n.Op(), n.Call, n.PtrInit())
 	call.GoDefer = true
 	n.Call = call
@@ -219,161 +222,17 @@ func normalizeGoDeferCall(pos src.XPos, op ir.Op, call ir.Node, init *ir.Nodes) 
 
 	if call, ok := call.(*ir.CallExpr); ok && call.Op() == ir.OCALLFUNC {
 		if sig := call.Fun.Type(); sig.NumParams()+sig.NumResults() == 0 {
-			return call // already in normal form
+			return call
 		}
 	}
 
-	// Create a new wrapper function without parameters or results.
 	wrapperFn := ir.NewClosureFunc(pos, pos, op, types.NewSignature(nil, nil, nil), ir.CurFunc, Target, 0)
 	wrapperFn.DeclareParams(true)
 	wrapperFn.SetWrapper(true)
+	spillGoDeferOperands(wrapperFn, call, init)
 
-	// argps collects the list of operands within the call expression
-	// that must be evaluated at the go/defer statement.
-	var argps []*ir.Node
-
-	var visit func(argp *ir.Node)
-	visit = func(argp *ir.Node) {
-		arg := *argp
-		if arg == nil {
-			return
-		}
-
-		// Recognize a few common expressions that can be evaluated within
-		// the wrapper, so we don't need to allocate space for them within
-		// the closure.
-		switch arg.Op() {
-		case ir.OLITERAL, ir.ONIL, ir.OMETHEXPR, ir.ONEW:
-			return
-		case ir.ONAME:
-			arg := arg.(*ir.Name)
-			if arg.Class == ir.PFUNC {
-				return // reference to global function
-			}
-		case ir.OADDR:
-			arg := arg.(*ir.AddrExpr)
-			if arg.X.Op() == ir.OLINKSYMOFFSET {
-				return // address of global symbol
-			}
-
-		case ir.OCONVNOP:
-			arg := arg.(*ir.ConvExpr)
-
-			// For unsafe.Pointer->uintptr conversion arguments, save the
-			// unsafe.Pointer argument. This is necessary to handle cases
-			// like fixedbugs/issue24491a.go correctly.
-			//
-			// TODO(mdempsky): Limit to static callees with
-			// //go:uintptr{escapes,keepalive}?
-			if arg.Type().IsUintptr() && arg.X.Type().IsUnsafePtr() {
-				visit(&arg.X)
-				return
-			}
-
-		case ir.OARRAYLIT, ir.OSLICELIT, ir.OSTRUCTLIT:
-			// TODO(mdempsky): For very large slices, it may be preferable
-			// to construct them at the go/defer statement instead.
-			list := arg.(*ir.CompLitExpr).List
-			for i, el := range list {
-				switch el := el.(type) {
-				case *ir.KeyExpr:
-					visit(&el.Value)
-				case *ir.StructKeyExpr:
-					visit(&el.Value)
-				default:
-					visit(&list[i])
-				}
-			}
-			return
-		}
-
-		argps = append(argps, argp)
-	}
-
-	visitList := func(list []ir.Node) {
-		for i := range list {
-			visit(&list[i])
-		}
-	}
-
-	switch call.Op() {
-	default:
-		base.Fatalf("unexpected call op: %v", call.Op())
-
-	case ir.OCALLFUNC:
-		call := call.(*ir.CallExpr)
-
-		// If the callee is a named function, link to the original callee.
-		if wrapped := ir.StaticCalleeName(call.Fun); wrapped != nil {
-			wrapperFn.WrappedFunc = wrapped.Func
-		}
-
-		visit(&call.Fun)
-		visitList(call.Args)
-
-	case ir.OCALLINTER:
-		call := call.(*ir.CallExpr)
-		argps = append(argps, &call.Fun.(*ir.SelectorExpr).X) // must be first for OCHECKNIL; see below
-		visitList(call.Args)
-
-	case ir.OAPPEND, ir.ODELETE, ir.OPRINT, ir.OPRINTLN, ir.ORECOVER:
-		call := call.(*ir.CallExpr)
-		visitList(call.Args)
-		visit(&call.RType)
-
-	case ir.OCOPY:
-		call := call.(*ir.BinaryExpr)
-		visit(&call.X)
-		visit(&call.Y)
-		visit(&call.RType)
-
-	case ir.OCLEAR, ir.OCLOSE, ir.OPANIC:
-		call := call.(*ir.UnaryExpr)
-		visit(&call.X)
-	}
-
-	if len(argps) != 0 {
-		// Found one or more operands that need to be evaluated upfront
-		// and spilled to temporary variables, which can be captured by
-		// the wrapper function.
-
-		stmtPos := base.Pos
-		callPos := base.Pos
-
-		as := ir.NewAssignListStmt(callPos, ir.OAS2, make([]ir.Node, len(argps)), make([]ir.Node, len(argps)))
-		for i, argp := range argps {
-			arg := *argp
-
-			pos := callPos
-			if ir.HasUniquePos(arg) {
-				pos = arg.Pos()
-			}
-
-			// tmp := arg
-			tmp := TempAt(pos, ir.CurFunc, arg.Type())
-			init.Append(Stmt(ir.NewDecl(pos, ir.ODCL, tmp)))
-			tmp.Defn = as
-			as.Lhs[i] = tmp
-			as.Rhs[i] = arg
-
-			// Rewrite original expression to use/capture tmp.
-			*argp = ir.NewClosureVar(pos, wrapperFn, tmp)
-		}
-		init.Append(Stmt(as))
-
-		// For "go/defer iface.M()", if iface is nil, we need to panic at
-		// the point of the go/defer statement.
-		if call.Op() == ir.OCALLINTER {
-			iface := as.Lhs[0]
-			init.Append(Stmt(ir.NewUnaryExpr(stmtPos, ir.OCHECKNIL, ir.NewUnaryExpr(iface.Pos(), ir.OITAB, iface))))
-		}
-	}
-
-	// Move call into the wrapper function, now that it's safe to
-	// evaluate there.
 	wrapperFn.Body = []ir.Node{call}
 
-	// Finally, construct a call to the wrapper.
 	return Call(call.Pos(), wrapperFn.OClosure, nil, false).(*ir.CallExpr)
 }
 

@@ -5,7 +5,6 @@
 package ssa
 
 import (
-	"cmd/compile/internal/base"
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -94,11 +93,6 @@ func needwb(v *Value, zeroes map[ID]ZeroRegion) bool {
 	if IsStackAddr(dst) {
 		return false // writes into the stack don't need write barrier
 	}
-	// Immix must retain destination lines even when both pointer values
-	// are known nil or global and the hybrid barrier could be elided.
-	if buildcfg.Experiment.LogosGCMoving && !IsGlobalAddr(dst) {
-		return true
-	}
 	// If we're writing to a place that might have heap pointers, we need
 	// the write barrier.
 	if mightContainHeapPointer(dst, t.Size(), v.MemoryArg(), zeroes) {
@@ -168,13 +162,7 @@ func needWBdst(ptr, mem *Value, zeroes map[ID]ZeroRegion) bool {
 // A sequence of WB stores for many pointer fields of a single type will
 // be emitted together, with a single branch.
 func writebarrier(f *Func) {
-	useWB := f.fe.UseWriteBarrier()
-	// moveOnly keeps bulk-move shading under the zgc load barrier
-	// while plain stores stay plain: struct moves still reach the
-	// write-barrier move path and shade their sources when marking
-	// runs, closing the load-barrier marking hole for copied words.
-	moveOnly := !useWB && base.LogosLoadBarrier
-	if !useWB && !moveOnly {
+	if !f.fe.UseWriteBarrier() {
 		return
 	}
 
@@ -185,7 +173,7 @@ func writebarrier(f *Func) {
 
 	var sb, sp, wbaddr, const0 *Value
 	var cgoCheckPtrWrite, cgoCheckMemmove *obj.LSym
-	var wbZero, wbMove, immixStore *obj.LSym
+	var wbZero, wbMove *obj.LSym
 	var stores, after []*Value
 	var sset, sset2 *sparseSet
 	var storeNumber []int32
@@ -213,9 +201,6 @@ func writebarrier(f *Func) {
 		for _, v := range b.Values {
 			switch v.Op {
 			case OpStore, OpMove, OpZero:
-				if moveOnly && v.Op != OpMove {
-					break
-				}
 				if needwb(v, zeroes) {
 					switch v.Op {
 					case OpStore:
@@ -242,9 +227,6 @@ func writebarrier(f *Func) {
 			wbaddr = f.Entry.NewValue1A(initpos, OpAddr, f.Config.Types.UInt32Ptr, wbsym, sb)
 			wbZero = f.fe.Syslook("wbZero")
 			wbMove = f.fe.Syslook("wbMove")
-			if buildcfg.Experiment.LogosGCMoving {
-				immixStore = f.fe.Syslook("logosImmixStoreBarrier")
-			}
 			if buildcfg.Experiment.CgoCheck2 {
 				cgoCheckPtrWrite = f.fe.Syslook("cgoCheckPtrWrite")
 				cgoCheckMemmove = f.fe.Syslook("cgoCheckMemmove")
@@ -373,180 +355,6 @@ func writebarrier(f *Func) {
 			}
 		}
 
-		// Under the moving experiment, record the destination lines of every
-		// pointer store in this sequence ahead of the write barrier region,
-		// chained to the memory that precedes the region.
-		//
-		// The mark must stay out of the region. Liveness walks back from the
-		// WBend marker through memory edges until it reaches the merge Phi, so
-		// any value chained between that Phi and the marker breaks the shape
-		// the end-mark matcher expects; a value placed after the marker in the
-		// same block hides the Phi from the walk in the same way. Emitting the
-		// calls in b leaves bThen, bEnd and the merge Phi exactly as this pass
-		// builds them.
-		//
-		// Ordering stays sound: the mark is in b, so it dominates the barrier
-		// region and the raw store that follows it, which is the helper's
-		// contract of marking the lines before the store publishes its value.
-		// The call is unconditional because immix needs the line mark in every
-		// collector mode; logosImmixStoreBarrier returns immediately when the
-		// immix collector is not selected. Adjacent fields of one base address
-		// are coalesced into a single range.
-		//
-		// wbEmpty reports whether the write barrier block built below
-		// would emit no memory value of its own: no buffer entries (every
-		// stored value is nil or global and every destination is known
-		// zeroed) and no wbZero/wbMove calls. It mirrors exactly the
-		// memThen assignments in the barrier-block construction below.
-		// In that case the merge Phi would take the same memory on both
-		// edges; such a Phi is eliminated before liveness, and the WBend
-		// memory chain then reaches a value in b instead of a Phi in the
-		// merge block, which markUnsafePoints rejects. An empty barrier
-		// region does nothing, so it is skipped entirely below: the marks
-		// stay in b and the stores run raw in b after them.
-		wbEmpty := true
-		wbCount := 0
-		if buildcfg.Experiment.LogosGCMoving {
-			for _, w := range stores {
-				switch w.Op {
-				case OpZeroWB, OpMoveWB:
-					wbEmpty = false
-					wbCount++
-				case OpStoreWB:
-					wbCount++
-					if val := w.Args[1]; (buildcfg.Experiment.LogosGen && logosStoresSlot(val)) || needWBsrc(val) || needWBdst(w.Args[0], w.Args[2], zeroes) {
-						wbEmpty = false
-					}
-				}
-			}
-		}
-		// immixStart is the index in b.Values of the first value the
-		// mark emission and the empty-region skip below create in b.
-		immixStart := len(b.Values)
-		if buildcfg.Experiment.LogosGCMoving {
-			for i := 0; i < len(stores); i++ {
-				w := stores[i]
-				if w.Op != OpStoreWB && w.Op != OpMoveWB && w.Op != OpZeroWB {
-					continue
-				}
-				dst := w.Args[0]
-				if IsGlobalAddr(dst) {
-					continue
-				}
-				base, off := dst, int64(0)
-				if dst.Op == OpOffPtr {
-					base, off = dst.Args[0], dst.AuxInt
-				}
-				size := w.Aux.(*types.Type).Size()
-				for i+1 < len(stores) {
-					next := stores[i+1]
-					if next.Op != OpStoreWB && next.Op != OpMoveWB && next.Op != OpZeroWB {
-						break
-					}
-					p := next.Args[0]
-					if p.Op != OpOffPtr || p.Args[0] != base || p.AuxInt != off+size {
-						break
-					}
-					size += next.Aux.(*types.Type).Size()
-					i++
-				}
-				var n *Value
-				// Fresh per-emission constant, not f.ConstInt*: the cached
-				// value is created in f.Entry and this pass's tail moves can
-				// relocate it into a successor that does not dominate this call.
-				if f.Config.PtrSize == 8 {
-					n = b.NewValue0I(w.Pos, OpConst64, f.Config.Types.Uintptr, size)
-				} else {
-					n = b.NewValue0I(w.Pos, OpConst32, f.Config.Types.Uintptr, int64(int32(size)))
-				}
-				mem = wbcall(w.Pos, b, immixStore, sp, mem, dst, n)
-			}
-		}
-		if buildcfg.Experiment.LogosGCMoving && wbEmpty {
-			// Skip the empty write barrier region: revert the WB stores
-			// to raw stores in b, chained after the immix marks, and put
-			// the sequence and the values after it back into b. No mark
-			// call leaves b, and no merge Phi or WBend is created.
-			for _, w := range stores {
-				switch w.Op {
-				case OpStoreWB:
-					if buildcfg.Experiment.CgoCheck2 {
-						mem = wbcall(w.Pos, b, cgoCheckPtrWrite, sp, mem, w.Args[0], w.Args[1])
-					}
-					w.Op = OpStore
-				case OpZeroWB:
-					w.Op = OpZero
-				case OpMoveWB:
-					src := w.Args[1]
-					if isVolatile(src) {
-						for _, c := range volatiles {
-							if src == c.src {
-								w.SetArg(1, c.tmp)
-								break
-							}
-						}
-					}
-					if buildcfg.Experiment.CgoCheck2 {
-						typ := reflectdata.TypeLinksym(w.Aux.(*types.Type))
-						taddr := b.NewValue1A(w.Pos, OpAddr, b.Func.Config.Types.Uintptr, typ, sb)
-						mem = wbcall(w.Pos, b, cgoCheckMemmove, sp, mem, taddr, w.Args[0], w.Args[1])
-					}
-					w.Op = OpMove
-				}
-				if w.Type.IsMemory() && w.MemoryArg() != nil {
-					w.SetArg(len(w.Args)-1, mem)
-					mem = w
-				}
-			}
-			nWBops -= wbCount
-			if nWBops == 0 {
-				// No earlier write barrier sequence remains in b, so
-				// the reverted stores can simply go back into b.
-				b.Values = append(b.Values, stores...)
-				b.Values = append(b.Values, after...)
-				continue
-			}
-			// An earlier write barrier sequence remains in b and the
-			// next pass over b would move the reverted stores into its
-			// merge block, where their memory chain (through the mark
-			// call in b) is unordered against that block's Phi chain.
-			// Move the reverted sequence and the values after it into
-			// a plain successor block instead, so the earlier expansion
-			// only ever moves values that precede this sequence.
-			bNext := f.NewBlock(b.Kind)
-			bNext.Pos = b.Pos
-			bNext.CopyControls(b)
-			bNext.Likely = b.Likely
-			for _, e := range b.Succs {
-				bNext.Succs = append(bNext.Succs, e)
-				e.b.Preds[e.i].b = bNext
-			}
-			b.Succs = b.Succs[:0]
-			b.AddEdgeTo(bNext)
-			b.Kind = BlockPlain
-			b.Likely = BranchUnknown
-			b.ResetControls()
-			// The calls created for this sequence (marks and cgo
-			// checks) must move with the reverted stores: interleaved
-			// per-store calls left in b would enter bNext at several
-			// points of their chain, and expand_calls requires a
-			// block to take its memory from a single external value.
-			created := b.Values[immixStart:]
-			b.Values = b.Values[:immixStart]
-			bNext.Values = append(bNext.Values, created...)
-			for _, w := range created {
-				w.Block = bNext
-			}
-			bNext.Values = append(bNext.Values, stores...)
-			for _, w := range stores {
-				w.Block = bNext
-			}
-			bNext.Values = append(bNext.Values, after...)
-			for _, w := range after {
-				w.Block = bNext
-			}
-			goto again
-		}
 		// Build branch point.
 		bThen := f.NewBlock(BlockPlain)
 		bEnd := f.NewBlock(b.Kind)
@@ -639,13 +447,6 @@ func writebarrier(f *Func) {
 			pos := w.Pos
 			ptr := w.Args[0]
 			val := w.Args[1]
-			if buildcfg.Experiment.LogosGen && logosStoresSlot(val) {
-				slotPtr := ptr
-				if ptr == nilcheck {
-					slotPtr = nilcheckThen
-				}
-				addEntry(pos, logosSlotEntry(bThen, pos, slotPtr, memThen))
-			}
 			if !srcs.contains(val.ID) && needWBsrc(val) {
 				srcs.add(val.ID)
 				addEntry(pos, val)

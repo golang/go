@@ -7,28 +7,16 @@ package lsp
 import (
 	"context"
 	"encoding/json"
+	"path/filepath"
 )
 
-// nullResult is the JSON result of a request the proxy declines to map.
 var nullResult = json.RawMessage("null")
 
-// codeRequestFailed is the LSP error code (RequestFailed) of a request
-// that was well formed and names a method the server knows, but that the
-// server declines to answer.
-const codeRequestFailed = -32803
+const (
+	codeRequestFailed    = -32803
+	codeRequestCancelled = -32800
+)
 
-// formattingMethods are the requests that answer text edits computed over
-// a whole document or a part of it. gopls computes them on the lowered Go
-// text, so the edits would write generated statements into a loGo/s
-// source; the proxy declines them for loGo/s documents, and forwards them
-// unchanged for Go documents.
-var formattingMethods = map[string]bool{
-	"textDocument/formatting":       true,
-	"textDocument/rangeFormatting":  true,
-	"textDocument/onTypeFormatting": true,
-}
-
-// clientRequest handles one request from the client.
 func (p *Proxy) clientRequest(ctx context.Context, m *message) {
 	switch m.Method {
 	case "initialize":
@@ -36,18 +24,21 @@ func (p *Proxy) clientRequest(ctx context.Context, m *message) {
 	case "shutdown":
 		p.mu.Lock()
 		p.shutdown = true
+		clear(p.pending)
+		clear(p.lowerErr)
 		p.mu.Unlock()
+		p.addPending(m.ID, pending{method: "shutdown"})
 		p.send(p.server, m)
+	case "logos/snapshotCounts":
+		p.snapshotCounts(ctx, m)
 	default:
 		p.request(ctx, m)
 	}
 }
 
-// initialize forwards the initialize request with the position encodings
-// removed from the client's capabilities, so gopls speaks UTF-16 to the
-// proxy, the encoding the proxy converts for the client.
 func (p *Proxy) initialize(m *message) {
 	if params, err := decode(m.Params); err == nil {
+		p.rememberRoots(params)
 		dropPositionEncodings(params)
 		if raw, err := encode(params); err == nil {
 			m.Params = raw
@@ -57,8 +48,6 @@ func (p *Proxy) initialize(m *message) {
 	p.send(p.server, m)
 }
 
-// dropPositionEncodings removes capabilities.general.positionEncodings
-// from decoded initialize params.
 func dropPositionEncodings(params any) {
 	root, _ := params.(map[string]any)
 	caps, _ := root["capabilities"].(map[string]any)
@@ -66,17 +55,12 @@ func dropPositionEncodings(params any) {
 	delete(general, "positionEncodings")
 }
 
-// dropDiagnosticProvider removes capabilities.diagnosticProvider from a
-// decoded initialize result: the proxy merges compiler diagnostics into
-// published diagnostics, so the client must not pull them from gopls.
 func dropDiagnosticProvider(result any) {
 	root, _ := result.(map[string]any)
 	caps, _ := root["capabilities"].(map[string]any)
 	delete(caps, "diagnosticProvider")
 }
 
-// requestPath returns the path of the document that decoded request
-// params name, or "" when they name none.
 func requestPath(params any) string {
 	root, _ := params.(map[string]any)
 	td, _ := root["textDocument"].(map[string]any)
@@ -88,9 +72,6 @@ func requestPath(params any) string {
 	return path
 }
 
-// target returns the lowering a request on path is mapped with: none for
-// a Go document. It reports false when the request cannot be answered, a
-// loGo/s document that has no lowering made from its current text.
 func (p *Proxy) target(path string) (*lowered, bool) {
 	if !isLogosPath(path) {
 		return nil, true
@@ -99,14 +80,6 @@ func (p *Proxy) target(path string) (*lowered, bool) {
 	return lw, lw != nil && lw.fresh
 }
 
-// request forwards one client request to gopls with its URIs and
-// positions mapped to the lowered documents. It first recompiles the
-// packages whose documents changed, so the request sees every edit the
-// client made before it. A request on a loGo/s document with no current
-// lowering gets a null result, except for textDocument/codeAction, which
-// answers the compiler autofix candidates of the source itself. A
-// formatting request on a loGo/s document fails with codeRequestFailed,
-// see formattingMethods.
 func (p *Proxy) request(ctx context.Context, m *message) {
 	params, err := decode(m.Params)
 	if err != nil {
@@ -114,26 +87,19 @@ func (p *Proxy) request(ctx context.Context, m *message) {
 		return
 	}
 	path := requestPath(params)
-	if formattingMethods[m.Method] && isLogosPath(path) {
-		p.declineFormatting(m)
-		return
-	}
-	p.work.Lock()
-	defer p.work.Unlock()
-	p.refreshLocked(ctx)
-	lw, ok := p.target(path)
-	if !ok {
-		// A codeAction request names no lowered document when the
-		// source does not compile, yet the compiler diagnostics of
-		// the source itself may still carry autofix candidates. Answer
-		// those directly, without the gopls mapping there is nothing
-		// to map. Every other position request gets a null result,
-		// never a position computed from an older text.
-		if m.Method == "textDocument/codeAction" && isLogosPath(path) {
-			p.respond(m.ID, p.finishResult(pending{method: m.Method, path: path, params: m.Params}, []any{}))
+	switch m.Method {
+	case "textDocument/formatting", "textDocument/rangeFormatting", "textDocument/onTypeFormatting":
+		if isLogosPath(path) {
+			p.declineFormatting(m)
 			return
 		}
-		p.send(p.client, &message{ID: m.ID, Result: nullResult})
+	}
+	p.ensure(ctx)
+	p.work.Lock()
+	defer p.work.Unlock()
+	lw, ok := p.target(path)
+	if !ok {
+		p.absent(m, path)
 		return
 	}
 	tb := p.tables.Load()
@@ -148,21 +114,46 @@ func (p *Proxy) request(ctx context.Context, m *message) {
 	if m.Method == "textDocument/codeAction" {
 		pend.fixVersion, pend.fixHas = p.docVersion(path)
 	}
-	p.addPending(m.ID, pend)
+	if !p.track(m.ID, pend) {
+		p.fail(m.ID, codeRequestFailed, "too many pending requests")
+		return
+	}
 	p.send(p.server, out)
 }
 
-// declineFormatting answers the formatting request m on a loGo/s document
-// with an error response. No compile or gopls request is needed: the
-// answer does not depend on the lowering of the document.
-func (p *Proxy) declineFormatting(m *message) {
-	reason := m.Method + " is not supported for loGo/s sources: gopls would format the lowered Go text, not the source"
-	if err := p.client.fail(m.ID, codeRequestFailed, reason); err != nil {
-		p.logf("write: %v", err)
+func (p *Proxy) absent(m *message, path string) {
+	if m.Method == "textDocument/codeAction" && isLogosPath(path) {
+		p.respond(m.ID, p.finishResult(pending{method: m.Method, path: path, params: m.Params}, []any{}))
+		return
 	}
+	if isLogosPath(path) && p.lowerFailed(path) {
+		p.fail(m.ID, codeRequestFailed, "lowering failed")
+		return
+	}
+	p.send(p.client, &message{ID: m.ID, Result: nullResult})
 }
 
-// fromServer handles one message from gopls.
+func (p *Proxy) lowerFailed(path string) bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.lowerErr[filepath.Dir(path)] != nil
+}
+
+func (p *Proxy) track(id json.RawMessage, pend pending) bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if len(p.pending) >= maxPending {
+		return false
+	}
+	p.pending[string(id)] = pend
+	return true
+}
+
+func (p *Proxy) declineFormatting(m *message) {
+	reason := m.Method + " is not supported for loGo/s sources: gopls would format the lowered Go text, not the source"
+	p.fail(m.ID, codeRequestFailed, reason)
+}
+
 func (p *Proxy) fromServer(ctx context.Context, m *message) {
 	switch {
 	case m.isResponse():
@@ -174,8 +165,6 @@ func (p *Proxy) fromServer(ctx context.Context, m *message) {
 	}
 }
 
-// forwardToClient sends a notification or request of gopls to the client
-// with the lowered documents it names mapped back to their sources.
 func (p *Proxy) forwardToClient(m *message) {
 	if params, err := decode(m.Params); err == nil && params != nil {
 		if raw, err := encode(p.tables.Load().toSource().rewrite(params, nil)); err == nil {
@@ -185,16 +174,17 @@ func (p *Proxy) forwardToClient(m *message) {
 	p.send(p.client, m)
 }
 
-// serverResponse forwards the response of gopls to the client, with the
-// result mapped through the lowerings the request was mapped with. An
-// error response, and a response to no request the proxy tracked, go
-// through unchanged.
 func (p *Proxy) serverResponse(ctx context.Context, m *message) {
 	p.mu.Lock()
 	pend, ok := p.pending[string(m.ID)]
 	p.mu.Unlock()
+	if !ok && len(m.Error) == 0 {
+		p.fail(m.ID, codeRequestCancelled, "request canceled")
+		p.finish(m.ID)
+		return
+	}
 	result, err := decode(m.Result)
-	if !ok || len(m.Error) > 0 || err != nil {
+	if len(m.Error) > 0 || err != nil {
 		p.send(p.client, m)
 		p.finish(m.ID)
 		return
@@ -207,7 +197,6 @@ func (p *Proxy) serverResponse(ctx context.Context, m *message) {
 	p.finish(m.ID)
 }
 
-// finishResult applies the per-method changes to a mapped result.
 func (p *Proxy) finishResult(pend pending, result any) any {
 	switch pend.method {
 	case "initialize":
@@ -218,7 +207,6 @@ func (p *Proxy) finishResult(pend pending, result any) any {
 	return result
 }
 
-// respond sends a successful response to the client.
 func (p *Proxy) respond(id json.RawMessage, result any) {
 	raw, err := encode(result)
 	if err != nil {
@@ -228,9 +216,6 @@ func (p *Proxy) respond(id json.RawMessage, result any) {
 	p.send(p.client, &message{ID: id, Result: raw})
 }
 
-// serverDiagnostics records the diagnostics gopls published for a
-// document, and publishes the merged diagnostics of the client document
-// they belong to.
 func (p *Proxy) serverDiagnostics(m *message) {
 	params, err := decode(m.Params)
 	root, _ := params.(map[string]any)
@@ -239,14 +224,50 @@ func (p *Proxy) serverDiagnostics(m *message) {
 		p.send(p.client, m)
 		return
 	}
+	list, _ := root["diagnostics"].([]any)
 	items, _ := json.Marshal(root["diagnostics"])
 	version, hasVer := number(root["version"])
+	path := p.docPath(uri)
+	p.st.mu.Lock()
+	_, openDoc := p.st.docs[path]
+	p.st.mu.Unlock()
+	live := openDoc || p.tables.Load().byVirt[path] != nil
 	p.mu.Lock()
-	p.srvDiags[uri] = serverDiags{version: version, hasVer: hasVer, raw: items}
+	if len(list) == 0 && !live {
+		delete(p.srvDiags, uri)
+	} else {
+		p.srvDiags[uri] = serverDiags{version: version, hasVer: hasVer, raw: items}
+	}
+	over := len(p.srvDiags) > maxDiagURIs
 	p.mu.Unlock()
+	if over {
+		p.evictDiags(uri)
+	}
 	tb := p.tables.Load()
 	if lw := tb.lookup(tb.byVirt, uri); lw != nil {
 		uri = lw.srcURI()
 	}
 	p.publish(uri)
+}
+
+func (p *Proxy) evictDiags(except string) {
+	p.st.mu.Lock()
+	open := make(map[string]bool, len(p.st.docs))
+	for _, doc := range p.st.docs {
+		open[doc.uri] = true
+	}
+	p.st.mu.Unlock()
+	tb := p.tables.Load()
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for uri := range p.srvDiags {
+		if uri == except || open[uri] {
+			continue
+		}
+		if path, err := uriPath(uri); err == nil && tb.byVirt[path] != nil {
+			continue
+		}
+		delete(p.srvDiags, uri)
+		delete(p.sent, uri)
+	}
 }

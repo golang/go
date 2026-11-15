@@ -1,0 +1,15 @@
+// errorcheck
+
+package p
+
+type I interface {
+	M() int
+}
+
+type N int : I // ERROR "."
+
+type PropC interface {
+	const Name string
+}
+
+type NumProp int : PropC // ERROR "."

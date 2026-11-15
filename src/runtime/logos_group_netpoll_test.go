@@ -18,15 +18,8 @@ import (
 	"logos/rt"
 )
 
-// M8-S4 attacks in Go mode (SPEC Sec 2.6, T-206). A child of a logos
-// group blocked in conn.Read with no data wakes within 100 ms after a
-// sibling fails, with a timeout error, and the descriptor stays usable.
-// A goroutine outside the group blocked on the same kind of read stays
-// blocked: this proof needs no change to the unsupervised_goroutine lint.
-
 var errLogosSibling = errors.New("logos sibling failed")
 
-// logosConnPair returns a connected client and server side on loopback.
 func logosConnPair(t *testing.T) (client, server net.Conn) {
 	t.Helper()
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -50,8 +43,6 @@ func logosConnPair(t *testing.T) (client, server net.Conn) {
 	return client, server
 }
 
-// logosGroupWait joins g with a bound: a child that does not wake fails
-// the test instead of hanging it.
 func logosGroupWait(t *testing.T, g *rt.Group, bound time.Duration) error {
 	t.Helper()
 	res := make(chan error, 1)
@@ -92,7 +83,6 @@ func TestLogosGroupNetpollWakesChild(t *testing.T) {
 		t.Fatalf("child woke %v after the sibling failed, want <= 100ms", d)
 	}
 
-	// The descriptor stays usable: a later read gets data normally.
 	if _, err := client.Write([]byte("x")); err != nil {
 		t.Fatal(err)
 	}
@@ -141,9 +131,6 @@ func TestLogosGroupNetpollOutsiderStaysBlocked(t *testing.T) {
 	}
 }
 
-// A child of a different group blocked on the same kind of read stays
-// blocked when another group fails: the cancel visits only the waiters
-// of the failing group.
 func TestLogosGroupNetpollOtherGroupStaysBlocked(t *testing.T) {
 	_, server := logosConnPair(t)
 	otherClient, otherServer := logosConnPair(t)
@@ -187,9 +174,6 @@ func TestLogosGroupNetpollOtherGroupStaysBlocked(t *testing.T) {
 	}
 }
 
-// A child that reaches conn.Read only after the sibling's failure was
-// recorded still wakes: the cancel outlives the registry scan, so a
-// registration after the scan arms the wait instead of parking forever.
 func TestLogosGroupNetpollCancelBeforeRegister(t *testing.T) {
 	_, server := logosConnPair(t)
 	g, _ := rt.NewGroup(t.Context(), 0)
@@ -213,9 +197,6 @@ func TestLogosGroupNetpollCancelBeforeRegister(t *testing.T) {
 	}
 }
 
-// A cancel that lands while data is arriving does not strand the next
-// wait: the first Read takes the ready data, and the following Read of
-// the cancelled group times out instead of blocking forever.
 func TestLogosGroupNetpollCancelRacingDataUnblocksNextRead(t *testing.T) {
 	client, server := logosConnPair(t)
 	g, _ := rt.NewGroup(t.Context(), 0)
@@ -250,10 +231,6 @@ func TestLogosGroupNetpollCancelRacingDataUnblocksNextRead(t *testing.T) {
 	}
 }
 
-// A cancelled group waiter that leaves its wait does not erase the
-// cancellation a later waiter on the same descriptor still needs: two
-// sequential reads after the sibling's failure both time out instead of
-// the second parking forever.
 func TestLogosGroupNetpollSecondReadAfterCancelStillTimesOut(t *testing.T) {
 	_, server := logosConnPair(t)
 	g, _ := rt.NewGroup(t.Context(), 0)
@@ -282,11 +259,6 @@ func TestLogosGroupNetpollSecondReadAfterCancelStillTimesOut(t *testing.T) {
 	}
 }
 
-// A descriptor closed after its group's cancel starts clean when reused:
-// the next group's child on a reopened connection stays parked until
-// data arrives instead of timing out from the old cancellation. Closing
-// retires the descriptor through the reuse purge, so no stale waiter or
-// cancel bit leaks onto its next occupant.
 func TestLogosGroupNetpollReusedDescriptorStartsClean(t *testing.T) {
 	client, server := logosConnPair(t)
 	g, _ := rt.NewGroup(t.Context(), 0)
@@ -322,9 +294,6 @@ func TestLogosGroupNetpollReusedDescriptorStartsClean(t *testing.T) {
 		return nil
 	})
 	<-started
-	// Let the child park. A leaked cancel bit from the closed descriptor
-	// would wake it with a timeout; still-blocked proves the reuse purge
-	// left no stale waiter or bit behind.
 	time.Sleep(100 * time.Millisecond)
 	select {
 	case err := <-readDone:

@@ -1,0 +1,68 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# A tuple operand in parentheses keeps its parentheses paired with the
+# operand when a block comment sits inside them, after the opening
+# parenthesis or before the closing one. The module runs natively, ejects,
+# and the ejected module builds and runs with go and with go1.27.2 from
+# $UPROOT1272 and prints the same output.
+cd m
+logos run .
+stdout '^3 <nil> 3 <nil> 1 2 1 2 5 6 1 2 5 6$'
+cp stdout $WORK/native.txt
+logos eject -o out
+exists out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $WORK/native.txt
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
+exec $WORK/upstream$GOEXE
+cmp stdout $WORK/native.txt
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ..
+
+-- m/go.mod --
+module example.com/tupleparen
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import "fmt"
+
+type S struct{ t (int, int) }
+
+func pair() (int, error) { return 3, nil }
+
+func pass(t (int, int)) (int, int) {
+	return ((t /* inner */) /* outer */)
+}
+
+func lead(t (int, int)) (int, int) {
+	return ( /* before */ t)
+}
+
+func field(s S) (int, int) {
+	return ((s.t /* inner */) /* outer */)
+}
+
+func main() {
+	t := (pair() /* comment */)
+	a, b := t
+	u := (( /* lead */ pair() /* inner */) /* outer */)
+	c, d := u
+	x, y := (pass((1, 2)) /* comment */)
+	var m, n int
+	m, n = (x, y /* inner */)
+	s := S{t: (5, 6)}
+	p, q := ((s.t /* inner */) /* outer */)
+	g, h := lead((1, 2))
+	k, l := field(s)
+	fmt.Println(a, b, c, d, m, n, x, y, p, q, g, h, k, l)
+}

@@ -1,0 +1,126 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd lgo
+! logos lint --json-diagnostics ./...
+stderr '"rule_id":"correctness::misplaced_try"'
+stderr '"description":"Split the expression'
+! stderr '_logos_'
+cd ..
+
+cd shortcircuit
+! logos lint --json-diagnostics ./...
+stderr '"rule_id":"correctness::misplaced_try"'
+stderr '"note":"[^"]*short-circuit'
+! stderr '"description":"Split the expression'
+cd ..
+
+cd mixed
+! logos lint --json-diagnostics ./...
+stderr -count=2 '"rule_id":"correctness::misplaced_try"'
+stderr -count=2 '"note":"[^"]*short-circuit'
+! stderr '"description":"Split the expression'
+cd ..
+
+cd loopcondition
+! logos lint --json-diagnostics ./...
+stderr '"rule_id":"correctness::misplaced_try"'
+! stderr 'short-circuit'
+cd ..
+
+-- lgo/go.mod --
+module example.com/splitfix
+
+go 1.27
+
+-- lgo/main.lgo --
+package main
+
+import "fmt"
+
+func step() (int, error) {
+	return 42, nil
+}
+
+func gate() error {
+	if step()? == 1 {
+		return fmt.Errorf("gate: %v", 1)
+	}
+	return nil
+}
+
+func main() {
+	gate()
+}
+-- shortcircuit/go.mod --
+module example.com/shortcircuit
+
+go 1.27
+
+-- shortcircuit/main.lgo --
+package main
+
+func okStep() (bool, error) {
+	return true, nil
+}
+
+func gate(flag bool) error {
+	if flag && okStep()? {
+		return nil
+	}
+	return nil
+}
+
+func main() {
+	gate(true)
+}
+
+-- mixed/go.mod --
+module example.com/mixed
+
+go 1.27
+
+-- mixed/main.lgo --
+package main
+
+func okStep() (bool, error) {
+	return true, nil
+}
+
+func both(a, b bool) bool {
+	return a && b
+}
+
+func gate(flag bool) error {
+	if both(okStep()?, flag && okStep()?) {
+		return nil
+	}
+	return nil
+}
+
+func main() {
+	gate(true)
+}
+
+-- loopcondition/go.mod --
+module example.com/loopcondition
+
+go 1.27
+
+-- loopcondition/main.lgo --
+package main
+
+func step() (int, error) {
+	return 42, nil
+}
+
+func spin() error {
+	for step()? > 100 {
+		break
+	}
+	return nil
+}
+
+func main() {
+	spin()
+}

@@ -1,0 +1,482 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+# An importer reads readonly descendants and writes only detached inline copies.
+cd m
+cp app/main.lgo $WORK/import-positive.lgo
+cp ../import-alias-attacks.lgo app/main.lgo
+! logos build -o $WORK/bin/import-alias-attack$GOEXE ./app
+stderr -count=5 '\[correctness::const_view_mutation\]'
+! logos eject -o $WORK/import-alias-out
+stderr -count=5 '\[correctness::const_view_mutation\]'
+cp $WORK/import-positive.lgo app/main.lgo
+logos build -o $WORK/bin/importcc$GOEXE ./app
+exec $WORK/bin/importcc$GOEXE
+cmp stdout want.txt
+logos eject -o out
+cd out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+exists $UPROOT1272/bin/go
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+exec env -u GOROOT $UPROOT1272/bin/go run ./app
+cmp stdout ../want.txt
+cd ../..
+
+# An unrelated field the importer cannot name leaves every other read of the composite working.
+cd unnamed
+logos build -o $WORK/bin/importunnamed$GOEXE ./app
+exec $WORK/bin/importunnamed$GOEXE
+cmp stdout want.txt
+logos eject -o out
+cd out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+exec env -u GOROOT $UPROOT1272/bin/go run ./app
+cmp stdout ../want.txt
+cd ../..
+
+# A write into an imported const composite fails with the rule ID, whatever the member.
+cd badwrite
+! logos build ./...
+stderr -count=9 '\[correctness::const_view_mutation\]'
+! logos eject -o $WORK/import-badwrite-out
+stderr -count=9 '\[correctness::const_view_mutation\]'
+cd ..
+
+# A slice expression of an imported const composite is no way around the rule.
+cd badslice
+! logos build ./...
+stderr -count=7 '\[correctness::const_view_mutation\]'
+! logos eject -o $WORK/import-badslice-out
+stderr -count=7 '\[correctness::const_view_mutation\]'
+cd ..
+
+# A readonly method of an imported const composite is callable; a mutating one fails with the rule ID.
+cd methods
+logos build -o $WORK/bin/importmeth$GOEXE ./app
+exec $WORK/bin/importmeth$GOEXE
+cmp stdout want.txt
+! logos build -o $WORK/bin/badcall$GOEXE ./badcall
+stderr -count=1 '\[correctness::const_view_mutation\]'
+rm badcall
+! logos build -o $WORK/bin/badvalue$GOEXE ./badvalue
+stderr -count=2 '\[correctness::const_view_mutation\]'
+rm badvalue
+logos eject -o out
+cd out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+exec env -u GOROOT $UPROOT1272/bin/go run ./app
+cmp stdout ../want.txt
+cd ..
+
+# A range over a map of an imported composite visits sorted keys, for a variable index too.
+cd ../rangeimp
+logos build -o $WORK/bin/importrange$GOEXE ./app
+exec $WORK/bin/importrange$GOEXE
+cmp stdout want.txt
+logos eject -o out
+cd out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+exec env -u GOROOT $UPROOT1272/bin/go run ./app
+cmp stdout ../want.txt
+cd ..
+
+-- m/go.mod --
+module example.com/ccimport
+
+go 1.27
+
+-- m/want.txt --
+ok readonly-slice 1
+ok detached-field 7 99
+ok readonly-map 1
+ok qualified-value 1 2
+ok promoted-range-sorted
+ok index-range-sorted
+ok array-leak-copy 1
+ok detached-whole 1 99
+-- m/lib/lib.lgo --
+package lib
+
+type Point struct{ X, Y int }
+
+type S struct {
+	M map[string]int
+	L []int
+	N int
+}
+
+type Box struct {
+	M map[string]int
+	N int
+}
+
+type U struct {
+	My_map map[string]int
+	N      int
+}
+
+type P struct {
+	P map[string]Point
+}
+
+type Base struct {
+	M map[string]int
+}
+
+type Outer struct {
+	Base
+	Tag string
+}
+
+type Arr struct {
+	M map[string]int
+	A [3]int
+}
+
+const C = S{M: map[string]int{"a": 1}, L: []int{1, 2, 3}, N: 7}
+
+const Items = []Box{{M: map[string]int{"a": 1}, N: 1}, {M: map[string]int{"a": 1, "b": 2, "c": 3, "d": 4, "e": 5, "f": 6, "g": 7, "h": 8, "i": 9, "j": 10}, N: 2}}
+
+const Under = U{My_map: map[string]int{"a": 1, "b": 2}, N: 7}
+
+const Pts = P{P: map[string]Point{"o": {1, 2}}}
+
+const O = Outer{Base: Base{M: map[string]int{"a": 1, "b": 2, "c": 3, "d": 4, "e": 5, "f": 6, "g": 7, "h": 8, "i": 9, "j": 10}}, Tag: "t"}
+
+const A = Arr{M: map[string]int{"a": 1}, A: [3]int{1, 2, 3}}
+-- m/app/main.lgo --
+package main
+
+import (
+	"fmt"
+	"os"
+
+	"example.com/ccimport/lib"
+)
+
+var failed bool
+
+func main() {
+	fmt.Println("ok readonly-slice", lib.C.L[0])
+	x := &lib.C.N
+	*x = 99
+	fmt.Println("ok detached-field", lib.C.N, *x)
+	fmt.Println("ok readonly-map", lib.Under.My_map["a"] ?? -1)
+	pt := lib.Pts.P["o"] ?? lib.Point{}
+	fmt.Println("ok qualified-value", pt.X, pt.Y)
+	for range 64 {
+		got := ""
+		for k := range lib.O.M {
+			got += k
+		}
+		if got != "abcdefghij" {
+			fmt.Println("FAIL promoted-range", got)
+			failed = true
+			break
+		}
+	}
+	fmt.Println("ok promoted-range-sorted")
+	for range 64 {
+		got := ""
+		for k := range lib.Items[0x1].M {
+			got += k
+		}
+		if got != "abcdefghij" {
+			fmt.Println("FAIL index-range", got)
+			failed = true
+			break
+		}
+	}
+	fmt.Println("ok index-range-sorted")
+	arr := lib.A.A
+	arr[0] = 5
+	fmt.Println("ok array-leak-copy", lib.A.A[0])
+	w := &lib.C
+	w.N = 99
+	z := lib.C
+	fmt.Println("ok detached-whole", z.M["a"] ?? -1, w.N)
+	if failed {
+		os.Exit(1)
+	}
+}
+-- import-alias-attacks.lgo --
+package main
+
+import "example.com/ccimport/lib"
+
+func main() {
+	s := lib.C.L
+	s[0] = 99
+	x := lib.Items
+	x[0].N = 99
+	u := lib.Under
+	u.My_map["a"] = 99
+	w := lib.C
+	w.M["a"] = 50
+	p := &lib.C
+	p.L[0] = 70
+}
+-- unnamed/go.mod --
+module example.com/ccunnamed
+
+go 1.27
+
+-- unnamed/want.txt --
+hidden 5 true
+m 1
+un 3
+hidden-range g4;h5;
+-- unnamed/lib/lib.lgo --
+package lib
+
+type hidden struct{ V int }
+
+type Box struct {
+	M map[string]int
+	X map[string]hidden
+	n map[string]int
+}
+
+const C = Box{M: map[string]int{"a": 1, "b": 2}, X: map[string]hidden{"h": {V: 5}, "g": {V: 4}}, n: map[string]int{"u": 3}}
+
+func (b Box) Un(k string) int { return b.n[k] ?? -1 }
+-- unnamed/app/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/ccunnamed/lib"
+)
+
+func main() {
+	v, ok := lib.C.X["h"]
+	fmt.Println("hidden", v.V, ok)
+	fmt.Println("m", lib.C.M["a"] ?? -1)
+	fmt.Println("un", lib.C.Un("u"))
+	keys := ""
+	for k, hv := range lib.C.X {
+		keys += fmt.Sprint(k, hv.V, ";")
+	}
+	fmt.Println("hidden-range", keys)
+}
+-- badwrite/go.mod --
+module example.com/ccbadwrite
+
+go 1.27
+
+-- badwrite/lib/lib.lgo --
+package lib
+
+type S struct {
+	M map[string]int
+	L []int
+	N int
+}
+
+func (s *S) Set() { s.N = 1 }
+
+const C = S{M: map[string]int{"a": 1}, L: []int{1, 2, 3}, N: 7}
+-- badwrite/app/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/ccbadwrite/lib"
+)
+
+func main() {
+	lib.C.L[0] = 9
+	lib.C.N = 9
+	lib.C.M["x"] = 1
+	copy(lib.C.L, []int{7})
+	clear(lib.C.L)
+	_ = append(lib.C.L, 4)
+	delete(lib.C.M, "a")
+	lib.C.L[0]++
+	lib.C.Set()
+	fmt.Println(lib.C.N)
+}
+-- badslice/go.mod --
+module example.com/ccbadslice
+
+go 1.27
+
+-- badslice/lib/lib.lgo --
+package lib
+
+type Item struct {
+	M map[string]int
+	N int
+}
+
+type S struct {
+	M map[string]int
+	L []int
+	I []Item
+}
+
+const C = S{M: map[string]int{"a": 1}, L: []int{1, 2, 3}, I: []Item{{N: 1}, {N: 2}}}
+-- badslice/app/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/ccbadslice/lib"
+)
+
+func main() {
+	lib.C.L[:][0] = 5
+	lib.C.I[1:][0].N++
+	copy(lib.C.L[1:], []int{7})
+	clear(lib.C.L[:1])
+	_ = append(lib.C.L[:0], 4)
+	copy(lib.C.I[:], []lib.Item{{N: 9}})
+	clear(lib.C.I[:1])
+	fmt.Println(lib.C.L)
+}
+-- methods/go.mod --
+module example.com/ccmethods
+
+go 1.27
+
+-- methods/want.txt --
+ok const-receiver 5
+ok pointer-readonly 5
+ok value-receiver 5
+ok lookup 1
+ok slice-const-receiver 6
+ok slice-pointer-readonly 5
+ok slice-lookup 2
+ok slice-variable 6
+-- methods/lib/lib.lgo --
+package lib
+
+type S struct {
+	M map[string]int
+	N int
+}
+
+func (r const *S) Get() int { return r.N }
+
+func (s *S) Peek() int { return s.N }
+
+func (s S) Val() int { return s.N }
+
+func (r const *S) Lookup(k string) int { return r.M[k] ?? 0 }
+
+func (s *S) Set() { s.N = 1 }
+
+func (s S) Stomp() { s.M["x"] = 1 }
+
+func (s S) Names() map[string]int { return s.M }
+
+const C = S{M: map[string]int{"a": 1}, N: 5}
+
+const Items = []S{{M: map[string]int{"a": 1}, N: 5}, {M: map[string]int{"b": 2}, N: 6}}
+-- methods/app/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/ccmethods/lib"
+)
+
+func main() {
+	fmt.Println("ok const-receiver", lib.C.Get())
+	fmt.Println("ok pointer-readonly", lib.C.Peek())
+	fmt.Println("ok value-receiver", lib.C.Val())
+	fmt.Println("ok lookup", lib.C.Lookup("a"))
+	i := 1
+	fmt.Println("ok slice-const-receiver", lib.Items[1].Get())
+	fmt.Println("ok slice-pointer-readonly", lib.Items[0].Peek())
+	fmt.Println("ok slice-lookup", lib.Items[1].Lookup("b"))
+	fmt.Println("ok slice-variable", lib.Items[i].Get())
+}
+-- methods/badcall/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/ccmethods/lib"
+)
+
+func main() {
+	lib.C.Set()
+	fmt.Println(lib.C.N)
+}
+-- methods/badvalue/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/ccmethods/lib"
+)
+
+func main() {
+	lib.C.Stomp()
+	_ = lib.C.Names()
+	fmt.Println(lib.C.N)
+}
+-- rangeimp/go.mod --
+module example.com/ccrangeimp
+
+go 1.27
+
+-- rangeimp/want.txt --
+dynamic abcdefghij xyz
+static abcdefghij
+view xyz
+-- rangeimp/lib/lib.lgo --
+package lib
+
+type Item struct {
+	M map[string]int
+	N int
+}
+
+const Items = []Item{{M: map[string]int{"j": 10, "b": 2, "h": 8, "a": 1, "e": 5, "c": 3, "i": 9, "d": 4, "g": 7, "f": 6}, N: 1}, {M: map[string]int{"z": 1, "y": 2, "x": 3}, N: 2}}
+-- rangeimp/app/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/ccrangeimp/lib"
+)
+
+func keysOf(m const map[string]int) string {
+	s := ""
+	for k := range m {
+		s += k
+	}
+	return s
+}
+
+func dynamic(i int) string {
+	s := ""
+	for k := range lib.Items[i].M {
+		s += k
+	}
+	return s
+}
+
+func main() {
+	static := ""
+	for k := range lib.Items[0].M {
+		static += k
+	}
+	fmt.Println("dynamic", dynamic(0), dynamic(1))
+	fmt.Println("static", static)
+	fmt.Println("view", keysOf(lib.Items[1].M))
+}

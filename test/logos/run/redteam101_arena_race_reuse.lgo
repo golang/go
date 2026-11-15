@@ -1,24 +1,14 @@
 // run -goexperiment logosarena -race
+// run -goexperiment logosarena -arena=false -race
 
 package main
 
-// REDTEAM #101 (SPEC Sec 8.3, T-301.1; IMPLEMENTATION.md M18-S3): race
-// builds must reset shadow memory on watermark moves, so reused chunks
-// report no false race. Every round allocates iteration-local noscan and
-// scan buffers whose watermark is restored at the loop back-edge, handing
-// the same memory to the next round; each round fills and checksums its
-// buffers against an allocation-free oracle, so stale or aliased reuse
-// fails loudly. The -race flag on the directive builds the staged module
-// instrumented, so a missing shadow reset fails the run with a detector
-// report instead of passing silently. The instrumented build needs cgo:
 // run the gate with CGO_ENABLED=1. Companion gate: GOEXPERIMENT=logosarena
-// go test -short -race runtime -run LogosArena (M18-S1). Distinct from
-// test/logos/run/redteam35_arena_race_reuse.lgo for row #35, which reuses
-// one shape with an additive oracle and a 4-step interleave; this fixture
-// mixes noscan and scan shapes per round with a multiplicative oracle,
-// nested allocation order, and a first-round carry across the whole run.
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
 type r101Node struct{ v int }
 
@@ -58,38 +48,64 @@ func r101PtrOracle(n, r int) int {
 	return total
 }
 
-//go:noinline
+var r101Failed bool
+
+func r101Check(name string, cond bool, got, want string) {
+	if !cond {
+		fmt.Printf("FAIL %s: got %s want %s\n", name, got, want)
+		r101Failed = true
+		return
+	}
+	fmt.Printf("ok %s\n", name)
+}
+
 func r101Work() {
-	// first holds a snapshot copy of round 0. Retaining the slice itself
-	// would mark the make site escaping and push every round to the heap,
-	// leaving the arena shadow-reset path unexercised; copying keeps each
-	// round's buffer iteration-local and arena-eligible.
 	var first [512]byte
+	noscanTotal := 0
+	noscanWant := 0
+	ptrTotal := 0
+	ptrWant := 0
 	for r := 0; r < 60; r++ {
 		b := make([]byte, 512)
 		for i := range b {
 			b[i] = byte((i*7 + r) & 0xFF)
 		}
-		if got := r101Sum(b); got != r101Oracle(512, r) {
-			panic("redteam101: noscan round reuse corrupted data")
+		got := r101Sum(b)
+		want := r101Oracle(512, r)
+		noscanTotal += got
+		noscanWant += want
+		if got != want {
+			r101Check("arena-race-noscan-round", false, fmt.Sprint(got), fmt.Sprint(want))
+			return
 		}
 		s := make([]*r101Node, 0, 32)
 		for i := 0; i < 32; i++ {
 			s = append(s, &r101Node{v: r*100 + i})
 		}
-		if got := r101PtrSum(s); got != r101PtrOracle(32, r) {
-			panic("redteam101: scan round reuse corrupted data")
+		pgot := r101PtrSum(s)
+		pwant := r101PtrOracle(32, r)
+		ptrTotal += pgot
+		ptrWant += pwant
+		if pgot != pwant {
+			r101Check("arena-race-scan-round", false, fmt.Sprint(pgot), fmt.Sprint(pwant))
+			return
 		}
 		if r == 0 {
 			copy(first[:], b)
 		}
 	}
-	if got := r101Sum(first[:]); got != r101Oracle(512, 0) {
-		panic("redteam101: first-round snapshot mismatch")
-	}
+	r101Check("arena-race-noscan-total", noscanTotal == noscanWant, fmt.Sprint(noscanTotal), fmt.Sprint(noscanWant))
+	r101Check("arena-race-scan-total", ptrTotal == ptrWant, fmt.Sprint(ptrTotal), fmt.Sprint(ptrWant))
+	r101Check("arena-race-first-snapshot", r101Sum(first[:]) == r101Oracle(512, 0), fmt.Sprint(r101Sum(first[:])), fmt.Sprint(r101Oracle(512, 0)))
 }
 
 func main() {
 	r101Work()
-	fmt.Println("r101 ok")
+	if r101Failed {
+		os.Exit(1)
+	}
+	r101Check("arena-race-reuse", true, "reused", "reused")
+	if r101Failed {
+		os.Exit(1)
+	}
 }

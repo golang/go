@@ -1927,3 +1927,4 @@
 
 // Lowering loGo/s arena bump allocation (M18-S3)
 (LogosArenaBump [s] chunk mem) => (LoweredLogosArenaBump [s] chunk mem)
+(LogosRegionBump [s] h gen mem) => (LoweredLogosRegionBump [s] h gen mem)

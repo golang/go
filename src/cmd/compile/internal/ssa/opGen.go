@@ -1073,6 +1073,7 @@ const (
 	OpAMD64LoweredNilCheck
 	OpAMD64LoweredWB
 	OpAMD64LoweredLogosArenaBump
+	OpAMD64LoweredLogosRegionBump
 	OpAMD64LoweredHasCPUFeature
 	OpAMD64LoweredPanicBoundsRR
 	OpAMD64LoweredPanicBoundsRC
@@ -7008,6 +7009,7 @@ const (
 	OpMove
 	OpZero
 	OpLogosArenaBump
+	OpLogosRegionBump
 	OpStoreWB
 	OpMoveWB
 	OpZeroWB
@@ -20142,6 +20144,25 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+			outputs: []outputInfo{
+				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		name:            "LoweredLogosRegionBump",
+		auxType:         auxInt64,
+		argLen:          3,
+		resultNotInArgs: true,
+		clobberFlags:    true,
+		needIntTemp:     true,
+		hasSideEffects:  true,
+		unsafePoint:     true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
 				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -106883,6 +106904,14 @@ var opcodeTable = [...]opInfo{
 		name:           "LogosArenaBump",
 		auxType:        auxInt64,
 		argLen:         2,
+		hasSideEffects: true,
+		unsafePoint:    true,
+		generic:        true,
+	},
+	{
+		name:           "LogosRegionBump",
+		auxType:        auxInt64,
+		argLen:         3,
 		hasSideEffects: true,
 		unsafePoint:    true,
 		generic:        true,

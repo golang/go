@@ -1,0 +1,1667 @@
+// run
+
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"slices"
+	"time"
+)
+
+var errSib = errors.New("sibling failed")
+
+const waitBound = 5 * time.Second
+
+func failSibling() error { return errSib }
+
+type env struct {
+	in    chan int
+	mid   chan int
+	boxes chan box
+	sinks []chan int
+	chain chan chan int
+	nums  []int
+	anys  chan any
+	flag  bool
+	base  int
+	calls int
+	bad   bool
+	undo  int
+	out   int
+}
+
+type box struct {
+	V int
+}
+
+type pair struct {
+	A int
+	B int
+}
+
+func store(p *int, v int) {
+	*p = v
+}
+
+func recvParen(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			var ( v = <-e.in )
+			e.out = v
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvBinop(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			e.out = <-e.in - <-e.in
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvCallarg(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			store(&e.out, <-e.in)
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvSendrecv(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			e.mid <- <-e.in
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvCond(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			if <-e.in == 1 {
+				e.out = 1
+			} else if <-e.in == 2 {
+				e.out = 2
+			} else if e.out == 0 {
+				e.out = -2
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvIfhoist(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			if v := <-e.in + 1; v == 6 {
+				e.out = v
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvSwitchinit(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			switch v := <-e.in + 1; v {
+			case 6:
+				e.out = v
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvComposite(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			b := box{V: <-e.in}
+			e.out = b.V
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvIfinit(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			if v, ok := <-e.in; ok {
+				e.out = v
+			} else {
+				e.out = -1
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvSelect(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			select {
+			case v := <-e.in:
+				e.out = v
+			case w := <-e.mid:
+				e.out = w
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvRange(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			for v := range e.in {
+				e.out += v
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvSend(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			e.in <- 7
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvSwitchtag(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			switch <-e.in {
+			case 1:
+				e.out = 1
+			default:
+				e.out = -1
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvIndex(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			a := [3]int{10, 20, 30}
+			e.out = a[<-e.in]
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+//logos:allow(correctness::unbounded_channel_op)
+func pushFive(e *env) int {
+	e.in <- 5
+	return 100
+}
+
+func recvCallorder(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			e.out = pushFive(e) + <-e.in
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func nilErr() error {
+	return nil
+}
+
+func apply(p *int, v int, f func() error) {
+	*p = v
+	if f() != nil {
+		*p = -1
+	}
+}
+
+func recvLiteral(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			apply(&e.out, <-e.in, func() error {
+				nilErr()?
+				return nil
+			})
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvSelector(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			e.out = (<-e.boxes).V
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvUnary(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			e.out = -<-e.in
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+//logos:allow(correctness::unbounded_channel_op)
+func pushMid(e *env) chan int {
+	e.in <- 5
+	return e.mid
+}
+
+//logos:allow(correctness::unbounded_channel_op)
+func pushRows(e *env) []int {
+	e.in <- 1
+	return []int{10, 20, 30}
+}
+
+//logos:allow(correctness::unbounded_channel_op)
+func pushAdder(e *env) func(int) int {
+	e.in <- 5
+	return func(v int) int { return v + 100 }
+}
+
+//logos:allow(correctness::unbounded_channel_op)
+func pushIndex(e *env) int {
+	e.in <- 5
+	return 1
+}
+
+func inc(v int) int {
+	return v + 1
+}
+
+func incErr(v int) (int, error) {
+	return v + 1, nil
+}
+
+func recvSendcall(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			pushMid(e) <- <-e.in
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvMixed(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			a, b := <-e.in, inc(<-e.in)
+			e.out = a*10 + b
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvMixedfirst(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			a, b := inc(<-e.in), <-e.mid
+			e.out = a*10 + b
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvAssert(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			e.out = (<-e.anys).(int)
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvTypeswitch(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			switch v := (<-e.anys).(type) {
+			case int:
+				e.out = v
+			default:
+				e.out = -1
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvNested(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			e.out = <-<-e.chain
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvNestedindex(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			e.out = <-e.sinks[<-e.in]
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvGoarg(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			go store(&e.out, <-e.in)
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvKeyed(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			p := pair{A: pushFive(e), B: <-e.in}
+			e.out = p.A + p.B
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvBinoperand(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			e.out = pushFive(e)*2 + <-e.in
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvIndexcall(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			e.out = pushRows(e)[<-e.in]
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvFuncall(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			e.out = pushAdder(e)(<-e.in)
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvTarget(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			arr := []int{0, 0, 0}
+			arr[pushIndex(e)] = <-e.in + 1
+			e.out = arr[1]
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvTrycall(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			x := incErr(<-e.in)?
+			e.out = x
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvSlice(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			e.out = len(e.nums[<-e.in:])
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func tick(e *env, v int) int {
+	e.calls++
+	return v
+}
+
+func record(e *env, a, b int) {
+	e.out = a*10 + b
+}
+
+func setb(e *env, b bool) {
+	if b {
+		e.out = 1
+	}
+}
+
+func b2i(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
+func condFor(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			for <-e.in < 3 {
+				w := 1
+				e.out += w
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func condForPost(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			for i := 0; i < 6; i += <-e.in {
+				if i == 2 {
+					continue
+				}
+				e.out += i
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func condForLabel(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+		outer:
+			for i := 0; i < 9; i += <-e.in {
+				e.out = i
+				for {
+					if i > 2 {
+						break outer
+					}
+					continue outer
+				}
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func condAnd(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			if e.flag && <-e.in == 1 {
+				e.out = 1
+			} else {
+				e.out = 2
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func condOr(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			if !e.flag || <-e.in == 1 {
+				e.out = 1
+			} else {
+				e.out = 2
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func condAndCount(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			if tick(e, 1) == 1 && <-e.in == 1 {
+				e.out = 1
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func condAndNest(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			x := e.flag && (<-e.in == 1 || <-e.in == 2)
+			e.out = b2i(x)
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func condAndArg(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			e.out = b2i(e.flag && <-e.in == 1)
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func condAndIndex(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			if e.flag && e.nums[<-e.in] == 3 {
+				e.out = 1
+			} else {
+				e.out = 2
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func condCase(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			switch {
+			case e.flag:
+				w := 1
+				e.out = w
+			case <-e.in == 2:
+				w := 2
+				e.out = w
+			default:
+				w := 3
+				e.out = w
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func condCaseTag(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			switch tick(e, 5) {
+			case 1:
+				e.out = 1
+			case <-e.in:
+				e.out = 2
+			case 5, <-e.in:
+				e.out = 3
+			default:
+				e.out = 4
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func condCaseFall(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			switch {
+			case <-e.in == 1:
+				e.out = 1
+				fallthrough
+			case false:
+				e.out += 10
+			default:
+				e.out = 99
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func condIfInit(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			if v := e.base; <-e.in == v {
+				w := 1
+				e.out = w
+			} else if v > 0 {
+				w := 2
+				e.out = w
+			} else {
+				w := 3
+				e.out = w
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func condSwitchInit(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			switch v := e.base; <-e.in {
+			case v:
+				w := 1
+				e.out = w
+			default:
+				w := v + 100
+				e.out = w
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func condDefer(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			defer record(e, tick(e, 4), <-e.in)
+			e.out = -1
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func condGo(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			go record(e, tick(e, 4), e.nums[<-e.in])
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func condGoAnd(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			go setb(e, e.flag && <-e.in == 1)
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func condForComma(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			for v, ok := <-e.in; ok; v, ok = <-e.in {
+				e.out += v
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func condSwitchComma(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			switch v, ok := <-e.in; {
+			case ok:
+				e.out = v
+			default:
+				e.out = -1
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func condNestedRange(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			for range 2 {
+				for v := range e.in {
+					e.out += v
+				}
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func condForInit(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			for i := <-e.in; i < 3; i++ {
+				e.out += i
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func condRangeRecv(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			for v := range <-e.chain {
+				e.out += v
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func pick(e *env) (int, error) {
+	e.calls++
+	if e.bad {
+		return 0, errSib
+	}
+	return e.base, nil
+}
+
+func pickArg(e *env, a int) (int, error) {
+	e.calls++
+	if e.bad {
+		return 0, errSib
+	}
+	return a, nil
+}
+
+func undo(e *env) {
+	e.undo++
+}
+
+func guard(e *env) error {
+	e.calls++
+	if e.bad {
+		return errSib
+	}
+	return nil
+}
+
+func tryIfExprInit(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			if guard(e)?; <-e.in == 1 {
+				e.out = 1
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func tryIfCond(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			if v := pick(e)?; <-e.in == v {
+				e.out = 1
+			} else {
+				e.out = 2
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func tryIfInitRecv(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			if v := pickArg(e, <-e.in)?; v > 0 {
+				e.out = v
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func trySwitchTag(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			switch v := pick(e)?; <-e.in {
+			case v:
+				e.out = 1
+			default:
+				e.out = 2
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func trySwitchCase(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			switch v := pick(e)?; {
+			case <-e.in == v:
+				e.out = 1
+			default:
+				e.out = 2
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func tryForCond(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			for i := pick(e)?; <-e.in < i; {
+				e.out++
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func tryForPost(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			for i := pick(e)?; i < 10; i += <-e.in {
+				e.out++
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func tryLabeledFor(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+		loop:
+			for v := pick(e)?; <-e.in < v; {
+				e.out++
+				if e.out == 2 {
+					break loop
+				}
+				continue loop
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func tryLabeledSwitch(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+		sw:
+			switch v := pick(e)?; <-e.in {
+			case v:
+				if e.flag {
+					break sw
+				}
+				e.out = 1
+			default:
+				e.out = 2
+			}
+			e.out += 10
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func tryUndo(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			errdefer undo(e)
+			if v := pick(e)?; <-e.in == v {
+				e.out = 1
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvVarGroup(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			var (
+				x     = tick(e, 1)
+				v, ok = <-e.in
+			)
+			e.out = x*100 + v*10 + b2i(ok)
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvErrdeferArg(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			errdefer record(e, 1, <-e.in)
+			failSibling()?
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvScopeDeferArg(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			scope defer record(e, 2, <-e.in)
+			e.out = 99
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvScopeDeferLoop(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			for i := 0; i < 1; i++ {
+				scope defer record(e, 2, <-e.in)
+				e.out = 99
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvInterp(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			s := $"v={<-e.in}"
+			if s == "v=7" {
+				e.out = 1
+			}
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func recvTupleLit(ctx context.Context, e *env, fail bool) error {
+	go group (ctx) {
+		go {
+			t := (<-e.in, 2)
+			a, b := t
+			e.out = a*10 + b
+		}
+		go {
+			if fail {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+type cell struct {
+	name      string
+	run       func(ctx context.Context, e *env, fail bool) error
+	feed      []int
+	boxes     []int
+	sink      int
+	nested    int
+	inner     []int
+	anyv      int
+	flag      bool
+	base      int
+	calls     int
+	bad       bool
+	undo      int
+	capIn     int
+	closed    bool
+	want      int
+	left      int
+	leftBoxes int
+	observe   func(e *env) int
+}
+
+//logos:allow(correctness::unbounded_channel_op)
+func fromMid(e *env) int {
+	select {
+	case v := <-e.mid:
+		return v
+	default:
+		return -1
+	}
+}
+
+//logos:allow(correctness::unbounded_channel_op)
+func fromIn(e *env) int {
+	select {
+	case v := <-e.in:
+		return v
+	default:
+		return -1
+	}
+}
+
+func valueCells() []cell {
+	return []cell{
+		{name: "paren", run: recvParen, feed: []int{5, 99}, want: 5, left: 1},
+		{name: "binop", run: recvBinop, feed: []int{10, 3, 99}, want: 7, left: 1},
+		{name: "callarg", run: recvCallarg, feed: []int{5, 99}, want: 5, left: 1},
+		{name: "callorder", run: recvCallorder, capIn: 1, want: 105},
+		{name: "literal", run: recvLiteral, feed: []int{5, 99}, want: 5, left: 1},
+		{name: "sendrecv", run: recvSendrecv, feed: []int{5, 99}, want: 5, left: 1, observe: fromMid},
+		{name: "cond", run: recvCond, feed: []int{1, 99}, want: 1, left: 1},
+		{name: "elseif", run: recvCond, feed: []int{3, 2, 99}, want: 2, left: 1},
+		{name: "elseif-plain", run: recvCond, feed: []int{3, 4, 99}, want: -2, left: 1},
+		{name: "composite", run: recvComposite, feed: []int{5, 99}, want: 5, left: 1},
+		{name: "selector", run: recvSelector, boxes: []int{9, 99}, want: 9, leftBoxes: 1},
+		{name: "unary", run: recvUnary, feed: []int{5, 99}, want: -5, left: 1},
+		{name: "ifinit", run: recvIfinit, feed: []int{5, 99}, want: 5, left: 1},
+		{name: "ifinit-closed", run: recvIfinit, closed: true, want: -1},
+		{name: "select", run: recvSelect, feed: []int{5, 99}, want: 5, left: 1},
+		{name: "range", run: recvRange, feed: []int{1, 2, 3}, closed: true, want: 6},
+		{name: "send", run: recvSend, capIn: 1, want: 7, observe: fromIn},
+		{name: "switchtag", run: recvSwitchtag, feed: []int{1, 99}, want: 1, left: 1},
+		{name: "index", run: recvIndex, feed: []int{2, 99}, want: 30, left: 1},
+		{name: "ifhoist", run: recvIfhoist, feed: []int{5, 99}, want: 6, left: 1},
+		{name: "sendcall", run: recvSendcall, capIn: 1, want: 5, observe: fromMid},
+		{name: "mixed", run: recvMixed, feed: []int{4, 5, 99}, want: 46, left: 1},
+		{name: "nested", run: recvNested, nested: 7, want: 7},
+		{name: "nestedindex", run: recvNestedindex, feed: []int{0, 99}, sink: 7, want: 7, left: 1},
+		{name: "goarg", run: recvGoarg, feed: []int{5, 99}, want: 5, left: 1},
+		{name: "keyed", run: recvKeyed, capIn: 1, want: 105},
+		{name: "binoperand", run: recvBinoperand, capIn: 1, want: 205},
+		{name: "indexcall", run: recvIndexcall, capIn: 1, want: 20},
+		{name: "funcall", run: recvFuncall, capIn: 1, want: 105},
+		{name: "target", run: recvTarget, capIn: 1, want: 6},
+		{name: "trycall", run: recvTrycall, feed: []int{5, 99}, want: 6, left: 1},
+		{name: "slice", run: recvSlice, feed: []int{1, 99}, want: 3, left: 1},
+	}
+}
+
+func condValueCells() []cell {
+	return []cell{
+		{name: "for-cond", run: condFor, feed: []int{1, 2, 5, 99}, want: 2, left: 1},
+		{name: "for-post", run: condForPost, feed: []int{2, 2, 2, 99}, want: 4, left: 1},
+		{name: "for-label", run: condForLabel, feed: []int{1, 1, 1, 1, 99}, want: 3, left: 2},
+		{name: "and-skip", run: condAnd, feed: []int{1, 99}, want: 2, left: 2},
+		{name: "and-run", run: condAnd, flag: true, feed: []int{1, 99}, want: 1, left: 1},
+		{name: "or-skip", run: condOr, feed: []int{9, 99}, want: 1, left: 2},
+		{name: "or-run", run: condOr, flag: true, feed: []int{2, 99}, want: 2, left: 1},
+		{name: "and-count", run: condAndCount, feed: []int{1, 99}, want: 1, left: 1, calls: 1},
+		{name: "and-nest-first", run: condAndNest, flag: true, feed: []int{1, 5, 99}, want: 1, left: 2},
+		{name: "and-nest-second", run: condAndNest, flag: true, feed: []int{3, 2, 99}, want: 1, left: 1},
+		{name: "and-arg-skip", run: condAndArg, feed: []int{1, 99}, want: 0, left: 2},
+		{name: "and-arg-run", run: condAndArg, flag: true, feed: []int{1, 99}, want: 1, left: 1},
+		{name: "and-index-skip", run: condAndIndex, feed: []int{2, 99}, want: 2, left: 2},
+		{name: "and-index-run", run: condAndIndex, flag: true, feed: []int{2, 99}, want: 1, left: 1},
+		{name: "case-skip", run: condCase, flag: true, feed: []int{2, 99}, want: 1, left: 2},
+		{name: "case-run", run: condCase, feed: []int{2, 99}, want: 2, left: 1},
+		{name: "case-default", run: condCase, feed: []int{4, 99}, want: 3, left: 1},
+		{name: "case-tag", run: condCaseTag, feed: []int{9, 9, 99}, want: 3, left: 2, calls: 1},
+		{name: "case-fall", run: condCaseFall, feed: []int{1, 99}, want: 11, left: 1},
+		{name: "init-if", run: condIfInit, base: 3, feed: []int{3, 99}, want: 1, left: 1},
+		{name: "init-if-else", run: condIfInit, base: 4, feed: []int{3, 99}, want: 2, left: 1},
+		{name: "init-switch", run: condSwitchInit, base: 3, feed: []int{3, 99}, want: 1, left: 1},
+		{name: "init-switch-default", run: condSwitchInit, base: 3, feed: []int{5, 99}, want: 103, left: 1},
+		{name: "defer-args", run: condDefer, feed: []int{3, 99}, want: 43, left: 1, calls: 1},
+		{name: "go-index", run: condGo, feed: []int{1, 99}, want: 42, left: 1, calls: 1},
+		{name: "go-and", run: condGoAnd, flag: true, feed: []int{1, 99}, want: 1, left: 1},
+		{name: "for-comma", run: condForComma, feed: []int{1, 2, 3}, closed: true, want: 6},
+		{name: "switch-comma", run: condSwitchComma, feed: []int{7, 99}, want: 7, left: 1},
+		{name: "switch-comma-closed", run: condSwitchComma, closed: true, want: -1},
+		{name: "range-nested", run: condNestedRange, feed: []int{1, 2}, closed: true, want: 3},
+		{name: "for-init", run: condForInit, feed: []int{1, 99}, want: 3, left: 1},
+		{name: "range-recv", run: condRangeRecv, inner: []int{4, 5}, want: 9},
+		{name: "assert", run: recvAssert, anyv: 8, want: 8},
+		{name: "typeswitch", run: recvTypeswitch, anyv: 9, want: 9},
+		{name: "switchinit", run: recvSwitchinit, feed: []int{5, 99}, want: 6, left: 1},
+	}
+}
+
+func cancelCells() []cell {
+	return []cell{
+		{name: "paren-cancel", run: recvParen},
+		{name: "binop-cancel", run: recvBinop},
+		{name: "callarg-cancel", run: recvCallarg},
+		{name: "literal-cancel", run: recvLiteral},
+		{name: "sendrecv-cancel", run: recvSendrecv},
+		{name: "cond-cancel", run: recvCond},
+		{name: "composite-cancel", run: recvComposite},
+		{name: "selector-cancel", run: recvSelector},
+		{name: "unary-cancel", run: recvUnary},
+		{name: "ifinit-cancel", run: recvIfinit},
+		{name: "select-cancel", run: recvSelect},
+		{name: "range-cancel", run: recvRange},
+		{name: "send-cancel", run: recvSend},
+		{name: "switchtag-cancel", run: recvSwitchtag},
+		{name: "index-cancel", run: recvIndex},
+		{name: "nested-cancel", run: recvNested},
+		{name: "nestedindex-cancel", run: recvNestedindex},
+		{name: "mixedfirst-cancel", run: recvMixedfirst},
+		{name: "assert-cancel", run: recvAssert},
+		{name: "typeswitch-cancel", run: recvTypeswitch},
+		{name: "goarg-cancel", run: recvGoarg},
+		{name: "trycall-cancel", run: recvTrycall},
+		{name: "slice-cancel", run: recvSlice},
+	}
+}
+
+func tryValueCells() []cell {
+	return []cell{
+		{name: "try-if", run: tryIfCond, base: 3, feed: []int{3, 99}, want: 1, left: 1, calls: 1},
+		{name: "try-if-else", run: tryIfCond, base: 3, feed: []int{4, 99}, want: 2, left: 1, calls: 1},
+		{name: "try-if-bad", run: tryIfCond, base: 3, bad: true, feed: []int{3, 99}, left: 2, calls: 1},
+		{name: "try-if-init-recv", run: tryIfInitRecv, feed: []int{5, 99}, want: 5, left: 1, calls: 1},
+		{name: "try-if-init-recv-bad", run: tryIfInitRecv, bad: true, feed: []int{5, 99}, left: 1, calls: 1},
+		{name: "try-switch-tag", run: trySwitchTag, base: 3, feed: []int{3, 99}, want: 1, left: 1, calls: 1},
+		{name: "try-switch-tag-default", run: trySwitchTag, base: 3, feed: []int{5, 99}, want: 2, left: 1, calls: 1},
+		{name: "try-switch-tag-bad", run: trySwitchTag, base: 3, bad: true, feed: []int{3, 99}, left: 2, calls: 1},
+		{name: "try-switch-case", run: trySwitchCase, base: 3, feed: []int{3, 99}, want: 1, left: 1, calls: 1},
+		{name: "try-switch-case-default", run: trySwitchCase, base: 3, feed: []int{5, 99}, want: 2, left: 1, calls: 1},
+		{name: "try-switch-case-bad", run: trySwitchCase, base: 3, bad: true, feed: []int{3, 99}, left: 2, calls: 1},
+		{name: "try-for-cond", run: tryForCond, base: 3, feed: []int{1, 2, 5, 99}, want: 2, left: 1, calls: 1},
+		{name: "try-for-cond-bad", run: tryForCond, base: 3, bad: true, feed: []int{1, 2, 5, 99}, left: 4, calls: 1},
+		{name: "try-for-post", run: tryForPost, base: 3, feed: []int{4, 4, 99}, want: 2, left: 1, calls: 1},
+		{name: "try-for-post-bad", run: tryForPost, base: 3, bad: true, feed: []int{4, 4, 99}, left: 3, calls: 1},
+		{name: "try-undo", run: tryUndo, base: 3, feed: []int{3, 99}, want: 1, left: 1, calls: 1},
+		{name: "try-undo-bad", run: tryUndo, base: 3, bad: true, feed: []int{3, 99}, left: 2, calls: 1, undo: 1},
+		{name: "try-expr", run: tryIfExprInit, feed: []int{1, 99}, want: 1, left: 1, calls: 1},
+		{name: "try-expr-bad", run: tryIfExprInit, bad: true, feed: []int{1, 99}, left: 2, calls: 1},
+		{name: "try-label-for", run: tryLabeledFor, base: 3, feed: []int{1, 2, 5, 99}, want: 2, left: 2, calls: 1},
+		{name: "try-label-for-bad", run: tryLabeledFor, base: 3, bad: true, feed: []int{1, 2, 5, 99}, left: 4, calls: 1},
+		{name: "try-label-switch-break", run: tryLabeledSwitch, base: 3, flag: true, feed: []int{3, 99}, want: 10, left: 1, calls: 1},
+		{name: "try-label-switch", run: tryLabeledSwitch, base: 3, feed: []int{3, 99}, want: 11, left: 1, calls: 1},
+		{name: "try-label-switch-bad", run: tryLabeledSwitch, base: 3, bad: true, feed: []int{3, 99}, left: 2, calls: 1},
+	}
+}
+
+func tryCancelCells() []cell {
+	return []cell{
+		{name: "try-if-cancel", run: tryIfCond, base: 3, calls: 1},
+		{name: "try-if-init-recv-cancel", run: tryIfInitRecv},
+		{name: "try-switch-tag-cancel", run: trySwitchTag, base: 3, calls: 1},
+		{name: "try-switch-case-cancel", run: trySwitchCase, base: 3, calls: 1},
+		{name: "try-for-cond-cancel", run: tryForCond, base: 3, calls: 1},
+		{name: "try-for-post-cancel", run: tryForPost, base: 3, want: 1, calls: 1},
+		{name: "try-undo-cancel", run: tryUndo, base: 3, calls: 1, undo: 1},
+		{name: "try-expr-cancel", run: tryIfExprInit, calls: 1},
+		{name: "try-label-for-cancel", run: tryLabeledFor, base: 3, calls: 1},
+		{name: "try-label-switch-cancel", run: tryLabeledSwitch, base: 3, calls: 1},
+	}
+}
+
+func formValueCells() []cell {
+	return []cell{
+		{name: "var-group", run: recvVarGroup, feed: []int{5, 99}, want: 151, left: 1, calls: 1},
+		{name: "errdefer-arg", run: recvErrdeferArg, bad: true, feed: []int{7, 99}, want: 17, left: 1},
+		{name: "scope-defer-arg", run: recvScopeDeferArg, feed: []int{7, 99}, want: 27, left: 1},
+		{name: "scope-defer-loop", run: recvScopeDeferLoop, feed: []int{7, 99}, want: 27, left: 1},
+		{name: "interp", run: recvInterp, feed: []int{7, 99}, want: 1, left: 1},
+		{name: "tuple-lit", run: recvTupleLit, feed: []int{7, 99}, want: 72, left: 1},
+	}
+}
+
+func formCancelCells() []cell {
+	return []cell{
+		{name: "var-group-cancel", run: recvVarGroup, calls: 1},
+		{name: "errdefer-arg-cancel", run: recvErrdeferArg},
+		{name: "scope-defer-arg-cancel", run: recvScopeDeferArg},
+		{name: "scope-defer-loop-cancel", run: recvScopeDeferLoop},
+		{name: "interp-cancel", run: recvInterp},
+		{name: "tuple-lit-cancel", run: recvTupleLit},
+	}
+}
+func condCancelCells() []cell {
+	return []cell{
+		{name: "for-cond-cancel", run: condFor},
+		{name: "for-post-cancel", run: condForPost},
+		{name: "and-run-cancel", run: condAnd, flag: true},
+		{name: "or-run-cancel", run: condOr, flag: true},
+		{name: "and-nest-cancel", run: condAndNest, flag: true},
+		{name: "and-arg-cancel", run: condAndArg, flag: true},
+		{name: "and-index-cancel", run: condAndIndex, flag: true},
+		{name: "case-cancel", run: condCase},
+		{name: "case-tag-cancel", run: condCaseTag, calls: 1},
+		{name: "init-if-cancel", run: condIfInit, base: 3},
+		{name: "init-switch-cancel", run: condSwitchInit, base: 3},
+		{name: "defer-args-cancel", run: condDefer, calls: 1},
+		{name: "go-index-cancel", run: condGo, calls: 1},
+		{name: "go-and-cancel", run: condGoAnd, flag: true},
+		{name: "for-comma-cancel", run: condForComma},
+		{name: "switch-comma-cancel", run: condSwitchComma},
+		{name: "range-nested-cancel", run: condNestedRange},
+		{name: "for-init-cancel", run: condForInit},
+		{name: "range-recv-cancel", run: condRangeRecv},
+	}
+}
+
+//logos:allow(correctness::unbounded_channel_op)
+func newEnv(c cell) *env {
+	e := &env{in: make(chan int, max(len(c.feed), c.capIn)), mid: make(chan int, 1), boxes: make(chan box, len(c.boxes))}
+	e.sinks = []chan int{make(chan int, 1)}
+	e.chain = make(chan chan int, 1)
+	e.nums = []int{1, 2, 3, 4}
+	e.anys = make(chan any, 1)
+	e.flag = c.flag
+	e.base = c.base
+	e.bad = c.bad
+	if c.anyv != 0 {
+		e.anys <- c.anyv
+	}
+	if c.sink != 0 {
+		e.sinks[0] <- c.sink
+	}
+	if c.inner != nil {
+		inner := make(chan int, len(c.inner))
+		for _, v := range c.inner {
+			inner <- v
+		}
+		close(inner)
+		e.chain <- inner
+	}
+	if c.nested != 0 {
+		inner := make(chan int, 1)
+		inner <- c.nested
+		e.chain <- inner
+	}
+	for _, v := range c.feed {
+		e.in <- v
+	}
+	for _, v := range c.boxes {
+		e.boxes <- box{V: v}
+	}
+	if c.closed {
+		close(e.in)
+	}
+	return e
+}
+
+func exercise(c cell, fail bool) string {
+	e := newEnv(c)
+	watchdog := time.AfterFunc(waitBound, func() {
+		fmt.Printf("FAIL %s: group did not return within the bound\n", c.name)
+		os.Exit(1)
+	})
+	err := c.run(context.Background(), e, fail)
+	watchdog.Stop()
+	wantErr := fail || c.bad
+	if wantErr != errors.Is(err, errSib) || (!wantErr && err != nil) {
+		return fmt.Sprintf("got error %v", err)
+	}
+	got := e.out
+	if c.observe != nil {
+		got = c.observe(e)
+	}
+	if got != c.want {
+		return fmt.Sprintf("got %d want %d", got, c.want)
+	}
+	if e.calls != c.calls {
+		return fmt.Sprintf("got %d evaluations want %d", e.calls, c.calls)
+	}
+	if e.undo != c.undo {
+		return fmt.Sprintf("got %d undos want %d", e.undo, c.undo)
+	}
+	if len(e.in) != c.left || len(e.boxes) != c.leftBoxes {
+		return fmt.Sprintf("got %d and %d values left want %d and %d", len(e.in), len(e.boxes), c.left, c.leftBoxes)
+	}
+	return ""
+}
+
+func selected(name string) bool {
+	return len(os.Args) < 2 || os.Args[1] == name
+}
+
+func main() {
+	failed := false
+	report := func(name, problem string) {
+		if problem != "" {
+			fmt.Printf("FAIL %s: %s\n", name, problem)
+			failed = true
+			return
+		}
+		fmt.Printf("ok %s\n", name)
+	}
+	for _, c := range slices.Concat(valueCells(), condValueCells(), tryValueCells(), formValueCells()) {
+		if selected(c.name) {
+			report(c.name, exercise(c, false))
+		}
+	}
+	for _, c := range slices.Concat(cancelCells(), condCancelCells(), tryCancelCells(), formCancelCells()) {
+		if selected(c.name) {
+			report(c.name, exercise(c, true))
+		}
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

@@ -1,0 +1,112 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# Contextual loGo/s words stay ordinary identifiers: the same
+# declarations build and run under plain go, under logos for a Go
+# module, and under logos for a loGo/s module.
+cd go
+go run .
+stdout '^1 2 3 4 5 6$'
+logos run .
+stdout '^1 2 3 4 5 6$'
+cd ../lgo
+logos run .
+stdout '^1 2 3 4 5 6$'
+cd ..
+
+# In a keyword position the same word is a statement in a loGo/s file
+# and a syntax error in a Go file, under plain go and under logos.
+cd kwpos
+logos run .
+stdout '^cleanup ran$'
+stdout '^true$'
+cd ../gobad
+! go build .
+stderr 'main\.go:11:[0-9]+: syntax error'
+! logos build .
+stderr 'main\.go:11:[0-9]+: syntax error'
+cd ..
+
+-- go/go.mod --
+module example.com/kwgo
+
+go 1.27
+
+-- go/main.go --
+package main
+
+import "fmt"
+
+func main() {
+	yield := 1
+	scope := 2
+	group := 3
+	option := 4
+	comptime := 5
+	errdefer := 6
+	fmt.Println(yield, scope, group, option, comptime, errdefer)
+}
+
+-- lgo/go.mod --
+module example.com/kwlgo
+
+go 1.27
+
+-- lgo/main.lgo --
+package main
+
+import "fmt"
+
+func main() {
+	yield := 1
+	scope := 2
+	group := 3
+	option := 4
+	comptime := 5
+	errdefer := 6
+	fmt.Println(yield, scope, group, option, comptime, errdefer)
+}
+
+-- kwpos/go.mod --
+module example.com/kwpos
+
+go 1.27
+
+-- kwpos/main.lgo --
+package main
+
+import (
+	"errors"
+	"fmt"
+)
+
+func cleanup() { fmt.Println("cleanup ran") }
+
+func work() error {
+	errdefer cleanup()
+	return errors.New("fail")
+}
+
+func main() { fmt.Println(work() != nil) }
+
+-- gobad/go.mod --
+module example.com/gobad
+
+go 1.27
+
+-- gobad/main.go --
+package main
+
+import (
+	"errors"
+	"fmt"
+)
+
+func cleanup() { fmt.Println("cleanup ran") }
+
+func work() error {
+	errdefer cleanup()
+	return errors.New("fail")
+}
+
+func main() { fmt.Println(work() != nil) }

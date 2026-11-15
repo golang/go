@@ -1,0 +1,268 @@
+// run
+
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"strings"
+	"sync"
+	"time"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+var errBoom = errors.New("boom")
+
+var mu sync.Mutex
+var events []string
+
+func note(s string) {
+	mu.Lock()
+	defer mu.Unlock()
+	events = append(events, s)
+}
+
+func reset() {
+	mu.Lock()
+	defer mu.Unlock()
+	events = nil
+}
+
+func seen() string {
+	mu.Lock()
+	defer mu.Unlock()
+	return strings.Join(events, ",")
+}
+
+func slow(tag string) {
+	note(tag)
+}
+
+func slowFail(tag string) error {
+	note(tag)
+	return errBoom
+}
+
+func fallOff(ctx context.Context) error {
+	go group (ctx) {
+		scope defer note("cleanup")
+		go {
+			slow("child-done")
+		}
+	}
+	note("after-group")
+	return nil
+}
+
+func returnExit(ctx context.Context) error {
+	go group (ctx) {
+		scope defer note("cleanup")
+		go {
+			slow("child-done")
+		}
+		return nil
+	}
+	note("unreachable")
+	return nil
+}
+
+func breakExit(ctx context.Context) error {
+	for {
+		go group (ctx) {
+			scope defer note("cleanup")
+			go {
+				slow("child-done")
+			}
+			break
+		}
+	}
+	note("after-loop")
+	return nil
+}
+
+func lifoExit(ctx context.Context) error {
+	go group (ctx) {
+		scope defer note("cleanup-1")
+		scope defer note("cleanup-2")
+		go {
+			slow("child-done")
+		}
+	}
+	return nil
+}
+
+func failureExit(ctx context.Context) error {
+	go group (ctx) {
+		scope defer note("cleanup")
+		go {
+			slowFail("child-fail")?
+		}
+	}
+	return nil
+}
+
+func fail() error { return errBoom }
+
+func failedTryExit(ctx context.Context) error {
+	go group (ctx) {
+		scope defer note("cleanup")
+		go {
+			slow("child-done")
+		}
+		fail()?
+		note("unreachable")
+	}
+	return nil
+}
+
+func innerBlock(ctx context.Context) error {
+	release := make(chan struct{})
+	go group (ctx) {
+		go {
+			select {
+			case <-release:
+			case <-time.After(10 * time.Second):
+				panic("inner cleanup timeout")
+			}
+			slow("child-done")
+		}
+		{
+			scope defer close(release)
+			scope defer note("inner-cleanup")
+		}
+	}
+	return nil
+}
+
+func outerScope(ctx context.Context) error {
+	{
+		scope defer note("outer-cleanup")
+		go group (ctx) {
+			go {
+				slow("child-done")
+			}
+			return nil
+		}
+	}
+	return nil
+}
+
+func panicExit(ctx context.Context) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			note("recovered")
+		}
+	}()
+	go group (ctx) {
+		scope defer note("cleanup")
+		go {
+			slow("child-done")
+		}
+		panic("body")
+	}
+	return nil
+}
+
+func inLoop(ctx context.Context) error {
+	for range 2 {
+		go group (ctx) {
+			scope defer note("cleanup")
+			go {
+				slow("child-done")
+			}
+		}
+	}
+	return nil
+}
+
+func panicInLoop(ctx context.Context) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			note("recovered")
+		}
+	}()
+	for range 1 {
+		go group (ctx) {
+			scope defer note("cleanup")
+			go {
+				slow("child-done")
+			}
+			panic("body")
+		}
+	}
+	return nil
+}
+
+func inChild(ctx context.Context) error {
+	go group (ctx) {
+		go {
+			scope defer note("child-cleanup")
+			note("child-body")
+		}
+	}
+	note("after-group")
+	return nil
+}
+
+func inChildLoop(ctx context.Context) error {
+	go group (ctx) {
+		go {
+			for i := range 2 {
+				scope defer note(fmt.Sprint("iteration-", i))
+				note(fmt.Sprint("body-", i))
+			}
+		}
+	}
+	return nil
+}
+
+func watchdog(name string) func() {
+	t := time.AfterFunc(10*time.Second, func() {
+		fmt.Println("FAIL", name+": hung")
+		os.Exit(1)
+	})
+	return func() { t.Stop() }
+}
+
+func scenario(name string, f func(context.Context) error, want string, errOK func(error) bool) {
+	reset()
+	stop := watchdog(name)
+	err := f(context.Background())
+	stop()
+	check(name, seen() == want && errOK(err), seen()+" / "+fmt.Sprint(err), want)
+}
+
+func isNil(err error) bool { return err == nil }
+
+func isBoom(err error) bool { return errors.Is(err, errBoom) }
+
+func main() {
+	scenario("scope-defer-runs-after-join-at-block-end", fallOff, "child-done,cleanup,after-group", isNil)
+	scenario("scope-defer-runs-after-join-on-return", returnExit, "child-done,cleanup", isNil)
+	scenario("scope-defer-runs-after-join-on-break", breakExit, "child-done,cleanup,after-loop", isNil)
+	scenario("scope-defers-run-last-in-first-out-after-join", lifoExit, "child-done,cleanup-2,cleanup-1", isNil)
+	scenario("scope-defer-runs-after-join-on-child-failure", failureExit, "child-fail,cleanup", isBoom)
+	scenario("scope-defer-runs-after-join-on-failed-try", failedTryExit, "child-done,cleanup", isBoom)
+	scenario("scope-defer-in-inner-block-runs-before-join", innerBlock, "inner-cleanup,child-done", isNil)
+	scenario("outer-scope-defer-runs-after-join-on-return", outerScope, "child-done,outer-cleanup", isNil)
+	scenario("scope-defer-runs-after-join-on-panic", panicExit, "child-done,cleanup,recovered", isNil)
+	scenario("scope-defer-runs-after-join-in-a-loop", inLoop, "child-done,cleanup,child-done,cleanup", isNil)
+	scenario("scope-defer-runs-after-join-on-panic-in-a-loop", panicInLoop, "child-done,cleanup,recovered", isNil)
+	scenario("scope-defer-in-child-runs-at-child-end", inChild, "child-body,child-cleanup,after-group", isNil)
+	scenario("scope-defer-in-child-loop-runs-per-iteration", inChildLoop, "body-0,iteration-0,body-1,iteration-1", isNil)
+	if failed {
+		os.Exit(1)
+	}
+}

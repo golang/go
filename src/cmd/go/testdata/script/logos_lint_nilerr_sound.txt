@@ -1,0 +1,84 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd s
+! logos build ./...
+stderr 'DeferClosure\(\) is dropped'
+stderr 'AddrTaken\(\) is dropped'
+stderr 'RangeAssign\(nil\) is dropped'
+stderr 'CalledClosure\(\) is dropped'
+stderr 'RecoverAssign\(\) is dropped'
+! stderr 'Control\(\) is dropped'
+cd ..
+
+cd s/c
+logos build -o $WORK/s.a .
+cd ../..
+go tool pack p $WORK/s.a __.LOGOS
+stdout '^fn Control AlwaysNilError$'
+! stdout '^fn DeferClosure '
+! stdout '^fn AddrTaken '
+! stdout '^fn RangeAssign '
+! stdout '^fn CalledClosure '
+! stdout '^fn RecoverAssign '
+
+-- s/go.mod --
+module example.com/s
+
+go 1.27
+
+-- s/c/c.lgo --
+package c
+
+import "errors"
+
+var errBad = errors.New("bad")
+
+func DeferClosure() (err error) {
+	defer func() { err = errBad }()
+	return nil
+}
+
+func AddrTaken() (err error) {
+	p := &err
+	*p = errBad
+	return nil
+}
+
+func RangeAssign(errs []error) (err error) {
+	for _, err = range errs {
+	}
+	return nil
+}
+
+func CalledClosure() (err error) {
+	func() { err = errBad }()
+	return nil
+}
+
+func RecoverAssign() (err error) {
+	defer func() {
+		if recover() != nil {
+			err = errBad
+		}
+	}()
+	return nil
+}
+
+func Control() error {
+	return nil
+}
+
+-- s/d/d.lgo --
+package d
+
+import "example.com/s/c"
+
+func Use() {
+	c.DeferClosure()
+	c.AddrTaken()
+	c.RangeAssign(nil)
+	c.CalledClosure()
+	c.RecoverAssign()
+	c.Control()
+}

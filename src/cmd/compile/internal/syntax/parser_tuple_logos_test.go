@@ -10,10 +10,6 @@ import (
 	"testing"
 )
 
-// Regression (SPEC Sec 5.2): a tuple literal needs a comma at its top
-// level; a parenthesized expression without one must parse exactly as
-// in Go. The defect: an element headed by a nested `(` ended at its
-// own `)`, so `((a+b) + (c+d))` failed with "unexpected +, expected )".
 func TestLogosParenExprVsTuple(t *testing.T) {
 	f := parseLogos(t, "package p\n\nfunc f(a, b, c, d int) {\n\tx := ((a+b) + (c+d))\n\t_ = x\n}\n")
 	stmts := funcBodyStmts(t, f, "f")
@@ -40,7 +36,6 @@ func TestLogosParenExprVsTuple(t *testing.T) {
 	if !okL || !okR || innerL.Op != Add || innerR.Op != Add {
 		t.Fatalf("inner elements are %T/%T, want two parenthesized additions", op.X, op.Y)
 	}
-	// `(a)` and `((a))` stay ParenExpr around the name.
 	for _, src := range []string{
 		"package p\nfunc f(a int) { x := (a); _ = x }",
 		"package p\nfunc f(a int) { x := ((a)); _ = x }",
@@ -58,7 +53,6 @@ func TestLogosParenExprVsTuple(t *testing.T) {
 			t.Fatalf("%s: rhs is %T, want *ParenExpr", src, aa.Rhs)
 		}
 	}
-	// `(a, b)` is a tuple literal; `((a, b))` is a ParenExpr around it.
 	g := parseLogos(t, "package p\nfunc f(a int, b string) { x := (a, b); y := ((a, b)); _, _ = x, y }")
 	st := funcBodyStmts(t, g, "f")
 	x, ok := st[0].(*AssignStmt)
@@ -81,10 +75,7 @@ func TestLogosParenExprVsTuple(t *testing.T) {
 	}
 }
 
-// Neighbours of the regression: parenthesized operators, call
-// arguments, both lambda shapes, and a tuple type in a var decl.
 func TestLogosParenNeighbours(t *testing.T) {
-	// `(a+b)*c` groups as an Operation, never a tuple.
 	g := parseLogos(t, "package p\nfunc f(a, b, c int) { x := (a+b)*c; _ = x }")
 	st := funcBodyStmts(t, g, "f")
 	as, ok := st[0].(*AssignStmt)
@@ -98,7 +89,6 @@ func TestLogosParenNeighbours(t *testing.T) {
 	if _, isTuple := Unparen(mul.X).(*TupleLit); isTuple {
 		t.Fatalf("(a+b)*c left operand is a *TupleLit")
 	}
-	// `f((a+b), c)` parses as a two-argument call.
 	g = parseLogos(t, "package p\nfunc f(a, b, c int) { g((a+b), c) }\nfunc g(x, y int) {}")
 	st = funcBodyStmts(t, g, "f")
 	cs, ok := st[0].(*ExprStmt)
@@ -115,7 +105,6 @@ func TestLogosParenNeighbours(t *testing.T) {
 	if _, isTuple := Unparen(call.ArgList[0]).(*TupleLit); isTuple {
 		t.Fatalf("first call argument is a *TupleLit")
 	}
-	// `(a, b) => a+b` is a lambda; `(x) => x` is a one-parameter lambda.
 	for _, src := range []string{
 		"package p\nfunc f(a, b int) { g := (a, b) => a+b; _ = g }",
 		"package p\nfunc f(a int) { g := (a) => a; _ = g }",
@@ -130,7 +119,6 @@ func TestLogosParenNeighbours(t *testing.T) {
 			t.Fatalf("%s: rhs is %T, want *LambdaExpr", src, aa.Rhs)
 		}
 	}
-	// `(int, error)` in a var decl is a tuple type.
 	h := parseLogos(t, "package p\nvar v (int, error)")
 	var sawTuple bool
 	Inspect(h, func(n Node) bool {
@@ -145,10 +133,6 @@ func TestLogosParenNeighbours(t *testing.T) {
 	}
 }
 
-// TestLogosParenMatchesGo is the differential attack on the shared `(`
-// rule: every parenthesized expression below is valid Go without a
-// top-level comma, so LogosMode must produce the identical tree (and
-// positions) as plain mode, whatever token heads the element.
 func TestLogosParenMatchesGo(t *testing.T) {
 	exprs := []string{
 		"(a)",
@@ -201,6 +185,128 @@ func TestLogosParenMatchesGo(t *testing.T) {
 		}
 		if dumpAddr.ReplaceAllString(pd.String(), "0x") != dumpAddr.ReplaceAllString(ld.String(), "0x") {
 			t.Errorf("%s: LogosMode tree differs from plain Go:\nplain:\n%s\nlogos:\n%s", e, pd.String(), ld.String())
+		}
+	}
+}
+
+func TestLogosParenColonMeansNamedType(t *testing.T) {
+	f := parseLogos(t, "package p\nvar v (x: int, y: string)\n")
+	decl, ok := f.DeclList[0].(*VarDecl)
+	if !ok {
+		t.Fatalf("decl 0 is %T; want *VarDecl", f.DeclList[0])
+	}
+	if decl.Values != nil {
+		t.Fatalf("var decl has values %v; want none", decl.Values)
+	}
+	tt, ok := decl.Type.(*TupleType)
+	if !ok {
+		t.Fatalf("(x: int, y: string) is %T; want *TupleType", decl.Type)
+	}
+	if len(tt.Fields) != 2 || tt.Fields[0].Name == nil || tt.Fields[0].Name.Value != "x" || tt.Fields[1].Name == nil || tt.Fields[1].Name.Value != "y" {
+		t.Fatalf("colon fields carry no names: %+v", tt.Fields)
+	}
+	src := "package p\nfunc f(a int) int {\nx := (a: 1)\nreturn x\n}\n"
+	var msgs []string
+	_, err := Parse(nil, strings.NewReader(src), func(err error) {
+		msgs = append(msgs, err.Error())
+	}, nil, CheckBranches|LogosMode)
+	if err == nil && len(msgs) == 0 {
+		t.Fatal("colon in value position parsed without error")
+	}
+	if len(msgs) == 0 || !strings.Contains(msgs[0], "expected )") {
+		t.Fatalf("colon value first error is %q; want expected )", msgs)
+	}
+}
+
+func TestLogosTupleNamedBracketElems(t *testing.T) {
+	for _, tc := range []struct {
+		src   string
+		names []string
+		types []string
+	}{
+		{"type A (id int, xs []int)", []string{"id", "xs"}, []string{"int", "[]int"}},
+		{"type A (id int, p *int, a [2]int)", []string{"id", "p", "a"}, []string{"int", "*int", "[2]int"}},
+		{"type A (xs []int?, n int)", []string{"xs", "n"}, []string{"[]int?", "int"}},
+		{"type A (G[int], int)", []string{"", ""}, []string{"G[int]", "int"}},
+		{"type A (G[int]?, x G[int])", []string{"", "x"}, []string{"G[int]?", "G[int]"}},
+	} {
+		f := parseLogos(t, "package p\n"+tc.src+"\n")
+		decl, ok := f.DeclList[0].(*TypeDecl)
+		if !ok {
+			t.Fatalf("%s: decl 0 is %T; want *TypeDecl", tc.src, f.DeclList[0])
+		}
+		tt, ok := decl.Type.(*TupleType)
+		if !ok || len(tt.Fields) != len(tc.names) {
+			t.Fatalf("%s: type is %T; want *TupleType with %d fields", tc.src, decl.Type, len(tc.names))
+		}
+		for i, fld := range tt.Fields {
+			name := ""
+			if fld.Name != nil {
+				name = fld.Name.Value
+			}
+			if got := String(fld.Type); name != tc.names[i] || got != tc.types[i] {
+				t.Errorf("%s: field %d is %q %q; want %q %q", tc.src, i, name, got, tc.names[i], tc.types[i])
+			}
+		}
+	}
+}
+
+func TestLogosParenOnceBranches(t *testing.T) {
+	for _, tc := range []struct {
+		shape  string
+		src    string
+		found  func(*File) bool
+		errSub string
+	}{
+		{"paren", "package p\nfunc f(x int) { _ = (x) }\n", hasNode[*ParenExpr], ""},
+		{"tuple", "package p\nfunc f(x int, y string) { _ = (x, y) }\n", hasNode[*TupleLit], ""},
+		{"named", "package p\nvar v (x: int)\n", nil, "tuple type needs at least two"},
+		{"namedpair", "package p\nvar v (x: int, y: string)\n", hasNode[*TupleType], ""},
+		{"lambda", "package p\nfunc f(x int) { g := (x) => x; _ = g }\n", hasNode[*LambdaExpr], ""},
+	} {
+		t.Run(tc.shape, func(t *testing.T) {
+			if tc.errSub != "" {
+				var msgs []string
+				_, _ = Parse(nil, strings.NewReader(tc.src), func(err error) {
+					msgs = append(msgs, err.Error())
+				}, nil, CheckBranches|LogosMode)
+				for _, m := range msgs {
+					if strings.Contains(m, tc.errSub) {
+						return
+					}
+				}
+				t.Errorf("%s: no error containing %q in %q", tc.shape, tc.errSub, msgs)
+				return
+			}
+			if !tc.found(parseLogos(t, tc.src)) {
+				t.Errorf("%s: no witness node in %q", tc.shape, tc.src)
+			}
+		})
+	}
+}
+
+func TestLogosLambdaTypedParamNoPartialTree(t *testing.T) {
+	for _, src := range []string{
+		"package p\nfunc f() { g := (a int) => a + 1; _ = g }\n",
+		"package p\nfunc f() { g := (a, b int) => a; _ = g }\n",
+		"package p\nfunc f() { g := (a + b) => a; _ = g }\n",
+	} {
+		var msgs []string
+		f, _ := Parse(nil, strings.NewReader(src), func(err error) {
+			msgs = append(msgs, err.Error())
+		}, nil, CheckBranches|LogosMode)
+		found := false
+		for _, m := range msgs {
+			if strings.Contains(m, "lambda parameters must be names") {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("%q: no lambda parameter error in %q", src, msgs)
+		}
+		if hasNode[*LambdaExpr](f) {
+			t.Errorf("%q: half-formed *LambdaExpr survives recovery", src)
 		}
 	}
 }

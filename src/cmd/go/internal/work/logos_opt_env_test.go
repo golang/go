@@ -10,13 +10,13 @@ import (
 	"testing"
 
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/logos/settings"
 )
 
-func resetArchEnvState(t *testing.T, goarch, initAMD64, initARM64 string) {
+func resetArchEnvState(t *testing.T, goarch string) {
 	t.Helper()
 	oldLogos, oldGoarch := cfg.Logos, cfg.Goarch
 	oldAMD64, oldARM64 := cfg.GOAMD64, cfg.GOARM64
-	oldInitAMD64, oldInitARM64 := logosInitGOAMD64, logosInitGOARM64
 	oldTargetArchEnv := logosTargetArchEnv
 	oldCfgChangedEnv := cfgChangedEnv
 	oldEnvAMD64, hasAMD64 := os.LookupEnv("GOAMD64")
@@ -24,7 +24,7 @@ func resetArchEnvState(t *testing.T, goarch, initAMD64, initARM64 string) {
 	t.Cleanup(func() {
 		cfg.Logos, cfg.Goarch = oldLogos, oldGoarch
 		cfg.GOAMD64, cfg.GOARM64 = oldAMD64, oldARM64
-		logosInitGOAMD64, logosInitGOARM64 = oldInitAMD64, oldInitARM64
+		settings.SetCurrent(&settings.Settings{})
 		logosTargetArchEnv = oldTargetArchEnv
 		cfgChangedEnv = oldCfgChangedEnv
 		if hasAMD64 {
@@ -38,65 +38,77 @@ func resetArchEnvState(t *testing.T, goarch, initAMD64, initARM64 string) {
 			os.Unsetenv("GOARM64")
 		}
 	})
+}
+
+func withArchEnvState(t *testing.T, goarch, amd64, arm64 string) {
+	t.Helper()
+	resetArchEnvState(t, goarch)
+	cfg.Logos = true
 	cfg.Goarch = goarch
-	logosInitGOAMD64, logosInitGOARM64 = initAMD64, initARM64
+	settings.SetCurrent(&settings.Settings{Logos: true, GOAMD64: amd64, GOARM64: arm64})
 	logosTargetArchEnv = nil
 	cfgChangedEnv = nil
 }
 
-func withArchEnvState(t *testing.T, goarch, initAMD64, initARM64 string) {
+func withPlainArchEnvState(t *testing.T, goarch string) {
 	t.Helper()
-	resetArchEnvState(t, goarch, initAMD64, initARM64)
-	cfg.Logos = true
-}
-
-func withPlainArchEnvState(t *testing.T, goarch, initAMD64, initARM64 string) {
-	t.Helper()
-	resetArchEnvState(t, goarch, initAMD64, initARM64)
+	resetArchEnvState(t, goarch)
 	cfg.Logos = false
+	cfg.Goarch = goarch
+	settings.SetCurrent(&settings.Settings{})
+	logosTargetArchEnv = nil
+	cfgChangedEnv = nil
 }
 
 func TestLogosTargetArchEnvPinned(t *testing.T) {
-	withArchEnvState(t, "amd64", "", "")
-	logosSetArchLevel("GOAMD64", "v3")
-	logosSetArchLevel("GOARM64", "v8.2")
-	got := LogosTargetArchEnv()
-	want := []string{"GOAMD64=v3"}
-	if !slices.Equal(got, want) {
+	withArchEnvState(t, "amd64", "v3", "v8.2")
+	if got, want := LogosTargetArchEnv(), []string{"GOAMD64=v3"}; !slices.Equal(got, want) {
 		t.Fatalf("LogosTargetArchEnv() = %v, want %v", got, want)
 	}
 
-	withArchEnvState(t, "arm64", "", "")
-	logosSetArchLevel("GOAMD64", "v3")
-	logosSetArchLevel("GOARM64", "v8.2")
-	got = LogosTargetArchEnv()
-	want = []string{"GOARM64=v8.2"}
-	if !slices.Equal(got, want) {
+	withArchEnvState(t, "arm64", "v3", "v8.2")
+	if got, want := LogosTargetArchEnv(), []string{"GOARM64=v8.2"}; !slices.Equal(got, want) {
 		t.Fatalf("LogosTargetArchEnv() = %v, want %v", got, want)
 	}
 }
 
-func TestLogosTargetArchEnvUserSet(t *testing.T) {
-	withArchEnvState(t, "amd64", "v1", "")
-	logosSetArchLevel("GOAMD64", "v3")
-	logosSetArchLevel("GOARM64", "v8.2")
+func TestLogosTargetArchEnvEmpty(t *testing.T) {
+	withArchEnvState(t, "amd64", "", "")
 	if got := LogosTargetArchEnv(); len(got) != 0 {
-		t.Fatalf("LogosTargetArchEnv() = %v, want empty when user set level", got)
-	}
-
-	withArchEnvState(t, "arm64", "", "v8.0")
-	logosSetArchLevel("GOAMD64", "v3")
-	logosSetArchLevel("GOARM64", "v8.2")
-	if got := LogosTargetArchEnv(); len(got) != 0 {
-		t.Fatalf("LogosTargetArchEnv() = %v, want empty when user set level", got)
+		t.Fatalf("LogosTargetArchEnv() = %v, want empty with no levels", got)
 	}
 }
 
 func TestLogosTargetArchEnvPlainMode(t *testing.T) {
-	withPlainArchEnvState(t, "amd64", "", "")
-	logosSetArchLevel("GOAMD64", "v3")
-	logosSetArchLevel("GOARM64", "v8.2")
+	withPlainArchEnvState(t, "amd64")
 	if got := LogosTargetArchEnv(); len(got) != 0 {
 		t.Fatalf("LogosTargetArchEnv() = %v in plain mode, want empty", got)
 	}
+}
+
+func TestLogosSetArchLevelWritesEnv(t *testing.T) {
+	resetArchEnvState(t, "amd64")
+	logosTargetArchEnv = nil
+	cfgChangedEnv = nil
+	logosSetArchLevel("GOAMD64", "v3")
+	if cfg.GOAMD64 != "v3" || os.Getenv("GOAMD64") != "v3" {
+		t.Fatalf("after set: cfg.GOAMD64=%q process=%q, want v3 v3", cfg.GOAMD64, os.Getenv("GOAMD64"))
+	}
+	logosSetArchLevel("GOAMD64", "v3")
+	if n := countEntry(cfgChangedEnv, "GOAMD64=v3"); n != 2 {
+		t.Fatalf("cfgChangedEnv=%q, want the level appended twice", cfgChangedEnv)
+	}
+	if n := countEntry(logosTargetArchEnv, "GOAMD64=v3"); n != 1 {
+		t.Fatalf("targetArchEnv=%q, want the level updated in place", logosTargetArchEnv)
+	}
+}
+
+func countEntry(env []string, want string) int {
+	n := 0
+	for _, e := range env {
+		if e == want {
+			n++
+		}
+	}
+	return n
 }

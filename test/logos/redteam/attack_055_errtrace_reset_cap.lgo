@@ -5,6 +5,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os"
 
 	"logos/rt"
 )
@@ -88,12 +89,26 @@ func c10() (int, error) {
 	return n + 1, nil
 }
 
+var failed bool
+
+func check(name string, cond bool, got, want string) {
+	if !cond {
+		fmt.Printf("FAIL %s: got %s want %s\n", name, got, want)
+		failed = true
+		return
+	}
+	fmt.Printf("ok %s\n", name)
+}
+
 //logos:allow(slop::discarded_error)
 func main() {
 	_, _ = topAlpha(true)
-	fmt.Println("trace-alpha:", len(rt.ErrorTrace()))
+	check("errtrace-records-propagation-sites", len(rt.ErrorTrace()) == 2, fmt.Sprint(len(rt.ErrorTrace())), "2")
 	_, _ = topBeta(true)
-	fmt.Println("trace-beta-reset:", len(rt.ErrorTrace()))
+	check("errtrace-resets-on-new-error", len(rt.ErrorTrace()) == 1, fmt.Sprint(len(rt.ErrorTrace())), "1")
 	_, _ = c10()
-	fmt.Println("trace-cap:", len(rt.ErrorTrace()))
+	check("errtrace-keeps-last-eight", len(rt.ErrorTrace()) == 8, fmt.Sprint(len(rt.ErrorTrace())), "8")
+	if failed {
+		os.Exit(1)
+	}
 }

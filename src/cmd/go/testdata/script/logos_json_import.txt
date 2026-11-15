@@ -1,24 +1,13 @@
-# M11-S1: every logos package implicitly imports logos/rt/json, including
-# the external test package; a Go package that imports a loGo/s package
-# gets it too, so the generated MarshalJSON and UnmarshalJSON resolve for
-# the importer; plain Go packages never get the import. Generated static
-# JSON traversal and binary helpers also need direct compiler dependencies
-# on reflect, fmt, encoding/binary, math, and slices, even when the source
-# file imports nothing.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
 cd w
 
-# A command-line file with only two tagged fields needs generated imports,
-# not just the imports visible in the original source. In particular, fmt
-# must have a packagefile entry for generated binary decoder errors.
 cd l
 logos run probe.lgo
 stderr '^\{"id":7,"name":"x"\}$'
 cd ..
 
-# The implicit dependency of a .lgo package that never names the import.
 logos list -f '{{.Deps}}' ./l/a
 stdout 'logos/rt/json'
 logos list -compiled -f '{{.Imports}}' ./l/a
@@ -27,8 +16,6 @@ stdout 'fmt'
 stdout 'math'
 stdout 'slices'
 
-# The external test build passes and carries the import in its own list;
-# its walk-shaped type is what pulls reflect into compiled imports.
 logos test ./l/...
 stdout 'ok\s+example\.com/l/a'
 logos list -test -f '{{.ImportPath}} {{.Deps}}' ./l/...
@@ -36,8 +23,6 @@ stdout 'example\.com/l/a_test \[example\.com/l/a\.test\] \[.*logos/rt/json.*\]'
 logos list -test -compiled -f '{{.Imports}}' ./l/...
 stdout 'reflect'
 
-# A Go importer in another module marshals and unmarshals through the
-# generated methods, in the same bytes encoding/json writes.
 logos run ./g
 stdout '^\{"id":7,"name":"x\\u003cy"\} <nil>$'
 stdout '^7 gone <nil>$'
@@ -45,7 +30,6 @@ stdout '^logos: json: missing required non-nil field Profile.Bio$'
 logos list -f '{{.Deps}}' ./g
 stdout 'logos/rt/json'
 
-# Plain Go packages never gain the import, under either command.
 cd ../gomod
 go list -deps .
 ! stdout 'logos/rt/json'
@@ -122,6 +106,7 @@ func TestExternalGeneratedImports(t *testing.T) {
 	data, err := value.MarshalBinary()
 	if err != nil {
 		t.Fatal(err)
+		return
 	}
 	var got ExternalBinary
 	if err := got.UnmarshalBinary(data); err != nil {

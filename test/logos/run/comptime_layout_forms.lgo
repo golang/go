@@ -1,0 +1,213 @@
+// run
+
+package main
+
+import (
+	"comptime"
+	"fmt"
+	"os"
+	"runtime"
+	"unsafe"
+	"weak"
+)
+
+type Node struct {
+	v int
+}
+
+type Circle struct {
+	r int
+}
+
+type Square struct {
+	s int
+}
+
+type Shape interface {
+	Circle | Square
+}
+
+type Mixed interface {
+	Circle | []int
+}
+
+type Rec struct {
+	a int8
+	b int?
+	c string?
+}
+
+type OptInt = int?
+type OptStr = string?
+type OptSlice = []int?
+type OptMap = (map[string]int)?
+type OptFunc = (func())?
+type OptNode = *Node?
+type OptShape = Shape?
+type OptMixed = Mixed?
+type OptRec = Rec?
+type OptOpt = (int?)?
+type OptNamed string?
+type ViewSlice = const []int
+type ViewStr = const string
+type ViewRec = const Rec
+type ViewOpt = const int?
+type OptView = (const []int)?
+type Pair = (int, string)
+type PairOpt = (int?, string?)
+type DefPair (int, string)
+type DefPairOpt (int?, string?)
+type Cells = [3]OptInt
+
+type twinOpt[T any] struct {
+	Value   T
+	Present bool
+}
+
+type twinRec struct {
+	a int8
+	b twinOpt[int]
+	c twinOpt[string]
+}
+
+type twinPair struct {
+	A int
+	B string
+}
+
+type twinPairOpt struct {
+	A twinOpt[int]
+	B twinOpt[string]
+}
+
+//go:noinline
+func alloc() *[64]byte {
+	return new([64]byte)
+}
+
+func plant[T any](p *T) weak.Pointer[[64]byte] {
+	obj := alloc()
+	words := unsafe.Slice((*unsafe.Pointer)(unsafe.Pointer(p)), unsafe.Sizeof(*p)/unsafe.Sizeof(uintptr(0)))
+	for i := range words {
+		words[i] = unsafe.Pointer(obj)
+	}
+	return weak.Make(obj)
+}
+
+func keepsAlive[T any]() bool {
+	p := new(T)
+	w := plant(p)
+	runtime.GC()
+	runtime.GC()
+	alive := w.Value() != nil
+	runtime.KeepAlive(p)
+	return alive
+}
+
+func bufLen[T any]() int {
+	var b [comptime.SizeOf[T]()]byte
+	return len(b)
+}
+
+func check[T any](name string) bool {
+	var v T
+	size, align, ptrs := comptime.SizeOf[T](), comptime.AlignOf[T](), comptime.HasPointers[T]()
+	ok := true
+	if size != int(unsafe.Sizeof(v)) || bufLen[T]() != int(unsafe.Sizeof(v)) {
+		fmt.Println("FAIL", name, "SizeOf", size, "want", unsafe.Sizeof(v))
+		ok = false
+	}
+	if align != int(unsafe.Alignof(v)) {
+		fmt.Println("FAIL", name, "AlignOf", align, "want", unsafe.Alignof(v))
+		ok = false
+	}
+	if ptrs != keepsAlive[T]() {
+		fmt.Println("FAIL", name, "HasPointers", ptrs, "differs from the GC pointer map")
+		ok = false
+	}
+	if ok {
+		fmt.Println("ok", name)
+	}
+	return ok
+}
+
+func same[T, U any](name string) bool {
+	const if comptime.SizeOf[T]() == comptime.SizeOf[U]() && comptime.AlignOf[T]() == comptime.AlignOf[U]() && comptime.HasPointers[T]() == comptime.HasPointers[U]() {
+		fmt.Println("ok", name)
+		return true
+	}
+	fmt.Println("FAIL", name, "intrinsics differ from the lowered twin")
+	return false
+}
+
+func scalars() []bool {
+	return []bool{
+		check[OptInt]("option-int"),
+		check[OptStr]("option-string"),
+		check[OptSlice]("option-slice"),
+		check[OptMap]("option-map"),
+		check[OptFunc]("option-func"),
+		check[OptNode]("option-pointer"),
+		check[OptNamed]("option-named"),
+	}
+}
+
+func unions() []bool {
+	return []bool{
+		check[Shape]("union"),
+		check[OptShape]("option-union"),
+		check[OptMixed]("option-union-nilable-member"),
+	}
+}
+
+func views() []bool {
+	return []bool{
+		check[ViewSlice]("view-slice"),
+		check[ViewStr]("view-string"),
+		check[ViewRec]("view-struct"),
+		check[ViewOpt]("view-option"),
+		check[OptView]("option-view"),
+	}
+}
+
+func composites() []bool {
+	return []bool{
+		check[Pair]("tuple"),
+		check[PairOpt]("tuple-options"),
+		check[DefPair]("defined-tuple"),
+		check[DefPairOpt]("defined-tuple-options"),
+		check[OptOpt]("option-option"),
+		check[Rec]("struct-options"),
+		check[OptRec]("option-struct"),
+		check[Cells]("array-options"),
+	}
+}
+
+func twins() []bool {
+	return []bool{
+		same[OptInt, twinOpt[int]]("twin-int"),
+		same[OptStr, twinOpt[string]]("twin-string"),
+		same[OptSlice, twinOpt[[]int]]("twin-slice"),
+		same[OptNode, *Node]("twin-pointer"),
+		same[OptShape, Shape]("twin-union"),
+		same[OptMixed, twinOpt[Mixed]]("twin-union-nilable-member"),
+		same[ViewSlice, []int]("twin-view"),
+		same[Pair, twinPair]("twin-tuple"),
+		same[PairOpt, twinPairOpt]("twin-tuple-options"),
+		same[DefPair, twinPair]("twin-defined-tuple"),
+		same[DefPairOpt, twinPairOpt]("twin-defined-tuple-options"),
+		same[Rec, twinRec]("twin-struct"),
+	}
+}
+
+func main() {
+	failed := false
+	for _, group := range [][]bool{scalars(), unions(), views(), composites(), twins()} {
+		for _, ok := range group {
+			failed = failed || !ok
+		}
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

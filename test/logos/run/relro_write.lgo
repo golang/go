@@ -2,31 +2,26 @@
 
 package main
 
-// M5-S3 read-only-after-relocation placement (SPEC Sec 2.1, T-201,
-// #54): constant data with pointers (a string slice, and structs with
-// string fields) lives in read-only-after-relocation memory. On the
-// default non-PIE internal link the linker keeps such symbols in the
-// .rodata section (UseRelro is false for a default exe, so no
-// promotion happens; under internal-link PIE or shared builds the
-// same symbols go to Go-emitted `.data.rel.ro` sections in the
-// relro segment, while with external linking Go keeps them in the
-// rodata segment and leaves rel.ro formation to the external
-// linker), so `go tool nm` reports type R and the
-// debug/elf section of each backing symbol is .rodata. A write to the
-// data through unsafe must fault. The staged test binary itself is
-// stripped, so the program builds a probe module (like
-// test/logos/codegen/rodata.lgo does) and runs it with inherited
-// output: the probe re-executes itself as "child" for the fault
-// checks, then asserts the nm type and ELF section of both pointer
-// backings.
-
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 const probeSrc = `package main
 
@@ -52,15 +47,23 @@ type Rec struct {
 
 const recs = []Rec{{Name: "a", Age: 1}, {Name: "b", Age: 2}}
 
+func forged(addr string) unsafe.Pointer {
+	u, err := strconv.ParseUint(strings.TrimPrefix(addr, "0x"), 16, 64)
+	if err != nil {
+		panic(err)
+	}
+	return unsafe.Pointer(uintptr(u))
+}
+
 //logos:allow(complexity::cognitive_overflow)
 func main() {
 	if len(os.Args) > 2 && os.Args[1] == "child" {
 		switch os.Args[2] {
 		case "names":
-			sp := unsafe.SliceData(names)
+			sp := (*string)(forged(fmt.Sprintf("%p", names)))
 			*sp = "X"
 		case "recs":
-			rp := unsafe.SliceData(recs)
+			rp := (*Rec)(forged(fmt.Sprintf("%p", recs)))
 			rp.Age = 99
 		}
 		fmt.Println("STORE-SUCCEEDED")
@@ -118,6 +121,7 @@ func main() {
 		fmt.Printf("FAIL elf: %v\n", err)
 		os.Exit(1)
 	}
+//logos:allow(slop::discarded_error)
 	defer f.Close()
 	sectOf := func(addr uint64) string {
 		for _, s := range f.Sections {
@@ -181,10 +185,25 @@ func main() {
 		os.Exit(1)
 	}
 	run := exec.Command(filepath.Join(dir, "probe.exe"))
-	run.Stdout = os.Stdout
-	run.Stderr = os.Stderr
+	var probeBuf bytes.Buffer
+	run.Stdout = &probeBuf
+	run.Stderr = &probeBuf
 	if err := run.Run(); err != nil {
 		fmt.Printf("FAIL probe run: %v\n", err)
+		os.Exit(1)
+	}
+	lines := strings.Split(strings.TrimSpace(probeBuf.String()), "\n")
+	var l0, l1, l2, l3, l4 string
+	if len(lines) == 5 {
+		l0, l1, l2, l3, l4 = lines[0], lines[1], lines[2], lines[3], lines[4]
+	}
+	check("probe-lines", len(lines) == 5, len(lines), 5)
+	check("fault-names", l0 == "fault OK names code=2", l0, "fault OK names code=2")
+	check("fault-recs", l1 == "fault OK recs code=2", l1, "fault OK recs code=2")
+	check("names-sect", l2 == "main.names=R sect=.rodata", l2, "main.names=R sect=.rodata")
+	check("recs-sect", l3 == "main.recs=R sect=.rodata", l3, "main.recs=R sect=.rodata")
+	check("relro", l4 == "relro OK", l4, "relro OK")
+	if failed {
 		os.Exit(1)
 	}
 }

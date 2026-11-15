@@ -1,0 +1,34 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cp $GOROOT/test/logos/run/chains_closer_owner.lgo a/main.lgo
+
+cd a
+logos run .
+cmp stdout $GOROOT/test/logos/run/chains_closer_owner.out
+cp stdout ../native.txt
+logos eject -o out
+exists out/main.go
+! exists out/main.lgo
+cd out
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go run .
+stdout '^ok call-shared-count$'
+stdout '^ok local-reassign-owned$'
+stdout '^ok flight-try-fail-owned-tail$'
+stdout '^ok flight-panic-owned-tail$'
+stdout '^ok local-copy-of-local$'
+stdout '^ok value-drop-then-fail-owned-tail$'
+stdout '^ok value-panic$'
+stdout '^ok nested-chain-panic$'
+stdout '^ok nested-mirror-chain-try-fail$'
+cmp stdout ../../native.txt
+cd ../..
+
+-- a/go.mod --
+module example.com/chaincloserowner
+
+go 1.27

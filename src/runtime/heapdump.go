@@ -479,12 +479,8 @@ func dumproots() {
 }
 
 // Bit vector of free marks.
-// Needs to be as big as the largest number of objects per span. A classic
-// small-object span holds at most gc.MaxObjsPerSpan objects. Immix serves
-// each eligible class from a whole block of logosPagesPerBlock pages,
-// whose ceiling is what the smallest class would hold: gc.MaxObjsPerSpan
-// objects per page times logosPagesPerBlock pages.
-var freemark [gc.MaxObjsPerSpan * logosPagesPerBlock]bool
+// Needs to be as big as the largest number of objects per span.
+var freemark [gc.MaxObjsPerSpan]bool
 
 func dumpobjs() {
 	// To protect mheap_.allspans.
@@ -500,13 +496,7 @@ func dumpobjs() {
 		if n > uintptr(len(freemark)) {
 			throw("freemark array doesn't have enough entries")
 		}
-		// Objects occupy only the first s.nelems slots. A scannable span
-		// that stores its pointer bitmap in the span reserves that tail,
-		// so the byte geometry above includes bitmap space and s.limit
-		// ends at the last object. Walk the slots the allocation bits
-		// describe; walking the geometry would dump the bitmap tail as
-		// objects and read past s.limit.
-		n = uintptr(s.nelems)
+
 		for freeIndex := uint16(0); freeIndex < s.nelems; freeIndex++ {
 			if s.isFree(uintptr(freeIndex)) {
 				freemark[freeIndex] = true

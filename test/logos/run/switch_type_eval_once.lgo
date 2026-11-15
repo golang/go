@@ -1,0 +1,70 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type NumOrStr interface {
+	int | string
+}
+
+var evals int
+
+func scrut(n int) NumOrStr {
+	evals++
+	if n == 0 {
+		return 0
+	}
+	return "s"
+}
+
+func stmtKind(n int) string {
+	switch scrut(n).(type) {
+	case int:
+		return "int"
+	case string:
+		return "str"
+	default:
+		return "other"
+	}
+}
+
+func exprKind(n int) string {
+	return switch scrut(n).(type) {
+	case int => "int"
+	case string => "str"
+	default => "other"
+	}
+}
+
+func main() {
+	k := stmtKind(0)
+	check("stmt-type-switch-int", k == "int", k, "int")
+	check("stmt-scrutinee-evaluates-once", evals == 1, evals, 1)
+	k = stmtKind(1)
+	check("stmt-type-switch-str", k == "str", k, "str")
+	check("stmt-scrutinee-evaluates-once-two", evals == 2, evals, 2)
+	e := exprKind(0)
+	check("expr-type-switch-int", e == "int", e, "int")
+	check("expr-scrutinee-evaluates-once", evals == 3, evals, 3)
+	e = exprKind(1)
+	check("expr-type-switch-str", e == "str", e, "str")
+	check("expr-scrutinee-evaluates-once-two", evals == 4, evals, 4)
+	if failed {
+		os.Exit(1)
+	}
+}

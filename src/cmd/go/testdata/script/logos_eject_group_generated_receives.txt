@@ -1,0 +1,30 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# Generated conditional closures must preserve lazy, once-only evaluation
+# and pass cancellation back to their enclosing group child, including when
+# they nest option heads and tails, end a switch arm in an option tail, or
+# discard the results of an optional call. The native, ejected and upstream
+# runs must each print every verdict marker of the shared program.
+cp $GOROOT/test/logos/run/group_generated_receives.lgo a/main.lgo
+cd a
+logos run .
+cmp stdout $GOROOT/test/logos/run/group_generated_receives.out
+logos eject -o out
+exists out/main.go
+! exists out/main.lgo
+cd out
+go run .
+cmp stdout $GOROOT/test/logos/run/group_generated_receives.out
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/group_generated_receives.out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+
+-- a/go.mod --
+module example.com/groupgeneratedreceives
+
+go 1.27

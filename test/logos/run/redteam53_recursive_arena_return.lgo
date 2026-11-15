@@ -1,26 +1,12 @@
 // run -goexperiment logosarena
+// run -goexperiment logosarena -arena=false
 
 package main
 
-// REDTEAM #53 (SPEC Sec 8.3, T-301.1; IMPLEMENTATION.md M18-S2): a
-// recursive call chain returning arena-allocated values must hand the
-// caller memory that lives until the caller exits. A returned arena value
-// that the caller keeps MUST allocate in the caller region, so the
-// callee-exit watermark restore must not reclaim it, and sibling
-// allocations after the return must not overwrite it.
-//
-// Attack: a recursive tree builder returns a pointer-element AST slice
-// whose backing and nodes escape every frame up to main; a recursive
-// slice chain returns a runtime-sized noscan buffer through eight frames.
-// Main checksums both,
-// collects twice, allocates unrelated buffers, and re-checksums. A
-// callee-region placement reclaimed at callee exit corrupts the first
-// checksum; a caller region clobbered by later allocations corrupts the
-// re-checksum. Value-only check: an all-heap fallback also passes; only
-// premature reclamation fails.
 
 import (
 	"fmt"
+	"os"
 	"runtime"
 )
 
@@ -28,14 +14,6 @@ type r53Node struct {
 	v int
 }
 
-// r53Tree builds a pointer AST slice through depth+1 recursive frames and
-// returns it: the leaf frame makes a runtime-sized []*r53Node backing, and
-// every frame above appends n nodes with continuing values before
-// returning. The backing (scan region: pointer elements) and the nodes it
-// roots must all survive the return into main, which keeps them. A plain
-// struct literal initializes the only field, so no non-nil field is ever
-// left unset (correctness::nonnil_uninitialized); the recursion, not
-// nullable child pointers, is what this attack exercises.
 
 //go:noinline
 func r53Tree(depth, n int) []*r53Node {
@@ -100,36 +78,53 @@ func r53Unrelated(n int) int {
 	return s
 }
 
+var r53Failed bool
+
+func r53Check(name string, cond bool, got, want string) {
+	if !cond {
+		fmt.Printf("FAIL %s: got %s want %s\n", name, got, want)
+		r53Failed = true
+		return
+	}
+	fmt.Printf("ok %s\n", name)
+}
+
+func r53OracleBytes(n int) int {
+	s := 0
+	for i := 0; i < n; i++ {
+		s += int(byte((i*7 + 3) & 0xFF))
+	}
+	return s
+}
+
 func main() {
-	// Five frames (depth 4) times 16 nodes: values 1..80, sum 3240.
 	tree := r53Tree(4, 16)
 	n := len(tree)
 	s := r53SumNodes(tree)
-	fmt.Println("tree:", n, s)
-	if n != 80 || s != 3240 {
-		panic("redteam53: recursive tree lost nodes on return")
-	}
+	wantLen := 5 * 16
+	wantSum := wantLen * (wantLen + 1) / 2
+	r53Check("recursive-tree-len", n == wantLen, fmt.Sprint(n), fmt.Sprint(wantLen))
+	r53Check("recursive-tree-sum", s == wantSum, fmt.Sprint(s), fmt.Sprint(wantSum))
 	runtime.GC()
 	runtime.GC()
 	sGC := r53SumNodes(tree)
-	fmt.Println("tree-gc:", sGC)
-	if sGC != 3240 {
-		panic("redteam53: recursive tree corrupted across GC")
-	}
+	r53Check("recursive-tree-gc", sGC == wantSum, fmt.Sprint(sGC), fmt.Sprint(wantSum))
 	runtime.KeepAlive(tree)
-
 	const nb = 64
 	b := r53Chain(8, nb)
 	c1 := r53SumBytes(b)
+	bwant := r53OracleBytes(nb)
+	r53Check("recursive-chain-oracle", c1 == bwant, fmt.Sprint(c1), fmt.Sprint(bwant))
 	runtime.GC()
 	runtime.GC()
 	c2 := r53SumBytes(b)
 	u := r53Unrelated(nb)
+	uwant := nb * 0xA5
+	r53Check("recursive-unrelated-oracle", u == uwant, fmt.Sprint(u), fmt.Sprint(uwant))
 	c3 := r53SumBytes(b)
-	fmt.Println("chain:", c1, c2, u)
-	fmt.Println("chain-keep:", c3)
-	if c1 != c2 || c2 != c3 {
-		panic("redteam53: returned chain buffer corrupted after return")
-	}
+	r53Check("recursive-chain-stable", c1 == c2 && c2 == c3, fmt.Sprint(c3), fmt.Sprint(c1))
 	runtime.KeepAlive(b)
+	if r53Failed {
+		os.Exit(1)
+	}
 }

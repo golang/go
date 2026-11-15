@@ -6,26 +6,9 @@ package types2
 
 import (
 	"cmd/compile/internal/syntax"
+	. "internal/types/errors"
 )
 
-// LoGo/s M6-S2 type rules for `&expr` over non-addressable operands
-// (SPEC T-104.5). Upstream files call in through hook lines only:
-// expr.go (the `&` case of unary) and api.go (the LogosAddrFresh info
-// field). Every rule below applies only to a package of .lgo files
-// (Config.Logos), so plain Go keeps its types exactly as upstream.
-//
-// An `&` over a composite literal or an addressable operand stays on the
-// upstream path (`&T{}` and `&x` keep their form and meaning). Any other
-// valid non-nil operand types as a pointer to a fresh variable holding
-// the operand value; lowering (logos/addr.go) rewrites exactly the
-// recorded operations to `new(expr)`, so each evaluation allocates.
-
-// logosAddrFresh type-checks `&x` for a non-addressable operand x in
-// LogosMode. The result is a value of pointer type: untyped operands
-// take their default type, mirroring `new(expr)`. It records the
-// operation in Info.LogosAddrFresh for lowering and reports true when
-// it handled the operation; otherwise it reports false and the caller
-// runs the upstream path.
 func (check *Checker) logosAddrFresh(x *operand, e *syntax.Operation) bool {
 	if !check.conf.Logos {
 		return false
@@ -33,11 +16,25 @@ func (check *Checker) logosAddrFresh(x *operand, e *syntax.Operation) bool {
 	if _, ok := syntax.Unparen(e.X).(*syntax.CompositeLit); ok {
 		return false
 	}
-	if !x.isValid() || x.isNil() || x.mode() == variable {
+	if !x.isValid() || x.isNil() {
+		return false
+	}
+	base, viaReference, constRooted := check.logosConstBase(e.X)
+	switch {
+	case constRooted && viaReference || !constRooted && x.mode() != variable && logosAsConstView(x.typ()) != nil:
+		check.errorf(e, IncompatibleAssign, "%s cannot take the address of %s through const view %s", logosConstMutation, ExprString(e.X), ExprString(base))
+		x.invalidate()
+		return true
+	case !constRooted && x.mode() == variable:
 		return false
 	}
 	x.mode_ = value
-	x.typ_ = &Pointer{base: Default(x.typ())}
+	typ := x.typ()
+	if constRooted {
+		base, _, _ := logosReadonlyBase(typ)
+		typ = logosWithReadonlyDescendants(base)
+	}
+	x.typ_ = &Pointer{base: Default(typ)}
 	if check.Info != nil {
 		if check.Info.LogosAddrFresh == nil {
 			check.Info.LogosAddrFresh = make(map[syntax.Expr]bool)

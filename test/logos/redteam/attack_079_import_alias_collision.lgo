@@ -5,9 +5,14 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os"
 )
 
 var errParse = errors.New("parse")
+
+var order []string
+
+func note(s string) { order = append(order, s) }
 
 func parse(s string) (int, error) {
 	if s == "bad" {
@@ -21,21 +26,39 @@ func closeAll() error { return nil }
 func compute(input string) (err error) {
 	errors := 0
 	strconv := "prefix"
-	n := parse(input)?
+	errdefer note("compute-cleanup")
+	n, perr := parse(input)
+	if perr != nil {
+		return perr
+	}
 	errors = n
 	defer closeAll()?
-	if errors < 0 {
+	if errors != n || strconv != "prefix" {
 		return errParse
 	}
-	fmt.Println(strconv, errors)
 	return nil
 }
 
-func main() {
-	if err := compute("hello"); err != nil {
-		fmt.Println("fatal:", err)
+var failed bool
+
+func check(name string, cond bool, got, want string) {
+	if !cond {
+		fmt.Printf("FAIL %s: got %s want %s\n", name, got, want)
+		failed = true
+		return
 	}
-	if err := compute("bad"); err != nil {
-		fmt.Println("err:", err)
+	fmt.Printf("ok %s\n", name)
+}
+
+func main() {
+	helloErr := compute("hello")
+	check("eject-shadowed-imports-preserved", helloErr == nil, fmt.Sprint(helloErr), "<nil>")
+	check("eject-shadowed-scope-skips-cleanup-on-success", len(order) == 0, fmt.Sprint(order), "[]")
+	order = nil
+	badErr := compute("bad")
+	check("eject-error-still-reported", errors.Is(badErr, errParse), fmt.Sprint(errors.Is(badErr, errParse)), "true")
+	check("eject-shadowed-scope-runs-cleanup-on-failure", len(order) == 1 && order[0] == "compute-cleanup", fmt.Sprint(order), "[compute-cleanup]")
+	if failed {
+		os.Exit(1)
 	}
 }

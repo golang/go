@@ -1,4 +1,10 @@
-panic: boom
-late-err: primary
-goexit: goexit-ran
-order: on-error,on-panic,late-errdefer,typed-nil,L-defer,L-defertry,L-errdefer,before
+ok errdefer-runs-on-error
+ok errdefer-skips-on-success
+ok errdefer-runs-on-panic
+ok errdefer-runs-when-defer-fails
+ok errdefer-counts-typed-nil
+ok errdefer-defers-run-lifo-across-kinds
+ok errdefer-evaluates-args-at-statement
+ok errdefer-runs-on-goexit
+ok errdefer-runs-on-return-eval-panic
+ok errdefer-rollback-joins-with-primary

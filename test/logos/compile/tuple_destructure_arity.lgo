@@ -1,0 +1,46 @@
+// errorcheck
+
+package p
+
+type pair = (int, int)
+
+func mk() pair {
+	return (1, 2)
+}
+
+func returnTooMany() (int, int, int) {
+	return mk() // ERROR "not enough return values"
+}
+
+func returnTooFew() int {
+	return mk() // ERROR "cannot use"
+}
+
+func defineTooMany() {
+	t := ((1, 2), (3, 4))
+	a, b, c := t // ERROR "mismatch"
+	_, _, _ = a, b, c
+}
+
+func defineLiteralTooMany() {
+	a, b, c := ((1, 2), (3, 4)) // ERROR "mismatch"
+	_, _, _ = a, b, c
+}
+
+func varTooMany() {
+	t := ((1, 2), (3, 4))
+	var a, b, c = t // ERROR "mismatch"
+	_, _, _ = a, b, c
+}
+
+func assignTooMany() {
+	t := ((1, 2), (3, 4))
+	var a, b, c (int, int)
+	a, b, c = t // ERROR "mismatch"
+	_, _, _ = a, b, c
+}
+
+func callTooMany() {
+	a, b, c := mk() // ERROR "mismatch"
+	_, _, _ = a, b, c
+}

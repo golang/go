@@ -1,0 +1,62 @@
+// run
+
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+)
+
+type Circle struct {
+	R int64 `json:"r"`
+}
+
+type Square struct {
+	S int64 `json:"s"`
+}
+
+type Triangle struct {
+	T int64 `json:"t"`
+}
+
+type Round interface{ Circle | Square }
+
+type OnlyCircle interface {
+	Round
+	Circle | Triangle
+}
+
+type Holder struct {
+	Item OnlyCircle `json:"item"`
+}
+
+var failed bool
+
+func decode(name, text string, wantErr bool) Holder {
+	var h Holder
+	err := json.Unmarshal([]byte(text), &h)
+	if (err != nil) != wantErr {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", err, "want error", wantErr)
+		return h
+	}
+	fmt.Println("ok", name)
+	return h
+}
+
+func main() {
+	h := decode("member-decodes", `{"item":{"r":4}}`, false)
+	c, isCircle := any(h.Item).(Circle)
+	if !isCircle || c.R != 4 {
+		failed = true
+		fmt.Println("FAIL member-value: got", h.Item, "want Circle{4}")
+	} else {
+		fmt.Println("ok member-value")
+	}
+	decode("outer-only-term-rejected", `{"item":{"t":5}}`, true)
+	decode("inner-only-term-rejected", `{"item":{"s":6}}`, true)
+	if failed {
+		os.Exit(1)
+	}
+}

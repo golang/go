@@ -1,0 +1,46 @@
+# S2 gofile: an all-.go package under the logos driver keeps plain
+# semantics. The hand-written marker evaluates its call at the
+# statement, which shows recognition never fires for .go files.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+logos run .
+stdout '(?m)^go-f\ngo-stmt$'
+
+# Recognition is extension-gated to loGo/s files: a built binary keeps
+# the same plain order.
+logos build -o $WORK/gofile$GOEXE .
+exec $WORK/gofile$GOEXE
+stdout '(?m)^go-f\ngo-stmt$'
+
+-- go.mod --
+module example.com/defergofile
+
+go 1.27
+
+-- main.go --
+package main
+
+import (
+	"fmt"
+
+	rt "logos/rt"
+)
+
+func g() error {
+	fmt.Println("go-f")
+	return nil
+}
+
+func goGuarded() (err error) {
+	defer rt.DeferTry(&err, g())
+	fmt.Println("go-stmt")
+	return nil
+}
+
+func main() {
+	if err := goGuarded(); err != nil {
+		fmt.Println("FAIL unexpected error")
+		return
+	}
+}

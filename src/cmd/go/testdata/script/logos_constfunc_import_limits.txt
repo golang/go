@@ -1,96 +1,76 @@
-# M5-S2: imported const func step limits and purity rules (T-201, T-102).
-# Caller max_ctfe_steps bounds imported recursive const funcs; purity rejects
-# forbidden I/O, mutable globals, recover, uintptr, map iteration, goroutines,
-# and defer; ordinary imported non-const functions remain strictly rejected at compile time.
-
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
-# 1. Purity rejects forbidden I/O in const func.
 cd impure_io
 ! logos build ./...
 stderr '\[correctness::const_func_impure\] I/O: call to println in const func'
 cd ..
 
-# 2. Purity rejects reading mutable package variable in const func.
 cd impure_read_var
 ! logos build ./...
 stderr '\[correctness::const_func_impure\] read of package variable LocalCounter in const func'
 cd ..
 
-# 3. Purity rejects writing mutable package variable in const func.
 cd impure_write_var
 ! logos build ./...
 stderr '\[correctness::const_func_impure\] write to package variable TargetVar in const func'
 cd ..
 
-# 4. Purity rejects reading imported mutable variable in const func.
 cd impure_read_imp
 ! logos build ./...
 stderr '\[correctness::const_func_impure\] read of imported variable ExportedCounter in const func'
 cd ..
 
-# 5. Ordinary imported non-const function rejected in const initializer.
 cd reject_plain
 ! logos build ./...
 stderr '\[correctness::const_eval\] call to imported function example\.com/reclib\.PlainAdd in const func'
 cd ..
 
-# 6. Ordinary imported non-const function rejected when called inside const func body.
 cd reject_plain_body
 ! logos build ./...
 stderr '\[correctness::const_func_impure\] call to imported function reclib\.PlainAdd in const func'
 cd ..
 
-# 7. Caller max_ctfe_steps limits imported recursion (Rec(1000) under limit 100).
 cd caller_limit
 ! logos build ./...
 stderr '\[comptime::ctfe_step_limit\] evaluation exceeds the step limit'
 cd ..
 
-# 8. Evaluation within caller max_ctfe_steps succeeds and runs (Rec(5) under limit 100).
 cd caller_ok
 logos run .
 stdout '^under-limit: 5$'
 cd ..
 
-# 9. Caller max_ctfe_steps limits same-package recursion.
 cd same_pkg_limit
 ! logos build ./...
 stderr '\[comptime::ctfe_step_limit\]'
 cd ..
 
-# 10. Caller max_ctfe_steps limits recursion in comptime generic copy.
 cd copy_limit
 ! logos build ./...
 stderr '\[comptime::ctfe_step_limit\]'
 cd ..
 
-# 11. Purity rejects call to recover in const func.
 cd impure_recover
 ! logos build ./...
 stderr '\[correctness::const_func_impure\] call to recover in const func'
 cd ..
 
-# 12. Purity rejects conversion to uintptr in const func.
 cd impure_uintptr
 ! logos build ./...
 stderr '\[correctness::const_func_impure\] conversion to uintptr in const func'
 cd ..
 
-# 13. Purity rejects ranging over a dynamic map in const func.
 cd impure_map_range
 ! logos build ./...
 stderr '\[correctness::const_func_impure\] range over map in const func'
 cd ..
 
-# 14. Purity rejects spawning a goroutine in const func.
 cd impure_goroutine
 ! logos build ./...
 stderr '\[correctness::const_func_impure\] goroutine in const func'
 cd ..
 
-# 15. Purity rejects defer in const func.
 cd impure_defer
 ! logos build ./...
 stderr '\[correctness::const_func_impure\] defer in const func'

@@ -2428,7 +2428,7 @@ func (s *regAllocState) placeSpills() {
 }
 
 // shuffle fixes up all the merge edges (those going into blocks of indegree > 1).
-func (s *regAllocState) shuffle(stacklive [][]ID) {
+func (s *regAllocState) shuffle(stacklive stackLive) {
 	var e edgeState
 	e.s = s
 	e.cache = map[ID][]*Value{}
@@ -2446,7 +2446,7 @@ func (s *regAllocState) shuffle(stacklive [][]ID) {
 		for i, edge := range b.Preds {
 			p := edge.b
 			e.p = p
-			e.setup(i, s.endRegs[p.ID], s.startRegs[b.ID], stacklive[p.ID])
+			e.setup(i, s.endRegs[p.ID], s.startRegs[b.ID], stacklive)
 			e.process()
 		}
 	}
@@ -2493,7 +2493,7 @@ type dstRecord struct {
 }
 
 // setup initializes the edge state for shuffling.
-func (e *edgeState) setup(idx int, srcReg []endReg, dstReg []startReg, stacklive []ID) {
+func (e *edgeState) setup(idx int, srcReg []endReg, dstReg []startReg, stacklive stackLive) {
 	if e.s.f.pass.debug > regDebug {
 		fmt.Printf("edge %s->%s\n", e.p, e.b)
 	}
@@ -2512,21 +2512,19 @@ func (e *edgeState) setup(idx int, srcReg []endReg, dstReg []startReg, stacklive
 		e.set(&e.s.registers[x.r], x.v.ID, x.c, false, src.NoXPos) // don't care the position of the source
 	}
 	// So can all of the spill locations.
-	for _, spillID := range stacklive {
-		v := e.s.orig[spillID]
-		spill := e.s.values[v.ID].spill
-		if !e.s.sdom.IsAncestorEq(spill.Block, e.p) {
-			// Spills were placed that only dominate the uses found
-			// during the first regalloc pass. The edge fixup code
-			// can't use a spill location if the spill doesn't dominate
-			// the edge.
-			// We are guaranteed that if the spill doesn't dominate this edge,
-			// then the value is available in a register (because we called
-			// makeSpill for every value not in a register at the start
-			// of an edge).
-			continue
+	for _, chunk := range stacklive.blockWords(e.p.ID) {
+		word := chunk.bits
+		for word != 0 {
+			bit := bits.TrailingZeros64(word)
+			word &= word - 1
+			spillID := stacklive.ids[chunk.index*64+bit]
+			v := e.s.orig[spillID]
+			spill := e.s.values[v.ID].spill
+			if !e.s.sdom.IsAncestorEq(spill.Block, e.p) {
+				continue
+			}
+			e.set(e.s.f.getHome(spillID), v.ID, spill, false, src.NoXPos)
 		}
-		e.set(e.s.f.getHome(spillID), v.ID, spill, false, src.NoXPos) // don't care the position of the source
 	}
 
 	// Figure out all the destinations we need.

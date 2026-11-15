@@ -1,0 +1,123 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# SPEC 5: a Go importer sees a closed union value type as its methods-only
+# interface. The same Go source compiles against the logos build and
+# against the ejected dependency and prints the same output.
+cd gapp
+logos run .
+stdout '^who: A:1 B:two$'
+stdout '^describe: A:1 B:two$'
+stdout '^hole: N$'
+stdout '^check: member non-member$'
+cp stdout $WORK/native.txt
+logos eject -o bout
+exists bout/main.go
+exists bout/_logos_deps/example.com/lpu@v1.0.0/u/u.go
+cd bout
+go build ./...
+go run .
+cmp stdout $WORK/native.txt
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
+exec $WORK/upstream$GOEXE
+cmp stdout $WORK/native.txt
+cd ..
+cd ..
+
+-- gapp/go.mod --
+module example.com/gapp
+
+go 1.27
+
+require example.com/lpu v1.0.0
+
+replace example.com/lpu v1.0.0 => ../lpu
+
+-- gapp/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/lpu/u"
+)
+
+var _ func(u.U) string = u.Who
+var _ func(int) u.U = u.Pick
+var _ u.U = interface{ M() string }(nil)
+var _ interface{ M() string } = u.U(nil)
+
+type N struct{}
+
+func (N) M() string { return "N" }
+
+func describe(x u.U) string {
+	switch v := x.(type) {
+	case u.A:
+		return fmt.Sprintf("A:%d", v.X)
+	case u.B:
+		return "B:" + v.Y
+	}
+	return "other"
+}
+
+func main() {
+	a, b := u.Pick(0), u.Pick(1)
+	fmt.Println("who:", u.Who(a), u.Who(b))
+	fmt.Println("describe:", describe(a), describe(b))
+	fmt.Println("hole:", u.Who(N{}))
+	fmt.Println("check:", u.Check(u.A{X: 9}), u.Check(42))
+}
+
+-- lpu/go.mod --
+module example.com/lpu
+
+go 1.27
+
+-- lpu/u/u.lgo --
+package u
+
+import "fmt"
+
+type A struct {
+	X int
+}
+
+func (a A) M() string {
+	return fmt.Sprintf("A:%d", a.X)
+}
+
+type B struct {
+	Y string
+}
+
+func (b B) M() string {
+	return "B:" + b.Y
+}
+
+type U interface {
+	A | B
+	M() string
+}
+
+func Who(x U) string {
+	return x.M()
+}
+
+func Pick(n int) U {
+	if n == 0 {
+		return A{X: 1}
+	}
+	return B{Y: "two"}
+}
+
+func Check(v any) string {
+	if _, ok := v.(U); ok {
+		return "member"
+	}
+	return "non-member"
+}

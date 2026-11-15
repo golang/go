@@ -5,6 +5,8 @@
 package lint
 
 import (
+	"strings"
+
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types2"
 )
@@ -17,9 +19,14 @@ const logosSyncPath = "logos/sync"
 // WithLock of a logos/sync.Locked, a call to WithLock on the same receiver
 // expression, which blocks forever on the mutex the outer call holds. The
 // inner call counts when it appears directly in the callback, in the body
-// of a directly invoked or deferred function literal, or anywhere in the
-// synchronous call graph of the same-package functions the callback calls,
-// at any depth. Each same-package function carries the set of receiver
+// of a directly invoked or deferred function literal, in a lambda or
+// function literal argument of a chain method call or a named function
+// (an explicit instantiation of a generic one included), method value, or
+// stored literal passed to one (a plain chain runs it
+// in place, and the stage of a group chain joins its children before the
+// call returns), or anywhere in the synchronous call graph of the
+// same-package functions the callback calls, at any depth. Each
+// same-package function carries the set of receiver
 // keys its synchronous execution can reach, composed across call sites
 // through the existing lockKey substitution, so mutually recursive helpers
 // reach a fixed point with no call-depth cap. A named same-package
@@ -106,28 +113,35 @@ type lockCheck struct {
 	cbCallers    map[*types2.Func][]lockCallbackEdge
 	fileOf       map[*syntax.CallExpr]*syntax.File
 	asyncCall    map[*syntax.CallExpr]bool
+	aliases      map[types2.Object]lockKey
+	stored       map[types2.Object]syntax.Node
+	indexIDs     map[types2.Object]string
 	keyPathLimit int
 	reported     map[*syntax.CallExpr]bool
+	valueCalls   map[syntax.Expr]*syntax.CallExpr
 }
 
 // checkReentrantWithLock is the Check of reentrantWithLockDeadlock.
 func checkReentrantWithLock(pass *Pass) {
 	c := &lockCheck{
-		pass:      pass,
-		calls:     make(map[*syntax.CallExpr]lockCall),
-		callbacks: make(map[syntax.Node]bool),
-		decls:     make(map[*types2.Func]*syntax.FuncDecl),
-		declFiles: make(map[*syntax.FuncDecl]*syntax.File),
-		summaries: make(map[*types2.Func]*lockSummary),
-		callers:   make(map[*types2.Func][]lockEdge),
-		cbCallers: make(map[*types2.Func][]lockCallbackEdge),
-		fileOf:    make(map[*syntax.CallExpr]*syntax.File),
-		asyncCall: make(map[*syntax.CallExpr]bool),
-		reported:  make(map[*syntax.CallExpr]bool),
+		pass:       pass,
+		calls:      make(map[*syntax.CallExpr]lockCall),
+		callbacks:  make(map[syntax.Node]bool),
+		decls:      make(map[*types2.Func]*syntax.FuncDecl),
+		declFiles:  make(map[*syntax.FuncDecl]*syntax.File),
+		summaries:  make(map[*types2.Func]*lockSummary),
+		callers:    make(map[*types2.Func][]lockEdge),
+		cbCallers:  make(map[*types2.Func][]lockCallbackEdge),
+		fileOf:     make(map[*syntax.CallExpr]*syntax.File),
+		asyncCall:  make(map[*syntax.CallExpr]bool),
+		reported:   make(map[*syntax.CallExpr]bool),
+		valueCalls: make(map[syntax.Expr]*syntax.CallExpr),
 	}
 	for _, f := range pass.Files {
 		c.markAsync(f)
 		c.index(f)
+		c.indexAliases(f)
+		c.indexStored(f)
 	}
 	for _, f := range pass.Files {
 		c.indexCalls(f)
@@ -180,6 +194,167 @@ func (c *lockCheck) index(f *syntax.File) {
 	}
 }
 
+func (c *lockCheck) indexAliases(f *syntax.File) {
+	counts := make(map[types2.Object]int)
+	targets := make(map[types2.Object]syntax.Expr)
+	syntax.Inspect(f, func(n syntax.Node) bool {
+		switch x := n.(type) {
+		case *syntax.AssignStmt:
+			c.noteAlias(x, counts, targets)
+		case *syntax.VarDecl:
+			c.noteVarAlias(x, counts, targets)
+		}
+		return true
+	})
+	for obj, n := range counts {
+		if n != 1 {
+			continue
+		}
+		e, ok := targets[obj]
+		if !ok {
+			continue
+		}
+		if k := c.keyOf(e); k.root != nil {
+			if c.aliases == nil {
+				c.aliases = make(map[types2.Object]lockKey)
+			}
+			c.aliases[obj] = k
+		}
+	}
+	for obj, k := range c.aliases {
+		if r, ok := c.resolveAliasChain(k); ok {
+			c.aliases[obj] = r
+		} else {
+			delete(c.aliases, obj)
+		}
+	}
+}
+
+func (c *lockCheck) resolveAliasChain(k lockKey) (lockKey, bool) {
+	seen := make(map[types2.Object]bool)
+	for {
+		a, ok := c.aliases[k.root]
+		if !ok {
+			return k, true
+		}
+		if seen[k.root] {
+			return lockKey{}, false
+		}
+		seen[k.root] = true
+		k = lockKey{root: a.root, path: a.path + k.path}
+	}
+}
+
+func (c *lockCheck) noteAlias(x *syntax.AssignStmt, counts map[types2.Object]int, targets map[types2.Object]syntax.Expr) {
+	lhs, rhs := exprList(x.Lhs), exprList(x.Rhs)
+	if len(lhs) != 1 || len(rhs) != 1 {
+		return
+	}
+	name, ok := syntax.Unparen(lhs[0]).(*syntax.Name)
+	if !ok || isBlank(name) {
+		return
+	}
+	obj := c.pass.Info.Uses[name]
+	if x.Op == syntax.Def {
+		obj = c.pass.Info.Defs[name]
+	}
+	c.noteAliasTarget(obj, rhs[0], counts, targets)
+}
+
+func (c *lockCheck) noteVarAlias(x *syntax.VarDecl, counts map[types2.Object]int, targets map[types2.Object]syntax.Expr) {
+	vals := exprList(x.Values)
+	for i, nm := range x.NameList {
+		if i >= len(vals) {
+			break
+		}
+		c.noteAliasTarget(c.pass.Info.Defs[nm], vals[i], counts, targets)
+	}
+}
+
+func (c *lockCheck) noteAliasTarget(obj types2.Object, rhs syntax.Expr, counts map[types2.Object]int, targets map[types2.Object]syntax.Expr) {
+	if obj == nil {
+		return
+	}
+	counts[obj]++
+	if r := c.aliasTarget(rhs); r != nil {
+		targets[obj] = r
+	}
+}
+
+func (c *lockCheck) aliasTarget(rhs syntax.Expr) syntax.Expr {
+	r := syntax.Unparen(rhs)
+	if op, ok := r.(*syntax.Operation); ok && op.Op == syntax.And && op.Y == nil {
+		return r
+	}
+	if name, ok := r.(*syntax.Name); ok && !isBlank(name) {
+		if _, ok := TypeOf(rhs).(*types2.Pointer); ok {
+			return r
+		}
+	}
+	return nil
+}
+
+func (c *lockCheck) indexStored(f *syntax.File) {
+	counts := make(map[types2.Object]int)
+	lits := make(map[types2.Object]syntax.Node)
+	syntax.Inspect(f, func(n syntax.Node) bool {
+		switch x := n.(type) {
+		case *syntax.AssignStmt:
+			c.noteStored(x, counts, lits)
+		case *syntax.VarDecl:
+			c.noteStoredVar(x, counts, lits)
+		}
+		return true
+	})
+	if c.stored == nil {
+		c.stored = make(map[types2.Object]syntax.Node)
+	}
+	for obj, n := range counts {
+		if n != 1 {
+			continue
+		}
+		if lit, ok := lits[obj]; ok {
+			c.stored[obj] = lit
+		}
+	}
+}
+
+func (c *lockCheck) noteStored(x *syntax.AssignStmt, counts map[types2.Object]int, lits map[types2.Object]syntax.Node) {
+	lhs, rhs := exprList(x.Lhs), exprList(x.Rhs)
+	if len(lhs) != 1 || len(rhs) != 1 {
+		return
+	}
+	name, ok := syntax.Unparen(lhs[0]).(*syntax.Name)
+	if !ok || isBlank(name) {
+		return
+	}
+	obj := c.pass.Info.Uses[name]
+	if x.Op == syntax.Def {
+		obj = c.pass.Info.Defs[name]
+	}
+	c.noteStoredBinding(obj, rhs[0], counts, lits)
+}
+
+func (c *lockCheck) noteStoredVar(x *syntax.VarDecl, counts map[types2.Object]int, lits map[types2.Object]syntax.Node) {
+	vals := exprList(x.Values)
+	for i, nm := range x.NameList {
+		if i >= len(vals) {
+			break
+		}
+		c.noteStoredBinding(c.pass.Info.Defs[nm], vals[i], counts, lits)
+	}
+}
+
+func (c *lockCheck) noteStoredBinding(obj types2.Object, rhs syntax.Expr, counts map[types2.Object]int, lits map[types2.Object]syntax.Node) {
+	if obj == nil {
+		return
+	}
+	counts[obj]++
+	if lit := immediateLiteral(rhs); lit != nil {
+		lits[obj] = lit
+	}
+}
+
 // indexCalls records the synchronous WithLock calls of f. Calls in
 // asynchronous or stored bodies are excluded, so they are never indexed
 // and never queried.
@@ -195,11 +370,12 @@ func (c *lockCheck) indexCalls(f *syntax.File) {
 // with a receiver expression the rule can match.
 func (c *lockCheck) noteLockCall(call *syntax.CallExpr, f *syntax.File) {
 	fn := calleeFunc(c.pass, call)
-	sel, ok := unparenExpr(call.Fun).(*syntax.SelectorExpr)
+	sel, ok := syntax.Unparen(call.Fun).(*syntax.SelectorExpr)
 	if fn == nil || !ok || fn.Name() != "WithLock" || fn.Pkg() == nil || fn.Pkg().Path() != logosSyncPath {
 		return
 	}
 	key := c.keyOf(sel.X)
+	key.path += c.promotedPath(sel, sel.X)
 	if key.root == nil {
 		return
 	}
@@ -209,7 +385,7 @@ func (c *lockCheck) noteLockCall(call *syntax.CallExpr, f *syntax.File) {
 		arg := call.ArgList[0]
 		if body := callbackBody(arg); body != nil {
 			lc.body = body
-			c.callbacks[unparenExpr(arg)] = true
+			c.callbacks[syntax.Unparen(arg)] = true
 		} else if target, recv := c.callbackTarget(arg); target != nil {
 			if decl, ok := c.decls[origin(target)]; ok && decl.Body != nil {
 				lc.body = decl.Body
@@ -232,12 +408,31 @@ func (c *lockCheck) noteLockCall(call *syntax.CallExpr, f *syntax.File) {
 	c.calls[call] = lc
 }
 
+func (c *lockCheck) promotedPath(sel *syntax.SelectorExpr, recv syntax.Expr) string {
+	s := c.pass.Info.Selections[sel]
+	if s == nil || len(s.Index()) < 2 {
+		return ""
+	}
+	t := TypeOf(recv)
+	var sb strings.Builder
+	for _, idx := range s.Index()[:len(s.Index())-1] {
+		st, ok := structOf(t)
+		if !ok || idx < 0 || idx >= st.NumFields() {
+			return ""
+		}
+		sb.WriteString("." + st.Field(idx).Name())
+		t = st.Field(idx).Type()
+	}
+	return sb.String()
+}
+
 // callbackTarget resolves a WithLock callback argument that is a plain
-// function name or a method value to its function, returning the method
-// value receiver for the latter and nil for the former. It returns nil
-// when the argument has no resolvable same-package body.
+// function name, an explicit instantiation of a generic function, or a
+// method value to its function, returning the method value receiver for
+// the last and nil for the others. It returns nil when the argument has
+// no resolvable same-package body.
 func (c *lockCheck) callbackTarget(arg syntax.Expr) (*types2.Func, syntax.Expr) {
-	switch x := unparenExpr(arg).(type) {
+	switch x := syntax.Unparen(arg).(type) {
 	case *syntax.Name:
 		if fn, ok := c.pass.Info.Uses[x].(*types2.Func); ok {
 			return fn, nil
@@ -246,13 +441,31 @@ func (c *lockCheck) callbackTarget(arg syntax.Expr) (*types2.Func, syntax.Expr) 
 		if fn, ok := c.pass.Info.Uses[x.Sel].(*types2.Func); ok {
 			return fn, x.X
 		}
+	case *syntax.IndexExpr:
+		return c.callbackTarget(x.X)
 	}
 	return nil, nil
 }
 
+func (c *lockCheck) valueCall(arg syntax.Expr) *syntax.CallExpr {
+	arg = syntax.Unparen(arg)
+	if call, ok := c.valueCalls[arg]; ok {
+		return call
+	}
+	var call *syntax.CallExpr
+	if fn, _ := c.callbackTarget(arg); fn != nil {
+		if _, ok := c.decls[origin(fn)]; ok {
+			call = &syntax.CallExpr{Fun: arg}
+			call.SetPos(arg.Pos())
+		}
+	}
+	c.valueCalls[arg] = call
+	return call
+}
+
 // callbackBody returns the body of a function literal or a lambda, or nil.
 func callbackBody(e syntax.Expr) syntax.Node {
-	switch f := unparenExpr(e).(type) {
+	switch f := syntax.Unparen(e).(type) {
 	case *syntax.FuncLit:
 		return f.Body
 	case *syntax.LambdaExpr:
@@ -264,7 +477,7 @@ func callbackBody(e syntax.Expr) syntax.Node {
 // immediateLiteral returns e when it is a directly invoked function
 // literal or lambda, or nil.
 func immediateLiteral(e syntax.Expr) syntax.Node {
-	switch f := unparenExpr(e).(type) {
+	switch f := syntax.Unparen(e).(type) {
 	case *syntax.FuncLit:
 		return f
 	case *syntax.LambdaExpr:
@@ -273,28 +486,20 @@ func immediateLiteral(e syntax.Expr) syntax.Node {
 	return nil
 }
 
-// unparenExpr returns e without enclosing parentheses.
-func unparenExpr(e syntax.Expr) syntax.Expr {
-	for {
-		p, ok := e.(*syntax.ParenExpr)
-		if !ok {
-			return e
-		}
-		e = p.X
-	}
-}
-
 // syncVisitor walks one synchronous flow: a declaration body while
 // building summaries, or a WithLock callback body while answering a
 // query. A go statement contributes only its receiver and argument
 // subexpressions; the invoked call is asynchronous and never a seed or a
 // call edge. A function literal is traversed when it is a WithLock
-// callback or the directly invoked function of a synchronous call, and
-// skipped otherwise.
+// callback, the directly invoked function of a synchronous call, or an
+// argument of a chain method call, and skipped otherwise: a callee that
+// is not a chain method may store the literal, run it later, or spawn it.
+// A group child block is skipped like a go body.
 type syncVisitor struct {
 	c      *lockCheck
 	file   *syntax.File
 	funLit map[syntax.Node]bool
+	active map[syntax.Node]bool
 	onCall func(*syntax.CallExpr)
 }
 
@@ -335,6 +540,11 @@ func (v *syncVisitor) Visit(n syntax.Node) syntax.Visitor {
 		if lit := immediateLiteral(n.Fun); lit != nil {
 			v.funLit[lit] = true
 		}
+		for _, fn := range chainFuncs(v.c.pass, n) {
+			v.funLit[fn] = true
+		}
+		v.walkChainValues(n)
+		v.walkStoredCall(n)
 		if v.onCall != nil {
 			v.onCall(n)
 		}
@@ -353,6 +563,53 @@ func (v *syncVisitor) visitAsyncOperands(call *syntax.CallExpr) {
 	}
 	for _, a := range call.ArgList {
 		syntax.Walk(a, v)
+	}
+}
+
+func (v *syncVisitor) walkChainValues(call *syntax.CallExpr) {
+	if !isChainCall(v.c.pass, call) {
+		return
+	}
+	for _, arg := range call.ArgList {
+		if name, ok := syntax.Unparen(arg).(*syntax.Name); ok {
+			v.walkStoredName(name)
+		}
+		if vc := v.c.valueCall(arg); vc != nil && v.onCall != nil {
+			v.onCall(vc)
+		}
+	}
+}
+
+func (v *syncVisitor) walkStoredCall(call *syntax.CallExpr) {
+	if immediateLiteral(call.Fun) != nil {
+		return
+	}
+	if name, ok := syntax.Unparen(call.Fun).(*syntax.Name); ok {
+		v.walkStoredName(name)
+	}
+}
+
+func (v *syncVisitor) walkStoredName(name *syntax.Name) {
+	obj, ok := v.c.pass.Info.Uses[name]
+	if !ok {
+		return
+	}
+	body, ok := v.c.stored[obj]
+	if !ok {
+		return
+	}
+	if v.active == nil {
+		v.active = make(map[syntax.Node]bool)
+	}
+	if v.active[body] {
+		return
+	}
+	v.active[body] = true
+	switch b := body.(type) {
+	case *syntax.FuncLit:
+		syntax.Walk(b.Body, v)
+	case *syntax.LambdaExpr:
+		syntax.Walk(b.Body, v)
 	}
 }
 
@@ -615,7 +872,7 @@ func (c *lockCheck) isValueParam(obj types2.Object, decl *syntax.FuncDecl) bool 
 // parameter of decl that root names, or nil when root is neither.
 func (c *lockCheck) operandFor(root types2.Object, call *syntax.CallExpr, decl *syntax.FuncDecl) syntax.Expr {
 	if decl.Recv != nil && c.definedBy(decl.Recv) == root {
-		if sel, ok := unparenExpr(call.Fun).(*syntax.SelectorExpr); ok {
+		if sel, ok := syntax.Unparen(call.Fun).(*syntax.SelectorExpr); ok {
 			return sel.X
 		}
 		return nil
@@ -643,7 +900,13 @@ func (c *lockCheck) keyOf(e syntax.Expr) lockKey {
 	path := ""
 	for e != nil {
 		if name, ok := e.(*syntax.Name); ok {
-			return lockKey{root: c.variableOf(name), path: path}
+			root := c.variableOf(name)
+			if root != nil {
+				if a, ok := c.aliases[root]; ok {
+					return lockKey{root: a.root, path: a.path + path}
+				}
+			}
+			return lockKey{root: root, path: path}
 		}
 		var field string
 		e, field = c.keyStep(e)
@@ -675,6 +938,10 @@ func (c *lockCheck) keyStep(e syntax.Expr) (syntax.Expr, string) {
 	case *syntax.SelectorExpr:
 		if sel := c.pass.Info.Selections[x]; sel != nil && sel.Kind() == types2.FieldVal {
 			return x.X, x.Sel.Value
+		}
+	case *syntax.IndexExpr:
+		if idx, ok := lockIndexStep(c.pass.Info, &c.indexIDs, x); ok {
+			return x.X, "[" + idx + "]"
 		}
 	}
 	return nil, ""

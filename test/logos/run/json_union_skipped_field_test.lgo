@@ -1,0 +1,90 @@
+// run
+
+package jsonunion
+
+import (
+	"encoding/json"
+	"testing"
+)
+
+type n1circle struct {
+	R float64
+}
+
+type n1square struct {
+	S float64
+}
+
+type N1Shape interface {
+	n1circle | n1square
+}
+
+type N1PrivHolder struct {
+	Name  string `json:"name"`
+	cache N1Shape
+}
+
+type N1DashHolder struct {
+	Name  string  `json:"name"`
+	cache N1Shape `json:"-"`
+}
+
+type n1Mirror struct {
+	Name  string `json:"name"`
+	NoGen any    `json:"-"`
+}
+
+func TestUnionUnexportedFieldSkipped(t *testing.T) {
+	got, err := json.Marshal(N1PrivHolder{Name: "a"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := json.Marshal(n1Mirror{Name: "a"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(want) {
+		t.Fatalf("unexported union field leaked: got %s, want %s", got, want)
+	}
+	var h N1PrivHolder
+	if err := json.Unmarshal([]byte(`{"name":"b","cache":{"R":1}}`), &h); err != nil {
+		t.Fatal(err)
+	}
+	if h.Name != "b" {
+		t.Fatalf("Name = %q, want %q", h.Name, "b")
+	}
+	if h.cache != nil {
+		t.Fatalf("skipped field decoded: %#v", h.cache)
+	}
+	var m n1Mirror
+	if err := json.Unmarshal([]byte(`{"name":"b","cache":{"R":1}}`), &m); err != nil {
+		t.Fatal(err)
+	}
+	if h.Name != m.Name {
+		t.Fatalf("holder Name = %q, oracle %q", h.Name, m.Name)
+	}
+}
+
+func TestUnionDashedFieldSkipped(t *testing.T) {
+	got, err := json.Marshal(N1DashHolder{Name: "a"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := json.Marshal(n1Mirror{Name: "a"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(want) {
+		t.Fatalf("dashed union field leaked: got %s, want %s", got, want)
+	}
+	var h N1DashHolder
+	if err := json.Unmarshal([]byte(`{"name":"b","cache":{"S":2}}`), &h); err != nil {
+		t.Fatal(err)
+	}
+	if h.Name != "b" {
+		t.Fatalf("Name = %q, want %q", h.Name, "b")
+	}
+	if h.cache != nil {
+		t.Fatalf("skipped field decoded: %#v", h.cache)
+	}
+}

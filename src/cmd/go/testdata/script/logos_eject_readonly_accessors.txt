@@ -1,0 +1,125 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd w
+logos build ./...
+logos build -o $WORK/bin/ro$GOEXE ./g/cmd
+exec $WORK/bin/ro$GOEXE
+stdout '^ro-ok$'
+cd ..
+
+env GOWORK=off
+cd w/l
+logos eject -o bout
+exists bout/p/p.go
+exists bout/r/r.go
+grep '//line r.lgo:4' bout/r/r.go
+cd bout
+go build ./...
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+cd ..
+cd ../..
+
+-- w/go.work --
+go 1.27
+
+use (
+	./l
+	./g
+)
+
+-- w/l/go.mod --
+module example.com/roacc
+
+go 1.27
+
+-- w/l/p/p.lgo --
+package p
+
+type Creature interface {
+	const Nick string
+	HP int
+}
+
+type Count struct : Creature {
+	Nick string
+	HP   int
+}
+
+-- w/l/r/r.lgo --
+package r
+
+type ReadonlyIface interface {
+	const Name() string
+	Total() int
+}
+
+type Thing struct {
+	name string
+}
+
+func (Thing) Name() string {
+	return "thing"
+}
+
+func (t Thing) Total() int {
+	return 1
+}
+
+var _ ReadonlyIface = Thing{}
+
+func Use(v ReadonlyIface) string {
+	return v.Name()
+}
+
+-- w/g/go.mod --
+module example.com/roaccg
+
+go 1.27
+
+require example.com/roacc v1.0.0
+
+replace example.com/roacc => ../l
+
+-- w/g/g/g.go --
+package g
+
+import "example.com/roacc/p"
+import "example.com/roacc/r"
+
+var _ p.Creature = &p.Count{Nick: "c", HP: 3}
+
+func Run() string {
+	c := p.Count{Nick: "c", HP: 3}
+	if c.Nick != "c" {
+		return "bad-name"
+	}
+	c.HP = 9
+	if c.HP != 9 {
+		return "bad-total"
+	}
+	var t r.Thing
+	if r.Use(t) != "thing" {
+		return "bad-use"
+	}
+	var ro r.ReadonlyIface = t
+	if ro.Name() != "thing" {
+		return "bad-ro"
+	}
+	return "ro-ok"
+}
+
+-- w/g/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/roaccg/g"
+)
+
+func main() { fmt.Println(g.Run()) }

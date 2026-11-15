@@ -83,10 +83,6 @@ type Flags struct {
 	// by default.
 	HeapMinimum512KiB bool
 
-	// Arenas causes the "arena" standard library package to be visible
-	// to the outside world.
-	Arenas bool
-
 	// CgoCheck2 enables an expensive cgo rule checker.
 	// When this experiment is enabled, cgo rule checks occur regardless
 	// of the GODEBUG=cgocheck setting provided at runtime.
@@ -144,15 +140,8 @@ type Flags struct {
 	// chunks that hold frame-local allocations (M18).
 	LogosArena bool
 
-	// LogosSpanDeck makes the Green Tea span queue drain dirty spans in
-	// monotonic address order and prefetch the mark bits of the spans
-	// a scanned span points into (M19-S6).
-	LogosSpanDeck bool
-
-	// LogosGen enables the generational card table of the Green Tea
-	// collector: minor cycles that skip mature spans (M19-S4).
-	LogosGen bool
-
-	// LogosGCMoving enables the moving collector modes immix and zgc (M19-S5).
-	LogosGCMoving bool
+	// LogosEscape records a parameter that leaks only into the pointee of
+	// another parameter, so the caller keeps that pointee on the stack when
+	// nothing else makes it escape (M18-S6).
+	LogosEscape bool
 }

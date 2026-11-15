@@ -1,10 +1,8 @@
-# M0-S2: alias extensions build and run; duplicate stems fail; dotted module warns.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
 mkdir $WORK/bin
 
-# Each alias extension builds and runs.
 logos build -o $WORK/bin/scroll$GOEXE ./scroll
 stderr -count=1 'portability::alias_extension'
 exists $WORK/bin/scroll$GOEXE
@@ -29,7 +27,6 @@ logos run ./gopher
 stdout '^gopher ok$'
 stderr -count=1 'portability::alias_extension'
 
-# Trailing U+FE0F is stripped before matching.
 logos build -o $WORK/bin/vs$GOEXE ./vs
 stderr -count=1 'portability::alias_extension'
 exists $WORK/bin/vs$GOEXE
@@ -38,7 +35,14 @@ logos run ./vs
 stdout '^vs ok$'
 stderr -count=1 'portability::alias_extension'
 
-# Two alias files in one package warn once per file, not once per package.
+logos build -o $WORK/bin/txt$GOEXE ./txt
+stderr -count=1 'portability::alias_extension'
+exists $WORK/bin/txt$GOEXE
+
+logos run ./txt
+stdout '^txt ok$'
+stderr -count=1 'portability::alias_extension'
+
 logos build -o $WORK/bin/multi$GOEXE ./multi
 stderr -count=2 'portability::alias_extension'
 exists $WORK/bin/multi$GOEXE
@@ -47,13 +51,30 @@ logos run ./multi
 stdout '^multi ok$'
 stderr -count=2 'portability::alias_extension'
 
-# Single scroll file builds, so the duplicate below is not vacuous.
+logos run ./binary
+stdout '^binary scroll ok$'
+stdout '^binary lightning ok$'
+stdout '^binary gopher ok$'
+stdout '^binary vs ok$'
+stderr -count=4 'portability::alias_extension'
+
+logos run ./deferq
+stdout '^deferq true \[body deferred\]$'
+stderr -count=1 'portability::alias_extension'
+
+! go build ./scroll
+stderr 'no Go files in '
+
 logos build ./dupok
 stderr -count=1 'portability::alias_extension'
 
-# x.lgo beside the scroll alias with stem x fails.
 ! logos build ./dup
 stderr 'correctness::duplicate_stem_filename'
+
+! logos build ./dup2
+stderr 'correctness::duplicate_stem_filename'
+stderr 'x\.📜'
+stderr 'x\.⚡'
 
 -- go.mod --
 module example.com/m
@@ -122,3 +143,106 @@ func X() int { return 1 }
 package dup
 
 func Y() int { return 2 }
+
+-- txt/main.⚡︎ --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("txt ok")
+}
+
+-- dup2/x.📜 --
+package dup2
+
+func X() int { return 1 }
+
+-- dup2/x.⚡ --
+package dup2
+
+func Y() int { return 2 }
+
+-- binary/main.lgo --
+package main
+
+import (
+	"fmt"
+	"strings"
+)
+
+type Inner struct {
+	X int64 `json:"x"`
+}
+
+func rejects(name, field string, err error) {
+	if err == nil || !strings.Contains(err.Error(), field) || !strings.Contains(err.Error(), "offset 1") {
+		fmt.Printf("FAIL binary %s: %v\n", name, err)
+		return
+	}
+	fmt.Println("binary " + name + " ok")
+}
+
+func main() {
+	s := ScrollHolder{P: &Inner{}}
+	rejects("scroll", "ScrollHolder.P", s.UnmarshalBinary([]byte{1, 0}))
+	l := LightningHolder{P: &Inner{}}
+	rejects("lightning", "LightningHolder.P", l.UnmarshalBinary([]byte{1, 0}))
+	g := GopherHolder{P: &Inner{}}
+	rejects("gopher", "GopherHolder.P", g.UnmarshalBinary([]byte{1, 0}))
+	v := VSHolder{P: &Inner{}}
+	rejects("vs", "VSHolder.P", v.UnmarshalBinary([]byte{1, 0}))
+}
+
+-- binary/scroll.📜 --
+package main
+
+type ScrollHolder struct {
+	P *Inner `json:"p"`
+}
+
+-- binary/lightning.⚡ --
+package main
+
+type LightningHolder struct {
+	P *Inner `json:"p"`
+}
+
+-- binary/gopher.ʕ◔ϖ◔ʔ --
+package main
+
+type GopherHolder struct {
+	P *Inner `json:"p"`
+}
+
+-- binary/vs.⚡️ --
+package main
+
+type VSHolder struct {
+	P *Inner `json:"p"`
+}
+
+-- deferq/main.lgo --
+package main
+
+import "fmt"
+
+func main() {
+	var log []string
+	err := runVS(&log)
+	fmt.Println("deferq", err == nil, log)
+}
+
+-- deferq/vs.⚡️ --
+package main
+
+func step(log *[]string) error {
+	*log = append(*log, "deferred")
+	return nil
+}
+
+func runVS(log *[]string) error {
+	defer step(log)?
+	*log = append(*log, "body")
+	return nil
+}

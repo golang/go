@@ -1,0 +1,56 @@
+// errorcheck
+
+package p
+
+const func storeBig() map[int8]int {
+	m := map[int8]int{}
+	m[300] = 1 // ERROR "."
+	return m
+}
+
+const big = storeBig() // ERROR "\[correctness::const_eval\]"
+
+const func literalBig() map[int8]int {
+	return map[int8]int{300: 1} // ERROR "."
+}
+
+const bigLiteral = literalBig() // ERROR "\[correctness::const_eval\]"
+
+const func storeFraction() map[int]int {
+	m := map[int]int{}
+	m[1.5] = 1 // ERROR "."
+	return m
+}
+
+const fraction = storeFraction() // ERROR "\[correctness::const_eval\]"
+
+const func literalFraction() map[int]int {
+	return map[int]int{1.5: 1} // ERROR "."
+}
+
+const fractionLiteral = literalFraction() // ERROR "\[correctness::const_eval\]"
+
+const func storeNaN(n float64) map[float64]int {
+	z := n - n
+	m := map[float64]int{}
+	m[z/z] = 1
+	return m
+}
+
+const nanStore = storeNaN(1.0) // ERROR "\[correctness::const_eval\]"
+
+const func literalNaN(n float64) map[float64]int {
+	z := n - n
+	return map[float64]int{z / z: 1}
+}
+
+const nanLiteral = literalNaN(1.0) // ERROR "\[correctness::const_eval\]"
+
+const func storeNaNComplex(n float64) map[complex128]int {
+	z := complex(n, n) - complex(n, n)
+	m := map[complex128]int{}
+	m[z/z] = 1
+	return m
+}
+
+const nanComplexStore = storeNaNComplex(1.0) // ERROR "\[correctness::const_eval\]"

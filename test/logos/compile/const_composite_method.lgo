@@ -1,0 +1,98 @@
+// errorcheck
+
+package p
+
+type box struct {
+	M map[string]int
+	N int
+}
+
+type wrap struct {
+	In box
+}
+
+func (b *box) Set() { b.N = 1 }
+
+func (r const *box) Get() int { return r.N }
+
+func (b box) Total() int { return b.N }
+
+const cfg = box{M: map[string]int{"a": 1}, N: 7}
+
+const w = wrap{In: box{M: map[string]int{"a": 1}, N: 7}}
+
+func rejectPointerMethod() {
+	cfg.Set() // ERROR "const_view_mutation"
+}
+
+func rejectNestedPointerMethod() {
+	w.In.Set() // ERROR "const_view_mutation"
+}
+
+func allowReadOnlyMethods() int {
+	return cfg.Get() + cfg.Total() + w.In.Get() + w.In.Total()
+}
+
+type sbox struct {
+	M map[string]int
+	L []int
+	N int
+}
+
+type pt struct{ X, Y int }
+
+type holder struct {
+	M map[string]int
+	P pt
+}
+
+func (b sbox) SetL() { b.L[0] = 99 }
+
+func (b sbox) PutM() { b.M["x"] = 1 }
+
+func (b sbox) Items() []int { return b.L }
+
+func (b sbox) First() int { return b.L[0] }
+
+func (b sbox) Own() int {
+	b.N = 5
+	return b.N
+}
+
+func (p pt) Moved() pt {
+	p.X++
+	return p
+}
+
+const scfg = sbox{M: map[string]int{"a": 1}, L: []int{1, 2, 3}, N: 7}
+
+const hold = holder{M: map[string]int{"a": 1}, P: pt{1, 2}}
+
+func rejectValueSliceWrite() {
+	scfg.SetL() // ERROR "const_view_mutation"
+}
+
+func rejectValueMapWrite() {
+	scfg.PutM() // ERROR "const_view_mutation"
+}
+
+func rejectValueAlias() {
+	_ = scfg.Items() // ERROR "const_view_mutation"
+}
+
+func rejectValueMethodValue() {
+	f := scfg.SetL // ERROR "const_view_mutation"
+	f()
+}
+
+func rejectLateValueWriter() {
+	scfg.LateSet() // ERROR "const_view_mutation"
+}
+
+func (b sbox) LateSet() { b.L[1] = 5 }
+
+func allowValueReaders() int {
+	return scfg.First() + scfg.Own() + scfg.LateRead() + hold.P.Moved().X
+}
+
+func (b sbox) LateRead() int { return b.N + len(b.L) }

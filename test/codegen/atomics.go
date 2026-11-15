@@ -22,6 +22,8 @@ func (c *Counter) Increment() {
 	// arm64/v8.1:"LDADDALW"
 	// arm64/v8.0:".*arm64HasATOMICS"
 	// arm64/v8.1:-".*arm64HasATOMICS"
+	// arm64/v8.2:"LDADDALW"
+	// arm64/v8.2:-".*arm64HasATOMICS"
 	// amd64:"LOCK" -"CMPXCHG"
 	atomic.AddInt32(&c.count, 1)
 }

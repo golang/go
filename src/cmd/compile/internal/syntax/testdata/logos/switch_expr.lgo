@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// M2-S5 parser coverage: switch expressions with `=>` arms
-// (SPEC Sec 2.3, T-203.1). Every form below parses cleanly in LogosMode;
-// the semantic rules (exhaustiveness, arm types, defaults) are pinned by
-// the types2 and run fixtures instead of here.
-
 package p
 
 type NumOrStr interface {

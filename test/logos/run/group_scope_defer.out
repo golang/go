@@ -1,0 +1,13 @@
+ok scope-defer-runs-after-join-at-block-end
+ok scope-defer-runs-after-join-on-return
+ok scope-defer-runs-after-join-on-break
+ok scope-defers-run-last-in-first-out-after-join
+ok scope-defer-runs-after-join-on-child-failure
+ok scope-defer-runs-after-join-on-failed-try
+ok scope-defer-in-inner-block-runs-before-join
+ok outer-scope-defer-runs-after-join-on-return
+ok scope-defer-runs-after-join-on-panic
+ok scope-defer-runs-after-join-in-a-loop
+ok scope-defer-runs-after-join-on-panic-in-a-loop
+ok scope-defer-in-child-runs-at-child-end
+ok scope-defer-in-child-loop-runs-per-iteration

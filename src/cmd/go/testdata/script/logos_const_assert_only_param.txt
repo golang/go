@@ -1,0 +1,79 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+cd ao
+logos build ./g
+! logos build -o $WORK/bin/negas$GOEXE ./negas
+stderr '\[correctness::const_view_mutation\]'
+! logos build -o $WORK/bin/neggrab$GOEXE ./neggrab
+stderr '\[correctness::const_view_mutation\]'
+logos build -o $WORK/bin/pos$GOEXE ./pos
+exec $WORK/bin/pos$GOEXE
+stdout '^assert-only-ok$'
+cd ..
+
+-- ao/go.mod --
+module example.com/ao
+
+go 1.27
+
+-- ao/g/g.go --
+package g
+
+func As[T any](x any) T {
+	return x.(T)
+}
+
+type Slot struct{}
+
+func (Slot) Grab[T any](x any) T {
+	return x.(T)
+}
+
+-- ao/negas/main.lgo --
+package main
+
+import (
+	"example.com/ao/g"
+)
+
+func main() {
+	var cv const []int = []int{1, 2, 3}
+	_ = g.As[[]int](cv)
+}
+
+-- ao/neggrab/main.lgo --
+package main
+
+import (
+	"example.com/ao/g"
+)
+
+func main() {
+	var cv const []int = []int{1, 2, 3}
+	s := g.Slot{}
+	_ = s.Grab[[]int](cv)
+}
+
+-- ao/pos/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/ao/g"
+)
+
+func main() {
+	if got := g.As[[]int]([]int{1, 2, 3}); len(got) != 3 {
+		fmt.Println("as-bad")
+		return
+	}
+	s := g.Slot{}
+	if got := s.Grab[[]int]([]int{4, 5}); len(got) != 2 {
+		fmt.Println("grab-bad")
+		return
+	}
+	fmt.Println("assert-only-ok")
+}

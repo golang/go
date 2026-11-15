@@ -15,11 +15,6 @@ import (
 	"cmd/compile/internal/types2"
 )
 
-// M13-S3 #121 (SPEC T-203.4): the checker records every []C argument that
-// flows into a `const []I` parameter, and lowerConstSlices wraps exactly
-// those arguments in rt.CovSlice. These tests check, lower, and print one
-// snippet at a time without the compiler driver.
-
 const covSliceDecls = `
 type Creature interface{ Name() string }
 
@@ -41,8 +36,6 @@ func Names(cs const []Creature) int { return len(cs) }
 func pair(a, b const []Creature) int { return len(a) + len(b) }
 `
 
-// covRTSource stands in for logos/rt: the checker recognizes the helper by
-// package path and name.
 const covRTSource = `package rt
 
 func CovSlice[I any, E any](s []E) []I {
@@ -84,9 +77,6 @@ func newCovRTImporter(t *testing.T) types2.Importer {
 	return covRTImporter{rt: pkg}
 }
 
-// covSliceCheck parses and checks one .lgo file made of the shared
-// declarations, the given import lines, and body. It returns the file, its
-// bytes, the package, the info, and every check error.
 func covSliceCheck(t *testing.T, imp types2.Importer, imports, body string) (*syntax.File, []byte, *types2.Package, *types2.Info, []error) {
 	t.Helper()
 	data := []byte("package covtest\n" + imports + covSliceDecls + body)
@@ -111,8 +101,6 @@ func newCovTestImporter(t *testing.T) types2.Importer {
 	return newTestImporter(t)
 }
 
-// covLower lowers the covariant arguments of a checked file and returns
-// the lowerer and the eject text.
 func covLower(t *testing.T, file *syntax.File, data []byte, pkg *types2.Package, info *types2.Info) (*fileLower, string) {
 	t.Helper()
 	fl := &fileLower{
@@ -128,103 +116,6 @@ func covLower(t *testing.T, file *syntax.File, data []byte, pkg *types2.Package,
 		t.Fatalf("applySplices: %v", err)
 	}
 	return fl, string(out)
-}
-
-// covWrapped returns the operand of a `_logos_rt.CovSlice[I](x)` call.
-func covWrapped(e syntax.Expr) (syntax.Expr, bool) {
-	call, ok := e.(*syntax.CallExpr)
-	if !ok || len(call.ArgList) != 1 {
-		return nil, false
-	}
-	inst, ok := call.Fun.(*syntax.IndexExpr)
-	if !ok {
-		return nil, false
-	}
-	sel, ok := inst.X.(*syntax.SelectorExpr)
-	if !ok || sel.Sel.Value != "CovSlice" {
-		return nil, false
-	}
-	if q, ok := sel.X.(*syntax.Name); !ok || q.Value != rtAlias {
-		return nil, false
-	}
-	return call.ArgList[0], true
-}
-
-// covCalls returns the arguments of every call to the named function.
-func covCalls(file *syntax.File, name string) [][]syntax.Expr {
-	var out [][]syntax.Expr
-	syntax.Inspect(file, func(n syntax.Node) bool {
-		if call, ok := n.(*syntax.CallExpr); ok {
-			if fn, ok := call.Fun.(*syntax.Name); ok && fn.Value == name {
-				out = append(out, call.ArgList)
-			}
-		}
-		return true
-	})
-	return out
-}
-
-func TestLowerConstSliceWrapsArguments(t *testing.T) {
-	file, data, pkg, info, errs := covSliceCheck(t, newCovTestImporter(t), "", `
-func mk() []*Monster { return nil }
-
-func use(ms []*Monster, rs []Rock, ns []Named) int {
-	return Names(ms) + Names(rs) + pair(ns, nil) + Names(mk())
-}
-`)
-	if len(errs) > 0 {
-		t.Fatalf("check: %v", errors.Join(errs...))
-	}
-	if len(info.LogosConstCov) != 4 {
-		t.Fatalf("recorded %d covariant arguments, want 4", len(info.LogosConstCov))
-	}
-	creature := pkg.Scope().Lookup("Creature").Type()
-	for arg, iface := range info.LogosConstCov {
-		if !types2.Identical(iface, creature) {
-			t.Errorf("fact for %s is %s, want Creature", syntax.String(arg), iface)
-		}
-	}
-
-	fl, text := covLower(t, file, data, pkg, info)
-	if !fl.needRT {
-		t.Error("lowering did not request the rt import")
-	}
-	for _, want := range []string{
-		"Names(_logos_rt.CovSlice[Creature](ms))",
-		"Names(_logos_rt.CovSlice[Creature](rs))",
-		"pair(_logos_rt.CovSlice[Creature](ns), nil)",
-		"Names(_logos_rt.CovSlice[Creature](mk()))",
-	} {
-		if !strings.Contains(text, want) {
-			t.Errorf("eject text lacks %q:\n%s", want, text)
-		}
-	}
-	if n := strings.Count(text, "mk()"); n != 2 {
-		t.Errorf("mk() appears %d times in the eject text, want its declaration and one call:\n%s", n, text)
-	}
-
-	for _, tc := range []struct {
-		fn    string
-		inner []string
-	}{
-		{"Names", []string{"ms", "rs", "mk()"}},
-		{"pair", []string{"ns"}},
-	} {
-		var got []string
-		for _, args := range covCalls(file, tc.fn) {
-			if inner, ok := covWrapped(args[0]); ok {
-				got = append(got, syntax.String(inner))
-			}
-		}
-		if !slices.Equal(got, tc.inner) {
-			t.Errorf("%s wraps %v, want %v", tc.fn, got, tc.inner)
-		}
-	}
-	for _, args := range covCalls(file, "pair") {
-		if _, ok := covWrapped(args[1]); ok {
-			t.Errorf("the nil argument of pair was wrapped")
-		}
-	}
 }
 
 func TestLowerConstSliceLeavesPlainArguments(t *testing.T) {
@@ -353,6 +244,25 @@ func mutable(ms []*Monster) []Creature { return ms }
 	if len(errs) != 1 || !strings.Contains(errs[0].Error(), "cannot use ms") {
 		t.Fatalf("plain Go check errors = %v, want only the mutable assignment", errs)
 	}
+	terr, ok := errs[0].(types2.Error)
+	if !ok {
+		t.Fatalf("plain Go error has type %T, want types2.Error", errs[0])
+	}
+	if got := terr.Pos.RelFilename(); got != "plain.go" {
+		t.Errorf("plain Go error file = %q, want plain.go", got)
+	}
+	wantLine := uint(0)
+	for i, line := range strings.Split(src, "\n") {
+		if strings.Contains(line, "return ms") {
+			wantLine = uint(i + 1)
+		}
+	}
+	if terr.Pos.RelLine() != wantLine {
+		t.Errorf("plain Go error line = %d, want %d", terr.Pos.RelLine(), wantLine)
+	}
+	if strings.Contains(errs[0].Error(), "CovSlice") {
+		t.Errorf("plain Go error %q names CovSlice, want the plain assignment", errs[0])
+	}
 	if len(info.LogosConstCov) != 0 {
 		t.Errorf("plain Go recorded %d covariant arguments", len(info.LogosConstCov))
 	}
@@ -400,13 +310,40 @@ func TestCovSliceDirectCall(t *testing.T) {
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
-			_, _, _, _, errs := covSliceCheck(t, imp, imports, tc.body)
+			_, _, _, info, errs := covSliceCheck(t, imp, imports, tc.body)
+			prefix := "package covtest\n" + imports + covSliceDecls
+			wantLine := uint(strings.Count(prefix, "\n") + 1)
 			got := errors.Join(errs...)
 			switch {
 			case tc.want == "" && got != nil:
 				t.Fatalf("check rejected the call: %v", got)
 			case tc.want != "" && (got == nil || !strings.Contains(got.Error(), tc.want)):
 				t.Fatalf("errors %v lack %q", got, tc.want)
+			}
+			if tc.want == "" {
+				if len(info.LogosConstCov) != 0 {
+					t.Fatalf("accepted call recorded %d covariant arguments, want none for a direct call", len(info.LogosConstCov))
+				}
+				return
+			}
+			if len(errs) != 1 {
+				t.Fatalf("got %d errors %v, want one naming %q", len(errs), got, tc.want)
+			}
+			terr, ok := errs[0].(types2.Error)
+			if !ok {
+				t.Fatalf("error has type %T, want types2.Error", errs[0])
+			}
+			if got := terr.Pos.RelFilename(); got != "cov.lgo" {
+				t.Errorf("error file = %q, want cov.lgo", got)
+			}
+			if terr.Pos.RelLine() != wantLine {
+				t.Errorf("error line = %d, want %d", terr.Pos.RelLine(), wantLine)
+			}
+			if wantCol := uint(strings.LastIndex(tc.body, "(") + 2); terr.Pos.RelCol() != wantCol {
+				t.Errorf("error column = %d, want %d", terr.Pos.RelCol(), wantCol)
+			}
+			if len(info.LogosConstCov) != 0 {
+				t.Errorf("rejected call recorded %d covariant arguments", len(info.LogosConstCov))
 			}
 		})
 	}

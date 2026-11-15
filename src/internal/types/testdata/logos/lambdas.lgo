@@ -4,9 +4,10 @@
 
 package p
 
-// M6-S6 lambdas (SPEC Sec 1.4, T-104.6): target typing from the
-// expected function type, parameter count checks, block bodies checked
-// against the target results, and closure capture.
+import (
+	"iter"
+	"slices"
+)
 
 func apply(f func(int) int, v int) int { return f(v) }
 
@@ -20,13 +21,79 @@ func needTargetParen() {
 	_ = g
 }
 
+func takeAny(v any)                {}
+func takeAnys(vs ...any)           {}
+func takeError(e error)            {}
+func takeInt(n int)                {}
+func takeIface(s interface{ M() }) {}
+func apply2[T any](f func(T) T)    {}
+func ident[T any](v T) T           { return v }
+
+func needTargetAny() {
+	var a any = x => /* ERROR "lambda_needs_target" */ x
+	_ = a
+}
+
+func needTargetInt() {
+	var n int = x => /* ERROR "lambda_needs_target" */ x
+	_ = n
+}
+
+func needTargetError() {
+	var e error = x => /* ERROR "lambda_needs_target" */ x
+	_ = e
+}
+
+func needTargetAssign() {
+	var a any
+	a = x => /* ERROR "lambda_needs_target" */ x
+	_ = a
+}
+
+func needTargetArg() {
+	takeAny(x => /* ERROR "lambda_needs_target" */ x)
+	takeInt(x => /* ERROR "lambda_needs_target" */ x)
+	takeError(x => /* ERROR "lambda_needs_target" */ x)
+	takeIface(x => /* ERROR "lambda_needs_target" */ x)
+}
+
+func needTargetVariadic() {
+	takeAnys(x => /* ERROR "lambda_needs_target" */ x)
+	takeAnys(1, (a, b) => /* ERROR "lambda_needs_target" */ a)
+}
+
+func needTargetResult() int {
+	return x => /* ERROR "lambda_needs_target" */ x
+}
+
+func needTargetElement() {
+	_ = []any{x => /* ERROR "lambda_needs_target" */ x}
+	_ = map[string]any{"k": x => /* ERROR "lambda_needs_target" */ x}
+}
+
+func needTargetConversion() {
+	_ = any(x => /* ERROR "lambda_needs_target" */ x)
+}
+
+func needTargetBlock() {
+	var a any = x => /* ERROR "lambda_needs_target" */ {
+		return x
+	}
+	_ = a
+}
+
+func needTargetTypeParam() {
+	_ = ident(/* ERRORx "." */ x => /* ERROR "lambda_needs_target" */ x)
+	apply2(/* ERRORx "." */ x => /* ERROR "lambda_needs_target" */ x)
+}
+
 func countMismatch() {
-	var f func(int) int = (a, b) => /* ERROR "mismatch" */ a
+	var f func(int) int = (a, b) => /* ERRORx "." */ a
 	_ = f
 }
 
 func countMismatchLone() {
-	var f func(int, int) int = x => /* ERROR "mismatch" */ x
+	var f func(int, int) int = x => /* ERRORx "." */ x
 	_ = f
 }
 
@@ -79,4 +146,141 @@ func closureParam() {
 	m := map[string]int{"k": 1}
 	var f func(string) int = k => m[k] ?? -1
 	_ = f
+}
+
+type handler struct{ f func(int) int }
+
+type pairFns struct {
+	one func(int) int
+	two func(int, int) int
+}
+
+type namedFn func(int) int
+
+func takeNamed(f namedFn)                               {}
+func takeFuncs(fs ...func(int) int)                     {}
+func reduce[T, A any](xs []T, init A, f func(A, T) A) A { return init }
+
+func positionStructKeyed() {
+	_ = handler{f: x => x + 1}
+	_ = &handler{f: (x => x + 1)}
+}
+
+func positionStructPositional() {
+	_ = pairFns{x => x, (a, b) => a + b}
+}
+
+func positionStructSpread(base pairFns) {
+	_ = pairFns{..base, one: x => x + 1}
+}
+
+func positionSlice() {
+	_ = []func(int) int{x => x + 1, x => x * 2}
+	_ = []func(int) int{2: x => x + 1}
+	_ = [][]func(int) int{{x => x}}
+}
+
+func positionArray() {
+	_ = [2]func(int) int{x => x, x => x * 2}
+	_ = [...]func(int) int{x => x}
+}
+
+func positionMap() {
+	_ = map[string]func(int) int{"k": x => x + 1}
+	_ = map[string]handler{"k": {f: x => x}}
+	_ = []*handler{{f: x => x}}
+}
+
+func positionSend(ch chan func(int) int) {
+	ch <- x => x + 1
+	select {
+	case ch <- x => x * 2:
+	default:
+	}
+}
+
+func positionAppend(fs []func(int) int) []func(int) int {
+	fs = append(fs, x => x + 1, x => x * 2)
+	return append(fs, (x => x))
+}
+
+func positionNamedParam() {
+	takeNamed(x => x + 1)
+	takeNamed((x => x))
+}
+
+func positionVariadic() {
+	takeFuncs(x => x, x => x * 2)
+}
+
+func positionGenericCallee(xs []int, ss []string) {
+	_ = slices.IndexFunc(xs, x => x > 1)
+	_ = reduce(ss, 0, (n, s) => n + len(s))
+}
+
+func positionCurried() {
+	var add func(int) func(int) int = x => y => x + y
+	_ = add
+}
+
+type optHandler struct{ f (func(int) int)? }
+
+func takeOptFn(f (func(int) int)?) {}
+
+func optionalFn() (func(int) int)? {
+	return x => x + 1
+}
+
+func positionOption() {
+	var o (func(int) int)? = x => x + 1
+	o = x => x * 2
+	_ = o
+	takeOptFn(x => x)
+	_ = optHandler{f: x => x}
+}
+
+func positionCoalesce(m map[string]func(int) int, o (func(int) int)?) {
+	_ = m["k"] ?? (x => x)
+	f := o ?? (x => x * 2)
+	_ = f
+}
+
+func yieldFuncs() iter.Seq[func(int) int] {
+	yield x => x + 1
+	yield (x => x * 2)
+}
+
+func yieldPairs() iter.Seq2[int, func(int) int] {
+	yield 1, x => x
+}
+
+func positionTuple() {
+	var t (func(int) int, int) = (x => x + 1, 5)
+	t = (x => x * 2, 6)
+	var n ((func(int) int, int), int) = ((x => x, 1), 2)
+	_, _ = t, n
+}
+
+func needTargetWrapped(oi int?) {
+	_ = oi ?? (x => /* ERROR "lambda_needs_target" */ x)
+	var t (int, int) = (x => /* ERROR "lambda_needs_target" */ x, 1)
+	_ = t
+}
+
+func yieldInts() iter.Seq[int] {
+	yield x => /* ERROR "lambda_needs_target" */ x
+}
+
+func positionSwitchArm(n int) {
+	var f func(int) int = switch n {
+	case 1 => x => /* ERROR "lambda_needs_target" */ x + 1
+	default => x => /* ERROR "lambda_needs_target" */ x
+	}
+	_ = f
+}
+
+func positionMismatch() {
+	_ = handler{f: (a, b) => /* ERRORx "." */ a}
+	_ = []func(int) string{x => x /* ERRORx "." */}
+	_ = pairFns{x => x, a => /* ERRORx "." */ a}
 }

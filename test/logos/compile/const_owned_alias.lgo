@@ -1,0 +1,146 @@
+// errorcheck
+
+package p
+
+import (
+	"reflect"
+	"slices"
+	"unsafe"
+)
+
+type ownedBox struct {
+	M map[string]int
+}
+
+const ownedStructMap = ownedBox{M: map[string]int{"a": 1}}
+
+const ownedSliceMap = []map[string]int{{"a": 1}}
+
+const ownedArrayMap = [1]map[string]int{{"a": 1}}
+
+type ownedOuter struct {
+	Inner ownedBox
+}
+
+const ownedNestedMap = ownedOuter{Inner: ownedBox{M: map[string]int{"a": 1}}}
+
+func addrIndex(v const []int) {
+	p := &v[0]
+	*p = 99 // ERROR "const_view_mutation"
+}
+
+type addrPoint struct {
+	X int
+	Y int
+}
+
+func addrField(s const *addrPoint) {
+	p := &s.X
+	*p = 1 // ERROR "const_view_mutation"
+}
+
+type addrBox struct {
+	N int
+}
+
+func addrIndexField(xs const []addrBox) {
+	p := &xs[0].N
+	*p = 2 // ERROR "const_view_mutation"
+}
+
+func addrArray(a const [3]int) {
+	p := &a[0]
+	*p = 3 // ERROR "const_view_mutation"
+}
+
+func addrRangePtr(v const []int) {
+	for i := range v {
+		p := &v[i]
+		_ = i
+		*p = 4 // ERROR "const_view_mutation"
+	}
+}
+
+func sliceAliasWrite(v const []int) {
+	w := v[0:2]
+	w[0] = 1 // ERROR "const_view_mutation"
+}
+
+func rangeIndexWrite(v const []int) {
+	for i := range v {
+		v[i] = 1 // ERROR "const_view_mutation"
+	}
+}
+
+func mapIndexInc(m const map[string]int) {
+	m["a"]++ // ERROR "const_view_mutation"
+}
+
+func (b *addrBox) addrSet(n int) {
+	b.N = n
+}
+
+func methodPtrRecv(xs const []addrBox) {
+	xs[0].addrSet(1) // ERROR "const_view_mutation"
+}
+
+func closureMut(v const []int) {
+	f := func() {
+		v[0] = 1 // ERROR "const_view_mutation"
+	}
+	_ = f
+}
+
+func goSortView(v const []int) {
+	slices.Sort(v) // ERROR "const_view_mutation"
+}
+
+func firstOf[T any](xs []T) T {
+	return xs[0]
+}
+
+func genericView(v const []int) {
+	_ = firstOf(v) // ERROR "const_view_mutation"
+}
+
+func chanSendView(v const []int, ch chan []int) {
+	ch <- v // ERROR "const_view_escape"
+}
+
+func ifaceStoreView(v const []int) {
+	var a any = v // ERROR "const_view_escape"
+	_ = a
+}
+
+type plainHolder struct {
+	V []int
+}
+
+func fieldStoreView(v const []int) {
+	var h plainHolder
+	h.V = v // ERROR "const_view_escape"
+	_ = h
+}
+
+func returnView(v const []int) []int {
+	return v // ERROR "const_view_escape"
+}
+
+func unsafeWriteView(v const []int) {
+	p := unsafe.SliceData(v)
+	*p = 1 // ERROR "const_view_mutation"
+}
+
+func unsafePointerConv(v const []int) {
+	p := unsafe.Pointer(&v[0]) // ERROR "const_view_escape"
+	_ = p
+}
+
+func unsafeSliceView(v const []int) {
+	s := unsafe.Slice(&v[0], 2)
+	s[1] = 9 // ERROR "const_view_mutation"
+}
+
+func reflectWriteView(v const []int) {
+	reflect.ValueOf(v).Index(0).Set(reflect.ValueOf(1)) // ERROR "const_view_mutation"
+}

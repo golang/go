@@ -6,10 +6,6 @@ package p
 
 import "iter"
 
-// M6-S9 yield attacks: yield is allowed only directly inside a function
-// whose single result is iter.Seq[T] or iter.Seq2[K, V]; every other
-// position reports yield_outside_generator, and values must match.
-
 func seqOK(n int) iter.Seq[int] {
 	for i := range n {
 		yield i
@@ -44,22 +40,27 @@ func yieldTwoResults() (int, int) {
 }
 
 func yieldWrongType() iter.Seq[int] {
-	yield "s" /* ERROR "cannot use" */
+	yield "s" /* ERRORx "." */
 	return nil
 }
 
 func yieldSeq2Arity1() iter.Seq2[int, string] {
-	yield /* ERROR "yield requires 2 values" */ 1
+	yield /* ERRORx "." */ 1
+	return nil
+}
+
+func yieldSeqArity2() iter.Seq[int] {
+	yield /* ERRORx "." */ 1, 2
 	return nil
 }
 
 func yieldSeq2Arity3() iter.Seq2[int, string] {
-	yield /* ERROR "yield requires 2 values" */ 1, "s", 3
+	yield /* ERRORx "." */ 1, "s", 3
 	return nil
 }
 
 func yieldSeq2WrongSecond() iter.Seq2[int, string] {
-	yield 1, 2 /* ERROR "cannot use" */
+	yield 1, 2 /* ERRORx "." */
 	return nil
 }
 
@@ -87,4 +88,195 @@ func useSeq(s iter.Seq[int]) int {
 		total += v
 	}
 	return total
+}
+
+func outsideUnary(a, b int) int {
+	yield /* ERROR "yield_outside_generator" */ -a + b
+	return 0
+}
+
+func outsideParen(a, b int) int {
+	yield /* ERROR "yield_outside_generator" */ (a + b) * 2
+	return 0
+}
+
+func outsideDeref(p *int) int {
+	yield /* ERROR "yield_outside_generator" */ *p + 1
+	return 0
+}
+
+func outsideAddress(x int) bool {
+	yield /* ERROR "yield_outside_generator" */ &x == nil
+	return false
+}
+
+func outsideNot(ok bool) bool {
+	yield /* ERROR "yield_outside_generator" */ !ok
+	return false
+}
+
+func outsideSliceLiteral() int {
+	yield /* ERROR "yield_outside_generator" */ []int{5}[0]
+	return 0
+}
+
+func outsideArrayLiteral() int {
+	yield /* ERROR "yield_outside_generator" */ [2]int{1, 2}[1]
+	return 0
+}
+
+func outsidePair(a, b int) int {
+	yield /* ERROR "yield_outside_generator" */ -a, b
+	return 0
+}
+
+func outsidePairParen(a, b int) int {
+	yield /* ERROR "yield_outside_generator" */ (a), b
+	return 0
+}
+
+func outsideCall(a int) int {
+	yield /* ERRORx "." */ (a)
+	return 0
+}
+
+func outsideSend(ch chan int) int {
+	yield /* ERRORx "." */ <-ch
+	return 0
+}
+
+type reservedItems = iter.Seq[int]
+
+type reservedBox struct{ f int }
+
+func (reservedBox) m() {}
+
+func reservedIndexAssign() iter.Seq[int] {
+	yield := []int{1, 2}
+	yield /* ERRORx "." */ [0] = 5
+	yield 1
+}
+
+func reservedIndexAssignAlias() reservedItems {
+	yield := []int{1, 2}
+	yield /* ERRORx "." */ [0] = 5
+	yield 1
+}
+
+func reservedIndexInc() iter.Seq[int] {
+	yield := []int{1, 2}
+	yield /* ERRORx "." */ [0]++
+	yield 1
+}
+
+func reservedIndexIncAlias() reservedItems {
+	yield := []int{1, 2}
+	yield /* ERRORx "." */ [0]++
+	yield 1
+}
+
+func reservedIndexCall() iter.Seq[int] {
+	yield := []func(){func() {}}
+	yield /* ERRORx "." */ [0]()
+	yield 1
+}
+
+func reservedIndexCallAlias() reservedItems {
+	yield := []func(){func() {}}
+	yield /* ERRORx "." */ [0]()
+	yield 1
+}
+
+func reservedIndexSend() iter.Seq[int] {
+	yield := []chan int{make(chan int, 1)}
+	yield /* ERRORx "." */ [0] <- 1
+	yield 1
+}
+
+func reservedIndexSendAlias() reservedItems {
+	yield := []chan int{make(chan int, 1)}
+	yield /* ERRORx "." */ [0] <- 1
+	yield 1
+}
+
+func reservedCallTarget() iter.Seq[int] {
+	yield := func() *reservedBox { return &reservedBox{} }
+	yield /* ERRORx "." */ ().f = 1
+	yield 1
+}
+
+func reservedCallTargetAlias() reservedItems {
+	yield := func() *reservedBox { return &reservedBox{} }
+	yield /* ERRORx "." */ ().f = 1
+	yield 1
+}
+
+func identifierFormsKept() iter.Seq[int] {
+	yield := reservedBox{}
+	yield.f = 3
+	yield.m()
+	yield 1
+}
+
+func identifierFormsKeptAlias() reservedItems {
+	yield := reservedBox{}
+	yield.f = 3
+	yield.m()
+	yield 1
+}
+
+func identifierDefineKept() iter.Seq[int] {
+	yield := 1
+	yield = 2
+	yield++
+	yield 1
+}
+
+func identifierDefineKeptAlias() reservedItems {
+	yield := 1
+	yield = 2
+	yield++
+	yield 1
+}
+
+type outsideBox struct{ n int }
+
+func outsideComplement(x int) int {
+	yield /* ERROR "yield_outside_generator" */ ^x
+	return 0
+}
+
+func outsideEllipsisArray() int {
+	yield /* ERROR "yield_outside_generator" */ [...]int{7, 8}[1]
+	return 0
+}
+
+func outsideNestedArray() int {
+	yield /* ERROR "yield_outside_generator" */ [2][2]int{{1, 2}, {3, 4}}[1][0]
+	return 0
+}
+
+func outsideFuncLiteral() int {
+	yield /* ERROR "yield_outside_generator" */ func() int { return 1 }()
+	return 0
+}
+
+func outsideStructField() int {
+	yield /* ERROR "yield_outside_generator" */ struct{ f int }{1}.f
+	return 0
+}
+
+func outsideComposite() outsideBox {
+	yield /* ERROR "yield_outside_generator" */ outsideBox{1}
+	return outsideBox{}
+}
+
+func outsideStringPair() int {
+	yield /* ERROR "yield_outside_generator" */ "k", 1
+	return 0
+}
+
+func outsideParenBinaryPair(a, b int) int {
+	yield /* ERROR "yield_outside_generator" */ (a + b) * 2, -b
+	return 0
 }

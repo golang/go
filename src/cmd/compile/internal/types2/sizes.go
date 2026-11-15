@@ -55,6 +55,8 @@ func (s *StdSizes) Alignof(T Type) (result int64) {
 	// For arrays and structs, alignment is defined in terms
 	// of alignment of the elements and fields, respectively.
 	switch t := T.Underlying().(type) {
+	case *ReadonlyDescendants:
+		return s.Alignof(t.Elem)
 	case *Array:
 		// spec: "For a variable x of array type: unsafe.Alignof(x)
 		// is the same as unsafe.Alignof(x[0]), but at least 1."
@@ -163,6 +165,8 @@ var basicSizes = [...]byte{
 
 func (s *StdSizes) Sizeof(T Type) int64 {
 	switch t := T.Underlying().(type) {
+	case *ReadonlyDescendants:
+		return s.Sizeof(t.Elem)
 	case *Basic:
 		assert(isTyped(T))
 		k := t.kind
@@ -307,6 +311,7 @@ func (conf *Config) offsetsof(T *Struct) []int64 {
 func (conf *Config) offsetof(T Type, index []int) int64 {
 	var offs int64
 	for _, i := range index {
+		logosUnwrapReadonlyDescendants(&T)
 		s := T.Underlying().(*Struct)
 		d := conf.offsetsof(s)[i]
 		if d < 0 {

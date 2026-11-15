@@ -2,15 +2,38 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 func main() {
 	xs := []int{10, 20, 30}
-	fmt.Println((xs[1:]).first() ?? -1)
-	fmt.Println((xs[1:]).last() ?? -1)
-	fmt.Println((xs[:1]).first() ?? -1)
-	fmt.Println((xs[3:]).first() ?? -1)
+	gotF1 := (xs[1:]).first() ?? -1
+	check("slice-first", gotF1 == 20, gotF1, 20)
+	gotL1 := (xs[1:]).last() ?? -1
+	check("slice-last", gotL1 == 30, gotL1, 30)
+	gotF0 := (xs[:1]).first() ?? -1
+	check("prefix-first", gotF0 == 10, gotF0, 10)
+	gotE := (xs[3:]).first() ?? -1
+	check("empty-first", gotE == -1, gotE, -1)
 	m := map[string]int{"a": 1}
-	fmt.Println((m["a"]) ?? -1)
-	fmt.Println((m["zz"]) ?? -1)
+	gotM := (m["a"]) ?? -1
+	check("map-present", gotM == 1, gotM, 1)
+	gotZ := (m["zz"]) ?? -1
+	check("map-missing", gotZ == -1, gotZ, -1)
+	if failed {
+		os.Exit(1)
+	}
 }

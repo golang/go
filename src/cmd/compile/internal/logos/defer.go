@@ -14,38 +14,31 @@ import (
 	"cmd/compile/internal/types2"
 )
 
-// This file lowers defer f()?, errdefer calls, and the return rewrite of
-// errdefer functions. Deferred callees and arguments are bound at the
-// statement into temporaries, matching the Go defer evaluation rule.
-
-// capturePiece is one callee or argument of a deferred call.
 type capturePiece struct {
-	expr    syntax.Expr
-	text    otext
-	start   int
-	end     int
-	capture bool
-	single  string
-	multi   []string
+	expr      syntax.Expr
+	text      otext
+	start     int
+	end       int
+	capture   bool
+	single    string
+	multi     []string
+	takeAddr  bool
+	takeDeref bool
+	nilCheck  bool
 }
 
-// callPlan binds every callee and argument of a deferred call.
 type callPlan struct {
-	fun  capturePiece
-	args []capturePiece
-	dots bool
-	end  int
+	fun      capturePiece
+	args     []capturePiece
+	dots     bool
+	end      int
+	isMethod bool
+	recv     capturePiece
+	method   string
 }
 
-// asTuple matches a tuple type.
-func asTuple(typ types2.Type) (*types2.Tuple, bool) {
-	tup, ok := typ.(*types2.Tuple)
-	return tup, ok
-}
-
-// typeFlagsOf returns the recorded type flags of e.
-func typeFlagsOf(fc *funcLower, e syntax.Expr) (builtin, isType bool) {
-	info := fc.fl.pkg.info
+func typeFlagsOf(fl *fileLower, e syntax.Expr) (builtin, isType bool) {
+	info := fl.pkg.info
 	node := syntax.Unparen(e)
 	if info.Types != nil {
 		if tv, ok := info.Types[node]; ok {
@@ -60,20 +53,11 @@ func typeFlagsOf(fc *funcLower, e syntax.Expr) (builtin, isType bool) {
 	return flags.IsBuiltin(), flags.IsType()
 }
 
-// isBuiltinExpr reports whether e denotes a builtin function.
 func isBuiltinExpr(fc *funcLower, e syntax.Expr) bool {
-	builtin, _ := typeFlagsOf(fc, e)
+	builtin, _ := typeFlagsOf(fc.fl, e)
 	return builtin
 }
 
-// isTypeExpr reports whether e denotes a type.
-func isTypeExpr(fc *funcLower, e syntax.Expr) bool {
-	_, isType := typeFlagsOf(fc, e)
-	return isType
-}
-
-// planCall maps a deferred call to its capture plan. It reports false for
-// conversions, which cannot be bound to a variable.
 func (fc *funcLower) planCall(call *syntax.CallExpr) (*callPlan, bool) {
 	fl := fc.fl
 	src := fl.src
@@ -86,24 +70,30 @@ func (fc *funcLower) planCall(call *syntax.CallExpr) (*callPlan, bool) {
 	fun := capturePiece{expr: call.Fun}
 	fun.start = fl.off(leftmostOf(call.Fun))
 	fun.end = lastTokenEnd(src, fun.start, lparen)
-	if isTypeExpr(fc, call.Fun) {
+	if _, isType := typeFlagsOf(fl, call.Fun); isType {
 		return nil, false
 	}
-	fun.capture = !isBuiltinExpr(fc, call.Fun) && !genericTarget(fc, call.Fun)
-	fun.text = fl.textOf(span{start: fun.start, end: fun.end})
-	if fun.capture {
-		fun.single = fc.nextFun()
-	}
-	plan.fun = fun
 	if len(split.args) != len(call.ArgList) {
 		return nil, false
 	}
+	fun.text = fl.lazyText(span{start: fun.start, end: fun.end})
+	if recv, method, ok := fc.methodRecv(call); ok {
+		plan.isMethod = true
+		plan.recv = recv
+		plan.method = method
+	} else {
+		fun.capture = !isBuiltinExpr(fc, call.Fun) && !genericTarget(fc, call.Fun)
+		if fun.capture {
+			fun.single = fc.nextFun()
+		}
+	}
+	plan.fun = fun
 	for i, raw := range call.ArgList {
 		arg := capturePiece{expr: raw}
 		trimmed := trimSpan(src, span{start: split.args[i].start, end: split.args[i].end})
 		arg.start = trimmed.start
 		arg.end = trimmed.end
-		arg.text = fl.textOf(trimmed)
+		arg.text = fl.lazyText(trimmed)
 		switch argKind(fc, raw) {
 		case argInline:
 			arg.capture = false
@@ -119,26 +109,25 @@ func (fc *funcLower) planCall(call *syntax.CallExpr) (*callPlan, bool) {
 	return plan, true
 }
 
-// genericTarget reports whether fun is a reference to a generic function
-// or carries explicit type arguments. Such callees are spelled in the
-// closure so inference reruns on the captured arguments; binding one to a
-// variable would freeze or lose its type arguments.
-func genericTarget(fc *funcLower, fun syntax.Expr) bool {
-	node := syntax.Unparen(fun)
-	if _, ok := node.(*syntax.IndexExpr); ok {
-		return true
-	}
+func (fc *funcLower) calleeFunc(fun syntax.Expr) (*types2.Func, bool) {
 	var name *syntax.Name
-	switch n := node.(type) {
+	switch n := syntax.Unparen(fun).(type) {
 	case *syntax.Name:
 		name = n
 	case *syntax.SelectorExpr:
 		name = n.Sel
 	default:
-		return false
+		return nil, false
 	}
-	obj := fc.fl.pkg.info.ObjectOf(name)
-	fn, ok := obj.(*types2.Func)
+	fn, ok := fc.fl.pkg.info.ObjectOf(name).(*types2.Func)
+	return fn, ok
+}
+
+func genericTarget(fc *funcLower, fun syntax.Expr) bool {
+	if _, ok := syntax.Unparen(fun).(*syntax.IndexExpr); ok {
+		return true
+	}
+	fn, ok := fc.calleeFunc(fun)
 	if !ok {
 		return false
 	}
@@ -149,7 +138,103 @@ func genericTarget(fc *funcLower, fun syntax.Expr) bool {
 	return sig.TypeParams().Len() > 0
 }
 
-// argClass selects inline or captured binding for one argument.
+func (fc *funcLower) planScopeCall(call *syntax.CallExpr) (*callPlan, bool) {
+	plan, ok := fc.planCall(call)
+	if ok && plan.fun.capture {
+		_, static := fc.calleeFunc(plan.fun.expr)
+		plan.fun.capture = !static
+	}
+	return plan, ok
+}
+
+func (fc *funcLower) methodRecv(call *syntax.CallExpr) (capturePiece, string, bool) {
+	fl := fc.fl
+	sel, ok := syntax.Unparen(call.Fun).(*syntax.SelectorExpr)
+	if !ok || sel.Sel == nil {
+		return capturePiece{}, "", false
+	}
+	info := fl.pkg.info
+	if info == nil {
+		return capturePiece{}, "", false
+	}
+	s, ok := info.Selections[sel]
+	if !ok || s.Kind() != types2.MethodVal {
+		return capturePiece{}, "", false
+	}
+	rspan := fl.receiverSpan(call)
+	recv := capturePiece{expr: sel.X, capture: true}
+	recv.start = rspan.start
+	recv.end = rspan.end
+	recv.text = fl.lazyText(rspan)
+	recv.single = fc.nextFun()
+	fc.bindRecv(&recv, s, sel.X)
+	if recv.takeAddr {
+		recv.text = cat(gen("&"), recv.text)
+	}
+	if recv.takeDeref {
+		recv.text = cat(gen("*"), recv.text)
+	}
+	return recv, sel.Sel.Value, true
+}
+
+func (fc *funcLower) bindRecv(recv *capturePiece, s *types2.Selection, x syntax.Expr) {
+	effX, effText, effT := fc.recvTarget(s, x, recv.text)
+	if effT == nil {
+		return
+	}
+	recv.expr = effX
+	recv.text = effText
+	if _, isParam := types2.Unalias(effT).(*types2.TypeParam); !isParam {
+		if _, ok := effT.Underlying().(*types2.Interface); ok {
+			recv.nilCheck = true
+			return
+		}
+	}
+	meth, ok := s.Obj().(*types2.Func)
+	if !ok {
+		return
+	}
+	sig, ok := meth.Type().(*types2.Signature)
+	if !ok || sig.Recv() == nil {
+		return
+	}
+	_, wantPtr := types2.Unalias(sig.Recv().Type()).(*types2.Pointer)
+	_, havePtr := types2.Unalias(effT).(*types2.Pointer)
+	switch {
+	case wantPtr && !havePtr:
+		recv.takeAddr = true
+	case !wantPtr && havePtr:
+		recv.takeDeref = true
+	}
+}
+
+func (fc *funcLower) recvTarget(s *types2.Selection, x syntax.Expr, text otext) (syntax.Expr, otext, types2.Type) {
+	typ := s.Recv()
+	if typ == nil {
+		return x, text, nil
+	}
+	idx := s.Index()
+	if len(idx) == 0 {
+		return x, text, typ
+	}
+	expr := x
+	for _, fi := range idx[:len(idx)-1] {
+		st := types2.Unalias(typ)
+		if ptr, ok := st.(*types2.Pointer); ok {
+			st = types2.Unalias(ptr.Elem())
+		}
+		strct, ok := st.(*types2.Struct)
+		if !ok || fi < 0 || fi >= strct.NumFields() {
+			return x, text, nil
+		}
+		fld := strct.Field(fi)
+		expr = selOf(x.Pos(), expr, fld.Name())
+		text = cat(text, gen("."+fld.Name()))
+		typ = fld.Type()
+	}
+	return expr, text, typ
+}
+
 type argClass int
 
 const (
@@ -158,11 +243,11 @@ const (
 	argMulti
 )
 
-// argKind binds constants and nil inline and captures the rest. Constants
-// keep their literal text so default types never shift; every other value
-// is already typed, so short declarations preserve it exactly.
 func argKind(fc *funcLower, raw syntax.Expr) argClass {
 	node := syntax.Unparen(raw)
+	if _, expanded := node.(*syntax.ListExpr); expanded {
+		return argInline
+	}
 	if name, ok := node.(*syntax.Name); ok && name.Value == "nil" {
 		return argInline
 	}
@@ -173,16 +258,15 @@ func argKind(fc *funcLower, raw syntax.Expr) argClass {
 		return argInline
 	}
 	typ := cmp.Or(fc.fl.pkg.info.TypeOf(raw), fc.fl.pkg.info.TypeOf(node))
-	if tup, ok := asTuple(typ); ok && tup.Len() > 1 {
+	if tup, ok := typ.(*types2.Tuple); ok && tup.Len() > 1 {
 		return argMulti
 	}
 	return argCapture
 }
 
-// multiNames returns one fresh spelling per value of a tuple argument.
 func (fc *funcLower) multiNames(raw syntax.Expr) []string {
 	typ := fc.fl.pkg.info.TypeOf(raw)
-	tup, _ := asTuple(typ)
+	tup, _ := typ.(*types2.Tuple)
 	names := make([]string, tup.Len())
 	for i := range names {
 		names[i] = fc.nextArg()
@@ -190,10 +274,8 @@ func (fc *funcLower) multiNames(raw syntax.Expr) []string {
 	return names
 }
 
-// checkPair builds the capture statement and the guarded call check of a
-// defer? or errdefer? body, twice each for the native tree and the twin.
 func (fc *funcLower) checkPair(plan *callPlan, cpos syntax.Pos) ([]syntax.Stmt, []syntax.Stmt, *twin) {
-	fc.fl.needRT = true // the join below calls _logos_rt.Join
+	fc.fl.needRT = true
 	tw := &twin{}
 	funN, argN, capNamesN, capValsN := fc.planUses(plan, nil)
 	funT, argT, capNamesT, capValsT := fc.planUses(plan, tw)
@@ -214,12 +296,13 @@ func (fc *funcLower) checkPair(plan *callPlan, cpos syntax.Pos) ([]syntax.Stmt, 
 	return append(native, checkN), append(text, checkT), tw
 }
 
-// planUses resolves one side of a capture plan: user nodes with nil twin,
-// markers with a twin.
 func (fc *funcLower) planUses(plan *callPlan, tw *twin) (syntax.Expr, []syntax.Expr, []syntax.Expr, []syntax.Expr) {
 	use := func(piece capturePiece, names []string) syntax.Expr {
 		if !piece.capture {
-			return useOne(piece, tw)
+			if tw == nil {
+				return piece.expr
+			}
+			return tw.mark(piece.expr.Pos(), piece.text)
 		}
 		if len(names) > 0 {
 			out := make([]syntax.Expr, len(names))
@@ -230,40 +313,56 @@ func (fc *funcLower) planUses(plan *callPlan, tw *twin) (syntax.Expr, []syntax.E
 		}
 		return nameOf(piece.expr.Pos(), piece.single)
 	}
-	funNames := funNameList(plan.fun)
-	fun := use(plan.fun, funNames)
+	var fun syntax.Expr
 	var args, names, vals []syntax.Expr
-	names = append(names, nameList(plan.fun)...)
-	vals = append(vals, valList(plan.fun, tw)...)
+	if plan.isMethod {
+		fun = selOf(plan.fun.expr.Pos(), use(plan.recv, pieceNames(plan.recv)), plan.method)
+		names = append(names, nameList(plan.recv)...)
+		vals = append(vals, valList(plan.recv, tw)...)
+	} else {
+		fun = use(plan.fun, pieceNames(plan.fun))
+		names = append(names, nameList(plan.fun)...)
+		vals = append(vals, valList(plan.fun, tw)...)
+	}
 	for _, piece := range plan.args {
 		var argNames []string
 		if piece.capture {
 			argNames = pieceNames(piece)
 		}
-		args = append(args, use(piece, argNames))
+		args = append(args, syntax.UnpackListExpr(use(piece, argNames))...)
 		names = append(names, nameList(piece)...)
 		vals = append(vals, valList(piece, tw)...)
 	}
 	return fun, args, names, vals
 }
 
-// useOne resolves one inline piece to its node or its marker.
-func useOne(piece capturePiece, tw *twin) syntax.Expr {
-	if tw == nil {
+func wrapRecv(piece capturePiece) syntax.Expr {
+	switch {
+	case piece.takeAddr:
+		return at(&syntax.Operation{Op: syntax.And, X: piece.expr}, piece.expr.Pos())
+	case piece.takeDeref:
+		return at(&syntax.Operation{Op: syntax.Mul, X: piece.expr}, piece.expr.Pos())
+	default:
 		return piece.expr
 	}
-	return tw.mark(piece.expr.Pos(), piece.text)
 }
 
-// funNameList returns the capture names of the callee piece.
-func funNameList(piece capturePiece) []string {
-	if !piece.capture {
-		return nil
+func ifaceNilCheckStmt(pos syntax.Pos, recvTemp, method string) syntax.Stmt {
+	cond := at(&syntax.Operation{Op: syntax.Eql, X: nameOf(pos, recvTemp), Y: nilOf(pos)}, pos)
+	discard := assignOf(pos, []syntax.Expr{nameOf(pos, "_")}, []syntax.Expr{selOf(pos, nameOf(pos, recvTemp), method)})
+	return ifOf(pos, nil, cond, []syntax.Stmt{discard})
+}
+
+func spliceRecvCheck(stmts []syntax.Stmt, chk syntax.Stmt) []syntax.Stmt {
+	if chk == nil || len(stmts) == 0 {
+		return stmts
 	}
-	return []string{piece.single}
+	out := make([]syntax.Stmt, 0, len(stmts)+1)
+	out = append(out, stmts[:len(stmts)-1]...)
+	out = append(out, chk)
+	return append(out, stmts[len(stmts)-1])
 }
 
-// pieceNames returns the capture names of an argument piece.
 func pieceNames(piece capturePiece) []string {
 	if len(piece.multi) > 0 {
 		return piece.multi
@@ -271,7 +370,6 @@ func pieceNames(piece capturePiece) []string {
 	return []string{piece.single}
 }
 
-// nameList returns fresh name nodes for the capture names of a piece.
 func nameList(piece capturePiece) []syntax.Expr {
 	if !piece.capture {
 		return nil
@@ -284,20 +382,19 @@ func nameList(piece capturePiece) []syntax.Expr {
 	return out
 }
 
-// valList returns the captured value side: the user node, or its marker.
 func valList(piece capturePiece, tw *twin) []syntax.Expr {
 	if !piece.capture {
 		return nil
 	}
 	if tw == nil {
-		return []syntax.Expr{piece.expr}
+		return []syntax.Expr{wrapRecv(piece)}
 	}
 	return []syntax.Expr{tw.mark(piece.expr.Pos(), piece.text)}
 }
 
-// lowerDeferTry lowers defer f()? in a statement list.
 func (fc *funcLower) lowerDeferTry(s *syntax.CallStmt, t *syntax.TryExpr, call *syntax.CallExpr) []syntax.Stmt {
 	fl := fc.fl
+	fc.fl.needRT = true
 	cpos := syntax.StartPos(s)
 	stmtOff := fl.off(cpos)
 	spanEnd := skipCloseParens(fl.src, fl.off(t.Pos())+1)
@@ -305,17 +402,17 @@ func (fc *funcLower) lowerDeferTry(s *syntax.CallStmt, t *syntax.TryExpr, call *
 	if !ok {
 		return []syntax.Stmt{s}
 	}
-	native, textStmts, tw := fc.checkPair(plan, cpos)
-	closureN := deferClosure(cpos, []syntax.Stmt{native[len(native)-1]})
-	headN := append(slices.Clone(native[:len(native)-1]), deferOf(cpos, callOf(cpos, closureN, nil)))
+	_, textStmts, tw := fc.checkPair(plan, cpos)
+	headN := []syntax.Stmt{deferOf(cpos, callOf(cpos, rtSel(cpos, "DeferTry"), []syntax.Expr{addrOf(cpos, nameOf(cpos, fc.errName)), call}))}
 	closureT := deferClosure(cpos, []syntax.Stmt{textStmts[len(textStmts)-1]})
 	headT := append(slices.Clone(textStmts[:len(textStmts)-1]), deferOf(cpos, callOf(cpos, closureT, nil)))
-	prefix := leftoverComments(fl, span{start: stmtOff, end: spanEnd}, planSpans(plan))
-	fl.addT(stmtOff, spanEnd, cat(prefix, renderText(headT, tw.subs)))
-	return headN
+	if plan.isMethod && plan.recv.nilCheck {
+		headT = spliceRecvCheck(headT, ifaceNilCheckStmt(cpos, plan.recv.single, plan.method))
+	}
+	fc.spliceCall(stmtOff, spanEnd, plan, scoped(cpos, headT), tw)
+	return scoped(cpos, headN)
 }
 
-// lowerErrdefer lowers errdefer f() and errdefer f()?.
 func (fc *funcLower) lowerErrdefer(s *syntax.ErrdeferStmt) []syntax.Stmt {
 	fl := fc.fl
 	cpos := syntax.StartPos(s)
@@ -342,14 +439,18 @@ func (fc *funcLower) lowerErrdefer(s *syntax.ErrdeferStmt) []syntax.Stmt {
 	bodyN := []syntax.Stmt{exprStmtOf(cpos, callN)}
 	bodyT := []syntax.Stmt{exprStmtOf(cpos, callT)}
 	native := fc.guardedDefer(cpos, bodyN, capNamesN, capValsN)
+	if plan.isMethod && plan.recv.nilCheck {
+		native = spliceRecvCheck(native, ifaceNilCheckStmt(cpos, plan.recv.single, plan.method))
+	}
 	text := fc.guardedDefer(cpos, bodyT, capNamesT, capValsT)
+	if plan.isMethod && plan.recv.nilCheck {
+		text = spliceRecvCheck(text, ifaceNilCheckStmt(cpos, plan.recv.single, plan.method))
+	}
 	spanEnd := skipCloseParens(fl.src, plan.end)
-	prefix := leftoverComments(fl, span{start: stmtOff, end: spanEnd}, planSpans(plan))
-	fl.addT(stmtOff, spanEnd, cat(prefix, renderText(text, tw.subs)))
-	return native
+	fc.spliceCall(stmtOff, spanEnd, plan, scoped(cpos, text), tw)
+	return scoped(cpos, native)
 }
 
-// lowerErrdeferTry lowers errdefer f()? with a joining guarded body.
 func (fc *funcLower) lowerErrdeferTry(s *syntax.ErrdeferStmt, t *syntax.TryExpr, cpos syntax.Pos, stmtOff int) []syntax.Stmt {
 	fl := fc.fl
 	call, ok := syntax.Unparen(t.X).(*syntax.CallExpr)
@@ -366,13 +467,14 @@ func (fc *funcLower) lowerErrdeferTry(s *syntax.ErrdeferStmt, t *syntax.TryExpr,
 	bodyT := []syntax.Stmt{textStmts[len(textStmts)-1]}
 	headN := append(slices.Clone(native[:len(native)-1]), fc.guardedDefer(cpos, bodyN, nil, nil)[0])
 	headT := append(slices.Clone(textStmts[:len(textStmts)-1]), fc.guardedDefer(cpos, bodyT, nil, nil)[0])
-	prefix := leftoverComments(fl, span{start: stmtOff, end: spanEnd}, planSpans(plan))
-	fl.addT(stmtOff, spanEnd, cat(prefix, renderText(headT, tw.subs)))
-	return headN
+	if plan.isMethod && plan.recv.nilCheck {
+		headN = spliceRecvCheck(headN, ifaceNilCheckStmt(cpos, plan.recv.single, plan.method))
+		headT = spliceRecvCheck(headT, ifaceNilCheckStmt(cpos, plan.recv.single, plan.method))
+	}
+	fc.spliceCall(stmtOff, spanEnd, plan, scoped(cpos, headT), tw)
+	return scoped(cpos, headN)
 }
 
-// guardedDefer wraps a body in the errdefer guard and a defer statement,
-// preceded by an optional capture statement.
 func (fc *funcLower) guardedDefer(cpos syntax.Pos, body []syntax.Stmt, capNames, capVals []syntax.Expr) []syntax.Stmt {
 	guarded := guardedJoin(cpos, fc.okName, fc.errName, body)
 	closure := deferClosure(cpos, []syntax.Stmt{guarded})
@@ -383,7 +485,10 @@ func (fc *funcLower) guardedDefer(cpos syntax.Pos, body []syntax.Stmt, capNames,
 	return []syntax.Stmt{defineOf(cpos, capNames, capVals), deferStmt}
 }
 
-// planSpans returns the source spans owned by a capture plan.
+func scoped(pos syntax.Pos, stmts []syntax.Stmt) []syntax.Stmt {
+	return []syntax.Stmt{blockOf(pos, stmts)}
+}
+
 func planSpans(plan *callPlan) []span {
 	spans := []span{{start: plan.fun.start, end: plan.fun.end}}
 	for _, arg := range plan.args {
@@ -392,8 +497,6 @@ func planSpans(plan *callPlan) []span {
 	return spans
 }
 
-// leftoverComments lifts the comments of a replaced span that fall outside
-// every piece, so interior comments survive in the eject text.
 func leftoverComments(fl *fileLower, whole span, pieces []span) otext {
 	var parts []otext
 	for _, c := range commentsIn(fl.src, whole.start, whole.end) {
@@ -404,20 +507,11 @@ func leftoverComments(fl *fileLower, whole span, pieces []span) otext {
 	return cat(parts...)
 }
 
-// insideAny reports whether c lies inside one of pieces.
-func insideAny(c span, pieces []span) bool {
-	for _, p := range pieces {
-		if c.start >= p.start && c.end <= p.end {
-			return true
-		}
-	}
-	return false
+func (fc *funcLower) spliceCall(stmtOff, spanEnd int, plan *callPlan, text []syntax.Stmt, tw *twin) {
+	prefix := leftoverComments(fc.fl, span{start: stmtOff, end: spanEnd}, planSpans(plan))
+	fc.fl.addT(stmtOff, spanEnd, cat(prefix, renderText(text, tw.subs)))
 }
 
-// lowerReturn rewrites the returns of an errdefer function so a panic
-// while evaluating results counts as failure. Results go through fresh
-// temporaries, so a shadowing declaration at the return site cannot steal
-// the assignment the way a named target would.
 func (fc *funcLower) lowerReturn(s *syntax.ReturnStmt) []syntax.Stmt {
 	fl := fc.fl
 	scanForLiterals(fl, s.Results)
@@ -431,25 +525,17 @@ func (fc *funcLower) lowerReturn(s *syntax.ReturnStmt) []syntax.Stmt {
 		return []syntax.Stmt{s}
 	}
 	end := stmtEnd(fl.src, retOff)
+	for _, sp := range fl.splices {
+		if retOff < sp.end && sp.start < end {
+			return []syntax.Stmt{s}
+		}
+	}
 	trimmed := trimSpan(fl.src, span{start: retOff + len("return"), end: end})
-	resText := fl.textOf(trimmed)
+	resText := fl.lazyText(trimmed)
 	results := syntax.UnpackListExpr(s.Results)
 	temps := fc.nextTemps(len(fc.specs))
-	// Each temporary is declared with its result type and then assigned.
-	// A short declaration would type the temporary from the value alone:
-	// untyped nil has no type, and an untyped constant would take its
-	// default type instead of the result type. Assignment converts exactly
-	// as a return statement does.
 	build := func(rhs []syntax.Expr) []syntax.Stmt {
-		out := make([]syntax.Stmt, 0, len(temps)+3)
-		for i, spelling := range temps {
-			out = append(out, typedVarDecl(retPos, nameOf(retPos, spelling), mustCloneType(fc.specs[i].typeExpr, retPos)))
-		}
-		return append(out,
-			assignOf(retPos, tempNodes(retPos, temps), rhs),
-			assignOf(retPos, []syntax.Expr{nameOf(retPos, fc.okName)}, []syntax.Expr{nameOf(retPos, "true")}),
-			returnOf(retPos, tempNodes(retPos, temps)),
-		)
+		return fc.returnValues(retPos, temps, rhs, nil)
 	}
 	native := build(slices.Clone(results))
 	tw := &twin{}
@@ -460,7 +546,19 @@ func (fc *funcLower) lowerReturn(s *syntax.ReturnStmt) []syntax.Stmt {
 	return native
 }
 
-// nextTemps returns n fresh per-function temporary spellings.
+func (fc *funcLower) returnValues(pos syntax.Pos, temps []string, rhs []syntax.Expr, mid []syntax.Stmt) []syntax.Stmt {
+	out := make([]syntax.Stmt, 0, len(temps)+len(mid)+3)
+	for i, spelling := range temps {
+		out = append(out, typedVarDecl(pos, nameOf(pos, spelling), mustCloneType(fc.specs[i].typeExpr, pos)))
+	}
+	out = append(out, assignOf(pos, tempNodes(pos, temps), rhs))
+	out = append(out, mid...)
+	if fc.hasErrdefer {
+		out = append(out, assignOf(pos, []syntax.Expr{nameOf(pos, fc.okName)}, []syntax.Expr{nameOf(pos, "true")}))
+	}
+	return append(out, returnOf(pos, tempNodes(pos, temps)))
+}
+
 func (fc *funcLower) nextTemps(n int) []string {
 	temps := make([]string, n)
 	for i := range temps {
@@ -470,7 +568,6 @@ func (fc *funcLower) nextTemps(n int) []string {
 	return temps
 }
 
-// tempNodes builds fresh name nodes for spellings at pos.
 func tempNodes(pos syntax.Pos, spellings []string) []syntax.Expr {
 	nodes := make([]syntax.Expr, len(spellings))
 	for i, spelling := range spellings {
@@ -479,7 +576,6 @@ func tempNodes(pos syntax.Pos, spellings []string) []syntax.Expr {
 	return nodes
 }
 
-// skipCloseParens extends a span past parentheses the parser dropped.
 func skipCloseParens(src []byte, from int) int {
 	end := from
 	scanSegment(src, from, len(src), func(t tok) bool {

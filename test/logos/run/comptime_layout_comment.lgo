@@ -1,0 +1,60 @@
+// run
+package main
+
+import (
+	"comptime"
+	"fmt"
+	"os"
+	"unsafe"
+)
+
+type Pair struct {
+	X *int
+	Y int
+}
+
+type Nest struct {
+	P Pair
+	Q int
+}
+
+var failed bool
+
+func check(name, got, want string) {
+	if got != want {
+		fmt.Println("FAIL", name, "got", got, "want", want)
+		failed = true
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func Cells[T any]() int {
+	var b [comptime.SizeOf[T]( /* ) */ )]byte
+	return len(b)
+}
+
+func FieldCells() int {
+	n := 0
+	const for _, f := range comptime.Fields[Nest]() {
+		var c [comptime.SizeOf[f.Type]( /* ) */ )]byte
+		n += len(c)
+	}
+	return n
+}
+
+func ScanMark[T any]() string {
+	const if comptime.HasPointers[Pair]( /* ) */ ) {
+		return "scan"
+	}
+	return "noscan"
+}
+
+func main() {
+	check("comment-paren-in-sizeof", fmt.Sprint(Cells[Pair]() == int(unsafe.Sizeof(Pair{X: new(int)})) && Cells[Nest]() == int(unsafe.Sizeof(Nest{P: Pair{X: new(int)}}))), "true")
+	check("comment-paren-in-constfor-sizeof", fmt.Sprint(FieldCells() == int(unsafe.Sizeof(Pair{X: new(int)}))+int(unsafe.Sizeof(int(0)))), "true")
+	check("comment-paren-in-constif", fmt.Sprint(ScanMark[Pair]() == "scan" && ScanMark[int]() == "scan"), "true")
+	if failed {
+		os.Exit(1)
+	}
+}

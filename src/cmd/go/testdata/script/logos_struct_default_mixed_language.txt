@@ -1,0 +1,53 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+logos run ./lmod
+stdout '^go=0 logos=7$'
+
+-- m/go.work --
+go 1.27
+
+use (
+	./lmod
+	./gmod
+)
+-- m/lmod/go.mod --
+module example.com/lmod
+
+go 1.27
+-- m/gmod/go.mod --
+module example.com/gmod
+
+go 1.27
+-- m/lmod/cfg/cfg.lgo --
+package cfg
+
+type C struct {
+	N int = 7
+}
+-- m/lmod/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/lmod/cfg"
+	"example.com/gmod/gouse"
+)
+
+func main() {
+	fmt.Printf("go=%d logos=%d\n", gouse.Value(), cfg.C{}.N)
+}
+-- m/gmod/gouse/value.go --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package gouse
+
+import "example.com/lmod/cfg"
+
+func Value() int {
+	return cfg.C{}.N
+}

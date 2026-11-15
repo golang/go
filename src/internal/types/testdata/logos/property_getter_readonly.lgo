@@ -1,0 +1,275 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+type Named interface {
+	const Name string
+}
+
+type Counter interface {
+	Name string
+}
+
+type Direct struct : Named /* ERROR "const_view_mutation" */ {
+	n int
+}
+
+func (d *Direct) Name() string {
+	d.n++
+	return "direct"
+}
+
+type Inner struct {
+	n int
+}
+
+type Nested struct : Named /* ERROR "const_view_mutation" */ {
+	in Inner
+}
+
+func (s *Nested) Name() string {
+	s.in.n = 1
+	return "nested"
+}
+
+type Calls struct : Named /* ERROR "const_view_mutation" */ {
+	n int
+}
+
+func (c *Calls) bump() { c.n++ }
+
+func (c *Calls) Name() string {
+	c.bump()
+	return "calls"
+}
+
+type Through struct : Named /* ERROR "const_view_mutation" */ {
+	p *int
+}
+
+func (t Through) Name() string {
+	*t.p = 1
+	return "through"
+}
+
+type Base struct {
+	n int
+}
+
+func (b *Base) Name() string {
+	b.n++
+	return "base"
+}
+
+type Promoted struct : Named /* ERROR "const_view_mutation" */ {
+	Base
+}
+
+type Pure struct : Named {
+	n int
+}
+
+func (p *Pure) Name() string {
+	return "pure"
+}
+
+var _ Named = &Pure{}
+
+type PureValue struct : Named {
+	n int
+}
+
+func (p PureValue) Name() string {
+	return "value"
+}
+
+var _ Named = PureValue{}
+
+type Field struct : Named {
+	Name string
+}
+
+var _ Named = Field{}
+
+type Plain struct : Counter {
+	n int
+}
+
+func (p *Plain) Name() string {
+	p.n++
+	return "plain"
+}
+
+func (p *Plain) SetName(string) {}
+
+var _ Counter = &Plain{}
+
+func readPlain(c Counter) string {
+	return c.Name
+}
+
+type Holder struct {
+	tags []string
+}
+
+type Shape interface {
+	Area() int
+}
+
+type PosPoint struct {
+	X, Y int
+}
+
+type IChan interface {
+	const Ch chan int
+}
+
+type IFunc interface {
+	const Fn func() int
+}
+
+type IShape interface {
+	const Ifc Shape
+}
+
+type IHolder interface {
+	const Hold Holder
+}
+
+type ISlice interface {
+	const Tags []string
+}
+
+type IMap interface {
+	const Idx map[string]int
+}
+
+type IPtr interface {
+	const Ptr *PosPoint
+}
+
+type AliasChan struct : IChan /* ERROR "const_view_mutation" */ {
+	ch chan int
+}
+
+func (a *AliasChan) Ch() chan int { return a.ch }
+
+type AliasFunc struct : IFunc /* ERROR "const_view_mutation" */ {
+	fn func() int
+}
+
+func (a *AliasFunc) Fn() func() int { return a.fn }
+
+type AliasShape struct : IShape /* ERROR "const_view_mutation" */ {
+	ifc Shape
+}
+
+func (a *AliasShape) Ifc() Shape { return a.ifc }
+
+type AliasHolder struct : IHolder /* ERROR "const_view_mutation" */ {
+	hold Holder
+}
+
+func (a *AliasHolder) Hold() Holder { return a.hold }
+
+type AliasSlice struct : ISlice /* ERROR "const_view_mutation" */ {
+	tags []string
+}
+
+func (a *AliasSlice) Tags() []string { return a.tags }
+
+type AliasMap struct : IMap /* ERROR "const_view_mutation" */ {
+	idx map[string]int
+}
+
+func (a *AliasMap) Idx() map[string]int { return a.idx }
+
+type AliasPtr struct : IPtr /* ERROR "const_view_mutation" */ {
+	ptr *PosPoint
+}
+
+func (a *AliasPtr) Ptr() *PosPoint { return a.ptr }
+
+type IArrSlice interface {
+	const Cells [2][]int
+}
+
+type IArrPtr interface {
+	const Ptrs [1]*PosPoint
+}
+
+type IArrMap interface {
+	const Idx [3]map[string]int
+}
+
+type IArrPure interface {
+	const Quad [4]int
+}
+
+type AliasArrSlice struct : IArrSlice /* ERROR "const_view_mutation" */ {
+	cells [2][]int
+}
+
+func (a *AliasArrSlice) Cells() [2][]int { return a.cells }
+
+type AliasArrPtr struct : IArrPtr /* ERROR "const_view_mutation" */ {
+	ptrs [1]*PosPoint
+}
+
+func (a *AliasArrPtr) Ptrs() [1]*PosPoint { return a.ptrs }
+
+type AliasArrMap struct : IArrMap /* ERROR "const_view_mutation" */ {
+	idx [3]map[string]int
+}
+
+func (a *AliasArrMap) Idx() [3]map[string]int { return a.idx }
+
+type PureArr struct : IArrPure {
+	quad [4]int
+}
+
+func (p *PureArr) Quad() [4]int { return p.quad }
+
+var _ IArrPure = &PureArr{}
+
+type IViewSlice interface {
+	const Tags const []string
+}
+
+type IViewMap interface {
+	const Idx const map[string]int
+}
+
+type IViewPtr interface {
+	const Ptr const *PosPoint
+}
+
+type ViewSlice struct : IViewSlice {
+	tags []string
+}
+
+func (v *ViewSlice) Tags() const []string { return v.tags }
+
+type ViewMap struct : IViewMap {
+	idx map[string]int
+}
+
+func (v *ViewMap) Idx() const map[string]int { return v.idx }
+
+type ViewPtr struct : IViewPtr {
+	ptr *PosPoint
+}
+
+func (v *ViewPtr) Ptr() const *PosPoint { return v.ptr }
+
+type ViewWrite struct : IViewSlice /* ERROR "const_view_mutation" */ {
+	n    int
+	tags []string
+}
+
+func (v *ViewWrite) Tags() const []string {
+	v.n++
+	return v.tags
+}

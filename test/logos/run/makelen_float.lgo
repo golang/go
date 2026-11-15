@@ -2,13 +2,21 @@
 
 package main
 
-// M15-S2 (SPEC Sec 15.2, T-303; #169): a product whose type is not an
-// integer stays out of _logos_rt.MulLen. A float product converted to
-// int for a make length compiles and runs instead of failing the
-// integer-constrained recheck, while a product of a defined integer
-// type keeps the overflow-checked path.
+import (
+	"fmt"
+	"os"
+)
 
-import "fmt"
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 type Count int
 
@@ -17,5 +25,8 @@ func main() {
 	a := make([]byte, int(f*g))
 	var w, h Count = 3, 4
 	b := make([]byte, w*h)
-	fmt.Println(len(a), len(b))
+	check("lens", len(a) == 12 && len(b) == 12, fmt.Sprint(len(a), len(b)), "12 12")
+	if failed {
+		os.Exit(1)
+	}
 }

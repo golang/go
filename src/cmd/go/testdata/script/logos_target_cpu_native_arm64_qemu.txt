@@ -1,0 +1,66 @@
+[!GOOS:linux] skip 'the ARM64 native driver leg needs linux'
+[!GOARCH:amd64] skip 'the ARM64 native driver leg uses installed linux/amd64 tools'
+[!exec:qemu-aarch64] skip 'qemu-aarch64 is required for the ARM64 native driver leg'
+[!symlink] skip 'the emulated driver needs a private GOROOT tool-directory overlay'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env CGO_ENABLED=0
+env GOAMD64=
+env GOARM64=v8.0
+env GOARCH=arm64
+go build -o $WORK/logos cmd/go
+env GOARM64=
+
+mkdir $WORK/goroot/pkg/tool
+symlink $WORK/goroot/src -> $GOROOT/src
+symlink $WORK/goroot/lib -> $GOROOT/lib
+symlink $WORK/goroot/go.env -> $GOROOT/go.env
+symlink $WORK/goroot/VERSION -> $GOROOT/VERSION
+symlink $WORK/goroot/pkg/include -> $GOROOT/pkg/include
+symlink $WORK/goroot/pkg/tool/linux_arm64 -> $GOROOT/pkg/tool/linux_amd64
+symlink $WORK/goroot/pkg/tool/linux_amd64 -> $GOROOT/pkg/tool/linux_amd64
+env GOROOT=$WORK/goroot
+
+exec qemu-aarch64 -cpu cortex-a53 $WORK/logos build -o $WORK/native-a53 .
+go version -m $WORK/native-a53
+stdout 'GOARM64=v8\.0(\s|$)'
+exec qemu-aarch64 -cpu cortex-a53 $WORK/native-a53
+stdout '^hello$'
+
+exec qemu-aarch64 -cpu max $WORK/logos build -o $WORK/native-max .
+go version -m $WORK/native-max
+stdout 'GOARM64=v8\.1(\s|$)'
+exec qemu-aarch64 -cpu max $WORK/native-max
+stdout '^hello$'
+
+env GOARCH=amd64
+exec qemu-aarch64 -cpu cortex-a53 $WORK/logos build -o $WORK/cross-a53 .
+go version -m $WORK/cross-a53
+stdout 'GOAMD64=v1(\s|$)'
+exec $WORK/cross-a53
+stdout '^hello$'
+
+exec qemu-aarch64 -cpu max $WORK/logos build -o $WORK/cross-max .
+go version -m $WORK/cross-max
+stdout 'GOAMD64=v1(\s|$)'
+exec $WORK/cross-max
+stdout '^hello$'
+
+-- go.mod --
+module example.com/nativearm64qemu
+
+go 1.27
+
+-- logos.toml --
+[build]
+target_cpu = "native"
+
+-- main.lgo --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("hello")
+}

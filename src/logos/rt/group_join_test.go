@@ -63,9 +63,6 @@ func TestGroupOutsideGoRacingWait(t *testing.T) {
 					if waitStarted.Load() {
 						sawStarted.Store(true)
 					}
-					// Every child returns nil, so the group context is
-					// cancelled only at the join: a child that starts
-					// with a done context started after Wait returned.
 					if ctx.Err() != nil {
 						late.Store(true)
 					}

@@ -1,8 +1,12 @@
-not ok
-interface conversion: float64 is not a member of main.U
-other
-ok
-U
-nil
-other
-m
+ok non-member-assertion-reports-not-ok
+ok failed-assertion-panics-naming-union
+ok non-member-switch-falls-to-other
+ok member-assertion-reports-ok
+ok member-switch-selects-union
+ok nil-switch-selects-nil
+ok concrete-case-shadows-union
+ok empty-struct-asserts-empty-union
+ok empty-struct-switch-selects-union
+ok int-asserts-empty-union
+ok int-switch-selects-empty-union
+ok nil-switch-selects-nil-empty-union

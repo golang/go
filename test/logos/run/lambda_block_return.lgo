@@ -1,0 +1,201 @@
+// run
+
+package main
+
+import (
+	"context"
+	"fmt"
+	"iter"
+	"os"
+	"strings"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+var deferred []string
+
+func note(tag string) func(int) int {
+	return func(x int) int {
+		defer func() { deferred = append(deferred, fmt.Sprintf("%s:%d", tag, x)) }()
+		return x * 10
+	}
+}
+
+func eq(name, got, want string) {
+	check(name, got == want, got, want)
+}
+
+func nestedIf(xs []int) []int {
+	return xs.map(x => {
+		if x > 1 {
+			return 100
+		}
+		return x
+	})
+}
+
+func nestedFor(xs []int) []int {
+	return xs.map(x => {
+		for i := 0; i < x; i++ {
+			if i == 2 {
+				return 200
+			}
+		}
+		return x
+	})
+}
+
+func nestedSwitch(xs []int) []int {
+	return xs.map(x => {
+		switch x {
+		case 5:
+			return 50
+		}
+		return x
+	})
+}
+
+func nestedSelect(xs []int) []int {
+	ready := make(chan int, 1)
+	ready <- 7
+	return xs.map(x => {
+		select {
+		case v := <-ready:
+			return v
+		default:
+			return x
+		}
+	})
+}
+
+func nestedLabeledFor(xs []int) []int {
+	return xs.map(x => {
+	scan:
+		for i := 0; i < 3; i++ {
+			for j := 0; j < 3; j++ {
+				if i*j == x {
+					break scan
+				}
+				if i*j > x {
+					return 300
+				}
+			}
+		}
+		return x
+	})
+}
+
+func nestedLambda(xs []int) []int {
+	return xs.map(x => {
+		inner := []int{x, x + 1}.map(y => {
+			if y == x+1 {
+				return -1
+			}
+			return y
+		})
+		return len(inner) + inner[1]
+	})
+}
+
+func nestedFilter(xs []int) []int {
+	return xs.filter(x => {
+		if x == 2 {
+			return false
+		}
+		return true
+	})
+}
+
+func deferInLambda(xs []int) []int {
+	return xs.map(x => {
+		defer func() { deferred = append(deferred, fmt.Sprintf("map:%d", x)) }()
+		if x == 3 {
+			return 30
+		}
+		return x
+	})
+}
+
+func assigned() int {
+	var f func(int) int = x => {
+		if x > 1 {
+			return 11
+		}
+		return x
+	}
+	return f(5)
+}
+
+func passed() int {
+	return apply(x => {
+		if x > 1 {
+			return 22
+		}
+		return x
+	}, 9)
+}
+
+func apply(f func(int) int, v int) int {
+	return f(v)
+}
+
+func stageNested(ctx context.Context, xs []int) ([]int, error) {
+	return xs.group(ctx, limit = 2).map(x => {
+		if x == 2 {
+			return 20
+		}
+		for i := 0; i < x; i++ {
+			if i == 1 {
+				return 21
+			}
+		}
+		return x
+	})
+}
+
+func Gen(xs []int) iter.Seq[string] {
+	for _, x := range xs.map(x => {
+		if x > 1 {
+			return x + 10
+		}
+		return x
+	}) {
+		yield strings.Repeat("a", x)
+	}
+}
+
+func main() {
+	eq("nested-if", fmt.Sprint(nestedIf([]int{1, 2, 3})), "[1 100 100]")
+	eq("nested-switch", fmt.Sprint(nestedSwitch([]int{4, 5})), "[4 50]")
+	eq("nested-select", fmt.Sprint(nestedSelect([]int{1, 5})), "[7 5]")
+	eq("nested-for", fmt.Sprint(nestedFor([]int{0, 3, 5})), "[0 200 200]")
+	eq("nested-labeled-for", fmt.Sprint(nestedLabeledFor([]int{2, 3})), "[2 300]")
+	eq("nested-lambda", fmt.Sprint(nestedLambda([]int{4})), "[1]")
+	eq("nested-filter", fmt.Sprint(nestedFilter([]int{1, 2, 3})), "[1 3]")
+	deferred = nil
+	eq("defer-in-lambda", fmt.Sprint(deferInLambda([]int{1, 3})), "[1 30]")
+	eq("defer-order", strings.Join(deferred, ","), "map:1,map:3")
+	eq("assigned", fmt.Sprint(assigned()), "11")
+	eq("passed", fmt.Sprint(passed()), "22")
+	ys, err := stageNested(context.Background(), []int{1, 2, 3})
+	if err == nil {
+		eq("stage-nested", fmt.Sprint(ys), "[1 20 21]")
+	}
+	var got []string
+	for s := range Gen([]int{1, 2}) {
+		got = append(got, s)
+	}
+	eq("generator-yield", strings.Join(got, ","), "a,aaaaaaaaaaaa")
+	if failed {
+		os.Exit(1)
+	}
+}

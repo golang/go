@@ -7,6 +7,7 @@ package logos
 import (
 	"errors"
 	"fmt"
+	"go/token"
 	"slices"
 	"strconv"
 	"strings"
@@ -17,16 +18,6 @@ import (
 	"cmd/compile/internal/types2"
 )
 
-// This file expands M7-S3 comptime generics (SPEC Sec 2.5, T-205): a
-// generic function using const for, val.[f], or comptime calls expands
-// per instantiation into a non-generic copy in the instantiating
-// package. Every copy is built from record text: the definition source
-// with its type parameters, imports, and (for packages other than the
-// defining one) package-level names spelled as reserved markers. Copies
-// are memoized per type-argument list; an instantiation stack detects
-// cycles; exported generics travel as the same record text in __.LOGOS.
-// The const for machinery of constfor.go unrolls each copy.
-
 const (
 	cfPkgMarker      = "_logos_ctpkg"
 	cfImportMarker   = "_logos_ctimp"
@@ -35,35 +26,24 @@ const (
 	cfCopyInfix      = "_logosct"
 )
 
-// cfMarker spells the Nth type parameter. The reserved prefix keeps
-// user code from colliding with it.
 func cfMarker(n int) string {
 	return cfTParamMarker + strconv.Itoa(n)
 }
 
-// cfImport is one package a record names through an import marker.
 type cfImport struct {
 	name string
 	path string
 }
 
-// cfRecord is one comptime generic source: the definition text starting
-// at the func keyword, with the markers its expansion resolves.
 type cfRecord struct {
 	name    string
 	tparams int
 	foreign bool
 	imports []cfImport
 	source  string
-	// sourceO carries the origin of source for a record built in this
-	// package: every byte the marker substitutions did not touch maps
-	// back to the definition. A record parsed from export data has no
-	// origin (the definition lives in another file), so sourceO is
-	// empty and its copy is generated text.
 	sourceO otext
 }
 
-// text serializes a record for __.LOGOS: header lines, then the source.
 func (r *cfRecord) text() string {
 	var b strings.Builder
 	b.WriteString("//logosct\n")
@@ -74,7 +54,6 @@ func (r *cfRecord) text() string {
 	return b.String()
 }
 
-// cfParseRecord reads one record text of __.LOGOS.
 func cfParseRecord(name, text string) (*cfRecord, error) {
 	rec := &cfRecord{name: name}
 	for strings.HasPrefix(text, "//logos") {
@@ -99,7 +78,6 @@ func cfParseRecord(name, text string) (*cfRecord, error) {
 	return rec, nil
 }
 
-// cfCountTParams counts the type parameters of a record's function.
 func cfCountTParams(source string) (int, error) {
 	file, errs := cfParseSource("package cfrec\n" + source)
 	if len(errs) > 0 {
@@ -112,7 +90,6 @@ func cfCountTParams(source string) (int, error) {
 	return len(fn.TParamList), nil
 }
 
-// cfParseSource parses text in LogosMode and returns its errors.
 func cfParseSource(text string) (*syntax.File, []error) {
 	var errs []error
 	file, _ := syntax.Parse(syntax.NewFileBase("cfrecord.lgo"), strings.NewReader(text), func(err error) {
@@ -121,7 +98,6 @@ func cfParseSource(text string) (*syntax.File, []error) {
 	return file, errs
 }
 
-// cfFirstFunc returns the first function declaration of file.
 func cfFirstFunc(file *syntax.File) *syntax.FuncDecl {
 	if file == nil {
 		return nil
@@ -134,7 +110,6 @@ func cfFirstFunc(file *syntax.File) *syntax.FuncDecl {
 	return nil
 }
 
-// cfGenericDef is one comptime generic definition of the package.
 type cfGenericDef struct {
 	decl   *syntax.FuncDecl
 	obj    *types2.Func
@@ -142,32 +117,24 @@ type cfGenericDef struct {
 	record *cfRecord
 }
 
-// cfFrame is one active instantiation on the cycle stack.
 type cfFrame struct {
 	key   string
 	label string
 }
 
-// cfExpander carries S3 expansion state across one package.
 type cfExpander struct {
-	defs    []*cfGenericDef
-	byObj   map[*types2.Func]*cfGenericDef
-	byDecl  map[*syntax.FuncDecl]*cfGenericDef
-	foreign map[string]*cfRecord
-	memo    map[string]string
-	stack   []cfFrame
-	pkgs    map[string]*types2.Package
-	roots   []*types2.Package
-	seq     int
-	// copyFuncs holds the function object of every copy emitted so far,
-	// for the checks of copies that call them.
+	defs      []*cfGenericDef
+	byObj     map[*types2.Func]*cfGenericDef
+	byDecl    map[*syntax.FuncDecl]*cfGenericDef
+	foreign   map[string]*cfRecord
+	memo      map[string]string
+	stack     []cfFrame
+	pkgs      map[string]*types2.Package
+	roots     []*types2.Package
+	seq       int
 	copyFuncs []*types2.Func
 }
 
-// newCfExpander registers the comptime generics of every file of the
-// package and records the exported ones in the facts. Registration
-// precedes lowering, so a file can instantiate a generic that another
-// file of its package defines.
 func newCfExpander(shared *packageLower, files []*syntax.File, src map[*syntax.File][]byte) *cfExpander {
 	exp := &cfExpander{
 		byObj:   make(map[*types2.Func]*cfGenericDef),
@@ -182,7 +149,7 @@ func newCfExpander(shared *packageLower, files []*syntax.File, src map[*syntax.F
 		if !ok {
 			continue
 		}
-		fl := &fileLower{pkg: shared, file: file, src: data, origSrc: data, orig: len(data), start: lineStarts(data)}
+		fl := &fileLower{pkg: shared, file: file, src: data, orig: len(data), start: lineStarts(data)}
 		fl.srcMap = origBuf(data)
 		f = fl.registerComptime(exp, f)
 	}
@@ -192,21 +159,10 @@ func newCfExpander(shared *packageLower, files []*syntax.File, src map[*syntax.F
 	return exp
 }
 
-// register records one definition.
-func (e *cfExpander) register(def *cfGenericDef) {
-	e.defs = append(e.defs, def)
-	e.byDecl[def.decl] = def
-	if def.obj != nil {
-		e.byObj[def.obj] = def
-	}
-}
-
-// frameIndex returns the stack index of key, or -1.
 func (e *cfExpander) frameIndex(key string) int {
 	return slices.IndexFunc(e.stack, func(f cfFrame) bool { return f.key == key })
 }
 
-// cfExpKey identifies one instantiation for memoization and cycles.
 func cfExpKey(name, pkgPath string, targs []types2.Type) string {
 	var b strings.Builder
 	b.WriteString(pkgPath)
@@ -219,7 +175,6 @@ func cfExpKey(name, pkgPath string, targs []types2.Type) string {
 	return b.String()
 }
 
-// cfShortKeys spells targs with bare names for diagnostics.
 func cfShortKeys(targs []types2.Type) string {
 	parts := make([]string, len(targs))
 	for i, t := range targs {
@@ -228,25 +183,36 @@ func cfShortKeys(targs []types2.Type) string {
 	return strings.Join(parts, ", ")
 }
 
-// registerComptime registers the comptime generics of one file with exp
-// and records the exported ones in f.
+func cfFactObject(obj *types2.Func) string {
+	if obj == nil {
+		return ""
+	}
+	if q := facts.ObjectName(obj); q != "" {
+		return q
+	}
+	return obj.Name()
+}
+
 func (fl *fileLower) registerComptime(exp *cfExpander, f *facts.Facts) *facts.Facts {
 	for _, def := range fl.cfCollectGenerics() {
-		def.record = fl.cfLocalRecord(def)
-		exp.register(def)
+		def.record = fl.cfRecordText(def, "")
+		exp.defs = append(exp.defs, def)
+		exp.byDecl[def.decl] = def
+		if def.obj != nil {
+			exp.byObj[def.obj] = def
+		}
 		if def.obj == nil || !def.obj.Exported() {
 			continue
 		}
 		if f == nil {
 			f = &facts.Facts{}
 		}
-		rec := fl.cfForeignRecord(def)
-		f.Comptimes = append(f.Comptimes, facts.ComptimeFact{Object: rec.name, Source: []byte(rec.text())})
+		rec := fl.cfRecordText(def, cfPkgMarker)
+		f.Comptimes = append(f.Comptimes, facts.ComptimeFact{Object: cfFactObject(def.obj), Source: []byte(rec.text())})
 	}
 	return f
 }
 
-// cfCollectGenerics finds the comptime-generic definitions of one file.
 func (fl *fileLower) cfCollectGenerics() []*cfGenericDef {
 	var out []*cfGenericDef
 	for _, decl := range fl.file.DeclList {
@@ -263,8 +229,6 @@ func (fl *fileLower) cfCollectGenerics() []*cfGenericDef {
 	return out
 }
 
-// cfUsesComptime reports whether fn uses const for, a field projection,
-// or a comptime package function.
 func (fl *fileLower) cfUsesComptime(fn *syntax.FuncDecl) bool {
 	found := false
 	syntax.Inspect(fn.Body, func(n syntax.Node) bool {
@@ -279,7 +243,6 @@ func (fl *fileLower) cfUsesComptime(fn *syntax.FuncDecl) bool {
 	return found
 }
 
-// cfIsComptimePkg reports whether x names the comptime package.
 func (fl *fileLower) cfIsComptimePkg(x syntax.Expr) bool {
 	name, ok := x.(*syntax.Name)
 	if !ok {
@@ -289,18 +252,6 @@ func (fl *fileLower) cfIsComptimePkg(x syntax.Expr) bool {
 	return ok && pn.Imported().Path() == "comptime"
 }
 
-// cfLocalRecord builds the record used inside the defining package.
-func (fl *fileLower) cfLocalRecord(def *cfGenericDef) *cfRecord {
-	return fl.cfRecordText(def, "")
-}
-
-// cfForeignRecord builds the record that travels in __.LOGOS: names of
-// the defining package carry the package marker.
-func (fl *fileLower) cfForeignRecord(def *cfGenericDef) *cfRecord {
-	return fl.cfRecordText(def, cfPkgMarker)
-}
-
-// cfRecordBuilder collects the marker splices of one definition.
 type cfRecordBuilder struct {
 	fl        *fileLower
 	qualifier string
@@ -309,8 +260,6 @@ type cfRecordBuilder struct {
 	subs      []splice
 }
 
-// cfRecordText builds the record text of one definition. The definition
-// AST is never modified.
 func (fl *fileLower) cfRecordText(def *cfGenericDef, qualifier string) *cfRecord {
 	b := &cfRecordBuilder{fl: fl, qualifier: qualifier, tpIndex: make(map[types2.Object]int)}
 	for i, f := range def.decl.TParamList {
@@ -319,7 +268,7 @@ func (fl *fileLower) cfRecordText(def *cfGenericDef, qualifier string) *cfRecord
 		}
 	}
 	syntax.Inspect(def.decl, b.visit)
-	start := cfFuncStart(fl.src, fl.off(syntax.StartPos(def.decl)))
+	start := fl.cfFuncStart(fl.off(syntax.StartPos(def.decl)))
 	end := fl.off(syntax.EndPos(def.decl)) + 1
 	out, err := applyChunks(fl.srcMap.sliceO(start, end), shiftSplices(b.subs, -start))
 	if err != nil {
@@ -335,8 +284,6 @@ func (fl *fileLower) cfRecordText(def *cfGenericDef, qualifier string) *cfRecord
 	}
 }
 
-// visit records the splice of one name use. A `const if` folds its
-// constant conditions and visits only its branches.
 func (b *cfRecordBuilder) visit(n syntax.Node) bool {
 	if s, ok := n.(*syntax.ConstIfStmt); ok {
 		b.foldCond(s.Cond)
@@ -359,7 +306,6 @@ func (b *cfRecordBuilder) visit(n syntax.Node) bool {
 	return true
 }
 
-// spelling returns the marker text of one used object.
 func (b *cfRecordBuilder) spelling(obj types2.Object) (string, bool) {
 	if obj == nil {
 		return "", false
@@ -376,14 +322,11 @@ func (b *cfRecordBuilder) spelling(obj types2.Object) (string, bool) {
 	return "", false
 }
 
-// packageLevel reports whether obj is a package-level object of the
-// defining package.
 func (b *cfRecordBuilder) packageLevel(obj types2.Object) bool {
 	pkg := b.fl.pkg.tpkg
 	return obj.Pkg() == pkg && pkg.Scope().Lookup(obj.Name()) == obj
 }
 
-// packageMarker returns the marker of one imported package.
 func (b *cfRecordBuilder) packageMarker(pn *types2.PkgName) string {
 	path := pn.Imported().Path()
 	if path == "comptime" {
@@ -397,30 +340,24 @@ func (b *cfRecordBuilder) packageMarker(pn *types2.PkgName) string {
 	return cfImportMarker + strconv.Itoa(idx)
 }
 
-// cfFuncStart moves a FuncDecl offset back over the func keyword: the
-// parser positions the declaration after it.
-func cfFuncStart(src []byte, off int) int {
-	i := off
-	for i > 0 && (src[i-1] == ' ' || src[i-1] == '\t' || src[i-1] == '\n' || src[i-1] == '\r') {
-		i--
+func (fl *fileLower) cfFuncStart(off int) int {
+	kw, ok := fl.keywords.Start(fl.src, token.FUNC, off)
+	if !ok {
+		base.Fatalf("logos: no func keyword before offset %d", off)
 	}
-	if i >= 4 && string(src[i-4:i]) == "func" {
-		return i - 4
-	}
-	return off
+	return kw
 }
 
-// shiftSplices re-bases splices by off.
 func shiftSplices(subs []splice, off int) []splice {
 	out := make([]splice, 0, len(subs))
 	for _, s := range subs {
-		out = append(out, splice{start: s.start + off, end: s.end + off, text: s.text, chunks: s.chunks, owner: s.owner})
+		s.start += off
+		s.end += off
+		out = append(out, s)
 	}
 	return out
 }
 
-// cfSite is one instantiation site: the expression naming the generic
-// (an index expression or a bare callee) and its resolved arguments.
 type cfSite struct {
 	call  *syntax.CallExpr
 	fun   syntax.Expr
@@ -429,8 +366,6 @@ type cfSite struct {
 	pos   syntax.Pos
 }
 
-// expandComptime runs the S3 phase for one file: expand instantiation
-// sites, then retire the definitions.
 func (fl *fileLower) expandComptime() {
 	fl.cfRejectGenericMethods()
 	parents := cfParents(fl.file)
@@ -440,18 +375,11 @@ func (fl *fileLower) expandComptime() {
 	fl.cfRetireDefs()
 }
 
-// lowerComptime lowers the comptime features of one file: generic
-// copies first, then const for unrolling. The imports go later, in
-// endComptime, once pruning has removed the dead branches.
 func (fl *fileLower) lowerComptime() {
 	fl.expandComptime()
 	fl.lowerConstFor()
 }
 
-// endComptime drops the import of the virtual package once no use of
-// it remains in the lowered tree, then blanks the imports whose package
-// the expansion erased. It runs after function lowering, because a dead
-// `const if` branch still holds comptime uses until that pass prunes it.
 func (fl *fileLower) endComptime() {
 	fl.dropComptimeImport(nil)
 	if fl.changed {
@@ -459,12 +387,6 @@ func (fl *fileLower) endComptime() {
 	}
 }
 
-// cfDemoteErasedImports turns every import whose package no longer
-// appears in the lowered file into a blank import, in the native tree
-// and in the eject text. A package named only by an erased const for
-// range (`comptime.Fields[pkg.T]()`) or only by the body of a retired
-// comptime generic is a legal import of the loGo/s source, but plain Go
-// rejects it as unused.
 func (fl *fileLower) cfDemoteErasedImports() {
 	used := fl.cfNamesInUse()
 	for _, decl := range fl.file.DeclList {
@@ -477,17 +399,37 @@ func (fl *fileLower) cfDemoteErasedImports() {
 			continue
 		}
 		path, _ := strconv.Unquote(imp.Path.Value)
-		if _, ejectUsed := ownedEjectImports[fl.file][path]; !ejectUsed {
-			fl.cfBlankImportText(imp)
+		if fl.genImps != nil {
+			if _, ok := fl.genImps.qual[path]; ok {
+				fl.importsPendingGeneratedUse = append(fl.importsPendingGeneratedUse, imp)
+				continue
+			}
 		}
-		imp.LocalPkgName = nameOf(imp.Path.Pos(), "_")
-		fl.changed = true
+		fl.cfDemoteImport(imp, path)
 	}
 }
 
-// cfNamesInUse collects the identifiers the lowered file still uses as
-// values or types: selector members and the import declarations
-// themselves do not count.
+func (fl *fileLower) cfDemoteImport(imp *syntax.ImportDecl, path string) {
+	if _, ejectUsed := ownedEjectImports[fl.file][path]; !ejectUsed {
+		fl.cfBlankImportText(imp)
+	}
+	imp.LocalPkgName = nameOf(imp.Path.Pos(), "_")
+	fl.changed = true
+}
+
+func (fl *fileLower) cfDemoteImportsUnusedByGenerated() {
+	used := fl.cfNamesInUse()
+	for _, imp := range fl.importsPendingGeneratedUse {
+		local, ok := fl.cfImportLocalName(imp)
+		if !ok || used[local] {
+			continue
+		}
+		path, _ := strconv.Unquote(imp.Path.Value)
+		fl.cfDemoteImport(imp, path)
+	}
+	fl.importsPendingGeneratedUse = nil
+}
+
 func (fl *fileLower) cfNamesInUse() map[string]bool {
 	used := make(map[string]bool)
 	var visit func(syntax.Node) bool
@@ -507,9 +449,6 @@ func (fl *fileLower) cfNamesInUse() map[string]bool {
 	return used
 }
 
-// cfImportLocalName returns the name an import binds in the file. Blank
-// and dot imports bind none, and the virtual comptime package is left
-// to dropComptimeImport.
 func (fl *fileLower) cfImportLocalName(imp *syntax.ImportDecl) (string, bool) {
 	var obj types2.Object
 	if imp.LocalPkgName != nil {
@@ -537,8 +476,6 @@ func (fl *fileLower) cfBlankImportText(imp *syntax.ImportDecl) {
 	}
 }
 
-// cfRejectGenericMethods reports methods of generic types that use
-// const for over a type parameter: a copy has no method to hang on.
 func (fl *fileLower) cfRejectGenericMethods() {
 	for _, decl := range fl.file.DeclList {
 		fn, ok := decl.(*syntax.FuncDecl)
@@ -549,7 +486,6 @@ func (fl *fileLower) cfRejectGenericMethods() {
 	}
 }
 
-// cfHasGenericConstFor reports a const for over a type parameter in body.
 func (fl *fileLower) cfHasGenericConstFor(body *syntax.BlockStmt) bool {
 	found := false
 	syntax.Inspect(body, func(n syntax.Node) bool {
@@ -562,9 +498,6 @@ func (fl *fileLower) cfHasGenericConstFor(body *syntax.BlockStmt) bool {
 	return found
 }
 
-// cfScanSites finds instantiation sites of the file: calls resolving to
-// comptime generics outside definitions and outside const for bodies
-// (those expand where the unroller substitutes their type arguments).
 func (fl *fileLower) cfScanSites(parents map[syntax.Node]syntax.Node) []*cfSite {
 	var out []*cfSite
 	syntax.Inspect(fl.file, func(n syntax.Node) bool {
@@ -578,7 +511,6 @@ func (fl *fileLower) cfScanSites(parents map[syntax.Node]syntax.Node) []*cfSite 
 	return out
 }
 
-// cfSiteOf resolves one call to an instantiation site, or nil.
 func (fl *fileLower) cfSiteOf(call *syntax.CallExpr, parents map[syntax.Node]syntax.Node) *cfSite {
 	name := cfCalleeName(call.Fun)
 	if name == nil {
@@ -597,8 +529,6 @@ func (fl *fileLower) cfSiteOf(call *syntax.CallExpr, parents map[syntax.Node]syn
 	return &cfSite{call: call, fun: call.Fun, targs: targs, obj: obj, pos: call.Pos()}
 }
 
-// cfHandledElsewhere reports whether a call sits inside a comptime
-// definition or a const for body.
 func (fl *fileLower) cfHandledElsewhere(call *syntax.CallExpr, parents map[syntax.Node]syntax.Node) bool {
 	for p := parents[call]; p != nil; p = parents[p] {
 		switch p := p.(type) {
@@ -612,8 +542,6 @@ func (fl *fileLower) cfHandledElsewhere(call *syntax.CallExpr, parents map[synta
 	return false
 }
 
-// cfCalleeName returns the name node of a callee expression: the
-// function name of `f`, `pkg.f`, `f[T]`, or `pkg.f[T]`.
 func cfCalleeName(fun syntax.Expr) *syntax.Name {
 	if idx, ok := fun.(*syntax.IndexExpr); ok {
 		fun = idx.X
@@ -627,7 +555,6 @@ func cfCalleeName(fun syntax.Expr) *syntax.Name {
 	return nil
 }
 
-// typeArgsOf reads the substituted types of one recorded instance.
 func typeArgsOf(l *types2.TypeList) []types2.Type {
 	out := make([]types2.Type, l.Len())
 	for i := range l.Len() {
@@ -636,9 +563,6 @@ func typeArgsOf(l *types2.TypeList) []types2.Type {
 	return out
 }
 
-// cfIsGeneric reports whether obj is a comptime generic: a definition
-// of this package, or a function with a comptime record in the facts of
-// its package.
 func (fl *fileLower) cfIsGeneric(obj *types2.Func) bool {
 	if _, ok := fl.pkg.ctExp.byObj[obj]; ok {
 		return true
@@ -650,16 +574,15 @@ func (fl *fileLower) cfIsGeneric(obj *types2.Func) bool {
 	if !ok {
 		return false
 	}
-	return slices.ContainsFunc(f.Comptimes, func(c facts.ComptimeFact) bool { return c.Object == obj.Name() })
+	return slices.ContainsFunc(f.Comptimes, func(c facts.ComptimeFact) bool { return c.Object == cfFactObject(obj) })
 }
 
-// cfRecordFor resolves the expansion record of one generic.
 func (fl *fileLower) cfRecordFor(obj *types2.Func) (*cfRecord, bool) {
 	exp := fl.pkg.ctExp
 	if def, ok := exp.byObj[obj]; ok {
 		return def.record, true
 	}
-	key := obj.Pkg().Path() + "\x00" + obj.Name()
+	key := obj.Pkg().Path() + "\x00" + cfFactObject(obj)
 	if rec, ok := exp.foreign[key]; ok {
 		return rec, true
 	}
@@ -668,7 +591,7 @@ func (fl *fileLower) cfRecordFor(obj *types2.Func) (*cfRecord, bool) {
 		return nil, false
 	}
 	for _, c := range f.Comptimes {
-		if c.Object != obj.Name() {
+		if c.Object != cfFactObject(obj) {
 			continue
 		}
 		rec, err := cfParseRecord(obj.Name(), string(c.Source))
@@ -681,7 +604,6 @@ func (fl *fileLower) cfRecordFor(obj *types2.Func) (*cfRecord, bool) {
 	return nil, false
 }
 
-// expandSite rewrites one instantiation call to name its copy.
 func (fl *fileLower) expandSite(site *cfSite) {
 	name := fl.cfCopyFor(site)
 	ctx := cfCtx{buf: fl.srcMap, starts: fl.start}
@@ -690,17 +612,13 @@ func (fl *fileLower) expandSite(site *cfSite) {
 	fl.changed = true
 }
 
-// cfCopyName returns the copy name of the Nth expansion of obj.
 func cfCopyName(obj *types2.Func, seq int) string {
 	return obj.Name() + cfCopyInfix + strconv.Itoa(seq)
 }
 
-// cfCopyFor returns the memoized copy name of one instantiation,
-// expanding it once per type-argument list. The stack detects cycles
-// (#129): a key re-entered while active fails with the chain.
 func (fl *fileLower) cfCopyFor(site *cfSite) string {
 	exp := fl.pkg.ctExp
-	key := cfExpKey(site.obj.Name(), site.obj.Pkg().Path(), site.targs)
+	key := cfExpKey(cfFactObject(site.obj), site.obj.Pkg().Path(), site.targs)
 	if name, ok := exp.memo[key]; ok {
 		return name
 	}
@@ -721,13 +639,12 @@ func (fl *fileLower) cfCopyFor(site *cfSite) string {
 	text, ok := fl.cfBuildCopy(site, rec, name)
 	exp.stack = exp.stack[:len(exp.stack)-1]
 	exp.memo[key] = name
-	if ok && base.Errors() == reported { // A copy built under a diagnostic names copies that never emitted: checking it would only cascade.
+	if ok && base.Errors() == reported {
 		fl.cfEmitCopy(text, site)
 	}
 	return name
 }
 
-// cfChainText spells an instantiation chain, closing it on label.
 func cfChainText(frames []cfFrame, label string) string {
 	parts := make([]string, 0, len(frames)+1)
 	for _, f := range frames {
@@ -736,39 +653,43 @@ func cfChainText(frames []cfFrame, label string) string {
 	return strings.Join(append(parts, label), " -> ")
 }
 
-// cfStripTParamsO removes the type-parameter clause of a record head:
-// `func Name[T any](...)` becomes `func Name(...)`. It works on origin
-// text, so the kept bytes keep their source mapping.
-func cfStripTParamsO(src otext, name string) (otext, bool) {
-	head := "func " + name
-	if !strings.HasPrefix(src.s, head+"[") {
-		return otext{}, false
-	}
-	depth := 0
-	for i := len(head); i < len(src.s); i++ {
-		switch src.s[i] {
-		case '[':
+func cfStripTParamsO(src otext) (otext, bool) {
+	want := []token.Token{token.FUNC, token.IDENT, token.LBRACK}
+	var open, depth, end int
+	scanSegment([]byte(src.s), 0, len(src.s), func(t tok) bool {
+		switch {
+		case t.comment:
+		case len(want) > 0:
+			if t.kind != want[0] {
+				return false
+			}
+			if want[0] == token.LBRACK {
+				open, depth = t.start, 1
+			}
+			want = want[1:]
+		case t.kind == token.LBRACK:
 			depth++
-		case ']':
+		case t.kind == token.RBRACK:
 			depth--
 			if depth == 0 {
-				return cat(src.slice(0, len(head)), src.slice(i+1, len(src.s))), true
+				end = t.end
+				return false
 			}
 		}
+		return true
+	})
+	if end == 0 {
+		return otext{}, false
 	}
-	return otext{}, false
+	return cat(src.slice(0, open), src.slice(end, len(src.s))), true
 }
 
-// cfBuildCopy builds the plain-Go text of one instantiation: type
-// parameters, imports, and package markers spelled out, const for
-// statements unrolled, nested comptime generic calls pointed at their
-// own copies. It reports false after a diagnostic.
 func (fl *fileLower) cfBuildCopy(site *cfSite, rec *cfRecord, copyName string) (otext, bool) {
 	srcO := rec.sourceO
 	if srcO.s == "" {
 		srcO = gen(rec.source)
 	}
-	body, ok := cfStripTParamsO(srcO, rec.name)
+	body, ok := cfStripTParamsO(srcO)
 	if !ok {
 		fl.cfError(site.pos, "[comptime::generic_targ] malformed comptime source of %s", rec.name)
 		return otext{}, false
@@ -793,21 +714,18 @@ func (fl *fileLower) cfBuildCopy(site *cfSite, rec *cfRecord, copyName string) (
 	return out.slice(len(prefix), len(out.s)), true
 }
 
-// cfCopySplices collects the splices that turn one record function into
-// its copy: the new name, the unrolled const fors, and the leaf
-// substitutions everywhere else.
 func (fl *fileLower) cfCopySplices(fn *syntax.FuncDecl, copyName string, run *cfRun) []splice {
 	ctx := run.ctx
 	nameStart := offAt(ctx.starts, fn.Name.Pos())
 	subs := []splice{{start: nameStart, end: nameStart + len(fn.Name.Value), text: copyName}}
-	var covered []cfSpan
+	var covered []span
 	for _, cf := range fl.cfInnerConstFors(fn.Body, nil, run.sites) {
 		s := offAt(ctx.starts, syntax.StartPos(cf))
 		e := offAt(ctx.starts, syntax.EndPos(cf)) + 1
 		stmts, text := fl.unrollConstForFields(cf, run.fieldsOf(cf, nil), run)
 		fl.cfCountNodes(stmts, run.sites.at(cf.Pos()))
 		subs = append(subs, splice{start: s, end: e, text: text.s, chunks: text.chunks})
-		covered = append(covered, cfSpan{s, e})
+		covered = append(covered, span{s, e})
 	}
 	for _, sub := range fl.cfLeafSubs(fn, nil, covered, run) {
 		subs = append(subs, splice{start: sub.start, end: sub.end, text: sub.text})
@@ -815,9 +733,6 @@ func (fl *fileLower) cfCopySplices(fn *syntax.FuncDecl, copyName string, run *cf
 	return subs
 }
 
-// cfCopySites builds the substitution context of one copy: marker
-// spellings and types, and the scope that resolves package-level names
-// of the record's package.
 func (fl *fileLower) cfCopySites(site *cfSite, rec *cfRecord) (*cfSites, bool) {
 	if len(site.targs) != rec.tparams {
 		fl.cfError(site.pos, "[comptime::generic_targ] %s needs %d type arguments, have %d", rec.name, rec.tparams, len(site.targs))
@@ -829,6 +744,8 @@ func (fl *fileLower) cfCopySites(site *cfSite, rec *cfRecord) (*cfSites, bool) {
 		spell:        make(map[string]func() (string, bool)),
 		types:        make(map[string]types2.Type),
 		scope:        site.obj.Pkg().Scope(),
+		pkg:          site.obj.Pkg(),
+		imports:      rec.imports,
 		errPos:       site.pos,
 	}
 	for i, t := range site.targs {
@@ -851,11 +768,6 @@ func (fl *fileLower) cfCopySites(site *cfSite, rec *cfRecord) (*cfSites, bool) {
 	return sites, true
 }
 
-// cfLazySpelling memoizes one marker spelling computed on first use.
-// Spelling a package registers a synthesized import, so a marker the
-// copy never reaches (a type argument that only appears in an erased
-// const for range) must not spell at all. fail runs once when the
-// spelling cannot be produced.
 func (fl *fileLower) cfLazySpelling(compute func() (string, bool), fail func()) func() (string, bool) {
 	var text string
 	var ok, done bool
@@ -870,11 +782,6 @@ func (fl *fileLower) cfLazySpelling(compute func() (string, bool), fail func()) 
 	}
 }
 
-// cfImportQualifier spells the package at path in this file: its own
-// import name when the file imports it, a synthesized import otherwise.
-// The synthesized alias binds the complete package, because the copy
-// check looks members up through it. It reports the diagnostic at pos and
-// false when the package cannot load.
 func (fl *fileLower) cfImportQualifier(path string, pos syntax.Pos) (string, bool) {
 	if reg := fl.getGenImports(); reg != nil {
 		if q, ok := reg.qual[path]; ok && q != "" {
@@ -904,13 +811,6 @@ func (fl *fileLower) cfImportQualifier(path string, pos syntax.Pos) (string, boo
 	return fl.synthQualifier(pkg), true
 }
 
-// cfLoadPackage returns the complete package at path. A package the
-// compile already holds is complete once something imported it. The
-// import list of an export-data package only names descriptors whose
-// scopes hold the few objects that export data mentions, and a copy
-// looks any member up through its alias, so a descriptor opens through
-// the importer of the check, which fills the same package object in
-// place.
 func (fl *fileLower) cfLoadPackage(path string) (*types2.Package, error) {
 	if pkg := fl.cfKnownPackage(path); pkg != nil && pkg.Complete() {
 		return pkg, nil
@@ -922,10 +822,6 @@ func (fl *fileLower) cfLoadPackage(path string) (*types2.Package, error) {
 	return imp.Import(path)
 }
 
-// cfKnownPackage returns the package object at path that the compile
-// already holds: the package under lowering, a package that defines a
-// comptime generic being instantiated, or a package either of them
-// imports. It returns nil when none of them names path.
 func (fl *fileLower) cfKnownPackage(path string) *types2.Package {
 	roots := append([]*types2.Package{fl.pkg.tpkg}, fl.pkg.ctExp.roots...)
 	for _, root := range roots {
@@ -941,8 +837,6 @@ func (fl *fileLower) cfKnownPackage(path string) *types2.Package {
 	return nil
 }
 
-// cfCalleeObj resolves a callee expression to its function: through the
-// checker's uses for file code, through the record scope for copies.
 func (fl *fileLower) cfCalleeObj(x syntax.Expr, sites *cfSites) *types2.Func {
 	name := cfCalleeName(x)
 	if name == nil {
@@ -955,7 +849,6 @@ func (fl *fileLower) cfCalleeObj(x syntax.Expr, sites *cfSites) *types2.Func {
 	return fn
 }
 
-// cfScopeFunc resolves `f` or `<pkg marker>.f` in the record scope.
 func cfScopeFunc(scope *types2.Scope, x syntax.Expr) *types2.Func {
 	var name string
 	switch x := x.(type) {
@@ -971,10 +864,6 @@ func cfScopeFunc(scope *types2.Scope, x syntax.Expr) *types2.Func {
 	return fn
 }
 
-// cfNestedSite expands a comptime generic call inside a const for body
-// or a copy: it resolves the type arguments under the active field
-// variables and returns the span of the generic expression with the name
-// of its copy.
 func (fl *fileLower) cfNestedSite(call *syntax.CallExpr, active cfChain, run *cfRun) (int, int, string, bool) {
 	fun, indexed := call.Fun.(*syntax.IndexExpr)
 	callee := call.Fun
@@ -1003,14 +892,6 @@ func (fl *fileLower) cfNestedSite(call *syntax.CallExpr, active cfChain, run *cf
 	return offAt(run.ctx.starts, syntax.StartPos(fun)), cfExactEnd(run.ctx, fun), name, true
 }
 
-// cfEmitCopy appends one finished copy to the file. The copy is checked
-// on its own, so its lowering reads the types of its own nodes, and it
-// lives in a region of its own, so its edits never meet those of another
-// copy. After lowering the native tree takes the instantiation position
-// on every node and every scope boundary, and the eject text takes the
-// finished region at the end of the file. A copy the check rejects
-// reports its diagnostics at the instantiation and never joins the tree:
-// its nodes lack the facts the lowering passes read.
 func (fl *fileLower) cfEmitCopy(text otext, site *cfSite) {
 	file, errs := cfParseSource("package cfcopy\n" + text.s)
 	fn := cfFirstFunc(file)
@@ -1025,21 +906,16 @@ func (fl *fileLower) cfEmitCopy(text otext, site *cfSite) {
 	fl.addHost(fl.orig, fl.orig, &cfHost{regions: []*cfRegion{region}, head: "\n\n", tail: "\n"})
 }
 
-// cfCheckCopyFunc types one copy as a function of the package under the
-// scope of the instantiating file, and remembers its object so copies
-// emitted later can call it, even when the check rejects the copy: a
-// caller then checks against the signature instead of cascading. It
-// reports each hard diagnostic of the check at pos, the instantiation
-// the copy answers for, and returns whether the copy is valid.
 func (fl *fileLower) cfCheckCopyFunc(fn *syntax.FuncDecl, pos syntax.Pos) bool {
 	exp := fl.pkg.ctExp
 	ctx := types2.LogosCopyContext{
-		Scope:    fl.pkg.info.Scopes[fl.file],
-		Funcs:    exp.copyFuncs,
-		Aliases:  fl.cfAliases(),
-		MaxSteps: fl.pkg.info.LogosCTFEMaxSteps,
-		Importer: fl.pkg.info.LogosImporter,
-		Context:  fl.pkg.info.LogosContext,
+		Scope:     fl.pkg.info.Scopes[fl.file],
+		Funcs:     exp.copyFuncs,
+		Aliases:   fl.cfAliases(),
+		MaxSteps:  fl.pkg.info.LogosCTFEMaxSteps,
+		NodeLimit: base.LogosComptimeNodes,
+		Importer:  fl.pkg.info.LogosImporter,
+		Context:   fl.pkg.info.LogosContext,
 	}
 	obj, errs := types2.LogosCheckCopyFunc(fl.pkg.tpkg, fl.pkg.info, ctx, fn)
 	if obj != nil {
@@ -1051,9 +927,6 @@ func (fl *fileLower) cfCheckCopyFunc(fn *syntax.FuncDecl, pos syntax.Pos) bool {
 	return len(errs) == 0
 }
 
-// cfRetireDefs removes the comptime generics of this file from the
-// output: exported ones keep their signature with a trapping body so
-// importers still type-check, the others go away.
 func (fl *fileLower) cfRetireDefs() {
 	for _, def := range fl.pkg.ctExp.defs {
 		if def.file != fl.file {
@@ -1067,7 +940,6 @@ func (fl *fileLower) cfRetireDefs() {
 	}
 }
 
-// cfStubDef replaces the body of an exported comptime generic.
 func (fl *fileLower) cfStubDef(def *cfGenericDef) {
 	fn := def.decl
 	call := "panic(" + strconv.Quote("logos: comptime generic "+fn.Name.Value+" runs only through loGo/s instantiation") + ")"
@@ -1076,14 +948,12 @@ func (fl *fileLower) cfStubDef(def *cfGenericDef) {
 	fl.changed = true
 }
 
-// cfDeleteDef drops one comptime generic from the tree and the text.
 func (fl *fileLower) cfDeleteDef(decl *syntax.FuncDecl) {
 	fl.file.DeclList = slices.DeleteFunc(fl.file.DeclList, func(d syntax.Decl) bool { return d == syntax.Decl(decl) })
-	fl.add(cfFuncStart(fl.src, fl.off(syntax.StartPos(decl))), fl.off(syntax.EndPos(decl))+1, "")
+	fl.add(fl.cfFuncStart(fl.off(syntax.StartPos(decl))), fl.off(syntax.EndPos(decl))+1, "")
 	fl.changed = true
 }
 
-// cfHasTypeParam reports whether t mentions a type parameter.
 func cfHasTypeParam(t types2.Type) bool {
 	switch t := t.(type) {
 	case *types2.TypeParam:

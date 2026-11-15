@@ -1,0 +1,108 @@
+[!GOOS:linux] skip 'raw syscall fixtures use the Linux syscall ABI'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+cd j/main
+! logos build -o $WORK/bin/sysj$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/jdep'' reaches ''golang\.org/x/sys/unix\.Syscall6'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/jdep'' reaches ''golang\.org/x/sys/unix\.Syscall9'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/jdep'' reaches ''golang\.org/x/sys/unix\.RawSyscall'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/jdep'' reaches ''golang\.org/x/sys/unix\.RawSyscall6'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/jdep'' reaches ''golang\.org/x/sys/unix\.SyscallNoError'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/jdep'' reaches ''golang\.org/x/sys/unix\.RawSyscallNoError'''
+! stderr 'Transitive dependency ''golang\.org/x/sys/unix'''
+cd ../..
+
+-- j/sys/go.mod --
+module golang.org/x/sys
+
+go 1.27
+
+-- j/sys/unix/unix.go --
+package unix
+
+import "syscall"
+
+//go:noinline
+func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err syscall.Errno) {
+	return syscall.Syscall6(trap, a1, a2, a3, a4, a5, a6)
+}
+
+//go:noinline
+func Syscall9(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err syscall.Errno) {
+	return syscall.Syscall6(trap, a1, a2, a3, a4, a5, a6)
+}
+
+//go:noinline
+func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err syscall.Errno) {
+	return syscall.RawSyscall(trap, a1, a2, a3)
+}
+
+//go:noinline
+func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err syscall.Errno) {
+	return syscall.RawSyscall6(trap, a1, a2, a3, a4, a5, a6)
+}
+
+//go:noinline
+func SyscallNoError(trap, a1, a2, a3 uintptr) (r1, r2 uintptr) {
+	r1, r2, _ = syscall.Syscall(trap, a1, a2, a3)
+	return r1, r2
+}
+
+//go:noinline
+func RawSyscallNoError(trap, a1, a2, a3 uintptr) (r1, r2 uintptr) {
+	r1, r2, _ = syscall.RawSyscall(trap, a1, a2, a3)
+	return r1, r2
+}
+
+-- j/main/go.mod --
+module example.com/jmain
+
+go 1.27
+
+require (
+	example.com/jdep v0.0.0
+	golang.org/x/sys v0.0.0
+)
+
+replace example.com/jdep => ../dep
+
+replace golang.org/x/sys => ../sys
+
+-- j/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_exec_allowlist = ["golang.org/x/sys/**"]
+transitive_net = "deny"
+transitive_net_allowlist = ["golang.org/x/sys/**"]
+
+-- j/main/cmd/main.go --
+package main
+
+import "example.com/jdep"
+
+func main() { jdep.Init() }
+
+-- j/dep/go.mod --
+module example.com/jdep
+
+go 1.27
+
+require golang.org/x/sys v0.0.0
+
+-- j/dep/dep.go --
+package jdep
+
+import "golang.org/x/sys/unix"
+
+//go:noinline
+func Init() {
+	unix.Syscall6(0, 0, 0, 0, 0, 0, 0)
+	unix.Syscall9(0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+	unix.RawSyscall(0, 0, 0, 0)
+	unix.RawSyscall6(0, 0, 0, 0, 0, 0, 0)
+	unix.SyscallNoError(0, 0, 0, 0)
+	unix.RawSyscallNoError(0, 0, 0, 0)
+}

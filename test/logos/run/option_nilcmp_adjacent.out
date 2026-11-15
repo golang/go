@@ -1,8 +1,8 @@
-false true false false
-true false false false
-false true false false
-true false false true
-true true true true
-true true true
-false false false false
-true true
+ok fwd
+ok rev
+ok mixed
+ok ident
+ok give
+ok nil-expr
+ok paren
+ok paren-rev

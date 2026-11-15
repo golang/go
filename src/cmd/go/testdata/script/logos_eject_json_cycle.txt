@@ -1,18 +1,8 @@
-# M11-R1/R2/R4: eject a module whose static JSON shares traversal state
-# within each package. main.Root nests its own Kids back to itself
-# (same-package cycle); dep Node cycles internally the same way. A dep
-# Node held by value and a dep Shout with a user MarshalJSON cover
-# acyclic cross-package use and honour precedence. Foreign generated
-# methods stay honour: no table crosses the package boundary. Native
-# and ejected output must match byte for byte, including both cycle
-# errors, and the tree must stay vet- and gofmt-clean.
-
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
 cd m
 
-# logos runs the module before eject.
 logos run .
 stdout '^flat: \{"title":"t","n":\{"name":"n"\},"s":"shout"\}$'
 stdout '^self: json: unsupported value: encountered a cycle via \*cycle\.Node$'
@@ -20,7 +10,6 @@ stdout '^root: json: unsupported value: encountered a cycle via \*main\.Root$'
 stdout '^honour: \{"xs":\["shout"\]\}$'
 cp stdout $WORK/eject-stdout.txt
 
-# Eject the main module.
 logos eject -o out
 exists out/main.go
 exists out/go.mod
@@ -29,13 +18,20 @@ exists out/_logos_deps/rt/json/walk.go
 exists out/_logos_deps/rt/json/walkfields.go
 exists out/_logos_deps/example.com/dep@v0.0.0/cycle/cycle.go
 
-# The ejected tree runs under plain go with identical output.
+exec grep -rhnE '_logos_[A-Za-z0-9_]+ "github\.com/gosuda/loGos/[^"]*"' out --include=*.go
+cp stdout $WORK/eject-support-imports-json.txt
+! exec grep -vE '_logos_(rt|json) "github\.com/gosuda/loGos/rt(/json)?"' $WORK/eject-support-imports-json.txt
+
 cd out
 go run .
 cmp stdout $WORK/eject-stdout.txt
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
 cd ..
 
-# The ejected tree is vet- and gofmt-clean.
 cd out
 go vet ./...
 exec $GOROOT/bin/gofmt -l .

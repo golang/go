@@ -1,0 +1,78 @@
+# logos wasm back-edge stride fires every 4096 latch traversals: over
+# exactly 40960 loop iterations the latch is traversed 40960 times, so
+# the counter fires 10 times, including the exit-edge traversal before
+# the loop condition fails. A peer counting scheduler wakeups observes
+# exactly 10 under the strictly alternating cooperative schedule, and
+# a lost stride collapses its count.
+[!exec:node] skip 'node not in PATH'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOOS=wasip1
+env GOARCH=wasm
+
+logos build -o $WORK/exe.wasm .
+exec node run.mjs $WORK/exe.wasm
+stdout '^yields 10$'
+
+-- go.mod --
+module example.com/stridecount
+
+go 1.27
+
+-- main.go --
+package main
+
+import (
+	"fmt"
+	"runtime"
+	"sync/atomic"
+)
+
+const N = 40960
+
+var progress atomic.Int64
+
+//go:noinline
+func spin(c chan int) {
+	acc := 0
+	for i := 0; i < N; i++ {
+		acc = acc*3 + i
+		progress.Store(int64(i))
+	}
+	progress.Store(N)
+	c <- acc
+}
+
+//go:noinline
+func count(res chan int) {
+	for progress.Load() < 4000 {
+		runtime.Gosched()
+	}
+	n := 0
+	for progress.Load() < N {
+		n++
+		runtime.Gosched()
+	}
+	res <- n
+}
+
+func main() {
+	c := make(chan int, 1)
+	res := make(chan int, 1)
+	go spin(c)
+	go count(res)
+	acc := <-c
+	n := <-res
+	fmt.Println("acc", acc&1023)
+	fmt.Println("yields", n)
+}
+
+-- run.mjs --
+import { readFileSync } from 'node:fs';
+import { WASI } from 'node:wasi';
+
+const wasi = new WASI({ version: 'preview1', args: [], env: {}, returnOnExit: true });
+const mod = await WebAssembly.compile(readFileSync(process.argv[2]));
+const inst = await WebAssembly.instantiate(mod, wasi.getImportObject());
+process.exitCode = wasi.start(inst);

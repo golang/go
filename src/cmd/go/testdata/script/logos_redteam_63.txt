@@ -1,19 +1,16 @@
-# REDTEAM #63 (SPEC Sec 3.1, T-301.1): panic leaking arena watermarks on
-# unwind. Frame exit, including exit by panic, MUST restore the watermark,
-# and the restore MUST run as an emitted defer during unwinding. The attack
-# allocates arena memory and then panics; a missing unwind restore leaks
-# the watermark so NoscanUsed stays elevated after the panic is recovered.
-# The direct unit proof is TestLogosArenaPanicUnwindRecovery in
-# src/runtime/logos_arena_test.go: it records NoscanUsed, runs an
-# arena-allocating call that panics under a recovering closure, and fails
-# when the post-recovery watermark differs from the baseline. A value-only
-# check passes despite the leak, so this script runs the watermark-count
-# gate that fails on count, not values.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 env GOEXPERIMENT=logosarena
-go test -count=1 -run 'TestLogosArenaPanicUnwindRecovery' runtime
-go test -race -count=1 -run 'TestLogosArenaPanicUnwindRecovery' runtime
+go test -v -count=1 -run 'TestLogosArenaPanicUnwindRecovery' runtime
+stdout '--- PASS: TestLogosArenaPanicUnwindRecovery'
+stdout '^ok\s+runtime'
+! stderr 'no tests to run'
+! stdout 'no tests to run'
+go test -race -v -count=1 -run 'TestLogosArenaPanicUnwindRecovery' runtime
+stdout '--- PASS: TestLogosArenaPanicUnwindRecovery'
+stdout '^ok\s+runtime'
+! stderr 'no tests to run'
+! stdout 'no tests to run'
 
 -- go.mod --
 module example.com/redteam63

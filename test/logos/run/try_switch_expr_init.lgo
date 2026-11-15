@@ -1,0 +1,101 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+)
+
+var errLoad = errors.New("load")
+
+var loads int
+var slot int
+
+func load(v int, fail bool) (int, error) {
+	loads++
+	if fail {
+		return 0, errLoad
+	}
+	return v, nil
+}
+
+func classifyN(v int, fail bool) (string, error) {
+	r := switch n := load(v, fail)?; n {
+	case 7 => "seven"
+	default => "other"
+	}
+	return r, nil
+}
+
+func classifyAssign(v int, fail bool) (string, error) {
+	r := switch slot = load(v, fail)?; slot {
+	case 7 => "seven"
+	default => "other"
+	}
+	return r, nil
+}
+
+func probeExprInit(v int, fail bool) (string, error) {
+	r := switch load(v, fail)?; v {
+	case 7 => "seven"
+	default => "other"
+	}
+	return r, nil
+}
+
+func check(cond bool, msg string) {
+	if cond {
+		fmt.Println("ok " + msg)
+		return
+	}
+	fmt.Println("FAIL " + msg)
+	os.Exit(1)
+}
+
+type observed[T any] struct {
+	v   T
+	err error
+}
+
+func observe[T any](v T, err error) observed[T] {
+	return observed[T]{v, err}
+}
+
+func main() {
+	loads = 0
+	s, err := classifyN(7, false)
+	okNil := err == nil && s == "seven" && loads == 1
+	check(okNil, "switch-expr-init-nil")
+
+	s, err = classifyN(9, false)
+	okOther := err == nil && s == "other" && loads == 2
+	check(okOther, "switch-expr-init-other")
+
+	res := observe(classifyN(7, true))
+	s, err = res.v, res.err
+	okErr := err != nil && err == errLoad && s == "" && loads == 3
+	check(okErr, "switch-expr-init-err")
+
+	slot = -1
+	s, err = classifyAssign(9, false)
+	okAssign := err == nil && s == "other" && slot == 9
+	check(okAssign, "switch-expr-assign-nil")
+
+	slot = -1
+	res = observe(classifyAssign(7, true))
+	s, err = res.v, res.err
+	okAssignErr := err != nil && err == errLoad && s == "" && slot == 0
+	check(okAssignErr, "switch-expr-assign-err")
+
+	loads = 0
+	s, err = probeExprInit(7, false)
+	okExprNil := err == nil && s == "seven" && loads == 1
+	check(okExprNil, "switch-expr-expr-nil")
+
+	res = observe(probeExprInit(7, true))
+	s, err = res.v, res.err
+	okExprErr := err != nil && err == errLoad && s == "" && loads == 2
+	check(okExprErr, "switch-expr-expr-err")
+}

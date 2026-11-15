@@ -5,13 +5,8 @@
 package p
 
 import "bytes"
+import "io"
 import "strconv"
-
-// M3-S4 error-first guard (SPEC Sec 2.2, T-202): for a callee declared
-// in .lgo, reading a result before the `err == nil` proof fails with
-// [correctness::result_before_error_check]. The proof is the fall-through
-// of `if err != nil { exit }` or the inside of `if err == nil {}`.
-// Callees from other packages keep their own contracts (#23, #156).
 
 func fetch() (int, error) {
 	return 1, nil
@@ -20,7 +15,6 @@ func fetch() (int, error) {
 func useInt(v int) {
 }
 
-// Reading n before any check fails.
 func beforeCheck() {
 	n, err := fetch()
 	useInt(n /* ERROR "[correctness::result_before_error_check]" */)
@@ -30,7 +24,6 @@ func beforeCheck() {
 	useInt(n)
 }
 
-// The fall-through of an exiting `err != nil` check discharges the guard.
 func afterCheck() {
 	n, err := fetch()
 	if err != nil {
@@ -40,8 +33,6 @@ func afterCheck() {
 	_ = n
 }
 
-// Inside `err == nil` the guard is discharged; after the if it applies
-// again on the fall-through path.
 func insideNil() {
 	n, err := fetch()
 	if err == nil {
@@ -50,7 +41,6 @@ func insideNil() {
 	useInt(n /* ERROR "[correctness::result_before_error_check]" */)
 }
 
-// Reassigning the result voids the guard: the fresh value is unchecked.
 func reassignResult() {
 	n, err := fetch()
 	n = 42
@@ -58,7 +48,6 @@ func reassignResult() {
 	_ = err
 }
 
-// Plain `=` tuple bindings arm the guard the same way.
 func plainAssign() {
 	var n int
 	var err error
@@ -71,8 +60,6 @@ func plainAssign() {
 	_ = err
 }
 
-// A package-qualified call into another package keeps its own contract:
-// using n first stays legal.
 func goPackageCall() {
 	n, err := strconv.Atoi("42")
 	useInt(n)
@@ -82,7 +69,6 @@ func goPackageCall() {
 	useInt(n)
 }
 
-// A method declared outside .lgo keeps its own contract as well.
 func goMethodCall() {
 	r := bytes.NewReader([]byte("hi"))
 	buf := make([]byte, 4)
@@ -93,4 +79,23 @@ func goMethodCall() {
 	}
 	useInt(n)
 	_ = buf
+}
+func goIfaceRead(r io.Reader) {
+	n, err := r.Read(make([]byte, 4))
+	useInt(n)
+	if err != nil {
+		return
+	}
+	useInt(n)
+}
+type lgoReader interface {
+	Read(p []byte) (int, error)
+}
+func lgoIfaceRead(r lgoReader) {
+	n, err := r.Read(make([]byte, 4))
+	useInt(n /* ERROR "[correctness::result_before_error_check]" */)
+	if err != nil {
+		return
+	}
+	useInt(n)
 }

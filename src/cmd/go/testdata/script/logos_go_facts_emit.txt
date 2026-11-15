@@ -1,0 +1,26 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOOS=js
+env GOARCH=wasm
+
+cd g
+go tool compile -p example.com/g -o $WORK/g.a g.go
+go tool pack p $WORK/g.a __.LOGOS
+stdout '^logos-facts 3$'
+stdout '^fingerprint [0-9a-f]{16}$'
+stdout '^lang go$'
+stdout '^fn '
+! stdout '^opt '
+! stdout '^const '
+! stdout '^prop '
+! stdout '^comptime '
+
+-- g/go.mod --
+module example.com/g
+
+go 1.27
+
+-- g/g.go --
+package g
+
+func F(x int) int { return x }

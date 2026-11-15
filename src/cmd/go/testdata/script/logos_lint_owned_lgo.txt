@@ -1,0 +1,35 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+# Both q's lint action and its dependency compile report this type error.
+env GOCACHE=$WORK/cache-json
+! logos lint --json-diagnostics ./...
+stderr -count=2 '"rule_id":"correctness::nil_deref_unproven"'
+stderr -count=2 '^\{.*\}$'
+stderr -count=2 '"file":"[^"]*q/q\.lgo"'
+! stderr '(?m)^[^{\r\n]'
+! stderr 'internal compiler error|panic|fatal'
+
+env GOCACHE=$WORK/cache-text
+! logos lint ./...
+stderr -count=2 '\[correctness::nil_deref_unproven\]'
+! stderr 'internal compiler error|panic|fatal'
+
+-- m/go.mod --
+module example.com/ownedlgo
+
+go 1.27
+
+-- m/p/p.lgo --
+package p
+
+import "example.com/ownedlgo/q"
+
+var Name = q.Name
+
+-- m/q/q.lgo --
+package q
+
+type User struct { Name string }
+func Name(u *User?) string { return u.Name }

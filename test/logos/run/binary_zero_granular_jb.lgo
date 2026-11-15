@@ -1,0 +1,248 @@
+// run
+
+package main
+
+import (
+	"bytes"
+	"encoding/binary"
+	"fmt"
+	"os"
+	"runtime"
+	"strings"
+	"unsafe"
+)
+
+type JbEmpty struct{}
+
+type JbHolder struct {
+	Items []JbEmpty `json:"items"`
+}
+
+type JbFat struct {
+	Scratch [4096]byte `json:"-"`
+}
+
+type JbFatHolder struct {
+	Items []JbFat `json:"items"`
+}
+
+type JbWord struct {
+	Pad [8]byte `json:"-"`
+}
+
+type JbWordHolder struct {
+	Items []JbWord `json:"items"`
+}
+
+func jbZeroCap() int {
+	return 1048576
+}
+
+func jbFatCap() int {
+	return (1 << 23) / int(unsafe.Sizeof(JbFat{}))
+}
+
+func jbWire(counts ...uint64) []byte {
+	out := []byte{1}
+	for _, c := range counts {
+		out = binary.AppendUvarint(out, c)
+	}
+	return out
+}
+
+func jbNeedRange(err error, label string, count uint64) error {
+	if err == nil {
+		return fmt.Errorf("%s: accepted count %d, want count out of range", label, count)
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "out of range") {
+		return fmt.Errorf("%s: error %q is not count out of range", label, msg)
+	}
+	if !strings.Contains(msg, fmt.Sprintf("%d", count)) {
+		return fmt.Errorf("%s: error %q does not name count %d", label, msg, count)
+	}
+	return nil
+}
+
+func jbNeedFieldOffset(err error, label string, field string) error {
+	msg := err.Error()
+	if !strings.Contains(msg, field) {
+		return fmt.Errorf("%s: error %q does not name field %s", label, msg, field)
+	}
+	if !strings.Contains(msg, "offset") {
+		return fmt.Errorf("%s: error %q lacks offset", label, msg)
+	}
+	return nil
+}
+
+func jbCountAccepted() error {
+	for _, c := range []int{1048575, 1048576} {
+		v := JbHolder{Items: make([]JbEmpty, c)}
+		want := jbWire(uint64(c))
+		enc, err := v.MarshalBinary()
+		if err != nil {
+			return fmt.Errorf("count %d: MarshalBinary rejected lawful count: %w", c, err)
+		}
+		if !bytes.Equal(enc, want) {
+			return fmt.Errorf("count %d: wire %d bytes, want %d", c, len(enc), len(want))
+		}
+		if app, err := v.AppendBinary(nil); err != nil || !bytes.Equal(app, enc) {
+			return fmt.Errorf("count %d: AppendBinary mismatch: %w", c, err)
+		}
+		var got JbHolder
+		if err := got.UnmarshalBinary(enc); err != nil {
+			return fmt.Errorf("count %d: UnmarshalBinary rejected lawful count: %w", c, err)
+		}
+		if len(got.Items) != c {
+			return fmt.Errorf("count %d: decoded %d items", c, len(got.Items))
+		}
+	}
+	return nil
+}
+
+func jbCountOver() error {
+	c := jbZeroCap() + 1
+	v := JbHolder{Items: make([]JbEmpty, c)}
+	_, marshalErr := v.MarshalBinary()
+	if err := jbNeedRange(marshalErr, "count over MarshalBinary", uint64(c)); err != nil {
+		return err
+	}
+	_, appendErr := v.AppendBinary(nil)
+	if err := jbNeedRange(appendErr, "count over AppendBinary", uint64(c)); err != nil {
+		return err
+	}
+	var got JbHolder
+	err := got.UnmarshalBinary(jbWire(uint64(c)))
+	if err := jbNeedRange(err, "count over UnmarshalBinary", uint64(c)); err != nil {
+		return err
+	}
+	return jbNeedFieldOffset(err, "count over UnmarshalBinary", ".Items")
+}
+
+func jbFatAccepted() error {
+	for _, c := range []int{jbFatCap() - 1, jbFatCap()} {
+		v := JbFatHolder{Items: make([]JbFat, c)}
+		want := jbWire(uint64(c))
+		enc, err := v.MarshalBinary()
+		if err != nil {
+			return fmt.Errorf("fat %d: MarshalBinary rejected lawful count: %w", c, err)
+		}
+		if !bytes.Equal(enc, want) {
+			return fmt.Errorf("fat %d: wire %d bytes, want %d", c, len(enc), len(want))
+		}
+		var got JbFatHolder
+		if err := got.UnmarshalBinary(enc); err != nil {
+			return fmt.Errorf("fat %d: UnmarshalBinary rejected lawful count: %w", c, err)
+		}
+		if len(got.Items) != c {
+			return fmt.Errorf("fat %d: decoded %d items", c, len(got.Items))
+		}
+	}
+	return nil
+}
+
+func jbFatCapAllocation() error {
+	c := jbFatCap()
+	v := JbFatHolder{Items: make([]JbFat, c)}
+	enc, err := v.MarshalBinary()
+	if err != nil {
+		return fmt.Errorf("fat cap: MarshalBinary rejected lawful count: %w", err)
+	}
+	var before, after runtime.MemStats
+	runtime.GC()
+	runtime.ReadMemStats(&before)
+	var got JbFatHolder
+	decodeErr := got.UnmarshalBinary(enc)
+	runtime.ReadMemStats(&after)
+	if decodeErr != nil {
+		return fmt.Errorf("fat cap: UnmarshalBinary rejected lawful count: %w", decodeErr)
+	}
+	if len(got.Items) != c {
+		return fmt.Errorf("fat cap: decoded %d items, want %d", len(got.Items), c)
+	}
+	if delta := after.TotalAlloc - before.TotalAlloc; delta > 9<<20 {
+		return fmt.Errorf("fat cap: decoding count %d allocated %d bytes, want at most 8 MiB of storage plus 1 MiB of slack", c, delta)
+	}
+	return nil
+}
+
+func jbFatOver() error {
+	c := jbFatCap() + 1
+	v := JbFatHolder{Items: make([]JbFat, c)}
+	_, fatMarshalErr := v.MarshalBinary()
+	if err := jbNeedRange(fatMarshalErr, "fat over MarshalBinary", uint64(c)); err != nil {
+		return err
+	}
+	_, fatAppendErr := v.AppendBinary(nil)
+	if err := jbNeedRange(fatAppendErr, "fat over AppendBinary", uint64(c)); err != nil {
+		return err
+	}
+	var before, after runtime.MemStats
+	runtime.GC()
+	runtime.ReadMemStats(&before)
+	var got JbFatHolder
+	err := got.UnmarshalBinary(jbWire(uint64(c)))
+	runtime.ReadMemStats(&after)
+	if err := jbNeedRange(err, "fat over UnmarshalBinary", uint64(c)); err != nil {
+		return err
+	}
+	if err := jbNeedFieldOffset(err, "fat over UnmarshalBinary", ".Items"); err != nil {
+		return err
+	}
+	if delta := after.TotalAlloc - before.TotalAlloc; delta >= 1<<20 {
+		return fmt.Errorf("fat over: rejected count %d only after allocating %d bytes", c, delta)
+	}
+	return nil
+}
+
+func jbWordAtZeroCapOver() error {
+	c := jbZeroCap() + 1
+	var before, after runtime.MemStats
+	runtime.GC()
+	runtime.ReadMemStats(&before)
+	var got JbWordHolder
+	err := got.UnmarshalBinary(jbWire(uint64(c)))
+	runtime.ReadMemStats(&after)
+	if err := jbNeedRange(err, "word at zero cap over UnmarshalBinary", uint64(c)); err != nil {
+		return err
+	}
+	if err := jbNeedFieldOffset(err, "word at zero cap over UnmarshalBinary", ".Items"); err != nil {
+		return err
+	}
+	if delta := after.TotalAlloc - before.TotalAlloc; delta >= 1<<20 {
+		return fmt.Errorf("word at zero cap over: rejected count %d only after allocating %d bytes", c, delta)
+	}
+	return nil
+}
+
+func jbSizes() error {
+	if int(unsafe.Sizeof(JbFat{})) != 4096 {
+		return fmt.Errorf("JbFat size %d, want 4096", int(unsafe.Sizeof(JbFat{})))
+	}
+	if int(unsafe.Sizeof(JbWord{})) != 8 {
+		return fmt.Errorf("JbWord size %d, want 8", int(unsafe.Sizeof(JbWord{})))
+	}
+	return nil
+}
+
+func main() {
+	steps := []struct {
+		name string
+		run  func() error
+	}{
+		{"granular-sizes", jbSizes},
+		{"granular-count", jbCountAccepted},
+		{"granular-over", jbCountOver},
+		{"granular-fat", jbFatAccepted},
+		{"granular-fat-cap-alloc", jbFatCapAllocation},
+		{"granular-word", jbWordAtZeroCapOver},
+		{"granular-fat-over", jbFatOver},
+	}
+	for _, s := range steps {
+		if err := s.run(); err != nil {
+			fmt.Println("FAIL", s.name+":", err)
+			os.Exit(1)
+		}
+		fmt.Println("ok", s.name)
+	}
+}

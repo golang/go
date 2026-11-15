@@ -1,0 +1,62 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd w
+logos run .
+stdout '^outer r0$'
+stdout '^differential ok$'
+
+-- w/go.mod --
+module example.com/embed
+
+go 1.27
+
+-- w/main.lgo --
+package main
+
+import (
+  "encoding/json"
+  "fmt"
+  "reflect"
+)
+
+type Base struct {
+  B int64 `json:"b"`
+}
+
+type Outer struct {
+  Base
+  R int64 `json:"r"`
+}
+
+type Square struct {
+  S int64 `json:"s"`
+}
+
+type U interface {
+  Outer | Square
+}
+
+type H struct {
+  Item U `json:"item"`
+}
+
+func main() {
+  var h H
+  if err := json.Unmarshal([]byte(`{"item":{"r":1}}`), &h); err != nil {
+    panic("union unmarshal: " + err.Error())
+  }
+  o, ok := h.Item.(Outer)
+  if !ok || o.R != 0 {
+    panic(fmt.Sprintf("outer want Outer{R:0} got %T(%v)", h.Item, h.Item))
+  }
+  fmt.Println("outer r0")
+  var direct Outer
+  if err := json.Unmarshal([]byte(`{"r":1}`), &direct); err != nil {
+    panic("direct unmarshal: " + err.Error())
+  }
+  if !reflect.DeepEqual(o, direct) {
+    panic(fmt.Sprintf("differential mismatch union=%v direct=%v", o, direct))
+  }
+  fmt.Println("differential ok")
+}

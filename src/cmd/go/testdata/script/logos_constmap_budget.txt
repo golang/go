@@ -1,0 +1,34 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# Default budget builds the 9-key table map.
+cd m
+logos build ./...
+cd ..
+
+# A seed cap of 1 exhausts the search and fails with the rule ID.
+cd m
+! logos build -gcflags=all=-d=logosconstmapseeds=1 ./...
+stderr 'main\.lgo:[0-9]+:[0-9]+: \[comptime::constmap_seed_not_found\]'
+cd ..
+# A negative cap is rejected instead of silently meaning default.
+cd m
+! logos build -gcflags=all=-d=logosconstmapseeds=-1 ./...
+stderr 'main\.lgo:[0-9]+:[0-9]+: invalid -d=logosconstmapseeds value -1'
+cd ..
+
+-- m/go.mod --
+module example.com/cmbudget
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import "fmt"
+
+const nine = map[int]string{1: "a", 2: "b", 3: "c", 4: "d", 5: "e", 6: "f", 7: "g", 8: "h", 9: "i"}
+
+func main() {
+	fmt.Println(nine[5] ?? "none", nine[10] ?? "none")
+}

@@ -1,0 +1,15 @@
+rsc.io/badlogos v1.0.0
+written by hand
+
+-- .mod --
+module rsc.io/badlogos
+-- .info --
+{"Version":"v1.0.0"}
+-- go.mod --
+module rsc.io/badlogos
+-- x.📜 --
+package badlogos
+-- x.⚡ --
+package badlogos
+-- x.ʕ◔ϖ◔ʔ --
+package badlogos

@@ -1,0 +1,108 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+logos run .
+stdout '^ok pointer-literal$'
+stdout '^ok option-pointer-literal$'
+stdout '^ok parenthesized-pointer-literal$'
+stdout '^ok literal-argument$'
+stdout '^ok variable-argument$'
+stdout '^ok struct-literal$'
+stdout '^ok slice-literal$'
+stdout '^ok map-literal$'
+stdout '^ok local-pointer-literal$'
+! stdout 'FAIL'
+cp stdout ../native.txt
+logos eject -o out
+exists out/main.go
+cd out
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout ../../native.txt
+cd ../..
+
+-- m/go.mod --
+module example.com/setterlit
+
+go 1.27
+
+-- m/a/a.lgo --
+package a
+
+type Item struct{ N int }
+
+type Names = []string
+
+type Table = map[string]int
+
+type Prop interface {
+	Ptr   *Item
+	Opt   *Item?
+	Val   Item
+	Tags  Names
+	Index Table
+}
+
+type Impl struct : Prop {
+	Ptr   *Item
+	Opt   *Item?
+	Val   Item
+	Tags  Names
+	Index Table
+}
+
+func Bump(it *Item) *Item {
+	return &Item{N: it.N + 10}
+}
+
+-- m/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/setterlit/a"
+)
+
+type Local struct{ N int }
+
+type LocalProp interface {
+	Ptr *Local
+}
+
+type LocalImpl struct : LocalProp {
+	Ptr *Local
+}
+
+func report(name string, ok bool) {
+	if ok {
+		fmt.Println("ok", name)
+		return
+	}
+	fmt.Println("FAIL", name)
+}
+
+func main() {
+	var p a.Prop = &a.Impl{Ptr: &a.Item{}}
+	p.Ptr = &a.Item{N: 1}
+	report("pointer-literal", p.Ptr.N == 1)
+	p.Opt = &a.Item{N: 2}
+	report("option-pointer-literal", (p.Opt?.N ?? -1) == 2)
+	p.Ptr = (&a.Item{N: 3})
+	report("parenthesized-pointer-literal", p.Ptr.N == 3)
+	p.Ptr = a.Bump(&a.Item{N: 4})
+	report("literal-argument", p.Ptr.N == 14)
+	p.Ptr = a.Bump(p.Ptr)
+	report("variable-argument", p.Ptr.N == 24)
+	p.Val = a.Item{N: 5}
+	report("struct-literal", p.Val.N == 5)
+	p.Tags = a.Names{"a", "b"}
+	report("slice-literal", len(p.Tags) == 2 && p.Tags[1] == "b")
+	p.Index = a.Table{"k": 6}
+	report("map-literal", (p.Index["k"] ?? -1) == 6)
+	var lp LocalProp = &LocalImpl{Ptr: &Local{}}
+	lp.Ptr = &Local{N: 7}
+	report("local-pointer-literal", lp.Ptr.N == 7)
+}

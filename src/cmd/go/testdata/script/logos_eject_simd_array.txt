@@ -1,0 +1,55 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+
+logos run .
+stdout '^\[6 8 10 12\]$'
+stdout '^arr ok$'
+cp stdout $WORK/scalar-stdout.txt
+
+env GOEXPERIMENT=simd
+logos run .
+cmp stdout $WORK/scalar-stdout.txt
+
+env GOEXPERIMENT=
+logos eject -o out
+exists out/main.go
+! grep 'archsimd' out/main.go
+! grep '_logos_simd' out/main.go
+grep '_logos_a\[0\] \+ _logos_b\[0\]' out/main.go
+grep 'return \[4\]float32{' out/main.go
+
+cd out
+go run .
+cmp stdout $WORK/scalar-stdout.txt
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+go vet ./...
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ..
+
+-- m/go.mod --
+module example.com/ejectsimdarray
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import "fmt"
+
+func add4(a, b [4]float32) [4]float32 {
+	return a + b
+}
+
+func main() {
+	a := [4]float32{1, 2, 3, 4}
+	b := [4]float32{5, 6, 7, 8}
+	fmt.Println(add4(a, b))
+	fmt.Println("arr ok")
+}

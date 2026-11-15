@@ -16,85 +16,18 @@ import (
 	"cmd/compile/internal/types2"
 )
 
-// This file lowers the M3 option nodes (SPEC Sec 1.4, T-104.3 and Sec
-// 2.2, T-202): explicit `T?` declarations, `?.`, and `??`, plus the
-// single-value map reads `m[k]` that already yielded `V?` since M3-S6.
-// After this pass the backend sees no *types2.Option: every option type
-// becomes either the bare payload (a non-nil `*T` stays `*T`, an
-// interface-backed union with no nil-capable member stays the bare
-// interface, nil as none in both) or the presence-bearing
-// `_logos_rt.Option[T]` (every other T, so a present nil stays distinct
-// from absent), and every `?.` and `??` becomes an immediately invoked
-// function literal that tests presence once.
-//
-// Table N (IMPLEMENTATION.md) defines no OptSelectorExpr lowering
-// entity: `?.` and `??` lower via the pexpr-shaped nodes plus generated
-// func wrappers here, with no dedicated node field.
-//
-// The pass runs after lowerUnions and before the statement lowering, so
-// `try` templates only ever copy already-lowered expressions. Every
-// rewrite builds the native tree and the eject text together. Wrappers
-// use boundary inserts (a head insert, mid inserts, operator deletions,
-// a tail append), so nested splices strictly inside compose in input
-// order; value wraps (`T` into `T?`) use one textOf replacement per
-// site, which consumes the already-recorded inner splices. Only the end
-// of a `??` fallback and of a wrapped value is heuristic (a scan to the
-// next token that cannot continue an expression); every other boundary
-// is an exact token. A composite-literal fallback whose type is not a
-// composite (for example `T{...}.Field` with a scalar field type) may
-// place the closing `}()` early in ejected text only; compiled output
-// always comes from the native tree.
-//
-// Representation decisions reuse keepMapRead: a bare payload is a
-// pointer or an interface-backed union with no nil-capable member.
-// Nil-capable means nil is a valid payload: slice, map, func, chan, or
-// interface kinds (plus type parameters, nested unions, and unsafe
-// pointers, conservatively). A `nil` literal aimed at a wrapped option
-// becomes the zero `Option[T]{}`; a plain `T` value becomes
-// `Option[T]{Value: v, Present: true}` spelled from the checked type.
-// Bare targets need no wrap: Go assignability already covers them.
-//
-// Narrowed reads (M3-S4) need no narrowing logic here: a read whose
-// recorded type is the element of its declared option is unwrapped with
-// `.Value` when wrapped (bare stays as is). The `?.` and `??` operands
-// the checker un-narrowed keep the declared option, and write targets
-// are excluded, so the rule keys off recorded types only. A `!= nil` or
-// `== nil` test on a wrapped option becomes `v.Present` or `!v.Present`;
-// bare tests stay as they are.
-
 const (
-	// optTemp is the value temporary of the lowered `?.` and `??`
-	// wrappers. Each wrapper is a fresh function literal, so one
-	// spelling cannot capture.
-	optTemp = "v"
-	// optOk is the presence temporary of the comma-ok `??` wrapper.
-	optOk = "ok"
-	// optWrapTemp is the per-result temporary prefix of a multi-result
-	// optional call wrapper (`_logos_w0`, ...). Each wrapper is a fresh
-	// function literal scope, so the indices restart every time.
+	optTemp     = "_logos_v"
+	optOk       = "_logos_ok"
 	optWrapTemp = "_logos_w%d"
 )
 
-// exprType is the static type of expression slots the option pass
-// rewrites: plain, listed, and fixed-array expression fields.
 var exprType = reflect.TypeFor[syntax.Expr]()
 
-// lowerOptions rewrites every option form of one file: option types in
-// every type position, `?.` selections and optional calls, `??`
-// expressions, single-value map reads, nil comparisons on options,
-// narrowed reads, and the value wraps that option assigns, returns,
-// arguments, and composite elements need. It runs after lowerUnions,
-// then drains the synthesized imports its result-type spellings may
-// have recorded. The walk is syntax.Inspect, which follows true child
-// edges only, so type info, positions, and scopes attached to nodes
-// never lead the pass. Builders lower embedded originals eagerly, so a
-// later textOf always finds the inner splices already recorded, and the
-// descend into replacements only meets idempotent no-ops.
 func (fl *fileLower) lowerOptions() {
 	fl.optMemo = make(map[*syntax.OptionType]syntax.Expr)
 	fl.narrowDone = make(map[*syntax.Name]bool)
-	fl.wrapSpan = make(map[syntax.Expr]span)
-	fl.wrapOwner = make(map[syntax.Expr]int)
+	fl.optBodyType = make(map[syntax.Expr]types2.Type)
 	fl.collectOptReturns()
 	syntax.Inspect(fl.file, func(n syntax.Node) bool {
 		if n == nil {
@@ -103,22 +36,26 @@ func (fl *fileLower) lowerOptions() {
 		fl.lowerOptNode(n)
 		return true
 	})
+	fl.rejectCompositeSurvivors()
 }
 
-// lowerOptNode handles one node of the option walk: statements with
-// conversion targets (assignments, returns, declarations, sends, range
-// clauses) get their site handling first, then every expression slot of
-// every node goes through lowerOptExpr. Rewrites are idempotent, so the
-// field pass may revisit already-handled subtrees.
 func (fl *fileLower) lowerOptNode(n syntax.Node) {
 	switch n := n.(type) {
+	case *syntax.CallStmt:
+		if fl.markOptDeferGo(n) {
+			return
+		}
+	case *syntax.CallExpr:
+		if _, ok := fl.optDeferGoPend[n]; ok {
+			return
+		}
 	case *syntax.AssignStmt:
 		fl.lowerOptAssign(n)
-		fl.lowerOptFieldsExcept(n, "Lhs")
+		fl.lowerOptFields(n, "Lhs")
 		return
 	case *syntax.RangeClause:
 		fl.lowerOptRange(n)
-		fl.lowerOptFieldsExcept(n, "Lhs")
+		fl.lowerOptFields(n, "Lhs")
 		return
 	case *syntax.ReturnStmt:
 		fl.lowerOptReturn(n)
@@ -129,24 +66,11 @@ func (fl *fileLower) lowerOptNode(n syntax.Node) {
 	case *syntax.SendStmt:
 		fl.lowerOptSend(n)
 	case *syntax.LambdaExpr:
-		// M6-S6 (D4): an expression-lambda body is a syntax.Node
-		// field, so the field pass below never lowers a top-level
-		// `??` or `?.` in it. Lower it here and stash the checked
-		// type: chains capture body text before reparse, and
-		// prodType reads the live node afterwards.
 		fl.lowerOptLambdaBody(n)
 	}
-	fl.lowerOptFields(n)
+	fl.lowerOptFields(n, "")
 }
 
-// lowerOptLambdaBody lowers a top-level `??` or `?.` that sits
-// directly as an expression-lambda body. Interior option forms lower
-// through the field pass and the Inspect descent as usual; only the
-// top form needs the explicit expression call, mirroring what an
-// assignment right-hand side gets from lowerOptAssign. A replaced body
-// keeps its checked type in optBodyType: the replacement is synthetic
-// and carries no recorded type, but chain prodType still needs the
-// produced type afterwards.
 func (fl *fileLower) lowerOptLambdaBody(lam *syntax.LambdaExpr) {
 	body, ok := lam.Body.(syntax.Expr)
 	if !ok {
@@ -154,6 +78,10 @@ func (fl *fileLower) lowerOptLambdaBody(lam *syntax.LambdaExpr) {
 	}
 	switch syntax.Unparen(body).(type) {
 	case *syntax.CoalesceExpr, *syntax.OptSelectExpr:
+	case *syntax.Name, *syntax.SelectorExpr, *syntax.IndexExpr:
+		if _, ok := fl.compositeRefOf(body); !ok {
+			return
+		}
 	default:
 		return
 	}
@@ -161,25 +89,11 @@ func (fl *fileLower) lowerOptLambdaBody(lam *syntax.LambdaExpr) {
 	lowered := fl.lowerOptExpr(body)
 	lam.Body = lowered
 	if lowered != body && orig != nil {
-		if fl.optBodyType == nil {
-			fl.optBodyType = make(map[syntax.Expr]types2.Type)
-		}
 		fl.optBodyType[lowered] = orig
 	}
 }
 
-// lowerOptFields rewrites the option forms held directly by n: every
-// field of static type syntax.Expr, []syntax.Expr, or [N]syntax.Expr
-// goes through lowerOptExpr. All other fields are left alone; Inspect
-// visits the nodes they hold.
-func (fl *fileLower) lowerOptFields(n syntax.Node) {
-	fl.lowerOptFieldsExcept(n, "")
-}
-
-// lowerOptFieldsExcept is lowerOptFields skipping the named struct
-// field. Assignment and range write targets go through lowerOptLHS
-// instead, so a plain write target never gains a narrowed `.Value`.
-func (fl *fileLower) lowerOptFieldsExcept(n syntax.Node, except string) {
+func (fl *fileLower) lowerOptFields(n syntax.Node, except string) {
 	v := reflect.ValueOf(n)
 	if v.Kind() != reflect.Pointer || v.IsNil() {
 		return
@@ -200,8 +114,6 @@ func (fl *fileLower) lowerOptFieldsExcept(n syntax.Node, except string) {
 	}
 }
 
-// lowerOptField rewrites one field of static type ft through
-// lowerOptExpr when it holds expressions.
 func (fl *fileLower) lowerOptField(v reflect.Value, ft reflect.Type) {
 	if ft == exprType {
 		if v.IsNil() {
@@ -222,20 +134,20 @@ func (fl *fileLower) lowerOptField(v reflect.Value, ft reflect.Type) {
 	}
 }
 
-// lowerOptExpr lowers the option forms of one expression and returns
-// the expression to use in its place, often the same node mutated in
-// place. Transparent nodes recurse explicitly; transformed nodes
-// (OptionType, CoalesceExpr, OptSelectExpr, optional calls, map reads
-// needing Lookup, composites, ordinary calls) are handled whole. The
-// result is safe to revisit: transformed tops are no longer option
-// nodes, wraps consult recorded types that only originals carry, and
-// narrowed names are pinned in narrowDone.
-func (fl *fileLower) lowerOptExpr(e syntax.Expr) syntax.Expr {
+func (fl *fileLower) lowerOptExpr(e syntax.Expr) (out syntax.Expr) {
+	defer func() {
+		if out != nil && e != nil {
+			fl.carryType(out, e)
+		}
+	}()
 	switch e := e.(type) {
 	case nil:
 		return nil
 	case *syntax.Name:
-		if out, ok := fl.lowerConstMapName(e); ok { // M5-S4 hook: plain const map uses materialize.
+		if out, ok := fl.lowerConstMapName(e); ok {
+			return out
+		}
+		if out, ok := fl.compositeRewriteRoot(e); ok {
 			return out
 		}
 		return fl.narrowAccess(e)
@@ -248,13 +160,23 @@ func (fl *fileLower) lowerOptExpr(e syntax.Expr) syntax.Expr {
 	case *syntax.OptSelectExpr:
 		return fl.lowerOptSelect(e)
 	case *syntax.CallExpr:
-		if out, ok := fl.lowerConstMapLen(e); ok { // M5-S4 hook: len of a const map is a constant.
+		if out, ok := fl.lowerConstMapLen(e); ok {
 			return out
 		}
+		fl.compositeShapeArg(e)
 		return fl.lowerOptCallExpr(e)
 	case *syntax.IndexExpr:
+		if out, ok := fl.compositeRewriteRoot(e); ok {
+			return out
+		}
 		return fl.lowerMapIndex(e)
 	case *syntax.SelectorExpr:
+		if out, ok := fl.compositeRewriteRoot(e); ok {
+			return out
+		}
+		if g, ok := fl.constMapUse(e); ok {
+			return fl.lowerConstMapSelector(e, g)
+		}
 		e.X = fl.lowerOptExpr(e.X)
 		return e
 	case *syntax.Operation:
@@ -298,23 +220,17 @@ func (fl *fileLower) lowerOptExpr(e syntax.Expr) syntax.Expr {
 		e.Value = fl.lowerOptExpr(e.Value)
 		return e
 	case *syntax.FuncLit:
-		// Signature types lower when the field walk reaches them and
-		// returns lower through the return map on descend.
 		return e
 	default:
 		return e
 	}
 }
 
-// nextWrapID mints one wrapper ID for the boundary inserts of one
-// wrapper built below.
 func (fl *fileLower) nextWrapID() int {
 	fl.wrapSeq++
 	return fl.wrapSeq
 }
 
-// optType reports the checked type of e from the pre-lowering check, or
-// nil when e is synthetic (already lowered) or untyped.
 func (fl *fileLower) optType(e syntax.Expr) types2.Type {
 	if e == nil {
 		return nil
@@ -322,11 +238,6 @@ func (fl *fileLower) optType(e syntax.Expr) types2.Type {
 	return fl.pkg.info.TypeOf(e)
 }
 
-// asOptionThroughConst returns the `*types2.Option` denoted by t, looking
-// through const views as well as aliases and defined types. A `??` or `?.`
-// operand that reads through a const view (SPEC T-201) keeps the
-// view in its recorded type, so coeType must see through it; the
-// qualifier is erased before code generation.
 func (fl *fileLower) asOptionThroughConst(t types2.Type) *types2.Option {
 	if c := constAsView(t); c != nil {
 		return fl.asOptionThroughConst(c.Elem)
@@ -334,8 +245,6 @@ func (fl *fileLower) asOptionThroughConst(t types2.Type) *types2.Option {
 	return fl.asOption(t)
 }
 
-// asOption returns the `*types2.Option` denoted by t, mirroring the
-// checker's option match through aliases and defined types, or nil.
 func (fl *fileLower) asOption(t types2.Type) *types2.Option {
 	if o, ok := types2.Unalias(t).(*types2.Option); ok {
 		return o
@@ -350,49 +259,6 @@ func (fl *fileLower) asOption(t types2.Type) *types2.Option {
 	return nil
 }
 
-// keepMapRead reports whether an option with element type V keeps the
-// bare payload form (SPEC T-202): V is a pointer, or V is an
-// interface-backed union with no nil-capable member. Every other V
-// lowers to `_logos_rt.Option[V]`. Nil-capable means nil is a valid
-// payload: slice, map, func, chan, or interface kinds (plus type
-// parameters, nested unions, and unsafe pointers, conservatively).
-func keepMapRead(V types2.Type) bool {
-	if V == nil {
-		return false
-	}
-	if _, ok := V.Underlying().(*types2.Pointer); ok {
-		return true
-	}
-	members, isUnion := unionTerms(V)
-	if !isUnion {
-		return false
-	}
-	for _, m := range members {
-		mu := types2.Unalias(m)
-		if n, ok := mu.(*types2.Named); ok {
-			mu = n.Underlying()
-		}
-		switch mu := mu.(type) {
-		case *types2.Slice, *types2.Map, *types2.Signature, *types2.Chan, *types2.Interface, *types2.Union:
-			return false
-		case *types2.Basic:
-			if mu.Kind() == types2.UnsafePointer {
-				return false
-			}
-		case *types2.TypeParam:
-			return false
-		}
-	}
-	return true
-}
-
-// lowerOptionType lowers one `T?` type occurrence to its Go-facing form
-// (SPEC T-202): a bare payload keeps the element type with the `?`
-// deleted, every other element becomes `_logos_rt.Option[...]` with the
-// `?` replaced by `]`. Shared type nodes (one `int?` for several names)
-// lower once; later uses clone the result so no node is shared. The
-// decision keys off the checked element; an unrecorded type falls back
-// to the wrapped form, which is always safe.
 func (fl *fileLower) lowerOptionType(e *syntax.OptionType) syntax.Expr {
 	if prev, ok := fl.optMemo[e]; ok {
 		return cloneType(prev, e.Pos())
@@ -406,13 +272,10 @@ func (fl *fileLower) lowerOptionType(e *syntax.OptionType) syntax.Expr {
 	}
 	qoff := fl.off(pos)
 	var out syntax.Expr
-	if elemT != nil && keepMapRead(elemT) {
+	if elemT != nil && types2.LogosOptionIsBare(elemT) {
 		out = fl.lowerTypeExpr(e.Elem)
 		fl.add(qoff, qoff+1, "")
 	} else {
-		// The head anchor comes from the original tree: lowering
-		// first would descend into already-lowered nodes whose
-		// synthetic positions sit mid-type.
 		es := fl.optTypeHead(e.Elem)
 		le := fl.lowerTypeExpr(e.Elem)
 		fl.needRT = true
@@ -425,14 +288,6 @@ func (fl *fileLower) lowerOptionType(e *syntax.OptionType) syntax.Expr {
 	return out
 }
 
-// optTypeHead returns the offset of the first token of the option
-// payload type. A node position covers every type but one: a FuncType
-// sits at its parameter parenthesis (`func` has no stored position), so
-// the wrapper would land between `func` and its parameters and split
-// the type. The grammar puts nothing but trivia between the keyword and
-// the parameters, so the nearest preceding `func` token is always the
-// payload's own keyword. Keyword offsets come from one forward
-// tokenization per file, looked up with a binary search.
 func (fl *fileLower) optTypeHead(e syntax.Expr) int {
 	es := fl.off(fl.optLeftmost(e))
 	if _, ok := syntax.Unparen(e).(*syntax.FuncType); !ok {
@@ -448,9 +303,6 @@ func (fl *fileLower) optTypeHead(e syntax.Expr) int {
 	return fl.funcHeadOffs[i-1]
 }
 
-// funcHeadOffsets returns the offsets of every `func` keyword in src,
-// in source order, from a single forward tokenization starting at the
-// file beginning, which is always a lexically valid position.
 func funcHeadOffsets(src []byte) []int {
 	var out []int
 	scanSegment(src, 0, len(src), func(t tok) bool {
@@ -462,35 +314,53 @@ func funcHeadOffsets(src []byte) []int {
 	return out
 }
 
-// deleteGroupingParens deletes the parenthesis pairs that group the
-// option payload starting at es and ending before the `?` at qoff, as in
-// `(T?)?`, `(T)?`, or a parenthesized result `func() (T)?`. The parser
-// drops these parentheses, and kept parentheses would split the
-// `Option[...]` brackets (`Option[(int])` never parses). Each `)` right
-// before the `?` closes one grouping pair, so the same number of `(`
-// right before the payload is deleted.
 func (fl *fileLower) deleteGroupingParens(es, qoff int) {
-	n := 0
-	for off := skipSpaceBack(fl.src, qoff); off > es && fl.src[off-1] == ')'; off = skipSpaceBack(fl.src, off-1) {
-		fl.add(off-1, off, "")
-		n++
-	}
-	for off := skipSpaceBack(fl.src, es); n > 0 && off > 0 && fl.src[off-1] == '('; off = skipSpaceBack(fl.src, off-1) {
-		fl.add(off-1, off, "")
-		n--
+	depth, n := 0, 0
+	scanSegment(fl.src, es, qoff, func(t tok) bool {
+		switch {
+		case t.comment || t.auto:
+		case t.kind == token.LPAREN:
+			depth++
+		case t.kind == token.RPAREN:
+			depth--
+			if depth < 0 {
+				depth = 0
+				if fl.parenClaims[t.start] {
+					return true
+				}
+				fl.add(t.start, t.end, "")
+				fl.parenClaims[t.start] = true
+				n++
+			}
+		}
+		return true
+	})
+	off := skipBlankBack(fl.src, es)
+	for n > 0 && off > 0 {
+		switch {
+		case fl.src[off-1] == '(':
+			if !fl.parenClaims[off-1] {
+				fl.add(off-1, off, "")
+				fl.parenClaims[off-1] = true
+				n--
+			}
+			off = skipBlankBack(fl.src, off-1)
+		case off >= len("const") && string(fl.src[off-len("const"):off]) == "const":
+			off = skipBlankBack(fl.src, off-len("const"))
+		default:
+			return
+		}
 	}
 }
 
-// optLeftmost returns the position of the leftmost token of e,
-// descending through option forms to the payload or receiver: a wrapper
-// head anchored here fuses with nested wrapper heads at the same
-// offset instead of splitting their spans. It mirrors leftmostOf for
-// plain nodes (selector, index, call, and the like all start at their
-// operand) and keeps descending through option nodes, which leftmostOf
-// would stop at.
 func (fl *fileLower) optLeftmost(e syntax.Expr) syntax.Pos {
 	for {
 		switch n := syntax.Unparen(e).(type) {
+		case *syntax.CompositeLit:
+			if n.Type == nil {
+				return e.Pos()
+			}
+			e = n.Type
 		case *syntax.OptSelectExpr:
 			e = n.X
 		case *syntax.CoalesceExpr:
@@ -518,17 +388,16 @@ func (fl *fileLower) optLeftmost(e syntax.Expr) syntax.Pos {
 	}
 }
 
-// optHeadStart returns the position of the leftmost token of e keeping
-// parentheses whole, for wrapper head placement: a `??` head anchored
-// here starts its generated func literal before an opening paren
-// instead of inside it, where it would split the receiver the chain
-// pass reuses. It matches optLeftmost on paren-free shapes, so nested
-// wrapper heads still fuse at a shared offset there.
 func (fl *fileLower) optHeadStart(e syntax.Expr) syntax.Pos {
 	for {
 		switch n := e.(type) {
 		case *syntax.ParenExpr:
 			return e.Pos()
+		case *syntax.CompositeLit:
+			if n.Type == nil {
+				return e.Pos()
+			}
+			e = n.Type
 		case *syntax.OptSelectExpr:
 			e = n.X
 		case *syntax.CoalesceExpr:
@@ -556,21 +425,6 @@ func (fl *fileLower) optHeadStart(e syntax.Expr) syntax.Pos {
 	}
 }
 
-// spanStart returns the eject offset where the text of e begins: the
-// recorded span for a synthetic wrapper top, otherwise the leftmost
-// payload position. Builders lower embedded originals eagerly, so a
-// synthetic top always has an entry.
-func (fl *fileLower) spanStart(e syntax.Expr) int {
-	if s, ok := fl.wrapSpan[e]; ok {
-		return s.start
-	}
-	return fl.off(fl.optLeftmost(e))
-}
-
-// lowerTypeExpr lowers the option types inside the type expression e,
-// returning the expression to use in its place. Composite type
-// constructors recurse; every other node stands as is (the Inspect
-// backstop reaches option types nested under nodes not listed here).
 func (fl *fileLower) lowerTypeExpr(e syntax.Expr) syntax.Expr {
 	switch t := e.(type) {
 	case *syntax.OptionType:
@@ -630,17 +484,6 @@ func (fl *fileLower) lowerTypeExpr(e syntax.Expr) syntax.Expr {
 	}
 }
 
-// spellLoweredBoth spells t for the two roots. A bridge hit returns the
-// adapter's ready-built native type node plus eject spelling; otherwise
-// native is the historical spelling reparsed at pos and eject is that
-// same spelling. Callers must use native directly in the native tree and
-// eject for add() text, in the single source-order walk with no second
-// pass. The bridge records its own native/eject imports and sidecar
-// requests; no synthQualifier is recorded here on a bridge hit. needRT
-// accounting stays at each wrapper site as today (one bool,
-// deduplicated). Linearizability: one inline spelling per root from the
-// same checked type; wrappers are idempotent on revisit, so no outbox or
-// second delivery path is needed.
 func (fl *fileLower) spellLoweredBoth(t types2.Type, pos syntax.Pos) (native syntax.Expr, eject string, ok bool) {
 	if ownedTypeBridge != nil {
 		if n, e, ok := ownedTypeBridge(fl, t, pos); ok {
@@ -658,60 +501,49 @@ func (fl *fileLower) spellLoweredBoth(t types2.Type, pos syntax.Pos) (native syn
 	return n, s, true
 }
 
-// selectAccessBare builds the `?.` access for a bare receiver: the native
-// access expression and the eject suffix spelling, separately. It selects
-// directly on recv.
+func (fl *fileLower) optSelectName(e *syntax.OptSelectExpr) string {
+	if o := fl.coeType(e.X); o != nil {
+		return tupleSelectionName(o.Elem, e.Sel.Value)
+	}
+	return e.Sel.Value
+}
+
 func (fl *fileLower) selectAccessBare(recv syntax.Expr, e *syntax.OptSelectExpr) (syntax.Expr, string) {
 	pos := e.Pos()
-	return fl.selectAccessCommon(e, selOf(pos, recv, e.Sel.Value), "."+e.Sel.Value)
+	sel := fl.optSelectName(e)
+	return fl.selectAccess(e, selOf(pos, recv, sel), "."+sel)
 }
 
-// selectAccessPresent builds the `?.` access for a presence-bearing
-// receiver: the native access expression and the eject suffix spelling,
-// separately. It selects through `.Value`.
 func (fl *fileLower) selectAccessPresent(recv syntax.Expr, e *syntax.OptSelectExpr) (syntax.Expr, string) {
 	pos := e.Pos()
-	return fl.selectAccessCommon(e, selOf(pos, selOf(pos, recv, "Value"), e.Sel.Value), ".Value."+e.Sel.Value)
+	sel := fl.optSelectName(e)
+	return fl.selectAccess(e, selOf(pos, selOf(pos, recv, "Value"), sel), ".Value."+sel)
 }
 
-// selectAccessCommon resolves the `?.` access for the selection e from
-// the caller's default native access and eject suffix. Exported members
-// (the only kind source can name on a private type) take the historical
-// path. An unexported member of another package takes the bridge path:
-// the adapter returns the ready-built native access over its exact
-// registered nodes plus the eject suffix, never source spelling in the
-// native tree. A missing registration is a compiler diagnostic at the use
-// site, never a guessed access. Causal consistency: the access shape
-// follows the receiver the wrapper already lowered, and the single-pass
-// walk stays idempotent.
-func (fl *fileLower) selectAccessCommon(e *syntax.OptSelectExpr, defNative syntax.Expr, defEject string) (syntax.Expr, string) {
+func (fl *fileLower) selectAccess(e *syntax.OptSelectExpr, native syntax.Expr, suffix string) (syntax.Expr, string) {
 	pos := e.Pos()
 	ot := fl.coeType(e.X)
-	if ot != nil {
-		if obj, _, _ := types2.LookupFieldOrMethod(ot.Elem, true, fl.pkg.tpkg, e.Sel.Value); obj != nil {
-			if pkg := obj.Pkg(); pkg != nil && pkg != fl.pkg.tpkg && !obj.Exported() {
-				if ownedFieldBridge != nil {
-					if nacc, esuf, ok := ownedFieldBridge(fl, e, defNative, defEject); ok {
-						return nacc, esuf
-					}
-				}
-				base.Fatalf("logos: cannot access unexported selection %s of %s at %s without a registered private view", e.Sel.Value, ot.Elem, pos.String())
+	if ot == nil {
+		return native, suffix
+	}
+	obj, _, _ := types2.LookupFieldOrMethod(ot.Elem, true, fl.pkg.tpkg, e.Sel.Value)
+	if obj == nil {
+		return native, suffix
+	}
+	if pkg := obj.Pkg(); pkg != nil && pkg != fl.pkg.tpkg && !obj.Exported() {
+		if ownedFieldBridge != nil {
+			if nacc, esuf, ok := ownedFieldBridge(fl, e, native, suffix); ok {
+				return nacc, esuf
 			}
 		}
+		base.Fatalf("logos: cannot access unexported selection %s of %s at %s without a registered private view", e.Sel.Value, ot.Elem, pos.String())
 	}
-	return defNative, defEject
+	return native, suffix
 }
 
-// spellLowered renders the checked type t as lowered Go source in this
-// file: nested options become the named support instantiation when
-// wrapped (bare payloads spell their element), anonymous composites
-// spell structurally so options nested inside them never leak `?`
-// syntax, and named types spell through spellType with a synthesized
-// import recorded for flushTypeImports. It reports false when t mentions
-// an unexported name of another package.
 func (fl *fileLower) spellLowered(t types2.Type) (string, bool) {
 	if o := fl.asOption(t); o != nil {
-		if keepMapRead(o.Elem) {
+		if types2.LogosOptionIsBare(o.Elem) {
 			return fl.spellLowered(o.Elem)
 		}
 		inner, ok := fl.spellLowered(o.Elem)
@@ -725,7 +557,9 @@ func (fl *fileLower) spellLowered(t types2.Type) (string, bool) {
 		return "", false
 	}
 	switch c := types2.Unalias(t).(type) {
-	case *types2.ConstView: // M5-S1: lowering erases const views.
+	case *types2.ConstView:
+		return fl.spellLowered(c.Elem)
+	case *types2.ReadonlyDescendants:
 		return fl.spellLowered(c.Elem)
 	case *types2.Named, *types2.Alias, *types2.Basic, *types2.TypeParam:
 		return fl.spellType(t)
@@ -772,6 +606,11 @@ func (fl *fileLower) spellLowered(t types2.Type) (string, bool) {
 		}
 	case *types2.Signature:
 		return fl.spellLoweredSig(c)
+	case *types2.LogosTuple:
+		if st, ok := c.Underlying().(*types2.Struct); ok {
+			return fl.spellLoweredStruct(st)
+		}
+		return "", false
 	case *types2.Struct:
 		return fl.spellLoweredStruct(c)
 	case *types2.Interface:
@@ -781,9 +620,6 @@ func (fl *fileLower) spellLowered(t types2.Type) (string, bool) {
 	}
 }
 
-// spellLoweredSig renders a signature with lowered parameter and result
-// types. Parameter and result names are dropped: generated signatures
-// never bind them.
 func (fl *fileLower) spellLoweredSig(sig *types2.Signature) (string, bool) {
 	var b strings.Builder
 	b.WriteString("func(")
@@ -805,7 +641,8 @@ func (fl *fileLower) spellLoweredSig(sig *types2.Signature) (string, bool) {
 		if !ok {
 			return "", false
 		}
-		b.WriteString(" " + r)
+		b.WriteByte(' ')
+		b.WriteString(r)
 	default:
 		b.WriteString(" (")
 		for i := range n {
@@ -823,9 +660,6 @@ func (fl *fileLower) spellLoweredSig(sig *types2.Signature) (string, bool) {
 	return b.String(), true
 }
 
-// spellLoweredStruct renders an anonymous struct type with lowered
-// field types, keeping tags. Unexported fields of another package make
-// the type unspellable.
 func (fl *fileLower) spellLoweredStruct(st *types2.Struct) (string, bool) {
 	var b strings.Builder
 	b.WriteString("struct{ ")
@@ -848,19 +682,20 @@ func (fl *fileLower) spellLoweredStruct(st *types2.Struct) (string, bool) {
 			if !ok {
 				return "", false
 			}
-			b.WriteString(f.Name() + " " + t)
+			b.WriteString(f.Name())
+			b.WriteByte(' ')
+			b.WriteString(t)
 		}
 		if tag := st.Tag(i); tag != "" {
-			b.WriteString(" `" + tag + "`")
+			b.WriteString(" `")
+			b.WriteString(tag)
+			b.WriteByte('`')
 		}
 	}
 	b.WriteString(" }")
 	return b.String(), true
 }
 
-// spellLoweredInterface renders an interface type with lowered method
-// signatures. Empty interfaces and type names spell through spellType;
-// only interfaces with methods reaching options need this path.
 func (fl *fileLower) spellLoweredInterface(it *types2.Interface) (string, bool) {
 	if it.NumMethods() == 0 && it.NumEmbeddeds() == 0 {
 		return fl.spellType(it)
@@ -881,7 +716,9 @@ func (fl *fileLower) spellLoweredInterface(it *types2.Interface) (string, bool) 
 		if !ok {
 			return "", false
 		}
-		b.WriteString(sep + m.Name() + s)
+		b.WriteString(sep)
+		b.WriteString(m.Name())
+		b.WriteString(s)
 		sep = "; "
 	}
 	for i := range it.NumEmbeddeds() {
@@ -889,25 +726,19 @@ func (fl *fileLower) spellLoweredInterface(it *types2.Interface) (string, bool) 
 		if !ok {
 			return "", false
 		}
-		b.WriteString(sep + e)
+		b.WriteString(sep)
+		b.WriteString(e)
 		sep = "; "
 	}
 	b.WriteString(" }")
 	return b.String(), true
 }
 
-// isNilName reports whether e is the universe nil identifier.
 func isNilName(e syntax.Expr) bool {
 	n, ok := syntax.Unparen(e).(*syntax.Name)
 	return ok && n.Value == "nil"
 }
 
-// narrowTarget returns the declared option of the variable read by the
-// plain name e when the read is narrowed (its recorded type is the
-// option's element), or nil. Write targets never reach this: assigning
-// statements exclude their left-hand side and the checker disables
-// narrowing for address-taken and closure-assigned variables, so a hit
-// is always a value read the checker proved present.
 func (fl *fileLower) narrowTarget(e *syntax.Name) *types2.Option {
 	obj, ok := fl.pkg.info.Uses[e].(*types2.Var)
 	if !ok {
@@ -923,17 +754,13 @@ func (fl *fileLower) narrowTarget(e *syntax.Name) *types2.Option {
 	return dOpt
 }
 
-// narrowAccess lowers one narrowed variable read: a bare payload reads
-// as is, a wrapped payload reads its `.Value`, which the guard proved
-// present. The eject splice is a pure insertion, so it composes with
-// every enclosing rewrite.
 func (fl *fileLower) narrowAccess(e *syntax.Name) syntax.Expr {
 	if fl.narrowDone[e] {
 		return e
 	}
 	fl.narrowDone[e] = true
 	dOpt := fl.narrowTarget(e)
-	if dOpt == nil || keepMapRead(dOpt.Elem) {
+	if dOpt == nil || types2.LogosOptionIsBare(dOpt.Elem) {
 		return e
 	}
 	pos := e.Pos()
@@ -944,43 +771,15 @@ func (fl *fileLower) narrowAccess(e *syntax.Name) syntax.Expr {
 	return acc
 }
 
-// narrowForWrite lowers a narrowed variable in a write position (`++`,
-// `--`, compound assignment): a wrapped payload updates its `.Value`
-// in place, a bare payload stays.
-func (fl *fileLower) narrowForWrite(e *syntax.Name) syntax.Expr {
-	if fl.narrowDone[e] {
-		return e
-	}
-	fl.narrowDone[e] = true
-	dOpt := fl.narrowTarget(e)
-	if dOpt == nil || keepMapRead(dOpt.Elem) {
-		return e
-	}
-	pos := e.Pos()
-	off := fl.off(pos) + len(e.Value)
-	acc := selOf(pos, e, "Value")
-	fl.wrapOwner[acc] = fl.nextWrapID()
-	fl.addOwned(fl.wrapOwner[acc], off, off, ".Value")
-	return acc
-}
-
-// coeType returns the option of a `?.` or `??` operand: usually the
-// recorded type, but a narrowed plain name records its element (the
-// checker's un-narrow restores the operand, not typed nodes), so a
-// narrowed receiver recovers its declared option.
 func (fl *fileLower) coeType(e syntax.Expr) *types2.Option {
-	if o := fl.asOptionThroughConst(fl.optType(e)); o != nil {
-		return o
-	}
 	if name, ok := syntax.Unparen(e).(*syntax.Name); ok {
-		return fl.narrowTarget(name)
+		if o := fl.narrowTarget(name); o != nil {
+			return o
+		}
 	}
-	return nil
+	return fl.asOptionThroughConst(fl.optType(e))
 }
 
-// lowerOptReceiver lowers a `?.` or `??` receiver: a narrowed plain
-// name stays the option itself (the wrapper tests presence), every
-// other shape lowers normally.
 func (fl *fileLower) lowerOptReceiver(x syntax.Expr) syntax.Expr {
 	if name, ok := syntax.Unparen(x).(*syntax.Name); ok {
 		if fl.narrowTarget(name) != nil {
@@ -991,14 +790,11 @@ func (fl *fileLower) lowerOptReceiver(x syntax.Expr) syntax.Expr {
 	return fl.lowerOptExpr(x)
 }
 
-// needsWrap reports whether the value v of recorded type rec needs a
-// wrap to meet the target type, and whether the wrap is the zero value.
-// A nil aimed at a wrapped option becomes the zero `Option[T]{}`; any
-// other non-identical value aimed at a wrapped option gains presence.
-// Bare targets and identical types need nothing: Go assignability
-// already covers them.
 func (fl *fileLower) needsWrap(v syntax.Expr, rec, target types2.Type) (wrap, zero bool) {
 	if target == nil {
+		return false, false
+	}
+	if _, multipleResults := rec.(*types2.Tuple); multipleResults {
 		return false, false
 	}
 	tOpt := fl.asOption(target)
@@ -1006,26 +802,17 @@ func (fl *fileLower) needsWrap(v syntax.Expr, rec, target types2.Type) (wrap, ze
 		return false, false
 	}
 	if isNilName(v) {
-		return !keepMapRead(tOpt.Elem), !keepMapRead(tOpt.Elem)
+		return !types2.LogosOptionIsBare(tOpt.Elem), !types2.LogosOptionIsBare(tOpt.Elem)
 	}
 	if rec == nil || types2.Identical(rec, target) {
 		return false, false
 	}
-	if keepMapRead(tOpt.Elem) {
+	if types2.LogosOptionIsBare(tOpt.Elem) {
 		return false, false
 	}
 	return true, false
 }
 
-// wrapKnown converts the (already lowered) value v of recorded type rec
-// to the target type, returning the expression to use in its place. A
-// plain value aimed at a nested option (for example `3` at `(int?)?`)
-// wraps once per layer. The eject edit is one replacement of v's
-// original span with the innermost wrap, consuming the inner splices
-// through textOf, plus boundary inserts for the outer layers; the
-// native tree nests the composites around v. Callers must pass the
-// original node (mutated in place at most), never a synthetic one,
-// except through wrapSpan.
 func (fl *fileLower) wrapKnown(v syntax.Expr, rec, target types2.Type) syntax.Expr {
 	wrap, zero := fl.needsWrap(v, rec, target)
 	if !wrap {
@@ -1054,7 +841,7 @@ func (fl *fileLower) wrapKnown(v syntax.Expr, rec, target types2.Type) syntax.Ex
 			break
 		}
 		inner := fl.asOption(elem)
-		if inner == nil || keepMapRead(inner.Elem) {
+		if inner == nil || types2.LogosOptionIsBare(inner.Elem) {
 			break
 		}
 		nt, et, ok := fl.spellLoweredBoth(elem, pos)
@@ -1066,11 +853,7 @@ func (fl *fileLower) wrapKnown(v syntax.Expr, rec, target types2.Type) syntax.Ex
 		cur = elem
 	}
 	vs := fl.wrapSpanOf(v)
-	text := fl.textOf(vs)
-	// Drain this wrapper's own boundary inserts (an IIFE head and its
-	// `}()` tail) into the fused text: left outside they would split
-	// the replacement from its operand. Outer wrappers' inserts at the
-	// same offsets carry other owners and stay.
+	text := fl.lazyText(vs)
 	id, ok := fl.wrapOwner[v]
 	if !ok {
 		id = fl.nextWrapID()
@@ -1078,9 +861,6 @@ func (fl *fileLower) wrapKnown(v syntax.Expr, rec, target types2.Type) syntax.Ex
 		head, tail := fl.drainOwned(vs, id)
 		text = cat(head, text, tail)
 	}
-	// One fused replacement for the whole tower: boundary inserts for
-	// outer layers would interleave with an enclosing wrapper's head at
-	// a shared offset, while a single span composes by position.
 	fused := text
 	for i := len(ejectTexts) - 1; i >= 0; i-- {
 		fused = cat(gen(ejectTexts[i]+"{Value: "), fused, gen(", Present: true}"))
@@ -1095,8 +875,6 @@ func (fl *fileLower) wrapKnown(v syntax.Expr, rec, target types2.Type) syntax.Ex
 				at(&syntax.KeyValueExpr{Key: nameOf(pos, "Value"), Value: native}, pos),
 				at(&syntax.KeyValueExpr{Key: nameOf(pos, "Present"), Value: nameOf(pos, "true")}, pos),
 			},
-			// The unified IR writer reads NKeys == 0 as a positional
-			// literal; both elements here are keyed.
 			NKeys:  2,
 			Rbrace: pos,
 		}, pos)
@@ -1106,8 +884,6 @@ func (fl *fileLower) wrapKnown(v syntax.Expr, rec, target types2.Type) syntax.Ex
 	return native
 }
 
-// wrapSpanOf returns the original span of v: the recorded span for a
-// synthetic wrapper top, otherwise the source extent of the node.
 func (fl *fileLower) wrapSpanOf(v syntax.Expr) span {
 	if s, ok := fl.wrapSpan[v]; ok {
 		return s
@@ -1116,17 +892,7 @@ func (fl *fileLower) wrapSpanOf(v syntax.Expr) span {
 	return span{start: from, end: fl.exprEndNested(from)}
 }
 
-// drainOwned removes the boundary inserts owned by id at the ends of
-// vs from the pending splices and returns their texts, head then tail.
-// Inserts owned by other wrappers at the same offsets stay pending. A
-// span inside a const for copy drains the splices of its region, where
-// appendSplice recorded them.
 func (fl *fileLower) drainOwned(vs span, id int) (head, tail otext) {
-	// Each end drains from the list holding insertions at it: the
-	// narrowest moved region strictly holding the endpoint, else its
-	// const for region, else the file. Ends in different lists drain
-	// separately; ends sharing one list drain in one pass so a
-	// zero-width span keeps HEAD's head-first behavior.
 	ls := fl.ownerOfInsertion(vs.start)
 	if le := fl.ownerOfInsertion(vs.end); le != ls {
 		head = drainOwnedAt(ls, vs.start, id)
@@ -1149,8 +915,6 @@ func (fl *fileLower) drainOwned(vs span, id int) (head, tail otext) {
 	return head, tail
 }
 
-// drainOwnedAt removes the boundary inserts owned by id at off from list
-// and returns their texts.
 func drainOwnedAt(list *[]splice, off, id int) otext {
 	var text otext
 	var rest []splice
@@ -1165,13 +929,28 @@ func drainOwnedAt(list *[]splice, off, id int) otext {
 	return text
 }
 
-// drainBodyWrapper composes the owned boundary inserts of a top-level
-// `??` or `?.` wrapper that a lambda-body capture left outside its
-// textOf span (D4, D7): the head insert sits exactly on the capture
-// start and the tail exactly on its end, so the plain textOf keeps them
-// pending. A wrapper strictly inside the span already drained through
-// textOf, so drainOwned finds nothing and the text passes through
-// unchanged. Bodies that are not wrapper tops pass through too.
+func (fl *fileLower) drainBoundaries(vs span) (head, tail otext) {
+	return fl.drainBoundariesSince(vs, 1)
+}
+
+func (fl *fileLower) drainBoundariesSince(vs span, since int) (head, tail otext) {
+	take := func(off int) otext {
+		list := fl.ownerOfInsertion(off)
+		var text otext
+		var rest []splice
+		for _, sp := range *list {
+			if sp.owner < since || sp.start != sp.end || sp.start != off {
+				rest = append(rest, sp)
+				continue
+			}
+			text = cat(text, otext{s: sp.text, chunks: sp.chunks})
+		}
+		*list = rest
+		return text
+	}
+	return take(vs.start), take(vs.end)
+}
+
 func (fl *fileLower) drainBodyWrapper(body syntax.Node, text otext) otext {
 	expr, ok := body.(syntax.Expr)
 	if !ok {
@@ -1181,7 +960,7 @@ func (fl *fileLower) drainBodyWrapper(body syntax.Node, text otext) otext {
 	if !ok {
 		return text
 	}
-	id, ok := fl.wrapOwner[top]
+	_, ok = fl.wrapOwner[top]
 	if !ok {
 		return text
 	}
@@ -1189,85 +968,168 @@ func (fl *fileLower) drainBodyWrapper(body syntax.Node, text otext) otext {
 	if !ok {
 		return text
 	}
-	head, tail := fl.drainOwned(vs, id)
+	head, tail := fl.drainBoundaries(vs)
 	return cat(head, text, tail)
 }
 
-// lowerMapIndex lowers one single-value map read: a kept read stays,
-// every other option-typed read becomes a Lookup call. Reads the checker
-// re-recorded with the element type (comma-ok, store targets, `++`) carry
-// no option and are left alone. Children lower first so embedded forms
-// record their splices before the Lookup splices surround them.
+func (fl *fileLower) wrapperTail(e syntax.Expr) otext {
+	top, ok := syntax.Unparen(e).(*syntax.CallExpr)
+	if !ok {
+		return otext{}
+	}
+	id, ok := fl.wrapOwner[top]
+	if !ok {
+		return otext{}
+	}
+	vs, ok := fl.wrapSpan[top]
+	if !ok {
+		return otext{}
+	}
+	return drainOwnedAt(fl.ownerOfInsertion(vs.end), vs.end, id)
+}
+
+func (fl *fileLower) isMapRead(ix *syntax.IndexExpr) bool {
+	if m := fl.pkg.info.Types; m != nil {
+		return m[ix].HasOk()
+	}
+	return ix.GetTypeInfo().HasOk()
+}
+
 func (fl *fileLower) lowerMapIndex(e *syntax.IndexExpr) syntax.Expr {
-	if g, ok := fl.constMapUse(e.X); ok { // M5-S4 hook: reads of a const map use its lookup.
+	if g, ok := fl.constMapReadUse(e.X); ok {
 		return fl.lowerConstMapRead(e, g)
 	}
 	opt := fl.asOption(fl.optType(e))
-	if opt == nil || keepMapRead(opt.Elem) {
+	if !fl.isMapRead(e) || opt == nil || types2.LogosOptionIsBare(opt.Elem) || fl.isTypeExpr(e) {
 		e.X = fl.lowerOptExpr(e.X)
 		e.Index = fl.lowerOptExpr(e.Index)
 		return e
 	}
 	id := fl.nextWrapID()
-	mStart, _, lbrack, rbrack := fl.lookupSpans(e)
+	mStart, lbrack, rbrack := fl.lookupSpans(e)
 	fl.addOwned(id, mStart, mStart, rtAlias+".Lookup(")
+	rawIdx := e.Index
+	idxT := fl.optType(rawIdx)
 	e.X = fl.lowerOptExpr(e.X)
 	e.Index = fl.lowerOptExpr(e.Index)
+	fl.convertIndexKey(e, rawIdx, e.Index, idxT)
 	out := fl.lookupFinish(e, lbrack, rbrack, id)
 	fl.wrapOwner[out] = id
 	return out
 }
 
-// lookupSpans returns the eject offsets of a map-read rewrite from the
-// original tree: the map start for the head, the key start for the
-// brackets, and both bracket offsets.
-func (fl *fileLower) lookupSpans(e *syntax.IndexExpr) (mStart, kStart, lbrack, rbrack int) {
-	mStart = fl.off(fl.optLeftmost(e.X))
-	kStart = fl.off(leftmostOf(e.Index))
-	lbrack = fl.findLbrack(mStart, kStart)
-	rbrack = fl.findRbrack(kStart)
-	return mStart, kStart, lbrack, rbrack
+func logosMapKey(t types2.Type) (types2.Type, bool) {
+	if t == nil {
+		return nil, false
+	}
+	mt, ok := t.Underlying().(*types2.Map)
+	if !ok {
+		return nil, false
+	}
+	return mt.Key(), true
 }
 
-// lookupFinish builds `_logos_rt.Lookup(m, k)` for the read e whose
-// head is already recorded and records the bracket splices. head
-// carries the insertion text so a fused `??` or `?.` wrapper can extend
-// it. The result span is recorded for wraps of the whole read, with the
-// boundary head owned by id.
+func (fl *fileLower) convertIndexKey(ix *syntax.IndexExpr, raw, lowered syntax.Expr, idxT types2.Type) {
+	keyT, ok := logosMapKey(fl.optType(ix.X))
+	if !ok {
+		return
+	}
+	if idxT == nil || types2.Identical(idxT, keyT) || !types2.AssignableTo(idxT, keyT) {
+		return
+	}
+	kn, kt, ok := fl.spellLoweredBoth(keyT, raw.Pos())
+	if !ok {
+		base.Fatalf("logos: cannot spell map key type %s at %s", keyT, raw.Pos().String())
+	}
+	kStart := fl.off(leftmostOf(raw))
+	if cl, ok := syntax.Unparen(raw).(*syntax.CompositeLit); ok && cl.Type != nil {
+		kStart = fl.off(cl.Type.Pos())
+	}
+	ix.Index = callOf(raw.Pos(), kn, []syntax.Expr{lowered})
+	kEnd := fl.exprEndKey(kStart)
+	fl.add(kStart, kStart, kt+"(")
+	fl.add(kEnd, kEnd, ")")
+}
+
+func (fl *fileLower) exprEndKey(from int) int {
+	end := len(fl.src)
+	depth := 0
+	seen := false
+	scanSegment(fl.src, from, len(fl.src), func(t tok) bool {
+		if t.comment {
+			return true
+		}
+		if t.auto {
+			if depth == 0 && seen {
+				end = t.start
+				return false
+			}
+			return true
+		}
+		seen = true
+		switch t.kind {
+		case token.LPAREN, token.LBRACK, token.LBRACE:
+			depth++
+		case token.RPAREN, token.RBRACK, token.RBRACE:
+			if depth == 0 {
+				end = t.start
+				return false
+			}
+			depth--
+		case token.COMMA, token.SEMICOLON, token.COLON, token.ASSIGN, token.DEFINE:
+			if depth == 0 {
+				end = t.start
+				return false
+			}
+		case token.EOF:
+			end = len(fl.src)
+			return false
+		}
+		return true
+	})
+	return end
+}
+
+func (fl *fileLower) lookupSpans(e *syntax.IndexExpr) (mStart, lbrack, rbrack int) {
+	mStart = fl.off(fl.optLeftmost(e.X))
+	kStart := fl.off(leftmostOf(e.Index))
+	lbrack = fl.findLbrack(mStart, kStart)
+	rbrack = fl.findRbrack(kStart)
+	return mStart, lbrack, rbrack
+}
+
 func (fl *fileLower) lookupFinish(e *syntax.IndexExpr, lbrack, rbrack int, id int) syntax.Expr {
 	pos := e.Pos()
 	fl.needRT = true
 	call := callOf(pos, selOf(pos, nameOf(pos, rtAlias), "Lookup"), []syntax.Expr{e.X, e.Index})
 	fl.add(lbrack, lbrack+1, ", ")
 	fl.add(rbrack, rbrack+1, ")")
-	mStart := fl.spanStart(e.X)
+	mStart := fl.off(fl.optLeftmost(e.X))
+	if s, ok := fl.wrapSpan[e.X]; ok {
+		mStart = s.start
+	}
 	fl.wrapSpan[call] = span{start: mStart, end: rbrack + 1}
 	return call
 }
 
-// lowerCoalesce lowers `x ?? y` to an immediately invoked function
-// literal of the element type: a kept map read fuses with a comma-ok
-// test, a Lookup-lowered read tests `.Present`, a bare payload tests
-// `!= nil`, and any other option tests `.Present`. The fallback lowers
-// and wraps to the element type. Nested forms inside the operands lower
-// eagerly, so the recorded wrapper span covers finished splices.
 func (fl *fileLower) lowerCoalesce(e *syntax.CoalesceExpr) syntax.Expr {
 	opt := fl.coeType(e.X)
 	ux, isIndex := syntax.Unparen(e.X).(*syntax.IndexExpr)
-	if isIndex {
-		if _, ok := fl.constMapUse(ux.X); ok { // M5-S4: a const map read takes the generic option path.
-			isIndex = false
+	mapRead := isIndex && fl.isMapRead(ux)
+	if mapRead {
+		if _, ok := fl.constMapReadUse(ux.X); ok {
+			mapRead = false
 		}
 	}
-	if opt == nil && isIndex {
+	if opt == nil && mapRead {
 		opt = fl.asOption(fl.optType(ux))
 	}
 	if opt == nil {
-		// Not an option left side; checked code never lands here.
 		e.X = fl.lowerOptExpr(e.X)
 		e.Y = fl.lowerOptExpr(e.Y)
 		return e
 	}
+	closure := fl.newGroupClosure(e)
 	pos := e.Pos()
 	id := fl.nextWrapID()
 	resultType, etext, ok := fl.spellLoweredBoth(opt.Elem, pos)
@@ -1280,44 +1142,40 @@ func (fl *fileLower) lowerCoalesce(e *syntax.CoalesceExpr) syntax.Expr {
 	}, pos)
 	qoff := fl.off(pos)
 	yStart := fl.off(leftmostOf(e.Y))
-	yEnd := fl.exprEnd(yStart)
-	if isCompositeType(fl.optType(e.Y)) {
-		yEnd = fl.exprEndNested(yStart)
+	through := yStart
+	if rbrace, ok := lastBraceOf(e.Y); ok {
+		through = fl.off(rbrace) + 1
 	}
+	yEnd := fl.exprEndThrough(yStart, through)
 	fl.add(qoff, qoff+2, "")
-	fl.addOwned(id, yEnd, yEnd, " }()")
-	if isIndex {
-		mStart, _, lbrack, rbrack := fl.lookupSpans(ux)
-		// The head anchors before any grouping parens around the read,
-		// and the pair is deleted so the fused init stays valid Go.
-		// Without parens both are no-ops: the anchor equals mStart and
-		// no `)` stands right before `??`.
+	if mapRead {
+		mStart, lbrack, rbrack := fl.lookupSpans(ux)
 		fl.deleteGroupingParens(mStart, qoff)
 		xStart := fl.off(fl.optHeadStart(e.X))
 		xEnd := rbrack + 1
 		wy := fl.wrapKnown(fl.lowerOptExpr(e.Y), fl.optType(e.Y), opt.Elem)
-		if keepMapRead(opt.Elem) {
-			fl.addOwned(id, xStart, xStart, "func() "+etext+" { if "+optTemp+", "+optOk+" := ")
-			ux.X = fl.lowerOptExpr(ux.X)
-			ux.Index = fl.lowerOptExpr(ux.Index)
-			// func() E { if v, ok := m[k]; ok { return v }; return y }()
+		rawIdx := ux.Index
+		idxT := fl.optType(rawIdx)
+		ux.X = fl.lowerOptExpr(ux.X)
+		ux.Index = fl.lowerOptExpr(ux.Index)
+		fl.convertIndexKey(ux, rawIdx, ux.Index, idxT)
+		if types2.LogosOptionIsBare(opt.Elem) {
+			fl.addOwned(id, xStart, xStart, closure.head("func() "+etext, []string{etext})+" { "+closure.prefix(nil)+"if "+optTemp+", "+optOk+" := ")
 			init := defineOf(pos, []syntax.Expr{nameOf(pos, optTemp), nameOf(pos, optOk)}, []syntax.Expr{ux})
 			body := []syntax.Stmt{
 				ifOf(pos, init, nameOf(pos, optOk), []syntax.Stmt{returnOf(pos, []syntax.Expr{nameOf(pos, optTemp)})}),
 				returnOf(pos, []syntax.Expr{wy}),
 			}
 			lit := at(&syntax.FuncLit{Type: signature, Body: blockOf(pos, body)}, pos)
-			fl.addOwned(id, xEnd, xEnd, "; "+optOk+" { return "+optTemp+" }; return ")
+			fl.addOwned(id, xEnd, xEnd, "; "+optOk+" { return "+optTemp+closure.success()+" }; "+closure.prefix(body[1])+"return ")
 			out := callOf(pos, lit, nil)
 			fl.wrapSpan[out] = span{start: xStart, end: yEnd}
 			fl.wrapOwner[out] = id
+			fl.addOwned(id, yEnd, yEnd, closure.success()+" }()")
+			closure.bind(out, fl.wrapSpan[out], id)
 			return out
 		}
-		// func() E { if v := Lookup(m, k); v.Present { return v.Value }; return y }()
-		// The fused head goes first so nested map/key heads follow it.
-		fl.addOwned(id, xStart, xStart, "func() "+etext+" { if "+optTemp+" := "+rtAlias+".Lookup(")
-		ux.X = fl.lowerOptExpr(ux.X)
-		ux.Index = fl.lowerOptExpr(ux.Index)
+		fl.addOwned(id, xStart, xStart, closure.head("func() "+etext, []string{etext})+" { "+closure.prefix(nil)+"if "+optTemp+" := "+rtAlias+".Lookup(")
 		call := fl.lookupFinish(ux, lbrack, rbrack, id)
 		init := defineOf(pos, []syntax.Expr{nameOf(pos, optTemp)}, []syntax.Expr{call})
 		cond := selOf(pos, nameOf(pos, optTemp), "Present")
@@ -1327,112 +1185,137 @@ func (fl *fileLower) lowerCoalesce(e *syntax.CoalesceExpr) syntax.Expr {
 			returnOf(pos, []syntax.Expr{wy}),
 		}
 		lit := at(&syntax.FuncLit{Type: signature, Body: blockOf(pos, body)}, pos)
-		// The fused Lookup head left its call open and lookupFinish
-		// recorded the closing `)`; the mid only adds the presence test.
-		fl.addOwned(id, xEnd, xEnd, "; "+optTemp+".Present { return "+optTemp+".Value }; return ")
+		fl.addOwned(id, xEnd, xEnd, "; "+optTemp+".Present { return "+optTemp+".Value"+closure.success()+" }; "+closure.prefix(body[1])+"return ")
 		out := callOf(pos, lit, nil)
 		fl.wrapSpan[out] = span{start: xStart, end: yEnd}
 		fl.wrapOwner[out] = id
+		fl.addOwned(id, yEnd, yEnd, closure.success()+" }()")
+		closure.bind(out, fl.wrapSpan[out], id)
 		return out
 	}
-	bare := keepMapRead(opt.Elem)
+	bare := types2.LogosOptionIsBare(opt.Elem)
 	xStart := fl.off(fl.optHeadStart(e.X))
-	fl.addOwned(id, xStart, xStart, "func() "+etext+" { if "+optTemp+" := ")
+	openParen, closeParen := headerParens(e.X)
+	fl.addOwned(id, xStart, xStart, closure.head("func() "+etext, []string{etext})+" { "+closure.prefix(nil)+"if "+optTemp+" := "+openParen)
 	nx := fl.lowerOptReceiver(e.X)
 	wy := fl.wrapKnown(fl.lowerOptExpr(e.Y), fl.optType(e.Y), opt.Elem)
 	xEnd := lastTokenEnd(fl.src, xStart, qoff)
 	init := defineOf(pos, []syntax.Expr{nameOf(pos, optTemp)}, []syntax.Expr{nx})
 	var cond syntax.Expr
+	var taken syntax.Expr
 	var mid string
 	if bare {
 		cond = notNil(pos, nameOf(pos, optTemp))
-		mid = "; " + optTemp + " != nil { return " + optTemp + " }; return "
+		taken = nameOf(pos, optTemp)
+		mid = "; " + optTemp + " != nil { return " + optTemp + closure.success() + " }; "
 	} else {
 		cond = selOf(pos, nameOf(pos, optTemp), "Present")
-		mid = "; " + optTemp + ".Present { return " + optTemp + ".Value }; return "
+		taken = selOf(pos, nameOf(pos, optTemp), "Value")
+		mid = "; " + optTemp + ".Present { return " + optTemp + ".Value" + closure.success() + " }; "
 	}
 	body := []syntax.Stmt{
-		ifOf(pos, init, cond, []syntax.Stmt{returnOf(pos, []syntax.Expr{thenValue(pos, bare)})}),
+		ifOf(pos, init, cond, []syntax.Stmt{returnOf(pos, []syntax.Expr{taken})}),
 		returnOf(pos, []syntax.Expr{wy}),
 	}
 	lit := at(&syntax.FuncLit{Type: signature, Body: blockOf(pos, body)}, pos)
-	fl.addOwned(id, xEnd, xEnd, mid)
+	fl.addOwned(id, xEnd, xEnd, closeParen+mid+closure.prefix(body[1])+"return ")
 	out := callOf(pos, lit, nil)
 	fl.wrapSpan[out] = span{start: xStart, end: yEnd}
 	fl.wrapOwner[out] = id
+	fl.addOwned(id, yEnd, yEnd, closure.success()+" }()")
+	closure.bind(out, fl.wrapSpan[out], id)
 	return out
 }
 
-// thenValue builds the `??` wrapper's taken-branch value: the bare
-// temporary itself, or its `.Value`.
-func thenValue(pos syntax.Pos, bare bool) syntax.Expr {
-	if bare {
-		return nameOf(pos, optTemp)
+func headerParens(e syntax.Expr) (string, string) {
+	found := false
+	syntax.Inspect(e, func(n syntax.Node) bool {
+		switch n := n.(type) {
+		case *syntax.FuncLit:
+			return false
+		case *syntax.CompositeLit:
+			if n.Type != nil {
+				found = true
+			}
+		}
+		return !found
+	})
+	if found {
+		return "(", ")"
 	}
-	return selOf(pos, nameOf(pos, optTemp), "Value")
+	return "", ""
 }
 
-// isCompositeType reports whether t's underlying type opens a brace in
-// source: struct, array, slice, map, or pointer (address-of) literals.
-// The `??` fallback end scan nests braces only then, so an `if` body
-// brace after a plain fallback still ends the scan.
-func isCompositeType(t types2.Type) bool {
-	switch types2.Unalias(t).(type) {
-	case *types2.Struct, *types2.Array, *types2.Slice, *types2.Map, *types2.Pointer:
-		return true
+func lastBraceOf(e syntax.Expr) (syntax.Pos, bool) {
+	switch n := e.(type) {
+	case *syntax.CompositeLit:
+		return n.Rbrace, true
+	case *syntax.FuncLit:
+		return n.Body.Rbrace, true
+	case *syntax.SelectorExpr:
+		return lastBraceOf(n.X)
+	case *syntax.IndexExpr:
+		return lastBraceOf(n.X)
+	case *syntax.SliceExpr:
+		return lastBraceOf(n.X)
+	case *syntax.AssertExpr:
+		return lastBraceOf(n.X)
+	case *syntax.CallExpr:
+		return lastBraceOf(n.Fun)
+	case *syntax.SwitchExpr:
+		return n.Rbrace, true
+	case *syntax.LambdaExpr:
+		if block, ok := n.Body.(*syntax.BlockStmt); ok {
+			return block.Rbrace, true
+		}
+		if body, ok := n.Body.(syntax.Expr); ok {
+			return lastBraceOf(body)
+		}
+	case *syntax.CoalesceExpr:
+		if pos, ok := lastBraceOf(n.Y); ok {
+			return pos, true
+		}
+		return lastBraceOf(n.X)
+	case *syntax.OptSelectExpr:
+		return lastBraceOf(n.X)
+	case *syntax.Operation:
+		if n.Y != nil {
+			if pos, ok := lastBraceOf(n.Y); ok {
+				return pos, true
+			}
+		}
+		return lastBraceOf(n.X)
 	}
-	return false
+	return syntax.Pos{}, false
 }
 
-// fieldTypeOf returns the type a `?.` selection yields before option
-// wrapping: a field's type, or a method's signature (never an option
-// itself). It reports nil for anything else.
-func fieldTypeOf(obj types2.Object) types2.Type {
-	switch obj := obj.(type) {
-	case *types2.Var:
-		return obj.Type()
-	case *types2.Func:
-		return obj.Type()
-	}
-	return nil
-}
-
-// lowerOptSelect lowers `x?.Sel` to an immediately invoked function
-// literal of the checked (flattened) result option: none yields the
-// zero, some yields the selected field or method value wrapped. The
-// receiver evaluates once into the temporary; a bare receiver tests
-// `!= nil` and selects directly, a wrapped one tests `.Present` and
-// selects through `.Value`. The receiver lowers eagerly, so chains
-// (`x?.y?.z`) nest finished wrappers and map reads fuse their Lookup
-// heads in input order.
 func (fl *fileLower) lowerOptSelect(e *syntax.OptSelectExpr) syntax.Expr {
 	pos := e.Pos()
 	id := fl.nextWrapID()
 	ox := fl.coeType(e.X)
 	ro := fl.asOption(fl.optType(e))
 	if ox == nil || ro == nil {
-		// Not option-typed; checked code never lands here.
 		e.X = fl.lowerOptExpr(e.X)
 		return e
 	}
-	// The head goes first so nested receiver heads follow it at a
-	// shared offset. Consistency: native tree and eject text are the two
-	// consumers of one linearizable source-order walk; the wrapper is
-	// idempotent on revisit, so no outbox or second pass is needed.
-	xStart := fl.off(fl.optLeftmost(e.X))
+	closure := fl.newGroupClosure(e)
+	xStart := fl.off(fl.optHeadStart(e.X))
 	nativeR, ejectR, ok := fl.spellLoweredBoth(ro, pos)
 	if !ok {
 		base.Fatalf("logos: cannot spell type %s of the ?. expression at %s", ro, pos.String())
 	}
 	rText := ejectR
-	fl.addOwned(id, xStart, xStart, "func() "+ejectR+" { if "+optTemp+" := ")
+	openParen, closeParen := headerParens(e.X)
+	fl.addOwned(id, xStart, xStart, closure.head("func() "+ejectR, []string{ejectR})+" { "+closure.prefix(nil)+"if "+optTemp+" := "+openParen)
 	nx := fl.lowerOptReceiver(e.X)
-	bareRecv := keepMapRead(ox.Elem)
+	bareRecv := types2.LogosOptionIsBare(ox.Elem)
 	accessRec := ro.Elem
-	if obj, _, _ := types2.LookupFieldOrMethod(ox.Elem, true, fl.pkg.tpkg, e.Sel.Value); obj != nil {
-		if ft := fieldTypeOf(obj); ft != nil && fl.asOption(ft) != nil {
-			accessRec = ro
-		}
+	obj, _, _ := types2.LookupFieldOrMethod(ox.Elem, true, fl.pkg.tpkg, fl.optSelectName(e))
+	if obj == nil {
+		obj, _, _ = types2.LookupFieldOrMethod(tupleUnderlying(ox.Elem).Underlying(), true, fl.pkg.tpkg, fl.optSelectName(e))
+	}
+	if obj != nil && fl.asOption(obj.Type()) != nil {
+		accessRec = ro
 	}
 	recv := nameOf(pos, optTemp)
 	var acc syntax.Expr
@@ -1445,7 +1328,7 @@ func (fl *fileLower) lowerOptSelect(e *syntax.OptSelectExpr) syntax.Expr {
 	some, someHead, someTail := fl.wrapParts(acc, accessRec, ro, pos)
 	var none syntax.Expr
 	var noneT string
-	if keepMapRead(ro.Elem) {
+	if types2.LogosOptionIsBare(ro.Elem) {
 		none = nilOf(pos)
 		noneT = "nil"
 	} else {
@@ -1474,17 +1357,14 @@ func (fl *fileLower) lowerOptSelect(e *syntax.OptSelectExpr) syntax.Expr {
 	lit := at(&syntax.FuncLit{Type: signature, Body: blockOf(pos, body)}, pos)
 	xEnd := lastTokenEnd(fl.src, xStart, fl.off(pos))
 	selEnd := fl.off(e.Sel.Pos()) + len(e.Sel.Value)
-	fl.add(xEnd, selEnd, "; "+condT+" { return "+someHead+"v"+accSuffix+someTail+" }; return "+noneT+" }()")
+	fl.add(xEnd, selEnd, closeParen+"; "+condT+" { return "+someHead+optTemp+accSuffix+someTail+closure.success()+" }; return "+noneT+closure.success()+" }()")
 	out := callOf(pos, lit, nil)
 	fl.wrapSpan[out] = span{start: xStart, end: selEnd}
 	fl.wrapOwner[out] = id
+	closure.bind(out, fl.wrapSpan[out], id)
 	return out
 }
 
-// wrapParts builds the present-branch value of a `?.` selection or
-// optional call: the access expression wrapped to the result option
-// when needed, plus the head and tail text that spells the same wrap
-// in ejected output. Empty head and tail mean no wrap.
 func (fl *fileLower) wrapParts(acc syntax.Expr, rec, target types2.Type, pos syntax.Pos) (some syntax.Expr, head, tail string) {
 	wrap, _ := fl.needsWrap(acc, rec, target)
 	if !wrap {
@@ -1500,17 +1380,11 @@ func (fl *fileLower) wrapParts(acc syntax.Expr, rec, target types2.Type, pos syn
 			at(&syntax.KeyValueExpr{Key: nameOf(pos, "Value"), Value: acc}, pos),
 			at(&syntax.KeyValueExpr{Key: nameOf(pos, "Present"), Value: nameOf(pos, "true")}, pos),
 		},
-		// The unified IR writer reads NKeys == 0 as a positional
-		// literal; both elements here are keyed.
 		NKeys:  2,
 		Rbrace: pos,
 	}, pos), tText + "{Value: ", ", Present: true}"
 }
 
-// lowerOptCallExpr lowers an ordinary call: the function lowers, every
-// argument lowers and wraps to its parameter type. A call whose Fun is
-// a `?.` selection takes the optional-call path instead, which tests
-// presence around the whole call.
 func (fl *fileLower) lowerOptCallExpr(e *syntax.CallExpr) syntax.Expr {
 	if osel, ok := syntax.Unparen(e.Fun).(*syntax.OptSelectExpr); ok {
 		return fl.lowerOptCall(e, osel)
@@ -1522,7 +1396,7 @@ func (fl *fileLower) lowerOptCallExpr(e *syntax.CallExpr) syntax.Expr {
 	}
 	for i, a := range e.ArgList {
 		la := fl.lowerOptExpr(a)
-		if targets != nil && i < len(targets) {
+		if targets != nil {
 			la = fl.wrapKnown(la, fl.optType(a), targets[i])
 		}
 		e.ArgList[i] = la
@@ -1530,8 +1404,6 @@ func (fl *fileLower) lowerOptCallExpr(e *syntax.CallExpr) syntax.Expr {
 	return e
 }
 
-// callSig returns the signature of a call's function operand, or nil
-// for builtins and unknown shapes (arguments then lower as reads).
 func (fl *fileLower) callSig(e *syntax.CallExpr) *types2.Signature {
 	switch fun := syntax.Unparen(e.Fun).(type) {
 	case *syntax.Name:
@@ -1563,20 +1435,13 @@ func (fl *fileLower) callSig(e *syntax.CallExpr) *types2.Signature {
 	}
 }
 
-// callTargets maps each argument to its parameter type: variadic tails
-// take the element type, a `...` spread takes the slice type, and a
-// method expression prepends the receiver. A nil entry means reads only.
 func (fl *fileLower) callTargets(e *syntax.CallExpr, sig *types2.Signature) []types2.Type {
 	params := sig.Params()
 	n := len(e.ArgList)
 	targets := make([]types2.Type, n)
 	shift := 0
 	if fun, ok := syntax.Unparen(e.Fun).(*syntax.SelectorExpr); ok {
-		isType := fun.X.GetTypeInfo().IsType()
-		if tv, ok := fl.pkg.info.Types[fun.X]; ok {
-			isType = tv.IsType()
-		}
-		if isType {
+		if fl.isTypeExpr(fun.X) {
 			if recv := sig.Recv(); recv != nil && n > 0 {
 				targets[0] = recv.Type()
 				shift = 1
@@ -1589,8 +1454,13 @@ func (fl *fileLower) callTargets(e *syntax.CallExpr, sig *types2.Signature) []ty
 	return targets
 }
 
-// paramTarget returns the parameter type for the argument at index i
-// (already shifted past a method-expression receiver), or nil.
+func (fl *fileLower) isTypeExpr(e syntax.Expr) bool {
+	if tv, ok := fl.pkg.info.Types[e]; ok {
+		return tv.IsType()
+	}
+	return e.GetTypeInfo().IsType()
+}
+
 func (fl *fileLower) paramTarget(params *types2.Tuple, variadic, dots bool, nargs, i int) types2.Type {
 	if i < 0 {
 		return nil
@@ -1620,11 +1490,6 @@ func (fl *fileLower) paramTarget(params *types2.Tuple, variadic, dots bool, narg
 	return nil
 }
 
-// lowerOptCall lowers `x?.M(args)` to an immediately invoked function
-// literal: none skips the call, some runs it on the unwrapped receiver
-// and wraps each result. A void method yields a bare closure
-// statement. Arguments lower eagerly and wrap to the parameter types;
-// their eject text composes through textOf.
 func (fl *fileLower) lowerOptCall(e *syntax.CallExpr, osel *syntax.OptSelectExpr) syntax.Expr {
 	pos := osel.Pos()
 	id := fl.nextWrapID()
@@ -1636,13 +1501,8 @@ func (fl *fileLower) lowerOptCall(e *syntax.CallExpr, osel *syntax.OptSelectExpr
 		}
 		return e
 	}
-	obj, _, _ := types2.LookupFieldOrMethod(ox.Elem, true, fl.pkg.tpkg, osel.Sel.Value)
-	fn, ok := obj.(*types2.Func)
-	var sig *types2.Signature
-	if ok {
-		sig, ok = types2.Unalias(fn.Type()).(*types2.Signature)
-	}
-	if !ok {
+	sig := fl.optCallSig(ox, osel.Sel.Value)
+	if sig == nil {
 		osel.X = fl.lowerOptReceiver(osel.X)
 		e.Fun = osel
 		for i, a := range e.ArgList {
@@ -1650,54 +1510,43 @@ func (fl *fileLower) lowerOptCall(e *syntax.CallExpr, osel *syntax.OptSelectExpr
 		}
 		return e
 	}
-	// The head goes first so nested receiver heads follow it at a
-	// shared offset. Result spellings come before any lowering.
+	closure := fl.newGroupClosure(e)
 	xStart := fl.off(fl.optLeftmost(osel.X))
 	rs := sig.Results()
-	var headText string
-	var rText string
-	var nrNode syntax.Expr
-	var rTexts []string
-	switch rs.Len() {
-	case 0:
-		headText = "func() { if " + optTemp + " := "
-	case 1:
-		r := rs.At(0).Type()
-		ro := r
-		if fl.asOption(r) == nil {
-			ro = &types2.Option{Elem: r}
-		}
-		var ok bool
-		nrNode, rText, ok = fl.spellLoweredBoth(ro, pos)
+	n := rs.Len()
+	rTexts := make([]string, n)
+	nrNodes := make([]syntax.Expr, n)
+	roList := make([]types2.Type, n)
+	recList := make([]types2.Type, n)
+	for i := range n {
+		r := rs.At(i).Type()
+		ro := fl.resultOption(r)
+		recList[i] = r
+		roList[i] = ro
+		nt, t, ok := fl.spellLoweredBoth(ro, pos)
 		if !ok {
 			base.Fatalf("logos: cannot spell type %s of the ?. call at %s", ro, pos.String())
 		}
-		headText = "func() " + rText + " { if " + optTemp + " := "
-	default:
-		n := rs.Len()
-		rTexts = make([]string, n)
-		for i := range n {
-			r := rs.At(i).Type()
-			ro := r
-			if fl.asOption(r) == nil {
-				ro = &types2.Option{Elem: r}
-			}
-			_, t, ok := fl.spellLoweredBoth(ro, pos)
-			if !ok {
-				base.Fatalf("logos: cannot spell type %s of the ?. call at %s", ro, pos.String())
-			}
-			rTexts[i] = t
-		}
-		headText = "func() (" + strings.Join(rTexts, ", ") + ") { if " + optTemp + " := "
+		nrNodes[i] = nt
+		rTexts[i] = t
 	}
-	fl.addOwned(id, xStart, xStart, headText)
+	var headText string
+	switch n {
+	case 0:
+		headText = "func()"
+	case 1:
+		headText = "func() " + rTexts[0]
+	default:
+		headText = "func() (" + strings.Join(rTexts, ", ") + ")"
+	}
+	fl.addOwned(id, xStart, xStart, closure.head(headText, rTexts)+" { "+closure.prefix(nil)+"if "+optTemp+" := ")
 	nx := fl.lowerOptReceiver(osel.X)
 	params := sig.Params()
 	for i, a := range e.ArgList {
 		la := fl.lowerOptExpr(a)
 		e.ArgList[i] = fl.wrapKnown(la, fl.optType(a), fl.paramTarget(params, sig.Variadic(), e.HasDots, len(e.ArgList), i))
 	}
-	bareRecv := keepMapRead(ox.Elem)
+	bareRecv := types2.LogosOptionIsBare(ox.Elem)
 	recv := nameOf(pos, optTemp)
 	var racc syntax.Expr
 	var accSuffix string
@@ -1718,39 +1567,37 @@ func (fl *fileLower) lowerOptCall(e *syntax.CallExpr, osel *syntax.OptSelectExpr
 	xEnd := lastTokenEnd(fl.src, xStart, fl.off(pos))
 	selEnd := fl.off(osel.Sel.Pos()) + len(osel.Sel.Value)
 	lparen, rparen := fl.findCallParens(selEnd)
-	argsText := fl.textOf(span{start: lparen, end: rparen + 1})
+	argsText := fl.lazyText(span{start: lparen, end: rparen + 1})
 	init := defineOf(pos, []syntax.Expr{nameOf(pos, optTemp)}, []syntax.Expr{nx})
 	call := callOf(pos, racc, e.ArgList)
 	switch rs.Len() {
 	case 0:
+		invoke := exprStmtOf(pos, call)
 		lit := at(&syntax.FuncLit{
 			Type: at(&syntax.FuncType{}, pos),
 			Body: blockOf(pos, []syntax.Stmt{
-				ifOf(pos, init, cond, []syntax.Stmt{exprStmtOf(pos, call)}),
+				ifOf(pos, init, cond, []syntax.Stmt{invoke}),
 			}),
 		}, pos)
-		fl.addT(xEnd, rparen+1, cat(gen("; "+condT+" { v"+accSuffix), argsText, gen(" } }()")))
+		fl.addT(xEnd, rparen+1, cat(gen("; "+condT+" { "+closure.prefix(invoke)+optTemp+accSuffix), argsText, gen(" }; "+closure.voidReturn()+"}()")))
 		out := callOf(pos, lit, nil)
+		fl.carryType(out, e)
 		fl.wrapSpan[out] = span{start: xStart, end: rparen + 1}
 		fl.wrapOwner[out] = id
+		closure.bind(out, fl.wrapSpan[out], id)
 		return out
 	case 1:
-		r := rs.At(0).Type()
-		ro := r
-		if fl.asOption(r) == nil {
-			ro = &types2.Option{Elem: r}
-		}
-		some, someHead, someTail := fl.wrapParts(call, r, ro, pos)
+		some, someHead, someTail := fl.wrapParts(call, recList[0], roList[0], pos)
 		var none syntax.Expr
 		var noneT string
-		if bare, ok := fl.bareResult(ro); ok && bare {
+		if fl.bareResult(roList[0]) {
 			none = nilOf(pos)
 			noneT = "nil"
 		} else {
-			noneT = rText + "{}"
-			none = at(&syntax.CompositeLit{Type: nrNode, Rbrace: pos}, pos)
+			noneT = rTexts[0] + "{}"
+			none = at(&syntax.CompositeLit{Type: nrNodes[0], Rbrace: pos}, pos)
 		}
-		resultType := nrNode
+		resultType := nrNodes[0]
 		signature := at(&syntax.FuncType{
 			ParamList:  []*syntax.Field{},
 			ResultList: []*syntax.Field{at(&syntax.Field{Type: resultType}, pos)},
@@ -1761,35 +1608,17 @@ func (fl *fileLower) lowerOptCall(e *syntax.CallExpr, osel *syntax.OptSelectExpr
 		}
 		lit := at(&syntax.FuncLit{Type: signature, Body: blockOf(pos, body)}, pos)
 		fl.addT(xEnd, rparen+1, cat(
-			gen("; "+condT+" { return "+someHead+"v"+accSuffix),
+			gen("; "+condT+" { "+closure.prefix(body[0].(*syntax.IfStmt).Then.List[0])+"return "+someHead+optTemp+accSuffix),
 			argsText,
-			gen(someTail+" }; return "+noneT+" }()"),
+			gen(someTail+closure.success()+" }; return "+noneT+closure.success()+" }()"),
 		))
 		out := callOf(pos, lit, nil)
+		fl.carryType(out, e)
 		fl.wrapSpan[out] = span{start: xStart, end: rparen + 1}
 		fl.wrapOwner[out] = id
+		closure.bind(out, fl.wrapSpan[out], id)
 		return out
 	default:
-		n := rs.Len()
-		rTexts := make([]string, n)
-		nrNodes := make([]syntax.Expr, n)
-		roList := make([]types2.Type, n)
-		recList := make([]types2.Type, n)
-		for i := range n {
-			r := rs.At(i).Type()
-			ro := r
-			if fl.asOption(r) == nil {
-				ro = &types2.Option{Elem: r}
-			}
-			roList[i] = ro
-			recList[i] = r
-			nt, t, ok := fl.spellLoweredBoth(ro, pos)
-			if !ok {
-				base.Fatalf("logos: cannot spell type %s of the ?. call at %s", ro, pos.String())
-			}
-			rTexts[i] = t
-			nrNodes[i] = nt
-		}
 		fields := make([]*syntax.Field, n)
 		for i := range n {
 			fields[i] = at(&syntax.Field{Type: nrNodes[i]}, pos)
@@ -1800,75 +1629,200 @@ func (fl *fileLower) lowerOptCall(e *syntax.CallExpr, osel *syntax.OptSelectExpr
 		}, pos)
 		tmps := make([]syntax.Expr, n)
 		rets := make([]syntax.Expr, n)
-		var headNames, retWraps, noneList []string
+		noneNodes := make([]syntax.Expr, n)
+		noneList := make([]string, n)
+		var headNames, retWraps []string
 		for i := range n {
-			tmps[i] = nameOf(pos, fmt.Sprintf(optWrapTemp, i))
+			tmp := fmt.Sprintf(optWrapTemp, i)
+			tmps[i] = nameOf(pos, tmp)
 			some, sh, st := fl.wrapParts(tmps[i], recList[i], roList[i], pos)
 			rets[i] = some
-			headNames = append(headNames, fmt.Sprintf(optWrapTemp, i))
-			retWraps = append(retWraps, sh+fmt.Sprintf(optWrapTemp, i)+st)
-			if bare, ok := fl.bareResult(roList[i]); ok && bare {
-				noneList = append(noneList, "nil")
+			headNames = append(headNames, tmp)
+			retWraps = append(retWraps, sh+tmp+st)
+			if fl.bareResult(roList[i]) {
+				noneNodes[i] = nilOf(pos)
+				noneList[i] = "nil"
 			} else {
-				noneList = append(noneList, rTexts[i]+"{}")
+				noneNodes[i] = at(&syntax.CompositeLit{Type: nrNodes[i], Rbrace: pos}, pos)
+				noneList[i] = rTexts[i] + "{}"
 			}
 		}
 		then := []syntax.Stmt{
-			assignOf(pos, tmps, []syntax.Expr{call}),
+			defineOf(pos, tmps, []syntax.Expr{call}),
 			returnOf(pos, rets),
 		}
 		body := []syntax.Stmt{
 			ifOf(pos, init, cond, then),
-			returnOf(pos, fl.noneExprs(pos, rs, nrNodes)),
+			returnOf(pos, noneNodes),
 		}
 		lit := at(&syntax.FuncLit{Type: signature, Body: blockOf(pos, body)}, pos)
 		fl.addT(xEnd, rparen+1, cat(
-			gen("; "+condT+" { "+strings.Join(headNames, ", ")+" := v"+accSuffix),
+			gen("; "+condT+" { "+closure.prefix(then[0])+strings.Join(headNames, ", ")+" := "+optTemp+accSuffix),
 			argsText,
-			gen("; return "+strings.Join(retWraps, ", ")+" }; return "+strings.Join(noneList, ", ")+" }()"),
+			gen("; return "+strings.Join(retWraps, ", ")+closure.success()+" }; return "+strings.Join(noneList, ", ")+closure.success()+" }()"),
 		))
 		out := callOf(pos, lit, nil)
+		fl.carryType(out, e)
 		fl.wrapSpan[out] = span{start: xStart, end: rparen + 1}
 		fl.wrapOwner[out] = id
+		closure.bind(out, fl.wrapSpan[out], id)
 		return out
 	}
 }
 
-// bareResult reports whether the `?.` result option uses the bare
-// payload form.
-func (fl *fileLower) bareResult(ro types2.Type) (bool, bool) {
-	o := fl.asOption(ro)
-	if o == nil {
-		return false, false
-	}
-	return keepMapRead(o.Elem), true
+type optDeferGoWork struct {
+	osel *syntax.OptSelectExpr
+	ox   *types2.Option
+	nx   syntax.Expr
+	lv   string
+	rpos syntax.Pos
 }
 
-// noneExprs builds the none-branch values of a multi-result optional
-// call from the callers' native result nodes: snapshot isolation across
-// the native tree (exact nodes here) and the eject text (alias spellings
-// in noneList at the call site), composed idempotently in one pass.
-func (fl *fileLower) noneExprs(pos syntax.Pos, rs *types2.Tuple, nrNodes []syntax.Expr) []syntax.Expr {
-	out := make([]syntax.Expr, rs.Len())
-	for i := range rs.Len() {
-		r := rs.At(i).Type()
-		ro := r
-		if fl.asOption(r) == nil {
-			ro = &types2.Option{Elem: r}
-		}
-		if bare, ok := fl.bareResult(ro); ok && bare {
-			out[i] = nilOf(pos)
-			continue
-		}
-		out[i] = at(&syntax.CompositeLit{Type: nrNodes[i], Rbrace: pos}, pos)
+func (fl *fileLower) markOptDeferGo(s *syntax.CallStmt) bool {
+	e, ok := syntax.Unparen(s.Call).(*syntax.CallExpr)
+	if !ok {
+		return false
 	}
-	return out
+	osel, ok := syntax.Unparen(e.Fun).(*syntax.OptSelectExpr)
+	if !ok {
+		return false
+	}
+	ox := fl.coeType(osel.X)
+	if ox == nil {
+		return false
+	}
+	sig := fl.optCallSig(ox, osel.Sel.Value)
+	if sig == nil {
+		return false
+	}
+	lv := fmt.Sprintf("_logos_d%d", fl.nextWrapID())
+	rpos := fl.optLeftmost(osel.X)
+	osel.X = fl.lowerOptReceiver(osel.X)
+	for i, a := range e.ArgList {
+		target := fl.paramTarget(sig.Params(), sig.Variadic(), e.HasDots, len(e.ArgList), i)
+		e.ArgList[i] = fl.wrapKnown(fl.lowerOptExpr(a), fl.optType(a), target)
+	}
+	if fl.optDeferGoPend == nil {
+		fl.optDeferGoPend = make(map[*syntax.CallExpr]optDeferGoWork)
+	}
+	fl.optDeferGoPend[e] = optDeferGoWork{osel: osel, ox: ox, nx: osel.X, lv: lv, rpos: rpos}
+	return true
 }
 
-// lowerNilCompare lowers `x == nil` and `x != nil` (either operand
-// order) when the other side is a wrapped option: none tests become
-// presence tests. Bare payloads and non-options stay as they are. It
-// reports whether it rewrote the operation.
+func (fl *fileLower) optCallSig(ox *types2.Option, name string) *types2.Signature {
+	obj, _, _ := types2.LookupFieldOrMethod(ox.Elem, true, fl.pkg.tpkg, name)
+	if obj == nil {
+		return nil
+	}
+	sig, _ := obj.Type().Underlying().(*types2.Signature)
+	return sig
+}
+
+func (fl *fileLower) lowerOptDeferGo(s *syntax.CallStmt, lowerCall func(syntax.Stmt) []syntax.Stmt) ([]syntax.Stmt, bool) {
+	return fl.lowerOptDeferGoWith(s, lowerCall, fl.moveOptReceiver)
+}
+
+func (fl *fileLower) lowerOptDeferGoCopied(s *syntax.CallStmt) ([]syntax.Stmt, bool) {
+	keep := func(c syntax.Stmt) []syntax.Stmt { return []syntax.Stmt{c} }
+	return fl.lowerOptDeferGoWith(s, keep, fl.copyOptReceiver)
+}
+
+func (fl *fileLower) moveOptReceiver(r span, stub string) otext {
+	return gen(fl.moveRegion(r, stub))
+}
+
+func (fl *fileLower) copyOptReceiver(r span, stub string) otext {
+	text := fl.textOf(r)
+	fl.add(r.start, r.end, stub)
+	return text
+}
+
+func (fl *fileLower) lowerOptDeferGoWith(s *syntax.CallStmt, lowerCall func(syntax.Stmt) []syntax.Stmt, captureRecv func(span, string) otext) ([]syntax.Stmt, bool) {
+	e, ok := syntax.Unparen(s.Call).(*syntax.CallExpr)
+	if !ok {
+		return nil, false
+	}
+	w, ok := fl.optDeferGoPend[e]
+	if !ok {
+		return nil, false
+	}
+	delete(fl.optDeferGoPend, e)
+	pos := w.osel.Pos()
+	rpos := w.rpos
+	recvName := nameOf(rpos, w.lv)
+	var cond, callee syntax.Expr
+	var condT, accSuffix string
+	if types2.LogosOptionIsBare(w.ox.Elem) {
+		cond, condT = notNil(pos, nameOf(pos, w.lv)), w.lv+" != nil"
+		callee, accSuffix = fl.selectAccessBare(recvName, w.osel)
+	} else {
+		cond, condT = selOf(pos, nameOf(pos, w.lv), "Present"), w.lv+".Present"
+		callee, accSuffix = fl.selectAccessPresent(recvName, w.osel)
+	}
+	xStart := fl.off(rpos)
+	xEnd := lastTokenEnd(fl.src, xStart, fl.off(pos))
+	selEnd := fl.off(w.osel.Sel.Pos()) + len(w.osel.Sel.Value)
+	_, rparen := fl.findCallParens(selEnd)
+	recv := span{start: xStart, end: xEnd}
+	if vs, ok := fl.wrapSpan[w.nx]; ok {
+		recv = vs
+	}
+	var head, tail otext
+	if id, ok := fl.wrapOwner[w.nx]; ok {
+		head, tail = fl.drainOwned(recv, id)
+	}
+	captured := captureRecv(recv, w.lv)
+	fl.add(xEnd, selEnd, accSuffix)
+	stmtStart := fl.off(s.Pos())
+	fl.addT(stmtStart, stmtStart, cat(gen(w.lv+" := "), head, captured, tail, gen("; if "+condT+" { ")))
+	define := defineOf(pos, []syntax.Expr{nameOf(pos, w.lv)}, []syntax.Expr{w.nx})
+	e.Fun = callee
+	guarded := lowerCall(s)
+	fl.add(rparen+1, rparen+1, " }")
+	scanForLiterals(fl, define)
+	return []syntax.Stmt{define, ifOf(s.Pos(), nil, cond, guarded)}, true
+}
+
+func (fl *fileLower) lowerOptDeferGoIn(block *syntax.BlockStmt) {
+	lower := func(list []syntax.Stmt) []syntax.Stmt {
+		var out []syntax.Stmt
+		for _, st := range list {
+			if cs, ok := st.(*syntax.CallStmt); ok {
+				if lowered, ok := fl.lowerOptDeferGoCopied(cs); ok {
+					out = append(out, lowered...)
+					continue
+				}
+			}
+			out = append(out, st)
+		}
+		return out
+	}
+	syntax.Inspect(block, func(n syntax.Node) bool {
+		switch n := n.(type) {
+		case *syntax.FuncLit, *syntax.LambdaExpr:
+			return false
+		case *syntax.BlockStmt:
+			n.List = lower(n.List)
+		case *syntax.CaseClause:
+			n.Body = lower(n.Body)
+		case *syntax.CommClause:
+			n.Body = lower(n.Body)
+		}
+		return true
+	})
+}
+
+func (fl *fileLower) resultOption(r types2.Type) types2.Type {
+	if fl.asOption(r) != nil {
+		return r
+	}
+	return &types2.Option{Elem: r}
+}
+
+func (fl *fileLower) bareResult(ro types2.Type) bool {
+	return types2.LogosOptionIsBare(fl.asOption(ro).Elem)
+}
+
 func (fl *fileLower) lowerNilCompare(e *syntax.Operation) (syntax.Expr, bool) {
 	if e.Op != syntax.Eql && e.Op != syntax.Neq {
 		return nil, false
@@ -1889,7 +1843,7 @@ func (fl *fileLower) lowerNilCompare(e *syntax.Operation) (syntax.Expr, bool) {
 		xside, nilside = e.Y, lx
 	}
 	ox := fl.asOption(fl.optType(xside))
-	if ox == nil || keepMapRead(ox.Elem) {
+	if ox == nil || types2.LogosOptionIsBare(ox.Elem) {
 		return nil, false
 	}
 	pos := e.Pos()
@@ -1902,37 +1856,18 @@ func (fl *fileLower) lowerNilCompare(e *syntax.Operation) (syntax.Expr, bool) {
 	if e.Op == syntax.Eql {
 		bang = "!"
 	}
-	// StartPos descends to the operand surface like leftmostOf but
-	// keeps parentheses whole, so the bang lands before an opening
-	// paren instead of inside it, where it would invert the operand
-	// instead of the presence test.
 	xs := fl.off(syntax.StartPos(xside))
 	if rnil {
-		// The nil name ends exactly; unmatched group parentheses end
-		// at their closers. The replace spans the operator through
-		// the nil, keeping the spaces around the whole comparison and
-		// any comment between the operand and the operator.
 		op := fl.findCmpOp(xs, fl.off(leftmostOf(nilside)))
 		fl.add(xs, xs, bang)
 		fl.add(op, fl.nilEnd(op, fl.off(syntax.EndPos(nilside))), ".Present")
 	} else {
-		// The replace spans the whole `nil` prefix through the
-		// operator, so the bang lands directly on the operand, and
-		// the operand end (makelen.operandEnd, exact past the last
-		// operand token, comments skipped not consumed) places
-		// `.Present` without a stray space.
 		fl.add(fl.off(e.X.Pos()), xs, bang)
 		fl.add(fl.operandEnd(xs), fl.operandEnd(xs), ".Present")
 	}
 	return out, true
 }
 
-// nilEnd returns the offset just past the nil operand whose Name ends
-// at inner, including any parentheses around it: each unmatched opening
-// parenthesis between the comparison operator op and the nil takes its
-// closing paren too, so the replacement never leaves a stray `)`. The
-// range holds only the operator, trivia, grouping parentheses, and the
-// nil itself, so counting `(` there is exact with no tree dependence.
 func (fl *fileLower) nilEnd(op, inner int) int {
 	end := inner
 	depth := 0
@@ -1964,11 +1899,6 @@ func (fl *fileLower) nilEnd(op, inner int) int {
 	return end
 }
 
-// findCmpOp returns the offset of the `==` or `!=` operator ending the
-// expression starting at from: the first depth-zero equality token
-// before to. A last-token scan would swallow the operator into the
-// operand end; the comparison operand never holds a depth-zero
-// equality itself (it would type as bool, never an option).
 func (fl *fileLower) findCmpOp(from, to int) int {
 	op := -1
 	depth := 0
@@ -1997,7 +1927,6 @@ func (fl *fileLower) findCmpOp(from, to int) int {
 	return op
 }
 
-// unlist splits a possibly-list expression for pairwise handling.
 func unlist(e syntax.Expr) ([]syntax.Expr, bool) {
 	if l, ok := syntax.Unparen(e).(*syntax.ListExpr); ok {
 		return l.ElemList, true
@@ -2005,9 +1934,6 @@ func unlist(e syntax.Expr) ([]syntax.Expr, bool) {
 	return []syntax.Expr{e}, false
 }
 
-// lowerOptAssign lowers an assignment: `:=` defines (reads only), plain
-// `=` wraps each right-hand side to its target, and `++`, `--`, and
-// compound forms narrow-rewrite a wrapped write target in place.
 func (fl *fileLower) lowerOptAssign(s *syntax.AssignStmt) {
 	if s.Op == syntax.Def {
 		fl.lowerOptLHS(s.Lhs)
@@ -2016,21 +1942,15 @@ func (fl *fileLower) lowerOptAssign(s *syntax.AssignStmt) {
 		}
 		return
 	}
-	if s.Rhs == nil {
+	if s.Rhs == nil || s.Op != 0 {
 		if name, ok := syntax.Unparen(s.Lhs).(*syntax.Name); ok {
-			s.Lhs = fl.narrowForWrite(name)
+			s.Lhs = fl.narrowAccess(name)
 		} else {
 			fl.lowerOptLHS(s.Lhs)
 		}
-		return
-	}
-	if s.Op != 0 {
-		if name, ok := syntax.Unparen(s.Lhs).(*syntax.Name); ok {
-			s.Lhs = fl.narrowForWrite(name)
-		} else {
-			fl.lowerOptLHS(s.Lhs)
+		if s.Rhs != nil {
+			s.Rhs = fl.lowerOptExpr(s.Rhs)
 		}
-		s.Rhs = fl.lowerOptExpr(s.Rhs)
 		return
 	}
 	lhs, _ := unlist(s.Lhs)
@@ -2057,8 +1977,6 @@ func (fl *fileLower) lowerOptAssign(s *syntax.AssignStmt) {
 	s.Rhs = fl.lowerOptExpr(s.Rhs)
 }
 
-// lowerOptLHS lowers an assignment write target: the top name stands
-// (writes never narrow), every other position lowers as a read.
 func (fl *fileLower) lowerOptLHS(e syntax.Expr) {
 	switch e := e.(type) {
 	case *syntax.Name:
@@ -2080,21 +1998,18 @@ func (fl *fileLower) lowerOptLHS(e syntax.Expr) {
 	}
 }
 
-// targetOfLHS returns the declared type an assignment target converts
-// to, or nil when unknown. Names resolve through Uses, fields through
-// Selections, index and dereference targets through their container.
 func (fl *fileLower) targetOfLHS(e syntax.Expr) types2.Type {
 	switch e := syntax.Unparen(e).(type) {
 	case *syntax.Name:
 		if obj, ok := fl.pkg.info.Uses[e].(*types2.Var); ok {
 			return obj.Type()
 		}
-		return nil
+		return fl.optType(e)
 	case *syntax.SelectorExpr:
 		if sel := fl.pkg.info.Selections[e]; sel != nil {
 			return sel.Obj().Type()
 		}
-		return nil
+		return fl.optType(e)
 	case *syntax.IndexExpr:
 		switch c := types2.Unalias(fl.optType(e.X)).(type) {
 		case *types2.Slice:
@@ -2116,10 +2031,6 @@ func (fl *fileLower) targetOfLHS(e syntax.Expr) types2.Type {
 	return nil
 }
 
-// collectOptReturns maps every return statement to its enclosing
-// function's result types. Nested function literals carry their own
-// signatures, so each body walk prunes literals and attributes each
-// return to exactly one function.
 func (fl *fileLower) collectOptReturns() {
 	fl.retResults = make(map[*syntax.ReturnStmt][]types2.Type)
 	type fb struct {
@@ -2155,10 +2066,11 @@ func (fl *fileLower) collectOptReturns() {
 			return true
 		})
 	}
+	for rs, typ := range fl.armResult {
+		fl.retResults[rs] = []types2.Type{typ}
+	}
 }
 
-// funcDeclResults returns the checked result types of a function
-// declaration.
 func (fl *fileLower) funcDeclResults(fn *syntax.FuncDecl) []types2.Type {
 	if obj := fl.pkg.info.Defs[fn.Name]; obj != nil {
 		if f, ok := obj.(*types2.Func); ok {
@@ -2170,7 +2082,6 @@ func (fl *fileLower) funcDeclResults(fn *syntax.FuncDecl) []types2.Type {
 	return nil
 }
 
-// tupleTypes flattens a result tuple to a slice.
 func tupleTypes(t *types2.Tuple) []types2.Type {
 	if t == nil {
 		return nil
@@ -2182,9 +2093,6 @@ func tupleTypes(t *types2.Tuple) []types2.Type {
 	return out
 }
 
-// lowerOptReturn lowers a return statement's results and wraps each to
-// its function result type. A single multi-valued call passes through;
-// synthetic wrapper returns carry no entry and lower as reads.
 func (fl *fileLower) lowerOptReturn(s *syntax.ReturnStmt) {
 	if s.Results == nil {
 		return
@@ -2212,10 +2120,6 @@ func (fl *fileLower) lowerOptReturn(s *syntax.ReturnStmt) {
 	}
 }
 
-// lowerOptVarValues lowers a variable or constant declaration's values,
-// wrapping each to its declared type, and returns the values to use.
-// Typeless declarations infer and need nothing; tuple calls pass
-// through.
 func (fl *fileLower) lowerOptVarValues(names []*syntax.Name, typ, vals syntax.Expr) syntax.Expr {
 	if vals == nil || typ == nil {
 		return vals
@@ -2227,10 +2131,8 @@ func (fl *fileLower) lowerOptVarValues(names []*syntax.Name, typ, vals syntax.Ex
 	targets := make([]types2.Type, len(names))
 	for i, name := range names {
 		if obj := fl.pkg.info.Defs[name]; obj != nil {
-			switch obj := obj.(type) {
-			case *types2.Var:
-				targets[i] = obj.Type()
-			case *types2.Const:
+			switch obj.(type) {
+			case *types2.Var, *types2.Const:
 				targets[i] = obj.Type()
 			}
 		}
@@ -2247,8 +2149,6 @@ func (fl *fileLower) lowerOptVarValues(names []*syntax.Name, typ, vals syntax.Ex
 	return vals
 }
 
-// lowerOptSend lowers a channel send, wrapping the value to the channel
-// element type.
 func (fl *fileLower) lowerOptSend(s *syntax.SendStmt) {
 	s.Chan = fl.lowerOptExpr(s.Chan)
 	var elem types2.Type
@@ -2258,8 +2158,6 @@ func (fl *fileLower) lowerOptSend(s *syntax.SendStmt) {
 	s.Value = fl.wrapKnown(fl.lowerOptExpr(s.Value), fl.optType(s.Value), elem)
 }
 
-// structFieldType returns the type of the struct field named by key, or
-// nil.
 func structFieldType(st *types2.Struct, key syntax.Expr) types2.Type {
 	n, ok := syntax.Unparen(key).(*syntax.Name)
 	if !ok {
@@ -2273,9 +2171,6 @@ func structFieldType(st *types2.Struct, key syntax.Expr) types2.Type {
 	return nil
 }
 
-// lowerOptComposite lowers a composite literal: elements lower and wrap
-// to their field, key, or element type. Literals without recorded types
-// (synthetic wraps) lower as reads.
 func (fl *fileLower) lowerOptComposite(e *syntax.CompositeLit) syntax.Expr {
 	t := fl.optType(e)
 	if t == nil {
@@ -2284,10 +2179,6 @@ func (fl *fileLower) lowerOptComposite(e *syntax.CompositeLit) syntax.Expr {
 		}
 		return e
 	}
-	// A literal of a named type (or of a pointer to one, `&P{...}`)
-	// carries the defined type, not the underlying composite: unwrap to
-	// it so elements of named structs, maps, slices, and arrays wrap to
-	// their option field, key, or element types (SPEC T-202).
 	u := types2.Unalias(t)
 	if p, ok := u.(*types2.Pointer); ok {
 		u = types2.Unalias(p.Elem())
@@ -2343,9 +2234,6 @@ func (fl *fileLower) lowerOptComposite(e *syntax.CompositeLit) syntax.Expr {
 	return e
 }
 
-// lowerOptRange lowers a range clause: the range operand and the write
-// targets lower as reads. Element assignment needs no wrap: matching
-// types already agree, and mismatches are clean recheck errors.
 func (fl *fileLower) lowerOptRange(s *syntax.RangeClause) {
 	s.X = fl.lowerOptExpr(s.X)
 	if s.Lhs != nil {
@@ -2353,10 +2241,6 @@ func (fl *fileLower) lowerOptRange(s *syntax.RangeClause) {
 	}
 }
 
-// findCallParens returns the offsets of the parenthesis pair opening
-// the call whose function name ends at selEnd: the first `(` after it
-// and its match. Comments between the name and the parenthesis are
-// skipped.
 func (fl *fileLower) findCallParens(selEnd int) (lparen, rparen int) {
 	lparen = -1
 	scanSegment(fl.src, selEnd, len(fl.src), func(t tok) bool {
@@ -2399,10 +2283,6 @@ func (fl *fileLower) findCallParens(selEnd int) (lparen, rparen int) {
 	return lparen, rparen
 }
 
-// findLbrack returns the offset of the `[` opening the index expression
-// whose map starts at from and whose key starts at kStart: the last `[`
-// token before kStart. Brackets inside the map operand stay balanced
-// before it, and strings and comments never scan as brackets.
 func (fl *fileLower) findLbrack(from, kStart int) int {
 	lbrack := -1
 	scanSegment(fl.src, from, kStart, func(t tok) bool {
@@ -2417,9 +2297,6 @@ func (fl *fileLower) findLbrack(from, kStart int) int {
 	return lbrack
 }
 
-// findRbrack returns the offset of the `]` closing the index expression
-// whose key starts at kStart: the first depth-zero closer. The key is
-// complete and balanced, so any depth-zero closer must be that bracket.
 func (fl *fileLower) findRbrack(kStart int) int {
 	rbrack := -1
 	depth := 0
@@ -2450,84 +2327,48 @@ func (fl *fileLower) findRbrack(kStart int) int {
 	return rbrack
 }
 
-// exprEnd returns the offset just past the expression starting at from:
-// the start of the first depth-zero token that cannot continue an
-// expression. Brackets of any kind nest; `{` at depth zero ends (a
-// composite literal directly under `??` spells past it in ejected text
-// only; compiled output comes from the native tree).
 func (fl *fileLower) exprEnd(from int) int {
-	end := len(fl.src)
+	return fl.exprEndThrough(from, from)
+}
+
+func (fl *fileLower) exprEndNested(from int) int {
+	return fl.exprEndThrough(from, len(fl.src))
+}
+
+func (fl *fileLower) exprEndThrough(from, through int) int {
+	last := from
 	depth := 0
 	scanSegment(fl.src, from, len(fl.src), func(t tok) bool {
 		if t.comment {
 			return true
 		}
 		if t.auto {
-			end = t.start
-			return false
+			return depth > 0
 		}
 		switch t.kind {
 		case token.LPAREN, token.LBRACK:
 			depth++
 		case token.LBRACE:
-			if depth == 0 {
-				end = t.start
+			if depth == 0 && t.start >= through {
 				return false
 			}
 			depth++
 		case token.RPAREN, token.RBRACK, token.RBRACE:
 			if depth == 0 {
-				end = t.start
 				return false
 			}
 			depth--
 		case token.COMMA, token.SEMICOLON, token.COLON, token.ASSIGN, token.DEFINE:
-			if depth == 0 {
-				end = t.start
+			if depth == 0 && !fl.fatArrowAt(t) {
 				return false
 			}
-		case token.EOF:
-			end = len(fl.src)
-			return false
 		}
+		last = t.end
 		return true
 	})
-	return end
+	return last
 }
 
-// exprEndNested is exprEnd with `{` nesting at depth zero: it ends past
-// a composite literal in a wrap or fallback tail. Wrap sites never
-// precede a block brace, so every depth-zero `{` there opens a literal.
-func (fl *fileLower) exprEndNested(from int) int {
-	end := len(fl.src)
-	depth := 0
-	scanSegment(fl.src, from, len(fl.src), func(t tok) bool {
-		if t.comment {
-			return true
-		}
-		if t.auto {
-			end = t.start
-			return false
-		}
-		switch t.kind {
-		case token.LPAREN, token.LBRACK, token.LBRACE:
-			depth++
-		case token.RPAREN, token.RBRACK, token.RBRACE:
-			if depth == 0 {
-				end = t.start
-				return false
-			}
-			depth--
-		case token.COMMA, token.SEMICOLON, token.COLON, token.ASSIGN, token.DEFINE:
-			if depth == 0 {
-				end = t.start
-				return false
-			}
-		case token.EOF:
-			end = len(fl.src)
-			return false
-		}
-		return true
-	})
-	return end
+func (fl *fileLower) fatArrowAt(t tok) bool {
+	return t.kind == token.ASSIGN && t.end < len(fl.src) && fl.src[t.end] == '>'
 }

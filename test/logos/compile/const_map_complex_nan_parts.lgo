@@ -1,0 +1,21 @@
+// errorcheck
+
+package p
+
+const func nan64() float64 {
+	z := float64(0.0)
+	return z / z
+}
+
+const func nanRe() complex128 {
+	return complex(nan64(), 1.0)
+}
+
+const func nanIm() complex128 {
+	return complex(1.0, nan64())
+}
+
+const nanReKey = map[complex128]int{nanRe(): 1} // ERROR "\[correctness::const_eval\]"
+const nanImKey = map[complex128]int{nanIm(): 1} // ERROR "\[correctness::const_eval\]"
+const nanRe64Key = map[complex64]int{complex(float32(nan64()), 1.0): 1} // ERROR "\[correctness::const_eval\]"
+const nanIm64Key = map[complex64]int{complex(1.0, float32(nan64())): 1} // ERROR "\[correctness::const_eval\]"

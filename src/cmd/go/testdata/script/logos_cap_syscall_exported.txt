@@ -1,0 +1,163 @@
+[short] skip 'cross-links the standard library for three targets'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env CGO_ENABLED=0
+mkdir $WORK/bin
+
+cd a/main
+env GOOS=freebsd GOARCH=amd64
+! logos build -o $WORK/bin/fbsda ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/adep'' reaches ''syscall\.Syscall'''
+stderr 'ERROR \[capabilities::unauthorized_net\]: Transitive dependency ''example\.com/adep'' reaches ''syscall\.Syscall'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/adep'' reaches ''syscall\.Syscall6'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/adep'' reaches ''syscall\.RawSyscall'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/adep'' reaches ''syscall\.RawSyscall6'''
+env GOOS=netbsd GOARCH=amd64
+! logos build -o $WORK/bin/nbsda ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/adep'' reaches ''syscall\.Syscall'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/adep'' reaches ''syscall\.Syscall6'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/adep'' reaches ''syscall\.RawSyscall'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/adep'' reaches ''syscall\.RawSyscall6'''
+env GOOS=dragonfly GOARCH=amd64
+! logos build -o $WORK/bin/dfla ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/adep'' reaches ''syscall\.Syscall'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/adep'' reaches ''syscall\.Syscall6'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/adep'' reaches ''syscall\.RawSyscall'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/adep'' reaches ''syscall\.RawSyscall6'''
+cd ../..
+
+cd b/main
+env GOOS=freebsd GOARCH=amd64
+! logos build -o $WORK/bin/fbsdb ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/bdep'' reaches ''syscall\.Syscall9'''
+env GOOS=netbsd GOARCH=amd64
+! logos build -o $WORK/bin/nbsdb ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/bdep'' reaches ''syscall\.Syscall9'''
+env GOOS=dragonfly GOARCH=amd64
+! logos build -o $WORK/bin/dflb ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/bdep'' reaches ''syscall\.Syscall9'''
+cd ../..
+
+cd c/main
+env GOOS=freebsd GOARCH=amd64
+logos build -o $WORK/bin/fbsdc ./cmd
+! stderr 'capabilities::'
+cd ../..
+
+-- a/main/go.mod --
+module example.com/amain
+
+go 1.27
+
+require example.com/adep v0.0.0
+
+replace example.com/adep => ../dep
+
+-- a/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_net = "deny"
+
+-- a/main/cmd/main.go --
+package main
+
+import "example.com/adep"
+
+func main() { adep.Init() }
+
+-- a/dep/go.mod --
+module example.com/adep
+
+go 1.27
+
+-- a/dep/dep.go --
+package adep
+
+import "syscall"
+
+//go:noinline
+func Init() {
+	syscall.Syscall(0, 0, 0, 0)
+	syscall.Syscall6(0, 0, 0, 0, 0, 0, 0)
+	syscall.RawSyscall(0, 0, 0, 0)
+	syscall.RawSyscall6(0, 0, 0, 0, 0, 0, 0)
+}
+
+-- b/main/go.mod --
+module example.com/bmain
+
+go 1.27
+
+require example.com/bdep v0.0.0
+
+replace example.com/bdep => ../dep
+
+-- b/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_net = "deny"
+
+-- b/main/cmd/main.go --
+package main
+
+import "example.com/bdep"
+
+func main() { bdep.Init() }
+
+-- b/dep/go.mod --
+module example.com/bdep
+
+go 1.27
+
+-- b/dep/dep.go --
+package bdep
+
+import "syscall"
+
+//go:noinline
+func Init() {
+	syscall.Syscall9(0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+}
+
+-- c/main/go.mod --
+module example.com/cmain
+
+go 1.27
+
+require example.com/cdep v0.0.0
+
+replace example.com/cdep => ../dep
+
+-- c/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_net = "deny"
+
+-- c/main/cmd/main.go --
+package main
+
+import "example.com/cdep"
+
+func main() { cdep.Init() }
+
+-- c/dep/go.mod --
+module example.com/cdep
+
+go 1.27
+
+-- c/dep/dep.go --
+package cdep
+
+import (
+	"os"
+	"syscall"
+)
+
+//go:noinline
+func Init() {
+	syscall.Getpid()
+	syscall.Kill(0, 0)
+	os.Getpid()
+	os.ReadFile("go.mod")
+}

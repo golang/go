@@ -1,0 +1,354 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+var (
+	errLoad = errors.New("load")
+	calls   int
+	order   []string
+)
+
+func note(s string) {
+	order = append(order, s)
+}
+
+func load(v int, fail bool) (int, error) {
+	calls++
+	if fail {
+		return 0, errLoad
+	}
+	return v, nil
+}
+
+func loadTwo(a, b int, fail bool) (int, int, error) {
+	calls++
+	if fail {
+		return 0, 0, errLoad
+	}
+	return a, b, nil
+}
+
+func loadGen[T any](v T, fail bool) (T, error) {
+	var zero T
+	calls++
+	if fail {
+		return zero, errLoad
+	}
+	return v, nil
+}
+
+func loadLogged(v int) (int, error) {
+	note("rhs")
+	return v, nil
+}
+
+type Slot interface {
+	P int
+}
+
+type slot struct : Slot {
+	P int
+}
+
+type Duo interface {
+	P int
+	Q int
+}
+
+type duo struct : Duo {
+	P int
+	Q int
+}
+
+type Counted interface {
+	V int
+}
+
+type counted struct : Counted {
+	v    int
+	sets int
+}
+
+func (c *counted) V() int {
+	return c.v
+}
+
+func (c *counted) SetV(v int) {
+	c.v = v
+	c.sets++
+}
+
+type Gen[T any] interface {
+	Item T
+}
+
+type genBox[T any] struct : Gen[T] {
+	Item T
+}
+
+type Holder struct {
+	S Slot
+}
+
+type plain struct {
+	P int
+}
+
+func pick(w Slot) Slot {
+	note("recv")
+	return w
+}
+
+func storeSlot(w Slot, v int, fail bool) error {
+	w.P = load(v, fail)?
+	return nil
+}
+
+func storePlain(p *plain, v int, fail bool) error {
+	p.P = load(v, fail)?
+	return nil
+}
+
+func storeTwice(w Slot, v int, fail bool) (int, error) {
+	w.P = load(v, fail)?
+	w.P = load(w.P+1, fail)?
+	return w.P, nil
+}
+
+func storeCounted(w Counted, v int, fail bool) error {
+	w.V = load(v, fail)?
+	return nil
+}
+
+func storePick(w Slot, v int) error {
+	pick(w).P = loadLogged(v)?
+	return nil
+}
+
+func storeDuo(d Duo, a, b int, fail bool) error {
+	d.P, d.Q = loadTwo(a, b, fail)?
+	return nil
+}
+
+func storeAfter(w Slot, a, b int, fail bool) (int, error) {
+	var n int
+	n, w.P = loadTwo(a, b, fail)?
+	return n, nil
+}
+
+func storeBefore(w Slot, a, b int, fail bool) (int, error) {
+	var n int
+	w.P, n = loadTwo(a, b, fail)?
+	return n, nil
+}
+
+func storeHolder(h Holder, v int, fail bool) error {
+	h.S.P = load(v, fail)?
+	return nil
+}
+
+func storeHolderPtr(h *Holder, v int, fail bool) error {
+	h.S.P = load(v, fail)?
+	return nil
+}
+
+func storeIndex(ws []Slot, i, v int, fail bool) error {
+	ws[i].P = load(v, fail)?
+	return nil
+}
+
+func storeGen[T any](g Gen[T], v T, fail bool) error {
+	g.Item = loadGen(v, fail)?
+	return nil
+}
+
+func storeDefers(w Slot, fail bool) (err error) {
+	defer note("defer")
+	errdefer note("errdefer")
+	w.P = load(1, fail)?
+	note("body-end")
+	return nil
+}
+
+func storeIf(w Slot, v int, fail bool) (bool, error) {
+	if w.P = load(v, fail)?; w.P > 0 {
+		return true, nil
+	}
+	return false, nil
+}
+
+func storeSwitch(w Slot, v int, fail bool) (int, error) {
+	switch w.P = load(v, fail)?; w.P {
+	case 4:
+		return 40, nil
+	}
+	return 0, nil
+}
+
+func storeParam[S Slot](w S, v int, fail bool) error {
+	w.P = load(v, fail)?
+	return nil
+}
+
+func storeLambda(w Slot, xs []int, failAt int) ([]int, error) {
+	ys := xs.map(x => {
+		w.P = load(w.P+x, x == failAt)?
+		return x
+	})
+	return ys, nil
+}
+
+func checkSingle() {
+	var s slot
+	var w Slot = &s
+	s.P = 1
+	calls = 0
+	err := storeSlot(w, 7, false)
+	check("write-ok-error", err == nil, err, nil)
+	check("write-ok-value", s.P == 7, s.P, 7)
+	check("write-ok-evaluated-once", calls == 1, calls, 1)
+
+	pf := plain{P: 7}
+	calls = 0
+	perr := storePlain(&pf, 9, true)
+	err = storeSlot(w, 9, true)
+	check("write-failed-error", err == errLoad && perr == errLoad, err, errLoad)
+	check("write-failed-like-field", s.P == pf.P, s.P, pf.P)
+	check("write-failed-zero", s.P == 0, s.P, 0)
+	check("write-failed-evaluated-once", calls == 2, calls, 2)
+
+	s.P = 7
+	n, err := storeTwice(w, 7, false)
+	check("twice-error", err == nil, err, nil)
+	check("twice-value", err == nil && n == 8 && s.P == 8, s.P, 8)
+	n, err = storeTwice(w, 7, true)
+	check("twice-failed-error", err == errLoad, err, errLoad)
+	check("twice-failed-results", err != nil && s.P == 0, s.P, 0)
+}
+
+func checkSetters() {
+	var s slot
+	var w Slot = &s
+	c := &counted{}
+	var cw Counted = c
+	err := storeCounted(cw, 4, false)
+	check("method-ok", err == nil && c.v == 4 && c.sets == 1, c.sets, 1)
+	err = storeCounted(cw, 5, true)
+	check("method-failed", err == errLoad && c.v == 0 && c.sets == 2, c.sets, 2)
+
+	order = nil
+	err = storePick(w, 3)
+	check("receiver-first-once", err == nil && s.P == 3 && fmt.Sprint(order) == "[recv rhs]", order, "[recv rhs]")
+
+	d := &duo{P: 3, Q: 4}
+	var dw Duo = d
+	err = storeDuo(dw, 1, 2, false)
+	check("two-targets", err == nil && d.P == 1 && d.Q == 2, d.P, 1)
+	err = storeDuo(dw, 5, 6, true)
+	check("two-targets-failed", err == errLoad && d.P == 0 && d.Q == 0, d.P, 0)
+}
+
+func checkMixed() {
+	var s slot
+	var w Slot = &s
+	s.P = 9
+	n, err := storeAfter(w, 1, 2, false)
+	check("target-after-plain", err == nil && n == 1 && s.P == 2, s.P, 2)
+	n, err = storeBefore(w, 3, 4, false)
+	check("target-before-plain", err == nil && n == 4 && s.P == 3, s.P, 3)
+	n, err = storeBefore(w, 3, 4, true)
+	check("target-before-plain-failed", err != nil && s.P == 0, s.P, 0)
+}
+
+func checkReceivers() {
+	var hs slot
+	h := Holder{S: &hs}
+	err := storeHolder(h, 11, false)
+	check("struct-value-receiver", err == nil && hs.P == 11, hs.P, 11)
+	err = storeHolderPtr(&h, 12, false)
+	check("struct-pointer-receiver", err == nil && hs.P == 12, hs.P, 12)
+	var a, b slot
+	ws := []Slot{&a, &b}
+	err = storeIndex(ws, 1, 13, false)
+	check("index-receiver", err == nil && b.P == 13 && a.P == 0, b.P, 13)
+}
+
+func checkGeneric() {
+	gi := &genBox[int]{}
+	err := storeGen[int](gi, 6, false)
+	check("generic-int", err == nil && gi.Item == 6, gi.Item, 6)
+	gs := &genBox[string]{}
+	err = storeGen[string](gs, "x", false)
+	check("generic-string", err == nil && gs.Item == "x", gs.Item, "x")
+	err = storeGen[string](gs, "y", true)
+	check("generic-failed", err == errLoad && gs.Item == "", gs.Item, "")
+}
+
+func checkDefers() {
+	var s slot
+	var w Slot = &s
+	order = nil
+	err := storeDefers(w, false)
+	check("defers-ok", err == nil && fmt.Sprint(order) == "[body-end defer]", order, "[body-end defer]")
+	order = nil
+	err = storeDefers(w, true)
+	check("defers-failed", err == errLoad && fmt.Sprint(order) == "[errdefer defer]", order, "[errdefer defer]")
+}
+
+func checkInits() {
+	var s slot
+	var w Slot = &s
+	pos, err := storeIf(w, 3, false)
+	check("if-init", err == nil && pos && s.P == 3, s.P, 3)
+	pos, err = storeIf(w, 3, true)
+	check("if-init-failed", err != nil && s.P == 0, s.P, 0)
+	n, err := storeSwitch(w, 4, false)
+	check("switch-init", err == nil && n == 40 && s.P == 4, s.P, 4)
+	n, err = storeSwitch(w, 4, true)
+	check("switch-init-failed", err != nil && s.P == 0, s.P, 0)
+	err = storeParam(w, 6, false)
+	check("type-parameter-receiver", err == nil && s.P == 6, s.P, 6)
+	err = storeParam(w, 6, true)
+	check("type-parameter-receiver-failed", err == errLoad && s.P == 0, s.P, 0)
+}
+
+func checkLambda() {
+	var s slot
+	var w Slot = &s
+	s.P = 10
+	ys, err := storeLambda(w, []int{1, 2, 3}, 0)
+	check("lambda-block", err == nil && len(ys) == 3 && s.P == 16, s.P, 16)
+	ys, err = storeLambda(w, []int{1, 2, 3}, 2)
+	check("lambda-block-failed", err == errLoad && s.P == 0, s.P, 0)
+}
+
+func main() {
+	checkSingle()
+	checkSetters()
+	checkMixed()
+	checkReceivers()
+	checkGeneric()
+	checkDefers()
+	checkInits()
+	checkLambda()
+	if failed {
+		os.Exit(1)
+	}
+}

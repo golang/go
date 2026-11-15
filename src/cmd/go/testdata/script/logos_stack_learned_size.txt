@@ -1,0 +1,22 @@
+# Under GOEXPERIMENT=logosstack a goroutine starts at the stack size that its
+# go statement learned, and a go statement with no history keeps the global
+# size. The runtime tests that check this skip unless the experiment is on, so
+# this script turns it on and fails if any of them skips or does not run.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOEXPERIMENT=logosstack
+go test -v -count=1 -run '^(TestLogosStackSiteStartsAtLearnedSize|TestLogosStackSpawnDoesNotAllocate|TestLogosStackStartBoundedByMaxStack|TestLogosStackSurvivesCollection|TestLogosStackFirstBuffersSurviveStartSizes)$' runtime
+stdout '--- PASS: TestLogosStackSiteStartsAtLearnedSize'
+stdout '--- PASS: TestLogosStackSpawnDoesNotAllocate'
+stdout '--- PASS: TestLogosStackStartBoundedByMaxStack'
+stdout '--- PASS: TestLogosStackSurvivesCollection'
+stdout '--- PASS: TestLogosStackFirstBuffersSurviveStartSizes'
+! stdout 'SKIP'
+stdout '^ok\s+runtime'
+! stderr 'no tests to run'
+! stdout 'no tests to run'
+
+-- go.mod --
+module example.com/stacklearned
+
+go 1.27

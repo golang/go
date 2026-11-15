@@ -262,12 +262,6 @@ func gcUsesSpanInlineMarkBits(size uintptr) bool {
 // tryDeferToSpanScan tries to queue p on the span it points to, if it
 // points to a small object span (gcUsesSpanQueue size).
 func tryDeferToSpanScan(p uintptr, gcw *gcWork) bool {
-	if zgcCycleEnabled() {
-		var ok bool
-		if p, ok = zgcRemapScanWord(p); !ok {
-			return false
-		}
-	}
 	if useCheckmark {
 		return false
 	}
@@ -276,9 +270,6 @@ func tryDeferToSpanScan(p uintptr, gcw *gcWork) bool {
 	ha := heapArenaOf(p)
 	if ha == nil {
 		return false
-	}
-	if logosGenSkipPointer(ha, p) {
-		return true
 	}
 	pageIdx := ((p / pageSize) / 8) % uintptr(len(ha.pageInUse))
 	pageMask := byte(1 << ((p / pageSize) % 8))
@@ -289,20 +280,7 @@ func tryDeferToSpanScan(p uintptr, gcw *gcWork) bool {
 	// Find the object's index from the span class info stored in the inline mark bits.
 	base := alignDown(p, gc.PageSize)
 	q := spanInlineMarkBitsFromBase(base)
-	// Stale pointers may read garbage class bytes; genuine pointers always
-	// read a valid class. ZGC-only: without the moving collector every
-	// pointer is current and the bounds fault stays a corruption tripwire.
-	class := q.class
-	sc := int(class.sizeclass())
-	if zgcCycleEnabled() && sc >= len(gc.SizeClassToDivMagic) {
-		return false
-	}
-	objIndex := uint16((uint64(p-base) * uint64(gc.SizeClassToDivMagic[sc])) >> 32)
-
-	// Stale pointers may compute an out-of-range index; genuine pointers stay in range.
-	if zgcCycleEnabled() && objIndex/8 >= uint16(len(q.marks)) {
-		return false
-	}
+	objIndex := uint16((uint64(p-base) * uint64(gc.SizeClassToDivMagic[q.class.sizeclass()])) >> 32)
 
 	// Set mark bit.
 	idx, mask := objIndex/8, uint8(1)<<(objIndex%8)
@@ -312,8 +290,8 @@ func tryDeferToSpanScan(p uintptr, gcw *gcWork) bool {
 	atomic.Or8(&q.marks[idx], mask)
 
 	// Fast-track noscan objects.
-	if class.noscan() {
-		gcw.bytesMarked += uint64(gc.SizeClassToSize[sc])
+	if q.class.noscan() {
+		gcw.bytesMarked += uint64(gc.SizeClassToSize[q.class.sizeclass()])
 		return true
 	}
 
@@ -366,9 +344,6 @@ type spanQueue struct {
 	// putsSinceDrain counts the number of put calls since the last drain.
 	putsSinceDrain int
 
-	// deck is the address-order state used when logosSpanDeckOn is set.
-	deck logosSpanDeck
-
 	// chain contains state visible to other Ps.
 	//
 	// In particular, that means a linked chain of single-producer multi-consumer
@@ -388,9 +363,6 @@ type spanQueue struct {
 
 // putFast tries to put s onto the queue, but may fail if it's full.
 func (q *spanQueue) putFast(s objptr) (ok bool) {
-	if logosSpanDeckOn {
-		return q.logosDeckInsert(s)
-	}
 	if q.tail-q.head == uint32(len(q.ring)) {
 		return false
 	}
@@ -540,9 +512,6 @@ func (q *spanQueue) tryDrain(r *spanSPMC, n uint32) bool {
 	if q.head+n > q.tail {
 		throw("attempt to drain too many elements")
 	}
-	if logosSpanDeckOn {
-		logosSpanAscend(q.ring[q.head : q.head+n])
-	}
 	h := r.head.Load() // synchronize with consumers
 	t := r.tail.Load()
 	rn := t - h
@@ -560,9 +529,6 @@ func (q *spanQueue) tryDrain(r *spanSPMC, n uint32) bool {
 // tryGetFast attempts to get a span from the local queue, but may fail if it's empty,
 // returning false.
 func (q *spanQueue) tryGetFast() objptr {
-	if logosSpanDeckOn {
-		return q.logosDeckPop()
-	}
 	if q.tail-q.head == 0 {
 		return 0
 	}
@@ -647,9 +613,6 @@ func (q *spanQueue) refill(r *spanSPMC) objptr {
 	// Update local queue head and tail to reflect new buffered values.
 	q.head = 0
 	q.tail = n
-	if logosSpanDeckOn {
-		logosSpanSort(q.ring[:n])
-	}
 
 	// Pop off the head of the queue and return it.
 	return q.tryGetFast()
@@ -956,10 +919,6 @@ func scanSpan(p objptr, gcw *gcWork) {
 	}
 
 	// Process all the pointers we just got.
-	if logosSpanDeckOn {
-		logosMarkPtrs(gcw, gcw.ptrBuf[:nptrs])
-		return
-	}
 	for _, p := range gcw.ptrBuf[:nptrs] {
 		if !tryDeferToSpanScan(p, gcw) {
 			if obj, span, objIndex := findObject(p, 0, 0); obj != 0 {
@@ -1019,10 +978,6 @@ func spanSetScans(spanBase uintptr, nelems uint16, imb *spanInlineMarkBits, toSc
 }
 
 func scanObjectSmall(spanBase, b, objSize uintptr, gcw *gcWork) {
-	if logosSpanDeckOn {
-		logosScanObject(spanBase, b, objSize, gcw)
-		return
-	}
 	hbitsBase, _ := spanHeapBitsRange(spanBase, gc.PageSize, objSize)
 	hbits := (*byte)(unsafe.Pointer(hbitsBase))
 	ptrBits := extractHeapBitsSmall(hbits, spanBase, b, objSize)
@@ -1058,10 +1013,6 @@ func scanObjectSmall(spanBase, b, objSize uintptr, gcw *gcWork) {
 }
 
 func scanObjectsSmall(base, objSize uintptr, elems uint16, gcw *gcWork, scans *gc.ObjMask) {
-	if logosSpanDeckOn {
-		logosScanObjects(base, objSize, elems, gcw, scans)
-		return
-	}
 	nptrs := 0
 	for i, bits := range scans {
 		if i*(goarch.PtrSize*8) > int(elems) {

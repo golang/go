@@ -4,12 +4,6 @@
 
 package p
 
-// Plain-Go twin of union_members.lgo: the same declarations and value
-// positions with no .lgo-only syntax. Union interfaces are legal as
-// declared types, but standard Go rejects every value position with its
-// own diagnostic, proving .go is unchanged where .lgo accepts closed
-// unions and reports logos tags.
-
 type U interface {
 	int | string
 }

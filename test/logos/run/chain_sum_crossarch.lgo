@@ -1,0 +1,54 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"math"
+	"os"
+)
+
+var chainFailed bool
+
+func chainCheck(name string, cond bool, got, want string) {
+	if !cond {
+		fmt.Printf("FAIL %s: got %s want %s\n", name, got, want)
+		chainFailed = true
+		return
+	}
+	fmt.Printf("ok %s\n", name)
+}
+
+func pairSum(s []float64) float64 {
+	switch len(s) {
+	case 0:
+		return 0
+	case 1:
+		return s[0]
+	default:
+		m := len(s) / 2
+		return pairSum(s[:m]) + pairSum(s[m:])
+	}
+}
+
+//logos:allow(slop::discarded_error)
+func main() {
+	a := []float64{1e16, -1e16, 1.0}.sum()
+	aw := pairSum([]float64{1e16, -1e16, 1.0})
+	chainCheck("chain-order-near-cancel", math.Float64bits(a) == math.Float64bits(aw), fmt.Sprintf("%x", math.Float64bits(a)), fmt.Sprintf("%x", math.Float64bits(aw)))
+	b := []float64{1, 2, 3, 4}.sum()
+	chainCheck("chain-order-small", b == 10.0, fmt.Sprint(b), "10")
+	c := []float64{1.0, 1e16, -1e16}.sum()
+	cw := pairSum([]float64{1.0, 1e16, -1e16})
+	chainCheck("chain-order-far-cancel", math.Float64bits(c) == math.Float64bits(cw) && c == 1.0, fmt.Sprint(c), "1")
+	k := 0.1
+	d := []float64{1e16, 1.0, -1e16, 0.5}.map(x => k * x).sum()
+	mapped := []float64{k * 1e16, k * 1.0, k * -1e16, k * 0.5}
+	dw := pairSum(mapped)
+	chainCheck("chain-map-sum", math.Float64bits(d) == math.Float64bits(dw), fmt.Sprintf("%x", math.Float64bits(d)), fmt.Sprintf("%x", math.Float64bits(dw)))
+	e := []float64{1e16, -1e16, 1.0}.sum()
+	chainCheck("chain-stable", math.Float64bits(e) == math.Float64bits(a), fmt.Sprintf("%x", math.Float64bits(e)), fmt.Sprintf("%x", math.Float64bits(a)))
+	if chainFailed {
+		os.Exit(1)
+	}
+}

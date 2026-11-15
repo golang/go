@@ -6,6 +6,7 @@ package capabilities
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"maps"
 	"os"
@@ -46,6 +47,9 @@ func TestPolicyForLinkMainModules(t *testing.T) {
 	}
 	if !slices.Equal(p.TransitiveExecAllowlist, []string{"example.com/x/**"}) {
 		t.Errorf("TransitiveExecAllowlist = %q", p.TransitiveExecAllowlist)
+	}
+	if !slices.Equal(p.ReflectAllowlist, []string{"example.com/r/**"}) {
+		t.Errorf("ReflectAllowlist = %q", p.ReflectAllowlist)
 	}
 }
 
@@ -122,15 +126,15 @@ func TestPolicyForLinkEmitsNestedModules(t *testing.T) {
 			t.Errorf("NestedModules = %q, missing %q", p.NestedModules, want)
 		}
 	}
-	data, err := MarshalPolicy(p)
+	data, err := json.Marshal(p)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(string(data), `"nested_modules":["example.com/nestemit/nested"`) {
 		t.Errorf("marshaled policy missing nested_modules key: %s", data)
 	}
-	back, err := UnmarshalPolicy(data)
-	if err != nil {
+	var back LinkPolicy
+	if err := json.Unmarshal(data, &back); err != nil {
 		t.Fatal(err)
 	}
 	if !slices.Equal(back.NestedModules, p.NestedModules) {
@@ -162,8 +166,8 @@ func TestSnapshotHashFlagRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	back, err := UnmarshalPolicy(data)
-	if err != nil {
+	var back LinkPolicy
+	if err := json.Unmarshal(data, &back); err != nil {
 		t.Fatal(err)
 	}
 	if !slices.Equal(back.MainModules, mains) || back.TransitiveExec != "deny" {
@@ -202,8 +206,8 @@ func TestSnapshotRecordsCgoAllowed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	back, err := UnmarshalPolicy(data)
-	if err != nil {
+	var back LinkPolicy
+	if err := json.Unmarshal(data, &back); err != nil {
 		t.Fatal(err)
 	}
 	if !slices.Contains(back.CgoAllowed, path) {
@@ -211,17 +215,6 @@ func TestSnapshotRecordsCgoAllowed(t *testing.T) {
 	}
 }
 
-// TestPolicyForLinkSharedPluginInternal pins the linker policy inputs
-// for the three link root shapes the linker audits (seedRoots in
-// cmd/link/internal/ld): shared libraries, plugins, and ordinary
-// entry-symbol binaries. PolicyForLink itself takes no build mode, so
-// these cases pin that mode-shaped inputs (workspace multi-main, single
-// main with nested dep, cgo-allowed dep) produce identical,
-// round-tripping wire output. Delivery is separate: ordinary and plugin
-// links receive the policy through AppendLinkCapFlag, while
-// -buildmode=shared links currently do not (ldShared in work/gc.go never
-// appends the flag; out of scope, reported as a gap), so this test proves
-// policy construction, not that every mode is audited.
 func TestPolicyForLinkSharedPluginInternal(t *testing.T) {
 	buildModulesSet.Lock()
 	savedBuilds := maps.Clone(buildModulesSet.byPath)
@@ -292,12 +285,12 @@ func TestPolicyForLinkSharedPluginInternal(t *testing.T) {
 			if p.TransitiveReflect != "warn" || p.TransitiveExec != "deny" || p.TransitiveNet != "allow" {
 				t.Errorf("severities = %q %q %q, want warn deny allow", p.TransitiveReflect, p.TransitiveExec, p.TransitiveNet)
 			}
-			data, err := MarshalPolicy(p)
+			data, err := json.Marshal(p)
 			if err != nil {
 				t.Fatal(err)
 			}
-			back, err := UnmarshalPolicy(data)
-			if err != nil {
+			var back LinkPolicy
+			if err := json.Unmarshal(data, &back); err != nil {
 				t.Fatal(err)
 			}
 			if !slices.Equal(back.MainModules, tc.mains) {
@@ -313,10 +306,6 @@ func TestPolicyForLinkSharedPluginInternal(t *testing.T) {
 	}
 }
 
-// TestLinkPolicyPlainGoUnchanged pins the plain-go byte-identical
-// guarantee: outside logos mode the snapshotted policy never reaches the
-// link action ID hash and no -logos.cap flag is appended, even when a
-// snapshot is set. Plain go keeps its upstream link behavior.
 func TestLinkPolicyPlainGoUnchanged(t *testing.T) {
 	old := cfg.Logos
 	cfg.Logos = false

@@ -4,14 +4,25 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"reflect"
 )
 
-// M4-S2 interface properties (SPEC Sec 2.3, T-203.2): reads and writes
-// through a property interface reach the struct through the generated
-// Logos_GetF/Logos_SetF accessors; compound updates pin the receiver
-// once; method calls on a struct-typed property write back (#132, #141);
-// only declaring types gain accessors (#120).
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func hasMethod(t reflect.Type, name string) bool {
+	_, ok := t.MethodByName(name)
+	return ok
+}
 
 type Creature interface {
 	const Name string
@@ -26,15 +37,11 @@ type Monster struct : Creature {
 
 func (m Monster) Start() error { return nil }
 
-// A struct with no `: I` list gains no accessors (#120).
-
 type Plain struct {
 	X int
 }
 
 func (p Plain) Foo() string { return "foo" }
-
-// A method with no backing field sources a read-only property.
 
 type Named interface {
 	const Title string
@@ -44,8 +51,14 @@ type Ghost struct : Named {
 }
 
 func (g Ghost) Title() string { return "boo" }
+type PointerNamed interface {
+	const Title string
+}
 
-// Methods source a read-write property: Secret() plus SetSecret.
+type PointerGhost struct : PointerNamed {
+}
+
+func (*PointerGhost) Title() string { return "pointer" }
 
 type Vault interface {
 	Secret int
@@ -59,7 +72,34 @@ func (s Safe) Secret() int { return s.hidden }
 
 func (s *Safe) SetSecret(v int) { s.hidden = v }
 
-// A struct-typed property for method-call write-back (#141).
+type Leveled interface {
+	Level int
+}
+
+type VBox struct : Leveled {
+	lv *int
+}
+
+func (b VBox) Level() int { return *b.lv }
+
+func (b VBox) SetLevel(v int) { *b.lv = v }
+
+type Both interface {
+	const V int
+	V int
+}
+
+type HasBoth struct : Both {
+	V int
+}
+
+func checkBothMerge() {
+	mergedValue := reflect.TypeOf(HasBoth{})
+	mergedPointer := reflect.TypeOf(&HasBoth{})
+	check("merged-const-getter-on-value", hasMethod(mergedValue, "Logos_GetV"), hasMethod(mergedValue, "Logos_GetV"), true)
+	check("merged-const-hides-setter-on-value", !hasMethod(mergedValue, "Logos_SetV"), hasMethod(mergedValue, "Logos_SetV"), false)
+	check("merged-setter-on-pointer", hasMethod(mergedPointer, "Logos_SetV"), hasMethod(mergedPointer, "Logos_SetV"), true)
+}
 
 type Vec struct {
 	X int
@@ -87,8 +127,6 @@ type Bot struct : Carrier {
 	Pos Vec
 }
 
-// An embedded struct field sources a property by Go selector depth.
-
 type Base struct {
 	HP int
 }
@@ -100,6 +138,68 @@ type Child struct : Creature {
 
 func (c Child) Start() error { return nil }
 
+type Rogue struct {
+	Name string
+	HP   int
+}
+
+func (r Rogue) Foo() string { return "foo" }
+
+type ShallowBase struct {
+	HP int
+}
+
+type ShallowOuter struct : Creature {
+	ShallowBase
+	HP   int
+	Name string
+}
+
+func (s ShallowOuter) Start() error { return nil }
+
+type DeepInner struct {
+	HP int
+}
+
+type DeepMid struct {
+	DeepInner
+	HP int
+}
+
+type DeepOuter struct : Creature {
+	DeepMid
+	Name string
+}
+
+func (d DeepOuter) Start() error { return nil }
+
+func checkUndeclaredAndDepth() {
+	rogueValue := reflect.TypeOf(Rogue{})
+	roguePointer := reflect.TypeOf(&Rogue{})
+	check("unrelated-value-gains-no-accessors", rogueValue.NumMethod() == reflect.TypeOf(Plain{}).NumMethod(), rogueValue.NumMethod(), reflect.TypeOf(Plain{}).NumMethod())
+	check("unrelated-pointer-gains-no-accessors", roguePointer.NumMethod() == reflect.TypeOf(&Plain{}).NumMethod(), roguePointer.NumMethod(), reflect.TypeOf(&Plain{}).NumMethod())
+	check("unrelated-value-hides-getter", !hasMethod(rogueValue, "Logos_GetName"), hasMethod(rogueValue, "Logos_GetName"), false)
+	check("unrelated-value-hides-hp-getter", !hasMethod(rogueValue, "Logos_GetHP"), hasMethod(rogueValue, "Logos_GetHP"), false)
+	check("unrelated-pointer-hides-getter", !hasMethod(roguePointer, "Logos_GetName"), hasMethod(roguePointer, "Logos_GetName"), false)
+	check("unrelated-pointer-hides-setter", !hasMethod(roguePointer, "Logos_SetHP"), hasMethod(roguePointer, "Logos_SetHP"), false)
+	var so ShallowOuter
+	so.HP = 5
+	so.ShallowBase.HP = 9
+	so.Name = "shallow"
+	var sc Creature = &so
+	check("outer-field-shadows-embedded-field", sc.HP == 5, sc.HP, 5)
+	sc.HP = 6
+	check("write-reaches-outer-field", so.HP == 6 && so.ShallowBase.HP == 9, fmt.Sprint(so.HP, so.ShallowBase.HP), "6 9")
+	var dp DeepOuter
+	dp.DeepMid.HP = 7
+	dp.DeepMid.DeepInner.HP = 11
+	dp.Name = "deep"
+	var dc Creature = &dp
+	check("depth-1-field-shadows-depth-2-field", dc.HP == 7, dc.HP, 7)
+	dc.HP = 8
+	check("write-reaches-depth-1-field", dp.DeepMid.HP == 8 && dp.DeepMid.DeepInner.HP == 11, fmt.Sprint(dp.DeepMid.HP, dp.DeepMid.DeepInner.HP), "8 11")
+}
+
 var nextCalls int
 
 func next() int {
@@ -109,52 +209,82 @@ func next() int {
 
 func two() (int, int) { return 3, 4 }
 
+func checkPropertyAccessorReceivers() {
+	monsterValue := reflect.TypeOf(Monster{})
+	monsterPointer := reflect.TypeOf(&Monster{})
+	ghostValue := reflect.TypeOf(Ghost{})
+	pointerGhostValue := reflect.TypeOf(PointerGhost{})
+	pointerGhostPointer := reflect.TypeOf(&PointerGhost{})
+	safeValue := reflect.TypeOf(Safe{})
+	safePointer := reflect.TypeOf(&Safe{})
+	check("value-getter-on-value", hasMethod(monsterValue, "Logos_GetName"), true, true)
+	check("value-hides-setter-on-value", !hasMethod(monsterValue, "Logos_SetHP"), false, false)
+	check("setter-on-pointer", hasMethod(monsterPointer, "Logos_SetHP"), true, true)
+	check("const-getter-on-value", hasMethod(ghostValue, "Logos_GetTitle"), true, true)
+	check("const-hides-getter-on-plain-value", !hasMethod(pointerGhostValue, "Logos_GetTitle"), false, false)
+	check("const-getter-on-pointer", hasMethod(pointerGhostPointer, "Logos_GetTitle"), true, true)
+	check("unexported-getter-on-value", hasMethod(safeValue, "Logos_GetSecret"), true, true)
+	check("unexported-setter-on-pointer", hasMethod(safePointer, "Logos_SetSecret"), true, true)
+	check("unexported-hides-setter-on-value", !hasMethod(safeValue, "Logos_SetSecret"), false, false)
+	vboxValue := reflect.TypeFor[VBox]()
+	check("value-setter-on-value", hasMethod(vboxValue, "Logos_SetLevel"), hasMethod(vboxValue, "Logos_SetLevel"), true)
+	check("pointer-adds-only-setter", monsterPointer.NumMethod() == monsterValue.NumMethod()+1, monsterPointer.NumMethod(), monsterValue.NumMethod()+1)
+	check("value-extends-plain-by-accessors", monsterValue.NumMethod() == reflect.TypeOf(Plain{}).NumMethod()+2, monsterValue.NumMethod(), reflect.TypeOf(Plain{}).NumMethod()+2)
+}
+
 func main() {
+	checkPropertyAccessorReceivers()
+	checkBothMerge()
+	checkUndeclaredAndDepth()
 	var m Monster
 	m.Name = "gorg"
 	m.HP = 100
 	var c Creature = &m
-	fmt.Println(c.Name)
+	check("const-property-reads-field", c.Name == "gorg", c.Name, "gorg")
 	c.HP -= 10
-	fmt.Println(m.HP)
+	check("compound-assign-writes-through-property", m.HP == 90, m.HP, 90)
 
 	party := []Creature{&m}
 	party[next()].HP += 10
-	fmt.Println(m.HP, nextCalls)
+	check("index-expr-evaluates-once", m.HP == 100 && nextCalls == 1, fmt.Sprint(m.HP, nextCalls), "100 1")
 
 	var b Bot
 	b.Pos = Vec{X: -3, Y: 4}
 	var crr Carrier = &b
 	crr.Pos.Normalize()
-	fmt.Println(b.Pos.X)
-	fmt.Println(crr.Pos.Len())
+	check("pointer-method-mutates-through-property", b.Pos.X == 3, b.Pos.X, 3)
+	check("value-method-reads-through-property", crr.Pos.Len() == 3, crr.Pos.Len(), 3)
 
 	var g Ghost
 	var n Named = g
-	fmt.Println(n.Title)
+	check("const-property-on-value-receiver", n.Title == "boo", n.Title, "boo")
 
 	var s Safe
 	s.hidden = 7
 	var v Vault = &s
 	v.Secret += 5
-	fmt.Println(s.hidden)
+	check("setter-reaches-unexported-field", s.hidden == 12, s.hidden, 12)
 
 	var ch Child
 	ch.Name = "kid"
 	ch.HP = 50
 	var c2 Creature = &ch
 	c2.HP -= 5
-	fmt.Println(ch.HP)
+	check("embedded-shadow-resolves-to-outer", ch.HP == 45, ch.HP, 45)
 	c2.HP = 60
-	fmt.Println(ch.HP)
+	check("embedded-shadow-write-hits-outer", ch.HP == 60, ch.HP, 60)
 
 	a := 0
 	a, c.HP = two()
-	fmt.Println(a, m.HP)
+	check("multi-assign-reaches-property", a == 3 && c.HP == 4 && m.HP == 4, fmt.Sprint(a, c.HP, m.HP), "3 4 4")
 	k := crr.Pos.Len()
-	fmt.Println(k)
-
-	fmt.Println(reflect.TypeOf(Plain{}).NumMethod())
-	fmt.Println(reflect.TypeOf(Monster{}).NumMethod())
-	fmt.Println(reflect.TypeOf(&Monster{}).NumMethod())
+	check("property-result-feeds-call", k == 3, k, 3)
+	var h HasBoth
+	var both Both = &h
+	both.V = 41
+	both.V += 1
+	check("merged-getter-setter-share-slot", h.V == 42, h.V, 42)
+	if failed {
+		os.Exit(1)
+	}
 }

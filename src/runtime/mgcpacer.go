@@ -346,16 +346,7 @@ type gcControllerState struct {
 	// this will be 0.05 to make up the missing 5%.
 	//
 	// If this is zero, no fractional workers are needed.
-	//
-	// It is atomic because the logos elastic pacer (logos_pacer.go) raises
-	// it during the cycle, from revise on any P, while the scheduler and
-	// the fractional worker read it. The active build shares the atomic
-	// implementation through logosFractionalGoal; the inactive wasm build
-	// stores it as plain memory while the world is stopped.
-	fractionalUtilizationGoal logosFractionalGoal
-
-	// logosElastic is the elastic background marking state (logos_pacer.go).
-	logosElastic logosElasticState
+	fractionalUtilizationGoal float64
 
 	// These memory stats are effectively duplicates of fields from
 	// memstats.heapStats but are updated atomically or with the world
@@ -422,17 +413,16 @@ func (c *gcControllerState) startCycle(markStartTime int64, procs int, trigger g
 			// Too many dedicated workers.
 			dedicatedMarkWorkersNeeded--
 		}
-		c.fractionalUtilizationGoal.Store((totalUtilizationGoal - float64(dedicatedMarkWorkersNeeded)) / float64(procs))
+		c.fractionalUtilizationGoal = (totalUtilizationGoal - float64(dedicatedMarkWorkersNeeded)) / float64(procs)
 	} else {
-		c.fractionalUtilizationGoal.Store(0)
+		c.fractionalUtilizationGoal = 0
 	}
 
 	// In STW mode, we just want dedicated workers.
 	if debug.gcstoptheworld > 0 {
 		dedicatedMarkWorkersNeeded = int64(procs)
-		c.fractionalUtilizationGoal.Store(0)
+		c.fractionalUtilizationGoal = 0
 	}
-	dedicatedMarkWorkersNeeded = c.logosElasticStart(procs, dedicatedMarkWorkersNeeded)
 
 	// Clear per-P state
 	for _, p := range allp {
@@ -457,7 +447,7 @@ func (c *gcControllerState) startCycle(markStartTime int64, procs int, trigger g
 	} else {
 		// N.B. gomaxprocs and dedicatedMarkWorkersNeeded are guaranteed not to
 		// change during a GC cycle.
-		c.setMaxIdleMarkWorkers(logosIdleMarkWorkerMax(procs, dedicatedMarkWorkersNeeded))
+		c.setMaxIdleMarkWorkers(int32(procs) - int32(dedicatedMarkWorkersNeeded))
 	}
 
 	// Compute initial values for controls that are updated
@@ -473,7 +463,7 @@ func (c *gcControllerState) startCycle(markStartTime int64, procs int, trigger g
 			work.initialHeapLive>>20, "->",
 			heapGoal>>20, " MB)",
 			" workers=", dedicatedMarkWorkersNeeded,
-			"+", c.fractionalUtilizationGoal.Load(), "\n")
+			"+", c.fractionalUtilizationGoal, "\n")
 	}
 }
 
@@ -513,7 +503,6 @@ func (c *gcControllerState) revise() {
 	// Assume we're under the soft goal. Pace GC to complete at
 	// heapGoal assuming the heap is in steady-state.
 	heapGoal := int64(c.heapGoal())
-	c.logosElasticRevise(live, uint64(heapGoal))
 
 	// The expected scan work is computed as the amount of bytes scanned last
 	// GC cycle (both heap and stack), plus our estimate of globals work for this cycle.
@@ -620,7 +609,6 @@ func (c *gcControllerState) endCycle(now int64, procs int) {
 	if assistDuration > 0 {
 		utilization += float64(c.assistTime.Load()) / float64(assistDuration*int64(procs))
 	}
-	utilization = c.logosElasticEndUtilization(utilization, now, procs)
 
 	if c.heapLive.Load() <= c.triggered {
 		// Shouldn't happen, but let's be very safe about this in case the
@@ -711,13 +699,19 @@ func (c *gcControllerState) enlistWorker() {
 	//
 	// Note: with Green Tea, this places a requirement on enlistWorker
 	// that it must not be called while a G's scan bit is held.
-	//
-	// Only wake an idle P if dedicated mark workers are needed. Idle mark
-	// workers remain opportunistic (executed by already-running Ms in
-	// findRunnable and checkIdleGCNoP) so that idle marking does not mint
-	// new OS threads (Ms) solely to run idle workers.
 	if goexperiment.GreenTeaGC {
-		if needDedicated && sched.npidle.Load() != 0 && sched.nmspinning.Load() == 0 {
+		needIdle := c.needIdleMarkWorker()
+
+		// If we're all full on dedicated and idle workers, nothing
+		// to do.
+		if !needDedicated && !needIdle {
+			return
+		}
+
+		// If there are idle Ps, wake one so it will run a worker
+		// (the scheduler will already prefer to spin up a new
+		// dedicated worker over an idle one).
+		if sched.npidle.Load() != 0 && sched.nmspinning.Load() == 0 {
 			wakep() // Likely to consume our worker request.
 			return
 		}
@@ -782,8 +776,7 @@ func (c *gcControllerState) assignWaitingGCWorker(pp *p, now int64) (bool, int64
 		return false, now
 	}
 
-	fractionalGoal := c.fractionalUtilizationGoal.Load()
-	if c.dedicatedMarkWorkersNeeded.Load() <= 0 && fractionalGoal == 0 {
+	if c.dedicatedMarkWorkersNeeded.Load() <= 0 && c.fractionalUtilizationGoal == 0 {
 		// No current need for dedicated workers, and no need at all for
 		// fractional workers. Check before trying to acquire a worker; when
 		// GOMAXPROCS is large, that can be expensive and is often unnecessary.
@@ -828,7 +821,7 @@ func (c *gcControllerState) assignWaitingGCWorker(pp *p, now int64) (bool, int64
 		// This P is now dedicated to marking until the end of
 		// the concurrent mark phase.
 		pp.gcMarkWorkerMode = gcMarkWorkerDedicatedMode
-	} else if fractionalGoal == 0 {
+	} else if c.fractionalUtilizationGoal == 0 {
 		// No need for fractional workers.
 		gcBgMarkWorkerPool.push(&node.node)
 		return false, now
@@ -838,7 +831,7 @@ func (c *gcControllerState) assignWaitingGCWorker(pp *p, now int64) (bool, int64
 		//
 		// This should be kept in sync with pollFractionalWorkerExit.
 		delta := now - c.markStartTime
-		if delta > 0 && float64(pp.gcFractionalMarkTime.Load())/float64(delta) > fractionalGoal {
+		if delta > 0 && float64(pp.gcFractionalMarkTime.Load())/float64(delta) > c.fractionalUtilizationGoal {
 			// Nope. No need to run a fractional worker.
 			gcBgMarkWorkerPool.push(&node.node)
 			return false, now
@@ -1193,9 +1186,6 @@ const (
 // not be, in the case of small movements for efficiency) checked whenever
 // the heap goal may change.
 func (c *gcControllerState) trigger() (uint64, uint64) {
-	if logosGCMode == "batch" {
-		return c.logosBatchTrigger()
-	}
 	goal, minTrigger := c.heapGoalInternal()
 
 	// Invariant: the trigger must always be less than the heap goal.

@@ -4,49 +4,36 @@
 
 package ctfe
 
-// This file implements M5-S2 statement evaluation, calls, and builtins
-// (SPEC Sec 2.1, T-201). Expression evaluation and value operations
-// live in ops.go; literal synthesis lives in render.go.
-
 import (
 	"cmd/compile/internal/syntax"
 	"fmt"
 	"math/big"
 )
 
-// frame is one call frame. The scopes stack holds block bindings from
-// outermost to innermost; fn is nil at the top level.
 type frame struct {
 	fn     *Func
 	scopes []map[string]Value
 }
 
-// flow carries control signals out of statements.
 type flow struct {
 	returned bool
 	values   []Value
-	brk      string // pending break: "" none, "\x00" unlabeled, else label
-	cont     string // pending continue, same encoding
-	fall     bool   // pending fallthrough
+	brk      string
+	cont     string
+	fall     bool
 }
 
 const unlabeled = "\x00"
 
-// evaluator holds evaluation state.
 type evaluator struct {
-	h      Host
-	cfg    Config
-	steps  int
-	depth  int
-	frames []*frame
-	// inSwitch counts direct switch-clause statement execution.
-	// execSwitch arms it only around clause bodies; nested if, for,
-	// and range bodies disarm it, so fallthrough stays admitted
-	// exactly where gc admits it: as a direct clause statement.
+	h        Host
+	cfg      Config
+	steps    int
+	depth    int
+	frames   []*frame
 	inSwitch int
 }
 
-// top returns the top-level frame.
 func (e *evaluator) top() *frame {
 	return &frame{scopes: []map[string]Value{{}}}
 }
@@ -56,17 +43,20 @@ func (e *evaluator) step(pos syntax.Pos) error {
 	if e.steps > e.cfg.MaxSteps {
 		return &Error{Code: CodeStepLimit, Pos: pos}
 	}
-	// Enforce the live value budget while frames are live: a temporary
-	// that is dropped before the result still counts during execution.
-	if err := e.checkSize(); err != nil {
+	total, err := e.checkSize()
+	if err != nil {
 		err.Pos = pos
 		return err
+	}
+	if q := total / 4096; q > 0 {
+		e.steps += int(q)
+		if e.steps > e.cfg.MaxSteps {
+			return &Error{Code: CodeStepLimit, Pos: pos}
+		}
 	}
 	return nil
 }
 
-// chargeSteps bills n steps against MaxSteps without the live-size scan that
-// step runs. A bulk host copy uses it and bounds its own bytes as it goes.
 func (e *evaluator) chargeSteps(n int, pos syntax.Pos) error {
 	e.steps += n
 	if e.steps > e.cfg.MaxSteps {
@@ -75,17 +65,14 @@ func (e *evaluator) chargeSteps(n int, pos syntax.Pos) error {
 	return nil
 }
 
-// impurity reports a purity-class violation: silent inside a const
-// func body (the static check reports it), a CodeEval error elsewhere.
 func (e *evaluator) impurity(fr *frame, pos syntax.Pos, format string, args ...any) *Error {
 	detail := fmt.Sprintf(format, args...)
 	if fr != nil && fr.fn != nil && fr.fn.Const {
-		return &Error{Code: CodeSilent, Detail: detail, Pos: pos, silentIn: fr.fn}
+		return &Error{Code: CodeSilent, Detail: detail, Pos: pos}
 	}
 	return &Error{Code: CodeEval, Detail: detail, Pos: pos}
 }
 
-// fail reports a hard evaluation error, always surfaced.
 func (e *evaluator) fail(pos syntax.Pos, format string, args ...any) *Error {
 	return &Error{Code: CodeEval, Detail: fmt.Sprintf(format, args...), Pos: pos}
 }
@@ -111,7 +98,6 @@ func (e *evaluator) popScope(fr *frame) {
 	fr.scopes = fr.scopes[:len(fr.scopes)-1]
 }
 
-// execBlock runs a statement list in a new scope.
 func (e *evaluator) execBlock(fr *frame, b *syntax.BlockStmt) (flow, error) {
 	e.pushScope(fr)
 	defer e.popScope(fr)
@@ -205,16 +191,13 @@ func (e *evaluator) execBranch(fr *frame, s *syntax.BranchStmt) (flow, error) {
 		return flow{cont: label}, nil
 	case syntax.Goto:
 		return flow{}, e.impurity(fr, posOf(s), "goto in const func")
-	case syntax.Fallthrough:
-		if e.inSwitch <= 0 {
-			return flow{}, e.fail(posOf(s), "fallthrough outside switch")
-		}
+	}
+	if s.Tok == syntax.Fallthrough && e.inSwitch > 0 {
 		return flow{fall: true}, nil
 	}
 	return flow{}, e.fail(posOf(s), "fallthrough outside switch")
 }
 
-// execDecl runs const, var, and type declarations in a body.
 func (e *evaluator) execDecl(fr *frame, list []syntax.Decl) error {
 	for _, d := range list {
 		switch d := d.(type) {
@@ -233,7 +216,6 @@ func (e *evaluator) execDecl(fr *frame, list []syntax.Decl) error {
 	return nil
 }
 
-// execVar declares names with optional type and values.
 func (e *evaluator) execVar(fr *frame, names []*syntax.Name, typ, vals syntax.Expr) error {
 	var rhs []Value
 	if vals != nil {
@@ -260,7 +242,6 @@ func (e *evaluator) execVar(fr *frame, names []*syntax.Name, typ, vals syntax.Ex
 		return nil
 	}
 	if len(rhs) == 1 && len(names) > 1 {
-		// One composite value cannot fill several names.
 		return e.fail(posOf(names[0]), "single value in multi-name declaration")
 	}
 	if len(rhs) != len(names) {
@@ -277,7 +258,6 @@ func (e *evaluator) execVar(fr *frame, names []*syntax.Name, typ, vals syntax.Ex
 		} else {
 			v = defaulted(v)
 		}
-		// Arrays and structs copy on bind; slices and maps share.
 		v = copyValue(v)
 		v.constant = false
 		e.declare(fr, n.Value, v)
@@ -285,8 +265,6 @@ func (e *evaluator) execVar(fr *frame, names []*syntax.Name, typ, vals syntax.Ex
 	return nil
 }
 
-// evalList evaluates an expression list, spreading one multi-valued
-// call across several names.
 func (e *evaluator) evalList(fr *frame, e2 syntax.Expr) ([]Value, error) {
 	if l, ok := e2.(*syntax.ListExpr); ok {
 		var out []Value
@@ -300,13 +278,11 @@ func (e *evaluator) evalList(fr *frame, e2 syntax.Expr) ([]Value, error) {
 		return out, nil
 	}
 	if c, ok := e2.(*syntax.CallExpr); ok {
-		if vs, multi, err := e.evalCallMulti(fr, c); err != nil {
+		vs, _, err := e.evalCallMulti(fr, c)
+		if err != nil {
 			return nil, err
-		} else if multi {
-			return vs, nil
-		} else {
-			return vs, nil
 		}
+		return vs, nil
 	}
 	v, err := e.evalExpr(fr, e2)
 	if err != nil {
@@ -315,21 +291,24 @@ func (e *evaluator) evalList(fr *frame, e2 syntax.Expr) ([]Value, error) {
 	return []Value{v}, nil
 }
 
-// execAssign runs =, op=, :=, ++, and --.
+func unitValue(t *Type) Value {
+	switch {
+	case t != nil && isFloat(t.Kind):
+		return FloatValue(1.0, t)
+	case t != nil && isComplex(t.Kind):
+		return complexConst(t, 1)
+	}
+	return intValue(big.NewInt(1), t, true)
+}
+
 func (e *evaluator) execAssign(fr *frame, s *syntax.AssignStmt) error {
 	if s.Rhs == nil {
-		// IncDec.
 		p, err := e.resolvePlace(fr, s.Lhs)
 		if err != nil {
 			return err
 		}
 		v := p.get()
-		var one Value
-		if v.typ != nil && isFloat(v.typ.Kind) {
-			one = FloatValue(1.0, v.typ)
-		} else {
-			one = intValue(big1(), v.typ, true)
-		}
+		one := unitValue(v.typ)
 		var r Value
 		if s.Op == syntax.Add {
 			r, err = e.add(v, one, posOf(s))
@@ -360,10 +339,6 @@ func (e *evaluator) execAssign(fr *frame, s *syntax.AssignStmt) error {
 	if len(rhs) != len(lhs) {
 		return e.fail(posOf(s), "assignment mismatch in const evaluation")
 	}
-	// Resolve every destination before any store: later LHS indices
-	// must see original values (i,a[i]=1,99 writes a[0]). Blank
-	// discards after RHS evaluation. Stored values convert to the
-	// destination declared type with value-copy semantics.
 	type pending struct {
 		pl      place
 		val     Value
@@ -457,8 +432,6 @@ func (e *evaluator) execAssign(fr *frame, s *syntax.AssignStmt) error {
 	return nil
 }
 
-// execMapCommaOk binds `v, ok := m[k]` (or `=`) from one map read.
-// It reports whether it handled the statement.
 func (e *evaluator) execMapCommaOk(fr *frame, s *syntax.AssignStmt, lhs []syntax.Expr) (bool, error) {
 	ix, ok := syntax.Unparen(s.Rhs).(*syntax.IndexExpr)
 	if !ok {
@@ -516,8 +489,6 @@ func (e *evaluator) execMapCommaOk(fr *frame, s *syntax.AssignStmt, lhs []syntax
 }
 
 func isDefine(s *syntax.AssignStmt) bool {
-	// := carries no explicit operator; = does. The parser records :=
-	// as Op == Def... plain = arrives as Op == 0.
 	return s.Op == syntax.Def
 }
 
@@ -536,13 +507,11 @@ func unpackList(e syntax.Expr) []syntax.Expr {
 	return []syntax.Expr{e}
 }
 
-// withVar marks a stored value as variable semantics.
 func withVar(v Value) Value {
 	v.constant = false
 	return v
 }
 
-// place is an assignable location.
 type place struct {
 	get func() Value
 	set func(Value)
@@ -579,7 +548,6 @@ func (e *evaluator) execReturn(fr *frame, s *syntax.ReturnStmt) (flow, error) {
 		if fr.fn == nil || len(fr.fn.ResultNames) == 0 {
 			return flow{returned: true}, nil
 		}
-		// Bare return reads the named result bindings.
 		vals := make([]Value, 0, len(fr.fn.ResultNames))
 		for _, name := range fr.fn.ResultNames {
 			if name == "" {
@@ -597,9 +565,6 @@ func (e *evaluator) execReturn(fr *frame, s *syntax.ReturnStmt) (flow, error) {
 	if err != nil {
 		return flow{}, err
 	}
-	// Explicit returns convert to the declared result types, so
-	// `return 1` in a float64 function yields 1.0 and later
-	// division stays floating-point.
 	if fr.fn != nil && len(fr.fn.Results) > 0 && len(vals) == len(fr.fn.Results) {
 		for i := range vals {
 			if fr.fn.Results[i] == nil {
@@ -618,9 +583,6 @@ func (e *evaluator) execReturn(fr *frame, s *syntax.ReturnStmt) (flow, error) {
 func (e *evaluator) execIf(fr *frame, s *syntax.IfStmt) (flow, error) {
 	e.pushScope(fr)
 	defer e.popScope(fr)
-	// An if body is never a direct switch-clause statement, so a
-	// fallthrough inside one is out of place even when the if sits
-	// in a clause. A switch nested in the if re-arms the gate itself.
 	savedSwitch := e.inSwitch
 	e.inSwitch = 0
 	defer func() { e.inSwitch = savedSwitch }()
@@ -655,13 +617,9 @@ func (e *evaluator) execIf(fr *frame, s *syntax.IfStmt) (flow, error) {
 	return flow{}, nil
 }
 
-// execSimple runs an init, condition-post, or short statement.
 func (e *evaluator) execSimple(fr *frame, s syntax.SimpleStmt) (flow, error) {
-	st, ok := s.(syntax.Stmt)
-	if !ok || st == nil {
+	if s == nil {
 		return flow{}, nil
 	}
-	return e.execStmt(fr, st)
+	return e.execStmt(fr, s.(syntax.Stmt))
 }
-
-func big1() *big.Int { return big.NewInt(1) }

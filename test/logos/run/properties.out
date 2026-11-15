@@ -1,14 +1,37 @@
-gorg
-90
-100 1
-3
-3
-boo
-12
-45
-60
-3 4
-3
-1
-3
-4
+ok value-getter-on-value
+ok value-hides-setter-on-value
+ok setter-on-pointer
+ok const-getter-on-value
+ok const-hides-getter-on-plain-value
+ok const-getter-on-pointer
+ok unexported-getter-on-value
+ok unexported-setter-on-pointer
+ok unexported-hides-setter-on-value
+ok value-setter-on-value
+ok pointer-adds-only-setter
+ok value-extends-plain-by-accessors
+ok merged-const-getter-on-value
+ok merged-const-hides-setter-on-value
+ok merged-setter-on-pointer
+ok unrelated-value-gains-no-accessors
+ok unrelated-pointer-gains-no-accessors
+ok unrelated-value-hides-getter
+ok unrelated-value-hides-hp-getter
+ok unrelated-pointer-hides-getter
+ok unrelated-pointer-hides-setter
+ok outer-field-shadows-embedded-field
+ok write-reaches-outer-field
+ok depth-1-field-shadows-depth-2-field
+ok write-reaches-depth-1-field
+ok const-property-reads-field
+ok compound-assign-writes-through-property
+ok index-expr-evaluates-once
+ok pointer-method-mutates-through-property
+ok value-method-reads-through-property
+ok const-property-on-value-receiver
+ok setter-reaches-unexported-field
+ok embedded-shadow-resolves-to-outer
+ok embedded-shadow-write-hits-outer
+ok multi-assign-reaches-property
+ok property-result-feeds-call
+ok merged-getter-setter-share-slot

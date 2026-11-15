@@ -1,0 +1,88 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# SPEC 83: the argument of a go call in a group block is evaluated when the
+# statement runs, whatever the option lowering turns it into. A coalesce
+# over a map read or a const composite map read, a map read passed as an
+# option, a value or nil passed as an option, an optional select and an
+# optional call, alone or inside an operator expression or parentheses,
+# eject to Go that parses and prints what the native run prints, for a
+# plain call and for a function literal. The ejected module builds and
+# runs with go and with go1.27.2 from $UPROOT1272.
+cd m
+logos run .
+stdout '^\[4 8 4 5 -1 3 3 5 11 4 1 13\]\n\[7 8 -1 5 -1 9 10 1 11 6 1 13\]$'
+cp stdout $WORK/native.txt
+logos eject -o out
+exists out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $WORK/native.txt
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
+exec $WORK/upstream$GOEXE
+cmp stdout $WORK/native.txt
+cd ..
+
+-- m/go.mod --
+module example.com/groupgooptionarg
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import (
+	"context"
+	"fmt"
+)
+
+type pt struct{ X int }
+
+type box struct {
+	M map[string]int
+	N int
+}
+
+const cfg = box{M: map[string]int{"a": 1}, N: 2}
+
+func (p *pt) Get() int { return p.X }
+
+func rec(out []int, i, v int) { out[i] = v }
+
+func opt(out []int, i int, v int?) { out[i] = v ?? -1 }
+
+func run(ctx context.Context, m map[string]int, p *pt?, out []int) error {
+	go group (ctx) {
+		go rec(out, 0, m["a"] ?? 7)
+		go func(v int) { out[1] = v }(m["b"] ?? 8)
+		go opt(out, 2, m["a"])
+		go opt(out, 3, 5)
+		go opt(out, 4, nil)
+		go rec(out, 5, p?.X ?? 9)
+		go rec(out, 6, p?.Get() ?? 10)
+		go rec(out, 7, (m["a"] ?? 0) + 1)
+		go rec(out, 8, (m["zz"] ?? 11))
+		go func(v int) { out[9] = v }(m["a"] ?? 1 + 5)
+		go rec(out, 10, cfg.M["a"] ?? 12)
+		go func(v int) { out[11] = v }(cfg.M["zz"] ?? 13)
+	}
+	return nil
+}
+
+func main() {
+	out := make([]int, 12)
+	if err := run(context.Background(), map[string]int{"a": 4}, &pt{X: 3}, out); err != nil {
+		panic(err)
+	}
+	fmt.Println(out)
+	out = make([]int, 12)
+	var none *pt?
+	if err := run(context.Background(), map[string]int{}, none, out); err != nil {
+		panic(err)
+	}
+	fmt.Println(out)
+}

@@ -1,0 +1,83 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+type INext interface {
+	const Next *NextT
+	const Label string
+}
+
+type NextT struct : INext {
+	Next  *NextT
+	Label string
+}
+
+var _ INext = (*NextT)(nil)
+
+func readNext(i INext) string {
+	return i.Label
+}
+
+type IOpt interface {
+	const Link *OptT?
+	const Label string
+}
+
+type OptT struct : IOpt {
+	Link  *OptT?
+	Label string
+}
+
+func tail(o *OptT) string {
+	return o.Label
+}
+
+var _ IOpt = (*OptT)(nil)
+
+type IA interface {
+	const B *B
+	const Name string
+}
+
+type IB interface {
+	const A *A
+	const Name string
+}
+
+type A struct : IB {
+	A    *A
+	B    *B
+	Name string
+}
+
+type B struct : IA {
+	A    *A
+	B    *B
+	Name string
+}
+
+var _ IA = (*B)(nil)
+
+var _ IB = (*A)(nil)
+
+type INode[T any] interface {
+	const Next *IntNode
+	const Val T
+}
+
+type IntNode struct : INode[int] {
+	Next *IntNode
+	Val  int
+}
+
+var _ INode[int] = (*IntNode)(nil)
+
+type Missing struct : IMissing /* ERROR "property_unsatisfied" */ {
+	n int
+}
+
+type IMissing interface {
+	const Self *Missing
+}

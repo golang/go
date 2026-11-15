@@ -158,9 +158,6 @@ func (p *Package) writeDefs() {
 		fmt.Fprint(fc, p.cPrologGccgo())
 	} else {
 		fmt.Fprint(fgo2, goProlog)
-		if logosForeignEmit() {
-			fmt.Fprint(fgo2, logosForeignProlog)
-		}
 	}
 
 	if fc != nil {
@@ -665,9 +662,8 @@ func (p *Package) writeDefsFunc(fgo2 io.Writer, n *Name, callsMalloc *bool) {
 		arg = "uintptr(unsafe.Pointer(&r1))"
 	}
 
-	noCallback := p.noCallbacks[n.C]
+	noCallback := p.noCallbacks[n.C] && !logosStableFastCall(p, n)
 	if noCallback {
-		// disable cgocallback, will check it in runtime.
 		fmt.Fprintf(fgo2, "\t_Cgo_no_callback(true)\n")
 	}
 
@@ -1159,17 +1155,6 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 
 		fmt.Fprintf(fm, "void _cgoexp%s_%s(void* p __attribute__((unused))){}\n", cPrefix, exp.ExpName)
 
-		var rows *foreignRows
-		if logosForeignEmit() {
-			// Callback scope: extends the Go to C frame this callback
-			// runs inside, or, on a C-created thread with no outer
-			// frame, opens a self-bounded one. The deferred release
-			// also runs when the exported function panics.
-			fmt.Fprintf(fgo2, "\t_cgoScope := _cgoForeignEnter()\n")
-			fmt.Fprintf(fgo2, "\tdefer _cgoForeignEnd(_cgoScope)\n")
-			rows = new(foreignRows)
-		}
-
 		fmt.Fprintf(fgo2, "\t")
 
 		if gccResult != "void" {
@@ -1208,11 +1193,7 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 					pos := fset.Position(exp.Func.Pos())
 					fmt.Fprintf(fgo2, "//line %s:%d\n", pos.Filename, pos.Line)
 					fmt.Fprintf(fgo2, "\t_cgoCheckResult(a.r%d)\n", i)
-					rows.add(foreignShapeVar, fmt.Sprintf("&a.r%d", i))
 				})
-			// The checker has judged the raw result words; only now
-			// are they canonicalized and admitted for C.
-			fmt.Fprint(fgo2, rows.resultsAdmission())
 		}
 		fmt.Fprint(fgo2, "}\n")
 	}
@@ -1753,37 +1734,6 @@ func _cgoCheckPointer(interface{}, interface{})
 //go:linkname _cgoCheckResult runtime.cgoCheckResult
 //go:noescape
 func _cgoCheckResult(interface{})
-`
-
-// logosForeignProlog declares the moving collector's private foreign-call
-// ABI, written after goProlog only when logosForeignEmit holds. The row
-// and token types mirror the runtime's word layout (runtime/logos_zgc_cgo.go
-// asserts it): a row is an interface value, a spare word, and a shape tag.
-const logosForeignProlog = `
-//go:linkname _cgoForeignBegin runtime.cgoForeignBegin
-//go:noescape
-func _cgoForeignBegin(unsafe.Pointer, uintptr) _cgoForeignToken
-
-//go:linkname _cgoForeignEnd runtime.cgoForeignEnd
-func _cgoForeignEnd(_cgoForeignToken)
-
-//go:linkname _cgoForeignEnter runtime.cgoForeignEnter
-func _cgoForeignEnter() _cgoForeignToken
-
-//go:linkname _cgoForeignResults runtime.cgoForeignResults
-//go:noescape
-func _cgoForeignResults(unsafe.Pointer, uintptr)
-
-type _cgoForeignToken struct {
-	frame unsafe.Pointer
-	gen   uint64
-}
-
-type _cgoForeignRow struct {
-	V interface{}
-	_ uintptr
-	S uintptr
-}
 `
 
 const gccgoGoProlog = `

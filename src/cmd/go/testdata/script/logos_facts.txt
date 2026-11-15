@@ -1,12 +1,6 @@
-# M3-S1: the __.LOGOS facts sidecar travels beside __.PKGDEF, bound to its
-# fingerprint. The sidecar is syntax-agnostic, so this test uses plain
-# pointer results; option syntax (*User?) arrives in M3-S2 and only adds
-# record kinds (S2-S7) on top of this transport.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
-# A .lgo package importing another .lgo package recovers facts: the module
-# builds, links (the linker skips the __.LOGOS member), and runs.
 cd lgo
 logos build ./...
 logos build -o $WORK/lgo-main$GOEXE ./cmd
@@ -14,22 +8,17 @@ exec $WORK/lgo-main$GOEXE
 stdout '^facts ok: alice$'
 cd ..
 
-# A loGo/s compiler archive carries both the export data and the sidecar;
-# a plain-Go archive stays byte-identical to upstream and carries none.
 go tool compile -p example.com/m/a -o $WORK/a.a gmod/t/a.go
 go tool pack t $WORK/a.a
 stdout '__\.PKGDEF'
 ! stdout '__\.LOGOS'
 
-# A fresh archive imports cleanly through the facts reader.
 mkdir $WORK/imp
 mkdir $WORK/imp/example.com
 mkdir $WORK/imp/example.com/m
 cp $WORK/a.a $WORK/imp/example.com/m/a.a
 go tool compile -I $WORK/imp -p example.com/m/b -o $WORK/b.a gmod/t/b.go
 
-# A loGo/s archive carries the sidecar; a stale fingerprint fails clean.
-# lgo-src is a .lgo package compiled directly (all sources loGo/s).
 go tool compile -p example.com/lgo/a -o $WORK/lgo-a.a lgo/a/a.lgo
 go tool pack t $WORK/lgo-a.a
 stdout '__\.LOGOS'
@@ -43,7 +32,6 @@ cp $WORK/lgo-stale.a $WORK/impstale/example.com/lgo/a.a
 ! go tool compile -I $WORK/impstale -p example.com/lgo/b -o $WORK/b-stale.a t/b.lgo
 stdout 'logos: stale facts for example\.com/lgo/a \(fingerprint mismatch\)'
 
-# A Go importer reads only __.PKGDEF and is unaffected by the member.
 go run impcheck.go $WORK/lgo-a.a
 stdout '^importer ok: F 0 1$'
 cd ..

@@ -4,25 +4,6 @@
 
 package syntax
 
-// This file holds the loGo/s scanner logic for M6-S1 interpolated
-// strings (SPEC Sec 1.4, T-104.4). scanner.go calls into it through one
-// hook line only (G3); the rule runs solely in LogosMode, so plain Go
-// keeps the exact upstream invalid-character path for `$`.
-//
-// `$"..."` scans as one _Literal token with LitKind InterpLit when `$`
-// joins the opening quote with no gap. The literal Value keeps the full
-// source spelling (including `$"` and the closing quote), so the parser
-// can split literal parts from `{expr}` operands at exact positions.
-// `{{` and `}}` in literal text are literal braces; a lone `}` there is
-// an error, and a `{` without a matching `}` is left for the parser,
-// which reports `syntax error: unterminated interpolation` at the brace.
-// Braces inside an operand nest, with nested strings, runes, raw
-// strings, and comments scanned so their braces never count.
-
-// logosInterp scans a `$"..."` interpolated string. The scanner is
-// positioned at `$` with the token segment started there. It reports
-// false without consuming input (up to a rewind) when `$` does not join
-// a quote, so the caller keeps the upstream invalid-character path.
 func (s *scanner) logosInterp() bool {
 	if s.mode&uint(LogosMode) == 0 || s.ch != '$' {
 		return false
@@ -30,21 +11,19 @@ func (s *scanner) logosInterp() bool {
 	s.nextch()
 	if s.ch != '"' {
 		nl := s.ch == '\n'
-		s.rewind() // back to '$'; the peek consumed no newline itself,
-		if nl {    // but rewind counts the peeked one, so undo it.
+		s.rewind()
+		if nl {
 			s.line--
 		}
 		return false
 	}
-	s.nextch() // consume the opening quote
+	s.nextch()
 	ok := true
 	depth := 0
 	for {
 		switch c := s.ch; {
 		case c < 0:
 			if depth > 0 {
-				// The parser reports the unmatched brace; the
-				// token completes so parsing can continue.
 				s.setLit(InterpLit, true)
 				return true
 			}
@@ -102,8 +81,6 @@ func (s *scanner) logosInterp() bool {
 				ok = false
 			}
 		case c == '/':
-			// logosNestedComment consumed the `/`; on false the
-			// operator character now current still needs consuming.
 			if !s.logosNestedComment() {
 				s.nextch()
 			}
@@ -118,9 +95,6 @@ func (s *scanner) logosInterp() bool {
 	}
 }
 
-// logosNestedString scans a nested interpreted string inside an
-// interpolation operand, mirroring stdString without ending the token.
-// It reports whether the string was well-formed.
 func (s *scanner) logosNestedString() bool {
 	ok := true
 	s.nextch()
@@ -146,9 +120,6 @@ func (s *scanner) logosNestedString() bool {
 	}
 }
 
-// logosNestedRune scans a nested rune literal inside an interpolation
-// operand, mirroring rune without ending the token. It reports whether
-// the literal was well-formed.
 func (s *scanner) logosNestedRune() bool {
 	ok := true
 	s.nextch()
@@ -190,9 +161,6 @@ func (s *scanner) logosNestedRune() bool {
 	}
 }
 
-// logosNestedRaw scans a nested raw string inside an interpolation
-// operand, mirroring rawString without ending the token. It reports
-// whether the string was terminated.
 func (s *scanner) logosNestedRaw() bool {
 	s.nextch()
 	for {
@@ -208,10 +176,6 @@ func (s *scanner) logosNestedRaw() bool {
 	}
 }
 
-// logosNestedComment scans a comment starting at `/` inside an
-// interpolation operand so braces inside comments never count. It
-// reports true when it consumed a comment, false when `/` starts no
-// comment and the caller must scan it as an operator.
 func (s *scanner) logosNestedComment() bool {
 	s.nextch()
 	if s.ch == '/' {

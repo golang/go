@@ -1,0 +1,170 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+# A sink reached only through a function value still fails: the audit
+# follows the variable to exec.Command and on to os.StartProcess.
+cd fv/main
+! logos build -o $WORK/bin/sfv$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]'
+stderr 'example\.com/fvdep'
+stderr 'os\.StartProcess'
+stderr 'dep\.go:8'
+stderr 'transitive_exec_allowlist'
+cd ../..
+
+# A sink reached only through a method value still fails: the audit
+# follows the bound Start call to os.StartProcess.
+cd mv/main
+! logos build -o $WORK/bin/smv$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]'
+stderr 'example\.com/mvdep'
+stderr 'os\.StartProcess'
+stderr 'dep\.go:6'
+stderr 'transitive_exec_allowlist'
+cd ../..
+
+# A sink reached only through a closure stored in a variable still
+# fails: the audit follows the stored literal to os.StartProcess.
+cd cl/main
+! logos build -o $WORK/bin/scl$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]'
+stderr 'example\.com/cldep'
+stderr 'os\.StartProcess'
+stderr 'dep\.go:6'
+stderr 'transitive_exec_allowlist'
+cd ../..
+
+-- fv/main/go.mod --
+module example.com/fvmain
+
+go 1.27
+
+require example.com/fvdep v0.0.0
+
+replace example.com/fvdep => ../dep
+
+-- fv/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+
+-- fv/main/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/fvdep"
+)
+
+func main() {
+	dep.Init()
+	fmt.Println("done")
+}
+
+-- fv/dep/go.mod --
+module example.com/fvdep
+
+go 1.27
+
+-- fv/dep/dep.go --
+package dep
+
+import "os/exec"
+
+var execCommand = exec.Command
+
+//go:noinline
+func Init() {
+	cmd := execCommand("echo", "hi")
+	_ = cmd.Run()
+}
+
+-- mv/main/go.mod --
+module example.com/mvmain
+
+go 1.27
+
+require example.com/mvdep v0.0.0
+
+replace example.com/mvdep => ../dep
+
+-- mv/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+
+-- mv/main/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/mvdep"
+)
+
+func main() {
+	dep.Init()
+	fmt.Println("done")
+}
+
+-- mv/dep/go.mod --
+module example.com/mvdep
+
+go 1.27
+
+-- mv/dep/dep.go --
+package dep
+
+import "os/exec"
+
+//go:noinline
+func Init() {
+	cmd := exec.Command("echo", "hi")
+	start := cmd.Start
+	_ = start()
+}
+
+-- cl/main/go.mod --
+module example.com/clmain
+
+go 1.27
+
+require example.com/cldep v0.0.0
+
+replace example.com/cldep => ../dep
+
+-- cl/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+
+-- cl/main/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/cldep"
+)
+
+func main() {
+	dep.Init()
+	fmt.Println("done")
+}
+
+-- cl/dep/go.mod --
+module example.com/cldep
+
+go 1.27
+
+-- cl/dep/dep.go --
+package dep
+
+import "os/exec"
+
+//go:noinline
+func Init() {
+	run := func() {
+		_ = exec.Command("echo", "hi").Run()
+	}
+	run()
+}

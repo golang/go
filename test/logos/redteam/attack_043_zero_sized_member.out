@@ -1,2 +1,3 @@
-empty
-int 9
+ok zero-sized-empty-member
+ok zero-sized-int-member
+ok zero-sized-assert-to-union

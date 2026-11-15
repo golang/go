@@ -2,53 +2,37 @@
 
 package main
 
-// PRRT_kwDOVOeymc6vd39t (SPEC Sec 2.1, T-201): const slice bounds cannot
-// exceed len(view), even when the backing storage has spare capacity.
-// Simple 2-index, 3-index, and compound-call base reslices beyond len must
-// panic without disclosing bytes from the backing storage secret tail.
-// Exact-len and full-slice legal cases succeed, compound bases evaluate
-// exactly once, and bounds evaluation order (base -> low -> high -> max)
-// is preserved.
 
 import (
 	"fmt"
+	"os"
 	"strings"
 )
 
-var didPanic bool
+var failed bool
 
-func testTrap(name string, f func()) {
-	didPanic = false
-	defer func() {
-		if r := recover(); r != nil {
-			didPanic = true
-		}
-		if didPanic {
-			fmt.Println(name, "panicked")
-		} else {
-			fmt.Println(name, "DID NOT PANIC")
-		}
-	}()
-	f()
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
 }
 
-func testLegal(name string, f func()) {
-	didPanic = false
-	defer func() {
-		if r := recover(); r != nil {
-			didPanic = true
-		}
-		if !didPanic {
-			fmt.Println(name, "succeeded")
-		} else {
-			fmt.Println(name, "PANICKED")
-		}
+func trapped(f func()) bool {
+	did := false
+	func() {
+		defer func() {
+			if recover() != nil {
+				did = true
+			}
+		}()
+		f()
 	}()
-	f()
+	return did
 }
 
-// makeSecretView returns a const view over backing storage whose secret tail
-// is out of scope and nonvisible to callers.
 func makeSecretView() const []byte {
 	storage := []byte("PUBLICSECRET")
 	return storage[:6]
@@ -57,55 +41,53 @@ func makeSecretView() const []byte {
 func testBounds(v const []byte) {
 	hi := 10
 
-	// 1. Simple 2-index bound beyond len must panic.
-	testTrap("simple 2-index beyond len", func() {
+	gotTrap2 := trapped(func() {
 		_ = v[:hi]
 	})
+	check("trap-2index", gotTrap2, gotTrap2, true)
 
-	// 2. 3-index bound beyond len must panic.
-	testTrap("3-index beyond len", func() {
+	gotTrap3 := trapped(func() {
 		_ = v[:hi:hi]
 	})
+	check("trap-3index", gotTrap3, gotTrap3, true)
 
-	// 3. Compound-call base beyond len must panic, evaluating base exactly once.
 	compoundCalls := 0
 	getConstView := func() const []byte {
 		compoundCalls++
 		return v
 	}
 
-	testTrap("compound base beyond len", func() {
+	gotTrapCompound := trapped(func() {
 		_ = getConstView()[:hi]
 	})
-	if compoundCalls == 1 {
-		fmt.Println("compound base evaluated exactly once")
-	} else {
-		fmt.Printf("compound base evaluated %d times\n", compoundCalls)
-	}
+	check("trap-compound", gotTrapCompound, gotTrapCompound, true)
+	check("compound-once", compoundCalls == 1, compoundCalls, 1)
 }
 
 func testLegalCases(v const []byte) {
-	// 4. Exact-len and full-slice legal cases succeed.
-	testLegal("full-slice legal", func() {
+	gotFull := !trapped(func() {
 		s := v[:]
 		if len(s) != 6 {
 			panic("unexpected len")
 		}
 	})
+	check("legal-full", gotFull, gotFull, true)
 
-	testLegal("exact-len 2-index legal", func() {
+	got2 := !trapped(func() {
 		s := v[:6]
 		if len(s) != 6 {
 			panic("unexpected len")
 		}
 	})
+	check("legal-2index", got2, got2, true)
 
-	testLegal("exact-len 3-index legal", func() {
+	got3 := !trapped(func() {
 		s := v[:6:6]
 		if len(s) != 6 {
 			panic("unexpected len")
 		}
 	})
+	check("legal-3index", got3, got3, true)
 
 	compoundCalls := 0
 	getConstView := func() const []byte {
@@ -113,21 +95,17 @@ func testLegalCases(v const []byte) {
 		return v
 	}
 
-	testLegal("compound base legal exact len", func() {
+	gotCompound := !trapped(func() {
 		s := getConstView()[:6]
 		if len(s) != 6 {
 			panic("unexpected len")
 		}
 	})
-	if compoundCalls == 1 {
-		fmt.Println("compound base legal evaluated exactly once")
-	} else {
-		fmt.Printf("compound base legal evaluated %d times\n", compoundCalls)
-	}
+	check("legal-compound", gotCompound, gotCompound, true)
+	check("legal-compound-once", compoundCalls == 1, compoundCalls, 1)
 }
 
 func testEvaluationOrder(v const []byte) {
-	// 5. Preserve bounds evaluation order: base -> low -> high -> max.
 	var evalOrder []string
 
 	orderItem := func(tag string, val int) int {
@@ -140,35 +118,31 @@ func testEvaluationOrder(v const []byte) {
 		return v
 	}
 
-	// Legal 2-index evaluation order: base -> low -> high
 	evalOrder = nil
 	_ = orderBase()[orderItem("low", 1):orderItem("high", 4)]
-	fmt.Println("2-index eval order:", strings.Join(evalOrder, " -> "))
+	check("eval-2index", strings.Join(evalOrder, " -> ") == "base -> low -> high", strings.Join(evalOrder, " -> "), "base -> low -> high")
 
-	// Legal 3-index evaluation order: base -> low -> high -> max
 	evalOrder = nil
 	_ = orderBase()[orderItem("low", 1):orderItem("high", 4):orderItem("max", 6)]
-	fmt.Println("3-index eval order:", strings.Join(evalOrder, " -> "))
+	check("eval-3index", strings.Join(evalOrder, " -> ") == "base -> low -> high -> max", strings.Join(evalOrder, " -> "), "base -> low -> high -> max")
 
-	// Panicking 2-index evaluation order: all operands evaluate before panic
 	evalOrder = nil
-	testTrap("eval order on 2-index panic", func() {
+	gotPanic2 := trapped(func() {
 		_ = orderBase()[orderItem("low", 1):orderItem("high", 10)]
 	})
-	fmt.Println("2-index panic eval order:", strings.Join(evalOrder, " -> "))
+	check("eval-panic-2index-trap", gotPanic2, gotPanic2, true)
+	check("eval-panic-2index-order", strings.Join(evalOrder, " -> ") == "base -> low -> high", strings.Join(evalOrder, " -> "), "base -> low -> high")
 
-	// Panicking 3-index evaluation order: all operands evaluate before panic
 	evalOrder = nil
-	testTrap("eval order on 3-index panic", func() {
+	gotPanic3 := trapped(func() {
 		_ = orderBase()[orderItem("low", 1):orderItem("high", 4):orderItem("max", 10)]
 	})
-	fmt.Println("3-index panic eval order:", strings.Join(evalOrder, " -> "))
+	check("eval-panic-3index-trap", gotPanic3, gotPanic3, true)
+	check("eval-panic-3index-order", strings.Join(evalOrder, " -> ") == "base -> low -> high -> max", strings.Join(evalOrder, " -> "), "base -> low -> high -> max")
 }
 
 func testCallerScope(v const []byte) {
-	// 6. Bounds evaluate in the caller frame: recover() inside a directly
-	// deferred function keeps its active panic value.
-	testLegal("recover bound in caller frame", func() {
+	gotCaller := !trapped(func() {
 		defer func() {
 			if got := len(v[0:len(fmt.Sprint(recover())):6]); got != 4 {
 				panic(got)
@@ -176,6 +150,7 @@ func testCallerScope(v const []byte) {
 		}()
 		panic("xxxx")
 	})
+	check("recover-caller", gotCaller, gotCaller, true)
 }
 
 func main() {
@@ -184,4 +159,7 @@ func main() {
 	testLegalCases(v)
 	testEvaluationOrder(v)
 	testCallerScope(v)
+	if failed {
+		os.Exit(1)
+	}
 }

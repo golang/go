@@ -1,8 +1,3 @@
-# Collision: imported method T.As must not reuse clean func As fact.
-# Producer: clean func As (pure read) + mutating method T.As (t.S[0]=1).
-# Consumer const-receiver caller must REJECT with const_view_mutation;
-# clean func path runs native. Pre-fix: mutating build wrongly succeeds (RED).
-
 env GOPROXY=off
 env GOTOOLCHAIN=local
 mkdir $WORK/bin

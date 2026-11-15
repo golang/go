@@ -1,0 +1,25 @@
+// errorcheck
+
+package p
+
+import "comptime"
+
+type Source struct {
+	ID   int
+	Name int
+}
+
+type Destination struct {
+	ID   int
+	Name string
+}
+
+func MapTo[D, S any](dst *D, src *S) {
+	const for _, f := range comptime.Fields[D]() {
+		dst.[f] = src.[f]
+	}
+}
+
+func bad() {
+	MapTo[Destination, Source](&Destination{}, &Source{}) // ERROR "."
+}

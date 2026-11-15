@@ -105,11 +105,11 @@ func walkAppend(n *ir.CallExpr, init *ir.Nodes, dst ir.Node) ir.Node {
 
 	// else { s = growslice(s.ptr, n, s.cap, a, T) }
 	nif.Else = []ir.Node{
-		ir.NewAssignStmt(base.Pos, s, walkGrowslice(s, nif.PtrInit(),
+		ir.NewAssignStmt(base.Pos, s, logosRegionGrowslice(logosRegionGrow{n, s, nif.PtrInit(),
 			ir.NewUnaryExpr(base.Pos, ir.OSPTR, s),
 			newLen,
 			ir.NewUnaryExpr(base.Pos, ir.OCAP, s),
-			num)),
+			num})),
 	}
 
 	l = append(l, nif)
@@ -468,8 +468,7 @@ func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 			// The conv is necessary in case n.Type is named.
 			return walkExpr(typecheck.Expr(typecheck.Conv(s, n.Type())), init)
 		}
-		// Check that this optimization is enabled in general and for this node.
-		tryStack = base.Flag.N == 0 && base.VariableMakeHash.MatchPos(n.Pos(), nil)
+		tryStack = base.VariableMakeEnabled(n.Pos())
 	}
 
 	// The final result is assigned to this variable.

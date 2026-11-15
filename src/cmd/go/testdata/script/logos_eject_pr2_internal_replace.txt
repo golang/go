@@ -1,6 +1,3 @@
-# PR2: in-module Go-only replace ./sub is copied to the ejected output.
-# The ejected go.mod must reference the copied ./sub in the output tree,
-# not point back into the original disposable source directory.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
@@ -15,8 +12,6 @@ exists $WORK/out/go.mod
 exists $WORK/out/sub/go.mod
 exists $WORK/out/sub/sub.go
 
-# Removing the original source directory proves the ejected module is
-# self-contained and does not point back into the disposable source tree.
 cd ..
 exists lapp
 rm lapp
@@ -26,6 +21,11 @@ cd $WORK/out
 go build ./...
 go run .
 cmp stdout $WORK/want-stdout.txt
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
 
 -- lapp/go.mod --
 module example.com/lapp

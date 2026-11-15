@@ -1,0 +1,61 @@
+// errorcheck
+
+package p
+
+import (
+	"comptime"
+	"context"
+)
+
+type Point struct {
+	X int
+	Y int
+}
+
+func forms(ctx context.Context, ch chan int, xs []int) {
+	var ok bool
+	_ = ok
+	const for i, f := range comptime.Fields[Point]() {
+		_ = f.Name
+		_ = i
+		i = 3 // ERROR "comptime::const_for_assign"
+		i += 1 // ERROR "comptime::const_for_assign"
+		i -= 1 // ERROR "comptime::const_for_assign"
+		i <<= 1 // ERROR "comptime::const_for_assign"
+		i++ // ERROR "comptime::const_for_assign"
+		i-- // ERROR "comptime::const_for_assign"
+		_, i = 1, 2 // ERROR "comptime::const_for_assign"
+		i, _ = 1, 2 // ERROR "comptime::const_for_assign"
+		(i) = 3 // ERROR "comptime::const_for_assign"
+		((i)) = 3 // ERROR "comptime::const_for_assign"
+		(i) += 1 // ERROR "comptime::const_for_assign"
+		(i)++ // ERROR "comptime::const_for_assign"
+		(i), _ = 1, 2 // ERROR "comptime::const_for_assign"
+		_, (i) = 1, 2 // ERROR "comptime::const_for_assign"
+		for i = range 3 { // ERROR "comptime::const_for_assign"
+		}
+		for i, _ = range xs { // ERROR "comptime::const_for_assign"
+		}
+		for _, i = range xs { // ERROR "comptime::const_for_assign"
+		}
+		for (i) = range 3 { // ERROR "comptime::const_for_assign"
+		}
+		for i = 0; i < 3; i++ { // ERROR "comptime::const_for_assign"
+		}
+		select {
+		case i = <-ch: // ERROR "comptime::const_for_assign"
+		case <-ctx.Done():
+		}
+		select {
+		case i, ok = <-ch: // ERROR "comptime::const_for_assign"
+		case <-ctx.Done():
+		}
+		select {
+		case (i) = <-ch: // ERROR "comptime::const_for_assign"
+		case <-ctx.Done():
+		}
+		func() {
+			i = 3 // ERROR "comptime::const_for_assign"
+		}()
+	}
+}

@@ -18,6 +18,7 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/logos"
+	"cmd/compile/internal/logos/wasmyield"
 	"cmd/compile/internal/loopvar"
 	"cmd/compile/internal/noder"
 	"cmd/compile/internal/pgoir"
@@ -370,7 +371,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 		break
 	}
 
-	logosWasmFinish() // logos M16-S1 hook: solve wasm yield facts, assemble held functions.
+	wasmyield.Finish()
 
 	base.Timer.AddEvent(int64(len(typecheck.Target.Funcs)), "funcs")
 

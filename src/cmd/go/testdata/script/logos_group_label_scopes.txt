@@ -1,0 +1,97 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+cp $GOROOT/test/logos/run/group_label_scopes.lgo good/main.lgo
+cd good
+logos run .
+cmp stdout $GOROOT/test/logos/run/group_label_scopes.out
+logos eject -o out
+cd out
+go run .
+cmp stdout $GOROOT/test/logos/run/group_label_scopes.out
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/group_label_scopes.out
+cd ..
+cd ../unused
+! logos build .
+cd ../undefined
+! logos build .
+cd ../crosschild
+! logos build .
+cd ../outward
+! logos build .
+
+-- good/go.mod --
+module example.com/grouplabelgood
+
+go 1.27
+-- unused/go.mod --
+module example.com/grouplabelunused
+
+go 1.27
+-- unused/main.lgo --
+package main
+import "context"
+func f() error {
+ go group (context.Background()) {
+  go {
+  Unused:
+   println("unused")
+  }
+ }
+ return nil
+}
+func main() {}
+-- undefined/go.mod --
+module example.com/grouplabelundefined
+
+go 1.27
+-- undefined/main.lgo --
+package main
+import "context"
+func f() error {
+ go group (context.Background()) {
+  go { goto Missing }
+ }
+ return nil
+}
+func main() {}
+-- crosschild/go.mod --
+module example.com/grouplabelcrosschild
+
+go 1.27
+-- crosschild/main.lgo --
+package main
+import "context"
+func f() error {
+ go group (context.Background()) {
+  go { goto Shared }
+  go {
+   goto Shared
+  Shared:
+   println("local")
+  }
+ }
+ return nil
+}
+func main() {}
+-- outward/go.mod --
+module example.com/grouplabeloutward
+
+go 1.27
+-- outward/main.lgo --
+package main
+import "context"
+func f() error {
+Outer:
+ for {
+  go group (context.Background()) {
+   go { break Outer }
+  }
+  break Outer
+ }
+ return nil
+}
+func main() {}

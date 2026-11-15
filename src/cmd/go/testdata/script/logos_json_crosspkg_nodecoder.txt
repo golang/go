@@ -1,0 +1,47 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd w
+! logos run .
+stderr 'union_member_no_json'
+
+-- w/go.mod --
+module example.com/nodecoder
+
+go 1.27
+
+-- w/a/a.lgo --
+package a
+
+type B int
+
+type C struct {
+  R int64 `json:"r"`
+}
+
+type U interface {
+  B | C
+}
+
+-- w/main.lgo --
+package main
+
+import (
+  "encoding/json"
+  "fmt"
+
+  "example.com/nodecoder/a"
+)
+
+type Holder struct {
+  Item a.U `json:"item"`
+}
+
+func main() {
+  var h Holder
+  err := json.Unmarshal([]byte(`{"item":{"r":3}}`), &h)
+  if err != nil {
+    panic("nodecoder unmarshal: " + err.Error())
+  }
+  fmt.Printf("%T\n", h.Item)
+}

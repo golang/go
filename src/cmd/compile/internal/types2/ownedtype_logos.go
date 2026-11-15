@@ -4,74 +4,45 @@
 
 package types2
 
-// Exact-node fresh owned-type descriptors for native private-type
-// support: only registered compiler-created nodes resolve here, using
-// fresh recheck types. See local://ownedtype-native-api.md.
-
 import (
 	"cmd/compile/internal/syntax"
 	. "internal/types/errors"
 )
 
-// LogosOwnedStepKind is one structural traversal step. Every step
-// validates kind and index before traversing, with no implicit
-// unwrapping.
 type LogosOwnedStepKind uint8
 
 const (
-	// LogosOwnedUnderlying unwraps Named to underlying, Alias to aliased type.
 	LogosOwnedUnderlying LogosOwnedStepKind = iota + 1
-	// LogosOwnedMapKey is the key of a *Map.
 	LogosOwnedMapKey
-	// LogosOwnedMapElem is the element of a *Map.
 	LogosOwnedMapElem
-	// LogosOwnedSliceElem is the element of a *Slice.
 	LogosOwnedSliceElem
-	// LogosOwnedArrayElem is the element of an *Array.
 	LogosOwnedArrayElem
-	// LogosOwnedPointerElem is the base of a *Pointer.
 	LogosOwnedPointerElem
-	// LogosOwnedStructField is the type of struct field Index.
 	LogosOwnedStructField
-	// LogosOwnedSigResult is the type of result Index.
 	LogosOwnedSigResult
-	// LogosOwnedSigParam is the type of parameter Index.
 	LogosOwnedSigParam
 )
 
-// LogosOwnedStep is one traversal step; Index applies to
-// StructField, SigResult and SigParam only.
 type LogosOwnedStep struct {
 	Kind  LogosOwnedStepKind
 	Index int
 }
 
-// LogosOwnedType is one exact-node descriptor. Type nodes carry
-// exactly one route (factory or witness); literal and field-selector
-// nodes register the zero descriptor, and any other shape fails
-// closed with a diagnostic.
 type LogosOwnedType struct {
-	// FactoryPath is the canonical factory import path.
 	FactoryPath string
-	// FactoryName is its exported function; private scope is never authority.
 	FactoryName string
-	// Witness is a retained expression whose fresh final type is the root.
-	Witness syntax.Expr
-	// Path walks the root to the target; empty resolves to the root.
-	Path []LogosOwnedStep
+	Witness     syntax.Expr
+	Path        []LogosOwnedStep
 }
 
-// LogosOwnedFactory resolves pkgPath.object through path of at least one step.
 func LogosOwnedFactory(pkgPath, object string, path ...LogosOwnedStep) LogosOwnedType {
 	return LogosOwnedType{FactoryPath: pkgPath, FactoryName: object, Path: path}
 }
 
-// LogosOwnedWitness resolves the fresh final type of witness through path.
 func LogosOwnedWitness(witness syntax.Expr, path ...LogosOwnedStep) LogosOwnedType {
 	return LogosOwnedType{Witness: witness, Path: path}
 }
 
-// logosOwnedRegistered is pointer-identity membership, never spelling.
 func (check *Checker) logosOwnedRegistered(e syntax.Expr) bool {
 	if check == nil || check.conf == nil || e == nil {
 		return false
@@ -84,7 +55,6 @@ func (d LogosOwnedType) logosOwnedIsZero() bool {
 	return d.FactoryPath == "" && d.FactoryName == "" && d.Witness == nil && len(d.Path) == 0
 }
 
-// logosOwnedTypeOf resolves a registered type node, false when unregistered.
 func (check *Checker) logosOwnedTypeOf(e syntax.Expr) (Type, bool) {
 	if check == nil || check.conf == nil || e == nil {
 		return nil, false
@@ -144,12 +114,11 @@ func (check *Checker) logosOwnedRoot(d LogosOwnedType, at poser) (Type, bool) {
 	var x operand
 	check.genericExpr(&x, d.Witness, nil)
 	if x.mode() == invalid || !isValid(x.typ()) {
-		return nil, false // diagnostic already reported
+		return nil, false
 	}
 	return x.typ(), true
 }
 
-// logosOwnedFuncRoot returns the fresh signature; only functions qualify.
 func (check *Checker) logosOwnedFuncRoot(pkg *Package, d LogosOwnedType, at poser) (Type, bool) {
 	obj := pkg.Scope().Lookup(d.FactoryName)
 	if obj == nil {
@@ -172,7 +141,6 @@ func (check *Checker) logosOwnedFuncRoot(pkg *Package, d LogosOwnedType, at pose
 	return nil, false
 }
 
-// logosOwnedImport never returns stale packages from other checks.
 func (check *Checker) logosOwnedImport(path string, at poser) (*Package, bool) {
 	if check.pkg != nil && path == check.pkg.Path() {
 		return check.pkg, true
@@ -200,7 +168,6 @@ func (check *Checker) logosOwnedImport(path string, at poser) (*Package, bool) {
 	return pkg, true
 }
 
-// logosOwnedWalk returns the exact fresh object found, never a reconstruction.
 func (check *Checker) logosOwnedWalk(root Type, path []LogosOwnedStep, at poser) (Type, bool) {
 	if root == nil || !isValid(root) {
 		check.error(at, BadDecl, "logos: owned path has no valid root")
@@ -309,8 +276,6 @@ func (check *Checker) logosOwnedWalk(root Type, path []LogosOwnedStep, at poser)
 	return t, true
 }
 
-// logosOwnedSelector grants one exact-registered field by name,
-// recording normal selection metadata; true when e is registered.
 func (check *Checker) logosOwnedSelector(x *operand, e *syntax.SelectorExpr) bool {
 	if !check.logosOwnedRegistered(e) {
 		return false
@@ -363,9 +328,6 @@ func (check *Checker) logosOwnedSelector(x *operand, e *syntax.SelectorExpr) boo
 	return true
 }
 
-// logosOwnedLitSkip applies logosOwnedLitField to a struct literal key
-// lookup in place: it reports whether the element must be skipped, and
-// rewrites obj, index, and indirect when an owned field is granted.
 func (check *Checker) logosOwnedLitSkip(lit *syntax.CompositeLit, utyp *Struct, name string, obj *Object, index *[]int, indirect *bool) bool {
 	fld, idx, ok := check.logosOwnedLitField(lit, utyp, name, *obj)
 	if !ok {
@@ -378,8 +340,6 @@ func (check *Checker) logosOwnedLitSkip(lit *syntax.CompositeLit, utyp *Struct, 
 	return false
 }
 
-// logosOwnedLitField grants one exact-registered literal field;
-// a nonzero descriptor diagnoses first even when accessible.
 func (check *Checker) logosOwnedLitField(lit *syntax.CompositeLit, utyp *Struct, name string, found Object) (*Var, []int, bool) {
 	if name == "_" {
 		return nil, nil, false
@@ -406,10 +366,6 @@ func (check *Checker) logosOwnedLitField(lit *syntax.CompositeLit, utyp *Struct,
 	return nil, nil, false
 }
 
-// logosOwnedPosLitField grants exact-registered positional struct literal fields;
-// a nonzero descriptor diagnoses first and reports handled, mirroring
-// logosOwnedLitField, so malformed nodes fail closed on the descriptor
-// diagnostic without a follow-on access error.
 func (check *Checker) logosOwnedPosLitField(lit *syntax.CompositeLit) bool {
 	if check == nil || check.conf == nil || lit == nil {
 		return false

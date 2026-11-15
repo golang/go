@@ -2,20 +2,22 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
-// M13-S3 row #121 (SPEC T-203.4), the checker and copy side. In a call, a
-// []C whose elements implement Creature passes to a `const []Creature`
-// parameter. Go has no such slice conversion, so every call converts the
-// argument through rt.CovSlice, a real element-wise copy; at -O=1 nothing
-// specializes it away. The copy keeps a nil slice nil and gives an empty
-// slice an empty result, evaluates the argument expression once, shares
-// the pointed-to elements with the source, and owns its backing array, so
-// replacing a source slot afterwards does not reach a view the callee
-// returned. A slice that already has the parameter's element type is not
-// converted and stays shared. There is no Go twin: const views are loGo/s
-// syntax. The rejected shapes live in
-// src/internal/types/testdata/logos/const_slice_cov.lgo.
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
 
 type Creature interface {
 	const Name() string
@@ -76,31 +78,34 @@ func monsters() []*Monster {
 
 func main() {
 	ms := []*Monster{{name: "orc"}, {name: "troll"}, {name: "goblin"}, {name: "imp"}}
-	fmt.Println(Names(ms))
-	fmt.Println(Names([]Rock{{name: "a"}, {name: "b"}}))
+	check("names-ms", Names(ms) == "orc,troll,goblin,imp", Names(ms), "orc,troll,goblin,imp")
+	check("names-rocks", Names([]Rock{{name: "a"}, {name: "b"}}) == "rock:a,rock:b", Names([]Rock{{name: "a"}, {name: "b"}}), "rock:a,rock:b")
 
 	trolls := []Troll{{name: "grok"}, {name: "ug"}}
-	fmt.Println(Names(trolls), Weights(trolls))
+	check("names-trolls", Names(trolls) == "troll:grok,troll:ug" && Weights(trolls) == 6, fmt.Sprint(Names(trolls), Weights(trolls)), "troll:grok,troll:ug 6")
 
 	ns := []Named{Troll{name: "grok"}, Troll{name: "ug"}}
-	fmt.Println(Names(ns))
-	fmt.Println(Names(Monsters{{name: "gnoll"}}))
+	check("names-named", Names(ns) == "troll:grok,troll:ug", Names(ns), "troll:grok,troll:ug")
+	check("names-monsters", Names(Monsters{{name: "gnoll"}}) == "gnoll", Names(Monsters{{name: "gnoll"}}), "gnoll")
 
 	var none []*Monster
-	fmt.Println(len(Names(none)), len(Names([]*Monster{})), len(Names(nil)))
+	check("names-empty", len(Names(none)) == 0 && len(Names([]*Monster{})) == 0 && len(Names(nil)) == 0, fmt.Sprint(len(Names(none)), len(Names([]*Monster{})), len(Names(nil))), "0 0 0")
 
 	s := Names(monsters())
-	fmt.Println(s, evals)
+	check("eval-once", s == "orc,imp" && evals == 1, fmt.Sprint(s, evals), "orc,imp 1")
 
 	kept := View(ms)
 	ms[0] = &Monster{name: "ogre"}
-	fmt.Println(Names(kept))
+	check("view-snapshot", Names(kept) == "orc,troll,goblin,imp", Names(kept), "orc,troll,goblin,imp")
 	ms[1].name = "TROLL"
-	fmt.Println(Names(kept))
-	fmt.Println(Names(ms))
+	check("view-pointee", Names(kept) == "orc,TROLL,goblin,imp", Names(kept), "orc,TROLL,goblin,imp")
+	check("view-source", Names(ms) == "ogre,TROLL,goblin,imp", Names(ms), "ogre,TROLL,goblin,imp")
 
 	cs := []Creature{&Monster{name: "elf"}}
 	shared := View(cs)
 	cs[0] = &Monster{name: "dwarf"}
-	fmt.Println(Names(shared))
+	check("view-shared", Names(shared) == "dwarf", Names(shared), "dwarf")
+	if failed {
+		os.Exit(1)
+	}
 }

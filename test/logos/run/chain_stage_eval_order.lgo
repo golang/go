@@ -1,0 +1,193 @@
+// run
+
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"slices"
+	"strings"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+var order []string
+
+func note(tag string) { order = append(order, tag) }
+
+func srcSlice() []int {
+	note("src")
+	return []int{3, 1, 2, 5, 4}
+}
+
+func srcArray() [3]int {
+	note("src")
+	return [3]int{3, 1, 2}
+}
+
+func srcSeq() func(func(int) bool) {
+	note("src")
+	return slices.Values([]int{3, 1, 2, 5, 4})
+}
+
+func srcChan() chan int {
+	note("src")
+	c := make(chan int, 3)
+	c <- 3
+	c <- 1
+	c <- 2
+	close(c)
+	return c
+}
+
+func cx() context.Context {
+	note("ctx")
+	return context.Background()
+}
+
+func lim() int {
+	note("limit")
+	return 2
+}
+
+func record(name string, run func() error) {
+	order = nil
+	err := run()
+	got := strings.Join(order, ",")
+	check(name, err == nil && got == "src,ctx,limit", got+" "+fmt.Sprint(err), "src,ctx,limit")
+}
+
+func named() (out []int, err error) {
+	out, err = srcSlice().group(cx(), limit = lim()).map(x => x * 2)
+	return out, err
+}
+
+func rangeForm() error {
+	for y := range srcSlice().group(cx(), limit = lim()).map(x => x * 2) {
+		_ = y
+	}
+	return nil
+}
+
+func rangeUnordered() error {
+	for y := range srcSlice().group(cx(), limit = lim()).unordered().map(x => x * 2) {
+		_ = y
+	}
+	return nil
+}
+
+func rangeChan() error {
+	for y := range srcChan().group(cx(), limit = lim()).map(x => x * 2) {
+		_ = y
+	}
+	return nil
+}
+
+func rangeSeq() error {
+	for y := range srcSeq().group(cx(), limit = lim()).filter(x => x > 1) {
+		_ = y
+	}
+	return nil
+}
+
+func rangeBreak() error {
+	for y := range srcSlice().group(cx(), limit = lim()).map(x => x * 2) {
+		if y > 0 {
+			break
+		}
+	}
+	return nil
+}
+
+func valueForms() {
+	record("value-slice", func() error {
+		_, err := srcSlice().group(cx(), limit = lim()).map(x => x * 2)
+		return err
+	})
+	record("value-array", func() error {
+		_, err := srcArray().group(cx(), limit = lim()).map(x => x * 2)
+		return err
+	})
+	record("value-seq", func() error {
+		_, err := srcSeq().group(cx(), limit = lim()).map(x => x * 2)
+		return err
+	})
+	record("value-chan", func() error {
+		_, err := srcChan().group(cx(), limit = lim()).map(x => x * 2)
+		return err
+	})
+	record("value-filter", func() error {
+		_, err := srcSlice().group(cx(), limit = lim()).filter(x => x > 1)
+		return err
+	})
+	record("value-unordered", func() error {
+		_, err := srcSlice().group(cx(), limit = lim()).unordered().map(x => x * 2)
+		return err
+	})
+	record("named-results", func() error {
+		_, err := named()
+		return err
+	})
+}
+
+func rangeForms() {
+	record("range-form", rangeForm)
+	record("range-unordered", rangeUnordered)
+	record("range-chan", rangeChan)
+	record("range-seq", rangeSeq)
+	record("range-break", rangeBreak)
+}
+
+func terminalForms() {
+	record("terminal-sum", func() error {
+		_, err := srcSlice().group(cx(), limit = lim()).filter(x => x > 1).map(x => x * 2).sum()
+		return err
+	})
+	record("terminal-first", func() error {
+		_, err := srcSlice().group(cx(), limit = lim()).map(x => x * 2).first()
+		return err
+	})
+	record("terminal-take", func() error {
+		_, err := srcSlice().group(cx(), limit = lim()).map(x => x * 2).take(2)
+		return err
+	})
+	record("terminal-sortby", func() error {
+		_, err := srcSlice().group(cx(), limit = lim()).map(x => x * 2).sortBy(x => x)
+		return err
+	})
+	record("terminal-find", func() error {
+		_, err := srcSlice().group(cx(), limit = lim()).map(x => x * 2).find(x => x > 4)
+		return err
+	})
+	record("terminal-count", func() error {
+		_, err := srcSlice().group(cx(), limit = lim()).map(x => x * 2).count()
+		return err
+	})
+	record("terminal-any", func() error {
+		_, err := srcSlice().group(cx(), limit = lim()).unordered().map(x => x * 2).any(x => x > 4)
+		return err
+	})
+	record("terminal-all", func() error {
+		_, err := srcSlice().group(cx(), limit = lim()).map(x => x * 2).all(x => x > 4)
+		return err
+	})
+}
+
+func main() {
+	valueForms()
+	rangeForms()
+	terminalForms()
+	if failed {
+		os.Exit(1)
+	}
+}

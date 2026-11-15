@@ -5,13 +5,13 @@ package main
 import (
 	"fmt"
 	"math"
+	"os"
 )
 
-// M14-S1 attack (SPEC Sec 2.4, T-204.2): every operator and reduction
-// matches a scalar loop oracle written in this file. Float sums and
-// dots also match an explicit pairwise tree, pinning the fixed pairwise
-// order in both lowerings: the printed bit patterns are identical with
-// and without GOEXPERIMENT=simd.
+func fail(tag string) {
+	fmt.Println("FAIL", tag)
+	os.Exit(1)
+}
 
 func oracleAdd4(a, b [4]float64) [4]float64 {
 	var r [4]float64
@@ -59,21 +59,21 @@ func checkAdd4() {
 	got := a + b
 	want := oracleAdd4(a, b)
 	if got != want {
-		panic(fmt.Sprintf("add4: got %v want %v", got, want))
+		fail(fmt.Sprintf("add4: got %v want %v", got, want))
 	}
 	d := a - b
 	for i := range d {
 		if d[i] != a[i]-b[i] {
-			panic("sub4 mismatch")
+			fail(fmt.Sprintf("sub4 lane %d: got %v want %v", i, d[i], a[i]-b[i]))
 		}
 	}
 	q := a / b
 	for i := range q {
 		if q[i] != a[i]/b[i] {
-			panic("div4 mismatch")
+			fail(fmt.Sprintf("div4 lane %d: got %v want %v", i, q[i], a[i]/b[i]))
 		}
 	}
-	fmt.Println("add4", got)
+	fmt.Println("ok add-sub-div-match-scalar")
 }
 
 func checkMul8() {
@@ -85,9 +85,9 @@ func checkMul8() {
 	got := a * b
 	want := oracleMul8(a, b)
 	if got != want {
-		panic(fmt.Sprintf("mul8: got %v want %v", got, want))
+		fail(fmt.Sprintf("mul8: got %v want %v", got, want))
 	}
-	fmt.Println("mul8", got)
+	fmt.Println("ok mul-matches-scalar")
 }
 
 func checkAnd16() {
@@ -97,15 +97,15 @@ func checkAnd16() {
 		b[i] = uint8(i*11 + 5)
 	}
 	if (a & b) != oracleAnd16(a, b) {
-		panic("and16 mismatch")
+		fail(fmt.Sprintf("and16: got %v want %v", a&b, oracleAnd16(a, b)))
 	}
 	if (a | b) != oracleOr16(a, b) {
-		panic("or16 mismatch")
+		fail(fmt.Sprintf("or16: got %v want %v", a|b, oracleOr16(a, b)))
 	}
 	if (a ^ b) != oracleXor16(a, b) {
-		panic("xor16 mismatch")
+		fail(fmt.Sprintf("xor16: got %v want %v", a^b, oracleXor16(a, b)))
 	}
-	fmt.Println("and16", a&b)
+	fmt.Println("ok and-or-xor-match-scalar")
 }
 
 func oracleOr16(a, b [16]uint8) [16]uint8 {
@@ -127,17 +127,17 @@ func oracleXor16(a, b [16]uint8) [16]uint8 {
 func checkReductions() {
 	a := [4]float64{4, 2, 8, 1}
 	if a.sum() != 15 {
-		panic("sum4 mismatch")
+		fail(fmt.Sprintf("sum4: got %v want %v", a.sum(), 15))
 	}
 	if a.min() != 1 {
-		panic("min4 mismatch")
+		fail(fmt.Sprintf("min4: got %v want %v", a.min(), 1))
 	}
 	if a.max() != 8 {
-		panic("max4 mismatch")
+		fail(fmt.Sprintf("max4: got %v want %v", a.max(), 8))
 	}
 	b := [4]float64{1, 2, 3, 4}
 	if a.dot(b) != oracleDot4(a, b) {
-		panic("dot4 mismatch")
+		fail(fmt.Sprintf("dot4: got %v want %v", a.dot(b), oracleDot4(a, b)))
 	}
 	var c [32]byte
 	for i := range c {
@@ -148,22 +148,22 @@ func checkReductions() {
 		want += v
 	}
 	if c.sum() != want {
-		panic("sum32 mismatch")
+		fail(fmt.Sprintf("sum32: got %v want %v", c.sum(), want))
 	}
 	var d [64]byte
 	for i := range d {
 		d[i] = byte(i + 1)
 	}
 	if d.sum() != oracleSum64(d) {
-		panic("sum64 mismatch")
+		fail(fmt.Sprintf("sum64: got %v want %v", d.sum(), oracleSum64(d)))
 	}
 	var e [2]uint64
 	e[0] = 7
 	e[1] = 3
 	if e.sum() != 10 || e.min() != 3 || e.max() != 7 {
-		panic("u64 reduction mismatch")
+		fail(fmt.Sprintf("u64 reduction: got %v %v %v want 10 3 7", e.sum(), e.min(), e.max()))
 	}
-	fmt.Println("reductions", a.sum(), a.min(), a.max(), a.dot(b), c.sum(), d.sum())
+	fmt.Println("ok reductions-match-scalar")
 }
 
 func checkIntDiv() {
@@ -172,10 +172,10 @@ func checkIntDiv() {
 	got := a / b
 	for i := range got {
 		if got[i] != a[i]/b[i] {
-			panic("intdiv mismatch")
+			fail(fmt.Sprintf("intdiv lane %d: got %v want %v", i, got[i], a[i]/b[i]))
 		}
 	}
-	fmt.Println("intdiv", got)
+	fmt.Println("ok intdiv-matches-scalar")
 }
 
 func checkPairwise() {
@@ -185,26 +185,24 @@ func checkPairwise() {
 	hi := (t[4] + t[5]) + (t[6] + t[7])
 	p := lo + hi
 	if s != p {
-		panic(fmt.Sprintf("pairwise f64: got %v want %v", s, p))
+		fail(fmt.Sprintf("pairwise f64: got %v want %v", s, p))
 	}
-	fmt.Println("pairwise64", math.Float64bits(s))
 	u := [8]float32{1e7, 1, 1, 1, 1, 1, 1, -1e7}
 	su := u.sum()
 	lou := (u[0] + u[1]) + (u[2] + u[3])
 	hiu := (u[4] + u[5]) + (u[6] + u[7])
 	pu := lou + hiu
 	if su != pu {
-		panic(fmt.Sprintf("pairwise f32: got %v want %v", su, pu))
+		fail(fmt.Sprintf("pairwise f32: got %v want %v", su, pu))
 	}
-	fmt.Println("pairwise32", math.Float32bits(su))
 	a := [4]float64{1e16, 1, -1e16, 2}
 	b := [4]float64{1, 1, 1, 1}
 	d := a.dot(b)
 	lod := (a[0]*b[0] + a[1]*b[1]) + (a[2]*b[2] + a[3]*b[3])
 	if d != lod {
-		panic(fmt.Sprintf("pairwise dot: got %v want %v", d, lod))
+		fail(fmt.Sprintf("pairwise dot: got %v want %v", d, lod))
 	}
-	fmt.Println("pairwisedot", math.Float64bits(d))
+	fmt.Println("ok pairwise-order-holds")
 }
 
 type simdRunVec [4]float64
@@ -214,22 +212,19 @@ func checkNamed() {
 	b := simdRunVec{4, 3, 2, 1}
 	c := a + b
 	if c != (simdRunVec{5, 5, 5, 5}) {
-		panic("named add mismatch")
+		fail(fmt.Sprintf("named add: got %v want %v", c, simdRunVec{5, 5, 5, 5}))
 	}
 	if a.sum() != 10 {
-		panic("named sum mismatch")
+		fail(fmt.Sprintf("named sum: got %v want 10", a.sum()))
 	}
 	if a.dot(b) != 20 {
-		panic("named dot mismatch")
+		fail(fmt.Sprintf("named dot: got %v want 20", a.dot(b)))
 	}
-	fmt.Println("named", c, a.sum(), a.dot(b))
+	fmt.Println("ok named-array-matches-scalar")
 }
 
 type simdLane float64
 
-// Word kinds (int, uint, uintptr) and named element types have the same
-// size as a fixed-width lane but are distinct types, so the vector form
-// must not hand their pointers to archsimd (SPEC T-204.2 lowering).
 func checkWordKinds() {
 	var ia, ib [4]int
 	var ua, ub [4]uint
@@ -250,47 +245,44 @@ func checkWordKinds() {
 	var wantSum, wantDot int
 	for i := range ia {
 		if si[i] != ia[i]+ib[i] {
-			panic("int add mismatch")
+			fail(fmt.Sprintf("int add lane %d: got %v want %v", i, si[i], ia[i]+ib[i]))
 		}
 		wantSum += ia[i]
 		wantDot += ia[i] * ib[i]
 	}
 	if ia.sum() != wantSum || ia.dot(ib) != wantDot {
-		panic("int reduction mismatch")
+		fail(fmt.Sprintf("int reduction: got %v %v want %v %v", ia.sum(), ia.dot(ib), wantSum, wantDot))
 	}
 
 	mu := ua * ub
 	for i := range mu {
 		if mu[i] != ua[i]*ub[i] {
-			panic("uint mul mismatch")
+			fail(fmt.Sprintf("uint mul lane %d: got %v want %v", i, mu[i], ua[i]*ub[i]))
 		}
 	}
 
 	ps := pa + pb
 	if ps[0] != 4 || ps[1] != 6 || pa.sum() != 7 || pa.max() != 4 {
-		panic("uintptr mismatch")
+		fail(fmt.Sprintf("uintptr: got %v %v %v want [4 6] 7 4", ps, pa.sum(), pa.max()))
 	}
 
 	ns := na + nb
 	var wantNSum, wantNDot simdLane
 	for i := range na {
 		if ns[i] != na[i]+nb[i] {
-			panic("named add mismatch")
+			fail(fmt.Sprintf("named add lane %d: got %v want %v", i, ns[i], na[i]+nb[i]))
 		}
 		wantNSum += na[i]
 		wantNDot += na[i] * nb[i]
 	}
 	if na.sum() != wantNSum || na.dot(nb) != wantNDot {
-		panic("named reduction mismatch")
+		fail(fmt.Sprintf("named reduction: got %v %v want %v %v", na.sum(), na.dot(nb), wantNSum, wantNDot))
 	}
-	fmt.Println("words", si, mu, ps, ns, na.sum(), na.dot(nb), ia.dot(ib))
+	fmt.Println("ok word-kinds-match-scalar")
 }
 
 type simdF32 = float32
 
-// A type alias names its target, so an alias of a fixed-width kind takes
-// the same form as float32. Every value is a quarter-multiple below 2^24,
-// so each partial sum is exact and the sum does not depend on order.
 func checkAlias() {
 	var x, y [8]simdF32
 	for i := range x {
@@ -300,13 +292,82 @@ func checkAlias() {
 	s := x + y
 	for i := range s {
 		if s[i] != x[i]+y[i] {
-			panic("alias add mismatch")
+			fail(fmt.Sprintf("alias add lane %d: got %v want %v", i, s[i], x[i]+y[i]))
 		}
 	}
 	if x.sum() != 30 {
-		panic("alias sum mismatch")
+		fail(fmt.Sprintf("alias sum: got %v want 30", x.sum()))
 	}
-	fmt.Println("alias", s, x.sum())
+	fmt.Println("ok alias-matches-scalar")
+}
+
+func checkIntSubDiv() {
+	var sa, sb [8]int32
+	for i := range sa {
+		sa[i] = int32(i*7 - 11)
+		sb[i] = int32(i*3 + 1)
+	}
+	sd := sa - sb
+	for i := range sd {
+		if sd[i] != sa[i]-sb[i] {
+			fail(fmt.Sprintf("int32 sub lane %d: got %v want %v", i, sd[i], sa[i]-sb[i]))
+		}
+	}
+	var da, db [8]uint8
+	for i := range da {
+		da[i] = uint8(i*13 + 5)
+		db[i] = uint8(i*7 + 1)
+	}
+	dq := da / db
+	for i := range dq {
+		if dq[i] != da[i]/db[i] {
+			fail(fmt.Sprintf("uint8 div lane %d: got %v want %v", i, dq[i], da[i]/db[i]))
+		}
+	}
+	var ua, ub [4]uint32
+	for i := range ua {
+		ua[i] = uint32(i*11 + 9)
+		ub[i] = uint32(i*5 + 2)
+	}
+	uq := ua / ub
+	for i := range uq {
+		if uq[i] != ua[i]/ub[i] {
+			fail(fmt.Sprintf("uint32 div lane %d: got %v want %v", i, uq[i], ua[i]/ub[i]))
+		}
+	}
+	fmt.Println("ok small-intdiv-matches-scalar")
+}
+
+func checkFloatXor() {
+	fa := [4]float32{1.5, -2.25, 3.75, -0.5}
+	fb := [4]float32{4.25, 1.5, -2.5, 8.0}
+	fx := fa ^ fb
+	for i := range fx {
+		if math.Float32bits(fx[i]) != math.Float32bits(fa[i])^math.Float32bits(fb[i]) {
+			fail(fmt.Sprintf("float32 xor lane %d: got %v want %v", i, math.Float32bits(fx[i]), math.Float32bits(fa[i])^math.Float32bits(fb[i])))
+		}
+	}
+	ga := [2]float64{1.5, -2.25}
+	gb := [2]float64{4.25, 1.5}
+	gx := ga ^ gb
+	for i := range gx {
+		if math.Float64bits(gx[i]) != math.Float64bits(ga[i])^math.Float64bits(gb[i]) {
+			fail(fmt.Sprintf("float64 xor lane %d: got %v want %v", i, math.Float64bits(gx[i]), math.Float64bits(ga[i])^math.Float64bits(gb[i])))
+		}
+	}
+	fmt.Println("ok float-bitwise-matches-bits")
+}
+
+func checkSmallMinMax() {
+	m32 := [4]float32{3.5, -1.25, 7.0, 2.0}
+	if m32.min() != -1.25 || m32.max() != 7.0 {
+		fail(fmt.Sprintf("float32 minmax: got %v %v want -1.25 7", m32.min(), m32.max()))
+	}
+	mi32 := [4]int32{3, -11, 7, -2}
+	if mi32.min() != -11 || mi32.max() != 7 {
+		fail(fmt.Sprintf("int32 minmax: got %v %v want -11 7", mi32.min(), mi32.max()))
+	}
+	fmt.Println("ok minmax-match-scalar")
 }
 
 func main() {
@@ -319,5 +380,7 @@ func main() {
 	checkNamed()
 	checkWordKinds()
 	checkAlias()
-	fmt.Println("simd ok")
+	checkIntSubDiv()
+	checkFloatXor()
+	checkSmallMinMax()
 }

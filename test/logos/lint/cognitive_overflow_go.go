@@ -4,28 +4,13 @@ package p
 
 import "context"
 
-// M9-S2 complexity::cognitive_overflow (SPEC Sec 1.2), Go twin: a function is
-// flagged when its nesting depth exceeds max_nesting_depth (3), its parameter
-// count exceeds max_function_params (4), its line count exceeds
-// max_function_lines (60), or its cognitive score exceeds
-// max_cognitive_complexity (15). Each metric below has a case at N-1, N, and
-// N+1: only N+1 is flagged. The rule is deny, so a finding fails the lint
 // run and //logos:allow silences one.
-//
-// Nesting depth counts the control structures (if, for, switch, select)
-// nested around the deepest one, the structure itself included. The score
-// adds 1 plus the number of enclosing structures for every if, for, switch,
-// select, conditioned case, goto, and labeled break or continue, and 1 for
-// each change of operator in a && and || chain. An else if continues its if
-// at the same level. A function literal is a function of its own.
 
 type T struct{}
 
 func work() {}
 
 func run(f func()) { f() }
-
-// Parameter count.
 
 func params3(a, b, c int) {}
 
@@ -56,8 +41,6 @@ type paramsIface interface {
 var lit4 = func(a, b, c, d int) {}
 
 var lit5 = func(a, b, c, d, e int) {} // ERROR "cognitive_overflow.*function literal.*parameter count 5 exceeds 4$"
-
-// Nesting depth.
 
 func nest2(n int) {
 	for i := 0; i < n; i++ {
@@ -188,8 +171,6 @@ func closureNest4(n int) {
 		}
 	})
 }
-
-// Line count: a function counts from its func line through its closing brace.
 
 func lines59() {
 	work()
@@ -682,8 +663,6 @@ func commentsCount() { // ERROR "cognitive_overflow.*line count 61 exceeds 60$"
 	work()
 }
 
-// Cognitive score: 14, 15, and 16.
-
 func score14(ctx context.Context, done <-chan struct{}, xs []int, ok bool) int {
 	n := 0
 	if ok {
@@ -863,13 +842,13 @@ func boolSame(a, b, c, d bool) bool {
 }
 
 func boolRuns(a, b, c, d bool) {
-	if a && b && c && d && a && b { // ERROR "\[nogo::bools\]"
+	if a && b && c && d && a && b {
 	}
-	if a || b || c || d || a || b { // ERROR "\[nogo::bools\]"
+	if a || b || c || d || a || b {
 	}
-	if a && b && c && d && a && b { // ERROR "\[nogo::bools\]"
+	if a && b && c && d && a && b {
 	}
-	if a || b || c || d || a || b { // ERROR "\[nogo::bools\]"
+	if a || b || c || d || a || b {
 	}
 }
 

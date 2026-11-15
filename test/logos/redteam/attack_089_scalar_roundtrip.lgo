@@ -2,11 +2,13 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+	"runtime"
+	"strings"
+)
 
-// #89: scalar union members round-trip through the upstream interface
-// representation with no overlapped-tail garbage; each extraction sees
-// exactly the stored value.
 type S interface {
 	int | string | bool
 }
@@ -26,11 +28,64 @@ func show(s S) string {
 	}
 }
 
+var failed bool
+
+func check(name string, cond bool, got, want string) {
+	if !cond {
+		fmt.Printf("FAIL %s: got %s want %s\n", name, got, want)
+		failed = true
+		return
+	}
+	fmt.Printf("ok %s\n", name)
+}
+
 func main() {
 	var s S = 42
-	fmt.Println(show(s))
+	if n, ok := s.(int); ok {
+		check("scalar-union-int-roundtrip", n == 42 && show(s) == "int 42", show(s), "int 42")
+	} else {
+		check("scalar-union-int-roundtrip", false, show(s), "int 42")
+	}
 	s = "hi"
-	fmt.Println(show(s))
+	if str, ok := s.(string); ok {
+		check("scalar-union-string-roundtrip", str == "hi" && show(s) == "str hi", show(s), "str hi")
+	} else {
+		check("scalar-union-string-roundtrip", false, show(s), "str hi")
+	}
 	s = true
-	fmt.Println(show(s))
+	if b, ok := s.(bool); ok {
+		check("scalar-union-bool-roundtrip", b && show(s) == "bool true", show(s), "bool true")
+	} else {
+		check("scalar-union-bool-roundtrip", false, show(s), "bool true")
+	}
+	heap := strings.Repeat("h", 100)
+	s = heap
+	if str, ok := s.(string); ok {
+		check("scalar-union-string-grow-rewrites-header", str == heap && show(s) == "str "+heap, show(s), "str "+heap)
+	} else {
+		check("scalar-union-string-grow-rewrites-header", false, "not-member", "str "+heap)
+	}
+	s = true
+	runtime.GC()
+	if w, ok := s.(S); ok {
+		check("scalar-union-bool-store-clears-string-tail", w == true && show(w) == "bool true", show(w), "bool true")
+	} else {
+		check("scalar-union-bool-store-clears-string-tail", false, "not-member", "bool true")
+	}
+	check("scalar-union-const-equality-bool-only", s == true && s != false, fmt.Sprint(s == false), "false")
+	s = "byebye"
+	if str, ok := s.(string); ok {
+		check("scalar-union-string-regrow-rewrites-header", str == "byebye" && show(s) == "str byebye", show(s), "str byebye")
+	} else {
+		check("scalar-union-string-regrow-rewrites-header", false, "not-member", "str byebye")
+	}
+	check("scalar-union-const-equality-string", s == "byebye" && s != "hi", fmt.Sprint(s == "hi"), "false")
+	if w, ok := s.(S); ok {
+		check("scalar-union-assert-to-union", show(w) == "str byebye", show(w), "str byebye")
+	} else {
+		check("scalar-union-assert-to-union", false, "not-member", "str byebye")
+	}
+	if failed {
+		os.Exit(1)
+	}
 }

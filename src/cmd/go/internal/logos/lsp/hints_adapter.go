@@ -10,12 +10,6 @@ import (
 	"cmd/go/internal/logos/hints"
 )
 
-// codeActionsAdapter is the CodeActionsFunc runLSP serves: it decodes the
-// compiler diagnostic lines and returns the quick fixes hints.CodeActions
-// builds for the request range as a JSON array, [] when there are none. A
-// line that is not a diagnostic of the schema version hints reads is
-// skipped, so one bad line never costs the fixes of the others. Only an
-// unreadable range is an error.
 func codeActionsAdapter(diags [][]byte, uri string, src []byte, rng json.RawMessage) (json.RawMessage, error) {
 	var r hints.Range
 	if err := json.Unmarshal(rng, &r); err != nil {

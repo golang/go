@@ -30,9 +30,6 @@ func f(ch chan int, x any) {
 }
 `
 
-// TestNormalizeChainPos checks that normalizing a fragment moves every
-// node position and every raw delimiter position onto the base, so no
-// position of a chain fragment survives into scope-order checks.
 func TestNormalizeChainPos(t *testing.T) {
 	file, err := syntax.Parse(syntax.NewFileBase("frag.go"), strings.NewReader(chainPosSource), nil, nil, 0)
 	if err != nil {

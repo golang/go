@@ -7,6 +7,8 @@ package hints
 import (
 	"bytes"
 	"encoding/json"
+	"go/parser"
+	"go/token"
 	"internal/testenv"
 	"os"
 	"os/exec"
@@ -17,22 +19,17 @@ import (
 	"unicode/utf16"
 )
 
-// fixture names a source file of the fixtures: the compiler's hints
-// fixtures serve the render tests, so each test reads what the compiler
-// really wrote for the files the compiler tests pin.
 type fixture struct {
 	path string
 	src  []byte
 }
 
-// compilerFixture loads a fixture of cmd/compile/internal/logos/testdata/hints.
 func compilerFixture(t *testing.T, name string) fixture {
 	t.Helper()
 	path := filepath.Join(testenv.GOROOT(t), "src", "cmd", "compile", "internal", "logos", "testdata", "hints", name)
 	return loadFixture(t, path)
 }
 
-// localFixture loads a fixture of this package's testdata.
 func localFixture(t *testing.T, name string) fixture {
 	t.Helper()
 	path, err := filepath.Abs(filepath.Join("testdata", name))
@@ -51,8 +48,6 @@ func loadFixture(t *testing.T, path string) fixture {
 	return fixture{path: path, src: src}
 }
 
-// importConfig writes the import config of the packages loGo/s lowering
-// imports and returns its path.
 func importConfig(t *testing.T, dir string) string {
 	t.Helper()
 	cmd := exec.CommandContext(t.Context(), testenv.GoToolPath(t), "list", "-export", "-deps",
@@ -69,8 +64,6 @@ func importConfig(t *testing.T, dir string) string {
 	return path
 }
 
-// compile runs go tool compile over f with extra flags and returns its
-// stderr and stdout.
 func compile(t *testing.T, f fixture, flags ...string) []byte {
 	t.Helper()
 	testenv.MustHaveGoBuild(t)
@@ -88,7 +81,6 @@ func compile(t *testing.T, f fixture, flags ...string) []byte {
 	return out.Bytes()
 }
 
-// compileHints returns the report the compiler wrote for f in hints mode.
 func compileHints(t *testing.T, f fixture) (*Report, json.RawMessage) {
 	t.Helper()
 	out := filepath.Join(t.TempDir(), "hints.json")
@@ -106,8 +98,6 @@ func compileHints(t *testing.T, f fixture) (*Report, json.RawMessage) {
 	return r, data
 }
 
-// positionAt converts a byte offset of src to an LSP position, independently
-// of the code under test.
 func positionAt(src []byte, off int) Position {
 	before := string(src[:off])
 	text := before[strings.LastIndex(before, "\n")+1:]
@@ -132,10 +122,8 @@ func endOf(t *testing.T, src []byte, needle string) Position {
 	return positionAt(src, i+len(needle))
 }
 
-// wholeFile is a range that covers every position of any fixture.
 var wholeFile = Range{End: Position{Line: 1 << 20}}
 
-// labelsAt returns the labels of the hints at pos, in order.
 func labelsAt(hs []InlayHint, pos Position) []string {
 	var out []string
 	for _, h := range hs {
@@ -146,8 +134,6 @@ func labelsAt(hs []InlayHint, pos Position) []string {
 	return out
 }
 
-// TestInlayNarrowedAndUnion checks the narrowed-type and union-member hints
-// that the compiler wrote for a loGo/s file (SPEC Sec 21.2).
 func TestInlayNarrowedAndUnion(t *testing.T) {
 	f := compilerFixture(t, "sites.lgo")
 	r, _ := compileHints(t, f)
@@ -171,8 +157,6 @@ func TestInlayNarrowedAndUnion(t *testing.T) {
 	}
 }
 
-// TestInlayAllocationBadges checks the four tier badges and that a plain Go
-// file gets them too (SPEC Sec 21.2).
 func TestInlayAllocationBadges(t *testing.T) {
 	lgo := compilerFixture(t, "sites.lgo")
 	r, _ := compileHints(t, lgo)
@@ -199,11 +183,19 @@ func TestInlayAllocationBadges(t *testing.T) {
 	}
 }
 
-// TestInlayArenaBadge checks that the renderer shows the arena tier when a
-// report carries it.
+func TestInlayArenaBadgeGoPackage(t *testing.T) {
+	t.Setenv("GOEXPERIMENT", "logosarena")
+	goFile := compilerFixture(t, "alloc.go")
+	r, _ := compileHints(t, goFile)
+	hs := InlayHints(r, goFile.path, wholeFile)
+	if got := labelsAt(hs, endOf(t, goFile.src, "buf := make")); !slices.Contains(got, "[arena]") {
+		t.Errorf("Go file buf := make: hints %q, want [arena]", got)
+	}
+}
+
 func TestInlayArenaBadge(t *testing.T) {
 	r := &Report{Files: []File{{File: "a.lgo", Allocs: []Alloc{
-		{Position: Position{Line: 3, Character: 4}, Tier: TierArena, Message: "make([]byte, n) does not escape"},
+		{Position: Position{Line: 3, Character: 4}, Tier: "arena", Message: "make([]byte, n) does not escape"},
 	}}}}
 	hs := InlayHints(r, "/w/a.lgo", wholeFile)
 	if len(hs) != 1 || hs[0].Label != "[arena]" || hs[0].Tooltip != "make([]byte, n) does not escape" {
@@ -211,8 +203,6 @@ func TestInlayArenaBadge(t *testing.T) {
 	}
 }
 
-// TestInlayHonorsRange checks that only the hints inside the requested range
-// come back.
 func TestInlayHonorsRange(t *testing.T) {
 	f := compilerFixture(t, "sites.lgo")
 	r, _ := compileHints(t, f)
@@ -229,8 +219,6 @@ func TestInlayHonorsRange(t *testing.T) {
 	}
 }
 
-// TestInlayUnknownFile checks that a file the report does not cover yields no
-// hints.
 func TestInlayUnknownFile(t *testing.T) {
 	f := compilerFixture(t, "sites.lgo")
 	r, _ := compileHints(t, f)
@@ -239,21 +227,30 @@ func TestInlayUnknownFile(t *testing.T) {
 	}
 }
 
-// TestHoverLoweredSites checks the hover of `?`, `const for`, `const switch T`,
-// and `$"..."`: the lowered code of the site (SPEC Sec 21.3).
+func siteLowered(t *testing.T, r *Report, file, kind string, pos Position) string {
+	t.Helper()
+	for _, s := range r.file(file).Sites {
+		if s.Kind == kind && s.Range.holds(pos) {
+			return s.Lowered
+		}
+	}
+	t.Fatalf("report has no %s site at %+v", kind, pos)
+	return ""
+}
+
 func TestHoverLoweredSites(t *testing.T) {
 	f := compilerFixture(t, "sites.lgo")
 	r, _ := compileHints(t, f)
 	for _, c := range []struct {
-		name   string
-		pos    Position
-		title  string
-		inCode []string
+		name  string
+		kind  string
+		pos   Position
+		title string
 	}{
-		{"try", startOf(t, f.src, "?\n\t_ = n"), "`?`", []string{"get()", "!= nil", "return"}},
-		{"const for", startOf(t, f.src, "const for"), "`const for`", []string{`out = append(out, "Name")`}},
-		{"const switch", startOf(t, f.src, "const switch"), "`const switch`", []string{"switch"}},
-		{"interpolation", startOf(t, f.src, `$"user {name}!"`), "`$\"...\"`", []string{"make([]byte, 0, 6+len("}},
+		{"try", SiteTry, startOf(t, f.src, "?\n\t_ = n"), "`?`"},
+		{"const for", SiteConstFor, startOf(t, f.src, "const for"), "`const for`"},
+		{"const switch", SiteConstSwitch, startOf(t, f.src, "const switch"), "`const switch`"},
+		{"interpolation", SiteInterp, startOf(t, f.src, `$"user {name}!"`), "`$\"...\"`"},
 	} {
 		h := HoverAt(r, f.path, c.pos)
 		if h == nil {
@@ -263,11 +260,10 @@ func TestHoverLoweredSites(t *testing.T) {
 		if h.Contents.Kind != "markdown" || !strings.Contains(h.Contents.Value, c.title) {
 			t.Errorf("%s: hover %+v lacks title %s", c.name, h.Contents, c.title)
 		}
-		for _, frag := range c.inCode {
-			if !strings.Contains(h.Contents.Value, frag) {
-				t.Errorf("%s: hover lacks %q:\n%s", c.name, frag, h.Contents.Value)
-			}
+		if lowered := siteLowered(t, r, f.path, c.kind, c.pos); lowered == "" || !strings.Contains(h.Contents.Value, lowered) {
+			t.Errorf("%s: hover does not show the reported lowered code %q:\n%s", c.name, lowered, h.Contents.Value)
 		}
+		hoverParsesAsGo(t, c.name, h.Contents.Value)
 		if h.Range == nil || h.Range.Start.Line != c.pos.Line {
 			t.Errorf("%s: hover range %+v", c.name, h.Range)
 		}
@@ -277,8 +273,24 @@ func TestHoverLoweredSites(t *testing.T) {
 	}
 }
 
-// TestHoverFixedBytes checks the `Fixed: <n>B + dynamic` line of an
-// interpolation hover with the precomputed fixed byte count (SPEC Sec 21.3).
+func hoverParsesAsGo(t *testing.T, name, value string) {
+	t.Helper()
+	_, after, ok := strings.Cut(value, "```go\n")
+	if !ok {
+		t.Errorf("%s: hover has no go code block:\n%s", name, value)
+		return
+	}
+	block, _, ok := strings.Cut(after, "\n```")
+	if !ok {
+		t.Errorf("%s: hover code block does not close:\n%s", name, value)
+		return
+	}
+	wrapped := "package p\nfunc _() {\n" + block + "\n}\n"
+	if _, err := parser.ParseFile(token.NewFileSet(), "hover.go", wrapped, 0); err != nil {
+		t.Errorf("%s: hover code does not parse as Go: %v:\n%s", name, err, block)
+	}
+}
+
 func TestHoverFixedBytes(t *testing.T) {
 	f := compilerFixture(t, "interp.lgo")
 	r, _ := compileHints(t, f)
@@ -294,12 +306,13 @@ func TestHoverFixedBytes(t *testing.T) {
 	}
 }
 
-// TestHoverFixedBytesOnlyForInterpolation checks that no other site shows a
-// byte count.
 func TestHoverFixedBytesOnlyForInterpolation(t *testing.T) {
 	f := compilerFixture(t, "sites.lgo")
 	r, _ := compileHints(t, f)
-	for _, needle := range []string{"?\n\t_ = n", "const switch"} {
+	if h := HoverAt(r, f.path, startOf(t, f.src, `$"user {name}!"`)); h == nil || !strings.Contains(h.Contents.Value, "Fixed:") {
+		t.Errorf("interpolation hover lacks fixed bytes: %+v", h)
+	}
+	for _, needle := range []string{"?\n\t_ = n", "const switch", "const for"} {
 		h := HoverAt(r, f.path, startOf(t, f.src, needle))
 		if h == nil || strings.Contains(h.Contents.Value, "Fixed:") {
 			t.Errorf("hover at %q: %+v", needle, h)
@@ -307,9 +320,6 @@ func TestHoverFixedBytesOnlyForInterpolation(t *testing.T) {
 	}
 }
 
-// TestServe checks the JSON-RPC entry point the proxy calls: inlayHint
-// returns an array, hover returns a Hover or null, and anything else is an
-// error.
 func TestServe(t *testing.T) {
 	f := compilerFixture(t, "sites.lgo")
 	_, data := compileHints(t, f)
@@ -359,8 +369,6 @@ func mustJSON(t *testing.T, v any) json.RawMessage {
 	return data
 }
 
-// diagnostics returns the M9 JSON diagnostics the compiler prints for f
-// under the default lint policy.
 func diagnostics(t *testing.T, f fixture) []Diagnostic {
 	t.Helper()
 	policy := filepath.Join(t.TempDir(), "policy.json")
@@ -381,8 +389,6 @@ func diagnostics(t *testing.T, f fixture) []Diagnostic {
 	return out
 }
 
-// applyEdits applies LSP text edits to src; the fixtures are ASCII, so a
-// character is a byte.
 func applyEdits(t *testing.T, src []byte, edits []TextEdit) string {
 	t.Helper()
 	offset := func(p Position) int {
@@ -400,9 +406,6 @@ func applyEdits(t *testing.T, src []byte, edits []TextEdit) string {
 	return text
 }
 
-// TestCodeActionsApplyAutofix checks that each M9 autofix candidate becomes a
-// quick fix whose edit rewrites the source the way the candidate says: a
-// replacement over the span, and an insertion before a line (SPEC Sec 21.4).
 func TestCodeActionsApplyAutofix(t *testing.T) {
 	const uri = "file:///w/fixes.lgo"
 	f := localFixture(t, "fixes.lgo")
@@ -431,7 +434,6 @@ func TestCodeActionsApplyAutofix(t *testing.T) {
 	}
 }
 
-// TestCodeActionsAddTry checks the `?` fix of a discarded error.
 func TestCodeActionsAddTry(t *testing.T) {
 	const uri = "file:///w/discard.lgo"
 	f := localFixture(t, "discard.lgo")
@@ -441,14 +443,12 @@ func TestCodeActionsAddTry(t *testing.T) {
 	if len(actions) != 1 || actions[0].Title != "add ? to propagate the error" {
 		t.Fatalf("actions %+v", actions)
 	}
-	want := "package p\n\nfunc f() error { return nil }\n\nfunc g() error {\n\tf()?\n\treturn nil\n}\n"
+	want := "package p\n\nimport \"errors\"\n\nvar errDiscard = errors.New(\"discard\")\n\nvar failDiscard = false\n\nfunc f() error {\n\tif failDiscard {\n\t\treturn errDiscard\n\t}\n\treturn nil\n}\n\nfunc g() error {\n\tf()?\n\treturn nil\n}\n"
 	if got := applyEdits(t, f.src, actions[0].Edit.Changes[uri]); got != want {
 		t.Errorf("got %q\nwant %q", got, want)
 	}
 }
 
-// TestCodeActionsOutsideRange checks that a diagnostic away from the request
-// range offers no action.
 func TestCodeActionsOutsideRange(t *testing.T) {
 	f := localFixture(t, "discard.lgo")
 	diags := diagnostics(t, f)
@@ -458,8 +458,6 @@ func TestCodeActionsOutsideRange(t *testing.T) {
 	}
 }
 
-// TestCodeActionsUTF16 checks that a fix on a line with non-ASCII text lands
-// on UTF-16 columns, not byte columns.
 func TestCodeActionsUTF16(t *testing.T) {
 	src := []byte("x := \"é😀\" + f()\n")
 	at := bytes.Index(src, []byte("f()"))

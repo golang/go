@@ -2,17 +2,62 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
-// #40: a closed union uses upstream interface equality; comparing two
-// union values compares the dynamic member values.
 type U interface {
 	int | string
+}
+
+type U2 interface {
+	int | []int
+}
+
+var failed bool
+
+func check(name string, cond bool, got, want string) {
+	if !cond {
+		fmt.Printf("FAIL %s: got %s want %s\n", name, got, want)
+		failed = true
+		return
+	}
+	fmt.Printf("ok %s\n", name)
 }
 
 func main() {
 	var a U = 1
 	var b U = 1
 	var c U = "x"
-	fmt.Println(a == b, a == c)
+	check("union-equality-equal-true", a == b, fmt.Sprint(a == b), "true")
+	check("union-equality-mismatch-false", a != c, fmt.Sprint(a == c), "false")
+	if w, ok := a.(U); ok {
+		check("union-equality-assert-to-union", w == b, fmt.Sprint(w == b), "true")
+	} else {
+		check("union-equality-assert-to-union", false, "not-member", "true")
+	}
+	var n U2 = 5
+	var m U2 = 5
+	check("union-equality-slice-union-comparable-members", n == m && n == 5, fmt.Sprint(n == m), "true")
+	var sl U2 = []int{7}
+	panicked := false
+	member := false
+	func() {
+		defer func() {
+			if recover() != nil {
+				panicked = true
+			}
+		}()
+		w, ok := sl.(U2)
+		member = ok
+		if ok {
+			_ = w == sl
+		}
+	}()
+	check("union-equality-slice-member-panics", member && panicked, fmt.Sprint(member, " ", panicked), "true true")
+	check("union-equality-cross-member-false", n != sl && sl != n, fmt.Sprint(n == sl), "false")
+	if failed {
+		os.Exit(1)
+	}
 }

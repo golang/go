@@ -359,6 +359,7 @@ func (check *Checker) constDecl(obj *Const, typ, init syntax.Expr, inherited boo
 
 func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init syntax.Expr) {
 	assert(obj.typ == nil)
+	check.logosDeclScheduleVarExports(obj, lhs)
 
 	// determine type, if any
 	if typ != nil {
@@ -428,6 +429,7 @@ func (check *Checker) isImportedConstraint(typ Type) bool {
 
 func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl) {
 	assert(obj.typ == nil)
+	check.logosDeclScheduleTypeExport(obj)
 
 	// Only report a version error if we have not reported one already.
 	versionErr := false
@@ -692,6 +694,7 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 
 	fdecl := decl.fdecl
 	check.funcType(sig, fdecl.Recv, fdecl.TParamList, fdecl.Type)
+	check.logosDeclScheduleFuncExport(obj)
 
 	if fdecl.Pragma != nil {
 		if p, ok := fdecl.Pragma.(interface{ Nointerface() bool }); ok && p.Nointerface() {

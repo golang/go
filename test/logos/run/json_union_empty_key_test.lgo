@@ -1,0 +1,84 @@
+// run
+package jsonunion
+
+import (
+	"encoding/json"
+	"errors"
+	"logos/rt"
+	"testing"
+)
+
+type EmptyHidden struct {
+	Hidden int64 `json:"-"`
+}
+type KeyedR struct {
+	R int64 `json:"r"`
+}
+type EmptyKeyUnion interface {
+	EmptyHidden | KeyedR
+}
+type EmptyKeyHolder struct {
+	Item EmptyKeyUnion `json:"item"`
+}
+type EmptyA struct {
+	A int64 `json:"-"`
+}
+type EmptyB struct {
+	B int64 `json:"-"`
+}
+type TwoEmptyUnion interface {
+	EmptyA | EmptyB
+}
+type TwoEmptyHolder struct {
+	Item TwoEmptyUnion `json:"item"`
+}
+
+func mustUnmarshalEmpty(t *testing.T, data []byte, dst any) {
+	t.Helper()
+	if err := json.Unmarshal(data, dst); err != nil {
+		panic(err)
+	}
+}
+func TestEmptyHiddenSelectsOnEmptyObject(t *testing.T) {
+	var h EmptyKeyHolder
+	mustUnmarshalEmpty(t, []byte(`{"item":{}}`), &h)
+	e, ok := h.Item.(EmptyHidden)
+	if !ok {
+		t.Fatalf("expected EmptyHidden, got %T: %#v", h.Item, h.Item)
+		return
+	}
+	if e.Hidden != 0 {
+		t.Fatalf("Hidden = %d, want 0", e.Hidden)
+	}
+}
+func TestEmptyHiddenSiblingSelectsKeyed(t *testing.T) {
+	var h EmptyKeyHolder
+	mustUnmarshalEmpty(t, []byte(`{"item":{"r":5}}`), &h)
+	k, ok := h.Item.(KeyedR)
+	if !ok {
+		t.Fatalf("expected KeyedR, got %T: %#v", h.Item, h.Item)
+		return
+	}
+	if k.R != 5 {
+		t.Fatalf("expected R 5, got %d", k.R)
+	}
+}
+func TestTwoEmptyGiveTwoMatches(t *testing.T) {
+	var h TwoEmptyHolder
+	err := json.Unmarshal([]byte(`{"item":{}}`), &h)
+	if err == nil {
+		t.Fatal("expected trial error, got nil")
+		return
+	}
+	var trialErr rt.UnionTrialError
+	if !errors.As(err, &trialErr) {
+		t.Fatalf("expected rt.UnionTrialError, got %T: %v", err, err)
+		return
+	}
+	if trialErr.Matched != 2 {
+		t.Fatalf("expected Matched 2, got %d", trialErr.Matched)
+	}
+	if trialErr.Total != 2 {
+		t.Fatalf("expected Total 2, got %d", trialErr.Total)
+	}
+}

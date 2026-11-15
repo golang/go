@@ -1,20 +1,23 @@
 // run
-
 package main
 
-// M15-S2 (SPEC Sec 15.2, T-303; #169): a make length that is a constant
-// product stays a compile-time constant. Its lowering must not call
-// _logos_rt.MulLen, because untyped float constants such as 2.0 and 3.0
-// infer float64, which the integer constraint rejects. A product that
-// mixes a constant with a variable still lowers to MulLen, including when
-// an operand is parenthesized, an index, or a call, on either side, and a
-// comment between the operator and its right operand survives eject.
-
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
 const K = 3
 
 func main() {
+	failed := false
+	eq := func(name string, got, want int) {
+		if got != want {
+			fmt.Printf("FAIL %s: got %d want %d\n", name, got, want)
+			failed = true
+			return
+		}
+		fmt.Printf("ok %s\n", name)
+	}
 	a := make([]int, 2.0*3.0)
 	b := make([]int, K*K)
 	n := 4
@@ -26,5 +29,16 @@ func main() {
 	g := make([]int, n*xs[1])
 	h := make([]int, (n)*len(xs))
 	i := make([]int, n* /* gap */ n)
-	fmt.Println(len(a), len(b), len(c), len(d), len(e), len(f), len(g), len(h), len(i))
+	eq("constant-product-stays-constant", len(a), 6)
+	eq("named-constant-product-stays-constant", len(b), 9)
+	eq("float-constant-times-variable", len(c), 8)
+	eq("parenthesized-constant-product-times-variable", len(d), 24)
+	eq("index-expression-times-variable", len(e), 12)
+	eq("variable-times-nested-product", len(f), 32)
+	eq("variable-times-element", len(g), 8)
+	eq("variable-times-builtin-len", len(h), 12)
+	eq("variable-squared", len(i), 16)
+	if failed {
+		os.Exit(1)
+	}
 }

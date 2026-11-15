@@ -1,10 +1,6 @@
-# M6-S2 `&expr` and M6-S3 struct field defaults across modules.
-# A loGo/s module gets field defaults through facts; a Go module
-# importing the same loGo/s package gets zero values (documented hole).
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
-# Case 1: the loGo/s consumer gets defaults and fresh &expr variables.
 cd lmod
 logos build ./...
 logos build -o $WORK/luse$GOEXE ./use
@@ -13,7 +9,6 @@ stdout '^port=8080 host=localhost!$'
 stdout '^42$'
 cd ..
 
-# Case 2: a Go package in another module gets zero values for the same literal.
 cd gmod
 logos build ./...
 logos build -o $WORK/guse$GOEXE ./gouse
@@ -21,9 +16,6 @@ exec $WORK/guse$GOEXE
 stdout '^port=0 host=!$'
 cd ..
 
-# Case 3: the compiler archive carries the default records. The archive
-# comes from the normal build pipeline: raw go tool compile cannot
-# resolve the serializer imports a defaults-bearing struct now needs.
 cd lmod
 logos build -buildmode=archive -o $WORK/cfg.a ./cfg
 cd ..

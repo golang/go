@@ -60,6 +60,8 @@ func (b *batch) walkAll() {
 	b.heapLoc.queuedWalkAll = true
 	b.foreignLoc.queuedWalkAll = true
 
+	b.logosRegionSeed(enqueue)
+
 	var walkgen uint32
 	for todo.len() > 0 {
 		root := todo.popFront()
@@ -129,6 +131,7 @@ func (b *batch) walkOne(root *location, walkgen uint32, enqueue func(*location))
 					}
 				}
 				b.logosEscapeWalk(l, root) // logos M22: zeroalloc sites.
+				b.logosRegionEscaped(l, root)
 				newAttrs |= attrEscapes | attrPersists | attrMutates | attrCalls
 			} else
 			// If l's address flows to a persistent location, then l needs
@@ -289,6 +292,9 @@ func (b *batch) explainLoc(l *location) string {
 // outlives reports whether values stored in l may survive beyond
 // other's lifetime if stack allocated.
 func (b *batch) outlives(l, other *location) bool {
+	if outlives, handled := b.logosRegionOutlives(l, other); handled {
+		return outlives
+	}
 	// Invariant exact-makes-to-foreign: foreign outlives a location only
 	// when foreignBacking sees a variable-capacity OMAKESLICE.
 	if l == &b.foreignLoc {

@@ -193,5 +193,6 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
 	// set and won't need to pass in a *Checker.
 	check.later(func() {
 		computeInterfaceTypeSet(check, iface.Pos(), ityp)
+		check.logosUnionMethods(ityp, iface)
 	}).describef(iface, "compute type set for %s", ityp)
 }

@@ -1,0 +1,84 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type A struct{ A int }
+type B struct{ B int }
+
+type U interface{ A | B }
+
+type Mid = (U?)?
+
+type H struct {
+	V ((U?)?)?
+}
+
+func pickB() Mid {
+	var inner U? = U(B{B: 52})
+	return inner
+}
+
+func payloadField(some bool) string {
+	var h H
+	if some {
+		var inner U? = U(A{A: 51})
+		var m Mid = inner
+		h.V = m
+	}
+	var none2 Mid
+	mid := h.V ?? none2
+	if mid == nil {
+		return "none"
+	}
+	var none1 U?
+	inn := mid ?? none1
+	if inn == nil {
+		panic("lost middle option")
+	}
+	var fallback U = B{B: 7}
+	u := inn ?? fallback
+	if a, ok := u.(A); ok {
+		return fmt.Sprintf("A %d", a.A)
+	}
+	return fmt.Sprintf("B %d", u.(B).B)
+}
+
+func coalesceKeep(some bool) string {
+	var mid Mid
+	if some {
+		mid = pickB()
+	}
+	var defA U? = U(A{A: 5})
+	var defB U = B{B: 9}
+	u := (mid ?? defA) ?? defB
+	if a, ok := u.(A); ok {
+		return fmt.Sprintf("fallback %d", a.A)
+	}
+	return fmt.Sprintf("kept %d", u.(B).B)
+}
+
+func main() {
+	check("payload-a", payloadField(true) == "A 51", payloadField(true), "A 51")
+	check("payload-none", payloadField(false) == "none", payloadField(false), "none")
+	check("coalesce-kept", coalesceKeep(true) == "kept 52", coalesceKeep(true), "kept 52")
+	check("coalesce-fallback", coalesceKeep(false) == "fallback 5", coalesceKeep(false), "fallback 5")
+	if failed {
+		os.Exit(1)
+	}
+}

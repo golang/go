@@ -119,6 +119,9 @@ func walkStmt(n ir.Node) ir.Node {
 			// so open-coded defers cannot be used in this function.
 			ir.CurFunc.SetOpenCodedDeferDisallowed(true)
 		}
+		if clo := pooledTryDeferClosure(n); clo != nil {
+			return walkPooledTryDefer(n, clo)
+		}
 		fallthrough
 	case ir.OGO:
 		n := n.(*ir.GoDeferStmt)

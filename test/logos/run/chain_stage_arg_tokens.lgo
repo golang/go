@@ -1,0 +1,78 @@
+// run
+
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"slices"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func double(x int) (int, error) { return x * 2, nil }
+
+func bound(ok bool) int {
+	if ok {
+		return 2
+	}
+	return 1
+}
+
+func width(opts map[string]int) int { return opts["k=v"] ?? 0 }
+
+func caseCommentBeforeEquals(ctx context.Context) {
+	got, err := []int{1, 2, 3}.group(ctx, limit /* a=b */ = 2).map(x => double(x)?)
+	check("comment-before-equals", err == nil && slices.Equal(got, []int{2, 4, 6}), err, []int{2, 4, 6})
+}
+
+func caseCommentBeforeName(ctx context.Context) {
+	got, err := []int{1, 2, 3}.group(ctx, /* a=b */ limit = 2).map(x => double(x)?)
+	check("comment-before-name", err == nil && slices.Equal(got, []int{2, 4, 6}), err, []int{2, 4, 6})
+}
+
+func caseCommentAfterEquals(ctx context.Context) {
+	got, err := []int{1, 2, 3}.group(ctx, limit = /* a=b */ 2).map(x => double(x)?)
+	check("comment-after-equals", err == nil && slices.Equal(got, []int{2, 4, 6}), err, []int{2, 4, 6})
+}
+
+func caseStringInLimit(ctx context.Context) {
+	got, err := []int{1, 2, 3}.group(ctx, limit = len("a=b")).map(x => double(x)?)
+	check("string-in-limit", err == nil && slices.Equal(got, []int{2, 4, 6}), err, []int{2, 4, 6})
+}
+
+func caseNestedCallInLimit(ctx context.Context) {
+	got, err := []int{1, 2, 3}.group(ctx, limit = bound(len("k=v") == 3)+width(map[string]int{"k=v": 0})).map(x => double(x)?)
+	check("nested-call-in-limit", err == nil && slices.Equal(got, []int{2, 4, 6}), err, []int{2, 4, 6})
+}
+
+func caseMultiLine(ctx context.Context) {
+	got, err := []int{1, 2, 3}.group(
+		ctx,
+		limit /* a=b */ = 2,
+	).map(x => double(x)?)
+	check("multi-line", err == nil && slices.Equal(got, []int{2, 4, 6}), err, []int{2, 4, 6})
+}
+
+func main() {
+	ctx := context.Background()
+	caseCommentBeforeEquals(ctx)
+	caseCommentBeforeName(ctx)
+	caseCommentAfterEquals(ctx)
+	caseStringInLimit(ctx)
+	caseNestedCallInLimit(ctx)
+	caseMultiLine(ctx)
+	if failed {
+		os.Exit(1)
+	}
+}

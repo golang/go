@@ -330,11 +330,6 @@ func quotedStringValue(item string) (string, quotedResult) {
 	return "", quotedOther(item)
 }
 
-// rejectQuoted records a failed quoted ,string value. The saved-versus-fatal
-// policy and the error shape are version-gated in rejectQuotedContent
-// (path_v1.go preserves the legacy tagError behavior, path_v2.go saves the
-// bridge-compatible *UnmarshalTypeError). qRange is version-proof and stays
-// here; qNoop and qSet never reach this function.
 func rejectQuoted[T any](s *Scanner, res quotedResult, item string) {
 	switch res {
 	case qSavedTag, qFatalTag, qString:

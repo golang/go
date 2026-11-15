@@ -8,11 +8,6 @@ import (
 	"testing"
 )
 
-// TestMisplacedTryAutofixShortCircuitAnd verifies safety when misplaced '?' sits
-// on the right-hand side of '&&'. Evaluation must remain conditional: if the left
-// condition is false, the checked call must never be evaluated. If an autofix
-// candidate is offered, applying and executing it must preserve short-circuiting;
-// conservative refusal (no candidate offered) is accepted as the safe baseline.
 func TestMisplacedTryAutofixShortCircuitAnd(t *testing.T) {
 	const src = `package main
 
@@ -94,11 +89,6 @@ func main() {
 	}
 }
 
-// TestMisplacedTryAutofixShortCircuitOr verifies safety when misplaced '?' sits
-// on the right-hand side of '||'. Evaluation must remain conditional: if the left
-// condition is true, the checked call must never be evaluated. If an autofix
-// candidate is offered, applying and executing it must preserve short-circuiting;
-// conservative refusal (no candidate offered) is accepted as the safe baseline.
 func TestMisplacedTryAutofixShortCircuitOr(t *testing.T) {
 	const src = `package main
 
@@ -180,12 +170,6 @@ func main() {
 	}
 }
 
-// TestMisplacedTryAutofixShortCircuitCoalesce verifies safety when misplaced '?'
-// sits on the right-hand side of '??' (option coalesce). Evaluation must remain
-// conditional: if the left option is some, the fallback checked call must never
-// be evaluated. If an autofix candidate is offered, applying and executing it
-// must preserve short-circuit fallback; conservative refusal (no candidate offered)
-// is accepted as the safe baseline.
 func TestMisplacedTryAutofixShortCircuitCoalesce(t *testing.T) {
 	const src = `package main
 
@@ -269,9 +253,6 @@ func main() {
 	}
 }
 
-// TestMisplacedTryAutofixSameLinePrefix verifies that rewriting a statement
-// sharing a line with a prefix like 'case ...:' or '{ ... }' does not duplicate
-// the prefix into the replacement indentation or corrupt the enclosing syntax.
 func TestMisplacedTryAutofixSameLinePrefix(t *testing.T) {
 	const caseSrc = `package main
 
@@ -329,9 +310,6 @@ func main() {
 	}
 }
 
-// TestMisplacedTryAutofixSameLineBrace verifies that rewriting a statement
-// on the same line inside an inline block '{ stmt }' does not duplicate the
-// opening brace or unbalance block braces in the resulting source.
 func TestMisplacedTryAutofixSameLineBrace(t *testing.T) {
 	const braceSrc = `package main
 
@@ -386,13 +364,6 @@ func main() {
 	}
 }
 
-// TestMisplacedTryAutofixCommHeader verifies that a misplaced '?' in a select
-// receive header (Hoare CSP guard / Dijkstra guarded command) must not be
-// offered a split-statement autofix. Splitting the Comm header would place a
-// multiline replacement before the clause colon, leaving no valid statement
-// context. The clause-body control shows the valid counterpart: a nested try
-// in a transform expression inside the clause body remains splittable and
-// must preserve exactly-once evaluation and error propagation.
 func TestMisplacedTryAutofixCommHeader(t *testing.T) {
 	const headerSrc = `package main
 
@@ -441,17 +412,10 @@ func main() {
 		t.Errorf("expected severity %q, got %q", severityForbid, targetDiag.Severity)
 	}
 
-	// Strict refusal: the Comm header has no valid statement context for a
-	// multiline split before the colon, so no candidate may be offered.
 	if len(targetDiag.AutofixCandidates) != 0 {
 		t.Fatalf("must refuse autofix for select-header Comm: got %d candidate(s) with replacement %q, want 0 (multiline split before colon has no valid statement context)", len(targetDiag.AutofixCandidates), targetDiag.AutofixCandidates[0].Replacement)
 	}
 
-	// Positive clause-body control: a nested try in a transform expression
-	// inside the clause body is genuinely distinct from the already-valid
-	// top-level step()? form and from the header guard above. Splitting
-	// there stays inside the body statement context, so a candidate must be
-	// offered and must preserve exactly-once evaluation and error propagation.
 	const bodySrc = `package main
 
 type myError struct{}

@@ -1,0 +1,93 @@
+// run
+
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+)
+
+var errLoad = errors.New("load")
+
+var last int
+
+var failed bool
+
+func load(v int, fail bool) (int, error) {
+	if fail {
+		return 0, errLoad
+	}
+	return v, nil
+}
+
+func pos(n int, fail bool) (bool, error) {
+	if fail {
+		return false, errLoad
+	}
+	return n > 8, nil
+}
+
+func record(n int) error {
+	last = n
+	return nil
+}
+
+func apply(f func(int) int, n int) int { return f(n) }
+
+func line(f func(int, bool) (int, error), fail bool) string {
+	last = 0
+	got, err := f(7, fail)
+	if err != nil {
+		return fmt.Sprintln(0, err, last)
+	}
+	return fmt.Sprintln(got, err, last)
+}
+
+func run(name string, f func(int, bool) (int, error), want string) {
+	got := line(f, false) + line(f, true)
+	if got != want {
+		failed = true
+		fmt.Printf("FAIL %s: got %q want %q\n", name, got, want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func tryInMap(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	n := xs.map(x => load(apply(y => y + x, v), fail)?).sum()
+	return n, nil
+}
+
+func tryInFilter(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	n := xs.filter(x => pos(apply(y => y + x, v), fail)?).count()
+	return n, nil
+}
+
+func chainInDefer(v int, fail bool) (int, error) {
+	xs := []int{1, 2}
+	defer record(xs.map(x => apply(y => y + x, v)).sum())?
+	return 5, nil
+}
+
+func chainInTry(v int, fail bool) (int, error) {
+	xs := []int{1, 2}
+	n := load(xs.map(x => apply(y => y + x, v)).sum(), fail)?
+	return n, nil
+}
+
+func main() {
+	run("try-in-map", tryInMap, "27 <nil> 0\n0 load 0\n")
+	run("try-in-filter", tryInFilter, "2 <nil> 0\n0 load 0\n")
+	run("chain-in-defer", chainInDefer, "5 <nil> 17\n5 <nil> 17\n")
+	run("chain-in-try", chainInTry, "17 <nil> 0\n0 load 0\n")
+	if failed {
+		os.Exit(1)
+	}
+}

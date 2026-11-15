@@ -4,11 +4,20 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"reflect"
 )
 
-// M5 const composites in read-only data (SPEC T-201, #50, #98):
-// reflect.DeepEqual and fmt.Println accept them like any other value.
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 type Point struct {
 	X, Y int
@@ -19,7 +28,10 @@ const primes = []int{2, 3, 5, 7}
 const origin = Point{X: 1, Y: 2}
 
 func main() {
-	fmt.Println(reflect.DeepEqual(primes, []int{2, 3, 5, 7}))
-	fmt.Println(reflect.DeepEqual(origin, Point{X: 1, Y: 2}))
-	fmt.Println(primes, origin)
+	check("primes-equal", reflect.DeepEqual(primes, []int{2, 3, 5, 7}), reflect.DeepEqual(primes, []int{2, 3, 5, 7}), true)
+	check("origin-equal", reflect.DeepEqual(origin, Point{X: 1, Y: 2}), reflect.DeepEqual(origin, Point{X: 1, Y: 2}), true)
+	check("print", fmt.Sprint(primes) == "[2 3 5 7]" && fmt.Sprint(origin) == "{1 2}", fmt.Sprint(primes, origin), "[2 3 5 7] {1 2}")
+	if failed {
+		os.Exit(1)
+	}
 }

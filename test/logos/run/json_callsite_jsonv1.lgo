@@ -2,15 +2,6 @@
 
 package main
 
-// M11-S4 call-site static JSON fixture under nojsonv2 (SPEC Sec 12.1, S8, S9, T-Sec12).
-// Anchor: Tony Hoare, Edsger W. Dijkstra
-//
-// Call-site contracts for eligible static JSON structs under GOEXPERIMENT=nojsonv2:
-// 1. json.Marshal(v) equals v.MarshalJSON() byte for byte.
-// 2. Pointer (&v) and interface (any(v)) forms agree with the value call.
-// 3. Struct with an interface field holding v produces matching JSON.
-// 4. json.NewEncoder(w).Encode(v) adds only the trailing newline.
-// 5. Parity holds under !goexperiment.jsonv2 as required by SPEC Sec 12.1.
 
 import (
 	"bytes"
@@ -133,9 +124,185 @@ func testEncoderAddsOnlyTrailingNewline() {
 	}
 }
 
+type RichV1 struct {
+	Name  string   `json:"name"`
+	Esc   string   `json:"esc"`
+	Omit  string   `json:"omit,omitempty"`
+	F     float64  `json:"f"`
+	E     float64  `json:"e"`
+	N     int64    `json:"n"`
+	Inner User     `json:"inner"`
+	Nums  []int64  `json:"nums"`
+	Raw   []byte   `json:"raw"`
+}
+
+type RichV1Mirror RichV1
+
+func testRichParityUnderNoJSONv2() {
+	vals := []RichV1{
+		{Name: "plain", Esc: "x", Omit: "", F: 1.5, E: 1e21, N: 0, Inner: User{ID: 1, Name: "n"}, Nums: nil, Raw: nil},
+		{Name: "Ada <Lovelace> & \"friends\"", Esc: "\xff\xfe\u2028end", Omit: "shown", F: 1e-7, E: -2.5, N: -12, Inner: User{ID: 2, Name: "a&b", Email: "e@x.y"}, Nums: []int64{-1, 0, 9}, Raw: []byte{0, 1, 255}},
+		{Name: "", Esc: "", Omit: "x", F: 5e-324, E: 123456789.0, N: 42, Inner: User{}, Nums: []int64{}, Raw: []byte{}},
+	}
+	for _, v := range vals {
+		direct, err := v.MarshalJSON()
+		if err != nil {
+			panic(err)
+		}
+		via, err := json.Marshal(RichV1Mirror(v))
+		if err != nil {
+			panic(err)
+		}
+		if !bytes.Equal(direct, via) {
+			panic(fmt.Sprintf("nojsonv2 RichV1(%+v):\n got %s\nwant %s", v, direct, via))
+		}
+	}
+}
+type RichV2 struct {
+	Title string            `json:"title,omitempty"`
+	N     int64             `json:"n,string"`
+	Flag  bool              `json:"flag,omitzero"`
+	Inner User              `json:"inner"`
+	Tags  []string          `json:"tags,omitempty"`
+	M     map[string]int64  `json:"m,omitempty"`
+}
+
+type RichV2Mirror RichV2
+
+func testRichV2ParityUnderNoJSONv2() {
+	vals := []RichV2{
+		{},
+		{Title: "a<b>&\"q\"", N: -12, Flag: true, Inner: User{ID: 7, Name: "n"}, Tags: []string{"x", "y z"}, M: map[string]int64{"b": 2, "a": 1}},
+		{Title: "plain", N: 1234567890, Inner: User{}, Tags: []string{}, M: map[string]int64{}},
+	}
+	for _, v := range vals {
+		direct, err := v.MarshalJSON()
+		if err != nil {
+			panic(err)
+		}
+		via, err := json.Marshal(RichV2Mirror(v))
+		if err != nil {
+			panic(err)
+		}
+		if !bytes.Equal(direct, via) {
+			panic(fmt.Sprintf("nojsonv2 RichV2(%+v):\n got %s\nwant %s", v, direct, via))
+		}
+	}
+}
+
+type SeparatorTags struct {
+	Odd  string `json:"a\u2028b"`
+	Even string `json:"c\u2029d"`
+}
+
+type SeparatorTagsMirror SeparatorTags
+
+func testSeparatorTagNamesUnderNoJSONv2() {
+	v := SeparatorTags{Odd: "x", Even: "y"}
+	if _, ok := any(v).(json.Marshaler); ok {
+		panic("nojsonv2 SeparatorTags carries a generated MarshalJSON")
+	}
+	if _, ok := any(&v).(json.Unmarshaler); ok {
+		panic("nojsonv2 SeparatorTags carries a generated UnmarshalJSON")
+	}
+	want, err := json.Marshal(SeparatorTagsMirror(v))
+	if err != nil {
+		panic(err)
+	}
+	got, err := json.Marshal(v)
+	if err != nil {
+		panic(err)
+	}
+	if !bytes.Equal(got, want) {
+		panic(fmt.Sprintf("nojsonv2 SeparatorTags:\n got %s\nwant %s", got, want))
+	}
+	var back SeparatorTags
+	if err := json.Unmarshal(want, &back); err != nil {
+		panic(err)
+	}
+	if back != v {
+		panic(fmt.Sprintf("nojsonv2 SeparatorTags round trip changed %+v into %+v", v, back))
+	}
+}
+
+type Tag string
+
+func (v *Tag) UnmarshalJSON(b []byte) error {
+	var s string
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+	*v = Tag(s)
+	return nil
+}
+
+type Count int64
+
+func (v *Count) UnmarshalJSON(b []byte) error {
+	var n int64
+	if err := json.Unmarshal(b, &n); err != nil {
+		return err
+	}
+	*v = Count(n)
+	return nil
+}
+
+type UnionMember interface {
+	User | *User | Tag | Count
+}
+
+type UnionHolder struct {
+	Item UnionMember `json:"item"`
+}
+
+func testUnionMarshalUnderNoJSONv2() {
+	u := &User{ID: 5, Name: "n<&>\u2028", Email: "e"}
+	tag := Tag("a<b>&\u2028\u2029\xff\"\\")
+	cases := []struct {
+		name   string
+		item   UnionMember
+		member any
+	}{
+		{"struct", *u, *u},
+		{"pointer", u, u},
+		{"string", tag, tag},
+		{"integer", Count(-7), Count(-7)},
+		{"nil", nil, nil},
+	}
+	for _, c := range cases {
+		memberBytes, err := json.Marshal(c.member)
+		if err != nil {
+			panic(err)
+		}
+		want := append(append([]byte(`{"item":`), memberBytes...), '}')
+		h := UnionHolder{Item: c.item}
+		direct, err := h.MarshalJSON()
+		if err != nil {
+			panic(err)
+		}
+		via, err := json.Marshal(h)
+		if err != nil {
+			panic(err)
+		}
+		if !bytes.Equal(direct, want) || !bytes.Equal(via, want) {
+			panic(fmt.Sprintf("nojsonv2 union %s:\n direct %s\n    via %s\n   want %s", c.name, direct, via, want))
+		}
+	}
+}
+
 func main() {
-	testCallSiteParityWithMarshalJSON()
-	testPointerAndInterfaceFormsAgree()
-	testEncoderAddsOnlyTrailingNewline()
-	fmt.Println("callsite nojsonv2 ok")
+testCallSiteParityWithMarshalJSON()
+fmt.Println("ok callsite-marshal")
+testPointerAndInterfaceFormsAgree()
+fmt.Println("ok callsite-forms")
+testEncoderAddsOnlyTrailingNewline()
+fmt.Println("ok callsite-encoder")
+testRichParityUnderNoJSONv2()
+fmt.Println("ok callsite-richv1")
+testRichV2ParityUnderNoJSONv2()
+fmt.Println("ok callsite-richv2")
+testSeparatorTagNamesUnderNoJSONv2()
+fmt.Println("ok callsite-separator-tags")
+testUnionMarshalUnderNoJSONv2()
+fmt.Println("ok callsite-union")
 }

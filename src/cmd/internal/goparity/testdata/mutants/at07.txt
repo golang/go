@@ -1,0 +1,8 @@
+kind: runtime
+file: src/runtime/slice.go
+expect: at07_append_laws
+config: K7
+-- old --
+newCap := min(int(roundupsize(uintptr(newLen)*et.Size_, !et.Pointers())/et.Size_), bufLen)
+-- new --
+newCap := int(roundupsize(uintptr(newLen)*et.Size_, !et.Pointers())/et.Size_)

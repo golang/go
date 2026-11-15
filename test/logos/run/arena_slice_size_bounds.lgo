@@ -1,12 +1,14 @@
 // run -goexperiment logosarena
+// run -goexperiment logosarena -arena=false
 
 package main
 
-// The arena and native heap paths must agree on checked makeslice bounds for a
-// pointer-free 16-byte element. Success cases also exercise the backing store;
-// this fixture is silent unless an assertion fails.
 
-import "fmt"
+import (
+	"fmt"
+	"reflect"
+	"runtime"
+)
 
 type e16 struct {
 	lo int64
@@ -15,20 +17,12 @@ type e16 struct {
 
 var sink []e16
 
-const (
-	lenPanic = "runtime error: makeslice: len out of range"
-	capPanic = "runtime error: makeslice: cap out of range"
-)
-
-func panicMsg(fn func()) (msg string, ok bool) {
+func panicValue(fn func()) (value any) {
 	defer func() {
-		if r := recover(); r != nil {
-			msg = fmt.Sprint(r)
-			ok = true
-		}
+		value = recover()
 	}()
 	fn()
-	return msg, ok
+	return
 }
 
 //go:noinline
@@ -98,20 +92,16 @@ func checkValid(what string, n, c int) {
 	}
 }
 
-func checkPair(what string, n, c int, want string) {
-	hmsg, hok := panicMsg(func() { heapE16(n, c) })
+func checkPair(what string, n, c int) {
+	native := panicValue(func() { heapE16(n, c) })
+	heapError, hok := native.(runtime.Error)
 	if !hok {
-		panic("bounds: " + what + ": native returned without panic")
+		panic(fmt.Sprintf("bounds: %s: native panic = %T", what, native))
 	}
-	if hmsg != want {
-		panic("bounds: " + what + ": native panic " + hmsg + ", want " + want)
-	}
-	amsg, aok := panicMsg(func() { arenaE16(n, c) })
-	if !aok {
-		panic("bounds: " + what + ": arena returned without panic")
-	}
-	if amsg != want {
-		panic("bounds: " + what + ": arena panic " + amsg + ", want " + want)
+	actual := panicValue(func() { arenaE16(n, c) })
+	arenaError, aok := actual.(runtime.Error)
+	if !aok || reflect.TypeOf(actual) != reflect.TypeOf(native) || arenaError.Error() != heapError.Error() {
+		panic(fmt.Sprintf("bounds: %s: arena panic = %T %v, native = %T %v", what, actual, actual, native, native))
 	}
 }
 
@@ -129,17 +119,13 @@ func main() {
 	negOne := runtimeInt(-1)
 	wrap := runtimeInt(1 << 60)
 
-	// For 16-byte elements, cap=1<<60 wraps the byte-size multiplication.
-	// Keep this zero-length case first: a broken guard must not reach a huge
-	// allocation before reporting the cap error.
-	checkPair("zero/wrap cap", zero, wrap, capPanic)
-	checkPair("wrap/wrap len", wrap, wrap, lenPanic)
-	checkPair("one/wrap cap", one, wrap, capPanic)
-	checkPair("negative len", negOne, one, lenPanic)
-	checkPair("negative cap", one, negOne, capPanic)
-	checkPair("len greater than cap", two, one, capPanic)
+	checkPair("zero/wrap cap", zero, wrap)
+	checkPair("wrap/wrap len", wrap, wrap)
+	checkPair("one/wrap cap", one, wrap)
+	checkPair("negative len", negOne, one)
+	checkPair("negative cap", one, negOne)
+	checkPair("len greater than cap", two, one)
 
-	// Small neighbors must be fully usable on both allocation paths.
 	checkValid("one/one", one, one)
 	checkValid("three/five", three, five)
 	_ = sink

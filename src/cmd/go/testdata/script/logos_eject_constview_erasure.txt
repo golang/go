@@ -1,0 +1,73 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+logos run .
+stdout '^6$'
+stdout '^ada$'
+stdout '^7 -1$'
+stdout '^7$'
+stdout '^2 3$'
+cp stdout $WORK/eject-stdout.txt
+logos eject -o out
+exists out/main.go
+exists out/go.mod
+cd out
+go build ./...
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+exists $UPROOT1273/bin/go
+exec $UPROOT1273/bin/go version
+stdout '^go version go1\.27\.3 '
+exec env -u GOROOT $UPROOT1273/bin/go build ./...
+exec env -u GOROOT $UPROOT1273/bin/go run .
+cmp stdout $WORK/eject-stdout.txt
+cd ..
+
+-- m/go.mod --
+module example.com/ejectconstview
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import "fmt"
+
+type User struct {
+	Name string
+}
+
+func showSlice(xs const []int) int {
+	total := 0
+	for _, v := range xs {
+		total += v
+	}
+	return total
+}
+
+func showPtr(p const *User) string {
+	return p.Name
+}
+
+func showMap(m const map[string]int, k string) int {
+	return m[k] ?? -1
+}
+
+const ejectPrimes = []int{2, 3, 5}
+
+func firstAddr(xs const []int) int {
+	p := &xs[0]
+	return *p
+}
+
+func main() {
+	fmt.Println(showSlice([]int{1, 2, 3}))
+	fmt.Println(showPtr(&User{Name: "ada"}))
+	fmt.Println(showMap(map[string]int{"a": 7}, "a"), showMap(map[string]int{"a": 7}, "z"))
+	fmt.Println(firstAddr([]int{7, 8}))
+	fmt.Println(firstAddr(ejectPrimes), ejectPrimes[1])
+}

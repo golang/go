@@ -1,0 +1,47 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+const arr = [2]map[string]int{{"a": 1}, {"b": 2}}
+
+type box struct {
+	M map[string]int
+	A [3]int
+	L []int
+}
+
+const cfg = box{M: map[string]int{"a": 1}, A: [3]int{1, 2, 3}, L: []int{4, 5}}
+
+func test() {
+	var x [len(arr)]int
+	check("len-array-const", len(x) == 2, len(x), 2)
+	check("len-array-elem-map", len(arr[0]) == 1, len(arr[0]), 1)
+	var y [len(cfg.A)]int
+	check("len-field-array-const", len(y) == 3, len(y), 3)
+	check("len-field-slice", len(cfg.L) == 2, len(cfg.L), 2)
+	check("cap-field-slice", cap(cfg.L) == 2, cap(cfg.L), 2)
+	check("len-whole-array", len(arr) == 2, len(arr), 2)
+}
+
+func main() {
+	test()
+	if failed {
+		os.Exit(1)
+	}
+}

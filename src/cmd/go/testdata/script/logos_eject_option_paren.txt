@@ -1,0 +1,52 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# An optional function type in parentheses loses its grouping
+# parentheses together when a block comment sits inside them or between
+# them and the question mark. The module runs natively, ejects, and the
+# ejected module builds and runs with go and with go1.27.2 from
+# $UPROOT1272 and prints the same output.
+cd m
+logos run .
+stdout '^62 11 5 -1$'
+cp stdout $WORK/native.txt
+logos eject -o out
+exists out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $WORK/native.txt
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
+exec $WORK/upstream$GOEXE
+cmp stdout $WORK/native.txt
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ..
+
+-- m/go.mod --
+module example.com/optionparen
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import "fmt"
+
+func callOpt(f (func(int) int /* inner */) /* outer */?, n int) int {
+	if f != nil {
+		return f(n)
+	}
+	return -1
+}
+
+func main() {
+	var a (func(int) int /* inner */)? = func(n int) int { return (61 + n) }
+	var b ((func(int) int /* inner */) /* outer */)? = func(n int) int { return (n + 1) }
+	var c ( /* lead */ func(int) int)? = func(n int) int { return n }
+	var d (func(int) int)?
+	fmt.Println(callOpt(a, 1), callOpt(b, 10), callOpt(c, 5), callOpt(d, 1))
+}

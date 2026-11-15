@@ -4,10 +4,6 @@
 
 package p
 
-// M7-S1 const if header (SPEC Sec 2.5, T-205): like an `if` header, the
-// condition is parsed with composite literals off, so a name or a
-// keyword constant followed by `{` is the condition and the block.
-
 const debugOn = true
 
 type point struct{ x, y int }

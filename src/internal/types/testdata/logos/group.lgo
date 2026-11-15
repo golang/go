@@ -6,15 +6,11 @@ package p
 
 import "context"
 
-// Shared helpers for the group checks below.
-
 func work(ctx context.Context) error { return nil }
 
 func noval(ctx context.Context) {}
 
 func groupfn(x int) {}
-
-// A `?` in a child block returns to the group: no error.
 
 func groupQ(ctx context.Context) error {
 	go group (ctx) {
@@ -25,9 +21,6 @@ func groupQ(ctx context.Context) error {
 	return nil
 }
 
-// A `go f(args)` child with an error-last result sends it to the group:
-// no error.
-
 func groupCall(ctx context.Context) error {
 	go group (ctx) {
 		go work(ctx)
@@ -35,8 +28,6 @@ func groupCall(ctx context.Context) error {
 	}
 	return nil
 }
-
-// A `go func() {}()` child is a child: no error.
 
 func groupLit(ctx context.Context) error {
 	go group (ctx) {
@@ -46,16 +37,12 @@ func groupLit(ctx context.Context) error {
 	return nil
 }
 
-// A limit bounds the group: no error.
-
 func groupLimit(ctx context.Context) error {
 	go group (ctx, limit = 4) {
 		go work(ctx)
 	}
 	return nil
 }
-
-// A nested group forms a child of the outer group: no error.
 
 func groupNest(ctx context.Context) error {
 	go group (ctx) {
@@ -66,8 +53,6 @@ func groupNest(ctx context.Context) error {
 	return nil
 }
 
-// A `return` in a child block fails.
-
 func groupRet(ctx context.Context) error {
 	go group (ctx) {
 		go {
@@ -76,8 +61,6 @@ func groupRet(ctx context.Context) error {
 	}
 	return nil
 }
-
-// A bare `return` in a child block fails too.
 
 func groupRetBare(ctx context.Context) error {
 	go group (ctx) {
@@ -88,30 +71,21 @@ func groupRetBare(ctx context.Context) error {
 	return nil
 }
 
-// A child block outside a group body fails.
-
 func strayChild() error {
 	go /* ERROR "child_outside_group" */ {
 	}
 	return nil
 }
 
-// A `go` statement outside any group body fails.
-
 func strayGo(ctx context.Context) error {
 	go /* ERROR "unsupervised_goroutine" */ work(ctx)
 	return nil
 }
 
-// A `go group(x)` without a block stays an ordinary go call, so the
-// unsupervised rule still applies outside a group body.
-
 func callGroup() error {
 	go /* ERROR "unsupervised_goroutine" */ groupfn(1)
 	return nil
 }
-
-// A `go` on a non-call fails, inside a group body too.
 
 func groupNoCall(ctx context.Context) error {
 	go group (ctx) {
@@ -120,7 +94,14 @@ func groupNoCall(ctx context.Context) error {
 	return nil
 }
 
-// A `go group` in a function without an error result fails.
+func groupFuncLitParams(ctx context.Context) error {
+	go group (ctx) {
+		go func /* ERROR "expression in go must be function call" */ (x int) {
+			_ = x
+		}
+	}
+	return nil
+}
 
 func groupNoErr(ctx context.Context) {
 	go group (ctx /* ERROR "group_needs_error_result" */) {
@@ -129,23 +110,17 @@ func groupNoErr(ctx context.Context) {
 	}
 }
 
-// A non-context group context fails.
-
 func groupBadCtx(n int) error {
 	go group (n /* ERROR "must be context.Context" */) {
 	}
 	return nil
 }
 
-// A non-integer limit fails.
-
 func groupBadLimit(ctx context.Context) error {
 	go group (ctx, limit = "x" /* ERROR "limit must be an integer" */) {
 	}
 	return nil
 }
-
-// A deferred call outside a group body is unaffected.
 
 func deferOK(ctx context.Context) error {
 	defer work(ctx)

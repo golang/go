@@ -1,0 +1,81 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# A block comment that ends the line of one statement does not belong to
+# the statement below it. A statement in a group body that needs the
+# join check, and a try statement, keep their own line when the line
+# above ends in a block comment. The module runs natively, ejects, and
+# the ejected module builds and runs with go and with go1.27.2 from
+# $UPROOT1272 and prints the same output.
+cd m
+logos run .
+stdout '^1 2$'
+cp stdout $WORK/native.txt
+logos eject -o out
+exists out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $WORK/native.txt
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
+exec $WORK/upstream$GOEXE
+cmp stdout $WORK/native.txt
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ..
+
+-- m/go.mod --
+module example.com/commentattach
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import (
+	"context"
+	"fmt"
+	"sync/atomic"
+)
+
+var total atomic.Int64
+
+func add(n int64) {
+	total.Add(n)
+}
+
+func fail() error {
+	return nil
+}
+
+func one() (int, error) {
+	return 1, nil
+}
+
+func run(ctx context.Context) error {
+	go group (ctx) {
+		go add(1) /* block comment ending the line of a go statement */
+		fail()?
+	}
+	return nil
+}
+
+func sum() (int, error) {
+	a := one()? /* block comment ending the line of a try statement */
+	b := one()?
+	return a + b, nil
+}
+
+func main() {
+	if err := run(context.Background()); err != nil {
+		panic(err)
+	}
+	n, err := sum()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(total.Load(), n)
+}

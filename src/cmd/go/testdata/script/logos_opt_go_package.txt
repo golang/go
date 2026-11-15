@@ -1,0 +1,26 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# Row O-A03: the -O level effects reach Go packages, under logos and plain go.
+# The -O=3 budgets below come from the flagsFor registry; -O=2 is the
+# second tier so both non-default tiers are pinned on a Go package.
+cd gomod
+logos build -a -x -O=3 .
+stderr '-d=inlbudget=400,inlrecursivebudget=80,variablemakethreshold=4096'
+go build -a -x -O=3 .
+stderr '-d=inlbudget=400,inlrecursivebudget=80,variablemakethreshold=4096'
+logos build -a -x -O=2 .
+stderr '-d=inlbudget=120,variablemakethreshold=256'
+go build -a -x -O=2 .
+stderr '-d=inlbudget=120,variablemakethreshold=256'
+cd ..
+
+-- gomod/go.mod --
+module example.com/w5optgo
+
+go 1.27
+
+-- gomod/main.go --
+package main
+
+func main() {}

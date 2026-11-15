@@ -1,0 +1,440 @@
+// run
+package main
+import (
+"bytes"
+"encoding/binary"
+"strings"
+"testing"
+)
+type DepthNode struct {
+Kids []DepthNode `json:"kids"`
+}
+type PNode struct {
+Next *PNode? `json:"next,omitempty"`
+}
+type MNode struct {
+Kids map[string]MNode `json:"kids"`
+}
+type QNode struct {
+Kids []QNode? `json:"kids,omitempty"`
+}
+type ANode struct {
+E [1](*ANode?) `json:"e"`
+}
+type TOuter struct {
+T (DepthNode, int) `json:"t"`
+}
+type F1 struct {
+A []F2 `json:"a"`
+}
+type F2 struct {
+B F1 `json:"b"`
+}
+type ZW0 struct{}
+type ZW1 struct {
+	X ZW0 `json:"x"`
+}
+type ZWMix struct {
+	Kids []ZWMix `json:"kids"`
+	Tags []ZW1 `json:"tags"`
+}
+func mustDepthBytes(b []byte, err error) []byte {
+if err != nil {
+panic(err)
+}
+return b
+}
+func depthWire(levels int) []byte {
+w := []byte{1, 0}
+for range levels {
+w = append(append([]byte{1}, binary.AppendUvarint(nil, 1)...), w[1:]...)
+}
+return w
+}
+func depthOf(v DepthNode) int {
+n := 0
+for cur := &v; len(cur.Kids) == 1; cur = &cur.Kids[0] {
+n++
+}
+return n
+}
+func checkDepthErr(t *testing.T, err error, field string) {
+t.Helper()
+if err == nil {
+t.Fatalf("deep payload decoded without a depth error")
+}
+msg := err.Error()
+if !strings.Contains(msg, "depth") {
+t.Fatalf("depth error does not name depth: %v", err)
+}
+if !strings.Contains(msg, field) {
+t.Fatalf("depth error %q does not name field %s", msg, field)
+}
+if !strings.Contains(msg, "offset") {
+t.Fatalf("depth error %q lacks offset", msg)
+}
+if !strings.Contains(msg, "10000") {
+t.Fatalf("depth error %q does not name limit 10000", msg)
+}
+}
+func checkEncodeDepthErr(t *testing.T, err error) {
+t.Helper()
+if err == nil {
+t.Fatalf("deep payload encoded without a depth error")
+}
+msg := err.Error()
+if !strings.Contains(msg, "nesting depth exceeds 10000") {
+t.Fatalf("encode error %q is not nesting depth", msg)
+}
+}
+func pWire(n int) []byte {
+w := []byte{1}
+for i := 1; i < n; i++ {
+w = append(w, 1, 1)
+}
+w = append(w, 0)
+return w
+}
+func mWire(n int) []byte {
+w := []byte{1}
+for i := 1; i < n; i++ {
+w = append(w, 1, 1, 107)
+}
+w = append(w, 0)
+return w
+}
+func qWire(n int) []byte {
+w := []byte{1}
+for i := 1; i < n; i++ {
+w = append(w, 1, 1)
+}
+w = append(w, 0)
+return w
+}
+func aWire(n int) []byte {
+w := []byte{1}
+for i := 1; i < n; i++ {
+w = append(w, 1, 1, 1)
+}
+w = append(w, 1, 0)
+return w
+}
+func tOuterWire(k int) []byte {
+	w := []byte{1}
+	for i := 1; i < k; i++ {
+		w = append(w, 1)
+	}
+	w = append(w, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+	return w
+}
+func fWireEmpty() []byte {
+	w := []byte{1}
+for i := 0; i < 3333; i++ {
+w = append(w, 1)
+}
+w = append(w, 0)
+return w
+}
+func fWireFull() []byte {
+w := []byte{1}
+for i := 0; i < 3334; i++ {
+w = append(w, 1)
+}
+w = append(w, 0)
+return w
+}
+func testSliceBoundary(t *testing.T) {
+v := DepthNode{}
+for i := 0; i < 4999; i++ {
+v = DepthNode{Kids: []DepthNode{v}}
+}
+enc := mustDepthBytes(v.MarshalBinary())
+var got DepthNode
+if err := got.UnmarshalBinary(enc); err != nil {
+t.Fatalf("4999-deep slice rejected: %v", err)
+}
+if !bytes.Equal(mustDepthBytes(got.MarshalBinary()), enc) {
+t.Fatalf("4999-deep slice did not round-trip")
+}
+if _, err := got.AppendBinary(nil); err != nil {
+t.Fatalf("4999-deep slice append rejected: %v", err)
+}
+w := DepthNode{}
+for i := 0; i < 5000; i++ {
+w = DepthNode{Kids: []DepthNode{w}}
+}
+if _, err := w.MarshalBinary(); err == nil {
+t.Fatalf("5000-deep slice encoded without a depth error")
+} else {
+checkEncodeDepthErr(t, err)
+}
+if _, err := w.AppendBinary(nil); err == nil {
+t.Fatalf("5000-deep slice appended without a depth error")
+} else {
+checkEncodeDepthErr(t, err)
+}
+var bad DepthNode
+checkDepthErr(t, bad.UnmarshalBinary(depthWire(5000)), ".Kids")
+}
+func testPointerBoundary(t *testing.T) {
+v := PNode{}
+for i := 0; i < 9999; i++ {
+c := v
+v = PNode{Next: &c}
+}
+enc := mustDepthBytes(v.MarshalBinary())
+var got PNode
+if err := got.UnmarshalBinary(enc); err != nil {
+t.Fatalf("10000-deep pointer rejected: %v", err)
+}
+if !bytes.Equal(mustDepthBytes(got.MarshalBinary()), enc) {
+t.Fatalf("10000-deep pointer did not round-trip")
+}
+w := PNode{}
+for i := 0; i < 10000; i++ {
+c := w
+w = PNode{Next: &c}
+}
+if _, err := w.MarshalBinary(); err == nil {
+t.Fatalf("10001-deep pointer encoded without a depth error")
+} else {
+checkEncodeDepthErr(t, err)
+}
+if _, err := w.AppendBinary(nil); err == nil {
+t.Fatalf("10001-deep pointer appended without a depth error")
+} else {
+checkEncodeDepthErr(t, err)
+}
+var bad PNode
+checkDepthErr(t, bad.UnmarshalBinary(pWire(10001)), ".Next")
+}
+func testMapBoundary(t *testing.T) {
+v := MNode{Kids: map[string]MNode{}}
+for i := 0; i < 4999; i++ {
+v = MNode{Kids: map[string]MNode{"k": v}}
+}
+enc := mustDepthBytes(v.MarshalBinary())
+var got MNode
+if err := got.UnmarshalBinary(enc); err != nil {
+t.Fatalf("4999-deep map rejected: %v", err)
+}
+if !bytes.Equal(mustDepthBytes(got.MarshalBinary()), enc) {
+t.Fatalf("4999-deep map did not round-trip")
+}
+w := MNode{Kids: map[string]MNode{}}
+for i := 0; i < 5000; i++ {
+w = MNode{Kids: map[string]MNode{"k": w}}
+}
+if _, err := w.MarshalBinary(); err == nil {
+t.Fatalf("5000-deep map encoded without a depth error")
+} else {
+checkEncodeDepthErr(t, err)
+}
+if _, err := w.AppendBinary(nil); err == nil {
+t.Fatalf("5000-deep map appended without a depth error")
+} else {
+checkEncodeDepthErr(t, err)
+}
+var bad MNode
+checkDepthErr(t, bad.UnmarshalBinary(mWire(5001)), ".Kids")
+}
+func testOptionBoundary(t *testing.T) {
+v := QNode{}
+for i := 0; i < 4999; i++ {
+v = QNode{Kids: []QNode{v}}
+}
+enc := mustDepthBytes(v.MarshalBinary())
+var got QNode
+if err := got.UnmarshalBinary(enc); err != nil {
+t.Fatalf("4999-deep option rejected: %v", err)
+}
+if !bytes.Equal(mustDepthBytes(got.MarshalBinary()), enc) {
+t.Fatalf("4999-deep option did not round-trip")
+}
+w := QNode{}
+for i := 0; i < 5000; i++ {
+w = QNode{Kids: []QNode{w}}
+}
+if _, err := w.MarshalBinary(); err == nil {
+t.Fatalf("5000-deep option encoded without a depth error")
+} else {
+checkEncodeDepthErr(t, err)
+}
+if _, err := w.AppendBinary(nil); err == nil {
+t.Fatalf("5000-deep option appended without a depth error")
+} else {
+checkEncodeDepthErr(t, err)
+}
+var bad QNode
+checkDepthErr(t, bad.UnmarshalBinary(qWire(5001)), ".Kids")
+}
+func testArrayBoundary(t *testing.T) {
+	v := ANode{E: [1](*ANode?){}}
+	for i := 0; i < 4999; i++ {
+		c := v
+		v = ANode{E: [1](*ANode?){&c}}
+	}
+enc := mustDepthBytes(v.MarshalBinary())
+var got ANode
+if err := got.UnmarshalBinary(enc); err != nil {
+t.Fatalf("4999-deep array rejected: %v", err)
+}
+if !bytes.Equal(mustDepthBytes(got.MarshalBinary()), enc) {
+t.Fatalf("4999-deep array did not round-trip")
+}
+	w := ANode{E: [1](*ANode?){}}
+	for i := 0; i < 5000; i++ {
+		c := w
+		w = ANode{E: [1](*ANode?){&c}}
+	}
+if _, err := w.MarshalBinary(); err == nil {
+t.Fatalf("5000-deep array encoded without a depth error")
+} else {
+checkEncodeDepthErr(t, err)
+}
+if _, err := w.AppendBinary(nil); err == nil {
+t.Fatalf("5000-deep array appended without a depth error")
+} else {
+checkEncodeDepthErr(t, err)
+}
+var bad ANode
+checkDepthErr(t, bad.UnmarshalBinary(aWire(5001)), ".E")
+}
+func testTupleBoundary(t *testing.T) {
+	d := DepthNode{}
+	for i := 0; i < 4998; i++ {
+		d = DepthNode{Kids: []DepthNode{d}}
+	}
+	v := TOuter{T: (d, 0)}
+	enc := mustDepthBytes(v.MarshalBinary())
+	var got TOuter
+	if err := got.UnmarshalBinary(enc); err != nil {
+		t.Fatalf("4999-deep tuple rejected: %v", err)
+	}
+	if !bytes.Equal(mustDepthBytes(got.MarshalBinary()), enc) {
+		t.Fatalf("4999-deep tuple did not round-trip")
+	}
+	if !bytes.Equal(tOuterWire(4999), enc) {
+		t.Fatalf("tuple generator disagrees with encoder")
+	}
+	e := DepthNode{}
+	for i := 0; i < 4999; i++ {
+		e = DepthNode{Kids: []DepthNode{e}}
+	}
+	w := TOuter{T: (e, 0)}
+	if _, err := w.MarshalBinary(); err == nil {
+		t.Fatalf("5000-deep tuple encoded without a depth error")
+	} else {
+		checkEncodeDepthErr(t, err)
+	}
+	if _, err := w.AppendBinary(nil); err == nil {
+		t.Fatalf("5000-deep tuple appended without a depth error")
+	} else {
+		checkEncodeDepthErr(t, err)
+	}
+	var bad TOuter
+	checkDepthErr(t, bad.UnmarshalBinary(tOuterWire(5000)), ".T")
+}
+func testEmptyAtBoundary(t *testing.T) {
+var bad F1
+checkDepthErr(t, bad.UnmarshalBinary(fWireEmpty()), ".A")
+var full F1
+checkDepthErr(t, full.UnmarshalBinary(fWireFull()), ".A")
+v := F1{}
+for i := 0; i < 3332; i++ {
+v = F1{A: []F2{{B: v}}}
+}
+enc := mustDepthBytes(v.MarshalBinary())
+var got F1
+if err := got.UnmarshalBinary(enc); err != nil {
+t.Fatalf("9998-deep mixed rejected: %v", err)
+}
+w := F1{}
+for i := 0; i < 3333; i++ {
+w = F1{A: []F2{{B: w}}}
+}
+if _, err := w.MarshalBinary(); err == nil {
+t.Fatalf("10001-deep empty encoded without a depth error")
+} else {
+checkEncodeDepthErr(t, err)
+}
+}
+func zwMixWire(n int) []byte {
+w := []byte{1, 0, 0}
+for i := 0; i < n; i++ {
+w = append(append([]byte{1, 1}, w[1:]...), 0)
+}
+return w
+}
+func testZeroWireBoundary(t *testing.T) {
+v := ZWMix{Tags: []ZW1{{}, {}, {}}}
+enc := mustDepthBytes(v.MarshalBinary())
+if !bytes.Equal(enc, []byte{1, 0, 3}) {
+t.Fatalf("zero-wire slice did not encode as count only: %x", enc)
+}
+var got ZWMix
+if err := got.UnmarshalBinary(enc); err != nil {
+t.Fatalf("zero-wire slice rejected: %v", err)
+}
+if len(got.Tags) != 3 {
+t.Fatalf("zero-wire slice decoded to %d elements", len(got.Tags))
+}
+if !bytes.Equal(mustDepthBytes(got.MarshalBinary()), enc) {
+t.Fatalf("zero-wire slice did not round-trip")
+}
+deep := ZWMix{}
+for i := 0; i < 4999; i++ {
+deep = ZWMix{Kids: []ZWMix{deep}}
+}
+enc = mustDepthBytes(deep.MarshalBinary())
+if !bytes.Equal(zwMixWire(4999), enc) {
+t.Fatalf("mixed generator disagrees with encoder")
+}
+var back ZWMix
+if err := back.UnmarshalBinary(enc); err != nil {
+t.Fatalf("4999-deep mixed zero-wire rejected: %v", err)
+}
+if !bytes.Equal(mustDepthBytes(back.MarshalBinary()), enc) {
+t.Fatalf("4999-deep mixed zero-wire did not round-trip")
+}
+if _, err := back.AppendBinary(nil); err != nil {
+t.Fatalf("4999-deep mixed zero-wire append rejected: %v", err)
+}
+wide := ZWMix{}
+for i := 0; i < 5000; i++ {
+wide = ZWMix{Kids: []ZWMix{wide}}
+}
+if _, err := wide.MarshalBinary(); err == nil {
+t.Fatalf("5000-deep mixed zero-wire encoded without a depth error")
+} else {
+checkEncodeDepthErr(t, err)
+}
+if _, err := wide.AppendBinary(nil); err == nil {
+t.Fatalf("5000-deep mixed zero-wire appended without a depth error")
+} else {
+checkEncodeDepthErr(t, err)
+}
+var bad ZWMix
+checkDepthErr(t, bad.UnmarshalBinary(zwMixWire(5000)), ".Kids")
+}
+func TestBinaryDepthLimit(t *testing.T) {
+shallow := depthWire(100)
+var s DepthNode
+if err := s.UnmarshalBinary(shallow); err != nil {
+t.Fatalf("100-deep payload rejected: %v", err)
+}
+if got := depthOf(s); got != 100 {
+t.Fatalf("100-deep payload decoded to depth %d", got)
+}
+if !bytes.Equal(mustDepthBytes(s.MarshalBinary()), shallow) {
+t.Fatalf("100-deep payload did not round-trip")
+}
+testSliceBoundary(t)
+testPointerBoundary(t)
+testMapBoundary(t)
+testOptionBoundary(t)
+testArrayBoundary(t)
+testTupleBoundary(t)
+testEmptyAtBoundary(t)
+testZeroWireBoundary(t)
+}

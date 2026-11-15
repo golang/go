@@ -1,0 +1,90 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+cp o3key/stackbuf.go o0key/stackbuf.go
+cp o3key/stackbuf_test.go o0key/stackbuf_test.go
+
+cd o3key
+env WANT_STACKBUF=4096
+logos test -count=1 .
+stdout '^ok'
+logos test -count=1 -O=3 .
+stdout '^ok'
+! logos test -count=1 -O=0 .
+stdout 'FAIL'
+env WANT_STACKBUF=32
+logos test -count=1 -O=0 .
+stdout '^ok'
+! logos test -count=1 .
+stdout 'FAIL'
+cd ..
+
+cd o0key
+env WANT_STACKBUF=32
+logos test -count=1 .
+stdout '^ok'
+logos test -count=1 -O=0 .
+stdout '^ok'
+! logos test -count=1 -O=3 .
+stdout 'FAIL'
+env WANT_STACKBUF=4096
+logos test -count=1 -O=3 .
+stdout '^ok'
+! logos test -count=1 .
+stdout 'FAIL'
+cd ..
+
+-- o3key/go.mod --
+module example.com/optflag/o3key
+
+go 1.27
+
+-- o3key/logos.toml --
+[build]
+opt_level = "O3"
+arena = false
+
+-- o3key/stackbuf.go --
+package stackbuf
+
+-- o3key/stackbuf_test.go --
+package stackbuf
+
+import (
+	"os"
+	"strconv"
+	"testing"
+)
+
+//go:noinline
+func probe(n int) byte {
+	b := make([]byte, n)
+	b[0] = 1
+	return b[n-1]
+}
+
+func heapFree(n int) bool {
+	return testing.AllocsPerRun(10, func() { _ = probe(n) }) == 0
+}
+
+func TestCompiledStackBuffer(t *testing.T) {
+	want, err := strconv.Atoi(os.Getenv("WANT_STACKBUF"))
+	if err != nil || want < 2 {
+		t.Fatalf("WANT_STACKBUF=%q: want a byte count of at least 2", os.Getenv("WANT_STACKBUF"))
+	}
+	if !heapFree(want) {
+		t.Errorf("make of %d bytes reached the heap, want it inside the frame", want)
+	}
+	if heapFree(want + 1) {
+		t.Errorf("make of %d bytes stayed inside the frame, want the heap", want+1)
+	}
+}
+
+-- o0key/go.mod --
+module example.com/optflag/o0key
+
+go 1.27
+
+-- o0key/logos.toml --
+[build]
+opt_level = "O0"
+arena = false

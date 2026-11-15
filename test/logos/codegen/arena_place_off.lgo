@@ -1,0 +1,26 @@
+// asmcheck -arena=false
+
+package main
+
+var placeTotal int
+
+//go:noinline
+func placeConsume(b []byte) int {
+	if len(b) == 0 {
+		return 0
+	}
+	b[0] = 1
+	return len(b) + cap(b) + int(b[0])
+}
+
+//go:noinline
+func placeDynamic(n int) int {
+	// amd64:1"CALL.*runtime\\.makeslice"
+	// amd64:-"CALL.*runtime\\.logosArenaMakeSlice"
+	b := make([]byte, n)
+	return placeConsume(b)
+}
+
+func main() {
+	placeTotal += placeDynamic(1 << 16)
+}

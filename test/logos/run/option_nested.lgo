@@ -2,12 +2,23 @@
 
 package main
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+	"os"
+	"unsafe"
+)
 
-// M3 wrapped options (SPEC Sec 2.2, T-202): payloads that admit nil as
-// a valid value (slices, funcs, chans, interfaces) use
-// presence-bearing `rt.Option[T]`, so present-nil stays distinct from
-// absent. `(T?)?` nests. Nil tests narrow wrapped options.
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 func presentNil() []int? {
 	var s []int = nil
@@ -22,43 +33,144 @@ func absentSlice() []int? {
 
 func useNested(w (int?)?, d int?) int? { return w ?? d }
 
+func presentNilInterfaces() {
+	var a any
+	var oa any? = a
+	check("any-present-nil-is-some", oa != nil, oa != nil, true)
+	gotAP := (oa ?? 7) == nil
+	check("any-present-nil-payload", gotAP, gotAP, true)
+	var na any?
+	check("any-absent-is-none", na == nil, na == nil, true)
+	gotAA := (na ?? 7) == 7
+	check("any-absent-fallback", gotAA, gotAA, true)
+
+	var e error
+	var oe error? = e
+	check("error-present-nil-is-some", oe != nil, oe != nil, true)
+	gotEP := (oe ?? errors.New("d")) == nil
+	check("error-present-nil-payload", gotEP, gotEP, true)
+	var ne error?
+	check("error-absent-is-none", ne == nil, ne == nil, true)
+	gotEA := (ne ?? errors.New("d")) != nil
+	check("error-absent-fallback", gotEA, gotEA, true)
+}
+
+func presentNilReferences() {
+	var m map[string]int
+	var om map[string]int? = m
+	check("map-present-nil-is-some", om != nil, om != nil, true)
+	gotMP := (om ?? map[string]int{"d": 1}) == nil
+	check("map-present-nil-payload", gotMP, gotMP, true)
+	var nm map[string]int?
+	check("map-absent-is-none", nm == nil, nm == nil, true)
+	gotMA := len(nm ?? map[string]int{"d": 1}) == 1
+	check("map-absent-fallback", gotMA, gotMA, true)
+
+	var f func() int
+	var of (func() int)? = f
+	check("func-present-nil-is-some", of != nil, of != nil, true)
+	gotFP := (of ?? func() int { return 1 }) == nil
+	check("func-present-nil-payload", gotFP, gotFP, true)
+	var nf (func() int)?
+	check("func-absent-is-none", nf == nil, nf == nil, true)
+	gotFA := (nf ?? func() int { return 1 }) != nil
+	check("func-absent-fallback", gotFA, gotFA, true)
+
+	var c chan int
+	var oc chan int? = c
+	check("chan-present-nil-is-some", oc != nil, oc != nil, true)
+	gotCP := (oc ?? make(chan int)) == nil
+	check("chan-present-nil-payload", gotCP, gotCP, true)
+	var nc chan int?
+	check("chan-absent-is-none", nc == nil, nc == nil, true)
+	gotCA := (nc ?? make(chan int)) != nil
+	check("chan-absent-fallback", gotCA, gotCA, true)
+
+	var p unsafe.Pointer
+	var op unsafe.Pointer? = p
+	check("pointer-present-nil-is-some", op != nil, op != nil, true)
+	gotPP := (op ?? unsafe.Pointer(&p)) == nil
+	check("pointer-present-nil-payload", gotPP, gotPP, true)
+	var np unsafe.Pointer?
+	check("pointer-absent-is-none", np == nil, np == nil, true)
+	gotPA := (np ?? unsafe.Pointer(&p)) != nil
+	check("pointer-absent-fallback", gotPA, gotPA, true)
+}
+
+func presentNilValues() {
+	anys := map[string]any{"n": nil}
+	check("any-value-present-nil-is-some", anys["n"] != nil, anys["n"] != nil, true)
+	gotVA := (anys["n"] ?? 7) == nil
+	check("any-value-present-nil-payload", gotVA, gotVA, true)
+	check("any-value-absent-is-none", anys["zzz"] == nil, anys["zzz"] == nil, true)
+	errs := map[string]error{"n": nil}
+	check("error-value-present-nil-is-some", errs["n"] != nil, errs["n"] != nil, true)
+	check("error-value-absent-is-none", errs["zzz"] == nil, errs["zzz"] == nil, true)
+	maps := map[string]map[string]int{"n": nil}
+	check("map-value-present-nil-is-some", maps["n"] != nil, maps["n"] != nil, true)
+	check("map-value-absent-is-none", maps["zzz"] == nil, maps["zzz"] == nil, true)
+	funcs := map[string]func() int{"n": nil}
+	check("func-value-present-nil-is-some", funcs["n"] != nil, funcs["n"] != nil, true)
+	check("func-value-absent-is-none", funcs["zzz"] == nil, funcs["zzz"] == nil, true)
+	chans := map[string]chan int{"n": nil}
+	check("chan-value-present-nil-is-some", chans["n"] != nil, chans["n"] != nil, true)
+	check("chan-value-absent-is-none", chans["zzz"] == nil, chans["zzz"] == nil, true)
+}
+
 func main() {
 	p := presentNil()
-	fmt.Println(p == nil)
-	fmt.Println(p ?? []int{9})
+	check("present-is-none", p != nil, p != nil, true)
+	gotP := fmt.Sprint(p ?? []int{9})
+	check("present-fallback", gotP == "[]", gotP, "[]")
 	a := absentSlice()
-	fmt.Println(a == nil)
-	fmt.Println(a ?? []int{9})
+	check("absent-is-none", a == nil, a == nil, true)
+	gotA := fmt.Sprint(a ?? []int{9})
+	check("absent-fallback", gotA == "[9]", gotA, "[9]")
 	var w (int?)? = 3
-	fmt.Println(w == nil)
+	check("nested-some", w != nil, w != nil, true)
 	var e int?
-	inner := w ?? e
-	fmt.Println(inner ?? 43)
-	fmt.Println(useNested(w, e) ?? 43)
+	gotInner := (w ?? e) ?? 43
+	check("nested-inner", gotInner == 3, gotInner, 3)
+	gotUse := useNested(w, e) ?? 43
+	check("nested-use", gotUse == 3, gotUse, 3)
 	var nn (int?)?
-	fmt.Println(nn == nil)
-	fmt.Println(useNested(nn, e) ?? 43)
-	var m map[string]int = map[string]int{"k": 5}
-	fmt.Println(m["k"] ?? -1)
-	fmt.Println(m["zzz"] ?? -1)
+	check("nested-none", nn == nil, nn == nil, true)
+	gotNN := useNested(nn, e) ?? 43
+	check("nested-none-use", gotNN == 43, gotNN, 43)
+	var m map[string]int = map[string]int{"k": 5, "z": 0}
+	gotK := m["k"] ?? -1
+	check("map-present", gotK == 5, gotK, 5)
+	gotZ := m["z"] ?? -1
+	check("map-zero", gotZ == 0, gotZ, 0)
+	gotM := m["zzz"] ?? -1
+	check("map-missing", gotM == -1, gotM, -1)
 	var f func() int? = nil
-	fmt.Println(f == nil)
+	check("func-none", f == nil, f == nil, true)
 	f = func() int? { return 8 }
-	fmt.Println(f() ?? -1)
+	gotF := f() ?? -1
+	check("func-some", gotF == 8, gotF, 8)
 	var c chan int? = nil
-	fmt.Println(c == nil)
+	check("chan-none", c == nil, c == nil, true)
 	var v any? = nil
-	fmt.Println(v == nil)
+	check("any-none", v == nil, v == nil, true)
 	v = 6
-	fmt.Println(v ?? -1)
+	gotV := v ?? -1
+	check("any-some", gotV == 6, gotV, 6)
 	var n int?
 	if n != nil {
-		fmt.Println("some")
+		check("if-none", false, "some", "none")
 	} else {
-		fmt.Println("none")
+		check("if-none", true, "none", "none")
 	}
 	n = 5
 	if n != nil {
-		fmt.Println(n ?? -1)
+		gotN2 := n ?? -1
+		check("if-some", gotN2 == 5, gotN2, 5)
+	}
+	presentNilInterfaces()
+	presentNilReferences()
+	presentNilValues()
+	if failed {
+		os.Exit(1)
 	}
 }

@@ -4,12 +4,6 @@
 
 package p
 
-// M13-S3 #121 (SPEC T-203.4): a call argument of type []C passes to a
-// `const []I` parameter when C implements the interface I. Every other
-// position keeps rejecting it: variables, results, fields, conversions,
-// and mutable parameters. A const view source never converts, so its
-// element restrictions cannot leak through the interface.
-
 type Creature interface{ Name() string }
 
 type Named interface {
@@ -54,9 +48,6 @@ func two() ([]*Monster, []*Monster) { return nil, nil }
 
 func one() []*Monster { return nil }
 
-// Admitted: pointer, value, and interface elements, a named source
-// slice, an empty-interface target, an expression argument, nil, the
-// identical slice type, and a covariant argument beside a plain one.
 func covAccept(ms []*Monster, rs []Rock, ns []Named, mm Monsters, cs []Creature) {
 	_ = names(ms)
 	_ = names(rs)
@@ -74,28 +65,22 @@ func covAccept(ms []*Monster, rs []Rock, ns []Named, mm Monsters, cs []Creature)
 	_ = pair(cs, ms)
 }
 
-// Admitted through a function value: the parameter type decides, not
-// the callee name.
 func covFuncValue(ms []*Monster) {
 	f := names
 	_ = f(ms)
 }
 
-// Rejected: C does not implement I.
 func covNotImplemented(vs []Monster, is []int) {
 	_ = names(vs /* ERROR "const_view_escape" */)
 	_ = names(is /* ERROR "const_view_escape" */)
 }
 
-// Rejected: the target element is not an interface, or the target is
-// a named slice type.
 func covNotInterface(mi []MyInt, ms []*Monster) {
 	_ = ints(mi /* ERROR "const_view_escape" */)
 	_ = named(ms /* ERROR "const_view_escape" */)
 	_ = append(ms, nil /* ERROR "nil_to_nonnil" */)
 }
 
-// Rejected: only argument passing converts.
 func covOtherPositions(ms []*Monster) const []Creature {
 	var cv const []Creature = ms /* ERROR "const_view_escape" */
 	_ = cv
@@ -104,8 +89,6 @@ func covOtherPositions(ms []*Monster) const []Creature {
 	return ms /* ERROR "const_view_escape" */
 }
 
-// Rejected: a const view source never converts, whether it is a
-// parameter, a read through a const view, or a slice of one.
 func covConstSource(cm const []*Monster, cmm const [][]*Monster) {
 	tail := cm[1:]
 	row := cmm[0]
@@ -114,9 +97,6 @@ func covConstSource(cm const []*Monster, cmm const [][]*Monster) {
 	_ = names(row /* ERROR "const_view_escape" */)
 }
 
-// A type parameter element converts when its constraint's methods
-// prove the implements relation for every instantiation, and is
-// rejected when they do not.
 func covGenericProved[T Creature](ts []T) {
 	_ = names(ts)
 }
@@ -125,25 +105,35 @@ func covGenericUnproved[T any](ts []T) {
 	_ = names(ts /* ERROR "const_view_escape" */)
 }
 
-// Rejected: an argument that spreads a multi-value call has no
-// expression of its own to convert.
 func covSpread() {
 	_ = mixed(two /* ERROR "const_view_escape" */ ())
 }
 
-// Readonly: a `const []I` parameter forbids writes even though it
-// accepts covariant arguments. An index store and an append through
-// the parameter report const_view_mutation.
 func covReadonly(cs const []Creature) {
 	cs /* ERROR "const_view_mutation" */ [0] = &Monster{n: "ogre"}
 	_ = append(cs /* ERROR "const_view_mutation" */, &Monster{n: "imp"})
 }
 
-// Ordinary Go is unchanged: a plain []C never assigns or passes as a
-// mutable []I.
 func covMutable(ms []*Monster) []Creature {
 	var xs []Creature = ms /* ERROR "cannot use" */
 	_ = plainNames(ms /* ERROR "cannot use" */)
 	_ = xs
 	return ms /* ERROR "cannot use" */
+}
+
+func ptrIface(p const *Creature) bool { return *p != nil }
+
+func mapIface(m const map[string]Creature) int { return len(m) }
+
+func covIfaceContainers(c Creature, mc map[string]Creature) {
+	_ = ptrIface(&c)
+	_ = mapIface(mc)
+	var cp const *Creature = &c
+	var cm const map[string]Creature = mc
+	_, _ = cp, cm
+}
+
+func covIfaceContainerReadonly(p const *Creature, m const map[string]Creature) {
+	*p /* ERROR "const_view_mutation" */ = Rock{n: "r"}
+	m /* ERROR "const_view_mutation" */ ["k"] = Rock{n: "r"}
 }

@@ -1,0 +1,62 @@
+// asmcheck -goexperiment simd
+
+package main
+
+//go:noinline
+func addI8x16(a, b [16]int8) [16]int8 {
+	// amd64/v1:"VPADDB" "CALL simd/archsimd\\.X86Features\\.AVX\\(SB\\)"
+	// amd64/v2:"VPADDB" "CALL simd/archsimd\\.X86Features\\.AVX\\(SB\\)"
+	// amd64/v3:"VPADDB" -"CALL simd/archsimd\\.X86Features" -"CMPB internal/cpu\\.X86"
+	// amd64/v4:"VPADDB" -"CALL simd/archsimd\\.X86Features" -"CMPB internal/cpu\\.X86"
+	// arm64:"VADD V[0-9]+\\.B16" -"CALL simd/archsimd\\.X86Features"
+	return a + b
+}
+
+//go:noinline
+func addI16x8(a, b [8]int16) [8]int16 {
+	// amd64/v1:"VPADDW" "CALL simd/archsimd\\.X86Features\\.AVX\\(SB\\)"
+	// amd64/v2:"VPADDW" "CALL simd/archsimd\\.X86Features\\.AVX\\(SB\\)"
+	// amd64/v3:"VPADDW" -"CALL simd/archsimd\\.X86Features" -"CMPB internal/cpu\\.X86"
+	// amd64/v4:"VPADDW" -"CALL simd/archsimd\\.X86Features" -"CMPB internal/cpu\\.X86"
+	// arm64:"VADD V[0-9]+\\.H8" -"CALL simd/archsimd\\.X86Features"
+	return a + b
+}
+
+//go:noinline
+func addU16x8(a, b [8]uint16) [8]uint16 {
+	// amd64/v1:"VPADDW" "CALL simd/archsimd\\.X86Features\\.AVX\\(SB\\)"
+	// amd64/v2:"VPADDW" "CALL simd/archsimd\\.X86Features\\.AVX\\(SB\\)"
+	// amd64/v3:"VPADDW" -"CALL simd/archsimd\\.X86Features" -"CMPB internal/cpu\\.X86"
+	// amd64/v4:"VPADDW" -"CALL simd/archsimd\\.X86Features" -"CMPB internal/cpu\\.X86"
+	// arm64:"VADD V[0-9]+\\.H8" -"CALL simd/archsimd\\.X86Features"
+	return a + b
+}
+
+//go:noinline
+func addI64x4(a, b [4]int64) [4]int64 {
+	// amd64/v1:"VPADDQ" "CALL simd/archsimd\\.X86Features\\.AVX2\\(SB\\)"
+	// amd64/v2:"VPADDQ" "CALL simd/archsimd\\.X86Features\\.AVX2\\(SB\\)"
+	// amd64/v3:"VPADDQ" -"CALL simd/archsimd\\.X86Features" -"CMPB internal/cpu\\.X86"
+	// amd64/v4:"VPADDQ" -"CALL simd/archsimd\\.X86Features" -"CMPB internal/cpu\\.X86"
+	// arm64:"VADD V[0-9]+\\.D2" -"CALL simd/archsimd\\.X86Features"
+	return a + b
+}
+
+//go:noinline
+func addRune8(a, b [8]rune) [8]rune {
+	// amd64/v1:"VPADDD" "CALL simd/archsimd\\.X86Features\\.AVX2\\(SB\\)"
+	// amd64/v2:"VPADDD" "CALL simd/archsimd\\.X86Features\\.AVX2\\(SB\\)"
+	// amd64/v3:"VPADDD" -"CALL simd/archsimd\\.X86Features" -"CMPB internal/cpu\\.X86"
+	// amd64/v4:"VPADDD" -"CALL simd/archsimd\\.X86Features" -"CMPB internal/cpu\\.X86"
+	// arm64:"VADD V[0-9]+\\.S4" -"CALL simd/archsimd\\.X86Features"
+	return a + b
+}
+
+func main() {
+	var a, b [16]int8
+	var c, d [8]int16
+	var e, f [8]uint16
+	var g, h [4]int64
+	var i, j [8]rune
+	println(addI8x16(a, b)[0], addI16x8(c, d)[0], addU16x8(e, f)[0], addI64x4(g, h)[0], addRune8(i, j)[0])
+}

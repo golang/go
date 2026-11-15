@@ -2,17 +2,35 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
-// M22-S6 defect D3 (SPEC T-104.6, T-201): the compiler rejected chain
-// methods on a `const []T` receiver, although chains only read it. The
-// Sec 11 example declares `ProcessBatch(ctx, batch const
-// []CreateOrderReq)` and chains on batch.
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 func double(xs const []int) []int {
 	return xs.map(x => x * 2)
 }
 
 func main() {
-	fmt.Println(double([]int{1, 2}))
+	in := []int{1, 2}
+	got := double(in)
+	var want []int
+	for _, v := range in {
+		want = append(want, v*2)
+	}
+	check("chain-map-applies-per-element", fmt.Sprint(got) == fmt.Sprint(want) && fmt.Sprint(got) == "[2 4]", fmt.Sprint(got), "[2 4]")
+	if failed {
+		os.Exit(1)
+	}
 }

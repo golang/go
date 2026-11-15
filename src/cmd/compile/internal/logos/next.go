@@ -7,19 +7,14 @@ package logos
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"strings"
 
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types2"
 )
 
-// NextVersion tags the logos next wire and task file schema. The driver
-// writes it into next_tasks.json verbatim.
 const NextVersion = "logos-next-1"
 
-// NextEdit replaces one byte span of a Go source file with Replacement.
-// Positions are physical 1-based lines and byte columns of the original
-// file. The driver converts them to byte offsets after verifying the
-// file digest.
 type NextEdit struct {
 	StartLine   int    `json:"start_line"`
 	StartCol    int    `json:"start_col"`
@@ -28,10 +23,6 @@ type NextEdit struct {
 	Replacement string `json:"replacement"`
 }
 
-// NextTask describes one refactor the converter leaves for AI patching.
-// Spans name physical 1-based lines of the pre-conversion file; the
-// driver remaps them onto the converted tree before writing
-// next_tasks.json.
 type NextTask struct {
 	Category    string `json:"category"`
 	Rule        string `json:"rule"`
@@ -41,8 +32,6 @@ type NextTask struct {
 	Instruction string `json:"ai_instruction"`
 }
 
-// NextFileReport carries the scan result of one Go source file. Sum is
-// the hex SHA-256 of the exact bytes the compiler scanned.
 type NextFileReport struct {
 	File  string     `json:"file"`
 	Sum   string     `json:"sha256"`
@@ -50,28 +39,18 @@ type NextFileReport struct {
 	Tasks []NextTask `json:"tasks"`
 }
 
-// NextPackageReport is the wire schema between compile -logos.mode=next
-// and the logos next driver: one JSON object per line of the sidecar.
 type NextPackageReport struct {
 	Version string           `json:"version"`
 	Package string           `json:"package"`
 	Files   []NextFileReport `json:"files"`
 }
 
-// NextRule names the rewrite families the scanner emits.
 const (
 	nextRuleErrReturn = "err-return"
 	nextRuleLoopChain = "loop-chain"
 	nextRuleSprintf   = "sprintf-interp"
 )
 
-// ScanNext finds logos next rewrites in files: err-return checks become
-// ?, fmt.Sprintf calls with interpolation-compatible verbs become $"...",
-// and pure index-range append loops become map chains. Anything shaped
-// like a candidate but unsafe to rewrite becomes an ai-patch task. info
-// comes from the successful types2 check of the package, src holds the
-// original bytes of each file, and names holds the compile argument of
-// each file.
 func ScanNext(info *types2.Info, files []*syntax.File, src map[*syntax.File][]byte, names map[*syntax.File]string) []NextFileReport {
 	errObj := types2.Universe.Lookup("error")
 	if errObj == nil {
@@ -92,7 +71,6 @@ func ScanNext(info *types2.Info, files []*syntax.File, src map[*syntax.File][]by
 	return out
 }
 
-// nextScan holds the state of one ScanNext run.
 type nextScan struct {
 	info           *types2.Info
 	errType        types2.Type
@@ -105,17 +83,12 @@ type nextScan struct {
 	closureWritten map[types2.Object]bool
 }
 
-// nextCtx carries the enclosing function of one block walk. safeErr
-// stays false when named results plus a bare return could read the
-// error implicitly.
 type nextCtx struct {
 	fn      *syntax.FuncDecl
 	lastErr bool
 	safeErr bool
 }
 
-// scanFile scans one file and reports its edits and tasks. name is the
-// compile argument of the file, falling back to its recorded base.
 func (s *nextScan) scanFile(f *syntax.File, data []byte, name string) NextFileReport {
 	sum := sha256.Sum256(data)
 	if name == "" {
@@ -143,8 +116,6 @@ func (s *nextScan) scanFile(f *syntax.File, data []byte, name string) NextFileRe
 	return rep
 }
 
-// closures scans function literal bodies for loops and calls. Error
-// checks stay untouched inside literals: their own result rule applies.
 func (s *nextScan) closures(fn *syntax.FuncDecl, ctx nextCtx) {
 	syntax.Inspect(fn.Body, func(n syntax.Node) bool {
 		lit, ok := n.(*syntax.FuncLit)
@@ -159,8 +130,6 @@ func (s *nextScan) closures(fn *syntax.FuncDecl, ctx nextCtx) {
 	})
 }
 
-// safeResults reports whether error patterns may rewrite in fn: never
-// with named results plus a bare return, which reads results implicitly.
 func (s *nextScan) safeResults(fn *syntax.FuncDecl) bool {
 	named := false
 	for _, field := range fn.Type.ResultList {
@@ -185,7 +154,6 @@ func (s *nextScan) safeResults(fn *syntax.FuncDecl) bool {
 	return !bare
 }
 
-// insideLines reports whether a line sits inside a recorded edit.
 func (s *nextScan) insideLines(line int) bool {
 	for _, span := range s.skip {
 		if span[0] <= line && line <= span[1] {
@@ -195,8 +163,6 @@ func (s *nextScan) insideLines(line int) bool {
 	return false
 }
 
-// funcLastErr reports whether the declared function returns error last,
-// identical to the predeclared error.
 func (s *nextScan) funcLastErr(fn *syntax.FuncDecl) bool {
 	obj, ok := s.info.Defs[fn.Name].(*types2.Func)
 	if !ok {
@@ -205,8 +171,6 @@ func (s *nextScan) funcLastErr(fn *syntax.FuncDecl) bool {
 	return s.sigLastErr(obj.Type())
 }
 
-// sigLastErr reports whether type denotes a function returning error
-// last, identical to the predeclared error.
 func (s *nextScan) sigLastErr(t types2.Type) bool {
 	sig, ok := t.(*types2.Signature)
 	if !ok {
@@ -219,7 +183,6 @@ func (s *nextScan) sigLastErr(t types2.Type) bool {
 	return types2.Identical(res.At(res.Len()-1).Type(), s.errType)
 }
 
-// block scans one statement list for rewrites.
 func (s *nextScan) block(list []syntax.Stmt, ctx nextCtx) {
 	for i := 0; i < len(list); i++ {
 		if consumed := s.errAssign(list, i, ctx); consumed > 0 {
@@ -236,67 +199,37 @@ func (s *nextScan) block(list []syntax.Stmt, ctx nextCtx) {
 	}
 }
 
-// children recurses into the child blocks of one statement. Edits own
-// their whole span, so matching never descends into one; tasks leave
-// their code in place, so their interior still scans.
 func (s *nextScan) children(stmt syntax.Stmt, ctx nextCtx) {
 	switch n := stmt.(type) {
 	case *syntax.BlockStmt:
 		s.block(n.List, ctx)
 	case *syntax.IfStmt:
-		s.nextChildrenIf(n, ctx)
+		if n.Then != nil {
+			s.block(n.Then.List, ctx)
+		}
+		switch e := n.Else.(type) {
+		case *syntax.BlockStmt:
+			s.block(e.List, ctx)
+		case *syntax.IfStmt:
+			s.children(e, ctx)
+		}
 	case *syntax.ForStmt:
-		s.nextChildrenFor(n, ctx)
+		if n.Body != nil {
+			s.block(n.Body.List, ctx)
+		}
 	case *syntax.SwitchStmt:
-		s.nextChildrenSwitch(n, ctx)
+		for _, c := range n.Body {
+			s.block(c.Body, ctx)
+		}
 	case *syntax.SelectStmt:
-		s.nextChildrenSelect(n, ctx)
+		for _, c := range n.Body {
+			s.block(c.Body, ctx)
+		}
 	case *syntax.LabeledStmt:
 		s.children(n.Stmt, ctx)
 	}
 }
 
-// nextChildrenIf scans the branches of one if statement.
-func (s *nextScan) nextChildrenIf(n *syntax.IfStmt, ctx nextCtx) {
-	if n.Then != nil {
-		s.block(n.Then.List, ctx)
-	}
-	s.nextChildrenElse(n.Else, ctx)
-}
-
-// nextChildrenElse scans the else branch of one if statement.
-func (s *nextScan) nextChildrenElse(e syntax.Stmt, ctx nextCtx) {
-	switch n := e.(type) {
-	case *syntax.BlockStmt:
-		s.block(n.List, ctx)
-	case *syntax.IfStmt:
-		s.children(n, ctx)
-	}
-}
-
-// nextChildrenFor scans the body of one for statement.
-func (s *nextScan) nextChildrenFor(n *syntax.ForStmt, ctx nextCtx) {
-	if n.Body != nil {
-		s.block(n.Body.List, ctx)
-	}
-}
-
-// nextChildrenSwitch scans the clauses of one switch statement.
-func (s *nextScan) nextChildrenSwitch(n *syntax.SwitchStmt, ctx nextCtx) {
-	for _, c := range n.Body {
-		s.block(c.Body, ctx)
-	}
-}
-
-// nextChildrenSelect scans the clauses of one select statement.
-func (s *nextScan) nextChildrenSelect(n *syntax.SelectStmt, ctx nextCtx) {
-	for _, c := range n.Body {
-		s.block(c.Body, ctx)
-	}
-}
-
-// nextErrMatch carries one decoded err-check candidate: its targets,
-// its call, and its guard.
 type nextErrMatch struct {
 	lhs   []*syntax.Name
 	call  *syntax.CallExpr
@@ -306,7 +239,6 @@ type nextErrMatch struct {
 	cond  *syntax.Name
 }
 
-// nextErrSpan carries the materialized rewrite of one err check.
 type nextErrSpan struct {
 	callSrc  string
 	start    int
@@ -314,7 +246,6 @@ type nextErrSpan struct {
 	trailing string
 }
 
-// nextErrAssignShape decodes the two-statement assign-then-check shape.
 func nextErrAssignShape(list []syntax.Stmt, i int) (nextErrMatch, bool) {
 	if i+1 >= len(list) {
 		return nextErrMatch{}, false
@@ -339,7 +270,6 @@ func nextErrAssignShape(list []syntax.Stmt, i int) (nextErrMatch, bool) {
 	return nextErrMatch{lhs: lhs, call: call, op: op, check: check, last: last, cond: cond}, true
 }
 
-// nextErrInitShape decodes the if-with-initializer err-check shape.
 func (s *nextScan) nextErrInitShape(stmt syntax.Stmt) (nextErrMatch, bool) {
 	check, ok := stmt.(*syntax.IfStmt)
 	if !ok || check.Init == nil {
@@ -367,7 +297,6 @@ func (s *nextScan) nextErrInitShape(stmt syntax.Stmt) (nextErrMatch, bool) {
 	return nextErrMatch{lhs: lhs, call: call, op: op, check: check, last: last, cond: cond}, true
 }
 
-// nextErrEligible reports whether one err call may rewrite under ctx.
 func (s *nextScan) nextErrEligible(call *syntax.CallExpr, ctx nextCtx) bool {
 	if !s.callLastErr(call) {
 		return false
@@ -378,8 +307,6 @@ func (s *nextScan) nextErrEligible(call *syntax.CallExpr, ctx nextCtx) bool {
 	return true
 }
 
-// nextErrBodyRets validates the guard body and records a task when the
-// body cannot rewrite.
 func (s *nextScan) nextErrBodyRets(check *syntax.IfStmt, last *syntax.Name, ctx nextCtx) ([]syntax.Expr, bool) {
 	rets, why, ok := checkBody(check)
 	if !ok {
@@ -395,8 +322,6 @@ func (s *nextScan) nextErrBodyRets(check *syntax.IfStmt, last *syntax.Name, ctx 
 	return rets, false
 }
 
-// nextErrLaterResolve records a task when the checked error escapes the
-// pattern and reports whether the caller must stop.
 func (s *nextScan) nextErrLaterResolve(m nextErrMatch, rets []syntax.Expr, ctx nextCtx) (bool, bool) {
 	obj := s.nameObj(m.last)
 	if obj == nil {
@@ -416,8 +341,6 @@ func (s *nextScan) nextErrLaterResolve(m nextErrMatch, rets []syntax.Expr, ctx n
 	return false, false
 }
 
-// nextErrRewriteSpan materializes the call source and rewrite span of
-// one err check, recording a task when a comment blocks the rewrite.
 func (s *nextScan) nextErrRewriteSpan(m nextErrMatch, startPos syntax.Pos, ctx nextCtx) (nextErrSpan, bool, bool) {
 	callSrc, ok := s.callText(m.call)
 	if !ok {
@@ -436,7 +359,6 @@ func (s *nextScan) nextErrRewriteSpan(m nextErrMatch, startPos syntax.Pos, ctx n
 	return nextErrSpan{callSrc: callSrc, start: start, ifEnd: ifEnd, trailing: trailing}, true, false
 }
 
-// nextErrAssignBuild renders the replacement of one assign-form err rewrite.
 func (s *nextScan) nextErrAssignBuild(m nextErrMatch, callSrc string) string {
 	if len(m.lhs) == 1 {
 		return callSrc + "?"
@@ -445,16 +367,13 @@ func (s *nextScan) nextErrAssignBuild(m nextErrMatch, callSrc string) string {
 	for _, n := range m.lhs[:len(m.lhs)-1] {
 		names = append(names, n.Value)
 	}
-	joined := joinNames(names)
+	joined := strings.Join(names, ", ")
 	if m.op == syntax.Def && s.hasNew(m.lhs[:len(m.lhs)-1]) {
 		return joined + " := " + callSrc + "?"
 	}
 	return joined + " = " + callSrc + "?"
 }
 
-// errAssign matches an assignment of one call followed immediately by
-// its error check. It reports how many statements the match consumed:
-// two on an edit or a task, zero when the shape does not match.
 func (s *nextScan) errAssign(list []syntax.Stmt, i int, ctx nextCtx) int {
 	m, ok := nextErrAssignShape(list, i)
 	if !ok {
@@ -485,12 +404,10 @@ func (s *nextScan) errAssign(list []syntax.Stmt, i int, ctx nextCtx) int {
 	return 2
 }
 
-// errInit matches if err := f(); err != nil { return .., err } and the
-// = variant. It reports whether the statement matched.
 func (s *nextScan) errInit(stmt syntax.Stmt, ctx nextCtx) bool {
 	m, ok := s.nextErrInitShape(stmt)
 	if !ok {
-		return false
+		return s.errInitValueTask(stmt, ctx)
 	}
 	if !s.nextErrEligible(m.call, ctx) {
 		return false
@@ -517,8 +434,6 @@ func (s *nextScan) errInit(stmt syntax.Stmt, ctx nextCtx) bool {
 	return true
 }
 
-// assignCall splits an assignment into its target names, its single
-// call, and its operator. Only = and := with plain names qualify.
 func assignCall(a *syntax.AssignStmt) ([]*syntax.Name, *syntax.CallExpr, syntax.Operator, bool) {
 	if a.Op != 0 && a.Op != syntax.Def {
 		return nil, nil, 0, false
@@ -548,7 +463,6 @@ func assignCall(a *syntax.AssignStmt) ([]*syntax.Name, *syntax.CallExpr, syntax.
 	return lhs, call, a.Op, true
 }
 
-// nextErrCondSide matches one side of an err-nil comparison.
 func nextErrCondSide(x syntax.Expr, y syntax.Expr, err string) (*syntax.Name, bool) {
 	n, ok := x.(*syntax.Name)
 	if !ok || !isNilName(y) || n.Value != err {
@@ -557,8 +471,6 @@ func nextErrCondSide(x syntax.Expr, y syntax.Expr, err string) (*syntax.Name, bo
 	return n, true
 }
 
-// errCond verifies an if statement tests err against nil. Body shape
-// stays unchecked here so callers can task it.
 func errCond(t *syntax.IfStmt, err string) (*syntax.Name, bool) {
 	cond, ok := unwrapParen(t.Cond).(*syntax.Operation)
 	if !ok || cond.Op != syntax.Neq || cond.Y == nil {
@@ -573,8 +485,6 @@ func errCond(t *syntax.IfStmt, err string) (*syntax.Name, bool) {
 	return nil, false
 }
 
-// checkBody verifies an error guard returns the error and nothing else.
-// It returns the return values or the task reason.
 func checkBody(t *syntax.IfStmt) ([]syntax.Expr, string, bool) {
 	if t.Else != nil {
 		return nil, "the check carries an else branch, so ? cannot replace it", false
@@ -601,8 +511,6 @@ func checkBody(t *syntax.IfStmt) ([]syntax.Expr, string, bool) {
 	return rets, "", true
 }
 
-// initTarget returns the error name of an if initializer: one name, or
-// blank plus one name.
 func initTarget(lhs []*syntax.Name) (*syntax.Name, bool) {
 	if len(lhs) == 1 {
 		return lhs[0], true
@@ -612,9 +520,39 @@ func initTarget(lhs []*syntax.Name) (*syntax.Name, bool) {
 	}
 	return nil, false
 }
+func (s *nextScan) errInitValueTask(stmt syntax.Stmt, ctx nextCtx) bool {
+	check, ok := stmt.(*syntax.IfStmt)
+	if !ok || check.Init == nil {
+		return false
+	}
+	assign, ok := check.Init.(*syntax.AssignStmt)
+	if !ok {
+		return false
+	}
+	lhs, call, _, ok := assignCall(assign)
+	if !ok || len(lhs) != 2 {
+		return false
+	}
+	if lhs[0].Value == "_" || lhs[1].Value == "_" {
+		return false
+	}
+	if lhs[0].Value == lhs[1].Value {
+		return false
+	}
+	if _, ok := errCond(check, lhs[1].Value); !ok {
+		return false
+	}
+	if !s.nextErrEligible(call, ctx) {
+		return false
+	}
+	if n, ok := s.callResults(call); !ok || n != len(lhs) {
+		return false
+	}
+	s.children(check, ctx)
+	s.task(check, ctx, nextRuleErrReturn, "the if-init binds a value, so the check needs a manual rewrite")
+	return true
+}
 
-// returnsFit reports whether return values fit the ? desugar: zero
-// values plus the checked error.
 func (s *nextScan) returnsFit(rets []syntax.Expr, last *syntax.Name) bool {
 	if len(rets) == 0 {
 		return false
@@ -641,11 +579,7 @@ func (s *nextScan) isZeroExpr(e syntax.Expr) bool {
 	case *syntax.Name:
 		switch n.Value {
 		case "false":
-			want := types2.Universe.Lookup("false")
-			if _, ok := want.(*types2.Const); !ok {
-				return false
-			}
-			return s.nameObj(n) == want
+			return s.nameObj(n) == types2.Universe.Lookup("false")
 		case "nil":
 			return s.nameObj(n) == types2.Universe.Lookup("nil")
 		}
@@ -653,8 +587,6 @@ func (s *nextScan) isZeroExpr(e syntax.Expr) bool {
 	return false
 }
 
-// hasNew reports whether any assigned name is declared by this
-// statement. Blank names never count.
 func (s *nextScan) hasNew(lhs []*syntax.Name) bool {
 	for _, n := range lhs {
 		if n.Value == "_" {
@@ -667,9 +599,6 @@ func (s *nextScan) hasNew(lhs []*syntax.Name) bool {
 	return false
 }
 
-// errSpan resolves the byte span of an err rewrite: the statement
-// start, the call end for trailing comments, and the check end. The
-// initializer form starts at its if token, which owns the whole span.
 func (s *nextScan) errSpan(startPos syntax.Pos, call *syntax.CallExpr, check *syntax.IfStmt) (int, int, int, bool) {
 	start, err := offsetOf(s.starts, len(s.src), startPos)
 	if err != nil {
@@ -689,7 +618,6 @@ func (s *nextScan) errSpan(startPos syntax.Pos, call *syntax.CallExpr, check *sy
 	return start, callEnd, rbrace + 1, true
 }
 
-// task records one ai-patch task over the lines of a statement.
 func (s *nextScan) task(n syntax.Node, ctx nextCtx, rule, instruction string) {
 	s.tasks = append(s.tasks, NextTask{
 		Category:    "ai-patch",
@@ -701,43 +629,25 @@ func (s *nextScan) task(n syntax.Node, ctx nextCtx, rule, instruction string) {
 	})
 }
 
-// nextFuncSigSpan resolves the byte range of one declaration header.
-func (s *nextScan) nextFuncSigSpan(fn *syntax.FuncDecl) (int, int, bool) {
+func (s *nextScan) funcSig(fn *syntax.FuncDecl) string {
 	if fn == nil || fn.Body == nil {
-		return 0, 0, false
+		return ""
 	}
 	start, ok := s.funcStart(fn)
 	if !ok {
-		return 0, 0, false
+		return ""
 	}
 	end, err := offsetOf(s.starts, len(s.src), fn.Body.Pos())
 	if err != nil || end <= start {
-		return 0, 0, false
+		return ""
 	}
-	return start, end, true
-}
-
-// nextFuncSigClip drops one trailing delimiter of a declaration header.
-func nextFuncSigClip(sig string) string {
+	sig := string(s.src[start:end])
 	if len(sig) > 0 && (sig[len(sig)-1] == '{' || sig[len(sig)-1] == ' ' || sig[len(sig)-1] == '\n' || sig[len(sig)-1] == '\t') {
 		sig = sig[:len(sig)-1]
 	}
-	return trimSpace(sig)
+	return strings.Trim(sig, " \t\n\r")
 }
 
-// funcSig returns the declaration header of a function, starting at
-// its func keyword.
-func (s *nextScan) funcSig(fn *syntax.FuncDecl) string {
-	start, end, ok := s.nextFuncSigSpan(fn)
-	if !ok {
-		return ""
-	}
-	return nextFuncSigClip(string(s.src[start:end]))
-}
-
-// funcStart finds the func keyword opening a declaration. Function
-// positions name the function or receiver, so the walk backs over the
-// name line and one line above for the keyword.
 func (s *nextScan) funcStart(fn *syntax.FuncDecl) (int, bool) {
 	name, err := offsetOf(s.starts, len(s.src), fn.Name.Pos())
 	if err != nil {
@@ -757,17 +667,14 @@ func (s *nextScan) funcStart(fn *syntax.FuncDecl) (int, bool) {
 	return name, true
 }
 
-// nextFuncBefore reports whether a func word may start at i.
 func nextFuncBefore(i int, src []byte) bool {
 	return i == 0 || src[i-1] == ' ' || src[i-1] == '\t' || src[i-1] == '\n' || src[i-1] == ';'
 }
 
-// nextFuncAfter reports whether a func word may end at i.
 func nextFuncAfter(i int, src []byte) bool {
 	return i+4 >= len(src) || src[i+4] == ' ' || src[i+4] == '\t' || src[i+4] == '\n' || src[i+4] == '('
 }
 
-// nextFuncWord reports whether a func keyword stands at i.
 func nextFuncWord(src []byte, i int) bool {
 	if string(src[i:i+4]) != "func" {
 		return false
@@ -775,7 +682,6 @@ func nextFuncWord(src []byte, i int) bool {
 	return nextFuncBefore(i, src) && nextFuncAfter(i, src)
 }
 
-// lastFunc finds the last func keyword stand in src[lo:hi].
 func lastFunc(lo, hi int, src []byte) int {
 	found := -1
 	for i := lo; i+4 <= hi; i++ {
@@ -786,7 +692,6 @@ func lastFunc(lo, hi int, src []byte) int {
 	return found
 }
 
-// emit records one edit over byte offsets.
 func (s *nextScan) emit(start, end int, replacement string) {
 	sl, sc := s.lineCol(start)
 	el, ec := s.lineCol(end)
@@ -800,7 +705,6 @@ func (s *nextScan) emit(start, end int, replacement string) {
 	s.skip = append(s.skip, [2]int{sl, el})
 }
 
-// lineCol converts a byte offset to a 1-based line and byte column.
 func (s *nextScan) lineCol(off int) (int, int) {
 	line := 0
 	for i, st := range s.starts {
@@ -812,7 +716,6 @@ func (s *nextScan) lineCol(off int) (int, int) {
 	return line + 1, off - s.starts[line] + 1
 }
 
-// nameObj resolves the declared object of one identifier use.
 func (s *nextScan) nameObj(n *syntax.Name) types2.Object {
 	if obj, ok := s.info.Defs[n]; ok {
 		return obj
@@ -823,7 +726,6 @@ func (s *nextScan) nameObj(n *syntax.Name) types2.Object {
 	return nil
 }
 
-// sameErr reports whether a return value names the checked error.
 func (s *nextScan) sameErr(ret syntax.Expr, last *syntax.Name) bool {
 	n, ok := ret.(*syntax.Name)
 	if !ok || n.Value != last.Value {
@@ -832,8 +734,6 @@ func (s *nextScan) sameErr(ret syntax.Expr, last *syntax.Name) bool {
 	return s.nameObj(n) == s.nameObj(last)
 }
 
-// usedElsewhere reports whether obj is read anywhere in fn outside the
-// allowed pattern nodes. Definitions never count as reads.
 func (s *nextScan) usedElsewhere(fn *syntax.FuncDecl, obj types2.Object, allowed map[*syntax.Name]bool) bool {
 	used := false
 	syntax.Inspect(fn, func(n syntax.Node) bool {
@@ -856,8 +756,6 @@ func (s *nextScan) usedElsewhere(fn *syntax.FuncDecl, obj types2.Object, allowed
 	return used
 }
 
-// callLastErr reports whether the call result ends in error,
-// identical to the predeclared error.
 func (s *nextScan) callLastErr(call *syntax.CallExpr) bool {
 	obj := s.callee(call)
 	if obj == nil {
@@ -866,7 +764,6 @@ func (s *nextScan) callLastErr(call *syntax.CallExpr) bool {
 	return s.sigLastErr(obj.Type())
 }
 
-// callResults counts the results of the callee.
 func (s *nextScan) callResults(call *syntax.CallExpr) (int, bool) {
 	obj := s.callee(call)
 	if obj == nil {
@@ -879,7 +776,6 @@ func (s *nextScan) callResults(call *syntax.CallExpr) (int, bool) {
 	return sig.Results().Len(), true
 }
 
-// callee resolves the function denoted by a call.
 func (s *nextScan) callee(call *syntax.CallExpr) types2.Object {
 	switch fun := unwrapParen(call.Fun).(type) {
 	case *syntax.Name:
@@ -895,7 +791,6 @@ func (s *nextScan) callee(call *syntax.CallExpr) types2.Object {
 	return nil
 }
 
-// unwrapParen strips parenthesized wrappers.
 func unwrapParen(e syntax.Expr) syntax.Expr {
 	for {
 		p, ok := e.(*syntax.ParenExpr)
@@ -904,45 +799,4 @@ func unwrapParen(e syntax.Expr) syntax.Expr {
 		}
 		e = p.X
 	}
-}
-
-// joinNames joins assigned names with commas.
-func joinNames(names []string) string {
-	out := ""
-	for i, n := range names {
-		if i > 0 {
-			out += ", "
-		}
-		out += n
-	}
-	return out
-}
-
-// nextTrimRight trims trailing whitespace of a signature.
-func nextTrimRight(s string) string {
-	for len(s) > 0 {
-		c := s[len(s)-1]
-		if c != ' ' && c != '\t' && c != '\n' && c != '\r' {
-			break
-		}
-		s = s[:len(s)-1]
-	}
-	return s
-}
-
-// nextTrimLeft trims leading whitespace of a signature.
-func nextTrimLeft(s string) string {
-	for len(s) > 0 {
-		c := s[0]
-		if c != ' ' && c != '\t' && c != '\n' && c != '\r' {
-			break
-		}
-		s = s[1:]
-	}
-	return s
-}
-
-// trimSpace trims trailing whitespace of a signature.
-func trimSpace(s string) string {
-	return nextTrimLeft(nextTrimRight(s))
 }

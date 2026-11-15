@@ -1,0 +1,92 @@
+// run
+
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+	"fmt"
+	"strings"
+)
+
+type tup = (int, string)
+
+var sink string
+
+func show(args ...any) string {
+	return strings.TrimSuffix(fmt.Sprintln(args...), "\n")
+}
+
+func cell(name string, got func() string, want string) {
+	sink = ""
+	if g := got(); g != want {
+		fmt.Println("FAIL", name, "got", g, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func applyT(f func(int) tup, n int) tup {
+	return f(n)
+}
+
+func mkTup(x int) tup {
+	return (x, "call")
+}
+
+func apply2(f func(int) (int, string), n int) (int, string) {
+	return f(n)
+}
+
+func apply3(f func(int) (int, string, bool), n int) (int, string, bool) {
+	return f(n)
+}
+
+func oneResultCells() {
+	cell("l1e0_lit", func() string { func() { t := applyT(x => { return (x, "lit") }, 1); sink = show(t) }(); return sink }, "{1 lit}")
+	cell("l1e1_lit", func() string { _ = func() int { t := applyT(x => { return (x, "lit") }, 1); sink = show(t); return 0 }(); return sink }, "{1 lit}")
+	cell("l1e2_lit", func() string { _, _ = func() (int, string) { t := applyT(x => { return (x, "lit") }, 1); sink = show(t); return 0, "" }(); return sink }, "{1 lit}")
+	cell("l1e0_var", func() string { func() { t := applyT(x => { u := (x, "var"); return u }, 1); sink = show(t) }(); return sink }, "{1 var}")
+	cell("l1e1_var", func() string { _ = func() int { t := applyT(x => { u := (x, "var"); return u }, 1); sink = show(t); return 0 }(); return sink }, "{1 var}")
+	cell("l1e2_var", func() string { _, _ = func() (int, string) { t := applyT(x => { u := (x, "var"); return u }, 1); sink = show(t); return 0, "" }(); return sink }, "{1 var}")
+}
+
+func twoResultCells() {
+	cell("l2e0_lit", func() string { func() { a, s := apply2(x => { return (x, "lit") }, 1); sink = show(a, s) }(); return sink }, "1 lit")
+	cell("l2e1_lit", func() string { _ = func() int { a, s := apply2(x => { return (x, "lit") }, 1); sink = show(a, s); return 0 }(); return sink }, "1 lit")
+	cell("l2e2_lit", func() string { _, _ = func() (int, string) { a, s := apply2(x => { return (x, "lit") }, 1); sink = show(a, s); return 0, "" }(); return sink }, "1 lit")
+	cell("l2e0_var", func() string { func() { a, s := apply2(x => { u := (x, "var"); return u }, 1); sink = show(a, s) }(); return sink }, "1 var")
+	cell("l2e1_var", func() string { _ = func() int { a, s := apply2(x => { u := (x, "var"); return u }, 1); sink = show(a, s); return 0 }(); return sink }, "1 var")
+	cell("l2e2_var", func() string { _, _ = func() (int, string) { a, s := apply2(x => { u := (x, "var"); return u }, 1); sink = show(a, s); return 0, "" }(); return sink }, "1 var")
+}
+
+func threeResultCells() {
+	cell("l3e0_lit", func() string { func() { a, s, b := apply3(x => { return (x, "lit", true) }, 1); sink = show(a, s, b) }(); return sink }, "1 lit true")
+	cell("l3e1_lit", func() string { _ = func() int { a, s, b := apply3(x => { return (x, "lit", true) }, 1); sink = show(a, s, b); return 0 }(); return sink }, "1 lit true")
+	cell("l3e2_lit", func() string { _, _ = func() (int, string) { a, s, b := apply3(x => { return (x, "lit", true) }, 1); sink = show(a, s, b); return 0, "" }(); return sink }, "1 lit true")
+	cell("l3e0_var", func() string { func() { a, s, b := apply3(x => { u := (x, "var", true); return u }, 1); sink = show(a, s, b) }(); return sink }, "1 var true")
+	cell("l3e1_var", func() string { _ = func() int { a, s, b := apply3(x => { u := (x, "var", true); return u }, 1); sink = show(a, s, b); return 0 }(); return sink }, "1 var true")
+	cell("l3e2_var", func() string { _, _ = func() (int, string) { a, s, b := apply3(x => { u := (x, "var", true); return u }, 1); sink = show(a, s, b); return 0, "" }(); return sink }, "1 var true")
+}
+
+func assignedCells() {
+	cell("assigned_e0_lit", func() string { func() { var f func(int) (int, string) = x => { return (x, "lit") }; a, s := f(1); sink = show(a, s) }(); return sink }, "1 lit")
+	cell("assigned_e1_lit", func() string { _ = func() int { var f func(int) (int, string) = x => { return (x, "lit") }; a, s := f(1); sink = show(a, s); return 0 }(); return sink }, "1 lit")
+	cell("assigned_e3_var", func() string { _, _, _ = func() (int, string, bool) { var f func(int) (int, string) = x => { u := (x, "var"); return u }; a, s := f(1); sink = show(a, s); return 0, "", true }(); return sink }, "1 var")
+}
+
+func chainCells() {
+	cell("chain_e0_call", func() string { func() { for _, t := range []int{1}.map(x => { return mkTup(x) }) { sink = show(t) } }(); return sink }, "{1 call}")
+	cell("chain_e1_call", func() string { _ = func() int { for _, t := range []int{1}.map(x => { return mkTup(x) }) { sink = show(t) }; return 0 }(); return sink }, "{1 call}")
+	cell("chain_e2_call", func() string { _, _ = func() (int, string) { for _, t := range []int{1}.map(x => { return mkTup(x) }) { sink = show(t) }; return 0, "" }(); return sink }, "{1 call}")
+}
+
+func main() {
+	oneResultCells()
+	twoResultCells()
+	threeResultCells()
+	assignedCells()
+	chainCells()
+}

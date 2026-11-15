@@ -1,0 +1,38 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd w
+logos eject -o bout
+exists bout/m.go
+exec grep -A1 -F '//line m.lgo:6' bout/m.go
+stdout 'MarshalJSON\(\) string'
+! grep 'const MarshalJSON\(\) string' bout/m.go
+cd bout
+! go vet ./...
+stderr 'm\.lgo:6:[0-9]+.*MarshalJSON'
+cd ..
+
+-- w/go.mod --
+module example.com/ropos
+
+go 1.27
+
+-- w/m.lgo --
+package main
+
+import "fmt"
+
+type R interface {
+	const MarshalJSON() string
+}
+
+type T struct{}
+
+func (T) MarshalJSON() string {
+	return "x"
+}
+
+func main() {
+	var r R = T{}
+	fmt.Println(r.MarshalJSON())
+}

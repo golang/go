@@ -2,35 +2,7 @@
 
 package p
 
-// Generic assertion forgery to qualified interfaces.
-//
-// `interface { const Name() string }` carries a readonly obligation.
-// Runtime Go erases the readonly bit, so `v.(Qualified)` from `any` or
-// from an ordinary interface cannot runtime-check purity and is rejected
-// with [correctness::const_view_mutation] (see
-// const_interface_assertions.lgo). A generic `As[T any](x any) T` with
-// `return x.(T)` is an ordinary generic declaration and stays legal: it
-// serves `As[int]`/`As[Good]` directly. The forgery appears only at
-// instantiation: `As[Qualified](mutatorAny)` manufactures an unchecked
-// qualified contract at runtime. The same instantiation hole exists
-// through a generic receiver, a transitive wrapper, a closure wrapping
-// the instantiation, a type-switch case naming T, nested anonymous
-// interface targets holding T, and a >64 parameter-index instantiation.
-// All rejections below reuse the existing const_view_mutation diagnostic.
-// No new code is invented. All methods are exported (Name, Extra); no
-// unexported cross-package names are used, so package identity cannot
-// confuse the check. Unsafe/reflect are outside the language invariant
-// model and do not excuse leaving the ordinary assertion hole open.
-//
-// Policy pinned here (parent contract):
-//   - ordinary generic declarations with `x.(T)` stay legal (no def
 //     ERROR), including receivers and wrappers;
-//   - instantiating such a generic to Qualified from `any`/ordinary
-//     fails at the use site;
-//   - benign instantiations (`As[int]`, `As[Good]`, `Identity[Qualified]`
-//     over proven Good, storage-only containers) stay allowed;
-//   - concrete assertion to Good then assignment to Qualified stays
-//     allowed (body proof is direct).
 
 type Qualified interface {
 	const Name() string
@@ -59,13 +31,14 @@ var _ Qualified = Good{name: "a"}
 var _ Ordinary = Good{name: "a"}
 var _ Ordinary = Mut{S: []int{1}}
 
-// Ordinary generic forgery primitive: legal as declared; it also serves
-// As[int] and As[Good]. Only Qualified instantiations forge.
+func attackEarly(v any) Qualified {
+	return GenericAs[Qualified](v) // ERROR "const_view_mutation"
+}
+
 func GenericAs[T any](x any) T {
 	return x.(T)
 }
 
-// Instantiation to Qualified forges the readonly contract.
 func attackInstantiate(v any) {
 	_ = GenericAs[Qualified](v) // ERROR "const_view_mutation"
 }
@@ -75,7 +48,6 @@ func attackInstantiateMut(m Mut) {
 	_ = GenericAs[Qualified](v) // ERROR "const_view_mutation"
 }
 
-// Ordinary instantiations stay allowed (run controls).
 func okAsInt(v any) int {
 	return GenericAs[int](v)
 }
@@ -84,18 +56,12 @@ func okAsGood(v any) Good {
 	return GenericAs[Good](v)
 }
 
-// Storage-only container: no assertion method, so holding Qualified is
-// safe. Separate from ProjBox below so the positive control is not
-// contradictory.
 type StoreBox[T any] struct {
 	V T
 }
 
 func (b StoreBox[T]) Get() T { return b.V }
 
-// Generic receiver forgery primitive (requested Box[T].As shape): legal
-// as declared; only the Qualified instantiation forges. Separate from
-// storage-only StoreBox so the positive control is not contradictory.
 type Box[T any] struct {
 	V T
 }
@@ -109,8 +75,6 @@ func attackBoxProject(v any) {
 	_ = b.As(v) // ERROR "const_view_mutation"
 }
 
-// Transitive wrapper: legal as declared; the Qualified instantiation
-// still forges through GenericAs.
 func WrapAs[T any](x any) T {
 	return GenericAs[T](x)
 }
@@ -119,7 +83,34 @@ func attackWrap(v any) {
 	_ = WrapAs[Qualified](v) // ERROR "const_view_mutation"
 }
 
-// Closure wrapping the Qualified instantiation.
+func WrapFirst[T any](x any) T {
+	return LaterAs[T](x)
+}
+
+func attackWrapFirst(v any) {
+	_ = WrapFirst[Qualified](v) // ERROR "const_view_mutation"
+}
+
+func LaterAs[T any](x any) T {
+	return x.(T)
+}
+
+func TopAs[T any](x any) T {
+	return MidAs[T](x)
+}
+
+func MidAs[T any](x any) T {
+	return EndAs[T](x)
+}
+
+func attackChain(v any) {
+	_ = TopAs[Qualified](v) // ERROR "const_view_mutation"
+}
+
+func EndAs[T any](x any) T {
+	return x.(T)
+}
+
 func attackClosure(v any) {
 	f := func() Qualified {
 		return GenericAs[Qualified](v) // ERROR "const_view_mutation"
@@ -127,8 +118,6 @@ func attackClosure(v any) {
 	_ = f()
 }
 
-// Type-switch with a qualified-capable case name. The declaration is
-// ordinary; the Qualified instantiation forges.
 func SwitchAs[T Qualified](x any) string {
 	switch x.(type) {
 	case T:
@@ -142,16 +131,12 @@ func attackSwitch(v any) {
 	_ = SwitchAs[Qualified](v) // ERROR "const_view_mutation"
 }
 
-// Generic-erased switch source: T is laundered through any, then
-// asserted to the concrete Qualified target. Direct any->Qualified
-// rule fires here independent of instantiation.
 func SwitchErased[T any](x T) {
 	switch any(x).(type) {
 	case Qualified: // ERROR "const_view_mutation"
 	}
 }
 
-// Composite interface target holding T.
 type HasGet[T any] interface {
 	const Name() string
 	Get() T
@@ -165,9 +150,6 @@ func attackComposite(v any) {
 	_ = CompositeAs[Qualified](v) // ERROR "const_view_mutation"
 }
 
-// Nested anonymous interface target holding T: Outer requires readonly
-// Name and yields an Inner that also requires readonly Name and carries
-// T. Asserting any to the nested shape forges the same obligation.
 type Inner[T any] interface {
 	const Name() string
 	Get() T
@@ -186,9 +168,6 @@ func attackNested(v any) {
 	_ = NestedAs[Qualified](v) // ERROR "const_view_mutation"
 }
 
-// >64 parameter-index negative: Qualified sits past the 64th type
-// parameter so index-width truncation cannot hide it. Declaration is
-// ordinary; the instantiation carrying Qualified at T65 forges.
 func BigAs[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24, T25, T26, T27, T28, T29, T30, T31, T32, T33, T34, T35, T36, T37, T38, T39, T40, T41, T42, T43, T44, T45, T46, T47, T48, T49, T50, T51, T52, T53, T54, T55, T56, T57, T58, T59, T60, T61, T62, T63, T64, T65 any](x any) T65 {
 	return x.(T65)
 }
@@ -197,8 +176,6 @@ func attackBig(v any) {
 	_ = BigAs[int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, Qualified](v) // ERROR "const_view_mutation"
 }
 
-// Positive: Identity has no assertion, so instantiating to Qualified
-// over an already-proven Good stays allowed.
 func Identity[T any](x T) T { return x }
 
 func okIdentityQualified() {
@@ -207,8 +184,6 @@ func okIdentityQualified() {
 	_ = q
 }
 
-// Positive: storage-only containers without any->T assertion work,
-// including holding a Qualified value.
 func okStoreBoxContainer() {
 	b := StoreBox[Qualified]{V: Good{name: "a"}}
 	_ = b.V.Name()
@@ -219,8 +194,6 @@ func okStoreBoxContainer() {
 	_ = q
 }
 
-// Positive: concrete assertion is runtime-checkable, then assignment
-// to Qualified is proved by the direct Good body scan.
 func okAnyToGoodThenQualified(v any) {
 	g := v.(Good)
 	var _ Qualified = g

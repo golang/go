@@ -134,9 +134,6 @@ var depsRules = `
 	RUNTIME
 	< io;
 
-	RUNTIME
-	< arena;
-
 	syscall !< io;
 	reflect !< sort;
 
@@ -223,7 +220,7 @@ var depsRules = `
 
 	# FMT is OS (which includes string routines) plus reflect and fmt.
 	# It does not include package log, which should be avoided in core packages.
-	arena, strconv, unicode
+	strconv, unicode
 	< reflect;
 
 	os, reflect
@@ -376,7 +373,10 @@ var depsRules = `
 	go/doc/comment, go/parser, internal/lazyregexp, text/template
 	< go/doc;
 
-	go/build/constraint, go/doc, go/parser, internal/buildcfg, internal/goroot, internal/goversion, internal/platform, internal/syslist
+	STR, slices
+	< internal/logosfile;
+
+	go/build/constraint, go/doc, go/parser, internal/buildcfg, internal/goroot, internal/goversion, internal/logosfile, internal/platform, internal/syslist
 	< go/build;
 
 	# images
@@ -884,7 +884,10 @@ var depsRules = `
 	FMT
 	< math/big/internal/asmgen;
 
-	context, errors, reflect, strings, unsafe
+	unsafe
+	< logos/arena;
+
+	context, errors, reflect, strings, unsafe, logos/arena
 	< logos/rt;
 
 	encoding/json, math, reflect, strconv, unicode, unicode/utf8, unsafe

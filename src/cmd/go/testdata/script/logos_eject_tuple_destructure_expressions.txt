@@ -1,0 +1,34 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# An expression of tuple type destructures into its elements, or is
+# returned to a function with that many results, whatever form the
+# expression has: a variable, a parenthesised variable, a field, a slice
+# element, a call that returns one tuple value, an option coalesced with
+# a default, an optional selector coalesced with a default, a map read
+# coalesced with a default, and a switch expression. The host is a short
+# declaration, an assignment, a var declaration or a return. The module
+# runs natively, ejects, and the ejected module builds and runs with go
+# and with go1.27.2 from $UPROOT1272 and prints the same ok lines.
+cp $GOROOT/test/logos/run/eject_tuple_destructure_expressions.lgo m/main.lgo
+cd m
+logos run .
+cmp stdout $GOROOT/test/logos/run/eject_tuple_destructure_expressions.out
+logos eject -o out
+exists out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $GOROOT/test/logos/run/eject_tuple_destructure_expressions.out
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
+exec $WORK/upstream$GOEXE
+cmp stdout $GOROOT/test/logos/run/eject_tuple_destructure_expressions.out
+cd ../..
+
+-- m/go.mod --
+module example.com/tupledestructureexpressions
+
+go 1.27

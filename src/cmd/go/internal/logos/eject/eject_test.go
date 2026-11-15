@@ -23,7 +23,6 @@ func TestEmitPackagePlatformFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Write source files
 	if err := os.WriteFile(filepath.Join(pkgDir, "main.lgo"), []byte("package main\n\nfunc main() {}\n"), 0666); err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +45,6 @@ func TestEmitPackagePlatformFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Stage main.go and plat_linux.go
 	stagingPkg := filepath.Join(staging, "example.com/plat")
 	if err := os.MkdirAll(stagingPkg, 0777); err != nil {
 		t.Fatal(err)

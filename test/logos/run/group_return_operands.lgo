@@ -1,0 +1,206 @@
+// run
+
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"strings"
+	"sync"
+	"time"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+var errBoom = errors.New("boom")
+
+var mu sync.Mutex
+var events []string
+
+func note(s string) {
+	mu.Lock()
+	defer mu.Unlock()
+	events = append(events, s)
+}
+
+func reset() {
+	mu.Lock()
+	defer mu.Unlock()
+	events = nil
+}
+
+func seen() string {
+	mu.Lock()
+	defer mu.Unlock()
+	return strings.Join(events, ",")
+}
+
+func use(ctx context.Context) error { return ctx.Err() }
+
+func value(ctx context.Context) int {
+	if ctx.Err() != nil {
+		return -1
+	}
+	return 7
+}
+
+func fetch(ctx context.Context) (int, error) {
+	return value(ctx), nil
+}
+
+func boom() error { return errBoom }
+
+func releaseAt(release chan struct{}) error {
+	note("operand")
+	close(release)
+	return nil
+}
+
+func noteOperand(ctx context.Context) error {
+	note("operand")
+	return use(ctx)
+}
+
+func returnUse(ctx context.Context) error {
+	go group (ctx) {
+		go {
+			_ = ctx
+		}
+		return use(ctx)
+	}
+	return nil
+}
+
+func returnOperandBeforeJoin(ctx context.Context) error {
+	release := make(chan struct{})
+	go group (ctx) {
+		go {
+			<-release
+			note("child")
+		}
+		return releaseAt(release)
+	}
+	return nil
+}
+
+func returnPair(ctx context.Context) (int, error) {
+	go group (ctx) {
+		go {
+			_ = ctx
+		}
+		return value(ctx), nil
+	}
+	return 0, nil
+}
+
+func returnForward(ctx context.Context) (int, error) {
+	go group (ctx) {
+		go {
+			_ = ctx
+		}
+		return fetch(ctx)
+	}
+	return 0, nil
+}
+
+func returnWithErrdefer(ctx context.Context) error {
+	errdefer note("errdefer")
+	go group (ctx) {
+		go {
+			_ = ctx
+		}
+		return use(ctx)
+	}
+	return nil
+}
+
+func returnInBlock(ctx context.Context) error {
+	go group (ctx) {
+		go {
+			_ = ctx
+		}
+		if ctx != nil {
+			return use(ctx)
+		}
+	}
+	return nil
+}
+
+func returnAfterFailure(ctx context.Context) error {
+	go group (ctx) {
+		go {
+			boom()?
+		}
+		return noteOperand(ctx)
+	}
+	return nil
+}
+
+func tailStatement(ctx context.Context, live *bool) error {
+	go group (ctx) {
+		go {
+			_ = ctx
+		}
+		*live = use(ctx) == nil
+	}
+	return nil
+}
+
+func watchdog(name string) func() {
+	t := time.AfterFunc(10*time.Second, func() {
+		fmt.Println("FAIL", name+": hung")
+		os.Exit(1)
+	})
+	return func() { t.Stop() }
+}
+
+func errCase(name string, f func(context.Context) error, want string, errOK func(error) bool) {
+	reset()
+	stop := watchdog(name)
+	err := f(context.Background())
+	stop()
+	check(name, seen() == want && errOK(err), seen()+" / "+fmt.Sprint(err), want)
+}
+
+func pairCase(name string, f func(context.Context) (int, error), want int) {
+	reset()
+	stop := watchdog(name)
+	n, err := f(context.Background())
+	stop()
+	if err != nil {
+		check(name, false, err, want)
+		return
+	}
+	check(name, n == want, n, want)
+}
+
+func isNil(err error) bool { return err == nil }
+
+func isBoom(err error) bool { return errors.Is(err, errBoom) }
+
+func main() {
+	errCase("return-operand-sees-live-group-context", returnUse, "", isNil)
+	errCase("return-operand-with-errdefer", returnWithErrdefer, "", isNil)
+	errCase("return-operand-in-block", returnInBlock, "", isNil)
+	errCase("return-operand-once-group-error-wins", returnAfterFailure, "operand", isBoom)
+	pairCase("return-pair-operand-sees-live-group-context", returnPair, 7)
+	pairCase("return-forwarded-call-sees-live-group-context", returnForward, 7)
+	var live bool
+	errCase("tail-statement-sees-live-group-context", func(ctx context.Context) error { return tailStatement(ctx, &live) }, "", isNil)
+	check("tail-statement-saw-live-context", live, live, true)
+	errCase("return-operand-runs-before-join", returnOperandBeforeJoin, "operand,child", isNil)
+	if failed {
+		os.Exit(1)
+	}
+}

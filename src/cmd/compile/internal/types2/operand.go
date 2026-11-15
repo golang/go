@@ -246,6 +246,8 @@ func operandString(x *operand, qf Qualifier) string {
 // composite but a basic type.
 func compositeKind(typ Type) string {
 	switch typ.Underlying().(type) {
+	case *ReadonlyDescendants:
+		return "readonly-descendant value"
 	case *Basic:
 		return ""
 	case *Array:
@@ -265,6 +267,8 @@ func compositeKind(typ Type) string {
 	case *Chan:
 		return "chan"
 	case *Tuple:
+		return "tuple"
+	case *LogosTuple:
 		return "tuple"
 	case *Union:
 		return "union"
@@ -335,6 +339,9 @@ func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Cod
 	// x's type is identical to T
 	if Identical(V, T) {
 		return true, 0
+	}
+	if logosAnyContainsReadonlyDescendants(V, T) {
+		return logosReadonlyDescendantsAssignable(x, T)
 	}
 
 	Vu := V.Underlying()

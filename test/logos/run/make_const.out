@@ -1,1 +1,9 @@
-6 9 8 24 12 32 8 12 16
+ok constant-product-stays-constant
+ok named-constant-product-stays-constant
+ok float-constant-times-variable
+ok parenthesized-constant-product-times-variable
+ok index-expression-times-variable
+ok variable-times-nested-product
+ok variable-times-element
+ok variable-times-builtin-len
+ok variable-squared

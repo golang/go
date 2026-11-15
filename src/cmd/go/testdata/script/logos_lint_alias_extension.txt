@@ -1,14 +1,8 @@
-# M9-S2: portability::alias_extension is a warning of the portability group
-# and applies to loGo/s packages only. It fires once per alias-extension
-# file, test files included, only in a main module whose path starts with a
-# dotted element (a module that could be published); a canonical .lgo file
-# and a Go package never warn. The warning never fails the build.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
 mkdir $WORK/bin
 
-# A dotted module path warns once per alias file, test files included.
 cd dotted
 logos build -o $WORK/bin/dotted$GOEXE ./cmd
 stderr -count=1 'go: warning: \[portability::alias_extension\] main\.📜: loGo/s alias extension file'
@@ -20,8 +14,6 @@ stderr -count=1 'lib\.⚡:'
 stderr -count=1 'lib_test\.⚡:'
 cd ..
 
-# The same sources in a module whose first path element has no dot are silent:
-# the module zip rules that reject alias names apply to published modules.
 cd plain
 logos build -o $WORK/bin/plain$GOEXE ./cmd
 ! stderr .
@@ -30,17 +22,41 @@ logos build ./lib
 ! stderr .
 cd ..
 
-# A canonical .lgo file never warns, even in a dotted module.
 cd canonical
 logos build -o $WORK/bin/canonical$GOEXE .
 ! stderr .
 exists $WORK/bin/canonical$GOEXE
 cd ..
 
-# A Go module never warns: plain Go sources carry no alias extension.
 cd gomod
 logos build -o $WORK/bin/gomod$GOEXE .
 ! stderr .
+cd ..
+
+cd denymod
+! logos build -o $WORK/bin/denymod$GOEXE .
+stderr 'portability::alias_extension'
+! exists $WORK/bin/denymod$GOEXE
+cd ..
+
+cd denyallow
+logos build -o $WORK/bin/denyallow$GOEXE .
+! stderr .
+exists $WORK/bin/denyallow$GOEXE
+exec $WORK/bin/denyallow$GOEXE
+stdout '^allow deny ok$'
+cd ..
+
+cd allowpos
+logos build -o $WORK/bin/allowpos$GOEXE .
+stderr -count=2 'portability::alias_extension'
+! stderr 'ok\.📜'
+exists $WORK/bin/allowpos$GOEXE
+exec $WORK/bin/allowpos$GOEXE
+stdout '^helped$'
+stdout '^extra$'
+stdout '^blockmid$'
+stdout '^ok quiet$'
 cd ..
 
 -- dotted/go.mod --
@@ -118,4 +134,100 @@ import "fmt"
 
 func main() {
 	fmt.Println("go ok")
+}
+
+-- denymod/go.mod --
+module example.com/denymod
+
+go 1.27
+
+-- denymod/logos.toml --
+[lints]
+portability = "deny"
+
+-- denymod/main.📜 --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("deny ok")
+}
+
+-- denyallow/go.mod --
+module example.com/denyallow
+
+go 1.27
+
+-- denyallow/logos.toml --
+[lints]
+portability = "deny"
+
+-- denyallow/main.📜 --
+//logos:allow(portability::alias_extension)
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("allow deny ok")
+}
+
+-- allowpos/go.mod --
+module example.com/allowpos
+
+go 1.27
+
+-- allowpos/ok.📜 --
+//logos:allow(portability::alias_extension)
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("ok quiet")
+}
+
+-- allowpos/abovefunc.📜 --
+package main
+
+import "fmt"
+
+//logos:allow(portability::alias_extension)
+func helper() string {
+	return "helped"
+}
+
+func init() {
+	fmt.Println(helper())
+}
+
+-- allowpos/blankline.📜 --
+//logos:allow(portability::alias_extension)
+
+package main
+
+import "fmt"
+
+func extra() string {
+	return "extra"
+}
+
+func init() {
+	fmt.Println(extra())
+}
+-- allowpos/blockmid.📜 --
+// Package main stays quiet.
+//logos:allow(portability::alias_extension)
+// The directive is the middle line of the comment block.
+package main
+
+import "fmt"
+
+func blockmid() string {
+	return "blockmid"
+}
+
+func init() {
+	fmt.Println(blockmid())
 }

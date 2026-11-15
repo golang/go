@@ -1131,6 +1131,8 @@ func init() {
 		// LoweredLogosArenaBump bump-allocates auxint bytes in the noscan region of the arena chunk arg0 (arg1=memory). It returns the object address, or nil when the chunk is nil or full; the caller takes the slow path then. Custom emission in amd64/ssa.go; async-preemption unsafe point (M18-S3).
 		{name: "LoweredLogosArenaBump", argLength: 2, aux: "Int64", hasSideEffects: true, unsafePoint: true, clobberFlags: true, needIntTemp: true, resultNotInArgs: true, reg: regInfo{inputs: []regMask{gp}, outputs: []regMask{gp}}},
 
+		{name: "LoweredLogosRegionBump", argLength: 3, aux: "Int64", hasSideEffects: true, unsafePoint: true, clobberFlags: true, needIntTemp: true, resultNotInArgs: true, reg: regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}},
+
 		{name: "LoweredHasCPUFeature", argLength: 0, reg: gp01, rematerializeable: true, typ: "UInt64", aux: "Sym", symEffect: "None"},
 
 		// LoweredPanicBoundsRR takes x and y, two values that caused a bounds check to fail.

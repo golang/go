@@ -1,9 +1,10 @@
 // run
-
 package main
 
-// M5-S2 const composites and const func (SPEC T-201): values computed
-// at compile time are usable at run time.
+import (
+	"fmt"
+	"os"
+)
 
 const func Fib(n int) int {
 	a, b := 0, 1
@@ -39,6 +40,9 @@ const norm25 = Norm(origin)
 
 const scores = map[string]int{"a": 1, "b": 2}
 
+const presentIdx = scores["a"] ?? -1
+
+const missingIdx = scores["z"] ?? -7
 const dims = [2]string{"x", "y"}
 
 const (
@@ -48,12 +52,30 @@ const (
 
 var afterGrouped = grouped[0]
 
+var failed bool
+
+func check(name, got, want string) {
+	if got != want {
+		fmt.Println("FAIL", name, "got", got, "want", want)
+		failed = true
+		return
+	}
+	fmt.Println("ok", name)
+}
+
 func main() {
-	println(fib20)
-	println(primes[0], primes[1], primes[2], len(primes))
-	println(total)
-	println(norm25)
-	println(scores["a"] ?? -1)
-	println(dims[0], dims[1])
-	println(afterGrouped, glen, len(scores))
+	check("fib20-matches-runtime", fmt.Sprint(Fib(20)), fmt.Sprint(fib20))
+	check("fib20-is-6765", fmt.Sprint(fib20), "6765")
+	check("primes-match-hand", fmt.Sprint(primes[0], primes[1], primes[2], len(primes)), "2 3 5 3")
+	check("sum-matches-runtime", fmt.Sprint(Sum([]int{2, 3, 5})), fmt.Sprint(total))
+	check("total-is-10", fmt.Sprint(total), "10")
+	check("norm-matches-runtime", fmt.Sprint(Norm(Point{X: 3, Y: 4})), fmt.Sprint(norm25))
+	check("norm-is-25", fmt.Sprint(norm25), "25")
+	check("const-coalesce-present", fmt.Sprint(presentIdx), "1")
+	check("const-coalesce-missing", fmt.Sprint(missingIdx), "-7")
+	check("const-array-index", dims[0]+" "+dims[1], "x y")
+	check("grouped-const-block", fmt.Sprint(afterGrouped, glen, len(scores)), "9 2 2")
+	if failed {
+		os.Exit(1)
+	}
 }

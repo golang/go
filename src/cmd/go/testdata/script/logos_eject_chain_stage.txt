@@ -1,0 +1,30 @@
+# The ejected group stage builds with upstream Go and prints the same lines
+# as the native build: the fixture holds the value form and the range form
+# over every source kind, with the early-stop terminals and the channel
+# operations in segment lambdas.
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cp $GOROOT/test/logos/run/chain_stage.lgo a/main.lgo
+
+cd a
+logos run .
+cmp stdout $GOROOT/test/logos/run/chain_stage.out
+logos eject -o out
+exists out/main.go
+! exists out/main.lgo
+cd out
+exists $UPROOT1273/bin/go
+exec $UPROOT1273/bin/go version
+stdout '^go version go1\.27\.3 '
+exec env -u GOROOT $UPROOT1273/bin/go run .
+cmp stdout $GOROOT/test/logos/run/chain_stage.out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ../..
+
+-- a/go.mod --
+module example.com/chainstageeject
+
+go 1.27

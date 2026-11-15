@@ -1,13 +1,13 @@
-# M0-S5: with no logos.toml, an explicit CGO_ENABLED=1 in the
-# environment wins over the absent-key default and the build proceeds.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
-# Default CC: a host compiler setting must not drive the build.
 env CC=
 
+[cgo] env CGO_ENABLED=2
+[cgo] ! logos build .
+[cgo] stderr '\[restriction::cgo_usage\]'
+
 [cgo] env CGO_ENABLED=1
-[cgo] logos build .
 [cgo] logos run .
 [cgo] stdout '^env: 42$'
 

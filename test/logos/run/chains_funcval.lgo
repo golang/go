@@ -1,40 +1,59 @@
 // run
-
 package main
-
 import (
-	"fmt"
-	"strconv"
+"fmt"
+"os"
+"slices"
+"strconv"
 )
-
-func isEven(x int) bool { return x%2 == 0 }
-
-func double(x int) int { return 2 * x }
-
-func over4(x int) bool { return x > 4 }
-
-var predCalls int
-
-func mkPred() func(int) bool {
-	predCalls++
-	return isEven
+var failed bool
+func check(name string, cond bool, got, want any) {
+if !cond {
+failed = true
+fmt.Println("FAIL", name+":", "got", got, "want", want)
+return
 }
-
+fmt.Println("ok", name)
+}
+func isEven(x int) bool { return x%2 == 0 }
+func double(x int) int { return 2 * x }
+func over4(x int) bool { return x > 4 }
+var predCalls int
+func mkPred() func(int) bool {
+predCalls++
+return isEven
+}
 func main() {
-	xs := []int{1, 2, 3, 4, 5, 6}
-	fmt.Println(xs.filter(func(x int) bool { return x > 4 }))
-	fmt.Println(xs.filter(isEven))
-	fmt.Println(xs.filter(over4))
-	fmt.Println(xs.map(strconv.Itoa))
-	fmt.Println(xs.map(double))
-	fmt.Println(xs.map(double).filter(isEven))
-	fmt.Println(xs.find(isEven) ?? -1)
-	fmt.Println(xs.any(over4))
-	fmt.Println(xs.all(isEven))
-	fmt.Println(xs.count(isEven))
-	fmt.Println(xs.sortBy(double))
-	fmt.Println(xs.filter(mkPred()))
-	fmt.Println(predCalls)
-	ys2 := []int{4, 5, 6}
-	fmt.Println(xs.filter(func(x int) bool { return ys2.any(y => y > x) }))
+xs := []int{1, 2, 3, 4, 5, 6}
+gotFilterLit := xs.filter(func(x int) bool { return x > 4 })
+check("filter-func-lit", slices.Equal(gotFilterLit, []int{5, 6}), gotFilterLit, []int{5, 6})
+gotFilterRef := xs.filter(isEven)
+check("filter-func-ref", slices.Equal(gotFilterRef, []int{2, 4, 6}), gotFilterRef, []int{2, 4, 6})
+gotFilterNamed := xs.filter(over4)
+check("filter-named-pred", slices.Equal(gotFilterNamed, []int{5, 6}), gotFilterNamed, []int{5, 6})
+gotStr := xs.map(strconv.Itoa)
+check("map-stdlib", slices.Equal(gotStr, []string{"1", "2", "3", "4", "5", "6"}), gotStr, []string{"1", "2", "3", "4", "5", "6"})
+gotDbl := xs.map(double)
+check("map-named", slices.Equal(gotDbl, []int{2, 4, 6, 8, 10, 12}), gotDbl, []int{2, 4, 6, 8, 10, 12})
+gotDblEven := xs.map(double).filter(isEven)
+check("map-then-filter", slices.Equal(gotDblEven, []int{2, 4, 6, 8, 10, 12}), gotDblEven, []int{2, 4, 6, 8, 10, 12})
+gotFind := xs.find(isEven) ?? -1
+check("find-first-even", gotFind == 2, gotFind, 2)
+gotAny := xs.any(over4)
+check("any-over4", gotAny == true, gotAny, true)
+gotAll := xs.all(isEven)
+check("all-even", gotAll == false, gotAll, false)
+gotCount := xs.count(isEven)
+check("count-even", gotCount == 3, gotCount, 3)
+gotSort := xs.sortBy(double)
+check("sortby-key", slices.Equal(gotSort, []int{1, 2, 3, 4, 5, 6}), gotSort, []int{1, 2, 3, 4, 5, 6})
+gotMk := xs.filter(mkPred())
+check("filter-mkpred", slices.Equal(gotMk, []int{2, 4, 6}), gotMk, []int{2, 4, 6})
+check("mkpred-called-once", predCalls == 1, predCalls, 1)
+ys2 := []int{4, 5, 6}
+gotClose := xs.filter(func(x int) bool { return ys2.any(y => y > x) })
+check("filter-closure-capture", slices.Equal(gotClose, []int{1, 2, 3, 4, 5}), gotClose, []int{1, 2, 3, 4, 5})
+if failed {
+os.Exit(1)
+}
 }

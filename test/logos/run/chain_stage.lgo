@@ -1,0 +1,859 @@
+// run
+
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"iter"
+	"os"
+	"slices"
+	"sync/atomic"
+	"time"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type observed[T any] struct {
+	v   T
+	err error
+}
+
+func observe[T any](v T, err error) observed[T] {
+	return observed[T]{v, err}
+}
+
+var live, peak, hanging, arrivals atomic.Int64
+
+func enter() {
+	n := live.Add(1)
+	for {
+		p := peak.Load()
+		if n <= p || peak.CompareAndSwap(p, n) {
+			return
+		}
+	}
+}
+
+func leave() { live.Add(-1) }
+
+func reset() {
+	peak.Store(0)
+	hanging.Store(0)
+	arrivals.Store(0)
+}
+
+func waitFor(n *atomic.Int64, want int64) bool {
+	deadline := time.Now().Add(10 * time.Second)
+	for n.Load() < want {
+		if time.Now().After(deadline) {
+			return false
+		}
+		time.Sleep(time.Millisecond)
+	}
+	return true
+}
+
+var gate = make(chan struct{})
+
+
+func park(x int) bool {
+	enter()
+	if x <= 2 {
+		waitFor(&hanging, 2)
+		return false
+	}
+	hanging.Add(1)
+	return true
+}
+
+func slowFirst(ctx context.Context, x int, others *atomic.Int64, n int64) (int, error) {
+	if x != 1 {
+		others.Add(1)
+		return x * 10, nil
+	}
+	for others.Load() < n-1 {
+		select {
+		case <-ctx.Done():
+			return 0, ctx.Err()
+		default:
+			time.Sleep(time.Millisecond)
+		}
+	}
+	return x * 10, nil
+}
+
+var errBoom = errors.New("boom")
+
+func failOn(x, bad int) (int, error) {
+	if x == bad {
+		return 0, errBoom
+	}
+	return x, nil
+}
+
+func rescued(release func()) func() bool {
+	var late atomic.Bool
+	t := time.AfterFunc(5*time.Second, func() {
+		late.Store(true)
+		release()
+	})
+	return func() bool {
+		t.Stop()
+		return !late.Load()
+	}
+}
+
+func timeLimit() func() bool {
+	return rescued(func() {})
+}
+
+func failErr(x, bad int) error {
+	if x == bad {
+		return errBoom
+	}
+	return nil
+}
+
+func track(x int) (int, error) {
+	enter()
+	defer leave()
+	time.Sleep(2 * time.Millisecond)
+	return x, nil
+}
+
+func rendezvous(ctx context.Context, x int) (int, error) {
+	enter()
+	defer leave()
+	arrivals.Add(1)
+	for arrivals.Load() < 2 {
+		select {
+		case <-ctx.Done():
+			return 0, ctx.Err()
+		default:
+			time.Sleep(time.Millisecond)
+		}
+	}
+	return x, nil
+}
+
+func releaseFirst(ctx context.Context, release chan struct{}, x int) (int, error) {
+	if x == 1 {
+		select {
+		case <-release:
+		case <-ctx.Done():
+			return 0, ctx.Err()
+		}
+	}
+	return x, nil
+}
+
+func feed() chan int {
+	ch := make(chan int, 4)
+	ch <- 1
+	ch <- 2
+	ch <- 3
+	ch <- 4
+	close(ch)
+	return ch
+}
+
+type nums []int
+
+type grid [4]int
+
+type pipe chan int
+
+type steps iter.Seq[int]
+
+type outcome struct {
+	v   int
+	err error
+}
+
+func caseOrdered(ctx context.Context) {
+	xs := []int{1, 2, 3, 4, 5, 6}
+	var others atomic.Int64
+	got, err := xs.group(ctx, limit = 8).map(x => slowFirst(ctx, x, &others, int64(len(xs)))?)
+	want := []int{10, 20, 30, 40, 50, 60}
+	if err != nil {
+		check("ordered", false, err, want)
+	} else {
+		check("ordered", err == nil && slices.Equal(got, want), got, want)
+	}
+}
+
+func caseTryError(ctx context.Context) {
+	xs := []int{1, 2, 3, 4, 5}
+	res := observe(xs.group(ctx, limit = 2).map(x => failOn(x, 3)?))
+	got, err := res.v, res.err
+	check("try-error", err != nil && errors.Is(err, errBoom) && got == nil, err, errBoom)
+}
+
+func caseFilter(ctx context.Context) {
+	xs := []int{1, 2, 3, 4, 5, 6}
+	got, err := xs.group(ctx, limit = 4).filter(x => x%2 == 0).map(x => x * 10)
+	want := []int{20, 40, 60}
+	if err != nil {
+		check("filter", false, err, want)
+	} else {
+		check("filter", err == nil && slices.Equal(got, want), got, want)
+	}
+	back, err := xs.group(ctx, limit = 4).map(x => x * 10).filter(x => x > 30)
+	want = []int{40, 50, 60}
+	if err != nil {
+		check("map-filter", false, err, want)
+	} else {
+		check("map-filter", err == nil && slices.Equal(back, want), back, want)
+	}
+}
+
+func caseReceivers(ctx context.Context) {
+	want := []int{2, 3, 4, 5}
+	xs := nums{1, 2, 3, 4}
+	got, err := xs.group(ctx, limit = 2).map(x => x + 1)
+	if err != nil {
+		check("recv-named-slice", false, err, want)
+	} else {
+		check("recv-named-slice", err == nil && slices.Equal(got, want), got, want)
+	}
+	arr := grid{1, 2, 3, 4}
+	got, err = arr.group(ctx, limit = 2).map(x => x + 1)
+	if err != nil {
+		check("recv-array", false, err, want)
+	} else {
+		check("recv-array", err == nil && slices.Equal(got, want), got, want)
+	}
+	var seq iter.Seq[int] = func(yield func(int) bool) {
+		for i := 1; i <= 4; i++ {
+			if !yield(i) {
+				return
+			}
+		}
+	}
+	got, err = seq.group(ctx, limit = 2).map(x => x + 1)
+	if err != nil {
+		check("recv-seq", false, err, want)
+	} else {
+		check("recv-seq", err == nil && slices.Equal(got, want), got, want)
+	}
+	named := steps(seq)
+	got, err = named.group(ctx, limit = 2).map(x => x + 1)
+	if err != nil {
+		check("recv-named-seq", false, err, want)
+	} else {
+		check("recv-named-seq", err == nil && slices.Equal(got, want), got, want)
+	}
+	ch := feed()
+	got, err = ch.group(ctx, limit = 2).map(x => x + 1)
+	if err != nil {
+		check("recv-chan", false, err, want)
+	} else {
+		check("recv-chan", err == nil && slices.Equal(got, want), got, want)
+	}
+	var rch <-chan int = feed()
+	got, err = rch.group(ctx, limit = 2).map(x => x + 1)
+	if err != nil {
+		check("recv-recv-chan", false, err, want)
+	} else {
+		check("recv-recv-chan", err == nil && slices.Equal(got, want), got, want)
+	}
+	p := pipe(feed())
+	got, err = p.group(ctx, limit = 2).map(x => x + 1)
+	if err != nil {
+		check("recv-named-chan", false, err, want)
+	} else {
+		check("recv-named-chan", err == nil && slices.Equal(got, want), got, want)
+	}
+}
+
+func rangeAll(ctx context.Context, xs []int) ([]int, error) {
+	var got []int
+	for y := range xs.group(ctx, limit = 3).map(x => x * 2) {
+		got = append(got, y)
+	}
+	return got, nil
+}
+
+func rangeFail(ctx context.Context, xs []int) ([]int, error) {
+	var got []int
+	for y := range xs.group(ctx, limit = 2).map(x => failOn(x, 3)?) {
+		got = append(got, y)
+	}
+	return got, nil
+}
+
+func rangeAssign(ctx context.Context, xs []int) (int, error) {
+	var y, total int
+	for y = range xs.group(ctx, limit = 3).map(x => x + 1) {
+		total += y
+	}
+	return total, nil
+}
+
+func rangeBreak(ctx context.Context, xs []int) (int, error) {
+	seen := 0
+	for y := range xs.group(ctx, limit = 4).map(x => {
+		defer leave()
+		if park(x) {
+			<-gate
+		}
+		return x
+	}) {
+		seen += y
+		if y == 2 {
+			break
+		}
+	}
+	return seen, nil
+}
+
+func rangeReturn(ctx context.Context, xs []int) (int, error) {
+	for y := range xs.group(ctx, limit = 4).map(x => {
+		defer leave()
+		if park(x) {
+			<-gate
+		}
+		return x
+	}) {
+		if y == 2 {
+			return y, nil
+		}
+	}
+	return 0, nil
+}
+
+func rangeChan(ctx context.Context, ch <-chan int) (int, error) {
+	total := 0
+	for y := range ch.group(ctx, limit = 2).map(x => x * 3) {
+		total += y
+	}
+	return total, nil
+}
+
+func rangeUnorderedFast(xs []int) (int, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	release := make(chan struct{})
+	first := 0
+	for y := range xs.group(ctx, limit = 4).unordered().map(x => releaseFirst(ctx, release, x)?) {
+		if first == 0 {
+			first = y
+			close(release)
+		}
+	}
+	return first, nil
+}
+
+func caseRange(ctx context.Context) {
+	xs := []int{1, 2, 3, 4}
+	got, err := rangeAll(ctx, xs)
+	want := []int{2, 4, 6, 8}
+	if err != nil {
+		check("range-all", false, err, want)
+	} else {
+		check("range-all", err == nil && slices.Equal(got, want), got, want)
+	}
+	failRes := observe(rangeFail(ctx, xs))
+	got, err = failRes.v, failRes.err
+	check("range-error", err != nil && errors.Is(err, errBoom) && got == nil, err, errBoom)
+	total, err := rangeAssign(ctx, xs)
+	if err != nil {
+		check("range-assign", false, err, 14)
+	} else {
+		check("range-assign", err == nil && total == 14, total, 14)
+	}
+	total, err = rangeChan(ctx, feed())
+	if err != nil {
+		check("range-chan", false, err, 30)
+	} else {
+		check("range-chan", err == nil && total == 30, total, 30)
+	}
+	first, err := rangeUnorderedFast([]int{1, 2, 3, 4})
+	if err != nil {
+		check("range-unordered-fast", false, err, "not 1")
+	} else {
+		check("range-unordered-fast", err == nil && first != 0 && first != 1, first, "not 1")
+	}
+}
+
+func caseBreak(ctx context.Context) {
+	reset()
+	inTime := timeLimit()
+	seen, err := rangeBreak(ctx, []int{1, 2, 3, 4, 5, 6, 7, 8})
+	check("break-joins", inTime() && err == nil && seen == 3 && live.Load() == 0 && hanging.Load() >= 2, live.Load(), 0)
+}
+
+func caseReturn(ctx context.Context) {
+	reset()
+	inTime := timeLimit()
+	got, err := rangeReturn(ctx, []int{1, 2, 3, 4, 5, 6, 7, 8})
+	check("return-joins", inTime() && err == nil && got == 2 && live.Load() == 0 && hanging.Load() >= 2, live.Load(), 0)
+}
+
+func caseFind(ctx context.Context) {
+	reset()
+	inTime := timeLimit()
+	long := []int{1, 2, 3, 4, 5, 6, 7, 8}
+	found, err := long.group(ctx, limit = 4).map(x => {
+		defer leave()
+		if park(x) {
+			<-gate
+		}
+		return x
+	}).find(y => y == 2)
+	check("find-joins", inTime() && err == nil && (found ?? -1) == 2 && live.Load() == 0 && hanging.Load() >= 2, live.Load(), 0)
+}
+
+func caseAny(ctx context.Context) {
+	reset()
+	inTime := timeLimit()
+	long := []int{1, 2, 3, 4, 5, 6, 7, 8}
+	any2, err := long.group(ctx, limit = 4).map(x => {
+		defer leave()
+		if park(x) {
+			<-gate
+		}
+		return x
+	}).any(y => y == 2)
+	check("any-joins", inTime() && err == nil && any2 && live.Load() == 0 && hanging.Load() >= 2, live.Load(), 0)
+}
+
+func caseTake(ctx context.Context) {
+	reset()
+	inTime := timeLimit()
+	long := []int{1, 2, 3, 4, 5, 6, 7, 8}
+	top, err := long.group(ctx, limit = 4).map(x => {
+		defer leave()
+		if park(x) {
+			<-gate
+		}
+		return x
+	}).take(2)
+	check("take-joins", inTime() && err == nil && slices.Equal(top, []int{1, 2}) && live.Load() == 0 && hanging.Load() >= 2, live.Load(), 0)
+}
+
+func caseFirst(ctx context.Context) {
+	reset()
+	inTime := timeLimit()
+	long := []int{1, 2, 3, 4, 5, 6, 7, 8}
+	got, err := long.group(ctx, limit = 4).map(x => {
+		defer leave()
+		if park(x) {
+			<-gate
+		}
+		return x
+	}).first()
+	check("first-joins", inTime() && err == nil && (got ?? -1) == 1 && live.Load() == 0 && hanging.Load() >= 2, live.Load(), 0)
+}
+
+func caseAll(ctx context.Context) {
+	reset()
+	inTime := timeLimit()
+	long := []int{1, 2, 3, 4, 5, 6, 7, 8}
+	every, err := long.group(ctx, limit = 4).map(x => {
+		defer leave()
+		if park(x) {
+			<-gate
+		}
+		return x
+	}).all(y => y > 5)
+	check("all-joins", inTime() && err == nil && !every && live.Load() == 0 && hanging.Load() >= 2, live.Load(), 0)
+}
+
+func caseTerminals(ctx context.Context) {
+	xs := []int{1, 2, 3, 4, 5, 6}
+	sum, err := xs.group(ctx, limit = 4).map(x => x * 2).sum()
+	if err != nil {
+		check("sum", false, err, 42)
+	} else {
+		check("sum", err == nil && sum == 42, sum, 42)
+	}
+	count, err := xs.group(ctx, limit = 4).filter(x => x%2 == 0).count()
+	if err != nil {
+		check("count", false, err, 3)
+	} else {
+		check("count", err == nil && count == 3, count, 3)
+	}
+	first, err := xs.group(ctx, limit = 4).map(x => x * 2).first()
+	if err != nil {
+		check("first", false, err, 2)
+	} else {
+		check("first", err == nil && (first ?? -1) == 2, first, 2)
+	}
+	top, err := xs.group(ctx, limit = 4).map(x => x * 2).take(2)
+	if err != nil {
+		check("take", false, err, []int{2, 4})
+	} else {
+		check("take", err == nil && slices.Equal(top, []int{2, 4}), top, []int{2, 4})
+	}
+	sorted, err := xs.group(ctx, limit = 4).map(x => 7 - x).sortBy(x => x)
+	if err != nil {
+		check("sort-by", false, err, []int{1, 2, 3, 4, 5, 6})
+	} else {
+		check("sort-by", err == nil && slices.Equal(sorted, []int{1, 2, 3, 4, 5, 6}), sorted, []int{1, 2, 3, 4, 5, 6})
+	}
+	lowest, err := xs.group(ctx, limit = 4).map(x => 7 - x).sortBy(x => x).first()
+	if err != nil {
+		check("sort-first", false, err, 1)
+	} else {
+		check("sort-first", err == nil && (lowest ?? -1) == 1, lowest, 1)
+	}
+	two, err := xs.group(ctx, limit = 4).map(x => 7 - x).sortBy(x => x).take(2)
+	if err != nil {
+		check("sort-take", false, err, []int{1, 2})
+	} else {
+		check("sort-take", err == nil && slices.Equal(two, []int{1, 2}), two, []int{1, 2})
+	}
+}
+
+func caseUnordered(ctx context.Context) {
+	xs := []int{1, 2, 3, 4, 5, 6}
+	got, err := xs.group(ctx, limit = 8).unordered().map(x => x * 2)
+	if err != nil {
+		check("unordered-set", false, err, "no error")
+		return
+	}
+	slices.Sort(got)
+	want := []int{2, 4, 6, 8, 10, 12}
+	check("unordered-set", slices.Equal(got, want), got, want)
+}
+
+func caseLimits(ctx context.Context) {
+	xs := []int{1, 2, 3, 4, 5, 6}
+	reset()
+	got, err := xs.group(ctx, limit = 1).map(x => track(x)?)
+	check("limit-one", err == nil && slices.Equal(got, xs) && peak.Load() == 1, peak.Load(), 1)
+	reset()
+	_, err = xs.group(ctx, limit = 3).map(x => track(x)?)
+	check("limit-bound", err == nil && peak.Load() <= 3, peak.Load(), "at most 3")
+	reset()
+	short, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	pair, err := []int{1, 2}.group(short, limit = 2).map(x => rendezvous(short, x)?)
+	check("limit-parallel", err == nil && slices.Equal(pair, []int{1, 2}) && peak.Load() == 2, peak.Load(), 2)
+	reset()
+	nested, err := []int{10}.group(short, limit = 1).map(x => {
+		ys, innerErr := []int{1, 2}.group(short, limit = 2).map(y => meet(short, y))
+		if innerErr != nil {
+			panic(innerErr)
+		}
+		return x + ys[0] + ys[1]
+	})
+	check("limit-nested-own", err == nil && slices.Equal(nested, []int{13}) && peak.Load() == 2, peak.Load(), 2)
+	reset()
+	_, err = []int{1, 2}.group(ctx, limit = 2).map(x => {
+		ys, innerErr := []int{1, 2, 3}.group(ctx, limit = 1).map(y => tracked(y))
+		if innerErr != nil {
+			panic(innerErr)
+		}
+		return x + len(ys)
+	})
+	check("limit-nested-bound", err == nil && peak.Load() <= 2, peak.Load(), "at most 2")
+}
+
+func meet(ctx context.Context, y int) int {
+	v, err := rendezvous(ctx, y)
+	if err != nil {
+		return -1000
+	}
+	return v
+}
+
+func tracked(y int) int {
+	enter()
+	defer leave()
+	time.Sleep(2 * time.Millisecond)
+	return y
+}
+
+func zeroLimit(ctx context.Context) (msg string, touched bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			msg = fmt.Sprint(r)
+		}
+	}()
+	var src iter.Seq[int] = func(yield func(int) bool) {
+		touched = true
+		yield(1)
+	}
+	_, err := src.group(ctx, limit = 0).map(x => x)
+	return fmt.Sprint("no panic ", err), touched
+}
+
+func caseZeroLimit(ctx context.Context) {
+	msg, touched := zeroLimit(ctx)
+	check("limit-zero", msg == "logos: group stage limit must be positive" && !touched, msg, "logos: group stage limit must be positive")
+}
+
+func blocked() (chan int, func() bool) {
+	never := make(chan int)
+	return never, rescued(func() { close(never) })
+}
+
+func shortly(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(ctx, 100*time.Millisecond)
+}
+
+func timedOut(err error) bool {
+	return err != nil && errors.Is(err, context.DeadlineExceeded)
+}
+
+func caseCancelRecv(ctx context.Context) {
+	xs := []int{1, 2}
+	never, inTime := blocked()
+	short, cancel := shortly(ctx)
+	_, err := xs.group(short, limit = 2).map(x => {
+		v := <-never
+		return v
+	})
+	cancel()
+	check("cancel-wakes-recv", inTime() && timedOut(err), err, context.DeadlineExceeded)
+}
+
+func caseCancelSend(ctx context.Context) {
+	xs := []int{1, 2}
+	sink := make(chan int)
+	inTime := rescued(func() { close(sink) })
+	short, cancel := shortly(ctx)
+	_, err := xs.group(short, limit = 2).map(x => {
+		sink <- x
+		return x
+	})
+	cancel()
+	check("cancel-wakes-send", inTime() && timedOut(err), err, context.DeadlineExceeded)
+}
+
+func caseCancelStmt(ctx context.Context) {
+	xs := []int{1, 2}
+	never, inTime := blocked()
+	short, cancel := shortly(ctx)
+	_, err := xs.group(short, limit = 2).map(x => {
+		<-never
+		return x
+	})
+	cancel()
+	check("cancel-wakes-stmt", inTime() && timedOut(err), err, context.DeadlineExceeded)
+}
+
+func caseCancelPair(ctx context.Context) {
+	xs := []int{1, 2}
+	never, inTime := blocked()
+	short, cancel := shortly(ctx)
+	_, err := xs.group(short, limit = 2).map(x => {
+		v, ok := <-never
+		return v + len(fmt.Sprint(ok))
+	})
+	cancel()
+	check("cancel-wakes-pair", inTime() && timedOut(err), err, context.DeadlineExceeded)
+}
+
+func caseCancelDecl(ctx context.Context) {
+	xs := []int{1, 2}
+	never, inTime := blocked()
+	short, cancel := shortly(ctx)
+	_, err := xs.group(short, limit = 2).map(x => {
+		var v = <-never
+		return v
+	})
+	cancel()
+	check("cancel-wakes-decl", inTime() && timedOut(err), err, context.DeadlineExceeded)
+}
+
+func caseCancelSelect(ctx context.Context) {
+	xs := []int{1, 2}
+	never, inTime := blocked()
+	short, cancel := shortly(ctx)
+	_, err := xs.group(short, limit = 2).map(x => {
+		total := 0
+		select {
+		case v := <-never:
+			total += v
+		}
+		return total
+	})
+	cancel()
+	check("cancel-wakes-select", inTime() && timedOut(err), err, context.DeadlineExceeded)
+}
+
+func caseCancelRange(ctx context.Context) {
+	xs := []int{1, 2}
+	never, inTime := blocked()
+	short, cancel := shortly(ctx)
+	_, err := xs.group(short, limit = 2).map(x => {
+		total := 0
+		for v := range never {
+			total += v
+		}
+		return total
+	})
+	cancel()
+	check("cancel-wakes-range", inTime() && timedOut(err), err, context.DeadlineExceeded)
+}
+
+func caseCancelFilterRecv(ctx context.Context) {
+	xs := []int{1, 2}
+	never, inTime := blocked()
+	short, cancel := shortly(ctx)
+	_, err := xs.group(short, limit = 2).filter(x => {
+		v := <-never
+		return v > x
+	})
+	cancel()
+	check("cancel-wakes-filter-recv", inTime() && timedOut(err), err, context.DeadlineExceeded)
+}
+
+func caseCancelFilterSend(ctx context.Context) {
+	xs := []int{1, 2}
+	sink := make(chan int)
+	inTime := rescued(func() { close(sink) })
+	short, cancel := shortly(ctx)
+	_, err := xs.group(short, limit = 2).filter(x => {
+		sink <- x
+		return true
+	})
+	cancel()
+	check("cancel-wakes-filter-send", inTime() && timedOut(err), err, context.DeadlineExceeded)
+}
+
+func caseCancelFilterRange(ctx context.Context) {
+	xs := []int{1, 2}
+	never, inTime := blocked()
+	short, cancel := shortly(ctx)
+	_, err := xs.group(short, limit = 2).filter(x => {
+		total := 0
+		for v := range never {
+			total += v
+		}
+		return total > x
+	})
+	cancel()
+	check("cancel-wakes-filter-range", inTime() && timedOut(err), err, context.DeadlineExceeded)
+}
+
+func total(ctx context.Context, xs, ys []int) (int, error) {
+	parts, err := xs.group(ctx, limit = 2).map(x => ys.group(ctx, limit = 3).map(y => x*y).sum()?)
+	if err != nil {
+		return 0, err
+	}
+	return parts.sum(), nil
+}
+
+func tryForm(ctx context.Context, xs []int) ([]int, error) {
+	ys := xs.group(ctx, limit = 8).map(x => x * 2)?
+	var zs []int
+	zs = xs.group(ctx, limit = 8).map(x => x + 1)?
+	return append(ys, zs...), nil
+}
+
+var tryFormPassed bool
+
+func tryFormFails(ctx context.Context, xs []int) ([]int, error) {
+	ys := xs.group(ctx, limit = 2).map(x => failOn(x, 2)?)?
+	tryFormPassed = true
+	return ys, nil
+}
+
+func noErrorResult(ctx context.Context, xs []int) int {
+	ys, err := xs.group(ctx, limit = 2).map(x => x * 2)
+	if err != nil {
+		return -1
+	}
+	return ys.sum()
+}
+
+func caseForms(ctx context.Context) {
+	xs := []int{1, 2, 3}
+	n, err := total(ctx, xs, []int{1, 2, 3})
+	if err != nil {
+		check("nested-stage", false, err, 36)
+	} else {
+		check("nested-stage", err == nil && n == 36, n, 36)
+	}
+	got, err := tryForm(ctx, xs)
+	if err != nil {
+		check("try-form", false, err, []int{2, 4, 6, 2, 3, 4})
+	} else {
+		check("try-form", err == nil && slices.Equal(got, []int{2, 4, 6, 2, 3, 4}), got, []int{2, 4, 6, 2, 3, 4})
+	}
+	_, err = tryFormFails(ctx, xs)
+	check("try-form-fails", errors.Is(err, errBoom) && !tryFormPassed, err, errBoom)
+	check("no-error-result", noErrorResult(ctx, xs) == 12, noErrorResult(ctx, xs), 12)
+	tasks := []func() (int, error){
+		func() (int, error) { return 1, nil },
+		func() (int, error) { return 2, nil },
+	}
+	rs, err := tasks.group(ctx, limit = 2).map(t => t()?)
+	if err != nil {
+		check("thunks", false, err, []int{1, 2})
+	} else {
+		check("thunks", err == nil && slices.Equal(rs, []int{1, 2}), rs, []int{1, 2})
+	}
+	outs, err := xs.group(ctx, limit = 2).map(x => outcome{v: x, err: failErr(x, 2)})
+	if err != nil {
+		check("error-in-value", false, err, "three outcomes")
+	} else {
+		check("error-in-value", err == nil && len(outs) == 3 && outs[1].err != nil && outs[2].err == nil, outs, "three outcomes")
+	}
+	pre, err := xs.filter(x => x > 1).group(ctx, limit = 2).map(x => x * 2)
+	if err != nil {
+		check("after-chain", false, err, []int{4, 6})
+	} else {
+		check("after-chain", err == nil && slices.Equal(pre, []int{4, 6}), pre, []int{4, 6})
+	}
+	lim, err := xs.group(ctx, limit = len(xs) * 2).map(x => x)
+	if err != nil {
+		check("limit-expression", false, err, xs)
+	} else {
+		check("limit-expression", err == nil && slices.Equal(lim, xs), lim, xs)
+	}
+}
+
+func run(f func(context.Context)) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	f(ctx)
+}
+
+func main() {
+	run(caseOrdered)
+	run(caseTryError)
+	run(caseFilter)
+	run(caseReceivers)
+	run(caseRange)
+	run(caseBreak)
+	run(caseReturn)
+	run(caseFind)
+	run(caseAny)
+	run(caseTake)
+	run(caseFirst)
+	run(caseAll)
+	run(caseTerminals)
+	run(caseUnordered)
+	run(caseLimits)
+	run(caseZeroLimit)
+	run(caseCancelRecv)
+	run(caseCancelSend)
+	run(caseCancelStmt)
+	run(caseCancelPair)
+	run(caseCancelDecl)
+	run(caseCancelSelect)
+	run(caseCancelRange)
+	run(caseCancelFilterRecv)
+	run(caseCancelFilterSend)
+	run(caseCancelFilterRange)
+	run(caseForms)
+	if failed {
+		os.Exit(1)
+	}
+}

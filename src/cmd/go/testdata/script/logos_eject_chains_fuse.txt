@@ -1,0 +1,29 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# Red-team #84: a fused chain evaluates its receiver once in the native
+# build and in the ejected module. chains_fuse.lgo prints one ok line per
+# case, among them fuse-calls, which counts the receiver calls.
+cp $GOROOT/test/logos/run/chains_fuse.lgo a/main.lgo
+
+cd a
+logos run .
+cmp stdout $GOROOT/test/logos/run/chains_fuse.out
+logos eject -o out
+exists out/main.go
+! exists out/main.lgo
+cd out
+go run .
+cmp stdout $GOROOT/test/logos/run/chains_fuse.out
+# SPEC 0.3: ejected output builds and runs with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/chains_fuse.out
+cd ../..
+
+-- a/go.mod --
+module example.com/chainsfuse
+
+go 1.27

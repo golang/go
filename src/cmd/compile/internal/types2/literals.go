@@ -173,7 +173,9 @@ func (check *Checker) compositeLit(x *operand, e *syntax.CompositeLit, hint Type
 				key, _ := kv.Key.(*syntax.Name)
 				// do all possible checks early (before exiting due to errors)
 				// so we don't drop information on the floor
-				check.genericExpr(x, kv.Value, nil)
+				if !check.logosLambdaDefer(x, kv.Value) {
+					check.genericExpr(x, kv.Value, nil)
+				}
 				if key == nil {
 					check.errorf(kv, InvalidLitField, "invalid field name %s in struct literal", kv.Key)
 					continue
@@ -220,7 +222,9 @@ func (check *Checker) compositeLit(x *operand, e *syntax.CompositeLit, hint Type
 					check.error(kv, MixedStructLit, "mixture of field:value and value elements in struct literal")
 					continue
 				}
-				check.genericExpr(x, el, nil)
+				if !check.logosLambdaDefer(x, el) {
+					check.genericExpr(x, el, nil)
+				}
 				if i >= len(fields) {
 					check.errorf(x, InvalidStructLit, "too many values in struct literal of type %s", base)
 					break // cannot continue
@@ -310,7 +314,9 @@ func (check *Checker) compositeLit(x *operand, e *syntax.CompositeLit, hint Type
 					continue
 				}
 			}
-			check.genericExpr(x, kv.Value, utyp.elem)
+			if !check.logosLambdaDefer(x, kv.Value) {
+				check.genericExpr(x, kv.Value, utyp.elem)
+			}
 			check.assignment(x, utyp.elem, "map literal")
 		}
 
@@ -388,7 +394,9 @@ func (check *Checker) indexedElts(elts []syntax.Expr, typ Type, length int64) in
 
 		// check element against composite literal element type
 		var x operand
-		check.genericExpr(&x, eval, typ)
+		if !check.logosLambdaDefer(&x, eval) {
+			check.genericExpr(&x, eval, typ)
+		}
 		check.assignment(&x, typ, "array or slice literal")
 	}
 	return max

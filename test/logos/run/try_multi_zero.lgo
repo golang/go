@@ -1,0 +1,52 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type observed[A, B any] struct {
+	a   A
+	b   B
+	err error
+}
+
+func observe[A, B any](a A, b B, err error) observed[A, B] {
+	return observed[A, B]{a, b, err}
+}
+
+var errSrc = errors.New("src")
+
+func fail3() (int, string, error) {
+	return 7, "seven", errSrc
+}
+
+func get() (int, string, error) {
+	a, b := fail3()?
+	return a, b, nil
+}
+
+func main() {
+	res := observe(get())
+	a, b, err := res.a, res.b, res.err
+	check("zero-int", a == 0, a, 0)
+	check("zero-str", b == "", b == "", true)
+	check("err", err == errSrc, fmt.Sprint(err), "src")
+	if failed {
+		os.Exit(1)
+	}
+}

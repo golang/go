@@ -1,0 +1,150 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd w
+logos run .
+stdout '^json null ok$'
+stdout '^json unknown duplicate ok$'
+stdout '^json escaping parity ok$'
+stdout '^json nonfinite ok$'
+stdout '^binary layout ok$'
+stdout '^binary errors ok$'
+
+-- w/go.mod --
+module example.com/jsonedges
+
+go 1.27
+
+-- w/main.lgo --
+package main
+
+import (
+	"bytes"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"math"
+	"strings"
+)
+
+type Req struct {
+	P *int `json:"p"`
+	N int  `json:"n"`
+}
+
+type Esc struct {
+	S string  `json:"s"`
+	F float64 `json:"f"`
+}
+
+type Inner struct {
+	X uint8 `json:"x"`
+}
+
+type Bin struct {
+	M map[string]int `json:"m"`
+	I Inner          `json:"i"`
+}
+
+type Opt struct {
+	O int? `json:"o"`
+}
+
+func checkJSON() {
+	p := new(int)
+	*p = 7
+	v := Req{P: p, N: 1}
+	got, err := v.MarshalJSON()
+	if err != nil {
+		panic(err)
+	}
+	ref, err := json.Marshal(struct {
+		P *int `json:"p"`
+		N int  `json:"n"`
+	}{P: p, N: 1})
+	if err != nil || !bytes.Equal(got, ref) {
+		panic("json marshal parity")
+	}
+	var decoded = Req{P: new(int)}
+	if err := decoded.UnmarshalJSON([]byte(`{"p":null,"n":2}`)); err == nil || !strings.Contains(err.Error(), "P") {
+		panic("json null")
+	}
+	fmt.Println("json null ok")
+	decoded = Req{P: new(int)}
+	if err := decoded.UnmarshalJSON([]byte(`{"n":3,"extra":99,"n":4,"p":5}`)); err != nil || decoded.N != 4 || *decoded.P != 5 {
+		panic("json unknown duplicate")
+	}
+	fmt.Println("json unknown duplicate ok")
+	text := Esc{S: "<\u2028\u2029\ufffd", F: 1.25e20}
+	got, err = text.MarshalJSON()
+	if err != nil {
+		panic(err)
+	}
+	ref, err = json.Marshal(struct {
+		S string  `json:"s"`
+		F float64 `json:"f"`
+	}{S: text.S, F: text.F})
+	if err != nil {
+		panic("json escaping")
+	}
+	if !bytes.Equal(got, ref) {
+		panic("json escaping")
+	}
+	fmt.Println("json escaping parity ok")
+	for _, f := range []float64{math.NaN(), math.Inf(1), math.Inf(-1)} {
+		if _, err := (Esc{F: f}).MarshalJSON(); err == nil || !strings.Contains(err.Error(), "unsupported") {
+			panic("json nonfinite")
+		}
+	}
+	fmt.Println("json nonfinite ok")
+}
+
+func checkBinary() {
+	v := Bin{M: map[string]int{"z": 2, "a": 1}, I: Inner{X: 7}}
+	got, err := v.MarshalBinary()
+	want, hexErr := hex.DecodeString("010201610100000000000000017a02000000000000000700000000000000")
+	if hexErr != nil {
+		panic(hexErr)
+	}
+	if err != nil {
+		panic(fmt.Sprintf("binary layout: %v", err))
+	}
+	if !bytes.Equal(got, want) {
+		panic(fmt.Sprintf("binary layout: %x", got))
+	}
+	var round Bin
+	if err := round.UnmarshalBinary(got); err != nil {
+		panic("binary round trip")
+	}
+	a, aok := round.M["a"]
+	z, zok := round.M["z"]
+	if !aok || !zok || a != 1 || z != 2 || round.I.X != 7 {
+		panic("binary round trip")
+	}
+	for _, tc := range []struct {
+		input []byte
+		want  string
+	}{
+		{[]byte{}, "truncated"},
+		{[]byte{2}, "wrong version"},
+		{[]byte{1, 2}, "truncated"},
+		{append(append([]byte(nil), got...), 0), "trailing bytes"},
+	} {
+		var out Bin
+		err := out.UnmarshalBinary(tc.input)
+		if err == nil || !strings.Contains(err.Error(), tc.want) {
+			panic("binary malformed diagnostic")
+		}
+	}
+	var opt Opt
+	if err := opt.UnmarshalBinary([]byte{1, 2}); err == nil || !strings.Contains(err.Error(), "bad presence") {
+		panic("binary presence")
+	}
+	fmt.Println("binary layout ok")
+	fmt.Println("binary errors ok")
+}
+
+func main() {
+	checkJSON()
+	checkBinary()
+}

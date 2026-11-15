@@ -1,0 +1,306 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# A comptime generic is cut at its own tokens: the func keyword, the name
+# and the type parameter list are found by position, so a block comment,
+# a line comment or a line break in any gap of the header changes
+# nothing, for a function that is instantiated, one that nothing
+# instantiates, one that another package instantiates, and one that
+# calls a second generic from inside a const for. The same holds for the
+# types and constants that an exported const function of another
+# package needs: the keyword of each declaration is found by its tokens,
+# whatever comment or line break stands between it and the name. The
+# module runs natively, ejects without the dropped functions, and the
+# ejected module builds and runs with go and with go1.27.2 from
+# $UPROOT1272 and prints the same output.
+cd m
+logos run .
+stdout '^\[A B\] \[A B\] \[A B\] \[X Y\] \[A B\] \[X Y\]$'
+stdout '^\[A B\] \[X Y\] \[X Y\] \[Ak Bk\]$'
+stdout '^\[A B\] \[A B\] \[A B\] \[X Y\] \[A B\] \[X Y\]$'
+stdout '^\[X Y\] \[A B\] \[Xk Yk\]$'
+stdout '^81$'
+cp stdout $WORK/native.txt
+logos eject -o out
+exists out/main.go
+exists out/lib/lib.go
+! grep 'unused' out/main.go
+! grep '"comptime"' out/main.go
+! grep '"comptime"' out/lib/lib.go
+cd out
+go build ./...
+go run .
+cmp stdout $WORK/native.txt
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
+exec $WORK/upstream$GOEXE
+cmp stdout $WORK/native.txt
+cd ..
+
+-- m/go.mod --
+module example.com/comptimetparamboundary
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import (
+	"comptime"
+	"fmt"
+
+	"example.com/comptimetparamboundary/lib"
+)
+
+type S struct {
+	A int
+	B string
+}
+
+type P struct{ X, Y int }
+
+func /*c*/ Block[T any]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		out = append(out, f.Name)
+	}
+	return out
+}
+
+func // c
+Line[T any]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		out = append(out, f.Name)
+	}
+	return out
+}
+
+func
+Break[T any]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		out = append(out, f.Name)
+	}
+	return out
+}
+
+func Name /*c*/ [T any]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		out = append(out, f.Name)
+	}
+	return out
+}
+
+func Open[ /*c*/ T /*d*/ any /*e*/ ]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		out = append(out, f.Name)
+	}
+	return out
+}
+
+func Close[T any] /*c*/ () []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		out = append(out, f.Name)
+	}
+	return out
+}
+
+func Multi[T /* ] */ any, U interface{ ~[]int | ~[4]int }]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		out = append(out, f.Name)
+	}
+	return out
+}
+
+func /*c*/ /*d*/ Both /*e*/ [ // f
+	T any,
+	// g
+	U any]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		out = append(out, f.Name)
+	}
+	return out
+}
+
+func /*c*/ priv /*d*/ [ /*e*/ T any]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		out = append(out, f.Name)
+	}
+	return out
+}
+
+func /*c*/ unusedBlock[T any]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		out = append(out, f.Name)
+	}
+	return out
+}
+
+func // c
+unusedLine[T any]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		out = append(out, f.Name)
+	}
+	return out
+}
+
+func
+unusedBreak[T any]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		out = append(out, f.Name)
+	}
+	return out
+}
+
+func /*c*/ /*d*/ unusedBoth /*e*/ [T any]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		out = append(out, f.Name)
+	}
+	return out
+}
+
+func /*c*/ kind /*d*/ [ /*e*/ T any] /*f*/ () string {
+	_ = comptime.TypeOf[T]()
+	return "k"
+}
+
+func Gap[T any]() []string {
+	var out []string
+	const /*c*/ for /*d*/ _ /*e*/ , /*f*/ f /*g*/ := /*h*/ range /*i*/ comptime.Fields /*j*/ [ /*k*/ T /*l*/ ] /*m*/ ( /*n*/ ) /*o*/ {
+		out = append(out, f.Name+kind /*p*/ [ /*q*/ T /*r*/ ] /*s*/ ( /*t*/ ))
+	}
+	return out
+}
+
+const norm = lib.Norm(3)
+
+func main() {
+	fmt.Println(Block[S](), Line[S](), Break[S](), Name[P](), Open[S](), Close[P]())
+	fmt.Println(Multi[S, []int](), Both[P, S](), priv[P](), Gap[S]())
+	fmt.Println(lib.Block[S](), lib.Line[S](), lib.Break[S](), lib.Name[P](), lib.Open[S](), lib.Close[P]())
+	fmt.Println(lib.Multi[P, [4]int](), lib.Both[S, P](), lib.Gap[P]())
+	fmt.Println(norm)
+}
+
+-- m/lib/lib.lgo --
+package lib
+
+import "comptime"
+
+func /*c*/ Block[T any]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		out = append(out, f.Name)
+	}
+	return out
+}
+
+func // c
+Line[T any]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		out = append(out, f.Name)
+	}
+	return out
+}
+
+func
+Break[T any]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		out = append(out, f.Name)
+	}
+	return out
+}
+
+func Name /*c*/ [T any]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		out = append(out, f.Name)
+	}
+	return out
+}
+
+func Open[ /*c*/ T /*d*/ any /*e*/ ]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		out = append(out, f.Name)
+	}
+	return out
+}
+
+func Close[T any] /*c*/ () []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		out = append(out, f.Name)
+	}
+	return out
+}
+
+func Multi[T /* ] */ any, U interface{ ~[]int | ~[4]int }]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		out = append(out, f.Name)
+	}
+	return out
+}
+
+func /*c*/ /*d*/ Both /*e*/ [ // f
+	T any,
+	// g
+	U any]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		out = append(out, f.Name)
+	}
+	return out
+}
+
+func /*c*/ Kind /*d*/ [ /*e*/ T any] /*f*/ () string {
+	_ = comptime.TypeOf[T]()
+	return "k"
+}
+
+func Gap[T any]() []string {
+	var out []string
+	const /*c*/ for /*d*/ _ /*e*/ , /*f*/ f /*g*/ := /*h*/ range /*i*/ comptime.Fields /*j*/ [ /*k*/ T /*l*/ ] /*m*/ ( /*n*/ ) /*o*/ {
+		out = append(out, f.Name+Kind /*p*/ [ /*q*/ T /*r*/ ] /*s*/ ( /*t*/ ))
+	}
+	return out
+}
+
+type // c
+Point struct{ X, Y int }
+
+const /*c*/ // d
+Scale = 3
+
+const ( // c
+	Bias = 1
+)
+
+type ( // c
+	Cell struct{ V int }
+)
+
+func /*c*/ // d
+helper(x int) int { return x + Bias }
+
+const func Norm(x int) int {
+	p := Point{X: x, Y: 4}
+	c := Cell{V: Bias}
+	return helper(p.X*p.X+p.Y*p.Y+c.V) * Scale
+}

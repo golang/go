@@ -1,0 +1,81 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd on
+logos build -o $WORK/on$GOEXE ./cmd
+! stderr 'capabilities'
+exec $WORK/on$GOEXE
+stderr '^done$'
+cd ..
+
+cd off
+! logos build -o $WORK/off$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\].*example\.com/godep.*os\.startProcess'
+cd ..
+
+-- on/go.mod --
+module example.com/capon
+
+go 1.27
+
+require example.com/godep v0.0.0
+
+replace example.com/godep => ../godep
+
+-- on/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_exec_allowlist = ["example.com/godep/**"]
+
+-- on/cmd/main.lgo --
+package main
+
+import "example.com/godep"
+
+func main() {
+	godep.Init()
+	println("done")
+}
+
+-- off/go.mod --
+module example.com/capoff
+
+go 1.27
+
+require example.com/godep v0.0.0
+
+replace example.com/godep => ../godep
+
+-- off/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+
+-- off/cmd/main.lgo --
+package main
+
+import "example.com/godep"
+
+func main() {
+	godep.Init()
+	println("done")
+}
+
+-- godep/go.mod --
+module example.com/godep
+
+go 1.27
+
+-- godep/dep.go --
+package godep
+
+import (
+	"os"
+	"os/exec"
+)
+
+//go:noinline
+func Init() {
+	if len(os.Args) > 99 {
+		_ = exec.Command("true").Run()
+	}
+}

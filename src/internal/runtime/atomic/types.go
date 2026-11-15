@@ -476,7 +476,7 @@ func (u *UnsafePointer) Load() unsafe.Pointer {
 //
 //go:nosplit
 func (u *UnsafePointer) StoreNoWB(value unsafe.Pointer) {
-	storePointerNoWB(&u.value, value)
+	StorepNoWB(unsafe.Pointer(&u.value), value)
 }
 
 // Store updates the value atomically.
@@ -502,7 +502,7 @@ func storePointer(ptr *unsafe.Pointer, new unsafe.Pointer)
 //
 //go:nosplit
 func (u *UnsafePointer) CompareAndSwapNoWB(old, new unsafe.Pointer) bool {
-	return casPointerNoWB(&u.value, old, new)
+	return Casp1(&u.value, old, new)
 }
 
 // CompareAndSwap atomically compares u's value with old,

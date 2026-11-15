@@ -1,0 +1,81 @@
+# At GOAMD64=v3 only the AVX2 check is omitted: the 8 and 16-bit
+# slice sums keep their AVX512 guard. At v4 both checks are omitted
+# while the masked tail loads stay. The v3 AVX2 omission and the
+# scalar path live in logos_simd_feature_gate.txt and
+# logos_simd_gate_branch.txt; this script pins the AVX512 level.
+[!GOARCH:amd64] skip 'gate objdump needs amd64'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOEXPERIMENT=simd
+
+cd m
+env GOAMD64=v3
+logos build -o $WORK/exe3 .
+go tool objdump -s '^main\.sumU8$' $WORK/exe3
+stdout 'VMOVDQU8\.Z'
+stdout 'AVX512'
+go tool objdump -s '^main\.sumI16$' $WORK/exe3
+stdout 'VMOVDQU16\.Z'
+stdout 'AVX512'
+logos run .
+stdout '^sums ok$'
+
+env GOAMD64=v4
+logos build -o $WORK/exe4 .
+go tool objdump -s '^main\.sumU8$' $WORK/exe4
+stdout 'VMOVDQU8\.Z'
+! stdout 'AVX512'
+go tool objdump -s '^main\.sumI16$' $WORK/exe4
+stdout 'VMOVDQU16\.Z'
+! stdout 'AVX512'
+logos run .
+stdout '^sums ok$'
+
+-- m/go.mod --
+module example.com/gateavx512
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import "fmt"
+
+//go:noinline
+func sumU8(xs []uint8) uint8 { return xs.sum() }
+
+//go:noinline
+func sumI16(xs []int16) int16 { return xs.sum() }
+
+func oracleU8(xs []uint8) uint8 {
+	t := uint8(0)
+	for _, v := range xs {
+		t += v
+	}
+	return t
+}
+
+func oracleI16(xs []int16) int16 {
+	t := int16(0)
+	for _, v := range xs {
+		t += v
+	}
+	return t
+}
+
+func main() {
+	us := make([]uint8, 70)
+	ss := make([]int16, 70)
+	for i := range us {
+		us[i] = uint8(i * 3)
+		ss[i] = int16(i*7 - 100)
+	}
+	if sumU8(us) != oracleU8(us) {
+		panic("u8 sum mismatch")
+	}
+	if sumI16(ss) != oracleI16(ss) {
+		panic("i16 sum mismatch")
+	}
+	fmt.Println("sums ok")
+}

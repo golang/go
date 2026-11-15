@@ -1,0 +1,77 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+	"runtime"
+	"strings"
+)
+
+type TruncItems struct {
+	Items []int64 `json:"items"`
+}
+
+func truncAllocated(input []byte) (uint64, error) {
+	var before, after runtime.MemStats
+	runtime.GC()
+	runtime.ReadMemStats(&before)
+	var got TruncItems
+	err := got.UnmarshalJSON(input)
+	runtime.ReadMemStats(&after)
+	return after.TotalAlloc - before.TotalAlloc, err
+}
+
+func truncPadded() error {
+	input := []byte(`{"items":[` + strings.Repeat("7,", 100) + strings.Repeat(" ", 1<<20))
+	var res struct {
+		grew uint64
+		err  error
+	}
+	res.grew, res.err = truncAllocated(input)
+	grew, err := res.grew, res.err
+	if err == nil {
+		return fmt.Errorf("padded truncated array decoded")
+	}
+	if grew >= 1<<15 {
+		return fmt.Errorf("100 arrived elements with 1 MiB of padding allocated %d bytes, want under 32 KiB", grew)
+	}
+	return nil
+}
+
+func truncFull() error {
+	doc := `{"items":[` + strings.Repeat("7,", 4999) + `7]}`
+	var got TruncItems
+	if err := got.UnmarshalJSON([]byte(doc)); err != nil {
+		return fmt.Errorf("full 5000-element array rejected: %w", err)
+	}
+	if len(got.Items) != 5000 {
+		return fmt.Errorf("full array decoded %d items, want 5000", len(got.Items))
+	}
+	for i, v := range got.Items {
+		if v != 7 {
+			return fmt.Errorf("full array item %d decoded %d, want 7", i, v)
+		}
+	}
+	return nil
+}
+
+func run() error {
+if err := truncPadded(); err != nil {
+return err
+}
+return truncFull()
+}
+func main() {
+if err := truncPadded(); err != nil {
+fmt.Println("FAIL growth-padded:", err)
+os.Exit(1)
+}
+fmt.Println("ok growth-padded")
+if err := truncFull(); err != nil {
+fmt.Println("FAIL growth-full:", err)
+os.Exit(1)
+}
+fmt.Println("ok growth-full")
+}

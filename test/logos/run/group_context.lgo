@@ -1,0 +1,490 @@
+// run
+
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"time"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+const deadline = 3 * time.Second
+const grace = 250 * time.Millisecond
+
+var errBoom = errors.New("boom")
+
+type ctxKey struct{}
+
+type seen struct {
+	between, child, after, kept, deferred, errdeferred, inner, outerLambda, post context.Context
+}
+
+type outcome struct {
+	prompt bool
+	err    error
+}
+
+func within(limit time.Duration, run func(ctx context.Context) error) outcome {
+	ctx, cancel := context.WithCancel(context.Background())
+	start := time.Now()
+	t := time.AfterFunc(limit, cancel)
+	err := run(ctx)
+	prompt := time.Since(start) < limit
+	t.Stop()
+	cancel()
+	return outcome{prompt, err}
+}
+
+//logos:allow(correctness::unbounded_channel_op)
+func failer(started chan struct{}) error {
+	<-started
+	return errBoom
+}
+
+func library(ctx context.Context, started chan struct{}) error {
+	close(started)
+	<-ctx.Done()
+	return ctx.Err()
+}
+
+func fetch(ctx context.Context, x int, started chan struct{}) (int, error) {
+	if x == 1 {
+		return 0, library(ctx, started)
+	}
+	return 0, failer(started)
+}
+
+func note(ctx context.Context, into *context.Context) {
+	*into = ctx
+}
+
+func boom() error { return errBoom }
+
+func goBlockCall(ctx context.Context) error {
+	started := make(chan struct{})
+	go group (ctx, limit = 2) {
+		go {
+			library(ctx, started)?
+		}
+		go {
+			failer(started)?
+		}
+	}
+	return nil
+}
+
+func goCallForm(ctx context.Context) error {
+	started := make(chan struct{})
+	go group (ctx, limit = 2) {
+		go library(ctx, started)
+		go failer(started)
+	}
+	return nil
+}
+
+func goDirectReceive(ctx context.Context) error {
+	started := make(chan struct{})
+	go group (ctx, limit = 2) {
+		go {
+			close(started)
+			<-ctx.Done()
+		}
+		go {
+			failer(started)?
+		}
+	}
+	return nil
+}
+
+func goIdentity(ctx context.Context, s *seen) error {
+	go group (ctx, limit = 1) {
+		s.between = ctx
+		go {
+			s.child = ctx
+		}
+	}
+	s.after = ctx
+	return nil
+}
+
+func goKept(ctx context.Context, s *seen) error {
+	go group (ctx, limit = 1) {
+		go {
+			s.kept = ctx
+		}
+	}
+	return nil
+}
+
+func goDefer(ctx context.Context, s *seen) error {
+	go group (ctx, limit = 1) {
+		go {
+			defer note(ctx, &s.deferred)
+			_ = ctx
+		}
+	}
+	return nil
+}
+
+func goErrdefer(ctx context.Context, s *seen) error {
+	go group (ctx, limit = 1) {
+		go {
+			errdefer note(ctx, &s.errdeferred)
+			boom()?
+		}
+	}
+	return nil
+}
+
+func goLimitWait(ctx context.Context, order *[]int) error {
+	go group (ctx, limit = 1) {
+		for i := range 4 {
+			go {
+				*order = append(*order, i)
+				_ = ctx
+			}
+		}
+	}
+	return nil
+}
+
+func goShadow(ctx context.Context, s *seen) error {
+	go group (ctx, limit = 1) {
+		ctx := context.WithValue(ctx, ctxKey{}, "shadow")
+		go {
+			s.child = ctx
+		}
+	}
+	s.after = ctx
+	return nil
+}
+
+func goScope(ctx context.Context, out *int) error {
+	go group (ctx, limit = 1) {
+		x := 1
+		go {
+			_ = x
+		}
+	}
+	x := 2
+	*out = x
+	return nil
+}
+
+func goScopeNotIdentifier(ctx context.Context, out *int) error {
+	go group (ownContext(ctx), limit = 1) {
+		x := 1
+		go {
+			_ = x
+		}
+	}
+	x := 2
+	*out = x
+	return nil
+}
+
+func goOtherName(ctx context.Context) error {
+	other := ctx
+	started := make(chan struct{})
+	go group (ctx, limit = 2) {
+		go library(other, started)
+		go failer(started)
+	}
+	return nil
+}
+
+func ownContext(ctx context.Context) context.Context { return ctx }
+
+func goNotIdentifier(ctx context.Context) error {
+	started := make(chan struct{})
+	go group (ownContext(ctx), limit = 2) {
+		go library(ctx, started)
+		go failer(started)
+	}
+	return nil
+}
+
+func goNotIdentifierReceive(ctx context.Context) error {
+	started := make(chan struct{})
+	go group (ownContext(ctx), limit = 2) {
+		go {
+			close(started)
+			<-ctx.Done()
+		}
+		go {
+			failer(started)?
+		}
+	}
+	return nil
+}
+
+func goNested(ctx context.Context, s *seen) error {
+	go group (ctx, limit = 1) {
+		s.between = ctx
+		go group (ctx, limit = 1) {
+			s.inner = ctx
+		}
+		s.after = ctx
+	}
+	return nil
+}
+
+func stageCall(ctx context.Context) error {
+	started := make(chan struct{})
+	_, err := []int{0, 1}.group(ctx, limit = 2).map(x => fetch(ctx, x, started)?)
+	return err
+}
+
+func stageDirectReceive(ctx context.Context) error {
+	started := make(chan struct{})
+	_, err := []int{0, 1}.group(ctx, limit = 2).map(x => failOnFirst(x, started)?).map(x => {
+		close(started)
+		<-ctx.Done()
+		return x
+	})
+	return err
+}
+
+//logos:allow(correctness::unbounded_channel_op)
+func failOnFirst(x int, started chan struct{}) (int, error) {
+	if x == 0 {
+		<-started
+		return 0, errBoom
+	}
+	return x, nil
+}
+
+func stageUnordered(ctx context.Context) error {
+	started := make(chan struct{})
+	_, err := []int{0, 1}.group(ctx, limit = 2).unordered().map(x => fetch(ctx, x, started)?)
+	return err
+}
+
+func stageRange(ctx context.Context) error {
+	started := make(chan struct{})
+	for y := range []int{0, 1}.group(ctx, limit = 2).map(x => fetch(ctx, x, started)?) {
+		_ = y
+	}
+	return nil
+}
+
+func head(ctx context.Context, x int, started chan struct{}) (int, error) {
+	if x == 0 {
+		select {
+		case <-started:
+		case <-ctx.Done():
+		}
+		return x, nil
+	}
+	return 0, library(ctx, started)
+}
+
+func stageBreak(ctx context.Context) error {
+	started := make(chan struct{})
+	for y := range []int{0, 1}.group(ctx, limit = 2).map(x => head(ctx, x, started)?) {
+		_ = y
+		break
+	}
+	return nil
+}
+
+func stageOtherName(ctx context.Context) error {
+	other := ctx
+	started := make(chan struct{})
+	_, err := []int{0, 1}.group(ctx, limit = 2).map(x => fetch(other, x, started)?)
+	return err
+}
+
+func stageNotIdentifier(ctx context.Context) error {
+	started := make(chan struct{})
+	_, err := []int{0, 1}.group(ownContext(ctx), limit = 2).map(x => fetch(ctx, x, started)?)
+	return err
+}
+
+func keep(ctx context.Context, x int, started chan struct{}) (bool, error) {
+	if x == 1 {
+		return false, library(ctx, started)
+	}
+	return false, failer(started)
+}
+
+func stageFilterCall(ctx context.Context) error {
+	started := make(chan struct{})
+	_, err := []int{0, 1}.group(ctx, limit = 2).filter(x => keep(ctx, x, started)?)
+	return err
+}
+
+func stageNotIdentifierReceive(ctx context.Context) error {
+	started := make(chan struct{})
+	_, err := []int{0, 1}.group(ownContext(ctx), limit = 2).map(x => failOnFirst(x, started)?).map(x => {
+		close(started)
+		<-ctx.Done()
+		return x
+	})
+	return err
+}
+
+func record(ctx context.Context, x int, into *context.Context) (int, error) {
+	*into = ctx
+	return x, nil
+}
+
+func stageIdentity(ctx context.Context, s *seen) error {
+	_, err := []int{0}.group(ctx, limit = 1).map(x => record(ctx, x, &s.child)?).any(y => recordPost(ctx, &s.post))
+	s.after = ctx
+	return err
+}
+
+func recordPost(ctx context.Context, into *context.Context) bool {
+	*into = ctx
+	return true
+}
+
+func recordKeep(ctx context.Context, into *context.Context) bool {
+	*into = ctx
+	return true
+}
+
+func stageFilterIdentity(ctx context.Context, s *seen) error {
+	_, err := []int{0}.group(ctx, limit = 1).filter(x => recordKeep(ctx, &s.child)).any(y => recordPost(ctx, &s.post))
+	s.after = ctx
+	return err
+}
+
+func stageNested(ctx context.Context, s *seen) error {
+	_, err := []int{0}.group(ctx, limit = 1).map(x => record(ctx, x, &s.outerLambda)?).map(x => nestedStage(ctx, x, s)?)
+	return err
+}
+
+func nestedStage(ctx context.Context, x int, s *seen) (int, error) {
+	sum := []int{x}.group(ctx, limit = 1).map(y => record(ctx, y, &s.inner)?).sum()?
+	return sum, nil
+}
+
+func stageKept(ctx context.Context, s *seen) error {
+	_, err := []int{0}.group(ctx, limit = 1).map(x => record(ctx, x, &s.kept)?)
+	return err
+}
+
+func released(name string, run func(ctx context.Context) error, want error) {
+	o := within(deadline, run)
+	check(name, o.prompt && errors.Is(o.err, want), fmt.Sprint(o.prompt, o.err), fmt.Sprint(true, want))
+}
+
+func held(name string, run func(ctx context.Context) error) {
+	o := within(grace, run)
+	check(name, !o.prompt && errors.Is(o.err, errBoom), fmt.Sprint(o.prompt, o.err), fmt.Sprint(false, errBoom))
+}
+
+func distinct(name string, outer, inside context.Context) {
+	check(name, inside != nil && inside != outer && inside.Value(ctxKey{}) == "outer", inside == outer, false)
+}
+
+func deadlineCases() {
+	released("go-block-call-released", goBlockCall, errBoom)
+	released("go-call-form-released", goCallForm, errBoom)
+	released("go-direct-receive-released", goDirectReceive, errBoom)
+	released("stage-call-released", stageCall, errBoom)
+	released("stage-direct-receive-released", stageDirectReceive, errBoom)
+	released("stage-unordered-released", stageUnordered, errBoom)
+	released("stage-range-released", stageRange, errBoom)
+	released("stage-break-released", stageBreak, nil)
+	held("go-other-name-held", goOtherName)
+	held("go-not-identifier-held", goNotIdentifier)
+	released("go-not-identifier-receive-released", goNotIdentifierReceive, errBoom)
+	held("stage-other-name-held", stageOtherName)
+	held("stage-not-identifier-held", stageNotIdentifier)
+	released("stage-filter-call-released", stageFilterCall, errBoom)
+	released("stage-not-identifier-receive-released", stageNotIdentifierReceive, errBoom)
+}
+
+func goIdentityCases(outer context.Context) {
+	var g seen
+	check("go-identity-run", goIdentity(outer, &g) == nil, nil, nil)
+	distinct("go-identity-between", outer, g.between)
+	distinct("go-identity-child", outer, g.child)
+	check("go-identity-same-inside", g.between == g.child, g.between == g.child, true)
+	check("go-identity-restored-after", g.after == outer, g.after == outer, true)
+
+	var k seen
+	check("go-kept-run", goKept(outer, &k) == nil, nil, nil)
+	check("go-kept-cancelled-after-join", k.kept != nil && k.kept.Err() != nil && outer.Err() == nil, k.kept.Err(), context.Canceled)
+
+	var d seen
+	check("go-defer-run", goDefer(outer, &d) == nil, nil, nil)
+	distinct("go-defer-sees-group-context", outer, d.deferred)
+
+	var e seen
+	check("go-errdefer-run", errors.Is(goErrdefer(outer, &e), errBoom), nil, errBoom)
+	distinct("go-errdefer-sees-group-context", outer, e.errdeferred)
+}
+
+func goScopeCases(outer context.Context) {
+	var order []int
+	check("go-limit-wait-run", goLimitWait(outer, &order) == nil, nil, nil)
+	check("go-limit-wait-order", fmt.Sprint(order) == "[0 1 2 3]", fmt.Sprint(order), "[0 1 2 3]")
+
+	var w seen
+	check("go-shadow-run", goShadow(outer, &w) == nil, nil, nil)
+	check("go-shadow-user-value", w.child != nil && w.child.Value(ctxKey{}) == "shadow", w.child, "shadow")
+	check("go-shadow-restored-after", w.after == outer, w.after == outer, true)
+
+	var x, y int
+	check("go-block-scope-ends", goScope(outer, &x) == nil && x == 2, x, 2)
+	check("go-block-scope-ends-not-identifier", goScopeNotIdentifier(outer, &y) == nil && y == 2, y, 2)
+
+	var n seen
+	check("go-nested-run", goNested(outer, &n) == nil, nil, nil)
+	distinct("go-nested-outer-group", outer, n.between)
+	distinct("go-nested-inner-group", outer, n.inner)
+	check("go-nested-inner-differs", n.inner != n.between, n.inner != n.between, true)
+	check("go-nested-restored-after-inner", n.after == n.between, n.after == n.between, true)
+}
+
+func stageIdentityCases(outer context.Context) {
+	var s seen
+	check("stage-identity-run", stageIdentity(outer, &s) == nil, nil, nil)
+	distinct("stage-identity-lambda", outer, s.child)
+	check("stage-identity-later-stage-outer", s.post == outer, s.post == outer, true)
+	check("stage-identity-restored-after", s.after == outer, s.after == outer, true)
+
+	var t seen
+	check("stage-kept-run", stageKept(outer, &t) == nil, nil, nil)
+	check("stage-kept-cancelled-after-join", t.kept != nil && t.kept.Err() != nil && outer.Err() == nil, t.kept.Err(), context.Canceled)
+
+	var m seen
+	check("stage-nested-run", stageNested(outer, &m) == nil, nil, nil)
+	distinct("stage-nested-outer-lambda", outer, m.outerLambda)
+	distinct("stage-nested-inner-lambda", outer, m.inner)
+	check("stage-nested-inner-differs", m.inner != m.outerLambda, m.inner != m.outerLambda, true)
+
+	var f seen
+	check("stage-filter-identity-run", stageFilterIdentity(outer, &f) == nil, nil, nil)
+	distinct("stage-filter-identity-lambda", outer, f.child)
+	check("stage-filter-identity-later-stage-outer", f.post == outer, f.post == outer, true)
+	check("stage-filter-identity-restored-after", f.after == outer, f.after == outer, true)
+}
+
+func main() {
+	deadlineCases()
+	outer := context.WithValue(context.Background(), ctxKey{}, "outer")
+	goIdentityCases(outer)
+	goScopeCases(outer)
+	stageIdentityCases(outer)
+	if failed {
+		os.Exit(1)
+	}
+}

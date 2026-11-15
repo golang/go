@@ -4,35 +4,9 @@
 
 package types2
 
-// This file implements imported const-function resolution for M5-S2
-// (SPEC Sec 2.1, T-201): a per-Checker cache owns parsed constfn
-// records and their defining-package context, keyed by the record
-// source position base. Imported bodies execute as EntConstFunc in the
-// caller's SAME ctfe.Eval (shared steps, frames, depth and value
-// limit); no nested evaluator is ever created for function calls.
-// Record names resolve in the defining package/closure, never in
-// caller scope; evaluator locals keep normal lexical precedence
-// because the interpreter consults frames before the host.
-//
-// One predicate governs host, purity and const-map admission:
-// logosResolveImportedConstFunc (with the thin boolean wrapper
-// logosAdmitImportedConstFunc). A nil unit with a nil error means an
-// ordinary import (no constfn record): call sites keep their existing
-// behavior. A non-nil error means a missing, stale, malformed or
-// otherwise unusable record, or a nested impurity the defining build
-// can no longer vouch for; call sites fail closed with the detail.
-//
-// Private closure names (helpers, types, consts, vars) resolve from the
-// record source, never from the imported scope: export data carries
-// only exported objects. The checked signature of the exported root
-// still comes from the imported scope. Mutable package variables stay
-// impure; their initializers never execute. Methods and generic calls
-// stay rejected by the existing evaluator and purity rules.
-
 import (
 	"bytes"
 	"cmd/compile/internal/logos/ctfe"
-	"cmd/compile/internal/logos/facts"
 	"cmd/compile/internal/syntax"
 	"fmt"
 	"go/constant"
@@ -40,48 +14,40 @@ import (
 	"strconv"
 )
 
-// logosConstFnUnit is one validated constfn record with its
-// defining-package context. file is the parsed record source; base is
-// the file base every node of that source shares, and the key the host
-// uses to recognize defining-context nodes.
+var LogosImportedConstFuncSource func(path, object string) []byte
+
 type logosConstFnUnit struct {
-	path      string // defining import path
+	path      string
 	defPkg    *Package
 	file      *syntax.File
 	base      *syntax.PosBase
-	root      *syntax.FuncDecl // validated root body
-	rootObj   *Func            // defining-package checked object (signature owner)
+	root      *syntax.FuncDecl
+	rootObj   *Func
 	funcs     map[string]*syntax.FuncDecl
 	isConst   map[string]bool
-	types     map[string]syntax.Expr // type underlying expressions by name
-	aliases   map[string]bool        // type names declared as aliases
-	vars      map[string]bool        // package variable names
-	evalIota  int64                  // active iota ordinal during one constant evaluation
-	inIota    bool                   // whether evalIota is active
+	types     map[string]syntax.Expr
+	aliases   map[string]bool
+	vars      map[string]bool
+	evalIota  int64
+	inIota    bool
 	specs     map[string]*logosUnitConst
-	imports   map[string]*Package // qualifier name -> imported package
+	imports   map[string]*Package
 	dotImport bool
-	values    map[string]ctfe.Value // evaluated scope-miss constants
-	busyConst map[string]bool       // in-progress constant evaluation
-	err       error                 // sticky admission failure
+	values    map[string]ctfe.Value
+	busyConst map[string]bool
+	err       error
 }
 
-// logosUnitConst is one file-scope constant specification with group
-// inheritance applied: init and typ are the effective expressions, and
-// iota is the spec ordinal within its group (0 outside one), supplied
-// to on-demand evaluation.
 type logosUnitConst struct {
 	name     string
 	init     syntax.Expr
-	typ      syntax.Expr // may be nil
+	typ      syntax.Expr
 	iota     int
 	usesIota bool
 }
 
-// logosConstFnKey namespaces the unit cache by defining path and object.
 func logosConstFnKey(path, object string) string { return path + "\x00" + object }
 
-// logosConstFnMaps lazily initializes the per-Checker constfn cache.
 func (check *Checker) logosConstFnMaps() {
 	if check.logosConstFnUnits == nil {
 		check.logosConstFnUnits = map[string]*logosConstFnUnit{}
@@ -90,9 +56,6 @@ func (check *Checker) logosConstFnMaps() {
 	}
 }
 
-// logosUnitForNode reports the defining unit owning n, or nil for
-// caller-package and universe nodes. The record file base identifies
-// the context; bases are stable per cached unit.
 func (check *Checker) logosUnitForNode(n syntax.Node) *logosConstFnUnit {
 	if n == nil || check.logosConstFnBases == nil {
 		return nil
@@ -104,11 +67,6 @@ func (check *Checker) logosUnitForNode(n syntax.Node) *logosConstFnUnit {
 	return check.logosConstFnBases[base]
 }
 
-// logosAdmitImportedConstFunc is the single boolean predicate governing
-// host, purity and const-map admission. It reports whether path.object
-// names an imported const function with a validated, transitively pure
-// body. detail is empty for ordinary imports (no record) and carries
-// the failure reason otherwise.
 func (check *Checker) logosAdmitImportedConstFunc(path, object string) (admitted bool, detail string) {
 	u, _, _, err := check.logosResolveImportedConstFunc(path, object)
 	if err != nil {
@@ -117,10 +75,6 @@ func (check *Checker) logosAdmitImportedConstFunc(path, object string) (admitted
 	return u != nil, ""
 }
 
-// logosResolveImportedConstFunc resolves an imported const function to
-// its defining unit, checked object and validated body. A nil unit with
-// a nil error is an ordinary import (no usable record): the caller
-// keeps its existing behavior. A non-nil error fails closed.
 func (check *Checker) logosResolveImportedConstFunc(path, object string) (*logosConstFnUnit, *Func, *syntax.FuncDecl, error) {
 	if path == "" || object == "" || check.conf == nil || !check.conf.Logos {
 		return nil, nil, nil, nil
@@ -133,16 +87,9 @@ func (check *Checker) logosResolveImportedConstFunc(path, object string) (*logos
 		}
 		return u, u.rootObj, u.root, nil
 	}
-	f, ok := facts.Lookup(path)
-	if !ok || f == nil {
-		return nil, nil, nil, nil
-	}
 	var src []byte
-	for _, c := range f.ConstFuncs {
-		if c.Object == object {
-			src = c.Source
-			break
-		}
+	if LogosImportedConstFuncSource != nil {
+		src = LogosImportedConstFuncSource(path, object)
 	}
 	if src == nil {
 		return nil, nil, nil, nil
@@ -155,11 +102,6 @@ func (check *Checker) logosResolveImportedConstFunc(path, object string) (*logos
 	return u, fn, u.root, nil
 }
 
-// logosImportForConstFunc imports path for constfn resolution: a
-// directly imported package first, then the checker's import cache,
-// then the configured importer. It mirrors the comptime copy loader
-// (logos cfLoadPackage), which likewise opens packages the checked
-// files do not import.
 func (check *Checker) logosImportForConstFunc(path string) (*Package, error) {
 	for _, pn := range check.imports {
 		if imp := pn.Imported(); imp != nil && imp.Path() == path {
@@ -178,10 +120,6 @@ func (check *Checker) logosImportForConstFunc(path string) (*Package, error) {
 	return imp.Import(path)
 }
 
-// logosBuildConstFnUnit parses, validates and admits one constfn
-// record. The unit is cached before transitive admission so call cycles
-// resolve to the unit instead of recursing; a failed walk sticks err
-// on the unit and fails closed.
 func (check *Checker) logosBuildConstFnUnit(path, object string, src []byte) (*logosConstFnUnit, *Func, *syntax.FuncDecl, error) {
 	defPkg, err := check.logosImportForConstFunc(path)
 	if err != nil {
@@ -211,16 +149,10 @@ func (check *Checker) logosBuildConstFnUnit(path, object string, src []byte) (*l
 	return u, obj, root, nil
 }
 
-// logosConstFnErrorf formats a constfn admission failure.
 func logosConstFnErrorf(format string, args ...any) error {
 	return fmt.Errorf(format, args...)
 }
 
-// logosParseConstFnUnit parses one record source and indexes its
-// file-scope closure: helpers (const and plain), types, vars, const
-// specs with group inheritance, and import declarations. It validates
-// the root: exactly one file-scope `const func <object>` with no
-// receiver, no type parameters and a body.
 func logosParseConstFnUnit(path, object string, src []byte) (*syntax.File, *syntax.FuncDecl, *logosConstFnUnit, error) {
 	base := syntax.NewFileBase("constfn " + path + "." + object)
 	file, err := syntax.Parse(base, bytes.NewReader(src), nil, nil, syntax.LogosMode)
@@ -304,9 +236,6 @@ func logosParseConstFnUnit(path, object string, src []byte) (*syntax.File, *synt
 	return file, root, u, nil
 }
 
-// logosIndexUnitConsts indexes file-scope constant specifications,
-// applying Go group inheritance: a spec without a type or values
-// inherits the previous spec of its group.
 func logosIndexUnitConsts(u *logosConstFnUnit, file *syntax.File) error {
 	last := map[*syntax.Group]syntax.Expr{}
 	lastType := map[*syntax.Group]syntax.Expr{}
@@ -317,8 +246,6 @@ func logosIndexUnitConsts(u *logosConstFnUnit, file *syntax.File) error {
 			continue
 		}
 		if cd.Group == nil {
-			// A standalone declaration inherits nothing and counts
-			// iota from zero; uninitialized names stay absent.
 			if cd.Values == nil {
 				continue
 			}
@@ -338,11 +265,6 @@ func logosIndexUnitConsts(u *logosConstFnUnit, file *syntax.File) error {
 			}
 			continue
 		}
-		// Mirror the checker's group rule exactly: a spec carrying its
-		// own type or values stands alone (an omitted type stays
-		// omitted); only a bare spec inherits the previous values
-		// and type together. Inheriting a type alongside fresh
-		// values would reject valid sources at conversion.
 		ord := ordinal[cd.Group]
 		ordinal[cd.Group] = ord + 1
 		var effType, effVals syntax.Expr
@@ -375,7 +297,6 @@ func logosIndexUnitConsts(u *logosConstFnUnit, file *syntax.File) error {
 	return nil
 }
 
-// logosUsesIota reports whether e refers to iota.
 func logosUsesIota(e syntax.Expr) bool {
 	found := false
 	syntax.Inspect(e, func(n syntax.Node) bool {
@@ -391,10 +312,6 @@ func logosUsesIota(e syntax.Expr) bool {
 	return found
 }
 
-// logosAdmitUnitImports resolves the record's import declarations to
-// packages: explicit local names as written, otherwise the imported
-// package's own name. Blank imports are skipped; dot imports mark the
-// unit so bare-name resolution fails closed instead of guessing.
 func (check *Checker) logosAdmitUnitImports(u *logosConstFnUnit) error {
 	for _, decl := range u.file.DeclList {
 		id, ok := decl.(*syntax.ImportDecl)
@@ -434,14 +351,6 @@ func (check *Checker) logosAdmitUnitImports(u *logosConstFnUnit) error {
 	return nil
 }
 
-// logosAdmitUnitBodies validates the transitive closure of the root:
-// every imported selector call or use names an admitted const
-// function, a constant, or a type; every reachable scope-miss
-// constant pre-evaluates with the same configured limits. Same-package
-// helpers are walked, not re-checked: the defining build already
-// applied the purity rules to them. Call cycles resolve through the
-// cache: the unit is cached before the walk, so a cycle admits
-// tentatively and the shared step limit bounds evaluation.
 func (check *Checker) logosAdmitUnitBodies(u *logosConstFnUnit) error {
 	visited := map[*syntax.FuncDecl]bool{}
 	stack := []*syntax.FuncDecl{u.root}
@@ -477,11 +386,6 @@ func (check *Checker) logosAdmitUnitBodies(u *logosConstFnUnit) error {
 	return nil
 }
 
-// logosAdmitUnitCall admits one call inside a defining body: imported
-// selector calls resolve through the dependency's own record (with the
-// checker's cycle guard); same-package helper calls join the walk;
-// everything else is left to evaluation, which rejects methods,
-// generics and literals with the existing rules.
 func (check *Checker) logosAdmitUnitCall(u *logosConstFnUnit, c *syntax.CallExpr, stack *[]*syntax.FuncDecl) error {
 	switch fun := syntax.Unparen(c.Fun).(type) {
 	case *syntax.SelectorExpr:
@@ -502,10 +406,6 @@ func (check *Checker) logosAdmitUnitCall(u *logosConstFnUnit, c *syntax.CallExpr
 	return nil
 }
 
-// logosAdmitUnitSel admits one selector use inside a defining body: a
-// qualifier naming an imported package must select an admitted const
-// function, a constant, or a type. Package variables stay impure and
-// missing names fail closed with the dependency named.
 func (check *Checker) logosAdmitUnitSel(u *logosConstFnUnit, sel *syntax.SelectorExpr) error {
 	x, ok := syntax.Unparen(sel.X).(*syntax.Name)
 	if !ok {
@@ -529,10 +429,6 @@ func (check *Checker) logosAdmitUnitSel(u *logosConstFnUnit, sel *syntax.Selecto
 	return logosConstFnErrorf("cannot resolve %s.%s in const func %s.%s", dep.Path(), sel.Sel.Value, u.path, u.root.Name.Value)
 }
 
-// logosAdmitUnitDep admits one dependency edge u -> dep.name: the
-// target must itself resolve to an admitted imported const function.
-// A dependency already under admission admits tentatively; the shared
-// evaluator step limit bounds cyclic calls.
 func (check *Checker) logosAdmitUnitDep(u *logosConstFnUnit, dep *Package, name string) error {
 	key := logosConstFnKey(dep.Path(), name)
 	if check.logosConstFnBusy[key] {
@@ -550,10 +446,6 @@ func (check *Checker) logosAdmitUnitDep(u *logosConstFnUnit, dep *Package, name 
 	return nil
 }
 
-// logosAdmitUnitName pre-evaluates scope-miss constants reachable from
-// defining bodies, so evaluation never reports them as unresolvable
-// names. Checked (in-scope) constants and universe names need nothing:
-// the host resolves them directly.
 func (check *Checker) logosAdmitUnitName(u *logosConstFnUnit, id *syntax.Name) error {
 	if id.Value == "_" {
 		return nil
@@ -573,10 +465,6 @@ func (check *Checker) logosAdmitUnitName(u *logosConstFnUnit, id *syntax.Name) e
 	return nil
 }
 
-// logosUnitConstValue evaluates one scope-miss defining constant from
-// its record declaration, with the same configured step and value
-// limits as caller initializers (never a relaxed limit). Results are
-// cached per unit; cycles fail closed.
 func (check *Checker) logosUnitConstValue(u *logosConstFnUnit, name string) (ctfe.Value, error) {
 	if v, ok := u.values[name]; ok {
 		return v, nil
@@ -597,14 +485,6 @@ func (check *Checker) logosUnitConstValue(u *logosConstFnUnit, name string) (ctf
 	cfg := ctfe.Config{MaxSteps: check.conf.LogosCTFEMaxSteps, WordSize: check.logosWordSize()}
 	target := spec.init
 	if spec.typ != nil {
-		// Evaluate through the declared type exactly as a checked
-		// declaration conversion does, preserving the explicit
-		// named type and target width before caching. The
-		// conversion node is synthetic; only its Fun and Arg carry
-		// positions, which is all the host and evaluator consult
-		// (error positions wrap in the const identity below).
-		// One evaluation only: the conversion evaluates the init
-		// in place, so typed constants never consume steps twice.
 		target = &syntax.CallExpr{Fun: spec.typ, ArgList: []syntax.Expr{spec.init}}
 	}
 	v, _, err := ctfe.Eval(host, cfg, target)
@@ -618,11 +498,6 @@ func (check *Checker) logosUnitConstValue(u *logosConstFnUnit, name string) (ctf
 	return v, nil
 }
 
-// logosPrescanImportedCalls admits every imported selector in a const
-// initializer before evaluation, so malformed, stale or impure records
-// (and nested ordinary calls) report their detail instead of running
-// and failing as unrelated unresolved names. Ordinary imports (no
-// record) need nothing and evaluate as before.
 func (check *Checker) logosPrescanImportedCalls(obj *Const, init syntax.Expr) error {
 	var perr error
 	syntax.Inspect(init, func(n syntax.Node) bool {
@@ -654,10 +529,6 @@ func (check *Checker) logosPrescanImportedCalls(obj *Const, init syntax.Expr) er
 	return perr
 }
 
-// resolveUnitName resolves a bare identifier in defining context:
-// qualifiers first (so qualified calls route to ResolveSel), then the
-// checked scope (exported declarations), then the record closure for
-// private helpers, types, constants and variables, then universe.
 func (h *ctfeHost) resolveUnitName(u *logosConstFnUnit, id *syntax.Name) (ctfe.Entity, bool) {
 	check := h.check
 	if id.Value == "iota" {
@@ -720,10 +591,6 @@ func (h *ctfeHost) resolveUnitName(u *logosConstFnUnit, id *syntax.Name) (ctfe.E
 	return ctfe.Entity{}, false
 }
 
-// unitEntityOf classifies one checked object of the defining package.
-// Unlike entityOf it never touches the caller's declaration tracking:
-// the defining package is fully checked, and its objects carry exact
-// values. Unknown-valued constants fall back to record evaluation.
 func (h *ctfeHost) unitEntityOf(u *logosConstFnUnit, obj Object) (ctfe.Entity, bool) {
 	check := h.check
 	switch obj := obj.(type) {
@@ -770,12 +637,6 @@ func (h *ctfeHost) unitEntityOf(u *logosConstFnUnit, obj Object) (ctfe.Entity, b
 	return ctfe.Entity{}, false
 }
 
-// resolveUnitSel resolves a selector in defining context: qualifiers
-// map to the defining imports (never the caller's), so transitive
-// calls resolve through their own package facts. Admitted const
-// targets execute from the dependency's validated body with the
-// imported checked signature; every other shape keeps its existing
-// entity so evaluation reports the established detail.
 func (h *ctfeHost) resolveUnitSel(u *logosConstFnUnit, sel *syntax.SelectorExpr) ctfe.Entity {
 	check := h.check
 	x, ok := syntax.Unparen(sel.X).(*syntax.Name)
@@ -816,27 +677,21 @@ func (h *ctfeHost) resolveUnitSel(u *logosConstFnUnit, sel *syntax.SelectorExpr)
 	return ctfe.Entity{}
 }
 
-// resolveUnitTypeExpr resolves a type expression in defining context:
-// the checked defining scope first, the record type closure second,
-// universe last. Private defined types keep their declaration name
-// and defining path with Opaque set, so later spelling keeps failing
-// closed instead of misspelling them in caller source.
 func (h *ctfeHost) resolveUnitTypeExpr(u *logosConstFnUnit, e syntax.Expr) *ctfe.Type {
 	return h.resolveUnitTypeExprIn(u, e, map[string]bool{})
 }
 
 func (h *ctfeHost) resolveUnitTypeExprIn(u *logosConstFnUnit, e syntax.Expr, busy map[string]bool) *ctfe.Type {
-	check := h.check
 	switch e := syntax.Unparen(e).(type) {
 	case *syntax.Name:
-		if t := ctfe.BasicType(e.Value, check.logosWordSize()); t != nil {
+		if t := ctfe.BasicType(e.Value); t != nil {
 			return t
 		}
 		if e.Value == "byte" {
-			return ctfe.BasicType("uint8", check.logosWordSize())
+			return ctfe.BasicType("uint8")
 		}
 		if e.Value == "rune" {
-			return ctfe.BasicType("int32", check.logosWordSize())
+			return ctfe.BasicType("int32")
 		}
 		if e.Value == "any" || e.Value == "error" {
 			return nil
@@ -924,7 +779,6 @@ func (h *ctfeHost) resolveUnitTypeExprIn(u *logosConstFnUnit, e syntax.Expr, bus
 	return nil
 }
 
-// resolveUnitQualified resolves pkg.T through the defining imports.
 func (h *ctfeHost) resolveUnitQualified(u *logosConstFnUnit, sel *syntax.SelectorExpr) *ctfe.Type {
 	x, ok := syntax.Unparen(sel.X).(*syntax.Name)
 	if !ok {
@@ -945,8 +799,6 @@ func (h *ctfeHost) resolveUnitQualified(u *logosConstFnUnit, sel *syntax.Selecto
 	return nil
 }
 
-// buildUnitConstFunc assembles an interpreter function for a private
-// const helper from its record body and structural types.
 func (h *ctfeHost) buildUnitConstFunc(u *logosConstFnUnit, body *syntax.FuncDecl) *ctfe.Func {
 	fn := h.buildUnitFuncImpl(u, body)
 	if fn != nil {
@@ -955,15 +807,10 @@ func (h *ctfeHost) buildUnitConstFunc(u *logosConstFnUnit, body *syntax.FuncDecl
 	return fn
 }
 
-// buildUnitPlainFunc assembles an interpreter function for a private
-// plain helper from its record body and structural types.
 func (h *ctfeHost) buildUnitPlainFunc(u *logosConstFnUnit, body *syntax.FuncDecl) *ctfe.Func {
 	return h.buildUnitFuncImpl(u, body)
 }
 
-// buildUnitFuncImpl assembles an interpreter function for a private
-// helper from its record body and structural types. The root always
-// uses the imported checked signature instead (unitEntityOf/buildFunc).
 func (h *ctfeHost) buildUnitFuncImpl(u *logosConstFnUnit, body *syntax.FuncDecl) *ctfe.Func {
 	if body == nil || body.Body == nil {
 		return nil

@@ -1,0 +1,419 @@
+// run
+
+package main
+
+import (
+	"comptime"
+	"fmt"
+	"os"
+	"unsafe"
+)
+
+func same[A any](name string, direct uintptr) bool {
+	var a A
+	if comptime.SizeOf[A]() == int(direct) && unsafe.Sizeof(a) == direct {
+		fmt.Println("ok", name)
+		return true
+	}
+	fmt.Println("FAIL", name, "layout differs from the directly spelled type")
+	return false
+}
+
+type aliasTupleOptions = (int?, string?)
+type definedTupleOptions (int?, string?)
+
+func tuple_optionsAlias() bool {
+	var a aliasTupleOptions
+	var s (int?, string?)
+	a = s
+	s = a
+	return same[aliasTupleOptions]("tuple-options-alias", unsafe.Sizeof(s))
+}
+
+func tuple_optionsDefined() bool {
+	var s (int?, string?)
+	return same[definedTupleOptions]("tuple-options-defined", unsafe.Sizeof(s))
+}
+
+type aliasTupleNested = ((int?, string?), []int?)
+type definedTupleNested ((int?, string?), []int?)
+
+func tuple_nestedAlias() bool {
+	var a aliasTupleNested
+	var s ((int?, string?), []int?)
+	a = s
+	s = a
+	return same[aliasTupleNested]("tuple-nested-alias", unsafe.Sizeof(s))
+}
+
+func tuple_nestedDefined() bool {
+	var s ((int?, string?), []int?)
+	return same[definedTupleNested]("tuple-nested-defined", unsafe.Sizeof(s))
+}
+
+type aliasSliceOfTuple = [](int?, string?)
+type definedSliceOfTuple [](int?, string?)
+
+func slice_of_tupleAlias() bool {
+	var a aliasSliceOfTuple
+	var s [](int?, string?)
+	a = s
+	s = a
+	return same[aliasSliceOfTuple]("slice-of-tuple-alias", unsafe.Sizeof(s))
+}
+
+func slice_of_tupleDefined() bool {
+	var s [](int?, string?)
+	return same[definedSliceOfTuple]("slice-of-tuple-defined", unsafe.Sizeof(s))
+}
+
+type aliasMapOfTuple = map[string](int?, []int?)
+type definedMapOfTuple map[string](int?, []int?)
+
+func map_of_tupleAlias() bool {
+	var a aliasMapOfTuple
+	var s map[string](int?, []int?)
+	a = s
+	s = a
+	return same[aliasMapOfTuple]("map-of-tuple-alias", unsafe.Sizeof(s))
+}
+
+func map_of_tupleDefined() bool {
+	var s map[string](int?, []int?)
+	return same[definedMapOfTuple]("map-of-tuple-defined", unsafe.Sizeof(s))
+}
+
+type aliasFuncTuple = func((int?, string?)) bool?
+type definedFuncTuple func((int?, string?)) bool?
+
+func func_tupleAlias() bool {
+	var a aliasFuncTuple
+	var s func((int?, string?)) bool?
+	a = s
+	s = a
+	return same[aliasFuncTuple]("func-tuple-alias", unsafe.Sizeof(s))
+}
+
+func func_tupleDefined() bool {
+	var s func((int?, string?)) bool?
+	return same[definedFuncTuple]("func-tuple-defined", unsafe.Sizeof(s))
+}
+
+type aliasTupleConst = (const []int, int)
+type definedTupleConst (const []int, int)
+
+func tuple_constAlias() bool {
+	var a aliasTupleConst
+	var s (const []int, int)
+	a = s
+	s = a
+	return same[aliasTupleConst]("tuple-const-alias", unsafe.Sizeof(s))
+}
+
+func tuple_constDefined() bool {
+	var s (const []int, int)
+	return same[definedTupleConst]("tuple-const-defined", unsafe.Sizeof(s))
+}
+
+type aliasOptionConst = (const []int)?
+type definedOptionConst (const []int)?
+
+func option_constAlias() bool {
+	var a aliasOptionConst
+	var s (const []int)?
+	a = s
+	s = a
+	return same[aliasOptionConst]("option-const-alias", unsafe.Sizeof(s))
+}
+
+func option_constDefined() bool {
+	var s (const []int)?
+	return same[definedOptionConst]("option-const-defined", unsafe.Sizeof(s))
+}
+
+type aliasConstOption = const (int?)
+type definedConstOption const (int?)
+
+func const_optionAlias() bool {
+	var a aliasConstOption
+	var s const (int?)
+	a = s
+	s = a
+	return same[aliasConstOption]("const-option-alias", unsafe.Sizeof(s))
+}
+
+func const_optionDefined() bool {
+	var s const (int?)
+	return same[definedConstOption]("const-option-defined", unsafe.Sizeof(s))
+}
+
+type aliasParenConst = const ([]int)
+type definedParenConst const ([]int)
+
+func paren_constAlias() bool {
+	var a aliasParenConst
+	var s const ([]int)
+	a = s
+	s = a
+	return same[aliasParenConst]("paren-const-alias", unsafe.Sizeof(s))
+}
+
+func paren_constDefined() bool {
+	var s const ([]int)
+	return same[definedParenConst]("paren-const-defined", unsafe.Sizeof(s))
+}
+
+type aliasSliceOptionConst = []((const []int)?)
+type definedSliceOptionConst []((const []int)?)
+
+func slice_option_constAlias() bool {
+	var a aliasSliceOptionConst
+	var s []((const []int)?)
+	a = s
+	s = a
+	return same[aliasSliceOptionConst]("slice-option-const-alias", unsafe.Sizeof(s))
+}
+
+func slice_option_constDefined() bool {
+	var s []((const []int)?)
+	return same[definedSliceOptionConst]("slice-option-const-defined", unsafe.Sizeof(s))
+}
+
+type aliasMapOptionConst = map[string]((const []int)?)
+type definedMapOptionConst map[string]((const []int)?)
+
+func map_option_constAlias() bool {
+	var a aliasMapOptionConst
+	var s map[string]((const []int)?)
+	a = s
+	s = a
+	return same[aliasMapOptionConst]("map-option-const-alias", unsafe.Sizeof(s))
+}
+
+func map_option_constDefined() bool {
+	var s map[string]((const []int)?)
+	return same[definedMapOptionConst]("map-option-const-defined", unsafe.Sizeof(s))
+}
+
+type aliasOptionFunc = (func())?
+type definedOptionFunc (func())?
+
+func option_funcAlias() bool {
+	var a aliasOptionFunc
+	var s (func())?
+	a = s
+	s = a
+	return same[aliasOptionFunc]("option-func-alias", unsafe.Sizeof(s))
+}
+
+func option_funcDefined() bool {
+	var s (func())?
+	return same[definedOptionFunc]("option-func-defined", unsafe.Sizeof(s))
+}
+
+type aliasOptionFuncArgs = (func(int))?
+type definedOptionFuncArgs (func(int))?
+
+func option_func_argsAlias() bool {
+	var a aliasOptionFuncArgs
+	var s (func(int))?
+	a = s
+	s = a
+	return same[aliasOptionFuncArgs]("option-func-args-alias", unsafe.Sizeof(s))
+}
+
+func option_func_argsDefined() bool {
+	var s (func(int))?
+	return same[definedOptionFuncArgs]("option-func-args-defined", unsafe.Sizeof(s))
+}
+
+type aliasOptionFuncOptions = (func(int?, string?) bool?)?
+type definedOptionFuncOptions (func(int?, string?) bool?)?
+
+func option_func_optionsAlias() bool {
+	var a aliasOptionFuncOptions
+	var s (func(int?, string?) bool?)?
+	a = s
+	s = a
+	return same[aliasOptionFuncOptions]("option-func-options-alias", unsafe.Sizeof(s))
+}
+
+func option_func_optionsDefined() bool {
+	var s (func(int?, string?) bool?)?
+	return same[definedOptionFuncOptions]("option-func-options-defined", unsafe.Sizeof(s))
+}
+
+type aliasOptionTuple = (int, string)?
+type definedOptionTuple (int, string)?
+
+func option_tupleAlias() bool {
+	var a aliasOptionTuple
+	var s (int, string)?
+	a = s
+	s = a
+	return same[aliasOptionTuple]("option-tuple-alias", unsafe.Sizeof(s))
+}
+
+func option_tupleDefined() bool {
+	var s (int, string)?
+	return same[definedOptionTuple]("option-tuple-defined", unsafe.Sizeof(s))
+}
+
+type aliasOptionTupleOptions = ((int?, string?))?
+type definedOptionTupleOptions ((int?, string?))?
+
+func option_tuple_optionsAlias() bool {
+	var a aliasOptionTupleOptions
+	var s ((int?, string?))?
+	a = s
+	s = a
+	return same[aliasOptionTupleOptions]("option-tuple-options-alias", unsafe.Sizeof(s))
+}
+
+func option_tuple_optionsDefined() bool {
+	var s ((int?, string?))?
+	return same[definedOptionTupleOptions]("option-tuple-options-defined", unsafe.Sizeof(s))
+}
+
+type aliasOptionDoubleParen = ((int))?
+type definedOptionDoubleParen ((int))?
+
+func option_double_parenAlias() bool {
+	var a aliasOptionDoubleParen
+	var s ((int))?
+	a = s
+	s = a
+	return same[aliasOptionDoubleParen]("option-double-paren-alias", unsafe.Sizeof(s))
+}
+
+func option_double_parenDefined() bool {
+	var s ((int))?
+	return same[definedOptionDoubleParen]("option-double-paren-defined", unsafe.Sizeof(s))
+}
+
+type aliasChanOption = chan (int?)
+type definedChanOption chan (int?)
+
+func chan_optionAlias() bool {
+	var a aliasChanOption
+	var s chan (int?)
+	a = s
+	s = a
+	return same[aliasChanOption]("chan-option-alias", unsafe.Sizeof(s))
+}
+
+func chan_optionDefined() bool {
+	var s chan (int?)
+	return same[definedChanOption]("chan-option-defined", unsafe.Sizeof(s))
+}
+
+type aliasArrayOptionFunc = [2]((func())?)
+type definedArrayOptionFunc [2]((func())?)
+
+func array_option_funcAlias() bool {
+	var a aliasArrayOptionFunc
+	var s [2]((func())?)
+	a = s
+	s = a
+	return same[aliasArrayOptionFunc]("array-option-func-alias", unsafe.Sizeof(s))
+}
+
+func array_option_funcDefined() bool {
+	var s [2]((func())?)
+	return same[definedArrayOptionFunc]("array-option-func-defined", unsafe.Sizeof(s))
+}
+
+type pairOf[T any] = (T, T?)
+
+func pair_ofGeneric() bool {
+	var a pairOf[int]
+	var s (int, int?)
+	a = s
+	s = a
+	return same[pairOf[int]]("pair-of-generic", unsafe.Sizeof(s))
+}
+
+type optOf[T any] = T?
+
+func opt_ofGeneric() bool {
+	var a optOf[int]
+	var s int?
+	a = s
+	s = a
+	return same[optOf[int]]("opt-of-generic", unsafe.Sizeof(s))
+}
+
+type viewOf[T any] = (const []T)?
+
+func view_ofGeneric() bool {
+	var a viewOf[int]
+	var s (const []int)?
+	a = s
+	s = a
+	return same[viewOf[int]]("view-of-generic", unsafe.Sizeof(s))
+}
+
+type funcOf[T any] = (func(T?))?
+
+func func_ofGeneric() bool {
+	var a funcOf[int]
+	var s (func(int?))?
+	a = s
+	s = a
+	return same[funcOf[int]]("func-of-generic", unsafe.Sizeof(s))
+}
+
+var cases = []func() bool{
+	tuple_optionsAlias,
+	tuple_optionsDefined,
+	tuple_nestedAlias,
+	tuple_nestedDefined,
+	slice_of_tupleAlias,
+	slice_of_tupleDefined,
+	map_of_tupleAlias,
+	map_of_tupleDefined,
+	func_tupleAlias,
+	func_tupleDefined,
+	tuple_constAlias,
+	tuple_constDefined,
+	option_constAlias,
+	option_constDefined,
+	const_optionAlias,
+	const_optionDefined,
+	paren_constAlias,
+	paren_constDefined,
+	slice_option_constAlias,
+	slice_option_constDefined,
+	map_option_constAlias,
+	map_option_constDefined,
+	option_funcAlias,
+	option_funcDefined,
+	option_func_argsAlias,
+	option_func_argsDefined,
+	option_func_optionsAlias,
+	option_func_optionsDefined,
+	option_tupleAlias,
+	option_tupleDefined,
+	option_tuple_optionsAlias,
+	option_tuple_optionsDefined,
+	option_double_parenAlias,
+	option_double_parenDefined,
+	chan_optionAlias,
+	chan_optionDefined,
+	array_option_funcAlias,
+	array_option_funcDefined,
+	pair_ofGeneric,
+	opt_ofGeneric,
+	view_ofGeneric,
+	func_ofGeneric,
+}
+
+func main() {
+	failed := false
+	for _, run := range cases {
+		failed = !run() || failed
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

@@ -1,0 +1,12 @@
+ok sources-values
+ok sources-source-on-calling-goroutine
+ok sources-later-stage-on-calling-goroutine
+ok sources-children-elsewhere
+ok sources-body-on-calling-goroutine
+ok sources-terminal-on-calling-goroutine
+ok sources-sortby-key-on-calling-goroutine
+ok sources-quiet-channel-delivers
+ok sources-empty-slice
+ok sources-empty-array
+ok sources-empty-seq
+ok sources-empty-channel

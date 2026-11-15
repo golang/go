@@ -1,0 +1,17 @@
+# M18-S9: the toolchain ships no arena package and no arenas experiment.
+# GOEXPERIMENT=arenas is rejected the way any unknown experiment is, so no
+# build can enable it, and the std list below would include an arena package
+# if one shipped.
+
+env GOEXPERIMENT=arenas
+! go env GOEXPERIMENT
+stderr 'unknown GOEXPERIMENT arenas'
+! go list std
+stderr 'unknown GOEXPERIMENT arenas'
+
+env GOEXPERIMENT=
+go list std
+! stdout '^arena$'
+go list logos/arena
+! go doc reflect.ArenaNew
+stderr 'no symbol ArenaNew'

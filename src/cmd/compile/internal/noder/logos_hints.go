@@ -13,19 +13,8 @@ import (
 	"cmd/internal/src"
 )
 
-// This file drives -logos.mode=hints (SPEC Sec 21.2 and 21.3). The report is
-// built in three steps that follow the compile: logosHintsBegin records the
-// facts of the checked tree before lowering rewrites it, logosHintsLowered
-// adds the lowering edits and read-only placements right after lowering, and
-// LogosHintsWrite adds the escape decisions after escape analysis and writes
-// the file. Plain Go packages take the same path with no lowering step.
-
-// logosHints is the report under construction in hints mode, nil otherwise.
 var logosHints *logos.Hints
 
-// logosHintsBegin starts the report of the package that the first check
-// accepted, for Go and loGo/s packages alike. The hints-mode contract
-// requires the output file, so a missing one is a build error.
 func logosHintsBegin(pkg *types2.Package, info *types2.Info, files []*syntax.File) {
 	if base.LogosMode != "hints" {
 		return
@@ -44,8 +33,6 @@ func logosHintsBegin(pkg *types2.Package, info *types2.Info, files []*syntax.Fil
 	logosHints = h
 }
 
-// logosHintsLowered adds the lowering edits and the read-only placements of a
-// loGo/s package to the report.
 func logosHintsLowered(files []*syntax.File, edits map[*syntax.File][]logos.Edit) {
 	if logosHints == nil {
 		return
@@ -56,8 +43,6 @@ func logosHintsLowered(files []*syntax.File, edits map[*syntax.File][]logos.Edit
 	}
 }
 
-// LogosHintsWrite adds the escape decisions to the report and writes it.
-// The compiler calls it once, after escape analysis.
 func LogosHintsWrite() {
 	if logosHints == nil {
 		return
@@ -82,7 +67,6 @@ func LogosHintsWrite() {
 	}
 }
 
-// hintTier names the tier of an escape decision.
 func hintTier(d escape.LogosHintDecision) string {
 	if d.Arena {
 		return logos.TierArena

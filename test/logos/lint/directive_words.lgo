@@ -1,0 +1,85 @@
+// errorcheck
+
+package p
+
+import (
+	"errors"
+	"sync"
+)
+
+type payload struct {
+	a int32
+	b int64
+}
+
+//logos:sizeof	payload
+const tabSize = 4 // ERROR "\[correctness::layout_constant_mismatch\]"
+
+//logos:sizeofx payload
+const nearSize = 4
+
+//logos:offsetof_old payload.b
+const nearOffset = 4
+
+//logos:alignofx payload
+const nearAlign = 4
+
+type gate struct {
+	mu sync.Mutex
+
+	//logos:guardedby	mu
+	open bool
+
+	//logos:guardedbyx mu
+	spare bool
+
+	//logos:atomicx
+	hits int64
+}
+
+//logos:requires	g.mu
+func (g *gate) toggle() { g.open = !g.open }
+
+//logos:requiresx g.mu
+func (g *gate) nearToggle() {}
+
+//logos:acquiresx g.mu
+func (g *gate) nearSeal() {}
+
+//logos:releasesx g.mu
+func (g *gate) nearRelease() {}
+
+func fail(n int) error {
+	if n > 0 {
+		return errors.New("bad")
+	}
+	return nil
+}
+
+func tabGuarded(g *gate) bool {
+	return g.open // ERROR "\[concurrency::unguarded_access\]"
+}
+
+func tabRequires(g *gate) {
+	g.toggle() // ERROR "\[concurrency::lock_requirement_unmet\]"
+}
+
+func nearMisses(g *gate) bool {
+	g.nearToggle()
+	g.nearSeal()
+	g.nearRelease()
+	_ = g.hits
+	return g.spare
+}
+
+func nearAllow() {
+	//logos:allowx(slop::discarded_error)
+	fail(1) // ERROR "\[slop::discarded_error\]"
+	//logos:allowlist
+	fail(1) // ERROR "\[slop::discarded_error\]"
+}
+
+func spacedAllow() {
+	//logos:allow(slop::discarded_error)	kept
+	fail(1)
+}

@@ -2,10 +2,6 @@
 
 package spreadcheck
 
-// M6-S4 codegen check (SPEC T-104.5, #146): a 4 KB struct self-update
-// lowers to one tuple assignment of the explicit fields, so the update
-// performs no full copy.
-
 type Big struct {
 	X   int
 	Y   int
@@ -15,5 +11,5 @@ type Big struct {
 var cur Big
 
 func update() {
-	cur = Big{X: cur.Y, ..cur} // amd64:-"runtime.memmove" arm64:-"runtime.memmove"
+	cur = Big{X: cur.Y, ..cur} // amd64:-".*memmove" -"REP" -"MOVUPS" arm64:-".*memmove" -"LDP" -"STP" -"FLDPQ" -"FSTPQ"
 }

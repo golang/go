@@ -1,0 +1,264 @@
+// asmcheck -goexperiment logosarena
+
+package main
+
+import "logos/arena"
+
+// REDTEAM placement-region lowering (M18-S7 unit B): a placed noscan New
+// of constant size 8, 511 or 512 lowers to the inline LoweredLogosRegionBump
+// add-compare-store sequence bracketed by PCDATA unsafe-point markers
+// (async preemption must not observe the half-updated chunk cursor), with
+// logosRegionAllocNoscan as the nil slow path. 513 bytes and scan types call
+// the runtime allocator directly. Unplaced sites keep the original
+// logos/arena.New call. arm64 never takes the inline sequence.
+
+var regionSink int
+
+var globalPtr *int = new(int)
+
+var globalScan *int?
+
+type regionPad511 [511]byte
+
+type regionPad512 [512]byte
+
+type regionPad513 [513]byte
+
+//go:noinline
+func regionUse(p *int) int {
+	*p++
+	return *p
+}
+
+//go:noinline
+func regionBump8() int {
+	{
+		r := arena.Open()
+		// amd64:"TESTQ"
+		// amd64:"LEAQ 7\\("
+		// amd64:"ANDQ \\$-8,"
+		// amd64:"LEAQ 8\\("
+		// amd64:"CMPQ .*24\\("
+		// amd64:"JHI"
+		// amd64:"MOVQ 16\\("
+		// amd64:"MOVQ .*, 16\\("
+		// amd64:"PCDATA \\$0, \\$-2"
+		// amd64:"PCDATA \\$0, \\$-1"
+		// amd64:1"CALL.*logosRegionAllocNoscan"
+		// amd64:-"CALL.*logosRegionBump"
+		// amd64:-"CALL.*logosRegionMakeSlice"
+		// amd64:-"CALL.*makeslice"
+		// arm64:1"CALL.*logosRegionAllocNoscan"
+		// arm64:-"CALL.*logosRegionBump"
+		// arm64:-"AND \\$-8,"
+		p := arena.New[int](r)
+		return regionUse(p)
+	}
+}
+
+//go:noinline
+func regionBump511() int {
+	{
+		r := arena.Open()
+		// amd64:"LEAQ 7\\("
+		// amd64:"ANDQ \\$-8,"
+		// amd64:"LEAQ 512\\("
+		// amd64:"CMPQ .*24\\("
+		// amd64:"JHI"
+		// amd64:"PCDATA \\$0, \\$-2"
+		// amd64:"PCDATA \\$0, \\$-1"
+		// amd64:1"CALL.*logosRegionAllocNoscan"
+		// arm64:1"CALL.*logosRegionAllocNoscan"
+		p := arena.New[regionPad511](r)
+		p[0] = 1
+		return int(p[510])
+	}
+}
+
+//go:noinline
+func regionBump512() int {
+	{
+		r := arena.Open()
+		// amd64:"TESTQ"
+		// amd64:"CMPQ .*8\\("
+		// amd64:"MOVQ 16\\("
+		// amd64:"LEAQ 7\\("
+		// amd64:"ANDQ \\$-8,"
+		// amd64:"LEAQ 512\\("
+		// amd64:"CMPQ .*24\\("
+		// amd64:"JHI"
+		// amd64:"MOVQ .*, 16\\("
+		// amd64:"PCDATA \\$0, \\$-2"
+		// amd64:"PCDATA \\$0, \\$-1"
+		// amd64:1"CALL.*logosRegionAllocNoscan"
+		// amd64:-"CALL.*logosRegionBump"
+		// amd64:-"CALL.*logosRegionMakeSlice"
+		// amd64:-"CALL.*makeslice"
+		// arm64:1"CALL.*logosRegionAllocNoscan"
+		// arm64:-"CALL.*logosRegionBump"
+		// arm64:-"AND \\$-8,"
+		p := arena.New[regionPad512](r)
+		p[0] = 1
+		return int(p[511])
+	}
+}
+
+//go:noinline
+func regionSlow513() int {
+	{
+		r := arena.Open()
+		// amd64:1"CALL.*logosRegionAllocNoscan"
+		// amd64:-"ANDQ \\$-8,"
+		// amd64:-"PCDATA \\$0, \\$-2"
+		// arm64:1"CALL.*logosRegionAllocNoscan"
+		p := arena.New[regionPad513](r)
+		p[0] = 1
+		return int(p[512])
+	}
+}
+
+//go:noinline
+func regionScanNew() int {
+	{
+		r := arena.Open()
+		// amd64:1"CALL.*logosRegionAllocScan"
+		// amd64:-"CALL.*logosRegionAllocNoscan"
+		// arm64:1"CALL.*logosRegionAllocScan"
+		p := arena.New[*int](r)
+		globalScan = *p
+		if globalScan == nil {
+			return 1
+		}
+		return 0
+	}
+}
+
+//go:noinline
+func regionUnplaced() int {
+	{
+		r := arena.Open()
+		// amd64:1"CALL.*logos/arena\\.New"
+		// amd64:-"CALL.*logosRegion"
+		// arm64:1"CALL.*logos/arena\\.New"
+		globalPtr = arena.New[int](r)
+		return regionUse(globalPtr)
+	}
+}
+
+//go:noinline
+func regionMakeConstNoscan() int {
+	{
+		r := arena.Open()
+		// amd64:"LEAQ 7\\("
+		// amd64:"ANDQ \\$-8,"
+		// amd64:"LEAQ 64\\("
+		// amd64:"CMPQ .*24\\("
+		// amd64:"JHI"
+		// amd64:"PCDATA \\$0, \\$-2"
+		// amd64:1"CALL.*logosRegionAllocNoscan"
+		// amd64:-"CALL.*logosRegionMakeSlice"
+		// arm64:1"CALL.*logosRegionMakeSliceNoscan"
+		// arm64:-"CALL.*logosRegionBump"
+		s := arena.Make[int](r, 8)
+		s[0] = 1
+		return s[7]
+	}
+}
+
+//go:noinline
+func regionMakeConstLarge() int {
+	{
+		r := arena.Open()
+		// amd64:1"CALL.*logosRegionMakeSliceNoscan"
+		// amd64:-"ANDQ \\$-8,"
+		// amd64:-"PCDATA \\$0, \\$-2"
+		// arm64:1"CALL.*logosRegionMakeSliceNoscan"
+		s := arena.Make[int](r, 65)
+		s[0] = 1
+		return s[64]
+	}
+}
+
+//go:noinline
+func regionMakeVarNoscan(n int) int {
+	{
+		r := arena.Open()
+		// amd64:1"CALL.*logosRegionMakeSliceNoscan"
+		// amd64:-"CALL.*logosRegionMakeSliceScan"
+		// arm64:1"CALL.*logosRegionMakeSliceNoscan"
+		// arm64:-"CALL.*logosRegionMakeSliceScan"
+		s := arena.Make[int](r, n)
+		s[0] = 1
+		return s[n-1]
+	}
+}
+
+//go:noinline
+func regionMakeVarScan(n int) int {
+	{
+		r := arena.Open()
+		// amd64:1"CALL.*logosRegionMakeSliceScan"
+		// amd64:-"CALL.*logosRegionMakeSliceNoscan"
+		// arm64:1"CALL.*logosRegionMakeSliceScan"
+		// arm64:-"CALL.*logosRegionMakeSliceNoscan"
+		s := arena.Make[*int](r, n)
+		return len(s)
+	}
+}
+
+//go:noinline
+func regionMakeConstScan() int {
+	{
+		r := arena.Open()
+		// amd64:1"CALL.*logosRegionMakeSliceScan"
+		// amd64:-"CALL.*logosRegionMakeSliceNoscan"
+		// amd64:-"ANDQ \\$-8,"
+		// arm64:1"CALL.*logosRegionMakeSliceScan"
+		// arm64:-"CALL.*logosRegionMakeSliceNoscan"
+		s := arena.Make[*int](r, 4)
+		return len(s)
+	}
+}
+
+//go:noinline
+func regionAppendNoscan() int {
+	{
+		r := arena.Open()
+		// amd64:1"CALL.*logosRegionGrowSliceNoscan"
+		// amd64:-"CALL.*logosRegionGrowSliceScan"
+		// arm64:1"CALL.*logosRegionGrowSliceNoscan"
+		// arm64:-"CALL.*logosRegionGrowSliceScan"
+		t := arena.Append[int](r, nil, 1, 2, 3)
+		return len(t)
+	}
+}
+
+//go:noinline
+func regionAppendScan(p *int) int {
+	{
+		r := arena.Open()
+		// amd64:1"CALL.*logosRegionGrowSliceScan"
+		// amd64:-"CALL.*logosRegionGrowSliceNoscan"
+		// arm64:1"CALL.*logosRegionGrowSliceScan"
+		// arm64:-"CALL.*logosRegionGrowSliceNoscan"
+		t := arena.Append[*int](r, nil, p)
+		return len(t)
+	}
+}
+
+func main() {
+	regionSink += regionBump8()
+	regionSink += regionBump511()
+	regionSink += regionBump512()
+	regionSink += regionSlow513()
+	regionSink += regionScanNew()
+	regionSink += regionUnplaced()
+	regionSink += regionMakeConstNoscan()
+	regionSink += regionMakeConstLarge()
+	regionSink += regionMakeVarNoscan(3)
+	regionSink += regionMakeVarScan(3)
+	regionSink += regionMakeConstScan()
+	regionSink += regionAppendNoscan()
+	regionSink += regionAppendScan(&regionSink)
+	_ = regionSink
+}

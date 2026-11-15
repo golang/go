@@ -427,7 +427,7 @@ func (p *printer) printRawNode(n Node) {
 
 	case *CallExpr:
 		p.print(n.Fun, _Lparen)
-		p.printExprList(n.ArgList)
+		p.printArgList(n.ArgList)
 		if n.HasDots {
 			p.print(_DotDotDot)
 		}
@@ -797,6 +797,19 @@ func (p *printer) printExprList(list []Expr) {
 	for i, x := range list {
 		if i > 0 {
 			p.print(_Comma, blank)
+		}
+		p.printNode(x)
+	}
+}
+
+func (p *printer) printArgList(list []Expr) {
+	for i, x := range list {
+		if i > 0 {
+			p.print(_Comma, blank)
+		}
+		if kv, ok := x.(*KeyValueExpr); ok {
+			p.print(kv.Key, blank, _Assign, blank, kv.Value)
+			continue
 		}
 		p.printNode(x)
 	}

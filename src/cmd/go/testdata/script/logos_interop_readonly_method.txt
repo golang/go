@@ -1,0 +1,117 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+cd w
+logos build ./...
+logos build -o $WORK/bin/ro$GOEXE ./g/cmd
+exec $WORK/bin/ro$GOEXE
+stdout '^ro-ok$'
+cd ..
+
+env GOWORK=off
+cd w/l
+logos eject -o bout
+exists bout/r/r.go
+grep ' Name\(\) string' bout/r/r.go
+grep ' Extra\(\) int' bout/r/r.go
+grep ' Sum\(xs \[\]int\) int' bout/r/r.go
+! grep 'const Name' bout/r/r.go
+! grep 'const \[\]int' bout/r/r.go
+! grep -E 'Logos_Get|Logos_Set' bout/r/r.go
+cd bout
+go build ./...
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+cd ..
+cd ../..
+
+-- w/go.work --
+go 1.27
+
+use (
+	./l
+	./g
+)
+
+-- w/l/go.mod --
+module example.com/l
+
+go 1.27
+
+-- w/l/r/r.lgo --
+package r
+
+type Readable interface {
+	const Name() string
+	Extra() int
+}
+
+type Thing struct{}
+
+func (Thing) Name() string {
+	return "name"
+}
+
+func (Thing) Extra() int {
+	return 7
+}
+
+func Use(v Readable) string {
+	return v.Name()
+}
+
+func Sum(xs const []int) int {
+	total := 0
+	for _, v := range xs {
+		total += v
+	}
+	return total
+}
+
+-- w/g/go.mod --
+module example.com/g
+
+go 1.27
+
+-- w/g/q/q.go --
+package q
+
+import "example.com/l/r"
+
+var _ r.Readable = r.Thing{}
+
+func Run() string {
+	var t r.Thing
+	if t.Name() != "name" {
+		return "bad-direct"
+	}
+	var v r.Readable = t
+	if v.Name() != "name" {
+		return "bad-iface"
+	}
+	if r.Use(t) != "name" {
+		return "bad-use"
+	}
+	if v.Extra() != 7 {
+		return "bad-extra"
+	}
+	if got := r.Sum([]int{1, 2, 3}); got != 6 {
+		return "bad-sum"
+	}
+	return "ro-ok"
+}
+
+-- w/g/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/g/q"
+)
+
+func main() { fmt.Println(q.Run()) }

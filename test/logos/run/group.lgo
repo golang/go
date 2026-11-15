@@ -5,13 +5,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+	"runtime"
 	"sync/atomic"
-	"time"
 )
 
-// M8-S2: the PLAN Sec 11 batch loop runs with 8-way concurrency. A group
-// with limit = 8 squares every item; the peak concurrency never exceeds
-// the limit. A failing item fails the group with the first error.
 
 var live, peak atomic.Int32
 
@@ -29,6 +27,9 @@ func store(ctx context.Context, out []int, i, v int) error {
 	n := live.Add(1)
 	notePeak()
 	defer live.Add(-1)
+	for k := 0; k < 500; k++ {
+		runtime.Gosched()
+	}
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -80,7 +81,9 @@ func hold(ctx context.Context) error {
 			break
 		}
 	}
-	time.Sleep(20 * time.Millisecond)
+	for k := 0; k < 200; k++ {
+		runtime.Gosched()
+	}
 	liveHeld.Add(-1)
 	return nil
 }
@@ -94,16 +97,39 @@ func limited(ctx context.Context) error {
 	return nil
 }
 
+var groupFailed bool
+
+func groupCheck(name string, cond bool, got, want string) {
+	if !cond {
+		fmt.Printf("FAIL %s: got %s want %s\n", name, got, want)
+		groupFailed = true
+		return
+	}
+	fmt.Printf("ok %s\n", name)
+}
+
 //logos:allow(slop::discarded_error)
 func main() {
 	ctx := context.Background()
 	items := []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
 	out, _ := batch(ctx, items)
-	fmt.Println(out)
-	fmt.Println(peak.Load() <= 8)
-	if err := batchErr(ctx, items); err != nil {
-		fmt.Println("batch-err")
+	squaresOK := len(out) == len(items)
+	if squaresOK {
+		for i, v := range items {
+			if out[i] != v*v {
+				squaresOK = false
+				break
+			}
+		}
 	}
+	groupCheck("group-squares", squaresOK, fmt.Sprint(out), "[0 1 4 9 16 25 36 49 64 81 100 121 144 169 196 225]")
+	groupCheck("group-limit", peak.Load() <= 8, fmt.Sprint(peak.Load()), "<=8")
+	berr := batchErr(ctx, items)
+	groupCheck("group-first-error", berr != nil && berr.Error() == "bad item 3", fmt.Sprint(berr), "bad item 3")
 	_ = limited(ctx)
-	fmt.Println("limit-2 peak:", peakHeld.Load())
+	groupCheck("group-held-limit", peakHeld.Load() <= 2, fmt.Sprint(peakHeld.Load()), "<=2")
+	groupCheck("group-held-progress", peakHeld.Load() >= 1, fmt.Sprint(peakHeld.Load()), ">=1")
+	if groupFailed {
+		os.Exit(1)
+	}
 }

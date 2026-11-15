@@ -2,13 +2,6 @@
 
 package callsitecheck
 
-// M11-S4 codegen check (SPEC Sec 12.1, S9, T-Sec12).
-// Anchor: Tony Hoare, Edsger W. Dijkstra
-//
-// No call site is rewritten: calls to json.Marshal(v) on eligible struct
-// values and pointers still compile to CALL instructions targeting
-// encoding/json.Marshal, not an inlined or rewritten method call.
-
 import "encoding/json"
 
 type Eligible struct {

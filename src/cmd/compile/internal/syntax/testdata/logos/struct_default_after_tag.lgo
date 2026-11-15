@@ -1,0 +1,9 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+type BadAfterTag struct {
+	Port int `json:"port"` = 8080 // ERROR unexpected = in struct type
+}

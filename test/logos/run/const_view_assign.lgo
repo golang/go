@@ -1,0 +1,59 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+type Point struct {
+	X int
+	Y int
+}
+
+type Labeled struct {
+	Name string
+	N    int
+	At   Point
+}
+
+func toPlainArray(ca const [4]int) [4]int {
+	var a [4]int = ca
+	return a
+}
+
+func toPlainStruct(cs const Labeled) Labeled {
+	var s Labeled = cs
+	return s
+}
+
+func toPlainStructArray(cs const [2]Labeled) [2]Labeled {
+	var a [2]Labeled = cs
+	return a
+}
+
+func check(cond bool, msg string) {
+	if cond {
+		fmt.Println("ok " + msg)
+		return
+	}
+	fmt.Println("FAIL " + msg)
+	os.Exit(1)
+}
+
+func main() {
+	a := toPlainArray([4]int{1, 2, 3, 4})
+	check(a == [4]int{1, 2, 3, 4}, "array-values")
+	s := toPlainStruct(Labeled{Name: "seven", N: 7, At: Point{X: 1, Y: 2}})
+	check(s.Name == "seven", "struct-string-field")
+	check(s.N == 7, "struct-int-field")
+	check(s.At == Point{X: 1, Y: 2}, "nested-struct")
+	sa := toPlainStructArray([2]Labeled{{Name: "a", N: 1}, {Name: "b", N: 2}})
+	check(sa[0].Name == "a" && sa[0].N == 1 && sa[1].Name == "b" && sa[1].N == 2, "array-of-struct-values")
+	sum := 0
+	for _, v := range a {
+		sum += v
+	}
+	check(sum == 10, "ranged-array")
+}

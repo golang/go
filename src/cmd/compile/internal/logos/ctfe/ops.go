@@ -4,11 +4,6 @@
 
 package ctfe
 
-// This file implements M5-S2 expression evaluation and value
-// operations (SPEC Sec 2.1, T-201): literals, operators with constant
-// versus variable semantics, conversions with target widths, composite
-// literals, indexing, slicing, builtins, and size accounting.
-
 import (
 	"cmd/compile/internal/syntax"
 	"fmt"
@@ -19,7 +14,6 @@ import (
 	"strings"
 )
 
-// evalExpr evaluates a single-valued expression.
 func (e *evaluator) evalExpr(fr *frame, x syntax.Expr) (Value, error) {
 	switch x := syntax.Unparen(x).(type) {
 	case *syntax.BasicLit:
@@ -57,7 +51,6 @@ func (e *evaluator) evalExpr(fr *frame, x syntax.Expr) (Value, error) {
 	return Value{}, e.fail(posOf(x), "unsupported expression %T in const evaluation", x)
 }
 
-// evalLit evaluates a basic literal.
 func (e *evaluator) evalLit(lit *syntax.BasicLit) (Value, error) {
 	pos := posOf(lit)
 	switch lit.Kind {
@@ -79,10 +72,28 @@ func (e *evaluator) evalLit(lit *syntax.BasicLit) (Value, error) {
 			r = new(big.Rat).SetFloat64(f)
 		}
 		return Value{typ: UntypedFloat(), constant: true, fval: r}, nil
+	case syntax.ImagLit:
+		s := strings.TrimSuffix(strings.ReplaceAll(lit.Value, "_", ""), "i")
+		if !strings.ContainsAny(s, ".eEpPxXoObB") {
+			s = strings.TrimLeft(s, "0")
+			if s == "" {
+				s = "0"
+			}
+		}
+		r, ok := new(big.Rat).SetString(s)
+		if !ok {
+			f, err := strconv.ParseFloat(s, 64)
+			if err != nil {
+				return Value{}, e.fail(pos, "bad imaginary literal in const evaluation")
+			}
+			r = new(big.Rat).SetFloat64(f)
+		}
+		parts := new([2]big.Rat)
+		parts[1].Set(r)
+		return Value{typ: UntypedComplex(), constant: true, cparts: parts}, nil
 	case syntax.RuneLit:
 		r, _, _, err := strconv.UnquoteChar(lit.Value[1:len(lit.Value)-1], '\'')
 		if err != nil {
-			// Raw single byte.
 			if len(lit.Value) >= 3 {
 				r = rune(lit.Value[1])
 			} else {
@@ -94,9 +105,6 @@ func (e *evaluator) evalLit(lit *syntax.BasicLit) (Value, error) {
 		s := lit.Value
 		if strings.HasPrefix(s, "`") {
 			s = s[1 : len(s)-1]
-			// Go discards carriage returns in raw literals; the
-			// scanner preserves them, so normalize here. The
-			// interpreted branch keeps CRLF via Unquote.
 			s = strings.ReplaceAll(s, "\r", "")
 		} else {
 			u, err := strconv.Unquote(s)
@@ -110,7 +118,6 @@ func (e *evaluator) evalLit(lit *syntax.BasicLit) (Value, error) {
 	return Value{}, e.fail(pos, "complex constants not supported")
 }
 
-// evalName resolves an identifier: frame bindings first, then the host.
 func (e *evaluator) evalName(fr *frame, id *syntax.Name) (Value, error) {
 	if id.Value == "_" {
 		return Value{}, e.fail(posOf(id), "cannot use _ as value in const evaluation")
@@ -140,9 +147,6 @@ func (e *evaluator) evalName(fr *frame, id *syntax.Name) (Value, error) {
 	return Value{}, e.fail(posOf(id), "cannot resolve %s in const evaluation", id.Value)
 }
 
-// evalCoalesce evaluates `x ?? y`: a present map read yields its
-// value, a missing key (or any evaluated left side that is not an
-// absent read) falls back per presence.
 func (e *evaluator) evalCoalesce(fr *frame, c *syntax.CoalesceExpr) (Value, error) {
 	if ix, ok := syntax.Unparen(c.X).(*syntax.IndexExpr); ok {
 		if _, isList := syntax.Unparen(ix.Index).(*syntax.ListExpr); !isList {
@@ -173,12 +177,10 @@ func (e *evaluator) evalCoalesce(fr *frame, c *syntax.CoalesceExpr) (Value, erro
 	return v, nil
 }
 
-// evalOperation evaluates unary and binary operations.
 func (e *evaluator) evalOperation(fr *frame, o *syntax.Operation) (Value, error) {
 	if o.Y == nil {
 		return e.evalUnary(fr, o)
 	}
-	// Short-circuit logical operators.
 	if o.Op == syntax.AndAnd || o.Op == syntax.OrOr {
 		x, err := e.evalExpr(fr, o.X)
 		if err != nil {
@@ -291,12 +293,13 @@ func (e *evaluator) truth(v Value, pos syntax.Pos) (bool, error) {
 	return v.bval, nil
 }
 
-// numPair prepares two numeric operands: untyped operands convert to
-// the typed side; two typed operands must share a kind.
 func (e *evaluator) numPair(x, y Value, pos syntax.Pos) (Value, Value, *Type, error) {
 	xk, yk := kindOf(x), kindOf(y)
 	switch {
 	case isUntyped(xk) && isUntyped(yk):
+		if isComplex(xk) || isComplex(yk) {
+			return x, y, UntypedComplex(), nil
+		}
 		if isFloat(xk) || isFloat(yk) {
 			return x, y, UntypedFloat(), nil
 		}
@@ -305,13 +308,13 @@ func (e *evaluator) numPair(x, y Value, pos syntax.Pos) (Value, Value, *Type, er
 		}
 		return x, y, UntypedInt(), nil
 	case isUntyped(xk):
-		c, err := e.coerceUntyped(x, y.typ, pos)
+		c, err := e.convert(x, y.typ, pos)
 		if err != nil {
 			return Value{}, Value{}, nil, err
 		}
 		return c, y, y.typ, nil
 	case isUntyped(yk):
-		c, err := e.coerceUntyped(y, x.typ, pos)
+		c, err := e.convert(y, x.typ, pos)
 		if err != nil {
 			return Value{}, Value{}, nil, err
 		}
@@ -319,7 +322,6 @@ func (e *evaluator) numPair(x, y Value, pos syntax.Pos) (Value, Value, *Type, er
 	case xk == yk:
 		return x, y, x.typ, nil
 	}
-	// Named types share kinds; identical kinds convert freely.
 	if x.typ != nil && y.typ != nil && x.typ.Kind == y.typ.Kind {
 		return x, y, x.typ, nil
 	}
@@ -333,10 +335,67 @@ func kindOf(v Value) Kind {
 	return v.typ.Kind
 }
 
-// coerceUntyped converts an untyped operand to a typed target for
-// arithmetic, with range checks for constant values.
-func (e *evaluator) coerceUntyped(v Value, t *Type, pos syntax.Pos) (Value, error) {
-	return e.convert(v, t, pos)
+func (e *evaluator) complexOp(op syntax.Operator, x, y Value, t *Type, cst bool, pos syntax.Pos) (Value, error) {
+	if cst {
+		xr, xi := complexParts(x)
+		yr, yi := complexParts(y)
+		parts := new([2]big.Rat)
+		re, im := &parts[0], &parts[1]
+		switch op {
+		case syntax.Add:
+			re.Add(xr, yr)
+			im.Add(xi, yi)
+		case syntax.Sub:
+			re.Sub(xr, yr)
+			im.Sub(xi, yi)
+		case syntax.Mul:
+			var a, b big.Rat
+			re.Sub(a.Mul(xr, yr), b.Mul(xi, yi))
+			im.Add(a.Mul(xr, yi), b.Mul(xi, yr))
+		case syntax.Div:
+			if yr.Sign() == 0 && yi.Sign() == 0 {
+				return Value{}, e.fail(pos, "division by zero in const evaluation")
+			}
+			var a, b, den big.Rat
+			den.Add(a.Mul(yr, yr), b.Mul(yi, yi))
+			re.Quo(re.Add(a.Mul(xr, yr), b.Mul(xi, yi)), &den)
+			im.Quo(im.Sub(a.Mul(xi, yr), b.Mul(xr, yi)), &den)
+		default:
+			return Value{}, e.fail(pos, "unsupported complex operator in const evaluation")
+		}
+		if t.Kind == KUntypedComplex {
+			return Value{typ: t, constant: true, cparts: parts}, nil
+		}
+		if t.Kind == KComplex64 {
+			rf, _ := re.Float32()
+			imf, _ := im.Float32()
+			if math.IsInf(float64(rf), 0) || math.IsInf(float64(imf), 0) {
+				return Value{}, e.fail(pos, "constant overflows complex64 in const evaluation")
+			}
+			return complexConst(t, complex(float64(rf), float64(imf))), nil
+		}
+		rf, _ := re.Float64()
+		imf, _ := im.Float64()
+		if math.IsInf(rf, 0) || math.IsInf(imf, 0) {
+			return Value{}, e.fail(pos, "constant overflows %s in const evaluation", typeName(t))
+		}
+		return complexConst(t, complex(rf, imf)), nil
+	}
+	xc, yc := toComplex(x), toComplex(y)
+	var r complex128
+	switch op {
+	case syntax.Add:
+		r = xc + yc
+	case syntax.Sub:
+		r = xc - yc
+	case syntax.Mul:
+		r = xc * yc
+	case syntax.Div:
+		r = xc / yc
+	default:
+		return Value{}, e.fail(pos, "unsupported complex operator in const evaluation")
+	}
+	return complexDyn(t, r), nil
 }
 
 func (e *evaluator) add(x, y Value, pos syntax.Pos) (Value, error) {
@@ -351,6 +410,9 @@ func (e *evaluator) add(x, y Value, pos syntax.Pos) (Value, error) {
 		return Value{}, err
 	}
 	cst := x.constant && y.constant
+	if isComplex(t.Kind) {
+		return e.complexOp(syntax.Add, x, y, t, cst, pos)
+	}
 	if isFloat(t.Kind) {
 		return e.floatOp(syntax.Add, x, y, t, cst, pos)
 	}
@@ -364,6 +426,9 @@ func (e *evaluator) sub(x, y Value, pos syntax.Pos) (Value, error) {
 		return Value{}, err
 	}
 	cst := x.constant && y.constant
+	if isComplex(t.Kind) {
+		return e.complexOp(syntax.Sub, x, y, t, cst, pos)
+	}
 	if isFloat(t.Kind) {
 		return e.floatOp(syntax.Sub, x, y, t, cst, pos)
 	}
@@ -377,6 +442,9 @@ func (e *evaluator) mul(x, y Value, pos syntax.Pos) (Value, error) {
 		return Value{}, err
 	}
 	cst := x.constant && y.constant
+	if isComplex(t.Kind) {
+		return e.complexOp(syntax.Mul, x, y, t, cst, pos)
+	}
 	if isFloat(t.Kind) {
 		return e.floatOp(syntax.Mul, x, y, t, cst, pos)
 	}
@@ -390,13 +458,16 @@ func (e *evaluator) quo(x, y Value, pos syntax.Pos) (Value, error) {
 		return Value{}, err
 	}
 	cst := x.constant && y.constant
+	if isComplex(t.Kind) {
+		return e.complexOp(syntax.Div, x, y, t, cst, pos)
+	}
 	if isFloat(t.Kind) {
 		if y.constant {
-			if isRatZero(yFloat(y)) {
+			if xFloat(y).Sign() == 0 {
 				return Value{}, e.fail(pos, "division by zero in const evaluation")
 			}
 			if cst {
-				return Value{typ: t, constant: true, fval: new(big.Rat).Quo(xFloat(x), yFloat(y))}, nil
+				return e.floatOp(syntax.Div, x, y, t, true, pos)
 			}
 		}
 		xf, yf := toFloat64(x, t), toFloat64(y, t)
@@ -453,13 +524,6 @@ func (e *evaluator) shift(op syntax.Operator, x, y Value, pos syntax.Pos) (Value
 	if y.ival.Sign() < 0 {
 		return Value{}, e.fail(pos, "negative shift count in const evaluation")
 	}
-	// Shift keeps the left operand independent of the count type: Go
-	// never coerces the LHS to the count's type. A constant count
-	// (typed or not) keeps a constant shift, so an untyped LHS stays
-	// untyped and `1 << uint8(8)` is the untyped constant 256. Only a
-	// non-constant typed count defaults the LHS, to its default type
-	// (the type it would assume if the shift were replaced by the LHS
-	// alone), never to the count type.
 	xk, yk := kindOf(x), kindOf(y)
 	t := x.typ
 	if isUntyped(xk) {
@@ -475,7 +539,6 @@ func (e *evaluator) shift(op syntax.Operator, x, y Value, pos syntax.Pos) (Value
 	cst := x.constant && y.constant
 	n := y.ival
 	if !n.IsUint64() || n.Uint64() > uint64(^uint(0)) {
-		// Huge counts shift everything out; model as zero/sign-fill.
 		if op == syntax.Shl {
 			if x.ival.Sign() == 0 {
 				return e.finishInt(new(big.Int), t, cst, pos)
@@ -531,8 +594,6 @@ func (e *evaluator) shift(op syntax.Operator, x, y Value, pos syntax.Pos) (Value
 		return e.finishInt(new(big.Int).Lsh(x.ival, uint(n64)), t, cst, pos)
 	}
 	if !isUntyped(t.Kind) {
-		// A wrapped value shifted by its whole width or more leaves
-		// only the sign fill for negative signed values, else zero.
 		if w := intWidth(t.Kind, e.cfg.WordSize); w > 0 && n64 >= uint64(w) {
 			if isSigned(t.Kind) && x.ival.Sign() < 0 {
 				return e.finishInt(big.NewInt(-1), t, cst, pos)
@@ -541,15 +602,11 @@ func (e *evaluator) shift(op syntax.Operator, x, y Value, pos syntax.Pos) (Value
 		}
 	}
 	if isSigned(t.Kind) || isUntyped(t.Kind) {
-		// Arithmetic shift: big.Int.Rsh implements arithmetic right shift
-		// on both signed typed ints and untyped constants.
 		return e.finishInt(new(big.Int).Rsh(x.ival, uint(n64)), t, cst, pos)
 	}
 	return e.finishInt(new(big.Int).Rsh(unsigned(x.ival, t, e.cfg.WordSize), uint(n64)), t, cst, pos)
 }
 
-// unsigned reinterprets a wrapped value's bits as unsigned for logical
-// right shifts.
 func unsigned(n *big.Int, t *Type, word int64) *big.Int {
 	if n.Sign() >= 0 {
 		return n
@@ -566,15 +623,31 @@ func (e *evaluator) neg(x Value, pos syntax.Pos) (Value, error) {
 		}
 		return floatResult(x.typ, -toFloat64(x, x.typ), false, pos)
 	}
+	if isComplex(kindOf(x)) {
+		if x.constant && kindOf(x) == KUntypedComplex {
+			re, im := complexParts(x)
+			parts := new([2]big.Rat)
+			parts[0].Neg(re)
+			parts[1].Neg(im)
+			return Value{typ: x.typ, constant: true, cparts: parts}, nil
+		}
+		c := x.Complex()
+		if x.constant {
+			return complexConst(x.typ, complex(-real(c), -imag(c))), nil
+		}
+		return complexDyn(x.typ, complex(-real(c), -imag(c))), nil
+	}
 	if !isInteger(kindOf(x)) {
 		return Value{}, e.fail(pos, "negation of non-number in const evaluation")
 	}
 	return e.finishInt(new(big.Int).Neg(x.ival), x.typ, x.constant, pos)
 }
 
-// finishInt applies constant range checks or variable wrapping.
 func (e *evaluator) finishInt(n *big.Int, t *Type, cst bool, pos syntax.Pos) (Value, error) {
 	if t == nil || isUntyped(t.Kind) {
+		if cst && n.BitLen() > 512 {
+			return Value{}, e.fail(pos, "constant overflows %s in const evaluation", typeName(t))
+		}
 		return intValue(n, t, cst), nil
 	}
 	if cst {
@@ -586,7 +659,6 @@ func (e *evaluator) finishInt(n *big.Int, t *Type, cst bool, pos syntax.Pos) (Va
 	return e.wrapInt(n, t, false, pos)
 }
 
-// wrapInt reduces n modulo the type width (variable semantics).
 func (e *evaluator) wrapInt(n *big.Int, t *Type, cst bool, pos syntax.Pos) (Value, error) {
 	w := intWidth(t.Kind, e.cfg.WordSize)
 	m := new(big.Int).Lsh(big.NewInt(1), uint(w))
@@ -600,7 +672,6 @@ func (e *evaluator) wrapInt(n *big.Int, t *Type, cst bool, pos syntax.Pos) (Valu
 	return intValue(n, t, cst), nil
 }
 
-// inRange reports whether n fits in t.
 func inRange(n *big.Int, t *Type, word int64) bool {
 	w := intWidth(t.Kind, word)
 	if isSigned(t.Kind) {
@@ -611,7 +682,6 @@ func inRange(n *big.Int, t *Type, word int64) bool {
 	return n.Sign() >= 0 && n.BitLen() <= int(w)
 }
 
-// xFloat returns the exact float operand.
 func xFloat(v Value) *big.Rat {
 	if v.fval != nil {
 		return v.fval
@@ -625,35 +695,21 @@ func xFloat(v Value) *big.Rat {
 	return new(big.Rat).SetFloat64(v.f64)
 }
 
-// yFloat mirrors xFloat for the second operand.
-func yFloat(v Value) *big.Rat { return xFloat(v) }
-
-// ratOf returns the exact rational value of a numeric constant: ints as
-// integers, floats as their literal rationals. Callers ensure both
-// operands are constant.
-func ratOf(v Value) *big.Rat {
-	if v.fval != nil {
-		return v.fval
-	}
-	if v.ival != nil {
-		return new(big.Rat).SetInt(v.ival)
-	}
-	return new(big.Rat).SetFloat64(v.f64)
-}
-
 func toFloat64(v Value, t *Type) float64 {
 	if v.fval != nil {
-		f, _ := v.fval.Float64()
 		if t != nil && t.Kind == KFloat32 {
-			return float64(float32(f))
+			f, _ := v.fval.Float32()
+			return float64(f)
 		}
+		f, _ := v.fval.Float64()
 		return f
 	}
 	if v.ival != nil {
-		f, _ := new(big.Rat).SetInt(v.ival).Float64()
 		if t != nil && t.Kind == KFloat32 {
-			return float64(float32(f))
+			f, _ := new(big.Float).SetInt(v.ival).Float32()
+			return float64(f)
 		}
+		f, _ := new(big.Float).SetInt(v.ival).Float64()
 		return f
 	}
 	if t != nil && t.Kind == KFloat32 {
@@ -662,24 +718,47 @@ func toFloat64(v Value, t *Type) float64 {
 	return v.f64
 }
 
-func isRatZero(r *big.Rat) bool { return r.Sign() == 0 }
+func toComplex(v Value) complex128 {
+	if isComplex(kindOf(v)) {
+		return v.Complex()
+	}
+	if isFloat(kindOf(v)) {
+		return complex(v.Float64(), 0)
+	}
+	f, _ := new(big.Rat).SetInt(v.ival).Float64()
+	return complex(f, 0)
+}
 
-// floatOp evaluates a float binary op.
+func complexParts(v Value) (*big.Rat, *big.Rat) {
+	if v.cparts != nil {
+		return &v.cparts[0], &v.cparts[1]
+	}
+	if isComplex(kindOf(v)) {
+		c := v.Complex()
+		return new(big.Rat).SetFloat64(real(c)), new(big.Rat).SetFloat64(imag(c))
+	}
+	return xFloat(v), new(big.Rat)
+}
+
 func (e *evaluator) floatOp(op syntax.Operator, x, y Value, t *Type, cst bool, pos syntax.Pos) (Value, error) {
 	if cst {
 		var r *big.Rat
 		switch op {
 		case syntax.Add:
-			r = new(big.Rat).Add(xFloat(x), yFloat(y))
+			r = new(big.Rat).Add(xFloat(x), xFloat(y))
 		case syntax.Sub:
-			r = new(big.Rat).Sub(xFloat(x), yFloat(y))
+			r = new(big.Rat).Sub(xFloat(x), xFloat(y))
 		case syntax.Mul:
-			r = new(big.Rat).Mul(xFloat(x), yFloat(y))
+			r = new(big.Rat).Mul(xFloat(x), xFloat(y))
 		case syntax.Div:
-			r = new(big.Rat).Quo(xFloat(x), yFloat(y))
+			r = new(big.Rat).Quo(xFloat(x), xFloat(y))
 		}
-		if t.Kind == KFloat32 && !ratFitsFloat32(r) {
-			return Value{}, e.fail(pos, "constant overflows float32 in const evaluation")
+		if t.Kind == KFloat32 {
+			f, _ := r.Float32()
+			if math.IsInf(float64(f), 0) {
+				return Value{}, e.fail(pos, "constant overflows float32 in const evaluation")
+			}
+			return floatResult(t, float64(f), true, pos)
 		}
 		if t.Kind == KFloat64 && !ratFitsFloat64(r) {
 			return Value{}, e.fail(pos, "constant overflows float64 in const evaluation")
@@ -701,11 +780,6 @@ func (e *evaluator) floatOp(op syntax.Operator, x, y Value, t *Type, cst bool, p
 	return floatResult(t, r, false, pos)
 }
 
-func ratFitsFloat32(r *big.Rat) bool {
-	f, _ := r.Float64()
-	return !math.IsInf(float64(float32(f)), 0) || r.Sign() == 0
-}
-
 func ratFitsFloat64(r *big.Rat) bool {
 	f, _ := r.Float64()
 	return !math.IsInf(f, 0) || r.Sign() == 0
@@ -718,7 +792,21 @@ func floatResult(t *Type, f float64, cst bool, pos syntax.Pos) (Value, error) {
 	return Value{typ: t, constant: cst, f64: f}, nil
 }
 
+func complexResult(t *Type, c complex128, cst bool) Value {
+	if t.Kind == KComplex64 {
+		c = complex(float64(float32(real(c))), float64(float32(imag(c))))
+	}
+	return Value{typ: t, constant: cst, cval: c}
+}
+
+func complexConst(t *Type, c complex128) Value { return complexResult(t, c, true) }
+
+func complexDyn(t *Type, c complex128) Value { return complexResult(t, c, false) }
+
 func (e *evaluator) compare(op syntax.Operator, x, y Value, pos syntax.Pos) (Value, error) {
+	if isComplex(kindOf(x)) || isComplex(kindOf(y)) {
+		return Value{}, e.fail(pos, "ordered comparison of complex in const evaluation")
+	}
 	if isNumeric(kindOf(x)) && isNumeric(kindOf(y)) && (isFloat(kindOf(x)) || isFloat(kindOf(y))) {
 		fx, fy, t, err := e.numPair(x, y, pos)
 		if err != nil {
@@ -726,12 +814,9 @@ func (e *evaluator) compare(op syntax.Operator, x, y Value, pos syntax.Pos) (Val
 		}
 		var c int
 		if fx.constant && fy.constant {
-			c = xFloat(fx).Cmp(yFloat(fy))
+			c = xFloat(fx).Cmp(xFloat(fy))
 		} else {
 			ax, ay := toFloat64(fx, t), toFloat64(fy, t)
-			// Unordered (either NaN) is false for every ordered
-			// comparison; without this, c stays 0 and <=/>=
-			// wrongly report true for NaN.
 			if math.IsNaN(ax) || math.IsNaN(ay) {
 				return Value{typ: UntypedBool(), constant: false, bval: false}, nil
 			}
@@ -766,7 +851,6 @@ func cmpOp(op syntax.Operator, c int) bool {
 	return c >= 0
 }
 
-// equal implements == over const values after -0.0 canonicalization.
 func (e *evaluator) equal(x, y Value, pos syntax.Pos) (bool, error) {
 	x = e.canon(x)
 	y = e.canon(y)
@@ -777,17 +861,26 @@ func (e *evaluator) equal(x, y Value, pos syntax.Pos) (bool, error) {
 		return x.isNil && y.isNil, nil
 	}
 	switch {
+	case isComplex(kindOf(x)) || isComplex(kindOf(y)):
+		if !isNumeric(kindOf(x)) || !isNumeric(kindOf(y)) {
+			return false, e.fail(pos, "values not comparable in const evaluation")
+		}
+		if isUntyped(kindOf(x)) != isUntyped(kindOf(y)) {
+			cx, cy, _, err := e.numPair(x, y, pos)
+			if err != nil {
+				return false, err
+			}
+			x, y = cx, cy
+		}
+		if x.constant && y.constant && isUntyped(kindOf(x)) && isUntyped(kindOf(y)) {
+			xr, xi := complexParts(x)
+			yr, yi := complexParts(y)
+			return xr.Cmp(yr) == 0 && xi.Cmp(yi) == 0, nil
+		}
+		return toComplex(x) == toComplex(y), nil
 	case isInteger(kindOf(x)) && isInteger(kindOf(y)):
 		return x.ival.Cmp(y.ival) == 0, nil
 	case isNumeric(kindOf(x)) && isNumeric(kindOf(y)) && (isFloat(kindOf(x)) || isFloat(kindOf(y))):
-		// Mixed int/float equality: coerce like ordered comparisons.
-		// When exactly one side is an untyped constant, Go converts
-		// it to the typed side's type first, so float64(0.1) == 0.1
-		// compares the rounded values (true). Coercion errors
-		// propagate; there is no fallback comparison.
-		// Both-untyped constants compare as exact rationals so
-		// distinct literals (1 vs 1.000...01, 0.1 vs 0.100...01)
-		// stay unequal; variable operands use IEEE 754 (NaN != self).
 		if isUntyped(kindOf(x)) != isUntyped(kindOf(y)) {
 			cx, cy, _, err := e.numPair(x, y, pos)
 			if err != nil {
@@ -796,7 +889,7 @@ func (e *evaluator) equal(x, y Value, pos syntax.Pos) (bool, error) {
 			x, y = cx, cy
 		}
 		if x.constant && y.constant {
-			return ratOf(x).Cmp(ratOf(y)) == 0, nil
+			return xFloat(x).Cmp(xFloat(y)) == 0, nil
 		}
 		if isInteger(kindOf(x)) && !isFloat(kindOf(x)) {
 			xf, yf, t, err := e.numPair(x, y, pos)
@@ -851,11 +944,17 @@ func isNilable(k Kind) bool {
 	return false
 }
 
-// canon canonicalizes -0.0 to +0.0 for key comparison (M5-S4 rule:
-// equality is Go == after canonicalization).
 func (e *evaluator) canon(v Value) Value {
 	if v.typ != nil && v.typ.Kind == KFloat64 && !v.constant && v.f64 == 0 {
 		v.f64 = 0
+	}
+	if v.typ != nil && isComplex(v.typ.Kind) && v.cparts == nil {
+		if real(v.cval) == 0 {
+			v.cval = complex(0, imag(v.cval))
+		}
+		if imag(v.cval) == 0 {
+			v.cval = complex(real(v.cval), 0)
+		}
 	}
 	if v.typ != nil && v.typ.Kind == KStruct {
 		out := slices.Clone(v.strct)
@@ -874,7 +973,6 @@ func (e *evaluator) canon(v Value) Value {
 	return v
 }
 
-// floatBits returns the float64 bits of a float value.
 func (v Value) floatBits() uint64 {
 	if v.fval != nil {
 		f, _ := v.fval.Float64()
@@ -919,6 +1017,24 @@ func typeName(t *Type) string {
 		return "float32"
 	case KFloat64:
 		return "float64"
+	case KComplex64:
+		return "complex64"
+	case KComplex128:
+		return "complex128"
+	case KUntypedBool:
+		return "untyped bool"
+	case KUntypedInt:
+		return "untyped int"
+	case KUntypedRune:
+		return "untyped rune"
+	case KUntypedString:
+		return "untyped string"
+	case KUntypedFloat:
+		return "untyped float"
+	case KUntypedComplex:
+		return "untyped complex"
+	case KUntypedNil:
+		return "untyped nil"
 	case KString:
 		return "string"
 	case KSlice:

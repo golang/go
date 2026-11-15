@@ -46,7 +46,6 @@ type Func struct {
 	scheduled   bool  // Values in Blocks are in final order
 	laidout     bool  // Blocks are ordered
 	NoSplit     bool  // true if function is marked as nosplit.  Used by schedule check pass.
-	LogosNoLB   bool  // true if function skips zgc load barriers. Set from the excluded-file list or the runtime entry-point name list.
 	dumpFileSeq uint8 // the sequence numbers of dump file. (%s_%02d__%s.dump", funcname, dumpFileSeq, phaseName)
 	IsPgoHot    bool
 	DeferReturn *Block // avoid creating more than one deferreturn if there's multiple calls to deferproc-etc.

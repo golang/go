@@ -4,11 +4,7 @@
 
 package runtime
 
-import (
-	"internal/goexperiment"
-	"internal/runtime/atomic"
-	"unsafe"
-)
+import "unsafe"
 
 var labelSync uintptr
 
@@ -43,26 +39,7 @@ func runtime_setProfLabel(labels unsafe.Pointer) {
 	if raceenabled {
 		racereleasemerge(unsafe.Pointer(&labelSync))
 	}
-	if goexperiment.LogosGCMoving {
-		// Release between the label map initialization (done by the
-		// caller before this function) and the publish below, so the
-		// pin pass and the fenced inherit never observe a half built
-		// map. Preemptible context only, no lock, no allocation. The
-		// signal handler keeps its plain load.
-		publicationBarrier()
-	}
 	getg().labels = labels
-}
-
-// logosAcquireProfLabel loads gp.labels for preemptible or STW contexts
-// (inherit, pin pass). Under the moving experiment it is an acquire load
-// pairing with the release in runtime_setProfLabel. The signal handler
-// path keeps its plain load and is untouched.
-func logosAcquireProfLabel(gp *g) unsafe.Pointer {
-	if goexperiment.LogosGCMoving {
-		return atomic.Loadp(unsafe.Pointer(&gp.labels))
-	}
-	return gp.labels
 }
 
 // runtime_getProfLabel should be an internal detail,

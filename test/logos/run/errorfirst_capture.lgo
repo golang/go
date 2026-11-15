@@ -1,0 +1,47 @@
+// run
+
+package main
+
+import (
+	"context"
+	"slices"
+)
+
+func loadCapture() (int, error) {
+	return 7, nil
+}
+
+func checkCapture(n int) {
+	if n != 7 {
+		panic("captured result changed")
+	}
+}
+
+func immutableCapture(ctx context.Context) error {
+	n, err := loadCapture()
+	if err != nil {
+		return err
+	}
+	defer func() { checkCapture(n) }()
+	f := func() int { return n }
+	checkCapture(f())
+	if slices.IndexFunc([]int{3, 7}, x => x == n) != 1 {
+		panic("expression callback lost result")
+	}
+	if slices.IndexFunc([]int{3, 7}, x => { return x == n }) != 1 {
+		panic("block callback lost result")
+	}
+	go group (ctx) {
+		go {
+			checkCapture(n)
+		}
+	}
+	return nil
+}
+
+func main() {
+	if err := immutableCapture(context.Background()); err != nil {
+		panic(err)
+	}
+	println("ok")
+}

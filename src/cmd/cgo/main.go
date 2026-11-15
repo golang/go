@@ -17,6 +17,7 @@ import (
 	"go/printer"
 	"go/token"
 	"internal/buildcfg"
+	"internal/logosfile"
 	"io"
 	"maps"
 	"os"
@@ -285,16 +286,6 @@ var trimpath = flag.String("trimpath", "", "applies supplied rewrites or trims p
 var goarch, goos, gomips, gomips64 string
 var gccBaseCmd []string
 
-// logosForeignEmit reports whether generated code carries the moving
-// collector's foreign-call descriptors. It is the exact constraint of the
-// runtime helper that serves them (goexperiment.logosgcmoving on amd64 or
-// arm64, target arch from $GOARCH), so every other build, including the
-// default toolchain, generates byte-identical upstream output. The gc
-// toolchain only: gccgo has no such runtime.
-func logosForeignEmit() bool {
-	return !*gccgo && buildcfg.Experiment.LogosGCMoving && (goarch == "amd64" || goarch == "arm64")
-}
-
 func main() {
 	counter.Open()
 	objabi.AddVersionFlag() // -V
@@ -343,7 +334,7 @@ func main() {
 	// that are options to pass to gcc.
 	var i int
 	for i = len(args); i > 0; i-- {
-		if !strings.HasSuffix(args[i-1], ".go") && !isLogosCgoInput(args[i-1]) {
+		if !strings.HasSuffix(args[i-1], ".go") && !logosfile.Is(args[i-1]) {
 			break
 		}
 	}

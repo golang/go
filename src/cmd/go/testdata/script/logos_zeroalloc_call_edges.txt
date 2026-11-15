@@ -1,0 +1,187 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+! logos build -p=1 -o $WORK/bin/iface$GOEXE ./iface
+stderr 'iface/check\.go:\d+:\d+: \[perf::zeroalloc_violation\]'
+! exists $WORK/bin/iface$GOEXE
+
+! logos build -p=1 -o $WORK/bin/param$GOEXE ./param
+stderr 'param/check\.go:\d+:\d+: \[perf::zeroalloc_violation\]'
+! exists $WORK/bin/param$GOEXE
+
+! logos build -p=1 -o $WORK/bin/field$GOEXE ./field
+stderr 'field/check\.go:\d+:\d+: \[perf::zeroalloc_violation\]'
+! exists $WORK/bin/field$GOEXE
+
+! logos build -p=1 -o $WORK/bin/reassigned$GOEXE ./reassigned
+stderr 'reassigned/check\.go:\d+:\d+: \[perf::zeroalloc_violation\]'
+! exists $WORK/bin/reassigned$GOEXE
+
+! logos build -p=1 -o $WORK/bin/chain$GOEXE ./chain
+stderr 'chain/check\.go:\d+:\d+: \[perf::zeroalloc_violation\]'
+! exists $WORK/bin/chain$GOEXE
+
+logos build -p=1 -o $WORK/bin/literal$GOEXE ./literal
+! stderr .
+
+! logos build -p=1 -o $WORK/bin/valueexpr$GOEXE ./valueexpr
+stderr 'valueexpr/check\.go:\d+:\d+: \[perf::zeroalloc_violation\]'
+! exists $WORK/bin/valueexpr$GOEXE
+
+! logos build -p=1 -o $WORK/bin/ptrexpr$GOEXE ./ptrexpr
+stderr 'ptrexpr/check\.go:\d+:\d+: \[perf::zeroalloc_violation\]'
+! exists $WORK/bin/ptrexpr$GOEXE
+
+! logos build -p=1 -o $WORK/bin/ifaceexpr$GOEXE ./ifaceexpr
+stderr 'ifaceexpr/check\.go:\d+:\d+: \[perf::zeroalloc_violation\]'
+! exists $WORK/bin/ifaceexpr$GOEXE
+
+logos build -p=1 -o $WORK/bin/plainexpr$GOEXE ./plainexpr
+! stderr .
+
+-- go.mod --
+module logostest
+
+go 1.27
+
+-- iface/check.go --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package iface
+
+type Worker interface { Work() int }
+
+//logos:zeroalloc
+func Check(w Worker) int { return w.Work() }
+
+-- param/check.go --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package param
+
+//logos:zeroalloc
+func Check(f func() int) int { return f() }
+
+-- field/check.go --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package field
+
+type Worker struct { Work func() int }
+
+//logos:zeroalloc
+func Check(w Worker) int { return w.Work() }
+
+-- reassigned/check.go --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package reassigned
+
+func plain() int { return 1 }
+
+//logos:zeroalloc
+func Check() int {
+ f := func() int { return 2 }
+ f = plain
+ return f()
+}
+
+-- chain/check.go --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package chain
+
+//logos:zeroalloc
+func Check(n int) []byte { return middle(n) }
+
+//go:noinline
+func middle(n int) []byte { return last(n) }
+
+//go:noinline
+func last(n int) []byte { return make([]byte, n) }
+
+-- literal/check.go --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package literal
+
+//logos:zeroalloc
+func Check() int {
+ f := func() int { return 7 }
+ return f()
+}
+
+-- valueexpr/check.go --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package valueexpr
+
+type Worker struct{}
+
+//go:noinline
+func (Worker) Work(n int) []byte { return make([]byte, n) }
+
+//logos:zeroalloc
+func Check(w Worker, n int) []byte { return Worker.Work(w, n) }
+
+-- ptrexpr/check.go --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package ptrexpr
+
+type Worker struct{}
+
+//go:noinline
+func (*Worker) Work(n int) []byte { return make([]byte, n) }
+
+//logos:zeroalloc
+func Check(w *Worker, n int) []byte { return (*Worker).Work(w, n) }
+
+-- ifaceexpr/check.go --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package ifaceexpr
+
+type Worker interface { Work() int }
+
+//logos:zeroalloc
+func Check(w Worker) int { return Worker.Work(w) }
+
+-- plainexpr/check.go --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package plainexpr
+
+type Worker struct { N int }
+
+//go:noinline
+func (w Worker) Value() int { return w.N }
+
+//go:noinline
+func (w *Worker) Pointer() int { return w.N }
+
+//logos:zeroalloc
+func CheckValue(w Worker) int { return Worker.Value(w) }
+
+//logos:zeroalloc
+func CheckPointer(w *Worker) int { return (*Worker).Pointer(w) }

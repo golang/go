@@ -1,0 +1,449 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+)
+
+type pc struct {
+	id int
+}
+
+type box struct {
+	n int
+}
+
+type duo struct {
+	m int
+	n int
+}
+
+var errLoad = errors.New("load")
+
+var ev []string
+
+var failAt string
+
+func rec(s string) { ev = append(ev, s) }
+
+func load(tag string, v int) (int, error) {
+	rec("load:" + tag)
+	if tag == failAt {
+		return 0, errLoad
+	}
+	return v, nil
+}
+
+func g(tag string, n int) int {
+	rec(tag)
+	return n
+}
+
+func add3(a, b, c int) int { return a + b + c }
+
+func plusOne(x int) (int, error) {
+	rec("p")
+	return x + 1, nil
+}
+
+func mk(tag string) box {
+	rec(tag)
+	return box{n: 100}
+}
+
+func (b box) add(x int) int {
+	rec("add")
+	return b.n + x
+}
+
+func note(tag string, n int) { rec(fmt.Sprint(tag, ":", n)) }
+
+func maybe(v int) int? {
+	if v == 7 {
+		return 7
+	}
+	return nil
+}
+
+func maybeP(v int) *pc? {
+	if v == 7 {
+		return &pc{id: 7}
+	}
+	return nil
+}
+
+func tupA(t (int, string)) int {
+	a, _ := t
+	return a
+}
+
+func argNested(v int) (int, error) {
+	r := add3(g("a", 1), switch n := load("s", v)?; n { case 7 => 70; default => 1 }, g("b", 2))
+	return r, nil
+}
+
+func argRef(v int) (int, error) {
+	x := g("a", 1)
+	s := switch n := load("s", v)?; n { case 7 => 70; default => 1 }
+	y := g("b", 2)
+	return add3(x, s, y), nil
+}
+
+func argTryNested(v int) (int, error) {
+	r := plusOne(switch n := load("s", v)?; n { case 7 => 70; default => 1 })?
+	return r, nil
+}
+
+func argTryRef(v int) (int, error) {
+	s := switch n := load("s", v)?; n { case 7 => 70; default => 1 }
+	r := plusOne(s)?
+	return r, nil
+}
+
+func methodNested(v int) (int, error) {
+	r := mk("m").add(switch n := load("s", v)?; n { case 7 => 70; default => 1 })
+	return r, nil
+}
+
+func methodRef(v int) (int, error) {
+	b := mk("m")
+	s := switch n := load("s", v)?; n { case 7 => 70; default => 1 }
+	return b.add(s), nil
+}
+
+func deferNested(v int) (int, error) {
+	defer note("d", switch n := load("s", v)?; n { case 7 => 70; default => 1 })
+	return g("body", 5), nil
+}
+
+func deferRef(v int) (int, error) {
+	s := switch n := load("s", v)?; n { case 7 => 70; default => 1 }
+	defer note("d", s)
+	return g("body", 5), nil
+}
+
+func sendNested(v int) (int, error) {
+	ch := make(chan int, 1)
+	ch <- switch n := load("s", v)?; n { case 7 => 70; default => 1 }
+	return <-ch, nil
+}
+
+func sendRef(v int) (int, error) {
+	ch := make(chan int, 1)
+	s := switch n := load("s", v)?; n { case 7 => 70; default => 1 }
+	ch <- s
+	return <-ch, nil
+}
+
+func rangeNested(v int) (int, error) {
+	n := 0
+	for range switch k := load("s", v)?; k { case 7 => 3; default => 1 } {
+		n++
+	}
+	return n, nil
+}
+
+func rangeRef(v int) (int, error) {
+	n := 0
+	s := switch k := load("s", v)?; k { case 7 => 3; default => 1 }
+	for range s {
+		n++
+	}
+	return n, nil
+}
+
+func interpNested(v int) (int, error) {
+	s := $"a={switch n := load("s", v)?; n { case 7 => 70; default => 1 }}"
+	return len(s), nil
+}
+
+func interpRef(v int) (int, error) {
+	x := switch n := load("s", v)?; n { case 7 => 70; default => 1 }
+	s := $"a={x}"
+	return len(s), nil
+}
+
+func tupleNested(v int) (int, error) {
+	t := (switch n := load("s", v)?; n { case 7 => 70; default => 1 }, "a")
+	return tupA(t), nil
+}
+
+func tupleRef(v int) (int, error) {
+	x := switch n := load("s", v)?; n { case 7 => 70; default => 1 }
+	t := (x, "a")
+	return tupA(t), nil
+}
+
+func optselNested(v int) (int, error) {
+	r := (switch n := load("s", v)?; n { case 7 => maybeP(7); default => maybeP(0) })?.id ?? -1
+	return r, nil
+}
+
+func optselRef(v int) (int, error) {
+	p := switch n := load("s", v)?; n { case 7 => maybeP(7); default => maybeP(0) }
+	r := p?.id ?? -1
+	return r, nil
+}
+
+func coalLeftNested(v int) (int, error) {
+	r := switch n := load("s", v)?; n { case 7 => maybe(7); default => maybe(0) } ?? -1
+	return r, nil
+}
+
+func coalLeftRef(v int) (int, error) {
+	o := switch n := load("s", v)?; n { case 7 => maybe(7); default => maybe(0) }
+	r := o ?? -1
+	return r, nil
+}
+
+func labeledForNested(v int) (int, error) {
+	n := 0
+loop:
+	for i := switch k := load("s", v)?; k { case 7 => 3; default => 1 }; i < 5; i++ {
+		if i == 3 {
+			continue loop
+		}
+		n += 10
+		if i == 4 {
+			break loop
+		}
+	}
+	return n, nil
+}
+
+func labeledForRef(v int) (int, error) {
+	n := 0
+	s := switch k := load("s", v)?; k { case 7 => 3; default => 1 }
+loop:
+	for i := s; i < 5; i++ {
+		if i == 3 {
+			continue loop
+		}
+		n += 10
+		if i == 4 {
+			break loop
+		}
+	}
+	return n, nil
+}
+
+func labeledSwitchNested(v int) (int, error) {
+	n := 0
+pick:
+	switch switch k := load("s", v)?; k { case 7 => 3; default => 1 } {
+	case 3:
+		n = 1
+		break pick
+	default:
+		n = 2
+	}
+	return n, nil
+}
+
+func labeledSwitchRef(v int) (int, error) {
+	n := 0
+	s := switch k := load("s", v)?; k { case 7 => 3; default => 1 }
+pick:
+	switch s {
+	case 3:
+		n = 1
+		break pick
+	default:
+		n = 2
+	}
+	return n, nil
+}
+
+func apply(f func(int) int, n int) int { return f(n) }
+
+func lamArgNested(v int) (int, error) {
+	r := add3(g("a", 1), switch n := load("s", apply(x => x + 1, v))?; n { case 8 => 70; default => 1 }, g("b", 2))
+	return r, nil
+}
+
+func lamArgRef(v int) (int, error) {
+	x := g("a", 1)
+	a := apply(y => y + 1, v)
+	n := load("s", a)?
+	s := 1
+	if n == 8 {
+		s = 70
+	}
+	y := g("b", 2)
+	return add3(x, s, y), nil
+}
+
+func complitTrailingNested(v int) (int, error) {
+	b := duo{
+		m: 1,
+		n: switch n := load("s", v)?; n { case 7 => 70; default => 1 },
+	}
+	return b.n, nil
+}
+
+func complitCommentNested(v int) (int, error) {
+	b := duo{
+		m: 1,
+		n: switch n := load("s", v)?; n { case 7 => 70; default => 1 }, // last item
+	}
+	return b.n, nil
+}
+
+func sliceLinesNested(v int) (int, error) {
+	xs := []int{
+		g("a", 1),
+		switch n := load("s", v)?; n { case 7 => 70; default => 1 },
+		g("b", 2),
+	}
+	return xs[0] + xs[1] + xs[2], nil
+}
+
+func callTrailingNested(v int) (int, error) {
+	r := add3(
+		g("a", 1),
+		switch n := load("s", v)?; n { case 7 => 70; default => 1 },
+		g("b", 2),
+	)
+	return r, nil
+}
+
+func returnLinesNested(v int) (int, error) {
+	return switch n := load("s", v)?; n { case 7 => 70; default => 1 },
+		nil
+}
+
+func fa(x int) int {
+	rec("fa")
+	return x + 70
+}
+
+func fb(x int) int {
+	rec("fb")
+	return x + 1
+}
+
+func recvNested(v int) (int, error) {
+	r := add3(g("a", 1), (switch n := load("s", v)?; n { case 7 => box{n: 70}; default => box{n: 1} }).add(g("x", 2)), 0)
+	return r, nil
+}
+
+func recvRef(v int) (int, error) {
+	x := g("a", 1)
+	b := switch n := load("s", v)?; n { case 7 => box{n: 70}; default => box{n: 1} }
+	y := g("x", 2)
+	return add3(x, b.add(y), 0), nil
+}
+
+func funcNested(v int) (int, error) {
+	r := g("a", 1) + (switch n := load("s", v)?; n { case 7 => fa; default => fb })(g("x", 3))
+	return r, nil
+}
+
+func funcRef(v int) (int, error) {
+	x := g("a", 1)
+	f := switch n := load("s", v)?; n { case 7 => fa; default => fb }
+	y := g("x", 3)
+	return x + f(y), nil
+}
+
+func selNested(v int) (int, error) {
+	r := g("a", 1) + (switch n := load("s", v)?; n { case 7 => box{n: 70}; default => box{n: 1} }).n + g("b", 2)
+	return r, nil
+}
+
+func unaryNested(v int) (int, error) {
+	r := g("a", 1) - -(switch n := load("s", v)?; n { case 7 => 70; default => 1 }) + g("b", 2)
+	return r, nil
+}
+
+func caseNested(v int) (int, error) {
+	r := switch g("t", 7) { case switch n := load("s", v)?; n { case 7 => 7; default => 1 } => 10; default => 20 }
+	return r, nil
+}
+
+func caseRef(v int) (int, error) {
+	t := g("t", 7)
+	k := switch n := load("s", v)?; n { case 7 => 7; default => 1 }
+	r := 20
+	if t == k {
+		r = 10
+	}
+	return r, nil
+}
+
+type cell struct {
+	name   string
+	nested func(int) (int, error)
+	ref    func(int) (int, error)
+	want   [4]string
+}
+
+type scenario struct {
+	v    int
+	fail string
+}
+
+var scenarios = [4]scenario{{7, ""}, {7, "s"}, {0, ""}, {0, "s"}}
+
+func show(f func(int) (int, error), sc scenario) string {
+	ev = nil
+	failAt = sc.fail
+	r, err := f(sc.v)
+	if err != nil {
+		return fmt.Sprint("err ", err, " ", ev)
+	}
+	return fmt.Sprint(r, " ", ev)
+}
+
+func cells() []cell {
+	failS := "err load [load:s]"
+	return []cell{
+		{"arg", argNested, argRef, [4]string{"73 [a load:s b]", "err load [a load:s]", "4 [a load:s b]", "err load [a load:s]"}},
+		{"arg-try", argTryNested, argTryRef, [4]string{"71 [load:s p]", failS, "2 [load:s p]", failS}},
+		{"method", methodNested, methodRef, [4]string{"170 [m load:s add]", "err load [m load:s]", "101 [m load:s add]", "err load [m load:s]"}},
+		{"defer", deferNested, deferRef, [4]string{"5 [load:s body d:70]", failS, "5 [load:s body d:1]", failS}},
+		{"send", sendNested, sendRef, [4]string{"70 [load:s]", failS, "1 [load:s]", failS}},
+		{"range", rangeNested, rangeRef, [4]string{"3 [load:s]", failS, "1 [load:s]", failS}},
+		{"interp", interpNested, interpRef, [4]string{"4 [load:s]", failS, "3 [load:s]", failS}},
+		{"tuple", tupleNested, tupleRef, [4]string{"70 [load:s]", failS, "1 [load:s]", failS}},
+		{"optsel", optselNested, optselRef, [4]string{"7 [load:s]", failS, "-1 [load:s]", failS}},
+		{"coal-left", coalLeftNested, coalLeftRef, [4]string{"7 [load:s]", failS, "-1 [load:s]", failS}},
+		{"labeled-for", labeledForNested, labeledForRef, [4]string{"10 [load:s]", failS, "30 [load:s]", failS}},
+		{"labeled-switch", labeledSwitchNested, labeledSwitchRef, [4]string{"1 [load:s]", failS, "2 [load:s]", failS}},
+		{"lambda-arg", lamArgNested, lamArgRef, [4]string{"73 [a load:s b]", "err load [a load:s]", "4 [a load:s b]", "err load [a load:s]"}},
+		{"complit-trailing", complitTrailingNested, tupleRef, [4]string{"70 [load:s]", failS, "1 [load:s]", failS}},
+		{"complit-comment", complitCommentNested, tupleRef, [4]string{"70 [load:s]", failS, "1 [load:s]", failS}},
+		{"slice-lines", sliceLinesNested, argRef, [4]string{"73 [a load:s b]", "err load [a load:s]", "4 [a load:s b]", "err load [a load:s]"}},
+		{"call-trailing", callTrailingNested, argRef, [4]string{"73 [a load:s b]", "err load [a load:s]", "4 [a load:s b]", "err load [a load:s]"}},
+		{"return-lines", returnLinesNested, tupleRef, [4]string{"70 [load:s]", failS, "1 [load:s]", failS}},
+		{"receiver", recvNested, recvRef, [4]string{"73 [a load:s x add]", "err load [a load:s]", "4 [a load:s x add]", "err load [a load:s]"}},
+		{"function", funcNested, funcRef, [4]string{"74 [a load:s x fa]", "err load [a load:s]", "5 [a load:s x fb]", "err load [a load:s]"}},
+		{"selector", selNested, argRef, [4]string{"73 [a load:s b]", "err load [a load:s]", "4 [a load:s b]", "err load [a load:s]"}},
+		{"unary", unaryNested, argRef, [4]string{"73 [a load:s b]", "err load [a load:s]", "4 [a load:s b]", "err load [a load:s]"}},
+		{"first-case", caseNested, caseRef, [4]string{"10 [t load:s]", "err load [t load:s]", "20 [t load:s]", "err load [t load:s]"}},
+	}
+}
+
+func main() {
+	failed := false
+	for _, c := range cells() {
+		ok := true
+		for i, sc := range scenarios {
+			got, ref := show(c.nested, sc), show(c.ref, sc)
+			if got != ref || got != c.want[i] {
+				ok = false
+				failed = true
+				fmt.Println("FAIL", c.name, sc, "got", got, "reference", ref, "want", c.want[i])
+			}
+		}
+		if ok {
+			fmt.Println("ok", c.name)
+		}
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

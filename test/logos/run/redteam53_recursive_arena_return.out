@@ -1,4 +1,6 @@
-tree: 80 3240
-tree-gc: 3240
-chain: 7392 7392 10560
-chain-keep: 7392
+ok recursive-tree-len
+ok recursive-tree-sum
+ok recursive-tree-gc
+ok recursive-chain-oracle
+ok recursive-unrelated-oracle
+ok recursive-chain-stable

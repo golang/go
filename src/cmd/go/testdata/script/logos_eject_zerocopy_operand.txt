@@ -1,0 +1,47 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# A zero-copy conversion ends at its own closing parenthesis, whatever
+# follows it: an operator, an index, a comment. The module runs natively,
+# ejects, and the ejected module builds and runs with go and with go1.27.2
+# from $UPROOT1272 and prints the same output.
+cd m
+logos run .
+stdout '^hello! <hello> 6 101 hello$'
+cp stdout $WORK/native.txt
+logos eject -o out
+exists out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $WORK/native.txt
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
+exec $WORK/upstream$GOEXE
+cmp stdout $WORK/native.txt
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ..
+
+-- m/go.mod --
+module example.com/zerocopyoperand
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import "fmt"
+
+func main() {
+	s := "hello"
+	var b const []byte = const []byte(s)
+	t := string(b) + "!"
+	u := "<" + string(b) + ">"
+	n := len(string(b)) + 1
+	c := string(b)[1]
+	d := string(b) // comment after a conversion
+	fmt.Println(t, u, n, c, d)
+}

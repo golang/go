@@ -1,0 +1,59 @@
+# M18-S7 unit D (F13): region_escape stops a loGo/s package before
+# escape analysis, so one lint run over a workspace with one loGo/s
+# module and one Go module still reports the escape of the first and the
+# arena fallback of the second. The Go module holds no regions for the
+# escape rule, but its global store kills the region record, which
+# escape analysis reports as perf::arena_fallback.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOEXPERIMENT=logosarena
+
+! logos lint --json-diagnostics ./...
+stderr '"rule_id":"correctness::region_escape"'
+stderr '"rule_id":"perf::arena_fallback"'
+
+-- go.work --
+go 1.27
+
+use (
+	./a
+	./b
+)
+
+-- a/go.mod --
+module example.com/arenalint-a
+
+go 1.27
+
+-- a/a.lgo --
+package a
+
+import "logos/arena"
+
+type box struct {
+	r arena.Region
+}
+
+func Store(b *box) {
+	r := arena.Open()
+	b.r = r
+}
+
+-- b/go.mod --
+module example.com/arenalint-b
+
+go 1.27
+
+-- b/b.go --
+package b
+
+import "logos/arena"
+
+var global *int
+
+func Store() {
+	r := arena.Open()
+	p := arena.New[int](r)
+	global = p
+	_ = global
+}

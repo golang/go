@@ -367,6 +367,9 @@ func InlineImpossible(fn *ir.Func) string {
 		reason = "no name"
 		return reason
 	}
+	if reason := logosInlImpossible(fn); reason != "" {
+		return reason
+	}
 
 	// If marked "go:noinline", don't inline.
 	if fn.Pragma&ir.Noinline != 0 {
@@ -645,7 +648,7 @@ opSwitch:
 			break // Treat like any other node.
 		}
 
-		if callee := inlCallee(v.curFunc, n.Fun, v.profile, false); callee != nil && typecheck.HaveInlineBody(callee) {
+		if callee := inlCallee(v.curFunc, n.Fun, v.profile, false, nil); callee != nil && typecheck.HaveInlineBody(callee) {
 			// Check whether we'd actually inline this call. Set
 			// log == false since we aren't actually doing inlining
 			// yet.
@@ -920,16 +923,16 @@ func inlineCallCheck(callerfn *ir.Func, call *ir.CallExpr) (bool, bool) {
 // InlineCallTarget returns the resolved-for-inlining target of a call.
 // It does not necessarily guarantee that the target can be inlined, though
 // obvious exclusions are applied.
-func InlineCallTarget(callerfn *ir.Func, call *ir.CallExpr, profile *pgoir.Profile) *ir.Func {
+func InlineCallTarget(callerfn *ir.Func, call *ir.CallExpr, profile *pgoir.Profile, ro *ir.ReassignOracle) *ir.Func {
 	if mightInline, _ := inlineCallCheck(callerfn, call); !mightInline {
 		return nil
 	}
-	return inlCallee(callerfn, call.Fun, profile, true)
+	return inlCallee(callerfn, call.Fun, profile, true, ro)
 }
 
 // TryInlineCall returns an inlined call expression for call, or nil
 // if inlining is not possible.
-func TryInlineCall(callerfn *ir.Func, call *ir.CallExpr, bigCaller bool, profile *pgoir.Profile, closureCalledOnce bool) *ir.InlinedCallExpr {
+func TryInlineCall(callerfn *ir.Func, call *ir.CallExpr, bigCaller bool, profile *pgoir.Profile, closureCalledOnce bool, ro *ir.ReassignOracle) *ir.InlinedCallExpr {
 	mightInline, isIntrinsic := inlineCallCheck(callerfn, call)
 
 	// Preserve old logging behavior
@@ -940,7 +943,7 @@ func TryInlineCall(callerfn *ir.Func, call *ir.CallExpr, bigCaller bool, profile
 		return nil
 	}
 
-	if fn := inlCallee(callerfn, call.Fun, profile, false); fn != nil && typecheck.HaveInlineBody(fn) {
+	if fn := inlCallee(callerfn, call.Fun, profile, false, ro); fn != nil && typecheck.HaveInlineBody(fn) {
 		return mkinlcall(callerfn, call, fn, bigCaller, closureCalledOnce, profile)
 	}
 	return nil
@@ -949,8 +952,8 @@ func TryInlineCall(callerfn *ir.Func, call *ir.CallExpr, bigCaller bool, profile
 // inlCallee takes a function-typed expression and returns the underlying function ONAME
 // that it refers to if statically known. Otherwise, it returns nil.
 // resolveOnly skips cost-based inlineability checks for closures; the result may not actually be inlineable.
-func inlCallee(caller *ir.Func, fn ir.Node, profile *pgoir.Profile, resolveOnly bool) (res *ir.Func) {
-	fn = ir.StaticValue(fn)
+func inlCallee(caller *ir.Func, fn ir.Node, profile *pgoir.Profile, resolveOnly bool, ro *ir.ReassignOracle) (res *ir.Func) {
+	fn = logosInlStaticValue(fn, ro)
 	switch fn.Op() {
 	case ir.OMETHEXPR:
 		fn := fn.(*ir.SelectorExpr)
@@ -1089,24 +1092,14 @@ func parsePos(pos src.XPos, posTmp []src.Pos) ([]src.Pos, src.Pos) {
 //
 // Preconditions: CanInline(callee) has already been called.
 func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCaller, closureCalledOnce bool, log bool) (bool, int32, bool) {
+	if logosInlRegionNoInline(callee) {
+		return false, 0, false
+	}
 	if callee.Inl == nil {
 		// callee is never inlinable.
 		if log && logopt.Enabled() {
 			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(callerfn),
 				fmt.Sprintf("%s cannot be inlined", ir.PkgFuncName(callee)))
-		}
-		return false, 0, false
-	}
-
-	if logosNoLBFence(callerfn, callee) {
-		if log {
-			if base.Flag.LowerM > 1 {
-				fmt.Printf("%v: cannot inline %v into %v: load-barrier policy differs\n", ir.Line(n), callee, ir.FuncName(callerfn))
-			}
-			if logopt.Enabled() {
-				logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(callerfn),
-					fmt.Sprintf("%s and %s differ in load-barrier policy", ir.PkgFuncName(callerfn), ir.PkgFuncName(callee)))
-			}
 		}
 		return false, 0, false
 	}

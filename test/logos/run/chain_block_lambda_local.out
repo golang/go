@@ -1,0 +1,8 @@
+ok map-typed-lambda
+ok map-func-literal
+ok map-call-argument
+ok map-capture
+ok filter-predicate
+ok find-predicate
+ok any-and-all
+ok stages-after

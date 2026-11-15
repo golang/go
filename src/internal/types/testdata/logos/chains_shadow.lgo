@@ -1,0 +1,82 @@
+package p
+
+type store struct {
+	items []int
+	seen  map[int]bool
+	buf   []int
+	count int
+}
+
+func copy(dst, src []int) int { return 0 }
+
+func (s *store) siblingFields(src []int) {
+	_ = s.items.filter(x => {
+		delete(s.seen, x)
+		clear(s.buf)
+		s.count++
+		return true
+	})
+}
+
+func (s *store) userFunctionNamedLikeBuiltin(src []int) {
+	_ = s.items.filter(x => {
+		_ = copy(s.items, src)
+		return true
+	})
+}
+
+func shadowedReceiver(xs [][]int) {
+	_ = xs.filter(x => {
+		if len(x) > 0 {
+			xs := []int{1}
+			clear(xs)
+		}
+		return true
+	})
+}
+
+func ownParameter(xs [][]int) {
+	_ = xs.filter(x => {
+		f := func(x []int) { clear(x) }
+		f(nil)
+		return true
+	})
+}
+
+func rangeVariable(xs [][]int) {
+	_ = xs.filter(x => {
+		for _, x := range [][]int{{1}} {
+			clear(x)
+		}
+		return true
+	})
+}
+
+func (s *store) receiverField() {
+	_ = s.items.filter(x => {
+		s /* ERROR "[correctness::const_view_mutation]" */ .items[0] = x
+		return true
+	})
+	_ = s.items.filter(x => {
+		clear(s.items[ /* ERROR "[correctness::const_view_mutation]" */ :1])
+		return true
+	})
+	_ = s.items.filter(x => {
+		s /* ERROR "[correctness::const_view_mutation]" */ .items = nil
+		return true
+	})
+}
+
+func (s *store) spelledReceiver() {
+	_ = (*s).items.filter(x => {
+		s /* ERROR "[correctness::const_view_mutation]" */ .items[0] = x
+		return true
+	})
+}
+
+func lambdaParameter(xs [][]int) {
+	_ = xs.filter(x => {
+		x /* ERROR "[correctness::const_view_mutation]" */ [0] = 1
+		return true
+	})
+}

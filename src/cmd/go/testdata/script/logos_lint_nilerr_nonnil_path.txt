@@ -1,0 +1,57 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd s
+! logos build ./d
+stderr 'Maybe\(true\) is dropped'
+logos build ./e
+cd ..
+
+cd s/c
+logos build -o $WORK/s.a .
+cd ../..
+go tool pack p $WORK/s.a __.LOGOS
+stdout '^fn Control AlwaysNilError$'
+! stdout '^fn Maybe AlwaysNilError'
+cd ..
+
+-- s/go.mod --
+module example.com/s
+
+go 1.27
+
+-- s/c/c.lgo --
+package c
+
+import "errors"
+
+var errBad = errors.New("bad")
+
+func Maybe(fail bool) error {
+	if fail {
+		return errBad
+	}
+	return nil
+}
+
+func Control() error {
+	return nil
+}
+
+-- s/d/d.lgo --
+package d
+
+import "example.com/s/c"
+
+func Use() {
+	c.Maybe(true)
+}
+
+-- s/e/e.lgo --
+package e
+
+import "example.com/s/c"
+
+func Use() {
+	c.Control()
+}

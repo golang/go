@@ -1,11 +1,3 @@
-# Foreign-consumer acceptance: managed loGo/s shared library.
-# The library is built with the existing Go-syntax .lgo import-C export
-# bridge. core.lgo holds Logos-only syntax (? on genuine foreign input);
-# c_bridge.lgo is Go syntax only, per the rule pinned in logos_cgo_lgo.txt.
-# The embedded C consumer compiles against ONLY the generated header and
-# exercises every export from real C threads; the Python ctypes consumer
-# repeats the same interface with full argtypes/restype.
-
 [!cgo] skip 'cgo is not available'
 [!buildmode:c-shared] stop
 [GOOS:windows] skip 'POSIX sh/cc/pthreads consumer'
@@ -14,29 +6,28 @@ env GOPROXY=off
 env GOTOOLCHAIN=local
 env CGO_ENABLED=1
 
-# Default CC: a host compiler setting must not drive the build.
 env CC=
 
-# Real managed shared library through the existing bridge and the
-# standard c-shared mode. No new flag, generator, or second pipeline.
 logos build -buildvcs=false -buildmode=c-shared -o $WORK/liblogos.so ./lib
 
-# c-shared installs the generated C header next to the library.
 exists $WORK/liblogos.so
 exists $WORK/liblogos.h
 
-# Real C consumer: fixed-width scalars, borrowed buffers (normal, empty,
-# malformed, unconvertible length), error/panic statuses, handle
-# lifecycle, and concurrent immutable-handle reads from foreign threads.
-# Deletion happens after every thread joins, never racing use.
 exec sh c/compile.sh $WORK
 exec $WORK/consumer
 stdout 'C-OK add=42 div=7 sum=42'
 
-# Same C interface through Python ctypes. Conditional in the portable
-# suite; acceptance hosts run it and observe PY-OK.
 [exec:python3] exec python3 py/consumer.py $WORK
 [exec:python3] stdout 'PY-OK add=42 sum=42 div=7 handle=7'
+
+cp forbid.toml logos.toml
+! logos build -buildvcs=false -buildmode=c-shared -o $WORK/forbidden.so ./lib
+! exists $WORK/forbidden.so
+! exists $WORK/forbidden.h
+
+-- forbid.toml --
+[build]
+cgo = "forbid"
 
 -- go.mod --
 module example.com/shared

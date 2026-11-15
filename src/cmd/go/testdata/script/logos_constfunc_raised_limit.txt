@@ -1,0 +1,77 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd default_cap
+! logos build ./...
+stderr '\[comptime::ctfe_step_limit\] evaluation exceeds the step limit'
+cd ..
+
+cd raised
+logos run .
+stdout '^raised: 200000$'
+cd ..
+
+-- reclib/go.mod --
+module example.com/reclib
+
+go 1.27
+
+-- reclib/rec.lgo --
+package reclib
+
+// Loop is a pure iterative const function costing about one step per iteration.
+const func Loop(n int) int {
+	total := 0
+	for i := 0; i < n; i++ {
+		total += 1
+	}
+	return total
+}
+
+-- default_cap/go.mod --
+module example.com/defaultcap
+
+go 1.27
+
+require example.com/reclib v0.0.0
+
+replace example.com/reclib => ../reclib
+
+-- default_cap/main.lgo --
+package main
+
+import "example.com/reclib"
+// Loop(200000) needs about 200,000 steps, past the 100,000 default.
+const Exceeded = reclib.Loop(200000)
+
+func main() {
+	println(Exceeded)
+}
+
+-- raised/go.mod --
+module example.com/raised
+
+go 1.27
+
+require example.com/reclib v0.0.0
+
+replace example.com/reclib => ../reclib
+
+-- raised/logos.toml --
+[lints.thresholds]
+max_ctfe_steps = 1000000
+
+-- raised/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/reclib"
+)
+// Loop(200000) runs past the default step budget under the raised limit.
+const Value = reclib.Loop(200000)
+
+func main() {
+	fmt.Println("raised:", Value)
+}

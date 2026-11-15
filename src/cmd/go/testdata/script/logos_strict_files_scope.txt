@@ -1,30 +1,12 @@
-# M0-S4 scope: strict_files applies per main module, never to dependency
-# modules, and never to command-line-arguments file builds.
-# (a) Dependency isolation: iso restricts to [".lgo"] but imports
-# example.com/dep through a local replace; the dep package holds x.⚡
-# and dep/logos.toml is invalid TOML. Build and run must succeed:
-# without the Contains gate the dep package would be checked against
-# iso's list (or its broken file loaded) and the build would fail.
-# (b) Per-main-module root in a workspace: ws/a restricts to [".lgo"]
-# and imports example.com/b/p holding y.⚡; ws/b starts with no
-# logos.toml. Building from ws/a must succeed: with a CWD-root lookup
-# B's file would be checked against A's list and fail. Then B restricts
-# to [".lgo"] and the same build must fail with the pinned
-# extension_not_enabled error for y.⚡.
-# (c) File arguments ignore logos.toml: args/logos.toml is invalid TOML,
-# yet `logos build main.lgo x.⚡` must succeed because
-# command-line-arguments builds use defaults (p.Module == nil).
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
-# Case (a): dependency with x.⚡ and invalid logos.toml is not checked.
 cd iso
 logos build .
 logos run .
 stdout '^iso-ok$'
 cd ..
 
-# Case (b): workspace per-main-module root.
 cd ws/a
 logos build ./...
 logos run .
@@ -36,7 +18,6 @@ cd ../a
 stderr '\[correctness::extension_not_enabled\] y\.⚡: extension \.⚡ is not enabled by logos\.toml strict_files'
 cd ../..
 
-# Case (c): file-argument build ignores the module's invalid logos.toml.
 cd args
 logos build main.lgo x.⚡
 cd ..

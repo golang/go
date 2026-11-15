@@ -1,0 +1,20 @@
+// errorcheck
+
+package p
+
+const func nanComplex() complex128 {
+	z := complex(1.0, 1.0) - complex(1.0, 1.0)
+	return z / z
+}
+
+const nanKey = map[complex128]int{nanComplex(): 1} // ERROR "\[correctness::const_eval\]"
+
+const func posZero() complex128 {
+	return complex(0.0, 0.0)
+}
+
+const func negZero() complex128 {
+	return complex(-0.0, -0.0)
+}
+
+const dupNegZero = map[complex128]int{posZero(): 1, negZero(): 2} // ERROR "\[correctness::const_eval\]"

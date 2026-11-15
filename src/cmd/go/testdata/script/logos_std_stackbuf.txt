@@ -1,0 +1,138 @@
+# A standard-library-provenance package keeps the 32-byte
+# variable-make stack buffer at every opt level (O0, O1, O2, O3,
+# Os), while a user package uses the tier buffer. Provenance
+# follows the std gate: the probe compiles as the external test
+# package of a dotless import path, which the gate treats as
+# standard provenance.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GO111MODULE=off
+env GOPATH=$WORK/gopath
+
+env WANT_STACKBUF=32
+mkdir $WORK/gopath/src/probe
+cp probe/probe.go probe/probe_test.go $WORK/gopath/src/probe/
+mkdir $WORK/m
+cp m/go.mod m/user_test.go m/logos.toml $WORK/m/
+cd $WORK/gopath/src/probe
+go test -count=1 -O=2 .
+stdout '^ok'
+! stdout 'no tests to run'
+go test -count=1 -O=3 .
+stdout '^ok'
+! stdout 'no tests to run'
+go test -count=1 -O=0 .
+stdout '^ok'
+! stdout 'no tests to run'
+go test -count=1 -O=1 .
+stdout '^ok'
+! stdout 'no tests to run'
+go test -count=1 -O=s .
+stdout '^ok'
+! stdout 'no tests to run'
+
+env GO111MODULE=auto
+cd $WORK/m
+env WANT_STACKBUF=256
+go test -count=1 -O=2 .
+stdout '^ok'
+! stdout 'no tests to run'
+env WANT_STACKBUF=4096
+go test -count=1 -O=3 .
+stdout '^ok'
+! stdout 'no tests to run'
+logos test -count=1 -O=3 .
+stdout '^ok'
+! stdout 'no tests to run'
+
+-- probe/probe.go --
+package probe
+
+-- probe/probe_test.go --
+package probe_test
+
+import (
+	"os"
+	"strconv"
+	"testing"
+)
+
+//go:noinline
+func localProbe(n int) byte {
+	b := make([]byte, n)
+	b[0] = 1
+	return b[n-1]
+}
+
+func allocs(n int) float64 {
+	return testing.AllocsPerRun(10, func() { _ = localProbe(n) })
+}
+
+func TestStdBuffer(t *testing.T) {
+	want, err := strconv.Atoi(os.Getenv("WANT_STACKBUF"))
+	if err != nil || want < 2 {
+		t.Fatalf("WANT_STACKBUF=%q: want a byte count of at least 2", os.Getenv("WANT_STACKBUF"))
+	}
+	for _, c := range []struct {
+		n     int
+		stack bool
+	}{
+		{want / 2, true},
+		{want, true},
+		{want + 1, false},
+		{2*want + 1, false},
+	} {
+		if got := allocs(c.n); (got == 0) != c.stack {
+			t.Errorf("make of %d bytes took %v allocations, want the std buffer of %d bytes to decide: stack=%v", c.n, got, want, c.stack)
+		}
+	}
+}
+
+-- m/go.mod --
+module example.com/stdbufuser
+
+go 1.27
+
+-- m/logos.toml --
+[build]
+arena = false
+
+-- m/user_test.go --
+package user
+
+import (
+	"os"
+	"strconv"
+	"testing"
+)
+
+//go:noinline
+func userProbe(n int) byte {
+	b := make([]byte, n)
+	b[0] = 1
+	return b[n-1]
+}
+
+func userAllocs(n int) float64 {
+	return testing.AllocsPerRun(10, func() { _ = userProbe(n) })
+}
+
+func TestUserBuffer(t *testing.T) {
+	want, err := strconv.Atoi(os.Getenv("WANT_STACKBUF"))
+	if err != nil || want < 2 {
+		t.Fatalf("WANT_STACKBUF=%q: want a byte count of at least 2", os.Getenv("WANT_STACKBUF"))
+	}
+	for _, c := range []struct {
+		n     int
+		stack bool
+	}{
+		{want / 2, true},
+		{want, true},
+		{want + 1, false},
+		{2*want + 1, false},
+	} {
+		if got := userAllocs(c.n); (got == 0) != c.stack {
+			t.Errorf("make of %d bytes took %v allocations, want the tier buffer of %d bytes to decide: stack=%v", c.n, got, want, c.stack)
+		}
+	}
+}

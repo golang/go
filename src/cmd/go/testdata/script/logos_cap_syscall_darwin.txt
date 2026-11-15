@@ -1,0 +1,349 @@
+[short] skip 'cross-links the standard library for darwin'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOOS=darwin
+env GOARCH=arm64
+env CGO_ENABLED=0
+mkdir $WORK/bin
+
+cd a/main
+! logos build -o $WORK/bin/dara ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/adep'' reaches ''syscall\.Syscall'''
+stderr 'ERROR \[capabilities::unauthorized_net\]: Transitive dependency ''example\.com/adep'' reaches ''syscall\.Syscall'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/adep'' reaches ''syscall\.Syscall6'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/adep'' reaches ''syscall\.Syscall9'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/adep'' reaches ''syscall\.RawSyscall'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/adep'' reaches ''syscall\.RawSyscall6'''
+cd ../..
+
+cd b/main
+! logos build -o $WORK/bin/darb ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/bdep'' reaches ''syscall\.syscall'''
+stderr 'ERROR \[capabilities::unauthorized_net\]: Transitive dependency ''example\.com/bdep'' reaches ''syscall\.syscall'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/bdep'' reaches ''syscall\.syscallX'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/bdep'' reaches ''syscall\.syscall6'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/bdep'' reaches ''syscall\.syscall6X'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/bdep'' reaches ''syscall\.syscall9'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/bdep'' reaches ''syscall\.rawSyscall'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/bdep'' reaches ''syscall\.rawSyscall6'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/bdep'' reaches ''syscall\.rawSyscall9'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/bdep'' reaches ''syscall\.syscallPtr'''
+cd ../..
+
+cd c/main
+logos build -o $WORK/bin/darc ./cmd
+! stderr 'capabilities::'
+cd ../..
+
+cd d/main
+logos build -o $WORK/bin/darbd ./cmd
+! stderr 'capabilities::'
+cd ../..
+
+cd e/main
+! logos build -o $WORK/bin/dare ./cmd
+stderr 'syscall\.syscalln'
+cd ../..
+
+cd f/main
+! logos build -o $WORK/bin/darf ./cmd
+stderr 'syscall\.rawsyscalln'
+! stderr 'syscall\.syscalln'
+cd ../..
+
+-- a/main/go.mod --
+module example.com/amain
+
+go 1.27
+
+require example.com/adep v0.0.0
+
+replace example.com/adep => ../dep
+
+-- a/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_net = "deny"
+
+-- a/main/cmd/main.go --
+package main
+
+import "example.com/adep"
+
+func main() { adep.Init() }
+
+-- a/dep/go.mod --
+module example.com/adep
+
+go 1.27
+
+-- a/dep/dep.go --
+package adep
+
+import "syscall"
+
+//go:noinline
+func Init() {
+	syscall.Syscall(0, 0, 0, 0)
+	syscall.Syscall6(0, 0, 0, 0, 0, 0, 0)
+	syscall.Syscall9(0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+	syscall.RawSyscall(0, 0, 0, 0)
+	syscall.RawSyscall6(0, 0, 0, 0, 0, 0, 0)
+}
+
+-- b/main/go.mod --
+module example.com/bmain
+
+go 1.27
+
+require example.com/bdep v0.0.0
+
+replace example.com/bdep => ../dep
+
+-- b/main/logos.toml --
+[capabilities]
+transitive_unsafe = "allow"
+transitive_exec = "deny"
+transitive_net = "deny"
+
+-- b/main/cmd/main.go --
+package main
+
+import "example.com/bdep"
+
+func main() { bdep.Init() }
+
+-- b/dep/go.mod --
+module example.com/bdep
+
+go 1.27
+
+-- b/dep/empty.s --
+-- b/dep/dep.go --
+package bdep
+
+import (
+	_ "syscall"
+	_ "unsafe"
+)
+
+//go:linkname libcSyscall syscall.syscall
+func libcSyscall(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr)
+
+//go:linkname libcSyscallX syscall.syscallX
+func libcSyscallX(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr)
+
+//go:linkname libcSyscall6 syscall.syscall6
+func libcSyscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
+
+//go:linkname libcSyscall6X syscall.syscall6X
+func libcSyscall6X(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
+
+//go:linkname libcSyscall9 syscall.syscall9
+func libcSyscall9(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, err uintptr)
+
+//go:linkname libcRawSyscall syscall.rawSyscall
+func libcRawSyscall(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr)
+
+//go:linkname libcRawSyscall6 syscall.rawSyscall6
+func libcRawSyscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
+
+//go:linkname libcRawSyscall9 syscall.rawSyscall9
+func libcRawSyscall9(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, err uintptr)
+
+//go:linkname libcSyscallPtr syscall.syscallPtr
+func libcSyscallPtr(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr)
+
+//go:noinline
+func Init() {
+	libcSyscall(0, 0, 0, 0)
+	libcSyscallX(0, 0, 0, 0)
+	libcSyscall6(0, 0, 0, 0, 0, 0, 0)
+	libcSyscall6X(0, 0, 0, 0, 0, 0, 0)
+	libcSyscall9(0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+	libcRawSyscall(0, 0, 0, 0)
+	libcRawSyscall6(0, 0, 0, 0, 0, 0, 0)
+	libcRawSyscall9(0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+	libcSyscallPtr(0, 0, 0, 0)
+}
+
+-- c/main/go.mod --
+module example.com/cmain
+
+go 1.27
+
+require example.com/cdep v0.0.0
+
+replace example.com/cdep => ../dep
+
+-- c/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_net = "deny"
+
+-- c/main/cmd/main.go --
+package main
+
+import "example.com/cdep"
+
+func main() { cdep.Init() }
+
+-- c/dep/go.mod --
+module example.com/cdep
+
+go 1.27
+
+-- c/dep/dep.go --
+package cdep
+
+import (
+	"os"
+	"syscall"
+)
+
+//go:noinline
+func Init() {
+	syscall.Getpid()
+	syscall.Kill(0, 0)
+	os.Getpid()
+	os.ReadFile("go.mod")
+}
+
+-- d/main/go.mod --
+module example.com/dmain
+
+go 1.27
+
+require example.com/ddep v0.0.0
+
+replace example.com/ddep => ../dep
+
+-- d/main/logos.toml --
+[capabilities]
+transitive_unsafe = "allow"
+transitive_exec = "deny"
+transitive_exec_allowlist = ["example.com/ddep/**"]
+transitive_net = "deny"
+transitive_net_allowlist = ["example.com/ddep/**"]
+
+-- d/main/cmd/main.go --
+package main
+
+import "example.com/ddep"
+
+func main() { ddep.Init() }
+
+-- d/dep/go.mod --
+module example.com/ddep
+
+go 1.27
+
+-- d/dep/empty.s --
+-- d/dep/dep.go --
+package ddep
+
+import (
+	_ "syscall"
+	_ "unsafe"
+)
+
+//go:linkname libcSyscall syscall.syscall
+func libcSyscall(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr)
+
+//go:noinline
+func Init() {
+	libcSyscall(0, 0, 0, 0)
+}
+
+-- e/main/go.mod --
+module example.com/emain
+
+go 1.27
+
+require example.com/edep v0.0.0
+
+replace example.com/edep => ../dep
+
+-- e/main/logos.toml --
+[capabilities]
+transitive_unsafe = "allow"
+transitive_exec = "allow"
+transitive_net = "allow"
+
+-- e/main/cmd/main.go --
+package main
+
+import "example.com/edep"
+
+func main() { edep.Init() }
+
+-- e/dep/go.mod --
+module example.com/edep
+
+go 1.27
+
+-- e/dep/empty.s --
+-- e/dep/dep.go --
+package edep
+
+import (
+	_ "syscall"
+	_ "unsafe"
+)
+
+//go:linkname libcSyscalln syscall.syscalln
+func libcSyscalln(fn uintptr, args ...uintptr) (r1, r2, err uintptr)
+
+//go:linkname libcRawsyscalln syscall.rawsyscalln
+func libcRawsyscalln(fn uintptr, args ...uintptr) (r1, r2, err uintptr)
+
+//go:noinline
+func Init() {
+	libcSyscalln(0)
+	libcRawsyscalln(0)
+}
+
+-- f/main/go.mod --
+module example.com/fmain
+
+go 1.27
+
+require example.com/fdep v0.0.0
+
+replace example.com/fdep => ../dep
+
+-- f/main/logos.toml --
+[capabilities]
+transitive_unsafe = "allow"
+transitive_exec = "allow"
+transitive_net = "allow"
+
+-- f/main/cmd/main.go --
+package main
+
+import "example.com/fdep"
+
+func main() { fdep.Init() }
+
+-- f/dep/go.mod --
+module example.com/fdep
+
+go 1.27
+
+-- f/dep/empty.s --
+-- f/dep/dep.go --
+package fdep
+
+import (
+	_ "syscall"
+	_ "unsafe"
+)
+
+//go:linkname libcRawsyscalln syscall.rawsyscalln
+func libcRawsyscalln(fn uintptr, args ...uintptr) (r1, r2, err uintptr)
+
+//go:noinline
+func Init() {
+	libcRawsyscalln(0)
+}

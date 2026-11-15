@@ -1,0 +1,96 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+	"testing"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type box struct {
+	M map[string]int
+	L []int
+	N int
+}
+
+type item struct {
+	M map[string]int
+	N int
+}
+
+const cfg = box{M: map[string]int{"k00": 0, "k01": 1, "k02": 2, "k03": 3, "k04": 4, "k05": 5, "k06": 6, "k07": 7, "k08": 8, "k09": 9, "k10": 10, "k11": 11, "k12": 12, "k13": 13, "k14": 14, "k15": 15, "k16": 16, "k17": 17, "k18": 18, "k19": 19, "k20": 20, "k21": 21, "k22": 22, "k23": 23}, L: []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63}, N: 7}
+
+const items = []item{{M: map[string]int{"k00": 100, "k01": 101, "k02": 102, "k03": 103, "k04": 104, "k05": 105, "k06": 106, "k07": 107, "k08": 108, "k09": 109, "k10": 110, "k11": 111, "k12": 112, "k13": 113, "k14": 114, "k15": 115, "k16": 116, "k17": 117, "k18": 118, "k19": 119, "k20": 120, "k21": 121, "k22": 122, "k23": 123}, N: 1}, {M: map[string]int{"k00": 200, "k01": 201, "k02": 202, "k03": 203, "k04": 204, "k05": 205, "k06": 206, "k07": 207, "k08": 208, "k09": 209, "k10": 210, "k11": 211, "k12": 212, "k13": 213, "k14": 214, "k15": 215, "k16": 216, "k17": 217, "k18": 218, "k19": 219, "k20": 220, "k21": 221, "k22": 222, "k23": 223}, N: 2}}
+
+var sink int
+
+func allocs(f func()) float64 {
+	best := testing.AllocsPerRun(100, f)
+	for range 4 {
+		if n := testing.AllocsPerRun(100, f); n < best {
+			best = n
+		}
+	}
+	return best
+}
+
+func test() {
+	i := 0
+	field := allocs(func() { sink += cfg.N })
+	check("alloc-field-read", field == 0, field, 0)
+	elem := allocs(func() { sink += cfg.L[1] })
+	check("alloc-slice-element-read", elem == 0, elem, 0)
+	static := allocs(func() { sink += cfg.M["k05"] ?? 0 })
+	check("alloc-static-map-read", static == 0, static, 0)
+	dynamic := allocs(func() {
+		i ^= 1
+		sink += items[i].M["k05"] ?? 0
+	})
+	check("alloc-dynamic-index-read", dynamic == 0, dynamic, 0)
+	control := allocs(func() {
+		m := items[i].M
+		sink += len(m)
+	})
+	check("alloc-copy-control", control > 0, control, "more than 0")
+	for j := range 2 {
+		got := items[j].M["k05"] ?? -1
+		check("dynamic-index-value", got == 100*(j+1)+5, got, 100*(j+1)+5)
+	}
+	first := 0
+	shifted := items[first+1].M["k05"] ?? -1
+	check("dynamic-index-expression", shifted == 205, shifted, 205)
+	pv, pok := items[first].M["k05"]
+	check("dynamic-index-comma-ok", pok && pv == 105, pv, 105)
+	_, miss := items[first].M["zz"]
+	check("dynamic-index-miss", !miss, miss, false)
+	oob := 5
+	panicked := false
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				panicked = true
+			}
+		}()
+		sink += items[oob].M["k05"] ?? 0
+	}()
+	check("dynamic-index-bounds", panicked, panicked, true)
+}
+
+func main() {
+	test()
+	if failed {
+		os.Exit(1)
+	}
+}

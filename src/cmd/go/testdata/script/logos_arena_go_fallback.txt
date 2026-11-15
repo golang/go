@@ -1,0 +1,275 @@
+# An escaping region use in a Go package falls back to the heap with a
+# perf::arena_fallback diagnostic under logos lint, never a
+# correctness::region_escape error. logos build stays silent on Go
+# modules: it runs no default lint there.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOEXPERIMENT=logosarena
+
+cd m
+logos lint .
+stderr 'main\.go:23:22: warning: \[perf::arena_fallback\]'
+! stderr 'region_escape'
+logos lint --json-diagnostics .
+stderr '"rule_id":"perf::arena_fallback"'
+stderr '"severity":"warn"'
+logos build .
+! stderr 'arena_fallback'
+! stderr 'region_escape'
+logos vet .
+go vet .
+logos run .
+stdout '^42$'
+stdout '^heap true$'
+go run .
+stdout '^42$'
+stdout '^heap true$'
+
+# A returned region object falls back with the call position.
+cd ../ret
+logos lint .
+stderr 'main\.go:17:21: warning: \[perf::arena_fallback\]'
+! stderr 'region_escape'
+logos build .
+! stderr 'arena_fallback'
+! stderr 'region_escape'
+logos run .
+stdout '^7$'
+stdout '^heap true$'
+go run .
+stdout '^7$'
+stdout '^heap true$'
+
+# A region object sent on a channel falls back with the call position.
+# Lint stays out: repeated channel operations trip the unrelated
+# unbounded-channel rule, so the build and the runs carry this case.
+# The build stays silent on the diagnostic all the same.
+cd ../chan
+logos build .
+! stderr 'arena_fallback'
+! stderr 'region_escape'
+logos run .
+stdout '^9$'
+stdout '^heap true$'
+go run .
+stdout '^9$'
+stdout '^heap true$'
+
+# A local region object stays silent and stays out of the heap:
+# lint reports nothing and both drivers measure no heap growth.
+cd ../non
+logos lint .
+! stderr 'arena_fallback'
+! stderr 'region_escape'
+logos run .
+stdout '^42$'
+stdout '^heap false$'
+go run .
+stdout '^42$'
+stdout '^heap false$'
+# Placement stays off without the experiment. The off directory holds
+# a non-escaping use: with the experiment plain go places it in the
+# region, without it both commands keep it on the heap with no
+# placement diagnostic and identical output.
+cd ../off
+env GOEXPERIMENT=logosarena
+go build -gcflags=-m .
+stderr 'main\.go:.*placed in region'
+! stderr 'region_escape'
+env GOEXPERIMENT=
+logos build -gcflags=-m .
+! stderr 'placed in region'
+! stderr 'region_escape'
+logos run .
+stdout '^42$'
+go build -gcflags=-m .
+! stderr 'placed in region'
+! stderr 'region_escape'
+go run .
+stdout '^42$'
+
+-- m/go.mod --
+module example.com/arenagofallback
+
+go 1.27
+
+-- m/main.go --
+package main
+
+import (
+	"fmt"
+	"runtime"
+
+	"logos/arena"
+)
+
+var saved *int
+
+func totalAlloc() uint64 {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	return m.TotalAlloc
+}
+
+func main() {
+	r := arena.Open()
+	const K = 10000
+	a0 := totalAlloc()
+	for range K {
+		q := arena.New[int](r)
+		*q = 42
+		saved = q
+	}
+	a1 := totalAlloc()
+	fmt.Println(*saved)
+	fmt.Println("heap", a1-a0 > 65536)
+	_ = r
+}
+
+-- ret/go.mod --
+module example.com/arenagofallbackret
+
+go 1.27
+
+-- ret/main.go --
+package main
+
+import (
+	"fmt"
+	"runtime"
+
+	"logos/arena"
+)
+
+func totalAlloc() uint64 {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	return m.TotalAlloc
+}
+
+func makePtr(r arena.Region) *int {
+	p := arena.New[int](r)
+	*p = 7
+	return p
+}
+
+func main() {
+	r := arena.Open()
+	q := makePtr(r)
+	n := *q
+	const K = 10000
+	a0 := totalAlloc()
+	for range K {
+		s := makePtr(r)
+		n = *s
+	}
+	a1 := totalAlloc()
+	fmt.Println(n)
+	fmt.Println("heap", a1-a0 > 65536)
+	_ = r
+}
+
+-- chan/go.mod --
+module example.com/arenagofallbackchan
+
+go 1.27
+
+-- chan/main.go --
+package main
+
+import (
+	"fmt"
+	"runtime"
+
+	"logos/arena"
+)
+
+func totalAlloc() uint64 {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	return m.TotalAlloc
+}
+
+func main() {
+	r := arena.Open()
+	const K = 10000
+	ch := make(chan *int, K)
+	a0 := totalAlloc()
+	for range K {
+		q := arena.New[int](r)
+		*q = 9
+		ch <- q
+	}
+	a1 := totalAlloc()
+	n := 0
+	for range K {
+		n = *<-ch
+	}
+	fmt.Println(n)
+	fmt.Println("heap", a1-a0 > 65536)
+	_ = r
+}
+-- non/go.mod --
+module example.com/arenagofallbacknon
+
+go 1.27
+
+-- non/main.go --
+package main
+
+import (
+	"fmt"
+	"runtime"
+
+	"logos/arena"
+)
+
+func totalAlloc() uint64 {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	return m.TotalAlloc
+}
+
+func main() {
+	r := arena.Open()
+	p := arena.New[int](r)
+	*p = 41
+	n := *p + 1
+	const K = 10000
+	a0 := totalAlloc()
+	for range K {
+		q := arena.New[int](r)
+		*q = 41
+		n = *q + 1
+	}
+	a1 := totalAlloc()
+	fmt.Println(n)
+	fmt.Println("heap", a1-a0 > 65536)
+	_ = r
+}
+
+-- off/go.mod --
+module example.com/arenagooff
+
+go 1.27
+
+-- off/logos.toml --
+[build]
+arena = false
+
+-- off/main.go --
+package main
+
+import (
+	"fmt"
+
+	"logos/arena"
+)
+
+func main() {
+	r := arena.Open()
+	p := arena.New[int](r)
+	*p = 41
+	fmt.Println(*p + 1)
+	_ = r
+}

@@ -5,6 +5,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os"
 )
 
 var errEarly = errors.New("early")
@@ -28,16 +29,29 @@ func returnEval() (v int, err error) {
 	return evalBoom()
 }
 
+var failed bool
+
+func check(name string, cond bool, got, want string) {
+	if !cond {
+		fmt.Printf("FAIL %s: got %s want %s\n", name, got, want)
+		failed = true
+		return
+	}
+	fmt.Printf("ok %s\n", name)
+}
+
 //logos:allow(slop::discarded_error)
 func main() {
 	_ = early(false)
+	check("errdefer-armed-flag-skips-on-success", len(order) == 0, fmt.Sprint(len(order)), "0")
 	_ = early(true)
+	check("errdefer-armed-flag-fires-on-early-error", len(order) == 1 && order[0] == "early-cleanup", fmt.Sprint(order), "[early-cleanup]")
 	func() {
 		defer func() { _ = recover() }()
 		_, _ = returnEval()
 	}()
-	for _, s := range order {
-		fmt.Println("ran:", s)
+	check("errdefer-armed-flag-fires-on-eval-panic", len(order) == 2 && order[1] == "eval-cleanup", fmt.Sprint(order), "[early-cleanup eval-cleanup]")
+	if failed {
+		os.Exit(1)
 	}
-	fmt.Println("count:", len(order))
 }

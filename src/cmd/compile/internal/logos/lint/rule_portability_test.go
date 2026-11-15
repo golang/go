@@ -169,6 +169,26 @@ func TestSerializedUnsizedInt(t *testing.T) {
 	}
 }
 
+func TestSerializedUnsizedIntTagGate(t *testing.T) {
+	const id = "portability::serialized_unsized_int"
+	const src = `package p
+
+type Tagged struct {
+	N int    ` + "`json:\"n\"`" + ` // want
+	S string ` + "`json:\"s\"`" + `
+}
+
+type Plain struct {
+	N int
+	M uint
+}
+`
+	expect(t, KindLgo, nil, testSource{"x.lgo", src}, finding{id, Warn})
+	if got := summarize(Run(check(t, KindGo, "x.go", src))); len(got) != 0 {
+		t.Errorf("Go package results = %q, want none", got)
+	}
+}
+
 // TestSerializedUnsizedIntSeverity covers the group severity: allow drops
 // the finding and deny turns it into an error that the directive silences.
 func TestSerializedUnsizedIntSeverity(t *testing.T) {
@@ -228,12 +248,35 @@ func TestSerializedUnsizedIntSpan(t *testing.T) {
 		t.Fatalf("results = %v, want one", rs)
 	}
 	r := rs[0]
+	if r.Rule != "portability::serialized_unsized_int" {
+		t.Errorf("rule = %q, want portability::serialized_unsized_int", r.Rule)
+	}
 	if r.Pos.Line() != 4 || r.Pos.Col() != 2 || r.End.Line() != 4 || r.End.Col() != 7 {
 		t.Errorf("span = %d:%d-%d:%d, want 4:2-4:7", r.Pos.Line(), r.Pos.Col(), r.End.Line(), r.End.Col())
 	}
 	for _, part := range []string{"field Count has type uint", "4 bytes on a 32-bit target", "8 bytes in the binary layout", "int32", "int64", "uint32", "uint64"} {
 		if !strings.Contains(r.Message, part) {
 			t.Errorf("message %q lacks %q", r.Message, part)
+		}
+	}
+	tail := r.Message
+	if _, after, ok := strings.Cut(tail, ";"); ok {
+		tail = after
+	}
+	have := map[string]bool{}
+	for _, tok := range strings.FieldsFunc(tail, func(c rune) bool {
+		return !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_')
+	}) {
+		have[tok] = true
+	}
+	for _, want := range []string{"int32", "int64", "uint32", "uint64"} {
+		if !have[want] {
+			t.Errorf("recommendation %q lacks %q", tail, want)
+		}
+	}
+	for _, tok := range []string{"int", "uint"} {
+		if have[tok] {
+			t.Errorf("recommendation %q names unsized kind %q", tail, tok)
 		}
 	}
 }

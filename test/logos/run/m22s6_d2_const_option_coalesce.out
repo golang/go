@@ -1,1 +1,2 @@
-none
+ok coalesce-selects-fallback-for-empty
+ok coalesce-selects-value-for-present

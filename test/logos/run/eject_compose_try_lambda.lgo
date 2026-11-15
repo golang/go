@@ -1,0 +1,548 @@
+// run
+
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"iter"
+	"os"
+)
+
+var _ iter.Seq[int]
+
+type pc struct {
+	id int
+}
+
+type box struct {
+	o int?
+	p int
+}
+
+type State struct {
+	A int
+	B int
+}
+
+type Prop interface {
+	P int
+}
+
+type propBox struct : Prop {
+	P int
+}
+
+var errLoad = errors.New("load")
+
+var last int
+
+func load(v int, fail bool) (int, error) {
+	if fail {
+		return 0, errLoad
+	}
+	return v, nil
+}
+
+func maybe(n int) int? {
+	if n == 7 {
+		return 7
+	}
+	return nil
+}
+
+func maybeP(n int) *pc? {
+	if n == 7 {
+		return &pc{id: 7}
+	}
+	return nil
+}
+
+func apply(f func(int) int, n int) int { return f(n) }
+
+func viewLen(xs const []int) int { return len(xs) }
+
+func record(n int) error {
+	last = n
+	return nil
+}
+
+func mkState(n int) State { return State{A: n, B: n + 1} }
+
+func pair(n int) (int, string) { return n, "p" }
+
+func tupA(t (int, string)) int {
+	a, _ := t
+	return a
+}
+
+var failed bool
+
+func line(f func(int, bool) (int, error), fail bool) string {
+	last = 0
+	got, err := f(7, fail)
+	if err != nil {
+		return fmt.Sprintln(0, err, last)
+	}
+	return fmt.Sprintln(got, err, last)
+}
+
+func run(name string, f func(int, bool) (int, error), want string) {
+	got := line(f, false) + line(f, true)
+	if got != want {
+		failed = true
+		fmt.Printf("FAIL %s: got %q want %q\n", name, got, want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func c_chain_find_lamapply(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	o := xs.find(x => x == apply(x => x + 1, v))
+	r := o ?? -1
+	return r, nil
+}
+
+func c_chain_find_propcoal(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	o := xs.find(x => x == (maybe(v) ?? w.P))
+	r := o ?? -1
+	return r, nil
+}
+
+func c_chain_find_proplam(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	o := xs.find(x => x == apply(x => x + w.P, v))
+	r := o ?? -1
+	return r, nil
+}
+
+func c_chain_find_propr(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	o := xs.find(x => x == w.P)
+	r := o ?? -1
+	return r, nil
+}
+
+func c_chain_lam_lamapply(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	r := xs.map(x => x + apply(x => x + 1, v)).sum()
+	return r, nil
+}
+
+func c_chain_lam_propcoal(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	r := xs.map(x => x + (maybe(v) ?? w.P)).sum()
+	return r, nil
+}
+
+func c_chain_lam_proplam(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	r := xs.map(x => x + apply(x => x + w.P, v)).sum()
+	return r, nil
+}
+
+func c_chain_lam_propr(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	r := xs.map(x => x + w.P).sum()
+	return r, nil
+}
+
+func c_chain_pred_lamapply(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	r := xs.filter(x => x < apply(x => x + 1, v)).count()
+	return r, nil
+}
+
+func c_chain_pred_propcoal(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	r := xs.filter(x => x < (maybe(v) ?? w.P)).count()
+	return r, nil
+}
+
+func c_chain_pred_proplam(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	r := xs.filter(x => x < apply(x => x + w.P, v)).count()
+	return r, nil
+}
+
+func c_chain_pred_propr(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	r := xs.filter(x => x < w.P).count()
+	return r, nil
+}
+
+func c_chain_take_lamapply(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	r := xs.take(apply(x => x + 1, v)).count()
+	return r, nil
+}
+
+func c_chain_take_proplam(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	r := xs.take(apply(x => x + w.P, v)).count()
+	return r, nil
+}
+
+func c_defer_arg_lamapply(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	defer record(apply(x => x + 1, v))?
+	r := 5
+	return r, nil
+}
+
+func c_defer_arg_propcoal(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	defer record((maybe(v) ?? w.P))?
+	r := 5
+	return r, nil
+}
+
+func c_defer_arg_proplam(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	defer record(apply(x => x + w.P, v))?
+	r := 5
+	return r, nil
+}
+
+func c_defer_arg_propr(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	defer record(w.P)?
+	r := 5
+	return r, nil
+}
+
+func c_group_body_propcoal(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	ctx := context.Background()
+	r := 0
+	go group (ctx) {
+		go {
+			r = (maybe(v) ?? w.P)
+		}
+	}
+	return r, nil
+}
+
+func c_group_body_proplam(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	ctx := context.Background()
+	r := 0
+	go group (ctx) {
+		go {
+			r = apply(x => x + w.P, v)
+		}
+	}
+	return r, nil
+}
+
+func c_group_body_propr(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	ctx := context.Background()
+	r := 0
+	go group (ctx) {
+		go {
+			r = w.P
+		}
+	}
+	return r, nil
+}
+
+func c_lambda_body_chainc(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	r := apply(x => x + xs.map(x => x + v).count(), 1)
+	return r, nil
+}
+
+func c_lambda_body_coal(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	r := apply(x => x + (maybe(v) ?? -1), 1)
+	return r, nil
+}
+
+func c_lambda_body_cv(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	r := apply(x => x + viewLen(xs), 1)
+	return r, nil
+}
+
+func c_lambda_body_lamapply(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	r := apply(x => x + apply(x => x + 1, v), 1)
+	return r, nil
+}
+
+func c_lambda_body_propcoal(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	r := apply(x => x + (maybe(v) ?? w.P), 1)
+	return r, nil
+}
+
+func c_lambda_body_proplam(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	r := apply(x => x + apply(x => x + w.P, v), 1)
+	return r, nil
+}
+
+func c_lambda_body_propr(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	r := apply(x => x + w.P, 1)
+	return r, nil
+}
+
+func c_lambda_body_sw(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	r := apply(x => x + switch v {
+		case 7 => 70
+		default => 1
+		}, 1)
+	return r, nil
+}
+
+func cvs(v int, a, b const []int) int {
+	r := switch v {
+	case 7 => a
+	default => b
+	}
+	return len(r)
+}
+
+func c_seed_cvgroup(v int, fail bool) (int, error) {
+	return cvs(v, []int{1}, []int{2, 3}), nil
+}
+
+func c_try_arg_lamapply(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	r := load(apply(x => x + 1, v), fail)?
+	return r, nil
+}
+
+func c_try_arg_propcoal(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	r := load((maybe(v) ?? w.P), fail)?
+	return r, nil
+}
+
+func c_try_arg_proplam(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	r := load(apply(x => x + w.P, v), fail)?
+	return r, nil
+}
+
+func c_try_arg_propr(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	_ = xs
+	var wb propBox
+	wb.P = 4
+	var w Prop = &wb
+	_ = w
+	r := load(w.P, fail)?
+	return r, nil
+}
+
+func main() {
+	_ = context.Background
+	run("chain-find__lamapply", c_chain_find_lamapply, "-1 <nil> 0\n-1 <nil> 0\n")
+	run("chain-find__propcoal", c_chain_find_propcoal, "-1 <nil> 0\n-1 <nil> 0\n")
+	run("chain-find__proplam", c_chain_find_proplam, "-1 <nil> 0\n-1 <nil> 0\n")
+	run("chain-find__propr", c_chain_find_propr, "-1 <nil> 0\n-1 <nil> 0\n")
+	run("chain-lam__lamapply", c_chain_lam_lamapply, "30 <nil> 0\n30 <nil> 0\n")
+	run("chain-lam__propcoal", c_chain_lam_propcoal, "27 <nil> 0\n27 <nil> 0\n")
+	run("chain-lam__proplam", c_chain_lam_proplam, "39 <nil> 0\n39 <nil> 0\n")
+	run("chain-lam__propr", c_chain_lam_propr, "18 <nil> 0\n18 <nil> 0\n")
+	run("chain-pred__lamapply", c_chain_pred_lamapply, "3 <nil> 0\n3 <nil> 0\n")
+	run("chain-pred__propcoal", c_chain_pred_propcoal, "3 <nil> 0\n3 <nil> 0\n")
+	run("chain-pred__proplam", c_chain_pred_proplam, "3 <nil> 0\n3 <nil> 0\n")
+	run("chain-pred__propr", c_chain_pred_propr, "3 <nil> 0\n3 <nil> 0\n")
+	run("chain-take__lamapply", c_chain_take_lamapply, "3 <nil> 0\n3 <nil> 0\n")
+	run("chain-take__proplam", c_chain_take_proplam, "3 <nil> 0\n3 <nil> 0\n")
+	run("defer-arg__lamapply", c_defer_arg_lamapply, "5 <nil> 8\n5 <nil> 8\n")
+	run("defer-arg__propcoal", c_defer_arg_propcoal, "5 <nil> 7\n5 <nil> 7\n")
+	run("defer-arg__proplam", c_defer_arg_proplam, "5 <nil> 11\n5 <nil> 11\n")
+	run("defer-arg__propr", c_defer_arg_propr, "5 <nil> 4\n5 <nil> 4\n")
+	run("group-body__propcoal", c_group_body_propcoal, "7 <nil> 0\n7 <nil> 0\n")
+	run("group-body__proplam", c_group_body_proplam, "11 <nil> 0\n11 <nil> 0\n")
+	run("group-body__propr", c_group_body_propr, "4 <nil> 0\n4 <nil> 0\n")
+	run("lambda-body__chainc", c_lambda_body_chainc, "4 <nil> 0\n4 <nil> 0\n")
+	run("lambda-body__coal", c_lambda_body_coal, "8 <nil> 0\n8 <nil> 0\n")
+	run("lambda-body__cv", c_lambda_body_cv, "4 <nil> 0\n4 <nil> 0\n")
+	run("lambda-body__lamapply", c_lambda_body_lamapply, "9 <nil> 0\n9 <nil> 0\n")
+	run("lambda-body__propcoal", c_lambda_body_propcoal, "8 <nil> 0\n8 <nil> 0\n")
+	run("lambda-body__proplam", c_lambda_body_proplam, "12 <nil> 0\n12 <nil> 0\n")
+	run("lambda-body__propr", c_lambda_body_propr, "5 <nil> 0\n5 <nil> 0\n")
+	run("lambda-body__sw", c_lambda_body_sw, "71 <nil> 0\n71 <nil> 0\n")
+	run("seed-cvgroup", c_seed_cvgroup, "1 <nil> 0\n1 <nil> 0\n")
+	run("try-arg__lamapply", c_try_arg_lamapply, "8 <nil> 0\n0 load 0\n")
+	run("try-arg__propcoal", c_try_arg_propcoal, "7 <nil> 0\n0 load 0\n")
+	run("try-arg__proplam", c_try_arg_proplam, "11 <nil> 0\n0 load 0\n")
+	run("try-arg__propr", c_try_arg_propr, "4 <nil> 0\n0 load 0\n")
+	if failed {
+		os.Exit(1)
+	}
+}

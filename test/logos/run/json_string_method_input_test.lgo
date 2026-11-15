@@ -1,0 +1,88 @@
+// run
+
+package jsonstringmethod
+
+import (
+	"bytes"
+	"encoding/json"
+	"testing"
+)
+
+type Cap int64
+
+func (c Cap) MarshalJSON() ([]byte, error) {
+	return []byte(`123`), nil
+}
+
+var methodInputs []string
+
+func (c *Cap) UnmarshalJSON(b []byte) error {
+	methodInputs = append(methodInputs, string(b))
+	*c = 7
+	return nil
+}
+
+type Holder struct {
+	V Cap `json:"v,string"`
+}
+
+type HolderMirror struct {
+	V     Cap `json:"v,string"`
+	NoGen any `json:"-"`
+}
+
+func decodeStatic(doc string) ([]string, bool) {
+	methodInputs = nil
+	var h Holder
+	err := json.Unmarshal([]byte(doc), &h)
+	got := append([]string(nil), methodInputs...)
+	return got, err != nil
+}
+
+func decodeMirror(doc string) ([]string, bool) {
+	methodInputs = nil
+	var m HolderMirror
+	err := json.Unmarshal([]byte(doc), &m)
+	got := append([]string(nil), methodInputs...)
+	return got, err != nil
+}
+
+func TestStringMethodInputMatchesOracle(t *testing.T) {
+	docs := []string{
+		`{"v":"3"}`,
+		`{"v":"\"hi\\n\""}`,
+		`{"v":null}`,
+		`{"v":3}`,
+	}
+	for _, doc := range docs {
+		staticInputs, staticFailed := decodeStatic(doc)
+		mirrorInputs, mirrorFailed := decodeMirror(doc)
+		if staticFailed != mirrorFailed {
+			t.Fatalf("error parity breaks for %s: static failed %v, oracle failed %v", doc, staticFailed, mirrorFailed)
+		}
+		if len(staticInputs) != len(mirrorInputs) {
+			t.Fatalf("method ran %d times via static and %d via oracle for %s: %q vs %q", len(staticInputs), len(mirrorInputs), doc, staticInputs, mirrorInputs)
+		}
+		for i := range staticInputs {
+			if staticInputs[i] != mirrorInputs[i] {
+				t.Fatalf("method input diverges for %s: static %q, oracle %q", doc, staticInputs[i], mirrorInputs[i])
+			}
+		}
+	}
+}
+
+func TestStringMethodMarshalMatchesOracle(t *testing.T) {
+	h := Holder{V: 1}
+	m := HolderMirror{V: 1}
+	got, err := json.Marshal(h)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := json.Marshal(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Fatalf("marshal differs from the reflective oracle: got %s, want %s", got, want)
+	}
+}

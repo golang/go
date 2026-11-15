@@ -1,16 +1,87 @@
-# M0-S1: the logos command is the same binary as go, selected by argv[0].
-# logos version reports the logos version; go version keeps upstream text.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cat $GOROOT/VERSION
+cp stdout $WORK/version.txt
+
 logos version
-stdout '^logos version go1\.27\.2'
+cp stdout $WORK/logos-version.txt
+exec grep -q -F -f $WORK/version.txt $WORK/logos-version.txt
 
-go version
-stdout '^go version go1\.27\.2'
-
-# logos help names the logos command.
-logos help
-stdout 'logos <command> \[arguments\]'
-
-# Logos mode never switches toolchains.
 env GOTOOLCHAIN=go1.99.0
 logos version
-stdout '^logos version go1\.27\.2'
+cp stdout $WORK/toolchain-version.txt
+exec grep -q -F -f $WORK/version.txt $WORK/toolchain-version.txt
+env GOTOOLCHAIN=local
+
+logos help
+logos help build
+logos help run
+logos help test
+logos help vet
+logos help eject
+logos help lint
+logos help next
+logos help lsp
+logos help context
+
+logos build -o $WORK/hello$GOEXE .
+exec $WORK/hello$GOEXE
+stdout '^hello logos$'
+logos run .
+stdout '^hello logos$'
+logos vet .
+logos lint .
+cd helper
+logos test -count=1 .
+stdout '^ok'
+! stdout 'no tests to run'
+cd ..
+logos eject -o $WORK/ejected
+exists $WORK/ejected/hello.go
+cd $WORK/ejected
+go build -o $WORK/ejected-hello$GOEXE .
+exec $WORK/ejected-hello$GOEXE
+stdout '^hello logos$'
+
+! logos frobnicate
+-- go.mod --
+module example.com/command
+
+go 1.27
+
+-- hello.lgo --
+package main
+
+import "fmt"
+
+func hello() string {
+	return "hello logos"
+}
+
+func main() {
+	fmt.Println(hello())
+}
+
+-- helper/go.mod --
+module example.com/helper
+
+go 1.27
+
+-- helper/hello.lgo --
+package helper
+
+func Hello() string {
+	return "hello logos"
+}
+
+-- helper/hello_test.lgo --
+package helper
+
+import "testing"
+
+func TestHello(t *testing.T) {
+	if got := Hello(); got != "hello logos" {
+		t.Fatalf("Hello() = %q", got)
+	}
+}

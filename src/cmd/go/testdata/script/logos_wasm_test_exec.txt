@@ -1,10 +1,3 @@
-# Test js/wasm test execution routing under logos test.
-# When GOOS=js GOARCH=wasm:
-# 1. Default routing resolves $GOROOT/lib/wasm/go_js_wasm_exec when none is in PATH.
-# 2. A PATH-provided go_js_wasm_exec takes precedence over the bundled runner.
-# 3. Explicit -exec takes precedence over both PATH and bundled runners.
-# The runners execute Node to run the WebAssembly test binary.
-# Honestly skip if node is unavailable.
 [!exec:node] skip 'node is required to run js/wasm test binaries'
 
 env GOPROXY=off
@@ -12,7 +5,6 @@ env GOTOOLCHAIN=local
 env GOOS=js
 env GOARCH=wasm
 
-# 1. Default routing: executes via bundled $GOROOT/lib/wasm/go_js_wasm_exec.
 logos test -v .
 stdout '=== RUN   TestWasmExec'
 stdout 'WASM_TEST_PASS_OUTPUT'
@@ -20,7 +12,6 @@ stdout '--- PASS: TestWasmExec'
 stdout '^PASS'
 stdout '^ok  \texample\.com/wasmtest'
 
-# 2. Explicit -exec precedence: -exec overrides the bundled runner.
 chmod 0755 custom_exec.sh
 logos test -v -exec=$PWD/custom_exec.sh .
 stdout 'CUSTOM_EXEC_RUNNER_CALLED'
@@ -30,7 +21,6 @@ stdout '--- PASS: TestWasmExec'
 stdout '^PASS'
 stdout '^ok  \texample\.com/wasmtest'
 
-# 3. PATH-provided runner precedence: runner in PATH overrides bundled runner.
 mkdir $WORK/bin
 cp path_exec.sh $WORK/bin/go_js_wasm_exec
 chmod 0755 $WORK/bin/go_js_wasm_exec
@@ -45,7 +35,6 @@ stdout '--- PASS: TestWasmExec'
 stdout '^PASS'
 stdout '^ok  \texample\.com/wasmtest'
 
-# 4. Explicit -exec precedence over PATH runner: -exec overrides PATH runner.
 logos test -v -exec=$PWD/custom_exec.sh .
 stdout 'CUSTOM_EXEC_RUNNER_CALLED'
 ! stdout 'PATH_WRAPPER_RUNNER_CALLED'

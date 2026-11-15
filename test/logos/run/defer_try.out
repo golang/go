@@ -1,5 +1,4 @@
-nil ok
-second: second
-both: first
-second
-is-first: true is-second: true
+ok nil
+ok second
+ok both
+ok joined

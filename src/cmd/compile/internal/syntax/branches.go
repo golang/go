@@ -45,8 +45,10 @@ func checkBranches(body *BlockStmt, errh ErrorHandler) {
 }
 
 type labelScope struct {
-	errh   ErrorHandler
-	labels map[string]*label // all label declarations inside the function; allocated lazily
+	errh             ErrorHandler
+	labels           map[string]*label // all label declarations inside the function; allocated lazily
+	constSwitchDepth int
+	constContinues   *ForStmt
 }
 
 type label struct {
@@ -215,13 +217,13 @@ func (ls *labelScope) blockBranches(parent *block, ctxt targets, lstmt *LabeledS
 					if t := ctxt.breaks; t != nil {
 						s.Target = t
 					} else {
-						ls.errf(s.Pos(), "break is not in a loop, switch, or select")
+						ls.logosJumpError(s, "break is not in a loop, switch, or select")
 					}
 				case _Continue:
 					if t := ctxt.continues; t != nil {
 						s.Target = t
 					} else {
-						ls.errf(s.Pos(), "continue is not in a loop")
+						ls.logosJumpError(s, "continue is not in a loop")
 					}
 				case _Fallthrough:
 					msg := "fallthrough statement out of place"
@@ -300,6 +302,9 @@ func (ls *labelScope) blockBranches(parent *block, ctxt targets, lstmt *LabeledS
 			inner := targets{ctxt.breaks, ctxt.continues, -1}
 			innerBlock(inner, s.Pos(), s.List)
 
+		case *GroupStmt, *GroupChild:
+			logosBranchesGroup(ls, s, ctxt, innerBlock)
+
 		case *IfStmt:
 			inner := targets{ctxt.breaks, ctxt.continues, -1}
 			innerBlock(inner, s.Then.Pos(), s.Then.List)
@@ -311,21 +316,17 @@ func (ls *labelScope) blockBranches(parent *block, ctxt targets, lstmt *LabeledS
 			inner := targets{s, s, -1}
 			innerBlock(inner, s.Body.Pos(), s.Body.List)
 
+		case *ConstForStmt:
+			logosBranchesConstFor(s, ctxt, innerBlock)
+
 		case *SwitchStmt:
-			inner := targets{s, ctxt.continues, -1}
-			for i, cc := range s.Body {
-				inner.caseIndex = i
-				innerBlock(inner, cc.Pos(), cc.Body)
-			}
+			logosBranchesSwitch(ls, s, ctxt, innerBlock)
 
 		case *SelectStmt:
-			inner := targets{s, ctxt.continues, -1}
-			for _, cc := range s.Body {
-				innerBlock(inner, cc.Pos(), cc.Body)
-			}
+			logosBranchesSelect(ls, s, ctxt, innerBlock)
 
 		case *ConstIfStmt, *ConstSwitchStmt:
-			logosConstBranches(s, ctxt, innerBlock) // logos M7-S1/S4 hook.
+			logosConstBranches(ls, s, ctxt, innerBlock) // logos M7-S1/S4 hook.
 		}
 	}
 

@@ -1,0 +1,189 @@
+// run
+
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"sync"
+)
+
+var failed = false
+
+func check(name string, ok bool, detail string) {
+	if !ok {
+		fmt.Printf("FAIL %s: %s\n", name, detail)
+		failed = true
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func sameStrings(a, c []string) bool {
+	if len(a) != len(c) {
+		return false
+	}
+	for i := range a {
+		if a[i] != c[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func must(err error) {
+	if err != nil {
+		fmt.Println("FAIL group:", err)
+		failed = true
+	}
+}
+
+type cNode struct {
+	cName string
+	cNext *cNode?
+}
+
+var (
+	cMu  sync.Mutex
+	cLog []string
+)
+
+func cNote(s string) string {
+	cMu.Lock()
+	cLog = append(cLog, s)
+	cMu.Unlock()
+	return s
+}
+
+func (n *cNode) cSelf() *cNode? {
+	cNote("self " + n.cName)
+	return n
+}
+
+func (n *cNode) cSay(s string) {
+	cNote(s + " " + n.cName)
+}
+
+func selfLogos(p *cNode?) {
+	defer p?.cSelf()?.cSay(cNote("arg"))
+}
+
+func selfHand(p *cNode?) {
+	if p != nil {
+		if n := p.cSelf(); n != nil {
+			defer n.cSay(cNote("arg"))
+		}
+	}
+}
+
+func fieldLogos(p *cNode?) {
+	defer p?.cNext?.cSay(cNote("arg"))
+}
+
+func fieldHand(p *cNode?) {
+	if p != nil {
+		if n := p.cNext; n != nil {
+			defer n.cSay(cNote("arg"))
+		}
+	}
+}
+
+func goSelfLogos(ctx context.Context, p *cNode?) error {
+	go group (ctx) {
+		go p?.cSelf()?.cSay(cNote("arg"))
+	}
+	return nil
+}
+
+func goSelfHand(ctx context.Context, p *cNode?) error {
+	go group (ctx) {
+		if p != nil {
+			if n := p.cSelf(); n != nil {
+				go n.cSay(cNote("arg"))
+			}
+		}
+	}
+	return nil
+}
+
+func goFieldLogos(ctx context.Context, p *cNode?) error {
+	go group (ctx) {
+		go p?.cNext?.cSay(cNote("arg"))
+	}
+	return nil
+}
+
+func goFieldHand(ctx context.Context, p *cNode?) error {
+	go group (ctx) {
+		if p != nil {
+			if n := p.cNext; n != nil {
+				go n.cSay(cNote("arg"))
+			}
+		}
+	}
+	return nil
+}
+
+func logged(f func()) []string {
+	cLog = nil
+	f()
+	return append([]string(nil), cLog...)
+}
+
+func sorted(list []string) []string {
+	out := append([]string(nil), list...)
+	for i := range out {
+		for j := i + 1; j < len(out); j++ {
+			if out[j] < out[i] {
+				out[i], out[j] = out[j], out[i]
+			}
+		}
+	}
+	return out
+}
+
+func main() {
+	tail := &cNode{cName: "tail"}
+	var head *cNode? = &cNode{cName: "head", cNext: tail}
+	var lone *cNode? = &cNode{cName: "lone"}
+	var none *cNode?
+	deferCases := []struct {
+		name  string
+		logos func(*cNode?)
+		hand  func(*cNode?)
+		recv  *cNode?
+		want  int
+	}{
+		{"self-present", selfLogos, selfHand, head, 3},
+		{"self-none", selfLogos, selfHand, none, 0},
+		{"field-present", fieldLogos, fieldHand, head, 2},
+		{"field-absent-link", fieldLogos, fieldHand, lone, 0},
+		{"field-none", fieldLogos, fieldHand, none, 0},
+	}
+	for _, c := range deferCases {
+		got := logged(func() { c.logos(c.recv) })
+		want := logged(func() { c.hand(c.recv) })
+		check("defer-"+c.name, sameStrings(got, want) && len(want) == c.want, fmt.Sprint("got ", got, " want ", want))
+	}
+	goCases := []struct {
+		name  string
+		logos func(context.Context, *cNode?) error
+		hand  func(context.Context, *cNode?) error
+		recv  *cNode?
+		want  int
+	}{
+		{"self-present", goSelfLogos, goSelfHand, head, 3},
+		{"self-none", goSelfLogos, goSelfHand, none, 0},
+		{"field-present", goFieldLogos, goFieldHand, head, 2},
+		{"field-absent-link", goFieldLogos, goFieldHand, lone, 0},
+	}
+	for _, c := range goCases {
+		got := logged(func() { must(c.logos(context.Background(), c.recv)) })
+		want := logged(func() { must(c.hand(context.Background(), c.recv)) })
+		check("go-"+c.name, sameStrings(sorted(got), sorted(want)) && len(want) == c.want, fmt.Sprint("got ", got, " want ", want))
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

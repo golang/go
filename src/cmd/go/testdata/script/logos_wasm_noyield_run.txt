@@ -1,0 +1,19 @@
+# The wasm gate of IMPLEMENTATION.md M16-S1: the test/logos/wasm
+# suite must run under GOOS=js GOARCH=wasm logos test, executing its
+# goroutines, channels, defer-resume, and panic-then-park paths with
+# the dispatch-free code the backend emits for non-yielding
+# functions. Without node in PATH the gate records a skip.
+[!exec:node] skip 'node is required to run js/wasm binaries'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOOS=js
+env GOARCH=wasm
+
+cp $GOROOT/test/logos/wasm/go.mod go.mod
+cp $GOROOT/test/logos/wasm/noyield.lgo noyield.lgo
+cp $GOROOT/test/logos/wasm/noyield_test.lgo noyield_test.lgo
+logos test -short -count=1 ./...
+stdout '^ok\s+logos\.test/wasm'
+env GOOS=
+env GOARCH=

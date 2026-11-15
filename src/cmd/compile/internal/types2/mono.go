@@ -348,6 +348,8 @@ func (w *monoGraph) assign(pkg *Package, pos syntax.Pos, tpar *TypeParam, targ T
 			}
 		case *Option:
 			do(typ.Elem)
+		case *ReadonlyDescendants:
+			do(typ.Elem)
 		case *ConstView:
 			do(typ.Elem)
 		case *Union:

@@ -1,0 +1,55 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+cd w
+logos build -o $WORK/bin/nocheck$GOEXE ./g/cmd
+exec $WORK/bin/nocheck$GOEXE
+stdout '^nil-ok: -1$'
+! stderr 'logos:'
+cd ..
+
+-- w/go.work --
+go 1.27
+
+use (
+	./l
+	./g
+)
+
+-- w/l/go.mod --
+module example.com/nc
+
+go 1.27
+
+-- w/l/lib/lib.go --
+package lib
+
+func Deref(p *int) int {
+	if p == nil {
+		return -1
+	}
+	return *p
+}
+
+-- w/g/go.mod --
+module example.com/ncg
+
+go 1.27
+
+require example.com/nc v0.0.0
+
+replace example.com/nc => ../l
+
+-- w/g/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/nc/lib"
+)
+
+func main() {
+	fmt.Println("nil-ok:", lib.Deref(nil))
+}

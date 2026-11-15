@@ -1,0 +1,5 @@
+ok named-byte-wire
+ok named-byte-append
+ok named-byte-roundtrip
+ok named-byte-same-wire-as-byte
+ok named-byte-empty

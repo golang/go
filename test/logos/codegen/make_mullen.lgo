@@ -1,0 +1,26 @@
+// asmcheck
+
+package codegen
+
+const mullenK = 3
+
+func mullenConst() int {
+	// amd64:-"CALL logos/rt\\.mulOverflows"
+	// arm64:-"CALL logos/rt\\.mulOverflows"
+	s := make([]int, mullenK*mullenK)
+	return len(s)
+}
+
+func mullenVar(n, m int) int {
+	// amd64:"CALL logos/rt\\.mulOverflows" "IMULQ"
+	// arm64:"CALL logos/rt\\.mulOverflows"
+	s := make([]int, n*m)
+	return len(s)
+}
+
+func mullenCapVar(n, m int) int {
+	// amd64:"CALL logos/rt\\.mulOverflows" "IMULQ"
+	// arm64:"CALL logos/rt\\.mulOverflows"
+	s := make([]int, n, n*m)
+	return cap(s)
+}

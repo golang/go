@@ -10,33 +10,15 @@ import (
 	"cmd/compile/internal/base"
 )
 
-// This file carries the origin of eject text: which bytes are verbatim
-// copies of the original source and which the compiler generated. Every
-// composed text is an otext; its chunks say, per byte range, where the
-// bytes came from. Chunks are the only source of provenance: a byte not
-// covered by a chunk is generated, and a covered byte maps back to its
-// original offset exactly. The segments of an edit map are built from
-// the chunks of the applied splices, so a reader can tell a generated
-// finding (dropped) from a finding on user-written tokens inside a
-// rewritten span (mapped to the exact original offset).
-
-// chunk records that bytes [Out, Out+N) of a composed text are a
-// verbatim copy of bytes [Orig, Orig+N) of the original file.
 type chunk struct{ out, orig, n int }
 
-// otext is eject text plus its origin chunks. Chunks are ordered by
-// Out, disjoint, and need not cover the text: uncovered bytes are
-// generated. A nil chunk list on a non-empty text means fully
-// generated.
 type otext struct {
 	s      string
 	chunks []chunk
 }
 
-// gen returns generated text.
 func gen(s string) otext { return otext{s: s} }
 
-// cat concatenates parts, rebasing their chunks into the result.
 func cat(parts ...otext) otext {
 	if len(parts) == 1 {
 		return parts[0]
@@ -63,8 +45,6 @@ func cat(parts ...otext) otext {
 	return otext{s: out, chunks: chunks}
 }
 
-// slice returns t[start:end] with the chunks clipped to the slice and
-// rebased to its start.
 func (t otext) slice(start, end int) otext {
 	sub := t.s[start:end]
 	if sub == "" {
@@ -88,8 +68,6 @@ func (t otext) slice(start, end int) otext {
 	return otext{s: sub, chunks: chunks}
 }
 
-// trim returns t with ASCII white space removed from both ends; the
-// chunk edges follow the removed bytes.
 func (t otext) trim() otext {
 	start, end := 0, len(t.s)
 	for start < end && isSpace(t.s[start]) {
@@ -101,8 +79,6 @@ func (t otext) trim() otext {
 	return t.slice(start, end)
 }
 
-// trimRight returns t with the bytes of cutset removed from the end;
-// the chunk edges follow the removed bytes.
 func (t otext) trimRight(cutset string) otext {
 	end := len(t.s)
 	for end > 0 && strings.IndexByte(cutset, t.s[end-1]) >= 0 {
@@ -111,10 +87,6 @@ func (t otext) trimRight(cutset string) otext {
 	return t.slice(0, end)
 }
 
-// checkChunks verifies that the chunks of t are ordered, disjoint, in
-// range, and — against orig — byte-exact copies of the original file.
-// A violation is a producer bug; it stops the compiler rather than
-// letting a wrong origin reach an edit map.
 func (t *otext) checkChunks(orig []byte) {
 	prevEnd := -1
 	for i, c := range t.chunks {
@@ -131,11 +103,6 @@ func (t *otext) checkChunks(orig []byte) {
 	}
 }
 
-// substNul replaces every NUL-delimited placeholder of t through lookup.
-// Placeholders are the marker names of renderText and the move marks of
-// resolveChainMoves; a name lookup does not know stays verbatim, which
-// keeps the per-mark ReplaceAll semantics of the move resolution. Chunks
-// after a substitution shift with the text.
 func substNul(t otext, lookup func(mark string) (otext, bool)) otext {
 	if !strings.ContainsRune(t.s, 0) {
 		return t
@@ -177,6 +144,9 @@ func substNul(t otext, lookup func(mark string) (otext, bool)) otext {
 		}
 		scan = j + 1
 	}
+	if prev == 0 {
+		return t
+	}
 	flush(len(t.s))
 	res := otext{s: sb.String(), chunks: chunks}
 	if res.s == "" {
@@ -185,10 +155,6 @@ func substNul(t otext, lookup func(mark string) (otext, bool)) otext {
 	return res
 }
 
-// substNeedle replaces every occurrence of needle with repl, shifting
-// and splitting chunks across the occurrence. The needle may sit inside
-// a user chunk; the bytes around it keep their origin and the
-// replacement is generated unless repl carries its own.
 func substNeedle(t otext, needle, repl otext) otext {
 	if needle.s == "" || !strings.Contains(t.s, needle.s) {
 		return t
@@ -222,19 +188,11 @@ func substNeedle(t otext, needle, repl otext) otext {
 	return res
 }
 
-// srcBuf is a byte buffer with a piecewise origin mapping: chunks map
-// buffer offsets to original-file offsets. fileLower keeps one over its
-// growing source buffer: the original bytes map to themselves and every
-// adopted region maps its bytes to the original ranges the region was
-// copied from. Composition never uses a scalar base; it slices this
-// buffer, so a copy assembled from several original ranges keeps each
-// range's true origin.
 type srcBuf struct {
 	b      []byte
 	chunks []chunk
 }
 
-// origBuf returns the identity mapping of b.
 func origBuf(b []byte) srcBuf {
 	if len(b) == 0 {
 		return srcBuf{}
@@ -242,13 +200,10 @@ func origBuf(b []byte) srcBuf {
 	return srcBuf{b: b, chunks: []chunk{{out: 0, orig: 0, n: len(b)}}}
 }
 
-// sliceO returns the otext of b[start:end] with the mapping clipped to
-// the range.
 func (b *srcBuf) sliceO(start, end int) otext {
 	return otext{s: string(b.b[start:end]), chunks: b.clip(start, end)}
 }
 
-// clip returns the chunks covering [start, end), rebased to start.
 func (b *srcBuf) clip(start, end int) []chunk {
 	if end <= start {
 		return nil
@@ -272,9 +227,6 @@ func (b *srcBuf) clip(start, end int) []chunk {
 	return out
 }
 
-// appendO appends the bytes of t and its chunks (rebased by the append
-// position) to the buffer. The caller owns resyncing b with the byte
-// slice it grows from.
 func (b *srcBuf) appendO(t otext) {
 	base := len(b.b)
 	b.b = append(b.b, t.s...)

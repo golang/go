@@ -1,0 +1,208 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# Six fields nested five deep expands 6^5 copies. The incremental
+# budget must trip before the product materializes.
+cd wnest
+! logos build ./...
+stderr 'comptime::node_limit'
+cd ..
+
+# SPEC 2.5 [T-205]: an expansion above max_comptime_ast_nodes fails with
+# [comptime::node_limit]. The trip is incremental: six fields nested
+# twelve deep would expand to 6^12 copies, so a build that charges the
+# budget only after the whole expansion cannot finish. The helper runs
+# that rejected build against the wall time of an accepted build of a
+# small nest, kills a run that outlasts ten times that time or ten
+# seconds, whichever is larger, and passes when any of three attempts
+# finishes inside the bound with the node-limit rule. Each trial appends
+# a comment so no cached answer stands in for a build.
+[!GOOS:windows] exec go run timer.go wok wover
+[!GOOS:windows] stdout 'incremental ok'
+
+-- wnest/go.mod --
+module example.com/nestedlimit
+
+go 1.27
+
+-- wnest/main.lgo --
+package main
+
+import (
+	"comptime"
+	"fmt"
+)
+
+type S struct {
+	F0 int
+	F1 int
+	F2 int
+	F3 int
+	F4 int
+	F5 int
+}
+
+func show(v S) int {
+	n := 0
+	const for _, f0 := range comptime.Fields[S]() {
+		const for _, f1 := range comptime.Fields[S]() {
+			const for _, f2 := range comptime.Fields[S]() {
+				const for _, f3 := range comptime.Fields[S]() {
+					const for _, f4 := range comptime.Fields[S]() {
+						n += v.[f0] + v.[f1] + v.[f2] + v.[f3] + v.[f4]
+					}
+				}
+			}
+		}
+	}
+	return n
+}
+
+func main() {
+	fmt.Println(show(S{}))
+}
+
+-- timer.go --
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"os/exec"
+	"strings"
+	"syscall"
+	"time"
+)
+
+func build(dir string, trial int, limit time.Duration) (time.Duration, string, error, bool) {
+	p := dir + "/lib.lgo"
+	b, err := os.ReadFile(p)
+	if err != nil {
+		fmt.Println("read:", err)
+		os.Exit(1)
+	}
+	if err := os.WriteFile(p, append(b, fmt.Sprintf("\n// trial %d\n", trial)...), 0666); err != nil {
+		fmt.Println("write:", err)
+		os.Exit(1)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), limit)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "logos", "build", "./...")
+	cmd.Dir = dir
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
+	start := time.Now()
+	out, err := cmd.CombinedOutput()
+	return time.Since(start), string(out), err, ctx.Err() != nil
+}
+
+func accepted(dir string) time.Duration {
+	best := time.Duration(1 << 62)
+	for i := 0; i < 3; i++ {
+		d, out, err, _ := build(dir, i, time.Minute)
+		if err != nil {
+			fmt.Printf("under-limit build failed: %v\n%.300s\n", err, out)
+			os.Exit(1)
+		}
+		best = min(best, d)
+	}
+	return best
+}
+
+func main() {
+	acc := accepted(os.Args[1])
+	bound := max(10*acc, 10*time.Second)
+	for i := 0; i < 3; i++ {
+		d, out, err, timedOut := build(os.Args[2], i, bound)
+		if timedOut {
+			continue
+		}
+		if err == nil || !strings.Contains(out, "comptime::node_limit") {
+			fmt.Printf("over-limit build did not fail with comptime::node_limit: err=%v\n%.300s\n", err, out)
+			os.Exit(1)
+		}
+		fmt.Println("incremental ok", d, "accepted", acc)
+		return
+	}
+	fmt.Printf("incremental violated: over-limit build outlasted %v, accepted build took %v\n", bound, acc)
+	os.Exit(1)
+}
+
+-- wok/go.mod --
+module example.com/wok
+
+go 1.27
+
+-- wok/lib.lgo --
+package wok
+
+import "comptime"
+
+type S struct {
+	F0 int
+	F1 int
+	F2 int
+	F3 int
+	F4 int
+	F5 int
+}
+
+func Sum(v S) int {
+	n := 0
+	const for _, f0 := range comptime.Fields[S]() {
+		const for _, f1 := range comptime.Fields[S]() {
+			n += v.[f0] + v.[f1]
+		}
+	}
+	return n
+}
+
+-- wover/go.mod --
+module example.com/wover
+
+go 1.27
+
+-- wover/lib.lgo --
+package wover
+
+import "comptime"
+
+type S struct {
+	F0 int
+	F1 int
+	F2 int
+	F3 int
+	F4 int
+	F5 int
+}
+
+func Sum(v S) int {
+	n := 0
+	const for _, f0 := range comptime.Fields[S]() {
+		const for _, f1 := range comptime.Fields[S]() {
+			const for _, f2 := range comptime.Fields[S]() {
+				const for _, f3 := range comptime.Fields[S]() {
+					const for _, f4 := range comptime.Fields[S]() {
+						const for _, f5 := range comptime.Fields[S]() {
+							const for _, f6 := range comptime.Fields[S]() {
+								const for _, f7 := range comptime.Fields[S]() {
+									const for _, f8 := range comptime.Fields[S]() {
+										const for _, f9 := range comptime.Fields[S]() {
+											const for _, f10 := range comptime.Fields[S]() {
+												const for _, f11 := range comptime.Fields[S]() {
+													n += v.[f0] + v.[f1] + v.[f2] + v.[f3] + v.[f4] + v.[f5] + v.[f6] + v.[f7] + v.[f8] + v.[f9] + v.[f10] + v.[f11]
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	return n
+}

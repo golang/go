@@ -220,6 +220,9 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 		case 1:
 			check.expr(newTarget(T, "conversion"), x, call.ArgList[0])
 			if x.isValid() {
+				if check.logosCallReadonlyConversion(x, T) {
+					break
+				}
 				if t, _ := T.Underlying().(*Interface); t != nil && !isTypeParam(T) {
 					if !t.IsMethodSet() && !check.logosConversionUnion(T) { // logos M2-S1 hook.
 						check.errorf(call, MisplacedConstraintIface, "cannot use interface %s in conversion (contains specific type constraints or is comparable)", T)
@@ -331,7 +334,6 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 
 	// evaluate arguments
 	sig = check.logosHotUpdateSig(call, sig) // logos M8-S5 hook: sync.Hot.Update takes func(const *T) *T.
-	check.logosLambdaCallArgs(call, sig)     // logos M6-S6 hook: lambdas against parameter types.
 	args, atargs := check.genericExprList(call.ArgList)
 	sig = check.arguments(call, sig, targs, xlist, args, atargs)
 	check.logosRecordRecvMethodCall(call)
@@ -445,7 +447,7 @@ func (check *Checker) genericExprList(elist []syntax.Expr) (resList []*operand, 
 			resList = []*operand{&x}
 		} else {
 			// x is not a function instantiation (it may still be a generic function).
-			if !check.logosLambdaPrechecked(&x, e) { // logos M6-S6 hook.
+			if !check.logosLambdaDefer(&x, e) {
 				check.rawExpr(nil, &x, e, nil, true)
 				check.exclude(&x, 1<<novalue|1<<builtin|1<<typexpr)
 			}
@@ -479,7 +481,7 @@ func (check *Checker) genericExprList(elist []syntax.Expr) (resList []*operand, 
 					// use the usual expression evaluators.
 					check.record(&x)
 				}
-			} else if !check.logosLambdaPrechecked(&x, e) { // logos M6-S6 hook.
+			} else if !check.logosLambdaDefer(&x, e) {
 				// x is exactly one value (possibly invalid or uninstantiated generic function).
 				check.genericExpr(&x, e, nil)
 			}
@@ -644,6 +646,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 	assert(len(tparams) == len(targs))
 
 	// at the moment we only support implicit instantiations of argument functions
+	check.logosCallReadonlyArguments(sigParams, args)
 	check.logosConstMapArgs(call, sigParams, args) // logos M5-S4 hook: const map arguments before inference.
 	_ = len(genericArgs) > 0 && check.verifyVersionf(args[genericArgs[0]], go1_21, "implicitly instantiated function as argument")
 
@@ -695,6 +698,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 	// check arguments
 	if len(args) > 0 {
 		context := check.sprintf("argument to %s", call.Fun)
+		check.logosCallResolveLambdas(sigParams, args)
 		check.logosPushGoCall(call) // logos M3-S5 hook.
 		if n > 0 {
 			check.logosPushGenericArgs(targs) // logos M3-S5 hook.
@@ -791,6 +795,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, wantType bool
 				}
 			}
 			check.recordUse(e.Sel, exp)
+			check.logosComptimeValueUse(e, exp)
 
 			// Simplified version of the code for *syntax.Names:
 			// - imported objects are always fully initialized
@@ -876,7 +881,10 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, wantType bool
 		return
 	}
 
-	check.logosFieldVarSelMark(x, e)       // logos M7-S2 hook: selections on const-for field variables.
+	check.logosFieldVarSelMark(x, e) // logos M7-S2 hook: selections on const-for field variables.
+	if check.logosReadonlySelect(x, e, sel) {
+		return
+	}
 	if check.logosConstSelect(x, e, sel) { // logos M5-S1 hook: selections through const views.
 		return
 	}
@@ -885,7 +893,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, wantType bool
 		return
 	}
 
-	obj, index, indirect = lookupFieldOrMethod(x.typ(), x.mode() == variable, check.pkg, sel, false)
+	obj, index, indirect = lookupFieldOrMethod(x.typ(), x.mode() == variable || check.logosConstAddressable(x, e), check.pkg, sel, false)
 	if obj == nil {
 		// Don't report another error if the underlying type was invalid (go.dev/issue/49541).
 		if !isValid(x.typ().Underlying()) {
@@ -990,6 +998,9 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, wantType bool
 
 			// TODO(gri) If we needed to take into account the receiver's
 			// addressability, should we report the type &(x.typ) instead?
+			if check.logosCompositeMutatingCall(e, obj) {
+				goto Error
+			}
 			check.recordSelection(e, MethodVal, x.typ(), obj, index, indirect)
 
 			x.mode_ = value

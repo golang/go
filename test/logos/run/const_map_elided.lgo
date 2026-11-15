@@ -1,0 +1,178 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+type pair struct {
+	hi int8
+	lo string
+}
+
+var failed bool
+
+func check(name string, got, want string) {
+	if got == want {
+		fmt.Println("ok", name)
+		return
+	}
+	failed = true
+	fmt.Println("FAIL", name+":", "got", got, "want", want)
+}
+
+const arrElided8 = map[[2]int]int{
+	{3, -1}: 31, {-2, 5}: 25, {0, 0}: 0, {3, -4}: 34,
+	{-2, -5}: 20, {1, 9}: 19, {0, -1}: 1, {-9, 9}: 99,
+}
+
+const arrSpelled8 = map[[2]int]int{
+	[2]int{3, -1}: 31, [2]int{-2, 5}: 25, [2]int{0, 0}: 0, [2]int{3, -4}: 34,
+	[2]int{-2, -5}: 20, [2]int{1, 9}: 19, [2]int{0, -1}: 1, [2]int{-9, 9}: 99,
+}
+
+const arrElided9 = map[[2]int]int{
+	{3, 7}: 37, {3, -1}: 31, {-2, 5}: 25, {0, 0}: 0, {3, -4}: 34,
+	{-2, -5}: 20, {1, 9}: 19, {0, -1}: 1, {-9, 9}: 99,
+}
+
+const arrSpelled9 = map[[2]int]int{
+	[2]int{3, 7}: 37, [2]int{3, -1}: 31, [2]int{-2, 5}: 25, [2]int{0, 0}: 0, [2]int{3, -4}: 34,
+	[2]int{-2, -5}: 20, [2]int{1, 9}: 19, [2]int{0, -1}: 1, [2]int{-9, 9}: 99,
+}
+
+const pairElided8 = map[pair]int{
+	{2, "b"}: 1, {-1, "z"}: 2, {2, "a"}: 3, {0, ""}: 4,
+	{-1, "a"}: 5, {127, "m"}: 6, {-128, "x"}: 7, {2, "ab"}: 8,
+}
+
+const pairSpelled8 = map[pair]int{
+	pair{2, "b"}: 1, pair{-1, "z"}: 2, pair{2, "a"}: 3, pair{0, ""}: 4,
+	pair{-1, "a"}: 5, pair{127, "m"}: 6, pair{-128, "x"}: 7, pair{2, "ab"}: 8,
+}
+
+const pairElided9 = map[pair]int{
+	{127, "a"}: 9, {2, "b"}: 1, {-1, "z"}: 2, {2, "a"}: 3, {0, ""}: 4,
+	{-1, "a"}: 5, {127, "m"}: 6, {-128, "x"}: 7, {2, "ab"}: 8,
+}
+
+const pairSpelled9 = map[pair]int{
+	pair{127, "a"}: 9, pair{2, "b"}: 1, pair{-1, "z"}: 2, pair{2, "a"}: 3, pair{0, ""}: 4,
+	pair{-1, "a"}: 5, pair{127, "m"}: 6, pair{-128, "x"}: 7, pair{2, "ab"}: 8,
+}
+
+const mixedElided = map[[2]int][]pair{
+	{1, 2}: {{1, "a"}, {2, "b"}},
+	{0, 0}: {{3, "c"}},
+	{-1, 4}: {},
+}
+
+const mixedSpelled = map[[2]int][]pair{
+	[2]int{1, 2}:  []pair{pair{1, "a"}, pair{2, "b"}},
+	[2]int{0, 0}:  []pair{pair{3, "c"}},
+	[2]int{-1, 4}: []pair{},
+}
+
+const deepElided = map[[2][2]int]string{
+	{{1, 2}, {3, 4}}: "a",
+	{{0, 0}, {9, 9}}: "b",
+}
+
+const deepSpelled = map[[2][2]int]string{
+	[2][2]int{[2]int{1, 2}, [2]int{3, 4}}: "a",
+	[2][2]int{[2]int{0, 0}, [2]int{9, 9}}: "b",
+}
+
+const pairArrElided = map[[2]pair]int{
+	{{1, "a"}, {2, "b"}}: 1,
+	{{0, "z"}, {0, "y"}}: 2,
+}
+
+const pairArrSpelled = map[[2]pair]int{
+	[2]pair{pair{1, "a"}, pair{2, "b"}}: 1,
+	[2]pair{pair{0, "z"}, pair{0, "y"}}: 2,
+}
+
+func rangeArrays() {
+	e, s := "", ""
+	for k, v := range arrElided8 {
+		e += fmt.Sprintf("%v=%v,", k, v)
+	}
+	for k, v := range arrSpelled8 {
+		s += fmt.Sprintf("%v=%v,", k, v)
+	}
+	check("arrays8", e, s)
+	e, s = "", ""
+	for k, v := range arrElided9 {
+		e += fmt.Sprintf("%v=%v,", k, v)
+	}
+	for k, v := range arrSpelled9 {
+		s += fmt.Sprintf("%v=%v,", k, v)
+	}
+	check("arrays9", e, s)
+}
+
+func rangePairs() {
+	e, s := "", ""
+	for k, v := range pairElided8 {
+		e += fmt.Sprintf("%v=%v,", k, v)
+	}
+	for k, v := range pairSpelled8 {
+		s += fmt.Sprintf("%v=%v,", k, v)
+	}
+	check("pairs8", e, s)
+	e, s = "", ""
+	for k, v := range pairElided9 {
+		e += fmt.Sprintf("%v=%v,", k, v)
+	}
+	for k, v := range pairSpelled9 {
+		s += fmt.Sprintf("%v=%v,", k, v)
+	}
+	check("pairs9", e, s)
+}
+
+func rangeNested() {
+	e, s := "", ""
+	for k, v := range mixedElided {
+		e += fmt.Sprintf("%v=%d", k, len(v))
+		for _, p := range v {
+			e += fmt.Sprintf(":%v", p)
+		}
+		e += ","
+	}
+	for k, v := range mixedSpelled {
+		s += fmt.Sprintf("%v=%d", k, len(v))
+		for _, p := range v {
+			s += fmt.Sprintf(":%v", p)
+		}
+		s += ","
+	}
+	check("key-and-value", e, s)
+	e, s = "", ""
+	for k, v := range deepElided {
+		e += fmt.Sprintf("%v=%v,", k, v)
+	}
+	for k, v := range deepSpelled {
+		s += fmt.Sprintf("%v=%v,", k, v)
+	}
+	check("nested-array-key", e, s)
+	e, s = "", ""
+	for k, v := range pairArrElided {
+		e += fmt.Sprintf("%v=%v,", k, v)
+	}
+	for k, v := range pairArrSpelled {
+		s += fmt.Sprintf("%v=%v,", k, v)
+	}
+	check("array-of-struct-key", e, s)
+}
+
+func main() {
+	rangeArrays()
+	rangePairs()
+	rangeNested()
+	if failed {
+		os.Exit(1)
+	}
+}

@@ -1,0 +1,191 @@
+// run
+
+package main
+
+import (
+	"comptime"
+	"fmt"
+)
+
+type Point struct {
+	X int
+	Y int
+}
+
+type One struct {
+	X int
+}
+
+func constDeclares() int {
+	total := 0
+	const for i, f := range comptime.Fields[Point]() {
+		_ = f.Name
+		{
+			const i = 5
+			total += i
+		}
+		total += i * 100
+	}
+	return total
+}
+
+func constGroupDeclares() int {
+	total := 0
+	const for i, f := range comptime.Fields[Point]() {
+		_ = f.Name
+		{
+			const (
+				a = 1
+				i = a + 5
+			)
+			total += i
+		}
+		total += i * 100
+	}
+	return total
+}
+
+func typeDeclares() int {
+	total := 0
+	const for i, f := range comptime.Fields[Point]() {
+		_ = f.Name
+		{
+			type i int
+			var x i = 7
+			total += int(x)
+		}
+		total += i * 100
+	}
+	return total
+}
+
+func typeAliasDeclares() int {
+	total := 0
+	const for i, f := range comptime.Fields[Point]() {
+		_ = f.Name
+		{
+			type i = int
+			var x i = 8
+			total += x
+		}
+		total += i * 100
+	}
+	return total
+}
+
+func typeGroupDeclares() int {
+	total := 0
+	const for i, f := range comptime.Fields[Point]() {
+		_ = f.Name
+		{
+			type (
+				a = int
+				i = a
+			)
+			var x i = 9
+			total += x
+		}
+		total += i * 100
+	}
+	return total
+}
+
+func typeSelfDeclares() int {
+	total := 0
+	const for i, f := range comptime.Fields[Point]() {
+		_ = f.Name
+		{
+			type i struct {
+				kids []i
+				v    int
+			}
+			x := i{kids: []i{{v: 1}}, v: 3}
+			total += x.v + len(x.kids)
+		}
+		total += i * 100
+	}
+	return total
+}
+
+func paramDeclares() int {
+	total := 0
+	const for i, f := range comptime.Fields[Point]() {
+		_ = f.Name
+		total += func(i int) int { return i * 2 }(7)
+		total += i * 100
+	}
+	return total
+}
+
+func groupedParamDeclares() int {
+	total := 0
+	const for i, f := range comptime.Fields[Point]() {
+		_ = f.Name
+		total += func(a, i int) int { return a + i }(1, 2)
+		total += i * 100
+	}
+	return total
+}
+
+func resultAssigned() int {
+	total := 0
+	const for i, f := range comptime.Fields[Point]() {
+		_ = f.Name
+		total += func() (i int) {
+			i = 5
+			return
+		}()
+		total += i * 100
+	}
+	return total
+}
+
+func resultRead() int {
+	total := 0
+	const for i, f := range comptime.Fields[Point]() {
+		_ = f.Name
+		total += func() (i int) {
+			i = 6
+			return i + 1
+		}()
+		total += i * 100
+	}
+	return total
+}
+
+func labelNamed() int {
+	total := 0
+	const for i, f := range comptime.Fields[One]() {
+		_ = f.Name
+	i:
+		for j := 0; j < 3; j++ {
+			if j == 2 {
+				break i
+			}
+			total += 10 + i
+		}
+	}
+	return total
+}
+
+func check(name string, got, want int) {
+	if got != want {
+		fmt.Println("FAIL", name, got, want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func main() {
+	check("const", constDeclares(), 110)
+	check("const-group", constGroupDeclares(), 112)
+	check("type", typeDeclares(), 114)
+	check("type-alias", typeAliasDeclares(), 116)
+	check("type-group", typeGroupDeclares(), 118)
+	check("type-self", typeSelfDeclares(), 108)
+	check("param", paramDeclares(), 128)
+	check("param-grouped", groupedParamDeclares(), 106)
+	check("result-assigned", resultAssigned(), 110)
+	check("result-read", resultRead(), 114)
+	check("label", labelNamed(), 20)
+}

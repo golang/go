@@ -10,44 +10,22 @@ import (
 	"strings"
 )
 
-// This file holds the loGo/s parser logic for M6-S1 interpolated strings
-// (SPEC Sec 1.4, T-104.4). parser.go calls into it through one hook line
-// only (G3); the rule runs solely in LogosMode, so plain Go parses
-// exactly as upstream.
-//
-// The scanner delivers `$"..."` as one _Literal token with LitKind
-// InterpLit and the full source spelling as its Value. The parser splits
-// the inner text into literal parts and `{expr}` operands, parsing each
-// operand with a sub-parser over the fragment bytes. Fragments run
-// through the same expression grammar (including nested loGo/s forms) in
-// the file's own position base with newline/space padding, so operand
-// positions and errors are absolute file positions. A `{` without a
-// matching `}` is `syntax error: unterminated interpolation` at the
-// brace.
-
-// logosInterpOperand parses a `$"..."` operand. It returns nil,
-// consuming nothing, when the current token is not an interpolated
-// string, so every other literal keeps the upstream path.
 func (p *parser) logosInterpOperand() Expr {
 	if p.tok != _Literal || p.kind != InterpLit {
 		return nil
 	}
-	raw, pos, bad := p.lit, p.pos(), p.bad
+	raw, pos := p.lit, p.pos()
 	p.next()
-	return p.parseInterp(raw, pos, bad)
+	return p.parseInterp(raw, pos)
 }
 
-// parseInterp splits raw (the full `$"..."` spelling at pos) into an
-// InterpLit. bad reports a scanner-side error for this literal; with bad
-// set the split stays lenient and emits no new error, so one cause keeps
-// one error.
-func (p *parser) parseInterp(raw string, pos Pos, bad bool) Expr {
+func (p *parser) parseInterp(raw string, pos Pos) Expr {
 	t := new(InterpExpr)
 	t.pos = pos
 	t.Raw = raw
 	inner := strings.TrimPrefix(raw, `$"`)
 	inner = strings.TrimSuffix(inner, `"`)
-	parts, exprs := p.splitInterp(inner, pos, bad)
+	parts, exprs := p.splitInterp(inner, pos)
 	t.Parts = parts
 	for _, frag := range exprs {
 		if frag.bad {
@@ -67,9 +45,6 @@ func (p *parser) parseInterp(raw string, pos Pos, bad bool) Expr {
 	return t
 }
 
-// interpFrag is one `{...}` operand: the raw fragment bytes, the
-// absolute file position of its first byte, and the absolute positions
-// of its opening `{` and closing `}`.
 type interpFrag struct {
 	text      string
 	line      uint
@@ -82,15 +57,10 @@ type interpFrag struct {
 	bad       bool
 }
 
-// splitInterp divides inner (the literal text between `$"` and the
-// closing quote) into decoded parts and operand fragments. It mirrors
-// the scanner's brace grammar; on a clean literal every `{` has its
-// `}` and the only error is an unmatched `{`, reported at the brace.
-func (p *parser) splitInterp(inner string, pos Pos, bad bool) ([]string, []interpFrag) {
+func (p *parser) splitInterp(inner string, pos Pos) ([]string, []interpFrag) {
 	var parts []string
 	var exprs []interpFrag
 	var cur strings.Builder
-	// line/col track the absolute file position of inner[i].
 	line, col := pos.Line(), pos.Col()+2
 	flush := func() {
 		parts = append(parts, logosInterpDecode(cur.String()))
@@ -111,7 +81,6 @@ func (p *parser) splitInterp(inner string, pos Pos, bad bool) ([]string, []inter
 			flush()
 			exprs = append(exprs, frag)
 			if !ok {
-				// Unmatched `{`: the one strict-mode error.
 				p.syntaxErrorAt(frag.bracePos, "unterminated interpolation")
 				parts = append(parts, "")
 				return parts, exprs
@@ -124,8 +93,6 @@ func (p *parser) splitInterp(inner string, pos Pos, bad bool) ([]string, []inter
 				col += 2
 				continue
 			}
-			// A lone `}` reaches here only for a bad literal (the
-			// scanner errored already); keep it literally.
 			cur.WriteByte(c)
 			i++
 			col++
@@ -147,18 +114,11 @@ func (p *parser) splitInterp(inner string, pos Pos, bad bool) ([]string, []inter
 	return parts, exprs
 }
 
-// scanInterpFrag scans one `{...}` operand starting at inner[open]
-// (the `{`, at absolute line/col). It returns the fragment (text without
-// the braces), the resume offset and position past the matching `}`,
-// and whether a match was found. Brace matching skips nested strings,
-// runes, raw strings, and comments exactly like the scanner.
 func (p *parser) scanInterpFrag(inner string, open int, line, col uint) (interpFrag, int, uint, uint, bool) {
 	bracePos := MakePos(p.file, line, col)
 	openFrag := interpFrag{openLine: line, openCol: col, bracePos: bracePos}
 	depth := 1
 	i := open + 1
-	// fragLine/fragCol is the absolute position of inner[i]: one byte
-	// past the `{` on the same line.
 	fragLine, fragCol := line, col+1
 	j := i
 	for j < len(inner) {
@@ -171,10 +131,6 @@ func (p *parser) scanInterpFrag(inner string, open int, line, col uint) (interpF
 			depth--
 			j++
 			if depth == 0 {
-				// Resume past `}`. Newlines inside the fragment
-				// advance the line; the column counts from the
-				// last newline (or the `{` line). The closing
-				// brace sits one byte before the resume point.
 				nl := strings.Count(inner[open:j], "\n")
 				if nl == 0 {
 					rcol := col + uint(j-open)
@@ -212,13 +168,9 @@ func (p *parser) scanInterpFrag(inner string, open int, line, col uint) (interpF
 	return interpFrag{bracePos: bracePos, bad: true}, len(inner), line, col, false
 }
 
-// parseInterpFrag parses one operand fragment with a sub-parser over the
-// fragment bytes padded to its absolute file position, so the operand
-// tree and any of its errors carry true file positions in the file base.
 func (p *parser) parseInterpFrag(frag interpFrag) Expr {
-	pad := strings.Repeat("\n", int(frag.line)-1) + strings.Repeat(" ", int(frag.col)-1)
 	var sub parser
-	sub.init(p.file, bytes.NewBufferString(pad+frag.text), func(err error) {
+	sub.init(p.file, bytes.NewBufferString(frag.text), func(err error) {
 		if e, ok := err.(Error); ok {
 			if p.first == nil {
 				p.first = e
@@ -229,6 +181,7 @@ func (p *parser) parseInterpFrag(frag interpFrag) Expr {
 			p.errh(err)
 		}
 	}, p.pragh, p.mode)
+	sub.source.setStart(frag.line, frag.col)
 	sub.fnest = p.fnest
 	sub.next()
 	x := sub.expr()
@@ -242,9 +195,6 @@ func (p *parser) parseInterpFrag(frag interpFrag) Expr {
 	return x
 }
 
-// logosInterpDecode decodes one literal part's escapes. The scanner
-// validated them; on any failure the raw text stands (a bad literal
-// already carries its error).
 func logosInterpDecode(part string) string {
 	if !strings.Contains(part, "\\") {
 		return part
@@ -255,8 +205,6 @@ func logosInterpDecode(part string) string {
 	return part
 }
 
-// skipInterpString skips a nested interpreted string starting at the
-// opening quote inner[off].
 func skipInterpString(inner string, off int) int {
 	j := off + 1
 	for j < len(inner) {
@@ -274,8 +222,6 @@ func skipInterpString(inner string, off int) int {
 	return j
 }
 
-// skipInterpRune skips a nested rune literal starting at the opening
-// quote inner[off].
 func skipInterpRune(inner string, off int) int {
 	j := off + 1
 	for j < len(inner) {
@@ -293,8 +239,6 @@ func skipInterpRune(inner string, off int) int {
 	return j
 }
 
-// skipInterpRaw skips a nested raw string starting at the opening
-// backquote inner[off].
 func skipInterpRaw(inner string, off int) int {
 	if j := strings.IndexByte(inner[off+1:], '`'); j >= 0 {
 		return off + 1 + j + 1
@@ -302,7 +246,6 @@ func skipInterpRaw(inner string, off int) int {
 	return len(inner)
 }
 
-// skipInterpComment skips a `//` or `/* */` comment starting at inner[off].
 func skipInterpComment(inner string, off int) int {
 	if inner[off+1] == '/' {
 		if j := strings.IndexByte(inner[off:], '\n'); j >= 0 {

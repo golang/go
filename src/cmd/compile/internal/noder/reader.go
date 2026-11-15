@@ -1822,7 +1822,12 @@ func (r *reader) stmt1(tag codeStmt, out *ir.Nodes) ir.Node {
 		return n
 
 	case stmtBlock:
-		out.Append(r.blockStmt()...)
+		stmts := r.blockStmt()
+		if logosKeepRegionBlock(stmts) {
+			out.Append(logosRegionBlock(stmts))
+			return nil
+		}
+		out.Append(stmts...)
 		return nil
 
 	case stmtBranch:

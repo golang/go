@@ -5,12 +5,17 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os"
 )
-
-// Receiver shapes: a chain whose receiver is a slice, index,
-// call-with-index, or parenthesized expression; comments and line breaks
-// between the receiver and the dot; and chains nested inside receivers.
-// Every printed line is hand-computed in the .out file.
+var failed bool
+func check(name string, cond bool, got, want any) {
+if !cond {
+failed = true
+fmt.Println("FAIL", name+":", "got", got, "want", want)
+return
+}
+fmt.Println("ok", name)
+}
 
 var calls int
 
@@ -72,141 +77,197 @@ var (
 var a any = xs
 
 func sliceReceivers() {
-	fmt.Println(xs[1:].map(x => x * 2))
-	fmt.Println(xs[:2].sortBy(x => x))
-	fmt.Println(xs[1:3].filter(x => x > 3))
-	fmt.Println(xs[1:3:4].map(x => -x))
-	fmt.Println(xs[1:].take(2))
-	fmt.Println(xs[:3].drop(1))
-	fmt.Println(xs[1:].first() ?? -1)
-	fmt.Println(xs[1:].last() ?? -1)
-	fmt.Println(xs[1:].get(1) ?? -1)
-	fmt.Println(xs[2:].sum())
-	fmt.Println(xs[1:].count(x => x > 2))
-	fmt.Println(xs[1:].any(x => x > 7))
-	fmt.Println(xs[1:].all(x => x > 1))
-	fmt.Println(xs[1:].find(x => x > 5) ?? -1)
-	fmt.Println(ws[1:].map(w => w[1:]))
+got01 := fmt.Sprint(xs[1:].map(x => x * 2))
+check("r01", got01 == "[6 16 2]", got01, "[6 16 2]")
+got02 := fmt.Sprint(xs[:2].sortBy(x => x))
+check("r02", got02 == "[3 5]", got02, "[3 5]")
+got03 := fmt.Sprint(xs[1:3].filter(x => x > 3))
+check("r03", got03 == "[8]", got03, "[8]")
+got04 := fmt.Sprint(xs[1:3:4].map(x => -x))
+check("r04", got04 == "[-3 -8]", got04, "[-3 -8]")
+got05 := fmt.Sprint(xs[1:].take(2))
+check("r05", got05 == "[3 8]", got05, "[3 8]")
+got06 := fmt.Sprint(xs[:3].drop(1))
+check("r06", got06 == "[3 8]", got06, "[3 8]")
+got07 := fmt.Sprint(xs[1:].first() ?? -1)
+check("r07", got07 == "3", got07, "3")
+got08 := fmt.Sprint(xs[1:].last() ?? -1)
+check("r08", got08 == "1", got08, "1")
+got09 := fmt.Sprint(xs[1:].get(1) ?? -1)
+check("r09", got09 == "8", got09, "8")
+got10 := fmt.Sprint(xs[2:].sum())
+check("r10", got10 == "9", got10, "9")
+got11 := fmt.Sprint(xs[1:].count(x => x > 2))
+check("r11", got11 == "2", got11, "2")
+got12 := fmt.Sprint(xs[1:].any(x => x > 7))
+check("r12", got12 == "true", got12, "true")
+got13 := fmt.Sprint(xs[1:].all(x => x > 1))
+check("r13", got13 == "false", got13, "false")
+got14 := fmt.Sprint(xs[1:].find(x => x > 5) ?? -1)
+check("r14", got14 == "8", got14, "8")
+got15 := fmt.Sprint(ws[1:].map(w => w[1:]))
+check("r15", got15 == "[ig pple]", got15, "[ig pple]")
 }
 
 func parenReceivers() {
-	fmt.Println((xs[1:]).map(x => x + 1))
-	fmt.Println((xs[:2]).sortBy(x => x))
-	fmt.Println(((xs))[1:].map(x => x))
-	fmt.Println((xs).map(x => x * 2))
-	fmt.Println((xs[1:]).sum())
+got16 := fmt.Sprint((xs[1:]).map(x => x + 1))
+check("r16", got16 == "[4 9 2]", got16, "[4 9 2]")
+got17 := fmt.Sprint((xs[:2]).sortBy(x => x))
+check("r17", got17 == "[3 5]", got17, "[3 5]")
+got18 := fmt.Sprint(((xs))[1:].map(x => x))
+check("r18", got18 == "[3 8 1]", got18, "[3 8 1]")
+got19 := fmt.Sprint((xs).map(x => x * 2))
+check("r19", got19 == "[10 6 16 2]", got19, "[10 6 16 2]")
+got20 := fmt.Sprint((xs[1:]).sum())
+check("r20", got20 == "12", got20, "12")
 }
 
 func indexReceivers() {
-	fmt.Println(grid[1].filter(x => x > 3))
-	fmt.Println(grid[1].sortBy(x => -x))
-	fmt.Println(rows()[len("a].b(")-4].filter(x => x > 3))
-	fmt.Println(grid[0].sortBy(x => -x))
-	fmt.Println(rows()[len(`x[.map(`)-6][1:].map(x => x * 10))
-	fmt.Println(grid[len("]]")-1].map(x => x + 1))
-	fmt.Println(grid[len(`)[`)-1][0:1].map(x => x * 2))
-	fmt.Println(grid[1][1:].count(x => x > 3))
-	fmt.Println(grid[1][:2].first() ?? -1)
-	fmt.Println(grid[1].map(x => x * 2))
-	fmt.Println(b.items[1:].map(x => x * x))
-	fmt.Println(a.([]int)[1:].map(x => x + 1))
+got21 := fmt.Sprint(grid[1].filter(x => x > 3))
+check("r21", got21 == "[4 5]", got21, "[4 5]")
+got22 := fmt.Sprint(grid[1].sortBy(x => -x))
+check("r22", got22 == "[5 4 3]", got22, "[5 4 3]")
+got23 := fmt.Sprint(rows()[len("a].b(")-4].filter(x => x > 3))
+check("r23", got23 == "[4 5]", got23, "[4 5]")
+got24 := fmt.Sprint(grid[0].sortBy(x => -x))
+check("r24", got24 == "[2 1]", got24, "[2 1]")
+got25 := fmt.Sprint(rows()[len(`x[.map(`)-6][1:].map(x => x * 10))
+check("r25", got25 == "[40 50]", got25, "[40 50]")
+got26 := fmt.Sprint(grid[len("]]")-1].map(x => x + 1))
+check("r26", got26 == "[4 5 6]", got26, "[4 5 6]")
+got27 := fmt.Sprint(grid[len(`)[`)-1][0:1].map(x => x * 2))
+check("r27", got27 == "[6]", got27, "[6]")
+got28 := fmt.Sprint(grid[1][1:].count(x => x > 3))
+check("r28", got28 == "2", got28, "2")
+got29 := fmt.Sprint(grid[1][:2].first() ?? -1)
+check("r29", got29 == "3", got29, "3")
+got30 := fmt.Sprint(grid[1].map(x => x * 2))
+check("r30", got30 == "[6 8 10]", got30, "[6 8 10]")
+got31 := fmt.Sprint(b.items[1:].map(x => x * x))
+check("r31", got31 == "[36 25]", got31, "[36 25]")
+got32 := fmt.Sprint(a.([]int)[1:].map(x => x + 1))
+check("r32", got32 == "[4 9 2]", got32, "[4 9 2]")
 }
-
 func callReceivers() {
-	calls = 0
-	fmt.Println(three()[0:2].map(x => x / 10))
-	fmt.Println(three()[2:].sortBy(x => -x))
-	fmt.Println(calls)
-	fmt.Println(rows()[1].filter(x => x > 3))
-	fmt.Println(rows()[1][1:].map(x => x - 1))
+calls = 0
+got33 := fmt.Sprint(three()[0:2].map(x => x / 10))
+check("r33", got33 == "[1 2]", got33, "[1 2]")
+got34 := fmt.Sprint(three()[2:].sortBy(x => -x))
+check("r34", got34 == "[40 30]", got34, "[40 30]")
+got35 := fmt.Sprint(calls)
+check("r35", got35 == "2", got35, "2")
+got36 := fmt.Sprint(rows()[1].filter(x => x > 3))
+check("r36", got36 == "[4 5]", got36, "[4 5]")
+got37 := fmt.Sprint(rows()[1][1:].map(x => x - 1))
+check("r37", got37 == "[3 4]", got37, "[3 4]")
 }
 
 func commentReceivers() {
-	fmt.Println(xs[1:] /* c */ .map(x => x * 2))
-	fmt.Println(xs[1:] /* ].map( ) */ .map(x => x + 1))
-	fmt.Println(grid[1] /* c */ .sortBy(x => -x))
-	fmt.Println((grid[1]) /* c */ .sortBy(x => x))
-	fmt.Println((xs[1:]) /* c */ .map(x => x))
-	fmt.Println(xs[1:] // note ).
-		.map(x => x * 2))
-	fmt.Println(grid[1] /* c */ // d
-		.filter(x => x > 3))
+got38 := fmt.Sprint(xs[1:].map(x => x * 2))
+check("r38", got38 == "[6 16 2]", got38, "[6 16 2]")
+got39 := fmt.Sprint(xs[1:].map(x => x + 1))
+check("r39", got39 == "[4 9 2]", got39, "[4 9 2]")
+got40 := fmt.Sprint(grid[1].sortBy(x => -x))
+check("r40", got40 == "[5 4 3]", got40, "[5 4 3]")
+got41 := fmt.Sprint((grid[1]).sortBy(x => x))
+check("r41", got41 == "[3 4 5]", got41, "[3 4 5]")
+got42 := fmt.Sprint((xs[1:]).map(x => x))
+check("r42", got42 == "[3 8 1]", got42, "[3 8 1]")
+got43 := fmt.Sprint(xs[1:].map(x => x * 2))
+check("r43", got43 == "[6 16 2]", got43, "[6 16 2]")
+got44 := fmt.Sprint(grid[1].filter(x => x > 3))
+check("r44", got44 == "[4 5]", got44, "[4 5]")
 }
-
 func lineReceivers() {
-	lead := xs[1:]
-		.map(x => x * 2)
-		.filter(x => x > 3)
-	fmt.Println(lead)
-	fmt.Println([]int{
-		4, 5, 6, 7,
-	}[1:3].map(x => x * 3))
-	spread := grid[1][
-		1:
-	].map(x => x + 100)
-	fmt.Println(spread)
-	fmt.Println([]int{
-		4, 5, 6, 7,
-	}[1:]
-		.map(x => x * 3))
-	fmt.Println(grid[1][
-		1:
-	]
-		.map(x => x * 2)
-		.sum())
+lead := xs[1:].map(x => x * 2).filter(x => x > 3)
+got45 := fmt.Sprint(lead)
+check("r45", got45 == "[6 16]", got45, "[6 16]")
+got46 := fmt.Sprint([]int{4, 5, 6, 7}[1:3].map(x => x * 3))
+check("r46", got46 == "[15 18]", got46, "[15 18]")
+spread := grid[1][1:].map(x => x + 100)
+got47 := fmt.Sprint(spread)
+check("r47", got47 == "[104 105]", got47, "[104 105]")
+got48 := fmt.Sprint([]int{4, 5, 6, 7}[1:].map(x => x * 3))
+check("r48", got48 == "[15 18 21]", got48, "[15 18 21]")
+got49 := fmt.Sprint(grid[1][1:].map(x => x * 2).sum())
+check("r49", got49 == "18", got49, "18")
 }
 
 func nestedReceivers() {
-	fmt.Println(xs.map(x => x * 2)[1:].filter(x => x > 5))
-	fmt.Println(xs.sortBy(x => x)[:2].map(x => x * 10))
-	fmt.Println((xs.filter(x => x > 2))[1:].map(x => -x))
-	fmt.Println(xs.map(x => x + 1)[1:][1:].sum())
-	fmt.Println(three().map(x => x / 10)[1:3].map(x => x + 1))
-	fmt.Println(xs.map(x => ws[1:].map(w => len(w) + x).sum()))
-	fmt.Println(xs[1:].map(x => grid[1][1:].sum() + x))
-	fmt.Println(grid.map(r => r[1:].map(x => x * 2))[1].sum())
-	fmt.Println(ws.map(w => len(w)).sortBy(n => n)[1:].map(n => n * 2))
-	fmt.Println((xs.map(x => x * 2)[1:]).filter(x => x > 5))
-	fmt.Println(xs[1:].sortBy(x => x).map(x => x * 2))
-	fmt.Println(xs[1:].map(x => x * 2).sortBy(x => -x)[:2])
+got50 := fmt.Sprint(xs.map(x => x * 2)[1:].filter(x => x > 5))
+check("r50", got50 == "[6 16]", got50, "[6 16]")
+got51 := fmt.Sprint(xs.sortBy(x => x)[:2].map(x => x * 10))
+check("r51", got51 == "[10 30]", got51, "[10 30]")
+got52 := fmt.Sprint((xs.filter(x => x > 2))[1:].map(x => -x))
+check("r52", got52 == "[-3 -8]", got52, "[-3 -8]")
+got53 := fmt.Sprint(xs.map(x => x + 1)[1:][1:].sum())
+check("r53", got53 == "11", got53, "11")
+got54 := fmt.Sprint(three().map(x => x / 10)[1:3].map(x => x + 1))
+check("r54", got54 == "[3 4]", got54, "[3 4]")
+got55 := fmt.Sprint(xs.map(x => ws[1:].map(w => len(w) + x).sum()))
+check("r55", got55 == "[18 14 24 10]", got55, "[18 14 24 10]")
+got56 := fmt.Sprint(xs[1:].map(x => grid[1][1:].sum() + x))
+check("r56", got56 == "[12 17 10]", got56, "[12 17 10]")
+got57 := fmt.Sprint(grid.map(r => r[1:].map(x => x * 2))[1].sum())
+check("r57", got57 == "18", got57, "18")
+got58 := fmt.Sprint(ws.map(w => len(w)).sortBy(n => n)[1:].map(n => n * 2))
+check("r58", got58 == "[8 10]", got58, "[8 10]")
+got59 := fmt.Sprint((xs.map(x => x * 2)[1:]).filter(x => x > 5))
+check("r59", got59 == "[6 16]", got59, "[6 16]")
+got60 := fmt.Sprint(xs[1:].sortBy(x => x).map(x => x * 2))
+check("r60", got60 == "[2 6 16]", got60, "[2 6 16]")
+got61 := fmt.Sprint(xs[1:].map(x => x * 2).sortBy(x => -x)[:2])
+check("r61", got61 == "[16 6]", got61, "[16 6]")
 }
-
 func hoistReceivers() {
-	if v, err := halves([]int{1, 4, 6}); err != nil {
-		fmt.Println(err)
-	} else {
-		fmt.Println(v)
-	}
-	if v, err := halves([]int{1, 4, 5}); err != nil {
-		fmt.Println(err)
-	} else {
-		fmt.Println(v)
-	}
-	if v, err := heads([]ints{{1, 2}, {3, 4}}); err != nil {
-		fmt.Println(err)
-	} else {
-		fmt.Println(v)
-	}
-	if v, err := heads([]ints{{1, 2}, {3}}); err != nil {
-		fmt.Println(err)
-	} else {
-		fmt.Println(v)
-	}
-	fmt.Println(tail)
+if v, err := halves([]int{1, 4, 6}); err != nil {
+check("r62", false, err, "[2 3]")
+} else {
+got62 := fmt.Sprint(v)
+check("r62", got62 == "[2 3]", got62, "[2 3]")
+}
+if v, err := halves([]int{1, 4, 5}); err != nil {
+got63 := err.Error()
+check("r63", got63 == "odd", got63, "odd")
+} else {
+check("r63", false, v, "odd")
+}
+if v, err := heads([]ints{{1, 2}, {3, 4}}); err != nil {
+check("r64", false, err, "[2 4]")
+} else {
+got64 := fmt.Sprint(v)
+check("r64", got64 == "[2 4]", got64, "[2 4]")
+}
+if v, err := heads([]ints{{1, 2}, {3}}); err != nil {
+got65 := err.Error()
+check("r65", got65 == "empty", got65, "empty")
+} else {
+check("r65", false, v, "empty")
+}
+got66 := fmt.Sprint(tail)
+check("r66", got66 == "[4 6 8]", got66, "[4 6 8]")
 }
 
 func stmtReceivers() {
-	d := ints{0, 0, 0}
-	fmt.Println(fill(d, []int{2, 4}), d)
-	fmt.Println(fill(d, []int{6, 3}), d)
+d := ints{0, 0, 0}
+err1 := fill(d, []int{2, 4})
+got67 := fmt.Sprint(err1, d)
+check("r67", got67 == "<nil> [0 1 2]", got67, "<nil> [0 1 2]")
+err2 := fill(d, []int{6, 3})
+got68 := fmt.Sprint(err2, d)
+check("r68", got68 == "odd [0 1 2]", got68, "odd [0 1 2]")
 }
-
 func optionReceivers() {
-	fmt.Println((m["k"] ?? []int{}).filter(x => x > 3))
-	fmt.Println((m["k"] ?? []int{}).sortBy(x => x))
-	fmt.Println((m["k"] ?? []int{})[1:].map(x => x * 10))
-	fmt.Println((m["k"] ?? []int{}) /* c */ .sortBy(x => x))
-	fmt.Println((m["none"] ?? []int{}).map(x => x))
+got69 := fmt.Sprint((m["k"] ?? []int{}).filter(x => x > 3))
+check("r69", got69 == "[4 9]", got69, "[4 9]")
+got70 := fmt.Sprint((m["k"] ?? []int{}).sortBy(x => x))
+check("r70", got70 == "[2 4 9]", got70, "[2 4 9]")
+got71 := fmt.Sprint((m["k"] ?? []int{})[1:].map(x => x * 10))
+check("r71", got71 == "[90 20]", got71, "[90 20]")
+got72 := fmt.Sprint((m["k"] ?? []int{}).sortBy(x => x))
+check("r72", got72 == "[2 4 9]", got72, "[2 4 9]")
+got73 := fmt.Sprint((m["none"] ?? []int{}).map(x => x))
+check("r73", got73 == "[]", got73, "[]")
 }
 
 func id(xs []int) []int {
@@ -214,44 +275,66 @@ func id(xs []int) []int {
 }
 
 func callBases() {
-	f := id
-	fmt.Println((f)(xs).filter(x => x > 3))
-	fmt.Println(three().filter(x => x > 20))
-	fmt.Println((append(xs, 1)).filter(x => x < 4))
-	fmt.Println(id(xs).filter(x => x < 4))
-	fmt.Println((id(xs)).map(x => x * 2))
+f := id
+got74 := fmt.Sprint((f)(xs).filter(x => x > 3))
+check("r74", got74 == "[5 8]", got74, "[5 8]")
+got75 := fmt.Sprint(three().filter(x => x > 20))
+check("r75", got75 == "[30 40]", got75, "[30 40]")
+got76 := fmt.Sprint((append(xs, 1)).filter(x => x < 4))
+check("r76", got76 == "[3 1 1]", got76, "[3 1 1]")
+got77 := fmt.Sprint(id(xs).filter(x => x < 4))
+check("r77", got77 == "[3 1]", got77, "[3 1]")
+got78 := fmt.Sprint((id(xs)).map(x => x * 2))
+check("r78", got78 == "[10 6 16 2]", got78, "[10 6 16 2]")
 }
-
 func literalArgs() {
-	fmt.Println(xs.filter(x => { y := x; return y > 4 }))
-	fmt.Println(xs.filter(x => { n := x; for i := 0; i < 1; i++ { n++ }; return n > 4 }))
-	fmt.Println(xs.map(x => { s := 0; for i := 0; i < x; i++ { s += i }; return s }))
-	fmt.Println(xs.filter(x => func() bool { y := x; return y > 4 }()))
+got79 := fmt.Sprint(xs.filter(x => { y := x; return y > 4 }))
+check("r79", got79 == "[5 8]", got79, "[5 8]")
+got80 := fmt.Sprint(xs.filter(x => { n := x; for i := 0; i < 1; i++ { n++ }; return n > 4 }))
+check("r80", got80 == "[5 8]", got80, "[5 8]")
+got81 := fmt.Sprint(xs.map(x => { s := 0; for i := 0; i < x; i++ { s += i }; return s }))
+check("r81", got81 == "[10 3 28 0]", got81, "[10 3 28 0]")
+got82 := fmt.Sprint(xs.filter(x => func() bool { y := x; return y > 4 }()))
+check("r82", got82 == "[5 8]", got82, "[5 8]")
 }
-
 func parenTry(xs []int) ([]int, error) {
-	return xs.map(x => (half)(x)?), nil
+return xs.map(x => (half)(x)?), nil
 }
-
+type observed[T any] struct {
+v T
+err error
+}
+func observe[T any](v T, err error) observed[T] {
+return observed[T]{v, err}
+}
 func parenTries() {
-	for _, in := range [][]int{{2, 4}, {2, 3}} {
-		v, err := parenTry(in)
-		fmt.Println(v, err)
-	}
+for _, in := range [][]int{{2, 4}, {2, 3}} {
+res := observe(parenTry(in))
+v, err := res.v, res.err
+if err != nil {
+got := fmt.Sprint(v, err)
+check("r84", in[1] == 3 && got == "[] odd", got, "[] odd")
+} else {
+got := fmt.Sprint(v, err)
+check("r83", in[1] == 4 && got == "[1 2] <nil>", got, "[1 2] <nil>")
 }
-
+}
+}
 func main() {
-	sliceReceivers()
-	parenReceivers()
-	indexReceivers()
-	callReceivers()
-	commentReceivers()
-	lineReceivers()
-	nestedReceivers()
-	hoistReceivers()
-	stmtReceivers()
-	optionReceivers()
-	callBases()
-	literalArgs()
-	parenTries()
+sliceReceivers()
+parenReceivers()
+indexReceivers()
+callReceivers()
+commentReceivers()
+lineReceivers()
+nestedReceivers()
+hoistReceivers()
+stmtReceivers()
+optionReceivers()
+callBases()
+literalArgs()
+parenTries()
+if failed {
+os.Exit(1)
+}
 }

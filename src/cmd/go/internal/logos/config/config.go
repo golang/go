@@ -20,9 +20,9 @@ package config
 
 import (
 	"fmt"
+	"internal/logosfile"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 )
 
@@ -38,20 +38,15 @@ type File struct {
 	Lints Lints
 }
 
-// Project holds the [project] table: the module name (informational only),
-// the language edition, and the enabled loGo/s source extensions.
+// Project holds the [project] table: the enabled loGo/s source extensions.
 type Project struct {
-	// Name is informational and changes no build output. It must not be empty.
-	Name string
-	// Edition selects the language rules. Only "2026" is valid.
-	Edition string
 	// StrictFiles lists the enabled loGo/s extensions. It defaults to all four.
 	StrictFiles []string
 }
 
 // Build holds the [build] table: the cgo policy and its allowlist, the
-// optimization level, the synthetic PGO level, the CPU target, the
-// arena experiment, and the collector mode.
+// optimization level, the CPU target, the arena experiment, and the
+// collector mode.
 type Build struct {
 	// Cgo is one of "forbid", "restricted", or "allow". It defaults to "forbid".
 	Cgo string
@@ -59,36 +54,20 @@ type Build struct {
 	CgoSet bool
 	// CgoAllowlist holds path globs enabled under the "restricted" policy.
 	CgoAllowlist []string
-	// OptLevel is one of "O0", "O1", "O2", "O3", "Os", or "Oz". It defaults to "O2".
+	// OptLevel is one of "O0", "O1", "O2", "O3", or "Os". It defaults to "O2".
 	OptLevel string
-	// SyntheticPGO is one of "off", "standard", or "aggressive".
-	SyntheticPGO string
-	// SynthPGOSet reports whether the synthetic_pgo key was present in the file.
-	SynthPGOSet bool
 	// TargetCPU is one of "deterministic", "baseline", or "native". It defaults to "deterministic".
 	TargetCPU string
-	// Arena enables the tier-0 arena experiment (GOEXPERIMENT=logosarena)
-	// for the build. It defaults to false.
-	Arena bool
-	// GC is the collector mode named by the gc key. It is checked against
-	// GCModes at build time, with the same text as the -gc flag, and is empty
-	// while GCSet is false.
-	GC string
-	// GCSet reports whether the gc key was present in the file.
-	GCSet bool
+	// Arena enables the arena experiment (GOEXPERIMENT=logosarena)
+	// for the build. Nil means the default, which is true.
+	Arena *bool
 }
-
-// GCModes lists the collector modes that -gc and the gc key accept, in the
-// order the unknown-mode message names them.
-var GCModes = []string{"greentea", "zgc", "immix", "wasm", "batch", "epsilon"}
 
 // Capabilities holds the [capabilities] table (M12): severity keys, each one
 // of "deny", "warn", or "allow", and allowlist keys holding path globs.
 // Severities default to deny, except TransitiveReflect which defaults to
 // warn; allowlists default to empty.
 type Capabilities struct {
-	// DirectReflect guards direct reachability of reflect sinks.
-	DirectReflect string
 	// TransitiveReflect guards transitive reachability of reflect sinks.
 	TransitiveReflect string
 	// TransitiveExec guards transitive reachability of exec sinks.
@@ -107,21 +86,15 @@ type Capabilities struct {
 	TransitiveUnsafeAllowlist []string
 }
 
-// strictFileExts lists every loGo/s source extension: .lgo, the scroll
-// (U+1F4DC), the lightning bolt (U+26A1), and the gopher extension
-// (U+0295 U+25D4 U+03D6 U+25D4 U+0294).
-var strictFileExts = []string{".lgo", ".📜", ".⚡", ".ʕ◔ϖ◔ʔ"}
-
 // defaultFile returns the File used when logos.toml (or a table or key) is
-// absent: edition "2026", all four extensions enabled, cgo "forbid" with the
-// key marked absent, opt_level "O2", no synthetic_pgo key, and target_cpu
-// "deterministic".
+// absent: all four extensions enabled, cgo "forbid" with the
+// key marked absent, opt_level "O2", target_cpu "deterministic",
+// and arena unset (default true).
 func defaultFile() *File {
 	return &File{
-		Project: Project{Edition: "2026", StrictFiles: slices.Clone(strictFileExts)},
+		Project: Project{StrictFiles: logosfile.Exts()},
 		Build:   Build{Cgo: "forbid", OptLevel: "O2", TargetCPU: "deterministic"},
 		Capabilities: Capabilities{
-			DirectReflect:     "deny",
 			TransitiveReflect: "warn",
 			TransitiveExec:    "deny",
 			TransitiveNet:     "deny",
@@ -149,56 +122,22 @@ func Load(modRoot string) (*File, error) {
 }
 
 // Format renders f as canonical TOML that re-parses to an equal File.
-// Keys with default-absent state are omitted: an empty name (which could not
-// re-parse), an unset cgo or gc key (which must keep CgoSet or GCSet false),
-// and nil allowlists.
+// Keys with default-absent state are omitted: an unset cgo key
+// (which must keep CgoSet false) and nil allowlists.
 func (f *File) Format() []byte {
 	var b strings.Builder
 	b.WriteString("[project]\n")
-	if f.Project.Name != "" {
-		b.WriteString("name = ")
-		appendQuoted(&b, f.Project.Name)
-		b.WriteByte('\n')
-	}
-	if f.Project.Edition != "" {
-		b.WriteString("edition = ")
-		appendQuoted(&b, f.Project.Edition)
-		b.WriteByte('\n')
-	}
-	if f.Project.StrictFiles != nil {
-		b.WriteString("strict_files = [")
-		for i, s := range f.Project.StrictFiles {
-			if i > 0 {
-				b.WriteString(", ")
-			}
-			appendQuoted(&b, s)
-		}
-		b.WriteString("]\n")
-	}
+	writeStringArray(&b, "strict_files", f.Project.StrictFiles)
 	b.WriteString("[build]\n")
 	if f.Build.CgoSet {
 		b.WriteString("cgo = ")
 		appendQuoted(&b, f.Build.Cgo)
 		b.WriteByte('\n')
 	}
-	if f.Build.CgoAllowlist != nil {
-		b.WriteString("cgo_allowlist = [")
-		for i, s := range f.Build.CgoAllowlist {
-			if i > 0 {
-				b.WriteString(", ")
-			}
-			appendQuoted(&b, s)
-		}
-		b.WriteString("]\n")
-	}
+	writeStringArray(&b, "cgo_allowlist", f.Build.CgoAllowlist)
 	if f.Build.OptLevel != "" && f.Build.OptLevel != "O2" {
 		b.WriteString("opt_level = ")
 		appendQuoted(&b, f.Build.OptLevel)
-		b.WriteByte('\n')
-	}
-	if f.Build.SynthPGOSet {
-		b.WriteString("synthetic_pgo = ")
-		appendQuoted(&b, f.Build.SyntheticPGO)
 		b.WriteByte('\n')
 	}
 	if f.Build.TargetCPU != "" && f.Build.TargetCPU != "deterministic" {
@@ -206,13 +145,12 @@ func (f *File) Format() []byte {
 		appendQuoted(&b, f.Build.TargetCPU)
 		b.WriteByte('\n')
 	}
-	if f.Build.Arena {
-		b.WriteString("arena = true\n")
-	}
-	if f.Build.GCSet {
-		b.WriteString("gc = ")
-		appendQuoted(&b, f.Build.GC)
-		b.WriteByte('\n')
+	if f.Build.Arena != nil {
+		if *f.Build.Arena {
+			b.WriteString("arena = true\n")
+		} else {
+			b.WriteString("arena = false\n")
+		}
 	}
 	writeCapabilities(&b, f.Capabilities)
 	return []byte(b.String())
@@ -230,22 +168,7 @@ func writeCapabilities(b *strings.Builder, c Capabilities) {
 			b.WriteByte('\n')
 		}
 	}
-	list := func(key string, vs []string) {
-		if vs == nil {
-			return
-		}
-		b.WriteString(key)
-		b.WriteString(" = [")
-		for i, s := range vs {
-			if i > 0 {
-				b.WriteString(", ")
-			}
-			appendQuoted(b, s)
-		}
-		b.WriteString("]\n")
-	}
-	emit := c.DirectReflect != "" && c.DirectReflect != "deny" ||
-		c.TransitiveReflect != "" && c.TransitiveReflect != "warn" ||
+	emit := c.TransitiveReflect != "" && c.TransitiveReflect != "warn" ||
 		c.TransitiveExec != "" && c.TransitiveExec != "deny" ||
 		c.TransitiveNet != "" && c.TransitiveNet != "deny" ||
 		c.TransitiveUnsafe != "" && c.TransitiveUnsafe != "deny" ||
@@ -255,15 +178,29 @@ func writeCapabilities(b *strings.Builder, c Capabilities) {
 		return
 	}
 	b.WriteString("[capabilities]\n")
-	sev("direct_reflect", c.DirectReflect, "deny")
 	sev("transitive_reflect", c.TransitiveReflect, "warn")
 	sev("transitive_exec", c.TransitiveExec, "deny")
 	sev("transitive_net", c.TransitiveNet, "deny")
 	sev("transitive_unsafe", c.TransitiveUnsafe, "deny")
-	list("reflect_allowlist", c.ReflectAllowlist)
-	list("transitive_exec_allowlist", c.TransitiveExecAllowlist)
-	list("transitive_net_allowlist", c.TransitiveNetAllowlist)
-	list("transitive_unsafe_allowlist", c.TransitiveUnsafeAllowlist)
+	writeStringArray(b, "reflect_allowlist", c.ReflectAllowlist)
+	writeStringArray(b, "transitive_exec_allowlist", c.TransitiveExecAllowlist)
+	writeStringArray(b, "transitive_net_allowlist", c.TransitiveNetAllowlist)
+	writeStringArray(b, "transitive_unsafe_allowlist", c.TransitiveUnsafeAllowlist)
+}
+
+func writeStringArray(b *strings.Builder, key string, vs []string) {
+	if vs == nil {
+		return
+	}
+	b.WriteString(key)
+	b.WriteString(" = [")
+	for i, s := range vs {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		appendQuoted(b, s)
+	}
+	b.WriteString("]\n")
 }
 
 // appendQuoted writes s as a TOML basic string, escaping quotes, backslashes,

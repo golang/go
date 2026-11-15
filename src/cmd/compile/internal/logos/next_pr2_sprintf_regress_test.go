@@ -8,10 +8,6 @@ import (
 	"testing"
 )
 
-// TestNextSprintfNilAndFormatterStayCalls pins PR2 VV2h (nil error and
-// nil Stringer must not rewrite) and PR2 YBry (PR3 U2yi shares the
-// mechanism: fmt.Formatter must not rewrite). Primitive controls still
-// rewrite.
 func TestNextSprintfNilAndFormatterStayCalls(t *testing.T) {
 	imp := newTestImporter(t)
 	stable := func(t *testing.T, body string) int {

@@ -1,0 +1,210 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+import "iter"
+
+type T struct {
+	n int
+}
+
+func (t *T) bump() {
+	t.n++
+}
+
+func startParen() iter.Seq[int] {
+	yield (8)
+}
+
+func startSliceLit() iter.Seq[int] {
+	yield []int{5, 6}[1]
+}
+
+func startArrayLit() iter.Seq[int] {
+	yield [2]int{1, 2}[0]
+}
+
+func startNeg(x int) iter.Seq[int] {
+	yield -x
+}
+
+func startPlus(x int) iter.Seq[int] {
+	yield +x
+}
+
+func startDeref(p *int) iter.Seq[int] {
+	yield *p
+}
+
+func startAddr(v int) iter.Seq[*int] {
+	yield &v
+}
+
+func startXor(x int) iter.Seq[int] {
+	yield ^x
+}
+
+func startNot(ok bool) iter.Seq[bool] {
+	yield !ok
+}
+
+func startRecv(ch chan int) iter.Seq[int] {
+	yield <-ch
+}
+
+func startFunc() iter.Seq[func()] {
+	yield func() {}
+}
+
+func startSwitch(x int) iter.Seq[int] {
+	yield switch x {
+	case 1 => 10
+	default => 20
+	}
+}
+
+func startPair(x int) iter.Seq2[int, int] {
+	yield -x, +x
+}
+
+func inBlocks(xs []int) iter.Seq[int] {
+	for _, x := range xs {
+		if x > 0 {
+			yield (x)
+		} else {
+			yield -x
+		}
+	}
+	switch len(xs) {
+	case 0:
+		yield *new(int)
+	}
+}
+
+func identifierForms() iter.Seq[int] {
+	yield := 1
+	yield = 2
+	yield++
+	yield += 3
+	var a, b int
+	yield, a = b, yield
+	{
+		yield := &T{}
+		yield.bump()
+		b = yield.n
+	}
+	yield a
+	yield b
+}
+
+func yieldTwice(x int) iter.Seq[int] {
+	yield := x
+	yield (yield)
+	yield -yield
+}
+
+func closureKeepsCalls() iter.Seq[int] {
+	f := func(yield func(int) bool) {
+		yield(1)
+		yield (2)
+	}
+	_ = f
+	yield 3
+}
+
+func closureGenerator() iter.Seq[int] {
+	g := func() iter.Seq[int] {
+		yield (4)
+	}
+	_ = g
+	yield 5
+}
+
+func plainParameter(yield func(int) bool) {
+	yield(1)
+	yield (2)
+}
+
+func plainMethodParameter(t *T, yield func(int) bool) bool {
+	return yield(t.n)
+}
+
+func plainParenIsCall(yield func(int) bool) {
+	yield (1)
+}
+
+func wrongType() iter.Seq[int] {
+	yield ( /* ERROR "cannot use" */ "s")
+}
+
+func wrongCount() iter.Seq2[int, int] {
+	yield /* ERROR "yield requires 2 values" */ (1)
+}
+
+func labeled() iter.Seq[int] {
+L:
+	for {
+		yield (1)
+		break L
+	}
+}
+
+type Ints = iter.Seq[int]
+
+type Pairs = iter.Seq2[int, int]
+
+type Named iter.Seq[int]
+
+func aliasCall() Ints {
+	yield(8)
+	yield (9)
+}
+
+func aliasSend(ch chan int) Ints {
+	yield <- ch
+	yield <-ch
+}
+
+func aliasLabeled() Ints {
+	if false {
+		goto L
+	}
+L:
+	yield(1)
+}
+
+func aliasClosureKeepsCalls() Ints {
+	f := func(yield func(int) bool) {
+		yield(1)
+		yield (2)
+	}
+	_ = f
+	yield 3
+}
+
+func aliasWrongType() Ints {
+	yield( /* ERROR "cannot use" */ "s")
+}
+
+func aliasWrongCount() Pairs {
+	yield /* ERROR "yield requires 2 values" */ (1)
+}
+
+func aliasPairs() Pairs {
+	yield 1, 2
+}
+
+type Ptrs = iter.Seq[*int]
+
+func aliasUnary(x int, p *int) Ints {
+	yield -x
+	yield +x
+	yield *p
+	yield ^x
+}
+
+func aliasAddr(v int) Ptrs {
+	yield &v
+}

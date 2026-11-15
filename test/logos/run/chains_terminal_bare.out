@@ -1,0 +1,8 @@
+ok find
+ok find-miss
+ok first
+ok first-empty
+ok last-named
+ok last-empty-named
+ok get-named
+ok get-oob-named

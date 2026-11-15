@@ -2,7 +2,6 @@
 
 package p
 
-//logos:allow(nogo::checkimports)
 import "unsafe"
 
 type holder struct {

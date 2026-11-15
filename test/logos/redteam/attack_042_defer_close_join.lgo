@@ -5,6 +5,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os"
 )
 
 var errFirst = errors.New("first")
@@ -32,10 +33,25 @@ func copyBoth() (err error) {
 	return errFirst
 }
 
+var failed bool
+
+func check(name string, cond bool, got, want string) {
+	if !cond {
+		fmt.Printf("FAIL %s: got %s want %s\n", name, got, want)
+		failed = true
+		return
+	}
+	fmt.Printf("ok %s\n", name)
+}
+
 func main() {
-	fmt.Println("nil:", copyNil())
-	fmt.Println("close:", copyCloseErr())
-	b := copyBoth()
-	fmt.Println("both:", b)
-	fmt.Println("is-first:", errors.Is(b, errFirst), "is-close:", errors.Is(b, errClose))
+	check("defer-close-nil-kept", copyNil() == nil, fmt.Sprint(copyNil()), "<nil>")
+	cerr := copyCloseErr()
+	check("defer-close-error-returned", errors.Is(cerr, errClose), fmt.Sprint(cerr), "close")
+	berr := copyBoth()
+	check("defer-close-join-keeps-primary", errors.Is(berr, errFirst), fmt.Sprint(berr), "first")
+	check("defer-close-join-keeps-close", errors.Is(berr, errClose), fmt.Sprint(errors.Is(berr, errClose)), "true")
+	if failed {
+		os.Exit(1)
+	}
 }

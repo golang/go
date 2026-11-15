@@ -328,6 +328,11 @@ func (subst *subster) typ(typ Type) Type {
 			return NewLogosTuple(nopos, t.pkg, t.names, elems)
 		}
 
+	case *ReadonlyDescendants:
+		if elem := subst.typ(t.Elem); elem != t.Elem {
+			return logosWithReadonlyDescendants(elem)
+		}
+
 	case *ConstView: // logos M5-S1 hook: substitute inside the element type.
 		if elem := subst.typ(t.Elem); elem != t.Elem {
 			return &ConstView{Elem: elem, ConstMap: t.ConstMap}

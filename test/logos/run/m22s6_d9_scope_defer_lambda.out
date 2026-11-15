@@ -1,9 +1,5 @@
-1
-s
-t
-2
-1
-s
-2
-s
-2
+ok scope-defer-runs-after-body
+ok scope-defer-runs-before-return-lands
+ok scope-defer-keeps-return-value
+ok scope-defer-orders-nested-lambda
+ok scope-defer-keeps-outer-return

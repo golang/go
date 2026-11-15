@@ -13,18 +13,6 @@ import (
 	"cmd/go/internal/cfg"
 )
 
-// The loGo/s compiler writes code that names packages its root does not
-// import: a copy of an imported comptime generic, a lowered const for, and
-// a spelled type each qualify the packages their source mentions. Those
-// packages sit behind the root's imports, possibly behind plain Go ones.
-// Which of them a lowering reaches depends on type information, so the go
-// command cannot predict it from the archives. The root's import config and
-// content ID take every transitive built package instead.
-
-// logosBuiltPackage reports whether a1 builds a package that an import
-// config can name: a completed action carrying a real archive path.
-// Pseudo-cache placeholders ("DO NOT USE ...") and empty paths name
-// nothing; they must never seed the emitted set.
 func logosBuiltPackage(a1 *Action) bool {
 	if a1 == nil || a1.Package == nil || a1.Package.ImportPath == "" {
 		return false
@@ -35,29 +23,11 @@ func logosBuiltPackage(a1 *Action) bool {
 	return true
 }
 
-// logosSynthImports returns the built packages that the compiler may import
-// for the code it synthesizes in the loGo/s compile root a: every built
-// package transitively reachable through a.Deps, including through actions
-// that carry no package, except the packages a imports directly, which the
-// ordinary import config already names. The result is sorted by import path
-// and names each package once. A Go root includes only transitive loGo/s
-// owners: their structural readonly overlays must be loaded before a Go
-// wrapper binds foreign nominals. Pure-Go roots and dry runs add nothing.
-//
-// Every consumer of the set calls this function, so the build import config,
-// the lint import config, and the content ID cannot disagree. A change in
-// any transitive content ID changes the root's action ID, which can
-// recompile a loGo/s root that an exact dependency interface would not.
 func logosSynthImports(a *Action) []*Action {
 	if a.Package == nil || cfg.BuildN {
 		return nil
 	}
 	all := a.Package.IsLogos()
-	// byPath indexes every completed archive reachable through a's action
-	// closure by canonical import path. Canonical aliasing can leave
-	// several action objects for one path: the first completed archive
-	// wins, and objects without archives never overwrite it. No source
-	// guessing (Target/Export) is used.
 	byPath := make(map[string]*Action)
 	seenIdx := map[*Action]bool{a: true}
 	var index func(a1 *Action)
@@ -78,10 +48,6 @@ func logosSynthImports(a *Action) []*Action {
 	for _, a1 := range a.Deps {
 		index(a1)
 	}
-	// have tracks only paths the direct import-config loop already emitted
-	// with a real archive. A direct edge without a real archive emits
-	// nothing, so it must not seed have; otherwise the repair below would
-	// skip the missing path. Never retain the root itself.
 	have := make(map[string]bool)
 	have[a.Package.ImportPath] = true
 	for _, a1 := range a.Deps {
@@ -90,12 +56,6 @@ func logosSynthImports(a *Action) []*Action {
 		}
 	}
 	var extra []*Action
-	// Repair direct deps whose edge object lacks an archive (for example a
-	// Go wrapper w with empty built): the direct loop skipped them, but a
-	// completed archive for the same canonical path exists elsewhere in
-	// the closure. Standard packages are never added. When the closure
-	// holds no completed archive for the path, leave the gap in place;
-	// report it by omission rather than fabricating a fallback.
 	for _, a1 := range a.Deps {
 		p1 := a1.Package
 		if p1 == nil || p1.ImportPath == "" || p1.Standard {
@@ -111,12 +71,6 @@ func logosSynthImports(a *Action) []*Action {
 		have[p1.ImportPath] = true
 		extra = append(extra, real)
 	}
-	// Retain transitive owners via the canonical index, not via the edge
-	// object: an edge can carry an empty built while another completed
-	// action for the same path holds the archive (for example sl behind
-	// w). A Go root keeps only transitive loGo/s owners (IsLogos already
-	// drops standard packages); a loGo/s root keeps every transitive built
-	// package. Missing archives stay missing.
 	seen := map[*Action]bool{a: true}
 	var walk func(a1 *Action)
 	walk = func(a1 *Action) {
@@ -143,16 +97,12 @@ func logosSynthImports(a *Action) []*Action {
 	return extra
 }
 
-// logosSynthImportCfg writes the import config lines for the synthesized
-// imports of a.
 func logosSynthImportCfg(w io.Writer, a *Action) {
 	for _, a1 := range logosSynthImports(a) {
 		fmt.Fprintf(w, "packagefile %s=%s\n", a1.Package.ImportPath, a1.built)
 	}
 }
 
-// logosSynthActionID writes the content IDs of the synthesized imports of a
-// into the action ID hash h.
 func logosSynthActionID(h io.Writer, a *Action) {
 	for _, a1 := range logosSynthImports(a) {
 		fmt.Fprintf(h, "synthimport %s %s\n", a1.Package.ImportPath, contentID(a1.buildID))

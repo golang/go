@@ -1,2 +1,3 @@
-value: 5
-closed: true
+ok value
+ok run-err
+ok closed

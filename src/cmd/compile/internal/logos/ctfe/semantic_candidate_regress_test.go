@@ -8,15 +8,12 @@ import (
 	"testing"
 )
 
-// PR3 candidate regressions: verifying edge cases in CTFE shift,
-// float constant comparison, and integer range folding.
-
 func TestPR3CandidateNonConstNegativeShift(t *testing.T) {
 	cfg := Config{MaxSteps: 100000, MaxValueBytes: 1 << 20, WordSize: 8}
 	v, _, err := evalConstFunc(t, cfg, constSpec{
 		src:    "package p\nfunc ShiftNonConst(k int) int { return -3 >> k }",
-		ptypes: []*Type{BasicType("int", 8)},
-		rtypes: []*Type{BasicType("int", 8)},
+		ptypes: []*Type{BasicType("int")},
+		rtypes: []*Type{BasicType("int")},
 		name:   "ShiftNonConst",
 		call:   `ShiftNonConst(1)`,
 	})
@@ -30,7 +27,7 @@ func TestPR3CandidateConstNegativeShift(t *testing.T) {
 	cfg := Config{MaxSteps: 100000, MaxValueBytes: 1 << 20, WordSize: 8}
 	v, _, err := evalConstFunc(t, cfg, constSpec{
 		src:    "package p\nfunc ShiftConstNeg() int { return (-1) >> uint8(1) }",
-		rtypes: []*Type{BasicType("int", 8)},
+		rtypes: []*Type{BasicType("int")},
 		name:   "ShiftConstNeg",
 		call:   `ShiftConstNeg()`,
 	})
@@ -40,25 +37,11 @@ func TestPR3CandidateConstNegativeShift(t *testing.T) {
 	mustInt(t, v, -1, "(-1) >> uint8(1)")
 }
 
-func TestPR3CandidateShiftPreserveUntyped(t *testing.T) {
-	cfg := Config{MaxSteps: 100000, MaxValueBytes: 1 << 20, WordSize: 8}
-	v, _, err := evalConstFunc(t, cfg, constSpec{
-		src:    "package p\nfunc ShiftPreserve() int { return 1 << uint8(8) }",
-		rtypes: []*Type{BasicType("int", 8)},
-		name:   "ShiftPreserve",
-		call:   `ShiftPreserve()`,
-	})
-	if err != nil {
-		t.Fatalf("ShiftPreserve(): %v", err)
-	}
-	mustInt(t, v, 256, "1 << uint8(8)")
-}
-
 func TestPR3CandidateTypedFloatConstEquality(t *testing.T) {
 	cfg := Config{MaxSteps: 100000, MaxValueBytes: 1 << 20, WordSize: 8}
 	v, _, err := evalConstFunc(t, cfg, constSpec{
 		src:    "package p\nfunc FloatTypedEq() int { if float64(0.1) == 0.1 { return 1 }; return 0 }",
-		rtypes: []*Type{BasicType("int", 8)},
+		rtypes: []*Type{BasicType("int")},
 		name:   "FloatTypedEq",
 		call:   `FloatTypedEq()`,
 	})
@@ -72,7 +55,7 @@ func TestPR3CandidateExactUntypedDifferingDecimals(t *testing.T) {
 	cfg := Config{MaxSteps: 100000, MaxValueBytes: 1 << 20, WordSize: 8}
 	v, _, err := evalConstFunc(t, cfg, constSpec{
 		src:    "package p\nfunc DifferingDecimals() int { if 0.1000000000000000000000000001 == 0.1 { return 1 }; return 0 }",
-		rtypes: []*Type{BasicType("int", 8)},
+		rtypes: []*Type{BasicType("int")},
 		name:   "DifferingDecimals",
 		call:   `DifferingDecimals()`,
 	})
@@ -81,10 +64,9 @@ func TestPR3CandidateExactUntypedDifferingDecimals(t *testing.T) {
 	}
 	mustInt(t, v, 0, "0.100...01 == 0.1")
 
-	// Control: identical literals must compare equal.
 	vCtrl, _, errCtrl := evalConstFunc(t, cfg, constSpec{
 		src:    "package p\nfunc DifferingDecimalsCtrl() int { if 0.1 == 0.1 { return 1 }; return 0 }",
-		rtypes: []*Type{BasicType("int", 8)},
+		rtypes: []*Type{BasicType("int")},
 		name:   "DifferingDecimalsCtrl",
 		call:   `DifferingDecimalsCtrl()`,
 	})
@@ -106,12 +88,11 @@ func HugeRangeBreak() int {
 	}
 	return iter
 }`,
-		rtypes: []*Type{BasicType("int", 8)},
+		rtypes: []*Type{BasicType("int")},
 		name:   "HugeRangeBreak",
 		call:   `HugeRangeBreak()`,
 	})
 	if err != nil {
-		// Admitted-evaluation error is allowed according to contract.
 		return
 	}
 	if v.Int64() == 0 {

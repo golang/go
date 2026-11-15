@@ -9,10 +9,6 @@ import (
 	"testing"
 )
 
-// M6-S8 scanner attacks: leading-dot continuation (SPEC T-104.6). In
-// LogosMode a newline followed by blanks and then `.` plus a letter or
-// `_` inserts no semicolon; `x\n.5` still does; plain mode is unchanged.
-
 func scanTokens(t *testing.T, src string, mode uint) []token {
 	t.Helper()
 	var errs []string
@@ -55,9 +51,6 @@ func TestLeadingDotContinuation(t *testing.T) {
 		"batch\n.éclair(x)\n",
 	} {
 		toks := scanTokens(t, src, logosScannerMode)
-		// The token after the receiver name is the continuation dot:
-		// no semicolon intervenes. (The final newline still yields
-		// its own `;`, which the check below ignores.)
 		if len(toks) < 2 || toks[0] != _Name || toks[1] != _Dot {
 			t.Errorf("%q: got tokens %v; want _Name _Dot continuation", src, toks)
 		}
@@ -74,7 +67,6 @@ func TestLeadingDotKeepsSemi(t *testing.T) {
 		"x\n(1)\n",
 	} {
 		toks := scanTokens(t, src, logosScannerMode)
-		// The newline still inserts `;` right after the receiver.
 		if len(toks) < 2 || toks[0] != _Name || toks[1] != _Semi {
 			t.Errorf("%q: got tokens %v; want _Name _Semi break", src, toks)
 		}
@@ -88,8 +80,6 @@ func TestLeadingDotPlainUnchanged(t *testing.T) {
 	}
 }
 
-// TestLeadingDotParses checks the scanner-to-parser seam: a
-// leading-dot continuation parses as one selector chain in LogosMode.
 func TestLeadingDotParses(t *testing.T) {
 	src := "package p\nfunc f(xs []int) {\n\t_ = xs\n\t\t.filter(func(x int) bool { return x > 0 })\n}\n"
 	var msgs []string

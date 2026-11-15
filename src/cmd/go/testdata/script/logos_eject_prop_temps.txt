@@ -1,0 +1,89 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+logos run .
+cp stdout $WORK/native-stdout.txt
+logos eject -o out
+exists out/main.go
+exists out/go.mod
+cd out
+go run .
+cmp stdout $WORK/native-stdout.txt
+exists $UPROOT1273/bin/go
+exec $UPROOT1273/bin/go version
+exec env -u GOROOT $UPROOT1273/bin/go run .
+cmp stdout $WORK/native-stdout.txt
+exec env -u GOROOT $UPROOT1273/bin/go build ./...
+cd ..
+
+-- m/go.mod --
+module example.com/ejectproptemps
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import (
+"fmt"
+"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+if !cond {
+failed = true
+fmt.Println("FAIL", name+":", "got", got, "want", want)
+return
+}
+fmt.Println("ok", name)
+}
+
+type Vec struct {
+X int
+Y int
+}
+
+func (v Vec) Len() int {
+return v.X
+}
+
+type Carrier interface {
+Pos Vec
+}
+
+type Bot struct : Carrier {
+n int
+}
+
+func (b *Bot) Pos() Vec {
+b.n++
+return Vec{X: b.n}
+}
+
+func (b *Bot) SetPos(v Vec) {
+b.n = v.X
+}
+
+func add(a, b int) int {
+return a + b
+}
+
+func main() {
+var b Bot
+var c Carrier = &b
+v1 := c.Pos.Len() + c.Pos.Len()
+check("binary-both-sides", v1 == 3, v1, 3)
+var b2 Bot
+var c2 Carrier = &b2
+v2 := add(c2.Pos.Len(), c2.Pos.Len())
+check("call-two-args", v2 == 3, v2, 3)
+var b3 Bot
+var c3 Carrier = &b3
+check("stmt-two-reads", c3.Pos.Len() == 1, c3.Pos.Len(), 2)
+if failed {
+os.Exit(1)
+}
+}

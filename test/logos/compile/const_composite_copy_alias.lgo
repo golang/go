@@ -1,0 +1,93 @@
+// errorcheck
+
+package p
+
+type box struct {
+	M map[string]int
+	L []int
+	A [2]int
+	N int
+}
+
+type item struct {
+	M map[string]int
+	N int
+}
+
+type outer struct {
+	Inner box
+}
+
+type boxMaps struct {
+	M map[string]map[string]int
+}
+
+const cfg = box{M: map[string]int{"a": 1}, L: []int{1, 2}, A: [2]int{3, 4}, N: 7}
+
+const items = []item{{M: map[string]int{"a": 1}, N: 1}}
+
+const grid = [2]map[string]int{{"a": 1}, {"b": 2}}
+
+const nested = outer{Inner: box{M: map[string]int{"a": 1}, N: 5}}
+
+const maps = boxMaps{M: map[string]map[string]int{"o": {"a": 1}}}
+
+func mutM(m map[string]int) { m["q"] = 1 }
+
+func rejectStructCopyMap() {
+	c := cfg
+	c.M["a"] = 99 // ERROR "const_view_mutation"
+}
+
+func rejectStructCopySlice() {
+	c := cfg
+	c.L[0] = 99 // ERROR "const_view_mutation"
+}
+
+func rejectSliceCopyElement() {
+	s := items
+	s[0].M["a"] = 99 // ERROR "const_view_mutation"
+}
+
+func rejectArrayCopyMap() {
+	a := grid
+	a[0]["a"] = 99 // ERROR "const_view_mutation"
+}
+
+func rejectNestedCopyMap() {
+	n := nested
+	n.Inner.M["a"] = 99 // ERROR "const_view_mutation"
+}
+
+func rejectInnerMapAlias() {
+	m := maps
+	o, _ := m.M["o"]
+	o["a"] = 99 // ERROR "const_view_mutation"
+}
+
+func rejectPointerCopyMap() {
+	p := &cfg
+	p.M["b"] = 2 // ERROR "const_view_mutation"
+}
+
+func rejectFieldMapAlias() {
+	pm := cfg.M
+	pm["r"] = 2 // ERROR "const_view_mutation"
+}
+
+func rejectFieldMapArgument() {
+	mutM(cfg.M) // ERROR "const_view_mutation"
+}
+
+func rejectLambdaCopyMap(xs []int) {
+	_ = xs.map(x => {
+		c := cfg
+		c.M["a"] = 40 + x // ERROR "const_view_mutation"
+		return c
+	})
+}
+
+func rejectLambdaElementMap(idx []int) {
+	ws := idx.map(i => items[i])
+	ws[0].M["a"] = 90 // ERROR "const_view_mutation"
+}

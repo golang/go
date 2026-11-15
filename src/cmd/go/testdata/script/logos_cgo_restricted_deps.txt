@@ -1,34 +1,21 @@
-# M0-S5 I3: cgo="restricted" governs dependency packages, not just the
-# main module. The allowlist names one dependency module glob; the
-# allowlisted loGo/s dependency builds, the other loGo/s dependency fails,
-# and a Go dependency with cgo fails too.
-# SPEC 10.3: 'With "restricted", each package that imports C MUST match
-# cgo_allowlist.' That sentence names every package with no Go-module
-# exception, so the Go dependency must fail as well.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
-# Default CC: a host compiler setting must not drive the build.
 env CC=
 
-# Clear any host CGO_ENABLED so the restricted key alone decides.
 env CGO_ENABLED=
 
 cd m
 
-# The allowlisted dependency builds through the main module, end to end.
 [cgo] logos build -o main.bin .
 [cgo] exec ./main.bin
 [cgo] stdout '^good: 42$'
 
-# The allowlisted dependency also builds when named directly.
 [cgo] logos build example.com/cgood/p
 
-# The non-allowlisted loGo/s dependency fails with the pinned error.
 [cgo] ! logos build example.com/cbad/q
 [cgo] stderr '\[restriction::cgo_usage\] package example\.com/cbad/q uses cgo and is not in cgo_allowlist'
 
-# SPEC 10.3 "each package that imports C": the Go dependency fails too.
 [cgo] ! logos build example.com/cgodep/r
 [cgo] stderr '\[restriction::cgo_usage\] package example\.com/cgodep/r uses cgo and is not in cgo_allowlist'
 

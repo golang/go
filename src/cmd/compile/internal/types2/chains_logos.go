@@ -5,26 +5,188 @@
 package types2
 
 import (
+	"slices"
+
 	"cmd/compile/internal/syntax"
 	. "internal/types/errors"
 )
-
-// LoGo/s M6-S7 type rules for collection chains (SPEC Sec 1.4,
-// T-104.6). Upstream files call in through hook lines only: call.go
-// (chain calls). Every rule below applies only to a package of .lgo
-// files (Config.Logos).
-//
-// Chain methods live on slice types: filter, map, find, any, all,
-// sortBy, first, last, get, take, drop, sum, and count. Lambdas take
-// const-view parameters; mutating the receiver or a parameter fails;
-// `?` in an expression-lambda body propagates from the enclosing
-// function. Lowering lives in logos/chains.go.
 
 const logosChainMutation = "[correctness::const_view_mutation]"
 
 const logosSideEffectBeforeSort = "[suspicious::side_effect_before_sort]"
 
-// logosChainMethods is the set of chain method names.
+const logosChainJump = "[correctness::chain_jump] jump must not cross a chain lambda boundary"
+
+type logosChainLabel struct {
+	name string
+	loop bool
+	brk  bool
+}
+
+type logosChainDepth struct {
+	loop int
+	brk  int
+	sw   int
+}
+
+func (d logosChainDepth) inLoop() logosChainDepth {
+	d.loop++
+	d.brk++
+	return d
+}
+func (d logosChainDepth) inSwitch() logosChainDepth {
+	d.brk++
+	d.sw++
+	return d
+}
+func (d logosChainDepth) inTypeSwitch() logosChainDepth {
+	d.brk++
+	return d
+}
+func (d logosChainDepth) inSelect() logosChainDepth {
+	d.brk++
+	return d
+}
+
+type logosChainJumpScan struct {
+	check  *Checker
+	inside map[string]bool
+	bad    bool
+}
+
+func (check *Checker) logosChainJumps(block *syntax.BlockStmt) bool {
+	v := &logosChainJumpScan{check: check, inside: make(map[string]bool)}
+	syntax.Inspect(block, func(n syntax.Node) bool {
+		switch n.(type) {
+		case *syntax.FuncLit, *syntax.LambdaExpr:
+			return false
+		}
+		if l, ok := n.(*syntax.LabeledStmt); ok && l.Label != nil {
+			v.inside[l.Label.Value] = true
+		}
+		return true
+	})
+	v.seq(block.List, logosChainDepth{}, nil)
+	return !v.bad
+}
+
+func (v *logosChainJumpScan) seq(list []syntax.Stmt, d logosChainDepth, st []logosChainLabel) {
+	for _, s := range list {
+		v.one(s, d, st)
+	}
+}
+
+func (v *logosChainJumpScan) one(s syntax.Stmt, d logosChainDepth, st []logosChainLabel) {
+	switch s := s.(type) {
+	case *syntax.BlockStmt:
+		v.seq(s.List, d, st)
+	case *syntax.IfStmt:
+		if s.Then != nil {
+			v.one(s.Then, d, st)
+		}
+		if s.Else != nil {
+			v.one(s.Else, d, st)
+		}
+	case *syntax.ForStmt:
+		v.one(s.Body, d.inLoop(), st)
+	case *syntax.SwitchStmt:
+		dd := d.inSwitch()
+		if _, ok := s.Tag.(*syntax.TypeSwitchGuard); ok {
+			dd = d.inTypeSwitch()
+		}
+		for _, c := range s.Body {
+			v.seq(c.Body, dd, st)
+		}
+	case *syntax.SelectStmt:
+		for _, c := range s.Body {
+			v.seq(c.Body, d.inSelect(), st)
+		}
+	case *syntax.LabeledStmt:
+		v.one(s.Stmt, d, append(st, logosChainLabelOf(s)))
+	case *syntax.BranchStmt:
+		v.branch(s, d, st)
+	}
+}
+func logosChainLabelOf(s *syntax.LabeledStmt) logosChainLabel {
+	e := logosChainLabel{name: s.Label.Value}
+	inner := s.Stmt
+	for {
+		l, ok := inner.(*syntax.LabeledStmt)
+		if !ok {
+			break
+		}
+		inner = l.Stmt
+	}
+	switch inner.(type) {
+	case *syntax.ForStmt:
+		e.loop = true
+		e.brk = true
+	case *syntax.SwitchStmt, *syntax.SelectStmt:
+		e.brk = true
+	}
+	return e
+}
+
+func logosChainLookup(st []logosChainLabel, name string) (logosChainLabel, bool) {
+	for i := len(st) - 1; i >= 0; i-- {
+		if st[i].name == name {
+			return st[i], true
+		}
+	}
+	return logosChainLabel{}, false
+}
+
+func logosChainBreaks(st []logosChainLabel, name string) bool {
+	e, ok := logosChainLookup(st, name)
+	return ok && e.brk
+}
+
+func logosChainContinues(st []logosChainLabel, name string) bool {
+	e, ok := logosChainLookup(st, name)
+	return ok && e.loop
+}
+
+func (v *logosChainJumpScan) branch(s *syntax.BranchStmt, d logosChainDepth, st []logosChainLabel) {
+	switch s.Tok {
+	case syntax.Break:
+		if s.Label != nil {
+			if !logosChainBreaks(st, s.Label.Value) {
+				v.fail(s.Pos(), MisplacedLabel)
+			}
+			return
+		}
+		if d.brk == 0 {
+			v.fail(s.Pos(), MisplacedBreak)
+		}
+	case syntax.Continue:
+		if s.Label != nil {
+			if !logosChainContinues(st, s.Label.Value) {
+				v.fail(s.Pos(), MisplacedLabel)
+			}
+			return
+		}
+		if d.loop == 0 {
+			v.fail(s.Pos(), MisplacedContinue)
+		}
+	case syntax.Fallthrough:
+		if d.sw == 0 {
+			v.fail(s.Pos(), MisplacedFallthrough)
+		}
+	case syntax.Goto:
+		if s.Label == nil {
+			return
+		}
+		if !v.inside[s.Label.Value] {
+			v.fail(s.Pos(), MisplacedLabel)
+		}
+	}
+}
+
+func (v *logosChainJumpScan) fail(pos syntax.Pos, code Code) {
+	v.check.error(pos, code, logosChainJump)
+	v.bad = true
+}
+
 var logosChainMethods = map[string]bool{
 	"filter": true,
 	"map":    true,
@@ -41,12 +203,15 @@ var logosChainMethods = map[string]bool{
 	"count":  true,
 }
 
-// logosChainCall checks a chain method call on a slice. It reports true
-// when handled, even on failure; otherwise it reports false and the
-// caller runs the upstream path.
+// LogosChainMethod reports whether name is a method of a loGo/s chain.
+func LogosChainMethod(name string) bool { return logosChainMethods[name] }
+
 func (check *Checker) logosChainCall(x *operand, call *syntax.CallExpr) bool {
 	if !check.conf.Logos {
 		return false
+	}
+	if check.logosStageChain(x, call, logosStageValue) || check.logosNamedArgCall(x, call) {
+		return true
 	}
 	sel, ok := syntax.Unparen(call.Fun).(*syntax.SelectorExpr)
 	if !ok {
@@ -56,24 +221,17 @@ func (check *Checker) logosChainCall(x *operand, call *syntax.CallExpr) bool {
 		return false
 	}
 	var rx operand
-	check.expr(nil, &rx, sel.X)
+	check.exprOrType(&rx, sel.X, false)
 	if !rx.isValid() {
 		x.mode_ = invalid
 		x.expr = call
 		x.typ_ = Typ[Invalid]
 		return true
 	}
-	// A chain only reads its receiver, so a const slice view (SPEC T-201)
-	// chains like the plain slice; the qualifier is erased before code
-	// generation. Mutating uses stay rejected inside the lambdas.
-	rt := rx.typ()
-	if c := logosAsConstView(rt); c != nil {
-		rt = c.Elem
-	}
-	if obj, _, _ := lookupFieldOrMethod(rt, rx.mode() == variable, check.pkg, sel.Sel.Value, false); obj != nil {
+	if rx.mode() == typexpr {
 		return false
 	}
-	st, ok := Unalias(rt).(*Slice)
+	st, ok := check.logosChainSlice(&rx, sel.Sel.Value)
 	if !ok {
 		return false
 	}
@@ -81,32 +239,25 @@ func (check *Checker) logosChainCall(x *operand, call *syntax.CallExpr) bool {
 	return true
 }
 
-// logosChainRoots reports the assignable roots of a receiver: its
-// leftmost name, if any.
-func logosChainRoots(e syntax.Expr) map[string]bool {
-	roots := make(map[string]bool)
-	cur := syntax.Unparen(e)
-	for {
-		if nm, ok := cur.(*syntax.Name); ok {
-			roots[nm.Value] = true
-			return roots
-		}
-		if s, ok := cur.(*syntax.SelectorExpr); ok {
-			cur = syntax.Unparen(s.X)
-			continue
-		}
-		if ix, ok := cur.(*syntax.IndexExpr); ok {
-			cur = syntax.Unparen(ix.X)
-			continue
-		}
-		return roots
-	}
+func (check *Checker) logosChainRoots(e syntax.Expr) []logosWritePath {
+	return []logosWritePath{check.logosWritePath(e)}
 }
 
-// logosChainMethod checks one chain method with element type elem.
+func (check *Checker) logosChainSlice(rx *operand, method string) (*Slice, bool) {
+	rt, descendants, readonly := logosReadonlyBase(rx.typ())
+	if obj, _, _ := lookupFieldOrMethod(rt, rx.mode() == variable, check.pkg, method, false); obj != nil {
+		return nil, false
+	}
+	st, ok := Unalias(rt).(*Slice)
+	if ok && (descendants || readonly) {
+		st = NewSlice(logosWithReadonlyDescendants(st.Elem()))
+	}
+	return st, ok
+}
+
 func (check *Checker) logosChainMethod(x *operand, call *syntax.CallExpr, sel *syntax.SelectorExpr, elem Type) {
 	method := sel.Sel.Value
-	roots := logosChainRoots(sel.X)
+	roots := check.logosChainRoots(sel.X)
 	fail := func() {
 		x.mode_ = invalid
 		x.expr = call
@@ -187,7 +338,11 @@ func (check *Checker) logosChainMethod(x *operand, call *syntax.CallExpr, sel *s
 			fail()
 			return
 		}
-		done(NewSlice(elem))
+		result := Type(NewSlice(elem))
+		if _, descendants, readonly := logosReadonlyBase(check.Info.TypeOf(sel.X)); descendants || readonly {
+			result = &ConstView{Elem: result}
+		}
+		done(result)
 	case "sum":
 		if !check.logosChainArity(call, args, 0) {
 			fail()
@@ -216,7 +371,6 @@ func (check *Checker) logosChainMethod(x *operand, call *syntax.CallExpr, sel *s
 	}
 }
 
-// logosChainArity validates the argument count of a chain call.
 func (check *Checker) logosChainArity(call *syntax.CallExpr, args []syntax.Expr, want int) bool {
 	if hasDots(call) {
 		check.errorf(call, InvalidDotDotDot, "invalid use of ... in chain call to %s", call.Fun)
@@ -229,7 +383,6 @@ func (check *Checker) logosChainArity(call *syntax.CallExpr, args []syntax.Expr,
 	return true
 }
 
-// logosChainIntArg checks an integer index argument.
 func (check *Checker) logosChainIntArg(arg syntax.Expr, method string) bool {
 	var op operand
 	check.expr(nil, &op, arg)
@@ -243,25 +396,21 @@ func (check *Checker) logosChainIntArg(arg syntax.Expr, method string) bool {
 	return true
 }
 
-// logosChainPred checks a predicate lambda or function value against
-// func(elem) bool. It returns the result type for callers that need it.
-func (check *Checker) logosChainPred(arg syntax.Expr, elem Type, method string, roots map[string]bool) (Type, bool, bool) {
+func (check *Checker) logosChainPred(arg syntax.Expr, elem Type, method string, roots []logosWritePath) (Type, bool, bool) {
 	if lam, ok := syntax.Unparen(arg).(*syntax.LambdaExpr); ok {
 		return check.logosChainLambda(lam, elem, logosPredKind, roots)
 	}
 	return check.logosChainFuncArg(arg, elem, Typ[Bool], method)
 }
 
-// logosChainMapArg checks a mapper, inferring the element type.
-func (check *Checker) logosChainMapArg(arg syntax.Expr, elem Type, roots map[string]bool) (Type, bool, bool) {
+func (check *Checker) logosChainMapArg(arg syntax.Expr, elem Type, roots []logosWritePath) (Type, bool, bool) {
 	if lam, ok := syntax.Unparen(arg).(*syntax.LambdaExpr); ok {
 		return check.logosChainLambda(lam, elem, logosMapKind, roots)
 	}
 	return check.logosChainFuncInfer(arg, elem)
 }
 
-// logosChainKeyArg checks a sort key, inferring the ordered key type.
-func (check *Checker) logosChainKeyArg(arg syntax.Expr, elem Type, roots map[string]bool) (Type, bool, bool) {
+func (check *Checker) logosChainKeyArg(arg syntax.Expr, elem Type, roots []logosWritePath) (Type, bool, bool) {
 	if lam, ok := syntax.Unparen(arg).(*syntax.LambdaExpr); ok {
 		return check.logosChainLambda(lam, elem, logosKeyKind, roots)
 	}
@@ -276,7 +425,6 @@ func (check *Checker) logosChainKeyArg(arg syntax.Expr, elem Type, roots map[str
 	return u, isTry, true
 }
 
-// logosPredKind, logosMapKind, logosKeyKind select the chain lambda result rule.
 type logosChainKind int
 
 const (
@@ -285,21 +433,14 @@ const (
 	logosKeyKind
 )
 
-// logosIsTryChain reports whether call is a chain call with a `?`
-// expression-lambda argument: lowering it needs an error hoist in the
-// enclosing function. It returns the offending `?` for diagnostics.
 func logosIsTryChain(call *syntax.CallExpr) *syntax.TryExpr {
 	sel, ok := syntax.Unparen(call.Fun).(*syntax.SelectorExpr)
 	if !ok || sel.Sel == nil || !logosChainMethods[sel.Sel.Value] {
 		return nil
 	}
 	for _, arg := range call.ArgList {
-		lam, ok := syntax.Unparen(arg).(*syntax.LambdaExpr)
-		if !ok {
-			continue
-		}
-		if lb, ok := lam.Body.(syntax.Expr); ok {
-			if tb, ok := syntax.Unparen(lb).(*syntax.TryExpr); ok {
+		if lam, ok := syntax.Unparen(arg).(*syntax.LambdaExpr); ok {
+			if tb := LogosLambdaTry(lam); tb != nil {
 				return tb
 			}
 		}
@@ -307,10 +448,35 @@ func logosIsTryChain(call *syntax.CallExpr) *syntax.TryExpr {
 	return nil
 }
 
-// logosChainNestedTry rejects a `?`-chain nested in a lambda body
-// outside a nested function literal: lowering hoists `?`-chains to the
-// enclosing function, which would lift the nested chain out of the
-// per-element closure and unbind its captured parameters.
+func LogosLambdaTry(lam *syntax.LambdaExpr) *syntax.TryExpr {
+	if block, ok := lam.Body.(*syntax.BlockStmt); ok {
+		return logosBlockTry(block)
+	}
+	if body, ok := lam.Body.(syntax.Expr); ok {
+		tb, _ := syntax.Unparen(body).(*syntax.TryExpr)
+		return tb
+	}
+	return nil
+}
+
+func logosBlockTry(block *syntax.BlockStmt) *syntax.TryExpr {
+	var found *syntax.TryExpr
+	syntax.Inspect(block, func(n syntax.Node) bool {
+		if found != nil {
+			return false
+		}
+		switch n := n.(type) {
+		case *syntax.FuncLit, *syntax.LambdaExpr:
+			return false
+		case *syntax.TryExpr:
+			found = n
+			return false
+		}
+		return true
+	})
+	return found
+}
+
 func (check *Checker) logosChainNestedTry(body syntax.Node) {
 	syntax.Inspect(body, func(n syntax.Node) bool {
 		if _, ok := n.(*syntax.FuncLit); ok {
@@ -326,52 +492,28 @@ func (check *Checker) logosChainNestedTry(body syntax.Node) {
 	})
 }
 
-// logosRejectTryChainUnder rejects a `?`-chain in a conditional option
-// position (a `??` fallback) outside a nested function literal: the
-// wrapper evaluates it only when the option is absent, so hoisting it
-// to the enclosing function would run it eagerly and propagate an
-// error the source never raises. Left operands and `?.` receivers
-// evaluate unconditionally and lower through transparent wrappers.
-func (check *Checker) logosRejectTryChainUnder(e syntax.Expr) {
-	syntax.Inspect(e, func(n syntax.Node) bool {
-		if _, ok := n.(*syntax.FuncLit); ok {
-			return false
-		}
-		if call, ok := n.(*syntax.CallExpr); ok {
-			if tb := logosIsTryChain(call); tb != nil {
-				check.error(tb.Pos(), IncompatibleAssign, "[correctness::nested_try_capture] ? cannot propagate from a nested chain")
-				return false
-			}
-		}
-		return true
-	})
-}
-
-// logosChainLambda checks a chain lambda with element type elem. The
-// single parameter is a const view; `?` in an expression body
-// propagates from the enclosing function. It returns the produced type
-// and whether the body ends in `?`.
-func (check *Checker) logosChainLambda(lam *syntax.LambdaExpr, elem Type, kind logosChainKind, roots map[string]bool) (Type, bool, bool) {
+func (check *Checker) logosChainLambda(lam *syntax.LambdaExpr, elem Type, kind logosChainKind, roots []logosWritePath) (Type, bool, bool) {
+	if check.logosInPlace == nil {
+		check.logosInPlace = make(map[*syntax.LambdaExpr]bool)
+	}
+	check.logosInPlace[lam] = true
 	if len(lam.Params) != 1 {
 		check.errorf(lam.Arrow, IncompatibleAssign, "chain lambda takes exactly one parameter, have %d", len(lam.Params))
 		return nil, false, false
 	}
 	check.logosChainNestedTry(lam.Body)
 	name := lam.Params[0]
-	merged := make(map[string]bool, len(roots)+1)
-	for r := range roots {
-		merged[r] = true
-	}
-	merged[name.Value] = true
 	scope := NewScope(check.scope, lam.Pos(), endPos(lam.Body), "chain lambda")
 	scope.isFunc = true
 	p := NewParam(name.Pos(), check.pkg, name.Value, elem)
 	check.declare(scope, name, p, name.Pos())
+	merged := append(slices.Clone(roots), logosWritePath{root: p})
 	saved := check.environment
 	check.environment = environment{decl: check.decl, scope: scope, version: check.version, iota: check.iota, sig: check.sig}
 	defer func() { check.environment = saved }()
+	defer check.logosChainNoMutate(merged, lam.Body)
 	if block, ok := lam.Body.(*syntax.BlockStmt); ok {
-		u, isTry, ok := check.logosChainBlock(lam, merged, scope, elem, kind, block)
+		u, isTry, ok := check.logosChainBlock(lam, scope, elem, kind, block)
 		check.usage(scope)
 		return u, isTry, ok
 	}
@@ -380,7 +522,6 @@ func (check *Checker) logosChainLambda(lam *syntax.LambdaExpr, elem Type, kind l
 		check.error(lam.Body, InvalidSyntaxTree, "invalid chain lambda body")
 		return nil, false, false
 	}
-	check.logosChainNoMutate(merged, body)
 	if t, ok := syntax.Unparen(body).(*syntax.TryExpr); ok {
 		results, ok := check.logosTryResults(t)
 		if !ok {
@@ -431,59 +572,26 @@ func (check *Checker) logosChainLambda(lam *syntax.LambdaExpr, elem Type, kind l
 	return u, false, true
 }
 
-// logosOrderedKey reports whether u is ordered for sortBy.
 func logosOrderedKey(u Type) bool {
 	b, ok := Unalias(u).(*Basic)
 	return ok && b.Info()&IsOrdered != 0
 }
 
-// logosChainBlock checks a block chain lambda with an already built
-// scope holding the parameter. Blocks lower through an immediately
-// invoked function, so any `?` fails here with misplaced_try: it can
-// never propagate from a boundary. Predicates validate against bool;
-// mappers and keys infer from top-level returns checked once below.
-func (check *Checker) logosChainBlock(lam *syntax.LambdaExpr, roots map[string]bool, scope *Scope, elem Type, kind logosChainKind, block *syntax.BlockStmt) (Type, bool, bool) {
-	check.logosChainNoMutate(roots, block)
-	syntax.Inspect(block, func(n syntax.Node) bool {
-		switch n.(type) {
-		case *syntax.FuncLit, *syntax.LambdaExpr:
-			return false
-		}
-		if t, ok := n.(*syntax.TryExpr); ok {
-			check.error(t.Pos(), InvalidCall, logosMisplacedTry)
-			return false
-		}
-		return true
-	})
-	var collected []*operand
-	failed := false
-	for _, s := range block.List {
-		ret, isRet := s.(*syntax.ReturnStmt)
-		if !isRet {
-			check.stmt(0, s)
-			continue
-		}
-		for _, res := range syntax.UnpackListExpr(ret.Results) {
-			var op operand
-			check.expr(nil, &op, res)
-			if !op.isValid() {
-				failed = true
-				continue
-			}
-			if _, ok := op.typ().(*Tuple); ok {
-				check.error(res, WrongResultCount, "cannot infer chain element type from multi-value return")
-				failed = true
-				continue
-			}
-			collected = append(collected, &op)
-		}
-	}
-	if failed {
+func (check *Checker) logosChainBlock(lam *syntax.LambdaExpr, scope *Scope, elem Type, kind logosChainKind, block *syntax.BlockStmt) (Type, bool, bool) {
+	check.logosChainBlockTryForms(block)
+	saved := check.environment.chainRets
+	st := &chainReturnState{}
+	check.environment.chainRets = st
+	failed := !check.logosChainJumps(block)
+	check.stmtList(0, block.List)
+	check.environment.chainRets = saved
+	if st.bad || failed {
 		return nil, false, false
 	}
+	collected := st.ops
 	if kind == logosPredKind {
 		for _, op := range collected {
-			check.assignment(op, Typ[Bool], "chain predicate")
+			check.assignment(op, Typ[Bool], "return statement")
 		}
 		if !check.isTerminating(block, "") {
 			check.error(block.Rbrace, MissingReturn, "missing return")
@@ -507,14 +615,15 @@ func (check *Checker) logosChainBlock(lam *syntax.LambdaExpr, roots map[string]b
 		check.error(block, IncompatibleAssign, "cannot infer chain element type: no return")
 		return nil, false, false
 	}
-	for _, t := range types[1:] {
-		if !Identical(t, types[0]) {
-			check.errorf(block, IncompatibleAssign, "inconsistent chain element types %s and %s", types[0], t)
-			return nil, false, false
+	mismatch := false
+	for _, op := range collected {
+		if ok, _ := op.assignableTo(check, types[0], nil); !ok {
+			check.assignment(op, types[0], "return statement")
+			mismatch = true
 		}
 	}
-	for _, op := range collected {
-		check.assignment(op, types[0], "chain element")
+	if mismatch {
+		return nil, false, false
 	}
 	if !check.isTerminating(block, "") {
 		check.error(block.Rbrace, MissingReturn, "missing return")
@@ -527,19 +636,80 @@ func (check *Checker) logosChainBlock(lam *syntax.LambdaExpr, roots map[string]b
 	return types[0], false, true
 }
 
-// logosChainNoMutate rejects assignments to const-view roots (the
-// receiver and the lambda parameters) inside a chain lambda body.
-func (check *Checker) logosChainNoMutate(roots map[string]bool, body syntax.Node) {
+type chainReturnState struct {
+	ops []*operand
+	bad bool
+}
+
+var logosChainMutatingBuiltins = map[string]string{
+	"append": "append to",
+	"copy":   "copy into",
+	"clear":  "clear",
+	"delete": "delete from",
+}
+
+func (check *Checker) logosChainReturn(s *syntax.ReturnStmt) bool {
+	st := check.environment.chainRets
+	if st == nil {
+		return false
+	}
+	results := syntax.UnpackListExpr(s.Results)
+	if len(results) != 1 {
+		check.errorf(s, WrongResultCount, "chain lambda return provides %d values, want 1", len(results))
+		st.bad = true
+		return true
+	}
+	var op operand
+	check.expr(nil, &op, results[0])
+	if !op.isValid() {
+		st.bad = true
+		return true
+	}
+	if _, ok := op.typ().(*Tuple); ok {
+		check.error(results[0], WrongResultCount, "cannot infer chain element type from multi-value return")
+		st.bad = true
+		return true
+	}
+	st.ops = append(st.ops, &op)
+	return true
+}
+
+func (check *Checker) logosChainBlockTryForms(block *syntax.BlockStmt) {
+	syntax.Inspect(block, func(n syntax.Node) bool {
+		switch n := n.(type) {
+		case *syntax.FuncLit, *syntax.LambdaExpr:
+			return false
+		case *syntax.CallStmt:
+			if n.Tok == syntax.Defer {
+				if t, ok := syntax.Unparen(n.Call).(*syntax.TryExpr); ok {
+					check.logosTryMisplaced(t)
+				}
+			}
+		case *syntax.ErrdeferStmt:
+			check.error(n, InvalidDefer, logosErrdeferNeedsError)
+			check.logosErrdeferUse(n.Call)
+		}
+		return true
+	})
+}
+
+func (check *Checker) logosChainNoMutate(roots []logosWritePath, body syntax.Node) {
 	syntax.Inspect(body, func(n syntax.Node) bool {
-		as, ok := n.(*syntax.AssignStmt)
-		if !ok {
-			return true
+		var targets []syntax.Expr
+		switch n := n.(type) {
+		case *syntax.AssignStmt:
+			if n.Op != syntax.Def {
+				targets = syntax.UnpackListExpr(n.Lhs)
+			}
+		case *syntax.RangeClause:
+			if !n.Def {
+				targets = syntax.UnpackListExpr(n.Lhs)
+			}
+		case *syntax.CallExpr:
+			check.logosChainMutatingCall(n, roots)
 		}
-		if as.Op == syntax.Def {
-			return true
-		}
-		for _, lhs := range syntax.UnpackListExpr(as.Lhs) {
-			if logosChainMutates(lhs, roots) {
+		for _, lhs := range targets {
+			if logosChainHits(check.logosWritePath(lhs), roots) {
 				check.errorf(lhs, IncompatibleAssign, "%s cannot assign to chain receiver or parameter", logosChainMutation)
 			}
 		}
@@ -547,28 +717,22 @@ func (check *Checker) logosChainNoMutate(roots map[string]bool, body syntax.Node
 	})
 }
 
-// logosChainMutates reports whether an assignment target mutates a
-// const-view root: the name itself, or a selection or index through it.
-func logosChainMutates(e syntax.Expr, roots map[string]bool) bool {
-	cur := syntax.Unparen(e)
-	for {
-		if nm, ok := cur.(*syntax.Name); ok {
-			return roots[nm.Value]
-		}
-		if s, ok := cur.(*syntax.SelectorExpr); ok {
-			cur = syntax.Unparen(s.X)
-			continue
-		}
-		if ix, ok := cur.(*syntax.IndexExpr); ok {
-			cur = syntax.Unparen(ix.X)
-			continue
-		}
-		return false
+func (check *Checker) logosChainMutatingCall(call *syntax.CallExpr, roots []logosWritePath) {
+	name, ok := syntax.Unparen(call.Fun).(*syntax.Name)
+	if !ok || len(call.ArgList) == 0 {
+		return
+	}
+	verb, mutating := logosChainMutatingBuiltins[name.Value]
+	_, builtin := check.Info.Uses[name].(*Builtin)
+	if mutating && builtin && logosChainHits(check.logosContentsPath(call.ArgList[0]), roots) {
+		check.errorf(call.ArgList[0], IncompatibleAssign, "%s cannot %s chain receiver or parameter", logosChainMutation, verb)
 	}
 }
 
-// logosChainFuncArg checks a non-lambda chain argument against
-// func(elem) want.
+func logosChainHits(target logosWritePath, roots []logosWritePath) bool {
+	return slices.ContainsFunc(roots, func(root logosWritePath) bool { return logosWriteHits(root, target) })
+}
+
 func (check *Checker) logosChainFuncArg(arg syntax.Expr, elem, want Type, method string) (Type, bool, bool) {
 	var op operand
 	check.expr(nil, &op, arg)
@@ -582,17 +746,9 @@ func (check *Checker) logosChainFuncArg(arg syntax.Expr, elem, want Type, method
 	}
 	fn := NewSignatureType(nil, nil, nil, NewTuple(NewParam(nopos, check.pkg, "", elem)), NewTuple(NewParam(nopos, check.pkg, "", want)), false)
 	check.assignment(&op, fn, "chain "+method)
-	return want, false, true
+	return want, false, op.isValid()
 }
 
-// logosWarnSideEffectBeforeSort warns against a chain lambda with a
-// call of unknown purity before `.sortBy()` (SPEC Sec 1.4, T-102): the
-// fused prefix may run its effects an unexpected number of times once
-// sorting materializes the run. Only the lambdas of the chain prefix
-// (the sortBy receiver, transitively) are scanned; the sortBy key
-// lambda itself and the receiver base expression are out of scope. The
-// diagnostic is warn-severity like unapplied_struct_default: it reports
-// through softErrorf and LogosWarnOnly keeps it out of firstErr.
 func (check *Checker) logosWarnSideEffectBeforeSort(sel *syntax.SelectorExpr, recv syntax.Expr) {
 	for _, lam := range logosPrefixLambdas(recv) {
 		if logosLambdaHasImpureCall(check, lam) {
@@ -602,9 +758,6 @@ func (check *Checker) logosWarnSideEffectBeforeSort(sel *syntax.SelectorExpr, re
 	}
 }
 
-// logosPrefixLambdas collects the lambda arguments of the chain calls
-// forming the receiver prefix, outermost first. The walk follows
-// selector calls over known chain methods; anything else ends it.
 func logosPrefixLambdas(recv syntax.Expr) []*syntax.LambdaExpr {
 	var lams []*syntax.LambdaExpr
 	for {
@@ -625,12 +778,6 @@ func logosPrefixLambdas(recv syntax.Expr) []*syntax.LambdaExpr {
 	}
 }
 
-// logosLambdaHasImpureCall reports whether a chain lambda body holds a
-// call of unknown purity. Known-pure calls are conversions (the callee
-// names a type) and builtins without observable effects; every other
-// call, including method and package-qualified calls, counts as unknown.
-// Nested function literals are pruned: their calls run only when the
-// literal is invoked, not per element.
 func logosLambdaHasImpureCall(check *Checker, lam *syntax.LambdaExpr) bool {
 	found := false
 	syntax.Inspect(lam.Body, func(n syntax.Node) bool {
@@ -653,10 +800,6 @@ func logosLambdaHasImpureCall(check *Checker, lam *syntax.LambdaExpr) bool {
 	return found
 }
 
-// logosKnownPureCall reports whether a call is known pure: a conversion
-// or an effect-free builtin. Copy, clear, delete, and append mutate
-// their arguments; panic, recover, print, and println have observable
-// effects; all of those count as unknown.
 func logosKnownPureCall(check *Checker, call *syntax.CallExpr) bool {
 	name, ok := syntax.Unparen(call.Fun).(*syntax.Name)
 	if !ok {
@@ -679,8 +822,6 @@ func logosKnownPureCall(check *Checker, call *syntax.CallExpr) bool {
 	return false
 }
 
-// logosChainFuncInfer checks a non-lambda mapper, inferring the element
-// type from its single result.
 func (check *Checker) logosChainFuncInfer(arg syntax.Expr, elem Type) (Type, bool, bool) {
 	var op operand
 	check.expr(nil, &op, arg)
@@ -695,5 +836,5 @@ func (check *Checker) logosChainFuncInfer(arg syntax.Expr, elem Type) (Type, boo
 	u := sig.Results().At(0).Type()
 	fn := NewSignatureType(nil, nil, nil, NewTuple(NewParam(nopos, check.pkg, "", elem)), NewTuple(NewParam(nopos, check.pkg, "", u)), false)
 	check.assignment(&op, fn, "chain map")
-	return u, false, true
+	return u, false, op.isValid()
 }

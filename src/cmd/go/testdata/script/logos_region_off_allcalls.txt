@@ -1,0 +1,50 @@
+# Off-experiment parity for every arena call: Open, New, Make and Append must
+# behave exactly as Region{}, new, make and append when GOEXPERIMENT is unset.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+env GOEXPERIMENT=
+logos build -gcflags=-m -o $WORK/offall$GOEXE .
+! stderr 'placed in region'
+! stderr 'region_escape'
+! stderr 'region fallback'
+logos run .
+stdout '^new 43$'
+stdout '^make 4 9$'
+stdout '^append 1 2 3$'
+go run .
+stdout '^new 43$'
+stdout '^make 4 9$'
+stdout '^append 1 2 3$'
+
+-- m/go.mod --
+module example.com/arenagoffall
+
+go 1.27
+
+-- m/logos.toml --
+[build]
+arena = false
+
+-- m/main.go --
+package main
+
+import (
+	"fmt"
+
+	"logos/arena"
+)
+
+func main() {
+	r := arena.Open()
+	p := arena.New[int](r)
+	*p = 42
+	fmt.Println("new", *p+1)
+	nodes := arena.Make[int](r, 4)
+	nodes[2] = 9
+	fmt.Println("make", len(nodes), nodes[2])
+	s := arena.Append[int](r, []int{1, 2}, 3)
+	fmt.Println("append", s[0], s[1], s[2])
+	_ = r
+}

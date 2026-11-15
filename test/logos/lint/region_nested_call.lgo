@@ -1,0 +1,68 @@
+// errorcheck -goexperiment logosarena,logosescape -0
+
+package p
+
+import "logos/arena"
+
+type node struct {
+	next *node
+	v    int
+}
+
+//go:noinline
+func link(o, p *node) {
+	o.next = p
+}
+
+//go:noinline
+func (o *node) Set(p *node) {
+	o.next = p
+}
+
+func NestCall() {
+	rOut := arena.Open()
+	po := arena.New[node](rOut)
+	{
+		rIn := arena.Open()
+		pi := arena.New[node](rIn) // ERROR "\[perf::arena_fallback\]"
+		link(po, pi)
+		_, _ = po, pi
+	}
+	_ = po
+}
+
+func NestMethod() {
+	rOut := arena.Open()
+	po := arena.New[node](rOut)
+	{
+		rIn := arena.Open()
+		pi := arena.New[node](rIn) // ERROR "\[perf::arena_fallback\]"
+		po.Set(pi)
+		_, _ = po, pi
+	}
+	_ = po
+}
+
+func NestDirect() {
+	rOut := arena.Open()
+	po := arena.New[node](rOut)
+	{
+		rIn := arena.Open()
+		pi := arena.New[node](rIn) // ERROR "\[perf::arena_fallback\]"
+		po.next = pi
+		_, _ = po, pi
+	}
+	_ = po
+}
+
+func NestReverse() {
+	rOut := arena.Open()
+	po := arena.New[node](rOut)
+	{
+		rIn := arena.Open()
+		pi := arena.New[node](rIn)
+		link(pi, po)
+		_, _ = po, pi
+	}
+	_ = po
+}

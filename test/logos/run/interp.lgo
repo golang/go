@@ -5,9 +5,20 @@ package main
 import (
 	"errors"
 	"fmt"
+	"math"
+	"os"
 	"strings"
 	"testing"
 )
+var failed bool
+func check(name string, cond bool, got, want any) {
+if !cond {
+failed = true
+fmt.Println("FAIL", name+":", "got", got, "want", want)
+return
+}
+fmt.Println("ok", name)
+}
 
 type shout string
 
@@ -21,13 +32,16 @@ var boomErr = errors.New("boom")
 
 var heyShout = shout("hey")
 
-// bigBox renders a 300-byte string with no allocation of its own, so
-// the interpolation's single allocation is the buffer alone (#34): 300
-// exceeds every fixed operand estimate (20/24/5), so a bound that did
-// not count the Stringer string would regrow.
 type bigBox struct{ s string }
 
 func (b bigBox) String() string { return b.s }
+
+type countShout struct{ p *int }
+
+func (c countShout) String() string {
+	*c.p++
+	return "hey!"
+}
 
 func tag(s string, v int) int {
 	evalOrder = append(evalOrder, s)
@@ -41,50 +55,121 @@ func nextID() int {
 	return nextIDCalls
 }
 
+func convOnce() bool {
+	calls := 0
+	sink = $"v={countShout{&calls}}"
+	return calls == 1
+}
+
+type countErr struct{ p *int }
+
+func (e countErr) Error() string {
+	*e.p++
+	return "E"
+}
+
+func errorOnce() (int, string) {
+	calls := 0
+	var err error = countErr{&calls}
+	got := $"e={err}"
+	return calls, got
+}
+
+func bumpInt(p *int) int {
+	*p += 10
+	return *p
+}
+
+func bumpStr(p *string) string {
+	*p += "!"
+	return *p
+}
+
+func flipBool(p *bool) bool {
+	*p = !*p
+	return *p
+}
+
+func snapshots() {
+	snapInt := 1
+	got1 := $"a={snapInt} b={bumpInt(&snapInt)}"
+	check("snapshot-int", got1 == "a=1 b=11", got1, "a=1 b=11")
+	snapStr := "s"
+	got2 := $"a={snapStr} b={bumpStr(&snapStr)}"
+	check("snapshot-string", got2 == "a=s b=s!", got2, "a=s b=s!")
+	snapBool := true
+	got3 := $"a={snapBool} b={flipBool(&snapBool)}"
+	check("snapshot-bool", got3 == "a=true b=false", got3, "a=true b=false")
+}
+
+func checkInterpolationAllocations(name string, n int) {
+allocs1 := testing.AllocsPerRun(100, func() {
+sink = $"User {name} has {n} items err={boomErr}"
+})
+check("allocs1", allocs1 == 1, allocs1, 1)
+if sink != "User ada has 3 items err=boom" {
+check("allocs1-value", false, sink, "User ada has 3 items err=boom")
+}
+big := bigBox{s: strings.Repeat("z", 300)}
+allocs2 := testing.AllocsPerRun(100, func() {
+sink = $"v={big}"
+})
+check("allocs2", allocs2 == 1, allocs2, 1)
+if sink != "v="+big.s {
+check("allocs2-value", false, sink, "v="+big.s)
+}
+check("len", len(sink) == 302, len(sink), 302)
+negMax := -math.MaxFloat64
+allocs3 := testing.AllocsPerRun(100, func() {
+sink = $"{math.MinInt64}{negMax}{false}"
+})
+check("allocs3", allocs3 == 1, allocs3, 1)
+check("bound", sink == "-9223372036854775808-1.7976931348623157e+308false", sink, "-9223372036854775808-1.7976931348623157e+308false")
+}
+
 func main() {
-	name := "ada"
-	n := 3
-	fmt.Println($"User {name} has {n} items")
-	fmt.Println($"{{secret}}")
-	fmt.Println($"{"shown"}")
-	fmt.Println($"n={42} t={"lit"} f={1.5} b={true}")
-	fmt.Println($"u={uint(7)} u8={uint8(8)} i8={int8(-8)} f32={float32(1.25)}")
-	fmt.Println($"raw={[]byte("ab")} err={errors.New("boom")} s={shout("hey")}")
-
-	evalOrder = nil
-	fmt.Println($"a={tag("first", 1)} b={tag("second", 2)}")
-	fmt.Println(evalOrder)
-
-	nextIDCalls = 0
-	fmt.Println($"id={nextID()}")
-	fmt.Println(nextIDCalls)
-
-	fmt.Println($"outer {$"inner {n}"} end")
-	m := map[string]int{"a": 1}
-	fmt.Println($"v={m["a"] ?? -1} w={m["zz"] ?? -1}")
-
-	// Operand text is data, never a format string (#177).
-	fmt.Println($"{"%d %s %!v (x)"}")
-	pct := "%s-%d"
-	fmt.Println($"v={pct}")
-
-	// Exactly one allocation per interpolation (the buffer; Error on a
-	// package-level error value allocates nothing).
-	if allocs := testing.AllocsPerRun(100, func() {
-		sink = $"User {name} has {n} items err={boomErr}"
-	}); allocs != 1 {
-		fmt.Println("allocs:", allocs)
-	} else {
-		fmt.Println("allocs: 1")
-	}
-
-	big := bigBox{s: strings.Repeat("z", 300)}
-	if allocs := testing.AllocsPerRun(100, func() {
-		sink = $"v={big}"
-	}); allocs != 1 {
-		fmt.Println("allocs:", allocs)
-	} else {
-		fmt.Println("allocs: 1")
-	}
-	fmt.Println(len(sink))
+name := "ada"
+n := 3
+got01 := $"User {name} has {n} items"
+check("user", got01 == "User ada has 3 items", got01, "User ada has 3 items")
+got02 := $"{{secret}}"
+check("secret", got02 == "{secret}", got02, "{secret}")
+got03 := $"a{{b}}c"
+check("brace", got03 == "a{b}c", got03, "a{b}c")
+got04 := $"{"shown"}"
+check("shown", got04 == "shown", got04, "shown")
+got05 := $"n={42} t={"lit"} f={1.5} b={true}"
+check("mixed", got05 == "n=42 t=lit f=1.5 b=true", got05, "n=42 t=lit f=1.5 b=true")
+got06 := $"u={uint(7)} u8={uint8(8)} i8={int8(-8)} f32={float32(1.25)}"
+check("ints", got06 == "u=7 u8=8 i8=-8 f32=1.25", got06, "u=7 u8=8 i8=-8 f32=1.25")
+got07 := $"raw={[]byte("ab")} err={errors.New("boom")} s={shout("hey")}"
+check("raw", got07 == "raw=ab err=boom s=hey!", got07, "raw=ab err=boom s=hey!")
+evalOrder = nil
+got08 := $"a={tag("first", 1)} b={tag("second", 2)}"
+check("order", got08 == "a=1 b=2", got08, "a=1 b=2")
+got09 := fmt.Sprint(evalOrder)
+check("eval", got09 == "[first second]", got09, "[first second]")
+nextIDCalls = 0
+got10 := $"id={nextID()}"
+check("id", got10 == "id=1", got10, "id=1")
+check("calls", nextIDCalls == 1, nextIDCalls, 1)
+snapshots()
+got12 := $"outer {$"inner {n}"} end"
+check("nested", got12 == "outer inner 3 end", got12, "outer inner 3 end")
+m := map[string]int{"a": 1}
+got13 := $"v={m["a"] ?? -1} w={m["zz"] ?? -1}"
+check("map", got13 == "v=1 w=-1", got13, "v=1 w=-1")
+got14 := $"{"%d %s %!v (x)"}"
+check("percent", got14 == "%d %s %!v (x)", got14, "%d %s %!v (x)")
+pct := "%s-%d"
+got15 := $"v={pct}"
+check("pct", got15 == "v=%s-%d", got15, "v=%s-%d")
+checkInterpolationAllocations(name, n)
+convertedOnce := convOnce()
+check("conv", convertedOnce, convertedOnce, true)
+errCalls, errText := errorOnce()
+check("error-once", errCalls == 1 && errText == "e=E", fmt.Sprint(errCalls, " ", errText), "1 e=E")
+if failed {
+os.Exit(1)
+}
 }

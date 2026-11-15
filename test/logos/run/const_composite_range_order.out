@@ -1,0 +1,4 @@
+ok range-explicit-embedded
+ok range-promoted-field
+ok range-hex-index
+ok range-named-index

@@ -1,0 +1,24 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cp $GOROOT/test/logos/run/const_for_labels.lgo m/main.lgo
+cd m
+logos run .
+cmp stdout $GOROOT/test/logos/run/const_for_labels.out
+cp stdout $WORK/native.txt
+cp main.lgo $WORK/original.lgo
+logos eject -o out
+exists out/main.go
+cmp main.lgo $WORK/original.lgo
+cd out
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/labels .
+exec $WORK/labels
+cmp stdout $WORK/native.txt
+
+-- m/go.mod --
+module example.com/ejectlabels
+
+go 1.27

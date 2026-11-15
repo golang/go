@@ -1,0 +1,40 @@
+// errorcheck
+
+package p
+
+func tooLarge(a [16]float64, b [16]float64) {
+	_ = a + b // ERROR "simd_array_too_large"
+}
+
+func badShape(a [3]float64, b [3]float64) {
+	_ = a + b // ERROR "correctness::simd_array_shape"
+}
+
+func tooLargeReduce(a [16]float64) {
+	_ = a.sum() // ERROR "simd_array_too_large"
+}
+
+func badShapeReduce(a [6]int32) {
+	_ = a.sum() // ERROR "correctness::simd_array_shape"
+}
+
+func tooLargeWord(a [16]int, b [16]int) {
+	_ = a + b // ERROR "simd_array_too_large"
+}
+
+func tooLargeWordReduce(p [16]uintptr) {
+	_ = p.sum() // ERROR "simd_array_too_large"
+}
+
+func wordLaneOK(a [8]int, b [8]int) {
+	_ = a + b
+	_ = a.sum()
+}
+
+func badDotShape(a [2]float64, b [4]float64) {
+	_ = a.dot(b) // ERROR "."
+}
+
+func complexExcluded(a [2]complex128, b [2]complex128) {
+	_ = a + b // ERROR "."
+}

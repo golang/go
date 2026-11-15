@@ -57,6 +57,30 @@ func TestScratchAllocIsZeroedAndSized(t *testing.T) {
 	}
 }
 
+func TestScratchAllocRejectsBadSize(t *testing.T) {
+	before := len(scratch)
+	if got := scratchAlloc(-1); got != scratchRefused {
+		t.Fatalf("scratchAlloc(-1) = %#x, want the refusal address %d", got, scratchRefused)
+	}
+	if got := scratchAlloc(maxScratchBytes + 1); got != scratchRefused {
+		t.Fatalf("scratchAlloc(limit+1) = %#x, want the refusal address %d", got, scratchRefused)
+	}
+	if got := scratchAlloc(1<<31 - 1); got != scratchRefused {
+		t.Fatalf("scratchAlloc(maxint32) = %#x, want the refusal address %d", got, scratchRefused)
+	}
+	if len(scratch) != before {
+		t.Fatal("rejected scratchAlloc changed the live map")
+	}
+	p := scratchAlloc(16)
+	if p == scratchRefused {
+		t.Fatal("scratchAlloc(16) was refused, want a live buffer")
+	}
+	defer scratchReset(p)
+	if len(scratch[p]) != 16 {
+		t.Fatalf("buffer length = %d, want 16", len(scratch[p]))
+	}
+}
+
 func TestErrmsgExportsDescribeLastError(t *testing.T) {
 	WasmError(errors.New("exact: text"))
 	got := string(bytesAt(errmsgPtr(), errmsgLen()))

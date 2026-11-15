@@ -1,0 +1,790 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+# Each checked local alias attack is isolated, before either output path.
+cd local
+cp ../local-varCopy.lgo main.lgo
+! logos build -o $WORK/bin/local-varCopy$GOEXE .
+stderr '\[correctness::const_view_(mutation|escape)\]'
+! logos eject -o $WORK/local-varCopy-out
+stderr '\[correctness::const_view_(mutation|escape)\]'
+
+cp ../local-elementField.lgo main.lgo
+! logos build -o $WORK/bin/local-elementField$GOEXE .
+stderr '\[correctness::const_view_(mutation|escape)\]'
+! logos eject -o $WORK/local-elementField-out
+stderr '\[correctness::const_view_(mutation|escape)\]'
+
+cp ../local-variableIndex.lgo main.lgo
+! logos build -o $WORK/bin/local-variableIndex$GOEXE .
+stderr '\[correctness::const_view_(mutation|escape)\]'
+! logos eject -o $WORK/local-variableIndex-out
+stderr '\[correctness::const_view_(mutation|escape)\]'
+
+cp ../local-resliceAppend.lgo main.lgo
+! logos build -o $WORK/bin/local-resliceAppend$GOEXE .
+stderr '\[correctness::const_view_(mutation|escape)\]'
+! logos eject -o $WORK/local-resliceAppend-out
+stderr '\[correctness::const_view_(mutation|escape)\]'
+
+cp ../local-writerCall.lgo main.lgo
+! logos build -o $WORK/bin/local-writerCall$GOEXE .
+stderr '\[correctness::const_view_(mutation|escape)\]'
+! logos eject -o $WORK/local-writerCall-out
+stderr '\[correctness::const_view_(mutation|escape)\]'
+
+cp ../local-sortCall.lgo main.lgo
+! logos build -o $WORK/bin/local-sortCall$GOEXE .
+stderr '\[correctness::const_view_(mutation|escape)\]'
+! logos eject -o $WORK/local-sortCall-out
+stderr '\[correctness::const_view_(mutation|escape)\]'
+
+cp ../local-unsafeWrite.lgo main.lgo
+! logos build -o $WORK/bin/local-unsafeWrite$GOEXE .
+stderr '\[correctness::const_view_(mutation|escape)\]'
+! logos eject -o $WORK/local-unsafeWrite-out
+stderr '\[correctness::const_view_(mutation|escape)\]'
+
+cp ../local-copyInto.lgo main.lgo
+! logos build -o $WORK/bin/local-copyInto$GOEXE .
+stderr '\[correctness::const_view_(mutation|escape)\]'
+! logos eject -o $WORK/local-copyInto-out
+stderr '\[correctness::const_view_(mutation|escape)\]'
+
+cp ../local-clearVar.lgo main.lgo
+! logos build -o $WORK/bin/local-clearVar$GOEXE .
+stderr '\[correctness::const_view_(mutation|escape)\]'
+! logos eject -o $WORK/local-clearVar-out
+stderr '\[correctness::const_view_(mutation|escape)\]'
+
+cp ../local-reverseVar.lgo main.lgo
+! logos build -o $WORK/bin/local-reverseVar$GOEXE .
+stderr '\[correctness::const_view_(mutation|escape)\]'
+! logos eject -o $WORK/local-reverseVar-out
+stderr '\[correctness::const_view_(mutation|escape)\]'
+
+cp ../local-threeIndex.lgo main.lgo
+! logos build -o $WORK/bin/local-threeIndex$GOEXE .
+stderr '\[correctness::const_view_(mutation|escape)\]'
+! logos eject -o $WORK/local-threeIndex-out
+stderr '\[correctness::const_view_(mutation|escape)\]'
+
+cp ../local-reflectSet.lgo main.lgo
+! logos build -o $WORK/bin/local-reflectSet$GOEXE .
+stderr '\[correctness::const_view_(mutation|escape)\]'
+! logos eject -o $WORK/local-reflectSet-out
+stderr '\[correctness::const_view_(mutation|escape)\]'
+
+cp ../local-boxed.lgo main.lgo
+! logos build -o $WORK/bin/local-boxed$GOEXE .
+stderr '\[correctness::const_view_(mutation|escape)\]'
+! logos eject -o $WORK/local-boxed-out
+stderr '\[correctness::const_view_(mutation|escape)\]'
+
+cp ../local-rangeRows.lgo main.lgo
+! logos build -o $WORK/bin/local-rangeRows$GOEXE .
+stderr '\[correctness::const_view_(mutation|escape)\]'
+! logos eject -o $WORK/local-rangeRows-out
+stderr '\[correctness::const_view_(mutation|escape)\]'
+
+cp ../local-rowCopy.lgo main.lgo
+! logos build -o $WORK/bin/local-rowCopy$GOEXE .
+stderr '\[correctness::const_view_(mutation|escape)\]'
+! logos eject -o $WORK/local-rowCopy-out
+stderr '\[correctness::const_view_(mutation|escape)\]'
+
+cp ../local-rowSlice.lgo main.lgo
+! logos build -o $WORK/bin/local-rowSlice$GOEXE .
+stderr '\[correctness::const_view_(mutation|escape)\]'
+! logos eject -o $WORK/local-rowSlice-out
+stderr '\[correctness::const_view_(mutation|escape)\]'
+
+cp ../local-innerSlice.lgo main.lgo
+! logos build -o $WORK/bin/local-innerSlice$GOEXE .
+stderr '\[correctness::const_view_(mutation|escape)\]'
+! logos eject -o $WORK/local-innerSlice-out
+stderr '\[correctness::const_view_(mutation|escape)\]'
+
+cp ../local-outerSlice.lgo main.lgo
+! logos build -o $WORK/bin/local-outerSlice$GOEXE .
+stderr '\[correctness::const_view_(mutation|escape)\]'
+! logos eject -o $WORK/local-outerSlice-out
+stderr '\[correctness::const_view_(mutation|escape)\]'
+
+cp ../local-plainWhole.lgo main.lgo
+! logos build -o $WORK/bin/local-plainWhole$GOEXE .
+stderr '\[correctness::const_view_(mutation|escape)\]'
+! logos eject -o $WORK/local-plainWhole-out
+stderr '\[correctness::const_view_(mutation|escape)\]'
+
+cp ../local-rangeElement.lgo main.lgo
+! logos build -o $WORK/bin/local-rangeElement$GOEXE .
+stderr '\[correctness::const_view_(mutation|escape)\]'
+! logos eject -o $WORK/local-rangeElement-out
+stderr '\[correctness::const_view_(mutation|escape)\]'
+
+cp ../local-structCopy.lgo main.lgo
+! logos build -o $WORK/bin/local-structCopy$GOEXE .
+stderr '\[correctness::const_view_(mutation|escape)\]'
+! logos eject -o $WORK/local-structCopy-out
+stderr '\[correctness::const_view_(mutation|escape)\]'
+
+cp ../local-elementCopy.lgo main.lgo
+! logos build -o $WORK/bin/local-elementCopy$GOEXE .
+stderr '\[correctness::const_view_(mutation|escape)\]'
+! logos eject -o $WORK/local-elementCopy-out
+stderr '\[correctness::const_view_(mutation|escape)\]'
+
+cp ../local-mapCopy.lgo main.lgo
+! logos build -o $WORK/bin/local-mapCopy$GOEXE .
+stderr '\[correctness::const_view_(mutation|escape)\]'
+! logos eject -o $WORK/local-mapCopy-out
+stderr '\[correctness::const_view_(mutation|escape)\]'
+
+cp ../local-whole.lgo main.lgo
+! logos build -o $WORK/bin/local-whole$GOEXE .
+stderr '\[correctness::const_view_(mutation|escape)\]'
+! logos eject -o $WORK/local-whole-out
+stderr '\[correctness::const_view_(mutation|escape)\]'
+
+cp ../local-funcSlice.lgo main.lgo
+! logos build -o $WORK/bin/local-funcSlice$GOEXE .
+stderr '\[correctness::const_view_(mutation|escape)\]'
+! logos eject -o $WORK/local-funcSlice-out
+stderr '\[correctness::const_view_(mutation|escape)\]'
+
+cp ../local-funcField.lgo main.lgo
+! logos build -o $WORK/bin/local-funcField$GOEXE .
+stderr '\[correctness::const_view_(mutation|escape)\]'
+! logos eject -o $WORK/local-funcField-out
+stderr '\[correctness::const_view_(mutation|escape)\]'
+
+cp ../local-funcStructCopy.lgo main.lgo
+! logos build -o $WORK/bin/local-funcStructCopy$GOEXE .
+stderr '\[correctness::const_view_(mutation|escape)\]'
+! logos eject -o $WORK/local-funcStructCopy-out
+stderr '\[correctness::const_view_(mutation|escape)\]'
+
+cp ../local-funcNested.lgo main.lgo
+! logos build -o $WORK/bin/local-funcNested$GOEXE .
+stderr '\[correctness::const_view_(mutation|escape)\]'
+! logos eject -o $WORK/local-funcNested-out
+stderr '\[correctness::const_view_(mutation|escape)\]'
+
+cp ../local-funcGrouped.lgo main.lgo
+! logos build -o $WORK/bin/local-funcGrouped$GOEXE .
+stderr '\[correctness::const_view_(mutation|escape)\]'
+! logos eject -o $WORK/local-funcGrouped-out
+stderr '\[correctness::const_view_(mutation|escape)\]'
+
+cp ../local-funcMapBearing.lgo main.lgo
+! logos build -o $WORK/bin/local-funcMapBearing$GOEXE .
+stderr '\[correctness::const_view_(mutation|escape)\]'
+! logos eject -o $WORK/local-funcMapBearing-out
+stderr '\[correctness::const_view_(mutation|escape)\]'
+
+cp ../local-positive.lgo main.lgo
+logos build -o $WORK/bin/local$GOEXE .
+exec $WORK/bin/local$GOEXE
+stdout '^before$'
+stdout '^after 0$'
+cp stdout $WORK/control.txt
+logos eject -o $WORK/local-ejected
+cd $WORK/local-ejected
+exists $UPROOT1272/bin/go
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $WORK/control.txt
+cd $GOPATH/src
+
+cd imported/app
+cp main.lgo $WORK/imported-positive.lgo
+cp ../../imported-attacks.lgo main.lgo
+! logos build -o $WORK/bin/imported-attacks$GOEXE .
+stderr -count=6 '\[correctness::const_view_mutation\]'
+! logos eject -o $WORK/imported-attacks-out
+stderr -count=6 '\[correctness::const_view_mutation\]'
+cp $WORK/imported-positive.lgo main.lgo
+logos build -o $WORK/bin/imported$GOEXE .
+exec $WORK/bin/imported$GOEXE control
+stdout '^before$'
+stdout '^after 0$'
+cp stdout $WORK/icontrol.txt
+
+logos eject -o out
+cd out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+go build -o $WORK/bin/iejected$GOEXE .
+exec $WORK/bin/iejected$GOEXE control
+cmp stdout $WORK/icontrol.txt
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/bin/iupstream$GOEXE .
+exec $WORK/bin/iupstream$GOEXE control
+cmp stdout $WORK/icontrol.txt
+cd ../../..
+
+-- local/go.mod --
+module example.com/ccreadwrite
+
+go 1.27
+
+-- local/values.lgo --
+package main
+
+type box struct {
+	M map[string]int
+	L []int
+	A [3]int
+	N int
+}
+
+type plain struct {
+	V []int
+	A [3]int
+	N int
+}
+
+type row struct {
+	V []int
+	N int
+}
+
+const cfg = box{M: map[string]int{"a": 1}, L: []int{3, 2, 1}, A: [3]int{4, 5, 6}, N: 7}
+
+const items = []box{
+	{M: map[string]int{"a": 1}, L: []int{1, 2}, A: [3]int{1, 1, 1}, N: 1},
+	{M: map[string]int{"a": 5}, L: []int{10, 20}, A: [3]int{2, 2, 2}, N: 2},
+}
+
+const pl = plain{V: []int{3, 2, 1}, A: [3]int{4, 5, 6}, N: 7}
+
+const rows = []row{{V: []int{1, 2}, N: 1}, {V: []int{10, 20}, N: 2}}
+
+const grid = [][]int{{1, 2}, {3, 4}}
+
+const lookup = map[string][]int{"a": {5, 6}, "b": {7, 8}}
+
+func bump(s []int) { s[0] = 70 }
+
+-- local-varCopy.lgo --
+package main
+
+func varCopy() int {
+	l := cfg.L
+	l[0] = 70
+	return 0
+}
+
+func main() { varCopy() }
+-- local-elementField.lgo --
+package main
+
+func elementField() int {
+	l := items[1].L
+	l[0] = 70
+	return 0
+}
+
+func main() { elementField() }
+-- local-variableIndex.lgo --
+package main
+
+func variableIndex() int {
+	i := 1
+	l := items[i].L
+	l[0] = 70
+	return 0
+}
+
+func main() { variableIndex() }
+-- local-resliceAppend.lgo --
+package main
+
+func resliceAppend() int {
+	s := cfg.L[:1]
+	s = append(s, 70)
+	return len(s) - 2
+}
+
+func main() { resliceAppend() }
+-- local-writerCall.lgo --
+package main
+
+func writerCall() int {
+	bump(cfg.L)
+	return 0
+}
+
+func main() { writerCall() }
+-- local-sortCall.lgo --
+package main
+
+import "sort"
+
+func sortCall() int {
+	sort.Ints(cfg.L)
+	return 0
+}
+
+func main() { sortCall() }
+-- local-unsafeWrite.lgo --
+package main
+
+import "unsafe"
+
+func unsafeWrite() int {
+	p := unsafe.SliceData(cfg.L)
+	*p = 70
+	return 0
+}
+
+func main() { unsafeWrite() }
+-- local-copyInto.lgo --
+package main
+
+func copyInto() int {
+	l := cfg.L
+	copy(l, []int{70, 70, 70})
+	return 0
+}
+
+func main() { copyInto() }
+-- local-clearVar.lgo --
+package main
+
+func clearVar() int {
+	l := cfg.L
+	clear(l)
+	return 0
+}
+
+func main() { clearVar() }
+-- local-reverseVar.lgo --
+package main
+
+import "slices"
+
+func reverseVar() int {
+	l := cfg.L
+	slices.Reverse(l)
+	return 0
+}
+
+func main() { reverseVar() }
+-- local-threeIndex.lgo --
+package main
+
+func threeIndex() int {
+	l := cfg.L[0:2:2]
+	l[0] = 70
+	return 0
+}
+
+func main() { threeIndex() }
+-- local-reflectSet.lgo --
+package main
+
+import "reflect"
+
+func reflectSet() int {
+	reflect.ValueOf(cfg.L).Index(0).SetInt(70)
+	return 0
+}
+
+func main() { reflectSet() }
+-- local-boxed.lgo --
+package main
+
+func boxed() int {
+	var x any = cfg.L
+	x.([]int)[0] = 70
+	return 0
+}
+
+func main() { boxed() }
+-- local-rangeRows.lgo --
+package main
+
+func rangeRows() int {
+	for _, r := range rows {
+		r.V[0] = 70
+	}
+	return 0
+}
+
+func main() { rangeRows() }
+-- local-rowCopy.lgo --
+package main
+
+func rowCopy() int {
+	r := rows[1]
+	r.V[0] = 70
+	return 0
+}
+
+func main() { rowCopy() }
+-- local-rowSlice.lgo --
+package main
+
+func rowSlice() int {
+	s := rows[1:]
+	s[0].V[0] = 70
+	return 0
+}
+
+func main() { rowSlice() }
+-- local-innerSlice.lgo --
+package main
+
+func innerSlice() int {
+	r := grid[0]
+	r[0] = 70
+	return 0
+}
+
+func main() { innerSlice() }
+-- local-outerSlice.lgo --
+package main
+
+func outerSlice() int {
+	g := grid
+	g[0] = []int{70}
+	return 0
+}
+
+func main() { outerSlice() }
+-- local-plainWhole.lgo --
+package main
+
+func plainWhole() int {
+	p := &pl
+	p.V[0] = 70
+	return 0
+}
+
+func main() { plainWhole() }
+-- local-rangeElement.lgo --
+package main
+
+func rangeElement() int {
+	for _, e := range items {
+		e.L[0] = 70
+	}
+	return 0
+}
+
+func main() { rangeElement() }
+-- local-structCopy.lgo --
+package main
+
+func structCopy() int {
+	c := cfg
+	c.L[0] = 70
+	return 0
+}
+
+func main() { structCopy() }
+-- local-elementCopy.lgo --
+package main
+
+func elementCopy() int {
+	e := items[1]
+	e.L[0] = 70
+	return 0
+}
+
+func main() { elementCopy() }
+-- local-mapCopy.lgo --
+package main
+
+func mapCopy() int {
+	m := cfg.M
+	m["z"] = 1
+	return 0
+}
+
+func main() { mapCopy() }
+-- local-whole.lgo --
+package main
+
+func whole() int {
+	p := &cfg
+	p.L[0] = 70
+	return 0
+}
+
+func main() { whole() }
+-- local-funcSlice.lgo --
+package main
+
+func funcSlice() int {
+	const c = []int{5, 6, 7}
+	l := c
+	l[0] = 70
+	return c[0] - 5
+}
+
+func main() { funcSlice() }
+-- local-funcField.lgo --
+package main
+
+func funcField() int {
+	const c = plain{V: []int{5, 6, 7}, N: 1}
+	l := c.V
+	l[0] = 70
+	return c.V[0] - 5
+}
+
+func main() { funcField() }
+-- local-funcStructCopy.lgo --
+package main
+
+func funcStructCopy() int {
+	const c = plain{V: []int{5, 6, 7}, N: 1}
+	d := c
+	d.V[0] = 70
+	return c.V[0] - 5
+}
+
+func main() { funcStructCopy() }
+-- local-funcNested.lgo --
+package main
+
+func funcNested() int {
+	const g = [][]int{{5, 6}, {7, 8}}
+	r := g[0]
+	r[0] = 70
+	return g[0][0] - 5
+}
+
+func main() { funcNested() }
+-- local-funcGrouped.lgo --
+package main
+
+func funcGrouped() int {
+	const (
+		a = []int{1, 2}
+		b = []int{5, 6}
+	)
+	l := b
+	l[0] = 70
+	return b[0] - 5 + a[0] - 1
+}
+
+func main() { funcGrouped() }
+-- local-funcMapBearing.lgo --
+package main
+
+func funcMapBearing() int {
+	const c = box{M: map[string]int{"a": 1}, L: []int{5, 6, 7}, N: 1}
+	l := c.L
+	l[0] = 70
+	return c.L[0] - 5
+}
+
+func main() { funcMapBearing() }
+-- local-positive.lgo --
+package main
+
+import "fmt"
+
+func arrayCopy() int {
+	a := cfg.A
+	a[0] = 99
+	return 0
+}
+
+func arrayPointer() int {
+	p := &cfg.A
+	p[0] = 70
+	return 0
+}
+
+func plainArrayPointer() int {
+	p := &pl.A
+	p[0] = 71
+	return 0
+}
+
+func mapValue() int {
+	v, _ := lookup["a"]
+	v[0] = 70
+	return 0
+}
+
+func funcArrayCopy() int {
+	const a = [3]int{5, 6, 7}
+	b := a
+	b[0] = 70
+	return a[0] - 5
+}
+
+func funcAddress() int {
+	const c = plain{V: []int{5, 6, 7}, A: [3]int{1, 2, 3}, N: 1}
+	p := &c
+	q := &c.A
+	r := &c.N
+	p.N = 70
+	q[0] = 71
+	*r = 72
+	return c.N - 1 + c.A[0] - 1
+}
+func drift() int {
+	a, _ := lookup["a"]
+	d := cfg.L[0] - 3 + items[1].L[0] - 10 + len(cfg.M) - 1 + cfg.A[0] - 4
+	d += pl.V[0] - 3 + pl.A[0] - 4 + rows[0].V[0] - 1 + rows[1].N - 2
+	d += grid[0][0] - 1 + len(grid[0]) - 2 + a[0] - 5
+	return d
+}
+
+func main() {
+	fmt.Println("before")
+	if arrayCopy() != 0 || drift() != 0 { panic("arrayCopy changed constant") }
+	if arrayPointer() != 0 || drift() != 0 { panic("arrayPointer changed constant") }
+	if plainArrayPointer() != 0 || drift() != 0 { panic("plainArrayPointer changed constant") }
+	if mapValue() != 0 || drift() != 0 { panic("mapValue changed constant") }
+	if funcArrayCopy() != 0 || drift() != 0 { panic("funcArrayCopy changed constant") }
+	if funcAddress() != 0 || drift() != 0 { panic("funcAddress changed constant") }
+	fmt.Println("after", drift())
+}
+-- imported/go.mod --
+module example.com/ccreadwriteimp
+
+go 1.27
+
+-- imported/lib/go.mod --
+module example.com/ccrwlib
+
+go 1.27
+
+-- imported/lib/lib.lgo --
+package lib
+
+type Box struct {
+	M map[string]int
+	L []int
+	A [3]int
+	N int
+}
+
+type Plain struct {
+	L []int
+	N int
+}
+
+const C = Box{M: map[string]int{"a": 1}, L: []int{3, 2, 1}, A: [3]int{4, 5, 6}, N: 7}
+
+const Items = []Box{
+	{M: map[string]int{"a": 1}, L: []int{1, 2}, A: [3]int{1, 1, 1}, N: 1},
+	{M: map[string]int{"a": 5}, L: []int{10, 20}, A: [3]int{2, 2, 2}, N: 2},
+}
+
+const P = Plain{L: []int{3, 2, 1}, N: 7}
+
+const Ints = []int{9, 8, 7}
+
+-- imported/app/go.mod --
+module example.com/ccrwapp
+
+go 1.27
+
+require example.com/ccrwlib v0.0.0
+
+replace example.com/ccrwlib => ../lib
+
+-- imported-attacks.lgo --
+package main
+
+import (
+	"fmt"
+	"os"
+
+	"example.com/ccrwlib"
+)
+
+func varCopy() int {
+	l := lib.C.L
+	l[0] = 70
+	return 0
+}
+
+func elementField() int {
+	l := lib.Items[1].L
+	l[0] = 70
+	return 0
+}
+
+func variableIndex() int {
+	i := 1
+	l := lib.Items[i].L
+	l[0] = 70
+	return 0
+}
+
+func wholeCopy() int {
+	c := lib.C
+	c.L[0] = 70
+	return 0
+}
+
+func plainField() int {
+	l := lib.P.L
+	l[0] = 70
+	return 0
+}
+
+func plainSlice() int {
+	l := lib.Ints
+	l[0] = 70
+	return 0
+}
+
+func control() int { return 0 }
+
+var cases = map[string]func() int{
+	"var-copy":       varCopy,
+	"element-field":  elementField,
+	"variable-index": variableIndex,
+	"whole-copy":     wholeCopy,
+	"plain-field":    plainField,
+	"plain-slice":    plainSlice,
+	"control":        control,
+}
+
+func drift() int {
+	return lib.C.L[0] - 3 + lib.Items[1].L[0] - 10 + lib.P.L[0] - 3 + lib.Ints[0] - 9
+}
+
+func main() {
+	fmt.Println("before")
+	run, ok := cases[os.Args[1]]
+	if !ok {
+		os.Exit(2)
+	}
+	delta := run()
+	fmt.Println("after", drift()+delta)
+}
+-- imported/app/main.lgo --
+package main
+
+import (
+	"fmt"
+	"example.com/ccrwlib"
+)
+
+func main() {
+	fmt.Println("before")
+	n := &lib.C.N
+	*n = 70
+	a := &lib.C.A[0]
+	*a = 71
+	outer := &lib.C
+	outer.N = 72
+	if *n != 70 || *a != 71 || outer.N != 72 {
+		panic("detached writes lost")
+	}
+	if lib.C.N != 7 || lib.C.A[0] != 4 || lib.C.L[0] != 3 || lib.Items[1].L[0] != 10 || lib.P.L[0] != 3 || lib.Ints[0] != 9 {
+		panic("constant changed")
+	}
+	fmt.Println("after", 0)
+}

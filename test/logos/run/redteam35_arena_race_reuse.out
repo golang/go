@@ -1,2 +1,4 @@
-reuse: 26112000
-interleave: 5120
+ok arena-reuse-rounds
+ok arena-reuse-carried
+ok arena-reuse-last
+ok arena-reuse-interleave

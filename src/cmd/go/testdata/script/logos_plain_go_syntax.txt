@@ -1,0 +1,124 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+go build -o $WORK/pos$GOEXE ./pos
+go run ./pos
+stdout '^6979$'
+
+! go build ./...
+stderr 'constfor\.go:4:8'
+stderr 'constif\.go:4:8'
+stderr 'constswitch\.go:4:8'
+stderr 'constfunc\.go:3:7'
+stderr 'constmethod\.go:4:2'
+stderr 'question\.go:4:5'
+stderr 'qdot\.go:6:10'
+stderr 'coal\.go:4:11'
+stderr 'arrow\.go:4:9'
+stderr 'interp\.go:4:9'
+
+-- go.mod --
+module example.com/plainneg
+
+go 1.27
+
+-- pos/main.go --
+package main
+
+import "fmt"
+
+var sink = make(chan int, 4)
+
+func group(x int) { sink <- x * 2 }
+
+func scope(x int) int { return x + 1 }
+
+func main() {
+	yield := 6
+	scopeV := scope(7)
+	go group(8)
+	errdefer := 9
+	const k = 10
+	g := <-sink
+	fmt.Println(yield*1000 + scopeV*100 + g*10 + errdefer + k)
+}
+
+-- cfor/constfor.go --
+package neg
+
+func constFor() {
+	const for i := range x {}
+}
+
+-- cif/constif.go --
+package neg
+
+func constIf(x int) int {
+	const if x == 1 {
+		return 1
+	}
+	return 0
+}
+
+-- cswitch/constswitch.go --
+package neg
+
+func constSwitch[T any](v T) int {
+	const switch T {
+	case int:
+		return 1
+	}
+	return 0
+}
+
+-- cfunc/constfunc.go --
+package neg
+
+const func constFunc() {}
+
+-- cmethod/constmethod.go --
+package neg
+
+type iface interface {
+	const M() int
+}
+
+-- cq/question.go --
+package neg
+
+func question() {
+	g()?
+}
+
+func g() {}
+
+-- cqd/qdot.go --
+package neg
+
+type u struct{ x int }
+
+func qdot(v *u) int {
+	return v?.x
+}
+
+-- cqq/coal.go --
+package neg
+
+func coal(a, b int) int {
+	return a ?? b
+}
+
+-- carr/arrow.go --
+package neg
+
+func arrow(x int) int {
+	h := x => x + 1
+	return h(x)
+}
+
+-- cix/interp.go --
+package neg
+
+func interp(name string) string {
+	return $"hi {name}"
+}

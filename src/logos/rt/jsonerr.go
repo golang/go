@@ -11,7 +11,7 @@ import (
 
 // MissingFieldError is the error a generated UnmarshalJSON returns when a
 // required non-nil field is absent from the object or holds JSON null
-// (SPEC Sec 12.2, T-Sec12). Type is the struct type name and Field is the
+// (SPEC Sec 10.2, T-Sec10). Type is the struct type name and Field is the
 // Go field name.
 type MissingFieldError struct {
 	Type  string
@@ -25,7 +25,7 @@ func (e MissingFieldError) Error() string {
 
 // UnionTrialError is the error a generated UnmarshalJSON returns when
 // trial unmarshaling of a closed union fails because zero members matched
-// or more than one member matched (ambiguity) (SPEC Sec 12.2, T-Sec12, T-203.1).
+// or more than one member matched (ambiguity) (SPEC Sec 10.2, T-Sec10, T-203.1).
 type UnionTrialError struct {
 	Union   string
 	Members []string

@@ -1,0 +1,82 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed = false
+
+func check(name string, ok bool, detail string) {
+	if !ok {
+		fmt.Printf("FAIL %s: %s\n", name, detail)
+		failed = true
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func sameStrings(a, c []string) bool {
+	if len(a) != len(c) {
+		return false
+	}
+	for i := range a {
+		if a[i] != c[i] {
+			return false
+		}
+	}
+	return true
+}
+
+var fLog []string
+
+func fNote(s string, n int) int {
+	fLog = append(fLog, fmt.Sprint("arg ", s))
+	return n
+}
+
+type fHolder struct {
+	cb  func(int)
+	get func() int
+}
+
+func newHolder() *fHolder? {
+	return &fHolder{
+		cb:  func(n int) { fLog = append(fLog, fmt.Sprint("cb ", n)) },
+		get: func() int { return 7 },
+	}
+}
+
+func deferFieldLogos(h *fHolder?) []string {
+	fLog = nil
+	func() {
+		defer h?.cb(fNote("a", 1))
+		fLog = append(fLog, "body")
+	}()
+	return append([]string(nil), fLog...)
+}
+
+func deferFieldHand(h *fHolder?) []string {
+	fLog = nil
+	func() {
+		if h != nil {
+			defer h.cb(fNote("a", 1))
+		}
+		fLog = append(fLog, "body")
+	}()
+	return append([]string(nil), fLog...)
+}
+
+func main() {
+	var none *fHolder?
+	some := newHolder()
+	dl, dh := deferFieldLogos(some), deferFieldHand(some)
+	check("defer-field", sameStrings(dl, dh) && len(dh) == 3, fmt.Sprint("got ", dl, " want ", dh))
+	dln, dhn := deferFieldLogos(none), deferFieldHand(none)
+	check("defer-field-none", sameStrings(dln, dhn) && len(dhn) == 1, fmt.Sprint("got ", dln, " want ", dhn))
+	if failed {
+		os.Exit(1)
+	}
+}

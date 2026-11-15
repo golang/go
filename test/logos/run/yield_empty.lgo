@@ -1,0 +1,80 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"iter"
+	"os"
+	"slices"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func Empty() iter.Seq[int] {
+}
+
+func EmptyPairs() iter.Seq2[int, string] {
+}
+
+func Forwarded(xs []int) iter.Seq[int] {
+	return slices.Values(xs)
+}
+
+func Guarded(n int) iter.Seq[int] {
+	if n > 0 {
+		yield n
+	}
+}
+
+type Source struct {
+	items []int
+}
+
+func (s Source) All() iter.Seq[int] {
+}
+
+func main() {
+	count := 0
+	for range Empty() {
+		count++
+	}
+	check("no-yield-is-empty", count == 0, count, 0)
+
+	pairs := 0
+	for range EmptyPairs() {
+		pairs++
+	}
+	check("no-yield-pairs-is-empty", pairs == 0, pairs, 0)
+
+	seq := Empty()
+	check("no-yield-is-a-sequence", seq != nil, seq != nil, true)
+
+	forwarded := 0
+	for range Forwarded([]int{1, 2, 3}) {
+		forwarded++
+	}
+	check("returned-iterator-is-discarded", forwarded == 0, forwarded, 0)
+
+	check("guarded-skips-yield", len(slices.Collect(Guarded(0))) == 0, len(slices.Collect(Guarded(0))), 0)
+	check("guarded-reaches-yield", slices.Equal(slices.Collect(Guarded(5)), []int{5}), slices.Collect(Guarded(5)), []int{5})
+
+	method := 0
+	for range (Source{items: []int{1, 2}}).All() {
+		method++
+	}
+	check("no-yield-method-is-empty", method == 0, method, 0)
+
+	if failed {
+		os.Exit(1)
+	}
+}

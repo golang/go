@@ -5,9 +5,31 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os"
+	"strings"
 
 	"logos/rt"
 )
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type observed[T any] struct {
+	v   T
+	err error
+}
+
+func observe[T any](v T, err error) observed[T] {
+	return observed[T]{v, err}
+}
 
 var errChain = errors.New("chain")
 
@@ -35,20 +57,36 @@ func top(fail bool) (int, error) {
 
 func run() error {
 	n := top(false)?
-	fmt.Println("value:", n)
-	n2, err := top(true)
-	if err != nil {
-		fmt.Println("zero:", n2)
-		return err
+	check("value", n == 16, n, 16)
+	res := observe(top(true))
+	n2, err := res.v, res.err
+	okZero := err != nil && n2 == 0
+	check("zero", okZero, okZero, true)
+	okErr := err != nil && err.Error() == "chain"
+	check("err", okErr, okErr, true)
+	if err == nil {
+		return nil
 	}
-	return nil
+	trace := rt.ErrorTrace()
+	check("trace-len", len(trace) == 3, len(trace), 3)
+	if len(trace) == 3 {
+		okFiles := true
+		for _, s := range trace {
+			if !strings.HasSuffix(s.File, "try_chain.lgo") {
+				okFiles = false
+			}
+		}
+		check("trace-files", okFiles, fmt.Sprint(trace), "try_chain.lgo x3")
+		lines := fmt.Sprint(trace[0].Line, trace[1].Line, trace[2].Line)
+		check("trace-lines", lines == "44 49 54", lines, "44 49 54")
+	}
+	return err
 }
 
 func main() {
-	if err := run(); err != nil {
-		fmt.Println("err:", err)
-		for _, s := range rt.ErrorTrace() {
-			fmt.Printf("%s:%d\n", s.File, s.Line)
-		}
+	err := run()
+	check("run-err", err != nil && err.Error() == "chain", fmt.Sprint(err), "chain")
+	if failed {
+		os.Exit(1)
 	}
 }

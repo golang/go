@@ -1,0 +1,225 @@
+// run
+
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"sync"
+	"time"
+)
+
+var failed = false
+
+func check(name string, ok bool, detail string) {
+	if !ok {
+		fmt.Printf("FAIL %s: %s\n", name, detail)
+		failed = true
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func sameStrings(a, c []string) bool {
+	if len(a) != len(c) {
+		return false
+	}
+	for i := range a {
+		if a[i] != c[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func must(err error) {
+	if err != nil {
+		fmt.Println("FAIL group:", err)
+		failed = true
+	}
+}
+
+type aT struct {
+	aName string
+}
+
+var (
+	aMu  sync.Mutex
+	aLog []string
+)
+
+func aNote(s string) {
+	aMu.Lock()
+	aLog = append(aLog, s)
+	aMu.Unlock()
+}
+
+func (t *aT) aSetF(f float64)       { aNote(fmt.Sprint("SetF ", f)) }
+func (t *aT) aPtr(p *int?)          { aNote(fmt.Sprint("Ptr ", p == nil)) }
+func (t *aT) aPair(a int, b string) { aNote(fmt.Sprint("Pair ", a, " ", b)) }
+func (t *aT) aVar(xs ...any)        { aNote(fmt.Sprint("Var ", xs)) }
+func (t *aT) aDur(d time.Duration)  { aNote(fmt.Sprint("Dur ", d)) }
+func (t *aT) aErr(e error)          { aNote(fmt.Sprint("Err ", e)) }
+
+func aPair() (int, string) {
+	return 7, "seven"
+}
+
+func aOnce(name string) string {
+	aNote("arg " + name)
+	return name
+}
+
+func (t *aT) aStr(s string) { aNote("Str " + s) }
+
+func logosSetF(o *aT?)   { defer o?.aSetF(1) }
+func logosPtr(o *aT?)    { defer o?.aPtr(nil) }
+func logosPair(o *aT?)   { defer o?.aPair(aPair()) }
+func logosVar(o *aT?)    { defer o?.aVar(1, nil, "a") }
+func logosDur(o *aT?)    { defer o?.aDur(5) }
+func logosErr(o *aT?)    { defer o?.aErr(nil) }
+func logosOnce(o *aT?)   { defer o?.aStr(aOnce("x")) }
+
+func handSetF(o *aT?) {
+	if o != nil {
+		defer o.aSetF(1)
+	}
+}
+
+func handPtr(o *aT?) {
+	if o != nil {
+		defer o.aPtr(nil)
+	}
+}
+
+func handPair(o *aT?) {
+	if o != nil {
+		defer o.aPair(aPair())
+	}
+}
+
+func handVar(o *aT?) {
+	if o != nil {
+		defer o.aVar(1, nil, "a")
+	}
+}
+
+func handDur(o *aT?) {
+	if o != nil {
+		defer o.aDur(5)
+	}
+}
+
+func handErr(o *aT?) {
+	if o != nil {
+		defer o.aErr(nil)
+	}
+}
+
+func handOnce(o *aT?) {
+	if o != nil {
+		defer o.aStr(aOnce("x"))
+	}
+}
+
+func goLogosSetF(ctx context.Context, o *aT?) error {
+	go group (ctx) {
+		go o?.aSetF(1)
+	}
+	return nil
+}
+
+func goLogosPtr(ctx context.Context, o *aT?) error {
+	go group (ctx) {
+		go o?.aPtr(nil)
+	}
+	return nil
+}
+
+func goLogosPair(ctx context.Context, o *aT?) error {
+	go group (ctx) {
+		go o?.aPair(aPair())
+	}
+	return nil
+}
+
+func goHandSetF(ctx context.Context, o *aT?) error {
+	go group (ctx) {
+		if o != nil {
+			go o.aSetF(1)
+		}
+	}
+	return nil
+}
+
+func goHandPtr(ctx context.Context, o *aT?) error {
+	go group (ctx) {
+		if o != nil {
+			go o.aPtr(nil)
+		}
+	}
+	return nil
+}
+
+func goHandPair(ctx context.Context, o *aT?) error {
+	go group (ctx) {
+		if o != nil {
+			go o.aPair(aPair())
+		}
+	}
+	return nil
+}
+
+func runLogged(f func()) []string {
+	aLog = nil
+	f()
+	return append([]string(nil), aLog...)
+}
+
+func main() {
+	some := &aT{aName: "t"}
+	var none *aT?
+	deferCases := []struct {
+		name   string
+		logos  func(*aT?)
+		hand   func(*aT?)
+		expect string
+	}{
+		{"const-float", logosSetF, handSetF, "SetF 1"},
+		{"nil-option", logosPtr, handPtr, "Ptr true"},
+		{"multi-value", logosPair, handPair, "Pair 7 seven"},
+		{"variadic-nil", logosVar, handVar, "Var [1 <nil> a]"},
+		{"const-duration", logosDur, handDur, "Dur 5ns"},
+		{"nil-error", logosErr, handErr, "Err <nil>"},
+		{"arg-once", logosOnce, handOnce, "Str x"},
+	}
+	for _, c := range deferCases {
+		var o *aT? = some
+		got := runLogged(func() { c.logos(o) })
+		want := runLogged(func() { c.hand(o) })
+		check("defer-"+c.name, sameStrings(got, want) && len(want) > 0 && want[len(want)-1] == c.expect, fmt.Sprint("got ", got, " want ", want))
+		gotNone := runLogged(func() { c.logos(none) })
+		wantNone := runLogged(func() { c.hand(none) })
+		check("defer-none-"+c.name, sameStrings(gotNone, wantNone) && len(wantNone) == 0, fmt.Sprint("got ", gotNone, " want ", wantNone))
+	}
+	goCases := []struct {
+		name   string
+		logos  func(context.Context, *aT?) error
+		hand   func(context.Context, *aT?) error
+		expect string
+	}{
+		{"const-float", goLogosSetF, goHandSetF, "SetF 1"},
+		{"nil-option", goLogosPtr, goHandPtr, "Ptr true"},
+		{"multi-value", goLogosPair, goHandPair, "Pair 7 seven"},
+	}
+	for _, c := range goCases {
+		var o *aT? = some
+		got := runLogged(func() { must(c.logos(context.Background(), o)) })
+		want := runLogged(func() { must(c.hand(context.Background(), o)) })
+		check("go-"+c.name, sameStrings(got, want) && len(want) == 1 && want[0] == c.expect, fmt.Sprint("got ", got, " want ", want))
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

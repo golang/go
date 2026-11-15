@@ -1,0 +1,121 @@
+# A loGo/s importer consumes assertion effects from a `lang go`
+# member: instantiating a proven-zero Go generic with a readonly
+# interface argument compiles only when the importer applies the
+# recorded AssertTP=0,AssertRTP=0 effects; without them the build
+# fails with an unverified-effects error.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+cd w
+logos build -o $WORK/al.a ./al/lib
+go tool pack p $WORK/al.a __.LOGOS
+stdout '^fn Identity AssertTP=0,AssertRTP=0$'
+stdout '^lang go$'
+
+cd ac
+logos build -o $WORK/bin/assert$GOEXE .
+exec $WORK/bin/assert$GOEXE
+stdout '^thing$'
+cd ..
+cd ..
+
+env SRC=$PWD
+mkdir $WORK/ok/example.com/alg
+mkdir $WORK/cut/example.com/alg
+mkdir $WORK/members
+cd w/al/lib
+go tool compile -p example.com/alg/lib -o $WORK/ok/example.com/alg/lib.a lib.go
+cd $WORK/members
+go tool pack x $WORK/ok/example.com/alg/lib.a
+go tool pack p $WORK/ok/example.com/alg/lib.a __.LOGOS
+stdout '^fn Identity AssertTP=0,AssertRTP=0$'
+exec grep -v '^fn Identity ' __.LOGOS
+cp stdout facts.cut
+rm __.LOGOS
+cp facts.cut __.LOGOS
+go tool pack c $WORK/cut/example.com/alg/lib.a __.PKGDEF __.LOGOS _go_.o
+go tool pack p $WORK/cut/example.com/alg/lib.a __.LOGOS
+stdout '^lang go$'
+! stdout 'AssertTP'
+cd $SRC/w/neg
+go tool compile -p main -I $WORK/ok -o $WORK/neg-ok.o neg.lgo
+! go tool compile -p main -I $WORK/cut -o $WORK/neg-cut.o neg.lgo
+stdout 'neg\.lgo:16:22: \[correctness::const_view_mutation\]'
+
+-- w/go.work --
+go 1.27
+
+use (
+	./al
+	./ac
+)
+
+-- w/al/go.mod --
+module example.com/alg
+
+go 1.27
+
+-- w/al/lib/lib.go --
+package lib
+
+func Identity[T any](x T) T { return x }
+
+type Person struct {
+	N string
+}
+
+func (p Person) Name() string {
+	return p.N
+}
+
+-- w/ac/go.mod --
+module example.com/acimp
+
+go 1.27
+
+require example.com/alg v0.0.0
+
+replace example.com/alg => ../al
+
+-- w/ac/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/alg/lib"
+)
+
+type ROI interface {
+	const Name() string
+}
+
+type Thing struct{}
+
+func (Thing) Name() string {
+	return "thing"
+}
+
+func main() {
+	fmt.Println(lib.Identity[ROI](Thing{}).Name())
+}
+
+-- w/neg/neg.lgo --
+package main
+
+import "example.com/alg/lib"
+
+type ROI interface {
+	const Name() string
+}
+
+type Thing struct{}
+
+func (Thing) Name() string {
+	return "thing"
+}
+
+func main() {
+	println(lib.Identity[ROI](Thing{}).Name())
+}

@@ -1,6 +1,3 @@
-// Nocallback fixture (M20-S1): the .lgo spelling of a nocallback C
-// function that calls back into Go. `logos run` must panic with the
-// documented message instead of hanging or succeeding.
 package main
 
 /*

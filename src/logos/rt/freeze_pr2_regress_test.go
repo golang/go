@@ -24,7 +24,6 @@ func TestFreezeSliceRetainsCapTail(t *testing.T) {
 	if !reflect.DeepEqual(got[:3], []int{10, 20, 30}) {
 		t.Fatalf("full-cap view = %v, want [10 20 30]", got[:3])
 	}
-	// Empty header keeps its capacity and its tail.
 	empty := s[:0]
 	z := *rt.Freeze(&empty)
 	if len(z) != 0 || cap(z) != 3 {
@@ -33,7 +32,6 @@ func TestFreezeSliceRetainsCapTail(t *testing.T) {
 	if !reflect.DeepEqual(z[:3], []int{10, 20, 30}) {
 		t.Fatalf("empty full-cap view = %v, want [10 20 30]", z[:cap(z)])
 	}
-	// Deep-copy isolation: later source writes must not leak into the copy.
 	s[1] = 99
 	s[2] = 100
 	if !reflect.DeepEqual(got[:3], []int{10, 20, 30}) {
@@ -59,7 +57,6 @@ func TestFreezeSliceCapIsPartOfIdentity(t *testing.T) {
 	if len(got.B) != 1 || !reflect.DeepEqual(got.B[:3], []int{10, 20, 30}) {
 		t.Fatalf("B full-cap = %v len %d", got.B[:cap(got.B)], len(got.B))
 	}
-	// Reverse field order must not widen the narrow header either.
 	rev := struct {
 		A []int
 		B []int

@@ -1,0 +1,25 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# REDTEAM255: segment scope cleanup runs before function cleanup, at the
+# lexical block exit, on rejected filter elements, and during panic unwind.
+cp $GOROOT/test/logos/run/chain_stage_scope_defer.lgo a/main.lgo
+cd a
+logos run .
+cmp stdout $GOROOT/test/logos/run/chain_stage_scope_defer.out
+logos eject -o out
+exists out/main.go
+! exists out/main.lgo
+cd out
+go run .
+cmp stdout $GOROOT/test/logos/run/chain_stage_scope_defer.out
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/chain_stage_scope_defer.out
+
+-- a/go.mod --
+module example.com/chainstagescopedefer
+
+go 1.27

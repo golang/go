@@ -1,0 +1,85 @@
+// run
+
+package jsonunion
+
+import (
+	"encoding/json"
+	"errors"
+	"strings"
+	"testing"
+
+	"logos/rt"
+)
+
+func mustUnmarshal(t *testing.T, data []byte, dst any) {
+	t.Helper()
+	if err := json.Unmarshal(data, dst); err != nil {
+		panic(err)
+	}
+}
+
+var orderLog []string
+
+type OrdA struct {
+	ID int64 `json:"id"`
+}
+
+func (o *OrdA) UnmarshalJSON(b []byte) error {
+	orderLog = append(orderLog, "A")
+	type plain OrdA
+	var p plain
+	if err := json.Unmarshal(b, &p); err != nil {
+		return err
+	}
+	*o = OrdA(p)
+	return nil
+}
+
+type OrdB struct {
+	ID int64 `json:"id"`
+}
+
+func (o *OrdB) UnmarshalJSON(b []byte) error {
+	orderLog = append(orderLog, "B")
+	type plain OrdB
+	var p plain
+	if err := json.Unmarshal(b, &p); err != nil {
+		return err
+	}
+	*o = OrdB(p)
+	return nil
+}
+
+type OrdUnion interface {
+	OrdA | OrdB
+}
+
+type OrdHolder struct {
+	Item OrdUnion `json:"item"`
+}
+
+func TestUnionUnmarshalDeclarationOrder(t *testing.T) {
+	orderLog = nil
+	var h OrdHolder
+	err := json.Unmarshal([]byte(`{"item":{"id":1}}`), &h)
+	if err == nil {
+		t.Fatal("expected ambiguity error, got nil")
+	}
+	if len(orderLog) != 2 || orderLog[0] != "A" || orderLog[1] != "B" {
+		t.Fatalf("trials ran in %v, want [A B] declaration order", orderLog)
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "OrdUnion") || !strings.Contains(msg, "OrdA") || !strings.Contains(msg, "OrdB") {
+		t.Fatalf("ambiguity error %q must name the union and both members", msg)
+	}
+	var trialErr rt.UnionTrialError
+	if !errors.As(err, &trialErr) {
+		t.Fatalf("expected rt.UnionTrialError, got %T: %v", err, err)
+	}
+	if trialErr.Matched != 2 {
+		t.Fatalf("expected 2 matches, got %d", trialErr.Matched)
+	}
+	if h.Item != nil {
+		t.Fatalf("failed trials left the target touched: %#v", h.Item)
+	}
+}

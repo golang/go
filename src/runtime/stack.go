@@ -686,7 +686,7 @@ func adjustpointers(scanp unsafe.Pointer, bv *bitvector, adjinfo *adjustinfo, f 
 				}
 				if useCAS {
 					ppu := (*unsafe.Pointer)(unsafe.Pointer(pp))
-					if !zgcAtomicCasp1(ppu, unsafe.Pointer(p), unsafe.Pointer(p+delta)) {
+					if !atomic.Casp1(ppu, unsafe.Pointer(p), unsafe.Pointer(p+delta)) {
 						goto retry
 					}
 				} else {

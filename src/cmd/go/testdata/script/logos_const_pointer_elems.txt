@@ -1,0 +1,120 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd nilelem
+! logos build -o out .
+stderr -count=1 '\[correctness::const_eval\]'
+stderr -count=1 '\[correctness::nil_to_nonnil\]'
+stderr 'main\.lgo:10:7: \[correctness::const_eval\]'
+stderr 'main\.lgo:10:28: \[correctness::nil_to_nonnil\]'
+! stderr 'internal compiler error'
+cd ..
+
+cd nilarray
+! logos build -o out .
+stderr -count=1 '\[correctness::const_eval\]'
+stderr -count=1 '\[correctness::nil_to_nonnil\]'
+stderr 'main\.lgo:10:7: \[correctness::const_eval\]'
+stderr 'main\.lgo:10:19: \[correctness::nil_to_nonnil\]'
+! stderr 'internal compiler error'
+cd ..
+
+cd empty
+! logos build -o out .
+stderr -count=1 '\[correctness::const_eval\]'
+stderr 'main\.lgo:10:7: \[correctness::const_eval\]'
+! stderr 'nil_to_nonnil'
+! stderr 'internal compiler error'
+cd ..
+
+cd plain
+! logos build -o out .
+stderr -count=1 '\[correctness::nil_to_nonnil\]'
+stderr 'main\.lgo:10:26: \[correctness::nil_to_nonnil\]'
+! stderr 'const_eval'
+! stderr 'internal compiler error'
+cd ..
+
+-- nilelem/go.mod --
+module example.com/nilelem
+
+go 1.27
+
+-- nilelem/main.lgo --
+package main
+
+import (
+	"fmt"
+	"time"
+)
+
+var _ time.Duration
+
+const c = []*time.Duration{nil}
+
+func main() {
+	fmt.Println(len(c))
+}
+
+-- nilarray/go.mod --
+module example.com/nilarray
+
+go 1.27
+
+-- nilarray/main.lgo --
+package main
+
+import (
+	"fmt"
+	"time"
+)
+
+var _ time.Duration
+
+const c = [1]*int{nil}
+
+func main() {
+	fmt.Println(len(c))
+}
+
+-- empty/go.mod --
+module example.com/empty
+
+go 1.27
+
+-- empty/main.lgo --
+package main
+
+import (
+	"fmt"
+	"time"
+)
+
+var _ time.Duration
+
+const c = []*time.Duration{}
+
+func main() {
+	fmt.Println(len(c))
+}
+
+-- plain/go.mod --
+module example.com/plain
+
+go 1.27
+
+-- plain/main.lgo --
+package main
+
+import (
+	"fmt"
+	"time"
+)
+
+var _ time.Duration
+
+var c = []*time.Duration{nil}
+
+func main() {
+	fmt.Println(len(c))
+}

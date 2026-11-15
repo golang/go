@@ -227,9 +227,10 @@ func (n *CallExpr) SetOp(op Op) {
 // A ClosureExpr is a function literal expression.
 type ClosureExpr struct {
 	miniExpr
-	Func     *Func `mknode:"-"`
-	Prealloc *Name
-	IsGoWrap bool // whether this is wrapper closure of a go statement
+	Func        *Func `mknode:"-"`
+	Prealloc    *Name
+	IsGoWrap    bool  // whether this is wrapper closure of a go statement
+	DeferTryErr *Name `mknode:"-"`
 }
 
 // A CompLitExpr is a composite literal Type{Vals}.
@@ -915,6 +916,12 @@ func staticValue1(nn Node) Node {
 	if defn == nil {
 		return nil
 	}
+	if op := defn.Op(); op != OAS && op != OAS2 {
+		return nil
+	}
+	if Reassigned(n) {
+		return nil
+	}
 
 	var rhs Node
 FindRHS:
@@ -931,15 +938,9 @@ FindRHS:
 			}
 		}
 		base.FatalfAt(defn.Pos(), "%v missing from LHS of %v", n, defn)
-	default:
-		return nil
 	}
 	if rhs == nil {
 		base.FatalfAt(defn.Pos(), "RHS is nil: %v", defn)
-	}
-
-	if Reassigned(n) {
-		return nil
 	}
 
 	return rhs

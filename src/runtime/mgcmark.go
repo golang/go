@@ -72,24 +72,17 @@ func (gp *g) internalBlocked() bool {
 func allGsSnapshotSortedForGC() ([]*g, int) {
 	assertWorldStoppedOrLockHeld(&allglock)
 
-	if gs, n, ok := logosCheckmarkStackRoots(); ok {
-		return gs, n
-	}
-	allgsSnap := logosGCCanonicalGs(allgs)
-
 	// Reset the status of leaked goroutines in order to improve
 	// the precision of goroutine leak detection.
-	for _, gp := range allgsSnap {
-		gp = logosGCCanonicalG(gp)
+	for _, gp := range allgs {
 		gp.atomicstatus.CompareAndSwap(_Gleaked, _Gwaiting)
 	}
 
-	allgsSorted := make([]*g, len(allgsSnap))
+	allgsSorted := make([]*g, len(allgs))
 
 	// Indices cutting off runnable and blocked Gs.
 	var currIndex, blockedIndex = 0, len(allgsSorted) - 1
-	for _, gp := range allgsSnap {
-		gp = logosGCCanonicalG(gp)
+	for _, gp := range allgs {
 		// not sure if we need atomic load because we are stopping the world,
 		// but do it just to be safe for now
 		if status := readgstatus(gp); status != _Gwaiting || gp.internalBlocked() {
@@ -196,7 +189,6 @@ func gcMarkRootCheck() {
 	// gcPrepareMarkRoots), no locking is required.
 	i := 0
 	forEachGRace(func(gp *g) {
-		gp = logosGCCanonicalG(gp)
 		if i >= work.nStackRoots {
 			return
 		}
@@ -274,7 +266,7 @@ func markroot(gcw *gcWork, i uint32, flushBgCredit bool) int64 {
 			print("runtime: markroot index ", i, " not in stack roots range [", work.baseStacks, ", ", work.baseEnd, ")\n")
 			throw("markroot: bad index")
 		}
-		gp := logosGCMarkrootStackG(work.stackRoots, i-work.baseStacks)
+		gp := work.stackRoots[i-work.baseStacks]
 
 		// remember when we've first observed the G blocked
 		// needed only to output in traceback
@@ -960,10 +952,10 @@ func scanstack(gp *g, gcw *gcWork) int64 {
 	var state stackScanState
 	state.stack = gp.stack
 
-	if goexperiment.LogosArena && gp.logosArena != nil {
+	if goexperiment.LogosArena && (gp.logosArena != nil || gp.logosRegions != nil) {
 		logosArenaScanStack(gp, gcw, &state)
+		logosRegionScan(gp, gcw, &state)
 	}
-
 	if stackTraceDebug {
 		println("stack trace goroutine", gp.goid)
 	}
@@ -1520,10 +1512,6 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork, stk *stackScanState)
 			if bits&1 != 0 {
 				// Same work as in scanObject; see comments there.
 				p := *(*uintptr)(unsafe.Pointer(b + i))
-				if zgcCycleEnabled() {
-					zgcHealScanSlot((*uintptr)(unsafe.Pointer(b + i)))
-					p = *(*uintptr)(unsafe.Pointer(b + i))
-				}
 				if p != 0 {
 					if stk != nil && p >= stk.stack.lo && p < stk.stack.hi {
 						stk.putPtr(p, false)
@@ -1667,18 +1655,9 @@ func shade(b uintptr) {
 //
 //go:nowritebarrierrec
 func greyobject(obj, base, off uintptr, span *mspan, gcw *gcWork, objIndex uintptr) {
-	if zgcCycleEnabled() {
-		var ok bool
-		if obj, span, objIndex, ok = zgcResolveScanTarget(obj, span, objIndex); !ok {
-			return
-		}
-	}
 	// obj should be start of allocation, and so must be at least pointer-aligned.
 	if obj&(goarch.PtrSize-1) != 0 {
 		throw("greyobject: obj not pointer-aligned")
-	}
-	if logosGenSkip(span) {
-		return
 	}
 	mbits := span.markBitsForIndex(objIndex)
 

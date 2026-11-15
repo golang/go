@@ -417,7 +417,6 @@ func runtime_mapassign_fast64ptr(typ *abi.MapType, m *Map, key unsafe.Pointer) u
 	} else {
 		hash = memHash64Fallback(uint64((uintptr)(key)), m.seed)
 	}
-	pinKey(typ, unsafe.Pointer(&key))
 
 	// Set writing after calling Hasher, since Hasher may panic, in which
 	// case we have not actually done a write.

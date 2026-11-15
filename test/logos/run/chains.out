@@ -1,31 +1,32 @@
-[6 8 10 18 12]
-5
-1
-[]
-[]
--1
-4
-[3 1 4]
-[4 1 5 9 2 6]
-5
-{5 true}
-5
-3 <nil>
-true
-true
-false
-3
-6
-31
-8
-5
-[{1 a} {2 d} {3 c} {3 b}]
-true
-10.333333333333334
-0
-[{NaN n1} {NaN n2} {0 c} {1 a} {1 b}]
-fail
-[2 1 0]
-at-return closes: [2 1 0]
-[3 2 1]
-[2 4 6]
+ok filter-map-take
+ok map-calls
+ok recv-calls
+ok take-stops-map
+ok take-neg
+ok drop-huge
+ok get-neg
+ok get-idx
+ok take-3
+ok drop-2
+ok find-gt4
+ok show-pos
+ok find-pos
+ok count-pos
+ok any-gt8
+ok all-pos
+ok all-gt2
+ok first
+ok last
+ok sum
+ok count
+ok count-gt2
+ok sortby-stable
+ok sortby-large-stable
+ok sum-float
+ok sum-cancellation
+ok sortby-nan
+ok load-fail
+ok close-order
+ok at-return-closes
+ok nest-count
+ok block-body

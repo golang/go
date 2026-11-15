@@ -1,0 +1,109 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+# A checked-source write into a const slice fails statically with the rule ID, before native code or eject.
+cd m
+cp ../checked.lgo main.lgo
+! logos build -o $WORK/bin/wchecked$GOEXE .
+stderr -count=7 '\[correctness::const_view_mutation\]'
+! logos eject -o $WORK/wchecked-out
+stderr -count=7 '\[correctness::const_view_mutation\]'
+
+# A store that bypasses checked-source enforcement faults at run time, because constant data with pointers lives in read-only memory.
+cp ../forged.lgo main.lgo
+logos build -o $WORK/bin/wfault$GOEXE .
+! exec $WORK/bin/wfault$GOEXE store
+stderr 'unexpected fault address'
+! exec $WORK/bin/wfault$GOEXE increment
+stderr 'unexpected fault address'
+! exec $WORK/bin/wfault$GOEXE copy
+stderr 'unexpected fault address'
+! exec $WORK/bin/wfault$GOEXE copy-reslice
+stderr 'unexpected fault address'
+! exec $WORK/bin/wfault$GOEXE clear
+stderr 'unexpected fault address'
+! exec $WORK/bin/wfault$GOEXE store-nested
+stderr 'unexpected fault address'
+
+# An append to the full storage allocates a new array and leaves the constant alone.
+exec $WORK/bin/wfault$GOEXE append
+stdout '^append \[1 2 3 4\] \[1 2 3\]$'
+
+-- m/go.mod --
+module example.com/wfault
+
+go 1.27
+
+-- checked.lgo --
+package main
+
+import "fmt"
+
+type row struct {
+	N int
+	V []int
+}
+
+const L = []int{1, 2, 3}
+
+const R = []row{{N: 1, V: []int{4, 5}}}
+
+func main() {
+	L[0] = 9
+	L[1]++
+	copy(L, []int{7})
+	copy(L[1:], []int{7})
+	clear(L)
+	R[0].V[0] = 9
+	s := append(L, 4)
+	fmt.Println(s, L, R)
+}
+-- forged.lgo --
+package main
+
+import (
+	"fmt"
+	"os"
+	"strconv"
+	"unsafe"
+)
+
+type row struct {
+	N int
+	V []int
+}
+
+const L = []int{1, 2, 3}
+
+const R = []row{{N: 1, V: []int{4, 5}}}
+
+func forged(addr string, n int) []int {
+	p, err := strconv.ParseUint(addr[2:], 16, 64)
+	if err != nil {
+		panic(err)
+	}
+	return unsafe.Slice((*int)(unsafe.Pointer(uintptr(p))), n)
+}
+
+func main() {
+	f := forged(fmt.Sprintf("%p", L), len(L))
+	switch os.Args[1] {
+	case "store":
+		f[0] = 9
+	case "increment":
+		f[1]++
+	case "copy":
+		copy(f, []int{7})
+	case "copy-reslice":
+		copy(f[1:], []int{7})
+	case "clear":
+		clear(f)
+	case "store-nested":
+		forged(fmt.Sprintf("%p", R[0].V), len(R[0].V))[0] = 9
+	case "append":
+		s := append(f, 4)
+		fmt.Println("append", s, L)
+	}
+	fmt.Println("no fault", L, R)
+}

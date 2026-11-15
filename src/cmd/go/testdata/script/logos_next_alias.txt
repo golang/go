@@ -1,0 +1,97 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd canonical
+! logos next
+stderr 'module already holds loGo/s file'
+cd ..
+
+cd scroll
+! logos next
+stderr 'module already holds loGo/s file'
+cd ..
+
+cd lightning
+! logos next
+stderr 'module already holds loGo/s file'
+cd ..
+
+cd gopher
+! logos next
+stderr 'module already holds loGo/s file'
+cd ..
+
+cd converted
+logos next
+stdout 'already converted'
+cd ..
+
+-- canonical/go.mod --
+module example.com/nextcanonical
+
+go 1.27
+
+-- canonical/main.go --
+package main
+
+func main() {}
+
+-- canonical/skipped.lgo --
+//go:build ignore
+
+package main
+
+-- scroll/go.mod --
+module example.com/nextscroll
+
+go 1.27
+
+-- scroll/main.go --
+package main
+
+func main() {}
+
+-- scroll/skipped.📜 --
+//go:build ignore
+
+package main
+
+-- lightning/go.mod --
+module example.com/nextlightning
+
+go 1.27
+
+-- lightning/main.go --
+package main
+
+func main() {}
+
+-- lightning/skipped.⚡ --
+//go:build ignore
+
+package main
+
+-- gopher/go.mod --
+module example.com/nextgopher
+
+go 1.27
+
+-- gopher/main.go --
+package main
+
+func main() {}
+
+-- gopher/skipped.ʕ◔ϖ◔ʔ --
+//go:build ignore
+
+package main
+
+-- converted/go.mod --
+module example.com/nextconverted
+
+go 1.27
+
+-- converted/main.⚡ --
+package main
+
+func main() {}

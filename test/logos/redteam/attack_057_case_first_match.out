@@ -1,2 +1,2 @@
-first 1
-sub s
+ok const-switch-int-first-match
+ok const-switch-sub-fallback

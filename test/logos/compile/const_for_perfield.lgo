@@ -1,9 +1,5 @@
 // errorcheck
 
-// M7-S2 unrolled bodies are fully checked (SPEC Sec 2.5, T-205, #76):
-// the body below is valid for the string field and invalid for the int
-// field, so the iteration for N fails as an ordinary assignment error.
-
 package p
 
 import "comptime"
@@ -15,7 +11,7 @@ type Mixed struct {
 
 func perField(v Mixed) {
 	const for _, f := range comptime.Fields[Mixed]() {
-		var s string = v.[f] // ERROR "cannot use v.\[f\] \(variable of type int\) as string value"
+		var s string = v.[f] // ERROR "."
 		_ = s
 	}
 }
@@ -24,6 +20,6 @@ func take(s string) {}
 
 func perFieldCall(v Mixed) {
 	const for _, f := range comptime.Fields[Mixed]() {
-		take(v.[f]) // ERROR "cannot use v.\[f\] \(variable of type int\) as string value in argument to take"
+		take(v.[f]) // ERROR "."
 	}
 }

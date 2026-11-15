@@ -5,6 +5,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 )
 
@@ -33,11 +34,25 @@ func mixedFail() (err error) {
 	return errClose
 }
 
+var failed bool
+
+func check(name string, cond bool, got, want string) {
+	if !cond {
+		fmt.Printf("FAIL %s: got %s want %s\n", name, got, want)
+		failed = true
+		return
+	}
+	fmt.Printf("ok %s\n", name)
+}
+
 //logos:allow(slop::discarded_error)
 func main() {
 	_ = mixedOK()
-	fmt.Println("ok:", strings.Join(order, ","))
+	check("lifo-defer-before-defertry-on-success", strings.Join(order, ",") == "defer,defertry", strings.Join(order, ","), "defer,defertry")
 	order = nil
-	_ = mixedFail()
-	fmt.Println("fail:", strings.Join(order, ","))
+	ferr := mixedFail()
+	check("lifo-errdefer-last-on-failure", strings.Join(order, ",") == "defer,defertry,errdefer" && errors.Is(ferr, errClose), strings.Join(order, ","), "defer,defertry,errdefer")
+	if failed {
+		os.Exit(1)
+	}
 }

@@ -2,11 +2,21 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
-// M3 `?.` chains (SPEC Sec 1.4, T-104.3): none propagates, some
-// selects, and `??` supplies the default. Includes the probe shapes
-// `firstOr(x int?, d int)` and `u?.Name ?? "anon"`.
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 type User struct {
 	Name string
@@ -14,32 +24,59 @@ type User struct {
 }
 
 func (u User) Greet() string { return "hi " + u.Name }
-
 func (u *User) SetAge(a int) { u.Age = a }
 
-func firstOr(x int?, d int) int { return x ?? d }
+type Team struct {
+	Lead *User?
+}
 
+func firstOr(x int?, d int) int { return x ?? d }
 func greet(u *User?) string { return u?.Name ?? "anon" }
 
 func main() {
 	var u *User?
-	fmt.Println(greet(u))
+	gotG0 := greet(u)
+	check("greet-none", gotG0 == "anon", gotG0, "anon")
 	u = &User{Name: "ann", Age: 3}
-	fmt.Println(greet(u))
-	fmt.Println(u?.Name ?? "anon")
-	fmt.Println(u?.Age ?? -1)
+	gotG1 := greet(u)
+	check("greet-some", gotG1 == "ann", gotG1, "ann")
+	gotN := u?.Name ?? "anon"
+	check("chain-name", gotN == "ann", gotN, "ann")
+	gotA := u?.Age ?? -1
+	check("chain-age", gotA == 3, gotA, 3)
 	var v *User?
-	fmt.Println(v?.Name ?? "anon")
-	fmt.Println(v?.Age ?? -1)
-	fmt.Println(u?.Greet() ?? "nogreet")
-	fmt.Println(v?.Greet() ?? "nogreet")
+	gotVN := v?.Name ?? "anon"
+	check("nil-name", gotVN == "anon", gotVN, "anon")
+	gotVA := v?.Age ?? -1
+	check("nil-age", gotVA == -1, gotVA, -1)
+	gotUG := u?.Greet() ?? "nogreet"
+	check("some-greet", gotUG == "hi ann", gotUG, "hi ann")
+	gotVG := v?.Greet() ?? "nogreet"
+	check("none-greet", gotVG == "nogreet", gotVG, "nogreet")
 	u?.SetAge(5)
-	fmt.Println(u?.Age ?? -1)
+	gotSA := u?.Age ?? -1
+	check("set-some", gotSA == 5, gotSA, 5)
 	v?.SetAge(5)
-	fmt.Println(v?.Age ?? -1)
+	gotNA := v?.Age ?? -1
+	check("set-none", gotNA == -1, gotNA, -1)
+	var leadTeam *Team? = &Team{Lead: &User{Name: "ann"}}
+	gotL := leadTeam?.Lead?.Name ?? "anon"
+	check("nested-some", gotL == "ann", gotL, "ann")
+	var emptyTeam *Team? = &Team{}
+	gotE := emptyTeam?.Lead?.Name ?? "anon"
+	check("nested-empty", gotE == "anon", gotE, "anon")
+	var noTeam *Team?
+	gotT := noTeam?.Lead?.Name ?? "anon"
+	check("nested-none", gotT == "anon", gotT, "anon")
 	var n int?
-	fmt.Println(firstOr(n, 7))
+	gotF0 := firstOr(n, 7)
+	check("firstor-none", gotF0 == 7, gotF0, 7)
 	n = 41
-	fmt.Println(firstOr(n, 7))
-	fmt.Println(n ?? 0)
+	gotF1 := firstOr(n, 7)
+	check("firstor-some", gotF1 == 41, gotF1, 41)
+	gotC := n ?? 0
+	check("coalesce-some", gotC == 41, gotC, 41)
+	if failed {
+		os.Exit(1)
+	}
 }

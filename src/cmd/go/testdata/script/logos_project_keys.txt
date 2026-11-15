@@ -1,34 +1,20 @@
-# M0-S4: [project] keys: edition and name validation, name is
-# informational, and strict_files gates loGo/s extensions.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
-# Unsupported edition fails with the pinned error.
 cd badedition
 ! logos build .
-stderr 'logos\.toml:2:11: unsupported edition "2027" \(want "2026"\)'
+stderr 'logos\.toml:2:1: unknown key "edition"'
 cd ..
 
-# Empty project name fails with the pinned error.
 cd emptyname
 ! logos build .
-stderr 'logos\.toml:2:8: project name must not be empty'
+stderr 'logos\.toml:2:1: unknown key "name"'
 cd ..
 
-# Two builds differing only in name produce identical binaries.
-cd samename
-logos build -o $WORK/one$GOEXE .
-cp logos-two.toml logos.toml
-logos build -o $WORK/two$GOEXE .
-cmp $WORK/one$GOEXE $WORK/two$GOEXE
-cd ..
-
-# strict_files = [".lgo"] rejects the .⚡ file with the pinned error.
 cd strict
 ! logos build .
 stderr '\[correctness::extension_not_enabled\] x\.⚡: extension \.⚡ is not enabled by logos\.toml strict_files'
 
-# With the key absent the same module builds and runs.
 rm logos.toml
 logos build .
 logos run .
@@ -62,26 +48,6 @@ func main() {}
 -- emptyname/logos.toml --
 [project]
 name = ""
-
--- samename/go.mod --
-module samename
-
-go 1.27
-
--- samename/main.lgo --
-package main
-
-import "fmt"
-
-func main() { fmt.Println("hello") }
-
--- samename/logos.toml --
-[project]
-name = "one"
-
--- samename/logos-two.toml --
-[project]
-name = "two"
 
 -- strict/go.mod --
 module strict

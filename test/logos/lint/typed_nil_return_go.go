@@ -1,11 +1,5 @@
 // errorcheck
 
-// correctness::typed_nil_return on a Go package (SPEC Sec 1.2, T-102, R-U1):
-// only the (*T)(nil) form is active, because options and platform pointers do
-// not exist in Go. `logos lint` runs the rule at deny here, so a
-// //logos:allow directive silences it. A plain nil pointer variable returned
-// as an interface is not reported: that needs the nilness facts of loGo/s.
-
 package p
 
 import (

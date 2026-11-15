@@ -1,0 +1,325 @@
+// run
+
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+)
+
+var errLoad = errors.New("load")
+
+var last int
+
+var failed bool
+
+type holder struct {
+	n   int
+	arr [2]int
+}
+
+func (h *holder) take(v int, fail bool) (int, error) {
+	if fail {
+		return 0, errLoad
+	}
+	h.n = v
+	return v, nil
+}
+
+func (h *holder) note(v int) error {
+	last = v
+	return nil
+}
+
+func load(v int, fail bool) (int, error) {
+	if fail {
+		return 0, errLoad
+	}
+	return v, nil
+}
+
+func two(v int, fail bool) (int, string, error) {
+	if fail {
+		return 0, "", errLoad
+	}
+	return v, "s", nil
+}
+
+func record(n int) error {
+	last = n
+	return nil
+}
+
+func apply(f func(int) int, n int) int { return f(n) }
+
+func line(f func(int, bool) (int, error), fail bool) string {
+	last = 0
+	got, err := f(7, fail)
+	if err != nil {
+		return fmt.Sprintln(0, err, last)
+	}
+	return fmt.Sprintln(got, err, last)
+}
+
+func run(name string, f func(int, bool) (int, error), want string) {
+	got := line(f, false) + line(f, true)
+	if got != want {
+		failed = true
+		fmt.Printf("FAIL %s: got %q want %q\n", name, got, want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func d1Define(v int, fail bool) (int, error) {
+	n := load(apply(x => x + 1, v), fail)?
+	return n, nil
+}
+
+func d1Assign(v int, fail bool) (int, error) {
+	var n int
+	n = load(apply(x => x + 1, v), fail)?
+	return n, nil
+}
+
+func d1Statement(v int, fail bool) (int, error) {
+	record(apply(x => x + 1, v))?
+	return 5, nil
+}
+
+func d1Defer(v int, fail bool) (int, error) {
+	defer record(apply(x => x + 1, v))?
+	return 5, nil
+}
+
+func d1Errdefer(v int, fail bool) (int, error) {
+	errdefer record(apply(x => x + 1, v))?
+	n := load(v, fail)?
+	return n, nil
+}
+
+func d1Return(v int, fail bool) (int, error) {
+	return load(apply(x => x + 1, v), fail)
+}
+
+func d2ArgDefine(v int, fail bool) (int, error) {
+	n := load(apply(x => x + 1, apply(y => y * 2, v)), fail)?
+	return n, nil
+}
+
+func d2ArgAssign(v int, fail bool) (int, error) {
+	var n int
+	n = load(apply(x => x + 1, apply(y => y * 2, v)), fail)?
+	return n, nil
+}
+
+func d2ArgStatement(v int, fail bool) (int, error) {
+	record(apply(x => x + 1, apply(y => y * 2, v)))?
+	return 5, nil
+}
+
+func d2ArgDefer(v int, fail bool) (int, error) {
+	defer record(apply(x => x + 1, apply(y => y * 2, v)))?
+	return 5, nil
+}
+
+func d2ArgErrdefer(v int, fail bool) (int, error) {
+	errdefer record(apply(x => x + 1, apply(y => y * 2, v)))?
+	n := load(v, fail)?
+	return n, nil
+}
+
+func d2ArgReturn(v int, fail bool) (int, error) {
+	return load(apply(x => x + 1, apply(y => y * 2, v)), fail)
+}
+
+func d2BodyDefine(v int, fail bool) (int, error) {
+	n := load(apply(x => apply(y => y + x, 1), v), fail)?
+	return n, nil
+}
+
+func d2BodyAssign(v int, fail bool) (int, error) {
+	var n int
+	n = load(apply(x => apply(y => y + x, 1), v), fail)?
+	return n, nil
+}
+
+func d2BodyStatement(v int, fail bool) (int, error) {
+	record(apply(x => apply(y => y + x, 1), v))?
+	return 5, nil
+}
+
+func d2BodyDefer(v int, fail bool) (int, error) {
+	defer record(apply(x => apply(y => y + x, 1), v))?
+	return 5, nil
+}
+
+func d2BodyErrdefer(v int, fail bool) (int, error) {
+	errdefer record(apply(x => apply(y => y + x, 1), v))?
+	n := load(v, fail)?
+	return n, nil
+}
+
+func d2BodyReturn(v int, fail bool) (int, error) {
+	return load(apply(x => apply(y => y + x, 1), v), fail)
+}
+
+func hostTuple(v int, fail bool) (int, error) {
+	a, s := two(apply(x => x + 1, v), fail)?
+	return a + len(s), nil
+}
+
+func hostBlank(v int, fail bool) (int, error) {
+	_ = load(apply(x => x + 1, v), fail)?
+	return 5, nil
+}
+
+func hostField(v int, fail bool) (int, error) {
+	var h holder
+	h.n = load(apply(x => x + 1, v), fail)?
+	return h.n, nil
+}
+
+func hostIndex(v int, fail bool) (int, error) {
+	var h holder
+	h.arr[1] = load(apply(x => x + 1, v), fail)?
+	return h.arr[1], nil
+}
+
+func hostMethod(v int, fail bool) (int, error) {
+	h := &holder{}
+	n := h.take(apply(x => x + 1, v), fail)?
+	return n, nil
+}
+
+func hostMethodDefer(v int, fail bool) (int, error) {
+	h := &holder{}
+	defer h.note(apply(x => x + 1, v))?
+	return 5, nil
+}
+
+func hostIfBody(v int, fail bool) (int, error) {
+	if v > 0 {
+		n := load(apply(x => x + 1, v), fail)?
+		return n, nil
+	}
+	return 0, nil
+}
+
+func hostCase(v int, fail bool) (int, error) {
+	switch {
+	case v > 0:
+		n := load(apply(x => x + 1, v), fail)?
+		return n, nil
+	}
+	return 0, nil
+}
+
+func hostLoop(v int, fail bool) (int, error) {
+	total := 0
+	for i := 0; i < 2; i++ {
+		n := load(apply(x => x + i, v), fail)?
+		total += n
+	}
+	return total, nil
+}
+
+func hostClosure(v int, fail bool) (int, error) {
+	f := func() (int, error) {
+		n := load(apply(x => x + 1, v), fail)?
+		return n, nil
+	}
+	return f()
+}
+
+func hostLabeled(v int, fail bool) (int, error) {
+L:
+	n := load(apply(x => x + 1, v), fail)?
+	if n < 0 {
+		goto L
+	}
+	return n, nil
+}
+
+func hostIfInit(v int, fail bool) (int, error) {
+	if n := load(apply(x => x + 1, v), fail)?; n > 0 {
+		return n, nil
+	}
+	return 0, nil
+}
+
+func hostIfInitElse(v int, fail bool) (int, error) {
+	if n := load(apply(x => x + 1, v), fail)?; n < 0 {
+		return 0, nil
+	} else if m := load(apply(y => y * 2, n), fail)?; m > 0 {
+		return m, nil
+	}
+	return 1, nil
+}
+
+func hostSwitchInit(v int, fail bool) (int, error) {
+	switch n := load(apply(x => x + 1, v), fail)?; {
+	case n > 0:
+		return n, nil
+	}
+	return 0, nil
+}
+
+func hostForInit(v int, fail bool) (int, error) {
+	total := 0
+	for n := load(apply(x => x + 1, v), fail)?; n < 10; n++ {
+		total += n
+	}
+	return total, nil
+}
+
+func hostLambdaVar(v int, fail bool) (int, error) {
+	var f func(int) int = x => x + 1
+	n := load(f(v), fail)?
+	return n, nil
+}
+
+func main() {
+	run("depth1-define", d1Define, "8 <nil> 0\n0 load 0\n")
+	run("depth1-assign", d1Assign, "8 <nil> 0\n0 load 0\n")
+	run("depth1-statement", d1Statement, "5 <nil> 8\n5 <nil> 8\n")
+	run("depth1-defer", d1Defer, "5 <nil> 8\n5 <nil> 8\n")
+	run("depth1-errdefer", d1Errdefer, "7 <nil> 0\n0 load 8\n")
+	run("depth1-return", d1Return, "8 <nil> 0\n0 load 0\n")
+	run("depth2-arg-define", d2ArgDefine, "15 <nil> 0\n0 load 0\n")
+	run("depth2-arg-assign", d2ArgAssign, "15 <nil> 0\n0 load 0\n")
+	run("depth2-arg-statement", d2ArgStatement, "5 <nil> 15\n5 <nil> 15\n")
+	run("depth2-arg-defer", d2ArgDefer, "5 <nil> 15\n5 <nil> 15\n")
+	run("depth2-arg-errdefer", d2ArgErrdefer, "7 <nil> 0\n0 load 15\n")
+	run("depth2-arg-return", d2ArgReturn, "15 <nil> 0\n0 load 0\n")
+	run("depth2-body-define", d2BodyDefine, "8 <nil> 0\n0 load 0\n")
+	run("depth2-body-assign", d2BodyAssign, "8 <nil> 0\n0 load 0\n")
+	run("depth2-body-statement", d2BodyStatement, "5 <nil> 8\n5 <nil> 8\n")
+	run("depth2-body-defer", d2BodyDefer, "5 <nil> 8\n5 <nil> 8\n")
+	run("depth2-body-errdefer", d2BodyErrdefer, "7 <nil> 0\n0 load 8\n")
+	run("depth2-body-return", d2BodyReturn, "8 <nil> 0\n0 load 0\n")
+	run("host-tuple", hostTuple, "9 <nil> 0\n0 load 0\n")
+	run("host-blank", hostBlank, "5 <nil> 0\n0 load 0\n")
+	run("host-field", hostField, "8 <nil> 0\n0 load 0\n")
+	run("host-index", hostIndex, "8 <nil> 0\n0 load 0\n")
+	run("host-method", hostMethod, "8 <nil> 0\n0 load 0\n")
+	run("host-method-defer", hostMethodDefer, "5 <nil> 8\n5 <nil> 8\n")
+	run("host-if-body", hostIfBody, "8 <nil> 0\n0 load 0\n")
+	run("host-case", hostCase, "8 <nil> 0\n0 load 0\n")
+	run("host-loop", hostLoop, "15 <nil> 0\n0 load 0\n")
+	run("host-closure", hostClosure, "8 <nil> 0\n0 load 0\n")
+	run("host-labeled", hostLabeled, "8 <nil> 0\n0 load 0\n")
+	run("host-if-init", hostIfInit, "8 <nil> 0\n0 load 0\n")
+	run("host-if-init-else", hostIfInitElse, "16 <nil> 0\n0 load 0\n")
+	run("host-switch-init", hostSwitchInit, "8 <nil> 0\n0 load 0\n")
+	run("host-for-init", hostForInit, "17 <nil> 0\n0 load 0\n")
+	run("host-lambda-var", hostLambdaVar, "8 <nil> 0\n0 load 0\n")
+	if failed {
+		os.Exit(1)
+	}
+}

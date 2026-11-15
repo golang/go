@@ -4,23 +4,17 @@
 
 package ctfe
 
-// This file implements M5-S2 calls, loops, switches, and builtins
-// (SPEC Sec 2.1, T-201).
-
 import (
 	"cmd/compile/internal/syntax"
 	"math/big"
 	"unicode/utf8"
 )
 
-// evalCallMulti evaluates a call, reporting whether it produced several
-// values (a multi-valued call). Single-valued calls return one value.
 func (e *evaluator) evalCallMulti(fr *frame, c *syntax.CallExpr) ([]Value, bool, error) {
 	if err := e.step(posOf(c)); err != nil {
 		return nil, false, err
 	}
 	fun := syntax.Unparen(c.Fun)
-	// Method calls never evaluate in const context.
 	if sel, ok := fun.(*syntax.SelectorExpr); ok {
 		if name, ok := sel.X.(*syntax.Name); ok {
 			if ent := e.h.Resolve(name); ent.Kind == EntPackage {
@@ -29,7 +23,6 @@ func (e *evaluator) evalCallMulti(fr *frame, c *syntax.CallExpr) ([]Value, bool,
 		}
 		return nil, false, e.impurity(fr, posOf(c), "method call in const func")
 	}
-	// Conversions carry a type in function position.
 	if name, ok := fun.(*syntax.Name); ok {
 		ent := e.h.Resolve(name)
 		if ent.Kind == EntType {
@@ -52,14 +45,12 @@ func (e *evaluator) evalCallMulti(fr *frame, c *syntax.CallExpr) ([]Value, bool,
 	if _, ok := fun.(*syntax.IndexExpr); ok {
 		return nil, false, e.impurity(fr, posOf(c), "generic call in const func")
 	}
-	if lit, ok := fun.(*syntax.FuncLit); ok {
-		_ = lit
+	if _, ok := fun.(*syntax.FuncLit); ok {
 		return nil, false, e.impurity(fr, posOf(c), "function literal in const func")
 	}
 	return nil, false, e.fail(posOf(c), "unsupported call in const evaluation")
 }
 
-// entityCall dispatches a resolved call target.
 func (e *evaluator) entityCall(fr *frame, ent Entity, c *syntax.CallExpr) ([]Value, bool, error) {
 	switch ent.Kind {
 	case EntBuiltin:
@@ -78,7 +69,6 @@ func (e *evaluator) entityCall(fr *frame, ent Entity, c *syntax.CallExpr) ([]Val
 	return nil, false, e.fail(posOf(c), "unsupported call in const evaluation")
 }
 
-// evalUserCall binds arguments and runs a function body.
 func (e *evaluator) evalUserCall(fr *frame, fn *Func, c *syntax.CallExpr) ([]Value, bool, error) {
 	if fn.Generic {
 		return nil, false, e.impurity(fr, posOf(c), "generic call in const func")
@@ -134,7 +124,6 @@ func (e *evaluator) evalUserCall(fr *frame, fn *Func, c *syntax.CallExpr) ([]Val
 		}
 		e.declare(nfr, p.Decl.Value, withVar(v))
 	}
-	// Named results start as zero values.
 	for i, name := range fn.ResultNames {
 		if name == "" || i >= len(fn.Results) || fn.Results[i] == nil {
 			continue
@@ -154,7 +143,6 @@ func (e *evaluator) evalUserCall(fr *frame, fn *Func, c *syntax.CallExpr) ([]Val
 		if len(fn.Results) == 0 {
 			return nil, false, nil
 		}
-		// Fell off the end with named results: read them back.
 		vals := make([]Value, 0, len(fn.Results))
 		for _, name := range fn.ResultNames {
 			if name == "" {
@@ -171,7 +159,6 @@ func (e *evaluator) evalUserCall(fr *frame, fn *Func, c *syntax.CallExpr) ([]Val
 	return f.values, len(f.values) > 1, nil
 }
 
-// evalCallArgs spreads only slices; string... is rejected and typed nil binds nil.
 func (e *evaluator) evalCallArgs(fr *frame, c *syntax.CallExpr) ([]Value, *Value, error) {
 	var out []Value
 	var spread *Value
@@ -198,17 +185,10 @@ func (e *evaluator) evalCallArgs(fr *frame, c *syntax.CallExpr) ([]Value, *Value
 	return out, spread, nil
 }
 
-// execFor runs classic, condition-only, infinite, and range loops.
-// label names this loop when a LabeledStmt wraps it; a matching
-// continue runs the post statement and starts the next iteration
-// instead of leaving the loop.
 func (e *evaluator) execFor(fr *frame, s *syntax.ForStmt, label string) (flow, error) {
 	if rc, ok := s.Init.(*syntax.RangeClause); ok {
 		return e.execRange(fr, s, rc, label)
 	}
-	// A loop body is never a direct switch-clause statement, so a
-	// fallthrough inside one is out of place even when the loop sits
-	// in a clause. A switch nested in the loop re-arms the gate itself.
 	savedSwitch := e.inSwitch
 	e.inSwitch = 0
 	defer func() { e.inSwitch = savedSwitch }()
@@ -254,9 +234,7 @@ func (e *evaluator) execFor(fr *frame, s *syntax.ForStmt, label string) (flow, e
 			return f, nil
 		}
 		if f.cont != "" && f.cont != unlabeled {
-			if label != "" && f.cont == label {
-				// Matching labeled continue: run post and iterate.
-			} else {
+			if label == "" || f.cont != label {
 				return f, nil
 			}
 		}
@@ -272,21 +250,13 @@ func (e *evaluator) execFor(fr *frame, s *syntax.ForStmt, label string) (flow, e
 	}
 }
 
-// execRange runs for-range over slices, arrays, strings, and integers.
-// Ranging over a map is impure (nondeterministic order).
 func (e *evaluator) execRange(fr *frame, s *syntax.ForStmt, rc *syntax.RangeClause, label string) (flow, error) {
-	// A range body is never a direct switch-clause statement, so a
-	// fallthrough inside one is out of place even when the range sits
-	// in a clause. A switch nested in the body re-arms the gate itself.
 	savedSwitch := e.inSwitch
 	e.inSwitch = 0
 	defer func() { e.inSwitch = savedSwitch }()
 	xv, err := e.evalExpr(fr, rc.X)
 	if err != nil {
 		return flow{}, err
-	}
-	if xv.typ != nil && xv.typ.Kind == KMap {
-		return flow{}, e.impurity(fr, posOf(rc.X), "range over map in const func")
 	}
 	e.pushScope(fr)
 	defer e.popScope(fr)
@@ -310,11 +280,6 @@ func (e *evaluator) execRange(fr *frame, s *syntax.ForStmt, rc *syntax.RangeClau
 			e.assignName(fr, name, val)
 		}
 	}
-	// loop runs body once per element with the given index/value.
-	// A second loop variable binds only when the clause names two.
-	// The counter is a big.Int so counts wider than int64 (such as
-	// uint64(1)<<63) iterate faithfully: break and return still exit
-	// early, and e.step enforces MaxSteps on unbounded loops.
 	loop := func(idx func(i *big.Int) Value, val func(i *big.Int) Value, n *big.Int) (flow, error) {
 		for i := new(big.Int); i.Cmp(n) < 0; i.Add(i, big.NewInt(1)) {
 			if err := e.step(posOf(s)); err != nil {
@@ -363,9 +328,6 @@ func (e *evaluator) execRange(fr *frame, s *syntax.ForStmt, rc *syntax.RangeClau
 		}
 		return loop(intIdx, func(i *big.Int) Value { return snap[i.Int64()] }, big.NewInt(int64(len(snap))))
 	case xv.typ != nil && isStringLike(xv.typ.Kind):
-		// String literals evaluate untyped (KUntypedString); range
-		// covers them exactly like typed strings, yielding UTF-8
-		// byte offsets as indices and U+FFFD for invalid bytes.
 		s := xv.sval
 		var runes []rune
 		var offs []int
@@ -381,26 +343,22 @@ func (e *evaluator) execRange(fr *frame, s *syntax.ForStmt, rc *syntax.RangeClau
 			return runeValue(runes[i.Int64()])
 		}, big.NewInt(int64(len(runes))))
 	case xv.typ != nil && isInteger(xv.typ.Kind):
-		// A negative count runs zero times. A positive count that
-		// overflows int64 (so Int64 would wrap it negative) still
-		// iterates faithfully through the big-counter loop above.
 		if xv.ival.Sign() < 0 {
 			return flow{}, nil
 		}
-		// Integer-range indices take the operand's type (an untyped
-		// count defaults to int), matching gc: `range uint64(5)`
-		// binds uint64 indices, `range 5` binds int.
 		idxT := &Type{Kind: KInt}
 		if !isUntyped(xv.typ.Kind) {
 			idxT = cloneType(xv.typ)
 		}
 		intIdxT := func(i *big.Int) Value { return intValue(new(big.Int).Set(i), idxT, false) }
 		return loop(intIdxT, intIdxT, new(big.Int).Set(xv.ival))
+	case xv.typ != nil && xv.typ.Kind == KMap:
+		keys, vals := sortedEntries(xv)
+		return loop(func(i *big.Int) Value { return keys[i.Int64()] }, func(i *big.Int) Value { return vals[i.Int64()] }, big.NewInt(int64(len(keys))))
 	}
 	return flow{}, e.fail(posOf(rc.X), "cannot range in const evaluation")
 }
 
-// assignName assigns to a visible binding.
 func (e *evaluator) assignName(fr *frame, name string, v Value) {
 	for i := len(fr.scopes) - 1; i >= 0; i-- {
 		if _, ok := fr.scopes[i][name]; ok {
@@ -411,7 +369,6 @@ func (e *evaluator) assignName(fr *frame, name string, v Value) {
 	fr.scopes[len(fr.scopes)-1][name] = v
 }
 
-// execSwitch runs expression switches.
 func (e *evaluator) execSwitch(fr *frame, s *syntax.SwitchStmt) (flow, error) {
 	e.pushScope(fr)
 	defer e.popScope(fr)
@@ -438,9 +395,6 @@ func (e *evaluator) execSwitch(fr *frame, s *syntax.SwitchStmt) (flow, error) {
 	} else {
 		tag = Value{typ: &Type{Kind: KBool}, bval: true, constant: true}
 	}
-	// Select the first matching explicit case; the default runs only
-	// when no explicit case matches. Fallthrough then chains forward
-	// from the selected clause in source order.
 	matchIdx := -1
 	defaultIdx := -1
 	for i, cc := range s.Body {
@@ -477,9 +431,6 @@ func (e *evaluator) execSwitch(fr *frame, s *syntax.SwitchStmt) (flow, error) {
 	if start < 0 {
 		return flow{}, nil
 	}
-	// Arm the fallthrough gate only around direct clause statements:
-	// execBlock propagates flow{fall} out, and the chain below
-	// consumes it by entering the next clause in source order.
 	e.inSwitch++
 	defer func() { e.inSwitch-- }()
 	falling := false

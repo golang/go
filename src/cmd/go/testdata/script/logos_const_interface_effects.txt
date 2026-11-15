@@ -1,26 +1,7 @@
-# T-201, R-U2: readonly interface methods `const Name() string` in .lgo contracts.
-# The contract package declares `const Name() string` inside interface braces
-# only, parallel to the existing `const Name T` property prefix. A pure value-
-# receiver getter satisfies it structurally across packages: the user package
-# names the qualified interface (`c.Namer`), converts through it, and calls
-# through a const view of the imported concrete type after export/import.
-# A mutating plain `*Bad` receiver from another package is rejected at the
-# call site through a const view with the approved call-site diagnostic; no
-# new satisfaction/obligation string is pinned here (parent ticket owns it).
-# A Go importer in another workspace module sees the erased `Name() string`
-# (plain-interface assignment both ways runs); the Logos view keeps the
-# readonly proof. A stale `__.LOGOS` fingerprint, and an incremental rebuild
-# after the imported getter proof changes, cannot reuse the old proof.
-# Modules stay homogeneous: w/l and neg are all-.lgo, w/g is all-.go; the
-# stale/impcheck helpers are stdlib-only Go mains under w/g. Behavior is
-# proven by installed `logos build`/`logos run` output, never source grep.
-
 env GOPROXY=off
 env GOTOOLCHAIN=local
 mkdir $WORK/bin
 
-# Case 1: pure getter accepted through the qualified interface and const
-# view after export/import; the Go importer runs against erased signatures.
 cd w
 logos build ./...
 logos build -o $WORK/bin/lgoiface$GOEXE ./l/cmd
@@ -31,16 +12,15 @@ exec $WORK/bin/goiface$GOEXE
 stdout '^go-ok$'
 cd ..
 
-# Case 2: a mutating plain-pointer receiver from another package is rejected
-# at the const-view call site with the approved call-site diagnostic.
 cd neg
 ! logos build ./...
 stderr '\[correctness::const_view_mutation\] cannot call Name through const view'
+stderr 'u/u\.lgo:13:.*cannot call Name through const view q'
+! logos build -o $WORK/negbin$GOEXE ./cmd
+stderr 'const_view_mutation'
+! exists $WORK/negbin$GOEXE
 cd ..
 
-# Case 3: the contract archive carries the bound facts sidecar; flipping its
-# fingerprint fails the dependent import instead of reusing the old readonly
-# proof, while a Go importer reading only __.PKGDEF still sees Name() string.
 go tool compile -p example.com/l/c -o $WORK/lc.a w/l/c/c.lgo
 go tool pack t $WORK/lc.a
 stdout '__\.LOGOS'
@@ -56,11 +36,6 @@ go run ./impcheck $WORK/lc.a
 stdout '^importer ok: Namer-Name 0 1$'
 cd ../..
 
-# Case 4: incremental rebuild after the imported getter proof changes cannot
-# reuse the old qualification. The const-view call builds cleanly against the
-# pure getter, then the implementation package is rewritten so Good.Name
-# mutates receiver-reachable state; rebuilding rejects the same call site
-# instead of reusing the cached readonly proof.
 cd re
 logos build ./...
 logos run ./cmd
@@ -68,6 +43,21 @@ stdout '^re-ok$'
 cp badsrc/p.lgo.bad p/p.lgo
 ! logos build ./...
 stderr '\[correctness::const_view_mutation\] cannot call Name through const view'
+cd ..
+
+# A Go dependency carries no Readonly fact for Plain.Name, so its
+# reference-free value receiver cannot satisfy the readonly obligation.
+cd absent
+! logos build ./...
+stderr 'use/use\.lgo:9:.*\[correctness::const_view_mutation\] \(method Name is not readonly\)'
+cd ..
+
+# A satisfaction error found only after the method body is checked still
+# fails the build, and no binary is written.
+cd late
+! logos build -o $WORK/late$GOEXE .
+stderr 'main\.lgo:9:.*\[correctness::const_view_mutation\].*does not implement readonly method Name'
+! exists $WORK/late$GOEXE
 cd ..
 
 -- w/go.work --
@@ -483,4 +473,81 @@ import (
 
 func main() {
 	fmt.Println(q.Run())
+}
+
+-- neg/cmd/main.lgo --
+package main
+
+import (
+	"example.com/neg/b"
+	"example.com/neg/c"
+)
+
+func main() {
+	var _ c.Namer = &b.Bad{}
+}
+
+-- absent/go.mod --
+module example.com/absent
+
+go 1.27
+
+require example.com/plaingo v0.0.0
+
+replace example.com/plaingo => ../plaingo
+
+-- absent/use/use.lgo --
+package use
+
+import "example.com/plaingo"
+
+type Namer interface {
+	const Name() string
+}
+
+var _ Namer = plaingo.Plain{}
+
+-- plaingo/go.mod --
+module example.com/plaingo
+
+go 1.27
+
+-- plaingo/plain.go --
+package plaingo
+
+type Plain struct {
+	N int
+}
+
+func (p Plain) Name() string {
+	return "plain"
+}
+
+-- late/go.mod --
+module example.com/late
+
+go 1.27
+
+-- late/main.lgo --
+package main
+
+import "fmt"
+
+type Namer interface {
+	const Name() string
+}
+
+var _ Namer = Late{items: []int{1}}
+
+type Late struct {
+	items []int
+}
+
+func (l Late) Name() string {
+	l.items[0] = 2
+	return "late"
+}
+
+func main() {
+	fmt.Println("late-built")
 }

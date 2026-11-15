@@ -5,8 +5,23 @@ package main
 import (
 	"fmt"
 	"iter"
+	"os"
+	"slices"
+	"strings"
 	tm "time"
 )
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
 
 func Durs() iter.Seq[tm.Duration] {
 	yield tm.Second
@@ -47,14 +62,29 @@ func Tracked(n int) iter.Seq[int] {
 	steps += 1000
 }
 
+func ReturnSeven(n int) iter.Seq[int] {
+	for i := range n {
+		yield i
+	}
+	return 7
+}
+
+var lazyLog []string
+
+func Lazy() iter.Seq[int] {
+	lazyLog = append(lazyLog, "body")
+	yield 1
+	yield 2
+}
+
 func main() {
 	sum := 0
 	for v := range Count(5) {
 		sum += v
 	}
-	fmt.Println("sum:", sum)
+	var pairs []string
 	for k, v := range Squares(4) {
-		fmt.Println("sq:", k, v)
+		pairs = append(pairs, fmt.Sprintf("%d:%d", k, v))
 	}
 	seen := 0
 	for v := range Tracked(100) {
@@ -64,12 +94,32 @@ func main() {
 			break
 		}
 	}
-	fmt.Println("seen:", seen, "steps:", steps)
+	var logged []int
 	for v := range Logged(3) {
-		fmt.Println("logged:", v)
+		logged = append(logged, v)
 	}
-	fmt.Println("glog:", glog)
+	var durs []tm.Duration
 	for d := range Durs() {
-		fmt.Println("dur:", d)
+		durs = append(durs, d)
+	}
+	seven := 0
+	for v := range ReturnSeven(3) {
+		seven += v
+	}
+	check("sum", sum == 10, sum, 10)
+	check("pairs", strings.Join(pairs, ",") == "0:0,1:1,2:4,3:9", strings.Join(pairs, ","), "0:0,1:1,2:4,3:9")
+	check("early-break", seen == 3 && steps == 3, fmt.Sprint(seen, steps), "3 3")
+	check("logged", len(logged) == 3 && logged[0] == 0 && logged[1] == 1 && logged[2] == 2, fmt.Sprint(logged), "[0 1 2]")
+	check("scope-cleanup", strings.Join(glog, ",") == "start,done", strings.Join(glog, ","), "start,done")
+	check("durs", len(durs) == 2 && durs[0] == tm.Second && durs[1] == tm.Minute, fmt.Sprint(durs), "[1s 1m0s]")
+	check("return-ends", seven == 3, seven, 3)
+	lazyLog = nil
+	lazy := Lazy()
+	check("generator-body-waits-for-iteration", len(lazyLog) == 0, lazyLog, "[]")
+	first := slices.Collect(lazy)
+	second := slices.Collect(lazy)
+	check("generator-body-restarts-for-each-iteration", len(lazyLog) == 2 && slices.Equal(first, []int{1, 2}) && slices.Equal(second, []int{1, 2}), fmt.Sprint(lazyLog, first, second), "[body body] [1 2] [1 2]")
+	if failed {
+		os.Exit(1)
 	}
 }

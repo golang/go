@@ -1,7 +1,8 @@
-point={0 0} err=zero
-array=[0 0 0] err=zero
-ptr=<nil> err=zero
-slice=[] err=zero
-map=map[] err=zero
-str="" err=zero
-gen=0 err=zero
+ok point
+ok array
+ok ptr
+ok slice
+ok map
+ok str
+ok gen
+ok assign

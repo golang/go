@@ -1,0 +1,58 @@
+// errorcheck
+
+package p
+
+import (
+	"context"
+	"errors"
+)
+
+var errOdd = errors.New("odd")
+
+func f(x int) (int, error) {
+	if x%2 == 1 {
+		return 0, errOdd
+	}
+	return x, nil
+}
+
+func noErrorResult(xs []int) []int {
+	return xs.map(x => {
+		v := f(x)? // ERROR "."
+		return v
+	})
+}
+
+func deferTry(xs []int) ([]int, error) {
+	ys := xs.map(x => {
+		defer f(x)? // ERROR "misplaced_try"
+		return x
+	})
+	return ys, nil
+}
+
+func deferTryNested(xs []int) ([]int, error) {
+	ys := xs.map(x => {
+		if x > 0 {
+			defer f(x)? // ERROR "misplaced_try"
+		}
+		return x
+	})
+	return ys, nil
+}
+
+func stageDeferTry(ctx context.Context, xs []int) ([]int, error) {
+	ys, err := xs.group(ctx, limit = 2).map(x => {
+		defer f(x)? // ERROR "misplaced_try"
+		return x
+	})
+	return ys, err
+}
+
+func errdeferInside(xs []int) ([]int, error) {
+	ys := xs.map(x => {
+		errdefer func() {}() // ERROR "errdefer_needs_error_result"
+		return x
+	})
+	return ys, nil
+}

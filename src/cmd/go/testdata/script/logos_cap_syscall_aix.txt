@@ -1,0 +1,111 @@
+[short] skip 'cross-links the standard library for aix'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOOS=aix
+env GOARCH=ppc64
+env CGO_ENABLED=0
+mkdir $WORK/bin
+
+cd a/main
+! logos build -o $WORK/bin/aixa ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/adep'' reaches ''syscall\.Syscall'''
+stderr 'ERROR \[capabilities::unauthorized_net\]: Transitive dependency ''example\.com/adep'' reaches ''syscall\.Syscall'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/adep'' reaches ''syscall\.Syscall6'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/adep'' reaches ''syscall\.RawSyscall'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/adep'' reaches ''syscall\.RawSyscall6'''
+cd ../..
+
+cd b/main
+! logos build -o $WORK/bin/aixb ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/bdep'' reaches ''syscall\.syscall6'''
+stderr 'ERROR \[capabilities::unauthorized_net\]: Transitive dependency ''example\.com/bdep'' reaches ''syscall\.syscall6'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/bdep'' reaches ''syscall\.rawSyscall6'''
+cd ../..
+
+-- a/main/go.mod --
+module example.com/amain
+
+go 1.27
+
+require example.com/adep v0.0.0
+
+replace example.com/adep => ../dep
+
+-- a/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_net = "deny"
+
+-- a/main/cmd/main.go --
+package main
+
+import "example.com/adep"
+
+func main() { adep.Init() }
+
+-- a/dep/go.mod --
+module example.com/adep
+
+go 1.27
+
+-- a/dep/dep.go --
+package adep
+
+import "syscall"
+
+//go:noinline
+func Init() {
+	syscall.Syscall(0, 0, 0, 0)
+	syscall.Syscall6(0, 0, 0, 0, 0, 0, 0)
+	syscall.RawSyscall(0, 0, 0, 0)
+	syscall.RawSyscall6(0, 0, 0, 0, 0, 0, 0)
+}
+
+-- b/main/go.mod --
+module example.com/bmain
+
+go 1.27
+
+require example.com/bdep v0.0.0
+
+replace example.com/bdep => ../dep
+
+-- b/main/logos.toml --
+[capabilities]
+transitive_unsafe = "allow"
+transitive_exec = "deny"
+transitive_net = "deny"
+
+-- b/main/cmd/main.go --
+package main
+
+import "example.com/bdep"
+
+func main() { bdep.Init() }
+
+-- b/dep/go.mod --
+module example.com/bdep
+
+go 1.27
+
+-- b/dep/empty.s --
+-- b/dep/dep.go --
+package bdep
+
+import (
+	_ "syscall"
+	_ "unsafe"
+)
+
+//go:linkname libcSyscall6 syscall.syscall6
+func libcSyscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
+
+//go:linkname libcRawSyscall6 syscall.rawSyscall6
+func libcRawSyscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
+
+//go:noinline
+func Init() {
+	libcSyscall6(0, 0, 0, 0, 0, 0, 0, 0)
+	libcRawSyscall6(0, 0, 0, 0, 0, 0, 0, 0)
+}

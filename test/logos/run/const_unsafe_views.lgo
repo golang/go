@@ -1,0 +1,56 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+	"unsafe"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func sliceConstLen(p const *int, n const int) (int, int) {
+	s := unsafe.Slice(p, n)
+	return len(s), s[2]
+}
+
+func readSliceData(v const []int) int {
+	p := unsafe.SliceData(v)
+	return *p
+}
+
+func readStringData(s const string) byte {
+	return *unsafe.StringData(s)
+}
+
+func addAddr(p const unsafe.Pointer, n const int) uintptr {
+	return uintptr(unsafe.Add(p, n))
+}
+
+func stringConstLen(p const *byte, n const int) string {
+	return unsafe.String(p, n)
+}
+
+func main() {
+	xs := []int{11, 22, 33}
+	ln, last := sliceConstLen(&xs[0], 3)
+	check("slice-const-len", ln == 3 && last == 33, fmt.Sprint(ln, last), "3 33")
+	check("slice-data-read", readSliceData(xs) == 11, readSliceData(xs), 11)
+	check("string-data-read", readStringData("hello") == 'h', string(readStringData("hello")), "h")
+	buf := []byte{'a', 'b', 'c', 'd'}
+	check("add-read", addAddr(unsafe.Pointer(&buf[0]), 3) != 0, addAddr(unsafe.Pointer(&buf[0]), 3) != 0, true)
+	check("string-const-len", stringConstLen(&buf[0], 4) == "abcd", stringConstLen(&buf[0], 4), "abcd")
+	if failed {
+		os.Exit(1)
+	}
+}

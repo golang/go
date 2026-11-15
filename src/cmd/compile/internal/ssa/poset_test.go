@@ -666,3 +666,162 @@ func TestPosetNonEqual(t *testing.T) {
 		{NonEqual_Fail, 10, 20},
 	})
 }
+
+func TestPosetDFSLifecycleAndNested(t *testing.T) {
+	const maxN = 160
+	nodes := make([]*Value, maxN)
+	for i := range nodes {
+		nodes[i] = &Value{ID: ID(i + 1)}
+	}
+
+	po := newPoset()
+
+	po.SetOrder(nodes[0], nodes[1])
+	po.SetOrderOrEqual(nodes[1], nodes[2])
+	po.SetOrder(nodes[2], nodes[3])
+	po.SetOrderOrEqual(nodes[0], nodes[4])
+	po.SetOrder(nodes[4], nodes[5])
+	po.SetOrderOrEqual(nodes[5], nodes[3])
+	po.SetOrder(nodes[6], nodes[7])
+
+	type testCase struct {
+		a, b           int
+		ordered        bool
+		orderedOrEqual bool
+	}
+	oracle := []testCase{
+		{0, 1, true, true},
+		{1, 2, false, true},
+		{0, 2, true, true},
+		{0, 3, true, true},
+		{4, 3, true, true},
+		{0, 5, true, true},
+		{6, 7, true, true},
+		{6, 3, false, false},
+		{7, 0, false, false},
+		{3, 0, false, false},
+		{2, 1, false, false},
+	}
+
+	checkOracle := func(stage string) {
+		for _, tc := range oracle {
+			if got := po.Ordered(nodes[tc.a], nodes[tc.b]); got != tc.ordered {
+				t.Fatalf("[%s] Ordered(%d, %d) = %v, want %v", stage, tc.a, tc.b, got, tc.ordered)
+			}
+			if got := po.OrderedOrEqual(nodes[tc.a], nodes[tc.b]); got != tc.orderedOrEqual {
+				t.Fatalf("[%s] OrderedOrEqual(%d, %d) = %v, want %v", stage, tc.a, tc.b, got, tc.orderedOrEqual)
+			}
+		}
+	}
+
+	checkOracle("initial")
+
+	if !po.Ordered(nodes[0], nodes[1]) {
+		t.Fatal("early-return query failed")
+	}
+	r0, ok := po.lookup(nodes[0])
+	if !ok {
+		t.Fatal("lookup nodes[0] failed")
+	}
+	aborted := po.dfs(r0, false, func(i uint32) bool {
+		return true
+	})
+	if !aborted {
+		t.Fatal("dfs early abort did not return true")
+	}
+	checkOracle("post-early-return")
+
+	visitedCount := 0
+	po.dfs(r0, false, func(i uint32) bool {
+		visitedCount++
+		if !po.Ordered(nodes[0], nodes[3]) {
+			t.Errorf("nested Ordered(0, 3) failed during visit of node %d", i)
+		}
+		if po.Ordered(nodes[3], nodes[0]) {
+			t.Errorf("nested reverse Ordered(3, 0) returned true during visit of node %d", i)
+		}
+		return false
+	})
+	if visitedCount != 6 {
+		t.Fatalf("outer dfs visited %d nodes, want 6", visitedCount)
+	}
+	checkOracle("post-nested-dfs")
+
+	po.Checkpoint()
+	po.SetOrder(nodes[8], nodes[9])
+	if !po.Ordered(nodes[8], nodes[9]) {
+		t.Fatal("Ordered(8, 9) failed before Undo")
+	}
+	po.Undo()
+
+	po.SetOrder(nodes[10], nodes[11])
+	if !po.Ordered(nodes[10], nodes[11]) {
+		t.Fatal("Ordered(10, 11) failed after index reuse")
+	}
+	if po.Ordered(nodes[8], nodes[9]) {
+		t.Fatal("Ordered(8, 9) should be false after Undo")
+	}
+	checkOracle("post-undo-index-reuse")
+
+	prev := nodes[3]
+	for i := 12; i < maxN; i++ {
+		if !po.SetOrder(prev, nodes[i]) {
+			t.Fatalf("SetOrder failed during growth at node %d", i)
+		}
+		prev = nodes[i]
+	}
+	if !po.Ordered(nodes[0], nodes[maxN-1]) {
+		t.Fatalf("Ordered(0, %d) failed after growth", maxN-1)
+	}
+	if !po.OrderedOrEqual(nodes[4], nodes[maxN-1]) {
+		t.Fatalf("OrderedOrEqual(4, %d) failed after growth", maxN-1)
+	}
+	checkOracle("post-growth")
+}
+
+func TestPosetDFSQueryAllocs(t *testing.T) {
+	const n = 4096
+	nodes := make([]*Value, n)
+	for i := range nodes {
+		nodes[i] = &Value{ID: ID(i + 1)}
+	}
+
+	po := newPoset()
+	for i := range n - 1 {
+		if i%2 == 0 {
+			if !po.SetOrder(nodes[i], nodes[i+1]) {
+				t.Fatalf("SetOrder(%d, %d) failed", i, i+1)
+			}
+		} else {
+			if !po.SetOrderOrEqual(nodes[i], nodes[i+1]) {
+				t.Fatalf("SetOrderOrEqual(%d, %d) failed", i, i+1)
+			}
+		}
+	}
+
+	if !po.Ordered(nodes[0], nodes[n-1]) {
+		t.Fatalf("prewarm Ordered failed")
+	}
+	if !po.OrderedOrEqual(nodes[0], nodes[n-1]) {
+		t.Fatalf("prewarm OrderedOrEqual failed")
+	}
+	if po.Ordered(nodes[n-1], nodes[0]) {
+		t.Fatalf("prewarm reverse Ordered unexpected true")
+	}
+
+	allocs := testing.AllocsPerRun(10, func() {
+		if !po.Ordered(nodes[0], nodes[n-1]) {
+			t.Fatal("Ordered returned false")
+		}
+		if !po.OrderedOrEqual(nodes[0], nodes[n-1]) {
+			t.Fatal("OrderedOrEqual returned false")
+		}
+		if po.Ordered(nodes[n-1], nodes[0]) {
+			t.Fatal("reverse Ordered returned true")
+		}
+	})
+
+	if allocs > 0 {
+		t.Fatalf("compiler query allocation: warm queries allocated %f objects per run, want 0", allocs)
+	}
+}

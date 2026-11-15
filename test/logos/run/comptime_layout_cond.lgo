@@ -1,0 +1,66 @@
+// run
+package main
+
+import (
+	"comptime"
+	"fmt"
+	"os"
+)
+
+type Pair struct {
+	X *int
+	Y int
+}
+
+type Flat struct {
+	A int32
+}
+
+var failed bool
+
+func check(name, got, want string) {
+	if got != want {
+		fmt.Println("FAIL", name, "got", got, "want", want)
+		failed = true
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func Alone[T any]() string {
+	const if comptime.HasPointers[*T]() {
+		return "ptr"
+	}
+	return "flat"
+}
+
+func Negated[T any]() string {
+	const if !comptime.HasPointers[*T]() {
+		return "flat"
+	}
+	return "ptr"
+}
+
+func Concrete[T any]() string {
+	const if comptime.HasPointers[Pair]() {
+		return "scan"
+	}
+	return "noscan"
+}
+
+func Conjoined[T any]() string {
+	const if comptime.HasPointers[*T]() && comptime.HasPointers[Pair]() {
+		return "both"
+	}
+	return "plain"
+}
+
+func main() {
+	check("pointer-to-anything-scans", Alone[int]()+" "+Alone[Flat](), "ptr ptr")
+	check("negated-pointer-scans", Negated[int]()+" "+Negated[Flat](), "ptr ptr")
+	check("concrete-pair-scans", Concrete[int]()+" "+Concrete[Flat](), "scan scan")
+	check("conjoined-both-scan", Conjoined[int]()+" "+Conjoined[Flat](), "both both")
+	if failed {
+		os.Exit(1)
+	}
+}

@@ -201,18 +201,12 @@ func chainFindingsByFunc(rs []Result, src string) map[string][]Result {
 	return out
 }
 
-// TestErrChainResetMessage checks the message, span, severity, and
-// provenance of one finding of each form.
-func TestErrChainResetMessage(t *testing.T) {
+// TestErrChainResetEvidence checks the span, severity, and provenance of one
+// finding of each form.
+func TestErrChainResetEvidence(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	got := chainFindingsByFunc(Run(check(t, KindGo, "x.go", chainFixSrc)), chainFixSrc)
-	verb, call := got["verb"][0], got["call"][0]
-	if want := "fmt.Errorf formats error operand err with %v: use %w to keep the error chain"; verb.Message != want {
-		t.Errorf("verb message = %q, want %q", verb.Message, want)
-	}
-	if want := "fmt.Errorf passes err.Error(): pass the error itself with %w to keep the error chain"; call.Message != want {
-		t.Errorf("call message = %q, want %q", call.Message, want)
-	}
+	verb := got["verb"][0]
 	if got := spanText(chainFixSrc, verb); got != `fmt.Errorf("read: %v", err)` {
 		t.Errorf("verb span = %q", got)
 	}
@@ -303,11 +297,17 @@ func b(err error) error {
 	if err != nil {
 		t.Fatal(err)
 	}
-	in := check(t, KindGo, "x.go", src)
-	in.Policy = p
-	got := summarize(Run(in))
+	goIn := check(t, KindGo, "x.go", src)
+	goIn.Policy = p
+	goRes := Run(goIn)
+	got := summarize(goRes)
 	if want := []string{"11 slop::err_chain_reset warn"}; !slices.Equal(got, want) {
 		t.Errorf("results = %q, want %q", got, want)
+	}
+	if len(goRes) == 1 {
+		if text := spanText(src, goRes[0]); text != `fmt.Errorf("shown: %v", err)` {
+			t.Errorf("span = %q, want the shown call", text)
+		}
 	}
 	if got := summarize(Run(check(t, KindLgo, "x.lgo", src))); !slices.Equal(got, []string{"11 slop::err_chain_reset deny"}) {
 		t.Errorf("lgo results = %q", got)

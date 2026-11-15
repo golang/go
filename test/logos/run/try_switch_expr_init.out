@@ -1,0 +1,7 @@
+ok switch-expr-init-nil
+ok switch-expr-init-other
+ok switch-expr-init-err
+ok switch-expr-assign-nil
+ok switch-expr-assign-err
+ok switch-expr-expr-nil
+ok switch-expr-expr-err

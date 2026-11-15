@@ -1,0 +1,17 @@
+ok defer-const-float
+ok defer-none-const-float
+ok defer-nil-option
+ok defer-none-nil-option
+ok defer-multi-value
+ok defer-none-multi-value
+ok defer-variadic-nil
+ok defer-none-variadic-nil
+ok defer-const-duration
+ok defer-none-const-duration
+ok defer-nil-error
+ok defer-none-nil-error
+ok defer-arg-once
+ok defer-none-arg-once
+ok go-const-float
+ok go-nil-option
+ok go-multi-value

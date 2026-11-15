@@ -1,0 +1,139 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+
+	"logos/rt"
+)
+
+type E struct{}
+
+func (E) Error() string { return "e" }
+
+type F struct{}
+
+func (F) Error() string { return "f" }
+
+type G struct{}
+
+func (G) Error() string { return "g" }
+
+type H struct{}
+
+func (H) Error() string { return "h" }
+
+type X struct{}
+
+func (X) Error() string { return "x" }
+
+type Inner interface{ E | F }
+type Mid interface{ Inner | G }
+
+type MemberU interface {
+	error
+	Inner | G
+}
+
+type DeepU interface {
+	error
+	Mid | H
+}
+
+var failed bool
+
+func check(name string, got, want any) {
+	if got != want {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func guard(f func() any) (got any) {
+	defer func() {
+		if r := recover(); r != nil {
+			got = fmt.Sprintf("panic %v (%T)", r, r)
+		}
+	}()
+	return f()
+}
+
+func inMember(x any) any {
+	return guard(func() any {
+		_, ok := x.(MemberU)
+		return ok
+	})
+}
+
+func inDeep(x any) any {
+	return guard(func() any {
+		_, ok := x.(DeepU)
+		return ok
+	})
+}
+
+func singleMember(x any) any {
+	return guard(func() (msg any) {
+		defer func() {
+			if e, ok := recover().(*rt.UnionAssertionError); ok {
+				msg = e.Error()
+			}
+		}()
+		_ = x.(MemberU)
+		return "no panic"
+	})
+}
+
+func caseMember(x any) any {
+	return guard(func() any {
+		switch v := x.(type) {
+		case MemberU:
+			return fmt.Sprintf("member %v", v)
+		default:
+			return "default"
+		}
+	})
+}
+
+func caseDeep(x any) any {
+	return guard(func() any {
+		switch x.(type) {
+		case DeepU:
+			return "member"
+		default:
+			return "default"
+		}
+	})
+}
+
+func main() {
+	check("member-comma-e", inMember(E{}), true)
+	check("member-comma-f", inMember(F{}), true)
+	check("member-comma-g", inMember(G{}), true)
+	check("member-comma-h", inMember(H{}), false)
+	check("member-comma-x", inMember(X{}), false)
+	check("member-comma-int", inMember(42), false)
+	check("deep-comma-e", inDeep(E{}), true)
+	check("deep-comma-g", inDeep(G{}), true)
+	check("deep-comma-h", inDeep(H{}), true)
+	check("deep-comma-x", inDeep(X{}), false)
+	check("deep-comma-int", inDeep(42), false)
+	check("member-single-x", singleMember(X{}), "interface conversion: main.X is not a member of main.MemberU")
+	check("member-single-int", singleMember(42), "interface conversion: int is not a member of main.MemberU")
+	check("member-single-f", singleMember(F{}), "no panic")
+	check("member-case-f", caseMember(F{}), "member f")
+	check("member-case-x", caseMember(X{}), "default")
+	check("member-case-int", caseMember(42), "default")
+	check("deep-case-h", caseDeep(H{}), "member")
+	check("deep-case-x", caseDeep(X{}), "default")
+	cv := MemberU(F{})
+	_, isF := any(cv).(F)
+	check("convert-member-f", isF, true)
+	if failed {
+		os.Exit(1)
+	}
+}

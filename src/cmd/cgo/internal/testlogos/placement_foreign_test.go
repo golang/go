@@ -14,10 +14,6 @@ func placementExpectedSum(n int) int {
 	return sum
 }
 
-// TestFastcallSlicePlacement: a runtime-sized typed slice handed to a
-// noescape C call costs exactly one allocation over a preallocated
-// control, and the control costs none. Allocation gates are skipped
-// under the race detector.
 func TestFastcallSlicePlacement(t *testing.T) {
 	n := placementCapacity
 	expected := placementExpectedSum(n)
@@ -48,8 +44,6 @@ func TestFastcallSlicePlacement(t *testing.T) {
 	}
 }
 
-// TestFastcallTypedSliceCorrectness: the same typed path holds its
-// checksum under every build mode, including -race.
 func TestFastcallTypedSliceCorrectness(t *testing.T) {
 	n := placementCapacity
 	expected := placementExpectedSum(n)

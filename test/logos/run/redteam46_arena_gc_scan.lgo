@@ -1,22 +1,12 @@
 // run -goexperiment logosarena
+// run -goexperiment logosarena -arena=false
 
 package main
 
-// REDTEAM #46 (SPEC Sec 8.3, T-301.1; IMPLEMENTATION.md M18-S3, AR3): the
-// side-stack arena must hold a bottom-up noscan region and a top-down scan
-// region, and the collector must scan scan-region objects with the owning
-// goroutine stack, so pointer-containing arena objects keep their heap
-// referents alive across runtime.GC. This fixture builds dynamic scan
-// slices (make with a runtime-sized length routes pointer-bearing makes
-// through runtime.logosArenaMakeSlice into the scan region), roots every
-// slot with a live heap object, collects twice, and re-sums through the
-// arena pointers. A collector that skips the scan region reclaims the
-// referents and the re-sum fails. Value-only: an all-heap fallback also
-// passes; only unscanned scan memory fails. The direct unit proof is
-// TestLogosArenaGCScansScanRegion in src/runtime/logos_arena_test.go.
 
 import (
 	"fmt"
+	"os"
 	"runtime"
 )
 
@@ -42,6 +32,17 @@ func r46Build(n int) []*r46Node {
 	return s
 }
 
+var r46Failed bool
+
+func r46Check(name string, cond bool, got, want string) {
+	if !cond {
+		fmt.Printf("FAIL %s: got %s want %s\n", name, got, want)
+		r46Failed = true
+		return
+	}
+	fmt.Printf("ok %s\n", name)
+}
+
 func main() {
 	n := 64
 	s := r46Build(n)
@@ -50,8 +51,11 @@ func main() {
 	runtime.GC()
 	after := r46Sum(s)
 	runtime.KeepAlive(s)
-	fmt.Println("scan-gc:", before, after)
-	if before != 2016 || after != 2016 {
-		panic("redteam46: scan-region referents lost across GC")
+	want := n * (n - 1) / 2
+	r46Check("arena-scan-gc-before", before == want, fmt.Sprint(before), fmt.Sprint(want))
+	r46Check("arena-scan-gc-after", after == want, fmt.Sprint(after), fmt.Sprint(want))
+	r46Check("arena-scan-gc-stable", before == after, fmt.Sprint(after), fmt.Sprint(before))
+	if r46Failed {
+		os.Exit(1)
 	}
 }

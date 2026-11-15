@@ -1,14 +1,6 @@
 // errorcheck -0
 
-// suspicious::unapplied_struct_default (SPEC Sec 1.2, T-104.5): var x T or
-// new(T) for a type with field defaults leaves every default unapplied. The
-// rule is a warning, so the build succeeds, and it applies to loGo/s
-// packages only. The checker reports it under this ID; the lint registry
-// carries the entry so its group and scope are enforced.
-
 package p
-
-// Boundary on the number of defaulted fields: none, one, two.
 
 type NoDefaults struct {
 	Port int

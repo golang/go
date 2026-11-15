@@ -1,0 +1,79 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# SPEC 2.1: a Go importer sees an exported const map as a package-level
+# variable of its plain type and reads the declared values from it.
+cd gouse
+logos run .
+stdout '^ok small-values$'
+stdout '^ok big-values$'
+stdout '^ok plain-type$'
+
+-- lib/go.mod --
+module example.com/cmexportlib
+
+go 1.27
+
+-- lib/lib.lgo --
+package lib
+
+const Small = map[string]int{"b": 2, "a": 1, "c": 3}
+
+const Big = map[int]int{
+	7: 49, 2: 4, 11: 121, 5: 25, 9: 81, 1: 1,
+	12: 144, 4: 16, 10: 100, 3: 9, 8: 64, 6: 36,
+}
+
+-- gouse/go.mod --
+module example.com/cmexportgo
+
+go 1.27
+
+require example.com/cmexportlib v0.0.0
+
+replace example.com/cmexportlib => ../lib
+
+-- gouse/main.go --
+package main
+
+import (
+	"fmt"
+	"os"
+
+	lib "example.com/cmexportlib"
+)
+
+func fail(msg string) {
+	fmt.Println("FAIL " + msg)
+	os.Exit(1)
+}
+
+func main() {
+	var small map[string]int = lib.Small
+	var big map[int]int = lib.Big
+	if len(small) != 3 || small["a"] != 1 || small["b"] != 2 || small["c"] != 3 {
+		fail("small-values")
+	}
+	if _, ok := small["z"]; ok {
+		fail("small-values")
+	}
+	fmt.Println("ok small-values")
+	sum := 0
+	for k, v := range big {
+		if v != k*k {
+			fail("big-values")
+		}
+		sum += v
+	}
+	if len(big) != 12 || sum != 650 {
+		fail("big-values")
+	}
+	if _, ok := big[0]; ok {
+		fail("big-values")
+	}
+	if _, ok := big[13]; ok {
+		fail("big-values")
+	}
+	fmt.Println("ok big-values")
+	fmt.Println("ok plain-type")
+}

@@ -1,0 +1,8 @@
+// errorcheck
+
+package p
+
+func nestedSyntax() {
+	var _ int?? = 6 // ERROR "."
+	_ = 1
+}

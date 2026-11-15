@@ -1,0 +1,140 @@
+// run
+
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"runtime"
+	"slices"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+var (
+	trace     []string
+	callerID  int
+	offCaller bool
+)
+
+func goroutineID() int {
+	var buf [64]byte
+	n := runtime.Stack(buf[:], false)
+	var id int
+	if _, err := fmt.Sscanf(string(buf[:n]), "goroutine %d ", &id); err != nil {
+		return -1
+	}
+	return id
+}
+
+func reset() {
+	trace = nil
+	offCaller = false
+	callerID = goroutineID()
+}
+
+func note(step string) {
+	if goroutineID() != callerID {
+		offCaller = true
+	}
+	trace = append(trace, step)
+}
+
+func source() []int {
+	note("source")
+	return []int{1, 2, 3, 4}
+}
+
+func ctxOf(ctx context.Context) context.Context {
+	note("ctx")
+	return ctx
+}
+
+func limitOf() int {
+	note("limit")
+	return 2
+}
+
+func mk() func(int) int {
+	note("mk")
+	return func(x int) int { return x * 2 }
+}
+
+func keep(n int) func(int) bool {
+	note("keep")
+	return func(x int) bool { return x > n }
+}
+
+func pick() int {
+	note("pick")
+	return 1
+}
+
+func inc(x int) int { return x + 1 }
+
+func dbl(x int) int { return x * 2 }
+
+func caseMap(ctx context.Context) {
+	reset()
+	got, err := source().group(ctxOf(ctx), limit = limitOf()).map(mk())
+	want := []string{"source", "ctx", "limit", "mk"}
+	check("map-operand-once", err == nil && slices.Equal(got, []int{2, 4, 6, 8}) && slices.Equal(trace, want) && !offCaller, fmt.Sprint(trace, offCaller), want)
+}
+
+func caseFilterMap(ctx context.Context) {
+	reset()
+	got, err := source().group(ctxOf(ctx), limit = limitOf()).filter(keep(1)).map(mk())
+	want := []string{"source", "ctx", "limit", "keep", "mk"}
+	check("filter-map-operands-in-order", err == nil && slices.Equal(got, []int{4, 6, 8}) && slices.Equal(trace, want) && !offCaller, fmt.Sprint(trace, offCaller), want)
+}
+
+func caseIndexed(ctx context.Context) {
+	reset()
+	ops := []func(int) int{inc, dbl}
+	got, err := source().group(ctxOf(ctx), limit = limitOf()).map(ops[pick()])
+	want := []string{"source", "ctx", "limit", "pick"}
+	check("indexed-operand-once", err == nil && slices.Equal(got, []int{2, 4, 6, 8}) && slices.Equal(trace, want) && !offCaller, fmt.Sprint(trace, offCaller), want)
+}
+
+func caseUnordered(ctx context.Context) {
+	reset()
+	got, err := source().group(ctxOf(ctx), limit = limitOf()).unordered().map(mk())
+	want := []string{"source", "ctx", "limit", "mk"}
+	ok := err == nil && slices.Equal(slices.Sorted(slices.Values(got)), []int{2, 4, 6, 8})
+	check("unordered-operand-once", ok && slices.Equal(trace, want) && !offCaller, fmt.Sprint(trace, offCaller), want)
+}
+
+func caseRange(ctx context.Context) error {
+	reset()
+	var got []int
+	for y := range source().group(ctxOf(ctx), limit = limitOf()).map(mk()) {
+		got = append(got, y)
+	}
+	want := []string{"source", "ctx", "limit", "mk"}
+	check("range-operand-once", slices.Equal(got, []int{2, 4, 6, 8}) && slices.Equal(trace, want) && !offCaller, fmt.Sprint(trace, offCaller), want)
+	return nil
+}
+
+func main() {
+	ctx := context.Background()
+	caseMap(ctx)
+	caseFilterMap(ctx)
+	caseIndexed(ctx)
+	caseUnordered(ctx)
+	if err := caseRange(ctx); err != nil {
+		check("range-error", false, err, "no error")
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

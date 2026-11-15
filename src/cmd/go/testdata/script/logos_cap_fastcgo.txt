@@ -1,0 +1,100 @@
+[!cgo] skip
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env CGO_ENABLED=1
+env GOEXPERIMENT=logosfastcgo
+mkdir $WORK/bin
+
+cd deny
+! logos build -o $WORK/bin/fastdeny$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_cgo\]: Transitive dependency ''example\.com/fcdep'' reaches ''runtime\.cgocall'''
+stderr 'example\.com/fcdep\.Ping\(\)'
+stderr 'example\.com/fcdep\._Cfunc_fortytwo\(\)'
+cd ..
+
+cd allow
+logos build -o $WORK/bin/fastallow$GOEXE ./cmd
+! stderr 'capabilities'
+go tool nm $WORK/bin/fastallow$GOEXE
+stdout 'runtime\.logosCgocallFast'
+exec $WORK/bin/fastallow$GOEXE
+stdout '^42$'
+cd ..
+
+-- deny/go.mod --
+module example.com/fcdeny
+
+go 1.27
+
+require example.com/fcdep v0.0.0
+
+replace example.com/fcdep => ../dep
+
+-- deny/logos.toml --
+[capabilities]
+transitive_net = "allow"
+transitive_reflect = "allow"
+transitive_unsafe_allowlist = ["example.com/fcdep/**"]
+
+-- deny/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/fcdep"
+)
+
+func main() {
+	fmt.Println(fcdep.Ping())
+}
+
+-- dep/go.mod --
+module example.com/fcdep
+
+go 1.27
+
+-- dep/dep.lgo --
+package fcdep
+
+/*
+//logos:cgo_fastcall fortytwo
+int fortytwo() { return 42; }
+*/
+import "C"
+
+//go:noinline
+func Ping() int {
+	return int(C.fortytwo())
+}
+
+-- allow/go.mod --
+module example.com/fcallow
+
+go 1.27
+
+require example.com/fcdep v0.0.0
+
+replace example.com/fcdep => ../dep
+
+-- allow/logos.toml --
+[build]
+cgo = "allow"
+
+[capabilities]
+transitive_net = "allow"
+transitive_reflect = "allow"
+transitive_unsafe_allowlist = ["example.com/fcdep/**"]
+
+-- allow/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/fcdep"
+)
+
+func main() {
+	fmt.Println(fcdep.Ping())
+}

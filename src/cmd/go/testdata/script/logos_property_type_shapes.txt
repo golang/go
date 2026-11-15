@@ -1,0 +1,218 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+cd w
+logos build ./...
+logos run ./l/app
+stdout '^view ab c 2 9$'
+stdout '^option 4 7$'
+stdout '^absent -1 -1$'
+stdout '^generic 5 x 3$'
+cp stdout $WORK/want.txt
+logos build -o $WORK/bin/gouse$GOEXE ./g/cmd
+exec $WORK/bin/gouse$GOEXE
+cmp stdout $WORK/want.txt
+cd ..
+
+env GOWORK=off
+cd w/l
+logos eject -o bout
+exists bout/lib/lib.go
+exists bout/app/app.go
+mkdir bout/gouse
+cp ../g/gouse/gouse.go bout/gouse/gouse.go
+mkdir bout/gocmd
+cp ../../extra/main.go bout/gocmd/main.go
+cd bout
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+exec env -u GOROOT $UPROOT1272/bin/go run ./app
+cmp stdout $WORK/want.txt
+exec env -u GOROOT $UPROOT1272/bin/go run ./gocmd
+cmp stdout $WORK/want.txt
+exec env -u GOROOT $UPROOT1272/bin/go vet ./...
+exec $GOROOT/bin/gofmt -l lib app
+! stdout .
+cd ../../..
+
+-- w/go.work --
+go 1.27
+
+use (
+	./l
+	./g
+)
+
+-- extra/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/l/gouse"
+	"example.com/l/lib"
+)
+
+func main() {
+	s := lib.New()
+	tags := gouse.Tags(s)
+	fmt.Printf("view %s %s %d %d\n", tags[0], tags[1], len(tags), gouse.Idx(s)["k"])
+	h := lib.NewHolder()
+	var e lib.Shown = lib.Holder{}
+	fmt.Printf("option %d %d\n", gouse.OptN(h), gouse.Num(h))
+	fmt.Printf("absent %d %d\n", gouse.OptN(e), gouse.Num(e))
+	sl := &lib.Slot[int]{}
+	gouse.Set(sl, 3)
+	fmt.Printf("generic %d %s %d\n", gouse.Int(lib.Cell[int]{V: 5}), gouse.Str(&lib.Cell[string]{V: "x"}), sl.Item)
+}
+
+-- w/l/go.mod --
+module example.com/l
+
+go 1.27
+
+-- w/l/lib/lib.lgo --
+package lib
+
+type Tagged interface {
+	const Tags const []string
+}
+
+type Index interface {
+	const Idx const map[string]int
+}
+
+type Shelf struct : Tagged, Index {
+	Tags const []string
+	Idx  const map[string]int
+}
+
+func New() *Shelf {
+	return &Shelf{Tags: []string{"ab", "c"}, Idx: map[string]int{"k": 9}}
+}
+
+type Item struct {
+	N int
+}
+
+type Shown interface {
+	const Opt *Item?
+	const Num int?
+}
+
+type Holder struct : Shown {
+	Opt *Item?
+	Num int?
+}
+
+func NewHolder() *Holder {
+	return &Holder{Opt: &Item{N: 4}, Num: 7}
+}
+
+type Valued[T any] interface {
+	const V T
+}
+
+type Slotted[T any] interface {
+	Item T
+}
+
+type Cell[T any] struct : Valued[T] {
+	V T
+}
+
+type Slot[T any] struct : Slotted[T] {
+	Item T
+}
+
+-- w/l/app/app.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/l/lib"
+)
+
+func main() {
+	s := lib.New()
+	var t lib.Tagged = s
+	var i lib.Index = s
+	fmt.Printf("view %s %s %d %d\n", t.Tags[0], t.Tags[1], len(t.Tags), i.Idx["k"] ?? 0)
+	h := lib.NewHolder()
+	var o lib.Shown = h
+	var e lib.Shown = lib.Holder{}
+	fmt.Printf("option %d %d\n", nOf(o.Opt), o.Num ?? -1)
+	fmt.Printf("absent %d %d\n", nOf(e.Opt), e.Num ?? -1)
+	var gi lib.Valued[int] = lib.Cell[int]{V: 5}
+	var gs lib.Valued[string] = &lib.Cell[string]{V: "x"}
+	sl := &lib.Slot[int]{}
+	var w lib.Slotted[int] = sl
+	w.Item = 3
+	fmt.Printf("generic %d %s %d\n", gi.V, gs.V, sl.Item)
+}
+
+func nOf(p *lib.Item?) int {
+	return p?.N ?? -1
+}
+
+-- w/g/go.mod --
+module example.com/g
+
+go 1.27
+
+-- w/g/gouse/gouse.go --
+package gouse
+
+import "example.com/l/lib"
+
+func Tags(t lib.Tagged) []string { return t.Logos_GetTags() }
+
+func Idx(i lib.Index) map[string]int { return i.Logos_GetIdx() }
+
+func OptN(s lib.Shown) int {
+	if p := s.Logos_GetOpt(); p != nil {
+		return p.N
+	}
+	return -1
+}
+
+func Num(s lib.Shown) int {
+	if n := s.Logos_GetNum(); n.Present {
+		return n.Value
+	}
+	return -1
+}
+
+func Int(v lib.Valued[int]) int { return v.Logos_GetV() }
+
+func Str(v lib.Valued[string]) string { return v.Logos_GetV() }
+
+func Set(s lib.Slotted[int], v int) { s.Logos_SetItem(v) }
+
+-- w/g/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/g/gouse"
+	"example.com/l/lib"
+)
+
+func main() {
+	s := lib.New()
+	tags := gouse.Tags(s)
+	fmt.Printf("view %s %s %d %d\n", tags[0], tags[1], len(tags), gouse.Idx(s)["k"])
+	h := lib.NewHolder()
+	var e lib.Shown = lib.Holder{}
+	fmt.Printf("option %d %d\n", gouse.OptN(h), gouse.Num(h))
+	fmt.Printf("absent %d %d\n", gouse.OptN(e), gouse.Num(e))
+	sl := &lib.Slot[int]{}
+	gouse.Set(sl, 3)
+	fmt.Printf("generic %d %s %d\n", gouse.Int(lib.Cell[int]{V: 5}), gouse.Str(&lib.Cell[string]{V: "x"}), sl.Item)
+}

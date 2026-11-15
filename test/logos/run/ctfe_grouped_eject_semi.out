@@ -1,1 +1,3 @@
-1 1
+ok semicolon-const-map-index
+ok semicolon-const-len
+ok semicolon-const-coalesce

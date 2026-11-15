@@ -1,1 +1,2 @@
-fault OK code=2
+ok fault-code
+ok fault-output

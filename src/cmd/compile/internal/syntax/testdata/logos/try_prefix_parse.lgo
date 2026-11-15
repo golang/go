@@ -1,0 +1,12 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+func f() (int, error) { return 0, nil }
+
+func badPrefix() (int, error) {
+	_ = ?f(/* ERROR unexpected \) at end of statement */ ) // ERROR unexpected \?, expected expression
+	return 0, nil
+}

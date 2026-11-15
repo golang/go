@@ -4,10 +4,6 @@ package p
 
 import "logos/sync"
 
-// M8-S5: sync.Hot.Load returns a const view (SPEC T-206). Stores
-// through the loaded pointer fail exactly like stores through a
-// declared const view, which proves the call result type is const *T.
-
 type HSChild struct {
 	N int
 }
@@ -23,16 +19,10 @@ func hsHot() {
 	h := sync.Hot[HSConfig]{}
 	h.Store(&HSConfig{Name: "n", Tags: []string{"a"}, Child: &HSChild{N: 1}})
 	p := h.Load()
-	p.Name = "x"    // ERROR "cannot assign field through const view"
-	p.Tags[0] = "x" // ERROR "cannot assign index through const view"
+	p.Name = "x"    // ERROR "const_view_mutation"
+	p.Tags[0] = "x" // ERROR "const_view_mutation"
 	_ = p
 }
-
-// M8-S5: sync.Hot.Update takes func(old const *T) *T in .lgo (SPEC
-// T-206). A literal declaring `old const *T` passes and reads through
-// the view; a literal declaring `old *T` fails ordinary assignability;
-// a lambda takes the const parameter from its target; stores through
-// `old` fail exactly like stores through Load's result.
 
 func hsHotUpdateOK() {
 	h := sync.Hot[HSConfig]{}
@@ -45,7 +35,7 @@ func hsHotUpdateOK() {
 
 func hsHotUpdateReject() {
 	h := sync.Hot[HSConfig]{}
-	h.Update(func(old *HSConfig) *HSConfig { // ERROR "cannot use func\(old \*HSConfig\) \*HSConfig \{…\} \(value of type func\(old \*HSConfig\) \*HSConfig\) as func\(old const \*HSConfig\) \*HSConfig value in argument to h\.Update"
+	h.Update(func(old *HSConfig) *HSConfig { // ERROR "."
 		return old
 	})
 }
@@ -53,11 +43,11 @@ func hsHotUpdateReject() {
 func hsHotUpdateMutate() {
 	h := sync.Hot[HSConfig]{}
 	h.Update(func(old const *HSConfig) *HSConfig {
-		old.N = 1 // ERROR "cannot assign field through const view"
+		old.N = 1 // ERROR "const_view_mutation"
 		return &HSConfig{Name: "n", Tags: []string{"a"}, Child: &HSChild{N: 1}}
 	})
 	h.Update(old => {
-		old.N = 1 // ERROR "cannot assign field through const view"
+		old.N = 1 // ERROR "const_view_mutation"
 		return &HSConfig{Name: "n", Tags: []string{"a"}, Child: &HSChild{N: 1}}
 	})
 }

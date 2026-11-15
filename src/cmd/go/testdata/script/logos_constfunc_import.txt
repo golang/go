@@ -1,17 +1,6 @@
-# M5-S2: imported const func evaluation across separate modules (T-201, T-Sec6, R-U2).
-# Package calc in module example.com/constlib exports const funcs that evaluate
-# through private helpers, private types, private constants, and a transitive
-# const function in package transitive. Results cover scalars, arrays, slices,
-# structs, named exported types, and private named types consumed through
-# inference and exported fields/methods. A consumer module forces compile-time
-# evaluation using const declarations and a constant array bound. Native
-# execution and ejected upstream-Go output maintain full parity. A plain-Go
-# caller sees ordinary function semantics when driven with logos.
-
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
-# 1. Consumer module evaluates imported const funcs at compile time.
 cd consumer
 logos run .
 cp stdout $WORK/want.txt
@@ -24,16 +13,19 @@ stdout '^matrix: 2 3 grid$'
 stdout '^summary: 50 batch 100 batch!$'
 stdout '^table-len: 32$'
 
-# 2. Eject consumer module to plain Go and verify parity.
 logos eject -o ../eject_out
 exists ../eject_out/main.go
 cd ../eject_out
 go run .
 cmp stdout $WORK/want.txt
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
 cd ../consumer
 cd ..
 
-# 3. Plain Go caller module sees ordinary function semantics, driven with logos.
 cd gocaller
 logos run .
 stdout '^gocaller: 25 32 1 4 plain-go 7 14$'
@@ -208,7 +200,7 @@ import (
 
 func main() {
 	// A Go importer sees calc.ComputeClosed as an ordinary function
-	// (SPEC T-201, T-Sec6, R-U2).
+	// (SPEC T-201, T-Sec5, R-U2).
 	var _ func(int) int = calc.ComputeClosed
 	var _ func(int, int, string) calc.Matrix = calc.MakeMatrix
 	var _ func(calc.Score) calc.Score = calc.ScoreMath

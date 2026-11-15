@@ -1,0 +1,5 @@
+ok ptr-value-recv
+ok ptr-bump-recv
+ok opt-value-recv
+ok iface-recv
+ok go-value-recv

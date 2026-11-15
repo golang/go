@@ -2,63 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package facts implements the __.LOGOS facts sidecar (M3-S1).
-//
-// Facts travel in the __.LOGOS archive member beside __.PKGDEF: a text
-// header of the package's exported declarations in loGo/s syntax
-// (nilability, const, unions, tuples, property interfaces), per-function
-// facts, and comptime generic sources, bound to the __.PKGDEF fingerprint
-// (T-Sec6). S1 defines the format and the transport; S2-S7 populate the
-// records through SetCurrent. Until then every compiler-object archive
-// carries a header-only member so the binding itself is testable end to
-// end.
-//
-// Wire format (record lines sorted byte-wise; comptime bodies
-// length-delimited):
-//
-//	logos-facts 3
-//	fingerprint <hex of the __.PKGDEF linker fingerprint>
-//	opt <object> <path>
-//	const <object> <path>
-//	fn <object> <flag>[,<flag>...]
-//	readonly <object> <path>
-//	prop <interface> <accessor-function-prefix>
-//	conforms <struct> <interface-package-path> <interface>
-//	comptime <object> <byte length>
-//	<source bytes>
-//	constfn <object> <byte length>
-//	<source bytes>
-//	default <type> <field> <byte length>
-//	<default expression source text>
-//
-// <object> is Name, Type.Field, (*Type).Method, or Type.Method; <path> is
-// dot-separated steps R<i> result, P<i> parameter, F<name> field, E element,
-// D dereference of one pointer or channel container, K map key, M<name>
-// interface method, T<i> tuple element, G<i> type-parameter constraint,
-// H<i> receiver type-parameter constraint. Flags:
-// ReturnsNonNil, AlwaysNilError, PureConst, ReceiverMutated, Readonly,
-// AssertTP=<hex mask>, AssertRTP=<hex mask>,
-// ParamMutated=<hex mask>, MayYield=0|1.
-// A fn Readonly record carries a readonly requirement (interface I.M
-// obligation) or a proven readonly capability (concrete T.M / (*T).M).
-// Owner-qualified keys are stable: I.M for interfaces, methodObject-style
-// T.M / (*T).M for concrete methods. A readonly record carries the same
-// obligation for a nested or generic-constrained method addressed by
-// object-root structural path. Version 2 added the Readonly fn flag
-// for semantic method obligations; version 3 is a clean cutover adding
-// the AssertTP and AssertRTP fn flags for generic assertion effects;
-// version and fingerprint checks reject mismatched members with no
-// compat shim.
-// AssertTP records which function type parameters feed a type-assertion
-// or type-switch target of the declaration; AssertRTP records the same
-// for receiver type parameters. Each mask is an arbitrary-arity
-// big-endian bit number in canonical lowercase hex (bit i set = type
-// parameter i flows into an assertion target); there is no 64-bit
-// limit. Known semantics: flag present = analyzed, flag absent =
-// unknown, and consumers fail closed on unknown. AssertTP=0,AssertRTP=0
-// means analyzed with proven absence of such flows. Assert flags say
-// nothing about mutation: an assertion-only record must never certify
-// mutation purity (ParamMutated stays absent = unknown mutation).
 package facts
 
 import (
@@ -80,197 +23,271 @@ import (
 )
 
 const (
-	// Version is the facts format version written by Encode.
-	Version = 3
-	// MemberName is the archive member carrying facts, beside __.PKGDEF.
+	Version    = 3
 	MemberName = "__.LOGOS"
 
 	arHeaderSize = 60
 	arMagic      = "!<arch>\n"
 
-	// maxMemberBytes bounds the __.LOGOS member FindMember will read.
 	maxMemberBytes = 64 << 20
 )
 
 var versionLine = "logos-facts " + strconv.Itoa(Version)
 
-// PathFact is one opt or const record: the object position carrying an
-// option or const fact, and the dot-separated path to it. Each step
-// descends one position: R<i> result, P<i> parameter, F<name> field, E
-// option or view element (the ? qualifier), K map key, D one pointer or
-// channel container, M<name> interface method, T<i> tuple element,
-// G<i> type-parameter constraint, H<i> receiver type-parameter constraint.
 type PathFact struct {
 	Object string
 	Path   string
 }
 
-// ReadonlyFact is one readonly record: the exported root object and the
-// structural path to a nested or generic-constrained interface method
-// carrying the readonly obligation. Object uses the same grammar as opt
-// and const records; Path uses the same steps extended with G<i> and H<i>
-// for type-parameter constraints. At least one M<name> step selects the
-// target method; G<i>/H<i> selects a type-parameter constraint.
 type ReadonlyFact struct {
 	Object string
 	Path   string
 }
 
-// FnFact is one fn record: per-function facts for the named object.
 type FnFact struct {
 	Object          string
-	ReturnsNonNil   bool
 	AlwaysNilError  bool
-	PureConst       bool
 	ReceiverMutated bool
 	Readonly        bool
-	// AssertTP is the normalized lowercase hex mask of function type
-	// parameters feeding an assertion/type-switch target; "" when absent.
-	AssertTP string
-	// AssertRTP is the normalized lowercase hex mask of receiver type
-	// parameters feeding an assertion/type-switch target; "" when absent.
-	AssertRTP string
-	// HasAssert is the Known bit: true when the assertion effects were
-	// analyzed (flags present on the wire, "0" when proven-zero).
-	HasAssert bool
-	// ParamMutated is the normalized lowercase hex mutation mask; "" is absent.
-	ParamMutated string
-	MayYield     bool
-	HasMayYield  bool
+	AssertTP        string
+	AssertRTP       string
+	HasAssert       bool
+	ParamMutated    string
+	MayYield        bool
+	HasMayYield     bool
 }
 
-// MayYieldOnly reports whether MayYield is the only mutation-relevant fact
-// of fn. Assertion-effect flags (AssertTP/AssertRTP) are not mutation
-// facts, so a record carrying only assert flags plus MayYield still
-// reports true. Such a record says nothing about mutation, nilability,
-// or purity of values, so a consumer of those facts must treat the
-// function as unanalyzed.
 func (fn FnFact) MayYieldOnly() bool {
-	return fn.HasMayYield && !fn.ReturnsNonNil && !fn.AlwaysNilError && !fn.PureConst && !fn.ReceiverMutated && !fn.Readonly && fn.ParamMutated == ""
+	return fn.HasMayYield && !fn.ReceiverMutated && !fn.Readonly && fn.ParamMutated == ""
 }
 
-// PropFact is one prop record: an interface and its accessor-function prefix.
 type PropFact struct {
 	Interface string
 	Prefix    string
 }
 
-// ConformsFact is one conforms record: a struct type of this package and
-// one property interface it declares conformance to, named as the
-// interface's package path and type name so an importer in another
-// package can match its own spelling of the same interface.
 type ConformsFact struct {
 	Type      string
 	IfacePath string
 	Iface     string
 }
 
-// ComptimeFact is one comptime record: the source of an exported comptime
-// generic and the declarations it references.
 type ComptimeFact struct {
 	Object string
 	Source []byte
 }
 
-// ConstFuncFact is one constfn record: the closed source of an exported
-// receiverless non-generic const function. The source is a single
-// parseable Logos file carrying the function's same-package declaration
-// closure; a validated root `const func` body is the capability record.
 type ConstFuncFact struct {
 	Object string
 	Source []byte
 }
 
-// Facts is the decoded content of one __.LOGOS member.
-type Facts struct {
-	Fingerprint goobj.FingerprintType
-	Opts        []PathFact
-	Consts      []PathFact
-	Fns         []FnFact
-	Readonlys   []ReadonlyFact
-	Props       []PropFact
-	Conforms    []ConformsFact
-	Comptimes   []ComptimeFact
-	ConstFuncs  []ConstFuncFact
-	Defaults    []DefaultFact
-	// GoPackage marks a package compiled from .go sources. Such a package
-	// carries per-function backend facts such as MayYield and nothing
-	// that makes it a loGo/s package, so importers must not read it as one.
-	GoPackage bool
+type ConstMapFact struct {
+	Object  string
+	Path    string
+	Bearing bool
+	Order   []int
+	Hashes  []uint64
+	Canons  []string
+	Keys    []string
+	Vals    []string
 }
 
-// DefaultFact is one default record: a defaulted field of an exported
-// struct type and its default expression source text.
+type LockFact struct {
+	Object string
+	Effect string
+	Path   string
+}
+
+type AllocFreeFact struct {
+	Object string
+}
+
+type Facts struct {
+	Fingerprint  goobj.FingerprintType
+	Opts         []PathFact
+	Consts       []PathFact
+	Fns          []FnFact
+	Readonlys    []ReadonlyFact
+	Props        []PropFact
+	Conforms     []ConformsFact
+	Comptimes    []ComptimeFact
+	ConstFuncs   []ConstFuncFact
+	ConstMaps    []ConstMapFact
+	ConstComps   []string
+	Defaults     []DefaultFact
+	Locks        []LockFact
+	AllocFrees   []AllocFreeFact
+	JsonMetas    []JsonMetaFact
+	JsonKeys     []JsonKeyFact
+	UnionMembers []UnionMemberFact
+	BareUnions   []string
+	GoPackage    bool
+}
+
+func (f *Facts) empty() bool {
+	return len(f.Opts) == 0 && len(f.Consts) == 0 && len(f.Fns) == 0 &&
+		len(f.Readonlys) == 0 && len(f.Props) == 0 && len(f.Conforms) == 0 &&
+		len(f.Comptimes) == 0 && len(f.ConstFuncs) == 0 && len(f.Defaults) == 0 &&
+		len(f.Locks) == 0 && len(f.AllocFrees) == 0 && len(f.JsonMetas) == 0 &&
+		len(f.JsonKeys) == 0 && len(f.UnionMembers) == 0 && len(f.BareUnions) == 0 && len(f.ConstMaps) == 0 && len(f.ConstComps) == 0 && !f.GoPackage
+}
+
 type DefaultFact struct {
 	Type  string
 	Field string
 	Text  string
 }
 
-// Encode renders the facts in canonical form: header, fingerprint, then
-// record lines sorted byte-wise. A nil f emits a header-only member, which
-// is what the writer produces until S2-S7 populate records.
-func Encode(fp goobj.FingerprintType, f *Facts) []byte {
-	type record struct {
-		line string
-		body []byte // set only for comptime records
+type JsonMetaFact struct {
+	Type       string
+	HasDecoder bool
+	Eligible   bool
+}
+
+type JsonKeyFact struct {
+	Type  string
+	Index int
+	Key   string
+}
+
+type UnionMemberFact struct {
+	Type   string
+	Index  int
+	Member string
+}
+
+type factRecord struct {
+	line string
+	body []byte
+}
+
+func (f *Facts) jsonRecords() []factRecord {
+	if f == nil || f.GoPackage {
+		return nil
 	}
-	var recs []record
-	// Encode emits only records Decode accepts. Vacuous records assert
-	// nothing and are skipped, so output always round-trips while Decode
-	// stays strict enough to catch producer bugs on the read path.
+	var out []factRecord
+	for _, m := range f.JsonMetas {
+		if m.Type == "" || !isIdent(m.Type) {
+			continue
+		}
+		flags := ""
+		if m.HasDecoder {
+			flags = "decoder"
+		}
+		if m.Eligible {
+			if flags != "" {
+				flags += ","
+			}
+			flags += "eligible"
+		}
+		if flags == "" {
+			continue
+		}
+		out = append(out, factRecord{line: "jsonmeta " + m.Type + " " + flags})
+	}
+	for _, k := range f.JsonKeys {
+		if k.Type == "" || !isIdent(k.Type) || k.Index < 0 || k.Index > 9999 {
+			continue
+		}
+		out = append(out, factRecord{line: "jsonkey " + k.Type + " " + paddedIndex(k.Index) + " " + strconv.Itoa(len(k.Key)), body: []byte(k.Key)})
+	}
+	for _, u := range f.UnionMembers {
+		if u.Type == "" || !isIdent(u.Type) || u.Index < 0 || u.Index > 9999 || u.Member == "" {
+			continue
+		}
+		out = append(out, factRecord{line: "unionmember " + u.Type + " " + paddedIndex(u.Index) + " " + u.Member})
+	}
+	return out
+}
+
+func paddedIndex(i int) string {
+	s := strconv.Itoa(i)
+	for len(s) < 4 {
+		s = "0" + s
+	}
+	return s
+}
+
+func Encode(fp goobj.FingerprintType, f *Facts) []byte {
+	var recs []factRecord
 	if f != nil {
 		for _, o := range f.Opts {
 			if o.Object != "" && o.Path != "" {
-				recs = append(recs, record{line: "opt " + o.Object + " " + o.Path})
+				recs = append(recs, factRecord{line: "opt " + o.Object + " " + o.Path})
 			}
 		}
 		for _, c := range f.Consts {
 			if c.Object != "" && c.Path != "" {
-				recs = append(recs, record{line: "const " + c.Object + " " + c.Path})
+				recs = append(recs, factRecord{line: "const " + c.Object + " " + c.Path})
 			}
 		}
 		for _, fn := range f.Fns {
 			if fl := fn.flags(); fn.Object != "" && fl != "" {
-				recs = append(recs, record{line: "fn " + fn.Object + " " + fl})
+				recs = append(recs, factRecord{line: "fn " + fn.Object + " " + fl})
 			}
 		}
 		for _, r := range f.Readonlys {
 			if r.Object != "" && r.Path != "" {
-				recs = append(recs, record{line: "readonly " + r.Object + " " + r.Path})
+				recs = append(recs, factRecord{line: "readonly " + r.Object + " " + r.Path})
 			}
 		}
 		for _, p := range f.Props {
 			if p.Interface != "" && p.Prefix != "" {
-				recs = append(recs, record{line: "prop " + p.Interface + " " + p.Prefix})
+				recs = append(recs, factRecord{line: "prop " + p.Interface + " " + p.Prefix})
 			}
 		}
 		for _, c := range f.Conforms {
 			if c.Type != "" && c.IfacePath != "" && c.Iface != "" {
-				recs = append(recs, record{line: "conforms " + c.Type + " " + c.IfacePath + " " + c.Iface})
+				recs = append(recs, factRecord{line: "conforms " + c.Type + " " + c.IfacePath + " " + c.Iface})
 			}
 		}
 		for _, c := range f.Comptimes {
 			if c.Object != "" && len(c.Source) > 0 {
-				recs = append(recs, record{line: "comptime " + c.Object + " " + strconv.Itoa(len(c.Source)), body: c.Source})
+				recs = append(recs, factRecord{line: "comptime " + c.Object + " " + strconv.Itoa(len(c.Source)), body: c.Source})
 			}
 		}
 		for _, c := range f.ConstFuncs {
 			if c.Object != "" && len(c.Source) > 0 {
-				recs = append(recs, record{line: "constfn " + c.Object + " " + strconv.Itoa(len(c.Source)), body: c.Source})
+				recs = append(recs, factRecord{line: "constfn " + c.Object + " " + strconv.Itoa(len(c.Source)), body: c.Source})
+			}
+		}
+		for _, c := range f.ConstMaps {
+			if body, ok := encodeConstMap(c); ok {
+				recs = append(recs, factRecord{line: strings.TrimSpace("constmap " + c.Object + " " + strconv.Itoa(len(body)) + " " + c.Path), body: body})
+			}
+		}
+		for _, o := range f.ConstComps {
+			if ValidObject(o) {
+				recs = append(recs, factRecord{line: "constcomp " + o})
 			}
 		}
 		if f.GoPackage {
-			recs = append(recs, record{line: "lang go"})
+			recs = append(recs, factRecord{line: "lang go"})
 		}
 		for _, d := range f.Defaults {
 			if d.Type != "" && d.Field != "" && d.Text != "" {
-				recs = append(recs, record{line: "default " + d.Type + " " + d.Field + " " + strconv.Itoa(len(d.Text)), body: []byte(d.Text)})
+				recs = append(recs, factRecord{line: "default " + d.Type + " " + d.Field + " " + strconv.Itoa(len(d.Text)), body: []byte(d.Text)})
 			}
 		}
+		for _, l := range f.Locks {
+			if l.Object != "" && l.Effect != "" && l.Path != "" {
+				recs = append(recs, factRecord{line: "locks " + l.Object + " " + l.Effect + " " + l.Path})
+			}
+		}
+		for _, a := range f.AllocFrees {
+			if a.Object != "" {
+				recs = append(recs, factRecord{line: "allocfree " + a.Object})
+			}
+		}
+		for _, u := range f.BareUnions {
+			if isIdent(u) {
+				recs = append(recs, factRecord{line: "unionbare " + u})
+			}
+		}
+		recs = append(recs, f.jsonRecords()...)
 	}
-	slices.SortFunc(recs, func(a, b record) int { return cmp.Compare(a.line, b.line) })
-
+	slices.SortFunc(recs, func(a, b factRecord) int { return cmp.Compare(a.line, b.line) })
 	var b bytes.Buffer
 	b.WriteString(versionLine + "\n")
 	fmt.Fprintf(&b, "fingerprint %x\n", fp[:])
@@ -284,7 +301,6 @@ func Encode(fp goobj.FingerprintType, f *Facts) []byte {
 	return b.Bytes()
 }
 
-// flags renders the flag set in canonical order.
 func (fn FnFact) flags() string {
 	var b strings.Builder
 	add := func(s string) {
@@ -293,14 +309,8 @@ func (fn FnFact) flags() string {
 		}
 		b.WriteString(s)
 	}
-	if fn.ReturnsNonNil {
-		add("ReturnsNonNil")
-	}
 	if fn.AlwaysNilError {
 		add("AlwaysNilError")
-	}
-	if fn.PureConst {
-		add("PureConst")
 	}
 	if fn.ReceiverMutated {
 		add("ReceiverMutated")
@@ -308,10 +318,6 @@ func (fn FnFact) flags() string {
 	if fn.Readonly {
 		add("Readonly")
 	}
-	// Both masks or neither: a producer defect that sets HasAssert with a
-	// missing mask must not manufacture a complete "0" pair through
-	// normHex's empty-to-"0" mapping; the record stays unknown instead
-	// and Decode rejects genuinely partial pairs on the wire.
 	if fn.HasAssert && fn.AssertTP != "" && fn.AssertRTP != "" {
 		add("AssertTP=" + normHex(fn.AssertTP))
 		add("AssertRTP=" + normHex(fn.AssertRTP))
@@ -329,15 +335,10 @@ func (fn FnFact) flags() string {
 	return b.String()
 }
 
-// parseFlag sets one flag on fn.
 func (fn *FnFact) parseFlag(flag string) error {
 	switch flag {
-	case "ReturnsNonNil":
-		fn.ReturnsNonNil = true
 	case "AlwaysNilError":
 		fn.AlwaysNilError = true
-	case "PureConst":
-		fn.PureConst = true
 	case "ReceiverMutated":
 		fn.ReceiverMutated = true
 	case "Readonly":
@@ -379,10 +380,6 @@ func (fn *FnFact) parseFlag(flag string) error {
 	return nil
 }
 
-// HighestAssertBit returns the index of the highest set bit of a hex
-// mask string and whether s is a valid mask. Consumers reject summaries
-// whose highest bit lies outside the declaration's real parameter arity
-// instead of silently ignoring the excess bits.
 func HighestAssertBit(s string) (int, bool) {
 	if s == "" {
 		return 0, false
@@ -392,7 +389,7 @@ func HighestAssertBit(s string) (int, bool) {
 	}
 	trimmed := strings.TrimLeft(s, "0")
 	if trimmed == "" {
-		return -1, true // proven zero: no bit set
+		return -1, true
 	}
 	top := 4*(len(trimmed)-1) + bits.Len8(uint8(nibbleValue(trimmed[0]))) - 1
 	return top, true
@@ -405,13 +402,10 @@ func nibbleValue(c byte) int {
 	return int(c - '0')
 }
 
-// isHexMask reports whether s is a non-empty run of hex digits. A mask
-// has any digit count: normHex strips leading zeros, so "1" is valid.
 func isHexMask(s string) bool {
 	return s != "" && strings.Trim(s, "0123456789abcdefABCDEF") == ""
 }
 
-// normHex lowercases a hex mask and strips leading zeros.
 func normHex(s string) string {
 	s = strings.ToLower(s)
 	s = strings.TrimLeft(s, "0")
@@ -425,9 +419,21 @@ type decoder struct {
 	data []byte
 	off  int
 	line int
+	seen map[string]int
 }
 
-// header consumes one '\n'-terminated line, reporting its line number.
+func (d *decoder) dup(ln int, kind, key, display string) error {
+	if d.seen == nil {
+		d.seen = make(map[string]int)
+	}
+	k := kind + "\x00" + key
+	if first, ok := d.seen[k]; ok {
+		return fmt.Errorf("logos facts line %d: duplicate %s record for %q (first on line %d)", ln, kind, display, first)
+	}
+	d.seen[k] = ln
+	return nil
+}
+
 func (d *decoder) header() (ln int, s string, err error) {
 	ln = d.line
 	i := bytes.IndexByte(d.data[d.off:], '\n')
@@ -440,35 +446,146 @@ func (d *decoder) header() (ln int, s string, err error) {
 	return ln, s, nil
 }
 
-// Decode parses one __.LOGOS member. Every error names the line number.
-func Decode(data []byte) (*Facts, error) {
-	d := &decoder{data: data, line: 1}
-	f := &Facts{}
+func (d *decoder) takeBody(ln int, kind, object string, n int) ([]byte, error) {
+	return d.body(ln, kind, object, n, false)
+}
 
+func (d *decoder) requireBody(ln int, kind, object string, n int) ([]byte, error) {
+	return d.body(ln, kind, object, n, true)
+}
+
+func (d *decoder) body(ln int, kind, object string, n int, strictNL bool) ([]byte, error) {
+	if len(d.data)-d.off < n {
+		return nil, fmt.Errorf("logos facts line %d: truncated %s body for %q (want %d bytes, have %d)", ln, kind, object, n, len(d.data)-d.off)
+	}
+	src := bytes.Clone(d.data[d.off : d.off+n])
+	d.off += n
+	d.line += bytes.Count(src, []byte{'\n'})
+	atEOF := d.off >= len(d.data)
+	if strictNL && atEOF {
+		return nil, fmt.Errorf("logos facts line %d: want newline after %s body", ln, kind)
+	}
+	if !atEOF {
+		if d.data[d.off] != '\n' {
+			return nil, fmt.Errorf("logos facts line %d: want newline after %s body", ln, kind)
+		}
+		d.off++
+		d.line++
+	}
+	return src, nil
+}
+func decodeJSONFact(f *Facts, d *decoder, ln int, line string) (bool, error) {
+	fields := strings.Fields(line)
+	if len(fields) == 0 {
+		return false, nil
+	}
+	switch fields[0] {
+	case "jsonmeta":
+		if len(fields) != 3 {
+			return true, fmt.Errorf(`logos facts line %d: bad jsonmeta record %q (want "jsonmeta <type> <flag>[,<flag>]")`, ln, line)
+		}
+		if !isIdent(fields[1]) {
+			return true, fmt.Errorf("logos facts line %d: bad type %q", ln, fields[1])
+		}
+		meta := JsonMetaFact{Type: fields[1]}
+		for flag := range strings.SplitSeq(fields[2], ",") {
+			if flag == "decoder" {
+				meta.HasDecoder = true
+			} else if flag == "eligible" {
+				meta.Eligible = true
+			} else {
+				return true, fmt.Errorf("logos facts line %d: bad jsonmeta flag %q", ln, flag)
+			}
+		}
+		if !meta.HasDecoder && !meta.Eligible {
+			return true, fmt.Errorf("logos facts line %d: empty jsonmeta flags %q", ln, line)
+		}
+		if err := d.dup(ln, "jsonmeta", fields[1], fields[1]); err != nil {
+			return true, err
+		}
+		f.JsonMetas = append(f.JsonMetas, meta)
+		return true, nil
+	case "jsonkey":
+		if len(fields) != 4 {
+			return true, fmt.Errorf(`logos facts line %d: bad jsonkey record %q (want "jsonkey <type> <index> <length>")`, ln, line)
+		}
+		if !isIdent(fields[1]) {
+			return true, fmt.Errorf("logos facts line %d: bad type %q", ln, fields[1])
+		}
+		if !isDigits(fields[2]) {
+			return true, fmt.Errorf("logos facts line %d: bad jsonkey index %q", ln, fields[2])
+		}
+		n, aerr := strconv.Atoi(fields[3])
+		if aerr != nil || n < 0 {
+			return true, fmt.Errorf("logos facts line %d: bad jsonkey length %q", ln, fields[3])
+		}
+		index, _ := strconv.Atoi(fields[2])
+		if err := d.dup(ln, "jsonkey", fields[1]+"\x00"+strconv.Itoa(index), fields[1]+" "+fields[2]); err != nil {
+			return true, err
+		}
+		key, err := d.takeBody(ln, "jsonkey", fields[1], n)
+		if err != nil {
+			return true, err
+		}
+		f.JsonKeys = append(f.JsonKeys, JsonKeyFact{Type: fields[1], Index: index, Key: string(key)})
+		return true, nil
+	case "unionmember":
+		if len(fields) != 4 {
+			return true, fmt.Errorf(`logos facts line %d: bad unionmember record %q (want "unionmember <type> <index> <member>")`, ln, line)
+		}
+		if !isIdent(fields[1]) {
+			return true, fmt.Errorf("logos facts line %d: bad type %q", ln, fields[1])
+		}
+		if !isDigits(fields[2]) {
+			return true, fmt.Errorf("logos facts line %d: bad unionmember index %q", ln, fields[2])
+		}
+		if fields[3] == "" {
+			return true, fmt.Errorf("logos facts line %d: bad unionmember %q", ln, fields[3])
+		}
+		index, _ := strconv.Atoi(fields[2])
+		if err := d.dup(ln, "unionmember", fields[1]+"\x00"+strconv.Itoa(index), fields[1]+" "+fields[2]); err != nil {
+			return true, err
+		}
+		f.UnionMembers = append(f.UnionMembers, UnionMemberFact{Type: fields[1], Index: index, Member: fields[3]})
+		return true, nil
+	}
+	return false, nil
+}
+
+func (d *decoder) preamble(f *Facts) error {
 	_, magic, err := d.header()
 	if err != nil {
-		if len(data) == 0 {
-			return nil, fmt.Errorf("logos facts line 1: empty facts member, want %q", versionLine)
+		if len(d.data) == 0 {
+			return fmt.Errorf("logos facts line 1: empty facts member, want %q", versionLine)
 		}
-		return nil, err
+		return err
 	}
 	if magic != versionLine {
-		return nil, fmt.Errorf("logos facts line 1: unsupported version %q (want %q)", magic, versionLine)
+		return fmt.Errorf("logos facts line 1: unsupported version %q (want %q)", magic, versionLine)
 	}
 
 	_, fpLine, err := d.header()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	fpFields := strings.Fields(fpLine)
 	if len(fpFields) != 2 || fpFields[0] != "fingerprint" {
-		return nil, fmt.Errorf(`logos facts line 2: bad fingerprint line %q (want "fingerprint <hex>")`, fpLine)
+		return fmt.Errorf(`logos facts line 2: bad fingerprint line %q (want "fingerprint <hex>")`, fpLine)
 	}
 	raw, err := hex.DecodeString(fpFields[1])
 	if err != nil || len(raw) != len(f.Fingerprint) {
-		return nil, fmt.Errorf("logos facts line 2: bad fingerprint %q (want %d hex chars)", fpFields[1], 2*len(f.Fingerprint))
+		return fmt.Errorf("logos facts line 2: bad fingerprint %q (want %d hex chars)", fpFields[1], 2*len(f.Fingerprint))
 	}
 	copy(f.Fingerprint[:], raw)
+	return nil
+}
+
+func Decode(data []byte) (*Facts, error) {
+	d := &decoder{data: data, line: 1}
+	f := &Facts{}
+	if err := d.preamble(f); err != nil {
+		return nil, err
+	}
 
 	prev := ""
 	for d.off < len(d.data) {
@@ -483,17 +600,26 @@ func Decode(data []byte) (*Facts, error) {
 			return nil, fmt.Errorf("logos facts line %d: unsorted records (%q after %q)", ln, line, prev)
 		}
 		prev = line
+		if handled, herr := decodeJSONFact(f, d, ln, line); handled {
+			if herr != nil {
+				return nil, herr
+			}
+			continue
+		}
 		fields := strings.Fields(line)
 		switch {
 		case strings.HasPrefix(line, "opt ") || strings.HasPrefix(line, "const ") || strings.HasPrefix(line, "readonly "):
 			if len(fields) != 3 {
 				return nil, fmt.Errorf("logos facts line %d: bad %s record %q (want %q)", ln, fields[0], line, fields[0]+" <object> <path>")
 			}
-			if !validObject(fields[1]) {
+			if !ValidObject(fields[1]) {
 				return nil, fmt.Errorf("logos facts line %d: bad object %q", ln, fields[1])
 			}
 			if !validPath(fields[2]) {
 				return nil, fmt.Errorf("logos facts line %d: bad path %q", ln, fields[2])
+			}
+			if err := d.dup(ln, fields[0], fields[1]+"\x00"+fields[2], fields[1]+" "+fields[2]); err != nil {
+				return nil, err
 			}
 			switch fields[0] {
 			case "opt":
@@ -505,13 +631,54 @@ func Decode(data []byte) (*Facts, error) {
 			}
 		case line == "lang go":
 			f.GoPackage = true
+		case strings.HasPrefix(line, "locks "):
+			if len(fields) != 4 {
+				return nil, fmt.Errorf(`logos facts line %d: bad locks record %q (want "locks <object> <requires|acquires|releases> <path>")`, ln, line)
+			}
+			if !ValidObject(fields[1]) {
+				return nil, fmt.Errorf("logos facts line %d: bad object %q", ln, fields[1])
+			}
+			switch fields[2] {
+			case "requires", "acquires", "releases":
+			default:
+				return nil, fmt.Errorf("logos facts line %d: bad lock effect %q (want requires, acquires, or releases)", ln, fields[2])
+			}
+			if !validLockPath(fields[3]) {
+				return nil, fmt.Errorf("logos facts line %d: bad lock path %q", ln, fields[3])
+			}
+			if err := d.dup(ln, "locks", fields[1]+"\x00"+fields[2]+"\x00"+fields[3], fields[1]+" "+fields[2]+" "+fields[3]); err != nil {
+				return nil, err
+			}
+			f.Locks = append(f.Locks, LockFact{Object: fields[1], Effect: fields[2], Path: fields[3]})
+		case strings.HasPrefix(line, "allocfree "):
+			if len(fields) != 2 {
+				return nil, fmt.Errorf(`logos facts line %d: bad allocfree record %q (want "allocfree <object>")`, ln, line)
+			}
+			if !ValidObject(fields[1]) {
+				return nil, fmt.Errorf("logos facts line %d: bad object %q", ln, fields[1])
+			}
+			if err := d.dup(ln, "allocfree", fields[1], fields[1]); err != nil {
+				return nil, err
+			}
+			f.AllocFrees = append(f.AllocFrees, AllocFreeFact{Object: fields[1]})
+		case strings.HasPrefix(line, "unionbare "):
+			if len(fields) != 2 {
+				return nil, fmt.Errorf(`logos facts line %d: bad unionbare record %q (want "unionbare <type>")`, ln, line)
+			}
+			if !isIdent(fields[1]) {
+				return nil, fmt.Errorf("logos facts line %d: bad type %q", ln, fields[1])
+			}
+			if err := d.dup(ln, "unionbare", fields[1], fields[1]); err != nil {
+				return nil, err
+			}
+			f.BareUnions = append(f.BareUnions, fields[1])
 		case strings.HasPrefix(line, "fn "):
 			if len(fields) != 3 {
 				return nil, fmt.Errorf("logos facts line %d: bad fn record %q (want %q)", ln, line, "fn <object> <flag>[,<flag>...]")
 			}
 			var fn FnFact
 			fn.Object = fields[1]
-			if !validObject(fn.Object) {
+			if !ValidObject(fn.Object) {
 				return nil, fmt.Errorf("logos facts line %d: bad object %q", ln, fn.Object)
 			}
 			for _, flag := range strings.Split(fields[2], ",") {
@@ -519,29 +686,32 @@ func Decode(data []byte) (*Facts, error) {
 					return nil, fmt.Errorf("logos facts line %d: %v", ln, ferr)
 				}
 			}
-			// Trust boundary: an assertion-effect record carries both
-			// masks or neither. A partial pair must not certify the
-			// missing side as proven zero; neither flag stays unknown.
 			if (fn.AssertTP == "") != (fn.AssertRTP == "") {
 				return nil, fmt.Errorf("logos facts line %d: incomplete assertion-effect pair on %q (want both AssertTP and AssertRTP or neither)", ln, fn.Object)
+			}
+			if err := d.dup(ln, "fn", fn.Object, fn.Object); err != nil {
+				return nil, err
 			}
 			f.Fns = append(f.Fns, fn)
 		case strings.HasPrefix(line, "prop "):
 			if len(fields) != 3 {
 				return nil, fmt.Errorf(`logos facts line %d: bad prop record %q (want "prop <interface> <prefix>")`, ln, line)
 			}
-			if !validObject(fields[1]) {
+			if !ValidObject(fields[1]) {
 				return nil, fmt.Errorf("logos facts line %d: bad interface %q", ln, fields[1])
 			}
 			if !validPrefix(fields[2]) {
 				return nil, fmt.Errorf("logos facts line %d: bad accessor prefix %q", ln, fields[2])
+			}
+			if err := d.dup(ln, "prop", fields[1], fields[1]); err != nil {
+				return nil, err
 			}
 			f.Props = append(f.Props, PropFact{Interface: fields[1], Prefix: fields[2]})
 		case strings.HasPrefix(line, "conforms "):
 			if len(fields) != 4 {
 				return nil, fmt.Errorf(`logos facts line %d: bad conforms record %q (want "conforms <struct> <package> <interface>")`, ln, line)
 			}
-			if !validObject(fields[1]) {
+			if !ValidObject(fields[1]) {
 				return nil, fmt.Errorf("logos facts line %d: bad struct %q", ln, fields[1])
 			}
 			if fields[2] == "" {
@@ -550,12 +720,15 @@ func Decode(data []byte) (*Facts, error) {
 			if !isIdent(fields[3]) {
 				return nil, fmt.Errorf("logos facts line %d: bad interface %q", ln, fields[3])
 			}
+			if err := d.dup(ln, "conforms", fields[1]+"\x00"+fields[2]+"\x00"+fields[3], fields[1]+" "+fields[2]+" "+fields[3]); err != nil {
+				return nil, err
+			}
 			f.Conforms = append(f.Conforms, ConformsFact{Type: fields[1], IfacePath: fields[2], Iface: fields[3]})
 		case strings.HasPrefix(line, "default "):
 			if len(fields) != 4 {
 				return nil, fmt.Errorf(`logos facts line %d: bad default record %q (want "default <type> <field> <length>")`, ln, line)
 			}
-			if !validObject(fields[1]) {
+			if !ValidObject(fields[1]) {
 				return nil, fmt.Errorf("logos facts line %d: bad type %q", ln, fields[1])
 			}
 			if !isIdent(fields[2]) {
@@ -565,77 +738,92 @@ func Decode(data []byte) (*Facts, error) {
 			if aerr != nil || n < 0 {
 				return nil, fmt.Errorf("logos facts line %d: bad default length %q", ln, fields[3])
 			}
-			if len(d.data)-d.off < n {
-				return nil, fmt.Errorf("logos facts line %d: truncated default body for %q (want %d bytes, have %d)", ln, fields[1], n, len(d.data)-d.off)
+			if err := d.dup(ln, "default", fields[1]+"\x00"+fields[2], fields[1]+" "+fields[2]); err != nil {
+				return nil, err
 			}
-			text := string(bytes.Clone(d.data[d.off : d.off+n]))
-			d.off += n
-			d.line += bytes.Count([]byte(text), []byte{'\n'})
-			if d.off < len(d.data) {
-				if d.data[d.off] != '\n' {
-					return nil, fmt.Errorf("logos facts line %d: want newline after default body", ln)
-				}
-				d.off++
-				d.line++
+			text, err := d.takeBody(ln, "default", fields[1], n)
+			if err != nil {
+				return nil, err
 			}
-			f.Defaults = append(f.Defaults, DefaultFact{Type: fields[1], Field: fields[2], Text: text})
+			f.Defaults = append(f.Defaults, DefaultFact{Type: fields[1], Field: fields[2], Text: string(text)})
 		case strings.HasPrefix(line, "comptime "):
 			if len(fields) != 3 {
 				return nil, fmt.Errorf(`logos facts line %d: bad comptime record %q (want "comptime <object> <length>")`, ln, line)
 			}
-			if !validObject(fields[1]) {
+			if !ValidObject(fields[1]) {
 				return nil, fmt.Errorf("logos facts line %d: bad object %q", ln, fields[1])
 			}
 			n, aerr := strconv.Atoi(fields[2])
 			if aerr != nil || n < 0 {
 				return nil, fmt.Errorf("logos facts line %d: bad comptime length %q", ln, fields[2])
 			}
-			if len(d.data)-d.off < n {
-				return nil, fmt.Errorf("logos facts line %d: truncated comptime body for %q (want %d bytes, have %d)", ln, fields[1], n, len(d.data)-d.off)
+			if err := d.dup(ln, "comptime", fields[1], fields[1]); err != nil {
+				return nil, err
 			}
-			src := bytes.Clone(d.data[d.off : d.off+n])
-			d.off += n
-			d.line += bytes.Count(src, []byte{'\n'})
-			if d.off < len(d.data) {
-				if d.data[d.off] != '\n' {
-					return nil, fmt.Errorf("logos facts line %d: want newline after comptime body", ln)
-				}
-				d.off++
-				d.line++
+			src, err := d.takeBody(ln, "comptime", fields[1], n)
+			if err != nil {
+				return nil, err
 			}
 			f.Comptimes = append(f.Comptimes, ComptimeFact{Object: fields[1], Source: src})
 		case strings.HasPrefix(line, "constfn "):
 			if len(fields) != 3 {
 				return nil, fmt.Errorf(`logos facts line %d: bad constfn record %q (want "constfn <object> <length>")`, ln, line)
 			}
-			if !validObject(fields[1]) {
+			if !ValidObject(fields[1]) {
 				return nil, fmt.Errorf("logos facts line %d: bad object %q", ln, fields[1])
 			}
 			n, aerr := strconv.Atoi(fields[2])
 			if aerr != nil || n <= 0 {
 				return nil, fmt.Errorf("logos facts line %d: bad constfn length %q", ln, fields[2])
 			}
-			if len(d.data)-d.off < n {
-				return nil, fmt.Errorf("logos facts line %d: truncated constfn body for %q (want %d bytes, have %d)", ln, fields[1], n, len(d.data)-d.off)
+			if err := d.dup(ln, "constfn", fields[1], fields[1]); err != nil {
+				return nil, err
 			}
-			src := bytes.Clone(d.data[d.off : d.off+n])
-			d.off += n
-			d.line += bytes.Count(src, []byte{'\n'})
-			if d.off >= len(d.data) || d.data[d.off] != '\n' {
-				return nil, fmt.Errorf("logos facts line %d: want newline after constfn body", ln)
-			}
-			d.off++
-			d.line++
-			for _, c := range f.ConstFuncs {
-				if c.Object == fields[1] {
-					return nil, fmt.Errorf("logos facts line %d: duplicate constfn object %q", ln, fields[1])
-				}
+			src, err := d.requireBody(ln, "constfn", fields[1], n)
+			if err != nil {
+				return nil, err
 			}
 			f.ConstFuncs = append(f.ConstFuncs, ConstFuncFact{Object: fields[1], Source: src})
+		case strings.HasPrefix(line, "constmap "):
+			if len(fields) != 3 && len(fields) != 4 {
+				return nil, fmt.Errorf(`logos facts line %d: bad constmap record %q (want "constmap <object> <length> [<path>]")`, ln, line)
+			}
+			if !ValidObject(fields[1]) {
+				return nil, fmt.Errorf("logos facts line %d: bad object %q", ln, fields[1])
+			}
+			n, aerr := strconv.Atoi(fields[2])
+			if aerr != nil || n <= 0 {
+				return nil, fmt.Errorf("logos facts line %d: bad constmap length %q", ln, fields[2])
+			}
+			path := strings.Join(fields[3:], "")
+			if path != "" && !validCompositePath(path) {
+				return nil, fmt.Errorf("logos facts line %d: bad constmap path %q", ln, path)
+			}
+			if err := d.dup(ln, "constmap", fields[1]+"\x00"+path, fields[1]+path); err != nil {
+				return nil, err
+			}
+			body, err := d.requireBody(ln, "constmap", fields[1], n)
+			if err != nil {
+				return nil, err
+			}
+			cm, err := decodeConstMap(fields[1], body)
+			if err != nil {
+				return nil, fmt.Errorf("logos facts line %d: %v", ln, err)
+			}
+			cm.Path = path
+			f.ConstMaps = append(f.ConstMaps, cm)
+		case strings.HasPrefix(line, "constcomp "):
+			if len(fields) != 2 || !ValidObject(fields[1]) {
+				return nil, fmt.Errorf("logos facts line %d: bad constcomp record %q", ln, line)
+			}
+			if err := d.dup(ln, "constcomp", fields[1], fields[1]); err != nil {
+				return nil, err
+			}
+			f.ConstComps = append(f.ConstComps, fields[1])
 		default:
 			kind := line
-			if k := strings.Fields(line); len(k) > 0 {
-				kind = k[0]
+			if len(fields) > 0 {
+				kind = fields[0]
 			}
 			return nil, fmt.Errorf("logos facts line %d: unknown record %q", ln, kind)
 		}
@@ -659,12 +847,11 @@ func isIdent(s string) bool {
 	return true
 }
 
-// ValidObject reports whether s names a record object in the grammar
-// Decode accepts, so a producer can skip names it cannot spell.
-func ValidObject(s string) bool { return validObject(s) }
-
-func validObject(s string) bool {
-	recv, _, _ := strings.Cut(s, "@")
+func ValidObject(s string) bool {
+	recv, tag, hasTag := strings.Cut(s, "@")
+	if hasTag && !isIdent(tag) {
+		return false
+	}
 	if before, after, ok := strings.CutLast(recv, "."); ok {
 		if !isIdent(after) {
 			return false
@@ -696,8 +883,6 @@ func isDigits(s string) bool {
 	return true
 }
 
-// validStep reports whether s is one path step: R<i>, P<i>, F<name>, E, D,
-// K, M<name>, T<i>, G<i>, or H<i>.
 func validStep(s string) bool {
 	if s == "" {
 		return false
@@ -713,7 +898,6 @@ func validStep(s string) bool {
 	return false
 }
 
-// validPath reports whether s is a dot-separated path of valid steps.
 func validPath(s string) bool {
 	if s == "" {
 		return false
@@ -726,6 +910,45 @@ func validPath(s string) bool {
 	return true
 }
 
+func validCompositePath(s string) bool {
+	if s == "" {
+		return false
+	}
+	for s != "" {
+		switch s[0] {
+		case '.':
+			end := strings.IndexAny(s[1:], ".[")
+			if end < 0 {
+				end = len(s) - 1
+			}
+			if !isIdent(s[1 : 1+end]) {
+				return false
+			}
+			s = s[1+end:]
+		case '[':
+			end := strings.IndexByte(s, ']')
+			if end < 2 || !isDigits(s[1:end]) || (end > 2 && s[1] == '0') {
+				return false
+			}
+			s = s[end+1:]
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func validLockPath(s string) bool {
+	if s == "" {
+		return false
+	}
+	for step := range strings.SplitSeq(s, ".") {
+		if !isIdent(step) {
+			return false
+		}
+	}
+	return true
+}
 func validPrefix(s string) bool {
 	if s == "" {
 		return false
@@ -746,27 +969,18 @@ var (
 	imported   = make(map[string]*Facts)
 )
 
-// Current returns the facts collected for the package being compiled, or
-// nil when no producer has run. S2-S7 producers install it through
-// SetCurrent before the object dump.
 func Current() *Facts {
 	currentMu.RLock()
 	defer currentMu.RUnlock()
 	return currentFacts
 }
 
-// SetCurrent installs the facts for the package being compiled. Later
-// slices call it during lowering, before dumpobj1 writes the archive.
 func SetCurrent(f *Facts) {
 	currentMu.Lock()
 	defer currentMu.Unlock()
 	currentFacts = f
 }
 
-// Import verifies a __.LOGOS member against the __.PKGDEF export data,
-// decodes it, and records it under path for the importer overlay (S2-S7).
-// A fingerprint mismatch means the archive mixes export data and facts
-// from different builds of the package.
 func Import(path, exportData string, member []byte) (*Facts, error) {
 	f, err := Decode(member)
 	if err != nil {
@@ -786,7 +1000,6 @@ func Import(path, exportData string, member []byte) (*Facts, error) {
 	return f, nil
 }
 
-// Lookup returns the facts Import recorded for path.
 func Lookup(path string) (*Facts, bool) {
 	importedMu.RLock()
 	defer importedMu.RUnlock()
@@ -794,9 +1007,6 @@ func Lookup(path string) (*Facts, bool) {
 	return f, ok
 }
 
-// FindMember returns the raw __.LOGOS member of the archive f, or nil when
-// the archive predates the sidecar. It seeks, so the caller's file offset
-// is not preserved.
 func FindMember(f *os.File) ([]byte, error) {
 	if _, err := f.Seek(0, io.SeekStart); err != nil {
 		return nil, fmt.Errorf("logos: cannot seek facts archive: %v", err)

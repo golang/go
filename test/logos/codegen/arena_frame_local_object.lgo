@@ -1,0 +1,36 @@
+// asmcheck -goexperiment logosarena -smallframes
+
+package main
+
+var objectTotal byte
+
+//go:noinline
+func consumeBox(v any) byte {
+	return v.([2048]byte)[0]
+}
+
+//go:noinline
+func consumeObject(p *[32768]byte) byte {
+	return p[0]
+}
+
+//go:noinline
+func frameBox() byte {
+	var b [2048]byte
+	b[0] = 17
+	// amd64:1"CALL.*runtime\\.logosArenaMakeSlice"
+	// amd64:-"CALL.*runtime\\.convTnoptr"
+	return consumeBox(b)
+}
+
+//go:noinline
+func frameNew() byte {
+	// amd64:1"CALL.*runtime\\.logosArenaMakeSlice"
+	// amd64:-"CALL.*runtime\\.newobject"
+	p := new([32768]byte)
+	return consumeObject(p)
+}
+
+func main() {
+	objectTotal = frameBox() + frameNew()
+}

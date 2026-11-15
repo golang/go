@@ -2,15 +2,32 @@
 
 package main
 
-// M5-S3 read-only placement (SPEC Sec 2.1, T-201): a package-level
-// slice composite hand-marked //logos:rodata whose elements need
-// dynamic code stops the compiler with the slice's internal-error
-// text. Lowering-created vars never reach this path: slice, array, and
-// struct composites of constants always initialize statically (maps
-// stay dynamic and are excluded from marking until M5-S4).
+var suffix = "y"
 
 //logos:rodata
-var dyn = []int{fresh(), 1} // ERROR "logos: const composite dyn needs dynamic initialization"
+var dyn = []int{fresh(), 1} // ERROR "\[correctness::rodata_dynamic_init\]"
+
+//logos:rodata
+var called = fresh() // ERROR "\[correctness::rodata_dynamic_init\]"
+
+//logos:rodata
+var mapped = map[string]int{"a": 1} // ERROR "\[correctness::rodata_dynamic_init\]"
+
+//logos:rodata
+var joined = suffix + "x" // ERROR "\[correctness::rodata_dynamic_init\]"
+
+var (
+	//logos:rodata
+	groupedCall = fresh() // ERROR "\[correctness::rodata_dynamic_init\]"
+
+	groupedPlain = fresh()
+
+	//logos:rodata
+	groupedMap = map[string]int{"b": 2} // ERROR "\[correctness::rodata_dynamic_init\]"
+
+	//logos:rodata
+	groupedStatic = [2]int{3, 4}
+)
 
 //go:noinline
 func fresh() int {
@@ -18,5 +35,5 @@ func fresh() int {
 }
 
 func main() {
-	println(dyn[0], dyn[1])
+	println(dyn[0], dyn[1], called, len(mapped), joined, groupedCall, groupedPlain, len(groupedMap), groupedStatic[0])
 }

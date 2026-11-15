@@ -217,7 +217,7 @@ func nilinterhash(p unsafe.Pointer, h uintptr) uintptr {
 //
 //go:linkname typehash
 func typehash(t *_type, p unsafe.Pointer, h uintptr) uintptr {
-	if t.TFlag&abi.TFlagRegularMemory != 0 && !zgcIdentityKeys(t) {
+	if t.TFlag&abi.TFlagRegularMemory != 0 {
 		// Handle ptr sizes specially, see issue 37086.
 		switch t.Size_ {
 		case 4:
@@ -239,9 +239,6 @@ func typehash(t *_type, p unsafe.Pointer, h uintptr) uintptr {
 		return c128hash(p, h)
 	case abi.String:
 		return strhash(p, h)
-	case abi.Pointer, abi.UnsafePointer, abi.Chan:
-		// Reached only when zgc owns the heap (zgcIdentityKeys).
-		return zgcptrhash(p, h)
 	case abi.Interface:
 		i := (*interfacetype)(unsafe.Pointer(t))
 		if len(i.Methods) == 0 {
@@ -330,7 +327,7 @@ func efaceeq(t *_type, x, y unsafe.Pointer) bool {
 		// Direct interface types are ptr, chan, map, func, and single-element structs/arrays thereof.
 		// Maps and funcs are not comparable, so they can't reach here.
 		// Ptrs, chans, and single-element items can be compared directly using ==.
-		return x == y || zgcIdentityKeys(t) && zgcCanonical(uintptr(x)) == zgcCanonical(uintptr(y))
+		return x == y
 	}
 	return eq(x, y)
 }
@@ -345,7 +342,7 @@ func ifaceeq(tab *itab, x, y unsafe.Pointer) bool {
 	}
 	if t.IsDirectIface() {
 		// See comment in efaceeq.
-		return x == y || zgcIdentityKeys(t) && zgcCanonical(uintptr(x)) == zgcCanonical(uintptr(y))
+		return x == y
 	}
 	return eq(x, y)
 }

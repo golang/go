@@ -1,0 +1,459 @@
+// run
+
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"strings"
+	"testing"
+)
+
+type S5 struct {
+	F000 string `json:"F000"`
+	F001 string `json:"F001"`
+	F002 string `json:"F002"`
+	F003 string `json:"F003"`
+	F004 string `json:"F004"`
+}
+
+type R5 struct {
+	F000 string
+	F001 string
+	F002 string
+	F003 string
+	F004 string
+}
+
+type S20 struct {
+	F000 string `json:"F000"`
+	F001 string `json:"F001"`
+	F002 string `json:"F002"`
+	F003 string `json:"F003"`
+	F004 string `json:"F004"`
+	F005 string `json:"F005"`
+	F006 string `json:"F006"`
+	F007 string `json:"F007"`
+	F008 string `json:"F008"`
+	F009 string `json:"F009"`
+	F010 string `json:"F010"`
+	F011 string `json:"F011"`
+	F012 string `json:"F012"`
+	F013 string `json:"F013"`
+	F014 string `json:"F014"`
+	F015 string `json:"F015"`
+	F016 string `json:"F016"`
+	F017 string `json:"F017"`
+	F018 string `json:"F018"`
+	F019 string `json:"F019"`
+}
+
+type R20 struct {
+	F000 string
+	F001 string
+	F002 string
+	F003 string
+	F004 string
+	F005 string
+	F006 string
+	F007 string
+	F008 string
+	F009 string
+	F010 string
+	F011 string
+	F012 string
+	F013 string
+	F014 string
+	F015 string
+	F016 string
+	F017 string
+	F018 string
+	F019 string
+}
+
+type S100 struct {
+	F000 string `json:"F000"`
+	F001 string `json:"F001"`
+	F002 string `json:"F002"`
+	F003 string `json:"F003"`
+	F004 string `json:"F004"`
+	F005 string `json:"F005"`
+	F006 string `json:"F006"`
+	F007 string `json:"F007"`
+	F008 string `json:"F008"`
+	F009 string `json:"F009"`
+	F010 string `json:"F010"`
+	F011 string `json:"F011"`
+	F012 string `json:"F012"`
+	F013 string `json:"F013"`
+	F014 string `json:"F014"`
+	F015 string `json:"F015"`
+	F016 string `json:"F016"`
+	F017 string `json:"F017"`
+	F018 string `json:"F018"`
+	F019 string `json:"F019"`
+	F020 string `json:"F020"`
+	F021 string `json:"F021"`
+	F022 string `json:"F022"`
+	F023 string `json:"F023"`
+	F024 string `json:"F024"`
+	F025 string `json:"F025"`
+	F026 string `json:"F026"`
+	F027 string `json:"F027"`
+	F028 string `json:"F028"`
+	F029 string `json:"F029"`
+	F030 string `json:"F030"`
+	F031 string `json:"F031"`
+	F032 string `json:"F032"`
+	F033 string `json:"F033"`
+	F034 string `json:"F034"`
+	F035 string `json:"F035"`
+	F036 string `json:"F036"`
+	F037 string `json:"F037"`
+	F038 string `json:"F038"`
+	F039 string `json:"F039"`
+	F040 string `json:"F040"`
+	F041 string `json:"F041"`
+	F042 string `json:"F042"`
+	F043 string `json:"F043"`
+	F044 string `json:"F044"`
+	F045 string `json:"F045"`
+	F046 string `json:"F046"`
+	F047 string `json:"F047"`
+	F048 string `json:"F048"`
+	F049 string `json:"F049"`
+	F050 string `json:"F050"`
+	F051 string `json:"F051"`
+	F052 string `json:"F052"`
+	F053 string `json:"F053"`
+	F054 string `json:"F054"`
+	F055 string `json:"F055"`
+	F056 string `json:"F056"`
+	F057 string `json:"F057"`
+	F058 string `json:"F058"`
+	F059 string `json:"F059"`
+	F060 string `json:"F060"`
+	F061 string `json:"F061"`
+	F062 string `json:"F062"`
+	F063 string `json:"F063"`
+	F064 string `json:"F064"`
+	F065 string `json:"F065"`
+	F066 string `json:"F066"`
+	F067 string `json:"F067"`
+	F068 string `json:"F068"`
+	F069 string `json:"F069"`
+	F070 string `json:"F070"`
+	F071 string `json:"F071"`
+	F072 string `json:"F072"`
+	F073 string `json:"F073"`
+	F074 string `json:"F074"`
+	F075 string `json:"F075"`
+	F076 string `json:"F076"`
+	F077 string `json:"F077"`
+	F078 string `json:"F078"`
+	F079 string `json:"F079"`
+	F080 string `json:"F080"`
+	F081 string `json:"F081"`
+	F082 string `json:"F082"`
+	F083 string `json:"F083"`
+	F084 string `json:"F084"`
+	F085 string `json:"F085"`
+	F086 string `json:"F086"`
+	F087 string `json:"F087"`
+	F088 string `json:"F088"`
+	F089 string `json:"F089"`
+	F090 string `json:"F090"`
+	F091 string `json:"F091"`
+	F092 string `json:"F092"`
+	F093 string `json:"F093"`
+	F094 string `json:"F094"`
+	F095 string `json:"F095"`
+	F096 string `json:"F096"`
+	F097 string `json:"F097"`
+	F098 string `json:"F098"`
+	F099 string `json:"F099"`
+}
+
+type R100 struct {
+	F000 string
+	F001 string
+	F002 string
+	F003 string
+	F004 string
+	F005 string
+	F006 string
+	F007 string
+	F008 string
+	F009 string
+	F010 string
+	F011 string
+	F012 string
+	F013 string
+	F014 string
+	F015 string
+	F016 string
+	F017 string
+	F018 string
+	F019 string
+	F020 string
+	F021 string
+	F022 string
+	F023 string
+	F024 string
+	F025 string
+	F026 string
+	F027 string
+	F028 string
+	F029 string
+	F030 string
+	F031 string
+	F032 string
+	F033 string
+	F034 string
+	F035 string
+	F036 string
+	F037 string
+	F038 string
+	F039 string
+	F040 string
+	F041 string
+	F042 string
+	F043 string
+	F044 string
+	F045 string
+	F046 string
+	F047 string
+	F048 string
+	F049 string
+	F050 string
+	F051 string
+	F052 string
+	F053 string
+	F054 string
+	F055 string
+	F056 string
+	F057 string
+	F058 string
+	F059 string
+	F060 string
+	F061 string
+	F062 string
+	F063 string
+	F064 string
+	F065 string
+	F066 string
+	F067 string
+	F068 string
+	F069 string
+	F070 string
+	F071 string
+	F072 string
+	F073 string
+	F074 string
+	F075 string
+	F076 string
+	F077 string
+	F078 string
+	F079 string
+	F080 string
+	F081 string
+	F082 string
+	F083 string
+	F084 string
+	F085 string
+	F086 string
+	F087 string
+	F088 string
+	F089 string
+	F090 string
+	F091 string
+	F092 string
+	F093 string
+	F094 string
+	F095 string
+	F096 string
+	F097 string
+	F098 string
+	F099 string
+}
+
+type sizeCase struct {
+	n            int
+	load         func(data []byte) error
+	marshalGen   func() ([]byte, error)
+	marshalStd   func() ([]byte, error)
+	unmarshalGen func(data []byte) error
+	unmarshalStd func(data []byte) error
+}
+
+var (
+	failed    bool
+	sinkBytes []byte
+)
+
+func report(name string, ok bool, format string, args ...any) {
+	if ok {
+		fmt.Println("ok", name)
+		return
+	}
+	failed = true
+	fmt.Println("FAIL", name+":", fmt.Sprintf(format, args...))
+}
+
+func must(b []byte, err error) []byte {
+	if err != nil {
+		fmt.Println("FAIL", err)
+		os.Exit(1)
+	}
+	return b
+}
+
+func mustNil(err error) {
+	if err != nil {
+		fmt.Println("FAIL", err)
+		os.Exit(1)
+	}
+}
+
+func distinctValue(field, run int) string {
+	return fmt.Sprintf("v%03d_%03d", field, run)
+}
+
+func oneByteValue(field, run int) string {
+	return "x"
+}
+
+func payloadSet(n, count int, value func(field, run int) string) [][]byte {
+	set := make([][]byte, count)
+	for run := range set {
+		var sb strings.Builder
+		sb.WriteString("{")
+		for field := range n {
+			if field > 0 {
+				sb.WriteString(",")
+			}
+			fmt.Fprintf(&sb, "%q:%q", fmt.Sprintf("F%03d", field), value(field, run))
+		}
+		sb.WriteString("}")
+		set[run] = []byte(sb.String())
+	}
+	return set
+}
+
+func allocsOver(set [][]byte, fn func(data []byte)) float64 {
+	next := 0
+	return testing.AllocsPerRun(len(set)-1, func() {
+		fn(set[next])
+		next++
+	})
+}
+
+func loadBoth(data []byte, gen, std any) error {
+	if err := json.Unmarshal(data, gen); err != nil {
+		return err
+	}
+	return json.Unmarshal(data, std)
+}
+
+func case5() sizeCase {
+	var g S5
+	var r R5
+	return sizeCase{
+		n:          5,
+		load:       func(data []byte) error { return loadBoth(data, &g, &r) },
+		marshalGen: func() ([]byte, error) { return g.MarshalJSON() },
+		marshalStd: func() ([]byte, error) { return json.Marshal(&r) },
+		unmarshalGen: func(data []byte) error {
+			var v S5
+			return v.UnmarshalJSON(data)
+		},
+		unmarshalStd: func(data []byte) error {
+			var v R5
+			return json.Unmarshal(data, &v)
+		},
+	}
+}
+
+func case20() sizeCase {
+	var g S20
+	var r R20
+	return sizeCase{
+		n:          20,
+		load:       func(data []byte) error { return loadBoth(data, &g, &r) },
+		marshalGen: func() ([]byte, error) { return g.MarshalJSON() },
+		marshalStd: func() ([]byte, error) { return json.Marshal(&r) },
+		unmarshalGen: func(data []byte) error {
+			var v S20
+			return v.UnmarshalJSON(data)
+		},
+		unmarshalStd: func(data []byte) error {
+			var v R20
+			return json.Unmarshal(data, &v)
+		},
+	}
+}
+
+func case100() sizeCase {
+	var g S100
+	var r R100
+	return sizeCase{
+		n:          100,
+		load:       func(data []byte) error { return loadBoth(data, &g, &r) },
+		marshalGen: func() ([]byte, error) { return g.MarshalJSON() },
+		marshalStd: func() ([]byte, error) { return json.Marshal(&r) },
+		unmarshalGen: func(data []byte) error {
+			var v S100
+			return v.UnmarshalJSON(data)
+		},
+		unmarshalStd: func(data []byte) error {
+			var v R100
+			return json.Unmarshal(data, &v)
+		},
+	}
+}
+
+func checkSize(c sizeCase) {
+	label := func(what string) string { return fmt.Sprintf("%s-%d", what, c.n) }
+	distinct := payloadSet(c.n, 201, distinctValue)
+	mustNil(c.load(distinct[0]))
+	report(label("marshal-bytes"), string(must(c.marshalGen())) == string(must(c.marshalStd())), "generated and reflective output differ")
+	marshal := testing.AllocsPerRun(200, func() { sinkBytes = must(c.marshalGen()) })
+	report(label("marshal-single-make"), marshal == 1, "MarshalJSON allocated %v times, SPEC 10.1 fixes one make", marshal)
+	gen := allocsOver(distinct, func(data []byte) { mustNil(c.unmarshalGen(data)) })
+	std := allocsOver(distinct, func(data []byte) { mustNil(c.unmarshalStd(data)) })
+	report(label("unmarshal-vs-reflective"), gen <= std, "generated %v allocations, encoding/json %v", gen, std)
+	report(label("unmarshal-per-value"), gen <= float64(c.n), "generated %v allocations for %d string values", gen, c.n)
+	single := payloadSet(c.n, 201, oneByteValue)
+	perKey := allocsOver(single, func(data []byte) { mustNil(c.unmarshalGen(data)) })
+	report(label("unmarshal-per-key"), perKey == 0, "generated %v allocations for %d one-byte values", perKey, c.n)
+}
+
+func checkFieldCountGrowth() {
+	var marshalBase, unmarshalBase float64
+	for i, c := range []sizeCase{case5(), case20(), case100()} {
+		data := payloadSet(c.n, 1, oneByteValue)[0]
+		mustNil(c.load(data))
+		marshal := testing.AllocsPerRun(200, func() { sinkBytes = must(c.marshalGen()) })
+		unmarshal := testing.AllocsPerRun(200, func() { mustNil(c.unmarshalGen(data)) })
+		if i == 0 {
+			marshalBase, unmarshalBase = marshal, unmarshal
+		}
+		report(fmt.Sprintf("marshal-field-count-%d", c.n), marshal == marshalBase && marshal == 1, "allocations %g, baseline %g", marshal, marshalBase)
+		report(fmt.Sprintf("unmarshal-field-count-%d", c.n), unmarshal == unmarshalBase, "allocations %g, baseline %g", unmarshal, unmarshalBase)
+	}
+}
+
+func main() {
+	checkFieldCountGrowth()
+	for _, c := range []sizeCase{case5(), case20(), case100()} {
+		checkSize(c)
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

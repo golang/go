@@ -156,6 +156,7 @@ type poset struct {
 	roots   []uint32          // list of root nodes (forest)
 	noneq   map[uint32]bitset // non-equal relations
 	undo    []posetUndo       // undo chain
+	visited *sparseSet
 }
 
 func newPoset() *poset {
@@ -377,7 +378,8 @@ func (po *poset) removeroot(r uint32) {
 // a strict walk visits D,E,F.
 // If the visit ends, false is returned.
 func (po *poset) dfs(r uint32, strict bool, f func(i uint32) bool) bool {
-	closed := newBitset(int(po.lastidx + 1))
+	closed := po.logosAcquireVisited()
+	defer po.logosReleaseVisited(closed)
 	open := make([]uint32, 1, 64)
 	open[0] = r
 

@@ -1,0 +1,45 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type RO interface {
+	const ID int
+	const Start() error
+}
+
+type Gadget struct : RO {
+	ID int
+}
+
+func (m Gadget) Start() error {
+	return nil
+}
+
+func useROs(xs const []RO) int {
+	return len(xs)
+}
+
+func main() {
+	gs := []Gadget{{ID: 1}, {ID: 2}}
+	check("const-slice-view-keeps-length", useROs(gs) == 2, useROs(gs), 2)
+	check("empty-const-slice-view-keeps-length", useROs(nil) == 0, useROs(nil), 0)
+	if failed {
+		os.Exit(1)
+	}
+}

@@ -138,6 +138,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 		return "", nil, err
 	}
 	lintFlags = append(lintFlags, logosWasmFlags()...) // loGos hook: wasm profile flags.
+	lintFlags = append(lintFlags, logosGoFactsFlags(p)...)
 	args := []any{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", a.trimpath(), defaultGcFlags, gcflags, lintFlags}
 	if p.Internal.LocalPrefix == "" {
 		args = append(args, "-nolocalimports")

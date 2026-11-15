@@ -5,48 +5,20 @@
 package logos
 
 import (
-	"fmt"
-	"slices"
-	"strings"
-
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types2"
+	"fmt"
+	"go/constant"
+	"slices"
+	"strings"
 )
 
-// This file lowers the M6-S7 chain calls (SPEC Sec 1.4, T-104.6).
-// Consecutive filter, map, take, and drop calls fuse into one loop
-// with the receiver bound once; terminals end the loop; sortBy, get,
-// and last materialize first. Lambdas become per-element closures, so
-// no parameter substitution exists. A `?` in an expression lambda
-// becomes an explicit error branch, closing produced io.Closers in
-// reverse order. Every loop is one parsed fragment, so native tree and
-// eject text agree by construction.
-//
-// The pass runs after the statement lowering: generated code holds no
-// TryExpr, option splices drain through textOf, and tuple and lambda
-// passes drain its splices in turn.
-
-// chainResult is one enclosing result for zero synthesis.
-type chainResult struct {
-	typ  types2.Type
-	expr syntax.Expr
-}
-
-// chainHoist is one hoisted error-checked computation. The text may carry
-// the mark of a moved region, which resolves before edits are emitted.
 type chainHoist struct {
 	stmts []syntax.Stmt
 	text  otext
 }
 
-// chainOp is one fused operation. savedBody captures the lambda body
-// before nested-chain lowering swaps it for a generated fragment:
-// later reads must see the original subtree, whose spans address
-// source, composed with nested splices. argSpan is the exact source
-// span of the sole argument and bodySpan that of an expression-lambda
-// body: syntax end positions stop before closing delimiters, so the
-// token scan of the call bounds both.
 type chainOp struct {
 	method    string
 	arg       syntax.Expr
@@ -56,9 +28,18 @@ type chainOp struct {
 	savedBody syntax.Node
 	isTry     bool
 	isBlk     bool
+	forms     []resultForm
 }
 
-// lowerChains rewrites every chain of one file.
+type resultForm int
+
+const (
+	formBorrowed resultForm = iota
+	formParam
+	formCall
+	formMade
+)
+
 func (fl *fileLower) lowerChains() {
 	if fl.loweredChains == nil {
 		fl.loweredChains = make(map[*syntax.CallExpr]bool)
@@ -68,18 +49,15 @@ func (fl *fileLower) lowerChains() {
 		switch decl := decl.(type) {
 		case *syntax.FuncDecl:
 			if decl.Body != nil {
-				decl.Body.List = fl.lowerChainList(decl.Body.List, fl.chainFuncResults(decl.Type))
+				decl.Body.List = fl.lowerChainList(decl.Body.List, fl.resultSpecs(decl.Type, fl.cfFuncSig(decl)))
 			}
 		case *syntax.VarDecl:
 			fl.lowerChainPkgDecl(decl)
 		}
 	}
+	fl.flushOuterFirst()
 }
 
-// transparentWrappers records the generated option-wrapper function
-// literals: a `?`-chain inside one belongs to the enclosing function,
-// so collection descends through them instead of treating them as
-// error boundaries.
 func (fl *fileLower) transparentWrappers() {
 	if fl.transparent == nil {
 		fl.transparent = make(map[*syntax.FuncLit]bool)
@@ -95,45 +73,149 @@ func (fl *fileLower) transparentWrappers() {
 	}
 }
 
-// chainFuncResults reports the enclosing results of a function type.
-// The result is non-nil even when empty; nil means package level.
-func (fl *fileLower) chainFuncResults(ft *syntax.FuncType) []chainResult {
-	out := []chainResult{}
-	for _, field := range ft.ResultList {
-		out = append(out, chainResult{typ: fl.pkg.info.TypeOf(field.Type), expr: field.Type})
-	}
-	return out
-}
-
-// lowerChainList lowers chains in list with enclosing results,
-// splicing hoists in place.
-func (fl *fileLower) lowerChainList(list []syntax.Stmt, enc []chainResult) []syntax.Stmt {
+func (fl *fileLower) lowerChainList(list []syntax.Stmt, enc []resultSpec) []syntax.Stmt {
 	var out []syntax.Stmt
 	for _, s := range list {
-		if repl, ok := fl.lowerChainSpecial(s, enc); ok {
+		if repl, ok := fl.lowerParRange(s, enc); ok {
 			out = append(out, repl...)
 			continue
 		}
-		out = append(out, fl.lowerChainPlain(s, enc)...)
+		repl, ok := fl.lowerChainSpecial(s, enc)
+		if !ok {
+			repl = fl.lowerChainPlain(s, enc)
+		}
+		out = append(out, fl.scopeHoists(s, repl)...)
 	}
 	return out
 }
 
-// lowerChainPlain lowers one statement on the plain path: hoists at the
-// statement start, then the statements nested under it.
-func (fl *fileLower) lowerChainPlain(s syntax.Stmt, enc []chainResult) []syntax.Stmt {
+func (fl *fileLower) lowerChainPlain(s syntax.Stmt, enc []resultSpec) []syntax.Stmt {
 	out := fl.lowerChainStmt(s, enc)
 	out = append(out, s)
 	fl.lowerChainChildren(s, enc)
 	return out
 }
 
-// lowerChainChildren lowers the statements nested under s with the same
-// enclosing results: child lists, else-if headers, const-if and
-// const-switch bodies, and function literals, which restart group scope
-// with their own results. Group statements and children have their own
-// scope handling, so the literal scan never descends into them.
-func (fl *fileLower) lowerChainChildren(s syntax.Stmt, enc []chainResult) {
+func hoistScopable(s syntax.Stmt) bool {
+	switch s := s.(type) {
+	case *syntax.LabeledStmt:
+		_, again := s.Stmt.(*syntax.LabeledStmt)
+		return !again && hoistScopable(s.Stmt)
+	case *syntax.AssignStmt:
+		return s.Op != syntax.Def
+	case *syntax.ExprStmt, *syntax.SendStmt, *syntax.ReturnStmt, *syntax.IfStmt, *syntax.ForStmt, *syntax.SwitchStmt, *syntax.SelectStmt:
+		return true
+	}
+	return false
+}
+
+func (fl *fileLower) hoistedStmtEnd(s syntax.Stmt) int {
+	for {
+		lab, ok := s.(*syntax.LabeledStmt)
+		if !ok {
+			break
+		}
+		s = lab.Stmt
+	}
+	switch s.(type) {
+	case *syntax.IfStmt, *syntax.ForStmt, *syntax.SwitchStmt, *syntax.SelectStmt:
+		return fl.off(syntax.EndPos(s)) + 1
+	}
+	return stmtEnd(fl.src, fl.off(syntax.StartPos(s)))
+}
+
+func (fl *fileLower) scopeHoists(s syntax.Stmt, repl []syntax.Stmt) []syntax.Stmt {
+	if len(repl) < 2 || repl[len(repl)-1] != s || !hoistScopable(s) {
+		return repl
+	}
+	if lab, ok := s.(*syntax.LabeledStmt); ok && fl.gotoTarget(lab) {
+		return fl.scopeLabeledHoists(lab, repl)
+	}
+	fl.addFirst(fl.stmtStartOf(s), "{ ")
+	end := fl.hoistedStmtEnd(s)
+	fl.add(end, end, " }")
+	anchorScopes(repl[:len(repl)-1], s.Pos())
+	wrapper := blockOf(s.Pos(), repl)
+	wrapper.Rbrace = syntax.EndPos(s)
+	return []syntax.Stmt{wrapper}
+}
+
+func (fl *fileLower) scopeLabeledHoists(lab *syntax.LabeledStmt, repl []syntax.Stmt) []syntax.Stmt {
+	inner := lab.Stmt
+	start := fl.stmtStartOf(lab)
+	innerStart := fl.off(syntax.StartPos(inner))
+	fl.addFirst(start, lab.Label.Value+": { ")
+	end := fl.hoistedStmtEnd(inner)
+	fl.add(end, end, " }")
+	body := inner
+	name := "_logos_in_" + lab.Label.Value
+	if fl.renameBranchLabels(inner, lab.Label.Value, name) > 0 {
+		fl.add(start, innerStart, name+": ")
+		body = at(&syntax.LabeledStmt{Label: nameOf(lab.Pos(), name), Stmt: inner}, lab.Pos())
+	} else {
+		fl.add(start, innerStart, "")
+	}
+	anchorScopes(repl[:len(repl)-1], inner.Pos())
+	wrapper := blockOf(inner.Pos(), append(slices.Clone(repl[:len(repl)-1]), body))
+	wrapper.Rbrace = syntax.EndPos(inner)
+	lab.Stmt = wrapper
+	return []syntax.Stmt{lab}
+}
+
+func (fl *fileLower) renameBranchLabels(s syntax.Stmt, from, to string) int {
+	renamed := 0
+	syntax.Inspect(s, func(n syntax.Node) bool {
+		switch n := n.(type) {
+		case *syntax.FuncLit, *syntax.LambdaExpr:
+			return false
+		case *syntax.BranchStmt:
+			if n.Label != nil && n.Label.Value == from && n.Tok != syntax.Goto {
+				off := fl.off(n.Label.Pos())
+				fl.add(off, off+len(from), to)
+				n.Label = nameOf(n.Label.Pos(), to)
+				renamed++
+			}
+		}
+		return true
+	})
+	return renamed
+}
+
+func (fl *fileLower) gotoTarget(lab *syntax.LabeledStmt) bool {
+	if fl.gotoTargets == nil {
+		fl.gotoTargets = make(map[*syntax.LabeledStmt]bool)
+		for _, decl := range fl.file.DeclList {
+			collectGotoTargets(decl, fl.gotoTargets)
+		}
+	}
+	return fl.gotoTargets[lab]
+}
+
+func collectGotoTargets(root syntax.Node, out map[*syntax.LabeledStmt]bool) {
+	gotos := make(map[string]bool)
+	var labeled []*syntax.LabeledStmt
+	syntax.Inspect(root, func(n syntax.Node) bool {
+		switch n := n.(type) {
+		case *syntax.FuncLit:
+			collectGotoTargets(n.Body, out)
+			return false
+		case *syntax.BranchStmt:
+			if n.Tok == syntax.Goto && n.Label != nil {
+				gotos[n.Label.Value] = true
+			}
+		case *syntax.LabeledStmt:
+			labeled = append(labeled, n)
+		}
+		return true
+	})
+	for _, lab := range labeled {
+		if gotos[lab.Label.Value] {
+			out[lab] = true
+		}
+	}
+}
+
+func (fl *fileLower) lowerChainChildren(s syntax.Stmt, enc []resultSpec) {
 	for _, child := range tupleChildLists(s) {
 		*child = fl.lowerChainList(*child, enc)
 	}
@@ -146,7 +228,7 @@ func (fl *fileLower) lowerChainChildren(s syntax.Stmt, enc []chainResult) {
 			}
 			saved := fl.chainGrp
 			fl.chainGrp = chainGroup{}
-			lit.Body.List = fl.lowerChainList(lit.Body.List, fl.chainFuncResults(lit.Type))
+			lit.Body.List = fl.lowerChainList(lit.Body.List, fl.resultSpecs(lit.Type, fl.cfLitSig(lit)))
 			fl.chainGrp = saved
 			return false
 		}
@@ -160,28 +242,20 @@ func (fl *fileLower) lowerChainChildren(s syntax.Stmt, enc []chainResult) {
 	})
 }
 
-// lowerChainPkgDecl lowers chains in a package-level declaration.
-// Function literals lower with their own results; a `?`-chain at
-// package level never passed checking.
 func (fl *fileLower) lowerChainPkgDecl(decl *syntax.VarDecl) {
 	if decl.Values == nil {
 		return
 	}
 	for _, call := range fl.chainsInDecl(decl) {
-		for _, h := range fl.lowerChainTopLevel(call, nil) {
-			_ = h
-			base.Fatalf("logos: ?-chain outside function at %s", call.Pos().String())
-		}
+		fl.lowerChainGuarded(call, nil, "")
 	}
 }
 
-// chainsInDecl collects the outermost chain calls of a declaration in
-// inner-first order, processing nested function literals inline.
 func (fl *fileLower) chainsInDecl(decl *syntax.VarDecl) []*syntax.CallExpr {
 	var all []*syntax.CallExpr
 	syntax.Inspect(decl, func(n syntax.Node) bool {
 		if lit, ok := n.(*syntax.FuncLit); ok {
-			lit.Body.List = fl.lowerChainList(lit.Body.List, fl.chainFuncResults(lit.Type))
+			lit.Body.List = fl.lowerChainList(lit.Body.List, fl.resultSpecs(lit.Type, fl.cfLitSig(lit)))
 			return false
 		}
 		if call, ok := n.(*syntax.CallExpr); ok && fl.isChainCall(call) {
@@ -192,10 +266,6 @@ func (fl *fileLower) chainsInDecl(decl *syntax.VarDecl) []*syntax.CallExpr {
 	return fl.outermostChains(all)
 }
 
-// outermostChains filters calls to those contained in no other, in
-// source order: sibling chains hoist in the order the source evaluates
-// them. Each span is scanned once, before any lowering replaces nodes
-// under the calls.
 func (fl *fileLower) outermostChains(all []*syntax.CallExpr) []*syntax.CallExpr {
 	spans := make(map[*syntax.CallExpr]span, len(all))
 	for _, c := range all {
@@ -222,9 +292,7 @@ func (fl *fileLower) outermostChains(all []*syntax.CallExpr) []*syntax.CallExpr 
 	return outer
 }
 
-// lowerChainStmt lowers the outermost chains of one statement,
-// returning hoists to prepend.
-func (fl *fileLower) lowerChainStmt(s syntax.Stmt, enc []chainResult) []syntax.Stmt {
+func (fl *fileLower) lowerChainStmt(s syntax.Stmt, enc []resultSpec) []syntax.Stmt {
 	calls := fl.chainsInStmt(s)
 	if len(calls) == 0 {
 		return nil
@@ -238,12 +306,7 @@ func (fl *fileLower) lowerChainStmt(s syntax.Stmt, enc []chainResult) []syntax.S
 	return hoists
 }
 
-// lowerChainElseIf lowers an else-if chain with guarded hoists: every
-// else-if header evaluates only when its branch is reached, so a
-// `?`-chain in a header wraps its branch in a block holding the hoist
-// ahead of the narrowed header. Longer chains wrap recursively, and
-// every branch body lowers at its own statement.
-func (fl *fileLower) lowerChainElseIf(s syntax.Stmt, enc []chainResult) {
+func (fl *fileLower) lowerChainElseIf(s syntax.Stmt, enc []resultSpec) {
 	if lab, ok := s.(*syntax.LabeledStmt); ok {
 		fl.lowerChainElseIf(lab.Stmt, enc)
 		return
@@ -263,11 +326,7 @@ func (fl *fileLower) lowerChainElseIf(s syntax.Stmt, enc []chainResult) {
 	fl.lowerChainElseIf(els, enc)
 }
 
-// lowerChainElseIfHead lowers the header chains of one else-if, wrapping
-// the branch in a block when a `?`-chain hoists so the computation runs
-// only when the outer condition fails. Plain chains lower in place and
-// need no guard.
-func (fl *fileLower) lowerChainElseIfHead(ifs *syntax.IfStmt, els *syntax.IfStmt, enc []chainResult) {
+func (fl *fileLower) lowerChainElseIfHead(ifs *syntax.IfStmt, els *syntax.IfStmt, enc []resultSpec) {
 	if els.Init != nil {
 		fl.lowerChainElseIfInit(ifs, els, enc)
 		return
@@ -288,11 +347,7 @@ func (fl *fileLower) lowerChainElseIfHead(ifs *syntax.IfStmt, els *syntax.IfStmt
 	ifs.Else = &syntax.BlockStmt{List: append(hoists, els)}
 }
 
-// lowerChainConstBodies lowers chains in const-if, const-switch, and
-// group bodies, which hold statement lists outside tupleChildLists.
-// Chain lowering runs before those statements desugar, so the child
-// walk alone would leave their chains unlowered.
-func (fl *fileLower) lowerChainConstBodies(s syntax.Stmt, enc []chainResult) {
+func (fl *fileLower) lowerChainConstBodies(s syntax.Stmt, enc []resultSpec) {
 	if lab, ok := s.(*syntax.LabeledStmt); ok {
 		fl.lowerChainConstBodies(lab.Stmt, enc)
 		return
@@ -315,13 +370,7 @@ func (fl *fileLower) lowerChainConstBodies(s syntax.Stmt, enc []chainResult) {
 	}
 }
 
-// lowerChainElseIfInit lowers the header chains of an else-if with an init
-// statement. Chains of the init statement hoist ahead of it, inside the
-// block that wraps the branch. The condition reads names the init
-// statement declares, so its chains hoist into a closure the header keeps
-// in the condition's place, and the then branch tests the error a failing
-// hoist leaves, as lowerChainIf does for a leading if.
-func (fl *fileLower) lowerChainElseIfInit(ifs *syntax.IfStmt, els *syntax.IfStmt, enc []chainResult) {
+func (fl *fileLower) lowerChainElseIfInit(ifs *syntax.IfStmt, els *syntax.IfStmt, enc []resultSpec) {
 	var pre []syntax.Stmt
 	parts := []otext{gen("{ ")}
 	for _, h := range fl.lowerChainPiece(els.Init, enc) {
@@ -349,10 +398,7 @@ func (fl *fileLower) lowerChainElseIfInit(ifs *syntax.IfStmt, els *syntax.IfStmt
 	ifs.Else = wrapper
 }
 
-// lowerChainGroupBody lowers the synchronous statements of a group body,
-// then every group child body in place. Hoists keep the enclosing
-// results, matching the previous placement before the group statement.
-func (fl *fileLower) lowerChainGroupBody(s *syntax.GroupStmt, enc []chainResult) {
+func (fl *fileLower) lowerChainGroupBody(s *syntax.GroupStmt, enc []resultSpec) {
 	s.Body.List = fl.lowerChainList(s.Body.List, enc)
 	for _, st := range s.Body.List {
 		if gc, ok := st.(*syntax.GroupChild); ok {
@@ -361,10 +407,6 @@ func (fl *fileLower) lowerChainGroupBody(s *syntax.GroupStmt, enc []chainResult)
 	}
 }
 
-// stmtStartOf reports the offset of the first token of s, where hoisted
-// computations go. A call or expression statement sits at its call
-// parenthesis, so its start comes from the expression, and a labeled
-// statement sits at its colon, so its start is its outermost label.
 func (fl *fileLower) stmtStartOf(s syntax.Stmt) int {
 	switch s := s.(type) {
 	case *syntax.LabeledStmt:
@@ -381,31 +423,16 @@ func (fl *fileLower) stmtStartOf(s syntax.Stmt) int {
 	return fl.off(syntax.StartPos(s))
 }
 
-// lowerChainTopLevel lowers one outermost chain, returning hoists.
-func (fl *fileLower) lowerChainTopLevel(call *syntax.CallExpr, enc []chainResult) []chainHoist {
-	return fl.lowerChainGuarded(call, enc, "")
-}
-
-// lowerChainGuarded lowers one outermost chain whose hoist runs only while
-// guard, a boolean expression over earlier hoisted temporaries, holds. An
-// empty guard hoists unconditionally.
-func (fl *fileLower) lowerChainGuarded(call *syntax.CallExpr, enc []chainResult, guard string) []chainHoist {
+func (fl *fileLower) lowerChainGuarded(call *syntax.CallExpr, enc []resultSpec, guard string) []chainHoist {
 	cg := &chainGen{fl: fl, pos: call.Pos(), prefix: chainPrefix(call.Pos()), enc: enc, guard: guard, exit: fl.chainExit}
 	cg.run(call)
 	return cg.hoists
 }
 
-// chainPrefix builds the per-site temporary prefix.
 func chainPrefix(pos syntax.Pos) string {
 	return fmt.Sprintf("_logos_ch%d_%d", pos.Line(), pos.Col())
 }
 
-// chainsInStmt collects the outermost chain calls evaluated with s in
-// inner-first order, skipping nested statements, whose chains the child
-// list walk lowers at their own statements, and nested function
-// literals other than transparent option wrappers, whose chains belong
-// to the enclosing function. Only source statements lowered elsewhere
-// are skipped, so generated wrappers stay visible.
 func (fl *fileLower) chainsInStmt(s syntax.Stmt) []*syntax.CallExpr {
 	skip := make(map[syntax.Stmt]bool)
 	nestedChainStmts(s, skip)
@@ -425,9 +452,6 @@ func (fl *fileLower) chainsInStmt(s syntax.Stmt) []*syntax.CallExpr {
 	return fl.outermostChains(all)
 }
 
-// nestedChainStmts marks the statements under s whose chains lower at
-// their own statements: nested list members and else-if links, whose
-// headers lower with guarded hoists.
 func nestedChainStmts(s syntax.Stmt, skip map[syntax.Stmt]bool) {
 	if lab, ok := s.(*syntax.LabeledStmt); ok {
 		nestedChainStmts(lab.Stmt, skip)
@@ -451,8 +475,6 @@ func nestedChainStmts(s syntax.Stmt, skip map[syntax.Stmt]bool) {
 	}
 }
 
-// markConstGroupLists marks const-if, const-switch, and group bodies,
-// whose lists live outside tupleChildLists.
 func markConstGroupLists(s syntax.Stmt, skip map[syntax.Stmt]bool) {
 	switch s := s.(type) {
 	case *syntax.ConstIfStmt:
@@ -480,20 +502,15 @@ func markConstGroupLists(s syntax.Stmt, skip map[syntax.Stmt]bool) {
 	}
 }
 
-// chainSpan reports the full source span of a chain call.
 func (fl *fileLower) chainSpan(call *syntax.CallExpr) (int, int) {
 	return fl.exprStart(call), fl.chainCallEnd(call)
 }
 
-// exprStart reports the offset of the first token of e. A slice
-// expression sits at its `[`, which syntax.StartPos reports as the
-// start of everything it holds, so the descent runs through the
-// operands of slices, indexes, selectors, assertions, and calls to the
-// leftmost one, and StartPos takes over there. The descent keeps
-// parenthesized operands whole, where leftmostOf would unwrap them and
-// start inside the parentheses.
 func (fl *fileLower) exprStart(e syntax.Expr) int {
 	for {
+		if ws, ok := fl.wrapSpan[e]; ok {
+			return ws.start
+		}
 		switch t := e.(type) {
 		case *syntax.SliceExpr:
 			e = t.X
@@ -505,18 +522,22 @@ func (fl *fileLower) exprStart(e syntax.Expr) int {
 			e = t.X
 		case *syntax.CallExpr:
 			e = t.Fun
+		case *syntax.Operation:
+			if t.Y == nil {
+				return fl.off(t.Pos())
+			}
+			e = t.X
+		case *syntax.CompositeLit:
+			if t.Type == nil {
+				return fl.off(t.Pos())
+			}
+			e = t.Type
 		default:
 			return fl.off(syntax.StartPos(e))
 		}
 	}
 }
 
-// receiverSpan reports the exact source span of a chain call's
-// receiver: from its first token to the end of its last token before
-// the `.` that opens the selector. The selector sits at that dot, so
-// the token scan skips the comments and line breaks of a leading-dot
-// continuation, and the span ends on the receiver's last token whatever
-// its syntax shape.
 func (fl *fileLower) receiverSpan(call *syntax.CallExpr) span {
 	sel, ok := syntax.Unparen(call.Fun).(*syntax.SelectorExpr)
 	if !ok {
@@ -537,11 +558,6 @@ func (fl *fileLower) receiverSpan(call *syntax.CallExpr) span {
 	return span{start: start, end: end}
 }
 
-// chainCallEnd reports the offset just past a call's closing paren.
-// The call's position is its opening parenthesis, whatever the function
-// operand looks like, and the token scan matches it. A degenerate span
-// marks a normalized fragment node with no source parentheses to scan;
-// it keeps its end position.
 func (fl *fileLower) chainCallEnd(e syntax.Expr) int {
 	call, ok := syntax.Unparen(e).(*syntax.CallExpr)
 	if !ok {
@@ -563,7 +579,6 @@ func (fl *fileLower) chainCallEnd(e syntax.Expr) int {
 	return split.end
 }
 
-// isChainCall reports whether e is a chain method call.
 func (fl *fileLower) isChainCall(e syntax.Expr) bool {
 	call, ok := syntax.Unparen(e).(*syntax.CallExpr)
 	if !ok {
@@ -573,22 +588,33 @@ func (fl *fileLower) isChainCall(e syntax.Expr) bool {
 	if !ok || sel.Sel == nil {
 		return false
 	}
+	if fl.pkg.info.Selections[sel] != nil {
+		return false
+	}
+	if tv, ok := fl.pkg.info.Types[sel.X]; ok && tv.IsType() {
+		return false
+	}
 	switch sel.Sel.Value {
 	case "filter", "map", "find", "any", "all", "sortBy",
 		"first", "last", "get", "take", "drop", "sum", "count":
-		// Array `.sum()` is the M14-S1 reduction, never a chain: the
-		// checker accepts chain calls on slices only.
-		if t := fl.pkg.info.TypeOf(sel.X); t != nil {
-			if _, ok := t.Underlying().(*types2.Array); ok {
-				return false
-			}
+		t := fl.pkg.info.TypeOf(sel.X)
+		if t == nil {
+			return false
+		}
+		if c := constAsView(t); c != nil {
+			t = c.Elem
+		}
+		if obj, _, _ := types2.LookupFieldOrMethod(t, true, fl.pkg.tpkg, sel.Sel.Value); obj != nil {
+			return false
+		}
+		if _, ok := types2.Unalias(t).(*types2.Slice); !ok {
+			return false
 		}
 		return true
 	}
 	return false
 }
 
-// chainMethodOf reports the chain method of a chain call.
 func chainMethodOf(call *syntax.CallExpr) string {
 	if sel, ok := syntax.Unparen(call.Fun).(*syntax.SelectorExpr); ok && sel.Sel != nil {
 		return sel.Sel.Value
@@ -596,7 +622,6 @@ func chainMethodOf(call *syntax.CallExpr) string {
 	return ""
 }
 
-// isFusibleMethod reports whether a chain method fuses into the run loop.
 func isFusibleMethod(m string) bool {
 	switch m {
 	case "filter", "map", "take", "drop":
@@ -605,10 +630,6 @@ func isFusibleMethod(m string) bool {
 	return false
 }
 
-// decomposeChain splits a chain into the fused run ops in call order,
-// the run base, and the terminal or barrier op, which is the outermost
-// call when it is not fusible. The carrier is the innermost call of the
-// run: the one whose receiver is the base.
 func (fl *fileLower) decomposeChain(call *syntax.CallExpr) (ops []chainOp, base syntax.Expr, term chainOp, carrier *syntax.CallExpr) {
 	rest := syntax.Expr(call)
 	carrier = call
@@ -638,10 +659,6 @@ func (fl *fileLower) decomposeChain(call *syntax.CallExpr) (ops []chainOp, base 
 	}
 }
 
-// soleArgSpan reports the exact source span of the only argument of a
-// chain call. The call's position is its opening parenthesis; the token
-// scan skips comments and closes on the matching parenthesis, so the
-// span ends on the argument's last token whatever its syntax shape.
 func (fl *fileLower) soleArgSpan(call *syntax.CallExpr) span {
 	lparen := fl.off(call.Pos())
 	if lparen < 0 || lparen >= len(fl.src) || fl.src[lparen] != '(' {
@@ -654,10 +671,6 @@ func (fl *fileLower) soleArgSpan(call *syntax.CallExpr) span {
 	return trimSpan(fl.src, split.args[0])
 }
 
-// lambdaBodySpan reports the exact source span of an expression-lambda
-// body: from the first token past the arrow to the end of the lambda
-// argument. A comment before the body stays out, since a line comment
-// there would end the `return` statement the closure wraps around it.
 func (fl *fileLower) lambdaBodySpan(lam *syntax.LambdaExpr, arg span) span {
 	start := arg.end
 	scanSegment(fl.src, fl.off(lam.Arrow)+len("=>"), arg.end, func(t tok) bool {
@@ -670,7 +683,6 @@ func (fl *fileLower) lambdaBodySpan(lam *syntax.LambdaExpr, arg span) span {
 	return span{start: start, end: arg.end}
 }
 
-// chainOpOf reads one operation's argument and lambda flags.
 func (fl *fileLower) chainOpOf(cur *syntax.CallExpr, method string) chainOp {
 	op := chainOp{method: method}
 	if len(cur.ArgList) == 1 {
@@ -679,48 +691,193 @@ func (fl *fileLower) chainOpOf(cur *syntax.CallExpr, method string) chainOp {
 		if lam, ok := syntax.Unparen(cur.ArgList[0]).(*syntax.LambdaExpr); ok {
 			op.lam = lam
 			op.bodySpan = fl.lambdaBodySpan(lam, op.argSpan)
-			if body, ok := lam.Body.(syntax.Expr); ok {
-				if _, ok := syntax.Unparen(body).(*syntax.TryExpr); ok {
-					op.isTry = true
-				}
-			}
-			if _, ok := lam.Body.(*syntax.BlockStmt); ok {
-				op.isBlk = true
-			}
+			op.isTry = types2.LogosLambdaTry(lam) != nil
+			_, op.isBlk = lam.Body.(*syntax.BlockStmt)
 		}
+	}
+	if method == "map" {
+		op.forms = fl.mapForms(op)
 	}
 	return op
 }
 
-// chainGen carries one chain emission.
-type chainGen struct {
-	fl     *fileLower
-	pos    syntax.Pos
-	prefix string
-	enc    []chainResult
-	// guard is the condition a hoist runs under; exit spells how a failing
-	// hoist leaves, or is nil to return from the enclosing function.
-	guard  string
-	exit   func(err string) string
-	whole  span
-	kept   []span
-	hoists []chainHoist
-	elemT  types2.Type
+type localWrites struct {
+	defined bool
+	forms   []resultForm
 }
 
-// run lowers a chain call, appending hoists for nested `?`-chains.
-// Chains nested in the op arguments lower first through child
-// generators, so their splices compose into the closure texts and
-// their hoists precede this run's hoist. Each call lowers once; the
-// file records finished calls so later traversals over replaced trees
-// never reprocess them.
+func (cg *chainGen) chainBlockTryFrame(block *syntax.BlockStmt, out types2.Type) {
+	pos := block.Pos()
+	errType := types2.Universe.Lookup("error").Type()
+	ft := at(&syntax.FuncType{
+		ResultList: []*syntax.Field{
+			at(&syntax.Field{Type: nameOf(pos, cg.spellType(out))}, pos),
+			at(&syntax.Field{Type: nameOf(pos, "error")}, pos),
+		},
+	}, pos)
+	sig := types2.NewSignatureType(nil, nil, nil, nil,
+		types2.NewTuple(
+			types2.NewParam(pos, nil, "", out),
+			types2.NewParam(pos, nil, "", errType),
+		), false)
+	fc := newFuncLower(cg.fl, ft, sig, block)
+	fc.elementFrame = true
+	fc.run()
+}
+
+func (fl *fileLower) mapForms(op chainOp) []resultForm {
+	if op.lam == nil {
+		return []resultForm{formCall}
+	}
+	param := op.lam.Params[0].Value
+	if body, ok := op.lam.Body.(syntax.Expr); ok {
+		return []resultForm{fl.resultForm(body, param)}
+	}
+	locals := fl.localForms(op.lam.Body, param)
+	var forms []resultForm
+	syntax.Inspect(op.lam.Body, func(n syntax.Node) bool {
+		switch n := n.(type) {
+		case *syntax.FuncLit, *syntax.LambdaExpr:
+			return false
+		case *syntax.ReturnStmt:
+			for _, r := range syntax.UnpackListExpr(n.Results) {
+				if name, ok := syntax.Unparen(r).(*syntax.Name); ok {
+					if written := locals[fl.pkg.info.ObjectOf(name)]; written != nil {
+						forms = append(forms, written...)
+						continue
+					}
+				}
+				forms = append(forms, fl.resultForm(r, param))
+			}
+		}
+		return true
+	})
+	return forms
+}
+
+func (fl *fileLower) localForms(body syntax.Node, param string) map[types2.Object][]resultForm {
+	writes := make(map[types2.Object]*localWrites)
+	syntax.Inspect(body, func(n syntax.Node) bool {
+		switch n := n.(type) {
+		case *syntax.AssignStmt:
+			var rhs []syntax.Expr
+			if n.Op == 0 || n.Op == syntax.Def {
+				rhs = syntax.UnpackListExpr(n.Rhs)
+			}
+			fl.recordWrites(writes, syntax.UnpackListExpr(n.Lhs), rhs, param)
+		case *syntax.VarDecl:
+			names := make([]syntax.Expr, len(n.NameList))
+			for i, name := range n.NameList {
+				names[i] = name
+			}
+			fl.recordWrites(writes, names, syntax.UnpackListExpr(n.Values), param)
+		case *syntax.RangeClause:
+			fl.recordWrites(writes, syntax.UnpackListExpr(n.Lhs), nil, param)
+		}
+		return true
+	})
+	locals := make(map[types2.Object][]resultForm)
+	for obj, w := range writes {
+		if w.defined {
+			locals[obj] = w.forms
+		}
+	}
+	return locals
+}
+
+func (fl *fileLower) recordWrites(writes map[types2.Object]*localWrites, lhs, rhs []syntax.Expr, param string) {
+	for i, l := range lhs {
+		name, ok := syntax.Unparen(l).(*syntax.Name)
+		if !ok || name.Value == "_" {
+			continue
+		}
+		obj := fl.pkg.info.ObjectOf(name)
+		if obj == nil {
+			continue
+		}
+		w := writes[obj]
+		if w == nil {
+			w = &localWrites{}
+			writes[obj] = w
+		}
+		w.defined = w.defined || fl.pkg.info.Defs[name] != nil
+		w.forms = append(w.forms, fl.writeForm(rhs, i, len(lhs), param))
+	}
+}
+
+func (fl *fileLower) writeForm(rhs []syntax.Expr, i, n int, param string) resultForm {
+	switch {
+	case len(rhs) == n:
+		return fl.resultForm(rhs[i], param)
+	case len(rhs) == 1:
+		return fl.resultForm(rhs[0], param)
+	}
+	return formBorrowed
+}
+
+func (fl *fileLower) resultForm(e syntax.Expr, param string) resultForm {
+	switch e := syntax.Unparen(e).(type) {
+	case *syntax.Name:
+		if e.Value == param {
+			return formParam
+		}
+	case *syntax.CompositeLit:
+		return formMade
+	case *syntax.Operation:
+		if _, ok := syntax.Unparen(e.X).(*syntax.CompositeLit); ok && e.Op == syntax.And && e.Y == nil {
+			return formMade
+		}
+	case *syntax.TryExpr:
+		return fl.resultForm(e.X, param)
+	case *syntax.CallExpr:
+		return fl.callForm(e, param)
+	}
+	return formBorrowed
+}
+
+func (fl *fileLower) callForm(call *syntax.CallExpr, param string) resultForm {
+	builtin, isType := typeFlagsOf(fl, call.Fun)
+	switch {
+	case isType && len(call.ArgList) == 1:
+		return fl.resultForm(call.ArgList[0], param)
+	case isType:
+		return formBorrowed
+	case builtin:
+		if name, ok := syntax.Unparen(call.Fun).(*syntax.Name); ok && name.Value == "new" {
+			return formMade
+		}
+		return formBorrowed
+	}
+	return formCall
+}
+
+type chainGen struct {
+	fl        *fileLower
+	pos       syntax.Pos
+	prefix    string
+	enc       []resultSpec
+	guard     string
+	exit      func(err string) string
+	whole     span
+	kept      []span
+	hoists    []chainHoist
+	elemT     types2.Type
+	receiverT types2.Type
+	passRcv   bool
+}
+
 func (cg *chainGen) run(call *syntax.CallExpr) {
 	if cg.fl.loweredChains[call] {
 		return
 	}
 	cg.fl.loweredChains[call] = true
+	cg.fl.lowerTupleNested(call)
 	ops, base, term, carrier := cg.fl.decomposeChain(call)
 	if len(ops) == 0 && term.method == "" {
+		return
+	}
+	if cg.fl.isParChain(base) {
+		cg.runPar(call, ops, base, term, carrier)
 		return
 	}
 	slices.Reverse(ops)
@@ -729,9 +886,6 @@ func (cg *chainGen) run(call *syntax.CallExpr) {
 	cg.kept = keptSpans(recv, ops, term)
 	for i := range ops {
 		if ops[i].lam != nil {
-			// D4: lower logos constructs in the body before the
-			// closure captures its text: the fragment re-parses as
-			// Go, so no `$"..."`, `??`, or property read may remain.
 			cg.fl.preLowerCaptureBody(ops[i].lam)
 			ops[i].savedBody = ops[i].lam.Body
 		}
@@ -742,35 +896,72 @@ func (cg *chainGen) run(call *syntax.CallExpr) {
 		term.savedBody = term.lam.Body
 	}
 	cg.lowerArgChains(term.arg)
-	baseText := cg.sub(base, recv)
+	cg.lowerArgChains(base)
+	cg.fl.lowerPlainLambdas(call)
+	for i := range ops {
+		if ops[i].lam == nil {
+			cg.fl.lowerOperandProps(ops[i].arg)
+		}
+	}
+	if term.lam == nil {
+		cg.fl.lowerOperandProps(term.arg)
+	}
+	cg.fl.lowerOperandProps(base)
+	cg.fl.preLowerCaptureInterps(call)
+	baseText := cg.fl.textOf(recv)
 	elemT := cg.baseElem(base)
 	resultT := cg.fl.pkg.info.TypeOf(call)
 	isTry := cg.runIsTry(ops, term)
+	cg.receiverT = cg.fl.pkg.info.TypeOf(base)
+	cg.passRcv = !isTry && containsCall(base)
 	cg.emit(call, ops, baseText, elemT, resultT, term, isTry)
 }
 
-// preLowerCaptureBody lowers logos constructs in a lambda body before a
-// capture pass bakes its text (D4, D7, D8): a chain closure re-parses
-// its body as Go, and lambda/eject text must agree, so no `$"..."`,
-// top-level `??`, or property read may remain raw. Top-level `??` and
-// `?.` already lowered in the options pass; here property reads lower
-// first, so interpolation operand texts drain their needles, and then
-// interpolations lower innermost first. Every splice lands strictly
-// inside the lambda span and drains into the capture text. Replaced
-// bodies keep their checked types in optBodyType for prodType. The
-// later full passes find no remaining nodes (chain bodies detach; plain
-// bodies were renamed past re-matching), so nothing lowers twice.
+func (fl *fileLower) lowerOperandProps(e syntax.Expr) {
+	if e == nil {
+		return
+	}
+	c := &propCollect{}
+	fl.propWalk(e, c)
+	fl.emitPropReads(c)
+}
+
+func (fl *fileLower) lowerPlainLambdas(root syntax.Node) {
+	chainLams := make(map[*syntax.LambdaExpr]bool)
+	var lams []*syntax.LambdaExpr
+	syntax.Inspect(root, func(n syntax.Node) bool {
+		switch n := n.(type) {
+		case *syntax.CallExpr:
+			if fl.isChainCall(n) {
+				for _, arg := range n.ArgList {
+					if lam, ok := arg.(*syntax.LambdaExpr); ok {
+						chainLams[lam] = true
+					}
+				}
+			}
+		case *syntax.LambdaExpr:
+			lams = append(lams, n)
+		}
+		return true
+	})
+	for i := len(lams) - 1; i >= 0; i-- {
+		if _, done := fl.stagedReplacements[lams[i]]; done || chainLams[lams[i]] {
+			continue
+		}
+		if lit := fl.lowerLambdaExpr(lams[i]); lit != nil {
+			fl.stageReplacement(lams[i], lit)
+		}
+	}
+}
+
 func (fl *fileLower) preLowerCaptureBody(lam *syntax.LambdaExpr) {
 	if lam == nil {
 		return
 	}
-	// D7: stash the source span before any replacement: synthetic
-	// replacements carry no scannable parens, but the capture text must
-	// cover the original extent. A wrapper top (`??`/`?.`) already
-	// records its exact span; a source call keeps tupleCallSpan.
 	if body, ok := lam.Body.(syntax.Expr); ok {
 		if _, done := fl.optBodySpan[lam]; !done {
-			espan := span{fl.off(syntax.StartPos(body)), fl.off(syntax.EndPos(body))}
+			bodyStart := fl.exprStart(body)
+			espan := span{bodyStart, lambdaBodyEnd(fl.src, bodyStart)}
 			if ws, ok := fl.wrapSpan[syntax.Unparen(body)]; ok {
 				espan = ws
 			} else if call, ok := syntax.Unparen(body).(*syntax.CallExpr); ok {
@@ -784,6 +975,7 @@ func (fl *fileLower) preLowerCaptureBody(lam *syntax.LambdaExpr) {
 	}
 	if block, ok := lam.Body.(*syntax.BlockStmt); ok {
 		block.List = fl.lowerPropBlock(block.List)
+		fl.lowerOptDeferGoIn(block)
 	} else if body, ok := lam.Body.(syntax.Expr); ok {
 		if t, ok := syntax.Unparen(body).(*syntax.TryExpr); ok {
 			if call, ok := syntax.Unparen(t.X).(*syntax.CallExpr); ok {
@@ -805,9 +997,6 @@ func (fl *fileLower) preLowerCaptureBody(lam *syntax.LambdaExpr) {
 	fl.preLowerCaptureInterps(lam.Body)
 }
 
-// stashBodyType records the checked type of a capture body the
-// pre-pass replaced: the replacement is synthetic and carries no
-// recorded type, but chain prodType still needs the produced type.
 func (fl *fileLower) stashBodyType(orig types2.Type, old, new syntax.Expr) {
 	if new == old || orig == nil {
 		return
@@ -818,24 +1007,11 @@ func (fl *fileLower) stashBodyType(orig types2.Type, old, new syntax.Expr) {
 	fl.optBodyType[new] = orig
 }
 
-// preLowerCaptureInterps lowers the interpolated strings under root
-// innermost first, crediting the scoped strconv/unsafe import needs to
-// the final flush. Nodes without recorded kinds were already lowered.
 func (fl *fileLower) preLowerCaptureInterps(root syntax.Node) {
 	if root == nil {
 		return
 	}
-	var lits []*syntax.InterpExpr
-	syntax.Inspect(root, func(n syntax.Node) bool {
-		if e, ok := n.(*syntax.InterpExpr); ok {
-			lits = append(lits, e)
-		}
-		return true
-	})
-	slices.SortFunc(lits, func(a, b *syntax.InterpExpr) int {
-		return len(a.Raw) - len(b.Raw)
-	})
-	for _, e := range lits {
+	for _, e := range interpLitsUnder(root) {
 		kinds, ok := interpKinds[e]
 		if !ok {
 			continue
@@ -849,10 +1025,6 @@ func (fl *fileLower) preLowerCaptureInterps(root syntax.Node) {
 	}
 }
 
-// keptSpans lists the source spans of a run whose text the generated
-// loop reuses: the receiver and the call arguments. Comments of the
-// chain outside them sit on the links between receiver, dots, method
-// names, and parentheses, which the replacement would drop.
 func keptSpans(recv span, ops []chainOp, term chainOp) []span {
 	kept := []span{recv, term.argSpan}
 	for _, op := range ops {
@@ -861,9 +1033,6 @@ func keptSpans(recv span, ops []chainOp, term chainOp) []span {
 	return kept
 }
 
-// baseElem reports the element type of a run base expression. A const
-// slice view (SPEC T-201) reads as its element; chains only read the
-// receiver, and the qualifier is erased before code generation.
 func (cg *chainGen) baseElem(base syntax.Expr) types2.Type {
 	t := cg.fl.pkg.info.TypeOf(base)
 	if c := constAsView(t); c != nil {
@@ -875,7 +1044,6 @@ func (cg *chainGen) baseElem(base syntax.Expr) types2.Type {
 	return nil
 }
 
-// runIsTry reports whether a run contains a `?` lambda.
 func (cg *chainGen) runIsTry(ops []chainOp, term chainOp) bool {
 	for _, op := range ops {
 		if op.isTry {
@@ -885,11 +1053,6 @@ func (cg *chainGen) runIsTry(ops []chainOp, term chainOp) bool {
 	return term.isTry
 }
 
-// lowerArgChains lowers the chains nested in one op argument: a chain
-// call standing as the whole argument, lambda bodies, and index
-// expressions. Nested function literals stay for the statement pass,
-// which lowers them with their own results. Nested splices stay recorded
-// so the saved body spans compose them later.
 func (cg *chainGen) lowerArgChains(arg syntax.Expr) {
 	if arg == nil {
 		return
@@ -903,42 +1066,15 @@ func (cg *chainGen) lowerArgChains(arg syntax.Expr) {
 	}
 }
 
-// sub lowers nested chains in the run base e and returns the composed
-// text of its receiver span. A chain call in base position, such as a
-// mid-chain sortBy, lowers as its own run; its value feeds the outer
-// loop.
-func (cg *chainGen) sub(e syntax.Expr, recv span) otext {
-	var nested []*syntax.CallExpr
-	if bc, ok := syntax.Unparen(e).(*syntax.CallExpr); ok && cg.fl.isChainCall(bc) {
-		nested = []*syntax.CallExpr{bc}
-	} else {
-		nested = cg.nestedChains(e)
-	}
-	for _, n := range nested {
-		cg.lowerNested(n)
-	}
-	return cg.fl.textOf(recv)
-}
-
-// lowerNested lowers one nested chain through a child generator with
-// its own prefix, merging its hoists ahead of this run's. Its splices
-// stay recorded for the enclosing saved spans to compose.
 func (cg *chainGen) lowerNested(call *syntax.CallExpr) {
 	sub := &chainGen{fl: cg.fl, pos: call.Pos(), prefix: chainPrefix(call.Pos()), enc: cg.enc, guard: cg.guard, exit: cg.exit}
 	sub.run(call)
 	cg.hoists = append(cg.hoists, sub.hoists...)
 }
 
-// nestedChains collects chain calls under e, inner-first, excluding e
-// itself and nested function literals, which the statement pass lowers
-// with their own results.
 func (cg *chainGen) nestedChains(e syntax.Expr) []*syntax.CallExpr {
 	var all []*syntax.CallExpr
 	syntax.Inspect(e, func(n syntax.Node) bool {
-		// A function literal argument lowers with the enclosing run,
-		// so chains inside it compose into the argument text the loop
-		// reuses. Deeper literals still belong to the statement pass,
-		// which lowers them with their own results.
 		if _, ok := n.(*syntax.FuncLit); ok && n != e {
 			return false
 		}
@@ -950,8 +1086,6 @@ func (cg *chainGen) nestedChains(e syntax.Expr) []*syntax.CallExpr {
 	return cg.fl.outermostChains(all)
 }
 
-// returnText spells the return of err from the enclosing function: the
-// zero values of its other results, then err.
 func (cg *chainGen) returnText(err string) string {
 	if zeros := cg.enclosingZeros(); zeros != "" {
 		return "return " + zeros + ", " + err
@@ -959,9 +1093,6 @@ func (cg *chainGen) returnText(err string) string {
 	return "return " + err
 }
 
-// failText spells the failing branch of a hoist that caught err: the
-// return of the enclosing function unless an enclosing header closure
-// hands the error to its statement instead.
 func (cg *chainGen) failText(err string) string {
 	if cg.exit != nil {
 		return cg.exit(err)
@@ -969,38 +1100,36 @@ func (cg *chainGen) failText(err string) string {
 	return cg.returnText(err)
 }
 
-// enclosingZeros spells the zero values of the enclosing non-error
-// results for hoisted error returns.
 func (cg *chainGen) enclosingZeros() string {
 	var out []string
 	for i, r := range cg.enc {
 		if i == len(cg.enc)-1 {
 			break
 		}
-		out = append(out, renderExpr(cg.fl.lambdaZero(r.typ, cg.pos)))
+		out = append(out, renderExpr(cg.fl.zeroValue(r.typ, cg.pos)))
 	}
 	return strings.Join(out, ", ")
 }
 
-// chainEmit holds one loop emission.
 type chainEmit struct {
-	cg       *chainGen
-	call     *syntax.CallExpr
-	ops      []chainOp
-	term     chainOp
-	baseText otext
-	elemT    types2.Type
-	resultT  types2.Type
-	isTry    bool
-	closures []otext
-	outElem  string
+	cg        *chainGen
+	ops       []chainOp
+	term      chainOp
+	baseText  otext
+	elemT     types2.Type
+	resultT   types2.Type
+	isTry     bool
+	closures  []otext
+	outElem   string
+	outCap    string
+	hasCap    bool
+	ownBefore []bool
+	lastMap   int
+	owns      bool
+	flight    bool
+	ownedIn   bool
 }
 
-// prepare builds closure and operand texts and the materialized element spelling.
-// Every source operand is bound once in chain operation order. Each closure takes
-// the element type its stage receives: the receiver element type until a map,
-// then the production of the latest map; the materialized elements and the
-// terminal closure see the final one.
 func (ce *chainEmit) prepare() {
 	cg := ce.cg
 	elem := cg.spellType(cg.elemT)
@@ -1020,8 +1149,6 @@ func (ce *chainEmit) prepare() {
 			if op.lam != nil {
 				ce.closures = append(ce.closures, cg.closure(cg.prefix+fmt.Sprintf("_f%d", i), op, elem, ce.opResult(op)))
 			} else if op.arg != nil && takesFunc(op.method) {
-				// A non-lambda func value evaluates once, like any call
-				// argument; the loop then reuses the bound name.
 				ce.closures = append(ce.closures, cat(gen(cg.prefix+fmt.Sprintf("_f%d := ", i)), cg.fl.textOf(op.argSpan)))
 			}
 		}
@@ -1037,9 +1164,65 @@ func (ce *chainEmit) prepare() {
 		ce.closures = append(ce.closures, cat(gen(fmt.Sprintf("%s_i := ", cg.prefix)), ce.argText(ce.term)))
 	}
 	ce.outElem = elem
+	ce.ownership()
+	ce.outCap, ce.hasCap = ce.capHint()
 }
 
-// rsuf returns the nil-error suffix for hoisted runs.
+func (ce *chainEmit) capHint() (string, bool) {
+	if !ce.needOut() {
+		return "", false
+	}
+	if ce.term.method != "" {
+		return "", false
+	}
+	if ce.cg.elemT == nil {
+		return "", false
+	}
+	filtered := false
+	bounded := true
+	limit := int64(-1)
+	for _, op := range ce.ops {
+		switch op.method {
+		case "filter":
+			filtered = true
+		case "take":
+			n, ok := ce.constTake(op.arg)
+			if !ok {
+				bounded = false
+				continue
+			}
+			if limit < 0 || n < limit {
+				limit = n
+			}
+		}
+	}
+	recv := "len(" + ce.cg.prefix + "_rcv)"
+	if !bounded || limit < 0 {
+		if filtered {
+			return "", false
+		}
+		return recv, true
+	}
+	return fmt.Sprintf("min(%d, %s)", limit, recv), true
+}
+func (ce *chainEmit) constTake(e syntax.Expr) (int64, bool) {
+	if e == nil {
+		return 0, false
+	}
+	v, ok := typeConst(ce.cg.fl.pkg.info, syntax.Unparen(e))
+	if !ok || v == nil {
+		return 0, false
+	}
+	n, ok := constant.Int64Val(v)
+	if !ok {
+		return 0, false
+	}
+	if n < 0 {
+		n = 0
+	}
+	return n, true
+}
+
 func (ce *chainEmit) rsuf() string {
 	if ce.isTry {
 		return ", nil"
@@ -1047,15 +1230,16 @@ func (ce *chainEmit) rsuf() string {
 	return ""
 }
 
-// opResult reports the produced type spelling of a lambda op:
-// predicates yield bool, mappers and keys their inferred types.
 func (ce *chainEmit) opResult(op chainOp) string {
 	cg := ce.cg
 	switch op.method {
 	case "filter", "find", "any", "all", "count":
 		return "bool"
 	case "sortBy":
-		t := cgKeyType(cg, op)
+		t := cg.prodType(op)
+		if t != nil && isUntypedBasic(t) {
+			t = defaultBasicType(t)
+		}
 		if t == nil {
 			t = cg.elemT
 		}
@@ -1069,8 +1253,6 @@ func (ce *chainEmit) opResult(op chainOp) string {
 	}
 }
 
-// takesFunc reports whether a chain method takes a function value:
-// the fusing filters and mappers plus the func-valued terminals.
 func takesFunc(method string) bool {
 	switch method {
 	case "filter", "map", "find", "any", "all", "sortBy", "count":
@@ -1079,25 +1261,13 @@ func takesFunc(method string) bool {
 	return false
 }
 
-// funcOf returns the per-element callable for op: the hoisted name that
-// prepare bound once, whether the source was a lambda (built closure) or
-// any other func value (named func, func-valued selector, or func
-// literal). Hoisting evaluates the argument once, matching call
-// semantics; splicing the argument text at every element would repeat
-// its side effects and reallocate a literal per element.
 func (ce *chainEmit) funcOf(op chainOp, closure string) string {
 	if op.lam != nil || (op.arg != nil && takesFunc(op.method)) {
 		return closure
 	}
-	// No callable: take, drop, and get bind their scalar argument
-	// in prepare once in chain operation order.
 	return ""
 }
 
-// funcResult reports the single result type of a non-lambda chain func
-// value, or nil when it cannot be read. The checker accepted the value
-// against func(elem) want, so the signature has one parameter and one
-// result; a missing type means the fallback in opResult applies.
 func (cg *chainGen) funcResult(op chainOp) types2.Type {
 	if op.arg == nil {
 		return nil
@@ -1113,7 +1283,6 @@ func (cg *chainGen) funcResult(op chainOp) types2.Type {
 	return sig.Results().At(0).Type()
 }
 
-// prodType reports the produced type of a map or sortBy op.
 func (cg *chainGen) prodType(op chainOp) types2.Type {
 	if op.lam == nil {
 		return cg.funcResult(op)
@@ -1134,16 +1303,12 @@ func (cg *chainGen) prodType(op chainOp) types2.Type {
 	if tv := cg.fl.pkg.info.TypeOf(body); tv != nil {
 		return tv
 	}
-	// D4: a replaced capture body (top-level `??`/`?.`, property
-	// read, interpolation) is synthetic and carries no recorded type;
-	// the pre-lower stashed the checked type under the replacement.
 	if st, ok := cg.fl.optBodyType[body]; ok {
 		return st
 	}
 	return nil
 }
 
-// blockProdType infers a block body's produced type from its returns.
 func (cg *chainGen) blockProdType(block *syntax.BlockStmt) types2.Type {
 	var first types2.Type
 	for _, s := range block.List {
@@ -1154,9 +1319,6 @@ func (cg *chainGen) blockProdType(block *syntax.BlockStmt) types2.Type {
 		for _, res := range syntax.UnpackListExpr(ret.Results) {
 			t := cg.fl.pkg.info.TypeOf(res)
 			if t == nil {
-				// D4: a return lowered by the capture pre-pass
-				// (interpolation, property read) is synthetic; the
-				// pre-pass stashed the checked type under it.
 				t, _ = cg.fl.optBodyType[res]
 			}
 			if t == nil {
@@ -1176,13 +1338,10 @@ func (cg *chainGen) blockProdType(block *syntax.BlockStmt) types2.Type {
 	return first
 }
 
-// closure builds one per-element closure for a lambda op whose
-// parameter has type elem. Pure bodies return the value; `?` bodies
-// return value and error explicitly.
 func (cg *chainGen) closure(name string, op chainOp, elem, result string) otext {
 	fl := cg.fl
 	pname := op.lam.Params[0].Value
-	if op.isTry {
+	if op.isTry && !op.isBlk {
 		body, ok := op.savedBody.(syntax.Expr)
 		if !ok {
 			return gen("")
@@ -1202,25 +1361,26 @@ func (cg *chainGen) closure(name string, op chainOp, elem, result string) otext 
 		return cat(gen(name+" := func("+pname+" "+elem+") ("+result+", error) { "+vn+", "+en+" := "), callText, gen("; if "+en+" != nil { return "+zero+", "+en+" }; return "+vn+", nil }"))
 	}
 	if block, ok := op.savedBody.(*syntax.BlockStmt); ok {
+		if op.isTry {
+			cg.chainBlockTryFrame(block, cg.inferType(op, result))
+		}
 		bt := fl.textOf(span{fl.off(syntax.StartPos(block)), fl.off(syntax.EndPos(block))})
 		inner := bt
 		if strings.HasPrefix(bt.s, "{") {
 			inner = bt.slice(1, len(bt.s))
 		}
+		if op.isTry {
+			return cat(gen(name+" := func("+pname+" "+elem+") ("+result+", error) {"), inner, gen(" }"))
+		}
 		return cat(gen(name+" := func("+pname+" "+elem+") "+result+" {"), inner, gen(" }"))
 	}
 	if expr, ok := op.savedBody.(syntax.Expr); ok {
-		// D4: a top-level `??`/`?.` wrapper records its head insert
-		// exactly on the body start and its tail exactly on the body
-		// end, which textOf keeps pending. Drain those boundary
-		// inserts here; strictly interior wrappers already drained.
 		bodyText := fl.drainBodyWrapper(expr, fl.textOf(op.bodySpan))
 		return cat(gen(name+" := func("+pname+" "+elem+") "+result+" { return "), bodyText, gen(" }"))
 	}
 	return gen("")
 }
 
-// inferType resolves the checked type behind a result spelling.
 func (cg *chainGen) inferType(op chainOp, result string) types2.Type {
 	if op.lam == nil {
 		return cg.elemT
@@ -1235,49 +1395,13 @@ func (cg *chainGen) inferType(op chainOp, result string) types2.Type {
 	return t
 }
 
-// zeroText spells the zero value of a type for error branches.
 func (cg *chainGen) zeroText(t types2.Type) string {
 	if t == nil {
 		return "nil"
 	}
-	return renderExpr(cg.fl.lambdaZero(t, cg.pos))
+	return renderExpr(cg.fl.zeroValue(t, cg.pos))
 }
 
-// cgKeyType reports a sortBy key type for closures.
-func cgKeyType(cg *chainGen, op chainOp) types2.Type {
-	if op.lam == nil {
-		return cg.funcResult(op)
-	}
-	if block, ok := op.savedBody.(*syntax.BlockStmt); ok {
-		return cg.blockProdType(block)
-	}
-	body, ok := op.savedBody.(syntax.Expr)
-	if !ok {
-		return nil
-	}
-	if t, ok := syntax.Unparen(body).(*syntax.TryExpr); ok {
-		if tv := cg.fl.pkg.info.TypeOf(t); tv != nil {
-			return tv
-		}
-		return nil
-	}
-	if t := cg.fl.pkg.info.TypeOf(body); t != nil {
-		if isUntypedBasic(t) {
-			return defaultBasicType(t)
-		}
-		return t
-	}
-	// D4: replaced capture body; see prodType.
-	if st, ok := cg.fl.optBodyType[body]; ok {
-		if isUntypedBasic(st) {
-			return defaultBasicType(st)
-		}
-		return st
-	}
-	return nil
-}
-
-// spellType spells a type, defaulting untyped basics.
 func (cg *chainGen) spellType(t types2.Type) string {
 	if t == nil {
 		return "any"
@@ -1294,16 +1418,28 @@ func (cg *chainGen) spellType(t types2.Type) string {
 	return "any"
 }
 
-// loop builds the fused loop body lines and the epilogue for a run.
-// It returns the prelude lines (receiver, closures, counters), the
-// per-element lines, and the epilogue lines.
+func (ce *chainEmit) outDecl() string {
+	p := ce.cg.prefix
+	if ce.hasCap {
+		return fmt.Sprintf("%s_out := make([]%s, 0, %s)", p, ce.outElem, ce.outCap)
+	}
+	return "var " + p + "_out []" + ce.outElem
+}
+
 func (ce *chainEmit) loopO() (prelude []otext, body, epilogue []string) {
 	cg := ce.cg
 	p := cg.prefix
 	prelude = append(prelude, cat(gen(p+"_rcv := "), ce.baseText))
 	prelude = append(prelude, ce.closures...)
 	if ce.needOut() {
-		prelude = append(prelude, gen("var "+p+"_out []"+ce.outElem))
+		prelude = append(prelude, gen(ce.outDecl()))
+	}
+	if ce.flight {
+		prelude = append(prelude, gen("var "+p+"_fl any"))
+	}
+	if ce.guarded() {
+		prelude = append(prelude, gen(p+"_done := false"))
+		prelude = append(prelude, gen("defer func() { if !"+p+"_done { "+ce.rollback(p)+" } }()"))
 	}
 	if ce.term.method == "count" {
 		prelude = append(prelude, gen(p+"_c := 0"))
@@ -1319,6 +1455,7 @@ func (ce *chainEmit) loopO() (prelude []otext, body, epilogue []string) {
 			body = append(body, fmt.Sprintf("if %[1]s_tc%[2]d >= %[1]s_tn%[2]d { break }", p, i))
 		}
 	}
+	body = append(body, ce.ownedInLines(p)...)
 	for i, op := range ce.ops {
 		fname := ce.funcOf(op, fmt.Sprintf("%s_f%d", p, i))
 		switch op.method {
@@ -1327,10 +1464,19 @@ func (ce *chainEmit) loopO() (prelude []otext, body, epilogue []string) {
 		case "take":
 			body = append(body, fmt.Sprintf("%s_tc%d++", p, i))
 		case "drop":
-			body = append(body, fmt.Sprintf("if %[1]s_di%[2]d < %[1]s_d%[2]d { %[1]s_di%[2]d++; continue }", p, i))
+			body = append(body, fmt.Sprintf("if %[1]s_di%[2]d < %[1]s_d%[2]d { %[1]s_di%[2]d++; %[3]s }", p, i, ce.dropStmt(p, cur, i)))
 		case "map":
 			mname := fmt.Sprintf("%s_m%d", p, i)
+			if ce.flight && ce.ownBefore[i] {
+				body = append(body, p+"_fl = nil")
+			}
 			body = append(body, ce.mapLines(p, fname, cur, mname, i)...)
+			if ce.flight && i < ce.lastMap && ce.ownBefore[i+1] {
+				body = append(body, fmt.Sprintf("%s_fl = any(%s)", p, mname))
+			}
+			if ce.owns && i == ce.lastMap {
+				body = append(body, fmt.Sprintf("%[1]s_out = append(%[1]s_out, %[2]s)", p, mname))
+			}
 			cur = mname
 		}
 	}
@@ -1340,28 +1486,65 @@ func (ce *chainEmit) loopO() (prelude []otext, body, epilogue []string) {
 	return prelude, body, epilogue
 }
 
-func (ce *chainEmit) loop() (prelude, body, epilogue []string) {
-	pre, body, epilogue := ce.loopO()
-	for _, p := range pre {
-		prelude = append(prelude, p.s)
-	}
-	return prelude, body, epilogue
-}
-
-// needOut reports whether the run materializes elements: slice and
-// sum, sort, last, and get terminals always append; value terminals
-// append only when a `?` rollback may need produced elements.
 func (ce *chainEmit) needOut() bool {
 	switch ce.term.method {
 	case "find", "any", "all", "count", "first":
-		return ce.isTry && ce.hasMap()
+		return ce.owns
 	}
 	return true
 }
 
-// needElem reports whether the loop body references the element: only
-// a bare count over a takedropped run leaves it unused.
+func (ce *chainEmit) ownership() {
+	cg := ce.cg
+	ce.ownBefore = make([]bool, len(ce.ops))
+	ce.lastMap = -1
+	in := cg.elemT
+	owned := ce.ownedIn
+	for i, op := range ce.ops {
+		ce.ownBefore[i] = owned
+		if op.method != "map" {
+			continue
+		}
+		out := cg.prodType(op)
+		same := in != nil && out != nil && types2.Identical(in, out)
+		owned = logosMayBeCloser(out) && formsOwn(op.forms, same, owned)
+		in = out
+		ce.lastMap = i
+	}
+	for i, op := range ce.ops {
+		if op.method == "filter" && ce.ownBefore[i] && i < ce.lastMap {
+			ce.flight = true
+		}
+	}
+	ce.owns = owned
+}
+
+func formsOwn(forms []resultForm, same, prev bool) bool {
+	if len(forms) == 0 {
+		return false
+	}
+	for _, f := range forms {
+		switch f {
+		case formMade:
+		case formCall:
+			if same && !prev {
+				return false
+			}
+		case formParam:
+			if !prev {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	return true
+}
+
 func (ce *chainEmit) needElem() bool {
+	if ce.ownedIn {
+		return true
+	}
 	if ce.term.method != "count" || ce.term.arg != nil {
 		return true
 	}
@@ -1373,26 +1556,48 @@ func (ce *chainEmit) needElem() bool {
 	return false
 }
 
-// argText returns the composed text of an index argument.
+func (ce *chainEmit) ownedInLines(p string) []string {
+	switch {
+	case !ce.ownedIn:
+		return nil
+	case ce.lastMap < 0:
+		return []string{fmt.Sprintf("%[1]s_out = append(%[1]s_out, %[1]s_e)", p)}
+	case ce.flight:
+		return []string{fmt.Sprintf("%[1]s_fl = any(%[1]s_e)", p)}
+	}
+	return nil
+}
+
 func (ce *chainEmit) argText(op chainOp) otext {
 	cg := ce.cg
 	if op.arg == nil {
 		return gen("0")
 	}
-	return cg.fl.textOf(op.argSpan)
+	return cg.fl.drainBodyWrapper(op.arg, cg.fl.textOf(op.argSpan))
 }
 
-// filterLines emits a filter check, pure or `?`.
 func (ce *chainEmit) filterLines(p, fname, cur string, i int) []string {
+	drop := ce.dropStmt(p, cur, i)
 	if ce.ops[i].isTry {
 		ok := fmt.Sprintf("%s_ok%d", p, i)
 		en := fmt.Sprintf("%s_e%d", p, i)
-		return []string{fmt.Sprintf("%s, %s := %s(%s); if %s != nil { %s }; if !%s { continue }", ok, en, fname, cur, en, ce.failStage(p, en), ok)}
+		return []string{fmt.Sprintf("%s, %s := %s(%s); if %s != nil { %s }; if !%s { %s }", ok, en, fname, cur, en, ce.failStage(p, en), ok, drop)}
 	}
-	return []string{fmt.Sprintf("if !%s(%s) { continue }", fname, cur)}
+	return []string{fmt.Sprintf("if !%s(%s) { %s }", fname, cur, drop)}
 }
 
-// mapLines emits a map step, pure or `?` with rollback.
+func (ce *chainEmit) dropStmt(p, cur string, i int) string {
+	switch {
+	case !ce.ownBefore[i]:
+		return "continue"
+	case i < ce.lastMap && ce.flight:
+		return ce.closeOne(p, cur) + "; " + p + "_fl = nil; continue"
+	case i < ce.lastMap:
+		return ce.closeOne(p, cur) + "; continue"
+	}
+	return fmt.Sprintf("%s; %[2]s_out = %[2]s_out[:len(%[2]s_out)-1]; continue", ce.closeOne(p, cur), p)
+}
+
 func (ce *chainEmit) mapLines(p, fname, cur, mname string, i int) []string {
 	if ce.ops[i].isTry {
 		en := fmt.Sprintf("%s_e%d", p, i)
@@ -1401,39 +1606,15 @@ func (ce *chainEmit) mapLines(p, fname, cur, mname string, i int) []string {
 	return []string{fmt.Sprintf("%s := %s(%s)", mname, fname, cur)}
 }
 
-// failStage spells the error return for a failing stage, rolling back
-// already produced elements first when the run maps: appended elements
-// always passed every map stage, while a mapless run holds only
-// receiver elements the caller owns.
+func (ce *chainEmit) guarded() bool { return ce.owns || ce.flight }
+
 func (ce *chainEmit) failStage(p, errVar string) string {
-	if ce.hasMap() {
-		return ce.failProduct(p, errVar)
-	}
-	return ce.failPristine(p, errVar)
-}
-
-// failProduct spells the rollback plus error return for a failing stage
-// with produced elements: they close in reverse before returning errVar.
-func (ce *chainEmit) failProduct(p, errVar string) string {
-	return ce.failWith(p, errVar, true)
-}
-
-// failPristine spells the error return for a failing stage with nothing
-// produced yet: no rollback, just the return through errVar.
-func (ce *chainEmit) failPristine(p, errVar string) string {
-	return ce.failWith(p, errVar, false)
-}
-
-func (ce *chainEmit) failWith(p, errVar string, rollbackBefore bool) string {
-	if rollbackBefore {
-		return ce.rollback(p) + "; " + ce.failReturn(p, errVar)
+	if ce.guarded() {
+		return ce.rollback(p) + "; " + p + "_done = true; " + ce.failReturn(p, errVar)
 	}
 	return ce.failReturn(p, errVar)
 }
 
-// hasMap reports whether the run maps: appended elements are produced
-// values that rollback must close, while a mapless run holds only
-// receiver elements the caller owns.
 func (ce *chainEmit) hasMap() bool {
 	for _, op := range ce.ops {
 		if op.method == "map" {
@@ -1443,8 +1624,66 @@ func (ce *chainEmit) hasMap() bool {
 	return false
 }
 
-// failReturn spells the error return for the run result through errVar,
-// which the failing branch declares.
+func logosMayBeCloser(t types2.Type) bool {
+	if t == nil {
+		return true
+	}
+	switch types2.Unalias(t).(type) {
+	case *types2.Interface, *types2.TypeParam, *types2.Union:
+		return true
+	}
+	obj, _, _ := types2.LookupFieldOrMethod(t, false, nil, "Close")
+	fn, ok := obj.(*types2.Func)
+	if !ok {
+		return false
+	}
+	sig, ok := types2.Unalias(fn.Type()).(*types2.Signature)
+	if !ok || sig.Params().Len() != 0 || sig.Results().Len() != 1 {
+		return false
+	}
+	errIface, ok := types2.Universe.Lookup("error").Type().(*types2.Interface)
+	if !ok {
+		return true
+	}
+	return types2.Implements(sig.Results().At(0).Type(), errIface)
+}
+
+func (ce *chainEmit) closeOne(p, v string) string {
+	return fmt.Sprintf("if %[1]s_c, %[1]s_ok := any(%[2]s).(interface{ Close() error }); %[1]s_ok { %[1]s_c.Close() }", p, v)
+}
+
+func (ce *chainEmit) closeBut(p, handed string) string {
+	return fmt.Sprintf("for %[1]s_ci := len(%[1]s_out) - 1; %[1]s_ci >= 0; %[1]s_ci-- { if %[1]s_ci != %[2]s { %[3]s } }", p, handed, ce.closeOne(p, p+"_out["+p+"_ci]"))
+}
+
+func (ce *chainEmit) handSlice(p string) string {
+	if !ce.owns {
+		return ""
+	}
+	return p + "_done = true; "
+}
+
+func (ce *chainEmit) handNone(p string) string {
+	if !ce.owns {
+		return ""
+	}
+	return ce.closeBut(p, "-1") + "; " + p + "_done = true; "
+}
+
+func (ce *chainEmit) handLast(p string) string {
+	if !ce.owns {
+		return ""
+	}
+	return ce.closeBut(p, "len("+p+"_out)-1") + "; " + p + "_done = true; "
+}
+
+func (ce *chainEmit) handIndex(p string) string {
+	if !ce.owns {
+		return ""
+	}
+	return ce.closeBut(p, p+"_i") + "; " + p + "_done = true; "
+}
+
 func (ce *chainEmit) failReturn(p, errVar string) string {
 	switch ce.term.method {
 	case "", "sortBy":
@@ -1459,85 +1698,84 @@ func (ce *chainEmit) failReturn(p, errVar string) string {
 	return "return nil, " + errVar
 }
 
-// rollback spells the reverse Closer rollback over produced elements.
 func (ce *chainEmit) rollback(p string) string {
-	return fmt.Sprintf("for %[1]s_i := len(%[1]s_out) - 1; %[1]s_i >= 0; %[1]s_i-- { if %[1]s_c, %[1]s_ok := any(%[1]s_out[%[1]s_i]).(interface{ Close() error }); %[1]s_ok { %[1]s_c.Close() } }", p)
+	var steps []string
+	if ce.flight {
+		steps = append(steps, ce.closeOne(p, p+"_fl"))
+	}
+	if ce.owns {
+		steps = append(steps, ce.closeBut(p, "-1"))
+	}
+	return strings.Join(steps, "; ")
 }
 
-// terminalLines emits the terminal step inside the loop.
 func (ce *chainEmit) terminalLines(p, cur string) []string {
-	t := ce.term
-	appendCur := []string{fmt.Sprintf("%s_out = append(%s_out, %s)", p, p, cur)}
-	if t.method == "" {
-		return appendCur
-	}
-	keep := func(lines []string) []string {
-		if ce.isTry && ce.hasMap() {
-			return append(appendCur, lines...)
-		}
-		return lines
-	}
-	switch t.method {
+	switch ce.term.method {
 	case "find":
-		return keep(ce.findLines(p, cur))
+		return ce.findLines(p, cur)
 	case "any", "all":
-		return keep(ce.anyLines(p, cur))
+		return ce.anyLines(p, cur)
 	case "count":
-		return keep(ce.countLines(p, cur))
-	case "sum":
-		return appendCur
+		return ce.countLines(p, cur)
 	case "first":
-		return keep(ce.firstLines(p, cur))
-	case "sortBy", "last", "get":
-		return appendCur
+		return []string{ce.handLast(p) + "return " + ce.someText(p, cur) + ce.rsuf()}
 	}
-	return appendCur
+	if ce.owns {
+		return nil
+	}
+	return []string{fmt.Sprintf("%s_out = append(%s_out, %s)", p, p, cur)}
 }
 
-// findLines emits a find step.
 func (ce *chainEmit) findLines(p, cur string) []string {
 	fname := ce.funcOf(ce.term, p+"_ft")
 	if ce.term.isTry {
 		en := p + "_fte"
-		return []string{fmt.Sprintf("if %[1]s_fv, %[2]s := %[3]s(%[4]s); %[2]s != nil { %[5]s } else if %[1]s_fv { return %[6]s%[7]s }", p, en, fname, cur, ce.failStage(p, en), ce.someText(p, cur), ce.rsuf())}
+		return []string{fmt.Sprintf("if %[1]s_fv, %[2]s := %[3]s(%[4]s); %[2]s != nil { %[5]s } else if %[1]s_fv { %[8]sreturn %[6]s%[7]s }", p, en, fname, cur, ce.failStage(p, en), ce.someText(p, cur), ce.rsuf(), ce.handLast(p))}
 	}
-	return []string{fmt.Sprintf("if %s(%s) { return %s%s }", fname, cur, ce.someText(p, cur), ce.rsuf())}
+	return []string{fmt.Sprintf("if %s(%s) { %sreturn %s%s }", fname, cur, ce.handLast(p), ce.someText(p, cur), ce.rsuf())}
 }
 
-// someText spells a present option value.
+func (ce *chainEmit) bareOption() bool {
+	o := ce.cg.fl.asOptionThroughConst(ce.resultT)
+	return o != nil && types2.LogosOptionIsBare(o.Elem)
+}
+
 func (ce *chainEmit) someText(p, cur string) string {
+	if ce.bareOption() {
+		return cur
+	}
 	ce.cg.fl.needRT = true
 	return fmt.Sprintf("_logos_rt.Option[%s]{Value: %s, Present: true}", ce.outElem, cur)
 }
 
-// noneText spells an absent option value.
 func (ce *chainEmit) noneText(p string) string {
+	if ce.bareOption() {
+		return "nil"
+	}
 	ce.cg.fl.needRT = true
 	return fmt.Sprintf("_logos_rt.Option[%s]{}", ce.outElem)
 }
 
-// anyLines emits an any/all step.
 func (ce *chainEmit) anyLines(p, cur string) []string {
 	fname := ce.funcOf(ce.term, p+"_ft")
 	if ce.term.method == "all" {
 		if ce.term.isTry {
 			en := p + "_fte"
-			return []string{fmt.Sprintf("if %[1]s_fv, %[2]s := %[3]s(%[4]s); %[2]s != nil { %[5]s } else if !%[1]s_fv { return false%[6]s }", p, en, fname, cur, ce.failStage(p, en), ce.rsuf())}
+			return []string{fmt.Sprintf("if %[1]s_fv, %[2]s := %[3]s(%[4]s); %[2]s != nil { %[5]s } else if !%[1]s_fv { %[7]sreturn false%[6]s }", p, en, fname, cur, ce.failStage(p, en), ce.rsuf(), ce.handNone(p))}
 		}
-		return []string{fmt.Sprintf("if !%s(%s) { return false%s }", fname, cur, ce.rsuf())}
+		return []string{fmt.Sprintf("if !%s(%s) { %sreturn false%s }", fname, cur, ce.handNone(p), ce.rsuf())}
 	}
 	if ce.term.isTry {
 		en := p + "_fte"
-		return []string{fmt.Sprintf("if %[1]s_fv, %[2]s := %[3]s(%[4]s); %[2]s != nil { %[5]s } else if %[1]s_fv { return true%[6]s }", p, en, fname, cur, ce.failStage(p, en), ce.rsuf())}
+		return []string{fmt.Sprintf("if %[1]s_fv, %[2]s := %[3]s(%[4]s); %[2]s != nil { %[5]s } else if %[1]s_fv { %[7]sreturn true%[6]s }", p, en, fname, cur, ce.failStage(p, en), ce.rsuf(), ce.handNone(p))}
 	}
-	return []string{fmt.Sprintf("if %s(%s) { return true%s }", fname, cur, ce.rsuf())}
+	return []string{fmt.Sprintf("if %s(%s) { %sreturn true%s }", fname, cur, ce.handNone(p), ce.rsuf())}
 }
 
-// countLines emits a count step.
 func (ce *chainEmit) countLines(p, cur string) []string {
 	if ce.term.arg == nil {
-		if ce.isTry && ce.hasMap() {
-			return []string{fmt.Sprintf("%s_out = append(%s_out, %s)", p, p, cur), p + "_c++"}
+		if ce.hasMap() && !ce.owns {
+			return []string{"_ = " + cur, p + "_c++"}
 		}
 		return []string{p + "_c++"}
 	}
@@ -1549,73 +1787,57 @@ func (ce *chainEmit) countLines(p, cur string) []string {
 	return []string{fmt.Sprintf("if %s(%s) { %s_c++ }", fname, cur, p)}
 }
 
-// firstLines emits a first step.
-func (ce *chainEmit) firstLines(p, cur string) []string {
-	return []string{"return " + ce.someText(p, cur) + ce.rsuf()}
-}
-
-// epilogue emits the post-loop lines for terminals.
 func (ce *chainEmit) epilogue(p string) []string {
 	switch ce.term.method {
-	case "":
-		return []string{"return " + p + "_out" + ce.rsuf()}
 	case "find", "any", "all", "count":
 		return ce.epilogueValue(p)
 	case "sum":
 		return ce.epilogueSum(p)
 	case "first":
-		return []string{"return " + ce.noneText(p) + ce.rsuf()}
+		return []string{ce.handNone(p) + "return " + ce.noneText(p) + ce.rsuf()}
+	case "":
+		return []string{"if len(" + p + "_out) == 0 { " + p + "_out = nil }", ce.handSlice(p) + "return " + p + "_out" + ce.rsuf()}
 	case "last", "get":
 		return ce.epilogueIndex(p)
 	case "sortBy":
 		return ce.epilogueSort(p)
 	}
-	return []string{"return " + p + "_out" + ce.rsuf()}
+	return []string{ce.handSlice(p) + "return " + p + "_out" + ce.rsuf()}
 }
 
-// epilogueValue emits defaults after exhaustive loops.
 func (ce *chainEmit) epilogueValue(p string) []string {
 	switch ce.term.method {
 	case "find":
-		return []string{"return " + ce.noneText(p) + ce.rsuf()}
+		return []string{ce.handNone(p) + "return " + ce.noneText(p) + ce.rsuf()}
 	case "any":
-		return []string{"return false" + ce.rsuf()}
+		return []string{ce.handNone(p) + "return false" + ce.rsuf()}
 	case "all":
-		return []string{"return true" + ce.rsuf()}
+		return []string{ce.handNone(p) + "return true" + ce.rsuf()}
 	case "count":
-		return []string{"return " + p + "_c" + ce.rsuf()}
+		return []string{ce.handNone(p) + "return " + p + "_c" + ce.rsuf()}
 	}
-	return []string{"return " + p + "_out" + ce.rsuf()}
+	return []string{ce.handSlice(p) + "return " + p + "_out" + ce.rsuf()}
 }
 
-// epilogueSum emits pairwise summation over the materialized run. The
-// helper recurses, so it declares with var before assigning: a name is
-// not in scope in its own := initializer.
 func (ce *chainEmit) epilogueSum(p string) []string {
 	t := ce.outElem
 	sn := p + "_sum"
 	return []string{
 		fmt.Sprintf("var %[1]s func([]%[2]s) %[2]s", sn, t),
 		fmt.Sprintf("%[1]s = func(%[2]s_s []%[3]s) %[3]s { switch len(%[2]s_s) { case 0: return 0; case 1: return %[2]s_s[0]; default: %[2]s_m := len(%[2]s_s) / 2; return %[1]s(%[2]s_s[:%[2]s_m]) + %[1]s(%[2]s_s[%[2]s_m:]) } }", sn, p, t),
-		fmt.Sprintf("return %s(%s_out)%s", sn, p, ce.rsuf()),
+		fmt.Sprintf("%sreturn %s(%s_out)%s", ce.handSlice(p), sn, p, ce.rsuf()),
 	}
 }
 
-// epilogueIndex emits last/get indexing.
 func (ce *chainEmit) epilogueIndex(p string) []string {
 	if ce.term.method == "last" {
-		return []string{fmt.Sprintf("if len(%[1]s_out) == 0 { return %[2]s%[3]s }; return %[4]s%[3]s", p, ce.noneText(p), ce.rsuf(), ce.someText(p, p+"_out[len("+p+"_out)-1]"))}
+		return []string{fmt.Sprintf("if len(%[1]s_out) == 0 { %[5]sreturn %[2]s%[3]s }; %[5]sreturn %[4]s%[3]s", p, ce.noneText(p), ce.rsuf(), ce.someText(p, p+"_out[len("+p+"_out)-1]"), ce.handLast(p))}
 	}
 	return []string{
-		fmt.Sprintf("if %[1]s_i < 0 || %[1]s_i >= len(%[1]s_out) { return %[2]s%[3]s }; return %[4]s%[3]s", p, ce.noneText(p), ce.rsuf(), ce.someText(p, p+"_out["+p+"_i]")),
+		fmt.Sprintf("if %[1]s_i < 0 || %[1]s_i >= len(%[1]s_out) { %[5]sreturn %[2]s%[3]s }; %[5]sreturn %[4]s%[3]s", p, ce.noneText(p), ce.rsuf(), ce.someText(p, p+"_out["+p+"_i]"), ce.handIndex(p)),
 	}
 }
 
-// epilogueSort emits stable sorting over the materialized run, with
-// precomputed keys when the key can fail. Comparison runs through the
-// rt Compare shim, so NaN keys order before non-NaN per SPEC T-104.6,
-// and sorting runs through the rt stable shim so lowered files import
-// only logos/rt.
 func (ce *chainEmit) epilogueSort(p string) []string {
 	ce.cg.fl.needRT = true
 	rt := rtAlias
@@ -1624,7 +1846,7 @@ func (ce *chainEmit) epilogueSort(p string) []string {
 	if !ce.term.isTry {
 		return []string{
 			fmt.Sprintf("%[1]s.SliceStableFunc(%[2]s_out, func(%[2]s_a, %[2]s_b %[3]s) int { return %[1]s.Compare(%[4]s(%[2]s_a), %[4]s(%[2]s_b)) })", rt, p, e, fname),
-			fmt.Sprintf("return %s_out%s", p, ce.rsuf()),
+			fmt.Sprintf("%sreturn %s_out%s", ce.handSlice(p), p, ce.rsuf()),
 		}
 	}
 	k := ce.opResult(ce.term)
@@ -1637,15 +1859,10 @@ func (ce *chainEmit) epilogueSort(p string) []string {
 		fmt.Sprintf("%[1]s.SliceStableFunc(%[1]s_idx, func(%[1]s_a, %[1]s_b int) int { return %[2]s.Compare(%[1]s_keys[%[1]s_a], %[1]s_keys[%[1]s_b]) })", p, rt),
 		fmt.Sprintf("%[1]s_sorted := make([]%[2]s, len(%[1]s_out))", p, e),
 		fmt.Sprintf("for %[1]s_i, %[1]s_v := range %[1]s_idx { %[1]s_sorted[%[1]s_i] = %[1]s_out[%[1]s_v] }", p),
-		fmt.Sprintf("return %s_sorted%s", p, ce.rsuf()),
+		fmt.Sprintf("%sreturn %s_sorted%s", ce.handSlice(p), p, ce.rsuf()),
 	}
 }
 
-// runLoopO builds the loop lines of a run. It mirrors runLoop in
-// simdslice.go; keep them in sync. A bare slice `.sum()` with a vector
-// form replaces the scalar loop with the vector form behind its feature
-// check; when no check guards it, prelude[:1] keeps only the user
-// receiver line.
 func (ce *chainEmit) runLoopO() (prelude []otext, body, epilogue []string) {
 	prelude, body, epilogue = ce.loopO()
 	f, ok := ce.sliceSumForm()
@@ -1664,13 +1881,15 @@ func (ce *chainEmit) runLoopO() (prelude []otext, body, epilogue []string) {
 	return prelude, ce.guardedBody(f, vector, body), epilogue
 }
 
-// emit assembles one chain: closures, loop, replacement, and hoists.
 func (cg *chainGen) emit(call *syntax.CallExpr, ops []chainOp, baseText otext, elemT, resultT types2.Type, term chainOp, isTry bool) {
 	fl := cg.fl
 	cg.elemT = elemT
-	ce := &chainEmit{cg: cg, call: call, ops: ops, term: term, baseText: baseText, elemT: elemT, resultT: resultT, isTry: isTry}
+	ce := &chainEmit{cg: cg, ops: ops, term: term, baseText: baseText, elemT: elemT, resultT: resultT, isTry: isTry}
 	ce.prepare()
 	prelude, body, epilogue := ce.runLoopO()
+	if cg.passRcv {
+		prelude = prelude[1:]
+	}
 	var parts []otext
 	for _, line := range prelude {
 		parts = append(parts, line, gen("; "))
@@ -1683,9 +1902,10 @@ func (cg *chainGen) emit(call *syntax.CallExpr, ops []chainOp, baseText otext, e
 	}
 	loopText := cat(leftoverComments(fl, cg.whole, cg.kept), cat(parts...).trimRight(" "))
 	if !isTry {
-		text := cat(gen("func() "+ce.resultSpelling()+" { "), loopText, gen(" }()"))
+		text := cg.exprLoop(ce, loopText, baseText)
 		native := parseChainExprFrag(fl, text.s, call.Pos())
-		replaceTupleExpr(fl.file, call, native)
+		fl.stageReplacement(call, native)
+		fl.wrapSpan[native] = cg.whole
 		fl.addT(cg.whole.start, cg.whole.end, text)
 		return
 	}
@@ -1698,19 +1918,34 @@ func (cg *chainGen) emit(call *syntax.CallExpr, ops []chainOp, baseText otext, e
 	fail := cg.failText(errName)
 	hoistText := cat(gen(temp+", "+errName+" := "), text, gen("(); if "+errName+" != nil { "+fail+" }"))
 	if cg.guard != "" {
-		// The result outlives the guard block: the statement reads it
-		// only where its own short-circuit operands let it run, which
-		// are exactly the cases the guard admits.
 		hoistText = cat(gen("var "+temp+" "+ce.resultSpelling()+"; if "+cg.guard+" { var "+errName+" error; "+temp+", "+errName+" = "), text, gen("(); if "+errName+" != nil { "+fail+" } }"))
 	}
 	hoistNative := parseChainStmtFrag(fl, hoistText.s, call.Pos())
 	cg.hoists = append(cg.hoists, chainHoist{stmts: hoistNative, text: hoistText})
 	native := nameOf(call.Pos(), temp)
-	replaceTupleExpr(fl.file, call, native)
+	fl.stageReplacement(call, native)
+	fl.wrapSpan[native] = cg.whole
 	fl.add(cg.whole.start, cg.whole.end, temp)
 }
 
-// resultSpelling spells the chain result type.
+func (cg *chainGen) exprLoop(ce *chainEmit, loopText, baseText otext) otext {
+	if !cg.passRcv {
+		return cat(gen("func() "+ce.resultSpelling()+" { "), loopText, gen(" }()"))
+	}
+	head := "func(" + cg.prefix + "_rcv " + cg.spellType(cg.receiverT) + ") " + ce.resultSpelling() + " { "
+	return cat(gen(head), loopText, gen(" }("), baseText, gen(")"))
+}
+
+func containsCall(e syntax.Expr) bool {
+	found := false
+	syntax.Inspect(e, func(n syntax.Node) bool {
+		_, isCall := n.(*syntax.CallExpr)
+		found = found || isCall
+		return !found
+	})
+	return found
+}
+
 func (ce *chainEmit) resultSpelling() string {
 	cg := ce.cg
 	t := ce.resultT
@@ -1718,18 +1953,11 @@ func (ce *chainEmit) resultSpelling() string {
 		_ = s
 		return "[]" + ce.outElem
 	}
-	if _, ok := types2.Unalias(t).(*types2.Option); ok {
-		cg.fl.needRT = true
-		if spelled, ok := cg.fl.spellLowered(t); ok {
-			return spelled
-		}
-	}
 	return cg.spellType(t)
 }
 
-// parseChainExprFrag parses text as an expression and normalizes
-// positions to pos.
 func parseChainExprFrag(fl *fileLower, text string, pos syntax.Pos) syntax.Expr {
+	text = fl.settleMarks(gen(text)).s
 	f, err := syntax.Parse(syntax.NewFileBase("logos-chain"), strings.NewReader("package logoschain\nvar _ = "+text+"\n"), nil, nil, 0)
 	if err != nil || len(f.DeclList) != 1 {
 		base.Fatalf("logos: cannot parse chain fragment %q: %v", text, err)
@@ -1747,10 +1975,6 @@ func parseChainExprFrag(fl *fileLower, text string, pos syntax.Pos) syntax.Expr 
 	return e
 }
 
-// normalizeChainPos sets every node under root to pos, including the
-// raw delimiter positions that never reach dwarfgen as nodes. A single
-// fragment coordinate poisons scope order, so blocks, switches,
-// selects, clauses, and composite literals take pos on their closers.
 func normalizeChainPos(root syntax.Node, pos syntax.Pos) {
 	syntax.Inspect(root, func(n syntax.Node) bool {
 		if n == nil {
@@ -1775,9 +1999,8 @@ func normalizeChainPos(root syntax.Node, pos syntax.Pos) {
 	})
 }
 
-// parseChainStmtFrag parses text as statements and normalizes
-// positions to pos.
 func parseChainStmtFrag(fl *fileLower, text string, pos syntax.Pos) []syntax.Stmt {
+	text = fl.settleMarks(gen(text)).s
 	f, err := syntax.Parse(syntax.NewFileBase("logos-chain"), strings.NewReader("package logoschain\nfunc _() {\n"+text+"\n}\n"), nil, nil, 0)
 	if err != nil || len(f.DeclList) != 1 {
 		base.Fatalf("logos: cannot parse chain fragment %q: %v", text, err)
@@ -1793,7 +2016,6 @@ func parseChainStmtFrag(fl *fileLower, text string, pos syntax.Pos) []syntax.Stm
 	return out
 }
 
-// isUntypedBasic reports whether t is an untyped basic type.
 func isUntypedBasic(t types2.Type) bool {
 	b, ok := t.(*types2.Basic)
 	if !ok {
@@ -1803,7 +2025,6 @@ func isUntypedBasic(t types2.Type) bool {
 	return k == types2.UntypedBool || k == types2.UntypedInt || k == types2.UntypedRune || k == types2.UntypedFloat || k == types2.UntypedComplex || k == types2.UntypedString
 }
 
-// defaultBasicType returns the default type of an untyped basic.
 func defaultBasicType(t types2.Type) types2.Type {
 	b := t.(*types2.Basic)
 	switch b.Kind() {

@@ -1,0 +1,150 @@
+// run
+
+package main
+
+import (
+	"encoding/binary"
+	"fmt"
+	"os"
+	"testing"
+	"time"
+)
+
+type Tick struct{}
+
+type TickHolder struct {
+	Items []Tick `json:"items"`
+}
+func bestPair(small, big TickHolder) (int64, int64) {
+	smallBest := int64(1 << 62)
+	bigBest := int64(1 << 62)
+	for i := 0; i < 100; i++ {
+		start := time.Now()
+		if _, err := small.MarshalBinary(); err != nil {
+			panic(err)
+		}
+		if el := time.Since(start).Nanoseconds(); el < smallBest {
+			smallBest = el
+		}
+		start = time.Now()
+		if _, err := big.MarshalBinary(); err != nil {
+			panic(err)
+		}
+		if el := time.Since(start).Nanoseconds(); el < bigBest {
+			bigBest = el
+		}
+	}
+	return smallBest, bigBest
+}
+
+func mustBytes(b []byte, err error) []byte {
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
+
+func countWire(count uint64) []byte {
+	return binary.AppendUvarint([]byte{1}, count)
+}
+
+func leastDecode(wire []byte, runs int, stopAt int64) (int64, error) {
+	best := int64(1 << 62)
+	var firstErr error
+	for i := 0; i < runs && best > stopAt; i++ {
+		var v TickHolder
+		start := time.Now()
+		err := v.UnmarshalBinary(wire)
+		if el := time.Since(start).Nanoseconds(); el < best {
+			best = el
+		}
+		if firstErr == nil {
+			firstErr = err
+		}
+	}
+	return best, firstErr
+}
+
+func decodeTimes() error {
+	const lawful = 1000
+	const maxLawful = 1 << 20
+	const overCap = 1000000000
+	small, err := leastDecode(countWire(lawful), 100, 0)
+	if err != nil {
+		return fmt.Errorf("count %d rejected: %w", lawful, err)
+	}
+	small = max(small, 1)
+	limit := 200*small + 20000
+	got, err := leastDecode(countWire(maxLawful), 20, limit)
+	if err != nil {
+		return fmt.Errorf("count %d rejected: %w", maxLawful, err)
+	}
+	if got > limit {
+		return fmt.Errorf("decode time grows with count: %d ns at %d vs %d ns at %d", got, maxLawful, small, lawful)
+	}
+	var over struct {
+		ns  int64
+		err error
+	}
+	over.ns, over.err = leastDecode(countWire(overCap), 20, limit)
+	got, err = over.ns, over.err
+	if err == nil {
+		return fmt.Errorf("count %d accepted, want rejection before iteration", overCap)
+	}
+	if got > limit {
+		return fmt.Errorf("rejection time grows with count: %d ns at %d vs %d ns at %d", got, overCap, small, lawful)
+	}
+	return nil
+}
+
+func main() {
+	const smallCount = 10
+	const bigCount = 1048576
+	small := TickHolder{Items: make([]Tick, smallCount)}
+	big := TickHolder{Items: make([]Tick, bigCount)}
+	encSmall := mustBytes(small.MarshalBinary())
+	encBig := mustBytes(big.MarshalBinary())
+	if len(encSmall) == len(encBig) {
+		fmt.Println("FAIL wire length must grow with the count header")
+		os.Exit(1)
+	}
+	var dec TickHolder
+	if derr := dec.UnmarshalBinary(encBig); derr != nil {
+		panic(derr)
+	}
+	if len(dec.Items) != bigCount {
+		fmt.Printf("FAIL decoded %d items, want %d\n", len(dec.Items), bigCount)
+		os.Exit(1)
+	}
+	smallAllocs := testing.AllocsPerRun(20, func() {
+		if _, err := small.MarshalBinary(); err != nil {
+			panic(err)
+		}
+	})
+	bigAllocs := testing.AllocsPerRun(20, func() {
+		if _, err := big.MarshalBinary(); err != nil {
+			panic(err)
+		}
+	})
+	if smallAllocs != bigAllocs {
+		fmt.Printf("FAIL encode allocates %v at count %d and %v at count %d\n", smallAllocs, smallCount, bigAllocs, bigCount)
+		os.Exit(1)
+	}
+	smallBest, bigBest := bestPair(small, big)
+	if smallBest <= 0 {
+		smallBest = 1
+	}
+	if bigBest > 200*smallBest {
+		fmt.Printf("FAIL encode time grows with count: %d ns at %d vs %d ns at %d\n", bigBest, bigCount, smallBest, smallCount)
+		os.Exit(1)
+	}
+	if err := decodeTimes(); err != nil {
+		fmt.Println("FAIL decode-time-constant:", err)
+		os.Exit(1)
+	}
+	fmt.Println("ok wire-header-grows")
+	fmt.Println("ok roundtrip-count")
+	fmt.Println("ok encode-alloc-constant")
+	fmt.Println("ok encode-time-constant")
+	fmt.Println("ok decode-time-constant")
+}

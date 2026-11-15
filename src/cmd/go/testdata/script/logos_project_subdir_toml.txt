@@ -1,0 +1,73 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd subtoml
+env CGO_ENABLED=0
+logos build .
+! logos build -o $WORK/subbin$GOEXE ./sub
+stderr '\[restriction::cgo_usage\]'
+cd ..
+
+[cgo] cd roottoml
+[cgo] env CGO_ENABLED=1
+[cgo] logos build .
+[cgo] logos build -o $WORK/subbin$GOEXE ./sub
+[cgo] exec $WORK/subbin$GOEXE
+[cgo] stdout '^sub ok 42$'
+cd ..
+
+-- subtoml/go.mod --
+module example.com/subt
+
+go 1.27
+
+-- subtoml/main.lgo --
+package main
+
+import "fmt"
+
+func main() { fmt.Println("root") }
+
+-- subtoml/sub/logos.toml --
+[build]
+cgo = "allow"
+
+-- subtoml/sub/c.lgo --
+package main
+
+/*
+int answer() { return 42; }
+*/
+import "C"
+
+import "fmt"
+
+func main() { fmt.Println("sub ok", C.answer()) }
+
+-- roottoml/go.mod --
+module example.com/rtoml
+
+go 1.27
+
+-- roottoml/logos.toml --
+[build]
+cgo = "allow"
+
+-- roottoml/main.lgo --
+package main
+
+import "fmt"
+
+func main() { fmt.Println("root") }
+
+-- roottoml/sub/c.lgo --
+package main
+
+/*
+int answer() { return 42; }
+*/
+import "C"
+
+import "fmt"
+
+func main() { fmt.Println("sub ok", C.answer()) }

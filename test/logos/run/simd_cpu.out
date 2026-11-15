@@ -1,1 +1,5 @@
-simdcpu ok
+ok seam-disables-simd
+ok add-sum-dot-match-scalar
+ok mul-matches-scalar
+ok and-or-match-scalar
+ok wide-sums-match-scalar

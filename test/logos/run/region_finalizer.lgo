@@ -1,0 +1,91 @@
+// run -goexperiment logosarena
+// run -goexperiment logosarena -arena=false
+package main
+
+import (
+	"context"
+	"fmt"
+	"logos/arena"
+	"os"
+	"runtime"
+	"sync/atomic"
+	"time"
+)
+
+type box struct {
+	v int
+	padding [32]byte
+}
+
+var ran int32
+
+func wait(done <-chan struct{}) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	for {
+		runtime.GC()
+		select {
+		case <-done:
+			return
+		case <-ctx.Done():
+			panic("finalizer completion timeout")
+		default:
+			time.Sleep(time.Millisecond)
+		}
+	}
+}
+
+//go:noinline
+func warmup() <-chan struct{} {
+	done := make(chan struct{}, 1)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	p := new(box)
+	runtime.SetFinalizer(p, func(*box) {
+		defer cancel()
+		atomic.StoreInt32(&ran, 1)
+		select {
+		case done <- struct{}{}:
+		case <-ctx.Done():
+			panic("finalizer completion timeout")
+		default:
+			panic("duplicate finalizer completion")
+		}
+	})
+	_ = p
+	return done
+}
+
+//go:noinline
+func placeFinalizer() <-chan struct{} {
+	done := make(chan struct{}, 1)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	r := arena.Open()
+	p := arena.New[box](r)
+	p.v = 7
+	runtime.SetFinalizer(p, func(*box) {
+		defer cancel()
+		atomic.StoreInt32(&ran, 1)
+		select {
+		case done <- struct{}{}:
+		case <-ctx.Done():
+			panic("finalizer completion timeout")
+		default:
+			panic("duplicate finalizer completion")
+		}
+	})
+	if p.v != 7 {
+		panic("bad new")
+	}
+	return done
+}
+
+func main() {
+	wait(warmup())
+	atomic.StoreInt32(&ran, 0)
+	wait(placeFinalizer())
+	if atomic.LoadInt32(&ran) != 1 {
+		fmt.Printf("FAIL escaping-finalizer-runs-after-region-exit: got %d want 1\n", atomic.LoadInt32(&ran))
+		os.Exit(1)
+	}
+	fmt.Println("ok escaping-finalizer-runs-after-region-exit")
+}

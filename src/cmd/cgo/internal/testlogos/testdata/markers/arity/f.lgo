@@ -1,0 +1,10 @@
+package arity
+
+/*
+#include <stdint.h>
+//logos:cgo_fastcall ladd_arity extra
+int ladd_arity(int a, int b) { return a + b; }
+*/
+import "C"
+
+func Add(a, b int32) int32 { return int32(C.ladd_arity(C.int(a), C.int(b))) }

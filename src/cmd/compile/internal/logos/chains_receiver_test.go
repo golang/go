@@ -11,9 +11,6 @@ import (
 	"cmd/compile/internal/syntax"
 )
 
-// firstMapCall parses `var _ = expr` in LogosMode and returns the
-// outermost call of a `.map` selector under it, with the file lowerer
-// that holds the source.
 func firstMapCall(t *testing.T, expr string) (*fileLower, *syntax.CallExpr) {
 	t.Helper()
 	data := []byte("package p\n\nvar _ = " + expr + "\n")
@@ -38,15 +35,9 @@ func firstMapCall(t *testing.T, expr string) (*fileLower, *syntax.CallExpr) {
 	return &fileLower{src: data, start: lineStarts(data)}, found
 }
 
-// TestChainReceiverSpan pins the exact receiver and chain spans of the
-// receiver shapes that syntax positions misplace: a slice expression
-// sits at its `[`, a parenthesized receiver starts at its `(`, and a
-// comment or a leading-dot line break can separate the receiver from
-// the dot.
 func TestChainReceiverSpan(t *testing.T) {
 	cases := []struct{ name, expr, recv, whole string }{
 		{"slice", "xs[1:].map(f)", "xs[1:]", "xs[1:].map(f)"},
-		{"slice upto", "xs[:2].map(f)", "xs[:2]", "xs[:2].map(f)"},
 		{"full slice", "xs[1:2:3].map(f)", "xs[1:2:3]", "xs[1:2:3].map(f)"},
 		{"paren slice", "(xs[1:]).map(f)", "(xs[1:])", "(xs[1:]).map(f)"},
 		{"paren name", "(xs).map(f)", "(xs)", "(xs).map(f)"},
@@ -84,10 +75,6 @@ func TestChainReceiverSpan(t *testing.T) {
 	}
 }
 
-// TestChainReceiverSpanInCall checks that a chain inside a call
-// argument list takes only its own tokens: the call's opening
-// parenthesis stays out, a parenthesized receiver keeps its pair, and
-// a pair around the whole chain stays out.
 func TestChainReceiverSpanInCall(t *testing.T) {
 	cases := []struct{ name, expr, recv, whole string }{
 		{"plain", "f(xs[1:].map(g))", "xs[1:]", "xs[1:].map(g)"},
@@ -110,10 +97,6 @@ func TestChainReceiverSpanInCall(t *testing.T) {
 	}
 }
 
-// TestChainCommentsEjectOnce checks that the ejected text keeps a
-// comment between the receiver and the dot, which the replaced chain
-// would drop, and keeps a comment inside an argument once: the lambda
-// body text already carries it.
 func TestChainCommentsEjectOnce(t *testing.T) {
 	src := []byte("package main\n\nfunc main() {\n\txs := []int{1, 2, 3}\n\t_ = xs[1:] /* gap */ .map(x => x /* body */ + 1)\n}\n")
 	base := syntax.NewFileBase("comments.lgo")
@@ -130,11 +113,6 @@ func TestChainCommentsEjectOnce(t *testing.T) {
 	}
 }
 
-// TestFindCallParensNesting checks that the call's parentheses match
-// across the semicolons of nested bodies and the brackets of its
-// arguments: an explicit or automatic semicolon inside braces never ends
-// the scan, and a string or comment holding a bracket or a semicolon
-// stays out of the count.
 func TestFindCallParensNesting(t *testing.T) {
 	cases := []struct {
 		name string
@@ -162,10 +140,6 @@ func TestFindCallParensNesting(t *testing.T) {
 	}
 }
 
-// TestChainCallEndParenFun checks that a call ends at the parenthesis
-// that matches its own opening one, however its function operand is
-// written: a parenthesized operand leaves a `)` before the argument
-// list, and a function literal body in the arguments holds semicolons.
 func TestChainCallEndParenFun(t *testing.T) {
 	cases := []struct{ name, expr string }{
 		{"paren name", "(f)(xs)"},

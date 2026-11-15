@@ -165,12 +165,23 @@ func testNet(wg *sync.WaitGroup) {
 		log.Fatal(err)
 	}
 	wg.Add(2)
+	clientAddr := make(chan string, 1)
 	go func() {
 		defer wg.Done()
 		defer ln.Close()
 		c, err := ln.Accept()
 		if err != nil {
 			log.Fatal(err)
+		}
+		want := <-clientAddr
+		for c.RemoteAddr().String() != want {
+			if err := c.Close(); err != nil {
+				log.Fatal(err)
+			}
+			c, err = ln.Accept()
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
 		defer c.Close()
 		cf, err := c.(*net.TCPConn).File()
@@ -195,6 +206,7 @@ func testNet(wg *sync.WaitGroup) {
 			log.Fatal(err)
 		}
 		defer c.Close()
+		clientAddr <- c.LocalAddr().String()
 		cf, err := c.(*net.TCPConn).File()
 		if err != nil {
 			log.Fatal(err)

@@ -1,10 +1,6 @@
 // errorcheck
 
-// M7-S3 comptime predicates (SPEC Sec 2.5, T-205): comptime.IsStruct is
-// a constant only in a `const if` condition. Anywhere else it is a
 // run-time use. A condition that mixes it with a run-time value is not
-// constant. A const for over a non-struct type fails in a live branch and
-// is silent in a dead one. comptime.Error requires a constant message.
 
 package p
 
@@ -39,6 +35,27 @@ func fieldCondition() {
 	}
 }
 
+func fieldIndexCondition() {
+	const for _, f := range comptime.Fields[Pair]() {
+		const if f.Index == 0 { // ERROR "comptime::not_constant"
+		}
+	}
+}
+
+func fieldExportedCondition() {
+	const for _, f := range comptime.Fields[Pair]() {
+		const if f.Exported { // ERROR "comptime::not_constant"
+		}
+	}
+}
+
+func fieldVarCondition() {
+	const for i, _ := range comptime.Fields[Pair]() {
+		const if i == 0 { // ERROR "comptime::not_constant"
+		}
+	}
+}
+
 func deadNonStruct() string {
 	const if comptime.IsStruct[int]() {
 		const for _, f := range comptime.Fields[int]() {
@@ -55,4 +72,22 @@ func nonConstantError(msg string) {
 func nonConstantErrorVar() {
 	msg := "dynamic message"
 	comptime.Error(msg) // ERROR "comptime::error_not_constant"
+}
+
+func nonStringConstantError() {
+	comptime.Error(42) // ERROR "cannot use"
+}
+
+func predicateValue() any {
+	return comptime.IsStruct[Pair] // ERROR "comptime::runtime_use"
+}
+
+func errorValue() {
+	f := comptime.Error // ERROR "comptime::runtime_use"
+	_ = f
+}
+
+func fieldsValue() {
+	g := comptime.Fields[Pair] // ERROR "comptime::runtime_use"
+	_ = g
 }

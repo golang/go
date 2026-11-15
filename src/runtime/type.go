@@ -125,7 +125,7 @@ func getGCMaskOnDemand(t *_type) *byte {
 			continue
 		case nil: // Not built yet.
 			// Attempt to get exclusive access to build it.
-			if !zgcAtomicCasp1((*unsafe.Pointer)(addr), nil, unsafe.Pointer(&inProgress)) {
+			if !atomic.Casp1((*unsafe.Pointer)(addr), nil, unsafe.Pointer(&inProgress)) {
 				continue
 			}
 

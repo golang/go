@@ -11,25 +11,43 @@ import (
 
 func TestBuildArenaKey(t *testing.T) {
 	tests := []struct {
-		name string
-		src  string
-		want bool
+		name    string
+		src     string
+		wantNil bool
+		want    bool
 	}{
-		{"absent", "[build]\ncgo = \"forbid\"\n", false},
-		{"noBuildTable", "", false},
-		{"true", "[build]\narena = true\n", true},
-		{"false", "[build]\narena = false\n", false},
-		{"commentAfter", "[build]\narena = true # arena on\n", true},
+		{"absent", "[build]\ncgo = \"forbid\"\n", true, true},
+		{"noBuildTable", "", true, true},
+		{"true", "[build]\narena = true\n", false, true},
+		{"false", "[build]\narena = false\n", false, false},
+		{"commentAfter", "[build]\narena = true # arena on\n", false, true},
 	}
 	for _, tt := range tests {
-		f, err := Parse("logos.toml", []byte(tt.src))
-		if err != nil {
-			t.Errorf("%s: Parse error: %v", tt.name, err)
-			continue
-		}
-		if f.Build.Arena != tt.want {
-			t.Errorf("%s: Build.Arena = %v, want %v", tt.name, f.Build.Arena, tt.want)
-		}
+		t.Run(tt.name, func(t *testing.T) {
+			f, err := Parse("logos.toml", []byte(tt.src))
+			if err != nil {
+				t.Fatalf("Parse error: %v", err)
+			}
+			if (f.Build.Arena == nil) != tt.wantNil {
+				t.Fatalf("Build.Arena nil = %v, want nil %v", f.Build.Arena == nil, tt.wantNil)
+			}
+			eff := f.Build.Arena == nil || *f.Build.Arena
+			if eff != tt.want {
+				t.Errorf("effective Build.Arena = %v, want %v", eff, tt.want)
+			}
+			out := f.Format()
+			g, err := Parse("logos.toml", out)
+			if err != nil {
+				t.Fatalf("Parse of Format output: %v", err)
+			}
+			if (g.Build.Arena == nil) != tt.wantNil {
+				t.Fatalf("round trip Build.Arena nil = %v, want nil %v", g.Build.Arena == nil, tt.wantNil)
+			}
+			eff2 := g.Build.Arena == nil || *g.Build.Arena
+			if eff2 != tt.want {
+				t.Errorf("round trip effective Build.Arena = %v, want %v", eff2, tt.want)
+			}
+		})
 	}
 }
 
@@ -39,6 +57,7 @@ func TestBuildArenaKeyErrors(t *testing.T) {
 		src  string
 		want string
 	}{
+		{"bareYes", "[build]\narena = yes\n", "logos.toml:2:9: want boolean for key \"arena\""},
 		{"string", "[build]\narena = \"true\"\n", `want boolean for key "arena"`},
 		{"literalString", "[build]\narena = 'true'\n", `want boolean for key "arena"`},
 		{"integer", "[build]\narena = 1\n", `want boolean for key "arena"`},
@@ -66,7 +85,8 @@ func TestBuildArenaFormatRoundTrip(t *testing.T) {
 	if got := string(f.Format()); strings.Contains(got, "arena") {
 		t.Errorf("Format of the default file mentions arena:\n%s", got)
 	}
-	f.Build.Arena = true
+	on := true
+	f.Build.Arena = &on
 	out := f.Format()
 	if !strings.Contains(string(out), "arena = true\n") {
 		t.Fatalf("Format dropped arena = true:\n%s", out)
@@ -75,7 +95,20 @@ func TestBuildArenaFormatRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Parse of Format output: %v", err)
 	}
-	if !g.Build.Arena {
+	if g.Build.Arena == nil || !*g.Build.Arena {
 		t.Error("Build.Arena lost in the Format round trip")
+	}
+	off := false
+	f.Build.Arena = &off
+	out = f.Format()
+	if !strings.Contains(string(out), "arena = false\n") {
+		t.Fatalf("Format dropped arena = false:\n%s", out)
+	}
+	h, err := Parse("logos.toml", out)
+	if err != nil {
+		t.Fatalf("Parse of Format output: %v", err)
+	}
+	if h.Build.Arena == nil || *h.Build.Arena {
+		t.Error("Build.Arena false lost in the Format round trip")
 	}
 }

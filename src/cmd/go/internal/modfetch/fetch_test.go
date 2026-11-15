@@ -7,6 +7,8 @@
 package modfetch
 
 import (
+	"archive/zip"
+	"bytes"
 	"errors"
 	"io/fs"
 	"os"
@@ -97,5 +99,65 @@ func TestUnzipVerify(t *testing.T) {
 
 	if ok, err := haveZipHash(ctx, mod, ziphash); err != nil || !ok {
 		t.Errorf("haveZipHash after re-unpack: got (%v, %v), want (true, nil)", ok, err)
+	}
+}
+
+func TestModuleZipAliasExtensions(t *testing.T) {
+	mod := module.Version{Path: "example.com/alias", Version: "v1.0.0"}
+	for _, tc := range []struct {
+		ext     string
+		invalid rune
+	}{
+		{".go", 0},
+		{".lgo", 0},
+		{".📜", '📜'},
+		{".⚡", '⚡'},
+		{".ʕ◔ϖ◔ʔ", '◔'},
+	} {
+		selectors := []string{""}
+		if tc.invalid != 0 {
+			selectors = append(selectors, "\uFE0E", "\uFE0F")
+		}
+		for _, selector := range selectors {
+			name := "main" + tc.ext + selector
+			t.Run(name, func(t *testing.T) {
+				dir := t.TempDir()
+				for path, data := range map[string]string{
+					"go.mod": "module example.com/alias\n",
+					name:     "package alias\n",
+				} {
+					if err := os.WriteFile(filepath.Join(dir, path), []byte(data), 0o666); err != nil {
+						t.Fatal(err)
+					}
+				}
+				var buf bytes.Buffer
+				err := modzip.CreateFromDir(&buf, mod, dir)
+				if tc.invalid != 0 {
+					files, ok := errors.AsType[modzip.FileErrorList](err)
+					if !ok || len(files) != 1 || files[0].Path != name {
+						t.Fatalf("CreateFromDir: got %v, want only invalid file %q", err, name)
+					}
+					pathErr, ok := errors.AsType[*module.InvalidPathError](files[0].Err)
+					if !ok || pathErr.Kind != "file" || pathErr.Path != name {
+						t.Fatalf("CreateFromDir: got %v, want invalid file path %q", err, name)
+					}
+					return
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				zr, err := zip.NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+				if err != nil {
+					t.Fatal(err)
+				}
+				want := mod.Path + "@" + mod.Version + "/" + name
+				for _, file := range zr.File {
+					if file.Name == want {
+						return
+					}
+				}
+				t.Fatalf("created zip omits %q", want)
+			})
+		}
 	}
 }

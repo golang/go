@@ -2,11 +2,10 @@
 
 package main
 
-import "fmt"
-
-// #28: RVO destination aliasing: destination passing must not exist.
-// Self-aliased calls such as arr = Reverse(arr) must return correct results
-// without copy-back corruption.
+import (
+	"fmt"
+	"os"
+)
 
 func Reverse(a [4]int) (res [4]int) {
 	res[0] = a[3]
@@ -44,20 +43,64 @@ func SwapPair(p *Pair) (res Pair) {
 	return res
 }
 
+var rvoOrder []string
+
+func rvoNote(s string) { rvoOrder = append(rvoOrder, s) }
+
+func ReverseChecked(a [4]int) (res [4]int, err error) {
+	errdefer rvoNote("reverse-cleanup")
+	res[0] = a[3]
+	res[1] = a[2]
+	res[2] = a[1]
+	res[3] = a[0]
+	return res, nil
+}
+
+var failed bool
+
+func check(name string, cond bool, got, want string) {
+	if !cond {
+		fmt.Printf("FAIL %s: got %s want %s\n", name, got, want)
+		failed = true
+		return
+	}
+	fmt.Printf("ok %s\n", name)
+}
+
 func main() {
 	arr := [4]int{1, 2, 3, 4}
 	arr = Reverse(arr)
-	fmt.Println("val:", arr)
+	check("rvo-self-alias-value", arr == [4]int{4, 3, 2, 1}, fmt.Sprint(arr), "[4 3 2 1]")
 
 	arr2 := [4]int{10, 20, 30, 40}
 	arr2 = ReversePtr(&arr2)
-	fmt.Println("ptr:", arr2)
+	check("rvo-pointer-destination", arr2 == [4]int{40, 30, 20, 10}, fmt.Sprint(arr2), "[40 30 20 10]")
 
 	s := []int{100, 200, 300, 400}
+	sumBefore := 0
+	for _, v := range s {
+		sumBefore += v
+	}
 	s = ReverseSliceAliased(s)
-	fmt.Println("slice:", s)
+	sumAfter := 0
+	for _, v := range s {
+		sumAfter += v
+	}
+	check("rvo-slice-alias-reverse", fmt.Sprint(s) == "[400 300 200 100]" && sumBefore == sumAfter, fmt.Sprint(s), "[400 300 200 100]")
 
 	pair := Pair{A: 1, B: 2}
 	pair = SwapPair(&pair)
-	fmt.Println("pair:", pair)
+	check("rvo-struct-pointer-swap", pair == (Pair{A: 2, B: 1}), fmt.Sprint(pair), "{2 1}")
+
+	arr3 := [4]int{5, 6, 7, 8}
+	arr3, rerr := ReverseChecked(arr3)
+	if rerr != nil {
+		check("rvo-guarded-self-alias-value", false, fmt.Sprint(rerr), "[8 7 6 5]<nil>")
+	} else {
+		check("rvo-guarded-self-alias-value", arr3 == [4]int{8, 7, 6, 5}, fmt.Sprint(arr3, rerr), "[8 7 6 5]<nil>")
+	}
+	check("rvo-guarded-cleanup-skipped-on-success", len(rvoOrder) == 0, fmt.Sprint(len(rvoOrder)), "0")
+	if failed {
+		os.Exit(1)
+	}
 }

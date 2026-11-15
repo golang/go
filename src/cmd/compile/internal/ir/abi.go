@@ -53,6 +53,9 @@ func setupTextLSym(f *Func, flag int) {
 	if f.IsPackageInit() {
 		flag |= obj.PKGINIT
 	}
+	if base.IsLogosCtClone(base.Ctxt.Pkgpath, f.Sym().Name) {
+		flag |= obj.LOGOSCTCLONE
+	}
 
 	// Clumsy but important.
 	// For functions that could be on the path of invoking a deferred

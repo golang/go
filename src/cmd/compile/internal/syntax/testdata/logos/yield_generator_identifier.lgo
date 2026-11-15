@@ -1,0 +1,28 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+import "iter"
+
+type T struct{ f int }
+
+func (T) m() {}
+
+func genField() iter.Seq[int] {
+	yield := T{}
+	yield.f = 3
+	yield.m()
+	yield 1
+}
+
+func plainIndex(yield []int) {
+	yield[0] = 1
+	yield[0]++
+}
+
+func plainField(yield T) {
+	yield.f = 1
+	yield.m()
+}

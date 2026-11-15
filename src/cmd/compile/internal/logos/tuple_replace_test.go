@@ -28,10 +28,6 @@ L:
 }
 `
 
-// TestReplaceTupleExprSkipsBranchTargets checks that the node swap finds a
-// node that follows `break`, `continue`, and `goto` statements. With
-// syntax.CheckBranches, each of them points at an enclosing statement, and
-// following that pointer would walk the tree in a cycle.
 func TestReplaceTupleExprSkipsBranchTargets(t *testing.T) {
 	file, err := syntax.Parse(syntax.NewFileBase("p.go"), strings.NewReader(replaceTupleSource), nil, nil, syntax.CheckBranches)
 	if err != nil {

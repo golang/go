@@ -1,0 +1,13 @@
+// errorcheck
+
+package p
+
+const func nan64() float64 {
+	z := float64(0.0)
+	return z / z
+}
+
+const nanKey64 = map[float64]int{nan64(): 1} // ERROR "correctness::const_eval"
+const nanKey32 = map[float32]int{float32(nan64()): 1} // ERROR "correctness::const_eval"
+const dupNeg64 = map[float64]int{0.0: 1, -0.0: 2} // ERROR "\[correctness::const_eval\]" "duplicate key"
+const dupNeg32 = map[float32]int{float32(0.0): 1, float32(-0.0): 2} // ERROR "\[correctness::const_eval\]" "duplicate key"

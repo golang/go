@@ -9,12 +9,6 @@ import (
 	"testing"
 )
 
-// TestLogosPairARM64 pins the arm64 load/store pairing pass (SPEC 15.1,
-// row 111) at the level where it runs. Sixteen-byte vector traffic
-// cannot be coaxed out of Go source with adjacent memory arguments:
-// the ABI homes every 16-byte temporary on the stack and the spill
-// stores split the shared memory value the pass requires. These cases
-// therefore build the SSA values directly.
 func TestLogosPairARM64(t *testing.T) {
 	vec := types.TypeVec128
 	u64 := types.Types[types.TUINT64]
@@ -36,6 +30,9 @@ func TestLogosPairARM64(t *testing.T) {
 		{name: "load16off1008", op: OpARM64FMOVQload, typ: vec, off: 1008, pair: OpARM64FLDPQ, fused: true, offset: 1008},
 		{name: "load16off1024", op: OpARM64FMOVQload, typ: vec, off: 1024, pair: OpARM64FLDPQ, fused: false},
 		{name: "load16misaligned", op: OpARM64FMOVQload, typ: vec, off: 8, pair: OpARM64FLDPQ, fused: false},
+		{name: "load16offUnaligned8", op: OpARM64FMOVQload, typ: vec, off: 8, pair: OpARM64FLDPQ, fused: false},
+		{name: "load16offNeg1024", op: OpARM64FMOVQload, typ: vec, off: -1024, pair: OpARM64FLDPQ, fused: true, offset: -1024},
+		{name: "load16offNeg1040", op: OpARM64FMOVQload, typ: vec, off: -1040, pair: OpARM64FLDPQ, fused: false},
 	}
 
 	for _, tc := range loadCases {
@@ -50,7 +47,7 @@ func TestLogosPairARM64(t *testing.T) {
 			if tc.name == "load16misaligned" {
 				off1 = 0
 				off2 = 8
-			} else if tc.fused || tc.name == "load16off1024" {
+			} else if tc.fused || tc.op == OpARM64FMOVQload {
 				off2 = off1 + width
 			}
 			fun := c.Fun("entry",
@@ -79,9 +76,6 @@ func TestLogosPairARM64(t *testing.T) {
 	}
 }
 
-// TestLogosPairARM64SplitMem pins that any memory operation between two
-// candidate loads keeps them separate. Calls and atomics thread memory
-// the same way; the end-to-end cases pin those spellings.
 func TestLogosPairARM64SplitMem(t *testing.T) {
 	c := testConfigARM64(t)
 	vec := types.TypeVec128
@@ -106,8 +100,6 @@ func TestLogosPairARM64SplitMem(t *testing.T) {
 	}
 }
 
-// TestLogosPairARM64JoinBlock pins that a load in a join block never
-// fuses with a load from a predecessor.
 func TestLogosPairARM64JoinBlock(t *testing.T) {
 	c := testConfigARM64(t)
 	vec := types.TypeVec128
@@ -135,8 +127,6 @@ func TestLogosPairARM64JoinBlock(t *testing.T) {
 	}
 }
 
-// TestLogosPairARM64DiffPtr pins that a load feeding the base of a later
-// load never fuses with it.
 func TestLogosPairARM64DiffPtr(t *testing.T) {
 	c := testConfigARM64(t)
 	vec := types.TypeVec128
@@ -160,7 +150,6 @@ func TestLogosPairARM64DiffPtr(t *testing.T) {
 	}
 }
 
-// TestLogosPairARM64Stores pins 16-byte store fusion and its barriers.
 func TestLogosPairARM64Stores(t *testing.T) {
 	vec := types.TypeVec128
 	u64 := types.Types[types.TUINT64]
@@ -175,7 +164,10 @@ func TestLogosPairARM64Stores(t *testing.T) {
 		{name: "store16off0", off1: 0, off2: 16, fused: true, place: 0},
 		{name: "store16off992", off1: 992, off2: 1008, fused: true, place: 992},
 		{name: "store16off1024", off1: 1024, off2: 1040, fused: false},
+		{name: "store16offNeg1024", off1: -1024, off2: -1008, fused: true, place: -1024},
+		{name: "store16offNeg1040", off1: -1040, off2: -1024, fused: false},
 		{name: "store16misaligned", off1: 0, off2: 8, fused: false},
+		{name: "store16offUnaligned8", off1: 8, off2: 24, fused: false},
 		{name: "store16flush", off1: 0, off2: 16, flush: true, fused: false},
 	}
 	for _, tc := range cases {
@@ -225,8 +217,6 @@ func TestLogosPairARM64Stores(t *testing.T) {
 	}
 }
 
-// checkPair verifies that l1 and l2 became the two distinct selections
-// of one pair instruction at the expected offset.
 func checkPair(t *testing.T, fun fun, want Op, offset int64, l1, l2 *Value) {
 	t.Helper()
 	if l1.Op != OpSelect0 || l2.Op != OpSelect1 {
@@ -241,5 +231,229 @@ func checkPair(t *testing.T, fun fun, want Op, offset int64, l1, l2 *Value) {
 	}
 	if p.AuxInt != offset {
 		t.Errorf("pair offset is %d, want %d", p.AuxInt, offset)
+	}
+}
+
+func TestLogosPairARM64SinglePredChain(t *testing.T) {
+	c := testConfigARM64(t)
+	vec := types.TypeVec128
+	u64 := types.Types[types.TUINT64]
+	fun := c.Fun("entry",
+		Bloc("entry",
+			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+			Valu("p", OpARM64MOVDconst, u64, 0, nil),
+			Valu("l1", OpARM64FMOVQload, vec, 0, nil, "p", "mem"),
+			Goto("next")),
+		Bloc("next",
+			Valu("l2", OpARM64FMOVQload, vec, 16, nil, "p", "mem"),
+			Goto("exit")),
+		Bloc("exit",
+			Exit("mem")),
+	)
+	CheckFunc(fun.f)
+	pair(fun.f)
+	CheckFunc(fun.f)
+	l1 := fun.values["l1"]
+	l2 := fun.values["l2"]
+	if l1.Op != OpSelect0 {
+		t.Fatalf("chain loads did not fuse: l1=%v l2=%v", l1.Op, l2.Op)
+	}
+	p := l1.Args[0]
+	if p.Op != OpARM64FLDPQ || p.AuxInt != 0 {
+		t.Fatalf("chain pair is %v at %d, want FLDPQ at 0", p.Op, p.AuxInt)
+	}
+	if l2.Op != OpCopy {
+		t.Fatalf("chain successor is %v, want Copy", l2.Op)
+	}
+	sel := l2.Args[0]
+	if sel.Op != OpSelect1 || len(sel.Args) != 1 || sel.Args[0] != p {
+		t.Fatalf("chain successor selects no pair value: l2=%v", l2)
+	}
+}
+func TestLogosPairARM64ChainPositive(t *testing.T) {
+	c := testConfigARM64(t)
+	vec := types.TypeVec128
+	u64 := types.Types[types.TUINT64]
+	cases := []struct {
+		name  string
+		off1  int64
+		off2  int64
+		fused bool
+		place int64
+	}{
+		{name: "chain16off992", off1: 992, off2: 1008, fused: true, place: 992},
+		{name: "chain16off1008", off1: 1008, off2: 1024, fused: true, place: 1008},
+		{name: "chain16off1024", off1: 1024, off2: 1040, fused: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fun := c.Fun("entry",
+				Bloc("entry",
+					Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+					Valu("p", OpARM64MOVDconst, u64, 0, nil),
+					Valu("l1", OpARM64FMOVQload, vec, tc.off1, nil, "p", "mem"),
+					Goto("next")),
+				Bloc("next",
+					Valu("l2", OpARM64FMOVQload, vec, tc.off2, nil, "p", "mem"),
+					Goto("exit")),
+				Bloc("exit",
+					Exit("mem")),
+			)
+			CheckFunc(fun.f)
+			pair(fun.f)
+			CheckFunc(fun.f)
+			l1 := fun.values["l1"]
+			l2 := fun.values["l2"]
+			if !tc.fused {
+				if l1.Op != OpARM64FMOVQload || l2.Op != OpARM64FMOVQload {
+					t.Errorf("loads fused unexpectedly: l1=%v l2=%v", l1.Op, l2.Op)
+				}
+				return
+			}
+			if l1.Op != OpSelect0 {
+				t.Fatalf("chain loads did not fuse: l1=%v l2=%v", l1.Op, l2.Op)
+			}
+			p := l1.Args[0]
+			if p.Op != OpARM64FLDPQ || p.AuxInt != tc.place {
+				t.Fatalf("chain pair is %v at %d, want FLDPQ at %d", p.Op, p.AuxInt, tc.place)
+			}
+			if l2.Op != OpCopy {
+				t.Fatalf("chain successor is %v, want Copy", l2.Op)
+			}
+			sel := l2.Args[0]
+			if sel.Op != OpSelect1 || len(sel.Args) != 1 || sel.Args[0] != p {
+				t.Fatalf("chain successor selects no pair value: l2=%v", l2)
+			}
+		})
+	}
+}
+func TestLogosPairARM64ChainNegative(t *testing.T) {
+	c := testConfigARM64(t)
+	vec := types.TypeVec128
+	u64 := types.Types[types.TUINT64]
+	cases := []struct {
+		name  string
+		off1  int64
+		off2  int64
+		fused bool
+		place int64
+	}{
+		{name: "chain16offNeg1040", off1: -1040, off2: -1024, fused: false},
+		{name: "chain16offNeg1024", off1: -1024, off2: -1008, fused: true, place: -1024},
+		{name: "chain16offMisaligned", off1: 8, off2: 24, fused: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fun := c.Fun("entry",
+				Bloc("entry",
+					Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+					Valu("p", OpARM64MOVDconst, u64, 0, nil),
+					Valu("l1", OpARM64FMOVQload, vec, tc.off1, nil, "p", "mem"),
+					Goto("next")),
+				Bloc("next",
+					Valu("l2", OpARM64FMOVQload, vec, tc.off2, nil, "p", "mem"),
+					Goto("exit")),
+				Bloc("exit",
+					Exit("mem")),
+			)
+			CheckFunc(fun.f)
+			pair(fun.f)
+			CheckFunc(fun.f)
+			l1 := fun.values["l1"]
+			l2 := fun.values["l2"]
+			if !tc.fused {
+				if l1.Op != OpARM64FMOVQload || l2.Op != OpARM64FMOVQload {
+					t.Errorf("loads fused unexpectedly: l1=%v l2=%v", l1.Op, l2.Op)
+				}
+				return
+			}
+			if l1.Op != OpSelect0 {
+				t.Fatalf("chain loads did not fuse: l1=%v l2=%v", l1.Op, l2.Op)
+			}
+			p := l1.Args[0]
+			if p.Op != OpARM64FLDPQ || p.AuxInt != tc.place {
+				t.Fatalf("chain pair is %v at %d, want FLDPQ at %d", p.Op, p.AuxInt, tc.place)
+			}
+			if l2.Op != OpCopy {
+				t.Fatalf("chain successor is %v, want Copy", l2.Op)
+			}
+			sel := l2.Args[0]
+			if sel.Op != OpSelect1 || len(sel.Args) != 1 || sel.Args[0] != p {
+				t.Fatalf("chain successor selects no pair value: l2=%v", l2)
+			}
+		})
+	}
+}
+
+func TestLogosPairARM64DistinctRegs(t *testing.T) {
+	c := testConfigARM64(t)
+	vec := types.TypeVec128
+	fun := c.Fun("entry",
+		Bloc("entry",
+			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+			Valu("p", OpArg, c.config.Types.Int64.PtrTo(), 0, c.Temp(c.config.Types.Int64.PtrTo())),
+			Valu("l1", OpARM64FMOVQload, vec, 0, nil, "p", "mem"),
+			Valu("l2", OpARM64FMOVQload, vec, 16, nil, "p", "mem"),
+			Valu("s1", OpARM64FMOVQstore, types.TypeMem, 32, nil, "p", "l1", "mem"),
+			Valu("s2", OpARM64FMOVQstore, types.TypeMem, 48, nil, "p", "l2", "s1"),
+			Goto("exit")),
+		Bloc("exit",
+			Exit("s2")),
+	)
+	CheckFunc(fun.f)
+	pair(fun.f)
+	CheckFunc(fun.f)
+	var ldp *Value
+	for _, b := range fun.f.Blocks {
+		for _, v := range b.Values {
+			if v.Op == OpARM64FLDPQ {
+				ldp = v
+			}
+		}
+	}
+	if ldp == nil {
+		t.Fatalf("no FLDPQ formed")
+	}
+	schedule(fun.f)
+	regalloc(fun.f)
+	checkFunc(fun.f)
+	loc, ok := fun.f.RegAlloc[ldp.ID].(LocPair)
+	if !ok {
+		t.Fatalf("pair home is %T, want LocPair", fun.f.RegAlloc[ldp.ID])
+	}
+	r0, ok0 := loc[0].(*Register)
+	r1, ok1 := loc[1].(*Register)
+	if !ok0 || !ok1 {
+		t.Fatalf("pair outputs are %v and %v, want registers", loc[0], loc[1])
+	}
+	if r0 == r1 {
+		t.Errorf("pair destinations share register %v", r0)
+	}
+}
+
+func TestLogosPairARM64NoCrossBranchHoist(t *testing.T) {
+	c := testConfigARM64(t)
+	vec := types.TypeVec128
+	u64 := types.Types[types.TUINT64]
+	fun := c.Fun("entry",
+		Bloc("entry",
+			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+			Valu("p", OpARM64MOVDconst, u64, 0, nil),
+			Valu("l1", OpARM64FMOVQload, vec, 0, nil, "p", "mem"),
+			Valu("c", OpConstBool, c.config.Types.Bool, 1, nil),
+			If("c", "left", "right")),
+		Bloc("left",
+			Valu("l2", OpARM64FMOVQload, vec, 16, nil, "p", "mem"),
+			Goto("exit")),
+		Bloc("right",
+			Goto("exit")),
+		Bloc("exit",
+			Exit("mem")),
+	)
+	CheckFunc(fun.f)
+	pair(fun.f)
+	CheckFunc(fun.f)
+	if fun.values["l1"].Op != OpARM64FMOVQload || fun.values["l2"].Op != OpARM64FMOVQload {
+		t.Fatalf("branch loads fused: l1=%v l2=%v", fun.values["l1"].Op, fun.values["l2"].Op)
 	}
 }

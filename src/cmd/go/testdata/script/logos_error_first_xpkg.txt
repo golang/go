@@ -1,0 +1,157 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+logos build -o $WORK/good$GOEXE ./good
+! logos build -o $WORK/bad$GOEXE ./bad
+stderr -count=2 'correctness::result_before_error_check'
+
+logos build -o $WORK/goodalias$GOEXE ./goodalias
+! logos build -o $WORK/badalias$GOEXE ./badalias
+stderr -count=5 'correctness::result_before_error_check'
+
+-- go.mod --
+module example.com/ef
+
+go 1.27
+
+-- lib/lib.lgo --
+package lib
+
+type C struct{}
+
+func Fetch() (int, error) {
+	return 1, nil
+}
+
+func (C) Get() (int, error) {
+	return 2, nil
+}
+
+-- bad/main.lgo --
+package main
+
+import "example.com/ef/lib"
+
+func main() {
+	n, err := lib.Fetch()
+	println(n, err)
+	var c lib.C
+	m, err2 := c.Get()
+	println(m, err2)
+}
+
+-- good/main.lgo --
+package main
+
+import (
+	"strconv"
+
+	"example.com/ef/lib"
+)
+
+func main() {
+	n, err := lib.Fetch()
+	if err != nil {
+		return
+	}
+	var c lib.C
+	m, err2 := c.Get()
+	if err2 != nil {
+		return
+	}
+	k, err3 := strconv.Atoi("7")
+	println(n, m, k, err3)
+}
+
+-- libscroll/lib.📜 --
+package libscroll
+
+func Fetch() (int, error) {
+	return 1, nil
+}
+
+-- liblightning/lib.⚡ --
+package liblightning
+
+func Fetch() (int, error) {
+	return 2, nil
+}
+
+-- libgopher/lib.ʕ◔ϖ◔ʔ --
+package libgopher
+
+func Fetch() (int, error) {
+	return 3, nil
+}
+
+-- libvs/lib.⚡️ --
+package libvs
+
+type C struct{}
+
+func Fetch() (int, error) {
+	return 4, nil
+}
+
+func (C) Get() (int, error) {
+	return 5, nil
+}
+
+-- badalias/main.lgo --
+package main
+
+import (
+	"example.com/ef/libgopher"
+	"example.com/ef/liblightning"
+	"example.com/ef/libscroll"
+	"example.com/ef/libvs"
+)
+
+func main() {
+	a, e1 := libscroll.Fetch()
+	println(a, e1)
+	b, e2 := liblightning.Fetch()
+	println(b, e2)
+	c, e3 := libgopher.Fetch()
+	println(c, e3)
+	d, e4 := libvs.Fetch()
+	println(d, e4)
+	var v libvs.C
+	f, e5 := v.Get()
+	println(f, e5)
+}
+
+-- goodalias/main.lgo --
+package main
+
+import (
+	"example.com/ef/libgopher"
+	"example.com/ef/liblightning"
+	"example.com/ef/libscroll"
+	"example.com/ef/libvs"
+)
+
+func main() {
+	a, e1 := libscroll.Fetch()
+	if e1 != nil {
+		return
+	}
+	b, e2 := liblightning.Fetch()
+	if e2 != nil {
+		return
+	}
+	c, e3 := libgopher.Fetch()
+	if e3 != nil {
+		return
+	}
+	d, e4 := libvs.Fetch()
+	if e4 != nil {
+		return
+	}
+	var v libvs.C
+	f, e5 := v.Get()
+	if e5 != nil {
+		return
+	}
+	println(a, b, c, d, f)
+}

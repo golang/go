@@ -2,17 +2,21 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
-// Runtime companion to
-// test/logos/compile/const_interface_assertions.lgo. Only the allowed
-// half runs here: every assertion below has a qualified source that
-// already proves the readonly obligation, or targets a concrete type
-// whose body proof is direct. Ordinary additional methods in the target
-// are runtime-checked with comma-ok. No `any` or ordinary source is
-// ever asserted to a qualified interface; that half stays rejected in
-// the compile test because the erased runtime cannot check purity.
-// Each printed line is a hand-computed literal.
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 type Qualified interface {
 	const Name() string
@@ -29,7 +33,7 @@ type Good struct {
 }
 
 func (g Good) Name() string { return g.name }
-func (g Good) Extra() int  { return g.extra }
+func (g Good) Extra() int   { return g.extra }
 
 type Small struct {
 	name string
@@ -37,16 +41,12 @@ type Small struct {
 
 func (s Small) Name() string { return s.name }
 
-// Concrete escape hatch: `any` to Good is runtime-checkable, then the
-// ordinary assignment to Qualified is proved by the Good body scan.
 func ViaConcrete(v any) string {
 	g := v.(Good)
 	var q Qualified = g
 	return q.Name()
 }
 
-// Qualified source already proves Name; narrowing to the readonly
-// subset needs no further check.
 func Narrow(q QPlus) Qualified {
 	return q.(Qualified)
 }
@@ -75,26 +75,25 @@ func DescribePlus(q QPlus) string {
 
 func main() {
 	var v any = Good{name: "a", extra: 7}
-	fmt.Println(ViaConcrete(v))
-
+	check("concrete", ViaConcrete(v) == "a", ViaConcrete(v), "a")
 	var qp QPlus = Good{name: "b", extra: 3}
-	fmt.Println(Narrow(qp).Name())
+	check("narrow", Narrow(qp).Name() == "b", Narrow(qp).Name(), "b")
 
 	var qw Qualified = Good{name: "c", extra: 9}
-	if got, ok := qw.(QPlus); ok {
-		fmt.Println(got.Name(), got.Extra())
-	} else {
-		fmt.Println("unexpected")
+	name, extra := "", 0
+	if g, ok2 := qw.(QPlus); ok2 {
+		name, extra = g.Name(), g.Extra()
 	}
+	check("assert-values", name == "c" && extra == 9, fmt.Sprint(name, " ", extra), "c 9")
 
 	var qs Qualified = Small{name: "s"}
-	if _, ok := qs.(QPlus); ok {
-		fmt.Println("unexpected")
-	} else {
-		fmt.Println("no extra")
-	}
+	_, okMiss := qs.(QPlus)
+	check("assert-miss", !okMiss, okMiss, false)
 
-	fmt.Println(DescribeQualified(qp))
-	fmt.Println(DescribeQualified(qs))
-	fmt.Println(DescribePlus(qp))
+	check("qualified-plus", DescribeQualified(qp) == "plus:b", DescribeQualified(qp), "plus:b")
+	check("qualified-small", DescribeQualified(qs) == "qualified:s", DescribeQualified(qs), "qualified:s")
+	check("plus-good", DescribePlus(qp) == "good:b", DescribePlus(qp), "good:b")
+	if failed {
+		os.Exit(1)
+	}
 }

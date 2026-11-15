@@ -1,0 +1,176 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd prog
+logos run .
+stdout '^ok read 2 7 static 5$'
+stdout '^ok guarded-ints-fault$'
+stdout '^ok guarded-pair-fault$'
+stdout '^ok guarded-ptr-fault$'
+stdout '^ok guarded-holder-fault$'
+stdout '^ok guarded-grouped-fault$'
+stdout '^ok plain-write-clean$'
+stdout '^ok grouped-plain-clean$'
+stdout '^ok guarded-spaced-fault$'
+stdout '^ok near-miss-clean$'
+! stdout 'FAIL'
+
+-- prog/go.mod --
+module example.com/rodwritten
+
+go 1.27
+
+-- prog/main.lgo --
+package main
+
+import (
+	"bytes"
+	"fmt"
+	"os"
+	"os/exec"
+	"strings"
+)
+
+type pair struct {
+	n    int
+	text string
+}
+
+type holder struct {
+	p *[4]int
+}
+
+var (
+	other = 5
+	spare = 6
+)
+
+//logos:rodata
+var guardedInts = [4]int{1, 2, 3, 4}
+
+//logos:rodata
+var guardedPair = pair{n: 7, text: "static"}
+
+//logos:rodata
+var guardedPtr = &other
+
+//logos:rodata
+var guardedHolder = holder{p: &guardedInts}
+
+var plainInts = [4]int{1, 2, 3, 4}
+
+var (
+	//logos:rodata
+	groupedInts = [4]int{1, 2, 3, 4}
+
+	groupedPlain = [4]int{1, 2, 3, 4}
+)
+
+//logos:rodata 	 
+var spacedInts = [4]int{1, 2, 3, 4}
+
+//logos:rodatax
+var nearInts = [4]int{1, 2, 3, 4}
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+//go:noinline
+func poke(p *int) {
+	*p = 9
+}
+
+//go:noinline
+func repoint(pp **int, q *int) {
+	*pp = q
+}
+
+//go:noinline
+func retarget(pp **[4]int, q *[4]int) {
+	*pp = q
+}
+
+func child(which string) {
+	fmt.Println("BEFORE-STORE")
+	switch which {
+	case "ints":
+		poke(&guardedInts[0])
+	case "pair":
+		poke(&guardedPair.n)
+	case "ptr":
+		repoint(&guardedPtr, &spare)
+	case "holder":
+		retarget(&guardedHolder.p, &plainInts)
+	case "grouped":
+		poke(&groupedInts[0])
+	case "groupedplain":
+		poke(&groupedPlain[0])
+	case "plain":
+		poke(&plainInts[0])
+	case "spaced":
+		poke(&spacedInts[0])
+	case "near":
+		poke(&nearInts[0])
+	}
+	fmt.Println("STORE-SUCCEEDED")
+}
+
+func run(self, which string) (int, string) {
+	cmd := exec.Command(self, "child", which)
+	var buf bytes.Buffer
+	cmd.Stdout = &buf
+	cmd.Stderr = &buf
+	err := cmd.Run()
+	if err == nil {
+		return 0, buf.String()
+	}
+	ee, ok := err.(*exec.ExitError)
+	if !ok {
+		fmt.Println("FAIL start:", err)
+		os.Exit(1)
+	}
+	return ee.ExitCode(), buf.String()
+}
+
+func checkFault(self, which string) {
+	code, out := run(self, which)
+	reached := strings.Contains(out, "BEFORE-STORE")
+	stored := strings.Contains(out, "STORE-SUCCEEDED")
+	check("guarded-"+which+"-fault", code != 0 && reached && !stored, out, "death after BEFORE-STORE with no STORE-SUCCEEDED")
+}
+
+func main() {
+	if len(os.Args) > 2 && os.Args[1] == "child" {
+		child(os.Args[2])
+		return
+	}
+	self, err := os.Executable()
+	if err != nil {
+		fmt.Println("FAIL executable:", err)
+		os.Exit(1)
+	}
+	fmt.Println("ok read", guardedInts[1], guardedPair.n, guardedPair.text, *guardedPtr)
+	checkFault(self, "ints")
+	checkFault(self, "pair")
+	checkFault(self, "ptr")
+	checkFault(self, "holder")
+	checkFault(self, "grouped")
+	gcode, gout := run(self, "groupedplain")
+	check("grouped-plain-clean", gcode == 0 && strings.Contains(gout, "STORE-SUCCEEDED"), gout, "exit 0 with STORE-SUCCEEDED")
+	code, out := run(self, "plain")
+	check("plain-write-clean", code == 0 && strings.Contains(out, "STORE-SUCCEEDED"), out, "exit 0 with STORE-SUCCEEDED")
+	checkFault(self, "spaced")
+	ncode, nout := run(self, "near")
+	check("near-miss-clean", ncode == 0 && strings.Contains(nout, "STORE-SUCCEEDED"), nout, "exit 0 with STORE-SUCCEEDED")
+	if failed {
+		os.Exit(1)
+	}
+}

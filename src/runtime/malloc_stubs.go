@@ -518,9 +518,7 @@ func nextFreeFastTiny(span *mspan) gclinkptr {
 
 func nextFreeFastStub(span *mspan, elemsize uintptr) gclinkptr {
 	var nextFreeFastResult gclinkptr
-	if goexperiment.LogosGCMoving && span.logosImmixActive {
-		nextFreeFastResult = logosImmixNextFreeFast(span)
-	} else if span.allocCache != 0 {
+	if span.allocCache != 0 {
 		theBit := sys.TrailingZeros64(span.allocCache) // Is there a free object in the allocCache?
 		result := span.freeindex + uint16(theBit)
 		if result < span.nelems {
@@ -583,7 +581,7 @@ func writeHeapBitsSmallStub(span *mspan, x, dataSize uintptr, typ *_type) uintpt
 
 	// Since we're never writing more than one uintptr's worth of bits, we're either going
 	// to do one or two writes.
-	dstBase, _ := spanHeapBitsRange(span.base(), span.npages*pageSize, elemsize)
+	dstBase, _ := spanHeapBitsRange(span.base(), pageSize, elemsize)
 	dst := unsafe.Pointer(dstBase)
 	o := (x - span.base()) / goarch.PtrSize
 	i := o / ptrBits

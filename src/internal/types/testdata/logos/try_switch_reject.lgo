@@ -1,0 +1,181 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+func twoResults() (int, error) { return 0, nil }
+
+func oneInt(i int) int { return i }
+
+type pair struct{ a, b int }
+
+func tryReturnList() (int, int, error) {
+	return 1, switch n := twoResults()?; n { case 0 => 1; default => 2 }, nil
+}
+
+func tryReturnBin(v int) (int, error) {
+	return v + switch n := twoResults()?; n { case 0 => 1; default => 2 }, nil
+}
+
+func tryAssignIndex(xs []int) (int, error) {
+	xs[switch n := twoResults()?; n { case 0 => 1; default => 0 }] = 5
+	return 0, nil
+}
+
+func tryDefine() (int, error) {
+	x := switch n := twoResults()?; n { case 0 => 1; default => 2 }
+	return x, nil
+}
+
+func tryVarDecl() (int, error) {
+	var x = switch n := twoResults()?; n { case 0 => 1; default => 2 }
+	return x, nil
+}
+
+func tryComposite() (pair, error) {
+	return pair{a: 1, b: switch n := twoResults()?; n { case 0 => 1; default => 2 }}, nil
+}
+
+func tryIfChain() (int, error) {
+	if (switch n := twoResults()?; n { case 0 => true; default => false }) {
+		return 1, nil
+	} else if (switch m := twoResults()?; m { case 0 => true; default => false }) {
+		return 2, nil
+	}
+	return 0, nil
+}
+
+func tryIfLeftOfAnd(v int) (int, error) {
+	if (switch n := twoResults()?; n { case 0 => true; default => false }) && v > 0 {
+		return 1, nil
+	}
+	return 0, nil
+}
+
+func tryIfInit() (int, error) {
+	if x := (switch n := twoResults()?; n { case 0 => 1; default => 2 }); x > 0 {
+		return x, nil
+	}
+	return 0, nil
+}
+
+func trySwitchTag() (int, error) {
+	switch (switch n := twoResults()?; n { case 0 => 1; default => 2 }) {
+	case 1:
+		return 1, nil
+	}
+	return 0, nil
+}
+
+func tryForCond() (int, error) {
+	for (switch n := twoResults()?; n { case 0 => false; default => true }) {
+		return 1, nil
+	}
+	return 0, nil
+}
+
+func tryForInit() (int, error) {
+	for i := (switch n := twoResults()?; n { case 0 => 1; default => 2 }); i < 3; i++ {
+		return i, nil
+	}
+	return 0, nil
+}
+
+func tryLabeledAssign() (int, error) {
+again:
+	x := switch n := twoResults()?; n { case 0 => 1; default => 2 }
+	if x < 0 {
+		goto again
+	}
+	return x, nil
+}
+
+func trySwitchCase(v int) (int, error) {
+	switch v {
+	case switch n := twoResults()? /* ERROR "[correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer" */; n { case 0 => 1; default => 2 }:
+		return 1, nil
+	default:
+		return 0, nil
+	}
+}
+
+func tryAndRight(v int) (int, error) {
+	if v > 0 && (switch n := twoResults()?; n { case 0 => true; default => false }) {
+		return 1, nil
+	}
+	return 0, nil
+}
+
+func tryOrRight(v int) (int, error) {
+	if v > 0 || (switch n := twoResults()?; n { case 0 => true; default => false }) {
+		return 1, nil
+	}
+	return 0, nil
+}
+
+func tryAndRightInReturn(v int) (bool, error) {
+	return v > 0 && (switch n := twoResults()?; n { case 0 => true; default => false }), nil
+}
+
+func trySwitchForPost() (int, error) {
+	for i := 0; i < 1; i = (switch n := twoResults()? /* ERROR "[correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer" */; n { case 0 => 1; default => 2 }) {
+		return i, nil
+	}
+	return 0, nil
+}
+
+func trySwitchVarGroup() (int, error) {
+	var (
+		x = switch n := twoResults()? /* ERROR "[correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer" */; n { case 0 => 1; default => 2 }
+	)
+	return x, nil
+}
+
+func maybeInt() int? { return nil }
+
+func tryCoalesceRight() (int, error) {
+	r := maybeInt() ?? switch n := twoResults()? /* ERROR "[correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer" */; n { case 0 => 1; default => 2 }
+	return r, nil
+}
+
+func tryCaseListLater(v int) (int, error) {
+	r := switch v {
+	case 0, switch n := twoResults()? /* ERROR "[correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer" */; n { case 0 => 1; default => 2 } => 1
+	default => 0
+	}
+	return r, nil
+}
+
+func tryGoCall() (int, error) {
+	go /* ERROR "concurrency::unsupervised_goroutine" */ oneInt(switch n := twoResults()? /* ERROR "[correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer" */; n { case 0 => 1; default => 2 })
+	return 0, nil
+}
+
+type intOrString interface {
+	int | string
+}
+
+func tryTypeSwitchArm(x intOrString) (int, error) {
+	r := switch x.(type) {
+	case int => switch n := twoResults()? /* ERROR "[correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer" */; n { case 0 => 1; default => 2 }
+	case string => 0
+	case nil => 0
+	}
+	return r, nil
+}
+
+func trySelectSend(c chan int) (int, error) {
+	select {
+	case c <- switch n := twoResults()? /* ERROR "[correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer" */; n { case 0 => 1; default => 2 }:
+		return 1, nil
+	default:
+		return 0, nil
+	}
+}
+
+func applyCheck(f func(int) error, v int) error { return f(v) }
+
+func tryLambdaBody() error {
+	return applyCheck(v => switch n := twoResults()? /* ERROR "[correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer" */; n { case 0 => nil; default => error(nil) }, 1)
+}

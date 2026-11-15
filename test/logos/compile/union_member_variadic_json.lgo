@@ -1,0 +1,20 @@
+// errorcheck
+package p
+
+type VarCircle struct {
+	R int64 `json:"r"`
+}
+
+func (c *VarCircle) UnmarshalJSON(xs ...byte) error {
+	return nil
+}
+
+type VarSquare struct {
+	S int64 `json:"s"`
+}
+type VarShape interface {
+	*VarCircle | *VarSquare
+}
+type VarHolder struct {
+	Item VarShape `json:"item"` // ERROR "\[correctness::union_member_no_json\]"
+}

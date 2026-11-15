@@ -2,15 +2,26 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
-// Declared closed union (SPEC Sec 2.3, T-203.1): an interface whose type
-// set is a finite union of non-`~` terms.
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
 type NumOrStr interface {
 	int | string
 }
 
-// Union over members with payloads, with a method every member implements.
 type Point struct {
 	X int
 	Y int
@@ -29,8 +40,6 @@ type Shape interface {
 	Area() int
 }
 
-// Switch expression over the union (M2-S5): exhaustive over every member
-// plus nil, so no default is needed.
 func describe(u NumOrStr) string {
 	return switch u.(type) {
 	case int => "int"
@@ -39,7 +48,6 @@ func describe(u NumOrStr) string {
 	}
 }
 
-// Value switch expression (M2-S5): a default covers the rest.
 func word(n int) string {
 	return switch n {
 	case 1 => "one"
@@ -47,8 +55,6 @@ func word(n int) string {
 	}
 }
 
-// Inline assertion (M2-S6, T-203.3): *Person must implement Greeter at
-// this declaration; it lowers to var _ Greeter = (*Person)(nil).
 type Greeter interface {
 	Greet() string
 }
@@ -61,16 +67,19 @@ func (p Person) Greet() string { return "hi " + p.Name }
 
 func main() {
 	var u NumOrStr = 7
-	fmt.Println(describe(u))
+	check("type-switch-names-int-member", describe(u) == "int", describe(u), "int")
 	u = "seven"
-	fmt.Println(describe(u))
+	check("type-switch-names-string-member", describe(u) == "str", describe(u), "str")
 	var z NumOrStr
-	fmt.Println(describe(z))
-	fmt.Println(word(1))
-	fmt.Println(word(9))
+	check("type-switch-names-nil-union", describe(z) == "nil", describe(z), "nil")
+	check("expr-switch-matches-value", word(1) == "one", word(1), "one")
+	check("expr-switch-falls-to-default", word(9) == "many", word(9), "many")
 	p := Person{Name: "ada"}
 	var g Greeter = &p
-	fmt.Println(g.Greet())
+	check("union-member-dispatches-method", g.Greet() == "hi ada", g.Greet(), "hi ada")
 	var s Shape = Point{X: 3, Y: 4}
-	fmt.Println(s.Area())
+	check("shape-union-dispatches-area", s.Area() == 12, s.Area(), 12)
+	if failed {
+		os.Exit(1)
+	}
 }

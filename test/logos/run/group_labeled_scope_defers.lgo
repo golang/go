@@ -1,0 +1,398 @@
+// run
+
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"strings"
+	"time"
+)
+
+const waitBound = 5 * time.Second
+
+type env struct {
+	in    chan int
+	rows  chan []int
+	chain chan chan int
+	calls int
+}
+
+var events []string
+
+func note(s string) {
+	events = append(events, s)
+}
+
+func tick(e *env, v int) int {
+	e.calls++
+	return v
+}
+
+func rangeOneScope(ctx context.Context, e *env) error {
+	go group (ctx) {
+		go {
+			scope defer note("child")
+		L:
+			for _, v := range <-e.rows {
+				scope defer note("body")
+				note(fmt.Sprint("v", v))
+				if v == 2 {
+					continue L
+				}
+				if v == 4 {
+					break L
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func rangeTwoScopes(ctx context.Context, e *env) error {
+	go group (ctx) {
+		go {
+			scope defer note("child")
+		L:
+			for _, v := range <-e.rows {
+				scope defer note("body")
+				{
+					scope defer note("inner")
+					note(fmt.Sprint("v", v))
+					if v == 2 {
+						continue L
+					}
+					if v == 4 {
+						break L
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func rangeChanTwoScopes(ctx context.Context, e *env) error {
+	go group (ctx) {
+		go {
+			scope defer note("child")
+		L:
+			for v := range <-e.chain {
+				scope defer note("body")
+				{
+					scope defer note("inner")
+					note(fmt.Sprint("v", v))
+					if v == 2 {
+						continue L
+					}
+					if v == 4 {
+						break L
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func forPostTwoScopes(ctx context.Context, e *env) error {
+	go group (ctx) {
+		go {
+			scope defer note("child")
+			i := 0
+		L:
+			for i = 0; i < 20; i += <-e.in {
+				scope defer note("body")
+				{
+					scope defer note("inner")
+					note(fmt.Sprint("i", i))
+					if i == 2 {
+						continue L
+					}
+					if i >= 6 {
+						break L
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func switchInitTwoScopes(ctx context.Context, e *env) error {
+	go group (ctx) {
+		go {
+			scope defer note("child")
+		L:
+			switch x := tick(e, 1); <-e.in + x {
+			case 3:
+				scope defer note("case")
+				{
+					scope defer note("inner")
+					note("work")
+					break L
+				}
+			default:
+				note("default")
+			}
+			note("after")
+		}
+	}
+	return nil
+}
+
+func switchCasesTwoScopes(ctx context.Context, e *env) error {
+	go group (ctx) {
+		go {
+			scope defer note("child")
+		L:
+			switch {
+			case <-e.in == 1:
+				scope defer note("case")
+				{
+					scope defer note("inner")
+					note("work")
+					break L
+				}
+			default:
+				note("default")
+			}
+			note("after")
+		}
+	}
+	return nil
+}
+
+func gotoRangeTwoScopes(ctx context.Context, e *env) error {
+	go group (ctx) {
+		go {
+			scope defer note("child")
+			pass := 0
+		L:
+			for _, v := range <-e.rows {
+				scope defer note("body")
+				{
+					scope defer note("inner")
+					note(fmt.Sprint("p", pass, "v", v))
+					if v == 3 && pass == 0 {
+						pass++
+						goto L
+					}
+					if v == 4 {
+						break L
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func gotoForPostTwoScopes(ctx context.Context, e *env) error {
+	go group (ctx) {
+		go {
+			scope defer note("child")
+			i := 0
+			pass := 0
+		L:
+			for i = 0; i < 20; i += <-e.in {
+				scope defer note("body")
+				{
+					scope defer note("inner")
+					note(fmt.Sprint("p", pass, "i", i))
+					if i == 1 && pass == 0 {
+						pass++
+						goto L
+					}
+					if i >= 3 {
+						break L
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func gotoSwitchInitTwoScopes(ctx context.Context, e *env) error {
+	go group (ctx) {
+		go {
+			scope defer note("child")
+			pass := 0
+		L:
+			switch x := tick(e, 1); <-e.in + x {
+			case 3:
+				scope defer note("case")
+				{
+					scope defer note("inner")
+					note(fmt.Sprint("p", pass))
+					if pass == 0 {
+						pass++
+						goto L
+					}
+				}
+			}
+			note("after")
+		}
+	}
+	return nil
+}
+
+func gotoSwitchCasesTwoScopes(ctx context.Context, e *env) error {
+	go group (ctx) {
+		go {
+			scope defer note("child")
+			pass := 0
+		L:
+			switch {
+			case <-e.in == 1:
+				scope defer note("case")
+				{
+					scope defer note("inner")
+					note(fmt.Sprint("p", pass))
+					if pass == 0 {
+						pass++
+						goto L
+					}
+				}
+			}
+			note("after")
+		}
+	}
+	return nil
+}
+
+func gotoIfInitTwoScopes(ctx context.Context, e *env) error {
+	go group (ctx) {
+		go {
+			scope defer note("child")
+			pass := 0
+		L:
+			if v := tick(e, 1); <-e.in > v {
+				scope defer note("then")
+				{
+					scope defer note("inner")
+					note(fmt.Sprint("p", pass))
+					if pass == 0 {
+						pass++
+						goto L
+					}
+				}
+			}
+			note("after")
+		}
+	}
+	return nil
+}
+
+func gotoIfElseTwoScopes(ctx context.Context, e *env) error {
+	go group (ctx) {
+		go {
+			scope defer note("child")
+			pass := 0
+		L:
+			if v := tick(e, 1); <-e.in == v {
+				note("then")
+			} else if w := tick(e, 2); <-e.in == w {
+				scope defer note("else")
+				{
+					scope defer note("inner")
+					note(fmt.Sprint("p", pass))
+					if pass == 0 {
+						pass++
+						goto L
+					}
+				}
+			}
+			note("after")
+		}
+	}
+	return nil
+}
+
+type cell struct {
+	name  string
+	run   func(ctx context.Context, e *env) error
+	feed  []int
+	rows  [][]int
+	inner []int
+	want  string
+	calls int
+}
+
+func cells() []cell {
+	five := []int{1, 2, 3, 4, 5}
+	return []cell{
+		{name: "range-one-scope", run: rangeOneScope, rows: [][]int{five}, want: "v1,body,v2,body,v3,body,v4,body,child"},
+		{name: "range-two-scopes", run: rangeTwoScopes, rows: [][]int{five}, want: "v1,inner,body,v2,inner,body,v3,inner,body,v4,inner,body,child"},
+		{name: "range-chan-two-scopes", run: rangeChanTwoScopes, inner: five, want: "v1,inner,body,v2,inner,body,v3,inner,body,v4,inner,body,child"},
+		{name: "for-post-two-scopes", run: forPostTwoScopes, feed: []int{1, 1, 2, 2}, want: "i0,inner,body,i1,inner,body,i2,inner,body,i4,inner,body,i6,inner,body,child"},
+		{name: "switch-init-two-scopes", run: switchInitTwoScopes, feed: []int{2}, want: "work,inner,case,after,child", calls: 1},
+		{name: "switch-cases-two-scopes", run: switchCasesTwoScopes, feed: []int{1}, want: "work,inner,case,after,child"},
+		{name: "goto-range-two-scopes", run: gotoRangeTwoScopes, rows: [][]int{five, five}, want: "p0v1,inner,body,p0v2,inner,body,p0v3,inner,body,p1v1,inner,body,p1v2,inner,body,p1v3,inner,body,p1v4,inner,body,child"},
+		{name: "goto-for-post-two-scopes", run: gotoForPostTwoScopes, feed: []int{1, 1, 1, 1}, want: "p0i0,inner,body,p0i1,inner,body,p1i0,inner,body,p1i1,inner,body,p1i2,inner,body,p1i3,inner,body,child"},
+		{name: "goto-switch-init-two-scopes", run: gotoSwitchInitTwoScopes, feed: []int{2, 2}, want: "p0,inner,case,p1,inner,case,after,child", calls: 2},
+		{name: "goto-switch-cases-two-scopes", run: gotoSwitchCasesTwoScopes, feed: []int{1, 1}, want: "p0,inner,case,p1,inner,case,after,child"},
+		{name: "goto-if-init-two-scopes", run: gotoIfInitTwoScopes, feed: []int{5, 5}, want: "p0,inner,then,p1,inner,then,after,child", calls: 2},
+		{name: "goto-if-else-two-scopes", run: gotoIfElseTwoScopes, feed: []int{0, 2, 0, 2}, want: "p0,inner,else,p1,inner,else,after,child", calls: 4},
+	}
+}
+
+//logos:allow(correctness::unbounded_channel_op)
+func exercise(c cell) string {
+	events = nil
+	e := &env{in: make(chan int, len(c.feed)), rows: make(chan []int, len(c.rows)), chain: make(chan chan int, 1)}
+	if c.inner != nil {
+		inner := make(chan int, len(c.inner))
+		for _, v := range c.inner {
+			inner <- v
+		}
+		close(inner)
+		e.chain <- inner
+	}
+	for _, r := range c.rows {
+		e.rows <- r
+	}
+	for _, v := range c.feed {
+		e.in <- v
+	}
+	watchdog := time.AfterFunc(waitBound, func() {
+		fmt.Printf("FAIL %s: group did not return within the bound\n", c.name)
+		os.Exit(1)
+	})
+	err := c.run(context.Background(), e)
+	watchdog.Stop()
+	if err != nil {
+		return fmt.Sprintf("got error %v", err)
+	}
+	if got := strings.Join(events, ","); got != c.want {
+		return fmt.Sprintf("got %q want %q", got, c.want)
+	}
+	if e.calls != c.calls {
+		return fmt.Sprintf("got %d evaluations want %d", e.calls, c.calls)
+	}
+	if len(e.in) != 0 || len(e.rows) != 0 {
+		return fmt.Sprintf("got %d and %d values left want 0 and 0", len(e.in), len(e.rows))
+	}
+	return ""
+}
+
+func main() {
+	failed := false
+	for _, c := range cells() {
+		if problem := exercise(c); problem != "" {
+			fmt.Printf("FAIL %s: %s\n", c.name, problem)
+			failed = true
+			continue
+		}
+		fmt.Printf("ok %s\n", c.name)
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

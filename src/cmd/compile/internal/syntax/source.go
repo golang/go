@@ -72,6 +72,11 @@ func (s *source) init(in io.Reader, errh func(line, col uint, msg string)) {
 	s.chw = 0
 }
 
+func (s *source) setStart(line, col uint) {
+	s.line = line - linebase
+	s.col = col - colbase
+}
+
 // starting points for line and column numbers
 const linebase = 1
 const colbase = 1

@@ -1,0 +1,69 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd lgo
+! logos lint --json-diagnostics ./...
+stderr '"description":"replace the verb with %w"'
+stderr '"description":"add \? to propagate the error"'
+cd ..
+
+cd gomain
+! logos lint --json-diagnostics ./...
+stderr '"description":"replace the verb with %w"'
+! stderr 'use optional chaining'
+! stderr 'return early when'
+! stderr 'Split the expression'
+! stderr 'add \? to propagate the error'
+cd ..
+
+-- lgo/go.mod --
+module example.com/goafix
+
+go 1.27
+
+-- lgo/main.lgo --
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+func wrap(err error) error {
+	return fmt.Errorf("wrap: %v", err)
+}
+
+func drop() error {
+	os.Remove("missing")
+	return nil
+}
+
+func main() {
+	println(wrap(nil), drop())
+}
+
+-- gomain/go.mod --
+module example.com/goafixgo
+
+go 1.27
+
+-- gomain/main.go --
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+func wrap(err error) error {
+	return fmt.Errorf("wrap: %v", err)
+}
+
+func drop() error {
+	os.Remove("missing")
+	return nil
+}
+
+func main() {
+	fmt.Println(wrap(nil), drop())
+}

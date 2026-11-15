@@ -1,0 +1,181 @@
+// run
+
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"slices"
+)
+
+var ev []string
+
+var gxs = make([]int, 2)
+
+func rec(s string) { ev = append(ev, s) }
+
+func load(tag string, v int) (int, error) {
+	rec("load:" + tag)
+	return v, nil
+}
+
+type U interface {
+	int | string
+}
+
+type pt struct{ X, Y int }
+
+func getU(tag string, u U) (U, error) {
+	rec("load:" + tag)
+	return u, nil
+}
+
+func lhsIndexSwitch() (int, error) {
+	gxs[0], gxs[1] = 0, 0
+	gxs[switch n := load("s", 7)?; n { case 7 => 1; default => 0 }] = 5
+	return gxs[1], nil
+}
+
+func unionExhaustive(u U) (int, error) {
+	r := switch v := getU("s", u)?; v.(type) {
+	case int => 1
+	case string => 2
+	case nil => 0
+	}
+	return r, nil
+}
+
+func labeledReturn(skip bool) (int, error) {
+	if skip {
+		goto done
+	}
+	return 99, nil
+done:
+	return switch n := load("s", 7)?; n { case 7 => 1; default => 2 }, nil
+}
+
+func armsInterp(xs []int) (string, error) {
+	r := switch n := load("s", 7)?; n {
+	case 7 => $"seven {n} {xs.map(x => x * 2).sum()}"
+	default => "other"
+	}
+	return r, nil
+}
+
+func armsChain(xs []int) (int, error) {
+	r := switch n := load("s", 7)?; n { case 7 => xs.map(x => x + n).sum(); default => 0 }
+	return r, nil
+}
+
+func selector() (int, error) {
+	r := (switch n := load("s", 7)?; n { case 7 => pt{1, 2}; default => pt{} }).Y
+	return r, nil
+}
+
+func structLit() (int, error) {
+	p := pt{X: 1, Y: switch n := load("s", 7)?; n { case 7 => 70; default => 0 }}
+	return p.X + p.Y, nil
+}
+
+func returnNested() (int, error) {
+	return 1 + switch n := load("s", 7)?; n { case 7 => 70; default => 0 }, nil
+}
+
+func ifNegated() (int, error) {
+	if !(switch n := load("s", 7)?; n { case 7 => false; default => true }) {
+		return 1, nil
+	}
+	return 0, nil
+}
+
+func ifLeftOfAnd(v int) (int, error) {
+	if (switch n := load("s", 7)?; n { case 7 => true; default => false }) && v > 0 {
+		return 1, nil
+	}
+	return 0, nil
+}
+
+func closureInside() (int, error) {
+	f := func() (int, error) {
+		r := switch n := load("s", 7)?; n { case 7 => 5; default => 0 }
+		return r, nil
+	}
+	return f()
+}
+
+func groupBody(ctx context.Context) (int, error) {
+	out := 0
+	go group (ctx) {
+		r := switch n := load("s", 7)?; n { case 7 => 1; default => 2 }
+		out = r
+	}
+	return out, nil
+}
+
+func groupChild(ctx context.Context) (int, error) {
+	out := 0
+	go group (ctx) {
+		go {
+			r := switch n := load("s", 7)?; n { case 7 => 1; default => 2 }
+			out = r
+		}
+	}
+	return out, nil
+}
+
+type cell struct {
+	name string
+	run  func() (string, error)
+	ev   []string
+	want string
+}
+
+func show[T any](f func() (T, error)) func() (string, error) {
+	return func() (string, error) {
+		r, err := f()
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprint(r), nil
+	}
+}
+
+func main() {
+	xs := []int{1, 2, 3}
+	cells := []cell{
+		{"lhs-index-switch", show(lhsIndexSwitch), []string{"load:s"}, "5"},
+		{"union-int", show(func() (int, error) { return unionExhaustive(5) }), []string{"load:s"}, "1"},
+		{"union-string", show(func() (int, error) { return unionExhaustive("x") }), []string{"load:s"}, "2"},
+		{"labeled-return", show(func() (int, error) { return labeledReturn(true) }), []string{"load:s"}, "1"},
+		{"arms-interp", func() (string, error) { return armsInterp(xs) }, []string{"load:s"}, "seven 7 12"},
+		{"arms-chain", show(func() (int, error) { return armsChain(xs) }), []string{"load:s"}, "27"},
+		{"selector", show(selector), []string{"load:s"}, "2"},
+		{"struct-lit", show(structLit), []string{"load:s"}, "71"},
+		{"return-nested", show(returnNested), []string{"load:s"}, "71"},
+		{"if-negated", show(ifNegated), []string{"load:s"}, "1"},
+		{"if-left-of-and", show(func() (int, error) { return ifLeftOfAnd(1) }), []string{"load:s"}, "1"},
+		{"closure-inside", show(closureInside), []string{"load:s"}, "5"},
+		{"group-body", show(func() (int, error) { return groupBody(context.Background()) }), []string{"load:s"}, "1"},
+		{"group-child", show(func() (int, error) { return groupChild(context.Background()) }), []string{"load:s"}, "1"},
+	}
+	failed := false
+	for _, c := range cells {
+		ev = nil
+		got, err := c.run()
+		if err != nil {
+			failed = true
+			fmt.Println("FAIL", c.name+":", err, ev)
+			continue
+		}
+		if got != c.want || !slices.Equal(ev, c.ev) {
+			failed = true
+			fmt.Println("FAIL", c.name+":", "got", got, ev, "want", c.want, c.ev)
+			continue
+		}
+		fmt.Println("ok", c.name)
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

@@ -1,0 +1,77 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+cd m
+logos run -p=1 .
+stdout '^ok local-const-map-copy$'
+! logos build -p=1 -o $WORK/bin/bad$GOEXE ./bad
+stderr '\[correctness::const_view_mutation\]'
+cp ordinary.txt bad/main.lgo
+logos build -p=1 -o $WORK/bin/ordinary$GOEXE ./bad
+
+-- m/go.mod --
+module example.com/pass6map
+
+go 1.27
+
+-- m/main.lgo --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import "fmt"
+
+const original = map[string]int{"a": 1, "b": 2}
+
+const func touch(m map[string]int) int {
+	m["a"] = 99
+	delete(m, "b")
+	return m["a"] ?? -1
+}
+
+const changed = touch(original)
+
+func main() {
+	if changed != 99 || (original["a"] ?? -1) != 1 || (original["b"] ?? -1) != 2 || len(original) != 2 {
+		panic("copy")
+	}
+	fmt.Println("ok local-const-map-copy")
+}
+
+-- m/lib/lib.lgo --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package lib
+
+func Read(m map[string]int) int { return m["a"] ?? -1 }
+
+-- m/bad/main.lgo --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import "example.com/pass6map/lib"
+
+const original = map[string]int{"a": 1}
+
+func main() { _ = lib.Read(original) }
+
+-- m/ordinary.txt --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import "example.com/pass6map/lib"
+
+var original = map[string]int{"a": 1}
+
+func main() { _ = lib.Read(original) }

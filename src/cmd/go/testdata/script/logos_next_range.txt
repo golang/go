@@ -1,0 +1,137 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+
+logos build ./...
+logos run .
+cp stdout $WORK/run-before.txt
+
+cp range.go $WORK/range.go.orig
+cp neg.go $WORK/neg.go.orig
+
+logos next
+stdout '^--- a/range\.go$'
+stdout '^\+\+\+ b/range\.lgo$'
+! exists range.lgo
+cmp range.go $WORK/range.go.orig
+cmp neg.go $WORK/neg.go.orig
+
+logos next --fix
+stdout 'tasks in next_tasks.json'
+exists next_tasks.json
+exists range.lgo
+exists neg.lgo
+! exists range.go
+! exists neg.go
+
+cmp neg.lgo $WORK/neg.go.orig
+
+grep 'ys := xs\.map' range.lgo
+! grep 'for ' range.lgo
+grep 'for .*range' neg.lgo
+
+grep -count=4 '"category": "ai-patch"' next_tasks.json
+grep -count=4 '"rule": "loop-chain"' next_tasks.json
+grep 'func breakOut\(xs \[\]int, limit int\) \[\]int' next_tasks.json
+grep 'func countSide\(xs \[\]int\) \(int, \[\]int\)' next_tasks.json
+grep 'func useIndex\(xs \[\]int\) \[\]int' next_tasks.json
+grep 'func twoSlices\(xs, zs \[\]int\) \[\]int' next_tasks.json
+
+logos build ./...
+logos run .
+cmp stdout $WORK/run-before.txt
+stdout '^\[2 4 6\] idx$'
+stdout '^\[2 4 6\] val$'
+stdout '^\[1\]$'
+stdout '^2 \[-1 2\]$'
+stdout '^\[0 2 4\]$'
+stdout '^\[11 22\]$'
+
+-- m/go.mod --
+module example.com/nextrange
+
+go 1.27
+
+-- m/range.go --
+// Range rewrites to map chains.
+package main
+
+import "fmt"
+
+// double doubles n.
+func double(n int) int {
+	return n * 2
+}
+
+// doubleAllIdx doubles every element over an index range.
+func doubleAllIdx(xs []int) []int {
+	var ys []int
+	for i := range xs {
+		ys = append(ys, double(xs[i]))
+	}
+	return ys
+}
+
+// doubleAllVal doubles every element over a value range.
+func doubleAllVal(xs []int) []int {
+	var ys []int
+	for _, x := range xs {
+		ys = append(ys, double(x))
+	}
+	return ys
+}
+
+func main() {
+	fmt.Println(doubleAllIdx([]int{1, 2, 3}), "idx")
+	fmt.Println(doubleAllVal([]int{1, 2, 3}), "val")
+	fmt.Println(breakOut([]int{1, 5, 2}, 3))
+	fmt.Println(countSide([]int{-1, 2}))
+	fmt.Println(useIndex([]int{0, 1, 2}))
+	fmt.Println(twoSlices([]int{1, 2}, []int{10, 20}))
+}
+
+-- m/neg.go --
+// Loops left for manual rewrite.
+package main
+
+// breakOut collects elements up to the limit.
+func breakOut(xs []int, limit int) []int {
+	var out []int
+	for i := range xs {
+		if xs[i] > limit {
+			break
+		}
+		out = append(out, xs[i])
+	}
+	return out
+}
+
+// countSide counts and collects elements.
+func countSide(xs []int) (int, []int) {
+	var out []int
+	n := 0
+	for _, x := range xs {
+		n++
+		out = append(out, x)
+	}
+	return n, out
+}
+
+// useIndex adds each element to its index.
+func useIndex(xs []int) []int {
+	var out []int
+	for i := range xs {
+		out = append(out, xs[i]+i)
+	}
+	return out
+}
+
+// twoSlices adds pairs from two slices.
+func twoSlices(xs, zs []int) []int {
+	var out []int
+	for i := range xs {
+		out = append(out, xs[i]+zs[i])
+	}
+	return out
+}

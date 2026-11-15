@@ -1,0 +1,226 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+cd a/main
+! logos build -o $WORK/bin/sysoa$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unclassified_assembly\]: Transitive dependency ''example\.com/adep'' holds assembly files'
+stderr 'example\.com/amain/cmd'
+stderr '-> example\.com/adep'
+stderr 'transitive_unsafe_allowlist'
+cd ../..
+
+cd b/main
+! logos build -o $WORK/bin/sysob$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unclassified_assembly\]: Transitive dependency ''example\.com/bdep'' holds assembly files'
+cd ../..
+
+cd c/main
+logos list ./cmd
+! stderr 'capabilities::'
+cd ../..
+
+cd d/main
+logos list ./cmd
+! stderr 'capabilities::'
+cd ../..
+
+cd e/main
+logos list ./cmd
+stderr '\[capabilities::unclassified_assembly\].*example\.com/edep'
+cd ../..
+
+cd f/main
+logos list ./cmd
+! stderr 'capabilities::'
+cd ../..
+
+-- a/main/go.mod --
+module example.com/amain
+
+go 1.27
+
+require example.com/adep v0.0.0
+
+replace example.com/adep => ../dep
+
+-- a/main/logos.toml --
+[capabilities]
+transitive_unsafe = "deny"
+
+-- a/main/cmd/main.go --
+package main
+
+import "example.com/adep"
+
+func main() { println(adep.Init()) }
+
+-- a/dep/go.mod --
+module example.com/adep
+
+go 1.27
+
+-- a/dep/dep.go --
+package adep
+
+func Init() int { return 1 }
+
+-- a/dep/blob.syso --
+not an object file, the audit never reads it
+
+-- b/main/go.mod --
+module example.com/bmain
+
+go 1.27
+
+require example.com/bdep v0.0.0
+
+replace example.com/bdep => ../dep
+
+-- b/main/logos.toml --
+[capabilities]
+transitive_unsafe = "deny"
+
+-- b/main/cmd/main.go --
+package main
+
+import "example.com/bdep"
+
+func main() { println(bdep.Init()) }
+
+-- b/dep/go.mod --
+module example.com/bdep
+
+go 1.27
+
+-- b/dep/dep.go --
+package bdep
+
+func Init() int { return 1 }
+
+-- b/dep/blob_plan9_arm.syso --
+a file that the current configuration excludes
+
+-- c/main/go.mod --
+module example.com/cmain
+
+go 1.27
+
+require example.com/cdep v0.0.0
+
+replace example.com/cdep => ../dep
+
+-- c/main/logos.toml --
+[capabilities]
+transitive_unsafe = "deny"
+transitive_unsafe_allowlist = ["example.com/cdep/**"]
+
+-- c/main/cmd/main.go --
+package main
+
+import "example.com/cdep"
+
+func main() { println(cdep.Init()) }
+
+-- c/dep/go.mod --
+module example.com/cdep
+
+go 1.27
+
+-- c/dep/dep.go --
+package cdep
+
+func Init() int { return 1 }
+
+-- c/dep/blob.syso --
+a granted dependency may hold an object
+
+-- d/main/go.mod --
+module example.com/dmain
+
+go 1.27
+
+-- d/main/logos.toml --
+[capabilities]
+transitive_unsafe = "deny"
+
+-- d/main/cmd/main.go --
+package main
+
+import "example.com/dmain/lib"
+
+func main() { println(lib.Init()) }
+
+-- d/main/lib/lib.go --
+package lib
+
+func Init() int { return 1 }
+
+-- d/main/lib/blob.syso --
+first-party objects are the program's own
+
+-- e/main/go.mod --
+module example.com/emain
+
+go 1.27
+
+require example.com/edep v0.0.0
+
+replace example.com/edep => ../dep
+
+-- e/main/logos.toml --
+[capabilities]
+transitive_unsafe = "warn"
+
+-- e/main/cmd/main.go --
+package main
+
+import "example.com/edep"
+
+func main() { println(edep.Init()) }
+
+-- e/dep/go.mod --
+module example.com/edep
+
+go 1.27
+
+-- e/dep/dep.go --
+package edep
+
+func Init() int { return 1 }
+
+-- e/dep/blob.syso --
+a warned dependency
+
+-- f/main/go.mod --
+module example.com/fmain
+
+go 1.27
+
+require example.com/fdep v0.0.0
+
+replace example.com/fdep => ../dep
+
+-- f/main/logos.toml --
+[capabilities]
+transitive_unsafe = "allow"
+
+-- f/main/cmd/main.go --
+package main
+
+import "example.com/fdep"
+
+func main() { println(fdep.Init()) }
+
+-- f/dep/go.mod --
+module example.com/fdep
+
+go 1.27
+
+-- f/dep/dep.go --
+package fdep
+
+func Init() int { return 1 }
+
+-- f/dep/blob.syso --
+an allowed dependency

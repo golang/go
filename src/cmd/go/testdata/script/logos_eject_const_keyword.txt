@@ -1,0 +1,55 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+logos run .
+stdout '^\[1 2 3\] \[4 5\] \[1 2 3\] \[6\] \[2 3 5\] \[7 8\] \[3 4 7\] \[9\] \[4 5 9\]$'
+cp stdout $WORK/native.txt
+logos eject -o out
+exists out/main.go
+! grep -nw 'const' out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $WORK/native.txt
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
+exec $WORK/upstream$GOEXE
+cmp stdout $WORK/native.txt
+cd ..
+
+-- m/go.mod --
+module example.com/constkeyword
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import "fmt"
+
+const func pair(a, b int) []int { return []int{a, b, a + b} }
+
+const /*c*/ T1 = []int{1, 2, 3}
+const // line
+	T2 = [2]int{4, 5}
+const
+	T3 = pair(1, 2)
+
+const (
+	/*c*/ T4 = []int{6}
+	T5      = pair(2, 3) // trailing
+)
+
+func main() {
+	const /*c*/ L1 = []int{7, 8}
+	const // line
+		L2 = pair(3, 4)
+	const (
+		L3 = []int{9}
+		L4 = pair(4, 5)
+	)
+	fmt.Println(T1, T2, T3, T4, T5, L1, L2, L3, L4)
+}

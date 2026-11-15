@@ -1,0 +1,64 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+type Getter[T any] interface {
+	Get() T
+}
+
+type Box[T any] struct : Getter[T] {
+	v T
+}
+
+func (b Box[T]) Get() T {
+	return b.v
+}
+
+type Hollow[T any] struct : Getter /* ERRORx "correctness::assertion_failed.*missing method Get" */ [T] {
+	v T
+}
+
+type Named interface {
+	const Name string
+}
+
+type Tagged[T any] struct : Named {
+	Name string
+	tag  T
+}
+
+type Valued[T any] interface {
+	const V T
+}
+
+type Cell[T any] struct : Valued[T] {
+	V T
+}
+
+type Mutable[T any] interface {
+	V T
+}
+
+type Slot[T any] struct : Mutable[T] {
+	V T
+}
+
+type Skew[T any] struct : Valued /* ERROR "correctness::property_unsatisfied" */ [T] {
+	W T
+}
+
+type Mismatch[T any] struct : Valued /* ERROR "correctness::property_unsatisfied" */ [int] {
+	V T
+}
+
+func use() {
+	var _ Getter[int] = Box[int]{}
+	var _ Getter[string] = &Box[string]{}
+	var _ Valued[int] = Cell[int]{}
+	var _ Valued[string] = &Cell[string]{V: "x"}
+	var _ Mutable[int] = &Slot[int]{}
+	var _ Named = Tagged[bool]{}
+	var _ Valued[string] = Cell /* ERRORx "correctness::assertion_failed" */ [int]{}
+}

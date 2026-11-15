@@ -4,16 +4,6 @@ package main
 
 import "sync"
 
-// REDTEAM #138 (SPEC Sec 8.3, T-301.1; IMPLEMENTATION.md M18-S3): a make
-// whose backing flows to sync.Pool.Put must stay on the heap through
-// runtime.makeslice and must never take the arena helper
-// runtime.logosArenaMakeSlice. This mirrors the placePoolPut control in
-// test/logos/codegen/arena_place.lgo with distinct names; this file is the
-// #138 placement close-out probe, while
-// test/logos/run/redteam138_sync_pool.lgo proves the pooled bytes survive.
-// The lowering to the arena exists on amd64 only, so arm64 is checked for
-// the absence of the helper.
-
 var r138cPool sync.Pool
 
 //go:noinline

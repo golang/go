@@ -61,7 +61,7 @@ type U struct {
 
 func f6() *U {
 	u := new(U)
-	u.a[63] = &g // ERROR "write barrier"
+	u.a[63] = &g
 	// This offset is too large: we only track the first 64 pointers for zeroness.
 	u.a[64] = &g // ERROR "write barrier"
 	return u

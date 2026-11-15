@@ -2078,7 +2078,7 @@ func computeTestInputsID(a *work.Action, testlog []byte) (cache.ActionID, error)
 
 func hashGetenv(name string) cache.ActionID {
 	h := cache.NewHash("getenv")
-	v, ok := os.LookupEnv(name)
+	v, ok := logosInheritedTestEnv(name)
 	if !ok {
 		h.Write([]byte{0})
 	} else {

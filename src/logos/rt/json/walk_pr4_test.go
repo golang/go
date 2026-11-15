@@ -10,10 +10,6 @@ import (
 	"testing"
 )
 
-// PR4 regression attacks (PRRT_kwDOVOeymc6v7kbz and PRRT_kwDOVOeymc6v7kb0):
-// 1. json.Number identity, empty-to-0, validation, and composite nesting.
-// 2. Honoring MarshalJSON / MarshalText before the ,string struct-tag option.
-
 type pr4NumberAlias = stdjson.Number
 type pr4DefinedNumber stdjson.Number
 type pr4DefinedString string
@@ -75,16 +71,11 @@ type pr4StructNilPtrs struct {
 	P   *int          `json:"p,string"`
 }
 
-// checkWalkInvalidNumber verifies that s.Marshal returns a non-nil error
-// and nil bytes for invalid Number literals in nested or quoted contexts,
-// matching the oracle's dynamic error type without pinning incidental error text.
 func checkWalkInvalidNumber(t *testing.T, label string, v any) {
 	t.Helper()
 	checkWalkInvalidNumberImpl(t, label, v, false)
 }
 
-// checkWalkInvalidNumberExact verifies that s.Marshal matches the oracle's
-// error presence, nil bytes, dynamic error type, and exact error message text.
 func checkWalkInvalidNumberExact(t *testing.T, label string, v any) {
 	t.Helper()
 	checkWalkInvalidNumberImpl(t, label, v, true)
@@ -114,16 +105,13 @@ func checkWalkInvalidNumberImpl(t *testing.T, label string, v any, matchText boo
 }
 
 func TestWalkPR4NumberSemantics(t *testing.T) {
-	// Valid literals at root.
 	checkWalkParity(t, "root Number int", stdjson.Number("123"))
 	checkWalkParity(t, "root Number minus zero", stdjson.Number("-0"))
 	checkWalkParity(t, "root Number exp", stdjson.Number("1E+2"))
 	checkWalkParity(t, "root Number float exp", stdjson.Number("0.5e-3"))
 
-	// Empty Number literal emits 0.
 	checkWalkParity(t, "root Number empty", stdjson.Number(""))
 
-	// Unquoted struct field.
 	checkWalkParity(t, "struct field Number", struct {
 		N stdjson.Number `json:"n"`
 	}{N: "123"})
@@ -131,7 +119,6 @@ func TestWalkPR4NumberSemantics(t *testing.T) {
 		N stdjson.Number `json:"n"`
 	}{N: ""})
 
-	// Pointer Number unquoted.
 	seven := stdjson.Number("7")
 	checkWalkParity(t, "struct ptr Number", struct {
 		N *stdjson.Number `json:"n"`
@@ -140,14 +127,12 @@ func TestWalkPR4NumberSemantics(t *testing.T) {
 		N *stdjson.Number `json:"n"`
 	}{N: nil})
 
-	// Composite nesting: maps, slices, interfaces, and nested collections.
 	checkWalkParity(t, "map[string]Number", map[string]stdjson.Number{"a": "7", "zero": ""})
 	checkWalkParity(t, "map[string]any Number", map[string]any{"num": stdjson.Number("42")})
 	checkWalkParity(t, "interface Number", any(stdjson.Number("2")))
 	checkWalkParity(t, "slice Number", []stdjson.Number{"1", "", "2"})
 	checkWalkParity(t, "nested composite Number", map[string][]stdjson.Number{"k": {"10", ""}})
 
-	// Type alias control: type alias to stdjson.Number preserves Number semantics.
 	checkWalkParity(t, "alias Number field", struct {
 		N pr4NumberAlias `json:"n"`
 	}{N: "99"})
@@ -155,7 +140,6 @@ func TestWalkPR4NumberSemantics(t *testing.T) {
 		N pr4NumberAlias `json:"n"`
 	}{N: ""})
 
-	// Defined type control: defined string / number types are NOT stdjson.Number.
 	checkWalkParity(t, "defined number field", struct {
 		N pr4DefinedNumber `json:"n"`
 	}{N: "123"})
@@ -171,7 +155,6 @@ func TestWalkPR4NumberSemantics(t *testing.T) {
 }
 
 func TestWalkPR4NumberQuoted(t *testing.T) {
-	// Quoted struct field (json:",string").
 	checkWalkParity(t, "struct field Number,string", struct {
 		N stdjson.Number `json:"n,string"`
 	}{N: "123"})
@@ -179,7 +162,6 @@ func TestWalkPR4NumberQuoted(t *testing.T) {
 		N stdjson.Number `json:"n,string"`
 	}{N: ""})
 
-	// Pointer Number with ,string.
 	seven := stdjson.Number("7")
 	checkWalkParity(t, "struct ptr Number,string", struct {
 		N *stdjson.Number `json:"n,string"`
@@ -192,7 +174,6 @@ func TestWalkPR4NumberQuoted(t *testing.T) {
 		N *stdjson.Number `json:"n,string"`
 	}{N: nil})
 
-	// Tagged alias control.
 	checkWalkParity(t, "alias Number field,string", struct {
 		N pr4NumberAlias `json:"n,string"`
 	}{N: "99"})
@@ -200,7 +181,6 @@ func TestWalkPR4NumberQuoted(t *testing.T) {
 		N pr4NumberAlias `json:"n,string"`
 	}{N: ""})
 
-	// Tagged defined string alias control: ordinary string quoting, no number validation.
 	checkWalkParity(t, "defined number field,string abc", struct {
 		N pr4DefinedNumber `json:"n,string"`
 	}{N: "abc"})
@@ -223,18 +203,15 @@ func TestWalkPR4NumberInvalid(t *testing.T) {
 	for _, bad := range invalids {
 		num := stdjson.Number(bad)
 
-		// Root and interface contexts: verify exact error message parity.
 		checkWalkInvalidNumberExact(t, "root invalid "+bad, num)
 		checkWalkInvalidNumberExact(t, "any invalid "+bad, any(num))
 
-		// Composite unquoted contexts: verify error presence, nil bytes, and error dynamic type.
 		checkWalkInvalidNumber(t, "map value invalid "+bad, map[string]stdjson.Number{"bad": num})
 		checkWalkInvalidNumber(t, "slice invalid "+bad, []stdjson.Number{num})
 		checkWalkInvalidNumber(t, "struct plain invalid "+bad, struct {
 			N stdjson.Number `json:"n"`
 		}{N: num})
 
-		// Tagged (,string) contexts: verify error presence, nil bytes, and error dynamic type.
 		checkWalkInvalidNumber(t, "struct tagged invalid "+bad, struct {
 			N stdjson.Number `json:"n,string"`
 		}{N: num})
@@ -245,36 +222,28 @@ func TestWalkPR4NumberInvalid(t *testing.T) {
 }
 
 func TestWalkPR4QuotedMethodPrecedence(t *testing.T) {
-	// Named int scalar implementing MarshalJSON returning an object.
 	checkWalkParity(t, "named scalar MarshalJSON object", struct {
 		V pr4QuotedObj `json:"v,string"`
 	}{V: 42})
 
-	// Named string scalar implementing MarshalJSON returning an object.
 	checkWalkParity(t, "named string MarshalJSON object", struct {
 		V pr4QuotedStringObj `json:"v,string"`
 	}{V: "hello"})
 
-	// Named scalar implementing MarshalText.
 	checkWalkParity(t, "named scalar MarshalText", struct {
 		V pr4QuotedText `json:"v,string"`
 	}{V: "plain"})
 
-	// Pointer-only MarshalJSON: addressable vs non-addressable.
 	checkWalkParity(t, "pointer-only MarshalJSON addressable", &pr4StructPtrJSON{V: 5})
 	checkWalkParity(t, "pointer-only MarshalJSON non-addressable", pr4StructPtrJSON{V: 5})
 	checkWalkParity(t, "pointer-only MarshalJSON in map", map[string]pr4StructPtrJSON{"k": {V: 5}})
 
-	// Pointer-only MarshalText: addressable vs non-addressable.
 	checkWalkParity(t, "pointer-only MarshalText addressable", &pr4StructPtrText{V: 5})
 	checkWalkParity(t, "pointer-only MarshalText non-addressable", pr4StructPtrText{V: 5})
 
-	// Scalar with value MarshalText and pointer MarshalJSON:
-	// Addressable dispatches pointer MarshalJSON; non-addressable dispatches value MarshalText.
 	checkWalkParity(t, "value-Text and pointer-JSON addressable", &pr4StructBothScalar{V: 1})
 	checkWalkParity(t, "value-Text and pointer-JSON non-addressable", pr4StructBothScalar{V: 1})
 
-	// Nil pointer behavior on tagged fields.
 	checkWalkParity(t, "nil pointers with and without methods", pr4StructNilPtrs{Obj: nil, P: nil})
 	val := pr4QuotedObj(9)
 	checkWalkParity(t, "non-nil pointer with methods", pr4StructNilPtrs{Obj: &val, P: nil})
@@ -282,11 +251,6 @@ func TestWalkPR4QuotedMethodPrecedence(t *testing.T) {
 	checkWalkParity(t, "non-nil pointer without methods", pr4StructNilPtrs{Obj: nil, P: &p})
 }
 
-// IsZero-only named scalars stay scalar: the walk quotes them under
-// ,string and consults IsZero for omitzero. These are oracle controls
-// for the static fallback-string fix (r4373037368): they lock the
-// reflective behavior the generated serializers must match and do not
-// repeat Number or Marshal/Text precedence coverage above.
 type pr4IsZeroInt int
 
 func (v pr4IsZeroInt) IsZero() bool { return v == 42 }

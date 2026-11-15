@@ -76,12 +76,6 @@ func (p *Pinner) Pin(pointer any) {
 		}
 	}
 	ptr := pinnerGetPtr(&pointer)
-	if zgcCycleEnabled() {
-		if canon, ok := logosZgcPinnerPin(ptr); ok {
-			p.refs = append(p.refs, canon)
-		}
-		return
-	}
 	if setPinned(ptr, true) {
 		p.refs = append(p.refs, ptr)
 	}
@@ -137,10 +131,6 @@ func pinnerGetPtr(i *any) unsafe.Pointer {
 	if kind := etyp.Kind(); kind != abi.Pointer && kind != abi.UnsafePointer {
 		panic(errorString("runtime.Pinner: argument is not a pointer: " + toRType(etyp).string()))
 	}
-	if inUserArenaChunk(uintptr(e.data)) {
-		// Arena-allocated objects are not eligible for pinning.
-		panic(errorString("runtime.Pinner: object was allocated into an arena"))
-	}
 	return e.data
 }
 
@@ -149,7 +139,6 @@ func pinnerGetPtr(i *any) unsafe.Pointer {
 //
 //go:nosplit
 func isPinned(ptr unsafe.Pointer) bool {
-	ptr = logosZgcPinnerCanonicalize(ptr)
 	span := spanOfHeap(uintptr(ptr))
 	if span == nil {
 		// this code is only called for Go pointer, so this must be a
@@ -187,9 +176,7 @@ func setPinned(ptr unsafe.Pointer, pin bool) bool {
 	// ensure that the span is swept, b/c sweeping accesses the specials list
 	// w/o locks.
 	mp := acquirem()
-	if atomic.Load(&span.sweepgen) != mheap_.sweepgen+2 {
-		span.ensureSwept()
-	}
+	span.ensureSwept()
 	KeepAlive(ptr) // make sure ptr is still alive after span is swept
 
 	objIndex := span.objIndex(uintptr(ptr))

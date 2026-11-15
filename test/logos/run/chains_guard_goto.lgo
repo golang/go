@@ -1,0 +1,193 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+)
+
+var failed = false
+
+func check(name, got, want string) {
+	if got != want {
+		fmt.Printf("FAIL %s: got %q want %q\n", name, got, want)
+		failed = true
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+var errNeg = errors.New("neg")
+
+func gPos(x int) (bool, error) {
+	if x < 0 {
+		return false, errNeg
+	}
+	return x > 1, nil
+}
+
+func overFor(xs []int) (int, error) {
+	n := 0
+	goto Skip
+	for xs.map(x => gPos(x)?).count() > 0 {
+		n++
+	}
+Skip:
+	return n, nil
+}
+
+func overIf(xs []int) (int, error) {
+	n := 0
+	goto Skip
+	if xs.map(x => gPos(x)?).count() > 0 {
+		n++
+	}
+Skip:
+	return n, nil
+}
+
+func overIfInit(xs []int) (int, error) {
+	n := 0
+	goto Skip
+	if k := n + 1; xs.map(x => gPos(x)?).count() > k {
+		n++
+	}
+Skip:
+	return n, nil
+}
+
+func overExpr(xs []int) (int, error) {
+	n := 0
+	goto Skip
+	n += xs.map(x => gPos(x)?).count()
+Skip:
+	return n, nil
+}
+
+func overSwitch(xs []int) (int, error) {
+	n := 0
+	goto Skip
+	switch xs.map(x => gPos(x)?).count() {
+	case 1:
+		n++
+	}
+Skip:
+	return n, nil
+}
+
+func toLabeledFor(xs []int) (int, error) {
+	n := 0
+	goto L
+	n = 5
+L:
+	for xs.map(x => gPos(x)?).count() > 0 {
+		n++
+		break L
+	}
+	return n, nil
+}
+
+func toLabeledSwitch(xs []int) (int, error) {
+	n := 0
+	goto L
+	n = 5
+L:
+	switch xs.map(x => gPos(x)?).count() {
+	case 1:
+		n = 10
+		break L
+	}
+	return n + 1, nil
+}
+
+func toLabeledExpr(xs []int) (int, error) {
+	n := 0
+	goto L
+	n = 5
+L:
+	n += xs.map(x => gPos(x)?).count()
+	return n, nil
+}
+
+func backward(xs []int) (int, error) {
+	n, i := 0, 0
+Top:
+	n += xs.map(x => gPos(x)?).count()
+	i++
+	if i < 3 {
+		goto Top
+	}
+	return n, nil
+}
+
+func labeledContinue(xs []int) (int, error) {
+	n := 0
+L:
+	for i := 0; i < 3; i++ {
+		for xs.map(x => gPos(x)?).count() > 0 {
+			n++
+			continue L
+		}
+	}
+	return n, nil
+}
+
+func labelInLambda(xs []int) (int, error) {
+	n := 0
+L:
+	if xs.map(x => gPos(x)?).count() > n {
+		var h func(int) int = v => {
+		L:
+			for i := 0; i < 3; i++ {
+				if i == v {
+					break L
+				}
+			}
+			return v
+		}
+		n += h(1)
+		if n < 3 {
+			goto L
+		}
+	}
+	return n, nil
+}
+
+func plainFor(xs []int) (int, error) {
+	n := 0
+	for xs.map(x => gPos(x)?).count() > 0 {
+		n++
+		break
+	}
+	return n, nil
+}
+
+func verdict(n int, err error) string {
+	return fmt.Sprint(n, err)
+}
+
+func main() {
+	ok := []int{2}
+	bad := []int{2, -1}
+	check("over-for", verdict(overFor(ok)), "0 <nil>")
+	check("over-if", verdict(overIf(ok)), "0 <nil>")
+	check("over-if-init", verdict(overIfInit(ok)), "0 <nil>")
+	check("over-expr", verdict(overExpr(ok)), "0 <nil>")
+	check("over-switch", verdict(overSwitch(ok)), "0 <nil>")
+	check("to-labeled-for", verdict(toLabeledFor(ok)), "1 <nil>")
+	check("to-labeled-for-err", verdict(toLabeledFor(bad)), "0 neg")
+	check("to-labeled-switch", verdict(toLabeledSwitch(ok)), "11 <nil>")
+	check("to-labeled-expr", verdict(toLabeledExpr(ok)), "1 <nil>")
+	check("backward", verdict(backward(ok)), "3 <nil>")
+	check("backward-err", verdict(backward(bad)), "0 neg")
+	check("labeled-continue", verdict(labeledContinue(ok)), "3 <nil>")
+	check("label-in-lambda", verdict(labelInLambda(ok)), "1 <nil>")
+	check("label-in-lambda-err", verdict(labelInLambda(bad)), "0 neg")
+	check("plain-for", verdict(plainFor(ok)), "1 <nil>")
+	check("plain-for-err", verdict(plainFor(bad)), "0 neg")
+	if failed {
+		os.Exit(1)
+	}
+}

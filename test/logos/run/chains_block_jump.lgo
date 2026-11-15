@@ -1,0 +1,113 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"slices"
+)
+
+func check(name string, got, want []int) {
+	if !slices.Equal(got, want) {
+		fmt.Println("FAIL", name, "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func nestedBreak(xs []int) []int {
+	return xs.map(x => {
+		s := 0
+		for i := 0; i < x; i++ {
+			if i == 2 {
+				break
+			}
+			s += i
+		}
+		return s
+	})
+}
+
+func nestedContinue(xs []int) []int {
+	return xs.map(x => {
+		s := 0
+		for i := 0; i < x; i++ {
+			if i == 2 {
+				continue
+			}
+			s += i
+		}
+		return s
+	})
+}
+
+func nestedSwitch(xs []int) []int {
+	return xs.map(x => {
+		v := 0
+		switch x {
+		case 1:
+			v = 10
+		default:
+			v = x
+		}
+		return v
+	})
+}
+
+func innerGoto(xs []int) []int {
+	return xs.map(x => {
+		v := x * 10
+		if x == 3 {
+			goto fin
+		}
+		v = v + 1
+	fin:
+		v = v * 2
+		return v
+	})
+}
+
+//logos:allow(correctness::unbounded_channel_op)
+func nestedSelect(xs []int) []int {
+	return xs.map(x => {
+		c := make(chan int, 1)
+		c <- x
+		s := 0
+		for i := 0; i < 2; i++ {
+			select {
+			case v := <-c:
+				s += v
+				c <- 0
+			default:
+				s += 100
+			}
+		}
+		return s
+	})
+}
+
+func labeledInner(xs []int) []int {
+	return xs.map(x => {
+		s := 0
+	inner:
+		for i := 0; i < x; i++ {
+			if i == 1 {
+				continue inner
+			}
+			if i == 3 {
+				break inner
+			}
+			s += i
+		}
+		return s
+	})
+}
+
+func main() {
+	check("nested-break", nestedBreak([]int{4, 1}), []int{1, 0})
+	check("nested-continue", nestedContinue([]int{4, 1}), []int{4, 0})
+	check("nested-switch", nestedSwitch([]int{1, 2}), []int{10, 2})
+	check("inner-goto", innerGoto([]int{3, 1}), []int{60, 22})
+	check("nested-select", nestedSelect([]int{5}), []int{5})
+	check("labeled-inner", labeledInner([]int{5, 1}), []int{2, 0})
+}

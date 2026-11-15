@@ -1,0 +1,35 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type adjacent struct {
+	a, b int64
+	v    [2]int64
+}
+
+func main() {
+	p := adjacent{a: 1, b: 2, v: [2]int64{3, 4}}
+	check("first", p.a+p.b+p.v[0]+p.v[1] == 10, p.a+p.b+p.v[0]+p.v[1], 10)
+	p.a, p.b = 5, 6
+	p.v[0], p.v[1] = 7, 8
+	check("second", p.a+p.b+p.v[0]+p.v[1] == 26, p.a+p.b+p.v[0]+p.v[1], 26)
+	if failed {
+		os.Exit(1)
+	}
+}

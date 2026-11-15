@@ -1,0 +1,208 @@
+# M23-S4 (step 20, C3): the logos environment decisions, pinned end to end.
+# Each row is a hand-written characterization of the SPEC's logos.toml
+# decisions as they reach the environment and the tool invocations: the
+# arena experiment, the per-module cgo switch behind -C, the workspace-wide
+# arena decision, the wasm preemptibleloops default with its user opt-out,
+# the GOAMD64 startup snapshot that lets a user setting beat target_cpu,
+# and the -O flag error that preempts a broken logos.toml.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env CC=
+env CGO_ENABLED=
+env GOEXPERIMENT=
+env GOAMD64=
+env GOARM64=
+env GOOS=
+env GOARCH=
+env GOENV=$WORK/userenv
+mkdir -p $WORK/out
+
+# [build] arena = true turns the logosarena experiment on for logos env.
+cd arena
+logos env GOEXPERIMENT
+stdout '^logosarena$'
+go env GOEXPERIMENT
+! stdout 'logosarena'
+cd ..
+
+# The cgo switch follows the target module of -C, not the starting one:
+# the forbid module bakes 0, the allow module under -C bakes 1.
+cd forbid
+[cgo] logos env CGO_ENABLED
+[cgo] stdout '^0$'
+[cgo] logos -C sub env CGO_ENABLED
+[cgo] stdout '^1$'
+logos env GOEXPERIMENT
+stdout '^logosarena$'
+cd ..
+
+# A workspace decides once for all members: wa carries arena = true and wb
+# carries no key, yet both members compile the experiment-on goexperiment file.
+cd w
+logos build -a -x -o $WORK/out/wa.bin example.com/wa
+stderr 'exp_logosarena_on\.go'
+logos build -a -x -o $WORK/out/wb.bin example.com/wb
+stderr 'exp_logosarena_on\.go'
+cd ..
+
+# wasm builds default to preemptibleloops under logos; an explicit user
+# GOEXPERIMENT token is a choice, never a force.
+cd wasm
+env GOOS=js
+env GOARCH=wasm
+logos env GOEXPERIMENT
+stdout '^logosarena,preemptibleloops$'
+go env GOEXPERIMENT
+! stdout 'preemptibleloops'
+env GOEXPERIMENT=nopreemptibleloops
+logos env GOEXPERIMENT
+stdout '^nopreemptibleloops,logosarena$'
+env GOEXPERIMENT=
+env GOOS=
+env GOARCH=
+cd ..
+
+# A GOAMD64 written through the GOENV file is a user setting at process
+# start, so target_cpu's deterministic default v3 stays out; with no user
+# setting the default reaches the tool invocations.
+cd opt
+logos build -a -x -o $WORK/out/opt1.bin .
+stderr 'GOAMD64=.v3.'
+go env -w GOAMD64=v1
+logos env GOAMD64
+stdout '^v1$'
+logos build -x -o $WORK/out/opt2.bin .
+! stderr 'GOAMD64=.v3.'
+cd ..
+
+# The -O flag error is the only output even when logos.toml is broken:
+# flag validation happens before the per-package config error is claimed.
+cd broken
+! logos build -O=bad .
+stderr '^logos build: invalid -O level "bad" \(want 0, 1, 2, 3, s\)$'
+! stderr 'logos\.toml:'
+cd ..
+
+-- arena/go.mod --
+module example.com/arena
+
+go 1.27
+
+-- arena/logos.toml --
+[build]
+arena = true
+
+-- arena/main.lgo --
+package main
+
+import "fmt"
+
+func main() { fmt.Println("arena") }
+
+-- forbid/go.mod --
+module example.com/forbid
+
+go 1.27
+
+-- forbid/logos.toml --
+[build]
+cgo = "forbid"
+
+-- forbid/main.lgo --
+package main
+
+import "fmt"
+
+func main() { fmt.Println("forbid") }
+
+-- forbid/sub/go.mod --
+module example.com/forbid/sub
+
+go 1.27
+
+-- forbid/sub/logos.toml --
+[build]
+cgo = "allow"
+
+-- forbid/sub/main.lgo --
+package main
+
+import "fmt"
+
+func main() { fmt.Println("sub") }
+
+-- w/go.work --
+go 1.27
+
+use (
+	../wa
+	../wb
+)
+
+-- wa/go.mod --
+module example.com/wa
+
+go 1.27
+
+-- wa/logos.toml --
+[build]
+arena = true
+
+-- wa/main.lgo --
+package main
+
+import "fmt"
+
+func main() { fmt.Println("wa") }
+
+-- wb/go.mod --
+module example.com/wb
+
+go 1.27
+
+-- wb/main.lgo --
+package main
+
+import "fmt"
+
+func main() { fmt.Println("wb") }
+
+-- wasm/go.mod --
+module example.com/wasmmod
+
+go 1.27
+
+-- wasm/main.lgo --
+package main
+
+import "fmt"
+
+func main() { fmt.Println("wasm") }
+
+-- opt/go.mod --
+module example.com/optenv
+
+go 1.27
+
+-- opt/main.lgo --
+package main
+
+import "fmt"
+
+func main() { fmt.Println("opt") }
+
+-- broken/go.mod --
+module example.com/brokenopt
+
+go 1.27
+
+-- broken/logos.toml --
+[build]
+cgo = "allow
+
+-- broken/main.lgo --
+package main
+
+import "fmt"
+
+func main() { fmt.Println("broken") }

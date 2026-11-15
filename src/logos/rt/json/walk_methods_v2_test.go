@@ -14,13 +14,6 @@ import (
 	"testing"
 )
 
-// Tests for jsonv2-native method dispatch in Walk.Marshal:
-// 1. MarshalerTo only (jsonv2.MarshalerTo: MarshalJSONTo(*jsontext.Encoder) error)
-// 2. TextAppender only (encoding.TextAppender: AppendText([]byte) ([]byte, error))
-// 3. Precedence between MarshalerTo and Marshaler (MarshalJSONTo takes precedence)
-// 4. Pointer-receiver addressability and nil handling
-// 5. Honoring methods under the ,string struct tag option
-
 type v2CustomToOnly struct {
 	V int
 }
@@ -117,7 +110,6 @@ func TestWalkV2MethodDispatch(t *testing.T) {
 		in   any
 		want string
 	}{
-		// 1. MarshalerTo only
 		{
 			name: "MarshalJSONToOnly/root",
 			in:   v2CustomToOnly{V: 1},
@@ -141,7 +133,6 @@ func TestWalkV2MethodDispatch(t *testing.T) {
 			want: `"custom_to_only"`,
 		},
 
-		// 2. AppendText only
 		{
 			name: "AppendTextOnly/root",
 			in:   v2CustomAppendOnly{V: 2},
@@ -165,7 +156,6 @@ func TestWalkV2MethodDispatch(t *testing.T) {
 			want: `"custom_append_only"`,
 		},
 
-		// 3. MarshalerTo + Marshaler precedence with distinct literal outputs
 		{
 			name: "Precedence/ValueReceiver",
 			in: struct {
@@ -174,9 +164,6 @@ func TestWalkV2MethodDispatch(t *testing.T) {
 			want: `{"a":"from_marshal_json_to"}`,
 		},
 		{
-			// Stdlib oracle: the struct value reached via any is unaddressable,
-			// so the ptr-receiver MarshalJSONTo is not in the method set and the
-			// value-receiver MarshalJSON wins.
 			name: "Precedence/UnaddressablePtrToVsValJSON",
 			in: struct {
 				A v2PrecedencePtrToValJSON `json:"a"`
@@ -191,11 +178,7 @@ func TestWalkV2MethodDispatch(t *testing.T) {
 			want: `{"a":"from_ptr_marshal_json_to"}`,
 		},
 
-		// 4. Pointer receiver addressability and nil handling
 		{
-			// Stdlib oracle: a field of an unaddressable struct value cannot be
-			// addressed, so the ptr-receiver method is skipped and the field
-			// serializes by default.
 			name: "PointerReceiver/UnaddressableFieldMarshalJSONTo",
 			in: struct {
 				A v2PtrReceiverTo `json:"a"`
@@ -224,7 +207,6 @@ func TestWalkV2MethodDispatch(t *testing.T) {
 			want: `{"a":null}`,
 		},
 		{
-			// Stdlib oracle: same unaddressability fallback for AppendText.
 			name: "PointerReceiver/UnaddressableFieldAppendText",
 			in: struct {
 				A v2PtrReceiverAppend `json:"a"`
@@ -253,7 +235,6 @@ func TestWalkV2MethodDispatch(t *testing.T) {
 			want: `{"a":null}`,
 		},
 
-		// 5. String tag option honoring methods
 		{
 			name: "StringTag/MarshalJSONTo",
 			in: struct {

@@ -1,0 +1,43 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOARCH=amd64
+env GOAMD64=
+env GOARM64=
+
+logos build -o $WORK/base-amd64 .
+exec go version -m $WORK/base-amd64
+stdout 'GOAMD64=v1'
+
+env GOAMD64=v3
+logos build -o $WORK/base-amd64-env .
+exec go version -m $WORK/base-amd64-env
+stdout 'GOAMD64=v1'
+! stdout 'GOAMD64=v3'
+env GOAMD64=
+
+env GOARCH=arm64
+env GOARM64=v8.3
+logos build -o $WORK/base-arm64-env .
+exec go version -m $WORK/base-arm64-env
+stdout 'GOARM64=v8\.0'
+! stdout 'GOARM64=v8\.3'
+env GOARM64=
+env GOARCH=
+
+-- go.mod --
+module example.com/baselinelvl
+
+go 1.27
+
+-- logos.toml --
+[build]
+target_cpu = "baseline"
+
+-- main.lgo --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("hello")
+}

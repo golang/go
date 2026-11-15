@@ -1,0 +1,241 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, got, want string) {
+	if got == want {
+		fmt.Println("ok", name)
+		return
+	}
+	failed = true
+	fmt.Println("FAIL", name+":", "got", got, "want", want)
+}
+
+// Every literal below is written in scrambled key order; range must
+// still visit keys in sorted order. Each kind has a switch form (at
+// most 8 keys) and, where the kind admits it, a table form (9 keys).
+
+const strs8 = map[string]int{
+	"fig": 4, "apple": 1, "date": 3, "banana": 2,
+	"grape": 6, "cherry": 5, "apricot": 0, "elderberry": 7,
+}
+
+const strs9 = map[string]int{
+	"kiwi": 8, "fig": 4, "apple": 1, "date": 3, "banana": 2,
+	"grape": 6, "cherry": 5, "apricot": 0, "elderberry": 7,
+}
+
+const ints8 = map[int]int{
+	7: 70, -5: -50, 3: 30, 0: 0, -12: -120, 12: 120, -1: -10, 1: 10,
+}
+
+const ints9 = map[int]int{
+	7: 70, -5: -50, 3: 30, 0: 0, -12: -120, 12: 120, -1: -10, 1: 10, -13: -130,
+}
+
+const uints8 = map[uint8]int{
+	200: 2, 3: 30, 255: 25, 0: 0, 42: 4, 7: 70, 128: 1, 19: 190,
+}
+
+const uints9 = map[uint8]int{
+	200: 2, 3: 30, 255: 25, 0: 0, 42: 4, 7: 70, 128: 1, 19: 190, 201: 3,
+}
+
+const floats8 = map[float64]int{
+	2.5: 25, -1.5: -15, 0.0: 0, 3.25: 32,
+	-7.125: -71, 1.0: 10, 100.5: 1005, 0.25: 2,
+}
+
+const floats9 = map[float64]int{
+	2.5: 25, -1.5: -15, 0.0: 0, 3.25: 32,
+	-7.125: -71, 1.0: 10, 100.5: 1005, 0.25: 2, -100.5: -1005,
+}
+
+const bools = map[bool]int{true: 1, false: 0}
+
+type pair struct {
+	hi int8
+	lo string
+}
+
+type cell struct {
+	flag bool
+	pos  [2]int
+	name string
+}
+
+const arrs8 = map[[2]int]int{
+	[2]int{3, -1}: 31, [2]int{-2, 5}: 25, [2]int{0, 0}: 0, [2]int{3, -4}: 34,
+	[2]int{-2, -5}: 20, [2]int{1, 9}: 19, [2]int{0, -1}: 1, [2]int{-9, 9}: 99,
+}
+
+const arrs8b = map[[2]int]int{
+	[2]int{-9, 9}: 99, [2]int{0, -1}: 1, [2]int{1, 9}: 19, [2]int{-2, -5}: 20,
+	[2]int{3, -4}: 34, [2]int{0, 0}: 0, [2]int{-2, 5}: 25, [2]int{3, -1}: 31,
+}
+
+const arrs9 = map[[2]int]int{
+	[2]int{3, 7}: 37, [2]int{3, -1}: 31, [2]int{-2, 5}: 25, [2]int{0, 0}: 0, [2]int{3, -4}: 34,
+	[2]int{-2, -5}: 20, [2]int{1, 9}: 19, [2]int{0, -1}: 1, [2]int{-9, 9}: 99,
+}
+
+const arrs9b = map[[2]int]int{
+	[2]int{-9, 9}: 99, [2]int{0, -1}: 1, [2]int{1, 9}: 19, [2]int{-2, -5}: 20, [2]int{3, -4}: 34,
+	[2]int{0, 0}: 0, [2]int{-2, 5}: 25, [2]int{3, -1}: 31, [2]int{3, 7}: 37,
+}
+
+const pairs8 = map[pair]int{
+	pair{2, "b"}: 1, pair{-1, "z"}: 2, pair{2, "a"}: 3, pair{0, ""}: 4,
+	pair{-1, "a"}: 5, pair{127, "m"}: 6, pair{-128, "x"}: 7, pair{2, "ab"}: 8,
+}
+
+const pairs8b = map[pair]int{
+	pair{2, "ab"}: 8, pair{-128, "x"}: 7, pair{127, "m"}: 6, pair{-1, "a"}: 5,
+	pair{0, ""}: 4, pair{2, "a"}: 3, pair{-1, "z"}: 2, pair{2, "b"}: 1,
+}
+
+const pairs9 = map[pair]int{
+	pair{127, "a"}: 9, pair{2, "b"}: 1, pair{-1, "z"}: 2, pair{2, "a"}: 3, pair{0, ""}: 4,
+	pair{-1, "a"}: 5, pair{127, "m"}: 6, pair{-128, "x"}: 7, pair{2, "ab"}: 8,
+}
+
+const pairs9b = map[pair]int{
+	pair{2, "ab"}: 8, pair{-128, "x"}: 7, pair{127, "m"}: 6, pair{-1, "a"}: 5, pair{0, ""}: 4,
+	pair{2, "a"}: 3, pair{-1, "z"}: 2, pair{2, "b"}: 1, pair{127, "a"}: 9,
+}
+
+const cells9 = map[cell]int{
+	cell{true, [2]int{1, 2}, "a"}: 1, cell{false, [2]int{5, 5}, "z"}: 2,
+	cell{true, [2]int{1, -2}, "a"}: 3, cell{false, [2]int{5, 5}, "a"}: 4,
+	cell{true, [2]int{0, 9}, "q"}: 5, cell{false, [2]int{-5, 0}, ""}: 6,
+	cell{true, [2]int{1, 2}, ""}: 7, cell{false, [2]int{5, 6}, "a"}: 8,
+	cell{true, [2]int{1, 2}, "b"}: 9,
+}
+
+const cells9b = map[cell]int{
+	cell{true, [2]int{1, 2}, "b"}: 9, cell{false, [2]int{5, 6}, "a"}: 8,
+	cell{true, [2]int{1, 2}, ""}: 7, cell{false, [2]int{-5, 0}, ""}: 6,
+	cell{true, [2]int{0, 9}, "q"}: 5, cell{false, [2]int{5, 5}, "a"}: 4,
+	cell{true, [2]int{1, -2}, "a"}: 3, cell{false, [2]int{5, 5}, "z"}: 2,
+	cell{true, [2]int{1, 2}, "a"}: 1,
+}
+
+func main() {
+	s := ""
+	for k, v := range strs8 {
+		s += fmt.Sprintf("%v=%v,", k, v)
+	}
+	check("strs8-order", s, "apple=1,apricot=0,banana=2,cherry=5,date=3,elderberry=7,fig=4,grape=6,")
+	s = ""
+	for k, v := range strs9 {
+		s += fmt.Sprintf("%v=%v,", k, v)
+	}
+	check("strs9-order", s, "apple=1,apricot=0,banana=2,cherry=5,date=3,elderberry=7,fig=4,grape=6,kiwi=8,")
+	s = ""
+	for k, v := range ints8 {
+		s += fmt.Sprintf("%v=%v,", k, v)
+	}
+	check("ints8-order", s, "-12=-120,-5=-50,-1=-10,0=0,1=10,3=30,7=70,12=120,")
+	s = ""
+	for k, v := range ints9 {
+		s += fmt.Sprintf("%v=%v,", k, v)
+	}
+	check("ints9-order", s, "-13=-130,-12=-120,-5=-50,-1=-10,0=0,1=10,3=30,7=70,12=120,")
+	s = ""
+	for k, v := range uints8 {
+		s += fmt.Sprintf("%v=%v,", k, v)
+	}
+	check("uints8-order", s, "0=0,3=30,7=70,19=190,42=4,128=1,200=2,255=25,")
+	s = ""
+	for k, v := range uints9 {
+		s += fmt.Sprintf("%v=%v,", k, v)
+	}
+	check("uints9-order", s, "0=0,3=30,7=70,19=190,42=4,128=1,200=2,201=3,255=25,")
+	s = ""
+	for k, v := range floats8 {
+		s += fmt.Sprintf("%v=%v,", k, v)
+	}
+	check("floats8-order", s, "-7.125=-71,-1.5=-15,0=0,0.25=2,1=10,2.5=25,3.25=32,100.5=1005,")
+	s = ""
+	for k, v := range floats9 {
+		s += fmt.Sprintf("%v=%v,", k, v)
+	}
+	check("floats9-order", s, "-100.5=-1005,-7.125=-71,-1.5=-15,0=0,0.25=2,1=10,2.5=25,3.25=32,100.5=1005,")
+	s = ""
+	for k, v := range bools {
+		s += fmt.Sprintf("%v=%v,", k, v)
+	}
+	check("bools-order", s, "false=0,true=1,")
+	rangeArrays()
+	rangePairs()
+	rangeCells()
+	if failed {
+		os.Exit(1)
+	}
+}
+
+func rangeArrays() {
+	s := ""
+	for k, v := range arrs8 {
+		s += fmt.Sprintf("%v=%v,", k, v)
+	}
+	check("arrs8-order", s, "[-9 9]=99,[-2 -5]=20,[-2 5]=25,[0 -1]=1,[0 0]=0,[1 9]=19,[3 -4]=34,[3 -1]=31,")
+	s = ""
+	for k, v := range arrs8b {
+		s += fmt.Sprintf("%v=%v,", k, v)
+	}
+	check("arrs8b-order", s, "[-9 9]=99,[-2 -5]=20,[-2 5]=25,[0 -1]=1,[0 0]=0,[1 9]=19,[3 -4]=34,[3 -1]=31,")
+	s = ""
+	for k, v := range arrs9 {
+		s += fmt.Sprintf("%v=%v,", k, v)
+	}
+	check("arrs9-order", s, "[-9 9]=99,[-2 -5]=20,[-2 5]=25,[0 -1]=1,[0 0]=0,[1 9]=19,[3 -4]=34,[3 -1]=31,[3 7]=37,")
+	s = ""
+	for k, v := range arrs9b {
+		s += fmt.Sprintf("%v=%v,", k, v)
+	}
+	check("arrs9b-order", s, "[-9 9]=99,[-2 -5]=20,[-2 5]=25,[0 -1]=1,[0 0]=0,[1 9]=19,[3 -4]=34,[3 -1]=31,[3 7]=37,")
+}
+
+func rangePairs() {
+	s := ""
+	for k, v := range pairs8 {
+		s += fmt.Sprintf("%v=%v,", k, v)
+	}
+	check("pairs8-order", s, "{-128 x}=7,{-1 a}=5,{-1 z}=2,{0 }=4,{2 a}=3,{2 ab}=8,{2 b}=1,{127 m}=6,")
+	s = ""
+	for k, v := range pairs8b {
+		s += fmt.Sprintf("%v=%v,", k, v)
+	}
+	check("pairs8b-order", s, "{-128 x}=7,{-1 a}=5,{-1 z}=2,{0 }=4,{2 a}=3,{2 ab}=8,{2 b}=1,{127 m}=6,")
+	s = ""
+	for k, v := range pairs9 {
+		s += fmt.Sprintf("%v=%v,", k, v)
+	}
+	check("pairs9-order", s, "{-128 x}=7,{-1 a}=5,{-1 z}=2,{0 }=4,{2 a}=3,{2 ab}=8,{2 b}=1,{127 a}=9,{127 m}=6,")
+	s = ""
+	for k, v := range pairs9b {
+		s += fmt.Sprintf("%v=%v,", k, v)
+	}
+	check("pairs9b-order", s, "{-128 x}=7,{-1 a}=5,{-1 z}=2,{0 }=4,{2 a}=3,{2 ab}=8,{2 b}=1,{127 a}=9,{127 m}=6,")
+}
+
+func rangeCells() {
+	s := ""
+	for k, v := range cells9 {
+		s += fmt.Sprintf("%v=%v,", k, v)
+	}
+	check("cells9-order", s, "{false [-5 0] }=6,{false [5 5] a}=4,{false [5 5] z}=2,{false [5 6] a}=8,{true [0 9] q}=5,{true [1 -2] a}=3,{true [1 2] }=7,{true [1 2] a}=1,{true [1 2] b}=9,")
+	s = ""
+	for k, v := range cells9b {
+		s += fmt.Sprintf("%v=%v,", k, v)
+	}
+	check("cells9b-order", s, "{false [-5 0] }=6,{false [5 5] a}=4,{false [5 5] z}=2,{false [5 6] a}=8,{true [0 9] q}=5,{true [1 -2] a}=3,{true [1 2] }=7,{true [1 2] a}=1,{true [1 2] b}=9,")
+}

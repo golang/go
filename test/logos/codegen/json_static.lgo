@@ -2,17 +2,6 @@
 
 package jsoncheck
 
-// M11-S1 codegen check (SPEC Sec 12.1, T-Sec12): the generated MarshalJSON
-// of a struct of scalars is a fast path. It calls no reflect, it makes its
-// one buffer with a single runtime.makeslice, and it takes no other
-// allocation: no new object, no interface boxing, no string
-// concatenation or conversion. Every generated declaration carries the
-// position of the type declaration, so the assertions sit on that line:
-// the type declares every other generated method itself, which leaves
-// MarshalJSON as the only code on that line. The one-allocation count is
-// asserted at run time by test/logos/run/json_marshal_test.lgo
-// (testing.AllocsPerRun).
-
 type Scalars struct { // amd64:"CALL.*runtime.makeslice" -"CALL.*reflect" -"CALL.*runtime.newobject" -"CALL.*runtime.convT" -"CALL.*runtime.concatstring" -"CALL.*runtime.slicebytetostring" arm64:"CALL.*runtime.makeslice" -"CALL.*reflect" -"CALL.*runtime.newobject" -"CALL.*runtime.convT" -"CALL.*runtime.concatstring" -"CALL.*runtime.slicebytetostring"
 	A int64  `json:"a"`
 	B string `json:"b"`
@@ -30,3 +19,8 @@ func (s Scalars) MarshalBinary() ([]byte, error) { return nil, nil }
 func (s Scalars) AppendBinary(b []byte) ([]byte, error) { return b, nil }
 
 func (s *Scalars) UnmarshalBinary(data []byte) error { return nil }
+
+type SyncProbe struct { // amd64:-"CALL.*sync[/.]" -"CALL.*atomic\\." -"CALL.*Mutex" -"CALL.*Lock" arm64:-"CALL.*sync[/.]" -"CALL.*atomic\\." -"CALL.*Mutex" -"CALL.*Lock"
+	A string `json:"a"`
+	N int64  `json:"n"`
+}

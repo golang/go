@@ -17,22 +17,18 @@ import (
 	"internal/testenv"
 )
 
-// simdSliceTarget builds for arch at GOAMD64 level with the simd
-// experiment on, and restores the build when the test ends.
 func simdSliceTarget(t *testing.T, arch string, level int) {
 	t.Helper()
 	restoreBuildAfter(t)
 	buildcfg.Experiment.SIMD, buildcfg.GOARCH, buildcfg.GOAMD64 = true, arch, level
 }
 
-// scalarSliceTarget builds without the simd experiment.
 func scalarSliceTarget(t *testing.T) {
 	t.Helper()
 	restoreBuildAfter(t)
 	buildcfg.Experiment.SIMD, buildcfg.GOARCH, buildcfg.GOAMD64 = false, "amd64", 1
 }
 
-// restoreBuildAfter restores the build the lowering reads when t ends.
 func restoreBuildAfter(t *testing.T) {
 	t.Helper()
 	savedSIMD, savedArch, savedLevel := buildcfg.Experiment.SIMD, buildcfg.GOARCH, buildcfg.GOAMD64
@@ -52,9 +48,6 @@ func lowerSliceSum(t *testing.T, elem string) string {
 	return lowerSliceFunc(t, "xs []"+elem, elem, "return xs.sum()")
 }
 
-// archsimdLoaderFeatures reads the `CPU Feature:` line of every
-// Load<T>SliceMasked loader in logos_maskload_amd64.go, keyed by vector
-// type.
 func archsimdLoaderFeatures(t *testing.T) map[string]string {
 	t.Helper()
 	path := filepath.Join(testenv.GOROOT(t), "src", "simd", "archsimd", "logos_maskload_amd64.go")
@@ -73,11 +66,6 @@ func archsimdLoaderFeatures(t *testing.T) map[string]string {
 	return feats
 }
 
-// TestSimdSliceSumMatrix is the #22 lowering attack: on amd64 every
-// exact element kind sums through a full-vector loop and the masked tail
-// loader of its width, and the feature the guard checks is the `CPU
-// Feature:` line of that loader. The tail never goes through the
-// full-width Part loader, which reads past the slice.
 func TestSimdSliceSumMatrix(t *testing.T) {
 	feats := archsimdLoaderFeatures(t)
 	cases := []struct {
@@ -108,6 +96,9 @@ func TestSimdSliceSumMatrix(t *testing.T) {
 			if want := "_i+" + strconv.Itoa(c.lanes) + " <= len("; !strings.Contains(out, want) {
 				t.Errorf("full-vector loop step %d missing:\n%s", c.lanes, out)
 			}
+			if c.elem != "float32" && c.elem != "float64" && !strings.Contains(out, "_acc.Add(") {
+				t.Errorf("integer sum does not accumulate in vector lanes:\n%s", out)
+			}
 			guard := "_logos_simd.X86." + feats[c.vec] + "()"
 			if feats[c.vec] == "" || !strings.Contains(out, "if "+guard+" {") {
 				t.Errorf("guard is not %q (loader requires %q):\n%s", guard, feats[c.vec], out)
@@ -116,9 +107,6 @@ func TestSimdSliceSumMatrix(t *testing.T) {
 	}
 }
 
-// TestSimdSliceSumGuardElision pins the guard against the GOAMD64 level:
-// the check is absent exactly when the level guarantees the loader's
-// feature, and then the scalar loop is not emitted at all.
 func TestSimdSliceSumGuardElision(t *testing.T) {
 	cases := []struct {
 		elem   string
@@ -146,10 +134,6 @@ func TestSimdSliceSumGuardElision(t *testing.T) {
 	}
 }
 
-// TestSimdSliceSumFloatKeepsTree pins the float contract: the vector
-// form only stages the elements, and the pairwise recursion over halves
-// that the scalar form runs is the one that sums, spelled once whether
-// or not a feature check guards the vector form, so the bits match.
 func TestSimdSliceSumFloatKeepsTree(t *testing.T) {
 	for _, level := range []int{1, 3} {
 		t.Run("v"+strconv.Itoa(level), func(t *testing.T) {
@@ -174,10 +158,6 @@ func TestSimdSliceSumFloatKeepsTree(t *testing.T) {
 	}
 }
 
-// TestSimdSliceSumScalarForms pins the shapes that keep the scalar
-// form: no experiment, a fused operation, and `int`, whose pointer is
-// not the *[N]int64 the archsimd loaders take; an alias of a fixed-width
-// kind is that kind and keeps the vector form.
 func TestSimdSliceSumScalarForms(t *testing.T) {
 	t.Run("no experiment", func(t *testing.T) {
 		scalarSliceTarget(t)
@@ -189,6 +169,18 @@ func TestSimdSliceSumScalarForms(t *testing.T) {
 		simdSliceTarget(t, "amd64", 1)
 		if out := lowerSliceSum(t, "int"); strings.Contains(out, "_logos_simd") {
 			t.Errorf("int takes the vector form:\n%s", out)
+		}
+	})
+	t.Run("uint", func(t *testing.T) {
+		simdSliceTarget(t, "amd64", 1)
+		if out := lowerSliceSum(t, "uint"); strings.Contains(out, "_logos_simd") {
+			t.Errorf("uint takes the vector form:\n%s", out)
+		}
+	})
+	t.Run("uintptr", func(t *testing.T) {
+		simdSliceTarget(t, "amd64", 1)
+		if out := lowerSliceSum(t, "uintptr"); strings.Contains(out, "_logos_simd") {
+			t.Errorf("uintptr takes the vector form:\n%s", out)
 		}
 	})
 	t.Run("alias element", func(t *testing.T) {
@@ -213,9 +205,6 @@ func TestSimdSliceSumScalarForms(t *testing.T) {
 	})
 }
 
-// TestSimdSliceSumArm64 pins the arm64 form: 128-bit vectors, the
-// upstream Part loader for the tail (NEON has no masked load, and the
-// loader inserts only the elements present), and no feature check.
 func TestSimdSliceSumArm64(t *testing.T) {
 	simdSliceTarget(t, "arm64", 1)
 	for _, c := range []struct{ elem, vec string }{
@@ -232,11 +221,6 @@ func TestSimdSliceSumArm64(t *testing.T) {
 	}
 }
 
-// TestSimdSliceSumNoPadding is the #22 padding attack: the build adds no
-// guard padding for a vector tail. The integer form allocates nothing,
-// and the float form stages into a slice of exactly len(receiver)
-// elements, so no length rounds up to a whole vector and every masked
-// load alone keeps the tail inside the slice.
 func TestSimdSliceSumNoPadding(t *testing.T) {
 	simdSliceTarget(t, "amd64", 1)
 	exact := regexp.MustCompile(`make\(\[\]float(32|64), len\(_logos_ch\d+_\d+_rcv\)\)`)
@@ -256,8 +240,39 @@ func TestSimdSliceSumNoPadding(t *testing.T) {
 	}
 }
 
-// ejectTarget marks the compile as an eject (-logos.eject set) and
-// restores the flag when the test ends.
+func TestSimdSliceSumNoStagingElsewhere(t *testing.T) {
+	simdSliceTarget(t, "amd64", 1)
+	for _, c := range []struct {
+		name   string
+		params string
+		result string
+		body   string
+		makes  int
+		kept   string
+	}{
+		{"fused", "xs []int32", "int32", "return xs.filter(x => x > 0).sum()", 0, ""},
+		{"count", "xs []int32", "int", "return xs.count()", 0, ""},
+		{"loop", "xs []int32", "int32", "var t int32\n\tfor _, v := range xs {\n\t\tt += v\n\t}\n\treturn t", 0, ""},
+		{"explicit", "n int", "int", "out := make([]int32, n)\n\treturn len(out)", 1, "make([]int32, n)"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			src := "package main\n\ntype f32 = float32\n\nfunc f(" + c.params + ") " + c.result + " {\n\t" + c.body + "\n}\n\nfunc trig(xs []int32) int {\n\treturn xs.count()\n}\n"
+			out := lowerSnippetSrc(t, "slicesum.lgo", src)
+			for _, bad := range []string{"_logos_simd", "SliceMasked", "_mt", "archsimd"} {
+				if strings.Contains(out, bad) {
+					t.Errorf("%s: vector staging %q outside a bare vector sum:\n%s", c.name, bad, out)
+				}
+			}
+			if n := strings.Count(out, "make("); n != c.makes {
+				t.Errorf("%s: %d makes, want %d (only the source):\n%s", c.name, n, c.makes, out)
+			}
+			if !strings.Contains(out, c.kept) {
+				t.Errorf("%s: source make %q lost its exact length:\n%s", c.name, c.kept, out)
+			}
+		})
+	}
+}
+
 func ejectTarget(t *testing.T) {
 	t.Helper()
 	saved := base.LogosEject
@@ -265,13 +280,6 @@ func ejectTarget(t *testing.T) {
 	t.Cleanup(func() { base.LogosEject = saved })
 }
 
-// TestSimdSliceSumEjectScalar pins T-0.3 for the slice sum: a compile
-// that writes eject text takes the scalar form for every element kind on
-// both architectures, at every GOAMD64 level, so the text names no
-// archsimd function (the Load<T>SliceMasked loaders exist only in this
-// toolchain's archsimd) and equals the text of a build without the simd
-// experiment byte for byte, which is the form whose float bits the
-// fixed pairwise order pins.
 func TestSimdSliceSumEjectScalar(t *testing.T) {
 	elems := []string{
 		"int8", "uint8", "int16", "uint16", "int32", "uint32", "int64", "uint64",
@@ -300,9 +308,6 @@ func TestSimdSliceSumEjectScalar(t *testing.T) {
 	}
 }
 
-// TestSimdSliceSumEjectNativeKeepsVector pins the other half: only the
-// eject compile takes the scalar form. The same source lowered with no
-// eject target still takes the vector form.
 func TestSimdSliceSumEjectNativeKeepsVector(t *testing.T) {
 	simdSliceTarget(t, "amd64", 1)
 	if out := lowerSliceSum(t, "int32"); !strings.Contains(out, "_logos_simd.LoadInt32x8SliceMasked(") {
@@ -314,9 +319,6 @@ func TestSimdSliceSumEjectNativeKeepsVector(t *testing.T) {
 	}
 }
 
-// TestSimdSliceEjectKeepsArrayForms pins the scope of the eject rule:
-// array operators and array reductions load through the archsimd array
-// loaders an upstream archsimd has, so eject keeps their vector form.
 func TestSimdSliceEjectKeepsArrayForms(t *testing.T) {
 	simdSliceTarget(t, "amd64", 1)
 	ejectTarget(t)
@@ -336,10 +338,6 @@ func f(a, b [8]float32) (float32, [8]float32) {
 	}
 }
 
-// TestSimdSliceLoadersOnlyInSliceSum pins the 15.2 scope sentence: the
-// masked loaders appear only in the loop a bare slice sum produces. An
-// array operator, an array reduction, and a slice run with a fused
-// operation carry none.
 func TestSimdSliceLoadersOnlyInSliceSum(t *testing.T) {
 	simdSliceTarget(t, "amd64", 1)
 	src := `package main

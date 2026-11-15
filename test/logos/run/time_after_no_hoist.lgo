@@ -1,0 +1,32 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+	"time"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func main() {
+	chs := make([]<-chan time.Time, 0, 2)
+	for i := 0; i < 2; i++ {
+		chs = append(chs, time.After(time.Hour))
+	}
+	distinct := chs[0] != chs[1]
+	check("distinct", distinct, distinct, true)
+	if failed {
+		os.Exit(1)
+	}
+}

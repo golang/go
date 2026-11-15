@@ -1,0 +1,198 @@
+// run
+
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+)
+
+var failed = false
+
+func check(name string, ok bool, detail string) {
+	if !ok {
+		fmt.Printf("FAIL %s: %s\n", name, detail)
+		failed = true
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func sameInts(a, c []int) bool {
+	if len(a) != len(c) {
+		return false
+	}
+	for i := range a {
+		if a[i] != c[i] {
+			return false
+		}
+	}
+	return true
+}
+
+type rV struct {
+	n int
+}
+
+type rShower interface {
+	rShow()
+}
+
+var rSeen []int
+
+func (v rV) rShow() {
+	rSeen = append(rSeen, v.n)
+}
+
+func (v *rV) rBump() {
+	rSeen = append(rSeen, v.n+100)
+}
+
+func (v rV) rShowAfter(start chan struct{}, out chan int) {
+	//logos:allow(correctness::unbounded_channel_op)
+	<-start
+	//logos:allow(correctness::unbounded_channel_op)
+	out <- v.n
+}
+
+func ptrValueLogos() []int {
+	rSeen = nil
+	func() {
+		var p *rV? = &rV{n: 1}
+		defer p?.rShow()
+		if p != nil {
+			p.n = 5
+		}
+	}()
+	return append([]int(nil), rSeen...)
+}
+
+func ptrValueHand() []int {
+	rSeen = nil
+	func() {
+		var p *rV? = &rV{n: 1}
+		if p != nil {
+			defer p.rShow()
+		}
+		if p != nil {
+			p.n = 5
+		}
+	}()
+	return append([]int(nil), rSeen...)
+}
+
+func ptrBumpLogos() []int {
+	rSeen = nil
+	func() {
+		var p *rV? = &rV{n: 1}
+		defer p?.rBump()
+		if p != nil {
+			p.n = 5
+		}
+	}()
+	return append([]int(nil), rSeen...)
+}
+
+func ptrBumpHand() []int {
+	rSeen = nil
+	func() {
+		var p *rV? = &rV{n: 1}
+		if p != nil {
+			defer p.rBump()
+		}
+		if p != nil {
+			p.n = 5
+		}
+	}()
+	return append([]int(nil), rSeen...)
+}
+
+func optValueLogos() []int {
+	rSeen = nil
+	func() {
+		var q rV? = rV{n: 1}
+		defer q?.rShow()
+		q = rV{n: 5}
+	}()
+	return append([]int(nil), rSeen...)
+}
+
+func optValueHand() []int {
+	rSeen = nil
+	func() {
+		var q rV? = rV{n: 1}
+		c := q
+		if c != nil {
+			defer c.rShow()
+		}
+		q = rV{n: 5}
+	}()
+	return append([]int(nil), rSeen...)
+}
+
+func ifaceLogos() []int {
+	rSeen = nil
+	func() {
+		var s rShower? = rShower(&rV{n: 1})
+		defer s?.rShow()
+		s = rShower(&rV{n: 5})
+	}()
+	return append([]int(nil), rSeen...)
+}
+
+func ifaceHand() []int {
+	rSeen = nil
+	func() {
+		var s rShower? = rShower(&rV{n: 1})
+		c := s
+		if c != nil {
+			defer c.rShow()
+		}
+		s = rShower(&rV{n: 5})
+	}()
+	return append([]int(nil), rSeen...)
+}
+
+func goValueLogos(ctx context.Context) (int, error) {
+	start := make(chan struct{})
+	out := make(chan int, 1)
+	var p *rV? = &rV{n: 1}
+	go group (ctx) {
+		go p?.rShowAfter(start, out)
+		if p != nil {
+			p.n = 5
+		}
+		close(start)
+	}
+	return <-out, nil
+}
+
+func goValueHand(ctx context.Context) (int, error) {
+	start := make(chan struct{})
+	out := make(chan int, 1)
+	var p *rV? = &rV{n: 1}
+	go group (ctx) {
+		if p != nil {
+			go p.rShowAfter(start, out)
+		}
+		if p != nil {
+			p.n = 5
+		}
+		close(start)
+	}
+	return <-out, nil
+}
+
+func main() {
+	check("ptr-value-recv", sameInts(ptrValueLogos(), ptrValueHand()) && sameInts(ptrValueHand(), []int{1}), fmt.Sprint("got ", ptrValueLogos(), " want ", ptrValueHand()))
+	check("ptr-bump-recv", sameInts(ptrBumpLogos(), ptrBumpHand()) && sameInts(ptrBumpHand(), []int{105}), fmt.Sprint("got ", ptrBumpLogos(), " want ", ptrBumpHand()))
+	check("opt-value-recv", sameInts(optValueLogos(), optValueHand()) && sameInts(optValueHand(), []int{1}), fmt.Sprint("got ", optValueLogos(), " want ", optValueHand()))
+	check("iface-recv", sameInts(ifaceLogos(), ifaceHand()) && sameInts(ifaceHand(), []int{1}), fmt.Sprint("got ", ifaceLogos(), " want ", ifaceHand()))
+	gl, _ := goValueLogos(context.Background())
+	gh, _ := goValueHand(context.Background())
+	check("go-value-recv", gl == gh && gh == 1, fmt.Sprint("got ", gl, " want ", gh))
+	if failed {
+		os.Exit(1)
+	}
+}

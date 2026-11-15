@@ -1,0 +1,2 @@
+ok concurrent-add-spawns-group
+ok eight-goroutines-each-add-a-thousand

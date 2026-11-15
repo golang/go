@@ -6,7 +6,7 @@
 
 package archsimd
 
-// Logos fault-suppressing slice loads (SPEC Sec 15.2, T-303; #22).
+// Logos fault-suppressing slice loads (SPEC Sec 13.2, T-303; #22).
 //
 // The Load<T>Part loaders of slice_gen_amd64.go load a full vector from
 // the address of the first element and then clear the lanes beyond

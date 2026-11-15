@@ -1,0 +1,40 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+[!symlink] skip 'symlink unavailable'
+symlink m/link.go -> ../outside/real.go
+cd m
+
+logos build ./...
+logos run .
+cp stdout $WORK/run-before.txt
+cp ../outside/real.go $WORK/outside-real.orig
+logos next --fix
+stdout 'tasks in next_tasks.json'
+exists main.lgo
+exists link.go
+! exists link.lgo
+cmp ../outside/real.go $WORK/outside-real.orig
+
+-- m/go.mod --
+module example.com/nextsymlink
+
+go 1.27
+
+-- m/main.go --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("hi")
+}
+
+-- outside/real.go --
+package main
+
+import "fmt"
+
+func Real(name string) string {
+	return fmt.Sprintf("hello %s", name)
+}

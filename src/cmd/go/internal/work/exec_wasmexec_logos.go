@@ -11,8 +11,6 @@ import (
 	"cmd/internal/pathcache"
 )
 
-// findWasmExecCmd uses the bundled wasm runner when none was found on PATH.
-// Explicit -exec commands and PATH-provided runners retain precedence.
 func findWasmExecCmd(execCmd []string) []string {
 	if len(execCmd) != 0 || cfg.GOROOT == "" || cfg.Goarch != "wasm" || (cfg.Goos != "js" && cfg.Goos != "wasip1") {
 		return execCmd

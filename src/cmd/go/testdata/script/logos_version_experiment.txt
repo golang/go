@@ -1,0 +1,31 @@
+env GOTOOLCHAIN=local
+
+go env GOEXPERIMENT
+! stdout logosarena
+
+logos env GOEXPERIMENT
+stdout '^logosarena$'
+
+logos run .
+stdout '-X:logosarena$'
+
+go run .
+stdout '^go1\.27\.[0-9]+$'
+! stdout '-X:'
+
+-- go.mod --
+module example.com/vexp
+
+go 1.27
+
+-- main.go --
+package main
+
+import (
+	"fmt"
+	"runtime"
+)
+
+func main() {
+	fmt.Println(runtime.Version())
+}

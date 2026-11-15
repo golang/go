@@ -1,0 +1,16 @@
+ok immediate
+ok deferred
+ok nested
+ok loop
+ok method-value
+ok goroutine
+ok method-in-closure
+ok inner-guard
+ok redecl-guarded
+ok shadow-siblings
+ok shadow-header
+ok child-read
+ok stage-read
+ok operands
+ok and-literal
+ok and-literal-nil

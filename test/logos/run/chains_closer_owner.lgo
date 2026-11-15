@@ -1,0 +1,1202 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+	"slices"
+)
+
+type conn struct {
+	id     int
+	closes int
+}
+
+func (c *conn) Close() error {
+	c.closes++
+	closeLog = append(closeLog, fmt.Sprint("c", c.id))
+	return errClose
+}
+
+type observed[T any] struct {
+	v   T
+	err error
+}
+
+func observe[T any](v T, err error) observed[T] {
+	return observed[T]{v, err}
+}
+
+var (
+	errClose = errors.New("close failed")
+	errBoom  = errors.New("boom")
+	reg      []*conn
+	wreg     []*wrap
+	closeLog []string
+	shared   = &conn{}
+	failed   bool
+)
+
+func mk(id int) *conn {
+	c := &conn{id: id}
+	reg = append(reg, c)
+	return c
+}
+
+func identity(c *conn) *conn { return c }
+
+type user struct{ c *conn }
+
+func users3() []user { return []user{{mk(1)}, {mk(2)}, {mk(3)}} }
+
+func conns3() []*conn { return []*conn{mk(1), mk(2), mk(3)} }
+
+func ids3() []int { return []int{1, 2, 3} }
+
+func idOf(c *conn?) int { return c?.id ?? -1 }
+
+func idsOf(cs []*conn) []int {
+	out := []int{}
+	for _, c := range cs {
+		out = append(out, c.id)
+	}
+	return out
+}
+
+func closes() string {
+	out := make([]int, len(reg))
+	for i, c := range reg {
+		out[i] = c.closes
+	}
+	return fmt.Sprint(out)
+}
+
+type wrap struct {
+	c      *conn
+	closes int
+}
+
+func (w *wrap) Close() error {
+	w.closes++
+	closeLog = append(closeLog, fmt.Sprint("w", w.c.id))
+	return errClose
+}
+
+func mkWrap(c *conn) *wrap {
+	w := &wrap{c: c}
+	wreg = append(wreg, w)
+	return w
+}
+
+func wrapCloses() string {
+	out := make([]int, len(wreg))
+	for i, w := range wreg {
+		out[i] = w.closes
+	}
+	return fmt.Sprint(out)
+}
+
+type vconn struct {
+	id   int
+	name string
+}
+
+var vtally = make([]int, 4)
+
+func (v vconn) Close() error {
+	vtally[v.id]++
+	closeLog = append(closeLog, fmt.Sprint("v", v.id))
+	return errClose
+}
+
+func mkv(id int) vconn { return vconn{id: id, name: "v"} }
+
+func pass(c *conn) (bool, error) {
+	if c.id == 2 {
+		return false, errBoom
+	}
+	return true, nil
+}
+
+func tryMk(i int) (*conn, error) {
+	c := mk(i)
+	if i == 3 {
+		return c, errBoom
+	}
+	return c, nil
+}
+
+func mkPair(i int) (*conn, int) {
+	return mk(i), i
+}
+
+func bCount() string { return fmt.Sprint(users3().map(u => u.c).count()) }
+
+func bCountPred() string { return fmt.Sprint(users3().map(u => u.c).count(c => c.id > 1)) }
+
+func bFind() string { return fmt.Sprint(idOf(users3().map(u => u.c).find(c => c.id == 2))) }
+
+func bFindMiss() string { return fmt.Sprint(idOf(users3().map(u => u.c).find(c => c.id == 99))) }
+
+func bFirst() string { return fmt.Sprint(idOf(users3().map(u => u.c).first())) }
+
+func bLast() string { return fmt.Sprint(idOf(users3().map(u => u.c).last())) }
+
+func bGet() string { return fmt.Sprint(idOf(users3().map(u => u.c).get(1))) }
+
+func bAny() string { return fmt.Sprint(users3().map(u => u.c).any(c => c.id == 2)) }
+
+func bAnyMiss() string { return fmt.Sprint(users3().map(u => u.c).any(c => c.id == 99)) }
+
+func bAll() string { return fmt.Sprint(users3().map(u => u.c).all(c => c.id > 0)) }
+
+func bAllEarly() string { return fmt.Sprint(users3().map(u => u.c).all(c => c.id != 2)) }
+
+func bTake() string { return fmt.Sprint(idsOf(users3().map(u => u.c).take(2))) }
+
+func bCollect() string { return fmt.Sprint(idsOf(users3().map(u => u.c))) }
+
+func bSort() string { return fmt.Sprint(idsOf(users3().map(u => u.c).sortBy(c => -c.id))) }
+
+func tryBorrowFilter() (int, error) {
+	n := users3().map(u => u.c).filter(c => pass(c)?).count()
+	return n, nil
+}
+
+func bTryFilterFail() string {
+	res := observe(tryBorrowFilter())
+	n, err := res.v, res.err
+	if err != nil {
+		return fmt.Sprint(n, err == errBoom)
+	}
+	return fmt.Sprint(n, false)
+}
+
+func sCount() string {
+	shared = mk(9)
+	return fmt.Sprint(ids3().map(i => shared).count())
+}
+
+func sAny() string {
+	shared = mk(9)
+	return fmt.Sprint(ids3().map(i => shared).any(c => c.id == 7))
+}
+
+func sAll() string {
+	shared = mk(9)
+	return fmt.Sprint(ids3().map(i => shared).all(c => c.id == 9))
+}
+
+func sFind() string {
+	shared = mk(9)
+	return fmt.Sprint(idOf(ids3().map(i => shared).find(c => c.id == 9)))
+}
+
+func sFirst() string {
+	shared = mk(9)
+	return fmt.Sprint(idOf(ids3().map(i => shared).first()))
+}
+
+func sLast() string {
+	shared = mk(9)
+	return fmt.Sprint(idOf(ids3().map(i => shared).last()))
+}
+
+func sGet() string {
+	shared = mk(9)
+	return fmt.Sprint(idOf(ids3().map(i => shared).get(1)))
+}
+
+func sTake() string {
+	shared = mk(9)
+	return fmt.Sprint(idsOf(ids3().map(i => shared).take(2)))
+}
+
+func sCollect() string {
+	shared = mk(9)
+	return fmt.Sprint(idsOf(ids3().map(i => shared)))
+}
+
+func sSort() string {
+	shared = mk(9)
+	return fmt.Sprint(idsOf(ids3().map(i => shared).sortBy(c => c.id)))
+}
+
+func iLambdaCount() string { return fmt.Sprint(conns3().map(c => c).count()) }
+
+func iLambdaCollect() string { return fmt.Sprint(idsOf(conns3().map(c => c))) }
+
+func iFuncCount() string { return fmt.Sprint(conns3().map(identity).count()) }
+
+func iFuncFind() string { return fmt.Sprint(idOf(conns3().map(identity).find(c => c.id == 2))) }
+
+func iCallCount() string { return fmt.Sprint(conns3().map(c => identity(c)).count()) }
+
+func srcFilterCount() string { return fmt.Sprint(conns3().filter(c => c.id > 1).count()) }
+
+func iMadeFuncCount() string { return fmt.Sprint(ids3().map(mk).map(identity).count()) }
+
+func iMadeFuncCollect() string { return fmt.Sprint(idsOf(ids3().map(mk).map(identity))) }
+
+func iMadeLambdaCount() string { return fmt.Sprint(ids3().map(mk).map(c => c).count()) }
+
+func pCount() string { return fmt.Sprint(ids3().map(mk).count()) }
+
+func pCountPred() string { return fmt.Sprint(ids3().map(mk).count(c => c.id == 2)) }
+
+func pAnyHit() string { return fmt.Sprint(ids3().map(mk).any(c => c.id == 2)) }
+
+func pAnyMiss() string { return fmt.Sprint(ids3().map(mk).any(c => c.id == 99)) }
+
+func pAllEarly() string { return fmt.Sprint(ids3().map(mk).all(c => c.id != 2)) }
+
+func pAllFull() string { return fmt.Sprint(ids3().map(mk).all(c => c.id != 99)) }
+
+func pFindHit() string { return fmt.Sprint(idOf(ids3().map(mk).find(c => c.id == 2))) }
+
+func pFindMiss() string { return fmt.Sprint(idOf(ids3().map(mk).find(c => c.id == 99))) }
+
+func pFirst() string { return fmt.Sprint(idOf(ids3().map(mk).first())) }
+
+func pLast() string { return fmt.Sprint(idOf(ids3().map(mk).last())) }
+
+func pGet() string { return fmt.Sprint(idOf(ids3().map(mk).get(1))) }
+
+func pGetOob() string { return fmt.Sprint(idOf(ids3().map(mk).get(9))) }
+
+func pCollect() string { return fmt.Sprint(idsOf(ids3().map(mk))) }
+
+func pTake() string { return fmt.Sprint(idsOf(ids3().map(mk).take(2))) }
+
+//logos:allow(suspicious::side_effect_before_sort)
+func pSort() string { return fmt.Sprint(idsOf(ids3().map(mk).sortBy(c => -c.id))) }
+
+func sortedCloseLog() []string {
+	slices.Sort(closeLog)
+	return closeLog
+}
+
+func pNewCount() string {
+	n := ids3().map(i => new(conn)).count()
+	return fmt.Sprint(n, sortedCloseLog())
+}
+
+func pAddrLitCount() string {
+	n := ids3().map(i => &conn{id: i}).count()
+	return fmt.Sprint(n, sortedCloseLog())
+}
+
+func bIndexCount() string {
+	cs := conns3()
+	n := cs.map(c => cs[0]).count()
+	return fmt.Sprint(n, closeLog)
+}
+
+func tryCollect() ([]*conn, error) {
+	got := ids3().map(i => tryMk(i)?)
+	return got, nil
+}
+
+func tryCount() (int, error) {
+	n := ids3().map(i => tryMk(i)?).count()
+	return n, nil
+}
+
+func tryCountPred() (int, error) {
+	n := ids3().map(i => tryMk(i)?).count(c => c.id > 0)
+	return n, nil
+}
+
+func tryFindMiss() (int, error) {
+	v := ids3().map(i => tryMk(i)?).find(c => c.id == 99)
+	return idOf(v), nil
+}
+
+func tryAnyMiss() (bool, error) {
+	b := ids3().map(i => tryMk(i)?).any(c => c.id == 99)
+	return b, nil
+}
+
+func tryAllFull() (bool, error) {
+	b := ids3().map(i => tryMk(i)?).all(c => c.id != 99)
+	return b, nil
+}
+
+func tryFirst() (int, error) {
+	v := ids3().map(i => tryMk(i)?).first()
+	return idOf(v), nil
+}
+
+func tryLast() (int, error) {
+	v := ids3().map(i => tryMk(i)?).last()
+	return idOf(v), nil
+}
+
+func tryGet() (int, error) {
+	v := ids3().map(i => tryMk(i)?).get(2)
+	return idOf(v), nil
+}
+
+func tryTake() ([]*conn, error) {
+	got := ids3().map(i => tryMk(i)?).take(5)
+	return got, nil
+}
+
+//logos:allow(suspicious::side_effect_before_sort)
+func tryProducedSort() ([]*conn, error) {
+	got := ids3().map(i => tryMk(i)?).sortBy(c => c.id)
+	return got, nil
+}
+
+func tCollect() string {
+	res := observe(tryCollect())
+	got, err := res.v, res.err
+	if err != nil {
+		return fmt.Sprint(idsOf(got), err == errBoom)
+	}
+	return fmt.Sprint(idsOf(got), false)
+}
+
+func tCount() string {
+	res := observe(tryCount())
+	n, err := res.v, res.err
+	if err != nil {
+		return fmt.Sprint(n, err == errBoom)
+	}
+	return fmt.Sprint(n, false)
+}
+
+func tCountPred() string {
+	res := observe(tryCountPred())
+	n, err := res.v, res.err
+	if err != nil {
+		return fmt.Sprint(n, err == errBoom)
+	}
+	return fmt.Sprint(n, false)
+}
+
+func tFindMiss() string {
+	res := observe(tryFindMiss())
+	n, err := res.v, res.err
+	if err != nil {
+		return fmt.Sprint(n, err == errBoom)
+	}
+	return fmt.Sprint(n, false)
+}
+
+func tAnyMiss() string {
+	res := observe(tryAnyMiss())
+	b, err := res.v, res.err
+	if err != nil {
+		return fmt.Sprint(b, err == errBoom)
+	}
+	return fmt.Sprint(b, false)
+}
+
+func tAllFull() string {
+	res := observe(tryAllFull())
+	b, err := res.v, res.err
+	if err != nil {
+		return fmt.Sprint(b, err == errBoom)
+	}
+	return fmt.Sprint(b, false)
+}
+
+func tFirst() string {
+	res := observe(tryFirst())
+	n, err := res.v, res.err
+	if err != nil {
+		return fmt.Sprint(n, err == errBoom)
+	}
+	return fmt.Sprint(n, false)
+}
+
+func tLast() string {
+	res := observe(tryLast())
+	n, err := res.v, res.err
+	if err != nil {
+		return fmt.Sprint(n, err == errBoom)
+	}
+	return fmt.Sprint(n, false)
+}
+
+func tGet() string {
+	res := observe(tryGet())
+	n, err := res.v, res.err
+	if err != nil {
+		return fmt.Sprint(n, err == errBoom)
+	}
+	return fmt.Sprint(n, false)
+}
+
+func tTake() string {
+	res := observe(tryTake())
+	got, err := res.v, res.err
+	if err != nil {
+		return fmt.Sprint(idsOf(got), err == errBoom)
+	}
+	return fmt.Sprint(idsOf(got), false)
+}
+
+func tSort() string {
+	res := observe(tryProducedSort())
+	got, err := res.v, res.err
+	if err != nil {
+		return fmt.Sprint(idsOf(got), err == errBoom)
+	}
+	return fmt.Sprint(idsOf(got), false)
+}
+
+func fCount() string { return fmt.Sprint(ids3().map(mk).filter(c => c.id != 2).count()) }
+
+func fCollect() string { return fmt.Sprint(idsOf(ids3().map(mk).filter(c => c.id != 2))) }
+
+func dCount() string { return fmt.Sprint(ids3().map(mk).drop(1).count()) }
+
+func dCollect() string { return fmt.Sprint(idsOf(ids3().map(mk).drop(1))) }
+
+func fFirst() string { return fmt.Sprint(idOf(ids3().map(mk).filter(c => c.id != 1).first())) }
+
+func fLast() string { return fmt.Sprint(idOf(ids3().map(mk).filter(c => c.id != 2).last())) }
+
+func fFind() string {
+	return fmt.Sprint(idOf(ids3().map(mk).filter(c => c.id != 1).find(c => c.id == 3)))
+}
+
+func fAny() string { return fmt.Sprint(ids3().map(mk).filter(c => c.id != 2).any(c => c.id == 3)) }
+
+func fGet() string { return fmt.Sprint(idOf(ids3().map(mk).filter(c => c.id != 2).get(1))) }
+
+func fTake() string { return fmt.Sprint(idsOf(ids3().map(mk).filter(c => c.id != 1).take(1))) }
+
+//logos:allow(suspicious::side_effect_before_sort)
+func fSort() string {
+	return fmt.Sprint(idsOf(ids3().map(mk).filter(c => c.id != 2).sortBy(c => c.id)))
+}
+
+func fBetween() string { return fmt.Sprint(ids3().map(mk).filter(c => c.id != 2).map(c => c.id).count()) }
+
+func pass2(c *conn) (bool, error) {
+	switch c.id {
+	case 1:
+		return false, nil
+	case 3:
+		return false, errBoom
+	}
+	return true, nil
+}
+
+func tryFilter() (int, error) {
+	n := ids3().map(mk).filter(c => pass(c)?).count()
+	return n, nil
+}
+
+func tryFilterDrop() (int, error) {
+	n := ids3().map(mk).filter(c => pass2(c)?).count()
+	return n, nil
+}
+
+func tFilterFail() string {
+	res := observe(tryFilter())
+	n, err := res.v, res.err
+	if err != nil {
+		return fmt.Sprint(n, err == errBoom)
+	}
+	return fmt.Sprint(n, false)
+}
+
+func tFilterDropFail() string {
+	res := observe(tryFilterDrop())
+	n, err := res.v, res.err
+	if err != nil {
+		return fmt.Sprint(n, err == errBoom)
+	}
+	return fmt.Sprint(n, false)
+}
+
+func boomAt(c *conn, id int) bool {
+	if c.id == id {
+		panic("boom")
+	}
+	return true
+}
+
+func fPanic() (hit string) {
+	defer func() { hit = fmt.Sprint(recover() != nil) }()
+	_ = ids3().map(mk).filter(c => boomAt(c, 3))
+	return "false"
+}
+
+func pick() *conn { return shared }
+
+func cCount() string {
+	shared = mk(9)
+	return fmt.Sprint(ids3().map(i => pick()).count())
+}
+
+func cAny() string {
+	shared = mk(9)
+	return fmt.Sprint(ids3().map(i => pick()).any(c => c.id == 7))
+}
+
+func cCollect() string {
+	shared = mk(9)
+	return fmt.Sprint(idsOf(ids3().map(i => pick())))
+}
+
+func tune(c *conn) {}
+
+func lCount() string {
+	return fmt.Sprint(ids3().map(x => {
+		f := mk(x)
+		tune(f)
+		return f
+	}).count())
+}
+
+func lCollect() string {
+	return fmt.Sprint(idsOf(ids3().map(x => {
+		f := mk(x)
+		tune(f)
+		return f
+	})))
+}
+
+func lFind() string {
+	return fmt.Sprint(idOf(ids3().map(x => {
+		f := mk(x)
+		tune(f)
+		return f
+	}).find(c => c.id == 2)))
+}
+
+func lLast() string {
+	return fmt.Sprint(idOf(ids3().map(x => {
+		f := mk(x)
+		tune(f)
+		return f
+	}).last()))
+}
+
+func lFilter() string {
+	return fmt.Sprint(ids3().map(x => {
+		f := mk(x)
+		tune(f)
+		return f
+	}).filter(c => c.id != 2).count())
+}
+
+//logos:allow(suspicious::side_effect_before_sort)
+func lSort() string {
+	return fmt.Sprint(idsOf(ids3().map(x => {
+		f := mk(x)
+		tune(f)
+		return f
+	}).sortBy(c => -c.id)))
+}
+
+func lVarDecl() string {
+	return fmt.Sprint(ids3().map(x => {
+		var f = mk(x)
+		tune(f)
+		return f
+	}).count())
+}
+
+func lTuple() string {
+	return fmt.Sprint(ids3().map(x => {
+		f, _ := mkPair(x)
+		tune(f)
+		return f
+	}).count())
+}
+
+func lReassignOwned() string {
+	return fmt.Sprint(ids3().map(x => {
+		f := mk(x)
+		tune(f)
+		f = mk(x + 10)
+		return f
+	}).count())
+}
+
+func lReassignBorrowed() string {
+	shared = mk(9)
+	return fmt.Sprint(ids3().map(x => {
+		f := mk(x)
+		tune(f)
+		f = shared
+		return f
+	}).count())
+}
+
+func lCaptured() string {
+	shared = mk(9)
+	return fmt.Sprint(ids3().map(x => {
+		f := shared
+		return f
+	}).count())
+}
+
+func lParam() string {
+	return fmt.Sprint(conns3().map(c => {
+		f := c
+		return f
+	}).count())
+}
+
+func lCopy() string {
+	return fmt.Sprint(ids3().map(x => {
+		f := mk(x)
+		g := f
+		return g
+	}).count())
+}
+
+func mixedChain() *conn {
+	shared = mk(9)
+	ids3().map(x => {
+		if x == 2 {
+			return shared
+		}
+		return mk(x)
+	}).count()
+	return shared
+}
+
+func lMixed() string { return fmt.Sprint(mixedChain().id) }
+
+func madeChain() *conn {
+	ids3().map(x => {
+		if x == 2 {
+			return mk(20)
+		}
+		return mk(x)
+	}).count()
+	return &conn{id: 7}
+}
+
+func lTwoMade() string { return fmt.Sprint(madeChain().id) }
+
+func tryLocalFilter() (int, error) {
+	n := ids3().map(x => {
+		f := mk(x)
+		tune(f)
+		return f
+	}).filter(c => pass(c)?).count()
+	return n, nil
+}
+
+func lTryFail() string {
+	res := observe(tryLocalFilter())
+	n, err := res.v, res.err
+	if err != nil {
+		return fmt.Sprint(n, err == errBoom)
+	}
+	return fmt.Sprint(n, false)
+}
+
+func lPanic() (hit string) {
+	defer func() { hit = fmt.Sprint(recover() != nil) }()
+	_ = ids3().map(x => {
+		f := mk(x)
+		tune(f)
+		return f
+	}).filter(c => boomAt(c, 3))
+	return "false"
+}
+
+func tryFlight() (int, error) {
+	n := ids3().map(mk).filter(c => pass(c)?).map(c => c.id).count()
+	return n, nil
+}
+
+func fliTryFail() string {
+	res := observe(tryFlight())
+	n, err := res.v, res.err
+	if err != nil {
+		return fmt.Sprint(n, err == errBoom)
+	}
+	return fmt.Sprint(n, false)
+}
+
+func fliPanic() (hit string) {
+	defer func() { hit = fmt.Sprint(recover() != nil) }()
+	_ = ids3().map(mk).filter(c => boomAt(c, 2)).map(c => c.id).count()
+	return "false"
+}
+
+func tryFlightWrap() (int, error) {
+	n := ids3().map(mk).filter(c => pass(c)?).map(c => mkWrap(c)).count()
+	return n, nil
+}
+
+func fliTryFailWrap() string {
+	res := observe(tryFlightWrap())
+	n, err := res.v, res.err
+	if err != nil {
+		return fmt.Sprintf("%d %v %s %v", n, err == errBoom, wrapCloses(), closeLog)
+	}
+	return fmt.Sprintf("%d %v %s %v", n, false, wrapCloses(), closeLog)
+}
+
+func fliPanicWrap() (got string) {
+	defer func() { got = fmt.Sprintf("%v %s %v", recover() != nil, wrapCloses(), closeLog) }()
+	_ = ids3().map(mk).filter(c => boomAt(c, 2)).map(c => mkWrap(c)).count()
+	return "false"
+}
+
+func tryFlightDrop() (int, error) {
+	n := ids3().map(mk).filter(c => pass2(c)?).map(c => mkWrap(c)).count()
+	return n, nil
+}
+
+func fliDropFail() string {
+	res := observe(tryFlightDrop())
+	n, err := res.v, res.err
+	if err != nil {
+		return fmt.Sprintf("%d %v %s %v", n, err == errBoom, wrapCloses(), closeLog)
+	}
+	return fmt.Sprintf("%d %v %s %v", n, false, wrapCloses(), closeLog)
+}
+
+func fliCalm() string {
+	n := ids3().map(mk).filter(c => c.id != 99).map(c => mkWrap(c)).count()
+	return fmt.Sprintf("%d %s %v", n, wrapCloses(), closeLog)
+}
+
+func vIDs(vs []vconn) []int {
+	out := []int{}
+	for _, v := range vs {
+		out = append(out, v.id)
+	}
+	return out
+}
+
+func vState() string { return fmt.Sprintf("%v %v", vtally[1:], closeLog) }
+
+func vpass(c vconn) (bool, error) {
+	if c.id == 2 {
+		return false, errBoom
+	}
+	return true, nil
+}
+
+func vpass2(c vconn) (bool, error) {
+	switch c.id {
+	case 1:
+		return false, nil
+	case 3:
+		return false, errBoom
+	}
+	return true, nil
+}
+
+func vboomAt(c vconn, id int) bool {
+	if c.id == id {
+		panic("boom")
+	}
+	return true
+}
+
+func valDrop() string {
+	n := ids3().map(mkv).filter(c => c.id != 2).map(c => c.id).count()
+	return fmt.Sprintf("%d %s", n, vState())
+}
+
+func valDropCollect() string {
+	got := ids3().map(mkv).filter(c => c.id != 2)
+	return fmt.Sprintf("%v %s", vIDs(got), vState())
+}
+
+func tryValFilter() (int, error) {
+	n := ids3().map(mkv).filter(c => vpass(c)?).map(c => c.id).count()
+	return n, nil
+}
+
+func valTryFail() string {
+	res := observe(tryValFilter())
+	n, err := res.v, res.err
+	if err != nil {
+		return fmt.Sprintf("%d %v %s", n, err == errBoom, vState())
+	}
+	return fmt.Sprintf("%d %v %s", n, false, vState())
+}
+
+func valPanic() (got string) {
+	defer func() { got = fmt.Sprintf("%v %s", recover() != nil, vState()) }()
+	_ = ids3().map(mkv).filter(c => vboomAt(c, 2)).map(c => c.id).count()
+	return "false"
+}
+
+func tryValTail() (int, error) {
+	n := ids3().map(mkv).filter(c => vpass2(c)?).map(c => c).count()
+	return n, nil
+}
+
+func valDropFailTail() string {
+	res := observe(tryValTail())
+	n, err := res.v, res.err
+	if err != nil {
+		return fmt.Sprintf("%d %v %s", n, err == errBoom, vState())
+	}
+	return fmt.Sprintf("%d %v %s", n, false, vState())
+}
+
+func valPanicTail() (got string) {
+	defer func() { got = fmt.Sprintf("%v %s", recover() != nil, vState()) }()
+	_ = ids3().map(mkv).filter(c => vboomAt(c, 3)).map(c => c).count()
+	return "false"
+}
+
+func valCalm() string {
+	n := ids3().map(mkv).filter(c => c.id != 99).map(c => c).count()
+	return fmt.Sprintf("%d %s", n, vState())
+}
+
+func didPanic(f func()) (hit string) {
+	defer func() { hit = fmt.Sprint(recover() != nil) }()
+	f()
+	return "false"
+}
+
+func nChainCount() string {
+	return fmt.Sprint(ids3().map(x => {
+		k := []int{x}.map(v => {
+			return v + x
+		}).count()
+		_ = k
+		return mk(x)
+	}).count())
+}
+
+func nChainTry() error {
+	n := ids3().map(x => {
+		k := []int{x}.map(v => {
+			return v + x
+		}).count()
+		_ = k
+		return mk(x)
+	}).filter(c => pass(c)?).count()
+	_ = n
+	return nil
+}
+
+func nChainTryFail() string { return fmt.Sprint(nChainTry() == errBoom) }
+
+func nChainPanic() string {
+	return didPanic(func() {
+		_ = ids3().map(x => {
+			k := []int{x}.map(v => {
+				return v + x
+			}).count()
+			_ = k
+			return mk(x)
+		}).filter(c => boomAt(c, 3)).count()
+	})
+}
+
+func nFuncCount() string {
+	return fmt.Sprint(ids3().map(x => {
+		h := func(v int) int {
+			return v + x
+		}
+		k := h(x)
+		_ = k
+		return mk(x)
+	}).count())
+}
+
+func nExprCount() string {
+	return fmt.Sprint(ids3().map(x => {
+		k := []int{x}.map(v => v + x).count()
+		_ = k
+		return mk(x)
+	}).count())
+}
+
+func nMirrorChainCount() string {
+	pool := conns3()
+	return fmt.Sprint(ids3().map(x => {
+		made := []int{x}.map(v => {
+			return mk(v)
+		}).count()
+		_ = made
+		return pool[x-1]
+	}).count())
+}
+
+func nMirrorFuncCount() string {
+	pool := conns3()
+	return fmt.Sprint(ids3().map(x => {
+		h := func(v int) *conn {
+			return mk(v)
+		}
+		tune(h(x))
+		return pool[x-1]
+	}).count())
+}
+
+func nMirrorChainTry() error {
+	pool := conns3()
+	n := ids3().map(x => {
+		made := []int{x}.map(v => {
+			return mk(v)
+		}).count()
+		_ = made
+		return pool[x-1]
+	}).filter(c => pass(c)?).count()
+	_ = n
+	return nil
+}
+
+func nMirrorChainTryFail() string { return fmt.Sprint(nMirrorChainTry() == errBoom) }
+
+func nMirrorChainPanic() string {
+	pool := conns3()
+	return didPanic(func() {
+		_ = ids3().map(x => {
+			made := []int{x}.map(v => {
+				return mk(v)
+			}).count()
+			_ = made
+			return pool[x-1]
+		}).filter(c => boomAt(c, 3)).count()
+	})
+}
+
+func nMirrorFuncTry() error {
+	pool := conns3()
+	n := ids3().map(x => {
+		h := func(v int) *conn {
+			return mk(v)
+		}
+		tune(h(x))
+		return pool[x-1]
+	}).filter(c => pass(c)?).count()
+	_ = n
+	return nil
+}
+
+func nMirrorFuncTryFail() string { return fmt.Sprint(nMirrorFuncTry() == errBoom) }
+
+func nMirrorFuncPanic() string {
+	pool := conns3()
+	return didPanic(func() {
+		_ = ids3().map(x => {
+			h := func(v int) *conn {
+				return mk(v)
+			}
+			tune(h(x))
+			return pool[x-1]
+		}).filter(c => boomAt(c, 3)).count()
+	})
+}
+
+func nestedLegs() []leg {
+	return []leg{
+		{"nested-chain-count", "3 [1 1 1]", nChainCount},
+		{"nested-chain-try-fail", "true [1 1]", nChainTryFail},
+		{"nested-chain-panic", "true [1 1 1]", nChainPanic},
+		{"nested-func-count", "3 [1 1 1]", nFuncCount},
+		{"nested-expr-lambda-count", "3 [1 1 1]", nExprCount},
+		{"nested-mirror-chain-count", "3 [0 0 0 1 1 1]", nMirrorChainCount},
+		{"nested-mirror-chain-try-fail", "true [0 0 0 1 1]", nMirrorChainTryFail},
+		{"nested-mirror-chain-panic", "true [0 0 0 1 1 1]", nMirrorChainPanic},
+		{"nested-mirror-func-count", "3 [0 0 0 0 0 0]", nMirrorFuncCount},
+		{"nested-mirror-func-try-fail", "true [0 0 0 0 0]", nMirrorFuncTryFail},
+		{"nested-mirror-func-panic", "true [0 0 0 0 0 0]", nMirrorFuncPanic},
+	}
+}
+
+type leg struct {
+	name string
+	want string
+	run  func() string
+}
+
+func legs() []leg {
+	return slices.Concat(borrowLegs(), sharedLegs(), callLegs(), identityLegs(), madeLegs(), tryLegs(), dropLegs(), localLegs(), flightLegs(), valueLegs(), nestedLegs())
+}
+
+func borrowLegs() []leg {
+	return []leg{
+		{"borrow-count", "3 [0 0 0]", bCount},
+		{"borrow-count-pred", "2 [0 0 0]", bCountPred},
+		{"borrow-find", "2 [0 0 0]", bFind},
+		{"borrow-find-miss", "-1 [0 0 0]", bFindMiss},
+		{"borrow-first", "1 [0 0 0]", bFirst},
+		{"borrow-last", "3 [0 0 0]", bLast},
+		{"borrow-get", "2 [0 0 0]", bGet},
+		{"borrow-any", "true [0 0 0]", bAny},
+		{"borrow-any-miss", "false [0 0 0]", bAnyMiss},
+		{"borrow-all", "true [0 0 0]", bAll},
+		{"borrow-all-early", "false [0 0 0]", bAllEarly},
+		{"borrow-take", "[1 2] [0 0 0]", bTake},
+		{"borrow-collect", "[1 2 3] [0 0 0]", bCollect},
+		{"borrow-sort", "[3 2 1] [0 0 0]", bSort},
+		{"borrow-try-filter-fail", "0 true [0 0 0]", bTryFilterFail},
+	}
+}
+
+func sharedLegs() []leg {
+	return []leg{
+		{"shared-count", "3 [0]", sCount},
+		{"shared-any", "false [0]", sAny},
+		{"shared-all", "true [0]", sAll},
+		{"shared-find", "9 [0]", sFind},
+		{"shared-first", "9 [0]", sFirst},
+		{"shared-last", "9 [0]", sLast},
+		{"shared-get", "9 [0]", sGet},
+		{"shared-take", "[9 9] [0]", sTake},
+		{"shared-collect", "[9 9 9] [0]", sCollect},
+		{"shared-sort", "[9 9 9] [0]", sSort},
+	}
+}
+
+func identityLegs() []leg {
+	return []leg{
+		{"identity-lambda-count", "3 [0 0 0]", iLambdaCount},
+		{"identity-lambda-collect", "[1 2 3] [0 0 0]", iLambdaCollect},
+		{"identity-func-count", "3 [0 0 0]", iFuncCount},
+		{"identity-func-find", "2 [0 0 0]", iFuncFind},
+		{"identity-call-count", "3 [0 0 0]", iCallCount},
+		{"source-filter-count", "2 [0 0 0]", srcFilterCount},
+		{"made-identity-func-count", "3 [1 1 1]", iMadeFuncCount},
+		{"made-identity-func-collect", "[1 2 3] [0 0 0]", iMadeFuncCollect},
+		{"made-identity-lambda-count", "3 [1 1 1]", iMadeLambdaCount},
+	}
+}
+
+func madeLegs() []leg {
+	return []leg{
+		{"made-count", "3 [1 1 1]", pCount},
+		{"made-count-pred", "1 [1 1 1]", pCountPred},
+		{"made-any-hit", "true [1 1]", pAnyHit},
+		{"made-any-miss", "false [1 1 1]", pAnyMiss},
+		{"made-all-early", "false [1 1]", pAllEarly},
+		{"made-all-full", "true [1 1 1]", pAllFull},
+		{"made-find-hit", "2 [1 0]", pFindHit},
+		{"made-find-miss", "-1 [1 1 1]", pFindMiss},
+		{"made-first", "1 [0]", pFirst},
+		{"made-last", "3 [1 1 0]", pLast},
+		{"made-get", "2 [1 0 1]", pGet},
+		{"made-get-oob", "-1 [1 1 1]", pGetOob},
+		{"made-collect", "[1 2 3] [0 0 0]", pCollect},
+		{"made-take", "[1 2] [0 0]", pTake},
+		{"made-sort", "[3 2 1] [0 0 0]", pSort},
+		{"made-new-count", "3 [c0 c0 c0] []", pNewCount},
+		{"made-addr-lit-count", "3 [c1 c2 c3] []", pAddrLitCount},
+		{"borrow-index-count", "3 [] [0 0 0]", bIndexCount},
+	}
+}
+
+func tryLegs() []leg {
+	return []leg{
+		{"try-collect-fail", "[] true [1 1 0]", tCollect},
+		{"try-count-fail", "0 true [1 1 0]", tCount},
+		{"try-count-pred-fail", "0 true [1 1 0]", tCountPred},
+		{"try-find-fail", "0 true [1 1 0]", tFindMiss},
+		{"try-any-fail", "false true [1 1 0]", tAnyMiss},
+		{"try-all-fail", "false true [1 1 0]", tAllFull},
+		{"try-first", "1 false [0]", tFirst},
+		{"try-last-fail", "0 true [1 1 0]", tLast},
+		{"try-get-fail", "0 true [1 1 0]", tGet},
+		{"try-take-fail", "[] true [1 1 0]", tTake},
+		{"try-sort-fail", "[] true [1 1 0]", tSort},
+	}
+}
+
+func dropLegs() []leg {
+	return []leg{
+		{"drop-filter-count", "2 [1 1 1]", fCount},
+		{"drop-filter-collect", "[1 3] [0 1 0]", fCollect},
+		{"drop-drop-count", "2 [1 1 1]", dCount},
+		{"drop-drop-collect", "[2 3] [1 0 0]", dCollect},
+		{"drop-filter-first", "2 [1 0]", fFirst},
+		{"drop-filter-last", "3 [1 1 0]", fLast},
+		{"drop-filter-find", "3 [1 1 0]", fFind},
+		{"drop-filter-any", "true [1 1 1]", fAny},
+		{"drop-filter-get", "3 [1 1 0]", fGet},
+		{"drop-filter-take", "[2] [1 0]", fTake},
+		{"drop-filter-sort", "[1 3] [0 1 0]", fSort},
+		{"drop-between-maps", "2 [0 1 0]", fBetween},
+		{"drop-try-filter-fail", "0 true [1 1]", tFilterFail},
+		{"drop-try-filter-drop-fail", "0 true [1 1 1]", tFilterDropFail},
+		{"drop-filter-panic", "true [1 1 1]", fPanic},
+	}
+}
+
+func callLegs() []leg {
+	return []leg{
+		{"call-shared-count", "3 [3]", cCount},
+		{"call-shared-any", "false [3]", cAny},
+		{"call-shared-collect", "[9 9 9] [0]", cCollect},
+	}
+}
+
+func localLegs() []leg {
+	return []leg{
+		{"local-count", "3 [1 1 1]", lCount},
+		{"local-collect", "[1 2 3] [0 0 0]", lCollect},
+		{"local-find", "2 [1 0]", lFind},
+		{"local-last", "3 [1 1 0]", lLast},
+		{"local-filter", "2 [1 1 1]", lFilter},
+		{"local-sort", "[3 2 1] [0 0 0]", lSort},
+		{"local-var-decl", "3 [1 1 1]", lVarDecl},
+		{"local-tuple-call", "3 [1 1 1]", lTuple},
+		{"local-reassign-owned", "3 [0 1 0 1 0 1]", lReassignOwned},
+		{"local-reassign-borrowed", "3 [0 0 0 0]", lReassignBorrowed},
+		{"local-captured", "3 [0]", lCaptured},
+		{"local-param", "3 [0 0 0]", lParam},
+		{"local-copy-of-local", "3 [0 0 0]", lCopy},
+		{"local-mixed-returns", "9 [0 0 0]", lMixed},
+		{"local-two-made", "7 [1 1 1]", lTwoMade},
+		{"local-try-filter-fail", "0 true [1 1]", lTryFail},
+		{"local-filter-panic", "true [1 1 1]", lPanic},
+	}
+}
+
+func flightLegs() []leg {
+	return []leg{
+		{"flight-try-fail", "0 true [0 1]", fliTryFail},
+		{"flight-panic", "true [0 1]", fliPanic},
+		{"flight-try-fail-owned-tail", "0 true [1] [c2 w1] [0 1]", fliTryFailWrap},
+		{"flight-panic-owned-tail", "true [1] [c2 w1] [0 1]", fliPanicWrap},
+		{"flight-drop-then-fail", "0 true [1] [c1 c3 w2] [1 0 1]", fliDropFail},
+		{"flight-calm", "3 [1 1 1] [w3 w2 w1] [0 0 0]", fliCalm},
+	}
+}
+
+func valueLegs() []leg {
+	return []leg{
+		{"value-drop", "2 [0 1 0] [v2] []", valDrop},
+		{"value-drop-collect", "[1 3] [0 1 0] [v2] []", valDropCollect},
+		{"value-try-fail", "0 true [0 1 0] [v2] []", valTryFail},
+		{"value-panic", "true [0 1 0] [v2] []", valPanic},
+		{"value-drop-then-fail-owned-tail", "0 true [1 1 1] [v1 v3 v2] []", valDropFailTail},
+		{"value-panic-owned-tail", "true [1 1 1] [v3 v2 v1] []", valPanicTail},
+		{"value-calm", "3 [1 1 1] [v3 v2 v1] []", valCalm},
+	}
+}
+
+func main() {
+	for _, l := range legs() {
+		reg = nil
+		wreg = nil
+		closeLog = nil
+		vtally = make([]int, 4)
+		got := l.run() + " " + closes()
+		if got != l.want {
+			failed = true
+			fmt.Println("FAIL", l.name+":", "got", got, "want", l.want)
+			continue
+		}
+		fmt.Println("ok", l.name)
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

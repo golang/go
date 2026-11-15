@@ -5,22 +5,13 @@
 package logos
 
 import (
+	"go/token"
 	"slices"
 
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types2"
 )
 
-// This file lowers the M7-S5 comptime.ViewAs calls (SPEC Sec 2.5,
-// T-205). The checker proves the type argument is a POD struct, so
-// lowering only redirects the call: `comptime.ViewAs[T](b)` becomes
-// `_logos_rt.ViewAs[T](b)`, sharing the needRT import with every other
-// pass. The arch-specific reinterpretation lives in logos/rt
-// (viewas_direct.go, viewas_copy.go), selected by build tags. The
-// comptime import spec drops when no comptime-qualified selector
-// remains, so the plain recheck never resolves the virtual package.
-
-// lowerViewAs rewrites every comptime.ViewAs selector of one file.
 func (fl *fileLower) lowerViewAs() {
 	var sels []*syntax.SelectorExpr
 	syntax.Inspect(fl.file, func(n syntax.Node) bool {
@@ -45,9 +36,6 @@ func (fl *fileLower) lowerViewAs() {
 	fl.dropComptimeImport(done)
 }
 
-// logosComptimeViewAs reports whether sel names the virtual ViewAs:
-// a package-qualified selector whose qualifier and name both resolve
-// to the synthesized comptime package.
 func logosComptimeViewAs(info *types2.Info, sel *syntax.SelectorExpr) bool {
 	qn, ok := sel.X.(*syntax.Name)
 	if !ok || sel.Sel.Value != "ViewAs" {
@@ -61,12 +49,6 @@ func logosComptimeViewAs(info *types2.Info, sel *syntax.SelectorExpr) bool {
 	return ok && fn.Name() == "ViewAs" && fn.Pkg() != nil && fn.Pkg().Path() == "comptime"
 }
 
-// dropComptimeImport removes the comptime import spec when no
-// comptime-qualified selector remains. Names this pass rewrote are in
-// done; anything else (a later M7 provider's selectors) keeps the
-// import. Removal takes the whole spec line through swallowSep, so a
-// trailing comment survives on its own line; an ungrouped import takes
-// its import keyword too.
 func (fl *fileLower) dropComptimeImport(done map[*syntax.Name]bool) {
 	keep := false
 	syntax.Inspect(fl.file, func(n syntax.Node) bool {
@@ -94,59 +76,30 @@ func (fl *fileLower) dropComptimeImport(done map[*syntax.Name]bool) {
 			continue
 		}
 		at = append(at, i)
-		start := fl.off(imp.Pos())
-		if kw, ok := importKeywordStart(fl.src, start); ok {
-			start = kw
-		}
-		if line := int(imp.Pos().Line()) - 1; line >= 0 && line < len(fl.start) {
-			blank := true
-			for _, c := range fl.src[fl.start[line]:start] {
-				if c != ' ' && c != '\t' {
-					blank = false
-					break
-				}
-			}
-			if blank {
-				start = fl.start[line]
-			}
-		}
-		end := swallowSep(fl.src, fl.off(imp.Path.Pos())+len(imp.Path.Value))
-		fl.add(start, end, "")
+		fl.removeImportSpec(imp)
 	}
 	for i := len(at) - 1; i >= 0; i-- {
 		fl.file.DeclList = slices.Delete(fl.file.DeclList, at[i], at[i]+1)
 	}
 }
 
-// isComptimePath reports whether v spells the comptime import path in
-// interpreted or raw quotes.
+func (fl *fileLower) removeImportSpec(imp *syntax.ImportDecl) {
+	start := fl.off(syntax.StartPos(imp))
+	end := fl.off(syntax.EndPos(imp))
+	if imp.Group == nil {
+		if kw, ok := fl.keywords.Start(fl.src, token.IMPORT, start); ok {
+			start = kw
+		}
+	}
+	scanSegment(fl.src, end, len(fl.src), func(t tok) bool {
+		if t.kind == token.SEMICOLON && !t.auto {
+			end = t.end
+		}
+		return t.comment
+	})
+	fl.add(start, end, keepComments(fl.src, start, end, ""))
+}
+
 func isComptimePath(v string) bool {
 	return v == `"comptime"` || v == "`comptime`"
-}
-
-// importKeywordStart scans back from an ungrouped spec over spaces and
-// tabs for the `import` keyword. The spec starts at its rename when one
-// is present, else at its path, so only whitespace intervenes. Grouped
-// specs fail the scan (a paren or newline intervenes) and keep the
-// blank-line move instead. An ungrouped ImportDecl starts after its
-// keyword, so without this the deletion leaves a bare `import` behind.
-func importKeywordStart(src []byte, specOff int) (int, bool) {
-	off := specOff
-	for off > 0 && (src[off-1] == ' ' || src[off-1] == '\t') {
-		off--
-	}
-	if off >= 6 && string(src[off-6:off]) == "import" &&
-		(off == 6 || !isNameByte(src[off-7])) {
-		return off - 6, true
-	}
-	return 0, false
-}
-
-// isNameByte reports whether c continues an import rename: a letter, a
-// digit, or one of the dot and blank renames.
-func isNameByte(c byte) bool {
-	return c == '.' || c == '_' ||
-		c >= 'a' && c <= 'z' ||
-		c >= 'A' && c <= 'Z' ||
-		c >= '0' && c <= '9'
 }

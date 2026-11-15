@@ -1,0 +1,141 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+	"slices"
+)
+
+var ev []string
+
+func rec(s string) { ev = append(ev, s) }
+
+func load(tag string, v int) (int, error) {
+	rec("load:" + tag)
+	return v, nil
+}
+
+func val(tag string, n int) int {
+	rec(tag)
+	return n
+}
+
+func shadowOuter() (int, error) {
+	n := 10
+	r := n + switch n := load("s", 7)?; n { case 7 => n + 1; default => 0 }
+	return n*100 + r, nil
+}
+
+func sameName() (int, error) {
+	n := switch n := load("s", 7)?; n { case 7 => n + 1; default => 0 }
+	return n, nil
+}
+
+func armsSeeInit() (int, error) {
+	r := switch n := load("s", 7)?; n * 2 { case 14 => n; default => -n }
+	return r, nil
+}
+
+func ifHeaderVar() (int, error) {
+	if x := val("i", 7); (switch n := load("s", x)?; n { case 7 => x == 7; default => false }) {
+		return x, nil
+	}
+	return -1, nil
+}
+
+func ifHeaderVarElse() (int, error) {
+	if x := val("i", 3); (switch n := load("s", x)?; n { case 7 => true; default => false }) {
+		return 1, nil
+	} else {
+		return x * 10, nil
+	}
+}
+
+func switchHeaderVar() (int, error) {
+	switch x := val("i", 7); (switch n := load("s", x)?; n { case 7 => x + 1; default => 0 }) {
+	case 8:
+		return x, nil
+	}
+	return -1, nil
+}
+
+func forHeaderVar() (int, error) {
+	sum := 0
+	for i := 0; (switch k := load("c", i)?; k { case 3 => false; default => i < 5 }); i++ {
+		sum += i
+	}
+	return sum, nil
+}
+
+func forPerIteration() (string, error) {
+	var fs []func() int
+	for i := 0; (switch k := load("c", i)?; k { case 3 => false; default => true }); i++ {
+		fs = append(fs, func() int { return i })
+	}
+	out := ""
+	for _, f := range fs {
+		out += fmt.Sprint(f())
+	}
+	return out, nil
+}
+
+func elseIfHeaderVar() (int, error) {
+	if val("a", 0) == 1 {
+		return 1, nil
+	} else if y := val("b", 7); (switch n := load("s", y)?; n { case 7 => y > 0; default => false }) {
+		return y, nil
+	}
+	return -1, nil
+}
+
+type cell struct {
+	name string
+	run  func() (string, error)
+	ev   []string
+	want string
+}
+
+func show[T any](f func() (T, error)) func() (string, error) {
+	return func() (string, error) {
+		r, err := f()
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprint(r), nil
+	}
+}
+
+func main() {
+	cells := []cell{
+		{"shadow-outer", show(shadowOuter), []string{"load:s"}, "1018"},
+		{"same-name", show(sameName), []string{"load:s"}, "8"},
+		{"arms-see-init", show(armsSeeInit), []string{"load:s"}, "7"},
+		{"if-header-var", show(ifHeaderVar), []string{"i", "load:s"}, "7"},
+		{"if-header-var-else", show(ifHeaderVarElse), []string{"i", "load:s"}, "30"},
+		{"switch-header-var", show(switchHeaderVar), []string{"i", "load:s"}, "7"},
+		{"for-header-var", show(forHeaderVar), []string{"load:c", "load:c", "load:c", "load:c"}, "3"},
+		{"for-per-iteration", forPerIteration, []string{"load:c", "load:c", "load:c", "load:c"}, "012"},
+		{"else-if-header-var", show(elseIfHeaderVar), []string{"a", "b", "load:s"}, "7"},
+	}
+	failed := false
+	for _, c := range cells {
+		ev = nil
+		got, err := c.run()
+		if err != nil {
+			failed = true
+			fmt.Println("FAIL", c.name+":", err, ev)
+			continue
+		}
+		if got != c.want || !slices.Equal(ev, c.ev) {
+			failed = true
+			fmt.Println("FAIL", c.name+":", "got", got, ev, "want", c.want, c.ev)
+			continue
+		}
+		fmt.Println("ok", c.name)
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

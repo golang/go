@@ -1,0 +1,5 @@
+ok stored-type
+ok stored-value
+ok switch-default
+ok member-assert-false
+ok member-still-works

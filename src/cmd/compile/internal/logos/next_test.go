@@ -12,7 +12,6 @@ import (
 	"cmd/compile/internal/types2"
 )
 
-// scanSnippet parses, checks, and scans one Go source snippet.
 func scanSnippet(t *testing.T, imp *testImporter, src string) ([]NextEdit, []NextTask) {
 	t.Helper()
 	var perrs []error
@@ -49,7 +48,41 @@ func scanSnippet(t *testing.T, imp *testImporter, src string) ([]NextEdit, []Nex
 	return reps[0].Edits, reps[0].Tasks
 }
 
-// TestNextScan covers the rewrite shapes and their negative cases.
+func assertNoFor(t *testing.T, src string, e NextEdit) {
+	t.Helper()
+	offs := []int{0}
+	for i := range src {
+		if src[i] == '\n' {
+			offs = append(offs, i+1)
+		}
+	}
+	at := func(line, col int) int {
+		if line < 1 || line > len(offs) {
+			t.Fatalf("edit line %d out of range", line)
+		}
+		return offs[line-1] + col - 1
+	}
+	out := src[:at(e.StartLine, e.StartCol)] + e.Replacement + src[at(e.EndLine, e.EndCol):]
+	var perrs []error
+	f, err := syntax.Parse(syntax.NewFileBase("next.go"), bytes.NewReader([]byte(out)), func(err error) { perrs = append(perrs, err) }, nil, syntax.LogosMode)
+	if err != nil {
+		t.Fatal(perrs, err)
+	}
+	for _, decl := range f.DeclList {
+		fn, ok := decl.(*syntax.FuncDecl)
+		if !ok || fn.Name.Value != "g" || fn.Body == nil {
+			continue
+		}
+		syntax.Inspect(fn.Body, func(n syntax.Node) bool {
+			if _, ok := n.(*syntax.ForStmt); ok {
+				t.Errorf("rewritten g still holds a for statement")
+				return false
+			}
+			return true
+		})
+	}
+}
+
 func TestNextScan(t *testing.T) {
 	imp := newTestImporter(t)
 	call := `
@@ -65,10 +98,11 @@ func f(s string) (string, error) {
 func errNew() error { return nil }
 `
 	cases := []struct {
-		name  string
-		body  string
-		edit  string
-		tasks int
+		name   string
+		body   string
+		edit   string
+		tasks  int
+		noloop bool
 	}{
 		{
 			name: "assign",
@@ -135,8 +169,9 @@ func errNew() error { return nil }
 			tasks: 1,
 		},
 		{
-			name: "loopGap",
-			body: "func d(x int) int { return x * 2 }\nfunc g(xs []int) ([]int, int) {\n\tvar ys []int\n\tsize := len(xs)\n\tfor i := 0; i < len(xs); i++ {\n\t\tys = append(ys, d(xs[i]))\n\t}\n\treturn ys, size\n}",
+			name:  "loopGap",
+			body:  "func d(x int) int { return x * 2 }\nfunc g(xs []int) ([]int, int) {\n\tvar ys []int\n\tsize := len(xs)\n\tfor i := 0; i < len(xs); i++ {\n\t\tys = append(ys, d(xs[i]))\n\t}\n\treturn ys, size\n}",
+			tasks: 1,
 		},
 		{
 			name:  "loopContinue",
@@ -162,6 +197,43 @@ func errNew() error { return nil }
 			body: "func g(xs []int, x, v, e, elem int) []int {\n\tvar ys []int\n\tfor i := 0; i < len(xs); i++ {\n\t\tys = append(ys, xs[i]+x+v+e+elem)\n\t}\n\treturn ys\n}",
 			edit: "ys := xs.map(elem1 => elem1+x+v+e+elem)",
 		},
+		{
+			name:   "rangeIdx",
+			body:   "func d(x int) int { return x * 2 }\nfunc g(xs []int) []int {\n\tvar ys []int\n\tfor i := range xs {\n\t\tys = append(ys, d(xs[i]))\n\t}\n\treturn ys\n}",
+			edit:   "ys := xs.map(x => d(x))",
+			noloop: true,
+		},
+		{
+			name:   "rangeVal",
+			body:   "func d(x int) int { return x * 2 }\nfunc g(xs []int) []int {\n\tvar ys []int\n\tfor _, x := range xs {\n\t\tys = append(ys, d(x))\n\t}\n\treturn ys\n}",
+			edit:   "ys := xs.map(v => d(v))",
+			noloop: true,
+		},
+		{
+			name:  "rangeBreak",
+			body:  "func g(xs []int, n int) []int {\n\tvar out []int\n\tfor i := range xs {\n\t\tif xs[i] > n {\n\t\t\tbreak\n\t\t}\n\t\tout = append(out, xs[i])\n\t}\n\treturn out\n}",
+			tasks: 1,
+		},
+		{
+			name:  "rangeSide",
+			body:  "func g(xs []int) (int, []int) {\n\tvar out []int\n\tn := 0\n\tfor _, x := range xs {\n\t\tn++\n\t\tout = append(out, x)\n\t}\n\treturn n, out\n}",
+			tasks: 1,
+		},
+		{
+			name:  "rangeIndex",
+			body:  "func d2(x, i int) int { return x + i }\nfunc g(xs []int) []int {\n\tvar out []int\n\tfor i := range xs {\n\t\tout = append(out, d2(xs[i], i))\n\t}\n\treturn out\n}",
+			tasks: 1,
+		},
+		{
+			name:  "rangeTwoSlices",
+			body:  "func add(a, b int) int { return a + b }\nfunc g(xs, zs []int) []int {\n\tvar out []int\n\tfor i := range xs {\n\t\tout = append(out, add(xs[i], zs[i]))\n\t}\n\treturn out\n}",
+			tasks: 1,
+		},
+		{
+			name:  "rangeInt",
+			body:  "func twice(i int) int { return 2 * i }\nfunc g(n int) []int {\n\tvar out []int\n\tfor i := range n {\n\t\tout = append(out, twice(i))\n\t}\n\treturn out\n}",
+			tasks: 1,
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -176,6 +248,9 @@ func errNew() error { return nil }
 				if len(tasks) != 0 {
 					t.Fatalf("got tasks %v", tasks)
 				}
+				if tc.noloop {
+					assertNoFor(t, call+tc.body+"\n", edits[0])
+				}
 				return
 			}
 			if len(edits) != 0 {
@@ -188,7 +263,6 @@ func errNew() error { return nil }
 	}
 }
 
-// TestNextSprintf covers interpolation rewrites and verb rejections.
 func TestNextSprintf(t *testing.T) {
 	imp := newTestImporter(t)
 	cases := []struct {

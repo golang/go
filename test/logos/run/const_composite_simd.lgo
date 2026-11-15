@@ -1,0 +1,39 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type box struct {
+	M map[string]int
+	A [4]int
+}
+
+const cfg = box{M: map[string]int{"a": 1}, A: [4]int{1, 2, 3, 4}}
+
+func test() {
+	sum := cfg.A + cfg.A
+	check("simd-add", sum == [4]int{2, 4, 6, 8}, sum, [4]int{2, 4, 6, 8})
+	check("simd-reduce", cfg.A.sum() == 10, cfg.A.sum(), 10)
+}
+
+func main() {
+	test()
+	if failed {
+		os.Exit(1)
+	}
+}

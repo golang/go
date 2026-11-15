@@ -1,0 +1,64 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+logos run .
+stdout '^8 8 -2 2$'
+cp stdout $WORK/native.txt
+logos eject -o out
+exists out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $WORK/native.txt
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
+exec $WORK/upstream$GOEXE
+cmp stdout $WORK/native.txt
+cd ..
+
+-- m/go.mod --
+module example.com/propselector
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import "fmt"
+
+type Slotted interface {
+	Item int
+}
+
+type Slot struct : Slotted {
+	Item int
+}
+
+type Counter struct : Slotted {
+	last int
+	sets int
+}
+
+func (c *Counter) Item() int {
+	return c.last
+}
+
+func (c *Counter) SetItem(v int) {
+	c.last = v
+	c.sets++
+}
+
+func main() {
+	var s Slotted = &Slot{}
+	s /* a */ . /* b */ Item = 5
+	s. /* c */ Item += 2
+	s . Item++
+	c := &Counter{}
+	var m Slotted = c
+	m /* d */ . /* e */ Item = 1
+	m /* f */ . /* g */ Item -= 3
+	fmt.Println(s.Item, /* h */ s /* i */ . /* j */ Item, m.Item, c.sets)
+}

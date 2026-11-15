@@ -1,0 +1,165 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+# A loGo/s importer sees an exported map-bearing composite with table reads,
+# detached inline copies, and readonly map descendants.
+cd m
+logos build -o $WORK/bin/importcc$GOEXE ./app
+exec $WORK/bin/importcc$GOEXE
+stdout '^ok read 1$'
+stdout '^ok len 3$'
+stdout '^ok comma-miss$'
+stdout '^ok range a1;b2;c3;$'
+stdout '^ok copy-detached 99 7$'
+stdout '^ok copy-orig 1$'
+stdout '^ok independent 20 30 7$'
+stdout '^ok shared-read 1 1$'
+stdout '^ok fmt {map\[a:1 b:2 c:3\] 7}$'
+stdout '^ok deep$'
+! stdout 'FAIL'
+cp stdout $WORK/want.txt
+logos eject -o out
+exists out/app/main.go
+exists out/lib/lib.go
+cd out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+go run ./app
+cmp stdout $WORK/want.txt
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+cd ..
+cp v2lib.lgo lib/lib.lgo
+logos build -o $WORK/bin/importcc2$GOEXE ./app
+exec $WORK/bin/importcc2$GOEXE
+stdout '^ok read 100$'
+stdout '^ok range a100;b2;c3;$'
+stdout '^ok copy-orig 100$'
+stdout '^ok shared-read 100 100$'
+! stdout 'FAIL'
+cd ..
+
+# A write through an imported composite map, directly or through a copy or alias, is rejected.
+cd badmut
+! logos build ./...
+stderr -count=5 '\[correctness::const_view_mutation\]'
+! logos eject -o $WORK/badmut-out
+stderr -count=5 '\[correctness::const_view_mutation\]'
+cd ..
+
+-- m/go.mod --
+module example.com/ccompmap
+
+go 1.27
+
+-- m/lib/lib.lgo --
+package lib
+
+type S struct {
+	M map[string]int
+	N int
+}
+
+const C = S{M: map[string]int{"b": 2, "a": 1, "c": 3}, N: 7}
+
+-- m/app/main.lgo --
+package main
+
+import (
+	"fmt"
+	"os"
+	"reflect"
+
+	"example.com/ccompmap/lib"
+)
+
+var failed bool
+
+func check(name string, cond bool) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name)
+	}
+}
+
+func main() {
+	fmt.Println("ok read", lib.C.M["a"] ?? -1)
+	fmt.Println("ok len", len(lib.C.M))
+	v, ok := lib.C.M["zz"]
+	check("comma-miss", !ok && v == 0)
+	fmt.Println("ok comma-miss")
+	keys := ""
+	for k, val := range lib.C.M {
+		keys += fmt.Sprintf("%s%d;", k, val)
+	}
+	fmt.Println("ok range", keys)
+	orig := lib.C.M["a"] ?? -1
+	c := lib.C
+	c.N = 99
+	fmt.Println("ok copy-detached", c.N, lib.C.N)
+	fmt.Println("ok copy-orig", orig)
+	c1 := lib.C
+	c2 := lib.C
+	c1.N = 20
+	c2.N = 30
+	fmt.Println("ok independent", c1.N, c2.N, lib.C.N)
+	shared := lib.C.M
+	again := lib.C
+	fmt.Println("ok shared-read", shared["a"] ?? -1, again.M["a"] ?? -1)
+	fmt.Println("ok fmt", fmt.Sprint(lib.C))
+	check("deep", reflect.DeepEqual(lib.C.M, map[string]int{"a": orig, "b": 2, "c": 3}))
+	fmt.Println("ok deep")
+	if failed {
+		os.Exit(1)
+	}
+}
+
+-- m/v2lib.lgo --
+package lib
+
+type S struct {
+	M map[string]int
+	N int
+}
+
+const C = S{M: map[string]int{"b": 2, "a": 100, "c": 3}, N: 7}
+
+-- badmut/go.mod --
+module example.com/ccompmut
+
+go 1.27
+
+-- badmut/lib/lib.lgo --
+package lib
+
+type S struct {
+	M map[string]int
+	N int
+}
+
+const C = S{M: map[string]int{"b": 2, "a": 1}, N: 7}
+
+-- badmut/app/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/ccompmut/lib"
+)
+
+func main() {
+	lib.C.M["a"] = 9
+	c := lib.C
+	c.M["a"] = 99
+	c1 := lib.C
+	c1.M["b"] = 20
+	c2 := lib.C
+	c2.M["b"] = 30
+	shared := lib.C.M
+	shared["a"] = 999
+	fmt.Println(lib.C.M["a"] ?? -1)
+}

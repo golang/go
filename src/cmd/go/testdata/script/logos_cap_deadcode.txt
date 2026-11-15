@@ -1,0 +1,184 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+# A dependency that reaches a sink only from dead code passes:
+# dddep.Sink is never called, so the deadcode audit must stay silent.
+cd dd/main
+logos build -o $WORK/bin/ddok$GOEXE ./cmd
+! stderr 'capabilities'
+exec $WORK/bin/ddok$GOEXE
+stdout '^benign$'
+cd ../..
+
+# Two live deps in series blame the one nearest the sink only.
+cd nn/main
+! logos build -o $WORK/bin/nn$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/fardep'' reaches ''os\.startProcess'''
+stderr 'example\.com/neardep\.Init\(\)'
+stderr 'example\.com/fardep\.Init\(\)'
+! stderr 'Transitive dependency ''example\.com/neardep'''
+cd ../..
+
+# A dotless replaced module is still a dependency, not stdlib.
+cd nd/main
+! logos build -o $WORK/bin/nd$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''nddep'' reaches ''os\.startProcess'''
+stderr 'nddep\.Init\(\)'
+cd ../..
+
+-- dd/main/go.mod --
+module example.com/ddmain
+
+go 1.27
+
+require example.com/dddep v0.0.0
+
+replace example.com/dddep => ../dep
+
+-- dd/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+
+-- dd/main/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/dddep"
+)
+
+func main() {
+	fmt.Println(dep.Benign())
+}
+
+-- dd/dep/go.mod --
+module example.com/dddep
+
+go 1.27
+
+-- dd/dep/dep.go --
+package dep
+
+import "os/exec"
+
+//go:noinline
+func Sink() {
+	_ = exec.Command("echo", "hi").Run()
+}
+
+//go:noinline
+func Benign() string {
+	return "benign"
+}
+
+-- nn/main/go.mod --
+module example.com/nnmain
+
+go 1.27
+
+require (
+	example.com/neardep v0.0.0
+	example.com/fardep v0.0.0
+)
+
+replace example.com/neardep => ../near
+
+replace example.com/fardep => ../far
+
+-- nn/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+
+-- nn/main/cmd/main.lgo --
+package main
+
+import "example.com/neardep"
+
+func main() {
+	near.Init()
+	println("done")
+}
+
+-- nn/near/go.mod --
+module example.com/neardep
+
+go 1.27
+
+require example.com/fardep v0.0.0
+
+replace example.com/fardep => ../far
+
+-- nn/near/near.go --
+package near
+
+import "example.com/fardep"
+
+//go:noinline
+func Init() { far.Init() }
+
+-- nn/far/go.mod --
+module example.com/fardep
+
+go 1.27
+
+-- nn/far/far.go --
+package far
+
+import (
+	"os"
+	"os/exec"
+)
+
+//go:noinline
+func Init() {
+	if len(os.Args) > 99 {
+		_ = exec.Command("true").Run()
+	}
+}
+
+-- nd/main/go.mod --
+module example.com/ndmain
+
+go 1.27
+
+require nddep v0.0.0
+
+replace nddep => ../dep
+
+-- nd/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+
+-- nd/main/cmd/main.go --
+package main
+
+import (
+	"nddep"
+)
+
+func main() {
+	dep.Init()
+	println("done")
+}
+
+-- nd/dep/go.mod --
+module nddep
+
+go 1.27
+
+-- nd/dep/dep.go --
+package dep
+
+import (
+	"os"
+	"os/exec"
+)
+
+//go:noinline
+func Init() {
+	if len(os.Args) > 99 {
+		_ = exec.Command("true").Run()
+	}
+}

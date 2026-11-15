@@ -1,0 +1,212 @@
+// run -goexperiment simd
+
+package main
+
+import (
+	"fmt"
+	"math"
+	"os"
+)
+
+func fail(tag string) {
+	fmt.Println("FAIL", tag)
+	os.Exit(1)
+}
+func want32(x, y uint32, op string) uint32 {
+	if op == "and" {
+		return x & y
+	}
+	if op == "xor" {
+		return x ^ y
+	}
+	return x | y
+}
+
+func want64(x, y uint64, op string) uint64 {
+	if op == "and" {
+		return x & y
+	}
+	if op == "xor" {
+		return x ^ y
+	}
+	return x | y
+}
+
+func opOf(tag string) string {
+	suf := tag[len(tag)-3:]
+	if suf == "and" {
+		return "and"
+	}
+	if suf == "xor" {
+		return "xor"
+	}
+	return "or"
+}
+
+func check32(tag string, got []float32, xb, yb []uint32) {
+	op := opOf(tag)
+	for i := range got {
+		if math.Float32bits(got[i]) != want32(xb[i], yb[i], op) {
+			fail(fmt.Sprintf("%s lane %d: got %08x want %08x", tag, i, math.Float32bits(got[i]), want32(xb[i], yb[i], op)))
+		}
+	}
+}
+
+func check64(tag string, got []float64, xb, yb []uint64) {
+	op := opOf(tag)
+	for i := range got {
+		if math.Float64bits(got[i]) != want64(xb[i], yb[i], op) {
+			fail(fmt.Sprintf("%s lane %d: got %016x want %016x", tag, i, math.Float64bits(got[i]), want64(xb[i], yb[i], op)))
+		}
+	}
+}
+
+func checkF32x2() {
+	xb := [2]uint32{0xbf800000, 0x7fc00001}
+	yb := [2]uint32{0x7fffffff, 0xffffffff}
+	var x, y [2]float32
+	for i := range x {
+		x[i] = math.Float32frombits(xb[i])
+		y[i] = math.Float32frombits(yb[i])
+	}
+	a := x & y
+	check32("f32x2and", a[:], xb[:], yb[:])
+	o := x | y
+	check32("f32x2or", o[:], xb[:], yb[:])
+	e := x ^ y
+	check32("f32x2xor", e[:], xb[:], yb[:])
+}
+
+func checkF32x4() {
+	xb := [4]uint32{0xbf800000, 0x80000000, 0x7fc00001, 0xff800000}
+	yb := [4]uint32{0x7fffffff, 0x80000000, 0xffffffff, 0x7fffffff}
+	var x, y [4]float32
+	for i := range x {
+		x[i] = math.Float32frombits(xb[i])
+		y[i] = math.Float32frombits(yb[i])
+	}
+	a := x & y
+	check32("f32x4and", a[:], xb[:], yb[:])
+	o := x | y
+	check32("f32x4or", o[:], xb[:], yb[:])
+	e := x ^ y
+	check32("f32x4xor", e[:], xb[:], yb[:])
+}
+
+func checkF32x8() {
+	xb := [8]uint32{0xbf800000, 0x80000000, 0x7fc00001, 0xff800000, 0x7f800000, 0x00000000, 0x7f800001, 0x3f800000}
+	yb := [8]uint32{0x7fffffff, 0x80000000, 0xffffffff, 0x7fffffff, 0x00000000, 0x80000000, 0x7fc00000, 0xbf800000}
+	var x, y [8]float32
+	for i := range x {
+		x[i] = math.Float32frombits(xb[i])
+		y[i] = math.Float32frombits(yb[i])
+	}
+	a := x & y
+	check32("f32x8and", a[:], xb[:], yb[:])
+	o := x | y
+	check32("f32x8or", o[:], xb[:], yb[:])
+	e := x ^ y
+	check32("f32x8xor", e[:], xb[:], yb[:])
+}
+
+func checkF64x2() {
+	xb := [2]uint64{0xbff0000000000000, 0x7ff8000000000001}
+	yb := [2]uint64{0x7fffffffffffffff, 0xffffffffffffffff}
+	var x, y [2]float64
+	for i := range x {
+		x[i] = math.Float64frombits(xb[i])
+		y[i] = math.Float64frombits(yb[i])
+	}
+	a := x & y
+	check64("f64x2and", a[:], xb[:], yb[:])
+	o := x | y
+	check64("f64x2or", o[:], xb[:], yb[:])
+	e := x ^ y
+	check64("f64x2xor", e[:], xb[:], yb[:])
+}
+
+func checkF64x4() {
+	xb := [4]uint64{0xbff0000000000000, 0x8000000000000000, 0x7ff8000000000001, 0xfff0000000000000}
+	yb := [4]uint64{0x7fffffffffffffff, 0x8000000000000000, 0xffffffffffffffff, 0x7fffffffffffffff}
+	var x, y [4]float64
+	for i := range x {
+		x[i] = math.Float64frombits(xb[i])
+		y[i] = math.Float64frombits(yb[i])
+	}
+	a := x & y
+	check64("f64x4and", a[:], xb[:], yb[:])
+	o := x | y
+	check64("f64x4or", o[:], xb[:], yb[:])
+	e := x ^ y
+	check64("f64x4xor", e[:], xb[:], yb[:])
+}
+
+func checkF64x8() {
+	xb := [8]uint64{0xbff0000000000000, 0x8000000000000000, 0x7ff8000000000001, 0xfff0000000000000, 0x7ff0000000000000, 0x0000000000000000, 0x7ff0000000000001, 0x3ff0000000000000}
+	yb := [8]uint64{0x7fffffffffffffff, 0x8000000000000000, 0xffffffffffffffff, 0x7fffffffffffffff, 0x0000000000000000, 0x8000000000000000, 0x7ff8000000000000, 0xbff0000000000000}
+	var x, y [8]float64
+	for i := range x {
+		x[i] = math.Float64frombits(xb[i])
+		y[i] = math.Float64frombits(yb[i])
+	}
+	a := x & y
+	check64("f64x8and", a[:], xb[:], yb[:])
+	o := x | y
+	check64("f64x8or", o[:], xb[:], yb[:])
+	e := x ^ y
+	check64("f64x8xor", e[:], xb[:], yb[:])
+}
+
+func checkF32Copysign() {
+	x := [4]float32{-1.5, 2.5, math.Float32frombits(0x7fc00007), -0.0}
+	y := [4]float32{1.0, -1.0, -1.0, 1.0}
+	sign := [4]float32{math.Float32frombits(0x80000000), math.Float32frombits(0x80000000), math.Float32frombits(0x80000000), math.Float32frombits(0x80000000)}
+	mag := [4]float32{math.Float32frombits(0x7fffffff), math.Float32frombits(0x7fffffff), math.Float32frombits(0x7fffffff), math.Float32frombits(0x7fffffff)}
+	got := (y & sign) | (x & mag)
+	xb := [4]uint32{math.Float32bits(x[0]), math.Float32bits(x[1]), math.Float32bits(x[2]), math.Float32bits(x[3])}
+	yb := [4]uint32{math.Float32bits(y[0]), math.Float32bits(y[1]), math.Float32bits(y[2]), math.Float32bits(y[3])}
+	sb := [4]uint32{0x80000000, 0x80000000, 0x80000000, 0x80000000}
+	mb := [4]uint32{0x7fffffff, 0x7fffffff, 0x7fffffff, 0x7fffffff}
+	for i := range got {
+		want := (yb[i] & sb[i]) | (xb[i] & mb[i])
+		if math.Float32bits(got[i]) != want {
+			fail(fmt.Sprintf("f32copysign lane %d: got %08x want %08x", i, math.Float32bits(got[i]), want))
+		}
+		if math.Float32bits(got[i])>>31 != math.Float32bits(y[i])>>31 {
+			fail(fmt.Sprintf("f32copysign sign lane %d", i))
+		}
+	}
+	fmt.Println("ok f32-copysign-matches-bits")
+}
+
+func checkF64Copysign() {
+	x := [2]float64{-1.5, math.Float64frombits(0x7ff8000000000007)}
+	y := [2]float64{-1.0, 1.0}
+	sign := [2]float64{math.Float64frombits(0x8000000000000000), math.Float64frombits(0x8000000000000000)}
+	mag := [2]float64{math.Float64frombits(0x7fffffffffffffff), math.Float64frombits(0x7fffffffffffffff)}
+	got := (y & sign) | (x & mag)
+	for i := range got {
+		want := (math.Float64bits(y[i]) & 0x8000000000000000) | (math.Float64bits(x[i]) & 0x7fffffffffffffff)
+		if math.Float64bits(got[i]) != want {
+			fail(fmt.Sprintf("f64copysign lane %d: got %016x want %016x", i, math.Float64bits(got[i]), want))
+		}
+	}
+	fmt.Println("ok f64-copysign-matches-bits")
+}
+
+func main() {
+	checkF32x2()
+	fmt.Println("ok f32x2-bitwise-matches-bits")
+	checkF32x4()
+	fmt.Println("ok f32x4-bitwise-matches-bits")
+	checkF32x8()
+	fmt.Println("ok f32x8-bitwise-matches-bits")
+	checkF64x2()
+	fmt.Println("ok f64x2-bitwise-matches-bits")
+	checkF64x4()
+	fmt.Println("ok f64x4-bitwise-matches-bits")
+	checkF64x8()
+	fmt.Println("ok f64x8-bitwise-matches-bits")
+	checkF32Copysign()
+	checkF64Copysign()
+}

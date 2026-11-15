@@ -1,0 +1,10 @@
+ok pointer-reader
+ok value-reader
+ok value-reader-via-pointer
+ok helper-reader
+ok const-view-call
+ok const-view-call-nested
+ok asserted-reader
+ok asserted-property
+ok type-set-reader
+ok property-getter

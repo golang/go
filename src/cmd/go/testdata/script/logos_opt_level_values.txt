@@ -1,0 +1,77 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+go build -a -x -O=0 .
+stderr '\-N \-l'
+go build -a -gcflags=example.com/optlevelvalues=-m -O=0 .
+! stderr 'inlining call to mid'
+
+go build -a -x -O=1 .
+! stderr 'inlbudget'
+go build -a -gcflags=example.com/optlevelvalues=-m -O=1 .
+stderr 'inlining call to mid'
+
+logos build -a -x -O=s .
+stderr '\-d=inlbudget=15[ ,]'
+go build -a -x -O=s .
+stderr '\-d=inlbudget=15[ ,]'
+logos build -a -gcflags=example.com/optlevelvalues=-m -O=s .
+! stderr 'inlining call to mid'
+go build -a -gcflags=example.com/optlevelvalues=-m -O=s .
+! stderr 'inlining call to mid'
+cd mixed
+logos build -a -x ./helper
+stderr 'GOAMD64=.*v1.*helper'
+
+logos build -o $WORK/base$GOEXE .
+go version -m $WORK/base$GOEXE
+stdout 'GOAMD64=v1'
+cd ..
+
+-- go.mod --
+module example.com/optlevelvalues
+
+go 1.27
+
+-- main.go --
+package main
+
+import "fmt"
+
+func mid(x int) int {
+	y := x + 11
+	y = y*3 - x
+	y ^= (x + 5) << 2
+	y += y * x
+	y -= (x ^ y) & 127
+	y *= 3
+	y += x * (y + 1)
+	return y - (x * 7)
+}
+
+func main() {
+	fmt.Println(mid(3))
+}
+
+-- mixed/go.mod --
+module example.com/optlevelvalues/mixed
+
+go 1.27
+
+-- mixed/logos.toml --
+[build]
+target_cpu = "baseline"
+
+-- mixed/main.lgo --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("hello")
+}
+
+-- mixed/helper/helper.go --
+package helper
+
+func Hello() {}

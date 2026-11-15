@@ -1,17 +1,3 @@
-# T-201 generic assertion effects: structural-readonly import identity.
-# The lgo module sl declares a qualified interface (a readonly method
-# obligation), so its facts member carries a structural Readonlys record
-# and the Go-importer clone path applies. A Go wrapper w re-exports the
-# nominal (alias + a maker returning sl.Qual); the Go main imports w
-# before sl, the order that captures sl as a placeholder before the
-# structural clone replaces packages[sl]. The Go-importer preload must
-# hydrate positively-classified structural dependencies first (member
-# present, decodable, structural), so both import orders share one
-# canonical sl.Qual: the cross-spelling assignments type-check and the
-# program runs. RED without the preload: "cannot use w.Make() (value of
-# type sl.Qual) as sl.Qual" -- identical spellings, distinct nominals.
-# The nominal declaration-only diamond is logos_assert_diamond.
-
 env GOPROXY=off
 env GOTOOLCHAIN=local
 env GOTMPDIR=$WORK/tmp
@@ -29,8 +15,6 @@ logos build -o m2$GOEXE .
 exec ./m2$GOEXE
 cd ..
 
-# Neither direct import of this Go consumer is the lgo nominal owner.
-# Inspect the actual retained compiler importcfg, not helper output.
 cd cache
 logos build -work -x -o cache$GOEXE .
 exec ./cache$GOEXE
@@ -38,9 +22,6 @@ cd ..
 go run inspect.go $WORK/tmp
 stdout '^structural owner available$'
 
-# Change only the readonly obligation (erased from PKGDEF), leaving the
-# public Go signatures and wrapper source unchanged. A cached successful
-# consumer must not survive the transitive owner fact change.
 cp sl/sl.ordinary sl/sl.lgo
 cd cache
 ! logos build -o cache$GOEXE .

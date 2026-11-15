@@ -1,3 +1,2 @@
-err==nil: false
-order: 1
-ran: cleanup
+ok typed-nil-counts-non-nil
+ok typed-nil-runs-errdefer

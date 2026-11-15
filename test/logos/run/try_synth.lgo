@@ -5,14 +5,33 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os"
 )
 
-var errSyn = errors.New("syn")
+var failed bool
 
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type observed[T any] struct {
+	v   T
+	err error
+}
+
+func observe[T any](v T, err error) observed[T] {
+	return observed[T]{v, err}
+}
+
+var errSyn = errors.New("syn")
 var order []string
 
 func note(s string) { order = append(order, s) }
-
 func cleanup() error { return nil }
 
 func rollback() error {
@@ -58,20 +77,47 @@ func blankRes(fail bool) (_ int, _ error) {
 
 func main() {
 	v, err := unnamedOK()
-	fmt.Println("ok:", v, err)
-	v, err = unnamedFail()
-	fmt.Println("fail:", v, err)
+	okOKValue := err == nil && v == 7
+	check("ok-value", okOKValue, okOKValue, true)
+	okOKErr := err == nil
+	check("ok-err", okOKErr, okOKErr, true)
+	res := observe(unnamedFail())
+	okFailValue := res.err != nil && res.err == errSyn && res.v == 0
+	check("fail-value", okFailValue, okFailValue, true)
+	okFailErr := res.err == errSyn
+	check("fail-err", okFailErr, okFailErr, true)
 	v, err = shadowed()
-	fmt.Println("shadow:", v, err)
+	okShadowValue := err == nil && v == 42
+	check("shadow-value", okShadowValue, okShadowValue, true)
+	okShadowErr := err == nil
+	check("shadow-err", okShadowErr, okShadowErr, true)
 	v, err = shadowedErrdefer(false)
-	fmt.Println("ed-ok:", v, err)
-	v, err = shadowedErrdefer(true)
-	fmt.Println("ed-fail:", v, err)
+	okEdOKValue := err == nil && v == 3
+	check("ed-ok-value", okEdOKValue, okEdOKValue, true)
+	okEdOKErr := err == nil
+	check("ed-ok-err", okEdOKErr, okEdOKErr, true)
+	res = observe(shadowedErrdefer(true))
+	okEdFailValue := res.err != nil && res.err == errSyn && res.v == 0
+	check("ed-fail-value", okEdFailValue, okEdFailValue, true)
+	okEdFailErr := res.err == errSyn
+	check("ed-fail-err", okEdFailErr, okEdFailErr, true)
 	v, err = blankRes(false)
-	fmt.Println("blank-ok:", v, err)
-	v, err = blankRes(true)
-	fmt.Println("blank-fail:", v, err)
-	for _, s := range order {
-		fmt.Println("ran:", s)
+	okBlankOKValue := err == nil && v == 9
+	check("blank-ok-value", okBlankOKValue, okBlankOKValue, true)
+	okBlankOKErr := err == nil
+	check("blank-ok-err", okBlankOKErr, okBlankOKErr, true)
+	res = observe(blankRes(true))
+	okBlankFailValue := res.err != nil && res.err == errSyn && res.v == 0
+	check("blank-fail-value", okBlankFailValue, okBlankFailValue, true)
+	okBlankFailErr := res.err == errSyn
+	check("blank-fail-err", okBlankFailErr, okBlankFailErr, true)
+	check("order-len", len(order) == 1, len(order), 1)
+	if len(order) == 1 {
+		check("order-entry", order[0] == "rollback", order[0], "rollback")
+	} else {
+		check("order-entry", false, fmt.Sprint(order), "[rollback]")
+	}
+	if failed {
+		os.Exit(1)
 	}
 }

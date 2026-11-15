@@ -1,0 +1,9 @@
+ok zero-size-union-shares-interface-layout
+ok zero-size-word-matches-interface-word
+ok zero-size-members-equal
+ok zero-size-member-equals-roundtrip
+ok zero-size-union-formats-like-interface
+ok zero-size-asserts-back-to-member
+ok array-zero-size-word-matches-interface-word
+ok array-zero-size-members-equal
+ok distinct-zero-size-types-differ

@@ -1,0 +1,64 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type Good struct {
+	name string
+}
+
+func (g Good) Name() string { return "good:" + g.name }
+
+type StoreBox[T any] struct {
+	V T
+}
+
+func (b StoreBox[T]) Get() T { return b.V }
+
+type Box[T any] struct {
+	V T
+}
+
+func (b Box[T]) As(x any) T {
+	return x.(T)
+}
+
+func Pick[T any](x any) T {
+	return x.(T)
+}
+
+func main() {
+	nested := StoreBox[StoreBox[Good]]{V: StoreBox[Good]{V: Good{name: "in"}}}
+	check("nested-store", nested.V.V.Name() == "good:in", nested.V.V.Name(), "good:in")
+	check("nested-store-get", nested.V.Get().Name() == "good:in", nested.V.Get().Name(), "good:in")
+
+	box := Box[Good]{V: Good{name: "bx"}}
+	check("nested-box-as", box.As(Good{name: "bx"}).Name() == "good:bx", box.As(Good{name: "bx"}).Name(), "good:bx")
+
+	var anyBox any = Box[Good]{V: Good{name: "p1"}}
+	pickedBox := Pick[Box[Good]](anyBox)
+	check("nested-pick-box", pickedBox.V.Name() == "good:p1", pickedBox.V.Name(), "good:p1")
+
+	var anyNested any = nested
+	pickedNested := Pick[StoreBox[StoreBox[Good]]](anyNested)
+	check("nested-pick-store", pickedNested.V.V.Name() == "good:in", pickedNested.V.V.Name(), "good:in")
+
+	if failed {
+		os.Exit(1)
+	}
+}

@@ -1,0 +1,128 @@
+# ViewAs reads multi-byte fields in the byte order of the host on every
+# target: the program compares each view with encoding/binary.NativeEndian
+# over the same bytes, so the native, riscv64 (little-endian, copy path),
+# s390x (big-endian, direct path) and ppc64 (big-endian, copy path)
+# binaries must print the same lines.
+# Each target also reports whether a write to the source bytes reaches the
+# view. The direct targets amd64, 386, arm64, ppc64le and s390x print
+# `alias true`; the copy targets riscv64 and ppc64 print `alias false`.
+# The build legs always run; each run leg needs its qemu user binary.
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+logos build -o $WORK/viewas-native$GOEXE .
+exec $WORK/viewas-native$GOEXE
+stdout '^basic true$'
+stdout '^odd true$'
+stdout '^logos: ViewAs: need 16 bytes, have 8$'
+cp stdout $WORK/native.txt
+exec $WORK/viewas-native$GOEXE alias
+stdout '^alias true$'
+
+env GOOS=linux
+
+env GOARCH=riscv64
+logos build -o $WORK/viewas-riscv64 .
+env GOARCH=s390x
+logos build -o $WORK/viewas-s390x .
+env GOARCH=ppc64
+logos build -o $WORK/viewas-ppc64 .
+env GOARCH=386
+logos build -o $WORK/viewas-386 .
+env GOARCH=arm64
+logos build -o $WORK/viewas-arm64 .
+env GOARCH=ppc64le
+logos build -o $WORK/viewas-ppc64le .
+
+[exec:qemu-riscv64] exec qemu-riscv64 $WORK/viewas-riscv64
+[exec:qemu-riscv64] cmp stdout $WORK/native.txt
+[exec:qemu-riscv64] exec qemu-riscv64 $WORK/viewas-riscv64 alias
+[exec:qemu-riscv64] stdout '^alias false$'
+[exec:qemu-s390x] exec qemu-s390x $WORK/viewas-s390x
+[exec:qemu-s390x] cmp stdout $WORK/native.txt
+[exec:qemu-s390x] exec qemu-s390x $WORK/viewas-s390x alias
+[exec:qemu-s390x] stdout '^alias true$'
+[exec:qemu-ppc64] exec qemu-ppc64 $WORK/viewas-ppc64
+[exec:qemu-ppc64] cmp stdout $WORK/native.txt
+[exec:qemu-ppc64] exec qemu-ppc64 $WORK/viewas-ppc64 alias
+[exec:qemu-ppc64] stdout '^alias false$'
+[exec:qemu-i386] exec qemu-i386 $WORK/viewas-386 alias
+[exec:qemu-i386] stdout '^alias true$'
+[exec:qemu-aarch64] exec qemu-aarch64 $WORK/viewas-arm64 alias
+[exec:qemu-aarch64] stdout '^alias true$'
+[exec:qemu-ppc64le] exec qemu-ppc64le $WORK/viewas-ppc64le alias
+[exec:qemu-ppc64le] stdout '^alias true$'
+
+-- m/go.mod --
+module example.com/viewascross
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import (
+	"comptime"
+	"encoding/binary"
+	"fmt"
+	"os"
+)
+
+type Header struct {
+	Magic   uint32
+	Version uint32
+	Size    uint64
+}
+
+func nativeHeader(b []byte) Header {
+	return Header{
+		Magic:   binary.NativeEndian.Uint32(b),
+		Version: binary.NativeEndian.Uint32(b[4:]),
+		Size:    binary.NativeEndian.Uint64(b[8:]),
+	}
+}
+
+func showBasic() {
+	b := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+	h := comptime.ViewAs[Header](b)
+	fmt.Println("basic", *h == nativeHeader(b))
+}
+
+func showOdd() {
+	b := make([]byte, 17)
+	for i := range b {
+		b[i] = byte(i + 1)
+	}
+	h := comptime.ViewAs[Header](b[1:])
+	fmt.Println("odd", *h == nativeHeader(b[1:]))
+}
+
+func showShort() (msg string) {
+	defer func() {
+		if r := recover(); r != nil {
+			msg = fmt.Sprint(r)
+		}
+	}()
+	b := []byte{1, 2, 3, 4, 5, 6, 7, 8}
+	_ = comptime.ViewAs[Header](b)
+	return "no panic"
+}
+
+func showAlias() {
+	b := make([]byte, 16)
+	h := comptime.ViewAs[Header](b)
+	b[0], b[1], b[2], b[3] = 0xFF, 0xFF, 0xFF, 0xFF
+	fmt.Println("alias", h.Magic == 0xFFFFFFFF)
+}
+
+func main() {
+	if len(os.Args) > 1 && os.Args[1] == "alias" {
+		showAlias()
+		return
+	}
+	showBasic()
+	showOdd()
+	fmt.Println(showShort())
+}

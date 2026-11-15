@@ -11,8 +11,6 @@ import (
 	"cmd/compile/internal/types2"
 )
 
-// logosConfigureComptime propagates parsed configuration thresholds to the
-// types2 checker and compiler base before typechecking.
 func logosConfigureComptime(conf *types2.Config, info *types2.Info) {
 	if !base.Logos || base.LogosCfg == "" {
 		return
@@ -23,10 +21,9 @@ func logosConfigureComptime(conf *types2.Config, info *types2.Info) {
 	if !logosComptimeNodesExplicit() {
 		base.LogosComptimeNodes = policy.Thresholds.MaxComptimeASTNodes
 	}
+	conf.LogosComptimeNodeLimit = base.LogosComptimeNodes
 }
 
-// logosComptimeNodesExplicit reports whether -logos.comptime_nodes was
-// explicitly passed on the compiler command line.
 func logosComptimeNodesExplicit() bool {
 	explicit := false
 	flag.Visit(func(f *flag.Flag) {

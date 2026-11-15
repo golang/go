@@ -1,0 +1,124 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd w
+logos build -o $WORK/lib.a ./lib
+go tool pack p $WORK/lib.a __.LOGOS
+stdout '^fn Wide ParamMutated=10000000000000000$'
+stdout '^const WidePure P64$'
+
+logos build -o $WORK/ok.a ./okcall
+! logos build -o $WORK/bad.a ./badcall
+stderr 'const_view_mutation.*cannot pass const view'
+
+# Go-mode mutation masks keep positions 64 and 65: a const view passed at a
+# mutated position past 63 is rejected, and one at an unmutated position is not.
+cd ../wgo
+logos build -o $WORK/wgo.a .
+go tool pack p $WORK/wgo.a __.LOGOS
+stdout '^fn Wide64 ParamMutated=10000000000000000$'
+stdout '^fn Wide65 ParamMutated=20000000000000000$'
+cd ../wimp
+logos build -o $WORK/wok.a ./ok
+! logos build -o $WORK/wbad64.a ./bad64
+stderr 'const_view_mutation.*parameter p64'
+! logos build -o $WORK/wbad65.a ./bad65
+stderr 'const_view_mutation.*parameter p65'
+cd ..
+
+-- w/go.mod --
+module example.com/wideparams
+
+go 1.27
+
+-- w/logos.toml --
+[lints.thresholds]
+max_function_params = 70
+
+-- w/lib/lib.lgo --
+package lib
+
+func Wide(p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, p17, p18, p19, p20, p21, p22, p23, p24, p25, p26, p27, p28, p29, p30, p31, p32, p33, p34, p35, p36, p37, p38, p39, p40, p41, p42, p43, p44, p45, p46, p47, p48, p49, p50, p51, p52, p53, p54, p55, p56, p57, p58, p59, p60, p61, p62, p63, p64 []int) int {
+	p64[0] = 1
+	return p64[0]
+}
+
+func WidePure(p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, p17, p18, p19, p20, p21, p22, p23, p24, p25, p26, p27, p28, p29, p30, p31, p32, p33, p34, p35, p36, p37, p38, p39, p40, p41, p42, p43, p44, p45, p46, p47, p48, p49, p50, p51, p52, p53, p54, p55, p56, p57, p58, p59, p60, p61, p62, p63 []int, p64 const []int) int {
+	return len(p64) + len(p0)
+}
+
+-- w/okcall/ok.lgo --
+package okcall
+
+import "example.com/wideparams/lib"
+
+func Good(cv const []int, plain []int) int {
+	return lib.WidePure(plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, cv)
+}
+
+-- w/badcall/bad.lgo --
+package badcall
+
+import "example.com/wideparams/lib"
+
+func Bad(cv const []int, plain []int) int {
+	return lib.Wide(plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, cv)
+}
+
+-- wgo/go.mod --
+module example.com/widego
+
+go 1.27
+
+-- wgo/wide.go --
+package widego
+
+func Wide64(p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, p17, p18, p19, p20, p21, p22, p23, p24, p25, p26, p27, p28, p29, p30, p31, p32, p33, p34, p35, p36, p37, p38, p39, p40, p41, p42, p43, p44, p45, p46, p47, p48, p49, p50, p51, p52, p53, p54, p55, p56, p57, p58, p59, p60, p61, p62, p63, p64, p65 []int) int {
+	p64[0] = 1
+	return len(p0)
+}
+
+func Wide65(p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, p17, p18, p19, p20, p21, p22, p23, p24, p25, p26, p27, p28, p29, p30, p31, p32, p33, p34, p35, p36, p37, p38, p39, p40, p41, p42, p43, p44, p45, p46, p47, p48, p49, p50, p51, p52, p53, p54, p55, p56, p57, p58, p59, p60, p61, p62, p63, p64, p65 []int) int {
+	p65[0] = 1
+	return len(p0)
+}
+
+-- wimp/go.mod --
+module example.com/wideimp
+
+go 1.27
+
+require example.com/widego v0.0.0
+
+replace example.com/widego => ../wgo
+
+-- wimp/logos.toml --
+[lints.thresholds]
+max_function_params = 70
+
+-- wimp/ok/ok.lgo --
+package ok
+
+import "example.com/widego"
+
+func Good(cv const []int, plain []int) int {
+	return widego.Wide65(plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, cv, plain)
+}
+
+-- wimp/bad64/bad.lgo --
+package bad64
+
+import "example.com/widego"
+
+func Bad(cv const []int, plain []int) int {
+	return widego.Wide64(plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, cv, plain)
+}
+
+-- wimp/bad65/bad.lgo --
+package bad65
+
+import "example.com/widego"
+
+func Bad(cv const []int, plain []int) int {
+	return widego.Wide65(plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, plain, cv)
+}

@@ -2,7 +2,10 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
 type opErr struct{ msg string }
 
@@ -18,11 +21,22 @@ func commit() (err error) {
 	return p
 }
 
+var failed bool
+
+func check(name string, cond bool, got, want string) {
+	if !cond {
+		fmt.Printf("FAIL %s: got %s want %s\n", name, got, want)
+		failed = true
+		return
+	}
+	fmt.Printf("ok %s\n", name)
+}
+
 func main() {
 	err := commit()
-	fmt.Println("err==nil:", err == nil)
-	fmt.Println("order:", len(order))
-	for _, s := range order {
-		fmt.Println("ran:", s)
+	check("typed-nil-counts-non-nil", err != nil, fmt.Sprint(err == nil), "false")
+	check("typed-nil-runs-errdefer", len(order) == 1 && order[0] == "cleanup", fmt.Sprint(order), "[cleanup]")
+	if failed {
+		os.Exit(1)
 	}
 }

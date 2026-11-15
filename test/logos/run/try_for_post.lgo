@@ -1,0 +1,133 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+)
+
+var errStep = errors.New("step")
+
+var postCalls int
+var bodies int
+var ticks int
+var last int
+
+func next(v int) (int, error) {
+	postCalls++
+	if v == 2 {
+		return 0, errStep
+	}
+	return v + 1, nil
+}
+
+func nextOK(v int) (int, error) {
+	postCalls++
+	return v + 1, nil
+}
+
+func bump(v int) (int, error) {
+	ticks++
+	if v == 2 {
+		return 0, errStep
+	}
+	return v, nil
+}
+
+func bumpOK(v int) (int, error) {
+	ticks++
+	return v, nil
+}
+
+func sumOK() (total int, err error) {
+	total = 0
+	for i := 0; i < 3; i = nextOK(i)? {
+		bodies++
+		total += i
+	}
+	return total, nil
+}
+
+func sumFail() (total int, err error) {
+	total = 0
+	for i := 0; i < 5; i = next(i)? {
+		bodies++
+		total += i
+	}
+	return total, nil
+}
+
+func driveLast() error {
+	last = -1
+	for last = 0; last < 5; last = next(last)? {
+		bodies++
+	}
+	return nil
+}
+
+func driveExprOK() error {
+	for ; ticks < 3; bumpOK(ticks)? {
+		bodies++
+	}
+	return nil
+}
+
+func driveExpr() error {
+	for ; ticks < 5; bump(ticks)? {
+		bodies++
+	}
+	return nil
+}
+
+func check(cond bool, msg string) {
+	if cond {
+		fmt.Println("ok " + msg)
+		return
+	}
+	fmt.Println("FAIL " + msg)
+	os.Exit(1)
+}
+
+type observed[T any] struct {
+	v   T
+	err error
+}
+
+func observe[T any](v T, err error) observed[T] {
+	return observed[T]{v, err}
+}
+
+func main() {
+	postCalls = 0
+	bodies = 0
+	total, err := sumOK()
+	okNil := err == nil && total == 3 && postCalls == 3 && bodies == 3
+	check(okNil, "for-post-assign-nil")
+
+	postCalls = 0
+	bodies = 0
+	res := observe(sumFail())
+	total, err = res.v, res.err
+	okErr := err != nil && err == errStep && total == 0 && postCalls == 3 && bodies == 3
+	check(okErr, "for-post-assign-err")
+
+	postCalls = 0
+	bodies = 0
+	err = driveLast()
+	okZero := err == errStep && last == 0 && postCalls == 3 && bodies == 3
+	check(okZero, "for-post-assign-zero")
+
+	ticks = 0
+	bodies = 0
+	err = driveExprOK()
+	okExprNil := err == nil && ticks == 3 && bodies == 3
+	check(okExprNil, "for-post-expr-nil")
+
+	ticks = 0
+	bodies = 0
+	err = driveExpr()
+	okExprErr := err == errStep && ticks == 3 && bodies == 3
+	check(okExprErr, "for-post-expr-err")
+}

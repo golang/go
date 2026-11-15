@@ -60,6 +60,7 @@ type phiState struct {
 	idom  []*ssa.Block // dominator parents
 	tree  []domBlock   // dominator child+sibling
 	level []int32      // level in dominator tree (0 = root or unreachable, 1 = children of root, ...)
+	minSL []int32
 
 	// scratch locations
 	priq   blockHeap    // priority queue of blocks, higher level (toward leaves) = higher priority
@@ -166,6 +167,7 @@ levels:
 			}
 		}
 	}
+	s.computeMinSuccessorLevels()
 
 	// Allocate scratch locations.
 	s.priq.level = s.level
@@ -224,6 +226,9 @@ func (s *phiState) insertVarPhis(n int, var_ ir.Node, defs []*ssa.Block, typ *ty
 		if debugPhi {
 			fmt.Printf("currentRoot %s\n", currentRoot)
 		}
+		if s.logosPrunePhi(currentRoot, s.level[currentRoot.ID]) {
+			continue
+		}
 		// Walk subtree below definition.
 		// Skip subtrees we've done in previous iterations.
 		// Find edges exiting tree dominated by definition (the dominance frontier).
@@ -274,7 +279,7 @@ func (s *phiState) insertVarPhis(n int, var_ ir.Node, defs []*ssa.Block, typ *ty
 
 			// Visit children if they have not been visited yet.
 			for c := s.tree[b.ID].firstChild; c != nil; c = s.tree[c.ID].sibling {
-				if !queued.contains(c.ID) {
+				if !s.logosPrunePhi(c, currentRootLevel) && !queued.contains(c.ID) {
 					q = append(q, c)
 					queued.add(c.ID)
 				}

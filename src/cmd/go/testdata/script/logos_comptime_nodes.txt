@@ -1,26 +1,17 @@
-# M7-S3: expanded-node limit (SPEC Sec 2.5, T-205, #150). The default
-# selected limit is 4096 nodes per expansion: triple-nested const for
-# over a 16-field struct exceeds it, while a single const for over the
-# same struct passes. Raising the limit with -logos.comptime_nodes lets
-# the nested case through; a tiny limit rejects even the single case.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
-# Triple nesting fails at the default limit.
 cd wbig
 ! logos build ./...
 stderr 'comptime::node_limit'
 cd ..
 
-# The same shape passes with a raised limit, and runs.
 cd wbig
 logos build -gcflags=all=-logos.comptime_nodes=1000000 ./...
 logos run -gcflags=all=-logos.comptime_nodes=1000000 ./...
 stdout '^big-ok$'
 cd ..
 
-# A tiny limit rejects even a single const for. The selected limit is
-# exact: the 24-node expansion passes at 24 and fails at 23.
 cd wsmall
 ! logos build -gcflags=all=-logos.comptime_nodes=4 ./...
 stderr 'comptime::node_limit'
@@ -31,6 +22,36 @@ stderr 'comptime::node_limit'
 logos build ./...
 logos run ./...
 stdout '^small-ok$'
+cd ..
+cd wmed
+! logos build ./...
+stderr 'comptime::node_limit'
+stderr 'expansion has 4100 nodes above the selected limit 4096'
+! logos build -gcflags=all=-logos.comptime_nodes=4099 ./...
+stderr 'expansion has 4100 nodes above the selected limit 4099'
+logos build -gcflags=all=-logos.comptime_nodes=4100 ./...
+logos run -gcflags=all=-logos.comptime_nodes=4100 ./...
+stdout '^med-ok$'
+cd ..
+
+mkdir wtoml
+cp wbig/go.mod wtoml/go.mod
+cp wbig/big.lgo wtoml/big.lgo
+cd wtoml
+! logos build ./...
+stderr 'comptime::node_limit'
+cp ../toml-raised.toml logos.toml
+logos run ./...
+stdout '^big-ok$'
+cd ..
+
+cd wsmall
+cp ../toml-limit-23.toml logos.toml
+! logos build ./...
+stderr 'expansion has 24 nodes above the selected limit 23'
+cp ../toml-limit-24.toml logos.toml
+logos build ./...
+rm logos.toml
 cd ..
 
 -- wbig/go.mod --
@@ -110,4 +131,103 @@ func show(v Small) int {
 func main() {
 	fmt.Println("show:", show(Small{X: 1, Y: 2}))
 	fmt.Println("small-ok")
+}
+
+-- toml-raised.toml --
+[lints.thresholds]
+max_comptime_ast_nodes = 1000000
+
+-- toml-limit-23.toml --
+[lints.thresholds]
+max_comptime_ast_nodes = 23
+
+-- toml-limit-24.toml --
+[lints.thresholds]
+max_comptime_ast_nodes = 24
+
+-- wmed/go.mod --
+module example.com/mednest
+
+go 1.27
+
+-- wmed/med.lgo --
+package main
+
+import (
+	"comptime"
+	"fmt"
+)
+
+type Big struct {
+	F0 int
+	F1 int
+	F2 int
+	F3 int
+	F4 int
+	F5 int
+	F6 int
+	F7 int
+	F8 int
+	F9 int
+	F10 int
+	F11 int
+	F12 int
+	F13 int
+	F14 int
+	F15 int
+	F16 int
+	F17 int
+	F18 int
+	F19 int
+	F20 int
+	F21 int
+	F22 int
+	F23 int
+	F24 int
+	F25 int
+	F26 int
+	F27 int
+	F28 int
+	F29 int
+	F30 int
+	F31 int
+	F32 int
+	F33 int
+	F34 int
+	F35 int
+	F36 int
+	F37 int
+	F38 int
+	F39 int
+	F40 int
+	F41 int
+	F42 int
+	F43 int
+	F44 int
+	F45 int
+	F46 int
+	F47 int
+	F48 int
+	F49 int
+}
+
+type Small struct {
+	G0 int
+	G1 int
+	G2 int
+	G3 int
+}
+
+func show(v Big, w Small) int {
+	n := 0
+	const for _, f := range comptime.Fields[Big]() {
+		const for _, g := range comptime.Fields[Small]() {
+			n += v.[f] + w.[g]
+		}
+	}
+	return n
+}
+
+func main() {
+	fmt.Println("med-ok")
 }

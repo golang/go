@@ -5,12 +5,22 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os"
 )
 
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
 var errBoom = errors.New("boom")
-
 var seen = -1
-
 var pairA = -1
 var pairB = "unset"
 
@@ -38,30 +48,54 @@ func usePair(fail bool) error {
 	return nil
 }
 
+func fetchFail() error {
+	_ = getVal(true, 7)?
+	return nil
+}
+
 func run() error {
 	v := getVal(false, 7)?
-	fmt.Println("ok:", v)
+	check("value", v == 7, v, 7)
 	if err := useAssign(false); err != nil {
-		fmt.Println("unexpected:", err)
+		check("assign-ok-err", false, err.Error(), "<nil>")
+		return err
 	}
-	fmt.Println("seen:", seen)
+	check("assign-ok-err", true, "<nil>", "<nil>")
+	check("seen-ok", seen == 42, seen, 42)
 	if err := usePair(false); err != nil {
-		fmt.Println("unexpected:", err)
+		check("pair-ok-err", false, err.Error(), "<nil>")
+		return err
 	}
-	fmt.Println("pair:", pairA, pairB)
+	check("pair-ok-err", true, "<nil>", "<nil>")
+	check("pair-ok", pairA == 7 && pairB == "seven", fmt.Sprint(pairA, pairB), "7 seven")
 	if err := useAssign(true); err != nil {
-		fmt.Println("err:", err)
+		check("assign-fail-err", err.Error() == "boom", err.Error(), "boom")
+	} else {
+		check("assign-fail-err", false, "<nil>", "boom")
 	}
-	fmt.Println("seen:", seen)
+	check("seen-fail", seen == 99, seen, 99)
 	if err := usePair(true); err != nil {
-		fmt.Println("err:", err)
+		check("pair-fail-err", err.Error() == "boom", err.Error(), "boom")
+	} else {
+		check("pair-fail-err", false, "<nil>", "boom")
 	}
-	fmt.Println("pair:", pairA, pairB)
+	if err := fetchFail(); err != nil {
+		check("identical", (err == errBoom) == true, err == errBoom, true)
+		check("sametext", (err == errors.New("boom")) == false, err == errors.New("boom"), false)
+	} else {
+		check("identical", false, "<nil>", "boom")
+	}
+	check("pair-fail", pairA == 99 && pairB == "payload", fmt.Sprint(pairA, pairB), "99 payload")
 	return nil
 }
 
 func main() {
 	if err := run(); err != nil {
-		fmt.Println("fatal:", err)
+		check("run-err", false, err.Error(), "<nil>")
+		os.Exit(1)
+	}
+	check("run-err", true, "<nil>", "<nil>")
+	if failed {
+		os.Exit(1)
 	}
 }

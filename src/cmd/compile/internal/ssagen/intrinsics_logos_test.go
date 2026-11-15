@@ -4,14 +4,7 @@
 
 package ssagen
 
-import "cmd/internal/sys"
-
-// logosRegisterCold registers the logos/rt.Cold intrinsic on every
-// architecture (ssa_logos.go), so the expected table of TestIntrinsics lists
-// it for each of them.
 func init() {
-	for _, arch := range sys.Archs {
-		wantIntrinsics[testIntrinsicKey{arch.Name, "logos/rt", "Cold"}] = struct{}{}
-	}
 	wantIntrinsics[testIntrinsicKey{"amd64", "runtime", "logosArenaBump"}] = struct{}{}
+	wantIntrinsics[testIntrinsicKey{"amd64", "runtime", "logosRegionBump"}] = struct{}{}
 }

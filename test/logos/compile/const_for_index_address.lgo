@@ -1,0 +1,30 @@
+// errorcheck
+
+package p
+
+import "comptime"
+
+type Point struct {
+	X int
+	Y int
+}
+
+func sink(p *int) {}
+
+func forms() {
+	const for i, f := range comptime.Fields[Point]() {
+		_ = f.Name
+		_ = i
+		p := &i // ERROR "comptime::const_for_assign"
+		*p = 9
+		q := &(i) // ERROR "comptime::const_for_assign"
+		_ = q
+		r := &((i)) // ERROR "comptime::const_for_assign"
+		_ = r
+		sink(&i) // ERROR "comptime::const_for_assign"
+		_ = []*int{&i} // ERROR "comptime::const_for_assign"
+		func() {
+			_ = &i // ERROR "comptime::const_for_assign"
+		}()
+	}
+}

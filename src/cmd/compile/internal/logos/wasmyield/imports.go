@@ -12,11 +12,6 @@ import (
 	"cmd/internal/objabi"
 )
 
-// pureImports lists the wasm imports that never park the goroutine and
-// never run Go callbacks, keyed "module.name". poll_oneoff and sched_yield
-// block on wasip1; every syscall/js import can run a JavaScript function
-// that calls back into Go, and a callback may park; an import that is not
-// listed yields (SPEC Sec 14.1).
 var pureImports = func() map[string]bool {
 	m := make(map[string]bool)
 	for _, n := range []string{
@@ -42,10 +37,6 @@ var pureImports = func() map[string]bool {
 	return m
 }()
 
-// pureAsmNames lists the assembly routines of the wasm runtime and of
-// internal/bytealg that never unwind: loops over linear memory with no
-// resumable call. A Go function of internal/bytealg is not listed; its
-// own facts decide.
 var pureAsmNames = map[string]bool{
 	"runtime.memmove":                  true,
 	"runtime.memclrNoHeapPointers":     true,
@@ -57,15 +48,10 @@ var pureAsmNames = map[string]bool{
 	"internal/bytealg.IndexByteString": true,
 }
 
-// pureAsm reports whether the assembly function with the symbol name never
-// unwinds. Every other assembly function yields: gogo, mcall, systemstack,
-// morestack and pause switch goroutines.
 func pureAsm(name string) bool {
 	return pureAsmNames[name]
 }
 
-// importYields reports whether a call to the wasm import module.name may
-// yield.
 func importYields(module, name string) bool {
 	return !pureImports[module+"."+name]
 }
@@ -75,9 +61,6 @@ var (
 	indexes = map[string]map[string]bool{}
 )
 
-// importedYield reports whether the function with the symbol name may
-// yield, from the facts of the package that defines it. A function with no
-// fact, or from a package whose facts are not loaded, yields.
 func importedYield(name string) bool {
 	pkg, object, ok := splitName(name)
 	if !ok {
@@ -87,8 +70,6 @@ func importedYield(name string) bool {
 	return !ok || yield
 }
 
-// splitName cuts a symbol name into its package path and its object
-// name: the package prefix ends at the first dot after the last slash.
 func splitName(name string) (pkg, object string, ok bool) {
 	dir, file, slashed := strings.CutLast(name, "/")
 	if !slashed {
@@ -109,8 +90,6 @@ func splitName(name string) (pkg, object string, ok bool) {
 	return pkg, object, true
 }
 
-// factIndex maps each object of the imported package that has a MayYield
-// fact to that fact. It is nil for a package without loaded facts.
 func factIndex(pkg string) map[string]bool {
 	indexMu.Lock()
 	defer indexMu.Unlock()

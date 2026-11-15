@@ -1,0 +1,443 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+	"testing"
+)
+
+//go:noinline
+func failNil() error {
+	sink++
+	return nil
+}
+
+var errFirst = errors.New("first")
+var errTwo = errors.New("second")
+
+//go:noinline
+func failTwo() error {
+	sink++
+	return errTwo
+}
+
+//go:noinline
+func failArgErr(x int) error {
+	sink += x
+	return errTwo
+}
+
+//go:noinline
+func failArg(x int) error {
+	sink += x
+	return nil
+}
+
+type box struct {
+	v int
+}
+
+//go:noinline
+func (b *box) Close() error {
+	sink += b.v
+	return nil
+}
+
+//go:noinline
+func (b *box) CloseErr() error {
+	sink += b.v
+	return errTwo
+}
+
+//go:noinline
+func noteArg(x int) error {
+	order = append(order, x)
+	return nil
+}
+
+//go:noinline
+func (b *box) CloseRec() error {
+	closedVs = append(closedVs, b.v)
+	return nil
+}
+
+var sink int
+var sinkErr error
+var order []int
+var closedVs []int
+
+func loopFn(n int) (err error) {
+	for i := 0; i < n; i++ {
+		defer failNil()?
+	}
+	return nil
+}
+
+func loopFnHand(n int) (err error) {
+	for i := 0; i < n; i++ {
+		defer func() {
+			if e := failNil(); e != nil {
+				if err == nil {
+					err = e
+				} else {
+					err = errors.Join(err, e)
+				}
+			}
+		}()
+	}
+	return nil
+}
+
+func loopArg(n int) (err error) {
+	for i := 0; i < n; i++ {
+		defer failArg(i)?
+	}
+	return nil
+}
+
+func loopArgHand(n int) (err error) {
+	for i := 0; i < n; i++ {
+		x := i
+		defer func() {
+			if e := failArg(x); e != nil {
+				if err == nil {
+					err = e
+				} else {
+					err = errors.Join(err, e)
+				}
+			}
+		}()
+	}
+	return nil
+}
+
+func loopMethod(bs []*box) (err error) {
+	for _, b := range bs {
+		defer b.Close()?
+	}
+	return nil
+}
+
+func loopMethodHand(bs []*box) (err error) {
+	for _, b := range bs {
+		b := b
+		defer func() {
+			if e := b.Close(); e != nil {
+				if err == nil {
+					err = e
+				} else {
+					err = errors.Join(err, e)
+				}
+			}
+		}()
+	}
+	return nil
+}
+
+func loopFnErr(n int) (err error) {
+	for i := 0; i < n; i++ {
+		defer failTwo()?
+	}
+	return nil
+}
+
+func loopFnErrHand(n int) (err error) {
+	for i := 0; i < n; i++ {
+		defer func() {
+			if e := failTwo(); e != nil {
+				if err == nil {
+					err = e
+				} else {
+					err = errors.Join(err, e)
+				}
+			}
+		}()
+	}
+	return nil
+}
+
+func loopFnJoin(n int) (err error) {
+	for i := 0; i < n; i++ {
+		defer failTwo()?
+	}
+	return errFirst
+}
+
+func loopFnJoinHand(n int) (err error) {
+	for i := 0; i < n; i++ {
+		defer func() {
+			if e := failTwo(); e != nil {
+				if err == nil {
+					err = e
+				} else {
+					err = errors.Join(err, e)
+				}
+			}
+		}()
+	}
+	return errFirst
+}
+
+func loopArgErr(n int) (err error) {
+	for i := 0; i < n; i++ {
+		defer failArgErr(i)?
+	}
+	return nil
+}
+
+func loopArgErrHand(n int) (err error) {
+	for i := 0; i < n; i++ {
+		x := i
+		defer func() {
+			if e := failArgErr(x); e != nil {
+				if err == nil {
+					err = e
+				} else {
+					err = errors.Join(err, e)
+				}
+			}
+		}()
+	}
+	return nil
+}
+
+func loopArgJoin(n int) (err error) {
+	for i := 0; i < n; i++ {
+		defer failArgErr(i)?
+	}
+	return errFirst
+}
+
+func loopArgJoinHand(n int) (err error) {
+	for i := 0; i < n; i++ {
+		x := i
+		defer func() {
+			if e := failArgErr(x); e != nil {
+				if err == nil {
+					err = e
+				} else {
+					err = errors.Join(err, e)
+				}
+			}
+		}()
+	}
+	return errFirst
+}
+
+func loopMethodErr(bs []*box) (err error) {
+	for _, b := range bs {
+		defer b.CloseErr()?
+	}
+	return nil
+}
+
+func loopMethodErrHand(bs []*box) (err error) {
+	for _, b := range bs {
+		b := b
+		defer func() {
+			if e := b.CloseErr(); e != nil {
+				if err == nil {
+					err = e
+				} else {
+					err = errors.Join(err, e)
+				}
+			}
+		}()
+	}
+	return nil
+}
+
+func loopMethodJoin(bs []*box) (err error) {
+	for _, b := range bs {
+		defer b.CloseErr()?
+	}
+	return errFirst
+}
+
+func loopMethodJoinHand(bs []*box) (err error) {
+	for _, b := range bs {
+		b := b
+		defer func() {
+			if e := b.CloseErr(); e != nil {
+				if err == nil {
+					err = e
+				} else {
+					err = errors.Join(err, e)
+				}
+			}
+		}()
+	}
+	return errFirst
+}
+
+func loopOrderLogos(n int) (err error) {
+	for i := 0; i < n; i++ {
+		defer noteArg(i)?
+	}
+	return nil
+}
+
+func loopOrderHand(n int) (err error) {
+	for i := 0; i < n; i++ {
+		x := i
+		defer func() {
+			if e := noteArg(x); e != nil {
+				if err == nil {
+					err = e
+				} else {
+					err = errors.Join(err, e)
+				}
+			}
+		}()
+	}
+	return nil
+}
+
+func recvLogos() (err error) {
+	b := &box{v: 1}
+	defer b.CloseRec()?
+	b = &box{v: 2}
+	return nil
+}
+
+func recvHand() (err error) {
+	b := &box{v: 1}
+	b0 := b
+	defer func() {
+		if e := b0.CloseRec(); e != nil {
+			if err == nil {
+				err = e
+			} else {
+				err = errors.Join(err, e)
+			}
+		}
+	}()
+	b = &box{v: 2}
+	return nil
+}
+
+func sameInts(a, c []int) bool {
+	if len(a) != len(c) {
+		return false
+	}
+	for i := range a {
+		if a[i] != c[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func errCases(bs []*box) bool {
+	failed := false
+	checkErr := func(name string, err error, wantFirst, wantSecond bool) {
+		gotFirst := errors.Is(err, errFirst)
+		gotSecond := errors.Is(err, errTwo)
+		if err == nil || gotFirst != wantFirst || gotSecond != wantSecond {
+			fmt.Println("FAIL", name+":", "got", err, "want", "join")
+			failed = true
+			return
+		}
+		fmt.Println("ok", name)
+	}
+	checkErr("fn-err", loopFnErr(3), false, true)
+	checkErr("fn-err-hand", loopFnErrHand(3), false, true)
+	checkErr("fn-join", loopFnJoin(3), true, true)
+	checkErr("fn-join-hand", loopFnJoinHand(3), true, true)
+	checkErr("arg-err", loopArgErr(3), false, true)
+	checkErr("arg-err-hand", loopArgErrHand(3), false, true)
+	checkErr("arg-join", loopArgJoin(3), true, true)
+	checkErr("arg-join-hand", loopArgJoinHand(3), true, true)
+	checkErr("method-err", loopMethodErr(bs), false, true)
+	checkErr("method-err-hand", loopMethodErrHand(bs), false, true)
+	checkErr("method-join", loopMethodJoin(bs), true, true)
+	checkErr("method-join-hand", loopMethodJoinHand(bs), true, true)
+	return failed
+}
+
+func checkCompletedDefers(bs []*box) bool {
+	failed := false
+	for _, tc := range []struct {
+		name string
+		f func() error
+		want int
+	}{
+		{"fn", func() error { return loopFn(5) }, 5},
+		{"fn-hand", func() error { return loopFnHand(5) }, 5},
+		{"arg", func() error { return loopArg(5) }, 10},
+		{"arg-hand", func() error { return loopArgHand(5) }, 10},
+		{"method", func() error { return loopMethod(bs) }, 15},
+		{"method-hand", func() error { return loopMethodHand(bs) }, 15},
+	} {
+		before := sink
+		err := tc.f()
+		if err != nil || sink-before != tc.want {
+			fmt.Println("FAIL", tc.name, "result", err, "sink delta", sink-before, "want", tc.want)
+			failed = true
+		}
+	}
+	order = nil
+	sinkErr = loopOrderLogos(5)
+	if sinkErr != nil {
+		fmt.Println("FAIL order logos result:", sinkErr)
+		failed = true
+	}
+	logosOrder := append([]int(nil), order...)
+	order = nil
+	sinkErr = loopOrderHand(5)
+	want := []int{4, 3, 2, 1, 0}
+	if sinkErr != nil || !sameInts(logosOrder, want) || !sameInts(order, want) {
+		fmt.Println("FAIL", "order:", "got", logosOrder, order, "want", want)
+		failed = true
+	} else {
+		fmt.Println("ok", "order")
+	}
+	closedVs = nil
+	sinkErr = recvLogos()
+	if sinkErr != nil {
+		fmt.Println("FAIL recv logos result:", sinkErr)
+		failed = true
+	}
+	logosRec := append([]int(nil), closedVs...)
+	closedVs = nil
+	sinkErr = recvHand()
+	if sinkErr != nil || !sameInts(logosRec, []int{1}) || !sameInts(closedVs, []int{1}) {
+		fmt.Println("FAIL", "recv:", "got", logosRec, closedVs, "want", []int{1})
+		failed = true
+	} else {
+		fmt.Println("ok", "recv")
+	}
+	return failed
+}
+
+func main() {
+	failed := false
+	check := func(name string, logos, hand float64) {
+		if logos != 0 || hand != 6 {
+			fmt.Println("FAIL", name+":", "pooled", logos, "want 0; hand-written closure", hand, "want 6")
+			failed = true
+			return
+		}
+		fmt.Println("ok", name)
+	}
+	check("fn", testing.AllocsPerRun(200, func() { sinkErr = loopFn(5) }), testing.AllocsPerRun(200, func() { sinkErr = loopFnHand(5) }))
+	check("arg", testing.AllocsPerRun(200, func() { sinkErr = loopArg(5) }), testing.AllocsPerRun(200, func() { sinkErr = loopArgHand(5) }))
+	bs := []*box{{v: 1}, {v: 2}, {v: 3}, {v: 4}, {v: 5}}
+	check("method", testing.AllocsPerRun(200, func() { sinkErr = loopMethod(bs) }), testing.AllocsPerRun(200, func() { sinkErr = loopMethodHand(bs) }))
+	if sinkErr != nil {
+		fmt.Println("FAIL sinkErr not nil:", sinkErr)
+		failed = true
+	}
+	if checkCompletedDefers(bs) {
+		failed = true
+	}
+	if errCases(bs) {
+		failed = true
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

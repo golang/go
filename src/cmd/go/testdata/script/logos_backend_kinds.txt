@@ -1,0 +1,68 @@
+# A section 13 backend pass applies to Go packages and to loGo/s
+# packages, under logos and under plain go. The fourth combination
+# (a loGo/s package under plain go) cannot occur: plain go never
+# compiles .lgo files.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOARCH=arm64
+
+cd m
+logos build -o logos_go.exe ./goonly
+go build -o plain_go.exe ./goonly
+logos build -o logos_lgo.exe ./lgoonly
+! go build -o plain_lgo.exe ./lgoonly
+! exists plain_lgo.exe
+go tool objdump -s 'main\.loadPair' logos_go.exe
+stdout 'LDP'
+go tool objdump -s 'main\.loadPair' plain_go.exe
+stdout 'LDP'
+go tool objdump -s 'main\.loadPair' logos_lgo.exe
+stdout 'LDP'
+env GOARCH=
+
+-- m/go.mod --
+module example.com/backendkinds
+
+go 1.27
+
+-- m/goonly/main.go --
+package main
+
+import "fmt"
+
+type pairLoad08 struct {
+	A int64
+	B int64
+}
+
+//go:noinline
+func loadPair(p *pairLoad08) (int64, int64) {
+	return p.A, p.B
+}
+
+func main() {
+	p := &pairLoad08{A: 1, B: 2}
+	a, b := loadPair(p)
+	fmt.Println(a, b)
+}
+
+-- m/lgoonly/main.lgo --
+package main
+
+import "fmt"
+
+type pairLoad08 struct {
+	A int64
+	B int64
+}
+
+//go:noinline
+func loadPair(p *pairLoad08) (int64, int64) {
+	return p.A, p.B
+}
+
+func main() {
+	p := &pairLoad08{A: 1, B: 2}
+	a, b := loadPair(p)
+	fmt.Println(a, b)
+}

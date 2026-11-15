@@ -1,0 +1,19 @@
+// asmcheck
+
+package codegen
+
+import "sync/atomic"
+
+var atomicDefaultCell atomic.Int64
+
+var plainDefaultCell int64
+
+func atomicDefaultAdd() {
+	// arm64:"LDADD"
+	atomicDefaultCell.Add(1)
+}
+
+func plainDefaultAdd() {
+	// arm64:-"LDADD"
+	plainDefaultCell++
+}

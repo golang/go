@@ -1,0 +1,9 @@
+ok return-operand-sees-live-group-context
+ok return-operand-with-errdefer
+ok return-operand-in-block
+ok return-operand-once-group-error-wins
+ok return-pair-operand-sees-live-group-context
+ok return-forwarded-call-sees-live-group-context
+ok tail-statement-sees-live-group-context
+ok tail-statement-saw-live-context
+ok return-operand-runs-before-join

@@ -1,0 +1,62 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+func inferTake[T any](v T) T { return v }
+
+func inferSlice(xs const []int) {
+	_ = inferTake(xs /* ERROR "[correctness::const_view_mutation] cannot pass argument through const view" */)
+}
+
+func inferMap(xm const map[string]int) {
+	_ = inferTake(xm /* ERROR "[correctness::const_view_mutation] cannot pass argument through const view" */)
+}
+
+type inferItem struct {
+	Name string
+}
+
+func inferPtr(xp const *inferItem) {
+	_ = inferTake(xp /* ERROR "[correctness::const_view_mutation] cannot pass argument through const view" */)
+}
+
+func inferConstParam[T any](v const []T) int { return len(v) }
+
+func inferConstParamCall(xs const []int) int {
+	return inferConstParam(xs)
+}
+func inferBareConst[T any](v const T) T { var zero T; return zero }
+
+func inferBareConstTyped(i int, s string) {
+	var _ int = inferBareConst(i)
+	var _ string = inferBareConst(s)
+	var _ int = inferBareConst(1)
+	var _ float64 = inferBareConst(1.5)
+	var _ string = inferBareConst("hi")
+}
+
+func inferBareConstNil() {
+	_ = inferBareConst(/* ERROR "cannot infer T" */ nil)
+}
+
+func inferConstSliceUntyped() {
+	_ = inferConstParam(/* ERROR "cannot infer T" */ 1)
+	_ = inferConstParam(/* ERROR "cannot infer T" */ 1.5)
+	_ = inferConstParam(/* ERROR "cannot infer T" */ "hi")
+	_ = inferConstParam(/* ERROR "cannot infer T" */ nil)
+}
+
+func inferVariadicConst[T any](vs ...const T) T { var zero T; return zero }
+
+func inferVariadicConstTyped(i int) {
+	var _ int = inferVariadicConst(1)
+	var _ float64 = inferVariadicConst(1.5)
+	var _ string = inferVariadicConst("hi")
+	var _ int = inferVariadicConst(i, 2)
+}
+
+func inferVariadicConstNil() {
+	_ = inferVariadicConst(/* ERROR "cannot infer T" */ nil)
+}

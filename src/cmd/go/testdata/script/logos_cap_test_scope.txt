@@ -1,29 +1,6 @@
-# M12 scope: under `logos test` the capabilities audit never blames the
-# generated test main, the standard library, or the main module; it still
-# blames a third-party dependency a test reaches.
-#
-# RED expectation: the linker derived a symbol's package by cutting its name
-# at the last '.', so any symbol with dots after the package got a bogus
-# package: main..stmp_N (the tests table of _testmain.go, on every chain to
-# a test function) became "main.", closures and funcvals became
-# "flag.init" or "os_test.TestSpliceFile", a value-receiver method became
-# "example.com/edep.T". Case A failed with
-#   ERROR [capabilities::unauthorized_cgo]: Transitive dependency 'main.' reaches ...
-# and cases B, C, E, and G failed the same way; case F failed on the
-# escaped %2e of the dotted import path. A later regression blamed the
-# same main for net.sysSocket in bufio's test binary, and blamed
-# type:noalg.struct { F uintptr; R reflect ... } (a type descriptor the
-# deadcode pass kept for internal/buildcfg.init) for os.StartProcess in
-# crypto's test binary, so Case A builds both too.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
-# Case A: standard-library test binaries link clean. os/exec reaches
-# os.startProcess, net reaches net.sysSocket and (with cgo) runtime.cgocall,
-# reflect reaches reflect.ValueOf; the whole standard library is exempt.
-# bufio's test reaches net.sysSocket through net_test, and crypto's test
-# binary carries internal/buildcfg.init with type descriptors, exercising
-# the exact shapes of both regressions.
 logos test -short -run=^$ os/exec net reflect bufio crypto
 stdout 'ok\s+os/exec'
 stdout 'ok\s+net\s'
@@ -34,9 +11,6 @@ stdout 'ok\s+crypto\s'
 ! stdout 'capabilities::'
 ! stdout 'FAIL'
 
-# Case B: a Go main module's own test reaches exec, net, and cgo through
-# first-party code, including closures in the module's root package:
-# first-party and standard-library frames never blame.
 cd b/main
 logos test -short ./...
 stdout 'ok\s+example\.com/bmain\s'
@@ -45,7 +19,6 @@ stdout 'ok\s+example\.com/bmain/runner'
 ! stdout 'capabilities::'
 cd ../..
 
-# Case C: the same holds for a loGo/s main module.
 cd c/main
 logos test -short ./...
 stdout 'ok\s+example\.com/cmain/run'
@@ -53,8 +26,6 @@ stdout 'ok\s+example\.com/cmain/run'
 ! stdout 'capabilities::'
 cd ../..
 
-# Case D: a test that reaches a sink through a third-party dependency still
-# fails, blamed on that dependency and never on the test main.
 cd d/main
 ! logos test -short ./...
 stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/ddep'' reaches ''os\.startProcess'''
@@ -63,10 +34,6 @@ stderr 'example\.com/ddep\.Init\(\)'
 ! stderr 'Transitive dependency ''example\.com/dmain'
 cd ../..
 
-# Case E: a dependency reaching exec through a value-receiver method and a
-# closure is blamed under its import path, so an allowlist glob for it
-# applies. The dependency is blamed as 'example.com/edep', never as
-# 'example.com/edep.Runner' or 'example.com/edep.Runner.Run'.
 cd e/deny
 ! logos test -short ./...
 stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/edep'' reaches ''os\.startProcess'''
@@ -78,8 +45,6 @@ stdout 'ok\s+example\.com/eallow/app'
 ! stdout 'capabilities::'
 cd ../..
 
-# Case F: a dependency whose import path has a dot in its last element
-# (the linker writes %2e) is blamed and allowlisted under the real path.
 cd f/deny
 ! logos test -short ./...
 stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/f\.dep'' reaches ''os\.startProcess'''
@@ -91,8 +56,6 @@ stdout 'ok\s+example\.com/fallow/app'
 ! stdout 'capabilities::'
 cd ../..
 
-# Case G: a main module whose path has a dot in its last element is
-# first-party: its own test reaches exec and is never blamed.
 cd g/main
 logos test -short ./...
 stdout 'ok\s+example\.com/g\.main/app'
@@ -100,10 +63,6 @@ stdout 'ok\s+example\.com/g\.main/app'
 ! stdout 'capabilities::'
 cd ../..
 
-# Case H: a third-party dependency's external test package keeps its
-# third-party blame: the foo_test package of a dependency that reaches exec
-# fails the audit, never exempted by the suffix the standard library's own
-# external tests carry.
 cd h/main
 ! logos test -short example.com/hdep
 stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/hdep_test'' reaches ''os\.startProcess'''

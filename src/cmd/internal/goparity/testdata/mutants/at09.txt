@@ -1,0 +1,8 @@
+kind: runtime
+file: src/runtime/panic.go
+expect: at09_defer_recover_frames
+config: K5
+-- old --
+	if p == nil || p.goexit || p.recovered {
+-- new --
+	if true {

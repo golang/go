@@ -1,0 +1,285 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+# Each consumer must be rejected by both checked-source output paths.
+# Keep cases outside the module so eject checks only the selected consumer.
+cd m
+cp ../direct.lgo main.lgo
+! logos build -o $WORK/bin/direct$GOEXE .
+stderr '\[correctness::const_view_(mutation|escape)\]'
+! logos eject -o $WORK/direct-out
+stderr '\[correctness::const_view_(mutation|escape)\]'
+
+cp ../header.lgo main.lgo
+! logos build -o $WORK/bin/header$GOEXE .
+stderr '\[correctness::const_view_(mutation|escape)\]'
+! logos eject -o $WORK/header-out
+stderr '\[correctness::const_view_(mutation|escape)\]'
+
+cp ../nested.lgo main.lgo
+! logos build -o $WORK/bin/nested$GOEXE .
+stderr '\[correctness::const_view_(mutation|escape)\]'
+! logos eject -o $WORK/nested-out
+stderr '\[correctness::const_view_(mutation|escape)\]'
+
+cp ../chain.lgo main.lgo
+! logos build -o $WORK/bin/chain$GOEXE .
+stderr '\[correctness::const_view_(mutation|escape)\]'
+! logos eject -o $WORK/chain-out
+stderr '\[correctness::const_view_(mutation|escape)\]'
+
+cp ../mutable.lgo main.lgo
+! logos build -o $WORK/bin/mutable$GOEXE .
+stderr '\[correctness::const_view_(mutation|escape)\]'
+! logos eject -o $WORK/mutable-out
+stderr '\[correctness::const_view_(mutation|escape)\]'
+
+cp ../returned.lgo main.lgo
+! logos build -o $WORK/bin/returned$GOEXE .
+stderr '\[correctness::const_view_(mutation|escape)\]'
+! logos eject -o $WORK/returned-out
+stderr '\[correctness::const_view_(mutation|escape)\]'
+
+cp ../imported.lgo main.lgo
+! logos build -o $WORK/bin/imported$GOEXE .
+stderr -count=2 '\[correctness::const_view_mutation\]'
+! logos eject -o $WORK/imported-out
+stderr -count=2 '\[correctness::const_view_mutation\]'
+
+cp ../address.lgo main.lgo
+! logos build -o $WORK/bin/address$GOEXE .
+stderr '\[correctness::const_view_mutation\]'
+! logos eject -o $WORK/address-out
+stderr '\[correctness::const_view_mutation\]'
+
+cp ../arrayslice.lgo main.lgo
+! logos build -o $WORK/bin/arrayslice$GOEXE .
+stderr '\[correctness::const_view_mutation\]'
+! logos eject -o $WORK/arrayslice-out
+stderr '\[correctness::const_view_mutation\]'
+
+cp ../string.lgo main.lgo
+! logos build -o $WORK/bin/string$GOEXE .
+stderr '\[correctness::const_view_(mutation|escape)\]'
+! logos eject -o $WORK/string-out
+stderr '\[correctness::const_view_(mutation|escape)\]'
+
+# Detached inline slots and independent mutable storage remain writable.
+cp ../ok.lgo main.lgo
+logos build -o $WORK/bin/ok$GOEXE .
+exec $WORK/bin/ok$GOEXE
+cmp stdout ../want.txt
+logos eject -o $WORK/ejected
+cd $WORK/ejected
+exists $UPROOT1272/bin/go
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOPATH/src/want.txt
+
+-- want.txt --
+alias-controls-ok
+-- m/go.mod --
+module example.com/aliasmatrix
+
+go 1.27
+
+require example.com/aliasdep v0.0.0
+
+replace example.com/aliasdep => ../dep
+-- m/lib/lib.lgo --
+package lib
+
+type Inner struct {
+	L []int
+}
+
+type Box struct {
+	M map[string]int
+	N int
+	A [2]int
+	Inner Inner
+}
+
+const Root = Box{M: map[string]int{"a": 1}, N: 7, A: [2]int{11, 13}, Inner: Inner{L: []int{17, 19}}}
+-- dep/go.mod --
+module example.com/aliasdep
+
+go 1.27
+-- dep/dep.go --
+package dep
+
+// Alias does not mutate its parameter, but its result is not independent.
+func Alias(xs []int) []int { return xs }
+
+func Write(xs []int) { xs[0] = 99 }
+-- m/values.lgo --
+package main
+
+type Inner struct {
+	L []int
+}
+
+type Box struct {
+	N int
+	A [2]int
+	Inner Inner
+}
+
+const root = Box{N: 7, A: [2]int{11, 13}, Inner: Inner{L: []int{17, 19}}}
+-- direct.lgo --
+package main
+
+import "unsafe"
+
+func main() {
+	*unsafe.SliceData(root.Inner.L) = 99
+}
+-- header.lgo --
+package main
+
+import "unsafe"
+
+func main() {
+	xs := root.Inner.L
+	*unsafe.SliceData(xs) = 99
+}
+-- nested.lgo --
+package main
+
+import "unsafe"
+
+func main() {
+	outer := &root.Inner
+	copy := *outer
+	*unsafe.SliceData(copy.L) = 99
+}
+-- chain.lgo --
+package main
+
+import "unsafe"
+
+func main() {
+	p := unsafe.Pointer(unsafe.SliceData(root.Inner.L))
+	q := unsafe.Add(p, unsafe.Sizeof(int(0)))
+	xs := unsafe.Slice((*int)(q), 1)
+	xs[0] = 99
+}
+-- mutable.lgo --
+package main
+
+import "example.com/aliasdep"
+
+func main() {
+	dep.Write(root.Inner.L)
+}
+-- returned.lgo --
+package main
+
+import "example.com/aliasdep"
+
+func main() {
+	xs := dep.Alias(root.Inner.L)
+	xs[0] = 99
+}
+-- imported.lgo --
+package main
+
+import "example.com/aliasmatrix/lib"
+
+func main() {
+	outer := &lib.Root.Inner
+	outer.L[0] = 99
+	copy := lib.Root
+	copy.M["a"] = 99
+}
+-- address.lgo --
+package main
+
+func main() {
+	outer := &root.Inner
+	p := &outer.L[0]
+	*p = 99
+}
+-- arrayslice.lgo --
+package main
+
+func main() {
+	xs := root.A[:]
+	xs[0] = 99
+}
+-- string.lgo --
+package main
+
+import "unsafe"
+
+const text = "protected"
+
+func main() {
+	p := unsafe.StringData(text)
+	xs := unsafe.Slice(p, len(text))
+	xs[0] = 'X'
+}
+-- ok.lgo --
+package main
+
+import (
+	"fmt"
+	"unsafe"
+	"example.com/aliasdep"
+	"example.com/aliasmatrix/lib"
+)
+
+func main() {
+	// Reference-free aggregate assignment is a value copy.
+	a := root.A
+	a[0] = 23
+	// Addressing inline slots yields fresh variables, locally and imported.
+	n := &root.N
+	*n = 29
+	e := &root.A[1]
+	*e = 31
+	in := &lib.Root.N
+	*in = 37
+	ie := &lib.Root.A[1]
+	*ie = 41
+	whole := &root
+	whole.N = 43
+	whole.A[0] = 47
+	imported := &lib.Root
+	imported.N = 53
+	imported.A[0] = 59
+	if a != [2]int{23, 13} || *n != 29 || *e != 31 || *in != 37 || *ie != 41 {
+		panic("detached slots")
+	}
+	if whole.N != 43 || whole.A != [2]int{47, 13} || imported.N != 53 || imported.A != [2]int{59, 13} {
+		panic("detached aggregate")
+	}
+	if root.N != 7 || root.A != [2]int{11, 13} || lib.Root.N != 7 || lib.Root.A != [2]int{11, 13} {
+		panic("constant changed")
+	}
+	// Known unsafe observations are legal when they do not expose writable aliases.
+	if *unsafe.SliceData(root.Inner.L) != 17 || *unsafe.SliceData(lib.Root.Inner.L) != 17 {
+		panic("slice observation")
+	}
+	if unsafe.Slice(unsafe.SliceData(root.Inner.L), 2)[1] != 19 {
+		panic("readonly slice observation")
+	}
+	if *unsafe.SliceData(root.Inner.L[1:]) != 19 {
+		panic("readonly offset observation")
+	}
+	if unsafe.String(unsafe.StringData("read"), 4) != "read" {
+		panic("string observation")
+	}
+	// The same unsafe chain and Go calls work on independent mutable storage.
+	xs := []int{61, 67}
+	p := unsafe.Pointer(unsafe.SliceData(xs))
+	q := unsafe.Add(p, unsafe.Sizeof(int(0)))
+	unsafe.Slice((*int)(q), 1)[0] = 71
+	dep.Write(xs)
+	ys := dep.Alias(xs)
+	ys[0] = 73
+	if xs[0] != 73 || xs[1] != 71 || root.Inner.L[0] != 17 || lib.Root.Inner.L[1] != 19 {
+		panic("mutable control")
+	}
+	fmt.Println("alias-controls-ok")
+}

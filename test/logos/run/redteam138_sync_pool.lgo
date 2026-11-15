@@ -1,21 +1,15 @@
 // run -goexperiment logosarena
+// run -goexperiment logosarena -arena=false
 
 package main
 
 import (
 	"fmt"
+	"os"
+	"runtime"
 	"sync"
 )
 
-// REDTEAM #138 (SPEC Sec 8.3, T-301.1; IMPLEMENTATION.md M18-S3): a value
-// stored into sync.Pool must stay on the heap; the compiler must keep such
-// values out of the arena. r138Put builds a dynamic byte slice (a shape the
-// arena would otherwise take) and stores it in the pool. The noinline keeps
-// the make in the callee frame, so an arena misplacement pops with the
-// frame and the retrieved contents corrupt. No GC runs between Put and Get
-// because sync.Pool may drop entries at collection; the frame exit alone
-// exposes the bug. Value-only: an all-heap placement passes; only an
-// arena-placed pool entry fails. This fixture is the #138 close-out probe.
 
 //go:noinline
 func r138Put(p *sync.Pool, n int) {
@@ -26,12 +20,6 @@ func r138Put(p *sync.Pool, n int) {
 	p.Put(s)
 }
 
-// Arena-eligible scratch consumed without escaping: after r138Put returns,
-// its frame region is popped, so this reuse clobbers any wrongly
-// arena-placed pool bytes before Get reads them. Without this write the
-// popped memory could still hold stale bytes and the sum below would pass
-// on a misplacement. Worst case this helper goes to the heap and the check
-// below is exactly as strong as before; it cannot fail on its own.
 
 //go:noinline
 func r138Consume(b []byte) int {
@@ -50,25 +38,46 @@ func r138Clobber(n int) int {
 	return r138Consume(tmp)
 }
 
+var r138Failed bool
+
+func r138Check(name string, cond bool, got, want string) {
+	if !cond {
+		fmt.Printf("FAIL %s: got %s want %s\n", name, got, want)
+		r138Failed = true
+		return
+	}
+	fmt.Printf("ok %s\n", name)
+}
+
+func r138Sum(b []byte) int {
+	s := 0
+	for _, v := range b {
+		s += int(v)
+	}
+	return s
+}
+
 func main() {
+	runtime.GOMAXPROCS(1)
 	var p sync.Pool
 	r138Put(&p, 64)
-	if r138Clobber(64) != 64 {
-		panic("redteam138: clobber helper broken")
-	}
+	clob := r138Clobber(64)
+	r138Check("syncpool-clobber-sane", clob == 64, fmt.Sprint(clob), "64")
 	got, ok := p.Get().([]byte)
+	r138Check("syncpool-type-kept", ok, fmt.Sprint(ok), "true")
 	if !ok {
-		panic("redteam138: pool lost stored slice")
+		os.Exit(1)
 	}
-	if len(got) != 64 {
-		panic("redteam138: bad length")
+	r138Check("syncpool-len-kept", len(got) == 64, fmt.Sprint(len(got)), "64")
+	first := -1
+	if len(got) > 0 {
+		first = int(got[0])
 	}
-	sum := 0
-	for _, b := range got {
-		sum += int(b)
-	}
-	fmt.Println("pool:", len(got), sum)
-	if sum != 2080 {
-		panic("redteam138: pooled slice corrupted")
+	sum := r138Sum(got)
+	want := 64 * 65 / 2
+	r138Check("syncpool-contents-kept", sum == want, fmt.Sprint(sum), fmt.Sprint(want))
+	r138Check("syncpool-first-kept", first == 1, fmt.Sprint(first), "1")
+	if r138Failed {
+		os.Exit(1)
 	}
 }

@@ -6,12 +6,20 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"os"
 	"strconv"
 )
 
-// M7-S4 const switch with no matching case (SPEC Sec 2.5, T-205): a T
-// that matches no case returns the input unchanged through the trailing
-// `return buf, nil`.
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 func EncodeOrKeep[T any](buf []byte, items []T) ([]byte, error) {
 	const switch T {
@@ -32,5 +40,13 @@ func EncodeOrKeep[T any](buf []byte, items []T) ([]byte, error) {
 
 func main() {
 	b, err := EncodeOrKeep([]byte("keep:"), []string{"x", "y"})
-	fmt.Printf("%s %v\n", b, err)
+	if err != nil {
+		check("keep", false, err, "keep:")
+	} else {
+		check("keep", string(b) == "keep:", string(b), "keep:")
+	}
+	check("keep-err", err == nil, err, nil)
+	if failed {
+		os.Exit(1)
+	}
 }

@@ -1,0 +1,31 @@
+// run -goexperiment logosarena
+// run -goexperiment logosarena -arena=false
+package main
+
+import (
+	"fmt"
+	"logos/arena"
+	"os"
+	"runtime"
+)
+
+type box struct {
+	v int
+}
+
+var kept = new(box)
+
+func main() {
+	{
+		r := arena.Open()
+		p := arena.New[box](r)
+		p.v = 42
+		kept = p
+	}
+	runtime.GC()
+	if kept.v != 42 {
+		fmt.Printf("FAIL escaping-alloc-survives-region-exit: got %d want 42\n", kept.v)
+		os.Exit(1)
+	}
+	fmt.Println("ok escaping-alloc-survives-region-exit")
+}

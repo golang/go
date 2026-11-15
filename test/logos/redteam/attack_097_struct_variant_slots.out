@@ -1,3 +1,7 @@
-A 1 2
-B x 9
-A 3 4
+ok struct-variant-first-slot-intact
+ok struct-variant-second-slot-intact
+ok struct-variant-reuse-clears-stale-bytes
+ok struct-variant-reuse-equality-cleared-slot
+ok struct-variant-assert-to-union
+ok struct-variant-regrow-rewrites-tail
+ok struct-variant-regrow-equality

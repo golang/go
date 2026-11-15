@@ -1,4 +1,4 @@
-func
-any
-struct
-any
+ok kind-func
+ok kind-any
+ok shape-struct
+ok shape-any

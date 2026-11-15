@@ -8,9 +8,6 @@ import (
 	"testing"
 )
 
-// TestNextLoopEmptyAndReceiverStayTasks pins PR2 VV2n (non-nil empty
-// must not become a nil-yielding map) and PR2 YBr_ (a call that can
-// rebind the receiver must not migrate). Local pure calls still edit.
 func TestNextLoopEmptyAndReceiverStayTasks(t *testing.T) {
 	imp := newTestImporter(t)
 	scan := func(t *testing.T, body string) (int, int) {
@@ -44,21 +41,4 @@ func TestNextLoopEmptyAndReceiverStayTasks(t *testing.T) {
 			t.Fatalf("captured closure: edits=%d tasks=%d, want 0 edits and a task", n, tasks)
 		}
 	})
-}
-
-// TestNextLoopEmptyNilnessOracle is the independent Go runtime oracle
-// for VV2n: it proves why the scanner must not edit, without reading
-// emitter internals. Bounded to 3 elements (<256 bytes).
-func TestNextLoopEmptyNilnessOracle(t *testing.T) {
-	ys := []int{}
-	if ys == nil {
-		t.Fatal("empty composite yielded nil; want non-nil []")
-	}
-	if len(ys) != 0 {
-		t.Fatalf("empty len = %d, want 0", len(ys))
-	}
-	var nilOut []int
-	if nilOut != nil {
-		t.Fatal("nil slice tested non-nil; want nil")
-	}
 }

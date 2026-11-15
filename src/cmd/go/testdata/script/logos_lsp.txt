@@ -1,9 +1,3 @@
-# M21-S1: logos lsp proxies gopls over a mixed workspace. A client written
-# the way an editor is (no editor-specific code) opens a loGo/s file and a
-# Go file, asks for definitions across kinds and inside a ? statement,
-# breaks the loGo/s file to see compiler diagnostics, repairs it, and
-# checks that the workspace gained no file. If gopls is not on PATH the
-# script skips, and the gate is blocked and incomplete (record it as such).
 [!exec:gopls] skip
 [short] skip
 

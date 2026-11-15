@@ -48,18 +48,6 @@ func Load64(ptr *uint64) uint64
 // NO go:noescape annotation; *ptr escapes if result escapes (#31525)
 func Loadp(ptr unsafe.Pointer) unsafe.Pointer
 
-// zgcAtomicLoadpSlow canonicalizes the word the out-of-line Loadp stub
-// (atomic_arm64.s) loaded from slot. The symbol is provided by the
-// runtime under the name internal/runtime/atomic.zgcAtomicLoadpSlow: the
-// moving-collector build heals through the load-barrier slow path, the
-// other builds link the raw identity. The pull marker pairs with the
-// runtime push so the linker emits the ABI0 wrapper the assembly stub
-// calls; see runtime/logos_zgc_atomic_loadp.go and the W1d account in
-// local://zgc-arm64-atomic-load-repair.md.
-//
-//go:linkname zgcAtomicLoadpSlow
-func zgcAtomicLoadpSlow(slot *uintptr, v uintptr) uintptr
-
 //go:noescape
 func LoadAcq(addr *uint32) uint32
 

@@ -5,6 +5,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os"
 )
 
 var errPrimary = errors.New("primary")
@@ -19,11 +20,8 @@ func both() (err error) {
 	return errPrimary
 }
 
-// onlyRollback arms errdefer through a swallowed panic, so errdefer runs
-// while the error result is still nil. T-104.2: a nil primary takes the
-// rollback error as is.
 func onlyRollback() (err error) {
-	defer func() { recover() }()
+	defer func() { _ = recover() }()
 	errdefer rollbackFail()?
 	panic("rollback-only")
 }
@@ -33,11 +31,26 @@ func primaryKept() (err error) {
 	return errPrimary
 }
 
+var failed bool
+
+func check(name string, cond bool, got, want string) {
+	if !cond {
+		fmt.Printf("FAIL %s: got %s want %s\n", name, got, want)
+		failed = true
+		return
+	}
+	fmt.Printf("ok %s\n", name)
+}
+
 func main() {
-	err := both()
-	fmt.Println("both is-primary:", errors.Is(err, errPrimary), "is-rollback:", errors.Is(err, errRollback))
-	err = onlyRollback()
-	fmt.Println("only is-rollback:", errors.Is(err, errRollback), "is-primary:", errors.Is(err, errPrimary))
-	err = primaryKept()
-	fmt.Println("kept is-primary:", errors.Is(err, errPrimary), "is-rollback:", errors.Is(err, errRollback))
+	berr := both()
+	check("errdefer-join-keeps-primary", errors.Is(berr, errPrimary), fmt.Sprint(errors.Is(berr, errPrimary)), "true")
+	check("errdefer-join-keeps-rollback", errors.Is(berr, errRollback), fmt.Sprint(errors.Is(berr, errRollback)), "true")
+	rerr := onlyRollback()
+	check("errdefer-panic-join-keeps-rollback-only", errors.Is(rerr, errRollback) && !errors.Is(rerr, errPrimary), fmt.Sprint(errors.Is(rerr, errPrimary)), "false")
+	kerr := primaryKept()
+	check("errdefer-success-keeps-primary", kerr == errPrimary, fmt.Sprint(kerr), "primary")
+	if failed {
+		os.Exit(1)
+	}
 }

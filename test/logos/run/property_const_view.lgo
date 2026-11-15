@@ -1,0 +1,64 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type Tagged interface {
+	const Tags const []string
+}
+
+type Index interface {
+	const Idx const map[string]int
+}
+
+type Box struct : Tagged {
+	Tags const []string
+}
+
+type Shelf struct : Tagged, Index {
+	Tags const []string
+	Idx  const map[string]int
+}
+
+func sum(t Tagged) int {
+	n := 0
+	for _, s := range t.Tags {
+		n += len(s)
+	}
+	return n
+}
+
+func main() {
+	var t Tagged = Box{Tags: []string{"ab", "c"}}
+	check("view-length", len(t.Tags) == 2, len(t.Tags), 2)
+	check("view-element", t.Tags[1] == "c", t.Tags[1], "c")
+	check("view-ranged", sum(t) == 3, sum(t), 3)
+
+	s := &Shelf{Tags: []string{"x"}, Idx: map[string]int{"k": 9}}
+	var i Index = s
+	check("map-view-lookup", (i.Idx["k"] ?? 0) == 9, i.Idx["k"] ?? 0, 9)
+	check("two-interfaces-share-struct", sum(s) == 1, sum(s), 1)
+
+	var any1 any = s
+	_, ok := any1.(Tagged)
+	check("dynamic-assertion", ok, ok, true)
+
+	if failed {
+		os.Exit(1)
+	}
+}

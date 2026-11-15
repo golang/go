@@ -2,14 +2,6 @@
 
 // run -goexperiment preemptibleloops -gcflags=all=-d=logosloopstride=4096
 
-// M15-S3 long-loop preemption on wasm: a goroutine spinning in a
-// call-free loop must not starve a second goroutine (red-team #137).
-// The back-edge counter fires the first reschedule check on iteration
-// 4096 and the next on 8192, never in the first 4095. Each phase spins a
-// fresh loop while a printer goroutine counts its own quanta; the counts
-// must read 0, 1, 2. wasm-only: native back-edge checks sample the stack
-// limit and never fire deterministically, so only the strip-mined
-// counter gives exact boundaries.
 
 package main
 
@@ -70,7 +62,7 @@ func run() error {
 		fmt.Println("want 2 quanta at 8192, got", q)
 		os.Exit(1)
 	}
-	fmt.Println("ok")
+	fmt.Println("ok", "preempt")
 	return nil
 }
 

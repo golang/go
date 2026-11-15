@@ -13,31 +13,20 @@ import (
 	"cmd/compile/internal/types2"
 )
 
-// This file applies the M1-S5 templates: every lowering builds the native
-// statements and the eject-text twin from one plan, so the two agree by
-// construction.
-
-// twin collects the marker substitutions of one eject text.
 type twin struct {
 	subs []textSub
 	seq  int
 }
 
-// mark returns a placeholder standing for text, positioned at pos so the
-// printer sees known positions while rendering the eject text.
 func (tw *twin) mark(pos syntax.Pos, text otext) *syntax.Name {
 	return markerText(&tw.subs, &tw.seq, pos, text)
 }
 
-// absorb merges foreign marker subs into tw, advancing the sequence past
-// them: every mark owns exactly one sub, so later marks of tw cannot
-// reuse a foreign marker spelling and corrupt the rendered text.
 func (tw *twin) absorb(subs []textSub) {
 	tw.subs = append(tw.subs, subs...)
 	tw.seq += len(subs)
 }
 
-// tryAssignOf matches lhs = f()? and lhs := f()?.
 func tryAssignOf(s *syntax.AssignStmt) (*syntax.TryExpr, *syntax.CallExpr, bool) {
 	if s.Op != syntax.Def && s.Op != 0 {
 		return nil, nil, false
@@ -53,7 +42,6 @@ func tryAssignOf(s *syntax.AssignStmt) (*syntax.TryExpr, *syntax.CallExpr, bool)
 	return t, call, true
 }
 
-// tryExprOf matches f()? as an expression statement.
 func tryExprOf(s *syntax.ExprStmt) (*syntax.TryExpr, *syntax.CallExpr, bool) {
 	t, ok := syntax.Unparen(s.X).(*syntax.TryExpr)
 	if !ok {
@@ -66,7 +54,6 @@ func tryExprOf(s *syntax.ExprStmt) (*syntax.TryExpr, *syntax.CallExpr, bool) {
 	return t, call, true
 }
 
-// tryCallOf matches defer f()?.
 func tryCallOf(s *syntax.CallStmt) (*syntax.TryExpr, *syntax.CallExpr, bool) {
 	t, ok := syntax.Unparen(s.Call).(*syntax.TryExpr)
 	if !ok {
@@ -79,8 +66,6 @@ func tryCallOf(s *syntax.CallStmt) (*syntax.TryExpr, *syntax.CallExpr, bool) {
 	return t, call, true
 }
 
-// callResults counts the non-error results of a checked ? call. A call
-// returning only error has no tuple type and counts zero.
 func (fc *funcLower) callResults(call *syntax.CallExpr) int {
 	typ := fc.fl.pkg.info.TypeOf(call)
 	if tup, ok := typ.(*types2.Tuple); ok {
@@ -89,28 +74,24 @@ func (fc *funcLower) callResults(call *syntax.CallExpr) int {
 	return 0
 }
 
-// nextErr returns the next per-function error temporary spelling.
 func (fc *funcLower) nextErr() string {
 	spelling := fmt.Sprintf("_logos_e%d", fc.errSeq)
 	fc.errSeq++
 	return spelling
 }
 
-// nextFun returns the next per-function callee temporary spelling.
 func (fc *funcLower) nextFun() string {
 	spelling := fmt.Sprintf("_logos_f%d", fc.funSeq)
 	fc.funSeq++
 	return spelling
 }
 
-// nextArg returns the next per-function argument temporary spelling.
 func (fc *funcLower) nextArg() string {
 	spelling := fmt.Sprintf("_logos_a%d", fc.argSeq)
 	fc.argSeq++
 	return spelling
 }
 
-// zerosAt builds fresh zero values for the non-error results.
 func (fc *funcLower) zerosAt(pos syntax.Pos) []syntax.Expr {
 	var out []syntax.Expr
 	for i := range fc.specs {
@@ -118,31 +99,29 @@ func (fc *funcLower) zerosAt(pos syntax.Pos) []syntax.Expr {
 		if sp.isErr {
 			continue
 		}
-		out = append(out, zeroForType(sp.typ, sp.typeExpr, pos))
+		out = append(out, fc.fl.zeroValue(sp.typ, pos))
 	}
 	return out
 }
 
-// exitPair builds the ? error path twice: once for the native tree and
-// once for the eject twin. A return generated inside a scope-defer tail
-// runs the tail's stanza first (M6-S10); the stanza's marker subs ride
-// along for the caller to render.
 func (fc *funcLower) exitPair(pos syntax.Pos, errSpelling, siteSpelling string) (native, text []syntax.Stmt, subs []textSub) {
-	native = buildExit(exitSpec{
-		pos:   pos,
-		err:   nameOf(pos, errSpelling),
-		site:  nameOf(pos, siteSpelling),
-		zeros: fc.zerosAt(pos),
-	})
-	if emitColdExit() {
-		native = append([]syntax.Stmt{coldStmtOf(pos)}, native...)
+	return fc.exitPairAt(pos, pos, errSpelling, siteSpelling)
+}
+
+func (fc *funcLower) exitPairAt(checkPos, pos syntax.Pos, errSpelling, siteSpelling string) (native, text []syntax.Stmt, subs []textSub) {
+	native, text, subs = fc.scopedExitPair(pos, errSpelling, siteSpelling)
+	top, ok := fc.groupTop()
+	if !ok || top.child || top.planned {
+		return native, text, subs
 	}
-	text = buildExit(exitSpec{
-		pos:   pos,
-		err:   nameOf(pos, errSpelling),
-		site:  nameOf(pos, siteSpelling),
-		zeros: fc.zerosAt(pos),
-	})
+	joinNative, joinText, joinSubs := fc.groupJoinCheck(checkPos, top)
+	native = append(joinNative, native...)
+	text = append(joinText, text...)
+	return native, text, append(subs, joinSubs...)
+}
+
+func (fc *funcLower) scopedExitPair(pos syntax.Pos, errSpelling, siteSpelling string) (native, text []syntax.Stmt, subs []textSub) {
+	native, text = fc.plainExitPair(pos, errSpelling, siteSpelling)
 	if sn, st, ssubs := fc.scopeExitStanza(pos); sn != nil {
 		native = append(sn, native...)
 		text = append(st, text...)
@@ -151,23 +130,43 @@ func (fc *funcLower) exitPair(pos syntax.Pos, errSpelling, siteSpelling string) 
 	return native, text, subs
 }
 
-// lowerList lowers a statement list. A synthetic-PGO cold terminator
-// gains a Cold mark first; the eject twin never carries it.
+func (fc *funcLower) plainExitPair(pos syntax.Pos, errSpelling, siteSpelling string) (native, text []syntax.Stmt) {
+	native = buildExit(exitSpec{
+		pos:   pos,
+		err:   nameOf(pos, errSpelling),
+		site:  nameOf(pos, siteSpelling),
+		zeros: fc.zerosAt(pos),
+	})
+	text = buildExit(exitSpec{
+		pos:   pos,
+		err:   nameOf(pos, errSpelling),
+		site:  nameOf(pos, siteSpelling),
+		zeros: fc.zerosAt(pos),
+	})
+	return native, text
+}
+
 func (fc *funcLower) lowerList(list []syntax.Stmt) []syntax.Stmt {
 	var out []syntax.Stmt
 	for _, s := range list {
-		if fc.coldTerminator(s) {
-			out = append(out, coldStmtOf(s.Pos()))
-			fc.fl.needRT = true
-		}
 		out = append(out, fc.lowerStmt(s)...)
 	}
 	return out
 }
 
-// lowerStmt lowers one statement, splaying multi-statement results.
 func (fc *funcLower) lowerStmt(s syntax.Stmt) []syntax.Stmt {
-	if out, ok := fc.lowerGroupHook(s); ok { // M8 hook: group statements and child channel operations.
+	if fc.fl.groupJoins[s] {
+		return []syntax.Stmt{s}
+	}
+	if cs, ok := s.(*syntax.CallStmt); ok {
+		if out, ok := fc.fl.lowerOptDeferGo(cs, fc.lowerStmt); ok {
+			return out
+		}
+	}
+	if r, ok := s.(*syntax.ReturnStmt); ok && fc.elementFrame {
+		fc.fl.parReturn(r)
+	}
+	if out, ok := fc.lowerGroupHook(s); ok {
 		return out
 	}
 	switch s := s.(type) {
@@ -182,7 +181,6 @@ func (fc *funcLower) lowerStmt(s syntax.Stmt) []syntax.Stmt {
 	}
 }
 
-// lowerSimple lowers the statements that directly hold ? and errdefer.
 func (fc *funcLower) lowerSimple(s syntax.Stmt) []syntax.Stmt {
 	switch s := s.(type) {
 	case *syntax.AssignStmt:
@@ -218,16 +216,18 @@ func (fc *funcLower) lowerSimple(s syntax.Stmt) []syntax.Stmt {
 	}
 }
 
-// lowerCompound lowers the statements that only contain nested forms.
 func (fc *funcLower) lowerCompound(s syntax.Stmt) []syntax.Stmt {
 	switch s := s.(type) {
 	case *syntax.BlockStmt:
 		s.List = fc.lowerList(s.List)
+		if fc.fl.anchorBlocks[s] {
+			anchorScopes(s.List, s.Pos())
+		}
 		return []syntax.Stmt{s}
 	case *syntax.IfStmt:
 		return fc.lowerIf(s)
 	case *syntax.ForStmt:
-		return fc.lowerFor(s)
+		return fc.lowerFor(s, nil)
 	case *syntax.SwitchStmt:
 		return fc.lowerSwitch(s)
 	case *syntax.SelectStmt:
@@ -235,21 +235,27 @@ func (fc *funcLower) lowerCompound(s syntax.Stmt) []syntax.Stmt {
 			scanForLiterals(fc.fl, clause.Comm)
 			clause.Body = fc.lowerList(clause.Body)
 		}
-		fc.groupAugmentSelect(s) // M8-S3 hook: a user select without default gains the cancel arm.
+		fc.groupAugmentSelect(s)
 		return []syntax.Stmt{s}
 	case *syntax.ConstSwitchStmt:
-		return fc.lowerConstSwitchStmt(s) // M7-S4 hook: expand `const switch` in place.
+		return fc.lowerConstSwitchStmt(s)
 	default:
 		return fc.lowerLeaf(s)
 	}
 }
 
-// lowerLeaf lowers labeled, declaration, send, and range statements.
 func (fc *funcLower) lowerLeaf(s syntax.Stmt) []syntax.Stmt {
 	switch s := s.(type) {
 	case *syntax.LabeledStmt:
 		pos := s.Stmt.Pos()
+		saved := fc.label
+		fc.label = s
 		inner := fc.lowerStmt(s.Stmt)
+		scoped := fc.label != s
+		fc.label = saved
+		if scoped {
+			return inner
+		}
 		if len(inner) == 0 {
 			empty := &syntax.EmptyStmt{}
 			empty.SetPos(pos)
@@ -274,70 +280,239 @@ func (fc *funcLower) lowerLeaf(s syntax.Stmt) []syntax.Stmt {
 	}
 }
 
-// lowerIf lowers an if statement and a try in its init clause.
 func (fc *funcLower) lowerIf(s *syntax.IfStmt) []syntax.Stmt {
 	scanForLiterals(fc.fl, s.Cond)
-	if wrapped := fc.wrapInitStmt(s, s.Init, "if"); wrapped != nil {
-		s.Then.List = fc.lowerList(s.Then.List)
-		fc.lowerElse(s)
-		return []syntax.Stmt{wrapped}
+	prologue, hoisted := fc.wrapInitStmt(s, s.Init, "if")
+	if !hoisted {
+		scanForLiterals(fc.fl, s.Init)
 	}
-	scanForLiterals(fc.fl, s.Init)
+	out := fc.scoped(s, prologue)
 	s.Then.List = fc.lowerList(s.Then.List)
 	fc.lowerElse(s)
-	return []syntax.Stmt{s}
+	return out
 }
 
-// lowerElse lowers the else branch of an if statement.
 func (fc *funcLower) lowerElse(s *syntax.IfStmt) {
 	switch els := s.Else.(type) {
 	case nil:
 	case *syntax.BlockStmt:
 		els.List = fc.lowerList(els.List)
 	case *syntax.IfStmt:
-		// A try in an else-if init hoists into a wrapper block that
-		// replaces the else branch.
 		s.Else = fc.lowerIf(els)[0]
 	}
 }
 
-// lowerFor lowers a for statement and a try in its init clause. A try in
-// the post statement is left for the survivor check: no SimpleStmt can
-// hold the error branch.
-func (fc *funcLower) lowerFor(s *syntax.ForStmt) []syntax.Stmt {
+func (fc *funcLower) lowerFor(s *syntax.ForStmt, prologue []syntax.Stmt) []syntax.Stmt {
+	if decl := fc.wrapForPost(s); decl != nil {
+		prologue = append(prologue, decl)
+	}
 	switch init := s.Init.(type) {
 	case nil:
 	case *syntax.RangeClause:
 		scanForLiterals(fc.fl, init)
 	default:
-		if wrapped := fc.wrapInitStmt(s, init, "for"); wrapped != nil {
-			scanForLiterals(fc.fl, s.Cond)
-			scanForLiterals(fc.fl, s.Post)
-			s.Body.List = fc.lowerList(s.Body.List)
-			return []syntax.Stmt{wrapped}
+		if native, hoisted := fc.wrapInitStmt(s, init, "for"); hoisted {
+			prologue = append(prologue, native...)
+		} else {
+			scanForLiterals(fc.fl, init)
 		}
-		scanForLiterals(fc.fl, init)
 	}
+	out := fc.scoped(s, prologue)
+	fc.finishFor(s)
+	return out
+}
+
+func (fc *funcLower) scoped(host syntax.Stmt, prologue []syntax.Stmt) []syntax.Stmt {
+	var s syntax.Stmt = host
+	if fc.label != nil && fc.label.Stmt == host {
+		s = fc.label
+		fc.label = nil
+	}
+	return fc.fl.scopeHoists(s, append(prologue, s))
+}
+
+func (fc *funcLower) hostStart(host syntax.Stmt) int {
+	if fc.label != nil && fc.label.Stmt == host {
+		return fc.fl.stmtStartOf(fc.label)
+	}
+	return fc.fl.off(host.Pos())
+}
+
+func (fc *funcLower) finishFor(s *syntax.ForStmt) {
 	scanForLiterals(fc.fl, s.Cond)
 	scanForLiterals(fc.fl, s.Post)
 	s.Body.List = fc.lowerList(s.Body.List)
-	return []syntax.Stmt{s}
 }
 
-// lowerSwitch lowers a switch statement and a try in its init clause.
-func (fc *funcLower) lowerSwitch(s *syntax.SwitchStmt) []syntax.Stmt {
-	if wrapped := fc.wrapInitStmt(s, s.Init, "switch"); wrapped != nil {
-		scanForLiterals(fc.fl, s.Tag)
-		fc.lowerCases(s.Body)
-		return []syntax.Stmt{wrapped}
+type forPost struct {
+	fc        *funcLower
+	s         *syntax.ForStmt
+	errPos    syntax.Pos
+	postPos   syntax.Pos
+	postEnd   syntax.Pos
+	errSpell  string
+	spanStart int
+	spanEnd   int
+}
+
+func (fc *funcLower) wrapForPost(s *syntax.ForStmt) syntax.Stmt {
+	post := s.Post
+	if post == nil {
+		return nil
 	}
-	scanForLiterals(fc.fl, s.Init)
+	var t *syntax.TryExpr
+	var call *syntax.CallExpr
+	switch p := post.(type) {
+	case *syntax.AssignStmt:
+		if p.Op != 0 {
+			return nil
+		}
+		t, call, _ = tryAssignOf(p)
+	case *syntax.ExprStmt:
+		t, call, _ = tryExprOf(p)
+	}
+	if t == nil {
+		return nil
+	}
+	p := &forPost{
+		fc:       fc,
+		s:        s,
+		errPos:   s.Pos(),
+		postPos:  post.Pos(),
+		postEnd:  syntax.EndPos(post),
+		errSpell: fc.nextErr(),
+	}
+	p.spanEnd = skipCloseParens(fc.fl.src, fc.fl.off(t.Pos())+1)
+	switch post := post.(type) {
+	case *syntax.AssignStmt:
+		p.buildPostAssign(post, t, call)
+	case *syntax.ExprStmt:
+		p.buildPostExpr(post, t, call)
+	}
+	return p.emit()
+}
+
+func (p *forPost) err() *syntax.Name {
+	return nameOf(p.errPos, p.errSpell)
+}
+
+func (p *forPost) closureExit(t *syntax.TryExpr, innerSpell string) []syntax.Stmt {
+	site := nameOf(t.Pos(), p.fc.fl.newSite(t.Pos(), t.Pos().Line()))
+	return []syntax.Stmt{
+		exprStmtOf(t.Pos(), callOf(t.Pos(), rtSel(t.Pos(), "TraceErr"), []syntax.Expr{
+			nameOf(t.Pos(), innerSpell),
+			at(&syntax.Operation{Op: syntax.And, X: site}, t.Pos()),
+		})),
+		assignOf(t.Pos(), []syntax.Expr{p.err()}, []syntax.Expr{nameOf(t.Pos(), innerSpell)}),
+		returnOf(t.Pos(), nil),
+	}
+}
+
+func (p *forPost) buildPostAssign(s *syntax.AssignStmt, t *syntax.TryExpr, call *syntax.CallExpr) {
+	fl := p.fc.fl
+	tpos := t.Pos()
+	innerErr := p.fc.nextErr()
+	exit := p.closureExit(t, innerErr)
+	lhs := syntax.UnpackListExpr(s.Lhs)
+	stmtPos := leftmostOf(lhs[0])
+	qOff := fl.off(tpos)
+	p.spanStart = fl.off(stmtPos)
+	tw := &twin{}
+	lhsMark := tw.mark(stmtPos, fl.srcUser(p.spanStart, fl.off(s.Pos())).trim())
+	callMark := tw.mark(tpos, fl.lazyText(span{start: fl.off(leftmostOf(call.Fun)), end: qOff}))
+	withErr := append(slices.Clone(lhs), nameOf(stmtPos, innerErr))
+	native := []syntax.Stmt{blockOf(stmtPos, []syntax.Stmt{
+		errorVarDecl(stmtPos, nameOf(stmtPos, innerErr)),
+		assignOf(stmtPos, withErr, []syntax.Expr{call}),
+		errCheckOf(stmtPos, nameOf(stmtPos, innerErr), exit),
+	})}
+	withErrT := []syntax.Expr{lhsMark, nameOf(tpos, innerErr)}
+	text := renderText([]syntax.Stmt{blockOf(stmtPos, []syntax.Stmt{
+		errorVarDecl(stmtPos, nameOf(stmtPos, innerErr)),
+		assignOf(stmtPos, withErrT, []syntax.Expr{callMark}),
+		errCheckOf(stmtPos, nameOf(tpos, innerErr), exit),
+	})}, tw.subs)
+	p.emitText(native, text)
+}
+
+func (p *forPost) buildPostExpr(s *syntax.ExprStmt, t *syntax.TryExpr, call *syntax.CallExpr) {
+	fl := p.fc.fl
+	tpos := t.Pos()
+	innerErr := p.fc.nextErr()
+	exit := p.closureExit(t, innerErr)
+	stmtPos := leftmostOf(call.Fun)
+	qOff := fl.off(tpos)
+	p.spanStart = spanStartBack(fl.src, fl.off(stmtPos))
+	tw := &twin{}
+	callMark := tw.mark(tpos, fl.lazyText(span{start: fl.off(stmtPos), end: qOff}))
+	n := p.fc.callResults(call)
+	var native []syntax.Stmt
+	var text otext
+	if n == 0 {
+		native = []syntax.Stmt{errCheckInitOf(stmtPos, nil, call, nameOf(stmtPos, innerErr), exit)}
+		text = renderText([]syntax.Stmt{errCheckInitOf(stmtPos, nil, callMark, nameOf(tpos, innerErr), exit)}, tw.subs)
+	} else {
+		native = []syntax.Stmt{
+			errDefineOf(stmtPos, blankNames(stmtPos, n), call, nameOf(stmtPos, innerErr)),
+			errCheckOf(stmtPos, nameOf(stmtPos, innerErr), exit),
+		}
+		text = renderText([]syntax.Stmt{
+			errDefineOf(stmtPos, blankNames(stmtPos, n), callMark, nameOf(tpos, innerErr)),
+			errCheckOf(stmtPos, nameOf(tpos, innerErr), exit),
+		}, tw.subs)
+	}
+	p.emitText(native, text)
+}
+
+func (p *forPost) emitText(native []syntax.Stmt, text otext) {
+	fl := p.fc.fl
+	lit := at(&syntax.FuncLit{
+		Type: at(&syntax.FuncType{}, p.postPos),
+		Body: at(&syntax.BlockStmt{List: native, Rbrace: p.postEnd}, p.postPos),
+	}, p.postPos)
+	p.s.Post = exprStmtOf(p.postPos, callOf(p.postPos, lit, nil))
+	fl.addT(p.spanStart, p.spanEnd, cat(gen("func() { "), text, gen(" }()")))
+}
+
+func (p *forPost) emit() syntax.Stmt {
+	fl := p.fc.fl
+	decl := typedVarDecl(p.errPos, p.err(), nameOf(p.errPos, "error"))
+	start := p.fc.hostStart(p.s)
+	fl.addT(start, start, cat(renderText([]syntax.Stmt{decl}, nil).trimRight("\n"), gen("; ")))
+	if p.s.Cond != nil {
+		hdr := fl.forHeaderOf(p.s)
+		fl.add(hdr.cond.start, hdr.cond.start, p.errSpell+" != nil || (")
+		fl.add(hdr.cond.end, hdr.cond.end, ")")
+		p.s.Cond = at(&syntax.Operation{
+			Op: syntax.OrOr,
+			X:  notNil(p.errPos, p.err()),
+			Y:  at(&syntax.ParenExpr{X: p.s.Cond}, p.errPos),
+		}, p.errPos)
+	}
+	checkPos := p.s.Body.Pos()
+	checkSite := fl.newSite(checkPos, checkPos.Line())
+	checkNative, checkText, checkSubs := p.fc.exitPair(checkPos, p.errSpell, checkSite)
+	check := errCheckOf(checkPos, p.err(), checkNative)
+	tw := &twin{}
+	tw.absorb(checkSubs)
+	checkTextOf := cat(gen("if "+p.errSpell+" != nil { "), renderText(checkText, tw.subs), gen(" }"))
+	open := fl.off(checkPos) + 1
+	fl.addT(open, open, cat(gen(" "), checkTextOf, gen("; ")))
+	p.s.Body.List = append([]syntax.Stmt{check}, p.s.Body.List...)
+	return decl
+}
+
+func (fc *funcLower) lowerSwitch(s *syntax.SwitchStmt) []syntax.Stmt {
+	prologue, hoisted := fc.wrapInitStmt(s, s.Init, "switch")
+	if !hoisted {
+		scanForLiterals(fc.fl, s.Init)
+	}
+	out := fc.scoped(s, prologue)
 	scanForLiterals(fc.fl, s.Tag)
 	fc.lowerCases(s.Body)
-	return []syntax.Stmt{s}
+	return out
 }
 
-// lowerCases lowers every case body of a switch statement.
 func (fc *funcLower) lowerCases(body []*syntax.CaseClause) {
 	for _, clause := range body {
 		scanForLiterals(fc.fl, clause.Cases)
@@ -345,10 +520,8 @@ func (fc *funcLower) lowerCases(body []*syntax.CaseClause) {
 	}
 }
 
-// initCore is one lowering core for a try init clause.
 type initCore func() (native []syntax.Stmt, text otext, spanStart, spanEnd int)
 
-// initCoreOf matches a try statement in init position.
 func (fc *funcLower) initCoreOf(init syntax.SimpleStmt) (initCore, bool) {
 	if s, isAssign := init.(*syntax.AssignStmt); isAssign {
 		if t, call, matched := tryAssignOf(s); matched {
@@ -368,33 +541,26 @@ func (fc *funcLower) initCoreOf(init syntax.SimpleStmt) (initCore, bool) {
 	return nil, false
 }
 
-// wrapInitStmt hoists a try init clause into a block around its host.
-func (fc *funcLower) wrapInitStmt(host syntax.Stmt, init syntax.SimpleStmt, kw string) *syntax.BlockStmt {
+func (fc *funcLower) wrapInitStmt(host syntax.Stmt, init syntax.SimpleStmt, kw string) ([]syntax.Stmt, bool) {
 	core, ok := fc.initCoreOf(init)
 	if !ok {
-		return nil
+		return nil, false
 	}
 	fl := fc.fl
 	scanForLiterals(fl, init)
 	native, text, _, spanEnd := core()
-	// The hoisted statements sit left of the init clause in the lowered
-	// tree, so their scopes open at the host keyword: the writer requires
-	// scope positions never to move backward.
 	anchorScopes(native, host.Pos())
-	kwOff := fl.off(host.Pos())
-	semi := skipSemi(fl.src, spanEnd)
+	cut := skipSemi(fl.src, spanEnd)
+	if kw == "for" {
+		cut--
+	}
 	clearInit(host)
-	end := blockEndOff(fl, host)
-	fl.addT(kwOff, semi, cat(gen("{ "), text, gen(kw+" ")))
-	fl.add(end, end, "} ")
-	wrapper := blockOf(host.Pos(), append(native, host))
-	wrapper.Rbrace = hostRbrace(host)
-	return wrapper
+	start := fc.hostStart(host)
+	fl.addT(start, start, text)
+	fl.add(fl.off(host.Pos())+len(kw), cut, " ")
+	return native, true
 }
 
-// anchorScopes moves the scope-opening nodes of synthesized statements to
-// pos. It visits only blocks and if chains, never user expressions, so
-// user nodes keep their positions.
 func anchorScopes(list []syntax.Stmt, pos syntax.Pos) {
 	for _, s := range list {
 		switch s := s.(type) {
@@ -408,13 +574,18 @@ func anchorScopes(list []syntax.Stmt, pos syntax.Pos) {
 			if s.Else != nil {
 				anchorScopes([]syntax.Stmt{s.Else}, pos)
 			}
+		case *syntax.SwitchStmt:
+			s.SetPos(pos)
+			s.Rbrace = pos
+			for _, clause := range s.Body {
+				clause.SetPos(pos)
+				clause.Colon = pos
+				anchorScopes(clause.Body, pos)
+			}
 		}
 	}
 }
 
-// hostRbrace returns the position of the closing brace that ends host. The
-// wrapper block of a hoisted init clause closes there: scope marks must not
-// run backward, and the host's own blocks close at their real braces.
 func hostRbrace(host syntax.Stmt) syntax.Pos {
 	switch host := host.(type) {
 	case *syntax.IfStmt:
@@ -436,7 +607,6 @@ func hostRbrace(host syntax.Stmt) syntax.Pos {
 	return host.Pos()
 }
 
-// clearInit removes the init clause of an if, for, or switch statement.
 func clearInit(host syntax.Stmt) {
 	switch host := host.(type) {
 	case *syntax.IfStmt:
@@ -448,21 +618,6 @@ func clearInit(host syntax.Stmt) {
 	}
 }
 
-// hostBlockEnd returns the offset just past the closing brace of host.
-func blockEndOff(fl *fileLower, host syntax.Stmt) int {
-	switch host := host.(type) {
-	case *syntax.IfStmt:
-		return ifEndOff(fl, host)
-	case *syntax.ForStmt:
-		return fl.off(host.Body.Rbrace) + 1
-	case *syntax.SwitchStmt:
-		return fl.off(host.Rbrace) + 1
-	default:
-		return fl.orig
-	}
-}
-
-// ifEndOff returns the offset just past the final block of an if chain.
 func ifEndOff(fl *fileLower, s *syntax.IfStmt) int {
 	for {
 		switch els := s.Else.(type) {
@@ -478,8 +633,6 @@ func ifEndOff(fl *fileLower, s *syntax.IfStmt) int {
 	}
 }
 
-// skipSemi returns the offset just past the first semicolon at or after
-// from.
 func skipSemi(src []byte, from int) int {
 	end := from
 	scanSegment(src, from, len(src), func(t tok) bool {
@@ -495,7 +648,6 @@ func skipSemi(src []byte, from int) int {
 	return end
 }
 
-// lowerTryAssign lowers lhs = f()? and lhs := f()? in a statement list.
 func (fc *funcLower) lowerTryAssign(s *syntax.AssignStmt, t *syntax.TryExpr, call *syntax.CallExpr) []syntax.Stmt {
 	fl := fc.fl
 	native, text, spanStart, spanEnd := fc.tryAssignCore(s, t, call)
@@ -503,8 +655,6 @@ func (fc *funcLower) lowerTryAssign(s *syntax.AssignStmt, t *syntax.TryExpr, cal
 	return native
 }
 
-// tryAssignCore builds the native and text forms of a try assignment and
-// returns them with the replaced span.
 func (fc *funcLower) tryAssignCore(s *syntax.AssignStmt, t *syntax.TryExpr, call *syntax.CallExpr) ([]syntax.Stmt, otext, int, int) {
 	fl := fc.fl
 	src := fl.src
@@ -516,10 +666,10 @@ func (fc *funcLower) tryAssignCore(s *syntax.AssignStmt, t *syntax.TryExpr, call
 	spanEnd := skipCloseParens(src, qOff+1)
 	lhs := syntax.UnpackListExpr(s.Lhs)
 	lhsText := fl.srcUser(spanStart, opOff).trim()
-	callText := fl.textOf(span{start: fl.off(leftmostOf(call.Fun)), end: qOff})
+	callText := fl.lazyText(span{start: fl.off(leftmostOf(call.Fun)), end: qOff})
 	errSpelling := fc.nextErr()
 	siteSpelling := fl.newSite(tpos, tpos.Line())
-	exitNative, exitText, exitSubs := fc.exitPair(tpos, errSpelling, siteSpelling)
+	exitNative, exitText, exitSubs := fc.exitPairAt(stmtPos, tpos, errSpelling, siteSpelling)
 	var native []syntax.Stmt
 	tw := &twin{}
 	tw.absorb(exitSubs)
@@ -528,33 +678,47 @@ func (fc *funcLower) tryAssignCore(s *syntax.AssignStmt, t *syntax.TryExpr, call
 	if s.Op == syntax.Def {
 		native = []syntax.Stmt{
 			errDefineOf(stmtPos, lhs, call, nameOf(tpos, errSpelling)),
-			errCheckOf(stmtPos, nameOf(tpos, errSpelling), exitNative),
+			closeAtExit(errCheckOf(stmtPos, nameOf(tpos, errSpelling), exitNative), tpos),
 		}
 		text := renderText([]syntax.Stmt{
 			errDefineOf(stmtPos, []syntax.Expr{lhsMark}, callMark, nameOf(tpos, errSpelling)),
-			errCheckOf(stmtPos, nameOf(tpos, errSpelling), exitText),
+			closeAtExit(errCheckOf(stmtPos, nameOf(tpos, errSpelling), exitText), tpos),
 		}, tw.subs)
-		return fc.groupPrependJoin(stmtPos, spanStart, native), text, spanStart, spanEnd
+		return native, text, spanStart, spanEnd
 	}
-	errDecl := nameOf(tpos, errSpelling)
-	errUse := nameOf(tpos, errSpelling)
-	errChk := nameOf(tpos, errSpelling)
-	withErr := append(slices.Clone(lhs), errUse)
-	native = []syntax.Stmt{blockOf(stmtPos, []syntax.Stmt{
-		errorVarDecl(stmtPos, errDecl),
-		assignOf(stmtPos, withErr, []syntax.Expr{call}),
-		errCheckOf(stmtPos, errChk, exitNative),
-	})}
-	withErrT := []syntax.Expr{lhsMark, nameOf(tpos, errSpelling)}
-	text := renderText([]syntax.Stmt{blockOf(stmtPos, []syntax.Stmt{
-		errorVarDecl(stmtPos, nameOf(tpos, errSpelling)),
-		assignOf(stmtPos, withErrT, []syntax.Expr{callMark}),
-		errCheckOf(stmtPos, nameOf(tpos, errSpelling), exitText),
-	})}, tw.subs)
-	return fc.groupPrependJoin(stmtPos, spanStart, native), text, spanStart, spanEnd
+	c := &propCollect{hoist: &propHoist{}}
+	assignLhs := slices.Clone(lhs)
+	lhsMarkOf := lhsMark
+	if spans, ok := fl.propLhsSpans(s, lhs); ok {
+		parts := make([]otext, len(lhs))
+		rooted := false
+		for i, l := range lhs {
+			if temp, isProp := fl.propRootHoist(c, stmtPos, l); isProp {
+				assignLhs[i] = nameOf(stmtPos, temp)
+				parts[i] = gen(temp)
+				rooted = true
+				continue
+			}
+			parts[i] = fl.srcUser(spans[i].start, spans[i].end).trim()
+		}
+		if rooted {
+			lhsMarkOf = tw.mark(stmtPos, joinO(parts, ", "))
+		}
+	}
+	stmts := func(assign *syntax.AssignStmt, exit []syntax.Stmt) []syntax.Stmt {
+		list := []syntax.Stmt{errorVarDecl(stmtPos, nameOf(tpos, errSpelling))}
+		list = append(list, c.hoist.pres...)
+		list = append(list, assign)
+		list = append(list, c.hoist.posts...)
+		return append(list, closeAtExit(errCheckOf(stmtPos, nameOf(tpos, errSpelling), exit), tpos))
+	}
+	native = []syntax.Stmt{blockEndingAt(stmtPos, tpos, stmts(
+		assignOf(stmtPos, append(assignLhs, nameOf(tpos, errSpelling)), []syntax.Expr{call}), exitNative))}
+	text := renderText([]syntax.Stmt{blockEndingAt(stmtPos, tpos, stmts(
+		assignOf(stmtPos, []syntax.Expr{lhsMarkOf, nameOf(tpos, errSpelling)}, []syntax.Expr{callMark}), exitText))}, tw.subs)
+	return native, text, spanStart, spanEnd
 }
 
-// lowerTryExpr lowers f()? as an expression statement.
 func (fc *funcLower) lowerTryExpr(s *syntax.ExprStmt, t *syntax.TryExpr, call *syntax.CallExpr) []syntax.Stmt {
 	fl := fc.fl
 	native, text, spanStart, spanEnd := fc.tryExprCore(s, t, call)
@@ -562,8 +726,6 @@ func (fc *funcLower) lowerTryExpr(s *syntax.ExprStmt, t *syntax.TryExpr, call *s
 	return native
 }
 
-// tryExprCore builds the native and text forms of an expression try and
-// returns them with the replaced span.
 func (fc *funcLower) tryExprCore(s *syntax.ExprStmt, t *syntax.TryExpr, call *syntax.CallExpr) ([]syntax.Stmt, otext, int, int) {
 	fl := fc.fl
 	tpos := t.Pos()
@@ -571,10 +733,10 @@ func (fc *funcLower) tryExprCore(s *syntax.ExprStmt, t *syntax.TryExpr, call *sy
 	spanStart := spanStartBack(fl.src, fl.off(stmtPos))
 	qOff := fl.off(tpos)
 	spanEnd := skipCloseParens(fl.src, qOff+1)
-	callText := fl.textOf(span{start: fl.off(stmtPos), end: qOff})
+	callText := fl.lazyText(span{start: fl.off(stmtPos), end: qOff})
 	errSpelling := fc.nextErr()
 	siteSpelling := fl.newSite(tpos, tpos.Line())
-	exitNative, exitText, exitSubs := fc.exitPair(tpos, errSpelling, siteSpelling)
+	exitNative, exitText, exitSubs := fc.exitPairAt(stmtPos, tpos, errSpelling, siteSpelling)
 	tw := &twin{}
 	tw.absorb(exitSubs)
 	callMark := tw.mark(tpos, callText)
@@ -582,30 +744,17 @@ func (fc *funcLower) tryExprCore(s *syntax.ExprStmt, t *syntax.TryExpr, call *sy
 	var native []syntax.Stmt
 	var text otext
 	if n == 0 {
-		native = []syntax.Stmt{errCheckInitOf(stmtPos, nil, call, nameOf(tpos, errSpelling), exitNative)}
-		text = renderText([]syntax.Stmt{errCheckInitOf(stmtPos, nil, callMark, nameOf(tpos, errSpelling), exitText)}, tw.subs)
+		native = []syntax.Stmt{closeAtExit(errCheckInitOf(stmtPos, nil, call, nameOf(tpos, errSpelling), exitNative), tpos)}
+		text = renderText([]syntax.Stmt{closeAtExit(errCheckInitOf(stmtPos, nil, callMark, nameOf(tpos, errSpelling), exitText), tpos)}, tw.subs)
 	} else {
 		native = []syntax.Stmt{
 			errDefineOf(stmtPos, blankNames(stmtPos, n), call, nameOf(tpos, errSpelling)),
-			errCheckOf(stmtPos, nameOf(tpos, errSpelling), exitNative),
+			closeAtExit(errCheckOf(stmtPos, nameOf(tpos, errSpelling), exitNative), tpos),
 		}
 		text = renderText([]syntax.Stmt{
 			errDefineOf(stmtPos, blankNames(stmtPos, n), callMark, nameOf(tpos, errSpelling)),
-			errCheckOf(stmtPos, nameOf(tpos, errSpelling), exitText),
+			closeAtExit(errCheckOf(stmtPos, nameOf(tpos, errSpelling), exitText), tpos),
 		}, tw.subs)
 	}
-	return fc.groupPrependJoin(stmtPos, spanStart, native), text, spanStart, spanEnd
-}
-
-// trimSpanBytes trims ASCII white space around src.
-func trimSpanBytes(src []byte) []byte {
-	start := 0
-	for start < len(src) && isSpace(src[start]) {
-		start++
-	}
-	end := len(src)
-	for end > start && isSpace(src[end-1]) {
-		end--
-	}
-	return src[start:end]
+	return native, text, spanStart, spanEnd
 }

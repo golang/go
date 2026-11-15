@@ -4,42 +4,16 @@
 
 package ctfe
 
-// Array-view host sharing (public seam only).
-//
-// Two slice headers cut from one array (`a[0:4]` twice) carry distinct
-// backing-header identities over one underlying array storage. This
-// test proves through the public Eval+Host seam that a host value
-// holding both views preserves Go aliasing after ingress (a write
-// through one view is visible through the other in a single read)
-// while two reads of the host value stay isolated (preserving the
-// approved fresh per-read isolation rule). It uses generous budgets
-// so the verdict is aliasing, not steps or bytes.
-//
-// Budget ambiguity is intentionally not asserted here. Notes:
-//   - valueSize keys slices by backing-header pointer
-//     (seen[v.slice.backing]); hostCopy dedups storage by storeKey
-//     ({first *Value, length}).
-//   - Two `a[0:4]` headers over one [4]int thus share a storeKey but
-//     not a header identity: hostCopy bills 32B + 6 slots once, while
-//     the post-ingest checkSize/valueSize scan bills 2 x 32B = 64B.
-//   - Config says "distinct bytes" but the suite only observes visible
-//     values; overlapping-window policy is unclear, so no 40-byte
-//     control or CodeTooLarge/detail wording is pinned here. Full note
-//     also saved to local://array-view-budget-finding.md.
-
 import (
 	"testing"
 )
 
-// TestArrayViewHostSharingAliasIsolation installs a host value holding
-// two full views over one [4]int storage, then checks single-read
-// sharing and two-read isolation through Eval only.
 func TestArrayViewHostSharingAliasIsolation(t *testing.T) {
-	intT := BasicType("int", 8)
+	intT := BasicType("int")
 	arr2T := &Type{Kind: KArray, Len: 2, Elem: &Type{Kind: KSlice, Elem: intT}}
 	big := Config{MaxSteps: 1 << 20, MaxValueBytes: 1 << 20, WordSize: 8}
 
-	build := newFakeHost(t, 8)
+	build := newFakeHost(t)
 	buildFn := parseFunc(t, `package p
 func Build() [2][]int {
 	a := [4]int{1, 2, 3, 4}
@@ -53,9 +27,9 @@ func Build() [2][]int {
 		t.Fatalf("Build(): %v", err)
 	}
 
-	h := newFakeHost(t, 8)
+	h := newFakeHost(t)
 	h.vars["H"] = shared
-	cfg := DefaultConfig()
+	cfg := Config{}
 
 	if v, _ := evalOne(t, h, cfg, parseExpr(t, `len(H)`)); v.Int64() != 2 {
 		t.Fatalf("len(H) = %d, want 2", v.Int64())

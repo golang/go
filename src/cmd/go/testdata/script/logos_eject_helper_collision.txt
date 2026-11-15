@@ -1,0 +1,63 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+
+logos run .
+stdout '^ok \{"tag":"user-rt"\}$'
+
+logos eject -o out
+exists out/main.go
+
+exec grep -rhnE '_logos_[A-Za-z0-9_]+ "github\.com/gosuda/loGos/[^"]*"' out --include=*.go
+cp stdout $WORK/collide-support-imports.txt
+! exec grep -vE '_logos_(rt|json) "github\.com/gosuda/loGos/rt(/json)?"' $WORK/collide-support-imports.txt
+exec grep -rhnE '_logos_json "github\.com/gosuda/loGos/rt/json"' out --include=*.go
+
+cd out
+go build ./...
+go run .
+stdout '^ok \{"tag":"user-rt"\}$'
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+cd ..
+
+-- m/go.mod --
+module example.com/collide
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+)
+
+type Pay struct {
+	Tag string `json:"tag"`
+}
+
+func load(s string) (string, error) {
+	p := Pay{Tag: s}
+	buf := p.MarshalJSON()?
+	fmt.Println("loaded", string(buf))
+	return string(buf), nil
+}
+
+func main() {
+	out, err := load("user-rt")
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	if !json.Valid([]byte(out)) {
+		fmt.Println("invalid")
+		return
+	}
+	fmt.Println("ok", out)
+}

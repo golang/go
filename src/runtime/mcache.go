@@ -5,7 +5,6 @@
 package runtime
 
 import (
-	"internal/goexperiment"
 	"internal/runtime/atomic"
 	"internal/runtime/gc"
 	"internal/runtime/sys"
@@ -237,17 +236,6 @@ func (c *mcache) refill(spc spanClass) {
 	c.scanAlloc = 0
 
 	c.alloc[spc] = s
-
-	if goexperiment.LogosGCMoving {
-		// Fresh or recycled span entering the cache: restart the
-		// bump/hole cursor. Sweep (O3) already rebuilt plane O and
-		// reset the cursor; re-establish the bump limit here so the
-		// fast path never serves past the object area.
-		logosImmixResetCursor(s)
-		if s.logosImmixActive {
-			s.logosImmixLimit = uint32(uintptr(s.nelems) * s.elemsize)
-		}
-	}
 }
 
 // allocLarge allocates a span for a large object.

@@ -1,8 +1,15 @@
-false true
-69 55
-true
-false 11
-true true
-11 22
-true true
-55 33
+ok bjarne-some
+ok ken-none
+ok call-8
+ok call-neg6
+ok assign-none
+ok rob-some
+ok rob-call
+ok h-some
+ok k-some
+ok h-call
+ok k-call
+ok w-some
+ok q-some
+ok w-call
+ok q-call

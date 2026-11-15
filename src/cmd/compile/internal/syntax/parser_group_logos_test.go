@@ -9,12 +9,6 @@ import (
 	"testing"
 )
 
-// M8-S2 parser attacks for GroupStmt{Ctx, Limit, Body} and
-// GroupChild{Body} (logos-docs/IMPLEMENTATION.md): `go group (ctx)`
-// and `go group (ctx, limit = N)` parse as groups, `go { }` as a child,
-// and `go group(x)` without a block stays an ordinary go call, all in
-// LogosMode only; plain mode keeps the go-call meaning everywhere.
-
 func parseGroup(t *testing.T, src string) *File {
 	t.Helper()
 	var msgs []string
@@ -62,6 +56,16 @@ func TestGroupParsesCtxAndBody(t *testing.T) {
 	if len(c.Body.List) != 1 {
 		t.Fatalf("child body holds %d statements; want 1", len(c.Body.List))
 	}
+	var walked bool
+	Inspect(list[0], func(n Node) bool {
+		if _, ok := n.(*GroupChild); ok {
+			walked = true
+		}
+		return true
+	})
+	if !walked {
+		t.Fatal("Inspect found no *GroupChild under the group statement")
+	}
 }
 
 func TestGroupParsesLimit(t *testing.T) {
@@ -94,20 +98,6 @@ func TestGroupCallWithoutBlockStaysCall(t *testing.T) {
 	}
 }
 
-func TestGroupChildParses(t *testing.T) {
-	f := parseGroup(t, "package p\nfunc f(ctx int) { go group (ctx) { go { g() } } }\n")
-	var found *GroupChild
-	Inspect(f, func(n Node) bool {
-		if c, ok := n.(*GroupChild); ok {
-			found = c
-		}
-		return true
-	})
-	if found == nil {
-		t.Fatal("no *GroupChild in tree")
-	}
-}
-
 func TestGroupPlainModeKeepsGoCall(t *testing.T) {
 	src := "package p\nfunc f(ctx int) { go group (ctx) }\n"
 	var msgs []string
@@ -123,5 +113,24 @@ func TestGroupPlainModeKeepsGoCall(t *testing.T) {
 	decl := f.DeclList[0].(*FuncDecl)
 	if _, ok := decl.Body.List[0].(*CallStmt); !ok {
 		t.Fatalf("plain stmt 0 is %T; want *CallStmt", decl.Body.List[0])
+	}
+}
+
+func TestGroupBlockNeedsGo(t *testing.T) {
+	f := parseGroup(t, "package p\nfunc f(ctx int) { go group (ctx) { g() } }\nfunc g() {}\n")
+	decl := f.DeclList[0].(*FuncDecl)
+	if _, ok := decl.Body.List[0].(*GroupStmt); !ok {
+		t.Fatalf("go group stmt is %T; want *GroupStmt", decl.Body.List[0])
+	}
+	src := "package p\nfunc f(ctx int) { group (ctx) { g() } }\nfunc g() {}\n"
+	var msgs []string
+	_, err := Parse(nil, strings.NewReader(src), func(err error) {
+		msgs = append(msgs, err.Error())
+	}, nil, CheckBranches|LogosMode)
+	if err == nil && len(msgs) == 0 {
+		t.Fatal("misplaced group block parsed without error")
+	}
+	if len(msgs) == 0 || !strings.Contains(msgs[0], "unexpected { at end of statement") {
+		t.Fatalf("misplaced group first error is %q; want unexpected { at end of statement", msgs)
 	}
 }

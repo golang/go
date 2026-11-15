@@ -1,0 +1,8 @@
+ok stmt-type-switch-int
+ok stmt-scrutinee-evaluates-once
+ok stmt-type-switch-str
+ok stmt-scrutinee-evaluates-once-two
+ok expr-type-switch-int
+ok expr-scrutinee-evaluates-once
+ok expr-type-switch-str
+ok expr-scrutinee-evaluates-once-two

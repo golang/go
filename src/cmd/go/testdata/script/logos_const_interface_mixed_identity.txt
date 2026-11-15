@@ -1,15 +1,7 @@
-# Mixed ordinary/qualified identity: named Qual/Ord plus anonymous UseQual/UseOrd share
-# spelling Name() Token. Pure Good accepted everywhere; mutating Mut accepted
-# only on ordinary paths. Go wrapper w re-exports Qual/Ord; contract.Want
-# checks transitive qualified identity. Both import orders plus native lgo/Go
-# consumers run; attacks fail only on qualified with const_view_mutation.
-# No wiring assertions; only build/run and diagnostic code are pinned.
-
 env GOPROXY=off
 env GOTOOLCHAIN=local
 mkdir $WORK/bin
 
-# Positive: wrapper builds, both orders share nominal identity, lgo/Go run.
 cd sl
 logos build ./...
 cd ../w
@@ -41,7 +33,6 @@ logos build -o $WORK/bin/cache$GOEXE .
 exec $WORK/bin/cache$GOEXE
 cd ..
 
-# Negative: mutating only rejected on qualified paths.
 cd neg
 ! logos build ./qual
 stderr '\[correctness::const_view_mutation\]'

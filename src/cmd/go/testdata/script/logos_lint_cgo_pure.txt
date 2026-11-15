@@ -1,0 +1,117 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOCACHE=$WORK/cache-all
+
+cd m
+! logos lint --json-diagnostics ./...
+stderr -count=2 '"rule_id":"correctness::typed_nil_return"'
+stderr -count=1 '"file":"[^"]*q/q\.go"'
+stderr -count=1 '"file":"[^"]*p/p\.go"'
+! stderr '(?m)^[^{\r\n]'
+! logos lint ./...
+stderr -count=2 '\[correctness::typed_nil_return\]'
+stderr -count=1 'q/q\.go:\d+:\d+: \[correctness::typed_nil_return\]'
+stderr -count=1 'p/p\.go:\d+:\d+: \[correctness::typed_nil_return\]'
+stderr -count=1 '# example.com/purelint/q'
+stderr -count=1 '# example.com/purelint/p'
+! stderr 'exit status'
+logos build ./...
+! stderr 'typed_nil_return'
+
+env GOCACHE=$WORK/cache-p
+! logos lint --json-diagnostics ./p
+stderr -count=1 '"rule_id":"correctness::typed_nil_return"'
+stderr '"file":"[^"]*p/p\.go"'
+! stderr '"file":"[^"]*q/q\.go"'
+! stderr '(?m)^[^{\r\n]'
+
+cd ../warn
+env GOCACHE=$WORK/cache-warn-json
+logos lint --json-diagnostics ./...
+stderr -count=1 '"rule_id":"perf::time_after_in_loop"'
+stderr '"severity":"warn"'
+stderr '"file":"[^"]*q/q\.go"'
+! stderr '(?m)^[^{\r\n]'
+env GOCACHE=$WORK/cache-warn-text
+logos lint ./...
+stderr -count=1 'warning: \[perf::time_after_in_loop\]'
+! stderr 'exit status'
+
+cd ../lgo
+env GOCACHE=$WORK/cache-lgo
+! logos build ./...
+stderr -count=1 '\[correctness::typed_nil_return\]'
+! logos lint --json-diagnostics ./...
+stderr -count=1 '"rule_id":"correctness::typed_nil_return"'
+! stderr '(?m)^[^{\r\n]'
+! logos build ./...
+stderr -count=1 '\[correctness::typed_nil_return\]'
+
+-- m/go.mod --
+module example.com/purelint
+
+go 1.27
+
+-- m/p/p.go --
+package p
+
+import "example.com/purelint/q"
+
+var Bad = q.Bad
+
+type T struct{}
+func OwnBad() any { return (*T)(nil) }
+
+-- m/q/q.go --
+package q
+
+type T struct{}
+func Bad() any { return (*T)(nil) }
+
+-- warn/go.mod --
+module example.com/warnlint
+
+go 1.27
+
+-- warn/p/p.go --
+package p
+
+import "example.com/warnlint/q"
+
+var Wait = q.Wait
+
+-- warn/q/q.go --
+package q
+
+import (
+	"context"
+	"time"
+)
+
+func Wait(ctx context.Context, d time.Duration) {
+	for i := 0; i < 2; i++ {
+		select {
+		case <-time.After(d):
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+-- lgo/go.mod --
+module example.com/lgolint
+
+go 1.27
+
+-- lgo/p/p.lgo --
+package p
+
+import "example.com/lgolint/q"
+
+var Bad = q.Bad
+
+-- lgo/q/q.lgo --
+package q
+
+type T struct{}
+func Bad() any { return (*T)(nil) }

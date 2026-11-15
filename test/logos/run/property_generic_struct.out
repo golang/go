@@ -1,0 +1,10 @@
+ok ordinary-interface-assertion
+ok const-property-field
+ok const-property-through-generic-func
+ok two-interfaces-key
+ok two-interfaces-value
+ok read-write-field
+ok read-write-methods
+ok setter-ran-through-method
+ok dynamic-assertion
+ok dynamic-assertion-other-argument

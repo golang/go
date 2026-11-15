@@ -1,0 +1,259 @@
+// run -goexperiment logosarena
+package main
+
+import (
+	"fmt"
+	"logos/arena"
+	"logos/rt"
+	"os"
+)
+
+var regionExitsSink int
+
+func regionInside() {
+	if rt.RegionBytes() == 0 {
+		panic("region bytes are zero inside an open region")
+	}
+}
+
+func exitFallOff() {
+	{
+		r := arena.Open()
+		p := arena.New[int](r)
+		*p = 3
+		regionExitsSink += *p
+		regionInside()
+	}
+}
+
+func exitReturn() int {
+	{
+		r := arena.Open()
+		p := arena.New[int](r)
+		*p = 21
+		return *p
+	}
+}
+
+func exitBreak() {
+	for i := 0; i < 2; i++ {
+		{
+			r := arena.Open()
+			p := arena.New[int](r)
+			*p = 5 + i
+			regionExitsSink += *p
+			regionInside()
+			if i == 1 {
+				break
+			}
+		}
+	}
+}
+
+func exitContinue() {
+	for i := 0; i < 3; i++ {
+		{
+			r := arena.Open()
+			p := arena.New[int](r)
+			*p = 2
+			regionExitsSink += *p
+			regionInside()
+			if i != 2 {
+				continue
+			}
+		}
+	}
+}
+
+func exitLabeledBreak() {
+outer:
+	for i := 0; i < 5; i++ {
+		{
+			r := arena.Open()
+			p := arena.New[int](r)
+			*p = 9 + i
+			regionExitsSink += *p
+			regionInside()
+			if i >= 1 {
+				break outer
+			}
+		}
+	}
+}
+
+func exitFallthrough() {
+	switch regionExitsSink / 1000 {
+	case 0:
+		r := arena.Open()
+		p := arena.New[int](r)
+		*p = 7
+		regionExitsSink += *p
+		regionInside()
+		fallthrough
+	case 1:
+		regionExitsSink++
+	}
+}
+
+func exitInitOwner() {
+	if r := arena.Open(); regionExitsSink >= 0 {
+		p := arena.New[int](r)
+		*p = 11
+		regionExitsSink += *p
+		regionInside()
+	}
+}
+
+func exitSwitchInitOwner() {
+	switch r := arena.Open(); 1 {
+	case 1:
+		p := arena.New[int](r)
+		*p = 17
+		regionExitsSink += *p
+		regionInside()
+	default:
+		panic("unreachable switch tag")
+	}
+}
+
+func exitForInitOwner() {
+	for r := arena.Open(); regionExitsSink >= 0; {
+		p := arena.New[int](r)
+		*p = 19
+		regionExitsSink += *p
+		regionInside()
+		break
+	}
+}
+
+func regionIter(yield func(int) bool) {
+	for i := 1; i <= 3; i++ {
+		if !yield(i) {
+			return
+		}
+	}
+}
+
+func exitRangeFuncBreak() {
+	for v := range regionIter {
+		r := arena.Open()
+		p := arena.New[int](r)
+		*p = v
+		regionExitsSink += *p
+		regionInside()
+		if v >= 2 {
+			break
+		}
+	}
+}
+
+func exitPanic() {
+	{
+		r := arena.Open()
+		p := arena.New[int](r)
+		*p = 13
+		regionExitsSink += *p
+		regionInside()
+		panic("region exits")
+	}
+}
+
+func regionRecoverPanic() {
+	defer func() {
+		if recover() == nil {
+			panic("expected a panic")
+		}
+	}()
+	exitPanic()
+}
+
+func exitBareBlockInFrame() int {
+	{
+		r := arena.Open()
+		p := arena.New[int](r)
+		*p = 23
+		regionExitsSink += *p
+		regionInside()
+	}
+	return rt.RegionBytes()
+}
+
+func exitIfBodyInFrame() int {
+	if regionExitsSink >= 0 {
+		r := arena.Open()
+		p := arena.New[int](r)
+		*p = 29
+		regionExitsSink += *p
+		regionInside()
+	}
+	return rt.RegionBytes()
+}
+
+func exitIfInitInFrame() int {
+	if r := arena.Open(); regionExitsSink >= 0 {
+		p := arena.New[int](r)
+		*p = 31
+		regionExitsSink += *p
+		regionInside()
+	}
+	return rt.RegionBytes()
+}
+
+func main() {
+	failed := false
+	released := func(name string) {
+		if rb := rt.RegionBytes(); rb != 0 {
+			fmt.Printf("FAIL %s: got %d bytes want 0\n", name, rb)
+			failed = true
+			return
+		}
+		fmt.Printf("ok %s\n", name)
+	}
+	releasedInFrame := func(name string, rb int) {
+		if rb != 0 {
+			fmt.Printf("FAIL %s: got %d bytes want 0\n", name, rb)
+			failed = true
+			return
+		}
+		fmt.Printf("ok %s\n", name)
+	}
+	exitFallOff()
+	released("fall-off-edge-releases-region")
+	if got := exitReturn(); got != 21 {
+		fmt.Printf("FAIL return-edge-preserves-value: got %d want 21\n", got)
+		failed = true
+	} else {
+		fmt.Println("ok return-edge-preserves-value")
+	}
+	released("return-edge-releases-region")
+	exitBreak()
+	released("break-edge-releases-region")
+	exitContinue()
+	released("continue-edge-releases-region")
+	exitLabeledBreak()
+	released("labeled-break-edge-releases-region")
+	exitFallthrough()
+	released("fallthrough-edge-releases-region")
+	exitInitOwner()
+	released("if-init-owner-releases-region")
+	exitSwitchInitOwner()
+	released("switch-init-owner-releases-region")
+	exitForInitOwner()
+	released("for-init-owner-releases-region")
+	exitRangeFuncBreak()
+	released("range-func-break-releases-region")
+	regionRecoverPanic()
+	released("panic-edge-releases-region")
+	releasedInFrame("bare-block-exit-releases-before-frame-exit", exitBareBlockInFrame())
+	releasedInFrame("if-body-exit-releases-before-frame-exit", exitIfBodyInFrame())
+	releasedInFrame("if-init-statement-exit-releases-before-frame-exit", exitIfInitInFrame())
+	if regionExitsSink != 193 {
+		fmt.Printf("FAIL every-exit-ran-with-expected-values: got %d want 193\n", regionExitsSink)
+		failed = true
+	} else {
+		fmt.Println("ok every-exit-ran-with-expected-values")
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

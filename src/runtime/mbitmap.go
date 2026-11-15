@@ -389,14 +389,11 @@ func bulkBarrierPreWrite(dst, src, size uintptr, typ *abi.Type) {
 	if (dst|src|size)&(goarch.PtrSize-1) != 0 {
 		throw("bulkBarrierPreWrite: unaligned arguments")
 	}
-	if !wbActive() {
+	if !writeBarrier.enabled {
 		return
 	}
 	s := spanOf(dst)
 	if s == nil {
-		if logosGenGlobalDst() {
-			return
-		}
 		// If dst is a global, use the data or BSS bitmaps to
 		// execute write barriers.
 		for _, datap := range activeModules() {
@@ -419,9 +416,6 @@ func bulkBarrierPreWrite(dst, src, size uintptr, typ *abi.Type) {
 		// another stack. Either way, no need for barriers.
 		// This will also catch if dst is in a freed span,
 		// though that should never have.
-		return
-	}
-	if logosGenBulk(s, dst, src, size) {
 		return
 	}
 	buf := &getg().m.p.ptr().wbBuf
@@ -517,7 +511,7 @@ func (s *mspan) initHeapBits() {
 		for i := range b {
 			b[i] = ^uintptr(0)
 		}
-	} else if (!s.spanclass.noscan() && heapBitsInSpan(s.elemsize)) || s.isUserArenaChunk {
+	} else if !s.spanclass.noscan() && heapBitsInSpan(s.elemsize) {
 		b := s.heapBits()
 		clear(b)
 	}
@@ -531,19 +525,15 @@ func (s *mspan) initHeapBits() {
 //
 // Note that the uintptr of each element means something different for small object
 // spans and for heap arena spans. Small object spans are easy: they're never interpreted
-// as anything but uintptr, so they're immune to differences in endianness. However, the
-// heapBits for user arena spans is exposed through a dummy type descriptor, so the byte
-// ordering needs to match the same byte ordering the compiler would emit. The compiler always
-// emits the bitmap data in little endian byte ordering, so on big endian platforms these
-// uintptrs will have their byte orders swapped from what they normally would be.
+// as anything but uintptr, so they're immune to differences in endianness.
 //
-// heapBitsInSpan(span.elemsize) or span.isUserArenaChunk must be true.
+// heapBitsInSpan(span.elemsize) must be true.
 //
 //go:nosplit
 func (span *mspan) heapBits() []uintptr {
 	const doubleCheck = false
 
-	if doubleCheck && !span.isUserArenaChunk {
+	if doubleCheck {
 		if span.spanclass.noscan() {
 			throw("heapBits called for noscan")
 		}
@@ -553,7 +543,7 @@ func (span *mspan) heapBits() []uintptr {
 	}
 	// Find the bitmap at the end of the span.
 	//
-	// Nearly every span with heap bits is exactly one page in size. Arenas are the only exception.
+	// Nearly every span with heap bits is exactly one page in size.
 	if span.npages == 1 {
 		// This will be inlined and constant-folded down.
 		return heapBitsSlice(span.base(), pageSize, span.elemsize)
@@ -658,7 +648,7 @@ func (span *mspan) writeHeapBitsSmall(x, dataSize uintptr, typ *_type) (scanSize
 
 	// Since we're never writing more than one uintptr's worth of bits, we're either going
 	// to do one or two writes.
-	dstBase, _ := spanHeapBitsRange(span.base(), span.npages*pageSize, span.elemsize)
+	dstBase, _ := spanHeapBitsRange(span.base(), pageSize, span.elemsize)
 	dst := unsafe.Pointer(dstBase)
 	o := (x - span.base()) / goarch.PtrSize
 	i := o / ptrBits
@@ -1367,12 +1357,6 @@ func badPointer(s *mspan, p, refBase, refOff uintptr) {
 //go:linkname findObject
 //go:nosplit
 func findObject(p, refBase, refOff uintptr) (base uintptr, s *mspan, objIndex uintptr) {
-	if zgcCycleEnabled() {
-		// Nosplit-safe canonicalization only (single upstream hook; the
-		// splitting zgcCanonical locks and may grow the stack, which is
-		// exactly the user-stack system-stack fatal).
-		p = logosZgcFindObjectPtr(p)
-	}
 	s = spanOf(p)
 	// If s is nil, the virtual address has never been part of the heap.
 	// This pointer may be to some mmap'd region, so we allow it.
@@ -1389,10 +1373,6 @@ func findObject(p, refBase, refOff uintptr) (base uintptr, s *mspan, objIndex ui
 	//
 	// Check s.state to synchronize with span initialization
 	// before checking other fields. See also spanOfHeap.
-	if zgcCycleEnabled() && zgcSpanQuarantined(s) {
-		base, s, objIndex = 0, nil, 0
-		return
-	}
 	if state := s.state.get(); state != mSpanInUse || p < s.base() || p >= s.limit {
 		// Pointers into stacks are also ok, the runtime manages these explicitly.
 		if state == mSpanManual {
@@ -1485,10 +1465,7 @@ func typeBitsBulkBarrier(typ *_type, dst, src, size uintptr) {
 		println("runtime: typeBitsBulkBarrier with type ", toRType(typ).string(), " of size ", typ.Size_, " but memory size", size)
 		throw("runtime: invalid typeBitsBulkBarrier")
 	}
-	if !wbActive() {
-		return
-	}
-	if logosGenTypeBits(typ, dst) {
+	if !writeBarrier.enabled {
 		return
 	}
 	ptrmask := getGCMask(typ)
@@ -1993,4 +1970,14 @@ func pointerMask(ep any) (mask []byte) {
 	// possibly read-only data, like malloc(0).
 	// must not have pointers
 	return
+}
+
+func bswapIfBigEndian(x uintptr) uintptr {
+	if goarch.BigEndian {
+		if goarch.PtrSize == 8 {
+			return uintptr(sys.Bswap64(uint64(x)))
+		}
+		return uintptr(sys.Bswap32(uint32(x)))
+	}
+	return x
 }

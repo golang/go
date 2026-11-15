@@ -1,0 +1,72 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+logos run .
+stdout '^51 <nil>$'
+cp stdout $WORK/native.txt
+logos eject -o out
+exists out/main.go
+grep '/\* a \*/' out/main.go
+grep '/\* b \*/' out/main.go
+grep '// c' out/main.go
+grep '/\* e \*/' out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $WORK/native.txt
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
+exec $WORK/upstream$GOEXE
+cmp stdout $WORK/native.txt
+cd ..
+
+-- m/go.mod --
+module example.com/stagerangehead
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import (
+	"context"
+	"fmt"
+)
+
+func double(ctx context.Context, x int) (int, error) {
+	return 2 * x, nil
+}
+
+func sum(ctx context.Context, xs []int) (int, error) {
+	total := 0
+	for y := /* a */ range xs.group(ctx, limit = 2).map(x => double(ctx, x)?) {
+		total += y
+	}
+	for z /* b */ := range xs.group(ctx, limit = 2).map(x => double(ctx, x)?) {
+		total += z
+	}
+	for w := // c
+		range xs.group(ctx, limit = 2).map(x => double(ctx, x)?) {
+		total += w
+	}
+	var v int
+	for v = /* e */ range xs.group(ctx, limit = 2).map(x => double(ctx, x)?) {
+		total += v
+	}
+	for /* d */ range xs.group(ctx, limit = 2).map(x => double(ctx, x)?) {
+		total++
+	}
+	return total, nil
+}
+
+func main() {
+	n, err := sum(context.Background(), []int{1, 2, 3})
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println(n, err)
+}

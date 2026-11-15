@@ -1,13 +1,8 @@
-# M9-S2: correctness::nil_deref_unproven keeps the checker's text and forbid
-# severity, and its JSON record carries the span of the unproven selection and
-# the autofix candidates of SPEC Sec 1.2: optional chaining with a ?? default,
-# and an early-return guard.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
 mkdir $WORK/bin
 
-# The text diagnostic names the rule and the position of the selection.
 cd bad
 ! logos build -o $WORK/bin/bad$GOEXE .
 stderr 'main\.lgo:10:9: \[correctness::nil_deref_unproven\] cannot access field Name of \*User\? without proving != nil'
@@ -15,15 +10,11 @@ stderr 'main\.lgo:17:9: \[correctness::nil_deref_unproven\] cannot call method o
 ! exists $WORK/bin/bad$GOEXE
 cd ..
 
-# The same diagnostic through logos lint.
 cd bad
 ! logos lint ./...
 stderr 'main\.lgo:10:9: \[correctness::nil_deref_unproven\]'
 cd ..
 
-# --json-diagnostics prints one record per finding. The span covers the
-# expression the first candidate replaces, the provenance names the receiver,
-# and both candidates are present.
 cd bad
 ! logos lint --json-diagnostics ./...
 stderr -count=2 '^\{.*\}$'
@@ -41,7 +32,6 @@ stderr '"replacement":"\(u\?\.Greet\(\) \?\? \\"\\"\)"\}'
 stderr '"insert_before_line":17'
 cd ..
 
-# The same JSON under logos build.
 cd bad
 ! logos build --json-diagnostics -o $WORK/bin/bad$GOEXE .
 ! stderr '^#'
@@ -51,7 +41,6 @@ stderr -count=2 '"description":"use optional chaining with a \?\? default"'
 stderr -count=2 '"description":"return early when u is nil"'
 cd ..
 
-# Applying either candidate to the finding yields code that builds.
 cd chain
 logos build -o $WORK/bin/chain$GOEXE .
 ! stderr .

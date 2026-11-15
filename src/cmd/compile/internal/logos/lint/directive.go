@@ -12,6 +12,8 @@ import (
 	"cmd/compile/internal/syntax"
 )
 
+const allowMarker = "//logos:allow"
+
 // allowDirective matches //logos:allow(<rule>), optionally followed by a
 // space and free text. Both parts allow digits after the first letter so the
 // helper's canonical nogo::<lowercase-analyzer> IDs (for example,
@@ -69,7 +71,7 @@ func collectDirectives(in *Input) *directives {
 	}
 	for _, f := range in.Files {
 		src, ok := in.Sources[f]
-		if !ok || !bytes.Contains(src, []byte("//logos:allow")) {
+		if !ok || !bytes.Contains(src, []byte(allowMarker)) {
 			continue
 		}
 		fileBase := f.Pos().FileBase()
@@ -81,14 +83,13 @@ func collectDirectives(in *Input) *directives {
 }
 
 // isAllowComment reports whether text attempts a //logos:allow directive:
-// the prefix followed by "(", whitespace, or nothing. The trailing guard
-// keeps longer words such as //logos:allowlist out of the malformed set.
+// the word followed by "(", white space, or nothing. Longer words such as
+// //logos:allowlist stay out of the malformed set.
 func isAllowComment(text string) bool {
-	rest, ok := strings.CutPrefix(text, "//logos:allow")
-	if !ok {
-		return false
+	if _, ok := syntax.DirectiveArg(text, allowMarker); ok {
+		return true
 	}
-	return rest == "" || rest[0] == '(' || rest[0] == ' ' || rest[0] == '\t'
+	return strings.HasPrefix(text, allowMarker+"(")
 }
 
 // fileDirectives returns the directives of one file in source order,

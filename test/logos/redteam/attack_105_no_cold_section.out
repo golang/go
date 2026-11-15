@@ -1,4 +1,0 @@
-elf: no .cold section
-readelf: no .cold section
-nm: no .cold section
-OK

@@ -490,6 +490,8 @@ type g struct {
 	// objects in the caller's arena region. The callee takes it (reads and
 	// clears it) as its first action; see logosArenaRetSet.
 	logosArenaRetOK bool
+	logosRegions    *logosRegion
+	logosRegionFree *logosRegion
 
 	_panic    *_panic // innermost panic
 	_defer    *_defer // innermost defer
@@ -606,15 +608,6 @@ type g struct {
 	// built with the "valgrind" build tag, otherwise it is unused.
 	valgrindStackID uintptr
 
-	// logosForeignG holds this goroutine's foreign-call frame state
-	// (stack top, spare frame, depth, transport count). The fields live
-	// in logos_foreign_g.go under goexperiment.logosgcmoving; the
-	// struct is empty otherwise, so off-experiment builds carry no
-	// per-g foreign state. Embedded so consumers keep the promoted
-	// gp.logosForeignTop spelling. It must stay ahead of a
-	// non-zero-sized field: a trailing empty struct would cost a full
-	// alignment word of padding.
-	logosForeignG
 	// logosErrSite holds the per-goroutine loGo/s error-trace ring: site
 	// pointers for the latest error, oldest first. Lowered code uses
 	// package-level sites, so retention is free.
@@ -626,6 +619,9 @@ type g struct {
 	// logosErrLast is the data word of the error that filled the ring:
 	// identity only, not a reference, so the trace keeps no error alive.
 	logosErrLast uintptr
+	// logosErrLastTyp is the type word paired with logosErrLast: zero-size
+	// error values share one data word, so the pair keys the ring.
+	logosErrLastTyp unsafe.Pointer
 }
 
 // gTrackingPeriod is the number of transitions out of _Grunning between
@@ -712,10 +708,6 @@ type m struct {
 	mWaitList       mWaitList   // list of runtime lock waiters
 	ditEnabled      bool        // set if DIT is currently enabled on this M
 
-	// logosWbScratch is the write barrier buffer of a store made without a P
-	// (amd64 GreenTea builds; zero length otherwise).
-	logosWbScratch logosGenScratch
-
 	mLockProfile mLockProfile // fields relating to runtime.lock contention
 	profStack    []uintptr    // used for memory/block/mutex stack traces
 
@@ -766,8 +758,7 @@ type m struct {
 	self mWeakPointer
 
 	// Fast-cgo diagnostics belong to the original M across _Gsyscall.
-	fastCgoFrame      [4]uintptr
-	fastCallEnterNano int64
+	fastCgoFrame [4]uintptr
 }
 
 const mRedZoneSize = (16 << 3) * asanenabledBit // redZoneSize(2048)
@@ -839,6 +830,9 @@ type p struct {
 	deferpool    []*_defer // pool of available defer structs (see panic.go)
 	deferpoolbuf [32]*_defer
 
+	deferTryPool    []*_deferTry
+	deferTryPoolBuf [32]*_deferTry
+
 	// Cache of goroutine ids, amortizes accesses to runtime·sched.goidgen.
 	goidcache    uint64
 	goidcacheend uint64
@@ -886,6 +880,7 @@ type p struct {
 	// owned by this P and linked through sideStackChunk.next.
 	logosArenaPool  *sideStackChunk
 	logosArenaPoolN int32
+	logosRegionPool *logosRegion
 
 	trace pTraceState
 
@@ -1031,6 +1026,8 @@ type schedt struct {
 	// Central pool of available defer structs.
 	deferlock mutex
 	deferpool *_defer
+
+	deferTryPool *_deferTry
 
 	// freem is the list of m's waiting to be freed when their
 	// m.exited is set. Linked through m.freelink.
@@ -1200,7 +1197,8 @@ type forcegcstate struct {
 // and for heap defers, marked.
 type _defer struct {
 	heap      bool
-	rangefunc bool    // true for rangefunc list
+	rangefunc bool // true for rangefunc list
+	try       bool
 	sp        uintptr // sp at time of defer
 	pc        uintptr // pc at time of defer
 	fn        func()  // can be nil for open-coded defers

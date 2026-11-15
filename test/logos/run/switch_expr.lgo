@@ -4,13 +4,20 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"unsafe"
 )
 
-// Closed union under test (SPEC Sec 2.3, T-203.1): the operand evaluates
-// once, only the chosen arm evaluates, the common type flows to the use
-// site, and an exhaustive switch with no default panics when a smuggled
-// non-member matches no case.
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 type U interface {
 	int | string
@@ -18,23 +25,23 @@ type U interface {
 
 var calls int
 
+var ran string
+
 func next() U {
 	calls++
-	fmt.Println("operand")
 	return 7
 }
 
 func arm1() string {
-	fmt.Println("arm1")
+	ran = "arm1"
 	return "one"
 }
 
 func arm2() string {
-	fmt.Println("arm2")
+	ran = "arm2"
 	return "two"
 }
 
-// Common type U from a typed union arm plus untyped member arms.
 func pick(n int, u U) U {
 	return switch n {
 	case 1 => u
@@ -60,19 +67,24 @@ func main() {
 	case 7 => "seven"
 	default => "other"
 	}
-	fmt.Println("result:", r)
-	fmt.Println("calls:", calls)
+	check("result", r == "seven", r, "seven")
+	check("calls", calls == 1, calls, 1)
 
 	s := switch 2 {
 	case 1 => arm1()
 	case 2 => arm2()
 	default => "other"
 	}
-	fmt.Println("chosen:", s)
+	check("chosen", s == "two", s, "two")
+	check("arm", ran == "arm2", ran, "arm2")
 
-	fmt.Println(pick(1, 7))
-	fmt.Println(pick(2, 7))
-	fmt.Println(pick(9, 7))
+	check("pick1", fmt.Sprint(pick(1, 7)) == "7", fmt.Sprint(pick(1, 7)), "7")
+	check("pick2", fmt.Sprint(pick(2, 7)) == "0", fmt.Sprint(pick(2, 7)), "0")
+	check("pick9", fmt.Sprint(pick(9, 7)) == "s", fmt.Sprint(pick(9, 7)), "s")
 
-	fmt.Println("recovered:", provoke())
+	rec := provoke()
+	check("recovered", rec != nil, fmt.Sprint(rec), "non-nil panic")
+	if failed {
+		os.Exit(1)
+	}
 }

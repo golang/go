@@ -1,0 +1,6 @@
+ok len-array-const
+ok len-array-elem-map
+ok len-field-array-const
+ok len-field-slice
+ok cap-field-slice
+ok len-whole-array

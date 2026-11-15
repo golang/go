@@ -1,0 +1,86 @@
+# A paired load must fault exactly as the two unpaired loads would:
+# with the second 16-byte half on a PROT_NONE page, the fused FLDPQ
+# and the split FMOVQ pair report the same faulting address, the
+# first byte of the unmapped page. The mapping is fixed so the
+# address is constant across runs, natively and under qemu.
+[!exec:qemu-aarch64] skip 'qemu-aarch64 is required for the arm64 leg'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOEXPERIMENT=simd
+
+cd m
+env GOARCH=arm64
+logos build -o $WORK/fault-arm64$GOEXE .
+env GOARCH=
+! exec qemu-aarch64 $WORK/fault-arm64$GOEXE paired
+stderr 'unexpected fault address 0x40001000'
+! exec qemu-aarch64 $WORK/fault-arm64$GOEXE unpaired
+stderr 'unexpected fault address 0x40001000'
+
+logos build -o $WORK/fault-native$GOEXE .
+! exec $WORK/fault-native$GOEXE paired
+stderr 'unexpected fault address 0x40001000'
+! exec $WORK/fault-native$GOEXE unpaired
+stderr 'unexpected fault address 0x40001000'
+
+-- m/go.mod --
+module example.com/pairfaultaddr
+
+go 1.27
+
+-- m/main.go --
+package main
+
+import (
+	"fmt"
+	"os"
+	"syscall"
+	"unsafe"
+
+	"simd/archsimd"
+)
+
+type pair16 struct {
+	A [16]byte
+	B [16]byte
+}
+
+type pad1024 struct {
+	Pad [1024]byte
+	A   [16]byte
+	B   [16]byte
+}
+
+const fixedBase = 0x40000000
+
+func main() {
+	page := syscall.Getpagesize()
+	r1, _, errno := syscall.Syscall6(syscall.SYS_MMAP, fixedBase, uintptr(2*page), syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_ANON|syscall.MAP_PRIVATE|syscall.MAP_FIXED, ^uintptr(0), 0)
+	if errno != 0 || r1 != fixedBase {
+		fmt.Println("fixed mmap failed", errno)
+		os.Exit(2)
+	}
+	mem := unsafe.Slice((*byte)(unsafe.Pointer(uintptr(fixedBase))), 2*page)
+	if err := syscall.Mprotect(mem[page:], syscall.PROT_NONE); err != nil {
+		fmt.Println("mprotect failed", err)
+		os.Exit(2)
+	}
+	if len(os.Args) > 1 && os.Args[1] == "unpaired" {
+		s := (*pad1024)(unsafe.Pointer(&mem[page-1040]))
+		a := archsimd.LoadUint8x16Array(&s.A)
+		b := archsimd.LoadUint8x16Array(&s.B)
+		var o1, o2 [16]byte
+		a.StoreArray(&o1)
+		b.StoreArray(&o2)
+		fmt.Println("survived", o1, o2)
+		return
+	}
+	s := (*pair16)(unsafe.Pointer(&mem[page-16]))
+	a := archsimd.LoadUint8x16Array(&s.A)
+	b := archsimd.LoadUint8x16Array(&s.B)
+	var o1, o2 [16]byte
+	a.StoreArray(&o1)
+	b.StoreArray(&o2)
+	fmt.Println("survived", o1, o2)
+}

@@ -1,0 +1,98 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+[cgo] ! logos build -o $WORK/logos$GOEXE ./sub
+[cgo] stderr 'restriction::cgo_usage'
+[cgo] go build -o $WORK/plain$GOEXE ./sub
+[cgo] exec $WORK/plain$GOEXE
+[cgo] stdout '^42$'
+[cgo] go build -a -trimpath -o $WORK/with$GOEXE ./sub
+[cgo] exec $WORK/with$GOEXE
+[cgo] stdout '^42$'
+[cgo] mv logos.toml $WORK/logos.toml.bak
+[cgo] go build -a -trimpath -o $WORK/without$GOEXE ./sub
+[cgo] exec cmp $WORK/with$GOEXE $WORK/without$GOEXE
+[cgo] mv $WORK/logos.toml.bak logos.toml
+[cgo] go build -o $WORK/plain_cpu$GOEXE ./sub
+[cgo] exec go version -m $WORK/plain_cpu$GOEXE
+[cgo] stdout 'GOAMD64=v1'
+
+env GOARCH=arm64
+env CGO_ENABLED=0
+cd arm
+logos build -o $WORK/arm_logos .
+go version -m $WORK/arm_logos
+stdout 'GOARM64=v8.2'
+go build -o $WORK/arm_plain .
+go version -m $WORK/arm_plain
+stdout 'GOARM64=v8.0'
+
+-- go.mod --
+module example.com/plain
+
+go 1.27
+
+-- logos.toml --
+[project]
+strict_files = [".lgo"]
+[build]
+cgo = "forbid"
+cgo_allowlist = []
+opt_level = "O3"
+target_cpu = "native"
+arena = true
+[capabilities]
+transitive_reflect = "deny"
+transitive_exec = "deny"
+transitive_net = "deny"
+transitive_unsafe = "deny"
+reflect_allowlist = []
+transitive_exec_allowlist = []
+transitive_net_allowlist = []
+transitive_unsafe_allowlist = []
+[lints]
+correctness = "forbid"
+concurrency = "forbid"
+slop = "deny"
+complexity = "deny"
+perf = "deny"
+style = "deny"
+suspicious = "deny"
+portability = "deny"
+pedantic = "deny"
+[lints.thresholds]
+max_nesting_depth = 30
+max_cognitive_complexity = 150
+max_function_lines = 600
+max_function_params = 40
+max_comptime_ast_nodes = 40960
+max_ctfe_steps = 1000000
+
+-- marker.lgo --
+package marker
+
+-- sub/main.go --
+package main
+
+/*
+static int answer() { return 42; }
+*/
+import "C"
+
+import "fmt"
+
+func main() { fmt.Println(int(C.answer())) }
+
+-- arm/go.mod --
+module example.com/plainarm
+
+go 1.27
+
+-- arm/logos.toml --
+[build]
+target_cpu = "deterministic"
+
+-- arm/main.go --
+package main
+
+func main() {}

@@ -1,0 +1,19 @@
+// errorcheck
+
+package p
+
+import "comptime"
+
+type Mismatched struct {
+	N int
+}
+
+func fillText[T any](v *T) {
+	const for _, f := range comptime.Fields[T]() {
+		v.[f] = "text"
+	}
+}
+
+func triggerCopyMismatch() {
+	fillText[Mismatched](&Mismatched{N: 1}) // ERROR "."
+}

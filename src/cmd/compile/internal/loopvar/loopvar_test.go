@@ -73,7 +73,7 @@ func TestLoopVarGo1_21(t *testing.T) {
 		for _, f := range tc.files {
 			source := f
 			cmd := testenv.Command(t, gocmd, "build", "-o", output, "-gcflags=-lang=go1.21 -d=loopvar="+tc.lvFlag, source)
-			cmd.Env = append(cmd.Env, "GOEXPERIMENT=loopvar", "HOME="+tmpdir)
+			cmd.Env = append(cmd.Env, "GOEXPERIMENT=loopvar", "HOME="+tmpdir, "TMPDIR="+tmpdir)
 			cmd.Dir = "testdata"
 			t.Logf("File %s loopvar=%s expect '%s' exit code %d", f, tc.lvFlag, tc.buildExpect, tc.expectRC)
 			b, e := cmd.CombinedOutput()
@@ -127,7 +127,7 @@ func TestLoopVarInlinesGo1_21(t *testing.T) {
 		// The effect should follow the package, even though everything (except "c")
 		// is inlined.
 		cmd := testenv.Command(t, gocmd, "run", "-gcflags="+root+"/...=-lang=go1.21", "-gcflags="+pkg+"=-d=loopvar=1", root)
-		cmd.Env = append(cmd.Env, "GOEXPERIMENT=noloopvar", "HOME="+tmpdir)
+		cmd.Env = append(cmd.Env, "GOEXPERIMENT=noloopvar", "HOME="+tmpdir, "TMPDIR="+tmpdir)
 		cmd.Dir = filepath.Join("testdata", "inlines")
 
 		b, e := cmd.CombinedOutput()
@@ -191,7 +191,7 @@ func TestLoopVarHashes(t *testing.T) {
 		// Go repository is checked out. This is not normally a concern since people
 		// do not normally rely on the meaning of specific hashes.
 		cmd := testenv.Command(t, gocmd, "run", "-trimpath", root)
-		cmd.Env = append(cmd.Env, "GOCOMPILEDEBUG=loopvarhash="+hash, "HOME="+tmpdir)
+		cmd.Env = append(cmd.Env, "GOCOMPILEDEBUG=loopvarhash="+hash, "HOME="+tmpdir, "TMPDIR="+tmpdir)
 		cmd.Dir = filepath.Join("testdata", "inlines")
 
 		b, _ := cmd.CombinedOutput()

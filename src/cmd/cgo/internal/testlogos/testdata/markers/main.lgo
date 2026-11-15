@@ -1,0 +1,21 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+	"fmt"
+
+	arityp "example.com/markers/arity"
+	nonprep "example.com/markers/nonpre"
+	okp "example.com/markers/ok"
+)
+
+func main() {
+	if okp.Add(1, 2) != 3 || arityp.Add(1, 2) != 3 || nonprep.Add(1, 2) != 3 {
+		fmt.Println("FAIL fast-call-markers")
+		return
+	}
+	fmt.Println("ok fast-call-markers")
+}

@@ -1,0 +1,91 @@
+# Observes the capability auditor's excluded-header reads through the
+# gofsystrace capRead event emitted beside its file open. Loader reads do
+# not contribute, regardless of module index state.
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOWORK=off
+mkdir $WORK/bin
+
+cd main
+env GODEBUG=gofsystrace=1
+logos build -o $WORK/bin/bound$GOEXE .
+stderr -count=1 'gofsystrace capRead .*dep[/\\]excluded\.go'
+stderr '\[capabilities::unauthorized_unsafe\]'
+! stderr 'gofsystrace capRead .*main[/\\]excluded\.go'
+
+# A repeat build reads the excluded header exactly once again.
+logos build -o $WORK/bin/bound$GOEXE .
+stderr -count=1 'gofsystrace capRead .*dep[/\\]excluded\.go'
+stderr '\[capabilities::unauthorized_unsafe\]'
+! stderr 'gofsystrace capRead .*main[/\\]excluded\.go'
+
+# Workspace mode exempts the build from the capability audit: no excluded
+# header read, no warning.
+env GOWORK=$WORK/gopath/src/go.work
+logos build -o $WORK/bin/bound$GOEXE .
+! stderr 'gofsystrace capRead .*dep[/\\]excluded\.go'
+! stderr 'gofsystrace capRead .*main[/\\]excluded\.go'
+! stderr '\[capabilities::'
+
+-- main/go.mod --
+module example.com/bound
+
+go 1.27
+
+require example.com/bounddep v0.0.0
+replace example.com/bounddep => ../dep
+
+-- dep/go.mod --
+module example.com/bounddep
+
+go 1.27
+
+-- main/main.go --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+import "example.com/bounddep"
+func main() { bounddep.F() }
+
+-- dep/dep.go --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package bounddep
+func F() {}
+
+-- dep/excluded.go --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+//go:build boundexcluded
+
+package bounddep
+import _ "unsafe"
+
+-- main/excluded.go --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+//go:build boundexcluded
+
+package main
+import _ "unsafe"
+
+-- main/logos.toml --
+[capabilities]
+transitive_unsafe = "warn"
+
+-- go.work --
+go 1.27
+
+use (
+	./main
+	./dep
+)

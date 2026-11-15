@@ -1,0 +1,178 @@
+// run -goexperiment logosarena
+package main
+
+import (
+	"context"
+	"fmt"
+	"logos/arena"
+	"os"
+	"runtime"
+	"sync/atomic"
+	"time"
+)
+
+type holder struct {
+	p *[32]int
+}
+
+var ran int32
+var failed bool
+
+//go:noinline
+func warmup() <-chan struct{} {
+	done := make(chan struct{}, 1)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	cell := new([32]int)
+	runtime.AddCleanup(cell, func(struct{}) {
+		defer cancel()
+		atomic.StoreInt32(&ran, 1)
+		select {
+		case done <- struct{}{}:
+		case <-ctx.Done():
+			panic("cleanup completion timeout")
+		default:
+			panic("duplicate cleanup completion")
+		}
+	}, struct{}{})
+	_ = cell
+	return done
+}
+
+//go:noinline
+func allocRegion() <-chan struct{} {
+	done := make(chan struct{}, 1)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	r := arena.Open()
+	h := arena.New[holder](r)
+	cell := new([32]int)
+	(*cell)[0] = 7
+	h.p = cell
+	runtime.AddCleanup(cell, func(struct{}) {
+		defer cancel()
+		atomic.StoreInt32(&ran, 1)
+		select {
+		case done <- struct{}{}:
+		case <-ctx.Done():
+			panic("cleanup completion timeout")
+		default:
+			panic("duplicate cleanup completion")
+		}
+	}, struct{}{})
+	runtime.GC()
+	runtime.GC()
+	if atomic.LoadInt32(&ran) != 0 {
+		fmt.Printf("FAIL cleanup-held-alive-inside-region-block: got %d want 0\n", atomic.LoadInt32(&ran))
+		os.Exit(1)
+	}
+	fmt.Println("ok cleanup-held-alive-inside-region-block")
+	return done
+}
+
+//go:noinline
+func allocMake() <-chan struct{} {
+	done := make(chan struct{}, 1)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	r := arena.Open()
+	n := 8 + len(os.Args)
+	s := arena.Make[*[32]int](r, n)
+	cell := new([32]int)
+	(*cell)[0] = 7
+	s[2] = cell
+	runtime.AddCleanup(cell, func(struct{}) {
+		defer cancel()
+		atomic.StoreInt32(&ran, 1)
+		select {
+		case done <- struct{}{}:
+		case <-ctx.Done():
+			panic("cleanup completion timeout")
+		default:
+			panic("duplicate cleanup completion")
+		}
+	}, struct{}{})
+	for range 20 {
+		runtime.GC()
+		runtime.Gosched()
+	}
+	if atomic.LoadInt32(&ran) != 0 {
+		fmt.Printf("FAIL cleanup-held-alive-by-make-in-region: got %d want 0\n", atomic.LoadInt32(&ran))
+		failed = true
+		return done
+	}
+	fmt.Println("ok cleanup-held-alive-by-make-in-region")
+	return done
+}
+
+//go:noinline
+func allocAppend() <-chan struct{} {
+	done := make(chan struct{}, 1)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	r := arena.Open()
+	cell := new([32]int)
+	(*cell)[0] = 7
+	s := arena.Append[*[32]int](r, nil, cell)
+	runtime.AddCleanup(cell, func(struct{}) {
+		defer cancel()
+		atomic.StoreInt32(&ran, 1)
+		select {
+		case done <- struct{}{}:
+		case <-ctx.Done():
+			panic("cleanup completion timeout")
+		default:
+			panic("duplicate cleanup completion")
+		}
+	}, struct{}{})
+	for range 20 {
+		runtime.GC()
+		runtime.Gosched()
+	}
+	if atomic.LoadInt32(&ran) != 0 || len(s) != 1 {
+		fmt.Printf("FAIL cleanup-held-alive-by-append-in-region: got %d want 0\n", atomic.LoadInt32(&ran))
+		failed = true
+		return done
+	}
+	fmt.Println("ok cleanup-held-alive-by-append-in-region")
+	return done
+}
+
+func collected(done <-chan struct{}) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	for {
+		runtime.GC()
+		select {
+		case <-done:
+			return true
+		case <-ctx.Done():
+			return false
+		default:
+			time.Sleep(time.Millisecond)
+		}
+	}
+}
+
+func main() {
+	if !collected(warmup()) {
+		panic("cleanup warmup timeout")
+	}
+	atomic.StoreInt32(&ran, 0)
+	if !collected(allocRegion()) {
+		fmt.Printf("FAIL cleanup-runs-after-region-exit: got %d want 1\n", atomic.LoadInt32(&ran))
+		os.Exit(1)
+	}
+	fmt.Println("ok cleanup-runs-after-region-exit")
+	for _, c := range []struct {
+		name  string
+		alloc func() <-chan struct{}
+	}{{"make", allocMake}, {"append", allocAppend}} {
+		atomic.StoreInt32(&ran, 0)
+		if !collected(c.alloc()) {
+			fmt.Printf("FAIL cleanup-runs-after-%s-region-exit: got %d want 1\n", c.name, atomic.LoadInt32(&ran))
+			failed = true
+			continue
+		}
+		fmt.Printf("ok cleanup-runs-after-%s-region-exit\n", c.name)
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

@@ -2,14 +2,12 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
-// M7-S4 const switch over a type parameter with exact/tilde/exact runs
-// (SPEC Sec 2.5, T-205): the cases split into maximal runs, each run lowers
-// to its own guarded construct, and every run scope closes before the next
 // run opens, so scope positions stay monotonic. The exact bodies use the
-// switched value, which keeps the scope-closing paths live through
-// dwarfgen instead of retracted.
 
 type SwitchScalar interface {
 	~float32 | float64
@@ -29,8 +27,24 @@ func switchKind[T SwitchScalar](v T) string {
 	return "other"
 }
 
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
 func main() {
-	fmt.Println(switchKind(float64(3.75)), switchKind(float64(7.5)))
-	fmt.Println(switchKind(float32(7.5)), switchKind(float32(2.0)))
-	fmt.Println(switchKind(SwitchKilos(1.5)))
+	gotF64 := switchKind(float64(3.75)) + " " + switchKind(float64(7.5))
+	check("f64", gotF64 == "exact-f64 7.5 exact-f64 15", gotF64, "exact-f64 7.5 exact-f64 15")
+	gotF32 := switchKind(float32(7.5)) + " " + switchKind(float32(2.0))
+	check("f32", gotF32 == "exact-f32 15 exact-f32 4", gotF32, "exact-f32 15 exact-f32 4")
+	check("kilos", switchKind(SwitchKilos(1.5)) == "tilde-f32", switchKind(SwitchKilos(1.5)), "tilde-f32")
+	if failed {
+		os.Exit(1)
+	}
 }

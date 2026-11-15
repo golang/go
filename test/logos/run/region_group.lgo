@@ -1,0 +1,93 @@
+// run -goexperiment logosarena
+package main
+
+import (
+	"context"
+	"fmt"
+	"logos/arena"
+	"logos/rt"
+	"os"
+)
+
+type node struct {
+	l const *node
+	r const *node
+	v int
+}
+
+func sumTree(n const *node) int {
+	if n == nil {
+		return 0
+	}
+	return n.v + sumTree(n.l) + sumTree(n.r)
+}
+
+func heapSum(n int) int {
+	return n * (n + 1) / 2
+}
+
+func fill(dst *int, n const *node) {
+	*dst = sumTree(n)
+}
+
+func run(ctx context.Context) error {
+	r := arena.Open()
+	nodes := arena.Make[node](r, 1024)
+	for i := range nodes {
+		nodes[i].v = i + 1
+	}
+	for i := range nodes {
+		if l := 2*i + 1; l < len(nodes) {
+			nodes[i].l = &nodes[l]
+		}
+		if rr := 2*i + 2; rr < len(nodes) {
+			nodes[i].r = &nodes[rr]
+		}
+	}
+	var head const *node = &nodes[0]
+	seq := sumTree(head)
+	var roots [8]const *node = [8]const *node{
+		&nodes[7], &nodes[8], &nodes[9], &nodes[10],
+		&nodes[11], &nodes[12], &nodes[13], &nodes[14],
+	}
+	var parts [8]int
+	go group (ctx) {
+		for k := range 8 {
+			go fill(&parts[k], roots[k])
+		}
+	}
+	par := 0
+	for _, p := range parts {
+		par += p
+	}
+	for i := range 7 {
+		par += nodes[i].v
+	}
+	if seq != par {
+		fmt.Printf("FAIL parallel-matches-sequential-tree-sum: got %d want %d\n", par, seq)
+		os.Exit(1)
+	}
+	fmt.Println("ok parallel-matches-sequential-tree-sum")
+	if seq != heapSum(1024) {
+		fmt.Printf("FAIL region-tree-sum-matches-arithmetic-series: got %d want %d\n", seq, heapSum(1024))
+		os.Exit(1)
+	}
+	fmt.Println("ok region-tree-sum-matches-arithmetic-series")
+	if rt.RegionBytes() <= 0 {
+		fmt.Printf("FAIL region-holds-bytes-inside-owner-block: got %d want >0\n", rt.RegionBytes())
+		os.Exit(1)
+	}
+	fmt.Println("ok region-holds-bytes-inside-owner-block")
+	return nil
+}
+
+func main() {
+	if err := run(context.Background()); err != nil {
+		panic(err)
+	}
+	if rt.RegionBytes() != 0 {
+		fmt.Printf("FAIL region-released-after-owner-block: got %d want 0\n", rt.RegionBytes())
+		os.Exit(1)
+	}
+	fmt.Println("ok region-released-after-owner-block")
+}

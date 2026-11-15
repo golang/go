@@ -1,0 +1,59 @@
+// errorcheck
+
+package p
+
+type box struct {
+	M map[string]int
+	L []int
+	A [3]int
+	N int
+}
+
+type row struct {
+	N int
+	M map[string]int
+}
+
+const cfg = box{M: map[string]int{"a": 1}, L: []int{1, 2, 3}, A: [3]int{1, 2, 3}, N: 7}
+
+const rows = []row{{N: 1, M: map[string]int{"a": 1}}, {N: 2}}
+
+const plain = []int{1, 2, 3}
+
+func rejectSliceElement() {
+	_ = &cfg.L[0] // ERROR "const_view_mutation"
+}
+
+func rejectDynamicSliceElement(i int) {
+	_ = &cfg.L[i] // ERROR "const_view_mutation"
+}
+
+func rejectParenSliceElement() {
+	_ = &(cfg.L[0]) // ERROR "const_view_mutation"
+}
+
+func rejectRowField() {
+	_ = &rows[0].N // ERROR "const_view_mutation"
+}
+
+func rejectPlainSliceElement() {
+	_ = &plain[1] // ERROR "const_view_mutation"
+}
+
+func rejectReslicedElement() {
+	_ = &cfg.L[1:][0] // ERROR "const_view_mutation"
+}
+
+func rejectArraySlice() {
+	_ = cfg.A[:] // ERROR "const_view_mutation"
+}
+
+func allowValueParts() {
+	_ = &cfg
+	_ = &cfg.N
+	_ = &cfg.A
+	_ = &cfg.A[1]
+	_ = &cfg.M
+	_ = &rows
+	_ = &plain
+}

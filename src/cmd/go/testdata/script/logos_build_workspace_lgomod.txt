@@ -1,0 +1,105 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+# A workspace root `logos build ./...` builds every Go module and every
+# loGo/s module: a compile error in the loGo/s module fails the build
+# even though the Go module is clean, and the clean module still builds
+# on its own.
+cd ws
+! logos build ./...
+stderr 'example\.com/wslgomod'
+stderr 'main\.lgo'
+logos build ./gomod
+cd ..
+
+# The Go-module half of the same sentence: a compile error in the Go
+# module fails the same workspace build and names the Go module's file,
+# and the same workspace root builds every module once the error is
+# gone.
+cd gows
+! logos build ./...
+stderr 'example\.com/gowsgomod'
+stderr 'badgo\.go'
+rm gomod/badgo.go
+logos build ./...
+cd ..
+
+-- ws/go.work --
+go 1.27
+
+use (
+	./gomod
+	./lgomod
+)
+
+-- ws/gomod/go.mod --
+module example.com/wsgomod
+
+go 1.27
+
+-- ws/gomod/main.go --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("go-ok")
+}
+
+-- ws/lgomod/go.mod --
+module example.com/wslgomod
+
+go 1.27
+
+-- ws/lgomod/main.lgo --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println(undefinedSymbol)
+}
+
+-- gows/go.work --
+go 1.27
+
+use (
+	./gomod
+	./lgomod
+)
+
+-- gows/gomod/go.mod --
+module example.com/gowsgomod
+
+go 1.27
+
+-- gows/gomod/main.go --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("go-ok")
+}
+
+-- gows/gomod/badgo.go --
+package main
+
+func broken() int {
+	return undefinedGoSymbol
+}
+
+-- gows/lgomod/go.mod --
+module example.com/gowslgomod
+
+go 1.27
+
+-- gows/lgomod/main.lgo --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("lgo-ok")
+}

@@ -1,0 +1,236 @@
+# S15 try positions: `?` in a for post clause and in a switch
+# expression init lowers out of the loop and out of the switch IIFE,
+# so an error there returns from the enclosing function before the
+# next iteration and before any arm. The ejected tree builds under
+# plain go with the same behavior.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+
+logos run .
+cp stdout $WORK/logos-stdout.txt
+
+logos eject -o out
+exists out/main.go
+! grep '\?' out/main.go
+! grep 'misplaced' out/main.go
+
+cd out
+go run .
+cp stdout $WORK/eject-stdout.txt
+cd ..
+cmp $WORK/logos-stdout.txt $WORK/eject-stdout.txt
+cmp $WORK/logos-stdout.txt want-stdout.txt
+
+exists $UPROOT1272/bin/go
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+
+-- m/go.mod --
+module example.com/trypos
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import (
+	"errors"
+	"fmt"
+)
+
+var errStep = errors.New("step")
+
+var postCalls int
+var bodies int
+
+func next(v int) (int, error) {
+	postCalls++
+	if v == 2 {
+		return 0, errStep
+	}
+	return v + 1, nil
+}
+
+func nextOK(v int) (int, error) {
+	postCalls++
+	return v + 1, nil
+}
+
+func sumOK() (total int, err error) {
+	for i := 0; i < 3; i = nextOK(i)? {
+		bodies++
+		total += i
+	}
+	return total, nil
+}
+
+func sumFail() (total int, err error) {
+	for i := 0; i < 5; i = next(i)? {
+		bodies++
+		total += i
+	}
+	return total, nil
+}
+
+func load(fail bool) (int, error) {
+	postCalls++
+	if fail {
+		return 0, errStep
+	}
+	return 7, nil
+}
+
+func classify(fail bool) (string, error) {
+	r := switch n := load(fail)?; n {
+	case 7 => "seven"
+	default => "other"
+	}
+	return r, nil
+}
+
+func spin() (int, error) {
+	c := 0
+	for i := 0; (switch k := nextOK(i)?; k { case 3 => false; default => true }); i++ {
+		c++
+	}
+	return c, nil
+}
+
+var ord []int
+
+func g() int {
+	ord = append(ord, 1)
+	return 10
+}
+
+func loadOrd(v int) (int, error) {
+	ord = append(ord, 2)
+	return v, nil
+}
+
+func useOrder() (int, error) {
+	r := g() + (switch n := loadOrd(7)?; n { case 7 => 1; default => 2 })
+	return r, nil
+}
+
+func keepScope(v int) (int, error) {
+	n := 10
+	r := n + (switch n := loadOrd(v)?; n { case 7 => 1; default => 2 })
+	_ = r
+	return n, nil
+}
+
+func viaClosure() (int, error) {
+	f := func() (int, error) {
+		r := switch n := loadOrd(7)?; n { case 7 => 1; default => 2 }
+		return r, nil
+	}
+	return f()
+}
+
+func ifPick(v int) (int, error) {
+	if (switch n := loadOrd(v)?; n { case 7 => true; default => false }) {
+		return 1, nil
+	}
+	return 0, nil
+}
+
+func main() {
+	postRuns()
+	initRuns()
+	orderRuns()
+}
+
+func postRuns() {
+	postCalls = 0
+	bodies = 0
+	total, err := sumOK()
+	if err != nil {
+		fmt.Println("post-nil: unexpected error", err)
+	} else {
+		fmt.Println("post-nil:", err == nil, total, postCalls, bodies)
+	}
+	postCalls = 0
+	bodies = 0
+	var sumRes struct {
+		total int
+		err   error
+	}
+	sumRes.total, sumRes.err = sumFail()
+	total, err = sumRes.total, sumRes.err
+	if err == nil {
+		fmt.Println("post-err: unexpected success", total)
+	} else {
+		fmt.Println("post-err:", err == errStep, total, postCalls, bodies)
+	}
+}
+
+func initRuns() {
+	postCalls = 0
+	s, err := classify(false)
+	if err != nil {
+		fmt.Println("init-nil: unexpected error", err)
+	} else {
+		fmt.Println("init-nil:", err == nil, s, postCalls)
+	}
+	var classRes struct {
+		s   string
+		err error
+	}
+	classRes.s, classRes.err = classify(true)
+	s, err = classRes.s, classRes.err
+	if err == nil {
+		fmt.Println("init-err: unexpected success", s)
+	} else {
+		fmt.Println("init-err:", err == errStep, s == "", postCalls)
+	}
+	postCalls = 0
+	c, err := spin()
+	if err != nil {
+		fmt.Println("loop-cond: unexpected error", err)
+	} else {
+		fmt.Println("loop-cond:", err == nil, c, postCalls)
+	}
+}
+
+func orderRuns() {
+	ord = nil
+	r, err := useOrder()
+	if err != nil {
+		fmt.Println("order: unexpected error", err)
+	} else {
+		fmt.Println("order:", err == nil, r, ord)
+	}
+	ord = nil
+	n, err := keepScope(7)
+	if err != nil {
+		fmt.Println("scope: unexpected error", err)
+	} else {
+		fmt.Println("scope:", err == nil, n, ord)
+	}
+	ord = nil
+	r, err = viaClosure()
+	if err != nil {
+		fmt.Println("closure: unexpected error", err)
+	} else {
+		fmt.Println("closure:", err == nil, r, ord)
+	}
+	ord = nil
+	q, err := ifPick(7)
+	if err != nil {
+		fmt.Println("ifcond: unexpected error", err)
+	} else {
+		fmt.Println("ifcond:", err == nil, q, ord)
+	}
+}
+-- m/want-stdout.txt --
+post-nil: true 3 3 3
+post-err: true 0 3 3
+init-nil: true seven 1
+init-err: true true 2
+loop-cond: true 2 3
+order: true 11 [1 2]
+scope: true 10 [2]
+closure: true 1 [2]
+ifcond: true 1 [2]

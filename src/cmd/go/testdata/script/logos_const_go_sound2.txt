@@ -1,0 +1,560 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env CGO_ENABLED=1
+mkdir $WORK/bin
+
+cd imp
+! logos build -o $WORK/bin/mv$GOEXE ./mvcell
+stderr 'const_view_mutation'
+stderr 'parameter c'
+! logos build -o $WORK/bin/fc$GOEXE ./fncall
+stderr 'const_view_mutation'
+stderr 'parameter h'
+! logos build -o $WORK/bin/calll$GOEXE ./calllocal
+stderr 'const_view_mutation'
+stderr 'parameter h'
+! logos build -o $WORK/bin/lenw$GOEXE ./lenwrap
+stderr 'const_view_mutation'
+stderr 'parameter b'
+! logos build -o $WORK/bin/minw$GOEXE ./minwrap
+stderr 'const_view_mutation'
+stderr 'parameter b'
+! logos build -o $WORK/bin/var1$GOEXE ./varsingle
+stderr 'const_view_mutation'
+stderr 'parameter xs'
+! logos build -o $WORK/bin/var2$GOEXE ./vartail
+stderr 'const_view_mutation'
+stderr 'parameter xs'
+! logos build -o $WORK/bin/refl$GOEXE ./reflectread
+stderr 'const_view_mutation'
+stderr 'parameter b'
+! logos build -o $WORK/bin/unsafea$GOEXE ./unsafeaddr
+stderr 'const_view_mutation'
+stderr 'parameter b'
+! logos build -o $WORK/bin/asm$GOEXE ./asmcall
+stderr 'const_view_mutation'
+stderr 'parameter b'
+! logos build -o $WORK/bin/lnk$GOEXE ./lnkcall
+stderr 'const_view_mutation'
+stderr 'parameter b'
+! logos build -o $WORK/bin/lnkw$GOEXE ./lnkwrap
+stderr 'const_view_mutation'
+stderr 'parameter b'
+! logos build -o $WORK/bin/cgoc$GOEXE ./cgocall
+stderr 'const_view_mutation'
+stderr 'parameter b'
+! logos build -o $WORK/bin/tra$GOEXE ./tratouch
+stderr 'const_view_mutation'
+stderr 'parameter b'
+! logos build -o $WORK/bin/gen$GOEXE ./gencall
+stderr 'const_view_mutation'
+stderr 'parameter b'
+! logos build -o $WORK/bin/gend$GOEXE ./gendirect
+stderr 'const_view_mutation'
+stderr 'parameter b'
+! logos build -o $WORK/bin/costgo$GOEXE ./costgo
+stderr 'const_view_mutation'
+! logos build -o $WORK/bin/costgoto$GOEXE ./costgoto
+stderr 'const_view_mutation'
+! logos build -o $WORK/bin/costfall$GOEXE ./costfall
+stderr 'const_view_mutation'
+! logos build -o $WORK/bin/costcopy$GOEXE ./costcopy
+stderr 'const_view_mutation'
+logos build -o $WORK/bin/possum$GOEXE ./possum
+exec $WORK/bin/possum$GOEXE
+stderr '^6$'
+stderr '^1$'
+logos build -o $WORK/bin/posptr$GOEXE ./posptr
+exec $WORK/bin/posptr$GOEXE
+stderr '^3$'
+stderr '^1$'
+logos build -o $WORK/bin/poseq$GOEXE ./poseq
+exec $WORK/bin/poseq$GOEXE
+stderr '^true$'
+logos build -o $WORK/bin/postrav$GOEXE ./postrav
+exec $WORK/bin/postrav$GOEXE
+stderr '^6$'
+stderr '^1$'
+cd ..
+
+-- dep/go.mod --
+module example.com/g2dep
+
+go 1.27
+
+-- dep/g2d/g2d.go --
+package g2d
+
+import (
+	"reflect"
+	"unsafe"
+)
+
+type Cell struct{ N int }
+type Host struct{ Data []byte }
+
+func (c *Cell) Tap(b []byte) { b[0] = byte(c.N); c.N = 99 }
+func MethodValue(c *Cell, b []byte) {
+	f := c.Tap
+	f(b)
+}
+
+type Box2 struct {
+	Data []byte
+	Fn   func()
+}
+
+var slot *Box2
+
+func NewBox2(b []byte) *Box2 { return &Box2{Data: b} }
+func ArmFn(h *Box2)          { h.Fn = func() { h.Data[0] = 95 }; slot = h }
+func CallFn(h *Box2)         { h.Fn() }
+func CallLocal(h *Box2) {
+	g := h.Fn
+	g()
+}
+
+func Inside(b []byte) []byte { b[0] = 93; return []byte{1, 2, 3} }
+func LenWrap(b []byte) int   { return len(Inside(b)) }
+func MinWrap(b []byte) int   { return int(min(Inside(b)[0], 3)) }
+
+func Tagged(xs ...[]byte) { xs[1][0] = 61 }
+
+func ReflectRead(b []byte) int {
+	return len(reflect.ValueOf(b).Slice(0, 1).Interface().([]byte))
+}
+
+// SAFETY: the pointer aliases the caller's slice, which stays live for
+// the whole call; only the address is taken.
+func UnsafeAddr(b []byte) uintptr { return uintptr(unsafe.Pointer(&b[0])) }
+
+func SumOnly(b []byte) int {
+	n := 0
+	for _, v := range b {
+		n += int(v)
+	}
+	return n
+}
+func ReadPtr(h *Host) int  { return len(h.Data) }
+func LenOnly(b []byte) int { return len(b) }
+func GoLen(b []byte)       { done := make(chan bool); go func() { _ = LenOnly(b); done <- true }(); <-done }
+func GotoSkip(b []byte) {
+	goto end
+	b[0] = 81
+end:
+}
+func FallIt(b []byte, k int) {
+	switch k {
+	case 0:
+		b[0] = 82
+		fallthrough
+	case 1:
+		b[1] = 83
+	}
+}
+func CpyAsSrc(dst []byte, src []byte) { copy(dst, src) }
+
+func ZeroAt[T any](b []T)  { var z T; b[0] = z }
+func WrapGeneric(b []byte) { ZeroAt[byte](b) }
+
+-- dep/g2asm/asm.go --
+package g2asm
+
+func Sum(b []byte) int
+
+-- dep/g2asm/sum_amd64.s --
+#include "textflag.h"
+
+// func Sum(b []byte) int
+TEXT ·Sum(SB),NOSPLIT,$0-32
+	MOVQ b_base+0(FP), AX
+	MOVB $0x5b, (AX)
+	MOVQ b_len+8(FP), CX
+	MOVQ CX, ret+24(FP)
+	RET
+
+-- dep/g2lnk/lnk.go --
+package g2lnk
+
+import (
+	_ "unsafe"
+)
+
+//go:linkname Sum example.com/g2dep/g2asm.Sum
+func Sum(b []byte) int
+
+-- dep/g2lnk2/lnk2.go --
+package g2lnk2
+
+import (
+	_ "unsafe"
+)
+
+//go:linkname asmSum example.com/g2dep/g2asm.Sum
+func asmSum(b []byte) int
+
+func SumWrap(b []byte) int { return asmSum(b) }
+
+-- dep/g2cgo/cgo.go --
+package g2cgo
+
+/*
+#include <string.h>
+static void touch(char *p) { p[0] = (char)0x5d; }
+*/
+import "C"
+import "unsafe"
+
+// SAFETY: the pointer aliases the caller's slice for the C callee.
+func Touch(b []byte) {
+	C.touch((*C.char)(unsafe.Pointer(&b[0])))
+}
+
+-- dep/tra/leaf/leaf.go --
+package g2leaf
+
+func LeafLen(b []byte) int {
+	n := 0
+	for _, v := range b {
+		n += int(v)
+	}
+	return n
+}
+func LeafTouch(b []byte) { b[0] = 91 }
+
+type LeafHost struct {
+	Data []byte
+}
+
+func NewLeafHost(b []byte) *LeafHost { return &LeafHost{Data: b} }
+
+func (h *LeafHost) Take(n int) int {
+	return n + len(h.Data)
+}
+
+-- dep/tra/mid/mid.go --
+package g2mid
+
+import "example.com/g2dep/tra/leaf"
+
+func MidSum(b []byte) int  { return g2leaf.LeafLen(b) }
+func MidTouch(b []byte)    { g2leaf.LeafTouch(b) }
+func MidVoid(b []byte)     { g2leaf.LeafLen(b) }
+func MidTake(h *g2leaf.LeafHost, n int) int {
+	x := h.Take(n)
+	return x
+}
+
+-- imp/go.mod --
+module example.com/g2imp
+
+go 1.27
+
+require example.com/g2dep v0.0.0
+
+replace example.com/g2dep => ../dep
+
+-- imp/logos.toml --
+[capabilities]
+transitive_unsafe_allowlist = ["example.com/g2dep/**"]
+
+-- imp/mvcell/main.lgo --
+package main
+
+import "example.com/g2dep/g2d"
+
+func main() {
+	cell := g2d.Cell{N: 3}
+	buf := []byte{1}
+	var cv const *g2d.Cell = &cell
+	g2d.MethodValue(cv, buf)
+	println(buf[0], cell.N)
+}
+
+-- imp/fncall/main.lgo --
+package main
+
+import "example.com/g2dep/g2d"
+
+func main() {
+	buf := []byte{1}
+	bx := g2d.NewBox2(buf)
+	g2d.ArmFn(bx)
+	var cv const *g2d.Box2 = bx
+	g2d.CallFn(cv)
+	println(buf[0])
+}
+
+-- imp/lenwrap/main.lgo --
+package main
+
+import "example.com/g2dep/g2d"
+
+func main() {
+	buf := []byte{1}
+	var view const []byte = buf
+	println(g2d.LenWrap(view))
+	println(buf[0])
+}
+
+-- imp/calllocal/main.lgo --
+package main
+
+import "example.com/g2dep/g2d"
+
+func main() {
+	buf := []byte{1}
+	bx := g2d.NewBox2(buf)
+	g2d.ArmFn(bx)
+	var cv const *g2d.Box2 = bx
+	g2d.CallLocal(cv)
+	println(buf[0])
+}
+
+-- imp/minwrap/main.lgo --
+package main
+
+import "example.com/g2dep/g2d"
+
+func main() {
+	buf := []byte{1}
+	var view const []byte = buf
+	println(g2d.MinWrap(view))
+	println(buf[0])
+}
+
+-- imp/varsingle/main.lgo --
+package main
+
+import "example.com/g2dep/g2d"
+
+func main() {
+	buf := []byte{1}
+	var view const []byte = buf
+	g2d.Tagged(view)
+	println(buf[0])
+}
+
+-- imp/vartail/main.lgo --
+package main
+
+import "example.com/g2dep/g2d"
+
+func main() {
+	other := []byte{9}
+	buf := []byte{1}
+	var view const []byte = buf
+	g2d.Tagged(other, view)
+	println(buf[0])
+}
+
+-- imp/reflectread/main.lgo --
+package main
+
+import "example.com/g2dep/g2d"
+
+func main() {
+	buf := []byte{1}
+	var view const []byte = buf
+	println(g2d.ReflectRead(view))
+	println(buf[0])
+}
+
+-- imp/unsafeaddr/main.lgo --
+package main
+
+import "example.com/g2dep/g2d"
+
+func main() {
+	buf := []byte{1}
+	var view const []byte = buf
+	println(g2d.UnsafeAddr(view))
+}
+
+-- imp/asmcall/main.lgo --
+package main
+
+import "example.com/g2dep/g2asm"
+
+func main() {
+	buf := []byte{1}
+	var view const []byte = buf
+	println(g2asm.Sum(view))
+	println(buf[0])
+}
+
+-- imp/lnkcall/main.lgo --
+package main
+
+import "example.com/g2dep/g2lnk"
+
+func main() {
+	buf := []byte{1}
+	var view const []byte = buf
+	println(g2lnk.Sum(view))
+	println(buf[0])
+}
+
+-- imp/lnkwrap/main.lgo --
+package main
+
+import "example.com/g2dep/g2lnk2"
+
+func main() {
+	buf := []byte{1}
+	var view const []byte = buf
+	println(g2lnk2.SumWrap(view))
+	println(buf[0])
+}
+
+-- imp/cgocall/main.lgo --
+package main
+
+import "example.com/g2dep/g2cgo"
+
+func main() {
+	buf := []byte{1}
+	var view const []byte = buf
+	g2cgo.Touch(view)
+	println(buf[0])
+}
+
+-- imp/tratouch/main.lgo --
+package main
+
+import "example.com/g2dep/tra/mid"
+
+func main() {
+	buf := []byte{1}
+	var view const []byte = buf
+	g2mid.MidTouch(view)
+	println(buf[0])
+}
+
+-- imp/gencall/main.lgo --
+package main
+
+import "example.com/g2dep/g2d"
+
+func main() {
+	buf := []byte{1}
+	var view const []byte = buf
+	g2d.WrapGeneric(view)
+	println(buf[0])
+}
+
+-- imp/gendirect/main.lgo --
+package main
+
+import "example.com/g2dep/g2d"
+
+func main() {
+	buf := []byte{1}
+	var view const []byte = buf
+	g2d.ZeroAt[byte](view)
+	println(buf[0])
+}
+
+-- imp/costgo/main.lgo --
+package main
+
+import "example.com/g2dep/g2d"
+
+func main() {
+	buf := []byte{1}
+	var view const []byte = buf
+	g2d.GoLen(view)
+	println(buf[0])
+}
+
+-- imp/costgoto/main.lgo --
+package main
+
+import "example.com/g2dep/g2d"
+
+func main() {
+	buf := []byte{1}
+	var view const []byte = buf
+	g2d.GotoSkip(view)
+	println(buf[0])
+}
+
+-- imp/costfall/main.lgo --
+package main
+
+import "example.com/g2dep/g2d"
+
+func main() {
+	buf := make([]byte, 2)
+	buf[0] = 1
+	var view const []byte = buf
+	g2d.FallIt(view, 1)
+	println(buf[0])
+}
+
+-- imp/costcopy/main.lgo --
+package main
+
+import "example.com/g2dep/g2d"
+
+func main() {
+	dst := []byte{8}
+	buf := []byte{1}
+	var view const []byte = buf
+	g2d.CpyAsSrc(dst, view)
+	println(dst[0], buf[0])
+}
+
+-- imp/possum/main.lgo --
+package main
+
+import "example.com/g2dep/g2d"
+
+func main() {
+	buf := []byte{1, 2, 3}
+	var view const []byte = buf
+	println(g2d.SumOnly(view))
+	println(buf[0])
+}
+
+-- imp/posptr/main.lgo --
+package main
+
+import "example.com/g2dep/g2d"
+
+func main() {
+	buf := []byte{1, 2, 3}
+	h := &g2d.Host{Data: buf}
+	var view const *g2d.Host = h
+	println(g2d.ReadPtr(view))
+	println(buf[0])
+}
+
+-- imp/poseq/main.lgo --
+package main
+
+import "bytes"
+
+func main() {
+	buf := []byte{1, 2, 3}
+	var view const []byte = buf
+	println(bytes.Equal(view, buf))
+}
+
+-- imp/postrav/main.lgo --
+package main
+
+import (
+	"example.com/g2dep/g2d"
+	g2leaf "example.com/g2dep/tra/leaf"
+	g2mid "example.com/g2dep/tra/mid"
+)
+
+func main() {
+	buf := []byte{1, 2, 3}
+	h := g2leaf.NewLeafHost(buf)
+	var cv const *g2leaf.LeafHost = h
+	println(g2mid.MidTake(cv, 3))
+	println(buf[0])
+	println(g2d.SumOnly(buf))
+}

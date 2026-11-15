@@ -1,0 +1,109 @@
+// run -O=3
+
+package main
+
+import (
+	"comptime"
+	"fmt"
+	"os"
+	"runtime"
+	"strings"
+)
+
+type container struct {
+	Port int
+	Host string
+}
+
+type serviceA struct {
+	Port int
+	Host string
+}
+
+func resolve[T any](c *container) T {
+	var zero T
+	switch any(zero).(type) {
+	case int:
+		return any(c.Port).(T)
+	case string:
+		return any(c.Host).(T)
+	default:
+		panic("unresolvable")
+	}
+}
+
+var failed bool
+
+func check(name string, cond bool, got, want string) {
+	if !cond {
+		fmt.Printf("FAIL %s: got %s want %s\n", name, got, want)
+		failed = true
+		return
+	}
+	fmt.Printf("ok %s\n", name)
+}
+
+func assertTraceBase(tag, want string) {
+	var pcs [16]uintptr
+	n := runtime.Callers(2, pcs[:])
+	frames := runtime.CallersFrames(pcs[:n])
+	seenBase := false
+	for {
+		fr, more := frames.Next()
+		fn := fr.Function
+		if strings.Contains(fn, "·logosct") || strings.Contains(fn, "_logosct") {
+			fmt.Printf("FAIL %s mangled trace name %q\n", tag, fn)
+			os.Exit(1)
+		}
+		if fn == want || strings.HasPrefix(fn, want+"[") {
+			seenBase = true
+		}
+		if !more {
+			break
+		}
+	}
+	pc, _, _, ok := runtime.Caller(1)
+	if !ok {
+		fmt.Printf("FAIL %s Caller unavailable\n", tag)
+		os.Exit(1)
+	}
+	fn := runtime.FuncForPC(pc)
+	if fn == nil {
+		fmt.Printf("FAIL %s FuncForPC unknown\n", tag)
+		os.Exit(1)
+	}
+	name := fn.Name()
+	if strings.Contains(name, "·logosct") || strings.Contains(name, "_logosct") {
+		fmt.Printf("FAIL %s FuncForPC mangled %q\n", tag, name)
+		os.Exit(1)
+	}
+	if name != want && !strings.HasPrefix(name, want+"[") {
+		fmt.Printf("FAIL %s FuncForPC unexpected %q want %q\n", tag, name, want)
+		os.Exit(1)
+	}
+	if !seenBase {
+		fmt.Printf("FAIL %s base name %q missing from trace\n", tag, want)
+		os.Exit(1)
+	}
+	check(tag+"-trace-names-stripped", true, want, want)
+}
+
+//go:noinline
+func autowire[T any](c *container) *T {
+	assertTraceBase("comptime", "main.autowire")
+	var v T
+	const for _, f := range comptime.Fields[T]() {
+		v.[f] = resolve[f.Type](c)
+	}
+	return &v
+}
+
+//logos:allow(complexity::cognitive_overflow)
+func main() {
+	c := &container{Port: 8080, Host: "db"}
+	a := autowire[serviceA](c)
+	check("comptime-autowire-values", a.Port == 8080 && a.Host == "db", fmt.Sprint(a.Port, a.Host), "8080db")
+	if failed {
+		os.Exit(1)
+	}
+}

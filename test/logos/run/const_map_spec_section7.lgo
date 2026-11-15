@@ -1,0 +1,68 @@
+// run
+
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type pair struct { A, B int }
+
+const strings = map[string]int{"\xff": 5, "a\x00": 3, "": 1, "a": 2, "b": 4}
+const ints = map[int]int{10: 5, -20: 1, 0: 3, -1: 2, 3: 4}
+const floats = map[float64]int{10: 5, -20.5: 1, 0: 3, -1.5: 2, 0.25: 4}
+const flags = map[bool]int{true: 2, false: 1}
+const pairs = map[pair]int{{2, -9}: 3, {1, 5}: 2, {1, 2}: 1}
+const arrays = map[[2]int]int{{2, -9}: 3, {1, 5}: 2, {1, 2}: 1}
+
+func entries(m const map[any]int) bool {
+	seen, count := 0, 0
+	for k, v := range m {
+		if v < 1 || v > 5 || seen&(1<<v) != 0 || (m[k] ?? -1) != v { return false }
+		seen |= 1 << v
+		count++
+	}
+	return count == 5 && seen == 62
+}
+
+func main() {
+	s := ""
+	for _, v := range strings { s += fmt.Sprint(v) }
+	check("const-string-bytes", s == "12345", s, "12345")
+	s = ""
+	for _, v := range ints { s += fmt.Sprint(v) }
+	check("const-integer-numeric", s == "12345", s, "12345")
+	s = ""
+	for _, v := range floats { s += fmt.Sprint(v) }
+	check("const-float-numeric", s == "12345", s, "12345")
+	s = ""
+	for _, v := range flags { s += fmt.Sprint(v) }
+	check("const-bool", s == "12", s, "12")
+	s = ""
+	for _, v := range pairs { s += fmt.Sprint(v) }
+	check("const-struct-fields", s == "123", s, "123")
+	s = ""
+	for _, v := range arrays { s += fmt.Sprint(v) }
+	check("const-array-elements", s == "123", s, "123")
+	x, y := 1, 1
+	c, d := make(chan int), make(chan int)
+	m := map[any]int{&x: 1, &y: 2, c: 3, d: 4, nil: 5}
+	check("view-unordered-key-kinds", entries(m), "captured entries", "all five")
+	if failed { os.Exit(1) }
+}

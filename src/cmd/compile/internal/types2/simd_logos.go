@@ -9,28 +9,11 @@ import (
 	. "internal/types/errors"
 )
 
-// LoGo/s M14-S1 type rules for fixed-array SIMD (SPEC Sec 2.4,
-// T-204.2). Upstream files call in through hook lines only: expr.go
-// (element-wise binary operators) and call.go (reductions). Every rule
-// below applies only to a package of .lgo files (Config.Logos).
-//
-// Element-wise `+ - * / & | ^` and the `.sum() .min() .max() .dot()`
-// family are allowed on `[N]T` with N a power of two, T an integer or
-// floating-point kind (including int, uint, and uintptr, but not bool,
-// string, or complex kinds), and size at most 64 bytes. A larger array
-// fails with simd_array_too_large and a non-power-of-two length with
-// simd_array_shape. Every other invalid combination (bitwise operators
-// on floats, unknown methods, mismatched types) keeps its upstream
-// error, so no new rule is minted for it. Lowering lives in
-// logos/simd.go.
-
 const logosSimdTooLargeRule = "[correctness::simd_array_too_large]"
 const logosSimdShapeRule = "[correctness::simd_array_shape]"
 
-// logosSimdMaxBytes bounds the total size of a SIMD array shape.
 const logosSimdMaxBytes = 64
 
-// logosSimdMethods is the set of reduction names.
 var logosSimdMethods = map[string]bool{
 	"sum": true,
 	"min": true,
@@ -38,18 +21,16 @@ var logosSimdMethods = map[string]bool{
 	"dot": true,
 }
 
-// logosSimdShape is a validated `[N]T` array shape.
+func LogosSimdMethod(name string) bool {
+	return logosSimdMethods[name]
+}
+
 type logosSimdShape struct {
 	elem *Basic
-	typ  Type // element type as written, the type of a reduction result
+	typ  Type
 	len  int64
 }
 
-// logosSimdShapeOf reports the shape when typ's underlying type is an
-// array over an integer or floating-point element. It reports false
-// for every other type, including pointers to arrays, slices, and
-// bool, string, and complex arrays, so the upstream error stands for
-// those.
 func logosSimdShapeOf(typ Type) (logosSimdShape, bool) {
 	at, ok := typ.Underlying().(*Array)
 	if !ok {
@@ -65,8 +46,6 @@ func logosSimdShapeOf(typ Type) (logosSimdShape, bool) {
 	return logosSimdShape{elem: b, typ: at.Elem(), len: at.Len()}, true
 }
 
-// logosSimdSize returns the byte size of sh, using the checker's sizes
-// for int, uint, and uintptr and the fixed widths otherwise.
 func (check *Checker) logosSimdSize(sh logosSimdShape) int64 {
 	var width int64
 	switch sh.elem.Kind() {
@@ -91,31 +70,19 @@ func (check *Checker) logosSimdSize(sh logosSimdShape) int64 {
 	return sh.len * width
 }
 
-// logosSimdOpPair reports whether op is an element-wise operator for
-// elements of kind k: arithmetic on integers and floats, bitwise on
-// integers only.
 func logosSimdOpPair(op syntax.Operator, k BasicKind) bool {
 	info := Typ[k].Info()
 	switch op {
-	case syntax.Add, syntax.Sub, syntax.Mul, syntax.Div:
+	case syntax.Add, syntax.Sub, syntax.Mul, syntax.Div, syntax.And, syntax.Or, syntax.Xor:
 		return info&(IsInteger|IsFloat) != 0
-	case syntax.And, syntax.Or, syntax.Xor:
-		return info&IsInteger != 0
 	}
 	return false
 }
 
-// logosSimdPow2 reports whether n is a usable SIMD length: a power of
-// two of at least 1.
 func logosSimdPow2(n int64) bool {
 	return n >= 1 && n&(n-1) == 0
 }
 
-// logosSimdBinary checks an element-wise binary operator on identical
-// array operands. It reports true when handled, even on failure;
-// otherwise it reports false and the caller runs the upstream path.
-// Compound assignment (e == nil) is never handled, so `x += y` keeps
-// its upstream error.
 func (check *Checker) logosSimdBinary(x *operand, e syntax.Expr, op syntax.Operator) bool {
 	if e == nil || !check.conf.Logos {
 		return false
@@ -141,9 +108,6 @@ func (check *Checker) logosSimdBinary(x *operand, e syntax.Expr, op syntax.Opera
 	return true
 }
 
-// logosSimdCall checks a reduction call on an array. It reports true
-// when handled, even on failure; otherwise it reports false and the
-// caller runs the upstream path.
 func (check *Checker) logosSimdCall(x *operand, call *syntax.CallExpr) bool {
 	if !check.conf.Logos {
 		return false
@@ -157,17 +121,21 @@ func (check *Checker) logosSimdCall(x *operand, call *syntax.CallExpr) bool {
 		return false
 	}
 	var rx operand
-	check.expr(nil, &rx, sel.X)
+	check.exprOrType(&rx, sel.X, false)
 	if !rx.isValid() {
 		x.mode_ = invalid
 		x.expr = call
 		x.typ_ = Typ[Invalid]
 		return true
 	}
+	if rx.mode() == typexpr {
+		return false
+	}
 	if obj, _, _ := lookupFieldOrMethod(rx.typ(), rx.mode() == variable, check.pkg, method, false); obj != nil {
 		return false
 	}
-	sh, ok := logosSimdShapeOf(rx.typ())
+	rt, _, _ := logosReadonlyBase(rx.typ())
+	sh, ok := logosSimdShapeOf(rt)
 	if !ok {
 		return false
 	}
@@ -208,8 +176,8 @@ func (check *Checker) logosSimdCall(x *operand, call *syntax.CallExpr) bool {
 			fail()
 			return true
 		}
-		if !Identical(av.typ(), rx.typ()) {
-			check.errorf(&av, IncompatibleAssign, "cannot use %s as %s value in argument to %s", &av, rx.typ(), call.Fun)
+		if at, _, _ := logosReadonlyBase(av.typ()); !Identical(at, rt) {
+			check.errorf(&av, IncompatibleAssign, "cannot use %s as %s value in argument to %s", &av, rt, call.Fun)
 			fail()
 			return true
 		}

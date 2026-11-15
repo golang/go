@@ -1,0 +1,419 @@
+[!GOOS:linux] skip 'raw syscall fixtures use the Linux syscall ABI'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+cd a/main
+! logos build -o $WORK/bin/inla$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/adep'' reaches ''syscall\.Syscall'''
+stderr 'ERROR \[capabilities::unauthorized_net\]: Transitive dependency ''example\.com/adep'' reaches ''syscall\.Syscall'''
+stderr 'example\.com/adep\.Init\(\)'
+cd ../..
+
+cd b/main
+! logos build -o $WORK/bin/inlb$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/bdep'' reaches ''syscall\.Syscall'''
+stderr 'ERROR \[capabilities::unauthorized_net\]: Transitive dependency ''example\.com/bdep'' reaches ''syscall\.Syscall'''
+stderr 'example\.com/bdep\.Raw\['
+cd ../..
+
+cd c/main
+! logos build -o $WORK/bin/inlc$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/cdep'' reaches ''syscall\.Exec'''
+stderr 'example\.com/cdep\.Init\(\)'
+cd ../..
+
+cd d/main
+! logos build -o $WORK/bin/inld$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/ddep'' reaches ''os\.startProcess'''
+stderr 'example\.com/ddep\.Init\(\)'
+cd ../..
+
+cd e/main
+! logos build -o $WORK/bin/inle$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/edeep'' reaches ''syscall\.Syscall'''
+! stderr 'Transitive dependency ''example\.com/emid'''
+cd ../..
+
+cd f/main
+logos build -o $WORK/bin/inlf$GOEXE ./cmd
+! stderr 'capabilities::'
+cd ../..
+
+cd g/main
+logos build -o $WORK/bin/inlg$GOEXE ./cmd
+! stderr 'capabilities::'
+cd ../..
+
+cd h/main
+logos build -o $WORK/bin/inlh$GOEXE ./cmd
+stderr 'WARNING \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/hdep'' reaches ''syscall\.Syscall'''
+stderr 'WARNING \[capabilities::unauthorized_net\]: Transitive dependency ''example\.com/hdep'' reaches ''syscall\.Syscall'''
+cd ../..
+
+cd i/main
+! logos build -o $WORK/bin/inli$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/idep'' reaches ''os\.startProcess'''
+stderr 'example\.com/idep\.Init\(\)'
+cd ../..
+
+-- a/main/go.mod --
+module example.com/amain
+
+go 1.27
+
+require example.com/adep v0.0.0
+
+replace example.com/adep => ../dep
+
+-- a/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_net = "deny"
+
+-- a/main/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/adep"
+)
+
+func main() { fmt.Println(adep.Init()) }
+
+-- a/dep/go.mod --
+module example.com/adep
+
+go 1.27
+
+-- a/dep/dep.go --
+package adep
+
+import "syscall"
+
+func Init() uintptr {
+	r, _, _ := syscall.Syscall(syscall.SYS_GETPID, 0, 0, 0)
+	return r
+}
+
+-- b/main/go.mod --
+module example.com/bmain
+
+go 1.27
+
+require example.com/bdep v0.0.0
+
+replace example.com/bdep => ../dep
+
+-- b/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_net = "deny"
+
+-- b/main/cmd/main.go --
+package main
+
+import "example.com/bdep"
+
+func main() { bdep.Raw[int](1) }
+
+-- b/dep/go.mod --
+module example.com/bdep
+
+go 1.27
+
+-- b/dep/dep.go --
+package bdep
+
+import "syscall"
+
+func Raw[T any](x T) {
+	syscall.Syscall(syscall.SYS_GETPID, 0, 0, 0)
+}
+
+-- c/main/go.mod --
+module example.com/cmain
+
+go 1.27
+
+require example.com/cdep v0.0.0
+
+replace example.com/cdep => ../dep
+
+-- c/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_net = "deny"
+
+-- c/main/cmd/main.go --
+package main
+
+import "example.com/cdep"
+
+func main() { cdep.Init() }
+
+-- c/dep/go.mod --
+module example.com/cdep
+
+go 1.27
+
+-- c/dep/dep.go --
+package cdep
+
+import "syscall"
+
+func Init() {
+	syscall.Exec("/bin/true", nil, nil)
+}
+
+-- d/main/go.mod --
+module example.com/dmain
+
+go 1.27
+
+require example.com/ddep v0.0.0
+
+replace example.com/ddep => ../dep
+
+-- d/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_net = "deny"
+
+-- d/main/cmd/main.go --
+package main
+
+import "example.com/ddep"
+
+func main() { ddep.Init() }
+
+-- d/dep/go.mod --
+module example.com/ddep
+
+go 1.27
+
+-- d/dep/dep.go --
+package ddep
+
+import "os/exec"
+
+func Init() {
+	exec.Command("/bin/true").Run()
+}
+
+-- e/main/go.mod --
+module example.com/emain
+
+go 1.27
+
+require (
+	example.com/emid v0.0.0
+	example.com/edeep v0.0.0
+)
+
+replace example.com/emid => ../mid
+
+replace example.com/edeep => ../deep
+
+-- e/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_net = "deny"
+
+-- e/main/cmd/main.go --
+package main
+
+import "example.com/emid"
+
+func main() { emid.Init() }
+
+-- e/mid/go.mod --
+module example.com/emid
+
+go 1.27
+
+require example.com/edeep v0.0.0
+
+replace example.com/edeep => ../deep
+
+-- e/mid/mid.go --
+package emid
+
+import "example.com/edeep"
+
+func Init() { edeep.Raw() }
+
+-- e/deep/go.mod --
+module example.com/edeep
+
+go 1.27
+
+-- e/deep/deep.go --
+package edeep
+
+import "syscall"
+
+func Raw() {
+	syscall.Syscall(syscall.SYS_GETPID, 0, 0, 0)
+}
+
+-- f/main/go.mod --
+module example.com/fmain
+
+go 1.27
+
+-- f/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_net = "deny"
+
+-- f/main/cmd/main.go --
+package main
+
+import (
+	"fmt"
+	"syscall"
+
+	"example.com/fmain/lib"
+)
+
+func main() {
+	r, _, _ := syscall.Syscall(syscall.SYS_GETPID, 0, 0, 0)
+	fmt.Println(r, lib.Init())
+}
+
+-- f/main/lib/lib.go --
+package lib
+
+import "syscall"
+
+func Init() uintptr {
+	r, _, _ := syscall.Syscall(syscall.SYS_GETPID, 0, 0, 0)
+	return r
+}
+
+-- g/main/go.mod --
+module example.com/gmain
+
+go 1.27
+
+require example.com/gdep v0.0.0
+
+replace example.com/gdep => ../dep
+
+-- g/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_exec_allowlist = ["example.com/gdep/**"]
+transitive_net = "deny"
+transitive_net_allowlist = ["example.com/gdep/**"]
+
+-- g/main/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/gdep"
+)
+
+func main() { fmt.Println(gdep.Init()) }
+
+-- g/dep/go.mod --
+module example.com/gdep
+
+go 1.27
+
+-- g/dep/dep.go --
+package gdep
+
+import "syscall"
+
+func Init() uintptr {
+	r, _, _ := syscall.Syscall(syscall.SYS_GETPID, 0, 0, 0)
+	return r
+}
+
+-- h/main/go.mod --
+module example.com/hmain
+
+go 1.27
+
+require example.com/hdep v0.0.0
+
+replace example.com/hdep => ../dep
+
+-- h/main/logos.toml --
+[capabilities]
+transitive_exec = "warn"
+transitive_net = "warn"
+
+-- h/main/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/hdep"
+)
+
+func main() { fmt.Println(hdep.Init()) }
+
+-- h/dep/go.mod --
+module example.com/hdep
+
+go 1.27
+
+-- h/dep/dep.go --
+package hdep
+
+import "syscall"
+
+func Init() uintptr {
+	r, _, _ := syscall.Syscall(syscall.SYS_GETPID, 0, 0, 0)
+	return r
+}
+
+-- i/main/go.mod --
+module example.com/imain
+
+go 1.27
+
+require example.com/idep v0.0.0
+
+replace example.com/idep => ../dep
+
+-- i/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_net = "deny"
+
+-- i/main/cmd/main.go --
+package main
+
+import "example.com/idep"
+
+func main() { idep.Init() }
+
+-- i/dep/go.mod --
+module example.com/idep
+
+go 1.27
+
+-- i/dep/dep.go --
+package idep
+
+import "os/exec"
+
+type starter interface{ Start() error }
+
+var s starter = mk()
+
+//go:noinline
+func mk() starter { return exec.Command("/bin/true") }
+
+func Init() {
+	s.Start()
+}

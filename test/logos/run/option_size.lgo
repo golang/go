@@ -4,11 +4,20 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"unsafe"
 )
 
-// M3 pointer-option size (SPEC T-202, PLAN:127): `*T?` stays the bare
-// pointer with nil as none, so its size equals the pointer size.
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 type User struct {
 	Name string
@@ -18,14 +27,19 @@ type User struct {
 func main() {
 	var p *User = &User{}
 	var q *User?
-	fmt.Println(unsafe.Sizeof(p) == unsafe.Sizeof(q))
-	fmt.Println(unsafe.Sizeof(q))
+	check("ptr-size", unsafe.Sizeof(p) == unsafe.Sizeof(q), unsafe.Sizeof(p) == unsafe.Sizeof(q), true)
+	check("opt-size", unsafe.Sizeof(q) == 8, unsafe.Sizeof(q), 8)
 	var r *int?
-	fmt.Println(unsafe.Sizeof(r) == unsafe.Sizeof(p))
+	check("intptr-size", unsafe.Sizeof(r) == unsafe.Sizeof(p), unsafe.Sizeof(r) == unsafe.Sizeof(p), true)
 	var s *User? = nil
-	fmt.Println(s == nil)
+	check("nil-is-none", s == nil, s == nil, true)
 	s = &User{Name: "ann"}
 	if s != nil {
-		fmt.Println(s.Name)
+		check("deref-name", s.Name == "ann", s.Name, "ann")
+	} else {
+		check("deref-name", false, "none", "ann")
+	}
+	if failed {
+		os.Exit(1)
 	}
 }

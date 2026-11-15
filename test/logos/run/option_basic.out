@@ -1,10 +1,14 @@
-7
-42
-7
-1
-42
--1
-42
-hi
-fallback
-hi
+ok nil-fallback
+ok some-fallback
+ok typed-nil-fallback
+ok one-fallback
+ok opt-result
+ok opt-nil
+ok opt-const
+ok str-some
+ok str-none
+ok str-assign
+ok some-lazy
+ok some-lazy-calls
+ok none-lazy
+ok none-lazy-calls

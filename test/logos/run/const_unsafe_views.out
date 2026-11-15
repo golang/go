@@ -1,0 +1,5 @@
+ok slice-const-len
+ok slice-data-read
+ok string-data-read
+ok add-read
+ok string-const-len

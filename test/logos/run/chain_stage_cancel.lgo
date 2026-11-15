@@ -1,0 +1,333 @@
+// run
+
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"iter"
+	"os"
+	"slices"
+	"sync/atomic"
+	"time"
+
+	"logos/rt"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type observed[T any] struct {
+	v   T
+	err error
+}
+
+func observe[T any](v T, err error) observed[T] {
+	return observed[T]{v, err}
+}
+
+var errFirst = errors.New("first")
+var live atomic.Int64
+
+func enter() { live.Add(1) }
+
+func leave() { live.Add(-1) }
+
+func watchdog(name string) func() {
+	t := time.AfterFunc(5*time.Second, func() {
+		fmt.Println("FAIL", name+": hung")
+		os.Exit(1)
+	})
+	return func() { t.Stop() }
+}
+
+func failOn(x, bad int) (int, error) {
+	if x == bad {
+		return 0, errFirst
+	}
+	return x, nil
+}
+
+func caseFirstFailureWins(ctx context.Context) {
+	never := make(chan int)
+	stop := watchdog("cancel-first-failure-cancels-siblings")
+	res := observe([]int{0, 1, 2, 3}.group(ctx, limit = 4).map(x => {
+		enter()
+		defer leave()
+		v := x
+		if x != 0 {
+			v = <-never
+		}
+		return v
+	}).map(y => failOn(y, 0)?))
+	got, err := res.v, res.err
+	stop()
+	if err == nil {
+		check("cancel-first-failure-cancels-siblings", false, "no error", errFirst)
+	} else {
+		check("cancel-first-failure-cancels-siblings", errors.Is(err, errFirst) && !errors.Is(err, context.Canceled) && got == nil && live.Load() == 0, err, errFirst)
+	}
+}
+
+func caseUnorderedFirstFailureWins(ctx context.Context) {
+	never := make(chan int)
+	stop := watchdog("cancel-unordered-failure-cancels-earlier-siblings")
+	res := observe([]int{0, 1, 2, 3}.group(ctx, limit = 4).unordered().map(x => {
+		enter()
+		defer leave()
+		v := x
+		if x != 2 {
+			v = <-never
+		}
+		return v
+	}).map(y => failOn(y, 2)?))
+	got, err := res.v, res.err
+	stop()
+	if err == nil {
+		check("cancel-unordered-failure-cancels-earlier-siblings", false, "no error", errFirst)
+	} else {
+		check("cancel-unordered-failure-cancels-earlier-siblings", errors.Is(err, errFirst) && !errors.Is(err, context.Canceled) && got == nil && live.Load() == 0, err, errFirst)
+	}
+}
+
+var errLater = errors.New("later")
+var fastFailed, slowFailed atomic.Int64
+
+func awaitCount(n *atomic.Int64, want int64) {
+	for n.Load() < want {
+		time.Sleep(time.Millisecond)
+	}
+}
+
+func plain(x int) (int, error) {
+	switch x {
+	case 0:
+		return 100, nil
+	case 1:
+		return 0, errFirst
+	}
+	return 0, errLater
+}
+
+func skewed(x int) (int, error) {
+	switch x {
+	case 0:
+		awaitCount(&slowFailed, 1)
+	case 1:
+		awaitCount(&fastFailed, 1)
+		slowFailed.Add(1)
+	default:
+		fastFailed.Add(1)
+	}
+	return plain(x)
+}
+
+func sequentialPlain(xs []int, got *[]int) error {
+	for _, x := range xs {
+		y, err := plain(x)
+		if err != nil {
+			return err
+		}
+		*got = append(*got, y)
+	}
+	return nil
+}
+
+func rangeSkewed(ctx context.Context, xs []int, got *[]int) error {
+	for y := range xs.group(ctx, limit = 3).map(x => skewed(x)?) {
+		*got = append(*got, y)
+	}
+	return nil
+}
+
+func caseOrderedErrorIsSequential(ctx context.Context) {
+	stop := watchdog("cancel-ordered-error-is-sequential")
+	xs := []int{0, 1, 2}
+	var want, got []int
+	errWant := sequentialPlain(xs, &want)
+	errGot := rangeSkewed(ctx, xs, &got)
+	stop()
+	check("cancel-ordered-error-is-sequential", errWant != nil && errors.Is(errGot, errWant) && slices.Equal(got, want) && slices.Equal(got, []int{100}), fmt.Sprint(got, errGot), fmt.Sprint(want, errWant))
+}
+
+func caseGroupPanic(ctx context.Context) {
+	res := observe([]int{1, 2, 3}.group(ctx, limit = 3).map(x => {
+		if x == 2 {
+			panic("boom")
+		}
+		return x
+	}))
+	got, err := res.v, res.err
+	pe, ok := errors.AsType[*rt.PanicError](err)
+	if err == nil {
+		check("cancel-panic-becomes-panicerror", false, "no error", "*rt.PanicError")
+	} else {
+		check("cancel-panic-becomes-panicerror", ok && pe.Value == "boom" && len(pe.Stack) > 0 && got == nil, err, "*rt.PanicError")
+	}
+}
+
+func cancelFromChild(cancel context.CancelFunc, x int) (int, error) {
+	if x == 1 {
+		cancel()
+	}
+	return x, nil
+}
+
+func caseParentCancelled(ctx context.Context) {
+	parent, cancel := context.WithCancel(ctx)
+	defer cancel()
+	res := observe([]int{0, 1, 2, 3}.group(parent, limit = 1).map(x => cancelFromChild(cancel, x)?))
+	got, err := res.v, res.err
+	if err == nil {
+		check("cancel-parent-context-error", false, "no error", context.Canceled)
+	} else {
+		check("cancel-parent-context-error", errors.Is(err, context.Canceled) && len(got) < 4, err, context.Canceled)
+	}
+}
+
+func caseEarlyStopDiscardsLaterFailure(ctx context.Context) {
+	never := make(chan int)
+	stop := watchdog("cancel-early-stop-discards-later-failure")
+	found, err := []int{0, 1, 2, 3}.group(ctx, limit = 4).map(x => {
+		enter()
+		defer leave()
+		v := x
+		if x == 3 {
+			v = <-never
+		}
+		return v
+	}).find(y => y == 1)
+	stop()
+	check("cancel-early-stop-discards-later-failure", err == nil && (found ?? -1) == 1 && live.Load() == 0, err, nil)
+}
+
+func caseOrderedFindEarlierFailure(ctx context.Context) {
+	var res struct {
+		v   int?
+		err error
+	}
+	res.v, res.err = []int{0, 1, 2, 3}.group(ctx, limit = 4).map(x => failOn(x, 1)?).find(y => y == 2)
+	found, err := res.v, res.err
+	if err == nil {
+		check("cancel-ordered-find-fails-like-sequential", false, "no error", errFirst)
+	} else {
+		check("cancel-ordered-find-fails-like-sequential", errors.Is(err, errFirst) && (found ?? -1) == -1, err, errFirst)
+	}
+}
+
+func bodyPanics(ctx context.Context, never chan int) (recovered any, err error) {
+	defer func() { recovered = recover() }()
+	for y := range []int{0, 1, 2, 3}.group(ctx, limit = 4).unordered().map(x => {
+		enter()
+		defer leave()
+		v := x
+		if x == 0 {
+			v = <-never
+		}
+		return v
+	}) {
+		if y > 0 {
+			awaitLive(1)
+			panic("body")
+		}
+	}
+	return nil, nil
+}
+
+func caseBodyPanicJoins(ctx context.Context) {
+	stop := watchdog("cancel-body-panic-joins")
+	recovered, err := bodyPanics(ctx, make(chan int))
+	stop()
+	if err != nil {
+		check("cancel-body-panic-joins", false, err, "body with 0 children live")
+	} else {
+		check("cancel-body-panic-joins", err == nil && recovered == "body" && live.Load() == 0, fmt.Sprint(recovered, " with ", live.Load(), " children live"), "body with 0 children live")
+	}
+}
+
+func awaitLive(n int64) {
+	for live.Load() < n {
+		time.Sleep(time.Millisecond)
+	}
+}
+
+func panickingSource(yield func(int) bool) {
+	for i := 0; i < 4; i++ {
+		if !yield(i) {
+			return
+		}
+	}
+	awaitLive(2)
+	panic("source")
+}
+
+func sourcePanics(ctx context.Context, never chan int) (recovered any) {
+	defer func() { recovered = recover() }()
+	var src iter.Seq[int] = panickingSource
+	_, err := src.group(ctx, limit = 8).map(x => {
+		enter()
+		defer leave()
+		v := x
+		if x >= 2 {
+			v = <-never
+		}
+		return v
+	})
+	return err
+}
+
+func caseSourcePanicJoins(ctx context.Context) {
+	stop := watchdog("cancel-source-panic-joins")
+	recovered := sourcePanics(ctx, make(chan int))
+	stop()
+	check("cancel-source-panic-joins", recovered == "source" && live.Load() == 0, fmt.Sprint(recovered, " with ", live.Load(), " children live"), "source with 0 children live")
+}
+
+func quietChannel() chan int {
+	ch := make(chan int, 1)
+	ch <- 1
+	return ch
+}
+
+func caseQuietChannelFailure(ctx context.Context) {
+	stop := watchdog("cancel-quiet-channel-failure")
+	res := observe(quietChannel().group(ctx, limit = 2).map(x => failOn(x, 1)?))
+	got, err := res.v, res.err
+	stop()
+	if err == nil {
+		check("cancel-quiet-channel-failure", false, "no error", errFirst)
+	} else {
+		check("cancel-quiet-channel-failure", errors.Is(err, errFirst) && got == nil, err, errFirst)
+	}
+}
+
+func run(f func(context.Context)) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	f(ctx)
+}
+
+func main() {
+	run(caseFirstFailureWins)
+	run(caseUnorderedFirstFailureWins)
+	run(caseOrderedErrorIsSequential)
+	run(caseGroupPanic)
+	run(caseParentCancelled)
+	run(caseEarlyStopDiscardsLaterFailure)
+	run(caseOrderedFindEarlierFailure)
+	run(caseBodyPanicJoins)
+	run(caseSourcePanicJoins)
+	run(caseQuietChannelFailure)
+	if failed {
+		os.Exit(1)
+	}
+}

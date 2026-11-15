@@ -6,14 +6,22 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"strings"
 
 	"logos/rt"
 )
 
-// M8-S1/S2: a child panic becomes *rt.PanicError with the value and a
-// stack, cancels the siblings, and the group error propagates like `?`
-// (#147). The peer blocked on a channel exits through the cancel arm, so
-// the group joins instead of hanging.
+var bad bool
+
+func check(tag string, cond bool, got, want string) {
+	if !cond {
+		fmt.Println("FAIL "+tag+": got "+got+" want "+want)
+		bad = true
+		return
+	}
+	fmt.Println("ok", tag)
+}
 
 func run(ctx context.Context, ch chan int) error {
 	go group (ctx) {
@@ -30,11 +38,15 @@ func run(ctx context.Context, ch chan int) error {
 func main() {
 	err := run(context.Background(), make(chan int))
 	pe, ok := errors.AsType[*rt.PanicError](err)
+	check("group-panic-becomes-panicerror", ok, fmt.Sprintf("%T", err), "*rt.PanicError")
 	if !ok {
-		fmt.Println("not a PanicError:", err)
-		return
+		os.Exit(1)
 	}
-	fmt.Println("value:", pe.Value)
-	fmt.Println("stack:", len(pe.Stack) > 0)
-	fmt.Println("text:", pe.Error())
+	check("group-panic-value", pe.Value == "boom", fmt.Sprint(pe.Value), "boom")
+	stack := string(pe.Stack)
+	check("group-panic-stack", strings.Contains(stack, "goroutine") && strings.Contains(stack, "group_panic.lgo"), fmt.Sprintf("%d bytes", len(stack)), "stack naming goroutine and group_panic.lgo")
+	check("group-panic-text", strings.Contains(pe.Error(), "boom"), pe.Error(), "text containing boom")
+	if bad {
+		os.Exit(1)
+	}
 }

@@ -1,0 +1,130 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+env REC_STACKBUF=32
+env TIER_STACKBUF=4096
+logos test -count=1 -O=3 .
+stdout '^ok'
+go test -count=1 -O=3 .
+stdout '^ok'
+
+env TIER_STACKBUF=256
+logos test -count=1 -O=2 .
+stdout '^ok'
+go test -count=1 -O=2 .
+stdout '^ok'
+env REC_STACKBUF=
+env TIER_STACKBUF=
+env REC_STACKBUF=32
+env TIER_STACKBUF=32
+logos test -count=1 -O=1 .
+stdout '^ok'
+logos test -count=1 -O=0 .
+stdout '^ok'
+go test -count=1 -O=0 .
+stdout '^ok'
+logos test -count=1 -O=s .
+stdout '^ok'
+go test -count=1 -O=s .
+stdout '^ok'
+
+-- go.mod --
+module example.com/recstackbuf
+
+go 1.27
+
+-- logos.toml --
+[build]
+arena = false
+
+-- recstackbuf_test.go --
+package recstackbuf
+
+import (
+	"os"
+	"strconv"
+	"testing"
+)
+
+func helper(n int) byte {
+	b := make([]byte, n)
+	b[0] = 7
+	return b[n-1]
+}
+
+//go:noinline
+func recMake(n int, depth int) byte {
+	b := make([]byte, n)
+	b[0] = 7
+	if depth > 0 {
+		return b[n-1] + recMake(n, depth-1)
+	}
+	return b[n-1]
+}
+
+//go:noinline
+func tierProbe(n int) byte {
+	b := make([]byte, n)
+	b[0] = 9
+	return b[n-1]
+}
+
+//go:noinline
+func recProbe(n int, depth int) byte {
+	if depth > 0 {
+		return recProbe(n, depth-1) + helper(n)
+	}
+	return helper(n)
+}
+
+func allocs(n int, depth int) float64 {
+	return testing.AllocsPerRun(10, func() { _ = recProbe(n, depth) })
+}
+
+func recMakeAllocs(n int, depth int) float64 {
+	return testing.AllocsPerRun(10, func() { _ = recMake(n, depth) })
+}
+
+func tierAllocs(n int) float64 {
+	return testing.AllocsPerRun(10, func() { _ = tierProbe(n) })
+}
+
+func TestRecursiveFrame(t *testing.T) {
+	recWant, err := strconv.Atoi(os.Getenv("REC_STACKBUF"))
+	if err != nil || recWant < 2 {
+		t.Fatalf("REC_STACKBUF=%q: want a byte count of at least 2", os.Getenv("REC_STACKBUF"))
+	}
+	tierWant, err := strconv.Atoi(os.Getenv("TIER_STACKBUF"))
+	if err != nil || tierWant < 2 {
+		t.Fatalf("TIER_STACKBUF=%q: want a byte count of at least 2", os.Getenv("TIER_STACKBUF"))
+	}
+	for _, c := range []struct {
+		n     int
+		stack bool
+	}{
+		{recWant / 2, true},
+		{recWant, true},
+		{recWant + 1, false},
+		{2*recWant + 1, false},
+	} {
+		if got := allocs(c.n, 2); (got == 0) != c.stack {
+			t.Errorf("recursive make of %d bytes took %v allocations, want recursive buffer %d to decide: stack=%v", c.n, got, recWant, c.stack)
+		}
+		if got := recMakeAllocs(c.n, 2); (got == 0) != c.stack {
+			t.Errorf("cycle-function make of %d bytes took %v allocations, want cycle buffer %d to decide: stack=%v", c.n, got, recWant, c.stack)
+		}
+	}
+	for _, c := range []struct {
+		n     int
+		stack bool
+	}{
+		{tierWant / 2, true},
+		{tierWant, true},
+		{tierWant + 1, false},
+		{2*tierWant + 1, false},
+	} {
+		if got := tierAllocs(c.n); (got == 0) != c.stack {
+			t.Errorf("non-recursive make of %d bytes took %v allocations, want tier buffer %d to decide: stack=%v", c.n, got, tierWant, c.stack)
+		}
+	}
+}

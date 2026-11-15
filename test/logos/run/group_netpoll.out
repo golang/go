@@ -1,2 +1,4 @@
-child: timeout
-group: boom
+ok group-netpoll-first-error-wins
+ok group-netpoll-cancel-wakes-with-timeout
+ok group-netpoll-read-held-until-cancel
+ok group-netpoll-wake-prompt

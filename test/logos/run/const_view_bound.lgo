@@ -1,0 +1,43 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+	"strings"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func bound(xs const []int, n int) int {
+	return len(xs[:n])
+}
+
+func main() {
+	xs := make([]int, 3, 5)
+	trapped := false
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				trapped = true
+				got := fmt.Sprint(r)
+				check("bound-trap", strings.Contains(got, "slice bounds"), got, "slice bounds")
+			}
+		}()
+		_ = bound(xs, 5)
+	}()
+	check("bound-trapped", trapped, trapped, true)
+	if failed {
+		os.Exit(1)
+	}
+}

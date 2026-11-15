@@ -1,3 +1,9 @@
-int 42
-str hi
-bool true
+ok scalar-union-int-roundtrip
+ok scalar-union-string-roundtrip
+ok scalar-union-bool-roundtrip
+ok scalar-union-string-grow-rewrites-header
+ok scalar-union-bool-store-clears-string-tail
+ok scalar-union-const-equality-bool-only
+ok scalar-union-string-regrow-rewrites-header
+ok scalar-union-const-equality-string
+ok scalar-union-assert-to-union

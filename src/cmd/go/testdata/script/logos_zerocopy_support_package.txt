@@ -1,0 +1,102 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+go run -p=1 overlay.go $GOROOT logos/rt rt.lgo rt.json
+go build -p=1 -overlay=rt.json logos/rt
+go run -p=1 -overlay=rt.json check.go
+go run -p=1 overlay.go $GOROOT reflect reflect.lgo reflect.json
+go build -p=1 -overlay=reflect.json reflect
+
+-- overlay.go --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+    "encoding/json/v2"
+    "fmt"
+    "os"
+    "path/filepath"
+)
+
+func main() {
+    if err := run(); err != nil {
+        fmt.Fprintln(os.Stderr, err)
+        os.Exit(1)
+    }
+}
+
+func run() error {
+    dir := filepath.Join(os.Args[1], "src", os.Args[2])
+    files, err := filepath.Glob(filepath.Join(dir, "*.go"))
+    if err != nil {
+        return fmt.Errorf("list package sources: %w", err)
+    }
+    replace := make(map[string]string)
+    for _, file := range files {
+        replace[file] = ""
+    }
+    helper, err := filepath.Abs(os.Args[3])
+    if err != nil {
+        return fmt.Errorf("resolve helper: %w", err)
+    }
+    replace[filepath.Join(dir, "zz_helper_view.go")] = helper
+    data, err := json.Marshal(struct { Replace map[string]string }{replace})
+    if err != nil {
+        return fmt.Errorf("encode overlay: %w", err)
+    }
+    if err := os.WriteFile(os.Args[4], data, 0600); err != nil {
+        return fmt.Errorf("write overlay: %w", err)
+    }
+    return nil
+}
+
+-- rt.lgo --
+package rt
+
+type byte = uint16
+
+func len(s string) int { return 1 }
+
+func HelperView(s string) const []uint8 {
+    len := 7
+    _ = len
+    return const []uint8(s)
+}
+
+func RoundTrip(s string) string {
+    b := const []uint8(s)
+    return string(b)
+}
+
+-- reflect.lgo --
+package reflect
+
+type string = struct{}
+
+func len(s interface{}) int { return 1 }
+
+func helperView() const []byte {
+    s := "aéz"
+    return const []byte(s)
+}
+
+-- check.go --
+package main
+
+import "logos/rt"
+
+func main() {
+    b := rt.HelperView("aéz")
+    if len(b) != 4 || b[0] != 'a' || b[1] != 0xc3 || b[2] != 0xa9 || b[3] != 'z' {
+        panic("support-package view length or content")
+    }
+    if rt.RoundTrip("aéz") != "aéz" {
+        panic("support-package string length or content")
+    }
+    if len(rt.HelperView("")) != 0 || rt.RoundTrip("") != "" {
+        panic("support-package empty conversion")
+    }
+}

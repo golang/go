@@ -1,0 +1,64 @@
+// run
+
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"sync"
+)
+
+var plainCh = make(chan int, 1)
+
+var mu sync.Mutex
+
+var order []string
+
+func note(s string) {
+	mu.Lock()
+	order = append(order, s)
+	mu.Unlock()
+}
+
+var bad bool
+
+func check(tag string, cond bool, got, want string) {
+	if !cond {
+		fmt.Println("FAIL "+tag+": got "+got+" want "+want)
+		bad = true
+		return
+	}
+	fmt.Println("ok", tag)
+}
+
+//logos:allow(correctness::unbounded_channel_op)
+func group(n int) {
+	plainCh <- n + 41
+	note("child-end")
+}
+
+func runPlain(ctx context.Context, input int) error {
+	go group (ctx) {
+		go group(input)
+	}
+	note("after-group")
+	return nil
+}
+
+//logos:allow(correctness::unbounded_channel_op)
+func main() {
+	ctx := context.Background()
+	input := 7
+	if err := runPlain(ctx, input); err != nil {
+		check("group-plain-call-child-runs", false, fmt.Sprint(err), "nil")
+	} else {
+		v := <-plainCh
+		check("group-plain-call-child-runs", v-41 == input, fmt.Sprint(v), fmt.Sprint(input+41))
+	}
+	joined := len(order) == 2 && order[0] == "child-end" && order[1] == "after-group"
+	check("group-plain-call-joins-before-return", joined, fmt.Sprint(order), "[child-end after-group]")
+	if bad {
+		os.Exit(1)
+	}
+}

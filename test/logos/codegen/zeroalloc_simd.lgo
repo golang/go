@@ -2,13 +2,7 @@
 
 package main
 
-// M22-S4 (SPEC Sec 22.4): the SIMD array lowering of M14 performs no heap
-// allocation. The functions below are marked //logos:zeroalloc, so the
 // build itself proves escape analysis finds no allocation site, and the
-// emitted code confirms it: the vector instruction is present and no call
-// to a runtime allocator appears on the line. The control function
-// allocates on purpose; it shows the allocator pattern matches the
-// emission of an allocation, so the negative checks are not vacuous.
 
 //logos:zeroalloc
 //go:noinline

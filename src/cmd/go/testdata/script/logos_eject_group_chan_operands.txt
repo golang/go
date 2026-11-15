@@ -1,0 +1,33 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# A function literal, a composite literal, a parenthesis, and a block
+# comment inside the operands of a channel operation in a go group child
+# eject to Go that parses, builds and prints what the native run prints.
+# group_chan_operands.lgo prints one ok line per operand form, for the value
+# and for the cancelled group.
+cp $GOROOT/test/logos/run/group_chan_operands.lgo a/main.lgo
+
+cd a
+logos run .
+cmp stdout $GOROOT/test/logos/run/group_chan_operands.out
+logos eject -o out
+exists out/main.go
+! exists out/main.lgo
+cd out
+go run .
+cmp stdout $GOROOT/test/logos/run/group_chan_operands.out
+# SPEC 0.3: ejected output builds and runs with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/group_chan_operands.out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ../..
+
+-- a/go.mod --
+module example.com/groupchanoperands
+
+go 1.27

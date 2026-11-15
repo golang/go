@@ -1,0 +1,132 @@
+// run
+
+package main
+
+import (
+	"comptime"
+	"fmt"
+)
+
+type Point struct {
+	X int
+	Y int
+}
+
+func rangeDeclares() int {
+	total := 0
+	const for i, f := range comptime.Fields[Point]() {
+		_ = f.Name
+		for i := range 3 {
+			total += i
+		}
+		total += i * 100
+	}
+	return total
+}
+
+func receiveDeclares() int {
+	total := 0
+	ch := make(chan int, 1)
+	const for i, f := range comptime.Fields[Point]() {
+		_ = f.Name
+		ch <- 7
+		select {
+		case i := <-ch:
+			total += i
+		}
+		total += i * 100
+	}
+	return total
+}
+
+func ifDeclares() int {
+	total := 0
+	const for i, f := range comptime.Fields[Point]() {
+		_ = f.Name
+		if i := 5; i > 0 {
+			total += i
+		}
+		total += i * 100
+	}
+	return total
+}
+
+func switchDeclares() int {
+	total := 0
+	const for i, f := range comptime.Fields[Point]() {
+		_ = f.Name
+		switch i := 4; i {
+		case 4:
+			total += i
+		}
+		total += i * 100
+	}
+	return total
+}
+
+func typeSwitchDeclares() int {
+	total := 0
+	var v any = 6
+	const for i, f := range comptime.Fields[Point]() {
+		_ = f.Name
+		switch i := v.(type) {
+		case int:
+			total += i
+		}
+		total += i * 100
+	}
+	return total
+}
+
+func forDeclares() int {
+	total := 0
+	const for i, f := range comptime.Fields[Point]() {
+		_ = f.Name
+		for i := 0; i < 2; i++ {
+			total += i
+		}
+		total += i * 100
+	}
+	return total
+}
+
+func shortDeclares() int {
+	total := 0
+	const for i, f := range comptime.Fields[Point]() {
+		_ = f.Name
+		_ = i
+		i := 5
+		total += i
+	}
+	return total
+}
+
+func varDeclares() int {
+	total := 0
+	const for i, f := range comptime.Fields[Point]() {
+		_ = f.Name
+		_ = i
+		var i = 9
+		total += i
+	}
+	return total
+}
+
+func check(name string, got, want int) {
+	if got != want {
+		fmt.Println("FAIL", name, got, want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func main() {
+	check("range", rangeDeclares(), 106)
+	check("receive", receiveDeclares(), 114)
+	check("if", ifDeclares(), 110)
+	check("switch", switchDeclares(), 108)
+	check("type-switch", typeSwitchDeclares(), 112)
+	check("for", forDeclares(), 102)
+	check("short", shortDeclares(), 10)
+	check("var", varDeclares(), 18)
+}

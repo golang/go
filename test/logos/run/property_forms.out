@@ -1,0 +1,9 @@
+ok assign
+ok reassign
+ok return
+ok slice
+ok map
+ok chan
+ok generic
+ok ptr
+ok iface

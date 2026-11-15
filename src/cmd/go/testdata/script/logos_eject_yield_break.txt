@@ -1,0 +1,49 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+logos eject -o out
+exists out/main.go
+cd out
+go run .
+stdout '^seen 3 steps 3$'
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+
+-- m/go.mod --
+module example.com/yieldeject/m
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import (
+	"fmt"
+	"iter"
+)
+
+var steps int
+
+func Tracked(n int) iter.Seq[int] {
+	for i := range n {
+		steps++
+		yield i
+	}
+	steps += 1000
+}
+
+func main() {
+	seen := 0
+	for v := range Tracked(100) {
+		_ = v
+		seen++
+		if seen == 3 {
+			break
+		}
+	}
+	fmt.Println("seen", seen, "steps", steps)
+}

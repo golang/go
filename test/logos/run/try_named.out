@@ -1,3 +1,5 @@
-ok: 7 <nil>
-fail: 0 named
-deferred sees: 0 named
+ok ok-value
+ok ok-err
+ok fail-value
+ok fail-err
+ok deferred

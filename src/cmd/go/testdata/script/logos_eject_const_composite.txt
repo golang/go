@@ -1,0 +1,137 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# Every const composite fixture runs the same natively and ejected, and the ejected program builds with Go 1.27.2.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+
+cd a
+cp $GOROOT/test/logos/run/const_composite_spread.lgo main.lgo
+logos eject -o out
+cd out
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/const_composite_spread.out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ..
+rm out
+
+cp $GOROOT/test/logos/run/const_composite_index_literal.lgo main.lgo
+logos eject -o out
+cd out
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/const_composite_index_literal.out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ..
+rm out
+
+cp $GOROOT/test/logos/run/const_composite_lambda.lgo main.lgo
+logos eject -o out
+cd out
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/const_composite_lambda.out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ..
+rm out
+
+cp $GOROOT/test/logos/run/const_composite_chain.lgo main.lgo
+logos eject -o out
+cd out
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/const_composite_chain.out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ..
+rm out
+
+cp $GOROOT/test/logos/run/const_composite_simd.lgo main.lgo
+logos eject -o out
+cd out
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/const_composite_simd.out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ..
+rm out
+
+cp $GOROOT/test/logos/run/const_composite_symbols.lgo main.lgo
+logos eject -o out
+cd out
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/const_composite_symbols.out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ..
+rm out
+
+cp $GOROOT/test/logos/run/const_composite_len.lgo main.lgo
+logos eject -o out
+cd out
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/const_composite_len.out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ..
+rm out
+
+cp $GOROOT/test/logos/run/const_composite_range_order.lgo main.lgo
+logos eject -o out
+cd out
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/const_composite_range_order.out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ..
+rm out
+
+cp $GOROOT/test/logos/run/const_composite_receiver.lgo main.lgo
+logos eject -o out
+cd out
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/const_composite_receiver.out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ..
+rm out
+
+cp $GOROOT/test/logos/run/const_composite_allocs.lgo main.lgo
+logos eject -o out
+cd out
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/const_composite_allocs.out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ..
+rm out
+
+cp $GOROOT/test/logos/run/const_composite_index_types.lgo main.lgo
+logos eject -o out
+cd out
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/const_composite_index_types.out
+cd ..
+rm out
+
+cp $GOROOT/test/logos/run/const_composite_range_dynamic.lgo main.lgo
+logos eject -o out
+cd out
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/const_composite_range_dynamic.out
+cd ..
+rm out
+
+cp $GOROOT/test/logos/run/const_composite_map.lgo main.lgo
+logos eject -o out
+cd out
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/const_composite_map.out
+cd ..
+rm out
+
+-- a/go.mod --
+module example.com/cceject
+
+go 1.27

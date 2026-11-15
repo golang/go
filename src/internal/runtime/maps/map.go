@@ -508,7 +508,6 @@ func (m *Map) PutSlot(typ *abi.MapType, key unsafe.Pointer) unsafe.Pointer {
 	}
 
 	hash := typ.Hasher(key, m.seed)
-	pinKey(typ, key)
 
 	// Set writing after calling Hasher, since Hasher may panic, in which
 	// case we have not actually done a write.

@@ -1,0 +1,4 @@
+ok member-decodes
+ok member-value
+ok outer-only-term-rejected
+ok inner-only-term-rejected

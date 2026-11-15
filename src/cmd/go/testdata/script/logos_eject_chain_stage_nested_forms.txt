@@ -1,0 +1,31 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# A block segment lambda of a group stage lowers a nested go group that
+# joins before the lambda returns, a function literal with ? inside an
+# expression lambda, const for, const if, and scope defer, natively and in
+# the ejected module. chain_stage_nested_forms.lgo prints one ok line per
+# form.
+cp $GOROOT/test/logos/run/chain_stage_nested_forms.lgo a/main.lgo
+
+cd a
+logos run .
+cmp stdout $GOROOT/test/logos/run/chain_stage_nested_forms.out
+logos eject -o out
+exists out/main.go
+! exists out/main.lgo
+cd out
+go run .
+cmp stdout $GOROOT/test/logos/run/chain_stage_nested_forms.out
+# SPEC 0.3: ejected output builds and runs with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/chain_stage_nested_forms.out
+cd ../..
+
+-- a/go.mod --
+module example.com/chainstagenestedforms
+
+go 1.27

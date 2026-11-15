@@ -1,0 +1,29 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOOS=js
+env GOARCH=wasm
+
+! go build -o app.wasm .
+stderr 'unsupported result type string'
+go build -o ok64.wasm ./ok64
+exists ok64.wasm
+
+-- go.mod --
+module example.com/wasmstrexport
+
+go 1.27
+
+-- main.go --
+package main
+
+//go:wasmexport bad
+func bad() string { return "nope" }
+
+func main() {}
+-- ok64/main.go --
+package main
+
+//go:wasmexport ok
+func ok() int64 { return 1 }
+
+func main() {}

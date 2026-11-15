@@ -1,0 +1,12 @@
+// asmcheck
+
+package main
+
+//go:noinline
+func sumMapped(xs []float64, k float64) float64 {
+	// amd64/v3:-"VFMADD"
+	// arm64:-"FMADD" -"FMA"
+	return xs.map(x => k*x).sum()
+}
+
+func main() {}

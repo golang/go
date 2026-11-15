@@ -1,0 +1,326 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+go version
+stdout '^go version go'
+cp stdout $WORK/version.txt
+exec sh check_version.sh
+
+go help
+! stdout 'logos'
+! stdout 'Logos'
+
+go help documentation
+! stdout 'wasm-loader'
+! stdout 'wasm-features'
+! stdout '\-O'
+go help c
+! stdout 'logos|Logos|wasm-loader|wasm-features'
+! stdout '\-O'
+go help packages
+! stdout 'logos|Logos|wasm-loader|wasm-features'
+! stdout '\-O'
+go help importpath
+! stdout 'logos|Logos|wasm-loader|wasm-features'
+! stdout '\-O'
+go help gopath
+! stdout 'logos|Logos|wasm-loader|wasm-features'
+! stdout '\-O'
+go help environment
+! stdout 'logos|Logos|wasm-loader|wasm-features'
+! stdout '\-O'
+go help filetype
+! stdout 'logos|Logos|wasm-loader|wasm-features'
+! stdout '\-O'
+go help buildmode
+! stdout 'logos|Logos|wasm-loader|wasm-features'
+! stdout '\-O'
+go help cache
+! stdout 'logos|Logos|wasm-loader|wasm-features'
+! stdout '\-O'
+go help buildconstraint
+! stdout 'logos|Logos|wasm-loader|wasm-features'
+! stdout '\-O'
+go help goauth
+! stdout 'logos|Logos|wasm-loader|wasm-features'
+! stdout '\-O'
+go help buildjson
+! stdout 'logos|Logos|wasm-loader|wasm-features'
+! stdout '\-O'
+go help modules
+! stdout 'logos|Logos|wasm-loader|wasm-features'
+! stdout '\-O'
+go help go.mod
+! stdout 'logos|Logos|wasm-loader|wasm-features'
+! stdout '\-O'
+go help module-auth
+! stdout 'logos|Logos|wasm-loader|wasm-features'
+! stdout '\-O'
+go help private
+! stdout 'logos|Logos|wasm-loader|wasm-features'
+! stdout '\-O'
+go help testflag
+! stdout 'logos|Logos|wasm-loader|wasm-features'
+! stdout '\-O'
+go help testfunc
+! stdout 'logos|Logos|wasm-loader|wasm-features'
+! stdout '\-O'
+go help vcs
+! stdout 'logos|Logos|wasm-loader|wasm-features'
+! stdout '\-O'
+go help goproxy
+! stdout 'logos|Logos|wasm-loader|wasm-features'
+! stdout '\-O'
+
+# Oracle: plain go help stays byte-identical to upstream ($UPROOT1273).
+# The gate sits below the hermetic legs, so those run even without an
+# upstream toolchain. A missing upstream toolchain fails closed.
+exists $UPROOT1273/bin/go
+exec env -u GOROOT $UPROOT1273/bin/go version
+stdout '^go version go'
+
+go help
+cp stdout $WORK/our-top.txt
+exec env -u GOROOT $UPROOT1273/bin/go help
+cp stdout $WORK/up-top.txt
+cmp $WORK/our-top.txt $WORK/up-top.txt
+
+go help documentation
+cp stdout $WORK/our-documentation.txt
+exec env -u GOROOT $UPROOT1273/bin/go help documentation
+cp stdout $WORK/up-documentation.txt
+cmp $WORK/our-documentation.txt $WORK/up-documentation.txt
+
+go help c
+cp stdout $WORK/our-c.txt
+exec env -u GOROOT $UPROOT1273/bin/go help c
+cp stdout $WORK/up-c.txt
+cmp $WORK/our-c.txt $WORK/up-c.txt
+
+go help packages
+cp stdout $WORK/our-packages.txt
+exec env -u GOROOT $UPROOT1273/bin/go help packages
+cp stdout $WORK/up-packages.txt
+cmp $WORK/our-packages.txt $WORK/up-packages.txt
+
+go help importpath
+cp stdout $WORK/our-importpath.txt
+exec env -u GOROOT $UPROOT1273/bin/go help importpath
+cp stdout $WORK/up-importpath.txt
+cmp $WORK/our-importpath.txt $WORK/up-importpath.txt
+
+go help gopath
+cp stdout $WORK/our-gopath.txt
+exec env -u GOROOT $UPROOT1273/bin/go help gopath
+cp stdout $WORK/up-gopath.txt
+cmp $WORK/our-gopath.txt $WORK/up-gopath.txt
+
+go help environment
+cp stdout $WORK/our-environment.txt
+exec env -u GOROOT $UPROOT1273/bin/go help environment
+cp stdout $WORK/up-environment.txt
+cmp $WORK/our-environment.txt $WORK/up-environment.txt
+
+go help filetype
+cp stdout $WORK/our-filetype.txt
+exec env -u GOROOT $UPROOT1273/bin/go help filetype
+cp stdout $WORK/up-filetype.txt
+cmp $WORK/our-filetype.txt $WORK/up-filetype.txt
+
+go help buildmode
+cp stdout $WORK/our-buildmode.txt
+exec env -u GOROOT $UPROOT1273/bin/go help buildmode
+cp stdout $WORK/up-buildmode.txt
+cmp $WORK/our-buildmode.txt $WORK/up-buildmode.txt
+
+go help cache
+cp stdout $WORK/our-cache.txt
+exec env -u GOROOT $UPROOT1273/bin/go help cache
+cp stdout $WORK/up-cache.txt
+cmp $WORK/our-cache.txt $WORK/up-cache.txt
+
+go help buildconstraint
+cp stdout $WORK/our-buildconstraint.txt
+exec env -u GOROOT $UPROOT1273/bin/go help buildconstraint
+cp stdout $WORK/up-buildconstraint.txt
+cmp $WORK/our-buildconstraint.txt $WORK/up-buildconstraint.txt
+
+go help goauth
+cp stdout $WORK/our-goauth.txt
+exec env -u GOROOT $UPROOT1273/bin/go help goauth
+cp stdout $WORK/up-goauth.txt
+cmp $WORK/our-goauth.txt $WORK/up-goauth.txt
+
+go help buildjson
+cp stdout $WORK/our-buildjson.txt
+exec env -u GOROOT $UPROOT1273/bin/go help buildjson
+cp stdout $WORK/up-buildjson.txt
+cmp $WORK/our-buildjson.txt $WORK/up-buildjson.txt
+
+go help modules
+cp stdout $WORK/our-modules.txt
+exec env -u GOROOT $UPROOT1273/bin/go help modules
+cp stdout $WORK/up-modules.txt
+cmp $WORK/our-modules.txt $WORK/up-modules.txt
+
+go help go.mod
+cp stdout $WORK/our-gomod.txt
+exec env -u GOROOT $UPROOT1273/bin/go help go.mod
+cp stdout $WORK/up-gomod.txt
+cmp $WORK/our-gomod.txt $WORK/up-gomod.txt
+
+go help module-auth
+cp stdout $WORK/our-moduleauth.txt
+exec env -u GOROOT $UPROOT1273/bin/go help module-auth
+cp stdout $WORK/up-moduleauth.txt
+cmp $WORK/our-moduleauth.txt $WORK/up-moduleauth.txt
+
+go help private
+cp stdout $WORK/our-private.txt
+exec env -u GOROOT $UPROOT1273/bin/go help private
+cp stdout $WORK/up-private.txt
+cmp $WORK/our-private.txt $WORK/up-private.txt
+
+go help testflag
+cp stdout $WORK/our-testflag.txt
+exec env -u GOROOT $UPROOT1273/bin/go help testflag
+cp stdout $WORK/up-testflag.txt
+cmp $WORK/our-testflag.txt $WORK/up-testflag.txt
+
+go help testfunc
+cp stdout $WORK/our-testfunc.txt
+exec env -u GOROOT $UPROOT1273/bin/go help testfunc
+cp stdout $WORK/up-testfunc.txt
+cmp $WORK/our-testfunc.txt $WORK/up-testfunc.txt
+
+go help vcs
+cp stdout $WORK/our-vcs.txt
+exec env -u GOROOT $UPROOT1273/bin/go help vcs
+cp stdout $WORK/up-vcs.txt
+cmp $WORK/our-vcs.txt $WORK/up-vcs.txt
+
+go help goproxy
+cp stdout $WORK/our-goproxy.txt
+exec env -u GOROOT $UPROOT1273/bin/go help goproxy
+cp stdout $WORK/up-goproxy.txt
+cmp $WORK/our-goproxy.txt $WORK/up-goproxy.txt
+
+go help bug
+cp stdout $WORK/our-bug.txt
+exec env -u GOROOT $UPROOT1273/bin/go help bug
+cp stdout $WORK/up-bug.txt
+cmp $WORK/our-bug.txt $WORK/up-bug.txt
+
+go help build
+cp stdout $WORK/our-build.txt
+exec env -u GOROOT $UPROOT1273/bin/go help build
+cp stdout $WORK/up-build.txt
+cmp $WORK/our-build.txt $WORK/up-build.txt
+
+go help clean
+cp stdout $WORK/our-clean.txt
+exec env -u GOROOT $UPROOT1273/bin/go help clean
+cp stdout $WORK/up-clean.txt
+cmp $WORK/our-clean.txt $WORK/up-clean.txt
+
+go help doc
+cp stdout $WORK/our-doc.txt
+exec env -u GOROOT $UPROOT1273/bin/go help doc
+cp stdout $WORK/up-doc.txt
+cmp $WORK/our-doc.txt $WORK/up-doc.txt
+
+go help env
+cp stdout $WORK/our-env.txt
+exec env -u GOROOT $UPROOT1273/bin/go help env
+cp stdout $WORK/up-env.txt
+cmp $WORK/our-env.txt $WORK/up-env.txt
+
+go help fix
+cp stdout $WORK/our-fix.txt
+exec env -u GOROOT $UPROOT1273/bin/go help fix
+cp stdout $WORK/up-fix.txt
+cmp $WORK/our-fix.txt $WORK/up-fix.txt
+
+go help fmt
+cp stdout $WORK/our-fmt.txt
+exec env -u GOROOT $UPROOT1273/bin/go help fmt
+cp stdout $WORK/up-fmt.txt
+cmp $WORK/our-fmt.txt $WORK/up-fmt.txt
+
+go help generate
+cp stdout $WORK/our-generate.txt
+exec env -u GOROOT $UPROOT1273/bin/go help generate
+cp stdout $WORK/up-generate.txt
+cmp $WORK/our-generate.txt $WORK/up-generate.txt
+
+go help get
+cp stdout $WORK/our-get.txt
+exec env -u GOROOT $UPROOT1273/bin/go help get
+cp stdout $WORK/up-get.txt
+cmp $WORK/our-get.txt $WORK/up-get.txt
+
+go help install
+cp stdout $WORK/our-install.txt
+exec env -u GOROOT $UPROOT1273/bin/go help install
+cp stdout $WORK/up-install.txt
+cmp $WORK/our-install.txt $WORK/up-install.txt
+
+go help list
+cp stdout $WORK/our-list.txt
+exec env -u GOROOT $UPROOT1273/bin/go help list
+cp stdout $WORK/up-list.txt
+cmp $WORK/our-list.txt $WORK/up-list.txt
+
+go help mod
+cp stdout $WORK/our-mod.txt
+exec env -u GOROOT $UPROOT1273/bin/go help mod
+cp stdout $WORK/up-mod.txt
+cmp $WORK/our-mod.txt $WORK/up-mod.txt
+
+go help run
+cp stdout $WORK/our-run.txt
+exec env -u GOROOT $UPROOT1273/bin/go help run
+cp stdout $WORK/up-run.txt
+cmp $WORK/our-run.txt $WORK/up-run.txt
+
+go help telemetry
+cp stdout $WORK/our-telemetry.txt
+exec env -u GOROOT $UPROOT1273/bin/go help telemetry
+cp stdout $WORK/up-telemetry.txt
+cmp $WORK/our-telemetry.txt $WORK/up-telemetry.txt
+
+go help test
+cp stdout $WORK/our-test.txt
+exec env -u GOROOT $UPROOT1273/bin/go help test
+cp stdout $WORK/up-test.txt
+cmp $WORK/our-test.txt $WORK/up-test.txt
+
+go help tool
+cp stdout $WORK/our-tool.txt
+exec env -u GOROOT $UPROOT1273/bin/go help tool
+cp stdout $WORK/up-tool.txt
+cmp $WORK/our-tool.txt $WORK/up-tool.txt
+
+go help version
+cp stdout $WORK/our-version-cmd.txt
+exec env -u GOROOT $UPROOT1273/bin/go help version
+cp stdout $WORK/up-version-cmd.txt
+cmp $WORK/our-version-cmd.txt $WORK/up-version-cmd.txt
+
+go help vet
+cp stdout $WORK/our-vet.txt
+exec env -u GOROOT $UPROOT1273/bin/go help vet
+cp stdout $WORK/up-vet.txt
+cmp $WORK/our-vet.txt $WORK/up-vet.txt
+
+go help work
+cp stdout $WORK/our-work.txt
+exec env -u GOROOT $UPROOT1273/bin/go help work
+cp stdout $WORK/up-work.txt
+cmp $WORK/our-work.txt $WORK/up-work.txt
+
+-- check_version.sh --
+#!/bin/sh
+set -e
+want="$("$GOROOT/bin/go" env GOOS)/$("$GOROOT/bin/go" env GOARCH)"
+grep -q "${want}$" "$WORK/version.txt"

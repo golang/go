@@ -1,13 +1,14 @@
-rock:a
-rock:a
-rock:a
-title:a
-troll:grok troll:grok
-box
-e:empty
-early:late:x
-rock:al
-rock:a
-rock:a,rock:b
-troll:ug
-rock:al
+ok greet
+ok greet-ord
+ok via-const
+ok title
+ok greet-troll
+ok greet-ord-troll
+ok box
+ok box-empty
+ok early
+ok alias
+ok generic
+ok names-rocks
+ok names-troll
+ok names-alias

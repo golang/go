@@ -9,21 +9,6 @@ import (
 	. "internal/types/errors"
 )
 
-// LoGo/s M6-S5 type rules for tuple types `(A, B)` and `(a A, b B)`
-// (SPEC Sec 2.4, T-204.1). Upstream files call in through hook lines
-// only: typexpr.go, expr.go, call.go, assignments.go, predicates.go,
-// subst.go, unify.go, typestring.go. Every rule below applies only to a
-// package of .lgo files (Config.Logos).
-//
-// A tuple is a distinct types2 type whose underlying is the lowered
-// struct with exported `T_` fields. Comparability and size follow the
-// struct rules; cross-package identity of `(id int64, err error)` holds
-// against the imported struct shape with no overlay. Lowering lives in
-// logos/tuple.go.
-
-// LogosTuple is the types2 representation of a loGo/s tuple type.
-// Names holds source element names ("" for unnamed); types holds the
-// element types. Underlying is the lowered struct, built eagerly.
 type LogosTuple struct {
 	names []string
 	types []Type
@@ -31,7 +16,6 @@ type LogosTuple struct {
 	pkg   *Package
 }
 
-// tupleFieldName spells the lowered field of element i with source name.
 func tupleFieldName(name string, i int) string {
 	if name == "" {
 		return sprintf(nil, true, "T_%d", i)
@@ -39,7 +23,6 @@ func tupleFieldName(name string, i int) string {
 	return "T_" + name
 }
 
-// NewLogosTuple builds the tuple of names and types in package pkg.
 func NewLogosTuple(pos syntax.Pos, pkg *Package, names []string, types []Type) *LogosTuple {
 	t := &LogosTuple{names: names, types: types, pkg: pkg}
 	fields := make([]*Var, len(types))
@@ -54,13 +37,10 @@ func NewLogosTuple(pos syntax.Pos, pkg *Package, names []string, types []Type) *
 	return t
 }
 
-// Len reports the element count.
 func (t *LogosTuple) Len() int { return len(t.types) }
 
-// Elem reports the i-th element type.
 func (t *LogosTuple) Elem(i int) Type { return t.types[i] }
 
-// Name reports the i-th source element name ("" when unnamed).
 func (t *LogosTuple) Name(i int) string {
 	if i < len(t.names) {
 		return t.names[i]
@@ -68,40 +48,46 @@ func (t *LogosTuple) Name(i int) string {
 	return ""
 }
 
-// Underlying returns the lowered struct with exported `T_` fields.
 func (t *LogosTuple) Underlying() Type { return t.under }
 
-// String prints the tuple through the qualified writer.
 func (t *LogosTuple) String() string { return TypeString(t, nil) }
 
-// logosAsTuple returns the *LogosTuple denoted by T, or nil.
 func logosAsTuple(T Type) *LogosTuple {
+	if T == nil {
+		return nil
+	}
+	if n, ok := Unalias(T).(*Named); ok {
+		T = n.Underlying()
+	}
 	if t, ok := Unalias(T).(*LogosTuple); ok {
 		return t
 	}
 	return nil
 }
 
-// tupleElemsOf returns the element types of T when T is a tuple or the
-// lowered struct shape of one (two or more `T_`-named fields, as read
-// back from another package). Names come from tuple declarations; for
-// structs they are the lowered field names.
 func tupleElemsOf(T Type) (types []Type, ok bool) {
-	if t := logosAsTuple(T); t != nil {
-		return t.types, true
+	base, descendants, readonly := logosReadonlyBase(T)
+	if t := logosAsTuple(base); t != nil {
+		if !descendants && !readonly {
+			return t.types, true
+		}
+		types = make([]Type, t.Len())
+		for i := range types {
+			types[i] = logosReadonlyProject(T, t.Elem(i), false)
+		}
+		return types, true
 	}
-	st, ok := Unalias(T).(*Struct)
+	st, ok := Unalias(base).(*Struct)
 	if !ok || !logosTupleShaped(st) {
 		return nil, false
 	}
 	types = make([]Type, st.NumFields())
 	for i := range types {
-		types[i] = st.Field(i).Type()
+		types[i] = logosReadonlyProject(T, st.Field(i).Type(), false)
 	}
 	return types, true
 }
 
-// logosTupleShaped reports whether st is the lowered shape of a tuple.
 func logosTupleShaped(st *Struct) bool {
 	if st.NumFields() < 2 {
 		return false
@@ -115,26 +101,23 @@ func logosTupleShaped(st *Struct) bool {
 	return true
 }
 
-// checkTupleStructIdentical reports whether the tuple x is identical
-// to the struct y by comparing the lowered `T_` fields. It covers the
-// imported view of a tuple-typed declaration, which reads back as the
-// lowered struct.
-func checkTupleStructIdentical(x *LogosTuple, y Type) bool {
-	st, ok := Unalias(y).(*Struct)
-	if !ok || st.NumFields() != x.Len() {
-		return false
-	}
-	under := x.Underlying().(*Struct)
-	for i := range x.Len() {
-		f, g := under.Field(i), st.Field(i)
-		if f.Name() != g.Name() || !Identical(f.Type(), g.Type()) {
-			return false
-		}
-	}
-	return true
+func (t *LogosTuple) underlyingStruct() *Struct {
+	return t.under
 }
 
-// logosTupleType type-checks a *syntax.TupleType node.
+func (c *comparer) logosStructTupleIdentical(x *Struct, y Type, p *ifacePair) bool {
+	t, ok := y.(*LogosTuple)
+	return ok && c.structIdentical(x, t.underlyingStruct(), p)
+}
+
+func logosUnwrapTuples(types ...*Type) {
+	for _, T := range types {
+		if t, ok := (*T).(*LogosTuple); ok {
+			*T = t.underlyingStruct()
+		}
+	}
+}
+
 func (check *Checker) logosTupleType(e *syntax.TupleType, def *TypeName) Type {
 	if len(e.Fields) < 2 {
 		check.error(e, InvalidSyntaxTree, "tuple type needs at least two element types")
@@ -156,8 +139,6 @@ func (check *Checker) logosTupleType(e *syntax.TupleType, def *TypeName) Type {
 	return NewLogosTuple(e.Pos(), check.pkg, names, types)
 }
 
-// logosTupleFieldIndex reports the element index of field sel, accepting
-// the lowered `T_` spelling too.
 func logosTupleFieldIndex(t *LogosTuple, sel string) int {
 	for i := range t.Len() {
 		if t.Name(i) == sel || tupleFieldName(t.Name(i), i) == sel {
@@ -167,60 +148,73 @@ func logosTupleFieldIndex(t *LogosTuple, sel string) int {
 	return -1
 }
 
-// logosTupleSelect checks `t.x` on a tuple value. It reports true when
-// handled, even on failure.
+func logosTupleField(T Type, sel string) *Var {
+	if T == nil {
+		return nil
+	}
+	var st *Struct
+	if t := logosAsTuple(T); t != nil {
+		st = t.underlyingStruct()
+	} else {
+		st, _ = T.Underlying().(*Struct)
+		if st == nil || !logosTupleShaped(st) {
+			return nil
+		}
+	}
+	for _, f := range st.fields {
+		if f.name == "T_"+sel || f.name == sel {
+			return f
+		}
+	}
+	return nil
+}
+
 func (check *Checker) logosTupleSelect(x *operand, e *syntax.SelectorExpr) bool {
-	if !check.conf.Logos {
+	if !check.conf.Logos || x.mode() == typexpr {
 		return false
 	}
-	t := logosAsTuple(x.typ())
+	container := x.typ()
+	base, _, _ := logosReadonlyBase(container)
+	t := logosAsTuple(base)
 	if t == nil {
 		return false
 	}
 	if i := logosTupleFieldIndex(t, e.Sel.Value); i >= 0 {
 		x.mode_ = value
 		x.expr = e
-		x.typ_ = t.Elem(i)
+		x.typ_ = logosReadonlyProject(container, t.Elem(i), false)
 		check.record(x)
 		return true
-	}
-	check.errorf(e.Sel, MissingFieldOrMethod, "undefined tuple field %s.%s", x.expr, e.Sel.Value)
-	x.invalidate()
-	return true
-}
-
-// logosImportedTupleSelect checks a selection that misses on a struct
-// but hits the lowered `T_` spelling, for reads of imported
-// tuple-typed values. It reports true when it rewrote the selection.
-func (check *Checker) logosImportedTupleSelect(x *operand, e *syntax.SelectorExpr) bool {
-	if !check.conf.Logos {
-		return false
-	}
-	st, ok := Unalias(x.typ()).(*Struct)
-	if !ok || !logosTupleShaped(st) {
-		return false
-	}
-	want := "T_" + e.Sel.Value
-	for i := range st.NumFields() {
-		if st.Field(i).Name() == want {
-			x.mode_ = value
-			x.expr = e
-			x.typ_ = st.Field(i).Type()
-			check.record(x)
-			return true
-		}
 	}
 	return false
 }
 
-// logosTupleLit checks a *syntax.TupleLit node. Untyped constants
-// default; against a named target the assignment hook rechecks the
-// source elements so constants still convert.
+func (check *Checker) logosImportedTupleSelect(x *operand, e *syntax.SelectorExpr) bool {
+	if !check.conf.Logos {
+		return false
+	}
+	if x.mode() == typexpr {
+		return false
+	}
+	container := x.typ()
+	base, _, _ := logosReadonlyBase(container)
+	if f := logosTupleField(base, e.Sel.Value); f != nil {
+		x.mode_ = value
+		x.expr = e
+		x.typ_ = logosReadonlyProject(container, f.Type(), false)
+		check.record(x)
+		return true
+	}
+	return false
+}
+
 func (check *Checker) logosTupleLit(x *operand, e *syntax.TupleLit) exprKind {
 	types := make([]Type, len(e.Elems))
 	for i, elem := range e.Elems {
 		var op operand
-		check.expr(nil, &op, elem)
+		if !check.logosLambdaDefer(&op, elem) {
+			check.expr(nil, &op, elem)
+		}
 		if !op.isValid() {
 			x.mode_ = invalid
 			x.expr = e
@@ -244,10 +238,6 @@ func (check *Checker) logosTupleLit(x *operand, e *syntax.TupleLit) exprKind {
 	return expression
 }
 
-// logosTupleAssign checks an assignment with a tuple (or tuple-shaped)
-// target or source. Tuple literals recheck their elements against the
-// target so constants convert; other sources convert element-wise. It
-// reports true when handled, even on failure.
 func (check *Checker) logosTupleAssign(x *operand, T Type, context string) bool {
 	if !check.conf.Logos {
 		return false
@@ -265,58 +255,37 @@ func (check *Checker) logosTupleAssign(x *operand, T Type, context string) bool 
 		x.invalidate()
 		return true
 	}
-	if lit, ok := syntax.Unparen(x.expr).(*syntax.TupleLit); ok && len(lit.Elems) == len(targets) {
-		for i, elem := range lit.Elems {
-			var op operand
-			check.expr(nil, &op, elem)
-			check.assignment(&op, targets[i], context)
-		}
-		x.typ_ = T
-		check.record(x)
-		return true
+	lit, ok := syntax.Unparen(x.expr).(*syntax.TupleLit)
+	if !ok || len(lit.Elems) != len(targets) {
+		return false
 	}
-	for i := range targets {
-		op := operand{mode_: value, expr: x.expr, typ_: sources[i]}
+	valid := true
+	for i, elem := range lit.Elems {
+		var op operand
+		if !check.logosLambdaDefer(&op, elem) {
+			check.expr(nil, &op, elem)
+		}
 		check.assignment(&op, targets[i], context)
+		valid = valid && op.isValid()
+	}
+	if !valid {
+		x.invalidate()
+		return true
 	}
 	x.typ_ = T
 	check.record(x)
 	return true
 }
 
-// logosTupleUnpack defines lhsVars from the single tuple-typed value
-// rhs (destructuring `a, b := t`, `return t`). It reports true when
-// handled.
-func (check *Checker) logosTupleUnpack(lhs []*Var, rhs []syntax.Expr, context string) bool {
-	if !check.conf.Logos || len(rhs) != 1 {
-		return false
+func tupleElemOperand(rhs syntax.Expr, i int, typ Type) operand {
+	if lit, ok := syntax.Unparen(rhs).(*syntax.TupleLit); ok && i < len(lit.Elems) {
+		return operand{mode_: value, expr: lit.Elems[i], typ_: typ}
 	}
-	if _, isCall := syntax.Unparen(rhs[0]).(*syntax.CallExpr); isCall {
-		return false
-	}
-	var op operand
-	check.expr(nil, &op, rhs[0])
-	if !op.isValid() {
-		for _, v := range lhs {
-			if v.typ == nil {
-				v.typ = Typ[Invalid]
-			}
-		}
-		return true
-	}
-	elems, ok := tupleElemsOf(op.typ())
-	if !ok || len(elems) != len(lhs) {
-		return false
-	}
-	for i, v := range lhs {
-		el := operand{mode_: value, expr: rhs[0], typ_: elems[i]}
-		check.initVar(v, &el, context)
-	}
-	return true
+	elem := &syntax.ParenExpr{X: rhs}
+	elem.SetPos(rhs.Pos())
+	return operand{mode_: value, expr: elem, typ_: typ}
 }
 
-// tupleCallResults reports the result names and types of the multi-value
-// call e, checking its function once for the signature.
 func (check *Checker) tupleCallResults(e *syntax.CallExpr) ([]string, []Type, bool) {
 	var fop operand
 	check.expr(nil, &fop, e.Fun)
@@ -333,10 +302,6 @@ func (check *Checker) tupleCallResults(e *syntax.CallExpr) ([]string, []Type, bo
 	return names, types, true
 }
 
-// logosTuplePack defines the single lhs variable from a multi-value
-// call (packing `t := pair()`), or assigns the call results to an
-// existing tuple variable. Result names become the tuple names. It
-// reports true when handled.
 func (check *Checker) logosTuplePack(lhs []*Var, rhs []syntax.Expr, results []*operand, context string) bool {
 	if !check.conf.Logos || len(lhs) != 1 || len(results) < 2 {
 		return false
@@ -362,11 +327,6 @@ func (check *Checker) logosTuplePack(lhs []*Var, rhs []syntax.Expr, results []*o
 	return true
 }
 
-// logosTupleInitVars handles pack and unpack in initVars (short
-// declarations, multi-name var specs, returns). Pack takes a
-// multi-value call into one new or declared tuple variable; unpack
-// defines one variable per element of a single tuple value. It reports
-// true when handled.
 func (check *Checker) logosTupleInitVars(lhs []*Var, orig_rhs []syntax.Expr, rhs []*operand, context string) bool {
 	if !check.conf.Logos {
 		return false
@@ -375,15 +335,12 @@ func (check *Checker) logosTupleInitVars(lhs []*Var, orig_rhs []syntax.Expr, rhs
 		return check.logosTuplePack(lhs, orig_rhs, rhs, context)
 	}
 	if len(rhs) == 1 && len(lhs) >= 2 {
-		if _, isCall := syntax.Unparen(orig_rhs[0]).(*syntax.CallExpr); isCall {
-			return false
-		}
 		elems, ok := tupleElemsOf(rhs[0].typ())
 		if !ok || len(elems) != len(lhs) {
 			return false
 		}
 		for i, v := range lhs {
-			el := operand{mode_: value, expr: orig_rhs[0], typ_: elems[i]}
+			el := tupleElemOperand(orig_rhs[0], i, elems[i])
 			check.initVar(v, &el, context)
 		}
 		return true
@@ -391,8 +348,6 @@ func (check *Checker) logosTupleInitVars(lhs []*Var, orig_rhs []syntax.Expr, rhs
 	return false
 }
 
-// logosTupleAssignStmt handles pack and unpack in assignVars (`t = f()`
-// and `a, b = t`). It reports true when handled.
 func (check *Checker) logosTupleAssignStmt(lhs []syntax.Expr, orig_rhs []syntax.Expr, rhs []*operand, context string) bool {
 	if !check.conf.Logos {
 		return false
@@ -420,15 +375,12 @@ func (check *Checker) logosTupleAssignStmt(lhs []syntax.Expr, orig_rhs []syntax.
 		return true
 	}
 	if len(rhs) == 1 && len(lhs) >= 2 {
-		if _, isCall := syntax.Unparen(orig_rhs[0]).(*syntax.CallExpr); isCall {
-			return false
-		}
 		elems, ok := tupleElemsOf(rhs[0].typ())
 		if !ok || len(elems) != len(lhs) {
 			return false
 		}
 		for i, l := range lhs {
-			el := operand{mode_: value, expr: orig_rhs[0], typ_: elems[i]}
+			el := tupleElemOperand(orig_rhs[0], i, elems[i])
 			check.assignVar(l, orig_rhs[0], &el, context)
 		}
 		return true
@@ -436,8 +388,6 @@ func (check *Checker) logosTupleAssignStmt(lhs []syntax.Expr, orig_rhs []syntax.
 	return false
 }
 
-// tupleAssignTarget reports the declared type of the assignment target
-// lhs, or nil for the blank identifier and unresolvable targets.
 func (check *Checker) tupleAssignTarget(lhs syntax.Expr) Type {
 	ident, ok := syntax.Unparen(lhs).(*syntax.Name)
 	if !ok || ident.Value == "_" {
@@ -449,9 +399,6 @@ func (check *Checker) tupleAssignTarget(lhs syntax.Expr) Type {
 	return nil
 }
 
-// logosTupleNilCheck rejects a targetless tuple literal holding
-// untyped nil (`u := (1, nil)`); against a declared target the
-// assignment hook converts nil instead. It reports true when handled.
 func (check *Checker) logosTupleNilCheck(lhs *Var, x *operand, context string) bool {
 	if !check.conf.Logos || lhs.typ != nil || !x.isValid() {
 		return false
@@ -471,9 +418,6 @@ func (check *Checker) logosTupleNilCheck(lhs *Var, x *operand, context string) b
 	return false
 }
 
-// logosTupleVarSpec handles a single var spec with a multi-value call
-// initializer (`var t T = f()`, `var t = f()`): the results pack into
-// the declared or inferred tuple. It reports true when handled.
 func (check *Checker) logosTupleVarSpec(obj *Var, init syntax.Expr) bool {
 	if !check.conf.Logos {
 		return false

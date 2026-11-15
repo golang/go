@@ -1,0 +1,30 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# Every position of a channel operation in a segment lambda of a group
+# stage waits in a select with the group context, natively and in the
+# ejected module. chain_stage_positions.lgo prints one ok line per position,
+# for the value and for the cancelled stage.
+cp $GOROOT/test/logos/run/chain_stage_positions.lgo a/main.lgo
+
+cd a
+logos run .
+cmp stdout $GOROOT/test/logos/run/chain_stage_positions.out
+logos eject -o out
+exists out/main.go
+! exists out/main.lgo
+cd out
+go run .
+cmp stdout $GOROOT/test/logos/run/chain_stage_positions.out
+# SPEC 0.3: ejected output builds and runs with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/chain_stage_positions.out
+cd ../..
+
+-- a/go.mod --
+module example.com/chainstagepositions
+
+go 1.27

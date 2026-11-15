@@ -2,11 +2,21 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
-// A chain lambda with a call of unknown purity before sortBy warns
-// suspicious::side_effect_before_sort (#31) but still runs: the warning
-// is soft, so the build succeeds and the program output follows it.
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 var effCalls int
 
@@ -18,8 +28,11 @@ func eff(x int) int {
 func main() {
 	effCalls = 0
 	r := []int{3, 1, 2}.map(x => eff(x)).sortBy(x => x) // ERROR "warning: \[suspicious::side_effect_before_sort\] chain lambda with a call of unknown purity before sortBy"
-	fmt.Println(r)
-	fmt.Println(effCalls)
+	check("sorted", fmt.Sprint(r) == "[1 2 3]", fmt.Sprint(r), "[1 2 3]")
+	check("calls", effCalls == 3, effCalls, 3)
 	p := []int{3, 1, 2}.map(x => x * 2).sortBy(x => x)
-	fmt.Println(p)
+	check("scaled", fmt.Sprint(p) == "[2 4 6]", fmt.Sprint(p), "[2 4 6]")
+	if failed {
+		os.Exit(1)
+	}
 }

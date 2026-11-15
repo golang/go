@@ -1,11 +1,8 @@
-# M10-S2: logos context prints the declaration, method signatures, and one
-# level of mentioned types with no bodies, for .lgo and .go packages.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
 cd ctx
 
-# .lgo package: declaration, method signatures, one level of types, no bodies.
 logos context 'example.com/lmod/p#Service'
 stdout 'type Service struct'
 stdout 'NewService\(cfg Config\)'
@@ -16,7 +13,6 @@ stdout 'type Config struct'
 ! stdout 'stopped-by-stop'
 ! stdout 'type Secret struct'
 
-# .go package: same contract.
 logos context 'example.com/gmod/q#Store'
 stdout 'type Store struct'
 stdout 'Open\(opts Options\)'
@@ -26,7 +22,6 @@ stdout 'type Options struct'
 ! stdout 'opened-by-open'
 ! stdout 'closed-by-close'
 
-# Unknown symbol reports the package base and the missing symbol exactly.
 ! logos context 'example.com/lmod/p#Missing'
 stderr '^logos context: p has no symbol Missing$'
 ! logos context 'example.com/gmod/q#Missing'

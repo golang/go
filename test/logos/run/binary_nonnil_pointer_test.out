@@ -1,0 +1,13 @@
+ok nonnil-pointer-roundtrip
+ok nonnil-pointer-absent-option-stays-none
+ok nonnil-pointer-missing-rejected
+ok nonnil-pointer-missing-offset
+ok anonymous-roundtrip
+ok anonymous-struct-missing
+ok anonymous-struct-missing-offset
+ok anonymous-nested-missing
+ok anonymous-nested-missing-offset
+ok anonymous-array-missing
+ok anonymous-array-missing-offset
+ok anonymous-slice-missing
+ok anonymous-slice-missing-offset

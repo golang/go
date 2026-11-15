@@ -1,0 +1,797 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+logos run .
+stdout '^nested unions ok$'
+logos run ./option
+stdout '^nested option ok$'
+logos run ./pointer
+stdout '^nested pointer ok$'
+logos run ./alias
+stdout '^nested alias ok$'
+logos run ./named
+stdout '^nested named ok$'
+logos run ./wrapped
+stdout '^nested wrapped ok$'
+logos run ./shapes
+stdout '^nested shapes ok$'
+logos eject -o out
+cd out
+exists $UPROOT1272/bin/go
+exec env -u GOROOT $UPROOT1272/bin/go run .
+stdout '^nested unions ok$'
+exec env -u GOROOT $UPROOT1272/bin/go run ./option
+stdout '^nested option ok$'
+exec env -u GOROOT $UPROOT1272/bin/go run ./pointer
+stdout '^nested pointer ok$'
+exec env -u GOROOT $UPROOT1272/bin/go run ./alias
+stdout '^nested alias ok$'
+exec env -u GOROOT $UPROOT1272/bin/go run ./named
+stdout '^nested named ok$'
+exec env -u GOROOT $UPROOT1272/bin/go run ./wrapped
+stdout '^nested wrapped ok$'
+exec env -u GOROOT $UPROOT1272/bin/go run ./shapes
+stdout '^nested shapes ok$'
+
+-- m/go.mod --
+module example.com/nestedunion
+
+go 1.27
+
+-- m/member/member.lgo --
+package member
+
+type A struct {
+	A int `json:"a"`
+}
+type B struct {
+	B int `json:"b"`
+}
+type Mirror struct {
+	A int `json:"a"`
+}
+type U interface { A | B }
+type Ambiguous interface { A | Mirror }
+
+-- m/main.lgo --
+package main
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"strings"
+	"logos/rt"
+	"example.com/nestedunion/member"
+)
+
+type Alias = member.U
+type H struct {
+	Maps []map[string]Alias `json:"maps"`
+	Mm map[string][]member.U `json:"mm"`
+	Sl [][]member.U `json:"sl"`
+	Deep []map[string][][2]member.U `json:"deep"`
+	Amb map[string][][]member.Ambiguous `json:"amb"`
+}
+
+func main() {
+	checkPresentContainers()
+	checkRejectedMembers()
+	checkNullContainers()
+	checkWrongContainerKinds()
+	checkNonObjectMaps()
+	checkNestedNonObject()
+	checkDeepNull()
+	fmt.Println("nested unions ok")
+}
+
+func checkPresentContainers() {
+	const input = `{"maps":[{"x":{"a":1}},{"y":{"b":2}}],"mm":{"x":[{"b":3},{"a":4}]},"sl":[[{"a":5}],[{"b":6}]],"deep":[{"x":[[{"a":7},{"b":8}]]}]}`
+	var h H
+	if err := json.Unmarshal([]byte(input), &h); err != nil { panic(err) }
+	checkPresentValues(h)
+	// Encoding and a second decode must retain member identity at every depth.
+	encoded, err := json.Marshal(h)
+	if err != nil { panic(err) }
+	var again H
+	if err := json.Unmarshal(encoded, &again); err != nil { panic(err) }
+	checkPresentValues(again)
+}
+
+func checkPresentValues(h H) {
+	mapX, ok := h.Maps[0]["x"]
+	if !ok { panic("missing maps x") }
+	checkA(mapX, 1)
+	mapY, ok := h.Maps[1]["y"]
+	if !ok { panic("missing maps y") }
+	checkB(mapY, 2)
+	mmX, ok := h.Mm["x"]
+	if !ok { panic("missing mm x") }
+	checkB(mmX[0], 3)
+	checkA(mmX[1], 4)
+	checkA(h.Sl[0][0], 5)
+	checkB(h.Sl[1][0], 6)
+	deepX, ok := h.Deep[0]["x"]
+	if !ok { panic("missing deep x") }
+	checkA(deepX[0][0], 7)
+	checkB(deepX[0][1], 8)
+}
+
+func checkRejectedMembers() {
+	for _, input := range []string{
+		`{"maps":[{"x":{"z":1}}]}`,
+		`{"mm":{"x":[{"z":1}]}}`,
+		`{"sl":[[{"z":1}]]}`,
+		`{"deep":[{"x":[[{"z":1}]]}]}`,
+	} {
+		var bad H
+		checkError(json.Unmarshal([]byte(input), &bad), 0)
+	}
+	var ambiguous H
+	checkError(json.Unmarshal([]byte(`{"amb":{"x":[[{"a":1}]]}}`), &ambiguous), 2)
+	if ambiguous.Amb != nil { panic("ambiguous map assigned") }
+}
+
+func checkNullContainers() {
+	var nulls H
+	if err := json.Unmarshal([]byte(`{"maps":[null,{"x":null}],"mm":{"x":null},"sl":[null,[null]],"deep":[{"x":[null]}]}`), &nulls); err != nil { panic(err) }
+	nullMapX, ok := nulls.Maps[1]["x"]
+	if !ok { panic("missing null maps x") }
+	nullMmX, ok := nulls.Mm["x"]
+	if !ok { panic("missing null mm x") }
+	if nulls.Maps[0] != nil || nullMapX != nil || nullMmX != nil || nulls.Sl[0] != nil || nulls.Sl[1][0] != nil { panic("nested null") }
+}
+
+func checkWrongContainerKinds() {
+	// A skipped wrong-kind descendant must retain its saved scanner error,
+	// while still decoding later siblings and later top-level fields.
+	for _, input := range []string{
+		`{"mm":{"x":42}}`,
+		`{"mm":{"x":42,"y":[{"b":21}]},"sl":[[{"a":22}]]}`,
+		`{"deep":[{"x":42,"y":[[{"a":23},{"b":24}]]}],"sl":[[{"a":22}]]}`,
+		`{"deep":[{"x":[42,[{"a":23},{"b":24}]]}],"sl":[[{"a":22}]]}`,
+	} {
+		var bad H
+		err := json.Unmarshal([]byte(input), &bad)
+		var typeErr *json.UnmarshalTypeError?
+		if err == nil || !errors.As(err, &typeErr) { panic(fmt.Sprintf("want container type error, got %v", err)) }
+		checkContainerProgress(input, bad)
+	}
+}
+
+func checkContainerProgress(input string, bad H) {
+	if strings.Contains(input, `"sl"`) {
+		if len(bad.Sl) != 1 || len(bad.Sl[0]) != 1 { panic("lost later field") }
+		checkA(bad.Sl[0][0], 22)
+	}
+	if strings.Contains(input, `"b":21`) {
+		y, ok := bad.Mm["y"]
+		if !ok || len(y) != 1 { panic("lost map sibling") }
+		checkB(y[0], 21)
+	}
+	if strings.Contains(input, `"a":23`) {
+		checkDeepProgress(input, bad)
+	}
+}
+
+func checkDeepProgress(input string, bad H) {
+	key := "y"
+	index := 0
+	if strings.Contains(input, `"x":[42`) { key = "x"; index = 1 }
+	values, ok := bad.Deep[0][key]
+	if !ok || len(values) <= index { panic("lost deep sibling") }
+	checkA(values[index][0], 23)
+	checkB(values[index][1], 24)
+}
+
+func wantTypeError(input string) H {
+	var bad H
+	err := json.Unmarshal([]byte(input), &bad)
+	var typeErr *json.UnmarshalTypeError?
+	if err == nil || !errors.As(err, &typeErr) { panic(fmt.Sprintf("%s: want type error, got %v", input, err)) }
+	return bad
+}
+
+func onlySl(h H) member.U {
+	if len(h.Sl) != 1 || len(h.Sl[0]) != 1 { panic("lost later top-level field") }
+	return h.Sl[0][0]
+}
+
+// A value that is not an object where a map is expected saves one type error
+// and decoding continues with later siblings and later top-level fields, as
+// encoding/json does.
+func checkNonObjectMaps() {
+	top := wantTypeError(`{"mm":42,"sl":[[{"a":22}]]}`)
+	checkA(onlySl(top), 22)
+	arr := wantTypeError(`{"mm":[1],"sl":[[{"a":22}]]}`)
+	checkA(onlySl(arr), 22)
+	elem := wantTypeError(`{"maps":[42,{"y":{"b":2}}],"sl":[[{"a":22}]]}`)
+	if len(elem.Maps) != 2 { panic("lost map element after non-object element") }
+	later, ok := elem.Maps[1]["y"]
+	if !ok { panic("lost map element sibling") }
+	checkB(later, 2)
+	checkA(onlySl(elem), 22)
+}
+
+func checkNestedNonObject() {
+	deep := wantTypeError(`{"deep":[42,{"y":[[{"a":23},{"b":24}]]}],"sl":[[{"a":22}]]}`)
+	if len(deep.Deep) != 2 { panic("lost deep element after non-object element") }
+	pairs, ok := deep.Deep[1]["y"]
+	if !ok || len(pairs) != 1 { panic("lost deep sibling") }
+	checkA(pairs[0][0], 23)
+	checkB(pairs[0][1], 24)
+	checkA(onlySl(deep), 22)
+	slice := wantTypeError(`{"sl":42,"mm":{"y":[{"b":21}]}}`)
+	y, ok := slice.Mm["y"]
+	if !ok || len(y) != 1 { panic("lost field after wrong top container") }
+	checkB(y[0], 21)
+	obj := wantTypeError(`{"maps":{"x":1},"sl":[[{"a":22}]]}`)
+	checkA(onlySl(obj), 22)
+}
+
+func checkDeepNull() {
+	var h H
+	if err := json.Unmarshal([]byte(`{"deep":[null,{"x":null},{"y":[null,[{"a":1},null]]}]}`), &h); err != nil { panic(err) }
+	if len(h.Deep) != 3 || h.Deep[0] != nil { panic("deep null map element") }
+	x, ok := h.Deep[1]["x"]
+	if !ok || x != nil { panic("deep null slice value") }
+	y, ok := h.Deep[2]["y"]
+	if !ok || len(y) != 2 { panic("deep y length") }
+	if y[0][0] != nil || y[0][1] != nil { panic("deep null array element") }
+	checkA(y[1][0], 1)
+	if y[1][1] != nil { panic("deep null array member") }
+}
+
+func checkA(u member.U, want int) {
+	a, ok := u.(member.A)
+	if !ok || a.A != want { panic(fmt.Sprintf("want A(%d), got %#v", want, u)) }
+}
+func checkB(u member.U, want int) {
+	b, ok := u.(member.B)
+	if !ok || b.B != want { panic(fmt.Sprintf("want B(%d), got %#v", want, u)) }
+}
+func checkError(err error, matched int) {
+	var trial rt.UnionTrialError
+	if !errors.As(err, &trial) || trial.Matched != matched || trial.Total != 2 { panic(fmt.Sprintf("want %d matches, got %v", matched, err)) }
+	if len(trial.Members) != 2 { panic("member list") }
+	if matched == 2 && (!strings.HasSuffix(trial.Members[0], ".A") || !strings.HasSuffix(trial.Members[1], ".Mirror")) { panic("member declaration order") }
+}
+
+-- m/option/main.lgo --
+package main
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"logos/rt"
+	"example.com/nestedunion/member"
+)
+
+type H struct {
+	V (member.U?)? `json:"v"`
+}
+
+func check(h H, want int) {
+	if want == 0 {
+		if h.V != nil { panic("want outer none") }
+		return
+	}
+	if h.V == nil { panic("missing outer option") }
+	var absent member.U?
+	inner := h.V ?? absent
+	if inner == nil { panic("missing inner option") }
+	var fallback member.U = member.A{A: -1}
+	u := inner ?? fallback
+	if want == 1 {
+		a, ok := u.(member.A)
+		if !ok || a.A != 31 { panic("nested option A") }
+	} else {
+		b, ok := u.(member.B)
+		if !ok || b.B != 32 { panic("nested option B") }
+	}
+}
+
+func checkNoMember() {
+	for _, input := range []string{`{"v":{"z":1}}`, `{"v":42}`} {
+		var h H
+		err := json.Unmarshal([]byte(input), &h)
+		var trial rt.UnionTrialError
+		if !errors.As(err, &trial) || trial.Matched != 0 || trial.Total != 2 { panic(fmt.Sprintf("%s: want zero-match union error, got %v", input, err)) }
+	}
+}
+
+func main() {
+	checkNoMember()
+	for i, input := range []string{`{}`, `{"v":{"a":31}}`, `{"v":{"b":32}}`, `{"v":null}`} {
+		want := i
+		if i == 3 { want = 0 }
+		var h H
+		if err := json.Unmarshal([]byte(input), &h); err != nil { panic(err) }
+		check(h, want)
+		data, err := json.Marshal(h)
+		if err != nil { panic(err) }
+		var again H
+		if err := json.Unmarshal(data, &again); err != nil { panic(err) }
+		check(again, want)
+	}
+	fmt.Println("nested option ok")
+}
+
+-- m/pointer/main.lgo --
+package main
+
+import (
+	"encoding/json"
+	"errors"
+	"logos/rt"
+	"fmt"
+	"example.com/nestedunion/member"
+)
+
+type OptionalUnion = member.U?
+
+type H struct {
+	V *(member.U?) `json:"v"`
+}
+
+func check(h H, want int) {
+	if h.V == nil { panic("missing pointer") }
+	inner := *h.V
+	if inner == nil { panic("missing pointed option") }
+	var fallback member.U = member.A{A: -1}
+	u := inner ?? fallback
+	if want == 1 {
+		a, ok := u.(member.A)
+		if !ok || a.A != 41 { panic("pointed option A") }
+	} else {
+		b, ok := u.(member.B)
+		if !ok || b.B != 42 { panic("pointed option B") }
+	}
+}
+
+func main() {
+	checkRequiredPointer()
+	checkNoMember()
+	for i, input := range []string{`{"v":{"a":41}}`, `{"v":{"b":42}}`} {
+		want := i + 1
+		h := H{V: new(OptionalUnion)}
+		if err := json.Unmarshal([]byte(input), &h); err != nil { panic(err) }
+		check(h, want)
+		data, err := json.Marshal(h)
+		if err != nil { panic(err) }
+		again := H{V: new(OptionalUnion)}
+		if err := json.Unmarshal(data, &again); err != nil { panic(err) }
+		check(again, want)
+	}
+	fmt.Println("nested pointer ok")
+}
+
+func checkRequiredPointer() {
+	// SPEC 10.2: an absent or JSON-null non-nil field returns MissingFieldError
+	// naming type and field, even when the holder already carries a pointer.
+	for _, input := range []string{`{}`, `{"v":null}`} {
+		h := H{V: new(OptionalUnion)}
+		err := json.Unmarshal([]byte(input), &h)
+		var missing rt.MissingFieldError
+		if err == nil || !errors.As(err, &missing) || missing.Type != "H" || missing.Field != "V" { panic(fmt.Sprintf("want missing H.V, got %v", err)) }
+	}
+}
+
+func checkNoMember() {
+	for _, input := range []string{`{"v":{"z":1}}`, `{"v":42}`} {
+		h := H{V: new(OptionalUnion)}
+		err := json.Unmarshal([]byte(input), &h)
+		var trial rt.UnionTrialError
+		if !errors.As(err, &trial) || trial.Matched != 0 || trial.Total != 2 { panic(fmt.Sprintf("%s: want zero-match union error, got %v", input, err)) }
+	}
+}
+
+-- m/alias/main.lgo --
+package main
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"logos/rt"
+	xs "example.com/nestedunion/member"
+)
+
+type Optional = (xs.U?)?
+
+type H struct {
+	Us  []xs.U              `json:"us"`
+	Um  map[string]xs.U     `json:"um"`
+	Uss [][]xs.U            `json:"uss"`
+	Ua  [2]xs.U             `json:"ua"`
+	Umm []map[string][]xs.U `json:"umm"`
+	Uo  (xs.U?)?            `json:"uo"`
+}
+
+const aliasInput = `{"us":[{"a":1},{"b":2}],"um":{"x":{"a":3},"y":{"b":4}},"uss":[[{"a":5}],[{"b":6}]],"ua":[{"b":7},{"a":8}],"umm":[{"x":[{"a":9},{"b":10}]}],"uo":{"b":11}}`
+
+func main() {
+	// The member package is imported as xs: every generated container,
+	// option and leaf spelling must use the file's own import name.
+	var h H
+	if err := json.Unmarshal([]byte(aliasInput), &h); err != nil { panic(err) }
+	checkValues(h)
+	encoded, err := json.Marshal(h)
+	if err != nil { panic(err) }
+	var again H
+	if err := json.Unmarshal(encoded, &again); err != nil { panic(err) }
+	checkValues(again)
+	checkRejected()
+	fmt.Println("nested alias ok")
+}
+
+func checkValues(h H) {
+	if len(h.Us) != 2 || len(h.Uss) != 2 || len(h.Umm) != 1 { panic("lost alias containers") }
+	checkA(h.Us[0], 1)
+	checkB(h.Us[1], 2)
+	um, ok := h.Um["x"]
+	if !ok { panic("missing um x") }
+	checkA(um, 3)
+	um, ok = h.Um["y"]
+	if !ok { panic("missing um y") }
+	checkB(um, 4)
+	checkA(h.Uss[0][0], 5)
+	checkB(h.Uss[1][0], 6)
+	checkB(h.Ua[0], 7)
+	checkA(h.Ua[1], 8)
+	umm, ok := h.Umm[0]["x"]
+	if !ok || len(umm) != 2 { panic("missing umm x") }
+	checkA(umm[0], 9)
+	checkB(umm[1], 10)
+	checkOption(h.Uo, 11)
+}
+
+func checkOption(o Optional, want int) {
+	var absent xs.U?
+	inner := o ?? absent
+	if inner == nil { panic("lost alias option") }
+	var fallback xs.U = xs.A{A: -1}
+	checkB(inner ?? fallback, want)
+}
+
+func checkRejected() {
+	for _, input := range []string{
+		`{"us":[{"z":1}]}`,
+		`{"um":{"x":{"z":1}}}`,
+		`{"uss":[[{"z":1}]]}`,
+		`{"ua":[{"z":1},{"a":1}]}`,
+		`{"umm":[{"x":[{"z":1}]}]}`,
+		`{"uo":{"z":1}}`,
+	} {
+		var h H
+		err := json.Unmarshal([]byte(input), &h)
+		var trial rt.UnionTrialError
+		if !errors.As(err, &trial) || trial.Matched != 0 || trial.Total != 2 { panic(fmt.Sprintf("%s: want zero-match union error, got %v", input, err)) }
+	}
+}
+
+func checkA(u xs.U, want int) {
+	a, ok := u.(xs.A)
+	if !ok || a.A != want { panic(fmt.Sprintf("want A(%d), got %#v", want, u)) }
+}
+func checkB(u xs.U, want int) {
+	b, ok := u.(xs.B)
+	if !ok || b.B != want { panic(fmt.Sprintf("want B(%d), got %#v", want, u)) }
+}
+
+-- m/named/main.lgo --
+package main
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"logos/rt"
+	"example.com/nestedunion/member"
+)
+
+type Row []member.U
+type Dict map[string]member.U
+type Pair [2]member.U
+type Key string
+
+type H struct {
+	R  Row                `json:"row"`
+	Rs []Row              `json:"rows"`
+	D  Dict               `json:"dict"`
+	Pr Pair               `json:"pair"`
+	K  map[Key]member.U   `json:"keyed"`
+	G  map[Key][]member.U `json:"grid"`
+}
+
+type Pointed struct {
+	P *[]member.U `json:"p"`
+}
+
+// Options over closed unions are transparent on the wire: none is JSON null
+// or an absent key, some is the payload itself.
+type Optioned struct {
+	S ([]member.U)?          `json:"s"`
+	A ([2]member.U)?         `json:"a"`
+	M (map[string]member.U)? `json:"m"`
+}
+
+const namedInput = `{"row":[{"a":1},{"b":2}],"rows":[[{"b":3}],[{"a":4},{"b":5}]],"dict":{"x":{"a":6},"y":{"b":7}},"pair":[{"b":8},{"a":9}],"keyed":{"x":{"a":10},"y":{"b":11}},"grid":{"g":[{"b":12},{"a":13}]}}`
+
+func main() {
+	// Named containers, defined string keys, pointers and options over a
+	// container decode union leaves by members, never through an erased value.
+	var h H
+	if err := json.Unmarshal([]byte(namedInput), &h); err != nil { panic(err) }
+	checkNamed(h)
+	encoded, err := json.Marshal(h)
+	if err != nil { panic(err) }
+	var again H
+	if err := json.Unmarshal(encoded, &again); err != nil { panic(err) }
+	checkNamed(again)
+	checkRejected()
+	checkPointed()
+	checkOptioned()
+	fmt.Println("nested named ok")
+}
+
+func checkNamed(h H) {
+	if len(h.R) != 2 || len(h.Rs) != 2 || len(h.Rs[1]) != 2 { panic("lost named slices") }
+	checkA(h.R[0], 1)
+	checkB(h.R[1], 2)
+	checkB(h.Rs[0][0], 3)
+	checkA(h.Rs[1][0], 4)
+	checkB(h.Rs[1][1], 5)
+	dx, ok := h.D["x"]
+	if !ok { panic("missing dict x") }
+	checkA(dx, 6)
+	dy, ok := h.D["y"]
+	if !ok { panic("missing dict y") }
+	checkB(dy, 7)
+	checkB(h.Pr[0], 8)
+	checkA(h.Pr[1], 9)
+	kx, ok := h.K[Key("x")]
+	if !ok { panic("missing keyed x") }
+	checkA(kx, 10)
+	ky, ok := h.K[Key("y")]
+	if !ok { panic("missing keyed y") }
+	checkB(ky, 11)
+	g, ok := h.G[Key("g")]
+	if !ok || len(g) != 2 { panic("lost keyed grid") }
+	checkB(g[0], 12)
+	checkA(g[1], 13)
+}
+
+func wantNoMember(input string, into any) {
+	err := json.Unmarshal([]byte(input), into)
+	var trial rt.UnionTrialError
+	if !errors.As(err, &trial) || trial.Matched != 0 || trial.Total != 2 { panic(fmt.Sprintf("%s: want zero-match union error, got %v", input, err)) }
+}
+
+func checkRejected() {
+	for _, input := range []string{
+		`{"row":[{"z":1}]}`,
+		`{"rows":[[{"z":1}]]}`,
+		`{"dict":{"x":{"z":1}}}`,
+		`{"pair":[{"z":1},{"a":1}]}`,
+		`{"keyed":{"x":{"z":1}}}`,
+		`{"grid":{"g":[{"z":1}]}}`,
+	} {
+		var h H
+		wantNoMember(input, &h)
+	}
+	p := Pointed{P: new([]member.U)}
+	wantNoMember(`{"p":[{"z":1}]}`, &p)
+	for _, input := range []string{`{"s":[{"z":1}]}`, `{"a":[{"z":1},{"a":1}]}`, `{"m":{"x":{"z":1}}}`} {
+		var o Optioned
+		wantNoMember(input, &o)
+	}
+}
+
+func checkPointed() {
+	p := Pointed{P: new([]member.U)}
+	if err := json.Unmarshal([]byte(`{"p":[{"a":1},{"b":2}]}`), &p); err != nil { panic(err) }
+	if len(*p.P) != 2 { panic("lost pointed slice") }
+	checkA((*p.P)[0], 1)
+	checkB((*p.P)[1], 2)
+	for _, input := range []string{`{}`, `{"p":null}`} {
+		q := Pointed{P: new([]member.U)}
+		err := json.Unmarshal([]byte(input), &q)
+		var missing rt.MissingFieldError
+		if err == nil || !errors.As(err, &missing) || missing.Type != "Pointed" || missing.Field != "P" { panic(fmt.Sprintf("want missing Pointed.P for %s, got %v", input, err)) }
+	}
+}
+
+func checkOptioned() {
+	var o Optioned
+	input := `{"s":[{"a":1},{"b":2}],"a":[{"b":3},{"a":4}],"m":{"x":{"a":5},"y":{"b":6}}}`
+	if err := json.Unmarshal([]byte(input), &o); err != nil { panic(err) }
+	if o.S == nil || o.A == nil || o.M == nil { panic("lost option over container") }
+	var noS []member.U
+	var noA [2]member.U
+	var noM map[string]member.U
+	s := o.S ?? noS
+	a := o.A ?? noA
+	m := o.M ?? noM
+	if len(s) != 2 || len(m) != 2 { panic("lost option payload") }
+	checkA(s[0], 1)
+	checkB(s[1], 2)
+	checkB(a[0], 3)
+	checkA(a[1], 4)
+	mx, ok := m["x"]
+	if !ok { panic("missing option map x") }
+	checkA(mx, 5)
+	my, ok := m["y"]
+	if !ok { panic("missing option map y") }
+	checkB(my, 6)
+	checkNone(`{}`)
+	checkNone(`{"s":null,"a":null,"m":null}`)
+}
+
+func checkNone(input string) {
+	var o Optioned
+	if err := json.Unmarshal([]byte(input), &o); err != nil { panic(err) }
+	if o.S != nil || o.A != nil || o.M != nil { panic(fmt.Sprintf("%s: want none", input)) }
+}
+
+func checkA(u member.U, want int) {
+	a, ok := u.(member.A)
+	if !ok || a.A != want { panic(fmt.Sprintf("want A(%d), got %#v", want, u)) }
+}
+func checkB(u member.U, want int) {
+	b, ok := u.(member.B)
+	if !ok || b.B != want { panic(fmt.Sprintf("want B(%d), got %#v", want, u)) }
+}
+
+-- m/wrapped/main.lgo --
+package main
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"logos/rt"
+	"example.com/nestedunion/member"
+)
+
+type Mid = (member.U?)?
+
+type H struct {
+	V ((member.U?)?)? `json:"v"`
+}
+
+// Every layer of a triple option must hold the decoded member: Some(None) at
+// any layer is a decode fault.
+func payload(h H) member.U {
+	var none2 Mid
+	var none1 member.U?
+	mid := h.V ?? none2
+	if mid == nil { panic("lost outer option") }
+	inner := mid ?? none1
+	if inner == nil { panic("lost middle option") }
+	var fallback member.U = member.A{A: -1}
+	return inner ?? fallback
+}
+
+func check(h H, want int) {
+	if want == 0 {
+		if h.V != nil { panic("want outer none") }
+		return
+	}
+	if h.V == nil { panic("missing outer option") }
+	u := payload(h)
+	if want == 1 {
+		a, ok := u.(member.A)
+		if !ok || a.A != 51 { panic(fmt.Sprintf("want A(51), got %#v", u)) }
+	} else {
+		b, ok := u.(member.B)
+		if !ok || b.B != 52 { panic(fmt.Sprintf("want B(52), got %#v", u)) }
+	}
+}
+
+func checkNoMember() {
+	for _, input := range []string{`{"v":{"z":1}}`, `{"v":42}`} {
+		var h H
+		err := json.Unmarshal([]byte(input), &h)
+		var trial rt.UnionTrialError
+		if !errors.As(err, &trial) || trial.Matched != 0 || trial.Total != 2 { panic(fmt.Sprintf("%s: want zero-match union error, got %v", input, err)) }
+	}
+}
+
+func main() {
+	for i, input := range []string{`{}`, `{"v":{"a":51}}`, `{"v":{"b":52}}`, `{"v":null}`} {
+		want := i
+		if i == 3 { want = 0 }
+		var h H
+		if err := json.Unmarshal([]byte(input), &h); err != nil { panic(err) }
+		check(h, want)
+		data, err := json.Marshal(h)
+		if err != nil { panic(err) }
+		var again H
+		if err := json.Unmarshal(data, &again); err != nil { panic(err) }
+		check(again, want)
+	}
+	checkNoMember()
+	fmt.Println("nested wrapped ok")
+}
+
+-- m/shapes/main.lgo --
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"example.com/nestedunion/member"
+)
+
+type Cell = (member.U?)?
+
+// Options over closed-union containers (OS, OA, OM) and containers of options
+// (ES, EA, EM) are transparent on the wire: none is null, some is the payload,
+// map keys are sorted, and the independent literals below are the oracle in
+// both directions.
+type Shapes struct {
+	OS ([]member.U)?             `json:"os"`
+	OA ([2]member.U)?            `json:"oa"`
+	OM (map[string]member.U)?    `json:"om"`
+	ES []((member.U?)?)          `json:"es"`
+	EA [2]((member.U?)?)         `json:"ea"`
+	EM map[string]((member.U?)?) `json:"em"`
+}
+
+func memA(n int) member.U { return member.A{A: n} }
+func memB(n int) member.U { return member.B{B: n} }
+
+func some(u member.U) Cell {
+	var inner member.U? = u
+	return inner
+}
+
+func none() Cell {
+	var c Cell
+	return c
+}
+
+func fullShapes() Shapes {
+	return Shapes{
+		OS: []member.U{memA(1), memB(2)},
+		OA: [2]member.U{memA(3), memB(4)},
+		OM: map[string]member.U{"f": memA(5), "c": memB(6), "e": memA(7), "a": memB(8), "d": memA(9), "b": memB(10)},
+		ES: []((member.U?)?){some(memA(11)), none(), some(memB(12))},
+		EA: [2]((member.U?)?){none(), some(memA(13))},
+		EM: map[string]((member.U?)?){"f": some(memA(14)), "c": none(), "e": some(memB(15)), "a": some(memA(16)), "d": none(), "b": some(memB(17))},
+	}
+}
+
+func emptyShapes() Shapes {
+	return Shapes{
+		OS: []member.U{},
+		OM: map[string]member.U{},
+		ES: []((member.U?)?){},
+		EM: map[string]((member.U?)?){},
+	}
+}
+
+const fullWire = `{"os":[{"a":1},{"b":2}],"oa":[{"a":3},{"b":4}],"om":{"a":{"b":8},"b":{"b":10},"c":{"b":6},"d":{"a":9},"e":{"a":7},"f":{"a":5}},"es":[{"a":11},null,{"b":12}],"ea":[null,{"a":13}],"em":{"a":{"a":16},"b":{"b":17},"c":null,"d":null,"e":{"b":15},"f":{"a":14}}}`
+const emptyWire = `{"os":[],"oa":null,"om":{},"es":[],"ea":[null,null],"em":{}}`
+const noneWire = `{"os":null,"oa":null,"om":null,"es":null,"ea":[null,null],"em":null}`
+
+func checkWire(name string, v Shapes, want string) {
+	got, err := json.Marshal(v)
+	if err != nil { panic(err) }
+	if string(got) != want { panic(fmt.Sprintf("%s: marshal\n got %s\nwant %s", name, got, want)) }
+	var back Shapes
+	if err := json.Unmarshal([]byte(want), &back); err != nil { panic(fmt.Sprintf("%s: decode: %v", name, err)) }
+	again, err := json.Marshal(back)
+	if err != nil { panic(err) }
+	if string(again) != want { panic(fmt.Sprintf("%s: remarshal\n got %s\nwant %s", name, again, want)) }
+}
+
+func main() {
+	checkWire("full", fullShapes(), fullWire)
+	checkWire("empty", emptyShapes(), emptyWire)
+	checkWire("none", Shapes{}, noneWire)
+	fmt.Println("nested shapes ok")
+}

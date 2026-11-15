@@ -1,0 +1,99 @@
+# S9: implicit placement is on by default under logos. A missing
+# logos.toml still enables logosarena; arena = false opts out; plain go
+# never enables it; an explicit negation still loses to the appended entry.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOEXPERIMENT=
+
+# Missing logos.toml still enables the experiment under logos.
+cd default
+logos build -x -o $WORK/default.bin .
+stderr 'GOEXPERIMENT=[^ ]*logosarena'
+cd ..
+
+# An explicit true enables it.
+cd on
+logos build -x -o $WORK/on.bin .
+stderr 'GOEXPERIMENT=[^ ]*logosarena'
+cd ..
+
+# False opts out.
+cd off
+logos build -x -o $WORK/off.bin .
+! stderr 'GOEXPERIMENT=[^ ]*logosarena'
+cd ..
+
+# Plain go never enables it, even with an explicit true key in logos.toml,
+# which plain go does not read.
+cd godb
+go build -x -o $WORK/plain.bin .
+! stderr 'GOEXPERIMENT=[^ ]*logosarena'
+cd ..
+
+# An explicit negation still loses to the appended entry.
+cd default
+env GOEXPERIMENT=nologosarena
+logos build -x -o $WORK/neg.bin .
+stderr 'GOEXPERIMENT=nologosarena,logosarena'
+env GOEXPERIMENT=
+cd ..
+
+-- default/go.mod --
+module example.com/s9default
+
+go 1.27
+
+-- default/main.lgo --
+package main
+
+import "fmt"
+
+func main() { fmt.Println("default") }
+
+-- on/go.mod --
+module example.com/s9on
+
+go 1.27
+
+-- on/logos.toml --
+[build]
+arena = true
+
+-- on/main.lgo --
+package main
+
+import "fmt"
+
+func main() { fmt.Println("on") }
+
+-- off/go.mod --
+module example.com/s9off
+
+go 1.27
+
+-- off/logos.toml --
+[build]
+arena = false
+
+-- off/main.lgo --
+package main
+
+import "fmt"
+
+func main() { fmt.Println("off") }
+
+-- godb/go.mod --
+module example.com/s9go
+
+go 1.27
+
+-- godb/logos.toml --
+[build]
+arena = true
+
+-- godb/main.go --
+package main
+
+import "fmt"
+
+func main() { fmt.Println("go") }

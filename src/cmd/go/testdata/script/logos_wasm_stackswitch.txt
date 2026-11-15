@@ -1,13 +1,8 @@
-# M16-S1 (SPEC Sec 14.1): logos build --wasm-features=stack-switching runs
-# every goroutine on a WebAssembly continuation instead of resume points.
-# The flag is a build flag of logos build and go build and has no help text,
-# so go help build stays upstream.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 env GOOS=wasip1
 env GOARCH=wasm
 
-# The flag exists on both commands and rejects an unknown feature name.
 ! logos build -wasm-features=bogus -o $WORK/bogus.wasm .
 stderr 'unsupported wasm feature "bogus"'
 ! go build -wasm-features=bogus -o $WORK/bogus.wasm .
@@ -15,47 +10,78 @@ stderr 'unsupported wasm feature "bogus"'
 go help build
 ! stdout 'wasm-features'
 
-# Without the feature the build uses resume points and has no continuation:
-# waits keeps its br_table dispatch, pure callees keep none.
 logos build -gcflags=-S=2 -o $WORK/plain.wasm .
-! stderr 'ContNew'
-! stderr '\tResume\t'
 stderr 'main\.waits<1> STEXT'
 stderr '(?s)main\.waits<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\tBrTable'
-! stderr '(?s)main\.pureLeaf<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\t(BrTable|ContNew|Resume)\t'
-! stderr '(?s)main\.pureSum<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\t(BrTable|ContNew|Resume)\t'
+! stderr '(?s)main\.pureLeaf<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\t(BrTable|ContNew|Resume)'
+! stderr '(?s)main\.pureSum<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\t(BrTable|ContNew|Resume)'
+stderr 'main\.pureCond<1> STEXT'
+stderr '(?s)main\.pureCond<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\tBrTable'
+env GOOS=js
+logos build -gcflags=-S=2 -o $WORK/plain-js.wasm .
+! stderr '(?s)main\.pureLeaf<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\t(BrTable|ContNew|Resume)'
+! stderr '(?s)main\.pureSum<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\t(BrTable|ContNew|Resume)'
+stderr '(?s)main\.waits<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\tBrTable'
+stderr '(?s)main\.pureCond<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\tBrTable'
+env GOOS=wasip1
 
-# With the feature yielding user functions drop dispatch (their calls become
-# ACALLCONT): no BrTable remains in waits, pureLeaf, or pureSum. A caller of
-# runtime.mcall keeps its resume point even outside the runtime (inlined
-# Gosched), because the switch back re-enters that frame, so main keeps its
-# BrTable. (cont.new/resume live in runtime wasm_cont_run, which is assembly
-# and never appears in compiler -S output; execution below is their proof.)
 logos build -wasm-features=stack-switching -gcflags=-S=2 -o $WORK/switch.wasm .
 ! stderr '(?s)main\.waits<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\tBrTable'
-! stderr '(?s)main\.pureLeaf<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\t(BrTable|ContNew|Resume)\t'
-! stderr '(?s)main\.pureSum<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\t(BrTable|ContNew|Resume)\t'
-stderr '(?s)main\.main<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\tBrTable'
+! stderr '(?s)main\.pureLeaf<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\t(BrTable|ContNew|Resume)'
+! stderr '(?s)main\.pureSum<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\t(BrTable|ContNew|Resume)'
+stderr 'main\.main<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\tBrTable'
+stderr '(?s)main\.pureCond<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\tBrTable'
+stderr 'main\.goschedwrap<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\tBrTable'
+# A resuming runtime frame keeps resume-point dispatch under stack
+# switching. Dropping dispatch for runtime frames removes this table.
+logos build -wasm-features=stack-switching -gcflags=runtime=-S=2 -o $WORK/switchrt.wasm .
+stderr '(?s)runtime\.chanrecv<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\tBrTable'
 
-# The same flag works under go build for a Go main package.
+go build -wasm-features=stack-switching -gcflags=-S=2 -o $WORK/gobuild-asm.wasm .
+! stderr '(?s)main\.waits<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\tBrTable'
+! stderr '(?s)main\.pureLeaf<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\t(BrTable|ContNew|Resume)'
+! stderr '(?s)main\.pureSum<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\t(BrTable|ContNew|Resume)'
+stderr 'main\.main<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\tBrTable'
+stderr '(?s)main\.pureCond<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\tBrTable'
+
+stderr '(?s)main\.goschedwrap<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\tBrTable'
+go build -wasm-features=stack-switching -gcflags=runtime=-S=2 -o $WORK/gobuild-rt.wasm .
+stderr '(?s)runtime\.chanrecv<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\tBrTable'
+go build -gcflags=-S=2 -o $WORK/gobuild-plain.wasm .
+stderr '(?s)main\.waits<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\tBrTable'
+stderr '(?s)main\.pureLeaf<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\tBrTable'
+stderr '(?s)main\.pureSum<1> STEXT[^\n]*\n(\t[^\n]*\n)*\t[^\n]*\tBrTable'
+
+logos build -wasm-features=stack-switching -asmflags=runtime=-S -o $WORK/switch-rtasm.wasm .
+stderr '\tContNew'
+stderr '\tResume\t'
+stderr '\tSuspend'
+go build -wasm-features=stack-switching -asmflags=runtime=-S -o $WORK/gobuild-rtasm.wasm .
+stderr '\tContNew'
+stderr '\tResume\t'
+stderr '\tSuspend'
+logos build -asmflags=runtime=-S -o $WORK/plain-rtasm.wasm .
+! stderr '\tContNew'
+! stderr '\tResume\t'
+! stderr '\tSuspend'
+
 go build -wasm-features=stack-switching -o $WORK/gobuild.wasm .
 
-# Execution under a feature-capable engine proves the mcall switch-back
-# resume (no replay of the caller body, switches stays 1), stack growth,
-# panic recovery, and goroutine yield end to end with exact output. The
-# skips below are environmental and reported as skips, never as proof: set
-# LOGOS_REQUIRE_WASMFX=1 to fail instead of skipping when no engine qualifies.
 [!exec:node] skip 'node not in PATH'
 [!wasmfx] skip 'node lacks --experimental-wasm-wasmfx stack switching'
 
 logos build -wasm-features=stack-switching -o $WORK/exe.wasm .
 exec node --experimental-wasm-wasmfx run.mjs $WORK/exe.wasm
 stdout '(?m)^12$'
+stdout '(?m)^2 1$'
 stdout '(?m)^0$'
 stdout '(?m)^7$'
 stdout '(?m)^recovered: boom$'
 stdout '(?m)^1$'
 stdout '(?m)^done$'
+env PATH=$GOROOT${/}bin
+logos build -o $WORK/nopath.wasm .
+exists $WORK/nopath.wasm
 
 -- go.mod --
 module example.com/switch
@@ -77,10 +103,23 @@ func pureLeaf(a, b int) int { return a*b + 3 }
 func pureSum(x int) int { return pureLeaf(x, 1) + pureLeaf(x, 2) }
 
 //go:noinline
+func pureCond(x int) int {
+	if x > 10 {
+		return 1
+	}
+	return 2
+}
+
+//go:noinline
 func waits() int {
 	c := make(chan int, 1)
 	c <- pureSum(2)
 	return <-c
+}
+
+//go:noinline
+func goschedwrap() {
+	runtime.Gosched()
 }
 
 func grow(n int) int {
@@ -101,9 +140,11 @@ var switches int
 
 func main() {
 	fmt.Println(waits())
+	fmt.Println(pureCond(3), pureCond(30))
 	fmt.Println(grow(2000))
 	c := make(chan int, 1)
 	go func() { c <- 7 }()
+	goschedwrap()
 	switches++
 	runtime.Gosched()
 	fmt.Println(<-c)

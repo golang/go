@@ -4,9 +4,6 @@
 
 package p
 
-// M6-S10 scope defer termination shapes: a body ending in a scope defer
-// and an endless loop holding one must check without incident.
-
 func cleanup() {}
 
 func scopeLast() {

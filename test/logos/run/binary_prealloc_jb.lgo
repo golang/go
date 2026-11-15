@@ -1,0 +1,124 @@
+// run
+
+package main
+
+import (
+	"bytes"
+	"encoding/binary"
+	"fmt"
+	"os"
+	"reflect"
+	"strings"
+	"unsafe"
+)
+
+type PreSized struct {
+	Items []uint64 `json:"items"`
+}
+
+func preBound() int {
+	return (1 << 20) / int(unsafe.Sizeof(uint64(0)))
+}
+
+func preWant(n int, rest int) int {
+	m := n
+	if h := rest / 2; h < m {
+		m = h
+	}
+	if b := preBound(); b < m {
+		m = b
+	}
+	return m
+}
+
+func preTrunc(n int, rest int) error {
+	src := []byte{1}
+	src = binary.AppendUvarint(src, uint64(n))
+	src = append(src, make([]byte, rest)...)
+	var got PreSized
+	err := got.UnmarshalBinary(src)
+	if err == nil {
+		return fmt.Errorf("count %d rest %d accepted, want truncation", n, rest)
+	}
+	if !strings.Contains(err.Error(), ".Items") || !strings.Contains(err.Error(), "offset") {
+		return fmt.Errorf("count %d rest %d error lacks field/offset: %w", n, rest, err)
+	}
+	if want := preWant(n, rest); cap(got.Items) > want {
+		return fmt.Errorf("count %d rest %d preallocated cap %d exceeds bound %d", n, rest, cap(got.Items), want)
+	}
+	return nil
+}
+
+func preLenHalf() error {
+	for _, rest := range []int{1998, 2000, 2002} {
+		if err := preTrunc(1000, rest); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func preOneMeg() error {
+	b := preBound()
+	for _, n := range []int{b - 1, b, b + 1} {
+		if err := preTrunc(n, 300000); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func preLawful() error {
+	const n = 200000
+	items := make([]uint64, n)
+	for i := range items {
+		items[i] = uint64(i)
+	}
+	v := PreSized{Items: items}
+	enc, err := v.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	before := append([]byte(nil), enc...)
+	var got PreSized
+	if err := got.UnmarshalBinary(enc); err != nil {
+		return fmt.Errorf("lawful large slice rejected: %w", err)
+	}
+	if !bytes.Equal(enc, before) {
+		return fmt.Errorf("large decode mutated its input")
+	}
+	if !reflect.DeepEqual(got, v) {
+		return fmt.Errorf("large slice decoded %d items, want %d intact", len(got.Items), n)
+	}
+	if got.Items[0] != 0 || got.Items[n-1] != uint64(n-1) {
+		return fmt.Errorf("large slice endpoints changed")
+	}
+	return nil
+}
+
+func run() error {
+if err := preLenHalf(); err != nil {
+return err
+}
+if err := preOneMeg(); err != nil {
+return err
+}
+return preLawful()
+}
+func main() {
+if err := preLenHalf(); err != nil {
+fmt.Println("FAIL prealloc-half:", err)
+os.Exit(1)
+}
+fmt.Println("ok prealloc-half")
+if err := preOneMeg(); err != nil {
+fmt.Println("FAIL prealloc-meg:", err)
+os.Exit(1)
+}
+fmt.Println("ok prealloc-meg")
+if err := preLawful(); err != nil {
+fmt.Println("FAIL prealloc-lawful:", err)
+os.Exit(1)
+}
+fmt.Println("ok prealloc-lawful")
+}

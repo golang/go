@@ -1,0 +1,16 @@
+ok for-init
+ok for-post
+ok for-init-and-post
+ok switch-init
+ok if-init
+ok if-else-init
+ok goto-for-init
+ok goto-for-init-break
+ok goto-for-post-continue
+ok goto-switch-break
+ok goto-over-post
+ok outer-continue
+ok label-in-closure
+ok chain-hoist-init
+ok goto-chain-hoist-init
+ok goto-scope-defer

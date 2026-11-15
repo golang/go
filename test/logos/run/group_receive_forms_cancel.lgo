@@ -1,0 +1,74 @@
+// run
+
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"time"
+)
+
+var siblingError = errors.New("sibling")
+
+func failSibling() error { return siblingError }
+
+func exercise(ctx context.Context, joined []chan struct{}, out []int) error {
+	ch := make(chan int)
+	entered := make(chan struct{}, 4)
+	go group (ctx) {
+		go {
+			defer close(joined[0])
+			entered <- struct{}{}
+			v := (<-ch)
+			out[0] = v
+		}
+		go {
+			defer close(joined[1])
+			entered <- struct{}{}
+			var v = <-ch
+			out[1] = v
+		}
+		go {
+			defer close(joined[2])
+			entered <- struct{}{}
+			x := <-ch + 1
+			out[2] = x
+		}
+		go {
+			defer close(joined[3])
+			entered <- struct{}{}
+			var ( v = <-ch )
+			out[3] = v
+		}
+		go {
+			for i := 0; i < 4; i++ { <-entered }
+			failSibling()?
+		}
+	}
+	return nil
+}
+
+func main() {
+	watchdog := time.AfterFunc(5*time.Second, func() {
+		fmt.Println("FAIL watchdog")
+		os.Exit(1)
+	})
+	defer watchdog.Stop()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	joined := []chan struct{}{make(chan struct{}), make(chan struct{}), make(chan struct{}), make(chan struct{})}
+	out := []int{-1, -1, -1, -1}
+	err := exercise(ctx, joined, out)
+	if !errors.Is(err, siblingError) { panic("FAIL error") }
+	for i, done := range joined {
+		select {
+		case <-done:
+		case <-ctx.Done(): panic("FAIL join canceled")
+		default: panic("FAIL join")
+		}
+		if out[i] != -1 { panic("FAIL receive") }
+	}
+	fmt.Println("ok receive forms cancel")
+}

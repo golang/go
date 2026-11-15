@@ -1,18 +1,11 @@
 // run
-
-// M7-S3 comptime generic with inner lowering (SPEC Sec 2.5, T-205; #76,
-// #128): a `?` call, a `$"..."` interpolation, and a chain call sit in
-// the const for body of a comptime generic, singly and nested. Each
-// instantiation expands into its own copy and each unrolled iteration of
-// a copy lowers on its own; the ejected text matches the native
-// lowering.
-
 package main
 
 import (
 	"comptime"
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 )
 
@@ -27,7 +20,20 @@ type Triple struct {
 	C int
 }
 
+var failed bool
+
+func check(name, got, want string) {
+	if got != want {
+		fmt.Println("FAIL", name, "got", got, "want", want)
+		failed = true
+		return
+	}
+	fmt.Println("ok", name)
+}
+
 var calls int
+
+var lines []string
 
 func step(in string) (int, error) {
 	calls++
@@ -42,7 +48,7 @@ func Total[T any](in string) (int, error) {
 	const for _, f := range comptime.Fields[T]() {
 		n := step(in)?
 		sum += n
-		fmt.Println($"{f.Name}={sum}")
+		lines = append(lines, $"{f.Name}={sum}")
 	}
 	return sum, nil
 }
@@ -61,7 +67,7 @@ func Grid[T any](in string) (int, error) {
 		const for _, g := range comptime.Fields[T]() {
 			n := step(in)?
 			sum += n
-			fmt.Println($"{f.Name}.{g.Name}={sum}")
+			lines = append(lines, $"{f.Name}.{g.Name}={sum}")
 		}
 	}
 	return sum, nil
@@ -69,8 +75,17 @@ func Grid[T any](in string) (int, error) {
 
 func main() {
 	calls = 0
-	fmt.Println(Total[Pair]("4"))
-	fmt.Println(Total[Triple]("4"))
-	fmt.Println(Weights[Triple]())
-	fmt.Println(Grid[Pair]("1"))
+	lines = nil
+	check("pair-sum-and-no-error", fmt.Sprint(Total[Pair]("4")), "8 <nil>")
+	check("pair-copies-in-order", fmt.Sprint(lines), "[X=4 Y=8]")
+	lines = nil
+	check("triple-error-aborts", fmt.Sprint(Total[Triple]("4")), "0 stopped at step 4")
+	check("triple-partial-in-order", fmt.Sprint(lines), "[A=4]")
+	check("index-weighted-map-sum", fmt.Sprint(Weights[Triple]()), "27")
+	lines = nil
+	check("nested-grid-sum", fmt.Sprint(Grid[Pair]("1")), "4 <nil>")
+	check("nested-grid-in-order", fmt.Sprint(lines), "[X.X=1 X.Y=2 Y.X=3 Y.Y=4]")
+	if failed {
+		os.Exit(1)
+	}
 }

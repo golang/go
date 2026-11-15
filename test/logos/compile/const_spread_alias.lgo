@@ -1,0 +1,120 @@
+// errorcheck
+
+package p
+
+type plain struct{ L []int }
+
+type other struct {
+	L []int
+	N int
+}
+
+type pair struct {
+	L []int
+	K []int
+}
+
+type words []string
+
+type tagged struct {
+	L words
+}
+
+type pt struct{ X, Y int }
+
+type box struct {
+	M map[string]int
+	L []int
+}
+
+const cfg = plain{L: []int{1, 2}}
+
+const both = pair{L: []int{1}, K: []int{2}}
+
+const origin = pt{X: 1, Y: 2}
+
+const bcfg = box{M: map[string]int{"a": 1}, L: []int{9}}
+
+const boxes = []box{
+	{M: map[string]int{"c": 0}, L: []int{3}},
+	{M: map[string]int{"b": 2}, L: []int{4, 5}},
+}
+
+var taggedSrc = tagged{L: words{"a"}}
+
+func rejectSpreadConst() int {
+	p := plain{..cfg}
+	p.L[0] = 99 // ERROR "const_view_mutation"
+	return p.L[0]
+}
+
+func rejectSpreadCopy() int {
+	c := cfg
+	p := plain{..c}
+	p.L[0] = 99 // ERROR "const_view_mutation"
+	return p.L[0]
+}
+
+func rejectSpreadOtherType() int {
+	o := other{N: 1, ..cfg}
+	o.L[0] = 99 // ERROR "const_view_mutation"
+	return o.L[0] + o.N
+}
+
+func rejectSpreadPointer() int {
+	q := &cfg
+	p := plain{..q}
+	p.L[0] = 99 // ERROR "const_view_mutation"
+	return p.L[0]
+}
+
+func rejectSpreadPartialOverride() int {
+	p := pair{L: []int{5}, ..both}
+	p.K[0] = 99 // ERROR "const_view_mutation"
+	return p.K[0]
+}
+
+func rejectSpreadElementSource() int {
+	e := box{..boxes[1]}
+	e.L[0] = 1 // ERROR "const_view_mutation"
+	return e.L[0]
+}
+
+func rejectSpreadMapField() int {
+	o := box{..bcfg}
+	o.M["a"] = 1 // ERROR "const_view_mutation"
+	return len(o.M)
+}
+
+func rejectSpreadReturn() plain {
+	var p plain = plain{..cfg} // ERROR "const_view_escape"
+	return p
+}
+
+func acceptSpreadRead() int {
+	p := plain{..cfg}
+	return p.L[1] + len(p.L)
+}
+
+func acceptSpreadReferenceFree() int {
+	q := pt{Y: 7, ..origin}
+	q.X = 3
+	return q.X + q.Y
+}
+
+func acceptSpreadReplaceSlot() int {
+	p := plain{..cfg}
+	p.L = []int{7}
+	return p.L[0]
+}
+
+func rejectCopyAlias() int {
+	c := cfg
+	c.L[0] = 99 // ERROR "const_view_mutation"
+	return c.L[0]
+}
+
+func rejectSpreadMismatch() pair {
+	p := pair{..taggedSrc} // ERROR "spread_type_mismatch"
+	return p
+}

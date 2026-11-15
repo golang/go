@@ -1,0 +1,130 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+logos run .
+stdout '^1 2 3 4 5 6 7$'
+cp stdout $WORK/native.txt
+logos eject -o out
+exists out/main.go
+! exec grep -n 'logos/arena' out/oneline.go out/first.go out/ungrouped.go out/only.go out/comment.go out/linecomment.go out/kept.go
+grep '/\* arena \*/' out/ungrouped.go
+grep '/\* *arena *\*/' out/linecomment.go
+grep '// format' out/comment.go
+grep '/\* region \*/ // arena' out/comment.go
+cd out
+go build ./...
+go run .
+cmp stdout $WORK/native.txt
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
+exec $WORK/upstream$GOEXE
+cmp stdout $WORK/native.txt
+cd ..
+
+-- m/go.mod --
+module example.com/arenaimport
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println(oneline(), first(), ungrouped(), only(), commented(), line(), kept())
+}
+
+-- m/oneline.lgo --
+package main
+
+import ("fmt"; "logos/arena")
+
+type cell struct{ v int }
+
+func oneline() string {
+	r := arena.Open()
+	p := arena.New[cell](r)
+	p.v = 1
+	return fmt.Sprint(p.v)
+}
+
+-- m/first.lgo --
+package main
+
+import ("logos/arena"; "strconv")
+
+func first() string {
+	r := arena.Open()
+	p := arena.New[cell](r)
+	p.v = 2
+	return strconv.Itoa(p.v)
+}
+
+-- m/ungrouped.lgo --
+package main
+
+import /* arena */ "logos/arena"; import "os"
+
+func ungrouped() int {
+	r := arena.Open()
+	p := arena.New[cell](r)
+	p.v = 3
+	return p.v + len(os.Args[:0])
+}
+
+-- m/only.lgo --
+package main
+
+import "logos/arena"
+
+func only() int {
+	r := arena.Open()
+	p := arena.New[cell](r)
+	p.v = 4
+	return p.v
+}
+
+-- m/comment.lgo --
+package main
+
+import (
+	"fmt" // format
+	"logos/arena" /* region */ // arena
+)
+
+func commented() string {
+	r := arena.Open()
+	p := arena.New[cell](r)
+	p.v = 5
+	return fmt.Sprint(p.v)
+}
+
+-- m/linecomment.lgo --
+package main
+
+import // arena
+	"logos/arena"; import "strings"
+
+func line() string {
+	r := arena.Open()
+	p := arena.New[cell](r)
+	p.v = 6
+	return strings.Repeat("6", p.v-5)
+}
+
+-- m/kept.lgo --
+package main
+
+import ("logos/arena"; "sort")
+
+var keptRegs [1]arena.Region
+
+func kept() int {
+	p := arena.New[cell](keptRegs[0])
+	p.v = 7
+	return sort.SearchInts([]int{1, 2, 3}, p.v)*0 + p.v
+}

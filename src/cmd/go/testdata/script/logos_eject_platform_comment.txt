@@ -1,0 +1,46 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# SPEC 0.3: eject emits valid Go. A platform store that ends in a line
+# comment still ejects to a program that builds with go1.27.2 and prints
+# what the logos run prints.
+cd m
+logos run .
+stdout '^have have have$'
+cp stdout $WORK/native.txt
+logos eject -o out
+exists out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $WORK/native.txt
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+cd ..
+
+-- m/go.mod --
+module example.com/platcomment
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import (
+	"flag"
+	"fmt"
+)
+
+func pick() *flag.Flag {
+	return flag.Lookup("have") // comment after a return value
+}
+
+func main() {
+	flag.String("have", "HAVE", "")
+	var a *flag.Flag = flag.Lookup("have") // comment after a declaration
+	var b *flag.Flag = flag.Lookup("have")
+	b = flag.Lookup("have") // comment after an assignment
+	fmt.Println(a.Name, b.Name, pick().Name)
+}

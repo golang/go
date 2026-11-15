@@ -1,5 +1,28 @@
-42
-[3 3]
-4
-5
-5
+ok arrow-forwards-to-named-func
+ok arrow-builds-slice-from-param
+ok arrow-branch-negates-negative
+ok arrow-branch-keeps-positive
+ok curried-arrow-applies-left-to-right
+ok arrow-in-keyed-struct-field
+ok arrow-in-positional-struct-field
+ok arrow-in-spread-literal-keeps-base
+ok arrow-in-spread-literal-block-parenthesised
+ok arrow-in-slice-literal
+ok arrow-in-keyed-slice-literal
+ok arrow-in-array-literal
+ok arrow-in-map-literal
+ok arrow-in-elided-struct-literal
+ok arrow-sent-on-channel
+ok arrow-appended
+ok arrow-to-named-func-type
+ok arrow-in-variadic-call
+ok arrow-to-generic-callee-with-inferred-parameter
+ok arrow-to-generic-callee-fixed-by-other-arguments
+ok arrow-in-option-location
+ok arrow-on-right-of-coalesce
+ok arrow-on-right-of-coalesce-on-map-index
+ok arrow-to-option-parameter
+ok arrow-returned-as-option
+ok arrow-yielded-by-generator
+ok arrow-in-tuple-element
+ok arrow-in-nested-tuple-element

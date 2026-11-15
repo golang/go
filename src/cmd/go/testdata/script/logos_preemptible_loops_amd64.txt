@@ -1,0 +1,31 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOEXPERIMENT=
+env GOARCH=amd64
+
+# Row O-A05: the wasm preemptibleloops default must not leak to amd64
+# modules. The wasm control at the end proves the token is observable,
+# so the absences above are real.
+cd amd64mod
+logos env GOEXPERIMENT
+! stdout 'preemptibleloops'
+go env GOEXPERIMENT
+! stdout 'preemptibleloops'
+cd ..
+
+env GOOS=js
+env GOARCH=wasm
+cd amd64mod
+logos env GOEXPERIMENT
+stdout 'preemptibleloops'
+cd ..
+
+-- amd64mod/go.mod --
+module example.com/w5preempt
+
+go 1.27
+
+-- amd64mod/main.go --
+package main
+
+func main() {}

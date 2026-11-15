@@ -1,47 +1,57 @@
-# M1-S6: eject a loGo/s module using ?, defer?, and errdefer to pure Go.
-# main.lgo exercises all three M1 error forms plus a doc comment and
-# interior comments; the module depends on a second loGo/s module via a
-# local replace. The ejected tree must run under plain go with identical
-# output, keep every comment verbatim, and stay vet- and gofmt-clean.
-
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
 cd m
 
-# logos runs the module before eject.
 logos run .
 stdout '^loaded logos$'
 stdout '^hello logos$'
 cp stdout $WORK/eject-stdout.txt
 
-# Snapshot the source tree; eject must never write into it (#112).
 mkdir $WORK/orig
 cp main.lgo $WORK/orig/main.lgo
 cp go.mod $WORK/orig/go.mod
 cp ../dep/go.mod $WORK/orig/dep-go.mod
 cp ../dep/greet/greet.lgo $WORK/orig/greet.lgo
 
-# Eject the main module.
 logos eject -o out
 exists out/main.go
 exists out/go.mod
 exists out/_logos_deps/rt/go.mod
 exists out/_logos_deps/example.com/dep@v0.0.0/greet/greet.go
 
-# Ejected files take plain .go names and carry no logos build tag (#112).
 exec find out -name '*.gen.go'
 ! stdout .
 ! grep '^//go:build !logos' out/main.go
 ! grep '^//go:build !logos' out/_logos_deps/example.com/dep@v0.0.0/greet/greet.go
 
-# The ejected tree runs under plain go with identical output.
 cd out
 go run .
 cmp stdout $WORK/eject-stdout.txt
+# The ejected main package imports exactly the fixture's own imports
+# plus the one support import the lowering wrote: no other lowered
+# support import may hide behind the eject rewrite.
+go list -f '{{.Imports}}' .
+stdout '^\[example\.com/dep/greet fmt github\.com/gosuda/loGos/rt\]$'
+exists $UPROOT1273/bin/go
+exec $UPROOT1273/bin/go version
+stdout '^go version go1\.27\.3 '
+exec env -u GOROOT $UPROOT1273/bin/go build ./...
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+exists scroll.go
+exists bolt.go
+exists gopher.go
+grep 'func scrollName' scroll.go
+grep 'func boltName' bolt.go
+grep 'func gopherName' gopher.go
 cd ..
+exec find out ( -name '*.lgo' -o -name '*.📜' -o -name '*.⚡' -o -name '*.ʕ◔ϖ◔ʔ' )
+! stdout .
 
-# Every original comment survives verbatim in out/main.go (A7 text-level oracle).
 grep 'Command ejectdemo' out/main.go
 grep 'load cleans the input' out/main.go
 grep 'Validate the raw input' out/main.go
@@ -51,25 +61,35 @@ grep 'flush state' out/main.go
 grep 'join cleanup errors' out/main.go
 grep 'undo partial work' out/main.go
 grep 'runs on error only' out/main.go
+grep 'Package greet helps' out/_logos_deps/example.com/dep@v0.0.0/greet/greet.go
+grep 'Clean trims surrounding spaces' out/_logos_deps/example.com/dep@v0.0.0/greet/greet.go
+grep 'Close flushes greet state' out/_logos_deps/example.com/dep@v0.0.0/greet/greet.go
+grep 'Rollback undoes partial greet work' out/_logos_deps/example.com/dep@v0.0.0/greet/greet.go
 
-# The ejected tree is vet- and gofmt-clean.
 cd out
 go vet ./...
 exec $GOROOT/bin/gofmt -l .
 ! stdout .
 cd ..
 
-# out/go.mod keeps require and replace lines for the loGo/s dependency
-# and for the ejected support module; the support module declares itself.
 grep -count=3 'example\.com/dep' out/go.mod
 grep -count=2 'gosuda/loGos/rt' out/go.mod
+grep '^replace example\.com/dep ' out/go.mod
+grep '^replace github\.com/gosuda/loGos/rt ' out/go.mod
 grep 'module github\.com/gosuda/loGos/rt' out/_logos_deps/rt/go.mod
 
-# A second eject into the non-empty directory fails.
+! exec grep -rnE '"logos/[a-z/]+"' out
+grep -count=1 '_logos_rt "github.com/gosuda/loGos/rt"' out/main.go
+! exec grep -rn '_logos_errors' out
+
 ! logos eject -o out
 stderr 'logos eject: out: directory is not empty'
 
-# logos build --emit-go produces the same tree as logos eject.
+# An existing empty DIR ejects like a missing one and writes go.mod.
+mkdir $WORK/empty
+logos eject -o $WORK/empty
+exists $WORK/empty/go.mod
+
 logos build --emit-go=out2
 logos eject -o out2b
 cmp out2/main.go out2b/main.go
@@ -78,7 +98,6 @@ cmp out2/_logos_deps/rt/go.mod out2b/_logos_deps/rt/go.mod
 cmp out2/_logos_deps/example.com/dep@v0.0.0/go.mod out2b/_logos_deps/example.com/dep@v0.0.0/go.mod
 cmp out2/_logos_deps/example.com/dep@v0.0.0/greet/greet.go out2b/_logos_deps/example.com/dep@v0.0.0/greet/greet.go
 
-# The source tree is unchanged after both ejects (#112).
 cmp main.lgo $WORK/orig/main.lgo
 cmp go.mod $WORK/orig/go.mod
 cmp ../dep/go.mod $WORK/orig/dep-go.mod
@@ -123,6 +142,21 @@ func main() {
 	}
 	fmt.Println("hello", name)
 }
+
+-- m/scroll.📜 --
+package main
+
+func scrollName() string { return "scroll" }
+
+-- m/bolt.⚡ --
+package main
+
+func boltName() string { return "bolt" }
+
+-- m/gopher.ʕ◔ϖ◔ʔ --
+package main
+
+func gopherName() string { return "gopher" }
 
 -- dep/go.mod --
 module example.com/dep

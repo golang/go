@@ -1,0 +1,163 @@
+// run
+package main
+
+import (
+	"comptime"
+	"fmt"
+	"os"
+	"strings"
+	"time"
+)
+
+type Pair struct {
+	X int
+	Y string
+}
+
+func /*a*/ Block /*b*/ [ /*c*/ T /*d*/ any /*e*/ , /*f*/ U /*g*/ interface{ ~[]int } /*h*/ ] /*i*/ ( /*j*/ ) /*k*/ []string /*l*/ {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		out = append(out, f.Name)
+	}
+	return out
+}
+
+func // line
+LineName[T any]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		out = append(out, f.Name)
+	}
+	return out
+}
+
+func
+BreakName[T any]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		out = append(out, f.Name)
+	}
+	return out
+}
+
+func Brackets[T /* ] [ */ any]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		out = append(out, f.Name)
+	}
+	return out
+}
+
+func Lines[ // x
+	T any,
+	// y
+	U any,
+]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		out = append(out, f.Name)
+	}
+	return out
+}
+
+func /*a*/ dropped /*b*/ [ /*c*/ T any]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		out = append(out, f.Name)
+	}
+	return out
+}
+
+type Sized struct {
+	A int32
+	B uint8
+}
+
+func LineCond[T any]() string {
+	const if comptime.HasPointers[*T]( // c
+	) {
+		return "ptr"
+	}
+	return "flat"
+}
+
+func BlockCond[T any]() string {
+	const if comptime.HasPointers[*T]( /* first
+		second */ ) {
+		return "ptr"
+	}
+	return "flat"
+}
+
+func LineAnd[T any]() string {
+	const if comptime.HasPointers[*T]() && // c
+		comptime.HasPointers[Pair]() {
+		return "both"
+	}
+	return "plain"
+}
+
+func LineSize() int {
+	n := 0
+	const for _, f := range comptime.Fields[Sized]() {
+		var c [comptime.SizeOf[f.Type]( // c
+		)]byte
+		n += len(c)
+	}
+	return n
+}
+
+type List[E any] struct{ V []E }
+
+func Kind[T any]() string {
+	_ = comptime.TypeOf[T]()
+	var s []T
+	return strings.TrimPrefix(fmt.Sprintf("%T", s), "[]")
+}
+
+func NestedConcrete[T any]() string {
+	_ = comptime.TypeOf[T]()
+	return strings.Join([]string{
+		Kind[int](), Kind[string](), Kind[byte](), Kind[Pair](), Kind[*Pair](),
+		Kind[[]int](), Kind[[4]int](), Kind[map[string]int](), Kind[chan int](),
+		Kind[func(int) string](), Kind[struct{ X int }](), Kind[time.Duration](),
+		Kind[List[int]](),
+	}, " ")
+}
+
+func NestedParam[T any]() string {
+	_ = comptime.TypeOf[T]()
+	return strings.Join([]string{
+		Kind[T](), Kind[*T](), Kind[[]T](), Kind[[2]T](), Kind[map[string]T](),
+		Kind[chan T](), Kind[List[T]](),
+	}, " ")
+}
+
+var failed bool
+
+func check(name, got, want string) {
+	if got != want {
+		fmt.Println("FAIL", name, "got", got, "want", want)
+		failed = true
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func main() {
+	check("block-comments-in-every-gap", fmt.Sprint(Block[Pair, []int]()), "[X Y]")
+	check("line-comment-after-func", fmt.Sprint(LineName[Pair]()), "[X Y]")
+	check("line-break-after-func", fmt.Sprint(BreakName[Pair]()), "[X Y]")
+	check("brackets-inside-a-comment", fmt.Sprint(Brackets[Pair]()), "[X Y]")
+	check("line-comments-inside-the-list", fmt.Sprint(Lines[Pair, int]()), "[X Y]")
+	check("dropped-with-comments", fmt.Sprint(dropped[Pair]()), "[X Y]")
+	check("line-comment-in-a-folded-condition", LineCond[Pair](), "ptr")
+	check("multiline-block-comment-in-a-folded-condition", BlockCond[Pair](), "ptr")
+	check("line-comment-between-folded-operands", LineAnd[Sized](), "both")
+	check("line-comment-in-a-folded-layout", fmt.Sprint(LineSize()), "5")
+	check("nested-concrete-type-arguments", NestedConcrete[Pair](), "int string uint8 main.Pair *main.Pair []int [4]int map[string]int chan int func(int) string struct { X int } time.Duration main.List[int]")
+	check("nested-type-parameter-arguments", NestedParam[Pair](), "main.Pair *main.Pair []main.Pair [2]main.Pair map[string]main.Pair chan main.Pair main.List[main.Pair]")
+	if failed {
+		os.Exit(1)
+	}
+}

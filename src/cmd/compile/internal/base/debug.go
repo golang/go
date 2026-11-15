@@ -33,9 +33,8 @@ type DebugFlags struct {
 	InlBudgetSlack        int    `help:"amount to expand the initial inline budget when new inliner enabled. Defaults to 80 if option not set." concurrent:"ok"`
 	InlBudget             int    `help:"max inline cost set by -O tiers (0 keeps the upstream budget)" concurrent:"ok"`
 	InlRecursiveBudget    int    `help:"max inline cost inside recursive call-graph cycles at -O tiers (0 keeps the tier budget)" concurrent:"ok"`
-	LogosSynthPGO         string `help:"synthetic PGO level set by -O tiers: off, standard, or aggressive (empty disables emission)" concurrent:"ok"`
-	LogosSpecialize       int    `help:"enable clone specialization, set by -O tiers" concurrent:"ok"`
 	LogosLoopStride       int    `help:"wasm loop reschedule interval (0 keeps per-backedge checks)" concurrent:"ok"`
+	LogosConstmapSeeds    int    `help:"cap const map seed trials (0 keeps the 1000000 budget)" concurrent:"ok"`
 	DumpPtrs              int    `help:"show Node pointers values in dump output"`
 	DwarfInl              int    `help:"print information about DWARF inlined function creation"`
 	EscapeMutationsCalls  int    `help:"print extra escape analysis diagnostics about mutations and calls" concurrent:"ok"`
@@ -67,6 +66,7 @@ type DebugFlags struct {
 	MergeLocalsHTrace     int    `help:"hash-selected trace debug output for locals merging"`
 	Nil                   int    `help:"print information about nil checks"`
 	NoDeadLocals          int    `help:"disable deadlocals pass" concurrent:"ok"`
+	NoDeferTryPool        int    `help:"disable pooled try defers for defer f()? in loops" concurrent:"ok"`
 	NoOpenDefer           int    `help:"disable open-coded defers" concurrent:"ok"`
 	NoRefName             int    `help:"do not include referenced symbol names in object file" concurrent:"ok"`
 	PCTab                 string `help:"print named pc-value table\nOne of: pctospadj, pctofile, pctoline, pctoinline, pctopcdata"`
@@ -92,6 +92,7 @@ type DebugFlags struct {
 	RangeFuncCheck        int    `help:"insert code to check behavior of range iterator functions" concurrent:"ok"`
 	VariableMakeHash      string `help:"hash value for debugging stack allocation of variable-sized make results" concurrent:"ok"`
 	VariableMakeThreshold int    `help:"threshold in bytes for possible stack allocation of variable-sized make results" concurrent:"ok"`
+	VariableMakeUnderN    int    `help:"serve the variable-make stack buffer with -N (set by -O tiers)" concurrent:"ok"`
 	WrapGlobalMapDbg      int    `help:"debug trace output for global map init wrapping"`
 	WrapGlobalMapCtl      int    `help:"global map init wrap control (0 => default, 1 => off, 2 => stress mode, no size cutoff)" concurrent:"ok"`
 	ZeroCopy              int    `help:"enable zero-copy string->[]byte conversions" concurrent:"ok"`

@@ -20,26 +20,8 @@ import (
 func derefErrors(t *testing.T, src string) (*types2.Info, *syntax.File, []types2.Error) {
 	t.Helper()
 	testenv.MustHaveGoBuild(t)
-	file, err := syntax.Parse(syntax.NewFileBase("x.lgo"), strings.NewReader(src), nil, nil, syntax.CheckBranches|syntax.LogosMode)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
-	info := &types2.Info{
-		StoreTypesInSyntax: true,
-		Defs:               make(map[*syntax.Name]types2.Object),
-		Uses:               make(map[*syntax.Name]types2.Object),
-		Selections:         make(map[*syntax.SelectorExpr]*types2.Selection),
-		Implicits:          make(map[syntax.Node]types2.Object),
-		Scopes:             make(map[syntax.Node]*types2.Scope),
-	}
 	var errs []types2.Error
-	conf := &types2.Config{
-		Importer:    &lintImporter{pkgs: make(map[string]*types2.Package)},
-		Error:       func(e error) { errs = append(errs, e.(types2.Error)) },
-		Logos:       true,
-		LogosUnions: true,
-	}
-	_, checkErr := conf.Check("p", []*syntax.File{file}, info)
+	_, file, info, checkErr := checkPkg(t, KindLgo, "x.lgo", src, func(e error) { errs = append(errs, e.(types2.Error)) })
 	if checkErr != nil && len(errs) == 0 {
 		t.Fatalf("conf.Check %v with no collected errors", checkErr)
 	}

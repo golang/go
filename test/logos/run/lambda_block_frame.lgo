@@ -1,0 +1,204 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+)
+
+var failed bool
+var trace []string
+var errBig = errors.New("big")
+var errOdd = errors.New("odd")
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func note(s string) { trace = append(trace, s) }
+
+func step(s string) error {
+	note(s)
+	return nil
+}
+
+func take() string {
+	out := fmt.Sprint(trace)
+	trace = nil
+	return out
+}
+
+func apply(f func(int) (int, error), v int) (int, error) {
+	return f(v)
+}
+
+func double(x int) (int, error) {
+	if x%2 == 1 {
+		return 0, errOdd
+	}
+	return x * 2, nil
+}
+
+func assigned(v int) (int, error) {
+	var f func(int) (int, error) = x => {
+		errdefer note("rollback")
+		if x > 1 {
+			return 0, errBig
+		}
+		return x, nil
+	}
+	return f(v)
+}
+
+func argument(v int) (int, error) {
+	return apply(x => {
+		errdefer note("argument")
+		if x > 1 {
+			return 0, errBig
+		}
+		return x, nil
+	}, v)
+}
+
+func single(v int) error {
+	var f func(int) error = x => {
+		errdefer note("single")
+		if x > 1 {
+			return errBig
+		}
+		return nil
+	}
+	return f(v)
+}
+
+func lifo() (int, error) {
+	var f func(int) (int, error) = x => {
+		errdefer note("first")
+		errdefer note("second")
+		return 0, errBig
+	}
+	return f(1)
+}
+
+func withDefer() (int, error) {
+	var f func(int) (int, error) = x => {
+		defer step("deferred")?
+		errdefer note("errdefer")
+		return 0, errBig
+	}
+	return f(1)
+}
+
+func withTry(v int) (int, error) {
+	var f func(int) (int, error) = x => {
+		errdefer note("try-rollback")
+		w := double(x)?
+		return w + 1, nil
+	}
+	return f(v)
+}
+
+func outerSwallows() error {
+	errdefer note("outer")
+	_, err := apply(x => {
+		errdefer note("inner")
+		return 0, errBig
+	}, 1)
+	if err == nil {
+		return errors.New("inner must fail")
+	}
+	return nil
+}
+
+func nested() (int, error) {
+	var f func(int) (int, error) = x => {
+		errdefer note("outer-lambda")
+		var g func(int) (int, error) = y => {
+			errdefer note("inner-lambda")
+			return 0, errBig
+		}
+		got, err := g(x)
+		if err != nil {
+			return got, err
+		}
+		return got, nil
+	}
+	return f(1)
+}
+
+func panics() (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("recovered %v", r)
+		}
+	}()
+	_, err = apply(x => {
+		errdefer note("panic-rollback")
+		panic("boom")
+	}, 1)
+	return err
+}
+
+func checkTrace(name, want string) {
+	got := take()
+	check(name, got == want, got, want)
+}
+
+func main() {
+	got, err := assigned(2)
+	if err != nil {
+		check("assigned-error", err == errBig, err, errBig)
+	}
+	checkTrace("assigned-runs-errdefer", "[rollback]")
+	got, err = assigned(1)
+	if err == nil {
+		check("assigned-success", got == 1, got, 1)
+	}
+	checkTrace("assigned-skips-errdefer", "[]")
+	got, err = argument(2)
+	if err != nil {
+		check("argument-error", err == errBig, err, errBig)
+	}
+	checkTrace("argument-runs-errdefer", "[argument]")
+	err = single(2)
+	check("single-error", err == errBig, err, errBig)
+	checkTrace("single-runs-errdefer", "[single]")
+	err = single(1)
+	check("single-success", err == nil, err, nil)
+	checkTrace("single-skips-errdefer", "[]")
+	_, err = lifo()
+	check("lifo-error", err == errBig, err, errBig)
+	checkTrace("lifo-order", "[second first]")
+	_, err = withDefer()
+	check("defer-error", err == errBig, err, errBig)
+	checkTrace("defer-order", "[errdefer deferred]")
+	got, err = withTry(3)
+	if err != nil {
+		check("try-error", err == errOdd, err, errOdd)
+	}
+	checkTrace("try-runs-errdefer", "[try-rollback]")
+	got, err = withTry(2)
+	if err == nil {
+		check("try-success", got == 5, got, 5)
+	}
+	checkTrace("try-skips-errdefer", "[]")
+	err = outerSwallows()
+	check("outer-unaffected", err == nil, err, nil)
+	checkTrace("outer-errdefer-stays-quiet", "[inner]")
+	_, err = nested()
+	check("nested-error", err == errBig, err, errBig)
+	checkTrace("nested-order", "[inner-lambda outer-lambda]")
+	err = panics()
+	check("panic-recovered", err != nil, err, "recovered boom")
+	checkTrace("panic-runs-errdefer", "[panic-rollback]")
+	if failed {
+		os.Exit(1)
+	}
+}

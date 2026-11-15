@@ -2,18 +2,21 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
-// Runtime companion to
-// test/logos/compile/const_interface_generic_assert.lgo. Only the
-// allowed generic half runs here: ordinary generic declarations stay
-// legal and only Qualified instantiations from any/ordinary forge (the
-// latter never run). Identity has no assertion so Identity[Qualified]
-// over an already-proven Good stays allowed; GenericAs[int]/[Good] are
-// ordinary instantiations; storage-only StoreBox only stores and returns
-// T; concrete `any` to Good is runtime-checkable, then assignment to
-// Qualified is proved by the direct Good body scan. Each printed line is
-// a hand-computed literal with a W prefix.
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 type Qualified interface {
 	const Name() string
@@ -45,18 +48,21 @@ func ViaConcrete(v any) string {
 
 func main() {
 	g := Good{name: "ada"}
-	fmt.Println("W1", Identity[Qualified](g).Name())
-	fmt.Println("W2", Identity[int](7))
-	fmt.Println("W3", GenericAs[int](any(41)))
-	fmt.Println("W4", GenericAs[Good](any(Good{name: "good"})).Name())
-	fmt.Println("W5", WrapAs[int](any(7))+1)
+	check("w1", Identity[Qualified](g).Name() == "ada", Identity[Qualified](g).Name(), "ada")
+	check("w2", Identity[int](7) == 7, Identity[int](7), 7)
+	check("w3", GenericAs[int](any(41)) == 41, GenericAs[int](any(41)), 41)
+	check("w4", GenericAs[Good](any(Good{name: "good"})).Name() == "good", GenericAs[Good](any(Good{name: "good"})).Name(), "good")
+	check("w5", WrapAs[int](any(7))+1 == 8, WrapAs[int](any(7))+1, 8)
 	b := StoreBox[Qualified]{V: Good{name: "box"}}
-	fmt.Println("W6", b.Get().Name())
+	check("w6", b.Get().Name() == "box", b.Get().Name(), "box")
 	c := StoreBox[int]{V: 41}
-	fmt.Println("W7", c.Get()+1)
+	check("w7", c.Get()+1 == 42, c.Get()+1, 42)
 	var v any = Good{name: "via"}
-	fmt.Println("W8", ViaConcrete(v))
+	check("w8", ViaConcrete(v) == "via", ViaConcrete(v), "via")
 	d := StoreBox[Good]{V: Good{name: "held"}}
 	var q Qualified = d.V
-	fmt.Println("W9", q.Name())
+	check("w9", q.Name() == "held", q.Name(), "held")
+	if failed {
+		os.Exit(1)
+	}
 }

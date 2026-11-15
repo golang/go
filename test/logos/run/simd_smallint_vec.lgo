@@ -1,0 +1,369 @@
+// run -goexperiment simd
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+func fail(tag string) {
+	fmt.Println("FAIL", tag)
+	os.Exit(1)
+}
+
+func checkI8Add() {
+	var a, b [16]int8
+	for i := range a {
+		a[i] = int8(i*3 - 5)
+		b[i] = int8(i%4 + 1)
+	}
+	add := a + b
+	sub := a - b
+	mul := a * b
+	quo := a / b
+	for i := range a {
+		if add[i] != a[i]+b[i] {
+			fail(fmt.Sprintf("i8 add lane %d: got %v want %v", i, add[i], a[i]+b[i]))
+		}
+		if sub[i] != a[i]-b[i] {
+			fail(fmt.Sprintf("i8 sub lane %d: got %v want %v", i, sub[i], a[i]-b[i]))
+		}
+		if mul[i] != a[i]*b[i] {
+			fail(fmt.Sprintf("i8 mul lane %d: got %v want %v", i, mul[i], a[i]*b[i]))
+		}
+		if quo[i] != a[i]/b[i] {
+			fail(fmt.Sprintf("i8 div lane %d: got %v want %v", i, quo[i], a[i]/b[i]))
+		}
+	}
+	fmt.Println("ok i8-arith-matches-scalar")
+}
+
+func checkI8Bit() {
+	var a, b [16]int8
+	for i := range a {
+		a[i] = int8(i*3 - 5)
+		b[i] = int8(i%4 + 1)
+	}
+	and := a & b
+	or := a | b
+	xor := a ^ b
+	for i := range a {
+		if and[i] != a[i]&b[i] {
+			fail(fmt.Sprintf("i8 and lane %d: got %v want %v", i, and[i], a[i]&b[i]))
+		}
+		if or[i] != a[i]|b[i] {
+			fail(fmt.Sprintf("i8 or lane %d: got %v want %v", i, or[i], a[i]|b[i]))
+		}
+		if xor[i] != a[i]^b[i] {
+			fail(fmt.Sprintf("i8 xor lane %d: got %v want %v", i, xor[i], a[i]^b[i]))
+		}
+	}
+	fmt.Println("ok i8-bits-match-scalar")
+}
+
+func checkI8Reduce() {
+	var a [16]int8
+	for i := range a {
+		a[i] = int8(i*3 - 5)
+	}
+	var wantSum, wantMin, wantMax int8
+	wantMin = a[0]
+	wantMax = a[0]
+	for _, v := range a {
+		wantSum += v
+		if v < wantMin {
+			wantMin = v
+		}
+		if v > wantMax {
+			wantMax = v
+		}
+	}
+	if a.sum() != wantSum {
+		fail(fmt.Sprintf("i8 sum: got %v want %v", a.sum(), wantSum))
+	}
+	if a.min() != wantMin {
+		fail(fmt.Sprintf("i8 min: got %v want %v", a.min(), wantMin))
+	}
+	if a.max() != wantMax {
+		fail(fmt.Sprintf("i8 max: got %v want %v", a.max(), wantMax))
+	}
+	var c, d [16]int8
+	for i := range c {
+		c[i] = int8(i % 3)
+		d[i] = int8((i + 1) % 2)
+	}
+	var wantDot int8
+	for i := range c {
+		wantDot += c[i] * d[i]
+	}
+	if c.dot(d) != wantDot {
+		fail(fmt.Sprintf("i8 dot: got %v want %v", c.dot(d), wantDot))
+	}
+	fmt.Println("ok i8-reductions-match-scalar")
+}
+
+func checkI16Add() {
+	var a, b [8]int16
+	for i := range a {
+		a[i] = int16(i*7 - 11)
+		b[i] = int16(i%5 + 1)
+	}
+	add := a + b
+	sub := a - b
+	mul := a * b
+	quo := a / b
+	for i := range a {
+		if add[i] != a[i]+b[i] {
+			fail(fmt.Sprintf("i16 add lane %d: got %v want %v", i, add[i], a[i]+b[i]))
+		}
+		if sub[i] != a[i]-b[i] {
+			fail(fmt.Sprintf("i16 sub lane %d: got %v want %v", i, sub[i], a[i]-b[i]))
+		}
+		if mul[i] != a[i]*b[i] {
+			fail(fmt.Sprintf("i16 mul lane %d: got %v want %v", i, mul[i], a[i]*b[i]))
+		}
+		if quo[i] != a[i]/b[i] {
+			fail(fmt.Sprintf("i16 div lane %d: got %v want %v", i, quo[i], a[i]/b[i]))
+		}
+	}
+	fmt.Println("ok i16-arith-matches-scalar")
+}
+
+func checkI16Bit() {
+	var a, b [8]int16
+	for i := range a {
+		a[i] = int16(i*7 - 11)
+		b[i] = int16(i%5 + 1)
+	}
+	and := a & b
+	or := a | b
+	xor := a ^ b
+	for i := range a {
+		if and[i] != a[i]&b[i] {
+			fail(fmt.Sprintf("i16 and lane %d: got %v want %v", i, and[i], a[i]&b[i]))
+		}
+		if or[i] != a[i]|b[i] {
+			fail(fmt.Sprintf("i16 or lane %d: got %v want %v", i, or[i], a[i]|b[i]))
+		}
+		if xor[i] != a[i]^b[i] {
+			fail(fmt.Sprintf("i16 xor lane %d: got %v want %v", i, xor[i], a[i]^b[i]))
+		}
+	}
+	fmt.Println("ok i16-bits-match-scalar")
+}
+
+func checkI16Reduce() {
+	var a [8]int16
+	for i := range a {
+		a[i] = int16(i*7 - 11)
+	}
+	var wantSum, wantMin, wantMax int16
+	wantMin = a[0]
+	wantMax = a[0]
+	for _, v := range a {
+		wantSum += v
+		if v < wantMin {
+			wantMin = v
+		}
+		if v > wantMax {
+			wantMax = v
+		}
+	}
+	if a.sum() != wantSum {
+		fail(fmt.Sprintf("i16 sum: got %v want %v", a.sum(), wantSum))
+	}
+	if a.min() != wantMin {
+		fail(fmt.Sprintf("i16 min: got %v want %v", a.min(), wantMin))
+	}
+	if a.max() != wantMax {
+		fail(fmt.Sprintf("i16 max: got %v want %v", a.max(), wantMax))
+	}
+	var c, d [8]int16
+	for i := range c {
+		c[i] = int16(i % 4)
+		d[i] = int16((i + 1) % 3)
+	}
+	var wantDot int16
+	for i := range c {
+		wantDot += c[i] * d[i]
+	}
+	if c.dot(d) != wantDot {
+		fail(fmt.Sprintf("i16 dot: got %v want %v", c.dot(d), wantDot))
+	}
+	fmt.Println("ok i16-reductions-match-scalar")
+}
+
+func checkI32Add() {
+	var a, b [8]int32
+	for i := range a {
+		a[i] = int32(i*11 - 13)
+		b[i] = int32(i%6 + 1)
+	}
+	add := a + b
+	sub := a - b
+	mul := a * b
+	quo := a / b
+	for i := range a {
+		if add[i] != a[i]+b[i] {
+			fail(fmt.Sprintf("i32 add lane %d: got %v want %v", i, add[i], a[i]+b[i]))
+		}
+		if sub[i] != a[i]-b[i] {
+			fail(fmt.Sprintf("i32 sub lane %d: got %v want %v", i, sub[i], a[i]-b[i]))
+		}
+		if mul[i] != a[i]*b[i] {
+			fail(fmt.Sprintf("i32 mul lane %d: got %v want %v", i, mul[i], a[i]*b[i]))
+		}
+		if quo[i] != a[i]/b[i] {
+			fail(fmt.Sprintf("i32 div lane %d: got %v want %v", i, quo[i], a[i]/b[i]))
+		}
+	}
+	fmt.Println("ok i32-arith-matches-scalar")
+}
+
+func checkI32Bit() {
+	var a, b [8]int32
+	for i := range a {
+		a[i] = int32(i*11 - 13)
+		b[i] = int32(i%6 + 1)
+	}
+	and := a & b
+	or := a | b
+	xor := a ^ b
+	for i := range a {
+		if and[i] != a[i]&b[i] {
+			fail(fmt.Sprintf("i32 and lane %d: got %v want %v", i, and[i], a[i]&b[i]))
+		}
+		if or[i] != a[i]|b[i] {
+			fail(fmt.Sprintf("i32 or lane %d: got %v want %v", i, or[i], a[i]|b[i]))
+		}
+		if xor[i] != a[i]^b[i] {
+			fail(fmt.Sprintf("i32 xor lane %d: got %v want %v", i, xor[i], a[i]^b[i]))
+		}
+	}
+	fmt.Println("ok i32-bits-match-scalar")
+}
+
+func checkI32Reduce() {
+	var a [8]int32
+	for i := range a {
+		a[i] = int32(i*11 - 13)
+	}
+	var wantSum, wantMin, wantMax int32
+	wantMin = a[0]
+	wantMax = a[0]
+	for _, v := range a {
+		wantSum += v
+		if v < wantMin {
+			wantMin = v
+		}
+		if v > wantMax {
+			wantMax = v
+		}
+	}
+	if a.sum() != wantSum {
+		fail(fmt.Sprintf("i32 sum: got %v want %v", a.sum(), wantSum))
+	}
+	if a.min() != wantMin {
+		fail(fmt.Sprintf("i32 min: got %v want %v", a.min(), wantMin))
+	}
+	if a.max() != wantMax {
+		fail(fmt.Sprintf("i32 max: got %v want %v", a.max(), wantMax))
+	}
+	var c, d [8]int32
+	for i := range c {
+		c[i] = int32(i + 1)
+		d[i] = int32(2*i + 1)
+	}
+	var wantDot int32
+	for i := range c {
+		wantDot += c[i] * d[i]
+	}
+	if c.dot(d) != wantDot {
+		fail(fmt.Sprintf("i32 dot: got %v want %v", c.dot(d), wantDot))
+	}
+	fmt.Println("ok i32-reductions-match-scalar")
+}
+
+func checkF32Reduce() {
+	var a, b [8]float32
+	for i := range a {
+		a[i] = float32(i+1) * 0.5
+		b[i] = float32(2*i + 1)
+	}
+	wantMin := a[0]
+	wantMax := a[0]
+	for _, v := range a {
+		if v < wantMin {
+			wantMin = v
+		}
+		if v > wantMax {
+			wantMax = v
+		}
+	}
+	if a.min() != wantMin {
+		fail(fmt.Sprintf("f32 min: got %v want %v", a.min(), wantMin))
+	}
+	if a.max() != wantMax {
+		fail(fmt.Sprintf("f32 max: got %v want %v", a.max(), wantMax))
+	}
+	lo := (a[0]*b[0] + a[1]*b[1]) + (a[2]*b[2] + a[3]*b[3])
+	hi := (a[4]*b[4] + a[5]*b[5]) + (a[6]*b[6] + a[7]*b[7])
+	if a.dot(b) != lo+hi {
+		fail(fmt.Sprintf("f32 dot: got %v want %v", a.dot(b), lo+hi))
+	}
+	fmt.Println("ok f32-reduce-matches-scalar")
+}
+
+func checkF64Wider() {
+	var a, b [8]float64
+	for i := range a {
+		a[i] = float64(i+1) * 1.5
+		b[i] = float64(2*i + 1)
+	}
+	add := a + b
+	var wantSum, wantMin, wantMax float64
+	wantMin = a[0]
+	wantMax = a[0]
+	for i := range a {
+		if add[i] != a[i]+b[i] {
+			fail(fmt.Sprintf("f64w add lane %d: got %v want %v", i, add[i], a[i]+b[i]))
+		}
+		wantSum += a[i]
+		if a[i] < wantMin {
+			wantMin = a[i]
+		}
+		if a[i] > wantMax {
+			wantMax = a[i]
+		}
+	}
+	if a.sum() != wantSum {
+		fail(fmt.Sprintf("f64w sum: got %v want %v", a.sum(), wantSum))
+	}
+	if a.min() != wantMin {
+		fail(fmt.Sprintf("f64w min: got %v want %v", a.min(), wantMin))
+	}
+	if a.max() != wantMax {
+		fail(fmt.Sprintf("f64w max: got %v want %v", a.min(), wantMax))
+	}
+	lo := (a[0]*b[0] + a[1]*b[1]) + (a[2]*b[2] + a[3]*b[3])
+	hi := (a[4]*b[4] + a[5]*b[5]) + (a[6]*b[6] + a[7]*b[7])
+	if a.dot(b) != lo+hi {
+		fail(fmt.Sprintf("f64w dot: got %v want %v", a.dot(b), lo+hi))
+	}
+	fmt.Println("ok f64-wide-matches-scalar")
+}
+
+func main() {
+	checkI8Add()
+	checkI8Bit()
+	checkI8Reduce()
+	checkI16Add()
+	checkI16Bit()
+	checkI16Reduce()
+	checkI32Add()
+	checkI32Bit()
+	checkI32Reduce()
+	checkF32Reduce()
+	checkF64Wider()
+}

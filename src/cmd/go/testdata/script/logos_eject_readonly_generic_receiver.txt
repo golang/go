@@ -1,0 +1,30 @@
+# The ejected readonly proofs of generic receivers build with upstream Go and
+# print the same lines as the native build: the readonly method obligations,
+# the const view calls and the property getter on instantiated generic types
+# erase to plain methods and plain types.
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cp $GOROOT/test/logos/run/readonly_generic_receiver.lgo a/main.lgo
+
+cd a
+logos run .
+cmp stdout $GOROOT/test/logos/run/readonly_generic_receiver.out
+logos eject -o out
+exists out/main.go
+! exists out/main.lgo
+cd out
+exists $UPROOT1273/bin/go
+exec $UPROOT1273/bin/go version
+stdout '^go version go1\.27\.3 '
+exec env -u GOROOT $UPROOT1273/bin/go run .
+cmp stdout $GOROOT/test/logos/run/readonly_generic_receiver.out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ../..
+
+-- a/go.mod --
+module example.com/readonlygenericeject
+
+go 1.27

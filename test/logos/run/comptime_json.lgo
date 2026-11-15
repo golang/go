@@ -1,0 +1,154 @@
+// run
+package main
+
+import (
+	"bytes"
+	"comptime"
+	"encoding/json"
+	"fmt"
+	"os"
+	"runtime"
+)
+
+type CJS1 struct {
+	A int64  `json:"a"`
+	B string `json:"b,omitempty"`
+}
+
+type CJS1Mirror CJS1
+
+type CJS2 struct {
+	X float64 `json:"x"`
+	Y string  `json:"y"`
+	Z int64   `json:"z,omitempty"`
+}
+
+type CJS2Mirror CJS2
+
+type EncA struct {
+	A int64  `json:"a"`
+	B string `json:"b"`
+}
+
+type EncA2 struct {
+	A int64  `json:"a"`
+	B string `json:"b"`
+}
+
+type EncB struct {
+	X float64 `json:"x"`
+	Y string  `json:"y"`
+	Z bool    `json:"z"`
+}
+
+var failed bool
+
+func check(name, got, want string) {
+	if got != want {
+		fmt.Println("FAIL", name, "got", got, "want", want)
+		failed = true
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func FieldCount[T any]() int {
+	n := 0
+	const for _, f := range comptime.Fields[T]() {
+		n++
+		_ = f.Name
+	}
+	return n
+}
+
+func JMarshal[T any](v T) []byte {
+	const for _, f := range comptime.Fields[T]() {
+		_ = f.Name
+	}
+	b, err := json.Marshal(v)
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
+
+func Encode[T any](v T) []byte {
+	b := []byte{'{'}
+	n := 0
+	const for _, f := range comptime.Fields[T]() {
+		if n > 0 {
+			b = append(b, ',')
+		}
+		n++
+		kb, err := json.Marshal(f.Tag.Get("json"))
+		if err != nil {
+			panic(err)
+		}
+		vb, err := json.Marshal(v.[f])
+		if err != nil {
+			panic(err)
+		}
+		b = append(b, kb...)
+		b = append(b, ':')
+		b = append(b, vb...)
+	}
+	return append(b, '}')
+}
+
+func Has[T any](key string) bool {
+	const for _, f := range comptime.Fields[T]() {
+		if key == f.Tag.Get("json") {
+			return true
+		}
+	}
+	return false
+}
+
+func Entry[T any]() uintptr {
+	const for _, f := range comptime.Fields[T]() {
+		_ = f.Name
+	}
+	pc, _, _, ok := runtime.Caller(0)
+	if !ok {
+		return 0
+	}
+	return runtime.FuncForPC(pc).Entry()
+}
+
+func instantiations() {
+	check("encode-enc-a", string(Encode(EncA{A: 1, B: "x"})), `{"a":1,"b":"x"}`)
+	check("encode-enc-b", string(Encode(EncB{X: 1.5, Y: "y", Z: true})), `{"x":1.5,"y":"y","z":true}`)
+	check("keys-enc-a", fmt.Sprint(Has[EncA]("a"), Has[EncA]("b"), Has[EncA]("x")), "true true false")
+	check("keys-enc-b", fmt.Sprint(Has[EncB]("x"), Has[EncB]("z"), Has[EncB]("a")), "true true false")
+	check("expands-once", fmt.Sprint(Entry[EncA]() == Entry[EncA](), Entry[EncB]() == Entry[EncB]()), "true true")
+	check("own-expansion", fmt.Sprint(Entry[EncA]() != Entry[EncB](), Entry[EncA]() != Entry[EncA2]()), "true true")
+}
+
+func compare(name string, gen, ref func() ([]byte, error), generic func() []byte) {
+	g, gerr := gen()
+	if gerr != nil {
+		check(name, "generated error "+gerr.Error(), "true true <nil> <nil>")
+		return
+	}
+	w, werr := ref()
+	if werr != nil {
+		check(name, "oracle error "+werr.Error(), "true true <nil> <nil>")
+		return
+	}
+	check(name, fmt.Sprint(bytes.Equal(g, w), bytes.Equal(generic(), w), gerr, werr), "true true <nil> <nil>")
+}
+
+func main() {
+	check("field-count-cjs1", fmt.Sprint(FieldCount[CJS1]()), "2")
+	check("field-count-cjs2", fmt.Sprint(FieldCount[CJS2]()), "3")
+	a := CJS1{A: 1, B: "x"}
+	compare("marshal-cjs1-matches-reflective", a.MarshalJSON, func() ([]byte, error) { return json.Marshal(CJS1Mirror(a)) }, func() []byte { return JMarshal(a) })
+	b := CJS2{X: 1.5, Y: "a<b", Z: 0}
+	compare("marshal-cjs2-matches-reflective", b.MarshalJSON, func() ([]byte, error) { return json.Marshal(CJS2Mirror(b)) }, func() []byte { return JMarshal(b) })
+	c := CJS2{X: -2.5, Y: "\xff\xfe\u2028end", Z: 9}
+	compare("marshal-cjs2-escaping-matches-reflective", c.MarshalJSON, func() ([]byte, error) { return json.Marshal(CJS2Mirror(c)) }, func() []byte { return JMarshal(c) })
+	instantiations()
+	if failed {
+		os.Exit(1)
+	}
+}

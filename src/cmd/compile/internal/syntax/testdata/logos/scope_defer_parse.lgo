@@ -2,10 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// M6-S10 parser attacks: contextual `scope` directly before `defer`
-// parses a scope defer statement in LogosMode. The cleanup must be a
-// call; every ordinary Go use of the identifier keeps its meaning.
-
 package p
 
 func okSimple() {
@@ -34,6 +30,15 @@ func badOperand() {
 
 func badMissingCall() {
 	scope defer // ERROR syntax error: scope defer requires a function call
+}
+
+func badScopePosition() {
+	scope work() // ERROR syntax error: unexpected name work at end of statement
+}
+
+func keepScopeNewline() {
+	scope
+	defer work()
 }
 
 func keepDefine() {

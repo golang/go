@@ -1,5 +1,6 @@
-heap delta=0
-main.initArray=R
-main._logos_cm0_squares_sorted=R
-main._logos_cm0_squares_tab=R
-init OK
+ok heap
+ok main.initArray
+ok main.flat
+ok main._logos_cm0_squares_sorted
+ok main._logos_cm0_squares_tab
+ok init

@@ -1,16 +1,24 @@
 // run
 
-// M7-S2 const for inside const if (SPEC Sec 2.5, T-205): a const for in
-// the live branch of a const if unrolls; a const for in the dead branch
-// (including a live comptime.Error there) is pruned with its branch and
-// never reaches lowering. Both branches still type-check.
 
 package main
 
 import (
 	"comptime"
 	"fmt"
+	"os"
 )
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 type Pair struct {
 	X int
@@ -60,5 +68,10 @@ func deadOnly(v Pair) int {
 
 func main() {
 	p := Pair{X: 3, Y: 4}
-	fmt.Println(live(p), elseLive(p), deadOnly(p))
+	check("live", live(p) == 7, live(p), 7)
+	check("else-live", elseLive(p) == 14, elseLive(p), 14)
+	check("dead-only", deadOnly(p) == 0, deadOnly(p), 0)
+	if failed {
+		os.Exit(1)
+	}
 }

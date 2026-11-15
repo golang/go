@@ -1,0 +1,58 @@
+// run
+
+package jsonunion
+
+import (
+	"encoding/json"
+	"errors"
+	"testing"
+
+	"logos/rt"
+)
+
+type WireCircle struct {
+	R float64 `json:"r"`
+}
+
+func (c *WireCircle) UnmarshalJSON(b []byte) error {
+	var v map[string]float64
+	if err := json.Unmarshal(b, &v); err != nil {
+		return err
+	}
+	r, ok := v["radius"]
+	if !ok {
+		return errors.New("WireCircle requires radius")
+	}
+	c.R = r
+	return nil
+}
+
+type WireSquare struct {
+	S int64 `json:"s"`
+}
+
+type WireShape interface {
+	*WireCircle | *WireSquare
+}
+
+type WireHolder struct {
+	Item WireShape `json:"item"`
+}
+
+func TestWireNameWithoutFieldKeyNeverMatches(t *testing.T) {
+	var h WireHolder
+	err := json.Unmarshal([]byte(`{"item":{"radius":2}}`), &h)
+	if err == nil {
+		t.Fatalf("expected trial error, got %T(%v)", h.Item, h.Item)
+	}
+	var trialErr rt.UnionTrialError
+	if !errors.As(err, &trialErr) {
+		t.Fatalf("expected rt.UnionTrialError, got %T: %v", err, err)
+	}
+	if trialErr.Matched != 0 {
+		t.Fatalf("expected Matched 0, got %d", trialErr.Matched)
+	}
+	if h.Item != nil {
+		t.Fatalf("failed trials left the target touched: %#v", h.Item)
+	}
+}

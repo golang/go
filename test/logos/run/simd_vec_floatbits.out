@@ -1,0 +1,8 @@
+ok f32x2-bitwise-matches-bits
+ok f32x4-bitwise-matches-bits
+ok f32x8-bitwise-matches-bits
+ok f64x2-bitwise-matches-bits
+ok f64x4-bitwise-matches-bits
+ok f64x8-bitwise-matches-bits
+ok f32-copysign-matches-bits
+ok f64-copysign-matches-bits

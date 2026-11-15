@@ -1,0 +1,41 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type inner struct{ b map[string]int }
+
+type box struct {
+	a_b map[string]int
+	a   inner
+}
+
+const cfg = box{a_b: map[string]int{"x": 1}, a: inner{b: map[string]int{"y": 2}}}
+
+func test() {
+	check("symbols-underscore-field", (cfg.a_b["x"] ?? -1) == 1, cfg.a_b["x"] ?? -1, 1)
+	check("symbols-nested-field", (cfg.a.b["y"] ?? -1) == 2, cfg.a.b["y"] ?? -1, 2)
+	check("symbols-distinct-len", len(cfg.a_b) == 1 && len(cfg.a.b) == 1, len(cfg.a_b), 1)
+}
+
+func main() {
+	test()
+	if failed {
+		os.Exit(1)
+	}
+}

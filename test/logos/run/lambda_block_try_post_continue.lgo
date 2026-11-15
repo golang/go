@@ -1,0 +1,45 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+)
+
+var sentinel = errors.New("second post")
+var evaluations int
+var bodies int
+
+func countedPost(failAt int) (int, error) {
+	evaluations++
+	if evaluations == failAt {
+		return 0, sentinel
+	}
+	return 1, nil
+}
+
+func postContinue(failAt int) error {
+	for i := 0; i < 3; i += len([]int{1}.map(x => {
+		v := countedPost(failAt)?
+		return v
+	})) {
+		bodies++
+		if bodies > 3 {
+			panic("continue skipped post")
+		}
+		continue
+	}
+	return nil
+}
+
+func main() {
+	if err := postContinue(0); err != nil || evaluations != 3 || bodies != 3 {
+		panic(fmt.Sprint("successful post: ", err, evaluations, bodies))
+	}
+	evaluations, bodies = 0, 0
+	if err := postContinue(2); err != sentinel || evaluations != 2 || bodies != 2 {
+		panic(fmt.Sprint("failed post: ", err, evaluations, bodies))
+	}
+	fmt.Println("ok block-try-post-continue")
+}

@@ -5,20 +5,15 @@ package main
 import (
 	"fmt"
 	"math"
+	"os"
 	"syscall"
 	"unsafe"
 )
 
-// M15-S2 attack (SPEC Sec 15.2, T-303; PLAN #22): a slice reduction
-// never reads past the last element. Each slice here ends at the last
-// byte of a page whose successor is PROT_NONE, so a vector load that
-// touches one byte past len(s) faults the process. Every length from 1
-// through 2*lanes+1 of the widest vector the lowering uses (64 byte
-// lanes for 8-bit elements, so 129) runs, which hits every tail size
-// of every element kind on amd64 (256-bit and 512-bit vectors) and on
-// arm64 (128-bit vectors). The reductions compare with a scalar oracle:
-// wrapping integer loops, and for floats an explicit pairwise recursion
-// over halves, the fixed order of the scalar form.
+func fail(tag string) {
+	fmt.Println("FAIL", tag)
+	os.Exit(1)
+}
 
 const maxLen = 2*64 + 1
 
@@ -30,23 +25,21 @@ type floatKind interface {
 	~float32 | ~float64
 }
 
-// pageEnd returns n elements of T ending at the last byte of a mapped
-// page, and a function that unmaps both pages.
 func pageEnd[T any](n int) ([]T, func()) {
 	page := syscall.Getpagesize()
 	mem, err := syscall.Mmap(-1, 0, 2*page, syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_ANON|syscall.MAP_PRIVATE)
 	if err != nil {
-		panic(err)
+		fail(fmt.Sprint("mmap: ", err))
 	}
 	if err := syscall.Mprotect(mem[page:], syscall.PROT_NONE); err != nil {
-		panic(err)
+		fail(fmt.Sprint("mprotect: ", err))
 	}
 	var zero T
 	size := int(unsafe.Sizeof(zero))
 	s := unsafe.Slice((*T)(unsafe.Pointer(&mem[page-n*size])), n)
 	return s, func() {
 		if err := syscall.Munmap(mem); err != nil {
-			panic(err)
+			fail(fmt.Sprint("munmap: ", err))
 		}
 	}
 }
@@ -75,51 +68,48 @@ func mixFloat(i int) float64 {
 }
 
 func checkInt[T intKind](name string, sum func([]T) T) {
-	bad := 0
 	for n := 1; n <= maxLen; n++ {
 		s, release := pageEnd[T](n)
 		for i := range s {
 			s[i] = T(i*37 + 11)
 		}
 		if got, want := sum(s), oracleInt(s); got != want {
-			bad++
-			fmt.Println("MISMATCH", name, n, got, want)
+			release()
+			fail(fmt.Sprintf("MISMATCH %s %d: got %v want %v", name, n, got, want))
 		}
 		release()
 	}
-	fmt.Println(name, "ok", bad)
+	fmt.Println("ok", name+"-guarded-tail-matches-oracle")
 }
 
 func checkFloat32(name string, sum func([]float32) float32) {
-	bad := 0
 	for n := 1; n <= maxLen; n++ {
 		s, release := pageEnd[float32](n)
 		for i := range s {
 			s[i] = float32(mixFloat(i))
 		}
 		if got, want := sum(s), oracleFloat(s); math.Float32bits(got) != math.Float32bits(want) {
-			bad++
-			fmt.Println("MISMATCH", name, n, got, want)
+			release()
+			fail(fmt.Sprintf("MISMATCH %s %d: got %v want %v", name, n, got, want))
 		}
 		release()
 	}
-	fmt.Println(name, "ok", bad)
+	fmt.Println("ok", name+"-guarded-tail-matches-oracle")
 }
 
 func checkFloat64(name string, sum func([]float64) float64) {
-	bad := 0
 	for n := 1; n <= maxLen; n++ {
 		s, release := pageEnd[float64](n)
 		for i := range s {
 			s[i] = mixFloat(i)
 		}
 		if got, want := sum(s), oracleFloat(s); math.Float64bits(got) != math.Float64bits(want) {
-			bad++
-			fmt.Println("MISMATCH", name, n, got, want)
+			release()
+			fail(fmt.Sprintf("MISMATCH %s %d: got %v want %v", name, n, got, want))
 		}
 		release()
 	}
-	fmt.Println(name, "ok", bad)
+	fmt.Println("ok", name+"-guarded-tail-matches-oracle")
 }
 
 func main() {

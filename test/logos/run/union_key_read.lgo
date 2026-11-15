@@ -1,0 +1,80 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed = false
+
+func check(name, got, want string) {
+	if got != want {
+		fmt.Printf("FAIL %s: got %q want %q\n", name, got, want)
+		failed = true
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type ukA struct {
+	ukX int
+}
+
+func (ukA) ukM() string {
+	return "a"
+}
+
+type ukB struct {
+	ukY string
+}
+
+func (ukB) ukM() string {
+	return "b"
+}
+
+type ukU interface {
+	ukA | ukB
+	ukM() string
+}
+
+type ukS string
+
+type ukP struct {
+	ukA int
+	ukB string
+}
+
+func main() {
+	m := map[ukU]string{ukA{ukX: 1}: "one", ukB{ukY: "y"}: "two"}
+	check("single-a", m[ukA{ukX: 1}] ?? "none", "one")
+	check("single-b", m[ukB{ukY: "y"}] ?? "none", "two")
+	check("absent", m[ukA{ukX: 2}] ?? "none", "none")
+	var typed string? = m[ukA{ukX: 9}]
+	check("typed-option", fmt.Sprint(typed == nil), "true")
+	v, ok := m[ukA{ukX: 1}]
+	check("twovalue", fmt.Sprint(v, " ", ok), "one true")
+	v2, ok2 := m[ukA{ukX: 9}]
+	check("twovalue-absent", fmt.Sprint(v2 == "", ok2), "true false")
+	var u ukU = ukA{ukX: 1}
+	check("ukey", m[u] ?? "none", "one")
+	check("explicit", m[ukU(ukA{ukX: 1})] ?? "none", "one")
+	ma := map[any]int{"s": 7}
+	check("iface", fmt.Sprint(ma["s"] ?? -1), "7")
+	mn := map[ukS]int{"a": 1}
+	check("namedconst", fmt.Sprint(mn["a"] ?? -1), "1")
+	mp := map[ukP]string{ukP{ukA: 1, ukB: "x"}: "found"}
+	check("unnamedkey", mp[struct {
+		ukA int
+		ukB string
+	}{1, "x"}] ?? "none", "found")
+	mq := map[struct {
+		ukA int
+		ukB string
+	}]string{{1, "x"}: "found"}
+	check("namedkey", mq[ukP{ukA: 1, ukB: "x"}] ?? "none", "found")
+	if failed {
+		os.Exit(1)
+	}
+}

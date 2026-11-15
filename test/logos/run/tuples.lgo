@@ -2,7 +2,22 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"io"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 func pair() (int, error) { return 3, nil }
 
@@ -13,41 +28,96 @@ func show(t (id int64, err error)) string {
 	return fmt.Sprint(a, b)
 }
 
+func two(a int, b error) bool { return a == 3 && b == nil }
+
+type rec (id int, xs []int, p *int, a [2]int)
+
+func captureStdout(f func()) string {
+	old := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		fmt.Println("FAIL pipe:", err)
+		os.Exit(1)
+	}
+	os.Stdout = w
+	f()
+	cerr := w.Close()
+	os.Stdout = old
+	out, rerr := io.ReadAll(r)
+	if cerr != nil {
+		fmt.Println("FAIL close:", cerr)
+		os.Exit(1)
+	}
+	if rerr != nil {
+		fmt.Println("FAIL read:", rerr)
+		os.Exit(1)
+	}
+	return string(out)
+}
+
 func main() {
 	var t (int, error)
 	t = pair()
 	a, b := t
-	fmt.Println(a, b)
+	pa, pb := pair()
+	check("tuple-assign-keeps-values", pb == nil && a == 3 && b == nil && a == pa && b == pb, fmt.Sprint(a, b), "3 <nil>")
 	c := pair()
-	fmt.Println(c)
+	d := pair()
+	check("call-tuple-equals-fresh-call", c == d && c == t, fmt.Sprint(c), "{3 <nil>}")
 	n := nres()
-	fmt.Println(n.x, n.y)
+	check("named-results-keep-names", n.x == 7 && n.y == "seven", fmt.Sprint(n.x, n.y), "7 seven")
 	u := (10, "ten")
 	p, q := u
-	fmt.Println(p, q)
-	fmt.Println(pair())
+	check("literal-tuple-unpacks", p == 10 && q == "ten", fmt.Sprint(p, q), "10 ten")
+	sp, sq := pair()
+	check("direct-call-unpacks", sq == nil && sp == 3, fmt.Sprint(pair()), "3 <nil>")
+	check("call-arg-unpacks", two(pair()), two(pair()), true)
+	check("call-print-unpacks", fmt.Sprint(pair()) == "3 <nil>", fmt.Sprint(pair()), "3 <nil>")
+	printed := captureStdout(func() { fmt.Println(pair()) })
+	check("call-println-unpacks", printed == "3 <nil>\n", fmt.Sprintf("%q", printed), "\"3 <nil>\\n\"")
 	ch := make(chan (int, error), 1)
 	ch <- c
 	v := <-ch
-	p1, q1 := v
-	fmt.Println(p1, q1)
+	check("tuple-round-trips-channel", v == c, fmt.Sprint(v), "{3 <nil>}")
 	m := map[string](int, error){"k": (1, nil)}
 	mv, ok := m["k"]
-	fmt.Println(ok)
 	mp, mq := mv
-	fmt.Println(mp, mq)
-	fmt.Println(show((42, nil)))
+	check("tuple-round-trips-map", ok && mp == 1 && mq == nil, fmt.Sprint(ok, mp, mq), "true 1 <nil>")
+	rows := [](x int, y string){(1, "a"), (2, "b")}
+	rows = append(rows, (3, "c"))
+	sum := 0
+	for _, row := range rows {
+		sum += row.x
+	}
+	r0, r1 := rows[2]
+	check("tuple-slice-literal-append-range", len(rows) == 3 && sum == 6 && rows[1].y == "b" && r0 == 3 && r1 == "c", fmt.Sprint(len(rows), sum, rows[1].y, r0, r1), "3 6 b 3 c")
+	var ps [](int, error)
+	one := pair()
+	ps = append(ps, one)
+	ps = append(ps, (5, nil))
+	p1a, p1b := ps[1]
+	check("tuple-slice-packed-element", len(ps) == 2 && ps[0] == c && p1a == 5 && p1b == nil, fmt.Sprint(ps), "[{3 <nil>} {5 <nil>}]")
+	check("named-tuple-params-unpack", show((42, nil)) == "42 <nil>", show((42, nil)), "42 <nil>")
+	var vt (int, error) = pair()
+	va, vb := vt
+	check("var-decl-pack-keeps-values", va == 3 && vb == nil, fmt.Sprint(va, vb), "3 <nil>")
+	var nv (x int, y string) = nres()
+	check("var-decl-named-pack-keeps-values", nv.x == 7 && nv.y == "seven", fmt.Sprint(nv.x, nv.y), "7 seven")
+	k := 5
+	var rv rec = (1, []int{2, 3}, &k, [2]int{6, 7})
+	check("named-bracket-elements", rv.id == 1 && len(rv.xs) == 2 && rv.xs[1] == 3 && *rv.p == 5 && rv.a[1] == 7, fmt.Sprint(rv.id, rv.xs, *rv.p, rv.a), "1 [2 3] 5 [6 7]")
 	direct()
+	if failed {
+		os.Exit(1)
+	}
 }
 
-// direct multi-assignment unpacks a tuple-returning call (#17): the
-// call stays a native multi-value assignment, never a packed tuple.
 func direct() {
 	x, y := pair()
-	fmt.Println(x, y)
+	check("direct-unpack-keeps-values", y == nil && x == 3, fmt.Sprint(pair()), "3 <nil>")
 	p, q := nres()
-	fmt.Println(p, q)
+	check("direct-named-unpack-keeps-values", p == 7 && q == "seven", fmt.Sprint(p, q), "7 seven")
 	m1, m2 := pair()
 	m1, m2 = pair()
-	fmt.Println(m1, m2)
+	check("reassign-keeps-values", m2 == nil && m1 == 3, fmt.Sprint(pair()), "3 <nil>")
 }

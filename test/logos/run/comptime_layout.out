@@ -1,0 +1,13 @@
+ok int8-size-align-no-scan
+ok int64-size-align-no-scan
+ok string-size-align-scans
+ok pointer-size-align-scans
+ok zero-array-size-align-no-scan
+ok mixed-struct-size-align-scans
+ok float-array-size-align-no-scan
+ok empty-struct-size-align-no-scan
+ok pointer-pair-size-align-scans
+ok buffer-uses-size
+ok const-if-on-haspointers
+ok recursive-pointer-scans
+ok recursive-zero-array-no-scan

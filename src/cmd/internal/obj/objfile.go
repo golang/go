@@ -371,6 +371,9 @@ func (w *writer) Sym(s *LSym) {
 	if s.IsPkgInit() {
 		flag2 |= goobj.SymFlagPkgInit
 	}
+	if s.LogosCtClone() {
+		flag |= goobj.SymFlagLogosCtClone
+	}
 	if s.IsLinkname() || name == "main.main" {
 		// The runtime linknames main.main.
 		flag2 |= goobj.SymFlagLinkname

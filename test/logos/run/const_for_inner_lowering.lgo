@@ -1,9 +1,5 @@
 // run
 
-// M7-S2 const for with inner lowering (SPEC Sec 2.5, T-205; #76): a `?`
-// call, a `$"..."` interpolation, and a chain call inside a const for
-// body lower once per unrolled copy, and the ejected text matches the
-// native lowering.
 
 package main
 
@@ -11,8 +7,20 @@ import (
 	"comptime"
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 )
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 type Row struct {
 	Name  string
@@ -28,12 +36,12 @@ func parse(s string) (int, error) {
 	return n, nil
 }
 
-func total(in string) (int, error) {
+func total(in string, log *[]string) (int, error) {
 	sum := 0
 	const for _, f := range comptime.Fields[Row]() {
 		n := parse(in)?
 		sum += n
-		fmt.Println($"{f.Name}={sum}")
+		*log = append(*log, $"{f.Name}={sum}")
 	}
 	return sum, nil
 }
@@ -47,7 +55,31 @@ func summed() int {
 }
 
 func main() {
-	fmt.Println(total("5"))
-	fmt.Println(total("z"))
-	fmt.Println(summed())
+	var log []string
+	got, err := total("5", &log)
+	wantLog := []string{"Name=5", "Count=10", "Ok=15"}
+	check("total-lines", fmt.Sprint(log) == fmt.Sprint(wantLog), log, wantLog)
+	if err != nil {
+		check("total-sum", false, err, 15)
+	} else {
+		check("total-sum", got == 15, got, 15)
+	}
+	var badLog []string
+	var bad struct {
+		sum int
+		err error
+	}
+	bad.sum, bad.err = total("z", &badLog)
+	gotBad, errBad := bad.sum, bad.err
+	if errBad != nil {
+		check("total-bad-err", errBad.Error() == "bad z", errBad.Error(), "bad z")
+		check("total-bad-sum", gotBad == 0, gotBad, 0)
+	} else {
+		check("total-bad-err", false, nil, "bad z")
+		check("total-bad-sum", false, gotBad, 0)
+	}
+	check("summed", summed() == 27, summed(), 27)
+	if failed {
+		os.Exit(1)
+	}
 }

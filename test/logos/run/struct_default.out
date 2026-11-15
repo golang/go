@@ -1,5 +1,6 @@
-8080 localhost
-8080 localhost
-8080 x
-0 
-0 
+ok value
+ok ptr
+ok partial
+ok ptr-partial
+ok zero-value
+ok zero-new

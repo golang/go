@@ -1,0 +1,92 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+logos build -o $WORK/good$GOEXE ./good
+! logos build -o $WORK/mention$GOEXE ./mention
+stderr -count=1 'correctness::result_before_error_check'
+! stderr 'slop::'
+! logos build -o $WORK/read$GOEXE ./read
+stderr -count=1 'correctness::result_before_error_check'
+! stderr 'slop::'
+logos build -o $WORK/forward$GOEXE ./forward
+
+-- go.mod --
+module example.com/resultmention
+
+go 1.27
+
+-- mention/main.lgo --
+package main
+
+func fetch() (int, error) { return 7, nil }
+
+func probe() (int, error) {
+	n, err := fetch(); println(err, n); return n, err
+}
+
+func main() {
+	_, err := probe()
+	if err != nil {
+		println(err)
+		return
+	}
+}
+
+-- read/main.lgo --
+package main
+
+func fetch() (int, error) { return 7, nil }
+
+func probe() (int, error) {
+	n, err := fetch()
+	println(n)
+	return n, err
+}
+
+func main() {
+	_, err := probe()
+	if err != nil {
+		println(err)
+		return
+	}
+}
+
+-- good/main.lgo --
+package main
+
+func fetch() (int, error) { return 7, nil }
+
+func probe() (int, error) {
+	n, err := fetch()
+	if err != nil {
+		return 0, err
+	}
+	println(err, n)
+	return n, err
+}
+
+func main() {
+	_, err := probe()
+	if err != nil {
+		println(err)
+		return
+	}
+}
+
+-- forward/main.lgo --
+package main
+
+func fetch() (int, error) { return 7, nil }
+
+func probe() (int, error) {
+	n, err := fetch()
+	return n, err
+}
+
+func main() {
+	_, err := probe()
+	if err != nil {
+		println(err)
+		return
+	}
+}

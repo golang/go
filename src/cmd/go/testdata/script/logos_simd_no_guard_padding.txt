@@ -1,0 +1,279 @@
+# Masked tails must not read past the slice end: every tail length is
+# summed at the end of a mapped page backed by a guard page, so an
+# over-read faults and a wrong lane value mismatches the oracle.
+[!GOARCH:amd64] skip 'no-guard-padding probe needs amd64'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOEXPERIMENT=simd
+
+cd m
+logos run .
+! stdout 'MISMATCH'
+stdout '^int8 ok 0$'
+stdout '^uint8 ok 0$'
+stdout '^int16 ok 0$'
+stdout '^uint16 ok 0$'
+stdout '^int32 ok 0$'
+stdout '^uint32 ok 0$'
+stdout '^int64 ok 0$'
+stdout '^uint64 ok 0$'
+stdout '^float32 ok 0$'
+stdout '^float64 ok 0$'
+
+cd ../a
+logos run .
+! stdout 'MISMATCH'
+stdout '^pad32 0$'
+stdout '^pad64 0$'
+
+cd ../o
+logos run .
+stdout '^ordinary allocation ok$'
+
+-- o/go.mod --
+module example.com/ordinarynopadding
+
+go 1.27
+
+-- o/main.lgo --
+package main
+
+import (
+	"fmt"
+	"runtime"
+	"runtime/debug"
+)
+
+var bytes []byte
+var floats32 []float32
+var floats64 []float64
+
+func main() {
+	debug.SetGCPercent(-1)
+	var before, after runtime.MemStats
+	for size := 32768; size <= 49152; size += 8192 {
+		runtime.ReadMemStats(&before)
+		bytes = make([]byte, size)
+		runtime.ReadMemStats(&after)
+		if got := after.TotalAlloc - before.TotalAlloc; got != uint64(size) {
+			panic(fmt.Sprintf("control %d %d", size, got))
+		}
+		runtime.ReadMemStats(&before)
+		floats32 = make([]float32, size/4)
+		runtime.ReadMemStats(&after)
+		if got := after.TotalAlloc - before.TotalAlloc; got != uint64(size) {
+			panic(fmt.Sprintf("ordinary32 %d %d", size, got))
+		}
+		runtime.ReadMemStats(&before)
+		floats64 = make([]float64, size/8)
+		runtime.ReadMemStats(&after)
+		if got := after.TotalAlloc - before.TotalAlloc; got != uint64(size) {
+			panic(fmt.Sprintf("ordinary64 %d %d", size, got))
+		}
+		bytes[size-1] = 7
+		floats32[size/4-1] = 11
+		floats64[size/8-1] = 13
+		if len(bytes) != size || cap(bytes) != size || bytes[size-1] != 7 || len(floats32) != size/4 || cap(floats32) != size/4 || floats32[size/4-1] != 11 || len(floats64) != size/8 || cap(floats64) != size/8 || floats64[size/8-1] != 13 {
+			panic("ordinary values")
+		}
+	}
+	fmt.Println("ordinary allocation ok")
+}
+
+-- a/go.mod --
+module example.com/nopadalloc
+
+go 1.27
+
+-- a/main.lgo --
+package main
+
+import (
+	"fmt"
+	"runtime"
+	"runtime/debug"
+)
+
+func pad32(s []float32) int {
+	var before, after runtime.MemStats
+	best := int64(1 << 62)
+	for r := 0; r < 8; r++ {
+		runtime.ReadMemStats(&before)
+		s.sum()
+		runtime.ReadMemStats(&after)
+		d := int64(after.TotalAlloc - before.TotalAlloc)
+		if d < best {
+			best = d
+		}
+	}
+	return int(best - int64(len(s))*4)
+}
+
+func pad64(s []float64) int {
+	var before, after runtime.MemStats
+	best := int64(1 << 62)
+	for r := 0; r < 8; r++ {
+		runtime.ReadMemStats(&before)
+		s.sum()
+		runtime.ReadMemStats(&after)
+		d := int64(after.TotalAlloc - before.TotalAlloc)
+		if d < best {
+			best = d
+		}
+	}
+	return int(best - int64(len(s))*8)
+}
+
+func main() {
+	debug.SetGCPercent(-1)
+	bad32 := 0
+	bad64 := 0
+	for n := 1; n <= 129; n++ {
+		s32 := make([]float32, n)
+		for i := range s32 {
+			s32[i] = float32(i)*0.5 + 1
+		}
+		if p := pad32(s32); p > 0 {
+			bad32++
+			fmt.Println("MISMATCH pad32", n, p)
+		}
+		s64 := make([]float64, n)
+		for i := range s64 {
+			s64[i] = float64(i)*0.5 + 1
+		}
+		if p := pad64(s64); p > 0 {
+			bad64++
+			fmt.Println("MISMATCH pad64", n, p)
+		}
+	}
+	fmt.Println("pad32", bad32)
+	fmt.Println("pad64", bad64)
+}
+-- m/go.mod --
+module example.com/noguardpadding
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import (
+	"fmt"
+	"math"
+	"syscall"
+	"unsafe"
+)
+
+const maxLen = 2*64 + 1
+
+type intKind interface {
+	~int8 | ~uint8 | ~int16 | ~uint16 | ~int32 | ~uint32 | ~int64 | ~uint64
+}
+
+type floatKind interface {
+	~float32 | ~float64
+}
+
+func pageEnd[T any](n int) ([]T, func()) {
+	page := syscall.Getpagesize()
+	mem, err := syscall.Mmap(-1, 0, 2*page, syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_ANON|syscall.MAP_PRIVATE)
+	if err != nil {
+		panic(err)
+	}
+	if err := syscall.Mprotect(mem[page:], syscall.PROT_NONE); err != nil {
+		panic(err)
+	}
+	var zero T
+	size := int(unsafe.Sizeof(zero))
+	s := unsafe.Slice((*T)(unsafe.Pointer(&mem[page-n*size])), n)
+	return s, func() {
+		if err := syscall.Munmap(mem); err != nil {
+			panic(err)
+		}
+	}
+}
+
+func oracleInt[T intKind](s []T) T {
+	var t T
+	for _, v := range s {
+		t += v
+	}
+	return t
+}
+
+func oracleFloat[T floatKind](s []T) T {
+	switch len(s) {
+	case 0:
+		return 0
+	case 1:
+		return s[0]
+	}
+	m := len(s) / 2
+	return oracleFloat(s[:m]) + oracleFloat(s[m:])
+}
+
+func mixFloat(i int) float64 {
+	return math.Ldexp(float64((i*2654435761>>3)%2001-1000), (i*7)%13-6)
+}
+
+func checkInt[T intKind](name string, sum func([]T) T) {
+	bad := 0
+	for n := 1; n <= maxLen; n++ {
+		s, release := pageEnd[T](n)
+		for i := range s {
+			s[i] = T(i*37 + 11)
+		}
+		if got, want := sum(s), oracleInt(s); got != want {
+			bad++
+			fmt.Println("MISMATCH", name, n, got, want)
+		}
+		release()
+	}
+	fmt.Println(name, "ok", bad)
+}
+
+func checkFloat32(name string, sum func([]float32) float32) {
+	bad := 0
+	for n := 1; n <= maxLen; n++ {
+		s, release := pageEnd[float32](n)
+		for i := range s {
+			s[i] = float32(mixFloat(i))
+		}
+		if got, want := sum(s), oracleFloat(s); math.Float32bits(got) != math.Float32bits(want) {
+			bad++
+			fmt.Println("MISMATCH", name, n, got, want)
+		}
+		release()
+	}
+	fmt.Println(name, "ok", bad)
+}
+
+func checkFloat64(name string, sum func([]float64) float64) {
+	bad := 0
+	for n := 1; n <= maxLen; n++ {
+		s, release := pageEnd[float64](n)
+		for i := range s {
+			s[i] = mixFloat(i)
+		}
+		if got, want := sum(s), oracleFloat(s); math.Float64bits(got) != math.Float64bits(want) {
+			bad++
+			fmt.Println("MISMATCH", name, n, got, want)
+		}
+		release()
+	}
+	fmt.Println(name, "ok", bad)
+}
+
+func main() {
+	checkInt("int8", func(s []int8) int8 { return s.sum() })
+	checkInt("uint8", func(s []uint8) uint8 { return s.sum() })
+	checkInt("int16", func(s []int16) int16 { return s.sum() })
+	checkInt("uint16", func(s []uint16) uint16 { return s.sum() })
+	checkInt("int32", func(s []int32) int32 { return s.sum() })
+	checkInt("uint32", func(s []uint32) uint32 { return s.sum() })
+	checkInt("int64", func(s []int64) int64 { return s.sum() })
+	checkInt("uint64", func(s []uint64) uint64 { return s.sum() })
+	checkFloat32("float32", func(s []float32) float32 { return s.sum() })
+	checkFloat64("float64", func(s []float64) float64 { return s.sum() })
+}

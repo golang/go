@@ -1,0 +1,239 @@
+[short] skip 'cross-links the standard library for plan9'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOOS=plan9
+env GOARCH=amd64
+env CGO_ENABLED=0
+mkdir $WORK/bin
+
+cd a/main
+! logos build -o $WORK/bin/p9a ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/adep'' reaches ''golang\.org/x/sys/plan9\.Syscall'''
+stderr 'ERROR \[capabilities::unauthorized_net\]: Transitive dependency ''example\.com/adep'' reaches ''golang\.org/x/sys/plan9\.Syscall'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/adep'' reaches ''golang\.org/x/sys/plan9\.Syscall6'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/adep'' reaches ''golang\.org/x/sys/plan9\.RawSyscall'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/adep'' reaches ''golang\.org/x/sys/plan9\.RawSyscall6'''
+! stderr 'Transitive dependency ''golang\.org/x/sys/plan9'''
+cd ../..
+
+cd b/main
+! logos build -o $WORK/bin/p9b ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/bdep'' reaches ''syscall\.Syscall'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/bdep'' reaches ''syscall\.Syscall6'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/bdep'' reaches ''syscall\.RawSyscall'''
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/bdep'' reaches ''syscall\.RawSyscall6'''
+cd ../..
+
+cd c/main
+logos build -o $WORK/bin/p9c ./cmd
+! stderr 'capabilities::'
+cd ../..
+
+cd d/main
+logos build -o $WORK/bin/p9d ./cmd
+! stderr 'capabilities::'
+cd ../..
+
+-- sys/go.mod --
+module golang.org/x/sys
+
+go 1.27
+
+-- sys/plan9/plan9.go --
+package plan9
+
+import "syscall"
+
+//go:noinline
+func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err syscall.ErrorString) {
+	return syscall.Syscall(trap, a1, a2, a3)
+}
+
+//go:noinline
+func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err syscall.ErrorString) {
+	return syscall.Syscall6(trap, a1, a2, a3, a4, a5, a6)
+}
+
+//go:noinline
+func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+	return syscall.RawSyscall(trap, a1, a2, a3)
+}
+
+//go:noinline
+func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
+	return syscall.RawSyscall6(trap, a1, a2, a3, a4, a5, a6)
+}
+
+-- a/main/go.mod --
+module example.com/amain
+
+go 1.27
+
+require (
+	example.com/adep v0.0.0
+	golang.org/x/sys v0.0.0
+)
+
+replace example.com/adep => ../dep
+
+replace golang.org/x/sys => ../../sys
+
+-- a/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_exec_allowlist = ["golang.org/x/sys/**"]
+transitive_net = "deny"
+transitive_net_allowlist = ["golang.org/x/sys/**"]
+
+-- a/main/cmd/main.go --
+package main
+
+import "example.com/adep"
+
+func main() { adep.Init() }
+
+-- a/dep/go.mod --
+module example.com/adep
+
+go 1.27
+
+require golang.org/x/sys v0.0.0
+
+-- a/dep/dep.go --
+package adep
+
+import "golang.org/x/sys/plan9"
+
+//go:noinline
+func Init() {
+	plan9.Syscall(0, 0, 0, 0)
+	plan9.Syscall6(0, 0, 0, 0, 0, 0, 0)
+	plan9.RawSyscall(0, 0, 0, 0)
+	plan9.RawSyscall6(0, 0, 0, 0, 0, 0, 0)
+}
+
+-- b/main/go.mod --
+module example.com/bmain
+
+go 1.27
+
+require example.com/bdep v0.0.0
+
+replace example.com/bdep => ../dep
+
+-- b/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_net = "deny"
+
+-- b/main/cmd/main.go --
+package main
+
+import "example.com/bdep"
+
+func main() { bdep.Init() }
+
+-- b/dep/go.mod --
+module example.com/bdep
+
+go 1.27
+
+-- b/dep/dep.go --
+package bdep
+
+import "syscall"
+
+//go:noinline
+func Init() {
+	syscall.Syscall(0, 0, 0, 0)
+	syscall.Syscall6(0, 0, 0, 0, 0, 0, 0)
+	syscall.RawSyscall(0, 0, 0, 0)
+	syscall.RawSyscall6(0, 0, 0, 0, 0, 0, 0)
+}
+
+-- c/main/go.mod --
+module example.com/cmain
+
+go 1.27
+
+require (
+	example.com/cdep v0.0.0
+	golang.org/x/sys v0.0.0
+)
+
+replace example.com/cdep => ../dep
+
+replace golang.org/x/sys => ../../sys
+
+-- c/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_exec_allowlist = ["example.com/cdep/**", "golang.org/x/sys/**"]
+transitive_net = "deny"
+transitive_net_allowlist = ["example.com/cdep/**", "golang.org/x/sys/**"]
+
+-- c/main/cmd/main.go --
+package main
+
+import "example.com/cdep"
+
+func main() { cdep.Init() }
+
+-- c/dep/go.mod --
+module example.com/cdep
+
+go 1.27
+
+require golang.org/x/sys v0.0.0
+
+-- c/dep/dep.go --
+package cdep
+
+import "golang.org/x/sys/plan9"
+
+//go:noinline
+func Init() {
+	plan9.Syscall(0, 0, 0, 0)
+}
+
+-- d/main/go.mod --
+module example.com/dmain
+
+go 1.27
+
+require example.com/ddep v0.0.0
+
+replace example.com/ddep => ../dep
+
+-- d/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_net = "deny"
+
+-- d/main/cmd/main.go --
+package main
+
+import "example.com/ddep"
+
+func main() { ddep.Init() }
+
+-- d/dep/go.mod --
+module example.com/ddep
+
+go 1.27
+
+-- d/dep/dep.go --
+package ddep
+
+import (
+	"os"
+	"syscall"
+)
+
+//go:noinline
+func Init() {
+	syscall.Getpid()
+	os.Getpid()
+	os.ReadFile("go.mod")
+}

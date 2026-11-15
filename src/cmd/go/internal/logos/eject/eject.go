@@ -15,9 +15,9 @@ import (
 	"context"
 	"go/ast"
 	"go/build/constraint"
-	"go/format"
 	"go/parser"
 	"go/token"
+	"internal/logosfile"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -33,6 +33,7 @@ import (
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/work"
+	"cmd/internal/sys"
 )
 
 // rtModulePath is the shared support module for ejected trees. Every
@@ -58,7 +59,8 @@ the support sources become the shared module
 github.com/gosuda/loGos/rt under DIR/_logos_deps/rt.
 
 DIR must not exist or must be empty. The ejected tree builds with an
-upstream Go 1.27 toolchain. Eject never writes into the source tree.
+upstream Go 1.27.2 or newer toolchain. Eject never writes into the
+source tree.
 	`,
 }
 
@@ -189,11 +191,100 @@ func ejectToDir(ctx context.Context, out string) {
 	if !isEjectVariant() {
 		variantOuts = stageInactiveVariantsIntoStaging(ctx, plan, staging)
 	}
-	writeEjectedTree(plan, staging, out)
+	writeEjectedTree(ctx, plan, staging, out)
 	mergeVariantExtraDeps(out, variantOuts, plan)
 	for _, dir := range variantOuts {
 		_ = os.RemoveAll(dir)
 	}
+	runEjectGofmt(ctx)
+}
+
+var ejectGofmtFiles []string
+
+var ejectToolExeSuffix = cfg.ToolExeSuffix()
+
+var ejectArgLengthLimit = sys.ExecArgLengthLimit
+
+func queueEjectGofmt(path string) {
+	ejectGofmtFiles = append(ejectGofmtFiles, path)
+}
+
+const ejectGofmtPasses = 3
+
+func runEjectGofmt(ctx context.Context) {
+	files := ejectGofmtFiles
+	ejectGofmtFiles = nil
+	gofmtFiles(ctx, "-w", files)
+	for range ejectGofmtPasses {
+		files = unformattedFiles(ctx, files)
+		if len(files) == 0 {
+			return
+		}
+		gofmtFiles(ctx, "-w", files)
+	}
+}
+
+func unformattedFiles(ctx context.Context, files []string) []string {
+	var out []string
+	for line := range strings.SplitSeq(string(gofmtFiles(ctx, "-l", files)), "\n") {
+		if line != "" {
+			out = append(out, line)
+		}
+	}
+	return out
+}
+
+func gofmtFiles(ctx context.Context, flag string, files []string) []byte {
+	gofmt := gofmtBinary()
+	args := []string{gofmt, flag}
+	argLen := len(gofmt) + 1 + len(flag)
+	base, baseLen := len(args), argLen
+	var out []byte
+	flush := func() {
+		if len(args) > base {
+			out = append(out, gofmtRun(ctx, args, nil)...)
+			args = args[:base]
+			argLen = baseLen
+		}
+	}
+	for _, file := range files {
+		if len(args) > base && argLen+1+len(file) >= ejectArgLengthLimit {
+			flush()
+		}
+		args = append(args, file)
+		argLen += 1 + len(file)
+	}
+	flush()
+	return out
+}
+
+func gofmtRun(ctx context.Context, args []string, stdin []byte) []byte {
+	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
+	if stdin != nil {
+		cmd.Stdin = bytes.NewReader(stdin)
+	}
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		base.Fatalf("logos eject: gofmt: %v: %s", err, out)
+	}
+	return out
+}
+
+func gofmtBinary() string {
+	gofmt := "gofmt" + ejectToolExeSuffix
+	p := filepath.Join(cfg.GOBIN, gofmt)
+	if _, err := os.Stat(p); err == nil {
+		return p
+	}
+	p = filepath.Join(cfg.GOROOT, "bin", gofmt)
+	if _, err := os.Stat(p); err == nil {
+		return p
+	}
+	if p, err := exec.LookPath("gofmt"); err == nil {
+		return p
+	}
+	base.Fatalf("logos eject: gofmt not found")
+	return ""
 }
 
 // checkEjectOut rejects an output directory that exists and is not
@@ -285,7 +376,7 @@ func (plan *ejectPlan) addPackage(p *load.Package) {
 func resortEjectPlan(plan *ejectPlan) {
 	plan.deps = nil
 	for _, m := range plan.depByPath {
-		if moduleHasLogos(m) {
+		if moduleHasLogos(m) || moduleImportsLogos(m) {
 			plan.deps = append(plan.deps, m)
 		}
 	}
@@ -305,7 +396,7 @@ func ejectOwnsLogos(p *load.Package) bool {
 		return true
 	}
 	for _, name := range p.IgnoredGoFiles {
-		if cfg.IsLogosFile(name) {
+		if logosfile.Is(name) {
 			return true
 		}
 	}
@@ -322,6 +413,20 @@ func moduleHasLogos(m *ejectModule) bool {
 	return false
 }
 
+// moduleImportsLogos reports whether any package of the module imports a
+// logos support path: the module must vendor beside the support module or
+// the ejected tree does not build under plain go.
+func moduleImportsLogos(m *ejectModule) bool {
+	for _, p := range m.pkgs {
+		for _, q := range p.Internal.Imports {
+			if q != nil && strings.HasPrefix(q.ImportPath, "logos/") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // isTestArtifact reports whether p is a synthesized test main or a test
 // variant produced for one. Such packages build in the second phase.
 func isTestArtifact(p *load.Package) bool {
@@ -332,12 +437,12 @@ func isTestArtifact(p *load.Package) bool {
 // test-variant compilation for emission.
 func hasLogosTestFiles(p *load.Package) bool {
 	for _, name := range p.TestGoFiles {
-		if cfg.IsLogosFile(name) {
+		if logosfile.Is(name) {
 			return true
 		}
 	}
 	for _, name := range p.XTestGoFiles {
-		if cfg.IsLogosFile(name) {
+		if logosfile.Is(name) {
 			return true
 		}
 	}
@@ -423,14 +528,14 @@ func phaseOneRoots(plan *ejectPlan) []*load.Package {
 	set := map[*load.Package]bool{}
 	var roots []*load.Package
 	for _, p := range plan.main.pkgs {
-		if p.Standard || set[p] {
+		if p.Standard || p.IsTestOnly() || set[p] {
 			continue
 		}
 		set[p] = true
 		roots = append(roots, p)
 	}
 	for _, p := range plan.logos {
-		if set[p] {
+		if p.IsTestOnly() || set[p] {
 			continue
 		}
 		set[p] = true
@@ -451,6 +556,11 @@ func buildEjectRoots(moduleLoader *modload.Loader, ctx context.Context, roots []
 	}()
 	root := &work.Action{Mode: "go build"}
 	for _, p := range roots {
+		if p.Internal.TestmainGo != nil {
+			if err := b.StageTestmain(p); err != nil {
+				base.Fatalf("logos eject: %v", err)
+			}
+		}
 		root.Deps = append(root.Deps, b.AutoAction(moduleLoader, work.ModeBuild, work.ModeBuild, p))
 	}
 	b.Do(ctx, root)
@@ -501,15 +611,11 @@ func withoutEjectFlags(flags []string) []string {
 
 // writeEjectedTree assembles the output directory from copied sources,
 // compiler-emitted files, the support module, and rewritten go.mod files.
-func writeEjectedTree(plan *ejectPlan, staging, out string) {
+func writeEjectedTree(ctx context.Context, plan *ejectPlan, staging, out string) {
 	abs, err := filepath.Abs(out)
 	if err != nil {
 		base.Fatalf("logos eject: %s: %v", out, err)
 	}
-	// Support use comes from every Go source the tree writes: copied
-	// plain Go files in the main module and the ejected dependency
-	// modules, and compiler-emitted loGo/s files. Support emission and the
-	// go.mod rewriting below read this one flag.
 	emitOne := emitPackageGoFiles
 	if isEjectVariant() {
 		emitOne = emitPackageGoFilesVariant
@@ -533,10 +639,8 @@ func writeEjectedTree(plan *ejectPlan, staging, out string) {
 			}
 		}
 	}
-	// Owned helpers land after package copy, so generated files only ever
-	// appear in the output tree, and before go.mod rewriting, so modules
 	// pulled in only by an owned helper still get their require lines.
-	if usesOwned, err := emitOwnedHelpers(plan, staging, out, ejected); err != nil {
+	if usesOwned, err := emitOwnedHelpers(ctx, plan, staging, out, ejected); err != nil {
 		base.Fatalf("logos eject: %v", err)
 	} else if usesOwned {
 		usedRT = true
@@ -587,6 +691,7 @@ func writeLoweredFile(dstRoot, rel, stem, name string, raw []byte) bool {
 	if err := os.WriteFile(dst, fixed, 0666); err != nil {
 		base.Fatalf("logos eject: %v", err)
 	}
+	queueEjectGofmt(dst)
 	return uses
 }
 
@@ -597,10 +702,44 @@ func writeLoweredFile(dstRoot, rel, stem, name string, raw []byte) bool {
 // owned file is present, so a miss is a build failure, never a silent
 // omission or raw fallback.
 func emitPackageGoFiles(p *load.Package, plan *ejectPlan, staging, dstRoot, modRoot string) bool {
+	return emitLoweredGoFiles(p, plan, emitDest{staging: staging, dstRoot: dstRoot, modRoot: modRoot}, emitStrictMissing)
+}
+
+func emitPackageGoFilesVariant(p *load.Package, plan *ejectPlan, staging, dstRoot, modRoot string) bool {
+	return emitLoweredGoFiles(p, plan, emitDest{staging: staging, dstRoot: dstRoot, modRoot: modRoot}, emitSkipMissing)
+}
+
+type emitDest struct {
+	staging string
+	dstRoot string
+	modRoot string
+}
+
+type emitMissingFunc func(p *load.Package, name string, ignoredSet map[string]bool, err error) bool
+
+func emitStrictMissing(p *load.Package, name string, ignoredSet map[string]bool, err error) bool {
+	if os.IsNotExist(err) && ignoredSet[name] {
+		srcData, readErr := os.ReadFile(filepath.Join(p.Dir, name))
+		if readErr != nil {
+			base.Fatalf("logos eject: missing ejected output for %s: %v", filepath.Join(p.Dir, name), readErr)
+		}
+		if isBuildIgnored(srcData) {
+			return true
+		}
+	}
+	base.Fatalf("logos eject: missing ejected output for %s: %v", filepath.Join(p.Dir, name), err)
+	return true
+}
+
+func emitSkipMissing(p *load.Package, name string, ignoredSet map[string]bool, err error) bool {
+	return true
+}
+
+func emitLoweredGoFiles(p *load.Package, plan *ejectPlan, dest emitDest, onMissing emitMissingFunc) bool {
 	if !ejectOwnsLogos(p) {
 		return false
 	}
-	rel, err := filepath.Rel(modRoot, p.Dir)
+	rel, err := filepath.Rel(dest.modRoot, p.Dir)
 	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		base.Fatalf("logos eject: package %s outside module", p.ImportPath)
 	}
@@ -608,57 +747,18 @@ func emitPackageGoFiles(p *load.Package, plan *ejectPlan, staging, dstRoot, modR
 	used := false
 	seen := make(map[string]bool, len(names))
 	for _, name := range names {
-		if seen[name] || !cfg.IsLogosFile(name) {
+		if seen[name] || !logosfile.Is(name) {
 			continue
 		}
 		seen[name] = true
 		stem := logosStem(name)
-		raw, err := os.ReadFile(filepath.Join(staging, filepath.FromSlash(p.ImportPath), stem+".go"))
+		raw, err := os.ReadFile(filepath.Join(dest.staging, filepath.FromSlash(p.ImportPath), stem+".go"))
 		if err != nil {
-			if os.IsNotExist(err) && ignoredSet[name] {
-				srcData, readErr := os.ReadFile(filepath.Join(p.Dir, name))
-				if readErr != nil {
-					base.Fatalf("logos eject: missing ejected output for %s: %v", filepath.Join(p.Dir, name), readErr)
-				}
-				if isBuildIgnored(srcData) {
-					continue
-				}
+			if onMissing(p, name, ignoredSet, err) {
+				continue
 			}
-			base.Fatalf("logos eject: missing ejected output for %s: %v", filepath.Join(p.Dir, name), err)
 		}
-		if writeLoweredFile(dstRoot, rel, stem, name, raw) {
-			used = true
-		}
-	}
-	return used
-}
-
-// emitPackageGoFilesVariant emits only the files its own GOOS/tags
-// context selected. Other inactive variants are absent in this context
-// by design, so it skips every missing file; the main eject merges
-// every helper tree and fails loudly if anything is still missing.
-func emitPackageGoFilesVariant(p *load.Package, plan *ejectPlan, staging, dstRoot, modRoot string) bool {
-	if !ejectOwnsLogos(p) {
-		return false
-	}
-	rel, err := filepath.Rel(modRoot, p.Dir)
-	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		base.Fatalf("logos eject: package %s outside module", p.ImportPath)
-	}
-	names, _ := ejectPackageNames(p, plan)
-	used := false
-	seen := make(map[string]bool, len(names))
-	for _, name := range names {
-		if seen[name] || !cfg.IsLogosFile(name) {
-			continue
-		}
-		seen[name] = true
-		stem := logosStem(name)
-		raw, err := os.ReadFile(filepath.Join(staging, filepath.FromSlash(p.ImportPath), stem+".go"))
-		if err != nil {
-			continue
-		}
-		if writeLoweredFile(dstRoot, rel, stem, name, raw) {
+		if writeLoweredFile(dest.dstRoot, rel, stem, name, raw) {
 			used = true
 		}
 	}
@@ -688,7 +788,7 @@ func collectInactiveLogosFiles(plan *ejectPlan, staging string) []inactiveFile {
 	var out []inactiveFile
 	for _, p := range plan.logos {
 		for _, name := range p.IgnoredGoFiles {
-			if !cfg.IsLogosFile(name) {
+			if !logosfile.Is(name) {
 				continue
 			}
 			if strings.HasSuffix(logosStem(name), "_test") && !plan.testBuilt[p] {
@@ -857,14 +957,10 @@ func matchVariantTags(pkgDir, name, goos, goarch string, hostTags, customUniq []
 	return nil, false
 }
 
-func validEjectPlatform(goos, goarch string) bool {
-	return work.CheckGOOSARCHPair(goos, goarch) == nil
-}
-
 func searchVariantContext(pkgDir, name string, goosCands, goarchCands, hostTags, customUniq []string) (string, string, []string, bool) {
 	for _, goos := range goosCands {
 		for _, goarch := range goarchCands {
-			if !validEjectPlatform(goos, goarch) {
+			if work.CheckGOOSARCHPair(goos, goarch) != nil {
 				continue
 			}
 			if tags, ok := matchVariantTags(pkgDir, name, goos, goarch, hostTags, customUniq); ok {
@@ -1253,7 +1349,7 @@ func copyModuleTree(srcRoot, dstRoot, skip string) bool {
 			return nil
 		}
 		name := filepath.Base(rel)
-		if name == "logos.toml" || cfg.IsLogosFile(name) {
+		if name == "logos.toml" || logosfile.Is(name) {
 			return nil
 		}
 		fileUses, err := copyDataFile(path, filepath.Join(dstRoot, rel))
@@ -1269,9 +1365,10 @@ func copyModuleTree(srcRoot, dstRoot, skip string) bool {
 }
 
 // copyDataFile copies one non-loGo/s file. Go files that still parse
-// are rewritten to the ejected import paths and formatted, so the tree
-// stays gofmt-clean; anything else rides along byte for byte. It
-// reports whether the written file imports the loGo/s support packages.
+// are rewritten to the ejected import paths and formatted by the gofmt
+// pass, so the tree stays gofmt-clean; anything else rides along byte
+// for byte. It reports whether the written file imports the loGo/s
+// support packages.
 func copyDataFile(src, dst string) (bool, error) {
 	data, err := os.ReadFile(src)
 	if err != nil {
@@ -1279,9 +1376,10 @@ func copyDataFile(src, dst string) (bool, error) {
 	}
 	uses := false
 	if strings.HasSuffix(src, ".go") {
-		if fixed, fixedUses, ok := convertGoFile(data); ok {
+		if fixed, fixedUses, ok := remapEjectedFile(data, ""); ok {
 			data = fixed
 			uses = fixedUses
+			queueEjectGofmt(dst)
 		}
 	}
 	if err := os.MkdirAll(filepath.Dir(dst), 0777); err != nil {
@@ -1294,10 +1392,10 @@ func copyDataFile(src, dst string) (bool, error) {
 }
 
 // rewriteEjectedGo rewrites one compiler-emitted file to the ejected
-// import paths and formats it. Compiler output must parse; anything
-// else is a loud failure, never a silent copy.
+// import paths. Compiler output must parse; anything else is a loud
+// failure, never a silent copy.
 func rewriteEjectedGo(data []byte, name string) ([]byte, bool) {
-	fixed, uses, ok := convertGoFileWithSiteNS(data, siteNamespace(logosStem(name)))
+	fixed, uses, ok := remapEjectedFile(data, siteNamespace(logosStem(name)))
 	if !ok {
 		base.Fatalf("logos eject: cannot parse ejected file for %s", name)
 	}
@@ -1311,7 +1409,7 @@ func sanitizeSiteStem(s string) string {
 	b.Grow(len(s))
 	prevUnderscore := false
 	for _, r := range s {
-		if r >= 'A' && r <= 'Z' || r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '_' {
+		if isSiteWordRune(r) {
 			b.WriteRune(r)
 			prevUnderscore = false
 			continue
@@ -1326,6 +1424,10 @@ func sanitizeSiteStem(s string) string {
 		return "file"
 	}
 	return out
+}
+
+func isSiteWordRune(r rune) bool {
+	return r >= 'A' && r <= 'Z' || r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '_'
 }
 
 // siteNamespace namespaces per-compilation site symbols by file stem
@@ -1346,108 +1448,167 @@ func siteNamespace(stem string) string {
 	return sanitized + "_" + strconv.FormatUint(uint64(h), 16)
 }
 
-// renameSiteIdents namespaces file-local site identifiers via the AST
-// so string literals and comments are never touched and identifier
-// edges stay exact: only _logos_site plus trailing digits renames.
-func renameSiteIdents(f *ast.File, ns string) {
-	const prefix = "_logos_site"
-	if ns == "" {
-		return
-	}
-	ast.Inspect(f, func(n ast.Node) bool {
-		id, ok := n.(*ast.Ident)
-		if !ok {
-			return true
-		}
-		if !strings.HasPrefix(id.Name, prefix) {
-			return true
-		}
-		rest := id.Name[len(prefix):]
-		if rest == "" {
-			return true
-		}
-		for i := range len(rest) {
-			if rest[i] < '0' || rest[i] > '9' {
-				return true
-			}
-		}
-		id.Name = prefix + "_" + ns + "_" + rest
-		return true
-	})
-}
-
-// convertGoFile parses one Go file, remaps loGo/s support imports,
-// drops comptime imports, sorts the import blocks, and formats the
-// result. It reports whether any support import was used.
-func convertGoFile(data []byte) ([]byte, bool, bool) {
-	return convertGoFileWithSiteNS(data, "")
-}
-
-// convertGoFileWithSiteNS parses one Go file as convertGoFile does. A
-// non-empty siteNS additionally namespaces file-local _logos_siteN
-// identifiers, keeping merged variant files distinct.
-func convertGoFileWithSiteNS(data []byte, siteNS string) ([]byte, bool, bool) {
+func remapEjectedFile(data []byte, siteNS string) ([]byte, bool, bool) {
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "", data, parser.ParseComments)
+	f, err := parser.ParseFile(fset, "", data, parser.ParseComments|parser.SkipObjectResolution)
 	if err != nil {
 		return nil, false, false
 	}
-	uses := remapLogosImports(f)
-	renameSiteIdents(f, siteNS)
-	ast.SortImports(fset, f)
-	var buf bytes.Buffer
-	if err := format.Node(&buf, fset, f); err != nil {
+	edits, uses := ejectedImportEdits(data, fset, f)
+	edits = append(edits, siteIdentEdits(fset, f, siteNS)...)
+	out, ok := applyTextEdits(data, edits)
+	if !ok {
 		return nil, false, false
 	}
-	return buf.Bytes(), uses, true
+	return out, uses, true
 }
 
-// remapLogosImports rewrites logos/rt and logos/sync imports to the
-// shared ejected module and drops comptime imports. Empty import
-// declarations fall away.
-func remapLogosImports(f *ast.File) bool {
+func ejectedImportEdits(data []byte, fset *token.FileSet, f *ast.File) ([]textEdit, bool) {
+	var edits []textEdit
 	uses := false
-	var decls []ast.Decl
 	for _, decl := range f.Decls {
 		gen, ok := decl.(*ast.GenDecl)
 		if !ok || gen.Tok != token.IMPORT {
-			decls = append(decls, decl)
 			continue
 		}
-		var specs []ast.Spec
-		for _, spec := range gen.Specs {
-			imp, ok := spec.(*ast.ImportSpec)
-			if !ok {
-				specs = append(specs, spec)
-				continue
-			}
-			path, err := strconv.Unquote(imp.Path.Value)
-			if err != nil {
-				specs = append(specs, spec)
-				continue
-			}
-			if path == "comptime" {
-				continue
-			}
-			if rest, ok := strings.CutPrefix(path, "logos/"); ok {
-				rest, _ = strings.CutPrefix(rest, "rt/")
-				if rest == "rt" {
-					imp.Path.Value = strconv.Quote(rtModulePath)
-				} else {
-					imp.Path.Value = strconv.Quote(rtModulePath + "/" + rest)
-				}
-				uses = true
-			}
-			specs = append(specs, spec)
-		}
-		if len(specs) == 0 {
+		if gen.Lparen.IsValid() {
+			edits = append(edits, groupedImportEdits(data, fset, gen, &uses)...)
 			continue
 		}
-		gen.Specs = specs
-		decls = append(decls, decl)
+		imp := gen.Specs[0].(*ast.ImportSpec)
+		if path, err := strconv.Unquote(imp.Path.Value); err == nil && path == "comptime" {
+			edits = append(edits, wholeLineEdit(data, fset, gen.Pos(), imp.End()))
+			continue
+		}
+		if edit, ok := supportPathEdit(fset, imp, &uses); ok {
+			edits = append(edits, edit)
+		}
 	}
-	f.Decls = decls
-	return uses
+	return edits, uses
+}
+
+func groupedImportEdits(data []byte, fset *token.FileSet, gen *ast.GenDecl, uses *bool) []textEdit {
+	var edits []textEdit
+	comptime := 0
+	for _, spec := range gen.Specs {
+		imp := spec.(*ast.ImportSpec)
+		if path, err := strconv.Unquote(imp.Path.Value); err == nil && path == "comptime" {
+			comptime++
+			continue
+		}
+		if edit, ok := supportPathEdit(fset, imp, uses); ok {
+			edits = append(edits, edit)
+		}
+	}
+	if comptime == 0 {
+		return edits
+	}
+	if comptime == len(gen.Specs) {
+		return append(edits, wholeLineEdit(data, fset, gen.Pos(), gen.End()))
+	}
+	for _, spec := range gen.Specs {
+		imp := spec.(*ast.ImportSpec)
+		if path, err := strconv.Unquote(imp.Path.Value); err == nil && path == "comptime" {
+			edits = append(edits, wholeLineEdit(data, fset, imp.Pos(), imp.End()))
+		}
+	}
+	return edits
+}
+
+func supportPathEdit(fset *token.FileSet, imp *ast.ImportSpec, uses *bool) (textEdit, bool) {
+	path, err := strconv.Unquote(imp.Path.Value)
+	if err != nil {
+		return textEdit{}, false
+	}
+	rest, ok := strings.CutPrefix(path, "logos/")
+	if !ok {
+		return textEdit{}, false
+	}
+	target := rtModulePath
+	if rest != "rt" {
+		target = rtModulePath + "/" + strings.TrimPrefix(rest, "rt/")
+	}
+	start := fset.Position(imp.Path.Pos()).Offset
+	*uses = true
+	return textEdit{start, start + len(imp.Path.Value), strconv.Quote(target)}, true
+}
+
+func wholeLineEdit(data []byte, fset *token.FileSet, from, to token.Pos) textEdit {
+	start := fset.Position(from).Offset
+	end := fset.Position(to).Offset
+	lineStart := start
+	for lineStart > 0 && data[lineStart-1] != '\n' {
+		lineStart--
+	}
+	blank := true
+	for _, c := range data[lineStart:start] {
+		if c != ' ' && c != '\t' {
+			blank = false
+			break
+		}
+	}
+	if blank {
+		start = lineStart
+	}
+	if end < len(data) && data[end] == '\n' {
+		end++
+	}
+	return textEdit{start, end, ""}
+}
+
+func siteIdentEdits(fset *token.FileSet, f *ast.File, ns string) []textEdit {
+	if ns == "" {
+		return nil
+	}
+	var edits []textEdit
+	ast.Inspect(f, func(n ast.Node) bool {
+		id, ok := n.(*ast.Ident)
+		if !ok || !isSiteIdent(id.Name) {
+			return true
+		}
+		start := fset.Position(id.Pos()).Offset
+		digits := strings.TrimPrefix(id.Name, "_logos_site")
+		edits = append(edits, textEdit{start, start + len(id.Name), "_logos_site_" + ns + "_" + digits})
+		return true
+	})
+	return edits
+}
+
+func isSiteIdent(name string) bool {
+	rest, ok := strings.CutPrefix(name, "_logos_site")
+	if !ok || rest == "" {
+		return false
+	}
+	for i := range len(rest) {
+		if rest[i] < '0' || rest[i] > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+type textEdit struct {
+	start, end int
+	text       string
+}
+
+func applyTextEdits(data []byte, edits []textEdit) ([]byte, bool) {
+	if len(edits) == 0 {
+		return data, true
+	}
+	edits = slices.Clone(edits)
+	slices.SortFunc(edits, func(a, b textEdit) int { return a.start - b.start })
+	out := make([]byte, 0, len(data))
+	prev := 0
+	for _, e := range edits {
+		if e.start < prev || e.end < e.start || e.end > len(data) {
+			return nil, false
+		}
+		out = append(out, data[prev:e.start]...)
+		out = append(out, e.text...)
+		prev = e.end
+	}
+	return append(out, data[prev:]...), true
 }
 
 // writeSupportModule writes the shared support module: src/logos/rt at
@@ -1458,6 +1619,9 @@ func writeSupportModule(out, goVer string) {
 	goroot := cfg.GOROOT
 	rtDst := filepath.Join(out, "_logos_deps", "rt")
 	copySupportDir(filepath.Join(goroot, "src", "logos", "rt"), rtDst)
+	if st, err := os.Stat(filepath.Join(goroot, "src", "logos", "arena")); err == nil && st.IsDir() {
+		copySupportDir(filepath.Join(goroot, "src", "logos", "arena"), filepath.Join(rtDst, "arena"))
+	}
 	if st, err := os.Stat(filepath.Join(goroot, "src", "logos", "sync")); err == nil && st.IsDir() {
 		copySupportDir(filepath.Join(goroot, "src", "logos", "sync"), filepath.Join(rtDst, "sync"))
 	}
@@ -1492,7 +1656,7 @@ func copySupportDir(src, dst string) {
 		if err != nil {
 			base.Fatalf("logos eject: %v", err)
 		}
-		fixed, _, ok := convertGoFile(stripEjectedBuildTag(data))
+		fixed, _, ok := remapEjectedFile(stripEjectedBuildTag(data), "")
 		if !ok {
 			base.Fatalf("logos eject: cannot parse support file %s", name)
 		}
@@ -1502,6 +1666,7 @@ func copySupportDir(src, dst string) {
 		if err := os.WriteFile(filepath.Join(dst, name), fixed, 0666); err != nil {
 			base.Fatalf("logos eject: %v", err)
 		}
+		queueEjectGofmt(filepath.Join(dst, name))
 	}
 }
 

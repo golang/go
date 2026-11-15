@@ -4,12 +4,6 @@
 
 package p
 
-// M6-S3 struct field defaults (SPEC T-104.5): defaults stand before the
-// tag, apply in loGo/s composite literals, and stay zero under `var`
-// and `new` (with a `suspicious::unapplied_struct_default` warning).
-// A non-constant default fails with
-// `[correctness::default_not_constant]`.
-
 type DefCfg struct {
 	Port int = 8080 `json:"port"`
 	Host string = "localhost"

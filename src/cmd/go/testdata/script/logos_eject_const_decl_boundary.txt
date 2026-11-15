@@ -1,0 +1,84 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# A const declaration folded at compile time is cut at the closing bracket
+# of its own initializer. A block comment or a line break in any gap of the
+# initializer, before its closing bracket, or between the callee and its
+# parentheses changes nothing: the module runs natively, ejects, and the
+# ejected module builds and runs with go and with go1.27.2 from $UPROOT1272
+# and prints the same output.
+cd m
+logos run .
+stdout '^9 16 nm nm nm \[1 2 3\] \[3 4 7\] \[5 6 11\]$'
+stdout '^25 \[6 7 13\] nm \[8 9 17\]$'
+stdout '^36 \[1 2 3\] 49 \[8 9 17\] nm \[4 5 9\]$'
+cp stdout $WORK/native.txt
+logos eject -o out
+exists out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $WORK/native.txt
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
+exec $WORK/upstream$GOEXE
+cmp stdout $WORK/native.txt
+cd ..
+
+-- m/go.mod --
+module example.com/constdeclboundary
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import "fmt"
+
+const func sq(x int) int { return x * x }
+const func pair(a, b int) []int { return []int{a, b, a + b} }
+const func name() string { return "nm" }
+
+const A = sq( /*c*/ 3 /*c*/ ) /*c*/
+const B = sq(
+	4,
+)
+const C = name( /*c*/ ) /*c*/
+const D = name /*c*/ ( /*c*/ ) /*c*/
+const E = name(
+)
+const F = pair(1, 2 /*c*/) /*c*/
+const G = pair /*c*/ ( /*c*/ 3 /*c*/ , /*c*/ 4 /*c*/ ) /*c*/
+const H = pair(
+	5,
+	6,
+)
+
+const (
+	GA = sq( /*c*/ 5 /*c*/ ) /*c*/ // line
+	GB = pair(6 /*c*/, 7 /*c*/) /*c*/
+	GC = name /*c*/ ( /*c*/ ) /*c*/
+	GD = pair(
+		8,
+		9,
+	)
+)
+
+func main() {
+	const L1 = sq( /*c*/ 6 /*c*/ ) /*c*/
+	const L2 = pair(1, 2 /*c*/) /*c*/
+	const (
+		L3 = sq(7 /*c*/) /*c*/
+		L4 = pair(8, /*c*/ 9 /*c*/) /*c*/
+		L5 = name( /*c*/ ) /*c*/
+		L6 = pair(
+			4,
+			5,
+		)
+	)
+	fmt.Println(A, B, C, D, E, F, G, H)
+	fmt.Println(GA, GB, GC, GD)
+	fmt.Println(L1, L2, L3, L4, L5, L6)
+}

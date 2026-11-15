@@ -1,0 +1,56 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd w
+logos build -o $WORK/good.a ./good
+! stderr .
+! logos build -o $WORK/bad.a ./bad
+stderr '\[correctness::const_view_mutation\]'
+! exists $WORK/bad.a
+
+-- w/go.mod --
+module example.com/constgaps
+
+go 1.27
+
+require example.com/constgaps/lib v0.0.0
+
+replace example.com/constgaps/lib => ./lib
+
+-- w/lib/go.mod --
+module example.com/constgaps/lib
+
+go 1.27
+
+-- w/lib/lib.go --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package lib
+
+func Identity[T any](x any) T { return x.(T) }
+
+-- w/good/good.lgo --
+package good
+
+import "example.com/constgaps/lib"
+
+type Qualified interface { const Name() string }
+type Good struct { N string }
+func (g Good) Name() string { return g.N }
+func Identity[T any](x T) T { return x }
+type StoreBox[T any] struct { V T }
+var _ Qualified = Identity[Qualified](Good{})
+var _ = StoreBox[Qualified]{V: Good{}}
+var _ = lib.Identity[int](any(7))
+
+-- w/bad/bad.lgo --
+package bad
+
+import "example.com/constgaps/lib"
+
+type Qualified interface { const Name() string }
+
+func Use(v any) Qualified { return lib.Identity[Qualified](v) }
+

@@ -27,7 +27,6 @@ func TestASAN(t *testing.T) {
 		src               string
 		memoryAccessError string
 		errorLocation     string
-		experiments       []string
 	}{
 		{src: "asan1_fail.go", memoryAccessError: "heap-use-after-free", errorLocation: "asan1_fail.go:25"},
 		{src: "asan2_fail.go", memoryAccessError: "heap-buffer-overflow", errorLocation: "asan2_fail.go:31"},
@@ -45,7 +44,6 @@ func TestASAN(t *testing.T) {
 		{src: "asan_global5.go"},
 		{src: "asan_global_asm"},
 		{src: "asan_global_asm2_fail", memoryAccessError: "global-buffer-overflow", errorLocation: "main.go:17"},
-		{src: "arena_fail.go", memoryAccessError: "use-after-poison", errorLocation: "arena_fail.go:26", experiments: []string{"arenas"}},
 	}
 	for _, tc := range cases {
 		name := strings.TrimSuffix(tc.src, ".go")
@@ -56,7 +54,7 @@ func TestASAN(t *testing.T) {
 			defer dir.RemoveAll(t)
 
 			outPath := dir.Join(name)
-			mustRun(t, config.goCmdWithExperiments("build", []string{"-o", outPath, srcPath(tc.src)}, tc.experiments))
+			mustRun(t, config.goCmd("build", "-o", outPath, srcPath(tc.src)))
 
 			cmd := hangProneCmd(outPath)
 			if tc.memoryAccessError != "" {

@@ -248,6 +248,7 @@ const (
 	funcOpenCodedDeferDisallowed             // can't do open-coded defers
 	funcClosureResultsLost                   // closure is called indirectly and we lost track of its results; used by escape analysis
 	funcPackageInit                          // compiler emitted .init func for package
+	funcDeferTryThunk
 )
 
 type SymAndPos struct {
@@ -266,6 +267,7 @@ func (f *Func) NeverReturns() bool             { return f.flags&funcNeverReturns
 func (f *Func) OpenCodedDeferDisallowed() bool { return f.flags&funcOpenCodedDeferDisallowed != 0 }
 func (f *Func) ClosureResultsLost() bool       { return f.flags&funcClosureResultsLost != 0 }
 func (f *Func) IsPackageInit() bool            { return f.flags&funcPackageInit != 0 }
+func (f *Func) DeferTryThunk() bool            { return f.flags&funcDeferTryThunk != 0 }
 
 func (f *Func) SetDupok(b bool)                    { f.flags.set(funcDupok, b) }
 func (f *Func) SetWrapper(b bool)                  { f.flags.set(funcWrapper, b) }
@@ -278,6 +280,7 @@ func (f *Func) SetNeverReturns(b bool)             { f.flags.set(funcNeverReturn
 func (f *Func) SetOpenCodedDeferDisallowed(b bool) { f.flags.set(funcOpenCodedDeferDisallowed, b) }
 func (f *Func) SetClosureResultsLost(b bool)       { f.flags.set(funcClosureResultsLost, b) }
 func (f *Func) SetIsPackageInit(b bool)            { f.flags.set(funcPackageInit, b) }
+func (f *Func) SetDeferTryThunk(b bool)            { f.flags.set(funcDeferTryThunk, b) }
 
 func (f *Func) SetWBPos(pos src.XPos) {
 	if base.Debug.WB != 0 {

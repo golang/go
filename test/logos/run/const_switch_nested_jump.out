@@ -1,0 +1,6 @@
+ok switch-int
+ok switch-string
+ok select-int
+ok select-string
+ok tagless-switch-int
+ok break-in-nested-switch

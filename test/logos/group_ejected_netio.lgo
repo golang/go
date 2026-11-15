@@ -1,0 +1,112 @@
+// skip
+
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"net"
+	"os"
+	"time"
+
+	"example.com/groupejectedoutsider"
+)
+
+//logos:allow(correctness::unbounded_channel_op)
+func readNetwork(conn net.Conn, entered chan struct{}, received chan byte) error {
+	close(entered)
+	var buf [1]byte
+	n, err := conn.Read(buf[:])
+	if err != nil {
+		return fmt.Errorf("read interrupted before peer completion: %w", err)
+	}
+	if n != 1 || buf[0] != 0x7a {
+		return fmt.Errorf("read = %d bytes, payload %#x; want one byte 0x7a", n, buf[0])
+	}
+	received <- buf[0]
+	return nil
+}
+
+func groupedRead(ctx context.Context, conn net.Conn, entered chan struct{}, received chan byte) error {
+	go group (ctx) {
+		go readNetwork(conn, entered, received)
+	}
+	return nil
+}
+
+//logos:allow(correctness::unbounded_channel_op)
+//logos:allow(slop::discarded_error)
+func run() error {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return err
+	}
+	defer ln.Close()
+	peer, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		return err
+	}
+	defer peer.Close()
+	child, err := ln.Accept()
+	if err != nil {
+		return err
+	}
+	defer child.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	entered := make(chan struct{})
+	received := make(chan byte, 1)
+	waited := make(chan error, 1)
+	outsider.Launch(func() { waited <- groupedRead(ctx, child, entered, received) })
+	<-entered
+	cancel()
+	<-ctx.Done()
+	select {
+	case err := <-waited:
+		return fmt.Errorf("Wait returned before peer completion: %w", err)
+	default:
+	}
+	select {
+	case <-received:
+		return errors.New("read completed before peer supplied data")
+	default:
+	}
+	if _, err := peer.Write([]byte{0x7a}); err != nil {
+		return fmt.Errorf("complete peer: %w", err)
+	}
+	return completedRead(waited, received)
+}
+
+//logos:allow(correctness::unbounded_channel_op)
+func completedRead(waited chan error, received chan byte) error {
+	select {
+	case err := <-waited:
+		if err != nil && !errors.Is(err, context.Canceled) {
+			return fmt.Errorf("Wait after peer completion: %w", err)
+		}
+	case <-time.After(10 * time.Second):
+		return errors.New("Wait did not return after peer completion")
+	}
+	select {
+	case b := <-received:
+		if b != 0x7a {
+			return fmt.Errorf("received %#x, want 0x7a", b)
+		}
+	default:
+		return errors.New("Wait returned without the child's completed network read")
+	}
+	return nil
+}
+
+func main() {
+	watch := time.AfterFunc(20*time.Second, func() {
+		fmt.Fprintln(os.Stderr, "ejected network cancellation protocol stalled")
+		os.Exit(1)
+	})
+	defer watch.Stop()
+	if err := run(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}

@@ -19,17 +19,22 @@ stdout 'custom[\\/]go.mod'
 ! go env -C ../nonexist
 stderr '^go: chdir ../nonexist: '
 
+cd $OLD/invalid
 # go test
-go test -C ../strings -n
-stderr 'strings\.test'
-
+go test -C ../custom
 # go vet
-go vet -C ../strings -n
-stderr strings_test
-
+go vet -C ../custom
 # go fix
-go fix -C ../strings -n
-stderr strings_test
+go fix -C ../custom
+
+cd ../custom
+! go test -C ../invalid
+! go vet -C ../invalid
+! go fix -C ../invalid
+
+! go test -C ../nonexist
+! go vet -C ../nonexist
+! go fix -C ../nonexist
 
 # -C must be first on command line (as of Go 1.21)
 ! go test -n -C ../strings
@@ -37,3 +42,15 @@ stderr '^invalid value "../strings" for flag -C: -C flag must be first flag on c
 
 -- custom/go.mod --
 module m
+
+-- custom/p.go --
+package p
+
+const Valid = true
+-- invalid/go.mod --
+module m
+
+-- invalid/p.go --
+package p
+
+const Invalid = missing

@@ -1,0 +1,89 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type Slot interface {
+	P int
+	Q int
+	R int
+}
+
+type slot struct : Slot {
+	P int
+	Q int
+	R int
+}
+
+var picks int
+
+func pick(w Slot) Slot {
+	picks++
+	return w
+}
+
+func pair(w Slot) {
+	w.P, w.Q = 1, 2
+}
+
+func triple(w Slot) {
+	w.P, w.Q, w.R = 1, 2, 3
+}
+
+func pinned(w Slot) {
+	pick(w).P, w.Q = 4, 5
+}
+
+func swap(w Slot) {
+	w.P, w.Q = w.Q, w.P
+}
+
+func mixed(w Slot) int {
+	var n int
+	n, w.P = 6, 7
+	return n
+}
+
+func exprs(w Slot) {
+	w.P, w.Q = 1+2, w.R*2
+}
+
+func main() {
+	var s slot
+	pair(&s)
+	check("pair", s.P == 1 && s.Q == 2, s.P, 1)
+	s = slot{}
+	triple(&s)
+	check("triple", s.P == 1 && s.Q == 2 && s.R == 3, s.R, 3)
+	s = slot{}
+	picks = 0
+	pinned(&s)
+	check("pinned", s.P == 4 && s.Q == 5 && picks == 1, picks, 1)
+	s = slot{P: 8, Q: 9}
+	swap(&s)
+	check("swap", s.P == 9 && s.Q == 8, s.P, 9)
+	s = slot{}
+	n := mixed(&s)
+	check("mixed", n == 6 && s.P == 7, n, 6)
+	s = slot{R: 5}
+	exprs(&s)
+	check("exprs", s.P == 3 && s.Q == 10, s.Q, 10)
+	if failed {
+		os.Exit(1)
+	}
+}

@@ -1,0 +1,37 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+type Creature interface {
+	const Name string
+	HP int
+	const Start() error
+}
+
+type Monster struct : Creature {
+	Name string
+	HP   int
+}
+
+func (m Monster) Start() error { return nil }
+
+type Named interface {
+	const Title string
+}
+
+type Titled interface {
+	Subtitle string
+}
+
+type Both struct : Named, Titled {
+}
+
+func (b Both) Title() string { return "t" }
+
+func (b Both) Subtitle() string { return "s" }
+
+type N int : Named // ERROR unexpected : after top level declaration
+
+type S4 struct : Named // ERROR unexpected newline, expected \{

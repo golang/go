@@ -4,10 +4,6 @@
 
 package ctfe
 
-// This file implements M5-S2 value constructors, conversions, composite
-// literals, indexing, slicing, builtins, and size accounting (SPEC Sec
-// 2.1, T-201).
-
 import (
 	"cmd/compile/internal/syntax"
 	"fmt"
@@ -17,8 +13,6 @@ import (
 	"strconv"
 	"unicode/utf8"
 )
-
-// Constructors.
 
 func intValue(n *big.Int, t *Type, cst bool) Value {
 	return Value{typ: t, constant: cst, ival: n}
@@ -45,22 +39,16 @@ func sliceElems(v Value) []Value {
 	return (*v.slice.backing)[v.slice.lo : v.slice.lo+v.slice.length]
 }
 
-// sliceLen counts set slice elements.
-func sliceLen(v Value) int { return v.slice.length }
-
-// BoolValue builds a boolean value.
 func BoolValue(b bool, t *Type) Value { return Value{typ: t, constant: true, bval: b} }
 
-// StringValue builds a string value.
 func StringValue(s string, t *Type) Value { return Value{typ: t, constant: true, sval: s} }
 
-// IntValue builds an integer value.
 func IntValue(n *big.Int, t *Type) Value { return Value{typ: t, constant: true, ival: n} }
 
-// FloatValue builds a float value.
 func FloatValue(f float64, t *Type) Value { return Value{typ: t, constant: true, f64: f} }
 
-// ExactFloatValue builds a float constant holding an exact rational.
+func ComplexValue(c complex128, t *Type) Value { return Value{typ: t, constant: true, cval: c} }
+
 func ExactFloatValue(r *big.Rat, t *Type) Value {
 	var copyR *big.Rat
 	if r != nil {
@@ -69,29 +57,34 @@ func ExactFloatValue(r *big.Rat, t *Type) Value {
 	return Value{typ: t, constant: true, fval: copyR}
 }
 
-// defaulted maps an untyped value to its default type, leaving typed
-// values alone.
 func defaulted(v Value) Value {
 	if v.typ == nil || !isUntyped(v.typ.Kind) {
 		return v
 	}
-	v.typ = defaultType(v.typ.Kind, 8)
+	if v.typ.Kind == KUntypedComplex {
+		v.cval = v.Complex()
+		v.cparts = nil
+	}
+	v.typ = defaultType(v.typ.Kind)
 	return v
 }
 
-// zeroValue returns the zero value of t.
 func zeroValue(t *Type) Value {
 	switch t.Kind {
 	case KBool, KUntypedBool:
 		return Value{typ: &Type{Kind: KBool}, bval: false}
-	case KString, KUntypedString:
-		return Value{typ: &Type{Kind: KString}, sval: ""}
 	case KFloat32, KFloat64, KUntypedFloat:
 		k := t.Kind
 		if k == KUntypedFloat {
 			k = KFloat64
 		}
 		return Value{typ: &Type{Kind: k}, f64: 0}
+	case KComplex64, KComplex128, KUntypedComplex:
+		k := t.Kind
+		if k == KUntypedComplex {
+			k = KComplex128
+		}
+		return Value{typ: &Type{Kind: k}, cval: 0}
 	case KSlice, KMap:
 		return Value{typ: t, isNil: true}
 	case KArray:
@@ -112,16 +105,14 @@ func zeroValue(t *Type) Value {
 		if isUntyped(k) {
 			k = KInt
 		}
-		if k == KUntypedRune {
-			k = KInt32
-		}
 		return Value{typ: &Type{Kind: k}, ival: new(big.Int)}
+	}
+	if t.Kind == KInvalid && t.Impure != "" {
+		return Value{typ: t, isNil: true}
 	}
 	return Value{typ: t}
 }
 
-// copyValue copies a stored value: arrays and structs copy deeply
-// (fresh backing), slices share their backing store, maps share.
 func copyValue(v Value) Value {
 	switch {
 	case v.array != nil:
@@ -143,37 +134,11 @@ func copyValue(v Value) Value {
 	return v
 }
 
-// storeKey identifies one []Value storage by its first element and length.
-// Array and struct storage and slice backings are all []Value, so a slice
-// cut from an array shares a key with the array it views. Every slice view
-// in this package (reslice, array slice, append, make) carries its window in
-// the header (lo, length, cap_ against the whole backing), so overlapping
-// views always share one storage and this key finds it. Two []Value that are
-// different sub-ranges of one Go array are not recognized as overlapping; no
-// producer here builds them.
 type storeKey struct {
 	first *Value
 	n     int
 }
 
-// hostCopy copies one value graph read from the host into evaluator-owned
-// storage. Isolation lives here, at ingress, because a const func writes
-// through whatever it can reach and a recorded const's storage must not be
-// reachable (SPEC T-201, T-Sec9: a const composite materializes as a copy,
-// and writes to it do not change later reads). Shape survives inside the
-// graph: shared backings, slices cut from an array, shared maps, and cycles
-// keep their aliasing because each storage is registered before its
-// elements are visited. Arrays and structs copy by value; slice headers copy
-// per occurrence. Value.constant selects arithmetic mode, not ownership, so
-// it stays as the host set it.
-//
-// The copy is billed against the existing budgets. Slots and payload bytes
-// are each held to MaxValueBytes as the copy proceeds: the slots of a
-// storage (its whole backing, capacity tail included, which valueSize never
-// counts) are charged before the storage is allocated, the element-count
-// bound make and append already use, and every leaf pays its valueSize. A
-// storage reached twice is billed once. Each distinct copied container
-// (storage or map) also costs one step of MaxSteps.
 type hostCopy struct {
 	e        *evaluator
 	pos      syntax.Pos
@@ -184,8 +149,6 @@ type hostCopy struct {
 	maps     map[*mapVal]*mapVal
 }
 
-// charge bills slots of storage about to be allocated and payload bytes of
-// leaves against MaxValueBytes.
 func (c *hostCopy) charge(slots int, payload int64) error {
 	c.slots += int64(slots)
 	c.bytes += payload
@@ -230,8 +193,6 @@ func (c *hostCopy) value(v Value) (Value, error) {
 		}
 		v.mval = m
 	default:
-		// A leaf pays its payload, sized like valueSize does. That
-		// reads its seen set only for slices and maps, never a leaf.
 		if err := c.charge(0, c.e.valueSize(v, nil)); err != nil {
 			return Value{}, err
 		}
@@ -239,8 +200,6 @@ func (c *hostCopy) value(v Value) (Value, error) {
 	return v, nil
 }
 
-// store copies one []Value storage once. Zero-length storage has nothing to
-// write through and is shared.
 func (c *hostCopy) store(src []Value) ([]Value, error) {
 	if len(src) == 0 {
 		return src, nil
@@ -267,8 +226,6 @@ func (c *hostCopy) store(src []Value) ([]Value, error) {
 	return dst, nil
 }
 
-// backing copies a slice backing, registering the new pointer first so a
-// slice that reaches its own backing resolves to the copy.
 func (c *hostCopy) backing(src *[]Value) (*[]Value, error) {
 	if dst, ok := c.backings[src]; ok {
 		return dst, nil
@@ -312,12 +269,6 @@ func (c *hostCopy) mapOf(src *mapVal) (*mapVal, error) {
 	return dst, nil
 }
 
-// ingest returns an evaluator-owned copy of a value read from the host. Every
-// read copies afresh, so two reads of one const never alias. The traversal is
-// bounded by hostCopy's charges, and the finished copy must also fit the live
-// value cap together with the frames, the check step applies. A value with no
-// storage (a scalar or a nil slice or map) has nothing to isolate and comes
-// back as read.
 func (e *evaluator) ingest(v Value, pos syntax.Pos) (Value, error) {
 	if v.array == nil && v.strct == nil && v.slice == nil && v.mval == nil {
 		return v, nil
@@ -333,16 +284,13 @@ func (e *evaluator) ingest(v Value, pos syntax.Pos) (Value, error) {
 	if err != nil {
 		return Value{}, err
 	}
-	if serr := e.checkSize(out); serr != nil {
+	if _, serr := e.checkSize(out); serr != nil {
 		serr.Pos = pos
 		return Value{}, serr
 	}
 	return out, nil
 }
 
-// resolveType prechecks purity-class type shapes, then delegates to
-// the host. Named types resolving behind pointers, channels, or
-// uintptr arrive with Impure set and report the same reason.
 func (e *evaluator) resolveType(fr *frame, te syntax.Expr) (*Type, error) {
 	if err := e.precheckType(fr, te); err != nil {
 		return nil, err
@@ -357,8 +305,6 @@ func (e *evaluator) resolveType(fr *frame, te syntax.Expr) (*Type, error) {
 	return t, nil
 }
 
-// precheckType flags pointer, channel, and uintptr shapes before
-// resolution, recursing through composite shapes and const views.
 func (e *evaluator) precheckType(fr *frame, te syntax.Expr) error {
 	switch te := syntax.Unparen(te).(type) {
 	case *syntax.Operation:
@@ -409,7 +355,6 @@ func (e *evaluator) precheckType(fr *frame, te syntax.Expr) error {
 	return nil
 }
 
-// evalConversion evaluates T(x) and string/bytes/rune conversions.
 func (e *evaluator) evalConversion(fr *frame, c *syntax.CallExpr) (Value, error) {
 	if err := e.precheckType(fr, c.Fun); err != nil {
 		return Value{}, err
@@ -444,8 +389,6 @@ func (e *evaluator) evalConversion(fr *frame, c *syntax.CallExpr) (Value, error)
 	return e.convert(v, t, posOf(c))
 }
 
-// convert implements Go conversion semantics with target widths:
-// constant sources range-check, variable sources wrap or truncate.
 func (e *evaluator) convert(v Value, t *Type, pos syntax.Pos) (Value, error) {
 	if t.Kind == KUintptr {
 		return Value{}, e.impurity(nil, pos, "conversion to uintptr in const func")
@@ -454,11 +397,6 @@ func (e *evaluator) convert(v Value, t *Type, pos syntax.Pos) (Value, error) {
 		return e.coerceNil(v, t, pos)
 	}
 	vk := kindOf(v)
-	if vk == t.Kind {
-		v.typ = t
-		return v, nil
-	}
-	// Named types share their underlying kind; kinds match above.
 	if v.typ != nil && v.typ.Kind == t.Kind {
 		v.typ = t
 		return v, nil
@@ -477,6 +415,9 @@ func (e *evaluator) convert(v Value, t *Type, pos syntax.Pos) (Value, error) {
 	if isInteger(t.Kind) || isFloat(t.Kind) {
 		return e.convertNumber(v, t, pos)
 	}
+	if isComplex(t.Kind) {
+		return e.convertComplex(v, t, pos)
+	}
 	if t.Kind == KBool && (vk == KBool || vk == KUntypedBool) {
 		v.typ = t
 		return v, nil
@@ -484,7 +425,6 @@ func (e *evaluator) convert(v Value, t *Type, pos syntax.Pos) (Value, error) {
 	return Value{}, e.fail(pos, "cannot convert %s in const evaluation", typeName(v.typ))
 }
 
-// coerceNil adopts a target type for nil: slices and maps go nil.
 func (e *evaluator) coerceNil(v Value, t *Type, pos syntax.Pos) (Value, error) {
 	switch t.Kind {
 	case KSlice, KMap:
@@ -493,7 +433,6 @@ func (e *evaluator) coerceNil(v Value, t *Type, pos syntax.Pos) (Value, error) {
 	return Value{}, e.fail(pos, "cannot use nil as %s in const evaluation", typeName(t))
 }
 
-// convertNumber converts between numeric kinds.
 func (e *evaluator) convertNumber(v Value, t *Type, pos syntax.Pos) (Value, error) {
 	vk := kindOf(v)
 	if !isInteger(vk) && !isFloat(vk) {
@@ -530,65 +469,134 @@ func (e *evaluator) convertNumber(v Value, t *Type, pos syntax.Pos) (Value, erro
 		}
 		return e.wrapInt(n, t, false, pos)
 	}
-	// Float target.
-	var f float64
-	if isFloat(vk) {
-		if v.constant {
-			r := xFloat(v)
-			f, _ = r.Float64()
-		} else {
-			f = toFloat64(v, v.typ)
-		}
-	} else {
-		r := new(big.Rat).SetInt(v.ival)
-		f, _ = r.Float64()
-	}
+	f := toFloat64(v, t)
 	if v.constant {
-		if t.Kind == KFloat32 && math.IsInf(float64(float32(f)), 0) && !math.IsInf(f, 0) {
+		if t.Kind == KFloat32 && math.IsInf(float64(float32(f)), 0) {
 			return Value{}, e.fail(pos, "constant overflows float32 in const evaluation")
 		}
 		if t.Kind == KFloat64 && math.IsInf(f, 0) {
-			// Overflow through conversion still fits Inf? Constants
-			// must be representable: Inf is not.
-			if !isFloat(vk) || !v.ival.IsInt64() {
-				return Value{}, e.fail(pos, "constant overflows float64 in const evaluation")
-			}
+			return Value{}, e.fail(pos, "constant overflows float64 in const evaluation")
 		}
 		if isUntyped(t.Kind) {
-			return Value{typ: t, constant: true, fval: new(big.Rat).SetFloat64(f)}, nil
+			if xf := xFloat(v); xf != nil {
+				return Value{typ: t, constant: true, fval: new(big.Rat).Set(xf)}, nil
+			}
+			return Value{}, e.fail(pos, "constant overflows %s in const evaluation", typeName(t))
 		}
 		return floatResult(t, f, true, pos)
 	}
 	return floatResult(t, f, false, pos)
 }
 
-// convertToString implements string(x) for integers (rune), floats are
-// rejected, and strings pass through.
+func (e *evaluator) convertComplex(v Value, t *Type, pos syntax.Pos) (Value, error) {
+	vk := kindOf(v)
+	if !isNumeric(vk) {
+		return Value{}, e.fail(pos, "cannot convert %s to %s in const evaluation", typeName(v.typ), typeName(t))
+	}
+	if v.constant && t.Kind == KUntypedComplex {
+		re, im := complexParts(v)
+		parts := new([2]big.Rat)
+		parts[0].Set(re)
+		parts[1].Set(im)
+		return Value{typ: t, constant: true, cparts: parts}, nil
+	}
+	var c complex128
+	switch {
+	case v.constant:
+		re, im := complexParts(v)
+		if t.Kind == KComplex64 {
+			rf, _ := re.Float32()
+			imf, _ := im.Float32()
+			c = complex(float64(rf), float64(imf))
+		} else {
+			rf, _ := re.Float64()
+			imf, _ := im.Float64()
+			c = complex(rf, imf)
+		}
+	case isComplex(vk):
+		c = v.Complex()
+	case isFloat(vk) || isInteger(vk):
+		c = complex(toFloatParts(v, t), 0)
+	}
+	if v.constant && (math.IsInf(real(c), 0) || math.IsInf(imag(c), 0)) {
+		if t.Kind == KComplex64 {
+			return Value{}, e.fail(pos, "constant overflows complex64 in const evaluation")
+		}
+		return Value{}, e.fail(pos, "constant overflows %s in const evaluation", typeName(t))
+	}
+	if t.Kind == KComplex64 {
+		if v.constant && (math.IsInf(float64(float32(real(c))), 0) || math.IsInf(float64(float32(imag(c))), 0)) {
+			return Value{}, e.fail(pos, "constant overflows complex64 in const evaluation")
+		}
+		c = complex(float64(float32(real(c))), float64(float32(imag(c))))
+	}
+	return Value{typ: t, constant: v.constant, cval: c}, nil
+}
+
+func toFloatParts(v Value, t *Type) float64 {
+	if t.Kind == KComplex64 && (v.fval != nil || v.ival != nil) {
+		f, _ := xFloat(v).Float32()
+		return float64(f)
+	}
+	if isFloat(kindOf(v)) {
+		return v.Float64()
+	}
+	f, _ := new(big.Rat).SetInt(v.ival).Float64()
+	return f
+}
+
 func (e *evaluator) convertToString(v Value, t *Type, pos syntax.Pos) (Value, error) {
 	vk := kindOf(v)
 	if vk == KString || vk == KUntypedString {
 		return Value{typ: t, constant: v.constant, sval: v.sval}, nil
 	}
+	if vk == KSlice {
+		return e.sliceToString(v, t, pos)
+	}
 	if !isInteger(vk) {
 		return Value{}, e.fail(pos, "cannot convert %s to string in const evaluation", typeName(v.typ))
 	}
+	if v.ival == nil {
+		return Value{}, e.fail(pos, "cannot convert %s to string in const evaluation", typeName(v.typ))
+	}
+	if v.ival.Sign() < 0 || !v.ival.IsInt64() {
+		return Value{typ: t, constant: v.constant, sval: "\uFFFD"}, nil
+	}
 	n := v.ival.Int64()
-	if v.constant {
-		// Invalid constant runes yield U+FFFD, keeping constant
-		// status, exactly like ordinary execution.
-		if n < 0 || n > utf8.MaxRune || (n >= 0xD800 && n <= 0xDFFF) {
-			return Value{typ: t, constant: true, sval: "\uFFFD"}, nil
-		}
-		return Value{typ: t, constant: true, sval: string(rune(n))}, nil
+	s := string(rune(n))
+	if n > utf8.MaxRune || (n >= 0xD800 && n <= 0xDFFF) {
+		s = "\uFFFD"
 	}
-	r := rune(n)
-	if n < 0 || n > utf8.MaxRune || (n >= 0xD800 && n <= 0xDFFF) {
-		return Value{typ: t, sval: "\uFFFD"}, nil
-	}
-	return Value{typ: t, sval: string(r)}, nil
+	return Value{typ: t, constant: v.constant, sval: s}, nil
 }
 
-// stringToSlice implements []byte(s) and []rune(s).
+func (e *evaluator) sliceToString(v Value, t *Type, pos syntax.Pos) (Value, error) {
+	if v.typ == nil || v.typ.Elem == nil || v.isNil || v.slice == nil || v.slice.backing == nil {
+		return Value{typ: t, constant: v.constant, sval: ""}, nil
+	}
+	switch v.typ.Elem.Kind {
+	case KUint8:
+		buf := make([]byte, 0, v.slice.length)
+		for _, el := range sliceElems(v) {
+			if el.ival == nil {
+				return Value{}, e.fail(pos, "cannot convert %s to string in const evaluation", typeName(v.typ))
+			}
+			buf = append(buf, byte(el.ival.Int64()))
+		}
+		return Value{typ: t, constant: v.constant, sval: string(buf)}, nil
+	case KInt32:
+		runes := make([]rune, 0, v.slice.length)
+		for _, el := range sliceElems(v) {
+			if el.ival == nil {
+				return Value{}, e.fail(pos, "cannot convert %s to string in const evaluation", typeName(v.typ))
+			}
+			runes = append(runes, rune(el.ival.Int64()))
+		}
+		return Value{typ: t, constant: v.constant, sval: string(runes)}, nil
+	}
+	return Value{}, e.fail(pos, "cannot convert %s to string in const evaluation", typeName(v.typ))
+}
+
 func (e *evaluator) stringToSlice(v Value, t *Type, pos syntax.Pos) (Value, error) {
 	var elems []Value
 	if t.Elem.Kind == KUint8 {
@@ -603,8 +611,6 @@ func (e *evaluator) stringToSlice(v Value, t *Type, pos syntax.Pos) (Value, erro
 	return sliceValue(t.Elem, elems, len(elems)), nil
 }
 
-// evalComposite evaluates struct, array, slice, and map literals.
-// expected supplies the element type for elided nested literals.
 func (e *evaluator) evalComposite(fr *frame, lit *syntax.CompositeLit, expected *Type) (Value, error) {
 	var t *Type
 	if lit.Type != nil {
@@ -695,7 +701,6 @@ func (e *evaluator) evalArrayLit(fr *frame, lit *syntax.CompositeLit, t *Type) (
 	return Value{typ: t, array: elems}, nil
 }
 
-// evalElements evaluates slice literal elements with optional indices.
 func (e *evaluator) evalElements(fr *frame, lit *syntax.CompositeLit, elemT *Type) ([]Value, error) {
 	var elems []Value
 	next := 0
@@ -739,8 +744,6 @@ func (e *evaluator) evalElements(fr *frame, lit *syntax.CompositeLit, elemT *Typ
 	return elems, nil
 }
 
-// evalElem evaluates one composite element against its static type,
-// descending into elided nested literals.
 func (e *evaluator) evalElem(fr *frame, el syntax.Expr, elemT *Type) (Value, error) {
 	if inner, ok := syntax.Unparen(el).(*syntax.CompositeLit); ok && inner.Type == nil {
 		v, err := e.evalComposite(fr, inner, elemT)
@@ -753,15 +756,17 @@ func (e *evaluator) evalElem(fr *frame, el syntax.Expr, elemT *Type) (Value, err
 	if err != nil {
 		return Value{}, err
 	}
-	if elemT != nil {
-		if v.isNil {
-			return e.coerceNil(v, elemT, posOf(el))
-		}
-		if v, err = e.convert(v, elemT, posOf(el)); err != nil {
-			return Value{}, err
-		}
+	return e.convertElem(v, elemT, posOf(el))
+}
+
+func (e *evaluator) convertElem(v Value, t *Type, pos syntax.Pos) (Value, error) {
+	if t == nil {
+		return v, nil
 	}
-	return v, nil
+	if v.isNil {
+		return e.coerceNil(v, t, pos)
+	}
+	return e.convert(v, t, pos)
 }
 
 func (e *evaluator) evalStructLit(fr *frame, lit *syntax.CompositeLit, t *Type) (Value, error) {
@@ -818,14 +823,9 @@ func (e *evaluator) evalMapLit(fr *frame, lit *syntax.CompositeLit, t *Type) (Va
 		if !ok {
 			return Value{}, e.fail(posOf(el), "missing key in const map")
 		}
-		k, err := e.evalExpr(fr, kv.Key)
+		k, err := e.evalElem(fr, kv.Key, t.Key)
 		if err != nil {
 			return Value{}, err
-		}
-		if t.Key != nil {
-			if k, err = e.convert(k, t.Key, posOf(kv.Key)); err != nil {
-				return Value{}, err
-			}
 		}
 		val, err := e.evalElem(fr, kv.Value, t.Elem)
 		if err != nil {
@@ -838,7 +838,6 @@ func (e *evaluator) evalMapLit(fr *frame, lit *syntax.CompositeLit, t *Type) (Va
 	return v, nil
 }
 
-// mapInsert inserts with -0.0 canonicalization and NaN rejection.
 func (e *evaluator) mapInsert(m, k, v Value, pos syntax.Pos) error {
 	if m.isNil {
 		return e.fail(pos, "assignment to nil map in const evaluation")
@@ -847,7 +846,7 @@ func (e *evaluator) mapInsert(m, k, v Value, pos syntax.Pos) error {
 		return &Error{Code: CodeEval, Detail: "NaN is not a valid const map key", Pos: pos}
 	}
 	k = e.canonKey(k)
-	for i, ek := range m.mval.keys {
+	for _, ek := range m.mval.keys {
 		eq, err := e.equal(ek, k, pos)
 		if err != nil {
 			return err
@@ -855,7 +854,6 @@ func (e *evaluator) mapInsert(m, k, v Value, pos syntax.Pos) error {
 		if eq {
 			return &Error{Code: CodeEval, Detail: "duplicate key in const map", Pos: pos}
 		}
-		_ = i
 	}
 	m.mval.keys = append(m.mval.keys, k)
 	m.mval.vals = append(m.mval.vals, v)
@@ -869,15 +867,39 @@ func isNaNKey(k Value) bool {
 	if k.typ.Kind == KFloat32 || k.typ.Kind == KFloat64 {
 		return math.IsNaN(k.Float64())
 	}
+	if isComplex(k.typ.Kind) {
+		c := k.Complex()
+		return math.IsNaN(real(c)) || math.IsNaN(imag(c))
+	}
+	switch k.typ.Kind {
+	case KArray:
+		for _, elem := range k.array {
+			if isNaNKey(elem) {
+				return true
+			}
+		}
+	case KStruct:
+		for _, field := range k.strct {
+			if isNaNKey(field) {
+				return true
+			}
+		}
+	}
 	return false
 }
 
-// canonKey canonicalizes map keys: -0.0 becomes +0.0, recursively
-// through structs and arrays (SPEC T-Sec9).
 func (e *evaluator) canonKey(v Value) Value {
 	if v.typ != nil && (v.typ.Kind == KFloat32 || v.typ.Kind == KFloat64) && !v.constant {
 		if v.f64 == 0 {
 			v.f64 = 0
+		}
+	}
+	if v.typ != nil && isComplex(v.typ.Kind) && v.cparts == nil {
+		if real(v.cval) == 0 {
+			v.cval = complex(0, imag(v.cval))
+		}
+		if imag(v.cval) == 0 {
+			v.cval = complex(real(v.cval), 0)
 		}
 	}
 	if v.typ != nil && v.typ.Kind == KStruct {
@@ -897,7 +919,6 @@ func (e *evaluator) canonKey(v Value) Value {
 	return v
 }
 
-// evalSelector evaluates struct field access.
 func (e *evaluator) evalSelector(fr *frame, sel *syntax.SelectorExpr) (Value, error) {
 	if name, ok := sel.X.(*syntax.Name); ok {
 		if ent := e.h.Resolve(name); ent.Kind == EntPackage {
@@ -926,7 +947,6 @@ func (e *evaluator) evalSelector(fr *frame, sel *syntax.SelectorExpr) (Value, er
 	return Value{}, e.impurity(fr, posOf(sel), "method call in const func")
 }
 
-// fieldPlace resolves a struct field store.
 func (e *evaluator) fieldPlace(fr *frame, sel *syntax.SelectorExpr) (place, error) {
 	if name, ok := sel.X.(*syntax.Name); ok {
 		if ent := e.h.Resolve(name); ent.Kind == EntPackage {
@@ -940,8 +960,6 @@ func (e *evaluator) fieldPlace(fr *frame, sel *syntax.SelectorExpr) (place, erro
 	if xv.typ == nil || xv.typ.Kind != KStruct {
 		return place{}, e.impurity(fr, posOf(sel), "method call in const func")
 	}
-	// Struct values are addressable here; find the base place when the
-	// receiver is a plain variable so stores persist.
 	if base, ok := syntax.Unparen(sel.X).(*syntax.Name); ok {
 		for i := len(fr.scopes) - 1; i >= 0; i-- {
 			if _, ok := fr.scopes[i][base.Value]; ok {
@@ -966,7 +984,6 @@ func (e *evaluator) fieldPlace(fr *frame, sel *syntax.SelectorExpr) (place, erro
 	return place{}, e.fail(posOf(sel), "cannot assign struct field in const evaluation")
 }
 
-// evalIndex evaluates index expressions.
 func (e *evaluator) evalIndex(fr *frame, ix *syntax.IndexExpr) (Value, error) {
 	if _, ok := ix.Index.(*syntax.ListExpr); ok {
 		return Value{}, e.fail(posOf(ix), "generic instantiation in const func not supported")
@@ -1025,7 +1042,6 @@ func (e *evaluator) indexValue(x, k Value, pos syntax.Pos) (Value, error) {
 	return Value{}, e.fail(pos, "cannot index in const evaluation")
 }
 
-// mapLookup finds a canonicalized key, reporting presence.
 func (e *evaluator) mapLookup(x, k Value, pos syntax.Pos) (Value, bool, error) {
 	if isNaNKey(k) {
 		return Value{}, false, &Error{Code: CodeEval, Detail: "NaN is not a valid const map key", Pos: pos}
@@ -1043,7 +1059,6 @@ func (e *evaluator) mapLookup(x, k Value, pos syntax.Pos) (Value, bool, error) {
 	return Value{}, false, nil
 }
 
-// indexPlace resolves an index store.
 func (e *evaluator) indexPlace(fr *frame, ix *syntax.IndexExpr) (place, error) {
 	if _, ok := ix.Index.(*syntax.ListExpr); ok {
 		return place{}, e.fail(posOf(ix), "generic instantiation in const func not supported")
@@ -1052,9 +1067,18 @@ func (e *evaluator) indexPlace(fr *frame, ix *syntax.IndexExpr) (place, error) {
 	if err != nil {
 		return place{}, err
 	}
-	// Map stores create missing keys.
 	if base, ok := syntax.Unparen(ix.X).(*syntax.Name); ok {
 		if bv, found := e.lookup(fr, base.Value); found && bv.mval != nil {
+			var keyT *Type
+			if bv.typ != nil {
+				keyT = bv.typ.Key
+			}
+			if k, err = e.convertElem(k, keyT, posOf(ix.Index)); err != nil {
+				return place{}, err
+			}
+			if isNaNKey(k) {
+				return place{}, &Error{Code: CodeEval, Detail: "NaN is not a valid const map key", Pos: posOf(ix)}
+			}
 			for i := len(fr.scopes) - 1; i >= 0; i-- {
 				if _, ok := fr.scopes[i][base.Value]; ok {
 					idx := i
@@ -1073,9 +1097,6 @@ func (e *evaluator) indexPlace(fr *frame, ix *syntax.IndexExpr) (place, error) {
 						},
 						set: func(v Value) {
 							cur := fr.scopes[idx][name]
-							if isNaNKey(k) {
-								return
-							}
 							kk := e.canonKey(k)
 							for i, ek := range cur.mval.keys {
 								if eq, _ := e.equal(ek, kk, posOf(ix)); eq {
@@ -1104,7 +1125,6 @@ func (e *evaluator) indexPlace(fr *frame, ix *syntax.IndexExpr) (place, error) {
 		if i < 0 || i >= len(elems) {
 			return place{}, e.fail(posOf(ix), "index out of range in const evaluation")
 		}
-		// Resolve through the backing store so aliases observe it.
 		backing := x.slice.backing
 		at := x.slice.lo + i
 		return place{
@@ -1116,8 +1136,6 @@ func (e *evaluator) indexPlace(fr *frame, ix *syntax.IndexExpr) (place, error) {
 		if _, ok := syntax.Unparen(ix.X).(*syntax.Name); !ok {
 			return place{}, e.fail(posOf(ix), "cannot assign array element in const evaluation")
 		}
-		// Arrays copy on assignment; element stores persist only
-		// through variables, resolved below.
 		if !isInteger(kindOf(k)) {
 			return place{}, e.fail(posOf(ix), "non-integer index in const evaluation")
 		}
@@ -1145,7 +1163,6 @@ func (e *evaluator) indexPlace(fr *frame, ix *syntax.IndexExpr) (place, error) {
 	return place{}, e.fail(posOf(ix), "cannot assign in const evaluation")
 }
 
-// evalSlice evaluates two- and three-index slice expressions.
 func (e *evaluator) evalSlice(fr *frame, sx *syntax.SliceExpr) (Value, error) {
 	x, err := e.evalExpr(fr, sx.X)
 	if err != nil {
@@ -1180,10 +1197,6 @@ func (e *evaluator) evalSlice(fr *frame, sx *syntax.SliceExpr) (Value, error) {
 		if err != nil {
 			return Value{}, err
 		}
-		// Explicit upper bounds may extend through capacity; only
-		// the omitted default stays at length. Capacity endpoints
-		// are absolute backing-store offsets, so the source offset
-		// carries into the new endpoint.
 		if lo < 0 || hi < lo || hi > c || max < hi || max > c {
 			return Value{}, e.fail(posOf(sx), "slice bounds out of range in const evaluation")
 		}
@@ -1210,10 +1223,6 @@ func (e *evaluator) evalSlice(fr *frame, sx *syntax.SliceExpr) (Value, error) {
 		if lo < 0 || hi < lo || hi > n {
 			return Value{}, e.fail(posOf(sx), "slice bounds out of range in const evaluation")
 		}
-		// Slicing an array views the array storage: the slice
-		// aliases the array backing so writes through either side
-		// observe each other, exactly like Go. Capacity runs to the
-		// end of the array.
 		backing := x.array
 		return Value{
 			typ:      &Type{Kind: KSlice, Elem: x.typ.Elem},
@@ -1241,7 +1250,6 @@ func (e *evaluator) evalSlice(fr *frame, sx *syntax.SliceExpr) (Value, error) {
 	return Value{}, e.fail(posOf(sx), "cannot slice in const evaluation")
 }
 
-// evalBuiltin evaluates builtin calls.
 func (e *evaluator) evalBuiltin(fr *frame, name string, c *syntax.CallExpr) (Value, error) {
 	pos := posOf(c)
 	switch name {
@@ -1253,8 +1261,6 @@ func (e *evaluator) evalBuiltin(fr *frame, name string, c *syntax.CallExpr) (Val
 		if err != nil {
 			return Value{}, err
 		}
-		// Typed nil collections report zero length (and zero slice
-		// capacity); cap of a nil map stays an error, like Go.
 		if v.isNil && v.typ != nil && (v.typ.Kind == KSlice || v.typ.Kind == KMap) {
 			if v.typ.Kind == KSlice {
 				return intValue(big.NewInt(0), UntypedInt(), true), nil
@@ -1335,7 +1341,7 @@ func (e *evaluator) evalBuiltin(fr *frame, name string, c *syntax.CallExpr) (Val
 			return zeroValue(&Type{Kind: KInt}), nil
 		case v.slice != nil:
 			zero := zeroValue(v.typ.Elem)
-			for i := range sliceLen(v) {
+			for i := range v.slice.length {
 				(*v.slice.backing)[v.slice.lo+i] = zero
 			}
 			return zeroValue(&Type{Kind: KInt}), nil
@@ -1360,7 +1366,44 @@ func (e *evaluator) evalBuiltin(fr *frame, name string, c *syntax.CallExpr) (Val
 		return Value{}, e.impurity(fr, pos, "call to recover in const func")
 	case "new":
 		return Value{}, e.impurity(fr, pos, "pointer allocation in const func")
-	case "real", "imag", "complex":
+	case "complex":
+		if len(c.ArgList) != 2 || c.HasDots {
+			return Value{}, e.fail(pos, "bad complex call in const evaluation")
+		}
+		re, err := e.evalExpr(fr, c.ArgList[0])
+		if err != nil {
+			return Value{}, err
+		}
+		im, err := e.evalExpr(fr, c.ArgList[1])
+		if err != nil {
+			return Value{}, err
+		}
+		if !isFloat(kindOf(re)) && !(isInteger(kindOf(re)) && isUntyped(kindOf(re))) {
+			return Value{}, e.fail(pos, "bad complex call in const evaluation")
+		}
+		if !isFloat(kindOf(im)) && !(isInteger(kindOf(im)) && isUntyped(kindOf(im))) {
+			return Value{}, e.fail(pos, "bad complex call in const evaluation")
+		}
+		t := UntypedComplex()
+		if !isUntyped(kindOf(re)) || !isUntyped(kindOf(im)) {
+			t = &Type{Kind: KComplex128}
+			if kindOf(re) == KFloat32 || kindOf(im) == KFloat32 {
+				t = &Type{Kind: KComplex64}
+			}
+		}
+		if re.constant && im.constant {
+			if t.Kind == KUntypedComplex {
+				parts := new([2]big.Rat)
+				parts[0].Set(xFloat(re))
+				parts[1].Set(xFloat(im))
+				return Value{typ: t, constant: true, cparts: parts}, nil
+			}
+			rf, imf := toFloatParts(re, t), toFloatParts(im, t)
+			return complexConst(t, complex(rf, imf)), nil
+		}
+		rf, imf := toFloatParts(re, t), toFloatParts(im, t)
+		return complexDyn(t, complex(rf, imf)), nil
+	case "real", "imag":
 		return Value{}, e.fail(pos, "complex numbers in const func not supported")
 	}
 	return Value{}, e.fail(pos, "unsupported builtin %s in const evaluation", name)
@@ -1378,8 +1421,6 @@ func (e *evaluator) summarize(v Value) string {
 	return typeName(v.typ)
 }
 
-// evalAppend implements append with Go growth and sharing: elements
-// extend shared backing while capacity allows.
 func (e *evaluator) evalAppend(fr *frame, c *syntax.CallExpr) (Value, error) {
 	pos := posOf(c)
 	if len(c.ArgList) < 1 {
@@ -1429,12 +1470,10 @@ func (e *evaluator) evalAppend(fr *frame, c *syntax.CallExpr) (Value, error) {
 	if newcap == 0 {
 		return s, nil
 	}
-	// Bound growth before allocating: fail with CodeTooLarge rather
-	// than materializing an over-budget backing.
 	if int64(need) > e.cfg.MaxValueBytes || int64(newcap) > e.cfg.MaxValueBytes {
 		return Value{}, &Error{Code: CodeTooLarge, Detail: fmt.Sprintf("append of %d elements over %d byte limit", need, e.cfg.MaxValueBytes), Pos: pos}
 	}
-	if err := e.checkSize(); err != nil {
+	if _, err := e.checkSize(); err != nil {
 		err.Pos = pos
 		return Value{}, err
 	}
@@ -1445,7 +1484,6 @@ func (e *evaluator) evalAppend(fr *frame, c *syntax.CallExpr) (Value, error) {
 	return s, nil
 }
 
-// evalAppendArgs spreads slices and string... only to a []byte destination.
 func (e *evaluator) evalAppendArgs(fr *frame, c *syntax.CallExpr, dst Value) ([]Value, error) {
 	var out []Value
 	for i, a := range c.ArgList {
@@ -1476,7 +1514,6 @@ func (e *evaluator) evalAppendArgs(fr *frame, c *syntax.CallExpr, dst Value) ([]
 	return out, nil
 }
 
-// evalCopy implements copy(dst, src).
 func (e *evaluator) evalCopy(fr *frame, c *syntax.CallExpr) (Value, error) {
 	pos := posOf(c)
 	if len(c.ArgList) != 2 || c.HasDots {
@@ -1503,9 +1540,6 @@ func (e *evaluator) evalCopy(fr *frame, c *syntax.CallExpr) (Value, error) {
 	} else {
 		return Value{}, e.fail(pos, "bad copy call in const evaluation")
 	}
-	// Snapshot source elements before storing: when dst starts inside
-	// src backing, a forward loop would otherwise overwrite elements
-	// before later iterations read them.
 	snap := slices.Clone(selems)
 	delems := sliceElems(dst)
 	n := min(len(delems), len(snap))
@@ -1522,7 +1556,6 @@ func (e *evaluator) evalCopy(fr *frame, c *syntax.CallExpr) (Value, error) {
 	return intValue(big.NewInt(int64(n)), UntypedInt(), true), nil
 }
 
-// evalMake implements make for slices and maps.
 func (e *evaluator) evalMake(fr *frame, c *syntax.CallExpr) (Value, error) {
 	pos := posOf(c)
 	if len(c.ArgList) < 1 {
@@ -1572,23 +1605,15 @@ func (e *evaluator) evalMake(fr *frame, c *syntax.CallExpr) (Value, error) {
 		if cp > e.cfg.MaxValueBytes {
 			return Value{}, &Error{Code: CodeTooLarge, Detail: fmt.Sprintf("make of %d elements", cp), Pos: pos}
 		}
-		elems := make([]Value, ln)
-		for i := range elems {
-			elems[i] = zeroValue(t.Elem)
-		}
-		backing := append([]Value(nil), elems...)
-		for len(backing) < int(cp) {
-			backing = append(backing, zeroValue(t.Elem))
+		backing := make([]Value, cp)
+		for i := range backing {
+			backing[i] = zeroValue(t.Elem)
 		}
 		return Value{typ: t, slice: &sliceVal{backing: &backing, length: int(ln), cap_: int(cp)}}, nil
 	case KMap:
 		if len(c.ArgList) > 2 || c.HasDots {
 			return Value{}, e.fail(pos, "bad make call in const evaluation")
 		}
-		// Evaluate the optional hint for its errors and calls even
-		// though the interpreter reserves nothing for it. A hint
-		// like 1/0 must fail; a variable hint (even negative)
-		// succeeds and yields an empty map.
 		if len(c.ArgList) == 2 {
 			if _, err := intArg(1); err != nil {
 				return Value{}, err
@@ -1599,7 +1624,6 @@ func (e *evaluator) evalMake(fr *frame, c *syntax.CallExpr) (Value, error) {
 	return Value{}, e.fail(pos, "bad make call in const evaluation")
 }
 
-// evalExtremum folds min (op Lss) or max (op Gtr) over ordered operands.
 func (e *evaluator) evalExtremum(op syntax.Operator, fr *frame, c *syntax.CallExpr) (Value, error) {
 	pos := posOf(c)
 	if len(c.ArgList) < 1 {
@@ -1625,8 +1649,7 @@ func (e *evaluator) evalExtremum(op syntax.Operator, fr *frame, c *syntax.CallEx
 	return best, nil
 }
 
-// checkSize enforces the value cap over live frames plus extras.
-func (e *evaluator) checkSize(extras ...Value) *Error {
+func (e *evaluator) checkSize(extras ...Value) (int64, *Error) {
 	seen := map[any]bool{}
 	var total int64
 	add := func(v Value) *Error {
@@ -1640,20 +1663,19 @@ func (e *evaluator) checkSize(extras ...Value) *Error {
 		for _, sc := range fr.scopes {
 			for _, v := range sc {
 				if err := add(v); err != nil {
-					return err
+					return total, err
 				}
 			}
 		}
 	}
 	for _, v := range extras {
 		if err := add(v); err != nil {
-			return err
+			return total, err
 		}
 	}
-	return nil
+	return total, nil
 }
 
-// valueSize counts payload bytes with sharing deduplicated.
 func (e *evaluator) valueSize(v Value, seen map[any]bool) int64 {
 	switch {
 	case v.ival != nil:
@@ -1667,6 +1689,8 @@ func (e *evaluator) valueSize(v Value, seen map[any]bool) int64 {
 		return 16
 	case v.typ != nil && (v.typ.Kind == KFloat32 || v.typ.Kind == KFloat64):
 		return 8
+	case v.typ != nil && (v.typ.Kind == KComplex64 || v.typ.Kind == KComplex128 || v.typ.Kind == KUntypedComplex):
+		return 16
 	case v.sval != "" || (v.typ != nil && v.typ.Kind == KString):
 		return int64(len(v.sval))
 	case v.slice != nil:

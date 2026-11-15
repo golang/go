@@ -1,154 +1,151 @@
 // run
-
 package main
-
 import (
-	"cmp"
-	"errors"
-	"fmt"
-	"math"
-	"slices"
+"cmp"
+"errors"
+"fmt"
+"math"
+"os"
+"slices"
 )
-
+var failed bool
+func check(name string, cond bool, got, want any) {
+if !cond {
+failed = true
+fmt.Println("FAIL", name+":", "got", got, "want", want)
+return
+}
+fmt.Println("ok", name)
+}
 var mapCalls int
 var recvCalls int
-
 func bump(x int) int {
-	mapCalls++
-	return 2 * x
+mapCalls++
+return 2 * x
 }
-
 func getXS() []int {
-	recvCalls++
-	return []int{3, 1, 4, 1, 5, 9, 2, 6}
+recvCalls++
+return []int{3, 1, 4, 1, 5, 9, 2, 6}
 }
-
 func pos(x int) (bool, error) {
-	if x < 0 {
-		return false, errors.New("neg")
-	}
-	return x > 4, nil
+if x < 0 {
+return false, errors.New("neg")
 }
-
+return x > 4, nil
+}
 func countPos(xs []int) (int, error) {
-	return xs.count(x => pos(x)?), nil
+return xs.count(x => pos(x)?), nil
 }
-
 func findPos() (int, error) {
-	v := getXS().find(x => pos(x)?) ?? -1
-	return v, nil
+v := getXS().find(x => pos(x)?) ?? -1
+return v, nil
 }
-
-func showPos() error {
-	fmt.Println(getXS().find(x => pos(x)?))
-	return nil
+func showPos() (string, error) {
+return fmt.Sprint(getXS().find(x => pos(x)?)), nil
 }
-
 var errFail = errors.New("fail")
-
 var closedOrder []int
-
 type tc struct{ id int }
-
 func (c *tc) Close() error {
-	closedOrder = append(closedOrder, c.id)
-	return nil
+closedOrder = append(closedOrder, c.id)
+return nil
 }
-
 func openTC(id int) (*tc, error) {
-	if id == 3 {
-		return &tc{id: id}, errFail
-	}
-	return &tc{id: id}, nil
+if id == 3 {
+return &tc{id: id}, errFail
 }
-
+return &tc{id: id}, nil
+}
 func load(paths []int) ([]*tc, error) {
-	files := paths.map(p => openTC(p)?)
-	return files, nil
+files := paths.map(p => openTC(p)?)
+return files, nil
 }
-
 func nestCount(xs []int, ys []int) []int {
-	return xs.map(x => ys.count(y => y > x))
+return xs.map(x => ys.count(y => y > x))
 }
-
 func dblBlock(xs []int) []int {
-	return xs.map(x => {
-		return x * 2
-	})
+return xs.map(x => {
+return x * 2
+})
 }
-
 type item struct {
-	k int
-	v string
+k int
+v string
 }
-
 type fitem struct {
-	k float64
-	v string
+k float64
+v string
 }
-
 //logos:allow(slop::discarded_error)
 //logos:allow(complexity::cognitive_overflow)
 func main() {
-	mapCalls = 0
-	recvCalls = 0
-	r := getXS().filter(x => x > 2).map(x => bump(x)).take(5)
-	fmt.Println(r)
-	fmt.Println(mapCalls)
-	fmt.Println(recvCalls)
-	fmt.Println(getXS().take(-5))
-	fmt.Println(getXS().drop(99999))
-	fmt.Println(getXS().get(-1) ?? -1)
-	fmt.Println(getXS().get(2) ?? -1)
-	fmt.Println(getXS().take(3))
-	fmt.Println(getXS().drop(2))
-	fmt.Println(getXS().find(x => x > 4) ?? -1)
-	if err := showPos(); err != nil {
-		fmt.Println(err)
-	}
-	if v, err := findPos(); err != nil {
-		fmt.Println(err)
-	} else {
-		fmt.Println(v)
-	}
-	fmt.Println(countPos(getXS()))
-	fmt.Println(getXS().any(x => x > 8))
-	fmt.Println(getXS().all(x => x > 0))
-	fmt.Println(getXS().all(x => x > 2))
-	fmt.Println(getXS().first() ?? -1)
-	fmt.Println(getXS().last() ?? -1)
-	fmt.Println(getXS().sum())
-	fmt.Println(getXS().count())
-	fmt.Println(getXS().count(x => x > 2))
-	items := []item{{3, "c"}, {1, "a"}, {3, "b"}, {2, "d"}}
-	fmt.Println(items.sortBy(x => x.k))
-	// Stable by cmp.Compare (#179): 64 items pass the insertion-sort
-	// cutoff, so an unstable sort reorders the equal keys.
-	many := make([]item, 64)
-	for i := range many {
-		many[i] = item{k: (64 - i) % 4, v: fmt.Sprint(i)}
-	}
-	want := slices.Clone(many)
-	slices.SortStableFunc(want, func(a, b item) int { return cmp.Compare(a.k, b.k) })
-	fmt.Println(slices.Equal(many.sortBy(x => x.k), want))
-	gs := getXS().map(x => float64(x) / 3)
-	fmt.Println(gs.sum())
-	// Fixed pairwise order (#67): left-to-right would give 1, the
-	// pairwise split gives 0. No multiply appears, so no FMA can contract.
-	fmt.Println([]float64{1e16, -1e16, 1.0}.sum())
-	fitems := []fitem{{1, "a"}, {math.NaN(), "n1"}, {1, "b"}, {math.NaN(), "n2"}, {0, "c"}}
-	fmt.Println(fitems.sortBy(x => x.k))
-	closedOrder = nil
-	_, err := load([]int{0, 1, 2, 3, 4})
-	fmt.Println(err)
-	fmt.Println(closedOrder)
-	// Rollback runs before the ? failure returns (#142): a deferred
-	// observer in the caller already sees every produced Closer closed.
-	closedOrder = nil
-	func() {
-		defer func() { fmt.Println("at-return closes:", closedOrder) }()
-		_, _ = load([]int{0, 1, 2, 3, 4})
-	}()
-	fmt.Println(nestCount([]int{1, 2, 3}, []int{2, 3, 4}))
-	fmt.Println(dblBlock([]int{1, 2, 3}))
+mapCalls = 0
+recvCalls = 0
+r := getXS().filter(x => x > 2).map(x => bump(x)).take(5)
+check("filter-map-take", slices.Equal(r, []int{6, 8, 10, 18, 12}), r, []int{6, 8, 10, 18, 12})
+check("map-calls", mapCalls == 5, mapCalls, 5)
+check("recv-calls", recvCalls == 1, recvCalls, 1)
+mapCalls = 0
+_ = getXS().map(x => bump(x)).take(5)
+check("take-stops-map", mapCalls == 5, mapCalls, 5)
+check("take-neg", slices.Equal(getXS().take(-5), []int{}), getXS().take(-5), []int{})
+check("drop-huge", slices.Equal(getXS().drop(99999), []int{}), getXS().drop(99999), []int{})
+check("get-neg", (getXS().get(-1) ?? -1) == -1, getXS().get(-1) ?? -1, -1)
+check("get-idx", (getXS().get(2) ?? -1) == 4, getXS().get(2) ?? -1, 4)
+check("take-3", slices.Equal(getXS().take(3), []int{3, 1, 4}), getXS().take(3), []int{3, 1, 4})
+check("drop-2", slices.Equal(getXS().drop(2), []int{4, 1, 5, 9, 2, 6}), getXS().drop(2), []int{4, 1, 5, 9, 2, 6})
+check("find-gt4", (getXS().find(x => x > 4) ?? -1) == 5, getXS().find(x => x > 4) ?? -1, 5)
+if gotShow, showErr := showPos(); showErr != nil {
+check("show-pos", false, showErr, "{5 true}")
+} else {
+check("show-pos", gotShow == "{5 true}", gotShow, "{5 true}")
+}
+if v, err := findPos(); err != nil {
+check("find-pos", false, err, 5)
+} else {
+check("find-pos", v == 5, v, 5)
+}
+if c, cerr := countPos(getXS()); cerr != nil {
+check("count-pos", false, cerr, "3 <nil>")
+} else {
+check("count-pos", c == 3, fmt.Sprint(c, cerr), "3 <nil>")
+}
+check("any-gt8", getXS().any(x => x > 8) == true, getXS().any(x => x > 8), true)
+check("all-pos", getXS().all(x => x > 0) == true, getXS().all(x => x > 0), true)
+check("all-gt2", getXS().all(x => x > 2) == false, getXS().all(x => x > 2), false)
+check("first", (getXS().first() ?? -1) == 3, getXS().first() ?? -1, 3)
+check("last", (getXS().last() ?? -1) == 6, getXS().last() ?? -1, 6)
+check("sum", getXS().sum() == 31, getXS().sum(), 31)
+check("count", getXS().count() == 8, getXS().count(), 8)
+check("count-gt2", getXS().count(x => x > 2) == 5, getXS().count(x => x > 2), 5)
+items := []item{{3, "c"}, {1, "a"}, {3, "b"}, {2, "d"}}
+gotItems := fmt.Sprint(items.sortBy(x => x.k))
+check("sortby-stable", gotItems == "[{1 a} {2 d} {3 c} {3 b}]", gotItems, "[{1 a} {2 d} {3 c} {3 b}]")
+many := make([]item, 64)
+for i := range many {
+many[i] = item{k: (64 - i) % 4, v: fmt.Sprint(i)}
+}
+want := slices.Clone(many)
+slices.SortStableFunc(want, func(a, b item) int { return cmp.Compare(a.k, b.k) })
+check("sortby-large-stable", slices.Equal(many.sortBy(x => x.k), want), "stable", "stable")
+gs := getXS().map(x => float64(x) / 3)
+check("sum-float", gs.sum() == 10.333333333333334, gs.sum(), 10.333333333333334)
+check("sum-cancellation", []float64{1e16, -1e16, 1.0}.sum() == 0, []float64{1e16, -1e16, 1.0}.sum(), 0)
+fitems := []fitem{{1, "a"}, {math.NaN(), "n1"}, {1, "b"}, {math.NaN(), "n2"}, {0, "c"}}
+gotF := fmt.Sprint(fitems.sortBy(x => x.k))
+check("sortby-nan", gotF == "[{NaN n1} {NaN n2} {0 c} {1 a} {1 b}]", gotF, "[{NaN n1} {NaN n2} {0 c} {1 a} {1 b}]")
+closedOrder = nil
+_, err := load([]int{0, 1, 2, 3, 4})
+check("load-fail", err != nil && err.Error() == "fail", err, "fail")
+check("close-order", slices.Equal(closedOrder, []int{2, 1, 0}), closedOrder, []int{2, 1, 0})
+closedOrder = nil
+func() {
+defer func() { check("at-return-closes", slices.Equal(closedOrder, []int{2, 1, 0}), closedOrder, []int{2, 1, 0}) }()
+_, _ = load([]int{0, 1, 2, 3, 4})
+}()
+check("nest-count", slices.Equal(nestCount([]int{1, 2, 3}, []int{2, 3, 4}), []int{3, 2, 1}), nestCount([]int{1, 2, 3}, []int{2, 3, 4}), []int{3, 2, 1})
+check("block-body", slices.Equal(dblBlock([]int{1, 2, 3}), []int{2, 4, 6}), dblBlock([]int{1, 2, 3}), []int{2, 4, 6})
+if failed {
+os.Exit(1)
+}
 }

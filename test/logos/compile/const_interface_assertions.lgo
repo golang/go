@@ -2,35 +2,6 @@
 
 package p
 
-// Assertion safety for qualified (readonly-obligation) interfaces.
-//
-// `interface { const Name() string }` carries a readonly obligation: every
-// implementer must be provably readonly. `lookup.go` assertableTo and
-// newAssertableTo still return true for any interface target, and runtime
-// Go erases the readonly bit, so `v.(Qualified)` cannot runtime-check
-// purity. A mutator stored in `any` (or in an ordinary interface) would
-// manufacture an unchecked qualified contract. Independent truth: any
-// type can mutate while its dynamic effects stay unknown, and the erased
-// runtime cannot check the effect, so the check must be static.
-//
-// Rule pinned here:
-//   - assertion or type-switch case to a qualified interface from `any`
-//     or from an ordinary interface lacking the readonly obligation is
-//     rejected with [correctness::const_view_mutation] at the source
-//     assert/case safety boundary;
-//   - qualified source to a target requiring only already-proven readonly
-//     methods stays allowed; ordinary additional methods in the target
-//     are runtime-checkable and need no static proof;
-//   - concrete assertion to a proven type (Good) then ordinary assignment
-//     to Qualified stays legal: the body proof is direct and
-//     user-approved. Weakening (qualified to ordinary) stays allowed.
-//
-// Obligation note: all rejections below reuse the existing
-// [correctness::const_view_mutation] diagnostic. No new obligation code
-// is invented here. All methods below are exported (Name, Extra); no
-// unexported cross-package method names are used, so package identity
-// cannot confuse the obligation check.
-
 type Qualified interface {
 	const Name() string
 }
@@ -58,15 +29,11 @@ type Small struct {
 
 func (s Small) Name() string { return s.name }
 
-// Direct concrete proofs (user-approved escape hatch): pure value
-// receivers on reference-free structs satisfy the readonly obligation.
 var _ Qualified = Good{name: "a", extra: 1}
 var _ QPlus = Good{name: "a", extra: 1}
 var _ Qualified = Small{name: "s"}
 var _ Ordinary = Good{name: "a", extra: 1}
 
-// Rejected: assertion from `any` (unknown dynamic type) to a qualified
-// interface manufactures an unchecked contract.
 func attackAnyToQualified(v any) {
 	_ = v.(Qualified) // ERROR "const_view_mutation"
 }
@@ -81,9 +48,6 @@ func attackAnyCommaOkToQualified(v any) {
 	}
 }
 
-// Rejected: assertion from an ordinary interface lacking the readonly
-// obligation. The dynamic type might mutate through Name; the erased
-// runtime cannot check it.
 func attackOrdinaryToQualified(o Ordinary) {
 	_ = o.(Qualified) // ERROR "const_view_mutation"
 }
@@ -98,7 +62,6 @@ func attackOrdinaryCommaOkToQualified(o Ordinary) {
 	}
 }
 
-// Rejected: type-switch qualified cases from `any` or ordinary sources.
 func attackAnySwitchQualified(v any) {
 	switch v.(type) {
 	case Qualified: // ERROR "const_view_mutation"
@@ -123,8 +86,6 @@ func attackOrdinarySwitchQPlus(o Ordinary) {
 	}
 }
 
-// Allowed: qualified source already proves the readonly obligation.
-// Targets requiring only that obligation need no further check.
 func okQualifiedToQualified(q Qualified) {
 	_ = q.(Qualified)
 }
@@ -133,9 +94,6 @@ func okQPlusToQualified(q QPlus) {
 	_ = q.(Qualified)
 }
 
-// Allowed: ordinary additional methods in the target are
-// runtime-checkable; only the readonly part needs a static proof,
-// which the qualified source already carries.
 func okQualifiedToQPlus(q Qualified) {
 	_ = q.(QPlus)
 }
@@ -150,26 +108,20 @@ func okQPlusToQPlus(q QPlus) {
 	_ = q.(QPlus)
 }
 
-// Allowed: weakening to an ordinary interface needs no readonly proof.
 func okQualifiedToOrdinary(q Qualified) {
 	_ = q.(Ordinary)
 }
 
-// Allowed: ordinary targets need no readonly proof.
 func okAnyToOrdinary(v any) {
 	_ = v.(Ordinary)
 }
 
-// Allowed: concrete assertion plus ordinary assignment. The assertion to
-// the concrete type is runtime-checkable; the later assignment is
-// proved by the direct Good body scan.
 func okAnyToGoodThenQualified(v any) {
 	g := v.(Good)
 	var _ Qualified = g
 	var _ QPlus = g
 }
 
-// Allowed: type switches on qualified sources with qualified cases.
 func okQualifiedSwitch(q Qualified) {
 	switch q.(type) {
 	case Qualified:

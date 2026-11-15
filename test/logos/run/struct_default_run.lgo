@@ -1,0 +1,34 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type Cfg struct {
+	Port int = 8080
+	Host string = "localhost"
+}
+
+func main() {
+	a := Cfg{}
+	b := &Cfg{}
+	c := Cfg{Host: "x"}
+	check("defaults", a.Port == 8080 && a.Host == "localhost" && b.Port == 8080 && b.Host == "localhost" && c.Port == 8080 && c.Host == "x", fmt.Sprint(a.Port, a.Host, b.Port, b.Host, c.Port, c.Host), "8080localhost8080localhost8080x")
+	if failed {
+		os.Exit(1)
+	}
+}

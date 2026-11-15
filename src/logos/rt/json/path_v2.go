@@ -8,47 +8,64 @@ package json
 
 import (
 	"encoding/json/jsontext"
+	"errors"
+	"io"
 	"reflect"
 	"strconv"
+	"strings"
 )
 
-// indexedFieldPaths is true when encoding/json reports the Field of an
-// *UnmarshalTypeError inside an array with the element index in the path,
-// as it does with goexperiment.jsonv2: "A.0" for the first element of A.
 const indexedFieldPaths = true
 
-// rejectQuotedBare saves the *UnmarshalTypeError the jsonv2 bridge reports
-// for a bare value in a field with the ,string option: Value is the JSON
-// kind word ("number", "bool", "array", or "object") and Offset is the end
-// of the value. Decoding continues.
+var stringContentReplacer = strings.NewReplacer(
+	"object name", "object key",
+	"at start of value", "looking for beginning of value",
+	"at start of string", "looking for beginning of object key string",
+	"after object value", "after object key:value pair",
+	"in number", "in numeric literal",
+)
+
+func stringContentError(item string) error {
+	_, err := jsontext.AppendUnquote(nil, []byte(item))
+	if err == nil {
+		return nil
+	}
+	msg := err.Error()
+	if syn, ok := err.(*jsontext.SyntacticError); ok && syn.Err != nil {
+		msg = syn.Err.Error()
+	}
+	if msg == io.ErrUnexpectedEOF.Error() {
+		return errors.New("unexpected end of JSON input")
+	}
+	if before, _, found := strings.Cut(msg, " (expecting"); found && !strings.Contains(msg, " in literal") {
+		msg = before
+	}
+	return errors.New(stringContentReplacer.Replace(msg))
+}
+
 func (s *Scanner) rejectQuotedBare(typ reflect.Type) {
 	s.rejectKind(typ)
 }
 
-// rejectQuotedContent saves the *UnmarshalTypeError the jsonv2 bridge
-// reports for malformed quoted content in a field with the ,string option.
-// res is one of qSavedTag, qFatalTag, or qString; every row is saved, never
-// fatal, so later fields still decode like the oracle. The Value mirrors
-// the bridge: "number" plus " " plus the unquoted inner content for numeric
-// destinations (so empty content yields "number " with a trailing space,
-// via rejectNumber, exactly like the bridge append in v2_inject.go),
-// "string" plus the raw outer token for bool destinations, and the kind
-// word for string destinations.
 func (s *Scanner) rejectQuotedContent(res quotedResult, item string, typ reflect.Type) {
 	switch typ.Kind() {
 	case reflect.String:
-		s.rejectKind(typ)
+		if contentErr := stringContentError(item); contentErr != nil {
+			ute := s.typeError("string", typ)
+			ute.Err = contentErr
+			s.save(ute)
+		} else {
+			s.rejectKind(typ)
+		}
 	case reflect.Bool:
-		s.save(s.typeError("string "+s.literal(), typ))
+		ute := s.typeError("string "+s.literal(), typ)
+		ute.Err = strconv.ErrSyntax
+		s.save(ute)
 	default:
 		s.rejectNumber(item, typ)
 	}
 }
 
-// quotedIntFallback replays the v2 oracle's own lexical policy for quoted
-// content the shared pre-check rejects: strconv.ParseInt decides. Content
-// it accepts (such as a leading +) is set like the oracle sets it;
-// content it rejects falls through to the classified error mapping above.
 func quotedIntFallback(item string, bits int) (int64, bool) {
 	v, err := strconv.ParseInt(item, 10, bits)
 	if err != nil {
@@ -57,10 +74,6 @@ func quotedIntFallback(item string, bits int) (int64, bool) {
 	return v, true
 }
 
-// quotedUintFallback is quotedIntFallback for unsigned integers. It replays
-// the oracle's strconv.ParseUint policy verbatim: forms the oracle accepts
-// set exactly as the oracle sets them, and forms it rejects fall through
-// to the classified error mapping, which the bridge reports the same way.
 func quotedUintFallback(item string, bits int) (uint64, bool) {
 	v, err := strconv.ParseUint(item, 10, bits)
 	if err != nil {
@@ -69,9 +82,6 @@ func quotedUintFallback(item string, bits int) (uint64, bool) {
 	return v, true
 }
 
-// quotedFloatFallback is quotedIntFallback for floating-point values,
-// covering the noncanonical forms the v2 policy accepts (leading +,
-// NaN, Inf).
 func quotedFloatFallback(item string, bits int) (float64, bool) {
 	v, err := strconv.ParseFloat(item, bits)
 	if err != nil {
@@ -80,18 +90,6 @@ func quotedFloatFallback(item string, bits int) (float64, bool) {
 	return v, true
 }
 
-// unquoteStringContent unquotes a quoted inner string literal for StringQ
-// with the strict syntax the v2 bridge-side decoder enforces, via the same
-// jsontext primitive the oracle uses — so acceptance and the resulting
-// value agree with the oracle by construction. Go-only escapes such as \'
-// fail here and flow to qFatalTag, which the v2 content policy saves as
-// Value "string" with the value untouched.
-//
-// Ownership: with dst nil, AppendUnquote grows a fresh buffer and only ever
-// appends into it (it never returns src itself), so v is private, aliases
-// nothing, and is never reused after return; the in-package unsafeString
-// helper transfers it into a string without a second copy, mirroring
-// stringBody's established fresh-buffer handling (nil/len0-safe).
 func unquoteStringContent(item string) (string, bool) {
 	v, err := jsontext.AppendUnquote(nil, item)
 	if err != nil {

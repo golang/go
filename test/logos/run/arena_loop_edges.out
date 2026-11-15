@@ -1,9 +1,13 @@
-ordinary-continue: 54
-ordinary-break: 138
-range-continue: 54
-range-break: 258
-nested-inner-break: 1614
-labeled-outer-break: 144 6
-labeled-outer-continue: 264 4
-switch-break: 144
-sibling: 48 1864 206
+ok continue-skips-even-iterations
+ok break-stops-before-fourth-iteration
+ok range-continue-skips-even-elements
+ok range-break-stops-at-sentinel
+ok inner-break-keeps-outer-accumulation
+ok labeled-break-total
+ok labeled-break-count
+ok labeled-continue-total
+ok labeled-continue-count
+ok switch-break-keeps-loop-sum
+ok sibling-first-loop-sum
+ok sibling-kept-slices-sum
+ok sibling-untouched-buffer-preserved

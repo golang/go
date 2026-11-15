@@ -1,0 +1,189 @@
+// run
+
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"time"
+)
+
+var siblingError = errors.New("sibling")
+
+func failSibling() error { return siblingError }
+
+type state struct {
+	in chan int
+	send chan int
+	empty chan int
+	vals []int
+	option int?
+	idx int
+}
+
+//logos:allow(correctness::unbounded_channel_op)
+func newState(cancel, skip bool) *state {
+	s := &state{in: make(chan int, 2), send: make(chan int, 2), empty: make(chan int), vals: []int{0}}
+	if skip {
+		s.option = 3
+	}
+	if !cancel {
+		s.in <- 7
+		s.in <- 99
+	}
+	return s
+}
+
+func (s *state) next() int {
+	s.idx++
+	return 0
+}
+
+func runSelect(ctx context.Context, cancel bool, s *state) error {
+	go group (ctx) {
+		go {
+			select {
+			case s.send <- (s.option ?? <-s.in):
+			case s.vals[s.next()] = <-s.empty:
+			}
+		}
+		go {
+			if cancel {
+				failSibling()?
+			}
+		}
+	}
+	return nil
+}
+
+func exercise(cancel, skip bool) {
+	s := newState(cancel, skip)
+	watchdog := time.AfterFunc(5*time.Second, func() {
+		fmt.Println("FAIL select operand blocked")
+		os.Exit(1)
+	})
+	defer watchdog.Stop()
+	ctx, stop := context.WithTimeout(context.Background(), 4*time.Second)
+	defer stop()
+	err := runSelect(ctx, cancel, s)
+	if cancel {
+		if !errors.Is(err, siblingError) || len(s.send) != 0 {
+			panic("cancellation did not stop select operand")
+		}
+	} else {
+		if err != nil {
+			panic(err)
+		}
+		checkValue(ctx, s, skip)
+	}
+	if s.idx != 0 || s.vals[0] != 0 {
+		panic("unselected receive lhs evaluated")
+	}
+}
+
+func checkValue(ctx context.Context, s *state, skip bool) {
+	want, remaining := 7, 1
+	if skip {
+		want, remaining = 3, 2
+	}
+	select {
+	case v := <-s.send:
+		if v != want || len(s.in) != remaining {
+			panic("select operand evaluated incorrectly")
+		}
+	case <-ctx.Done():
+		panic("select send did not complete")
+	}
+}
+
+type receiveTarget struct {
+	value int
+	ok bool
+	calls int
+}
+
+func (s *receiveTarget) after(c chan int) *receiveTarget {
+	if len(c) != 0 {
+		panic("target evaluated before comm receive")
+	}
+	s.calls++
+	return s
+}
+
+//logos:allow(correctness::unbounded_channel_op)
+func exerciseAssignTargets() error {
+	c := make(chan int, 1)
+	index := make(chan int, 1)
+	a := []int{0}
+	s := &receiveTarget{}
+	ctx := context.Background()
+	c <- 11
+	index <- 0
+	go group (ctx) {
+		go {
+			select {
+			case a[<-index] = <-c:
+			}
+		}
+	}
+	if a[0] != 11 || len(index) != 0 {
+		panic("index receive target")
+	}
+	c <- 23
+	index <- 0
+	go group (ctx) {
+		go {
+			select {
+			case a[<-index], s.ok = <-c:
+			}
+		}
+	}
+	if a[0] != 23 || !s.ok {
+		panic("two-value index target")
+	}
+	c <- 37
+	index <- 0
+	bools := []bool{false}
+	go group (ctx) {
+		go {
+			select {
+			case s.after(c).value, bools[<-index] = <-c:
+			}
+		}
+	}
+	if s.value != 37 || !bools[0] || s.calls != 1 {
+		panic("two-value selector order")
+	}
+	cancelCtx, stop := context.WithCancel(ctx)
+	stop()
+	index <- 0
+	err := blockedAssignTarget(cancelCtx, c, index, s)
+	if !errors.Is(err, context.Canceled) || s.calls != 1 || len(index) != 1 {
+		panic("canceled comm evaluated target")
+	}
+	return nil
+}
+
+func blockedAssignTarget(ctx context.Context, c chan int, index chan int, s *receiveTarget) error {
+	bools := []bool{false}
+	go group (ctx) {
+		go {
+			select {
+			case s.after(c).value, bools[<-index] = <-c:
+			}
+		}
+	}
+	return nil
+}
+
+func main() {
+	exercise(false, false)
+	exercise(false, true)
+	exercise(true, false)
+	if err := exerciseAssignTargets(); err != nil {
+		panic(err)
+	}
+	fmt.Println("ok select closures")
+}

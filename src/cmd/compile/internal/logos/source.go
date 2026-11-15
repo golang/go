@@ -8,19 +8,20 @@ import (
 	"bytes"
 	"go/scanner"
 	"go/token"
+	"strings"
 )
 
-// This file finds exact token boundaries in original source text. The
-// syntax package records start positions and the position of a call's
-// opening parenthesis, but no end positions, and the eject text must splice
-// user-written pieces (comments included) at exact offsets. Go's own
-// scanner tokenizes the text; the loGo/s "?" scans as an illegal token,
-// which is harmless here because only bracket depth and separators matter.
-
-// span is a half-open byte range of the original source.
 type span struct{ start, end int }
 
-// tok is one token of the scanned source, in offsets of the whole text.
+func insideAny(c span, pieces []span) bool {
+	for _, p := range pieces {
+		if c.start >= p.start && c.end <= p.end {
+			return true
+		}
+	}
+	return false
+}
+
 type tok struct {
 	span
 	kind    token.Token
@@ -28,7 +29,6 @@ type tok struct {
 	auto    bool
 }
 
-// tokenEnd returns the end offset of the token that starts at off.
 func tokenEnd(seg []byte, off int, kind token.Token, lit string) int {
 	switch {
 	case kind == token.COMMENT && bytes.HasPrefix(seg[off:], []byte("//")):
@@ -53,9 +53,6 @@ func tokenEnd(seg []byte, off int, kind token.Token, lit string) int {
 	}
 }
 
-// scanSegment tokenizes src[from:to] and calls visit for each token,
-// comments included, until visit returns false. Automatic semicolons are
-// reported with auto set and an empty span at their offset.
 func scanSegment(src []byte, from, to int, visit func(tok) bool) {
 	seg := src[from:to]
 	fset := token.NewFileSet()
@@ -81,7 +78,6 @@ func scanSegment(src []byte, from, to int, visit func(tok) bool) {
 	}
 }
 
-// commentsIn returns the comment spans inside src[from:to].
 func commentsIn(src []byte, from, to int) []span {
 	var out []span
 	scanSegment(src, from, to, func(t tok) bool {
@@ -93,9 +89,17 @@ func commentsIn(src []byte, from, to int) []span {
 	return out
 }
 
-// lastTokenEnd returns the end of the last token inside src[from:to] that
-// is neither a comment nor an automatic semicolon, or from when there is
-// none.
+func keepComments(src []byte, from, to int, text string) string {
+	for _, c := range commentsIn(src, from, to) {
+		body := string(src[c.start:c.end])
+		if rest, ok := strings.CutPrefix(body, "//"); ok {
+			body = "/*" + strings.ReplaceAll(rest, "*/", "* /") + "*/"
+		}
+		text += " " + strings.ReplaceAll(body, "\n", " ")
+	}
+	return text
+}
+
 func lastTokenEnd(src []byte, from, to int) int {
 	end := from
 	scanSegment(src, from, to, func(t tok) bool {
@@ -107,15 +111,19 @@ func lastTokenEnd(src []byte, from, to int) int {
 	return end
 }
 
-// callSplit is the layout of one call's argument list.
-type callSplit struct {
-	args []span // one span per argument, comments excluded
-	end  int    // offset just past the closing parenthesis
+func lineBreakBefore(src []byte, from, off int) string {
+	last := lastTokenEnd(src, from, off)
+	if last > from && bytes.IndexByte(src[last:off], '\n') < 0 {
+		return "\n"
+	}
+	return ""
 }
 
-// splitCall splits the argument list whose opening parenthesis is at
-// lparen. Commas and "..." at the call's own nesting depth separate
-// arguments; brackets of any kind nest.
+type callSplit struct {
+	args []span
+	end  int
+}
+
 func splitCall(src []byte, lparen int) (callSplit, bool) {
 	var out callSplit
 	depth := 0
@@ -160,7 +168,6 @@ func splitCall(src []byte, lparen int) (callSplit, bool) {
 	return out, done
 }
 
-// extend grows cur to cover t.
 func extend(cur, t span) span {
 	if cur.start < 0 {
 		return t
@@ -168,17 +175,25 @@ func extend(cur, t span) span {
 	return span{cur.start, t.end}
 }
 
-// stmtEnd returns the end of the statement that starts at from: the end of
-// its last token before the terminating semicolon or closing brace.
 func stmtEnd(src []byte, from int) int {
 	end := from
 	depth := 0
+	header := -1
 	scanSegment(src, from, len(src), func(t tok) bool {
 		if t.comment {
 			return true
 		}
 		switch t.kind {
-		case token.LPAREN, token.LBRACK, token.LBRACE:
+		case token.SWITCH:
+			if header < 0 {
+				header = depth
+			}
+		case token.LPAREN, token.LBRACK:
+			depth++
+		case token.LBRACE:
+			if depth == header {
+				header = -1
+			}
 			depth++
 		case token.RPAREN, token.RBRACK:
 			depth--
@@ -188,7 +203,7 @@ func stmtEnd(src []byte, from int) int {
 			}
 			depth--
 		case token.SEMICOLON:
-			if depth == 0 {
+			if depth == 0 && header != 0 {
 				return false
 			}
 		}
@@ -200,11 +215,6 @@ func stmtEnd(src []byte, from int) int {
 	return end
 }
 
-// spanStartBack extends off backward past white space, comments, and open
-// parentheses the parser dropped. A parenthesis before a statement start
-// can only wrap that statement in checked code, so consuming it only ever
-// removes a dropped wrapper. A line comment counts only when it opens its
-// line, which keeps string contents out of reach.
 func spanStartBack(src []byte, off int) int {
 	start := off
 	for {
@@ -222,7 +232,6 @@ func spanStartBack(src []byte, off int) int {
 	}
 }
 
-// skipSpaceBack skips ASCII white space before off.
 func skipSpaceBack(src []byte, off int) int {
 	for off > 0 && isSpace(src[off-1]) {
 		off--
@@ -230,11 +239,25 @@ func skipSpaceBack(src []byte, off int) int {
 	return off
 }
 
-// commentStartBack returns the start of the comment ending at j.
+func skipBlankBack(src []byte, off int) int {
+	for {
+		off = skipSpaceBack(src, off)
+		if off < 2 || src[off-2] != '*' || src[off-1] != '/' {
+			return off
+		}
+		before, _, found := bytes.CutLast(src[:off-2], []byte("/*"))
+		if !found {
+			return off
+		}
+		off = len(before)
+	}
+}
+
 func commentStartBack(src []byte, j int) (int, bool) {
 	if j >= 2 && src[j-2] == '*' && src[j-1] == '/' {
 		if k := bytes.LastIndex(src[:j-2], []byte("/*")); k >= 0 {
-			return k, true
+			indent := src[bytes.LastIndexByte(src[:k], '\n')+1 : k]
+			return k, len(bytes.Trim(indent, " \t\r")) == 0
 		}
 		return 0, false
 	}
@@ -252,7 +275,6 @@ func commentStartBack(src []byte, j int) (int, bool) {
 	return 0, false
 }
 
-// trimSpan shrinks s to exclude leading and trailing ASCII white space.
 func trimSpan(src []byte, s span) span {
 	for s.start < s.end && isSpace(src[s.start]) {
 		s.start++

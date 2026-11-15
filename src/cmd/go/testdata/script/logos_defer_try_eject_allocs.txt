@@ -1,0 +1,61 @@
+# A nil-result defer f()? in a loop allocates nothing under logos and, in
+# ejected Go, one closure per iteration plus one box for the error
+# result, because plain Go has no pooled record [T-104.2]. A statement
+# outside a loop allocates nothing in either build.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+
+logos run .
+stdout '^loop-allocs 0$'
+stdout '^single-allocs 0$'
+
+logos eject -o out
+exists out/main.go
+
+cd out
+go run .
+stdout '^loop-allocs 6$'
+stdout '^single-allocs 0$'
+exists $UPROOT1272/bin/go
+exec env -u GOROOT $UPROOT1272/bin/go run .
+stdout '^loop-allocs 6$'
+stdout '^single-allocs 0$'
+cd ..
+
+-- m/go.mod --
+module example.com/defereject
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import (
+	"fmt"
+	"testing"
+)
+
+var sinkErr error
+
+//go:noinline
+func closeNil() error { return nil }
+
+func loop(n int) (err error) {
+	for i := 0; i < n; i++ {
+		defer closeNil()?
+	}
+	return nil
+}
+
+//go:noinline
+func single() (err error) {
+	defer closeNil()?
+	return nil
+}
+
+func main() {
+	fmt.Println("loop-allocs", int(testing.AllocsPerRun(200, func() { sinkErr = loop(5) })))
+	fmt.Println("single-allocs", int(testing.AllocsPerRun(200, func() { sinkErr = single() })))
+}

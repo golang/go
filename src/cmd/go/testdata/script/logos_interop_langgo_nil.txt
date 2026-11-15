@@ -1,0 +1,80 @@
+# A Go importer calling a Go package that carries a `lang go` record
+# must not wrap the call: passing nil crashes with the plain runtime
+# error and no logos prefix [T-Sec5][R-U1].
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+cd w
+logos build ./...
+logos build -o $WORK/gl.a ./gl/lib
+go tool pack p $WORK/gl.a __.LOGOS
+stdout '^logos-facts 3$'
+stdout '^fn GoAssert AssertTP=1,AssertRTP=0$'
+stdout '^lang go$'
+
+logos build -o $WORK/bin/nilgo$GOEXE ./gc/cmd
+! exec $WORK/bin/nilgo$GOEXE
+! stderr 'logos: nil from Go value'
+cd ..
+
+-- w/go.work --
+go 1.27
+
+use (
+	./gl
+	./gc
+)
+
+-- w/gl/go.mod --
+module example.com/gl
+
+go 1.27
+
+-- w/gl/lib/lib.go --
+package lib
+
+func GoAssert[T any](x any) T {
+	return x.(T)
+}
+
+type User struct {
+	Name string
+}
+
+func Get(u *User) string {
+	return u.Name
+}
+
+-- w/gc/go.mod --
+module example.com/gc
+
+go 1.27
+
+require example.com/gl v0.0.0
+
+replace example.com/gl => ../gl
+
+-- w/gc/q/q.go --
+package q
+
+import (
+	"example.com/gl/lib"
+	_ "logos/rt"
+)
+
+func DirectMsg() string {
+	_ = lib.Get(nil)
+	return "no-panic"
+}
+
+-- w/gc/cmd/main.go --
+package main
+
+import (
+	"example.com/gc/q"
+)
+
+func main() {
+	_ = q.DirectMsg()
+}

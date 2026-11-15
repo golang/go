@@ -1,2 +1,4 @@
-prefix 5
-err: parse
+ok eject-shadowed-imports-preserved
+ok eject-shadowed-scope-skips-cleanup-on-success
+ok eject-error-still-reported
+ok eject-shadowed-scope-runs-cleanup-on-failure

@@ -2522,24 +2522,8 @@ func (l *Loader) checkLinkname(refpkg *oReader, name string, s Sym) {
 	error := func() {
 		log.Fatalf("%s: invalid reference to %s", pkg, name)
 	}
-	pkgs, ok := blockedLinknames[name]
-	if ok {
-		for _, p := range pkgs {
-			if pkg == p {
-				return // pkg is allowed
-			}
-			// crypto/internal/fips140/vX.Y.Z/... is the frozen version of
-			// crypto/internal/fips140/... and is similarly allowed.
-			if strings.HasPrefix(pkg, "crypto/internal/fips140/v") {
-				parts := strings.Split(pkg, "/")
-				parts = append(parts[:3], parts[4:]...)
-				pkg := strings.Join(parts, "/")
-				if pkg == p {
-					return
-				}
-			}
-		}
-		error()
+	if logosLoaderCheckLinkname(pkg, name, error) {
+		return
 	}
 	r, li := l.toLocal(s)
 	if r == l.extReader { // referencing external symbol is okay

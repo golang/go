@@ -1,26 +1,20 @@
-# M9-S1: lint severities, the //logos:allow directive, [lints] in logos.toml,
-# logos lint, and --json-diagnostics on loGo/s packages.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
 mkdir $WORK/bin
 
-# A deny violation fails logos build and names the rule at file:line:col.
 cd deny
 ! logos build -o $WORK/bin/deny$GOEXE .
 stderr 'main\.lgo:6:2: \[slop::discarded_error\]'
 ! exists $WORK/bin/deny$GOEXE
 cd ..
 
-# //logos:allow(<rule>) before the statement silences a deny rule.
 cd allow
 logos build -o $WORK/bin/allow$GOEXE .
 ! stderr .
 exists $WORK/bin/allow$GOEXE
 cd ..
 
-# The same directive on a forbid rule is itself an error, and forbid
-# ignores it: the rule is reported as well.
 cd forbid
 ! logos build -o $WORK/bin/forbid$GOEXE .
 stderr 'main\.lgo:3:1: \[correctness::allow_forbidden_rule\]'
@@ -28,39 +22,33 @@ stderr 'main\.lgo:4:6: \[correctness::infinite_recursion\]'
 ! exists $WORK/bin/forbid$GOEXE
 cd ..
 
-# logos.toml slop = "warn" turns the deny rule into a warning: the build
-# passes and still prints the rule.
 cd warn
 logos build -o $WORK/bin/warn$GOEXE .
 stderr 'main\.lgo:6:2: warning: \[slop::discarded_error\]'
 exists $WORK/bin/warn$GOEXE
 
-# A cached rebuild replays the warning.
 logos build -o $WORK/bin/warn$GOEXE .
 stderr 'main\.lgo:6:2: warning: \[slop::discarded_error\]'
 
-# A JSON build after the text builds prints JSON, not the replayed text:
-# the output format is part of the action ID.
 logos build --json-diagnostics -o $WORK/bin/warn$GOEXE .
 ! stderr '^#'
 ! stderr 'warning:'
 stderr -count=1 '^\{.*"rule_id":"slop::discarded_error".*\}$'
 cd ..
 
-# slop = "allow" is silent.
 cd quiet
 logos build -o $WORK/bin/quiet$GOEXE .
 ! stderr .
 exists $WORK/bin/quiet$GOEXE
+logos build --json-diagnostics -o $WORK/bin/quiet$GOEXE .
+! stderr .
 cd ..
 
-# A forbid group cannot be lowered by configuration.
 cd lowered
 ! logos build .
 stderr 'logos\.toml:2:15: \[configuration::forbid_lowered\] correctness cannot be lowered below forbid'
 cd ..
 
-# logos lint ./... reports without building binaries and fails on deny.
 cd lintcmd
 ! logos lint ./...
 stderr 'main\.lgo:6:2: \[slop::discarded_error\]'
@@ -68,7 +56,6 @@ stderr 'main\.lgo:6:2: \[slop::discarded_error\]'
 ! exists lintcmd$GOEXE
 cd ..
 
-# logos lint of a clean module is silent and writes nothing.
 cd clean
 logos lint ./...
 ! stderr .
@@ -77,38 +64,34 @@ logos lint ./...
 ! exists clean$GOEXE
 cd ..
 
-# logos build --json-diagnostics prints one JSON object per line with the
-# schema fields; TestLogosJSONDiagnostics checks each line as JSON.
 cd jsonbuild
 ! logos build --json-diagnostics -o $WORK/bin/jsonbuild$GOEXE .
 ! stderr '^#'
 stderr -count=1 '^\{.*\}$'
 cd ..
 
-# logos lint --json-diagnostics reports the same records, and the forbid
-# directive error carries severity forbid;
-# TestLogosJSONDiagnostics checks the records as JSON.
 cd jsonlint
 ! logos lint --json-diagnostics ./...
 cd ..
 
-# A warn rule has severity warn in the JSON output and does not fail;
-# TestLogosJSONDiagnostics checks the record as JSON.
 cd jsonwarn
 logos lint --json-diagnostics ./...
 cd ..
 
-# A Go type error under logos build --json-diagnostics is one valid record
-# for the .go file with an empty rule_id;
-# TestLogosJSONDiagnostics checks the record as JSON.
 cd gotypeerr
 ! logos build --json-diagnostics ./...
 ! stderr '^#'
 stderr -count=1 '^\{.*\}$'
+stderr '"rule_id":""'
 cd ..
 
-# A logos.toml change recompiles: the policy is part of the action ID, so
-# the build cache cannot hide a stricter severity.
+cd lgotypeerr
+! logos build --json-diagnostics ./...
+! stderr '^#'
+stderr -count=1 '^\{.*\}$'
+stderr '"rule_id":""'
+cd ..
+
 cd reconfig
 logos build -o $WORK/bin/reconfig$GOEXE .
 ! stderr .
@@ -117,7 +100,6 @@ cp logos-deny.toml logos.toml
 stderr 'main\.lgo:6:2: \[slop::discarded_error\]'
 cd ..
 
-# A loGo/s dependency module, not the main module, gets no lint diagnostic.
 cd lgoapp
 logos build -o $WORK/bin/lgoapp$GOEXE .
 ! stderr .
@@ -125,7 +107,6 @@ logos lint ./...
 ! stderr .
 cd ..
 
-# Plain go has neither the lint command nor the JSON flag.
 cd clean
 ! go lint ./...
 stderr 'go lint: unknown command'
@@ -367,6 +348,18 @@ module example.com/gotypeerr
 go 1.27
 
 -- gotypeerr/main.go --
+package main
+
+func main() {
+	undefinedFn()
+}
+
+-- lgotypeerr/go.mod --
+module example.com/lgotypeerr
+
+go 1.27
+
+-- lgotypeerr/main.lgo --
 package main
 
 func main() {

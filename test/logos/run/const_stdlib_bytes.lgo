@@ -1,0 +1,31 @@
+// run
+
+package main
+
+import (
+	"bytes"
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func main() {
+	a := []byte{1, 2, 3}
+	var va const []byte = a
+	b := []byte{1, 2, 3}
+	check("equal", bytes.Equal(va, b), bytes.Equal(va, b), true)
+	check("unequal", !bytes.Equal(va, []byte{9}), bytes.Equal(va, []byte{9}), false)
+	if failed {
+		os.Exit(1)
+	}
+}

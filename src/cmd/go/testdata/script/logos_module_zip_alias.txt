@@ -1,0 +1,89 @@
+env GO111MODULE=on
+
+# A zip carrying an alias-extension file is rejected through a local
+# file proxy with no network, while a zip carrying the canonical .lgo
+# spelling of the same module downloads. The rejection names the alias
+# file, so it comes from the module zip validation and not the network.
+# The proxy settings stay on the download commands so the network
+# section below keeps the harness proxy.
+go run genzip.go $WORK/proxy
+exec env GOPROXY=file://$WORK/proxy GOSUMDB=off GOFLAGS=-mod=mod go mod download example.com/lgomod@v1.0.0
+! exec env GOPROXY=file://$WORK/proxy GOSUMDB=off GOFLAGS=-mod=mod go mod download example.com/aliasmod@v1.0.0
+stderr 'x\.📜'
+
+! go get rsc.io/badlogos@v1.0.0
+stderr 'badlogos.*malformed file path "x.📜": invalid char'
+stderr 'badlogos.*malformed file path "x.⚡": invalid char'
+stderr 'badlogos.*malformed file path "x.ʕ◔ϖ◔ʔ": invalid char'
+
+
+-- go.mod --
+module example.com/zipalias
+
+go 1.27
+
+-- genzip.go --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+	"archive/zip"
+	"fmt"
+	"os"
+	"path/filepath"
+)
+
+func writeFile(path, body string) {
+	if err := os.WriteFile(path, []byte(body), 0o666); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
+
+func writeModule(proxy, path, version, name, body string) {
+	dir := filepath.Join(proxy, path, "@v")
+	if err := os.MkdirAll(dir, 0o777); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	writeFile(filepath.Join(dir, version+".info"), `{"Version":"`+version+`"}`)
+	mod := "module " + path + "\n\ngo 1.27\n"
+	writeFile(filepath.Join(dir, version+".mod"), mod)
+	zf, err := os.Create(filepath.Join(dir, version+".zip"))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	w := zip.NewWriter(zf)
+	add := func(entry, content string) {
+		f, err := w.Create(entry)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		if _, err := f.Write([]byte(content)); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+	}
+	add(path+"@"+version+"/"+name, body)
+	add(path+"@"+version+"/go.mod", mod)
+	if err := w.Close(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	if err := zf.Close(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	fmt.Println("wrote", path, version)
+}
+
+func main() {
+	proxy := os.Args[1]
+	writeModule(proxy, "example.com/aliasmod", "v1.0.0", "x.📜", "package aliasmod\n")
+	writeModule(proxy, "example.com/lgomod", "v1.0.0", "x.lgo", "package lgomod\n")
+}

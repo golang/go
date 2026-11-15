@@ -1,0 +1,189 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cp $GOROOT/test/logos/run/property_promoted.lgo a/main.lgo
+
+cd a
+logos run .
+cmp stdout $GOROOT/test/logos/run/property_promoted.out
+logos eject -o out
+exists out/main.go
+! exists out/main.lgo
+cd out
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/property_promoted.out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ../..
+
+cd x
+logos run .
+stdout '^16 16$'
+stdout '^1 orc orc$'
+cp stdout $WORK/x-native.txt
+logos eject -o out
+exists out/main.go
+exists out/p/p.go
+cd out
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $WORK/x-native.txt
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ../..
+
+cd c
+logos build ./...
+logos eject -o out
+exists out/m/main.go
+exists out/p/p.go
+! grep -E 'Logos_Get|Logos_Set' out/m/main.go
+cd out
+exec env -u GOROOT $UPROOT1272/bin/go run ./m
+stdout '^3$'
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ../..
+cd cfail
+! logos build ./...
+stderr 'correctness::property_requires_conformance'
+cd ..
+
+-- a/go.mod --
+module example.com/propertypromoted
+
+go 1.27
+
+-- c/go.mod --
+module example.com/promotedc
+
+go 1.27
+
+-- c/p/p.lgo --
+package p
+
+type Slot interface {
+	P int
+}
+
+type Impl struct : Slot {
+	P int
+}
+
+-- c/m/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/promotedc/p"
+)
+
+type Outer struct {
+	*p.Impl
+}
+
+func main() {
+	o := &Outer{Impl: &p.Impl{P: 1}}
+	o.P = 2
+	q := &o.P
+	*q++
+	fmt.Println(o.P)
+}
+
+-- cfail/go.mod --
+module example.com/promotedcfail
+
+go 1.27
+
+-- cfail/p/p.lgo --
+package p
+
+type Slot interface {
+	P int
+}
+
+type Impl struct : Slot {
+	P int
+}
+
+-- cfail/m/main.lgo --
+package main
+
+import "example.com/promotedcfail/p"
+
+type Outer struct {
+	*p.Impl
+}
+
+var _ p.Slot = &Outer{}
+
+func main() {
+	o := &Outer{Impl: &p.Impl{P: 1}}
+	o.P = 2
+	println(o.P)
+}
+
+-- x/go.mod --
+module example.com/promotedx
+
+go 1.27
+
+-- x/p/p.lgo --
+package p
+
+type Slot interface {
+	P int
+}
+
+type Title interface {
+	const Name string
+}
+
+type Impl struct : Slot {
+	P int
+}
+
+type Named struct : Title {
+	Name string
+}
+
+-- x/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/promotedx/p"
+)
+
+type Box struct {
+	p.Slot
+}
+
+type Label struct {
+	p.Title
+}
+
+type Sub struct : p.Slot {
+	p.Slot
+}
+
+func main() {
+	im := &p.Impl{P: 4}
+	b := &Box{Slot: im}
+	b.P += 3
+	b.P++
+	var s p.Slot = b
+	s.P *= 2
+	fmt.Println(im.P, b.P)
+	sub := &Sub{Slot: im}
+	var d p.Slot = sub
+	d.P = 1
+	l := Label{Title: p.Named{Name: "orc"}}
+	var t p.Title = l
+	fmt.Println(im.P, l.Name, t.Name)
+}

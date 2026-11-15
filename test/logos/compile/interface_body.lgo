@@ -1,0 +1,7 @@
+// errorcheck
+
+package p
+
+type B interface {
+	M() int { return 1 } // ERROR "syntax error"
+} // ERROR "non-declaration statement outside function body"

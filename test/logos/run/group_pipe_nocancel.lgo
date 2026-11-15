@@ -1,0 +1,69 @@
+// run
+
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"net"
+	"os"
+)
+
+var errBoom = errors.New("boom")
+
+var bad bool
+
+func check(tag string, cond bool, got, want string) {
+	if !cond {
+		fmt.Println("FAIL "+tag+": got "+got+" want "+want)
+		bad = true
+		return
+	}
+	fmt.Println("ok", tag)
+}
+
+//logos:allow(correctness::unbounded_channel_op)
+func readChild(r net.Conn, res chan string) error {
+	_, err := r.Read(make([]byte, 1))
+	if err != nil {
+		res <- "fail:" + err.Error()
+		return err
+	}
+	res <- "ok"
+	return nil
+}
+
+func sibling() error {
+	return errBoom
+}
+
+//logos:allow(correctness::unbounded_channel_op)
+func writerChild(w net.Conn) error {
+	if _, err := w.Write([]byte("x")); err != nil {
+		return err
+	}
+	return w.Close()
+}
+
+func run(r net.Conn, w net.Conn, res chan string) error {
+	go group (context.Background()) {
+		go readChild(r, res)
+		go sibling()
+		go writerChild(w)
+	}
+	return nil
+}
+
+//logos:allow(correctness::unbounded_channel_op)
+func main() {
+	r, w := net.Pipe()
+	res := make(chan string, 1)
+	err := run(r, w, res)
+	check("group-pipe-first-error-wins", err == errBoom, fmt.Sprint(err), errBoom.Error())
+	got := <-res
+	check("group-pipe-plain-io-ignores-cancel", got == "ok", got, "ok")
+	if bad {
+		os.Exit(1)
+	}
+}

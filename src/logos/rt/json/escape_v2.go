@@ -6,7 +6,4 @@
 
 package json
 
-// invalidUTF8Escape is the text an invalid UTF-8 byte becomes inside an
-// escaped string. With goexperiment.jsonv2 encoding/json writes the
-// literal replacement character U+FFFD.
 const invalidUTF8Escape = "\ufffd"

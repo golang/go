@@ -1,0 +1,99 @@
+# SPEC 13.1: the 4-byte and 8-byte pairing above is upstream behavior.
+# The same paired-load shapes built with this toolchain and with the
+# pinned upstream go1.27.3 must produce identical result values under
+# qemu-aarch64, so a pairing that changes meaning is caught even though
+# the fused-shape checks still pass.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+[!exec:qemu-aarch64] skip 'qemu-aarch64 is required for the arm64 leg'
+exists $UPROOT1273/bin/go
+exec $UPROOT1273/bin/go version
+stdout '^go version go1\.27\.3 '
+
+env GOARCH=arm64
+logos build -o $WORK/pair-logos$GOEXE .
+exec env -u GOROOT $UPROOT1273/bin/go build -o $WORK/pair-upstream$GOEXE .
+env GOARCH=
+
+exec qemu-aarch64 $WORK/pair-logos$GOEXE
+cp stdout $WORK/logos.txt
+exec qemu-aarch64 $WORK/pair-upstream$GOEXE
+cp stdout $WORK/upstream.txt
+cmp $WORK/logos.txt $WORK/upstream.txt
+
+-- go.mod --
+module example.com/pairupstream
+
+go 1.27
+
+-- main.go --
+package main
+
+import "fmt"
+
+type pair64 struct{ A, B int64 }
+type pair32 struct{ A, B int32 }
+type skip64 struct{ A, B, C int64 }
+type off504 struct {
+	Pad [504]byte
+	A, B int64
+}
+type off508 struct {
+	Pad [508]byte
+	A, B int32
+}
+type f64pair struct{ A, B float64 }
+type f32pair struct{ A, B float32 }
+
+func copy64(src, dst *pair64) { dst.A = src.A; dst.B = src.B }
+func zero64(dst *pair64)      { dst.A = 0; dst.B = 0 }
+func load64(p *pair64) (int64, int64) { return p.A, p.B }
+func swap64(p *pair64)        { p.A, p.B = p.B, p.A }
+func loadSigned32(p *pair32) (int32, int32) { return p.A, p.B }
+func copy32(src, dst *pair32) { dst.A = src.A; dst.B = src.B }
+func zero32(dst *pair32)      { dst.A = 0; dst.B = 0 }
+func loadSkip(p *skip64) (int64, int64) { return p.A, p.C }
+func load504(p *off504) (int64, int64) { return p.A, p.B }
+func copy504(src, dst *off504) { dst.A = src.A; dst.B = src.B }
+func load508(p *off508) (int32, int32) { return p.A, p.B }
+func copy508(src, dst *off508) { dst.A = src.A; dst.B = src.B }
+func copyf64(src, dst *f64pair) { dst.A = src.A; dst.B = src.B }
+func copyf32(src, dst *f32pair) { dst.A = src.A; dst.B = src.B }
+
+func main() {
+	a := &pair64{A: -9, B: 1 << 40}
+	b := &pair64{}
+	copy64(a, b)
+	fmt.Println(load64(b))
+	swap64(b)
+	fmt.Println(load64(b))
+	zero64(b)
+	fmt.Println(load64(b))
+	c := &pair32{A: -3, B: 7}
+	d := &pair32{}
+	copy32(c, d)
+	fmt.Println(loadSigned32(d))
+	zero32(d)
+	fmt.Println(loadSigned32(d))
+	s := &skip64{A: 1, B: 2, C: 3}
+	fmt.Println(loadSkip(s))
+	o := &off504{A: 11, B: 22}
+	t := &off504{}
+	copy504(o, t)
+	fmt.Println(load504(t))
+	fmt.Println(load504(o))
+	w := &off508{A: -1, B: 5}
+	u := &off508{}
+	copy508(w, u)
+	fmt.Println(load508(u))
+	f := &f64pair{A: 1.5, B: -2.25}
+	g := &f64pair{}
+	copyf64(f, g)
+	fmt.Println(g.A, g.B)
+	h := &f32pair{A: 1.5, B: -2.25}
+	i2 := &f32pair{}
+	copyf32(h, i2)
+	fmt.Println(i2.A, i2.B)
+	fmt.Println("pair upstream ok")
+}

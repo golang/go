@@ -1,0 +1,33 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# A return in a block lambda belongs to the lambda: a tuple literal or a
+# tuple variable returned there is forwarded to the results of the
+# lambda when it has as many results as the tuple has elements, and it
+# stays one tuple value when the lambda has one tuple result. The
+# enclosing function has no result, one result or two or three results,
+# and the lambda is passed, assigned or a stage of a chain. The module
+# runs natively, ejects, and the ejected module builds and runs with go
+# and with go1.27.2 from $UPROOT1272 and prints the same ok lines.
+cp $GOROOT/test/logos/run/eject_tuple_lambda_return.lgo m/main.lgo
+cd m
+logos run .
+cmp stdout $GOROOT/test/logos/run/eject_tuple_lambda_return.out
+logos eject -o out
+exists out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $GOROOT/test/logos/run/eject_tuple_lambda_return.out
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
+exec $WORK/upstream$GOEXE
+cmp stdout $GOROOT/test/logos/run/eject_tuple_lambda_return.out
+cd ../..
+
+-- m/go.mod --
+module example.com/tuplelambdareturn
+
+go 1.27

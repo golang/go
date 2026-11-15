@@ -11,7 +11,6 @@ import (
 	"testing"
 )
 
-// TestParseLints covers the [lints] and [lints.thresholds] tables.
 func TestParseLints(t *testing.T) {
 	f, err := Parse("logos.toml", []byte(`[lints]
 slop = "warn"
@@ -34,7 +33,6 @@ max_nesting_depth = 2
 	}
 }
 
-// TestParseLintsErrors covers every rejected [lints] shape.
 func TestParseLintsErrors(t *testing.T) {
 	for _, tc := range []struct{ name, data, want string }{
 		{"lowered correctness", "[lints]\ncorrectness = \"warn\"\n", `logos.toml:2:15: [configuration::forbid_lowered] correctness cannot be lowered below forbid`},
@@ -57,7 +55,6 @@ func TestParseLintsErrors(t *testing.T) {
 	}
 }
 
-// TestPolicyJSON checks the -logos.cfg schema and its determinism.
 func TestPolicyJSON(t *testing.T) {
 	l := Lints{
 		Groups:     map[string]string{"slop": "warn", "complexity": "allow", "perf": "deny"},
@@ -79,7 +76,6 @@ func TestPolicyJSON(t *testing.T) {
 	}
 }
 
-// TestPolicyJSONPedantic checks the --pedantic override of the pedantic key.
 func TestPolicyJSONPedantic(t *testing.T) {
 	for _, tc := range []struct {
 		name   string

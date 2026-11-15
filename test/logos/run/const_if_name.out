@@ -1,2 +1,2 @@
-debug 3 else-debug true
-debug-only
+ok flags
+ok combined

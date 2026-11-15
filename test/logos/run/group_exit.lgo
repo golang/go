@@ -6,39 +6,56 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
+	"os"
+	"sync"
 )
-
-// M8-S2 supplement: every exit from a group body joins the children
-// first (SPEC Sec 2.6). A slow child signals on done; after the
-// function returns, done must already hold the signal (a non-blocking
-// receive tells joined from leaked, with no timing assertion).
 
 var errQFail = errors.New("q-fail")
 
+var mu sync.Mutex
+
+var order []string
+
+func note(s string) {
+	mu.Lock()
+	order = append(order, s)
+	mu.Unlock()
+}
+
+var bad bool
+
+func check(tag string, cond bool, got, want string) {
+	if !cond {
+		fmt.Println("FAIL "+tag+": got "+got+" want "+want)
+		bad = true
+		return
+	}
+	fmt.Println("ok", tag)
+}
+
 //logos:allow(correctness::unbounded_channel_op)
 func slowChild(done chan string) error {
-	time.Sleep(50 * time.Millisecond)
 	done <- "child-done"
+	note("child-end")
 	return nil
 }
 
 func earlyReturn(ctx context.Context, done chan string) error {
 	go group (ctx) {
 		go slowChild(done)
-		return nil
 	}
+	note("after-group")
 	return nil
 }
 
-func failQ(ctx context.Context) error {
+func failQ() error {
 	return errQFail
 }
 
 func earlyQ(ctx context.Context, done chan string) error {
 	go group (ctx) {
 		go slowChild(done)
-		failQ(ctx)?
+		failQ()?
 	}
 	return nil
 }
@@ -50,13 +67,17 @@ func earlyBreak(ctx context.Context, done chan string) error {
 			break
 		}
 	}
+	note("after-break")
 	return nil
 }
 
 func bodyPanic(ctx context.Context, done chan string) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Println("panic:", r)
+			note("recovered")
+			if r != "body-boom" {
+				err = fmt.Errorf("recovered %v, want body-boom", r)
+			}
 		}
 	}()
 	go group (ctx) {
@@ -69,7 +90,6 @@ func bodyPanic(ctx context.Context, done chan string) (err error) {
 var errChildFailed = errors.New("child-failed")
 
 func failSoon() error {
-	time.Sleep(20 * time.Millisecond)
 	return errChildFailed
 }
 
@@ -82,31 +102,47 @@ func returnAfterFailure(ctx context.Context) error {
 }
 
 //logos:allow(correctness::unbounded_channel_op)
-func check(tag string, done chan string) {
-	select {
-	case m := <-done:
-		fmt.Println(tag, m)
-	default:
-		fmt.Println(tag, "leaked")
-	}
-}
-
-//logos:allow(slop::discarded_error)
 func main() {
 	ctx := context.Background()
 	done := make(chan string, 1)
-	_ = earlyReturn(ctx, done)
-	check("joined-return", done)
-	done = make(chan string, 1)
-	if err := earlyQ(ctx, done); err != nil {
-		fmt.Println("q-err:", err)
+	if err := earlyReturn(ctx, done); err != nil {
+		check("group-exit-early-return-joins", false, fmt.Sprint(err), "nil")
+	} else {
+		got := <-done
+		check("group-exit-early-return-joins", got == "child-done" && order[len(order)-1] == "after-group", got, "child-done then after-group last")
 	}
-	check("joined-q", done)
 	done = make(chan string, 1)
+	order = nil
+	if err := earlyQ(ctx, done); err != errQFail {
+		check("group-exit-error-propagates-like-q", false, fmt.Sprint(err), errQFail.Error())
+	} else {
+		got := <-done
+		check("group-exit-error-propagates-like-q", got == "child-done", got, "child-done")
+	}
+	done = make(chan string, 1)
+	mark := len(order)
 	_ = earlyBreak(ctx, done)
-	check("joined-break", done)
+	got := <-done
+	childAt, afterAt := -1, -1
+	for i := mark; i < len(order); i++ {
+		if order[i] == "child-end" {
+			childAt = i
+		}
+		if order[i] == "after-break" {
+			afterAt = i
+		}
+	}
+	check("group-exit-break-joins", got == "child-done" && childAt >= 0 && afterAt > childAt, got, "child-done with child-end before after-break")
 	done = make(chan string, 1)
-	_ = bodyPanic(ctx, done)
-	check("joined-panic", done)
-	fmt.Println("return-err:", returnAfterFailure(ctx))
+	if err := bodyPanic(ctx, done); err != nil {
+		check("group-exit-panic-joins", false, fmt.Sprint(err), "nil")
+	} else {
+		got := <-done
+		check("group-exit-panic-joins", got == "child-done", got, "child-done")
+	}
+	gotErr := returnAfterFailure(ctx)
+	check("group-exit-child-failure-overrides-return", gotErr == errChildFailed, fmt.Sprint(gotErr), errChildFailed.Error())
+	if bad {
+		os.Exit(1)
+	}
 }

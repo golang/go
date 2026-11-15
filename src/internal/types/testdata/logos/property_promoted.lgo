@@ -1,0 +1,236 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+type Slot interface {
+	P int
+}
+
+type Twin interface {
+	P int
+}
+
+type PQ interface {
+	P int
+	Q int
+}
+
+type Title interface {
+	const Name string
+}
+
+type ReadSlot interface {
+	const P int
+}
+
+type Tagged interface {
+	const Tags const []string
+}
+
+type Wide interface {
+	Slot
+	Extra() int
+}
+
+type Gen[T any] interface {
+	Item T
+}
+
+type Box struct {
+	Slot
+}
+
+type Wrap struct {
+	Box
+}
+
+type PBox struct {
+	*Box
+}
+
+type Label struct {
+	Title
+}
+
+type Shelf struct {
+	Tagged
+}
+
+type WBox struct {
+	Wide
+}
+
+type GBox[T any] struct {
+	Gen[T]
+}
+
+type Sub struct : Slot {
+	Slot
+}
+
+type MixedDecl struct : PQ {
+	Slot
+	Q int
+}
+
+type Mixed struct {
+	Slot
+	Q int
+}
+
+type Plain struct {
+	P int
+}
+
+type Other struct {
+	P int
+}
+
+type Dup struct {
+	Slot
+	Other
+}
+
+type Pair struct {
+	Slot
+	Twin
+}
+
+type Shadow struct {
+	Slot
+	P string
+}
+
+type Far struct {
+	P string
+}
+
+type Near struct {
+	Far
+}
+
+type Top struct {
+	Slot
+	Near
+}
+
+type AmbigDecl struct : Slot /* ERROR "ambiguous selector" */ {
+	Slot
+	Twin
+}
+
+type RoBox struct : Slot /* ERROR "correctness::property_unsatisfied" */ {
+	ReadSlot
+}
+
+var _ Slot = &Box{}
+var _ Slot = &Wrap{}
+var _ Slot = &PBox{Box: &Box{}}
+var _ Slot = &Sub{}
+var _ PQ = &MixedDecl{}
+var _ Wide = &WBox{}
+var _ Slot = &WBox{}
+var _ Gen[int] = &GBox[int]{}
+var _ Title = Label{}
+var _ Title = &Label{}
+var _ Tagged = Shelf{}
+
+var boxVal Box
+var subVal Sub
+var plainPtr = &Plain{}
+var mixedPtr = &Mixed{}
+
+var _ Slot = boxVal /* ERROR "correctness::property_needs_pointer" */
+var _ Slot = subVal /* ERROR "correctness::property_needs_pointer" */
+var _ Slot = plainPtr /* ERROR "correctness::property_requires_conformance" */
+var _ PQ = mixedPtr /* ERROR "correctness::property_requires_conformance" */
+
+func use(b *Box, w *Wrap, p *PBox, l *Label, g *GBox[string], wb *WBox) {
+	var _ int = b.P
+	b.P = 1
+	b.P += 2
+	b.P++
+	b.P--
+	var _ int = w.P
+	w.P = 3
+	var _ int = p.P
+	p.P = 4
+	var _ string = l.Name
+	var _ string = g.Item
+	g.Item = "x"
+	var _ int = wb.P
+	wb.P = 5
+	_ = wb.Extra()
+}
+
+func depth(s *Shadow, t *Top, d *Dup, p *Pair) {
+	var _ string = s.P
+	var _ int = t.P
+	_ = d.P /* ERROR "ambiguous selector" */
+	_ = p.P /* ERROR "ambiguous selector" */
+}
+
+func address(b *Box) {
+	_ = &b.P /* ERROR "correctness::property_address" */
+}
+
+func constWrite(l *Label) {
+	l /* ERROR "cannot assign" */ .Name = "x"
+}
+
+func tags(s *Shelf) {
+	_ = len(s.Tags)
+	_ = s.Tags[0]
+	s /* ERROR "correctness::const_view_mutation" */ .Tags[0] = "x"
+	var plain []string = s /* ERROR "correctness::const_view_escape" */ .Tags
+	_ = plain
+}
+
+type RBase struct {
+	P int
+}
+
+type RMid struct : Slot {
+	RBase
+}
+
+type ROuter struct {
+	Slot
+	RMid
+}
+
+var _ Slot = &RMid{}
+
+func sameDeclAmbig(o *ROuter) {
+	_ = o.P /* ERROR "ambiguous selector" */
+}
+
+var _ Slot = & /* ERROR "correctness::assertion_failed" */ ROuter{}
+
+type Mid struct {
+	Slot
+}
+
+type Split struct {
+	ReadSlot
+	Mid
+}
+
+func setterHolder(s *Split) {
+	s /* ERROR "cannot assign" */ .P = 1
+}
+
+var _ Slot = & /* ERROR "correctness::property_unsatisfied" */ Split{}
+var _ ReadSlot = &Split{}
+
+type SStr interface {
+	P string
+}
+
+type StrBox struct {
+	SStr
+}
+
+var _ Slot = & /* ERROR "correctness::property_unsatisfied" */ StrBox{}

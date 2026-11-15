@@ -1,0 +1,122 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+logos run .
+stdout '^117901063 117901063 117901063 117901063 117901063 117901063 117901063$'
+cp stdout $WORK/native.txt
+logos eject -o out
+exists out/main.go
+! exec grep -n 'comptime' out/oneline.go out/first.go out/ungrouped.go out/linecomment.go out/comment.go out/raw.go out/only.go
+grep '/\* c \*/' out/ungrouped.go
+grep '/\* for ViewAs \*/' out/comment.go
+cd out
+go build ./...
+go run .
+cmp stdout $WORK/native.txt
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
+exec $WORK/upstream$GOEXE
+cmp stdout $WORK/native.txt
+cd ..
+
+-- m/go.mod --
+module example.com/viewasimport
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import "fmt"
+
+type Header struct {
+	Magic   uint32
+	Version uint32
+}
+
+func main() {
+	fmt.Println(oneline(), first(), ungrouped(), linecomment(), commented(), raw(), only())
+}
+
+-- m/oneline.lgo --
+package main
+
+import ("fmt"; "comptime")
+
+func oneline() uint32 {
+	b := []byte{7, 7, 7, 7, 7, 7, 7, 7}
+	_ = fmt.Sprint(1)
+	return comptime.ViewAs[Header](b).Magic
+}
+
+-- m/first.lgo --
+package main
+
+import ("comptime"; "strconv")
+
+func first() uint32 {
+	b := []byte{7, 7, 7, 7, 7, 7, 7, 7}
+	_ = strconv.Itoa(1)
+	return comptime.ViewAs[Header](b).Magic
+}
+
+-- m/ungrouped.lgo --
+package main
+
+import /* c */ "comptime"; import "os"
+
+func ungrouped() uint32 {
+	b := []byte{7, 7, 7, 7, 7, 7, 7, 7}
+	_ = len(os.Args[:0])
+	return comptime.ViewAs[Header](b).Magic
+}
+
+-- m/linecomment.lgo --
+package main
+
+import // c
+	"comptime"; import "strings"
+
+func linecomment() uint32 {
+	b := []byte{7, 7, 7, 7, 7, 7, 7, 7}
+	_ = strings.ToUpper("x")
+	return comptime.ViewAs[Header](b).Magic
+}
+
+-- m/comment.lgo --
+package main
+
+import (
+	"comptime" /* for ViewAs */ // trailing
+	"sort"
+)
+
+func commented() uint32 {
+	b := []byte{7, 7, 7, 7, 7, 7, 7, 7}
+	_ = sort.IsSorted
+	return comptime.ViewAs[Header](b).Magic
+}
+
+-- m/raw.lgo --
+package main
+
+import `comptime`; import "unicode"
+
+func raw() uint32 {
+	b := []byte{7, 7, 7, 7, 7, 7, 7, 7}
+	_ = unicode.IsUpper('x')
+	return comptime.ViewAs[Header](b).Magic
+}
+
+-- m/only.lgo --
+package main
+
+import "comptime"
+
+func only() uint32 {
+	b := []byte{7, 7, 7, 7, 7, 7, 7, 7}
+	return comptime.ViewAs[Header](b).Magic
+}

@@ -1,10 +1,3 @@
-# The capabilities audit of a -buildmode=plugin link roots what deadcode
-# roots there: the plugin inittask and main function, the plugin tables, and
-# every symbol the plugin exports. A plugin exists to be called through its
-# exports, so an exported function nothing in the plugin calls must still
-# start a chain to the sink it reaches.
-# RED expectation: the exported-function leg links clean when only the entry
-# symbol, dynamic exports, and package init functions are roots.
 [!buildmode:plugin] skip
 [short] skip
 [!cgo] skip '-buildmode=plugin requires external linking'
@@ -15,29 +8,22 @@ env GOPROXY=off
 env GOTOOLCHAIN=local
 mkdir $WORK/bin
 
-# Control: a sink reached from a dependency init function is denied. The init
-# functions are roots either way, so this proves the audit runs on the link.
 cd i/main
 ! logos build -buildmode=plugin -o $WORK/bin/i.so ./plug
 stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/idep'' reaches ''syscall\.Exec'''
 cd ../..
 
-# An exported plugin function nothing in the plugin calls is denied, and the
-# dependency function it reaches is blamed.
 cd x/main
 ! logos build -buildmode=plugin -o $WORK/bin/x.so ./plug
 stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/xdep'' reaches ''syscall\.Exec'''
 stderr 'example\.com/xdep\.Run\(\) +at [^ ]+\.go:\d+'
 ! stderr 'unauthorized_(cgo|net|reflect)'
 
-# Control: the same plugin links once the policy allows exec.
 cp allow-logos.toml logos.toml
 logos build -buildmode=plugin -o $WORK/bin/x.so ./plug
 ! stderr 'capabilities::'
 cd ../..
 
-# Control: a plugin whose exports reach no sink links under deny, although the
-# standard library it keeps defines syscall.Exec.
 cd c/main
 logos build -buildmode=plugin -o $WORK/bin/c.so ./plug
 ! stderr 'capabilities::'

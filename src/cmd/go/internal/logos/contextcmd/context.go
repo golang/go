@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package contextcmd implements logos context: it prints the declaration
-// of one package symbol with one level of mentioned signatures.
 package contextcmd
 
 import (
@@ -20,7 +18,6 @@ import (
 	"cmd/go/internal/work"
 )
 
-// CmdContext implements the logos context command.
 var CmdContext = &base.Command{
 	Run:       runContext,
 	UsageLine: "logos context [<pkg>#<symbol>]",
@@ -35,12 +32,10 @@ An unknown symbol fails with logos context: <pkg> has no symbol <name>.
 	`,
 }
 
-// Register adds the context subcommand to the logos root command.
 func Register(root *base.Command) {
 	root.Commands = append(root.Commands, CmdContext)
 }
 
-// runContext resolves the package and drives the compiler context mode.
 func runContext(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) != 1 {
 		base.Fatalf("logos context: expected <pkg>#<symbol>")
@@ -67,7 +62,6 @@ func runContext(ctx context.Context, cmd *base.Command, args []string) {
 	compile.Dir = pkg.Dir
 	compile.Stdout = os.Stdout
 	compile.Stderr = os.Stderr
-	compile.Env = os.Environ()
 	if err := compile.Run(); err != nil {
 		base.SetExitStatus(1)
 		base.Exit()

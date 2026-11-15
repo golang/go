@@ -1,0 +1,146 @@
+// run
+package main
+
+import (
+	"comptime"
+	"fmt"
+	"os"
+)
+
+const debugOn = true
+
+const traceOff = false
+
+type Pair struct {
+	X int
+	Y int
+}
+
+type Outer struct {
+	ID    int
+	Inner Pair
+	Tag   string
+}
+
+var failed bool
+
+func check(name, got, want string) {
+	if got != want {
+		fmt.Println("FAIL", name, "got", got, "want", want)
+		failed = true
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func Kind[T any]() string {
+	const if comptime.IsStruct[T]() {
+		return "struct"
+	}
+	return "scalar"
+}
+
+func Negated[T any]() string {
+	const if !comptime.IsStruct[T]() {
+		return "plain"
+	}
+	return "composite"
+}
+
+func Combined[T any]() string {
+	const if debugOn && comptime.IsStruct[T]() {
+		return "debug struct"
+	} else const if debugOn {
+		return "debug other"
+	}
+	return "release"
+}
+
+func Release[T any]() string {
+	const if traceOff && comptime.IsStruct[T]() {
+		return "trace struct"
+	} else const if traceOff {
+		return "trace other"
+	}
+	return "release"
+}
+
+func OrConn[T any]() string {
+	const if comptime.IsStruct[T]() || traceOff {
+		return "or struct"
+	}
+	return "or other"
+}
+
+func EqConn[T any]() string {
+	const if comptime.IsStruct[T]() == true {
+		return "eq struct"
+	}
+	return "eq other"
+}
+
+func NeConn[T any]() string {
+	const if comptime.IsStruct[T]() != false {
+		return "ne struct"
+	}
+	return "ne other"
+}
+
+func Shape[T any]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		const if comptime.IsStruct[f.Type]() {
+			out = append(out, f.Name+"{}")
+		} else {
+			out = append(out, f.Name)
+		}
+	}
+	return out
+}
+
+func ShapeOr[T any]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		const if comptime.IsStruct[f.Type]() || traceOff {
+			out = append(out, f.Name+"{}")
+		} else {
+			out = append(out, f.Name)
+		}
+	}
+	return out
+}
+
+func ShapeNe[T any]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		const if comptime.IsStruct[f.Type]() != false {
+			out = append(out, f.Name+"{}")
+		} else {
+			out = append(out, f.Name)
+		}
+	}
+	return out
+}
+
+func main() {
+	check("kind-struct", Kind[Pair](), "struct")
+	check("kind-scalar", Kind[int](), "scalar")
+	check("negated-struct", Negated[Pair](), "composite")
+	check("negated-scalar", Negated[int](), "plain")
+	check("combined-struct", Combined[Pair](), "debug struct")
+	check("combined-scalar", Combined[int](), "debug other")
+	check("release-struct", Release[Pair](), "release")
+	check("release-scalar", Release[int](), "release")
+	check("or-struct", OrConn[Pair](), "or struct")
+	check("or-scalar", OrConn[int](), "or other")
+	check("eq-struct", EqConn[Pair](), "eq struct")
+	check("eq-scalar", EqConn[int](), "eq other")
+	check("ne-struct", NeConn[Pair](), "ne struct")
+	check("ne-scalar", NeConn[int](), "ne other")
+	check("shape", fmt.Sprint(Shape[Outer]()), "[ID Inner{} Tag]")
+	check("shape-or", fmt.Sprint(ShapeOr[Outer]()), "[ID Inner{} Tag]")
+	check("shape-ne", fmt.Sprint(ShapeNe[Outer]()), "[ID Inner{} Tag]")
+	if failed {
+		os.Exit(1)
+	}
+}

@@ -1,0 +1,90 @@
+# Direct Go calls to loGo/s methods with non-nil pointer parameters
+# carry the logos nil check [T-Sec5][R-U2]; method values and
+# interface calls are the documented hole: they crash with the plain
+# runtime error and no logos prefix.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+cd w
+logos build ./...
+logos build -o $WORK/bin/nilvalues$GOEXE ./g2/cmd
+
+! exec $WORK/bin/nilvalues$GOEXE direct
+stderr 'logos: nil from Go value'
+
+! exec $WORK/bin/nilvalues$GOEXE value
+! stderr 'logos: nil from Go value'
+
+! exec $WORK/bin/nilvalues$GOEXE iface
+! stderr 'logos: nil from Go value'
+cd ..
+
+-- w/go.work --
+go 1.27
+
+use (
+	./l2
+	./g2
+)
+
+-- w/l2/go.mod --
+module example.com/l2
+
+go 1.27
+
+-- w/l2/b/b.lgo --
+package b
+
+type User struct {
+	Name string
+}
+
+type Box struct{}
+
+func (b *Box) Set(u *User) string {
+	return u.Name
+}
+
+type Setter interface {
+	Set(u *User) string
+}
+
+-- w/g2/go.mod --
+module example.com/g2
+
+go 1.27
+
+-- w/g2/q/q.go --
+package q
+
+import (
+	"example.com/l2/b"
+)
+
+func Run(which string) {
+	bb := &b.Box{}
+	switch which {
+	case "direct":
+		_ = bb.Set(nil)
+	case "value":
+		m := bb.Set
+		_ = m(nil)
+	case "iface":
+		var s b.Setter = &b.Box{}
+		_ = s.Set(nil)
+	}
+}
+
+-- w/g2/cmd/main.go --
+package main
+
+import (
+	"os"
+
+	"example.com/g2/q"
+)
+
+func main() {
+	q.Run(os.Args[1])
+}

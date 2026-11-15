@@ -4,21 +4,6 @@
 
 package syntax
 
-// This file holds the loGo/s parser logic for M8-S2 (`go group` and
-// `go { }` children, SPEC Sec 2.6, T-206). stmtOrNil calls into it
-// through one hook line (G3); every rule below runs solely in LogosMode,
-// so plain Go parses exactly as upstream.
-//
-// In LogosMode logosGoStmt takes over every `go` statement (defer keeps
-// the upstream path): after `go`, `{` opens a GroupChild, the name
-// `group` followed by `(` opens a group argument list that either forms
-// a GroupStmt (when `{` follows `)`) or stays an ordinary go call, and
-// anything else parses exactly as callStmt does.
-
-// logosGoStmt parses a `go` statement in LogosMode, or reports nil so
-// the caller keeps the upstream path. A nil result covers plain mode and
-// `defer`; every `go` form below returns a statement once `go` is
-// consumed.
 func (p *parser) logosGoStmt() Stmt {
 	if p.mode&LogosMode == 0 || p.tok != _Go {
 		return nil
@@ -26,7 +11,10 @@ func (p *parser) logosGoStmt() Stmt {
 	goPos := p.pos()
 	p.next()
 	if p.tok == _Lbrace {
-		return p.groupChildStmt(goPos)
+		s := new(GroupChild)
+		s.pos = goPos
+		s.Body = p.blockStmt("")
+		return s
 	}
 	if p.tok == _Name && p.lit == "group" {
 		gname := p.name()
@@ -38,18 +26,6 @@ func (p *parser) logosGoStmt() Stmt {
 	return p.ordinaryGoStmt(goPos, nil)
 }
 
-// groupChildStmt parses the block of a `go { ... }` child at goPos: the
-// current token is `{`.
-func (p *parser) groupChildStmt(goPos Pos) Stmt {
-	s := new(GroupChild)
-	s.pos = goPos
-	s.Body = p.blockStmt("")
-	return s
-}
-
-// groupList parses one `go group (...)` element: either the `limit =`
-// value or one plain expression appended to plains. It reports whether
-// the element was the limit value; callers keep the single-limit rule.
 func (p *parser) groupList(plains *[]Expr) (limit Expr) {
 	if p.tok == _Name && p.lit == "limit" {
 		lpos := p.pos()
@@ -65,12 +41,21 @@ func (p *parser) groupList(plains *[]Expr) (limit Expr) {
 	return nil
 }
 
-// groupStmt parses `go group (...)` at goPos: gname is the consumed
-// `group` name and the current token is `(`. The parenthesized list
-// holds one context expression and at most one `limit = <expr>`
-// element; a `{` after `)` forms a GroupStmt, anything else an ordinary
-// go call (where a `limit =` element is a syntax error).
+func (p *parser) logosNamedArg(x Expr) Expr {
+	key, ok := x.(*Name)
+	if !ok || p.mode&LogosMode == 0 || p.tok != _Assign {
+		return x
+	}
+	arg := new(KeyValueExpr)
+	arg.pos = p.pos()
+	p.next()
+	arg.Key = key
+	arg.Value = p.expr()
+	return arg
+}
+
 func (p *parser) groupStmt(goPos Pos, gname *Name) Stmt {
+	lparen := p.pos()
 	p.next()
 	var plains []Expr
 	var limit Expr
@@ -96,11 +81,19 @@ func (p *parser) groupStmt(goPos Pos, gname *Name) Stmt {
 		s.Body = p.blockStmt("")
 		return s
 	}
-	return p.groupCallFallback(goPos, gname, plains, limit)
+	args := make([]Expr, 0, len(plains)+1)
+	args = append(args, plains...)
+	if limit != nil {
+		p.syntaxErrorAt(limit.Pos(), "go group limit requires a block")
+		args = append(args, limit)
+	}
+	call := new(CallExpr)
+	call.pos = lparen
+	call.Fun = gname
+	call.ArgList = args
+	return p.ordinaryGoStmt(goPos, p.pexpr(call, false))
 }
 
-// groupContext resolves the parenthesized plain expressions to the one
-// group context, reporting the arity errors.
 func (p *parser) groupContext(goPos Pos, plains []Expr) Expr {
 	if len(plains) == 1 {
 		return plains[0]
@@ -113,28 +106,6 @@ func (p *parser) groupContext(goPos Pos, plains []Expr) Expr {
 	return p.badExpr()
 }
 
-// groupCallFallback builds the ordinary go call for `go group (...)`
-// without a block: `go group(x)` keeps its Go meaning as a call of a
-// function named `group`, while a `limit =` element there is a syntax
-// error.
-func (p *parser) groupCallFallback(goPos Pos, gname *Name, plains []Expr, limit Expr) Stmt {
-	args := make([]Expr, 0, len(plains)+1)
-	args = append(args, plains...)
-	if limit != nil {
-		p.syntaxErrorAt(limit.Pos(), "go group limit requires a block")
-		args = append(args, limit)
-	}
-	call := new(CallExpr)
-	call.pos = gname.Pos()
-	call.Fun = gname
-	call.ArgList = args
-	return p.ordinaryGoStmt(goPos, p.pexpr(call, false))
-}
-
-// ordinaryGoStmt finishes an ordinary `go` statement at goPos: lhs is
-// the parsed call prefix (nil when the call starts at the current
-// token), mirroring callStmt exactly, so `go group(x)` and every other
-// non-group form keep their Go meaning.
 func (p *parser) ordinaryGoStmt(goPos Pos, lhs Expr) Stmt {
 	var x Expr
 	if lhs != nil {

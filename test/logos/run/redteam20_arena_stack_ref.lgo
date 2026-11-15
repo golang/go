@@ -1,21 +1,12 @@
 // run -goexperiment logosarena
+// run -goexperiment logosarena -arena=false
 
 package main
 
-// REDTEAM #20 (SPEC Sec 8.3; IMPLEMENTATION.md M18-S3): a side-stack
-// (arena) object pointing to a call-stack variable must stay valid across
-// stack growth and collection. A local whose address flows into an arena
-// object must allocate in the arena, so stack growth must not invalidate
-// the arena-held pointer.
-//
-// Attack: an arena-eligible dynamic scan slice takes the address of a
-// frame local, a deep recursion forces stack growth, two collections run,
-// and the value read back through the arena pointer must still be intact.
-// Value-only check: no alloc counters are asserted, so a conservative
-// heap placement also passes; only a dangling arena-to-stack edge fails.
 
 import (
 	"fmt"
+	"os"
 	"runtime"
 )
 
@@ -35,7 +26,6 @@ func r20Capture(n int) int {
 	x := 13579
 	s := make([]*int, 0, n)
 	s = append(s, &x)
-	// Force stack growth while the arena holds &x.
 	r20Grow(64)
 	runtime.GC()
 	runtime.GC()
@@ -45,10 +35,22 @@ func r20Capture(n int) int {
 	return v
 }
 
+var r20Failed bool
+
+func r20Check(name string, cond bool, got, want string) {
+	if !cond {
+		fmt.Printf("FAIL %s: got %s want %s\n", name, got, want)
+		r20Failed = true
+		return
+	}
+	fmt.Printf("ok %s\n", name)
+}
+
 func main() {
 	got := r20Capture(64)
-	fmt.Println(got)
-	if got != 13579 {
-		panic("redteam20: arena-held stack pointer invalidated")
+	want := 13579
+	r20Check("arena-stack-ref-kept", got == want, fmt.Sprint(got), fmt.Sprint(want))
+	if r20Failed {
+		os.Exit(1)
 	}
 }

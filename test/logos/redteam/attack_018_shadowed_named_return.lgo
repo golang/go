@@ -88,14 +88,22 @@ func spawnGoexit(done chan string) error {
 }
 
 func main() {
-	v, err := shadowed(false)
-	fmt.Println("shadowed ok:", v, err)
-	v2, err2 := shadowed(true)
-	fmt.Println("shadowed fail:", v2, errors.Is(err2, errWork), errors.Is(err2, errClose))
-	e3, err3 := earlyShadow(false)
-	fmt.Println("early shadow ok:", e3, err3)
-	e4, err4 := earlyShadow(true)
-	fmt.Println("early shadow fail:", e4, errors.Is(err4, errWork), errors.Is(err4, errClose))
+	if v, err := shadowed(false); err != nil {
+		fmt.Println("shadowed ok:", err)
+	} else {
+		fmt.Println("shadowed ok:", v, err)
+	}
+	if _, err2 := shadowed(true); err2 != nil {
+		fmt.Println("shadowed fail:", errors.Is(err2, errWork), errors.Is(err2, errClose))
+	}
+	if e3, err3 := earlyShadow(false); err3 != nil {
+		fmt.Println("early shadow ok:", err3)
+	} else {
+		fmt.Println("early shadow ok:", e3, err3)
+	}
+	if _, err4 := earlyShadow(true); err4 != nil {
+		fmt.Println("early shadow fail:", errors.Is(err4, errWork), errors.Is(err4, errClose))
+	}
 	_ = guarded("ok")
 	_ = guarded("fail")
 	func() {

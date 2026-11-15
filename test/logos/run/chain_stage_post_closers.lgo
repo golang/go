@@ -1,0 +1,213 @@
+// run
+
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"slices"
+	"sync"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type R struct{ id int }
+
+var (
+	mu     sync.Mutex
+	made   []int
+	closed []int
+)
+
+var errBad = errors.New("bad element")
+
+func (r *R) Close() error {
+	mu.Lock()
+	defer mu.Unlock()
+	closed = append(closed, r.id)
+	return nil
+}
+
+func mk(x int) *R {
+	mu.Lock()
+	defer mu.Unlock()
+	made = append(made, x)
+	return &R{id: x}
+}
+
+func mkTry(x int) (*R, error) {
+	if x == 3 {
+		return &R{id: -1}, errBad
+	}
+	return mk(x), nil
+}
+
+func ids(rs []*R) []int {
+	out := make([]int, 0, len(rs))
+	for _, r := range rs {
+		out = append(out, r.id)
+	}
+	return out
+}
+
+func verdict(name string, ok bool, kept ...int) {
+	mu.Lock()
+	m, c := slices.Clone(made), slices.Clone(closed)
+	made, closed = nil, nil
+	mu.Unlock()
+	slices.Sort(m)
+	slices.Sort(c)
+	want := slices.DeleteFunc(slices.Clone(m), func(id int) bool { return slices.Contains(kept, id) })
+	check(name, ok && len(m) >= len(kept) && slices.Equal(c, want), fmt.Sprint("made ", m, " closed ", c), fmt.Sprint("closed ", want))
+}
+
+func caseDropCount(ctx context.Context) {
+	n, err := []int{0, 1, 2, 3}.group(ctx, limit = 2).map(x => mk(x)).drop(1).count()
+	verdict("stage-drop-count", err == nil && n == 3)
+}
+
+func caseCount(ctx context.Context) {
+	n, err := []int{0, 1, 2, 3}.group(ctx, limit = 2).map(x => mk(x)).count()
+	verdict("stage-count", err == nil && n == 4)
+}
+
+func caseAny(ctx context.Context) {
+	found, err := []int{0, 1, 2, 3}.group(ctx, limit = 2).map(x => mk(x)).any(r => r.id == 1)
+	verdict("stage-any", err == nil && found)
+}
+
+func caseAllStops(ctx context.Context) {
+	all, err := []int{0, 1, 2, 3}.group(ctx, limit = 2).map(x => mk(x)).all(r => r.id < 2)
+	verdict("stage-all-stops", err == nil && !all)
+}
+
+func caseAllPasses(ctx context.Context) {
+	all, err := []int{0, 1, 2, 3}.group(ctx, limit = 2).map(x => mk(x)).all(r => r.id >= 0)
+	verdict("stage-all-passes", err == nil && all)
+}
+
+func caseFirst(ctx context.Context) {
+	first, err := []int{0, 1, 2, 3}.group(ctx, limit = 2).map(x => mk(x)).first()
+	if err != nil {
+		verdict("stage-first", false)
+		return
+	}
+	kept := -1
+	if first != nil {
+		kept = first.id
+	}
+	verdict("stage-first", kept == 0, kept)
+}
+
+func caseFind(ctx context.Context) {
+	hit, err := []int{0, 1, 2, 3}.group(ctx, limit = 2).map(x => mk(x)).find(r => r.id == 1)
+	if err != nil {
+		verdict("stage-find", false)
+		return
+	}
+	kept := -1
+	if hit != nil {
+		kept = hit.id
+	}
+	verdict("stage-find", kept == 1, kept)
+}
+
+func caseTake(ctx context.Context) {
+	got, err := []int{0, 1, 2, 3}.group(ctx, limit = 2).map(x => mk(x)).take(2)
+	var kept []int
+	if err == nil {
+		kept = ids(got)
+	}
+	verdict("stage-take", slices.Equal(kept, []int{0, 1}), kept...)
+}
+
+func caseDrop(ctx context.Context) {
+	got, err := []int{0, 1, 2, 3}.group(ctx, limit = 2).map(x => mk(x)).drop(2)
+	var kept []int
+	if err == nil {
+		kept = ids(got)
+	}
+	verdict("stage-drop", slices.Equal(kept, []int{2, 3}), kept...)
+}
+
+func caseFailure(ctx context.Context) {
+	var res struct {
+		n   int
+		err error
+	}
+	res.n, res.err = []int{0, 1, 2, 3}.group(ctx, limit = 2).map(x => mkTry(x)?).drop(1).count()
+	n, err := res.n, res.err
+	verdict("stage-failure", err != nil && n == 0)
+}
+
+func caseLast(ctx context.Context) {
+	tail, err := []int{0, 1, 2, 3}.group(ctx, limit = 2).map(x => mk(x)).last()
+	if err != nil {
+		verdict("stage-last", false)
+		return
+	}
+	kept := -1
+	if tail != nil {
+		kept = tail.id
+	}
+	verdict("stage-last", kept == 3, kept)
+}
+
+func caseGet(ctx context.Context) {
+	at, err := []int{0, 1, 2, 3}.group(ctx, limit = 2).map(x => mk(x)).get(1)
+	if err != nil {
+		verdict("stage-get", false)
+		return
+	}
+	kept := -1
+	if at != nil {
+		kept = at.id
+	}
+	verdict("stage-get", kept == 1, kept)
+}
+
+func caseSortBy(ctx context.Context) {
+	got, err := []int{0, 1, 2, 3}.group(ctx, limit = 2).map(x => mk(x)).sortBy(r => -r.id)
+	var kept []int
+	if err == nil {
+		kept = ids(got)
+	}
+	verdict("stage-sort-by", slices.Equal(kept, []int{3, 2, 1, 0}), kept...)
+}
+
+func caseUnorderedDropCount(ctx context.Context) {
+	n, err := []int{0, 1, 2, 3}.group(ctx, limit = 2).unordered().map(x => mk(x)).drop(1).count()
+	verdict("stage-unordered-drop-count", err == nil && n == 3)
+}
+
+func main() {
+	ctx := context.Background()
+	caseDropCount(ctx)
+	caseCount(ctx)
+	caseAny(ctx)
+	caseAllStops(ctx)
+	caseAllPasses(ctx)
+	caseFirst(ctx)
+	caseFind(ctx)
+	caseTake(ctx)
+	caseDrop(ctx)
+	caseFailure(ctx)
+	caseLast(ctx)
+	caseGet(ctx)
+	caseSortBy(ctx)
+	caseUnorderedDropCount(ctx)
+	if failed {
+		os.Exit(1)
+	}
+}

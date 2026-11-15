@@ -1,13 +1,16 @@
-anon
-ann
-ann
-3
-anon
--1
-hi ann
-nogreet
-5
--1
-7
-41
-41
+ok greet-none
+ok greet-some
+ok chain-name
+ok chain-age
+ok nil-name
+ok nil-age
+ok some-greet
+ok none-greet
+ok set-some
+ok set-none
+ok nested-some
+ok nested-empty
+ok nested-none
+ok firstor-none
+ok firstor-some
+ok coalesce-some

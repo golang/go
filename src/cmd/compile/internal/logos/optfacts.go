@@ -14,12 +14,6 @@ import (
 	"cmd/compile/internal/types2"
 )
 
-// This file carries the M3-S7 option facts (SPEC T-Sec6, T-202). The
-// writer emits lowered Go-facing types in __.PKGDEF; EmitOptionFacts
-// records one opt line per option position for .lgo importers, and
-// CloneWithOverlay rebuilds those positions as Option for a .lgo view
-// using only the public types2 API. Go importers keep the lowered types.
-
 func optAsOption(t types2.Type) *types2.Option {
 	if t == nil {
 		return nil
@@ -37,266 +31,10 @@ func optAsOption(t types2.Type) *types2.Option {
 	return nil
 }
 
-// EmitOptionFacts returns one opt record per option position in the
-// exported declarations of pkg, or nil when there are none. Objects are
-// func names, type names, and T.M or (*T).M methods; paths are R<i>,
-// P<i>, F<name>, E, K, D, M<name> steps. A nested option extends its
-// parent with E, so (T?)? yields R0 and R0.E.
-func EmitOptionFacts(pkg *types2.Package, _ *types2.Info) *facts.Facts {
-	if pkg == nil || pkg.Scope() == nil {
-		return nil
-	}
-	var opts []facts.PathFact
-	emit := func(object, path string) {
-		opts = append(opts, facts.PathFact{Object: object, Path: path})
-	}
-	scope := pkg.Scope()
-	for _, name := range scope.Names() {
-		obj := scope.Lookup(name)
-		if obj == nil || !obj.Exported() {
-			continue
-		}
-		switch obj := obj.(type) {
-		case *types2.Func:
-			sig, ok := obj.Type().(*types2.Signature)
-			if !ok || sig.Recv() != nil {
-				continue
-			}
-			if tp := sig.TypeParams(); tp != nil && tp.Len() > 0 {
-				continue
-			}
-			emitFuncOpts(name, sig, emit)
-		case *types2.TypeName:
-			if !obj.IsAlias() {
-				emitTypeOpts(name, obj.Type(), emit)
-			}
-		}
-	}
-	for _, name := range scope.Names() {
-		obj, ok := scope.Lookup(name).(*types2.TypeName)
-		if !ok || obj == nil || !obj.Exported() || obj.IsAlias() {
-			continue
-		}
-		named, ok := obj.Type().(*types2.Named)
-		if !ok {
-			continue
-		}
-		for i := range named.NumMethods() {
-			m := named.Method(i)
-			if m == nil || !m.Exported() {
-				continue
-			}
-			sig, ok := m.Type().(*types2.Signature)
-			if !ok {
-				continue
-			}
-			if tp := sig.TypeParams(); tp != nil && tp.Len() > 0 {
-				continue
-			}
-			emitFuncOpts(methodObject(name, sig.Recv(), m.Name()), sig, emit)
-		}
-	}
-	if len(opts) == 0 {
-		return nil
-	}
-	return &facts.Facts{Opts: opts}
-}
-
-func methodObject(typeName string, recv *types2.Var, method string) string {
-	if recv == nil {
-		return typeName + "." + method
-	}
-	if _, ok := types2.Unalias(recv.Type()).(*types2.Pointer); ok {
-		return "(*" + typeName + ")." + method
-	}
-	return typeName + "." + method
-}
-
-func emitFuncOpts(object string, sig *types2.Signature, emit func(string, string)) {
-	if params := sig.Params(); params != nil {
-		for i := range params.Len() {
-			v := params.At(i)
-			if v == nil {
-				continue
-			}
-			walkOptType(v.Type(), []string{fmt.Sprintf("P%d", i)}, object, emit, make(map[types2.Type]bool))
-		}
-	}
-	if results := sig.Results(); results != nil {
-		for i := range results.Len() {
-			v := results.At(i)
-			if v == nil {
-				continue
-			}
-			walkOptType(v.Type(), []string{fmt.Sprintf("R%d", i)}, object, emit, make(map[types2.Type]bool))
-		}
-	}
-}
-
-func emitTypeOpts(name string, t types2.Type, emit func(string, string)) {
-	u, ok := types2.Unalias(t).(*types2.Named)
-	if !ok {
-		return
-	}
-	if tp := u.TypeParams(); tp != nil && tp.Len() > 0 {
-		return
-	}
-	switch u := u.Underlying().(type) {
-	case *types2.Struct:
-		for i := range u.NumFields() {
-			f := u.Field(i)
-			if f == nil || !f.Exported() {
-				continue
-			}
-			walkOptType(f.Type(), []string{"F" + f.Name()}, name, emit, make(map[types2.Type]bool))
-		}
-	case *types2.Interface:
-		for i := range u.NumExplicitMethods() {
-			m := u.ExplicitMethod(i)
-			if m == nil || !m.Exported() {
-				continue
-			}
-			sig, ok := m.Type().(*types2.Signature)
-			if !ok {
-				continue
-			}
-			base := []string{"M" + m.Name()}
-			if params := sig.Params(); params != nil {
-				for j := range params.Len() {
-					v := params.At(j)
-					if v == nil {
-						continue
-					}
-					walkOptType(v.Type(), append(slices.Clone(base), fmt.Sprintf("P%d", j)), name, emit, make(map[types2.Type]bool))
-				}
-			}
-			if results := sig.Results(); results != nil {
-				for j := range results.Len() {
-					v := results.At(j)
-					if v == nil {
-						continue
-					}
-					walkOptType(v.Type(), append(slices.Clone(base), fmt.Sprintf("R%d", j)), name, emit, make(map[types2.Type]bool))
-				}
-			}
-		}
-	}
-}
-
-func walkOptType(t types2.Type, path []string, object string, emit func(string, string), seen map[types2.Type]bool) {
-	walkQualType(t, path, object, emit, nil, seen)
-}
-
-// walkQualType is the one traversal owner for qualifier facts: it visits
-// every qualifier position once, invoking emitOpt at option positions
-// and emitConst at const-view positions. A nil emitter still descends
-// through that qualifier, so an option nested in a const view (and the
-// reverse) records its own fact instead of vanishing at the foreign
-// layer. Cycle protection stays on named types only, with path-scoped
-// release so diamonds revisit.
-func walkQualType(t types2.Type, path []string, object string, emitOpt, emitConst func(string, string), seen map[types2.Type]bool) {
-	if t == nil {
-		return
-	}
-	if opt := optAsOption(t); opt != nil {
-		if emitOpt != nil {
-			emitOpt(object, joinPath(path))
-		}
-		walkQualType(opt.Elem, append(slices.Clone(path), "E"), object, emitOpt, emitConst, seen)
-		return
-	}
-	if c := constAsView(t); c != nil {
-		if emitConst != nil {
-			emitConst(object, joinPath(path))
-		}
-		walkQualType(c.Elem, append(slices.Clone(path), "E"), object, emitOpt, emitConst, seen)
-		return
-	}
-	u := types2.Unalias(t)
-	switch u := u.(type) {
-	case *types2.Slice:
-		walkQualType(u.Elem(), append(slices.Clone(path), "E"), object, emitOpt, emitConst, seen)
-	case *types2.Array:
-		walkQualType(u.Elem(), append(slices.Clone(path), "E"), object, emitOpt, emitConst, seen)
-	case *types2.Map:
-		walkQualType(u.Key(), append(slices.Clone(path), "K"), object, emitOpt, emitConst, seen)
-		walkQualType(u.Elem(), append(slices.Clone(path), "E"), object, emitOpt, emitConst, seen)
-	case *types2.Pointer:
-		walkQualType(u.Elem(), append(slices.Clone(path), "D"), object, emitOpt, emitConst, seen)
-	case *types2.Chan:
-		walkQualType(u.Elem(), append(slices.Clone(path), "D"), object, emitOpt, emitConst, seen)
-	case *types2.Signature:
-		if params := u.Params(); params != nil {
-			for i := range params.Len() {
-				v := params.At(i)
-				if v == nil {
-					continue
-				}
-				walkQualType(v.Type(), append(slices.Clone(path), fmt.Sprintf("P%d", i)), object, emitOpt, emitConst, seen)
-			}
-		}
-		if results := u.Results(); results != nil {
-			for i := range results.Len() {
-				v := results.At(i)
-				if v == nil {
-					continue
-				}
-				walkQualType(v.Type(), append(slices.Clone(path), fmt.Sprintf("R%d", i)), object, emitOpt, emitConst, seen)
-			}
-		}
-	case *types2.Struct:
-		for i := range u.NumFields() {
-			f := u.Field(i)
-			if f == nil || !f.Exported() {
-				continue
-			}
-			walkQualType(f.Type(), append(slices.Clone(path), "F"+f.Name()), object, emitOpt, emitConst, seen)
-		}
-	case *types2.Interface:
-		for i := range u.NumExplicitMethods() {
-			m := u.ExplicitMethod(i)
-			if m == nil || !m.Exported() {
-				continue
-			}
-			sig, ok := m.Type().(*types2.Signature)
-			if !ok {
-				continue
-			}
-			base := append(slices.Clone(path), "M"+m.Name())
-			if params := sig.Params(); params != nil {
-				for j := range params.Len() {
-					v := params.At(j)
-					if v == nil {
-						continue
-					}
-					walkQualType(v.Type(), append(slices.Clone(base), fmt.Sprintf("P%d", j)), object, emitOpt, emitConst, seen)
-				}
-			}
-			if results := sig.Results(); results != nil {
-				for j := range results.Len() {
-					v := results.At(j)
-					if v == nil {
-						continue
-					}
-					walkQualType(v.Type(), append(slices.Clone(base), fmt.Sprintf("R%d", j)), object, emitOpt, emitConst, seen)
-				}
-			}
-		}
-	case *types2.Named:
-		if seen[u] {
-			return
-		}
-		seen[u] = true
-		walkQualType(u.Underlying(), path, object, emitOpt, emitConst, seen)
-		delete(seen, u)
-	}
-}
-
 func joinPath(path []string) string {
 	return strings.Join(path, ".")
 }
 
-// qualKind identifies which qualifier an overlay path restores.
 type qualKind uint8
 
 const (
@@ -304,17 +42,11 @@ const (
 	qualConst
 )
 
-// qualPath is one overlay path with the qualifier it restores. Opt
-// entries precede const entries in application order; the emitters never
-// record both qualifiers at one leaf, so a shared leaf would restore
-// Option inside ConstView, matching a `const (T?)` nesting.
 type qualPath struct {
 	path string
 	qual qualKind
 }
 
-// CloneWithOverlay restores option facts using the package graph overlay.
-// The original package remains the lowered Go-facing view.
 func copyFuncReadonly(dst, src *types2.Func) {
 	if dst == nil || src == nil {
 		return
@@ -324,42 +56,6 @@ func copyFuncReadonly(dst, src *types2.Func) {
 	}
 }
 
-func readonlyObjects(fns []facts.FnFact) map[string]bool {
-	var out map[string]bool
-	for _, fn := range fns {
-		if !fn.Readonly || fn.Object == "" {
-			continue
-		}
-		if out == nil {
-			out = make(map[string]bool)
-		}
-		out[fn.Object] = true
-	}
-	return out
-}
-
-// assertObjects indexes the generic assertion-effect records of fns by
-// object. Only HasAssert records qualify; anything else leaves the clone
-// unknown so the consumer fails closed.
-func assertObjects(fns []facts.FnFact) map[string]facts.FnFact {
-	var out map[string]facts.FnFact
-	for _, fn := range fns {
-		if !fn.HasAssert || fn.Object == "" {
-			continue
-		}
-		if out == nil {
-			out = make(map[string]facts.FnFact)
-		}
-		out[fn.Object] = fn
-	}
-	return out
-}
-
-// copyFuncAssert copies generic assertion effects onto a cloned Func from
-// the record keyed by one of objects: the package-func name for plain
-// functions, the methodObject form for concrete methods. Records without
-// HasAssert never apply, and unparseable masks leave the clone unknown
-// (fail closed) instead of fabricating a known-empty record.
 func copyFuncAssert(dst *types2.Func, assert map[string]facts.FnFact, objects ...string) {
 	if dst == nil || len(assert) == 0 {
 		return
@@ -379,9 +75,6 @@ func copyFuncAssert(dst *types2.Func, assert map[string]facts.FnFact, objects ..
 	}
 }
 
-// ApplyFuncFacts validates the same fingerprint-verified import record
-// against canonical declarations before publishing immutable metadata.
-// It never rewrites signatures or nominal types.
 func ApplyFuncFacts(pkg *types2.Package, fns []facts.FnFact) error {
 	if pkg == nil || pkg.Scope() == nil {
 		return nil
@@ -424,12 +117,6 @@ func ApplyFuncFacts(pkg *types2.Package, fns []facts.FnFact) error {
 	return nil
 }
 
-// ApplyReadonlyFactsInPlace stamps structural readonly obligations directly
-// on the canonical decoded objects: no package clone, no packages
-// replacement, so every importer shares one nominal identity. Go importers
-// keep lowered Option/ConstView semantics; only the readonly bit is
-// published. The caller passes the same fingerprint-verified record that
-// produced this decode, preserving per-decode binding.
 func ApplyReadonlyFactsInPlace(pkg *types2.Package, readonlys []facts.ReadonlyFact) error {
 	if pkg == nil || pkg.Scope() == nil {
 		return nil
@@ -490,13 +177,6 @@ func checkedAssertMask(mask string, arity int) ([]byte, error) {
 	return parsed, nil
 }
 
-// Imported private types may only occur in exported signatures, fields,
-// bounds, aliases, or embedded types, without entries in pkg.Scope.
-// Unified export also exposes generic-method keys ("T.M", "(*T).M")
-// in the lazy scope. Those are not package declarations: Lookup would
-// choose ObjFunc decoding, which explicitly rejects generic methods.
-// Methods are loaded only through their canonical Named origin below.
-// Reuse the structural-reference walk without allocating overlay shells.
 func reachableFuncFactObjects(pkg *types2.Package) map[string]*types2.Func {
 	objects := make(map[string]*types2.Func)
 	graph := &overlayGraph{orig: pkg, nodes: make(map[types2.Type]bool)}
@@ -545,7 +225,7 @@ func collectNamedFuncFacts(n *types2.Named, objects map[string]*types2.Func, vis
 	}
 	for i := range n.NumMethods() {
 		m := n.Method(i).Origin()
-		objects[methodObject(n.Obj().Name(), m.Signature().Recv(), m.Name())] = m
+		objects[facts.MethodObject(n.Obj().Name(), m.Signature().Recv(), m.Name())] = m
 		visit(m.Type())
 	}
 	if iface, ok := n.Underlying().(*types2.Interface); ok {
@@ -557,47 +237,53 @@ func collectNamedFuncFacts(n *types2.Named, objects map[string]*types2.Func, vis
 	}
 }
 
-func CloneWithOverlay(orig *types2.Package, opts []facts.PathFact) *types2.Package {
-	return CloneWithOverlays(orig, opts, nil)
-}
-
-func CloneWithOverlaysAndReadonly(orig *types2.Package, opts, consts []facts.PathFact, fns []facts.FnFact, readonlys []facts.ReadonlyFact) (*types2.Package, error) {
-	if err := ApplyFuncFacts(orig, fns); err != nil {
-		return nil, err
+func CloneWithOverlaysAndReadonly(orig *types2.Package, opts, consts []facts.PathFact, fns []facts.FnFact, readonlys []facts.ReadonlyFact, constMaps []facts.ConstMapFact) (*types2.Package, error) {
+	var readonly map[string]bool
+	var assert map[string]facts.FnFact
+	for _, fn := range fns {
+		if fn.Object == "" {
+			continue
+		}
+		if fn.Readonly {
+			if readonly == nil {
+				readonly = make(map[string]bool)
+			}
+			readonly[fn.Object] = true
+		}
+		if fn.HasAssert {
+			if assert == nil {
+				assert = make(map[string]facts.FnFact)
+			}
+			assert[fn.Object] = fn
+		}
 	}
-	readonly := readonlyObjects(fns)
-	assert := assertObjects(fns)
-	if len(opts) == 0 && len(consts) == 0 {
+	if len(opts) == 0 && len(consts) == 0 && len(constMaps) == 0 {
+		if err := ApplyFuncFacts(orig, fns); err != nil {
+			return nil, err
+		}
 		if err := ApplyReadonlyFactsInPlace(orig, readonlys); err != nil {
 			return nil, err
 		}
 		return orig, nil
 	}
-	if orig == nil {
-		return orig, nil
-	}
-	byObj := make(map[string][]qualPath)
-	add := func(f facts.PathFact, q qualKind) {
-		if f.Object != "" && f.Path != "" {
-			byObj[f.Object] = append(byObj[f.Object], qualPath{path: f.Path, qual: q})
-		}
-	}
-	for _, o := range opts {
-		add(o, qualOption)
-	}
-	for _, c := range consts {
-		add(c, qualConst)
-	}
+	byObj := qualByObj(opts, consts)
 	byReadonly := make(map[string][]string)
 	for _, r := range readonlys {
 		if r.Object != "" && r.Path != "" {
 			byReadonly[r.Object] = append(byReadonly[r.Object], r.Path)
 		}
 	}
-	if len(byObj) == 0 && len(readonly) == 0 && len(byReadonly) == 0 && len(assert) == 0 {
+	if len(byObj) == 0 && len(readonly) == 0 && len(byReadonly) == 0 && len(assert) == 0 && len(constMaps) == 0 {
 		return orig, nil
 	}
-	return clonePackageWithOverlays(orig, byObj, readonly, byReadonly, assert)
+	cloned, err := clonePackageWithOverlays(orig, byObj, readonly, byReadonly, assert, constMaps)
+	if err != nil {
+		return nil, err
+	}
+	if err := ApplyFuncFacts(cloned, fns); err != nil {
+		return nil, err
+	}
+	return cloned, nil
 }
 
 func applyReadonlyToUnderlying(pkg *types2.Package, owner string, u types2.Type, readonly map[string]bool) types2.Type {
@@ -640,7 +326,6 @@ func applyReadonlyToUnderlying(pkg *types2.Package, owner string, u types2.Type,
 			continue
 		}
 		nf := types2.NewFunc(m.Pos(), pkg, m.Name(), sig)
-		copyFuncReadonly(nf, m)
 		nf.SetLogosReadonly(true)
 		methods[i] = nf
 	}
@@ -651,40 +336,12 @@ func applyReadonlyToUnderlying(pkg *types2.Package, owner string, u types2.Type,
 	return types2.NewInterfaceType(methods, embeddeds)
 }
 
-func markReadonlyOwnersAffected(g *overlayGraph) {
-	if len(g.readonly) == 0 {
+func markOwnersAffected(g *overlayGraph, keys []string) {
+	if len(keys) == 0 {
 		return
 	}
-	owners := make(map[string]bool, len(g.readonly))
-	for key := range g.readonly {
-		owners[ownerBase(key)] = true
-	}
-	for node := range g.nodes {
-		var name string
-		switch n := node.(type) {
-		case *types2.Named:
-			name = n.Obj().Name()
-		case *types2.Alias:
-			name = n.Obj().Name()
-		default:
-			continue
-		}
-		if owners[name] {
-			g.affected[node] = true
-		}
-	}
-}
-
-// markAssertOwnersAffected marks the nominals owning assert-recorded
-// methods affected so an assert-only member still rebuilds their shells
-// and methods. Package-level function records name no nominal and need no
-// marking; insertOverlayFunc clones those directly.
-func markAssertOwnersAffected(g *overlayGraph) {
-	if len(g.assert) == 0 {
-		return
-	}
-	owners := make(map[string]bool, len(g.assert))
-	for key := range g.assert {
+	owners := make(map[string]bool, len(keys))
+	for _, key := range keys {
 		owners[ownerBase(key)] = true
 	}
 	for node := range g.nodes {
@@ -723,21 +380,8 @@ func ownerBase(object string) string {
 	return base
 }
 
-// CloneWithOverlays rebuilds the exported declarations named by opts as
-// Option and by consts as ConstView for a .lgo view and returns the new
-// package. Both qualifiers compose in one package clone so neither pass
-// loses the other's wrappers or nominal identities. The input package is
-// untouched, so Go importers keep the lowered types. Only func
-// results/params, struct fields, and method results/params at the
-// recorded paths are qualified; all references to affected nominals,
-// including unfacted declarations and aliases, use the same clone.
-// Genuinely unaffected nodes share the input. A lowered bare payload
-// wraps as Option or ConstView; an
-// instantiated logos/rt.Option[T] becomes Option with Elem T. Restored
-// const views are plain (ConstMap false): the facts carry no const-map
-// mark, so none is invented.
 func CloneWithOverlays(orig *types2.Package, opts, consts []facts.PathFact) *types2.Package {
-	cloned, err := clonePackageWithOverlays(orig, qualByObj(opts, consts), nil, nil, nil)
+	cloned, err := clonePackageWithOverlays(orig, qualByObj(opts, consts), nil, nil, nil, nil)
 	if err != nil {
 		panic("overlay qual-only rebuild invariant violated: " + err.Error())
 	}
@@ -759,7 +403,7 @@ func qualByObj(opts, consts []facts.PathFact) map[string][]qualPath {
 	return byObj
 }
 
-func clonePackageWithOverlays(orig *types2.Package, byObj map[string][]qualPath, readonly map[string]bool, byReadonly map[string][]string, assert map[string]facts.FnFact) (*types2.Package, error) {
+func clonePackageWithOverlays(orig *types2.Package, byObj map[string][]qualPath, readonly map[string]bool, byReadonly map[string][]string, assert map[string]facts.FnFact, constMaps []facts.ConstMapFact) (*types2.Package, error) {
 	for obj := range byObj {
 		paths := byObj[obj]
 		slices.SortStableFunc(paths, func(a, b qualPath) int {
@@ -780,6 +424,7 @@ func clonePackageWithOverlays(orig *types2.Package, byObj map[string][]qualPath,
 	graph := newOverlayGraph(orig, out, byObj)
 	graph.readonly = readonly
 	graph.assert = assert
+	graph.constMaps = constMapIndex(constMaps)
 	for obj, paths := range byReadonly {
 		graph.readonlyPaths[obj] = slices.Clone(paths)
 	}
@@ -814,7 +459,7 @@ func insertOverlayDecl(out *types2.Package, graph *overlayGraph, byObj map[strin
 		out.Scope().Insert(types2.NewConst(obj.Pos(), out, obj.Name(), t, obj.Val()))
 		return nil
 	case *types2.Var:
-		t := substType(graph.sub, obj.Type())
+		t := graph.constMapView(name, substType(graph.sub, obj.Type()))
 		if t == obj.Type() {
 			out.Scope().Insert(obj)
 			return nil
@@ -905,10 +550,6 @@ func applyReadonlyPaths(pkg *types2.Package, orig *types2.Package, t types2.Type
 	return cur, nil
 }
 
-// overlayGraph owns the nominal closure for one imported package view.
-// Shells are allocated before any bounds, underlying types, or methods are
-// rebuilt. Thus recursive and mutually recursive references always resolve
-// to the same nominal, including references from declarations without facts.
 type overlayGraph struct {
 	orig          *types2.Package
 	sub           *typeSubst
@@ -916,6 +557,7 @@ type overlayGraph struct {
 	readonly      map[string]bool
 	assert        map[string]facts.FnFact
 	readonlyPaths map[string][]string
+	constMaps     map[string]facts.ConstMapFact
 	nodes         map[types2.Type]bool
 	deps          map[types2.Type]map[types2.Type]bool
 	affected      map[types2.Type]bool
@@ -930,8 +572,6 @@ func newOverlayGraph(orig, pkg *types2.Package, paths map[string][]qualPath) *ov
 	}
 }
 
-// references visits all structural positions, including private fields and
-// generic bounds. Local nominals are edges, not recursively expanded here.
 func (g *overlayGraph) references(t types2.Type, refs map[types2.Type]bool, seen map[types2.Type]bool) {
 	if t == nil || seen[t] {
 		return
@@ -1010,8 +650,6 @@ func (g *overlayGraph) references(t types2.Type, refs map[types2.Type]bool, seen
 	}
 }
 
-// route records declaration-relative suffixes when a public path crosses a
-// local nominal. It follows only the container explicitly named by a step.
 func (g *overlayGraph) route(t types2.Type, steps []string, q qualKind) {
 	if t == nil || len(steps) == 0 {
 		return
@@ -1115,8 +753,6 @@ func (g *overlayGraph) route(t types2.Type, steps []string, q qualKind) {
 }
 
 func (g *overlayGraph) routeObject(object string, t types2.Type) {
-	// Replay outer qualifiers before routing deeper E steps. This models the
-	// restored view without changing the lowered input graph.
 	for _, p := range slices.Clone(g.paths[object]) {
 		steps := strings.Split(p.path, ".")
 		g.route(t, steps, p.qual)
@@ -1911,7 +1547,6 @@ func markReadonlyInterface(pkg *types2.Package, orig *types2.Package, iface *typ
 				return iface, nil
 			}
 			nf := types2.NewFunc(m.Pos(), pkg, m.Name(), sig)
-			copyFuncReadonly(nf, m)
 			nf.SetLogosReadonly(true)
 			methods[i] = nf
 			embeddeds := make([]types2.Type, iface.NumEmbeddeds())
@@ -2006,7 +1641,7 @@ func (g *overlayGraph) prepare() error {
 		if n, ok := obj.Type().(*types2.Named); ok {
 			for i := range n.NumMethods() {
 				m := n.Method(i)
-				key := methodObject(name, m.Type().(*types2.Signature).Recv(), m.Name())
+				key := facts.MethodObject(name, m.Type().(*types2.Signature).Recv(), m.Name())
 				g.routeObject(key, m.Type())
 				g.routeReadonlyObject(key, m.Type())
 			}
@@ -2040,7 +1675,7 @@ func (g *overlayGraph) prepare() error {
 				for i := range n.NumMethods() {
 					m := n.Method(i)
 					g.references(m.Type(), refs, seen)
-					key := methodObject(name, m.Type().(*types2.Signature).Recv(), m.Name())
+					key := facts.MethodObject(name, m.Type().(*types2.Signature).Recv(), m.Name())
 					if len(g.paths[key]) != 0 || g.readonly[key] || len(g.readonlyPaths[key]) != 0 {
 						g.affected[node] = true
 					}
@@ -2063,9 +1698,9 @@ func (g *overlayGraph) prepare() error {
 			break
 		}
 	}
-	markReadonlyOwnersAffected(g)
+	markOwnersAffected(g, slices.Sorted(maps.Keys(g.readonly)))
 	markReadonlyPathsAffected(g)
-	markAssertOwnersAffected(g)
+	markOwnersAffected(g, slices.Sorted(maps.Keys(g.assert)))
 	for {
 		changed := false
 		for node, refs := range g.deps {
@@ -2111,7 +1746,6 @@ func (g *overlayGraph) prepare() error {
 			g.affected[node] = true
 		}
 	}
-	// Phase one: all defined-type shells and all their parameter identities.
 	for node := range g.affected {
 		if n, ok := node.(*types2.Named); ok {
 			obj := n.Obj()
@@ -2252,7 +1886,7 @@ func (g *overlayGraph) addShellMethod(old *types2.Named, shell *types2.Named, i 
 		return nil
 	}
 	sig = substSignature(g.sub, sig)
-	key := methodObject(old.Obj().Name(), m.Type().(*types2.Signature).Recv(), m.Name())
+	key := facts.MethodObject(old.Obj().Name(), m.Type().(*types2.Signature).Recv(), m.Name())
 	for _, p := range g.paths[key] {
 		sig = wrapAtQual(g.sub.pkg, sig, strings.Split(p.path, "."), p.qual).(*types2.Signature)
 	}
@@ -2335,10 +1969,6 @@ func (g *overlayGraph) applyAliasReadonly(a *types2.Alias) error {
 	return nil
 }
 
-// typeSubst remaps rebuilt declarations to their overlay copies: tparams
-// maps an old *TypeParam to its fresh copy, and named maps an old
-// *Named origin to its shared shell. Aliases and graph are shared by all
-// parameter scopes; only the tparams environment is extended.
 type typeSubst struct {
 	pkg     *types2.Package
 	tparams map[*types2.TypeParam]*types2.TypeParam
@@ -2347,7 +1977,6 @@ type typeSubst struct {
 	graph   *overlayGraph
 }
 
-// typeParamSlice converts a type parameter list to a slice, tolerating nil.
 func typeParamSlice(l *types2.TypeParamList) []*types2.TypeParam {
 	if l == nil || l.Len() == 0 {
 		return nil
@@ -2359,9 +1988,6 @@ func typeParamSlice(l *types2.TypeParamList) []*types2.TypeParam {
 	return out
 }
 
-// freshTypeParams copies olds into sub's package with constraints
-// substituted through the extended map, so mutually recursive bounds
-// resolve. Each copy binds exactly once, at its owner.
 func freshTypeParams(sub *typeSubst, olds []*types2.TypeParam) ([]*types2.TypeParam, map[*types2.TypeParam]*types2.TypeParam) {
 	news := make([]*types2.TypeParam, len(olds))
 	delta := make(map[*types2.TypeParam]*types2.TypeParam, len(olds))
@@ -2382,11 +2008,6 @@ func freshTypeParams(sub *typeSubst, olds []*types2.TypeParam) ([]*types2.TypePa
 	return news, ext
 }
 
-// substType remaps t into the overlay copy: old type parameters become
-// their fresh copies, references to the rebuilt named become its shell,
-// and instantiated generics re-instantiate with substituted arguments.
-// Unmapped and unchanged positions share the input, so non-generic
-// declarations keep their identity.
 func substType(sub *typeSubst, t types2.Type) types2.Type {
 	if t == nil {
 		return nil
@@ -2576,9 +2197,6 @@ func substType(sub *typeSubst, t types2.Type) types2.Type {
 	}
 }
 
-// substSignature remaps sig into the overlay copy, giving signatures
-// that own type parameters fresh copies scoped to the new signature.
-// Each copy binds once, at the returned signature.
 func substSignature(sub *typeSubst, sig *types2.Signature) *types2.Signature {
 	if sub.graph != nil {
 		refs := make(map[types2.Type]bool)
@@ -2613,12 +2231,14 @@ func substSignature(sub *typeSubst, sig *types2.Signature) *types2.Signature {
 	changed := newT != nil || newR != nil
 	var nrecv *types2.Var
 	if r := sig.Recv(); r != nil {
-		rt := substType(inner, r.Type())
-		if rt != r.Type() {
-			changed = true
+		if _, lit := r.Type().(*types2.Interface); !lit {
+			rt := substType(inner, r.Type())
+			if rt != r.Type() {
+				changed = true
+			}
+			nrecv = types2.NewVar(r.Pos(), sub.pkg, r.Name(), rt)
+			nrecv.SetKind(r.Kind())
 		}
-		nrecv = types2.NewVar(r.Pos(), sub.pkg, r.Name(), rt)
-		nrecv.SetKind(r.Kind())
 	}
 	params, paramsChanged := substTuple(inner, sig.Params())
 	results, resultsChanged := substTuple(inner, sig.Results())
@@ -2628,7 +2248,6 @@ func substSignature(sub *typeSubst, sig *types2.Signature) *types2.Signature {
 	return types2.NewSignatureType(nrecv, newR, newT, params, results, sig.Variadic())
 }
 
-// substTuple remaps a tuple, sharing it when no position changes.
 func substTuple(sub *typeSubst, tup *types2.Tuple) (*types2.Tuple, bool) {
 	if tup == nil {
 		return nil, false
@@ -2653,8 +2272,6 @@ func substTuple(sub *typeSubst, tup *types2.Tuple) (*types2.Tuple, bool) {
 	return types2.NewTuple(vars...), true
 }
 
-// cloneInterfaceMethods rebuilds the explicit methods named by paths,
-// preserving already-remapped generic parameter ownership.
 func cloneInterfaceMethods(pkg *types2.Package, u *types2.Interface, paths []qualPath) *types2.Interface {
 	byMethod := map[string][]qualPath{}
 	for _, p := range paths {
@@ -2696,7 +2313,6 @@ func cloneInterfaceMethods(pkg *types2.Package, u *types2.Interface, paths []qua
 	return types2.NewInterfaceType(methods, embeddeds)
 }
 
-// hasOwnTypeParams reports whether sig owns type parameters.
 func hasOwnTypeParams(sig *types2.Signature) bool {
 	if tp := sig.TypeParams(); tp != nil && tp.Len() > 0 {
 		return true
@@ -2707,9 +2323,6 @@ func hasOwnTypeParams(sig *types2.Signature) bool {
 	return false
 }
 
-// applyQual wraps t in the qualifier kind: Option for qualOption,
-// ConstView for qualConst. An already-qualified type is returned
-// unchanged, so repeated paths stay idempotent.
 func applyQual(t types2.Type, q qualKind) types2.Type {
 	if q == qualConst {
 		return toConstView(t)
@@ -2717,15 +2330,6 @@ func applyQual(t types2.Type, q qualKind) types2.Type {
 	return toOption(t)
 }
 
-// wrapAtQual converts t at the remaining steps for one qualifier kind:
-// empty steps wrap the position itself; E steps descend into
-// qualifier/slice/map elems; K steps descend into map keys; F steps
-// descend into anonymous struct fields; M steps descend into anonymous
-// interface methods; P and R steps descend into signature positions.
-// D consumes exactly one pointer or channel container. Named positions
-// stop: named types convert whole at their declaration site, which also
-// preserves recursive references. Generic signature positions receive
-// fresh parameters bound exactly once at the rebuilt signature.
 func wrapAtQual(pkg *types2.Package, t types2.Type, steps []string, q qualKind) types2.Type {
 	if len(steps) == 0 {
 		return applyQual(t, q)
@@ -2816,9 +2420,6 @@ func wrapAtQual(pkg *types2.Package, t types2.Type, steps []string, q qualKind) 
 	}
 }
 
-// wrapStructField converts the named field of anonymous struct u at the
-// remaining steps, sharing every other field. With no change it returns
-// u, so declarations without matching facts keep their identity.
 func wrapStructField(pkg *types2.Package, u *types2.Struct, name string, rest []string, q qualKind) types2.Type {
 	idx := -1
 	for i := range u.NumFields() {
@@ -2855,9 +2456,6 @@ func wrapStructField(pkg *types2.Package, u *types2.Struct, name string, rest []
 	return types2.NewStruct(fields, tags)
 }
 
-// wrapSignaturePos converts the indexed param or result position of
-// signature u at the remaining steps, sharing every other position.
-// Generic signatures use wrapGenericSignaturePos to preserve ownership.
 func wrapSignaturePos(pkg *types2.Package, u *types2.Signature, steps []string, q qualKind) types2.Type {
 	if len(steps[0]) < 2 || (steps[0][0] != 'P' && steps[0][0] != 'R') {
 		return u
@@ -2909,13 +2507,6 @@ func wrapSignaturePos(pkg *types2.Package, u *types2.Signature, steps []string, 
 	return types2.NewSignatureType(u.Recv(), nil, nil, params, results, u.Variadic())
 }
 
-// wrapGenericSignaturePos converts the indexed param or result position
-// of a signature that owns type parameters. It fuses substitution and
-// wrapping into one construction: fresh copies of the owned parameters
-// with bounds substituted, every position remapped through them, and
-// the qualifier applied, so the single NewSignatureType call binds each
-// copy exactly once. A receiver without a type is refused rather than
-// built malformed.
 func wrapGenericSignaturePos(pkg *types2.Package, u *types2.Signature, steps []string, q qualKind) types2.Type {
 	var idx int
 	if _, err := fmt.Sscanf(steps[0][1:], "%d", &idx); err != nil {
@@ -2964,8 +2555,6 @@ func wrapGenericSignaturePos(pkg *types2.Package, u *types2.Signature, steps []s
 	return types2.NewSignatureType(nrecv, newR, newT, params, results, u.Variadic())
 }
 
-// freshOwnTypeParams copies an owned parameter list, or returns nil when
-// the list is absent.
 func freshOwnTypeParams(sub *typeSubst, l *types2.TypeParamList) (*typeSubst, []*types2.TypeParam) {
 	if l == nil || l.Len() == 0 {
 		return sub, nil
@@ -2974,8 +2563,6 @@ func freshOwnTypeParams(sub *typeSubst, l *types2.TypeParamList) (*typeSubst, []
 	return &typeSubst{pkg: sub.pkg, tparams: ext, named: sub.named, aliases: sub.aliases, graph: sub.graph}, news
 }
 
-// toConstView converts a lowered type to a const view. A restored map
-// keeps its const-map mark; ordinary const views have no such mark.
 func toConstView(t types2.Type) types2.Type {
 	if t == nil {
 		return &types2.ConstView{}
@@ -2988,9 +2575,36 @@ func toConstView(t types2.Type) types2.Type {
 	}
 	return &types2.ConstView{Elem: t}
 }
+func constMapIndex(recs []facts.ConstMapFact) map[string]facts.ConstMapFact {
+	if len(recs) == 0 {
+		return nil
+	}
+	out := make(map[string]facts.ConstMapFact, len(recs))
+	for _, r := range recs {
+		if r.Object != "" && len(r.Keys) == len(r.Vals) {
+			out[r.Object] = r
+		}
+	}
+	return out
+}
 
-// toOption converts a lowered type to Option: rt.Option[T] becomes
-// Option with Elem T; any other type wraps as Option.
+func (g *overlayGraph) constMapView(name string, t types2.Type) types2.Type {
+	rec, ok := g.constMaps[name]
+	if !ok || t == nil {
+		return t
+	}
+	if len(rec.Keys) != len(rec.Vals) {
+		return t
+	}
+	if _, ok := types2.Unalias(t).(*types2.Map); !ok {
+		return t
+	}
+	if c := constAsView(t); c != nil {
+		return t
+	}
+	return &types2.ConstView{Elem: t, ConstMap: true}
+}
+
 func toOption(t types2.Type) types2.Type {
 	if t == nil {
 		return &types2.Option{}

@@ -42,19 +42,10 @@ func Freeze[T any](p *T) *T {
 	return dst.Interface().(*T)
 }
 
-// freezer holds one Freeze call's visited map: every heap object the
-// copy already rebuilt, keyed by the source object's identity. The key
-// carries the type so two objects that share an address under
-// different types never collide, and the length and capacity for slices
-// so headers over one backing array with different lengths or capacities
-// never collide.
 type freezer struct {
 	visited map[freezeVisit]reflect.Value
 }
 
-// freezeVisit identifies one source heap object: a pointer, map, or
-// slice header. n holds the slice length and c the slice capacity;
-// both are zero otherwise.
 type freezeVisit struct {
 	typ reflect.Type
 	ptr unsafe.Pointer
@@ -62,12 +53,6 @@ type freezeVisit struct {
 	c   int
 }
 
-// copy rebuilds src into dst. dst is always addressable and settable:
-// the root comes from reflect.New and every nested dst is a fresh
-// allocation, an element of one, or a field cleared through unsafe.
-// src is either directly readable or addressable, so unexported fields
-// resolve through readable below; map keys and values arrive staged in
-// addressable temporaries because map results are copies.
 func (fr *freezer) copy(dst, src reflect.Value) {
 	switch src.Kind() {
 	case reflect.Pointer:
@@ -97,10 +82,6 @@ func (fr *freezer) copy(dst, src reflect.Value) {
 	}
 }
 
-// copyPointer rebuilds one pointer: nil stays nil, a revisited source
-// resolves to its copy (this is what keeps cycles terminating and
-// shared children shared), and a fresh source allocates before the
-// element copy so a back edge to the pointer under construction lands.
 func (fr *freezer) copyPointer(dst, src reflect.Value) {
 	src = readable(src)
 	if src.IsNil() {
@@ -118,10 +99,6 @@ func (fr *freezer) copyPointer(dst, src reflect.Value) {
 	dst.Set(np)
 }
 
-// copyInterface rebuilds one interface value: nil stays nil and a live
-// payload copies into a fresh value of its dynamic type. The payload
-// stages through an addressable temporary so unexported fields of a
-// struct payload stay reachable.
 func (fr *freezer) copyInterface(dst, src reflect.Value) {
 	src = readable(src)
 	if src.IsNil() {
@@ -136,16 +113,6 @@ func (fr *freezer) copyInterface(dst, src reflect.Value) {
 	dst.Set(nv)
 }
 
-// copySlice rebuilds one slice: nil stays nil, a revisited header resolves
-// to its copy, and a fresh header allocates the full capacity before the
-// element copies so a cycle through the elements lands. The copy preserves
-// the accessible backing storage through the original capacity and then
-// restores the original length: elements past the length are part of the
-// value a preserved capacity exposes via reslicing, so they are deep-copied
-// like the visible ones. Identical headers (same pointer, length, and
-// capacity) share their copy; headers that differ in length or capacity
-// copy separately. The visited entry holds the length-restored view, never
-// the full-length allocation, so a back edge never observes length cap.
 func (fr *freezer) copySlice(dst, src reflect.Value) {
 	src = readable(src)
 	if src.IsNil() {
@@ -169,11 +136,6 @@ func (fr *freezer) copySlice(dst, src reflect.Value) {
 	dst.Set(view)
 }
 
-// copyMap rebuilds one map: nil stays nil, a revisited map resolves to
-// its copy, and a fresh map allocates before the entries copy so a
-// cycle through keys or values lands. Keys and values stage through
-// addressable temporaries because map results are unaddressable
-// copies.
 func (fr *freezer) copyMap(dst, src reflect.Value) {
 	src = readable(src)
 	if src.IsNil() {
@@ -203,11 +165,6 @@ func (fr *freezer) copyMap(dst, src reflect.Value) {
 	dst.Set(nm)
 }
 
-// readable returns src in a form Set accepts: directly readable values
-// pass through, while values obtained through unexported fields are
-// re-expressed through unsafe without their read-only flag. The
-// unexported case needs src addressable, which holds for every struct,
-// element, and staged value Freeze visits.
 func readable(src reflect.Value) reflect.Value {
 	if src.CanInterface() {
 		return src
@@ -215,10 +172,6 @@ func readable(src reflect.Value) reflect.Value {
 	return reflect.NewAt(src.Type(), unsafe.Pointer(src.UnsafeAddr())).Elem()
 }
 
-// settable returns dst in a form Set targets: settable destinations
-// pass through, while unexported fields are re-expressed through
-// unsafe without their read-only flag. dst is always addressable by
-// the copy invariant above.
 func settable(dst reflect.Value) reflect.Value {
 	if dst.CanSet() {
 		return dst

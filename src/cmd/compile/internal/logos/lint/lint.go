@@ -28,7 +28,7 @@
 //
 //  1. Create rule_<name>.go with a package-level var of type Rule, with ID
 //     "group::name", the matching Group, Go set exactly when the rule is
-//     language-neutral (SPEC Sec 1.2 lists the 20), and a Check that walks
+//     language-neutral (SPEC Sec 1.2 lists the 12), and a Check that walks
 //     Pass.Files and calls Pass.Report or Pass.Reportf. Types come from
 //     TypeOf and Pass.Info; Check must not mutate the tree.
 //  2. Add the var to registry in registry.go.
@@ -36,7 +36,7 @@
 //     language-neutral rule).
 //
 // Nothing else changes: severities, directives, JSON output, and the Go
-// scope all come from this package. TestRuleScopes already lists the 28
+// scope all come from this package. TestRuleScopes already lists the 20
 // SPEC rules and checks each registered rule against its scope. A rule that
 // an earlier phase already enforces under the same ID registers with a nil
 // Check: types2 reports nil_deref_unproven and unsupervised_goroutine as

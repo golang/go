@@ -28,8 +28,12 @@ func TestDeferKeepsResume(t *testing.T) {
 
 func TestTryPropagation(t *testing.T) {
 	got, err := Total([]string{"ab", "cde"})
-	if err != nil || got != Straight(2)+Straight(3) {
-		t.Fatalf("Total = %d, %v", got, err)
+	if err != nil {
+		t.Fatalf("Total: %v", err)
+		return
+	}
+	if got != Straight(2)+Straight(3) {
+		t.Fatalf("Total = %d, want %d", got, Straight(2)+Straight(3))
 	}
 	if _, err := Total([]string{"ab", ""}); err == nil || err.Error() != "empty" {
 		t.Fatalf("Total error = %v, want empty", err)
@@ -39,12 +43,20 @@ func TestTryPropagation(t *testing.T) {
 func TestGoroutinesAndChannels(t *testing.T) {
 	ctx := context.Background()
 	got, err := GoroutineSum(ctx, 20, 100)
-	if err != nil || got != 6040 {
-		t.Fatalf("GoroutineSum = %d, %v, want 6040", got, err)
+	if err != nil {
+		t.Fatalf("GoroutineSum: %v", err)
+		return
+	}
+	if got != 6040 {
+		t.Fatalf("GoroutineSum = %d, want 6040", got)
 	}
 	sum, err := ChannelSum(ctx, 50)
-	if err != nil || sum != 2600 {
-		t.Fatalf("ChannelSum = %d, %v, want 2600", sum, err)
+	if err != nil {
+		t.Fatalf("ChannelSum: %v", err)
+		return
+	}
+	if sum != 2600 {
+		t.Fatalf("ChannelSum = %d, want 2600", sum)
 	}
 }
 

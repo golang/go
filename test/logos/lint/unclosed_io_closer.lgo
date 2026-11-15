@@ -103,7 +103,7 @@ func reassigned() {
 func wrongVar() {
 	g := mustOpen()
 	f := mustOpen() // ERROR "unclosed_io_closer"
-	defer g.Close()
+	defer g.Close() // ERROR "discarded_error"
 	_ = f.Name()
 }
 
@@ -129,7 +129,7 @@ func blankDiscardsPair() {
 
 func shadow() {
 	f := mustOpen()
-	defer f.Close()
+	defer f.Close() // ERROR "discarded_error"
 	{
 		f := mustOpen() // ERROR "unclosed_io_closer"
 		_ = f.Name()
@@ -138,14 +138,14 @@ func shadow() {
 
 func deferred() {
 	f := mustOpen()
-	defer f.Close()
+	defer f.Close() // ERROR "discarded_error"
 	_ = f.Name()
 }
 
 func deferredInIf(ok bool) {
 	f := mustOpen()
 	if ok {
-		defer f.Close()
+		defer f.Close() // ERROR "discarded_error"
 	}
 	_ = f.Name()
 }
@@ -272,20 +272,20 @@ func tryUnclosed() error {
 
 func errdeferOnly() error {
 	f := os.Open("x")? // ERROR "unclosed_io_closer"
-	errdefer f.Close()
+	errdefer f.Close() // ERROR "\[slop::discarded_error\]"
 	_ = f.Name()
 	return nil
 }
 
 func errdeferWrapped() (*wrapper, error) {
 	f := os.Open("x")?
-	errdefer f.Close()
+	errdefer f.Close() // ERROR "\[slop::discarded_error\]"
 	return &wrapper{f}, nil
 }
 
 func scopeDeferred() error {
 	f := os.Open("x")?
-	scope defer f.Close()
+	scope defer f.Close() // ERROR "\[slop::discarded_error\]"
 	_ = f.Name()
 	return nil
 }

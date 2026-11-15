@@ -7,7 +7,6 @@ package lint
 import (
 	"bytes"
 	"cmp"
-	"regexp"
 	"slices"
 	"strings"
 
@@ -15,7 +14,7 @@ import (
 )
 
 // ZeroAllocRule is the ID of the diagnostic for a function marked
-// //logos:zeroalloc that performs a heap allocation (SPEC Sec 22.4). It is
+// //logos:zeroalloc that performs a heap allocation (SPEC Sec 17.4). It is
 // not a configurable lint rule: the directive is the author's own assertion,
 // so no logos.toml severity lowers the diagnostic and no //logos:allow
 // directive silences it.
@@ -24,17 +23,14 @@ const ZeroAllocRule = "perf::zeroalloc_violation"
 // zeroAllocMarker is the text every //logos:zeroalloc comment contains.
 const zeroAllocMarker = "//logos:zeroalloc"
 
-// zeroAllocDirective matches //logos:zeroalloc, optionally followed by a
-// space and free text.
-var zeroAllocDirective = regexp.MustCompile(`^//logos:zeroalloc(?:\s.*)?$`)
-
 // ZeroAllocFunc is a function marked //logos:zeroalloc: its declared name,
 // and the file and line of its declaration, the line of the token after
 // func, where the compiler finds the function again.
 type ZeroAllocFunc struct {
-	Name string
-	File string
-	Line uint
+	Name  string
+	File  string
+	Line  uint
+	Local bool
 }
 
 // ZeroAllocFinding is one heap allocation site that escape analysis found
@@ -79,7 +75,8 @@ func fileZeroAlloc(f *syntax.File, src []byte, mode syntax.Mode) ([]ZeroAllocFun
 	var funcs []ZeroAllocFunc
 	var misplaced []Result
 	syntax.CommentsDoMode(bytes.NewReader(src), mode, func(line, col uint, text string) {
-		if !zeroAllocDirective.MatchString(text) {
+		arg, ok := syntax.DirectiveArg(text, zeroAllocMarker)
+		if !ok {
 			return
 		}
 		decl, ok := decls[nextCodeLine(lines, line)]
@@ -94,7 +91,13 @@ func fileZeroAlloc(f *syntax.File, src []byte, mode syntax.Mode) ([]ZeroAllocFun
 			})
 			return
 		}
-		funcs = append(funcs, ZeroAllocFunc{Name: declName(decl), File: f.Pos().RelFilename(), Line: decl.Pos().Line()})
+		local := false
+		for _, word := range strings.Fields(arg) {
+			if word == "local" {
+				local = true
+			}
+		}
+		funcs = append(funcs, ZeroAllocFunc{Name: declName(decl), File: f.Pos().RelFilename(), Line: decl.Pos().Line(), Local: local})
 	})
 	return funcs, misplaced
 }
@@ -118,11 +121,22 @@ func declName(d *syntax.FuncDecl) string {
 		return d.Name.Value
 	}
 	recv := syntax.String(d.Recv.Type)
+	for {
+		after, ok := strings.CutPrefix(recv, "const ")
+		if !ok {
+			break
+		}
+		recv = after
+	}
 	if strings.HasPrefix(recv, "*") {
 		recv = "(" + recv + ")"
 	}
 	return recv + "." + d.Name.Value
 }
+
+// DeclName is declName for other packages: the facts writer and the
+// AllocFree consumer must spell a function the same way.
+func DeclName(d *syntax.FuncDecl) string { return declName(d) }
 
 // ZeroAllocResults resolves the allocation sites of the marked functions to
 // results, ordered by line. Every result is at forbid, because the directive

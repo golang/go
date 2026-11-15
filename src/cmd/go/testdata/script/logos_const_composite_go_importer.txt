@@ -1,0 +1,184 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+cd use
+logos build -o $WORK/bin/gouse$GOEXE .
+exec $WORK/bin/gouse$GOEXE
+cmp stdout ../want.txt
+cd ..
+
+mkdir ws/lib
+cp lib/go.mod ws/lib/go.mod
+cp lib/lib.lgo ws/lib/lib.lgo
+cp use/main.go ws/app/main.go
+cd ws
+logos build -o $WORK/bin/gows$GOEXE example.com/ccgoapp
+exec $WORK/bin/gows$GOEXE
+cmp stdout ../want.txt
+cd ..
+
+cd lib
+logos eject -o ../libout
+cd ..
+exists libout/lib.go
+! exists libout/lib.lgo
+cd libout
+exec $GOROOT/bin/gofmt -l lib.go
+! stdout .
+cd ..
+
+cp use/main.go useplain/main.go
+cd useplain
+go build -o $WORK/bin/gouseplain$GOEXE .
+exec $WORK/bin/gouseplain$GOEXE
+cmp stdout ../want.txt
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/bin/gouseplainup$GOEXE .
+exec $WORK/bin/gouseplainup$GOEXE
+cmp stdout ../want.txt
+cd ..
+
+-- want.txt --
+ok field
+ok field-copy
+ok slice-field
+ok array-field
+ok map-read
+ok map-miss
+ok len
+ok range
+ok method
+ok pointer-method
+ok items-len
+ok items-field
+ok items-map
+ok items-range
+ok items-method
+ok items-var
+ok items-var-index
+-- lib/go.mod --
+module example.com/ccgoimp
+
+go 1.27
+-- lib/lib.lgo --
+package lib
+
+type Box struct {
+	M map[string]int
+	L []int
+	A [3]int
+	N int
+}
+
+func (b Box) Get(k string) int { return b.M[k] ?? 0 }
+
+func (b *Box) Peek() int { return b.N }
+
+type Item struct {
+	M map[string]int
+	N int
+}
+
+func (i Item) Total() int {
+	sum := i.N
+	for _, v := range i.M {
+		sum += v
+	}
+	return sum
+}
+
+const C = Box{M: map[string]int{"a": 13, "b": 2, "c": 3}, L: []int{1, 2, 3}, A: [3]int{4, 5, 6}, N: 73}
+
+const Items = []Item{{M: map[string]int{"x": 1, "y": 2}, N: 5}, {M: map[string]int{"z": 9}, N: 6}}
+-- use/go.mod --
+module example.com/ccgouse
+
+go 1.27
+
+require example.com/ccgoimp v0.0.0
+
+replace example.com/ccgoimp => ../lib
+-- use/main.go --
+package main
+
+import (
+	"fmt"
+	"maps"
+	"os"
+	"slices"
+	"strings"
+
+	"example.com/ccgoimp"
+)
+
+func fail(name string, got, want any) {
+	fmt.Println("FAIL", name+":", "got", got, "want", want)
+	os.Exit(1)
+}
+
+func check(name string, got, want any) {
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		fail(name, got, want)
+	}
+	fmt.Println("ok", name)
+}
+
+func keys(m map[string]int) string {
+	var parts []string
+	for _, k := range slices.Sorted(maps.Keys(m)) {
+		parts = append(parts, fmt.Sprint(k, m[k]))
+	}
+	return strings.Join(parts, ";")
+}
+
+func main() {
+	var c lib.Box = lib.C
+	var items []lib.Item = lib.Items
+	check("field", lib.C.N, 73)
+	check("field-copy", c.N, 73)
+	check("slice-field", lib.C.L[1], 2)
+	check("array-field", lib.C.A[2], 6)
+	v, ok := lib.C.M["a"]
+	check("map-read", fmt.Sprint(v, ok), "13 true")
+	_, ok = lib.C.M["z"]
+	check("map-miss", ok, false)
+	check("len", len(lib.C.M), 3)
+	check("range", keys(lib.C.M), "a13;b2;c3")
+	check("method", lib.C.Get("b"), 2)
+	check("pointer-method", lib.C.Peek(), 73)
+	check("items-len", len(lib.Items), 2)
+	check("items-field", lib.Items[1].N, 6)
+	check("items-map", lib.Items[0].M["y"], 2)
+	check("items-range", keys(lib.Items[0].M), "x1;y2")
+	check("items-method", lib.Items[1].Total(), 15)
+	check("items-var", items[0].Total(), 8)
+	i := 1
+	check("items-var-index", keys(lib.Items[i].M), "z9")
+}
+-- useplain/go.mod --
+module example.com/ccgouseplain
+
+go 1.27
+
+require (
+	example.com/ccgoimp v0.0.0
+	github.com/gosuda/loGos/rt v0.0.0
+)
+
+replace example.com/ccgoimp => ../libout
+
+replace github.com/gosuda/loGos/rt => ../libout/_logos_deps/rt
+-- ws/go.work --
+go 1.27
+
+use (
+	./lib
+	./app
+)
+-- ws/app/go.mod --
+module example.com/ccgoapp
+
+go 1.27

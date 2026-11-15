@@ -2,13 +2,21 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
-// Optional function types (seed 9 root class): the `Option[...]` wrapper
-// anchors at the `func` keyword, never between `func` and its parameters.
-// Covers the parenthesized spelling with and without an initializer, an
-// outer-paren variant, nil comparison, and invocation.
+var failed bool
 
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 var q (func /*
 	 * filler 001
 	 * filler 002
@@ -82,9 +90,6 @@ var q (func /*
 	 * filler 070
 	 */ (int) int)? = func(n int) int { return n + 3 }
 
-// callOpt invokes an optional function value only after a nil proof: the
-// parameter is a local, so the guard narrows it (SPEC 2.2, T-202). A
-// package global such as q is copied in here rather than narrowed in place.
 func callOpt(f (func(int) int)?, n int) int {
 	if f != nil {
 		return f(n)
@@ -95,20 +100,37 @@ func callOpt(f (func(int) int)?, n int) int {
 func main() {
 	var bjarne1 (func(int) int)? = func(n int) int { return (61 + n) }
 	var ken2 (func(int) int)?
-	fmt.Println(bjarne1 == nil, ken2 == nil)
+	check("bjarne-some", bjarne1 != nil, bjarne1 != nil, true)
+	check("ken-none", ken2 == nil, ken2 == nil, true)
 	if bjarne1 != nil {
-		fmt.Println(bjarne1(8), bjarne1(-6))
+		gotC8 := bjarne1(8)
+		check("call-8", gotC8 == 69, gotC8, 69)
+		gotCN6 := bjarne1(-6)
+		check("call-neg6", gotCN6 == 55, gotCN6, 55)
 	}
 	bjarne1 = ken2
-	fmt.Println(bjarne1 == nil)
+	check("assign-none", bjarne1 == nil, bjarne1 == nil, true)
 	var rob3 ((func(int) int))? = func(n int) int { return (n + 1) }
-	fmt.Println(rob3 == nil, callOpt(rob3, 10))
+	check("rob-some", rob3 != nil, rob3 != nil, true)
+	gotRob := callOpt(rob3, 10)
+	check("rob-call", gotRob == 11, gotRob, 11)
 	var h (func // between keyword and parameter
 	(int) int)? = func(n int) int { return n + 1 }
 	var k (func /* outer /* inner */ (int) int)? = func(n int) int { return n + 2 }
-	fmt.Println(h != nil, k != nil)
-	fmt.Println(callOpt(h, 10), callOpt(k, 20))
+	check("h-some", h != nil, h != nil, true)
+	check("k-some", k != nil, k != nil, true)
+	gotH := callOpt(h, 10)
+	check("h-call", gotH == 11, gotH, 11)
+	gotK := callOpt(k, 20)
+	check("k-call", gotK == 22, gotK, 22)
 	var w (func /* func */ (int) int)? = func(n int) int { return n + 5 }
-	fmt.Println(w != nil, q != nil)
-	fmt.Println(callOpt(w, 50), callOpt(q, 30))
+	check("w-some", w != nil, w != nil, true)
+	check("q-some", q != nil, q != nil, true)
+	gotW := callOpt(w, 50)
+	check("w-call", gotW == 55, gotW, 55)
+	gotQ := callOpt(q, 30)
+	check("q-call", gotQ == 33, gotQ, 33)
+	if failed {
+		os.Exit(1)
+	}
 }

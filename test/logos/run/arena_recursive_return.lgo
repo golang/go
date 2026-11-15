@@ -1,0 +1,55 @@
+// run -goexperiment logosarena
+package main
+
+import (
+	"fmt"
+	"os"
+	"runtime"
+	"testing"
+)
+
+//go:noinline
+func mk(depth int) []int {
+	if depth == 0 {
+		s := make([]int, 16)
+		for i := range s {
+			s[i] = i + 1
+		}
+		return s
+	}
+	return mk(depth - 1)
+}
+
+func sumVals(s []int) int {
+	total := 0
+	for _, v := range s {
+		total += v
+	}
+	return total
+}
+
+func main() {
+	s := mk(8)
+	if len(s) != 16 || sumVals(s) != 136 {
+		fmt.Printf("FAIL caller-owned-return-values-survive: got len %d sum %d want 16 136\n", len(s), sumVals(s))
+		os.Exit(1)
+	}
+	fmt.Println("ok caller-owned-return-values-survive")
+	runtime.GC()
+	runtime.GC()
+	if sumVals(s) != 136 {
+		fmt.Printf("FAIL caller-owned-return-survives-gc: got %d want 136\n", sumVals(s))
+		os.Exit(1)
+	}
+	fmt.Println("ok caller-owned-return-survives-gc")
+	allocs := testing.AllocsPerRun(100, func() {
+		s := mk(8)
+		runtime.KeepAlive(s)
+	})
+	if allocs != 0 {
+		fmt.Printf("FAIL caller-owned-return-placed-in-region-not-heap: allocs %v want 0\n", allocs)
+		os.Exit(1)
+	}
+	fmt.Println("ok caller-owned-return-placed-in-region-not-heap")
+	runtime.KeepAlive(s)
+}

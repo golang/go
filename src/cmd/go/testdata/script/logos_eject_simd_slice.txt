@@ -1,10 +1,3 @@
-# M15-S2 (T-303, T-0.3): eject output of a slice `.sum()` is the scalar
-# form, so it never names this toolchain's fork-only Load<T>SliceMasked
-# loaders and builds with an upstream toolchain. A native build keeps the
-# vector form under GOEXPERIMENT=simd. Every run prints the same bits:
-# the integer sums wrap alike and the float sums use the fixed pairwise
-# order, with the vector form, the scalar form, and the ejected module.
-
 [!GOARCH:amd64] [!GOARCH:arm64] skip 'GOEXPERIMENT=simd needs amd64 or arm64'
 
 env GOPROXY=off
@@ -12,40 +5,44 @@ env GOTOOLCHAIN=local
 
 cd m
 
-# The scalar form natively, no experiment.
 logos run .
 stdout '^f32 130 '
 cp stdout $WORK/scalar-stdout.txt
 
-# The vector form natively, experiment on.
 env GOEXPERIMENT=simd
 logos run .
 cmp stdout $WORK/scalar-stdout.txt
 
-# Eject under the experiment: no archsimd reference of any kind.
 logos eject -o out
 exists out/main.go
 ! grep 'SliceMasked' out/main.go
 ! grep 'archsimd' out/main.go
 ! grep '_logos_simd' out/main.go
 
-# The ejected module runs with the experiment on and prints the same.
 cd out
 go run .
 cmp stdout $WORK/scalar-stdout.txt
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
 go vet ./...
 exec $GOROOT/bin/gofmt -l .
 ! stdout .
 cd ..
 
-# The ejected module runs with the experiment off and prints the same.
 env GOEXPERIMENT=
 cd out
 go run .
 cmp stdout $WORK/scalar-stdout.txt
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
 cd ..
 
-# Ejecting without the experiment gives the same text.
 cp out/main.go $WORK/eject-simd-main.go
 rm out
 logos eject -o out

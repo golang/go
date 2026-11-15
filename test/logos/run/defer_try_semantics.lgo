@@ -1,0 +1,1024 @@
+// run
+
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"runtime"
+	"sort"
+	"time"
+)
+
+var errFirst = errors.New("first")
+var errSecond = errors.New("second")
+
+var lOrder []string
+var hOrder []string
+
+func lnote(s string) { lOrder = append(lOrder, s) }
+func hnote(s string) { hOrder = append(hOrder, s) }
+
+//go:noinline
+func ltry(s string) error {
+	lOrder = append(lOrder, "try:"+s)
+	return nil
+}
+
+//go:noinline
+func htry(s string) error {
+	hOrder = append(hOrder, "try:"+s)
+	return nil
+}
+
+func sameStrings(a, c []string) bool {
+	if len(a) != len(c) {
+		return false
+	}
+	for i := range a {
+		if a[i] != c[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func sameInts(a, c []int) bool {
+	if len(a) != len(c) {
+		return false
+	}
+	for i := range a {
+		if a[i] != c[i] {
+			return false
+		}
+	}
+	return true
+}
+
+var failed = false
+
+func check(name string, ok bool, detail string) {
+if !ok {
+fmt.Println("FAIL", name+":", "got", detail, "want", "match")
+failed = true
+return
+}
+fmt.Println("ok", name)
+}
+
+func orderCase(name string, lfunc, hfunc func() error) {
+	lOrder = nil
+	lerr := lfunc()
+	lgot := append([]string(nil), lOrder...)
+	hOrder = nil
+	herr := hfunc()
+	check(name, lerr == nil && herr == nil && sameStrings(lgot, hOrder), fmt.Sprint("logos=", lgot, " hand=", hOrder))
+}
+func loop3Logos(n int) (err error) {
+	for i := 0; i < n; i++ {
+		defer ltry(fmt.Sprint(i))?
+		defer lnote("defer:" + fmt.Sprint(i))
+		errdefer lnote("errdefer:" + fmt.Sprint(i))
+	}
+	return nil
+}
+
+func loop3Hand(n int) (err error) {
+	for i := 0; i < n; i++ {
+		x := i
+		defer func() {
+			if e := htry(fmt.Sprint(x)); e != nil {
+				if err == nil {
+					err = e
+				} else {
+					err = errors.Join(err, e)
+				}
+			}
+		}()
+		defer hnote("defer:" + fmt.Sprint(x))
+		errdefer hnote("errdefer:" + fmt.Sprint(x))
+	}
+	return nil
+}
+
+func rangeIntLogos(n int) (err error) {
+	for i := range n {
+		defer ltry(fmt.Sprint(i))?
+	}
+	return nil
+}
+
+func rangeIntHand(n int) (err error) {
+	for i := range n {
+		x := i
+		defer func() {
+			if e := htry(fmt.Sprint(x)); e != nil {
+				if err == nil {
+					err = e
+				} else {
+					err = errors.Join(err, e)
+				}
+			}
+		}()
+	}
+	return nil
+}
+
+func rangeSliceLogos(vs []int) (err error) {
+	for _, v := range vs {
+		defer ltry(fmt.Sprint(v))?
+	}
+	return nil
+}
+
+func rangeSliceHand(vs []int) (err error) {
+	for _, v := range vs {
+		x := v
+		defer func() {
+			if e := htry(fmt.Sprint(x)); e != nil {
+				if err == nil {
+					err = e
+				} else {
+					err = errors.Join(err, e)
+				}
+			}
+		}()
+	}
+	return nil
+}
+
+func rangeMapLogos(m map[string]int) (err error) {
+	for k, v := range m {
+		defer ltry(k+fmt.Sprint(v))?
+	}
+	return nil
+}
+
+func rangeMapHand(m map[string]int) (err error) {
+	for k, v := range m {
+		kk, vv := k, v
+		defer func() {
+			if e := htry(kk+fmt.Sprint(vv)); e != nil {
+				if err == nil {
+					err = e
+				} else {
+					err = errors.Join(err, e)
+				}
+			}
+		}()
+	}
+	return nil
+}
+
+func rangeChanLogos(ch chan int) (err error) {
+//logos:allow(correctness::unbounded_channel_op)
+	for v := range ch {
+		defer ltry(fmt.Sprint(v))?
+	}
+	return nil
+}
+
+func rangeChanHand(ch chan int) (err error) {
+//logos:allow(correctness::unbounded_channel_op)
+	for v := range ch {
+		x := v
+		defer func() {
+			if e := htry(fmt.Sprint(x)); e != nil {
+				if err == nil {
+					err = e
+				} else {
+					err = errors.Join(err, e)
+				}
+			}
+		}()
+	}
+	return nil
+}
+
+func gotoLogos(n int) (err error) {
+	i := 0
+again:
+	defer ltry(fmt.Sprint(i))?
+	i++
+	if i < n {
+		goto again
+	}
+	return nil
+}
+
+func gotoHand(n int) (err error) {
+	i := 0
+again:
+	x := i
+	defer func() {
+		if e := htry(fmt.Sprint(x)); e != nil {
+			if err == nil {
+				err = e
+			} else {
+				err = errors.Join(err, e)
+			}
+		}
+	}()
+	i++
+	if i < n {
+		goto again
+	}
+	return nil
+}
+
+func nestedLogos(n int) (err error) {
+	for i := 0; i < n; i++ {
+		for j := 0; j < 2; j++ {
+			defer ltry(fmt.Sprint(i)+fmt.Sprint(j))?
+		}
+	}
+	return nil
+}
+
+func nestedHand(n int) (err error) {
+	for i := 0; i < n; i++ {
+		for j := 0; j < 2; j++ {
+			x, y := i, j
+			defer func() {
+				if e := htry(fmt.Sprint(x)+fmt.Sprint(y)); e != nil {
+					if err == nil {
+						err = e
+					} else {
+						err = errors.Join(err, e)
+					}
+				}
+			}()
+		}
+	}
+	return nil
+}
+
+func labeledContLogos(n int) (err error) {
+outer:
+	for i := 0; i < n; i++ {
+		for j := 0; j < n; j++ {
+			if j == 1 {
+				continue outer
+			}
+			defer ltry(fmt.Sprint(i)+fmt.Sprint(j))?
+		}
+	}
+	return nil
+}
+
+func labeledContHand(n int) (err error) {
+outer:
+	for i := 0; i < n; i++ {
+		for j := 0; j < n; j++ {
+			if j == 1 {
+				continue outer
+			}
+			x, y := i, j
+			defer func() {
+				if e := htry(fmt.Sprint(x)+fmt.Sprint(y)); e != nil {
+					err = errors.Join(err, e)
+				}
+			}()
+		}
+	}
+	return nil
+}
+
+func labeledBreakLogos(n int) (err error) {
+outer:
+	for i := 0; i < n; i++ {
+		for j := 0; j < n; j++ {
+			defer ltry(fmt.Sprint(i)+fmt.Sprint(j))?
+			break outer
+		}
+	}
+	return nil
+}
+
+func labeledBreakHand(n int) (err error) {
+outer:
+	for i := 0; i < n; i++ {
+		for j := 0; j < n; j++ {
+			x, y := i, j
+			defer func() {
+				if e := htry(fmt.Sprint(x)+fmt.Sprint(y)); e != nil {
+					err = errors.Join(err, e)
+				}
+			}()
+			break outer
+		}
+	}
+	return nil
+}
+
+type box struct{ v int }
+
+//go:noinline
+func (b *box) ClosePtr() error {
+	lOrder = append(lOrder, fmt.Sprint("closed:", b.v))
+	return nil
+}
+
+//go:noinline
+func (b *box) hClosePtr() error {
+	hOrder = append(hOrder, fmt.Sprint("closed:", b.v))
+	return nil
+}
+
+//go:noinline
+func (b box) CloseVal() error {
+	lOrder = append(lOrder, "valclosed")
+	return nil
+}
+
+//go:noinline
+func (b box) hCloseVal() error {
+	hOrder = append(hOrder, "valclosed")
+	return nil
+}
+
+func recvLogos() (err error) {
+	b := &box{v: 1}
+	defer b.ClosePtr()?
+	b = &box{v: 2}
+	return nil
+}
+
+func recvHand() (err error) {
+	b := &box{v: 1}
+	b0 := b
+	defer func() {
+		if e := b0.hClosePtr(); e != nil {
+			if err == nil {
+				err = e
+			} else {
+				err = errors.Join(err, e)
+			}
+		}
+	}()
+	b = &box{v: 2}
+	return nil
+}
+
+//go:noinline
+func lused(x int) error {
+	lOrder = append(lOrder, fmt.Sprint("used:", x))
+	return nil
+}
+
+//go:noinline
+func hused(x int) error {
+	hOrder = append(hOrder, fmt.Sprint("used:", x))
+	return nil
+}
+
+func argMutLogos() (err error) {
+	x := 7
+	defer lused(x)?
+	x = 999
+	return nil
+}
+
+func argMutHand() (err error) {
+	x := 7
+	y := x
+	defer func() {
+		if e := hused(y); e != nil {
+			if err == nil {
+				err = e
+			} else {
+				err = errors.Join(err, e)
+			}
+		}
+	}()
+	x = 999
+	return nil
+}
+
+func nullValLogos() (point string, recovered any, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			recovered = r
+		}
+	}()
+	b := (*box)(nil)
+	defer b.CloseVal()?
+	point = "stmt"
+	return
+}
+
+func nullValHand() (point string, recovered any, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			recovered = r
+		}
+	}()
+	b := (*box)(nil)
+	defer b.CloseVal()
+	point = "stmt"
+	return
+}
+
+type ifaceCloser interface{ Close() error }
+
+type ifaceBox struct{ v int }
+
+//go:noinline
+func (b *ifaceBox) Close() error { return nil }
+
+func nullIfaceLogos() (point string, recovered any, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			recovered = r
+		}
+	}()
+	c := ifaceCloser(nil)
+	defer c.Close()?
+	point = "stmt"
+	return
+}
+
+func nullIfaceHand() (point string, recovered any, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			recovered = r
+		}
+	}()
+	var c ifaceCloser
+	defer c.Close()?
+	point = "stmt"
+	return
+}
+
+func nullFnLogos() (point string, recovered any, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			recovered = r
+		}
+	}()
+	var f func() error
+	defer f()?
+	point = "stmt"
+	return
+}
+
+func nullFnHand() (point string, recovered any, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			recovered = r
+		}
+	}()
+	var f func() error
+	f0 := f
+	defer func() {
+		if e := f0(); e != nil {
+			err = e
+		}
+	}()
+	point = "stmt"
+	return
+}
+
+func nullCase(name string, lp, hp func() (string, any, error)) {
+	var l, h struct {
+		point string
+		rec   any
+		err   error
+	}
+	l.point, l.rec, l.err = lp()
+	h.point, h.rec, h.err = hp()
+	lok := l.rec != nil && l.err == nil
+	hok := h.rec != nil && h.err == nil
+	check(name, lok && hok && l.point == h.point, fmt.Sprint("logos=", l.point, ",", l.rec != nil, " hand=", h.point, ",", h.rec != nil))
+}
+
+type bigArg struct {
+	a [200]byte
+	n int
+}
+
+//go:noinline
+func lsumBig(b bigArg) error {
+	t := 0
+	for _, v := range b.a {
+		t += int(v)
+	}
+	lOrder = append(lOrder, fmt.Sprint("big:", t+b.n))
+	return nil
+}
+
+//go:noinline
+func hsumBig(b bigArg) error {
+	t := 0
+	for _, v := range b.a {
+		t += int(v)
+	}
+	hOrder = append(hOrder, fmt.Sprint("big:", t+b.n))
+	return nil
+}
+
+func bigLogos() (err error) {
+	b := bigArg{n: 3}
+	for i := range b.a {
+		b.a[i] = 1
+	}
+	defer lsumBig(b)?
+	return nil
+}
+
+func bigHand() (err error) {
+	b := bigArg{n: 3}
+	for i := range b.a {
+		b.a[i] = 1
+	}
+	c := b
+	defer func() {
+		if e := hsumBig(c); e != nil {
+			if err == nil {
+				err = e
+			} else {
+				err = errors.Join(err, e)
+			}
+		}
+	}()
+	return nil
+}
+
+//go:noinline
+func lvar(a int, rest ...int) error {
+	t := a
+	for _, v := range rest {
+		t += v
+	}
+	lOrder = append(lOrder, fmt.Sprint("var:", t))
+	return nil
+}
+
+//go:noinline
+func hvar(a int, rest ...int) error {
+	t := a
+	for _, v := range rest {
+		t += v
+	}
+	hOrder = append(hOrder, fmt.Sprint("var:", t))
+	return nil
+}
+
+func variadicLogos() (err error) {
+	s := []int{1, 2, 3}
+	defer lvar(10, s...)?
+	return nil
+}
+
+func variadicHand() (err error) {
+	s := []int{1, 2, 3}
+	t := s
+	defer func() {
+		if e := hvar(10, t...); e != nil {
+			if err == nil {
+				err = e
+			} else {
+				err = errors.Join(err, e)
+			}
+		}
+	}()
+	return nil
+}
+
+//go:noinline
+func lgen[T any](v T) error {
+	lOrder = append(lOrder, fmt.Sprint("gen:", v))
+	return nil
+}
+
+//go:noinline
+func hgen[T any](v T) error {
+	hOrder = append(hOrder, fmt.Sprint("gen:", v))
+	return nil
+}
+
+func genericLogos() (err error) {
+	defer lgen(41)?
+	return nil
+}
+
+func genericHand() (err error) {
+	defer func() {
+		if e := hgen(41); e != nil {
+			if err == nil {
+				err = e
+			} else {
+				err = errors.Join(err, e)
+			}
+		}
+	}()
+	return nil
+}
+
+//go:noinline
+func lwipeClose(c ifaceCloser) error {
+	lOrder = append(lOrder, "ifaceclosed")
+	return c.Close()
+}
+
+//go:noinline
+func hwipeClose(c ifaceCloser) error {
+	hOrder = append(hOrder, "ifaceclosed")
+	return c.Close()
+}
+
+func ifaceLogos() (err error) {
+	defer lwipeClose(&ifaceBox{v: 5})?
+	return nil
+}
+
+func ifaceHand() (err error) {
+	defer func() {
+		if e := hwipeClose(&ifaceBox{v: 5}); e != nil {
+			if err == nil {
+				err = e
+			} else {
+				err = errors.Join(err, e)
+			}
+		}
+	}()
+	return nil
+}
+
+//go:noinline
+func (b *box) Close() error {
+	lOrder = append(lOrder, "mv")
+	return nil
+}
+
+//go:noinline
+func (b *box) hCloseMV() error {
+	hOrder = append(hOrder, "mv")
+	return nil
+}
+
+func methodValLogos() (err error) {
+	b := &box{v: 9}
+	m := b.Close
+	defer m()?
+	return nil
+}
+
+func methodValHand() (err error) {
+	b := &box{v: 9}
+	m := b.hCloseMV
+	defer func() {
+		if e := m(); e != nil {
+			if err == nil {
+				err = e
+			} else {
+				err = errors.Join(err, e)
+			}
+		}
+	}()
+	return nil
+}
+
+//go:noinline
+func failSecond() error { return errSecond }
+
+func joinLogos() (err error) {
+	defer failSecond()?
+	return errFirst
+}
+
+func joinHand() (err error) {
+	defer func() {
+		if e := failSecond(); e != nil {
+			if err == nil {
+				err = e
+			} else {
+				err = errors.Join(err, e)
+			}
+		}
+	}()
+	return errFirst
+}
+
+func joinCase(name string, f func() error) {
+	err := f()
+	check(name, errors.Is(err, errFirst) && errors.Is(err, errSecond) && err.Error() == "first\nsecond", fmt.Sprint(err))
+}
+
+type typedBox struct{ msg string }
+
+func (e *typedBox) Error() string {
+	if e == nil {
+		return "typed"
+	}
+	return e.msg
+}
+
+//go:noinline
+func typedNilErr() error {
+	p := (*typedBox)(nil)
+	return p
+}
+
+func typedNilLogos() (err error) {
+	defer typedNilErr()?
+	return nil
+}
+
+func typedNilHand() (err error) {
+	defer func() {
+		if e := typedNilErr(); e != nil {
+			if err == nil {
+				err = e
+			} else {
+				err = errors.Join(err, e)
+			}
+		}
+	}()
+	return nil
+}
+
+func typedNilCase(name string, f func() error) {
+	err := f()
+	_, isBox := err.(*typedBox)
+	check(name, err != nil && isBox && err.Error() == "typed", fmt.Sprint(err))
+}
+
+func panicInnerLogos(k int) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			lOrder = append(lOrder, fmt.Sprint("recovered:", r))
+		}
+	}()
+	for i := 0; i < k; i++ {
+		defer ltry(fmt.Sprint(i))?
+	}
+	panic("boom")
+}
+
+func panicInnerHand(k int) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			hOrder = append(hOrder, fmt.Sprint("recovered:", r))
+		}
+	}()
+	for i := 0; i < k; i++ {
+		x := i
+		defer func() {
+			if e := htry(fmt.Sprint(x)); e != nil {
+				if err == nil {
+					err = e
+				} else {
+					err = errors.Join(err, e)
+				}
+			}
+		}()
+	}
+	panic("boom")
+}
+
+func panicCallerLogos(k int) (err error) {
+	for i := 0; i < k; i++ {
+		defer ltry(fmt.Sprint(i))?
+	}
+	panic("outer-boom")
+}
+
+func panicCallerHand(k int) (err error) {
+	for i := 0; i < k; i++ {
+		x := i
+		defer func() {
+			if e := htry(fmt.Sprint(x)); e != nil {
+				if err == nil {
+					err = e
+				} else {
+					err = errors.Join(err, e)
+				}
+			}
+		}()
+	}
+	panic("outer-boom")
+}
+
+//logos:allow(slop::discarded_error)
+func callPanics(lfunc, hfunc func(int) error, k int) {
+	lOrder = nil
+	callAndRecover(lfunc, k)
+	lgot := append([]string(nil), lOrder...)
+	hOrder = nil
+	callAndRecover(hfunc, k)
+	check("panic-caller", sameStrings(lgot, hOrder), fmt.Sprint("logos=", lgot, " hand=", hOrder))
+}
+
+//logos:allow(slop::discarded_error)
+func callAndRecover(f func(int) error, k int) {
+	func() {
+		defer func() { _ = recover() }()
+		_ = f(k)
+	}()
+}
+
+//logos:allow(correctness::unbounded_channel_op)
+func goexitTry(done chan string, s string) error {
+	done <- "try:" + s
+	return nil
+}
+
+func goexitLogos(done chan string) (err error) {
+	for i := 0; i < 3; i++ {
+		defer goexitTry(done, fmt.Sprint(i))?
+	}
+	runtime.Goexit()
+	return nil
+}
+
+func goexitHand(done chan string) {
+	for i := 0; i < 3; i++ {
+		x := i
+		d := done
+		defer func() {
+			_ = goexitTry(d, fmt.Sprint(x))
+		}()
+	}
+	runtime.Goexit()
+}
+
+//logos:allow(correctness::unbounded_channel_op)
+func goexitCase(name string, f func(chan string)) (err error) {
+	done := make(chan string, 8)
+	go group (context.Background()) {
+		go f(done)
+	}
+	got := make([]string, 0, 3)
+	timeout := time.After(30 * time.Second)
+	for i := 0; i < 3; i++ {
+		select {
+		case s := <-done:
+			got = append(got, s)
+		case <-timeout:
+			check(name, false, "timeout")
+			return
+		}
+	}
+	check(name, sameStrings(got, []string{"try:2", "try:1", "try:0"}), fmt.Sprint(got))
+	return nil
+}
+
+//logos:allow(slop::discarded_error)
+func funclitLogos() (err error) {
+	_ = func() (err error) {
+		for i := 0; i < 3; i++ {
+			defer ltry(fmt.Sprint(i))?
+		}
+		return nil
+	}()
+	return nil
+}
+
+func funclitHand() (err error) {
+	func() {
+		for i := 0; i < 3; i++ {
+			x := i
+			defer func() {
+				if e := htry(fmt.Sprint(x)); e != nil {
+					if err == nil {
+						err = e
+					} else {
+						err = errors.Join(err, e)
+					}
+				}
+			}()
+		}
+	}()
+	return nil
+}
+
+func fnValLA() error { lnote("a"); return nil }
+
+func fnValLB() error { lnote("b"); return nil }
+
+func fnValHA() error { hnote("a"); return nil }
+
+func fnValHB() error { hnote("b"); return nil }
+
+func fnValLogos() (err error) {
+	f := fnValLA
+	defer f()?
+	f = fnValLB
+	return nil
+}
+
+func fnValHand() (err error) {
+	f := fnValHA
+	captured := f
+	defer func() {
+		if e := captured(); e != nil {
+			if err == nil {
+				err = e
+			} else {
+				err = errors.Join(err, e)
+			}
+		}
+	}()
+	f = fnValHB
+	return nil
+}
+
+var q1Seen any = "unset"
+
+//go:noinline
+func q1try() error {
+	q1Seen = recover()
+	return nil
+}
+
+func q1Logos() (err error) {
+	defer q1try()?
+	panic("q1")
+}
+
+func q1Hand() (err error) {
+	defer func() {
+		if e := q1try(); e != nil {
+			if err == nil {
+				err = e
+			} else {
+				err = errors.Join(err, e)
+			}
+		}
+	}()
+	panic("q1")
+}
+
+//logos:allow(slop::discarded_error)
+func q1Case(name string, f func() error) {
+	q1Seen = "unset"
+	var outer any
+	func() {
+		defer func() { outer = recover() }()
+		_ = f()
+	}()
+	check(name, q1Seen == nil, fmt.Sprint("recover() inside f returned ", q1Seen))
+	check(name+"-outer", outer == "q1", fmt.Sprint("outer recover() returned ", outer))
+}
+
+func sortedCopy(vs []string) []string {
+	out := append([]string(nil), vs...)
+	sort.Strings(out)
+	return out
+}
+
+//logos:allow(correctness::unbounded_channel_op)
+//logos:allow(slop::discarded_error)
+func main() {
+	orderCase("loop3", func() error { return loop3Logos(4) }, func() error { return loop3Hand(4) })
+	orderCase("range-int", func() error { return rangeIntLogos(4) }, func() error { return rangeIntHand(4) })
+	orderCase("range-slice", func() error { return rangeSliceLogos([]int{3, 1, 2}) }, func() error { return rangeSliceHand([]int{3, 1, 2}) })
+	lOrder = nil
+	_ = rangeMapLogos(map[string]int{"a": 1, "b": 2})
+	lgot := sortedCopy(lOrder)
+	hOrder = nil
+	_ = rangeMapHand(map[string]int{"a": 1, "b": 2})
+	check("range-map", sameStrings(lgot, sortedCopy(hOrder)), fmt.Sprint("logos=", lgot, " hand=", hOrder))
+	mkchan := func() chan int {
+		ch := make(chan int, 4)
+		for _, v := range []int{7, 8, 9} {
+			ch <- v
+		}
+		close(ch)
+		return ch
+	}
+	orderCase("range-chan", func() error { return rangeChanLogos(mkchan()) }, func() error { return rangeChanHand(mkchan()) })
+	orderCase("goto", func() error { return gotoLogos(4) }, func() error { return gotoHand(4) })
+	orderCase("nested", func() error { return nestedLogos(3) }, func() error { return nestedHand(3) })
+	orderCase("labeled-continue", func() error { return labeledContLogos(4) }, func() error { return labeledContHand(4) })
+	orderCase("labeled-break", func() error { return labeledBreakLogos(4) }, func() error { return labeledBreakHand(4) })
+	orderCase("recv-mut", recvLogos, recvHand)
+	orderCase("arg-mut", argMutLogos, argMutHand)
+	nullCase("null-valrecv", nullValLogos, nullValHand)
+	nullCase("null-iface", nullIfaceLogos, nullIfaceHand)
+	nullCase("null-funcval", nullFnLogos, nullFnHand)
+	orderCase("big-arg", bigLogos, bigHand)
+	orderCase("variadic", variadicLogos, variadicHand)
+	orderCase("generic", genericLogos, genericHand)
+	orderCase("iface-method", ifaceLogos, ifaceHand)
+	orderCase("method-value", methodValLogos, methodValHand)
+	orderCase("fn-value", fnValLogos, fnValHand)
+	check("fn-value-first", sameStrings(lOrder, []string{"a"}), fmt.Sprint(lOrder))
+	joinCase("join-two-logos", joinLogos)
+	joinCase("join-two-hand", joinHand)
+	typedNilCase("typed-nil-logos", typedNilLogos)
+	typedNilCase("typed-nil-hand", typedNilHand)
+	orderCase("panic-inner", func() error { return panicInnerLogos(5) }, func() error { return panicInnerHand(5) })
+	callPanics(panicCallerLogos, panicCallerHand, 4)
+	_ = goexitCase("goexit-logos", func(done chan string) { _ = goexitLogos(done) })
+	_ = goexitCase("goexit-hand", goexitHand)
+	orderCase("nested-funclit", funclitLogos, funclitHand)
+	q1Case("recover-in-f-logos", q1Logos)
+	q1Case("recover-in-f-hand", q1Hand)
+	if failed {
+		os.Exit(1)
+	}
+}

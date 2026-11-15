@@ -1,0 +1,146 @@
+// run
+
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type node struct{ id int }
+
+func (n *node) twice() int { return n.id * 2 }
+
+func idOf(n *node) int { return n.id }
+
+type counter int
+
+func (c counter) double() counter { return c * 2 }
+
+func intCells() {
+	sl := [](int?){7, nil}
+	ar := [2](int?){7, nil}
+	mp := map[int]int{0: 7}
+	ms := map[string]int{"a": 7}
+	a, b := sl[0] ?? 3, sl[1] ?? 3
+	check("slice-int-some", a == 7, a, 7)
+	check("slice-int-none", b == 3, b, 3)
+	a, b = ar[0] ?? 3, ar[1] ?? 3
+	check("array-int-some", a == 7, a, 7)
+	check("array-int-none", b == 3, b, 3)
+	a, b = mp[0] ?? 3, mp[1] ?? 3
+	check("map-int-some", a == 7, a, 7)
+	check("map-int-none", b == 3, b, 3)
+	a, b = ms["a"] ?? 3, ms["z"] ?? 3
+	check("strmap-int-some", a == 7, a, 7)
+	check("strmap-int-none", b == 3, b, 3)
+}
+
+func counterCells() {
+	sl := [](counter?){4, nil}
+	ar := [2](counter?){4, nil}
+	mp := map[int]counter{0: 4}
+	ms := map[string]counter{"a": 4}
+	a, b := sl[0]?.double() ?? -1, sl[1]?.double() ?? -1
+	check("slice-counter-some", a == 8, a, 8)
+	check("slice-counter-none", b == -1, b, -1)
+	a, b = ar[0]?.double() ?? -1, ar[1]?.double() ?? -1
+	check("array-counter-some", a == 8, a, 8)
+	check("array-counter-none", b == -1, b, -1)
+	a, b = mp[0]?.double() ?? -1, mp[1]?.double() ?? -1
+	check("map-counter-some", a == 8, a, 8)
+	check("map-counter-none", b == -1, b, -1)
+	a, b = ms["a"]?.double() ?? -1, ms["z"]?.double() ?? -1
+	check("strmap-counter-some", a == 8, a, 8)
+	check("strmap-counter-none", b == -1, b, -1)
+}
+
+func pointerCells() {
+	n := &node{id: 5}
+	fallback := &node{id: 9}
+	sl := [](*node?){n, nil}
+	ar := [2](*node?){n, nil}
+	mp := map[int]*node{0: n}
+	ms := map[string]*node{"a": n}
+	a, b := idOf(sl[0] ?? fallback), idOf(sl[1] ?? fallback)
+	check("slice-ptr-some", a == 5, a, 5)
+	check("slice-ptr-none", b == 9, b, 9)
+	a, b = sl[0]?.twice() ?? -1, sl[1]?.twice() ?? -1
+	check("slice-ptr-call-some", a == 10, a, 10)
+	check("slice-ptr-call-none", b == -1, b, -1)
+	a, b = idOf(ar[0] ?? fallback), idOf(ar[1] ?? fallback)
+	check("array-ptr-some", a == 5, a, 5)
+	check("array-ptr-none", b == 9, b, 9)
+	a, b = ar[0]?.id ?? -1, ar[1]?.id ?? -1
+	check("array-ptr-field-some", a == 5, a, 5)
+	check("array-ptr-field-none", b == -1, b, -1)
+	a, b = idOf(mp[0] ?? fallback), idOf(mp[1] ?? fallback)
+	check("map-ptr-some", a == 5, a, 5)
+	check("map-ptr-none", b == 9, b, 9)
+	a, b = mp[0]?.twice() ?? -1, mp[1]?.twice() ?? -1
+	check("map-ptr-call-some", a == 10, a, 10)
+	check("map-ptr-call-none", b == -1, b, -1)
+	a, b = idOf(ms["a"] ?? fallback), idOf(ms["z"] ?? fallback)
+	check("strmap-ptr-some", a == 5, a, 5)
+	check("strmap-ptr-none", b == 9, b, 9)
+	a, b = ms["a"]?.id ?? -1, ms["z"]?.id ?? -1
+	check("strmap-ptr-field-some", a == 5, a, 5)
+	check("strmap-ptr-field-none", b == -1, b, -1)
+}
+
+func tupleCells() {
+	v := (1, 2)
+	sl := []((int, int)?){v, nil}
+	ar := [2]((int, int)?){v, nil}
+	mp := map[int](int, int){0: (1, 2)}
+	ms := map[string](int, int){"a": (1, 2)}
+	t := sl[0] ?? (3, 4)
+	a, b := t
+	check("slice-tuple-some", a == 1 && b == 2, fmt.Sprint(a, b), "1 2")
+	t = sl[1] ?? (3, 4)
+	a, b = t
+	check("slice-tuple-none", a == 3 && b == 4, fmt.Sprint(a, b), "3 4")
+	t = ar[0] ?? (3, 4)
+	a, b = t
+	check("array-tuple-some", a == 1 && b == 2, fmt.Sprint(a, b), "1 2")
+	t = ar[1] ?? (3, 4)
+	a, b = t
+	check("array-tuple-none", a == 3 && b == 4, fmt.Sprint(a, b), "3 4")
+	t = mp[0] ?? (3, 4)
+	a, b = t
+	check("map-tuple-some", a == 1 && b == 2, fmt.Sprint(a, b), "1 2")
+	t = mp[1] ?? (3, 4)
+	a, b = t
+	check("map-tuple-none", a == 3 && b == 4, fmt.Sprint(a, b), "3 4")
+	t = ms["a"] ?? (3, 4)
+	a, b = t
+	check("strmap-tuple-some", a == 1 && b == 2, fmt.Sprint(a, b), "1 2")
+	t = ms["z"] ?? (3, 4)
+	a, b = t
+	check("strmap-tuple-none", a == 3 && b == 4, fmt.Sprint(a, b), "3 4")
+}
+
+func main() {
+	intCells()
+	counterCells()
+	pointerCells()
+	tupleCells()
+	if failed {
+		os.Exit(1)
+	}
+}

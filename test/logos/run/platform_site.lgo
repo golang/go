@@ -1,0 +1,126 @@
+// run
+
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strconv"
+	"strings"
+)
+
+type Holder struct {
+	F *flag.Flag
+	N int
+}
+
+type siteCase struct {
+	name string
+	run  func() string
+}
+
+func use(f *flag.Flag) string {
+	return f.Name
+}
+
+func fromReturn() *flag.Flag {
+	return flag.Lookup("missing") // site:return
+}
+
+func tryAssign() string {
+	var x *flag.Flag = flag.Lookup("have")
+	x = flag.Lookup("missing") // site:assign
+	return x.Name
+}
+
+func tryDeclared() string {
+	var x *flag.Flag = flag.Lookup("missing") // site:declared
+	return x.Name
+}
+
+func tryArg() string {
+	return use(flag.Lookup("missing")) // site:arg
+}
+
+func tryReturn() string {
+	return fromReturn().Name
+}
+
+func tryField() string {
+	h := Holder{
+		N: 1,
+		F: flag.Lookup("missing"), // site:field
+	}
+	return h.F.Name
+}
+
+func tryContAssign() string {
+	var x *flag.Flag = flag.Lookup("have")
+	x =
+		flag.Lookup("missing") // site:contassign
+	return x.Name
+}
+
+func tryContArg() string {
+	return use(
+		flag.Lookup("missing"), // site:contarg
+	)
+}
+
+func panicText(f func() string) (msg string) {
+	defer func() {
+		if r := recover(); r != nil {
+			msg = fmt.Sprint(r)
+		}
+	}()
+	return "no panic: " + f()
+}
+
+func markerLine(file, name string) int {
+	b, err := os.ReadFile(file)
+	if err != nil {
+		return -1
+	}
+	needle := "// site" + ":" + name
+	line := -1
+	for i, ln := range strings.Split(string(b), "\n") {
+		if strings.HasSuffix(ln, needle) {
+			if line != -1 {
+				return -1
+			}
+			line = i + 1
+		}
+	}
+	return line
+}
+
+func main() {
+	flag.String("have", "HAVE", "")
+	_, file, _, _ := runtime.Caller(0)
+	cases := []siteCase{
+		{"assign", tryAssign},
+		{"declared", tryDeclared},
+		{"arg", tryArg},
+		{"return", tryReturn},
+		{"field", tryField},
+		{"contassign", tryContAssign},
+		{"contarg", tryContArg},
+	}
+	failed := false
+	for _, c := range cases {
+		got := panicText(c.run)
+		want := "logos: nil from Go value stored into non-nil *flag.Flag at " + filepath.Base(file) + ":" + strconv.Itoa(markerLine(file, c.name))
+		if got != want {
+			failed = true
+			fmt.Printf("FAIL %s: got %q want %q\n", c.name, got, want)
+			continue
+		}
+		fmt.Println("ok", c.name)
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

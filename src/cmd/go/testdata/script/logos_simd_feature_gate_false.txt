@@ -1,0 +1,53 @@
+# When the simd/archsimd CPU feature check is false the array-operator
+# vector form takes the scalar successor: the binary keeps scalar adds
+# after the guard, and disabling AVX2 still adds correctly.
+[!GOARCH:amd64] skip 'simd feature gate needs amd64'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOEXPERIMENT=simd
+env GOAMD64=v1
+
+cd m
+logos build -o $WORK/exe .
+go tool objdump -s '^main\.addI32x8$' $WORK/exe
+stdout 'CALL.*X86Features\.AVX2\(SB\)'
+stdout 'VPADDD'
+stdout '(?s)X86Features\.AVX2.*ADDL'
+
+env GODEBUG=cpu.avx2=off
+logos run .
+stdout '^sums ok$'
+
+-- m/go.mod --
+module example.com/featuregatefalse
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import "fmt"
+
+//go:noinline
+func addI32x8(a, b [8]int32) [8]int32 { return a + b }
+
+func oracleAdd(a, b [8]int32) [8]int32 {
+	var r [8]int32
+	for i := range a {
+		r[i] = a[i] + b[i]
+	}
+	return r
+}
+
+func main() {
+	var a, b [8]int32
+	for i := range a {
+		a[i] = int32(i*7 - 100)
+		b[i] = int32(i*3 + 1)
+	}
+	if addI32x8(a, b) != oracleAdd(a, b) {
+		panic("int32 add mismatch")
+	}
+	fmt.Println("sums ok")
+}

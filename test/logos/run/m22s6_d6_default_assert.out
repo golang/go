@@ -1,1 +1,2 @@
-1
+ok default-field-initializes-to-one
+ok default-struct-satisfies-interface

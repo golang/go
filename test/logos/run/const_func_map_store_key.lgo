@@ -1,0 +1,158 @@
+// run
+
+package main
+
+import "fmt"
+
+type Name string
+type Level int8
+type pair struct{ a, b int }
+
+const key = "k"
+
+const func storeString(n int) map[string]int {
+	m := map[string]int{}
+	m["k"] = n
+	return m
+}
+
+const func storeNamed(n int) map[Name]int {
+	m := map[Name]int{}
+	m["k"] = n
+	return m
+}
+
+const func storeNamedInt(n int) map[Level]int {
+	m := map[Level]int{}
+	m[100] = n
+	return m
+}
+
+const func storeShift(n int) map[int8]int {
+	m := map[int8]int{}
+	m[1<<3] = n
+	return m
+}
+
+const func storeFloat(n int) map[float64]int {
+	m := map[float64]int{}
+	m[1] = n
+	m[0.5] = n + 1
+	return m
+}
+
+const func storeFloat32(n int) map[float32]int {
+	m := map[float32]int{}
+	m[2] = n
+	return m
+}
+
+const func storeComplex(n int) map[complex128]int {
+	m := map[complex128]int{}
+	m[2] = n
+	return m
+}
+
+const func storeRune(n int) map[rune]int {
+	m := map[rune]int{}
+	m['x'] = n
+	return m
+}
+
+const func storeByte(n int) map[byte]int {
+	m := map[byte]int{}
+	m['x'] = n
+	return m
+}
+
+const func storeBool(n int) map[bool]int {
+	m := map[bool]int{}
+	m[true] = n
+	return m
+}
+
+const func storeArray(n int) map[[2]int]int {
+	m := map[[2]int]int{}
+	m[[2]int{1, 2}] = n
+	return m
+}
+
+const func storeStruct(n int) map[pair]int {
+	m := map[pair]int{}
+	m[pair{1, 2}] = n
+	return m
+}
+
+const func storeOverwrite(n int) map[string]int {
+	m := map[string]int{"k": 1}
+	m["k"] = n
+	return m
+}
+
+const func storeSpelling(n int) map[string]int {
+	m := map[string]int{}
+	m[key] = 1
+	m["k"] = n
+	return m
+}
+
+const func storeIncrement(n int) map[string]int {
+	m := map[string]int{}
+	m["k"]++
+	m["k"] += n
+	return m
+}
+
+const func storeRead(n int) int {
+	m := map[Name]int{}
+	m["k"] = n
+	v := m["k"] ?? -1
+	w := m["absent"] ?? -2
+	return v*10 + w + 2
+}
+
+const bmString = storeString(4)
+const bmNamed = storeNamed(5)
+const bmNamedInt = storeNamedInt(6)
+const bmShift = storeShift(7)
+const bmFloat = storeFloat(8)
+const bmFloat32 = storeFloat32(9)
+const bmComplex = storeComplex(10)
+const bmRune = storeRune(11)
+const bmByte = storeByte(12)
+const bmBool = storeBool(13)
+const bmArray = storeArray(14)
+const bmStruct = storeStruct(15)
+const bmOverwrite = storeOverwrite(16)
+const bmSpelling = storeSpelling(17)
+const bmIncrement = storeIncrement(18)
+const readBack = storeRead(19)
+
+func check(name string, got, want, size int) {
+	if got != want || size == 0 {
+		fmt.Println("FAIL", name, got, want, size)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func main() {
+	check("string", bmString["k"] ?? -1, 4, len(bmString))
+	check("named", bmNamed["k"] ?? -1, 5, len(bmNamed))
+	check("named-int", bmNamedInt[100] ?? -1, 6, len(bmNamedInt))
+	check("shift", bmShift[8] ?? -1, 7, len(bmShift))
+	check("float", bmFloat[1] ?? -1, 8, len(bmFloat))
+	check("float-frac", bmFloat[0.5] ?? -1, 9, len(bmFloat))
+	check("float32", bmFloat32[2] ?? -1, 9, len(bmFloat32))
+	check("complex", bmComplex[2] ?? -1, 10, len(bmComplex))
+	check("rune", bmRune['x'] ?? -1, 11, len(bmRune))
+	check("byte", bmByte['x'] ?? -1, 12, len(bmByte))
+	check("bool", bmBool[true] ?? -1, 13, len(bmBool))
+	check("array", bmArray[[2]int{1, 2}] ?? -1, 14, len(bmArray))
+	check("struct", bmStruct[pair{1, 2}] ?? -1, 15, len(bmStruct))
+	check("overwrite", bmOverwrite["k"] ?? -1, 16, len(bmOverwrite))
+	check("spelling", bmSpelling["k"] ?? -1, 17, len(bmSpelling))
+	check("increment", bmIncrement["k"] ?? -1, 19, len(bmIncrement))
+	check("read-back", readBack, 190, 1)
+	check("len", len(bmFloat), 2, 2)
+}

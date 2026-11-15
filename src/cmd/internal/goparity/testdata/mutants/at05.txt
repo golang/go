@@ -1,0 +1,8 @@
+kind: runtime
+file: src/runtime/arena_logos.go
+expect: at05_arena_gc
+config: K5
+-- old --
+for hdrAddr := c.scanCur; hdrAddr < c.scanBase; {
+-- new --
+for hdrAddr := c.scanBase; hdrAddr < c.scanBase; {

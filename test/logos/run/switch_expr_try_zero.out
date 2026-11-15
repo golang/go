@@ -1,0 +1,16 @@
+ok def
+ok def-fail
+ok assign
+ok assign-fail
+ok expr
+ok expr-fail
+ok sum
+ok sum-fail
+ok return
+ok return-fail
+ok cond
+ok cond-fail
+ok for
+ok for-fail
+ok ptr-fail
+ok generic-fail

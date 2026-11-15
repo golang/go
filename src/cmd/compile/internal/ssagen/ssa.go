@@ -364,9 +364,6 @@ func buildssa(fn *ir.Func, worker int, isPgoHot bool) *ssa.Func {
 	if fn.Pragma&ir.Nosplit != 0 {
 		s.f.NoSplit = true
 	}
-	if base.LogosNoLB(base.Ctxt.Pkgpath, base.Ctxt.PosTable.Pos(fn.Pos()).Filename(), fn.Sym().Name) {
-		s.f.LogosNoLB = true
-	}
 	s.f.ABI0 = ssaConfig.ABI0
 	s.f.ABI1 = ssaConfig.ABI1
 	s.f.ABIDefault = abiForFunc(nil, ssaConfig.ABI0, ssaConfig.ABI1)
@@ -522,6 +519,9 @@ func buildssa(fn *ir.Func, worker int, isPgoHot bool) *ssa.Func {
 	// Populate closure variables.
 	if fn.Needctxt() {
 		clo := s.entryNewValue0(ssa.OpGetClosurePtr, s.f.Config.Types.BytePtr)
+		if fn.DeferTryThunk() {
+			s.assign(fn.Dcl[0], clo, false, 0)
+		}
 		if fn.RangeParent != nil && base.Flag.N != 0 {
 			// For a range body closure, keep its closure pointer live on the
 			// stack with a special name, so the debugger can look for it and
@@ -1716,7 +1716,6 @@ func (s *state) stmt(n ir.Node) {
 			s.intrinsicCall(n)
 			return
 		}
-		logosSynthMark(s, n)
 		fallthrough
 
 	case ir.OCALLINTER:
@@ -3820,6 +3819,9 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 
 	case ir.ONEW:
 		n := n.(*ir.UnaryExpr)
+		if escape.LogosArenaObject(n, s.curfn) {
+			return s.logosArenaNew(n)
+		}
 		if x, ok := n.X.(*ir.DynamicType); ok && x.Op() == ir.ODYNAMICTYPE {
 			return s.newObjectNonSpecialized(n.Type().Elem(), s.expr(x.RType))
 		}
@@ -3880,10 +3882,7 @@ func (s *state) getBackingStoreInfo(n ir.Node) *backingStoreInfo {
 	if et.Size() == 0 || et.Size() > maxStackSize {
 		return nil
 	}
-	if base.Flag.N != 0 {
-		return nil
-	}
-	if !base.VariableMakeHash.MatchPos(n.Pos(), nil) {
+	if !base.VariableMakeEnabled(n.Pos()) {
 		return nil
 	}
 	i := s.backingStores[n]
@@ -4036,7 +4035,7 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 	// TODO: handle ... append case? Currently we handle only
 	// a fixed number of appended elements.
 	var info *backingStoreInfo
-	if !inplace {
+	if !inplace && s.logosRegionAppendSlice(n) == nil {
 		info = s.getBackingStoreInfoForAppend(n)
 	}
 
@@ -4130,7 +4129,9 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 	s.startBlock(grow)
 	taddr := s.expr(n.Fun)
 	var r []*ssa.Value
-	if info != nil && n.UseBuf {
+	if f, h, g := s.logosRegionGrowCall(n); f != nil {
+		r = s.rtcall(f, true, []*types.Type{n.Type()}, h, g, p, l, c, nargs, taddr)
+	} else if info != nil && n.UseBuf {
 		// Use stack-allocated buffer as backing store, if we can.
 		if et.HasPointers() && !info.usedStatic {
 			// Initialize in the function header. Not the best place,
@@ -5058,10 +5059,6 @@ func (s *state) callAddr(n *ir.CallExpr, k callKind) *ssa.Value {
 // Returns the address of the return value (or nil if none).
 func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool, deferExtra ir.Expr) *ssa.Value {
 	s.prevCall = nil
-	// Syscall foreign admission (logosgcmoving only): the Admit half goes
-	// before argument lowering so it precedes the call in memory order.
-	// Pure no-op for non-qualifying sites; see logos_syscall_order.go.
-	syscallAdmit := s.logosSyscallEmitAdmit(n, k)
 	var calleeLSym *obj.LSym // target function (if static)
 	var closure *ssa.Value   // ptr to closure to run (if dynamic)
 	var codeptr *ssa.Value   // ptr to target code (if dynamic)
@@ -5102,7 +5099,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool, deferExt
 					callABI = s.f.ABI1
 				}
 			}
-			if fn := n.Fun.Sym().Name; n.Fun.Sym().Pkg == ir.Pkgs.Runtime && fn == "deferrangefunc" {
+			if sym := n.Fun.Sym(); sym.Pkg == ir.Pkgs.Runtime && (sym.Name == "deferrangefunc" || sym.Name == "deferprocTry") {
 				isCallDeferRangeFunc = true
 			}
 			break
@@ -5265,9 +5262,6 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool, deferExt
 	}
 	s.prevCall = call
 	s.vars[memVar] = s.newValue1I(ssa.OpSelectN, types.TypeMem, int64(len(ACResults)), call)
-	// Syscall foreign admission: the End half pairs with the Admit token
-	// above. No-op unless Admit fired; preserves prevCall for ORESULTs.
-	s.logosSyscallEmitEnd(syscallAdmit)
 	// Insert VarLive opcodes.
 	for _, v := range n.KeepAlive {
 		if !v.Addrtaken() {
@@ -8150,8 +8144,6 @@ func (e *ssafn) Syslook(name string) *obj.LSym {
 		return ir.Syms.WBZero
 	case "wbMove":
 		return ir.Syms.WBMove
-	case "logosImmixStoreBarrier":
-		return typecheck.LookupRuntimeFunc("logosImmixStoreBarrier")
 	case "cgoCheckMemmove":
 		return ir.Syms.CgoCheckMemmove
 	case "cgoCheckPtrWrite":
@@ -8194,7 +8186,7 @@ func callTargetLSym(callee *ir.Name) *obj.LSym {
 }
 
 // deferStructFnField is the field index of _defer.fn.
-const deferStructFnField = 4
+const deferStructFnField = 5
 
 var deferType *types.Type
 
@@ -8213,6 +8205,7 @@ func deferstruct() *types.Type {
 	fields := []*types.Field{
 		makefield("heap", types.Types[types.TBOOL]),
 		makefield("rangefunc", types.Types[types.TBOOL]),
+		makefield("try", types.Types[types.TBOOL]),
 		makefield("sp", types.Types[types.TUINTPTR]),
 		makefield("pc", types.Types[types.TUINTPTR]),
 		// Note: the types here don't really matter. Defer structures

@@ -11,8 +11,6 @@ import (
 	"testing"
 )
 
-// TestRemapMultipleEarlierEdits pins PR2 T_ZU: remap is a function of
-// original coordinates only; the comparison line never shifts mid-loop.
 func TestRemapMultipleEarlierEdits(t *testing.T) {
 	shrink := []wireEdit{
 		{StartLine: 1, EndLine: 10, Replacement: "x"},
@@ -34,8 +32,6 @@ func TestRemapMultipleEarlierEdits(t *testing.T) {
 	}
 }
 
-// TestWalkGoFilesSkipsNestedModule pins PR2 T_ZY: discovery never
-// descends into a nested module directory.
 func TestWalkGoFilesSkipsNestedModule(t *testing.T) {
 	dir := t.TempDir()
 	write := func(path, body string) {

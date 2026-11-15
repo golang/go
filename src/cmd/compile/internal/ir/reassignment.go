@@ -18,9 +18,9 @@ import (
 // way that does just a single walk of the containing function (as
 // opposed to a new walk on every call).
 type ReassignOracle struct {
-	fn *Func
 	// maps candidate name to its defining assignment (or
-	// for params, defining func).
+	// for params, defining func); present nil = seen but
+	// reassigned, absent = outside snapshot.
 	singleDef map[*Name]Node
 
 	// funcAssigns tracks all known simple assignments (OAS) to
@@ -35,11 +35,10 @@ type ReassignOracle struct {
 
 // Init initializes the oracle based on the IR in function fn, laying
 // the groundwork for future calls to the StaticValue and Reassigned
-// methods. If the fn's IR is subsequently modified, Init must be
-// called again.
+// methods. Call Init again when the assignment status of an analyzed
+// name can change; queries analyze new/unindexed names and check
+// current address-taking.
 func (ro *ReassignOracle) Init(fn *Func) {
-	ro.fn = fn
-
 	// Collect candidate map. Start by adding function parameters
 	// explicitly.
 	ro.singleDef = make(map[*Name]Node)
@@ -111,7 +110,7 @@ func (ro *ReassignOracle) Init(fn *Func) {
 				// We found an assignment to name N that doesn't
 				// correspond to its original definition; remove
 				// from candidates.
-				delete(ro.singleDef, oname)
+				ro.singleDef[oname] = nil
 			}
 		}
 		if _, ok := ro.funcAssigns[oname]; ok {
@@ -201,6 +200,12 @@ func (ro *ReassignOracle) staticValue1(nn Node) Node {
 	if defn == nil {
 		return nil
 	}
+	if op := defn.Op(); op != OAS && op != OAS2 {
+		return nil
+	}
+	if ro.Reassigned(n) {
+		return nil
+	}
 
 	var rhs Node
 FindRHS:
@@ -217,15 +222,9 @@ FindRHS:
 			}
 		}
 		base.FatalfAt(defn.Pos(), "%v missing from LHS of %v", n, defn)
-	default:
-		return nil
 	}
 	if rhs == nil {
 		base.FatalfAt(defn.Pos(), "RHS is nil: %v", defn)
-	}
-
-	if _, ok := ro.singleDef[n]; !ok {
-		return nil
 	}
 
 	return rhs
@@ -234,8 +233,12 @@ FindRHS:
 // Reassigned method has the same semantics as the ir package function
 // of the same name; see comments on [Reassigned] for more info.
 func (ro *ReassignOracle) Reassigned(n *Name) bool {
-	_, ok := ro.singleDef[n]
-	result := !ok
+	var result bool
+	if d, ok := ro.singleDef[n]; ok {
+		result = n.Addrtaken() || d == nil
+	} else {
+		result = Reassigned(n)
+	}
 	if consistencyCheckEnabled {
 		checkReassignedResult(n, result)
 	}

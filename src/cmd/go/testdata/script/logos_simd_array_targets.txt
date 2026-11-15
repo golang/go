@@ -1,0 +1,337 @@
+# SPEC 2.4: with GOEXPERIMENT=simd arm64 lowers array operators and
+# reductions to NEON vector forms and never checks an X86 feature. An
+# element kind that the lowering keeps scalar (int, uint, uintptr, a defined
+# type) gets no vector instruction. Without the experiment, and on riscv64,
+# the lowering is unrolled scalar code. The legs read the object code of
+# cross builds, so no emulator is needed.
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env CGO_ENABLED=0
+env GOOS=linux
+
+cd m
+
+env GOEXPERIMENT=simd
+env GOARCH=arm64
+logos build -o $WORK/arm64.exe .
+go tool objdump -s '^main\.addF32x8$' $WORK/arm64.exe
+stdout 'FADD V[0-9]+\.S4'
+! stdout 'X86Features'
+! stdout 'archsimd'
+go tool objdump -s '^main\.addAlias$' $WORK/arm64.exe
+stdout 'FADD V[0-9]+\.S4'
+! stdout 'X86Features'
+! stdout 'archsimd'
+go tool objdump -s '^main\.addByte$' $WORK/arm64.exe
+stdout 'VADD V[0-9]+\.B16'
+! stdout 'X86Features'
+! stdout 'archsimd'
+go tool objdump -s '^main\.addI32x8$' $WORK/arm64.exe
+stdout 'VADD V[0-9]+\.S4'
+! stdout 'X86Features'
+! stdout 'archsimd'
+go tool objdump -s '^main\.andF64x2$' $WORK/arm64.exe
+stdout 'VAND V[0-9]+\.B16'
+! stdout 'X86Features'
+! stdout 'archsimd'
+go tool objdump -s '^main\.dotF64$' $WORK/arm64.exe
+stdout 'FMUL V[0-9]+\.D2'
+! stdout 'X86Features'
+! stdout 'archsimd'
+go tool objdump -s '^main\.addInt$' $WORK/arm64.exe
+! stdout 'V[0-9]+\.[BHSD][0-9]+'
+! stdout 'archsimd'
+go tool objdump -s '^main\.addUint$' $WORK/arm64.exe
+! stdout 'V[0-9]+\.[BHSD][0-9]+'
+! stdout 'archsimd'
+go tool objdump -s '^main\.addUintptr$' $WORK/arm64.exe
+! stdout 'V[0-9]+\.[BHSD][0-9]+'
+! stdout 'archsimd'
+go tool objdump -s '^main\.addLane$' $WORK/arm64.exe
+! stdout 'V[0-9]+\.[BHSD][0-9]+'
+! stdout 'archsimd'
+go tool objdump -s '^main\.sumF64$' $WORK/arm64.exe
+! stdout 'V[0-9]+\.[BHSD][0-9]+'
+! stdout 'archsimd'
+
+env GOEXPERIMENT=
+logos build -o $WORK/arm64n.exe .
+go tool objdump -s '^main\.addF32x8$' $WORK/arm64n.exe
+! stdout 'V[0-9]+\.[BHSD][0-9]+'
+! stdout 'archsimd'
+cp stdout $WORK/arm64n-addF32x8.txt
+grep -count=8 'FADDS F[0-9]+, F[0-9]+, F[0-9]+' $WORK/arm64n-addF32x8.txt
+go tool objdump -s '^main\.dotF64$' $WORK/arm64n.exe
+! stdout 'FN?M(ADD|SUB)'
+go tool objdump -s '^main\.dotLane$' $WORK/arm64n.exe
+! stdout 'FN?M(ADD|SUB)'
+go tool objdump -s '^main\.dotLane$' $WORK/arm64.exe
+! stdout 'FN?M(ADD|SUB)'
+
+env GOEXPERIMENT=simd
+env GOARCH=riscv64
+logos build -o $WORK/riscv64.exe .
+go tool objdump -s '^main\.addF32x8$' $WORK/riscv64.exe
+! stdout 'archsimd'
+cp stdout $WORK/riscv64-addF32x8.txt
+grep -count=8 'FADDS F[0-9]+, F[0-9]+, F[0-9]+' $WORK/riscv64-addF32x8.txt
+go tool objdump -s '^main\.addInt$' $WORK/riscv64.exe
+! stdout 'archsimd'
+cp stdout $WORK/riscv64-addInt.txt
+grep -count=4 '\tADD X[0-9]+, X[0-9]+, X[0-9]+' $WORK/riscv64-addInt.txt
+go tool objdump -s '^main\.dotF64$' $WORK/riscv64.exe
+! stdout 'FN?M(ADD|SUB)'
+go tool objdump -s '^main\.dotLane$' $WORK/riscv64.exe
+! stdout 'FN?M(ADD|SUB)'
+
+env GOARCH=amd64
+env GOAMD64=v3
+env GOEXPERIMENT=
+logos build -o $WORK/amd64n.exe .
+go tool objdump -s '^main\.dotF64$' $WORK/amd64n.exe
+! stdout 'VFN?M(ADD|SUB)'
+go tool objdump -s '^main\.dotLane$' $WORK/amd64n.exe
+! stdout 'VFN?M(ADD|SUB)'
+env GOEXPERIMENT=simd
+logos build -o $WORK/amd64.exe .
+go tool objdump -s '^main\.dotLane$' $WORK/amd64.exe
+! stdout 'VFN?M(ADD|SUB)'
+
+env GOARCH=
+env GOAMD64=
+cd ../q
+logos run .
+stdout '^ok dot-f64x2$'
+stdout '^ok dot-f64x4$'
+stdout '^ok dot-f64x8$'
+stdout '^ok dot-f32x4$'
+stdout '^ok dot-f32x8$'
+stdout '^ok dot-f32x16$'
+! stdout 'FAIL'
+env GOARCH=arm64
+logos build -o $WORK/dotlaw-arm64.exe .
+[!exec:qemu-aarch64] skip 'qemu-aarch64 is required for the arm64 run'
+exec qemu-aarch64 $WORK/dotlaw-arm64.exe
+stdout '^ok dot-f64x2$'
+stdout '^ok dot-f64x4$'
+stdout '^ok dot-f64x8$'
+stdout '^ok dot-f32x4$'
+stdout '^ok dot-f32x8$'
+stdout '^ok dot-f32x16$'
+! stdout 'FAIL'
+
+-- m/go.mod --
+module example.com/arraytargets
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+type f32 = float32
+
+type lane float64
+
+//go:noinline
+func addF32x8(a, b [8]float32) [8]float32 { return a + b }
+
+//go:noinline
+func addAlias(a, b [8]f32) [8]f32 { return a + b }
+
+//go:noinline
+func addByte(a, b [32]byte) [32]byte { return a + b }
+
+//go:noinline
+func andF64x2(a, b [2]float64) [2]float64 { return a & b }
+
+//go:noinline
+func addI32x8(a, b [8]int32) [8]int32 { return a + b }
+
+//go:noinline
+func addInt(a, b [4]int) [4]int { return a + b }
+
+//go:noinline
+func addUint(a, b [4]uint) [4]uint { return a + b }
+
+//go:noinline
+func addUintptr(a, b [2]uintptr) [2]uintptr { return a + b }
+
+//go:noinline
+func addLane(a, b [4]lane) [4]lane { return a + b }
+
+//go:noinline
+func dotF64(a, b [4]float64) float64 { return a.dot(b) }
+
+//go:noinline
+func dotLane(a, b [4]lane) lane { return a.dot(b) }
+
+//go:noinline
+func sumF64(a [4]float64) float64 { return a.sum() }
+
+func main() {
+	var a, b [8]float32
+	var c, d [8]f32
+	var e, f [32]byte
+	var g, h [2]float64
+	var i, j [8]int32
+	var k, l [4]int
+	var m, n [4]uint
+	var o, p [2]uintptr
+	var q, r [4]lane
+	var s, t [4]float64
+	println(addF32x8(a, b)[0], addAlias(c, d)[0], addByte(e, f)[0], andF64x2(g, h)[0], addI32x8(i, j)[0])
+	println(addInt(k, l)[0], addUint(m, n)[0], addUintptr(o, p)[0], addLane(q, r)[0], dotF64(s, t), sumF64(s), dotLane(q, r))
+}
+
+-- q/go.mod --
+module example.com/dotlaw
+
+go 1.27
+
+-- q/main.lgo --
+package main
+
+import (
+	"fmt"
+	"math"
+	"math/rand"
+	"os"
+)
+
+type lane float64
+
+type lane32 float32
+
+const trials = 4000
+
+var failed bool
+
+func report(name string, bad int) {
+	if bad != 0 {
+		failed = true
+		fmt.Println("FAIL", name, bad, "of", trials)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func dot2() {
+	r := rand.New(rand.NewSource(2))
+	bad := 0
+	for range trials {
+		var a, b [2]float64
+		var c, d [2]lane
+		for i := range a {
+			a[i] = r.Float64()*2 - 1
+			b[i] = r.Float64()*2 - 1
+			c[i], d[i] = lane(a[i]), lane(b[i])
+		}
+		if math.Float64bits(a.dot(b)) != math.Float64bits(float64(c.dot(d))) {
+			bad++
+		}
+	}
+	report("dot-f64x2", bad)
+}
+
+func dot4() {
+	r := rand.New(rand.NewSource(4))
+	bad := 0
+	for range trials {
+		var a, b [4]float64
+		var c, d [4]lane
+		for i := range a {
+			a[i] = r.Float64()*2 - 1
+			b[i] = r.Float64()*2 - 1
+			c[i], d[i] = lane(a[i]), lane(b[i])
+		}
+		if math.Float64bits(a.dot(b)) != math.Float64bits(float64(c.dot(d))) {
+			bad++
+		}
+	}
+	report("dot-f64x4", bad)
+}
+
+func dot8() {
+	r := rand.New(rand.NewSource(8))
+	bad := 0
+	for range trials {
+		var a, b [8]float64
+		var c, d [8]lane
+		for i := range a {
+			a[i] = r.Float64()*2 - 1
+			b[i] = r.Float64()*2 - 1
+			c[i], d[i] = lane(a[i]), lane(b[i])
+		}
+		if math.Float64bits(a.dot(b)) != math.Float64bits(float64(c.dot(d))) {
+			bad++
+		}
+	}
+	report("dot-f64x8", bad)
+}
+
+func dot4f() {
+	r := rand.New(rand.NewSource(5))
+	bad := 0
+	for range trials {
+		var a, b [4]float32
+		var c, d [4]lane32
+		for i := range a {
+			a[i] = r.Float32()*2 - 1
+			b[i] = r.Float32()*2 - 1
+			c[i], d[i] = lane32(a[i]), lane32(b[i])
+		}
+		if math.Float32bits(a.dot(b)) != math.Float32bits(float32(c.dot(d))) {
+			bad++
+		}
+	}
+	report("dot-f32x4", bad)
+}
+
+func dot8f() {
+	r := rand.New(rand.NewSource(9))
+	bad := 0
+	for range trials {
+		var a, b [8]float32
+		var c, d [8]lane32
+		for i := range a {
+			a[i] = r.Float32()*2 - 1
+			b[i] = r.Float32()*2 - 1
+			c[i], d[i] = lane32(a[i]), lane32(b[i])
+		}
+		if math.Float32bits(a.dot(b)) != math.Float32bits(float32(c.dot(d))) {
+			bad++
+		}
+	}
+	report("dot-f32x8", bad)
+}
+
+func dot16f() {
+	r := rand.New(rand.NewSource(16))
+	bad := 0
+	for range trials {
+		var a, b [16]float32
+		var c, d [16]lane32
+		for i := range a {
+			a[i] = r.Float32()*2 - 1
+			b[i] = r.Float32()*2 - 1
+			c[i], d[i] = lane32(a[i]), lane32(b[i])
+		}
+		if math.Float32bits(a.dot(b)) != math.Float32bits(float32(c.dot(d))) {
+			bad++
+		}
+	}
+	report("dot-f32x16", bad)
+}
+
+func main() {
+	dot2()
+	dot4()
+	dot8()
+	dot4f()
+	dot8f()
+	dot16f()
+	if failed {
+		os.Exit(1)
+	}
+}

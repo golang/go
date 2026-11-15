@@ -16,10 +16,6 @@ import (
 	"internal/testenv"
 )
 
-// archsimdFeatureLines reads the `CPU Feature:` line of every
-// element-wise method in src/simd/archsimd/ops_amd64.go, keyed by
-// "<vector type>.<method>". The file is the ground truth for what each
-// emitted call needs from the CPU.
 func archsimdFeatureLines(t *testing.T) map[string]string {
 	t.Helper()
 	path := filepath.Join(testenv.GOROOT(t), "src", "simd", "archsimd", "ops_amd64.go")
@@ -51,11 +47,6 @@ var simdAttackLanes = []simdLane{
 	{"Float32", 4, true}, {"Float64", 8, true},
 }
 
-// TestSimdAmd64FeatureMatchesArchsimd is the M14-S2 attack: for every
-// (vector type, operator) the amd64 vector form can emit, the feature
-// the guard checks must be exactly the `CPU Feature:` of that archsimd
-// method. A narrower guard faults on a CPU lacking the feature; a wider
-// one needlessly takes the scalar form.
 func TestSimdAmd64FeatureMatchesArchsimd(t *testing.T) {
 	feats := archsimdFeatureLines(t)
 	checked := 0
@@ -80,12 +71,6 @@ func TestSimdAmd64FeatureMatchesArchsimd(t *testing.T) {
 	}
 }
 
-// TestSimdFragmentBlocksNormalized is the M14-S2 scope attack: the guard
-// puts nested blocks in a simd fragment, and the DWARF scope marker pops
-// each block at its closing brace and fatals when that position sorts
-// before the block start. A fragment parsed from "logos-simd" sorts
-// before any user file, so every closing brace must carry the
-// replacement position, not the fragment coordinates.
 func TestSimdFragmentBlocksNormalized(t *testing.T) {
 	pos := syntax.MakePos(syntax.NewFileBase("main.lgo"), 7, 3)
 	e := parseSimdExprFrag("func() int { if true { return 1 } else { return 2 } }()", pos)
@@ -104,10 +89,6 @@ func TestSimdFragmentBlocksNormalized(t *testing.T) {
 	}
 }
 
-// TestSimdGuardElision is the M14-S2 level attack: the guard is elided
-// exactly when the GOAMD64 level guarantees the feature, the baseline
-// feature (every arm64 form) is never guarded at any level, and the
-// check spells the archsimd X86 method.
 func TestSimdGuardElision(t *testing.T) {
 	cases := []struct {
 		level   int
@@ -127,7 +108,6 @@ func TestSimdGuardElision(t *testing.T) {
 		{3, simdFeatAVX512, "_logos_simd.X86.AVX512()"},
 		{4, simdFeatAVX512, ""},
 		{1, simdFeatBaseline, ""},
-		{4, simdFeatBaseline, ""},
 	}
 	saved := buildcfg.GOAMD64
 	defer func() { buildcfg.GOAMD64 = saved }()

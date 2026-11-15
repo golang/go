@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !logosejected
+
 // Attack tests for M1-S4: direct TraceErr/ErrorTrace behavior without ?
 // syntax. The three-function ? propagation chain is owned by M1-S5 and
 // is not covered here. Signatures follow the M1-S4 plan text verbatim:
@@ -57,6 +59,27 @@ func TestLogosTraceDifferentErrorResets(t *testing.T) {
 	rt.TraceErr(err1, &b)
 	rt.TraceErr(err2, &c)
 	checkTraceSites(t, rt.ErrorTrace(), []rt.Site{c})
+}
+
+type traceZeroA struct{}
+
+func (traceZeroA) Error() string { return "zeroA" }
+
+type traceZeroB struct{}
+
+func (traceZeroB) Error() string { return "zeroB" }
+
+func TestLogosTraceZeroSizeValuesReset(t *testing.T) {
+	a := traceZeroA{}
+	b := traceZeroB{}
+	sa := rt.Site{File: "zero_a.go", Line: 1}
+	sb := rt.Site{File: "zero_b.go", Line: 2}
+	rt.TraceErr(a, &sa)
+	rt.TraceErr(b, &sb)
+	checkTraceSites(t, rt.ErrorTrace(), []rt.Site{sb})
+	sc := rt.Site{File: "zero_b.go", Line: 3}
+	rt.TraceErr(b, &sc)
+	checkTraceSites(t, rt.ErrorTrace(), []rt.Site{sb, sc})
 }
 
 // TestLogosTraceGoroutineIndependent requires per-goroutine traces:

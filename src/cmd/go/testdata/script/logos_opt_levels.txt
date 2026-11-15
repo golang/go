@@ -1,114 +1,102 @@
-# M13-S1: -O levels and CPU targets (SPEC T-105). Levels apply to Go and
-# loGo/s packages under logos and plain go; go help build stays upstream.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
-# O0 passes -N -l to the compiler.
 logos build -a -x -O=0 .
 stderr '\-N \-l'
 
-# No flag means O2 under logos: inline budget 120, make threshold 256,
-# standard synthetic PGO.
+cd bufbin
+env WANT_STACKBUF=32
+logos build -O=0 -o $WORK/buf0$GOEXE .
+exec $WORK/buf0$GOEXE
+stdout '^buffer ok$'
+env WANT_STACKBUF=256
+exec $WORK/buf0$GOEXE
+stdout '^buffer wrong$'
+env WANT_STACKBUF=
+cd ..
+
 logos build -a -x .
-stderr '\-d=inlbudget=120,variablemakethreshold=256,logossynthpgo=standard'
+stderr '\-d=inlbudget=120,variablemakethreshold=256'
 
-# O2 is explicit too.
 logos build -a -x -O=2 .
-stderr '\-d=inlbudget=120,variablemakethreshold=256,logossynthpgo=standard'
+stderr '\-d=inlbudget=120,variablemakethreshold=256'
 
-# O3 raises the inline budget, adds the recursive-cycle budget and the
-# variable-make threshold, turns on specialization and aggressive PGO.
 logos build -a -x -O=3 .
-stderr '\-d=inlbudget=400,inlrecursivebudget=80,variablemakethreshold=4096,logosspecialize=1,logossynthpgo=aggressive'
+stderr '\-d=inlbudget=400,inlrecursivebudget=80,variablemakethreshold=4096'
+! stderr '-d=[^ ]*(escape|prove)'
 
-# The same flags apply to a Go module under logos build and go build.
 cd gomod
-logos build -a -x -O=2 .
-stderr '\-d=inlbudget=120,variablemakethreshold=256,logossynthpgo=standard'
-go build -a -x -O=2 .
-stderr '\-d=inlbudget=120,variablemakethreshold=256,logossynthpgo=standard'
 
-# Plain go without -O keeps the upstream default O1: none of the logos
-# debug flags appear.
 go build -a -x .
 ! stderr 'inlbudget'
 ! stderr 'variablemakethreshold'
-! stderr 'logossynthpgo'
-! stderr 'logosspecialize'
 
-# An invalid level fails under go with the accepted set.
 ! go build -O=4 .
-stderr 'go build: invalid -O level "4" \(want 0, 1, 2, 3, s, z\)'
+stderr 'go build: invalid -O level "4" \(want 0, 1, 2, 3, s\)'
 cd ..
 
-# An invalid level fails under logos with the accepted set.
 ! logos build -O=4 .
-stderr 'logos build: invalid -O level "4" \(want 0, 1, 2, 3, s, z\)'
+stderr 'logos build: invalid -O level "4" \(want 0, 1, 2, 3, s\)'
+! logos build -O=z .
+stderr 'logos build: invalid -O level "z" \(want 0, 1, 2, 3, s\)'
 
-# go help build carries no -O text.
 go help build
 ! stdout ' -O[= ]'
 
-# Os and Oz lower the inline budget and fold identical code in the
-# linker: the compile line carries -d=inlbudget=15, the link line carries
-# -logos.icf, and the folded program still runs.
-logos build -a -x -O=s .
-stderr '\-d=inlbudget=15'
-stderr 'link .*-logos\.icf'
-! stderr 'logossynthpgo'
+logos build -a -gcflags=example.com/optlevels=-m -O=s .
+! stderr 'inlining call to mid'
+logos build -a -gcflags=example.com/optlevels=-m .
+stderr 'inlining call to mid'
 logos run -O=s .
 stdout '^hello$'
-logos build -a -x -O=z .
-stderr '\-d=inlbudget=15'
-stderr 'link .*-logos\.icf'
-logos run -O=z .
-stdout '^hello$'
 
-# Only Os and Oz fold: O2 leaves the link line alone.
-logos build -a -x -O=2 .
-! stderr '\-logos\.icf'
-
-# Os and Oz fold the same way for a Go module under go build.
 cd gomod
-go build -a -x -O=s .
-stderr '\-d=inlbudget=15'
-stderr 'link .*-logos\.icf'
+go build -a -gcflags=example.com/optlevels/go=-m -O=s .
+! stderr 'inlining call to mid'
+go build -a -gcflags=example.com/optlevels/go=-m .
+stderr 'inlining call to mid'
+logos build -a -gcflags=example.com/optlevels/go=-m -O=2 .
+stderr 'inlining call to mid'
+go build -a -gcflags=example.com/optlevels/go=-m -O=0 .
+! stderr 'inlining call to mid'
+logos build -a -gcflags=example.com/optlevels/go=-m -O=0 .
+! stderr 'inlining call to mid'
 cd ..
 
-# The default level comes from logos.toml [build] opt_level.
 cd o3
 logos build -a -x .
-stderr '\-d=inlbudget=400,inlrecursivebudget=80,variablemakethreshold=4096,logosspecialize=1,logossynthpgo=aggressive'
-# An explicit -O overrides the file.
+stderr 'inlbudget=400'
+! stderr '\-N \-l'
 logos build -a -x -O=1 .
+stderr 'compile'
 ! stderr 'inlbudget'
+logos build -a -x -O=0 .
+stderr '\-N \-l'
+! stderr 'inlbudget=400'
 cd ..
 
-# Bare and unknown opt_level spellings fail with file and position.
 cd bad3
 ! logos build .
-stderr 'logos\.toml:5:13: opt_level must be one of O0, O1, O2, O3, Os, Oz'
+stderr 'logos\.toml:2:13: opt_level must be one of O0, O1, O2, O3, Os'
 cd ../badO4
 ! logos build .
-stderr 'logos\.toml:5:13: opt_level must be one of O0, O1, O2, O3, Os, Oz'
+stderr 'logos\.toml:2:13: opt_level must be one of O0, O1, O2, O3, Os'
 cd ..
 
-# File arguments ignore logos.toml: the invalid opt_level is never read
-# and the logos default level applies.
-cd bad3
-logos build -a -x main.lgo
-stderr '\-d=inlbudget=120,variablemakethreshold=256,logossynthpgo=standard'
-cd ..
 
-# target_cpu deterministic (the default) selects v3 unless set.
 logos build -a -x .
 stderr 'GOAMD64=.v3.'
+logos build -o $WORK/hello$GOEXE .
+exec go version -m $WORK/hello$GOEXE
+stdout 'GOAMD64=v3'
+# Plain go keeps the upstream default while logos defaults to v3.
+go env GOAMD64
+stdout '^v1$'
 env GOAMD64=v2
 logos build -a -x .
 stderr 'GOAMD64=.v2.'
 env GOAMD64=
 
-# The arm64 lane follows the same rule under cross-compilation.
 env GOARCH=arm64
 logos build -a -x .
 stderr 'GOARM64=.v8\.2.'
@@ -118,23 +106,32 @@ stderr 'GOARM64=.v8\.1.'
 env GOARM64=
 env GOARCH=
 
-# baseline pins the oldest CPUs; native picks the host level.
 cd baseline
 logos build -a -x .
 stderr 'GOAMD64=.v1.'
+env GOARCH=arm64
+logos build -a -x .
+stderr 'GOARM64=.v8\.0.'
+env GOARCH=
 cd ../native
 logos build -a -x .
-stderr 'GOAMD64=.v[134].'
+stderr 'GOAMD64=.v[34].'
 cd ..
 
-# The levels change what the compiled code does, not only the flags the
-# compiler receives: a frame-local make of variable size stays off the
-# heap up to the level's stack buffer and takes the heap one byte past
-# it. The expected size is written here beside each command and is never
-# read back from the build under test, so an optimization that stops
-# working fails the probe. This fixture is the single owner of the
-# level-size pairs; standard-library packages never receive the
-# variable-make flag, so their own tests keep the upstream bodies.
+cd pkgdep
+logos build -a -x .
+stderr 'GOAMD64=.v1..*-p main'
+stderr 'GOAMD64=.v1..*-p example\.com/optlevels/pkgdepdep/godep'
+cd ../pkgdep-native
+logos build -a -x .
+stderr 'GOAMD64=.v[34]..*-p main'
+stderr 'GOAMD64=.v[34]..*-p example\.com/optlevels/pkgdepdep/godep'
+cd ../mixedlevel
+logos build -a -x .
+stderr '-p main .*-d=inlbudget=400,inlrecursivebudget=80,variablemakethreshold=4096|-d=inlbudget=400,inlrecursivebudget=80,variablemakethreshold=4096.*-p main '
+stderr '-p example\.com/optlevels/pkgdepdep/godep .*-d=inlbudget=400,inlrecursivebudget=80,variablemakethreshold=4096|-d=inlbudget=400,inlrecursivebudget=80,variablemakethreshold=4096.*-p example\.com/optlevels/pkgdepdep/godep '
+cd ..
+
 cd stackbuf
 env WANT_STACKBUF=32
 go test -count=1 .
@@ -143,6 +140,12 @@ go test -count=1 -O=1 .
 stdout '^ok'
 logos test -count=1 -O=1 .
 stdout '^ok'
+go test -count=1 -run TestCompiledStackBuffer -O=0 .
+stdout '^ok'
+logos test -count=1 -run TestCompiledStackBuffer -O=0 .
+stdout '^ok'
+! go test -count=1 -gcflags=all='-N -l' .
+stdout 'want the stack buffer of 32 bytes to decide'
 env WANT_STACKBUF=256
 go test -count=1 -O=2 .
 stdout '^ok'
@@ -156,13 +159,10 @@ stdout '^ok'
 logos test -count=1 -O=3 .
 stdout '^ok'
 
-# An explicit -gcflags pin still wins over the level's buffer.
 env WANT_STACKBUF=32
 go test -count=1 -O=3 -gcflags=all=-d=variablemakethreshold=32 .
 stdout '^ok'
 
-# A build whose buffer is not the expected one fails the probe: a level
-# that lost its optimization cannot pass as a level that kept it.
 env WANT_STACKBUF=4096
 ! go test -count=1 -O=3 -gcflags=all=-d=variablemakethreshold=32 .
 stdout 'FAIL'
@@ -171,11 +171,18 @@ env WANT_STACKBUF=256
 stdout 'FAIL'
 env WANT_STACKBUF=
 cd ..
+logos build -a -x -O=3 cmp
+stderr 'compile'
+! stderr 'variablemakethreshold'
 
 -- stackbuf/go.mod --
 module example.com/optlevels/stackbuf
 
 go 1.27
+
+-- stackbuf/logos.toml --
+[build]
+arena = false
 
 -- stackbuf/stackbuf.go --
 package stackbuf
@@ -274,7 +281,19 @@ package main
 
 import "fmt"
 
+func mid(x int) int {
+	y := x + 11
+	y = y*3 - x
+	y ^= (x + 5) << 2
+	y += y * x
+	y -= (x ^ y) & 127
+	y *= 3
+	y += x * (y + 1)
+	return y - (x * 7)
+}
+
 func main() {
+	_ = mid(3)
 	fmt.Println("hello")
 }
 
@@ -288,7 +307,19 @@ package main
 
 import "fmt"
 
+func mid(x int) int {
+	y := x + 11
+	y = y*3 - x
+	y ^= (x + 5) << 2
+	y += y * x
+	y -= (x ^ y) & 127
+	y *= 3
+	y += x * (y + 1)
+	return y - (x * 7)
+}
+
 func main() {
+	_ = mid(3)
 	fmt.Println("hello")
 }
 
@@ -298,9 +329,6 @@ module example.com/optlevels/o3
 go 1.27
 
 -- o3/logos.toml --
-[project]
-name = "o3"
-
 [build]
 opt_level = "O3"
 
@@ -319,9 +347,6 @@ module example.com/optlevels/bad3
 go 1.27
 
 -- bad3/logos.toml --
-[project]
-name = "bad3"
-
 [build]
 opt_level = "3"
 
@@ -340,9 +365,6 @@ module example.com/optlevels/badO4
 go 1.27
 
 -- badO4/logos.toml --
-[project]
-name = "badO4"
-
 [build]
 opt_level = "O4"
 
@@ -361,9 +383,6 @@ module example.com/optlevels/baseline
 go 1.27
 
 -- baseline/logos.toml --
-[project]
-name = "baseline"
-
 [build]
 target_cpu = "baseline"
 
@@ -382,9 +401,6 @@ module example.com/optlevels/native
 go 1.27
 
 -- native/logos.toml --
-[project]
-name = "native"
-
 [build]
 target_cpu = "native"
 
@@ -395,4 +411,137 @@ import "fmt"
 
 func main() {
 	fmt.Println("hello")
+}
+
+-- pkgdep/go.mod --
+module example.com/optlevels/pkgdep
+
+go 1.27
+
+require example.com/optlevels/pkgdepdep v0.0.0
+
+replace example.com/optlevels/pkgdepdep => ../pkgdepdep
+
+-- pkgdep/logos.toml --
+[build]
+target_cpu = "baseline"
+
+-- pkgdep/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/optlevels/pkgdepdep/godep"
+)
+
+func main() {
+	fmt.Println(godep.Tag("hi"))
+}
+
+-- pkgdep-native/go.mod --
+module example.com/optlevels/pkgdep-native
+
+go 1.27
+
+require example.com/optlevels/pkgdepdep v0.0.0
+
+replace example.com/optlevels/pkgdepdep => ../pkgdepdep
+
+-- pkgdep-native/logos.toml --
+[build]
+target_cpu = "native"
+
+-- pkgdep-native/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/optlevels/pkgdepdep/godep"
+)
+
+func main() {
+	fmt.Println(godep.Tag("hi"))
+}
+
+-- mixedlevel/go.mod --
+module example.com/optlevels/mixedlevel
+
+go 1.27
+
+require example.com/optlevels/pkgdepdep v0.0.0
+
+replace example.com/optlevels/pkgdepdep => ../pkgdepdep
+
+-- mixedlevel/logos.toml --
+[build]
+opt_level = "O3"
+
+-- mixedlevel/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/optlevels/pkgdepdep/godep"
+)
+
+func main() {
+	fmt.Println(godep.Tag("hi"))
+}
+
+-- pkgdepdep/go.mod --
+module example.com/optlevels/pkgdepdep
+
+go 1.27
+
+-- pkgdepdep/godep/godep.go --
+package godep
+
+// Tag wraps s in brackets.
+func Tag(s string) string {
+	return "[" + s + "]"
+}
+
+-- bufbin/go.mod --
+module example.com/optlevels/bufbin
+
+go 1.27
+
+-- bufbin/logos.toml --
+[build]
+arena = false
+
+-- bufbin/main.go --
+package main
+
+import (
+	"fmt"
+	"os"
+	"strconv"
+	"testing"
+)
+
+//go:noinline
+func probe(n int) byte {
+	b := make([]byte, n)
+	b[0] = 1
+	return b[n-1]
+}
+
+func main() {
+	want, err := strconv.Atoi(os.Getenv("WANT_STACKBUF"))
+	if err != nil || want < 2 {
+		fmt.Println("buffer wrong")
+		return
+	}
+	half := testing.AllocsPerRun(10, func() { _ = probe(want / 2) })
+	at := testing.AllocsPerRun(10, func() { _ = probe(want) })
+	over := testing.AllocsPerRun(10, func() { _ = probe(want + 1) })
+	if half != 0 || at != 0 || over == 0 {
+		fmt.Println("buffer wrong")
+		return
+	}
+	fmt.Println("buffer ok")
 }

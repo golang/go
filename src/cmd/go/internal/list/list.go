@@ -620,6 +620,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		SuppressBuildInfo:  !*listExport && !listJsonFields.needAny("Stale", "StaleReason"),
 		SuppressEmbedFiles: !*listExport && !listJsonFields.needAny("EmbedFiles", "TestEmbedFiles", "XTestEmbedFiles"),
 	}
+	logosArmCompiled()
 	pkgs := load.PackagesAndErrors(moduleLoader, ctx, pkgOpts, args)
 	if !*listE {
 		w := 0
@@ -896,8 +897,9 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
+	logosFillCompiled(pkgs)
 	for _, p := range pkgs {
-		do(&p.PackagePublic)
+		do(logosListPackage(p))
 	}
 }
 

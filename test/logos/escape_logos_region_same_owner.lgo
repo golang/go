@@ -1,0 +1,44 @@
+// errorcheck -0 -m -goexperiment logosarena
+
+package p
+
+import "logos/arena"
+
+type node struct { // ERROR ".*"
+	next *node
+	v    int
+}
+
+func SameOwner() int {
+	rOut := arena.Open()
+	a := arena.New[node](rOut) // ERROR "placed in region"
+	b := arena.New[node](rOut) // ERROR "placed in region"
+	a.next = b
+	b.v = 2
+	return a.next.v
+}
+
+func InnerIntoInner() int {
+	rOut := arena.Open()
+	{
+		rIn := arena.Open()
+		a := arena.New[node](rIn) // ERROR "placed in region"
+		b := arena.New[node](rIn) // ERROR "placed in region"
+		a.next = b
+		b.v = 3
+		_ = rOut
+		return a.next.v
+	}
+}
+
+func OuterIntoInner() int {
+	rOut := arena.Open()
+	outer := arena.New[node](rOut) // ERROR "placed in region"
+	outer.v = 5
+	{
+		rIn := arena.Open()
+		inner := arena.New[node](rIn) // ERROR "placed in region"
+		inner.next = outer
+		return inner.next.v
+	}
+}

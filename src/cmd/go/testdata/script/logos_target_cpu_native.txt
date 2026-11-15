@@ -1,0 +1,125 @@
+[!GOOS:linux] skip 'native level oracle reads /proc/cpuinfo'
+[!GOARCH:amd64] skip 'native level oracle needs linux/amd64'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOAMD64=
+env GOARM64=
+
+logos build -o $WORK/native$GOEXE .
+exec go run ./cpulevel $WORK/native$GOEXE
+stdout 'native level match'
+
+env GOARCH=arm64
+logos build -o $WORK/native-arm64 .
+exec go version -m $WORK/native-arm64
+stdout 'GOARM64=v8\.0'
+env GOARCH=
+
+env GOAMD64=v2
+logos build -o $WORK/native-v2$GOEXE .
+exec go version -m $WORK/native-v2$GOEXE
+stdout 'GOAMD64=v2'
+env GOAMD64=
+
+env GOARCH=arm64
+env GOARM64=v8.3
+logos build -o $WORK/native-arm64-v83 .
+exec go version -m $WORK/native-arm64-v83
+stdout 'GOARM64=v8\.3'
+env GOARM64=
+env GOARCH=
+
+-- go.mod --
+module example.com/nativelvl
+
+go 1.27
+
+-- logos.toml --
+[build]
+target_cpu = "native"
+
+-- main.lgo --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("hello")
+}
+
+-- cpulevel/main.go --
+package main
+
+import (
+	"debug/buildinfo"
+	"fmt"
+	"os"
+	"strings"
+)
+
+func has(set map[string]bool, name string) bool {
+	if name == "sse3" {
+		return set["sse3"] || set["pni"]
+	}
+	return set[name]
+}
+
+func main() {
+	if len(os.Args) != 2 {
+		fmt.Fprintln(os.Stderr, "usage: cpulevel <binary>")
+		os.Exit(2)
+	}
+	data, err := os.ReadFile("/proc/cpuinfo")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "read cpuinfo:", err)
+		os.Exit(2)
+	}
+	set := map[string]bool{}
+	for _, line := range strings.Split(string(data), "\n") {
+		if !strings.HasPrefix(line, "flags") {
+			continue
+		}
+		parts := strings.SplitN(line, ":", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		for _, f := range strings.Fields(parts[1]) {
+			set[f] = true
+		}
+		break
+	}
+	v2 := has(set, "cx16") && has(set, "lahf_lm") && has(set, "popcnt") && has(set, "sse3") && has(set, "sse4_1") && has(set, "sse4_2") && has(set, "ssse3")
+	v3 := has(set, "avx") && has(set, "avx2") && has(set, "bmi1") && has(set, "bmi2") && has(set, "f16c") && has(set, "fma") && (has(set, "abm") || has(set, "lzcnt")) && has(set, "movbe") && has(set, "xsave")
+	v4 := has(set, "avx512f") && has(set, "avx512bw") && has(set, "avx512cd") && has(set, "avx512dq") && has(set, "avx512vl")
+	want := "v1"
+	if v2 {
+		want = "v2"
+	}
+	if v3 {
+		want = "v3"
+	}
+	if v4 {
+		want = "v4"
+	}
+	bi, err := buildinfo.ReadFile(os.Args[1])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "read buildinfo:", err)
+		os.Exit(2)
+	}
+	got := ""
+	for _, s := range bi.Settings {
+		if s.Key == "GOAMD64" {
+			got = s.Value
+		}
+	}
+	if got == "" {
+		fmt.Fprintln(os.Stderr, "GOAMD64 missing from build settings")
+		os.Exit(1)
+	}
+	if got != want {
+		fmt.Fprintf(os.Stderr, "native level mismatch: cpuinfo wants %s binary has %s\n", want, got)
+		os.Exit(1)
+	}
+	fmt.Printf("native level match GOAMD64=%s cpuinfo=%s\n", got, want)
+}

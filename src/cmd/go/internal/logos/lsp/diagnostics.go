@@ -5,26 +5,26 @@
 package lsp
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"maps"
 	"slices"
 )
 
-// Severities of an LSP diagnostic.
 const (
 	severityError   = 1
 	severityWarning = 2
 )
 
-// publishAll publishes the diagnostics of every open document, and clears
-// the ones published for documents since closed.
 func (p *Proxy) publishAll() {
-	p.mu.Lock()
-	uris := make(map[string]bool, len(p.docs)+len(p.sent))
-	for _, doc := range p.docs {
+	p.st.mu.Lock()
+	uris := make(map[string]bool, len(p.st.docs))
+	for _, doc := range p.st.docs {
 		uris[doc.uri] = true
 	}
+	p.st.mu.Unlock()
+	p.mu.Lock()
 	for uri := range p.sent {
 		uris[uri] = true
 	}
@@ -34,9 +34,6 @@ func (p *Proxy) publishAll() {
 	}
 }
 
-// publish sends the merged diagnostics of the client document at uri,
-// unless they equal what it sent last. A document with nothing to report
-// that never had anything sent gets no message.
 func (p *Proxy) publish(uri string) {
 	p.pub.Lock()
 	defer p.pub.Unlock()
@@ -46,10 +43,14 @@ func (p *Proxy) publish(uri string) {
 		p.logf("encoding diagnostics of %s: %v", uri, err)
 		return
 	}
+	open := false
+	if count == 0 {
+		open = p.st.open(p.docPath(uri))
+	}
 	p.mu.Lock()
 	prev, seen := p.sent[uri]
 	same := prev == string(raw) || (count == 0 && !seen)
-	if count == 0 && p.docs[uriPathOrEmpty(uri)] == nil {
+	if count == 0 && !open {
 		delete(p.sent, uri)
 	} else {
 		p.sent[uri] = string(raw)
@@ -60,47 +61,39 @@ func (p *Proxy) publish(uri string) {
 	}
 }
 
-// uriPathOrEmpty returns the path of a file URI, or "" for a URI that is
-// not one.
-func uriPathOrEmpty(uri string) string {
-	path, err := uriPath(uri)
-	if err != nil {
-		return ""
-	}
-	return path
-}
-
-// diagnosticsParams builds the publishDiagnostics params of the client
-// document at uri and counts its diagnostics. It merges what gopls
-// published for the document, mapped to the source, with the compiler
-// diagnostics of the package, and drops a compiler diagnostic that gopls
-// reported at the same place with the same text.
 func (p *Proxy) diagnosticsParams(uri string) (map[string]any, int) {
-	path := uriPathOrEmpty(uri)
+	path := p.docPath(uri)
+	p.st.mu.Lock()
+	doc := p.st.docs[path]
+	u := p.st.unitFor(path)
+	extra := p.compilerItems(path, doc, u)
+	open, version := doc != nil, 0
+	var buffer []byte
+	if doc != nil {
+		version = doc.version
+		buffer = doc.text.data
+	}
+	p.st.mu.Unlock()
 	tb := p.tables.Load()
 	p.mu.Lock()
-	doc := p.docs[path]
-	lw := tb.bySrc[path]
-	items := p.serverItems(tb, uri, path, lw, doc)
-	extra := p.compilerItems(path, doc)
+	var items []any
+	switch {
+	case !isLogosPath(path):
+		items = decodeItems(p.srvDiags[uri].raw, tb, nil)
+	case open:
+		items = p.loweredItems(tb, tb.bySrc[path], buffer)
+	}
 	p.mu.Unlock()
 	items = mergeDiagnostics(items, extra)
 	params := map[string]any{"uri": uri, "diagnostics": items}
-	if doc != nil {
-		params["version"] = doc.version
+	if open {
+		params["version"] = version
 	}
 	return params, len(items)
 }
 
-// serverItems returns the diagnostics gopls published for the document, in
-// the coordinates of the client's text. A loGo/s document shows them only
-// when it is open, its lowering is current, and gopls published them for
-// the lowered text it holds now. The caller holds p.mu.
-func (p *Proxy) serverItems(tb *tables, uri, path string, lw *lowered, doc *document) []any {
-	if !isLogosPath(path) {
-		return decodeItems(p.srvDiags[uri].raw, tb, nil)
-	}
-	if doc == nil || lw == nil || !lw.fresh {
+func (p *Proxy) loweredItems(tb *tables, lw *lowered, buffer []byte) []any {
+	if lw == nil || !lw.fresh || !bytes.Equal(lw.pm.orig.data, buffer) {
 		return nil
 	}
 	sd := p.srvDiags[lw.virtURI()]
@@ -111,8 +104,6 @@ func (p *Proxy) serverItems(tb *tables, uri, path string, lw *lowered, doc *docu
 	return decodeItems(sd.raw, tb, lw)
 }
 
-// decodeItems decodes a diagnostics array and maps it to the client's
-// coordinates through lw, the lowering of the document it belongs to.
 func decodeItems(raw json.RawMessage, tb *tables, lw *lowered) []any {
 	v, err := decode(raw)
 	if err != nil {
@@ -122,12 +113,7 @@ func decodeItems(raw json.RawMessage, tb *tables, lw *lowered) []any {
 	return list
 }
 
-// compilerItems returns the compiler diagnostics of the open document at
-// path as LSP diagnostics. Diagnostics computed against another version of
-// the document are left out until the next compile replaces them. The
-// caller holds p.mu.
-func (p *Proxy) compilerItems(path string, doc *document) []any {
-	u := p.unitFor(path)
+func (p *Proxy) compilerItems(path string, doc *document, u *unit) []any {
 	if doc == nil || u == nil || u.diagVersions[path] != doc.version {
 		return nil
 	}
@@ -140,9 +126,6 @@ func (p *Proxy) compilerItems(path string, doc *document) []any {
 	return items
 }
 
-// lspDiagnostic converts a compiler diagnostic of the file at path to an
-// LSP diagnostic over text t. It reports false for a diagnostic of another
-// file, or one whose span lies outside the text.
 func lspDiagnostic(d Diagnostic, path string, t *text) (map[string]any, bool) {
 	if d.File != path {
 		return nil, false
@@ -168,7 +151,6 @@ func lspDiagnostic(d Diagnostic, path string, t *text) (map[string]any, bool) {
 	return item, true
 }
 
-// severityOf returns the LSP severity of a compiler diagnostic severity.
 func severityOf(s string) int {
 	if s == "warn" {
 		return severityWarning
@@ -176,9 +158,6 @@ func severityOf(s string) int {
 	return severityError
 }
 
-// mergeDiagnostics appends the diagnostics of extra that items does not
-// already hold. Two diagnostics are the same when they start at the same
-// position with the same message.
 func mergeDiagnostics(items, extra []any) []any {
 	have := make(map[string]bool, len(items))
 	for _, item := range items {
@@ -196,7 +175,6 @@ func mergeDiagnostics(items, extra []any) []any {
 	return merged
 }
 
-// diagnosticKey identifies a diagnostic by its start and message.
 func diagnosticKey(item any) string {
 	m, _ := item.(map[string]any)
 	msg, _ := m["message"].(string)

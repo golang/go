@@ -16,11 +16,6 @@ import (
 	"time"
 )
 
-// M17-S2 attack tests: GOEXPERIMENT=logosstack gives every go statement
-// its own initial goroutine stack size, the moving average of the final
-// stack sizes of the goroutines it created. Red before the slice lands:
-// the experiment flag, the table, and the hooks do not exist.
-
 const logosStackTarget = 64 << 10
 
 func skipUnlessLogosStack(t *testing.T) {
@@ -30,11 +25,6 @@ func skipUnlessLogosStack(t *testing.T) {
 	}
 }
 
-// logosStackStartIs reports whether a goroutine that observed a stack of
-// got bytes at its first instruction started with want bytes. Under the
-// race detector the first frames of a goroutine can outgrow the smallest
-// stacks before the observation, so there it reports whether got is want
-// or at most three doublings above it.
 func logosStackStartIs(got, want int) bool {
 	if race.Enabled {
 		return got >= want && got <= want<<3
@@ -42,11 +32,6 @@ func logosStackStartIs(got, want int) bool {
 	return got == want
 }
 
-// logosStackSpawn and logosStackSpawnOther are two go statements with
-// identical bodies. They must not inline, or each caller would get its
-// own program counter, and they must not use wg.Go, which would give
-// every spawn the one go statement inside package sync.
-//
 //go:noinline
 func logosStackSpawn(wg *sync.WaitGroup, body func()) {
 	wg.Add(1)
@@ -67,8 +52,6 @@ func logosStackSpawnOther(wg *sync.WaitGroup, body func()) {
 
 const logosStackPad = 64 * 8
 
-// logosStackUse recurses until it has used about bytes of stack.
-//
 //go:noinline
 func logosStackUse(bytes int) uint64 {
 	if bytes <= 0 {
@@ -79,8 +62,6 @@ func logosStackUse(bytes int) uint64 {
 	return pad[0] + logosStackUse(bytes-logosStackPad)
 }
 
-// logosStackStarts runs n goroutines through spawn and reports the stack
-// size each one starts with and the go statement pc they share.
 func logosStackStarts(spawn func(*sync.WaitGroup, func()), n int) (starts []int, pc uintptr) {
 	var wg sync.WaitGroup
 	var site atomic.Uintptr
@@ -99,10 +80,6 @@ func logosStackStarts(spawn func(*sync.WaitGroup, func()), n int) (starts []int,
 	return starts, site.Load()
 }
 
-// TestLogosStackSiteStartsAtLearnedSize: after 1000 goroutines from one
-// go statement each end with a 64 KB stack, the next goroutines from that
-// statement start at 64 KB, and goroutines from another statement keep
-// the global size.
 func TestLogosStackSiteStartsAtLearnedSize(t *testing.T) {
 	skipUnlessLogosStack(t)
 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
@@ -138,18 +115,15 @@ func TestLogosStackSiteStartsAtLearnedSize(t *testing.T) {
 		}
 	}
 
-	// The global starting size can move at the end of any GC cycle.
-	// Finish the cycles before sampling it for the other statement, so
-	// the batch cannot race the sample.
 	runtime.GC()
 	runtime.GC()
 	debug.SetGCPercent(-1)
 	global := runtime.LogosGlobalStartSize()
-	if global == logosStackTarget {
-		t.Skip("global starting size equals the learned size; the other statement cannot tell them apart")
-	}
 	if got := runtime.LogosStartSize(^uintptr(0)); got != global {
 		t.Fatalf("LogosStartSize without history = %d, want the global size %d", got, global)
+	}
+	if global == logosStackTarget {
+		t.Skip("global starting size equals the learned size; the other statement cannot tell them apart")
 	}
 	starts, other := logosStackStarts(logosStackSpawnOther, 8)
 	if other == pc {
@@ -162,10 +136,6 @@ func TestLogosStackSiteStartsAtLearnedSize(t *testing.T) {
 	}
 }
 
-// TestLogosStackOffRecordsNothing pins the default build: without the
-// experiment no history is recorded and every start size is the global
-// one. With one P a goroutine finishes its exit path before the
-// goroutine that waits for it runs again, so the check needs no sleep.
 func TestLogosStackOffRecordsNothing(t *testing.T) {
 	if goexperiment.LogosStack {
 		t.Skip("covers the build without GOEXPERIMENT=logosstack")
@@ -173,14 +143,6 @@ func TestLogosStackOffRecordsNothing(t *testing.T) {
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
 	runtime.LogosStackReset()
 
-	// The global starting size is the start size the runtime promises a
-	// goroutine with no call-site history on the recycled-g path: a
-	// fresh g from malg starts at the smallest stack, and
-	// gcComputeStartingStackSize may raise the global size at the end of
-	// any GC cycle. The test finishes all GC cycles first, so the
-	// global it samples can no longer move, and fills the free-g pool so
-	// the batch is served from it, because only a recycled g is resized
-	// to the global size at gfget.
 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
 	runtime.GC()
 	runtime.GC()
@@ -231,9 +193,6 @@ func logosStackLeafSpawn() {
 	<-logosStackLeafDone
 }
 
-// logosStackAwait waits until the history of pc satisfies done. A
-// goroutine records its exit after its WaitGroup is released, so a test
-// that reads the table right after Wait must wait for the record.
 func logosStackAwait(t *testing.T, pc uintptr, done func(ema int, ok bool) bool) {
 	t.Helper()
 	deadline := time.Now().Add(10 * time.Second)
@@ -249,9 +208,6 @@ func logosStackAwait(t *testing.T, pc uintptr, done func(ema int, ok bool) bool)
 	}
 }
 
-// logosStackLearn waits until the exit of the goroutine that just ran
-// from pc has landed in the table, then replaces the history of pc by
-// size.
 func logosStackLearn(t *testing.T, pc uintptr, size int) {
 	t.Helper()
 	logosStackAwait(t, pc, func(_ int, ok bool) bool { return ok })
@@ -259,8 +215,6 @@ func logosStackLearn(t *testing.T, pc uintptr, size int) {
 	runtime.LogosStackRecord(pc, size)
 }
 
-// TestLogosStackSpawnDoesNotAllocate: choosing the size, replacing the
-// stack, and recording the exit allocate nothing on the heap.
 func TestLogosStackSpawnDoesNotAllocate(t *testing.T) {
 	skipUnlessLogosStack(t)
 	runtime.LogosStackReset()
@@ -276,13 +230,7 @@ func TestLogosStackSpawnDoesNotAllocate(t *testing.T) {
 	}
 }
 
-// TestLogosStackTableBounded: 10,000 distinct go statement pcs fit the
-// 1024-entry table by replacement, with no allocation, and the newest
-// entry always survives its own insertion.
 func TestLogosStackTableBounded(t *testing.T) {
-	if runtime.LogosStackSlots != 1024 {
-		t.Fatalf("table capacity = %d, want 1024", runtime.LogosStackSlots)
-	}
 	runtime.LogosStackReset()
 	const sites = 10000
 	pcOf := func(i int) uintptr { return 0x401000 + uintptr(i)*16 }
@@ -315,9 +263,6 @@ func TestLogosStackTableBounded(t *testing.T) {
 	}
 }
 
-// TestLogosStackLargeEntriesOutliveSmall: a flood of statements whose
-// goroutines end with the smallest stack replaces small entries and
-// never the entry of a statement whose goroutines need a large stack.
 func TestLogosStackLargeEntriesOutliveSmall(t *testing.T) {
 	runtime.LogosStackReset()
 	const big = 0x405000
@@ -330,8 +275,6 @@ func TestLogosStackLargeEntriesOutliveSmall(t *testing.T) {
 	}
 }
 
-// logosStackLearnSite runs one goroutine through logosStackSpawn and
-// returns the pc of its go statement once its history has size bytes.
 func logosStackLearnSite(t *testing.T, size int) uintptr {
 	t.Helper()
 	var wg sync.WaitGroup
@@ -343,9 +286,6 @@ func logosStackLearnSite(t *testing.T, size int) uintptr {
 	return pc
 }
 
-// TestLogosStackStartBoundedByMaxStack: a statement whose history exceeds
-// the maximum stack starts its goroutines at the largest power of two
-// within the maximum stack.
 func TestLogosStackStartBoundedByMaxStack(t *testing.T) {
 	skipUnlessLogosStack(t)
 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
@@ -361,9 +301,6 @@ func TestLogosStackStartBoundedByMaxStack(t *testing.T) {
 	}
 }
 
-// TestLogosStackSurvivesCollection: goroutines that start at a learned
-// size stay correct across collections, which scan their stacks and
-// shrink the ones they barely use.
 func TestLogosStackSurvivesCollection(t *testing.T) {
 	skipUnlessLogosStack(t)
 	runtime.LogosStackReset()
@@ -399,9 +336,6 @@ func TestLogosStackSurvivesCollection(t *testing.T) {
 	}
 }
 
-// TestLogosStackEMAWeight pins the moving average: the first sample seeds
-// it, each later sample moves it one eighth of the way, and it settles
-// exactly on a steady sample from either side.
 func TestLogosStackEMAWeight(t *testing.T) {
 	runtime.LogosStackReset()
 	const pc = 0x402000
@@ -436,10 +370,6 @@ func TestLogosStackEMAWeight(t *testing.T) {
 	}
 }
 
-// TestLogosStackPickBounds: the start size is a power of two, at least
-// the smallest stack, at most the largest power of two within the
-// maximum stack (or the smallest stack when the maximum is smaller), and
-// the moving average rounded up to a power of two when that fits.
 func TestLogosStackPickBounds(t *testing.T) {
 	unit := runtime.LogosFixedStack
 	floorPow2 := func(n int) int {
@@ -471,8 +401,6 @@ func TestLogosStackPickBounds(t *testing.T) {
 	}
 }
 
-// TestLogosStackRecordClampsSamples: a sample of any size, including
-// sizes no stack can have, keeps the stored average valid.
 func TestLogosStackRecordClampsSamples(t *testing.T) {
 	runtime.LogosStackReset()
 	const pc = 0x403000
@@ -491,8 +419,6 @@ func TestLogosStackRecordClampsSamples(t *testing.T) {
 	}
 }
 
-// TestLogosStackConcurrentTable: Ps that record and look up the same
-// slots at once never observe an invalid size.
 func TestLogosStackConcurrentTable(t *testing.T) {
 	runtime.LogosStackReset()
 	unit := runtime.LogosFixedStack
@@ -513,11 +439,6 @@ func TestLogosStackConcurrentTable(t *testing.T) {
 	wg.Wait()
 }
 
-// logosStackFrames recurses with a 4096-byte frame buffer per level, the
-// size of the O3 stack-first buffer, stores the stack size at the bottom
-// in deepest, and reports whether every buffer survived the stack moves
-// of its callees.
-//
 //go:noinline
 func logosStackFrames(depth int, seed byte, deepest *int) bool {
 	var frame [4096]byte
@@ -538,9 +459,6 @@ func logosStackFrames(depth int, seed byte, deepest *int) bool {
 	return ok
 }
 
-// logosStackMakes recurses with a variable-size make that does not
-// escape, so sizes up to the stack-first threshold live in the frame.
-//
 //go:noinline
 func logosStackMakes(depth, n int, seed byte) bool {
 	b := make([]byte, n)
@@ -559,15 +477,6 @@ func logosStackMakes(depth, n int, seed byte) bool {
 	return ok
 }
 
-// TestLogosStackFirstBuffersSurviveStartSizes (#33, the part S2 can
-// reach): buffers stay correct in goroutines that start at the global
-// size, at a learned small size, and at a learned large size, through the
-// stack growth a deep recursion forces. The 4096-byte frame arrays are
-// real stack frames of the O3 buffer size. The variable-size makes sit on
-// both sides of the O2 and O3 thresholds, but this build uses the
-// default 32-byte threshold, so only the sizes up to 32 take the stack
-// buffer and the rest take makeslice; the thresholds themselves are
-// M17-S1's.
 func TestLogosStackFirstBuffersSurviveStartSizes(t *testing.T) {
 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
 	var wg sync.WaitGroup

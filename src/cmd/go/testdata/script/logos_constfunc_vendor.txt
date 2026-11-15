@@ -1,26 +1,12 @@
-# M5-S2: imported const func evaluation with transitive dependencies under
-# ordinary module mode and vendor mode (T-201, T-Sec6, R-U2).
-# Anchor: Tony Hoare, Richard Feynman
-#
-# Consumer imports package A (example.com/vmod/a).
-# A's exported const func calls transitive package B (example.com/vmod/b).
-# Consumer does NOT import B in source or signature.
-#
-# Both ordinary module mode and vendor mode are exercised with equal
-# computed values and a constant array bound.
-
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
-# 1. Ordinary module mode: consumer imports A, A calls transitive B.
 cd mod_consumer
 logos run .
 cp stdout $WORK/want.txt
 stdout '^val: 35 bound: 17 len: 17$'
 cd ..
 
-# 2. Dynamic vendor mode via 'logos mod vendor':
-# Build vendor directory from module dependencies, then run with -mod=vendor.
 cd mod_vendor_gen
 logos mod vendor
 exists vendor/modules.txt
@@ -29,16 +15,16 @@ exists vendor/example.com/vmod/b/b.lgo
 
 logos run -mod=vendor .
 cmp stdout $WORK/want.txt
+
+cp go.mod.stale go.mod
+! logos run -mod=vendor .
+! stdout .
 cd ..
 
-# 3. Fixture-owned vendor directory:
-# A self-contained module with pre-vendored dependencies and vendor/modules.txt.
 cd vendored_fixture
-# Explicit -mod=vendor mode
 logos run -mod=vendor .
 cmp stdout $WORK/want.txt
 
-# Default vendor mode in Go 1.14+ (presence of vendor directory with go 1.14+ in go.mod)
 logos run .
 cmp stdout $WORK/want.txt
 cd ..
@@ -116,6 +102,15 @@ module example.com/modvendorgen
 go 1.27
 
 require example.com/vmod v0.0.0
+
+replace example.com/vmod => ../vmod
+
+-- mod_vendor_gen/go.mod.stale --
+module example.com/modvendorgen
+
+go 1.27
+
+require example.com/vmod v0.0.1
 
 replace example.com/vmod => ../vmod
 

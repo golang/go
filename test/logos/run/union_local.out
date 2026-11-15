@@ -1,0 +1,17 @@
+ok first-member-local
+ok first-member-other-arm
+ok first-member-int
+ok first-nonmember-comma-ok
+ok first-nonmember-message
+ok first-later-local-message
+ok first-switch
+ok second-member-local
+ok second-int-nonmember
+ok second-nonmember-message
+ok any-to-union-member
+ok any-to-union-nonmember
+ok any-to-union-message
+ok type-switch-case-nonmember
+ok type-switch-case-member
+ok closure-union-member
+ok closure-union-other-arm

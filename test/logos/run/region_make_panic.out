@@ -1,0 +1,3 @@
+ok normal-make-negative-length
+ok negative-length-makeslice-panics-len-out-of-range
+ok negative-length-literal-panics-len-out-of-range

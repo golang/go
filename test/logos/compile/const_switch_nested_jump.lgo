@@ -1,0 +1,82 @@
+// errorcheck
+
+package p
+
+func continueThroughSwitch[T any](n int) int {
+	c := 0
+	for i := 0; i < n; i++ {
+		const switch T {
+		case int:
+			switch i {
+			case 1:
+				continue
+			}
+			c++
+		}
+	}
+	return c
+}
+
+func continueThroughSelect[T any](n int, ch chan int) int {
+	c := 0
+	for i := 0; i < n; i++ {
+		const switch T {
+		case int:
+			select {
+			case <-ch:
+				continue
+			default:
+			}
+			c++
+		}
+	}
+	return c
+}
+
+func continueThroughNestedBlocks[T any](n int) int {
+	c := 0
+	for i := 0; i < n; i++ {
+		const switch T {
+		case int:
+			if n > 0 {
+				switch i {
+				case 1:
+					continue
+				}
+			}
+			c++
+		}
+	}
+	return c
+}
+
+func continueDirectInIf[T any](n int) int {
+	c := 0
+	for i := 0; i < n; i++ {
+		const switch T {
+		case int:
+			if i == 1 {
+				continue // ERROR "comptime::const_switch_jump"
+			}
+			c++
+		}
+	}
+	return c
+}
+
+func continueThroughSwitchWithoutLoop[T any](i int) {
+	const switch T {
+	case int:
+		switch i {
+		case 1:
+			continue // ERROR "continue is not in a loop"
+		}
+	}
+}
+
+func plainJumpAfterConstSwitch[T any](i int) {
+	const switch T {
+	case int:
+	}
+	continue // ERROR "continue is not in a loop"
+}

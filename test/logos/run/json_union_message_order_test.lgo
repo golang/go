@@ -1,0 +1,58 @@
+// run
+
+package jsonunion
+
+import (
+	"encoding/json"
+	"errors"
+	"strings"
+	"testing"
+
+	"logos/rt"
+)
+
+type Zulu struct {
+	Z int64 `json:"z"`
+}
+
+type Apple struct {
+	A int64 `json:"a"`
+}
+
+type Fruit interface {
+	Zulu | Apple
+}
+
+type FruitHolder struct {
+	Item Fruit `json:"item"`
+}
+
+func TestUnionMessageListsMembersInDeclarationOrder(t *testing.T) {
+	var h FruitHolder
+	err := json.Unmarshal([]byte(`{"item":{"z":1,"a":2}}`), &h)
+	if err == nil {
+		t.Fatal("expected trial error, got nil")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "Fruit") {
+		t.Fatalf("error %q must name union Fruit", msg)
+	}
+	zi := strings.Index(msg, "Zulu")
+	ai := strings.Index(msg, "Apple")
+	if zi < 0 || ai < 0 {
+		t.Fatalf("error %q must name members Zulu and Apple", msg)
+	}
+	if zi > ai {
+		t.Fatalf("error %q lists Apple before Zulu, want declaration order", msg)
+	}
+	var trialErr rt.UnionTrialError
+	if !errors.As(err, &trialErr) {
+		t.Fatalf("expected rt.UnionTrialError, got %T: %v", err, err)
+	}
+	if len(trialErr.Members) != 2 || trialErr.Members[0] != "Zulu" || trialErr.Members[1] != "Apple" {
+		t.Fatalf("Members = %q, want [Zulu Apple] in declaration order", trialErr.Members)
+	}
+	if trialErr.Matched != 0 || trialErr.Total != 2 {
+		t.Fatalf("Matched/Total = %d/%d, want 0/2", trialErr.Matched, trialErr.Total)
+	}
+}

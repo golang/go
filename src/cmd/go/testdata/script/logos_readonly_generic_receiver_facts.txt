@@ -1,0 +1,107 @@
+# A readonly proof of a method of a generic type travels in the facts of the
+# defining package: an importing package satisfies a const method obligation
+# and calls through a const view with the proven methods, and a mutating
+# method of a generic type stays rejected with the same rule ID.
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd w
+logos build -o $WORK/lib.a ./lib
+go tool pack p $WORK/lib.a __.LOGOS
+stdout '^fn \(\*Box\)\.Count .*Readonly'
+stdout '^fn Box\.Size .*Readonly'
+stdout '^fn \(\*Bumper\)\.Count '
+stdout '^fn Bumper\.Size '
+! stdout '^fn \(\*Bumper\)\.Count .*Readonly'
+! stdout '^fn Bumper\.Size .*Readonly'
+
+logos build -o $WORK/good.a ./good
+! stderr .
+
+! logos build -o $WORK/bad.a ./bad
+stderr 'bad.lgo:.*const_view_mutation'
+! stderr 'good\.lgo'
+! exists $WORK/bad.a
+
+! logos build -o $WORK/badview.a ./badview
+stderr 'badview.lgo:.*const_view_mutation'
+! exists $WORK/badview.a
+
+-- w/go.mod --
+module example.com/genrecv
+
+go 1.27
+
+-- w/lib/lib.lgo --
+package lib
+
+type Box[T any] struct {
+	N  int
+	Xs []T
+}
+
+func (b *Box[T]) Count() int {
+	return b.N
+}
+
+func (b Box[T]) Size() int {
+	return len(b.Xs)
+}
+
+type Bumper[T any] struct {
+	N  int
+	Xs []T
+}
+
+func (b *Bumper[T]) Count() int {
+	b.N++
+	return b.N
+}
+
+func (b Bumper[T]) Size() int {
+	var zero T
+	b.Xs[0] = zero
+	return len(b.Xs)
+}
+
+-- w/good/good.lgo --
+package good
+
+import "example.com/genrecv/lib"
+
+type Counter interface {
+	const Count() int
+}
+
+type Sized interface {
+	const Size() int
+}
+
+var _ Counter = &lib.Box[string]{}
+
+var _ Sized = lib.Box[[]int]{}
+
+func Size(b const lib.Box[string]) int {
+	return b.Size()
+}
+
+-- w/bad/bad.lgo --
+package bad
+
+import "example.com/genrecv/lib"
+
+type Counter interface {
+	const Count() int
+}
+
+var _ Counter = &lib.Bumper[int]{}
+
+-- w/badview/badview.lgo --
+package badview
+
+import "example.com/genrecv/lib"
+
+func Size(b const lib.Bumper[string]) int {
+	return b.Size()
+}

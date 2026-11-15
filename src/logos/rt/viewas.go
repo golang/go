@@ -32,10 +32,6 @@ func ViewAs[T any](b []byte) *T {
 	return viewAsAddr[T](b)
 }
 
-// viewAsEnforcePOD validates T against the compiler POD contract: struct
-// with no padding (including trailing), no bool, and no pointer,
-// interface, slice, map, string, channel, func, or unsafe-pointer fields,
-// recursing through nested structs and arrays.
 func viewAsEnforcePOD[T any]() {
 	t := reflect.TypeFor[T]()
 	if t.Kind() != reflect.Struct {
@@ -46,8 +42,6 @@ func viewAsEnforcePOD[T any]() {
 	}
 }
 
-// viewAsScan checks t at absolute offset base, reporting the first
-// offense offset and kind, or "", when clean.
 func viewAsScan(t reflect.Type, base uintptr) (uintptr, string) {
 	switch t.Kind() {
 	case reflect.Struct:
@@ -87,11 +81,6 @@ func viewAsScan(t reflect.Type, base uintptr) (uintptr, string) {
 	return 0, ""
 }
 
-// viewAsCopy reinterprets the leading bytes of b as a *T by copying
-// them into a freshly allocated, naturally aligned T. It backs the
-// fallback architectures (viewas_copy.go) and is exercised directly by
-// unit tests on every platform. The caller checks the length: b must
-// hold at least sizeof(T) bytes.
 func viewAsCopy[T any](b []byte) *T {
 	var zero T
 	size := int(unsafe.Sizeof(zero))

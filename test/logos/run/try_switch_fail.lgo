@@ -1,0 +1,367 @@
+// run
+
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"slices"
+	"sync/atomic"
+)
+
+var errLoad = errors.New("load")
+
+var ev []string
+
+var gxs = []int{0, 0}
+
+var target = -1
+
+var left int
+
+var childDone atomic.Int32
+
+func rec(s string) { ev = append(ev, s) }
+
+func loadFail(tag string) (int, error) {
+	rec("load:" + tag)
+	return 0, errLoad
+}
+
+func val(tag string, n int) int {
+	rec(tag)
+	return n
+}
+
+func slice(tag string, xs []int) []int {
+	rec(tag)
+	return xs
+}
+
+func retList() (int, int, int, error) {
+	return val("l", 10), switch n := loadFail("s")?; n { default => n }, val("r", 3), nil
+}
+
+func multiZero() (int, string, []int, error) {
+	r := val("l", 1) + switch n := loadFail("s")?; n { default => n }
+	return r, "x", []int{1}, nil
+}
+
+func assignLeft() (int, error) {
+	gxs[val("k", 1)] = switch n := loadFail("s")?; n { default => 5 }
+	return 1, nil
+}
+
+func assignTarget() (int, error) {
+	target = switch n := loadFail("s")?; n { default => 5 }
+	return 1, nil
+}
+
+func binaryRight() (int, error) {
+	r := switch n := loadFail("s")?; n { default => 1 } + val("r", 100)
+	return r, nil
+}
+
+func binaryBetween() (int, error) {
+	r := val("a", 1) + switch n := loadFail("s")?; n { default => 10 } + val("b", 100)
+	return r, nil
+}
+
+func recvBetween() (int, error) {
+	rch := make(chan int, 2)
+	rch <- 1
+	rch <- 2
+	defer func() { left = len(rch) }()
+	r := <-rch*10 + switch n := loadFail("s")?; n { default => 100 } + <-rch
+	return r, nil
+}
+
+func divide() (int, error) {
+	r := 10 / switch n := loadFail("s")?; n { default => 2 }
+	return r, nil
+}
+
+func indexed() (int, error) {
+	empty := []int{}
+	r := empty[switch n := loadFail("s")?; n { default => 5 }]
+	return r, nil
+}
+
+func element() (int, error) {
+	xs := []int{val("e0", 1), switch n := loadFail("s")?; n { default => 2 }, val("e2", 3)}
+	return len(xs), nil
+}
+
+func ifInit() (int, error) {
+	if x := val("i", 7); (switch n := loadFail("s")?; n { default => x > 0 }) {
+		rec("then")
+		return 1, nil
+	}
+	rec("after")
+	return 0, nil
+}
+
+func switchHeader() (int, error) {
+	switch x := val("i", 7); (switch n := loadFail("s")?; n { default => x }) {
+	case 7:
+		rec("case")
+	}
+	rec("after")
+	return 0, nil
+}
+
+func forCond() (int, error) {
+	c := 0
+	for i := 0; (switch k := loadIf("c", i == 1)?; k { default => true }); i++ {
+		rec("body")
+		c++
+	}
+	return c, nil
+}
+
+func loadIf(tag string, fail bool) (int, error) {
+	rec("load:" + tag)
+	if fail {
+		return 0, errLoad
+	}
+	return 1, nil
+}
+
+func forInit() (int, error) {
+	for i := (switch k := loadFail("init")?; k { default => k }); i < 3; i++ {
+		rec("body")
+	}
+	rec("after")
+	return 0, nil
+}
+
+func elseIf() (int, error) {
+	if val("a", 0) == 1 {
+		return 1, nil
+	} else if (switch n := loadFail("s")?; n { default => true }) {
+		rec("then")
+		return 2, nil
+	}
+	rec("after")
+	return 3, nil
+}
+
+func compound() (int, error) {
+	r := 1
+	r += val("l", 100) + switch n := loadFail("s")?; n { default => 70 }
+	return r, nil
+}
+
+func indexBase() (int, error) {
+	r := slice("base", []int{10, 20})[switch n := loadFail("s")?; n { default => 1 }]
+	return r, nil
+}
+
+func twoSwitchesFirst() (int, error) {
+	r := switch n := loadFail("1")?; n { default => 1 } + switch m := loadFail("2")?; m { default => 2 }
+	return r, nil
+}
+
+func twoSwitchesSecond() (int, error) {
+	r := switch n := loadIf("1", false)?; n { default => 1 } + switch m := loadFail("2")?; m { default => 2 }
+	return r, nil
+}
+
+func namedDefer() (res int, err error) {
+	defer func() { rec(fmt.Sprint("defer:", res, err == errLoad)) }()
+	res = 5
+	x := switch n := loadFail("s")?; n { default => 1 }
+	_ = x
+	return 3, nil
+}
+
+func errdeferFrame() (int, error) {
+	errdefer rec("errdefer")
+	r := val("l", 1) + switch n := loadFail("s")?; n { default => 1 }
+	return r, nil
+}
+
+func closure() (int, error) {
+	f := func() (int, error) {
+		r := val("l", 1) + switch n := loadFail("s")?; n { default => 1 }
+		return r, nil
+	}
+	r, err := f()
+	rec("outer")
+	return r, err
+}
+
+func flag(tag string, b bool) bool {
+	rec(tag)
+	return b
+}
+
+func andRight() (bool, error) {
+	ok := flag("a", true) && switch n := loadFail("s")?; n { default => n > 0 }
+	rec("after")
+	return ok, nil
+}
+
+func orRight() (bool, error) {
+	ok := flag("a", false) || switch n := loadFail("s")?; n { default => n > 0 }
+	rec("after")
+	return ok, nil
+}
+
+func groupBody(ctx context.Context) error {
+	go group (ctx) {
+		go {
+			childDone.Add(1)
+		}
+		r := val("l", 1) + switch n := loadFail("s")?; n { default => 1 }
+		rec(fmt.Sprint("unreachable", r))
+	}
+	return nil
+}
+
+func groupChild(ctx context.Context) error {
+	go group (ctx) {
+		go {
+			r := val("l", 1) + switch n := loadFail("s")?; n { default => 1 }
+			rec(fmt.Sprint("unreachable", r))
+		}
+	}
+	return nil
+}
+
+type outcome struct {
+	got   string
+	err   error
+	crash any
+}
+
+func attempt(c cell) (out outcome) {
+	defer func() { out.crash = recover() }()
+	var res struct {
+		got string
+		err error
+	}
+	res.got, res.err = c.run()
+	got, err := res.got, res.err
+	if err != nil {
+		return outcome{got: got, err: err}
+	}
+	return outcome{got: "unexpected success"}
+}
+
+type cell struct {
+	name string
+	run  func() (string, error)
+	ev   []string
+	want string
+}
+
+func showState[T any](f func() (T, error), state func() string) func() (string, error) {
+	return func() (string, error) {
+		var res struct {
+			v   T
+			err error
+		}
+		res.v, res.err = f()
+		r, err := res.v, res.err
+		if err != nil {
+			return fmt.Sprint(r) + state(), err
+		}
+		return "unexpected success", nil
+	}
+}
+
+func show[T any](f func() (T, error)) func() (string, error) {
+	return showState(f, func() string { return "" })
+}
+
+func showRetList() (string, error) {
+	var res struct {
+		a, b, c int
+		err     error
+	}
+	res.a, res.b, res.c, res.err = retList()
+	a, b, c, err := res.a, res.b, res.c, res.err
+	if err != nil {
+		return fmt.Sprint(a, b, c), err
+	}
+	return "unexpected success", nil
+}
+
+func showMultiZero() (string, error) {
+	var res struct {
+		a   int
+		b   string
+		c   []int
+		err error
+	}
+	res.a, res.b, res.c, res.err = multiZero()
+	a, b, c, err := res.a, res.b, res.c, res.err
+	if err != nil {
+		return fmt.Sprintf("%d %q %v", a, b, c), err
+	}
+	return "unexpected success", nil
+}
+
+func showGroupBody() (string, error) {
+	childDone.Store(0)
+	err := groupBody(context.Background())
+	return fmt.Sprint(childDone.Load()), err
+}
+
+func showGroupChild() (string, error) {
+	err := groupChild(context.Background())
+	return "", err
+}
+
+func cells() []cell {
+	return []cell{
+		{"ret-list", showRetList, []string{"l", "load:s"}, "0 0 0"},
+		{"multi-zero", showMultiZero, []string{"l", "load:s"}, `0 "" []`},
+		{"assign-left", showState(assignLeft, func() string { return " " + fmt.Sprint(gxs) }), []string{"k", "load:s"}, "0 [0 0]"},
+		{"assign-target", showState(assignTarget, func() string { return " " + fmt.Sprint(target) }), []string{"load:s"}, "0 -1"},
+		{"binary-right", show(binaryRight), []string{"load:s"}, "0"},
+		{"binary-between", show(binaryBetween), []string{"a", "load:s"}, "0"},
+		{"recv-between", showState(recvBetween, func() string { return " " + fmt.Sprint(left) }), []string{"load:s"}, "0 1"},
+		{"divide", show(divide), []string{"load:s"}, "0"},
+		{"indexed", show(indexed), []string{"load:s"}, "0"},
+		{"element", show(element), []string{"e0", "load:s"}, "0"},
+		{"if-init", show(ifInit), []string{"i", "load:s"}, "0"},
+		{"switch-header", show(switchHeader), []string{"i", "load:s"}, "0"},
+		{"for-cond", show(forCond), []string{"load:c", "body", "load:c"}, "0"},
+		{"for-init", show(forInit), []string{"load:init"}, "0"},
+		{"else-if", show(elseIf), []string{"a", "load:s"}, "0"},
+		{"compound", show(compound), []string{"l", "load:s"}, "0"},
+		{"index-base", show(indexBase), []string{"base", "load:s"}, "0"},
+		{"two-first", show(twoSwitchesFirst), []string{"load:1"}, "0"},
+		{"two-second", show(twoSwitchesSecond), []string{"load:1", "load:2"}, "0"},
+		{"named-defer", show(namedDefer), []string{"load:s", "defer:0 true"}, "0"},
+		{"errdefer", show(errdeferFrame), []string{"l", "load:s", "errdefer"}, "0"},
+		{"closure", show(closure), []string{"l", "load:s", "outer"}, "0"},
+		{"and-right", show(andRight), []string{"a", "load:s"}, "false"},
+		{"or-right", show(orRight), []string{"a", "load:s"}, "false"},
+		{"group-body", showGroupBody, []string{"l", "load:s"}, "1"},
+		{"group-child", showGroupChild, []string{"l", "load:s"}, ""},
+	}
+}
+
+func main() {
+	failed := false
+	for _, c := range cells() {
+		ev = nil
+		gxs[0], gxs[1] = 0, 0
+		target = -1
+		out := attempt(c)
+		if out.crash == nil && out.err == errLoad && out.got == c.want && slices.Equal(ev, c.ev) {
+			fmt.Println("ok", c.name)
+			continue
+		}
+		failed = true
+		fmt.Println("FAIL", c.name+":", "got", out.got, out.err, ev, "crash", out.crash, "want", c.want, errLoad, c.ev)
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

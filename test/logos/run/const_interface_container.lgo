@@ -1,0 +1,47 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+type Qualified interface {
+	const Name() string
+}
+
+type Rock struct {
+	name string
+}
+
+func (r Rock) Name() string { return "rock:" + r.name }
+
+func viaPtr(p const *Qualified) string {
+	if p == nil {
+		return "nil"
+	}
+	return (*p).Name()
+}
+
+func viaMap(m const map[string]Qualified) string {
+	for _, v := range m {
+		return v.Name()
+	}
+	return "empty"
+}
+
+func main() {
+	r := Rock{name: "a"}
+	var q Qualified = r
+	if got := viaPtr(&q); got != "rock:a" {
+		fmt.Println("FAIL via-ptr: got", got, "want", "rock:a")
+		os.Exit(1)
+	}
+	fmt.Println("ok via-ptr")
+	if got := viaMap(map[string]Qualified{"a": Rock{name: "a"}}); got != "rock:a" {
+		fmt.Println("FAIL via-map: got", got, "want", "rock:a")
+		os.Exit(1)
+	}
+	fmt.Println("ok via-map")
+}

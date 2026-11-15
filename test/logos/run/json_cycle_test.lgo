@@ -2,18 +2,6 @@
 
 package jsoncycle
 
-// M11-R1/R2/R4 regression probes (SPEC Sec 12.1): cycles through static
-// and dynamic edges terminate with the reflective cycle error instead
-// of overflowing the stack. Before the traversal repair every cyclic
-// value below overflowed: each fallback field started a fresh
-// encoding/json state. Mirror types without methods take the reflective
-// path and serve as output and error oracles; only the "via *T" type
-// suffix differs, so cycle errors compare by prefix.
-//
-// Boundaries held, not probed here: interface-held dynamics of types
-// outside the root's table keep the honour branch and overflow exactly
-// as ejected code does (W1, W6). Those shapes need an unapproved global
-// registry and are documented in the lane status report.
 
 import (
 	"encoding/json"
@@ -22,16 +10,11 @@ import (
 	"testing"
 )
 
-// Recursive links are optional: bare *T is non-nil in loGo/s. Pointer
-// options lower to Go pointers, preserving the reflective JSON oracle.
 type Chain struct {
 	Name string `json:"name"`
 	Next *Chain? `json:"next,omitempty"`
 }
 
-// Mirror types carry a disqualifying interface field so they stay
-// method-free: the oracle must take the reflective path, never a
-// generated twin. The field is skipped in output.
 type ChainMirror struct {
 	Name string `json:"name"`
 	Next *ChainMirror? `json:"next,omitempty"`
@@ -202,11 +185,6 @@ func TestDynamicUserMethodKeepsPrecedence(t *testing.T) {
 }
 
 func TestDeepChainHasNoCycle(t *testing.T) {
-	// Depth parity in both modes: the walk enforces the v2 10000-token
-	// nesting cap exactly like the reflective encoder, and v1 sets no
-	// cap in either. 1500 stays below the cycle-tracking threshold
-	// start; 9000 exercises lazy tracking; 20000 crosses the cap and
-	// must fail with the identical max-depth error on both sides.
 	for _, n := range []int{1500, 9000, 20000} {
 		head := buildChain(n)
 		got, gerr := head.MarshalJSON()
@@ -247,11 +225,6 @@ func TestMixedParitySweep(t *testing.T) {
 	}
 }
 
-// Embedded table-descent probes (M11 R4): a generated type reachable
-// only through an exported embedded field of a plain struct still joins
-// the root's table, so interface-held dynamics of it walk with shared
-// state. The walk promotes embedded fields exactly like the reflective
-// encoder; the table entry dispatches bare dynamics.
 type EmbLeaf struct {
 	Name string `json:"name"`
 	Kids []any  `json:"kids,omitempty"`
@@ -380,21 +353,25 @@ func TestGeneratedDepthOffsetAndSideEffects(t *testing.T) {
 	for _, present := range []bool{false, true} {
 		head, mirror := buildDepthPair(present)
 		depthMethodCalls = 0
-		got, gerr := head.MarshalJSON()
+		got := marshalOutcomeOf(head.MarshalJSON())
 		gcalls := depthMethodCalls
 		depthMethodCalls = 0
-		want, werr := json.Marshal(mirror)
+		want := marshalOutcomeOf(json.Marshal(mirror))
 		wcalls := depthMethodCalls
 		if gcalls != wcalls {
 			t.Fatalf("present=%v: generated called custom method %d times, oracle %d", present, gcalls, wcalls)
 		}
-		assertSameMarshalOutcome(t, present, marshalOutcome{got, gerr}, marshalOutcome{want, werr})
+		assertSameMarshalOutcome(t, present, got, want)
 	}
 }
 
 type marshalOutcome struct {
 	bytes []byte
 	err   error
+}
+
+func marshalOutcomeOf(b []byte, err error) marshalOutcome {
+	return marshalOutcome{b, err}
 }
 
 func buildDepthPair(present bool) (*DepthNode, *DepthMirror) {

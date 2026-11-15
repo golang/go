@@ -1,0 +1,5 @@
+ok for-post-assign-nil
+ok for-post-assign-err
+ok for-post-assign-zero
+ok for-post-expr-nil
+ok for-post-expr-err

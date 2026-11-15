@@ -6,9 +6,6 @@ package p
 
 import "io"
 
-// M7-S4 const switch (SPEC Sec 2.5, T-205): `const switch T` dispatches
-// on the switched type, with exact, tilde, and interface cases.
-
 func constSwitchPick[T any](v T) int {
 	_ = v
 	const switch T {

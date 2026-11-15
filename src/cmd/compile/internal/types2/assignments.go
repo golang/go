@@ -19,6 +19,7 @@ import (
 // Use T == nil to indicate assignment to an untyped blank identifier.
 // If the assignment check fails, x.mode is set to invalid.
 func (check *Checker) assignment(x *operand, T Type, context string) {
+	check.logosLambdaResolve(x, T)
 	check.singleValue(x)
 
 	switch x.mode() {
@@ -125,6 +126,12 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 
 	cause := ""
 	if ok, code := x.assignableTo(check, T, &cause); !ok {
+		if check.logosUnionAssign(x, T, context) {
+			return
+		}
+		if check.logosOptionUnwrap(x, T, context) {
+			return
+		}
 		if cause != "" {
 			check.errorf(x, code, "cannot use %s as %s value in %s: %s", x, T, context, cause)
 		} else {
@@ -182,6 +189,7 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) {
 		return
 	}
 
+	check.logosConstOrigin(x)
 	// If lhs doesn't have a type yet, use the type of x.
 	if lhs.typ == nil {
 		typ := x.typ()
@@ -196,13 +204,14 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) {
 			typ = Default(typ)
 		}
 		lhs.typ = typ
-		check.logosConstInferVar(lhs) // logos M5-S1 hook: inferred locals copy out of views.
+		check.logosConstInferVar(lhs)           // logos M5-S1 hook: inferred locals copy out of views.
 		if check.logosInheritPlatform(lhs, x) { // logos M3-S5 hook.
 			return
 		}
 	}
 
 	check.assignment(x, lhs.typ, context)
+	check.logosRegionDecl(lhs, x)
 }
 
 // lhsVar checks a lhs variable in an assignment and returns its type.
@@ -259,6 +268,9 @@ func (check *Checker) lhsVar(lhs syntax.Expr) Type {
 	case variable, mapindex:
 		// ok
 	default:
+		if check.logosConstStore(lhs) {
+			return Typ[Invalid]
+		}
 		if sel, ok := x.expr.(*syntax.SelectorExpr); ok {
 			var op operand
 			check.expr(nil, &op, sel.X)
@@ -297,7 +309,9 @@ func (check *Checker) assignVar(lhs, rhs syntax.Expr, x *operand, context string
 			}
 		}
 		x = new(operand)
-		check.expr(target, x, rhs)
+		if !check.logosLambdaDefer(x, rhs) {
+			check.expr(target, x, rhs)
+		}
 	}
 
 	if T == nil && context == "assignment" {
@@ -311,7 +325,9 @@ func (check *Checker) assignVar(lhs, rhs syntax.Expr, x *operand, context string
 		}
 		return
 	}
+	check.logosLambdaResolve(x, T)
 	check.logosPushGoStore(lhs) // logos M3-S5 hook.
+	check.logosRegionAssign(lhs, x)
 	check.assignment(x, T, context)
 	check.logosPopGoStore()    // logos M3-S5 hook.
 	check.logosKillNarrow(lhs) // logos M3-S4 hook: `x = other` ends narrowing.
@@ -558,7 +574,6 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
 		for i, lhs := range lhs {
 			check.assignVar(lhs, nil, rhs[i], context)
 		}
-		check.logosTrackCallAssign(lhs, orig_rhs[0]) // logos M3-S4 hook: `n, err = f()` arms the error-first guard.
 		// Only record comma-ok expression if both assignments succeeded
 		// (go.dev/issue/59371).
 		if commaOk && rhs[0].mode() != invalid && rhs[1].mode() != invalid {
@@ -640,7 +655,7 @@ func (check *Checker) shortVarDecl(pos poser, lhs, rhs []syntax.Expr) {
 	if !check.logosTryInitHook(lhsVars, rhs) { // logos M1-S3 hook.
 		check.initVars(lhsVars, rhs, nil)
 	}
-	check.logosShortDecl(lhs, rhs, lhsVars) // logos M3-S4 hook: kill redeclared targets, track `n, err := f()`.
+	check.logosShortDecl(lhs) // logos M3-S4 hook: kill redeclared targets.
 
 	// process function literals in rhs expressions before scope changes
 	check.processDelayed(top)

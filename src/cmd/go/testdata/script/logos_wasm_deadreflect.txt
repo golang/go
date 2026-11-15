@@ -1,0 +1,111 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOOS=js
+env GOARCH=wasm
+[!exec:node] skip 'A-NODE: node is required to run the loader'
+cp $GOROOT/lib/wasm/wasm_exec.js wasm_exec.js
+logos build -o app.wasm .
+exists app.wasm
+exists app.loader.mjs
+exec node check.mjs app.wasm app.loader.mjs
+# Type and method tables also keep encoding/json resolving: Pair's
+# MarshalJSON and UnmarshalJSON are reached only through the interface
+# assertion inside encoding/json. Dropping interface-reached methods
+# breaks this verdict while reflect-only uses keep passing.
+stdout '^reflect-ok$'
+stdout '^json-ok$'
+-- go.mod --
+module example.com/wasmdeadreflect
+
+go 1.27
+-- main.go --
+package main
+
+import (
+	"encoding/json"
+	"errors"
+	"reflect"
+
+	"logos/rt"
+)
+
+type Hidden struct {
+	v int
+}
+
+func (Hidden) Answer() int {
+	return 42
+}
+
+func hiddenAnswer() int {
+	h := Hidden{v: 7}
+	t := reflect.TypeOf(h)
+	if t.NumMethod() != 1 {
+		return -1
+	}
+	v := reflect.ValueOf(h)
+	got := -2
+	for i := 0; i < v.NumMethod(); i++ {
+		out := v.Method(i).Call(nil)
+		if len(out) == 1 && out[0].Kind() == reflect.Int {
+			got = int(out[0].Int())
+		}
+	}
+	return got
+}
+
+//go:wasmexport checkReflect
+func checkReflect() int32 {
+	if hiddenAnswer() != 42 {
+		return rt.WasmError(errors.New("reflect missed dead method"))
+	}
+	return rt.WasmError(nil)
+}
+
+type Pair struct {
+	A int
+	B int
+}
+
+func (Pair) MarshalJSON() ([]byte, error) {
+	return []byte(`{"pair":[3,4]}`), nil
+}
+
+func (p *Pair) UnmarshalJSON(b []byte) error {
+	if string(b) != `{"pair":[3,4]}` {
+		return errors.New("bad pair json")
+	}
+	p.A, p.B = 3, 4
+	return nil
+}
+
+//go:wasmexport checkJson
+func checkJson() int32 {
+	b, err := json.Marshal(Pair{})
+	if err != nil || string(b) != `{"pair":[3,4]}` {
+		return rt.WasmError(errors.New("marshal mismatch"))
+	}
+	var p Pair
+	if err := json.Unmarshal([]byte(`{"pair":[3,4]}`), &p); err != nil || p.A != 3 || p.B != 4 {
+		return rt.WasmError(errors.New("unmarshal mismatch"))
+	}
+	return rt.WasmError(nil)
+}
+
+func main() {
+	select {}
+}
+-- check.mjs --
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+import assert from "node:assert/strict";
+const [wasmPath, loaderPath] = process.argv.slice(2);
+const loader = await import(pathToFileURL(resolve(loaderPath)).href);
+const { instance, exports } = await loader.instantiateLogos(readFileSync(wasmPath), {});
+assert.equal(instance.exports.checkReflect(), 0);
+assert.equal(instance.exports.checkJson(), 0);
+exports.checkReflect();
+exports.checkJson();
+console.log("reflect-ok");
+console.log("json-ok");

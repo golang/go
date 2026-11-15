@@ -9,14 +9,8 @@ import (
 	"testing"
 )
 
-// TestLogosUnsupportedActionText drives one .lgo case through runLogos
-// with an action outside the harness set and pins the exact error the
-// case reports: `logos harness: unsupported action <action> for .lgo`.
-// The plain-Go upstream path dies with ENOENT instead, so this test
-// fails when the dispatch drops the logos harness or the error text
-// drifts from the harness contract.
 func TestLogosUnsupportedActionText(t *testing.T) {
-	ts := test{goFile: "codegen/unsupported_action.lgo", T: t}
+	ts := test{goFile: "run/x.lgo", T: t}
 	err := ts.runLogos(logosCase{action: "rundir", src: []byte("package main\n")})
 	if err == nil {
 		t.Fatal("runLogos on unsupported .lgo action returned nil")
@@ -27,13 +21,8 @@ func TestLogosUnsupportedActionText(t *testing.T) {
 	}
 }
 
-// TestRouteLogosHarnessSkipBypass pins the one non-trivial dispatch
-// contract: // skip never routes into the logos harness, and every
-// other action under test/logos does. A regression that routes skip
-// into runLogos would try to stage and build a deliberately skipped
-// file.
 func TestRouteLogosHarnessSkipBypass(t *testing.T) {
-	if routeLogosHarness("logos", "codegen/unsupported_action.lgo", "skip", nil) {
+	if routeLogosHarness("logos", "run/x.lgo", "skip", nil) {
 		t.Fatal("routeLogosHarness routed a skip case into the logos harness")
 	}
 	if routeLogosHarness("fixedbugs", "x.go", "rundir", nil) {
@@ -41,16 +30,11 @@ func TestRouteLogosHarnessSkipBypass(t *testing.T) {
 	}
 }
 
-// TestLogosGCFlagsScopedToTestPackage pins test-only compiler flags to
-// the test package: the staged argv keeps an all=<base> element free of
-// -m, -e, and -d so dependencies compile with the shared base only. A
-// regression that folds test flags into the all= element rebuilds the
-// standard library with debug flags.
-func TestLogosGCFlagsScopedToTestPackage(t *testing.T) {
+func TestLogosCompilerFlagsScopedToTestPackage(t *testing.T) {
 	t.Setenv("GO_GCFLAGS", "-l")
-	args := logosGCFlagsArgs([]string{"-m"})
+	args := logosTestFlagsArgs([]string{"-m"})
 	if len(args) != 2 {
-		t.Fatalf("logosGCFlagsArgs returned %d elements, want 2: %q", len(args), args)
+		t.Fatalf("logosTestFlagsArgs returned %d elements, want 2: %q", len(args), args)
 	}
 	all, scoped := args[0], args[1]
 	if !strings.Contains(all, "all=-l") {
@@ -64,9 +48,6 @@ func TestLogosGCFlagsScopedToTestPackage(t *testing.T) {
 	}
 }
 
-// TestLogosTestCmd pins the argv of a staged _test.lgo run case: `logos test`
-// over the staged package, and with a fuzz time the -fuzz and -fuzztime flags
-// before the package argument.
 func TestLogosTestCmd(t *testing.T) {
 	got := strings.Join(logosTestCmd("logos", "-gcflags=all=", []string{"-race"}, ""), " ")
 	if want := "logos test -count=1 -gcflags=all= -race ."; got != want {

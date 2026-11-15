@@ -6,8 +6,13 @@ package json
 
 import (
 	stdjson "encoding/json"
+	"errors"
 	"reflect"
+	"slices"
+	"sort"
 	"strconv"
+	"strings"
+	"sync"
 	"unicode"
 	"unicode/utf8"
 	"unsafe"
@@ -20,13 +25,7 @@ const (
 	stateDone
 )
 
-type rejectedError struct{}
-
-func (*rejectedError) Error() string {
-	return "logos/rt/json: input rejected by the scanner but accepted by encoding/json"
-}
-
-var errRejected error = &rejectedError{}
+var errRejected = errors.New("logos/rt/json: input rejected by the scanner but accepted by encoding/json")
 
 // A Scanner is a cursor over one complete JSON value held in memory. It
 // validates every byte it consumes, so after Next returns false the whole
@@ -130,7 +129,7 @@ func (s *Scanner) typeError(value string, typ reflect.Type) *stdjson.UnmarshalTy
 }
 
 func detach(key string) string {
-	return string(append([]byte(nil), key...))
+	return strings.Clone(key)
 }
 
 func (s *Scanner) rejectKind(typ reflect.Type) {
@@ -147,16 +146,10 @@ func (s *Scanner) rejectNumber(lit string, typ reflect.Type) {
 
 func (s *Scanner) indexNewError(before error, i int) {
 	if indexedFieldPaths && before == nil && s.saved != nil {
-		s.indexSaved(i)
+		if ute, ok := s.saved.(*stdjson.UnmarshalTypeError); ok && len(ute.Field) >= len(s.key) && ute.Field[:len(s.key)] == s.key {
+			ute.Field = s.key + "." + strconv.Itoa(i) + ute.Field[len(s.key):]
+		}
 	}
-}
-
-func (s *Scanner) indexSaved(i int) {
-	ute, ok := s.saved.(*stdjson.UnmarshalTypeError)
-	if !ok || len(ute.Field) < len(s.key) || ute.Field[:len(s.key)] != s.key {
-		return
-	}
-	ute.Field = s.key + "." + strconv.Itoa(i) + ute.Field[len(s.key):]
 }
 
 func (s *Scanner) scalar() byte {
@@ -232,14 +225,13 @@ func (s *Scanner) rejectObject() {
 	})
 }
 
-func (s *Scanner) closeObject(i int) bool {
+func (s *Scanner) closeObject(i int) {
 	s.pos = skipSpace(s.data, i)
 	if s.pos != len(s.data) {
 		s.fail()
-		return false
+		return
 	}
 	s.state = stateDone
-	return false
 }
 
 func (s *Scanner) setKey(start, end, flags int) {
@@ -290,7 +282,8 @@ func (s *Scanner) Next() bool {
 	}
 	c := s.data[i]
 	if c == '}' {
-		return s.closeObject(i + 1)
+		s.closeObject(i + 1)
+		return false
 	}
 	if s.state == stateMember {
 		if c != ',' {
@@ -391,24 +384,17 @@ func (s *Scanner) Fallback(dst any) {
 	if s.scalar() == 0 {
 		return
 	}
-	err := stdjson.Unmarshal(s.data[s.start:s.end], dst)
-	if err == nil {
-		return
-	}
-	if ute, ok := err.(*stdjson.UnmarshalTypeError); ok {
-		s.saveFallback(ute)
-		return
-	}
-	s.fatal(err)
+	s.decodeRaw(s.data[s.start:s.end], dst)
 }
 
-// FallbackQ decodes a fallback field carrying the `string` option: the
+// FallbackQ decodes a json.Number field carrying the `string` option: the
 // value must be a JSON string whose content is itself JSON, or null.
 // It unwraps the outer string before delegating to encoding/json, matching
-// encoding/json's destring branch which passes the inner content (e.g. 7,
-// not "7") to UnmarshalJSON. A bare non-string value saves the invalid
-// use of ,string error; null decodes as null (pointer nil, value
-// unchanged) via the same path as Fallback.
+// encoding/json's destring branch for Number. A bare non-string value saves
+// the invalid use of ,string error; null decodes as null (pointer nil, value
+// unchanged) via the same path as Fallback. A field whose type declares its
+// own UnmarshalJSON or UnmarshalText method must use Fallback instead, so the
+// method receives the raw token exactly as encoding/json delivers it.
 func (s *Scanner) FallbackQ(dst any) {
 	item, st := s.readQuoted()
 	switch st {
@@ -420,57 +406,30 @@ func (s *Scanner) FallbackQ(dst any) {
 		if t == nil {
 			t = reflect.TypeFor[any]()
 		}
-		// Same legacy ,string error the quoted scalar helpers save.
 		s.save(tagUnquoted(t))
 		return
 	case quotedContent:
-		// item is the unescaped inner content; it must itself be valid
-		// JSON for the field type (e.g. 7 for int, "a" for string).
-		// Decode it with the same error mapping as Fallback, with the
-		// offset rebased to the outer value start.
-		outerStart := s.start
-		err := stdjson.Unmarshal([]byte(item), dst)
-		if err == nil {
-			return
-		}
-		if ute, ok := err.(*stdjson.UnmarshalTypeError); ok {
-			// Rebase inner offset (relative to item) to whole input.
-			// item starts after the outer opening quote; use outerStart
-			// as the base like saveFallback does for outer spans.
-			ute.Offset += int64(outerStart)
-			if ute.Struct == "" {
-				ute.Struct = s.structName()
-			}
-			if ute.Field == "" {
-				ute.Field = detach(s.key)
-			} else {
-				ute.Field = s.key + "." + ute.Field
-			}
-			if s.saved == nil {
-				s.saved = ute
-			}
-			return
-		}
-		s.fatal(err)
+		s.decodeRaw([]byte(item), dst)
 		return
 	default:
-		// quotedNone: null (or a scan error already recorded). Decode
-		// null into dst so pointers become nil and values stay unchanged,
-		// matching Fallback on null.
 		if s.err != nil {
 			return
 		}
-		err := stdjson.Unmarshal(s.data[s.start:s.end], dst)
-		if err == nil {
-			return
-		}
-		if ute, ok := err.(*stdjson.UnmarshalTypeError); ok {
-			s.saveFallback(ute)
-			return
-		}
-		s.fatal(err)
+		s.decodeRaw(s.data[s.start:s.end], dst)
 		return
 	}
+}
+
+func (s *Scanner) decodeRaw(raw []byte, dst any) {
+	err := stdjson.Unmarshal(raw, dst)
+	if err == nil {
+		return
+	}
+	if ute, ok := err.(*stdjson.UnmarshalTypeError); ok {
+		s.saveFallback(ute)
+		return
+	}
+	s.fatal(err)
 }
 
 func (s *Scanner) saveFallback(ute *stdjson.UnmarshalTypeError) {
@@ -509,4 +468,102 @@ func (s *Scanner) End() error {
 		return s.err
 	}
 	return s.saved
+}
+
+const (
+	UnionTrialMiss = iota
+	UnionTrialSingle
+	UnionTrialAmbiguous
+	UnionTrialNoMatch
+)
+
+type UnionTrialOutcome struct {
+	Kind    int
+	Winner  int
+	Matched int
+}
+
+// A UnionTrial memoizes union trial outcomes for one root value: the raw
+// bytes of the outermost union value in flight. It holds those bytes, so
+// their address range stays allocated and fixed until the outermost trial
+// returns, and a nested trial joins the root whose range contains its bytes.
+// Decodes of separate buffers therefore share no outcomes.
+type UnionTrial struct {
+	root     []byte
+	depth    int
+	mu       sync.Mutex
+	outcomes map[string]UnionTrialOutcome
+	bytes    int
+}
+
+var unionTrials struct {
+	mu     sync.Mutex
+	active []*UnionTrial
+}
+
+func addressRange(raw []byte) (lo, hi uintptr) {
+	lo = uintptr(unsafe.Pointer(unsafe.SliceData(raw)))
+	return lo, lo + uintptr(len(raw))
+}
+
+func unionTrialKey(typeID string, raw []byte) string {
+	key := make([]byte, 0, len(typeID)+1+len(raw))
+	key = append(key, typeID...)
+	key = append(key, 0)
+	key = append(key, raw...)
+	return string(key)
+}
+
+func EnterUnionTrial(raw []byte) *UnionTrial {
+	lo, hi := addressRange(raw)
+	unionTrials.mu.Lock()
+	defer unionTrials.mu.Unlock()
+	active := unionTrials.active
+	at := sort.Search(len(active), func(i int) bool {
+		rootLo, _ := addressRange(active[i].root)
+		return rootLo > lo
+	})
+	if at > 0 {
+		if _, rootHi := addressRange(active[at-1].root); hi <= rootHi {
+			active[at-1].depth++
+			return active[at-1]
+		}
+	}
+	t := &UnionTrial{root: raw, depth: 1}
+	unionTrials.active = slices.Insert(active, at, t)
+	return t
+}
+
+func (t *UnionTrial) Exit() {
+	unionTrials.mu.Lock()
+	defer unionTrials.mu.Unlock()
+	t.depth--
+	if t.depth == 0 {
+		unionTrials.active = slices.DeleteFunc(unionTrials.active, func(o *UnionTrial) bool { return o == t })
+	}
+}
+
+func (t *UnionTrial) Lookup(typeID string, raw []byte) (bool, UnionTrialOutcome) {
+	key := unionTrialKey(typeID, raw)
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	out, ok := t.outcomes[key]
+	if !ok {
+		return false, UnionTrialOutcome{Kind: UnionTrialMiss, Winner: -1}
+	}
+	return true, out
+}
+
+func (t *UnionTrial) Store(typeID string, raw []byte, out UnionTrialOutcome) {
+	key := unionTrialKey(typeID, raw)
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.outcomes == nil || len(t.outcomes) > 1024 || t.bytes > 1<<20 {
+		t.outcomes = make(map[string]UnionTrialOutcome)
+		t.bytes = 0
+	}
+	if _, dup := t.outcomes[key]; !dup {
+		t.bytes += len(key)
+	}
+	t.outcomes[key] = out
 }

@@ -1,0 +1,57 @@
+// run
+
+package main
+
+import (
+	"comptime"
+	"fmt"
+	"reflect"
+)
+
+type VarRecord struct {
+	Name string `json:"nm" xml:"n1"`
+	Age  int64  `json:"age,omitempty" xml:"a2"`
+}
+
+func want(key string) []string {
+	var out []string
+	rt := reflect.TypeOf(VarRecord{})
+	for i := 0; i < rt.NumField(); i++ {
+		out = append(out, reflect.StructTag(rt.Field(i).Tag).Get(key))
+	}
+	return out
+}
+
+func check(name, key string, got []string) {
+	w := want(key)
+	if fmt.Sprint(got) != fmt.Sprint(w) {
+		fmt.Println("FAIL", name, got, w)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func varReassigned() []string {
+	key := "json"
+	key = "xml"
+	var out []string
+	const for _, f := range comptime.Fields[VarRecord]() {
+		out = append(out, f.Tag.Get(key))
+	}
+	return out
+}
+
+//go:noinline
+func paramKey(k string) []string {
+	var out []string
+	const for _, f := range comptime.Fields[VarRecord]() {
+		out = append(out, f.Tag.Get(k))
+	}
+	return out
+}
+
+func main() {
+	check("reassigned", "xml", varReassigned())
+	check("param", "xml", paramKey("xml"))
+	check("param-json", "json", paramKey("json"))
+}

@@ -4,14 +4,11 @@
 
 package config
 
-import "internal/cpu"
+import (
+	"internal/cpu"
+	"slices"
+)
 
-// ArchLevels maps a target_cpu value to the GOAMD64 and GOARM64 levels
-// the build and the LSP hints runner compile with. "baseline" selects the
-// oldest levels, "native" probes the host, and any other value, including
-// "deterministic" and the empty default, selects the deterministic levels.
-// It is the single owner of the target_cpu selection: both the build path
-// and the hints path call it, so their levels cannot drift apart.
 func ArchLevels(targetCPU string) (amd64, arm64 string) {
 	switch targetCPU {
 	case "baseline":
@@ -23,18 +20,26 @@ func ArchLevels(targetCPU string) (amd64, arm64 string) {
 	}
 }
 
-// nativeAMD64 picks the host GOAMD64 level from CPU feature bits.
 func nativeAMD64() string {
-	if cpu.X86.HasAVX512F && cpu.X86.HasAVX512BW && cpu.X86.HasAVX512CD && cpu.X86.HasAVX512DQ && cpu.X86.HasAVX512VL {
-		return "v4"
+	x := &cpu.X86
+	levels := []struct {
+		name string
+		need []bool
+	}{
+		{"v2", []bool{x.HasSSE3, x.HasSSSE3, x.HasCX16, x.HasSSE41, x.HasSSE42, x.HasPOPCNT, x.HasLAHF}},
+		{"v3", []bool{x.HasFMA, x.HasMOVBE, x.HasOSXSAVE, x.HasAVX, x.HasF16C, x.HasLZCNT, x.HasBMI1, x.HasAVX2, x.HasBMI2}},
+		{"v4", []bool{x.HasAVX512F, x.HasAVX512DQ, x.HasAVX512CD, x.HasAVX512BW, x.HasAVX512VL}},
 	}
-	if cpu.X86.HasAVX2 && cpu.X86.HasBMI2 && cpu.X86.HasFMA {
-		return "v3"
+	host := "v1"
+	for _, level := range levels {
+		if slices.Contains(level.need, false) {
+			break
+		}
+		host = level.name
 	}
-	return "v1"
+	return host
 }
 
-// nativeARM64 picks the host GOARM64 level from CPU feature bits.
 func nativeARM64() string {
 	if cpu.ARM64.HasATOMICS {
 		return "v8.1"

@@ -1,6 +1,6 @@
-20
-30
-10
--1
-1
--1
+ok slice-first
+ok slice-last
+ok prefix-first
+ok empty-first
+ok map-present
+ok map-missing

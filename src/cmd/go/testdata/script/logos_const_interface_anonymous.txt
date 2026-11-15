@@ -1,34 +1,7 @@
-# T-201, R-U2: anonymous readonly interface methods `interface{ const Get() int }`.
-# The contract package exports Use(x interface{ const Get() int }) int (P0.MGet
-# shape), Holder with Inner Namer (named FInner indirection via existing I.M)
-# and Anon interface{ const Get() int } (FAnon.MGet shape), NewNamer() Namer
-# (R0 named via existing I.M) and NewAnon() interface{ const Get() int }
-# (R0.MGet shape), Alias = Namer and AnonAlias = interface{ const Get() int }
-# (alias RHS transparent, same paths as underlying), and AllNamed[T Namer]
-# generic with a named qualified constraint (expressible today; roots skip
-# emission like existing generics but constraints enter the affected closure
-# via subst, so the bound iface still rebuilds readonly). An
-# anonymous-constraint generic All[T interface{ const Get() int }] would be
-# the G0.MGet shape (type G[T] same G0; generic method recv params via H)
-# but is documented optional only: the parser may not accept const in
-# constraint position, so the core P0/R0/F shapes never block on it.
-# Every implementer must be provably readonly (independent runtime truth):
-# pure value getters are accepted and run to anon-ok / go-anon-ok; an
-# other-package mutating value getter (slice write through the receiver) is
-# rejected with the approved call-site code const_view_mutation, and an
-# ordinary Go importer mutator is likewise rejected. No satisfaction or
-# fingerprint wire text is pinned here (facts owner owns it); only the
-# const_view_mutation code is asserted. Modules stay homogeneous: w/l is
-# all-.lgo, w/g is all-.go via go.work, neg is all-.lgo, gneg is all-.go
-# with a replace to w/l. Case 1 builds and runs first so a later red is a
-# semantic proof, never a syntax failure.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 mkdir $WORK/bin
 
-# Case 1: syntax works and pure getters are accepted through every shape.
-# Independent runtime truth: Run returns anon-ok / go-anon-ok only when
-# each qualified call observes the expected pure value.
 cd w
 logos build ./...
 logos build -o $WORK/bin/anon$GOEXE ./l/cmd
@@ -39,9 +12,6 @@ exec $WORK/bin/goanon$GOEXE
 stdout '^go-anon-ok$'
 cd ..
 
-# Case 2: other-package (other than c) mutating value getters rejected.
-# Each attack package defines its Mut locally so the deferred package-end
-# proof reports with the approved code; only the code is pinned.
 cd neg
 ! logos build ./anon
 stderr '\[correctness::const_view_mutation\]'
@@ -55,7 +25,6 @@ stderr '\[correctness::const_view_mutation\]'
 stderr '\[correctness::const_view_mutation\]'
 cd ..
 
-# Case 3: ordinary Go importer mutator rejected through the anonymous shape.
 cd gneg
 ! logos build ./...
 stderr '\[correctness::const_view_mutation\]'

@@ -1,0 +1,180 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+import "context"
+
+import "logos/arena"
+
+var global arena.Region
+
+var fvar func()
+
+var ch chan arena.Region = make(chan arena.Region)
+
+type box struct {
+	r arena.Region
+}
+
+func use(r arena.Region) {
+	_ = r
+}
+
+func globalStore() {
+	r := arena.Open()
+	global = r /* ERROR "correctness::region_escape" */
+}
+
+func ptrFieldStore(p *box) {
+	r := arena.Open()
+	p.r = r /* ERROR "correctness::region_escape" */
+}
+
+func send() {
+	r := arena.Open()
+	ch <- r /* ERROR "correctness::region_escape" */
+}
+
+func ret() arena.Region {
+	r := arena.Open()
+	return r /* ERROR "correctness::region_escape" */
+}
+
+func goCapture(ctx context.Context) error {
+	r := arena.Open()
+	go group (ctx) {
+		go use(r /* ERROR "correctness::region_escape" */)
+	}
+	return nil
+}
+
+func groupChildLit(ctx context.Context) error {
+	r := arena.Open()
+	go group (ctx) {
+		go func /* ERROR "correctness::region_escape" */ () {
+			_ = r
+		}()
+	}
+	return nil
+}
+
+func reservedGroupPrefix(ctx context.Context) error {
+	var _logos_g0 /* ERROR "correctness::reserved_identifier" */ = 1
+	_ = _logos_g0 /* ERROR "correctness::reserved_identifier" */
+	return nil
+}
+
+func closureGlobal() {
+	r := arena.Open()
+	fvar /* ERROR "correctness::region_escape" */ = func() {
+		_ = r
+	}
+}
+
+func argPass() {
+	r := arena.Open()
+	use(r)
+}
+
+func localFieldStore() {
+	r := arena.Open()
+	var b box
+	b.r = r
+	_ = b
+}
+
+func immediateClosure() {
+	r := arena.Open()
+	func() {
+		_ = r
+	}()
+}
+
+type holder struct {
+	p *box
+}
+
+func usePtr(b *box) {
+	_ = b
+}
+
+func retPtrLit() *box {
+	r := arena.Open()
+	return & /* ERROR "correctness::region_escape" */ box{r: r}
+}
+
+func retPtrLocal() *box {
+	r := arena.Open()
+	p := &box{r: r}
+	return p /* ERROR "correctness::region_escape" */
+}
+
+func retSliceLocal() []arena.Region {
+	r := arena.Open()
+	s := []arena.Region{r}
+	return s /* ERROR "correctness::region_escape" */
+}
+
+func retMapLocal() map[string]arena.Region {
+	r := arena.Open()
+	m := map[string]arena.Region{"k": r}
+	return m /* ERROR "correctness::region_escape" */
+}
+
+func retAny() any {
+	r := arena.Open()
+	var a any = r
+	return a /* ERROR "correctness::region_escape" */
+}
+
+func retConvAny() any {
+	r := arena.Open()
+	return any /* ERROR "correctness::region_escape" */ (r)
+}
+
+func storePtrLit(h *holder) {
+	r := arena.Open()
+	h /* ERROR "correctness::region_escape" */ .p = &box{r: r}
+}
+
+func storeGlobalPtr() {
+	r := arena.Open()
+	p := &box{r: r}
+	gptr /* ERROR "correctness::region_escape" */ = p
+}
+
+func sendPtrLit(c chan *box) {
+	r := arena.Open()
+	c <- & /* ERROR "correctness::region_escape" */ box{r: r}
+}
+
+func goPtrLocal(ctx context.Context) error {
+	r := arena.Open()
+	p := &box{r: r}
+	go group (ctx) {
+		go usePtr(p /* ERROR "correctness::region_escape" */)
+	}
+	return nil
+}
+
+func closurePtrLocal() func() {
+	r := arena.Open()
+	p := &box{r: r}
+	return func /* ERROR "correctness::region_escape" */ () { _ = p }
+}
+
+func localPtrOnly() {
+	r := arena.Open()
+	p := &box{r: r}
+	usePtr(p)
+	usePtr(&box{r: r})
+	_ = p
+}
+
+func fluent(b *box) *box {
+	return b
+}
+
+var gptr *box?

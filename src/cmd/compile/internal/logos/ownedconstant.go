@@ -17,6 +17,7 @@ import (
 	"go/build/constraint"
 	"go/parser"
 	"go/token"
+	"internal/logosfile"
 	"maps"
 	"slices"
 	"strconv"
@@ -131,11 +132,6 @@ func ownedAliasFor(factoryPath, factoryName string, path []types2.LogosOwnedStep
 	return "LogosOwned_" + hex.EncodeToString(sum[:])
 }
 
-// ownedValueAliasFor derives a helper name from factory identity plus the
-// computed value text, so two const initializers calling one factory with
-// different arguments never share a declaration while identical
-// computations stay byte-identical and deduplicate. The empty-value
-// digest matches ownedAliasFor, keeping type-only helpers stable.
 func ownedValueAliasFor(factoryPath, factoryName string, path []types2.LogosOwnedStep, kind, value string) string {
 	h := sha256.New()
 	h.Write([]byte(factoryPath))
@@ -171,16 +167,13 @@ func ownedNextSeq(f *syntax.File) int {
 	return n
 }
 
-func ownedNativePlaceholder(fl *fileLower, factoryPath, factoryName, role string) string {
+func ownedNativePlaceholder(fl *fileLower, role string) string {
 	return fmt.Sprintf("_logos_owned_t%d_%s", ownedNextSeq(fl.file), role)
 }
 
 func (fl *fileLower) emitOwnedRequest(owner, pkg, source string, decls []logosowned.Declaration) bool {
 	if base.LogosEject == "" {
 		return true
-	}
-	if decls == nil {
-		return false
 	}
 	if imports := ownedOwnerImports[owner]; len(imports) > 0 {
 		packageClause, rest, ok := strings.Cut(source, "\n")
@@ -444,6 +437,9 @@ func ownedCollectTypeDecls(t types2.Type, seen map[types2.Type]bool, out *[]logo
 	}
 }
 
+var ownedKnownOS = map[string]bool{"aix": true, "android": true, "darwin": true, "dragonfly": true, "freebsd": true, "hurd": true, "illumos": true, "ios": true, "js": true, "linux": true, "nacl": true, "netbsd": true, "openbsd": true, "plan9": true, "solaris": true, "windows": true, "zos": true}
+var ownedKnownArch = map[string]bool{"386": true, "amd64": true, "arm": true, "arm64": true, "loong64": true, "mips": true, "mipsle": true, "mips64": true, "mips64le": true, "ppc64": true, "ppc64le": true, "riscv": true, "riscv64": true, "s390x": true, "sparc64": true, "wasm": true}
+
 func ownedConstraintHeader(fl *fileLower) string {
 	if fl == nil || fl.file == nil {
 		return ""
@@ -463,30 +459,30 @@ func ownedConstraintHeader(fl *fileLower) string {
 	if name == "" {
 		return ""
 	}
-	base := name
-	if i := len(base); i > 3 && base[i-3:] == ".go" {
-		base = base[:i-3]
-	} else if i := len(base); i > 4 && base[i-4:] == ".lgo" {
-		base = base[:i-4]
+	base := strings.TrimSuffix(name, ".go")
+	if stem, _, ok := logosfile.Split(name); ok {
+		base = stem
 	}
-	parts := splitUnderscore(base)
+	parts := strings.Split(base, "_")
 	if len(parts) < 2 {
 		return explicitBuildHeader(fl)
 	}
-	goosList := map[string]bool{"aix": true, "android": true, "darwin": true, "dragonfly": true, "freebsd": true, "hurd": true, "illumos": true, "ios": true, "js": true, "linux": true, "nacl": true, "netbsd": true, "openbsd": true, "plan9": true, "solaris": true, "windows": true, "zos": true}
-	goarchList := map[string]bool{"386": true, "amd64": true, "arm": true, "arm64": true, "loong64": true, "mips": true, "mipsle": true, "mips64": true, "mips64le": true, "ppc64": true, "ppc64le": true, "riscv": true, "riscv64": true, "s390x": true, "sparc64": true, "wasm": true}
 	var cond []string
 	n := len(parts)
-	if n >= 3 && goosList[parts[n-2]] && goarchList[parts[n-1]] {
+	if n >= 3 && ownedKnownOS[parts[n-2]] && ownedKnownArch[parts[n-1]] {
 		cond = append(cond, parts[n-2], parts[n-1])
-	} else if goosList[parts[n-1]] || goarchList[parts[n-1]] {
+	} else if ownedKnownOS[parts[n-1]] || ownedKnownArch[parts[n-1]] {
 		cond = append(cond, parts[n-1])
 	}
 	exp := explicitBuildHeader(fl)
 	if len(cond) == 0 {
 		return exp
 	}
-	return combineOwnedConstraints(exp, joinWithAnd(cond))
+	condText := cond[0]
+	if len(cond) == 2 {
+		condText = "(" + cond[0] + " && " + cond[1] + ")"
+	}
+	return combineOwnedConstraints(exp, condText)
 }
 
 func combineOwnedConstraints(header, filename string) string {
@@ -533,35 +529,6 @@ func combineOwnedConstraints(header, filename string) string {
 	return "//go:build " + expr.String() + "\n" + strings.Join(lines, "\n") + "\n\n"
 }
 
-func splitUnderscore(s string) []string {
-	var out []string
-	cur := ""
-	for i := 0; i < len(s); i++ {
-		if s[i] == '_' {
-			out = append(out, cur)
-			cur = ""
-		} else {
-			cur += string(s[i])
-		}
-	}
-	out = append(out, cur)
-	return out
-}
-
-func joinWithAnd(c []string) string {
-	if len(c) == 1 {
-		return c[0]
-	}
-	s := "("
-	for i, v := range c {
-		if i > 0 {
-			s += " && "
-		}
-		s += v
-	}
-	return s + ")"
-}
-
 func explicitBuildHeader(fl *fileLower) string {
 	if len(fl.src) == 0 {
 		return ""
@@ -570,7 +537,7 @@ func explicitBuildHeader(fl *fileLower) string {
 	if len(text) > 4096 {
 		text = text[:4096]
 	}
-	lines := splitLines(text)
+	lines := strings.Split(string(text), "\n")
 	var out []string
 	for _, ln := range lines {
 		if len(ln) >= 10 && ln[:10] == "//go:build" {
@@ -581,7 +548,7 @@ func explicitBuildHeader(fl *fileLower) string {
 		if len(out) > 0 && len(ln) == 0 {
 			break
 		}
-		if startsWithPackage(ln) {
+		if strings.HasPrefix(strings.TrimLeft(ln, " \t"), "package") {
 			break
 		}
 	}
@@ -593,28 +560,6 @@ func explicitBuildHeader(fl *fileLower) string {
 		s += ln + "\n"
 	}
 	return s + "\n"
-}
-
-func splitLines(b []byte) []string {
-	var out []string
-	cur := ""
-	for _, c := range b {
-		if c == '\n' {
-			out = append(out, cur)
-			cur = ""
-		} else {
-			cur += string(rune(c))
-		}
-	}
-	out = append(out, cur)
-	return out
-}
-
-func startsWithPackage(ln string) bool {
-	for len(ln) > 0 && (ln[0] == ' ' || ln[0] == '\t') {
-		ln = ln[1:]
-	}
-	return len(ln) >= 7 && ln[:7] == "package"
 }
 
 func (fl *fileLower) existingImportName(pkgPath string) (string, bool) {
@@ -657,14 +602,6 @@ func ownedFactoryCall(init syntax.Expr, info *types2.Info) (factoryPath, factory
 		return "", "", nil, false
 	}
 	return fn.Pkg().Path(), sel.Sel.Value, call, true
-}
-
-func ownedMapKeyPath(sig *types2.Signature) ([]types2.LogosOwnedStep, bool) {
-	return ownedMapPath(sig, types2.LogosOwnedMapKey)
-}
-
-func ownedMapElemPath(sig *types2.Signature) ([]types2.LogosOwnedStep, bool) {
-	return ownedMapPath(sig, types2.LogosOwnedMapElem)
 }
 
 func ownedMapPath(sig *types2.Signature, want types2.LogosOwnedStepKind) ([]types2.LogosOwnedStep, bool) {
@@ -711,14 +648,6 @@ func isGenericFactory(fl *fileLower, sig *types2.Signature, init syntax.Expr) bo
 	return false
 }
 
-func witnessMapKeyPath(root types2.Type) []types2.LogosOwnedStep {
-	return ownedChildPath(nil, root, types2.LogosOwnedStep{Kind: types2.LogosOwnedMapKey})
-}
-
-func witnessMapElemPath(root types2.Type) []types2.LogosOwnedStep {
-	return ownedChildPath(nil, root, types2.LogosOwnedStep{Kind: types2.LogosOwnedMapElem})
-}
-
 func ownedScalarPath(sig *types2.Signature) ([]types2.LogosOwnedStep, bool) {
 	if sig.Results().Len() != 1 {
 		return nil, false
@@ -728,7 +657,7 @@ func ownedScalarPath(sig *types2.Signature) ([]types2.LogosOwnedStep, bool) {
 
 func (fl *fileLower) ownedScalarBridge(obj *types2.Const, v ctfe.Value, init syntax.Expr, pos syntax.Pos) (ctfeResult, bool) {
 	var zero ctfeResult
-	fp, fn, sig, anchor, ok := fl.ownedProvenance(obj, init)
+	fp, fn, sig, anchor, ok := fl.ownedProvenanceDepth(obj, init, 0)
 	if !ok {
 		return zero, false
 	}
@@ -760,7 +689,7 @@ func (fl *fileLower) ownedScalarBridge(obj *types2.Const, v ctfe.Value, init syn
 	if defPkg == "" {
 		return zero, false
 	}
-	phName := ownedNativePlaceholder(fl, fp, fn, "T")
+	phName := ownedNativePlaceholder(fl, "T")
 	phNode := nameOf(pos, phName)
 	RegisterOwnedNode(phNode, desc)
 	lit := at(&syntax.CallExpr{Fun: phNode, ArgList: []syntax.Expr{leaf}}, pos)
@@ -812,8 +741,6 @@ func ownedFactorySig(info *types2.Info, fp, fn string, call *syntax.CallExpr) (*
 				return sig, true
 			}
 		}
-		// TypeOf also reads syntax-attached types when the compiler leaves
-		// Info.Types nil; the full callee retains explicit instantiation.
 		if sig, ok := info.TypeOf(call.Fun).(*types2.Signature); ok {
 			return sig, true
 		}
@@ -842,11 +769,7 @@ func ownedUnwrapView(t types2.Type) types2.Type {
 			continue
 		}
 		if a, ok := t.(*types2.Alias); ok {
-			u := types2.Unalias(a)
-			if u == t {
-				break
-			}
-			t = u
+			t = types2.Unalias(a)
 			continue
 		}
 		break
@@ -890,10 +813,6 @@ func (fl *fileLower) ownedPriorConstInit(cobj *types2.Const) syntax.Expr {
 		return true
 	})
 	return found
-}
-
-func (fl *fileLower) ownedProvenance(obj *types2.Const, init syntax.Expr) (string, string, *types2.Signature, syntax.Expr, bool) {
-	return fl.ownedProvenanceDepth(obj, init, 0)
 }
 
 func (fl *fileLower) ownedProvenanceDepth(obj *types2.Const, init syntax.Expr, depth int) (string, string, *types2.Signature, syntax.Expr, bool) {
@@ -1005,9 +924,6 @@ func ownedDefPkgName(fl *fileLower, t types2.Type, fallbackPath string) string {
 	if n, ok := types2.Unalias(t).(*types2.Named); ok && n.Obj() != nil && n.Obj().Pkg() != nil {
 		return n.Obj().Pkg().Name()
 	}
-	if a, ok := types2.Unalias(t).(*types2.Alias); ok && a.Obj() != nil && a.Obj().Pkg() != nil {
-		return a.Obj().Pkg().Name()
-	}
 	return ownedPkgName(fl, fallbackPath)
 }
 
@@ -1018,23 +934,23 @@ func (fl *fileLower) ownedCompositeBridge(obj *types2.Const, v ctfe.Value, init 
 	if lit == nil {
 		return zero, false
 	}
-	fp0, fn0, sig0, anchor0, ok0 := fl.ownedProvenance(obj, init)
+	fp0, fn0, sig0, anchor0, ok0 := fl.ownedProvenanceDepth(obj, init, 0)
 	if !ok0 {
 		return zero, false
 	}
-	path0 := []types2.LogosOwnedStep{{Kind: types2.LogosOwnedSigResult, Index: 0}}
+	path := []types2.LogosOwnedStep{{Kind: types2.LogosOwnedSigResult, Index: 0}}
 	var desc0 types2.LogosOwnedType
 	if isGenericFactory(fl, sig0, anchor0) {
 		desc0 = types2.LogosOwnedWitness(anchor0)
 	} else {
-		desc0 = types2.LogosOwnedFactory(fp0, fn0, path0...)
+		desc0 = types2.LogosOwnedFactory(fp0, fn0, path...)
 	}
 	if ownedWitnessByType == nil {
 		ownedWitnessByType = make(map[types2.Type]types2.LogosOwnedType)
 	}
 	ownedWitnessByType[obj.Type()] = desc0
 	ownedWitnessByType[t] = desc0
-	ph0 := nameOf(pos, ownedNativePlaceholder(fl, fp0, fn0, "T"))
+	ph0 := nameOf(pos, ownedNativePlaceholder(fl, "T"))
 	RegisterOwnedNode(ph0, desc0)
 	switch cl := lit.(type) {
 	case *syntax.CompositeLit:
@@ -1057,7 +973,6 @@ func (fl *fileLower) ownedCompositeBridge(obj *types2.Const, v ctfe.Value, init 
 		return true
 	})
 	fp, fn := fp0, fn0
-	path := []types2.LogosOwnedStep{{Kind: types2.LogosOwnedSigResult, Index: 0}}
 	defPath := ownedDefiningPath(t)
 	if defPath == "" {
 		defPath = fp
@@ -1080,9 +995,6 @@ func (fl *fileLower) ownedCompositeBridge(obj *types2.Const, v ctfe.Value, init 
 	if !dok {
 		return zero, false
 	}
-	// The shared alias is its own byte-stable request so every value of
-	// one factory deduplicates it instead of repeating it per helper.
-	// Idempotent consumers: identical alias sources collapse to one file.
 	aliasSrc := fmt.Sprintf("package %s\ntype %s = %s\n", defPkg, typeAlias, defType)
 	if !fl.emitOwnedRequest(defPath, defPkg, aliasSrc, decls) {
 		return zero, false
@@ -1106,55 +1018,6 @@ func ownedBareTypeName(t types2.Type) string {
 	if n, ok := types2.Unalias(t).(*types2.Named); ok && n.Obj() != nil {
 		return n.Obj().Name()
 	}
-	if a, ok := types2.Unalias(t).(*types2.Alias); ok && a.Obj() != nil {
-		return a.Obj().Name()
-	}
-	return ""
-}
-
-func basicName(t types2.Type) string {
-	ut := types2.Unalias(t)
-	if n, ok := ut.(*types2.Named); ok {
-		ut = n.Underlying()
-	}
-	if b, ok := ut.(*types2.Basic); ok {
-		switch {
-		case b.Info()&types2.IsString != 0:
-			return "string"
-		case b.Info()&types2.IsBoolean != 0:
-			return "bool"
-		case b.Info()&types2.IsInteger != 0:
-			switch b.Kind() {
-			case types2.Int8:
-				return "int8"
-			case types2.Int16:
-				return "int16"
-			case types2.Int32:
-				return "int32"
-			case types2.Int64:
-				return "int64"
-			case types2.Uint8:
-				return "uint8"
-			case types2.Uint16:
-				return "uint16"
-			case types2.Uint32:
-				return "uint32"
-			case types2.Uint64:
-				return "uint64"
-			case types2.Uintptr:
-				return "uintptr"
-			case types2.Uint:
-				return "uint"
-			default:
-				return "int"
-			}
-		case b.Info()&types2.IsFloat != 0:
-			if b.Kind() == types2.Float32 {
-				return "float32"
-			}
-			return "float64"
-		}
-	}
 	return ""
 }
 
@@ -1162,9 +1025,6 @@ func ownedDefiningPath(t types2.Type) string {
 	t = ownedUnwrapView(t)
 	if n, ok := types2.Unalias(t).(*types2.Named); ok && n.Obj() != nil && n.Obj().Pkg() != nil {
 		return n.Obj().Pkg().Path()
-	}
-	if a, ok := types2.Unalias(t).(*types2.Alias); ok && a.Obj() != nil && a.Obj().Pkg() != nil {
-		return a.Obj().Pkg().Path()
 	}
 	return ""
 }
@@ -1217,9 +1077,6 @@ func (fl *fileLower) ownedValueSource(v ctfe.Value, t types2.Type, ownerPath str
 		if bare == "" {
 			return "", false
 		}
-		// Positional fields in checked order, every slot present: a blank
-		// field cannot be named in a keyed literal, so skipping it both
-		// shifts the remaining fields and loses the recorded zero.
 		fields := v.Fields()
 		if len(fields) != u.NumFields() {
 			return "", false
@@ -1331,38 +1188,12 @@ func (fl *fileLower) ownedValueSource(v ctfe.Value, t types2.Type, ownerPath str
 	return "", false
 }
 
-func ownedHashBody(t types2.Type, x string) (string, bool) {
-	expr, ok := ownedNativeHashInline(t, x)
-	if !ok {
-		return "", false
-	}
-	return "return " + expr, true
-}
-
-func (fl *fileLower) ownedEjectAliasText(t types2.Type, pos syntax.Pos) (string, bool) {
-	if s, ok := fl.spellLowered(t); ok {
-		return s, true
-	}
-	return "", false
-}
-
-func (fl *fileLower) ownedEjectHashText(t types2.Type, x string, pos syntax.Pos) (string, bool) {
-	if _, ok := fl.spellLowered(t); ok {
-		return fl.constKeyHashText(t, x, pos), true
-	}
-	return "", false
-}
-
 func (fl *fileLower) constMapOwnedTexts(g *constMapGen, pos syntax.Pos) (string, string, bool) {
 	elem := constMapElem(g.obj.Type())
 	mt, ok := elem.Underlying().(*types2.Map)
 	if !ok {
 		return "", "", false
 	}
-	// A spellable name is not a writable literal: exported types with
-	// unexported fields (mixed-owner keys/values) still need the owned
-	// bridge. Route by consumer-side materializability, not name
-	// spelling, so no private-field representation is lost.
 	if spellableMatType(mt.Key(), fl.pkg.tpkg) && spellableMatType(mt.Elem(), fl.pkg.tpkg) && spellableMatType(elem, fl.pkg.tpkg) {
 		return "", "", false
 	}
@@ -1379,7 +1210,7 @@ func (fl *fileLower) constMapOwnedTexts(g *constMapGen, pos syntax.Pos) (string,
 			}
 		}
 	}
-	fp, fn, sig, anchor, ok := fl.ownedProvenance(g.obj, init)
+	fp, fn, sig, anchor, ok := fl.ownedProvenanceDepth(g.obj, init, 0)
 	if !ok || fp == "" || fn == "" {
 		base.Errorf("%s: logos: private const map %s needs an exported factory witness", pos.String(), g.obj.Name())
 		base.ExitIfErrors()
@@ -1390,13 +1221,13 @@ func (fl *fileLower) constMapOwnedTexts(g *constMapGen, pos syntax.Pos) (string,
 		base.ExitIfErrors()
 		return "", "", false
 	}
-	keyPath, ok := ownedMapKeyPath(sig)
+	keyPath, ok := ownedMapPath(sig, types2.LogosOwnedMapKey)
 	if !ok {
 		base.Errorf("%s: logos: private const map %s factory result is not a map", pos.String(), g.obj.Name())
 		base.ExitIfErrors()
 		return "", "", false
 	}
-	elemPath, ok := ownedMapElemPath(sig)
+	elemPath, ok := ownedMapPath(sig, types2.LogosOwnedMapElem)
 	if !ok {
 		base.Errorf("%s: logos: private const map %s factory result is not a map", pos.String(), g.obj.Name())
 		base.ExitIfErrors()
@@ -1408,8 +1239,8 @@ func (fl *fileLower) constMapOwnedTexts(g *constMapGen, pos syntax.Pos) (string,
 		if root == nil {
 			root = constMapElem(fl.pkg.info.TypeOf(init))
 		}
-		keyDesc = types2.LogosOwnedWitness(anchor, witnessMapKeyPath(root)...)
-		elemDesc = types2.LogosOwnedWitness(anchor, witnessMapElemPath(root)...)
+		keyDesc = types2.LogosOwnedWitness(anchor, ownedChildPath(nil, root, types2.LogosOwnedStep{Kind: types2.LogosOwnedMapKey})...)
+		elemDesc = types2.LogosOwnedWitness(anchor, ownedChildPath(nil, root, types2.LogosOwnedStep{Kind: types2.LogosOwnedMapElem})...)
 	} else {
 		keyDesc = types2.LogosOwnedFactory(fp, fn, keyPath...)
 		elemDesc = types2.LogosOwnedFactory(fp, fn, elemPath...)
@@ -1419,8 +1250,8 @@ func (fl *fileLower) constMapOwnedTexts(g *constMapGen, pos syntax.Pos) (string,
 	}
 	ownedWitnessByType[mt.Key()] = keyDesc
 	ownedWitnessByType[mt.Elem()] = elemDesc
-	nativeK := ownedNativePlaceholder(fl, fp, fn, "K")
-	nativeV := ownedNativePlaceholder(fl, fp, fn, "V")
+	nativeK := ownedNativePlaceholder(fl, "K")
+	nativeV := ownedNativePlaceholder(fl, "V")
 	keys, vals := g.constMapEntries()
 	phDescs := make(map[string]types2.LogosOwnedType)
 	phDescs[nativeK] = keyDesc
@@ -1447,7 +1278,7 @@ func (fl *fileLower) constMapOwnedTexts(g *constMapGen, pos syntax.Pos) (string,
 	for i := range order {
 		order[i] = i
 	}
-	slices.SortFunc(order, func(a, b int) int { return constKeyCompare(keys[a], keys[b]) })
+	slices.SortFunc(order, func(a, b int) int { return ctfe.CompareKeys(keys[a], keys[b]) })
 	sharedEntries := make([]constMapKey, len(keys))
 	for i := range keys {
 		sharedEntries[i] = constMapKey{hash: constKeyHash(keys[i]), canon: constKeyCanon(keys[i])}
@@ -1455,7 +1286,7 @@ func (fl *fileLower) constMapOwnedTexts(g *constMapGen, pos syntax.Pos) (string,
 	var sharedLayout *constMapLayout
 	sharedIsSwitch := len(keys) <= constMapSwitchMax
 	if !sharedIsSwitch {
-		l, err := buildConstMap(sharedEntries, defaultConstMapBudget)
+		l, err := buildConstMap(sharedEntries, constMapSeedBudget(pos))
 		if err != nil {
 			base.Errorf("%s: %v", pos.String(), err)
 			base.ExitIfErrors()
@@ -1474,7 +1305,7 @@ func (fl *fileLower) constMapOwnedTexts(g *constMapGen, pos syntax.Pos) (string,
 		keyTexts:    nativeKeyLit,
 		valTexts:    nativeValLit,
 		builderBody: ownedNativeMapLit(nativeKeyLit, nativeValLit, nativeMapT),
-		hashExpr:    ownedNativeHashCall(mt.Key(), "k", nativeK),
+		hashExpr:    ownedNativeHashCall(mt.Key(), "_logos_k"),
 		order:       order,
 		layout:      sharedLayout,
 		isSwitch:    sharedIsSwitch,
@@ -1509,7 +1340,7 @@ func (fl *fileLower) constMapOwnedTexts(g *constMapGen, pos syntax.Pos) (string,
 			return true
 		})
 	}
-	ejectK, ejectV, ejectMapT, ejectKeys, ejectVals, ejectHash, ok := fl.ownedEjectMapSpelling(ownedMapSpec{g: g, mt: mt, keys: keys, vals: vals, fp: fp, fn: fn, keyPath: keyPath, elemPath: elemPath, pos: pos, order: order, layout: sharedLayout, isSwitch: sharedIsSwitch})
+	ejectK, ejectV, ejectMapT, ejectKeys, ejectVals, ejectHash, ok := fl.ownedEjectMapSpelling(ownedMapSpec{g: g, mt: mt, keys: keys, vals: vals, fp: fp, fn: fn, keyPath: keyPath, elemPath: elemPath, pos: pos})
 	if !ok {
 		base.ExitIfErrors()
 		return "", "", false
@@ -1541,15 +1372,9 @@ type ownedMapSpec struct {
 	keyPath  []types2.LogosOwnedStep
 	elemPath []types2.LogosOwnedStep
 	pos      syntax.Pos
-	order    []int
-	layout   *constMapLayout
-	isSwitch bool
 }
 
-func (fl *fileLower) ownedEjectCompositeTexts(t types2.Type, fp, fn string, path []types2.LogosOwnedStep, pos syntax.Pos, g *constMapGen) (eject, local, owner, pkg, qual string, ok bool) {
-	// As above: a spellable type name with a private representation
-	// (unexported fields of another package) still needs per-owner
-	// value constructors, so it must not take the ownerless path.
+func (fl *fileLower) ownedEjectCompositeTexts(t types2.Type, fp, fn string, path []types2.LogosOwnedStep, pos syntax.Pos) (eject, local, owner, pkg, qual string, ok bool) {
 	if s, ok := fl.spellLowered(t); ok && matFieldsAssignable(t, fl.pkg.tpkg) {
 		return s, s, "", "", "", true
 	}
@@ -1583,7 +1408,7 @@ func (fl *fileLower) ownedEjectCompositeTexts(t types2.Type, fp, fn string, path
 	switch u := ut.(type) {
 	case *types2.Array:
 		elemPath := ownedChildPath(path, t, types2.LogosOwnedStep{Kind: types2.LogosOwnedArrayElem})
-		eEject, eLocal, eOwner, ePkg, eQual, ok := fl.ownedEjectCompositeTexts(u.Elem(), fp, fn, elemPath, pos, g)
+		eEject, eLocal, eOwner, ePkg, eQual, ok := fl.ownedEjectCompositeTexts(u.Elem(), fp, fn, elemPath, pos)
 		if !ok || eOwner == "" {
 			return "", "", "", "", "", false
 		}
@@ -1592,14 +1417,14 @@ func (fl *fileLower) ownedEjectCompositeTexts(t types2.Type, fp, fn string, path
 		return eject, local, eOwner, ePkg, eQual, true
 	case *types2.Slice:
 		elemPath := ownedChildPath(path, t, types2.LogosOwnedStep{Kind: types2.LogosOwnedSliceElem})
-		eEject, eLocal, eOwner, ePkg, eQual, ok := fl.ownedEjectCompositeTexts(u.Elem(), fp, fn, elemPath, pos, g)
+		eEject, eLocal, eOwner, ePkg, eQual, ok := fl.ownedEjectCompositeTexts(u.Elem(), fp, fn, elemPath, pos)
 		if !ok || eOwner == "" {
 			return "", "", "", "", "", false
 		}
 		return "[]" + eEject, "[]" + eLocal, eOwner, ePkg, eQual, true
 	case *types2.Pointer:
 		elemPath := ownedChildPath(path, t, types2.LogosOwnedStep{Kind: types2.LogosOwnedPointerElem})
-		eEject, eLocal, eOwner, ePkg, eQual, ok := fl.ownedEjectCompositeTexts(u.Elem(), fp, fn, elemPath, pos, g)
+		eEject, eLocal, eOwner, ePkg, eQual, ok := fl.ownedEjectCompositeTexts(u.Elem(), fp, fn, elemPath, pos)
 		if !ok || eOwner == "" {
 			return "", "", "", "", "", false
 		}
@@ -1609,7 +1434,7 @@ func (fl *fileLower) ownedEjectCompositeTexts(t types2.Type, fp, fn string, path
 }
 
 func sprintfArrayLen(n int64, elem string) string {
-	return "[" + sprintInt(int(n)) + "]" + elem
+	return "[" + strconv.Itoa(int(n)) + "]" + elem
 }
 
 func (fl *fileLower) ownedEjectMapSpelling(spec ownedMapSpec) (ejectK, ejectV, ejectMapT string, ejectKeys, ejectVals []string, ejectHash string, ok bool) {
@@ -1622,11 +1447,11 @@ func (fl *fileLower) ownedEjectMapSpelling(spec ownedMapSpec) (ejectK, ejectV, e
 	keyPath := spec.keyPath
 	elemPath := spec.elemPath
 	pos := spec.pos
-	ejectK0, localK, ownerK, pkgK, qualK, ok := fl.ownedEjectCompositeTexts(mt.Key(), fp, fn, keyPath, pos, g)
+	ejectK0, localK, ownerK, pkgK, qualK, ok := fl.ownedEjectCompositeTexts(mt.Key(), fp, fn, keyPath, pos)
 	if !ok {
 		return "", "", "", nil, nil, "", false
 	}
-	ejectV0, localV, ownerV, pkgV, qualV, ok := fl.ownedEjectCompositeTexts(mt.Elem(), fp, fn, elemPath, pos, g)
+	ejectV0, localV, ownerV, pkgV, qualV, ok := fl.ownedEjectCompositeTexts(mt.Elem(), fp, fn, elemPath, pos)
 	if !ok {
 		return "", "", "", nil, nil, "", false
 	}
@@ -1654,7 +1479,7 @@ func (fl *fileLower) ownedEjectMapSpelling(spec ownedMapSpec) (ejectK, ejectV, e
 				base.ExitIfErrors()
 				return "", "", "", nil, nil, "", false
 			}
-			ck := ownedAliasFor(fp, fn, keyPath, "Value:key:"+sprintInt(i))
+			ck := ownedAliasFor(fp, fn, keyPath, "Value:key:"+strconv.Itoa(i))
 			src := "package " + pkgK + "\nfunc " + ck + "() " + localK + " { return " + vsrc + " }\n"
 			kdecls, kdok := ownedDeclsForTypes(mt.Key())
 			if !kdok {
@@ -1689,7 +1514,7 @@ func (fl *fileLower) ownedEjectMapSpelling(spec ownedMapSpec) (ejectK, ejectV, e
 				base.ExitIfErrors()
 				return "", "", "", nil, nil, "", false
 			}
-			cv := ownedAliasFor(fp, fn, elemPath, "Value:element:"+sprintInt(i))
+			cv := ownedAliasFor(fp, fn, elemPath, "Value:element:"+strconv.Itoa(i))
 			src := "package " + pkgV + "\nfunc " + cv + "() " + localV + " { return " + vsrc + " }\n"
 			vdecls, vdok := ownedDeclsForTypes(mt.Elem())
 			if !vdok {
@@ -1708,19 +1533,19 @@ func (fl *fileLower) ownedEjectMapSpelling(spec ownedMapSpec) (ejectK, ejectV, e
 		}
 	}
 	if _, ok := mt.Key().Underlying().(*types2.Basic); ok {
-		ejectHash = fl.constKeyHashText(mt.Key(), "k", pos)
+		ejectHash = fl.constKeyHashText(mt.Key(), "_logos_k", pos)
 	} else {
 		if ownerK == "" {
 			return "", "", "", nil, nil, "", false
 		}
 		hname := ownedAliasFor(fp, fn, keyPath, "Hash")
-		hbody, ok := ownedHashBody(mt.Key(), "v")
+		hexpr, ok := ownedNativeHashInline(mt.Key(), "_logos_v")
 		if !ok {
 			base.Errorf("%s: logos: private const map %s key hash is not representable", pos.String(), g.obj.Name())
 			base.ExitIfErrors()
 			return "", "", "", nil, nil, "", false
 		}
-		src := "package " + pkgK + "\nimport _logos_rt \"logos/rt\"\nfunc " + hname + "(v " + localK + ") uint64 { " + hbody + " }\n"
+		src := "package " + pkgK + "\nimport _logos_rt \"logos/rt\"\nfunc " + hname + "(_logos_v " + localK + ") uint64 { return " + hexpr + " }\n"
 		hdecls, hdok := ownedDeclsForTypes(mt.Key())
 		if !hdok {
 			base.Errorf("%s: logos: private const map %s key hash has no declaration position", pos.String(), g.obj.Name())
@@ -1731,27 +1556,12 @@ func (fl *fileLower) ownedEjectMapSpelling(spec ownedMapSpec) (ejectK, ejectV, e
 			return "", "", "", nil, nil, "", false
 		}
 		if qualK != "" {
-			ejectHash = qualK + "." + hname + "(k)"
+			ejectHash = qualK + "." + hname + "(_logos_k)"
 		} else {
-			ejectHash = hname + "(k)"
+			ejectHash = hname + "(_logos_k)"
 		}
 	}
 	return ejectK, ejectV, ejectMapT, ejectKeys, ejectVals, ejectHash, true
-}
-
-func sprintInt(i int) string {
-	if i == 0 {
-		return "0"
-	}
-	var b [32]byte
-	p := len(b)
-	n := i
-	for n > 0 {
-		p--
-		b[p] = byte('0' + n%10)
-		n /= 10
-	}
-	return string(b[p:])
 }
 
 var ownedEjectImports map[*syntax.File]map[string]string
@@ -1796,7 +1606,7 @@ func ownedTypeBridgeFunc(fl *fileLower, t types2.Type, pos syntax.Pos) (syntax.E
 	if !ok {
 		return nil, "", false
 	}
-	ph := nameOf(pos, ownedNativePlaceholder(fl, desc.FactoryPath, desc.FactoryName, "T"))
+	ph := nameOf(pos, ownedNativePlaceholder(fl, "T"))
 	RegisterOwnedNode(ph, desc)
 	alias := ownedAliasFor(desc.FactoryPath, desc.FactoryName, desc.Path, "Type")
 	defPath := ownedDefiningPath(t)
@@ -1855,7 +1665,7 @@ func ownedChildPath(parent []types2.LogosOwnedStep, t types2.Type, step types2.L
 
 func (fl *fileLower) ownedNativeMapValueRec(v ctfe.Value, t types2.Type, parent types2.LogosOwnedType, pos syntax.Pos, phDescs map[string]types2.LogosOwnedType) (string, bool) {
 	if v.IsNilValue() {
-		ph := ownedNativePlaceholder(fl, parent.FactoryPath, parent.FactoryName, "Nil")
+		ph := ownedNativePlaceholder(fl, "Nil")
 		phDescs[ph] = parent
 		return ph + "(nil)", true
 	}
@@ -1870,12 +1680,8 @@ func (fl *fileLower) ownedNativeMapValueRec(v ctfe.Value, t types2.Type, parent 
 	if n, ok := ut.(*types2.Named); ok {
 		ut = n.Underlying()
 	}
-	if a, ok := ut.(*types2.Alias); ok {
-		_ = a
-		ut = types2.Unalias(t).Underlying()
-	}
 	desc := parent
-	phName := ownedNativePlaceholder(fl, desc.FactoryPath, desc.FactoryName, "T")
+	phName := ownedNativePlaceholder(fl, "T")
 	if desc.Witness != nil {
 		desc = types2.LogosOwnedWitness(desc.Witness, desc.Path...)
 	} else {
@@ -1885,11 +1691,6 @@ func (fl *fileLower) ownedNativeMapValueRec(v ctfe.Value, t types2.Type, parent 
 	placeholder := phName
 	switch u := ut.(type) {
 	case *types2.Struct:
-		// Positional fields in checked order: the exporter resolves each
-		// element by index, so a private field name never reaches a
-		// consumer-package lookup. Blank fields keep their slot (their
-		// zero value is what the evaluator recorded) because omitting
-		// them would shift every following field.
 		fields := v.Fields()
 		if len(fields) != u.NumFields() {
 			return "", false
@@ -1956,7 +1757,7 @@ func (fl *fileLower) ownedNativeMapValueRec(v ctfe.Value, t types2.Type, parent 
 				bb.WriteString(es)
 			}
 			bb.WriteString("}")
-			bb.WriteString("[0:" + sprintInt(length) + ":" + sprintInt(cap_-lo) + "]")
+			bb.WriteString("[0:" + strconv.Itoa(length) + ":" + strconv.Itoa(cap_-lo) + "]")
 			return bb.String(), true
 		}
 		vis := backing[lo : lo+length]
@@ -2069,7 +1870,7 @@ func ownedNativeHashInline(t types2.Type, x string) (string, bool) {
 	return "", false
 }
 
-func ownedNativeHashCall(t types2.Type, x, placeholder string) string {
+func ownedNativeHashCall(t types2.Type, x string) string {
 	expr, ok := ownedNativeHashInline(t, x)
 	if !ok {
 		base.Fatalf("logos: private const map key hash is not representable")

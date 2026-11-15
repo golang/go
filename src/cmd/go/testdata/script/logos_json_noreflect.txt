@@ -1,0 +1,118 @@
+env GOPROXY=off
+mkdir $WORK/bin
+
+# The generated MarshalJSON of an eligible struct reaches no reflect code:
+# a dependency that only exposes it builds with transitive_reflect denied.
+cd ok/main
+logos build -o $WORK/bin/ok$GOEXE ./cmd
+exec $WORK/bin/ok$GOEXE
+stdout '^\{"name":"a","n":3\}$'
+cd ../..
+
+# A dependency that must use reflect for an interface field fails the same deny.
+cd bad/main
+! logos build -o $WORK/bin/bad$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_reflect\]'
+stderr 'example\.com/nrdep'
+! stderr 'unauthorized_(cgo|exec|net)'
+cd ../..
+
+-- ok/main/go.mod --
+module example.com/nrmain
+
+go 1.27
+
+require example.com/nrdep v0.0.0
+
+replace example.com/nrdep => ../dep
+
+-- ok/main/logos.toml --
+[capabilities]
+transitive_reflect = "deny"
+
+-- ok/main/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/nrdep"
+)
+
+func main() {
+	out, err := dep.Item{Name: "a", N: 3}.MarshalJSON()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(string(out))
+}
+
+-- ok/dep/go.mod --
+module example.com/nrdep
+
+go 1.27
+
+-- ok/dep/dep.lgo --
+package dep
+
+type Item struct {
+	Name string `json:"name"`
+	N    int64  `json:"n"`
+}
+
+-- bad/main/go.mod --
+module example.com/nrmain
+
+go 1.27
+
+require example.com/nrdep v0.0.0
+
+replace example.com/nrdep => ../dep
+
+-- bad/main/logos.toml --
+[capabilities]
+transitive_reflect = "deny"
+
+-- bad/main/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/nrdep"
+)
+
+func main() {
+	out, err := dep.MarshalWild(dep.Wild{Note: "x", Payload: 7})
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(string(out))
+}
+
+-- bad/dep/go.mod --
+module example.com/nrdep
+
+go 1.27
+
+-- bad/dep/dep.lgo --
+package dep
+
+import (
+	"encoding/json"
+	"reflect"
+)
+
+type Wild struct {
+	Note    string `json:"note"`
+	Payload any    `json:"payload"`
+}
+
+func MarshalWild(w Wild) ([]byte, error) {
+	if reflect.TypeOf(w.Payload) == nil {
+		return json.Marshal(struct {
+			Note string `json:"note"`
+		}{w.Note})
+	}
+	return json.Marshal(w)
+}

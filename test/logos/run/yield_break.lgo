@@ -1,0 +1,114 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"iter"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+var steps int
+
+func Nested(n int) iter.Seq[int] {
+	for i := range n {
+		for j := range n {
+			steps++
+			yield i*10 + j
+		}
+		steps += 100
+	}
+	steps += 10000
+}
+
+func Switched(n int) iter.Seq[int] {
+	for i := range n {
+		switch {
+		case i%2 == 0:
+			steps++
+			yield i
+		default:
+			steps += 100
+		}
+		steps += 1000
+	}
+	steps += 100000
+}
+
+func Labeled(n int) iter.Seq[int] {
+outer:
+	for i := range n {
+		for j := range n {
+			if j > i {
+				continue outer
+			}
+			steps++
+			yield i*10 + j
+		}
+	}
+	steps += 1000
+}
+
+var log []string
+
+func Cleaned(n int) iter.Seq[int] {
+	for i := range n {
+		scope defer func() { log = append(log, fmt.Sprint("clean", i)) }()
+		steps++
+		yield i
+	}
+	steps += 1000
+}
+
+func take(seq iter.Seq[int], limit int) []int {
+	var got []int
+	for v := range seq {
+		got = append(got, v)
+		if len(got) == limit {
+			break
+		}
+	}
+	return got
+}
+
+func main() {
+	steps = 0
+	got := take(Nested(5), 1)
+	check("nested-break-stops-all-loops", len(got) == 1 && steps == 1, fmt.Sprint(got, steps), "[0] 1")
+
+	steps = 0
+	got = take(Nested(5), 6)
+	check("nested-break-after-inner-loop", len(got) == 6 && steps == 106, fmt.Sprint(got, steps), "[0 1 2 3 4 10] 106")
+
+	steps = 0
+	got = take(Switched(6), 2)
+	check("switch-break-stops-body", len(got) == 2 && steps == 1+1000+100+1000+1, fmt.Sprint(got, steps), "[0 2] 2102")
+
+	steps = 0
+	got = take(Labeled(6), 3)
+	check("labeled-break-stops-generator", len(got) == 3 && steps == 3, fmt.Sprint(got, steps), "[0 10 11] 3")
+
+	steps = 0
+	log = nil
+	got = take(Cleaned(5), 2)
+	check("break-runs-scope-cleanup-once-per-pass", len(got) == 2 && len(log) == 2 && log[0] == "clean0" && log[1] == "clean1" && steps == 2, fmt.Sprint(got, log, steps), "[0 1] [clean0 clean1] 2")
+
+	steps = 0
+	got = take(Nested(2), 100)
+	check("no-break-runs-to-the-end", len(got) == 4 && steps == 4+200+10000, fmt.Sprint(got, steps), "[0 1 10 11] 10204")
+
+	if failed {
+		os.Exit(1)
+	}
+}

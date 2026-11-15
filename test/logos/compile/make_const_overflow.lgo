@@ -1,0 +1,9 @@
+// errorcheck
+
+package p
+
+const big = 1 << 62
+
+var sink = make([]byte, big*big) // ERROR "overflows int"
+
+var folded = make([]byte, 3*4)

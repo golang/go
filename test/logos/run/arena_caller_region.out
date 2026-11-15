@@ -1,16 +1,18 @@
-local-sum: 192
-chain-sum: 192
-nested-sum: 192
-retain: 192 448
-viavalue-sum: 192
-leak-sum: 192
-leak-global-sum: 192
-unrelated-sum: 1728
-defer-sum: 192 boom
-alloc-local: 0
-alloc-chain: 0
-alloc-nested: 0
-alloc-retain: 0
-alloc-leak: 1
-alloc-viavalue: 1
-alloc-unrelated: 1
+ok local-result-matches-fill-3-rule
+ok chain-result-matches-fill-3-rule
+ok nested-result-matches-fill-3-rule
+ok retained-first-buffer-keeps-fill-3
+ok retained-second-buffer-holds-fill-7
+ok func-value-call-matches-fill-3-rule
+ok leaked-buffer-value-matches-fill-3-rule
+ok global-sink-keeps-leaked-value
+ok unrelated-live-buffers-do-not-corrupt-result
+ok deferred-panic-path-keeps-value
+ok deferred-panic-value-survives
+ok local-alloc-avoided
+ok chain-alloc-avoided
+ok nested-alloc-avoided
+ok retain-alloc-avoided
+ok leak-forces-heap-alloc
+ok func-value-forces-heap-alloc
+ok unrelated-live-buffer-forces-heap-alloc

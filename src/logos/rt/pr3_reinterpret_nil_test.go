@@ -9,9 +9,6 @@ import (
 	"testing"
 )
 
-// PR3 feedback regressions for Reinterpret nil interface and roundtrip.
-// Mismatched type panics remain covered by TestPR3ReinterpretMismatchedPanics.
-
 func TestPR3ReinterpretNilInterface(t *testing.T) {
 	var v any = nil
 	got := Reinterpret[any](&v)

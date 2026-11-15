@@ -1,0 +1,456 @@
+[!GOARCH:amd64] [!GOARCH:arm64] skip 'assembly fixtures cover amd64 and arm64'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+cd a/main
+! logos build -o $WORK/bin/asma$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unclassified_assembly\]: Transitive dependency ''example\.com/adep'' holds assembly files'
+stderr 'example\.com/amain/cmd'
+stderr '-> example\.com/adep'
+stderr 'transitive_unsafe_allowlist'
+! stderr 'unauthorized_unsafe'
+cd ../..
+
+cd b/main
+logos build -o $WORK/bin/asmb$GOEXE ./cmd
+! stderr 'capabilities::'
+exec $WORK/bin/asmb$GOEXE
+stdout '^granted$'
+cd ../..
+
+cd c/main
+logos build -o $WORK/bin/asmc$GOEXE ./cmd
+stderr '\[capabilities::unclassified_assembly\].*example\.com/cdep'
+exec $WORK/bin/asmc$GOEXE
+stdout '^warned$'
+cd ../..
+
+cd d/main
+logos build -o $WORK/bin/asmd$GOEXE ./cmd
+! stderr 'capabilities::'
+exec $WORK/bin/asmd$GOEXE
+stdout '^allowed$'
+cd ../..
+
+cd e/main
+logos build -o $WORK/bin/asme$GOEXE ./cmd
+! stderr 'capabilities::'
+exec $WORK/bin/asme$GOEXE
+stdout '^std-asm-ok$'
+cd ../..
+
+cd f/main
+! logos build -o $WORK/bin/asmf$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unclassified_assembly\]: Transitive dependency ''example\.com/fdep'' holds assembly files'
+cd ../..
+
+cd g/main
+! logos build -o $WORK/bin/asmg$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unclassified_assembly\]: Transitive dependency ''example\.com/gdep'' holds assembly files'
+cd ../..
+
+cd h/main
+! logos build -o $WORK/bin/asmh$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unclassified_assembly\]: Transitive dependency ''asmlib'' holds assembly files'
+cd ../..
+
+-- a/main/go.mod --
+module example.com/amain
+
+go 1.27
+
+require example.com/adep v0.0.0
+
+replace example.com/adep => ../dep
+
+-- a/main/logos.toml --
+[capabilities]
+transitive_unsafe = "deny"
+
+-- a/main/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/adep"
+)
+
+func main() { fmt.Println(adep.Zero()) }
+
+-- a/dep/go.mod --
+module example.com/adep
+
+go 1.27
+
+-- a/dep/stub.go --
+package adep
+
+func Zero() int
+
+-- a/dep/stub_amd64.s --
+#include "textflag.h"
+
+TEXT ·Zero(SB), NOSPLIT, $0-8
+	MOVQ $0, ret+0(FP)
+	RET
+
+-- a/dep/stub_arm64.s --
+#include "textflag.h"
+
+TEXT ·Zero(SB), NOSPLIT, $0-8
+	MOVD $0, R0
+	MOVD R0, ret+0(FP)
+	RET
+
+-- b/main/go.mod --
+module example.com/bmain
+
+go 1.27
+
+require example.com/bdep v0.0.0
+
+replace example.com/bdep => ../dep
+
+-- b/main/logos.toml --
+[capabilities]
+transitive_unsafe = "deny"
+transitive_unsafe_allowlist = ["example.com/bdep/**"]
+
+-- b/main/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/bdep"
+)
+
+func main() {
+	bdep.Zero()
+	fmt.Println("granted")
+}
+
+-- b/dep/go.mod --
+module example.com/bdep
+
+go 1.27
+
+-- b/dep/stub.go --
+package bdep
+
+func Zero() int
+
+-- b/dep/stub_amd64.s --
+#include "textflag.h"
+
+TEXT ·Zero(SB), NOSPLIT, $0-8
+	MOVQ $0, ret+0(FP)
+	RET
+
+-- b/dep/stub_arm64.s --
+#include "textflag.h"
+
+TEXT ·Zero(SB), NOSPLIT, $0-8
+	MOVD $0, R0
+	MOVD R0, ret+0(FP)
+	RET
+
+-- c/main/go.mod --
+module example.com/cmain
+
+go 1.27
+
+require example.com/cdep v0.0.0
+
+replace example.com/cdep => ../dep
+
+-- c/main/logos.toml --
+[capabilities]
+transitive_unsafe = "warn"
+
+-- c/main/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/cdep"
+)
+
+func main() {
+	cdep.Zero()
+	fmt.Println("warned")
+}
+
+-- c/dep/go.mod --
+module example.com/cdep
+
+go 1.27
+
+-- c/dep/stub.go --
+package cdep
+
+func Zero() int
+
+-- c/dep/stub_amd64.s --
+#include "textflag.h"
+
+TEXT ·Zero(SB), NOSPLIT, $0-8
+	MOVQ $0, ret+0(FP)
+	RET
+
+-- c/dep/stub_arm64.s --
+#include "textflag.h"
+
+TEXT ·Zero(SB), NOSPLIT, $0-8
+	MOVD $0, R0
+	MOVD R0, ret+0(FP)
+	RET
+
+-- d/main/go.mod --
+module example.com/dmain
+
+go 1.27
+
+require example.com/ddep v0.0.0
+
+replace example.com/ddep => ../dep
+
+-- d/main/logos.toml --
+[capabilities]
+transitive_unsafe = "allow"
+
+-- d/main/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/ddep"
+)
+
+func main() {
+	ddep.Zero()
+	fmt.Println("allowed")
+}
+
+-- d/dep/go.mod --
+module example.com/ddep
+
+go 1.27
+
+-- d/dep/stub.go --
+package ddep
+
+func Zero() int
+
+-- d/dep/stub_amd64.s --
+#include "textflag.h"
+
+TEXT ·Zero(SB), NOSPLIT, $0-8
+	MOVQ $0, ret+0(FP)
+	RET
+
+-- d/dep/stub_arm64.s --
+#include "textflag.h"
+
+TEXT ·Zero(SB), NOSPLIT, $0-8
+	MOVD $0, R0
+	MOVD R0, ret+0(FP)
+	RET
+
+-- e/main/go.mod --
+module example.com/emain
+
+go 1.27
+
+require example.com/edep v0.0.0
+
+replace example.com/edep => ../dep
+
+-- e/main/logos.toml --
+[capabilities]
+transitive_unsafe = "deny"
+
+-- e/main/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/edep"
+)
+
+func main() { fmt.Println(edep.Sum()) }
+
+-- e/dep/go.mod --
+module example.com/edep
+
+go 1.27
+
+-- e/dep/dep.go --
+package edep
+
+import (
+	"bytes"
+	"math/big"
+)
+
+func Sum() string {
+	var z big.Int
+	z.Add(big.NewInt(1), big.NewInt(2))
+	if bytes.Equal([]byte("a"), []byte("a")) && z.Int64() == 3 {
+		return "std-asm-ok"
+	}
+	return "bad"
+}
+
+-- f/main/go.mod --
+module example.com/fmain
+
+go 1.27
+
+require example.com/fdep v0.0.0
+
+replace example.com/fdep => ../dep
+
+-- f/main/logos.toml --
+[capabilities]
+transitive_unsafe = "deny"
+
+-- f/main/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/fdep"
+)
+
+func main() { fmt.Println(fdep.Zero()) }
+
+-- f/dep/go.mod --
+module example.com/fdep
+
+go 1.27
+
+-- f/dep/stub.go --
+package fdep
+
+func Zero() int
+
+-- f/dep/stub_amd64.S --
+#include "textflag.h"
+
+TEXT ·Zero(SB), NOSPLIT, $0-8
+	MOVQ $0, ret+0(FP)
+	RET
+
+-- f/dep/stub_arm64.S --
+#include "textflag.h"
+
+TEXT ·Zero(SB), NOSPLIT, $0-8
+	MOVD $0, R0
+	MOVD R0, ret+0(FP)
+	RET
+
+-- g/main/go.mod --
+module example.com/gmain
+
+go 1.27
+
+require example.com/gdep v0.0.0
+
+replace example.com/gdep => ../dep
+
+-- g/main/logos.toml --
+[capabilities]
+transitive_unsafe = "deny"
+
+-- g/main/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/gdep"
+)
+
+func main() { fmt.Println(gdep.Zero()) }
+
+-- g/dep/go.mod --
+module example.com/gdep
+
+go 1.27
+
+-- g/dep/stub.go --
+package gdep
+
+func Zero() int
+
+-- g/dep/stub_amd64.sx --
+#include "textflag.h"
+
+TEXT ·Zero(SB), NOSPLIT, $0-8
+	MOVQ $0, ret+0(FP)
+	RET
+
+-- g/dep/stub_arm64.sx --
+#include "textflag.h"
+
+TEXT ·Zero(SB), NOSPLIT, $0-8
+	MOVD $0, R0
+	MOVD R0, ret+0(FP)
+	RET
+
+-- h/main/go.mod --
+module example.com/hmain
+
+go 1.27
+
+require asmlib v0.0.0
+
+replace asmlib => ../dep
+
+-- h/main/logos.toml --
+[capabilities]
+transitive_unsafe = "deny"
+
+-- h/main/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"asmlib"
+)
+
+func main() { fmt.Println(asmlib.Zero()) }
+
+-- h/dep/go.mod --
+module asmlib
+
+go 1.27
+
+-- h/dep/stub.go --
+package asmlib
+
+func Zero() int
+
+-- h/dep/stub_amd64.s --
+#include "textflag.h"
+
+TEXT ·Zero(SB), NOSPLIT, $0-8
+	MOVQ $0, ret+0(FP)
+	RET
+
+-- h/dep/stub_arm64.s --
+#include "textflag.h"
+
+TEXT ·Zero(SB), NOSPLIT, $0-8
+	MOVD $0, R0
+	MOVD R0, ret+0(FP)
+	RET

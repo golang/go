@@ -2,22 +2,41 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 type Cfg struct {
 	Port int = 8080 `json:"port"` // ERROR "warning: \[portability::serialized_unsized_int\] field Port has type int, which is 4 bytes on a 32-bit target but 8 bytes in the binary layout; use int32, int64, uint32, or uint64"
 	Host string = "localhost"
 }
 
+
 func main() {
 	a := Cfg{}
-	fmt.Println(a.Port, a.Host)
+	check("value", a.Port == 8080 && a.Host == "localhost", fmt.Sprint(a.Port, a.Host), "8080localhost")
 	b := &Cfg{}
-	fmt.Println(b.Port, b.Host)
+	check("ptr", b.Port == 8080 && b.Host == "localhost", fmt.Sprint(b.Port, b.Host), "8080localhost")
 	c := Cfg{Host: "x"}
-	fmt.Println(c.Port, c.Host)
+	check("partial", c.Port == 8080 && c.Host == "x", fmt.Sprint(c.Port, c.Host), "8080x")
+	d := &Cfg{Host: "x"}
+	check("ptr-partial", d.Port == 8080 && d.Host == "x", fmt.Sprint(d.Port, d.Host), "8080x")
 	var z Cfg // ERROR "warning: \[suspicious::unapplied_struct_default\] zero declaration of Cfg with field defaults"
-	fmt.Println(z.Port, z.Host)
+	check("zero-value", z.Port == 0 && z.Host == "", fmt.Sprint(z.Port, z.Host), "0")
 	n := new(Cfg) // ERROR "warning: \[suspicious::unapplied_struct_default\] zero declaration of Cfg with field defaults"
-	fmt.Println(n.Port, n.Host)
+	check("zero-new", n.Port == 0 && n.Host == "", fmt.Sprint(n.Port, n.Host), "0")
+	if failed {
+		os.Exit(1)
+	}
 }

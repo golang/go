@@ -1,0 +1,452 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+	"slices"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type observed[T any] struct {
+	v   T
+	err error
+}
+
+func observe[T any](v T, err error) observed[T] {
+	return observed[T]{v, err}
+}
+
+func eq(a, b []int) bool { return slices.Equal(a, b) }
+
+type pc struct {
+	id int
+}
+
+type pp *pc
+
+var errBad = errors.New("bad two")
+
+func mkp(i int) *pc { return &pc{id: i} }
+
+func mkpp(i int) pp { return pp(&pc{id: i}) }
+
+func mkc(n int) pc { return pc{id: n} }
+
+func mks(i int) []int { return []int{i, i} }
+
+func mkm(i int) map[int]int { return map[int]int{0: i} }
+
+func mkf(i int) func() int { return func() int { return i } }
+
+func tryMkp(i int) (*pc, error) { return mkp(i), nil }
+
+func tryMkpp(i int) (pp, error) { return mkpp(i), nil }
+
+func tryMks(i int) ([]int, error) { return mks(i), nil }
+
+func tryMkm(i int) (map[int]int, error) { return mkm(i), nil }
+
+func tryMkf(i int) (func() int, error) { return mkf(i), nil }
+
+func xs3() []int { return []int{1, 2, 3} }
+
+func xs0() []int { return []int{} }
+
+func xs13() []int { return []int{1, 3} }
+
+func tryNo2(i int) (int, error) {
+	if i == 2 {
+		return 0, errBad
+	}
+	return i, nil
+}
+
+func probeStruct(v pc?) int { return v?.id ?? -1 }
+
+func probePtr(v *pc?) int { return v?.id ?? -1 }
+
+func probeNamed(v pp?) int { return (v ?? mkpp(-1)).id }
+
+func probeSlice(v []int?) int { return (v ?? []int{-1})[0] }
+
+func probeMap(v map[int]int?) int { return (v ?? map[int]int{0: -1})[0] ?? -1 }
+
+func negOne() int { return -1 }
+
+func probeFunc(v (func() int)?) int { return (v ?? negOne)() }
+
+func wantTerminals() []int { return []int{2, -1, 1, -1, 3, -1, 2, -1} }
+
+func ptrTerminals() []int {
+	a := xs3().map(i => mkp(i)).find(p => p.id == 2)
+	b := xs3().map(i => mkp(i)).find(p => p.id == 99)
+	c := xs3().map(i => mkp(i)).first()
+	d := xs0().map(i => mkp(i)).first()
+	e := xs3().map(i => mkp(i)).last()
+	f := xs0().map(i => mkp(i)).last()
+	g := xs3().map(i => mkp(i)).get(1)
+	h := xs3().map(i => mkp(i)).get(9)
+	return []int{probePtr(a), probePtr(b), probePtr(c), probePtr(d), probePtr(e), probePtr(f), probePtr(g), probePtr(h)}
+}
+
+func namedTerminals() []int {
+	a := xs3().map(i => mkpp(i)).find(p => p.id == 2)
+	b := xs3().map(i => mkpp(i)).find(p => p.id == 99)
+	c := xs3().map(i => mkpp(i)).first()
+	d := xs0().map(i => mkpp(i)).first()
+	e := xs3().map(i => mkpp(i)).last()
+	f := xs0().map(i => mkpp(i)).last()
+	g := xs3().map(i => mkpp(i)).get(1)
+	h := xs3().map(i => mkpp(i)).get(9)
+	return []int{probeNamed(a), probeNamed(b), probeNamed(c), probeNamed(d), probeNamed(e), probeNamed(f), probeNamed(g), probeNamed(h)}
+}
+
+func sliceTerminals() []int {
+	a := xs3().map(i => mks(i)).find(s => s[0] == 2)
+	b := xs3().map(i => mks(i)).find(s => s[0] == 99)
+	c := xs3().map(i => mks(i)).first()
+	d := xs0().map(i => mks(i)).first()
+	e := xs3().map(i => mks(i)).last()
+	f := xs0().map(i => mks(i)).last()
+	g := xs3().map(i => mks(i)).get(1)
+	h := xs3().map(i => mks(i)).get(9)
+	return []int{probeSlice(a), probeSlice(b), probeSlice(c), probeSlice(d), probeSlice(e), probeSlice(f), probeSlice(g), probeSlice(h)}
+}
+
+func mapTerminals() []int {
+	a := xs3().map(i => mkm(i)).find(m => (m[0] ?? -1) == 2)
+	b := xs3().map(i => mkm(i)).find(m => (m[0] ?? -1) == 99)
+	c := xs3().map(i => mkm(i)).first()
+	d := xs0().map(i => mkm(i)).first()
+	e := xs3().map(i => mkm(i)).last()
+	f := xs0().map(i => mkm(i)).last()
+	g := xs3().map(i => mkm(i)).get(1)
+	h := xs3().map(i => mkm(i)).get(9)
+	return []int{probeMap(a), probeMap(b), probeMap(c), probeMap(d), probeMap(e), probeMap(f), probeMap(g), probeMap(h)}
+}
+
+func funcTerminals() []int {
+	a := xs3().map(i => mkf(i)).find(f => f() == 2)
+	b := xs3().map(i => mkf(i)).find(f => f() == 99)
+	c := xs3().map(i => mkf(i)).first()
+	d := xs0().map(i => mkf(i)).first()
+	e := xs3().map(i => mkf(i)).last()
+	f := xs0().map(i => mkf(i)).last()
+	g := xs3().map(i => mkf(i)).get(1)
+	h := xs3().map(i => mkf(i)).get(9)
+	return []int{probeFunc(a), probeFunc(b), probeFunc(c), probeFunc(d), probeFunc(e), probeFunc(f), probeFunc(g), probeFunc(h)}
+}
+
+func tryPtrTerminals() ([]int, error) {
+	a := xs3().map(i => tryMkp(i)?).find(p => p.id == 2)
+	b := xs3().map(i => tryMkp(i)?).find(p => p.id == 99)
+	c := xs3().map(i => tryMkp(i)?).first()
+	d := xs0().map(i => tryMkp(i)?).first()
+	e := xs3().map(i => tryMkp(i)?).last()
+	f := xs0().map(i => tryMkp(i)?).last()
+	g := xs3().map(i => tryMkp(i)?).get(1)
+	h := xs3().map(i => tryMkp(i)?).get(9)
+	return []int{probePtr(a), probePtr(b), probePtr(c), probePtr(d), probePtr(e), probePtr(f), probePtr(g), probePtr(h)}, nil
+}
+
+func trySliceTerminals() ([]int, error) {
+	a := xs3().map(i => tryMks(i)?).find(s => s[0] == 2)
+	b := xs3().map(i => tryMks(i)?).find(s => s[0] == 99)
+	c := xs3().map(i => tryMks(i)?).first()
+	d := xs0().map(i => tryMks(i)?).first()
+	e := xs3().map(i => tryMks(i)?).last()
+	f := xs0().map(i => tryMks(i)?).last()
+	g := xs3().map(i => tryMks(i)?).get(1)
+	h := xs3().map(i => tryMks(i)?).get(9)
+	return []int{probeSlice(a), probeSlice(b), probeSlice(c), probeSlice(d), probeSlice(e), probeSlice(f), probeSlice(g), probeSlice(h)}, nil
+}
+
+func tryMapTerminals() ([]int, error) {
+	a := xs3().map(i => tryMkm(i)?).find(m => (m[0] ?? -1) == 2)
+	b := xs3().map(i => tryMkm(i)?).find(m => (m[0] ?? -1) == 99)
+	c := xs3().map(i => tryMkm(i)?).first()
+	d := xs0().map(i => tryMkm(i)?).first()
+	e := xs3().map(i => tryMkm(i)?).last()
+	f := xs0().map(i => tryMkm(i)?).last()
+	g := xs3().map(i => tryMkm(i)?).get(1)
+	h := xs3().map(i => tryMkm(i)?).get(9)
+	return []int{probeMap(a), probeMap(b), probeMap(c), probeMap(d), probeMap(e), probeMap(f), probeMap(g), probeMap(h)}, nil
+}
+
+func tryFuncTerminals() ([]int, error) {
+	a := xs3().map(i => tryMkf(i)?).find(f => f() == 2)
+	b := xs3().map(i => tryMkf(i)?).find(f => f() == 99)
+	c := xs3().map(i => tryMkf(i)?).first()
+	d := xs0().map(i => tryMkf(i)?).first()
+	e := xs3().map(i => tryMkf(i)?).last()
+	f := xs0().map(i => tryMkf(i)?).last()
+	g := xs3().map(i => tryMkf(i)?).get(1)
+	h := xs3().map(i => tryMkf(i)?).get(9)
+	return []int{probeFunc(a), probeFunc(b), probeFunc(c), probeFunc(d), probeFunc(e), probeFunc(f), probeFunc(g), probeFunc(h)}, nil
+}
+
+func tryNamedTerminals() ([]int, error) {
+	a := xs3().map(i => tryMkpp(i)?).find(p => p.id == 2)
+	b := xs3().map(i => tryMkpp(i)?).find(p => p.id == 99)
+	c := xs3().map(i => tryMkpp(i)?).first()
+	d := xs0().map(i => tryMkpp(i)?).first()
+	e := xs3().map(i => tryMkpp(i)?).last()
+	f := xs0().map(i => tryMkpp(i)?).last()
+	g := xs3().map(i => tryMkpp(i)?).get(1)
+	h := xs3().map(i => tryMkpp(i)?).get(9)
+	return []int{probeNamed(a), probeNamed(b), probeNamed(c), probeNamed(d), probeNamed(e), probeNamed(f), probeNamed(g), probeNamed(h)}, nil
+}
+
+func structOpt(xs []int) (pc?, error) {
+	n := xs.map(i => tryNo2(i)?).count()
+	return mkc(n), nil
+}
+
+func intOpt(xs []int) (int?, error) {
+	n := xs.map(i => tryNo2(i)?).count()
+	return n, nil
+}
+
+func ptrOpt(xs []int) (*pc?, error) {
+	n := xs.map(i => tryNo2(i)?).count()
+	return &pc{id: n}, nil
+}
+
+func sliceOpt(xs []int) ([]int?, error) {
+	got := xs.map(i => tryNo2(i)?)
+	return got, nil
+}
+
+func leadOpt(xs []int) (int, string?, error) {
+	n := xs.map(i => tryNo2(i)?).count()
+	return n, "ok", nil
+}
+
+func viewRes(xs []int) (const []int, error) {
+	got := xs.map(i => tryNo2(i)?)
+	return got, nil
+}
+
+func namedRes(xs []int) (pp, error) {
+	n := xs.map(i => tryNo2(i)?).count()
+	return mkpp(n), nil
+}
+
+var calls, calls2 int
+
+func tick(i int) int {
+	calls++
+	return i * 10
+}
+
+func tock(i int) int {
+	calls2++
+	return i + 1
+}
+
+func mapperCalls() {
+	calls, calls2 = 0, 0
+	n := xs3().map(i => tick(i)).count()
+	check("count-map", n == 3 && calls == 3, []int{n, calls}, []int{3, 3})
+	calls = 0
+	n = xs3().map(i => tick(i)).count(v => v > 10)
+	check("count-map-pred", n == 2 && calls == 3, []int{n, calls}, []int{2, 3})
+	calls = 0
+	n = xs3().map(i => tick(i)).drop(1).count()
+	check("count-map-drop", n == 2 && calls == 3, []int{n, calls}, []int{2, 3})
+	calls = 0
+	n = xs3().map(i => tick(i)).take(2).count()
+	check("count-map-take", n == 2 && calls == 2, []int{n, calls}, []int{2, 2})
+	calls = 0
+	n = xs3().filter(i => i != 2).map(i => tick(i)).count()
+	check("count-filter-map", n == 2 && calls == 2, []int{n, calls}, []int{2, 2})
+	calls, calls2 = 0, 0
+	n = xs3().map(i => tick(i)).map(i => tock(i)).count()
+	check("count-map-map", n == 3 && calls == 3 && calls2 == 3, []int{n, calls, calls2}, []int{3, 3, 3})
+	calls = 0
+	b := xs3().map(i => tick(i)).any(v => v == 20)
+	check("any-map", b && calls == 2, []int{calls}, []int{2})
+	calls = 0
+	b = xs3().map(i => tick(i)).all(v => v < 100)
+	check("all-map", b && calls == 3, []int{calls}, []int{3})
+	calls = 0
+	b = xs3().map(i => tick(i)).all(v => v < 20)
+	check("all-map-early", !b && calls == 2, []int{calls}, []int{2})
+	calls = 0
+	f := xs3().map(i => tick(i)).first()
+	check("first-map", (f ?? -1) == 10 && calls == 1, []int{f ?? -1, calls}, []int{10, 1})
+}
+
+func drvTerminals(name string) func([]int, error) {
+	return func(got []int, err error) {
+		check(name, err == nil && eq(got, wantTerminals()), got, wantTerminals())
+	}
+}
+
+//logos:allow(complexity::cognitive_overflow)
+func main() {
+	drvTerminals("ptr")(ptrTerminals(), nil)
+	drvTerminals("named")(namedTerminals(), nil)
+	drvTerminals("slice")(sliceTerminals(), nil)
+	drvTerminals("map")(mapTerminals(), nil)
+	drvTerminals("func")(funcTerminals(), nil)
+	drvTerminals("try-ptr")(tryPtrTerminals())
+	drvTerminals("try-named")(tryNamedTerminals())
+	drvTerminals("try-slice")(trySliceTerminals())
+	drvTerminals("try-map")(tryMapTerminals())
+	drvTerminals("try-func")(tryFuncTerminals())
+	sv, err := structOpt(xs13())
+	if err != nil {
+		check("opt-struct", false, err, 2)
+	} else {
+		check("opt-struct", err == nil && probeStruct(sv) == 2, probeStruct(sv), 2)
+	}
+	var svRes struct {
+		v   pc?
+		err error
+	}
+	svRes.v, svRes.err = structOpt(xs3())
+	sv, err = svRes.v, svRes.err
+	if err == nil {
+		check("opt-struct-fail", false, "no error", -1)
+	} else {
+		check("opt-struct-fail", err == errBad && probeStruct(sv) == -1, probeStruct(sv), -1)
+	}
+	iv, err := intOpt(xs13())
+	if err != nil {
+		check("opt-int", false, err, 2)
+	} else {
+		check("opt-int", err == nil && (iv ?? -1) == 2, iv ?? -1, 2)
+	}
+	var ivRes struct {
+		v   int?
+		err error
+	}
+	ivRes.v, ivRes.err = intOpt(xs3())
+	iv, err = ivRes.v, ivRes.err
+	if err == nil {
+		check("opt-int-fail", false, "no error", -1)
+	} else {
+		check("opt-int-fail", err == errBad && (iv ?? -1) == -1, iv ?? -1, -1)
+	}
+	pv, err := ptrOpt(xs13())
+	if err != nil {
+		check("opt-ptr", false, err, 2)
+	} else {
+		check("opt-ptr", err == nil && probePtr(pv) == 2, probePtr(pv), 2)
+	}
+	var pvRes struct {
+		v   *pc?
+		err error
+	}
+	pvRes.v, pvRes.err = ptrOpt(xs3())
+	pv, err = pvRes.v, pvRes.err
+	if err == nil {
+		check("opt-ptr-fail", false, "no error", -1)
+	} else {
+		check("opt-ptr-fail", err == errBad && probePtr(pv) == -1, probePtr(pv), -1)
+	}
+	lv, err := sliceOpt(xs13())
+	if err != nil {
+		check("opt-slice", false, err, 1)
+	} else {
+		check("opt-slice", err == nil && probeSlice(lv) == 1, probeSlice(lv), 1)
+	}
+	var lvRes struct {
+		v   []int?
+		err error
+	}
+	lvRes.v, lvRes.err = sliceOpt(xs3())
+	lv, err = lvRes.v, lvRes.err
+	if err == nil {
+		check("opt-slice-fail", false, "no error", -1)
+	} else {
+		check("opt-slice-fail", err == errBad && probeSlice(lv) == -1, probeSlice(lv), -1)
+	}
+	n, s, err := leadOpt(xs13())
+	if err != nil {
+		check("opt-lead", false, err, 2)
+	} else {
+		check("opt-lead", err == nil && n == 2 && (s ?? "none") == "ok", n, 2)
+	}
+	var leadRes struct {
+		a   int
+		b   string?
+		err error
+	}
+	leadRes.a, leadRes.b, leadRes.err = leadOpt(xs3())
+	n, s, err = leadRes.a, leadRes.b, leadRes.err
+	if err == nil {
+		check("opt-lead-fail", false, "no error", 0)
+	} else {
+		check("opt-lead-fail", err == errBad && n == 0 && (s ?? "none") == "none", n, 0)
+	}
+	vv, err := viewRes(xs13())
+	if err != nil {
+		check("res-view", false, err, 2)
+	} else {
+		check("res-view", err == nil && len(vv) == 2, len(vv), 2)
+	}
+	var vvRes struct {
+		v   const []int
+		err error
+	}
+	vvRes.v, vvRes.err = viewRes(xs3())
+	vv, err = vvRes.v, vvRes.err
+	if err == nil {
+		check("res-view-fail", false, "no error", true)
+	} else {
+		check("res-view-fail", err == errBad && vv == nil, vv == nil, true)
+	}
+	rv, err := namedRes(xs13())
+	if err != nil {
+		check("res-named", false, err, false)
+	} else {
+		check("res-named", err == nil && rv.id == 2, rv == nil, false)
+	}
+	rvRes := observe(namedRes(xs3()))
+	rv, err = rvRes.v, rvRes.err
+	if err == nil {
+		check("res-named-fail", false, "no error", true)
+	} else {
+		check("res-named-fail", err == errBad && rv == nil, rv == nil, true)
+	}
+	lit := func(xs []int) (pc?, error) {
+		c := xs.map(i => tryNo2(i)?).count()
+		return mkc(c), nil
+	}
+	fv, err := lit(xs13())
+	if err != nil {
+		check("opt-lit", false, err, 2)
+	} else {
+		check("opt-lit", err == nil && probeStruct(fv) == 2, probeStruct(fv), 2)
+	}
+	var fvRes struct {
+		v   pc?
+		err error
+	}
+	fvRes.v, fvRes.err = lit(xs3())
+	fv, err = fvRes.v, fvRes.err
+	if err == nil {
+		check("opt-lit-fail", false, "no error", -1)
+	} else {
+		check("opt-lit-fail", err == errBad && probeStruct(fv) == -1, probeStruct(fv), -1)
+	}
+	mapperCalls()
+	if failed {
+		os.Exit(1)
+	}
+}

@@ -442,10 +442,6 @@ func SetFinalizer(obj any, finalizer any) {
 	if ot.Elem == nil {
 		throw("nil elem type!")
 	}
-	if inUserArenaChunk(uintptr(e.data)) {
-		// Arena-allocated objects are not eligible for finalizers.
-		throw("runtime.SetFinalizer: first argument was allocated into an arena")
-	}
 	logosArenaReject(e.data, "SetFinalizer")
 	if debug.sbrk != 0 {
 		// debug.sbrk never frees memory, so no finalizers run
@@ -453,15 +449,11 @@ func SetFinalizer(obj any, finalizer any) {
 		return
 	}
 
-	// Canonicalize before offset math: under colors a stale or colored
-	// word resolves through the forwarding table and is unmasked first.
-	cdata := logosZgcAttachSpecial(e.data)
-
 	// find the containing object
-	base, span := zgcAttachResolve(cdata)
+	base, span, _ := findObject(uintptr(e.data), 0, 0)
 
 	if base == 0 {
-		if isGoPointerWithoutSpan(cdata) {
+		if isGoPointerWithoutSpan(e.data) {
 			return
 		}
 		throw("runtime.SetFinalizer: pointer not in allocated block")
@@ -472,7 +464,7 @@ func SetFinalizer(obj any, finalizer any) {
 		base += gc.MallocHeaderSize
 	}
 
-	if uintptr(cdata) != base {
+	if uintptr(e.data) != base {
 		// As an implementation detail we allow to set finalizers for an inner byte
 		// of an object if it could come from tiny alloc (see mallocgc for details).
 		if ot.Elem == nil || ot.Elem.Pointers() || ot.Elem.Size_ >= maxTinySize {
@@ -485,7 +477,7 @@ func SetFinalizer(obj any, finalizer any) {
 	if ftyp == nil {
 		// switch to system stack and remove finalizer
 		systemstack(func() {
-			removefinalizer(cdata)
+			removefinalizer(e.data)
 
 			if debug.checkfinalizers != 0 {
 				clearFinalizerContext(uintptr(e.data))
@@ -539,38 +531,14 @@ okarg:
 	createfing()
 
 	callerpc := sys.GetCallerPC()
-	// Copy the target into to-space while preemptible: addfinalizer runs
-	// on g0 inside systemstack, where the refill the copy may need must
-	// not run, so it never copies. A pause that selects the copy's page
-	// before the attach pins the M makes it report unstable with nothing
-	// spliced; the loop then copies again here, outside systemstack.
-	// Every unstable retry witnesses a pause that began after the previous
-	// copy. A lawful foreign-exposed source never retries: the typed
-	// ensure-copy returns the source (Refused, never OOM) and the typed
-	// stability check pins it in place, so the splice lands with the M
-	// held and a same-G callback scope never waits for its own
-	// unexposure. Only true to-space exhaustion throws OOM here.
-	for {
-		e.data = zgcAttachEnsureCopy(e.data)
-		var home unsafe.Pointer
-		var st specialAttach
-		systemstack(func() {
-			home, st = addfinalizer(e.data, (*funcval)(f.data), nret, fint, ot)
-			if st == specialAttachExists {
-				throw("runtime.SetFinalizer: finalizer already set")
-			}
-			// The check record rides the finalizer's home span: home is
-			// the address the record was spliced at, not the pre-attach
-			// word.
-			if st == specialAttachAdded && debug.checkfinalizers != 0 {
-				setFinalizerContext(home, ot.Elem, callerpc, (*funcval)(f.data).fn)
-			}
-		})
-		if st != specialAttachUnstable {
-			return
+	systemstack(func() {
+		if !addfinalizer(e.data, (*funcval)(f.data), nret, fint, ot) {
+			throw("runtime.SetFinalizer: finalizer already set")
 		}
-		e.data = home
-	}
+		if debug.checkfinalizers != 0 {
+			setFinalizerContext(e.data, ot.Elem, callerpc, (*funcval)(f.data).fn)
+		}
+	})
 }
 
 // Mark KeepAlive as noinline so that it is easily detectable as an intrinsic.

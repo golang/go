@@ -1,0 +1,326 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# SPEC 1.5 [T-105]: O3 sets inline budget 400 with 80 inside recursive
+# cycles, so a recursive function above 80 keeps its calls while the
+# non-recursive plainBig and midBig inline. The calls objdump finds in
+# the caller observe each decision; no compiler message is read.
+logos build -o $WORK/o3$GOEXE -O=3 .
+exec go tool objdump -s 'inlrec\.Drive' $WORK/o3$GOEXE
+stdout 'R_CALL:fmt\.Fprintln'
+stdout 'R_CALL:example\.com/inlrec\.bigEven'
+stdout 'R_CALL:example\.com/inlrec\.bigOdd'
+! stdout 'R_CALL:example\.com/inlrec\.midBig'
+! stdout 'R_CALL:example\.com/inlrec\.plainBig'
+! stdout 'R_CALL:example\.com/inlrec\.smallPlain'
+! stdout 'R_CALL:example\.com/inlrec\.tiny'
+
+# Raising the recursive budget to 400 inlines the recursive bigEven.
+logos build -o $WORK/b400$GOEXE -gcflags='-d=inlrecursivebudget=400' -O=3 .
+exec go tool objdump -s 'inlrec\.Drive' $WORK/b400$GOEXE
+stdout 'R_CALL:fmt\.Fprintln'
+! stdout 'R_CALL:example\.com/inlrec\.bigEven'
+
+# SPEC 1.5 [T-105]: O2 sets budget 120: plainBig inlines, midBig does not.
+logos build -o $WORK/o2$GOEXE -O=2 .
+exec go tool objdump -s 'inlrec\.Drive' $WORK/o2$GOEXE
+stdout 'R_CALL:example\.com/inlrec\.midBig'
+! stdout 'R_CALL:example\.com/inlrec\.plainBig'
+
+# SPEC 1.5 [T-105]: Os sets budget 15: only tiny inlines among these.
+logos build -o $WORK/os$GOEXE -O=s .
+exec go tool objdump -s 'inlrec\.Drive' $WORK/os$GOEXE
+stdout 'R_CALL:example\.com/inlrec\.plainBig'
+stdout 'R_CALL:example\.com/inlrec\.midBig'
+stdout 'R_CALL:example\.com/inlrec\.smallPlain'
+! stdout 'R_CALL:example\.com/inlrec\.tiny'
+logos run -O=3 ./cmd
+stdout '^42$'
+stdout '^5 6$'
+stdout '^95$'
+stdout '^415413 6902622878173$'
+stdout '^1683910 1683911$'
+cp stdout $WORK/rec-o3.txt
+logos run -O=2 ./cmd
+cp stdout $WORK/rec-o2.txt
+cmp $WORK/rec-o3.txt $WORK/rec-o2.txt
+logos run -O=s ./cmd
+cp stdout $WORK/rec-os.txt
+cmp $WORK/rec-o3.txt $WORK/rec-os.txt
+
+-- go.mod --
+module example.com/inlrec
+
+go 1.27
+
+-- rec.go --
+package rec
+
+func smallEven(n int) int {
+	if n <= 0 {
+		return 0
+	}
+	return smallOdd(n - 1)
+}
+
+func smallOdd(n int) int {
+	if n <= 0 {
+		return 1
+	}
+	return smallEven(n-1) + 1
+}
+
+func bigWork(x int) int {
+	a1 := x + 1
+	a2 := a1 * 2
+	a3 := a2 - 3
+	a4 := a3 + a2
+	a5 := a4 * a1
+	a6 := a5 - a4
+	a7 := a6 + 7
+	a8 := a7 * 3
+	a9 := a8 - a7
+	a10 := a9 + a8
+	a11 := a10 * 2
+	a12 := a11 - 5
+	a13 := a12 + a11
+	a14 := a13 * a12
+	a15 := a14 - a13
+	return a15 + x
+}
+
+func bigEven(n int) int {
+	if n <= 0 {
+		return bigWork(n)
+	}
+	return bigOdd(n-1) + bigWork(n)
+}
+
+func bigOdd(n int) int {
+	if n <= 0 {
+		return bigWork(n) + 1
+	}
+	return bigEven(n-1) + bigWork(n)
+}
+
+func plainBig(x int) int {
+	a1 := x + 1
+	a2 := a1 * 2
+	a3 := a2 - 3
+	a4 := a3 + a2
+	a5 := a4 * a1
+	a6 := a5 - a4
+	a7 := a6 + 7
+	a8 := a7 * 3
+	a9 := a8 - a7
+	a10 := a9 + a8
+	a11 := a10 * 2
+	a12 := a11 - 5
+	a13 := a12 + a11
+	a14 := a13 * a12
+	a15 := a14 - a13
+	return a15 + x
+}
+
+func hugeEven(n int) int {
+c1 := n + 1
+c2 := c1 * 2
+c3 := c2 - 3
+c4 := c3 + c2
+c5 := c4 * c1
+c6 := c5 - c4
+c7 := c6 + 7
+c8 := c7 * 3
+c9 := c8 - c7
+c10 := c9 + c8
+c11 := c10 * 2
+c12 := c11 - 5
+c13 := c12 + c11
+c14 := c13 * c12
+c15 := c14 - c13
+d1 := c15 + 1
+d2 := d1 * 2
+d3 := d2 - 3
+d4 := d3 + d2
+d5 := d4 * d1
+d6 := d5 - d4
+d7 := d6 + 7
+d8 := d7 * 3
+d9 := d8 - d7
+d10 := d9 + d8
+d11 := d10 * 2
+d12 := d11 - 5
+d13 := d12 + d11
+d14 := d13 * d12
+d15 := d14 - d13
+e1 := d15 + 1
+e2 := e1 * 2
+e3 := e2 - 3
+e4 := e3 + e2
+e5 := e4 * e1
+e6 := e5 - e4
+e7 := e6 + 7
+e8 := e7 * 3
+e9 := e8 - e7
+e10 := e9 + e8
+e11 := e10 * 2
+e12 := e11 - 5
+e13 := e12 + e11
+e14 := e13 * e12
+e15 := e14 - e13
+f1 := e15 + 1
+f2 := f1 * 2
+f3 := f2 - 3
+f4 := f3 + f2
+f5 := f4 * f1
+f6 := f5 - f4
+f7 := f6 + 7
+f8 := f7 * 3
+f9 := f8 - f7
+f10 := f9 + f8
+f11 := f10 * 2
+f12 := f11 - 5
+f13 := f12 + f11
+f14 := f13 * f12
+f15 := f14 - f13
+if n <= 0 {
+return bigWork(n) + f15
+}
+return hugeOdd(n-1) + bigWork(n) + f15
+}
+
+func hugeOdd(n int) int {
+g1 := n + 1
+g2 := g1 * 2
+g3 := g2 - 3
+g4 := g3 + g2
+g5 := g4 * g1
+g6 := g5 - g4
+g7 := g6 + 7
+g8 := g7 * 3
+g9 := g8 - g7
+g10 := g9 + g8
+g11 := g10 * 2
+g12 := g11 - 5
+g13 := g12 + g11
+g14 := g13 * g12
+g15 := g14 - g13
+h1 := g15 + 1
+h2 := h1 * 2
+h3 := h2 - 3
+h4 := h3 + h2
+h5 := h4 * h1
+h6 := h5 - h4
+h7 := h6 + 7
+h8 := h7 * 3
+h9 := h8 - h7
+h10 := h9 + h8
+h11 := h10 * 2
+h12 := h11 - 5
+h13 := h12 + h11
+h14 := h13 * h12
+h15 := h14 - h13
+i1 := h15 + 1
+i2 := i1 * 2
+i3 := i2 - 3
+i4 := i3 + i2
+i5 := i4 * i1
+i6 := i5 - i4
+i7 := i6 + 7
+i8 := i7 * 3
+i9 := i8 - i7
+i10 := i9 + i8
+i11 := i10 * 2
+i12 := i11 - 5
+i13 := i12 + i11
+i14 := i13 * i12
+i15 := i14 - i13
+j1 := i15 + 1
+j2 := j1 * 2
+j3 := j2 - 3
+j4 := j3 + j2
+j5 := j4 * j1
+j6 := j5 - j4
+j7 := j6 + 7
+j8 := j7 * 3
+j9 := j8 - j7
+j10 := j9 + j8
+j11 := j10 * 2
+j12 := j11 - 5
+j13 := j12 + j11
+j14 := j13 * j12
+j15 := j14 - j13
+if n <= 0 {
+return bigWork(n) + j15 + 1
+}
+return hugeEven(n-1) + bigWork(n) + j15
+}
+
+func tiny(x int) int {
+return x + 1
+}
+
+func midBig(x int) int {
+m1 := x + 1
+m2 := m1 * 2
+m3 := m2 - 3
+m4 := m3 + m2
+m5 := m4 * m1
+m6 := m5 - m4
+m7 := m6 + 7
+m8 := m7 * 3
+m9 := m8 - m7
+m10 := m9 + m8
+m11 := m10 * 2
+m12 := m11 - 5
+m13 := m12 + m11
+m14 := m13 * m12
+m15 := m14 - m13
+m16 := m15 + 1
+m17 := m16 * 2
+m18 := m17 - 3
+m19 := m18 + m17
+m20 := m19 * m16
+m21 := m20 - m19
+m22 := m21 + 7
+m23 := m22 * 3
+m24 := m23 - m22
+m25 := m24 + m23
+m26 := m25 * 2
+return m26 + x
+}
+
+func smallPlain(x int) int {
+p1 := x + 1
+p2 := p1 * 2
+p3 := p2 - 3
+p4 := p3 + p2
+p5 := p4 * p1
+p6 := p5 - p4
+p7 := p6 + 7
+p8 := p7 * 3
+p9 := p8 - p7
+return p9 + x
+}
+
+-- drive.go --
+package rec
+
+import "fmt"
+
+func Drive() {
+	fmt.Println(tiny(41))
+	fmt.Println(smallEven(10), smallOdd(10))
+	fmt.Println(smallPlain(3))
+	fmt.Println(plainBig(3), midBig(3))
+	fmt.Println(bigEven(4), bigOdd(4))
+}
+
+-- cmd/main.go --
+package main
+
+import rec "example.com/inlrec"
+
+func main() {
+	rec.Drive()
+}

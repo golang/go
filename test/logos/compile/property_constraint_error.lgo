@@ -1,0 +1,24 @@
+// errorcheck
+
+package p
+
+type RO interface {
+	const ID int
+}
+
+type Gadget struct : RO {
+	ID int
+}
+
+type Plain struct {
+	ID int
+}
+
+func show[T RO](x T) T {
+	return x
+}
+
+func use() {
+	_ = show(Gadget{ID: 1})
+	_ = show(Plain{ID: 2}) // ERROR "property_requires_conformance"
+}

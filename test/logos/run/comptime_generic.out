@@ -1,3 +1,6 @@
-8080 db
-db 8080
-8080 db
+ok autowire-assigns-all-fields
+ok field-order-independent
+ok autowire-repeatable
+ok autowire-matches-hand-struct
+ok typeof-instantiates-int
+ok typeof-instantiates-string

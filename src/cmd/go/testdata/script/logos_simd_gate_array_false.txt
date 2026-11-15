@@ -1,0 +1,116 @@
+# Array-operator vector forms run only when their archsimd feature check
+# is true and take the scalar form when it is false. The guard dominates
+# the vector block, the feature-false jump targets the scalar loop, and
+# disabling the feature still matches the scalar oracle through that path.
+[!GOARCH:amd64] skip 'array gate needs amd64'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOEXPERIMENT=simd
+env GOAMD64=v1
+
+cd m
+logos build -o $WORK/exe .
+go tool objdump -s '^main\.addF32x8$' $WORK/exe
+stdout 'CALL.*X86Features\.AVX\(SB\)'
+stdout 'VADDPS'
+stdout '(?s)X86Features\.AVX.*ADDSS'
+go tool objdump -s '^main\.mulF64x2$' $WORK/exe
+stdout 'CALL.*X86Features\.AVX\(SB\)'
+stdout 'VMULPD'
+stdout '(?s)X86Features\.AVX.*MULSD'
+go tool objdump -s '^main\.addF32x16$' $WORK/exe
+stdout 'CALL.*X86Features\.AVX512\(SB\)'
+stdout 'VADDPS'
+stdout '(?s)X86Features\.AVX512.*ADDSS'
+go tool objdump -s '^main\.addF32x8$' $WORK/exe
+stdout '(?s)CALL simd/archsimd\.X86Features\.AVX\(SB\).*TESTL AL, AL.*JE'
+go tool objdump -s '^main\.addF32x16$' $WORK/exe
+stdout '(?s)CALL simd/archsimd\.X86Features\.AVX512\(SB\).*TESTL AL, AL.*JE'
+
+env GODEBUG=cpu.avx=off
+logos run .
+stdout '^avx false$'
+stdout '^sums ok$'
+
+env GODEBUG=cpu.avx512f=off
+logos run .
+stdout '^avx512 false$'
+stdout '^sums ok$'
+
+-- m/go.mod --
+module example.com/arraygate
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"simd/archsimd"
+)
+
+//go:noinline
+func addF32x8(a, b [8]float32) [8]float32 { return a + b }
+
+//go:noinline
+func mulF64x2(a, b [2]float64) [2]float64 { return a * b }
+
+//go:noinline
+func addF32x16(a, b [16]float32) [16]float32 { return a + b }
+
+func oracleAdd8(a, b [8]float32) [8]float32 {
+	var r [8]float32
+	for i := range a {
+		r[i] = a[i] + b[i]
+	}
+	return r
+}
+
+func oracleMul2(a, b [2]float64) [2]float64 {
+	var r [2]float64
+	for i := range a {
+		r[i] = a[i] * b[i]
+	}
+	return r
+}
+
+func oracleAdd16(a, b [16]float32) [16]float32 {
+	var r [16]float32
+	for i := range a {
+		r[i] = a[i] + b[i]
+	}
+	return r
+}
+
+func main() {
+	fmt.Println("avx", archsimd.X86.AVX())
+	fmt.Println("avx512", archsimd.X86.AVX512())
+	var a, b [8]float32
+	for i := range a {
+		a[i] = float32(i*3 - 20)
+		b[i] = float32(i*2 + 1)
+	}
+	if addF32x8(a, b) != oracleAdd8(a, b) {
+		panic("f32x8 add mismatch")
+	}
+	var c, d [2]float64
+	for i := range c {
+		c[i] = float64(i) + 0.5
+		d[i] = float64(8 - i)
+	}
+	if mulF64x2(c, d) != oracleMul2(c, d) {
+		panic("f64x2 mul mismatch")
+	}
+	var e, f [16]float32
+	for i := range e {
+		e[i] = float32(i*7 - 100)
+		f[i] = float32(i*3 + 1)
+	}
+	if addF32x16(e, f) != oracleAdd16(e, f) {
+		panic("f32x16 add mismatch")
+	}
+	fmt.Println("sums ok")
+}

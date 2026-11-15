@@ -1,0 +1,60 @@
+// run
+package jsonunion
+
+import (
+	"encoding/json"
+	"errors"
+	"logos/rt"
+	"testing"
+)
+
+type MalCircle struct {
+	R int64 `json:"r"`
+}
+type MalSquare struct {
+	S int64 `json:"s"`
+}
+type MalUnion interface {
+	MalCircle | MalSquare
+}
+type MalHolder struct {
+	Item MalUnion `json:"item"`
+}
+type MalMirror struct {
+	Item any `json:"item"`
+}
+
+func TestMalformedDirectCallIsSyntaxError(t *testing.T) {
+	data := []byte(`{"item":`)
+	var m MalMirror
+	errOracle := json.Unmarshal(data, &m)
+	if errOracle == nil {
+		t.Fatal("oracle expected syntax error, got nil")
+		return
+	}
+	if _, ok := errOracle.(*json.SyntaxError); !ok {
+		t.Fatalf("oracle error must be syntax error, got %T: %v", errOracle, errOracle)
+		return
+	}
+	var h MalHolder
+	err := h.UnmarshalJSON(data)
+	if err == nil {
+		t.Fatal("expected syntax error, got nil")
+		return
+	}
+	var trialErr rt.UnionTrialError
+	if errors.As(err, &trialErr) {
+		t.Fatalf("malformed input must not report UnionTrialError: %v", err)
+		return
+	}
+	syn, ok := err.(*json.SyntaxError)
+	if !ok {
+		t.Fatalf("malformed input must report syntax error like oracle, got %T: %v", err, err)
+		return
+	}
+	oracleSyn, _ := errOracle.(*json.SyntaxError)
+	if syn.Error() != oracleSyn.Error() || syn.Offset != oracleSyn.Offset {
+		t.Fatalf("syntax mismatch: got %#v, oracle %#v", syn, oracleSyn)
+		return
+	}
+}

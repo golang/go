@@ -1,0 +1,311 @@
+// run
+
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+)
+
+var errLoad = errors.New("load")
+
+var failed bool
+
+func load(v int, fail bool) (int, error) {
+	if fail {
+		return 0, errLoad
+	}
+	return v, nil
+}
+
+func next(n int, fail bool) (int, error) {
+	if fail {
+		return 0, errLoad
+	}
+	return n + 1, nil
+}
+
+func line(f func(int, bool) (int, error), fail bool) string {
+	got, err := f(7, fail)
+	if err != nil {
+		return fmt.Sprintln(0, err)
+	}
+	return fmt.Sprintln(got, err)
+}
+
+func run(name string, f func(int, bool) (int, error), want string) {
+	got := line(f, false) + line(f, true)
+	if got != want {
+		failed = true
+		fmt.Printf("FAIL %s: got %q want %q\n", name, got, want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func forInit(v int, fail bool) (int, error) {
+	total := 0
+L:
+	for n := load(v, fail)?; n < 12; n++ {
+		if n == 8 {
+			continue L
+		}
+		if n == 10 {
+			break L
+		}
+		total += n
+	}
+	return total, nil
+}
+
+func forPost(v int, fail bool) (int, error) {
+	total := 0
+L:
+	for n := v; n < 12; n = next(n, fail)? {
+		if n == 8 {
+			continue L
+		}
+		if n == 10 {
+			break L
+		}
+		total += n
+	}
+	return total, nil
+}
+
+func forInitAndPost(v int, fail bool) (int, error) {
+	total := 0
+L:
+	for n := load(v, fail)?; n < 12; n = next(n, fail)? {
+		if n == 8 {
+			continue L
+		}
+		if n == 10 {
+			break L
+		}
+		total += n
+	}
+	return total, nil
+}
+
+func switchInit(v int, fail bool) (int, error) {
+	total := 1
+L:
+	switch n := load(v, fail)?; {
+	case n > 0:
+		total += n
+		break L
+	}
+	return total, nil
+}
+
+func ifInit(v int, fail bool) (int, error) {
+	total := 0
+	pass := 0
+L:
+	if n := load(v, fail)?; n > 0 {
+		total += n
+	}
+	pass++
+	if pass < 2 {
+		goto L
+	}
+	return total, nil
+}
+
+func ifElseInit(v int, fail bool) (int, error) {
+	total := 0
+	pass := 0
+L:
+	if n := load(v, fail)?; n < 0 {
+		total = -1
+	} else if m := load(n+1, fail)?; m > 0 {
+		total += m
+	}
+	pass++
+	if pass < 2 {
+		goto L
+	}
+	return total, nil
+}
+
+func gotoForInit(v int, fail bool) (int, error) {
+	total := 0
+	pass := 0
+L:
+	for n := load(v, fail)?; n < 9; n++ {
+		total += n
+	}
+	pass++
+	if pass < 2 {
+		goto L
+	}
+	return total, nil
+}
+
+func gotoForInitBreak(v int, fail bool) (int, error) {
+	total := 0
+	pass := 0
+L:
+	for n := load(v, fail)?; n < 12; n++ {
+		if n == 9 {
+			break L
+		}
+		total += n
+	}
+	pass++
+	if pass < 2 {
+		goto L
+	}
+	return total, nil
+}
+
+func gotoForPostContinue(v int, fail bool) (int, error) {
+	total := 0
+	pass := 0
+L:
+	for n := v; n < 10; n = next(n, fail)? {
+		if n == 8 {
+			continue L
+		}
+		total += n
+	}
+	pass++
+	if pass < 2 {
+		goto L
+	}
+	return total, nil
+}
+
+func gotoSwitchBreak(v int, fail bool) (int, error) {
+	total := 0
+	pass := 0
+L:
+	switch n := load(v, fail)?; {
+	case n > 0:
+		total += n
+		break L
+	}
+	pass++
+	if pass < 2 {
+		goto L
+	}
+	return total, nil
+}
+
+func gotoOverPost(v int, fail bool) (int, error) {
+	total := 0
+	goto Skip
+	for n := v; n < 9; n = next(n, fail)? {
+		total += n
+	}
+Skip:
+	return total, nil
+}
+
+func outerContinue(v int, fail bool) (int, error) {
+	total := 0
+outer:
+	for i := 0; i < 3; i++ {
+		for n := load(v, fail)?; n < 10; n++ {
+			if n == 8 {
+				continue outer
+			}
+			total += n
+		}
+	}
+	return total, nil
+}
+
+func labelInClosure(v int, fail bool) (int, error) {
+	f := func() (int, error) {
+		total := 0
+	L:
+		for n := load(v, fail)?; n < 12; n++ {
+			if n == 9 {
+				break L
+			}
+			total += n
+		}
+		return total, nil
+	}
+	return f()
+}
+
+func chainHoistInit(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	total := 0
+L:
+	for n := load(xs.map(x => x + v).sum(), fail)?; n < 40; n++ {
+		if n == 30 {
+			continue L
+		}
+		if n == 33 {
+			break L
+		}
+		total += n
+	}
+	return total, nil
+}
+
+func gotoChainHoistInit(v int, fail bool) (int, error) {
+	xs := []int{1, 2, 3}
+	total := 0
+	pass := 0
+L:
+	for n := load(xs.map(x => x + v).sum(), fail)?; n < 40; n++ {
+		if n == 30 {
+			break L
+		}
+		total += n
+	}
+	pass++
+	if pass < 2 {
+		goto L
+	}
+	return total, nil
+}
+
+func gotoScopeDefer(v int, fail bool) (n int, err error) {
+	pass := 0
+L:
+	for i := load(v, fail)?; i < 12; i++ {
+		scope defer func() { n += 1000 }()
+		if i == 9 {
+			break L
+		}
+		n += i
+	}
+	pass++
+	if pass < 2 {
+		goto L
+	}
+	return n, nil
+}
+
+func main() {
+	run("for-init", forInit, "16 <nil>\n0 load\n")
+	run("for-post", forPost, "16 <nil>\n0 load\n")
+	run("for-init-and-post", forInitAndPost, "16 <nil>\n0 load\n")
+	run("switch-init", switchInit, "8 <nil>\n0 load\n")
+	run("if-init", ifInit, "14 <nil>\n0 load\n")
+	run("if-else-init", ifElseInit, "16 <nil>\n0 load\n")
+	run("goto-for-init", gotoForInit, "30 <nil>\n0 load\n")
+	run("goto-for-init-break", gotoForInitBreak, "30 <nil>\n0 load\n")
+	run("goto-for-post-continue", gotoForPostContinue, "32 <nil>\n0 load\n")
+	run("goto-switch-break", gotoSwitchBreak, "14 <nil>\n0 load\n")
+	run("goto-over-post", gotoOverPost, "0 <nil>\n0 <nil>\n")
+	run("outer-continue", outerContinue, "21 <nil>\n0 load\n")
+	run("label-in-closure", labelInClosure, "15 <nil>\n0 load\n")
+	run("chain-hoist-init", chainHoistInit, "147 <nil>\n0 load\n")
+	run("goto-chain-hoist-init", gotoChainHoistInit, "168 <nil>\n0 load\n")
+	run("goto-scope-defer", gotoScopeDefer, "6030 <nil>\n0 load\n")
+	if failed {
+		os.Exit(1)
+	}
+}

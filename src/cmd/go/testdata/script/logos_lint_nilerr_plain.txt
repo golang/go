@@ -1,0 +1,40 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd g
+go build -o $WORK/plain.a .
+go tool pack t $WORK/plain.a
+stdout '^__\.PKGDEF$'
+? go tool pack p $WORK/plain.a __.LOGOS
+! stdout 'AlwaysNilError'
+
+logos build -o $WORK/driven.a .
+go tool pack p $WORK/driven.a __.LOGOS
+stdout '^fn AlwaysNil .*AlwaysNilError'
+! stdout '^fn Sometimes .*AlwaysNilError'
+cd ..
+
+-- g/go.mod --
+module example.com/g
+
+go 1.27
+
+-- g/g.go --
+package g
+
+import "errors"
+
+var errFail = errors.New("fail")
+
+var fail = false
+
+func AlwaysNil() error {
+	return nil
+}
+
+func Sometimes() error {
+	if fail {
+		return errFail
+	}
+	return nil
+}

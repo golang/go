@@ -1,0 +1,257 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type observed[T any] struct {
+	v   T
+	err error
+}
+
+func observe[T any](v T, err error) observed[T] {
+	return observed[T]{v, err}
+}
+
+type pc struct {
+	id int
+}
+
+type pp *pc
+
+type mi int
+
+var errBad = errors.New("bad two")
+
+func tryNo2(i int) (int, error) {
+	if i == 2 {
+		return 0, errBad
+	}
+	return i, nil
+}
+
+func mkc(n int) pc { return pc{id: n} }
+
+func mkp(n int) *pc { return &pc{id: n} }
+
+func mkpp(n int) pp { return pp(&pc{id: n}) }
+
+func mks(n int) []int { return []int{n, n} }
+
+func probeStruct(v pc?) int { return v?.id ?? -1 }
+
+func probePtr(v *pc?) int { return v?.id ?? -1 }
+
+func probeSlice(v []int?) int { return (v ?? []int{-1})[0] }
+
+func structOpt(i int) (pc?, error) {
+	n := tryNo2(i)?
+	return mkc(n), nil
+}
+
+func intOpt(i int) (int?, error) {
+	n := tryNo2(i)?
+	return n, nil
+}
+
+func ptrOpt(i int) (*pc?, error) {
+	n := tryNo2(i)?
+	return mkp(n), nil
+}
+
+func sliceOpt(i int) ([]int?, error) {
+	n := tryNo2(i)?
+	return mks(n), nil
+}
+
+func leadOpt(i int) (int, string?, error) {
+	n := tryNo2(i)?
+	return n, "ok", nil
+}
+
+func namedRes(i int) (pp, error) {
+	n := tryNo2(i)?
+	return mkpp(n), nil
+}
+
+func basicRes(i int) (mi, error) {
+	n := tryNo2(i)?
+	return mi(n), nil
+}
+
+func viewRes(i int) (const []int, error) {
+	n := tryNo2(i)?
+	return mks(n), nil
+}
+
+//logos:allow(complexity::cognitive_overflow)
+func main() {
+	sv, err := structOpt(1)
+	if err != nil {
+		check("struct", false, err, 1)
+	} else {
+		check("struct", err == nil && probeStruct(sv) == 1, probeStruct(sv), 1)
+	}
+	var svRes struct {
+		v   pc?
+		err error
+	}
+	svRes.v, svRes.err = structOpt(2)
+	sv, err = svRes.v, svRes.err
+	if err == nil {
+		check("struct-fail", false, "no error", -1)
+	} else {
+		check("struct-fail", err == errBad && probeStruct(sv) == -1, probeStruct(sv), -1)
+	}
+	iv, err := intOpt(1)
+	if err != nil {
+		check("int", false, err, 1)
+	} else {
+		check("int", err == nil && (iv ?? -1) == 1, iv ?? -1, 1)
+	}
+	var ivRes struct {
+		v   int?
+		err error
+	}
+	ivRes.v, ivRes.err = intOpt(2)
+	iv, err = ivRes.v, ivRes.err
+	if err == nil {
+		check("int-fail", false, "no error", -1)
+	} else {
+		check("int-fail", err == errBad && (iv ?? -1) == -1, iv ?? -1, -1)
+	}
+	pv, err := ptrOpt(1)
+	if err != nil {
+		check("ptr", false, err, 1)
+	} else {
+		check("ptr", err == nil && probePtr(pv) == 1, probePtr(pv), 1)
+	}
+	var pvRes struct {
+		v   *pc?
+		err error
+	}
+	pvRes.v, pvRes.err = ptrOpt(2)
+	pv, err = pvRes.v, pvRes.err
+	if err == nil {
+		check("ptr-fail", false, "no error", -1)
+	} else {
+		check("ptr-fail", err == errBad && probePtr(pv) == -1, probePtr(pv), -1)
+	}
+	lv, err := sliceOpt(1)
+	if err != nil {
+		check("slice", false, err, 1)
+	} else {
+		check("slice", err == nil && probeSlice(lv) == 1, probeSlice(lv), 1)
+	}
+	var lvRes struct {
+		v   []int?
+		err error
+	}
+	lvRes.v, lvRes.err = sliceOpt(2)
+	lv, err = lvRes.v, lvRes.err
+	if err == nil {
+		check("slice-fail", false, "no error", -1)
+	} else {
+		check("slice-fail", err == errBad && probeSlice(lv) == -1, probeSlice(lv), -1)
+	}
+	n, s, err := leadOpt(1)
+	if err != nil {
+		check("lead", false, err, 1)
+	} else {
+		check("lead", err == nil && n == 1 && (s ?? "none") == "ok", n, 1)
+	}
+	var leadRes struct {
+		a   int
+		b   string?
+		err error
+	}
+	leadRes.a, leadRes.b, leadRes.err = leadOpt(2)
+	n, s, err = leadRes.a, leadRes.b, leadRes.err
+	if err == nil {
+		check("lead-fail", false, "no error", 0)
+	} else {
+		check("lead-fail", err == errBad && n == 0 && (s ?? "none") == "none", n, 0)
+	}
+	rv, err := namedRes(1)
+	if err != nil {
+		check("named", false, err, false)
+	} else {
+		check("named", err == nil && rv.id == 1, rv == nil, false)
+	}
+	rvRes := observe(namedRes(2))
+	rv, err = rvRes.v, rvRes.err
+	if err == nil {
+		check("named-fail", false, "no error", true)
+	} else {
+		check("named-fail", err == errBad && rv == nil, rv == nil, true)
+	}
+	bv, err := basicRes(1)
+	if err != nil {
+		check("basic", false, err, 1)
+	} else {
+		check("basic", err == nil && bv == 1, bv, 1)
+	}
+	bvRes := observe(basicRes(2))
+	bv, err = bvRes.v, bvRes.err
+	if err == nil {
+		check("basic-fail", false, "no error", 0)
+	} else {
+		check("basic-fail", err == errBad && bv == 0, bv, 0)
+	}
+	vv, err := viewRes(1)
+	if err != nil {
+		check("view", false, err, 2)
+	} else {
+		check("view", err == nil && len(vv) == 2, len(vv), 2)
+	}
+	var vvRes struct {
+		v   const []int
+		err error
+	}
+	vvRes.v, vvRes.err = viewRes(2)
+	vv, err = vvRes.v, vvRes.err
+	if err == nil {
+		check("view-fail", false, "no error", true)
+	} else {
+		check("view-fail", err == errBad && vv == nil, vv == nil, true)
+	}
+	lit := func(i int) (pc?, error) {
+		c := tryNo2(i)?
+		return mkc(c), nil
+	}
+	fv, err := lit(1)
+	if err != nil {
+		check("lit", false, err, 1)
+	} else {
+		check("lit", err == nil && probeStruct(fv) == 1, probeStruct(fv), 1)
+	}
+	var fvRes struct {
+		v   pc?
+		err error
+	}
+	fvRes.v, fvRes.err = lit(2)
+	fv, err = fvRes.v, fvRes.err
+	if err == nil {
+		check("lit-fail", false, "no error", -1)
+	} else {
+		check("lit-fail", err == errBad && probeStruct(fv) == -1, probeStruct(fv), -1)
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

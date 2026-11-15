@@ -1,0 +1,53 @@
+// run
+
+package main
+
+type plain struct{ L []int }
+
+type other struct {
+	L []int
+	N int
+}
+
+type pt struct{ X, Y int }
+
+const cfg = plain{L: []int{1, 2}}
+
+const origin = pt{X: 1, Y: 2}
+
+func main() {
+	p := plain{L: []int{5, 6}, ..cfg}
+	p.L[0] = 99
+
+	q := plain{..cfg}
+	q.L = []int{7, 8}
+
+	r := pt{Y: 3, ..origin}
+	r.X = 4
+
+	s1 := plain{..cfg}
+	s2 := plain{..cfg}
+
+	c := cfg
+	o := other{N: 3, ..c}
+
+	if p.L[0] != 99 || p.L[1] != 6 {
+		panic("explicit override slice write failed")
+	}
+	if q.L[0] != 7 || q.L[1] != 8 {
+		panic("wholesale slot replacement failed")
+	}
+	if r.X != 4 || r.Y != 3 {
+		panic("scalar field write failed")
+	}
+	if s1.L[0] != 1 || s1.L[1] != 2 || s2.L[0] != 1 || s2.L[1] != 2 {
+		panic("two spreads of same const changed")
+	}
+	if o.L[1] != 2 || o.N != 3 {
+		panic("copy source spread failed")
+	}
+	if cfg.L[0] != 1 || cfg.L[1] != 2 {
+		panic("const itself changed")
+	}
+	println("ok const-spread-readonly")
+}

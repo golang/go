@@ -1,0 +1,117 @@
+// run
+
+package jsonunion
+
+import (
+	"encoding/json"
+	"errors"
+	"testing"
+
+	"logos/rt"
+)
+
+type ClaimCircle struct {
+	Radius float64 `json:"radius"`
+}
+
+func (c *ClaimCircle) UnmarshalJSON(b []byte) error { return nil }
+
+type ClaimSquare struct {
+	Side float64 `json:"side"`
+}
+
+type ClaimShape interface {
+	*ClaimCircle | *ClaimSquare
+}
+
+type ClaimHolder struct {
+	S ClaimShape `json:"s"`
+}
+
+func TestClaimedInputWithFailingDecodeIsZeroMatch(t *testing.T) {
+	var h ClaimHolder
+	err := json.Unmarshal([]byte(`{"s":{"side":"x"}}`), &h)
+	if err == nil {
+		t.Fatalf("expected trial error, got %T(%v)", h.S, h.S)
+	}
+	var trialErr rt.UnionTrialError
+	if !errors.As(err, &trialErr) {
+		t.Fatalf("expected rt.UnionTrialError, got %T: %v", err, err)
+	}
+	if trialErr.Matched != 0 {
+		t.Fatalf("expected Matched 0, got %d", trialErr.Matched)
+	}
+	if h.S != nil {
+		t.Fatalf("failed trials left the target touched: %#v", h.S)
+	}
+}
+
+func TestNonObjectInputIsZeroMatch(t *testing.T) {
+	var h ClaimHolder
+	err := json.Unmarshal([]byte(`{"s":5}`), &h)
+	if err == nil {
+		t.Fatalf("expected trial error, got %T(%v)", h.S, h.S)
+	}
+	var trialErr rt.UnionTrialError
+	if !errors.As(err, &trialErr) {
+		t.Fatalf("expected rt.UnionTrialError, got %T: %v", err, err)
+	}
+	if trialErr.Matched != 0 {
+		t.Fatalf("expected Matched 0, got %d", trialErr.Matched)
+	}
+	if h.S != nil {
+		t.Fatalf("failed trials left the target touched: %#v", h.S)
+	}
+}
+
+func TestKeyedSiblingSelectsSquare(t *testing.T) {
+	var h ClaimHolder
+	if err := json.Unmarshal([]byte(`{"s":{"side":2}}`), &h); err != nil {
+		t.Fatalf("keyed sibling must win, got error: %v", err)
+	}
+	s, ok := h.S.(*ClaimSquare)
+	if !ok {
+		t.Fatalf("expected *ClaimSquare, got %T: %#v", h.S, h.S)
+	}
+	if s.Side != 2 {
+		t.Fatalf("expected Side 2, got %v", s.Side)
+	}
+}
+
+type Loose struct {
+	Y int
+}
+
+func (l *Loose) UnmarshalJSON(b []byte) error {
+	return nil
+}
+
+type Sq struct {
+	S int64 `json:"s"`
+}
+
+type LooseSqUnion interface {
+	*Loose | *Sq
+}
+
+type LooseSqHolder struct {
+	X LooseSqUnion `json:"x"`
+}
+
+func TestClaimGateSkipsKeylessCustom(t *testing.T) {
+	var h LooseSqHolder
+	err := json.Unmarshal([]byte(`{"x":{"s":"x"}}`), &h)
+	if err == nil {
+		t.Fatalf("expected trial error, got %T(%v)", h.X, h.X)
+	}
+	var trialErr rt.UnionTrialError
+	if !errors.As(err, &trialErr) {
+		t.Fatalf("expected rt.UnionTrialError, got %T: %v", err, err)
+	}
+	if trialErr.Matched != 0 {
+		t.Fatalf("expected Matched 0, got %d", trialErr.Matched)
+	}
+	if h.X != nil {
+		t.Fatalf("failed trials left the target touched: %#v", h.X)
+	}
+}

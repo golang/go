@@ -9,10 +9,6 @@ import (
 	"testing"
 )
 
-// M6-S4 parser attacks for SpreadExpr{X Expr}
-// (logos-docs/IMPLEMENTATION.md): `..src` parses as a spread element in
-// LogosMode only; plain mode keeps the upstream missing-operand error.
-
 func parseSpread(t *testing.T, src string) *File {
 	t.Helper()
 	var msgs []string
@@ -49,8 +45,6 @@ func TestSpreadParsesAsElement(t *testing.T) {
 func fullSpread(t *testing.T, f *File) string {
 	t.Helper()
 	var buf strings.Builder
-	// Form 0 is the full form: unlike String (ShortForm), it keeps
-	// composite literal contents instead of printing `{…}`.
 	if _, err := Fprint(&buf, f, 0); err != nil {
 		t.Fatalf("print: %v", err)
 	}

@@ -1,0 +1,173 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+	"slices"
+)
+
+func note(rec *[]string, tag string, v any) {
+	*rec = append(*rec, fmt.Sprint(tag, v))
+}
+
+func noteTry(rec *[]string, tag string, v any) error {
+	note(rec, tag, v)
+	return nil
+}
+
+var errFail = errors.New("fail")
+
+func gotoDeferTry(rec *[]string, v int) (err error) {
+	goto skip
+	defer noteTry(rec, "dt", v)?
+skip:
+	return nil
+}
+
+func runDeferTry(rec *[]string, v int) (err error) {
+	defer noteTry(rec, "dt", v)?
+	return nil
+}
+
+func gotoErrdefer(rec *[]string, v int) (err error) {
+	goto skip
+	errdefer note(rec, "ed", v)
+skip:
+	return errFail
+}
+
+func runErrdefer(rec *[]string, v int) (err error) {
+	errdefer note(rec, "ed", v)
+	return errFail
+}
+
+func runErrdeferClean(rec *[]string, v int) (err error) {
+	errdefer note(rec, "ed", v)
+	return nil
+}
+
+func gotoScopeDefer(rec *[]string, v int) error {
+	{
+		goto skip
+		scope defer note(rec, "sd", v)
+	skip:
+		note(rec, "end", 0)
+	}
+	return nil
+}
+
+func runScopeDefer(rec *[]string, v int) error {
+	{
+		scope defer note(rec, "sd", v)
+		note(rec, "end", 0)
+	}
+	return nil
+}
+
+func gotoScopeLoop(rec *[]string) error {
+	goto skip
+	for i := 0; i < 2; i++ {
+		scope defer note(rec, "sl", i)
+		note(rec, "b", i)
+	}
+skip:
+	return nil
+}
+
+func loopScopeDefer(rec *[]string) error {
+	for i := 0; i < 3; i++ {
+		scope defer note(rec, "sl", i)
+		note(rec, "b", i)
+	}
+	return nil
+}
+
+func loopDeferTry(rec *[]string) (err error) {
+	for i := 0; i < 3; i++ {
+		defer noteTry(rec, "dl", i)?
+	}
+	return nil
+}
+
+func loopErrdefer(rec *[]string) (err error) {
+	for i := 0; i < 3; i++ {
+		errdefer note(rec, "el", i)
+	}
+	return errFail
+}
+
+func loopErrdeferTry(rec *[]string) (err error) {
+	for i := 0; i < 3; i++ {
+		errdefer noteTry(rec, "et", i)?
+	}
+	return errFail
+}
+
+func localScopeDefer(rec *[]string) error {
+	type local struct{ a, b int }
+	p := local{1, 2}
+	{
+		scope defer note(rec, "sd", p)
+		note(rec, "end", 0)
+	}
+	return nil
+}
+
+func localErrdefer(rec *[]string) (err error) {
+	type local struct{ a, b int }
+	p := local{3, 4}
+	errdefer note(rec, "ed", p)
+	return errFail
+}
+
+type testCase struct {
+	name string
+	run  func(rec *[]string) error
+	want []string
+}
+
+func cases() []testCase {
+	return []testCase{
+		{"goto-defertry", func(rec *[]string) error { return gotoDeferTry(rec, 7) }, nil},
+		{"run-defertry", func(rec *[]string) error { return runDeferTry(rec, 7) }, []string{"dt7"}},
+		{"goto-errdefer", func(rec *[]string) error { return gotoErrdefer(rec, 7) }, []string{"err:fail"}},
+		{"run-errdefer", func(rec *[]string) error { return runErrdefer(rec, 7) }, []string{"ed7", "err:fail"}},
+		{"run-errdefer-clean", func(rec *[]string) error { return runErrdeferClean(rec, 7) }, nil},
+		{"goto-scopedefer", func(rec *[]string) error { return gotoScopeDefer(rec, 7) }, []string{"end0"}},
+		{"run-scopedefer", func(rec *[]string) error { return runScopeDefer(rec, 7) }, []string{"end0", "sd7"}},
+		{"goto-scopeloop", gotoScopeLoop, nil},
+		{"loop-scopedefer", loopScopeDefer, []string{"b0", "sl0", "b1", "sl1", "b2", "sl2"}},
+		{"loop-defertry", loopDeferTry, []string{"dl2", "dl1", "dl0"}},
+		{"loop-errdefer", loopErrdefer, []string{"el2", "el1", "el0", "err:fail"}},
+		{"loop-errdefer-try", loopErrdeferTry, []string{"et2", "et1", "et0", "err:fail"}},
+		{"local-scopedefer", localScopeDefer, []string{"end0", "sd{1 2}"}},
+		{"local-errdefer", localErrdefer, []string{"ed{3 4}", "err:fail"}},
+	}
+}
+
+func observe(c testCase) []string {
+	var rec []string
+	if err := c.run(&rec); err != nil {
+		rec = append(rec, "err:"+err.Error())
+	}
+	return rec
+}
+
+func main() {
+	failed := false
+	for _, c := range cases() {
+		got := observe(c)
+		if !slices.Equal(got, c.want) {
+			fmt.Printf("FAIL %s: got %q want %q\n", c.name, got, c.want)
+			failed = true
+			continue
+		}
+		fmt.Printf("ok %s\n", c.name)
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

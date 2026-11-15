@@ -10,6 +10,7 @@ import (
 	"cmd/compile/internal/types2"
 	"fmt"
 	"reflect"
+	"slices"
 )
 
 // This file erases M5-S1 const views during lowering (SPEC Sec 2.1,
@@ -53,6 +54,71 @@ import (
 // same checkFiles invocation.
 var erasedAnonReadonly []*syntax.Field
 
+func constAsView(t types2.Type) *types2.ConstView {
+	if t == nil {
+		return nil
+	}
+	if c, ok := types2.Unalias(t).(*types2.ConstView); ok {
+		return c
+	}
+	if n, ok := types2.Unalias(t).(*types2.Named); ok {
+		if u := n.Underlying(); u != nil {
+			if c, ok := u.(*types2.ConstView); ok {
+				return c
+			}
+		}
+	}
+	return nil
+}
+
+var constViewDecls []syntax.Pos
+
+func (fl *fileLower) recordConstViewDecl(pos syntax.Pos) {
+	if !pos.IsKnown() {
+		return
+	}
+	if !slices.Contains(constViewDecls, pos) {
+		constViewDecls = append(constViewDecls, pos)
+	}
+}
+
+func ConstViewDecls() []syntax.Pos {
+	decls := constViewDecls
+	constViewDecls = nil
+	return decls
+}
+
+func (fl *fileLower) recordConstViewDecls() {
+	info := fl.pkg.info
+	if info == nil || info.Defs == nil {
+		return
+	}
+	syntax.Inspect(fl.file, func(n syntax.Node) bool {
+		switch n := n.(type) {
+		case *syntax.VarDecl:
+			for _, name := range n.NameList {
+				fl.recordIfConstView(name)
+			}
+		case *syntax.FuncType:
+			for _, field := range n.ParamList {
+				fl.recordIfConstView(field.Name)
+			}
+		}
+		return true
+	})
+}
+
+func (fl *fileLower) recordIfConstView(name *syntax.Name) {
+	if name == nil {
+		return
+	}
+	obj, ok := fl.pkg.info.Defs[name].(*types2.Var)
+	if !ok || constAsView(obj.Type()) == nil {
+		return
+	}
+	fl.recordConstViewDecl(name.Pos())
+}
+
 // LogosRestoreErasedAnonReadonly re-arms every recorded readonly method
 // flag for the lowered recheck. Call after Lower has finished all
 // print/clone passes, before the recheck.
@@ -77,45 +143,16 @@ func LogosClearErasedAnonReadonly() {
 }
 func (fl *fileLower) eraseConstViews() {
 	syntax.Inspect(fl.file, func(n syntax.Node) bool {
-		switch n := n.(type) {
-		case *syntax.Field:
-			fl.eraseConstIn(&n.Type)
-			if n.Const {
-				if _, ok := n.Type.(*syntax.FuncType); ok {
-					start := fl.off(n.Pos())
-					fl.add(start, start+len("const"), "")
-					erasedAnonReadonly = append(erasedAnonReadonly, n)
-					n.Const = false
-				}
-			}
-		case *syntax.TypeDecl:
-			fl.eraseConstIn(&n.Type)
-		case *syntax.VarDecl:
-			fl.eraseConstIn(&n.Type)
-		case *syntax.ConstDecl:
-			fl.eraseConstIn(&n.Type)
-		case *syntax.ArrayType:
-			fl.eraseConstIn(&n.Elem)
-		case *syntax.SliceType:
-			fl.eraseConstIn(&n.Elem)
-		case *syntax.MapType:
-			fl.eraseConstIn(&n.Key)
-			fl.eraseConstIn(&n.Value)
-		case *syntax.ChanType:
-			fl.eraseConstIn(&n.Elem)
-		case *syntax.DotsType:
-			fl.eraseConstIn(&n.Elem)
-		case *syntax.Operation:
-			if n.Op == syntax.Mul && n.Y == nil {
-				fl.eraseConstIn(&n.X)
-			}
-		case *syntax.ParenExpr:
-			fl.eraseConstIn(&n.X)
-		case *syntax.IndexExpr:
-			fl.eraseConstIn(&n.Index)
-		case *syntax.ListExpr:
-			for i := range n.ElemList {
-				fl.eraseConstIn(&n.ElemList[i])
+		replaceFieldExprs(n, anyInterfaceFields, func(e syntax.Expr) syntax.Expr {
+			fl.eraseConstIn(&e)
+			return e
+		})
+		if f, ok := n.(*syntax.Field); ok && f.Const {
+			if _, ok := f.Type.(*syntax.FuncType); ok {
+				start := fl.off(f.Pos())
+				fl.add(start, start+len("const"), "")
+				erasedAnonReadonly = append(erasedAnonReadonly, f)
+				f.Const = false
 			}
 		}
 		return true
@@ -124,6 +161,7 @@ func (fl *fileLower) eraseConstViews() {
 		fl.boundConstSlice(e)
 	}
 	fl.wrapConstSlices()
+	fl.recordConstViewDecls()
 }
 
 // eraseConstIn replaces ConstType wrappers in *e with their elements,
@@ -142,11 +180,19 @@ func (fl *fileLower) eraseConstIn(e *syntax.Expr) {
 // eraseConstNode records the eject splice deleting the `const `
 // prefix of one const view type.
 func (fl *fileLower) eraseConstNode(c *syntax.ConstType) {
-	start := fl.off(c.Pos())
-	end := fl.off(syntax.StartPos(c.Elem))
-	if end > start {
-		fl.add(start, end, "")
+	if fl.erasedConst[c] {
+		return
 	}
+	if fl.erasedConst == nil {
+		fl.erasedConst = make(map[*syntax.ConstType]bool)
+	}
+	fl.erasedConst[c] = true
+	start := fl.off(c.Pos())
+	end := start + len("const")
+	for end < len(fl.src) && isSpace(fl.src[end]) {
+		end++
+	}
+	fl.add(start, end, "")
 }
 
 // boundConstSlice gives one recorded slice expression a max bound of
@@ -179,7 +225,7 @@ func (fl *fileLower) boundConstSlice(e syntax.Expr) {
 	lenCall.SetPos(s.Pos())
 	s.Index[2] = lenCall
 	s.Full = true
-	end := fl.off(syntax.EndPos(s.Index[1]))
+	end := fl.exprEndOf(s.Index[1])
 	fl.add(end, end, ":len("+base.Value+")")
 	delete(fl.pkg.info.LogosConstSlices, e)
 }

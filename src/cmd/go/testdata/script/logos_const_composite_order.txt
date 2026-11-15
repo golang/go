@@ -1,0 +1,84 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+# A write through a copy or alias of a const composite map field fails with the rule ID,
+# whichever file sorts first.
+cd m
+cp a.lgo $WORK/order-positive.lgo
+cp ../order-alias-attacks.lgo a.lgo
+! logos build -o $WORK/bin/order-alias-attack$GOEXE .
+stderr -count=4 '\[correctness::const_view_mutation\]'
+! logos eject -o $WORK/order-alias-out
+stderr -count=4 '\[correctness::const_view_mutation\]'
+cp $WORK/order-positive.lgo a.lgo
+
+# A use that sorts before the defining file reads the same const composite.
+logos run .
+cmp stdout want.txt
+logos eject -o out
+cd out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+exists $UPROOT1272/bin/go
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout ../want.txt
+cd ../..
+
+-- m/go.mod --
+module example.com/ccorder
+
+go 1.27
+
+-- m/want.txt --
+ok exported-read 1
+ok exported-copy-detached 7 9
+ok exported-alias-read 2
+ok unexported-read 1
+ok unexported-copy-detached 7 9
+ok unexported-alias-read 2
+ok scalar 7
+-- m/a.lgo --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("ok exported-read", Cfg.M["a"] ?? -1)
+	c := Cfg
+	c.N = 9
+	fmt.Println("ok exported-copy-detached", Cfg.N, c.N)
+	m := Cfg.M
+	fmt.Println("ok exported-alias-read", m["b"] ?? -1)
+	fmt.Println("ok unexported-read", cfg.M["a"] ?? -1)
+	d := cfg
+	d.N = 9
+	fmt.Println("ok unexported-copy-detached", cfg.N, d.N)
+	n := cfg.M
+	fmt.Println("ok unexported-alias-read", n["b"] ?? -1)
+	fmt.Println("ok scalar", cfg.N)
+}
+-- m/b.lgo --
+package main
+
+type box struct {
+	M map[string]int
+	N int
+}
+
+const Cfg = box{M: map[string]int{"a": 1, "b": 2}, N: 7}
+
+const cfg = box{M: map[string]int{"a": 1, "b": 2}, N: 7}
+-- order-alias-attacks.lgo --
+package main
+
+func main() {
+	c := Cfg
+	c.M["a"] = 9
+	m := Cfg.M
+	m["b"] = 77
+	d := cfg
+	d.M["a"] = 9
+	n := cfg.M
+	n["b"] = 77
+}

@@ -1,0 +1,16 @@
+ok lambda-exported-fresh
+ok lambda-exported-read
+ok lambda-unexported-fresh
+ok lambda-unexported-field
+ok lambda-block-edit
+ok lambda-block-edit-keeps-const
+ok lambda-block-return-fresh
+ok lambda-block-filter-reads-map
+ok lambda-slice-element-read
+ok lambda-slice-element-keeps-const
+ok lambda-slice-element-fresh
+ok lambda-field-slice-read
+ok lambda-field-slice-copy-edit
+ok lambda-field-slice-keeps-const
+ok lambda-array-element
+ok lambda-block-array-element

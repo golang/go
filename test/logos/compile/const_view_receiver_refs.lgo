@@ -2,18 +2,6 @@
 
 package p
 
-// PRRT_kwDOVOeymc6vs9fj (SPEC Sec 2.1, T-201): calling a method on a const view
-// when the method has a value receiver that contains reference fields (map, slice,
-// pointer, function/closure, channel) mutates the caller's reachable referents
-// despite the const boundary, because Go value receivers perform a shallow copy.
-// Such calls MUST fail compile-time checking with [correctness::const_view_mutation].
-//
-// Positive controls:
-// 1. Value receivers whose types are reference-free (contain no pointers, slices,
-//    maps, channels, closures, or interfaces) remain legal and safe to call.
-// 2. Explicit const pointer receivers (func (r const *T)) remain legal and safe.
-// 3. Pointer receivers without const continue to be rejected as before.
-
 type MapHolder struct {
 	M map[string]int
 }
@@ -70,7 +58,6 @@ func (h ChanHolder) MutateChan(v int) {
 	h.C <- v
 }
 
-// Reference-free value receiver: contains only scalar/value fields.
 type RefFree struct {
 	Count int
 	Tag   string
@@ -85,7 +72,6 @@ func (rf RefFree) CopyAndIncrement() RefFree {
 	return rf
 }
 
-// Nested struct containing a reference field.
 type NestedRefHolder struct {
 	Direct int
 	Inner  SliceHolder
@@ -95,8 +81,6 @@ func (n NestedRefHolder) MutateNested(i, v int) {
 	n.Inner.S[i] = v
 }
 
-// Attacks through const pointer views: each method has a value receiver
-// that mutates through a reference field. All MUST be rejected.
 func attackValueReceiversWithRefs(
 	m const *MapHolder,
 	s const *SliceHolder,
@@ -113,23 +97,18 @@ func attackValueReceiversWithRefs(
 	n.MutateNested(0, 42)     // ERROR "const_view_mutation"
 }
 
-// Positive controls: reference-free value receivers and explicit const receivers.
 func positiveControls(
 	rf const *RefFree,
 	m const *MapHolder,
 	s const *SliceHolder,
 	p const *PtrHolder,
 ) {
-	// Reference-free value receivers are safe because their copy cannot
-	// mutate caller memory.
 	_ = rf.ReadCount()
 	_ = rf.CopyAndIncrement()
 
-	// Explicit const pointer receivers are safe and permitted by SPEC T-201.
 	_ = m.SafeMapLen()
 	_ = s.SafeSliceLen()
 	_ = p.SafePtrNil()
 
-	// Ordinary pointer receivers without const are rejected.
 	m.PointerMutate("k", 1) // ERROR "const_view_mutation"
 }

@@ -1,0 +1,167 @@
+[!cgo] skip
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env CGO_ENABLED=1
+env GOEXPERIMENT=logosfastcgo
+
+# Accept: the .lgo marker serves the fast path and the call computes;
+# malformed markers (extra field, outside the preamble) stay inert
+# without corrupting the call. The trampoline each shape reaches is
+# asserted in cmd/cgo/internal/testlogos TestFastcallMarkerCallPath.
+cd fastlgo
+logos build -o $WORK/fastlgo$GOEXE .
+exec $WORK/fastlgo$GOEXE
+stdout '^ok fast-call-markers$'
+go tool objdump -s '_Cfunc_ladd_ok' $WORK/fastlgo$GOEXE
+stdout 'logosCgocallFast'
+cd ..
+
+# Reject: a marker with no matched C function fails.
+mkdir $WORK/obj-ghost
+! go tool cgo -objdir $WORK/obj-ghost -importpath example.com/fast ghost/f.lgo
+stderr 'no matched C function'
+
+# Recover: a nocallback fast-called C function that calls into Go still
+# panics; recovering it must leave a clean fast call working, and both
+# the violating and the clean call must take the trampoline.
+cd viol
+logos build -o $WORK/viol$GOEXE .
+cd ..
+exec $WORK/viol$GOEXE
+stdout '^recovered: runtime: function marked with #cgo nocallback called back into Go$'
+stdout '^ok viol-clean-fast$'
+go tool objdump -s '_Cfunc_vfast' $WORK/viol$GOEXE
+stdout 'logosCgocallFast'
+go tool objdump -s '_Cfunc_cadd' $WORK/viol$GOEXE
+stdout 'logosCgocallFast'
+
+-- fastlgo/go.mod --
+module example.com/fastlgo
+
+go 1.27
+
+-- fastlgo/logos.toml --
+[build]
+cgo = "allow"
+
+-- fastlgo/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	arityp "example.com/fastlgo/arity"
+	nonprep "example.com/fastlgo/nonpre"
+	okp "example.com/fastlgo/ok"
+)
+
+func main() {
+	if okp.Add(1, 2) != 3 || arityp.Add(1, 2) != 3 || nonprep.Add(1, 2) != 3 {
+		fmt.Println("FAIL fast-call-markers")
+		return
+	}
+	fmt.Println("ok fast-call-markers")
+}
+
+-- fastlgo/ok/f.lgo --
+package ok
+
+/*
+#include <stdint.h>
+//logos:cgo_fastcall ladd_ok
+int ladd_ok(int a, int b) { return a + b; }
+*/
+import "C"
+
+func Add(a, b int32) int32 { return int32(C.ladd_ok(C.int(a), C.int(b))) }
+
+-- fastlgo/arity/f.lgo --
+package arity
+
+/*
+#include <stdint.h>
+//logos:cgo_fastcall ladd_arity extra
+int ladd_arity(int a, int b) { return a + b; }
+*/
+import "C"
+
+func Add(a, b int32) int32 { return int32(C.ladd_arity(C.int(a), C.int(b))) }
+
+-- fastlgo/nonpre/f.lgo --
+package nonpre
+
+/*
+#include <stdint.h>
+int ladd_nonpre(int a, int b) { return a + b; }
+*/
+import "C"
+//logos:cgo_fastcall ladd_nonpre
+
+func Add(a, b int32) int32 { return int32(C.ladd_nonpre(C.int(a), C.int(b))) }
+
+-- ghost/f.lgo --
+package fast
+
+/*
+#include <stdint.h>
+//logos:cgo_fastcall ghost_fn
+int ladd(int a, int b) { return a + b; }
+*/
+import "C"
+
+func Add(a, b int32) int32 { return int32(C.ladd(C.int(a), C.int(b))) }
+
+-- viol/go.mod --
+module example.com/viol
+
+go 1.27
+
+-- viol/logos.toml --
+[build]
+cgo = "allow"
+
+-- viol/main.lgo --
+package main
+
+import "fmt"
+
+func violate() (msg string) {
+	defer func() {
+		if r := recover(); r != nil {
+			msg, _ = r.(string)
+		}
+	}()
+	Violate()
+	return "returned"
+}
+
+func main() {
+	fmt.Println("recovered:", violate())
+	if got := Clean(); got != 42 {
+		fmt.Println("FAIL viol clean fast call")
+		return
+	}
+	fmt.Println("ok viol-clean-fast")
+}
+
+-- viol/fast.lgo --
+package main
+
+/*
+extern int gobump(int v);
+
+//logos:cgo_fastcall vfast
+static int vfast(void) { return gobump(41); }
+
+//logos:cgo_fastcall cadd
+static int cadd(int a, int b) { return a + b; }
+*/
+import "C"
+
+//export gobump
+func gobump(v C.int) C.int { return v + 1 }
+
+func Violate() int32 { return int32(C.vfast()) }
+
+func Clean() int32 { return int32(C.cadd(20, 22)) }

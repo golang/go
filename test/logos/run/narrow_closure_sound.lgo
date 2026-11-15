@@ -1,0 +1,285 @@
+// run
+
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+)
+
+var failed = false
+
+func check(name, got, want string) {
+	if got != want {
+		fmt.Printf("FAIL %s: got %q want %q\n", name, got, want)
+		failed = true
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type okUser struct {
+	okName string
+}
+
+func okTake(u okUser) string {
+	return u.okName
+}
+
+func okImmediate() string {
+	var o *okUser? = &okUser{okName: "ann"}
+	if o != nil {
+		f := func() string { return okTake(*o) }
+		return f()
+	}
+	return "none"
+}
+
+func okDeferred() (out string) {
+	var o *okUser? = &okUser{okName: "ann"}
+	if o != nil {
+		defer func() { out = okTake(*o) }()
+	}
+	return
+}
+
+func okNested() string {
+	var o *okUser? = &okUser{okName: "ann"}
+	if o != nil {
+		f := func() string {
+			g := func() string { return okTake(*o) }
+			return g()
+		}
+		return f()
+	}
+	return "none"
+}
+
+func okLoop() string {
+	var users [](*okUser?)
+	users = append(users, &okUser{okName: "a"}, nil, &okUser{okName: "b"})
+	var out []string
+	for _, u := range users {
+		if u != nil {
+			f := func() string { return okTake(*u) }
+			out = append(out, f())
+		} else {
+			out = append(out, "none")
+		}
+	}
+	got := ""
+	for _, s := range out {
+		got += s + ","
+	}
+	return got
+}
+
+type okNamer interface {
+	okWho() string
+}
+
+type okA struct {
+	okN string
+}
+
+func (a okA) okWho() string {
+	return "a:" + a.okN
+}
+
+func okMethodValue() string {
+	var o okNamer? = okNamer(okA{okN: "x"})
+	var f func() string
+	if o != nil {
+		f = o.okWho
+	}
+	o = nil
+	return f()
+}
+
+//logos:allow(correctness::unbounded_channel_op)
+func okSend(ch chan string, u okUser) {
+	ch <- u.okName
+}
+
+func okGoroutine() (string, error) {
+	var o *okUser? = &okUser{okName: "ann"}
+	ch := make(chan string, 1)
+	if o != nil {
+		go group (context.Background()) {
+			go okSend(ch, *o)
+		}
+		return <-ch, nil
+	}
+	return "none", nil
+}
+
+func okMethodInClosure() string {
+	var o okNamer? = okNamer(okA{okN: "y"})
+	if o != nil {
+		f := func() string { return o.okWho() }
+		return f()
+	}
+	return "none"
+}
+
+func okInnerGuard() string {
+	var o *okUser? = nil
+	f := func() string {
+		if o != nil {
+			return okTake(*o)
+		}
+		return "none"
+	}
+	before := f()
+	o = &okUser{okName: "late"}
+	return before + "/" + f()
+}
+
+func okPair() (int, okUser?) {
+	return 1, nil
+}
+
+func okRedeclGuarded(q okUser?) string {
+	var g func() string
+	if q != nil {
+		g = func() string {
+			if q != nil {
+				return okTake(q)
+			}
+			return "gone"
+		}
+	}
+	n, q := okPair()
+	_, _ = n, q
+	return g()
+}
+
+func okShadowSiblings(q okUser?) string {
+	var g func() string
+	if q != nil {
+		g = func() string { return okTake(q) }
+	}
+	{
+		n, q := okPair()
+		_, _ = n, q
+	}
+	{
+		n, q := okPair()
+		_, _ = n, q
+	}
+	if g == nil {
+		return "none"
+	}
+	return g()
+}
+
+func okShadowHeader(q okUser?) string {
+	var g func() string
+	if q != nil {
+		g = func() string { return okTake(q) }
+	}
+	if n, q := okPair(); n > 0 {
+		_ = q
+	}
+	for n, q := okPair(); n > 5; {
+		_ = q
+	}
+	if g == nil {
+		return "none"
+	}
+	return g()
+}
+
+func okChildRead(ctx context.Context, o okUser) (string, error) {
+	var q okUser? = o
+	res := make([]string, 1)
+	if q != nil {
+		go group (ctx) {
+			go {
+				res[0] = okTake(q)
+			}
+		}
+	}
+	return res[0], nil
+}
+
+func okStageRead(ctx context.Context, o okUser, xs []int) (string, error) {
+	var q okUser? = o
+	if q != nil {
+		ys, err := xs.group(ctx, limit = 2).map(x => okTake(q))
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprint(len(ys), ys[0]), nil
+	}
+	return "none", nil
+}
+
+var okSeen []string
+
+func okRecord(s string) {
+	okSeen = append(okSeen, s)
+}
+
+func okGoOperand(ctx context.Context, o okUser) error {
+	var q okUser? = o
+	if q != nil {
+		go group (ctx) {
+			go okRecord(okTake(q))
+			q = nil
+		}
+	}
+	return nil
+}
+
+func okDeferOperand(o okUser) {
+	var q okUser? = o
+	if q != nil {
+		defer okRecord(okTake(q))
+		q = nil
+	}
+}
+
+func okAndLiteral(q okUser?) string {
+	if q != nil && func() bool { return okTake(q) != "" }() {
+		return okTake(q)
+	}
+	return "none"
+}
+
+func main() {
+	check("immediate", okImmediate(), "ann")
+	check("deferred", okDeferred(), "ann")
+	check("nested", okNested(), "ann")
+	check("loop", okLoop(), "a,none,b,")
+	check("method-value", okMethodValue(), "a:x")
+	if got, err := okGoroutine(); err != nil {
+		check("goroutine", err.Error(), "ann")
+	} else {
+		check("goroutine", got, "ann")
+	}
+	check("method-in-closure", okMethodInClosure(), "a:y")
+	check("inner-guard", okInnerGuard(), "none/late")
+	check("redecl-guarded", okRedeclGuarded(okUser{okName: "bob"}), "gone")
+	check("shadow-siblings", okShadowSiblings(okUser{okName: "cy"}), "cy")
+	check("shadow-header", okShadowHeader(okUser{okName: "di"}), "di")
+	if got, err := okChildRead(context.Background(), okUser{okName: "ev"}); err != nil {
+		check("child-read", err.Error(), "ev")
+	} else {
+		check("child-read", got, "ev")
+	}
+	if got, err := okStageRead(context.Background(), okUser{okName: "ev"}, []int{1, 2}); err != nil {
+		check("stage-read", err.Error(), "2ev")
+	} else {
+		check("stage-read", got, "2ev")
+	}
+	err := okGoOperand(context.Background(), okUser{okName: "g"})
+	okDeferOperand(okUser{okName: "d"})
+	check("operands", fmt.Sprint(okSeen, err == nil), "[g d] true")
+	check("and-literal", okAndLiteral(okUser{okName: "fay"}), "fay")
+	check("and-literal-nil", okAndLiteral(nil), "none")
+	if failed {
+		os.Exit(1)
+	}
+}

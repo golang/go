@@ -1,0 +1,39 @@
+// asmcheck -goexperiment simd
+
+package codegen
+
+import (
+	"simd/archsimd"
+)
+
+type wbPair08 struct {
+	A int64
+	B int64
+}
+
+func wbLoad08(p *wbPair08) (int64, int64) {
+	// arm64:"LDP \\(R" -"LDP(W|SW)?(\\.(P|W)|.*!)"
+	return p.A, p.B
+}
+
+func wbStoreZero(p *wbPair08) {
+	// arm64:"STP \\(ZR, ZR\\), \\(R" -"STP(W)?(\\.(P|W)|.*!)"
+	p.A = 0
+	p.B = 0
+}
+
+type wbVec016 struct {
+	A [16]byte
+	B [16]byte
+}
+
+func wbVecPair016(src, dst *wbVec016) {
+	// arm64:"FLDPQ \\(R[0-9]+\\), \\(F[0-9]+, F[0-9]+\\)" -"FLDPQ(\\.(P|W)|.*!)" -"FMOVQ"
+	a := archsimd.LoadUint8x16Array(&src.A)
+	// arm64:-"FLDPQ" -"FMOVQ"
+	b := archsimd.LoadUint8x16Array(&src.B)
+	// arm64:"FSTPQ \\(F[0-9]+, F[0-9]+\\), \\(R[0-9]+\\)" -"FSTPQ(\\.(P|W)|.*!)" -"FMOVQ"
+	a.StoreArray(&dst.A)
+	// arm64:-"FSTPQ" -"FMOVQ"
+	b.StoreArray(&dst.B)
+}

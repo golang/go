@@ -1,0 +1,87 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# SPEC T-206 and 0.3: the group stage behaves the same natively, in the
+# ejected module, and with upstream go1.27.2 for the result order, the
+# window and the limit, the cancellation and early exit paths, and the
+# sources and goroutines of the stages. Each fixture prints one ok line
+# per case.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+
+cp $GOROOT/test/logos/run/chain_stage_order.lgo order/main.lgo
+cd order
+logos run .
+cmp stdout $GOROOT/test/logos/run/chain_stage_order.out
+logos eject -o out
+exists out/main.go
+! exists out/main.lgo
+cd out
+go run .
+cmp stdout $GOROOT/test/logos/run/chain_stage_order.out
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/chain_stage_order.out
+cd ../..
+
+cp $GOROOT/test/logos/run/chain_stage_bound.lgo bound/main.lgo
+cd bound
+logos run .
+cmp stdout $GOROOT/test/logos/run/chain_stage_bound.out
+logos eject -o out
+exists out/main.go
+! exists out/main.lgo
+cd out
+go run .
+cmp stdout $GOROOT/test/logos/run/chain_stage_bound.out
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/chain_stage_bound.out
+cd ../..
+
+cp $GOROOT/test/logos/run/chain_stage_cancel.lgo cancel/main.lgo
+cd cancel
+logos run .
+cmp stdout $GOROOT/test/logos/run/chain_stage_cancel.out
+logos eject -o out
+exists out/main.go
+! exists out/main.lgo
+cd out
+go run .
+cmp stdout $GOROOT/test/logos/run/chain_stage_cancel.out
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/chain_stage_cancel.out
+cd ../..
+
+cp $GOROOT/test/logos/run/chain_stage_sources.lgo sources/main.lgo
+cd sources
+logos run .
+cmp stdout $GOROOT/test/logos/run/chain_stage_sources.out
+logos eject -o out
+exists out/main.go
+! exists out/main.lgo
+cd out
+go run .
+cmp stdout $GOROOT/test/logos/run/chain_stage_sources.out
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/chain_stage_sources.out
+cd ../..
+
+-- order/go.mod --
+module example.com/chainstageorder
+
+go 1.27
+
+-- bound/go.mod --
+module example.com/chainstagebound
+
+go 1.27
+
+-- cancel/go.mod --
+module example.com/chainstagecancel
+
+go 1.27
+
+-- sources/go.mod --
+module example.com/chainstagesources
+
+go 1.27

@@ -9,17 +9,11 @@ import (
 	"fmt"
 	"strings"
 
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types2"
 )
 
-// This file spells the generated MarshalJSON (SPEC Sec 12.1). The method
-// pins every modeled field into a local, runs the checks that can fail
-// (floats, reflective fallbacks) in declaration order, computes the output
-// size from fixed key literals plus the helper lengths, then fills one
-// buffer made once.
-
-// indentLines prefixes every non-empty line with a tab.
 func indentLines(lines []string) []string {
 	out := make([]string, len(lines))
 	for i, l := range lines {
@@ -28,19 +22,16 @@ func indentLines(lines []string) []string {
 	return out
 }
 
-// blockLines spells head { body }.
 func blockLines(head string, body []string) []string {
 	out := []string{head + " {"}
 	out = append(out, indentLines(body)...)
 	return append(out, "}")
 }
 
-// ifLines spells if cond { body }.
 func ifLines(cond string, body []string) []string {
 	return blockLines("if "+cond, body)
 }
 
-// ifElseLines spells if cond { yes } else { no }.
 func ifElseLines(cond string, yes, no []string) []string {
 	out := []string{"if " + cond + " {"}
 	out = append(out, indentLines(yes)...)
@@ -49,15 +40,12 @@ func ifElseLines(cond string, yes, no []string) []string {
 	return append(out, "}")
 }
 
-// valueParts is the size and emit code of one present value: konst fixed
-// bytes, size statements for the variable bytes, and the emit statements.
 type valueParts struct {
 	konst int
 	size  []string
 	emit  []string
 }
 
-// inlineSize returns the size statements with the constant added first.
 func (p valueParts) inlineSize() []string {
 	if p.konst == 0 {
 		return p.size
@@ -65,7 +53,6 @@ func (p valueParts) inlineSize() []string {
 	return append([]string{fmt.Sprintf("_logos_n += %d", p.konst)}, p.size...)
 }
 
-// fieldCode is the code one field contributes to each phase.
 type fieldCode struct {
 	pins  []string
 	pre   []string
@@ -74,28 +61,21 @@ type fieldCode struct {
 	fixed int
 }
 
-// marshalGen builds one MarshalJSON.
 type marshalGen struct {
-	js         *jsonStruct
-	firstFixed int
-	runtimeSep bool
-	// recv is the value expression fields read from: the method
-	// receiver for methods, the helper parameter for helpers.
-	recv string
-	// edges and calls carry the traversal plan for walk-shaped
-	// methods and helpers; nil selects the legacy flat method.
-	edges map[*jsonField]jsonEdge
-	calls map[*jsonField]string
+	js          *jsonStruct
+	firstFixed  int
+	runtimeSep  bool
+	recv        string
+	edges       map[*jsonField]jsonEdge
+	calls       map[*jsonField]string
+	errorPrefix []string
+	snapshot    bool
 }
 
-// optional reports whether the field may be left out of the output.
 func (f *jsonField) optional() bool {
 	return f.omitEmpty || f.omitZero
 }
 
-// newMarshalGen analyzes the separator plan of js: the output separator is
-// a runtime byte for every field up to the first always-present field when
-// the first field may be absent, and a fixed literal prefix otherwise.
 func newMarshalGen(js *jsonStruct) *marshalGen {
 	g := &marshalGen{js: js, firstFixed: -1, recv: jsonRecv}
 	for i, f := range js.fields {
@@ -108,12 +88,10 @@ func newMarshalGen(js *jsonStruct) *marshalGen {
 	return g
 }
 
-// sepRuntimeAt reports whether field p writes its separator at run time.
 func (g *marshalGen) sepRuntimeAt(p int) bool {
 	return g.runtimeSep && (g.firstFixed < 0 || p <= g.firstFixed)
 }
 
-// litStmts spells the statements writing `sep "key":` and open for f.
 func (g *marshalGen) litStmts(f *jsonField, open string) []string {
 	key := keyLiteral(f.key) + open
 	if g.sepRuntimeAt(f.pos) {
@@ -126,24 +104,21 @@ func (g *marshalGen) litStmts(f *jsonField, open string) []string {
 	return []string{"_logos_buf = append(_logos_buf, `" + sep + key + "`...)"}
 }
 
-// litLen is the byte length written by litStmts.
 func (g *marshalGen) litLen(f *jsonField, open string) int {
 	return 1 + len(keyLiteral(f.key)) + len(open)
 }
 
-// scalarParts spells the present value x of codec c.
 func (g *marshalGen) scalarParts(f *jsonField, c scalarCodec, x string) valueParts {
 	open := c.open()
-	p := valueParts{konst: g.litLen(f, open) + len(c.closeText())}
+	p := valueParts{konst: g.litLen(f, open) + len(open)}
 	p.size = []string{c.sizeStmt(x)}
 	p.emit = append(g.litStmts(f, open), c.emitStmt(x))
-	if c.closeText() != "" {
+	if open != "" {
 		p.emit = append(p.emit, `_logos_buf = append(_logos_buf, '"')`)
 	}
 	return p
 }
 
-// nullParts spells the literal null after the key of f.
 func (g *marshalGen) nullParts(f *jsonField) valueParts {
 	return valueParts{
 		konst: g.litLen(f, "") + 4,
@@ -151,17 +126,14 @@ func (g *marshalGen) nullParts(f *jsonField) valueParts {
 	}
 }
 
-// local returns the pinned local of field f.
 func (f *jsonField) local() string {
 	return fmt.Sprintf("_logos_f%d", f.pos)
 }
 
-// presenceName returns the presence local of field f.
 func (f *jsonField) presenceName() string {
 	return fmt.Sprintf("_logos_p%d", f.pos)
 }
 
-// code builds the code of one field.
 func (g *marshalGen) code(f *jsonField) fieldCode {
 	if g.edges != nil {
 		if e, ok := g.edges[f]; ok && e != edgeLegacy {
@@ -173,9 +145,6 @@ func (g *marshalGen) code(f *jsonField) fieldCode {
 	case shapeFallback:
 		if f.quoted {
 			c = g.fallbackQuotedCode(f)
-			// fallbackQuotedCode for plain scalars already applies presence;
-			// Number-quoted and method-wins paths return fallback-style code
-			// that carries its own optional handling.
 			return c
 		}
 		c = g.fallbackCode(f)
@@ -194,8 +163,6 @@ func (g *marshalGen) code(f *jsonField) fieldCode {
 	return c
 }
 
-// guardPresence wraps the phases of an optional modeled field in its
-// presence local and declares that local first.
 func (g *marshalGen) guardPresence(f *jsonField, c fieldCode) fieldCode {
 	p := f.presenceName()
 	out := fieldCode{pins: c.pins}
@@ -208,7 +175,6 @@ func (g *marshalGen) guardPresence(f *jsonField, c fieldCode) fieldCode {
 	return out
 }
 
-// constLine returns the statement adding n bytes, or nothing for zero.
 func constLine(n int) []string {
 	if n == 0 {
 		return nil
@@ -216,14 +182,6 @@ func constLine(n int) []string {
 	return []string{fmt.Sprintf("_logos_n += %d", n)}
 }
 
-// presence spells the condition that optional field f is written.
-// A scalar with omitzero and a signature-checked IsZero consults the
-// runtime OmitZero helper (which honors value- and pointer-receiver
-// IsZero like encoding/json, including addressable copies) instead of
-// the naive zero test; with omitempty also set the naive empty test
-// still applies, so the field is written only when neither test omits
-// it. Pointers consult OmitZero the same way once a pointee IsZero can
-// fire; otherwise nil alone decides, matching encoding/json.
 func (g *marshalGen) presence(f *jsonField) string {
 	x := f.local()
 	switch f.shape.kind {
@@ -256,7 +214,6 @@ func (g *marshalGen) presence(f *jsonField) string {
 	return strings.Join(conds, " && ")
 }
 
-// scalarCode spells a scalar field.
 func (g *marshalGen) scalarCode(f *jsonField) fieldCode {
 	x := f.local()
 	c := f.codec()
@@ -271,7 +228,6 @@ func (g *marshalGen) scalarCode(f *jsonField) fieldCode {
 	return out
 }
 
-// pointerCode spells a field holding a pointer to a scalar.
 func (g *marshalGen) pointerCode(f *jsonField) fieldCode {
 	x := f.local()
 	c := f.codec()
@@ -279,6 +235,10 @@ func (g *marshalGen) pointerCode(f *jsonField) fieldCode {
 	out := fieldCode{pins: []string{x + " := " + g.recv + "." + f.goName}}
 	if chk := c.checkStmt("*" + x); chk != "" {
 		out.pre = ifLines(x+" != nil", []string{chk})
+	}
+	if g.snapshot {
+		capture := ifLines(x+" != nil", []string{"_logos_value := *" + x, x + " = &_logos_value"})
+		out.pre = append(capture, out.pre...)
 	}
 	if f.optional() {
 		out.size = p.inlineSize()
@@ -291,14 +251,16 @@ func (g *marshalGen) pointerCode(f *jsonField) fieldCode {
 	return out
 }
 
-// sliceCode spells a field holding a slice of scalars.
 func (g *marshalGen) sliceCode(f *jsonField) fieldCode {
 	x := f.local()
 	c := f.elemCodec()
 	out := fieldCode{pins: []string{x + " := " + g.recv + "." + f.goName}}
+	if g.snapshot {
+		out.pre = []string{x + " = append(" + x + "[:0:0], " + x + "...)"}
+	}
 	if chk := c.checkStmt("_logos_x"); chk != "" {
 		loop := append([]string{"for _, _logos_x := range " + x + " {"}, indentLines([]string{chk})...)
-		out.pre = append(loop, "}")
+		out.pre = append(out.pre, append(loop, "}")...)
 	}
 	n := g.nullParts(f)
 	out.size = ifElseLines(x+" == nil", n.inlineSize(), g.sliceSize(f, c, x))
@@ -306,9 +268,6 @@ func (g *marshalGen) sliceCode(f *jsonField) fieldCode {
 	return out
 }
 
-// sliceSize spells the size statements of a non-nil slice x: the bracket
-// bytes, then the elements. Float elements have a fixed bound, so they
-// take no loop; every other element adds its own length and a comma.
 func (g *marshalGen) sliceSize(f *jsonField, c scalarCodec, x string) []string {
 	lines := []string{fmt.Sprintf("_logos_n += %d", g.litLen(f, "[")+1)}
 	if c.isFloat() {
@@ -320,7 +279,6 @@ func (g *marshalGen) sliceSize(f *jsonField, c scalarCodec, x string) []string {
 	return append(lines, "}")
 }
 
-// sliceEmit spells the emit statements of a non-nil slice x.
 func (g *marshalGen) sliceEmit(f *jsonField, c scalarCodec, x string) []string {
 	lines := append(g.litStmts(f, "["), "for _logos_i, _logos_x := range "+x+" {")
 	body := append([]string{"if _logos_i > 0 { _logos_buf = append(_logos_buf, ',') }"}, elemEmit(c, "_logos_x")...)
@@ -328,30 +286,26 @@ func (g *marshalGen) sliceEmit(f *jsonField, c scalarCodec, x string) []string {
 	return append(lines, "}", "_logos_buf = append(_logos_buf, ']')")
 }
 
-// elemSize spells the size statements of one slice element x.
 func elemSize(c scalarCodec, x string) []string {
 	lines := []string{c.sizeStmt(x)}
-	if n := len(c.open()) + len(c.closeText()); n > 0 {
+	if n := 2 * len(c.open()); n > 0 {
 		lines = append(lines, fmt.Sprintf("_logos_n += %d", n))
 	}
 	return lines
 }
 
-// elemEmit spells the emit statements of one slice element x.
 func elemEmit(c scalarCodec, x string) []string {
 	var lines []string
 	if c.open() != "" {
 		lines = append(lines, `_logos_buf = append(_logos_buf, '"')`)
 	}
 	lines = append(lines, c.emitStmt(x))
-	if c.closeText() != "" {
+	if c.open() != "" {
 		lines = append(lines, `_logos_buf = append(_logos_buf, '"')`)
 	}
 	return lines
 }
 
-// fallbackCode spells a field the static path does not model: the
-// reflective encoding/json call of that field only.
 func (g *marshalGen) fallbackCode(f *jsonField) fieldCode {
 	field := g.recv + "." + f.goName
 	b := fmt.Sprintf("_logos_b%d", f.pos)
@@ -376,13 +330,6 @@ func (g *marshalGen) fallbackCode(f *jsonField) fieldCode {
 	return c
 }
 
-// fallbackQuotedCode spells a fallback field carrying the `string` option.
-// Method types win over the option and ignore it, exactly like the
-// reflective encoders, so a type with marshal-side methods keeps the
-// unquoted fallback. Exact json.Number is the one exception: it quotes the
-// number literal before the method check, matching the reflective walker.
-// Every other fallback scalar without marshal methods encodes as a quoted
-// scalar via its underlying kind.
 func (g *marshalGen) fallbackQuotedCode(f *jsonField) fieldCode {
 	if isExactNumber(f.typ) {
 		return g.fallbackNumberQuotedCode(f)
@@ -396,22 +343,13 @@ func (g *marshalGen) fallbackQuotedCode(f *jsonField) fieldCode {
 	return g.fallbackCode(f)
 }
 
-// fallbackScalarQuotedCode spells a fallback scalar without marshal methods
-// as a quoted scalar of its underlying kind. Presence (omitempty/omitzero,
-// including IsZero) follows the scalar path via guardPresence.
 func (g *marshalGen) fallbackScalarQuotedCode(f *jsonField, kind scalarKind) fieldCode {
-	u := types2.Unalias(f.typ)
-	if cv, ok := u.(*types2.ConstView); ok {
-		u = types2.Unalias(cv.Elem)
-	}
+	u := unaliasConstView(f.typ)
 	_, isPtr := u.(*types2.Pointer)
 	var elem types2.Type
 	if isPtr {
 		p := u.(*types2.Pointer)
-		elem = types2.Unalias(p.Elem())
-		if cv, ok := elem.(*types2.ConstView); ok {
-			elem = types2.Unalias(cv.Elem)
-		}
+		elem = unaliasConstView(p.Elem())
 	} else {
 		elem = u
 		if _, ok := elem.(*types2.Option); ok {
@@ -444,18 +382,11 @@ func (g *marshalGen) fallbackScalarQuotedCode(f *jsonField, kind scalarKind) fie
 	return c
 }
 
-// fallbackNumberQuotedCode spells exact json.Number with `,string`: the
-// number literal from MarshalField wrapped in quotes, matching
-// appendQuotedNumber in the reflective walker. A nil pointer encodes null
-// unquoted; optional fields keep the fallback presence test.
 func (g *marshalGen) fallbackNumberQuotedCode(f *jsonField) fieldCode {
 	field := g.recv + "." + f.goName
 	b := fmt.Sprintf("_logos_b%d", f.pos)
 	e := fmt.Sprintf("_logos_e%d", f.pos)
-	u := types2.Unalias(f.typ)
-	if cv, ok := u.(*types2.ConstView); ok {
-		u = types2.Unalias(cv.Elem)
-	}
+	u := unaliasConstView(f.typ)
 	_, isPtr := u.(*types2.Pointer)
 	call := []string{
 		fmt.Sprintf("%s, %s := %s.MarshalField(%s)", b, e, jsonAlias, field),
@@ -492,8 +423,6 @@ func (g *marshalGen) fallbackNumberQuotedCode(f *jsonField) fieldCode {
 	return c
 }
 
-// omitCall spells the reflective presence test of an unmodeled optional
-// field: written unless it is empty or zero by the options it carries.
 func omitCall(f *jsonField, field string) string {
 	var tests []string
 	if f.omitEmpty {
@@ -505,25 +434,6 @@ func omitCall(f *jsonField, field string) string {
 	return "!(" + strings.Join(tests, " || ") + ")"
 }
 
-// flattenUnionTerms returns the leaf member types of t in declaration order.
-func flattenUnionTerms(t types2.Type) []types2.Type {
-	terms, ok := unionTerms(t)
-	if !ok {
-		return nil
-	}
-	var out []types2.Type
-	for _, term := range terms {
-		if sub, ok := unionTerms(term); ok && len(sub) > 0 {
-			out = append(out, flattenUnionTerms(term)...)
-		} else {
-			out = append(out, term)
-		}
-	}
-	return out
-}
-
-// unionPackage returns the package declaring the union named type, or
-// of its first named member if the union itself is anonymous.
 func unionPackage(t types2.Type) *types2.Package {
 	switch u := types2.Unalias(t).(type) {
 	case *types2.Named:
@@ -531,7 +441,7 @@ func unionPackage(t types2.Type) *types2.Package {
 			return obj.Pkg()
 		}
 	}
-	if terms, ok := unionTerms(t); ok {
+	if terms, ok := types2.LogosUnionTerms(t); ok {
 		for _, m := range terms {
 			switch mu := types2.Unalias(m).(type) {
 			case *types2.Named:
@@ -548,22 +458,6 @@ func unionPackage(t types2.Type) *types2.Package {
 	return nil
 }
 
-// unionMemberSpelling returns the source spelling of union member t.
-// Types declared in pkg are spelled without package qualification.
-func unionMemberSpelling(t types2.Type, pkg *types2.Package) string {
-	return types2.TypeString(t, func(p *types2.Package) string {
-		if pkg != nil && p == pkg {
-			return ""
-		}
-		if p == nil {
-			return ""
-		}
-		return p.Name()
-	})
-}
-
-// isMarshalJSONSignature reports whether obj is a method with signature
-// func() ([]byte, error).
 func isMarshalJSONSignature(obj types2.Object) bool {
 	fn, ok := obj.(*types2.Func)
 	if !ok {
@@ -593,24 +487,6 @@ func isMarshalJSONSignature(obj types2.Object) bool {
 	return res1.String() == "error"
 }
 
-// unionScalarKind returns the scalar class of t when t is a plain or named
-// scalar without overriding JSON methods.
-func unionScalarKind(t types2.Type) (scalarKind, bool) {
-	switch c := types2.Unalias(t).(type) {
-	case *types2.Basic:
-		return basicScalar(c)
-	case *types2.Named:
-		b, ok := c.Underlying().(*types2.Basic)
-		if !ok || hasJSONMethods(c) {
-			return 0, false
-		}
-		return basicScalar(b)
-	}
-	return 0, false
-}
-
-// scalarStaticMarshal returns the inline statement emitting value val of
-// class kind into buffer b.
 func scalarStaticMarshal(kind scalarKind, val, b string) string {
 	switch kind {
 	case scalarBool:
@@ -629,8 +505,6 @@ func scalarStaticMarshal(kind scalarKind, val, b string) string {
 	return ""
 }
 
-// unionMemberStaticCall reports the statement that marshals _logos_m of
-// member type m, writing into byte buffer b and error e.
 func unionMemberStaticCall(m types2.Type, pkg *types2.Package, b, e string) string {
 	if ptr, ok := types2.Unalias(m).(*types2.Pointer); ok {
 		obj, _, indirect := types2.LookupFieldOrMethod(ptr, false, pkg, "MarshalJSON")
@@ -641,7 +515,7 @@ func unionMemberStaticCall(m types2.Type, pkg *types2.Package, b, e string) stri
 		if elemObj != nil && !elemInd && isMarshalJSONSignature(elemObj) {
 			return fmt.Sprintf("\tif _logos_m != nil { %s, %s = _logos_m.MarshalJSON() } else { %s = []byte(\"null\") }", b, e, b)
 		}
-		if sk, ok := unionScalarKind(ptr.Elem()); ok {
+		if sk, ok := scalarOf(ptr.Elem()); ok {
 			return fmt.Sprintf("\tif _logos_m == nil { %s = []byte(\"null\") } else { %s }", b, scalarStaticMarshal(sk, "*_logos_m", b))
 		}
 		return fmt.Sprintf("\t%s, %s = %s.MarshalField(_logos_m)", b, e, jsonAlias)
@@ -654,27 +528,30 @@ func unionMemberStaticCall(m types2.Type, pkg *types2.Package, b, e string) stri
 	if obj != nil && indirect && isMarshalJSONSignature(obj) {
 		return fmt.Sprintf("\t_logos_tmp := _logos_m; %s, %s = _logos_tmp.MarshalJSON()", b, e)
 	}
-	if sk, ok := unionScalarKind(m); ok {
+	if sk, ok := scalarOf(m); ok {
 		return "\t" + scalarStaticMarshal(sk, "_logos_m", b)
 	}
 	return fmt.Sprintf("\t%s, %s = %s.MarshalField(_logos_m)", b, e, jsonAlias)
 }
 
-// unionCode spells a field holding a closed-union value. SPEC Sec 12: a
-// closed-union value marshals to its dynamic member's static bytes.
 func (g *marshalGen) unionCode(f *jsonField) fieldCode {
 	x := f.local()
 	b := fmt.Sprintf("_logos_b%d", f.pos)
 	e := fmt.Sprintf("_logos_e%d", f.pos)
 	pins := []string{x + " := " + g.recv + "." + f.goName}
 
-	terms := flattenUnionTerms(f.typ)
+	members, ok := types2.LogosUnionMembers(f.typ)
+	if !ok {
+		base.Fatalf("logos: union field %s has no union terms", f.goName)
+	}
 	pkg := unionPackage(f.typ)
 
 	sw := []string{"switch _logos_m := " + x + ".(type) {"}
-	for _, m := range terms {
-		mname := unionMemberSpelling(m, pkg)
-		sw = append(sw, "case "+mname+":", unionMemberStaticCall(m, pkg, b, e))
+	for _, m := range members {
+		if m.Type == nil {
+			continue
+		}
+		sw = append(sw, "case "+types2.TypeString(m.Type, g.js.qualify)+":", unionMemberStaticCall(m.Type, pkg, b, e))
 	}
 	sw = append(sw, "case nil:")
 	sw = append(sw, fmt.Sprintf("\t%s = []byte(\"null\")", b))
@@ -704,29 +581,15 @@ func (g *marshalGen) unionCode(f *jsonField) fieldCode {
 	return c
 }
 
-// This section carries the per-root traversal plan (M11 R1/R4). Static
-// edges to same-package generated-side named types encode through
-// per-root helpers that share one stack-owned Walk; every other
-// stateful edge funnels through Walk.Marshal. The Gen table lists the
-// exact own-package generated types the root may meet dynamically,
-// discovered from compile-time reachable named types. Interface-typed
-// fields contribute no entries: a user method met only dynamically
-// must honour through MarshalField, never walk. Imported types never
-// enter the table; foreign methods stay honour.
-
-// jsonEdge is how one field value encodes in a walk-shaped method.
 type jsonEdge int
 
 const (
-	edgeLegacy    jsonEdge = iota // current scalar or leaf code, no Walk
-	edgeHelper                    // value of generated-side named type
-	edgePtrHelper                 // pointer to generated-side named type
-	edgeWalk                      // Walk.Marshal with shared state
+	edgeLegacy jsonEdge = iota
+	edgeHelper
+	edgePtrHelper
+	edgeWalk
 )
 
-// jsonHelperDef is one traversal-helper pair for a spelled
-// generated-side type: a value helper and a nil-tracking pointer
-// helper sharing the caller's Walk.
 type jsonHelperDef struct {
 	key   string
 	spell string
@@ -738,8 +601,6 @@ type jsonHelperDef struct {
 	made  bool
 }
 
-// jsonWalkPlan is one root's traversal plan: per-field edges and
-// callees, shared helper pairs, and the Gen table prelude.
 type jsonWalkPlan struct {
 	stateful    bool
 	edges       map[*jsonField]jsonEdge
@@ -750,9 +611,6 @@ type jsonWalkPlan struct {
 	descendSeen map[*types2.Named]bool
 }
 
-// jsonEdgeOf classifies how the value of a field of type t encodes.
-// Scalar and leaf shapes keep today's code; generated-side named types
-// take helpers; every other composite funnels through the walk.
 func (fl *fileLower) jsonEdgeOf(t types2.Type) jsonEdge {
 	if fl.classifyJSONField(t).kind != shapeFallback {
 		return edgeLegacy
@@ -761,12 +619,6 @@ func (fl *fileLower) jsonEdgeOf(t types2.Type) jsonEdge {
 	if p, ok := core.(*types2.Pointer); ok {
 		if key, _, _ := fl.helperModelFor(p.Elem()); key != "" {
 			return edgePtrHelper
-		}
-		if _, ok := types2.Unalias(p.Elem()).(*types2.Pointer); ok {
-			return edgeWalk
-		}
-		if _, ok := scalarCore(p.Elem()); ok {
-			return edgeLegacy
 		}
 		return edgeWalk
 	}
@@ -780,29 +632,21 @@ func (fl *fileLower) jsonEdgeOf(t types2.Type) jsonEdge {
 	return edgeLegacy
 }
 
-// jsonEdgeCore unwraps options and const views for edge analysis,
-// mirroring classifyJSONField.
 func jsonEdgeCore(fl *fileLower, t types2.Type) types2.Type {
 	u := types2.Unalias(t)
-	if o := fl.asOption(u); o != nil {
-		u = o.Elem
+	for {
+		if o := fl.asOption(u); o != nil {
+			u = types2.Unalias(o.Elem)
+			continue
+		}
+		if cv, ok := u.(*types2.ConstView); ok {
+			u = types2.Unalias(cv.Elem)
+			continue
+		}
+		return u
 	}
-	if cv, ok := u.(*types2.ConstView); ok {
-		u = cv.Elem
-	}
-	return u
 }
 
-// scalarCore reports whether t is a modeled scalar kind.
-func scalarCore(t types2.Type) (scalarKind, bool) {
-	if b, ok := types2.Unalias(t).(*types2.Basic); ok {
-		return basicScalar(b)
-	}
-	return 0, false
-}
-
-// planJSONWalk builds the traversal plan for js rooted at rootNamed.
-// Roots without a stateful edge keep today's flat method.
 func (fl *fileLower) planJSONWalk(js *jsonStruct, rootNamed *types2.Named) *jsonWalkPlan {
 	plan := &jsonWalkPlan{
 		edges:       make(map[*jsonField]jsonEdge),
@@ -829,9 +673,6 @@ func (fl *fileLower) planJSONWalk(js *jsonStruct, rootNamed *types2.Named) *json
 	return plan
 }
 
-// planEdgeCall returns the callee for a stateful field edge: a helper
-// name, or "" for the shared walk. Registration happens once per type;
-// repeated fields reuse the pair.
 func (fl *fileLower) planEdgeCall(plan *jsonWalkPlan, f *jsonField, e jsonEdge) string {
 	switch e {
 	case edgeHelper, edgePtrHelper:
@@ -851,9 +692,6 @@ func (fl *fileLower) planEdgeCall(plan *jsonWalkPlan, f *jsonField, e jsonEdge) 
 	return ""
 }
 
-// ensureJSONHelper registers the helper pair for t, returning its
-// registry key or "" when t is not helper-eligible. Models are built
-// before nested registration so recursive types hit the registry.
 func (fl *fileLower) ensureJSONHelper(plan *jsonWalkPlan, t types2.Type) string {
 	key, spell, js := fl.helperModelFor(t)
 	if key == "" {
@@ -887,10 +725,6 @@ func (fl *fileLower) ensureJSONHelper(plan *jsonWalkPlan, t types2.Type) string 
 	return key
 }
 
-// visitJSONTable records the Gen entry for a helper-eligible type and
-// descends into its reachable generated types. Every helper-eligible
-// type spells as TypeFor in the root's own package; types without a
-// spelling never reach helpers, so the table holds exact types only.
 func (fl *fileLower) visitJSONTable(plan *jsonWalkPlan, t types2.Type) {
 	key, spell, js := fl.helperModelFor(t)
 	if key == "" || spell == "" || plan.tableSeen[key] {
@@ -903,11 +737,6 @@ func (fl *fileLower) visitJSONTable(plan *jsonWalkPlan, t types2.Type) {
 	}
 }
 
-// descendJSONTable records Gen entries for generated types reachable
-// through composite edges that the walk funnels dynamically: slices,
-// arrays, maps, pointers, and plain structs. Interface interiors are
-// unknown statically and contribute nothing, which keeps user methods
-// met only dynamically on the honour branch.
 func (fl *fileLower) descendJSONTable(plan *jsonWalkPlan, t types2.Type) {
 	core := jsonEdgeCore(fl, t)
 	if key, _, _ := fl.helperModelFor(core); key != "" {
@@ -931,12 +760,6 @@ func (fl *fileLower) descendJSONTable(plan *jsonWalkPlan, t types2.Type) {
 	}
 }
 
-// addPromotedJSONDispatchType records a local named struct whose promoted
-// MarshalJSON method was synthesized on an embedded generated type. Such a
-// type must enter Walk.Gen: otherwise the runtime honors the promoted method,
-// bypasses the enclosing struct's promoted fields, and wraps cycle errors as
-// a MarshalJSON method error instead of returning the walk's reflective
-// cycle error directly.
 func (fl *fileLower) addPromotedJSONDispatchType(plan *jsonWalkPlan, named *types2.Named) {
 	if named == nil || named.Obj() == nil || named.Obj().Pkg() != fl.pkg.tpkg {
 		return
@@ -968,9 +791,6 @@ func (fl *fileLower) addPromotedJSONDispatchType(plan *jsonWalkPlan, named *type
 	}
 }
 
-// descendNamedJSONTable descends into a plain named struct's fields for
-// table discovery. Generated-side named types divert to visitJSONTable
-// before reaching here. The per-plan guard terminates recursive types.
 func (fl *fileLower) descendNamedJSONTable(plan *jsonWalkPlan, named *types2.Named) {
 	if plan.descendSeen[named] {
 		return
@@ -978,17 +798,12 @@ func (fl *fileLower) descendNamedJSONTable(plan *jsonWalkPlan, named *types2.Nam
 	plan.descendSeen[named] = true
 	st, ok := named.Underlying().(*types2.Struct)
 	if !ok {
+		fl.descendJSONTable(plan, named.Underlying())
 		return
 	}
 	fl.descendStructJSONTable(plan, st)
 }
 
-// descendStructJSONTable descends into a struct's exported fields for
-// table discovery, including exported embedded fields. Unexported
-// fields are skipped; the walk resolves them dynamically. Promotion
-// itself needs no table model: the walk inlines embedded fields exactly
-// like the reflective encoder, and the table only dispatches bare
-// dynamic values.
 func (fl *fileLower) descendStructJSONTable(plan *jsonWalkPlan, st *types2.Struct) {
 	for i := range st.NumFields() {
 		sf := st.Field(i)
@@ -999,13 +814,6 @@ func (fl *fileLower) descendStructJSONTable(plan *jsonWalkPlan, st *types2.Struc
 	}
 }
 
-// helperModelFor returns the registry key, source spelling, and field
-// model for a helper-eligible type, or a "" key when the walk must
-// funnel the edge dynamically instead. Pointers share their element's
-// model; the Gen table adds the counterpart. Named generated-side
-// structs qualify directly; spellable method-free generic
-// instantiations qualify through substitution; everything else funnels
-// through Walk.Marshal, which honours methods at run time.
 func (fl *fileLower) helperModelFor(t types2.Type) (string, string, *jsonStruct) {
 	core := jsonEdgeCore(fl, t)
 	if p, ok := core.(*types2.Pointer); ok {
@@ -1022,8 +830,6 @@ func (fl *fileLower) helperModelFor(t types2.Type) (string, string, *jsonStruct)
 	return fl.instHelperModel(core)
 }
 
-// modelNamedStruct builds the field model of a generated-side named
-// struct from its declared fields.
 func (fl *fileLower) modelNamedStruct(named *types2.Named) *jsonStruct {
 	st := named.Underlying().(*types2.Struct)
 	vars := make([]*types2.Var, st.NumFields())
@@ -1033,18 +839,12 @@ func (fl *fileLower) modelNamedStruct(named *types2.Named) *jsonStruct {
 	return fl.buildJSONStruct(named.Obj().Name(), st, vars)
 }
 
-// jsonInstType is a spellable method-free generic instantiation.
 type jsonInstType struct {
 	origin *types2.Named
 	args   []types2.Type
 	spell  string
 }
 
-// instHelperModel returns the registry key, spelling, and substituted
-// model for a spellable method-free generic instantiation, or a "" key.
-// The origin must be an embedding-free struct, carry no JSON-relevant
-// method, and take only nameable arguments; substitution must resolve
-// every visible field. Anything else funnels through the walk.
 func (fl *fileLower) instHelperModel(core types2.Type) (string, string, *jsonStruct) {
 	inst, ok := fl.spellableInstType(core)
 	if !ok {
@@ -1063,12 +863,9 @@ func (fl *fileLower) instHelperModel(core types2.Type) (string, string, *jsonStr
 		return "", "", nil
 	}
 	params := inst.origin.TypeParams()
-	js := &jsonStruct{name: inst.spell}
+	js := &jsonStruct{name: inst.spell, staticJSON: fl.pkg.info.LogosStaticJSON, holderPkg: fl.pkg.tpkg, qualify: fl.genQualifier}
 	for i := range st.NumFields() {
 		sf := st.Field(i)
-		// Unresolvable substitutions keep the origin type and funnel
-		// through the walk: leaked parameters classify as dynamic
-		// edges, never as helpers, so sharing is preserved.
 		ft, ok := substJSONType(sf.Type(), params, inst.args)
 		if !ok {
 			ft = sf.Type()
@@ -1097,9 +894,6 @@ func (fl *fileLower) instHelperModel(core types2.Type) (string, string, *jsonStr
 	return "inst:" + inst.spell, inst.spell, js
 }
 
-// hasOriginJSONMethods reports whether the origin declares a
-// JSON-relevant method. Any hit disqualifies static helpers: the walk
-// honours methods at run time instead of bypassing them.
 func hasOriginJSONMethods(origin *types2.Named) bool {
 	for i := range origin.NumMethods() {
 		m := origin.Method(i)
@@ -1112,8 +906,6 @@ func hasOriginJSONMethods(origin *types2.Named) bool {
 	return false
 }
 
-// spellableInstType resolves core to a generic instantiation whose
-// origin and arguments can be spelled in generated signatures.
 func (fl *fileLower) spellableInstType(core types2.Type) (jsonInstType, bool) {
 	named, ok := core.(*types2.Named)
 	if !ok || named.TypeArgs().Len() == 0 {
@@ -1139,10 +931,6 @@ func (fl *fileLower) spellableInstType(core types2.Type) (jsonInstType, bool) {
 	return jsonInstType{origin: origin, args: args, spell: spell}, true
 }
 
-// spellJSONType returns the source spelling of a helper-signature type:
-// named types through the import registry, basics by keyword, and
-// composites thereof. Anything else is unspellable and funnels through
-// the walk.
 func (fl *fileLower) spellJSONType(t types2.Type) (string, bool) {
 	switch u := types2.Unalias(t).(type) {
 	case *types2.Basic:
@@ -1188,9 +976,6 @@ func (fl *fileLower) spellJSONType(t types2.Type) (string, bool) {
 	return "", false
 }
 
-// substJSONType replaces origin type parameters with arguments. Only
-// shapes that survive substitution spelling are resolved; anything
-// else reports false and the edge funnels through the walk.
 func substJSONType(t types2.Type, params *types2.TypeParamList, args []types2.Type) (types2.Type, bool) {
 	switch u := t.(type) {
 	case *types2.TypeParam:
@@ -1241,7 +1026,6 @@ func substJSONType(t types2.Type, params *types2.TypeParamList, args []types2.Ty
 	return nil, false
 }
 
-// marshalText writes the MarshalJSON method of js to b.
 func (js *jsonStruct) marshalText(b *strings.Builder) {
 	g := newMarshalGen(js)
 	var pins, pre, size, emit []string
@@ -1279,12 +1063,6 @@ func (js *jsonStruct) marshalText(b *strings.Builder) {
 	b.WriteString("}\n")
 }
 
-// edgeCode spells a stateful field edge: a helper call for
-// generated-side named types, or the shared walk for every other
-// composite. The shape mirrors fallbackCode: the value bytes come from
-// one call, the key from the fixed literal plan.
-// helperCall spells a helper invocation, or "" when the edge funnels
-// through the shared walk instead.
 func helperCall(name, local string) string {
 	if name == "" {
 		return ""
@@ -1292,7 +1070,143 @@ func helperCall(name, local string) string {
 	return fmt.Sprintf("%s(%s, _logos_s)", name, local)
 }
 
-// walkCall spells the shared-walk invocation for one value.
+func optionJSONPath(t types2.Type, seen map[types2.Type]bool) bool {
+	wrapped := false
+	for {
+		t = unaliasConstView(t)
+		if seen[t] {
+			return false
+		}
+		seen[t] = true
+		if _, ok := types2.LogosUnionMembers(t); ok {
+			return wrapped
+		}
+		switch u := t.(type) {
+		case *types2.Option:
+			wrapped = wrapped || !types2.LogosOptionIsBare(u.Elem)
+			t = u.Elem
+		case *types2.Pointer:
+			t = u.Elem()
+		case *types2.Named:
+			if obj, _, _ := types2.LookupFieldOrMethod(u, true, u.Obj().Pkg(), "MarshalJSON"); isMarshalJSONSignature(obj) {
+				return false
+			}
+			t = u.Underlying()
+		case *types2.Slice:
+			t = u.Elem()
+		case *types2.Array:
+			t = u.Elem()
+		case *types2.Map:
+			key, ok := types2.Unalias(u.Key()).Underlying().(*types2.Basic)
+			if !ok || key.Kind() != types2.String {
+				return false
+			}
+			t = u.Elem()
+		default:
+			return false
+		}
+	}
+}
+
+func (js *jsonStruct) optionJSONCall(t types2.Type, x string) string {
+	if !optionJSONPath(t, make(map[types2.Type]bool)) {
+		return walkCall(x)
+	}
+	u := unaliasConstView(t)
+	if n, ok := u.(*types2.Named); ok {
+		u = n.Underlying()
+	}
+	var body []string
+	switch v := u.(type) {
+	case *types2.Option:
+		if types2.LogosOptionIsBare(v.Elem) {
+			return js.optionJSONCall(v.Elem, x)
+		}
+		body = []string{
+			"if !" + x + ".Present { return []byte(\"null\"), nil }",
+			"return " + js.optionJSONCall(v.Elem, x+".Value"),
+		}
+	case *types2.Pointer:
+		body = []string{
+			"if " + x + " == nil { return []byte(\"null\"), nil }",
+			"if _logos_err := _logos_s.Enter(" + x + "); _logos_err != nil { return nil, _logos_err }",
+			"defer _logos_s.Leave(" + x + ")",
+			"return " + js.optionJSONCall(v.Elem(), "(*"+x+")"),
+		}
+	default:
+		return js.optionJSONContainerCall(u, x)
+	}
+	return "func() ([]byte, error) {\n" + strings.Join(indentLines(body), "\n") + "\n}()"
+}
+
+func (js *jsonStruct) optionJSONContainerCall(u types2.Type, x string) string {
+	var body []string
+	var elem types2.Type
+	mapType, isMap := u.(*types2.Map)
+	switch c := u.(type) {
+	case *types2.Slice:
+		elem = c.Elem()
+	case *types2.Array:
+		elem = c.Elem()
+	case *types2.Map:
+		elem = c.Elem()
+	default:
+		base.Fatalf("logos: option JSON path has non-container type %s", u)
+	}
+	if _, array := u.(*types2.Array); !array {
+		body = append(body,
+			"if "+x+" == nil { return []byte(\"null\"), nil }",
+			"if _logos_err := _logos_s.Enter("+x+"); _logos_err != nil { return nil, _logos_err }",
+			"defer _logos_s.Leave("+x+")")
+	}
+	body = append(body,
+		"if _logos_err := _logos_s.EnterFrame(0); _logos_err != nil { return nil, _logos_err }",
+		"defer _logos_s.LeaveFrame()")
+	open, close := "'['", "']'"
+	loop := "for _, _logos_item := range " + x
+	var prefix []string
+	if isMap {
+		open, close = "'{'", "'}'"
+		body = append(body, sortedJSONMapKeys(x)...)
+		loop = "for _, _logos_key := range _logos_keys"
+		prefix = []string{
+			"_logos_kb, _logos_err := " + jsonAlias + ".MarshalField(_logos_key)",
+			"if _logos_err != nil { return nil, _logos_err }",
+			"_logos_buf = append(_logos_buf, _logos_kb...)",
+			"_logos_buf = append(_logos_buf, ':')",
+			"_logos_item := " + x + "[" + types2.TypeString(mapType.Key(), js.qualify) + "(_logos_key)]",
+		}
+	}
+	body = append(body, "_logos_buf := []byte{"+open+"}")
+	inner := []string{"if len(_logos_buf) > 1 { _logos_buf = append(_logos_buf, ',') }"}
+	inner = append(inner, prefix...)
+	inner = append(inner,
+		"_logos_part, _logos_err := "+js.optionJSONCall(elem, "_logos_item"),
+		"if _logos_err != nil { return nil, _logos_s.RebaseDepthError(_logos_err, int64(len(_logos_buf))) }",
+		"_logos_buf = append(_logos_buf, _logos_part...)")
+	body = append(body, blockLines(loop, inner)...)
+	body = append(body, "_logos_buf = append(_logos_buf, "+close+")", "return _logos_buf, nil")
+	return "func() ([]byte, error) {\n" + strings.Join(indentLines(body), "\n") + "\n}()"
+}
+
+func sortedJSONMapKeys(x string) []string {
+	return []string{
+		"_logos_keys := make([]string, 0, len(" + x + "))",
+		"for _logos_key := range " + x + " { _logos_keys = append(_logos_keys, string(_logos_key)) }",
+		"_logos_down := func(_logos_root, _logos_end int) {",
+		"for 2*_logos_root+1 < _logos_end {",
+		"_logos_child := 2*_logos_root+1",
+		"if _logos_child+1 < _logos_end && _logos_keys[_logos_child] < _logos_keys[_logos_child+1] { _logos_child++ }",
+		"if _logos_keys[_logos_root] >= _logos_keys[_logos_child] { break }",
+		"_logos_keys[_logos_root], _logos_keys[_logos_child] = _logos_keys[_logos_child], _logos_keys[_logos_root]",
+		"_logos_root = _logos_child",
+		"}",
+		"}",
+		"for _logos_i := len(_logos_keys)/2-1; _logos_i >= 0; _logos_i-- { _logos_down(_logos_i, len(_logos_keys)) }",
+		"for _logos_i := len(_logos_keys)-1; _logos_i > 0; _logos_i-- { _logos_keys[0], _logos_keys[_logos_i] = _logos_keys[_logos_i], _logos_keys[0]; _logos_down(0, _logos_i) }",
+	}
+}
+
 func walkCall(local string) string {
 	return fmt.Sprintf("_logos_s.Marshal(%s)", local)
 }
@@ -1300,12 +1214,19 @@ func walkCall(local string) string {
 func (g *marshalGen) edgeCode(f *jsonField, e jsonEdge) fieldCode {
 	local := f.local()
 	call := cmp.Or(helperCall(g.calls[f], local), walkCall(local))
+	if optionJSONPath(f.typ, make(map[types2.Type]bool)) {
+		call = g.js.optionJSONCall(f.typ, local)
+	}
 	b := fmt.Sprintf("_logos_b%d", f.pos)
 	ec := fmt.Sprintf("_logos_e%d", f.pos)
 	stmt := []string{fmt.Sprintf("%s, %s := %s", b, ec, call)}
-	check := ifLines(ec+" != nil", []string{
-		fmt.Sprintf("return nil, _logos_s.RebaseDepthError(%s, int64(len(_logos_buf) + %d))", ec, g.litLen(f, "")),
-	})
+	errorBody := []string{"var _logos_buf []byte"}
+	if g.runtimeSep && len(g.errorPrefix) != 0 {
+		errorBody = append(errorBody, "_logos_sep := byte('{')")
+	}
+	errorBody = append(errorBody, g.errorPrefix...)
+	errorBody = append(errorBody, fmt.Sprintf("return nil, _logos_s.RebaseDepthError(%s, int64(len(_logos_buf) + %d))", ec, g.litLen(f, "")))
+	check := ifLines(ec+" != nil", errorBody)
 	var c fieldCode
 	pins := []string{local + " := " + g.recv + "." + f.goName}
 	guard, ok := g.edgePresence(f, e, local)
@@ -1326,12 +1247,6 @@ func (g *marshalGen) edgeCode(f *jsonField, e jsonEdge) fieldCode {
 	return c
 }
 
-// edgePresence returns the presence guard for an optional stateful
-// field, or false for unconditional struct-value edges: a struct value
-// is never empty, so omitempty alone writes the field, while omitzero
-// still consults the shared OmitZero helper. Pointer helpers consult
-// OmitZero too, matching the reflective omitzero rule that drops nil
-// pointers and IsZero values alike.
 func (g *marshalGen) edgePresence(f *jsonField, e jsonEdge, local string) (string, bool) {
 	if !f.optional() {
 		return "", false
@@ -1348,12 +1263,6 @@ func (g *marshalGen) edgePresence(f *jsonField, e jsonEdge, local string) (strin
 	return omitCall(f, g.recv+"."+f.goName), true
 }
 
-// marshalTextWalk writes a walk-shaped MarshalJSON method: the
-// traversal table prelude, then a tail call into the value helper that
-// shares the root's Walk. State lives in helpers and the walk; the
-// method itself only owns the table. The receiver edge is entered
-// before the helper call so cycle levels count the root the way the
-// reflective encoder counts the value it was handed.
 func (js *jsonStruct) marshalTextWalk(b *strings.Builder, plan *jsonWalkPlan, vname string) {
 	var body []string
 	body = append(body, "var _logos_s "+jsonAlias+".Walk")
@@ -1373,9 +1282,6 @@ func (js *jsonStruct) marshalTextWalk(b *strings.Builder, plan *jsonWalkPlan, vn
 	b.WriteString("}\n")
 }
 
-// emitJSONHelpers generates the helper pairs of plan into this file and
-// marks the support imports. Pairs already emitted by another file of
-// the package are referenced, never redefined.
 func (fl *fileLower) emitJSONHelpers(pos syntax.Pos, plan *jsonWalkPlan) {
 	for _, key := range plan.order {
 		def := fl.pkg.jsonHelpers[key]
@@ -1391,10 +1297,6 @@ func (fl *fileLower) emitJSONHelpers(pos syntax.Pos, plan *jsonWalkPlan) {
 	fl.needReflect = true
 }
 
-// emitInto writes the value and pointer helpers of one pair. The value
-// helper runs the field pipeline with the plan's edges; the pointer
-// helper folds nil, cycle tracking, and the dereference so call sites
-// keep the fallback shape.
 func (def *jsonHelperDef) emitInto(b *strings.Builder) {
 	g := newMarshalGen(def.js)
 	g.recv = "_logos_w"
@@ -1427,25 +1329,32 @@ func (def *jsonHelperDef) emitInto(b *strings.Builder) {
 	b.WriteString("}\n")
 }
 
-// sequentialJSONBody retains the field codecs but encodes each field
-// before starting the next. Thus a failing nested value can be rebased
-// using the actual bytes already emitted, without sizing or replaying
-// any user method. Only walk-shaped helpers use this path.
 func sequentialJSONBody(g *marshalGen, prelude []string) []string {
-	var pins, fields []string
+	g.snapshot = true
+	var pins, pre, size, emit []string
+	fixed := 1
 	for _, f := range g.js.fields {
+		g.errorPrefix = emit
 		c := g.code(f)
 		pins = append(pins, c.pins...)
-		fields = append(fields, c.pre...)
-		fields = append(fields, c.emit...)
+		pre = append(pre, c.pre...)
+		size = append(size, c.size...)
+		emit = append(emit, c.emit...)
+		fixed += c.fixed
 	}
 	body := pins
 	body = append(body, prelude...)
-	body = append(body, "var _logos_buf []byte")
+	body = append(body, pre...)
+	body = append(body, fmt.Sprintf("_logos_n := %d", fixed))
+	body = append(body, size...)
+	if g.firstFixed < 0 {
+		body = append(body, ifLines("_logos_n == 1", []string{"_logos_n = 2"})...)
+	}
+	body = append(body, "_logos_buf := make([]byte, 0, _logos_n)")
 	if g.runtimeSep {
 		body = append(body, "_logos_sep := byte('{')")
 	}
-	body = append(body, fields...)
+	body = append(body, emit...)
 	if g.firstFixed < 0 {
 		body = append(body, ifLines("_logos_sep == '{'", []string{"_logos_buf = append(_logos_buf, '{')"})...)
 	}

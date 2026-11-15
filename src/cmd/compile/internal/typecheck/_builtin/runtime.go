@@ -132,6 +132,9 @@ func panicrangestate(state int)
 // defer in range over func
 func deferrangefunc() interface{}
 
+func deferprocTry(thunk uintptr, ctype *byte, clo unsafe.Pointer, roff uintptr)
+func deferTryUnpack(rec unsafe.Pointer, ctype *byte, dst unsafe.Pointer, roff uintptr)
+
 func rand() uint64
 func rand32() uint32
 
@@ -203,12 +206,15 @@ func logosArenaMarkSave() (chunk, noscan, scan uintptr)
 func logosArenaMarkRestore(chunk, noscan, scan uintptr)
 func logosArenaRetTake() bool
 func logosArenaRetSet(ok bool)
-func zgcSyscallAdmit(rows unsafe.Pointer, n uintptr) (frame unsafe.Pointer, gen uint64)
-func zgcSyscallAdmitIndirect(code unsafe.Pointer, rows unsafe.Pointer, n uintptr) (frame unsafe.Pointer, gen uint64)
-func zgcSyscallAdmitIndirectNoSplit(code unsafe.Pointer, rows unsafe.Pointer, n uintptr) (frame unsafe.Pointer, gen uint64)
-func zgcSyscallEnd(frame unsafe.Pointer, gen uint64)
-func zgcSyscallAdmitNoSplit(rows unsafe.Pointer, n uintptr) (frame unsafe.Pointer, gen uint64)
-func zgcSyscallEndNoSplit(frame unsafe.Pointer, gen uint64)
+func logosRegionOpen() (h unsafe.Pointer, gen uintptr)
+func logosRegionClose(h unsafe.Pointer, gen uintptr)
+func logosRegionBump(h unsafe.Pointer, gen uintptr, size uintptr) unsafe.Pointer
+func logosRegionAllocNoscan(h unsafe.Pointer, gen uintptr, size, align uintptr) unsafe.Pointer
+func logosRegionAllocScan(h unsafe.Pointer, gen uintptr, typ *byte, size uintptr) unsafe.Pointer
+func logosRegionMakeSliceNoscan(h unsafe.Pointer, gen uintptr, typ *byte, len, cap int64) unsafe.Pointer
+func logosRegionMakeSliceScan(h unsafe.Pointer, gen uintptr, typ *byte, len, cap int64) unsafe.Pointer
+func logosRegionGrowSliceNoscan(h unsafe.Pointer, gen uintptr, oldPtr *any, newLen, oldCap, num int, et *byte) (ary []any)
+func logosRegionGrowSliceScan(h unsafe.Pointer, gen uintptr, oldPtr *any, newLen, oldCap, num int, et *byte) (ary []any)
 func growslice(oldPtr *any, newLen, oldCap, num int, et *byte) (ary []any)
 func growsliceBuf(oldPtr *any, newLen, oldCap, num int, et *byte, buf *any, bufLen int) (ary []any)
 func growsliceBufNoAlias(oldPtr *any, newLen, oldCap, num int, et *byte, buf *any, bufLen int) (ary []any)

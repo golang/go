@@ -2,12 +2,21 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
-// M7-S1 const if (SPEC Sec 2.5, T-205): only the live branch survives
-// lowering; the dead branch call is absent from the binary
-// (test/logos/codegen/const_if_dead.lgo), and both branches still
-// type-check (src/internal/types/testdata/logos/const_if.lgo).
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 func pick() string {
 	const if 1 == 1 {
@@ -35,7 +44,10 @@ func skipped() string {
 }
 
 func main() {
-	fmt.Println(pick())
-	fmt.Println(chain())
-	fmt.Println(skipped())
+	check("pick", pick() == "one", pick(), "one")
+	check("chain", chain() == "one", chain(), "one")
+	check("skipped", skipped() == "after", skipped(), "after")
+	if failed {
+		os.Exit(1)
+	}
 }

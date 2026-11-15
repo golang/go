@@ -29,11 +29,6 @@ func f() int {
 }
 `
 
-// TestLogosConstIfEndPos requires EndPos of a `const if` to be one past
-// the closing brace of its last block, for a lone statement and for an
-// else-const-if chain, so a splice over the statement never takes the
-// newline that follows it. It also requires a name before the block to
-// parse as the condition (`const if name {`).
 func TestLogosConstIfEndPos(t *testing.T) {
 	var errs []string
 	file, _ := Parse(NewFileBase("end.lgo"), strings.NewReader(logosConstIfEndSrc), func(err error) { errs = append(errs, err.Error()) }, nil, LogosMode)

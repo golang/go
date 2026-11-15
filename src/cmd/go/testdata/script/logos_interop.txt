@@ -1,11 +1,7 @@
-# M0-S8: Go and loGo/s packages import each other across workspace modules.
-# Each case uses its own fixture so an earlier diagnostic cannot mask a later one.
-
 env GOPROXY=off
 env GOTOOLCHAIN=local
 mkdir $WORK/bin
 
-# Case 1: a loGo/s package imports a Go package from another workspace module.
 cd w1
 logos build ./...
 logos build -o $WORK/bin/w1$GOEXE ./l/cmd
@@ -15,7 +11,6 @@ logos test ./...
 stdout '^ok\s+example\.com/l/p'
 cd ..
 
-# Case 2: a Go package imports a loGo/s package from another workspace module.
 cd w2
 logos build ./...
 logos build -o $WORK/bin/w2$GOEXE ./g/cmd
@@ -23,31 +18,34 @@ exec $WORK/bin/w2$GOEXE
 stdout '^from-logos$'
 logos test ./...
 stdout '^ok\s+example\.com/g/q'
-# Plain go ignores .lgo files, so the loGo/s package is not found.
 cd g
 ! go build ./...
 stderr 'no required module provides package example\.com/l/p'
 cd ../..
 
-# Case 3: a loGo/s package imports only the standard library and runs.
 cd std
 logos build ./...
 logos run .
 stdout '^std-ok$'
 cd ..
 
-# Case 4: a module holding one Go package and one loGo/s package fails.
 cd mixedmod
 ! logos build ./...
 stderr '\[correctness::mixed_module\] module example\.com/m has Go packages \(example\.com/m/a\) and loGo/s packages \(example\.com/m/b\)'
 cd ..
 
-# Case 5: a workspace root builds a Go module and a loGo/s module; both binaries run.
 cd ws
 logos build ./...
+logos vet ./...
+logos test ./...
+stdout '^ok\s+example\.com/gws'
+stdout '^ok\s+example\.com/lws'
+go build -o $WORK/bin/gohello-plain$GOEXE ./gomod
 logos build -o $WORK/bin/gohello$GOEXE ./gomod
 logos build -o $WORK/bin/lgohello$GOEXE ./lgomod
 exec $WORK/bin/gohello$GOEXE
+stdout '^go-ok$'
+exec $WORK/bin/gohello-plain$GOEXE
 stdout '^go-ok$'
 exec $WORK/bin/lgohello$GOEXE
 stdout '^lgo-ok$'
@@ -225,6 +223,12 @@ func main() {
 	fmt.Println("go-ok")
 }
 
+func init() {
+	_logos_reserved := 1
+	errdefer := 2
+	_, _ = _logos_reserved, errdefer
+}
+
 -- ws/lgomod/go.mod --
 module example.com/lws
 
@@ -237,4 +241,26 @@ import "fmt"
 
 func main() {
 	fmt.Println("lgo-ok")
+}
+
+-- ws/gomod/main_test.go --
+package main
+
+import "testing"
+
+func TestGoHello(t *testing.T) {
+	if 1+1 != 2 {
+		t.Fatal("bad arithmetic")
+	}
+}
+
+-- ws/lgomod/main_test.lgo --
+package main
+
+import "testing"
+
+func TestLgoHello(t *testing.T) {
+	if 1+1 != 2 {
+		t.Fatalf("bad arithmetic")
+	}
 }

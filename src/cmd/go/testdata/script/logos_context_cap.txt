@@ -1,0 +1,25 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd cap
+
+logos context 'example.com/bigcap#Big'
+stdout 'F001'
+stdout 'F099'
+! stdout 'F100'
+! stdout 'F150'
+cp stdout $WORK/out.txt
+grep -count=99 'F[0-9][0-9][0-9] int' $WORK/out.txt
+! grep '^}' $WORK/out.txt
+
+cd ..
+
+-- cap/go.mod --
+module example.com/bigcap
+
+go 1.27
+
+-- cap/main.lgo --
+package main
+
+type Big struct {F001 int; F002 int; F003 int; F004 int; F005 int; F006 int; F007 int; F008 int; F009 int; F010 int; F011 int; F012 int; F013 int; F014 int; F015 int; F016 int; F017 int; F018 int; F019 int; F020 int; F021 int; F022 int; F023 int; F024 int; F025 int; F026 int; F027 int; F028 int; F029 int; F030 int; F031 int; F032 int; F033 int; F034 int; F035 int; F036 int; F037 int; F038 int; F039 int; F040 int; F041 int; F042 int; F043 int; F044 int; F045 int; F046 int; F047 int; F048 int; F049 int; F050 int; F051 int; F052 int; F053 int; F054 int; F055 int; F056 int; F057 int; F058 int; F059 int; F060 int; F061 int; F062 int; F063 int; F064 int; F065 int; F066 int; F067 int; F068 int; F069 int; F070 int; F071 int; F072 int; F073 int; F074 int; F075 int; F076 int; F077 int; F078 int; F079 int; F080 int; F081 int; F082 int; F083 int; F084 int; F085 int; F086 int; F087 int; F088 int; F089 int; F090 int; F091 int; F092 int; F093 int; F094 int; F095 int; F096 int; F097 int; F098 int; F099 int; F100 int; F101 int; F102 int; F103 int; F104 int; F105 int; F106 int; F107 int; F108 int; F109 int; F110 int; F111 int; F112 int; F113 int; F114 int; F115 int; F116 int; F117 int; F118 int; F119 int; F120 int; F121 int; F122 int; F123 int; F124 int; F125 int; F126 int; F127 int; F128 int; F129 int; F130 int; F131 int; F132 int; F133 int; F134 int; F135 int; F136 int; F137 int; F138 int; F139 int; F140 int; F141 int; F142 int; F143 int; F144 int; F145 int; F146 int; F147 int; F148 int; F149 int; F150 int; }

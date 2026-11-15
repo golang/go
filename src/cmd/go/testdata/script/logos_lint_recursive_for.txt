@@ -1,0 +1,36 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd probe
+! logos lint ./direct
+stderr 'direct.go:3:6: \[correctness::infinite_recursion\]'
+! logos lint ./paren
+stderr 'paren.go:3:6: \[correctness::infinite_recursion\]'
+logos lint ./changed
+! stderr .
+
+-- probe/go.mod --
+module example.com/recursivefor
+
+go 1.27
+-- probe/direct/direct.go --
+package direct
+
+func RecursiveFor(n int) int {
+	for { return RecursiveFor(n) }
+}
+-- probe/paren/paren.go --
+package paren
+
+func RecursiveFor(n int) int {
+	for { return (RecursiveFor)(n) }
+}
+-- probe/changed/changed.go --
+package changed
+
+func RecursiveFor(n int) int {
+	for {
+		if n <= 0 { return 0 }
+		return RecursiveFor(n-1)
+	}
+}

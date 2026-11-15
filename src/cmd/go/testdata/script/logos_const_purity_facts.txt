@@ -1,0 +1,133 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+cd w
+logos build ./l/...
+logos build ./g/...
+logos build -o $WORK/bin/pure$GOEXE ./l/cmd
+exec $WORK/bin/pure$GOEXE
+stdout '^run-ok: 2 2$'
+cd ..
+
+cd w
+logos build -o $WORK/m.a ./l/m
+logos build -o $WORK/vp.a ./g/vp
+logos build -o $WORK/n.a ./l/n
+cd ..
+go tool pack p $WORK/m.a __.LOGOS
+stdout '^fn Good\.Sum Readonly,ParamMutated=0$'
+go tool pack p $WORK/vp.a __.LOGOS
+stdout '^fn .*Grab AssertTP=0,AssertRTP=0$'
+stdout '^fn Box\.Eat ParamMutated=0$'
+go tool pack p $WORK/n.a __.LOGOS
+stdout '^fn U\.Go Readonly,ParamMutated=0$'
+stdout '^fn V\.Go .*ParamMutated=1$'
+stdout '^fn Z\.Go Readonly,ParamMutated=0$'
+
+-- w/go.work --
+go 1.27
+
+use (
+	./l
+	./g
+)
+
+-- w/l/go.mod --
+module example.com/pure
+
+go 1.27
+
+-- w/l/m/m.lgo --
+package m
+
+type Good struct {
+	name string
+}
+
+func Make(name string) Good {
+	return Good{name: name}
+}
+
+func (g Good) Name() string {
+	return g.name
+}
+
+func (g Good) Sum(b []byte) int {
+	return len(b)
+}
+
+-- w/l/n/n.lgo --
+package n
+
+import (
+	"example.com/pure/m"
+	"example.com/pureg/vp"
+)
+
+type Z struct {
+	g m.Good
+}
+
+func (z Z) Go(b []byte) int {
+	if z.g.Sum(b) != len(b) {
+		return -1
+	}
+	return len(b)
+}
+
+type U struct {
+	box vp.Box
+}
+
+func (u U) Go(b []byte) int {
+	if u.box.Eat(b) != len(b) {
+		return -1
+	}
+	return len(b)
+}
+
+type V struct {
+	box vp.Box
+}
+
+func (v V) Go(b []byte) int {
+	r := v.box.Grab(b)
+	if len(r) != len(b) {
+		return -1
+	}
+	return len(b)
+}
+
+-- w/l/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/pure/m"
+	"example.com/pureg/vp"
+)
+
+func main() {
+	g := m.Make("ada")
+	fmt.Println("run-ok:", g.Sum([]byte{1, 2}), vp.Box{}.Eat([]byte{3, 4}))
+}
+
+-- w/g/go.mod --
+module example.com/pureg
+
+go 1.27
+
+-- w/g/vp/vp.go --
+package vp
+
+type Box struct{}
+
+func (Box) Eat(b []byte) int {
+	return len(b)
+}
+
+func (Box) Grab[T any](x T) T {
+	return x
+}

@@ -1,0 +1,32 @@
+// errorcheck -goexperiment logosarena,logosescape
+
+package p
+
+import "logos/arena"
+
+var sink func()
+
+func StoreGlobal() {
+	r := arena.Open()
+	f := func() { _ = r }
+	sink = f // ERROR "\[correctness::region_escape\]"
+}
+
+func ReturnLit() func() {
+	r := arena.Open()
+	return func() { _ = r } // ERROR "\[correctness::region_escape\]"
+}
+
+func SendLit() {
+	r := arena.Open()
+	f := func() { _ = r }
+	ch := make(chan func(), 1)
+	ch <- f // ERROR "\[correctness::region_escape\]"
+	_ = ch
+}
+
+func ImmediateCall() {
+	r := arena.Open()
+	func() { _ = r }()
+	_ = r
+}

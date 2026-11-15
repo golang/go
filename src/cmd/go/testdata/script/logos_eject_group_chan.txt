@@ -1,0 +1,80 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+logos run .
+stdout '^recv 7$'
+stdout '^send 3$'
+stdout '^range 3$'
+cp stdout $WORK/run-stdout.txt
+
+logos eject -o out
+exists out/main.go
+grep '\.Go\(func' out/main.go
+grep '_logos_rt\.Context' out/main.go
+grep '\.Done\(\)' out/main.go
+grep 'Chan\(' out/main.go
+cd out
+go run .
+cmp stdout $WORK/run-stdout.txt
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+
+-- m/go.mod --
+module example.com/ejectgroupchan
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import (
+	"context"
+	"fmt"
+)
+
+var gotRecv, gotSend, gotRange int
+
+//logos:allow(correctness::unbounded_channel_op)
+func run(ctx context.Context) error {
+	ch1 := make(chan int, 1)
+	ch1 <- 7
+	ch2 := make(chan int, 1)
+	ch3 := make(chan int, 2)
+	ch3 <- 1
+	ch3 <- 2
+	close(ch3)
+	go group (ctx) {
+		go {
+			v := <-ch1
+			gotRecv = v
+		}
+		go {
+			ch2 <- 3
+		}
+		go {
+			s := 0
+			for v := range ch3 {
+				s += v
+			}
+			gotRange = s
+		}
+	}
+	gotSend = <-ch2
+	return nil
+}
+
+//logos:allow(correctness::unbounded_channel_op)
+func main() {
+	ctx := context.Background()
+	if err := run(ctx); err != nil {
+		fmt.Println("bad err")
+		return
+	}
+	fmt.Println("recv", gotRecv)
+	fmt.Println("send", gotSend)
+	fmt.Println("range", gotRange)
+}

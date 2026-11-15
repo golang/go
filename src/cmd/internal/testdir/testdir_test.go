@@ -71,7 +71,7 @@ var (
 
 	// dirs are the directories to look for *.go files in.
 	// TODO(bradfitz): just use all directories?
-	dirs = []string{".", "ken", "chan", "interface", "internal/runtime/sys", "syntax", "dwarf", "fixedbugs", "codegen", "abi", "typeparam", "typeparam/mdempsky", "arenas", "simd", "logos"}
+	dirs = []string{".", "ken", "chan", "interface", "internal/runtime/sys", "syntax", "dwarf", "fixedbugs", "codegen", "abi", "typeparam", "typeparam/mdempsky", "simd", "logos"}
 )
 
 // Test is the main entrypoint that runs tests in the GOROOT/test directory.
@@ -121,6 +121,13 @@ func Test(t *testing.T) {
 	goExperiment = env.GOEXPERIMENT
 	goDebug = env.GODEBUG
 	tmpDir = t.TempDir()
+	stdlibImportcfgFile = sync.OnceValue(func() string {
+		filename := filepath.Join(tmpDir, "importcfg")
+		if err := os.WriteFile(filename, []byte(stdlibImportcfg()), 0644); err != nil {
+			log.Fatal(err)
+		}
+		return filename
+	})
 
 	common := testCommon{
 		gorootTestDir: filepath.Join(testenv.GOROOT(t), "test"),
@@ -230,8 +237,7 @@ var stdlibImportcfg = sync.OnceValue(func() string {
 
 var stdlibImportcfgFile = sync.OnceValue(func() string {
 	filename := filepath.Join(tmpDir, "importcfg")
-	err := os.WriteFile(filename, []byte(stdlibImportcfg()), 0644)
-	if err != nil {
+	if err := os.WriteFile(filename, []byte(stdlibImportcfg()), 0644); err != nil {
 		log.Fatal(err)
 	}
 	return filename
@@ -513,6 +519,19 @@ func (t test) run() error {
 	if action == "" {
 		t.Fatalf("execution recipe not found in GOROOT/test/%s", t.goFileName())
 	}
+	if err := t.runAction(srcBytes, action); err != nil {
+		return err
+	}
+	for _, variant := range logosRecipeVariants(t.dir, src, action) {
+		if err := t.runAction(srcBytes, variant); err != nil {
+			return fmt.Errorf("recipe %q: %w", variant, err)
+		}
+	}
+	return nil
+}
+
+func (t test) runAction(srcBytes []byte, action string) error {
+	src := string(srcBytes)
 
 	// Check for build constraints only up to the actual code.
 	header, _, ok := strings.Cut(src, "\npackage")

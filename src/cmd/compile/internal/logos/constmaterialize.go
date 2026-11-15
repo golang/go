@@ -19,11 +19,6 @@ type constMatInit struct {
 	val ctfe.Value
 }
 
-// constMatInits records kept composite initializers for backend
-// materialization via LookupConstMatInit/BuildMatLiteral. Scalars never
-// use this path: private scalars lower to true constants through the
-// owned-constant bridge (ownedconstant.go) preserving nominal identity
-// in all constant contexts, so no bound-only substitution remains.
 var constMatInits = map[syntax.Expr]constMatInit{}
 
 func clearConstMat() {
@@ -37,9 +32,6 @@ func (fl *fileLower) registerKeepCall(e syntax.Expr, v ctfe.Value) {
 	}
 }
 
-// LookupConstMatInit reports the recorded value for a kept initializer
-// expression. The writer calls it with the current package path so
-// stale entries from another package never match.
 func LookupConstMatInit(pkg string, e syntax.Expr) (ctfe.Value, bool) {
 	if m, ok := constMatInits[e]; ok && m.pkg == pkg {
 		return m.val, true
@@ -99,10 +91,6 @@ func (fl *fileLower) materializeImportedConst(cd *syntax.ConstDecl, obj *types2.
 		return zero, false
 	}
 	if t.Kind == ctfe.KMap {
-		// Unified map owner (collectConstMaps in constmap_lower.go) owns
-		// every const map including private shapes. No plain-map or
-		// keep-call fallback here: presence in constMaps drives
-		// lowerConstMapSpec, absence means not a const-map decl.
 		if _, ok := fl.pkg.constMaps[obj]; ok {
 			return ctfeResult{obj: obj, val: v, init: init, lit: init, text: renderExpr(init)}, true
 		}
@@ -112,7 +100,7 @@ func (fl *fileLower) materializeImportedConst(cd *syntax.ConstDecl, obj *types2.
 		return zero, false
 	}
 	pos := syntax.StartPos(init)
-	if isCTFEComposite(v) {
+	if v.IsComposite() {
 		return fl.materializeComposite(obj, v, init, pos)
 	}
 	return fl.materializeScalar(obj, v, init, pos)
@@ -129,10 +117,6 @@ func (fl *fileLower) materializeScalar(obj *types2.Const, v ctfe.Value, init syn
 	}
 	text0 := renderExpr(lit0)
 	if !spellableMatType(obj.Type(), fl.pkg.tpkg) {
-		// Private scalar: true constant via copied-owner bridge using
-		// fresh exact-node registration. Usable in every constant
-		// context with nominal identity; never a kept var nor a bare
-		// literal losing its type.
 		if r, ok := fl.ownedScalarBridge(obj, v, init, pos); ok {
 			return r, true
 		}
@@ -154,11 +138,6 @@ func (fl *fileLower) materializeComposite(obj *types2.Const, v ctfe.Value, init 
 	if lit, text, ok := fl.buildMatValue(v, obj.Type(), pos); ok {
 		return ctfeResult{obj: obj, val: v, init: init, lit: lit, text: text}, true
 	}
-	// Private composite: exact methods/fields via fresh exact-node
-	// registration and copied-owner eject bridge. Same spare-slice
-	// backing and readonly semantics as buildMatValue; keepCall only
-	// when the bridge cannot represent the value and the backend must
-	// fail closed via BuildMatLiteral rather than replaying the call.
 	if r, ok := fl.ownedCompositeBridge(obj, v, init, pos); ok {
 		return r, true
 	}
@@ -168,17 +147,6 @@ func (fl *fileLower) materializeComposite(obj *types2.Const, v ctfe.Value, init 
 func (fl *fileLower) keepCallResult(obj *types2.Const, v ctfe.Value, init syntax.Expr) (ctfeResult, bool) {
 	fl.registerKeepCall(init, v)
 	return ctfeResult{obj: obj, val: v, init: init, lit: init, text: renderExpr(init), keepCall: true}, true
-}
-
-func matStructField(v ctfe.Value, index []int) (ctfe.Value, bool) {
-	for _, i := range index {
-		fields := v.Fields()
-		if i < 0 || i >= len(fields) {
-			return ctfe.Value{}, false
-		}
-		v = fields[i]
-	}
-	return v, true
 }
 
 func reparseTypeAt(text string, pos syntax.Pos) (syntax.Expr, bool) {
@@ -202,16 +170,9 @@ func spellableMatType(t types2.Type, self *types2.Package) bool {
 	if !spellableType(t, self) {
 		return false
 	}
-	// A literal may only assign fields the consumer package can name:
-	// foreign structs with unexported fields fail here and route to the
-	// owned bridge for exact registration instead of a positional
-	// literal the recheck must reject.
 	return matFieldsAssignable(t, self)
 }
 
-// matFieldsAssignable reports whether every struct field reachable from t
-// is exported or belongs to self. Containers recurse into element types
-// so nested private fields propagate the failure; seen guards cycles.
 func matFieldsAssignable(t types2.Type, self *types2.Package) bool {
 	seen := make(map[types2.Type]bool)
 	var walk func(t types2.Type) bool
@@ -420,10 +381,15 @@ func stampMatValue(n syntax.Expr, t types2.Type, c constant.Value) {
 	n.SetTypeInfo(tv)
 }
 
-// BuildMatLiteral builds a fully typed literal for a recorded value
-// with the final rechecked nominal type. It returns nil when the value
-// cannot be built, and the writer fails closed rather than replaying
-// the call.
+func matNil(t types2.Type, pos syntax.Pos) syntax.Expr {
+	n := nilOf(pos)
+	tv := syntax.TypeAndValue{Type: t}
+	tv.SetIsValue()
+	tv.SetIsNil()
+	n.SetTypeInfo(tv)
+	return n
+}
+
 func BuildMatLiteral(v ctfe.Value, t types2.Type, pos syntax.Pos) syntax.Expr {
 	if v.IsNilValue() {
 		return nil
@@ -432,6 +398,9 @@ func BuildMatLiteral(v ctfe.Value, t types2.Type, pos syntax.Pos) syntax.Expr {
 }
 
 func buildMatLiteral(v ctfe.Value, t types2.Type, pos syntax.Pos) syntax.Expr {
+	if v.IsNilValue() || v.Type() != nil && v.Type().Impure != "" {
+		return matNil(t, pos)
+	}
 	ut := types2.Unalias(t)
 	if n, ok := ut.(*types2.Named); ok {
 		ut = n.Underlying()
@@ -568,25 +537,4 @@ func buildMatScalar(v ctfe.Value, t types2.Type, pos syntax.Pos) syntax.Expr {
 		return op
 	}
 	return nil
-}
-
-func matTypeHasOpaquePrivate(t *ctfe.Type) bool {
-	if t == nil {
-		return false
-	}
-	if t.Opaque && t.Named != "" && !token.IsExported(t.Named) {
-		return true
-	}
-	if matTypeHasOpaquePrivate(t.Elem) {
-		return true
-	}
-	if matTypeHasOpaquePrivate(t.Key) {
-		return true
-	}
-	for i := range t.Fields {
-		if matTypeHasOpaquePrivate(t.Fields[i].Type) {
-			return true
-		}
-	}
-	return false
 }

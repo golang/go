@@ -4,10 +4,7 @@
 
 package sync
 
-import (
-	"internal/abi"
-	"unsafe"
-)
+import _ "unsafe"
 
 // defined in package runtime
 
@@ -47,13 +44,6 @@ func runtime_doSpin()
 
 //go:linkname runtime_nanotime
 func runtime_nanotime() int64
-
-// logosPinMapKey pins the heap objects whose address the hash of the key at
-// p depends on under the moving collector (M19-S5, #159).
-//
-//go:linkname logosPinMapKey
-//go:noescape
-func logosPinMapKey(key *abi.Type, p unsafe.Pointer)
 
 //go:linkname throw
 func throw(string)

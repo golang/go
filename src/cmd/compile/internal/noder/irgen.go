@@ -50,8 +50,7 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info, map[*
 
 	didMidway := false
 	didLogos := false
-	didSpecialize := false
-	var logosProvenCarry map[string]bool // logos: invocation-local proof carry; see logosSealProvenCarry.
+	var logosProvenCarry map[string]bool // logos: invocation-local proof carry.
 
 recheck:
 	provenForThisCheck := logosProvenCarry
@@ -90,9 +89,8 @@ recheck:
 	logosConfigureComptime(&conf, info) // logos M5-S2 hook: configure comptime step and node limits.
 	if didLogos {
 		logosConfigureOwnedConstantsLowered(&conf) // generated nodes alone receive fresh private-type references.
-	} else {
-		logosConfigureOwnedConstantsFirst(&conf) // first check: no generated-node registrations.
 	}
+	var logosMisplaced []syntax.Pos
 	conf.Error = func(err error) {
 		terr := err.(types2.Error)
 		if logosDeferSoftWarn(terr) { // logos M6-S3 hook: warn-severity rules never fail, and the lint pass resolves them.
@@ -101,7 +99,8 @@ recheck:
 		if logosReportNilDeref(&m, files, info, terr) { // logos M9-S2 hook: nil_deref_unproven carries autofix candidates.
 			return
 		}
-		if logosReportMisplacedTry(&m, files, info, terr) { // logos tryfix hook: misplaced_try carries a split-statement autofix candidate.
+		if logosMisplacedTryPending(terr) && logosMisplacedTryResolvable(files, terr.Pos) {
+			logosMisplaced = append(logosMisplaced, terr.Pos)
 			return
 		}
 		msg := terr.Msg
@@ -124,6 +123,7 @@ recheck:
 
 	pkg, err := conf.Check(base.Ctxt.Pkgpath, files, info)
 	logosFlushSoftWarns(&m, files, err)
+	logosFlushMisplacedTry(&m, files, info, logosMisplaced)
 	base.ExitIfErrors()
 	if err != nil {
 		base.FatalfAt(src.NoXPos, "conf.Check error: %v", err)
@@ -211,11 +211,11 @@ recheck:
 		didLogos = true
 		logosLintHook(&m, files, pkg, info) // logos M9 hook: lints see the unlowered tree.
 		if logosRecheckHook(&conf, pkg, info, files) {
-			logosProvenCarry = logosSealProvenCarry(&conf)
+			logosProvenCarry = conf.LogosProvenReadonly
 			goto recheck
 		}
 	}
-	logosStampProvenReadonly(pkg, provenForThisCheck)
+	types2.LogosStampProvenReadonly(pkg, provenForThisCheck)
 
 	if buildcfg.Experiment.SIMD && !didMidway {
 		didMidway = true
@@ -232,13 +232,6 @@ recheck:
 			}
 			// necessary to reset type checking
 			typecheck.Target.Imports = nil
-			goto recheck
-		}
-	}
-
-	if !didSpecialize {
-		didSpecialize = true
-		if logosSpecializeHook(pkg, info, files) { // logos M13-S3 hook: clone specialization, a neutral phase for Go and loGo/s packages.
 			goto recheck
 		}
 	}
@@ -263,7 +256,7 @@ recheck:
 
 	writeLogosEject(files)
 	logosNextHook(pkg, info, files)
-	logosEmitAssertFacts(pkg)
+	logosWriteCheckedFacts(pkg, info, files)
 
 	return pkg, info, rangeInfo
 }
@@ -308,6 +301,10 @@ func (f *cycleFinder) visit(typ0 types2.Type) bool {
 
 		case *types2.Basic, *types2.Named, *types2.TypeParam:
 			return false // named types cannot be part of an anonymous cycle
+		case *types2.ConstView, *types2.ReadonlyDescendants:
+			typ0 = unconstView(typ0)
+		case *types2.Option:
+			typ0 = typ.Elem
 		case *types2.Pointer:
 			typ0 = typ.Elem()
 		case *types2.Array:

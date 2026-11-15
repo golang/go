@@ -1,0 +1,45 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+! logos build -o $WORK/direct$GOEXE ./direct
+stderr 'undefined: rt.StringBytes'
+! logos build -o $WORK/reverse$GOEXE ./reverse
+stderr 'undefined: rt.BytesString'
+logos build -o $WORK/view$GOEXE ./view
+exec $WORK/view$GOEXE
+stdout '^120 121$'
+
+-- m/go.mod --
+module example.com/zerocopyexports
+
+go 1.27
+
+-- m/direct/main.lgo --
+package main
+
+import "logos/rt"
+
+func main() {
+	_ = rt.StringBytes("x")
+}
+
+-- m/reverse/main.lgo --
+package main
+
+import "logos/rt"
+
+func main() {
+	_ = rt.BytesString([]byte{'x'})
+}
+
+-- m/view/main.lgo --
+package main
+
+import "fmt"
+
+func main() {
+	s := "xy"
+	b := const []byte(s)
+	fmt.Println(b[0], b[1])
+}

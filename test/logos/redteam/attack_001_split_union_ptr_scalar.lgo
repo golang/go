@@ -2,11 +2,11 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
-// #1: a closed union mixing a pointer member with a scalar member must
-// use the upstream interface representation, so the two members never
-// share one overlapped slot.
 type Node struct{ V int }
 
 type PtrOrInt interface {
@@ -26,9 +26,38 @@ func show(u PtrOrInt) string {
 	}
 }
 
+var failed bool
+
+func check(name string, cond bool, got, want string) {
+	if !cond {
+		fmt.Printf("FAIL %s: got %s want %s\n", name, got, want)
+		failed = true
+		return
+	}
+	fmt.Printf("ok %s\n", name)
+}
+
 func main() {
 	var u PtrOrInt = 3
-	fmt.Println(show(u))
+	if n, ok := u.(int); ok {
+		check("split-union-int-roundtrip", n == 3 && show(u) == "int 3", show(u), "int 3")
+	} else {
+		check("split-union-int-roundtrip", false, show(u), "int 3")
+	}
 	u = &Node{V: 5}
-	fmt.Println(show(u))
+	if p, ok := u.(*Node); ok {
+		check("split-union-pointer-roundtrip", p.V == 5 && show(u) == "node 5", show(u), "node 5")
+	} else {
+		check("split-union-pointer-roundtrip", false, show(u), "node 5")
+	}
+	if w, ok := u.(PtrOrInt); ok {
+		check("split-union-assert-to-union", show(w) == "node 5", show(w), "node 5")
+	} else {
+		check("split-union-assert-to-union", false, "not-member", "node 5")
+	}
+	u = nil
+	check("split-union-nil-arm", show(u) == "nil", show(u), "nil")
+	if failed {
+		os.Exit(1)
+	}
 }

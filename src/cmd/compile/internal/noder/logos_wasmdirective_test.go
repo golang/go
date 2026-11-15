@@ -5,7 +5,6 @@
 package noder
 
 import (
-	"strings"
 	"testing"
 
 	"cmd/compile/internal/syntax"
@@ -53,6 +52,11 @@ func TestRewriteLogosWasmDirectives(t *testing.T) {
 			want: "package main\n//logos:wasmexported f\nfunc f() {}\n",
 		},
 		{
+			name: "longer import name stays a comment",
+			src:  "package main\n//logos:wasmimport_old m f\nfunc f()\n",
+			want: "package main\n//logos:wasmimport_old m f\nfunc f()\n",
+		},
+		{
 			name: "block comment stays a comment",
 			src:  "package main\n/* //logos:wasmexport f */\nfunc f() {}\n",
 			want: "package main\n/* //logos:wasmexport f */\nfunc f() {}\n",
@@ -77,6 +81,11 @@ func TestRewriteLogosWasmDirectives(t *testing.T) {
 			src:  "package main\n\nvar _ = \"héllo\" //logos:wasmexport f\nfunc f() {}\n",
 			want: "package main\n\nvar _ = \"héllo\" //go:wasmexport f\nfunc f() {}\n",
 		},
+		{
+			name: "blank lines between directives",
+			src:  "package main\n\n//logos:wasmexport a\nfunc a() {}\n\n//logos:wasmimport m b\nfunc b()\n",
+			want: "package main\n\n//go:wasmexport a\nfunc a() {}\n\n//go:wasmimport m b\nfunc b()\n",
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -85,13 +94,5 @@ func TestRewriteLogosWasmDirectives(t *testing.T) {
 				t.Errorf("rewrite =\n%q\nwant\n%q", got, c.want)
 			}
 		})
-	}
-}
-
-func TestRewriteLogosWasmDirectivesKeepsLines(t *testing.T) {
-	src := "package main\n\n//logos:wasmexport a\nfunc a() {}\n\n//logos:wasmimport m b\nfunc b()\n"
-	got := string(rewriteLogosWasmDirectives([]byte(src), syntax.LogosMode))
-	if n, m := strings.Count(src, "\n"), strings.Count(got, "\n"); n != m {
-		t.Fatalf("line count changed from %d to %d", n, m)
 	}
 }

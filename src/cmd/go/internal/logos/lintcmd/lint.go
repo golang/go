@@ -2,21 +2,18 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package lintcmd implements logos lint: it runs the compiler lints over
-// the packages of the main module without building binaries.
 package lintcmd
 
 import (
 	"context"
 
 	"cmd/go/internal/base"
-	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
+	"cmd/go/internal/logos/settings"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/work"
 )
 
-// CmdLint implements the logos lint command.
 var CmdLint = &base.Command{
 	UsageLine: "logos lint [build flags] [--pedantic] [--json-diagnostics] [packages]",
 	Short:     "report compiler lints without building binaries",
@@ -34,30 +31,30 @@ at deny, so the directive silences it there.
 
 The //logos:zeroalloc comment on the line above a function declaration
 makes the compiler fail with [perf::zeroalloc_violation] when the function,
-its function literals, or the code inlined into it allocates on the heap.
+its function literals, the code inlined into it, or a function it calls
+allocates on the heap; //logos:zeroalloc local checks the function alone.
 No severity lowers that diagnostic and //logos:allow does not silence it.
-In a Go package only 'logos lint' applies it.
+In a Go package 'logos lint' applies it, and 'logos build' applies it
+where the author wrote the directive.
 
 The build flags are those of 'logos build'. The -pedantic flag enables the
-pedantic group, overriding logos.toml. The -json-diagnostics flag prints
-one JSON object per diagnostic on stderr. Packages of other modules and the
-standard library are never linted.
+pedantic group, raising it from allow to warn. A stricter logos.toml
+severity stays in force, and -pedantic=false turns the group off. The
+-json-diagnostics flag prints one JSON object per diagnostic on stderr.
+Packages of other modules and the standard library are never linted.
 
 See also: logos build.
 	`,
 }
 
-// Register adds the lint subcommand to the logos root command.
 func Register(root *base.Command) {
 	CmdLint.Run = runLint
 	work.AddBuildFlags(CmdLint, work.OmitVFlag|work.OmitBuildOnlyFlags)
 	root.Commands = append(root.Commands, CmdLint)
 }
 
-// runLint loads the packages and runs one lint action for each package of
-// a main module.
 func runLint(ctx context.Context, cmd *base.Command, args []string) {
-	cfg.LogosLintCmd = true
+	settings.CommandLine.LintCmd = true
 	moduleLoader := modload.NewLoader()
 	moduleLoader.InitWorkfile()
 	work.BuildInit(moduleLoader)
@@ -73,9 +70,6 @@ func runLint(ctx context.Context, cmd *base.Command, args []string) {
 	for _, p := range pkgs {
 		if work.LintsPackage(p) {
 			root.Deps = append(root.Deps, b.LintAction(p))
-			if na := b.NogoAction(moduleLoader, p); na != nil {
-				root.Deps = append(root.Deps, na)
-			}
 		}
 	}
 	b.Do(ctx, root)

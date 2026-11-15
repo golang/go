@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// M7-S2 parser coverage: `const for` statements and `.[f]` projections
-// (SPEC Sec 2.5, T-205). Every form below parses cleanly in LogosMode;
-// the semantic rules (struct-only range, field resolution, live errors)
-// are pinned by the types2 and run fixtures instead of here.
-
 package p
 
 import "comptime"

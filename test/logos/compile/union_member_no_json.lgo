@@ -1,0 +1,19 @@
+// errorcheck
+
+package p
+
+type circle struct {
+	R float64
+}
+
+type Square struct {
+	S int64 `json:"s"`
+}
+
+type Shape interface {
+	*circle | *Square
+}
+
+type Holder struct {
+	Item Shape `json:"item"` // ERROR "\[correctness::union_member_no_json\]"
+}

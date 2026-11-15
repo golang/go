@@ -7,30 +7,21 @@ package testlogos
 import (
 	"bytes"
 	"context"
+	"errors"
+	"fmt"
+	"github.com/google/pprof/profile"
 	"internal/goexperiment"
-	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"runtime/debug"
 	"runtime/pprof"
-	"slices"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
 	"time"
+	"weak"
 )
-
-// The battery below covers M20-S1. Tests marked ATTACK fail red before
-// the slice lands (missing symbol, plain emission, ignored directive)
-// for the predicted reason; tests marked PIN hold green on both paths
-// and guard the parity the slice requires. The whole suite runs twice
-// in the slice gate: with GOEXPERIMENT=logosfastcgo and with
-// GOEXPERIMENT=nologosfastcgo. The nocallback, blocking-parity, and
-// profile attacks pass under both settings; the routing attacks only
-// pass once cmd/cgo emits the fast entry.
 
 func requireCgo(t testing.TB) {
 	t.Helper()
@@ -77,22 +68,11 @@ func isExec(p string) bool {
 
 func runCmd(t *testing.T, dir, name string, args ...string) (string, error) {
 	t.Helper()
-	return runCmdEnv(t, dir, nil, name, args...)
-}
-
-// runCmdEnv runs a command with extra environment entries appended. It
-// exists so a child build can be told the experiment this test binary was
-// built with: the child is the plain go command, which never applies the
-// managed default, so an inherited environment alone would build the other
-// personality and the structure assertions would compare unlike bodies.
-func runCmdEnv(t *testing.T, dir string, extraEnv []string, name string, args ...string) (string, error) {
-	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "GOPROXY=off", "GOTOOLCHAIN=local")
-	cmd.Env = append(cmd.Env, extraEnv...)
 	var buf bytes.Buffer
 	cmd.Stdout = &buf
 	cmd.Stderr = &buf
@@ -118,8 +98,6 @@ func cgoBin(t *testing.T) string {
 	return p
 }
 
-// TestFastcallCorrectness PIN: arithmetic, pointer reads, slice sums,
-// and sleeps agree on both paths.
 func TestFastcallCorrectness(t *testing.T) {
 	requireCgo(t)
 	if got := callFastAdd(40, 2); got != 42 {
@@ -149,8 +127,6 @@ func TestFastcallCorrectness(t *testing.T) {
 	}
 }
 
-// cgoOutputs runs the cgo tool over one scratch input and returns the
-// objdir listing plus file contents keyed by base name.
 func cgoOutputs(t *testing.T, input, src string) (dir string, files map[string]string) {
 	t.Helper()
 	requireCgo(t)
@@ -184,8 +160,6 @@ func cgoOutputs(t *testing.T, input, src string) (dir string, files map[string]s
 	return out, files
 }
 
-// countCallLines counts generated call lines invoking callee, ignoring
-// the linkname declarations in the prolog (those start at column 0).
 func countCallLines(src, callee string) int {
 	n := 0
 	for line := range strings.SplitSeq(src, "\n") {
@@ -241,10 +215,8 @@ func Sum(b []byte) int32 {
 }
 `
 
-// TestFastcallEmission ATTACK: cmd/cgo emits the fast entry for the
-// directive pair and keeps the plain entry for single directives.
-// Red before: every wrapper calls _cgo_runtime_cgocall.
 func TestFastcallEmission(t *testing.T) {
+	t.Setenv("GOEXPERIMENT", "logosfastcgo")
 	_, files := cgoOutputs(t, "fast.go", pairPreamble)
 	gotypes, ok := files["_cgo_gotypes.go"]
 	if !ok {
@@ -285,10 +257,8 @@ func Nocallback(a, b int32) int32 { return int32(C.slow_nocallback(C.int(a), C.i
 	}
 }
 
-// TestFastcallLogosSpelling ATTACK: //logos:cgo_fastcall in a .lgo
-// input maps to the same pair. Red before: the line is ignored and the
-// wrapper takes the plain entry.
 func TestFastcallLogosSpelling(t *testing.T) {
+	t.Setenv("GOEXPERIMENT", "logosfastcgo")
 	const src = `package fast
 
 /*
@@ -310,11 +280,17 @@ func Add(a, b int32) int32 { return int32(C.ladd(C.int(a), C.int(b))) }
 	if got := countCallLines(gotypes, "_cgo_runtime_cgocall"); got != 0 {
 		t.Fatalf("plain calls = %d, want 0", got)
 	}
+	if got := countCallLines(gotypes, "_Cgo_keepalive"); got != 2 {
+		t.Fatalf("keepalive uses = %d, want 2", got)
+	}
+	if got := countCallLines(gotypes, "_Cgo_use"); got != 0 {
+		t.Fatalf("escape uses = %d, want 0", got)
+	}
+	if got := countCallLines(gotypes, "_Cgo_no_callback"); got != 0 {
+		t.Fatalf("callback guards = %d, want 0", got)
+	}
 }
 
-// TestFastcallUnmatched ATTACK: a fastcall name with no matched C
-// function fails like the pair does. Red before: cgo succeeds because
-// the //logos:cgo_fastcall line is ignored.
 func TestFastcallUnmatched(t *testing.T) {
 	requireCgo(t)
 	work := t.TempDir()
@@ -344,10 +320,72 @@ func Call() int32 { return int32(C.real_fn(1)) }
 	}
 }
 
-// TestFastcallPointerChecks PIN: POD, unsafe-derived, and
-// primitive-slice fast call sites emit no _cgoCheckPointer call, while
-// a pointer-to-pointer argument keeps its check. No new elision runs
-// in rewriteCall.
+func TestFastcallMarksCarryBoth(t *testing.T) {
+	const head = `package fast
+
+/*
+#include <stdint.h>
+
+`
+	const tail = `
+int mark_fn(int *p) { return *p + 1; }
+*/
+import "C"
+
+import "unsafe"
+
+func Mark(p *int32) int32 { return int32(C.mark_fn((*C.int)(unsafe.Pointer(p)))) }
+`
+	cases := []struct {
+		name       string
+		directives string
+		fast       int
+		plain      int
+		keepalive  int
+		use        int
+		guards     int
+	}{
+		{"both", "#cgo noescape mark_fn\n#cgo nocallback mark_fn\n", 1, 0, 1, 0, 0},
+		{"noescape", "#cgo noescape mark_fn\n", 0, 1, 0, 1, 0},
+		{"nocallback", "#cgo nocallback mark_fn\n", 0, 1, 0, 1, 2},
+		{"none", "", 0, 1, 0, 1, 0},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			fast, plain, keepalive, use, guards := c.fast, c.plain, c.keepalive, c.use, c.guards
+			if !goexperiment.LogosFastCgo && c.name == "both" {
+				fast, plain, keepalive, use, guards = 0, 1, 1, 0, 2
+			}
+			_, files := cgoOutputs(t, "mark.go", head+c.directives+tail)
+			gotypes, ok := files["_cgo_gotypes.go"]
+			if !ok {
+				t.Fatal("no _cgo_gotypes.go emitted")
+			}
+			if got := countCallLines(gotypes, "_cgo_runtime_cgocall_fast"); got != fast {
+				t.Errorf("fast calls = %d, want %d", got, fast)
+			}
+			plainGot := 0
+			for line := range strings.SplitSeq(gotypes, "\n") {
+				if strings.HasPrefix(line, "\t") && strings.Contains(line, "_cgo_runtime_cgocall(") && !strings.Contains(line, "_fast(") {
+					plainGot++
+				}
+			}
+			if plainGot != plain {
+				t.Errorf("plain calls = %d, want %d", plainGot, plain)
+			}
+			if got := countCallLines(gotypes, "_Cgo_keepalive"); got != keepalive {
+				t.Errorf("keepalive uses = %d, want %d", got, keepalive)
+			}
+			if got := countCallLines(gotypes, "_Cgo_use"); got != use {
+				t.Errorf("escape uses = %d, want %d", got, use)
+			}
+			if got := countCallLines(gotypes, "_Cgo_no_callback"); got != guards {
+				t.Errorf("callback guards = %d, want %d", got, guards)
+			}
+		})
+	}
+}
+
 func TestFastcallPointerChecks(t *testing.T) {
 	_, files := cgoOutputs(t, "fast.go", pairPreamble)
 	var cgo1 string
@@ -364,8 +402,6 @@ func TestFastcallPointerChecks(t *testing.T) {
 	}
 }
 
-// TestFastcallLayout PIN: the generated file names keep the upstream
-// set: one stem-named pair per input plus the package outputs.
 func TestFastcallLayout(t *testing.T) {
 	_, files := cgoOutputs(t, "fast.go", pairPreamble)
 	var cgo1, cgo2 int
@@ -391,32 +427,18 @@ func TestFastcallLayout(t *testing.T) {
 	}
 }
 
-// selfTestBin builds an unstripped test binary for inspection. Plain
-// `go test` links run-mode binaries with -s -w, so os.Executable()
-// carries no symbol section; `go test -c` preserves it.
-//
-// The inner build is told the experiment this test binary was compiled
-// with. The child is the plain go command, which never applies a managed
-// default, so relying on the inherited environment would build the other
-// personality under `logos test` and the structure assertion would
-// compare unlike bodies.
 func selfTestBin(t *testing.T) string {
 	t.Helper()
 	requireCgo(t)
 	bin := filepath.Join(t.TempDir(), "testlogos.test")
 	srcCmd := filepath.Join(runtime.GOROOT(), "src", "cmd")
-	exp := "GOEXPERIMENT=nologosfastcgo"
-	if goexperiment.LogosFastCgo {
-		exp = "GOEXPERIMENT=logosfastcgo"
-	}
-	out, err := runCmdEnv(t, srcCmd, []string{exp}, goBin(t), "test", "-c", "-o", bin, "cmd/cgo/internal/testlogos")
+	out, err := runCmd(t, srcCmd, goBin(t), "test", "-c", "-o", bin, "cmd/cgo/internal/testlogos")
 	if err != nil {
 		t.Fatalf("self build: %v\n%s", err, out)
 	}
 	return bin
 }
 
-// nmLines returns the symbol table of binary, one line per symbol.
 func nmLines(t *testing.T, binary string) []string {
 	t.Helper()
 	out, err := runCmd(t, "", goBin(t), "tool", "nm", binary)
@@ -426,9 +448,6 @@ func nmLines(t *testing.T, binary string) []string {
 	return strings.Split(out, "\n")
 }
 
-// TestFastcallOneTrampoline ATTACK: the linked test binary holds exactly
-// one logosCgocallFast text symbol and no rival fast-cgo entry.
-// Red before: the symbol does not exist.
 func TestFastcallOneTrampoline(t *testing.T) {
 	self := selfTestBin(t)
 	defs := 0
@@ -450,12 +469,15 @@ func TestFastcallOneTrampoline(t *testing.T) {
 			t.Fatalf("stale PLAN symbol name %s", line)
 		}
 	}
-	if defs != 1 {
-		t.Fatalf("runtime.logosCgocallFast text definitions = %d, want 1", defs)
+	wantDefs := 1
+	if !goexperiment.LogosFastCgo {
+		wantDefs = 0
+	}
+	if defs != wantDefs {
+		t.Fatalf("runtime.logosCgocallFast text definitions = %d, want %d", defs, wantDefs)
 	}
 }
 
-// objdumpFunc returns the disassembly chunk for one symbol.
 func objdumpFunc(t *testing.T, binary, symbol string) string {
 	t.Helper()
 	out, err := runCmd(t, "", goBin(t), "tool", "objdump", "-s", symbol, binary)
@@ -465,162 +487,138 @@ func objdumpFunc(t *testing.T, binary, symbol string) string {
 	return out
 }
 
-// TestFastcallStructure ATTACK: the trampoline body performs the status
-// dance through the standard entries and, with the experiment on,
-// contains no fallback call into plain cgocall. With the experiment
-// off it is a stub over cgocall. Red before: no such symbol.
 func TestFastcallStructure(t *testing.T) {
 	self := selfTestBin(t)
+	if !goexperiment.LogosFastCgo {
+		for _, line := range nmLines(t, self) {
+			if strings.Contains(line, "logosCgocallFast") {
+				t.Fatalf("unflagged binary references the fast path: %s", line)
+			}
+		}
+		body := objdumpFunc(t, self, "testlogos\\._Cfunc_fast_add")
+		if !strings.Contains(body, "CALL runtime.cgocall(SB)") {
+			t.Fatalf("unflagged fallback lacks the plain cgocall:\n%s", body)
+		}
+		if strings.Contains(body, "asmcgocall") || strings.Contains(body, "logosCgocallFast") {
+			t.Fatalf("unflagged fallback leaves the fast path:\n%s", body)
+		}
+		return
+	}
 	body := objdumpFunc(t, self, "runtime\\.logosCgocallFast")
 	if !strings.Contains(body, "logosCgocallFast") {
 		t.Fatalf("no logosCgocallFast disassembly:\n%s", body)
 	}
-	if goexperiment.LogosFastCgo {
-		for _, want := range []string{"asmcgocall", "reentersyscall", "exitsyscall"} {
-			if !strings.Contains(body, want) {
-				t.Fatalf("fast body lacks %s:\n%s", want, body)
-			}
+	for _, want := range []string{"asmcgocall", "reentersyscall", "exitsyscall"} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("fast body lacks %s:\n%s", want, body)
 		}
-		// No plain call at all: with the experiment on, the
-		// `if !goexperiment.LogosFastCgo { return cgocall(...) }`
-		// branch folds away, so any CALL runtime.cgocall left in the
-		// fast body is a fallback that failed to prune.
-		if got := strings.Count(body, "CALL runtime.cgocall(SB)"); got != 0 {
-			t.Fatalf("fast body has %d plain cgocall calls, want 0 (fallback must be pruned):\n%s", got, body)
-		}
-	} else {
-		if !strings.Contains(body, "runtime.cgocall(SB)") {
-			t.Fatalf("fallback body lacks plain cgocall call:\n%s", body)
-		}
-		if strings.Contains(body, "asmcgocall") {
-			t.Fatalf("fallback body reaches asmcgocall directly:\n%s", body)
-		}
+	}
+	if got := strings.Count(body, "CALL runtime.cgocall(SB)"); got != 0 {
+		t.Fatalf("fast body has %d plain cgocall calls, want 0 (fallback must be pruned):\n%s", got, body)
 	}
 }
 
-// delayStats reports the median and population standard deviation.
-func delayStats(ds []float64) (median, stddev float64) {
-	cp := slices.Clone(ds)
-	slices.Sort(cp)
-	median = cp[len(cp)/2]
-	var sum, sq float64
-	for _, d := range cp {
-		sum += d
-		sq += d * d
-	}
-	mean := sum / float64(len(cp))
-	v := sq/float64(len(cp)) - mean*mean
-	if v < 0 {
-		v = 0
-	}
-	return median, math.Sqrt(v)
-}
-
-// oneDelay measures how long a freshly runnable goroutine waits before
-// it runs while another goroutine blocks in sleepFn. The waiter is
-// pre-created and parked; the blocker stamps t0, releases it, and
-// enters C, so the waiter contends for the P sysmon retakes. Without
-// a retake it would wait out the whole sleep.
-func oneDelay(sleepFn func(micros int32) int32) float64 {
-	ready := make(chan struct{})
-	aDone := make(chan struct{})
-	bDelay := make(chan time.Duration, 1)
-	var t0 time.Time
-	var wg sync.WaitGroup
-	wg.Go(func() {
-		<-ready
-		bDelay <- time.Since(t0)
-	})
-	wg.Go(func() {
-		defer close(aDone)
-		t0 = time.Now()
-		close(ready)
-		sleepFn(100)
-	})
-	d := float64((<-bDelay).Microseconds())
-	<-aDone
-	wg.Wait()
-	return d
-}
-
-// readyDelays collects N measurements per path, alternating fast and
-// plain iterations so host drift lands on both series equally.
-func readyDelays(t *testing.T, n int) (fast, plain []float64) {
-	t.Helper()
-	oldMax := runtime.GOMAXPROCS(1)
-	defer runtime.GOMAXPROCS(oldMax)
-	oldGC := debug.SetGCPercent(-1)
-	defer debug.SetGCPercent(oldGC)
-	fast = make([]float64, 0, n)
-	plain = make([]float64, 0, n)
-	for range n {
-		fast = append(fast, oneDelay(callFastSleep))
-		plain = append(plain, oneDelay(callPlainSleep))
-	}
-	return fast, plain
-}
-
-// TestFastcallBlockingParity PIN (#5, #88): a blocking fast call delays
-// a ready goroutine no longer than the same sleep on the plain path.
-// A failed noise limit blocks the check (Skip), never passes it.
 func TestFastcallBlockingParity(t *testing.T) {
 	requireCgo(t)
-	if testUnderRace {
-		t.Skip("timing gates need quiet scheduling; the race detector perturbs " +
-			"us-scale delays past the 20% noise band. Entry and exit still run " +
-			"under race in the other tests.")
+	oldMax := runtime.GOMAXPROCS(1)
+	defer runtime.GOMAXPROCS(oldMax)
+	readyR, readyW, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
 	}
-	const n = 200
-	fast, plain := readyDelays(t, 200)
-	fmed, fsd := delayStats(fast)
-	pmed, psd := delayStats(plain)
-	t.Logf("ready delay: fast median %.1fus (sd %.1f), plain median %.1fus (sd %.1f)",
-		fmed, fsd, pmed, psd)
-	if fsd > 0.2*fmed || psd > 0.2*pmed {
-		t.Skipf("noise limit exceeded, check blocked: fast sd %.1f med %.1f, plain sd %.1f med %.1f",
-			fsd, fmed, psd, pmed)
+	defer readyR.Close()
+	defer readyW.Close()
+	gateR, gateW, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
 	}
-	if fmed > 1.05*pmed {
-		t.Fatalf("fast median %.1fus exceeds 1.05x plain median %.1fus", fmed, pmed)
+	defer gateR.Close()
+	defer gateW.Close()
+	done := make(chan int32, 1)
+	go func() {
+		done <- callFastGateWait(int32(readyW.Fd()), int32(gateR.Fd()))
+	}()
+	type readyRes struct {
+		n    int
+		rerr error
+	}
+	readyCh := make(chan readyRes, 1)
+	go func() {
+		var b [1]byte
+		n, rerr := readyR.Read(b[:])
+		readyCh <- readyRes{n, rerr}
+	}()
+	select {
+	case rr := <-readyCh:
+		if rr.n != 1 || rr.rerr != nil {
+			t.Fatalf("ready read = %d, %v, want 1 byte", rr.n, rr.rerr)
+		}
+	case code := <-done:
+		t.Fatalf("gate_wait = %d before ready signal", code)
+	}
+	prog := make(chan struct{})
+	go func() {
+		close(prog)
+	}()
+	select {
+	case <-prog:
+	case code := <-done:
+		t.Fatalf("gate_wait = %d while waiting for progress, P was not released", code)
+	}
+	select {
+	case code := <-done:
+		if code == 2 {
+			t.Fatal("fast call timed out waiting for gate release, P was not released")
+		}
+		t.Fatalf("fast call returned %d before gate release", code)
+	default:
+	}
+	if _, werr := gateW.Write([]byte{0}); werr != nil {
+		t.Fatal(werr)
+	}
+	select {
+	case code := <-done:
+		if code != 0 {
+			t.Fatalf("gate_wait = %d, want 0", code)
+		}
+	case <-time.After(30 * time.Second):
+		t.Fatal("fast call did not return within 30s of gate release")
 	}
 }
 
-// TestFastcallSigprofSurvives PIN (#165, #173): profiling across fast
-// calls completes and records samples instead of crashing.
 func TestFastcallSigprofSurvives(t *testing.T) {
 	requireCgo(t)
 	prof := filepath.Join(t.TempDir(), "cpu.prof")
-	f, err := os.Create(prof)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := pprof.StartCPUProfile(f); err != nil {
-		f.Close()
-		t.Fatal(err)
-	}
-	deadline := time.Now().Add(500 * time.Millisecond)
-	var sink int32
-	for time.Now().Before(deadline) {
-		for i := range int32(100) {
-			sink += callFastAdd(i, i)
+	const floor = 50
+	const maxIters = 2000000000
+	deadline := time.Now().Add(120 * time.Second)
+	iters := uint64(100000000)
+	var n, total int
+	for {
+		collectBusyProfile(t, prof, 10, callFastBusy, iters)
+		n, total = profileCallerSamples(t, prof, "callFastBusy")
+		t.Logf("fast caller %d of %d samples", n, total)
+		if n == 0 && total >= floor {
+			t.Fatalf("fast-call frames missing from profile: fast caller %d of %d samples (floor %d)",
+				n, total, floor)
 		}
+		if n >= floor {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("sigprof floor unmet: fast caller %d of %d samples (floor %d)",
+				n, total, floor)
+		}
+		iters = growProfileWork(total, floor, iters, maxIters)
 	}
-	pprof.StopCPUProfile()
-	f.Close()
-	fi, err := os.Stat(prof)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if fi.Size() == 0 {
+	if total == 0 {
 		t.Fatal("empty cpu profile")
 	}
-	_ = sink
+	if fi, serr := os.Stat(prof); serr != nil || fi.Size() == 0 {
+		t.Fatal("empty cpu profile")
+	}
 }
 
-// pprofNodes runs go tool pprof -top and parses every data line into
-// cumulative shares keyed by symbol, returning the top entry and its
-// share too. C time lands on the call-site chain; cum shares propagate
-// to callers regardless of wrapper inlining.
 func pprofNodes(t *testing.T, binary, prof string) (top string, topShare float64, shares map[string]float64) {
 	t.Helper()
 	out, err := runCmd(t, "", goBin(t), "tool", "pprof", "-top", "-nodecount=50", binary, prof)
@@ -661,18 +659,6 @@ func pprofNodes(t *testing.T, binary, prof string) (top string, topShare float64
 	return top, topShare, shares
 }
 
-// nodeShare returns the cumulative share of the first node containing
-// want, or 0 when no node does.
-func nodeShare(shares map[string]float64, want string) float64 {
-	for name, v := range shares {
-		if strings.Contains(name, want) {
-			return v
-		}
-	}
-	return 0
-}
-
-// topIn reports whether top names one of the accepted call-site symbols.
 func topIn(top string, wants []string) bool {
 	for _, w := range wants {
 		if strings.Contains(top, w) {
@@ -682,8 +668,6 @@ func topIn(top string, wants []string) bool {
 	return false
 }
 
-// collectBusyProfile profiles count busy calls through fn and stores
-// the profile at prof. It returns the observed call count.
 func collectBusyProfile(t *testing.T, prof string, count int, fn func(uint64) uint64, iters uint64) {
 	t.Helper()
 	f, err := os.Create(prof)
@@ -703,9 +687,122 @@ func collectBusyProfile(t *testing.T, prof string, count int, fn func(uint64) ui
 	_ = sink
 }
 
-// TestFastcallProfileAttribution PIN (#189): C time on the fast path is
-// attributed to the Go call site, within 5 points of the plain path.
-// Thin samples block the check (Skip).
+func goSpinSink(iters uint64) uint64 {
+	x := uint64(1)
+	for i := uint64(0); i < iters; i++ {
+		x += x*6364136223846793005 + 1442695040888963407
+	}
+	return x
+}
+
+func profileCanarySamples(t *testing.T) int {
+	t.Helper()
+	prof := filepath.Join(t.TempDir(), "canary.prof")
+	collectBusyProfile(t, prof, 10, goSpinSink, 100000000)
+	_, total := profileCallerSamples(t, prof, "goSpinSink")
+	return total
+}
+
+const fastcallProfileFloorSamples = 200
+const fastcallAttributionFloorSamples = 100
+const fastcallProfileCap = 300 * time.Second
+
+func growProfileWork(total, floor int, work, maxWork uint64) uint64 {
+	factor := uint64(2)
+	if total > 0 {
+		f := (2*uint64(floor) + uint64(total) - 1) / uint64(total)
+		factor = max(f, factor)
+	}
+	return min(work*factor, maxWork)
+}
+
+func profileCallerSamples(t *testing.T, prof string, want string) (found, total int) {
+	t.Helper()
+	f, err := os.Open(prof)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	p, err := profile.Parse(f)
+	if err != nil {
+		t.Fatalf("parse profile %s: %v", prof, err)
+	}
+	for _, s := range p.Sample {
+		n := 1
+		if len(s.Value) > 0 {
+			n = int(s.Value[0])
+		}
+		total += n
+		for _, loc := range s.Location {
+			hit := false
+			for _, line := range loc.Line {
+				if line.Function != nil && strings.Contains(line.Function.Name, want) {
+					hit = true
+					break
+				}
+			}
+			if hit {
+				found += n
+				break
+			}
+		}
+	}
+	return found, total
+}
+
+func profileCallerAboveLeafSamples(t *testing.T, prof, caller, leaf string) (above, total int) {
+	t.Helper()
+	f, err := os.Open(prof)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	p, err := profile.Parse(f)
+	if err != nil {
+		t.Fatalf("parse profile %s: %v", prof, err)
+	}
+	for _, s := range p.Sample {
+		n := 1
+		if len(s.Value) > 0 {
+			n = int(s.Value[0])
+		}
+		total += n
+		if sampleCallerAboveLeaf(s, caller, leaf) {
+			above += n
+		}
+	}
+	return above, total
+}
+
+func sampleCallerAboveLeaf(s *profile.Sample, caller, leaf string) bool {
+	ci, li := -1, -1
+	for i, loc := range s.Location {
+		hasCaller, hasLeaf := locationMentions(loc, caller, leaf)
+		if hasCaller && ci < 0 {
+			ci = i
+		}
+		if hasLeaf && li < 0 {
+			li = i
+		}
+	}
+	return li >= 0 && ci > li
+}
+
+func locationMentions(loc *profile.Location, caller, leaf string) (bool, bool) {
+	if loc == nil {
+		return false, false
+	}
+	var hasCaller, hasLeaf bool
+	for _, line := range loc.Line {
+		if line.Function == nil {
+			continue
+		}
+		hasCaller = hasCaller || strings.Contains(line.Function.Name, caller)
+		hasLeaf = hasLeaf || strings.Contains(line.Function.Name, leaf)
+	}
+	return hasCaller, hasLeaf
+}
+
 func TestFastcallProfileAttribution(t *testing.T) {
 	requireCgo(t)
 	self, err := os.Executable()
@@ -715,39 +812,92 @@ func TestFastcallProfileAttribution(t *testing.T) {
 	dir := t.TempDir()
 	fastProf := filepath.Join(dir, "fast.prof")
 	plainProf := filepath.Join(dir, "plain.prof")
-	const iters = 200000000
-	collectBusyProfile(t, fastProf, 4, callFastBusy, iters)
-	collectBusyProfile(t, plainProf, 4, callPlainBusy, iters)
+	const maxIters = 1000000000
+	fastIters := uint64(100000000)
+	plainIters := uint64(100000000)
 	fastWants := []string{"callFastBusy", "_Cfunc_busy_spin"}
 	plainWants := []string{"callPlainBusy", "_Cfunc_plain_spin", "runtime.cgocall"}
 	if !goexperiment.LogosFastCgo {
-		// No fast path in fallback mode: the entry delegates to
-		// plain cgocall, so its frames top the profile like plain.
 		fastWants = append(fastWants, "logosCgocallFast", "runtime.cgocall")
 	}
-	topFast, _, fastShares := pprofNodes(t, self, fastProf)
-	topPlain, _, plainShares := pprofNodes(t, self, plainProf)
-	fastCaller := nodeShare(fastShares, "callFastBusy")
-	plainCaller := nodeShare(plainShares, "callPlainBusy")
-	t.Logf("top: fast %q caller %.1f%%, plain %q caller %.1f%%",
-		topFast, fastCaller, topPlain, plainCaller)
-	if fastCaller < 50 || plainCaller < 50 {
-		t.Skipf("thin profile, check blocked: fast caller %.1f%% plain caller %.1f%%",
-			fastCaller, plainCaller)
+	var fastN, plainN, fastTotal, plainTotal int
+	met := false
+	deadline := time.Now().Add(fastcallProfileCap)
+	for {
+		collectBusyProfile(t, fastProf, 30, callFastBusy, fastIters)
+		collectBusyProfile(t, plainProf, 30, callPlainBusy, plainIters)
+		fastN, fastTotal = profileCallerSamples(t, fastProf, "callFastBusy")
+		plainN, plainTotal = profileCallerSamples(t, plainProf, "callPlainBusy")
+		t.Logf("fast caller %d of %d samples, plain caller %d of %d samples",
+			fastN, fastTotal, plainN, plainTotal)
+		if fastN == 0 && plainN >= fastcallProfileFloorSamples {
+			t.Fatalf("fast-call frames missing from profile: fast caller %d of %d samples, plain caller %d of %d samples (floor %d)",
+				fastN, fastTotal, plainN, plainTotal, fastcallProfileFloorSamples)
+		}
+		if fastN >= fastcallProfileFloorSamples && plainN >= fastcallProfileFloorSamples {
+			met = true
+			break
+		}
+		if time.Now().After(deadline) {
+			break
+		}
+		fastIters = growProfileWork(fastTotal, fastcallProfileFloorSamples, fastIters, maxIters)
+		plainIters = growProfileWork(plainTotal, fastcallProfileFloorSamples, plainIters, maxIters)
 	}
+	if !met {
+		if fastTotal == 0 && plainTotal == 0 {
+			if profileCanarySamples(t) > 0 {
+				t.Fatalf("profiler works but yielded no fast/plain samples: fast caller %d of %d, plain caller %d of %d (floor %d)",
+					fastN, fastTotal, plainN, plainTotal, fastcallProfileFloorSamples)
+			}
+			t.Skipf("CPU profiler yielded no samples in %v of collection; cannot attribute fast-call frames", fastcallProfileCap)
+		}
+		t.Fatalf("profile floor unmet: fast caller %d of %d samples, plain caller %d of %d samples (floor %d)",
+			fastN, fastTotal, plainN, plainTotal, fastcallProfileFloorSamples)
+	}
+	topFast, _, _ := pprofNodes(t, self, fastProf)
+	topPlain, _, _ := pprofNodes(t, self, plainProf)
 	if !topIn(topFast, fastWants) {
 		t.Fatalf("fast top entry = %q, want the call site", topFast)
 	}
 	if !topIn(topPlain, plainWants) {
 		t.Fatalf("plain top entry = %q, want the call site", topPlain)
 	}
-	if diff := fastCaller - plainCaller; diff < -5 || diff > 5 {
-		t.Fatalf("caller attribution differs by %.1f points", diff)
+	above, aboveTotal := profileCallerAboveLeafSamples(t, fastProf, "callFastBusy", "busy_spin")
+	if above < fastcallAttributionFloorSamples {
+		t.Fatalf("%d of %d fast samples hold the Go call site above the fast C frame, want at least %d",
+			above, aboveTotal, fastcallAttributionFloorSamples)
 	}
 }
 
-// violatorBin builds the violation child for mode ("" for the pair,
-// "plain" for nocallback alone).
+func TestFastcallMarkerCallPath(t *testing.T) {
+	requireCgo(t)
+	wantFast := goexperiment.LogosFastCgo
+	bin := fixtureBin(t, "markers")
+	for _, c := range []struct {
+		pkg  string
+		fn   string
+		fast bool
+	}{
+		{"ok", "ladd_ok", wantFast},
+		{"arity", "ladd_arity", false},
+		{"nonpre", "ladd_nonpre", false},
+	} {
+		body := objdumpFunc(t, bin, fmt.Sprintf(`example\.com/markers/%s\._Cfunc_%s`, c.pkg, c.fn))
+		fast := strings.Contains(body, "runtime.logosCgocallFast")
+		slow := strings.Contains(body, "runtime.cgocall")
+		if c.fast && !fast {
+			t.Fatalf("%s marker did not call the fast trampoline:\n%s", c.pkg, body)
+		}
+		if !c.fast && fast {
+			t.Fatalf("%s marker with a malformed preamble still called the fast trampoline:\n%s", c.pkg, body)
+		}
+		if !c.fast && !slow {
+			t.Fatalf("%s marker called neither trampoline:\n%s", c.pkg, body)
+		}
+	}
+}
+
 func violatorBin(t *testing.T, mode string) (bin string, out string) {
 	t.Helper()
 	requireCgo(t)
@@ -767,30 +917,39 @@ func violatorBin(t *testing.T, mode string) (bin string, out string) {
 	return bin, out
 }
 
-// checkViolation asserts the child protocol: callback panic, stuck
-// flag on the repeat, and a healthy unmarked call after.
 func checkViolation(t *testing.T, mode, out string) {
 	t.Helper()
 	lines := strings.Split(strings.TrimSpace(out), "\n")
-	if len(lines) != 3 {
-		t.Fatalf("violator %q printed %d lines, want 3:\n%s", mode, len(lines), out)
+	if len(lines) != 3 || !strings.Contains(lines[0], "marked with #cgo nocallback called back into Go") {
+		t.Fatalf("violator %q output = %q, want the recovered nocallback message first", mode, out)
 	}
-	if !strings.Contains(lines[0], "marked with #cgo nocallback called back into Go") {
-		t.Fatalf("first line = %q, want the nocallback message", lines[0])
+	if mode == "plain" {
+		if !strings.Contains(lines[1], "unexpected setting cgoNoCallback") {
+			t.Fatalf("second line = %q, want the stuck-flag message", lines[1])
+		}
+		if strings.TrimSpace(lines[2]) != "add: 42" {
+			t.Fatalf("third line = %q, want add: 42", lines[2])
+		}
+		return
 	}
-	if !strings.Contains(lines[1], "unexpected setting cgoNoCallback") {
-		t.Fatalf("second line = %q, want the stuck-flag message", lines[1])
+	var ok, total int
+	if n, err := fmt.Sscanf(lines[1], "loop: %d/%d", &ok, &total); n != 2 || err != nil || total <= 0 {
+		t.Fatalf("violator %q loop line = %q, want loop: <ok>/<total>", mode, lines[1])
 	}
-	if strings.TrimSpace(lines[2]) != "add: 42" {
-		t.Fatalf("third line = %q, want add: 42", lines[2])
+	if goexperiment.LogosFastCgo {
+		if ok != total {
+			t.Fatalf("violator %q recovered the nocallback panic %d of %d times", mode, ok, total)
+		}
+		if strings.TrimSpace(lines[2]) != "add: 42" {
+			t.Fatalf("third line = %q, want the clean fast call result", lines[2])
+		}
+		return
+	}
+	if !strings.Contains(lines[2], "unexpected setting cgoNoCallback") {
+		t.Fatalf("third line = %q, want the upstream stuck-flag message", lines[2])
 	}
 }
 
-// TestFastcallNoCallbackViolation PIN (#188): a pair-marked C function
-// that calls back into Go panics with the documented message, finishes
-// within the test deadline instead of hanging, and leaves unmarked
-// calls healthy. The violation runs isolated in a child: recovering
-// in-process would return its locked goroutine to the pool.
 func TestFastcallNoCallbackViolation(t *testing.T) {
 	_, out := violatorBin(t, "")
 	checkViolation(t, "", out)
@@ -809,28 +968,183 @@ func TestFastcallNoCallbackViolation(t *testing.T) {
 	}
 }
 
-// TestFastcallCallbackParity PIN (#188): the plain path follows the
-// same protocol line for line.
-func TestFastcallCallbackParity(t *testing.T) {
-	_, out := violatorBin(t, "plain")
-	checkViolation(t, "plain", out)
-}
-
-// TestFastcallGoPointerValid PIN (#160): a Go pointer argument stays
-// valid across the fast call.
-func TestFastcallGoPointerValid(t *testing.T) {
+func TestFastcallNumCgoCallAccounting(t *testing.T) {
 	requireCgo(t)
-	v := int32(-99)
-	if got := callFastRead(&v); got != -99 {
-		t.Fatalf("read_int = %d, want -99", got)
+	before := runtime.NumCgoCall()
+	if got := callFastAdd(40, 2); got != 42 {
+		t.Fatalf("fast_add = %d, want 42", got)
 	}
-	b := []byte{10, 20, 30}
-	if got := callFastSlice(b); got != 60 {
-		t.Fatalf("sum_bytes = %d, want 60", got)
+	if mid := runtime.NumCgoCall(); mid != before+1 {
+		t.Fatalf("NumCgoCall after fast call = %d, want %d", mid, before+1)
+	}
+	if got := callSlowNoescape(40, 2); got != 42 {
+		t.Fatalf("slow_noescape = %d, want 42", got)
+	}
+	if after := runtime.NumCgoCall(); after != before+2 {
+		t.Fatalf("NumCgoCall after slow call = %d, want %d", after, before+2)
 	}
 }
 
-// fixtureBin builds the fixture module with logos and returns the binary.
+func growStack(depth int) byte {
+	if depth == 0 {
+		return 0
+	}
+	var pad [96]byte
+	pad[0] = byte(depth)
+	pad[95] = growStack(depth - 1)
+	return pad[0] + pad[95]
+}
+
+func gateWatchHeap() (*byte, *watchHeap) {
+	w := &watchHeap{}
+	w.b[0] = 42
+	return &w.b[0], w
+}
+
+type watchHeap struct {
+	b [256 << 10]byte
+}
+
+func TestFastcallPinUnderCollection(t *testing.T) {
+	requireCgo(t)
+	readyR, readyW, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer readyR.Close()
+	defer readyW.Close()
+	gateR, gateW, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer gateR.Close()
+	defer gateW.Close()
+	done := make(chan int32, 1)
+	pinnedCh := make(chan weak.Pointer[watchHeap], 1)
+	go func(readyFD, gateFD int32) {
+		watchPtr, watchOwner := gateWatchHeap()
+		pinnedCh <- weak.Make(watchOwner)
+		done <- callFastGateWatch(readyFD, gateFD, watchPtr, 42)
+	}(int32(readyW.Fd()), int32(gateR.Fd()))
+	pinned := <-pinnedCh
+	type readyRes struct {
+		n    int
+		rerr error
+	}
+	readyCh := make(chan readyRes, 1)
+	go func() {
+		var b [1]byte
+		n, rerr := readyR.Read(b[:])
+		readyCh <- readyRes{n, rerr}
+	}()
+	select {
+	case rr := <-readyCh:
+		if rr.n != 1 || rr.rerr != nil {
+			t.Fatalf("ready read = %d, %v, want 1 byte", rr.n, rr.rerr)
+		}
+	case code := <-done:
+		t.Fatalf("gate_watch = %d before ready signal", code)
+	}
+	for range 5 {
+		runtime.GC()
+	}
+	for range 8 {
+		q := make([]byte, 256<<10)
+		for j := range q {
+			q[j] = 0xFF
+		}
+		runtime.KeepAlive(q)
+		runtime.GC()
+	}
+	if pinned.Value() == nil {
+		t.Fatal("heap buffer collected while fast call holds it")
+	}
+	select {
+	case code := <-done:
+		t.Fatalf("gate_watch returned %d before gate release", code)
+	default:
+	}
+	if _, werr := gateW.Write([]byte{0}); werr != nil {
+		t.Fatal(werr)
+	}
+	select {
+	case code := <-done:
+		if code != 0 {
+			t.Fatalf("gate_watch = %d, want 0", code)
+		}
+	case <-time.After(30 * time.Second):
+		t.Fatal("fast call did not return within 30s of gate release")
+	}
+}
+
+func TestFastcallPinStackUnderCollection(t *testing.T) {
+	requireCgo(t)
+	readyR, readyW, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer readyR.Close()
+	defer readyW.Close()
+	gateR, gateW, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer gateR.Close()
+	defer gateW.Close()
+	done := make(chan int32, 1)
+	go func(readyFD, gateFD int32) {
+		growStack(4000)
+		var buf [8192]byte
+		buf[0] = 42
+		done <- callFastGateWatch(readyFD, gateFD, &buf[0], 42)
+	}(int32(readyW.Fd()), int32(gateR.Fd()))
+	type readyRes struct {
+		n    int
+		rerr error
+	}
+	readyCh := make(chan readyRes, 1)
+	go func() {
+		var b [1]byte
+		n, rerr := readyR.Read(b[:])
+		readyCh <- readyRes{n, rerr}
+	}()
+	select {
+	case rr := <-readyCh:
+		if rr.n != 1 || rr.rerr != nil {
+			t.Fatalf("ready read = %d, %v, want 1 byte", rr.n, rr.rerr)
+		}
+	case code := <-done:
+		t.Fatalf("gate_watch = %d before ready signal", code)
+	}
+	for range 5 {
+		runtime.GC()
+	}
+	for range 8 {
+		q := make([]byte, 256<<10)
+		for j := range q {
+			q[j] = 0xFF
+		}
+		runtime.KeepAlive(q)
+		runtime.GC()
+	}
+	select {
+	case code := <-done:
+		t.Fatalf("gate_watch returned %d before gate release", code)
+	default:
+	}
+	if _, werr := gateW.Write([]byte{0}); werr != nil {
+		t.Fatal(werr)
+	}
+	select {
+	case code := <-done:
+		if code != 0 {
+			t.Fatalf("gate_watch = %d, want 0", code)
+		}
+	case <-time.After(30 * time.Second):
+		t.Fatal("fast call did not return within 30s of gate release")
+	}
+}
+
 func fixtureBin(t *testing.T, module string) string {
 	t.Helper()
 	dir := filepath.Join("testdata", module)
@@ -842,10 +1156,6 @@ func fixtureBin(t *testing.T, module string) string {
 	return bin
 }
 
-// TestFastcallLogosEndToEnd ATTACK: a loGo/s package using
-// //logos:cgo_fastcall builds, runs, and routes through the single
-// trampoline. Red before: the symbol is missing from nm and the
-// wrapper takes the plain entry.
 func TestFastcallLogosEndToEnd(t *testing.T) {
 	requireCgo(t)
 	bin := fixtureBin(t, "logosfast")
@@ -866,8 +1176,26 @@ func TestFastcallLogosEndToEnd(t *testing.T) {
 			defs++
 		}
 	}
-	if defs != 1 {
-		t.Fatalf("fixture logosCgocallFast text definitions = %d, want 1", defs)
+	wantDefs := 1
+	if !goexperiment.LogosFastCgo {
+		wantDefs = 0
+	}
+	if defs != wantDefs {
+		t.Fatalf("fixture logosCgocallFast text definitions = %d, want %d", defs, wantDefs)
+	}
+	if !goexperiment.LogosFastCgo {
+		dump, err := runCmd(t, "", goBin(t), "tool", "objdump", bin)
+		if err != nil {
+			t.Fatalf("objdump fixture: %v", err)
+		}
+		if strings.Contains(dump, "runtime.logosCgocallFast") {
+			t.Fatal("unflagged fixture binary calls the fast entry")
+		}
+		wrap := objdumpFunc(t, bin, "main\\._Cfunc_caddf")
+		if !strings.Contains(wrap, "CALL runtime.cgocall(SB)") {
+			t.Fatalf("unflagged fixture lacks the plain cgocall:\n%s", wrap)
+		}
+		return
 	}
 	dump, err := runCmd(t, "", goBin(t), "tool", "objdump", bin)
 	if err != nil {
@@ -878,9 +1206,6 @@ func TestFastcallLogosEndToEnd(t *testing.T) {
 	}
 }
 
-// TestFastcallLogosCallbackParity ATTACK: the .lgo spelling panics the
-// same way on a callback violation. Red before: the call succeeds and
-// prints 42 and survived.
 func TestFastcallLogosCallbackParity(t *testing.T) {
 	requireCgo(t)
 	out, err := runCmd(t, filepath.Join("testdata", "logosfastcb"), logosBin(t), "run", ".")
@@ -895,8 +1220,6 @@ func TestFastcallLogosCallbackParity(t *testing.T) {
 	}
 }
 
-// TestFastcallLogosProfileParity PIN: the .lgo spelling attributes C
-// time to its call site like the Go spelling. Thin samples block it.
 func TestFastcallLogosProfileParity(t *testing.T) {
 	requireCgo(t)
 	self, err := os.Executable()
@@ -904,46 +1227,74 @@ func TestFastcallLogosProfileParity(t *testing.T) {
 		t.Fatal(err)
 	}
 	plainProf := filepath.Join(t.TempDir(), "plain.prof")
-	collectBusyProfile(t, plainProf, 4, callPlainBusy, 200000000)
 	plainWants := []string{"callPlainBusy", "_Cfunc_plain_spin", "runtime.cgocall"}
 	if !goexperiment.LogosFastCgo {
 		plainWants = append(plainWants, "logosCgocallFast")
 	}
-	topPlain, _, plainShares := pprofNodes(t, self, plainProf)
-	sharePlain := nodeShare(plainShares, "callPlainBusy")
-	if !topIn(topPlain, plainWants) {
-		t.Fatalf("plain top entry = %q, want the call site", topPlain)
-	}
-
 	bin := fixtureBin(t, "logosfast")
 	dir := t.TempDir()
 	prof := filepath.Join(dir, "lgo.prof")
-	out, err := runCmd(t, dir, bin, "busy", prof, "400000000")
-	if err != nil {
-		t.Fatalf("fixture busy: %v\n%s", err, out)
-	}
 	lgoWants := []string{"main.main", "_Cfunc_cbusyf"}
 	if !goexperiment.LogosFastCgo {
 		lgoWants = append(lgoWants, "logosCgocallFast", "runtime.cgocall")
 	}
-	top, _, lgoShares := pprofNodes(t, bin, prof)
-	lgoCaller := nodeShare(lgoShares, "main.main")
-	t.Logf("top: lgo %q caller %.1f%%, plain caller %.1f%%", top, lgoCaller, sharePlain)
-	if lgoCaller < 50 || sharePlain < 50 {
-		t.Skipf("thin profile, check blocked: lgo caller %.1f%% plain caller %.1f%%",
-			lgoCaller, sharePlain)
+	plainIters := uint64(100000000)
+	const maxPlainIters = 1000000000
+	fixtureIters := uint64(3000000000)
+	const maxFixtureIters = 30000000000
+	var plainN, lgoN, plainTotal, lgoTotal int
+	met := false
+	deadline := time.Now().Add(fastcallProfileCap)
+	for {
+		collectBusyProfile(t, plainProf, 30, callPlainBusy, plainIters)
+		plainN, plainTotal = profileCallerSamples(t, plainProf, "callPlainBusy")
+		out, err := runCmd(t, dir, bin, "busy", prof, strconv.FormatUint(fixtureIters, 10))
+		if err != nil {
+			t.Fatalf("fixture busy: %v\n%s", err, out)
+		}
+		lgoN, lgoTotal = profileCallerSamples(t, prof, "main.main")
+		t.Logf("lgo caller %d of %d samples, plain caller %d of %d samples",
+			lgoN, lgoTotal, plainN, plainTotal)
+		if lgoN == 0 && plainN >= fastcallProfileFloorSamples {
+			t.Fatalf("fast-call frames missing from profile: lgo caller %d of %d samples, plain caller %d of %d samples (floor %d)",
+				lgoN, lgoTotal, plainN, plainTotal, fastcallProfileFloorSamples)
+		}
+		if lgoN >= fastcallProfileFloorSamples && plainN >= fastcallProfileFloorSamples {
+			met = true
+			break
+		}
+		if time.Now().After(deadline) {
+			break
+		}
+		plainIters = growProfileWork(plainTotal, fastcallProfileFloorSamples, plainIters, maxPlainIters)
+		fixtureIters = growProfileWork(lgoTotal, fastcallProfileFloorSamples, fixtureIters, maxFixtureIters)
+	}
+	if !met {
+		if lgoTotal == 0 && plainTotal == 0 {
+			if profileCanarySamples(t) > 0 {
+				t.Fatalf("profiler works but yielded no lgo/plain samples: lgo caller %d of %d, plain caller %d of %d (floor %d)",
+					lgoN, lgoTotal, plainN, plainTotal, fastcallProfileFloorSamples)
+			}
+			t.Skipf("CPU profiler yielded no samples in %v of collection; cannot attribute fast-call frames", fastcallProfileCap)
+		}
+		t.Fatalf("profile floor unmet: lgo caller %d of %d samples, plain caller %d of %d samples (floor %d)",
+			lgoN, lgoTotal, plainN, plainTotal, fastcallProfileFloorSamples)
+	}
+	topPlain, _, _ := pprofNodes(t, self, plainProf)
+	top, _, _ := pprofNodes(t, bin, prof)
+	if !topIn(topPlain, plainWants) {
+		t.Fatalf("plain top entry = %q, want the call site", topPlain)
 	}
 	if !topIn(top, lgoWants) {
 		t.Fatalf("lgo top entry = %q, want the call site", top)
 	}
-	if diff := lgoCaller - sharePlain; diff < -5 || diff > 5 {
-		t.Fatalf("lgo attribution differs by %.1f points", diff)
+	above, aboveTotal := profileCallerAboveLeafSamples(t, prof, "main.main", "cbusyf")
+	if above < fastcallAttributionFloorSamples {
+		t.Fatalf("%d of %d lgo samples hold the lgo call site above the fast C frame, want at least %d",
+			above, aboveTotal, fastcallAttributionFloorSamples)
 	}
 }
 
-// BenchmarkFastcall reports the fast-entry cost (report only, never a
-// pass condition). The G6 ratio uses this benchmark built with and
-// without the experiment.
 func BenchmarkFastcall(b *testing.B) {
 	requireCgo(b)
 	b.Logf("logosfastcgo = %v", goexperiment.LogosFastCgo)
@@ -954,7 +1305,6 @@ func BenchmarkFastcall(b *testing.B) {
 	_ = sink
 }
 
-// BenchmarkFastcallSlow reports the plain-entry cost for the ratio context.
 func BenchmarkFastcallSlow(b *testing.B) {
 	requireCgo(b)
 	var sink int32
@@ -962,4 +1312,90 @@ func BenchmarkFastcallSlow(b *testing.B) {
 		sink = callSlowNoescape(sink&((1<<30)-1), 1)
 	}
 	_ = sink
+}
+
+func TestFastcallViolationNeverHangs(t *testing.T) {
+	requireCgo(t)
+	dir := filepath.Join("testdata", "viol")
+	for _, mode := range []string{"", "plain"} {
+		bin := filepath.Join(t.TempDir(), "viol.exe")
+		if text, err := runCmd(t, dir, goBin(t), "build", "-o", bin, "."); err != nil {
+			t.Fatalf("violator build: %v\n%s", err, text)
+		}
+		ctx, cancel := context.WithTimeoutCause(t.Context(), 60*time.Second, errors.New("violator timed out"))
+		out, err := exec.CommandContext(ctx, bin, mode).CombinedOutput()
+		cancel()
+		if err != nil {
+			t.Fatalf("violator %q: %v\n%s", mode, err, out)
+		}
+		checkViolation(t, mode, string(out))
+	}
+}
+
+func TestFastcallNoClockInFastBody(t *testing.T) {
+	t.Run("disassembly", func(t *testing.T) {
+		if !goexperiment.LogosFastCgo {
+			t.Skip("runtime.logosCgocallFast is linked only with GOEXPERIMENT=logosfastcgo")
+		}
+		self := selfTestBin(t)
+		body := objdumpFunc(t, self, "runtime\\.logosCgocallFast")
+		if !strings.Contains(body, "TEXT runtime.logosCgocallFast(SB)") {
+			t.Fatalf("no disassembly of runtime.logosCgocallFast:\n%s", body)
+		}
+		for _, want := range []string{"nanotime", "cputicks", "clock_gettime", "monotonic"} {
+			if strings.Contains(strings.ToLower(body), want) {
+				t.Fatalf("fast body references clock %q:\n%s", want, body)
+			}
+		}
+	})
+	ctx, cancel := context.WithTimeoutCause(t.Context(), 10*time.Second, errors.New("fast calls exceeded their time bound"))
+	defer cancel()
+	const calls = 20000
+	for i := range calls {
+		if ctx.Err() != nil {
+			t.Fatalf("fast call %d of %d: %v", i, calls, context.Cause(ctx))
+		}
+		if got := callFastAdd(int32(i), 1); got != int32(i)+1 {
+			t.Fatalf("fast_add(%d, 1) = %d, want %d", i, got, i+1)
+		}
+	}
+}
+
+func TestFastcallNumCgoCallBoundary(t *testing.T) {
+	requireCgo(t)
+	before := runtime.NumCgoCall()
+	if got := callFastAdd(1, 1); got != 2 {
+		t.Fatalf("fast_add = %d, want 2", got)
+	}
+	if mid := runtime.NumCgoCall(); mid != before+1 {
+		t.Fatalf("after 1 call = %d, want %d", mid, before+1)
+	}
+	const n = 5
+	for i := range n {
+		if got := callFastAdd(int32(i), 1); got != int32(i)+1 {
+			t.Fatalf("call %d = %d, want %d", i, got, i+1)
+		}
+	}
+	if after := runtime.NumCgoCall(); after != before+1+n {
+		t.Fatalf("after %d calls = %d, want %d", 1+n, after, before+1+n)
+	}
+}
+
+func TestFastcallLockOSThreadParity(t *testing.T) {
+	requireCgo(t)
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	if got := callFastAdd(20, 22); got != 42 {
+		t.Fatalf("fast_add on locked thread = %d, want 42", got)
+	}
+	done := make(chan int32, 1)
+	go func() { done <- callFastAdd(1, 2) }()
+	select {
+	case got := <-done:
+		if got != 3 {
+			t.Fatalf("unlocked goroutine fast_add = %d, want 3", got)
+		}
+	case <-time.After(30 * time.Second):
+		t.Fatal("unlocked goroutine stuck while thread locked")
+	}
 }

@@ -1,0 +1,77 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+	"reflect"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+
+type RO interface {
+	const Name string
+	const Start() error
+}
+
+type Gadget struct : RO {
+	Name string
+}
+
+func (m Gadget) Start() error {
+	return nil
+}
+
+var _ RO = Gadget{}
+
+func use(c RO) string {
+	return c.Name
+}
+
+type Starter interface {
+	const Start() error
+}
+
+var _ Starter = Gadget{}
+
+func fromStarter(s Starter) string {
+	return s.(RO).Name
+}
+
+func main() {
+	m := Gadget{Name: "g"}
+	var r RO = m
+	check("property-const", use(m) == "g" && r.Name == "g" && fromStarter(m) == "g" && r.Start() == nil, fmt.Sprint(use(m), r.Name, fromStarter(m), r.Start() == nil), "gggtrue")
+	if failed {
+		os.Exit(1)
+	}
+}
+func init() {
+	gt := reflect.TypeOf(Gadget{})
+	if _, ok := gt.MethodByName("Logos_GetStart"); ok {
+		panic("Logos_GetStart must not exist")
+	}
+	if _, ok := reflect.TypeOf(&Gadget{}).MethodByName("Logos_GetStart"); ok {
+		panic("Logos_GetStart must not exist on pointer")
+	}
+	if _, ok := gt.MethodByName("Logos_SetStart"); ok {
+		panic("Logos_SetStart must not exist")
+	}
+	if _, ok := reflect.TypeOf(&Gadget{}).MethodByName("Logos_SetStart"); ok {
+		panic("Logos_SetStart must not exist on pointer")
+	}
+	if _, ok := gt.MethodByName("Logos_GetName"); !ok {
+		panic("Logos_GetName must exist")
+	}
+}

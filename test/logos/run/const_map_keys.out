@@ -1,0 +1,7 @@
+ok bool-false
+ok bool-true
+ok pair
+ok array
+ok float-negzero
+ok map-copy
+ok map-const

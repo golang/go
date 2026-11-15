@@ -4,10 +4,6 @@
 
 package p
 
-// M6-S7 collection chains (SPEC Sec 1.4, T-104.6): method typing over
-// slices, `?` in expression lambdas, const-view parameters, and the
-// mutation and block-form errors.
-
 func chainShapes(xs []int, strs []string) {
 	_ = xs.filter(x => x > 0)
 	_ = xs.map(x => x * 2)
@@ -96,7 +92,7 @@ func bang(p string) (string, error) { return p + "!", nil }
 
 func chainBlockTry(xs []int) (int, error) {
 	_ = xs.map(x => {
-		v := pairi(x)? /* ERROR "[correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer" */
+		v := pairi(x)?
 		return v
 	})
 	return 0, nil
@@ -116,12 +112,69 @@ func chainBlockNestedTry(xs []int) (int, error) {
 	return 0, nil
 }
 
+func chainBlockErrdefer(xs []int) (int, error) {
+	_ = xs.map(x => {
+		errdefer /* ERROR "[correctness::errdefer_needs_error_result]" */ pairi(x)
+		return x
+	})
+	return 0, nil
+}
+
 func chainNestedTry(xs []int, ys []int) (int, error) {
 	v := xs.map(x => ys.count(y => pairge(x, y)? /* ERROR "[correctness::nested_try_capture] ? cannot propagate from a nested chain" */)).sum()
 	return v, nil
 }
 
 func pairge(x, y int) (bool, error) { return x+y > 0, nil }
+
+func chainBlockTryFallback(xs []int) (int, error) {
+	v := xs.first() ?? xs.count(x => {
+		ok := pair(x)? /* ERROR "nested_try_capture" */
+		return ok
+	})
+	return v, nil
+}
+
+func chainBlockOptCallArg(up *chainOptUser?, xs []int) error {
+	up?.SetAge(xs.count(x => {
+		ok := pair(x)? /* ERROR "nested_try_capture" */
+		return ok
+	}))
+	return nil
+}
+
+func chainBlockNestedChain(xs []int, ys []int) (int, error) {
+	v := xs.map(x => ys.count(y => {
+		ok := pairge(x, y)? /* ERROR "nested_try_capture" */
+		return ok
+	})).sum()
+	return v, nil
+}
+
+func chainBlockNestedInBlock(xs []int, ys []int) (int, error) {
+	v := xs.map(x => {
+		n := ys.count(y => {
+			if y > 0 {
+				ok := pairge(x, y)? /* ERROR "nested_try_capture" */
+				return ok
+			}
+			return false
+		})
+		return n
+	}).sum()
+	return v, nil
+}
+
+func chainBlockTryInConstIf(xs []int) (int, error) {
+	v := xs.first() ?? xs.count(x => {
+		const if true {
+			ok := pair(x)? /* ERROR "nested_try_capture" */
+			return ok
+		}
+		return false
+	})
+	return v, nil
+}
 
 func chainNestedFlat(xs []int, ys []int) []int {
 	return xs.map(x => ys.count(y => y > x))
@@ -142,4 +195,170 @@ func chainSideEffectBuiltin(xs []int, m map[string]int) {
 		delete(m, "k")
 		return x
 	}).sortBy /* ERROR "[suspicious::side_effect_before_sort] chain lambda with a call of unknown purity before sortBy" */ (x => x)
+}
+
+type chainKey struct{ n int }
+
+func chainKeyIdentity(k chainKey) chainKey { return k }
+
+func chainKeyPair(k chainKey) (chainKey, error) { return k, nil }
+
+func chainKeyExpression(bs []bool, ks []chainKey) {
+	_ = bs.sortBy(b => b /* ERROR "chain sortBy key must be ordered, have bool" */)
+	_ = ks.sortBy(k => k /* ERROR "chain sortBy key must be ordered, have chainKey" */)
+}
+
+func chainKeyBlock(ps []*int, ss [][]int) {
+	_ = ps.sortBy(p => { /* ERROR "chain sortBy key must be ordered, have *int" */
+		return p
+	})
+	_ = ss.sortBy(s => { /* ERROR "chain sortBy key must be ordered, have []int" */
+		return s
+	})
+}
+
+func chainKeyTry(ks []chainKey) error {
+	_ = ks.sortBy(k => chainKeyPair /* ERROR "chain sortBy key must be ordered, have chainKey" */ (k)?)
+	return nil
+}
+
+func chainKeyFunction(ks []chainKey) {
+	_ = ks.sortBy(chainKeyIdentity /* ERROR "chain sortBy key must be ordered, have chainKey" */)
+}
+
+func chainKeyOrdered(ns []int, ss []string, fs []float64) {
+	_ = ns.sortBy(n => n)
+	_ = ss.sortBy(s => s)
+	_ = fs.sortBy(f => { return f })
+}
+
+func chainReceiverBuiltins(xs, ys []int) {
+	_ = xs.filter(x => {
+		_ = copy(xs /* ERROR "[correctness::const_view_mutation]" */, ys)
+		return true
+	})
+	_ = xs.filter(x => {
+		clear(xs /* ERROR "[correctness::const_view_mutation]" */)
+		return true
+	})
+	_ = xs.filter(x => len(append(xs /* ERROR "[correctness::const_view_mutation]" */, x)) > 0)
+}
+
+func chainBuiltinReads(xs, ys []int, m map[string]int) {
+	_ = xs.filter(x => {
+		_ = copy(ys, xs)
+		clear(ys)
+		delete(m, "k")
+		return len(append(ys, xs...)) > x
+	})
+}
+
+type chainBox struct{ n int }
+
+func chainReceiverWrites(xs, ys []int, bs []*chainBox) {
+	_ = xs.filter(x => {
+		xs /* ERROR "[correctness::const_view_mutation]" */ [0]++
+		return true
+	})
+	_ = xs.filter(x => {
+		xs /* ERROR "[correctness::const_view_mutation]" */ [0] += x
+		return true
+	})
+	_ = xs.filter(x => {
+		xs /* ERROR "[correctness::const_view_mutation]" */ = ys
+		return true
+	})
+	_ = bs.filter(b => {
+		* /* ERROR "[correctness::const_view_mutation]" */ bs[0] = chainBox{}
+		return true
+	})
+	_ = xs.filter(x => {
+		for xs /* ERROR "[correctness::const_view_mutation]" */ [0] = range 3 {
+		}
+		return true
+	})
+}
+
+func chainParamBuiltins(rows [][]int, tables []map[string]int) {
+	_ = rows.filter(r => {
+		_ = copy(r /* ERROR "[correctness::const_view_mutation]" */, r)
+		return true
+	})
+	_ = rows.filter(r => {
+		clear(r /* ERROR "[correctness::const_view_mutation]" */)
+		return true
+	})
+	_ = rows.filter(r => len(append(r /* ERROR "[correctness::const_view_mutation]" */, 1)) > 0)
+	_ = tables.filter(t => {
+		delete(t /* ERROR "[correctness::const_view_mutation]" */, "k")
+		return true
+	})
+}
+
+func chainParamWrites(bs []*chainBox, ns []*int, rows [][]int) {
+	_ = bs.filter(b => {
+		b /* ERROR "[correctness::const_view_mutation]" */ .n++
+		return true
+	})
+	_ = bs.filter(b => {
+		b /* ERROR "[correctness::const_view_mutation]" */ .n += 2
+		return true
+	})
+	_ = ns.filter(n => {
+		* /* ERROR "[correctness::const_view_mutation]" */ n = 1
+		return true
+	})
+	_ = rows.filter(r => {
+		r /* ERROR "[correctness::const_view_mutation]" */ [0] = 1
+		return true
+	})
+	_ = rows.filter(r => {
+		for r /* ERROR "[correctness::const_view_mutation]" */ [0] = range 3 {
+		}
+		return true
+	})
+}
+
+func chainSliceExprWrites(xs, ys []int) {
+	_ = xs.filter(x => {
+		_ = copy(xs[ /* ERROR "[correctness::const_view_mutation]" */ 1:], ys)
+		return true
+	})
+	_ = xs.filter(x => {
+		clear(xs[ /* ERROR "[correctness::const_view_mutation]" */ :1])
+		return true
+	})
+	_ = xs.filter(x => len(append(xs[ /* ERROR "[correctness::const_view_mutation]" */ :0], x)) > 0)
+	_ = xs.filter(x => {
+		xs[ /* ERROR "[correctness::const_view_mutation]" */ 1:][0] = x
+		return true
+	})
+}
+
+func chainSliceExprReads(xs, ys []int) {
+	_ = xs.filter(x => len(append(ys[:0], x)) > 0)
+	_ = xs.filter(x => {
+		_ = copy(ys[1:], xs[1:])
+		clear(ys[:1])
+		return true
+	})
+}
+
+func chainSpelledReceivers(xs []int, p *[]int) {
+	_ = xs[1:].filter(x => {
+		xs /* ERROR "[correctness::const_view_mutation]" */ [2] = 0
+		return true
+	})
+	_ = xs[1:].filter(x => {
+		clear(xs /* ERROR "[correctness::const_view_mutation]" */)
+		return true
+	})
+	_ = (*p).filter(x => {
+		( /* ERROR "[correctness::const_view_mutation]" */ *p)[0] = 99
+		return true
+	})
+	_ = (*p).filter(x => {
+		clear((*p)[ /* ERROR "[correctness::const_view_mutation]" */ :1])
+		return true
+	})
 }

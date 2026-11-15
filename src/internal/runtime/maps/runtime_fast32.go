@@ -353,7 +353,6 @@ func runtime_mapassign_fast32ptr(typ *abi.MapType, m *Map, key unsafe.Pointer) u
 	} else {
 		hash = memHash32Fallback(uint32((uintptr)(key)), m.seed)
 	}
-	pinKey(typ, unsafe.Pointer(&key))
 
 	// Set writing after calling Hasher, since Hasher may panic, in which
 	// case we have not actually done a write.

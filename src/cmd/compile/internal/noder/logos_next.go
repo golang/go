@@ -14,10 +14,6 @@ import (
 	"cmd/compile/internal/types2"
 )
 
-// logosNextHook scans a checked package for logos next migration
-// rewrites when -logos.mode=next names a sidecar. It runs for Go and
-// loGo/s packages alike after the successful check, appends one JSON
-// line per package with findings, and never fails the build.
 func logosNextHook(pkg *types2.Package, info *types2.Info, files []*syntax.File) {
 	if base.LogosMode != "next" || base.LogosNextOut == "" {
 		return
@@ -47,7 +43,6 @@ func logosNextHook(pkg *types2.Package, info *types2.Info, files []*syntax.File)
 	_, _ = f.Write(line)
 }
 
-// nextInputs copies the stashed sources and filenames of files.
 func nextInputs(files []*syntax.File) (map[*syntax.File][]byte, map[*syntax.File]string) {
 	logosStore.Lock()
 	defer logosStore.Unlock()

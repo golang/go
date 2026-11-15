@@ -2,18 +2,21 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
-// Readonly interface methods: `interface { const Name() string }`
-// declares a readonly method, parallel to the existing `const Name T`
-// property prefix, inside interface braces only. Every implementation
-// below is a pure getter: value receivers that only read scalars,
-// strings, len, indexes, and ranges, plus one explicit const-pointer
-// receiver. The early caller is declared above (before) the Late type
-// it exercises, so the effect proof must hold package-wide, not just
-// for bodies already checked. Concrete const-view calls, qualified
-// `const []Q` covariance, an alias edge, and a proved-generic edge are
-// covered. Each printed line is a hand-computed literal.
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 type Qualified interface {
 	const Name() string
@@ -23,7 +26,6 @@ type Ordinary interface {
 	Name() string
 }
 
-// Early caller, declared before the Late implementation below.
 func Early(q Qualified) string { return "early:" + q.Name() }
 
 func Greet(q Qualified) string { return q.Name() }
@@ -57,8 +59,6 @@ func (t Troll) Name() string { return "troll:" + t.name }
 
 func (r const *Rock) Title() string { return "title:" + r.name }
 
-// Box carries a reference field yet its Name is pure: len and range
-// reads only, no store through the slice.
 type Box struct {
 	label string
 	items []int
@@ -84,28 +84,32 @@ func GenericName[T Qualified](t T) string { return t.Name() }
 
 func main() {
 	r := Rock{name: "a"}
-	fmt.Println(Greet(r))
-	fmt.Println(GreetOrd(r))
-	fmt.Println(ViaConst(&r))
-	fmt.Println(r.Title())
+	check("greet", Greet(r) == "rock:a", Greet(r), "rock:a")
+	check("greet-ord", GreetOrd(r) == "rock:a", GreetOrd(r), "rock:a")
+	check("via-const", ViaConst(&r) == "rock:a", ViaConst(&r), "rock:a")
+	check("title", r.Title() == "title:a", r.Title(), "title:a")
 
 	t := Troll{name: "grok"}
-	fmt.Println(Greet(t), GreetOrd(t))
+	check("greet-troll", Greet(t) == "troll:grok", Greet(t), "troll:grok")
+	check("greet-ord-troll", GreetOrd(t) == "troll:grok", GreetOrd(t), "troll:grok")
 
 	b := Box{label: "box", items: []int{1, 2, 3}}
-	fmt.Println(Greet(b))
+	check("box", Greet(b) == "box", Greet(b), "box")
 	e := Box{label: "e", items: []int{}}
-	fmt.Println(Greet(e))
+	check("box-empty", Greet(e) == "e:empty", Greet(e), "e:empty")
 
-	fmt.Println(Early(Late{tag: "x"}))
+	check("early", Early(Late{tag: "x"}) == "early:late:x", Early(Late{tag: "x"}), "early:late:x")
 
 	var a Alias = Alias{name: "al"}
-	fmt.Println(Greet(a))
-	fmt.Println(GenericName(r))
+	check("alias", Greet(a) == "rock:al", Greet(a), "rock:al")
+	check("generic", GenericName(r) == "rock:a", GenericName(r), "rock:a")
 
-	fmt.Println(Names([]Rock{{name: "a"}, {name: "b"}}))
-	fmt.Println(Names([]Troll{{name: "ug"}}))
-	fmt.Println(Names([]Alias{{name: "al"}}))
+	check("names-rocks", Names([]Rock{{name: "a"}, {name: "b"}}) == "rock:a,rock:b", Names([]Rock{{name: "a"}, {name: "b"}}), "rock:a,rock:b")
+	check("names-troll", Names([]Troll{{name: "ug"}}) == "troll:ug", Names([]Troll{{name: "ug"}}), "troll:ug")
+	check("names-alias", Names([]Alias{{name: "al"}}) == "rock:al", Names([]Alias{{name: "al"}}), "rock:al")
+	if failed {
+		os.Exit(1)
+	}
 }
 
 type Late struct {

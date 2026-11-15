@@ -1,0 +1,53 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+logos run .
+stdout '^1 5 8 7 8 9$'
+cp stdout $WORK/native.txt
+logos eject -o out
+exists out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $WORK/native.txt
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
+exec $WORK/upstream$GOEXE
+cmp stdout $WORK/native.txt
+cd ..
+
+-- m/go.mod --
+module example.com/spreadaddr
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import "fmt"
+
+type S struct {
+	A int
+	B int
+}
+
+func id(p *S) *S {
+	return p
+}
+
+func pair(p *S, n int) int {
+	return p.A + p.B + n
+}
+
+func main() {
+	a := S{A: 1, B: 2}
+	q := id(&S{B: 5, ..a})
+	r := pair(&S{B: 6, ..a}, 1)
+	s := (&S{B: 7, ..a})
+	t := &(S{B: 8, ..a})
+	u := id((&S{B: 9, ..a}))
+	fmt.Println(q.A, q.B, r, s.B, t.B, u.B)
+}

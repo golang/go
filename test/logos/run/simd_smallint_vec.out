@@ -1,0 +1,11 @@
+ok i8-arith-matches-scalar
+ok i8-bits-match-scalar
+ok i8-reductions-match-scalar
+ok i16-arith-matches-scalar
+ok i16-bits-match-scalar
+ok i16-reductions-match-scalar
+ok i32-arith-matches-scalar
+ok i32-bits-match-scalar
+ok i32-reductions-match-scalar
+ok f32-reduce-matches-scalar
+ok f64-wide-matches-scalar

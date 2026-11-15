@@ -1,0 +1,167 @@
+# A Go package may pass a region to a callee, and every
+# region_escape-shaped use falls back to the heap with a diagnostic,
+# never a correctness::region_escape error.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOEXPERIMENT=logosarena,logosescape
+
+cd m
+go build -gcflags=-m .
+stderr 'p\.go:7:.*placed in region'
+stderr 'p\.go:21:.*region fallback'
+stderr 'p\.go:28:.*region fallback'
+stderr 'p\.go:35:.*region fallback'
+stderr 'p\.go:46:.*region fallback'
+! stderr 'region_escape'
+! stderr 'perf::'
+! stderr 'correctness::'
+! stderr '\[[a-z]+::'
+
+cd ../run
+go run -gcflags=-m .
+stderr 'main\.go:14:.*placed in region'
+stderr 'main\.go:28:.*region fallback'
+stderr 'main\.go:36:.*region fallback'
+stderr 'main\.go:44:.*region fallback'
+stderr 'main\.go:54:.*region fallback'
+! stderr 'region_escape'
+! stderr 'perf::'
+! stderr 'correctness::'
+! stderr '\[[a-z]+::'
+stdout '^1$'
+stdout '^9$'
+stdout '^5$'
+-- run/go.mod --
+module example.com/regiongocasesrun
+
+go 1.27
+
+-- run/main.go --
+package main
+
+import (
+	"fmt"
+
+	"logos/arena"
+)
+
+var saved *int
+var savedFn func()
+
+//go:noinline
+func use(r arena.Region) int {
+	p := arena.New[int](r)
+	*p = 1
+	return *p
+}
+
+func callCallee() int {
+	r := arena.Open()
+	n := use(r)
+	_ = r
+	return n
+}
+
+func returnIt() *int {
+	r := arena.Open()
+	p := arena.New[int](r)
+	*p = 9
+	_ = r
+	return p
+}
+
+func sendIt(ch chan *int) {
+	r := arena.Open()
+	p := arena.New[int](r)
+	*p = 5
+	ch <- p
+	_ = r
+}
+
+func goIt(done chan int) {
+	r := arena.Open()
+	p := arena.New[int](r)
+	*p = 7
+	go func() {
+		_ = *p
+		done <- 1
+	}()
+	_ = r
+}
+
+func cloHandle() {
+	r := arena.Open()
+	f := func() { _ = r }
+	savedFn = f
+	_ = r
+}
+
+func main() {
+	fmt.Println(callCallee())
+	saved = returnIt()
+	fmt.Println(*saved)
+	ch := make(chan *int, 1)
+	sendIt(ch)
+	fmt.Println(*<-ch)
+	done := make(chan int, 1)
+	goIt(done)
+	<-done
+	cloHandle()
+	savedFn()
+}
+-- m/go.mod --
+module example.com/regiongocases
+
+go 1.27
+
+-- m/p.go --
+package p
+
+import "logos/arena"
+
+//go:noinline
+func use(r arena.Region) int {
+	p := arena.New[int](r)
+	*p = 1
+	return *p
+}
+
+func CallCallee() int {
+	r := arena.Open()
+	n := use(r)
+	_ = r
+	return n
+}
+
+func ReturnIt() *int {
+	r := arena.Open()
+	p := arena.New[int](r)
+	_ = r
+	return p
+}
+
+func SendIt(ch chan *int) {
+	r := arena.Open()
+	p := arena.New[int](r)
+	ch <- p
+	_ = r
+}
+
+func GoIt(done chan int) {
+	r := arena.Open()
+	p := arena.New[int](r)
+	go func() {
+		_ = *p
+		done <- 1
+	}()
+	_ = r
+}
+
+var sinkFn func()
+
+func CloHandle() {
+	r := arena.Open()
+	f := func() { _ = r }
+	sinkFn = f
+	_ = r
+}

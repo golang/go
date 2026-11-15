@@ -1,0 +1,316 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+	"slices"
+)
+
+var ev []string
+
+var gxs = make([]int, 2)
+
+func rec(s string) { ev = append(ev, s) }
+
+func seen(v, queued int) (int, error) {
+	rec(fmt.Sprintf("load:s:%d", queued))
+	return v, nil
+}
+
+func load(tag string, v int) (int, error) {
+	rec("load:" + tag)
+	return v, nil
+}
+
+func val(tag string, n int) int {
+	rec(tag)
+	return n
+}
+
+func slice(tag string, xs []int) []int {
+	rec(tag)
+	return xs
+}
+
+func retList() (int, int, int, error) {
+	return val("l", 10), switch n := load("s", 7)?; n { case 7 => 1; default => 2 }, val("r", 3), nil
+}
+
+func assignLeft() (int, error) {
+	gxs[0], gxs[1] = 0, 0
+	gxs[val("k", 1)] = switch n := load("s", 7)?; n { case 7 => 5; default => 6 }
+	return gxs[1], nil
+}
+
+func binary() (int, error) {
+	r := val("a", 1) + switch n := load("s", 7)?; n { case 7 => 10; default => 20 } + val("b", 100)
+	return r, nil
+}
+
+func ifInit() (bool, error) {
+	if x := val("i", 7); (switch n := load("s", x)?; n { case 7 => true; default => false }) {
+		return true, nil
+	}
+	return false, nil
+}
+
+func ifStmtInit() (bool, error) {
+	if val("i", 7); (switch n := load("s", 7)?; n { case 7 => true; default => false }) {
+		return true, nil
+	}
+	return false, nil
+}
+
+func switchHeader() (int, error) {
+	switch x := val("i", 7); (switch n := load("s", x)?; n { case 7 => 1; default => 2 }) {
+	case 1:
+		return 10, nil
+	}
+	return 0, nil
+}
+
+func forCond() (int, error) {
+	c := 0
+	for i := 0; (switch k := load("c", i)?; k { case 2 => false; default => true }); i++ {
+		rec("body")
+		c++
+	}
+	return c, nil
+}
+
+func forInit() (int, error) {
+	c := 0
+	for i := (switch k := load("init", 1)?; k { default => k }); i < 3; i++ {
+		rec("body")
+		c++
+	}
+	return c, nil
+}
+
+func elseIf() (int, error) {
+	if val("a", 0) == 1 {
+		return 1, nil
+	} else if (switch n := load("s", 7)?; n { case 7 => true; default => false }) {
+		return 2, nil
+	}
+	return 3, nil
+}
+
+func compound() (int, error) {
+	r := 1
+	r += val("l", 100) + switch n := load("s", 7)?; n { case 7 => 70; default => 1 }
+	return r, nil
+}
+
+func composite() (int, error) {
+	xs := []int{val("e0", 1), switch n := load("s", 7)?; n { case 7 => 2; default => 0 }, val("e2", 3)}
+	return xs[0]*100 + xs[1]*10 + xs[2], nil
+}
+
+func indexBase() (int, error) {
+	r := slice("base", []int{10, 20})[switch n := load("s", 7)?; n { case 7 => 1; default => 0 }]
+	return r, nil
+}
+
+func twoSwitches() (int, error) {
+	r := switch n := load("1", 7)?; n { case 7 => 1; default => 0 } + switch m := load("2", 8)?; m { case 8 => 2; default => 0 }
+	return r, nil
+}
+
+func tuple() (int, int, error) {
+	a, b := val("l", 1), switch n := load("s", 7)?; n { case 7 => 70; default => 0 }
+	return a, b, nil
+}
+
+func unary() (int, error) {
+	r := -(switch n := load("s", 7)?; n { case 7 => 7; default => 0 })
+	return r, nil
+}
+
+func flag(tag string, b bool) bool {
+	rec(tag)
+	return b
+}
+
+func andShort() (bool, error) {
+	ok := flag("a", false) && switch n := load("s", 7)?; n { case 7 => true; default => false }
+	return ok, nil
+}
+
+func andRun() (bool, error) {
+	ok := flag("a", true) && switch n := load("s", 7)?; n { case 7 => true; default => false }
+	return ok, nil
+}
+
+func orShort() (bool, error) {
+	ok := flag("a", true) || switch n := load("s", 7)?; n { case 7 => false; default => true }
+	return ok, nil
+}
+
+func orRun() (bool, error) {
+	ok := flag("a", false) || switch n := load("s", 7)?; n { case 7 => true; default => false }
+	return ok, nil
+}
+
+func andIf() (int, error) {
+	if flag("a", true) && (switch n := load("s", 7)?; n { case 7 => true; default => false }) {
+		return 1, nil
+	}
+	return 0, nil
+}
+
+func andFor() (int, error) {
+	c := 0
+	for i := 0; i < 2 && (switch k := load("c", i)?; k { default => true }); i++ {
+		c++
+	}
+	return c, nil
+}
+
+func recvRetList() (int, int, int, error) {
+	rch := make(chan int, 2)
+	rch <- 1
+	rch <- 2
+	return <-rch, switch n := seen(7, len(rch))?; n { case 7 => 5; default => 6 }, <-rch, nil
+}
+
+func recvAssignLeft() (int, error) {
+	gxs[0], gxs[1] = 0, 0
+	rch := make(chan int, 2)
+	rch <- 1
+	rch <- 2
+	gxs[<-rch] = switch n := seen(7, len(rch))?; n { case 7 => 5; default => 6 }
+	return gxs[1]*10 + <-rch, nil
+}
+
+func recvBinary() (int, error) {
+	rch := make(chan int, 2)
+	rch <- 1
+	rch <- 2
+	r := <-rch*10 + switch n := seen(7, len(rch))?; n { case 7 => 100; default => 200 } + <-rch
+	return r, nil
+}
+
+func recvCompound() (int, error) {
+	r := 1
+	rch := make(chan int, 2)
+	rch <- 1
+	rch <- 2
+	r += <-rch + switch n := seen(7, len(rch))?; n { case 7 => 70; default => 1 } + <-rch
+	return r, nil
+}
+
+func recvComposite() (int, error) {
+	rch := make(chan int, 2)
+	rch <- 1
+	rch <- 2
+	xs := []int{<-rch, switch n := seen(7, len(rch))?; n { case 7 => 2; default => 0 }, <-rch}
+	return xs[0]*100 + xs[1]*10 + xs[2], nil
+}
+
+func recvIndexBase() (int, error) {
+	sch := make(chan []int, 1)
+	sch <- []int{10, 20}
+	r := (<-sch)[switch n := seen(7, len(sch))?; n { case 7 => 1; default => 0 }]
+	return r, nil
+}
+
+func recvTuple() (int, error) {
+	rch := make(chan int, 2)
+	rch <- 1
+	rch <- 2
+	a, b := <-rch, switch n := seen(7, len(rch))?; n { case 7 => 70; default => 0 }
+	return a*1000 + b*10 + <-rch, nil
+}
+
+type cell struct {
+	name string
+	run  func() (string, error)
+	ev   []string
+	want string
+}
+
+func show[T any](f func() (T, error)) func() (string, error) {
+	return func() (string, error) {
+		r, err := f()
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprint(r), nil
+	}
+}
+
+func cells() []cell {
+	return []cell{
+		{"ret-list", func() (string, error) {
+			a, b, c, err := retList()
+			if err != nil {
+				return "", err
+			}
+			return fmt.Sprint(a, b, c), nil
+		}, []string{"l", "load:s", "r"}, "10 1 3"},
+		{"assign-left", show(assignLeft), []string{"k", "load:s"}, "5"},
+		{"binary", show(binary), []string{"a", "load:s", "b"}, "111"},
+		{"if-init", show(ifInit), []string{"i", "load:s"}, "true"},
+		{"if-stmt-init", show(ifStmtInit), []string{"i", "load:s"}, "true"},
+		{"switch-header", show(switchHeader), []string{"i", "load:s"}, "10"},
+		{"for-cond", show(forCond), []string{"load:c", "body", "load:c", "body", "load:c"}, "2"},
+		{"for-init", show(forInit), []string{"load:init", "body", "body"}, "2"},
+		{"else-if", show(elseIf), []string{"a", "load:s"}, "2"},
+		{"compound", show(compound), []string{"l", "load:s"}, "171"},
+		{"composite", show(composite), []string{"e0", "load:s", "e2"}, "123"},
+		{"index-base", show(indexBase), []string{"base", "load:s"}, "20"},
+		{"two-switches", show(twoSwitches), []string{"load:1", "load:2"}, "3"},
+		{"tuple", func() (string, error) {
+			a, b, err := tuple()
+			if err != nil {
+				return "", err
+			}
+			return fmt.Sprint(a, b), nil
+		}, []string{"l", "load:s"}, "1 70"},
+		{"unary", show(unary), []string{"load:s"}, "-7"},
+		{"and-short", show(andShort), []string{"a"}, "false"},
+		{"and-run", show(andRun), []string{"a", "load:s"}, "true"},
+		{"or-short", show(orShort), []string{"a"}, "true"},
+		{"or-run", show(orRun), []string{"a", "load:s"}, "true"},
+		{"and-if", show(andIf), []string{"a", "load:s"}, "1"},
+		{"and-for", show(andFor), []string{"load:c", "load:c"}, "2"},
+		{"recv-ret-list", func() (string, error) {
+			a, b, c, err := recvRetList()
+			if err != nil {
+				return "", err
+			}
+			return fmt.Sprint(a, b, c), nil
+		}, []string{"load:s:1"}, "1 5 2"},
+		{"recv-assign-left", show(recvAssignLeft), []string{"load:s:1"}, "52"},
+		{"recv-binary", show(recvBinary), []string{"load:s:1"}, "112"},
+		{"recv-compound", show(recvCompound), []string{"load:s:1"}, "74"},
+		{"recv-composite", show(recvComposite), []string{"load:s:1"}, "122"},
+		{"recv-index-base", show(recvIndexBase), []string{"load:s:0"}, "20"},
+		{"recv-tuple", show(recvTuple), []string{"load:s:1"}, "1702"},
+	}
+}
+
+func main() {
+	failed := false
+	for _, c := range cells() {
+		ev = nil
+		got, err := c.run()
+		if err != nil {
+			failed = true
+			fmt.Println("FAIL", c.name+":", err, ev)
+			continue
+		}
+		if got != c.want || !slices.Equal(ev, c.ev) {
+			failed = true
+			fmt.Println("FAIL", c.name+":", "got", got, ev, "want", c.want, c.ev)
+			continue
+		}
+		fmt.Println("ok", c.name)
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

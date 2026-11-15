@@ -1,0 +1,51 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# The default budget places the nine JSON keys of the struct in the Sec 7 table.
+cd m
+logos run .
+stdout '^1 5 9$'
+cd ..
+
+# A seed cap of 1 exhausts the key table search: the build fails at the type
+# with the rule ID of Sec 7 and a plain exit, never a compiler crash.
+cd m
+! logos build -gcflags=all=-d=logosconstmapseeds=1 ./...
+stderr 'main\.lgo:[0-9]+:[0-9]+: \[comptime::constmap_seed_not_found\]'
+! stderr 'internal compiler error|panic|goroutine'
+cd ..
+
+-- m/go.mod --
+module example.com/jsonseed
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+)
+
+type Nine struct {
+	K1 int `json:"k1"`
+	K2 int `json:"k2"`
+	K3 int `json:"k3"`
+	K4 int `json:"k4"`
+	K5 int `json:"k5"`
+	K6 int `json:"k6"`
+	K7 int `json:"k7"`
+	K8 int `json:"k8"`
+	K9 int `json:"k9"`
+}
+
+func main() {
+	var n Nine
+	err := json.Unmarshal([]byte(`{"k1":1,"k5":5,"k9":9}`), &n)
+	if err != nil {
+		fmt.Println("error", err)
+		return
+	}
+	fmt.Println(n.K1, n.K5, n.K9)
+}

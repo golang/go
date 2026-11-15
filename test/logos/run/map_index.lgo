@@ -1,49 +1,97 @@
 // run
-
 package main
 
-import "fmt"
-
-// M3-S6 single-value map index yields `V?` (SPEC Sec 1.4, T-104.3; Sec
-// 2.2, T-202): an absent key reads as none, a present zero value reads as
-// some, and a present nil slice payload reads as some with a nil payload,
-// distinct from none. `v, ok := m[k]`, stores, `++`, and `delete` keep Go
-// meaning. Pointer elements keep the plain `m[k]` read with nil as none.
+import (
+	"fmt"
+	"os"
+)
 
 type User struct {
 	Name string
 }
 
-func main() {
+var failed = false
+
+func eq(name string, got, want int) {
+	if got != want {
+		fmt.Printf("FAIL %s: got %d want %d\n", name, got, want)
+		failed = true
+		return
+	}
+	fmt.Printf("ok %s\n", name)
+}
+
+func bs(name string, got, want bool) {
+	if got != want {
+		fmt.Printf("FAIL %s: got %v want %v\n", name, got, want)
+		failed = true
+		return
+	}
+	fmt.Printf("ok %s\n", name)
+}
+
+func checkScalars() {
 	m := map[string]int{"a": 0, "b": 5}
-	fmt.Println(m["zzz"] ?? -1)
-	fmt.Println(m["a"] ?? -1)
-	fmt.Println(m["b"] ?? -1)
-	fmt.Println(m["a"])
-	fmt.Println(m["zzz"])
+	eq("missing-key-falls-back-to-default", m["zzz"] ?? -1, -1)
+	eq("present-zero-key-yields-zero", m["a"] ?? -1, 0)
+	eq("present-nonzero-key-yields-value", m["b"] ?? -1, 5)
+	va := m["a"]
+	eq("direct-index-of-present-binds-value", va ?? 99, 0)
+	vz, okz := m["zzz"]
+	eq("direct-index-of-missing-binds-zero", vz, 0)
+	bs("direct-index-of-missing-reports-not-ok", !okz, true)
 	x := m["a"]
-	fmt.Println(x ?? -1)
+	eq("bound-present-value-falls-back-to-itself", x ?? -1, 0)
 	y := m["zzz"]
-	fmt.Println(y ?? -1)
+	eq("bound-missing-value-falls-back-to-default", y ?? -1, -1)
 	v, ok := m["a"]
-	fmt.Println(v, ok)
+	eq("comma-ok-value", v, 0)
+	bs("comma-ok-present", ok, true)
 	m["c"] = 42
 	m["c"]++
 	m["c"] += 1
-	fmt.Println(m["c"] ?? -1)
+	eq("write-read-modify-cycle", m["c"] ?? -1, 44)
 	delete(m, "c")
-	fmt.Println(m["c"] ?? -1)
+	eq("deleted-key-falls-back-to-default", m["c"] ?? -1, -1)
+}
 
+func checkSlices() {
 	ms := map[string][]int{"n": nil, "e": {1, 2}}
 	dflt := []int{9}
-	fmt.Println(ms["n"] ?? dflt)
-	fmt.Println(ms["zzz"] ?? dflt)
-	fmt.Println(ms["n"])
-	fmt.Println(ms["zzz"])
-	fmt.Println(len(ms["e"] ?? dflt))
+	bs("present-nil-payload-keeps-nil-against-default", (ms["n"] ?? dflt) == nil, true)
+	if ms["n"] == nil {
+		fmt.Println("FAIL direct-index-of-nil-payload-is-present: got nil")
+		failed = true
+	} else {
+		fmt.Println("ok direct-index-of-nil-payload-is-present")
+	}
+	eq("missing-key-yields-default-length", len(ms["zzz"] ?? dflt), 1)
+	if ms["zzz"] != nil {
+		fmt.Println("FAIL direct-index-of-missing-slice-is-nil: got non-nil")
+		failed = true
+	} else {
+		fmt.Println("ok direct-index-of-missing-slice-is-nil")
+	}
+	vsz, oksz := ms["zzz"]
+	bs("direct-index-of-missing-slice-reports-not-ok", !oksz && vsz == nil, true)
+	vn, okn := ms["n"]
+	bs("comma-ok-keeps-nil-payload-with-ok", vn == nil && okn, true)
+	bs("nil-payload-coalesces-to-nil-not-default", (ms["n"] ?? dflt) == nil, true)
+	eq("present-slice-length-ignores-default", len(ms["e"] ?? dflt), 2)
+}
 
+func checkPointers() {
 	mu := map[string]*User{"u": &User{Name: "ann"}}
 	guest := &User{Name: "guest"}
-	fmt.Println((mu["u"] ?? guest).Name)
-	fmt.Println((mu["zzz"] ?? guest).Name)
+	bs("present-pointer-selects-field", (mu["u"] ?? guest).Name == "ann", true)
+	bs("missing-pointer-falls-back-to-guest", (mu["zzz"] ?? guest).Name == "guest", true)
+}
+
+func main() {
+	checkScalars()
+	checkSlices()
+	checkPointers()
+	if failed {
+		os.Exit(1)
+	}
 }

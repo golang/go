@@ -1,21 +1,12 @@
 // run -goexperiment logosarena
+// run -goexperiment logosarena -arena=false
 
 package main
 
-// M18 loop-edge attack (SPEC Sec 3.1, Sec 8.3): iteration-local dynamic
-// makes must restore the watermark on every loop back-edge, while live
-// allocations survive and escaping makes stay on the heap. This fixture
-// covers ordinary and range loops with continue/break, labeled outer
-// continue/break, nested loops with inner-only break, switch-local break
-// (which must not restore the loop), and sibling loops at the same depth
-// with split eligibility (loop A iteration-local, loop B escaping via a
-// returned slice). Value checks only: runtime.LogosArenaStat lives in
-// export_logos_arena_test.go (a _test.go seam, unavailable to normal
-// builds), so no allocation counter is asserted here; boundedness stays
-// covered by runtime TestLogosArenaLoopWatermarkBounded. All loops and
-// sizes are small and fixed, so runtime is bounded with no timing.
-
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
 func fillSeq(b []byte, base int) {
 	for j := range b {
@@ -178,20 +169,36 @@ func siblingBoth(n, sz int) (int, [][]byte, int) {
 }
 
 func main() {
-	fmt.Println("ordinary-continue:", ordinaryContinue(6, 4))
-	fmt.Println("ordinary-break:", ordinaryBreak(6, 4))
-	fmt.Println("range-continue:", rangeContinue([]int{1, 2, 3, 4, 5}, 4))
-	fmt.Println("range-break:", rangeBreak([]int{1, 2, 3, 4, 5}, 4))
-	fmt.Println("nested-inner-break:", nestedInnerBreak(3, 5, 4))
+	failed := false
+	eq := func(name string, got, want int) {
+		if got != want {
+			fmt.Printf("FAIL %s: got %d want %d\n", name, got, want)
+			failed = true
+			return
+		}
+		fmt.Printf("ok %s\n", name)
+	}
+	eq("continue-skips-even-iterations", ordinaryContinue(6, 4), 10+18+26)
+	eq("break-stops-before-fourth-iteration", ordinaryBreak(6, 4), 6+46+86)
+	eq("range-continue-skips-even-elements", rangeContinue([]int{1, 2, 3, 4, 5}, 4), 10+18+26)
+	eq("range-break-stops-at-sentinel", rangeBreak([]int{1, 2, 3, 4, 5}, 4), 46+86+126)
+	eq("inner-break-keeps-outer-accumulation", nestedInnerBreak(3, 5, 4), 1614)
 	obTotal, obCount := labeledOuterBreak(4, 4, 4)
-	fmt.Println("labeled-outer-break:", obTotal, obCount)
+	eq("labeled-break-total", obTotal, 144)
+	eq("labeled-break-count", obCount, 6)
 	ocTotal, ocCount := labeledOuterContinue(4, 4, 4)
-	fmt.Println("labeled-outer-continue:", ocTotal, ocCount)
-	fmt.Println("switch-break:", switchBreak(6, 4))
+	eq("labeled-continue-total", ocTotal, 264)
+	eq("labeled-continue-count", ocCount, 4)
+	eq("switch-break-keeps-loop-sum", switchBreak(6, 4), 144)
 	aTotal, out, keepSum := siblingBoth(4, 4)
 	bTotal := 0
 	for _, s := range out {
 		bTotal += sumBytes(s)
 	}
-	fmt.Println("sibling:", aTotal, bTotal, keepSum)
+	eq("sibling-first-loop-sum", aTotal, 48)
+	eq("sibling-kept-slices-sum", bTotal, 1864)
+	eq("sibling-untouched-buffer-preserved", keepSum, 206)
+	if failed {
+		os.Exit(1)
+	}
 }

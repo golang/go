@@ -1,0 +1,128 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"logos/rt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func recovered(f func()) (r any) {
+	defer func() { r = recover() }()
+	f()
+	return nil
+}
+
+func message(r any) string {
+	e, ok := r.(*rt.UnionAssertionError)
+	if !ok {
+		return fmt.Sprintf("%T", r)
+	}
+	return e.Error()
+}
+
+func first() {
+	type local struct{ a int }
+	type V interface {
+		local | int
+	}
+	var v V = local{a: 3}
+	var n V = 5
+	l, ok := v.(local)
+	check("first-member-local", ok && l.a == 3, ok, true)
+	_, ok = v.(int)
+	check("first-member-other-arm", !ok, ok, false)
+	i, ok := n.(int)
+	check("first-member-int", ok && i == 5, ok, true)
+	f, ok := v.(float64)
+	check("first-nonmember-comma-ok", !ok && f == 0, ok, false)
+	got := message(recovered(func() { _ = v.(float64) }))
+	want := "interface conversion: float64 is not a member of main.V"
+	check("first-nonmember-message", got == want, got, want)
+	type other struct{}
+	got = message(recovered(func() { _ = v.(other) }))
+	want = "interface conversion: main.other is not a member of main.V"
+	check("first-later-local-message", got == want, got, want)
+	r := switch v.(type) {
+	case local => "local"
+	case int => "int"
+	case nil => "nil"
+	}
+	check("first-switch", r == "local", r, "local")
+}
+
+func second() {
+	type local struct{ b string }
+	type V interface {
+		local | string
+	}
+	var v V = local{b: "x"}
+	l, ok := v.(local)
+	check("second-member-local", ok && l.b == "x", ok, true)
+	_, ok = v.(int)
+	check("second-int-nonmember", !ok, ok, false)
+	got := message(recovered(func() { _ = v.(int) }))
+	want := "interface conversion: int is not a member of main.V"
+	check("second-nonmember-message", got == want, got, want)
+}
+
+func third() {
+	type local struct{ c bool }
+	type V interface {
+		local | int
+	}
+	var a any = local{c: true}
+	w, ok := a.(V)
+	check("any-to-union-member", ok && w != nil, ok, true)
+	a = "s"
+	_, ok = a.(V)
+	check("any-to-union-nonmember", !ok, ok, false)
+	got := message(recovered(func() { _ = a.(V) }))
+	want := "interface conversion: string is not a member of main.V"
+	check("any-to-union-message", got == want, got, want)
+	k := "other"
+	switch x := a.(type) {
+	case V:
+		var _ V = x
+		k = "union"
+	}
+	check("type-switch-case-nonmember", k == "other", k, "other")
+	a = local{c: true}
+	switch x := a.(type) {
+	case V:
+		var _ V = x
+		k = "union"
+	}
+	check("type-switch-case-member", k == "union", k, "union")
+	func() {
+		type W interface {
+			local | string
+		}
+		var u W = "q"
+		s, ok := u.(string)
+		check("closure-union-member", ok && s == "q", ok, true)
+		_, ok = u.(local)
+		check("closure-union-other-arm", !ok, ok, false)
+	}()
+}
+
+func main() {
+	first()
+	second()
+	third()
+	if failed {
+		os.Exit(1)
+	}
+}

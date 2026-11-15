@@ -1,0 +1,29 @@
+// run
+
+package main
+
+import "fmt"
+
+const func touch(m map[string]int) int {
+	m["a"] = 99
+	return m["a"] ?? -1
+}
+
+const func outer() int {
+	m := map[string]int{"a": 1}
+	r := touch(m)
+	if r != 99 {
+		return -1
+	}
+	return m["a"] ?? -2
+}
+
+const out = outer()
+
+func main() {
+	if out != 99 {
+		fmt.Println("FAIL map-arg got", out)
+		return
+	}
+	fmt.Println("ok map-arg")
+}

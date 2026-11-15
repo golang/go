@@ -16,6 +16,7 @@ import (
 	"internal/godebug"
 	"internal/goroot"
 	"internal/goversion"
+	"internal/logosfile"
 	"internal/platform"
 	"internal/syslist"
 	"io"
@@ -917,7 +918,7 @@ Found:
 		// In logos mode, loGo/s sources take the ".go" path below;
 		// recorded names keep their on-disk bytes.
 		switchExt := ext
-		if ctxt.logosMode() && isLogosExt(ext) {
+		if ctxt.logosMode() && logosfile.Is(ext) {
 			switchExt = ".go"
 		}
 		switch switchExt {

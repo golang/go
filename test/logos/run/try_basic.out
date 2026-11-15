@@ -1,7 +1,12 @@
-ok: 7
-seen: 42
-pair: 7 seven
-err: boom
-seen: 99
-err: boom
-pair: 99 payload
+ok value
+ok assign-ok-err
+ok seen-ok
+ok pair-ok-err
+ok pair-ok
+ok assign-fail-err
+ok seen-fail
+ok pair-fail-err
+ok identical
+ok sametext
+ok pair-fail
+ok run-err

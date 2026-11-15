@@ -2,14 +2,30 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
-// M22-S6 defect D7 (SPEC Sec 11, T-Sec11, T-104.4): `logos eject` on a
-// `$"..."` inside a lambda body reproduces the native output.
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 func conv(g func(int) string) string { return g(1) }
 
 func main() {
-	fmt.Println(conv(x => $"n{x}"))
-	fmt.Println(conv(x => { return $"m{x}" }))
+	got := conv(x => $"n{x}")
+	check("ejected-arrow-interp-formats-arg", got == fmt.Sprint("n", 1) && got == "n1", got, "n1")
+	gotBlock := conv(x => { return $"m{x}" })
+	check("ejected-block-arrow-interp-formats-arg", gotBlock == fmt.Sprint("m", 1) && gotBlock == "m1", gotBlock, "m1")
+	if failed {
+		os.Exit(1)
+	}
 }

@@ -447,6 +447,10 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 		return true
 	}
 
+	if logosAnyIsReadonlyDescendants(x, y) {
+		return u.logosNifyReadonlyDescendants(x, y, mode, p)
+	}
+
 	// x != y if we get here
 	assert(x != y && Unalias(x) != Unalias(y))
 
@@ -583,6 +587,8 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 	xorig, x := x, Unalias(x)
 	yorig, y := y, Unalias(y)
 
+	logosUnwrapTuples(&x, &y)
+
 	switch x := x.(type) {
 	case *Basic:
 		// Basic types are singletons except for the rune and byte
@@ -610,19 +616,6 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 	case *Option: // logos M3-S2 hook: option types unify if their element types unify.
 		if y, ok := y.(*Option); ok {
 			return u.nify(x.Elem, y.Elem, emode, p)
-		}
-
-	case *LogosTuple: // logos M6-S5 hook: tuples unify element-wise over identical names.
-		if y, ok := y.(*LogosTuple); ok {
-			if x.Len() != y.Len() {
-				return false
-			}
-			for i := range x.Len() {
-				if x.Name(i) != y.Name(i) || !u.nify(x.Elem(i), y.Elem(i), emode, p) {
-					return false
-				}
-			}
-			return true
 		}
 
 	case *ConstView: // logos M5-S1 hook: const views unify if their element types unify.

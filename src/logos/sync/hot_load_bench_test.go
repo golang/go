@@ -4,17 +4,6 @@
 
 package sync_test
 
-// BenchmarkHotLoad (M22-S4, SPEC T-206, Table T-PERF "Hot[T] 0ns RCU read")
-// is report-only. A 0 ns read is not measurable; the benchmark reports what
-// one Hot.Load costs next to a plain atomic.Pointer load of the same value.
-// Hot[T] stores through atomic.Pointer[T] and Load is one atomic load, so
-// the two columns are the same load with and without the wrapper. The serial
-// pair measures one read; the parallel pair has every processor read the one
-// value, which shows whether readers contend: a load takes no lock and
-// writes nothing. Each load is asserted allocation-free first, because a
-// read that allocates is not an atomic load. Every loop calls the method
-// directly, so the compiler inlines Hot.Load as it does at a call site.
-
 import (
 	"sync/atomic"
 	"testing"

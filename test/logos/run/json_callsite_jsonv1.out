@@ -1,1 +1,7 @@
-callsite nojsonv2 ok
+ok callsite-marshal
+ok callsite-forms
+ok callsite-encoder
+ok callsite-richv1
+ok callsite-richv2
+ok callsite-separator-tags
+ok callsite-union

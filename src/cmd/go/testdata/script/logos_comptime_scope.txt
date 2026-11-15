@@ -1,10 +1,3 @@
-# M7-S2/S3: expanded code carries the position of its instantiation or
-# const for on every scope boundary, not only on nodes (SPEC Sec 2.5,
-# T-205). A block with a declared variable inside a comptime generic copy
-# or an unrolled const for body opens and closes a debug scope: a closing
-# brace left at the position of the expansion source breaks scope order
-# when DWARF is on, which `logos build` and `logos lint` both use. `logos
-# run` turns DWARF off, so the testdir run fixtures cannot see it.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
@@ -12,8 +5,12 @@ logos build -o $WORK/bin/scope$GOEXE .
 exec $WORK/bin/scope$GOEXE
 stdout '^2 \[X Y\] 7$'
 
+logos lint ./...
+
+cd dirty
 ! logos lint ./...
-stderr 'main\.lgo:24:2: \[nogo::unreachable\] unreachable code'
+stderr -count=1 'main\.lgo:15:3: \[slop::discarded_error\]'
+cd ..
 
 -- go.mod --
 module example.com/scope
@@ -70,4 +67,33 @@ func concrete(p Pair) int {
 
 func main() {
 	fmt.Println(Walk(Pair{X: 1, Y: 2}), Names[Pair](), concrete(Pair{X: 3, Y: 4}))
+}
+
+-- dirty/go.mod --
+module example.com/dirty
+
+go 1.27
+
+-- dirty/main.lgo --
+package main
+
+import (
+	"comptime"
+	"os"
+)
+
+type Pair struct {
+	X int
+	Y int
+}
+
+func drop(p Pair) {
+	const for _, f := range comptime.Fields[Pair]() {
+		os.Remove(f.Name)
+		_ = p.[f]
+	}
+}
+
+func main() {
+	drop(Pair{})
 }

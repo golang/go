@@ -1,12 +1,32 @@
-struct with 2 fields
-struct with 3 fields
-not a struct
-not a struct
-struct scalar scalar
-composite plain
-debug struct debug other
-typed struct typed other
-release release
-[ID Inner{} Tag]
-Pair is a struct
-int is not a struct
+ok walk-counts-pair-fields
+ok walk-counts-outer-fields
+ok walk-rejects-int
+ok walk-rejects-string
+ok kind-struct
+ok kind-scalar
+ok kind-pointer-scalar
+ok negated-struct-composite
+ok negated-scalar-plain
+ok combined-struct
+ok combined-scalar
+ok typed-struct
+ok typed-scalar
+ok release-struct
+ok release-scalar
+ok or-struct
+ok or-scalar
+ok eq-struct
+ok eq-scalar
+ok ne-struct
+ok ne-scalar
+ok shape-marks-struct-fields
+ok shape-or-marks-struct-fields
+ok shape-ne-marks-struct-fields
+ok concrete-type-is-struct
+ok concrete-type-not-struct
+ok kind-defined-over-struct
+ok kind-alias-of-struct
+ok kind-defined-over-int
+ok kind-alias-of-int
+ok walk-counts-defined-over-struct
+ok walk-counts-alias-of-struct

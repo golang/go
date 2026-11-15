@@ -1,0 +1,116 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+cd w
+logos build ./...
+logos build -o $WORK/bin/nv$GOEXE ./g/cmd
+exec $WORK/bin/nv$GOEXE
+stdout '^direct-checked method-value-ok iface-ok$'
+cd ..
+
+-- w/go.work --
+go 1.27
+
+use (
+	./l
+	./g
+)
+
+-- w/l/go.mod --
+module example.com/l
+
+go 1.27
+
+-- w/l/a/a.lgo --
+package a
+
+type User struct {
+	Name string
+}
+
+type Box struct {
+	X int
+}
+
+func (b *Box) Set(u *User) string {
+	return "set"
+}
+
+type Setter interface {
+	Set(u *User) string
+}
+
+var _ Setter = &Box{}
+
+-- w/g/go.mod --
+module example.com/g
+
+go 1.27
+
+-- w/g/q/q.go --
+package q
+
+import (
+	"fmt"
+	"strings"
+
+	"example.com/l/a"
+)
+
+func Run() string {
+	out := ""
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				if strings.Contains(fmt.Sprint(r), "logos:") {
+					out += "direct-checked"
+				} else {
+					out += "direct-UNCHECKED:" + fmt.Sprint(r)
+				}
+			}
+		}()
+		b := &a.Box{}
+		_ = b.Set(nil)
+		out += " direct-no-panic"
+	}()
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				out += " method-value-PANIC:" + fmt.Sprint(r)
+			}
+		}()
+		var n *a.Box
+		f := n.Set
+		if got := f(nil); got != "set" {
+			out += " method-value-bad"
+			return
+		}
+		out += " method-value-ok"
+	}()
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				out += " iface-PANIC:" + fmt.Sprint(r)
+			}
+		}()
+		var i a.Setter = (*a.Box)(nil)
+		if got := i.Set(nil); got != "set" {
+			out += " iface-bad"
+			return
+		}
+		out += " iface-ok"
+	}()
+	return out
+}
+
+-- w/g/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/g/q"
+)
+
+func main() { fmt.Println(q.Run()) }

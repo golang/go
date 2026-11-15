@@ -71,8 +71,6 @@ func TestLogosArenaShadowNeverReducesEscape(t *testing.T) {
 func TestLogosArenaForeignPrecedence(t *testing.T) {
 	enableLogosArena(t)
 
-	// A variable-capacity make is foreignBacking-shaped, but foreign
-	// shape alone is not the veto: the finished foreign decision is.
 	control := logosArenaDynamicMake(ir.EscNone)
 	if !foreignBacking(&location{n: control}) {
 		t.Fatal("dynamic make is not foreignBacking-shaped; test would not exercise the foreign shape")
@@ -92,9 +90,6 @@ func TestLogosArenaForeignPrecedence(t *testing.T) {
 		t.Error("foreign-forced make was arena-placed by LogosArenaConstMake")
 	}
 
-	// Returned makes: EscHeap is the expected result-only outcome, so the
-	// shadow mark is where walkAll records a foreign (or any other
-	// non-result) escape.
 	fn := &ir.Func{}
 	b := &batch{}
 	shadowForced := &location{n: foreignForced, curfn: fn, logosNoRet: true}
@@ -212,9 +207,6 @@ func TestLogosArenaVetoes(t *testing.T) {
 	})
 }
 
-// TestLogosArenaConstProductOverflow pins that the constant-size verdicts
-// bound the capacity by division before any product exists: an element size
-// that wraps capacity*size to a small value must not pass for a small make.
 func TestLogosArenaConstProductOverflow(t *testing.T) {
 	enableLogosArena(t)
 	fn := &ir.Func{}
@@ -229,13 +221,10 @@ func TestLogosArenaConstProductOverflow(t *testing.T) {
 		return types.NewArray(types.Types[types.TUINT8], size)
 	}
 
-	// A product of 2^64+2^15 wraps to 2^15: a size that fits one chunk if
-	// the multiplication is trusted.
 	wrapElem, wrapCap := types.MaxWidth/2+1, int64(1)<<15
 	if uint64(wrapElem)*uint64(wrapCap) != 1<<15 {
 		t.Fatalf("premise: %d * %d does not wrap to 2^15", wrapElem, wrapCap)
 	}
-	// A product of exactly 2^64 wraps to zero.
 	zeroElem, zeroCap := types.MaxWidth/2, int64(1)<<15
 	if uint64(zeroElem)*uint64(zeroCap) != 0 {
 		t.Fatalf("premise: %d * %d does not wrap to 0", zeroElem, zeroCap)
@@ -271,7 +260,6 @@ func TestLogosArenaConstProductOverflow(t *testing.T) {
 		})
 	}
 
-	// The retained-result shape test divides first as well.
 	for _, tt := range []struct {
 		name         string
 		elemSize, n  int64

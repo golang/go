@@ -1,0 +1,66 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd w
+logos run .
+stdout '^fresh ok$'
+
+-- w/go.mod --
+module example.com/fresh
+
+go 1.27
+
+-- w/main.lgo --
+package main
+
+import (
+  "encoding/json"
+  "fmt"
+)
+
+type First struct {
+  Name string `json:"name"`
+  V int64 `json:"v"`
+  Buf []string `json:"buf"`
+}
+
+type Second struct {
+  Name string `json:"name"`
+  V string `json:"v"`
+  Buf []string `json:"buf"`
+}
+
+type U interface {
+  First | Second
+}
+
+type H struct {
+  Item U `json:"item"`
+}
+
+func main() {
+  var h H
+  err := json.Unmarshal([]byte(`{"item":{"name":"x","buf":["a"],"v":"hi"}}`), &h)
+  if err != nil {
+    panic("fresh unmarshal: " + err.Error())
+  }
+  s, ok := h.Item.(Second)
+  if !ok {
+    panic(fmt.Sprintf("fresh want Second got %T", h.Item))
+  }
+  if s.Name != "x" {
+    panic("fresh name")
+  }
+  if s.V != "hi" {
+    panic("fresh v")
+  }
+  if len(s.Buf) != 1 {
+    panic("fresh buf len")
+  }
+  for _, b := range s.Buf {
+    if b != "a" {
+      panic("fresh buf val")
+    }
+  }
+  fmt.Println("fresh ok")
+}

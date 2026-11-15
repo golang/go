@@ -1,0 +1,40 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+import "context"
+
+func group(x int) error { return nil }
+
+func plainOutside(x int) error {
+	go /* ERROR "unsupervised_goroutine" */ group(x)
+	return nil
+}
+
+func plainOutsideNewline(x int) error {
+	go /* ERROR "unsupervised_goroutine" */ group(x)
+	{
+		println(x)
+	}
+	return nil
+}
+
+func plainOutsideShadow(x int) error {
+	group := func(v int) error { return nil }
+	go /* ERROR "unsupervised_goroutine" */ group(x)
+	return nil
+}
+
+func plainOutsideParen(x int) error {
+	go /* ERROR "unsupervised_goroutine" */ (group)(x)
+	return nil
+}
+
+func plainOutsideCtx(ctx context.Context) error {
+	go group (ctx) {
+		go group(1)
+	}
+	return nil
+}

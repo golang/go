@@ -1,0 +1,18 @@
+package p
+
+import "iter"
+
+func genAssign(n int) iter.Seq[int] {
+	x := yield n // ERROR syntax error: unexpected name n at end of statement
+	_ = x
+	yield n
+	return nil
+}
+
+func genCall(n int) iter.Seq[int] {
+	sink(yield n) // ERROR syntax error: unexpected name n in argument list
+	yield n
+	return nil
+}
+
+func sink(v int) {}

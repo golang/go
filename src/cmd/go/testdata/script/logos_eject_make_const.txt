@@ -1,0 +1,35 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+
+logos run .
+stderr '^9 16$'
+logos eject -o out
+exists out/main.go
+cd out
+go run .
+stderr '^9 16$'
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+cd ..
+
+-- m/go.mod --
+module example.com/ejectmakeconst
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+const K = 3
+
+func main() {
+	a := make([]int, K*K)
+	n := 4
+	b := make([]int, n*n)
+	println(len(a), len(b))
+}

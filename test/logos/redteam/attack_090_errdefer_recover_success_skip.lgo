@@ -5,6 +5,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os"
 )
 
 var errRec = errors.New("rec")
@@ -29,12 +30,25 @@ func fail() (err error) {
 	return errRec
 }
 
+var failed bool
+
+func check(name string, cond bool, got, want string) {
+	if !cond {
+		fmt.Printf("FAIL %s: got %s want %s\n", name, got, want)
+		failed = true
+		return
+	}
+	fmt.Printf("ok %s\n", name)
+}
+
 //logos:allow(slop::discarded_error)
 func main() {
+	before := len(order)
 	_ = ok()
+	check("errdefer-recover-skipped-on-success", len(order) == before, fmt.Sprint(len(order)-before), "0")
 	_ = fail()
-	for _, s := range order {
-		fmt.Println("ran:", s)
+	check("errdefer-recover-runs-on-failure", len(order) == before+1 && order[before] == "failed-cleanup", fmt.Sprint(order[before:]), "[failed-cleanup]")
+	if failed {
+		os.Exit(1)
 	}
-	fmt.Println("count:", len(order))
 }

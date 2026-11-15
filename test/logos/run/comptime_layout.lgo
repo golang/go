@@ -1,0 +1,82 @@
+// run
+package main
+
+import (
+	"comptime"
+	"fmt"
+	"os"
+	"unsafe"
+)
+
+type layoutMixed struct {
+	A int32
+	B []byte
+}
+
+type layoutPair struct {
+	X *int
+	Y int
+}
+
+type layoutEmpty struct{}
+
+type layoutNode struct {
+	Next *layoutNode
+}
+
+var failed bool
+
+func check(name, got, want string) {
+	if got != want {
+		fmt.Println("FAIL", name, "got", got, "want", want)
+		failed = true
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func Layout[T any]() (int, int, bool) {
+	return comptime.SizeOf[T](), comptime.AlignOf[T](), comptime.HasPointers[T]()
+}
+
+func Buffer[T any]() int {
+	var b [comptime.SizeOf[T]()]byte
+	return len(b)
+}
+
+func Sorted[T any]() string {
+	const if comptime.HasPointers[T]() {
+		return "scan"
+	}
+	return "noscan"
+}
+
+func main() {
+	size, align, ptr := Layout[int8]()
+	check("int8-size-align-no-scan", fmt.Sprint(size == int(unsafe.Sizeof(int8(0))) && align == int(unsafe.Alignof(int8(0))) && ptr == false), "true")
+	size, align, ptr = Layout[int64]()
+	check("int64-size-align-no-scan", fmt.Sprint(size == int(unsafe.Sizeof(int64(0))) && align == int(unsafe.Alignof(int64(0))) && ptr == false), "true")
+	size, align, ptr = Layout[string]()
+	check("string-size-align-scans", fmt.Sprint(size == int(unsafe.Sizeof("")) && align == int(unsafe.Alignof("")) && ptr == true), "true")
+	size, align, ptr = Layout[*int]()
+	check("pointer-size-align-scans", fmt.Sprint(size == int(unsafe.Sizeof((*int)(nil))) && align == int(unsafe.Alignof((*int)(nil))) && ptr == true), "true")
+	size, align, ptr = Layout[[0]*int]()
+	check("zero-array-size-align-no-scan", fmt.Sprint(size == int(unsafe.Sizeof([0]*int{})) && align == int(unsafe.Alignof([0]*int{})) && ptr == false), "true")
+	size, align, ptr = Layout[layoutMixed]()
+	check("mixed-struct-size-align-scans", fmt.Sprint(size == int(unsafe.Sizeof(layoutMixed{})) && align == int(unsafe.Alignof(layoutMixed{})) && ptr == true), "true")
+	size, align, ptr = Layout[[4]float64]()
+	check("float-array-size-align-no-scan", fmt.Sprint(size == int(unsafe.Sizeof([4]float64{})) && align == int(unsafe.Alignof([4]float64{})) && ptr == false), "true")
+	size, align, ptr = Layout[layoutEmpty]()
+	check("empty-struct-size-align-no-scan", fmt.Sprint(size == int(unsafe.Sizeof(layoutEmpty{})) && align == int(unsafe.Alignof(layoutEmpty{})) && ptr == false), "true")
+	size, align, ptr = Layout[layoutPair]()
+	check("pointer-pair-size-align-scans", fmt.Sprint(size == int(unsafe.Sizeof(layoutPair{X: new(int)})) && align == int(unsafe.Alignof(layoutPair{X: new(int)})) && ptr == true), "true")
+	check("buffer-uses-size", fmt.Sprint(Buffer[int64]() == int(unsafe.Sizeof(int64(0))) && Buffer[layoutMixed]() == int(unsafe.Sizeof(layoutMixed{}))), "true")
+	check("const-if-on-haspointers", fmt.Sprint(Sorted[int64]() == "noscan" && Sorted[string]() == "scan"), "true")
+	size, align, ptr = Layout[*layoutNode]()
+	check("recursive-pointer-scans", fmt.Sprint(size == int(unsafe.Sizeof((*layoutNode)(nil))) && align == int(unsafe.Alignof((*layoutNode)(nil))) && ptr == true), "true")
+	size, align, ptr = Layout[[0]layoutNode]()
+	check("recursive-zero-array-no-scan", fmt.Sprint(size == int(unsafe.Sizeof([0]layoutNode{})) && align == int(unsafe.Alignof([0]layoutNode{})) && ptr == false), "true")
+	if failed {
+		os.Exit(1)
+	}
+}

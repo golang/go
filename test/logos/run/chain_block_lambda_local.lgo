@@ -1,0 +1,180 @@
+// run
+
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func compare(name string, f func(xs []int) (int, int)) {
+	for _, xs := range [][]int{{1, 2, 3}, {}, {4}} {
+		got, want := f(xs)
+		if got != want {
+			failed = true
+			fmt.Printf("FAIL %s %v: got %d want %d\n", name, xs, got, want)
+			return
+		}
+	}
+	fmt.Println("ok", name)
+}
+
+func apply(f func(int) int, n int) int { return f(n) }
+
+func mapTypedLambda(xs []int) (int, int) {
+	got := xs.map(x => {
+		var f func(int) int = y => y + 1
+		return f(x)
+	}).sum()
+	want := 0
+	for _, x := range xs {
+		f := func(y int) int { return y + 1 }
+		want += f(x)
+	}
+	return got, want
+}
+
+func mapFuncLiteral(xs []int) (int, int) {
+	got := xs.map(x => {
+		f := func(y int) int { return y + 1 }
+		return f(x)
+	}).sum()
+	want := 0
+	for _, x := range xs {
+		f := func(y int) int { return y + 1 }
+		want += f(x)
+	}
+	return got, want
+}
+
+func mapCallArgument(xs []int) (int, int) {
+	got := xs.map(x => {
+		return apply(y => y + x, 1)
+	}).sum()
+	want := 0
+	for _, x := range xs {
+		want += apply(func(y int) int { return y + x }, 1)
+	}
+	return got, want
+}
+
+func mapCapture(xs []int) (int, int) {
+	got := xs.map(x => {
+		var f func(int) int = y => y * x
+		g := f(x)
+		return g + 1
+	}).take(2).sum()
+	want := 0
+	for i, x := range xs {
+		if i >= 2 {
+			break
+		}
+		f := func(y int) int { return y * x }
+		want += f(x) + 1
+	}
+	return got, want
+}
+
+func filterPredicate(xs []int) (int, int) {
+	got := xs.filter(x => {
+		var f func(int) bool = y => y > 1
+		return f(x)
+	}).count()
+	want := 0
+	for _, x := range xs {
+		f := func(y int) bool { return y > 1 }
+		if f(x) {
+			want++
+		}
+	}
+	return got, want
+}
+
+func findPredicate(xs []int) (int, int) {
+	got := xs.find(x => {
+		var f func(int) bool = y => y > 1
+		return f(x)
+	}) ?? -1
+	want := -1
+	for _, x := range xs {
+		f := func(y int) bool { return y > 1 }
+		if f(x) {
+			want = x
+			break
+		}
+	}
+	return got, want
+}
+
+func anyAndAll(xs []int) (int, int) {
+	any := xs.any(x => {
+		var f func(int) bool = y => y > 2
+		return f(x)
+	})
+	all := xs.all(x => {
+		var f func(int) bool = y => y > 0
+		return f(x)
+	})
+	got := 0
+	if any {
+		got += 1
+	}
+	if all {
+		got += 2
+	}
+	want := 0
+	hasBig := false
+	for _, x := range xs {
+		if x > 2 {
+			hasBig = true
+		}
+	}
+	if hasBig {
+		want += 1
+	}
+	allPos := true
+	for _, x := range xs {
+		if x <= 0 {
+			allPos = false
+		}
+	}
+	if allPos {
+		want += 2
+	}
+	return got, want
+}
+
+func stagesAfter(xs []int) (int, int) {
+	got := xs.map(x => {
+		var f func(int) int = y => y + x
+		return f(x)
+	}).filter(c => c > 3).count()
+	want := 0
+	for _, x := range xs {
+		f := func(y int) int { return y + x }
+		if f(x) > 3 {
+			want++
+		}
+	}
+	return got, want
+}
+
+func main() {
+	compare("map-typed-lambda", mapTypedLambda)
+	compare("map-func-literal", mapFuncLiteral)
+	compare("map-call-argument", mapCallArgument)
+	compare("map-capture", mapCapture)
+	compare("filter-predicate", filterPredicate)
+	compare("find-predicate", findPredicate)
+	compare("any-and-all", anyAndAll)
+	compare("stages-after", stagesAfter)
+	if failed {
+		os.Exit(1)
+	}
+}

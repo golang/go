@@ -27,9 +27,6 @@ import (
 var testMemStatsCount int
 
 func TestMemStats(t *testing.T) {
-	if runtime.LogosGCModeIsSTW() {
-		t.Skipf("stop-the-world GC mode (batch or epsilon): batch pins NextGC at the memory trigger and epsilon runs with GOGC off, so the upstream MemStats sanity bounds this test asserts do not hold")
-	}
 	testMemStatsCount++
 
 	// Make sure there's at least one forced GC.

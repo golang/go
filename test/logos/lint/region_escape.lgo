@@ -1,0 +1,37 @@
+// errorcheck -goexperiment logosarena,logosescape
+
+package p
+
+import "logos/arena"
+
+type box struct {
+	r arena.Region
+}
+
+func Store(b *box) {
+	r := arena.Open()
+	b.r = r // ERROR "\[correctness::region_escape\]"
+}
+
+func GoCapture() {
+	r := arena.Open()
+	go func() { _ = r }() // ERROR "\[correctness::region_escape\]" // ERROR "unsupervised_goroutine"
+	_ = r
+}
+
+func Ret() arena.Region {
+	r := arena.Open()
+	return r // ERROR "\[correctness::region_escape\]"
+}
+
+func Send(ch chan arena.Region) {
+	r := arena.Open()
+	ch <- r // ERROR "\[correctness::region_escape\]"
+}
+
+var gRegion arena.Region
+
+func StoreGlobal() {
+	r := arena.Open()
+	gRegion = r // ERROR "\[correctness::region_escape\]"
+}

@@ -1,0 +1,106 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type box struct {
+	M map[string]int
+	L []int
+	N int
+}
+
+const Cfg = box{M: map[string]int{"a": 1, "b": 2}, L: []int{1, 2}, N: 7}
+
+const cfg = box{M: map[string]int{"a": 1, "b": 2}, L: []int{1, 2}, N: 7}
+
+const boxes = []box{
+	{M: map[string]int{"a": 1}, L: []int{1}, N: 1},
+	{M: map[string]int{"a": 5, "b": 6}, L: []int{10, 20}, N: 2},
+}
+
+const grid = [2]box{
+	{M: map[string]int{"a": 1}, L: []int{1}, N: 1},
+	{M: map[string]int{"a": 5, "b": 6}, L: []int{10, 20}, N: 2},
+}
+
+func test() {
+	xs := []int{1}
+	ys := xs.map(x => Cfg)
+	ys[0].M["a"] = 50
+	ws := xs.map(x => Cfg)
+	check("lambda-exported-fresh", (ws[0].M["a"] ?? -1) == 1, ws[0].M["a"] ?? -1, 1)
+	check("lambda-exported-read", (Cfg.M["a"] ?? -1) == 1, Cfg.M["a"] ?? -1, 1)
+	us := xs.map(x => cfg)
+	us[0].M["b"] = 70
+	vs := xs.map(x => cfg)
+	check("lambda-unexported-fresh", (vs[0].M["b"] ?? -1) == 2, vs[0].M["b"] ?? -1, 2)
+	check("lambda-unexported-field", vs[0].N == 7, vs[0].N, 7)
+}
+
+func testBlocks() {
+	xs := []int{1}
+	ys := xs.map(x => {
+		c := Cfg
+		c.N = 40 + x
+		return c
+	})
+	check("lambda-block-edit", ys[0].N == 41 && (ys[0].M["a"] ?? -1) == 1, ys[0].N, 41)
+	check("lambda-block-edit-keeps-const", (Cfg.M["a"] ?? -1) == 1, Cfg.M["a"] ?? -1, 1)
+	zs := xs.map(x => {
+		return cfg
+	})
+	zs[0].M["b"] = 60
+	ts := xs.map(x => {
+		return cfg
+	})
+	check("lambda-block-return-fresh", (ts[0].M["b"] ?? -1) == 2, ts[0].M["b"] ?? -1, 2)
+	kept := xs.filter(x => {
+		return (Cfg.M["a"] ?? -1) == x
+	})
+	check("lambda-block-filter-reads-map", len(kept) == 1, len(kept), 1)
+}
+
+func testElements() {
+	idx := []int{0, 1}
+	ws := idx.map(i => boxes[i])
+	check("lambda-slice-element-read", ws[1].N == 2 && (ws[1].M["a"] ?? -1) == 5, ws[1].N, 2)
+	check("lambda-slice-element-keeps-const", boxes[1].N == 2 && (boxes[1].M["a"] ?? -1) == 5, boxes[1].N, 2)
+	again := idx.map(i => boxes[i])
+	check("lambda-slice-element-fresh", (again[1].M["a"] ?? -1) == 5, again[1].M["a"] ?? -1, 5)
+	lists := idx.map(i => boxes[i].L)
+	check("lambda-field-slice-read", len(lists) == 2 && len(lists[1]) == 2 && lists[1][0] == 10, lists[1][0], 10)
+	copies := idx.map(i => append([]int(nil), boxes[i].L...))
+	copies[1][0] = 77
+	check("lambda-field-slice-copy-edit", copies[1][0] == 77, copies[1][0], 77)
+	check("lambda-field-slice-keeps-const", boxes[1].L[0] == 10, boxes[1].L[0], 10)
+	sizes := idx.map(i => grid[i].N)
+	check("lambda-array-element", fmt.Sprint(sizes) == "[1 2]", fmt.Sprint(sizes), "[1 2]")
+	reads := idx.map(i => {
+		return grid[i].M["a"] ?? -1
+	})
+	check("lambda-block-array-element", fmt.Sprint(reads) == "[1 5]", fmt.Sprint(reads), "[1 5]")
+}
+
+func main() {
+	test()
+	testBlocks()
+	testElements()
+	if failed {
+		os.Exit(1)
+	}
+}

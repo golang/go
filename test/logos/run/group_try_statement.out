@@ -1,0 +1,8 @@
+ok try-expr-statement-sees-live-group-context
+ok try-assign-statement-sees-live-group-context
+ok try-statement-before-the-first-child
+ok child-spawned-after-a-try-statement
+ok try-assigns-an-existing-variable
+ok try-statement-with-errdefer-skips-it
+ok failed-try-statement-joins-the-children
+ok failed-try-statement-runs-errdefer-after-the-join

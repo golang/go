@@ -1,0 +1,29 @@
+# A Go package gets no array operator and no reduction method from the
+# tuple/SIMD rule: element-wise operators stay ordinary Go errors and no
+# archsimd rewrite happens.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOEXPERIMENT=simd
+
+cd m
+! logos build ./...
+stderr 'operator \+ not defined'
+! stderr 'archsimd'
+stderr 'has no field or method sum'
+! go build ./...
+stderr 'operator \+ not defined'
+
+-- m/go.mod --
+module example.com/simdplaingo
+
+go 1.27
+
+-- m/main.go --
+package main
+
+func main() {
+	var a, b [4]float64
+	c := a + b
+	_ = c
+	_ = a.sum()
+}

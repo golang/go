@@ -4,22 +4,6 @@ package main
 
 import "sync"
 
-// M18-S2 attack (IMPLEMENTATION.md M18-S2). A non-escaping make of noscan
-// elements with a dynamic size lowers to runtime.logosArenaMakeSlice, the
-// helper that applies the makeslice size verdicts and then allocates in the
-// arena region, instead of runtime.makeslice. A make whose backing array
-// escapes stays on the heap through runtime.makeslice: a store into a global,
-// and a buffer handed to sync.Pool.Put, which keeps it past the frame.
-//
-// Each make sits on its own source line and the asmcheck match is per source
-// line, so every positive and negative check names one site. Every arena make
-// is consumed by a noinline helper that does not let its argument escape, so
-// the allocation is neither dropped nor forced to the heap by the consumer.
-// A returned make takes a caller-region path with its own consent token and
-// is left out here on purpose: the controls use a global store and a real
-// pool so the heap verdict is unambiguous. The lowering to the arena exists
-// on amd64 only, so arm64 is checked for the absence of the helper.
-
 var (
 	placeSink  []byte
 	placeTotal int
@@ -53,9 +37,6 @@ func placeDynamic(n int) int {
 	return placeConsume(b)
 }
 
-// A separate capacity still goes through the one helper, which takes both
-// the length and the capacity.
-//
 //go:noinline
 func placeDynamicCap(n int) int {
 	// amd64:1"CALL.*runtime\\.logosArenaMakeSlice"
@@ -82,9 +63,6 @@ func placePoolPut(n int) int {
 	return len(buf)
 }
 
-// The usual pool shape: reuse a pooled buffer when it is big enough, else
-// make one, and hand it back. The fresh buffer flows to Put, so it is heap.
-//
 //go:noinline
 func placePoolRoundTrip(n int) int {
 	buf, _ := placePool.Get().([]byte)
@@ -99,9 +77,6 @@ func placePoolRoundTrip(n int) int {
 	return used
 }
 
-// Placement is decided per make site: the scratch buffer is arena-eligible
-// and the buffer kept in a global is not, inside one function.
-//
 //go:noinline
 func placeMixed(n int) int {
 	// amd64:1"CALL.*runtime\\.logosArenaMakeSlice"

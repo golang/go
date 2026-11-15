@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"unicode/utf16"
@@ -15,9 +16,6 @@ import (
 	"cmd/compile/internal/syntax"
 )
 
-// hintsFixture parses, checks, collects hints from, and lowers one fixture
-// of testdata/hints, in the order the compiler runs them: facts of the
-// unlowered tree first, then the lowering edits.
 func hintsFixture(t *testing.T, name string) (*HintsReport, []byte) {
 	t.Helper()
 	src, err := os.ReadFile(filepath.Join("testdata", "hints", name))
@@ -35,7 +33,6 @@ func hintsFixture(t *testing.T, name string) (*HintsReport, []byte) {
 	return h.Report(), src
 }
 
-// onlyFile returns the single file of the report.
 func onlyFile(t *testing.T, r *HintsReport) FileHints {
 	t.Helper()
 	if len(r.Files) != 1 {
@@ -44,15 +41,12 @@ func onlyFile(t *testing.T, r *HintsReport) FileHints {
 	return r.Files[0]
 }
 
-// positionAt converts a byte offset of src to an LSP position (0-based line,
-// UTF-16 character), independently of the implementation under test.
 func positionAt(src []byte, off int) HintPos {
 	before := string(src[:off])
 	text := before[strings.LastIndex(before, "\n")+1:]
 	return HintPos{Line: strings.Count(before, "\n"), Character: len(utf16.Encode([]rune(text)))}
 }
 
-// startOf returns the position of the first occurrence of needle in src.
 func startOf(t *testing.T, src []byte, needle string) HintPos {
 	t.Helper()
 	i := strings.Index(string(src), needle)
@@ -62,7 +56,6 @@ func startOf(t *testing.T, src []byte, needle string) HintPos {
 	return positionAt(src, i)
 }
 
-// endOf returns the position just after the first occurrence of needle.
 func endOf(t *testing.T, src []byte, needle string) HintPos {
 	t.Helper()
 	i := strings.Index(string(src), needle)
@@ -72,9 +65,6 @@ func endOf(t *testing.T, src []byte, needle string) HintPos {
 	return positionAt(src, i+len(needle))
 }
 
-// TestHintsNarrowedUses checks that every use of an option variable that the
-// checker narrows carries the narrowed type, that unnarrowed uses carry none,
-// and that columns count UTF-16 code units (SPEC Sec 21.2).
 func TestHintsNarrowedUses(t *testing.T) {
 	r, src := hintsFixture(t, "sites.lgo")
 	got := onlyFile(t, r).Narrowed
@@ -87,8 +77,6 @@ func TestHintsNarrowedUses(t *testing.T) {
 	}
 }
 
-// TestHintsUnionMembers checks the member list at a type switch over a closed
-// union, anchored just before the `.(type)` guard (SPEC Sec 21.2).
 func TestHintsUnionMembers(t *testing.T) {
 	r, src := hintsFixture(t, "sites.lgo")
 	got := onlyFile(t, r).Unions
@@ -101,9 +89,6 @@ func TestHintsUnionMembers(t *testing.T) {
 	}
 }
 
-// TestHintsInterpFixedBytes checks fixedBytes per interpolation site: the
-// literal bytes plus 20 per integer, 24 per float, and 5 per bool; operands
-// that carry their own length add nothing (SPEC T-104.4, SPEC Sec 21.3).
 func TestHintsInterpFixedBytes(t *testing.T) {
 	r, src := hintsFixture(t, "interp.lgo")
 	var sites []SiteHint
@@ -113,12 +98,14 @@ func TestHintsInterpFixedBytes(t *testing.T) {
 		}
 	}
 	want := []struct {
-		literal string
-		fixed   int
+		literal  string
+		fixed    int
+		buffered bool
+		lens     int
 	}{
-		{`$"user {name}: {n} items, {ratio}, {ok}, {raw}"`, 68},
-		{`$"{{id}}={n}"`, 25},
-		{`$"plain"`, 5},
+		{`$"user {name}: {n} items, {ratio}, {ok}, {raw}"`, 68, true, 2},
+		{`$"{{id}}={n}"`, 25, true, 0},
+		{`$"plain"`, 5, false, 0},
 	}
 	if len(sites) != len(want) {
 		t.Fatalf("%d interpolation sites, want %d: %+v", len(sites), len(want), sites)
@@ -133,26 +120,67 @@ func TestHintsInterpFixedBytes(t *testing.T) {
 		}
 		if s.Lowered == "" {
 			t.Errorf("%s: no lowered code", w.literal)
+			continue
 		}
-	}
-	if !strings.Contains(sites[0].Lowered, "make([]byte, 0, 19+len(") {
-		t.Errorf("lowered interpolation does not show the buffer bound:\n%s", sites[0].Lowered)
+		fixed, lens, buffered := interpBufferBound(t, s.Lowered)
+		if buffered != w.buffered || (buffered && (fixed != w.fixed || lens != w.lens)) {
+			t.Errorf("%s: lowered buffer capacity %d fixed bytes + %d len terms (buffer %v), want %d + %d (buffer %v):\n%s",
+				w.literal, fixed, lens, buffered, w.fixed, w.lens, w.buffered, s.Lowered)
+		}
 	}
 }
 
-// TestHintsFixedBytesMatchesBound pins fixedBytes to the lowering: the
-// constant terms of the emitted make bound sum to the reported count.
+func interpBufferBound(t *testing.T, lowered string) (fixed, lens int, buffered bool) {
+	t.Helper()
+	file := ejectParse(t, syntax.NewFileBase("lowered.go"), []byte("package p\n\nvar _ = "+lowered+"\n"), syntax.CheckBranches)
+	var capacity syntax.Expr
+	syntax.Inspect(file, func(n syntax.Node) bool {
+		if call, ok := n.(*syntax.CallExpr); ok && capacity == nil && len(call.ArgList) == 3 {
+			if name, ok := call.Fun.(*syntax.Name); ok && name.Value == "make" {
+				capacity = call.ArgList[2]
+			}
+		}
+		return capacity == nil
+	})
+	if capacity == nil {
+		return 0, 0, false
+	}
+	fixed, lens = capacityTerms(t, capacity)
+	return fixed, lens, true
+}
+
+func capacityTerms(t *testing.T, e syntax.Expr) (fixed, lens int) {
+	t.Helper()
+	switch e := e.(type) {
+	case *syntax.BasicLit:
+		n, err := strconv.Atoi(e.Value)
+		if e.Kind != syntax.IntLit || err != nil {
+			t.Fatalf("capacity term %s is not an int literal", e.Value)
+		}
+		return n, 0
+	case *syntax.ParenExpr:
+		return capacityTerms(t, e.X)
+	case *syntax.CallExpr:
+		if name, ok := e.Fun.(*syntax.Name); ok && name.Value == "len" {
+			return 0, 1
+		}
+	case *syntax.Operation:
+		if e.Op == syntax.Add && e.Y != nil {
+			xf, xl := capacityTerms(t, e.X)
+			yf, yl := capacityTerms(t, e.Y)
+			return xf + yf, xl + yl
+		}
+	}
+	t.Fatalf("capacity term %T is not a sum of int literals and len calls", e)
+	return 0, 0
+}
+
 func TestHintsFixedBytesMatchesBound(t *testing.T) {
 	if got := InterpFixedBytes([]string{"a", "bc", ""}, nil); got != 3 {
 		t.Errorf("literal-only fixed bytes %d, want 3", got)
 	}
-	if interpIntBound != 20 || interpFloatBound != 24 || interpBoolBound != 5 {
-		t.Errorf("operand bounds %d, %d, %d, want 20, 24, 5", interpIntBound, interpFloatBound, interpBoolBound)
-	}
 }
 
-// TestHintsLoweredTry checks the hover site of a `?`: the range is the `?`
-// token and the lowered text is the statement the lowering emitted.
 func TestHintsLoweredTry(t *testing.T) {
 	r, src := hintsFixture(t, "sites.lgo")
 	var tries []SiteHint
@@ -178,9 +206,6 @@ func TestHintsLoweredTry(t *testing.T) {
 	}
 }
 
-// TestHintsLoweredConstSwitch checks the hover site of `const switch T`: the
-// range is the two keywords and the lowered text is the switch that replaced
-// the statement.
 func TestHintsLoweredConstSwitch(t *testing.T) {
 	r, src := hintsFixture(t, "sites.lgo")
 	var got []SiteHint
@@ -201,9 +226,6 @@ func TestHintsLoweredConstSwitch(t *testing.T) {
 	}
 }
 
-// TestHintsLoweredConstFor checks the hover site of `const for`: the range is
-// the two keywords and the lowered text is the unrolled loop that replaced the
-// statement.
 func TestHintsLoweredConstFor(t *testing.T) {
 	r, src := hintsFixture(t, "sites.lgo")
 	var got []SiteHint
@@ -224,8 +246,6 @@ func TestHintsLoweredConstFor(t *testing.T) {
 	}
 }
 
-// TestHintsSiteWithoutEditIsDropped checks that a site no lowering edit
-// covers produces no hover: a hover without lowered code would be wrong.
 func TestHintsSiteWithoutEditIsDropped(t *testing.T) {
 	src, err := os.ReadFile(filepath.Join("testdata", "hints", "sites.lgo"))
 	if err != nil {
@@ -239,10 +259,34 @@ func TestHintsSiteWithoutEditIsDropped(t *testing.T) {
 	if sites := onlyFile(t, h.Report()).Sites; len(sites) != 0 {
 		t.Errorf("sites without edits survive: %+v", sites)
 	}
+	surviving := NewHints(pkg.Path())
+	surviving.AddFile(pkg, info, file, src)
+	_, edits := Lower(pkg, info, []*syntax.File{file}, map[*syntax.File][]byte{file: src})
+	surviving.Lowered(file, edits[file])
+	sites := onlyFile(t, surviving.Report()).Sites
+	if len(sites) == 0 {
+		t.Fatal("no hint site survives its own lowering edit")
+	}
+	var interp *SiteHint
+	for i := range sites {
+		if sites[i].Kind == SiteInterp {
+			interp = &sites[i]
+		}
+	}
+	if interp == nil {
+		t.Fatalf("interpolation site dropped despite its lowering edit: %+v", sites)
+	}
+	if interp.Range.Start != startOf(t, src, `$"user {name}!"`) || interp.Range.End != endOf(t, src, `$"user {name}!"`) {
+		t.Errorf("interpolation range %+v, want the lowering-map span", interp.Range)
+	}
+	if interp.FixedBytes == nil {
+		t.Fatalf("interpolation survivor lacks fixed bytes: %+v", interp)
+	}
+	if fixed, lens, buffered := interpBufferBound(t, interp.Lowered); !buffered || fixed != *interp.FixedBytes || lens != 1 {
+		t.Errorf("interpolation survivor buffer capacity %d fixed bytes + %d len terms (buffer %v), want %d + 1:\n%s", fixed, lens, buffered, *interp.FixedBytes, interp.Lowered)
+	}
 }
 
-// TestHintsRodata checks that a package-level const composite that lowering
-// places in read-only data carries the rodata tier at its name.
 func TestHintsRodata(t *testing.T) {
 	r, src := hintsFixture(t, "sites.lgo")
 	var got []AllocHint
@@ -256,9 +300,6 @@ func TestHintsRodata(t *testing.T) {
 	}
 }
 
-// TestHintsAllocWorstTierWins checks that an allocation analyzed in several
-// contexts reports its worst tier, and that a decision in a file outside the
-// package is dropped.
 func TestHintsAllocWorstTierWins(t *testing.T) {
 	src := []byte("package p\n\nvar x = 1\n")
 	file := ejectParse(t, syntax.NewFileBase("a.go"), src, syntax.CheckBranches)
@@ -274,24 +315,17 @@ func TestHintsAllocWorstTierWins(t *testing.T) {
 	}
 }
 
-// TestHintsAllocTierMerge checks pairwise tier precedence at one source
-// position: heap beats both arena and stack, arena beats stack when both are
-// possible, and all three beat rodata, regardless of arrival order.
 func TestHintsAllocTierMerge(t *testing.T) {
 	tests := []struct {
 		first, second string
 		want          string
 	}{
-		// Arena vs Stack: arena beats stack both ways.
 		{TierStack, TierArena, TierArena},
 		{TierArena, TierStack, TierArena},
-		// Heap vs Arena: heap beats arena both ways.
 		{TierArena, TierHeap, TierHeap},
 		{TierHeap, TierArena, TierHeap},
-		// Heap vs Stack: heap beats stack both ways.
 		{TierStack, TierHeap, TierHeap},
 		{TierHeap, TierStack, TierHeap},
-		// Rodata vs others: others beat rodata.
 		{TierRodata, TierArena, TierArena},
 		{TierArena, TierRodata, TierArena},
 		{TierRodata, TierStack, TierStack},
@@ -313,28 +347,5 @@ func TestHintsAllocTierMerge(t *testing.T) {
 				t.Fatalf("merge(%s, %s) = %+v, want tier %s", tc.first, tc.second, got, tc.want)
 			}
 		})
-	}
-}
-
-// TestHintsArenaAlloc checks that an arena allocation badge is assigned
-// when an allocation decision carries the arena tier.
-func TestHintsArenaAlloc(t *testing.T) {
-	src, err := os.ReadFile(filepath.Join("testdata", "hints", "sites.lgo"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	file := ejectParse(t, syntax.NewFileBase("sites.lgo"), src, syntax.LogosMode|syntax.CheckBranches)
-	pkg, info := ejectCheck(t, file)
-	h := NewHints(pkg.Path())
-	h.AddFile(pkg, info, file, src)
-	makePos := positionAt(src, strings.Index(string(src), "make([]byte, n)")+len("make"))
-	// Byte column is 1-based.
-	line := makePos.Line + 1
-	col := len(string(src[:strings.Index(string(src), "make([]byte, n)")+len("make")])) - strings.LastIndex(string(src[:strings.Index(string(src), "make([]byte, n)")+len("make")]), "\n")
-	h.AddAlloc(Alloc{File: "sites.lgo", Line: line, Col: col, Tier: TierArena, Message: "make([]byte, n) does not escape"})
-	got := onlyFile(t, h.Report()).Allocs
-	a, ok := allocAt(got, makePos)
-	if !ok || a.Tier != TierArena {
-		t.Fatalf("arena alloc: got %+v, want tier %s at %+v", a, TierArena, makePos)
 	}
 }

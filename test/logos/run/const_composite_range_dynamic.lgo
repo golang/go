@@ -1,0 +1,201 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"math"
+	"os"
+)
+
+type P struct{ A, B int }
+
+type item struct {
+	M map[string]int
+	N int
+}
+
+const items = []item{
+	{M: map[string]int{"j": 10, "b": 2, "h": 8, "a": 1, "e": 5, "c": 3, "i": 9, "d": 4, "g": 7, "f": 6}, N: 1},
+	{M: map[string]int{"z": 1, "y": 2, "x": 3}, N: 2},
+}
+
+const bare = map[string]int{"j": 10, "b": 2, "h": 8, "a": 1, "e": 5, "c": 3, "i": 9, "d": 4, "g": 7, "f": 6}
+
+const nums = map[int]string{10: "ten", 2: "two", 33: "tt", 1: "one", 7: "seven", 100: "hundred", -5: "neg"}
+
+const pairs = map[P]int{{2, 1}: 1, {1, 5}: 2, {1, 2}: 3, {3, 0}: 4}
+
+const floats = map[float64]string{2.5: "a", -1.5: "b", 10: "c", 0.25: "d"}
+
+const flags = map[bool]int{true: 1, false: 0}
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func strKeys(m const map[string]int) string {
+	s := ""
+	for k := range m {
+		s += k
+	}
+	return s
+}
+
+func strPairs(m const map[string]int) string {
+	s := ""
+	for k, v := range m {
+		s += fmt.Sprint(k, v, ";")
+	}
+	return s
+}
+
+func intKeys(m const map[int]string) string {
+	s := ""
+	for k := range m {
+		s += fmt.Sprint(k, ",")
+	}
+	return s
+}
+
+func pairKeys(m const map[P]int) string {
+	s := ""
+	for k := range m {
+		s += fmt.Sprint(k)
+	}
+	return s
+}
+
+func floatKeys(m const map[float64]string) string {
+	s := ""
+	for k := range m {
+		s += fmt.Sprint(k, ",")
+	}
+	return s
+}
+
+func boolKeys(m const map[bool]int) string {
+	s := ""
+	for k := range m {
+		s += fmt.Sprint(k, ",")
+	}
+	return s
+}
+
+func dynamicKeys(i int) string {
+	s := ""
+	for k := range items[i].M {
+		s += k
+	}
+	return s
+}
+
+func dynamicPairs(i int) string {
+	s := ""
+	for k, v := range items[i].M {
+		s += fmt.Sprint(k, v, ";")
+	}
+	return s
+}
+
+func stable(name string, f func() string, want string) {
+	for range 64 {
+		if got := f(); got != want {
+			check(name, false, got, want)
+			return
+		}
+	}
+	check(name, true, "", "")
+}
+
+func mixedEntries(m const map[any]int) bool {
+	mask, count := 0, 0
+	ints, strs := "", ""
+	for k, v := range m {
+		if v < 1 || v > 4 || mask&(1<<v) != 0 {
+			return false
+		}
+		mask |= 1 << v
+		count++
+		switch k := k.(type) {
+		case int:
+			if k != v {
+				return false
+			}
+			ints += fmt.Sprint(k)
+		case string:
+			if (k == "a" && v != 3) || (k == "b" && v != 4) {
+				return false
+			}
+			strs += k
+		default:
+			return false
+		}
+	}
+	return count == 4 && mask == 30 && ints == "12" && strs == "ab"
+}
+
+func nanEntries(m const map[float64]int) bool {
+	mask, count, nans := 0, 0, 0
+	for k, v := range m {
+		if v < 1 || v > 3 || mask&(1<<v) != 0 {
+			return false
+		}
+		mask |= 1 << v
+		count++
+		if math.IsNaN(k) {
+			nans++
+			if v == 3 {
+				return false
+			}
+		} else if k != 1 || v != 3 {
+			return false
+		}
+	}
+	return count == 3 && nans == 2 && mask == 14
+}
+
+func main() {
+	mixed := map[any]int{1: 1, 2: 2, "a": 3, "b": 4}
+	mixedOK := true
+	for range 64 {
+		if !mixedEntries(mixed) {
+			mixedOK = false
+		}
+	}
+	check("view-mixed-entries", mixedOK, mixedOK, true)
+	nan := math.NaN()
+	withNaNs := map[float64]int{1: 3}
+	withNaNs[nan] = 1
+	withNaNs[nan] = 2
+	check("view-nan-entries", nanEntries(withNaNs), "captured entries", "all three")
+	stable("view-string-bare", func() string { return strKeys(bare) }, "abcdefghij")
+	stable("view-string-pairs", func() string { return strPairs(bare) }, "a1;b2;c3;d4;e5;f6;g7;h8;i9;j10;")
+	stable("view-string-composite-static", func() string { return strKeys(items[0].M) }, "abcdefghij")
+	stable("view-string-composite-dynamic", func() string { i := 1; return strKeys(items[i].M) }, "xyz")
+	stable("view-int", func() string { return intKeys(nums) }, "-5,1,2,7,10,33,100,")
+	stable("view-struct", func() string { return pairKeys(pairs) }, "{1 2}{1 5}{2 1}{3 0}")
+	stable("view-float", func() string { return floatKeys(floats) }, "-1.5,0.25,2.5,10,")
+	stable("view-bool", func() string { return boolKeys(flags) }, "false,true,")
+	stable("dynamic-first", func() string { return dynamicKeys(0) }, "abcdefghij")
+	stable("dynamic-second", func() string { return dynamicKeys(1) }, "xyz")
+	stable("dynamic-values", func() string { return dynamicPairs(1) }, "x3;y2;z1;")
+	stable("dynamic-byte-index", func() string {
+		var b byte = 1
+		s := ""
+		for k := range items[b].M {
+			s += k
+		}
+		return s
+	}, "xyz")
+	if failed {
+		os.Exit(1)
+	}
+}

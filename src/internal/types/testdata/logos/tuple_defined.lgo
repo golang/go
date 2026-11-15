@@ -1,0 +1,154 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+type pair (int, int)
+
+type named (x int, y int)
+
+type renamed (x int, z int)
+
+type wide (int, int, int)
+
+type text (int, string)
+
+type other (int, int)
+
+type tup = (int, int)
+
+type namedTup = (x int, y int)
+
+type renamedTup = (x int, z int)
+
+type textTup = (int, string)
+
+type shape = struct {
+	T_0 int
+	T_1 int
+}
+
+type bits struct {
+	T_0 int
+	T_1 int
+}
+
+type Box[T any] (T, T)
+
+func (p pair) first() int {
+	var t tup = p
+	a, _ := t
+	return a
+}
+
+func use(p pair) {}
+
+func same[T any](a, b T) bool { return true }
+
+func literalForms() pair {
+	var a pair = (1, 2)
+	var b pair
+	b = (3, 4)
+	c := []pair{(1, 2)}
+	d := map[string]pair{"a": (1, 2)}
+	e := [1]named{(1, 2)}
+	ch := make(chan pair, 1)
+	ch <- (5, 6)
+	use((7, 8))
+	_, _, _, _, _, _ = a, b, c, d, e, ch
+	return (9, 10)
+}
+
+func valueForms(t tup, nt namedTup, s shape, p pair, n named) {
+	var a pair = t
+	var b named = nt
+	var c pair = s
+	var d tup = p
+	var e namedTup = n
+	var f shape = p
+	var g shape = t
+	var h tup = s
+	_, _, _, _, _, _, _, _ = a, b, c, d, e, f, g, h
+}
+
+func conversions(t tup, nt namedTup, s shape, p pair, n named, b bits) {
+	_ = pair(t)
+	_ = tup(p)
+	_ = pair(s)
+	_ = shape(p)
+	_ = named(nt)
+	_ = namedTup(n)
+	_ = bits(p)
+	_ = pair(b)
+}
+
+func equality(p pair, t tup, s shape) {
+	_ = p == t
+	_ = t == p
+	_ = p == s
+	_ = s == p
+	_ = p != t
+}
+
+func inference(p pair, t tup) {
+	_ = same(p, t)
+	_ = same(t, p)
+}
+
+func generic(t tup) {
+	var a Box[int] = (1, 2)
+	var b Box[int] = t
+	_ = Box[int](t)
+	_, _ = a, b
+}
+
+func literalElementMismatch() {
+	var a pair = (1, "s" /* ERROR "" */)
+	var b named = (1, "s" /* ERROR "" */)
+	use((1, "s" /* ERROR "" */))
+	_, _ = a, b
+}
+
+func optionLiteralElements() {
+	var a pair? = (1, 2)
+	var b named? = (1, "s" /* ERROR "as int value in" */)
+	var c (x int?, y int)? = (nil, 2)
+	var d (x int?, y int)? = (1, "a" /* ERROR "as int value in" */)
+	var e other? = pair /* ERROR "cannot use" */ ((1, 2))
+	_, _, _, _, _ = a, b, c, d, e
+}
+
+func literalArityMismatch() {
+	var a pair = ( /* ERROR "" */ 1, 2, 3)
+	var b named = ( /* ERROR "" */ 1, 2, 3)
+	_, _ = a, b
+}
+
+func valueMismatch(x textTup, w wide, o other, b bits) {
+	var a pair = x /* ERROR "" */
+	var c pair = w /* ERROR "" */
+	var d pair = o /* ERROR "" */
+	var e pair = b /* ERROR "" */
+	_, _, _, _ = a, c, d, e
+}
+
+func nameMismatch(r renamedTup, nt namedTup) {
+	var a named = r /* ERROR "" */
+	var b renamed = nt /* ERROR "" */
+	_, _ = a, b
+}
+
+func convertMismatch(x textTup, w wide, r renamedTup, n named, p pair) {
+	_ = pair(x /* ERROR "" */)
+	_ = pair(w /* ERROR "" */)
+	_ = named(r /* ERROR "" */)
+	_ = pair(n /* ERROR "" */)
+	_ = named(p /* ERROR "" */)
+}
+
+func definedToDefined(p pair, o other) {
+	var a other = p /* ERROR "" */
+	var b pair = o /* ERROR "" */
+	_, _ = a, b
+}

@@ -1,0 +1,83 @@
+# T-301.1: region placement MUST NOT change program meaning. The same
+# program runs under logos with the logosarena experiment (what the
+# logos driver appends by default) and with arena = false, and both
+# runs print the same output for an object placed in a region, for an
+# object that escapes to the heap, and for reads after the region
+# closes.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+logos build -gcflags=-m -o $WORK/meanon$GOEXE .
+stderr 'placed in region'
+logos run .
+stdout '^17 7 10 12$'
+cp stdout $WORK/meanon.txt
+
+cp ../off.toml logos.toml
+logos build -gcflags=-m -o $WORK/meanoff$GOEXE .
+! stderr 'placed in region'
+logos run .
+stdout '^17 7 10 12$'
+cmp stdout $WORK/meanon.txt
+
+-- off.toml --
+[build]
+arena = false
+
+-- m/go.mod --
+module example.com/meaning
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import (
+	"fmt"
+	"logos/arena"
+	"runtime"
+)
+
+type node struct {
+	v int
+}
+
+var escapedNode = &node{}
+var escapedSlots []*int
+
+func build(n int) int {
+	r := arena.Open()
+	head := arena.New[node](r)
+	head.v = 7
+	escapedNode = head
+	slots := make([]*int, 0, n)
+	for i := range n {
+		v := 10 + i
+		slots = append(slots, &v)
+	}
+	escapedSlots = slots
+	s := arena.Make[int](r, 4)
+	for i := range s {
+		s[i] = i + 1
+	}
+	sum := 0
+	for i := range s {
+		sum += s[i]
+	}
+	return sum + head.v
+}
+
+func main() {
+	sum := build(3)
+	runtime.GC()
+	first := 0
+	if p := escapedSlots[0]; p != nil {
+		first = *p
+	}
+	last := 0
+	if p := escapedSlots[len(escapedSlots)-1]; p != nil {
+		last = *p
+	}
+	fmt.Println(sum, escapedNode.v, first, last)
+}

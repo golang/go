@@ -1,5 +1,8 @@
-false <nil> imp
-2
-true
-false 0
-true orc
+ok cov-slice-keeps-elements
+ok cov-slice-keeps-typed-nil
+ok cov-slice-dispatches-nil-receiver
+ok cov-slice-dispatches-value
+ok cov-slice-nil-in-nil-out
+ok cov-slice-empty-stays-non-nil
+ok cov-slice-passes-interfaces-through
+ok cov-slice-dispatches-passthrough

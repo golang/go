@@ -2,9 +2,21 @@
 
 package main
 
-// M3 nested option results (SPEC T-202): `(T?)?` parses as a result
-// type, `(T)?` equals `T?`, and a `T?` value wraps into `(T?)?`, so a
-// present-but-none inner option stays distinct from an absent outer one.
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 func none() (int?)? {
 	return nil
@@ -25,8 +37,12 @@ func grouped(n int) (int)? {
 }
 
 func main() {
-	println(none() == nil)
-	println(someNone() == nil)
-	println(some(7) == nil)
-	println(grouped(3) ?? 0)
+	check("none-is-none", none() == nil, none() == nil, true)
+	check("somenone-is-some", someNone() != nil, someNone() != nil, true)
+	check("some-is-some", some(7) != nil, some(7) != nil, true)
+	gotG := grouped(3) ?? 0
+	check("grouped", gotG == 3, gotG, 3)
+	if failed {
+		os.Exit(1)
+	}
 }

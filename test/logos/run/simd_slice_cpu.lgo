@@ -5,29 +5,13 @@ package main
 import (
 	"fmt"
 	"math"
+	"os"
 )
 
-// M15-S2 attack, scalar fallback of the guard: the same oracle as
-// simd_slice.lgo runs with every archsimd CPU feature the slice sum
-// guards on turned off, so the vector branch cannot run and the scalar
-// loop must give the same digest. simd_cpu_seam.go proves the directive
-// takes effect and holds only at GOAMD64 v1 or v2, where the compiler
-// keeps the checks.
-//
-// The directive pins -goamd64=v1 because the logos default target is v3
-// (SPEC #107). internal/cpu offers cpu.avx and cpu.avx2 as GODEBUG options
-// only below GOAMD64 v3 (cpu_x86.go), so at v3 the runtime rejects them with
-// "unknown cpu feature". simd_cpu.lgo pins the same level for the same reason.
-//
-// M15-S2 attack (SPEC Sec 15.2 and 2.4, T-303, T-204.2): `.sum()` on a
-// bare slice matches a scalar oracle for every element kind at every
-// length from empty through two vectors plus one of the widest lane
-// count and beyond, so each tail size runs. Integer sums wrap like the
-// oracle's left-to-right loop. Float sums equal an explicit pairwise
-// recursion over halves bit for bit, the fixed order the scalar form
-// uses. The printed digest of every sum's bits is the same with and
-// without GOEXPERIMENT=simd, so the vector form and the scalar form
-// agree.
+func fail(tag string) {
+	fmt.Println("FAIL", tag)
+	os.Exit(1)
+}
 
 type intKind interface {
 	~int | ~uint | ~int8 | ~uint8 | ~int16 | ~uint16 | ~int32 | ~uint32 | ~int64 | ~uint64
@@ -68,22 +52,13 @@ func mixInt(i int) int {
 	return (i*2654435761 + 12345) >> 3
 }
 
-// mixFloat varies the magnitude with the index, so a different
-// association order changes the rounded result.
 func mixFloat(i int) float64 {
 	return math.Ldexp(float64(mixInt(i)%2001-1000), (i*7)%13-6)
 }
 
-func digest(h uint64, bits uint64) uint64 {
-	return (h ^ bits) * 1099511628211
-}
-
 func checkInt[T intKind](name string, sum func([]T) T) {
-	h := uint64(14695981039346656037)
-	bad := 0
 	if got := sum(nil); got != 0 {
-		bad++
-		fmt.Println("MISMATCH nil", name, got)
+		fail(fmt.Sprintf("MISMATCH nil %s: got %v want 0", name, got))
 	}
 	for _, n := range lengths {
 		s := make([]T, n)
@@ -92,20 +67,15 @@ func checkInt[T intKind](name string, sum func([]T) T) {
 		}
 		got, want := sum(s), oracleInt(s)
 		if got != want {
-			bad++
-			fmt.Println("MISMATCH", name, n, got, want)
+			fail(fmt.Sprintf("MISMATCH %s %d: got %v want %v", name, n, got, want))
 		}
-		h = digest(h, uint64(got))
 	}
-	fmt.Println(name, bad, h)
+	fmt.Println("ok", name+"-matches-scalar-oracle")
 }
 
 func checkFloat32(name string, sum func([]float32) float32) {
-	h := uint64(14695981039346656037)
-	bad := 0
 	if got := sum(nil); got != 0 {
-		bad++
-		fmt.Println("MISMATCH nil", name, got)
+		fail(fmt.Sprintf("MISMATCH nil %s: got %v want 0", name, got))
 	}
 	for _, n := range lengths {
 		s := make([]float32, n)
@@ -114,20 +84,15 @@ func checkFloat32(name string, sum func([]float32) float32) {
 		}
 		got, want := sum(s), oracleFloat(s)
 		if math.Float32bits(got) != math.Float32bits(want) {
-			bad++
-			fmt.Println("MISMATCH", name, n, got, want)
+			fail(fmt.Sprintf("MISMATCH %s %d: got %v want %v", name, n, got, want))
 		}
-		h = digest(h, uint64(math.Float32bits(got)))
 	}
-	fmt.Println(name, bad, h)
+	fmt.Println("ok", name+"-matches-pairwise-oracle")
 }
 
 func checkFloat64(name string, sum func([]float64) float64) {
-	h := uint64(14695981039346656037)
-	bad := 0
 	if got := sum(nil); got != 0 {
-		bad++
-		fmt.Println("MISMATCH nil", name, got)
+		fail(fmt.Sprintf("MISMATCH nil %s: got %v want 0", name, got))
 	}
 	for _, n := range lengths {
 		s := make([]float64, n)
@@ -136,12 +101,10 @@ func checkFloat64(name string, sum func([]float64) float64) {
 		}
 		got, want := sum(s), oracleFloat(s)
 		if math.Float64bits(got) != math.Float64bits(want) {
-			bad++
-			fmt.Println("MISMATCH", name, n, got, want)
+			fail(fmt.Sprintf("MISMATCH %s %d: got %v want %v", name, n, got, want))
 		}
-		h = digest(h, math.Float64bits(got))
 	}
-	fmt.Println(name, bad, h)
+	fmt.Println("ok", name+"-matches-pairwise-oracle")
 }
 
 type f32 = float32
@@ -160,6 +123,8 @@ func main() {
 	checkFloat32("float32", func(s []float32) float32 { return s.sum() })
 	checkFloat32("f32", func(s []f32) f32 { return s.sum() })
 	checkFloat64("float64", func(s []float64) float64 { return s.sum() })
-	// The pinned order (#67): left-to-right gives 1, the split gives 0.
-	fmt.Println([]float64{1e16, -1e16, 1.0}.sum())
+	if got := []float64{1e16, -1e16, 1.0}.sum(); got != 0 {
+		fail(fmt.Sprintf("pairwise order: got %v want 0", got))
+	}
+	fmt.Println("ok pairwise-order-sum-is-zero")
 }

@@ -23,6 +23,7 @@ const tmpstringbufsize = 32
 func Walk(fn *ir.Func) {
 	ir.CurFunc = fn
 	installLogosArenaFrame(fn)
+	logosRegionLower(fn)
 	// The entry token lives only for this Walk: RetMake lowering and Chain
 	// consent read it while walking fn's body. Drop it on return so stale
 	// entries never accumulate across functions.
@@ -196,13 +197,6 @@ var mapdelete = mkmapnames("mapdelete", "")
 
 func mapfast(t *types.Type) int {
 	if t.Elem().Size() > abi.MapMaxElemBytes {
-		return mapslow
-	}
-	if a := algType(t.Key()); base.LogosLoadBarrier && (a == types.AMEM32 || a == types.AMEM64) && t.Key().HasPointers() {
-		// The fast32 and fast64 paths hash the key word inline, not
-		// through the type's hasher; under -gc=zgc a pointer key must
-		// hash by identity (runtime.zgcptrhash), so every map operation
-		// on it takes the hasher path.
 		return mapslow
 	}
 	switch algType(t.Key()) {

@@ -1,0 +1,10 @@
+package nonpre
+
+/*
+#include <stdint.h>
+int ladd_nonpre(int a, int b) { return a + b; }
+*/
+import "C"
+//logos:cgo_fastcall ladd_nonpre
+
+func Add(a, b int32) int32 { return int32(C.ladd_nonpre(C.int(a), C.int(b))) }

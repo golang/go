@@ -1,6 +1,0 @@
-feed-trace: ok
-feed-trace: ok
-autowire-trace: ok
-elf: no .cold section
-readelf: no .cold section
-OK

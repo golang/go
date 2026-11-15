@@ -1,6 +1,3 @@
-# M0-S2: a package must not mix .go and .lgo files.
-# logos build fails with correctness::mixed_package naming both files.
-
 env GOPROXY=off
 
 ! logos build .

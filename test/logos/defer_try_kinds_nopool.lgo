@@ -1,0 +1,18 @@
+// errorcheck -0 -d=defer,nodefertrypool=1
+
+package p
+
+//go:noinline
+func closeNil() error { return nil }
+
+func loop(n int) (err error) {
+	for i := 0; i < n; i++ {
+		defer closeNil()? // ERROR "heap-allocated defer"
+	}
+	return nil
+}
+
+func top() (err error) {
+	defer closeNil()? // ERROR "open-coded defer"
+	return nil
+}

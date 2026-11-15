@@ -1,0 +1,130 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# A lambda takes its parameter types from the function type of the location
+# that receives it: struct fields, spread literal fields, slice, array and
+# map literal elements, a channel send, append arguments, a named function
+# type and a generic callee. The module runs natively, ejects, and the
+# ejected module builds and runs with go and with go1.27.2 from $UPROOT1272
+# and prints the same output.
+cd m
+logos run .
+stdout '^2 6 8 15 4 6 8 2 14 11 21 4 4 11 1 4$'
+stdout '^11 8 101 6 2 9 2 8$'
+cp stdout $WORK/native.txt
+logos eject -o out
+exists out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $WORK/native.txt
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
+exec $WORK/upstream$GOEXE
+cmp stdout $WORK/native.txt
+cd ..
+
+-- m/go.mod --
+module example.com/lambdapositions
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import (
+	"fmt"
+	"iter"
+	"slices"
+)
+
+type handler struct{ f func(int) int }
+
+type pairFns struct {
+	one func(int) int
+	two func(int, int) int
+}
+
+type namedFn func(int) int
+
+func callNamed(f namedFn, x int) int {
+	return f(x)
+}
+
+func sumFuncs(x int, fs ...func(int) int) int {
+	total := 0
+	for _, f := range fs {
+		total += f(x)
+	}
+	return total
+}
+
+func reduce[T, A any](xs []T, init A, f func(A, T) A) A {
+	acc := init
+	for _, x := range xs {
+		acc = f(acc, x)
+	}
+	return acc
+}
+
+func only[V any](m map[string]V) V {
+	var found V
+	for _, v := range m {
+		found = v
+	}
+	return found
+}
+
+func takeOpt(f (func(int) int)?) int {
+	g := f ?? (x => 0)
+	return g(1)
+}
+
+func optionalInc() (func(int) int)? {
+	return x => x + 1
+}
+
+func funcSeq() iter.Seq[func(int) int] {
+	yield x => x + 1
+	yield (x => x * 3)
+}
+
+func main() {
+	h := handler{f: x => x + 1}
+	p := pairFns{x => x * 3, (a, b) => a - b}
+	q := pairFns{..p, one: x => x * 4}
+	r := pairFns{..p, two: ((a, b) => { return a * b })}
+	fs := []func(int) int{x => x + 1, x => x * 2}
+	arr := [2]func(int) int{x => x, x => x * 2}
+	m := map[string]func(int) int{"k": x => x + 1}
+	nested := map[string]handler{"k": {f: x => x * 7}}
+	ch := make(chan func(int) int, 2)
+	ch <- x => x + 10
+	select {
+	case ch <- x => x + 20:
+	default:
+	}
+	first, second := <-ch, <-ch
+	fs = append(fs, x => x - 1, (x => x - 2))
+	idx := slices.IndexFunc([]int{1, 2, 3}, x => x > 1)
+	total := reduce([]string{"a", "bcd"}, 0, (n, s) => n+len(s))
+	fmt.Println(h.f(1), p.one(2), q.one(2), r.two(5, 3), fs[0](3), fs[1](3), arr[1](4), only(m)(1), only(nested).f(2), first(1), second(1), fs[2](5), callNamed(x => x + 3, 1), sumFuncs(2, x => x, x => x * 2, x => x + 3), idx, total)
+	var o (func(int) int)? = x => x + 10
+	inOption := o ?? (x => 0)
+	var none (func(int) int)?
+	fallback := none ?? (x => x * 2)
+	absent := m["missing"] ?? (x => x + 100)
+	returned := optionalInc() ?? (x => 0)
+	yielded := 0
+	for f := range funcSeq() {
+		yielded += f(2)
+	}
+	var t (func(int) int, int) = (x => x + 1, 5)
+	tf, tn := t
+	var wrapped ((func(int) int, int), int) = ((x => x * 4, 1), 2)
+	inner, _ := wrapped
+	nf, _ := inner
+	fmt.Println(inOption(1), fallback(4), absent(1), takeOpt(x => x + 5), returned(1), yielded, tf(1)+tn-5, nf(2))
+}

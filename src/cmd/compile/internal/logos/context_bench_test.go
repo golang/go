@@ -13,7 +13,6 @@ import (
 	"cmd/compile/internal/syntax"
 )
 
-// contextBenchSrc builds a 200-type package with a method-rich target.
 func contextBenchSrc() string {
 	var b strings.Builder
 	b.WriteString("package bench\n")
@@ -33,14 +32,12 @@ func contextBenchSrc() string {
 	return b.String()
 }
 
-// writeBenchNum appends i as a three-digit suffix.
 func writeBenchNum(b *strings.Builder, i int) {
 	b.WriteByte(byte('0' + i/100))
 	b.WriteByte(byte('0' + (i/10)%10))
 	b.WriteByte(byte('0' + i%10))
 }
 
-// BenchmarkContext reports extraction latency over 10 counts.
 func BenchmarkContext(b *testing.B) {
 	src := contextBenchSrc()
 	const counts = 10

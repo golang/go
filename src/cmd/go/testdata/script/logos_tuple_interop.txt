@@ -1,0 +1,104 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+cd w
+logos build ./...
+logos build -o $WORK/bin/tup$GOEXE ./g/cmd
+exec $WORK/bin/tup$GOEXE
+stdout '^3 <nil>$'
+stdout '^7 seven$'
+stdout '^0 <nil>$'
+stdout '^0 $'
+logos run ./l/cmdt
+stdout '^3 <nil>$'
+stdout '^7 seven$'
+cd ..
+
+env GOWORK=off
+cd w/l
+logos eject -o bout
+grep 'T_0 int' bout/p/p.go
+grep 'T_1 error' bout/p/p.go
+grep 'T_x int' bout/p/p.go
+cd bout
+go run ./cmdt
+stdout '^3 <nil>$'
+stdout '^7 seven$'
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+go vet ./...
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ..
+cd ..
+
+-- w/go.work --
+go 1.27
+
+use (
+	./l
+	./g
+)
+
+-- w/l/go.mod --
+module example.com/l
+
+go 1.27
+
+-- w/l/p/p.lgo --
+package p
+
+func Pair() (int, error) { return 3, nil }
+
+func Named() (x int, y string) { return 7, "seven" }
+
+var V (int, error)
+
+var Vn (x int, y string)
+
+-- w/l/cmdt/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/l/p"
+)
+
+func main() {
+	a, b := p.Pair()
+	if b != nil {
+		fmt.Println(b)
+		return
+	}
+	fmt.Println(a, b)
+	n := p.Named()
+	fmt.Println(n.x, n.y)
+}
+
+-- w/g/go.mod --
+module example.com/g
+
+go 1.27
+
+-- w/g/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/l/p"
+)
+
+func main() {
+	a, b := p.Pair()
+	fmt.Println(a, b)
+	x, y := p.Named()
+	fmt.Println(x, y)
+	fmt.Println(p.V.T_0, p.V.T_1)
+	fmt.Println(p.Vn.T_x, p.Vn.T_y)
+}

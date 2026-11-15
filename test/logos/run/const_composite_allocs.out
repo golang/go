@@ -1,0 +1,11 @@
+ok alloc-field-read
+ok alloc-slice-element-read
+ok alloc-static-map-read
+ok alloc-dynamic-index-read
+ok alloc-copy-control
+ok dynamic-index-value
+ok dynamic-index-value
+ok dynamic-index-expression
+ok dynamic-index-comma-ok
+ok dynamic-index-miss
+ok dynamic-index-bounds

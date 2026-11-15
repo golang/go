@@ -4,24 +4,6 @@ package codegen
 
 import "math/bits"
 
-// M15-S2 amd64 BMI2 and CMOV (SPEC Sec 15.2, T-303). A constant-count
-// rotate left by c is RORXQ or RORXL at GOAMD64=v3 and v4: the SSA rotate
-// turns left and RORX turns right, so the instruction carries the width
-// complement of c (a left rotate by 7 of a 64-bit value is RORXQ $57).
-// Below v3 the same rotate stays ROLQ or ROLL, because RORX needs BMI2.
-// The count is masked to the width before the complement, so wrapped and
-// negative counts keep their meaning, and a count that is 0 or a whole
-// multiple of the width emits no rotate. RORX has no 16-bit, 8-bit, or
-// register-count form (the encoding takes an immediate count only), so
-// those rotates keep ROLW, ROLB, ROLQ, ROLL, RORQ, and RORL at every level.
-// Variable shifts use SHLX, SHRX, and SARX from v3 on and keep SHL, SHR,
-// and SAR below, with the same compare and mask that give a count of the
-// width or more the Go result. A ternary-shaped branch becomes CMOV at
-// every level through branchelim. The Go twin amd64_v3.go and the loGo/s
-// twin amd64_v3.lgo hold the same text and run under go and under logos.
-
-// Immediate rotates: the shift-and-or idiom and a plain count.
-
 func rolImm64(x uint64) uint64 {
 	// amd64/v1:"ROLQ [$]7," -"RORX"
 	// amd64/v2:"ROLQ [$]7," -"RORX"
@@ -37,10 +19,6 @@ func rolImm32(x uint32) uint32 {
 	// amd64/v4:"RORXL [$]25," -"ROLL"
 	return x<<7 | x>>25
 }
-
-// Counts at the ends of the range and past it. A left rotate by 1 is a
-// right rotate by 63 (RORXQ $63), a left rotate by 63 is RORXQ $1, and a
-// count of 65 or -63 wraps to 1.
 
 func rolImm64Low(x uint64) uint64 {
 	// amd64/v1:"ROLQ [$]1," -"RORX"
@@ -114,9 +92,6 @@ func rolImm32Negative(x uint32) uint32 {
 	return bits.RotateLeft32(x, -1)
 }
 
-// A count of 0 or of the whole width, in either direction, rotates by
-// nothing: no rotate instruction of either kind survives at any level.
-
 func rolZero64(x uint64) uint64 {
 	// amd64:-"ROLQ" -"RORQ" -"RORX"
 	return bits.RotateLeft64(x, 0)
@@ -142,9 +117,6 @@ func rolFull32(x uint32) uint32 {
 	return bits.RotateLeft32(x, 32)
 }
 
-// RORX has no 16-bit or 8-bit form, so those immediate rotates keep ROLW
-// and ROLB at every level.
-
 func rolImm16(x uint16) uint16 {
 	// amd64:"ROLW [$]3," -"RORX"
 	return x<<3 | x>>13
@@ -155,35 +127,31 @@ func rolImm8(x uint8) uint8 {
 	return x<<3 | x>>5
 }
 
-// Variable-count rotates keep the existing path at every level: ROLQ,
-// ROLL, RORQ, and RORL take their count in CL, and RORX cannot.
-
 func rolVar64(x uint64, n int) uint64 {
-	// amd64:"ROLQ" -"RORX"
+	// amd64/v3:"ROLQ" -"RORX"
+	// amd64/v4:"ROLQ" -"RORX"
 	return bits.RotateLeft64(x, n)
 }
 
 func rolVar32(x uint32, n int) uint32 {
-	// amd64:"ROLL" -"RORX"
+	// amd64/v3:"ROLL" -"RORX"
+	// amd64/v4:"ROLL" -"RORX"
 	return bits.RotateLeft32(x, n)
 }
 
 func rorVar64(x uint64, z uint) uint64 {
 	z &= 63
-	// amd64:"RORQ" -"AND" -"RORX"
+	// amd64/v3:"RORQ" -"AND" -"RORX"
+	// amd64/v4:"RORQ" -"AND" -"RORX"
 	return x>>z | x<<(64-z)
 }
 
 func rorVar32(x uint32, z uint) uint32 {
 	z &= 31
-	// amd64:"RORL" -"AND" -"RORX"
+	// amd64/v3:"RORL" -"AND" -"RORX"
+	// amd64/v4:"RORL" -"AND" -"RORX"
 	return x>>z | x<<(32-z)
 }
-
-// Variable shifts: SHLX, SHRX, and SARX from v3 on, SHL, SHR, and SAR
-// below. A count of the width or more keeps its Go result (zero, or the
-// sign for an arithmetic shift) through the compare and mask that surround
-// the shift, because the shift instructions use the count modulo the width.
 
 func shlVar64(x uint64, n uint) uint64 {
 	// amd64/v1:"SHLQ" -"SHLX"
@@ -233,14 +201,15 @@ func sarVar32(x int32, n uint) int32 {
 	return x >> n
 }
 
-// A ternary-shaped branch becomes a conditional move at every level.
-
 func cmovSigned(c int) int {
 	x := c + 4
 	if x < 0 {
 		x = 182
 	}
-	// amd64:"CMOVQLT"
+	// amd64/v1:"CMOVQLT"
+	// amd64/v2:"CMOVQLT"
+	// amd64/v3:"CMOVQLT"
+	// amd64/v4:"CMOVQLT"
 	return x
 }
 
@@ -248,6 +217,32 @@ func cmovUnsigned32(x, y uint32) uint32 {
 	if x < y {
 		x = -y
 	}
-	// amd64:"CMOVL(HI|CS)"
+	// amd64/v1:"CMOVL(HI|CS)"
+	// amd64/v2:"CMOVL(HI|CS)"
+	// amd64/v3:"CMOVL(HI|CS)"
+	// amd64/v4:"CMOVL(HI|CS)"
 	return x
+}
+
+func andNot64(x, y uint64) uint64 {
+	// amd64/v1:-"ANDNQ"
+	// amd64/v2:-"ANDNQ"
+	// amd64/v3:"ANDNQ"
+	// amd64/v4:"ANDNQ"
+	return x &^ y
+}
+
+func clearLowest64(x uint64) uint64 {
+	// amd64/v1:-"BLSRQ"
+	// amd64/v2:-"BLSRQ"
+	// amd64/v3:"BLSRQ"
+	// amd64/v4:"BLSRQ"
+	return x & (x - 1)
+}
+
+func mulHigh64(x, y uint64) uint64 {
+	// amd64/v1:-"MULXQ"
+	// amd64/v2:-"MULXQ"
+	hi, _ := bits.Mul64(x, y)
+	return hi
 }

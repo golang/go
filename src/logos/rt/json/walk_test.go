@@ -12,10 +12,6 @@ import (
 	"time"
 )
 
-// Walk regression tests (M11 R2/R4): shared-state traversal, Gen
-// dispatch, honour of user methods, and byte parity with the reflective
-// encoder for method-free values under both jsonv2 settings.
-
 type walkGenT struct {
 	Name   string    `json:"name"`
 	Next   *walkGenT `json:"next,omitempty"`
@@ -119,12 +115,6 @@ func (*walkBothT) MarshalJSON() ([]byte, error) {
 }
 
 func TestWalkAddressabilityPrecedence(t *testing.T) {
-	// A value with a value TextMarshaler and a pointer-only MarshalJSON
-	// dispatches by addressability, exactly like the reflective
-	// condAddrEncoder: unaddressable roots and struct fields honor the
-	// value TextMarshaler, while slice elements are always addressable
-	// (reflect flagAddr on every slice Index) and honor the pointer
-	// MarshalJSON.
 	vals := []any{
 		walkBothT{V: 1},
 		[]walkBothT{{V: 2}},
@@ -234,8 +224,6 @@ func TestWalkParitySweep(t *testing.T) {
 	}
 }
 
-// Differential helper: walk output must equal the reflective oracle in
-// both value and error, under both jsonv2 settings.
 func checkWalkParity(t *testing.T, label string, v any) {
 	t.Helper()
 	var s Walk
@@ -389,11 +377,6 @@ func TestWalkUnsupportedKinds(t *testing.T) {
 }
 
 func TestWalkDeepNestingMatchesCap(t *testing.T) {
-	// Depth parity in both modes: the walk enforces the v2 10000-token
-	// nesting cap exactly like the reflective encoder, and v1 sets no
-	// cap in either. 20000 nesting must fail with the identical
-	// max-depth error on both sides under jsonv2 and encode fully
-	// under v1.
 	type link struct {
 		Next *link `json:"next,omitempty"`
 	}

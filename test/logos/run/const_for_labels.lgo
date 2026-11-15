@@ -1,0 +1,208 @@
+// run
+package main
+
+import (
+	"comptime"
+	"fmt"
+)
+
+type Pair struct { A, B int }
+type Triple struct { A, B, C int }
+type Eight struct { A, B, C, D, E, F, G, H int }
+
+func check(name string, got, want int) {
+	if got != want {
+		panic(fmt.Sprintf("%s: got %d want %d", name, got, want))
+	}
+	fmt.Println("ok", name)
+}
+
+func forBreak[T any]() int {
+	total := 0
+	const for i, _ := range comptime.Fields[T]() {
+	outer:
+		for j := 0; j < 3; j++ {
+			for k := 0; k < 3; k++ {
+				total += i + 1
+				break outer
+			}
+		}
+	}
+	return total
+}
+
+func switchBreak[T any]() int {
+	total := 0
+	const for i, _ := range comptime.Fields[T]() {
+	outer:
+		switch {
+		default:
+			for j := 0; j < 3; j++ {
+				total += i + 1
+				break outer
+			}
+			total += 1000
+		}
+	}
+	return total
+}
+
+func selectBreak[T any]() int {
+	total := 0
+	const for i, _ := range comptime.Fields[T]() {
+	outer:
+		select {
+		default:
+			for j := 0; j < 3; j++ {
+				total += i + 1
+				break outer
+			}
+			total += 1000
+		}
+	}
+	return total
+}
+
+func blockJump[T any]() int {
+	total := 0
+	const for i, _ := range comptime.Fields[T]() {
+		goto body
+	body:
+		{
+			for {
+				total += i + 1
+				break
+			}
+			goto done
+		}
+	done:
+		total += 10
+	}
+	return total
+}
+
+func loopContinue[T any]() int {
+	total := 0
+	const for i, _ := range comptime.Fields[T]() {
+	outer:
+		for j := 0; j < 3; j++ {
+			for k := 0; k < 2; k++ {
+				total += i + 1
+				continue outer
+			}
+			total += 1000
+		}
+	}
+	return total
+}
+
+func localGoto[T any]() int {
+	total := 0
+	const for i, _ := range comptime.Fields[T]() {
+		count := 0
+		goto forward
+	backward:
+		count++
+		total += i + 1
+		if count == 2 {
+			goto done
+		}
+	forward:
+		goto backward
+	done:
+		total += 10
+	}
+	return total
+}
+
+func outwardGoto[T any]() int {
+	total := 0
+	const for i, _ := range comptime.Fields[T]() {
+		total += i + 1
+		if i == 1 {
+			goto outside
+		}
+	}
+	total += 1000
+outside:
+	return total
+}
+
+func outwardLoop[T any]() int {
+	total := 0
+outside:
+	for pass := 0; pass < 3; pass++ {
+		const for i, _ := range comptime.Fields[T]() {
+			total += i + 1
+			if pass == 0 {
+				continue outside
+			}
+			if i == 1 {
+				break outside
+			}
+		}
+		total += 1000
+	}
+	return total
+}
+
+func indexLabel[T any]() int {
+	total := 0
+	const for i, _ := range comptime.Fields[T]() {
+	i:
+		for j := 0; j < 3; j++ {
+			total += i + 1
+			break i
+		}
+	}
+	return total
+}
+
+func nested() int {
+	total := 0
+	const for i, _ := range comptime.Fields[Pair]() {
+	outer:
+		for j := 0; j < 2; j++ {
+			const for k, _ := range comptime.Fields[Triple]() {
+			inner:
+				for m := 0; m < 2; m++ {
+					total += (i + 1) * (k + 1)
+					break inner
+				}
+			}
+			break outer
+		}
+	}
+	return total
+}
+
+func main() {
+	check("for-two", forBreak[Pair](), 3)
+	check("for-three", forBreak[Triple](), 6)
+	check("for-eight", forBreak[Eight](), 36)
+	check("switch-two", switchBreak[Pair](), 3)
+	check("switch-three", switchBreak[Triple](), 6)
+	check("switch-eight", switchBreak[Eight](), 36)
+	check("select-two", selectBreak[Pair](), 3)
+	check("select-three", selectBreak[Triple](), 6)
+	check("select-eight", selectBreak[Eight](), 36)
+	check("block-two", blockJump[Pair](), 23)
+	check("block-three", blockJump[Triple](), 36)
+	check("block-eight", blockJump[Eight](), 116)
+	check("continue-two", loopContinue[Pair](), 9)
+	check("continue-three", loopContinue[Triple](), 18)
+	check("continue-eight", loopContinue[Eight](), 108)
+	check("goto-two", localGoto[Pair](), 26)
+	check("goto-three", localGoto[Triple](), 42)
+	check("goto-eight", localGoto[Eight](), 152)
+	check("outward-goto-two", outwardGoto[Pair](), 3)
+	check("outward-goto-three", outwardGoto[Triple](), 3)
+	check("outward-goto-eight", outwardGoto[Eight](), 3)
+	check("outward-loop-two", outwardLoop[Pair](), 4)
+	check("outward-loop-three", outwardLoop[Triple](), 4)
+	check("outward-loop-eight", outwardLoop[Eight](), 4)
+	check("index-label-two", indexLabel[Pair](), 3)
+	check("index-label-three", indexLabel[Triple](), 6)
+	check("index-label-eight", indexLabel[Eight](), 36)
+	check("nested", nested(), 18)
+}

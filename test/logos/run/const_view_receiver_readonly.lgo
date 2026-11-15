@@ -2,19 +2,22 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
-// PRRT_kwDOVOeymc6vs9fj (SPEC Sec 2.1, T-201): readonly receiver-effect
-// runtime controls. Companion to the frozen
-// test/logos/compile/const_view_receiver_refs.lgo, which stays rejected.
-// Every method below has a value receiver whose type carries a reference
-// field, yet each body is transitively pure: scalar/string field reads,
-// len, index and range reads, map reads, pointer loads, and calls to
-// local pure helpers only. No imported method, closure invocation,
-// channel operation, append/copy/delete/clear, or store through a
-// reference appears. The scalar-copy bump writes a scalar field of the
-// receiver copy only, crossing no reference indirection. Each printed
-// line is a hand-computed literal.
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
 
 type Item struct {
 	Name string
@@ -77,25 +80,28 @@ func CopyBumpControl(v const *Mixed) int            { return v.Next() }
 
 func main() {
 	item := Item{Name: "ok", Tags: []string{"a", "b"}}
-	fmt.Println(LabelControl(&item))
+	check("label", LabelControl(&item) == "ok", LabelControl(&item), "ok")
 
 	sb := SliceBox{Items: []int{10, 20, 30}}
 	var cvSlice const *SliceBox = &sb
-	fmt.Println(SliceLenControl(cvSlice))
-	fmt.Println(SliceFirstControl(&sb))
-	fmt.Println(SliceSumControl(&sb))
-	fmt.Println(SlicePlusControl(&sb, 5))
+	check("slice-len", SliceLenControl(cvSlice) == 3, SliceLenControl(cvSlice), 3)
+	check("slice-first", SliceFirstControl(&sb) == 10, SliceFirstControl(&sb), 10)
+	check("slice-sum", SliceSumControl(&sb) == 60, SliceSumControl(&sb), 60)
+	check("slice-plus", SlicePlusControl(&sb, 5) == 65, SlicePlusControl(&sb, 5), 65)
 
 	mb := MapBox{M: map[string]int{"a": 1, "b": 2}}
-	fmt.Println(MapGetControl(&mb, "a"))
-	fmt.Println(MapGetControl(&mb, "missing"))
-	fmt.Println(MapLenControl(&mb))
+	check("map-get", MapGetControl(&mb, "a") == 1, MapGetControl(&mb, "a"), 1)
+	check("map-missing", MapGetControl(&mb, "missing") == 0, MapGetControl(&mb, "missing"), 0)
+	check("map-len", MapLenControl(&mb) == 2, MapLenControl(&mb), 2)
 
 	n := 7
 	pb := PtrBox{P: &n}
-	fmt.Println(PtrLoadControl(&pb))
+	check("ptr-load", PtrLoadControl(&pb) == 7, PtrLoadControl(&pb), 7)
 
 	mx := Mixed{N: 41, Items: []int{1, 2}}
 	got := CopyBumpControl(&mx)
-	fmt.Println(got, mx.N)
+	check("copy-bump", got == 42 && mx.N == 41, fmt.Sprint(got, mx.N), "42 41")
+	if failed {
+		os.Exit(1)
+	}
 }

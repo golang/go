@@ -1,3 +1,4 @@
-both is-primary: true is-rollback: true
-only is-rollback: true is-primary: false
-kept is-primary: true is-rollback: false
+ok errdefer-join-keeps-primary
+ok errdefer-join-keeps-rollback
+ok errdefer-panic-join-keeps-rollback-only
+ok errdefer-success-keeps-primary

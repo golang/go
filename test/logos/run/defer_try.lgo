@@ -5,7 +5,17 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os"
 )
+var failed bool
+func check(name string, cond bool, got, want any) {
+if !cond {
+failed = true
+fmt.Println("FAIL", name+":", "got", got, "want", want)
+return
+}
+fmt.Println("ok", name)
+}
 
 var errFirst = errors.New("first")
 var errSecond = errors.New("second")
@@ -33,21 +43,26 @@ func returnBoth() (err error) {
 }
 
 func run() error {
-	if err := returnNil(); err != nil {
-		return err
-	}
-	fmt.Println("nil ok")
-	if err := returnSecond(); err != nil {
-		fmt.Println("second:", err)
-	}
-	err := returnBoth()
-	fmt.Println("both:", err)
-	fmt.Println("is-first:", errors.Is(err, errFirst), "is-second:", errors.Is(err, errSecond))
-	return nil
+if err := returnNil(); err != nil {
+check("nil", false, err, nil)
+return err
+} else {
+check("nil", true, nil, nil)
 }
-
+errSecondGot := returnSecond()
+check("second", errSecondGot != nil && errSecondGot.Error() == "second", errSecondGot, "second")
+err := returnBoth()
+gotBoth := fmt.Sprint("both:", err)
+check("both", err != nil && errors.Is(err, errFirst) && errors.Is(err, errSecond), gotBoth, "both: first second")
+check("joined", errors.Is(err, errFirst) && errors.Is(err, errSecond), fmt.Sprint(errors.Is(err, errFirst), errors.Is(err, errSecond)), "true true")
+return nil
+}
 func main() {
-	if err := run(); err != nil {
-		fmt.Println("fatal:", err)
-	}
+if err := run(); err != nil {
+fmt.Println("FAIL defer-run:", err)
+os.Exit(1)
+}
+if failed {
+os.Exit(1)
+}
 }

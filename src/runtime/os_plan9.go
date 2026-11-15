@@ -97,14 +97,7 @@ func sigpanic() {
 		if gp.paniconfault {
 			panicmemAddr(gp.sigcode1)
 		}
-		if inUserArenaChunk(gp.sigcode1) {
-			// We could check that the arena chunk is explicitly set to fault,
-			// but the fact that we faulted on accessing it is enough to prove
-			// that it is.
-			print("accessed data from freed user arena ", hex(gp.sigcode1), "\n")
-		} else {
-			print("unexpected fault address ", hex(gp.sigcode1), "\n")
-		}
+		print("unexpected fault address ", hex(gp.sigcode1), "\n")
 		throw("fault")
 	case _SIGTRAP:
 		if gp.paniconfault {

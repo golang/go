@@ -63,6 +63,7 @@ func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgoir.Profile) {
 
 		s := &inlClosureState{bigCaller: bigCaller, profile: profile, fn: fn, callSites: make(map[*ir.ParenExpr]bool), useCounts: calleeUseCounts}
 		s.parenthesize()
+		s.initOracle()
 		inlState[fn] = s
 
 		// Do a first pass at counting call sites.
@@ -100,6 +101,7 @@ func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgoir.Profile) {
 				s := inlState[fn]
 
 				ir.WithFunc(fn, func() {
+					s.initOracle()
 					l1 := len(s.parens)
 					l0 := 0
 
@@ -123,6 +125,7 @@ func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgoir.Profile) {
 						if l0 == l1 {
 							break
 						}
+						s.initOracle()
 						for i := l0; i < l1; i++ {
 							s.resolve(&state, i)
 						}
@@ -175,6 +178,7 @@ func DevirtualizeAndInlineFunc(fn *ir.Func, profile *pgoir.Profile) {
 
 		s := &inlClosureState{bigCaller: bigCaller, profile: profile, fn: fn, callSites: make(map[*ir.ParenExpr]bool), useCounts: make(map[*ir.Func]int)}
 		s.parenthesize()
+		s.initOracle()
 		s.fixpoint()
 		s.unparenthesize()
 	})
@@ -183,16 +187,6 @@ func DevirtualizeAndInlineFunc(fn *ir.Func, profile *pgoir.Profile) {
 type callSite struct {
 	fn         *ir.Func
 	whichParen int
-}
-
-type inlClosureState struct {
-	fn        *ir.Func
-	profile   *pgoir.Profile
-	callSites map[*ir.ParenExpr]bool // callSites[p] == "p appears in parens" (do not append again)
-	resolved  []*ir.Func             // for each call in parens, the resolved target of the call
-	useCounts map[*ir.Func]int       // shared among all InlClosureStates
-	parens    []*ir.ParenExpr
-	bigCaller bool
 }
 
 // resolve attempts to resolve a call to a potentially inlineable callee
@@ -211,7 +205,7 @@ func (s *inlClosureState) resolve(state *devirtualize.State, i int) (*ir.Func, i
 		return nil, -1
 	}
 	devirtualize.StaticCall(state, call)
-	if callee := inline.InlineCallTarget(s.fn, call, s.profile); callee != nil {
+	if callee := s.inlineCallTargetLogos(call); callee != nil {
 		for len(s.resolved) <= i {
 			s.resolved = append(s.resolved, nil)
 		}
@@ -236,7 +230,7 @@ func (s *inlClosureState) edit(state *devirtualize.State, i int) (*ir.CallExpr, 
 	if count <= 0 {
 		return nil, nil
 	}
-	if inlCall := inline.TryInlineCall(s.fn, call, s.bigCaller, s.profile, count == 1 && callee.ClosureParent != nil); inlCall != nil {
+	if inlCall := s.tryInlineCallLogos(call, count == 1 && callee.ClosureParent != nil); inlCall != nil {
 		return call, inlCall
 	}
 	return nil, nil
@@ -329,7 +323,7 @@ func (s *inlClosureState) fixpoint() bool {
 	var state devirtualize.State
 	ir.WithFunc(s.fn, func() {
 		done := false
-		for !done {
+		for !s.fixpointLogos(&state, &changed) && !done {
 			done = true
 			for i := 0; i < len(s.parens); i++ { // can't use "range parens" here
 				paren := s.parens[i]

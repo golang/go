@@ -1,1 +1,13 @@
-binary zero-wire budget: PASS
+ok budget-cap
+ok budget-literal
+ok budget-capwire
+ok budget-single
+ok budget-single-over
+ok budget-two
+ok budget-two-over
+ok budget-nested
+ok budget-nested-over
+ok budget-zerosize
+ok budget-fat
+ok budget-fat-noalloc
+ok budget-allocs

@@ -1,0 +1,33 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# A tuple literal holds any lowered element at any position: a ?? over
+# an option or a map read, a map read or ?. that stays an option, an
+# interpolated string, and a call whose argument holds a ??. The
+# literal is a plain statement value, a destructured value, a nested
+# literal, a returned value, an argument and a slice element. The
+# module runs natively, ejects, and the ejected module builds and runs
+# with go and with go1.27.2 from $UPROOT1272 and prints the same ok
+# lines.
+cp $GOROOT/test/logos/run/eject_tuple_option_elements.lgo m/main.lgo
+cd m
+logos run .
+cmp stdout $GOROOT/test/logos/run/eject_tuple_option_elements.out
+logos eject -o out
+exists out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $GOROOT/test/logos/run/eject_tuple_option_elements.out
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
+exec $WORK/upstream$GOEXE
+cmp stdout $GOROOT/test/logos/run/eject_tuple_option_elements.out
+cd ../..
+
+-- m/go.mod --
+module example.com/tupleoptionelements
+
+go 1.27

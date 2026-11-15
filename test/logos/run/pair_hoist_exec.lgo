@@ -1,0 +1,95 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+	"sync/atomic"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type two struct {
+	a int64
+	b int64
+}
+
+func straight(p *two) int64 {
+	return p.a + 10*p.b
+}
+
+func diamond(p *two, c bool) int64 {
+	x := p.a
+	if c {
+		return x + p.b
+	}
+	return x - p.b
+}
+
+func joinLoop(p *two, n int) int64 {
+	x := p.a
+	for i := range n {
+		x += int64(i)
+	}
+	return x + p.b
+}
+
+func callSink(v int64) int64 {
+	return v + 1
+}
+
+func callBarrier(p *two) int64 {
+	x := p.a
+	y := callSink(x)
+	return y + p.b
+}
+
+func staleCheck(p *two) int64 {
+	a := p.a
+	p.b = 100
+	b := p.b
+	p.b = 5
+	return a + b
+}
+
+var atomicCell atomic.Int64
+
+func atomicBarrier(p *two) int64 {
+	x := p.a
+	atomicCell.Add(1)
+	return x + p.b
+}
+
+func main() {
+	p := &two{a: 3, b: 5}
+	straight := straight(p)
+	check("straight", straight == 53, straight, 53)
+	diamondT := diamond(p, true)
+	check("diamond-t", diamondT == 8, diamondT, 8)
+	diamondF := diamond(p, false)
+	check("diamond-f", diamondF == -2, diamondF, -2)
+	join := joinLoop(p, 4)
+	check("join", join == 14, join, 14)
+	barrier := callBarrier(p)
+	check("barrier", barrier == 9, barrier, 9)
+	stale := staleCheck(p)
+	check("stale", stale == 103, stale, 103)
+	atomic := atomicBarrier(p)
+	check("atomic", atomic == 8, atomic, 8)
+	check("atomic-count", atomicCell.Load() == 1, atomicCell.Load(), 1)
+	check("pa", p.a == 3, p.a, 3)
+	check("pb", p.b == 5, p.b, 5)
+	if failed {
+		os.Exit(1)
+	}
+}

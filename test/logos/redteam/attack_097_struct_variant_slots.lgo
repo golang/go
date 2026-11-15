@@ -2,11 +2,11 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
-// #97: struct-variant union values use the upstream interface
-// representation, so overwriting one variant with another and back
-// leaves no stale bytes in any variant slot.
 type A struct {
 	X int
 	Y int
@@ -21,24 +21,53 @@ type V interface {
 	A | B
 }
 
-func show(v V) string {
-	switch t := v.(type) {
-	case A:
-		return fmt.Sprint("A ", t.X, " ", t.Y)
-	case B:
-		return fmt.Sprint("B ", t.Name, " ", t.N)
-	case nil:
-		return "nil"
-	default:
-		return "other"
+var failed bool
+
+func check(name string, cond bool, got, want string) {
+	if !cond {
+		fmt.Printf("FAIL %s: got %s want %s\n", name, got, want)
+		failed = true
+		return
 	}
+	fmt.Printf("ok %s\n", name)
+}
+
+func checkA(name string, v V, x, y int) {
+	a, ok := v.(A)
+	check(name, ok && a.X == x && a.Y == y, fmt.Sprint(v), fmt.Sprint(A{X: x, Y: y}))
+}
+
+func checkB(name string, v V, s string, n int) {
+	b, ok := v.(B)
+	check(name, ok && b.Name == s && b.N == n, fmt.Sprint(v), fmt.Sprint(B{Name: s, N: n}))
 }
 
 func main() {
 	var v V = A{X: 1, Y: 2}
-	fmt.Println(show(v))
+	checkA("struct-variant-first-slot-intact", v, 1, 2)
 	v = B{Name: "x", N: 9}
-	fmt.Println(show(v))
+	checkB("struct-variant-second-slot-intact", v, "x", 9)
 	v = A{X: 3, Y: 4}
-	fmt.Println(show(v))
+	checkA("struct-variant-reuse-clears-stale-bytes", v, 3, 4)
+	if w, ok := v.(V); ok {
+		check("struct-variant-reuse-equality-cleared-slot", w == A{X: 3, Y: 4} && w != A{X: 3, Y: 5} && w != A{X: 2, Y: 4}, fmt.Sprint(w == A{X: 3, Y: 4}), "true")
+	} else {
+		check("struct-variant-reuse-equality-cleared-slot", false, "not-member", "true")
+	}
+	if w, ok := v.(V); ok {
+		a, ok := w.(A)
+		check("struct-variant-assert-to-union", ok && a.X == 3 && a.Y == 4, fmt.Sprint(w), fmt.Sprint(A{X: 3, Y: 4}))
+	} else {
+		check("struct-variant-assert-to-union", false, "not-member", fmt.Sprint(A{X: 3, Y: 4}))
+	}
+	v = B{Name: "tail", N: 7}
+	checkB("struct-variant-regrow-rewrites-tail", v, "tail", 7)
+	if w, ok := v.(V); ok {
+		check("struct-variant-regrow-equality", w == B{Name: "tail", N: 7} && w != B{Name: "tail", N: 9} && w != B{Name: "x", N: 7}, fmt.Sprint(w == B{Name: "tail", N: 7}), "true")
+	} else {
+		check("struct-variant-regrow-equality", false, "not-member", "true")
+	}
+	if failed {
+		os.Exit(1)
+	}
 }

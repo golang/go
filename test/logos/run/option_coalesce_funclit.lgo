@@ -1,0 +1,151 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+var calls int
+
+func bound(v (func() int)?) int {
+	f := v ?? func() int { return -1 }
+	return f()
+}
+
+func inline(v (func() int)?) int { return (v ?? func() int { return -2 })() }
+
+func iife(v int?) int { return v ?? func() int { calls++; return 9 }() }
+
+func capture(v int?, base int) int { return v ?? func() int { return base + 1 }() }
+
+type pc struct {
+	id int
+}
+
+func more() bool {
+	calls++
+	return calls < 3
+}
+
+func ifBare(x bool?, p bool) int {
+	if x ?? p {
+		return 1
+	}
+	return 0
+}
+
+func forBare(x bool?) int {
+	calls = 0
+	n := 0
+	for x ?? more() {
+		n++
+	}
+	return n
+}
+
+func switchBare(x int?, d int) string {
+	switch x ?? d {
+	case 1:
+		return "one"
+	default:
+		return "other"
+	}
+}
+
+func ifParenStruct(v pc?) int {
+	if (v ?? pc{id: 2}).id == 2 {
+		return 1
+	}
+	return 0
+}
+
+func ifSlice(v []int?) int {
+	if len(v ?? []int{1, 2}) == 2 {
+		return 1
+	}
+	return 0
+}
+
+func rangeSlice(v []int?) int {
+	s := 0
+	for _, e := range v ?? []int{1, 2, 3} {
+		s += e
+	}
+	return s
+}
+
+func switchSlice(v []int?) int {
+	switch len(v ?? []int{1, 2}) {
+	case 2:
+		return 2
+	}
+	return 0
+}
+
+func ifFuncLit(v bool?) int {
+	if v ?? func() bool { return true }() {
+		return 1
+	}
+	return 0
+}
+
+func forFuncLit(v bool?) int {
+	calls = 0
+	n := 0
+	for v ?? func() bool { return more() }() {
+		n++
+	}
+	return n
+}
+
+func switchFuncLit(v int?) string {
+	switch v ?? func() int { return 1 }() {
+	case 1:
+		return "one"
+	default:
+		return "other"
+	}
+}
+
+func main() {
+	check("bound-none", bound(nil) == -1, bound(nil), -1)
+	check("bound-some", bound(func() int { return 3 }) == 3, bound(func() int { return 3 }), 3)
+	check("inline-none", inline(nil) == -2, inline(nil), -2)
+	check("inline-some", inline(func() int { return 5 }) == 5, inline(func() int { return 5 }), 5)
+	calls = 0
+	got := iife(nil)
+	check("iife-none", got == 9 && calls == 1, []int{got, calls}, []int{9, 1})
+	calls = 0
+	got = iife(4)
+	check("iife-some", got == 4 && calls == 0, []int{got, calls}, []int{4, 0})
+	got = capture(nil, 10)
+	check("capture-none", got == 11, got, 11)
+	got = capture(6, 10)
+	check("capture-some", got == 6, got, 6)
+	check("if-bare", ifBare(nil, true) == 1 && ifBare(false, true) == 0 && ifBare(true, false) == 1, []int{ifBare(nil, true), ifBare(false, true), ifBare(true, false)}, []int{1, 0, 1})
+	check("for-bare", forBare(nil) == 2 && forBare(false) == 0, []int{forBare(nil), forBare(false)}, []int{2, 0})
+	check("switch-bare", switchBare(nil, 1) == "one" && switchBare(2, 1) == "other" && switchBare(1, 9) == "one", []string{switchBare(nil, 1), switchBare(2, 1), switchBare(1, 9)}, []string{"one", "other", "one"})
+	check("if-paren-struct", ifParenStruct(nil) == 1 && ifParenStruct(pc{id: 5}) == 0, []int{ifParenStruct(nil), ifParenStruct(pc{id: 5})}, []int{1, 0})
+	check("if-slice", ifSlice(nil) == 1 && ifSlice([]int{1}) == 0, []int{ifSlice(nil), ifSlice([]int{1})}, []int{1, 0})
+	check("range-slice", rangeSlice(nil) == 6 && rangeSlice([]int{4}) == 4, []int{rangeSlice(nil), rangeSlice([]int{4})}, []int{6, 4})
+	check("switch-slice", switchSlice(nil) == 2 && switchSlice([]int{1}) == 0, []int{switchSlice(nil), switchSlice([]int{1})}, []int{2, 0})
+	check("if-funclit", ifFuncLit(nil) == 1 && ifFuncLit(false) == 0, []int{ifFuncLit(nil), ifFuncLit(false)}, []int{1, 0})
+	check("for-funclit", forFuncLit(nil) == 2 && forFuncLit(false) == 0, []int{forFuncLit(nil), forFuncLit(false)}, []int{2, 0})
+	check("switch-funclit", switchFuncLit(nil) == "one" && switchFuncLit(2) == "other" && switchFuncLit(1) == "one", []string{switchFuncLit(nil), switchFuncLit(2), switchFuncLit(1)}, []string{"one", "other", "one"})
+	if failed {
+		os.Exit(1)
+	}
+}

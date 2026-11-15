@@ -1,0 +1,44 @@
+# M18-S7 unit D: a Go package using logos/arena behaves identically
+# under the plain toolchain and the logos toolchain, and with the arena
+# experiment on the escape analysis places the region allocation.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOEXPERIMENT=logosarena
+
+cd m
+
+go run .
+stdout '^4 9$'
+cp stdout $WORK/gorun.txt
+
+logos run .
+cmp stdout $WORK/gorun.txt
+
+logos build -gcflags=-m -o $WORK/arenago$GOEXE .
+stderr 'main\.go:\d+:\d+: .*placed in region'
+exists $WORK/arenago$GOEXE
+
+-- m/go.mod --
+module example.com/arenago
+
+go 1.27
+
+-- m/main.go --
+package main
+
+import (
+	"fmt"
+
+	"logos/arena"
+)
+
+type node struct {
+	v int
+}
+
+func main() {
+	r := arena.Open()
+	nodes := arena.Make[node](r, 4)
+	nodes[2].v = 9
+	fmt.Println(len(nodes), nodes[2].v)
+}

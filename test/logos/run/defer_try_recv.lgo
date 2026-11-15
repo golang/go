@@ -1,0 +1,205 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+type Tx struct{ n int }
+
+//go:noinline
+func (t *Tx) PDone() error {
+	seen = append(seen, t.n)
+	return nil
+}
+
+//go:noinline
+func (t Tx) VDone() error {
+	seen = append(seen, t.n)
+	return nil
+}
+
+type Closer interface{ Close() error }
+
+//go:noinline
+func (t *Tx) Close() error {
+	seen = append(seen, t.n)
+	return nil
+}
+
+type Emb struct{ *Tx }
+
+var seen []int
+var failed = false
+
+func check(name string, want []int) {
+if len(seen) != len(want) {
+fmt.Println("FAIL", name+":", "got", seen, "want", want)
+failed = true
+return
+}
+for i := range seen {
+if seen[i] != want[i] {
+fmt.Println("FAIL", name+":", "got", seen, "want", want)
+failed = true
+return
+}
+}
+fmt.Println("ok", name)
+}
+type pointOut struct {
+point string
+recovered any
+err error
+}
+func checkPoint(name string, got pointOut, wantPoint string) {
+if got.point != wantPoint || got.recovered == nil || got.err != nil {
+fmt.Println("FAIL", name+":", "got", got.point, got.recovered != nil, got.err, "want", wantPoint)
+failed = true
+return
+}
+fmt.Println("ok", name)
+}
+
+func caseAPlain() {
+	seen = nil
+	var tx Tx
+	defer tx.PDone()
+	tx.n = 7
+}
+
+func caseATry() (err error) {
+	seen = nil
+	var tx Tx
+	defer tx.PDone()?
+	tx.n = 7
+	return nil
+}
+
+func caseBPlain() {
+	seen = nil
+	p := &Tx{}
+	defer p.VDone()
+	p.n = 7
+}
+
+func caseBTry() (err error) {
+	seen = nil
+	p := &Tx{}
+	defer p.VDone()?
+	p.n = 7
+	return nil
+}
+
+func caseCPlain() {
+	seen = nil
+	var c Closer = &Tx{n: 1}
+//logos:allow(slop::discarded_error)
+	defer c.Close()
+	c = &Tx{n: 2}
+}
+
+func caseCTry() (err error) {
+	seen = nil
+	var c Closer = &Tx{n: 1}
+	defer c.Close()?
+	c = &Tx{n: 2}
+	return nil
+}
+
+func caseDPlain() (point string, recovered any, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			recovered = r
+		}
+	}()
+	p := (*Tx)(nil)
+	defer p.VDone()
+	point = "stmt"
+	return
+}
+
+func caseDTry() (point string, recovered any, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			recovered = r
+		}
+	}()
+	p := (*Tx)(nil)
+	defer p.VDone()?
+	point = "stmt"
+	return
+}
+
+func caseEPlain() (point string, recovered any, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			recovered = r
+		}
+	}()
+	var c Closer
+	defer c.Close()?
+	point = "stmt"
+	return
+}
+
+func caseETry() (point string, recovered any, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			recovered = r
+		}
+	}()
+	var c Closer
+	defer c.Close()?
+	point = "stmt"
+	return
+}
+
+func caseFPlain() {
+	seen = nil
+	e := Emb{Tx: &Tx{n: 1}}
+	defer e.Close()
+	e.Tx = &Tx{n: 2}
+}
+
+func caseFTry() (err error) {
+	seen = nil
+	e := Emb{Tx: &Tx{n: 1}}
+	defer e.Close()?
+	e.Tx = &Tx{n: 2}
+	return nil
+}
+
+//logos:allow(slop::discarded_error)
+func main() {
+	caseAPlain()
+	check("A-plain", []int{7})
+	_ = caseATry()
+	check("A-try", []int{7})
+	caseBPlain()
+	check("B-plain", []int{0})
+	_ = caseBTry()
+	check("B-try", []int{0})
+	caseCPlain()
+	check("C-plain", []int{1})
+	_ = caseCTry()
+	check("C-try", []int{1})
+	var out pointOut
+	out.point, out.recovered, out.err = caseDPlain()
+	checkPoint("D-plain", out, "")
+	out.point, out.recovered, out.err = caseDTry()
+	checkPoint("D-try", out, "")
+	out.point, out.recovered, out.err = caseEPlain()
+	checkPoint("E-plain", out, "")
+	out.point, out.recovered, out.err = caseETry()
+	checkPoint("E-try", out, "")
+	caseFPlain()
+	check("F-plain", []int{1})
+	_ = caseFTry()
+	check("F-try", []int{1})
+	if failed {
+		os.Exit(1)
+	}
+}

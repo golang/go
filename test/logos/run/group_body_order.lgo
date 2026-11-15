@@ -1,0 +1,163 @@
+// run
+
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"runtime"
+	"strings"
+	"sync"
+	"time"
+)
+
+type tagKey struct{}
+
+var errBoom = errors.New("boom")
+
+var errQFail = errors.New("q-fail")
+
+var mu sync.Mutex
+
+var events []string
+
+func note(s string) {
+	mu.Lock()
+	defer mu.Unlock()
+	events = append(events, s)
+}
+
+func seen() string {
+	mu.Lock()
+	defer mu.Unlock()
+	return strings.Join(events, ",")
+}
+
+var bad bool
+
+func check(tag string, cond bool, got, want string) {
+	if !cond {
+		fmt.Println("FAIL "+tag+": got "+got+" want "+want)
+		bad = true
+		return
+	}
+	fmt.Println("ok", tag)
+}
+
+func watchdog(tag string) func() {
+	t := time.AfterFunc(10*time.Second, func() {
+		fmt.Println("FAIL " + tag + ": hung")
+		os.Exit(1)
+	})
+	return func() { t.Stop() }
+}
+
+func boom() error { return errBoom }
+
+func ok() error { return nil }
+
+func failQ() error { return errQFail }
+
+func release(gate chan struct{}, ctx, outer context.Context) string {
+	close(gate)
+	return fmt.Sprintf("%v %v %v", ctx != outer, ctx.Err() == nil, ctx.Value(tagKey{}))
+}
+
+func returnOperandsBeforeJoin(ctx context.Context) (string, error) {
+	outer := ctx
+	gate := make(chan struct{})
+	go group (ctx) {
+		go {
+			<-gate
+		}
+		return release(gate, ctx, outer), nil
+	}
+	return "unreachable", nil
+}
+
+func returnValuesWithFailedChild(ctx context.Context) (string, error) {
+	go group (ctx) {
+		go {
+			boom()?
+		}
+		return "value", nil
+	}
+	return "unreachable", nil
+}
+
+func statementAfterLastChild(ctx context.Context) error {
+	gate := make(chan struct{})
+	go group (ctx) {
+		go {
+			<-gate
+			note("child")
+		}
+		note("after-child")
+		close(gate)
+	}
+	return nil
+}
+
+func tryLeavesGroupOpen(ctx context.Context) error {
+	release := make(chan struct{})
+	go group (ctx) {
+		go {
+			<-release
+			note("child")
+		}
+		ok()?
+		note("after-try")
+		close(release)
+	}
+	return nil
+}
+
+func joinErrorReplacesTryError(ctx context.Context) error {
+	go group (ctx) {
+		go {
+			boom()?
+		}
+		for ctx.Err() == nil {
+			runtime.Gosched()
+		}
+		failQ()?
+	}
+	return nil
+}
+
+func main() {
+	base := context.WithValue(context.Background(), tagKey{}, "outer-value")
+
+	stop := watchdog("group-return-operands-before-join")
+	got, err := returnOperandsBeforeJoin(base)
+	stop()
+	if err != nil {
+		check("group-return-operands-before-join", false, err.Error(), "<nil>")
+	} else {
+		check("group-return-operands-before-join", got == "true true outer-value", got, "true true outer-value")
+	}
+
+	_, err = returnValuesWithFailedChild(base)
+	check("group-return-join-error-replaces-values", err == errBoom, fmt.Sprint(err), errBoom.Error())
+
+	events = nil
+	stop = watchdog("group-statement-after-last-child-before-join")
+	err = statementAfterLastChild(base)
+	stop()
+	check("group-statement-after-last-child-before-join", seen() == "after-child,child" && err == nil, seen()+" / "+fmt.Sprint(err), "after-child,child / <nil>")
+
+	events = nil
+	stop = watchdog("group-try-leaves-group-open")
+	err = tryLeavesGroupOpen(base)
+	stop()
+	check("group-try-leaves-group-open", seen() == "after-try,child" && err == nil, seen()+" / "+fmt.Sprint(err), "after-try,child / <nil>")
+
+	err = joinErrorReplacesTryError(base)
+	check("group-join-error-replaces-try-error", err == errBoom, fmt.Sprint(err), errBoom.Error())
+
+	if bad {
+		os.Exit(1)
+	}
+}

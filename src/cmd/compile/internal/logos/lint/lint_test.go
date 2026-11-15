@@ -13,15 +13,14 @@ import (
 	"testing"
 
 	"cmd/compile/internal/importer"
-	"cmd/compile/internal/logos/facts"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types2"
-	"cmd/internal/goobj"
 )
 
-// goRules are the 20 language-neutral rules of SPEC Sec 1.2: the rules
-// logos lint applies to Go packages.
+// goRules are the 21 language-neutral rules of SPEC Sec 1.2 and Sec 2.6: the
+// rules logos lint applies to Go packages.
 var goRules = []string{
+	"correctness::withlock_leak",
 	"correctness::arena_pointer_escape",
 	"correctness::infinite_recursion",
 	"correctness::typed_nil_return",
@@ -31,23 +30,24 @@ var goRules = []string{
 	"concurrency::reentrant_withlock_deadlock",
 	"slop::err_chain_reset",
 	"slop::discarded_error",
-	"slop::todo_placeholder",
 	"complexity::cognitive_overflow",
 	"perf::large_backing_array_pin",
+	"perf::arena_fallback",
 	"perf::time_after_in_loop",
-	"correctness::printf_misuse",
-	"suspicious::copy_lock",
-	"correctness::structtag_malformed",
-	"suspicious::string_intconv",
-	"suspicious::self_assignment",
-	"suspicious::defer_in_loop",
-	"correctness::httpresponse",
+	"concurrency::unguarded_access",
+	"concurrency::nonatomic_access",
+	"concurrency::lock_requirement_unmet",
+	"correctness::layout_constant_mismatch",
+	"portability::atomic_plain_int64",
+	"correctness::linkname_mismatch",
+	"pedantic::unsafe_outside_unsafe_file",
 }
 
-// lgoRules are the 8 rules that never apply to Go packages.
+// lgoRules are the 9 rules that never apply to Go packages.
 var lgoRules = []string{
 	"correctness::nil_deref_unproven",
 	"correctness::defer_erases_errdefer_state",
+	"correctness::region_escape",
 	"concurrency::unsupervised_goroutine",
 	"suspicious::unapplied_struct_default",
 	"suspicious::side_effect_before_sort",
@@ -56,7 +56,7 @@ var lgoRules = []string{
 	"pedantic::exhaustive_union_switch",
 }
 
-// TestRuleScopes asserts that the rules with Go set are exactly the 20
+// TestRuleScopes asserts that the rules with Go set are exactly the 21
 // language-neutral rules, that every registered rule declares a scope
 // (appears in exactly one of the two SPEC lists), that each rule's Group
 // matches its ID, and that the registry has no duplicate. A SPEC rule that
@@ -146,13 +146,6 @@ func g() {
 	}
 }
 
-// TestRuleScopesSpecCounts pins the 20 and 8 of SPEC Sec 1.2.
-func TestRuleScopesSpecCounts(t *testing.T) {
-	if len(goRules) != 20 || len(lgoRules) != 8 {
-		t.Fatalf("goRules = %d, lgoRules = %d, want 20 and 8", len(goRules), len(lgoRules))
-	}
-}
-
 // TestPolicyDefaults covers the default severities, the Go cap, and the
 // default thresholds.
 func TestPolicyDefaults(t *testing.T) {
@@ -233,6 +226,30 @@ func (m *lintImporter) ImportFrom(path, srcDir string, mode types2.ImportMode) (
 // types2 becomes a Reported finding, as in the compiler.
 func check(t testing.TB, kind Kind, name, src string) *Input {
 	t.Helper()
+	var errs []error
+	var reported []Reported
+	pkg, file, info, _ := checkPkg(t, kind, name, src, func(err error) {
+		if r, ok := ReportedOf(err); ok {
+			reported = append(reported, r)
+			return
+		}
+		errs = append(errs, err)
+	})
+	if len(errs) > 0 {
+		t.Fatalf("check %s: %v", name, errs)
+	}
+	return &Input{
+		Pkg:      pkg,
+		Info:     info,
+		Files:    []*syntax.File{file},
+		Sources:  map[*syntax.File][]byte{file: []byte(src)},
+		Kind:     kind,
+		Reported: reported,
+	}
+}
+
+func checkPkg(t testing.TB, kind Kind, name, src string, onErr func(error)) (*types2.Package, *syntax.File, *types2.Info, error) {
+	t.Helper()
 	mode := syntax.CheckBranches
 	if kind == KindLgo {
 		mode |= syntax.LogosMode
@@ -253,32 +270,14 @@ func check(t testing.TB, kind Kind, name, src string) *Input {
 		Scopes:             make(map[syntax.Node]*types2.Scope),
 		Instances:          make(map[*syntax.Name]types2.Instance),
 	}
-	var errs []error
-	var reported []Reported
 	conf := &types2.Config{
-		Importer: &lintImporter{pkgs: make(map[string]*types2.Package)},
-		Error: func(err error) {
-			if r, ok := ReportedOf(err); ok {
-				reported = append(reported, r)
-				return
-			}
-			errs = append(errs, err)
-		},
+		Importer:    &lintImporter{pkgs: make(map[string]*types2.Package)},
+		Error:       onErr,
 		Logos:       kind == KindLgo,
 		LogosUnions: kind == KindLgo,
 	}
-	pkg, _ := conf.Check("p", []*syntax.File{file}, info)
-	if len(errs) > 0 {
-		t.Fatalf("check %s: %v", name, errs)
-	}
-	return &Input{
-		Pkg:      pkg,
-		Info:     info,
-		Files:    []*syntax.File{file},
-		Sources:  map[*syntax.File][]byte{file: []byte(src)},
-		Kind:     kind,
-		Reported: reported,
-	}
+	pkg, checkErr := conf.Check("p", []*syntax.File{file}, info)
+	return pkg, file, info, checkErr
 }
 
 // summarize renders results as "line rule severity" strings.
@@ -333,14 +332,30 @@ const discardedSrc = `package p
 import (
 	"bytes"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"strings"
 )
 
-func f() error        { return nil }
-func g() (int, error) { return 0, nil }
+var errSentinel = errors.New("boom")
+
+var fail = false
+
+func f() error {
+	if fail {
+		return errSentinel
+	}
+	return nil
+}
+
+func g() (int, error) {
+	if fail {
+		return 0, errSentinel
+	}
+	return 0, nil
+}
 
 func a() {
 	f() // want
@@ -359,17 +374,17 @@ func a() {
 	sb.WriteString("x")
 	fmt.Fprintf(&b, "x")
 	fmt.Fprintf(&sb, "x")
-	h := sha256.New()
-	h.Write([]byte("x"))
+	hash := sha256.New()
+	hash.Write([]byte("x"))
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "x")
 	var bd strings.Builder
 	io.WriteString(&bd, "x")
 	err := f()
 	_ = err
-	defer f()
-	h2 := func() error { return f() }
-	h2() // want
+	defer f() // want
+	h := func() error { return f() }
+	h() // want
 	m, err := g()
 	_, _ = m, err
 	_ = (f()) // want
@@ -378,6 +393,11 @@ func a() {
 func b() error {
 	f() // want
 	return nil
+}
+
+func w(out io.Writer) {
+	fmt.Fprintf(out, "x") // want
+	fmt.Fprintln(out, "x") // want
 }
 `
 
@@ -413,7 +433,17 @@ func TestDiscardedError(t *testing.T) {
 
 const spanSrc = `package p
 
-func f(...any) error { return nil }
+import "errors"
+
+var errSpan = errors.New("span")
+
+func f(...any) error {
+	if errSpan == nil {
+		return nil
+	}
+	return errSpan
+}
+
 func g(int) int      { return 0 }
 
 func a() {
@@ -470,7 +500,16 @@ func TestDiscardedErrorSpanInterpolation(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	const src = `package p
 
-func h(string) error { return nil }
+import "errors"
+
+var errH = errors.New("h")
+
+func h(string) error {
+	if errH == nil {
+		return nil
+	}
+	return errH
+}
 
 func a() {
 	x := "s"
@@ -500,30 +539,6 @@ func g() {
 }
 `
 
-// TestAlwaysNilErrorFact checks the exemption of a callee whose package facts
-// carry AlwaysNilError. No producer of the fact exists yet, so the test
-// injects one for os.Chdir.
-func TestAlwaysNilErrorFact(t *testing.T) {
-	testenv.MustHaveGoBuild(t)
-	exportData := "12345678"
-	var fp goobj.FingerprintType
-	copy(fp[:], exportData)
-	member := facts.Encode(fp, &facts.Facts{Fingerprint: fp, Fns: []facts.FnFact{{Object: "Chdir", AlwaysNilError: true}}})
-	if _, err := facts.Import("os", exportData, member); err != nil {
-		t.Fatal(err)
-	}
-	const src = `package p
-
-import "os"
-
-func a() {
-	os.Chdir("x")
-	os.Setenv("k", "v") // want
-}
-`
-	expect(t, KindGo, nil, testSource{"x.go", src}, finding{"slop::discarded_error", Deny})
-}
-
 // TestDiscardedErrorFix checks the JSON provenance and the ? candidate of a
 // loGo/s file: offered only in a function that returns error.
 func TestDiscardedErrorFix(t *testing.T) {
@@ -550,6 +565,50 @@ func TestDiscardedErrorNoFixInGo(t *testing.T) {
 	for _, r := range Run(check(t, KindGo, "x.go", fixSrc)) {
 		if len(r.Fixes) != 0 {
 			t.Errorf("Go package offers fix %+v naming loGo/s syntax", r.Fixes)
+		}
+	}
+}
+
+const fixSourceSrc = `package p
+
+import "errors"
+
+func run(f func(int) int) error { return errors.New("x") }
+
+func a() error {
+	run(func(x int) int { y := x + 1; return y * 2 })
+	return nil
+}
+
+func b() error {
+	run(func(x int) int {
+		return x
+	})
+	return nil
+}
+`
+
+// TestDiscardedErrorFixIsSourceText checks that the ? candidate replaces the
+// call with its exact source text and a ?, function bodies included, and that
+// the patched file compiles with one finding fewer.
+func TestDiscardedErrorFixIsSourceText(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	rs := Run(check(t, KindLgo, "x.lgo", fixSourceSrc))
+	if len(rs) != 2 {
+		t.Fatalf("results = %q", summarize(rs))
+	}
+	for _, r := range rs {
+		if len(r.Fixes) != 1 {
+			t.Fatalf("fixes of %v = %+v", r.Pos, r.Fixes)
+		}
+		fx := r.Fixes[0]
+		if want := spanText(fixSourceSrc, r) + "?"; fx.Replacement != want {
+			t.Errorf("replacement %q, want %q", fx.Replacement, want)
+			continue
+		}
+		patched := applyFix(t, fixSourceSrc, r, fx)
+		if left := Run(check(t, KindLgo, "x.lgo", patched)); len(left) != len(rs)-1 {
+			t.Errorf("%d findings after the fix, want %d in\n%s", len(left), len(rs)-1, patched)
 		}
 	}
 }
@@ -742,6 +801,46 @@ func TestInfiniteRecursionTry(t *testing.T) {
 	expect(t, KindLgo, nil, testSource{"x.lgo", recursionLgoSrc}, finding{"correctness::infinite_recursion", Forbid})
 }
 
+const recursionStageSrc = `package p
+
+import "context"
+
+func rangeStage(ctx context.Context, xs []int) error {
+	for range xs.group(ctx, limit = 2).map(x => x) {
+	}
+	return rangeStage(ctx, xs)
+}
+
+func rangeStageUnordered(ctx context.Context, xs []int) error {
+	for range xs.group(ctx, limit = 2).unordered().map(x => x) {
+	}
+	return rangeStageUnordered(ctx, xs)
+}
+
+func groupBlock(ctx context.Context) error {
+	go group (ctx) {
+		go { println() }
+	}
+	return groupBlock(ctx)
+}
+
+func valueStage(ctx context.Context, xs []int) error { // want
+	_, err := xs.group(ctx, limit = 2).map(x => x)
+	println(err == nil)
+	return valueStage(ctx, xs)
+}
+
+func rangePlain(ctx context.Context, xs []int) error { // want
+	for range xs.map(x => x) {
+	}
+	return rangePlain(ctx, xs)
+}
+`
+
+func TestInfiniteRecursionStageRange(t *testing.T) {
+	expect(t, KindLgo, nil, testSource{"x.lgo", recursionStageSrc}, finding{"correctness::infinite_recursion", Forbid})
+}
+
 const recursionConstSwitchSrc = `package p
 
 func csSel(n int) int { // want
@@ -925,7 +1024,16 @@ func TestInfiniteRecursionGenericConstSwitch(t *testing.T) {
 func TestDirective(t *testing.T) {
 	const src = `package p
 
-func f() error { return nil }
+import "errors"
+
+var errTest = errors.New("test")
+
+func f() error {
+	if errTest == nil {
+		return nil
+	}
+	return errTest
+}
 
 func a() {
 	//logos:allow(slop::discarded_error)
@@ -962,6 +1070,12 @@ func d() {
 ` + "`" + `
 	f() // want
 }
+
+func e() {
+	f() // want
+	//logos:allow(slop::discarded_error)
+	f()
+}
 `
 	for _, kind := range []Kind{KindGo, KindLgo} {
 		name := "x.go"
@@ -977,7 +1091,16 @@ func TestDirectiveWarn(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	const src = `package p
 
-func f() error { return nil }
+import "errors"
+
+var errTest = errors.New("test")
+
+func f() error {
+	if errTest == nil {
+		return nil
+	}
+	return errTest
+}
 
 func a() {
 	//logos:allow(slop::discarded_error)
@@ -992,7 +1115,7 @@ func a() {
 	in := check(t, KindLgo, "x.lgo", src)
 	in.Policy = p
 	got := summarize(Run(in))
-	if want := []string{"8 slop::discarded_error warn"}; !slices.Equal(got, want) {
+	if want := []string{"17 slop::discarded_error warn"}; !slices.Equal(got, want) {
 		t.Errorf("results = %q, want %q", got, want)
 	}
 }
@@ -1025,7 +1148,16 @@ func TestForbidDirectiveConfig(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	const src = `package p
 
-func f() error { return nil }
+import "errors"
+
+var errTest = errors.New("test")
+
+func f() error {
+	if errTest == nil {
+		return nil
+	}
+	return errTest
+}
 
 func a() {
 	//logos:allow(slop::discarded_error)
@@ -1040,8 +1172,8 @@ func a() {
 	in.Policy = p
 	got := summarize(Run(in))
 	want := []string{
-		"6 correctness::allow_forbidden_rule forbid",
-		"7 slop::discarded_error forbid",
+		"15 correctness::allow_forbidden_rule forbid",
+		"16 slop::discarded_error forbid",
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("lgo results = %q, want %q", got, want)

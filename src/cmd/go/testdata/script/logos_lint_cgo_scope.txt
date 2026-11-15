@@ -1,0 +1,55 @@
+[!cgo] skip
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOCACHE=$WORK/cache-all
+
+cd m
+! logos lint --json-diagnostics ./...
+stderr -count=1 '"rule_id":"correctness::typed_nil_return"'
+stderr '"file":"[^"]*c/c\.go"'
+! stderr '"file":"[^"]*external'
+
+env GOCACHE=$WORK/cache-p
+logos lint --json-diagnostics ./p
+! stderr '"rule_id":"correctness::typed_nil_return"'
+
+-- m/go.mod --
+module example.com/cgoscope
+
+go 1.27
+
+require example.com/external v0.0.0
+replace example.com/external => ../external
+
+-- m/p/p.go --
+package p
+
+import (
+	"example.com/cgoscope/c"
+	"example.com/external"
+)
+
+var Bad = c.Bad
+var ExternalBad = external.Bad
+
+-- m/c/c.go --
+package c
+
+import "C"
+
+type T struct { N C.int }
+func Bad() any { return (*T)(nil) }
+
+-- external/go.mod --
+module example.com/external
+
+go 1.27
+
+-- external/external.go --
+package external
+
+import "C"
+
+type T struct { N C.int }
+func Bad() any { return (*T)(nil) }

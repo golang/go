@@ -1,16 +1,12 @@
 // run
-
 package main
 
 import (
 	"fmt"
+	"os"
 
 	"logos/rt"
 )
-
-// M5-S6 inline-only rt.Freeze (SPEC T-201): a Freeze result that is
-// never bound to a variable still forces the plain recheck, so no
-// const view reaches the backend.
 
 type Config struct {
 	Name string
@@ -19,6 +15,14 @@ type Config struct {
 
 func main() {
 	cfg := Config{Name: "orig", N: 7}
-	fmt.Println(rt.Freeze(&cfg).Name)
-	fmt.Println(rt.Freeze(&cfg).N)
+	if rt.Freeze(&cfg).Name != "orig" {
+		fmt.Println("FAIL freeze-inline-preserves-name-field: got mismatch want orig")
+		os.Exit(1)
+	}
+	fmt.Println("ok freeze-inline-preserves-name-field")
+	if rt.Freeze(&cfg).N != 7 {
+		fmt.Println("FAIL freeze-inline-preserves-int-field: got mismatch want 7")
+		os.Exit(1)
+	}
+	fmt.Println("ok freeze-inline-preserves-int-field")
 }

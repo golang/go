@@ -1,0 +1,17 @@
+// errorcheck
+
+package p
+
+type Box[T any] struct{ V T }
+
+func (b Box[T]) Get() T { return b.V }
+
+var _ interface{ const Get() []int } = Box[[]int]{} // ERROR "const_view_mutation"
+
+type Scalar interface{ ~int | ~string }
+type ScalarBox[T Scalar] struct{ V T }
+
+func (b ScalarBox[T]) Get() T { return b.V }
+
+var _ interface{ const Get() int } = ScalarBox[int]{}
+var _ interface{ const Get() string } = ScalarBox[string]{}

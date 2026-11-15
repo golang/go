@@ -16,9 +16,7 @@ import (
 	"strings"
 	"testing"
 
-	"cmd/compile/internal/logos/facts"
 	"cmd/compile/internal/syntax"
-	"cmd/internal/goobj"
 )
 
 const logosCopyImportPath = "example.com/copyimportrec"
@@ -47,12 +45,11 @@ func logosCopyImportFixture(t *testing.T) (*Package, Importer) {
 		NewTuple(NewVar(nopos, defPkg, "n", Typ[Int])),
 		NewTuple(NewVar(nopos, defPkg, "", Typ[Int])), false)
 	defPkg.Scope().Insert(NewFunc(nopos, defPkg, "Rec", sig))
-	fp := goobj.FingerprintType{11, 22, 33, 44, 55, 66, 77, 88}
-	member := facts.Encode(fp, &facts.Facts{
-		ConstFuncs: []facts.ConstFuncFact{{Object: "Rec", Source: []byte(logosCopyImportRecSrc)}},
-	})
-	if _, err := facts.Import(logosCopyImportPath, "export-bytes"+string(fp[:]), member); err != nil {
-		t.Fatalf("facts Import: %v", err)
+	LogosImportedConstFuncSource = func(path, object string) []byte {
+		if path == logosCopyImportPath && object == "Rec" {
+			return []byte(logosCopyImportRecSrc)
+		}
+		return nil
 	}
 	return defPkg, &logosCopyImportStub{pkgs: map[string]*Package{logosCopyImportPath: defPkg}}
 }

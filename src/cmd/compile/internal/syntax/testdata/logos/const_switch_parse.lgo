@@ -4,9 +4,6 @@
 
 package p
 
-// M7-S4 const switch grammar (SPEC Sec 2.5, T-205): a case names exactly
-// one type, and there is no `default` arm. Both are syntax errors.
-
 func constSwitchDefaultArm[T any](v T) {
 	_ = v
 	const switch T {
@@ -21,6 +18,14 @@ func constSwitchTypeList[T any](v T) {
 	_ = v
 	const switch T {
 	case int, string: // ERROR const switch case takes a single type, not a list
+		return
+	}
+}
+
+func constSwitchEmptyCase[T any](v T) {
+	_ = v
+	const switch T {
+	case : // ERROR expected type
 		return
 	}
 }

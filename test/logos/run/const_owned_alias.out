@@ -1,0 +1,12 @@
+ok owned-read
+ok alias-read
+ok sum
+ok addr-read
+ok deep-read
+ok slice-read
+ok method-read
+ok map-copy
+ok map-kept
+ok constmap
+ok constmap-len
+ok str

@@ -1,0 +1,5 @@
+ok present-zero
+ok present-nonzero
+ok absent
+ok present-zero-read
+ok absent-read

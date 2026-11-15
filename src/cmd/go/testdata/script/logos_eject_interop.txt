@@ -1,33 +1,34 @@
-# M1-S6: eject with Go/loGo/s interop in both directions (R-U2).
-# Case A: a loGo/s main module imports a Go module through a local replace;
-# the ejected tree keeps that require and replace. Case B: a Go main module
-# imports a loGo/s module; eject vendors it under _logos_deps. Both ejected
-# trees build and run with plain go and match logos run output.
-
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
-# Case B: Go main module imports a loGo/s module; eject vendors it.
 cd gapp
 logos run .
 stdout '^logos-dep-ok$'
+stdout '^logos-code-ok$'
+stdout '^3 false$'
 cp stdout $WORK/b-stdout.txt
 logos eject -o bout
 exists bout/main.go
 exists bout/go.mod
 exists bout/_logos_deps/example.com/lp@v1.2.3/p/p.go
-grep 'example\.com/lp' bout/go.mod
-grep 'require' bout/go.mod
+grep -count=1 'example\.com/lp v1\.2\.3$' bout/go.mod
+grep 'func Code\(\) \(string, error\)' bout/_logos_deps/example.com/lp@v1.2.3/p/p.go
+grep 'func Msg\(\) string' bout/_logos_deps/example.com/lp@v1.2.3/p/p.go
+grep 'func Pick\(ok bool\) _logos_rt.Option\[int\]' bout/_logos_deps/example.com/lp@v1.2.3/p/p.go
+grep 'Option\[int\]' bout/_logos_deps/example.com/lp@v1.2.3/p/p.go
 grep 'replace' bout/go.mod
 cd bout
 go build ./...
 go run .
 cmp stdout $WORK/b-stdout.txt
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
 cd ..
 cd ..
 
-# Case A: loGo/s main module imports a Go module through a local replace.
-# Eject to a sibling directory so the kept local replace still resolves.
 cd lapp
 logos run .
 stdout '^go-help-ok$'
@@ -35,13 +36,17 @@ cp stdout $WORK/a-stdout.txt
 logos eject -o ../aout
 exists ../aout/main.go
 exists ../aout/go.mod
-grep 'example\.com/gohelp' ../aout/go.mod
-grep 'require' ../aout/go.mod
+grep -count=1 'example\.com/gohelp v1\.0\.0$' ../aout/go.mod
 grep 'replace' ../aout/go.mod
 cd ../aout
 go build ./...
 go run .
 cmp stdout $WORK/a-stdout.txt
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
 cd ..
 
 -- lapp/go.mod --
@@ -99,6 +104,13 @@ import (
 
 func main() {
 	fmt.Println(p.Msg())
+	s, err := p.Code()
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	fmt.Println(s)
+	fmt.Println(p.Pick(true).Value, p.Pick(false).Present)
 }
 
 -- lp/go.mod --
@@ -112,4 +124,17 @@ package p
 // Msg reports the loGo/s helper string.
 func Msg() string {
 	return "logos-dep-ok"
+}
+
+// Code reports the helper string with an error result.
+func Code() (string, error) {
+	return "logos-code-ok", nil
+}
+
+// Pick returns an optional integer.
+func Pick(ok bool) int? {
+	if ok {
+		return 3
+	}
+	return nil
 }

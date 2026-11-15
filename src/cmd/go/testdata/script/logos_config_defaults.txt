@@ -1,0 +1,220 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+mkdir $WORK/bin
+
+# A logos.toml in a subdirectory is not read: slop stays deny there.
+cd misplaced
+! logos build -o $WORK/bin/mis$GOEXE ./sub
+stderr 'sub/main\.lgo:6:2: \[slop::discarded_error\]'
+! exists $WORK/bin/mis$GOEXE
+cd ..
+
+# The capabilities table applies to a Go-only module: the default
+# deny refuses the exec dependency, an allow entry lets it through.
+cd gocap
+! logos build -o $WORK/bin/gocap$GOEXE ./...
+stderr 'capabilities::unauthorized_exec'
+! exists $WORK/bin/gocap$GOEXE
+cp logos-allow.toml logos.toml
+logos build -o $WORK/bin/gocap$GOEXE ./...
+exists $WORK/bin/gocap$GOEXE
+rm logos.toml
+cd ..
+
+# Concurrency defaults to forbid: the bare go statement fails.
+cd concfail
+! logos build -o $WORK/bin/conc$GOEXE .
+stderr 'main\.lgo:6:2: \[concurrency::unsupervised_goroutine\]'
+! exists $WORK/bin/conc$GOEXE
+# A directive naming the forbid rule is itself an error, which a deny
+# default would not report.
+cd ../concdangle
+! logos build -o $WORK/bin/concd$GOEXE .
+stderr 'main\.lgo:3:1: \[correctness::allow_forbidden_rule\]'
+! exists $WORK/bin/concd$GOEXE
+cd ..
+
+# Complexity defaults to deny: five parameters exceed the default limit
+# of four and fail the build.
+cd complex5
+! logos build -o $WORK/bin/c5$GOEXE .
+stderr 'main\.lgo:3:6: \[complexity::cognitive_overflow\]'
+! exists $WORK/bin/c5$GOEXE
+cd ..
+
+# With cgo off, net and os/user follow the upstream CGO_ENABLED=0
+# behavior: no cgo tool invocation for either package, and the binary
+# builds and runs.
+cd netoff
+env CGO_ENABLED=1
+logos build -n .
+stderr 'compile'
+! stderr 'importpath net'
+! stderr 'importpath os/user'
+logos build -o $WORK/bin/netoff$GOEXE .
+exec $WORK/bin/netoff$GOEXE
+stdout '^true true$'
+cd ../netoffgo
+env CGO_ENABLED=0
+go build -n .
+stderr 'compile'
+! stderr 'importpath net'
+! stderr 'importpath os/user'
+cd ..
+
+-- misplaced/go.mod --
+module example.com/mis
+
+go 1.27
+
+-- misplaced/sub/main.lgo --
+package main
+
+import "os"
+
+func main() {
+	os.Remove("missing")
+}
+
+-- misplaced/sub/logos.toml --
+[lints]
+slop = "allow"
+
+-- gocap/go.mod --
+module example.com/gocap
+
+go 1.27
+
+require example.com/godep v0.0.0
+
+replace example.com/godep => ../godep
+
+-- gocap/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/godep"
+)
+
+func main() {
+	godep.Init()
+	fmt.Println("done")
+}
+
+-- gocap/logos-allow.toml --
+[capabilities]
+transitive_exec = "allow"
+
+-- godep/go.mod --
+module example.com/godep
+
+go 1.27
+
+-- godep/dep.go --
+package godep
+
+import "os/exec"
+
+//go:noinline
+func Init() {
+	cmd := exec.Command("echo", "hi")
+	_ = cmd.Run()
+}
+
+-- concfail/go.mod --
+module example.com/conc
+
+go 1.27
+
+-- concfail/main.lgo --
+package main
+
+func work() {}
+
+func main() {
+	go work()
+}
+
+-- concdangle/go.mod --
+module example.com/concdangle
+
+go 1.27
+
+-- concdangle/main.lgo --
+package main
+
+//logos:allow(concurrency::unsupervised_goroutine)
+func work() {}
+
+func main() {
+	work()
+}
+
+-- complex5/go.mod --
+module example.com/complex5
+
+go 1.27
+
+-- complex5/main.lgo --
+package main
+
+func sum(a int, b int, c int, d int, e int) int {
+	return a + b + c + d + e
+}
+
+func main() {
+	println(sum(1, 2, 3, 4, 5))
+}
+
+-- netoff/go.mod --
+module example.com/netoff
+
+go 1.27
+
+-- netoff/logos.toml --
+[build]
+cgo = "forbid"
+
+-- netoff/main.lgo --
+package main
+
+import (
+	"fmt"
+	"net"
+	"os/user"
+)
+
+func main() {
+	ip := net.ParseIP("127.0.0.1")
+	u, err := user.Current()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(ip != nil, u.Username != "")
+}
+
+-- netoffgo/go.mod --
+module example.com/netoffgo
+
+go 1.27
+
+-- netoffgo/main.go --
+package main
+
+import (
+	"fmt"
+	"net"
+	"os/user"
+)
+
+func main() {
+	ip := net.ParseIP("127.0.0.1")
+	u, err := user.Current()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(ip != nil, u.Username != "")
+}

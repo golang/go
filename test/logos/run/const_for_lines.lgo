@@ -20,11 +20,11 @@ type Item struct {
 
 func get(items []Item, i int) string {
 	defer func() {
-		_ = recover()
+		r := recover()
 		stack := string(debug.Stack())
-		fmt.Println("recovered")
-		fmt.Println("namesfile:", contains(stack, "const_for_lines.lgo"))
-		fmt.Println("namesline:", contains(stack, "const_for_lines.lgo:30"))
+		check("recovered", r != nil, r != nil, true)
+		check("namesfile", contains(stack, "const_for_lines.lgo"), true, true)
+		check("namesline", contains(stack, "const_for_lines.lgo:30"), true, true)
 	}()
 	var out string
 	const for _, f := range comptime.Fields[Item]() {
@@ -44,6 +44,20 @@ func contains(s, sub string) bool {
 	return false
 }
 
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
 func main() {
-	fmt.Println(get(nil, 3))
+	_ = get(nil, 3)
+	if failed {
+		panic("const_for_lines checks failed")
+	}
 }

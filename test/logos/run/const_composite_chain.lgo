@@ -1,0 +1,80 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type box struct {
+	M map[string]int
+	N int
+	L []int
+}
+
+const cfg = box{M: map[string]int{"a": 1}, N: 7, L: []int{1, 2, 3}}
+
+const boxes = []box{
+	{M: map[string]int{"a": 1}, N: 2, L: []int{1, 2}},
+	{M: map[string]int{"a": 5}, N: 3, L: []int{3, 4, 5}},
+}
+
+const grid = [2]box{
+	{M: map[string]int{"a": 1}, N: 2, L: []int{1, 2}},
+	{M: map[string]int{"a": 5}, N: 3, L: []int{3, 4, 5}},
+}
+
+func viewSum(v const []box) int {
+	return v.map(b => b.N).sum()
+}
+
+func viewField(v const *box) int {
+	return v.L.map(x => x + 1).sum()
+}
+
+func test() {
+	check("chain-map-sum", cfg.L.map(x => x * 2).sum() == 12, cfg.L.map(x => x * 2).sum(), 12)
+	check("chain-count", cfg.L.count() == 3, cfg.L.count(), 3)
+	got := cfg.L.map(x => x).get(1) ?? -1
+	check("chain-get", got == 2, got, 2)
+	check("chain-filter", fmt.Sprint(cfg.L.filter(x => x > 1)) == "[2 3]", fmt.Sprint(cfg.L.filter(x => x > 1)), "[2 3]")
+}
+
+func testElements() {
+	check("chain-slice-elements-sum", boxes.map(b => b.N).sum() == 5, boxes.map(b => b.N).sum(), 5)
+	reads := boxes.map(b => b.M["a"] ?? 0)
+	check("chain-slice-elements-map-read", fmt.Sprint(reads) == "[1 5]", fmt.Sprint(reads), "[1 5]")
+	check("chain-slice-elements-filter", boxes.filter(b => (b.M["a"] ?? 0) > 1).count() == 1, boxes.filter(b => (b.M["a"] ?? 0) > 1).count(), 1)
+	check("chain-field-slice-element", boxes[1].L.map(x => x * 2).sum() == 24, boxes[1].L.map(x => x * 2).sum(), 24)
+	i := 1
+	check("chain-field-slice-variable-index", boxes[i].L.count() == 3, boxes[i].L.count(), 3)
+	check("chain-array-element", grid[1].L.filter(x => x > 3).count() == 2, grid[1].L.filter(x => x > 3).count(), 2)
+	check("chain-lambda-reads-map", cfg.L.map(x => x + (cfg.M["a"] ?? 0)).sum() == 9, cfg.L.map(x => x + (cfg.M["a"] ?? 0)).sum(), 9)
+}
+
+func testViews() {
+	check("chain-view-slice", viewSum(boxes) == 5, viewSum(boxes), 5)
+	c := cfg
+	check("chain-view-pointer", viewField(&c) == 9, viewField(&c), 9)
+}
+
+func main() {
+	test()
+	testElements()
+	testViews()
+	if failed {
+		os.Exit(1)
+	}
+}

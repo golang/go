@@ -1,0 +1,21 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+type PropRM interface {
+	const M int
+}
+
+type GoodRM struct : PropRM {
+}
+
+func (s GoodRM) M() int { return 1 }
+
+var _ PropRM = GoodRM{}
+
+type BadRM struct : PropRM /* ERROR "correctness::property_unsatisfied" */ {
+}
+
+func (s const BadRM) M() int { return 1 }

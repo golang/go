@@ -1,6 +1,5 @@
-Name=5
-Count=10
-Ok=15
-15 <nil>
-0 bad z
-27
+ok total-lines
+ok total-sum
+ok total-bad-err
+ok total-bad-sum
+ok summed

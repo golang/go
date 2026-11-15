@@ -1,0 +1,10 @@
+ok cancel-first-failure-cancels-siblings
+ok cancel-unordered-failure-cancels-earlier-siblings
+ok cancel-ordered-error-is-sequential
+ok cancel-panic-becomes-panicerror
+ok cancel-parent-context-error
+ok cancel-early-stop-discards-later-failure
+ok cancel-ordered-find-fails-like-sequential
+ok cancel-body-panic-joins
+ok cancel-source-panic-joins
+ok cancel-quiet-channel-failure

@@ -1,0 +1,99 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+
+	"logos/rt"
+)
+
+type Whole interface{ int | string }
+
+type Narrow interface {
+	Whole
+	int | float64
+}
+
+type Deeper interface {
+	Narrow
+	int | bool
+}
+
+var failed bool
+
+func check(name string, got, want any) {
+	if got != want {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func guard(f func() any) (got any) {
+	defer func() {
+		if r := recover(); r != nil {
+			got = fmt.Sprintf("panic %v (%T)", r, r)
+		}
+	}()
+	return f()
+}
+
+func inNarrow(x any) any {
+	return guard(func() any {
+		_, ok := x.(Narrow)
+		return ok
+	})
+}
+
+func inDeeper(x any) any {
+	return guard(func() any {
+		_, ok := x.(Deeper)
+		return ok
+	})
+}
+
+func singleNarrow(x any) any {
+	return guard(func() (msg any) {
+		defer func() {
+			if e, ok := recover().(*rt.UnionAssertionError); ok {
+				msg = e.Error()
+			}
+		}()
+		_ = x.(Narrow)
+		return "no panic"
+	})
+}
+
+func caseNarrow(x any) any {
+	return guard(func() any {
+		switch x.(type) {
+		case Narrow:
+			return "member"
+		default:
+			return "default"
+		}
+	})
+}
+
+func main() {
+	check("narrow-comma-int", inNarrow(42), true)
+	check("narrow-comma-string", inNarrow("s"), false)
+	check("narrow-comma-float", inNarrow(1.5), false)
+	check("deeper-comma-int", inDeeper(42), true)
+	check("deeper-comma-string", inDeeper("s"), false)
+	check("deeper-comma-float", inDeeper(1.5), false)
+	check("deeper-comma-bool", inDeeper(true), false)
+	check("narrow-single-string", singleNarrow("s"), "interface conversion: string is not a member of main.Narrow")
+	check("narrow-single-float", singleNarrow(1.5), "interface conversion: float64 is not a member of main.Narrow")
+	check("narrow-case-int", caseNarrow(42), "member")
+	check("narrow-case-string", caseNarrow("s"), "default")
+	check("narrow-case-float", caseNarrow(1.5), "default")
+	n := Narrow(42)
+	check("narrow-convert-int", n.(int), 42)
+	if failed {
+		os.Exit(1)
+	}
+}

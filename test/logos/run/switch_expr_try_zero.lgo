@@ -1,0 +1,240 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type observed[T any] struct {
+	v   T
+	err error
+}
+
+func observe[T any](v T, err error) observed[T] {
+	return observed[T]{v, err}
+}
+
+type mi int
+
+type ms string
+
+type flag bool
+
+type pp *int
+
+var errLoad = errors.New("load")
+
+var slot int
+
+func load(v int, fail bool) (int, error) {
+	if fail {
+		return 0, errLoad
+	}
+	return v, nil
+}
+
+func defNamed(v int, fail bool) (mi, error) {
+	r := switch n := load(v, fail)?; n {
+	case 7 => mi(70)
+	default => mi(1)
+	}
+	return r, nil
+}
+
+func assignNamed(v int, fail bool) (ms, error) {
+	r := switch slot = load(v, fail)?; slot {
+	case 7 => ms("seven")
+	default => ms("other")
+	}
+	return r, nil
+}
+
+func exprNamed(v int, fail bool) (mi, error) {
+	r := switch load(v, fail)?; v {
+	case 7 => mi(70)
+	default => mi(1)
+	}
+	return r, nil
+}
+
+func sumNamed(v int, fail bool) (mi, error) {
+	r := mi(100) + switch n := load(v, fail)?; n {
+	case 7 => mi(70)
+	default => mi(1)
+	}
+	return r, nil
+}
+
+func forNamed(v int, fail bool) (int, error) {
+	n := 0
+	for switch k := load(v, fail)?; k {
+	case 7 => flag(n < 2)
+	default => flag(false)
+	} {
+		n++
+	}
+	return n, nil
+}
+
+func returnNamed(v int, fail bool) (mi, error) {
+	return switch n := load(v, fail)?; n {
+	case 7 => mi(70)
+	default => mi(1)
+	}, nil
+}
+
+func condNamed(v int, fail bool) (int, error) {
+	if switch n := load(v, fail)?; n {
+	case 7 => flag(true)
+	default => flag(false)
+	} {
+		return 1, nil
+	}
+	return 0, nil
+}
+
+func ptrNamed(v int, fail bool, a, b pp) (pp, error) {
+	r := switch n := load(v, fail)?; n {
+	case 7 => a
+	default => b
+	}
+	return r, nil
+}
+
+func genericArm[T any](v int, fail bool, a, b T) (T, error) {
+	r := switch n := load(v, fail)?; n {
+	case 7 => a
+	default => b
+	}
+	return r, nil
+}
+
+//logos:allow(complexity::cognitive_overflow)
+func main() {
+	var bv mi
+	var sv ms
+	var err error
+	bv, err = defNamed(7, false)
+	if err != nil {
+		check("def", false, err, 70)
+	} else {
+		check("def", err == nil && bv == 70, bv, 70)
+	}
+	r1 := observe(defNamed(7, true))
+	bv, err = r1.v, r1.err
+	if err == nil {
+		check("def-fail", false, "no error", 0)
+	} else {
+		check("def-fail", err == errLoad && bv == 0, bv, 0)
+	}
+	sv, err = assignNamed(7, false)
+	if err != nil {
+		check("assign", false, err, "seven")
+	} else {
+		check("assign", err == nil && sv == "seven" && slot == 7, sv, "seven")
+	}
+	r2 := observe(assignNamed(7, true))
+	sv, err = r2.v, r2.err
+	if err == nil {
+		check("assign-fail", false, "no error", "")
+	} else {
+		check("assign-fail", err == errLoad && sv == "", sv, "")
+	}
+	bv, err = exprNamed(9, false)
+	if err != nil {
+		check("expr", false, err, 1)
+	} else {
+		check("expr", err == nil && bv == 1, bv, 1)
+	}
+	r3 := observe(exprNamed(9, true))
+	bv, err = r3.v, r3.err
+	if err == nil {
+		check("expr-fail", false, "no error", 0)
+	} else {
+		check("expr-fail", err == errLoad && bv == 0, bv, 0)
+	}
+	bv, err = sumNamed(7, false)
+	if err != nil {
+		check("sum", false, err, 170)
+	} else {
+		check("sum", err == nil && bv == 170, bv, 170)
+	}
+	r4 := observe(sumNamed(7, true))
+	bv, err = r4.v, r4.err
+	if err == nil {
+		check("sum-fail", false, "no error", 0)
+	} else {
+		check("sum-fail", err == errLoad && bv == 0, bv, 0)
+	}
+	bv, err = returnNamed(7, false)
+	if err != nil {
+		check("return", false, err, 70)
+	} else {
+		check("return", err == nil && bv == 70, bv, 70)
+	}
+	r5 := observe(returnNamed(7, true))
+	bv, err = r5.v, r5.err
+	if err == nil {
+		check("return-fail", false, "no error", 0)
+	} else {
+		check("return-fail", err == errLoad && bv == 0, bv, 0)
+	}
+	n, err := condNamed(7, false)
+	if err != nil {
+		check("cond", false, err, 1)
+	} else {
+		check("cond", err == nil && n == 1, n, 1)
+	}
+	r6 := observe(condNamed(7, true))
+	n, err = r6.v, r6.err
+	if err == nil {
+		check("cond-fail", false, "no error", 0)
+	} else {
+		check("cond-fail", err == errLoad && n == 0, n, 0)
+	}
+	n, err = forNamed(7, false)
+	if err != nil {
+		check("for", false, err, 2)
+	} else {
+		check("for", err == nil && n == 2, n, 2)
+	}
+	r7 := observe(forNamed(7, true))
+	n, err = r7.v, r7.err
+	if err == nil {
+		check("for-fail", false, "no error", 0)
+	} else {
+		check("for-fail", err == errLoad && n == 0, n, 0)
+	}
+	one, two := 1, 2
+	r8 := observe(ptrNamed(7, true, &one, &two))
+	pv, err := r8.v, r8.err
+	if err == nil {
+		check("ptr-fail", false, "no error", true)
+	} else {
+		check("ptr-fail", err == errLoad && pv == nil, pv == nil, true)
+	}
+	r9 := observe(genericArm(7, true, 1, 2))
+	gv, err := r9.v, r9.err
+	if err == nil {
+		check("generic-fail", false, "no error", 0)
+	} else {
+		check("generic-fail", err == errLoad && gv == 0, gv, 0)
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

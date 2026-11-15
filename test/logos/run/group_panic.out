@@ -1,3 +1,4 @@
-value: boom
-stack: true
-text: logos: group child panicked: boom
+ok group-panic-becomes-panicerror
+ok group-panic-value
+ok group-panic-stack
+ok group-panic-text

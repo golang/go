@@ -885,15 +885,9 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
 		return "", false
 	}
 
-	// Under the moving collector every pointer-carrying argument is
-	// admitted before C sees it, including a bare *C.char the pointer
-	// check skips. Builtins defined in the prolog never enter foreign
-	// code with a Go pointer.
-	foreign := logosForeignEmit() && builtinDefs[goname] == ""
-
 	any := false
 	for i, param := range params {
-		if p.needsPointerCheck(f, param.Go, args[i]) || (foreign && p.carriesForeignPointer(f, param, args[i])) {
+		if p.needsPointerCheck(f, param.Go, args[i]) {
 			any = true
 			break
 		}
@@ -980,16 +974,7 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
 
 	// Define _cgoN for each argument value.
 	// Write _cgoCheckPointer calls to sbCheck.
-	// Under the moving collector, rows also collects one foreign
-	// descriptor per pointer-bearing argument; they are admitted after
-	// the checks and right before the call, so the call reloads each
-	// admitted _cgoN. rows is nil, and every use below a no-op, in all
-	// other builds.
 	var sbCheck bytes.Buffer
-	var rows *foreignRows
-	if foreign {
-		rows = new(foreignRows)
-	}
 	for i, param := range params {
 		origArg := args[i]
 		arg, nu := p.mangle(f, &args[i], true)
@@ -1001,39 +986,31 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
 		// constants to the parameter type, to avoid a type mismatch.
 		ptype := p.rewriteUnsafe(param.Go)
 
-		checked := p.needsPointerCheck(f, param.Go, args[i])
-		if !checked || param.BadPointer || p.checkUnsafeStringData(args[i]) {
+		if !p.needsPointerCheck(f, param.Go, args[i]) || param.BadPointer || p.checkUnsafeStringData(args[i]) {
 			if ptype != param.Go {
 				needsUnsafe = true
 			}
 			fmt.Fprintf(&sb, "var _cgo%d %s = %s; ", i,
 				gofmt(ptype), gofmtPos(arg, origArg.Pos()))
-			if rows != nil && p.carriesForeignPointer(f, param, args[i]) {
-				rows.addVar(i)
-			}
 			continue
 		}
 
 		// Check for &a[i].
-		if p.checkIndex(&sb, rows, &sbCheck, arg, i) {
+		if p.checkIndex(&sb, &sbCheck, arg, i) {
 			continue
 		}
 
 		// Check for &x.
-		if p.checkAddr(&sb, rows, &sbCheck, arg, i) {
+		if p.checkAddr(&sb, &sbCheck, arg, i) {
 			continue
 		}
 
 		// Check for a[:].
-		if p.checkSlice(&sb, rows, &sbCheck, arg, i) {
+		if p.checkSlice(&sb, &sbCheck, arg, i) {
 			continue
 		}
 
 		fmt.Fprintf(&sb, "_cgo%d := %s; ", i, gofmtPos(arg, origArg.Pos()))
-		rows.addVar(i)
-		if !isUnsafePointerType(param.Go) {
-			rows.add(foreignShapeExtent, fmt.Sprintf("_cgo%d", i))
-		}
 		fmt.Fprintf(&sbCheck, "_cgoCheckPointer(_cgo%d, nil); ", i)
 	}
 
@@ -1041,13 +1018,8 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
 		sb.WriteString("return func() { ")
 	}
 
+	// Write out the calls to _cgoCheckPointer.
 	sb.WriteString(sbCheck.String())
-	if rows.writeBegin(&sb) {
-		// The rows reference _cgo_unsafe.Pointer (the only unsafe
-		// spelling the generated file imports), so the generated
-		// file needs the unsafe import even when no check wanted it.
-		needsUnsafe = true
-	}
 
 	if result {
 		sb.WriteString("return ")
@@ -1234,96 +1206,6 @@ func (p *Package) mangle(f *File, arg *ast.Expr, addPosition bool) (ast.Expr, bo
 	return *arg, needsUnsafe
 }
 
-// carriesForeignPointer reports whether the argument passed for param
-// can carry a Go pointer the moving collector must admit before C reads
-// it. Unlike needsPointerCheck, which asks only for pointers to
-// pointers, any pointer word counts: a *C.char into a Go object is
-// moved just as readily as a struct of pointers. Untyped nil, and the
-// uintptr-typed BadPointer words, name no Go memory.
-func (p *Package) carriesForeignPointer(f *File, param *Type, arg ast.Expr) bool {
-	if param.BadPointer {
-		return false
-	}
-	if id, ok := arg.(*ast.Ident); ok && id.Name == "nil" {
-		return false
-	}
-	return p.hasPointer(f, param.Go, false)
-}
-
-// isUnsafePointerType reports whether t is unsafe.Pointer, whose
-// referent has no layout to describe as a whole extent.
-func isUnsafePointerType(t ast.Expr) bool {
-	id, ok := t.(*ast.Ident)
-	return ok && id.Name == "unsafe.Pointer"
-}
-
-// Descriptor row shapes of the moving collector's foreign-call ABI. The
-// values are the runtime's cgoForeignShape constants
-// (runtime/logos_zgc_cgo.go): Var roots the variable &v, Extent the
-// whole pointee or slice backing of a value, and Container the operand
-// a of &a[i].
-const (
-	foreignShapeVar       = 0
-	foreignShapeExtent    = 1
-	foreignShapeContainer = 2
-)
-
-// foreignRows collects the descriptor rows of one rewritten cgo call.
-// Each row is an interface value, the type-info transport the pointer
-// check already uses, so generated code never spells a runtime type. A
-// nil *foreignRows disables collection: every method is then a no-op
-// and the call is rewritten exactly as without the moving collector.
-type foreignRows struct {
-	buf bytes.Buffer
-	n   int
-}
-
-// add appends one row: value is the Go expression boxed into the row's
-// interface word, shape tells the runtime how to read it.
-func (r *foreignRows) add(shape int, value string) {
-	if r == nil {
-		return
-	}
-	if r.n > 0 {
-		r.buf.WriteString(", ")
-	}
-	fmt.Fprintf(&r.buf, "{V: %s, S: %d}", value, shape)
-	r.n++
-}
-
-// addVar appends the row for argument variable _cgoN.
-func (r *foreignRows) addVar(i int) {
-	r.add(foreignShapeVar, fmt.Sprintf("&_cgo%d", i))
-}
-
-// writeBegin writes the admission of every collected row and the paired
-// deferred release to sb, and reports whether it wrote them. The array is
-// built fresh per call and consumed by Begin, which rewrites the admitted
-// _cgoN variables in place; the call that follows reloads them. The
-// deferred End releases the frame on return, on a panic unwinding
-// through a C callback, and on Goexit.
-func (r *foreignRows) writeBegin(sb *bytes.Buffer) bool {
-	if r == nil || r.n == 0 {
-		return false
-	}
-	fmt.Fprintf(sb, "_cgoRows := [%d]_cgoForeignRow{%s}; ", r.n, r.buf.String())
-	fmt.Fprintf(sb, "_cgoTok := _cgoForeignBegin(_cgo_unsafe.Pointer(&_cgoRows[0]), %d); ", r.n)
-	sb.WriteString("defer _cgoForeignEnd(_cgoTok); ")
-	return true
-}
-
-// resultsAdmission returns the statements of an exported function's
-// wrapper that canonicalize and admit the collected result rows, or ""
-// when there are none. It runs inside _cgo_gotypes.go, which imports
-// unsafe under its own name.
-func (r *foreignRows) resultsAdmission() string {
-	if r == nil || r.n == 0 {
-		return ""
-	}
-	return fmt.Sprintf("\t_cgoRows := [%d]_cgoForeignRow{%s}\n\t_cgoForeignResults(unsafe.Pointer(&_cgoRows[0]), %d)\n",
-		r.n, r.buf.String(), r.n)
-}
-
 // checkIndex checks whether arg has the form &a[i], possibly inside
 // type conversions. If so, then in the general case it writes
 //
@@ -1341,24 +1223,13 @@ func (r *foreignRows) resultsAdmission() string {
 //
 // and dereferences the uses of _cgoIndexNN. Taking the address avoids
 // making a copy of an array. If a is a pointer dereference (*p, possibly
-// parenthesized, as in &(*pa)[i]), it writes
-//
-//	_cgoIndexNN := p
-//
-// and indexes through _cgoIndexNN directly, so C points into the actual
-// array storage p names instead of a boxed array copy.
+// parenthesized, as in &(*p)[i]), _cgoIndexNN holds p itself and the
+// index runs through (*_cgoIndexNN)[i], so C names the caller storage
+// instead of a copied array.
 //
 // This tells _cgoCheckPointer to check the complete contents of the
 // slice or array being indexed, but no other part of the memory allocation.
-//
-// Under the moving collector, rows also gets _cgoNN itself and the
-// indexed operand, so the whole slice or array the check covers is
-// admitted: C may walk every element by pointer arithmetic. The operand
-// is always a rooted variable or local (_cgoIndexNN, which is &a in the
-// variable form and p in the pointer-dereference form), so a slice, an
-// array, or a pointer to an array each resolve to their own extent and
-// no argument is re-evaluated.
-func (p *Package) checkIndex(sb *bytes.Buffer, rows *foreignRows, sbCheck *bytes.Buffer, arg ast.Expr, i int) bool {
+func (p *Package) checkIndex(sb, sbCheck *bytes.Buffer, arg ast.Expr, i int) bool {
 	// Strip type conversions.
 	x := arg
 	for {
@@ -1388,12 +1259,6 @@ func (p *Package) checkIndex(sb *bytes.Buffer, rows *foreignRows, sbCheck *bytes
 		addr = "&"
 		deref = "*"
 	} else if ptr, ok := unwrapParenStar(index.X); ok {
-		// &(*p)[i]: root p itself so the interior pointer names the
-		// caller's array. Copying (*p) would box the array into a heap
-		// _cgoIndex copy detached from the caller; C would then point
-		// into the copy and stamps through C would never reach the
-		// caller. Indexing through the pointer keeps entry identity
-		// equal to the caller's element address.
 		indexPtrDeref = true
 		indexPtr = ptr
 		deref = "*"
@@ -1416,16 +1281,6 @@ func (p *Package) checkIndex(sb *bytes.Buffer, rows *foreignRows, sbCheck *bytes
 		index.X = origX
 	}
 
-	// Variable form (_cgoIndex := &a): when a is *[N]T, _cgoIndex is
-	// **[N]T, and the runtime resolves the [N]T that a names, the typed
-	// traversal the check uses, rather than the pointer variable.
-	// Pointer-dereference form (_cgoIndex := p): _cgoIndex is the *[N]T
-	// itself, and the runtime resolves the [N]T it points at, the same
-	// extent the check covers. Either way C names the caller's storage,
-	// never a boxed copy.
-	rows.addVar(i)
-	rows.add(foreignShapeContainer, fmt.Sprintf("_cgoIndex%d", i))
-
 	fmt.Fprintf(sbCheck, "_cgoCheckPointer(_cgo%d, %s_cgoIndex%d); ", i, deref, i)
 
 	return true
@@ -1445,10 +1300,7 @@ func (p *Package) checkIndex(sb *bytes.Buffer, rows *foreignRows, sbCheck *bytes
 // just the contents of the pointer being passed, not any other part
 // of the memory allocation. This is run after checkIndex, which looks
 // for the special case of &a[i], which requires different checks.
-//
-// Under the moving collector, rows also gets _cgoNN and the pointee
-// _cgoBaseNN names, the same extent the check covers.
-func (p *Package) checkAddr(sb *bytes.Buffer, rows *foreignRows, sbCheck *bytes.Buffer, arg ast.Expr, i int) bool {
+func (p *Package) checkAddr(sb, sbCheck *bytes.Buffer, arg ast.Expr, i int) bool {
 	// Strip type conversions.
 	px := &arg
 	for {
@@ -1472,9 +1324,6 @@ func (p *Package) checkAddr(sb *bytes.Buffer, rows *foreignRows, sbCheck *bytes.
 	fmt.Fprintf(sb, "_cgo%d := %s; ", i, gofmtPos(arg, arg.Pos()))
 	*px = origX
 
-	rows.addVar(i)
-	rows.add(foreignShapeExtent, fmt.Sprintf("_cgoBase%d", i))
-
 	// Use "0 == 0" to do the right thing in the unlikely event
 	// that "true" is shadowed.
 	fmt.Fprintf(sbCheck, "_cgoCheckPointer(_cgoBase%d, 0 == 0); ", i)
@@ -1495,11 +1344,7 @@ func (p *Package) checkAddr(sb *bytes.Buffer, rows *foreignRows, sbCheck *bytes.
 // to sbCheck, and returns true. This tells _cgoCheckPointer to check
 // just the contents of the slice being passed, not any other part
 // of the memory allocation.
-//
-// Under the moving collector, rows also gets _cgoNN and the slice
-// _cgoSliceNN, whose whole backing up to cap is the extent the check
-// covers.
-func (p *Package) checkSlice(sb *bytes.Buffer, rows *foreignRows, sbCheck *bytes.Buffer, arg ast.Expr, i int) bool {
+func (p *Package) checkSlice(sb, sbCheck *bytes.Buffer, arg ast.Expr, i int) bool {
 	// Strip type conversions.
 	px := &arg
 	for {
@@ -1522,9 +1367,6 @@ func (p *Package) checkSlice(sb *bytes.Buffer, rows *foreignRows, sbCheck *bytes
 	*px = ast.NewIdent(fmt.Sprintf("_cgoSlice%d", i))
 	fmt.Fprintf(sb, "_cgo%d := %s; ", i, gofmtPos(arg, arg.Pos()))
 	*px = origX
-
-	rows.addVar(i)
-	rows.add(foreignShapeExtent, fmt.Sprintf("_cgoSlice%d", i))
 
 	// Use 0 == 0 to do the right thing in the unlikely event
 	// that "true" is shadowed.
@@ -1620,19 +1462,6 @@ func (p *Package) isUnsafeData(x ast.Expr, onlyStringData bool) bool {
 	return st.Sel.Name == "StringData"
 }
 
-// isVariable reports whether x is a variable, possibly with field references.
-func (p *Package) isVariable(x ast.Expr) bool {
-	switch x := x.(type) {
-	case *ast.Ident:
-		return true
-	case *ast.SelectorExpr:
-		return p.isVariable(x.X)
-	case *ast.IndexExpr:
-		return true
-	}
-	return false
-}
-
 func unwrapParenStar(e ast.Expr) (ast.Expr, bool) {
 	for {
 		par, ok := e.(*ast.ParenExpr)
@@ -1646,6 +1475,19 @@ func unwrapParenStar(e ast.Expr) (ast.Expr, bool) {
 		return nil, false
 	}
 	return star.X, true
+}
+
+// isVariable reports whether x is a variable, possibly with field references.
+func (p *Package) isVariable(x ast.Expr) bool {
+	switch x := x.(type) {
+	case *ast.Ident:
+		return true
+	case *ast.SelectorExpr:
+		return p.isVariable(x.X)
+	case *ast.IndexExpr:
+		return true
+	}
+	return false
 }
 
 // rewriteUnsafe returns a version of t with references to unsafe.Pointer

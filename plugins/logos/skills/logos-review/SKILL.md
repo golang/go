@@ -34,7 +34,7 @@ Coverage: M1 error propagation, M2 closed unions, M3 options and nil flow, M4 in
 
 Proven by the M2 run fixtures (`test/logos/run/union_basic.lgo`, `test/logos/run/union_assert.lgo`, `test/logos/run/switch_expr.lgo`), the types fixtures (`src/internal/types/testdata/logos/union_members.lgo`, `union_exhaustive.lgo`, `switch_expr_types.lgo`, `struct_assert.lgo`), and `src/cmd/go/testdata/script/logos_interop_union.txt`.
 
-7. Unions: every union in a value position is closed (finite members, no `~` terms, no `comparable`); conversions, assertions, and case types name member types only; constants compared against a union convert to their default type first. Findings: `correctness::open_union_value`, `correctness::union_nonmember`.
+7. Unions: every union in a value position is closed (finite members, no `~` terms, no `comparable`); conversions, assertions, and case types name member types only; every member has each method the union declares; constants compared against a union convert to their default type first. Findings: `correctness::open_union_value`, `correctness::union_nonmember`, `correctness::union_member_method`.
 8. Exhaustiveness: a type switch without `default` covers every member in declaration order and `nil`; a case naming a sub-union covers its members. A value switch expression has a `default` arm. Finding: `correctness::nonexhaustive_switch`, `correctness::switch_expr_needs_default`.
 9. Switch-expression arms: all arms share one type (a typed arm fixes it; all-untyped arms fold by default type; `*T` plus `nil` gives `*T`). Finding: `correctness::switch_arm_mismatch`.
 10. Inline assertions: each `type S struct : I` list names interfaces that `*S` implements; a struct reaches a property interface only through this list. Finding: `correctness::assertion_failed`.
@@ -45,7 +45,7 @@ Proven by the M3 run fixtures (`test/logos/run/option_basic.lgo`, `option_chain.
 
 11. Options: `?.` and `??` apply to option types only; no plain method call, field selection, or dereference on an option without a `!= nil` narrowing proof. Findings: `correctness::not_an_option`, `correctness::nil_deref_unproven`.
 12. Non-nil pointers: no `var p *T`, no nonzero `make`, no `new` that leaves a non-nil pointer without a value, no composite literal missing a non-nil field, no zero-clearing store, no `nil` assigned to a non-nil location. Findings: `correctness::nonnil_uninitialized`, `correctness::nil_to_nonnil`.
-13. Narrowing and error-first: narrowing holds only in the guarded block, through `&&` chains, and after an early exit; assignment ends it; fields never narrow; address-taken and closure- or loop-assigned variables never narrow. Results of `.lgo` callees are read only after the error check; calls into other packages keep their own contracts. Finding: `correctness::result_before_error_check`.
+13. Narrowing and error-first: narrowing holds only in the guarded block, through `&&` chains, and after an early exit; assignment ends it; fields never narrow; address-taken and closure-assigned variables never narrow. Results of `.lgo` callees are read only after the error check; calls into other packages keep their own contracts. Finding: `correctness::result_before_error_check`.
 14. Map reads: single-value `m[k]` is `V?`, so plain selection on it needs narrowing or `??`; `v, ok := m[k]`, stores, `++`, compound assignment, and `delete` keep Go meaning.
 
 ## Checklist (M4)
@@ -60,7 +60,7 @@ Proven by `test/logos/run/properties.lgo`, `src/internal/types/testdata/logos/pr
 Proven by `test/logos/run/ctfe.lgo`, `test/logos/run/const_init_read.lgo`, `test/logos/run/rodata_write.lgo`, `test/logos/run/rodata_reflect.lgo`, `test/logos/run/rodata_named_map.lgo`, `test/logos/run/constmap_init.lgo`, `test/logos/run/const_map.lgo`, `test/logos/run/constmap_switch.lgo`, `test/logos/run/const_views.lgo`, `test/logos/run/constview_bound.lgo`, `test/logos/run/zerocopy.lgo`, `test/logos/run/freeze.lgo`, `src/internal/types/testdata/logos/ctfe.lgo`, `src/internal/types/testdata/logos/const_views.lgo`, `src/cmd/go/testdata/script/logos_interop_const.txt`.
 
 17. Const views: no index or field assignment, `append`, `copy` into the view, `delete`, `clear`, slicing past `len`, non-const method call, or passing to a non-const parameter through a `const T` view; no assignment of a reference-carrying view to a plain type. Findings: `correctness::const_view_mutation`, `correctness::const_view_escape`.
-18. CTFE: `const func` bodies hold no I/O, goroutine, package variable, `recover`, `uintptr`, map range, pointer, `defer`, `goto`, function literal, or method call; step and size limits hold; no overflow, NaN or duplicate map key, executed panic, or unsupported form. Findings: `correctness::const_func_impure`, `comptime::ctfe_step_limit`, `comptime::const_too_large`, `correctness::const_eval`.
+18. CTFE: `const func` bodies hold no I/O, goroutine spawn, mutable package-variable read, `recover`, pointer-to-`uintptr` conversion, dynamic map range, or pointer use; step and size limits hold; no overflow, NaN or duplicate map key, executed panic, or unsupported form. Findings: `correctness::const_func_impure`, `comptime::ctfe_step_limit`, `comptime::const_too_large`, `correctness::const_eval`.
 19. Read-only placement and const maps: package-level composites need no dynamic init and are never written; const map keys are strings, numbers, bools, or structs or arrays of those; `range` assumes sorted order and lookups assume one validated probe, never speed. Findings: `comptime::constmap_key_type`, `comptime::constmap_seed_not_found`.
 20. Zero-copy: `const []byte` to string conversions without an allocation need string or const-composite provenance; a view of a mutable slice converts with a copy. `rt.Freeze` results are views over a deep copy, never aliases.
 
@@ -89,7 +89,9 @@ Proven by `test/logos/run/group.lgo`, `test/logos/run/group_chan.lgo`, `test/log
 
 Proven by `src/cmd/go/testdata/script/logos_lint_config.txt`, `src/cmd/go/testdata/script/logos_lint_go.txt`, and `test/logos/lint/*.lgo`.
 
-27. Lints: code adheres to deny and forbid lint rules across correctness, concurrency, slop, complexity, perf, suspicious, and portability groups. Suppressions require explicit `//logos:allow(<rule>)` directives on the statement or declaration. Findings: `slop::err_chain_reset`, `slop::discarded_error`, `slop::todo_placeholder`, `complexity::cognitive_overflow`, `perf::large_backing_array_pin`, `perf::time_after_in_loop`, `correctness::arena_pointer_escape`, `correctness::infinite_recursion`, `correctness::typed_nil_return`, `correctness::unclosed_io_closer`, `correctness::unbounded_channel_op`, `correctness::defer_erases_errdefer_state`, `correctness::allow_forbidden_rule`, `suspicious::side_effect_before_sort`, `portability::serialized_unsized_int`, `pedantic::exhaustive_union_switch`.
+27. Lints: code adheres to deny and forbid lint rules across correctness, concurrency, slop, complexity, perf, suspicious, and portability groups. Suppressions require explicit `//logos:allow(<rule>)` directives on the statement or declaration. Findings: `slop::err_chain_reset`, `slop::discarded_error`, `complexity::cognitive_overflow`, `perf::large_backing_array_pin`, `perf::time_after_in_loop`, `correctness::arena_pointer_escape`, `correctness::infinite_recursion`, `correctness::typed_nil_return`, `correctness::unclosed_io_closer`, `correctness::unbounded_channel_op`, `correctness::defer_erases_errdefer_state`, `correctness::allow_forbidden_rule`, `suspicious::side_effect_before_sort`, `portability::serialized_unsized_int`, `pedantic::exhaustive_union_switch`.
+
+Native rules also cover locks, layouts, and unsafe use: `concurrency::unguarded_access`, `concurrency::nonatomic_access`, `concurrency::lock_requirement_unmet`, `correctness::layout_constant_mismatch`, `portability::atomic_plain_int64`, `correctness::linkname_mismatch`, `pedantic::unsafe_outside_unsafe_file`, `correctness::withlock_leak`.
 
 ## Checklist (M7)
 
@@ -120,6 +122,7 @@ Proven by `test/logos/run/json_marshal_test.lgo`, `test/logos/run/json_binary_te
 | `portability::alias_extension` (warning) | Rename the alias-extension file to `.lgo` before publish. |
 | `correctness::open_union_value` | Use a closed union (no `~` terms, no `comparable`) in value positions. |
 | `correctness::union_nonmember` | Use a member type in the conversion, assertion, or case. |
+| `correctness::union_member_method` | Give the member the declared method (a value member needs a value receiver), or drop the member. |
 | `correctness::nonexhaustive_switch` | Cover the listed members and `nil`, or add `default`. |
 | `correctness::switch_arm_mismatch` | Give every switch-expression arm one common type. |
 | `correctness::switch_expr_needs_default` | Add a `default` arm to the value switch. |
@@ -177,10 +180,9 @@ Proven by `test/logos/run/json_marshal_test.lgo`, `test/logos/run/json_binary_te
 | `correctness::allow_forbidden_rule` | Do not attach an allow directive to a forbidden rule. |
 | `slop::err_chain_reset` | Wrap errors with %w instead of formatting with %v or err.Error(). |
 | `slop::discarded_error` | Check or return error instead of ignoring it, or use ? in functions returning error. |
-| `slop::todo_placeholder` | Implement functionality or remove placeholder comments and panic stubs. |
 | `complexity::cognitive_overflow` | Decompose complex functions to stay within threshold limits. |
 | `perf::large_backing_array_pin` | Copy needed elements instead of slicing large backing arrays. |
-| `perf::time_after_in_loop` | Move timer outside loop or use time.NewTimer with proper reset and drain. |
+| `perf::time_after_in_loop` | Do not call `time.After` inside a loop body; the compiler never hoists the timer. |
 | `suspicious::side_effect_before_sort` | Avoid side-effect expressions in sort comparisons. |
 | `portability::serialized_unsized_int` | Use sized integers (int32, int64) in serialized binary layouts. |
 | `pedantic::exhaustive_union_switch` | Remove redundant default clause from exhaustive switch on closed union. |

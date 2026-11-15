@@ -1,0 +1,65 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+mkdir m/a m/b m/c m/d m/e m/f m/g m/h
+cp $GOROOT/test/logos/run/eject_compose_tuple_spread.lgo m/a/main.lgo
+cp $GOROOT/test/logos/run/eject_compose_coalesce.lgo m/b/main.lgo
+cp $GOROOT/test/logos/run/eject_compose_switch.lgo m/c/main.lgo
+cp $GOROOT/test/logos/run/eject_compose_try_lambda.lgo m/d/main.lgo
+cp $GOROOT/test/logos/run/eject_compose_generator_property.lgo m/e/main.lgo
+cp $GOROOT/test/logos/run/switch_arm_tuple_variable.lgo m/f/main.lgo
+cp $GOROOT/test/logos/run/chain_operand_property.lgo m/g/main.lgo
+cp $GOROOT/test/logos/run/eject_compose_inner_kinds.lgo m/h/main.lgo
+
+cd m
+logos run ./a
+cmp stdout $GOROOT/test/logos/run/eject_compose_tuple_spread.out
+logos run ./b
+cmp stdout $GOROOT/test/logos/run/eject_compose_coalesce.out
+logos run ./c
+cmp stdout $GOROOT/test/logos/run/eject_compose_switch.out
+logos run ./d
+cmp stdout $GOROOT/test/logos/run/eject_compose_try_lambda.out
+logos run ./e
+cmp stdout $GOROOT/test/logos/run/eject_compose_generator_property.out
+logos run ./f
+cmp stdout $GOROOT/test/logos/run/switch_arm_tuple_variable.out
+logos run ./g
+cmp stdout $GOROOT/test/logos/run/chain_operand_property.out
+logos run ./h
+cmp stdout $GOROOT/test/logos/run/eject_compose_inner_kinds.out
+
+logos eject -o out
+exists out/a/main.go
+exists out/e/main.go
+! exists out/a/main.lgo
+cd out
+go run ./a
+cmp stdout $GOROOT/test/logos/run/eject_compose_tuple_spread.out
+go run ./b
+cmp stdout $GOROOT/test/logos/run/eject_compose_coalesce.out
+go run ./c
+cmp stdout $GOROOT/test/logos/run/eject_compose_switch.out
+go run ./d
+cmp stdout $GOROOT/test/logos/run/eject_compose_try_lambda.out
+go run ./e
+cmp stdout $GOROOT/test/logos/run/eject_compose_generator_property.out
+go run ./f
+cmp stdout $GOROOT/test/logos/run/switch_arm_tuple_variable.out
+go run ./g
+cmp stdout $GOROOT/test/logos/run/chain_operand_property.out
+go run ./h
+cmp stdout $GOROOT/test/logos/run/eject_compose_inner_kinds.out
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ../..
+
+-- m/go.mod --
+module example.com/composition
+
+go 1.27

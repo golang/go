@@ -1,0 +1,27 @@
+# A .lgo parameter that leaks only into another parameter's pointee is
+# recorded: it does not escape.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+logos build -gcflags=-m .
+stderr 'p\.lgo:.*q does not escape'
+! stderr 'leaking param: q'
+
+-- m/go.mod --
+module example.com/pointeelgo
+
+go 1.27
+
+-- m/p.lgo --
+package p
+
+type node struct {
+	next *node
+	v int
+}
+
+//go:noinline
+func linkThrough(p, q *node) {
+	p.next = q
+}

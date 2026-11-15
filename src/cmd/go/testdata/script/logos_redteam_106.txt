@@ -1,20 +1,16 @@
-# REDTEAM #106 (SPEC Sec 8.3, T-301.1; IMPLEMENTATION.md M18-S3):
-# runtime.SetFinalizer on an arena object MUST panic with
-# "runtime: SetFinalizer on loGo/s arena object", for both the noscan
-# and scan regions, while heap and fallback objects remain valid. A
-# .lgo-level probe cannot reach an arena address: any pointer flowing
-# into SetFinalizer escapes to the heap by construction (escape analysis
-# tracks even uintptr-laundered round trips as foreign conversions), so
-# the make always lands on the heap and the guard never fires. This
-# script gates the focused unit test instead, which reaches both regions
-# directly through the test-only arena seam and also pins the heap and
-# mallocgc-fallback controls.
-
 env GOPROXY=off
 env GOTOOLCHAIN=local
 env GOEXPERIMENT=logosarena
-go test -count=1 -run 'TestLogosArenaSetFinalizerPanics$' runtime
-go test -race -count=1 -run 'TestLogosArenaSetFinalizerPanics$' runtime
+go test -v -count=1 -run 'TestLogosArenaSetFinalizerPanics$' runtime
+stdout '--- PASS: TestLogosArenaSetFinalizerPanics'
+stdout '^ok\s+runtime'
+! stderr 'no tests to run'
+! stdout 'no tests to run'
+go test -race -v -count=1 -run 'TestLogosArenaSetFinalizerPanics$' runtime
+stdout '--- PASS: TestLogosArenaSetFinalizerPanics'
+stdout '^ok\s+runtime'
+! stderr 'no tests to run'
+! stdout 'no tests to run'
 
 -- go.mod --
 module example.com/redteam106

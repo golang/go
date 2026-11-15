@@ -5,6 +5,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 )
 
@@ -45,9 +46,29 @@ func lifoLate() (err error) {
 	return nil
 }
 
+var failed bool
+
+func check(name string, cond bool, got, want string) {
+	if !cond {
+		fmt.Printf("FAIL %s: got %s want %s\n", name, got, want)
+		failed = true
+		return
+	}
+	fmt.Printf("ok %s\n", name)
+}
+
 func main() {
-	fmt.Println("fail:", lifoFail())
-	fmt.Println("ok:", lifoOk())
-	fmt.Println("late:", lifoLate())
-	fmt.Println("order:", strings.Join(order, ","))
+	ferr := lifoFail()
+	check("defer-lifo-runs-innermost-first", strings.Join(order, ",") == "A-defer,B-defertry-ok,C-defer,E-errdefer", strings.Join(order, ","), "A-defer,B-defertry-ok,C-defer,E-errdefer")
+	check("defer-lifo-failure-returns-error", ferr == errAlpha, fmt.Sprint(ferr), "alpha")
+	order = nil
+	oerr := lifoOk()
+	check("defer-lifo-success-skips-errdefer", strings.Join(order, ",") == "A2-defer,B2-defertry-ok,C2-defer", strings.Join(order, ","), "A2-defer,B2-defertry-ok,C2-defer")
+	check("defer-lifo-success-returns-nil", oerr == nil, fmt.Sprint(oerr), "<nil>")
+	order = nil
+	lerr := lifoLate()
+	check("defer-lifo-late-error-joins", strings.Join(order, ",") == "A3-defer,B3-defertry-fail,E3-errdefer" && errors.Is(lerr, errAlpha), strings.Join(order, ","), "A3-defer,B3-defertry-fail,E3-errdefer")
+	if failed {
+		os.Exit(1)
+	}
 }

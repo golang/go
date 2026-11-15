@@ -1,0 +1,167 @@
+// run
+
+package main
+
+import "fmt"
+
+type Key struct {
+	A int
+	B string
+}
+
+type Config struct {
+	M map[int]int
+	N int
+}
+
+const nums8 = map[int]int{7: 70, 3: 30, 8: 80, 1: 10, 5: 50, 2: 20, 6: 60, 4: 40}
+const nums9 = map[int]int{7: 70, 3: 30, 9: 90, 1: 10, 5: 50, 8: 80, 2: 20, 6: 60, 4: 40}
+const words = map[string]int{"pear": 1, "apple": 2, "fig": 3, "zebra": 4, "mango": 5, "kiwi": 6, "date": 7, "plum": 8, "lime": 9}
+const structs = map[Key]int{Key{2, "b"}: 1, Key{1, "z"}: 2, Key{2, "a"}: 3, Key{1, "a"}: 4, Key{3, "c"}: 5, Key{0, "q"}: 6, Key{3, "a"}: 7, Key{0, "b"}: 8}
+const empty = map[int]int{}
+const cfg = Config{M: map[int]int{3: 30, 1: 10, 2: 20}, N: 7}
+
+const func foldInts8() int {
+	s := 0
+	for k, v := range nums8 {
+		s = s*31 + k*7 + v
+	}
+	return s
+}
+
+const func foldInts9() int {
+	s := 0
+	for k, v := range nums9 {
+		s = s*31 + k*7 + v
+	}
+	return s
+}
+
+const func foldWords() int {
+	s := 0
+	for k, v := range words {
+		s = s*31 + int(k[0]) + v*3
+	}
+	return s
+}
+
+const func foldStructs() int {
+	s := 0
+	for k, v := range structs {
+		s = s*31 + k.A*7 + int(k.B[0]) + v
+	}
+	return s
+}
+
+const func foldEmpty() int {
+	s := 5
+	for _, v := range empty {
+		s = s*100 + v
+	}
+	return s
+}
+
+const func foldBreak() int {
+	s := 0
+	for k, v := range nums8 {
+		if k == 2 {
+			continue
+		}
+		if k == 6 {
+			break
+		}
+		s = s*100 + v
+	}
+	return s
+}
+
+const func countKeys() int {
+	n, last := 0, 0
+	for k := range nums9 {
+		n++
+		last = last*10 + k
+	}
+	for range nums9 {
+		n += 100
+	}
+	return n*1000000000 + last
+}
+
+const func foldLocal() int {
+	const lm = map[int]int{3: 30, 1: 10, 2: 20}
+	s := 0
+	for _, v := range lm {
+		s = s*100 + v
+	}
+	return s
+}
+
+const func foldField() int {
+	s := cfg.N
+	for _, v := range cfg.M {
+		s = s*100 + v
+	}
+	return s
+}
+
+func runInts8() int {
+	s := 0
+	for k, v := range nums8 {
+		s = s*31 + k*7 + v
+	}
+	return s
+}
+
+func runInts9() int {
+	s := 0
+	for k, v := range nums9 {
+		s = s*31 + k*7 + v
+	}
+	return s
+}
+
+func runWords() int {
+	s := 0
+	for k, v := range words {
+		s = s*31 + int(k[0]) + v*3
+	}
+	return s
+}
+
+func runStructs() int {
+	s := 0
+	for k, v := range structs {
+		s = s*31 + k.A*7 + int(k.B[0]) + v
+	}
+	return s
+}
+
+const ints8 = foldInts8()
+const ints9 = foldInts9()
+const wordsFold = foldWords()
+const structsFold = foldStructs()
+const emptyFold = foldEmpty()
+const breakFold = foldBreak()
+const keysFold = countKeys()
+const localFold = foldLocal()
+const fieldFold = foldField()
+
+func check(name string, got, want int) {
+	if got != want {
+		fmt.Println("FAIL", name, got, want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func main() {
+	check("ints8", ints8, runInts8())
+	check("ints9", ints9, runInts9())
+	check("words", wordsFold, runWords())
+	check("structs", structsFold, runStructs())
+	check("empty", emptyFold, 5)
+	check("break", breakFold, 10304050)
+	check("keys", keysFold, 909123456789)
+	check("local", localFold, 102030)
+	check("field", fieldFold, 7102030)
+}

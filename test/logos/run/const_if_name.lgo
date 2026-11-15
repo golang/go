@@ -2,11 +2,21 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
-// M7-S1 const if header (SPEC Sec 2.5, T-205): a named boolean constant
-// or `true` directly before the block is the condition, as in an `if`
-// header; the block is not read as a composite literal.
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 const (
 	debugOn = true
@@ -41,6 +51,9 @@ func combined() string {
 }
 
 func main() {
-	fmt.Println(flags())
-	fmt.Println(combined())
+	check("flags", flags() == "debug 3 else-debug true", flags(), "debug 3 else-debug true")
+	check("combined", combined() == "debug-only", combined(), "debug-only")
+	if failed {
+		os.Exit(1)
+	}
 }

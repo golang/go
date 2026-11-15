@@ -14,36 +14,21 @@ import (
 	"cmd/compile/internal/types2"
 )
 
-// M6-S3 lowering of struct field defaults (SPEC T-104.5): the `= const`
-// of a field declaration is stripped, and every composite literal of a
-// defaulted struct gains its missing fields. Same-package defaults come
-// from check info; cross-package defaults come from the facts sidecar.
-// `var x T` and `new(T)` stay zero by construction: only literals grow.
-
-// lowerStructDefaults strips field defaults and fills composite
-// literals. It runs before the `&expr` pass, whose operand splices
-// absorb these inserts.
 func (fl *fileLower) lowerStructDefaults() {
 	stripped := make(map[*syntax.FieldDefault]bool)
 	syntax.Inspect(fl.file, func(n syntax.Node) bool {
-		if st, ok := n.(*syntax.StructType); ok {
-			fl.stripFieldDefaults(st, stripped)
-		}
-		return true
-	})
-	syntax.Inspect(fl.file, func(n syntax.Node) bool {
-		if lit, ok := n.(*syntax.CompositeLit); ok {
-			fl.fillStructDefaults(lit)
+		switch n := n.(type) {
+		case *syntax.StructType:
+			fl.stripFieldDefaults(n, stripped)
+		case *syntax.CompositeLit:
+			fl.fillStructDefaults(n)
 		}
 		return true
 	})
 }
 
-// stripFieldDefaults replaces each defaulted field type with its
-// declared type and deletes the `= const` source. Shared declarations
-// delete once per wrapper.
 func (fl *fileLower) stripFieldDefaults(st *syntax.StructType, stripped map[*syntax.FieldDefault]bool) {
-	for _, f := range st.FieldList {
+	for i, f := range st.FieldList {
 		fd, ok := f.Type.(*syntax.FieldDefault)
 		if !ok {
 			continue
@@ -53,19 +38,23 @@ func (fl *fileLower) stripFieldDefaults(st *syntax.StructType, stripped map[*syn
 			continue
 		}
 		stripped[fd] = true
-		fl.add(fl.off(syntax.EndPos(fd.Type)), fl.off(syntax.EndPos(fd.Default)), "")
+		typeEnd := fl.exprEndNested(fl.off(syntax.StartPos(fd.Type)))
+		fl.add(typeEnd, fl.fieldDefaultEnd(st, i, fd, typeEnd), "")
 	}
 }
 
-// structDefault is one missing field and its default source text.
+func (fl *fileLower) fieldDefaultEnd(st *syntax.StructType, i int, fd *syntax.FieldDefault, from int) int {
+	if i < len(st.TagList) && st.TagList[i] != nil {
+		return lastTokenEnd(fl.src, from, fl.off(st.TagList[i].Pos()))
+	}
+	return fl.exprEndOf(fd.Default)
+}
+
 type structDefault struct {
 	field string
 	text  string
 }
 
-// fillStructDefaults prepends the missing defaulted fields of one
-// composite literal, in declaration order, to the native tree and the
-// eject text.
 func (fl *fileLower) fillStructDefaults(lit *syntax.CompositeLit) {
 	missing := fl.missingDefaults(lit)
 	if len(missing) == 0 {
@@ -87,9 +76,6 @@ func (fl *fileLower) fillStructDefaults(lit *syntax.CompositeLit) {
 	fl.add(brace+1, brace+1, text.String())
 }
 
-// missingDefaults returns the defaulted fields absent from lit, in
-// declaration order. Positional literals and literals of types without
-// defaults return none.
 func (fl *fileLower) missingDefaults(lit *syntax.CompositeLit) []structDefault {
 	t := fl.pkg.info.TypeOf(lit)
 	if t == nil {
@@ -118,10 +104,6 @@ func (fl *fileLower) missingDefaults(lit *syntax.CompositeLit) []structDefault {
 	return out
 }
 
-// structDefaultsFor returns the defaulted field names of t with their
-// default source texts: from check info for local types, from facts for
-// imported loGo/s types. A Go importer never runs this pass, which is
-// the documented hole.
 func (fl *fileLower) structDefaultsFor(t types2.Type) ([]string, []string) {
 	u := types2.Unalias(t)
 	st, _ := u.(*types2.Struct)
@@ -166,21 +148,31 @@ func (fl *fileLower) structDefaultsFor(t types2.Type) ([]string, []string) {
 	return names, texts
 }
 
-// literalBrace returns the offset of the `{` opening lit: the literal
-// position for elided types, else the first brace past the type end.
 func (fl *fileLower) literalBrace(lit *syntax.CompositeLit) int {
 	if lit.Type == nil {
 		return fl.off(lit.Pos())
 	}
 	brace := -1
-	scanSegment(fl.src, fl.off(syntax.EndPos(lit.Type)), len(fl.src), func(t tok) bool {
+	depth := 0
+	typeBrace := false
+	scanSegment(fl.src, fl.off(syntax.StartPos(lit.Type)), len(fl.src), func(t tok) bool {
 		if t.comment || t.auto {
 			return true
 		}
-		if t.kind == token.LBRACE {
-			brace = t.start
-			return false
+		switch t.kind {
+		case token.STRUCT, token.INTERFACE:
+			typeBrace = true
+			return true
+		case token.LBRACE:
+			if !typeBrace && depth == 0 {
+				brace = t.start
+				return false
+			}
+			depth++
+		case token.RBRACE:
+			depth--
 		}
+		typeBrace = false
 		return true
 	})
 	if brace < 0 {
@@ -189,8 +181,6 @@ func (fl *fileLower) literalBrace(lit *syntax.CompositeLit) int {
 	return brace
 }
 
-// reparseDefault parses a default expression text into a fresh node
-// positioned at pos, mirroring reparseType.
 func (fl *fileLower) reparseDefault(text string, pos syntax.Pos) syntax.Expr {
 	file, err := syntax.Parse(syntax.NewFileBase("logos-default"), strings.NewReader("package logosdefault\nvar _ = "+text), nil, nil, 0)
 	if err != nil || file == nil || len(file.DeclList) != 1 {

@@ -1,0 +1,55 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type pc struct {
+	id int
+}
+
+type pp *pc
+
+func mkp(i int) *pc { return &pc{id: i} }
+
+func mkpp(i int) pp { return pp(&pc{id: i}) }
+
+func xs3() []int { return []int{1, 2, 3} }
+
+func xs0() []int { return []int{} }
+
+func main() {
+	a := xs3().map(i => mkp(i)).find(p => p.id == 2)
+	check("find", a != nil, a != nil, true)
+	b := xs3().map(i => mkp(i)).find(p => p.id == 99)
+	check("find-miss", b == nil, b == nil, true)
+	c := xs3().map(i => mkp(i)).first()
+	check("first", c != nil, c != nil, true)
+	d := xs0().map(i => mkp(i)).first()
+	check("first-empty", d == nil, d == nil, true)
+	e := xs3().map(i => mkpp(i)).last()
+	check("last-named", e != nil, e != nil, true)
+	f := xs0().map(i => mkpp(i)).last()
+	check("last-empty-named", f == nil, f == nil, true)
+	g := xs3().map(i => mkpp(i)).get(1)
+	check("get-named", g != nil, g != nil, true)
+	h := xs3().map(i => mkpp(i)).get(9)
+	check("get-oob-named", h == nil, h == nil, true)
+	if failed {
+		os.Exit(1)
+	}
+}

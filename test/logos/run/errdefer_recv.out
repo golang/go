@@ -1,4 +1,3 @@
-close: old
-check: old
-rollback: old
-err: recv
+ok errdefer-recv-defer-captures-at-statement
+ok errdefer-recv-defer-keeps-first-bound-func
+ok errdefer-recv-errdefer-runs-on-error

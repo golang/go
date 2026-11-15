@@ -1,16 +1,8 @@
-# M9: the warnings that types2 and the go command report resolve through the
-# same policy as the lints of the compiler. The group severity of logos.toml
-# [lints] decides whether suspicious::unapplied_struct_default,
-# suspicious::side_effect_before_sort, and portability::alias_extension warn,
-# fail the build, or stay silent; //logos:allow(<rule>) silences each of them
-# under warn and under deny; forbid cannot be silenced, and the directive on
-# a forbid rule is itself an error.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
 mkdir $WORK/bin
 
-# The checker rules: the group default is warn.
 cd suspicious
 logos build -o $WORK/bin/sd0$GOEXE ./sd
 stderr -count=1 'main\.lgo:8:8: warning: \[suspicious::unapplied_struct_default\] zero declaration of Cfg with field defaults'
@@ -20,7 +12,6 @@ logos build -o $WORK/bin/se0$GOEXE ./se
 stderr -count=1 'main\.lgo:6:40: warning: \[suspicious::side_effect_before_sort\] chain lambda with a call of unknown purity before sortBy'
 exists $WORK/bin/se0$GOEXE
 
-# A directive on the line above the statement silences each rule under warn.
 logos build -o $WORK/bin/sdok0$GOEXE ./sdok
 ! stderr .
 exists $WORK/bin/sdok0$GOEXE
@@ -28,13 +19,10 @@ logos build -o $WORK/bin/seok0$GOEXE ./seok
 ! stderr .
 exists $WORK/bin/seok0$GOEXE
 
-# logos lint resolves the same findings under the same policy.
 logos lint ./sd ./se ./sdok ./seok
 stderr -count=2 'warning: \[suspicious::unapplied_struct_default\]'
 stderr -count=1 'warning: \[suspicious::side_effect_before_sort\]'
 
-# suspicious = "deny" makes each finding an error with no warning prefix, and
-# no binary is written.
 cp logos-deny.toml logos.toml
 ! logos build -o $WORK/bin/sd1$GOEXE ./sd
 stderr -count=1 'main\.lgo:8:8: \[suspicious::unapplied_struct_default\] zero declaration of Cfg with field defaults'
@@ -46,7 +34,6 @@ stderr -count=1 'main\.lgo:6:40: \[suspicious::side_effect_before_sort\] chain l
 ! stderr 'warning:'
 ! exists $WORK/bin/se1$GOEXE
 
-# The directive silences a deny rule.
 logos build -o $WORK/bin/sdok1$GOEXE ./sdok
 ! stderr .
 exists $WORK/bin/sdok1$GOEXE
@@ -54,13 +41,11 @@ logos build -o $WORK/bin/seok1$GOEXE ./seok
 ! stderr .
 exists $WORK/bin/seok1$GOEXE
 
-# logos lint fails on the deny findings and reports them together.
 ! logos lint ./sd ./se ./sdok ./seok
 stderr -count=2 'main\.lgo:[89]:[78]: \[suspicious::unapplied_struct_default\]'
 stderr -count=1 'main\.lgo:6:40: \[suspicious::side_effect_before_sort\]'
 ! stderr 'warning:'
 
-# suspicious = "allow" is silent.
 cp logos-allow.toml logos.toml
 logos build -o $WORK/bin/sd2$GOEXE ./sd
 ! stderr .
@@ -69,7 +54,6 @@ logos build -o $WORK/bin/se2$GOEXE ./se
 ! stderr .
 exists $WORK/bin/se2$GOEXE
 
-# suspicious = "forbid" ignores the directive, which is an error of its own.
 cp logos-forbid.toml logos.toml
 ! logos build -o $WORK/bin/sd3$GOEXE ./sd
 stderr 'main\.lgo:8:8: \[suspicious::unapplied_struct_default\]'
@@ -82,13 +66,11 @@ stderr 'main\.lgo:6:2: \[correctness::allow_forbidden_rule\] //logos:allow\(susp
 stderr 'main\.lgo:7:\d+: \[suspicious::side_effect_before_sort\]'
 ! exists $WORK/bin/seok3$GOEXE
 
-# The same policy with an explicit warn prints the warning again.
 cp logos-warn.toml logos.toml
 logos build -o $WORK/bin/sd4$GOEXE ./sd
 stderr -count=2 'warning: \[suspicious::unapplied_struct_default\]'
 cd ..
 
-# The go command rule: the group default is warn.
 cd alias
 logos build ./plain
 stderr -count=1 'go: warning: \[portability::alias_extension\] main\.📜: loGo/s alias extension file'
@@ -97,8 +79,6 @@ logos build ./ok
 logos build ./detached
 stderr -count=1 'go: warning: \[portability::alias_extension\] d\.📜: loGo/s alias extension file'
 
-# portability = "deny" fails the load of the package, and the directive above
-# the package clause silences it.
 cp logos-deny.toml logos.toml
 ! logos build ./plain
 stderr -count=1 '^\[portability::alias_extension\] main\.📜: loGo/s alias extension file'
@@ -108,19 +88,16 @@ logos build ./ok
 ! logos build ./detached
 stderr '\[portability::alias_extension\] d\.📜'
 
-# Every alias file of a package is an error, test files included.
 ! logos build ./pair
 stderr -count=1 '\[portability::alias_extension\] a\.📜'
 stderr -count=1 '\[portability::alias_extension\] b\.⚡'
 
-# portability = "allow" is silent.
 cp logos-allow.toml logos.toml
 logos build ./plain
 ! stderr .
 logos build ./detached
 ! stderr .
 
-# portability = "forbid" ignores the directive, which is an error of its own.
 cp logos-forbid.toml logos.toml
 ! logos build ./plain
 stderr '\[portability::alias_extension\] main\.📜'
@@ -129,7 +106,6 @@ stderr '\[correctness::allow_forbidden_rule\] ok\.📜:1:1: //logos:allow\(porta
 stderr '\[portability::alias_extension\] ok\.📜'
 cd ..
 
-# A canonical .lgo file stays silent under deny in a dotted module.
 cd canonical
 logos build ./...
 ! stderr .

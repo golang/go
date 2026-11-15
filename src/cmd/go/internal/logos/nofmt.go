@@ -10,9 +10,6 @@ import (
 	"cmd/go/internal/base"
 )
 
-// dropFmt removes the fmt subcommand in logos mode. No logos fmt
-// command exists: formatting never rewrites .lgo files, and logos next
-// is the only rewriting command.
 func dropFmt(cmd *base.Command) {
 	cmd.Commands = slices.DeleteFunc(cmd.Commands, func(sub *base.Command) bool {
 		return sub.Name() == "fmt"

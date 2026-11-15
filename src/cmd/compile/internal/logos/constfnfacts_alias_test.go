@@ -15,11 +15,7 @@ import (
 	"cmd/compile/internal/types2"
 )
 
-// TestEmitConstFnFactsAliasClosure closes const functions over an exported
-// alias while a same-named method is also present. It requires each record
-// to reparse, recheck, preserve alias identity, and evaluate probe consts
-// through the payload's own declarations.
-func TestEmitConstFnFactsAliasClosure(t *testing.T) {
+func TestWriteConstFnFactsAliasClosure(t *testing.T) {
 	const src = `package constfntest
 
 type tally int
@@ -71,8 +67,7 @@ const seededVal = Seeded()
 `
 	pkg, info, file := checkConstFnFixture(t, src)
 	srcBytes := []byte(src)
-	var f *facts.Facts
-	f = EmitConstFnFacts(pkg, info, []*syntax.File{file}, map[*syntax.File][]byte{file: srcBytes}, f)
+	f := facts.Write(pkg, info, []*syntax.File{file}, map[*syntax.File][]byte{file: srcBytes})
 	probe := map[string]string{
 		"MakeVal":   "const tallyOf = Tally(7)\nconst made = MakeVal(3, \"n\", 4)",
 		"WeightOf":  "const tallyOf = Tally(7)\nconst v3 = Val{weight: 3, note: \"n\", tally: 4}\nconst vWeight = WeightOf(v3)",
@@ -122,8 +117,6 @@ const seededVal = Seeded()
 	}
 }
 
-// checkConstFnPayload reparses one emitted source, appends probe consts,
-// rechecks the result as a fresh package, and returns the checked scope.
 func checkConstFnPayload(t *testing.T, rec facts.ConstFuncFact, probe string) (string, *types2.Scope) {
 	t.Helper()
 	text := parseConstFnPayload(t, rec) + "\n" + probe + "\n"
@@ -159,12 +152,6 @@ func checkConstFnPayload(t *testing.T, rec facts.ConstFuncFact, probe string) (s
 	return text, pkg.Scope()
 }
 
-// wantScopeConstAlias requires one scope name to be a constant of the
-// expected value whose type denotes exactly the payload's own target
-// type: the recorded type unaliases to the checked target object the
-// payload itself declares. The alias spelling of another package
-// instance can never satisfy this; only the consumer-visible object
-// identity can.
 func wantScopeConstAlias(t *testing.T, scope *types2.Scope, rec, name, target string, want int64) {
 	t.Helper()
 	obj := scope.Lookup(name)
@@ -186,9 +173,6 @@ func wantScopeConstAlias(t *testing.T, scope *types2.Scope, rec, name, target st
 	}
 }
 
-// wantScopeStructAlias requires one scope name to have a struct type
-// whose leading fields have the expected spellings and whose trailing
-// field denotes exactly the payload's own target type.
 func wantScopeStructAlias(t *testing.T, scope *types2.Scope, rec, name string, plain []string, target string) {
 	t.Helper()
 	obj := scope.Lookup(name)

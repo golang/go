@@ -1,0 +1,39 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+func fail(tag string) {
+	fmt.Println("FAIL", tag)
+	os.Exit(1)
+}
+
+func main() {
+	for _, n := range []int{1, 7, 8, 9, 16, 17, 31, 32, 33, 64, 65, 129} {
+		s := make([]int32, n)
+		if cap(s) != n {
+			fail(fmt.Sprintf("int32 cap %d: got %d want %d", n, cap(s), n))
+		}
+		if len(s) != n {
+			fail(fmt.Sprintf("int32 len %d: got %d want %d", n, len(s), n))
+		}
+		b := make([]uint8, n)
+		if cap(b) != n {
+			fail(fmt.Sprintf("uint8 cap %d: got %d want %d", n, cap(b), n))
+		}
+		f := make([]float64, n)
+		if cap(f) != n {
+			fail(fmt.Sprintf("float64 cap %d: got %d want %d", n, cap(f), n))
+		}
+		w, h := 3, 11
+		p := make([]int32, w*h)
+		if cap(p) != w*h {
+			fail(fmt.Sprintf("product cap %d: got %d want %d", w*h, cap(p), w*h))
+		}
+	}
+	fmt.Println("ok make-keeps-exact-cap")
+}

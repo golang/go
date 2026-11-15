@@ -1,0 +1,201 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"iter"
+	"os"
+	"slices"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func paren() iter.Seq[int] {
+	yield (8)
+}
+
+func sliceIndex() iter.Seq[int] {
+	yield []int{5, 6}[1]
+}
+
+func arrayIndex() iter.Seq[int] {
+	yield [2]int{1, 2}[0]
+}
+
+func neg(x int) iter.Seq[int] {
+	yield -x
+}
+
+func plus(x int) iter.Seq[int] {
+	yield +x
+}
+
+func deref(p *int) iter.Seq[int] {
+	yield *p
+}
+
+func addr(v int) iter.Seq[*int] {
+	yield &v
+}
+
+func xor(x int) iter.Seq[int] {
+	yield ^x
+}
+
+func not(ok bool) iter.Seq[bool] {
+	yield !ok
+}
+
+func recv() iter.Seq[int] {
+	ch := make(chan int, 1)
+	ch <- 4
+	yield <-ch
+}
+
+func pair(x int) iter.Seq2[int, int] {
+	yield -x, +x
+}
+
+type T struct {
+	n int
+}
+
+func (t *T) bump() {
+	t.n++
+}
+
+func idents() iter.Seq[int] {
+	yield := 1
+	yield = 2
+	yield++
+	yield += 3
+	var a, b int
+	yield, a = b, yield
+	{
+		yield := &T{}
+		yield.bump()
+		b = yield.n
+	}
+	yield a
+	yield b
+	yield (yield + a)
+}
+
+func each(yield func(int) bool) {
+	yield(1)
+	yield (2)
+}
+
+type S struct {
+	n int
+}
+
+func (s S) all(yield func(int) bool) bool {
+	return yield(s.n)
+}
+
+func goIdiom() []int {
+	var out []int
+	add := func(v int) bool {
+		out = append(out, v)
+		return true
+	}
+	func(yield func(int) bool) {
+		yield(3)
+		yield (4)
+	}(add)
+	each(add)
+	S{n: 5}.all(add)
+	return out
+}
+
+func nested() iter.Seq[int] {
+	var seen []int
+	add := func(v int) bool {
+		seen = append(seen, v)
+		return true
+	}
+	func(yield func(int) bool) {
+		yield(10)
+		yield (11)
+	}(add)
+	yield len(seen)
+}
+
+type Ints = iter.Seq[int]
+
+func aliasCall() Ints {
+	yield(8)
+	yield (9)
+}
+
+func aliasSend() Ints {
+	ch := make(chan int, 2)
+	ch <- 6
+	ch <- 7
+	yield <- ch
+	yield <-ch
+}
+
+func aliasNested() Ints {
+	func(yield func(int) bool) {
+		yield(1)
+	}(func(int) bool { return true })
+	yield(2)
+}
+
+type Ptrs = iter.Seq[*int]
+
+func aliasUnary(x int, p *int) Ints {
+	yield -x
+	yield +x
+	yield *p
+	yield ^x
+}
+
+func aliasAddr(v int) Ptrs {
+	yield &v
+}
+
+func main() {
+	n := 9
+	check("paren", slices.Equal(slices.Collect(paren()), []int{8}), slices.Collect(paren()), "[8]")
+	check("slice-literal-index", slices.Equal(slices.Collect(sliceIndex()), []int{6}), slices.Collect(sliceIndex()), "[6]")
+	check("array-literal-index", slices.Equal(slices.Collect(arrayIndex()), []int{1}), slices.Collect(arrayIndex()), "[1]")
+	check("negate", slices.Equal(slices.Collect(neg(3)), []int{-3}), slices.Collect(neg(3)), "[-3]")
+	check("plus", slices.Equal(slices.Collect(plus(3)), []int{3}), slices.Collect(plus(3)), "[3]")
+	check("dereference", slices.Equal(slices.Collect(deref(&n)), []int{9}), slices.Collect(deref(&n)), "[9]")
+	got := slices.Collect(addr(7))
+	check("address-of", len(got) == 1 && *got[0] == 7, len(got), 1)
+	check("complement", slices.Equal(slices.Collect(xor(3)), []int{-4}), slices.Collect(xor(3)), "[-4]")
+	check("logical-not", slices.Equal(slices.Collect(not(true)), []bool{false}), slices.Collect(not(true)), "[false]")
+	check("receive", slices.Equal(slices.Collect(recv()), []int{4}), slices.Collect(recv()), "[4]")
+	keys, vals := []int{}, []int{}
+	for k, v := range pair(2) {
+		keys = append(keys, k)
+		vals = append(vals, v)
+	}
+	check("pair-operands", slices.Equal(keys, []int{-2}) && slices.Equal(vals, []int{2}), fmt.Sprint(keys, vals), "[-2] [2]")
+	check("identifier-forms", slices.Equal(slices.Collect(idents()), []int{6, 1, 6}), slices.Collect(idents()), "[6 1 6]")
+	check("go-iterator-idiom", slices.Equal(goIdiom(), []int{3, 4, 1, 2, 5}), goIdiom(), "[3 4 1 2 5]")
+	check("nested-literal-keeps-calls", slices.Equal(slices.Collect(nested()), []int{2}), slices.Collect(nested()), "[2]")
+	check("alias-call-form", slices.Equal(slices.Collect(aliasCall()), []int{8, 9}), slices.Collect(aliasCall()), "[8 9]")
+	check("alias-send-form", slices.Equal(slices.Collect(aliasSend()), []int{6, 7}), slices.Collect(aliasSend()), "[6 7]")
+	check("alias-closure-keeps-calls", slices.Equal(slices.Collect(aliasNested()), []int{2}), slices.Collect(aliasNested()), "[2]")
+	check("alias-unary-forms", slices.Equal(slices.Collect(aliasUnary(3, &n)), []int{-3, 3, 9, -4}), slices.Collect(aliasUnary(3, &n)), "[-3 3 9 -4]")
+	ptrs := slices.Collect(aliasAddr(7))
+	check("alias-address-form", len(ptrs) == 1 && *ptrs[0] == 7, len(ptrs), 1)
+	if failed {
+		os.Exit(1)
+	}
+}

@@ -1,0 +1,8 @@
+kind: rules
+file: src/cmd/compile/internal/ssa/rewriteAMD64latelower.go
+expect: at10_rotate_const
+config: K5
+-- old --
+		v.AuxInt = int8ToAuxInt((-c) & 63)
+-- new --
+		v.AuxInt = int8ToAuxInt(c & 63)

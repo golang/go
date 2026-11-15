@@ -1,0 +1,198 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd w
+logos run .
+stdout '^slice ok$'
+stdout '^map ok$'
+stdout '^ptr ok$'
+stdout '^array ok$'
+stdout '^nested ok$'
+
+-- w/go.mod --
+module example.com/nested
+
+go 1.27
+
+-- w/main.lgo --
+package main
+
+import (
+  "encoding/json"
+  "fmt"
+)
+
+type Circle struct {
+  R int64 `json:"r"`
+}
+
+type Square struct {
+  S int64 `json:"s"`
+}
+
+type Shape interface {
+  Circle | Square
+}
+
+type SliceHolder struct {
+  Items []Shape `json:"items"`
+}
+
+type MapHolder struct {
+  M map[string]Shape `json:"m"`
+}
+
+type ArrayHolder struct {
+  Items [2]Shape `json:"items"`
+}
+
+type PtrHolder struct {
+  P *Shape `json:"p"`
+}
+
+type Inner interface {
+  Circle | Square
+}
+
+type Tri struct {
+  T int64 `json:"t"`
+}
+
+type Outer interface {
+  Inner | Tri
+}
+
+type OuterHolder struct {
+  Item Outer `json:"item"`
+}
+
+func checkArray() {
+  var ah ArrayHolder
+  err := json.Unmarshal([]byte(`{"items":[{"s":7},{"r":3}]}`), &ah)
+  if err != nil {
+    panic("array unmarshal: " + err.Error())
+  }
+  sq, ok := ah.Items[0].(Square)
+  if !ok {
+    panic(fmt.Sprintf("array want Square got %T", ah.Items[0]))
+  }
+  if sq.S != 7 {
+    panic("array want S=7")
+  }
+  c, ok := ah.Items[1].(Circle)
+  if !ok {
+    panic(fmt.Sprintf("array want Circle got %T", ah.Items[1]))
+  }
+  if c.R != 3 {
+    panic("array want R=3")
+  }
+  reuse := ArrayHolder{Items: [2]Shape{Circle{R: 9}, Square{S: 9}}}
+  err = json.Unmarshal([]byte(`{"items":[{"r":1}]}`), &reuse)
+  if err != nil {
+    panic("array short unmarshal: " + err.Error())
+  }
+  rc, ok := reuse.Items[0].(Circle)
+  if !ok || rc.R != 1 {
+    panic(fmt.Sprintf("array short want Circle R=1 got %T", reuse.Items[0]))
+  }
+  if reuse.Items[1] != nil {
+    panic(fmt.Sprintf("array short tail not zeroed, got %T", reuse.Items[1]))
+  }
+  err = json.Unmarshal([]byte(`{"items":null}`), &reuse)
+  if err != nil {
+    panic("array null unmarshal: " + err.Error())
+  }
+  if reuse.Items[0] == nil || reuse.Items[1] != nil {
+    panic("array null must leave the array alone")
+  }
+  err = json.Unmarshal([]byte(`{"items":[]}`), &reuse)
+  if err != nil {
+    panic("array empty unmarshal: " + err.Error())
+  }
+  if reuse.Items[0] != nil || reuse.Items[1] != nil {
+    panic("array empty must zero every element")
+  }
+  fmt.Println("array ok")
+}
+
+func checkSlice() {
+  var sh SliceHolder
+  err := json.Unmarshal([]byte(`{"items":[{"s":7}]}`), &sh)
+  if err != nil {
+    panic("slice unmarshal: " + err.Error())
+  }
+  if len(sh.Items) != 1 {
+    panic("slice len")
+  }
+  for _, elem0 := range sh.Items {
+    sq, ok := elem0.(Square)
+    if !ok {
+      panic(fmt.Sprintf("slice want Square got %T", elem0))
+    }
+    if sq.S != 7 {
+      panic("slice want S=7")
+    }
+  }
+  fmt.Println("slice ok")
+}
+
+func checkMap() {
+  var mh MapHolder
+  err := json.Unmarshal([]byte(`{"m":{"k":{"r":3}}}`), &mh)
+  if err != nil {
+    panic("map unmarshal: " + err.Error())
+  }
+  for _, elem := range mh.M {
+    c, ok := elem.(Circle)
+    if !ok {
+      panic(fmt.Sprintf("map want Circle got %T", elem))
+    }
+    if c.R != 3 {
+      panic("map want R=3")
+    }
+  }
+  fmt.Println("map ok")
+}
+
+func checkPtr() {
+  ph := PtrHolder{P: new(Shape)}
+  err := json.Unmarshal([]byte(`{"p":{"r":5}}`), &ph)
+  if err != nil {
+    panic("ptr unmarshal: " + err.Error())
+  }
+  if ph.P == nil {
+    panic("ptr nil")
+  }
+  c, ok := (*ph.P).(Circle)
+  if !ok {
+    panic("ptr want Circle")
+  }
+  if c.R != 5 {
+    panic("ptr want R=5")
+  }
+  fmt.Println("ptr ok")
+}
+
+func checkNested() {
+  var oh OuterHolder
+  err := json.Unmarshal([]byte(`{"item":{"t":1}}`), &oh)
+  if err != nil {
+    panic("nested unmarshal: " + err.Error())
+  }
+  t, ok := oh.Item.(Tri)
+  if !ok {
+    panic(fmt.Sprintf("nested want Tri got %T", oh.Item))
+  }
+  if t.T != 1 {
+    panic("nested want T=1")
+  }
+  fmt.Println("nested ok")
+}
+
+func main() {
+  checkSlice()
+  checkMap()
+  checkPtr()
+  checkArray()
+  checkNested()
+}

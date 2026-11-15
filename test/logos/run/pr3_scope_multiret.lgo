@@ -2,7 +2,21 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 func pair() (int, int) { return 1, 2 }
 
@@ -23,6 +37,10 @@ func bare() (a int) {
 
 func main() {
 	a, b := f()
-	fmt.Println(a, b)
-	fmt.Println(bare())
+	check("multi", a == 2 && b == 2, fmt.Sprint(a, b), "2 2")
+	bare := bare()
+	check("bare", bare == 42, bare, 42)
+	if failed {
+		os.Exit(1)
+	}
 }

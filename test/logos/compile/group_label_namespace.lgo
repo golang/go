@@ -1,0 +1,46 @@
+// errorcheck
+
+package p
+
+import "context"
+
+func parentBreak(ctx context.Context) error {
+L:
+	for i := 0; i < 2; i++ {
+		go group (ctx) {
+			go {
+				break L // ERROR "break label not defined"
+			}
+			break L
+		}
+	}
+	return nil
+}
+
+func parentContinue(ctx context.Context) error {
+L:
+	for i := 0; i < 2; i++ {
+		go group (ctx) {
+			go {
+				continue L // ERROR "continue label not defined"
+			}
+			continue L
+		}
+	}
+	return nil
+}
+
+func siblingGoto(ctx context.Context) error {
+	go group (ctx) {
+		go {
+		M:
+			for {
+				break M
+			}
+		}
+		go {
+			goto M // ERROR "not defined"
+		}
+	}
+	return nil
+}

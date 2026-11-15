@@ -1,0 +1,19 @@
+// errorcheck
+
+package p
+
+type bare struct {
+	X int
+}
+
+type Square struct {
+	S int64 `json:"s"`
+}
+
+type Shape interface {
+	bare | Square
+}
+
+type Holders struct {
+	Items [2]Shape `json:"items"` // ERROR "\[correctness::union_member_no_json\]"
+}

@@ -14,8 +14,6 @@ package runtime
 
 import (
 	"internal/abi"
-	"internal/goexperiment"
-	"internal/runtime/atomic"
 	"internal/runtime/sys"
 	"unsafe"
 )
@@ -257,49 +255,4 @@ func runtime_pprof_readProfile() ([]uint64, []unsafe.Pointer, bool) {
 		unlock(&cpuprof.lock)
 	}
 	return data, tags, eof
-}
-
-// logosPinProfTags pins the signal readable label roots for one evacuation
-// cycle. STW pin context only, never the signal handler. It never takes
-// cpuprof.lock: SetCPUProfileRate holds that mutex across newProfBuf alloc,
-// so a GC triggered by that alloc would deadlock an STW waiter. During STW
-// no mutator stores cpuprof.log, so an atomic load of the identity plus the
-// lock free r/w index snapshot is stable. Data words are PCs and need no
-// forwarding, but the data backing array is still pinned so the signal
-// writer stores through a stable slice header. No change to add, addNonGo,
-// write, or the read fast path. When the experiment is off it returns
-// immediately.
-func logosPinProfTags(pin func(unsafe.Pointer)) {
-	if !goexperiment.LogosGCMoving {
-		return
-	}
-	log := (*profBuf)(atomic.Loadp(unsafe.Pointer(&cpuprof.log)))
-	if log == nil || len(log.tags) == 0 {
-		return
-	}
-	tags := log.tags
-	data := log.data
-	pin(unsafe.Pointer(log))
-	for off := 0; off < len(tags); off += 512 {
-		pin(unsafe.Pointer(&tags[off]))
-	}
-	for off := 0; off < len(data); off += 512 {
-		pin(unsafe.Pointer(&data[off]))
-	}
-	bw := log.w.load()
-	br := log.r.load()
-	ntag := countSub(bw.tagCount(), br.tagCount())
-	if ntag < 0 {
-		ntag = 0
-	}
-	if ntag > len(tags) {
-		ntag = len(tags)
-	}
-	base := br.tagCount() % uint32(len(tags))
-	for i := range ntag {
-		t := atomic.Loadp(unsafe.Pointer(&tags[(base+uint32(i))%uint32(len(tags))]))
-		if t != nil {
-			pin(t)
-		}
-	}
 }

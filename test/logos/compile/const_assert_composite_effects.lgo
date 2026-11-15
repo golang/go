@@ -2,43 +2,6 @@
 
 package p
 
-// Composite assertion effects through erased option and const-view
-// carriers (SPEC T-201, T-202).
-//
-// `interface { const Name() string }` carries a readonly obligation and
-// runtime Go erases the readonly bit, so an assertion or generic
-// instantiation that manufactures such a contract from `any` without a
-// static proof is rejected with [correctness::const_view_mutation] (see
-// const_interface_assertions.lgo and const_interface_generic_assert.lgo).
-// This fixture pins the composite carriers of that rule:
-//
-//   - a generic option carrier `OptAs[T any](x any) T?` with
-//     `return x.(T?)` is an ordinary generic declaration and stays
-//     legal; instantiating it at an unnamed qualified interface element
-//     forges the obligation because the element position erases runtime
-//     type identity;
-//   - the const-view carrier `ConstSliceAs[T any](x any) const []T`
-//     with `return x.(const []T)` behaves identically: only the unnamed
-//     qualified element instantiation forges;
-//   - a direct concrete assertion to an anonymous optional qualified
-//     element is rejected at the assert safety boundary;
-//   - instantiating at named types stays legal: `Good` proves the
-//     obligation by body scan and `Qualified` is a nominal boundary, so
-//     `OptAs[Good]`, `OptAs[Qualified]`, `ConstSliceAs[Good]`, and
-//     `ConstSliceAs[Qualified]` and the concrete `Good?`/`Qualified?`
-//     assertions all stay allowed.
-//
-// Policy pinned here (parent contract): ordinary generic declarations
-// with erased composite carriers stay legal (no declaration ERROR);
-// only assertions or instantiations naming an unnamed qualified element
-// forge; named storage instantiations stay allowed. All rejections
-// reuse the existing const_view_mutation diagnostic. All methods are
-// exported (Name); no unexported cross-package names are used. Unions
-// are out of scope: a union type is constraint-only and is not a valid
-// assertion target (`x.(A|B)` is not a valid form), so no
-// assertion-seam case exists for them; tuple carriers are likewise not
-// exercised here.
-
 type Qualified interface {
 	const Name() string
 }
@@ -49,12 +12,8 @@ type Good struct {
 
 func (g Good) Name() string { return g.name }
 
-// Direct proof anchor: Good satisfies Qualified by body scan, so the
-// named controls below are not vacuous.
 var _ Qualified = Good{name: "a"}
 
-// Option carrier: legal as declared; serves Good and Qualified. Only
-// the unnamed qualified element instantiation forges.
 func OptAs[T any](x any) T? {
 	return x.(T?)
 }
@@ -71,8 +30,6 @@ func okOptQualified(v any) {
 	_ = OptAs[Qualified](v)
 }
 
-// Const-view carrier: legal as declared; the element position is
-// identity-erased at runtime.
 func ConstSliceAs[T any](x any) const []T {
 	return x.(const []T)
 }
@@ -89,9 +46,6 @@ func okConstSliceQualified(v any) {
 	_ = ConstSliceAs[Qualified](v)
 }
 
-// Direct concrete assertion to an anonymous optional qualified element:
-// the option erases at runtime, so the unnamed element inside must be
-// rejected statically like a bare unnamed qualified target.
 func attackConcreteOptUnnamed(v any) {
 	_ = v.((interface{ const Name() string })?) // ERROR "const_view_mutation"
 }

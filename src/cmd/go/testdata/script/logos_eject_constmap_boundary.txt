@@ -1,0 +1,89 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# A const map declaration is removed from its own const keyword, whatever
+# stands between the keyword and the name, and its uses are cut at the
+# tokens of the use: a block comment, a line comment, or a line break in
+# any gap changes nothing. The module runs natively, ejects, and the
+# ejected module builds and runs with go and with go1.27.2 from
+# $UPROOT1272 and prints the same output.
+cd m
+logos run .
+stdout '^1 10 20 30$'
+stdout '^2 2 1 40 1 2$'
+stdout '^2 2 1$'
+stdout '^3 7 2$'
+stdout '^18$'
+cp stdout $WORK/native.txt
+logos eject -o out
+exists out/main.go
+cd out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+go build ./...
+go run .
+cmp stdout $WORK/native.txt
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
+exec $WORK/upstream$GOEXE
+cmp stdout $WORK/native.txt
+cd ..
+
+-- m/go.mod --
+module example.com/constmapboundary
+
+go 1.27
+
+-- m/lib/lib.lgo --
+package lib
+
+const Table = map[string]int{"x": 7, "y": 8}
+
+-- m/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/constmapboundary/lib"
+)
+
+const func mk() map[string]int { return map[string]int{"a": 1, "b": 2} }
+
+const /*c*/ M1 /*c*/ = /*c*/ map[string]int{ /*c*/ "a" /*c*/ : /*c*/ 1 /*c*/ , "b": 2 /*c*/ } /*c*/
+const /*c*/
+	M2 = map[string]int{"a": 10}
+const // line comment
+	M3 = map[string]int{"a": 20}
+const
+	M4 = map[string]int{"a": 30}
+const M5 = mk( /*c*/ ) /*c*/
+const M6 = mk /*c*/ ( /*c*/ ) /*c*/
+const M7 = mk(
+)
+
+const (
+	M8  = map[string]int{"a": 40} /*c*/
+	M9  = mk( /*c*/ ) /*c*/ // line
+	M10 = mk(
+	)
+)
+
+func main() {
+	fmt.Println(M1["a"] ?? 0, M2["a"] ?? 0, M3["a"] ?? 0, M4["a"] ?? 0)
+	fmt.Println(M5["b"] ?? 0, M6["b"] ?? 0, M7["a"] ?? 0, M8["a"] ?? 0, M9["a"] ?? 0, M10["b"] ?? 0)
+	fmt.Println(len( /*c*/ M1 /*c*/ ), len /*c*/ (M5 /*c*/), len(
+		M8,
+	))
+	n := 0
+	for _ /*c*/, v /*c*/ := range /*c*/ M1 /*c*/ {
+		n += v
+	}
+	fmt.Println(n, lib.Table["x"] ?? 0, len( /*c*/ lib.Table /*c*/ ))
+	for _, v := range /*c*/ lib.Table /*c*/ {
+		n += v
+	}
+	fmt.Println(n)
+}

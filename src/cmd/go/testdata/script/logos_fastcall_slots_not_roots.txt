@@ -1,0 +1,20 @@
+# The fast-call slots are plain uintptr, not pins or roots: an object that only
+# the slots reference is collected after the call. The runtime test skips unless
+# GOEXPERIMENT=logosfastcgo is on, so this script turns the experiment on and
+# fails if the test skips or does not run.
+[!cgo] skip 'needs cgo'
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env CGO_ENABLED=1
+env GOEXPERIMENT=logosfastcgo
+go test -v -count=1 -run '^TestLogosFastCgoFrameSlotsAreNotRoots$' runtime
+stdout '--- PASS: TestLogosFastCgoFrameSlotsAreNotRoots'
+! stdout 'SKIP'
+stdout '^ok\s+runtime'
+! stderr 'no tests to run'
+! stdout 'no tests to run'
+
+-- go.mod --
+module example.com/fastcgoslots
+
+go 1.27

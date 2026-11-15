@@ -1,17 +1,7 @@
-// errorcheck
-
-// portability::serialized_unsized_int (SPEC Sec 1.2, #182): a field of
-// type int or uint in a struct with json tags. The generated binary layout
-// (M11-S3) writes every integer as 8 bytes, but int and uint are 4 bytes on
-// a 32-bit target, so the field is not portable. The rule is a warning and
-// applies to loGo/s packages only.
+// errorcheck -0
 
 package p
 
-// Wire holds sized and unsized integers beside json tags. Every int or
-// uint field is flagged, whatever its own tag says and whether or not it is
-// exported, because the rule reads the struct, and the binary layout ignores
-// tag options.
 type Wire struct {
 	ID     int     `json:"id"`    // ERROR "\[portability::serialized_unsized_int\] field ID has type int"
 	Count  uint    `json:"count"` // ERROR "\[portability::serialized_unsized_int\] field Count has type uint"
@@ -31,8 +21,6 @@ type Wire struct {
 	Rune   rune    `json:"rune"`
 	hidden int // ERROR "\[portability::serialized_unsized_int\] field hidden has type int"
 }
-
-// Boundary on the number of json-tagged fields: none, one, two.
 
 type TagsNone struct {
 	N int
@@ -60,18 +48,15 @@ type TagOptions struct {
 	M int `yaml:"m" json:"m,string"` // ERROR "\[portability::serialized_unsized_int\] field M has type int"
 }
 
-// Several names share one type: each name is flagged.
 type Shared struct {
-	A, B int `json:"ab"` // ERROR "field A has type int" "field B has type int" "\[nogo::structtag\]"
-	C, D int32 `json:"cd"` // ERROR "\[nogo::structtag\]"
+	A, B int `json:"ab"` // ERROR "\[portability::serialized_unsized_int\] field A has type int" "\[portability::serialized_unsized_int\] field B has type int"
+	C, D int32 `json:"cd"`
 }
 
-// A field default sits between the type and the tag; the field is checked
-// like any other, alone or with names that share one default.
 type Defaults struct {
 	Port   int    = 8080 `json:"port"` // ERROR "\[portability::serialized_unsized_int\] field Port has type int"
 	Host   string = "localhost" `json:"host"`
-	Lo, Hi uint   = 3 `json:"range"` // ERROR "field Lo has type uint" "field Hi has type uint" "\[nogo::structtag\]"
+	Lo, Hi uint   = 3 `json:"range"` // ERROR "\[portability::serialized_unsized_int\] field Lo has type uint" "\[portability::serialized_unsized_int\] field Hi has type uint"
 	Small  int32  = 4
 	Plain  int    = 1 // ERROR "\[portability::serialized_unsized_int\] field Plain has type int"
 }
@@ -80,7 +65,6 @@ type DefaultsUntagged struct {
 	Port int = 8080
 }
 
-// An alias of int is int; a defined type is its own type and is not flagged.
 type IntAlias = int
 type Level int
 
@@ -89,7 +73,6 @@ type Kinds struct {
 	L Level    `json:"l"`
 }
 
-// Nested and anonymous structs are checked on their own tags.
 type Outer struct {
 	Inner struct {
 		N int `json:"n"` // ERROR "\[portability::serialized_unsized_int\] field N has type int"
@@ -112,8 +95,6 @@ func local() int {
 	return int(s.N)
 }
 
-// A warning is silenced by //logos:allow on the declaration.
-
 //logos:allow(portability::serialized_unsized_int)
 type Allowed struct {
 	N int `json:"n"`
@@ -124,8 +105,6 @@ type Generic[T int | int64] struct {
 	N int `json:"n"` // ERROR "\[portability::serialized_unsized_int\] field N has type int"
 }
 
-// An embedded int is a field of type int and is flagged with the rest;
-// an embedded string is not an unsized integer and passes.
 type Embedded struct {
 	int `json:"n"` // ERROR "\[portability::serialized_unsized_int\] field int has type int"
 	S string `json:"s"`

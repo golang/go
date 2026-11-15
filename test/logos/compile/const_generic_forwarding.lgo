@@ -1,0 +1,62 @@
+// errorcheck
+
+package main
+
+import (
+	"fmt"
+	"maps"
+	"slices"
+)
+
+func identity[T any](x T) T { return x }
+
+func escape[S ~[][]int](view const S) S {
+	return identity(view) // ERROR "const_view_mutation"
+}
+
+func bad(view const [][]int) {
+	dst := escape[[][]int](view)
+	dst[0][0] = 9
+}
+
+func main() {
+	src := [][]int{{1}}
+	bad(src)
+	fmt.Println(src[0][0])
+}
+
+func cloneEscape[S ~[][]int](view const S) S {
+	return slices.Clone(view) // ERROR "const_view_mutation|const_view_escape"
+}
+
+func concatEscape[S ~[][]int](view const S) S {
+	return slices.Concat(view) // ERROR "const_view_mutation|const_view_escape"
+}
+
+func mapEscape[M ~map[string][]int](view const M) M {
+	return maps.Clone(view) // ERROR "const_view_mutation|const_view_escape"
+}
+
+func scalarAliasEscape[S ~[]int](view const S) S {
+	return identity(view) // ERROR "const_view_mutation"
+}
+
+func copyScalars[S ~[]int](view const S) S {
+	return append(S{}, view...)
+}
+
+func scalarCopyChain[S ~[]int](view const S) S {
+	return copyScalars(view)
+}
+
+func constIdentity[T any](view const T) const T { return view }
+
+func constChain[S ~[][]int](view const S) const S {
+	return constIdentity(view)
+}
+
+func scalarTypeChain[S ~int | ~string](view const S) S {
+	return identity(view)
+}
+
+var _ = identity[int](7)

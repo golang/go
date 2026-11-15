@@ -1,1 +1,1 @@
-len=0
+ok overflowing-length-wraps-to-zero

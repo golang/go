@@ -9,26 +9,19 @@ import (
 	"strings"
 )
 
-// scalarCodec spells the encode and decode code of one modeled scalar: a
-// bool, an integer, a float, or a string, with the `string` tag option
-// folded into the codec when quoted.
 type scalarCodec struct {
 	kind   scalarKind
 	quoted bool
 }
 
-// codec returns the scalar codec of a field value, pointee, or element.
 func (f *jsonField) codec() scalarCodec {
 	return scalarCodec{kind: f.shape.scalar, quoted: f.quoted}
 }
 
-// elemCodec returns the codec of a slice element, which never quotes.
 func (f *jsonField) elemCodec() scalarCodec {
 	return scalarCodec{kind: f.shape.scalar}
 }
 
-// open is the text written after the key before the value body: the
-// opening quote of a string, or of any scalar under the `string` option.
 func (c scalarCodec) open() string {
 	if c.kind == scalarString || c.quoted {
 		return `"`
@@ -36,17 +29,10 @@ func (c scalarCodec) open() string {
 	return ""
 }
 
-// closeText is the text written after the value body.
-func (c scalarCodec) closeText() string {
-	return c.open()
-}
-
-// isFloat reports whether the codec encodes a float.
 func (c scalarCodec) isFloat() bool {
 	return c.kind == scalarFloat32 || c.kind == scalarFloat64
 }
 
-// floatBits returns the bit size of a float codec.
 func (c scalarCodec) floatBits() int {
 	if c.kind == scalarFloat32 {
 		return 32
@@ -54,9 +40,6 @@ func (c scalarCodec) floatBits() int {
 	return 64
 }
 
-// checkStmt spells the unsupported-value check of a float x, or nothing
-// for other kinds. The subtraction is NaN exactly for NaN and infinities,
-// so a finite value never boxes into an interface.
 func (c scalarCodec) checkStmt(x string) string {
 	if !c.isFloat() {
 		return ""
@@ -64,7 +47,6 @@ func (c scalarCodec) checkStmt(x string) string {
 	return fmt.Sprintf("if %[1]s-%[1]s != 0 { return nil, %[2]s.FloatErr(%[1]s, float64(%[1]s), %[3]d) }", x, jsonAlias, c.floatBits())
 }
 
-// sizeStmt spells the statement adding the length of the value body of x.
 func (c scalarCodec) sizeStmt(x string) string {
 	switch c.kind {
 	case scalarBool:
@@ -81,7 +63,6 @@ func (c scalarCodec) sizeStmt(x string) string {
 	return fmt.Sprintf("_logos_n += %s.%s(string(%s))", jsonAlias, c.stringLen(), x)
 }
 
-// stringLen names the length helper of a string codec.
 func (c scalarCodec) stringLen() string {
 	if c.quoted {
 		return "QuotedLen"
@@ -89,7 +70,6 @@ func (c scalarCodec) stringLen() string {
 	return "EscapedLen"
 }
 
-// stringAppend names the append helper of a string codec.
 func (c scalarCodec) stringAppend() string {
 	if c.quoted {
 		return "AppendQuoted"
@@ -97,7 +77,6 @@ func (c scalarCodec) stringAppend() string {
 	return "AppendEscaped"
 }
 
-// emitStmt spells the statement appending the value body of x to _logos_buf.
 func (c scalarCodec) emitStmt(x string) string {
 	switch c.kind {
 	case scalarBool:
@@ -112,7 +91,6 @@ func (c scalarCodec) emitStmt(x string) string {
 	return fmt.Sprintf("_logos_buf = %s.%s(_logos_buf, string(%s))", jsonAlias, c.stringAppend(), x)
 }
 
-// decodeFn names the generic reader of the codec.
 func (c scalarCodec) decodeFn() string {
 	name := [...]string{"Bool", "Int", "Uint", "Float", "Float", "String"}[c.kind]
 	if c.quoted {
@@ -121,7 +99,6 @@ func (c scalarCodec) decodeFn() string {
 	return jsonAlias + "." + name
 }
 
-// isZeroCond spells the condition that x is the zero value of the codec.
 func (c scalarCodec) isZeroCond(x string) string {
 	switch c.kind {
 	case scalarBool:
@@ -132,8 +109,6 @@ func (c scalarCodec) isZeroCond(x string) string {
 	return x + " == 0"
 }
 
-// keyLiteral spells the bytes of `"key":` as encoding/json writes them with
-// HTML escaping, for use inside a raw string literal.
 func keyLiteral(key string) string {
 	var b strings.Builder
 	b.WriteByte('"')

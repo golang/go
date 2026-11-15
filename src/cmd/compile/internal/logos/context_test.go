@@ -165,37 +165,20 @@ func TestContextFuncSymbol(t *testing.T) {
 	}
 }
 
-func TestTruncateLines(t *testing.T) {
-	mk := func(n int) []string {
-		lines := make([]string, n)
-		for i := range lines {
-			lines[i] = "line"
-		}
-		return lines
-	}
-	if got := TruncateLines(mk(99), 100); len(got) != 99 {
-		t.Errorf("99 lines -> %d", len(got))
-	}
-	if got := TruncateLines(mk(100), 100); len(got) != 100 {
-		t.Errorf("100 lines -> %d", len(got))
-	}
-	if got := TruncateLines(mk(101), 100); len(got) != 100 {
-		t.Errorf("101 lines -> %d", len(got))
-	}
-}
-
 func TestContextLineCap(t *testing.T) {
-	var b strings.Builder
-	b.WriteString("package big\n\ntype Big struct {\n\tid int\n}\n")
-	for range 150 {
-		b.WriteString("func (b *Big) M() {}\n")
-	}
-	file := parseContextFile(t, "big.lgo", b.String(), syntax.LogosMode)
-	lines, err := ContextLines([]*syntax.File{file}, "Big")
-	if err != nil {
-		t.Fatalf("ContextLines: %v", err)
-	}
-	if len(lines) != 100 {
-		t.Fatalf("lines = %d, want 100", len(lines))
+	for _, methods := range []int{0, 96, 97, 150} {
+		var b strings.Builder
+		b.WriteString("package big\n\ntype Big struct {\n\tid int\n}\n")
+		for range methods {
+			b.WriteString("func (b *Big) M() {}\n")
+		}
+		file := parseContextFile(t, "big.lgo", b.String(), syntax.LogosMode)
+		lines, err := ContextLines([]*syntax.File{file}, "Big")
+		if err != nil {
+			t.Fatalf("ContextLines: %v", err)
+		}
+		if want := min(3+methods, 100); len(lines) != want {
+			t.Fatalf("methods = %d: lines = %d, want %d", methods, len(lines), want)
+		}
 	}
 }

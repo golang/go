@@ -1,0 +1,38 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+cd x
+logos build -o $WORK/bin/xgeom$GOEXE ./cmd
+exec $WORK/bin/xgeom$GOEXE
+stdout '^x-geom$'
+cd ..
+
+-- x/go.mod --
+module example.com/x
+
+go 1.27
+
+require golang.org/x/geom v0.0.0
+
+replace golang.org/x/geom => ./third
+
+-- x/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"golang.org/x/geom"
+)
+
+func main() { fmt.Println(geom.Label()) }
+
+-- x/third/go.mod --
+module golang.org/x/geom
+
+go 1.27
+
+-- x/third/label.go --
+package geom
+
+func Label() string { return "x-geom" }

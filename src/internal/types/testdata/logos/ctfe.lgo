@@ -1,15 +1,8 @@
-// M5-S2 const composites and const func (SPEC Sec 2.1, T-201):
-// const declarations accept composite literals and calls to const func;
-// scalar results are real constants; const func purity violations report
-// [correctness::const_func_impure]; the step limit (default 100,000) and
-// the 1 MB value cap are enforced; -0.0 map keys canonicalize and NaN
-// keys fail.
 
 package p
 
 import "fmt"
 
-// Composite literal consts are allowed.
 const primes = []int{2, 3, 5}
 
 const dims = [3]int{1, 2, 3}
@@ -18,8 +11,6 @@ const point = struct{ X, Y int }{X: 3, Y: 4}
 
 const scores = map[string]int{"a": 1, "b": 2}
 
-// A const func with a loop evaluates at compile time; a scalar result
-// is a real constant usable in further const expressions.
 const func Fib(n int) int {
 	a, b := 0, 1
 	for i := 0; i < n; i++ {
@@ -34,7 +25,6 @@ const fib21 = fib20 + 1
 
 var fibArr [fib20]byte
 
-// Recursion works; the value is exact (120/120 == 1).
 const func Fact(n int) int {
 	if n <= 1 {
 		return 1
@@ -46,7 +36,6 @@ const fact5 = Fact(5)
 
 const factCheck = fact5 / 120
 
-// A const func returning a composite; an alias copies the value.
 const func First3() []int {
 	out := []int{}
 	for i := 1; i <= 3; i++ {
@@ -61,17 +50,14 @@ const first3alias = first3
 
 const aliasLen = len(first3alias)
 
-// Builtins over const composites in const declarations.
 const nprimes = len(primes)
 
 const plusone = append(primes, 7)
 
 const plusoneLen = len(plusone)
 
-// Const chaining: a const feeds another const func call.
 const nested = Fib(nprimes)
 
-// Selectors and indexes into const composites evaluate.
 const px = point.X
 
 const px2 = px + 1
@@ -80,12 +66,10 @@ const p0 = primes[0]
 
 const p0check = p0 + p0
 
-// Target integer widths (#102): 1 << 32 is exact on every target.
 const big32 = 1 << 32
 
 const big32check = big32 / (1 << 32)
 
-// A string built at compile time is a real constant.
 const func Greet(n int) string {
 	s := ""
 	for i := 0; i < n; i++ {
@@ -98,8 +82,6 @@ const greeting = Greet(3)
 
 const greetLen = len(greeting)
 
-// Step-limit boundary (default 100,000 steps; one step per statement,
-// loop iteration, and call, so Burn costs 6+3n steps).
 const func Burn(n int) int {
 	total := 0
 	for i := 0; i < n; i++ {
@@ -108,8 +90,6 @@ const func Burn(n int) int {
 	return total
 }
 
-// BurnP and BurnP2 cost one and two steps more than Burn, pinning the
-// exact N-1, N, N+1 boundary at 99999, 100000, and 100001 steps.
 const func BurnP(n int) int {
 	total := 0
 	for i := 0; i < n; i++ {
@@ -135,12 +115,10 @@ const burnAtLimit = BurnP(33331)
 
 const burnOver /* ERROR "comptime::ctfe_step_limit" */ = BurnP2(33331)
 
-// Value-size boundary: exactly 1 MB passes, one byte more fails.
 const megaOK = [1048576]byte{}
 
 const megaBig /* ERROR "comptime::const_too_large" */ = [1048577]byte{}
 
-// Float map keys (#103): -0.0 canonicalizes to +0.0, NaN fails.
 const func NegZero(x float64) float64 {
 	z := x - x
 	return -z
@@ -155,10 +133,37 @@ const func Frac(x float64) float64 {
 	return z / z
 }
 
-const fmapNaN /* ERROR "NaN" */ = map[float64]string{Frac(1.0): "nan"}
+const fmapNaN /* ERRORx "[[]correctness::const_eval[]].*NaN" */ = map[float64]string{Frac(1.0): "nan"}
 
-// Compile-time map lookups through a const func (comma-ok), and
-// inline `??` over const maps.
+const func CNegZero(x complex128) complex128 {
+	z := x - x
+	return -z
+}
+
+const cmapOK = map[complex128]string{CNegZero(complex(1, 1)): "neg"}
+
+const cmapDup /* ERROR "duplicate" */ = map[complex128]string{complex(0, 0): "a", CNegZero(complex(1, 1)): "b"}
+
+const func CFrac(x complex128) complex128 {
+	z := x - x
+	return z / z
+}
+
+const cmapNaN /* ERROR "NaN" */ = map[complex128]string{CFrac(complex(1, 1)): "nan"}
+
+const cmapDupRe /* ERROR "duplicate" */ = map[complex128]string{complex(0, 0): "a", complex /* ERROR "duplicate" */ (-0.0, 0): "b"}
+
+const cmapDupIm /* ERROR "duplicate" */ = map[complex128]string{complex(0, 0): "a", complex /* ERROR "duplicate" */ (0, -0.0): "b"}
+
+const func CNanParts(x float64) float64 {
+	z := x - x
+	return z / z
+}
+
+const cmapNaNRe /* ERRORx "[[]correctness::const_eval[]].*NaN" */ = map[complex128]string{complex(CNanParts(1.0), 1): "nan"}
+
+const cmapNaNIm /* ERRORx "[[]correctness::const_eval[]].*NaN" */ = map[complex128]string{complex(1, CNanParts(1.0)): "nan"}
+
 const func Get(m map[string]int, k string) int {
 	v, ok := m[k]
 	if ok {
@@ -179,16 +184,15 @@ const qA = scores["a"] ?? -1
 
 const qZ = scores["zzz"] ?? -1
 
-// Purity violations: one [correctness::const_func_impure] each.
 const func BadIO() int {
-	fmt /* ERROR "correctness::const_func_impure" */ .Println("x")
+	fmt /* ERRORx "const_func_impure.*call to imported function fmt.Println" */ .Println("x")
 	return 1
 }
 
 var counter int
 
 const func BadVarRead() int {
-	return counter /* ERROR "correctness::const_func_impure" */
+	return counter /* ERRORx "const_func_impure.*read of package variable counter" */
 }
 
 const func BadVarWrite() int {
@@ -204,7 +208,7 @@ const func BadGo() int {
 }
 
 const func BadRecover() int {
-	_ = recover /* ERROR "correctness::const_func_impure" */ ()
+	_ = recover /* ERRORx "const_func_impure.*call to recover" */ ()
 	return 1
 }
 
@@ -227,6 +231,24 @@ const func BadMapRange(m map[string]int) int {
 const func BadPointer(x int) int {
 	p := & /* ERROR "correctness::const_func_impure" */ x
 	return *p
+}
+
+const func BadNew() int {
+	p := new /* ERROR "correctness::const_func_impure" */ (int)
+	return *p
+}
+
+const func BadDeref(x int) int {
+	return * /* ERROR "correctness::const_func_impure" */ &x
+}
+
+const func BadPtrParam(p * /* ERROR "correctness::const_func_impure" */ int) int {
+	return 1
+}
+
+const func BadPtrResult(x int) * /* ERROR "correctness::const_func_impure" */ int {
+	p := &x
+	return p
 }
 
 const func BadDefer() int {
@@ -267,9 +289,15 @@ const func BadSigChan(ch chan /* ERROR "correctness::const_func_impure" */ int) 
 
 const func Gen[T any](x T) T { return x }
 
-const gen /* ERROR "const_eval" */ = Gen[int](1)
+const gen /* ERRORx "const_eval.*generic" */ = Gen[int](1)
+const lit /* ERRORx "const_eval.*function literal" */ = func() int { return 1 }()
 
-// A multi-valued const func call cannot fill one const.
+const func C100() int8 { return 100 }
+
+const func Ovf() int8 { return C100() + C100() }
+
+const ovfBad /* ERRORx "const_eval.*overflow" */ = Ovf()
+
 const func Pair() (int, int) { return 1, 2 }
 
 const pm = Pair /* ERROR "multiple-value" */ ()

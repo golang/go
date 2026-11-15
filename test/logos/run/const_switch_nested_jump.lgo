@@ -1,0 +1,95 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func throughSwitch[T any](n int) int {
+	c := 0
+	for i := 0; i < n; i++ {
+		const switch T {
+		case int:
+			switch i {
+			case 1:
+				continue
+			}
+			c++
+		case string:
+			c += 10
+		}
+	}
+	return c
+}
+
+func throughSelect[T any](n int) int {
+	c := 0
+	for i := 0; i < n; i++ {
+		const switch T {
+		case int:
+			select {
+			default:
+				continue
+			}
+		case string:
+			c++
+		}
+		c += 100
+	}
+	return c
+}
+
+func throughTaglessSwitch[T any](n int) int {
+	c := 0
+	for i := 0; i < n; i++ {
+		const switch T {
+		case int:
+			switch {
+			case i%2 == 1:
+				continue
+			}
+			c++
+		}
+	}
+	return c
+}
+
+func breakInNestedSwitch[T any](n int) int {
+	c := 0
+	for i := 0; i < n; i++ {
+		const switch T {
+		case int:
+			switch i {
+			case 1:
+				break
+			}
+			c++
+		}
+	}
+	return c
+}
+
+func main() {
+	check("switch-int", throughSwitch[int](4) == 3, throughSwitch[int](4), 3)
+	check("switch-string", throughSwitch[string](4) == 40, throughSwitch[string](4), 40)
+	check("select-int", throughSelect[int](4) == 0, throughSelect[int](4), 0)
+	check("select-string", throughSelect[string](4) == 404, throughSelect[string](4), 404)
+	check("tagless-switch-int", throughTaglessSwitch[int](5) == 3, throughTaglessSwitch[int](5), 3)
+	check("break-in-nested-switch", breakInNestedSwitch[int](4) == 4, breakInNestedSwitch[int](4), 4)
+	if failed {
+		os.Exit(1)
+	}
+}

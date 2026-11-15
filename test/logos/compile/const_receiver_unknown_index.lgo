@@ -1,0 +1,21 @@
+// errorcheck
+
+package p
+
+type receiver struct{ L []int }
+
+func (r receiver) M() int {
+	r.L[0] = 7
+	return len(r.L)
+}
+
+const A = [2]receiver{{}, {L: []int{1}}}
+const emptyLeaves = [2]receiver{{}, {}}
+
+func rejectUnknownIndex(i int) int {
+	return A[i].M() // ERROR "const_view_mutation"
+}
+
+func allowEveryCandidateReferenceFree(i int) int {
+	return emptyLeaves[i].M()
+}

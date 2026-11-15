@@ -1,0 +1,8 @@
+ok slice-uintptr-fault-code
+ok slice-uintptr-fault-output
+ok stringdata-fault-code
+ok stringdata-fault-output
+ok add-fault-code
+ok add-fault-output
+ok slice-fault-code
+ok slice-fault-output

@@ -1,0 +1,4 @@
+ok lambda-assign
+ok lambda-return
+ok lambda-if-init
+ok lambda-try-statement

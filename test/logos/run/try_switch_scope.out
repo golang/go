@@ -1,0 +1,9 @@
+ok shadow-outer
+ok same-name
+ok arms-see-init
+ok if-header-var
+ok if-header-var-else
+ok switch-header-var
+ok for-header-var
+ok for-per-iteration
+ok else-if-header-var

@@ -18,20 +18,12 @@ import (
 	"cmd/compile/internal/logos/facts"
 )
 
-// These tests and benchmarks cover the WASM profile of M16-S1 (SPEC
-// Sec 14.1): the facts of Go packages on GOARCH=wasm, the behavior of
-// programs built with and without selective resume points, a wrong
-// MayYield=0 that traps, and the three performance targets of Table T-PERF.
-// The runtime parts need node (A-NODE); without it they skip, which the
-// slice gate records as blocked.
-
 const wasmNoYieldProgram = `package main
 
 import (
 	"fmt"
 	"runtime"
 	"sync"
-	"time"
 )
 
 //go:noinline
@@ -45,10 +37,17 @@ func withDefer() (r int) {
 	return straight(3)
 }
 
+//go:noinline
+func park() {
+	ready := make(chan struct{})
+	go func() { close(ready) }()
+	<-ready
+}
+
 func panicParks() (s string) {
 	defer func() {
 		recover()
-		time.Sleep(5 * time.Millisecond)
+		park()
 		s = "woke"
 	}()
 	var e error
@@ -62,7 +61,7 @@ func fault(s []int, i int) int { return s[i] }
 func boundsParks() (s string) {
 	defer func() {
 		recover()
-		time.Sleep(5 * time.Millisecond)
+		park()
 		s = "bounds"
 	}()
 	return fmt.Sprint(fault(nil, 3))
@@ -161,7 +160,6 @@ func wasmLogos(tb testing.TB) string {
 	return p
 }
 
-// wasmGoEnv returns the environment of a wasm build for goos.
 func wasmGoEnv(cmd *exec.Cmd, goos string) []string {
 	var env []string
 	for _, kv := range cmd.Environ() {
@@ -176,8 +174,6 @@ func wasmGoEnv(cmd *exec.Cmd, goos string) []string {
 	return append(env, "GOOS="+goos, "GOARCH=wasm", "GOMAXPROCS=1", "GOFLAGS=", "GOWORK=off", "GO111MODULE=on")
 }
 
-// buildWasm builds src as a main package with tool ("go" or logos) and
-// returns the wasm file. gcflags is passed through -gcflags when non-empty.
 func buildWasm(tb testing.TB, tool, goos, src, gcflags string) string {
 	tb.Helper()
 	dir := tb.TempDir()
@@ -202,8 +198,6 @@ func buildWasm(tb testing.TB, tool, goos, src, gcflags string) string {
 	return out
 }
 
-// runWasmNode runs a js/wasm file under node and returns its combined
-// output and the process error.
 func runWasmNode(tb testing.TB, wasm string) (string, error) {
 	tb.Helper()
 	node := wasmNode(tb)
@@ -253,8 +247,6 @@ func TestWasmWrongMayYieldTraps(t *testing.T) {
 	}
 }
 
-// goExports returns the export archive of pkgs and of their dependencies,
-// built by tool (go or logos) for GOOS=js GOARCH=wasm, keyed by import path.
 func goExports(tb testing.TB, tool string, pkgs ...string) map[string]string {
 	tb.Helper()
 	args := append([]string{"list", "-export", "-deps", "-f", "{{if .Export}}{{.ImportPath}} {{.Export}}{{end}}"}, pkgs...)
@@ -316,10 +308,6 @@ func TestWasmGoPackagesCarryMayYieldFacts(t *testing.T) {
 	}
 }
 
-// BenchmarkWasmAsyncifySize reports the size of a wasm build with
-// selective resume points against the same program with a resume point at
-// every call (the existing full state-machine scheme, the closest stand-in
-// for full Asyncify when no external tool is allowed). Target: 3x.
 func BenchmarkWasmAsyncifySize(b *testing.B) {
 	testenv.MustHaveGoBuild(b)
 	full := buildWasm(b, testenv.GoToolPath(b), "js", wasmNoYieldProgram, "")
@@ -342,8 +330,6 @@ func wasmSize(tb testing.TB, path string) int64 {
 	return st.Size()
 }
 
-// BenchmarkWasmAsyncifySpeed runs a call-heavy program under node with and
-// without selective resume points and reports the speedup. Target: 4x.
 func BenchmarkWasmAsyncifySpeed(b *testing.B) {
 	testenv.MustHaveGoBuild(b)
 	wasmNode(b)
@@ -362,9 +348,6 @@ func BenchmarkWasmAsyncifySpeed(b *testing.B) {
 	}
 }
 
-// loopNanos runs the speed program once and returns the nanoseconds its
-// hot loop took, measured inside the program so node startup and module
-// compilation do not count.
 func loopNanos(tb testing.TB, wasm string) float64 {
 	tb.Helper()
 	out, err := runWasmNode(tb, wasm)
@@ -382,7 +365,6 @@ func loopNanos(tb testing.TB, wasm string) float64 {
 	return ns
 }
 
-// quantile returns the q-quantile of xs by nearest rank; xs is not changed.
 func quantile(xs []float64, q float64) float64 {
 	sorted := slices.Sorted(slices.Values(xs))
 	return sorted[min(len(sorted)-1, int(q*float64(len(sorted))))]
@@ -390,12 +372,6 @@ func quantile(xs []float64, q float64) float64 {
 
 var wasmShareCorpus = []string{"fmt", "strconv", "strings", "sort", "bytes", "encoding/json", "regexp", "bufio", "path/filepath", "container/heap"}
 
-// BenchmarkWasmSyncPureShare reports the share of functions with
-// MayYield=0 and with MayYield=1 across a set of standard packages built
-// for js/wasm with the profile on (logos). pure-%-resume-all is the share
-// of the same packages built without it, where a leaf with a frame keeps its
-// stack check. The shares are measurements, not guarantees. Targets: 90
-// percent and 10 percent.
 func BenchmarkWasmSyncPureShare(b *testing.B) {
 	testenv.MustHaveGoBuild(b)
 	pure, yield := mayYieldCounts(b, wasmLogos(b), wasmShareCorpus...)
@@ -412,8 +388,6 @@ func BenchmarkWasmSyncPureShare(b *testing.B) {
 	b.ReportMetric(100*float64(offPure)/float64(offPure+offYield), "pure-%-resume-all")
 }
 
-// mayYieldCounts counts the functions with MayYield=0 and MayYield=1 in the
-// archives of pkgs built by tool.
 func mayYieldCounts(tb testing.TB, tool string, pkgs ...string) (pure, yield int) {
 	tb.Helper()
 	for _, archive := range goExports(tb, tool, pkgs...) {
@@ -436,4 +410,46 @@ func countMayYield(f *facts.Facts) (pure, yield int) {
 		}
 	}
 	return pure, yield
+}
+
+const wasmYieldFreeProgram = `package main
+
+import "fmt"
+
+//go:noinline
+func nilderef(p *int) int { return *p }
+
+//go:noinline
+func leaf2(x int) int { return x + 1 }
+
+//go:noinline
+func bigframe(v int) int {
+	var buf [8192]byte
+	buf[0] = byte(leaf2(v))
+	buf[8191] = byte(v >> 8)
+	return int(buf[0]) + int(buf[8191]) + leaf2(v)
+}
+
+func main() {
+	x := 41
+	fmt.Println(nilderef(&x), bigframe(x))
+}
+`
+
+const wasmYieldFreeWant = "41 84\n"
+
+func TestWasmYieldFreeSourcesRunUnderNode(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	wasmNode(t)
+	for name, tool := range map[string]string{
+		"plain go": testenv.GoToolPath(t),
+		"logos":    wasmLogos(t),
+	} {
+		t.Run(name, func(t *testing.T) {
+			got, err := runWasmNode(t, buildWasm(t, tool, "js", wasmYieldFreeProgram, ""))
+			if err != nil || got != wasmYieldFreeWant {
+				t.Fatalf("run: %v\ngot %q\nwant %q", err, got, wasmYieldFreeWant)
+			}
+		})
+	}
 }

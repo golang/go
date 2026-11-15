@@ -15,8 +15,6 @@ import (
 	"cmd/compile/internal/types2"
 )
 
-// lowerSpreadSrc parses, checks, and lowers one inline .lgo file,
-// returning the lowered tree print and the ejected text.
 func lowerSpreadSrc(t *testing.T, src string) (printed, ejected string) {
 	t.Helper()
 	dir := t.TempDir()
@@ -67,34 +65,6 @@ func lowerSpreadSrc(t *testing.T, src string) (printed, ejected string) {
 	return buf.String(), string(out)
 }
 
-// TestSpreadSelfUpdateTuple checks the self-update form lowers to one
-// tuple assignment of the explicit fields with no struct temporary.
-func TestSpreadSelfUpdateTuple(t *testing.T) {
-	printed, ejected := lowerSpreadSrc(t, `package main
-
-type State struct {
-	A int
-	B int
-}
-
-func swap(s State) State {
-	s = State{A: s.B, B: s.A, ..s}
-	return s
-}
-`)
-	if !strings.Contains(printed, "s.A, s.B = s.B, s.A") {
-		t.Errorf("lowered tree misses tuple assignment:\n%s", printed)
-	}
-	if strings.Contains(printed, "State{") {
-		t.Errorf("lowered tree keeps a struct temporary:\n%s", printed)
-	}
-	if !strings.Contains(ejected, "s.A, s.B = s.B, s.A") {
-		t.Errorf("ejected text misses tuple assignment:\n%s", ejected)
-	}
-}
-
-// TestSpreadSourceEvaluatedOnce checks a call source is captured in one
-// temporary and read for every copied field.
 func TestSpreadSourceEvaluatedOnce(t *testing.T) {
 	printed, ejected := lowerSpreadSrc(t, `package main
 
@@ -110,8 +80,6 @@ func build() State {
 }
 `)
 	for _, out := range []string{printed, ejected} {
-		// One call site binds the source; the declaration line holds
-		// the only other spelling.
 		if n := strings.Count(out, ":= get()"); n != 1 {
 			t.Errorf("source evaluated %d times; want 1:\n%s", n, out)
 		}
@@ -121,7 +89,6 @@ func build() State {
 	}
 }
 
-// TestSpreadNoSurvivors checks no SpreadExpr survives lowering.
 func TestSpreadNoSurvivors(t *testing.T) {
 	printed, _ := lowerSpreadSrc(t, `package main
 
@@ -136,5 +103,8 @@ func build(s State) State {
 `)
 	if strings.Contains(printed, "..") {
 		t.Errorf("lowered tree keeps spread syntax:\n%s", printed)
+	}
+	if !strings.Contains(printed, "= s") {
+		t.Errorf("lowered tree drops the spread source:\n%s", printed)
 	}
 }

@@ -5,6 +5,7 @@
 package test
 
 import (
+	"internal/goexperiment"
 	"internal/testenv"
 	"testing"
 	"unsafe"
@@ -48,6 +49,10 @@ func TestStackAllocation(t *testing.T) {
 		},
 	} {
 		max := maxStackSize / int(tc.elemSize)
+		overflowAllocs := 1.0
+		if goexperiment.LogosArena {
+			overflowAllocs = 0
+		}
 		if n := testing.AllocsPerRun(10, func() {
 			tc.f(max)
 		}); n != 0 {
@@ -55,7 +60,7 @@ func TestStackAllocation(t *testing.T) {
 		}
 		if n := testing.AllocsPerRun(10, func() {
 			tc.f(max + 1)
-		}); n != 1 {
+		}); n != overflowAllocs {
 			t.Fatalf("unexpected allocation: %f", n)
 		}
 	}

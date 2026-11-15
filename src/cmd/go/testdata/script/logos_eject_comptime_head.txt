@@ -1,0 +1,76 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+logos run .
+stdout '^2 3 5$'
+cp stdout $WORK/native.txt
+logos eject -o out
+exists out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $WORK/native.txt
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
+exec $WORK/upstream$GOEXE
+cmp stdout $WORK/native.txt
+cd ..
+
+-- m/go.mod --
+module example.com/comptimehead
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import (
+	"comptime"
+	"fmt"
+)
+
+type Pt struct {
+	X int
+	Y int
+}
+
+func /* a */ Count /* b */ [ /* c */ T any /* d */ ] /* e */ () int {
+	n := 0
+	const for _, f := range comptime.Fields[T]() {
+		_ = f
+		n++
+	}
+	return n
+}
+
+func
+// line comment between the keyword and the name
+Wide[T any, U any]() int {
+	n := 0
+	const for _, f := range comptime.Fields[T]() {
+		_ = f
+		n++
+	}
+	const for _, f := range comptime.Fields[U]() {
+		_ = f
+		n++
+	}
+	return n
+}
+
+func Tight[T any]() int {
+	n := 0
+	const for _, f := range comptime.Fields[T]() {
+		_ = f
+		n++
+	}
+	return n
+}
+
+func main() {
+	fmt.Println(Count[Pt](), Count[struct{ A, B, C int }](), Wide[Pt, struct{ A, B, C int }]())
+	_ = Tight[Pt]()
+}

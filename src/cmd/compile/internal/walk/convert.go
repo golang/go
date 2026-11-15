@@ -9,6 +9,7 @@ import (
 	"go/constant"
 
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/escape"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/ssagen"
@@ -189,6 +190,13 @@ func dataWord(conv *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		diagnose("using stack temporary for interface value", n)
 		value = typecheck.TempAt(base.Pos, ir.CurFunc, fromType)
 		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, value, n)))
+	case escape.LogosArenaObject(conv, ir.CurFunc):
+		ptr := typecheck.TempAt(base.Pos, ir.CurFunc, types.NewPtr(fromType))
+		alloc := mkcall("logosArenaMakeSlice", types.Types[types.TUNSAFEPTR], init,
+			reflectdata.ConvIfaceSrcRType(base.Pos, conv), ir.NewInt(base.Pos, 1), ir.NewInt(base.Pos, 1))
+		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, ptr, typecheck.ConvNop(alloc, ptr.Type())))
+		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, ir.NewStarExpr(base.Pos, ptr), n))
+		return ptr
 	}
 	if value != nil {
 		// The interface data word is &value.

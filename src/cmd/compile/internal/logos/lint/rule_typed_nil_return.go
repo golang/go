@@ -116,7 +116,7 @@ func (t *typedNil) returnStmt(s *syntax.ReturnStmt, facts nilFacts) {
 
 // tuple checks a call returned in place of the whole result list.
 func (t *typedNil) tuple(call *syntax.CallExpr, facts nilFacts) {
-	types := resultTypes(call)
+	types := elemTypes(TypeOf(call))
 	for i := range min(len(types), t.results.Len()) {
 		if boxes(t.results.At(i).Type()) && t.reportOperand(call, types[i], t.results.At(i).Type(), facts) {
 			return

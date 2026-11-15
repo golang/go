@@ -1,0 +1,48 @@
+[!GOARCH:amd64] [!GOARCH:arm64] skip 'archsimd Int32x4 needs amd64 or arm64'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOEXPERIMENT=simd
+
+logos run .
+stdout '^vec ok$'
+cp stdout $WORK/logos.txt
+go run .
+cmp stdout $WORK/logos.txt
+
+env GOEXPERIMENT=
+! logos run .
+stderr 'simd/archsimd'
+! go run .
+stderr 'simd/archsimd'
+
+-- go.mod --
+module example.com/simdguse
+
+go 1.27
+
+-- main.go --
+package main
+
+import (
+	"fmt"
+
+	"simd/archsimd"
+)
+
+func main() {
+	var xs = [4]int32{1, 2, 3, 4}
+	var ys = [4]int32{10, 20, 30, 40}
+	v := archsimd.LoadInt32x4Array(&xs).Add(archsimd.LoadInt32x4Array(&ys))
+	var out [4]int32
+	v.StoreArray(&out)
+	var want [4]int32
+	for i := range xs {
+		want[i] = xs[i] + ys[i]
+	}
+	if out != want {
+		fmt.Println("mismatch", out, want)
+		return
+	}
+	fmt.Println("vec ok")
+}

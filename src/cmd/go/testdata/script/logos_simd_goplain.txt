@@ -1,0 +1,29 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+! logos build .
+stderr 'operator \+ not defined'
+stderr 'has no field or method sum'
+stderr 'has no field or method min'
+stderr 'has no field or method max'
+stderr 'has no field or method dot'
+
+-- go.mod --
+module example.com/simdplain
+
+go 1.27
+
+-- main.go --
+package main
+
+import "fmt"
+
+func main() {
+	a := [4]float64{1, 2, 3, 4}
+	b := [4]float64{5, 6, 7, 8}
+	fmt.Println(a + b)
+	_ = a.sum()
+	_ = a.min()
+	_ = a.max()
+	_ = a.dot(b)
+}

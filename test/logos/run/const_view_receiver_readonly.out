@@ -1,10 +1,10 @@
-ok
-3
-10
-60
-65
-1
-0
-2
-7
-42 41
+ok label
+ok slice-len
+ok slice-first
+ok slice-sum
+ok slice-plus
+ok map-get
+ok map-missing
+ok map-len
+ok ptr-load
+ok copy-bump

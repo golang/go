@@ -1,0 +1,12 @@
+ok range-one-scope
+ok range-two-scopes
+ok range-chan-two-scopes
+ok for-post-two-scopes
+ok switch-init-two-scopes
+ok switch-cases-two-scopes
+ok goto-range-two-scopes
+ok goto-for-post-two-scopes
+ok goto-switch-init-two-scopes
+ok goto-switch-cases-two-scopes
+ok goto-if-init-two-scopes
+ok goto-if-else-two-scopes

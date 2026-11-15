@@ -1,0 +1,56 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+! logos lint ./...
+stderr 'b/b\.go:\d+:\d+: \[concurrency::lock_requirement_unmet\] badCall: call of \(\*a\.Tank\)\.Fill requires t\.Mu'
+stderr 'b/b\.go:\d+:\d+: \[concurrency::lock_requirement_unmet\] wrongOrder: call of \(\*a\.Tank\)\.Fill requires t\.Mu'
+! stderr 'guardOK'
+
+-- go.mod --
+module logostest
+
+go 1.27
+
+-- a/a.go --
+package a
+
+import "sync"
+
+type Tank struct {
+	Mu sync.Mutex
+
+	//logos:guardedby Mu
+	Level int
+}
+
+//logos:requires t.Mu
+func (t *Tank) Fill() {
+	t.Level = 100
+}
+
+//logos:acquires t.Mu
+func (t *Tank) Seal() {
+	_ = t.Level
+}
+
+-- b/b.go --
+package b
+
+import "logostest/a"
+
+func badCall(t *a.Tank) {
+	t.Fill()
+}
+
+func wrongOrder(t *a.Tank) {
+	t.Fill()
+	t.Mu.Lock()
+	t.Fill()
+	t.Mu.Unlock()
+}
+
+func guardOK(t *a.Tank) {
+	t.Mu.Lock()
+	defer t.Mu.Unlock()
+	t.Fill()
+}

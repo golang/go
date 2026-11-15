@@ -1,0 +1,71 @@
+// run
+
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+ "fmt"
+ "os"
+ "runtime/debug"
+ "slices"
+ "testing"
+)
+
+var result []int
+var resultErr error
+var calls int
+
+//go:noinline
+func chain(xs []int) []int {
+ return xs.filter(x => x > 2).map(x => x * 2).take(2)
+}
+
+//go:noinline
+func hand(xs []int) []int {
+ out := make([]int, 0, 2)
+ for _, x := range xs {
+  if x > 2 {
+   out = append(out, x * 2)
+   if len(out) == 2 { break }
+  }
+ }
+ return out
+}
+
+//go:noinline
+func f() error { calls++; return nil }
+
+//go:noinline
+func deferred(n int) (err error) {
+ for i := 0; i < n; i++ { defer f()? }
+ return nil
+}
+
+//go:noinline
+func direct(n int) error {
+ for i := 0; i < n; i++ {
+  if err := f(); err != nil { return err }
+ }
+ return nil
+}
+
+func main() {
+ debug.SetGCPercent(-1)
+ xs := []int{1, 2, 3, 4, 5}
+ a := testing.AllocsPerRun(20, func() { result = chain(xs) })
+ b := testing.AllocsPerRun(20, func() { result = hand(xs) })
+ if a != b || !slices.Equal(chain(xs), []int{6, 8}) {
+  fmt.Println("FAIL chain", a, "hand", b, "result", chain(xs))
+  os.Exit(1)
+ }
+ before := calls
+ c := testing.AllocsPerRun(20, func() { resultErr = deferred(20000) })
+ d := testing.AllocsPerRun(20, func() { resultErr = direct(20000) })
+ if c != d || resultErr != nil || calls-before != 840000 {
+  fmt.Println("FAIL defer", c, "hand", d, "error", resultErr, "calls", calls-before)
+  os.Exit(1)
+ }
+}

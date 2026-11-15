@@ -1,0 +1,64 @@
+// run
+
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+)
+
+// FNV-1a 64 of "NTSE04pvvYj" and of "7dixCZiBfbc" are both 0xfee1c7bdad72faa2.
+type Collide struct {
+	F0 int64 `json:"NTSE04pvvYj"`
+	F1 int64 `json:"7dixCZiBfbc"`
+	F2 int64 `json:"k2"`
+	F3 int64 `json:"k3"`
+	F4 int64 `json:"k4"`
+	F5 int64 `json:"k5"`
+	F6 int64 `json:"k6"`
+	F7 int64 `json:"k7"`
+	F8 int64 `json:"k8"`
+	F9 int64 `json:"k9"`
+}
+
+var failed bool
+
+func report(name string, ok bool, format string, args ...any) {
+	if ok {
+		fmt.Println("ok", name)
+		return
+	}
+	failed = true
+	fmt.Println("FAIL", name+":", fmt.Sprintf(format, args...))
+}
+
+func decode(input string) Collide {
+	var c Collide
+	if err := json.Unmarshal([]byte(input), &c); err != nil {
+		fmt.Println("FAIL", err)
+		os.Exit(1)
+	}
+	return c
+}
+
+func main() {
+	all := decode(`{"NTSE04pvvYj":10,"7dixCZiBfbc":11,"k2":2,"k3":3,"k4":4,"k5":5,"k6":6,"k7":7,"k8":8,"k9":9}`)
+	want := Collide{10, 11, 2, 3, 4, 5, 6, 7, 8, 9}
+	report("hash-collision-all-keys", all == want, "decoded %+v, want %+v", all, want)
+	second := decode(`{"7dixCZiBfbc":5}`)
+	report("hash-collision-second-key", second == Collide{F1: 5}, "decoded %+v", second)
+	first := decode(`{"NTSE04pvvYj":6}`)
+	report("hash-collision-first-key", first == Collide{F0: 6}, "decoded %+v", first)
+	nearMiss := decode(`{"NTSE04pvvYk":1,"7dixCZiBfbd":2}`)
+	report("hash-collision-near-miss-ignored", nearMiss == Collide{}, "decoded %+v", nearMiss)
+	folded := decode(`{"ntse04pvvyj":1,"7DIXCZIBFBC":2}`)
+	report("hash-collision-folded-keys", folded == Collide{F0: 1, F1: 2}, "decoded %+v", folded)
+	if failed {
+		os.Exit(1)
+	}
+}

@@ -160,3 +160,24 @@ func a(d time.Duration) {
 		t.Errorf("spans = %q, want %q", got, want)
 	}
 }
+
+func TestTimeAfterInLoopNoFix(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	const src = `package p
+
+import "time"
+
+func a(d time.Duration, n int) {
+	for i := 0; i < n; i++ {
+		<-time.After(d)
+	}
+}
+`
+	got := timeAfterResults(t, KindGo, nil, "x.go", src)
+	if len(got) != 1 {
+		t.Fatalf("findings = %d, want 1", len(got))
+	}
+	if len(got[0].Fixes) != 0 {
+		t.Errorf("fixes = %+v, want none", got[0].Fixes)
+	}
+}

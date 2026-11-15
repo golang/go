@@ -1,0 +1,339 @@
+// run
+
+package jsonunion
+
+import (
+	"encoding/json"
+	"errors"
+	"reflect"
+	"slices"
+	"testing"
+
+	"logos/rt"
+)
+
+type FoldA struct {
+	Kind string `json:"kind"`
+	A    int64  `json:"a"`
+}
+
+type FoldB struct {
+	Kind string `json:"kind"`
+	B    int64  `json:"b"`
+}
+
+type FoldUnion interface {
+	FoldA | FoldB
+}
+
+type FoldHolder struct {
+	Item FoldUnion `json:"item"`
+}
+
+func foldUnionErr(t *testing.T, data string) rt.UnionTrialError {
+	t.Helper()
+	var h FoldHolder
+	err := json.Unmarshal([]byte(data), &h)
+	if err == nil {
+		t.Fatalf("expected trial error for %s, got %T(%v)", data, h.Item, h.Item)
+	}
+	var trialErr rt.UnionTrialError
+	if !errors.As(err, &trialErr) {
+		t.Fatalf("expected rt.UnionTrialError for %s, got %T: %v", data, err, err)
+	}
+	return trialErr
+}
+
+func TestFoldSharedKeyUpperMatchesBoth(t *testing.T) {
+	const data = `{"item":{"KIND":"x"}}`
+	var a FoldA
+	if err := json.Unmarshal([]byte(`{"KIND":"x"}`), &a); err != nil {
+		t.Fatalf("encoding/json rejects FoldA: %v", err)
+	}
+	var b FoldB
+	if err := json.Unmarshal([]byte(`{"KIND":"x"}`), &b); err != nil {
+		t.Fatalf("encoding/json rejects FoldB: %v", err)
+	}
+	if got := foldUnionErr(t, data); got.Matched != 2 {
+		t.Fatalf("expected Matched 2 for %s, got %d", data, got.Matched)
+	}
+}
+
+func TestFoldSharedKeyMixedMatchesBoth(t *testing.T) {
+	const data = `{"item":{"kInD":"x"}}`
+	var a FoldA
+	if err := json.Unmarshal([]byte(`{"kInD":"x"}`), &a); err != nil {
+		t.Fatalf("encoding/json rejects FoldA: %v", err)
+	}
+	var b FoldB
+	if err := json.Unmarshal([]byte(`{"kInD":"x"}`), &b); err != nil {
+		t.Fatalf("encoding/json rejects FoldB: %v", err)
+	}
+	if got := foldUnionErr(t, data); got.Matched != 2 {
+		t.Fatalf("expected Matched 2 for %s, got %d", data, got.Matched)
+	}
+}
+
+func TestFoldDistinctKeyDisqualifiesSibling(t *testing.T) {
+	const data = `{"item":{"KIND":"x","a":1}}`
+	var h FoldHolder
+	if err := json.Unmarshal([]byte(data), &h); err != nil {
+		t.Fatalf("sibling key must disqualify FoldB, got error: %v", err)
+	}
+	sel, ok := h.Item.(FoldA)
+	if !ok || sel.A != 1 {
+		t.Fatalf("expected FoldA{A:1}, got %T(%v)", h.Item, h.Item)
+	}
+}
+
+type FoldC struct {
+	Kind string `json:"kind"`
+	C    int64  `json:"c"`
+}
+
+type FoldD struct {
+	Kind string `json:"Kind"`
+	D    int64  `json:"d"`
+}
+
+type FoldCaseUnion interface {
+	FoldC | FoldD
+}
+
+type FoldCaseHolder struct {
+	Item FoldCaseUnion `json:"item"`
+}
+
+func TestFoldExactAgainstFoldSpelling(t *testing.T) {
+	const data = `{"item":{"kind":"x"}}`
+	var c FoldC
+	if err := json.Unmarshal([]byte(`{"kind":"x"}`), &c); err != nil {
+		t.Fatalf("encoding/json rejects FoldC: %v", err)
+	}
+	var d FoldD
+	if err := json.Unmarshal([]byte(`{"kind":"x"}`), &d); err != nil {
+		t.Fatalf("encoding/json rejects FoldD: %v", err)
+	}
+	var h FoldCaseHolder
+	err := json.Unmarshal([]byte(data), &h)
+	if err == nil {
+		t.Fatalf("expected trial error for %s, got %T(%v)", data, h.Item, h.Item)
+	}
+	var trialErr rt.UnionTrialError
+	if !errors.As(err, &trialErr) {
+		t.Fatalf("expected rt.UnionTrialError for %s, got %T: %v", data, err, err)
+	}
+	if trialErr.Matched != 2 {
+		t.Fatalf("expected Matched 2 for %s, got %d", data, trialErr.Matched)
+	}
+}
+
+type FoldE struct {
+	A int64 `json:"a"`
+}
+
+type FoldF struct {
+	B int64 `json:"b"`
+}
+
+type FoldSelectUnion interface {
+	FoldE | FoldF
+}
+
+type FoldSelectHolder struct {
+	Item FoldSelectUnion `json:"item"`
+}
+
+func TestFoldVariantKeySelectsMember(t *testing.T) {
+	const data = `{"item":{"A":7}}`
+	var e FoldE
+	if err := json.Unmarshal([]byte(`{"A":7}`), &e); err != nil || e.A != 7 {
+		t.Fatalf("encoding/json rejects FoldE: %v %#v", err, e)
+	}
+	var h FoldSelectHolder
+	if err := json.Unmarshal([]byte(data), &h); err != nil {
+		t.Fatalf("fold variant must select FoldE, got error: %v", err)
+	}
+	sel, ok := h.Item.(FoldE)
+	if !ok || sel.A != 7 {
+		t.Fatalf("expected FoldE{A:7}, got %T(%v)", h.Item, h.Item)
+	}
+}
+
+type ShareA struct {
+	Kind string `json:"kind"`
+	V    int64  `json:"v"`
+}
+
+type ShareB struct {
+	Kind string `json:"kind"`
+	V    string `json:"v"`
+}
+
+type ShareUnion interface {
+	ShareA | ShareB
+}
+
+type ShareHolder struct {
+	Item ShareUnion `json:"item"`
+}
+
+func TestSharedKeyPartialFailureSelectsSurvivor(t *testing.T) {
+	const data = `{"item":{"kind":"x","v":1}}`
+	var a ShareA
+	if err := json.Unmarshal([]byte(`{"kind":"x","v":1}`), &a); err != nil {
+		t.Fatalf("encoding/json rejects ShareA: %v", err)
+	}
+	var b ShareB
+	if err := json.Unmarshal([]byte(`{"kind":"x","v":1}`), &b); err == nil {
+		t.Fatalf("encoding/json accepts ShareB, want type error")
+	}
+	var h ShareHolder
+	if err := json.Unmarshal([]byte(data), &h); err != nil {
+		t.Fatalf("decode failure must not veto the survivor, got error: %v", err)
+	}
+	sel, ok := h.Item.(ShareA)
+	if !ok || sel.Kind != "x" || sel.V != 1 {
+		t.Fatalf("expected ShareA{x 1}, got %T(%v)", h.Item, h.Item)
+	}
+}
+
+type FoldSmallA struct {
+	K   int64 "json:\"k\""
+	S   int64 "json:\"s\""
+	E   int64 "json:\"\u00e9\""
+	Sig int64 "json:\"\u03c3\""
+	Sh  int64 "json:\"\u00df\""
+	Dz  int64 "json:\"\u01c6\""
+}
+
+type FoldSmallZ struct {
+	Z int64 `json:"zzz"`
+}
+
+type FoldSmallUnion interface {
+	FoldSmallA | FoldSmallZ
+}
+
+type FoldSmallHolder struct {
+	Item FoldSmallUnion `json:"item"`
+}
+
+type FoldSmallMirror struct {
+	K     int64 "json:\"k\""
+	S     int64 "json:\"s\""
+	E     int64 "json:\"\u00e9\""
+	Sig   int64 "json:\"\u03c3\""
+	Sh    int64 "json:\"\u00df\""
+	Dz    int64 "json:\"\u01c6\""
+	NoGen any   `json:"-"`
+}
+
+type FoldWideA struct {
+	A1  int64 `json:"a1"`
+	A2  int64 `json:"a2"`
+	A3  int64 `json:"a3"`
+	A4  int64 `json:"a4"`
+	K   int64 "json:\"k\""
+	S   int64 "json:\"s\""
+	E   int64 "json:\"\u00e9\""
+	Sig int64 "json:\"\u03c3\""
+	Sh  int64 "json:\"\u00df\""
+	Dz  int64 "json:\"\u01c6\""
+}
+
+type FoldWideUnion interface {
+	FoldWideA | FoldSmallZ
+}
+
+type FoldWideHolder struct {
+	Item FoldWideUnion `json:"item"`
+}
+
+type FoldWideMirror struct {
+	A1    int64 `json:"a1"`
+	A2    int64 `json:"a2"`
+	A3    int64 `json:"a3"`
+	A4    int64 `json:"a4"`
+	K     int64 "json:\"k\""
+	S     int64 "json:\"s\""
+	E     int64 "json:\"\u00e9\""
+	Sig   int64 "json:\"\u03c3\""
+	Sh    int64 "json:\"\u00df\""
+	Dz    int64 "json:\"\u01c6\""
+	NoGen any   `json:"-"`
+}
+
+type FoldKelvinA struct {
+	Kv int64 "json:\"\u212a\""
+}
+
+type FoldKelvinUnion interface {
+	FoldKelvinA | FoldSmallZ
+}
+
+type FoldKelvinHolder struct {
+	Item FoldKelvinUnion `json:"item"`
+}
+
+type FoldKelvinMirror struct {
+	Kv    int64 "json:\"\u212a\""
+	NoGen any   `json:"-"`
+}
+
+var foldCorpus = []string{
+	"k", "K", "\u212a", "s", "S", "\u017f", "\u00e9", "\u00c9", "\u03c3", "\u03c2", "\u03a3",
+	"\u00df", "\u1e9e", "\u01c4", "\u01c5", "\u01c6", "a1", "A1", "kk", "\u00e8", "ss",
+}
+
+func foldFields(v any) []int64 {
+	var out []int64
+	rv := reflect.ValueOf(v)
+	for i := range rv.NumField() {
+		if f := rv.Field(i); f.Kind() == reflect.Int64 {
+			out = append(out, f.Int())
+		}
+	}
+	return out
+}
+
+func checkFoldLaw[H any, M any](t *testing.T) {
+	t.Helper()
+	for _, in := range foldCorpus {
+		doc := `{"` + in + `":7}`
+		var m M
+		if err := json.Unmarshal([]byte(doc), &m); err != nil {
+			t.Fatalf("encoding/json rejects %s: %v", doc, err)
+		}
+		want := foldFields(m)
+		matched := slices.ContainsFunc(want, func(v int64) bool { return v != 0 })
+		var h H
+		err := json.Unmarshal([]byte(`{"item":`+doc+`}`), &h)
+		if !matched {
+			if err == nil {
+				t.Errorf("key %q is no member key by encoding/json, the union decode succeeded", in)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("key %q is a member key by encoding/json, the union decode failed: %v", in, err)
+			continue
+		}
+		item := reflect.ValueOf(&h).Elem().FieldByName("Item").Elem().Interface()
+		if got := foldFields(item); !slices.Equal(got, want) {
+			t.Errorf("key %q: union member holds %v, encoding/json holds %v", in, got, want)
+		}
+	}
+}
+
+func TestFoldUnicodeSwitchUnion(t *testing.T) {
+	checkFoldLaw[FoldSmallHolder, FoldSmallMirror](t)
+}
+
+func TestFoldUnicodeTableUnion(t *testing.T) {
+	checkFoldLaw[FoldWideHolder, FoldWideMirror](t)
+}
+
+func TestFoldUnicodeDeclaredKelvin(t *testing.T) {
+	checkFoldLaw[FoldKelvinHolder, FoldKelvinMirror](t)
+}

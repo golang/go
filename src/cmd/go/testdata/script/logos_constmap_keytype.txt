@@ -1,0 +1,23 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd badkey
+! logos build ./...
+stderr 'comptime::constmap_key_type'
+cd ..
+
+-- badkey/go.mod --
+module example.com/badkey
+
+go 1.27
+
+-- badkey/main.lgo --
+package main
+
+const sliceKey = map[[]byte]int{}
+
+const nestedKey = map[struct {
+	V []int
+}]string{}
+
+func main() {}

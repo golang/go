@@ -1,0 +1,548 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+	"testing"
+)
+
+var sink int
+var sinkErr error
+
+var failed = false
+
+func check(name string, logos, hand float64) {
+	if logos != 0 || hand == 0 {
+		fmt.Println("FAIL", name+":", "pooled", logos, "want 0; hand-written closure", hand, "want above 0")
+		failed = true
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func checkExact(name string, got, want float64) {
+	if got != want {
+		fmt.Println("FAIL", name+":", "got", got, "want", want, "(one object per evaluated argument, none for the defer)")
+		failed = true
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+//go:noinline
+func failNil() error {
+	sink++
+	return nil
+}
+
+//go:noinline
+func failInt(x int) error {
+	sink += x
+	return nil
+}
+
+//go:noinline
+func failStr(s string) error {
+	sink += len(s)
+	return nil
+}
+
+type three struct{ a, b, c int }
+
+//go:noinline
+func failThree(t three) error {
+	sink += t.a + t.b + t.c
+	return nil
+}
+
+type big struct {
+	a [200]byte
+	n int
+}
+
+//go:noinline
+func failBig(b big) error {
+	t := 0
+	for _, v := range b.a {
+		t += int(v)
+	}
+	sink += t + b.n
+	return nil
+}
+
+type box struct{ v int }
+
+//go:noinline
+func (b *box) Close() error {
+	sink += b.v
+	return nil
+}
+
+//go:noinline
+func (b box) CloseVal() error {
+	sink += b.v
+	return nil
+}
+
+//go:noinline
+func wipeIface(c interface{ Close() error }) error {
+	return c.Close()
+}
+
+//go:noinline
+func failGen[T any](v T) error {
+	sink++
+	return nil
+}
+
+//go:noinline
+func failVar(a int, rest ...int) error {
+	sink += a + len(rest)
+	return nil
+}
+
+var fnval = func(x int) error {
+	sink += x
+	return nil
+}
+
+func joinErr(err *error, e error) {
+	if e == nil {
+		return
+	}
+	if *err == nil {
+		*err = e
+	} else {
+		*err = errors.Join(*err, e)
+	}
+}
+
+func shapeFnLogos(n int) (err error) {
+	for i := 0; i < n; i++ {
+		defer failNil()?
+	}
+	return nil
+}
+
+func shapeFnHand(n int) (err error) {
+	for i := 0; i < n; i++ {
+		defer func() { joinErr(&err, failNil()) }()
+	}
+	return nil
+}
+
+func shapeIntLogos(n int) (err error) {
+	for i := 0; i < n; i++ {
+		defer failInt(i)?
+	}
+	return nil
+}
+
+func shapeIntHand(n int) (err error) {
+	for i := 0; i < n; i++ {
+		x := i
+		defer func() { joinErr(&err, failInt(x)) }()
+	}
+	return nil
+}
+
+func shapeStrLogos(n int) (err error) {
+	for i := 0; i < n; i++ {
+		defer failStr("hello")?
+	}
+	return nil
+}
+
+func shapeStrHand(n int) (err error) {
+	for i := 0; i < n; i++ {
+		defer func() { joinErr(&err, failStr("hello")) }()
+	}
+	return nil
+}
+
+func shapeThreeLogos(n int) (err error) {
+	for i := 0; i < n; i++ {
+		defer failThree(three{i, i + 1, i + 2})?
+	}
+	return nil
+}
+
+func shapeThreeHand(n int) (err error) {
+	for i := 0; i < n; i++ {
+		t := three{i, i + 1, i + 2}
+		defer func() { joinErr(&err, failThree(t)) }()
+	}
+	return nil
+}
+
+func shapeBigLogos(n int) (err error) {
+	for i := 0; i < n; i++ {
+		var b big
+		b.a[0] = byte(i)
+		b.n = i
+		defer failBig(b)?
+	}
+	return nil
+}
+
+func shapeBigHand(n int) (err error) {
+	for i := 0; i < n; i++ {
+		var b big
+		b.a[0] = byte(i)
+		b.n = i
+		c := b
+		defer func() { joinErr(&err, failBig(c)) }()
+	}
+	return nil
+}
+
+func shapeMethodLogos(bs []*box) (err error) {
+	for _, b := range bs {
+		defer b.Close()?
+	}
+	return nil
+}
+
+func shapeMethodHand(bs []*box) (err error) {
+	for _, b := range bs {
+		bb := b
+		defer func() { joinErr(&err, bb.Close()) }()
+	}
+	return nil
+}
+
+func shapeMethodValLogos(bs []*box) (err error) {
+	for _, b := range bs {
+		defer b.CloseVal()?
+	}
+	return nil
+}
+
+func shapeMethodValHand(bs []*box) (err error) {
+	for _, b := range bs {
+		bb := b
+		defer func() { joinErr(&err, bb.CloseVal()) }()
+	}
+	return nil
+}
+
+func shapeIfaceLogos(bs []*box) (err error) {
+	for _, b := range bs {
+		defer wipeIface(b)?
+	}
+	return nil
+}
+
+func shapeIfaceHand(bs []*box) (err error) {
+	for _, b := range bs {
+		bb := b
+		defer func() { joinErr(&err, wipeIface(bb)) }()
+	}
+	return nil
+}
+
+func shapeFnValLogos(n int) (err error) {
+	for i := 0; i < n; i++ {
+		defer fnval(i)?
+	}
+	return nil
+}
+
+func shapeFnValHand(n int) (err error) {
+	for i := 0; i < n; i++ {
+		x := i
+		defer func() { joinErr(&err, fnval(x)) }()
+	}
+	return nil
+}
+
+func shapeGenLogos(n int) (err error) {
+	for i := 0; i < n; i++ {
+		defer failGen(i)?
+	}
+	return nil
+}
+
+func shapeGenHand(n int) (err error) {
+	for i := 0; i < n; i++ {
+		defer func() { joinErr(&err, failGen(i)) }()
+	}
+	return nil
+}
+
+func shapeVarLogos(n int) (err error) {
+	for i := 0; i < n; i++ {
+		defer failVar(i, i, i)?
+	}
+	return nil
+}
+
+func shapeVarHand(n int) (err error) {
+	for i := 0; i < n; i++ {
+		x := i
+		defer func() { joinErr(&err, failVar(x, x, x)) }()
+	}
+	return nil
+}
+
+func loopRangeIntLogos(n int) (err error) {
+	for range n {
+		defer failNil()?
+	}
+	return nil
+}
+
+func loopRangeIntHand(n int) (err error) {
+	for range n {
+		defer func() { joinErr(&err, failNil()) }()
+	}
+	return nil
+}
+
+func loopRangeSliceLogos(vs []int) (err error) {
+	for range vs {
+		defer failNil()?
+	}
+	return nil
+}
+
+func loopRangeSliceHand(vs []int) (err error) {
+	for range vs {
+		defer func() { joinErr(&err, failNil()) }()
+	}
+	return nil
+}
+
+func loopGotoLogos(n int) (err error) {
+	i := 0
+again:
+	defer failNil()?
+	i++
+	if i < n {
+		goto again
+	}
+	return nil
+}
+
+func loopGotoHand(n int) (err error) {
+	i := 0
+again:
+	defer func() { joinErr(&err, failNil()) }()
+	i++
+	if i < n {
+		goto again
+	}
+	return nil
+}
+
+func loopNestedLogos(n int) (err error) {
+	for i := 0; i < n; i++ {
+		for j := 0; j < 2; j++ {
+			defer failInt(i+j)?
+		}
+	}
+	return nil
+}
+
+func loopNestedHand(n int) (err error) {
+	for i := 0; i < n; i++ {
+		for j := 0; j < 2; j++ {
+			x := i + j
+			defer func() { joinErr(&err, failInt(x)) }()
+		}
+	}
+	return nil
+}
+
+func loopBreakLogos(n int) (err error) {
+	for i := 0; i < n; i++ {
+		defer failInt(i)?
+		if i == 2 {
+			break
+		}
+	}
+	return nil
+}
+
+func loopBreakHand(n int) (err error) {
+	for i := 0; i < n; i++ {
+		x := i
+		defer func() { joinErr(&err, failInt(x)) }()
+		if x == 2 {
+			break
+		}
+	}
+	return nil
+}
+
+func loopContinueLogos(n int) (err error) {
+	for i := 0; i < n; i++ {
+		if i%2 == 1 {
+			continue
+		}
+		defer failInt(i)?
+	}
+	return nil
+}
+
+func loopContinueHand(n int) (err error) {
+	for i := 0; i < n; i++ {
+		if i%2 == 1 {
+			continue
+		}
+		x := i
+		defer func() { joinErr(&err, failInt(x)) }()
+	}
+	return nil
+}
+
+var preErr = errors.New("preallocated")
+
+func loopPanicLogos(n int) (err error) {
+	for i := 0; i < n; i++ {
+		defer failInt(i)?
+	}
+	panic(preErr)
+}
+
+func loopPanicHand(n int) (err error) {
+	for i := 0; i < n; i++ {
+		x := i
+		defer func() { joinErr(&err, failInt(x)) }()
+	}
+	panic(preErr)
+}
+
+//logos:allow(slop::discarded_error)
+func callRecovered(f func(int) error, n int) (err error) {
+	defer func() {
+		if r := recover(); r != nil && r != preErr {
+			err = errors.Join(err, errors.New("wrong panic"))
+		}
+	}()
+	_ = f(n)
+	return err
+}
+
+func mkBoxes(n int) []*box {
+	bs := make([]*box, 0, n)
+	for i := 0; i < n; i++ {
+		bs = append(bs, &box{v: i})
+	}
+	return bs
+}
+
+func mkInts(n int) []int {
+	vs := make([]int, n)
+	for i := range vs {
+		vs[i] = i
+	}
+	return vs
+}
+
+//go:noinline
+func failPtr(p *int) error {
+	sink += *p
+	return nil
+}
+
+func shapeAddrLogos(n int) (err error) {
+	for i := 0; i < n; i++ {
+		x := i
+		defer failPtr(&x)?
+	}
+	return nil
+}
+
+func checkSemantic(name string, f func() error, want int) {
+	before := sink
+	err := f()
+	if err != nil || sink-before != want {
+		fmt.Println("FAIL", name, "result", err, "sink delta", sink-before, "want", want)
+		failed = true
+	}
+}
+
+func checkPanicSemantic(name string, f func(int) error, n, want int) {
+	before := sink
+	defer func() {
+		r := recover()
+		if r != preErr || sink-before != want {
+			fmt.Println("FAIL", name, "panic", r, "sink delta", sink-before, "want", want)
+			failed = true
+		}
+	}()
+	err := f(n)
+	fmt.Println("FAIL", name, "returned without panic", err)
+	failed = true
+}
+
+func checkDeferredSemantics(nn int, bs []*box, ints []int) {
+	sum := nn * (nn - 1) / 2
+	broken := min(nn, 3)
+	evens := (nn + 1) / 2
+	for _, tc := range []struct {
+		name string
+		logos func() error
+		hand func() error
+		want int
+	}{
+		{"fn", func() error { return shapeFnLogos(nn) }, func() error { return shapeFnHand(nn) }, nn},
+		{"int", func() error { return shapeIntLogos(nn) }, func() error { return shapeIntHand(nn) }, sum},
+		{"str", func() error { return shapeStrLogos(nn) }, func() error { return shapeStrHand(nn) }, 5 * nn},
+		{"three", func() error { return shapeThreeLogos(nn) }, func() error { return shapeThreeHand(nn) }, 3 * sum + 3 * nn},
+		{"big", func() error { return shapeBigLogos(nn) }, func() error { return shapeBigHand(nn) }, 2 * sum},
+		{"fnval", func() error { return shapeFnValLogos(nn) }, func() error { return shapeFnValHand(nn) }, sum},
+		{"gen", func() error { return shapeGenLogos(nn) }, func() error { return shapeGenHand(nn) }, nn},
+		{"var", func() error { return shapeVarLogos(nn) }, func() error { return shapeVarHand(nn) }, sum + 2 * nn},
+		{"method", func() error { return shapeMethodLogos(bs) }, func() error { return shapeMethodHand(bs) }, sum},
+		{"methodval", func() error { return shapeMethodValLogos(bs) }, func() error { return shapeMethodValHand(bs) }, sum},
+		{"iface", func() error { return shapeIfaceLogos(bs) }, func() error { return shapeIfaceHand(bs) }, sum},
+		{"rangeint", func() error { return loopRangeIntLogos(nn) }, func() error { return loopRangeIntHand(nn) }, nn},
+		{"rangeslice", func() error { return loopRangeSliceLogos(ints) }, func() error { return loopRangeSliceHand(ints) }, nn},
+		{"goto", func() error { return loopGotoLogos(nn) }, func() error { return loopGotoHand(nn) }, max(nn, 1)},
+		{"nested", func() error { return loopNestedLogos(nn) }, func() error { return loopNestedHand(nn) }, nn * nn},
+		{"break", func() error { return loopBreakLogos(nn) }, func() error { return loopBreakHand(nn) }, broken * (broken - 1) / 2},
+		{"continue", func() error { return loopContinueLogos(nn) }, func() error { return loopContinueHand(nn) }, evens * (evens - 1)},
+	} {
+		checkSemantic(fmt.Sprint(tc.name, " logos n", nn), tc.logos, tc.want)
+		checkSemantic(fmt.Sprint(tc.name, " hand n", nn), tc.hand, tc.want)
+	}
+	checkPanicSemantic(fmt.Sprint("panic logos n", nn), loopPanicLogos, nn, sum)
+	checkPanicSemantic(fmt.Sprint("panic hand n", nn), loopPanicHand, nn, sum)
+	checkSemantic(fmt.Sprint("addr logos n", nn), func() error { return shapeAddrLogos(nn) }, sum)
+}
+
+func main() {
+	for _, n := range []int{0, 1, 5, 31} {
+		nn := n
+		check(fmt.Sprint("alloc fn for3 n", nn), testing.AllocsPerRun(200, func() { sinkErr = shapeFnLogos(nn) }), testing.AllocsPerRun(200, func() { sinkErr = shapeFnHand(nn) }))
+		check(fmt.Sprint("alloc int for3 n", nn), testing.AllocsPerRun(200, func() { sinkErr = shapeIntLogos(nn) }), testing.AllocsPerRun(200, func() { sinkErr = shapeIntHand(nn) }))
+		check(fmt.Sprint("alloc str for3 n", nn), testing.AllocsPerRun(200, func() { sinkErr = shapeStrLogos(nn) }), testing.AllocsPerRun(200, func() { sinkErr = shapeStrHand(nn) }))
+		check(fmt.Sprint("alloc three for3 n", nn), testing.AllocsPerRun(200, func() { sinkErr = shapeThreeLogos(nn) }), testing.AllocsPerRun(200, func() { sinkErr = shapeThreeHand(nn) }))
+		check(fmt.Sprint("alloc big for3 n", nn), testing.AllocsPerRun(200, func() { sinkErr = shapeBigLogos(nn) }), testing.AllocsPerRun(200, func() { sinkErr = shapeBigHand(nn) }))
+		check(fmt.Sprint("alloc fnval for3 n", nn), testing.AllocsPerRun(200, func() { sinkErr = shapeFnValLogos(nn) }), testing.AllocsPerRun(200, func() { sinkErr = shapeFnValHand(nn) }))
+		check(fmt.Sprint("alloc gen for3 n", nn), testing.AllocsPerRun(200, func() { sinkErr = shapeGenLogos(nn) }), testing.AllocsPerRun(200, func() { sinkErr = shapeGenHand(nn) }))
+		check(fmt.Sprint("alloc var for3 n", nn), testing.AllocsPerRun(200, func() { sinkErr = shapeVarLogos(nn) }), testing.AllocsPerRun(200, func() { sinkErr = shapeVarHand(nn) }))
+		bs := mkBoxes(nn)
+		check(fmt.Sprint("alloc method for3 n", nn), testing.AllocsPerRun(200, func() { sinkErr = shapeMethodLogos(bs) }), testing.AllocsPerRun(200, func() { sinkErr = shapeMethodHand(bs) }))
+		check(fmt.Sprint("alloc methodval for3 n", nn), testing.AllocsPerRun(200, func() { sinkErr = shapeMethodValLogos(bs) }), testing.AllocsPerRun(200, func() { sinkErr = shapeMethodValHand(bs) }))
+		check(fmt.Sprint("alloc iface for3 n", nn), testing.AllocsPerRun(200, func() { sinkErr = shapeIfaceLogos(bs) }), testing.AllocsPerRun(200, func() { sinkErr = shapeIfaceHand(bs) }))
+		check(fmt.Sprint("alloc fn rangeint n", nn), testing.AllocsPerRun(200, func() { sinkErr = loopRangeIntLogos(nn) }), testing.AllocsPerRun(200, func() { sinkErr = loopRangeIntHand(nn) }))
+		ints := mkInts(nn)
+		check(fmt.Sprint("alloc fn rangeslice n", nn), testing.AllocsPerRun(200, func() { sinkErr = loopRangeSliceLogos(ints) }), testing.AllocsPerRun(200, func() { sinkErr = loopRangeSliceHand(ints) }))
+		check(fmt.Sprint("alloc fn goto n", nn), testing.AllocsPerRun(200, func() { sinkErr = loopGotoLogos(nn) }), testing.AllocsPerRun(200, func() { sinkErr = loopGotoHand(nn) }))
+		check(fmt.Sprint("alloc fn nested n", nn), testing.AllocsPerRun(200, func() { sinkErr = loopNestedLogos(nn) }), testing.AllocsPerRun(200, func() { sinkErr = loopNestedHand(nn) }))
+		check(fmt.Sprint("alloc fn break n", nn), testing.AllocsPerRun(200, func() { sinkErr = loopBreakLogos(nn) }), testing.AllocsPerRun(200, func() { sinkErr = loopBreakHand(nn) }))
+		check(fmt.Sprint("alloc fn continue n", nn), testing.AllocsPerRun(200, func() { sinkErr = loopContinueLogos(nn) }), testing.AllocsPerRun(200, func() { sinkErr = loopContinueHand(nn) }))
+		check(fmt.Sprint("alloc fn panic n", nn), testing.AllocsPerRun(200, func() { sinkErr = callRecovered(loopPanicLogos, nn) }), testing.AllocsPerRun(200, func() { sinkErr = callRecovered(loopPanicHand, nn) }))
+		checkExact(fmt.Sprint("alloc addr for3 n", nn), testing.AllocsPerRun(200, func() { sinkErr = shapeAddrLogos(nn) }), float64(nn))
+		checkDeferredSemantics(nn, bs, ints)
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

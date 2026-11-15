@@ -1,0 +1,64 @@
+[!cgo] skip
+[!GOARCH:amd64] skip
+
+# Under -race, constant-size noscan placements call the region slow path
+# instead of the inline bump sequence.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOEXPERIMENT=logosarena
+env CGO_ENABLED=1
+
+cd m
+logos build -o fast.exe .
+go tool objdump -s 'main\.regionBump8' fast.exe
+stdout 'JA '
+go tool objdump -s 'main\.regionBump512' fast.exe
+stdout 'JA '
+logos build -race -o race.exe .
+go tool objdump -s 'main\.regionBump8' race.exe
+! stdout 'JA '
+stdout 'logosRegionAllocNoscan'
+go tool objdump -s 'main\.regionBump512' race.exe
+! stdout 'JA '
+stdout 'logosRegionAllocNoscan'
+
+-- m/go.mod --
+module example.com/regionbumprace
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import "logos/arena"
+
+var regionSink int
+
+type regionPad512 [512]byte
+
+//go:noinline
+func regionUse(p *int) int {
+	*p++
+	return *p
+}
+
+//go:noinline
+func regionBump8() int {
+	r := arena.Open()
+	p := arena.New[int](r)
+	return regionUse(p)
+}
+
+//go:noinline
+func regionBump512() int {
+	r := arena.Open()
+	p := arena.New[regionPad512](r)
+	p[0] = 1
+	return int(p[511])
+}
+
+func main() {
+	regionSink += regionBump8()
+	regionSink += regionBump512()
+	_ = regionSink
+}

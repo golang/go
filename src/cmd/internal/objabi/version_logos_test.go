@@ -17,7 +17,7 @@ func TestStripExperiment(t *testing.T) {
 		{"one experiment dash", "go1.27.2-X:logosfastcgo", "go1.27.2"},
 		{"one experiment space", "go1.27.2 X:fieldtrack", "go1.27.2"},
 		{"multiple experiments dash", "go1.27.2-X:logosfastcgo,regabi", "go1.27.2"},
-		{"multiple experiments space", "go1.27.2 X:fieldtrack,synctest,arenas", "go1.27.2"},
+		{"multiple experiments space", "go1.27.2 X:fieldtrack,synctest,greenteagc", "go1.27.2"},
 		{"devel plain", "devel go1.27-d729a8a", "devel go1.27-d729a8a"},
 		{"devel date plain", "devel go1.27-d729a8a Fri Jan 1 00:00:00 2026 +0000", "devel go1.27-d729a8a Fri Jan 1 00:00:00 2026 +0000"},
 		{"devel one experiment space", "devel go1.27-d729a8a X:logosfastcgo", "devel go1.27-d729a8a"},

@@ -1,0 +1,40 @@
+[!exec:node] skip 'node is required to run js/wasm binaries'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOOS=js
+env GOARCH=wasm
+
+logos build -p=1 -o control.wasm .
+exec $GOROOT/lib/wasm/go_js_wasm_exec control.wasm
+stderr '^ok$'
+
+logos build -p=1 -gcflags=-logos.wasmassume=main.yield -o wrong.wasm .
+! exec $GOROOT/lib/wasm/go_js_wasm_exec wrong.wasm
+stderr 'RuntimeError: unreachable'
+! stderr '^ok$'
+
+env GOOS=
+env GOARCH=
+
+-- go.mod --
+module example.com/wasmwrongmayyield
+
+go 1.27
+
+-- main.go --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import "runtime"
+
+//go:noinline
+func yield() { runtime.Gosched() }
+
+func main() {
+	yield()
+	println("ok")
+}

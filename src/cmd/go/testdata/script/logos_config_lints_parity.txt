@@ -1,0 +1,191 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd nofile
+logos run .
+stdout '^ok$'
+! stderr '::'
+! logos run ./bad
+stderr 'complexity::cognitive_overflow'
+cd ..
+
+cd emptyfile
+logos run .
+stdout '^ok$'
+! stderr '::'
+! logos run ./bad
+stderr 'complexity::cognitive_overflow'
+cd ..
+
+cd nolintstable
+logos run .
+stdout '^ok$'
+! stderr '::'
+! logos run ./bad
+stderr 'complexity::cognitive_overflow'
+cd ..
+
+-- nofile/go.mod --
+module example.com/lintsparity
+
+go 1.27
+
+-- nofile/main.lgo --
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+//logos:allow(correctness::unbounded_channel_op)
+func main() {
+	if len(os.Args) > 99 {
+		ch := make(chan int, 1)
+		ch <- 1
+		ch <- 2
+	}
+	fmt.Println("ok")
+}
+
+-- nofile/bad/bad.lgo --
+package main
+
+import "fmt"
+
+func main() {
+	s := 0
+	if true { s += 1 }
+	if true { s += 2 }
+	if true { s += 3 }
+	if true { s += 4 }
+	if true { s += 5 }
+	if true { s += 6 }
+	if true { s += 7 }
+	if true { s += 8 }
+	if true { s += 9 }
+	if true { s += 10 }
+	if true { s += 11 }
+	if true { s += 12 }
+	if true { s += 13 }
+	if true { s += 14 }
+	if true { s += 15 }
+	if true { s += 16 }
+	if true { s += 17 }
+	if true { s += 18 }
+	if true { s += 19 }
+	if true { s += 20 }
+	fmt.Println(s)
+}
+
+-- emptyfile/go.mod --
+module example.com/lintsparity
+
+go 1.27
+
+-- emptyfile/logos.toml --
+# empty
+
+-- emptyfile/main.lgo --
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+//logos:allow(correctness::unbounded_channel_op)
+func main() {
+	if len(os.Args) > 99 {
+		ch := make(chan int, 1)
+		ch <- 1
+		ch <- 2
+	}
+	fmt.Println("ok")
+}
+
+-- emptyfile/bad/bad.lgo --
+package main
+
+import "fmt"
+
+func main() {
+	s := 0
+	if true { s += 1 }
+	if true { s += 2 }
+	if true { s += 3 }
+	if true { s += 4 }
+	if true { s += 5 }
+	if true { s += 6 }
+	if true { s += 7 }
+	if true { s += 8 }
+	if true { s += 9 }
+	if true { s += 10 }
+	if true { s += 11 }
+	if true { s += 12 }
+	if true { s += 13 }
+	if true { s += 14 }
+	if true { s += 15 }
+	if true { s += 16 }
+	if true { s += 17 }
+	if true { s += 18 }
+	if true { s += 19 }
+	if true { s += 20 }
+	fmt.Println(s)
+}
+
+-- nolintstable/go.mod --
+module example.com/lintsparity
+
+go 1.27
+
+-- nolintstable/logos.toml --
+[build]
+
+-- nolintstable/main.lgo --
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+//logos:allow(correctness::unbounded_channel_op)
+func main() {
+	if len(os.Args) > 99 {
+		ch := make(chan int, 1)
+		ch <- 1
+		ch <- 2
+	}
+	fmt.Println("ok")
+}
+
+-- nolintstable/bad/bad.lgo --
+package main
+
+import "fmt"
+
+func main() {
+	s := 0
+	if true { s += 1 }
+	if true { s += 2 }
+	if true { s += 3 }
+	if true { s += 4 }
+	if true { s += 5 }
+	if true { s += 6 }
+	if true { s += 7 }
+	if true { s += 8 }
+	if true { s += 9 }
+	if true { s += 10 }
+	if true { s += 11 }
+	if true { s += 12 }
+	if true { s += 13 }
+	if true { s += 14 }
+	if true { s += 15 }
+	if true { s += 16 }
+	if true { s += 17 }
+	if true { s += 18 }
+	if true { s += 19 }
+	if true { s += 20 }
+	fmt.Println(s)
+}

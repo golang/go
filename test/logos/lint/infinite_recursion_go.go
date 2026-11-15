@@ -1,11 +1,5 @@
 // errorcheck
 
-// correctness::infinite_recursion on a Go package (SPEC Sec 1.2, #157,
-// R-U1): a function whose every path from entry calls itself with identical
-// arguments before any return. `logos lint` runs the rule at deny here, so
-// a //logos:allow directive silences it. Twin of
-// infinite_recursion.lgo with the same boundary cases.
-
 package p
 
 func selfDirect(n int) int { return selfDirect(n) } // ERROR "correctness::infinite_recursion"
@@ -95,8 +89,6 @@ func reassigned(n int) int {
 
 //logos:allow(correctness::infinite_recursion)
 func allowedDirect(n int) int { return allowedDirect(n) }
-
-// Cases pinned by the M9-S2 callee-rule slice.
 
 func loop(n int) int { return loop(n) } // ERROR "infinite_recursion"
 

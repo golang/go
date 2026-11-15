@@ -1,14 +1,31 @@
 // run
-
 package main
-
-import "fmt"
-
+import (
+"fmt"
+"os"
+"slices"
+)
+var failed bool
+func check(name string, cond bool, got, want any) {
+if !cond {
+failed = true
+fmt.Println("FAIL", name+":", "got", got, "want", want)
+return
+}
+fmt.Println("ok", name)
+}
 func main() {
-	xs := []int{1, 2, 3, 4}
-	ys := []int{5, 6, 7}
-	fmt.Println("taketake", xs.take(ys.take(2).count()))
-	fmt.Println("mapcount", xs.map(x => x*ys.count()))
-	fmt.Println("filtercount", xs.filter(x => x > ys.count()))
-	fmt.Println("recvarg", ys.map(y => y*2).take(xs.count()))
+xs := []int{1, 2, 3, 4}
+ys := []int{5, 6, 7}
+gotTake := xs.take(ys.take(2).count())
+check("taketake", slices.Equal(gotTake, []int{1, 2}), gotTake, []int{1, 2})
+gotMap := xs.map(x => x*ys.count())
+check("mapcount", slices.Equal(gotMap, []int{3, 6, 9, 12}), gotMap, []int{3, 6, 9, 12})
+gotFilter := xs.filter(x => x > ys.count())
+check("filtercount", slices.Equal(gotFilter, []int{4}), gotFilter, []int{4})
+gotRecv := ys.map(y => y*2).take(xs.count())
+check("recvarg", slices.Equal(gotRecv, []int{10, 12, 14}), gotRecv, []int{10, 12, 14})
+if failed {
+os.Exit(1)
+}
 }

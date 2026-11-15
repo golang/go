@@ -132,7 +132,6 @@ func dumpdata() {
 }
 
 func dumpLinkerObj(bout *bio.Writer) {
-	markUintptrForeignFuncs()
 	printObjHeader(bout)
 
 	if len(typecheck.Target.CgoPragmas) != 0 {

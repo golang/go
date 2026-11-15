@@ -1,0 +1,202 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd twin
+logos run .
+! stdout 'FAIL'
+cp stdout ../twin.txt
+cd ..
+
+cd x
+logos run .
+! stdout 'FAIL'
+cmp stdout ../twin.txt
+logos eject -o out
+exists out/main.go
+cd out
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout ../../twin.txt
+cd ../..
+
+-- twin/go.mod --
+module example.com/twin
+
+go 1.27
+
+-- twin/main.lgo --
+package main
+
+import "fmt"
+
+type Left[T any] struct{ V T }
+
+type Right[T any] struct{ V T }
+
+func (l Left[T]) Name() string { return "left" }
+
+func (r Right[T]) Name() string { return "right" }
+
+type Pair[T any] interface {
+	Left[T] | Right[T]
+	Name() string
+}
+
+type Link[T any] interface {
+	*T | string
+}
+
+type Seq[T any] interface {
+	[]T | int
+}
+
+func PickPair[T any](i int, v T) Pair[T]? {
+	switch i {
+	case 0:
+		return Pair[T](Left[T]{V: v})
+	case 1:
+		return Pair[T](Right[T]{V: v})
+	}
+	return nil
+}
+
+func DescribePair[T any](p Pair[T]?) string {
+	if p != nil {
+		return p.Name()
+	}
+	return "absent"
+}
+
+func FindLink(ok bool) Link[int]? {
+	if ok {
+		return Link[int]("linked")
+	}
+	return nil
+}
+
+func FindSeq(ok bool) Seq[int]? {
+	if ok {
+		return Seq[int]([]int(nil))
+	}
+	return nil
+}
+
+func report(name string, ok bool) {
+	if ok {
+		fmt.Println("ok", name)
+		return
+	}
+	fmt.Println("FAIL", name)
+}
+
+func main() {
+	report("pair-left", DescribePair[int](PickPair(0, 1)) == "left")
+	report("pair-right", DescribePair[int](PickPair(1, 1)) == "right")
+	report("pair-absent", DescribePair[int](PickPair(2, 1)) == "absent")
+	report("pair-nil", PickPair(2, "s") == nil)
+	report("pair-present", PickPair(0, "s") != nil)
+	var local Pair[string]? = nil
+	report("pair-local-absent", DescribePair[string](local) == "absent")
+	local = Pair[string](Left[string]{V: "x"})
+	report("pair-local-member", DescribePair[string](local) == "left")
+	report("link-present", FindLink(true) != nil)
+	report("link-absent", FindLink(false) == nil)
+	report("link-coalesce", fmt.Sprint(FindLink(false) ?? Link[int]("none")) == "none")
+	report("seq-present-nil", FindSeq(true) != nil)
+	report("seq-absent", FindSeq(false) == nil)
+}
+
+-- x/go.mod --
+module example.com/ord
+
+go 1.27
+
+-- x/exp/exp.lgo --
+package exp
+
+type Left[T any] struct{ V T }
+
+type Right[T any] struct{ V T }
+
+func (l Left[T]) Name() string { return "left" }
+
+func (r Right[T]) Name() string { return "right" }
+
+type Pair[T any] interface {
+	Left[T] | Right[T]
+	Name() string
+}
+
+type Link[T any] interface {
+	*T | string
+}
+
+type Seq[T any] interface {
+	[]T | int
+}
+
+func PickPair[T any](i int, v T) Pair[T]? {
+	switch i {
+	case 0:
+		return Pair[T](Left[T]{V: v})
+	case 1:
+		return Pair[T](Right[T]{V: v})
+	}
+	return nil
+}
+
+func DescribePair[T any](p Pair[T]?) string {
+	if p != nil {
+		return p.Name()
+	}
+	return "absent"
+}
+
+func FindLink(ok bool) Link[int]? {
+	if ok {
+		return Link[int]("linked")
+	}
+	return nil
+}
+
+func FindSeq(ok bool) Seq[int]? {
+	if ok {
+		return Seq[int]([]int(nil))
+	}
+	return nil
+}
+
+-- x/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	a "example.com/ord/exp"
+)
+
+func report(name string, ok bool) {
+	if ok {
+		fmt.Println("ok", name)
+		return
+	}
+	fmt.Println("FAIL", name)
+}
+
+func main() {
+	report("pair-left", a.DescribePair[int](a.PickPair(0, 1)) == "left")
+	report("pair-right", a.DescribePair[int](a.PickPair(1, 1)) == "right")
+	report("pair-absent", a.DescribePair[int](a.PickPair(2, 1)) == "absent")
+	report("pair-nil", a.PickPair(2, "s") == nil)
+	report("pair-present", a.PickPair(0, "s") != nil)
+	var local a.Pair[string]? = nil
+	report("pair-local-absent", a.DescribePair[string](local) == "absent")
+	local = a.Pair[string](a.Left[string]{V: "x"})
+	report("pair-local-member", a.DescribePair[string](local) == "left")
+	report("link-present", a.FindLink(true) != nil)
+	report("link-absent", a.FindLink(false) == nil)
+	report("link-coalesce", fmt.Sprint(a.FindLink(false) ?? a.Link[int]("none")) == "none")
+	report("seq-present-nil", a.FindSeq(true) != nil)
+	report("seq-absent", a.FindSeq(false) == nil)
+}

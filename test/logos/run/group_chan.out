@@ -1,3 +1,5 @@
-err: sibling failed
-default-ran: 1
-default-loops: 40
+ok group-chan-first-error-wins
+ok group-chan-join-unblocks-receivers
+ok group-chan-select-default-unchanged
+ok group-chan-default-loop-completes
+ok group-chan-select-default-after-cancel

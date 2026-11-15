@@ -1,1 +1,3 @@
-2000 500500 2
+ok union-gc-shape-survives-gc
+ok union-gc-shape-map-intact
+ok union-gc-shape-assert-to-union

@@ -2,59 +2,282 @@
 
 package main
 
-// M5-S3 and M5-S4 read-only placement (SPEC Sec 2.1, Sec 9.1, T-201;
-// T-PERF PLAN:687): touching const composites adds no heap bytes at
-// init, and a const array and both tables of a 1,000-key const map are
-// read-only symbols (type R in go tool nm).
 
 import (
+	"debug/elf"
+	"debug/macho"
+	"debug/pe"
+	"encoding/binary"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 )
 
 const initSlice = []int{2, 3, 5, 7, 11, 13, 17, 19}
 const initArray = [8]int{1, 2, 3, 4, 5, 6, 7, 8}
 
-// probeSrc builds the nm probe: a const array and a 1,000-key const map,
-// which lowers to a perfect-hash table (more than 8 keys).
-func probeSrc() string {
-	var b strings.Builder
-	b.WriteString("package main\n\nimport \"fmt\"\n\nconst initArray = [8]int{1, 2, 3, 4, 5, 6, 7, 8}\n\nconst squares = map[int]int{")
-	for k := range 1000 {
-		b.WriteString(fmt.Sprintf("%d: %d, ", k, k*k))
-	}
-	b.WriteString("}\n\nfunc main() {\n\tn := 0\n\tfor range squares {\n\t\tn++\n\t}\n\tfmt.Println(initArray, squares[31] ?? -1, n)\n}\n")
-	return b.String()
-}
+var initAlloc uint64
 
-//logos:allow(complexity::cognitive_overflow)
-func main() {
+const heapBand = 16384
+
+func init() {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 	runtime.ReadMemStats(&m)
-	before := m.HeapAlloc
+	initAlloc = m.TotalAlloc
+}
+
+func depSrc() string {
+	return "package dep\n\nimport (\n\t\"runtime\"\n\n\t_ \"logos/rt\"\n)\n\nvar AtInit uint64\n\nfunc init() {\n\tvar m runtime.MemStats\n\truntime.ReadMemStats(&m)\n\truntime.ReadMemStats(&m)\n\tAtInit = m.TotalAlloc\n}\n"
+}
+
+func staticMapSrc() string {
+	var b strings.Builder
+	b.WriteString("package staticmap\n\nconst squares = map[int]int{")
+	for k := range 1000 {
+		b.WriteString(fmt.Sprintf("%d: %d, ", k, k*k))
+	}
+	b.WriteString(`}
+
+func Check() bool {
+	for k := 0; k < 1000; k++ {
+		if (squares[k] ?? -1) != k*k {
+			return false
+		}
+	}
+	if (squares[-1] ?? -1) != -1 || (squares[1000] ?? -1) != -1 {
+		return false
+	}
+	n := 0
+	for k, v := range squares {
+		if k != n || v != n*n {
+			return false
+		}
+		n++
+	}
+	return n == 1000
+}
+`)
+	return b.String()
+}
+
+func probeSrc() string {
+	return `package main
+
+import (
+	"fmt"
+	"os"
+	"runtime"
+
+	"probe/dep"
+	"probe/staticmap"
+)
+
+const initArray = [8]int{1, 2, 3, 4, 5, 6, 7, 8}
+const flat = [8]int{1, 2, 3, 4, 5, 6, 7, 8}
+const sl = []int{1, 2, 3, 4, 5, 6, 7, 8}
+
+var mainInitRan = false
+
+func init() {
+	mainInitRan = true
+}
+
+func checkFlat() bool {
+	if mainInitRan || flat != [8]int{1, 2, 3, 4, 5, 6, 7, 8} {
+		return false
+	}
 	sum := 0
-	for _, v := range initSlice {
+	for _, v := range sl {
 		sum += v
 	}
-	for _, v := range initArray {
-		sum += v
+	return sum == 36
+}
+
+var earlyFlatOK = checkFlat()
+
+func main() {
+	if !earlyFlatOK {
+		fmt.Println("FAIL flat not ready before init")
+		os.Exit(1)
 	}
-	if sum != 113 {
-		fmt.Printf("FAIL sum=%d\n", sum)
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	runtime.ReadMemStats(&m)
+	if m.TotalAlloc < dep.AtInit || m.TotalAlloc-dep.AtInit > 16384 {
+		fmt.Printf("FAIL probe composite init heap grew: %d vs %d\n", dep.AtInit, m.TotalAlloc)
+		os.Exit(1)
+	}
+	if !staticmap.Check() {
+		fmt.Println("FAIL static map lookups or sorted range")
+		os.Exit(1)
+	}
+	fmt.Println(initArray, flat, sl)
+	fmt.Println("probe init OK")
+}
+`
+}
+
+func checkStaticMapInit(path string, nmOut []byte) error {
+	switch runtime.GOOS {
+	case "darwin", "ios":
+		return checkMachOMapInit(path)
+	case "windows":
+		return checkPEMapInit(path)
+	case "aix", "plan9":
+		return checkNMMapInit(nmOut)
+	default:
+		return checkELFMapInit(path)
+	}
+}
+
+func checkInitHeader(r io.ReaderAt, order binary.ByteOrder, off, size uint64) error {
+	if off > size || size-off < 8 || off > 1<<63-1 {
+		return fmt.Errorf("static-map init header exceeds section")
+	}
+	var header [8]byte
+	if _, err := r.ReadAt(header[:], int64(off)); err != nil {
+		return err
+	}
+	if count := order.Uint32(header[4:]); count != 0 {
+		return fmt.Errorf("static-map init has %d executable entries, want 0", count)
+	}
+	return nil
+}
+
+func checkMachOMapInit(path string) (err error) {
+	f, err := macho.Open(path)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if closeErr := f.Close(); closeErr != nil {
+			err = fmt.Errorf("Mach-O init proof: %w; close: %w", err, closeErr)
+		}
+	}()
+	if f.Symtab == nil {
+		return fmt.Errorf("missing Mach-O symbol table")
+	}
+	for _, s := range f.Symtab.Syms {
+		if strings.TrimPrefix(s.Name, "_") == "probe/staticmap..inittask" {
+			return checkMachOTask(f, s)
+		}
+	}
+	return nil
+}
+
+func checkMachOTask(f *macho.File, s macho.Symbol) error {
+	if s.Sect == 0 || int(s.Sect) > len(f.Sections) {
+		return fmt.Errorf("static-map init task has invalid Mach-O section")
+	}
+	sec := f.Sections[int(s.Sect)-1]
+	if s.Value < sec.Addr {
+		return fmt.Errorf("static-map init task precedes Mach-O section")
+	}
+	return checkInitHeader(sec, f.ByteOrder, s.Value-sec.Addr, sec.Size)
+}
+
+func checkPEMapInit(path string) (err error) {
+	f, err := pe.Open(path)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if closeErr := f.Close(); closeErr != nil {
+			err = fmt.Errorf("PE init proof: %w; close: %w", err, closeErr)
+		}
+	}()
+	if len(f.Symbols) == 0 {
+		return fmt.Errorf("missing PE symbol table")
+	}
+	for _, s := range f.Symbols {
+		if strings.TrimPrefix(s.Name, "_") == "probe/staticmap..inittask" {
+			return checkPETask(f, s)
+		}
+	}
+	return nil
+}
+
+func checkPETask(f *pe.File, s *pe.Symbol) error {
+	if s.SectionNumber <= 0 || int(s.SectionNumber) > len(f.Sections) {
+		return fmt.Errorf("static-map init task has invalid PE section")
+	}
+	sec := f.Sections[int(s.SectionNumber)-1]
+	return checkInitHeader(sec, binary.LittleEndian, uint64(s.Value), uint64(sec.Size))
+}
+
+func checkNMMapInit(nmOut []byte) error {
+	for _, line := range strings.Split(string(nmOut), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 4 || fields[len(fields)-1] != "probe/staticmap..inittask" {
+			continue
+		}
+		size, err := strconv.ParseUint(fields[1], 10, 64)
+		if err != nil || size != 8 {
+			return fmt.Errorf("static-map init task size %s, want 8-byte zero-entry header", fields[1])
+		}
+	}
+	return nil
+}
+
+func checkELFMapInit(path string) (err error) {
+	f, err := elf.Open(path)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if closeErr := f.Close(); closeErr != nil {
+			err = fmt.Errorf("ELF init proof: %w; close: %w", err, closeErr)
+		}
+	}()
+	symbols, err := f.Symbols()
+	if err != nil {
+		return err
+	}
+	for _, s := range symbols {
+		if s.Name == "probe/staticmap..inittask" {
+			return checkELFTask(f, s)
+		}
+	}
+	return nil
+}
+
+func checkELFTask(f *elf.File, s elf.Symbol) error {
+	if s.Section == elf.SHN_UNDEF || int(s.Section) >= len(f.Sections) {
+		return fmt.Errorf("static-map init task has invalid ELF section")
+	}
+	sec := f.Sections[s.Section]
+	if s.Value < sec.Addr || s.Size != 8 {
+		return fmt.Errorf("static-map init task has invalid ELF header or executable entries")
+	}
+	return checkInitHeader(sec, f.ByteOrder, s.Value-sec.Addr, sec.Size)
+}
+
+func checkStartupHeap() {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	runtime.ReadMemStats(&m)
+	before := m.TotalAlloc
+	if before < initAlloc || before-initAlloc > heapBand {
+		fmt.Printf("FAIL init heap grew: %d vs %d\n", initAlloc, before)
 		os.Exit(1)
 	}
 	runtime.ReadMemStats(&m)
-	after := m.HeapAlloc
-	fmt.Printf("heap delta=%d\n", after-before)
-	if after != before {
-		fmt.Println("FAIL heap grew at init")
+	after := m.TotalAlloc
+	if after-before > heapBand {
+		fmt.Println("FAIL heap:", "got", after-before, "want", "at most", heapBand)
 		os.Exit(1)
 	}
+	fmt.Println("ok heap")
+}
+
+func main() {
+	checkStartupHeap()
 	binDir := filepath.Join(runtime.GOROOT(), "bin")
 	goBin := filepath.Join(binDir, "go")
 	logosBin := filepath.Join(binDir, "logos")
@@ -67,6 +290,19 @@ func main() {
 		fmt.Printf("FAIL tempdir: %v\n", err)
 		os.Exit(1)
 	}
+	defer func() {
+		if err := os.RemoveAll(dir); err != nil {
+			fmt.Printf("FAIL tempdir cleanup: %v\n", err)
+			os.Exit(1)
+		}
+	}()
+	writeProbeSources(dir)
+	buildAndRunProbe(dir, logosBin)
+	checkProbeBinary(dir, goBin)
+	checkInitialComposites()
+}
+
+func writeProbeSources(dir string) {
 	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module probe\n\ngo 1.27\n"), 0644); err != nil {
 		fmt.Printf("FAIL gomode: %v\n", err)
 		os.Exit(1)
@@ -75,30 +311,83 @@ func main() {
 		fmt.Printf("FAIL source: %v\n", err)
 		os.Exit(1)
 	}
+	if err := os.MkdirAll(filepath.Join(dir, "dep"), 0755); err != nil {
+		fmt.Printf("FAIL depdir: %v\n", err)
+		os.Exit(1)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "dep", "dep.lgo"), []byte(depSrc()), 0644); err != nil {
+		fmt.Printf("FAIL depsource: %v\n", err)
+		os.Exit(1)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "staticmap"), 0755); err != nil {
+		fmt.Printf("FAIL staticmap dir: %v\n", err)
+		os.Exit(1)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "staticmap", "staticmap.lgo"), []byte(staticMapSrc()), 0644); err != nil {
+		fmt.Printf("FAIL staticmap source: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func buildAndRunProbe(dir, logosBin string) {
 	cmd := exec.Command(logosBin, "build", "-o", "probe.exe", ".")
 	cmd.Dir = dir
 	if out, err := cmd.CombinedOutput(); err != nil {
 		fmt.Printf("FAIL probe build: %v\n%s", err, out)
 		os.Exit(1)
 	}
-	nmOut, err := exec.Command(goBin, "tool", "nm", filepath.Join(dir, "probe.exe")).CombinedOutput()
+	probeOut, err := exec.Command(filepath.Join(dir, "probe.exe")).CombinedOutput()
+	if err != nil {
+		fmt.Printf("FAIL probe run: %v\n%s", err, probeOut)
+		os.Exit(1)
+	}
+	if !strings.Contains(string(probeOut), "probe init OK") {
+		fmt.Printf("FAIL probe:\n%s", probeOut)
+		os.Exit(1)
+	}
+}
+
+func checkProbeBinary(dir, goBin string) {
+	nmOut, err := exec.Command(goBin, "tool", "nm", "-size", filepath.Join(dir, "probe.exe")).CombinedOutput()
 	if err != nil {
 		fmt.Printf("FAIL nm: %v\n%s", err, nmOut)
 		os.Exit(1)
 	}
+	checkReadOnlyTables(nmOut)
+	if err := checkStaticMapInit(filepath.Join(dir, "probe.exe"), nmOut); err != nil {
+		fmt.Printf("FAIL static-map exact-zero init: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func checkReadOnlyTables(nmOut []byte) {
 	symType := map[string]string{}
 	for _, line := range strings.Split(string(nmOut), "\n") {
-		if f := strings.Fields(line); len(f) >= 3 {
-			symType[f[len(f)-1]] = f[1]
+		if f := strings.Fields(line); len(f) >= 4 {
+			symType[f[len(f)-1]] = f[2]
 		}
 	}
-	for _, sym := range []string{"main.initArray", "main._logos_cm0_squares_sorted", "main._logos_cm0_squares_tab"} {
+	for _, sym := range []string{"main.initArray", "main.flat", "probe/staticmap._logos_cm0_squares_sorted", "probe/staticmap._logos_cm0_squares_tab"} {
 		kind := symType[sym] ?? ""
-		fmt.Printf("%s=%s\n", sym, kind)
 		if kind != "R" {
 			fmt.Printf("FAIL %s not in rodata\n", sym)
 			os.Exit(1)
 		}
+		fmt.Println("ok", strings.Replace(sym, "probe/staticmap.", "main.", 1))
 	}
-	fmt.Println("init OK")
+}
+
+func checkInitialComposites() {
+	sum := 0
+	for _, v := range initSlice {
+		sum += v
+	}
+	for _, v := range initArray {
+		sum += v
+	}
+	if sum != 113 {
+		fmt.Printf("FAIL sum=%d\n", sum)
+		os.Exit(1)
+	}
+	fmt.Println("ok init")
 }

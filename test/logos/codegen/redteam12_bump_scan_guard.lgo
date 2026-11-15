@@ -2,21 +2,6 @@
 
 package main
 
-// REDTEAM #12 (SPEC Sec 19, T-301.1; IMPLEMENTATION.md M18-S3): the inline
-// noscan bump path must serve only pointer-free (noscan) objects of at most
-// 512 bytes. Every other object must take the slow path so heap mark bits
-// are never corrupted by a noscan bump without a GC header.
-//
-// This fixture guards the two rejections from the bump side, distinct from
-// the 511/512/513 threshold probes in arena_bump.lgo:
-//   - a small constant scan slice (pointer-bearing, 64 x 8 = 512 bytes)
-//     must not take the bump or any arena helper; the global store forces
-//     it onto the heap through runtime.makeslice, and the scan shape must
-//     never take the noscan bump path.
-//   - a large constant noscan slice (1024 bytes) must not take the inline
-//     sequence; it calls runtime.logosArenaAlloc directly.
-// Only amd64 lowers makes to the arena, so only amd64 is checked here.
-
 var (
 	r12Sink       int
 	r12Global     []byte
@@ -37,10 +22,6 @@ func r12UsePtr(b []*int) int {
 	return len(b) + cap(b)
 }
 
-// Small scan constant: 0 x len, 64 x cap of *int (512-byte payload) but
-// pointer-bearing, stored to a global so it escapes to the heap; it must
-// never touch the bump or any arena helper.
-
 //go:noinline
 func r12ScanConst() int {
 	// amd64:1"CALL.*runtime\\.makeslice"
@@ -51,9 +32,6 @@ func r12ScanConst() int {
 	r12ScanGlobal = b
 	return r12UsePtr(b)
 }
-
-// Large noscan constant: 1024 bytes, over the 512 threshold, so it takes
-// the slow allocator with no inline bump sequence.
 
 //go:noinline
 func r12LargeNoscan() int {

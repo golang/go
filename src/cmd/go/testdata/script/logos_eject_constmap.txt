@@ -1,0 +1,48 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# Const map lookups lower without loops or map fallbacks.
+cd m
+logos run .
+cp stdout $WORK/want.txt
+logos eject -o out
+exists out/main.go
+	# Switch lookup: 8 key cases. Absent path is proven by run output.
+	grep -count=8 'case [0-9]:' out/main.go
+# Table lookup: exactly one table Get call.
+grep -count=1 '_tab\.Get\(' out/main.go
+! grep 'for ' out/main.go
+# No loop and no logarithmic fallback in the lowered lookups.
+! grep 'sort\.' out/main.go
+! grep 'BinarySearch' out/main.go
+! grep 'binarySearch' out/main.go
+cd out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+go run .
+cmp stdout $WORK/want.txt
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+cd ..
+
+-- m/go.mod --
+module example.com/cmshape
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import "fmt"
+
+const eight = map[int]string{1: "a", 2: "b", 3: "c", 4: "d", 5: "e", 6: "f", 7: "g", 8: "h"}
+
+const nine = map[int]string{1: "a", 2: "b", 3: "c", 4: "d", 5: "e", 6: "f", 7: "g", 8: "h", 9: "i"}
+
+func main() {
+	fmt.Println(eight[3] ?? "none", eight[9] ?? "none")
+	fmt.Println(nine[5] ?? "none", nine[10] ?? "none")
+}

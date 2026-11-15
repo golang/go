@@ -1,0 +1,51 @@
+// run -goexperiment logosarena -arena=false
+// run -goexperiment logosarena
+package main
+
+import (
+	"fmt"
+	"logos/arena"
+	"os"
+	"runtime"
+)
+
+type node struct {
+	next *node
+	v    int
+}
+
+//go:noinline
+func link(o, p *node) {
+	o.next = p
+}
+
+func main() {
+	var total int
+	{
+		rOut := arena.Open()
+		po := arena.New[node](rOut)
+		po.v = 40
+		{
+			rIn := arena.Open()
+			pi := arena.New[node](rIn)
+			pi.v = 2
+			link(po, pi)
+			_ = pi
+		}
+		rChurn := arena.Open()
+		for i := range 10 {
+			q := arena.New[node](rChurn)
+			q.v = 100 + i
+			_ = q
+		}
+		runtime.GC()
+		total = po.v + po.next.v
+		_ = po
+	}
+	runtime.GC()
+	if total != 40+2 {
+		fmt.Printf("FAIL outer-region-pointer-survives-inner-exit-and-gc: got %d want 42\n", total)
+		os.Exit(1)
+	}
+	fmt.Println("ok outer-region-pointer-survives-inner-exit-and-gc")
+}

@@ -1,0 +1,46 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cp $GOROOT/test/logos/run/switch_expr_result_types.lgo a/main.lgo
+cp $GOROOT/test/logos/run/switch_expr_option_arms.lgo b/main.lgo
+
+cd a
+logos run .
+cmp stdout $GOROOT/test/logos/run/switch_expr_result_types.out
+logos eject -o out
+exists out/main.go
+! exists out/main.lgo
+cd out
+go run .
+cmp stdout $GOROOT/test/logos/run/switch_expr_result_types.out
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ../..
+
+cd b
+logos run .
+cmp stdout $GOROOT/test/logos/run/switch_expr_option_arms.out
+logos eject -o out
+exists out/main.go
+! exists out/main.lgo
+cd out
+go run .
+cmp stdout $GOROOT/test/logos/run/switch_expr_option_arms.out
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ../..
+
+-- a/go.mod --
+module example.com/switchexprresulttypes
+
+go 1.27
+-- b/go.mod --
+module example.com/switchexproptionarms
+
+go 1.27

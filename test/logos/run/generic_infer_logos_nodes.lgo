@@ -1,0 +1,51 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func keepOpt[T any](v T, c int?) int? {
+	return c
+}
+
+func headOf[A, B any](p (A, B)) A {
+	a, _ := p
+	return a
+}
+
+func same[T any](v T) T {
+	return v
+}
+
+func pair() (int, string) {
+	return 3, "x"
+}
+
+func main() {
+	check("option-param-value", (keepOpt(1, 7) ?? -1) == 7, keepOpt(1, 7) ?? -1, 7)
+	check("option-param-absent", keepOpt("s", nil) == nil, "present", "absent")
+	var in int? = 4
+	check("option-inferred-as-type-argument", (same(in) ?? 0) == 4, same(in) ?? 0, 4)
+	t := (pair())
+	check("tuple-of-type-parameters", headOf(t) == 3, headOf(t), 3)
+	u := same(t)
+	a, b := u
+	check("tuple-inferred-as-type-argument", a == 3 && b == "x", fmt.Sprint(a, b), "3 x")
+	if failed {
+		os.Exit(1)
+	}
+}

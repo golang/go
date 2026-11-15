@@ -1,5 +1,24 @@
-basic: 1024 1 1 4096 4 1024 4096
-closure: 20480 20480 20480 20480
-condpost: 332 40960 40960 9216 9216
-nested: 51200 50 1318 51200
-escape: 61440 62464 61440 62464
+ok basic-kept-sum-matches-fill-1-rule
+ok basic-kept-first-byte-is-1
+ok basic-kept-last-byte-is-1
+ok basic-last-sum-matches-fill-4-rule
+ok basic-last-first-byte-is-4
+ok basic-gc-preserves-kept-sum
+ok basic-gc-preserves-last-sum
+ok closure-direct-matches-fill-20-rule
+ok closure-captured-matches-direct
+ok closure-gc-preserves-direct
+ok closure-gc-preserves-captured
+ok condpost-kept-sum-matches-fill-40-rule
+ok condpost-gc-preserves-kept-sum
+ok condpost-outer-sum-matches-fill-9-rule
+ok condpost-gc-preserves-outer-sum
+ok condpost-endpoints-match-arithmetic-series
+ok nested-kept-sum-matches-fill-50-rule
+ok nested-kept-first-byte-is-50
+ok nested-gc-preserves-kept-sum
+ok nested-consumed-fills-match-grid-and-series
+ok escape-kept-sum-matches-fill-60-rule
+ok escape-sink-sum-matches-fill-61-rule
+ok escape-gc-preserves-kept-sum
+ok escape-gc-preserves-sink-sum

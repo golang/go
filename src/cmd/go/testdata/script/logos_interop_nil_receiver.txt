@@ -1,0 +1,60 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+cd w
+logos build -o $WORK/bin/receiver$GOEXE ./caller
+exec $WORK/bin/receiver$GOEXE
+stdout '^7$'
+cd ..
+
+-- w/go.work --
+go 1.27
+
+use (
+	./lib
+	./caller
+)
+
+-- w/lib/go.mod --
+module example.com/receiverhole/lib
+
+go 1.27
+
+-- w/lib/lib.lgo --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package lib
+
+type Box struct{}
+
+func (b *Box) Value() int { return 7 }
+
+func Check(b *Box) int { return 7 }
+
+-- w/caller/go.mod --
+module example.com/receivercaller
+
+go 1.27
+
+-- w/caller/main.go --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+	"fmt"
+	"example.com/receiverhole/lib"
+)
+
+func value() (n int) {
+	defer func() { recover() }()
+	var b *lib.Box
+	return b.Value()
+}
+
+func main() { fmt.Println(value()) }

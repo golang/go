@@ -19,3 +19,8 @@ func moved() *int {
 	x := 5
 	return &x
 }
+
+func arenaBuffer(n int) int {
+	buf := make([]byte, n)
+	return len(buf)
+}

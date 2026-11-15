@@ -1,0 +1,188 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# A hoisted call operand, a received value, the result of && and a switch
+# tag whose type is an unexported type of another package take part in the
+# hoist of a go group child, natively and in the ejected module.
+cd a
+logos run .
+cp stdout $WORK/native.txt
+logos eject -o out
+exists out/main.go
+! exists out/main.lgo
+cd out
+go run .
+cmp stdout $WORK/native.txt
+# SPEC 0.3: ejected output builds and runs with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $WORK/native.txt
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ../..
+
+-- a/go.mod --
+module example.com/hidden
+
+go 1.27
+-- a/b/b.lgo --
+package b
+
+type hidden struct{ N int }
+
+type hiddenBool bool
+
+func Make(n int) hidden { return hidden{n} }
+
+func MakeOrdered(n int, order *int) hidden {
+	if *order != 0 {
+		panic("hidden operand evaluated more than once")
+	}
+	*order = 1
+	return Make(n)
+}
+
+func Blocked() chan hidden { return nil }
+
+func Chan(n int) chan hidden {
+	c := make(chan hidden, 1)
+	c <- hidden{n}
+	return c
+}
+
+func Flag(v bool) hiddenBool { return hiddenBool(v) }
+
+func Show(h hidden, v int) int { return h.N*10 + v }
+
+func Take(v hiddenBool) int {
+	if v {
+		return 1
+	}
+	return 0
+}
+-- a/main.lgo --
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+
+	"example.com/hidden/b"
+)
+
+func ordered(in chan int, order *int) chan int {
+	if *order != 1 {
+		panic("receive ran before hidden operand")
+	}
+	*order = 2
+	return in
+}
+
+func plain(ctx context.Context, in chan int, out *int) error {
+	go group (ctx) {
+		go {
+			order := 0
+			*out = b.Show(b.MakeOrdered(2, &order), <-ordered(in, &order))
+		}
+	}
+	return nil
+}
+
+func elem(ctx context.Context, out *int) error {
+	go group (ctx) {
+		go {
+			h := <-b.Chan(3)
+			*out = b.Show(h, 1)
+		}
+	}
+	return nil
+}
+
+func flag(ctx context.Context, in chan int, out *int) error {
+	go group (ctx) {
+		go {
+			*out = b.Take(b.Flag(true) && <-in == 1)
+		}
+	}
+	return nil
+}
+
+func tag(ctx context.Context, in chan int, out *int) error {
+	go group (ctx) {
+		go {
+			switch b.Make(2) {
+			case b.Make(<-in):
+				*out = 1
+			default:
+				*out = 2
+			}
+		}
+	}
+	return nil
+}
+
+func feed(v int) chan int {
+	in := make(chan int, 1)
+	in <- v
+	return in
+}
+
+func check(name string, err error, got, want int) {
+	if err != nil {
+		panic(err)
+	}
+	if got != want {
+		panic(fmt.Sprintf("%s: got %d, want %d", name, got, want))
+	}
+	fmt.Println("ok", name)
+}
+
+func elemCancel(ctx context.Context, out *int) error {
+	go group (ctx) {
+		go {
+			h := <-b.Blocked()
+			*out = b.Show(h, 1)
+		}
+	}
+	return nil
+}
+
+func cancelled(name string, run func(context.Context, *int) error) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	var out int
+	err := run(ctx, &out)
+	if !errors.Is(err, context.Canceled) {
+		panic(fmt.Sprintf("%s: cancellation error %v", name, err))
+	}
+	if out != 0 {
+		panic(name + ": evaluated after cancellation")
+	}
+	fmt.Println("ok", name)
+}
+
+func main() {
+	ctx := context.Background()
+	var out int
+	err := plain(ctx, feed(5), &out)
+	check("hidden-operand", err, out, 25)
+	out = 0
+	err = elem(ctx, &out)
+	check("hidden-element", err, out, 31)
+	out = 0
+	err = flag(ctx, feed(1), &out)
+	check("hidden-boolean", err, out, 1)
+	out = 0
+	err = tag(ctx, feed(2), &out)
+	check("hidden-tag", err, out, 1)
+	cancelled("hidden-element-cancel", elemCancel)
+	cancelled("hidden-boolean-cancel", func(ctx context.Context, out *int) error {
+		return flag(ctx, nil, out)
+	})
+	cancelled("hidden-tag-cancel", func(ctx context.Context, out *int) error {
+		return tag(ctx, nil, out)
+	})
+}

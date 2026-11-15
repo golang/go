@@ -2,16 +2,6 @@
 
 package main
 
-// #11: async preemption migrating G mid-arena use (IMPLEMENTATION.md
-// M18-S3, SPEC Sec 8.3, T-301.1). Arena objects in use must stay reachable
-// across preemption, the bump sequence must be an async-preemption unsafe
-// point, and the collector must scan scan-region objects with the owning
-// goroutine stack. The PCDATA unsafe marker itself is pinned by
-// test/logos/codegen/arena_bump.lgo; this run fixture pins the end-to-end
-// reachability: scan objects keep heap referents alive across GC, and
-// noscan/scan allocations survive preemption (Gosched) with concurrent GC.
-// Small waves only, value checks only, no timing or counter asserts.
-
 import (
 	"context"
 	"fmt"
@@ -42,7 +32,7 @@ func preScratch(n int) int {
 }
 
 //go:noinline
-func preScanSum(n int) (int, bool) {
+func preScanSum(n int, want int) (int, bool) {
 	s := make([]*preNode, 0, n)
 	for i := 0; i < n; i++ {
 		s = append(s, &preNode{v: i})
@@ -59,21 +49,13 @@ func preScanSum(n int) (int, bool) {
 	for _, p := range s {
 		after += p.v
 	}
-	ident := s[0] == first && s[n-1] == last && before == after
+	ident := s[0] == first && s[n-1] == last && before == after && after == want
 	runtime.KeepAlive(s)
 	return after, ident
 }
 
-func scanReachable() error {
-	sum, ident := preScanSum(512)
-	if !ident {
-		return fmt.Errorf("scan objects lost referents across GC")
-	}
-	want := 512 * 511 / 2
-	if sum != want {
-		return fmt.Errorf("scan sum %d, want %d", sum, want)
-	}
-	return nil
+func scanReachable() (int, bool) {
+	return preScanSum(512, 512*511/2)
 }
 
 //go:noinline
@@ -118,8 +100,6 @@ func preemptWaves(ctx context.Context) error {
 			return fmt.Errorf("worker %d sum zero", w)
 		}
 	}
-	// Determinism check: same computation without preemption must match
-	// the per-iteration sum shape (each iteration sums the same pattern).
 	single := preScratch(1024)
 	for w := 0; w < workers; w++ {
 		if sums[w] != single*iters {
@@ -129,33 +109,36 @@ func preemptWaves(ctx context.Context) error {
 	return nil
 }
 
+var failed bool
+
+func check(name string, cond bool, got, want string) {
+	if !cond {
+		fmt.Printf("FAIL %s: got %s want %s\n", name, got, want)
+		failed = true
+		return
+	}
+	fmt.Printf("ok %s\n", name)
+}
+
 //logos:allow(complexity::cognitive_overflow)
 func main() {
 	ctx := context.Background()
-	if err := scanReachable(); err != nil {
-		fmt.Println("FAIL", err)
-		os.Exit(1)
-	}
-	fmt.Println("scan-reachable: ok")
+	sum, ident := scanReachable()
+	check("arena-scan-reachable", ident, fmt.Sprint(sum), fmt.Sprint(512*511/2))
 	if err := preemptWaves(ctx); err != nil {
-		fmt.Println("FAIL", err)
+		fmt.Println("FAIL arena-preempt-reachable", err)
 		os.Exit(1)
 	}
-	fmt.Println("preempt-reachable: ok")
+	check("arena-preempt-reachable", true, "reached", "reached")
 	prePool = make([]*preNode, 0, 512)
 	for i := 0; i < 512; i++ {
 		prePool = append(prePool, &preNode{v: i})
 	}
 	allocNoscan := testing.AllocsPerRun(100, func() { preSink = preScratch(1024) })
-	fmt.Println("alloc-noscan:", allocNoscan)
-	if allocNoscan != 0 {
-		fmt.Println("FAIL noscan backing took heap allocations")
-		os.Exit(1)
-	}
+	check("arena-noscan-zero-alloc", allocNoscan == 0, fmt.Sprint(allocNoscan), "0")
 	allocScan := testing.AllocsPerRun(100, func() { preSink = preSliceFromPool(prePool, 512) })
-	fmt.Println("alloc-scan:", allocScan)
-	if allocScan != 0 {
-		fmt.Println("FAIL scan backing took heap allocations")
+	check("arena-scan-zero-alloc", allocScan == 0, fmt.Sprint(allocScan), "0")
+	if failed {
 		os.Exit(1)
 	}
 	_ = preSink

@@ -12,10 +12,6 @@ import (
 	"cmd/internal/obj"
 )
 
-// wasmStackSwitch is the -logos.wasmstackswitch flag (loGo/s M16-S1): the
-// go command passes it to every assembly of a GOARCH=wasm build with
-// --wasm-features=stack-switching. It defines GOWASM_stackswitch for the
-// runtime assembly and compiles the stack check as a restart loop.
 var wasmStackSwitch = flag.Bool("logos.wasmstackswitch", false, "assemble for wasm stack switching")
 
 func logosWasmStackSwitch(ctxt *obj.Link) {

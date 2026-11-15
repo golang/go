@@ -76,7 +76,7 @@ func (e *escape) assignHeap(src ir.Node, why string, where ir.Node) {
 
 // assignList evaluates the assignment dsts... = srcs....
 func (e *escape) assignList(dsts, srcs []ir.Node, why string, where ir.Node) {
-	ks := e.addrs(dsts)
+	ks := e.logosAssignHoles(dsts, srcs)
 	for i, k := range ks {
 		var src ir.Node
 		if i < len(srcs) {

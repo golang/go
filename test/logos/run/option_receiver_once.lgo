@@ -1,0 +1,88 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+type User struct {
+	Name string
+}
+
+func (u User) Greet() string { return "hi " + u.Name }
+
+func (u *User) Log() { logged++ }
+
+type Team struct {
+	Lead *User?
+}
+
+var calls int
+var logged int
+
+var table = map[string]*User{"a": {Name: "a"}}
+
+func receiver() *User? {
+	calls++
+	return &User{Name: "ok"}
+}
+
+func receiverNil() *User? {
+	calls++
+	return nil
+}
+
+func teamSome() *Team? {
+	calls++
+	return &Team{Lead: &User{Name: "lead"}}
+}
+
+func teamReceiver() *Team? {
+	calls++
+	return nil
+}
+
+func key(k string) string {
+	calls++
+	return k
+}
+
+func once(name, want string, run func() string) {
+	calls = 0
+	logged = 0
+	got := run()
+	if got != want {
+		fmt.Println("FAIL " + name + ": got " + got + " want " + want)
+		os.Exit(1)
+	}
+	if calls != 1 {
+		fmt.Println("FAIL " + name + ": the receiver expression ran " + fmt.Sprint(calls) + " times")
+		os.Exit(1)
+	}
+	fmt.Println("ok " + name)
+}
+
+func main() {
+	once("field-some", "ok", func() string { return receiver()?.Name ?? "none" })
+	once("field-none", "none", func() string { return receiverNil()?.Name ?? "none" })
+	once("call-some", "hi ok", func() string { return receiver()?.Greet() ?? "none" })
+	once("call-none", "none", func() string { return receiverNil()?.Greet() ?? "none" })
+	once("void-some", "1", func() string {
+		receiver()?.Log()
+		return fmt.Sprint(logged)
+	})
+	once("void-none", "0", func() string {
+		receiverNil()?.Log()
+		return fmt.Sprint(logged)
+	})
+	once("chain-field-some", "lead", func() string { return teamSome()?.Lead?.Name ?? "none" })
+	once("chain-field-none", "none", func() string { return teamReceiver()?.Lead?.Name ?? "none" })
+	once("chain-call-some", "hi lead", func() string { return teamSome()?.Lead?.Greet() ?? "none" })
+	once("chain-call-none", "none", func() string { return teamReceiver()?.Lead?.Greet() ?? "none" })
+	once("index-field-some", "a", func() string { return table[key("a")]?.Name ?? "none" })
+	once("index-field-none", "none", func() string { return table[key("z")]?.Name ?? "none" })
+	once("index-call-some", "hi a", func() string { return table[key("a")]?.Greet() ?? "none" })
+	once("index-call-none", "none", func() string { return table[key("z")]?.Greet() ?? "none" })
+}

@@ -2,9 +2,21 @@
 
 package main
 
-// M5-S1 const views (SPEC T-201): a const view reads through, ranges,
-// and passes to const parameters; lowering erases the view, so the
-// program runs with the plain types.
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 type Point struct {
 	X, Y int
@@ -29,10 +41,13 @@ func norm(p const *Point) int {
 func main() {
 	xs := []int{1, 2, 3, 4}
 	var view const []int = xs
-	println(sum(view), first(view), len(view))
+	check("view-triple", sum(view) == 10 && first(view) == 1 && len(view) == 4, fmt.Sprint(sum(view), first(view), len(view)), "10 1 4")
 	p := &Point{X: 3, Y: 4}
-	println(norm(p))
+	check("norm", norm(p) == 25, norm(p), 25)
 	var copied Point = *p
 	copied.X = 10
-	println(copied.X, p.X)
+	check("copy", copied.X == 10 && p.X == 3, fmt.Sprint(copied.X, p.X), "10 3")
+	if failed {
+		os.Exit(1)
+	}
 }

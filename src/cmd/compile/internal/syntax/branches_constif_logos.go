@@ -4,14 +4,9 @@
 
 package syntax
 
-// logosConstBranches lets checkBranches see the labels and gotos inside
-// the blocks of a `const if` (M7-S1) or `const switch` (M7-S4) statement,
-// so a label used only there counts as used. The blocks keep the break
-// and continue targets of the enclosing statement: whether an unlabeled
-// break or continue may appear in them is a types2 rule, so the parser
-// reports nothing for it here. innerBlock is the closure of blockBranches
-// that walks one nested block.
-func logosConstBranches(stmt Stmt, ctxt targets, innerBlock func(targets, Pos, []Stmt)) {
+const logosConstSwitchJump = "[comptime::const_switch_jump]"
+
+func logosConstBranches(ls *labelScope, stmt Stmt, ctxt targets, innerBlock func(targets, Pos, []Stmt)) {
 	inner := targets{ctxt.breaks, ctxt.continues, -1}
 	switch s := stmt.(type) {
 	case *ConstIfStmt:
@@ -20,8 +15,29 @@ func logosConstBranches(stmt Stmt, ctxt targets, innerBlock func(targets, Pos, [
 			innerBlock(inner, s.Else.Pos(), []Stmt{s.Else})
 		}
 	case *ConstSwitchStmt:
+		uncased := targets{nil, nil, -1}
+		outer := ls.constContinues
+		ls.constContinues = ls.logosContinues(ctxt)
+		ls.constSwitchDepth++
 		for _, c := range s.Cases {
-			innerBlock(inner, c.Case, c.Body)
+			innerBlock(uncased, c.Case, c.Body)
 		}
+		ls.constSwitchDepth--
+		ls.constContinues = outer
 	}
+}
+
+func (ls *labelScope) logosContinues(ctxt targets) *ForStmt {
+	if ctxt.continues != nil {
+		return ctxt.continues
+	}
+	return ls.constContinues
+}
+
+func (ls *labelScope) logosJumpError(s *BranchStmt, plain string) {
+	if ls.constSwitchDepth > 0 {
+		ls.errf(s.Pos(), "%s %s directly in a const switch case: the cases lower into generated switches", logosConstSwitchJump, s.Tok)
+		return
+	}
+	ls.errf(s.Pos(), "%s", plain)
 }

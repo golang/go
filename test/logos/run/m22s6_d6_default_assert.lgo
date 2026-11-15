@@ -2,10 +2,21 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
-// M22-S6 defect D6 (SPEC T-104.5, T-203.3): a struct with an assertion
-// list (`struct : I`) keeps its field defaults in composite literals.
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 type G interface {
 	Hello() string
@@ -18,5 +29,10 @@ type Req struct : G {
 func (r Req) Hello() string { return "hi" }
 
 func main() {
-	fmt.Println(Req{}.Qty)
+	check("default-field-initializes-to-one", Req{}.Qty == 1, Req{}.Qty, 1)
+	var g G = Req{}
+	check("default-struct-satisfies-interface", g.Hello() == "hi", g.Hello(), "hi")
+	if failed {
+		os.Exit(1)
+	}
 }

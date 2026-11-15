@@ -1,0 +1,5 @@
+ok hash-collision-all-keys
+ok hash-collision-second-key
+ok hash-collision-first-key
+ok hash-collision-near-miss-ignored
+ok hash-collision-folded-keys

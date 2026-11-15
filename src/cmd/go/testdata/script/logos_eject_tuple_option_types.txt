@@ -1,0 +1,31 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# A tuple type holds an option field of a value type and of a pointer
+# type in every type position: a parameter, a variable, a slice, an
+# array, a map value, a struct field and a tuple type nested in a tuple
+# type. The module runs natively, ejects, and the ejected module builds
+# and runs with go and with go1.27.2 from $UPROOT1272 and prints the
+# same ok lines.
+cp $GOROOT/test/logos/run/eject_tuple_option_types.lgo m/main.lgo
+cd m
+logos run .
+cmp stdout $GOROOT/test/logos/run/eject_tuple_option_types.out
+logos eject -o out
+exists out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $GOROOT/test/logos/run/eject_tuple_option_types.out
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
+exec $WORK/upstream$GOEXE
+cmp stdout $GOROOT/test/logos/run/eject_tuple_option_types.out
+cd ../..
+
+-- m/go.mod --
+module example.com/tupleoptiontypes
+
+go 1.27

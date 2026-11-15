@@ -15,29 +15,8 @@ import (
 	"internal/buildcfg"
 )
 
-// logosArenaRetTok holds the token taken at entry by candidate functions.
-// It is set by installLogosArenaFrame and read by RetMake lowering and by
-// Chain consent in walkCall. Same package, so walk/expr.go shares it.
 var logosArenaRetTok = make(map[*ir.Func]*ir.Name)
 
-// The inline bump fast path uses ssagen.LogosArenaBumpMaxBytes, the single
-// shared budget: noscan payloads at or below it lower to
-// runtime.logosArenaBump with a logosArenaAlloc fallback, larger noscan
-// payloads call logosArenaAlloc directly. It is distinct from
-// escape.LogosArenaMaxBytes, which bounds chunk fit: keep the two limits
-// separate.
-
-// installLogosArenaFrame installs the pre-walk mark save and an ordinary
-// compiler-generated defer. The escape verdict is based on the original
-// body, before this node exists, so the synthetic defer is not a user-defer
-// placement veto. The defer is normalized here while ir.CurFunc is set.
-// Candidate frames take the caller token first via logosArenaRetTake,
-// save the mark after the take, and restore only when the token is false:
-// if tok { } else { defer Restore }. True keeps caller-region results alive
-// for the caller to reclaim; false falls back to heap with the normal
-// unwind-safe restore. Take is emitted only for candidates; it must not
-// clear an unrelated caller token in non-candidate frames. Candidate-only
-// returned functions with no local mark still need the first-op take.
 func installLogosArenaFrame(fn *ir.Func) {
 	if !escape.LogosArenaPlaceable(fn) {
 		return
@@ -92,14 +71,6 @@ func installLogosArenaFrame(fn *ir.Func) {
 	escape.LogosArenaRecordFrameDeferred(fn)
 }
 
-// walkLogosArenaMake attempts to lower an OMAKESLICE into an arena allocation:
-// pointer-free constant sizes via OpLogosArenaBump (with logosArenaAlloc
-// fallback), and dynamic sizes via runtime.logosArenaMakeSlice (which
-// dispatches to the scan region when the element type holds pointers).
-//
-// Every eligibility test runs before anything is evaluated or appended to
-// init. A nil return hands the node, untouched, to walkMakeSlice, which
-// evaluates len and cap itself; effects already emitted here would run twice.
 func walkLogosArenaMake(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 	if !buildcfg.Experiment.LogosArena {
 		return nil
@@ -112,8 +83,6 @@ func walkLogosArenaMake(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 	}
 
 	if escape.LogosArenaConstMake(n, ir.CurFunc) {
-		// The size is positive and fits one chunk, proven by division
-		// before any product of capacity and element size exists.
 		if total, ok := escape.LogosArenaConstBytes(n); ok {
 			return walkLogosArenaConstMake(n, init, total)
 		}
@@ -128,12 +97,6 @@ func walkLogosArenaMake(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 	return nil
 }
 
-// walkLogosArenaRetMake lowers a caller-region returned make. The token
-// taken at entry selects the region: true allocates in the caller's arena,
-// false uses the existing heap makeslice lowering. Pointer-bearing elements
-// allocate in the scan region via logosArenaAllocScan (const) or the
-// scan-dispatched logosArenaMakeSlice (dynamic), so the GC header carries
-// the real element type and no noscan metadata lie occurs.
 func walkLogosArenaRetMake(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 	tok := logosArenaRetTok[ir.CurFunc]
 	if tok == nil {
@@ -159,13 +122,6 @@ func walkLogosArenaRetMake(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 	slice := typecheck.TempAt(base.Pos, ir.CurFunc, n.Type())
 	var trueBody, falseBody ir.Nodes
 	if isConst && n.Type().Elem().HasPointers() {
-		// Scan-region const: raw payload total via logosArenaAllocScan.
-		// Never the noscan bump or logosArenaAlloc: the bump has no GC
-		// header and Alloc throws on pointer types. tryScan zeroes the
-		// stride (header + payload) before publishing, so no extra
-		// memclr (and never memclrNoHeapPointers on pointer memory).
-		// Fallback inside AllocScan is mallocgc; overflow/panic order
-		// above matches the heap path.
 		allocFn := typecheck.LookupRuntime("logosArenaAllocScan")
 		callAlloc := mkcall1(allocFn, types.Types[types.TUNSAFEPTR], &trueBody, rtyp, ir.NewInt(base.Pos, total))
 		ptrTemp := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TUNSAFEPTR])
@@ -219,8 +175,6 @@ func walkLogosArenaRetMake(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 	return slice
 }
 
-// walkLogosArenaConstMake lowers a make of a small constant capacity whose
-// total size, totalSize bytes, is already known to fit one arena chunk.
 func walkLogosArenaConstMake(n *ir.MakeExpr, init *ir.Nodes, totalSize int64) ir.Node {
 	lenNode := safeExpr(n.Len, init)
 	capExpr := n.Cap
@@ -230,7 +184,6 @@ func walkLogosArenaConstMake(n *ir.MakeExpr, init *ir.Nodes, totalSize int64) ir
 		capExpr = lenNode
 	}
 
-	// Standard makeslice validation: len >= 0, cap >= 0, len <= cap.
 	nifLen := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OLT, lenNode, ir.NewInt(base.Pos, 0)), []ir.Node{mkcall("panicmakeslicelen", nil, init)}, nil)
 	appendWalkStmt(init, nifLen)
 
@@ -245,27 +198,22 @@ func walkLogosArenaConstMake(n *ir.MakeExpr, init *ir.Nodes, totalSize int64) ir
 
 	var ptrTemp *ir.Name
 	if totalSize <= ssagen.LogosArenaBumpMaxBytes && !base.Flag.Race {
-		// Fast path: call runtime.logosArenaBump(rndSize) with fallback.
 		fn := typecheck.LookupRuntime("logosArenaBump")
 		callBump := mkcall1(fn, types.Types[types.TUNSAFEPTR], init, ir.NewInt(base.Pos, rndSize))
 		ptrTemp = typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TUNSAFEPTR])
 		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, ptrTemp, callBump))
 
-		// If ptrTemp == nil, fallback to runtime allocator logosArenaAlloc.
 		var ifBody ir.Nodes
 		allocFn := typecheck.LookupRuntime("logosArenaAlloc")
 		callAlloc := mkcall1(allocFn, types.Types[types.TUNSAFEPTR], &ifBody, rtyp, ir.NewInt(base.Pos, rndSize))
 		appendWalkStmt(&ifBody, ir.NewAssignStmt(base.Pos, ptrTemp, callAlloc))
 
-		// Else: bump succeeded; zero noscan memory before exposing to user.
 		var elseBody ir.Nodes
 		appendWalkStmt(&elseBody, mkcall("memclrNoHeapPointers", nil, &elseBody, ptrTemp, ir.NewInt(base.Pos, rndSize)))
 
 		nif := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OEQ, ptrTemp, typecheck.NodNil()), ifBody, elseBody)
 		appendWalkStmt(init, typecheck.Stmt(nif))
 	} else {
-		// Noscan sizes above the bump budget or under -race take the
-		// runtime allocator directly.
 		allocFn := typecheck.LookupRuntime("logosArenaAlloc")
 		callAlloc := mkcall1(allocFn, types.Types[types.TUNSAFEPTR], init, rtyp, ir.NewInt(base.Pos, rndSize))
 		ptrTemp = typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TUNSAFEPTR])
@@ -275,13 +223,6 @@ func walkLogosArenaConstMake(n *ir.MakeExpr, init *ir.Nodes, totalSize int64) ir
 	return walkLogosArenaSlice(n, init, ptrTemp, lenNode, capExpr)
 }
 
-// walkLogosArenaDynamicMake lowers a make of dynamic capacity. It emits no
-// checks and no size arithmetic of its own: runtime.logosArenaMakeSlice takes
-// len and cap as int64, as makeslice64 does, and applies the makeslice
-// truncation, overflow, maxAlloc and len-before-cap verdicts before it
-// allocates, then dispatches to logosArenaAllocScan for pointer-bearing
-// element types and logosArenaAlloc otherwise. The stack-buffer and heap
-// fallbacks of walkMakeSlice are not involved, so the call has no else branch.
 func walkLogosArenaDynamicMake(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 	lenNode := safeExpr(n.Len, init)
 	capExpr := n.Cap
@@ -301,8 +242,6 @@ func walkLogosArenaDynamicMake(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 	return walkLogosArenaSlice(n, init, ptrTemp, lenNode, capExpr)
 }
 
-// walkLogosArenaSlice assembles the slice header of n over the arena block
-// at ptr and returns the temporary that holds it.
 func walkLogosArenaSlice(n *ir.MakeExpr, init *ir.Nodes, ptr *ir.Name, lenNode, capExpr ir.Node) ir.Node {
 	sh := ir.NewSliceHeaderExpr(base.Pos, n.Type(), ptr, typecheck.Conv(lenNode, types.Types[types.TINT]), typecheck.Conv(capExpr, types.Types[types.TINT]))
 	sh.SetTypecheck(1)

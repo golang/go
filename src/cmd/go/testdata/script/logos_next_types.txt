@@ -1,0 +1,239 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+
+logos build ./...
+logos run .
+cp stdout $WORK/run-before.txt
+
+cp slice/slice.go $WORK/slice.go.orig
+cp arr/arr.go $WORK/arr.go.orig
+cp str/str.go $WORK/str.go.orig
+cp mapm/mapm.go $WORK/mapm.go.orig
+cp named/named.go $WORK/named.go.orig
+cp parr/parr.go $WORK/parr.go.orig
+cp gen/gen.go $WORK/gen.go.orig
+cp chanm/chanm.go $WORK/chanm.go.orig
+cp intr/intr.go $WORK/intr.go.orig
+cp funcr/funcr.go $WORK/funcr.go.orig
+logos next --fix
+stdout 'tasks in next_tasks.json'
+exists next_tasks.json
+exists slice/slice.lgo
+exists arr/arr.lgo
+exists str/str.lgo
+exists mapm/mapm.lgo
+exists named/named.lgo
+exists parr/parr.lgo
+exists gen/gen.lgo
+exists chanm/chanm.lgo
+exists intr/intr.lgo
+exists funcr/funcr.lgo
+! exists slice/slice.go
+! exists arr/arr.go
+
+cmp arr/arr.lgo $WORK/arr.go.orig
+cmp str/str.lgo $WORK/str.go.orig
+cmp mapm/mapm.lgo $WORK/mapm.go.orig
+cmp named/named.lgo $WORK/named.go.orig
+cmp parr/parr.lgo $WORK/parr.go.orig
+cmp gen/gen.lgo $WORK/gen.go.orig
+cmp chanm/chanm.lgo $WORK/chanm.go.orig
+cmp intr/intr.lgo $WORK/intr.go.orig
+cmp funcr/funcr.lgo $WORK/funcr.go.orig
+! grep '"file": "slice/slice.lgo"' next_tasks.json
+grep '"file": "named/named.lgo"' next_tasks.json
+grep '"file": "arr/arr.lgo"' next_tasks.json
+grep '"file": "str/str.lgo"' next_tasks.json
+grep '"file": "mapm/mapm.lgo"' next_tasks.json
+grep '"file": "parr/parr.lgo"' next_tasks.json
+grep '"file": "gen/gen.lgo"' next_tasks.json
+grep '"file": "chanm/chanm.lgo"' next_tasks.json
+grep '"file": "intr/intr.lgo"' next_tasks.json
+! grep '"file": "funcr/funcr.lgo"' next_tasks.json
+grep -count=8 '"rule": "loop-chain"' next_tasks.json
+
+logos build ./...
+logos run .
+cmp stdout $WORK/run-before.txt
+
+cp next_tasks.json $WORK/tasks-first.json
+logos next --fix
+stdout 'already converted'
+cmp next_tasks.json $WORK/tasks-first.json
+
+-- m/go.mod --
+module example.com/nexttypes
+
+go 1.27
+
+-- m/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/nexttypes/arr"
+	"example.com/nexttypes/chanm"
+	"example.com/nexttypes/funcr"
+	"example.com/nexttypes/gen"
+	"example.com/nexttypes/intr"
+	"example.com/nexttypes/mapm"
+	"example.com/nexttypes/named"
+	"example.com/nexttypes/parr"
+	"example.com/nexttypes/slice"
+	"example.com/nexttypes/str"
+)
+
+func main() {
+	fmt.Println(slice.Over([]int{1, 2, 3}), "slice")
+	fmt.Println(named.Over(named.S{1, 2, 3}), "named")
+	fmt.Println(arr.Over([3]int{1, 2, 3}), "arr")
+	fmt.Println(str.Codes("hi"), "str")
+	fmt.Println(mapm.Over(map[string]int{"a": 1}), "map")
+	fmt.Println(parr.Over(&[3]int{1, 2, 3}), "ptr")
+	fmt.Println(gen.Over[gen.S](gen.S{1, 2}), "gen")
+	ch := make(chan int, 2)
+	ch <- 1
+	ch <- 2
+	close(ch)
+	fmt.Println(chanm.Over(ch), "chan")
+	fmt.Println(intr.Over(3), "intr")
+	fmt.Println(funcr.Over(funcr.Seq(2)), "func")
+}
+
+-- m/slice/slice.go --
+package slice
+
+func double(n int) int { return n * 2 }
+
+func Over(xs []int) []int {
+	var ys []int
+	for i := 0; i < len(xs); i++ {
+		ys = append(ys, double(xs[i]))
+	}
+	return ys
+}
+
+-- m/named/named.go --
+package named
+
+type S []int
+
+func double(n int) int { return n * 2 }
+
+func Over(xs S) []int {
+	var ys []int
+	for i := 0; i < len(xs); i++ {
+		ys = append(ys, double(xs[i]))
+	}
+	return ys
+}
+
+-- m/arr/arr.go --
+package arr
+
+func double(n int) int { return n * 2 }
+
+func Over(a [3]int) []int {
+	var ys []int
+	for i := 0; i < len(a); i++ {
+		ys = append(ys, double(a[i]))
+	}
+	return ys
+}
+
+-- m/str/str.go --
+package str
+
+func Codes(s string) []int {
+	var out []int
+	for i := 0; i < len(s); i++ {
+		out = append(out, int(s[i]))
+	}
+	return out
+}
+
+-- m/mapm/mapm.go --
+package mapm
+
+func Over(m map[string]int) []int {
+	var out []int
+	for _, v := range m {
+		out = append(out, v*2)
+	}
+	return out
+}
+
+-- m/parr/parr.go --
+package parr
+
+func double(n int) int { return n * 2 }
+
+func Over(p *[3]int) []int {
+	var ys []int
+	for i := 0; i < len(p); i++ {
+		ys = append(ys, double(p[i]))
+	}
+	return ys
+}
+
+-- m/gen/gen.go --
+package gen
+
+type S []int
+
+func double(n int) int { return n * 2 }
+
+func Over[T ~[]int](xs T) []int {
+	var ys []int
+	for _, v := range xs {
+		ys = append(ys, double(v))
+	}
+	return ys
+}
+
+-- m/chanm/chanm.go --
+package chanm
+
+func Over(ch chan int) []int {
+	var out []int
+//logos:allow(correctness::unbounded_channel_op)
+	for v := range ch {
+		out = append(out, v*2)
+	}
+	return out
+}
+
+-- m/intr/intr.go --
+package intr
+
+func Over(n int) []int {
+	var out []int
+	for i := range n {
+		out = append(out, i*2)
+	}
+	return out
+}
+
+-- m/funcr/funcr.go --
+package funcr
+
+func Seq(n int) func(yield func(int) bool) {
+	return func(yield func(int) bool) {
+		for i := 1; i <= n; i++ {
+			if !yield(i) {
+				return
+			}
+		}
+	}
+}
+
+func Over(seq func(yield func(int) bool)) []int {
+	var out []int
+	for v := range seq {
+		out = append(out, v*2)
+	}
+	return out
+}

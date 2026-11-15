@@ -1,9 +1,5 @@
 // skip
 
-// M16-S1: the wasm profile module. The testdir harness skips it; run it with
-// GOOS=js GOARCH=wasm logos test -short ./... from this directory, with
-// lib/wasm and node on PATH.
-
 package wasm
 
 import (

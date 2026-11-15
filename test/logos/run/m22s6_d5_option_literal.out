@@ -1,1 +1,2 @@
-c none
+ok coalesce-selects-present-literal
+ok coalesce-selects-fallback-for-nil

@@ -1,0 +1,90 @@
+// run
+
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"time"
+
+	"logos/sync"
+)
+
+var failed bool
+
+func check(name string, cond bool) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type target struct {
+	lock   sync.Locked[int]
+	relock func()
+}
+
+func newTarget() *target {
+	t := &target{}
+	t.relock = func() { t.lock.WithLock(func(n *int) { *n++ }) }
+	return t
+}
+
+func (t *target) plainChain(xs []int) {
+	t.lock.WithLock(func(n *int) {
+		_ = xs.map(x => {
+			t.relock()
+			return x
+		})
+	})
+}
+
+func (t *target) segment(ctx context.Context, xs []int) {
+	t.lock.WithLock(func(n *int) {
+		_, err := xs.group(ctx, limit = 2).map(x => {
+			t.relock()
+			return x
+		})
+		fmt.Println(err)
+	})
+}
+
+func (t *target) otherLock(other *target, xs []int) {
+	t.lock.WithLock(func(n *int) {
+		_ = xs.map(x => {
+			other.relock()
+			return x
+		})
+	})
+}
+
+func returnsWithin(d time.Duration, work func()) bool {
+	done := make(chan struct{})
+	ctx, cancel := context.WithTimeout(context.Background(), d)
+	defer cancel()
+	time.AfterFunc(0, func() {
+		work()
+		close(done)
+	})
+	select {
+	case <-done:
+		return true
+	case <-ctx.Done():
+		return false
+	}
+}
+
+func main() {
+	xs := []int{1, 2, 3}
+	ctx := context.Background()
+	plain, segment, held, free := newTarget(), newTarget(), newTarget(), newTarget()
+	check("plain chain relock blocks", !returnsWithin(300*time.Millisecond, func() { plain.plainChain(xs) }))
+	check("segment relock blocks", !returnsWithin(300*time.Millisecond, func() { segment.segment(ctx, xs) }))
+	check("chain relock of another lock returns", returnsWithin(10*time.Second, func() { held.otherLock(free, xs) }))
+	if failed {
+		os.Exit(1)
+	}
+}

@@ -1,22 +1,13 @@
 // run -goexperiment logosarena -race
+// run -goexperiment logosarena -arena=false -race
 
 package main
 
-// REDTEAM #35 (SPEC Sec 8.3, T-301.1; IMPLEMENTATION.md M18-S3): arena
-// reuse under -race must report no false race, and watermark moves must
-// stay visible to the race detector (racemalloc on alloc, racefree on
-// restore; the inline bump is off under -race, so this exercises the
-// slow-path hooks). The -race flag on the directive builds the staged
-// module instrumented, so a missing hook fails the run with a detector
-// report instead of passing silently. Rapid iteration-local dynamic
-// allocations restore the watermark at each loop back-edge and hand the
-// same memory to the next iteration; every round fills and checksums its
-// buffer against an allocation-free oracle, so a stale or aliased reuse
-// fails loudly. The instrumented build needs cgo: run the gate with
-// CGO_ENABLED=1. Companion gate: GOEXPERIMENT=logosarena go test -short
-// -race runtime -run LogosArena (M18-S1).
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
 //go:noinline
 func r35Sum(b []byte) int {
@@ -37,25 +28,26 @@ func r35Oracle(n, r int) int {
 }
 
 //go:noinline
-func r35Work(n, rounds int) int {
+func r35Work(n, rounds int) (int, int) {
 	total := 0
+	want := 0
 	for r := 0; r < rounds; r++ {
 		b := make([]byte, n)
 		for i := range b {
 			b[i] = byte((i + r) & 0xFF)
 		}
 		got := r35Sum(b)
-		want := r35Oracle(n, r)
-		if got != want {
-			panic("redteam35: round reuse corrupted data")
+		w := r35Oracle(n, r)
+		want += w
+		if got != w {
+			return got, w
 		}
 		total += got
 	}
-	return total
+	return total, want
 }
 
-//go:noinline
-func r35Interleave(n int) int {
+func r35Interleave(n int) (int, int, int) {
 	var kept []byte
 	last := 0
 	for r := 0; r < 4; r++ {
@@ -69,17 +61,28 @@ func r35Interleave(n int) int {
 		last = r35Sum(b)
 	}
 	first := r35Sum(kept)
-	if first != n*1 {
-		panic("redteam35: carried buffer aliased by later reuse")
+	return first, last, first + last
+}
+
+var r35Failed bool
+
+func r35Check(name string, cond bool, got, want string) {
+	if !cond {
+		fmt.Printf("FAIL %s: got %s want %s\n", name, got, want)
+		r35Failed = true
+		return
 	}
-	if last != n*4 {
-		panic("redteam35: last buffer has wrong contents")
-	}
-	return first + last
+	fmt.Printf("ok %s\n", name)
 }
 
 func main() {
-	total := r35Work(1024, 200)
-	fmt.Println("reuse:", total)
-	fmt.Println("interleave:", r35Interleave(1024))
+	total, want := r35Work(1024, 200)
+	r35Check("arena-reuse-rounds", total == want, fmt.Sprint(total), fmt.Sprint(want))
+	first, last, both := r35Interleave(1024)
+	r35Check("arena-reuse-carried", first == 1024*1, fmt.Sprint(first), fmt.Sprint(1024*1))
+	r35Check("arena-reuse-last", last == 1024*4, fmt.Sprint(last), fmt.Sprint(1024*4))
+	r35Check("arena-reuse-interleave", both == 1024*5, fmt.Sprint(both), fmt.Sprint(1024*5))
+	if r35Failed {
+		os.Exit(1)
+	}
 }

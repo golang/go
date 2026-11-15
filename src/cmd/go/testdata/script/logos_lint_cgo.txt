@@ -1,0 +1,48 @@
+[!cgo] skip
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+logos build ./...
+! stderr .
+! logos lint ./...
+stderr 'plain\.go:3:.*\[correctness::typed_nil_return\]'
+stderr 'bridge\.go:6:.*\[correctness::typed_nil_return\]'
+stderr -count=2 '\[correctness::typed_nil_return\]'
+! stderr '_cgo_|\.cgo1\.go'
+! logos lint --json-diagnostics ./...
+stderr -count=2 '"rule_id":"correctness::typed_nil_return"'
+stderr '"file":"[^"]*plain/plain\.go","span":\{"start_line":3,'
+stderr '"file":"[^"]*only/bridge\.go","span":\{"start_line":6,'
+! stderr '_cgo_|\.cgo1\.go'
+logos build ./...
+! stderr .
+! logos lint ./...
+stderr -count=2 '\[correctness::typed_nil_return\]'
+! stderr '_cgo_|\.cgo1\.go'
+
+-- m/go.mod --
+module example.com/cgolint
+
+go 1.27
+
+-- m/plain/bridge.go --
+package plain
+
+import "C"
+
+type T struct { N C.int }
+
+-- m/plain/plain.go --
+package plain
+
+func Bad() any { return (*T)(nil) }
+
+-- m/only/bridge.go --
+package only
+
+import "C"
+
+type T struct { N C.int }
+func Bad() any { return (*T)(nil) }

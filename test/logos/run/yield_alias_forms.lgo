@@ -1,0 +1,326 @@
+// run
+
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+	"fmt"
+	"iter"
+	"os"
+	"slices"
+)
+
+var failed bool
+
+func checkBoth[T comparable](name string, seq, alias iter.Seq[T], want ...T) {
+	got, gotAlias := slices.Collect(seq), slices.Collect(alias)
+	if !slices.Equal(got, want) || !slices.Equal(gotAlias, want) {
+		failed = true
+		fmt.Println("FAIL", name+":", "seq", got, "alias", gotAlias, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func checkPairs[K, V any](name string, seq, alias iter.Seq2[K, V], want ...string) {
+	got, gotAlias := pairStrings(seq), pairStrings(alias)
+	if !slices.Equal(got, want) || !slices.Equal(gotAlias, want) {
+		failed = true
+		fmt.Println("FAIL", name+":", "seq", got, "alias", gotAlias, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func pairStrings[K, V any](s iter.Seq2[K, V]) []string {
+	var out []string
+	for k, v := range s {
+		out = append(out, fmt.Sprintf("%v/%v", k, v))
+	}
+	return out
+}
+
+type Ints = iter.Seq[int]
+
+type Bools = iter.Seq[bool]
+
+type Ptrs = iter.Seq[*int]
+
+type Boxes = iter.Seq[box]
+
+type Pairs = iter.Seq2[int, int]
+
+type Flagged = iter.Seq2[bool, int]
+
+type Named = iter.Seq2[string, int]
+
+type box struct{ n int }
+
+func triple(x int) int { return x * 3 }
+
+func head(x int) []int { return []int{x, x * 2} }
+
+func seqParen(a, b int) iter.Seq[int] { yield (a + b) * 2 }
+func aliasParen(a, b int) Ints        { yield (a + b) * 2 }
+
+func seqBare(a int) iter.Seq[int] { yield (a) }
+func aliasBare(a int) Ints        { yield (a) }
+
+func seqParenSum(a, b int) iter.Seq[int] { yield (a) + b }
+func aliasParenSum(a, b int) Ints        { yield (a) + b }
+
+func seqSelector(s box) iter.Seq[int] { yield (s).n }
+func aliasSelector(s box) Ints        { yield (s).n }
+
+func seqIndex(xs []int) iter.Seq[int] { yield (xs)[1] }
+func aliasIndex(xs []int) Ints        { yield (xs)[1] }
+
+func seqCallValue(fn func(int) int, a int) iter.Seq[int] { yield (fn)(a) }
+func aliasCallValue(fn func(int) int, a int) Ints        { yield (fn)(a) }
+
+func seqAssert(v any) iter.Seq[int] { yield (v).(int) }
+func aliasAssert(v any) Ints        { yield (v).(int) }
+
+func seqUnarySum(a, b int) iter.Seq[int] { yield -a + b }
+func aliasUnarySum(a, b int) Ints        { yield -a + b }
+
+func seqUnaryProd(a int) iter.Seq[int] { yield -a * 2 }
+func aliasUnaryProd(a int) Ints        { yield -a * 2 }
+
+func seqUnaryMixed(a, b, c int) iter.Seq[int] { yield -a*b + c }
+func aliasUnaryMixed(a, b, c int) Ints        { yield -a*b + c }
+
+func seqPlus(a int) iter.Seq[int] { yield +a }
+func aliasPlus(a int) Ints        { yield +a }
+
+func seqComplement(a int) iter.Seq[int] { yield ^a }
+func aliasComplement(a int) Ints        { yield ^a }
+
+func seqNegParen(a int) iter.Seq[int] { yield -(a) }
+func aliasNegParen(a int) Ints        { yield -(a) }
+
+func seqNegParenProd(a int) iter.Seq[int] { yield -(a) * 2 }
+func aliasNegParenProd(a int) Ints        { yield -(a) * 2 }
+
+func seqNegCall(fn func(int) int, a int) iter.Seq[int] { yield -fn(a) }
+func aliasNegCall(fn func(int) int, a int) Ints        { yield -fn(a) }
+
+func seqNegField(s box) iter.Seq[int] { yield -s.n }
+func aliasNegField(s box) Ints        { yield -s.n }
+
+func seqDeref(p *int) iter.Seq[int] { yield *p + 1 }
+func aliasDeref(p *int) Ints        { yield *p + 1 }
+
+func seqDerefProd(p *int) iter.Seq[int] { yield *p * 2 }
+func aliasDerefProd(p *int) Ints        { yield *p * 2 }
+
+func seqRecv() iter.Seq[int] {
+	ch := make(chan int, 1)
+	ch <- 41
+	yield <-ch + 1
+}
+
+func aliasRecv() Ints {
+	ch := make(chan int, 1)
+	ch <- 41
+	yield <-ch + 1
+}
+
+func seqRecvProd() iter.Seq[int] {
+	ch := make(chan int, 1)
+	ch <- 41
+	yield <-ch * 2
+}
+
+func aliasRecvProd() Ints {
+	ch := make(chan int, 1)
+	ch <- 41
+	yield <-ch * 2
+}
+
+func seqCallIndex(a int) iter.Seq[int] { yield head(a)[1] }
+func aliasCallIndex(a int) Ints        { yield head(a)[1] }
+
+func seqAddrNil(x int) iter.Seq[bool] { yield &x == nil }
+func aliasAddrNil(x int) Bools        { yield &x == nil }
+
+func seqParenEqual(a, b int) iter.Seq[bool] { yield (a) == b }
+func aliasParenEqual(a, b int) Bools        { yield (a) == b }
+
+func seqNested(a, b int) iter.Seq[int] {
+	for i := range 2 {
+		if i == 1 {
+			yield -a + b
+		}
+		switch i {
+		case 0:
+			yield (a + b) * 2
+		}
+	}
+}
+
+func aliasNested(a, b int) Ints {
+	for i := range 2 {
+		if i == 1 {
+			yield -a + b
+		}
+		switch i {
+		case 0:
+			yield (a + b) * 2
+		}
+	}
+}
+
+func seqNot(ok bool) iter.Seq[bool] { yield !ok }
+func aliasNot(ok bool) Bools        { yield !ok }
+
+func seqSliceLiteral() iter.Seq[int] { yield []int{5}[0] }
+func aliasSliceLiteral() Ints        { yield []int{5}[0] }
+
+func seqArrayLiteral() iter.Seq[int] { yield [2]int{1, 2}[1] }
+func aliasArrayLiteral() Ints        { yield [2]int{1, 2}[1] }
+
+func seqEllipsisArray() iter.Seq[int] { yield [...]int{7, 8}[1] }
+func aliasEllipsisArray() Ints        { yield [...]int{7, 8}[1] }
+
+func seqNestedArray() iter.Seq[int] { yield [2][2]int{{1, 2}, {3, 4}}[1][0] }
+func aliasNestedArray() Ints        { yield [2][2]int{{1, 2}, {3, 4}}[1][0] }
+
+func seqAddress(b *box) iter.Seq[*int] { yield &b.n }
+func aliasAddress(b *box) Ptrs         { yield &b.n }
+
+func seqRecvOnly() iter.Seq[int] {
+	ch := make(chan int, 1)
+	ch <- 7
+	yield <-ch
+}
+
+func aliasRecvOnly() Ints {
+	ch := make(chan int, 1)
+	ch <- 7
+	yield <-ch
+}
+
+func seqFuncLiteral() iter.Seq[int] { yield func() int { return 1 }() }
+func aliasFuncLiteral() Ints        { yield func() int { return 1 }() }
+
+func seqStructField() iter.Seq[int] { yield struct{ f int }{4}.f }
+func aliasStructField() Ints        { yield struct{ f int }{4}.f }
+
+func seqCompositeElem() iter.Seq[box] { yield box{6} }
+func aliasCompositeElem() Boxes       { yield box{6} }
+
+func seqPairUnary(a, b int) iter.Seq2[int, int] { yield -a, b }
+func aliasPairUnary(a, b int) Pairs             { yield -a, b }
+
+func seqPairParen(a, b int) iter.Seq2[int, int] { yield (a), b }
+func aliasPairParen(a, b int) Pairs             { yield (a), b }
+
+func seqPairParenBinary(a, b int) iter.Seq2[int, int] { yield (a + b) * 2, -b }
+func aliasPairParenBinary(a, b int) Pairs             { yield (a + b) * 2, -b }
+
+func seqPairDeref(p *int, b int) iter.Seq2[int, int] { yield *p, -b }
+func aliasPairDeref(p *int, b int) Pairs             { yield *p, -b }
+
+func seqPairNot(ok bool) iter.Seq2[bool, int] { yield !ok, 1 }
+func aliasPairNot(ok bool) Flagged            { yield !ok, 1 }
+
+func seqPairLiteral() iter.Seq2[string, int] { yield "k", 1 }
+func aliasPairLiteral() Named                { yield "k", 1 }
+
+func yield(n int) int { return n + 100 }
+
+func plainCall() int { return yield(3) }
+
+func plainCallStatement() { yield (3) }
+
+func plainVariable() int {
+	yield := 5
+	yield++
+	return yield
+}
+
+func plainParameter(yield func(int) bool) bool { return yield(1) }
+
+func checkForms() {
+	v := 6
+	checkBoth("paren", seqParen(3, 4), aliasParen(3, 4), 14)
+	checkBoth("bare", seqBare(3), aliasBare(3), 3)
+	checkBoth("paren-sum", seqParenSum(3, 4), aliasParenSum(3, 4), 7)
+	checkBoth("selector", seqSelector(box{6}), aliasSelector(box{6}), 6)
+	checkBoth("index", seqIndex([]int{1, 2, 3}), aliasIndex([]int{1, 2, 3}), 2)
+	checkBoth("call-value", seqCallValue(triple, 3), aliasCallValue(triple, 3), 9)
+	checkBoth("assert", seqAssert(5), aliasAssert(5), 5)
+	checkBoth("unary-sum", seqUnarySum(3, 4), aliasUnarySum(3, 4), 1)
+	checkBoth("unary-prod", seqUnaryProd(3), aliasUnaryProd(3), -6)
+	checkBoth("unary-mixed", seqUnaryMixed(3, 4, 5), aliasUnaryMixed(3, 4, 5), -7)
+	checkBoth("plus", seqPlus(3), aliasPlus(3), 3)
+	checkBoth("complement", seqComplement(3), aliasComplement(3), -4)
+	checkBoth("neg-paren", seqNegParen(3), aliasNegParen(3), -3)
+	checkBoth("neg-paren-prod", seqNegParenProd(3), aliasNegParenProd(3), -6)
+	checkBoth("neg-call", seqNegCall(triple, 3), aliasNegCall(triple, 3), -9)
+	checkBoth("neg-field", seqNegField(box{6}), aliasNegField(box{6}), -6)
+	checkBoth("deref", seqDeref(&v), aliasDeref(&v), 7)
+	checkBoth("deref-prod", seqDerefProd(&v), aliasDerefProd(&v), 12)
+	checkBoth("recv", seqRecv(), aliasRecv(), 42)
+	checkBoth("recv-prod", seqRecvProd(), aliasRecvProd(), 82)
+	checkBoth("call-index", seqCallIndex(3), aliasCallIndex(3), 6)
+	checkBoth("addr-nil", seqAddrNil(3), aliasAddrNil(3), false)
+	checkBoth("paren-equal", seqParenEqual(3, 4), aliasParenEqual(3, 4), false)
+	checkBoth("nested", seqNested(3, 4), aliasNested(3, 4), 14, 1)
+}
+
+func checkMoreForms() {
+	b := box{6}
+	checkBoth("not", seqNot(false), aliasNot(false), true)
+	checkBoth("slice-literal", seqSliceLiteral(), aliasSliceLiteral(), 5)
+	checkBoth("array-literal", seqArrayLiteral(), aliasArrayLiteral(), 2)
+	checkBoth("array-literal-ellipsis", seqEllipsisArray(), aliasEllipsisArray(), 8)
+	checkBoth("array-literal-nested", seqNestedArray(), aliasNestedArray(), 3)
+	checkBoth("address", seqAddress(&b), aliasAddress(&b), &b.n)
+	checkBoth("recv-only", seqRecvOnly(), aliasRecvOnly(), 7)
+	checkBoth("func-literal", seqFuncLiteral(), aliasFuncLiteral(), 1)
+	checkBoth("struct-literal-field", seqStructField(), aliasStructField(), 4)
+	checkBoth("composite-element", seqCompositeElem(), aliasCompositeElem(), box{6})
+}
+
+func checkPairForms() {
+	v := 6
+	checkPairs("pair-unary", seqPairUnary(3, 4), aliasPairUnary(3, 4), "-3/4")
+	checkPairs("pair-paren", seqPairParen(3, 4), aliasPairParen(3, 4), "3/4")
+	checkPairs("pair-paren-binary", seqPairParenBinary(3, 4), aliasPairParenBinary(3, 4), "14/-4")
+	checkPairs("pair-deref", seqPairDeref(&v, 4), aliasPairDeref(&v, 4), "6/-4")
+	checkPairs("pair-not", seqPairNot(false), aliasPairNot(false), "true/1")
+	checkPairs("pair-literal", seqPairLiteral(), aliasPairLiteral(), "k/1")
+}
+
+func checkPlain() {
+	got := plainCall() + plainVariable()
+	if got != 109 {
+		failed = true
+		fmt.Println("FAIL plain-yield-identifier: got", got, "want 109")
+	} else {
+		fmt.Println("ok plain-yield-identifier")
+	}
+	plainCallStatement()
+	called := plainParameter(func(n int) bool { return n == 1 })
+	if !called {
+		failed = true
+		fmt.Println("FAIL plain-yield-parameter: got", called, "want true")
+	} else {
+		fmt.Println("ok plain-yield-parameter")
+	}
+}
+
+func main() {
+	checkForms()
+	checkMoreForms()
+	checkPairForms()
+	checkPlain()
+	if failed {
+		os.Exit(1)
+	}
+}

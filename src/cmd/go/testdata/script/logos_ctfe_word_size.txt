@@ -1,0 +1,224 @@
+# SPEC 2.1: constant evaluation uses the target integer widths. int and uint are
+# 32 bits on 386 and arm and 64 bits on amd64 and wasm. A value that wraps at run
+# time on the target wraps the same way at compile time, and a typed constant
+# result that does not fit the target width fails with [correctness::const_eval].
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env CGO_ENABLED=0
+
+cd m
+
+env GOARCH=amd64
+logos run ./wrap
+cmp stdout want-wrap-amd64.txt
+logos run ./over
+cmp stdout want-over-amd64.txt
+logos run ./overlib
+cmp stdout want-overlib-amd64.txt
+! logos build -o uptr.exe ./uptr
+stderr '\[correctness::const_eval\] uintptr type in const func'
+
+env GOARCH=386
+logos run ./wrap
+cmp stdout want-wrap-386.txt
+! logos build -o over.exe ./over
+stderr 'over/main\.lgo:16:7: \[correctness::const_eval\] constant 2147483648 overflows int in const evaluation'
+stderr 'over/main\.lgo:17:7: \[correctness::const_eval\] constant 4294967296 overflows int in const evaluation'
+stderr 'over/main\.lgo:18:7: \[correctness::const_eval\] constant shift result overflows int in const evaluation'
+stderr 'over/main\.lgo:19:7: \[correctness::const_eval\] constant 2147483648 overflows int in const evaluation'
+stderr 'over/main\.lgo:20:7: \[correctness::const_eval\] constant 4294967296 overflows uint in const evaluation'
+stderr 'over/main\.lgo:21:7: \[correctness::const_eval\] constant -3221225472 overflows int in const evaluation'
+! logos build -o overlib.exe ./overlib
+stderr 'overlib/main\.lgo:9:7: \[correctness::const_eval\] constant 2147483648 overflows int in const evaluation'
+stderr 'overlib/main\.lgo:10:7: \[correctness::const_eval\] constant 4294967296 overflows int in const evaluation'
+stderr 'overlib/main\.lgo:11:7: \[correctness::const_eval\] constant shift result overflows int in const evaluation'
+stderr 'overlib/main\.lgo:12:7: \[correctness::const_eval\] constant 2147483648 overflows int in const evaluation'
+stderr 'overlib/main\.lgo:13:7: \[correctness::const_eval\] constant 4294967296 overflows uint in const evaluation'
+stderr 'overlib/main\.lgo:14:7: \[correctness::const_eval\] constant -3221225472 overflows int in const evaluation'
+! logos build -o uptr.exe ./uptr
+stderr '\[correctness::const_eval\] uintptr type in const func'
+
+env GOARCH=arm
+! logos build -o over.exe ./over
+stderr 'over/main\.lgo:16:7: \[correctness::const_eval\] constant 2147483648 overflows int in const evaluation'
+stderr 'over/main\.lgo:20:7: \[correctness::const_eval\] constant 4294967296 overflows uint in const evaluation'
+! logos build -o overlib.exe ./overlib
+stderr 'overlib/main\.lgo:9:7: \[correctness::const_eval\] constant 2147483648 overflows int in const evaluation'
+stderr 'overlib/main\.lgo:13:7: \[correctness::const_eval\] constant 4294967296 overflows uint in const evaluation'
+
+env GOOS=wasip1
+env GOARCH=wasm
+logos build -o over.wasm ./over
+logos build -o overlib.wasm ./overlib
+
+-- m/go.mod --
+module example.com/ctfew
+
+go 1.27
+
+-- m/lib/lib.lgo --
+package lib
+
+const func C1G() int   { return 1 << 30 }
+const func C64K() int  { return 1 << 16 }
+const func C1() int    { return 1 }
+const func CU31() uint { return 1 << 31 }
+const func Sum() int   { return C1G() + C1G() }
+const func Prod() int  { return C64K() * C64K() }
+const func ShlW() int  { return C1() << 32 }
+const func Shl31() int { return C1() << 31 }
+const func SumU() uint { return CU31() + CU31() }
+const func Neg() int   { return -C1G() - C1G() - C1G() }
+
+const func MulWrap(a, b int) int     { return a * b }
+const func NarrowUint(n uint64) uint { return uint(n) }
+-- m/over/main.lgo --
+package main
+
+import "fmt"
+
+const func C1G() int   { return 1 << 30 }
+const func C64K() int  { return 1 << 16 }
+const func C1() int    { return 1 }
+const func CU31() uint { return 1 << 31 }
+const func Sum() int   { return C1G() + C1G() }
+const func Prod() int  { return C64K() * C64K() }
+const func ShlW() int  { return C1() << 32 }
+const func Shl31() int { return C1() << 31 }
+const func SumU() uint { return CU31() + CU31() }
+const func Neg() int   { return -C1G() - C1G() - C1G() }
+
+const sum = Sum()
+const prod = Prod()
+const shlw = ShlW()
+const shl31 = Shl31()
+const sumu = SumU()
+const neg = Neg()
+
+func main() {
+	fmt.Println(int64(sum), int64(prod), int64(shlw), int64(shl31), uint64(sumu), int64(neg))
+}
+-- m/overlib/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/ctfew/lib"
+)
+
+const sum = lib.Sum()
+const prod = lib.Prod()
+const shlw = lib.ShlW()
+const shl31 = lib.Shl31()
+const sumu = lib.SumU()
+const neg = lib.Neg()
+
+func main() {
+	fmt.Println(int64(sum), int64(prod), int64(shlw), int64(shl31), uint64(sumu), int64(neg))
+}
+-- m/wrap/main.lgo --
+package main
+
+import (
+	"fmt"
+	"os"
+
+	"example.com/ctfew/lib"
+)
+
+const func ShlHigh(n int) int        { return n << 31 }
+const func ShlWord(n int) int        { return n << 32 }
+const func ShrWord(n int) int        { return n >> 32 }
+const func MulWrap(a, b int) int     { return a * b }
+const func AddWrap(a, b int) int     { return a + b }
+const func DivMin(a, b int) int      { return a / b }
+const func Mix(a, b int) int         { return a*b + a<<30 }
+const func SubWrap(a, b uint) uint   { return a - b }
+const func NarrowInt(n int64) int    { return int(n) }
+const func NarrowUint(n uint64) uint { return uint(n) }
+
+const shlHigh = ShlHigh(1)
+const shlWord = ShlWord(1)
+const shrWord = ShrWord(-5)
+const mulWrap = MulWrap(65536, 65536)
+const addWrap = AddWrap(2147483647, 1)
+const divMin = DivMin(-2147483648, -1)
+const mix = Mix(3, 2147483647)
+const subWrap = SubWrap(0, 1)
+const narrowInt = NarrowInt(4294967301)
+const narrowUint = NarrowUint(18446744073709551615)
+
+const impMul = lib.MulWrap(65536, 65536)
+const impNarrow = lib.NarrowUint(18446744073709551615)
+
+var failed bool
+
+func signed(name string, c, r int64) {
+	fmt.Printf("%s const=%d run=%d\n", name, c, r)
+	if c != r {
+		failed = true
+	}
+}
+
+func unsigned(name string, c, r uint64) {
+	fmt.Printf("%s const=%d run=%d\n", name, c, r)
+	if c != r {
+		failed = true
+	}
+}
+
+func main() {
+	one := len(os.Args)
+	signed("shlHigh", int64(shlHigh), int64(ShlHigh(one)))
+	signed("shlWord", int64(shlWord), int64(ShlWord(one)))
+	signed("shrWord", int64(shrWord), int64(ShrWord(-5*one)))
+	signed("mulWrap", int64(mulWrap), int64(MulWrap(65536*one, 65536)))
+	signed("addWrap", int64(addWrap), int64(AddWrap(2147483647*one, 1)))
+	signed("divMin", int64(divMin), int64(DivMin(-2147483648*one, -one)))
+	signed("mix", int64(mix), int64(Mix(3, 2147483647*one)))
+	unsigned("subWrap", uint64(subWrap), uint64(SubWrap(0, uint(one))))
+	signed("narrowInt", int64(narrowInt), int64(NarrowInt(4294967301*int64(one))))
+	unsigned("narrowUint", uint64(narrowUint), uint64(NarrowUint(18446744073709551615*uint64(one))))
+	signed("impMul", int64(impMul), int64(lib.MulWrap(65536*one, 65536)))
+	unsigned("impNarrow", uint64(impNarrow), uint64(lib.NarrowUint(18446744073709551615*uint64(one))))
+	if failed {
+		os.Exit(1)
+	}
+}
+-- m/uptr/main.lgo --
+package main
+
+const ptrs = []uintptr{1}
+
+func main() { _ = ptrs }
+-- m/want-wrap-amd64.txt --
+shlHigh const=2147483648 run=2147483648
+shlWord const=4294967296 run=4294967296
+shrWord const=-1 run=-1
+mulWrap const=4294967296 run=4294967296
+addWrap const=2147483648 run=2147483648
+divMin const=2147483648 run=2147483648
+mix const=9663676413 run=9663676413
+subWrap const=18446744073709551615 run=18446744073709551615
+narrowInt const=4294967301 run=4294967301
+narrowUint const=18446744073709551615 run=18446744073709551615
+impMul const=4294967296 run=4294967296
+impNarrow const=18446744073709551615 run=18446744073709551615
+-- m/want-wrap-386.txt --
+shlHigh const=-2147483648 run=-2147483648
+shlWord const=0 run=0
+shrWord const=-1 run=-1
+mulWrap const=0 run=0
+addWrap const=-2147483648 run=-2147483648
+divMin const=-2147483648 run=-2147483648
+mix const=1073741821 run=1073741821
+subWrap const=4294967295 run=4294967295
+narrowInt const=5 run=5
+narrowUint const=4294967295 run=4294967295
+impMul const=0 run=0
+impNarrow const=4294967295 run=4294967295
+-- m/want-over-amd64.txt --
+2147483648 4294967296 4294967296 2147483648 4294967296 -3221225472
+-- m/want-overlib-amd64.txt --
+2147483648 4294967296 4294967296 2147483648 4294967296 -3221225472

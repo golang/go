@@ -1,0 +1,111 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type Getter[T any] interface {
+	Get() T
+}
+
+type Valued[T any] interface {
+	const V T
+}
+
+type Keyed[K comparable] interface {
+	const Key K
+}
+
+type Slotted[T any] interface {
+	Item T
+}
+
+type Box[T any] struct : Getter[T] {
+	v T
+}
+
+func (b Box[T]) Get() T {
+	return b.v
+}
+
+type Cell[T any] struct : Valued[T] {
+	V T
+}
+
+type Pair[K comparable, V any] struct : Keyed[K], Valued[V] {
+	Key K
+	V   V
+}
+
+type Slot[T any] struct : Slotted[T] {
+	Item T
+}
+
+type Counter[T any] struct : Slotted[T] {
+	last T
+	sets int
+}
+
+func (c *Counter[T]) Item() T {
+	return c.last
+}
+
+func (c *Counter[T]) SetItem(v T) {
+	c.last = v
+	c.sets++
+}
+
+func Show[T any](v Valued[T]) T {
+	return v.V
+}
+
+func main() {
+	var g Getter[int] = Box[int]{v: 3}
+	check("ordinary-interface-assertion", g.Get() == 3, g.Get(), 3)
+
+	var v Valued[string] = Cell[string]{V: "x"}
+	check("const-property-field", v.V == "x", v.V, "x")
+	check("const-property-through-generic-func", Show[string](v) == "x", Show[string](v), "x")
+
+	p := Pair[string, int]{Key: "k", V: 1}
+	var k Keyed[string] = p
+	var n Valued[int] = p
+	check("two-interfaces-key", k.Key == "k", k.Key, "k")
+	check("two-interfaces-value", n.V == 1, n.V, 1)
+
+	var s Slotted[int] = &Slot[int]{}
+	s.Item = 5
+	s.Item += 2
+	check("read-write-field", s.Item == 7, s.Item, 7)
+
+	c := &Counter[string]{}
+	var m Slotted[string] = c
+	m.Item = "a"
+	m.Item += "b"
+	check("read-write-methods", m.Item == "ab", m.Item, "ab")
+	check("setter-ran-through-method", c.sets == 2, c.sets, 2)
+
+	var any1 any = &Cell[int]{V: 1}
+	_, ok := any1.(Valued[int])
+	check("dynamic-assertion", ok, ok, true)
+	_, ok = any1.(Valued[string])
+	check("dynamic-assertion-other-argument", !ok, ok, false)
+
+	if failed {
+		os.Exit(1)
+	}
+}

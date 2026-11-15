@@ -1,0 +1,86 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+)
+
+var sentinel = errors.New("plain-chain-body")
+var calls, after int
+
+func fail(x int) (int, error) {
+	calls++
+	return x, sentinel
+}
+
+func plainBody() error {
+	xs := []int{1, 2}
+	ys := xs.map(x => {
+		v := fail(x)?
+		after++
+		return v
+	})
+	_ = ys
+	after++
+	return nil
+}
+
+func selectBody() error {
+	select {
+	default:
+		xs := []int{1, 2}
+		ys := xs.map(x => {
+			select {
+			default:
+				v := fail(x)?
+				after++
+				return v
+			}
+		})
+		_ = ys
+		after++
+	}
+	after++
+	return nil
+}
+
+func switchBody() error {
+	switch 1 {
+	case 1:
+		xs := []int{1, 2}
+		ys := xs.map(x => {
+			switch x {
+			case 1:
+				v := fail(x)?
+				after++
+				return v
+			}
+			after++
+			return x
+		})
+		_ = ys
+		after++
+	}
+	after++
+	return nil
+}
+
+func main() {
+	for _, c := range []struct {
+		name string
+		run func() error
+	}{
+		{"plain", plainBody},
+		{"select-default", selectBody},
+		{"switch-case", switchBody},
+	} {
+		calls, after = 0, 0
+		err := c.run()
+		if err != sentinel || calls != 1 || after != 0 {
+			panic(fmt.Sprintf("%s: err=%v calls=%d after=%d", c.name, err, calls, after))
+		}
+	}
+	fmt.Println("ok plain-chain-try-switch-select-body")
+}

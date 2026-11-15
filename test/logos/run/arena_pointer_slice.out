@@ -1,11 +1,13 @@
-ptr-sum: 523776
-mixed-sum: 1047552
-ptr-gc-sum: 523776 true
-mixed-gc-sum: 1047552 true
-leak-sum: 523776
-leak-global-sum: 523776
-chan-sum: 523776
-alloc-ptr: 0
-alloc-mixed: 0
-alloc-leak: 1
-alloc-chan: 1
+ok local-pointer-slice-sum-matches-series
+ok local-mixed-slice-sum-matches-doubled-series
+ok gc-preserves-pointer-slice-sum
+ok gc-preserves-pointer-identity
+ok gc-preserves-mixed-slice-sum
+ok gc-preserves-mixed-pointer-identity
+ok leaked-slice-sum-matches-series
+ok global-sink-keeps-leaked-sum
+ok channel-roundtrip-preserves-sum
+ok local-pointer-slice-avoids-alloc
+ok local-mixed-slice-avoids-alloc
+ok leaked-slice-forces-heap-alloc
+ok channel-slice-forces-heap-alloc

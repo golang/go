@@ -1,12 +1,8 @@
-# M9-S1 lint leg of --pedantic (flag wiring: M0-S7): logos lint accepts the
-# flag, a default build stays silent for the pedantic group, and --pedantic
-# enables it. The rule itself is proved in M9-S2.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
 mkdir $WORK/bin
 
-# Default logos lint and logos build are silent for the pedantic group.
 cd union
 logos lint ./...
 ! stderr .
@@ -15,21 +11,25 @@ logos build -o $WORK/bin/union$GOEXE .
 exists $WORK/bin/union$GOEXE
 cd ..
 
-# logos lint --pedantic accepts the flag and reports the default clause of
-# the switch over the closed union as a warning.
+cd union
+logos lint --pedantic=true ./...
+stderr 'main\.lgo:15:2: warning: \[pedantic::exhaustive_union_switch\]'
+logos build --pedantic=true -o $WORK/bin/uniontrue$GOEXE .
+stderr 'main\.lgo:15:2: warning: \[pedantic::exhaustive_union_switch\]'
+exists $WORK/bin/uniontrue$GOEXE
+cd ..
+
 cd union
 logos lint --pedantic ./...
 stderr 'main\.lgo:15:2: warning: \[pedantic::exhaustive_union_switch\]'
 cd ..
 
-# logos build --pedantic enables the group too, without failing the build.
 cd union
 logos build --pedantic -o $WORK/bin/unionped$GOEXE .
 stderr 'main\.lgo:15:2: warning: \[pedantic::exhaustive_union_switch\]'
 exists $WORK/bin/unionped$GOEXE
 cd ..
 
-# --pedantic=false stays silent and a bad value fails at the flag layer.
 cd union
 logos lint --pedantic=false ./...
 ! stderr .
@@ -37,36 +37,40 @@ logos lint --pedantic=false ./...
 stderr '^invalid boolean value "maybe" for -pedantic'
 cd ..
 
-# The warning is a lint diagnostic in the JSON output;
-# TestLogosJSONDiagnostics checks the record as JSON.
 cd union
 logos lint --pedantic --json-diagnostics ./...
 cd ..
 
-# A switch without default stays silent under --pedantic.
 cd exhaustive
 logos lint --pedantic ./...
 ! stderr .
 cd ..
 
-# logos.toml pedantic = "deny" makes the group an error without the flag,
-# and --pedantic=false overrides the key.
 cd strict
+! logos build --pedantic -o $WORK/bin/strictped$GOEXE .
+stderr '\[pedantic::exhaustive_union_switch\]'
+! exists $WORK/bin/strictped$GOEXE
+! logos build --pedantic=true -o $WORK/bin/stricttrue$GOEXE .
+stderr '\[pedantic::exhaustive_union_switch\]'
+! exists $WORK/bin/stricttrue$GOEXE
 ! logos lint ./...
+stderr 'main\.lgo:15:2: \[pedantic::exhaustive_union_switch\]'
+! logos lint --pedantic=true ./...
 stderr 'main\.lgo:15:2: \[pedantic::exhaustive_union_switch\]'
 logos lint --pedantic=false ./...
 ! stderr .
 ! logos lint --pedantic ./...
 stderr 'main\.lgo:15:2: \[pedantic::exhaustive_union_switch\]'
+logos build --pedantic=false -o $WORK/bin/strictoff$GOEXE .
+! stderr .
+exists $WORK/bin/strictoff$GOEXE
 cd ..
 
-# The pedantic rule never applies to Go packages.
 cd gopkg
 logos lint --pedantic ./...
 ! stderr .
 cd ..
 
-# Plain go keeps the unknown-flag error for the logos-only flags.
 cd union
 ! go build --pedantic .
 stderr '^flag provided but not defined: -pedantic'

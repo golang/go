@@ -583,7 +583,6 @@ func (p *parser) importDecl(group *Group) Decl {
 		d.Path.Bad = true
 	}
 	// d.Path.Bad || d.Path.Kind == StringLit
-
 	return d
 }
 
@@ -665,7 +664,7 @@ func (p *parser) typeDecl(group *Group) Decl {
 				// d.Name "[" pname ptype "," ...
 				d.TParamList = p.paramList(pname, ptype, _Rbrack, true, false) // ptype may be nil
 				d.Alias = p.gotAssign()
-				d.Type = p.logosOptionType(p.typeOrNil()) // M3-S2: generic header with option body.
+				d.Type = p.logosOptionType(p.logosTypeDeclType(d)) // M3-S2: generic header with option body.
 			} else {
 				// d.Name "[" pname "]" ...
 				// d.Name "[" x ...
@@ -1039,7 +1038,7 @@ func (p *parser) operand(keep_parens bool) Expr {
 		return p.oliteral()
 
 	case _Lparen:
-		if e, ok := p.logosParenOperand(keep_parens); ok { // M6-S5 hook: shared `(` rule.
+		if e, ok := p.logosParen(keep_parens, false); ok { // M6-S5 hook: shared `(` rule.
 			return e
 		}
 		pos := p.pos()
@@ -1475,7 +1474,7 @@ func (p *parser) typeOrNil() Expr {
 		return p.qualifiedName(nil)
 
 	case _Lparen:
-		if e, ok := p.logosParenType(); ok { // M6-S5 hook: shared `(` rule.
+		if e, ok := p.logosParen(false, true); ok { // M6-S5 hook: shared `(` rule.
 			return e
 		}
 		p.next()
@@ -2689,14 +2688,14 @@ func (p *parser) stmtOrNil() Stmt {
 	// look for it first before doing anything more expensive.
 	if p.tok == _Name {
 		p.clearPragma()
-		lhs := p.exprList()
+		lhs, ys := p.logosYield() // M6-S9 hook: yield statement.
+		if ys != nil {
+			return ys
+		}
 		if label, ok := lhs.(*Name); ok && p.tok == _Colon {
 			return p.labeledStmtOrNil(label)
 		}
 		if s := p.logosErrdefer(lhs); s != nil { // M1-S2 hook: errdefer statement.
-			return s
-		}
-		if s := p.logosYield(lhs); s != nil { // M6-S9 hook: yield statement.
 			return s
 		}
 		if s := p.logosScopeDefer(lhs); s != nil { // M6-S10 hook: scope defer statement.
@@ -2835,7 +2834,7 @@ func (p *parser) argList() (list []Expr, hasDots bool) {
 
 	p.xnest++
 	p.list("argument list", _Comma, _Rparen, func() bool {
-		list = append(list, p.expr())
+		list = append(list, p.logosNamedArg(p.expr()))
 		hasDots = p.got(_DotDotDot)
 		return hasDots
 	})
@@ -2921,7 +2920,10 @@ func (p *parser) exprList() Expr {
 		defer p.trace("exprList")()
 	}
 
-	x := p.expr()
+	return p.exprListTail(p.expr())
+}
+
+func (p *parser) exprListTail(x Expr) Expr {
 	if p.got(_Comma) {
 		list := []Expr{x, p.expr()}
 		for p.got(_Comma) {

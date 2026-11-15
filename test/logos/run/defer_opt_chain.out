@@ -1,0 +1,9 @@
+ok defer-self-present
+ok defer-self-none
+ok defer-field-present
+ok defer-field-absent-link
+ok defer-field-none
+ok go-self-present
+ok go-self-none
+ok go-field-present
+ok go-field-absent-link

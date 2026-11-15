@@ -9,7 +9,6 @@ import (
 	"strings"
 )
 
-// siteTitle is the spelling of each site kind in a hover.
 var siteTitle = map[string]string{
 	SiteTry:         "?",
 	SiteConstFor:    "const for",
@@ -17,10 +16,6 @@ var siteTitle = map[string]string{
 	SiteInterp:      `$"..."`,
 }
 
-// HoverAt returns the hover of the lowering site under pos in the file named
-// file, or nil when no site lies there. It shows the lowered code and, for an
-// interpolation, `Fixed: <n>B + dynamic` (SPEC Sec 21.3). When sites nest,
-// the innermost answers.
 func HoverAt(r *Report, file string, pos Position) *Hover {
 	f := r.file(file)
 	if f == nil {
@@ -41,9 +36,6 @@ func HoverAt(r *Report, file string, pos Position) *Hover {
 	}
 }
 
-// hoverText renders the markdown of a site: its title, the fixed byte count
-// of an interpolation, and the lowered code in a fence longer than any run of
-// backquotes inside it.
 func hoverText(s Site) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "**Lowered** `%s`\n\n", siteTitle[s.Kind])

@@ -6,14 +6,34 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"runtime"
 	"strings"
-	"time"
 )
 
 var errPrimary = errors.New("primary")
 
 var order []string
+
+var bad bool
+
+func check(tag string, cond bool, got, want string) {
+	if !cond {
+		fmt.Println("FAIL "+tag+": got "+got+" want "+want)
+		bad = true
+		return
+	}
+	fmt.Println("ok", tag)
+}
+
+func idx(s string) int {
+	for i, v := range order {
+		if v == s {
+			return i
+		}
+	}
+	return -1
+}
 
 func note(s string) { order = append(order, s) }
 
@@ -43,6 +63,29 @@ func recoverIt() (s string) {
 	}()
 	_ = onPanic()
 	return "no-panic"
+}
+
+var errRollback = errors.New("rollback")
+
+func rollbackFails() error { return errRollback }
+
+func boomVal() int { panic("value-boom") }
+
+func returnEvalPanic() (v int, err error) {
+	errdefer note("return-eval-panic")
+	return boomVal(), nil
+}
+
+func primaryAndRollback() (err error) {
+	errdefer rollbackFails()?
+	return errPrimary
+}
+
+//logos:allow(slop::discarded_error)
+func evalPanicDriver() (r any) {
+	defer func() { r = recover() }()
+	_, _ = returnEvalPanic()
+	return nil
 }
 
 func laterDeferFails() (err error) {
@@ -95,29 +138,42 @@ func goexitWorker(done chan string) (err error) {
 //logos:allow(slop::discarded_error)
 func run() error {
 	_ = onError()
+	check("errdefer-runs-on-error", idx("on-error") == 0, strings.Join(order, ","), "on-error first")
 	_ = onSuccess()
-	fmt.Println("panic:", recoverIt())
+	check("errdefer-skips-on-success", idx("on-success") < 0, strings.Join(order, ","), "no on-success")
 	lateErr := laterDeferFails()
-	fmt.Println("late-err:", lateErr)
+	rec := recoverIt()
+	check("errdefer-runs-on-panic", rec == "boom", rec, "boom")
 	_ = typedNil()
+	check("errdefer-runs-when-defer-fails", lateErr == errPrimary, fmt.Sprint(lateErr), errPrimary.Error())
+	check("errdefer-counts-typed-nil", idx("typed-nil") >= 0, strings.Join(order, ","), "typed-nil present")
 	_ = lifo()
+	d, t, e := idx("L-defer"), idx("L-defertry"), idx("L-errdefer")
+	check("errdefer-defers-run-lifo-across-kinds", d >= 0 && d < t && t < e, strings.Join(order, ","), "L-defer,L-defertry,L-errdefer in order")
 	_ = argEval()
+	check("errdefer-evaluates-args-at-statement", idx("before") >= 0 && idx("after") < 0, strings.Join(order, ","), "before present, after absent")
 	done := make(chan string, 1)
 	go group (context.Background()) {
 		go goexitWorker(done)
 	}
-	select {
-	case msg := <-done:
-		fmt.Println("goexit:", msg)
-	case <-time.After(2 * time.Second):
-		fmt.Println("goexit: timeout")
+	msg := <-done
+	check("errdefer-runs-on-goexit", msg == "goexit-ran", msg, "goexit-ran")
+	gotEval := fmt.Sprint(evalPanicDriver())
+	check("errdefer-runs-on-return-eval-panic", gotEval == "value-boom", gotEval, "value-boom")
+	if err := primaryAndRollback(); err != nil {
+		check("errdefer-rollback-joins-with-primary", errors.Is(err, errPrimary) && errors.Is(err, errRollback), err.Error(), "primary+rollback join")
+	} else {
+		check("errdefer-rollback-joins-with-primary", false, "<nil>", "primary+rollback join")
 	}
-	fmt.Println("order:", strings.Join(order, ","))
 	return nil
 }
 
 func main() {
 	if err := run(); err != nil {
-		fmt.Println("fatal:", err)
+		fmt.Println("FAIL errdefer-run-driver: got", err, "want nil")
+		os.Exit(1)
+	}
+	if bad {
+		os.Exit(1)
 	}
 }

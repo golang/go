@@ -1,0 +1,142 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, got, want int) {
+	if got != want {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func nestedFor[T any](xs []T) int {
+	n := 0
+	const switch T {
+	case int:
+		for _, x := range xs {
+			if x == 0 {
+				continue
+			}
+			if x > 100 {
+				break
+			}
+			n += x
+		}
+	}
+	return n
+}
+
+func nestedSwitch[T any](k int) int {
+	n := 0
+	const switch T {
+	case string:
+		switch k {
+		case 0:
+			break
+		default:
+			n = 7
+		}
+	}
+	return n
+}
+
+func nestedSelect[T any]() int {
+	n := 0
+	const switch T {
+	case int:
+		select {
+		default:
+			n = 5
+			break
+		}
+	}
+	return n
+}
+
+func literalLoop[T any]() int {
+	const switch T {
+	case int:
+		f := func() int {
+			s := 0
+			for i := 0; i < 5; i++ {
+				if i == 3 {
+					break
+				}
+				s += i
+			}
+			return s
+		}
+		return f()
+	}
+	return -1
+}
+
+func labeledOut[T any]() int {
+	n := 0
+outer:
+	for range 3 {
+		const switch T {
+		case int:
+			n++
+			continue outer
+		case string:
+			break outer
+		}
+		n += 10
+	}
+	return n
+}
+
+func labeledInner[T any]() int {
+	n := 0
+	const switch T {
+	case int:
+	loop:
+		for i := 0; i < 3; i++ {
+			if i == 1 {
+				continue loop
+			}
+			n += 10
+		}
+	}
+	return n
+}
+
+func nestedConst[T, U any](v T, w U) int {
+	const switch T {
+	case int:
+		const switch U {
+		case string:
+			return v + len(w)
+		}
+	}
+	return -1
+}
+
+func main() {
+	check("nested-for-int", nestedFor([]int{1, 0, 2, 200, 3}), 3)
+	check("nested-for-no-case", nestedFor([]string{"a"}), 0)
+	check("nested-switch-break", nestedSwitch[string](0), 0)
+	check("nested-switch-default", nestedSwitch[string](1), 7)
+	check("nested-switch-no-case", nestedSwitch[int](1), 0)
+	check("nested-select-break", nestedSelect[int](), 5)
+	check("literal-loop-break", literalLoop[int](), 3)
+	check("labeled-continue-out", labeledOut[int](), 3)
+	check("labeled-break-out", labeledOut[string](), 0)
+	check("labeled-no-case", labeledOut[bool](), 30)
+	check("labeled-inner-continue", labeledInner[int](), 20)
+	check("nested-const-switch-names", nestedConst(3, "xy"), 5)
+	check("nested-const-switch-other", nestedConst("s", 1), -1)
+	if failed {
+		os.Exit(1)
+	}
+}

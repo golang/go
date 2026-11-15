@@ -1,0 +1,16 @@
+ok index-octal
+ok index-hex
+ok index-underscore
+ok index-binary
+ok index-octal-len
+ok index-octal-prefix
+ok index-rune
+ok index-shift
+ok index-parenthesized
+ok index-sum
+ok index-whole-float
+ok index-typed-byte
+ok index-typed-int8
+ok index-typed-uint64
+ok index-typed-named
+ok index-typed-len

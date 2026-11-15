@@ -5,6 +5,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 )
 
@@ -40,12 +41,33 @@ func flush(fail bool) error {
 	return nil
 }
 
+var failed bool
+
+func check(name string, cond bool, got, want string) {
+	if !cond {
+		fmt.Printf("FAIL %s: got %s want %s\n", name, got, want)
+		failed = true
+		return
+	}
+	fmt.Printf("ok %s\n", name)
+}
+
 func main() {
-	s, n, err := save(false)
-	fmt.Printf("save ok: %q %d %v\n", s, n, err)
-	s2, n2, err2 := save(true)
-	fmt.Printf("save fail: %q %d %v\n", s2, n2, err2)
-	fmt.Println("flush ok:", flush(false))
-	fmt.Println("flush fail:", flush(true))
-	fmt.Println("order:", strings.Join(order, ","))
+	var r1, r2 struct {
+		s   string
+		n   int
+		err error
+	}
+	r1.s, r1.n, r1.err = save(false)
+	s, n, err := r1.s, r1.n, r1.err
+	check("errdefer-unnamed-success-values", s == "ok" && n == 7 && err == nil, fmt.Sprintf("%q %d %v", s, n, err), `"ok" 7 <nil>`)
+	r2.s, r2.n, r2.err = save(true)
+	s2, n2, err2 := r2.s, r2.n, r2.err
+	check("errdefer-unnamed-failure-values", s2 == "" && n2 == 0 && errors.Is(err2, errWork), fmt.Sprintf("%q %d %v", s2, n2, err2), `"\"\" 0 work"`)
+	check("errdefer-unnamed-flush-ok", flush(false) == nil, fmt.Sprint(flush(false)), "<nil>")
+	check("errdefer-unnamed-flush-fail", errors.Is(flush(true), errWork), fmt.Sprint(flush(true)), "work")
+	check("errdefer-unnamed-cleanup-once-per-failure", strings.Join(order, ",") == "load-cleanup,save-cleanup", strings.Join(order, ","), "load-cleanup,save-cleanup")
+	if failed {
+		os.Exit(1)
+	}
 }

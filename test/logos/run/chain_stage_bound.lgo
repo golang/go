@@ -1,0 +1,201 @@
+// run
+
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"sync/atomic"
+	"time"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+var window, peak atomic.Int64
+
+func enter() {
+	n := window.Add(1)
+	for {
+		p := peak.Load()
+		if n <= p || peak.CompareAndSwap(p, n) {
+			return
+		}
+	}
+}
+
+func reset() {
+	window.Store(0)
+	peak.Store(0)
+}
+
+func hold(d time.Duration) (chan struct{}, *time.Timer) {
+	gate := make(chan struct{})
+	return gate, time.AfterFunc(d, func() { close(gate) })
+}
+
+func waitGate(ctx context.Context, gate chan struct{}) error {
+	select {
+	case <-gate:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func slowHead(ctx context.Context, x int, gate chan struct{}) (int, error) {
+	enter()
+	if x == 0 {
+		waitGate(ctx, gate)?
+	}
+	return x, nil
+}
+
+func headOfLine(ctx context.Context, n, limit int) (int, error) {
+	gate, timer := hold(300 * time.Millisecond)
+	defer timer.Stop()
+	xs := make([]int, n)
+	for i := range xs {
+		xs[i] = i
+	}
+	total := 0
+	for y := range xs.group(ctx, limit = limit).map(x => slowHead(ctx, x, gate)?) {
+		window.Add(-1)
+		total += y
+	}
+	return total, nil
+}
+
+func caseHeadOfLine(ctx context.Context) {
+	reset()
+	total, err := headOfLine(ctx, 9, 3)
+	check("bound-head-of-line", err == nil && total == 36 && peak.Load() <= 3 && window.Load() == 0, peak.Load(), "at most 3")
+}
+
+func quick(x int) (int, error) {
+	enter()
+	return x, nil
+}
+
+func slowConsumer(ctx context.Context, n, limit int) (int, error) {
+	gate, timer := hold(300 * time.Millisecond)
+	defer timer.Stop()
+	xs := make([]int, n)
+	for i := range xs {
+		xs[i] = i
+	}
+	total := 0
+	for y := range xs.group(ctx, limit = limit).map(x => quick(x)?) {
+		window.Add(-1)
+		if y == 0 {
+			waitGate(ctx, gate)?
+		}
+		total += y
+	}
+	return total, nil
+}
+
+func caseSlowConsumer(ctx context.Context) {
+	reset()
+	total, err := slowConsumer(ctx, 9, 3)
+	check("bound-slow-consumer", err == nil && total == 36 && peak.Load() <= 3 && window.Load() == 0, peak.Load(), "at most 3")
+}
+
+var inner, arrived [4]atomic.Int64
+var innerPeak [4]atomic.Int64
+var outerLive, outerPeak atomic.Int64
+
+func notePeak(live, high *atomic.Int64) {
+	n := live.Add(1)
+	for {
+		p := high.Load()
+		if n <= p || high.CompareAndSwap(p, n) {
+			return
+		}
+	}
+}
+
+func innerWork(ctx context.Context, owner, y int) (int, error) {
+	notePeak(&inner[owner], &innerPeak[owner])
+	defer inner[owner].Add(-1)
+	arrived[owner].Add(1)
+	for arrived[owner].Load() < 3 {
+		select {
+		case <-ctx.Done():
+			return 0, ctx.Err()
+		default:
+			time.Sleep(time.Millisecond)
+		}
+	}
+	return y, nil
+}
+
+func outerWork(ctx context.Context, x int, ys []int) (int, error) {
+	notePeak(&outerLive, &outerPeak)
+	defer outerLive.Add(-1)
+	sum := ys.group(ctx, limit = 3).map(y => innerWork(ctx, x, y)?).sum()?
+	return sum, nil
+}
+
+func nested(ctx context.Context) ([]int, error) {
+	ys := []int{1, 2, 3, 4, 5, 6}
+	return []int{0, 1, 2, 3}.group(ctx, limit = 1).map(x => outerWork(ctx, x, ys)?)
+}
+
+func caseNestedOwnLimits(ctx context.Context) {
+	short, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	got, err := nested(short)
+	innerHigh := innerPeak[0].Load()
+	for i := range innerPeak {
+		innerHigh = max(innerHigh, innerPeak[i].Load())
+	}
+	check("bound-nested-inner-limit", err == nil && len(got) == 4 && innerHigh == 3, innerHigh, 3)
+	check("bound-nested-outer-limit", outerPeak.Load() == 1, outerPeak.Load(), 1)
+}
+
+func zeroLimit(ctx context.Context, n int) (msg string, touched bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			msg = fmt.Sprint(r)
+		}
+	}()
+	var src func(yield func(int) bool) = func(yield func(int) bool) {
+		touched = true
+		yield(1)
+	}
+	_, err := src.group(ctx, limit = n).map(x => x)
+	return fmt.Sprint("no panic ", err), touched
+}
+
+func caseZeroLimitVariable(ctx context.Context) {
+	msg, touched := zeroLimit(ctx, 0)
+	check("bound-limit-zero-variable", msg == "logos: group stage limit must be positive" && !touched, msg, "logos: group stage limit must be positive")
+	msg, touched = zeroLimit(ctx, -3)
+	check("bound-limit-negative", msg == "logos: group stage limit must be positive" && !touched, msg, "logos: group stage limit must be positive")
+}
+
+func run(f func(context.Context)) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	f(ctx)
+}
+
+func main() {
+	run(caseHeadOfLine)
+	run(caseSlowConsumer)
+	run(caseNestedOwnLimits)
+	run(caseZeroLimitVariable)
+	if failed {
+		os.Exit(1)
+	}
+}

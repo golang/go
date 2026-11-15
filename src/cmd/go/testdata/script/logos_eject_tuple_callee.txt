@@ -1,0 +1,57 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# A call that returns a tuple keeps its whole span when the callee is a
+# generic instantiation, a parenthesised name, or a function literal, so
+# a tuple variable can hold its result. The module runs natively, ejects,
+# and the ejected module builds and runs with go and with go1.27.2 from
+# $UPROOT1272 and prints the same output.
+cd m
+logos run .
+stdout '^1 <nil> 3 <nil> 5 <nil> 7 <nil>$'
+cp stdout $WORK/native.txt
+logos eject -o out
+exists out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $WORK/native.txt
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
+exec $WORK/upstream$GOEXE
+cmp stdout $WORK/native.txt
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ..
+
+-- m/go.mod --
+module example.com/tuplecallee
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import "fmt"
+
+func pair() (int, error) {
+	return 3, nil
+}
+
+func pair2[T any](v T) (T, error) {
+	return v, nil
+}
+
+func main() {
+	t := pair2[int](1)
+	a, b := t
+	u := (pair)()
+	c, d := u
+	v := func() (int, error) { return 5, nil }()
+	e, f := v
+	w := pair2[int](7) // comment after a generic call
+	g, h := w
+	fmt.Println(a, b, c, d, e, f, g, h)
+}

@@ -8,41 +8,12 @@ import (
 	"fmt"
 	"go/scanner"
 	"go/token"
+	"internal/logosfile"
 	"os"
-	"strings"
 )
 
-// logosCgoSyntaxMsg is the diagnostic for loGo/s syntax in a file that
-// imports "C" (SPEC T-304). cmd/cgo parses its inputs with go/parser, so
-// such a file never reaches the compiler.
 const logosCgoSyntaxMsg = `[correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only`
 
-// logosSyntaxPos returns the position of the first loGo/s spelling in
-// src: the character ? (try, option, and coalescing operators), a $
-// glued to a string (interpolation), the adjacent tokens => (lambdas and
-// switch arms) and .. (spread), a . that starts a line after an
-// automatic semicolon (leading-dot chains), and the plain-Go-token
-// families errdefer, yield, scope defer, go group (and go child
-// blocks), const if/for/switch/func, and tuple commas and colons. It
-// reports false unless src also imports "C", so the diagnostic names a
-// cgo file only.
-//
-// The scan reads Go tokens, so comments, strings, and runes never count,
-// and an ordinary Go syntax error leaves no such spelling. The
-// plain-token families mirror the compiler parser recognizers, which
-// cmd/cgo cannot import (cmd/compile/internal is internal to the
-// compiler): errdefer takes a call (an identifier or func follows),
-// yield takes an operand (a literal, identifier, or func/struct/map/
-// chan/interface follows), scope defer pairs the two words, go group
-// needs `(` after group (and `{` after the argument list, on the same
-// line, since a newline ends the go statement in both languages), go
-// takes a bare block, const takes if/for/switch/func, and a comma or
-// colon at the top of a non-call paren is a tuple (call parens follow a
-// name, a closer, or func; a name after var, const, type, or inside a
-// signature paren cannot start a call). Multiword families report the
-// family start (scope, go, const), matching the compiler statement
-// positions. Every other use of those words keeps its Go meaning, so
-// broken Go without a loGo/s spelling keeps the parser error.
 func logosSyntaxPos(name string, src []byte) (token.Position, bool) {
 	fs := token.NewFileSet()
 	file := fs.AddFile(name, fs.Base(), len(src))
@@ -85,8 +56,6 @@ func logosSyntaxPos(name string, src []byte) (token.Position, bool) {
 		return false
 	}
 
-	// pendName tracks an identifier that may start an identifier-led
-	// loGo/s statement; the next token decides. pendNone clears it.
 	const (
 		pendNone = iota
 		pendErrdefer
@@ -94,26 +63,32 @@ func logosSyntaxPos(name string, src []byte) (token.Position, bool) {
 	)
 	pend := pendNone
 	var pendPos token.Pos
-	// groupArmed tracks `go group` awaiting `(`; braceWait tracks a
-	// closed `go group (...)` awaiting `{` on the same line. goPos is
-	// the family start, matching the compiler GroupStmt position.
 	groupArmed := false
 	var goPos token.Pos
 	braceWait := false
 	braceLine := 0
-	// stack tracks open brackets for tuple detection: a comma or colon
-	// at the top of a paren whose commas cannot be separators is a
-	// tuple. Calls, signatures, and closers keep the Go meaning; a name
-	// in declaration position (var t (...), const t (...)) or a name
-	// inside a signature paren cannot start a call, so its paren is a
-	// tuple.
 	type opener struct {
 		tok     token.Token
 		params  bool
 		commaOK bool
 		group   bool
+		iface   bool
+		strct   bool
 	}
 	var stack []opener
+	top := func() opener {
+		if n := len(stack); n > 0 {
+			return stack[n-1]
+		}
+		return opener{}
+	}
+	startsStatement := func(t token.Token) bool {
+		switch t {
+		case token.ILLEGAL, token.SEMICOLON, token.LBRACE, token.COLON:
+			return true
+		}
+		return false
+	}
 
 	for {
 		pos, tok, lit := s.Scan()
@@ -174,6 +149,14 @@ func logosSyntaxPos(name string, src []byte) (token.Position, bool) {
 			tok == token.SWITCH && prev == token.CONST ||
 			tok == token.FUNC && prev == token.CONST:
 			note(file.Pos(prevOffset))
+		case tok == token.COLON && prev == token.STRUCT:
+			note(pos)
+		case tok == token.LBRACK && prev == token.PERIOD && offset == prevOffset+1:
+			note(file.Pos(prevOffset))
+		case tok == token.CONST && (!startsStatement(prev) || top().iface):
+			note(pos)
+		case tok == token.ASSIGN && top().strct:
+			note(pos)
 		case tok == token.LPAREN:
 			params := prev == token.FUNC || (prev == token.IDENT && prevPrev == token.FUNC)
 			enclParams := len(stack) > 0 && stack[len(stack)-1].params
@@ -182,7 +165,12 @@ func logosSyntaxPos(name string, src []byte) (token.Position, bool) {
 				(prev == token.IDENT && prevPrev != token.VAR && prevPrev != token.CONST && prevPrev != token.TYPE && !enclParams)
 			stack = append(stack, opener{tok: tok, params: params, commaOK: params || callLike})
 		case tok == token.LBRACK || tok == token.LBRACE:
-			stack = append(stack, opener{tok: tok, commaOK: true})
+			stack = append(stack, opener{
+				tok:     tok,
+				commaOK: true,
+				iface:   tok == token.LBRACE && prev == token.INTERFACE,
+				strct:   tok == token.LBRACE && prev == token.STRUCT,
+			})
 		case tok == token.RPAREN || tok == token.RBRACK || tok == token.RBRACE:
 			if n := len(stack); n > 0 {
 				want := token.LPAREN
@@ -212,12 +200,8 @@ func logosSyntaxPos(name string, src []byte) (token.Position, bool) {
 	return found, sawLogos && sawC
 }
 
-// logosRejectSyntax runs when go/parser has rejected a cgo input. For a
-// loGo/s input that holds loGo/s syntax it prints the pinned diagnostic in
-// place of the parser's follow-on errors and exits like any cgo error. It
-// returns, leaving the parser errors to print, for every other failure.
 func logosRejectSyntax(name string, src []byte) {
-	if !isLogosCgoInput(name) {
+	if !logosfile.Is(name) {
 		return
 	}
 	pos, ok := logosSyntaxPos(name, src)
@@ -226,32 +210,4 @@ func logosRejectSyntax(name string, src []byte) {
 	}
 	fmt.Fprintf(os.Stderr, "%s: %s\n", pos, logosCgoSyntaxMsg)
 	os.Exit(2)
-}
-
-// isLogosCgoInput reports whether name is a loGo/s source file accepted as
-// cgo input alongside .go files (M0-S5 routing: cmd/go passes logos files
-// that import "C" to cmd/cgo under their .lgo name). It matches ".lgo" and
-// the three alias extensions after stripping trailing U+FE0E and U+FE0F
-// variation selectors, the same rule as cfg.IsLogosFile. Accepted files
-// are parsed with go/parser, so only Go-syntax content compiles here;
-// loGo/s syntax is rejected by the parser and reported as
-// [correctness::cgo_file_logos_syntax] by logosRejectSyntax (M20-S0).
-// Generated outputs keep the input stem (for example "main.lgo.cgo1.go"),
-// which satisfies the M0-S3 compiler exemption for names ending in
-// .cgo1.go.
-func isLogosCgoInput(name string) bool {
-	trimmed := strings.TrimRight(name, "\uFE0E\uFE0F")
-	if strings.HasSuffix(trimmed, ".lgo") {
-		return true
-	}
-	if strings.HasSuffix(trimmed, ".📜") {
-		return true
-	}
-	if strings.HasSuffix(trimmed, ".⚡") {
-		return true
-	}
-	if strings.HasSuffix(trimmed, ".ʕ◔ϖ◔ʔ") {
-		return true
-	}
-	return false
 }

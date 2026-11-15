@@ -1,0 +1,80 @@
+// run
+package main
+import (
+"fmt"
+"os"
+"slices"
+"testing"
+)
+var failed bool
+func check(name string, cond bool, got, want any) {
+if !cond {
+failed = true
+fmt.Println("FAIL", name+":", "got", got, "want", want)
+return
+}
+fmt.Println("ok", name)
+}
+var mapCalls int
+var recvCalls int
+var fusedSink []int
+func bump(x int) int {
+mapCalls++
+return 2 * x
+}
+func getXS() []int {
+recvCalls++
+return []int{3, 1, 4, 1, 5, 9, 2, 6}
+}
+func fused() []int {
+return getXS().filter(x => x > 2).map(x => bump(x)).take(2)
+}
+var evtLog []string
+func logPred(x int) bool {
+evtLog = append(evtLog, fmt.Sprintf("p%d", x))
+return x > 2
+}
+func logMap(x int) int {
+evtLog = append(evtLog, fmt.Sprintf("m%d", x))
+return 2 * x
+}
+func fusedOrder() []string {
+evtLog = nil
+r := getXS().filter(x => logPred(x)).map(x => logMap(x)).take(2)
+if len(r) != 2 || r[0] != 6 || r[1] != 8 {
+return nil
+}
+return evtLog
+}
+
+func fusedEmptyNil() bool {
+	r := getXS().filter(x => x > 100).map(x => bump(x)).take(2)
+	return r == nil
+}
+func main() {
+mapCalls = 0
+recvCalls = 0
+r := fused()
+check("fuse-values", slices.Equal(r, []int{6, 8}), r, []int{6, 8})
+check("fuse-calls", mapCalls == 2 && recvCalls == 1, fmt.Sprint(mapCalls, recvCalls), "2 1")
+allocs := testing.AllocsPerRun(20, func() {
+mapCalls = 0
+recvCalls = 0
+fusedSink = fused()
+})
+if !slices.Equal(fusedSink, []int{6, 8}) {
+check("fuse-measured-values", false, fusedSink, []int{6, 8})
+}
+if mapCalls != 2 || recvCalls != 1 {
+check("fuse-measured-calls", false, fmt.Sprint(mapCalls, recvCalls), "2 1")
+}
+check("fuse-allocs", allocs <= 2, allocs, "<=2")
+check("fuse-allocs-exact", allocs == 1, allocs, 1)
+check("fuse-empty-nil", fusedEmptyNil(), fusedEmptyNil(), true)
+want := []string{"p3", "m3", "p1", "p4", "m4"}
+got := fusedOrder()
+check("fuse-order", slices.Equal(got, want), got, want)
+if failed {
+os.Exit(1)
+}
+}

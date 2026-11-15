@@ -5,12 +5,20 @@ package main
 import (
 	"fmt"
 	"maps"
+	"os"
 )
 
-// M5-S4 const maps (SPEC T-Sec9). Up to 8 keys lower to a switch; more keys
-// lower to bucketed perfect-hash tables with one slot probe per lookup. Absent
-// keys read as none, range runs in sorted key order, len is constant, and a
-// const map used as a plain map materializes once.
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
 
 const one = map[string]int{"only": 1}
 
@@ -10024,29 +10032,35 @@ const big = map[string]int{
 const bigLen = len(big)
 
 func main() {
-	fmt.Println(one["only"] ?? -1, one["nope"] ?? -1)
+	check("one-hit", (one["only"] ?? -1) == 1, (one["only"] ?? -1), 1)
+	check("one-miss", (one["nope"] ?? -1) == -1, (one["nope"] ?? -1), -1)
+	eightGot := ""
 	for k := 1; k <= 8; k++ {
-		fmt.Print(eight[k] ?? "-")
+		eightGot += (eight[k] ?? "-")
 	}
-	fmt.Println()
-	fmt.Println(eight[0] ?? "none", eight[9] ?? "none")
+	check("eight", eightGot == "abcdefgh", eightGot, "abcdefgh")
+	check("eight-miss-lo", (eight[0] ?? "none") == "none", (eight[0] ?? "none"), "none")
+	check("eight-miss-hi", (eight[9] ?? "none") == "none", (eight[9] ?? "none"), "none")
+	nineGot := ""
 	for k := 1; k <= 9; k++ {
-		fmt.Print(nine[k] ?? "-")
+		nineGot += (nine[k] ?? "-")
 	}
-	fmt.Println()
-	fmt.Println(nine[10] ?? "none")
+	check("nine", nineGot == "abcdefghi", nineGot, "abcdefghi")
+	check("nine-miss", (nine[10] ?? "none") == "none", (nine[10] ?? "none"), "none")
 	hits := 0
 	for i := 0; i < 10000; i++ {
 		if (big[fmt.Sprintf("k%05d", i)] ?? -1) == i*3 {
 			hits++
 		}
 	}
-	fmt.Println(hits)
-	fmt.Println(big["k10000"] ?? -1, big["k0"] ?? -1)
+	check("big-hits", hits == 10000, hits, 10000)
+	check("big-miss-hi", (big["k10000"] ?? -1) == -1, (big["k10000"] ?? -1), -1)
+	check("big-miss-lo", (big["k0"] ?? -1) == -1, (big["k0"] ?? -1), -1)
+	nineOrder := ""
 	for k, v := range nine {
-		fmt.Printf("%d%s,", k, v)
+		nineOrder += fmt.Sprintf("%d%s,", k, v)
 	}
-	fmt.Println()
+	check("nine-order", nineOrder == "1a,2b,3c,4d,5e,6f,7g,8h,9i,", nineOrder, "1a,2b,3c,4d,5e,6f,7g,8h,9i,")
 	n, sorted, prev := 0, true, ""
 	for k := range big {
 		if n > 0 && k <= prev {
@@ -10055,14 +10069,22 @@ func main() {
 		prev = k
 		n++
 	}
-	fmt.Println(n, sorted)
-	fmt.Println(bigLen, len(big), len(nine), len(one))
+	check("big-order", n == 10000 && sorted, fmt.Sprint(n, sorted), "10000 true")
+	check("lens", bigLen == 10000 && len(big) == 10000 && len(nine) == 9 && len(one) == 1, fmt.Sprint(bigLen, len(big), len(nine), len(one)), "10000 10000 9 1")
 	var m1 map[int]string = nine
 	var m2 map[int]string = nine
-	fmt.Println(len(m1), m1[3], fmt.Sprintf("%p", m1) == fmt.Sprintf("%p", m2))
+	check("alias-len", len(m1) == 9, len(m1), 9)
+	check("alias-val", fmt.Sprint(m1[3]) == "{c true}", fmt.Sprint(m1[3]), "{c true}")
+	check("alias-ptr", fmt.Sprintf("%p", m1) == fmt.Sprintf("%p", m2), fmt.Sprintf("%p", m1) == fmt.Sprintf("%p", m2), true)
+	m1[3] = "x"
+	check("copy-mut", fmt.Sprint(m1[3]) == "{x true}", fmt.Sprint(m1[3]), "{x true}")
+	check("copy-orig", fmt.Sprint(nine[3]) == "{c true}", fmt.Sprint(nine[3]), "{c true}")
 	count := 0
 	for range maps.Keys(nine) {
 		count++
 	}
-	fmt.Println(count)
+	check("keys-count", count == 9, count, 9)
+	if failed {
+		os.Exit(1)
+	}
 }

@@ -9,15 +9,10 @@ import (
 	"testing"
 )
 
-// TestSemanticConstRecordedHostIsolationDirect verifies that reading a
-// compiler-owned recorded constant from the host (EntConst via Resolve)
-// isolates the evaluator from the host's stored value. A const function
-// mutating s := C must not corrupt the host's recorded slice backing.
 func TestSemanticConstRecordedHostIsolationDirect(t *testing.T) {
-	intT := BasicType("int", 8)
+	intT := BasicType("int")
 
-	h := newFakeHost(t, 8)
-	// Recorded const C := []int{1, 2, 3}
+	h := newFakeHost(t)
 	cBacking := []Value{
 		intValue(big.NewInt(1), intT, true),
 		intValue(big.NewInt(2), intT, true),
@@ -33,15 +28,14 @@ func DirectMutate() int {
 }`, true, nil, []*Type{intT})
 	h.funcs[fn.Name] = fn
 
-	cfg := DefaultConfig()
+	cfg := Config{}
 	res, _ := evalOne(t, h, cfg, parseExpr(t, `DirectMutate()`))
 	if got := res.Int64(); got != 99 {
 		t.Fatalf("DirectMutate() = %d, want 99", got)
 	}
 
-	// Host's recorded constant must remain pristine.
 	hostC := h.vars["C"]
-	vis := hostC.SliceVisible()
+	vis := hostC.sliceVisible()
 	if len(vis) != 3 {
 		t.Fatalf("host C len = %d, want 3", len(vis))
 	}
@@ -50,14 +44,11 @@ func DirectMutate() int {
 	}
 }
 
-// TestSemanticConstRecordedHostIsolationArg controls for argument passing:
-// calling Mutate(C) passes the hosted constant as a call argument.
-// In-interpreter argument passing must not reach the host's stored constant.
 func TestSemanticConstRecordedHostIsolationArg(t *testing.T) {
-	intT := BasicType("int", 8)
+	intT := BasicType("int")
 	sliceT := &Type{Kind: KSlice, Elem: intT}
 
-	h := newFakeHost(t, 8)
+	h := newFakeHost(t)
 	cBacking := []Value{
 		intValue(big.NewInt(1), intT, true),
 		intValue(big.NewInt(2), intT, true),
@@ -78,27 +69,24 @@ func CallMutate() int {
 }`, true, nil, []*Type{intT})
 	h.funcs[callFn.Name] = callFn
 
-	cfg := DefaultConfig()
+	cfg := Config{}
 	res, _ := evalOne(t, h, cfg, parseExpr(t, `CallMutate()`))
 	if got := res.Int64(); got != 99 {
 		t.Fatalf("CallMutate() = %d, want 99", got)
 	}
 
 	hostC := h.vars["C"]
-	vis := hostC.SliceVisible()
+	vis := hostC.sliceVisible()
 	if got := vis[0].Int64(); got != 1 {
 		t.Fatalf("host C[0] corrupted via arg call: got %d, want 1", got)
 	}
 }
 
-// TestSemanticConstLocalArgAliasing verifies that calling a local function
-// with a slice argument shares its backing store, adhering to Go sharing
-// semantics.
 func TestSemanticConstLocalArgAliasing(t *testing.T) {
-	intT := BasicType("int", 8)
+	intT := BasicType("int")
 	sliceT := &Type{Kind: KSlice, Elem: intT}
 
-	h := newFakeHost(t, 8)
+	h := newFakeHost(t)
 	setFn := parseFunc(t, `package p
 func Set(s []int, i int, v int) {
 	s[i] = v
@@ -113,20 +101,18 @@ func LocalSlice() int {
 }`, true, nil, []*Type{intT})
 	h.funcs[localFn.Name] = localFn
 
-	cfg := DefaultConfig()
+	cfg := Config{}
 	res, _ := evalOne(t, h, cfg, parseExpr(t, `LocalSlice()`))
 	if got := res.Int64(); got != 42 {
 		t.Fatalf("LocalSlice() = %d, want 42", got)
 	}
 }
 
-// TestSemanticConstArrayCopyControl verifies that arrays copy by value
-// when passed to a function call.
 func TestSemanticConstArrayCopyControl(t *testing.T) {
-	intT := BasicType("int", 8)
+	intT := BasicType("int")
 	arrT := &Type{Kind: KArray, Len: 2, Elem: intT}
 
-	h := newFakeHost(t, 8)
+	h := newFakeHost(t)
 	setArrFn := parseFunc(t, `package p
 func SetArr(a [2]int) {
 	a[0] = 99
@@ -141,20 +127,18 @@ func LocalArray() int {
 }`, true, nil, []*Type{intT})
 	h.funcs[localFn.Name] = localFn
 
-	cfg := DefaultConfig()
+	cfg := Config{}
 	res, _ := evalOne(t, h, cfg, parseExpr(t, `LocalArray()`))
 	if got := res.Int64(); got != 1 {
 		t.Fatalf("LocalArray() = %d, want 1", got)
 	}
 }
 
-// TestSemanticConstVariadicSpread verifies that f(xs...) binds xs directly
-// without repacking into a fresh slice, preserving slice backing and capacity.
 func TestSemanticConstVariadicSpread(t *testing.T) {
-	intT := BasicType("int", 8)
+	intT := BasicType("int")
 	sliceT := &Type{Kind: KSlice, Elem: intT}
 
-	h := newFakeHost(t, 8)
+	h := newFakeHost(t)
 	bumpFn := parseFunc(t, `package p
 func BumpFirst(xs ...int) {
 	xs[0] = 7
@@ -170,7 +154,7 @@ func LocalSpread() int {
 }`, true, nil, []*Type{intT})
 	h.funcs[spreadFn.Name] = spreadFn
 
-	cfg := DefaultConfig()
+	cfg := Config{}
 	res, _ := evalOne(t, h, cfg, parseExpr(t, `LocalSpread()`))
 	if got := res.Int64(); got != 7 {
 		t.Fatalf("LocalSpread() = %d, want 7", got)

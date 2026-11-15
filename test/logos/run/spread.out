@@ -1,10 +1,16 @@
-10 2
-3 40
-1 20 1
-4 3
-7 a
-9 b
-11 12
-5 1
-1
-6 6 7 8
+ok spread-explicit-field-wins
+ok spread-base-fills-missing-field
+ok spread-base-evaluated-once
+ok spread-rhs-snapshots-before-assign
+ok spread-base-matches-by-name
+ok spread-base-position-independent
+ok spread-self-base-keeps-fields
+ok spread-unused-base-still-evaluated-once
+ok spread-fully-shadowed-base-still-evaluated-once
+ok spread-self-base-preserves-padding
+ok spread-self-update-leaves-unlisted-fields-untouched
+ok spread-self-update-writes-nothing-when-an-explicit-expression-panics
+ok spread-self-update-in-if-header
+ok spread-self-update-in-switch-header
+ok spread-self-update-in-for-header
+ok spread-self-update-in-else-if-header

@@ -11,16 +11,8 @@ import (
 
 // callOf returns e as a call expression, looking through parentheses.
 func callOf(e syntax.Expr) *syntax.CallExpr {
-	for {
-		switch x := e.(type) {
-		case *syntax.ParenExpr:
-			e = x.X
-		case *syntax.CallExpr:
-			return x
-		default:
-			return nil
-		}
-	}
+	call, _ := syntax.Unparen(e).(*syntax.CallExpr)
+	return call
 }
 
 // exprList returns the elements of a tuple expression, or e itself.
@@ -37,33 +29,12 @@ func isBlank(e syntax.Expr) bool {
 	return ok && n.Value == "_"
 }
 
-// resultTypes returns the result types of call. A conversion or a call
-// with no checker type has none.
-func resultTypes(call *syntax.CallExpr) []types2.Type {
-	t := TypeOf(call)
-	if t == nil {
-		return nil
-	}
-	tuple, ok := t.(*types2.Tuple)
-	if !ok {
-		return []types2.Type{t}
-	}
-	out := make([]types2.Type, tuple.Len())
-	for i := range out {
-		out[i] = tuple.At(i).Type()
-	}
-	return out
-}
-
-// calleeFunc returns the function or method call invokes, or nil.
+// calleeFunc returns the function or method call invokes, or nil. An
+// explicit instantiation f[T] names the generic function f.
 func calleeFunc(pass *Pass, call *syntax.CallExpr) *types2.Func {
-	fun := call.Fun
-	for {
-		p, ok := fun.(*syntax.ParenExpr)
-		if !ok {
-			break
-		}
-		fun = p.X
+	fun := syntax.Unparen(call.Fun)
+	if inst, ok := fun.(*syntax.IndexExpr); ok {
+		fun = syntax.Unparen(inst.X)
 	}
 	var id *syntax.Name
 	switch f := fun.(type) {
@@ -85,4 +56,60 @@ func isErrorType(t types2.Type) bool {
 	}
 	named, ok := types2.Unalias(t).(*types2.Named)
 	return ok && named.Obj().Pkg() == nil && named.Obj().Name() == "error"
+}
+
+func isChainCall(pass *Pass, call *syntax.CallExpr) bool {
+	sel, ok := syntax.Unparen(call.Fun).(*syntax.SelectorExpr)
+	return ok && types2.LogosChainMethod(sel.Sel.Value) && pass.Info.Selections[sel] == nil && pass.Info.Uses[sel.Sel] == nil
+}
+
+func chainFuncs(pass *Pass, call *syntax.CallExpr) []syntax.Expr {
+	if !isChainCall(pass, call) {
+		return nil
+	}
+	return funcArgs(call)
+}
+
+func funcArgs(call *syntax.CallExpr) []syntax.Expr {
+	var fns []syntax.Expr
+	for _, arg := range call.ArgList {
+		switch fn := syntax.Unparen(arg).(type) {
+		case *syntax.LambdaExpr, *syntax.FuncLit:
+			fns = append(fns, fn)
+		}
+	}
+	return fns
+}
+
+func stageOf(pass *Pass, call *syntax.CallExpr) *syntax.CallExpr {
+	for cur := call; isSegmentCall(cur); {
+		recv := callOf(syntax.Unparen(cur.Fun).(*syntax.SelectorExpr).X)
+		if recv == nil {
+			return nil
+		}
+		if _, ok := types2.LogosGroupStage(pass.Pkg, pass.Info, recv); ok {
+			return recv
+		}
+		cur = recv
+	}
+	return nil
+}
+
+func isSegmentCall(call *syntax.CallExpr) bool {
+	sel, ok := syntax.Unparen(call.Fun).(*syntax.SelectorExpr)
+	return ok && sel.Sel != nil && (sel.Sel.Value == "map" || sel.Sel.Value == "filter")
+}
+
+func onStage(pass *Pass, e syntax.Expr) bool {
+	for call := callOf(e); call != nil; {
+		if _, ok := types2.LogosGroupStage(pass.Pkg, pass.Info, call); ok {
+			return true
+		}
+		sel, ok := syntax.Unparen(call.Fun).(*syntax.SelectorExpr)
+		if !ok {
+			return false
+		}
+		call = callOf(sel.X)
+	}
+	return false
 }

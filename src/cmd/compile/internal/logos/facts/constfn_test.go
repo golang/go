@@ -13,9 +13,6 @@ import (
 	"cmd/internal/goobj"
 )
 
-// TestConstFnEncodeDecodeRoundTrip checks the constfn framing: header
-// line, source bytes, trailing newline, sorted placement beside comptime
-// records, and a lossless Decode round trip.
 func TestConstFnEncodeDecodeRoundTrip(t *testing.T) {
 	fp := goobj.FingerprintType{0, 1, 2, 3, 4, 5, 6, 7}
 	src := "package calc\n\nconst func F(x int) int {\n\treturn x\n}\n"
@@ -29,7 +26,6 @@ func TestConstFnEncodeDecodeRoundTrip(t *testing.T) {
 		},
 	}
 	got := facts.Encode(fp, in)
-	// Records sort byte-wise: comptime sorts before constfn.
 	want := "logos-facts 3\n" +
 		"fingerprint 0001020304050607\n" +
 		"comptime Gen 14\n" +
@@ -59,10 +55,6 @@ func TestConstFnEncodeDecodeRoundTrip(t *testing.T) {
 	}
 }
 
-// TestConstFnDecodeRejects checks the framing and duplicate validation
-// of constfn records: malformed lengths, truncated bodies, missing
-// trailing newlines, and duplicate objects all fail with the record's
-// line number.
 func TestConstFnDecodeRejects(t *testing.T) {
 	head := "logos-facts 3\nfingerprint 0001020304050607\n"
 	body := "package p\n\nconst func F() int {\n\treturn 1\n}\n"
@@ -106,21 +98,19 @@ func TestConstFnDecodeRejects(t *testing.T) {
 	})
 }
 
-// TestConstFnDecodeLineNumbersAfterBody checks that a later record's
-// error names its own line, counting the constfn body's newlines.
 func TestConstFnDecodeLineNumbersAfterBody(t *testing.T) {
-	body := "package p\n\nconst func F() int {\n\treturn 1\n}\n"
-	// Head lines 1-2, constfn line 3, body lines 4-8, the framing
-	// newline ends line 9, the malformed opt on line 10.
-	in := head() + "constfn F " + itoa(len(body)) + "\n" + body + "\nopt H Q1\n"
-	_, err := facts.Decode([]byte(in))
-	if err == nil || !strings.Contains(err.Error(), "line 10") {
-		t.Fatalf("Decode error = %v, want error naming line 10", err)
+	base := "package p\n\nconst func F() int {\n\treturn 1\n}\n"
+	for _, pad := range []int{0, 30} {
+		body := base + strings.Repeat("// pad\n", pad)
+		in := head() + "constfn F " + itoa(len(body)) + "\n" + body + "\nopt H Q1\n"
+		want := 3 + strings.Count(body, "\n") + 2
+		_, err := facts.Decode([]byte(in))
+		if err == nil || !strings.Contains(err.Error(), "line "+itoa(want)) {
+			t.Errorf("pad %d: Decode error = %v, want error naming line %d", pad, err, want)
+		}
 	}
 }
 
-// TestConstFnVacuousRecordSkipped checks Encode skips vacuous constfn
-// records, keeping output round-trippable.
 func TestConstFnVacuousRecordSkipped(t *testing.T) {
 	fp := goobj.FingerprintType{1}
 	in := &facts.Facts{
@@ -136,15 +126,13 @@ func TestConstFnVacuousRecordSkipped(t *testing.T) {
 	}
 }
 
-// TestConstFnMixedRecordsRoundTrip checks one member carrying constfn,
-// comptime, opt, and fn records sorts and decodes whole.
 func TestConstFnMixedRecordsRoundTrip(t *testing.T) {
 	fp := goobj.FingerprintType{9, 8, 7, 6, 5, 4, 3, 2}
 	src := "package p\n\nconst func F() int {\n\treturn 0\n}\n"
 	in := &facts.Facts{
 		Fingerprint: fp,
 		Opts:        []facts.PathFact{{Object: "H", Path: "P0"}},
-		Fns:         []facts.FnFact{{Object: "F", ReturnsNonNil: true}},
+		Fns:         []facts.FnFact{{Object: "F", Readonly: true}},
 		Comptimes:   []facts.ComptimeFact{{Object: "G", Source: []byte("func G() {}\n")}},
 		ConstFuncs:  []facts.ConstFuncFact{{Object: "F", Source: []byte(src)}},
 	}

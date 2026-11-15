@@ -1,0 +1,115 @@
+# The wasm profile uses the installed toolchain with no external
+# tool: with PATH holding only the toolchain bin directory (no C
+# compiler, linker, or wasm tool), logos build and go build still emit
+# the wasm output and its loader, and the loader still runs under node.
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOOS=js
+env GOARCH=wasm
+env ORIGPATH=$PATH
+env PATH=$GOROOT/bin
+
+cd m
+logos build -o $WORK/logos.wasm .
+exists $WORK/logos.wasm
+exists $WORK/logos.loader.mjs
+cp $GOROOT/lib/wasm/wasm_exec.js $WORK/wasm_exec.js
+go build -o $WORK/plain.wasm .
+exists $WORK/plain.wasm
+exists $WORK/plain.loader.mjs
+
+# Recording fakes for common external wasm tools sit first on PATH:
+# neither build may invoke any of them, and both outputs must match
+# builds without the fakes.
+env LOGOS_WASM_TOOL_MARKER=$WORK/tools-ran.log
+chmod 0755 $WORK/faketools/wasm-opt $WORK/faketools/wasm-ld $WORK/faketools/wasm-strip $WORK/faketools/wasm2wat $WORK/faketools/binaryen
+env PATH=$WORK/faketools:$GOROOT/bin
+logos build -o $WORK/fake-logos.wasm .
+go build -o $WORK/fake-plain.wasm .
+! exists $WORK/tools-ran.log
+cmp $WORK/fake-logos.wasm $WORK/logos.wasm
+cmp $WORK/fake-plain.wasm $WORK/plain.wasm
+[!exec:node] skip 'A-NODE: node is required to run the loader'
+env PATH=$ORIGPATH
+exec node ../run.mjs $WORK/logos.wasm $WORK/logos.loader.mjs
+stdout '^noextool-ok$'
+exec node ../run.mjs $WORK/plain.wasm $WORK/plain.loader.mjs
+stdout '^noextool-ok$'
+
+-- m/go.mod --
+module example.com/noextool
+
+go 1.27
+
+-- m/main.go --
+package main
+
+import "unsafe"
+
+//go:wasmimport host add
+func hostAdd(a, b int32) int32
+
+//go:wasmexport incr
+func incr(p unsafe.Pointer, n int32) int32 {
+	b := unsafe.Slice((*byte)(p), n)
+	for i := range b {
+		b[i]++
+	}
+	return 0
+}
+
+//go:wasmexport checkHost
+func checkHost(a, b, want int32) int32 {
+	if hostAdd(a, b) != want {
+		return 1
+	}
+	return 0
+}
+
+func main() {
+	select {}
+}
+
+-- run.mjs --
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+import assert from "node:assert/strict";
+
+const [wasmPath, loaderPath] = process.argv.slice(2);
+const loader = await import(pathToFileURL(resolve(loaderPath)).href);
+assert.equal(typeof loader.instantiateLogos, "function");
+const { exports } = await loader.instantiateLogos(readFileSync(wasmPath), {
+	host: { add: (a, b) => a + b },
+});
+const input = new Uint8Array([1, 2, 3]);
+exports.incr(input);
+assert.deepEqual(input, new Uint8Array([2, 3, 4]));
+exports.checkHost(2, 3, 5);
+console.log("noextool-ok");
+
+-- $WORK/faketools/wasm-opt --
+#!/bin/sh
+echo "wasm-opt $@" >>"$LOGOS_WASM_TOOL_MARKER"
+exit 0
+
+-- $WORK/faketools/wasm-ld --
+#!/bin/sh
+echo "wasm-ld $@" >>"$LOGOS_WASM_TOOL_MARKER"
+exit 0
+
+-- $WORK/faketools/wasm-strip --
+#!/bin/sh
+echo "wasm-strip $@" >>"$LOGOS_WASM_TOOL_MARKER"
+exit 0
+
+-- $WORK/faketools/wasm2wat --
+#!/bin/sh
+echo "wasm2wat $@" >>"$LOGOS_WASM_TOOL_MARKER"
+exit 0
+
+-- $WORK/faketools/binaryen --
+#!/bin/sh
+echo "binaryen $@" >>"$LOGOS_WASM_TOOL_MARKER"
+exit 0

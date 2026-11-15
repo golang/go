@@ -13,9 +13,6 @@ import (
 	"cmd/internal/obj/wasm"
 )
 
-// pinned names the scheduler entry points that always yield, whatever the
-// analysis of their bodies says. runtime.gopark is the anchor of SPEC
-// Sec 14.1: no function that can reach it keeps MayYield=0.
 var pinned = map[string]bool{
 	"runtime.gopark":       true,
 	"runtime.goparkunlock": true,
@@ -23,8 +20,6 @@ var pinned = map[string]bool{
 	"time.Sleep":           true,
 }
 
-// summarize reads the Prog list the SSA code generator produced for sym,
-// before preprocess expands it, and lists the ways the function can unwind.
 func summarize(sym *obj.LSym, text *obj.Prog) *unit {
 	u := &unit{sym: sym, object: objectName(sym)}
 	u.hard = pinned[sym.Name] || wasm.NeedMoreStack(base.Ctxt, text)
@@ -45,8 +40,6 @@ func summarize(sym *obj.LSym, text *obj.Prog) *unit {
 	return u
 }
 
-// addCall records the callee of a resume-point call. An indirect call and a
-// call to deferreturn are yield sources of their own.
 func (u *unit) addCall(to obj.Addr) {
 	if to.Type != obj.TYPE_MEM || to.Sym == nil || to.Sym == ir.Syms.Deferreturn {
 		u.hard = true

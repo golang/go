@@ -1,0 +1,87 @@
+// errorcheck
+
+package p
+
+type plain struct {
+	L []int
+	N int
+}
+
+type pt struct{ X, Y int }
+
+type ints []int
+
+func (p plain) Mutate() { p.L[0] = 99 }
+
+func (p plain) Read() int { return p.L[0] + len(p.L) + p.N }
+
+func (p plain) Bump() int {
+	p.N++
+	return p.N
+}
+
+func (q pt) Moved() pt {
+	q.X++
+	return q
+}
+
+func (s ints) Set() { s[0] = 7 }
+
+func (s ints) Sum() int { return s[0] + s[1] }
+
+const cfg = plain{L: []int{1, 2}, N: 3}
+
+const origin = pt{X: 1, Y: 2}
+
+const nums = ints{1, 2}
+
+func rejectValueMutate() {
+	cfg.Mutate() // ERROR "const_view_mutation"
+}
+
+func rejectValueMethodValue() {
+	f := cfg.Mutate // ERROR "const_view_mutation"
+	f()
+}
+
+func rejectSliceValueMutate() {
+	nums.Set() // ERROR "const_view_mutation"
+}
+
+func allowValueReaders() int {
+	return cfg.Read() + cfg.Bump() + origin.Moved().X + nums.Sum()
+}
+
+func consume(xs []int) int { return len(xs) }
+
+func (p plain) Total() int { return consume(p.L) + p.N }
+
+type outer struct {
+	plain
+	Extra []int
+}
+
+const noLeaves = plain{N: 5}
+const promoted = outer{Extra: []int{1}}
+const livePromoted = outer{plain: plain{L: []int{1}}}
+const receivers = []plain{{}, {L: []int{1}}}
+const emptyReceivers = []plain{}
+const emptyArray = [0]plain{}
+
+// Red if local methods require readonly proof despite a reference-free value.
+func allowLocalValueProof() int { return noLeaves.Total() }
+
+// Red if promotion checks the outer value rather than the embedded receiver.
+func allowPromotedValueProof() int { return promoted.Total() }
+
+// Red if unknown indexes require at least one candidate.
+func allowEmptyValueProof(i int) int {
+	return emptyReceivers[i].Total() + emptyArray[i].Total()
+}
+
+
+// Red if promotion discards live leaves in the embedded receiver.
+func rejectLivePromotedValue() { livePromoted.Mutate() } // ERROR "const_view_mutation"
+
+// Red if a known index checks another element instead of its selected receiver.
+func rejectLiveKnownIndex() { receivers[1].Mutate() } // ERROR "const_view_mutation"

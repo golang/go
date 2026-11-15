@@ -4,18 +4,6 @@
 
 package syntax
 
-// This file holds the loGo/s walk logic for M1-S2 and M2 (G3: a hook line
-// only in walk.go; the logic lives here).
-
-// walkLogos visits the children of loGo/s nodes in pre-order, matching
-// the house order (parent before child): SpreadExpr before its source,
-// TryExpr before its operand,
-// ErrdeferStmt before its call, OptionType before its element,
-// CoalesceExpr before its operands, OptSelectExpr before its receiver
-// and name, ConstType before its element, SwitchExpr before its init,
-// tag, and arms, ArmClause before its cases and body, AssertedStruct
-// before its assertions and struct, PropertyType before its value type,
-// InterpExpr before its operands.
 func (w walker) walkLogos(n Node) {
 	switch n := n.(type) {
 	case *TryExpr:
@@ -36,7 +24,7 @@ func (w walker) walkLogos(n Node) {
 		w.node(n.Sel)
 	case *ConstType:
 		w.node(n.Elem)
-	case *ConstFuncDecl: // M5-S2: walk the inner function.
+	case *ConstFuncDecl:
 		w.node(n.Func)
 	case *ErrdeferStmt:
 		w.node(n.Call)
@@ -44,13 +32,13 @@ func (w walker) walkLogos(n Node) {
 		w.node(n.Value)
 	case *ScopeDeferStmt:
 		w.node(n.Call)
-	case *GroupStmt: // M8-S2: group context, limit, then body.
+	case *GroupStmt:
 		w.node(n.Ctx)
 		if n.Limit != nil {
 			w.node(n.Limit)
 		}
 		w.node(n.Body)
-	case *GroupChild: // M8-S2: child body.
+	case *GroupChild:
 		w.node(n.Body)
 	case *SwitchExpr:
 		if n.Init != nil {
@@ -77,10 +65,7 @@ func (w walker) walkLogos(n Node) {
 		w.node(n.Default)
 	case *TupleType:
 		for _, f := range n.Fields {
-			if f.Name != nil {
-				w.node(f.Name)
-			}
-			w.node(f.Type)
+			w.node(f)
 		}
 	case *ConstForStmt:
 		if n.Index != nil {

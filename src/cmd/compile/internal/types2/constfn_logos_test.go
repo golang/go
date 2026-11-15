@@ -4,13 +4,6 @@
 
 package types2
 
-// Unit tests for imported const-function resolution: record validation,
-// group inheritance with iota ordinals, scope-miss constant evaluation
-// with cycle detection, helper-function assembly, the ordinary-import
-// predicate path, and defining-context lookup by record file base.
-// Happy-path cross-package evaluation belongs to the script gates
-// (logos_constfunc_import*.txt), not here.
-
 import (
 	"cmd/compile/internal/logos/ctfe"
 	"cmd/compile/internal/syntax"
@@ -51,7 +44,7 @@ func g(y int) int {
 		name   string
 		src    string
 		object string
-		want   string // "" means valid; otherwise required error substring
+		want   string
 	}{
 		{"valid", valid, "F", ""},
 		{"missing root", valid, "Z", "has no const func Z"},
@@ -99,11 +92,9 @@ const (
 	Solo int = 3
 )
 `+logosTestRoot)
-	// Standalone declarations count iota from zero and inherit nothing.
 	if got := u.specs["Standalone"]; got == nil || got.iota != 0 {
 		t.Fatalf("Standalone ordinal = %v, want 0", got)
 	}
-	// Grouped specs count ordinals across the group with inheritance.
 	for name, want := range map[string]int{"A": 0, "B": 1, "C": 2, "Solo": 0} {
 		spec, ok := u.specs[name]
 		if !ok {
@@ -195,8 +186,6 @@ const (
 )
 `+logosTestRoot)
 	check.logosConstFnBases[u.base] = u
-	// B carries fresh values with no type: it must stay untyped (256
-	// overflows int8) and C inherits B's values and omitted type.
 	for _, name := range []string{"B", "C"} {
 		v, err := check.logosUnitConstValue(u, name)
 		if err != nil {

@@ -1,0 +1,32 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# A tuple of N values destructures into N targets whatever the element
+# types are: a tuple, an option of a value type or of a pointer type,
+# and a named tuple. The tuple is a literal or a variable, and the
+# host is a short declaration, an assignment, a var declaration or a
+# return that forwards it to a function with N results. The module
+# runs natively, ejects, and the ejected module builds and runs with go
+# and with go1.27.2 from $UPROOT1272 and prints the same ok lines.
+cp $GOROOT/test/logos/run/eject_tuple_destructure_elements.lgo m/main.lgo
+cd m
+logos run .
+cmp stdout $GOROOT/test/logos/run/eject_tuple_destructure_elements.out
+logos eject -o out
+exists out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $GOROOT/test/logos/run/eject_tuple_destructure_elements.out
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
+exec $WORK/upstream$GOEXE
+cmp stdout $GOROOT/test/logos/run/eject_tuple_destructure_elements.out
+cd ../..
+
+-- m/go.mod --
+module example.com/tupledestructureelements
+
+go 1.27

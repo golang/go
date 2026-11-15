@@ -2,36 +2,71 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
-// M3 option basics (SPEC Sec 2.2, T-202; Sec 1.4, T-104.3): explicit
-// `T?` declarations, `??` over non-map options, and `nil` handling.
-// A none `int?` falls back to the default; a some yields its value.
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 func firstOr(x int?, d int) int { return x ?? d }
-
 func optResult(x int?) int? { return x }
-
 func optNil() int? { return nil }
-
 func optConst() int? { return 42 }
+
+var lazyCalls int
+
+func lazyFallback() int {
+	lazyCalls++
+	return 99
+}
 
 func main() {
 	var a int?
-	fmt.Println(firstOr(a, 7))
+	gotA0 := firstOr(a, 7)
+	check("nil-fallback", gotA0 == 7, gotA0, 7)
 	a = 42
-	fmt.Println(firstOr(a, 7))
+	gotA1 := firstOr(a, 7)
+	check("some-fallback", gotA1 == 42, gotA1, 42)
 	var b int? = nil
-	fmt.Println(firstOr(b, 7))
+	gotB0 := firstOr(b, 7)
+	check("typed-nil-fallback", gotB0 == 7, gotB0, 7)
 	b = 1
-	fmt.Println(firstOr(b, 7))
-	fmt.Println(optResult(a) ?? -1)
-	fmt.Println(optNil() ?? -1)
-	fmt.Println(optConst() ?? -1)
+	gotB1 := firstOr(b, 7)
+	check("one-fallback", gotB1 == 1, gotB1, 1)
+	gotOpt := optResult(a) ?? -1
+	check("opt-result", gotOpt == 42, gotOpt, 42)
+	gotNil := optNil() ?? -1
+	check("opt-nil", gotNil == -1, gotNil, -1)
+	gotConst := optConst() ?? -1
+	check("opt-const", gotConst == 42, gotConst, 42)
 	var s string? = "hi"
-	fmt.Println(s ?? "fallback")
+	gotS := s ?? "fallback"
+	check("str-some", gotS == "hi", gotS, "hi")
 	var t string?
-	fmt.Println(t ?? "fallback")
+	gotT0 := t ?? "fallback"
+	check("str-none", gotT0 == "fallback", gotT0, "fallback")
 	t = s ?? "fallback"
-	fmt.Println(t ?? "fallback")
+	gotT1 := t ?? "fallback"
+	check("str-assign", gotT1 == "hi", gotT1, "hi")
+	var some2 int? = 5
+	gotSome := some2 ?? lazyFallback()
+	check("some-lazy", gotSome == 5, gotSome, 5)
+	check("some-lazy-calls", lazyCalls == 0, lazyCalls, 0)
+	var none2 int?
+	gotNone := none2 ?? lazyFallback()
+	check("none-lazy", gotNone == 99, gotNone, 99)
+	check("none-lazy-calls", lazyCalls == 1, lazyCalls, 1)
+	if failed {
+		os.Exit(1)
+	}
 }

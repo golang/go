@@ -13,10 +13,6 @@ import (
 	"unsafe"
 )
 
-// pageEndSlice returns a slice of n elements of T whose last element ends
-// exactly at the end of a mapped page; the next page is PROT_NONE, so a
-// load that touches any byte past the slice faults. The release function
-// unmaps both pages.
 func pageEndSlice[T any](t *testing.T, n int) (s []T, release func()) {
 	t.Helper()
 	page := syscall.Getpagesize()
@@ -38,11 +34,6 @@ func pageEndSlice[T any](t *testing.T, n int) (s []T, release func()) {
 	}
 }
 
-// checkSliceMasked is the #22 attack at the archsimd layer: for every
-// length from 0 through one full vector, load reads a slice that ends at
-// the last byte of a page whose successor is PROT_NONE, with a mask that
-// enables exactly the elements of the slice. An over-read faults the
-// process; a correct load returns the elements followed by zeroes.
 func checkSliceMasked[T comparable](t *testing.T, lanes int, load func(s []T) []T, fill func(i int) T) {
 	t.Helper()
 	var zero T
@@ -76,14 +67,12 @@ func floatFill[T ~float32 | ~float64](i int) T {
 	return T(i) + 1.5
 }
 
-// mask32x8 enables the first k of 8 32-bit lanes.
 func mask32x8(k int) archsimd.Mask32x8 {
 	table := [16]int32{-1, -1, -1, -1, -1, -1, -1, -1}
 	var zero archsimd.Int32x8
 	return zero.Greater(archsimd.LoadInt32x8(table[8-k:]))
 }
 
-// mask64x4 enables the first k of 4 64-bit lanes.
 func mask64x4(k int) archsimd.Mask64x4 {
 	table := [8]int64{-1, -1, -1, -1}
 	var zero archsimd.Int64x4
@@ -138,12 +127,6 @@ func TestLoadSliceMaskedPageEnd(t *testing.T) {
 	})
 }
 
-// checkSliceMaskedAllOnes is the SPEC Sec 15.2 attack at the archsimd
-// layer: load reads a slice that ends at the last byte of a page whose
-// successor is PROT_NONE, with an all-ones mask. Lanes at or past len(s)
-// must read no memory, so the load must not fault, and disabled lanes
-// must produce zero. A loader that trusts the caller mask over-reads
-// into the guard page and faults the process.
 func checkSliceMaskedAllOnes[T comparable](t *testing.T, lanes int, load func(s []T) []T, fill func(i int) T) {
 	t.Helper()
 	var zero T

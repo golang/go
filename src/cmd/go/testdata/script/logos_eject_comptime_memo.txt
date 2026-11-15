@@ -1,0 +1,67 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+logos run .
+stdout '^int other$'
+stdout '^pair struct$'
+stdout '^helper other other$'
+cp stdout $WORK/native.txt
+
+logos eject -o out
+exists out/main.go
+grep '^func F_logosct' out/main.go
+grep -count=2 '^func F_logosct[0-9][(]' out/main.go
+! grep 'F_logosct2' out/main.go
+! grep 'F\[int\]' out/main.go
+! grep 'F\[Pair\]' out/main.go
+! grep '"comptime"' out/main.go
+
+cd out
+go run .
+cmp stdout $WORK/native.txt
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+go vet ./...
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ..
+
+-- m/go.mod --
+module example.com/ejectctmemo
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import (
+	"comptime"
+	"fmt"
+)
+
+type Pair struct {
+	X int
+	Y int
+}
+
+func F[T any]() string {
+	const if comptime.IsStruct[T]() {
+		return "struct"
+	} else {
+		return "other"
+	}
+}
+
+func helper() string {
+	return F[int]() + " " + F[int]()
+}
+
+func main() {
+	fmt.Println("int", F[int]())
+	fmt.Println("pair", F[Pair]())
+	fmt.Println("helper", helper())
+}

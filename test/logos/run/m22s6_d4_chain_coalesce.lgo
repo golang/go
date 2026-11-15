@@ -2,10 +2,21 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
-// M22-S6 defect D4 (SPEC T-104.3, T-104.6): a `??` at the top of a chain
-// lambda body lowers before the chain fragment re-parses as Go.
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 type P struct {
 	N int64
@@ -15,5 +26,9 @@ type P struct {
 func main() {
 	xs := []P{{N: 1}, {N: 2}}
 	xs[1].O = "b"
-	fmt.Println(xs.map(x => x.O ?? "none"))
+	got := xs.map(x => x.O ?? "none")
+	check("chain-coalesce-fills-missing", fmt.Sprint(got) == "[none b]", fmt.Sprint(got), "[none b]")
+	if failed {
+		os.Exit(1)
+	}
 }

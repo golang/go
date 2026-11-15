@@ -1,0 +1,15 @@
+ok init-one-scope
+ok init-two-scopes
+ok post-one-scope
+ok post-two-scopes
+ok post-plain
+ok init-and-post-two-scopes
+ok switch-one-scope
+ok switch-two-scopes
+ok goto-init-one-scope
+ok goto-init-two-scopes
+ok goto-post-two-scopes
+ok goto-continue-two-scopes
+ok goto-switch-two-scopes
+ok goto-if-two-scopes
+ok goto-if-else-two-scopes

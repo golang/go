@@ -1,9 +1,9 @@
-true
-0
-0
-true
-0
-true
-hello world, zero copy me
-true
-hello world, zero copy me
+ok const-view-roundtrip-preserves-string
+ok string-to-const-needs-no-alloc
+ok const-to-string-needs-no-alloc
+ok const-view-still-valid-after-checks
+ok composite-const-to-string-needs-no-alloc
+ok composite-const-roundtrip-preserves-bytes
+ok mutable-source-snapshot-is-immutable
+ok mutated-source-conversion-allocates
+ok unrelated-mutation-keeps-source-string

@@ -1,0 +1,220 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOEXPERIMENT=logosarena,logosescape
+cd m
+go build -gcflags=-m .
+stderr 'p\.go:17:.*leaking param: h'
+stderr 'p\.go:22:.*leaking param: f'
+stderr 'p\.go:27:.*o does not escape'
+stderr 'p\.go:27:.*p does not escape'
+stderr 'p\.go:35:.*placed in region'
+stderr 'p\.go:45:.*region fallback: .* global'
+stderr 'p\.go:55:.*region fallback: .* q'
+stderr 'p\.go:66:.*placed in region'
+stderr 'p\.go:69:.*region fallback'
+stderr 'p\.go:80:.*placed in region'
+stderr 'p\.go:83:.*placed in region'
+stderr 'p\.go:94:.*placed in region'
+stderr 'p\.go:97:.*region fallback: .* link'
+stderr 'p\.go:108:.*placed in region'
+stderr 'p\.go:111:.*placed in region'
+stderr 'p\.go:122:.*placed in region'
+stderr 'p\.go:125:.*placed in region'
+stderr 'p\.go:128:.*region fallback'
+stderr 'p\.go:138:.*does not escape'
+stderr 'p\.go:140:.*region fallback: region unknown'
+stderr 'p\.go:140:.*argument does not escape'
+stderr 'p\.go:147:.*region fallback: function contains goto'
+stderr 'p\.go:158:.*region fallback'
+stderr 'p\.go:159:.*region fallback'
+stderr 'p\.go:166:.*region fallback'
+stderr 'p\.go:167:.*region fallback: region unknown'
+stderr 'p\.go:169:.*can inline closure191\.func1'
+stderr 'p\.go:169:.*func literal escapes to heap'
+stderr 'p\.go:176:.*placed in region'
+stderr 'p\.go:177:.*moved to heap: lv'
+-- m/go.mod --
+module example.com/regionescape
+
+go 1.27
+-- m/p.go --
+package p
+
+import "logos/arena"
+
+type node struct {
+	next *node
+	v    int
+}
+
+var global *node
+
+var sinkRegion arena.Region
+
+var sinkFn func()
+
+//go:noinline
+func keepHandle(h arena.Region) {
+	sinkRegion = h
+}
+
+//go:noinline
+func storeClo(f func()) {
+	sinkFn = f
+}
+
+//go:noinline
+func link(o, p *node) {
+	o.next = p
+}
+
+func buildList() {
+	r := arena.Open()
+	var head *node
+	for i := range 10 {
+		n := arena.New[node](r)
+		n.v = i
+		n.next = head
+		head = n
+	}
+	_ = head
+}
+
+func storeGlobal() {
+	r := arena.Open()
+	p := arena.New[node](r)
+	p.v = 1
+	global = p
+	_ = p
+}
+
+func storeOutside() {
+	var q *node
+	{
+		r := arena.Open()
+		p := arena.New[node](r)
+		p.v = 2
+		q = p
+		_ = p
+	}
+	_ = q
+}
+
+func nest193() {
+	{
+		rOut := arena.Open()
+		po := arena.New[node](rOut)
+		{
+			rIn := arena.Open()
+			pi := arena.New[node](rIn)
+			po.next = pi
+			_, _ = po, pi
+		}
+		_ = po
+	}
+}
+
+func nest193Rev() {
+	{
+		rOut := arena.Open()
+		po := arena.New[node](rOut)
+		{
+			rIn := arena.Open()
+			pi := arena.New[node](rIn)
+			pi.next = po
+			_, _ = pi, po
+		}
+		_ = po
+	}
+}
+
+func link193() {
+	{
+		rOut := arena.Open()
+		po := arena.New[node](rOut)
+		{
+			rIn := arena.Open()
+			pi := arena.New[node](rIn)
+			link(po, pi)
+			_, _ = po, pi
+		}
+		_ = po
+	}
+}
+
+func link193Rev() {
+	{
+		rOut := arena.Open()
+		po := arena.New[node](rOut)
+		{
+			rIn := arena.Open()
+			pi := arena.New[node](rIn)
+			link(pi, po)
+			_, _ = pi, po
+		}
+		_ = po
+	}
+}
+
+func loadSink193() {
+	{
+		rOut := arena.Open()
+		po := arena.New[node](rOut)
+		{
+			rIn := arena.Open()
+			slot := arena.New[*node](rIn)
+			*slot = po
+			q := *slot
+			pi := arena.New[node](rIn)
+			q.next = pi
+			_, _ = po, pi
+		}
+		_ = po
+	}
+}
+
+func appendUnknown() {
+	r := arena.Open()
+	heapSlice := make([]int, 0, 8)
+	x := 1
+	arena.Append[int](r, heapSlice, x)
+	_ = x
+	_ = heapSlice
+}
+
+func withGoto() {
+	r := arena.Open()
+	p := arena.New[node](r)
+	i := 0
+loop:
+	i++
+	if i < 3 {
+		goto loop
+	}
+	_ = p
+}
+
+func killedRecord() {
+	r := arena.Open()
+	p := arena.New[node](r)
+	p.v = 3
+	keepHandle(r)
+	_ = p
+}
+
+func closure191() {
+	r := arena.Open()
+	p := arena.New[node](r)
+	p.v = 4
+	f := func() { _ = r }
+	storeClo(f)
+	_ = p
+}
+
+func storeLocalAddr() {
+	r := arena.Open()
+	pi := arena.New[*int](r)
+	lv := 5
+	*pi = &lv
+	_ = *pi
+}

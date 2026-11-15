@@ -1,0 +1,143 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd defertry
+logos run .
+stdout '^ok$'
+cp stdout $WORK/defertry.txt
+logos eject -o out
+exists out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $WORK/defertry.txt
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/defertry$GOEXE .
+exec $WORK/defertry$GOEXE
+cmp stdout $WORK/defertry.txt
+cd ../..
+
+cd scope
+logos run .
+stdout '^ok 1$'
+cp stdout $WORK/scope.txt
+logos eject -o out
+exists out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $WORK/scope.txt
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/scope$GOEXE .
+exec $WORK/scope$GOEXE
+cmp stdout $WORK/scope.txt
+cd ../..
+
+cd errdefertry
+logos run .
+stdout '^ok$'
+cp stdout $WORK/errdefertry.txt
+logos eject -o out
+exists out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $WORK/errdefertry.txt
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/errdefertry$GOEXE .
+exec $WORK/errdefertry$GOEXE
+cmp stdout $WORK/errdefertry.txt
+cd ../..
+
+-- defertry/go.mod --
+module probe2
+
+go 1.27
+
+-- defertry/main.lgo --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import "fmt"
+
+func g(v int) error {
+	fmt.Println("g", v)
+	return nil
+}
+
+func f(v int) (err error) {
+	goto skip
+	defer g(v)?
+skip:
+	return nil
+}
+
+func main() {
+	if err := f(1); err != nil {
+		fmt.Println("err:", err)
+		return
+	}
+	fmt.Println("ok")
+}
+
+-- scope/go.mod --
+module probe2
+
+go 1.27
+
+-- scope/main.lgo --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import "fmt"
+
+func cleanup() { fmt.Println("cleanup") }
+
+func f(v int) {
+	goto skip
+	scope defer cleanup()
+skip:
+	fmt.Println("ok", v)
+}
+
+func main() {
+	f(1)
+}
+
+-- errdefertry/go.mod --
+module probe2
+
+go 1.27
+
+-- errdefertry/main.lgo --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import "fmt"
+
+func g(v int) error {
+	fmt.Println("g", v)
+	return nil
+}
+
+func f(v int) (err error) {
+	goto skip
+	errdefer g(v)?
+skip:
+	return nil
+}
+
+func main() {
+	if err := f(1); err != nil {
+		fmt.Println("err:", err)
+		return
+	}
+	fmt.Println("ok")
+}
+

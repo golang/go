@@ -1,17 +1,7 @@
-# T2/T3/T4: the linker capabilities policy must follow the main module,
-# must invalidate the link cache, and must never be read from shared tmp.
-# Case A (T2): allow build, flip to deny, rebuild without -a must fail.
-# Case B (T3): building dep's main package from a deny main module fails
-# even though dep's own logos.toml allows.
-# Case C (T4): the -logos.cap path lives outside the shared TMPDIR.
-
 env GOPROXY=off
 env GOTOOLCHAIN=local
 mkdir $WORK/bin
 
-# Case A: cached link must not survive an allow->deny flip.
-# (-o on both builds: a bare build would try to write the output file
-# `cmd` over the ./cmd directory; -o still consults the link cache.)
 cd a/main
 logos build -o $WORK/bin/a$GOEXE ./cmd
 cp deny-logos.toml logos.toml
@@ -19,13 +9,11 @@ cp deny-logos.toml logos.toml
 stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/adep'' reaches ''os\.startProcess'''
 cd ../..
 
-# Case B: dep's own allow logos.toml must not govern a deny main module.
 cd b/main
 ! logos build -o $WORK/bin/bdep$GOEXE example.com/bdep/cmd
 stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/bdep/lib'' reaches ''os\.startProcess'''
 cd ../..
 
-# Case C: policy file is action-private, never under shared TMPDIR.
 cd c/main
 env TMPDIR=$WORK/sharedtmp
 mkdir $WORK/sharedtmp

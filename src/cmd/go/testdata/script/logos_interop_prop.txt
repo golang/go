@@ -1,19 +1,7 @@
-# M4-S2: property interfaces lower to Logos_GetF/Logos_SetF accessors (T-203.2).
-# A Go package in another workspace module asserts any(&m).(p.Creature),
-# reads Logos_GetName, writes Logos_SetHP(5), and the struct holds the
-# value. A .lgo package in the same loGo/s module declares
-# Orc : p.Creature; reads and writes through the interface reach the
-# struct. A third .lgo package asserts the imported conformance, which
-# type-checks through the prop facts. The ejected tree keeps the generated
-# accessors, go doc lists them on the interface, and the tree stays vet-
-# and gofmt-clean.
-
 env GOPROXY=off
 env GOTOOLCHAIN=local
 mkdir $WORK/bin
 
-# Case 1: everything builds; the Go binary and the .lgo binary print the
-# accessor results; the .lgo tests pass.
 cd w
 logos build ./...
 logos build -o $WORK/bin/prop$GOEXE ./g/cmd
@@ -24,20 +12,18 @@ stdout '^orc=Orc hp=7 r=6$'
 logos test ./...
 stdout '^ok\s+example\.com/l/q\s'
 cd ..
+cd cross
+! logos build ./...
+stderr 'correctness::property_requires_conformance'
+cd ..
 
-# Case 2: the ejected tree keeps the generated accessors, runs under plain
-# go with identical output, and stays vet- and gofmt-clean; go doc lists
-# the accessors on the interface and on the declaring type. Eject runs
-# with the workspace off: the l module is self-contained, and eject
-# rejects multi-module workspaces.
 env GOWORK=off
 cd w/l
-# Eject takes the non-test tree; case 1 already ran the test.
-mv q/q_test.lgo $WORK/q_test.lgo
 logos eject -o bout
 exists bout/p/p.go
 exists bout/q/q.go
 exists bout/r/r.go
+exists bout/q/q_test.go
 grep 'Logos_GetName' bout/p/p.go
 grep 'Logos_GetHP' bout/p/p.go
 grep 'Logos_SetHP' bout/p/p.go
@@ -46,6 +32,13 @@ grep 'Logos_SetHP' bout/q/q.go
 cd bout
 go run ./cmdq
 stdout '^orc=Orc hp=7 r=6$'
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+exec env -u GOROOT $UPROOT1272/bin/go test -count=1 ./q
+stdout '^ok\s+example\.com/l/q\s'
 go vet ./...
 exec $GOROOT/bin/gofmt -l .
 ! stdout .
@@ -198,3 +191,29 @@ import (
 )
 
 func main() { fmt.Println(qq.Run()) }
+-- cross/go.work --
+go 1.27
+
+use (
+	./b
+	../w/l
+)
+
+-- cross/b/go.mod --
+module example.com/b
+
+go 1.27
+
+-- cross/b/b.lgo --
+package b
+
+import "example.com/l/p"
+
+type Rogue struct {
+	Name string
+	HP   int
+}
+
+func (r *Rogue) Start() error { return nil }
+
+var _ p.Creature = &Rogue{}

@@ -1,26 +1,18 @@
-# Trailing comma in test signatures: single-line and multiline Test,
-# Benchmark, Fuzz, and TestMain shapes with one trailing comma run; an
-# extra parameter and a wrong parameter type still fail.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
-# Single-line trailing comma shapes run.
 logos test ./single
 stdout '^ok'
 
-# Multiline trailing comma shapes run.
 logos test ./multi
 stdout '^ok'
 
-# Benchmark shapes with trailing commas are discovered and run.
 logos test -bench=. -run=^$ ./single ./multi
 stdout '^ok'
 
-# Extra parameter still rejected.
 ! logos test ./badextra
 stderr 'wrong signature'
 
-# Wrong parameter type still rejected.
 ! logos test ./badtype
 stderr 'wrong signature'
 

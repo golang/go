@@ -1,0 +1,73 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+logos run .
+stdout '^sum 8$'
+cp stdout $WORK/run-stdout.txt
+
+logos eject -o out
+exists out/main.go
+grep '\.Go\(func' out/main.go
+grep 'NewGroup\(' out/main.go
+grep 'NewGroup(.* 2)' out/main.go
+
+cd out
+go run .
+cmp stdout $WORK/run-stdout.txt
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+
+-- m/go.mod --
+module example.com/ejectgroupplain
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import (
+	"context"
+	"fmt"
+)
+
+var plainCh = make(chan int, 8)
+
+//logos:allow(correctness::unbounded_channel_op)
+func group(n int) {
+	plainCh <- n + 41
+}
+
+func runPlain(ctx context.Context, input int) error {
+	go group (ctx) {
+		go group(input)
+	}
+	return nil
+}
+
+func runLimited(ctx context.Context, input int) error {
+	go group (ctx, limit = 2) {
+		go group(input)
+	}
+	return nil
+}
+
+//logos:allow(correctness::unbounded_channel_op)
+func main() {
+	ctx := context.Background()
+	input := 1
+	if err := runPlain(ctx, input); err != nil {
+		fmt.Println("bad err")
+		return
+	}
+	if err := runLimited(ctx, 3); err != nil {
+		fmt.Println("bad err")
+		return
+	}
+	a := <-plainCh
+	b := <-plainCh
+	fmt.Println("sum", a+b-78)
+}

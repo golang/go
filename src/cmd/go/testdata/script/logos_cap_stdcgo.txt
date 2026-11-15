@@ -1,11 +1,3 @@
-# M12-S2: unauthorized_cgo names a dependency that owns a cgo wrapper. The
-# standard library's own cgo (the net resolver) never blames the dependencies
-# that call it: an ordinary net/http dependency builds under the default
-# policy.
-# RED expectation: the reverse chain search walks past the standard
-# library's trampoline and reports the dependency, so the build fails with
-# unauthorized_cgo.
-
 [!cgo] skip
 env CGO_ENABLED=1
 env GOPROXY=off
@@ -20,19 +12,50 @@ stdout '_C2?func_getaddrinfo'
 exec $WORK/bin/stdcgo$GOEXE
 stdout '^ok$'
 
+! logos build -o $WORK/bin/stdcgoevil$GOEXE ./cmdevil
+stderr 'ERROR \[capabilities::unauthorized_cgo\]: Transitive dependency ''example\.com/evil'' reaches ''runtime\.cgocall'''
+stderr 'example\.com/evil\._Cfunc_fortytwo\(\)'
+stderr 'example\.com/evil\.Ping\(\) +at [^ ]+\.go:\d+'
+cd ../emain
+! logos build -o $WORK/bin/stdcgoerrno$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_cgo\]: Transitive dependency ''example\.com/errnoevil'' reaches ''runtime\.cgocall'''
+stderr 'example\.com/errnoevil\.Ping\(\)'
+cd ../emainok
+logos build -o $WORK/bin/stdcgoerrnook$GOEXE ./cmd
+! stderr 'capabilities'
+cd ../fmain
+! logos build -o $WORK/bin/stdcgoevilfast$GOEXE ./cmdfast
+stderr 'ERROR \[capabilities::unauthorized_cgo\]: Transitive dependency ''example\.com/fastevil'' reaches ''runtime\.cgocall'''
+stderr 'example\.com/fastevil\.Ping\(\)'
+cd ..
+env GOEXPERIMENT=logosfastcgo
+cd fmainok
+logos build -o $WORK/bin/stdcgookfast$GOEXE ./cmdfast
+go tool nm $WORK/bin/stdcgookfast$GOEXE
+stdout 'runtime\.logosCgocallFast'
+cd ..
+env GOEXPERIMENT=
+
 -- main/go.mod --
 module example.com/nmain
 
 go 1.27
 
-require example.com/ndep v0.0.0
+require (
+	example.com/ndep v0.0.0
+	example.com/evil v0.0.0
+)
 
-replace example.com/ndep => ../dep
+replace (
+	example.com/ndep => ../dep
+	example.com/evil => ../evil
+)
 
 -- main/logos.toml --
 [capabilities]
 transitive_net = "allow"
 transitive_reflect = "allow"
+transitive_unsafe_allowlist = ["example.com/evil/**"]
 
 -- main/cmd/main.go --
 package main
@@ -68,4 +91,193 @@ func Fetch(u string) string {
 		}
 	}
 	return "ok"
+}
+
+-- main/cmdevil/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/ndep"
+	"example.com/evil"
+)
+
+func main() {
+	fmt.Println(dep.Fetch(""))
+	fmt.Println(evil.Ping())
+}
+
+-- evil/go.mod --
+module example.com/evil
+
+go 1.27
+
+-- evil/evil.go --
+package evil
+
+/*
+int fortytwo() { return 42; }
+*/
+import "C"
+
+//go:noinline
+func Ping() int {
+	return int(C.fortytwo())
+}
+
+-- fmain/go.mod --
+module example.com/fmain
+
+go 1.27
+
+require example.com/fastevil v0.0.0
+
+replace example.com/fastevil => ../fastevil
+
+-- fmain/logos.toml --
+[capabilities]
+transitive_net = "allow"
+transitive_reflect = "allow"
+transitive_unsafe_allowlist = ["example.com/fastevil/**"]
+
+-- fmain/cmdfast/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/fastevil"
+)
+
+func main() {
+	fmt.Println(fastevil.Ping())
+}
+
+-- fastevil/go.mod --
+module example.com/fastevil
+
+go 1.27
+
+-- fastevil/bridge.lgo --
+package fastevil
+
+/*
+//logos:cgo_fastcall fortytwo
+int fortytwo() { return 42; }
+*/
+import "C"
+
+//go:noinline
+func Ping() int {
+	return int(C.fortytwo())
+}
+
+-- fmainok/go.mod --
+module example.com/fmainok
+
+go 1.27
+
+require example.com/fastevil v0.0.0
+
+replace example.com/fastevil => ../fastevil
+
+-- fmainok/logos.toml --
+[build]
+cgo = "allow"
+
+[capabilities]
+transitive_net = "allow"
+transitive_reflect = "allow"
+transitive_unsafe_allowlist = ["example.com/fastevil/**"]
+
+-- fmainok/cmdfast/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/fastevil"
+)
+
+func main() {
+	fmt.Println(fastevil.Ping())
+}
+
+-- emain/go.mod --
+module example.com/emain
+
+go 1.27
+
+require example.com/errnoevil v0.0.0
+
+replace example.com/errnoevil => ../errnoevil
+
+-- emain/logos.toml --
+[capabilities]
+transitive_net = "allow"
+transitive_reflect = "allow"
+transitive_unsafe_allowlist = ["example.com/errnoevil/**"]
+
+-- emain/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/errnoevil"
+)
+
+func main() {
+	fmt.Println(errnoevil.Ping())
+}
+
+-- errnoevil/go.mod --
+module example.com/errnoevil
+
+go 1.27
+
+-- errnoevil/errnoevil.go --
+package errnoevil
+
+/*
+int fortytwo() { return 42; }
+*/
+import "C"
+
+//go:noinline
+func Ping() int {
+	v, _ := C.fortytwo()
+	return int(v)
+}
+
+-- emainok/go.mod --
+module example.com/emainok
+
+go 1.27
+
+require example.com/errnoevil v0.0.0
+
+replace example.com/errnoevil => ../errnoevil
+
+-- emainok/logos.toml --
+[build]
+cgo = "allow"
+
+[capabilities]
+transitive_net = "allow"
+transitive_reflect = "allow"
+transitive_unsafe_allowlist = ["example.com/errnoevil/**"]
+
+-- emainok/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/errnoevil"
+)
+
+func main() {
+	fmt.Println(errnoevil.Ping())
 }

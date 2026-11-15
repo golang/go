@@ -1,0 +1,85 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd badkey
+! logos build -o $WORK/kptr$GOEXE ./ptr
+stderr 'comptime::constmap_key_type'
+! logos build -o $WORK/kiface$GOEXE ./iface
+stderr 'comptime::constmap_key_type'
+! logos build -o $WORK/kfun$GOEXE ./fun
+stderr 'comptime::constmap_key_type'
+! logos build -o $WORK/kchan$GOEXE ./chan
+stderr 'comptime::constmap_key_type'
+! logos build -o $WORK/kmapk$GOEXE ./mapk
+stderr 'comptime::constmap_key_type'
+! logos build -o $WORK/kslice$GOEXE ./slice
+stderr 'comptime::constmap_key_type'
+! logos build -o $WORK/kstructptr$GOEXE ./structptr
+stderr 'comptime::constmap_key_type'
+! logos build -o $WORK/karrslice$GOEXE ./arrslice
+stderr 'comptime::constmap_key_type'
+cd ..
+cd ..
+
+-- badkey/go.mod --
+module example.com/badkey
+
+go 1.27
+
+-- badkey/ptr/main.lgo --
+package main
+
+const k = map[*int]int{}
+
+func main() {}
+
+-- badkey/iface/main.lgo --
+package main
+
+const k = map[interface{}]int{}
+
+func main() {}
+
+-- badkey/fun/main.lgo --
+package main
+
+const k = map[func()]int{}
+
+func main() {}
+
+-- badkey/chan/main.lgo --
+package main
+
+const k = map[chan int]int{}
+
+func main() {}
+
+-- badkey/mapk/main.lgo --
+package main
+
+const k = map[map[string]int]int{}
+
+func main() {}
+
+-- badkey/slice/main.lgo --
+package main
+
+const k = map[[]byte]int{}
+
+func main() {}
+
+-- badkey/structptr/main.lgo --
+package main
+
+const k = map[struct {
+	P *int
+}]int{}
+
+func main() {}
+
+-- badkey/arrslice/main.lgo --
+package main
+
+const k = map[[2][]byte]int{}
+
+func main() {}

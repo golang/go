@@ -1,27 +1,6 @@
-# M5-S4: private-owner const-map consumer coverage (SPEC T-Sec9).
-# Anchor: Tony Hoare, Richard Feynman
-#
-# Offline multi-module cases for both const-map lowerings with
-# owner-private construction:
-# 1. Small (5-key, switch path) single-owner map with a private struct key
-#    carrying unexported fields and a private value with unexported fields
-#    plus a nested named type, consumed through inference only.
-# 2. Big (12-key, perfect-hash path) single-owner map with a private array
-#    key over that struct and the same private value shape.
-# 3. Mixed-owner maps produced by a third package (keys from ownera, values
-#    from ownerb) in both small (5-key) and big (11-key) sizes.
-# All constructors called during CTFE are const funcs; no method runs
-# inside CTFE. Methods run only at runtime to prove nominal identity.
-# Query keys come from exported const-function constructors, so the
-# consumer never names a private type. Checks cover hit/miss through
-# const lookup wrappers, comma-ok and ?? at runtime, constant len with
-# array bounds, exact sorted key sequences via exported runtime key
-# accessors, and materialized-copy isolation.
-
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
-# 1. Consumer module evaluates imported const funcs at compile time.
 cd consumer
 logos run .
 cp stdout $WORK/want.txt
@@ -48,13 +27,23 @@ stdout '^privmap-mixed-order-big: 1a,2b,3c,4d,5e,6f,7g,8h,9i,10j,11k$'
 stdout '^privmap-mixed-copy: m1=40 const=20 hit-ok=true miss-ok=false$'
 stdout '^privmap-bounds: 5 12 5 11$'
 
-# 2. Eject consumer module to plain Go and verify parity.
 logos eject -o ../eject_out
 exists ../eject_out/main.go
 cd ../eject_out
 go run .
 cmp stdout $WORK/want.txt
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
 cd ../consumer
+cd ..
+
+# A seed cap of 1 exhausts the owned 12-key map search with the rule ID.
+cd consumer
+! logos build -gcflags=all=-d=logosconstmapseeds=1 .
+stderr '\[comptime::constmap_seed_not_found\]'
 cd ..
 
 -- lib/go.mod --

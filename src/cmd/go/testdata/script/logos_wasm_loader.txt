@@ -1,30 +1,19 @@
-# M16-S2 (SPEC Sec 14.2; #27, #78, #187): the wasm host loader.
-# logos build writes <name>.loader.mjs beside a .wasm output; go build
-# writes the same bytes only with --wasm-loader (the plain-go default is
-# off until the run.bash flip, R-U1, G3). The loader re-reads memory.buffer
-# after every call into wasm, checks the int32 errCode, and throws the
-# message that readErrorString reads from wasm memory. Without node the
-# whole gate is blocked (A-NODE), not passed.
-[!exec:node] skip 'A-NODE: node is required to run the loader'
-
 env GOPROXY=off
 env GOTOOLCHAIN=local
-env GOOS=js
-env GOARCH=wasm
 
-cp $GOROOT/lib/wasm/wasm_exec.js lgo/wasm_exec.js
-cp $GOROOT/lib/wasm/wasm_exec.js gomod/wasm_exec.js
-cp $GOROOT/lib/wasm/wasm_exec.js goimpl/wasm_exec.js
-
-# go help build stays byte-identical to the baseline: the flag has no help
-# text. Only logos help names it.
 go help build
 cmp stdout help_build.txt
 logos help build
 stdout '-wasm-loader'
 
-# A loGo/s main package: logos build writes the loader by default, and the
-# //logos: directives behave as the //go: forms.
+[!exec:node] skip 'A-NODE: node is required to run the loader'
+
+env GOOS=js
+env GOARCH=wasm
+cp $GOROOT/lib/wasm/wasm_exec.js lgo/wasm_exec.js
+cp $GOROOT/lib/wasm/wasm_exec.js gomod/wasm_exec.js
+cp $GOROOT/lib/wasm/wasm_exec.js goimpl/wasm_exec.js
+
 cd lgo
 logos build -o app.wasm .
 exists app.wasm
@@ -33,8 +22,6 @@ exec node ../check.mjs app.wasm app.loader.mjs text
 stdout '^loader-ok$'
 cp app.loader.mjs ../lgo.loader.mjs
 
-# logos build -n shows the loader write and makes none; --wasm-loader=false
-# turns the loader off.
 rm app.loader.mjs
 logos build -n -o app.wasm .
 stderr 'app\.loader\.mjs'
@@ -42,20 +29,157 @@ stderr 'app\.loader\.mjs'
 logos build --wasm-loader=false -o app.wasm .
 ! exists app.loader.mjs
 
-# A non-wasm output name writes no loader.
 logos build -o app.bin .
 ! exists app.loader.mjs
 ! exists app.bin.loader.mjs
 
-# The default output name of a wasm main package has no .wasm suffix, so a
-# build without -o writes no loader.
 logos build .
 exists wasmlgo
 ! exists wasmlgo.loader.mjs
 
-# logos eject spells the directives in their //go: forms, ships the wasm
-# helpers of logos/rt, and the ejected module builds under plain go into a
-# wasm module that the same loader drives.
+cd ..
+
+cd provided
+env GOOS=js
+env GOARCH=wasm
+cp $GOROOT/lib/wasm/wasm_exec.js wasm_exec.js
+# The module graph already provides the loader helpers through the
+# helper package, so the implicit logos/rt import is pruned: the -x
+# output carries no packagefile line, but the loader is still emitted
+# and still runs. The plain section below is the control that keeps
+# the packagefile line when no provider is present.
+go build -x -o app.wasm .
+! stderr 'packagefile logos/rt='
+exists app.wasm
+exists app.loader.mjs
+exec node ../runok.mjs app.wasm app.loader.mjs
+stdout '^provided-ok$'
+logos build -x -o logos.wasm .
+! stderr 'packagefile logos/rt='
+exists logos.wasm
+exists logos.loader.mjs
+exec node ../runok.mjs logos.wasm logos.loader.mjs
+stdout '^provided-ok$'
+cd ..
+cd noprov
+env GOOS=js
+env GOARCH=wasm
+cp $GOROOT/lib/wasm/wasm_exec.js wasm_exec.js
+# A non-standard import that exports none of the loader helpers does not
+# satisfy the unless clause: the implicit logos/rt import stays, and the
+# loader still runs. Pruning on any non-standard package drops this line.
+go build -x -o app.wasm .
+stderr 'packagefile logos/rt='
+exists app.wasm
+exists app.loader.mjs
+exec node ../runok.mjs app.wasm app.loader.mjs
+stdout '^provided-ok$'
+logos build -x -o logos.wasm .
+stderr 'packagefile logos/rt='
+exists logos.wasm
+exists logos.loader.mjs
+exec node ../runok.mjs logos.wasm logos.loader.mjs
+stdout '^provided-ok$'
+cd ..
+cd partial
+env GOOS=js
+env GOARCH=wasm
+cp $GOROOT/lib/wasm/wasm_exec.js wasm_exec.js
+mkdir helper
+# The helper set is empty or complete: the provided and noprov sections
+# above are the two accepted ends, and each proper subset below fails
+# the build naming exactly the helpers it lacks.
+cp helpers/no_alloc.txt helper/helper.go
+! go build -x -o app.wasm .
+stderr '_logos_scratch_alloc'
+! stderr '_logos_scratch_reset|_logos_errmsg_ptr|_logos_errmsg_len'
+! exists app.loader.mjs
+! logos build -x -o logos.wasm .
+stderr '_logos_scratch_alloc'
+! stderr '_logos_scratch_reset|_logos_errmsg_ptr|_logos_errmsg_len'
+! exists logos.loader.mjs
+cp helpers/no_reset.txt helper/helper.go
+! go build -x -o app.wasm .
+stderr '_logos_scratch_reset'
+! stderr '_logos_scratch_alloc|_logos_errmsg_ptr|_logos_errmsg_len'
+! exists app.loader.mjs
+! logos build -x -o logos.wasm .
+stderr '_logos_scratch_reset'
+! stderr '_logos_scratch_alloc|_logos_errmsg_ptr|_logos_errmsg_len'
+! exists logos.loader.mjs
+cp helpers/no_ptr.txt helper/helper.go
+! go build -x -o app.wasm .
+stderr '_logos_errmsg_ptr'
+! stderr '_logos_scratch_alloc|_logos_scratch_reset|_logos_errmsg_len'
+! exists app.loader.mjs
+! logos build -x -o logos.wasm .
+stderr '_logos_errmsg_ptr'
+! stderr '_logos_scratch_alloc|_logos_scratch_reset|_logos_errmsg_len'
+! exists logos.loader.mjs
+cp helpers/no_len.txt helper/helper.go
+! go build -x -o app.wasm .
+stderr '_logos_errmsg_len'
+! stderr '_logos_scratch_alloc|_logos_scratch_reset|_logos_errmsg_ptr'
+! exists app.loader.mjs
+! logos build -x -o logos.wasm .
+stderr '_logos_errmsg_len'
+! stderr '_logos_scratch_alloc|_logos_scratch_reset|_logos_errmsg_ptr'
+! exists logos.loader.mjs
+cp helpers/only_alloc.txt helper/helper.go
+! go build -x -o app.wasm .
+stderr '_logos_scratch_reset'
+stderr '_logos_errmsg_ptr'
+stderr '_logos_errmsg_len'
+! stderr '_logos_scratch_alloc'
+! exists app.loader.mjs
+! logos build -x -o logos.wasm .
+stderr '_logos_scratch_reset'
+stderr '_logos_errmsg_ptr'
+stderr '_logos_errmsg_len'
+! stderr '_logos_scratch_alloc'
+! exists logos.loader.mjs
+# A name that only starts with a helper name does not provide the helper.
+cp helpers/lookalike.txt helper/helper.go
+! go build -x -o app.wasm .
+stderr '_logos_errmsg_len'
+! stderr '_logos_scratch_alloc|_logos_scratch_reset|_logos_errmsg_ptr'
+! exists app.loader.mjs
+! logos build -x -o logos.wasm .
+stderr '_logos_errmsg_len'
+! stderr '_logos_scratch_alloc|_logos_scratch_reset|_logos_errmsg_ptr'
+! exists logos.loader.mjs
+# The compiler splits the directive on white space, so a complete set
+# with extra spaces is still complete and the loader is written.
+cp helpers/spaced.txt helper/helper.go
+go build -x -o app.wasm .
+! stderr 'packagefile logos/rt='
+exists app.loader.mjs
+logos build -x -o logos.wasm .
+! stderr 'packagefile logos/rt='
+exists logos.loader.mjs
+cd ..
+
+cd depprov
+env GOOS=js
+env GOARCH=wasm
+cp $GOROOT/lib/wasm/wasm_exec.js wasm_exec.js
+# Only the main module and the github.com/gosuda/loGos/rt support
+# module may provide loader helpers: a dependency module that exports
+# the complete set still fails the build, naming the helper and the
+# offending package.
+! go build -o app.wasm .
+stderr '_logos_scratch_alloc'
+stderr 'example.com/dep'
+stderr 'only the main module'
+! exists app.loader.mjs
+! logos build -o logos.wasm .
+stderr '_logos_scratch_alloc'
+stderr 'example.com/dep'
+stderr 'only the main module'
+! exists logos.loader.mjs
+cd ..
+
+cd lgo
 logos eject -o out
 exists out/main.go
 grep '^//go:wasmimport host add$' out/main.go
@@ -66,15 +190,18 @@ exists out/_logos_deps/rt/wasmerr.go
 exists out/_logos_deps/rt/wasmhost_wasm.go
 cd out
 go build -o ../ejected.wasm .
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o ../ejected1272.wasm .
+exists ../ejected.loader.mjs
 cd ..
-cp ../lgo.loader.mjs ejected.loader.mjs
+cmp ejected.loader.mjs ../lgo.loader.mjs
 exec node ../check.mjs ejected.wasm ejected.loader.mjs text
 stdout '^loader-ok$'
 cd ..
 
-# A non-wasm target writes no loader under either command, even for a .wasm
-# output name, and adds no logos/rt import; the same build on a wasm target
-# does both.
 cd plain
 env GOOS=linux
 env GOARCH=amd64
@@ -88,22 +215,33 @@ logos build -x -o app.wasm .
 ! stderr 'packagefile logos/rt='
 env GOOS=js
 env GOARCH=wasm
-go build -x --wasm-loader -o app.wasm .
+go build -x -o app.wasm .
 stderr 'packagefile logos/rt='
 exists app.loader.mjs
 rm app.loader.mjs
-go build -x -o app.wasm .
+go build -x --wasm-loader -o app.wasm .
+stderr 'loader\.mjs'
+exists app.loader.mjs
+rm app.loader.mjs
+go build -x --wasm-loader=false -o app.wasm .
 ! stderr 'packagefile logos/rt='
 ! exists app.loader.mjs
 cd ..
 
-# A Go main package with //go:wasmexport and an explicit logos/rt import:
-# plain go writes no loader by default, writes it with --wasm-loader, and
-# logos build writes it by default, with identical loader bytes.
 cd gomod
 go build -o app.wasm .
 exists app.wasm
-! exists app.loader.mjs
+exists app.loader.mjs
+cmp app.loader.mjs ../lgo.loader.mjs
+exec node ../check.mjs app.wasm app.loader.mjs text
+stdout '^loader-ok$'
+
+go build -x -a -o check.wasm .
+exists check.wasm
+exists check.loader.mjs
+exec node ../check.mjs check.wasm check.loader.mjs text
+stdout '^loader-ok$'
+rm app.loader.mjs
 go build --wasm-loader -o app.wasm .
 exists app.loader.mjs
 exec node ../check.mjs app.wasm app.loader.mjs text
@@ -115,18 +253,19 @@ exists app.loader.mjs
 cmp app.loader.mjs ../lgo.loader.mjs
 exec node ../check.mjs app.wasm app.loader.mjs text
 stdout '^loader-ok$'
+rm app.loader.mjs
 go build --wasm-loader=false -o other.wasm .
 ! exists other.loader.mjs
+go build .
+exists wasmgo
+! exists wasmgo.loader.mjs
+! exists app.loader.mjs
 cd ..
 
-# A Go main package that never imports logos/rt still gets the helpers the
-# loader calls: the build adds the implicit import when it emits the loader,
-# and the linker keeps its wasmexports. The std action IDs stay equal, so
-# no standard-library package rebuilds when the flag is added.
 cd goimpl
-go build -debug-actiongraph=$WORK/before.json -o plain.wasm .
+go build --wasm-loader=false -debug-actiongraph=$WORK/before.json -o plain.wasm .
 ! exists plain.loader.mjs
-go build --wasm-loader -debug-actiongraph=$WORK/after.json -o app.wasm .
+go build -debug-actiongraph=$WORK/after.json -o app.wasm .
 exists app.loader.mjs
 cmp app.loader.mjs ../lgo.loader.mjs
 exec node ../check.mjs app.wasm app.loader.mjs codes
@@ -139,9 +278,19 @@ cmp logos.loader.mjs ../lgo.loader.mjs
 exec node ../check.mjs logos.wasm logos.loader.mjs codes
 stdout '^loader-ok$'
 
-# GOOS=wasip1 gets the same loader bytes, and the same exports work in a
-# reactor module that the host initializes through WASI.
 env GOOS=wasip1
+go build -buildmode=c-shared -o wasi.wasm .
+exists wasi.wasm
+exists wasi.loader.mjs
+cmp wasi.loader.mjs ../lgo.loader.mjs
+exec node ../wasi.mjs wasi.wasm wasi.loader.mjs
+stdout '^wasi-ok$'
+rm wasi.loader.mjs
+go build -buildmode=c-shared --wasm-loader=false -o wasifalse.wasm .
+! exists wasifalse.loader.mjs
+go build .
+! exists wasmimpl.loader.mjs
+! exists wasi.loader.mjs
 go build -buildmode=c-shared --wasm-loader -o wasi.wasm .
 cmp wasi.loader.mjs ../lgo.loader.mjs
 exec node ../wasi.mjs wasi.wasm wasi.loader.mjs
@@ -176,12 +325,30 @@ assert.equal(Buffer.compare(input, want), 0, "incr result differs after memory.g
 exports.incr(input);
 assert.equal(input[0], (want[0] + 1) & 255, "a call after growth saw stale memory");
 
+const guest = instance.exports.mem ?? instance.exports.memory;
+const oversized = new Uint8Array(256 * 2 ** 20 + 1).fill(170, 0, 64);
+guest.grow(Math.max(0, Math.ceil((oversized.length - guest.buffer.byteLength) / 65536)) + 1);
+const lowMemory = () => Buffer.from(new Uint8Array(guest.buffer, 0, 64));
+const lowBefore = lowMemory();
+assert.throws(() => exports.incr(oversized), RangeError);
+assert.equal(Buffer.compare(lowMemory(), lowBefore), 0, "an oversized argument wrote to low guest memory");
+exports.incr(input);
+
 if (mode === "text") {
   assert.throws(() => exports.fail(new Uint8Array(3)), { message: "fail: refused 3 bytes" });
   assert.throws(() => exports.checkHost(2, 3, 6), { message: "host add mismatch" });
+  assert.throws(() => exports.fail64(), { message: "fail64: refused" });
+  exports.ok64();
+  const scratch = instance.exports._logos_scratch_alloc(3) >>> 0;
+  const mem = instance.exports.mem ?? instance.exports.memory;
+  new Uint8Array(mem.buffer, scratch, 3).fill(9);
+  assert.equal(instance.exports.fail(scratch, 3), 1);
+  assert.equal(instance.exports.fail64(), 1n);
+  instance.exports._logos_scratch_reset(scratch);
 } else {
   assert.throws(() => exports.fail(new Uint8Array(3)), Error);
   assert.throws(() => exports.checkHost(2, 3, 6), Error);
+  assert.throws(() => exports.failneg(), Error);
 }
 exports.checkHost(2, 3, 5);
 exports.align();
@@ -269,6 +436,11 @@ type elems struct {
 	a [3]int64
 }
 
+var (
+	_ = [1]byte{}[unsafe.Sizeof(uintptr(0))-8]
+	_ = [1]byte{}[unsafe.Sizeof([]byte(nil))-24]
+)
+
 //logos:wasmimport host add
 func hostAdd(a, b int32) int32
 
@@ -324,6 +496,16 @@ func align() int32 {
 	return rt.WasmError(nil)
 }
 
+//logos:wasmexport fail64
+func fail64() int64 {
+	return int64(rt.WasmError(errors.New("fail64: refused")))
+}
+
+//logos:wasmexport ok64
+func ok64() int64 {
+	return int64(rt.WasmError(nil))
+}
+
 func main() {
 	select {}
 }
@@ -356,6 +538,11 @@ type elems struct {
 	b byte
 	a [3]int64
 }
+
+var (
+	_ = [1]byte{}[unsafe.Sizeof(uintptr(0))-8]
+	_ = [1]byte{}[unsafe.Sizeof([]byte(nil))-24]
+)
 
 //go:wasmimport host add
 func hostAdd(a, b int32) int32
@@ -410,6 +597,16 @@ func align() int32 {
 		return rt.WasmError(errors.New("atomic result is wrong"))
 	}
 	return rt.WasmError(nil)
+}
+
+//go:wasmexport fail64
+func fail64() int64 {
+	return int64(rt.WasmError(errors.New("fail64: refused")))
+}
+
+//go:wasmexport ok64
+func ok64() int64 {
+	return int64(rt.WasmError(nil))
 }
 
 func main() {
@@ -468,6 +665,11 @@ func fail(p unsafe.Pointer, n int32) int32 {
 	return 7
 }
 
+//go:wasmexport failneg
+func failneg() int32 {
+	return -1
+}
+
 //go:wasmexport checkHost
 func checkHost(a, b, want int32) int32 {
 	if hostAdd(a, b) != want {
@@ -505,6 +707,275 @@ func align() int32 {
 func main() {
 	select {}
 }
+
+-- provided/go.mod --
+module example.com/provided
+
+go 1.27
+
+-- provided/main.go --
+package main
+
+import (
+	_ "example.com/provided/helper"
+	"unsafe"
+)
+
+//go:wasmimport host add
+func hostAdd(a, b int32) int32
+
+//go:wasmexport incr
+func incr(p unsafe.Pointer, n int32) int32 {
+	b := unsafe.Slice((*byte)(p), n)
+	for i := range b {
+		b[i]++
+	}
+	return 0
+}
+
+//go:wasmexport checkHost
+func checkHost(a, b, want int32) int32 {
+	if hostAdd(a, b) != want {
+		return 1
+	}
+	return 0
+}
+
+func main() {
+	select {}
+}
+
+-- provided/helper/helper.go --
+package helper
+
+import "unsafe"
+
+var scratch = map[int32][]byte{}
+
+var errmsg = []byte("helper errmsg")
+
+func address(b []byte) int32 {
+	return int32(uintptr(unsafe.Pointer(unsafe.SliceData(b))))
+}
+
+//go:wasmexport _logos_scratch_alloc
+func scratchAlloc(n int32) int32 {
+	b := make([]byte, n)
+	p := address(b)
+	scratch[p] = b
+	return p
+}
+
+//go:wasmexport _logos_scratch_reset
+func scratchReset(p int32) {
+	delete(scratch, p)
+}
+
+//go:wasmexport _logos_errmsg_ptr
+func errmsgPtr() int32 {
+	return address(errmsg)
+}
+
+//go:wasmexport _logos_errmsg_len
+func errmsgLen() int32 {
+	return int32(len(errmsg))
+}
+
+
+-- noprov/go.mod --
+module example.com/noprov
+
+go 1.27
+
+-- noprov/main.go --
+package main
+
+import (
+	_ "example.com/noprov/helper"
+	"unsafe"
+)
+
+//go:wasmimport host add
+func hostAdd(a, b int32) int32
+
+//go:wasmexport incr
+func incr(p unsafe.Pointer, n int32) int32 {
+	b := unsafe.Slice((*byte)(p), n)
+	for i := range b {
+		b[i]++
+	}
+	return 0
+}
+
+//go:wasmexport checkHost
+func checkHost(a, b, want int32) int32 {
+	if hostAdd(a, b) != want {
+		return 1
+	}
+	return 0
+}
+
+func main() {
+	select {}
+}
+
+-- noprov/helper/helper.go --
+package helper
+
+func Answer() int {
+	return 42
+}
+-- partial/go.mod --
+module example.com/partial
+
+go 1.27
+
+-- partial/main.go --
+package main
+
+import _ "example.com/partial/helper"
+
+func main() {
+	select {}
+}
+
+-- partial/helpers/no_alloc.txt --
+package helper
+
+//go:wasmexport _logos_scratch_reset
+func scratchReset(p int32) {}
+
+//go:wasmexport _logos_errmsg_ptr
+func errmsgPtr() int32 { return 0 }
+
+//go:wasmexport _logos_errmsg_len
+func errmsgLen() int32 { return 0 }
+
+-- partial/helpers/no_reset.txt --
+package helper
+
+//go:wasmexport _logos_scratch_alloc
+func scratchAlloc(n int32) int32 { return 0 }
+
+//go:wasmexport _logos_errmsg_ptr
+func errmsgPtr() int32 { return 0 }
+
+//go:wasmexport _logos_errmsg_len
+func errmsgLen() int32 { return 0 }
+
+-- partial/helpers/no_ptr.txt --
+package helper
+
+//go:wasmexport _logos_scratch_alloc
+func scratchAlloc(n int32) int32 { return 0 }
+
+//go:wasmexport _logos_scratch_reset
+func scratchReset(p int32) {}
+
+//go:wasmexport _logos_errmsg_len
+func errmsgLen() int32 { return 0 }
+
+-- partial/helpers/no_len.txt --
+package helper
+
+//go:wasmexport _logos_scratch_alloc
+func scratchAlloc(n int32) int32 { return 0 }
+
+//go:wasmexport _logos_scratch_reset
+func scratchReset(p int32) {}
+
+//go:wasmexport _logos_errmsg_ptr
+func errmsgPtr() int32 { return 0 }
+
+-- partial/helpers/only_alloc.txt --
+package helper
+
+//go:wasmexport _logos_scratch_alloc
+func scratchAlloc(n int32) int32 { return 0 }
+
+-- partial/helpers/lookalike.txt --
+package helper
+
+//go:wasmexport _logos_scratch_alloc
+func scratchAlloc(n int32) int32 { return 0 }
+
+//go:wasmexport _logos_scratch_reset
+func scratchReset(p int32) {}
+
+//go:wasmexport _logos_errmsg_ptr
+func errmsgPtr() int32 { return 0 }
+
+//go:wasmexport _logos_errmsg_len_v2
+func errmsgLen() int32 { return 0 }
+
+-- partial/helpers/spaced.txt --
+package helper
+
+//go:wasmexport  _logos_scratch_alloc
+func scratchAlloc(n int32) int32 { return 0 }
+
+//go:wasmexport  _logos_scratch_reset
+func scratchReset(p int32) {}
+
+//go:wasmexport _logos_errmsg_ptr
+func errmsgPtr() int32 { return 0 }
+
+//go:wasmexport   _logos_errmsg_len
+func errmsgLen() int32 { return 0 }
+
+-- depprov/go.mod --
+module example.com/depprov
+
+go 1.27
+
+require example.com/dep v0.0.0
+
+replace example.com/dep => ./dep
+
+-- depprov/main.go --
+package main
+
+import _ "example.com/dep"
+
+func main() {}
+
+-- depprov/dep/go.mod --
+module example.com/dep
+
+go 1.27
+
+-- depprov/dep/dep.go --
+package dep
+
+//go:wasmexport _logos_scratch_alloc
+func scratchAlloc(n int32) int32 { return 0 }
+
+//go:wasmexport _logos_scratch_reset
+func scratchReset(p int32) {}
+
+//go:wasmexport _logos_errmsg_ptr
+func errmsgPtr() int32 { return 0 }
+
+//go:wasmexport _logos_errmsg_len
+func errmsgLen() int32 { return 0 }
+
+-- runok.mjs --
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+import assert from "node:assert/strict";
+
+const [wasmPath, loaderPath] = process.argv.slice(2);
+const loader = await import(pathToFileURL(resolve(loaderPath)).href);
+assert.equal(typeof loader.instantiateLogos, "function");
+const { exports } = await loader.instantiateLogos(readFileSync(wasmPath), {
+	host: { add: (a, b) => a + b },
+});
+const input = new Uint8Array([1, 2, 3]);
+exports.incr(input);
+assert.deepEqual(input, new Uint8Array([2, 3, 4]));
+exports.checkHost(2, 3, 5);
+console.log("provided-ok");
 
 -- help_build.txt --
 usage: go build [-o output] [build flags] [packages]

@@ -1,0 +1,56 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+	"reflect"
+	"unsafe"
+)
+
+var failed bool
+
+func check(name string, cond bool) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type U2 interface {
+	int | string
+}
+
+type U5 interface {
+	int | string | float64 | bool | []byte
+}
+
+type Empty struct{}
+
+type ZU interface {
+	Empty | int
+}
+
+func main() {
+	var a2 U2
+	var a5 U5
+	var ai any
+	var zi ZU
+	check("two-member-union-shares-any-layout", unsafe.Sizeof(a2) == unsafe.Sizeof(ai))
+	check("five-member-union-shares-any-layout", unsafe.Sizeof(a5) == unsafe.Sizeof(ai))
+	check("empty-member-union-shares-any-layout", unsafe.Sizeof(zi) == unsafe.Sizeof(ai))
+	check("member-count-keeps-layout", unsafe.Sizeof(a2) == unsafe.Sizeof(a5))
+	var src any = 7
+	u2 := *(*U2)(unsafe.Pointer(&src))
+	check("reinterpret-keeps-dynamic-type", reflect.TypeOf(u2) == reflect.TypeOf(7))
+	back := *(*any)(unsafe.Pointer(&u2))
+	check("roundtrip-keeps-dynamic-type", reflect.TypeOf(back) == reflect.TypeOf(7))
+	v, ok := back.(int)
+	check("roundtrip-keeps-value", ok && v == 7)
+	if failed {
+		os.Exit(1)
+	}
+}

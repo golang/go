@@ -1,0 +1,59 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+type Getter[T any] interface {
+	const Get() T
+}
+
+type Mutual[T interface{ ~struct{ f U } }, U interface{ ~struct{ g T } }] struct {
+	v T
+}
+
+func (b *Mutual[T, U]) Get() T { return b.v }
+
+func mutual[T interface{ ~struct{ f U } }, U interface{ ~struct{ g T } }](b *Mutual[T, U]) {
+	var _ Getter[T] = b /* ERROR "[correctness::const_view_mutation]" */
+}
+
+type SelfRef[T interface{ ~struct{ f T } }] struct {
+	v T
+}
+
+func (b *SelfRef[T]) Get() T { return b.v }
+
+func selfRef[T interface{ ~struct{ f T } }](b *SelfRef[T]) {
+	var _ Getter[T] = b /* ERROR "[correctness::const_view_mutation]" */
+}
+
+type Ring[A interface{ ~struct{ f B } }, B interface{ ~struct{ g C } }, C interface{ ~struct{ h A } }] struct {
+	v A
+}
+
+func (b *Ring[A, B, C]) Get() A { return b.v }
+
+func ring[A interface{ ~struct{ f B } }, B interface{ ~struct{ g C } }, C interface{ ~struct{ h A } }](b *Ring[A, B, C]) {
+	var _ Getter[A] = b /* ERROR "[correctness::const_view_mutation]" */
+}
+
+type Cells[T interface{ ~[1]U }, U interface{ ~[1]T }] struct {
+	v T
+}
+
+func (b *Cells[T, U]) Get() T { return b.v }
+
+func cells[T interface{ ~[1]U }, U interface{ ~[1]T }](b *Cells[T, U]) {
+	var _ Getter[T] = b /* ERROR "[correctness::const_view_mutation]" */
+}
+
+type Plain[T ~int] struct {
+	v T
+}
+
+func (b *Plain[T]) Get() T { return b.v }
+
+func plain[T ~int](b *Plain[T]) {
+	var _ Getter[T] = b
+}

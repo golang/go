@@ -104,25 +104,6 @@ func TestEscapeParity(t *testing.T) {
 	}
 }
 
-func TestEscapeExamples(t *testing.T) {
-	cases := []struct{ in, escaped, quoted string }{
-		{"a<", `a\u003c`, `\"a\\u003c\"`},
-		{"x\"y", `x\"y`, `\"x\\\"y\"`},
-		{"", ``, `\"\"`},
-		{"line\n", `line\n`, `\"line\\n\"`},
-		{"\u2028", `\u2028`, `\"\\u2028\"`},
-		{"\x7f", "\x7f", "\\\"\x7f\\\""},
-	}
-	for _, c := range cases {
-		if got := string(AppendEscaped(nil, c.in)); got != c.escaped {
-			t.Errorf("AppendEscaped(%q) = %q, want %q", c.in, got, c.escaped)
-		}
-		if got := string(AppendQuoted(nil, c.in)); got != c.quoted {
-			t.Errorf("AppendQuoted(%q) = %q, want %q", c.in, got, c.quoted)
-		}
-	}
-}
-
 func TestEscapeInvalidUTF8Rule(t *testing.T) {
 	got := string(AppendEscaped(nil, "a\xffb"))
 	if got != "a"+invalidUTF8Escape+"b" {

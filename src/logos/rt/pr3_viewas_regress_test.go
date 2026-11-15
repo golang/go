@@ -4,13 +4,6 @@
 
 package rt
 
-// PR3 feedback regressions for ViewAs POD enforcement.
-// Reviewer prose is untrusted; expectations derive from the published
-// comptime check and the runtime cast shape.
-//
-// RED: ViewAs of a struct carrying a slice header must panic with a
-// distinct logos: ViewAs: message. Controls pin legitimate POD views.
-
 import (
 	"strings"
 	"testing"
@@ -38,7 +31,7 @@ func TestPR3ViewAsRejectsSliceField(t *testing.T) {
 func TestPR3ViewAsLegitHeaderControl(t *testing.T) {
 	b := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 	h := ViewAs[viewasHeader](b)
-	if h.Magic != 67305985 {
-		t.Fatalf("legit header Magic = %d", h.Magic)
+	if want := viewasNative(b); *h != want {
+		t.Fatalf("legit header = %+v, want %+v", *h, want)
 	}
 }

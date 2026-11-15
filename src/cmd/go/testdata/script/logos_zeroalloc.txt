@@ -1,14 +1,8 @@
-# M22-S4: a function marked //logos:zeroalloc fails the build with
-# [perf::zeroalloc_violation] when it allocates on the heap (SPEC Sec 22.4).
-# The directive is the author's assertion, so no policy lowers it and no
-# //logos:allow directive silences it. In a Go package only logos lint reads
-# the directive.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
 mkdir $WORK/bin
 
-# A marked function that does not allocate builds and runs.
 cd clean
 logos build -o $WORK/bin/clean$GOEXE .
 ! stderr .
@@ -16,9 +10,6 @@ exec $WORK/bin/clean$GOEXE
 stdout 'total=6'
 cd ..
 
-# A marked function that allocates fails the build. The diagnostic names the
-# rule, the function, the allocating expression, and why escape analysis puts
-# it on the heap, at the line of the allocation, and no binary is written.
 cd bad
 ! logos build -o $WORK/bin/bad$GOEXE .
 stderr 'main\.lgo:7:\d+: \[perf::zeroalloc_violation\] pack allocates: \[\]int\{\.\.\.\} escapes to heap: flows to result ~r0 \(return\)'
@@ -27,35 +18,37 @@ stderr 'main\.lgo:12:\d+: \[perf::zeroalloc_violation\] \(\*box\)\.clone allocat
 ! exists $WORK/bin/bad$GOEXE
 cd ..
 
-# The JSON record carries the rule and forbid, the severity no configuration
-# lowers.
 cd bad
 ! logos build --json-diagnostics -o $WORK/bin/bad$GOEXE .
 stderr '"severity":"forbid","rule_id":"perf::zeroalloc_violation","file":"[^"]*main\.lgo","span":\{"start_line":7,'
 cd ..
 
-# perf = "allow" and a //logos:allow directive on the line change nothing.
 cd policy
 ! logos build -o $WORK/bin/policy$GOEXE .
 stderr 'main\.lgo:6:\d+: \[perf::zeroalloc_violation\] pack allocates:'
 ! exists $WORK/bin/policy$GOEXE
 cd ..
 
-# A directive that marks nothing fails the build: here a blank line separates
-# it from the function.
 cd misplaced
 ! logos build -o $WORK/bin/misplaced$GOEXE .
 stderr 'main\.lgo:3:\d+: \[perf::zeroalloc_violation\] //logos:zeroalloc must be on its own line directly above a function declaration'
 cd ..
 
-# A Go package: logos lint reports the allocation and writes no binary;
-# logos build and go build ignore the directive.
 cd gopkg
 ! logos lint ./...
 stderr 'main\.go:5:\d+: \[perf::zeroalloc_violation\] pack allocates: \[\]int\{\.\.\.\} escapes to heap: flows to result ~r0 \(return\)'
-logos build ./...
-! stderr .
+! logos build ./...
+stderr 'main\.go:5:\d+: \[perf::zeroalloc_violation\] pack allocates:'
 go build ./...
+! stderr .
+cd ..
+
+cd goclean
+logos build -o $WORK/bin/goclean$GOEXE .
+! stderr .
+exec $WORK/bin/goclean$GOEXE
+stdout 'total=6'
+go build -o $WORK/bin/goclean-go$GOEXE .
 ! stderr .
 cd ..
 
@@ -161,4 +154,27 @@ func pack(v int) []int {
 
 func main() {
 	println(len(pack(1)))
+}
+
+-- goclean/go.mod --
+module example.com/goclean
+
+go 1.27
+
+-- goclean/main.go --
+package main
+
+import "fmt"
+
+//logos:zeroalloc
+func total(xs []int) int {
+	n := 0
+	for _, x := range xs {
+		n += x
+	}
+	return n
+}
+
+func main() {
+	fmt.Printf("total=%d\n", total([]int{1, 2, 3}))
 }

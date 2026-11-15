@@ -372,7 +372,6 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	bench.Start("deadcode")
 	deadcode(ctxt)
-	logosIcfFold(ctxt)
 
 	bench.Start("linksetup")
 	ctxt.linksetup()

@@ -1,8 +1,10 @@
 // run
-
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
 var calls = 0
 
@@ -12,16 +14,33 @@ func nextID() int {
 }
 
 func main() {
+	failed := false
+	check := func(name string, ok bool) {
+		if !ok {
+			fmt.Printf("FAIL %s\n", name)
+			failed = true
+			return
+		}
+		fmt.Printf("ok %s\n", name)
+	}
 	p := &100
 	q := &100
-	fmt.Println(*p, *q)
+	check("address-of-literal-reads-literal-value", *p == 100 && *q == 100)
 	*p = 1
-	fmt.Println(*p, *q)
-	fmt.Println(p != q)
+	check("address-of-literals-are-distinct-allocations", *p == 1 && *q == 100 && p != q)
 	s := &"s"
-	fmt.Println(*s)
+	check("address-of-string-literal-reads-value", *s == "s")
 	n := &nextID()
-	fmt.Println(*n, calls)
+	check("address-of-call-evaluates-call-once", *n == 1 && calls == 1)
 	m := &nextID()
-	fmt.Println(*m, calls)
+	check("each-address-of-call-allocates-fresh-result", *m == 2 && calls == 2)
+	check("first-call-address-keeps-its-value", *n == 1)
+	var ps []*int
+	for range 3 {
+		ps = append(ps, &nextID())
+	}
+	check("loop-call-addresses-are-fresh", *ps[0] == 3 && *ps[1] == 4 && *ps[2] == 5)
+	if failed {
+		os.Exit(1)
+	}
 }

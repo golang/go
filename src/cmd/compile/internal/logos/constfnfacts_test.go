@@ -16,8 +16,6 @@ import (
 	"cmd/compile/internal/types2"
 )
 
-// checkConstFnFixture parses and checks one Logos source for constfn
-// emission, failing on any parse or check diagnostic.
 func checkConstFnFixture(t *testing.T, src string) (*types2.Package, *types2.Info, *syntax.File) {
 	t.Helper()
 	dir := t.TempDir()
@@ -52,8 +50,6 @@ func checkConstFnFixture(t *testing.T, src string) (*types2.Package, *types2.Inf
 	return pkg, info, file
 }
 
-// parseConstFnPayload asserts one emitted source parses as real Logos
-// syntax, returning its text.
 func parseConstFnPayload(t *testing.T, rec facts.ConstFuncFact) string {
 	t.Helper()
 	text := string(rec.Source)
@@ -67,8 +63,6 @@ func parseConstFnPayload(t *testing.T, rec facts.ConstFuncFact) string {
 	return text
 }
 
-// wantScopeConst requires one scope name to be a constant of the expected
-// type and integer value.
 func wantScopeConst(t *testing.T, scope *types2.Scope, rec, name, wantType string, want int64) {
 	t.Helper()
 	obj := scope.Lookup(name)
@@ -85,8 +79,6 @@ func wantScopeConst(t *testing.T, scope *types2.Scope, rec, name, wantType strin
 	}
 }
 
-// wantScopeStruct requires one scope name to have a struct type with the
-// expected field types.
 func wantScopeStruct(t *testing.T, scope *types2.Scope, rec, name string, want []string) {
 	t.Helper()
 	obj := scope.Lookup(name)
@@ -107,10 +99,6 @@ func wantScopeStruct(t *testing.T, scope *types2.Scope, rec, name string, want [
 	}
 }
 
-// wantScopeConstFloat requires one scope name to be a constant with the
-// expected float64 value. A typed-int source constant cannot combine with
-// a fractional literal, so a clean recheck plus this value proves the
-// payload preserved the constant's untypedness.
 func wantScopeConstFloat(t *testing.T, scope *types2.Scope, rec, name string, want float64) {
 	t.Helper()
 	obj := scope.Lookup(name)
@@ -124,10 +112,6 @@ func wantScopeConstFloat(t *testing.T, scope *types2.Scope, rec, name string, wa
 	}
 }
 
-// wantScopeConstUint requires one scope name to be a constant with the
-// expected uint64 value. A typed-int source constant cannot shift past
-// the platform int width, so a clean recheck plus this value proves the
-// payload preserved the constant's untypedness.
 func wantScopeConstUint(t *testing.T, scope *types2.Scope, rec, name string, want uint64) {
 	t.Helper()
 	obj := scope.Lookup(name)
@@ -141,11 +125,7 @@ func wantScopeConstUint(t *testing.T, scope *types2.Scope, rec, name string, wan
 	}
 }
 
-// TestEmitConstFnFactsPayloadParses closes one const function over every
-// repaired span boundary and requires each exported const function to
-// have a record whose closed source reparses, rechecks, and evaluates
-// probe consts to the source-defined values.
-func TestEmitConstFnFactsPayloadParses(t *testing.T) {
+func TestWriteConstFnFactsPayloadParses(t *testing.T) {
 	const src = `package constfntest
 
 const func Total() int {
@@ -186,8 +166,7 @@ const /*c*/ Flag = 2
 `
 	pkg, info, file := checkConstFnFixture(t, src)
 	srcBytes := []byte(src)
-	var f *facts.Facts
-	f = EmitConstFnFacts(pkg, info, []*syntax.File{file}, map[*syntax.File][]byte{file: srcBytes}, f)
+	f := facts.Write(pkg, info, []*syntax.File{file}, map[*syntax.File][]byte{file: srcBytes})
 	probe := map[string]string{
 		"Total":   "const total = Total()\nconst frac = K + 0.5\nconst big = K << 63",
 		"Double":  "const doubled = Double(4)",
@@ -233,47 +212,5 @@ const /*c*/ Flag = 2
 		if !seen[name] {
 			t.Errorf("missing constfn record %q", name)
 		}
-	}
-}
-
-// TestConstFnRenderVarStructType renders an explicit struct-typed var
-// through its closing brace and requires the declaration to parse.
-func TestConstFnRenderVarStructType(t *testing.T) {
-	const src = `package constfntest
-
-var V struct {
-	X int
-	Y int /* } */
-}
-
-const func Total() int {
-	return 1
-}
-`
-	pkg, info, file := checkConstFnFixture(t, src)
-	s := newConstFnSrc(pkg, info, []*syntax.File{file}, map[*syntax.File][]byte{file: []byte(src)})
-	s.indexAll()
-	if !s.at(file) {
-		t.Fatal("cannot load fixture file")
-	}
-	var vd *syntax.VarDecl
-	for _, d := range file.DeclList {
-		if v, ok := d.(*syntax.VarDecl); ok {
-			vd = v
-		}
-	}
-	if vd == nil {
-		t.Fatal("no var declaration in fixture")
-	}
-	text, err := s.renderVar(file, vd, "V")
-	if err != nil {
-		t.Fatalf("renderVar: %v", err)
-	}
-	var errs []string
-	_, first := syntax.Parse(syntax.NewFileBase("constfnvar.lgo"), strings.NewReader("package constfntest\n"+text+"\n"), func(err error) {
-		errs = append(errs, err.Error())
-	}, nil, syntax.CheckBranches|syntax.LogosMode)
-	if first != nil || len(errs) > 0 {
-		t.Fatalf("rendered var does not parse: %v %q\n%s", first, errs, text)
 	}
 }

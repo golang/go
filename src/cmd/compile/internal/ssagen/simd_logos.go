@@ -27,81 +27,52 @@ type logosMaskedLoadConfig struct {
 	hi       [2]ssa.Op
 }
 
+var logosMaskedLoad32 = logosMaskedLoadConfig{
+	op: ssa.OpLoadMasked32, lanes: 8, bits: 32, vec: types.TypeVec256,
+	trunc: ssa.OpTrunc64to32, setElem: ssa.OpSetElemInt32x4, setConst: ssa.OpConst32,
+	bcast: ssa.Opbroadcast1To8Int32x4, and: ssa.OpAndInt32x8, greater: ssa.OpGreaterInt32x8,
+	lo: [2]ssa.Op{ssa.OpSetLoInt32x8, 0}, hi: [2]ssa.Op{ssa.OpSetHiInt32x8, 0},
+}
+
+var logosMaskedLoad64 = logosMaskedLoadConfig{
+	op: ssa.OpLoadMasked64, lanes: 4, bits: 64, vec: types.TypeVec256,
+	setElem: ssa.OpSetElemInt64x2, setConst: ssa.OpConst64,
+	bcast: ssa.Opbroadcast1To4Int64x2, and: ssa.OpAndInt32x8, greater: ssa.OpGreaterInt64x4,
+	lo: [2]ssa.Op{ssa.OpSetLoInt64x4, 0}, hi: [2]ssa.Op{ssa.OpSetHiInt64x4, 0},
+}
+
+var logosMaskedLoad16 = logosMaskedLoadConfig{
+	op: ssa.OpLoadMasked16, lanes: 32, bits: 16, vec: types.TypeVec512,
+	trunc: ssa.OpTrunc64to16, setElem: ssa.OpSetElemInt16x8, setConst: ssa.OpConst16,
+	bcast: ssa.Opbroadcast1To32Int16x8, and: ssa.OpAndInt32x16, greater: ssa.OpGreaterInt16x32,
+	lo: [2]ssa.Op{ssa.OpSetLoInt16x16, ssa.OpSetLoInt16x32},
+	hi: [2]ssa.Op{ssa.OpSetHiInt16x16, ssa.OpSetHiInt16x32},
+}
+
+var logosMaskedLoad8 = logosMaskedLoadConfig{
+	op: ssa.OpLoadMasked8, lanes: 64, bits: 8, vec: types.TypeVec512,
+	trunc: ssa.OpTrunc64to8, setElem: ssa.OpSetElemInt8x16, setConst: ssa.OpConst8,
+	bcast: ssa.Opbroadcast1To64Int8x16, and: ssa.OpAndInt32x16, greater: ssa.OpGreaterInt8x64,
+	lo: [2]ssa.Op{ssa.OpSetLoInt8x32, ssa.OpSetLoInt8x64},
+	hi: [2]ssa.Op{ssa.OpSetHiInt8x32, ssa.OpSetHiInt8x64},
+}
+
+func withMaskedLoadName(cfg logosMaskedLoadConfig, name string) logosMaskedLoadConfig {
+	cfg.name = name
+	return cfg
+}
+
 var logosMaskedLoads = []logosMaskedLoadConfig{
-	{
-		name: "LoadFloat32x8SliceMasked", op: ssa.OpLoadMasked32,
-		lanes: 8, bits: 32, vec: types.TypeVec256,
-		trunc: ssa.OpTrunc64to32, setElem: ssa.OpSetElemInt32x4, setConst: ssa.OpConst32,
-		bcast: ssa.Opbroadcast1To8Int32x4, and: ssa.OpAndInt32x8, greater: ssa.OpGreaterInt32x8,
-		lo: [2]ssa.Op{ssa.OpSetLoInt32x8, 0}, hi: [2]ssa.Op{ssa.OpSetHiInt32x8, 0},
-	},
-	{
-		name: "LoadInt32x8SliceMasked", op: ssa.OpLoadMasked32,
-		lanes: 8, bits: 32, vec: types.TypeVec256,
-		trunc: ssa.OpTrunc64to32, setElem: ssa.OpSetElemInt32x4, setConst: ssa.OpConst32,
-		bcast: ssa.Opbroadcast1To8Int32x4, and: ssa.OpAndInt32x8, greater: ssa.OpGreaterInt32x8,
-		lo: [2]ssa.Op{ssa.OpSetLoInt32x8, 0}, hi: [2]ssa.Op{ssa.OpSetHiInt32x8, 0},
-	},
-	{
-		name: "LoadUint32x8SliceMasked", op: ssa.OpLoadMasked32,
-		lanes: 8, bits: 32, vec: types.TypeVec256,
-		trunc: ssa.OpTrunc64to32, setElem: ssa.OpSetElemInt32x4, setConst: ssa.OpConst32,
-		bcast: ssa.Opbroadcast1To8Int32x4, and: ssa.OpAndInt32x8, greater: ssa.OpGreaterInt32x8,
-		lo: [2]ssa.Op{ssa.OpSetLoInt32x8, 0}, hi: [2]ssa.Op{ssa.OpSetHiInt32x8, 0},
-	},
-	{
-		name: "LoadFloat64x4SliceMasked", op: ssa.OpLoadMasked64,
-		lanes: 4, bits: 64, vec: types.TypeVec256,
-		setElem: ssa.OpSetElemInt64x2, setConst: ssa.OpConst64,
-		bcast: ssa.Opbroadcast1To4Int64x2, and: ssa.OpAndInt32x8, greater: ssa.OpGreaterInt64x4,
-		lo: [2]ssa.Op{ssa.OpSetLoInt64x4, 0}, hi: [2]ssa.Op{ssa.OpSetHiInt64x4, 0},
-	},
-	{
-		name: "LoadInt64x4SliceMasked", op: ssa.OpLoadMasked64,
-		lanes: 4, bits: 64, vec: types.TypeVec256,
-		setElem: ssa.OpSetElemInt64x2, setConst: ssa.OpConst64,
-		bcast: ssa.Opbroadcast1To4Int64x2, and: ssa.OpAndInt32x8, greater: ssa.OpGreaterInt64x4,
-		lo: [2]ssa.Op{ssa.OpSetLoInt64x4, 0}, hi: [2]ssa.Op{ssa.OpSetHiInt64x4, 0},
-	},
-	{
-		name: "LoadUint64x4SliceMasked", op: ssa.OpLoadMasked64,
-		lanes: 4, bits: 64, vec: types.TypeVec256,
-		setElem: ssa.OpSetElemInt64x2, setConst: ssa.OpConst64,
-		bcast: ssa.Opbroadcast1To4Int64x2, and: ssa.OpAndInt32x8, greater: ssa.OpGreaterInt64x4,
-		lo: [2]ssa.Op{ssa.OpSetLoInt64x4, 0}, hi: [2]ssa.Op{ssa.OpSetHiInt64x4, 0},
-	},
-	{
-		name: "LoadInt16x32SliceMasked", op: ssa.OpLoadMasked16,
-		lanes: 32, bits: 16, vec: types.TypeVec512,
-		trunc: ssa.OpTrunc64to16, setElem: ssa.OpSetElemInt16x8, setConst: ssa.OpConst16,
-		bcast: ssa.Opbroadcast1To32Int16x8, and: ssa.OpAndInt32x16, greater: ssa.OpGreaterInt16x32,
-		lo: [2]ssa.Op{ssa.OpSetLoInt16x16, ssa.OpSetLoInt16x32},
-		hi: [2]ssa.Op{ssa.OpSetHiInt16x16, ssa.OpSetHiInt16x32},
-	},
-	{
-		name: "LoadUint16x32SliceMasked", op: ssa.OpLoadMasked16,
-		lanes: 32, bits: 16, vec: types.TypeVec512,
-		trunc: ssa.OpTrunc64to16, setElem: ssa.OpSetElemInt16x8, setConst: ssa.OpConst16,
-		bcast: ssa.Opbroadcast1To32Int16x8, and: ssa.OpAndInt32x16, greater: ssa.OpGreaterInt16x32,
-		lo: [2]ssa.Op{ssa.OpSetLoInt16x16, ssa.OpSetLoInt16x32},
-		hi: [2]ssa.Op{ssa.OpSetHiInt16x16, ssa.OpSetHiInt16x32},
-	},
-	{
-		name: "LoadInt8x64SliceMasked", op: ssa.OpLoadMasked8,
-		lanes: 64, bits: 8, vec: types.TypeVec512,
-		trunc: ssa.OpTrunc64to8, setElem: ssa.OpSetElemInt8x16, setConst: ssa.OpConst8,
-		bcast: ssa.Opbroadcast1To64Int8x16, and: ssa.OpAndInt32x16, greater: ssa.OpGreaterInt8x64,
-		lo: [2]ssa.Op{ssa.OpSetLoInt8x32, ssa.OpSetLoInt8x64},
-		hi: [2]ssa.Op{ssa.OpSetHiInt8x32, ssa.OpSetHiInt8x64},
-	},
-	{
-		name: "LoadUint8x64SliceMasked", op: ssa.OpLoadMasked8,
-		lanes: 64, bits: 8, vec: types.TypeVec512,
-		trunc: ssa.OpTrunc64to8, setElem: ssa.OpSetElemInt8x16, setConst: ssa.OpConst8,
-		bcast: ssa.Opbroadcast1To64Int8x16, and: ssa.OpAndInt32x16, greater: ssa.OpGreaterInt8x64,
-		lo: [2]ssa.Op{ssa.OpSetLoInt8x32, ssa.OpSetLoInt8x64},
-		hi: [2]ssa.Op{ssa.OpSetHiInt8x32, ssa.OpSetHiInt8x64},
-	},
+	withMaskedLoadName(logosMaskedLoad32, "LoadFloat32x8SliceMasked"),
+	withMaskedLoadName(logosMaskedLoad32, "LoadInt32x8SliceMasked"),
+	withMaskedLoadName(logosMaskedLoad32, "LoadUint32x8SliceMasked"),
+	withMaskedLoadName(logosMaskedLoad64, "LoadFloat64x4SliceMasked"),
+	withMaskedLoadName(logosMaskedLoad64, "LoadInt64x4SliceMasked"),
+	withMaskedLoadName(logosMaskedLoad64, "LoadUint64x4SliceMasked"),
+	withMaskedLoadName(logosMaskedLoad16, "LoadInt16x32SliceMasked"),
+	withMaskedLoadName(logosMaskedLoad16, "LoadUint16x32SliceMasked"),
+	withMaskedLoadName(logosMaskedLoad8, "LoadInt8x64SliceMasked"),
+	withMaskedLoadName(logosMaskedLoad8, "LoadUint8x64SliceMasked"),
 }
 
 func logosMaskedLoadSlice(cfg logosMaskedLoadConfig) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
@@ -156,7 +127,6 @@ func logosMaskedLoadSlice(cfg logosMaskedLoadConfig) func(s *state, n *ir.CallEx
 	}
 }
 
-// logosSimdIntrinsics registers the masked slice loaders.
 func logosSimdIntrinsics(addF func(pkg, fn string, b intrinsicBuilder, archFamilies ...sys.ArchFamily)) {
 	for _, l := range logosMaskedLoads {
 		addF(simdPackage, l.name, logosMaskedLoadSlice(l), sys.AMD64)

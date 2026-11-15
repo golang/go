@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Simple not-in-heap bump-pointer traceRegion allocator.
-
 package runtime
 
 import (
@@ -12,20 +10,13 @@ import (
 	"unsafe"
 )
 
-// traceRegionAlloc is a thread-safe region allocator.
-// It holds a linked list of traceRegionAllocBlock.
 type traceRegionAlloc struct {
 	lock     mutex
-	dropping atomic.Bool          // For checking invariants.
-	current  atomic.UnsafePointer // *traceRegionAllocBlock
+	dropping atomic.Bool
+	current  atomic.UnsafePointer
 	full     *traceRegionAllocBlock
 }
 
-// traceRegionAllocBlock is a block in traceRegionAlloc.
-//
-// traceRegionAllocBlock is allocated from non-GC'd memory, so it must not
-// contain heap pointers. Writes to pointers to traceRegionAllocBlocks do
-// not need write barriers.
 type traceRegionAllocBlock struct {
 	_ sys.NotInHeap
 	traceRegionAllocBlockHeader
@@ -39,7 +30,6 @@ type traceRegionAllocBlockHeader struct {
 
 const traceRegionAllocBlockData = 64<<10 - unsafe.Sizeof(traceRegionAllocBlockHeader{})
 
-// alloc allocates n-byte block. The block is always aligned to 8 bytes, regardless of platform.
 func (a *traceRegionAlloc) alloc(n uintptr) *notInHeap {
 	n = alignUp(n, 8)
 	if n > traceRegionAllocBlockData {
@@ -49,7 +39,6 @@ func (a *traceRegionAlloc) alloc(n uintptr) *notInHeap {
 		throw("traceRegion: alloc with concurrent drop")
 	}
 
-	// Try to bump-pointer allocate into the current block.
 	block := (*traceRegionAllocBlock)(a.current.Load())
 	if block != nil {
 		r := block.off.Add(n)
@@ -58,15 +47,10 @@ func (a *traceRegionAlloc) alloc(n uintptr) *notInHeap {
 		}
 	}
 
-	// Try to install a new block.
 	var x *notInHeap
 	systemstack(func() {
-		// Acquire a.lock on the systemstack to avoid stack growth
-		// and accidentally entering the tracer again.
 		lock(&a.lock)
 
-		// Check block again under the lock. Someone may
-		// have gotten here first.
 		block = (*traceRegionAllocBlock)(a.current.Load())
 		if block != nil {
 			r := block.off.Add(n)
@@ -76,33 +60,24 @@ func (a *traceRegionAlloc) alloc(n uintptr) *notInHeap {
 				return
 			}
 
-			// Add the existing block to the full list.
 			block.next = a.full
 			a.full = block
 		}
 
-		// Allocate a new block.
 		block = (*traceRegionAllocBlock)(sysAlloc(unsafe.Sizeof(traceRegionAllocBlock{}), &memstats.other_sys, "trace arena alloc"))
 		if block == nil {
 			throw("traceRegion: out of memory")
 		}
 
-		// Allocate space for our current request, so we always make
-		// progress.
 		block.off.Store(n)
 		x = (*notInHeap)(unsafe.Pointer(&block.data[0]))
 
-		// Publish the new block. No write barrier as the memory is off heap.
 		a.current.StoreNoWB(unsafe.Pointer(block))
 		unlock(&a.lock)
 	})
 	return x
 }
 
-// drop frees all previously allocated memory and resets the allocator.
-//
-// drop is not safe to call concurrently with other calls to drop or with calls to alloc. The caller
-// must ensure that it is not possible for anything else to be using the same structure.
 func (a *traceRegionAlloc) drop() {
 	a.dropping.Store(true)
 	for a.full != nil {

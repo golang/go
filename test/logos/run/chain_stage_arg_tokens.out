@@ -1,0 +1,6 @@
+ok comment-before-equals
+ok comment-before-name
+ok comment-after-equals
+ok string-in-limit
+ok nested-call-in-limit
+ok multi-line

@@ -1,8 +1,3 @@
-# M7-S4: a const switch runs natively and ejected with identical output.
-# The m module covers an exact case, an interface case, a tilde case,
-# and a no-match return; the ejected tree builds with plain go and
-# prints the same output (#37, #108).
-
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
@@ -14,18 +9,23 @@ stdout '^exact-int$'
 stdout '^tilde-int$'
 stdout '^other$'
 stdout '^keep: <nil>$'
-cp stdout $WORK/eject-stdout.txt
+stdout '^sw-nums:123 <nil>$'
+stdout '^sw-words:abS <nil>$'
+stdout '^sw-point:S <nil>$'
+stdout '^sw-keep: <nil>$'
+ cp stdout $WORK/eject-stdout.txt
 
 logos eject -o out
 exists out/main.go
-grep 'switch any\(\(\*T\)\(nil\)\)\.\(type\)' out/main.go
-grep 'case \*int64:' out/main.go
-grep 'Reinterpret\[\[\]int64\]\(&items\)' out/main.go
-grep 'any\(v\)\.\(io\.WriterTo\)\.WriteTo' out/main.go
 cd out
 go build ./...
 go run .
 cmp stdout $WORK/eject-stdout.txt
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
 cd ..
 cd out
 go vet ./...
@@ -33,6 +33,52 @@ exec $GOROOT/bin/gofmt -l .
 ! stdout .
 cd ..
 cd ..
+
+cp $GOROOT/test/logos/run/const_switch.lgo n/main.lgo
+cp $GOROOT/test/logos/run/const_switch_order.lgo o/main.lgo
+cp $GOROOT/test/logos/run/const_switch_nomatch.lgo k/main.lgo
+cp $GOROOT/test/logos/run/const_switch_jumps.lgo b/main.lgo
+
+# The run fixtures of the run-time form print the same lines when ejected:
+# a case chosen by the type argument alone, an interface type argument,
+# shared storage for a rebound slice, map and pointer, an interface method
+# run on the value, first match, no match, and a break, continue or labeled
+# jump that sits inside or leaves a case.
+cd n
+logos run .
+cmp stdout $GOROOT/test/logos/run/const_switch.out
+logos eject -o out
+cd out
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/const_switch.out
+cd ../..
+
+cd o
+logos run .
+cmp stdout $GOROOT/test/logos/run/const_switch_order.out
+logos eject -o out
+cd out
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/const_switch_order.out
+cd ../..
+
+cd k
+logos run .
+cmp stdout $GOROOT/test/logos/run/const_switch_nomatch.out
+logos eject -o out
+cd out
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/const_switch_nomatch.out
+cd ../..
+
+cd b
+logos run .
+cmp stdout $GOROOT/test/logos/run/const_switch_jumps.out
+logos eject -o out
+cd out
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/const_switch_jumps.out
+cd ../..
 
 -- m/go.mod --
 module example.com/ejectconstswitch
@@ -44,6 +90,7 @@ package main
 
 import (
 	"bytes"
+	"comptime"
 	"fmt"
 	"io"
 	"strconv"
@@ -87,16 +134,21 @@ func describe[T any](v T) string {
 	return "other"
 }
 
+func show(b []byte, err error) {
+	fmt.Printf("%s %v\n", b, err)
+}
+
 func main() {
-	b, err := EncodeSlice([]byte("nums:"), []int64{1, 2, 3})
-	fmt.Printf("%s %v\n", b, err)
-	b, err = EncodeSlice([]byte("words:"), []Word{{"a"}, {"b"}})
-	fmt.Printf("%s %v\n", b, err)
+	show(EncodeSlice([]byte("nums:"), []int64{1, 2, 3}))
+	show(EncodeSlice([]byte("words:"), []Word{{"a"}, {"b"}}))
 	fmt.Println(describe(3))
 	fmt.Println(describe(UserID(3)))
 	fmt.Println(describe("s"))
-	kept, kerr := EncodeOrKeep([]byte("keep:"), []string{"x", "y"})
-	fmt.Printf("%s %v\n", kept, kerr)
+	show(EncodeOrKeep([]byte("keep:"), []string{"x", "y"}))
+	show(EncodeSwitch([]byte("sw-nums:"), []int64{1, 2, 3}))
+	show(EncodeSwitch([]byte("sw-words:"), []Word{{"a"}, {"b"}}))
+	show(EncodeSwitch([]byte("sw-point:"), []Point{{1, 2}}))
+	show(EncodeSwitch([]byte("sw-keep:"), []string{"x", "y"}))
 }
 
 func EncodeOrKeep[T any](buf []byte, items []T) ([]byte, error) {
@@ -115,3 +167,47 @@ func EncodeOrKeep[T any](buf []byte, items []T) ([]byte, error) {
 	}
 	return buf, nil
 }
+
+func EncodeSwitch[T any](buf []byte, items []T) ([]byte, error) {
+	const switch T {
+	case int64:
+		for _, v := range items {
+			buf = strconv.AppendInt(buf, v, 10)
+		}
+	case io.WriterTo:
+		var b bytes.Buffer
+		for _, v := range items {
+			v.WriteTo(&b)?
+		}
+		buf = append(buf, b.Bytes()...)
+	}
+	const if comptime.IsStruct[T]() {
+		buf = append(buf, 'S')
+	}
+	return buf, nil
+}
+
+type Point struct {
+	X int
+	Y int
+}
+
+-- b/go.mod --
+module example.com/ejectconstswitchjumps
+
+go 1.27
+
+-- n/go.mod --
+module example.com/ejectconstswitchrun
+
+go 1.27
+
+-- o/go.mod --
+module example.com/ejectconstswitchorder
+
+go 1.27
+
+-- k/go.mod --
+module example.com/ejectconstswitchkeep
+
+go 1.27

@@ -2,20 +2,6 @@
 
 package main
 
-// REDTEAM #155 (IMPLEMENTATION.md M18-S3, T-301.1): SIGURG arriving
-// mid-bump double allocating address. The noscan fast path MUST be an
-// inline add-compare sequence with a slow-path call. The sequence MUST be
-// marked as an async-preemption unsafe point. A preemption landing inside
-// the half-updated chunk watermark would observe a torn bump and hand out
-// the same address twice, so the op carries UnsafePoint and the emitter
-// brackets it between a PCDATA unsafe marker (-2) and the next safe
-// marker (-1). This fixture pins that bracketing on a 512-byte noscan
-// make (exactly at the 512 threshold, so it takes the inline sequence)
-// plus a 513-byte slow-path control with no inline sequence and no unsafe
-// marker. Only amd64 lowers makes to the arena, so only amd64 is checked.
-// Distinct from the 511/512/513 threshold probes in arena_bump.lgo, which
-// pin the size boundary; this file pins the preemption-safety bracketing.
-
 var r155Sink int
 
 //go:noinline
@@ -27,9 +13,6 @@ func r155Use(b []byte) int {
 	return len(b) + int(b[0])
 }
 
-// The payload exactly at the threshold takes the inline sequence with the
-// unsafe-point bracketing and a slow-path call on overflow.
-//
 //go:noinline
 func r155Inline512() int {
 	// amd64:"LEAQ 7\\("
@@ -49,9 +32,6 @@ func r155Inline512() int {
 	return used
 }
 
-// One byte over the threshold takes the slow call alone with no inline
-// sequence and no unsafe marker.
-//
 //go:noinline
 func r155Slow513() int {
 	// amd64:1"CALL.*runtime\\.logosArenaAlloc"

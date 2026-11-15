@@ -1,0 +1,112 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# O0 passes -N -l and inlines nothing; O1 stays the upstream baseline
+# and inlines a mid-size function; Os sets inline budget 15, which the
+# same function must exceed [T-105]. The -d plumbing itself is not part
+# of the contract.
+cd o0test
+logos build -a -x .
+stderr '\-N \-l'
+stderr 'variablemakethreshold=32'
+logos build -a -gcflags=-m -o $WORK/o0$GOEXE .
+! stderr 'inlining call to medium'
+exec $WORK/o0$GOEXE
+stdout '^-3$'
+cd ..
+cd o1test
+logos build -a -x .
+! stderr 'variablemakethreshold'
+! stderr '\-N \-l'
+! stderr ' -d='
+logos build -a -gcflags=-m -o $WORK/o1$GOEXE .
+stderr 'inlining call to medium'
+exec $WORK/o1$GOEXE
+stdout '^-3$'
+cd ..
+cd ostest
+logos build -a -x .
+! stderr 'variablemakethreshold'
+logos build -a -gcflags=-m -o $WORK/os$GOEXE .
+! stderr 'inlining call to medium'
+exec $WORK/os$GOEXE
+stdout '^-3$'
+cd ..
+
+-- o0test/go.mod --
+module example.com/optlevels/o0test
+
+go 1.27
+
+-- o0test/logos.toml --
+[build]
+opt_level = "O0"
+
+-- o0test/main.lgo --
+package main
+
+import "fmt"
+
+func medium(x int) int {
+	y := x + 7
+	y = y*3 - x
+	y ^= (x + 3) << 2
+	y += y * x
+	return y - (x * 5)
+}
+
+func main() {
+	fmt.Println(medium(3))
+}
+
+-- o1test/go.mod --
+module example.com/optlevels/o1test
+
+go 1.27
+
+-- o1test/logos.toml --
+[build]
+opt_level = "O1"
+
+-- o1test/main.lgo --
+package main
+
+import "fmt"
+
+func medium(x int) int {
+	y := x + 7
+	y = y*3 - x
+	y ^= (x + 3) << 2
+	y += y * x
+	return y - (x * 5)
+}
+
+func main() {
+	fmt.Println(medium(3))
+}
+
+-- ostest/go.mod --
+module example.com/optlevels/ostest
+
+go 1.27
+
+-- ostest/logos.toml --
+[build]
+opt_level = "Os"
+
+-- ostest/main.lgo --
+package main
+
+import "fmt"
+
+func medium(x int) int {
+	y := x + 7
+	y = y*3 - x
+	y ^= (x + 3) << 2
+	y += y * x
+	return y - (x * 5)
+}
+
+func main() {
+	fmt.Println(medium(3))
+}

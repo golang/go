@@ -1,5 +1,3 @@
-// Export shim (M20-S1 fixture): carries the //export so the cgo
-// file's preamble can hold C definitions.
 package main
 
 import "C"

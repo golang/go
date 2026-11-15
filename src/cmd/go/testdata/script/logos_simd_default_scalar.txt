@@ -1,0 +1,42 @@
+# Without GOEXPERIMENT=simd the slice sums lower to the scalar loop:
+# sums match the oracle and the binary references no vector
+# support and no masked vector tail.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOEXPERIMENT=
+
+cd m
+logos run .
+stdout '^sums ok$'
+logos build -o $WORK/exe .
+go tool objdump $WORK/exe
+! stdout 'archsimd'
+! stdout 'VPMASKMOVD'
+! stdout 'VPMASKMOVQ'
+cd ..
+
+-- m/go.mod --
+module example.com/simddefault
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import "fmt"
+
+//go:noinline
+func sumI32(xs []int32) int32 { return xs.sum() }
+
+//go:noinline
+func sumF64(xs []float64) float64 { return xs.sum() }
+
+func main() {
+	if sumI32([]int32{1, 2, 3}) != 6 {
+		panic("i32")
+	}
+	if sumF64([]float64{1.5, 2.5}) != 4.0 {
+		panic("f64")
+	}
+	fmt.Println("sums ok")
+}

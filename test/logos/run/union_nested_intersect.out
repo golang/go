@@ -1,0 +1,13 @@
+ok narrow-comma-int
+ok narrow-comma-string
+ok narrow-comma-float
+ok deeper-comma-int
+ok deeper-comma-string
+ok deeper-comma-float
+ok deeper-comma-bool
+ok narrow-single-string
+ok narrow-single-float
+ok narrow-case-int
+ok narrow-case-string
+ok narrow-case-float
+ok narrow-convert-int

@@ -1,0 +1,51 @@
+// run
+package main
+
+import (
+	"fmt"
+	"strings"
+	"testing"
+	u "unsafe"
+)
+
+var len = 1
+
+var shadowBytes const []byte
+var shadowString string
+var ordinaryBytes []byte
+
+func main() {
+	s := strings.Repeat("zero-copy-shadow", 16)
+	if testing.AllocsPerRun(100, func() { ordinaryBytes = []byte(s) }) != 1 {
+		panic("ordinary bytes allocation != 1")
+	}
+	ordinaryBytes[0] = 'X'
+	if s[0] != 'z' {
+		panic("ordinary bytes alias source")
+	}
+	if testing.AllocsPerRun(100, func() { shadowString = string(ordinaryBytes) }) != 1 {
+		panic("ordinary string allocation != 1")
+	}
+	ordinaryBytes[0] = 'Y'
+	if shadowString[0] != 'X' {
+		panic("ordinary string aliases source")
+	}
+	var b const []byte = const []byte(s)
+	if testing.AllocsPerRun(100, func() { shadowBytes = const []byte(s) }) != 0 {
+		panic("string to const bytes allocated")
+	}
+	if testing.AllocsPerRun(100, func() { shadowString = string(b) }) != 0 {
+		panic("const bytes to string allocated")
+	}
+	if u.StringData(shadowString) != u.StringData(s) {
+		panic("const bytes to string copied data")
+	}
+	var c const []byte = []byte{1, 2, 3, 4}
+	if testing.AllocsPerRun(100, func() { shadowString = string(c) }) != 0 {
+		panic("composite const bytes to string allocated")
+	}
+	if u.StringData(shadowString) != u.StringData(string(c)) {
+		panic("composite const bytes to string copied data")
+	}
+	fmt.Println("ok zerocopy-len")
+}

@@ -1,0 +1,144 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+logos run .
+stdout '^nonunion option wire ok$'
+logos eject -o out
+cd out
+exists $UPROOT1272/bin/go
+exec env -u GOROOT $UPROOT1272/bin/go run .
+stdout '^nonunion option wire ok$'
+
+-- m/go.mod --
+module example.com/nonunionoption
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"reflect"
+	"strconv"
+	"strings"
+)
+
+type Stamp int64
+
+func (s Stamp) MarshalJSON() ([]byte, error) {
+	return json.Marshal("s" + strconv.FormatInt(int64(s), 10))
+}
+
+func (s *Stamp) UnmarshalJSON(b []byte) error {
+	var text string
+	if err := json.Unmarshal(b, &text); err != nil { return err }
+	n, err := strconv.ParseInt(strings.TrimPrefix(text, "s"), 10, 64)
+	if err != nil { return err }
+	*s = Stamp(n)
+	return nil
+}
+
+type Wire struct {
+	SO [](int64?)          `json:"so"`
+	OS ([]int64)?          `json:"os"`
+	MO map[string](int64?) `json:"mo"`
+	OM (map[string]int64)? `json:"om"`
+	AO [2](string?)        `json:"ao"`
+	OA ([2]string)?        `json:"oa"`
+	ST [](Stamp?)          `json:"st"`
+}
+
+type wireMirror struct {
+	SO [](int64?)          `json:"so"`
+	OS ([]int64)?          `json:"os"`
+	MO map[string](int64?) `json:"mo"`
+	OM (map[string]int64)? `json:"om"`
+	AO [2](string?)        `json:"ao"`
+	OA ([2]string)?        `json:"oa"`
+	ST [](Stamp?)          `json:"st"`
+	NoGen any              `json:"-"`
+}
+
+type Lit struct {
+	SO [](int64?) `json:"so"`
+	OS ([]int64)? `json:"os"`
+}
+
+func mirror(w Wire) wireMirror {
+	return wireMirror{SO: w.SO, OS: w.OS, MO: w.MO, OM: w.OM, AO: w.AO, OA: w.OA, ST: w.ST}
+}
+
+var cases = []struct {
+	name string
+	w    Wire
+}{
+	{"absent options", Wire{}},
+	{"slice of options", Wire{SO: [](int64?){7, nil}}},
+	{"empty slice of options", Wire{SO: [](int64?){}}},
+	{"option of slice", Wire{OS: []int64{1, 2}}},
+	{"option of empty slice", Wire{OS: []int64{}}},
+	{"map of options", Wire{MO: map[string](int64?){"b": 2, "a": nil, "c": 3}}},
+	{"empty map of options", Wire{MO: map[string](int64?){}}},
+	{"option of map", Wire{OM: map[string]int64{"y": 1, "x": 2}}},
+	{"option of empty map", Wire{OM: map[string]int64{}}},
+	{"array of options", Wire{AO: [2](string?){"p", nil}}},
+	{"option of array", Wire{OA: [2]string{"p", "q"}}},
+	{"option of zero array", Wire{OA: [2]string{}}},
+	{"slice of custom-marshaler options", Wire{ST: [](Stamp?){Stamp(3), nil}}},
+	{"empty slice of custom-marshaler options", Wire{ST: [](Stamp?){}}},
+	{"every option present", Wire{
+		SO: [](int64?){7, nil},
+		OS: []int64{1, 2},
+		MO: map[string](int64?){"b": 2, "a": nil, "c": 3},
+		OM: map[string]int64{"y": 1, "x": 2},
+		AO: [2](string?){"p", nil},
+		OA: [2]string{"p", "q"},
+		ST: [](Stamp?){Stamp(3), nil},
+	}},
+}
+
+func main() {
+	checkGenerated()
+	checkLiteral()
+	for _, c := range cases { checkWire(c.name, c.w) }
+	fmt.Println("nonunion option wire ok")
+}
+
+func checkGenerated() {
+	if _, ok := any(Wire{}).(json.Marshaler); !ok { panic("Wire lacks a generated MarshalJSON") }
+	if _, ok := any(Lit{}).(json.Marshaler); !ok { panic("Lit lacks a generated MarshalJSON") }
+	if _, ok := any(wireMirror{}).(json.Marshaler); ok { panic("mirror must stay reflective") }
+}
+
+func checkWire(name string, w Wire) {
+	got, err := json.Marshal(w)
+	if err != nil { panic(fmt.Sprintf("%s: %v", name, err)) }
+	want, err := json.Marshal(mirror(w))
+	if err != nil { panic(fmt.Sprintf("%s: mirror: %v", name, err)) }
+	if !bytes.Equal(got, want) { panic(fmt.Sprintf("%s: not byte-identical to encoding/json\n got %s\nwant %s", name, got, want)) }
+	var back Wire
+	if err := json.Unmarshal(got, &back); err != nil { panic(fmt.Sprintf("%s: decode own output %s: %v", name, got, err)) }
+	if !reflect.DeepEqual(back, w) { panic(fmt.Sprintf("%s: round trip changed value\n got %#v\nwant %#v", name, back, w)) }
+}
+
+func checkLiteral() {
+	for _, c := range []struct {
+		name string
+		v    Lit
+		wire string
+	}{
+		{"present", Lit{SO: [](int64?){7, nil}, OS: []int64{1, 2}}, `{"so":[{"Value":7,"Present":true},{"Value":0,"Present":false}],"os":{"Value":[1,2],"Present":true}}`},
+		{"absent", Lit{}, `{"so":null,"os":{"Value":null,"Present":false}}`},
+	} {
+		got, err := json.Marshal(c.v)
+		if err != nil { panic(fmt.Sprintf("%s: %v", c.name, err)) }
+		if string(got) != c.wire { panic(fmt.Sprintf("%s: option wire\n got %s\nwant %s", c.name, got, c.wire)) }
+		var back Lit
+		if err := json.Unmarshal([]byte(c.wire), &back); err != nil { panic(fmt.Sprintf("%s: decode literal: %v", c.name, err)) }
+		if !reflect.DeepEqual(back, c.v) { panic(fmt.Sprintf("%s: literal decoded to %#v", c.name, back)) }
+	}
+}

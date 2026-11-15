@@ -1,0 +1,39 @@
+# A defer f()? in a loop runs through pooled records, and the same program
+# built with -d=nodefertrypool=1 runs through heap closures. Both builds
+# print identical output [T-104.2]. The symbol check shows that the flag
+# changes the lowering, so the comparison is not vacuous.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cp $GOROOT/test/logos/run/defer_try_semantics.lgo sem/main.lgo
+cp $GOROOT/test/logos/run/defer_try_stress.lgo stress/main.lgo
+
+cd sem
+logos build -o $WORK/sem-pool$GOEXE .
+go tool nm $WORK/sem-pool$GOEXE
+stdout 'runtime\.deferprocTry'
+exec $WORK/sem-pool$GOEXE
+cp stdout $WORK/sem-pool.txt
+logos build -gcflags=-d=nodefertrypool=1 -o $WORK/sem-heap$GOEXE .
+go tool nm $WORK/sem-heap$GOEXE
+! stdout 'runtime\.deferprocTry'
+exec $WORK/sem-heap$GOEXE
+cmp stdout $WORK/sem-pool.txt
+cd ..
+
+cd stress
+logos build -o $WORK/stress-pool$GOEXE .
+exec $WORK/stress-pool$GOEXE
+cp stdout $WORK/stress-pool.txt
+logos build -gcflags=-d=nodefertrypool=1 -o $WORK/stress-heap$GOEXE .
+exec $WORK/stress-heap$GOEXE
+cmp stdout $WORK/stress-pool.txt
+cd ..
+
+-- go.mod --
+module example.com/pooldiff
+
+go 1.27
+
+-- sem/placeholder.txt --
+-- stress/placeholder.txt --

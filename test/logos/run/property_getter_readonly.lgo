@@ -1,0 +1,120 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type Named interface {
+	const Name string
+}
+
+type Counted interface {
+	Count int
+}
+
+type PtrPure struct : Named {
+	reads int
+	label string
+}
+
+func (p *PtrPure) Name() string {
+	return p.label
+}
+
+type ValPure struct : Named {
+	label string
+}
+
+func (v ValPure) Name() string {
+	return v.label
+}
+
+type Helper struct : Named {
+	reads int
+	label string
+}
+
+func (h *Helper) text() string {
+	return h.label
+}
+
+func (h *Helper) Name() string {
+	return h.text()
+}
+
+type Local struct : Named {
+	reads int
+	label string
+}
+
+func (l *Local) Name() string {
+	s := l.label
+	s += "!"
+	return s
+}
+
+type Field struct : Named {
+	Name string
+}
+
+type Ticker struct : Counted {
+	n int
+}
+
+func (t *Ticker) Count() int {
+	t.n++
+	return t.n
+}
+
+func (t *Ticker) SetCount(v int) {
+	t.n = v
+}
+
+func main() {
+	ptr := &PtrPure{label: "ptr"}
+	var n Named = ptr
+	check("pointer-getter-reads-field", n.Name == "ptr", n.Name, "ptr")
+	check("pointer-getter-keeps-receiver", ptr.reads == 0, ptr.reads, 0)
+
+	n = ValPure{label: "val"}
+	check("value-getter-reads-field", n.Name == "val", n.Name, "val")
+
+	helper := &Helper{label: "helper"}
+	n = helper
+	check("helper-getter-reads-field", n.Name == "helper", n.Name, "helper")
+	check("helper-getter-keeps-receiver", helper.reads == 0, helper.reads, 0)
+
+	local := &Local{label: "local"}
+	n = local
+	check("local-write-getter-reads-copy", n.Name == "local!", n.Name, "local!")
+	check("local-write-getter-keeps-label", local.label == "local", local.label, "local")
+
+	n = Field{Name: "field"}
+	check("field-getter-reads-field", n.Name == "field", n.Name, "field")
+
+	tick := &Ticker{}
+	var c Counted = tick
+	first := c.Count
+	second := c.Count
+	check("mutating-getter-of-read-write-property", first == 1 && second == 2 && tick.n == 2, fmt.Sprint(first, second, tick.n), "1 2 2")
+	c.Count = 10
+	check("read-write-setter-reaches-struct", tick.n == 10, tick.n, 10)
+
+	if failed {
+		os.Exit(1)
+	}
+}

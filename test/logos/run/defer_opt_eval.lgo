@@ -1,0 +1,332 @@
+// run
+
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+)
+
+var failed = false
+
+func check(name string, ok bool, detail string) {
+	if !ok {
+		fmt.Printf("FAIL %s: %s\n", name, detail)
+		failed = true
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func sameStrings(a, c []string) bool {
+	if len(a) != len(c) {
+		return false
+	}
+	for i := range a {
+		if a[i] != c[i] {
+			return false
+		}
+	}
+	return true
+}
+
+type dUser struct {
+	dName string
+	dAge  int
+}
+
+var dLog []string
+var dArgCalls int
+
+func (u *dUser) dGreet(prefix string) string {
+	dLog = append(dLog, prefix+u.dName)
+	return prefix + u.dName
+}
+
+func (u *dUser) dSetAge(a int) int {
+	u.dAge = a
+	return a
+}
+
+func (u *dUser) dSend(ch chan string, s string) {
+	//logos:allow(correctness::unbounded_channel_op)
+	ch <- s + "/" + u.dName
+}
+
+func dMkArg(v string) string {
+	dArgCalls++
+	return v
+}
+
+func recvLogos() []string {
+	dLog = nil
+	func() {
+		var o *dUser? = &dUser{dName: "ann"}
+		defer o?.dGreet("hi ")
+		o = nil
+	}()
+	return append([]string(nil), dLog...)
+}
+
+func recvHand() []string {
+	dLog = nil
+	func() {
+		var o *dUser? = &dUser{dName: "ann"}
+		ocopy := o
+		defer func() {
+			if ocopy != nil {
+				ocopy.dGreet("hi ")
+			}
+		}()
+		o = nil
+	}()
+	return append([]string(nil), dLog...)
+}
+
+func argLogos() (int, []string) {
+	dLog = nil
+	dArgCalls = 0
+	func() {
+		var o *dUser? = &dUser{dName: "ann"}
+		defer o?.dGreet(dMkArg("hi "))
+		o = nil
+	}()
+	return dArgCalls, append([]string(nil), dLog...)
+}
+
+func argHand() (int, []string) {
+	dLog = nil
+	dArgCalls = 0
+	func() {
+		var o *dUser? = &dUser{dName: "ann"}
+		ocopy := o
+		a0 := dMkArg("hi ")
+		defer func() {
+			if ocopy != nil {
+				ocopy.dGreet(a0)
+			}
+		}()
+		o = nil
+	}()
+	return dArgCalls, append([]string(nil), dLog...)
+}
+
+func loopLogos() []string {
+	dLog = nil
+	func() {
+		var o *dUser? = &dUser{dName: "x"}
+		for i := 0; i < 3; i++ {
+			defer o?.dGreet(fmt.Sprint(i))
+		}
+		o = nil
+	}()
+	return append([]string(nil), dLog...)
+}
+
+func loopHand() []string {
+	dLog = nil
+	func() {
+		var o *dUser? = &dUser{dName: "x"}
+		for i := 0; i < 3; i++ {
+			ocopy := o
+			a0 := fmt.Sprint(i)
+			defer func() {
+				if ocopy != nil {
+					ocopy.dGreet(a0)
+				}
+			}()
+		}
+		o = nil
+	}()
+	return append([]string(nil), dLog...)
+}
+
+func goLogos(ctx context.Context) (int, string, error) {
+	dArgCalls = 0
+	ch := make(chan string, 4)
+	var o *dUser? = &dUser{dName: "ann"}
+	go group (ctx) {
+		go o?.dSend(ch, dMkArg("hi"))
+		o = nil
+	}
+	if len(ch) == 0 {
+		return dArgCalls, "EMPTY", nil
+	}
+	return dArgCalls, <-ch, nil
+}
+
+func goHand(ctx context.Context) (int, string, error) {
+	dArgCalls = 0
+	ch := make(chan string, 4)
+	var o *dUser? = &dUser{dName: "ann"}
+	go group (ctx) {
+		ocopy := o
+		a0 := dMkArg("hi")
+		if ocopy != nil {
+			go ocopy.dSend(ch, a0)
+		}
+		o = nil
+	}
+	if len(ch) == 0 {
+		return dArgCalls, "EMPTY", nil
+	}
+	return dArgCalls, <-ch, nil
+}
+
+func nilLogos() []string {
+	dLog = nil
+	func() {
+		var o *dUser?
+		defer o?.dGreet("hi ")
+	}()
+	return append([]string(nil), dLog...)
+}
+
+func nilHand() []string {
+	dLog = nil
+	func() {
+		var o *dUser?
+		ocopy := o
+		defer func() {
+			if ocopy != nil {
+				ocopy.dGreet("hi ")
+			}
+		}()
+	}()
+	return append([]string(nil), dLog...)
+}
+
+func noneArgsLogos() int {
+	dArgCalls = 0
+	func() {
+		var o *dUser?
+		defer o?.dGreet(dMkArg("hi "))
+	}()
+	return dArgCalls
+}
+
+func noneArgsHand() int {
+	dArgCalls = 0
+	func() {
+		var o *dUser?
+		if o != nil {
+			a0 := dMkArg("hi ")
+			defer func() {
+				o.dGreet(a0)
+			}()
+		}
+	}()
+	return dArgCalls
+}
+
+func goNoneLogos(ctx context.Context) (int, error) {
+	dArgCalls = 0
+	ch := make(chan string, 4)
+	var o *dUser?
+	go group (ctx) {
+		go o?.dSend(ch, dMkArg("hi"))
+	}
+	return dArgCalls + len(ch), nil
+}
+
+func goNoneHand(ctx context.Context) (int, error) {
+	dArgCalls = 0
+	ch := make(chan string, 4)
+	var o *dUser?
+	go group (ctx) {
+		if o != nil {
+			a0 := dMkArg("hi")
+			go o.dSend(ch, a0)
+		}
+	}
+	return dArgCalls + len(ch), nil
+}
+
+func plainNoneLogos() (int, string) {
+	dArgCalls = 0
+	var o *dUser?
+	o?.dGreet(dMkArg("a "))
+	got := o?.dGreet(dMkArg("b ")) ?? "none"
+	return dArgCalls, got
+}
+
+func plainNoneHand() (int, string) {
+	dArgCalls = 0
+	var o *dUser?
+	got := "none"
+	if o != nil {
+		o.dGreet(dMkArg("a "))
+		got = o.dGreet(dMkArg("b "))
+	}
+	return dArgCalls, got
+}
+
+type dNamer interface {
+	dNameOf() string
+}
+
+type dA struct {
+	dN string
+}
+
+func (a dA) dNameOf() string {
+	return "a:" + a.dN
+}
+
+func valLogos() string {
+	var o dNamer? = dNamer(dA{dN: "x"})
+	var f func() string
+	if o != nil {
+		f = o.dNameOf
+	}
+	o = nil
+	var out string
+	func() {
+		defer func() {
+			out = f()
+		}()
+	}()
+	return out
+}
+
+func valHand() string {
+	var o dNamer = dA{dN: "x"}
+	f := o.dNameOf
+	var out string
+	func() {
+		defer func() {
+			out = f()
+		}()
+	}()
+	return out
+}
+
+func main() {
+	lr := recvLogos()
+	hr := recvHand()
+	check("recv-reassign", sameStrings(lr, hr) && len(lr) == 1, fmt.Sprint("got ", lr, " want ", hr))
+	ln, lg := argLogos()
+	hn, hg := argHand()
+	check("arg-once", ln == 1 && hn == 1 && sameStrings(lg, hg) && len(lg) == 1, fmt.Sprint("got ", ln, lg, " want ", hn, hg))
+	ll := loopLogos()
+	hl := loopHand()
+	check("loop-defers", sameStrings(ll, hl) && len(ll) == 3, fmt.Sprint("got ", ll, " want ", hl))
+	gn, gv, _ := goLogos(context.Background())
+	jn, jv, _ := goHand(context.Background())
+	check("go-args", gn == 1 && jn == 1 && gv == jv && gv == "hi/ann", fmt.Sprint("got ", gn, gv, " want ", jn, jv))
+	nl := nilLogos()
+	nh := nilHand()
+	check("nil-skip", sameStrings(nl, nh) && len(nl) == 0, fmt.Sprint("got ", nl, " want ", nh))
+	check("none-args", noneArgsLogos() == 0 && noneArgsHand() == 0, fmt.Sprint("got ", noneArgsLogos(), " want ", noneArgsHand()))
+	gnl, _ := goNoneLogos(context.Background())
+	gnh, _ := goNoneHand(context.Background())
+	check("go-none-args", gnl == 0 && gnh == 0, fmt.Sprint("got ", gnl, " want ", gnh))
+	pn, pv := plainNoneLogos()
+	qn, qv := plainNoneHand()
+	check("plain-none-args", pn == 0 && qn == 0 && pv == "none" && qv == "none", fmt.Sprint("got ", pn, pv, " want ", qn, qv))
+	check("method-value", valLogos() == "a:x" && valHand() == "a:x", fmt.Sprint("got ", valLogos(), " want ", valHand()))
+	if failed {
+		os.Exit(1)
+	}
+}

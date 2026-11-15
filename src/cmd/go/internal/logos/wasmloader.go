@@ -6,12 +6,6 @@ package logos
 
 import "cmd/go/internal/cfg"
 
-// wasmLoaderText is the host loader that a wasm build writes beside its
-// .wasm output (SPEC Sec 14.2): the text of wasmloader.mjs.tmpl, held as a
-// constant because the bootstrap build of cmd/go has no go:embed support.
-// It is static, so the template carries no actions and every build writes
-// the same bytes. Edit wasmloader.mjs.tmpl first and mirror the change
-// here; TestWasmLoaderTextMatchesTemplate fails on any drift.
 const wasmLoaderText = `import "./wasm_exec.js";
 function readErrorString(wasmExports, getMem) {
  const at = wasmExports._logos_errmsg_ptr() >>> 0;

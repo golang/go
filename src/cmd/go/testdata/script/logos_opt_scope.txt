@@ -1,0 +1,167 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+logos build -a -x -O=3 unicode/utf8
+stderr 'inlbudget=400,inlrecursivebudget=80'
+! stderr 'variablemakethreshold'
+! stderr '\-d=[^ ]*(escape|prove)'
+logos build -a -x -O=2 unicode/utf8
+stderr 'inlbudget=120'
+! stderr 'variablemakethreshold'
+logos build -a -x -O=3 unicode/utf8
+stderr 'inlbudget=400,inlrecursivebudget=80'
+! stderr 'variablemakethreshold'
+! stderr '\-d=[^ ]*(escape|prove)'
+logos build -a -x -O=2 unicode/utf8
+stderr 'inlbudget=120'
+! stderr 'variablemakethreshold'
+# The level applies per package by effect: at O3 the main package
+# inlines big, at O2 it does not, and the standard unicode/utf8
+# package shows the same split on encodeRuneNonASCII.
+logos test -a -O=3 unicode/utf8
+stdout '^ok'
+logos test -a -O=2 unicode/utf8
+stdout '^ok'
+logos build -a -gcflags=unicode/utf8=-m -O=3 unicode/utf8
+stderr 'inlining call to encodeRuneNonASCII'
+logos build -a -gcflags=unicode/utf8=-m -O=2 unicode/utf8
+! stderr 'inlining call to encodeRuneNonASCII'
+
+# The level reaches every non-standard package by effect: the helper
+# package's Huge inlines at O3 and stays a call at O2, like big in
+# the main package.
+logos build -a -gcflags=./helper=-m -O=3 ./helper
+stderr 'can inline Huge'
+logos build -a -gcflags=./helper=-m -O=2 ./helper
+! stderr 'can inline Huge'
+logos build -a -x -O=3 .
+stderr 'variablemakethreshold=4096'
+! stderr '\-d=[^ ]*(escape|prove)'
+logos build -a -gcflags=example.com/optscope=-m -O=3 .
+stderr 'inlining call to big'
+logos build -a -gcflags=example.com/optscope=-m -O=2 .
+! stderr 'inlining call to big'
+
+-- helper/helper.lgo --
+package helper
+
+// Huge costs more than the O2 inline budget and less than the O3
+// budget, mirroring big.
+func Huge(x int) int {
+	y := x + 11
+	y = y*3 - x
+	y ^= (x + 5) << 2
+	y += y * x
+	y -= (x ^ y) & 127
+	y *= 3
+	y += x * (y + 1)
+	y ^= x << 4
+	y -= x * 7
+	y = y*5 + x
+	y ^= (x + 9) << 1
+	y += y * (x + 2)
+	y -= (x ^ y) & 255
+	y *= 5
+	y += x * (y + 3)
+	y ^= x << 3
+	y -= x * 11
+	y += y + (x * 13)
+	y = y*7 - x
+	y ^= (x + 17) << 2
+	y += y * (x + 4)
+	y -= (x ^ y) & 63
+	y *= 7
+	y += x * (y + 5)
+	y ^= x << 5
+	y -= x * 19
+	y += y + (x * 23)
+	y = y*9 - x
+	y ^= (x + 29) << 1
+	y += y * (x + 6)
+	y -= (x ^ y) & 31
+	y *= 9
+	y += x * (y + 7)
+	y ^= x << 2
+	y -= x * 31
+	y += y + (x * 37)
+	y = y*11 + x
+	y ^= (x + 41) << 3
+	y += y * (x + 8)
+	y -= (x ^ y) & 15
+	y *= 11
+	y += x * (y + 9)
+	y ^= x << 1
+	y -= x * 43
+	return y + (x * 47)
+}
+
+-- go.mod --
+module example.com/optscope
+
+go 1.27
+-- main.lgo --
+package main
+
+func mid(x int) int {
+	y := x + 11
+	y = y*3 - x
+	y ^= (x + 5) << 2
+	y += y * x
+	y -= (x ^ y) & 127
+	y *= 3
+	y += x * (y + 1)
+	return y - (x * 7)
+}
+
+func big(x int) int {
+	y := x + 11
+	y = y*3 - x
+	y ^= (x + 5) << 2
+	y += y * x
+	y -= (x ^ y) & 127
+	y *= 3
+	y += x * (y + 1)
+	y ^= x << 4
+	y -= x * 7
+	y = y*5 + x
+	y ^= (x + 9) << 1
+	y += y * (x + 2)
+	y -= (x ^ y) & 255
+	y *= 5
+	y += x * (y + 3)
+	y ^= x << 3
+	y -= x * 11
+	y += y + (x * 13)
+	y = y*7 - x
+	y ^= (x + 17) << 2
+	y += y * (x + 4)
+	y -= (x ^ y) & 63
+	y *= 7
+	y += x * (y + 5)
+	y ^= x << 5
+	y -= x * 19
+	y += y + (x * 23)
+	y = y*9 - x
+	y ^= (x + 29) << 1
+	y += y * (x + 6)
+	y -= (x ^ y) & 31
+	y *= 9
+	y += x * (y + 7)
+	y ^= x << 2
+	y -= x * 31
+	y += y + (x * 37)
+	y = y*11 + x
+	y ^= (x + 41) << 3
+	y += y * (x + 8)
+	y -= (x ^ y) & 15
+	y *= 11
+	y += x * (y + 9)
+	y ^= x << 1
+	y -= x * 43
+	return y + (x * 47)
+}
+
+func main() {
+	_ = mid(3)
+	_ = big(3)
+}

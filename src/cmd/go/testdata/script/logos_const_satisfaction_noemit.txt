@@ -1,0 +1,172 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+! logos build -o $WORK/out$GOEXE ./cmd
+stderr 'const_view_mutation'
+! exists $WORK/out$GOEXE
+! logos build ./...
+stderr 'const_view_mutation'
+! exists $WORK/out$GOEXE
+cd ..
+mkdir $WORK/gocache-late
+mkdir $WORK/tmp-late
+env GOCACHE=$WORK/gocache-late
+env TMPDIR=$WORK/tmp-late
+
+cd late
+! logos build -o $WORK/out-late$GOEXE ./cmd
+stderr 'const_view_mutation'
+! exists $WORK/out-late$GOEXE
+! logos build ./...
+stderr 'const_view_mutation'
+! logos eject -o $WORK/ejectlate
+stderr 'const_view_mutation'
+! exists $WORK/ejectlate
+! exec grep -r LateDecl $WORK/ejectlate
+! exec grep -r LateDecl $WORK/gocache-late
+! exec grep -r LateDecl $WORK/tmp-late
+cd ..
+
+cd ok
+logos eject -o $WORK/ejectok
+exists $WORK/ejectok/go.mod
+logos build -o $WORK/out-ok$GOEXE ./cmd
+exists $WORK/out-ok$GOEXE
+cd ..
+
+-- m/go.mod --
+module example.com/noemit
+
+go 1.27
+
+-- m/c/c.lgo --
+package c
+
+type Namer interface {
+	const Name() string
+}
+
+-- m/u/u.lgo --
+package u
+
+import "example.com/noemit/c"
+
+type Bad struct {
+	N int
+}
+
+func (m *Bad) Name() string {
+	m.N++
+	return "bad"
+}
+
+var _ c.Namer = &Bad{}
+
+func Msg() string {
+	return "hi"
+}
+
+-- m/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/noemit/u"
+)
+
+func main() {
+	fmt.Println(u.Msg())
+}
+
+-- late/go.mod --
+module example.com/late
+
+go 1.27
+
+-- late/c/c.lgo --
+package c
+
+type Namer interface {
+	const Name() string
+}
+
+-- late/u/u.lgo --
+package u
+
+import "example.com/late/c"
+
+var _ c.Namer = LateDecl{tag: "x"}
+
+type LateDecl struct {
+	tag   string
+	items []int
+}
+
+func (l LateDecl) Name() string {
+	l.items[0] = 1
+	return "late:" + l.tag
+}
+
+func Msg() string {
+	return "hi"
+}
+
+-- late/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/late/u"
+)
+
+func main() {
+	fmt.Println(u.Msg())
+}
+
+-- ok/go.mod --
+module example.com/ok
+
+go 1.27
+
+-- ok/c/c.lgo --
+package c
+
+type Namer interface {
+	const Name() string
+}
+
+-- ok/u/u.lgo --
+package u
+
+import "example.com/ok/c"
+
+var _ c.Namer = LateOK{tag: "y"}
+
+type LateOK struct {
+	tag   string
+	items []int
+}
+
+func (l LateOK) Name() string {
+	return "late:" + l.tag
+}
+
+func Msg() string {
+	return "hi"
+}
+
+-- ok/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/ok/u"
+)
+
+func main() {
+	fmt.Println(u.Msg())
+}

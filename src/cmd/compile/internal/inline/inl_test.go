@@ -9,6 +9,9 @@ import (
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/typecheck"
+	"cmd/compile/internal/types"
+	"cmd/internal/src"
 )
 
 // TestLogosConservativeBudget verifies the policy governing conservative
@@ -76,5 +79,32 @@ func TestLogosConservativeCallCost(t *testing.T) {
 				t.Errorf("logosConservativeCallCost(%d, %d) = %d, want %d", tc.calleeCost, extraCost, got, tc.want)
 			}
 		})
+	}
+}
+
+func TestLogosReflectLookupNoInline(t *testing.T) {
+	oldHaveInlineBody := typecheck.HaveInlineBody
+	typecheck.HaveInlineBody = func(*ir.Func) bool { return false }
+	t.Cleanup(func() { typecheck.HaveInlineBody = oldHaveInlineBody })
+	reflectPkg := types.NewPkg("reflect", "reflect")
+	lookups := []string{
+		"Value.Method",
+		"Value.MethodByName",
+		"(*rtype).Method",
+		"(*rtype).MethodByName",
+		"(*interfaceType).Method",
+		"(*interfaceType).MethodByName",
+	}
+	for _, name := range lookups {
+		fn := &ir.Func{Nname: ir.NewNameAt(src.NoXPos, reflectPkg.Lookup(name), nil)}
+		reason := InlineImpossible(fn)
+		if reason == "" || reason == "no function body" {
+			t.Errorf("InlineImpossible(%q) = %q, want the reflect lookup block", name, reason)
+		}
+	}
+	otherPkg := types.NewPkg("example.com/other", "other")
+	other := &ir.Func{Nname: ir.NewNameAt(src.NoXPos, otherPkg.Lookup("Method"), nil)}
+	if reason := InlineImpossible(other); reason != "no function body" {
+		t.Errorf("InlineImpossible(other.Method) = %q, want %q", reason, "no function body")
 	}
 }

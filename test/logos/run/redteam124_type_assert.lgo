@@ -6,16 +6,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 )
 
-// REDTEAM #124 (SPEC Sec 2.3, T-203.4; IMPLEMENTATION.md M13-S3): a dynamic
-// assertion inside a specialized clone must give the same result as the
-// unspecialized call, and function values must keep working. r124Emit
-// specializes per concrete writer type with the http.Flusher assertion
-// folded per type, while a call through an io.Writer value keeps the
-// original with its dynamic assertion. Distinct from
-// test/logos/run/specialize_assert.lgo, which pins the same property with
-// different types and counts; this fixture is the #124 close-out probe.
 
 type r124Plain struct{ n int }
 
@@ -47,13 +40,33 @@ func r124Emit(w io.Writer, msg string) string {
 	return "buffered"
 }
 
+var r124Failed bool
+
+func r124Check(name string, cond bool, got, want string) {
+	if !cond {
+		fmt.Printf("FAIL %s: got %s want %s\n", name, got, want)
+		r124Failed = true
+		return
+	}
+	fmt.Printf("ok %s\n", name)
+}
+
 func main() {
 	var pw r124Plain
 	var fw r124Flush
-	fmt.Println(r124Emit(&pw, "a"), r124Emit(&fw, "bc"), r124Emit(&fw, "d"))
-	fmt.Println(pw.n, fw.n, fw.f)
+	a := r124Emit(&pw, "a")
+	b := r124Emit(&fw, "bc")
+	c := r124Emit(&fw, "d")
+	r124Check("type-assert-direct", a == "buffered" && b == "flushed" && c == "flushed", a+" "+b+" "+c, "buffered flushed flushed")
+	r124Check("type-assert-counts", pw.n == 1 && fw.n == 3 && fw.f == 2, fmt.Sprint(pw.n)+" "+fmt.Sprint(fw.n)+" "+fmt.Sprint(fw.f), "1 3 2")
 	var fn func(io.Writer, string) string = r124Emit
-	fmt.Println(fn(&pw, "x"), fn(&fw, "y"))
+	d := fn(&pw, "x")
+	e := fn(&fw, "y")
+	r124Check("type-assert-funcvalue", d == "buffered" && e == "flushed", d+" "+e, "buffered flushed")
 	var dyn io.Writer = &fw
-	fmt.Println(r124Emit(dyn, "z"), fw.f)
+	f := r124Emit(dyn, "z")
+	r124Check("type-assert-dynamic", f == "flushed" && fw.f == 4, f+" "+fmt.Sprint(fw.f), "flushed 4")
+	if r124Failed {
+		os.Exit(1)
+	}
 }

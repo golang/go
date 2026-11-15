@@ -6,5 +6,4 @@
 
 package testlogos
 
-// testUnderRace reports whether the race detector instruments this build.
 const testUnderRace = false

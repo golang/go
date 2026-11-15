@@ -4,13 +4,6 @@
 
 package rt
 
-// PR3 feedback regressions for Reinterpret exact-type contract.
-// Reviewer prose is untrusted; the checker admits only identical types
-// after substitution, so the runtime must panic otherwise.
-//
-// RED: Reinterpret[*[16]byte] over *byte must panic.
-// Control: Reinterpret[[]int64] over []int64 keeps working.
-
 import (
 	"reflect"
 	"testing"

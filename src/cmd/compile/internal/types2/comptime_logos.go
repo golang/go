@@ -9,24 +9,6 @@ import (
 	"sync"
 )
 
-// LoGo/s M7-S2/M7-S3 virtual `comptime` package (SPEC Sec 2.5, T-205).
-// The package has no source: types2 provides it in Logos mode, the
-// cmd/go loader skips it like "C", and eject drops the import. Values
-// of these types exist only at compile time; uses outside their
-// compile-time positions report [comptime::runtime_use].
-//
-// API:
-//	type StructTag string
-//	func (t StructTag) Get(k string) string
-//	type Type struct{}
-//	type Field struct{ Name string; Index int; Type Type; Tag StructTag; Exported bool }
-//	func Fields[T any]() []Field
-//	func IsStruct[T any]() bool
-//	func TypeOf[X any]() Type
-//	func Error(msg string)
-// ViewAs, declared by M7-S5 (viewas_logos.go), is part of the package
-// whichever provider creates it.
-
 var (
 	logosComptimeOnce sync.Once
 	logosComptimePkg  *Package
@@ -72,6 +54,9 @@ func logosComptimePackage() *Package {
 		fieldSlice := NewSlice(fieldNamed)
 		addGeneric("Fields", "T", NewTuple(), NewTuple(NewVar(nopos, pkg, "", fieldSlice)))
 		addGeneric("IsStruct", "T", NewTuple(), NewTuple(NewVar(nopos, pkg, "", Typ[Bool])))
+		addGeneric("SizeOf", "T", NewTuple(), NewTuple(NewVar(nopos, pkg, "", Typ[Int])))
+		addGeneric("AlignOf", "T", NewTuple(), NewTuple(NewVar(nopos, pkg, "", Typ[Int])))
+		addGeneric("HasPointers", "T", NewTuple(), NewTuple(NewVar(nopos, pkg, "", Typ[Bool])))
 		addGeneric("TypeOf", "X", NewTuple(), NewTuple(NewVar(nopos, pkg, "", typeNamed)))
 		pkg.Scope().Insert(NewFunc(nopos, pkg, "Error", NewSignatureType(
 			nil, nil, nil,
@@ -87,11 +72,8 @@ func logosComptimePackage() *Package {
 	return logosComptimePkg
 }
 
-// logosComptimeEnsure inserts this slice's declarations into imp when a
-// sibling hook created the shell first. It reports whether all of them
-// are present afterwards.
 func logosComptimeEnsure(imp *Package) {
-	for _, name := range []string{"StructTag", "Type", "Field", "Fields", "IsStruct", "TypeOf", "Error"} {
+	for _, name := range []string{"StructTag", "Type", "Field", "Fields", "IsStruct", "SizeOf", "AlignOf", "HasPointers", "TypeOf", "Error"} {
 		if imp.Scope().Lookup(name) == nil {
 			full := logosComptimePackage()
 			if obj := full.Scope().Lookup(name); obj != nil {
@@ -102,10 +84,6 @@ func logosComptimeEnsure(imp *Package) {
 	logosEnsureComptimeViewAs(imp)
 }
 
-// logosComptimeImport serves the virtual `comptime` package in Logos
-// mode, storing it through pimp. It mirrors the importer's finalization
-// (complete package cached in impMap), so the real importer never sees
-// the path.
 func (check *Checker) logosComptimeImport(pimp **Package, path, dir string) {
 	if path != "comptime" || !check.conf.Logos {
 		return
@@ -125,8 +103,6 @@ func (check *Checker) logosComptimeImport(pimp **Package, path, dir string) {
 	*pimp = imp
 }
 
-// logosComptimeFunc reports whether obj is one of the virtual comptime
-// package's functions.
 func logosComptimeFunc(obj Object) (string, bool) {
 	fn, ok := obj.(*Func)
 	if !ok || fn.Pkg() != logosComptimePkg {
@@ -135,9 +111,6 @@ func logosComptimeFunc(obj Object) (string, bool) {
 	return fn.Name(), true
 }
 
-// logosComptimeQualifier resolves a package-qualified comptime call's
-// function: Fun unwrapped through instantiation syntax must select from
-// an imported name bound to the virtual package.
 func (check *Checker) logosComptimeQualifier(e syntax.Expr) (*syntax.SelectorExpr, string, bool) {
 	call, ok := e.(*syntax.CallExpr)
 	if !ok {

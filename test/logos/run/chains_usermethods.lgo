@@ -1,0 +1,78 @@
+// run
+
+package main
+
+import "fmt"
+
+type chainStruct struct{ v int }
+
+func (s chainStruct) filter(f func(int) bool) string { return "filter" }
+func (s chainStruct) take(n int) string               { return "take" }
+func (s chainStruct) drop(n int) string               { return "drop" }
+func (s chainStruct) find(f func(int) bool) string   { return "find" }
+func (s chainStruct) any(f func(int) bool) string     { return "any" }
+func (s chainStruct) all(f func(int) bool) string     { return "all" }
+func (s chainStruct) sortBy(f func(int) int) string   { return "sortBy" }
+func (s chainStruct) first() string                   { return "first" }
+func (s chainStruct) last() string                    { return "last" }
+func (s chainStruct) get(i int) string               { return "get" }
+func (s chainStruct) sum() string                     { return "sum" }
+func (s chainStruct) count() string                   { return "count" }
+
+type chainSlice []int
+
+func (m chainSlice) filter(f func(int) bool) string { return "filter" }
+func (m chainSlice) take(n int) string              { return "take" }
+func (m chainSlice) drop(n int) string              { return "drop" }
+func (m chainSlice) find(f func(int) bool) string   { return "find" }
+func (m chainSlice) any(f func(int) bool) string    { return "any" }
+func (m chainSlice) all(f func(int) bool) string    { return "all" }
+func (m chainSlice) sortBy(f func(int) int) string  { return "sortBy" }
+func (m chainSlice) first() string                  { return "first" }
+func (m chainSlice) last() string                   { return "last" }
+func (m chainSlice) get(i int) string              { return "get" }
+func (m chainSlice) sum() string                    { return "sum" }
+func (m chainSlice) count() string                   { return "count" }
+
+func check(name, got, want string) {
+	if got != want {
+		fmt.Println("FAIL", name, "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func main() {
+	s := chainStruct{v: 1}
+	check("struct-filter", s.filter(x => true), "filter")
+	check("struct-take", s.take(2), "take")
+	check("struct-drop", s.drop(2), "drop")
+	check("struct-find", s.find(x => true), "find")
+	check("struct-any", s.any(x => true), "any")
+	check("struct-all", s.all(x => true), "all")
+	check("struct-sortBy", s.sortBy(x => x), "sortBy")
+	check("struct-first", s.first(), "first")
+	check("struct-last", s.last(), "last")
+	check("struct-get", s.get(0), "get")
+	check("struct-sum", s.sum(), "sum")
+	check("struct-count", s.count(), "count")
+	m := chainSlice{1, 2}
+	check("slice-filter", m.filter(x => true), "filter")
+	check("slice-take", m.take(1), "take")
+	check("slice-drop", m.drop(1), "drop")
+	check("slice-find", m.find(x => true), "find")
+	check("slice-any", m.any(x => true), "any")
+	check("slice-all", m.all(x => true), "all")
+	check("slice-sortBy", m.sortBy(x => x), "sortBy")
+	check("slice-first", m.first(), "first")
+	check("slice-last", m.last(), "last")
+	check("slice-get", m.get(0), "get")
+	check("slice-sum", m.sum(), "sum")
+	check("slice-count", m.count(), "count")
+	plain := []int{3, 1, 2}.filter(x => x > 0).take(2)
+	if len(plain) != 2 || plain[0] != 3 || plain[1] != 1 {
+		fmt.Println("FAIL plain-chain got", plain)
+		return
+	}
+	fmt.Println("ok plain-chain")
+}

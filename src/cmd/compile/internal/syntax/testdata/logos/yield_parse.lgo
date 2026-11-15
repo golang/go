@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// M6-S9 parser attacks: contextual `yield` at statement start followed by
-// an operand parses as a yield statement in LogosMode (valid only inside
-// generators; types2 reports yield_outside_generator elsewhere). Every
-// ordinary Go use of the identifier keeps its meaning.
-
 package p
 
 import "iter"

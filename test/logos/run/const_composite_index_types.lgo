@@ -1,0 +1,125 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+type Idx int
+
+type UIdx uint16
+
+type item struct {
+	M map[string]int
+	N int
+}
+
+const items = []item{{M: map[string]int{"k": 10}, N: 0}, {M: map[string]int{"k": 20}, N: 1}, {M: map[string]int{"k": 30}, N: 2}}
+
+var plain = []int{10, 20, 30}
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func panicText(f func()) (text string) {
+	defer func() {
+		text = fmt.Sprint(recover())
+	}()
+	f()
+	return ""
+}
+
+func readSigned() {
+	var vInt int = 1
+	var vIdx Idx = 1
+	var vInt8 int8 = 1
+	var vInt16 int16 = 1
+	var vInt32 int32 = 1
+	var vInt64 int64 = 1
+	rInt := items[vInt].M["k"] ?? -1
+	rIdx := items[vIdx].M["k"] ?? -1
+	rInt8 := items[vInt8].M["k"] ?? -1
+	rInt16 := items[vInt16].M["k"] ?? -1
+	rInt32 := items[vInt32].M["k"] ?? -1
+	rInt64 := items[vInt64].M["k"] ?? -1
+	check("index-int", rInt == 20, rInt, 20)
+	check("index-named-int", rIdx == 20, rIdx, 20)
+	check("index-int8", rInt8 == 20, rInt8, 20)
+	check("index-int16", rInt16 == 20, rInt16, 20)
+	check("index-int32", rInt32 == 20, rInt32, 20)
+	check("index-int64", rInt64 == 20, rInt64, 20)
+}
+
+func readUnsigned() {
+	var vUint uint = 1
+	var vByte byte = 1
+	var vUIdx UIdx = 1
+	var vUint32 uint32 = 1
+	var vUint64 uint64 = 1
+	var vUintptr uintptr = 1
+	rUint := items[vUint].M["k"] ?? -1
+	rByte := items[vByte].M["k"] ?? -1
+	rUIdx := items[vUIdx].M["k"] ?? -1
+	rUint32 := items[vUint32].M["k"] ?? -1
+	rUint64 := items[vUint64].M["k"] ?? -1
+	rUintptr := items[vUintptr].M["k"] ?? -1
+	check("index-uint", rUint == 20, rUint, 20)
+	check("index-byte", rByte == 20, rByte, 20)
+	check("index-named-uint16", rUIdx == 20, rUIdx, 20)
+	check("index-uint32", rUint32 == 20, rUint32, 20)
+	check("index-uint64", rUint64 == 20, rUint64, 20)
+	check("index-uintptr", rUintptr == 20, rUintptr, 20)
+}
+
+func readForms() {
+	var vIdx Idx = 1
+	var vByte byte = 1
+	var vUIdx UIdx = 1
+	var vUint64 uint64 = 1
+	aByte := items[vByte+1].M["k"] ?? -1
+	aIdx := items[vIdx-1].M["k"] ?? -1
+	aUint64 := items[vUint64%2].M["k"] ?? -1
+	check("index-arith-byte", aByte == 30, aByte, 30)
+	check("index-arith-named", aIdx == 10, aIdx, 10)
+	check("index-arith-uint64", aUint64 == 20, aUint64, 20)
+	v, ok := items[vUIdx].M["k"]
+	check("index-comma-ok-named-uint16", ok && v == 20, v, 20)
+	_, miss := items[vByte].M["zz"]
+	check("index-comma-ok-miss", !miss, miss, false)
+}
+
+func bounds() {
+	var outInt8 int8 = 3
+	var negInt8 int8 = -1
+	var outByte byte = 200
+	var outIdx Idx = 5
+	var hugeUint64 uint64 = 1 << 63
+	var outUintptr uintptr = 9
+	check("bounds-int8", panicText(func() { _ = items[outInt8].M["k"] ?? -1 }) == panicText(func() { _ = plain[outInt8] }), "differs", "Go's message")
+	check("bounds-negative-int8", panicText(func() { _ = items[negInt8].M["k"] ?? -1 }) == panicText(func() { _ = plain[negInt8] }), "differs", "Go's message")
+	check("bounds-byte", panicText(func() { _ = items[outByte].M["k"] ?? -1 }) == panicText(func() { _ = plain[outByte] }), "differs", "Go's message")
+	check("bounds-named-int", panicText(func() { _ = items[outIdx].M["k"] ?? -1 }) == panicText(func() { _ = plain[outIdx] }), "differs", "Go's message")
+	check("bounds-huge-uint64", panicText(func() { _ = items[hugeUint64].M["k"] ?? -1 }) == panicText(func() { _ = plain[hugeUint64] }), "differs", "Go's message")
+	check("bounds-uintptr", panicText(func() { _ = items[outUintptr].M["k"] ?? -1 }) == panicText(func() { _ = plain[outUintptr] }), "differs", "Go's message")
+	check("bounds-panics", panicText(func() { _ = items[outIdx].M["k"] ?? -1 }) != "<nil>", "no panic", "a panic")
+}
+
+func main() {
+	readSigned()
+	readUnsigned()
+	readForms()
+	bounds()
+	if failed {
+		os.Exit(1)
+	}
+}

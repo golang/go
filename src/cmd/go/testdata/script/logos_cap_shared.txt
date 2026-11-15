@@ -1,13 +1,3 @@
-# The capabilities audit of a -buildmode=shared link roots every definition
-# the library keeps, as deadcode does, not only its init functions. Plain go
-# never writes -logos.cap, so each leg hands the linker its policy file through
-# -ldflags and no other policy reaches the link. -buildmode=shared works in
-# GOPATH mode only.
-# Setup: none beyond -pkgdir; the library carries its own runtime closure.
-# Archive members unpack relative to $GOPATH/src, the script's start directory,
-# so package files are named capshared/... and the policy files $WORK/....
-# RED expectation: the exported-function leg links clean when only the entry
-# symbol, dynamic exports, and package init functions are roots.
 [!buildmode:shared] skip
 [short] skip
 [!cgo] skip '-buildmode=shared requires external linking'
@@ -19,24 +9,17 @@ env CGO_ENABLED=1
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
-# Control: a sink reached from a package init function is denied. The init
-# functions are roots either way, so this proves the audit runs on the link.
 ! go install -buildmode=shared -pkgdir=$WORK/pkgdir -ldflags=-logos.cap=$WORK/cap-deny.json capshared/sinit
 stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''capshared/sinit'' reaches ''syscall\.Exec'''
 
-# An exported function nothing in the library calls is still kept by the
-# library, so the sink it reaches is denied and the function starts the chain.
 ! go install -buildmode=shared -pkgdir=$WORK/pkgdir -ldflags=-logos.cap=$WORK/cap-deny.json capshared/sexport
 stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''capshared/sexport'' reaches ''syscall\.Exec'''
 stderr 'capshared/sexport\.Run\(\) +at [^ ]+\.go:\d+'
 ! stderr 'unauthorized_(cgo|net|reflect)'
 
-# Control: the same library links when the policy allows exec.
 go install -buildmode=shared -pkgdir=$WORK/pkgdir -ldflags=-logos.cap=$WORK/cap-allow.json capshared/sexport
 ! stderr 'capabilities::'
 
-# Control: a library whose own code reaches no sink links under deny, although
-# the standard library it keeps defines syscall.Exec.
 go install -buildmode=shared -pkgdir=$WORK/pkgdir -ldflags=-logos.cap=$WORK/cap-deny.json capshared/sclean
 ! stderr 'capabilities::'
 

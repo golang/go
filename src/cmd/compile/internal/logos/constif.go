@@ -11,19 +11,10 @@ import (
 	"cmd/compile/internal/syntax"
 )
 
-// This file lowers M7-S1 `const if` statements (SPEC Sec 2.5, T-205): a
-// `const if` becomes its live branch block, so only live code reaches
-// the backend, or vanishes when the condition is false with no else.
-// The rewrite uses small deletion splices around the kept block rather
-// than one replacement of the whole statement, so splices of nested
-// constructs stay valid beside them.
-
-// lowerConstIf prunes the dead `const if` branches of one function body.
 func (fc *funcLower) lowerConstIf() {
 	fc.body.List = fc.lowerConstIfList(fc.body.List)
 }
 
-// lowerConstIfList prunes every `const if` of one statement list.
 func (fc *funcLower) lowerConstIfList(list []syntax.Stmt) []syntax.Stmt {
 	var out []syntax.Stmt
 	for _, s := range list {
@@ -34,9 +25,6 @@ func (fc *funcLower) lowerConstIfList(list []syntax.Stmt) []syntax.Stmt {
 	return out
 }
 
-// pruneConstIfStmt prunes the `const if` statements under s, descending
-// into every child list except nested function literals, which lower
-// under their own funcLower. It reports false when s itself vanishes.
 func (fc *funcLower) pruneConstIfStmt(s syntax.Stmt) (syntax.Stmt, bool) {
 	if c, ok := s.(*syntax.ConstIfStmt); ok {
 		return fc.pruneConstIf(c)
@@ -45,7 +33,6 @@ func (fc *funcLower) pruneConstIfStmt(s syntax.Stmt) (syntax.Stmt, bool) {
 	return s, true
 }
 
-// pruneConstIfChildren prunes the statement lists that s holds.
 func (fc *funcLower) pruneConstIfChildren(s syntax.Stmt) {
 	switch s := s.(type) {
 	case *syntax.BlockStmt:
@@ -69,8 +56,6 @@ func (fc *funcLower) pruneConstIfChildren(s syntax.Stmt) {
 	}
 }
 
-// pruneConstIfElse prunes the branches of an if statement, following an
-// else-if chain link by link.
 func (fc *funcLower) pruneConstIfElse(s *syntax.IfStmt) {
 	s.Then.List = fc.lowerConstIfList(s.Then.List)
 	switch els := s.Else.(type) {
@@ -81,30 +66,24 @@ func (fc *funcLower) pruneConstIfElse(s *syntax.IfStmt) {
 	}
 }
 
-// pruneCaseClauses prunes the body of every clause of a switch statement.
 func (fc *funcLower) pruneCaseClauses(clauses []*syntax.CaseClause) {
 	for _, clause := range clauses {
 		clause.Body = fc.lowerConstIfList(clause.Body)
 	}
 }
 
-// pruneCommClauses prunes the body of every clause of a select statement.
 func (fc *funcLower) pruneCommClauses(clauses []*syntax.CommClause) {
 	for _, clause := range clauses {
 		clause.Body = fc.lowerConstIfList(clause.Body)
 	}
 }
 
-// pruneConstCases prunes the body of every case of a `const switch`.
 func (fc *funcLower) pruneConstCases(cases []*syntax.ConstSwitchCase) {
 	for _, c := range cases {
 		c.Body = fc.lowerConstIfList(c.Body)
 	}
 }
 
-// pruneLabeled prunes the statement a label holds. When that statement
-// is a `const if` that vanishes, the label keeps an empty statement, so a
-// jump to the label stays valid in the source and in the lowered tree.
 func (fc *funcLower) pruneLabeled(s *syntax.LabeledStmt) {
 	if kept, ok := fc.pruneConstIfStmt(s.Stmt); ok {
 		s.Stmt = kept
@@ -118,12 +97,6 @@ func (fc *funcLower) pruneLabeled(s *syntax.LabeledStmt) {
 	fc.fl.add(inner.start, inner.start, ";")
 }
 
-// pruneConstIf replaces one `const if` statement, including its whole
-// else chain, with the live branch. Two deletions cut the source before
-// and after the live block, so the header and every dead branch go away
-// with their splices while the splices of later lowering inside the live
-// block keep their own offsets. A false condition with no live branch
-// deletes the statement and reports false.
 func (fc *funcLower) pruneConstIf(s *syntax.ConstIfStmt) (syntax.Stmt, bool) {
 	start := fc.fl.off(s.Pos())
 	end := fc.fl.off(syntax.EndPos(s))
@@ -138,9 +111,6 @@ func (fc *funcLower) pruneConstIf(s *syntax.ConstIfStmt) (syntax.Stmt, bool) {
 	return live, true
 }
 
-// liveBranch returns the block that the const-if chain rooted at s selects,
-// or nil when no branch is selected. It follows the chain without rewriting
-// it, so the caller cuts the statement around the block it returns.
 func (fc *funcLower) liveBranch(s *syntax.ConstIfStmt) *syntax.BlockStmt {
 	val, ok := typeConst(fc.fl.pkg.info, s.Cond)
 	if !ok || val.Kind() != constant.Bool {
@@ -162,9 +132,6 @@ func (fc *funcLower) liveBranch(s *syntax.ConstIfStmt) *syntax.BlockStmt {
 	return nil
 }
 
-// cutConstSpan is deleteConstSpan for the regions around a live branch:
-// the comments of the region survive, so the eject text keeps the
-// comments of the header and of the dead branches.
 func (fc *funcLower) cutConstSpan(start, end int) {
 	if start >= end {
 		return
@@ -173,8 +140,6 @@ func (fc *funcLower) cutConstSpan(start, end int) {
 	fc.fl.addT(start, end, leftoverComments(fc.fl, span{start, end}, nil))
 }
 
-// deleteConstSpan discards the splices strictly inside [start, end) and
-// deletes the source text there.
 func (fc *funcLower) deleteConstSpan(start, end int) {
 	if start >= end {
 		return

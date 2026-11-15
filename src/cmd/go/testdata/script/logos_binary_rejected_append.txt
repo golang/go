@@ -1,0 +1,91 @@
+# Go callers may inspect partial AppendBinary output on error; loGo/s callers
+# intentionally cannot read a non-error result on that path.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd consumer
+logos run .
+stdout '^rejected append ok$'
+cd ../model
+logos eject -o out
+exists out/_logos_deps/rt/go.mod
+cd ../consumer
+cp go.ejected.mod go.mod
+exists $UPROOT1272/bin/go
+exec env -u GOROOT $UPROOT1272/bin/go run .
+stdout '^rejected append ok$'
+
+-- model/go.mod --
+module example.com/rejectedmodel
+
+go 1.27
+
+-- model/model.lgo --
+package rejectedmodel
+
+type Empty struct{}
+
+type Holder struct {
+	Items []Empty `json:"items"`
+}
+
+type Fat struct {
+	Scratch [4096]byte `json:"-"`
+}
+
+type FatHolder struct {
+	Items []Fat `json:"items"`
+}
+
+-- consumer/go.mod --
+module example.com/rejectedconsumer
+
+go 1.27
+
+require example.com/rejectedmodel v0.0.0
+
+replace example.com/rejectedmodel => ../model
+
+-- consumer/go.ejected.mod --
+module example.com/rejectedconsumer
+
+go 1.27
+
+require example.com/rejectedmodel v0.0.0
+
+require github.com/gosuda/loGos/rt v0.0.0 // indirect
+
+replace example.com/rejectedmodel => ../model/out
+
+replace github.com/gosuda/loGos/rt => ../model/out/_logos_deps/rt
+
+-- consumer/main.go --
+package main
+
+import (
+	"bytes"
+	"fmt"
+	"strings"
+	"unsafe"
+
+	"example.com/rejectedmodel"
+)
+
+func main() {
+	check("count", rejectedmodel.Holder{Items: make([]rejectedmodel.Empty, 1048577)})
+	check("storage", rejectedmodel.FatHolder{Items: make([]rejectedmodel.Fat, (8<<20)/int(unsafe.Sizeof(rejectedmodel.Fat{}))+1)})
+	fmt.Println("rejected append ok")
+}
+
+func check(label string, value interface{ AppendBinary([]byte) ([]byte, error) }) {
+	prefix := []byte{0xee, 0xdd}
+	got, err := value.AppendBinary(append([]byte(nil), prefix...))
+	if err == nil || !strings.Contains(err.Error(), "out of range") {
+		panic(fmt.Sprintf("%s: expected count-out-of-range error, got %v", label, err))
+	}
+	// The version is emitted before the rejected field; its count is not.
+	want := []byte{0xee, 0xdd, 1}
+	if !bytes.Equal(got, want) {
+		panic(fmt.Sprintf("%s: rejected append bytes %x, want %x (no count header)", label, got, want))
+	}
+}

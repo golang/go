@@ -1,0 +1,11 @@
+ok lawful-slice-above-8mib
+ok lawful-bytes-above-8mib
+ok lawful-string-above-8mib
+ok lawful-map-above-8mib
+ok hostile-string-count
+ok hostile-string-next-byte
+ok hostile-bytes-count
+ok hostile-bytes-next-byte
+ok hostile-slice-count
+ok hostile-slice-next-byte
+ok hostile-map-count

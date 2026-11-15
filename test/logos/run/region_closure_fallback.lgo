@@ -1,0 +1,40 @@
+// run -goexperiment logosarena -arena=false
+// run -goexperiment logosarena
+package main
+
+import (
+	"fmt"
+	"logos/arena"
+	"os"
+	"runtime"
+)
+
+type node struct {
+	v int
+}
+
+var sink func() int
+
+func main() {
+	failed := false
+	check := func(name string, got, want int) {
+		if got != want {
+			fmt.Printf("FAIL %s: got %d want %d\n", name, got, want)
+			failed = true
+			return
+		}
+		fmt.Printf("ok %s\n", name)
+	}
+	{
+		r := arena.Open()
+		p := arena.New[node](r)
+		p.v = 41
+		sink = func() int { return p.v + 1 }
+		_ = p
+	}
+	runtime.GC()
+	check("closure-escaping-region-falls-back-to-heap", sink(), 41+1)
+	if failed {
+		os.Exit(1)
+	}
+}

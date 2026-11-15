@@ -4,11 +4,6 @@
 
 package types2
 
-// Behavioral tests for exact-node fresh owned-type descriptors:
-// exact registration without prefix trust, fresh factory and witness
-// resolution preserving Named/Alias identity, and fail-closed
-// diagnostics. Happy-path lowering lives in script gates, not here.
-
 import (
 	"cmd/compile/internal/syntax"
 	"fmt"
@@ -558,9 +553,6 @@ func TestLogosOwnedLitFieldBypass(t *testing.T) {
 	}
 }
 
-// logosOwnedSyntheticValuesDEF builds one factory package mirroring the
-// values-fixture shapes: a private named int and a private struct with
-// unexported fields, each produced by an exported const-func-shaped factory.
 func logosOwnedSyntheticValuesDEF(t *testing.T) (facPkg *Package, privInt, privSecret *Named) {
 	t.Helper()
 	facPkg = NewPackage("example.com/fac", "fac")
@@ -586,8 +578,6 @@ func logosOwnedSyntheticValuesDEF(t *testing.T) (facPkg *Package, privInt, privS
 	return facPkg, privInt, privSecret
 }
 
-// logosOwnedFullCheck runs a full package check over one parsed file with an
-// exact-node registration, returning the recorded info and diagnostics.
 func logosOwnedFullCheck(t *testing.T, f *syntax.File, reg map[syntax.Expr]LogosOwnedType, imp *logosOwnedTestImporter) (*Info, []string, error) {
 	t.Helper()
 	sizes := SizesFor("gc", "amd64")
@@ -631,7 +621,6 @@ func TestLogosOwnedIdentConversionResolves(t *testing.T) {
 		t.Fatalf("conversion must record the exact fresh Named: got %v, %v", tv.Type, ok)
 	}
 
-	// Same spelling without registration still fails: forged access denied.
 	g := logosOwnedParseFile(t, "n.go", "package main\nvar _ = T(7)\n")
 	if _, msgs, err := logosOwnedFullCheck(t, g, nil, imp); err == nil {
 		t.Fatal("unregistered placeholder must not check")
@@ -669,7 +658,6 @@ func TestLogosOwnedPositionalLiteralBypass(t *testing.T) {
 		t.Fatalf("literal must record the exact fresh Named: got %v, %v", tv.Type, ok)
 	}
 
-	// Same spelling without registration still fails on the type node.
 	g := logosOwnedParseFile(t, "n.go", "package main\nvar _ = T{42, \"vault\"}\n")
 	if _, msgs, err := logosOwnedFullCheck(t, g, nil, imp); err == nil {
 		t.Fatal("unregistered literal must not check")
@@ -677,7 +665,6 @@ func TestLogosOwnedPositionalLiteralBypass(t *testing.T) {
 		t.Fatal("unregistered literal must report a diagnostic")
 	}
 
-	// A nonzero descriptor on the literal fails closed on the descriptor.
 	h := logosOwnedParseFile(t, "h.go", "package main\nvar _ = T{42, \"vault\"}\n")
 	hlit := logosOwnedVarValue(t, h, 0).(*syntax.CompositeLit)
 	htype, ok := hlit.Type.(*syntax.Name)

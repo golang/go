@@ -353,8 +353,14 @@ func poll_runtime_pollWait(pd *pollDesc, mode int) int {
 	if GOOS == "solaris" || GOOS == "illumos" || GOOS == "aix" || GOOS == "wasip1" {
 		netpollarm(pd, mode)
 	}
-	if logosWaitRegister(pd, int32(mode)) { // M8-S4 hook: group waiters register for cancel.
+	if logosWaitRegister(pd, int32(mode)) {
 		defer logosWaitRelease(pd, int32(mode))
+		if logosWaitAfterRegisterHook != nil {
+			logosWaitAfterRegisterHook()
+		}
+		if logosCancelled(pd, int32(mode)) {
+			return pollErrTimeout
+		}
 	}
 	for !netpollblock(pd, int32(mode), false) {
 		errcode = netpollcheckerr(pd, int32(mode))
@@ -522,7 +528,7 @@ func netpollcheckerr(pd *pollDesc, mode int32) int {
 	if info.closing() {
 		return pollErrClosing
 	}
-	if logosCancelled(pd, mode) { // M8-S4 hook: a cancelled group waiter times out.
+	if logosCancelled(pd, mode) {
 		return pollErrTimeout
 	}
 	if (mode == 'r' && info.expiredReadDeadline()) || (mode == 'w' && info.expiredWriteDeadline()) {

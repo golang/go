@@ -1,0 +1,145 @@
+// errorcheck
+
+package p
+
+type U interface {
+	int | string
+}
+
+type IOnly interface {
+	int
+}
+
+func convertNonMember(x float64) {
+	_ = U(x) // ERROR "correctness::union_nonmember"
+}
+
+func widenSub(s IOnly) U { return U(s) }
+
+func assertNonMember(u U) {
+	_, _ = u.(float64)
+}
+
+func assignNonMember(u U) {
+	u = 1.5 // ERROR "union_nonmember"
+}
+
+func compareConst(u U) {
+	if u == 1 {
+		println("one")
+	}
+	if u == 1.5 { // ERROR "union_nonmember"
+		println("other")
+	}
+	_ = u
+}
+
+func missingMember(u U) string {
+	return switch u.(type) { // ERROR "correctness::nonexhaustive_switch"
+	case int => "i"
+	}
+}
+
+type V3 interface {
+	int | string | bool
+}
+
+func missingTwo(u V3) string {
+	return switch u.(type) { // ERROR "correctness::nonexhaustive_switch"
+	case int => "i"
+	}
+}
+
+func missingMemberStmt(u U) string {
+	switch u.(type) { // ERROR "nonexhaustive_switch"
+	case int:
+		return "i"
+	}
+	return "?"
+}
+
+func armMismatch(n int) string {
+	return switch n {
+	case 1 => "one"
+	case 2 => 3 // ERROR "switch_arm_mismatch"
+	default => "d"
+	}
+}
+
+func needsDefault(n int) string {
+	return switch n { // ERROR "switch_expr_needs_default"
+	case 1 => "one"
+	}
+}
+
+func subUnion(u U) string {
+	return switch u.(type) {
+	case IOnly => "i"
+	case string => "s"
+	case nil => "nil"
+	}
+}
+
+func unboundedComparable() {
+	var w interface { // ERROR "open_union_value"
+		comparable
+	}
+	_ = w
+}
+
+type N interface {
+	int | float64
+}
+
+type R interface {
+	int | rune
+}
+
+func caseNonMember(u U) int {
+	switch u {
+	case 1:
+		return 1
+	case "s":
+		return 2
+	case 'a': // ERROR "union_nonmember"
+		return 3
+	case 1.5: // ERROR "union_nonmember"
+		return 4
+	case true: // ERROR "union_nonmember"
+		return 5
+	}
+	return 0
+}
+
+func caseNonMemberNumeric(n N) int {
+	switch n {
+	case 1, 2.5:
+		return 1
+	case "s": // ERROR "union_nonmember"
+		return 2
+	case true: // ERROR "union_nonmember"
+		return 3
+	}
+	return 0
+}
+
+func boolNonMember(u U) {
+	_ = u == true  // ERROR "union_nonmember"
+	_ = false == u // ERROR "union_nonmember"
+	_ = u != true  // ERROR "union_nonmember"
+}
+
+func boolAndRuneMembers(b V3, r R) int {
+	switch b {
+	case true, 1, "s":
+		return 1
+	}
+	switch r {
+	case 'a', 2:
+		return 2
+	}
+	if b == false || true == b || r == 'b' {
+		return 3
+	}
+	return 0
+}

@@ -1,0 +1,89 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed = false
+
+func check(name string, ok bool, detail string) {
+	if !ok {
+		fmt.Printf("FAIL %s: %s\n", name, detail)
+		failed = true
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func sameStrings(a, c []string) bool {
+	if len(a) != len(c) {
+		return false
+	}
+	for i := range a {
+		if a[i] != c[i] {
+			return false
+		}
+	}
+	return true
+}
+
+var cLog []string
+
+func cNote(s string, n int) int {
+	cLog = append(cLog, fmt.Sprint("arg ", s))
+	return n
+}
+
+type cHolder struct {
+	cb  func(int)
+	get func() int
+}
+
+func newHolder() *cHolder? {
+	return &cHolder{
+		cb:  func(n int) { cLog = append(cLog, fmt.Sprint("cb ", n)) },
+		get: func() int { return 7 },
+	}
+}
+
+func callLogos(h *cHolder?) []string {
+	cLog = nil
+	h?.cb(cNote("b", 2))
+	return append([]string(nil), cLog...)
+}
+
+func callHand(h *cHolder?) []string {
+	cLog = nil
+	if h != nil {
+		h.cb(cNote("b", 2))
+	}
+	return append([]string(nil), cLog...)
+}
+
+func resultLogos(h *cHolder?) int {
+	return h?.get() ?? -1
+}
+
+func resultHand(h *cHolder?) int {
+	if h != nil {
+		return h.get()
+	}
+	return -1
+}
+
+func main() {
+	var none *cHolder?
+	some := newHolder()
+	cl, ch := callLogos(some), callHand(some)
+	check("call-field", sameStrings(cl, ch) && len(ch) == 2, fmt.Sprint("got ", cl, " want ", ch))
+	cln, chn := callLogos(none), callHand(none)
+	check("call-field-none", sameStrings(cln, chn) && len(chn) == 0, fmt.Sprint("got ", cln, " want ", chn))
+	check("result-field", resultLogos(some) == resultHand(some) && resultHand(some) == 7, fmt.Sprint("got ", resultLogos(some), " want ", resultHand(some)))
+	check("result-field-none", resultLogos(none) == resultHand(none) && resultHand(none) == -1, fmt.Sprint("got ", resultLogos(none), " want ", resultHand(none)))
+	if failed {
+		os.Exit(1)
+	}
+}

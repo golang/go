@@ -1,0 +1,309 @@
+// run
+
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"sort"
+	"sync"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type box struct {
+	A, B int
+}
+
+var base = box{A: 1, B: 2}
+
+type rec struct {
+	mu   sync.Mutex
+	list []box
+}
+
+func (r *rec) put(v box) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.list = append(r.list, v)
+}
+
+func (r *rec) seen() string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	sort.Slice(r.list, func(i, j int) bool { return r.list[i].A < r.list[j].A })
+	return fmt.Sprint(r.list)
+}
+
+func put(r *rec, v box) {
+	r.put(v)
+}
+
+func putErr(r *rec, v box) error {
+	r.put(v)
+	return nil
+}
+
+func callChild(ctx context.Context, r *rec) error {
+	b := base
+	go group (ctx) {
+		go putErr(r, box{A: 10, ..b})
+	}
+	return nil
+}
+
+func blockChild(ctx context.Context, r *rec) error {
+	b := base
+	go group (ctx) {
+		go {
+			r.put(box{A: 11, ..b})
+		}
+	}
+	return nil
+}
+
+func nestedGroup(ctx context.Context, r *rec) error {
+	b := base
+	go group (ctx) {
+		go {
+			r.put(box{A: 12, ..b})
+		}
+		go {
+			put(r, box{A: 13, ..b})
+		}
+	}
+	return nil
+}
+
+func limitedChild(ctx context.Context, r *rec) error {
+	b := base
+	go group (ctx, limit = 1) {
+		go {
+			r.put(box{A: 14, ..b})
+		}
+		go putErr(r, box{A: 15, ..b})
+	}
+	return nil
+}
+
+func scopeDeferCall(ctx context.Context, r *rec) error {
+	b := base
+	go group (ctx) {
+		scope defer put(r, box{A: 16, ..b})
+		go {
+			r.put(box{A: 17, ..b})
+		}
+	}
+	return nil
+}
+
+func fail() error {
+	return errors.New("child failed")
+}
+
+func errdeferCall(ctx context.Context, r *rec) error {
+	b := base
+	errdefer put(r, box{A: 18, ..b})
+	go group (ctx) {
+		go fail()
+	}
+	return nil
+}
+
+func selectBody(ctx context.Context, r *rec) error {
+	b := base
+	done := make(chan int, 1)
+	done <- 1
+	go group (ctx) {
+		go {
+			select {
+			case <-done:
+				r.put(box{A: 19, ..b})
+			default:
+				r.put(box{A: -19, ..b})
+			}
+		}
+	}
+	return nil
+}
+
+func labeled(ctx context.Context, r *rec) error {
+	b := base
+	go group (ctx) {
+		go {
+		L:
+			for v := (box{A: 20, ..b}); ; {
+				r.put(v)
+				break L
+			}
+		}
+	}
+	return nil
+}
+
+func goArgument(ctx context.Context, r *rec) error {
+	b := base
+	go group (ctx) {
+		go putErr(r, box{A: 21, ..b})
+		b.B = 99
+	}
+	return nil
+}
+
+func deferArgument(r *rec) {
+	b := base
+	func() {
+		defer put(r, box{A: 22, ..b})
+	}()
+}
+
+func typeSwitchCases(ctx context.Context, r *rec) error {
+	b := base
+	var x any = 1
+	go group (ctx) {
+		go {
+			switch x.(type) {
+			case string:
+				r.put(box{A: -23, ..b})
+			case int:
+				r.put(box{A: 23, ..b})
+			default:
+				r.put(box{A: -24, ..b})
+			}
+		}
+	}
+	return nil
+}
+
+func switchArms(n int) box {
+	b := base
+	return switch n {
+	case 1 => box{A: 24, ..b}
+	default => box{A: 25, ..b}
+	}
+}
+
+func loopHeaders(r *rec) {
+	b := base
+	for v := (box{A: 26, ..b}); v.A < 28; v = (box{A: v.A + 1, ..b}) {
+		r.put(v)
+	}
+	if v := (box{A: 28, ..b}); v.A > 0 {
+		r.put(v)
+	}
+	switch v := (box{A: 29, ..b}); {
+	case v.A > 0:
+		r.put(v)
+	}
+}
+
+func stageCells(ctx context.Context) (seq string, conc string, err error) {
+	b := base
+	seq = fmt.Sprint([]int{30, 31}.map(i => box{A: i, ..b}))
+	got, err := []int{32, 33}.group(ctx, limit = 2).map(i => box{A: i, ..b})
+	if err != nil {
+		return seq, "", err
+	}
+	return seq, fmt.Sprint(got), nil
+}
+
+func ret(b box) box {
+	return box{A: 40, ..b}
+}
+
+func expressionCells() {
+	b := box{A: 5, B: 6}
+	ch := make(chan box, 1)
+	ch <- box{A: 1, ..b}
+	check("spread-in-send-operand", <-ch == box{A: 1, B: 6}, "send", "{1 6}")
+	xs := []box{{A: 2, ..b}, {..b}}
+	check("spread-in-elided-slice-elements", fmt.Sprint(xs) == "[{2 6} {5 6}]", xs, "[{2 6} {5 6}]")
+	m := map[string]box{"k": {A: 3, ..b}}
+	check("spread-in-elided-map-value", fmt.Sprint(m) == "map[k:{3 6}]", m, "map[k:{3 6}]")
+	mk := map[box]int{{A: 4, ..b}: 1}
+	check("spread-in-elided-map-key", fmt.Sprint(mk) == "map[{4 6}:1]", mk, "map[{4 6}:1]")
+	arr := [2]box{1: {A: 10, ..b}}
+	check("spread-in-elided-array-element", arr == [2]box{{}, {A: 10, B: 6}}, arr, "[{0 0} {10 6}]")
+	var ranged []box
+	for _, v := range []box{{A: 8, ..b}} {
+		ranged = append(ranged, v)
+	}
+	check("spread-in-range-expression", fmt.Sprint(ranged) == "[{8 6}]", ranged, "[{8 6}]")
+	var hit bool
+	switch (box{A: 9, ..b}) {
+	case box{A: 9, ..b}:
+		hit = true
+	}
+	check("spread-in-switch-tag-and-case", hit, hit, true)
+	check("spread-in-return-operand", ret(b) == box{A: 40, B: 6}, ret(b), "{40 6}")
+	var iface any = box{A: 12, ..b}
+	check("spread-in-interface-conversion", iface == any(box{A: 12, B: 6}), iface, "{12 6}")
+	cond := (box{A: 13, ..b}).A == 13
+	check("spread-in-if-condition-operand", cond, cond, true)
+}
+
+func run(name string, f func(context.Context, *rec) error, want string) {
+	var r rec
+	err := f(context.Background(), &r)
+	if err != nil {
+		check(name, false, err, "no error")
+		return
+	}
+	check(name, r.seen() == want, r.seen(), want)
+}
+
+func main() {
+	run("spread-in-group-call-child-argument", callChild, "[{10 2}]")
+	run("spread-in-group-block-child", blockChild, "[{11 2}]")
+	run("spread-in-group-children", nestedGroup, "[{12 2} {13 2}]")
+	run("spread-in-limited-group-children", limitedChild, "[{14 2} {15 2}]")
+	run("spread-in-scope-defer-call", scopeDeferCall, "[{16 2} {17 2}]")
+	run("spread-in-select-clause-body", selectBody, "[{19 2}]")
+	run("spread-in-labeled-statement", labeled, "[{20 2}]")
+
+	run("spread-in-type-switch-case", typeSwitchCases, "[{23 2}]")
+
+	var r rec
+	err := errdeferCall(context.Background(), &r)
+	check("spread-in-errdefer-call", err != nil && r.seen() == "[{18 2}]", fmt.Sprint(err, r.seen()), "child failed [{18 2}]")
+
+	run("spread-in-go-call-argument", goArgument, "[{21 2}]")
+
+	var d rec
+	deferArgument(&d)
+	check("spread-in-defer-call-argument", d.seen() == "[{22 2}]", d.seen(), "[{22 2}]")
+
+	check("spread-in-switch-expression-arm", switchArms(1) == box{A: 24, B: 2} && switchArms(2) == box{A: 25, B: 2}, fmt.Sprint(switchArms(1), switchArms(2)), "{24 2} {25 2}")
+
+	var h rec
+	loopHeaders(&h)
+	check("spread-in-statement-headers", h.seen() == "[{26 2} {27 2} {28 2} {29 2}]", h.seen(), "[{26 2} {27 2} {28 2} {29 2}]")
+
+	seq, conc, err := stageCells(context.Background())
+	if err != nil {
+		check("spread-in-stage-lambda", false, err, "no error")
+	} else {
+		check("spread-in-stage-lambda", seq == "[{30 2} {31 2}]" && conc == "[{32 2} {33 2}]", seq+" "+conc, "[{30 2} {31 2}] [{32 2} {33 2}]")
+	}
+
+	expressionCells()
+
+	if failed {
+		os.Exit(1)
+	}
+}

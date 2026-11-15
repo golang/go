@@ -1,0 +1,64 @@
+# Fixed-effective-capacity makes keep ordinary escape behavior at every
+# opt tier: non-escaping fixed makes never heap-allocate, escaping ones do.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+go test -count=1 -O=0 .
+go test -count=1 -O=1 .
+go test -count=1 -O=2 .
+go test -count=1 -O=3 .
+logos test -count=1 -O=1 .
+logos test -count=1 -O=2 .
+logos test -count=1 -O=3 .
+
+-- m/go.mod --
+module example.com/fixedmakeparity
+
+go 1.27
+
+-- m/fixed.go --
+package fixedmakeparity
+
+var escaped []byte
+var sink byte
+
+//go:noinline
+func recFixed(n int) byte {
+	if n <= 0 {
+		return 0
+	}
+	b := make([]byte, 200)
+	b[0] = byte(n)
+	b[199] = byte(n >> 1)
+	return recFixed(n-1) + b[0] + b[199]
+}
+
+//go:noinline
+func fixedSmall() byte {
+	b := make([]byte, 16)
+	b[0] = 3
+	return b[15] + b[0]
+}
+
+//go:noinline
+func fixedEscape() {
+	escaped = make([]byte, 0, 16)
+}
+
+-- m/fixed_test.go --
+package fixedmakeparity
+
+import "testing"
+
+func TestFixedMakeTierParity(t *testing.T) {
+	if got := testing.AllocsPerRun(20, func() { sink = recFixed(5) }); got != 0 {
+		t.Errorf("recursive fixed make took %v allocations, want none", got)
+	}
+	if got := testing.AllocsPerRun(20, func() { sink = fixedSmall() }); got != 0 {
+		t.Errorf("small fixed make took %v allocations, want none", got)
+	}
+	if got := testing.AllocsPerRun(20, func() { fixedEscape() }); got < 1 {
+		t.Errorf("escaping fixed make took %v allocations, want the heap", got)
+	}
+}

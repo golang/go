@@ -1,0 +1,5 @@
+ok map-operand-once
+ok filter-map-operands-in-order
+ok indexed-operand-once
+ok unordered-operand-once
+ok range-operand-once

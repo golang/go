@@ -57,4 +57,6 @@ const (
 
 	// Function is a compiler-generated package init function.
 	PKGINIT = 8192
+
+	LOGOSCTCLONE = 16384
 )

@@ -1,8 +1,6 @@
-10
-21
-13
-3 3
-10 5
-42
-42
-3 7
+ok nested-paren-add
+ok nested-paren-mul
+ok paren-binds-tighter-than-mul
+ok paren-param-arrow-applies
+ok paren-param-list-arrow-applies
+ok paren-tuple-unpacks

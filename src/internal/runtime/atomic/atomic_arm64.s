@@ -72,32 +72,9 @@ TEXT ·Load64(SB),NOSPLIT,$0-16
 	RET
 
 // void *·Loadp(void *volatile *addr)
-//
-// Out-of-line atomic pointer load (W1d). Reached only when the Loadp
-// intrinsic is suppressed (-race, -d=ssa/intrinsics/off): the word is
-// loaded with acquire semantics and handed to the runtime hook
-// zgcAtomicLoadpSlow with (slot, raw), which returns the canonical
-// current object. Builds without the moving collector link the raw
-// identity fallback, which is exact because no slot there can carry
-// color bits (the -lb flag is fatal without the experiment).
-//
-// Frame account ($32-16, NOSPLIT): incoming ptr at 0(FP); outgoing
-// slot at 0(SP), raw word at 8(SP), hook result at 16(SP) copied to
-// ret+8(FP). No locals and no spilled pointers: slot and raw cross
-// the hook call only in the ABI0 argument area. Before the marshal,
-// R0 holds slot and R1 holds the raw word; the call itself carries
-// nothing in registers, and the result returns in R0. The
-// NOSPLIT chain stays within the linker limit because the hook's ABI0
-// wrapper is nosplit and the splittable body contributes no height;
-// the hook itself may grow the stack, exactly like the slow call the
-// compiler emits for barriered loads.
-TEXT ·Loadp(SB),NOSPLIT,$32-16
+TEXT ·Loadp(SB),NOSPLIT,$0-16
 	MOVD	ptr+0(FP), R0
-	LDAR	(R0), R1
-	MOVD	R0, 0(RSP)
-	MOVD	R1, 8(RSP)
-	CALL	·zgcAtomicLoadpSlow(SB)
-	MOVD	16(RSP), R0
+	LDAR	(R0), R0
 	MOVD	R0, ret+8(FP)
 	RET
 

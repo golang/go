@@ -25,7 +25,6 @@
 package runtime
 
 import (
-	"internal/goexperiment"
 	"internal/runtime/atomic"
 	"unsafe"
 )
@@ -467,12 +466,6 @@ func (s *mspan) ensureSwept() {
 	// Caller must disable preemption.
 	// Otherwise when this function returns the span can become unswept again
 	// (if GC is triggered on another goroutine).
-	if zgcQuarantineBypass(s) {
-		// A quarantined source span never rejoins the sweep: its
-		// sweepgen is pinned past the sweeper and its slots die with
-		// the page. Waiting for its sweep would spin forever.
-		return
-	}
 	gp := getg()
 	if gp.m.locks == 0 && gp.m.mallocing == 0 && gp != gp.m.g0 {
 		throw("mspan.ensureSwept: m is not locked")
@@ -524,10 +517,6 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 		sl.mspan = nil
 	}
 
-	if zgcSweepGuard(s) {
-		return false
-	}
-
 	sweepgen := mheap_.sweepgen
 	if state := s.state.get(); state != mSpanInUse || s.sweepgen != sweepgen-1 {
 		print("mspan.sweep: state=", state, " sweepgen=", s.sweepgen, " mheap.sweepgen=", sweepgen, "\n")
@@ -538,14 +527,6 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 	if trace.ok() {
 		trace.GCSweepSpan(s.npages * pageSize)
 		traceRelease(trace)
-	}
-
-	if logosGenSkip(s) {
-		logosGenSweepMature(s)
-		if !preserve {
-			logosGenRelist(s)
-		}
-		return false
 	}
 
 	mheap_.pagesSwept.Add(int64(s.npages))
@@ -634,7 +615,7 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 		spanHasNoSpecials(s)
 	}
 
-	if traceAllocFreeEnabled() || debug.clobberfree != 0 || raceenabled || msanenabled || asanenabled || zgcIdentityTracking() {
+	if traceAllocFreeEnabled() || debug.clobberfree != 0 || raceenabled || msanenabled || asanenabled {
 		// Find all newly freed objects.
 		mbits := s.markBitsForBase()
 		abits := s.allocBitsForIndex(0)
@@ -651,21 +632,17 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 				if debug.clobberfree != 0 {
 					clobberfree(unsafe.Pointer(x), size)
 				}
-				// User arenas are handled on explicit free.
-				if raceenabled && !s.isUserArenaChunk {
+				if raceenabled {
 					racefree(unsafe.Pointer(x), size)
 				}
-				if msanenabled && !s.isUserArenaChunk {
+				if msanenabled {
 					msanfree(unsafe.Pointer(x), size)
 				}
-				if asanenabled && !s.isUserArenaChunk {
+				if asanenabled {
 					asanpoison(unsafe.Pointer(x), size)
 				}
-				if valgrindenabled && !s.isUserArenaChunk {
+				if valgrindenabled {
 					valgrindFree(unsafe.Pointer(x))
-				}
-				if zgcIdentityTracking() {
-					zgcIdentitySweepFree(x)
 				}
 			}
 			mbits.advance()
@@ -707,7 +684,6 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 		throw("sweep increased allocation count")
 	}
 
-	logosGenAge(s, nalloc)
 	s.allocCount = nalloc
 	s.freeindex = 0 // reset allocation index to start of span.
 	s.freeIndexForScan = 0
@@ -727,15 +703,6 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 
 	// Initialize alloc bits cache.
 	s.refillAllocCache(0)
-
-	if goexperiment.LogosGCMoving {
-		// Rebuild plane O from the post-swap freeindex OR allocBits
-		// composite and reset the bump/hole cursor. Re-cached partial
-		// spans re-enter mcaches with allocated lines covered, so hole
-		// reuse serves only genuinely free slots. Fully freed spans
-		// return to the heap below, where freeSpanLocked clears planes.
-		logosImmixRebuildOccupancy(s)
-	}
 
 	// The span must be in our exclusive ownership until we update sweepgen,
 	// check for potential races.
@@ -758,41 +725,6 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 	// At this point the mark bits are cleared and allocation ready
 	// to go so release the span.
 	atomic.Store(&s.sweepgen, sweepgen)
-
-	if s.isUserArenaChunk {
-		if preserve {
-			// This is a case that should never be handled by a sweeper that
-			// preserves the span for reuse.
-			throw("sweep: tried to preserve a user arena span")
-		}
-		if nalloc > 0 {
-			// There still exist pointers into the span or the span hasn't been
-			// freed yet. It's not ready to be reused. Put it back on the
-			// full swept list for the next cycle.
-			mheap_.central[spc].mcentral.fullSwept(sweepgen).push(s)
-			return false
-		}
-
-		// It's only at this point that the sweeper doesn't actually need to look
-		// at this arena anymore, so subtract from pagesInUse now.
-		mheap_.pagesInUse.Add(-s.npages)
-		s.state.set(mSpanDead)
-
-		// The arena is ready to be recycled. Remove it from the quarantine list
-		// and place it on the ready list. Don't add it back to any sweep lists.
-		systemstack(func() {
-			// It's the arena code's responsibility to get the chunk on the quarantine
-			// list by the time all references to the chunk are gone.
-			if s.list != &mheap_.userArena.quarantineList {
-				throw("user arena span is on the wrong list")
-			}
-			lock(&mheap_.lock)
-			mheap_.userArena.quarantineList.remove(s)
-			mheap_.userArena.readyList.insert(s)
-			unlock(&mheap_.lock)
-		})
-		return false
-	}
 
 	if spc.sizeclass() != 0 {
 		// Handle spans for small objects.
@@ -821,18 +753,7 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 				return true
 			}
 			// Return span back to the right mcentral list.
-			// For immix-managed classes, keep the reusable set to spans
-			// that actually freed an object this sweep (nfreed > 0). A
-			// merely partial immix span (nalloc < nelems, nfreed == 0)
-			// has only never-used tail free; admitting it to partialSwept
-			// lets cacheSpan pop it FIFO ahead of unswept dropped spans
-			// and serve virgin tail at a fresh block start instead of
-			// reusing a dropped slot. Hide immix tail for this cycle on
-			// fullSwept; next cycle it becomes fullUnswept and is still
-			// found via nextFreeIndex. Non-immix classes keep the
-			// classic partial/full split so the plain collector neither
-			// grows fresh spans nor sweeps twice.
-			if nalloc == s.nelems || logosGenClosed(s) || (nfreed == 0 && logosImmixSpanClass(spc)) {
+			if nalloc == s.nelems {
 				mheap_.central[spc].mcentral.fullSwept(sweepgen).push(s)
 			} else {
 				mheap_.central[spc].mcentral.partialSwept(sweepgen).push(s)

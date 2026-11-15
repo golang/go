@@ -1,0 +1,106 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+go build -o $WORK/check$GOEXE check.go
+cd m
+logos eject -o out
+exists out/main.go
+exec $WORK/check$GOEXE out/main.go
+stdout '^json no synchronization ok$'
+
+-- check.go --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/scanner"
+	"go/token"
+	"os"
+	"strconv"
+	"strings"
+)
+
+func main() {
+	data, err := os.ReadFile(os.Args[1])
+	if err != nil { panic(err) }
+	fs := token.NewFileSet()
+	f, err := parser.ParseFile(fs, os.Args[1], data, 0)
+	if err != nil { panic(err) }
+	forbidden := map[string]bool{"sync": true, "atomic": true, "mutex": true, "rwmutex": true, "lock": true, "unlock": true, "rlock": true, "runlock": true}
+	for _, imp := range f.Imports {
+		path, err := strconv.Unquote(imp.Path.Value)
+		if err != nil { panic(err) }
+		if path == "sync" || path == "sync/atomic" {
+			alias := path[strings.LastIndex(path, "/")+1:]
+			if imp.Name != nil { alias = imp.Name.Name }
+			forbidden[strings.ToLower(alias)] = true
+		}
+	}
+	locals := map[string]*ast.FuncDecl{}
+	var queue []*ast.FuncDecl
+	seen := map[*ast.FuncDecl]bool{}
+	roots := map[string]bool{}
+	for _, decl := range f.Decls {
+		fn, ok := decl.(*ast.FuncDecl)
+		if !ok { continue }
+		if fn.Recv == nil { locals[fn.Name.Name] = fn }
+		if fn.Name.Name == "MarshalJSON" && fn.Recv != nil {
+			r, ok := fn.Recv.List[0].Type.(*ast.Ident)
+			if ok && (r.Name == "Ordinary" || r.Name == "Stateful") {
+				roots[r.Name] = true
+				queue = append(queue, fn)
+			}
+		}
+	}
+	if len(roots) != 2 { panic("missing MarshalJSON roots") }
+	walk := false
+	for len(queue) != 0 {
+		fn := queue[0]
+		queue = queue[1:]
+		if seen[fn] { continue }
+		seen[fn] = true
+		body := data[fs.PositionFor(fn.Body.Pos(), false).Offset:fs.PositionFor(fn.Body.End(), false).Offset]
+		var scan scanner.Scanner
+		scan.Init(token.NewFileSet().AddFile("body", -1, len(body)), body, nil, 0)
+		for {
+			_, tok, lit := scan.Scan()
+			if tok == token.EOF { break }
+			if tok == token.CHAN || tok == token.ARROW || tok == token.GO || tok == token.SELECT || tok == token.IDENT && forbidden[strings.ToLower(lit)] {
+				panic("synchronization token: " + tok.String() + " " + lit)
+			}
+		}
+		ast.Inspect(fn.Body, func(n ast.Node) bool {
+			if s, ok := n.(*ast.SelectorExpr); ok && s.Sel.Name == "Walk" { walk = true }
+			if call, ok := n.(*ast.CallExpr); ok {
+				if id, ok := call.Fun.(*ast.Ident); ok && locals[id.Name] != nil { queue = append(queue, locals[id.Name]) }
+			}
+			return true
+		})
+	}
+	if !walk { panic("missing stateful Walk") }
+	fmt.Println("json no synchronization ok")
+}
+
+-- m/go.mod --
+module example.com/nosync
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+type Ordinary struct {
+	N int64 `json:"n"`
+}
+
+type Stateful struct {
+	Items []Ordinary `json:"items"`
+}
+
+func main() {}

@@ -42,12 +42,6 @@ var logosConstPeekWant = []string{
 	"DeclStmt",
 }
 
-// TestLogosConstPeek pins the keyword peek after `const` (SPEC Sec 2.5,
-// T-205): blanks, line comments, and block comments between `const` and
-// the keyword are skipped, a longer or non-ASCII identifier is no
-// keyword, and an unterminated comment claims nothing. A reader that
-// returns one byte per read forces every fill of the peek buffer, and
-// the result must match the whole-buffer parse.
 func TestLogosConstPeek(t *testing.T) {
 	readers := map[string]func(string) io.Reader{
 		"whole":    func(s string) io.Reader { return strings.NewReader(s) },

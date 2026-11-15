@@ -1,21 +1,18 @@
-# REDTEAM #71 (SPEC Sec 3.1, T-301.1): scan region dead pointers breaking
-# barrier reuse. The runtime MUST zero popped regions before reuse, so a
-# popped scan region MUST NOT hand stale pointers to the next allocation or
-# to the collector. The attack fills scan objects with live heap pointers,
-# pops the region with a restore, and re-checks the raw bytes; surviving
-# non-zero words would keep dead objects alive or feed the barrier garbage
-# on reuse. The direct unit proofs are TestLogosArenaScanLayoutAndZeroing
-# (a restore zeroes the popped scan memory and returns ScanUsed to zero)
-# and TestLogosArenaRestorePopsLinkedChunks (restoring past chunk links
-# pops the linked chunks and zeroes their scan memory before they can be
-# reused), both in src/runtime/logos_arena_test.go. Value-only checks pass
-# on an unzeroed region, so this script runs the byte-level zeroing gates
-# that fail on residue, not values.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 env GOEXPERIMENT=logosarena
-go test -count=1 -run 'TestLogosArenaScanLayoutAndZeroing|TestLogosArenaRestorePopsLinkedChunks' runtime
-go test -race -count=1 -run 'TestLogosArenaScanLayoutAndZeroing|TestLogosArenaRestorePopsLinkedChunks' runtime
+go test -v -count=1 -run 'TestLogosArenaScanLayoutAndZeroing|TestLogosArenaRestorePopsLinkedChunks' runtime
+stdout '--- PASS: TestLogosArenaScanLayoutAndZeroing'
+stdout '--- PASS: TestLogosArenaRestorePopsLinkedChunks'
+stdout '^ok\s+runtime'
+! stderr 'no tests to run'
+! stdout 'no tests to run'
+go test -race -v -count=1 -run 'TestLogosArenaScanLayoutAndZeroing|TestLogosArenaRestorePopsLinkedChunks' runtime
+stdout '--- PASS: TestLogosArenaScanLayoutAndZeroing'
+stdout '--- PASS: TestLogosArenaRestorePopsLinkedChunks'
+stdout '^ok\s+runtime'
+! stderr 'no tests to run'
+! stdout 'no tests to run'
 
 -- go.mod --
 module example.com/redteam71

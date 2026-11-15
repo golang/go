@@ -1,0 +1,59 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+! exists logos.toml
+
+# Burn1(n) costs 7 + 3n steps, so Burn1(33331) spends exactly the 100,000
+# default and Burn1(33332) spends 100,003.
+logos run ./at
+stdout '^at: 33332$'
+
+! logos build -o $WORK/over$GOEXE ./over
+stderr '\[comptime::ctfe_step_limit\]'
+
+-- go.mod --
+module example.com/steps
+
+go 1.27
+
+-- burn/burn.lgo --
+package burn
+
+const func Burn1(n int) int {
+	total := 0
+	for i := 0; i < n; i++ {
+		total++
+	}
+	total++
+	return total
+}
+
+-- at/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/steps/burn"
+)
+
+const At = burn.Burn1(33331)
+
+func main() {
+	fmt.Println("at:", At)
+}
+
+-- over/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/steps/burn"
+)
+
+const Over = burn.Burn1(33332)
+
+func main() {
+	fmt.Println("over:", Over)
+}

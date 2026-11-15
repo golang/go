@@ -1,0 +1,67 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+logos run .
+stdout '^name$'
+logos eject -o out
+! grep -E 'Logos_Get|Logos_Set' out/main.go
+cd out
+go build ./...
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+cd ../..
+cd bad
+! logos build ./...
+stderr 'missing method Logos_GetName'
+cd ..
+
+-- m/go.mod --
+module example.com/constmethod
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import "fmt"
+
+type Readable interface {
+	const Name() string
+}
+
+type Thing struct{}
+
+func (Thing) Name() string {
+	return "name"
+}
+
+func use(r Readable) string {
+	return r.Name()
+}
+
+func main() {
+	fmt.Println(use(Thing{}))
+}
+-- bad/go.mod --
+module example.com/bad
+
+go 1.27
+
+-- bad/main.lgo --
+package main
+
+type Prop interface {
+	const Name string
+}
+
+type RO interface {
+	const Name() string
+}
+
+func asProp(r RO) Prop { return r }
+
+func main() {}

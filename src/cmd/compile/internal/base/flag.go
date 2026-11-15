@@ -218,7 +218,6 @@ func ParseFlags() {
 	if Flag.Std && objabi.LookupPkgSpecial(Ctxt.Pkgpath).Runtime {
 		Flag.CompilingRuntime = true
 	}
-	logosCheckFlags()
 
 	Ctxt.Std = Flag.Std
 

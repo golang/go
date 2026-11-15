@@ -4,11 +4,6 @@ package p
 
 import "logos/sync"
 
-// Go twin of reentrant_withlock_deadlock.lgo: concurrency::reentrant_withlock_deadlock
-// (SPEC Sec 1.2, #167) on a Go package, where it runs at deny and the
-// callback is a function literal. Direct and transitive closure calls at
-// any depth fail; a different receiver passes.
-
 var global sync.Locked[int]
 
 var other sync.Locked[int]
@@ -43,7 +38,7 @@ func lockParam(l *sync.Locked[int]) {
 	l.WithLock(func(n *int) { *n++ })
 }
 
-func lockByValue(l sync.Locked[int]) { // ERROR "\[suspicious::copy_lock\]" "\[nogo::copylocks\]"
+func lockByValue(l sync.Locked[int]) {
 	l.WithLock(func(n *int) { *n++ })
 }
 
@@ -230,7 +225,7 @@ func passDifferentParameter() {
 func passByValueCopy() {
 	var l sync.Locked[int]
 	l.WithLock(func(n *int) {
-		lockByValue(l) // ERROR "\[suspicious::copy_lock\]" "\[nogo::copylocks\]"
+		lockByValue(l)
 	})
 }
 
@@ -500,5 +495,37 @@ func methodCallbackTransitive() {
 	var c, o Counter
 	c.mu.WithLock(func(n *int) {
 		c.grabOther(&o) // ERROR "reentrant_withlock_deadlock"
+	})
+}
+
+func relockGeneric[T any](x T) T {
+	global.WithLock(func(n *int) { *n++ })
+	return x
+}
+
+func lockOtherGeneric[T any](x T) T {
+	other.WithLock(func(n *int) { *n++ })
+	return x
+}
+
+func relockCallbackGeneric[T any](n *T) {
+	byName.WithLock(func(k *int) { // ERROR "\[concurrency::reentrant_withlock_deadlock\]"
+		*k++
+	})
+}
+
+func instantiatedCallbackPositive() {
+	byName.WithLock(relockCallbackGeneric[int])
+}
+
+func directInstantiatedCallRelock() {
+	global.WithLock(func(n *int) {
+		_ = relockGeneric[int](1) // ERROR "\[concurrency::reentrant_withlock_deadlock\]"
+	})
+}
+
+func passDirectInstantiatedCallOtherLock() {
+	global.WithLock(func(n *int) {
+		_ = lockOtherGeneric[int](1)
 	})
 }

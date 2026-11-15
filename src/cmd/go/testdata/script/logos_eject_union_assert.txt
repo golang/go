@@ -1,0 +1,57 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+logos run .
+stdout '^7 8 9 10 11 12 13 14$'
+cp stdout $WORK/native.txt
+logos eject -o out
+exists out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $WORK/native.txt
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
+exec $WORK/upstream$GOEXE
+cmp stdout $WORK/native.txt
+cd ..
+
+-- m/go.mod --
+module example.com/unionassert
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import "fmt"
+
+type Num interface{ int | string }
+
+type box struct{ v any }
+
+func (b box) get() any {
+	return b.v
+}
+
+func pick(v any) any {
+	return v
+}
+
+func main() {
+	x := any(7)
+	var a Num = x.(Num)
+	var b Num = pick(8).(Num)
+	bx := box{v: 9}
+	var c Num = bx.v.(Num)
+	var d Num = any(10).(Num)
+	var e Num = box{v: 11}.get().(Num)
+	s := []any{12}
+	var f Num = s[0].(Num)
+	var g Num = (any(13)).(Num)
+	var h Num = /* c */ pick( /* d */ 14).( /* e */ Num)
+	fmt.Println(a, b, c, d, e, f, g, h)
+}

@@ -5,13 +5,8 @@ package p
 import (
 	"context"
 	"logos/sync"
+	"sync/atomic"
 )
-
-// concurrency::concurrent_multiword_race (SPEC Sec 1.2, #13, #148): a
-// variable of multi-word type that a child captures and either side writes
-// after the spawn. A word counts one machine word: string 2, slice 3,
-// interface and union 2, complex 2, a struct or array holding more than one
-// word in all.
 
 type Union interface {
 	int | string
@@ -542,5 +537,706 @@ func passSequentialWrites(ctx context.Context) error {
 	}
 	s = "b"
 	println(s)
+	return nil
+}
+
+func segmentStringWrite(ctx context.Context, xs []int) error {
+	s := "a"
+	_, err := xs.group(ctx, limit = 4).map(x => { // ERROR "concurrent_multiword_race"
+		s = "b"
+		return x
+	})
+	println(s)
+	return err
+}
+
+func segmentInterfaceWrite(ctx context.Context, xs []int) error {
+	var v any = 1
+	_, err := xs.group(ctx, limit = 4).map(x => { // ERROR "concurrent_multiword_race"
+		v = "x"
+		return x
+	})
+	println(v != nil)
+	return err
+}
+
+func segmentSliceHeaderWrite(ctx context.Context, xs []int) error {
+	acc := []int{1}
+	_, err := xs.group(ctx, limit = 4).map(x => { // ERROR "concurrent_multiword_race"
+		acc = append(acc, x)
+		return x
+	})
+	println(len(acc))
+	return err
+}
+
+func segmentFilterWrite(ctx context.Context, xs []int) error {
+	s := "a"
+	_, err := xs.group(ctx, limit = 4).filter(x => { // ERROR "concurrent_multiword_race"
+		s = "b"
+		return x > 0
+	})
+	println(s)
+	return err
+}
+
+func segmentUnorderedWrite(ctx context.Context, xs []int) error {
+	s := "a"
+	_, err := xs.group(ctx, limit = 4).unordered().map(x => { // ERROR "concurrent_multiword_race"
+		s = "b"
+		return x
+	})
+	println(s)
+	return err
+}
+
+func segmentSecondLambdaWrite(ctx context.Context, xs []int) error {
+	s := "a"
+	_, err := xs.group(ctx, limit = 4).filter(x => x > 0).map(x => { // ERROR "concurrent_multiword_race"
+		s = "b"
+		return x
+	})
+	println(s)
+	return err
+}
+
+func segmentRangeWrite(ctx context.Context, xs []int) error {
+	s := "a"
+	for y := range xs.group(ctx, limit = 2).map(x => x + len(s)) { // ERROR "concurrent_multiword_race"
+		println(y)
+		s = "b"
+	}
+	return nil
+}
+
+func segmentSiblingLambdas(ctx context.Context, xs []int) error {
+	s := "a"
+	_, err := xs.group(ctx, limit = 4).map(x => { // ERROR "concurrent_multiword_race"
+		s = "b"
+		return x
+	}).map(x => {
+		println(s)
+		return x
+	})
+	return err
+}
+
+func segmentFuncLiteralWrite(ctx context.Context, xs []int) error {
+	s := "a"
+	_, err := xs.group(ctx, limit = 4).map(func(x int) int { // ERROR "concurrent_multiword_race"
+		s = "b"
+		return x
+	})
+	println(s)
+	return err
+}
+
+func segmentInsideGroupBlock(ctx context.Context, xs []int) error {
+	s := "a"
+	go group (ctx) {
+		_, err := xs.group(ctx, limit = 4).map(x => { // ERROR "concurrent_multiword_race"
+			s = "b"
+			return x
+		})
+		println(err == nil, s)
+	}
+	return nil
+}
+
+func passSegmentLocalWrite(ctx context.Context, xs []int) error {
+	_, err := xs.group(ctx, limit = 4).map(x => {
+		var local string
+		local = "b"
+		println(local)
+		return x
+	})
+	return err
+}
+
+func passSegmentWriteAfter(ctx context.Context, xs []int) error {
+	s := "a"
+	_, err := xs.group(ctx, limit = 4).map(x => {
+		println(s)
+		return x
+	})
+	s = "b"
+	println(s)
+	return err
+}
+
+func passSegmentWriteBefore(ctx context.Context, xs []int) error {
+	s := "a"
+	s = "b"
+	_, err := xs.group(ctx, limit = 4).map(x => {
+		println(s)
+		return x
+	})
+	return err
+}
+
+func passSegmentBothRead(ctx context.Context, xs []int) error {
+	s := "a"
+	_, err := xs.group(ctx, limit = 4).map(x => {
+		println(s)
+		return x
+	})
+	println(s)
+	return err
+}
+
+func passSegmentAtomic(ctx context.Context, xs []int) error {
+	var n atomic.Int64
+	_, err := xs.group(ctx, limit = 4).map(x => {
+		n.Add(1)
+		return x
+	})
+	println(n.Load())
+	return err
+}
+
+func passSegmentLocked(ctx context.Context, xs []int) error {
+	var l sync.Locked[string]
+	_, err := xs.group(ctx, limit = 4).map(x => {
+		l.WithLock(func(s *string) { *s = "a" })
+		return x
+	})
+	l.WithLock(func(s *string) { *s = "b" })
+	return err
+}
+
+func passSegmentConstView(ctx context.Context, xs []int, in []int) error {
+	var v const []int = in
+	_, err := xs.group(ctx, limit = 4).map(x => {
+		println(len(v))
+		return x
+	})
+	return err
+}
+
+func passOrdinaryChainWrite(xs []int) int {
+	s := "a"
+	ys := xs.map(x => {
+		s = "b"
+		return x
+	})
+	println(s)
+	return len(ys)
+}
+
+type chainHost struct{}
+
+func (chainHost) group(ctx context.Context, n int) []int { return nil }
+
+func passMethodNamedGroup(ctx context.Context, h chainHost) int {
+	s := "a"
+	ys := h.group(ctx, 1).map(x => {
+		s = "b"
+		return x
+	})
+	println(s)
+	return len(ys)
+}
+
+func thunkGoChild(ctx context.Context) error {
+	var s string
+	t := func() error {
+		s = "a"
+		return nil
+	}
+	go group (ctx) {
+		go t() // ERROR "\[concurrency::concurrent_multiword_race\]"
+	}
+	println(s)
+	return nil
+}
+
+func thunkRangedGoChild(ctx context.Context) error {
+	var s string
+	tasks := []func() error{
+		func() error {
+			s = "a"
+			return nil
+		},
+	}
+	go group (ctx) {
+		for _, t := range tasks {
+			go t() // ERROR "\[concurrency::concurrent_multiword_race\]"
+		}
+	}
+	println(s)
+	return nil
+}
+
+func thunkNamedInSlice(ctx context.Context) error {
+	var s string
+	first := func() error {
+		s = "a"
+		return nil
+	}
+	tasks := []func() error{first}
+	go group (ctx) {
+		for _, t := range tasks {
+			go t() // ERROR "\[concurrency::concurrent_multiword_race\]"
+		}
+	}
+	println(s)
+	return nil
+}
+
+func thunkCalledInChildBlock(ctx context.Context) error {
+	var s string
+	t := func() error {
+		s = "a"
+		return nil
+	}
+	go group (ctx) {
+		go { // ERROR "\[concurrency::concurrent_multiword_race\]"
+			t()?
+		}
+	}
+	println(s)
+	return nil
+}
+
+func thunkSegment(ctx context.Context) error {
+	var s string
+	tasks := []func() (int, error){
+		func() (int, error) {
+			s = "a"
+			return 1, nil
+		},
+	}
+	_, err := tasks.group(ctx, limit = 8).map(t => t()?) // ERROR "\[concurrency::concurrent_multiword_race\]"
+	println(s)
+	return err
+}
+
+func thunkSegmentUnordered(ctx context.Context) error {
+	var s string
+	tasks := []func() (int, error){
+		func() (int, error) {
+			s = "a"
+			return 1, nil
+		},
+	}
+	_, err := tasks.group(ctx, limit = 8).unordered().map(t => t()?) // ERROR "\[concurrency::concurrent_multiword_race\]"
+	println(s)
+	return err
+}
+
+func passThunkNotVisible(ctx context.Context, t func() error) error {
+	go group (ctx) {
+		go t()
+	}
+	return nil
+}
+
+func passStageSourceNotVisible(ctx context.Context, tasks []func() (int, error)) error {
+	_, err := tasks.group(ctx, limit = 8).map(t => t()?)
+	return err
+}
+
+func passThunkWritesOneWord(ctx context.Context) error {
+	n := 0
+	t := func() error {
+		n = 1
+		return nil
+	}
+	go group (ctx) {
+		go t()
+	}
+	println(n)
+	return nil
+}
+
+func passThunkCalledInPlace(ctx context.Context) error {
+	var s string
+	t := func() error {
+		s = "a"
+		return nil
+	}
+	go group (ctx) {
+		go {
+			println("x")
+		}
+	}
+	t()?
+	println(s)
+	return nil
+}
+
+func passSegmentIgnoresThunk(ctx context.Context) error {
+	var s string
+	tasks := []func() (int, error){
+		func() (int, error) {
+			s = "a"
+			return 1, nil
+		},
+	}
+	_, err := tasks.group(ctx, limit = 8).map(t => 1)
+	println(s)
+	return err
+}
+
+func loopWriteBeforeChild(ctx context.Context, n int) error {
+	var s string
+	go group (ctx) {
+		for i := 0; i < n; i++ {
+			s = "a"
+			go { // ERROR "\[concurrency::concurrent_multiword_race\]"
+				println(s)
+			}
+		}
+	}
+	return nil
+}
+
+func loopRangeAssignBeforeChild(ctx context.Context, xs []string) error {
+	var s string
+	go group (ctx) {
+		for _, s = range xs {
+			go { // ERROR "\[concurrency::concurrent_multiword_race\]"
+				println(s)
+			}
+		}
+	}
+	return nil
+}
+
+func passLoopLocalVariable(ctx context.Context, n int) error {
+	go group (ctx) {
+		for i := 0; i < n; i++ {
+			s := "a"
+			s = "b"
+			go {
+				println(s)
+			}
+		}
+	}
+	return nil
+}
+
+func passGroupInsideLoop(ctx context.Context, n int) error {
+	var s string
+	for i := 0; i < n; i++ {
+		s = "a"
+		go group (ctx) {
+			go {
+				println(s)
+			}
+		}
+	}
+	return nil
+}
+
+func passSegmentInsideLoop(ctx context.Context, xs []int, n int) error {
+	var s string
+	for i := 0; i < n; i++ {
+		s = "a"
+		_, err := xs.group(ctx, limit = 2).map(x => len(s) + x)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func thunkWrapperGoChild(ctx context.Context) error {
+	var s string
+	a := func() error {
+		s = "a"
+		return nil
+	}
+	b := func() error {
+		return a()
+	}
+	go group (ctx) {
+		go b() // ERROR "\[concurrency::concurrent_multiword_race\]"
+	}
+	println(s)
+	return nil
+}
+
+func thunkWrapperOfWrapperGoChild(ctx context.Context) error {
+	var s string
+	a := func() error {
+		s = "a"
+		return nil
+	}
+	b := func() error {
+		return a()
+	}
+	c := func() error {
+		return b()
+	}
+	go group (ctx) {
+		go c() // ERROR "\[concurrency::concurrent_multiword_race\]"
+	}
+	println(s)
+	return nil
+}
+
+func thunkWrapperCalledInChildBlock(ctx context.Context) error {
+	var s string
+	a := func() error {
+		s = "a"
+		return nil
+	}
+	b := func() error {
+		return a()
+	}
+	go group (ctx) {
+		go { // ERROR "\[concurrency::concurrent_multiword_race\]"
+			b()?
+		}
+	}
+	println(s)
+	return nil
+}
+
+func thunkWrapperSegment(ctx context.Context) error {
+	var s string
+	w := func() (int, error) {
+		s = "a"
+		return 1, nil
+	}
+	tasks := []func() (int, error){
+		func() (int, error) {
+			return w()
+		},
+	}
+	_, err := tasks.group(ctx, limit = 8).map(t => t()?) // ERROR "\[concurrency::concurrent_multiword_race\]"
+	println(s)
+	return err
+}
+
+func thunkMutualCycleGoChild(ctx context.Context) error {
+	var s string
+	var a, b func() error
+	a = func() error {
+		s = "a"
+		return b()
+	}
+	b = func() error {
+		return a()
+	}
+	go group (ctx) {
+		go b() // ERROR "\[concurrency::concurrent_multiword_race\]"
+	}
+	println(s)
+	return nil
+}
+
+func passWrapperNeverReachesWriter(ctx context.Context) error {
+	var s string
+	a := func() error {
+		s = "a"
+		return nil
+	}
+	b := func() error {
+		return nil
+	}
+	_ = a
+	go group (ctx) {
+		go b()
+	}
+	println(s)
+	return nil
+}
+
+func passWrapperWritesOneWord(ctx context.Context) error {
+	n := 0
+	a := func() error {
+		n = 1
+		return nil
+	}
+	b := func() error {
+		return a()
+	}
+	go group (ctx) {
+		go b()
+	}
+	println(n)
+	return nil
+}
+
+func passWrapperCallsOpaque(ctx context.Context, f func() error) error {
+	var s string
+	b := func() error {
+		return f()
+	}
+	go group (ctx) {
+		go b()
+	}
+	println(s)
+	return nil
+}
+
+func passGroupArgumentEvaluatedByCaller(ctx context.Context) error {
+	var s string
+	t := func(x string) error {
+		println(x)
+		return nil
+	}
+	go group (ctx) {
+		go t(func() string {
+			s = "copy"
+			return s
+		}())
+	}
+	return nil
+}
+
+func passGroupLiteralArgumentEvaluatedByCaller(ctx context.Context) error {
+	var s string
+	go group (ctx) {
+		go func(x string) {
+			println(x)
+		}(func() string {
+			s = "copy"
+			return s
+		}())
+	}
+	return nil
+}
+
+func passGroupVariableArgumentCopied(ctx context.Context) error {
+	var s string
+	t := func(x string) error {
+		println(x)
+		return nil
+	}
+	go group (ctx) {
+		go t(s)
+		s = "b"
+	}
+	return nil
+}
+
+func thunkGroupStoredTargetCapture(ctx context.Context) error {
+	var s string
+	t := func(x string) error {
+		println(s, x)
+		return nil
+	}
+	go group (ctx) {
+		go t("a") // ERROR "\[concurrency::concurrent_multiword_race\]"
+		s = "b"
+	}
+	return nil
+}
+
+func thunkGroupStoredTargetWithArgument(ctx context.Context) error {
+	var s string
+	t := func(x string) error {
+		s = x
+		return nil
+	}
+	go group (ctx) {
+		go t(func() string { // ERROR "\[concurrency::concurrent_multiword_race\]"
+			return "copy"
+		}())
+	}
+	println(s)
+	return nil
+}
+
+func loopConditionWriteBeforeChild(ctx context.Context, n int) error {
+	var s string
+	go group (ctx) {
+		for i := 0; func() bool {
+			s = "a"
+			return i < n
+		}(); i++ {
+			go { // ERROR "\[concurrency::concurrent_multiword_race\]"
+				println(s)
+			}
+		}
+	}
+	return nil
+}
+
+func loopPostWriteBeforeChild(ctx context.Context, n int) error {
+	var s string
+	go group (ctx) {
+		for i := 0; i < n; i, s = i+1, "a" {
+			go { // ERROR "\[concurrency::concurrent_multiword_race\]"
+				println(s)
+			}
+		}
+	}
+	return nil
+}
+
+func loopConditionWriteBeforeThunk(ctx context.Context, n int) error {
+	var s string
+	t := func() error {
+		println(s)
+		return nil
+	}
+	go group (ctx) {
+		for i := 0; func() bool {
+			s = "a"
+			return i < n
+		}(); i++ {
+			go t() // ERROR "\[concurrency::concurrent_multiword_race\]"
+		}
+	}
+	return nil
+}
+
+func passLoopInitWrite(ctx context.Context, n int) error {
+	var s string
+	go group (ctx) {
+		for s = "a"; n > 0; n-- {
+			go {
+				println(s)
+			}
+		}
+	}
+	return nil
+}
+
+func passLoopInitDeclaredVariable(ctx context.Context, n int) error {
+	go group (ctx) {
+		for s := "a"; n > 0; n-- {
+			go {
+				println(s)
+			}
+		}
+	}
+	return nil
+}
+
+func passLoopConditionWritesOneWord(ctx context.Context, n int) error {
+	count := 0
+	go group (ctx) {
+		for i := 0; func() bool {
+			count = i
+			return i < n
+		}(); i++ {
+			go {
+				println(count)
+			}
+		}
+	}
+	return nil
+}
+
+func passLoopConditionWriteAfterGroup(ctx context.Context, n int) error {
+	var s string
+	go group (ctx) {
+		for i := 0; i < n; i++ {
+			go {
+				println(s)
+			}
+		}
+	}
+	for i := 0; func() bool {
+		s = "a"
+		return i < n
+	}(); i++ {
+		println(i)
+	}
 	return nil
 }

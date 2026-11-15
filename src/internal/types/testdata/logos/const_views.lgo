@@ -9,13 +9,6 @@ import (
 	"sort"
 )
 
-// M5-S1 const views (SPEC Sec 2.1, T-201): `const T` qualifier parsing,
-// transitive const reads, and one [correctness::const_view_mutation]
-// per forbidden operation, plus [correctness::const_view_escape] for
-// reference-carrying escapes. Reference-free copies, plain-to-const
-// assignment, const-to-const assignment, value-receiver and const
-// pointer-receiver calls, len/cap, and in-range slices are valid.
-
 type CVItem struct {
 	Name string
 	Tags []string
@@ -27,7 +20,6 @@ func (p *CVItem) Rename(n string) { p.Name = n }
 
 func (r const *CVItem) Peek() string { return r.Name }
 
-// Declaration positions accept const views.
 var cvInts const []int = []int{1, 2, 3}
 
 var cvInt const int = 42
@@ -60,7 +52,6 @@ type CVHolder struct {
 	F const []int
 }
 
-// nil converts into a const view with a nil-capable element only.
 func cvNilRestrict() {
 	var cn const []int = nil
 	var ci const int = nil /* ERROR "cannot use nil as const int" */
@@ -72,69 +63,56 @@ func cvBadElem() {
 	_ = bad
 }
 
-// Index assignment through a const view.
 func cvIndexAssign(xs const []int) {
-	xs /* ERROR "[correctness::const_view_mutation] cannot assign index through const view" */ [0] = 1
+	xs /* ERRORx "\\[correctness::const_view_mutation\\] cannot assign index through const view xs" */ [0] = 1
 }
 
-// Field assignment through const *T.
 func cvFieldAssign(cp const *CVItem) {
-	cp /* ERROR "[correctness::const_view_mutation] cannot assign field through const view" */ .Name = "x"
+	cp /* ERROR "[correctness::const_view_mutation] cannot assign field through const view cp" */ .Name = "x"
 }
 
-// append, copy into, delete, clear.
 func cvBuiltins(xs const []int, cm const map[string]int) {
-	_ = append(xs /* ERROR "[correctness::const_view_mutation] cannot append through const view" */, 1)
+	_ = append(xs /* ERROR "[correctness::const_view_mutation] cannot append through const view xs" */, 1)
 	dst := []int{0, 0}
-	_ = copy(xs /* ERROR "[correctness::const_view_mutation] cannot copy through const view" */, dst)
+	_ = copy(xs /* ERROR "[correctness::const_view_mutation] cannot copy through const view xs" */, dst)
 	_ = dst
-	delete(cm /* ERROR "[correctness::const_view_mutation] cannot delete through const view" */, "a")
-	clear(cm /* ERROR "[correctness::const_view_mutation] cannot clear through const view" */)
+	delete(cm /* ERROR "[correctness::const_view_mutation] cannot delete through const view cm" */, "a")
+	clear(cm /* ERROR "[correctness::const_view_mutation] cannot clear through const view cm" */)
 }
 
-// Slice bounds: cap(b) and constant bounds past an array length fail;
-// a non-constant bound is a recorded runtime check; other constants pass.
 func cvSliceExpr(xs const []int, n int) {
-	_ = xs /* ERROR "[correctness::const_view_mutation] cannot slice through const view" */ [:cap(xs)]
+	_ = xs /* ERROR "[correctness::const_view_mutation] cannot slice through const view xs" */ [:cap(xs)]
 	_ = xs[:n]
 	_ = xs[1:2]
 }
 
 func cvArrayBound(a const [4]int) {
-	_ = a /* ERROR "[correctness::const_view_mutation] cannot slice through const view" */ [:cap(a)]
-	_ = a /* ERROR "[correctness::const_view_mutation] cannot slice through const view" */ [:8 /* ERROR "out of bounds" */]
+	_ = a /* ERROR "[correctness::const_view_mutation] cannot slice through const view a" */ [:cap(a)]
+	_ = a /* ERROR "[correctness::const_view_mutation] cannot slice through const view a" */ [:8 /* ERROR "out of bounds" */]
 	_ = a[:2]
 }
 
-// Method calls: a pointer receiver lacking const fails; const pointer
-// and value receivers are allowed.
 func cvMethods(cp const *CVItem, v CVItem) {
-	cp.Rename /* ERROR "[correctness::const_view_mutation] cannot call Rename through const view" */ ("x")
+	cp.Rename /* ERROR "[correctness::const_view_mutation] cannot call Rename through const view cp" */ ("x")
 	_ = cp.Peek()
 	_ = v.Label()
 	_ = cp.Label()
 }
 
-// Passing to a non-const .lgo parameter fails.
 func cvTake(xs []int) {
 	_ = xs
 }
 
 func cvPass(xs const []int) {
-	cvTake(xs /* ERROR "[correctness::const_view_mutation] cannot pass argument through const view" */)
+	cvTake(xs /* ERROR "[correctness::const_view_mutation] cannot pass argument through const view xs" */)
 }
 
-// Passing to a standard-library parameter fails: without a
-// ParamMutated=0 fact the checker refuses the call (a fact-0 parameter
-// will read as a const parameter once the const overlay reader lands).
-// A reference-free copy passes either way.
 func cvPassStd(xs const []int, ci const int) {
-	sort.Ints(xs /* ERROR "[correctness::const_view_mutation] cannot pass argument through const view" */)
-	_ = fmt.Sprint(xs /* ERROR "[correctness::const_view_mutation] cannot pass argument through const view" */)
+	sort.Ints(xs /* ERROR "[correctness::const_view_mutation] cannot pass const view xs to parameter x of sort.Ints" */)
+	_ = fmt.Sprint(xs /* ERROR "[correctness::const_view_mutation] cannot pass const view xs to parameter a of fmt.Sprint" */)
 	_ = fmt.Sprint(ci)
 }
 
-// Reference-carrying assignment out of a const view escapes.
 func cvEscape(xs const []int) {
 	var plain []int = xs /* ERROR "[correctness::const_view_escape]" */
 	_ = plain
@@ -145,20 +123,16 @@ func cvEscapePtr(ps const []*CVItem) {
 	_ = plain
 }
 
-// Lambda (function literal) parameters declared const are const.
 var cvLambda = func(xs const []int) {
 	xs /* ERROR "[correctness::const_view_mutation] cannot assign index through const view" */ [0] = 9
 }
 
-// Range over a const slice yields const elements.
 func cvRange(css const [][]int) {
 	for _, row := range css {
 		row /* ERROR "[correctness::const_view_mutation] cannot assign index through const view" */ [0] = 1
 	}
 }
 
-// Reads through const views stay usable: reference-free elements copy
-// out, len/cap read, and const receivers observe.
 func cvReads(cs const []int, cp const *CVItem) int {
 	total := 0
 	for _, v := range cs {
@@ -172,9 +146,6 @@ func cvReads(cs const []int, cp const *CVItem) int {
 	return total
 }
 
-// Ordinary reslicing on plain slices stays allowed (#16): only const
-// views enforce the len bound, so s = s[:0] and b = b[:cap(b)] on
-// non-const slices carry no diagnostic.
 func cvPlainReslice(s []int, b []byte) {
 	s = s[:0]
 	b = b[:cap(b)]

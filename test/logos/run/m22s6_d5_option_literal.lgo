@@ -2,10 +2,21 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
-// M22-S6 defect D5 (SPEC T-202): `T` and `nil` MUST be assignable to `T?`,
-// including for an option-typed field of a composite literal.
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 type P struct {
 	O string?
@@ -13,6 +24,10 @@ type P struct {
 
 func main() {
 	q := P{O: "c"}
+	check("coalesce-selects-present-literal", (q.O ?? "none") == "c", q.O ?? "none", "c")
 	r := P{O: nil}
-	fmt.Println(q.O ?? "none", r.O ?? "none")
+	check("coalesce-selects-fallback-for-nil", (r.O ?? "none") == "none", r.O ?? "none", "none")
+	if failed {
+		os.Exit(1)
+	}
 }

@@ -1,0 +1,10 @@
+package ok
+
+/*
+#include <stdint.h>
+//logos:cgo_fastcall ladd_ok
+int ladd_ok(int a, int b) { return a + b; }
+*/
+import "C"
+
+func Add(a, b int32) int32 { return int32(C.ladd_ok(C.int(a), C.int(b))) }

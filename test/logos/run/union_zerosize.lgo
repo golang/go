@@ -1,0 +1,53 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+	"unsafe"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type Empty struct{}
+type Z0 [0]int
+
+type ZU interface {
+	Empty | Z0
+}
+
+func main() {
+	var ai any = Empty{}
+	var zu ZU = Empty{}
+	check("zero-size-union-shares-interface-layout", unsafe.Sizeof(zu) == unsafe.Sizeof(ai), unsafe.Sizeof(zu), unsafe.Sizeof(ai))
+	zw := *(*unsafe.Pointer)(unsafe.Pointer(&zu))
+	aw := *(*unsafe.Pointer)(unsafe.Pointer(&ai))
+	check("zero-size-word-matches-interface-word", zw != nil && zw == aw, zw == aw, true)
+	var zu2 ZU = Empty{}
+	check("zero-size-members-equal", zu == zu2, zu == zu2, true)
+	var fromAny ZU = any(Empty{}).(ZU)
+	check("zero-size-member-equals-roundtrip", zu == fromAny, zu == fromAny, true)
+	check("zero-size-union-formats-like-interface", fmt.Sprintf("%v", zu) == fmt.Sprintf("%v", ai), fmt.Sprintf("%v", zu), "{}")
+	_, ok := any(zu).(Empty)
+	check("zero-size-asserts-back-to-member", ok, ok, true)
+	var a0 any = Z0{}
+	var z0 ZU = Z0{}
+	z0w := *(*unsafe.Pointer)(unsafe.Pointer(&z0))
+	a0w := *(*unsafe.Pointer)(unsafe.Pointer(&a0))
+	check("array-zero-size-word-matches-interface-word", z0w != nil && z0w == a0w, z0w == a0w, true)
+	check("array-zero-size-members-equal", z0 == ZU(Z0{}), z0 == ZU(Z0{}), true)
+	check("distinct-zero-size-types-differ", zu != z0, zu == z0, false)
+	if failed {
+		os.Exit(1)
+	}
+}

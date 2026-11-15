@@ -58,9 +58,6 @@ func startCheckmarks() {
 	for _, ai := range mheap_.heapArenas {
 		clearCheckmarks(ai)
 	}
-	for _, ai := range mheap_.userArenaArenas {
-		clearCheckmarks(ai)
-	}
 
 	// Enable checkmarking.
 	useCheckmark = true

@@ -1,0 +1,128 @@
+// run
+
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+)
+
+var errLoad = errors.New("load")
+
+var last int
+
+var failed bool
+
+func load(v int, fail bool) (int, error) {
+	if fail {
+		return 0, errLoad
+	}
+	return v, nil
+}
+
+func step(n int) (int, error) { return n + 1, nil }
+
+func record(n int) error {
+	last = n
+	return nil
+}
+
+func line(f func(int, bool) (int, error), fail bool) string {
+	last = 0
+	got, err := f(7, fail)
+	if err != nil {
+		return fmt.Sprintln(0, err, last)
+	}
+	return fmt.Sprintln(got, err, last)
+}
+
+func run(name string, f func(int, bool) (int, error), want string) {
+	got := line(f, false) + line(f, true)
+	if got != want {
+		failed = true
+		fmt.Printf("FAIL %s: got %q want %q\n", name, got, want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func forAll(v int, fail bool) (int, error) {
+	total := 0
+	for n := load(v, fail)?; n < 10; n++ {
+		total += n
+	}
+	return total, nil
+}
+
+func forNoPost(v int, fail bool) (int, error) {
+	total := 0
+	for n := load(v, fail)?; n < 10; {
+		total += n
+		n++
+	}
+	return total, nil
+}
+
+func forNoCond(v int, fail bool) (int, error) {
+	total := 0
+	for n := load(v, fail)?; ; n++ {
+		if n > 9 {
+			break
+		}
+		total += n
+	}
+	return total, nil
+}
+
+func forInitOnly(v int, fail bool) (int, error) {
+	total := 0
+	for n := load(v, fail)?; ; {
+		total += n
+		break
+	}
+	return total, nil
+}
+
+func forStatement(v int, fail bool) (int, error) {
+	total := 0
+	for record(v)?; last < 9; last++ {
+		total++
+	}
+	return total, nil
+}
+
+func forTryPost(v int, fail bool) (int, error) {
+	total := 0
+	for n := load(v, fail)?; n < 10; n = step(n)? {
+		total += n
+	}
+	return total, nil
+}
+
+func forNested(v int, fail bool) (int, error) {
+	total := 0
+	for i := 0; i < 2; i++ {
+		for n := load(v, fail)?; n < 9; n++ {
+			total += n + i
+		}
+	}
+	return total, nil
+}
+
+func main() {
+	run("for-all", forAll, "24 <nil> 0\n0 load 0\n")
+	run("for-no-post", forNoPost, "24 <nil> 0\n0 load 0\n")
+	run("for-no-cond", forNoCond, "24 <nil> 0\n0 load 0\n")
+	run("for-init-only", forInitOnly, "7 <nil> 0\n0 load 0\n")
+	run("for-statement", forStatement, "2 <nil> 9\n2 <nil> 9\n")
+	run("for-try-post", forTryPost, "24 <nil> 0\n0 load 0\n")
+	run("for-nested", forNested, "32 <nil> 0\n0 load 0\n")
+	if failed {
+		os.Exit(1)
+	}
+}

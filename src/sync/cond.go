@@ -5,7 +5,6 @@
 package sync
 
 import (
-	"internal/goexperiment"
 	"sync/atomic"
 	"unsafe"
 )
@@ -100,9 +99,6 @@ func (c *Cond) Broadcast() {
 type copyChecker uintptr
 
 func (c *copyChecker) check() {
-	if goexperiment.LogosGCMoving && *c == 0 {
-		runtime_logosPinObject(unsafe.Pointer(c))
-	}
 	// Check if c has been copied in three steps:
 	// 1. The first comparison is the fast-path. If c has been initialized and not copied, this will return immediately. Otherwise, c is either not initialized, or has been copied.
 	// 2. Ensure c is initialized. If the CAS succeeds, we're done. If it fails, c was either initialized concurrently and we simply lost the race, or c has been copied.

@@ -1,0 +1,44 @@
+// run
+
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+)
+
+var bad bool
+
+func check(tag string, cond bool, got, want string) {
+	if !cond {
+		fmt.Println("FAIL "+tag+": got "+got+" want "+want)
+		bad = true
+		return
+	}
+	fmt.Println("ok", tag)
+}
+
+func group(n int) error {
+	if n < 0 {
+		return errors.New("negative")
+	}
+	return nil
+}
+
+func runPlain(ctx context.Context, input int) error {
+	go group (ctx) {
+		go group(input)
+	}
+	return nil
+}
+
+func main() {
+	ctx := context.Background()
+	err := runPlain(ctx, -1)
+	check("group-plain-call-error-propagates", err != nil && err.Error() == "negative", fmt.Sprint(err), "negative")
+	if bad {
+		os.Exit(1)
+	}
+}

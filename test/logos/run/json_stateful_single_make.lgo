@@ -1,0 +1,119 @@
+// run
+
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+	"fmt"
+	"strings"
+	"testing"
+)
+
+type Child struct {
+	N int `json:"n"`
+}
+
+type Stateful struct {
+	A string `json:"a"`
+	B string `json:"b"`
+	C string `json:"c"`
+	Child Child `json:"child"`
+}
+
+type Ordinary struct {
+	A string `json:"a"`
+	B string `json:"b"`
+	C string `json:"c"`
+}
+
+var mutationPointer = new(string)
+var mutationSlice = []string{""}
+
+type Mutator int
+
+func (m Mutator) MarshalJSON() ([]byte, error) {
+	*mutationPointer = "changed by MarshalJSON"
+	mutationSlice[0] = "changed by MarshalJSON"
+	return []byte("7"), nil
+}
+
+type ZeroMutator int
+
+func (m ZeroMutator) IsZero() bool {
+	*mutationPointer = "changed by IsZero"
+	mutationSlice[0] = "changed by IsZero"
+	return true
+}
+
+type CallbackStateful struct {
+	P *string `json:"p"`
+	S []string `json:"s"`
+	Absent string `json:"absent,omitempty"`
+	M Mutator `json:"m"`
+	Child Child `json:"child"`
+}
+
+type ZeroCallbackStateful struct {
+	P *string `json:"p,omitempty"`
+	S []string `json:"s,omitempty"`
+	Z ZeroMutator `json:"z,omitzero"`
+	Child Child `json:"child"`
+}
+
+func checkCallbackOrder() {
+	p := "before"
+	s := []string{"before"}
+	mutationPointer = &p
+	mutationSlice = s
+	v := CallbackStateful{P: &p, S: s}
+	if string(must(v.MarshalJSON())) != `{"p":"before","s":["before"],"m":7,"child":{"n":0}}` {
+		panic("stateful MarshalJSON callback order")
+	}
+	if p != "changed by MarshalJSON" || s[0] != "changed by MarshalJSON" {
+		panic("MarshalJSON callback did not mutate")
+	}
+	p = "before"
+	s[0] = "before"
+	z := ZeroCallbackStateful{P: &p, S: s}
+	if string(must(z.MarshalJSON())) != `{"p":"before","s":["before"],"child":{"n":0}}` {
+		panic("stateful IsZero callback order")
+	}
+	if p != "changed by IsZero" || s[0] != "changed by IsZero" {
+		panic("IsZero callback did not mutate")
+	}
+}
+
+var sink []byte
+
+func must(b []byte, err error) []byte {
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
+
+func main() {
+	checkCallbackOrder()
+	for _, n := range []int{1, 1024, 16384} {
+		s := strings.Repeat("x", n)
+		v := Stateful{A: s, B: s, C: s}
+		o := Ordinary{A: s, B: s, C: s}
+		stateful := testing.AllocsPerRun(100, func() {
+			sink = must(v.MarshalJSON())
+		})
+		if string(sink) != `{"a":"`+s+`","b":"`+s+`","c":"`+s+`","child":{"n":0}}` {
+			panic("T-Sec10 bytes")
+		}
+		ordinary := testing.AllocsPerRun(100, func() {
+			sink = must(o.MarshalJSON())
+		})
+		fmt.Printf("n=%d stateful=%g ordinary=%g\n", n, stateful, ordinary)
+		if stateful != 6 || ordinary != 1 {
+			panic("T-Sec10 single make")
+		}
+		fmt.Println("ok stateful-single-make", n)
+	}
+}

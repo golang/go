@@ -2,33 +2,14 @@
 
 package main
 
-// M18 pointer-slice attack (SPEC Sec 8.3): a runtime-sized nonescaping
-// []*Node local large enough to exceed the stack buffer must allocate its
-// backing in the arena scan region, keeping heap referents alive across
-// runtime.GC(). Escape LogosArenaLocalShape allows any elem with Size>0
-// and Align<=8 (pointers included), and runtime
-// TestLogosArenaPointerSliceScanRetention proves scan-region pointer
-// slices retain referents via direct LogosArenaAllocScan. Walk
-// walkLogosArenaMake still refuses HasPointers, so this fixture is
-// intentionally RED until that refusal lifts: alloc-ptr/alloc-mixed read
-// 1 on heap today, 0 when placed. Mixed structs with pointer fields ride
-// the same shape gate, so []Mixed is covered too. GC stability uses only
-// runtime.GC + KeepAlive (viewas.lgo pattern): no finalizer/cleanup, no
-// sleep. Alloc-measurement Nodes are preallocated outside every measured
-// closure, so AllocsPerRun counts only the slice backing; each GC helper
-// builds its own heap referents so the tested slice is their sole root.
-// Globals/channels are the
-// heap-escape controls and stay 1. No nil is ever stored into []*Node:
-// len-0/cap-n makes avoid nonnil zero values, then every slot is
-// appended with a live pointer before any read.
 
 import (
 	"context"
 	"fmt"
+	"os"
 	"runtime"
 	"testing"
 )
-
 var ptrN = 1024
 
 var sinkInt int
@@ -170,6 +151,16 @@ func ptrChanSum(ctx context.Context, pool []*Node, n int) int {
 }
 
 func main() {
+	failed := false
+	eq := func(name string, got, want int) {
+		if got != want {
+			fmt.Printf("FAIL %s: got %d want %d\n", name, got, want)
+			failed = true
+			return
+		}
+		fmt.Printf("ok %s\n", name)
+	}
+	trivSum := func(n int) int { return (n - 1) * n / 2 }
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	_ = ctx.Done()
@@ -177,18 +168,41 @@ func main() {
 	for i := 0; i < ptrN; i++ {
 		pool = append(pool, &Node{v: i})
 	}
-	fmt.Println("ptr-sum:", ptrLocalSum(pool, ptrN))
-	fmt.Println("mixed-sum:", mixedLocalSum(pool, ptrN))
+	eq("local-pointer-slice-sum-matches-series", ptrLocalSum(pool, ptrN), trivSum(ptrN))
+	eq("local-mixed-slice-sum-matches-doubled-series", mixedLocalSum(pool, ptrN), 2*trivSum(ptrN))
 	gSum, gIdent := ptrGCSum(ptrN)
-	fmt.Println("ptr-gc-sum:", gSum, gIdent)
+	eq("gc-preserves-pointer-slice-sum", gSum, trivSum(ptrN))
+	if !gIdent {
+		fmt.Println("FAIL gc-preserves-pointer-identity: got false want true")
+		failed = true
+	} else {
+		fmt.Println("ok gc-preserves-pointer-identity")
+	}
 	mgSum, mgIdent := mixedGCSum(ptrN)
-	fmt.Println("mixed-gc-sum:", mgSum, mgIdent)
-	fmt.Println("leak-sum:", ptrLeakSum(pool, ptrN))
-	fmt.Println("leak-global-sum:", ptrSliceSum(globalPtrSink))
-	fmt.Println("chan-sum:", ptrChanSum(ctx, pool, ptrN))
-	fmt.Println("alloc-ptr:", testing.AllocsPerRun(100, func() { sinkInt = ptrLocalSum(pool, ptrN) }))
-	fmt.Println("alloc-mixed:", testing.AllocsPerRun(100, func() { sinkInt = mixedLocalSum(pool, ptrN) }))
-	fmt.Println("alloc-leak:", testing.AllocsPerRun(100, func() { sinkInt = ptrLeakSum(pool, ptrN) }))
-	fmt.Println("alloc-chan:", testing.AllocsPerRun(100, func() { sinkInt = ptrChanSum(ctx, pool, ptrN) }))
+	eq("gc-preserves-mixed-slice-sum", mgSum, 2*trivSum(ptrN))
+	if !mgIdent {
+		fmt.Println("FAIL gc-preserves-mixed-pointer-identity: got false want true")
+		failed = true
+	} else {
+		fmt.Println("ok gc-preserves-mixed-pointer-identity")
+	}
+	eq("leaked-slice-sum-matches-series", ptrLeakSum(pool, ptrN), trivSum(ptrN))
+	eq("global-sink-keeps-leaked-sum", ptrSliceSum(globalPtrSink), trivSum(ptrN))
+	eq("channel-roundtrip-preserves-sum", ptrChanSum(ctx, pool, ptrN), trivSum(ptrN))
+	alloc := func(name string, got float64, wantZero bool) {
+		if (got == 0) != wantZero {
+			fmt.Printf("FAIL %s: got %v wantZero %v\n", name, got, wantZero)
+			failed = true
+			return
+		}
+		fmt.Printf("ok %s\n", name)
+	}
+	alloc("local-pointer-slice-avoids-alloc", testing.AllocsPerRun(100, func() { sinkInt = ptrLocalSum(pool, ptrN) }), true)
+	alloc("local-mixed-slice-avoids-alloc", testing.AllocsPerRun(100, func() { sinkInt = mixedLocalSum(pool, ptrN) }), true)
+	alloc("leaked-slice-forces-heap-alloc", testing.AllocsPerRun(100, func() { sinkInt = ptrLeakSum(pool, ptrN) }), false)
+	alloc("channel-slice-forces-heap-alloc", testing.AllocsPerRun(100, func() { sinkInt = ptrChanSum(ctx, pool, ptrN) }), false)
 	_ = sinkInt
+	if failed {
+		os.Exit(1)
+	}
 }

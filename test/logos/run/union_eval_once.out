@@ -1,0 +1,6 @@
+ok switch-evaluates-scrutinee-once
+ok switch-runs-taken-arm-once
+ok switch-selects-matching-arm
+ok switch-evaluates-second-scrutinee-once
+ok switch-runs-default-arm-once
+ok switch-selects-default-arm

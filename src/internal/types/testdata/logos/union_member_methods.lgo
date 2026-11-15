@@ -1,0 +1,88 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+type HasM struct{}
+
+func (HasM) M() int { return 1 }
+
+type NoM struct{}
+
+type PtrM struct{}
+
+func (*PtrM) M() int { return 2 }
+
+type Embeds struct{ HasM }
+
+type Basic interface {
+	int /* ERROR "correctness::union_member_method" */ | string /* ERROR "correctness::union_member_method" */
+	M() int
+}
+
+type Named interface {
+	HasM | NoM /* ERROR "correctness::union_member_method" */
+	M() int
+}
+
+type ValueRecv interface {
+	PtrM /* ERROR "correctness::union_member_method" */ | HasM
+	M() int
+}
+
+type Embedded interface {
+	error
+	int /* ERROR "correctness::union_member_method" */ | HasErr
+}
+
+type HasErr struct{}
+
+func (HasErr) Error() string { return "e" }
+
+type Inner interface {
+	HasM | NoM
+}
+
+type Nested interface {
+	Inner /* ERROR "correctness::union_member_method" */ | HasM
+	M() int
+}
+
+type Middle interface {
+	Inner | Embeds
+}
+
+type Deep interface {
+	Middle /* ERROR "correctness::union_member_method" */ | HasM
+	M() int
+}
+
+type Plain interface {
+	int | string
+}
+
+type AllHave interface {
+	HasM | Embeds | *PtrM
+	M() int
+}
+
+type GoodInner interface {
+	HasM | Embeds
+}
+
+type GoodNested interface {
+	GoodInner | *PtrM
+	M() int
+}
+
+type GoodMethods interface {
+	error
+	HasErr | *HasErr
+}
+
+var _ AllHave = HasM{}
+var _ AllHave = Embeds{}
+var _ AllHave = &PtrM{}
+var _ GoodNested = Embeds{}
+var _ GoodMethods = HasErr{}

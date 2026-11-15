@@ -2,11 +2,21 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
-// M22-S6 defect D1 (SPEC T-104.4, T-201): a scalar read through a const
-// view keeps a const qualifier in the checker, but `$"..."` must accept
-// it: the qualifier is erased before code generation.
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 type P struct {
 	N int64
@@ -19,10 +29,10 @@ func (p const *P) Show() string {
 
 func main() {
 	p := P{N: 3, S: "x"}
-	fmt.Println(p.Show())
-	// A scalar read keeps its const qualifier on the binding (SPEC T-201,
-	// transitive reads) but is usable everywhere a plain value is: the
-	// reference-free rule unwraps it at use.
-	n := p.N
-	fmt.Println(n)
+	got := p.Show()
+	check("interp-method-formats-fields", got == fmt.Sprint("n=", p.N, " s=", p.S) && got == "n=3 s=x", got, "n=3 s=x")
+	check("interp-method-reads-const-receiver", p.N == 3, p.N, 3)
+	if failed {
+		os.Exit(1)
+	}
 }

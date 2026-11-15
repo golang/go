@@ -12,36 +12,23 @@ import (
 	"unicode"
 )
 
-// This file lists the JSON-visible fields of a struct type for the
-// fallback walk (M11 R2). It ports the encoding/json DefaultOptionsV1
-// field rules (breadth-first embedded promotion, dominant-field
-// resolution, tag parsing, omitEmpty/omitzero, the `string` option)
-// because no package helper provides field selection. Every value byte
-// still flows through the package helpers; only the selection of fields
-// is reproduced here, with the algorithm kept parallel to the upstream
-// one so rule drift is reviewable. Unmarshal-only structures (folded
-// name indexes, field cache) are omitted: the walk never decodes.
-
-// walkField is one JSON-visible field of a struct type.
 type walkField struct {
 	name      string
-	tag       bool // name came from an explicit tag
+	tag       bool
 	index     []int
 	typ       reflect.Type
 	omitEmpty bool
 	omitZero  bool
 	quoted    bool
-	nameHTML  string // `"key":` with HTML escaping, like nameEscHTML
+	nameHTML  string
 	isZero    func(reflect.Value) bool
 }
 
-// walkType is an anonymous struct queued for the next breadth level.
 type walkType struct {
 	typ   reflect.Type
 	index []int
 }
 
-// walkScan accumulates one walkFields pass.
 type walkScan struct {
 	fields []walkField
 	next   []walkType
@@ -49,8 +36,6 @@ type walkScan struct {
 	nextC  map[reflect.Type]int
 }
 
-// walkFieldsOf returns the JSON-visible fields of t in declaration
-// order after dominance resolution, caching the listing in s.
 func (s *Walk) walkFieldsOf(t reflect.Type) []walkField {
 	if s.fields == nil {
 		s.fields = make(map[reflect.Type][]walkField)
@@ -63,8 +48,6 @@ func (s *Walk) walkFieldsOf(t reflect.Type) []walkField {
 	return f
 }
 
-// scanType records the visible fields of one queued struct type,
-// queueing anonymous structs for the next breadth level.
 func (sc *walkScan) scanType(f walkType) {
 	st := f.typ
 	for i := range st.NumField() {
@@ -77,14 +60,10 @@ func (sc *walkScan) scanType(f walkType) {
 	}
 }
 
-// walkFieldType returns the promoted field type of sf, or nil when the
-// field is skipped: unexported non-embedded fields, embedded fields of
-// unexported non-struct types, and fields tagged "-".
 func walkFieldType(sf reflect.StructField) *reflect.Type {
 	if sf.Anonymous {
 		ft := sf.Type
 		if ft.Name() == "" && ft.Kind() == reflect.Pointer {
-			// Follow pointer.
 			ft = ft.Elem()
 		}
 		if sf.PkgPath != "" && ft.Kind() != reflect.Struct {
@@ -103,8 +82,6 @@ func walkFieldType(sf reflect.StructField) *reflect.Type {
 	return &ft
 }
 
-// considerField records one visible struct field or queues it for the
-// next breadth level.
 func (sc *walkScan) considerField(f walkType, sf reflect.StructField, i int, ft reflect.Type) {
 	name, opts := parseWalkTag(sf.Tag.Get("json"))
 	if !isValidWalkTag(name) {
@@ -136,21 +113,13 @@ func (sc *walkScan) considerField(f walkType, sf reflect.StructField, i int, ft 
 	}
 	buf := AppendEscaped(nil, field.name)
 	field.nameHTML = `"` + string(buf) + `":`
-	// isZero consults the declared field type like the upstream
-	// encoder: a nil pointer takes the guarded branch even when the
-	// promoted element type is method-free.
 	field.isZero = walkIsZero(sf.Type)
 	sc.fields = append(sc.fields, field)
 	if sc.count[f.typ] > 1 {
-		// The parent type was queued more than once at this level:
-		// add a second copy so annihilation sees the duplicate,
-		// exactly like the upstream duplicate rule.
 		sc.fields = append(sc.fields, sc.fields[len(sc.fields)-1])
 	}
 }
 
-// isQuotedWalkKind reports whether the `string` option applies, matching
-// the upstream quoted computation.
 func isQuotedWalkKind(k reflect.Kind) bool {
 	switch k {
 	case reflect.Bool,
@@ -163,8 +132,6 @@ func isQuotedWalkKind(k reflect.Kind) bool {
 	return false
 }
 
-// walkIsZero builds the omitzero predicate for ft, porting the four
-// upstream cases. A nil return means the zero test is Value.IsZero.
 func walkIsZero(ft reflect.Type) func(reflect.Value) bool {
 	if !fieldNeedsIsZero(ft) {
 		return nil
@@ -196,17 +163,14 @@ func walkIsZero(ft reflect.Type) func(reflect.Value) bool {
 	}
 }
 
-// fieldNeedsIsZero reports whether ft consults an IsZero method.
 func fieldNeedsIsZero(ft reflect.Type) bool {
 	return ft.Implements(isZeroerType) || reflect.PointerTo(ft).Implements(isZeroerType)
 }
 
-// walkFields ports encoding/json typeFields for method-free values.
 func walkFields(t reflect.Type) []walkField {
 	return finishWalkFields(allWalkFields(t))
 }
 
-// allWalkFields runs the breadth scan to completion.
 func allWalkFields(t reflect.Type) []walkField {
 	next := []walkType{{typ: t}}
 	var current []walkType
@@ -235,8 +199,6 @@ func allWalkFields(t reflect.Type) []walkField {
 	return done
 }
 
-// finishWalkFields sorts by name, resolves dominance, and re-sorts by
-// declaration order, porting the upstream finish.
 func finishWalkFields(fields []walkField) []walkField {
 	slices.SortFunc(fields, func(a, b walkField) int {
 		if c := strings.Compare(a.name, b.name); c != 0 {
@@ -275,9 +237,6 @@ func finishWalkFields(fields []walkField) []walkField {
 	return fields
 }
 
-// dominantWalkField ports dominantField: fields arrive sorted by index
-// length then tag presence, so the first dominates unless two top-level
-// fields tie with equal tag status, which annihilates the name.
 func dominantWalkField(fields []walkField) (walkField, bool) {
 	if len(fields) > 1 && len(fields[0].index) == len(fields[1].index) && fields[0].tag == fields[1].tag {
 		return walkField{}, false
@@ -285,16 +244,13 @@ func dominantWalkField(fields []walkField) (walkField, bool) {
 	return fields[0], true
 }
 
-// parseWalkTag ports parseTag.
 func parseWalkTag(tag string) (string, string) {
 	name, opt, _ := strings.Cut(tag, ",")
 	return name, opt
 }
 
-// walkTagOptions ports tagOptions.
 type walkTagOptions string
 
-// Contains ports tagOptions.Contains.
 func (o walkTagOptions) Contains(optionName string) bool {
 	for s := string(o); s != ""; {
 		var name string
@@ -306,7 +262,6 @@ func (o walkTagOptions) Contains(optionName string) bool {
 	return false
 }
 
-// isValidWalkTag ports isValidTag.
 func isValidWalkTag(s string) bool {
 	if s == "" {
 		return false
@@ -321,10 +276,6 @@ func isValidWalkTag(s string) bool {
 	return true
 }
 
-// appendStruct encodes a struct value with the ported field listing,
-// mirroring structEncoder: nil embedded pointers hide their subtree,
-// omitEmpty and omitZero drop fields, keys are HTML-escaped, and the
-// `string` option quotes scalar bodies.
 func (s *Walk) appendStruct(buf []byte, rv reflect.Value) ([]byte, error) {
 	if err := s.EnterFrame(int64(len(buf))); err != nil {
 		return buf, err
@@ -347,12 +298,6 @@ func (s *Walk) appendStruct(buf []byte, rv reflect.Value) ([]byte, error) {
 		buf = append(buf, f.nameHTML...)
 		var err error
 		if f.quoted {
-			// A honoured MarshalJSON or MarshalText method ignores the
-			// `string` option, so it dispatches before the quoted-scalar
-			// path through the addressable, nil-preserving honour branch.
-			// Exact json.Number (and non-nil *json.Number) stays quoted:
-			// under goexperiment.jsonv2 Number implements MarshalJSONTo,
-			// which would emit the literal unquoted.
 			isNum := fv.Type() == numberType ||
 				(fv.Kind() == reflect.Pointer && !fv.IsNil() && fv.Type().Elem() == numberType)
 			if !isNum && s.honorsJSONMethod(fv) {
@@ -373,8 +318,6 @@ func (s *Walk) appendStruct(buf []byte, rv reflect.Value) ([]byte, error) {
 	return append(buf, '}'), nil
 }
 
-// fieldByWalkIndex follows a field index through embedded pointers,
-// reporting false when a nil embedded pointer hides the subtree.
 func fieldByWalkIndex(rv reflect.Value, index []int) (reflect.Value, bool) {
 	for _, i := range index {
 		if rv.Kind() == reflect.Pointer {
@@ -388,7 +331,6 @@ func fieldByWalkIndex(rv reflect.Value, index []int) (reflect.Value, bool) {
 	return rv, true
 }
 
-// isEmptyWalkValue ports isEmptyValue.
 func isEmptyWalkValue(v reflect.Value) bool {
 	switch v.Kind() {
 	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:

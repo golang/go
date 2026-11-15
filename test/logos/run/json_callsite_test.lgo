@@ -2,16 +2,6 @@
 
 package jsoncallsite
 
-// M11-S4 call-site static JSON fixture (SPEC Sec 12.1, S8, S9, T-Sec12).
-// Anchor: Tony Hoare, Edsger W. Dijkstra
-//
-// Call-site contracts for eligible static JSON structs under default jsonv2:
-// 1. json.Marshal(v) equals v.MarshalJSON() byte for byte.
-// 2. Pointer (&v) and interface (any(v)) forms agree with the value call.
-// 3. Struct with an interface field holding v produces matching JSON.
-// 4. json.NewEncoder(w).Encode(v) adds only the trailing newline.
-// 5. No call site is rewritten (codegen twin test/logos/codegen/json_callsite.lgo
-//    asserts the call still targets encoding/json.Marshal).
 
 import (
 	"bytes"
@@ -29,8 +19,6 @@ type Container struct {
 	Payload any `json:"payload"`
 }
 
-// TestCallSiteParityWithMarshalJSON asserts that json.Marshal(v) equals
-// v.MarshalJSON() byte for byte for eligible structs.
 func TestCallSiteParityWithMarshalJSON(t *testing.T) {
 	users := []User{
 		{ID: 101, Name: "Ada Lovelace", Email: "ada@example.com"},
@@ -56,8 +44,6 @@ func TestCallSiteParityWithMarshalJSON(t *testing.T) {
 	}
 }
 
-// TestPointerAndInterfaceFormsAgree asserts that json.Marshal(&v) and
-// json.Marshal(any(v)) produce identical bytes to json.Marshal(v).
 func TestPointerAndInterfaceFormsAgree(t *testing.T) {
 	u := User{ID: 202, Name: "Grace Hopper", Email: "grace@navy.mil"}
 
@@ -93,7 +79,6 @@ func TestPointerAndInterfaceFormsAgree(t *testing.T) {
 		return
 	}
 
-	// Interface field holding the struct value vs pointer.
 	cVal := Container{Payload: u}
 	cPtr := Container{Payload: &u}
 	bVal, err := json.Marshal(cVal)
@@ -110,8 +95,6 @@ func TestPointerAndInterfaceFormsAgree(t *testing.T) {
 	}
 }
 
-// TestEncoderAddsOnlyTrailingNewline asserts that json.NewEncoder adds exactly
-// a single trailing newline ('\n') to the marshaled representation.
 func TestEncoderAddsOnlyTrailingNewline(t *testing.T) {
 	u := User{ID: 303, Name: "Edsger Dijkstra", Email: "ewd@utexas.edu"}
 
@@ -140,7 +123,6 @@ func TestEncoderAddsOnlyTrailingNewline(t *testing.T) {
 		return
 	}
 
-	// Pointer encoding through Encoder agrees.
 	buf.Reset()
 	if err := enc.Encode(&u); err != nil {
 		panic(err)

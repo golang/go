@@ -1,19 +1,8 @@
-# Eject must not move //line directives inside a multiline raw string.
-# main.lgo prints a KNOWN byte-exact payload: several lines, a blank line,
-# and a //line-looking line that is string DATA, not a directive. A chain
-# (.map/.sum) and a const for lower above the raw literal (summed) and
-# below it (main), so generated edits surround the untouched literal.
-# Native output is pinned to the independent literal in m/expected.txt;
-# the ejected tree built with plain go must print byte-identical output.
-# With //line insertions at every surviving line start, the interior raw
-# lines gain directive text and the cmp below goes RED on changed payload.
-
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
 cd m
 
-# logos runs the module before eject; the output must equal the literal.
 logos run .
 stdout '^sum: 12$'
 stdout '^alpha$'
@@ -25,7 +14,6 @@ stdout '^total: 27$'
 cmp stdout expected.txt
 cp stdout $WORK/native.txt
 
-# Snapshot the source tree; eject must never write into it (#112).
 mkdir $WORK/orig
 cp main.lgo $WORK/orig/main.lgo
 
@@ -34,21 +22,23 @@ exists out/main.go
 exists out/go.mod
 ! exists out/main.lgo
 
-# No ejected file imports comptime, and no bare import keyword is left.
 ! grep '"comptime"' out/main.go
 ! grep '^import$' out/main.go
 
-# The ejected tree runs under plain go with identical output.
 cd out
 go run .
 cmp stdout $WORK/native.txt
 cmp stdout ../expected.txt
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
 go vet ./...
 exec $GOROOT/bin/gofmt -l .
 ! stdout .
 cd ..
 
-# The source tree is unchanged after eject (#112).
 cmp main.lgo $WORK/orig/main.lgo
 
 -- m/go.mod --

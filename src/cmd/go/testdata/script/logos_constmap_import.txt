@@ -1,0 +1,226 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+# A loGo/s importer sees an exported const map with full const semantics.
+cd m
+logos build -o $WORK/bin/importcm$GOEXE ./app
+exec $WORK/bin/importcm$GOEXE
+stdout '^ok range-sorted$'
+stdout '^ok lookup-miss$'
+stdout '^ok comma-hit$'
+stdout '^ok comma-miss$'
+stdout '^ok len-const$'
+stdout '^ok small-a-1$'
+stdout '^ok big-miss$'
+stdout '^ok copy-isolation$'
+cp stdout $WORK/want.txt
+logos eject -o out
+exists out/app/main.go
+exists out/lib/lib.go
+cd out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+go run ./app
+cmp stdout $WORK/want.txt
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+cd ..
+# Incremental rebuild: a changed value in lib reaches the importer.
+cp v2lib.lgo lib/lib.lgo
+logos build -o $WORK/bin/importcm2$GOEXE ./app
+exec $WORK/bin/importcm2$GOEXE
+stdout '^ok small-a-100$'
+stdout '^ok range-sorted$'
+stdout '^ok copy-isolation$'
+cd ..
+
+# An unexported const map stays invisible to importers.
+cd badhidden
+! logos build ./...
+stderr 'undefined: lib\.hidden'
+cd ..
+
+# Mutation of an imported const map is rejected with the const diagnostic.
+cd badmut
+! logos build ./...
+stderr 'correctness::const_view_mutation'
+cd ..
+
+-- m/go.mod --
+module example.com/cmimport
+
+go 1.27
+
+-- m/lib/lib.lgo --
+package lib
+
+const Small = map[string]int{"b": 2, "a": 1, "c": 3}
+
+const Big = map[string]int{
+	"k07": 7,
+	"k02": 2,
+	"k09": 9,
+	"k00": 0,
+	"k05": 5,
+	"k03": 3,
+	"k08": 8,
+	"k01": 1,
+	"k06": 6,
+	"k04": 4,
+}
+
+const hidden = map[string]int{"z": 26}
+
+-- m/app/main.lgo --
+package main
+
+import (
+	"fmt"
+	"os"
+
+	"example.com/cmimport/lib"
+)
+
+//logos:zeroalloc
+//go:noinline
+func probeSmall(k string) int {
+	return lib.Small[k] ?? -1
+}
+
+//logos:zeroalloc
+//go:noinline
+func probeBig(k string) (int, bool) {
+	v, ok := lib.Big[k]
+	return v, ok
+}
+
+const smallLen = len(lib.Small)
+
+var _ [len(lib.Big)]int
+
+var _ [smallLen]int
+
+func fail(msg string) {
+	fmt.Println("FAIL " + msg)
+	os.Exit(1)
+}
+
+func main() {
+	if gotA := probeSmall("a"); gotA != 1 && gotA != 100 {
+		fail("lookup-hit")
+	}
+	fmt.Printf("ok small-a-%d\n", probeSmall("a"))
+	if probeSmall("zz") != -1 {
+		fail("lookup-miss")
+	}
+	fmt.Println("ok lookup-miss")
+	if v, ok := lib.Small["c"]; v != 3 || !ok {
+		fail("comma-hit")
+	}
+	fmt.Println("ok comma-hit")
+	if v, ok := lib.Small["zz"]; v != 0 || ok {
+		fail("comma-miss")
+	}
+	fmt.Println("ok comma-miss")
+	if len(lib.Small) != 3 || len(lib.Big) != 10 || smallLen != 3 {
+		fail("len-const")
+	}
+	fmt.Println("ok len-const")
+	keys := ""
+	sum := 0
+	n := 0
+	for k, v := range lib.Big {
+		keys += k + ";"
+		sum += v
+		n++
+	}
+	if keys != "k00;k01;k02;k03;k04;k05;k06;k07;k08;k09;" || sum != 45 || n != 10 {
+		fail("range-sorted")
+	}
+	fmt.Println("ok range-sorted")
+	if v, ok := probeBig("k04"); v != 4 || !ok {
+		fail("big-hit")
+	}
+	fmt.Println("ok big-hit")
+	if _, ok := probeBig("zz"); ok {
+		fail("big-miss")
+	}
+	fmt.Println("ok big-miss")
+	copied := lib.Small
+	copied["a"] = 999
+	if probeSmall("a") != 1 && probeSmall("a") != 100 {
+		fail("copy-isolation")
+	}
+	fmt.Println("ok copy-isolation")
+}
+
+-- m/v2lib.lgo --
+package lib
+
+const Small = map[string]int{"b": 2, "a": 100, "c": 3}
+
+const Big = map[string]int{
+	"k07": 7,
+	"k02": 2,
+	"k09": 9,
+	"k00": 0,
+	"k05": 5,
+	"k03": 3,
+	"k08": 8,
+	"k01": 1,
+	"k06": 6,
+	"k04": 4,
+}
+
+const hidden = map[string]int{"z": 26}
+
+-- badhidden/go.mod --
+module example.com/cmhidden
+
+go 1.27
+
+-- badhidden/lib/lib.lgo --
+package lib
+
+const hidden = map[string]int{"z": 26}
+
+-- badhidden/app/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/cmhidden/lib"
+)
+
+func main() {
+	fmt.Println(lib.hidden["z"] ?? -1)
+}
+
+-- badmut/go.mod --
+module example.com/cmmut
+
+go 1.27
+
+-- badmut/lib/lib.lgo --
+package lib
+
+const Small = map[string]int{"b": 2, "a": 1, "c": 3}
+
+-- badmut/app/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/cmmut/lib"
+)
+
+func main() {
+	lib.Small["a"] = 9
+	fmt.Println(lib.Small["a"] ?? -1)
+}

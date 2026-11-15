@@ -180,6 +180,9 @@ func comparableType(T Type, dynamic bool, seen map[Type]bool) *typeError {
 			}
 		}
 
+	case *LogosTuple:
+		return logosPredTupleComparable(t, dynamic, seen)
+
 	case *Array:
 		if comparableType(t.elem, dynamic, seen) != nil {
 			return typeErrorf("%s cannot be compared", T)
@@ -213,6 +216,8 @@ func hasNil(t Type) bool {
 		return true
 	case *ConstView: // logos M5-S1 hook: `nil` belongs to a const view with a nil-capable element.
 		return hasNil(u.Elem)
+	case *ReadonlyDescendants:
+		return logosPredReadonlyHasNil(u)
 	case *Interface:
 		return !isTypeParam(t) || underIs(t, func(u Type) bool {
 			return u != nil && hasNil(u)
@@ -290,18 +295,22 @@ func (c *comparer) identical(x, y Type, p *ifacePair) bool {
 		// and identical tags. Two embedded fields are considered to have the same
 		// name. Lower-case field names from different packages are always different.
 		if y, ok := y.(*Struct); ok {
-			if x.NumFields() == y.NumFields() {
-				for i, f := range x.fields {
-					g := y.fields[i]
-					if f.embedded != g.embedded ||
-						!c.ignoreTags && x.Tag(i) != y.Tag(i) ||
-						!f.sameId(g.pkg, g.name, false) ||
-						!c.identical(f.typ, g.typ, p) {
-						return false
-					}
-				}
-				return true
+			if x.NumFields() != y.NumFields() {
+				return false
 			}
+			for i, f := range x.fields {
+				g := y.fields[i]
+				if f.embedded != g.embedded ||
+					!c.ignoreTags && x.Tag(i) != y.Tag(i) ||
+					!f.sameId(g.pkg, g.name, false) ||
+					!c.identical(f.typ, g.typ, p) {
+					return false
+				}
+			}
+			return true
+		}
+		if c.logosStructTupleIdentical(x, y, p) {
+			return true
 		}
 
 	case *Pointer:
@@ -316,27 +325,17 @@ func (c *comparer) identical(x, y Type, p *ifacePair) bool {
 			return c.identical(x.Elem, y.Elem, p)
 		}
 
-	case *LogosTuple: // logos M6-S5 hook: tuple identity is structural over names and elements.
-		if y, ok := y.(*LogosTuple); ok {
-			if x.Len() != y.Len() {
-				return false
-			}
-			for i := range x.Len() {
-				if x.Name(i) != y.Name(i) || !c.identical(x.Elem(i), y.Elem(i), p) {
-					return false
-				}
-			}
-			return true
-		}
-		if checkTupleStructIdentical(x, y) {
-			return true
-		}
+	case *LogosTuple:
+		return c.logosPredTupleIdentical(x, y, p)
 
 	case *ConstView: // logos M5-S1 hook: const view identity is structural over elements.
 		// Two const views are identical if they have identical element types.
 		if y, ok := y.(*ConstView); ok {
 			return c.identical(x.Elem, y.Elem, p)
 		}
+
+	case *ReadonlyDescendants:
+		return c.logosPredReadonlyIdentical(x, y, p)
 
 	case *Tuple:
 		// Two tuples types are identical if they have the same number of elements

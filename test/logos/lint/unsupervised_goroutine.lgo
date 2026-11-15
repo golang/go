@@ -4,12 +4,6 @@ package p
 
 import "context"
 
-// M9-S2 concurrency::unsupervised_goroutine (SPEC Sec 1.2): a go statement
-// in .lgo outside a go group block. The types2 checker reports it under
-// this ID; the lint entry carries the group and scope so the forbid rule
-// keeps ignoring //logos:allow. Inside a go group block the same statement
-// passes. The rule is forbid, so the findings below fail the lint run.
-
 func work() {}
 
 func bare(ctx context.Context) error {

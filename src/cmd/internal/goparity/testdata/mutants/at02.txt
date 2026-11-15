@@ -1,0 +1,8 @@
+kind: compiler
+file: src/cmd/compile/internal/ssagen/ssa.go
+expect: at02_loop_restore_depth
+config: K17
+-- old --
+			s.logosArenaLoopRestoreDepth(arenaDepth)
+-- new --
+			s.logosArenaLoopRestoreDepth(arenaDepth - 1)

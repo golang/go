@@ -1,14 +1,5 @@
 // errorcheck -0
 
-// perf::time_after_in_loop on a Go package (R-U1): logos lint applies the
-// rule to Go syntax and Go types alone, so the Go twin of the loGo/s attack
-// file reports the same loops.
-//
-// correctness::unbounded_channel_op also reports the channel receives of this
-// file. They are not its subject, so each carries //logos:allow for that rule
-// and the file checks perf::time_after_in_loop alone;
-// test/logos/lint/unbounded_channel_op_go.go covers the rule.
-
 package p
 
 import "time"
@@ -120,6 +111,7 @@ func headerRunsOnce(d time.Duration) {
 		<-t
 		break
 	}
+	//logos:allow(correctness::unbounded_channel_op)
 	for range time.After(d) {
 		break
 	}

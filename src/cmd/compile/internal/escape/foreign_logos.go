@@ -10,8 +10,6 @@ import (
 	"strings"
 )
 
-// The five legacy result slots stay at indexes 3..7. Foreign flow is
-// independent of result flow and uses the same clamped dereference depth.
 const leakForeign = leakResult0 + numEscResults
 
 func (l leaks) Foreign() int           { return l.get(leakForeign) }
@@ -29,7 +27,6 @@ func (l *leaks) parseForeign(s string) {
 	case strings.HasPrefix(s, "escf:"):
 		copy(l[:], s[5:])
 	case strings.HasPrefix(s, "esc:"):
-		// A ninth byte in a legacy tag is not foreign metadata.
 		copy(l[:leakForeign], s[4:])
 	default:
 		l.AddHeap(0)
@@ -56,8 +53,6 @@ func (e *escape) compilerKeepAliveArgs(call ir.Node, recvArg ir.Node, args ir.No
 	e.compilerKeepAlive = wasCompilerKeepAlive
 }
 
-// Conversion results are not addressable, so their destination cannot
-// carry a negative dereference weight. Keep both weighted legs in teeHole.
 func (e *escape) foreignConversion(k hole, n *ir.ConvExpr) hole {
 	if !n.Type().IsUnsafePtr() && !n.X.Type().IsUnsafePtr() {
 		return k
@@ -72,9 +67,6 @@ func (e *escape) foreignConversion(k hole, n *ir.ConvExpr) hole {
 	return e.teeHole(k, foreign)
 }
 
-// The cgo frame exposes every parameter, although the generated Go call
-// addresses only the first slot. Recognize that frame at its definition,
-// before uintptr argument rewriting or pointer-free destination blanking.
 func (e *escape) foreignCgoFrame(call *ir.CallExpr) {
 	if e.curfn.Pragma&ir.CgoUnsafeArgs == 0 || len(call.Args) != 2 {
 		return

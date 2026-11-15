@@ -2,12 +2,21 @@
 
 package main
 
-// M5-S1 const views (SPEC Sec 2.1, T-201, #16): ordinary reslicing on
-// plain slices stays allowed. Only const views enforce the len bound.
-// The buffer-reuse loop below resets with s = s[:0] every iteration,
-// and b = b[:cap(b)] stretches a plain slice to its capacity.
+import (
+	"fmt"
+	"os"
+)
 
-import "fmt"
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 func main() {
 	buf := make([]byte, 0, 64)
@@ -22,5 +31,10 @@ func main() {
 	s = append(s, 9)
 	b := make([]byte, 4, 8)
 	b = b[:cap(b)]
-	fmt.Println(total, s, len(b), cap(b))
+	check("total", total == 20, total, 20)
+	check("reslice", len(s) == 1 && s[0] == 9, fmt.Sprint(s), "[9]")
+	check("cap", len(b) == 8 && cap(b) == 8, fmt.Sprint(len(b), cap(b)), "8 8")
+	if failed {
+		os.Exit(1)
+	}
 }

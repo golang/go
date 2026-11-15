@@ -2,10 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// M6-S1 parser attacks: `$"..."` interpolated strings (SPEC T-104.4).
-// Every form without an ERROR comment must parse cleanly in LogosMode;
-// each ERROR comment pins the exact syntax error text.
-
 package p
 
 import "fmt"

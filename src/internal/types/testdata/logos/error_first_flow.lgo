@@ -1,0 +1,593 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+import "strconv"
+
+func fetch() (int, error) {
+	return 1, nil
+}
+
+func fetch3() (int, int, error) {
+	return 1, 2, nil
+}
+
+func other() error {
+	return nil
+}
+
+func use(v int) {}
+
+type getter struct{}
+
+func (getter) Get() (int, error) {
+	return 1, nil
+}
+
+type source interface {
+	Get() (int, error)
+}
+
+func c1Func() {
+	n, err := fetch()
+	use(n /* ERROR "[correctness::result_before_error_check]" */)
+	_ = err
+}
+
+func c1FuncOK() {
+	n, err := fetch()
+	if err != nil {
+		return
+	}
+	use(n)
+}
+
+func c1Method(g getter) {
+	n, err := g.Get()
+	use(n /* ERROR "[correctness::result_before_error_check]" */)
+	_ = err
+}
+
+func c1MethodOK(g getter) {
+	n, err := g.Get()
+	if err != nil {
+		return
+	}
+	use(n)
+}
+
+func c1Interface(s source) {
+	n, err := s.Get()
+	use(n /* ERROR "[correctness::result_before_error_check]" */)
+	_ = err
+}
+
+func c1FuncValue(f func() (int, error)) {
+	n, err := f()
+	use(n /* ERROR "[correctness::result_before_error_check]" */)
+	_ = err
+}
+
+func c1FuncValueOK(f func() (int, error)) {
+	n, err := f()
+	if err != nil {
+		return
+	}
+	use(n)
+}
+
+func c1Three() {
+	a, b, err := fetch3()
+	use(a /* ERROR "[correctness::result_before_error_check]" */)
+	use(b /* ERROR "[correctness::result_before_error_check]" */)
+	_ = err
+}
+
+func c1ThreeAssign() {
+	var a, b int
+	var err error
+	a, b, err = fetch3()
+	use(a /* ERROR "[correctness::result_before_error_check]" */)
+	use(b /* ERROR "[correctness::result_before_error_check]" */)
+	_ = err
+}
+
+func c1ThreeOK() {
+	a, b, err := fetch3()
+	if err != nil {
+		return
+	}
+	use(a)
+	use(b)
+}
+
+func c1VarDecl() {
+	var n, err = fetch()
+	use(n /* ERROR "[correctness::result_before_error_check]" */)
+	_ = err
+}
+
+func c1GoCallee() {
+	n, err := strconv.Atoi("7")
+	use(n)
+	_ = err
+}
+
+func c1GoFuncValue() {
+	parse := strconv.Atoi
+	n, err := parse("7")
+	use(n)
+	_ = err
+}
+
+func c1LgoFuncValue() {
+	parse := fetch
+	n, err := parse()
+	use(n /* ERROR "[correctness::result_before_error_check]" */)
+	_ = err
+}
+
+func c2LiteralDoesNotDischarge() {
+	n, err := fetch()
+	func() {
+		if err != nil {
+			return
+		}
+	}()
+	use(n /* ERROR "[correctness::result_before_error_check]" */)
+}
+
+func c2LiteralProofInside() {
+	n, err := fetch()
+	f := func() {
+		if err != nil {
+			return
+		}
+		use(n)
+	}
+	f()
+}
+
+func c2LiteralAfterProof() {
+	n, err := fetch()
+	if err != nil {
+		return
+	}
+	f := func() {
+		use(n)
+	}
+	f()
+}
+
+func c2LiteralAfterProofReassigned() {
+	n, err := fetch()
+	if err != nil {
+		return
+	}
+	f := func() {
+		use(n /* ERROR "[correctness::result_before_error_check]" */)
+	}
+	f()
+	n, err = fetch()
+	_ = err
+}
+
+func c2LiteralAfterProofAddressed() {
+	n, err := fetch()
+	if err != nil {
+		return
+	}
+	p := &n
+	f := func() {
+		use(n /* ERROR "[correctness::result_before_error_check]" */)
+	}
+	f()
+	_ = p
+}
+
+func c2BlockLambdaInPlace(xs []int) {
+	n, err := fetch()
+	if err != nil {
+		return
+	}
+	_ = xs.map(x => {
+		use(n)
+		return x
+	})
+}
+
+func c2BlockLambdaBeforeProof(xs []int) {
+	n, err := fetch()
+	_ = xs.map(x => {
+		use(n /* ERROR "[correctness::result_before_error_check]" */)
+		return x
+	})
+	_ = err
+}
+
+func c2BlockLambdaProofInside(xs []int) {
+	n, err := fetch()
+	_ = xs.map(x => {
+		if err == nil {
+			use(n)
+		}
+		return x
+	})
+}
+
+func c2ResultReassigned() {
+	n, err := fetch()
+	n = 42
+	use(n)
+	_ = err
+}
+
+func c2ErrReassignedAfterTest() {
+	n, err := fetch()
+	if err != nil {
+		return
+	}
+	err = other()
+	_ = err
+	use(n)
+}
+
+func c2ErrReassignedBeforeTest() error {
+	n, err := fetch()
+	err = other()
+	if err != nil {
+		return err
+	}
+	use(n /* ERROR "[correctness::result_before_error_check]" */)
+	return nil
+}
+
+func c2ErrNilledBeforeRead() {
+	n, err := fetch()
+	err = nil
+	_ = err
+	use(n /* ERROR "[correctness::result_before_error_check]" */)
+}
+
+func c2RedeclaredErr() error {
+	n, err := fetch()
+	m, err := fetch()
+	if err != nil {
+		return err
+	}
+	use(m)
+	use(n /* ERROR "[correctness::result_before_error_check]" */)
+	return nil
+}
+
+func c2RedeclaredErrBoth() error {
+	n, err := fetch()
+	if err != nil {
+		return err
+	}
+	m, err := fetch()
+	if err != nil {
+		return err
+	}
+	use(m)
+	use(n)
+	return nil
+}
+
+func c2ShadowedErr() {
+	n, err := fetch()
+	if err := other(); err != nil {
+		return
+	}
+	_ = err
+	use(n /* ERROR "[correctness::result_before_error_check]" */)
+}
+
+func c2NestedBlock(cond bool) {
+	n, err := fetch()
+	if cond {
+		if err != nil {
+			return
+		}
+	}
+	use(n /* ERROR "[correctness::result_before_error_check]" */)
+}
+
+func c2NestedBlockBothBranches(cond bool) {
+	n, err := fetch()
+	if cond {
+		if err != nil {
+			return
+		}
+	} else {
+		if err != nil {
+			return
+		}
+	}
+	use(n)
+}
+
+func c2Loop(xs []int) {
+	n, err := fetch()
+	for range xs {
+		if err != nil {
+			break
+		}
+	}
+	use(n /* ERROR "[correctness::result_before_error_check]" */)
+}
+
+func c2LoopProofBefore(xs []int) {
+	n, err := fetch()
+	if err != nil {
+		return
+	}
+	for range xs {
+		use(n)
+	}
+	use(n)
+}
+
+func c2LoopCarried(xs []int) {
+	var n int
+	var err error
+	for range xs {
+		use(n /* ERROR "[correctness::result_before_error_check]" */)
+		n, err = fetch()
+	}
+	_ = err
+}
+
+func c2Switch(x int) {
+	n, err := fetch()
+	switch x {
+	case 1:
+		if err != nil {
+			return
+		}
+	}
+	use(n /* ERROR "[correctness::result_before_error_check]" */)
+}
+
+func c2SwitchAllArms(x int) {
+	n, err := fetch()
+	switch x {
+	case 1:
+		if err != nil {
+			return
+		}
+	default:
+		if err != nil {
+			return
+		}
+	}
+	use(n)
+}
+
+func c2Goto() {
+	n, err := fetch()
+	goto skip
+	if err != nil {
+		return
+	}
+skip:
+	println(n /* ERROR "[correctness::result_before_error_check]" */)
+}
+
+func c3ThenNotNil() {
+	n, err := fetch()
+	if err != nil {
+		use(n /* ERROR "[correctness::result_before_error_check]" */)
+	}
+}
+
+func c3ThenNil() {
+	n, err := fetch()
+	if err == nil {
+		use(n)
+	}
+}
+
+func c3ElseOfNil() {
+	n, err := fetch()
+	if err == nil {
+	} else {
+		use(n /* ERROR "[correctness::result_before_error_check]" */)
+	}
+}
+
+func c3ElseOfNotNil() {
+	n, err := fetch()
+	if err != nil {
+		return
+	} else {
+		use(n)
+	}
+}
+
+func c3ExitOnNil() {
+	n, err := fetch()
+	if err == nil {
+		return
+	}
+	use(n /* ERROR "[correctness::result_before_error_check]" */)
+}
+
+func c3ElseFallsThrough() {
+	n, err := fetch()
+	if err != nil {
+		return
+	} else {
+		println("ok")
+	}
+	use(n)
+}
+
+func c3ThenFallsThrough() {
+	n, err := fetch()
+	if err != nil {
+		println("failed")
+	}
+	use(n /* ERROR "[correctness::result_before_error_check]" */)
+}
+
+func c3Continue(xs []int) {
+	for range xs {
+		n, err := fetch()
+		if err != nil {
+			continue
+		}
+		use(n)
+	}
+}
+
+func c3Break(xs []int) {
+	for range xs {
+		n, err := fetch()
+		if err != nil {
+			break
+		}
+		use(n)
+	}
+}
+
+func c3Panic() {
+	n, err := fetch()
+	if err != nil {
+		panic(err)
+	}
+	use(n)
+}
+
+func c3NoReturnCallNotAssumed(stop func()) {
+	n, err := fetch()
+	if err != nil {
+		stop()
+	}
+	use(n /* ERROR "[correctness::result_before_error_check]" */)
+}
+
+func c3AndNotNil() bool {
+	n, err := fetch()
+	return err != nil && n /* ERROR "[correctness::result_before_error_check]" */ == 0
+}
+
+func c3AndNil() bool {
+	n, err := fetch()
+	return err == nil && n == 0
+}
+
+func c3OrNil() bool {
+	n, err := fetch()
+	return err == nil || n /* ERROR "[correctness::result_before_error_check]" */ == 0
+}
+
+func c3OrNotNil() bool {
+	n, err := fetch()
+	return err != nil || n == 0
+}
+
+func c3OrExit() {
+	n, err := fetch()
+	if err != nil || n > 5 {
+		return
+	}
+	use(n)
+}
+
+func c3AndExit() {
+	n, err := fetch()
+	if err == nil && n > 5 {
+		return
+	}
+	use(n /* ERROR "[correctness::result_before_error_check]" */)
+}
+
+func c3NegatedTest() {
+	n, err := fetch()
+	if !(err == nil) {
+		return
+	}
+	use(n)
+}
+
+func c3SwitchTagless() {
+	n, err := fetch()
+	switch {
+	case err != nil:
+		return
+	}
+	use(n)
+}
+
+func c3SwitchTaglessBad() {
+	n, err := fetch()
+	switch {
+	case err == nil:
+		return
+	}
+	use(n /* ERROR "[correctness::result_before_error_check]" */)
+}
+
+func c3SwitchTagNil() {
+	n, err := fetch()
+	switch err {
+	case nil:
+		use(n)
+	default:
+		return
+	}
+	use(n)
+}
+
+func c3SwitchTagNilBad() {
+	n, err := fetch()
+	switch err {
+	case nil:
+	default:
+	}
+	use(n /* ERROR "[correctness::result_before_error_check]" */)
+}
+
+func c3SwitchTagOther(sentinel error) {
+	n, err := fetch()
+	switch err {
+	case sentinel:
+		return
+	}
+	use(n /* ERROR "[correctness::result_before_error_check]" */)
+}
+
+func c4ForwardReturn() (int, error) {
+	n, err := fetch()
+	return n, err
+}
+
+func c4ForwardReturnExpr() (int, error) {
+	n, err := fetch()
+	return n /* ERROR "[correctness::result_before_error_check]" */ + 1, err
+}
+
+func c4ForwardAfterErrReassigned() (int, error) {
+	n, err := fetch()
+	err = other()
+	return n /* ERROR "[correctness::result_before_error_check]" */, err
+}
+
+func c4BlankAssign() {
+	n, err := fetch()
+	_ = n
+	_ = err
+}
+
+func c4BlankAssignPair() {
+	n, err := fetch()
+	_, _ = n, err
+}
+
+func c4BareReturn() (n int, err error) {
+	n, err = fetch()
+	return
+}

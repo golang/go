@@ -1,0 +1,106 @@
+# A loop defer f()? with a nil result leaves the error result nil and
+# allocates nothing: the error result stays on the stack and the wrapper
+# closure is not allocated per iteration [T-104.2]. The hand-written form
+# in ./hand is the control that the -m patterns below can match.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+logos build -o $WORK/esc$GOEXE .
+exec $WORK/esc$GOEXE
+stdout '^ok err-nil$'
+stdout '^ok loop-noalloc$'
+stdout '^ok single-noalloc$'
+
+logos build -gcflags=-m ./hand
+stderr 'moved to heap: err'
+stderr 'func literal escapes to heap'
+
+logos build -gcflags=-m ./pooled
+! stderr 'moved to heap: err'
+! stderr 'func literal escapes to heap'
+
+-- go.mod --
+module example.com/deferesc
+
+go 1.27
+
+-- hand/hand.lgo --
+package hand
+
+import "errors"
+
+//go:noinline
+func closeNil() error { return nil }
+
+func Loop(n int) (err error) {
+	for i := 0; i < n; i++ {
+		defer func() {
+			if e := closeNil(); e != nil {
+				if err == nil {
+					err = e
+				} else {
+					err = errors.Join(err, e)
+				}
+			}
+		}()
+	}
+	return nil
+}
+
+-- pooled/pooled.lgo --
+package pooled
+
+//go:noinline
+func closeNil() error { return nil }
+
+func Loop(n int) (err error) {
+	for i := 0; i < n; i++ {
+		defer closeNil()?
+	}
+	return nil
+}
+
+-- main.lgo --
+package main
+
+import (
+	"fmt"
+	"os"
+	"testing"
+)
+
+var sinkErr error
+
+//go:noinline
+func closeNil() error { return nil }
+
+func Loop(n int) (err error) {
+	for i := 0; i < n; i++ {
+		defer closeNil()?
+	}
+	return nil
+}
+
+//go:noinline
+func Single() (err error) {
+	defer closeNil()?
+	return nil
+}
+
+func main() {
+	if err := Loop(3); err != nil {
+		fmt.Println("FAIL err", err)
+		os.Exit(1)
+	}
+	fmt.Println("ok err-nil")
+	if got := testing.AllocsPerRun(200, func() { sinkErr = Loop(5) }); got != 0 {
+		fmt.Println("FAIL loop-noalloc", got)
+		os.Exit(1)
+	}
+	fmt.Println("ok loop-noalloc")
+	if s := testing.AllocsPerRun(200, func() { sinkErr = Single() }); s != 0 {
+		fmt.Println("FAIL single-noalloc", s)
+		os.Exit(1)
+	}
+	fmt.Println("ok single-noalloc")
+}

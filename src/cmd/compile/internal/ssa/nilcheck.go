@@ -194,31 +194,6 @@ const minZeroPage = 4096
 // faultOnLoad is true if a load to an address below minZeroPage will trigger a SIGSEGV.
 var faultOnLoad = buildcfg.GOOS != "aix"
 
-// immixMarkCall reports whether v calls runtime.logosImmixStoreBarrier, whose
-// body dereferences the destination address it is given.
-func immixMarkCall(v *Value) bool {
-	aux, ok := v.Aux.(*AuxCall)
-	if !ok || aux.Fn == nil {
-		return false
-	}
-	return aux.Fn.Name == "runtime.logosImmixStoreBarrier"
-}
-
-// callTakesPtr reports whether v passes a pointer as its first argument. The
-// register ABI passes the destination there; the stack ABI passes only the
-// memory argument, and the destination is already stored in a frame slot.
-func callTakesPtr(v *Value) bool {
-	return len(v.Args) > 1 && v.Args[0].Type.IsPtrShaped() && !v.Args[0].Type.IsMemory()
-}
-
-// unwrapNilCheck returns the pointer a chain of nil checks guards.
-func unwrapNilCheck(v *Value) *Value {
-	for v.Op == OpNilCheck {
-		v = v.Args[0]
-	}
-	return v
-}
-
 // nilcheckelim2 eliminates unnecessary nil checks.
 // Runs after lowering and scheduling.
 func nilcheckelim2(f *Func) {
@@ -305,14 +280,6 @@ func nilcheckelim2(f *Func) {
 				// LoweredMove is a special case because it's considered as a "mem" as it stores on arg0 but arg1 is accessed as a load and should be checked.
 				ptrs = append(ptrs, v.Args[1])
 			}
-			// The immix mark reads and writes the line mark at its
-			// destination address, so it faults on a nil destination just
-			// as a store does. Record that address so the check it makes
-			// redundant is removed; without this the call's memory effect
-			// clears the record and the check survives to lowering.
-			if opcodeTable[v.Op].auxType == auxCallOff && immixMarkCall(v) && callTakesPtr(v) {
-				ptrs = append(ptrs, unwrapNilCheck(v.Args[0]))
-			}
 
 			for _, ptr := range ptrs {
 				// Check to make sure the offset is small.
@@ -337,9 +304,6 @@ func nilcheckelim2(f *Func) {
 					// It does not affect the effective address.
 				case auxNone, auxSizeAndAlign:
 					// offset is zero.
-				case auxCallOff:
-					// A call carries no aux symbol or offset: the callee
-					// dereferences exactly the address it is given.
 				default:
 					v.Fatalf("can't handle aux %s (type %d) yet\n", v.auxString(), int(opcodeTable[v.Op].auxType))
 				}

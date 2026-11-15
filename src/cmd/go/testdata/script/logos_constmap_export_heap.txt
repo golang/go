@@ -1,0 +1,155 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+# SPEC 2.1: only an unexported const map adds no heap bytes at init. The
+# package-level variable of an exported const map holds a built map.
+cd m
+go run gen.go
+logos build -o $WORK/bin/pexp$GOEXE ./pexp
+logos build -o $WORK/bin/phid$GOEXE ./phid
+
+exec $WORK/bin/pexp$GOEXE
+stdout '^ok exported-values$'
+stdout '^ok exported-init-grows$'
+exec $WORK/bin/pexp$GOEXE
+stdout '^ok exported-init-grows$'
+exec $WORK/bin/pexp$GOEXE
+stdout '^ok exported-init-grows$'
+exec $WORK/bin/pexp$GOEXE
+stdout '^ok exported-init-grows$'
+exec $WORK/bin/pexp$GOEXE
+stdout '^ok exported-init-grows$'
+
+exec $WORK/bin/phid$GOEXE
+stdout '^ok unexported-values$'
+stdout '^ok unexported-init-flat$'
+exec $WORK/bin/phid$GOEXE
+stdout '^ok unexported-init-flat$'
+exec $WORK/bin/phid$GOEXE
+stdout '^ok unexported-init-flat$'
+exec $WORK/bin/phid$GOEXE
+stdout '^ok unexported-init-flat$'
+exec $WORK/bin/phid$GOEXE
+stdout '^ok unexported-init-flat$'
+
+-- m/go.mod --
+module example.com/cmexport
+
+go 1.27
+
+-- m/gen.go --
+//go:build ignore
+
+package main
+
+import (
+	"fmt"
+	"os"
+	"strings"
+)
+
+func table(pkg, name string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "package %s\n\nimport _ \"example.com/cmexport/h0\"\n\nconst %s = map[int]int{\n", pkg, name)
+	for k := 0; k < 1000; k++ {
+		fmt.Fprintf(&b, "\t%d: %d,\n", k, k*k)
+	}
+	fmt.Fprintf(&b, "}\n\nfunc Get(k int) int {\n\treturn %s[k] ?? -1\n}\n", name)
+	return b.String()
+}
+
+func write(dir, file, text string) {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		panic(err)
+	}
+	if err := os.WriteFile(dir+"/"+file, []byte(text), 0o644); err != nil {
+		panic(err)
+	}
+}
+
+func main() {
+	write("exp", "exp.lgo", table("exp", "Squares"))
+	write("hid", "hid.lgo", table("hid", "squares"))
+}
+
+-- m/h0/h0.lgo --
+package h0
+
+import (
+	_ "fmt"
+	_ "logos/rt"
+	_ "os"
+	"runtime"
+)
+
+var AtInit uint64
+
+func init() {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	runtime.ReadMemStats(&m)
+	AtInit = m.HeapAlloc
+}
+
+-- m/pexp/main.lgo --
+package main
+
+import (
+	"fmt"
+	"os"
+	"runtime"
+
+	"example.com/cmexport/exp"
+	"example.com/cmexport/h0"
+)
+
+const minGrowth = 16000
+
+func main() {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	runtime.ReadMemStats(&m)
+	grew := int64(m.HeapAlloc) - int64(h0.AtInit)
+	if len(exp.Squares) != 1000 || (exp.Squares[31] ?? -1) != 961 || (exp.Squares[999] ?? -1) != 998001 || exp.Get(31) != 961 {
+		fmt.Println("FAIL exported-values")
+		os.Exit(1)
+	}
+	fmt.Println("ok exported-values")
+	if grew < minGrowth {
+		fmt.Printf("FAIL exported-init-grows: heap grew %d bytes, want at least %d\n", grew, minGrowth)
+		os.Exit(1)
+	}
+	fmt.Println("ok exported-init-grows")
+}
+
+-- m/phid/main.lgo --
+package main
+
+import (
+	"fmt"
+	"os"
+	"runtime"
+
+	"example.com/cmexport/h0"
+	"example.com/cmexport/hid"
+)
+
+const maxGrowth = 1024
+
+func main() {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	runtime.ReadMemStats(&m)
+	grew := int64(m.HeapAlloc) - int64(h0.AtInit)
+	if hid.Get(31) != 961 || hid.Get(999) != 998001 || hid.Get(1000) != -1 {
+		fmt.Println("FAIL unexported-values")
+		os.Exit(1)
+	}
+	fmt.Println("ok unexported-values")
+	if grew > maxGrowth {
+		fmt.Printf("FAIL unexported-init-flat: heap grew %d bytes, want at most %d\n", grew, maxGrowth)
+		os.Exit(1)
+	}
+	fmt.Println("ok unexported-init-flat")
+}

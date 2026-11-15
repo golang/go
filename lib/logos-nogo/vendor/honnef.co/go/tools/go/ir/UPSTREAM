@@ -1,9 +1,0 @@
-This package started as a copy of golang.org/x/tools/go/ssa, imported from an unknown commit in 2016.
-It has since been heavily modified to match our own needs in an IR.
-The changes are too many to list here, and it is best to consider this package independent of go/ssa.
-
-Upstream changes still get applied when they address bugs in portions of code we have inherited.
-
-The last upstream commit we've looked at was:
-ac2946029ad3806349fa00546449da9f59320e89
-

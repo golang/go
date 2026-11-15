@@ -1,0 +1,58 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# A field default is removed from the declaration whatever it ends in: a
+# composite literal, a parenthesis, an operator expression, a string holding
+# closers, a raw string over two lines, or a literal followed by a struct
+# tag or a line comment. The module runs natively, ejects, and the ejected
+# module builds and runs with go and with go1.27.2 from $UPROOT1272 and
+# prints the same output.
+cd m
+logos run .
+stdout '^a\)\}// \[1 2\] \{3\} map\[k:\[1\]\] 5 14 \[x \)\] 3 8080$'
+cp stdout $WORK/native.txt
+logos eject -o out
+exists out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $WORK/native.txt
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
+exec $WORK/upstream$GOEXE
+cmp stdout $WORK/native.txt
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ..
+
+-- m/go.mod --
+module example.com/structdefault
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import "fmt"
+
+type Item struct{ N int }
+
+type Cfg struct {
+	Name  string = "a)}//"
+	Items []int = []int{1, 2}
+	One   Item = Item{N: 3} // trailing
+	Gen   map[string][]int = map[string][]int{"k": {1}}
+	Last  int = (5)
+	Calc  int = 2 * (3 + 4)
+	Arr   [2]string = [2]string{"x", ")"}
+	Raw   string = `r
+)`
+	Port int32 = 8080 `json:"port"`
+}
+
+func main() {
+	c := Cfg{}
+	fmt.Println(c.Name, c.Items, c.One, c.Gen, c.Last, c.Calc, c.Arr, len(c.Raw), c.Port)
+}

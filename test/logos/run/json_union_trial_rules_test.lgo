@@ -1,0 +1,160 @@
+// run
+package jsonunion
+
+import (
+	"encoding/json"
+	"errors"
+	"logos/rt"
+	"strings"
+	"testing"
+)
+
+type GapCircle struct {
+	R int64 `json:"r"`
+}
+type GapSquare struct {
+	S int64 `json:"s"`
+}
+type GapUnion interface {
+	GapCircle | GapSquare
+}
+type GapHolder struct {
+	Item GapUnion `json:"item"`
+}
+type GapAlpha struct {
+	ID int64 `json:"id"`
+}
+type GapBeta struct {
+	ID int64 `json:"id"`
+}
+type GapOverlapUnion interface {
+	GapAlpha | GapBeta
+}
+type GapOverlapHolder struct {
+	Item GapOverlapUnion `json:"item"`
+}
+type GapSide struct {
+	Side int64 `json:"side"`
+}
+type GapSideMirror struct {
+	Side  int64 `json:"side"`
+	NoGen any   `json:"-"`
+}
+type GapFoldUnion interface {
+	GapSide | GapSquare
+}
+type GapFoldHolder struct {
+	Item GapFoldUnion `json:"item"`
+}
+type GapLoose string
+
+func (a GapLoose) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + string(a) + `"`), nil
+}
+func (a *GapLoose) UnmarshalJSON(b []byte) error {
+	*a = GapLoose(string(b))
+	return nil
+}
+
+type GapMixedUnion interface {
+	GapCircle | GapLoose
+}
+type GapMixedHolder struct {
+	Item GapMixedUnion `json:"item"`
+}
+
+func mustUnmarshalGap(t *testing.T, data []byte, dst any) {
+	t.Helper()
+	if err := json.Unmarshal(data, dst); err != nil {
+		panic(err)
+	}
+}
+func TestGapOnlyTopLevelKeysCount(t *testing.T) {
+	var h GapHolder
+	err := json.Unmarshal([]byte(`{"item":{"outer":{"r":1}}}`), &h)
+	if err == nil {
+		t.Fatal("nested key must not select, expected trial error")
+		return
+	}
+	var trialErr rt.UnionTrialError
+	if !errors.As(err, &trialErr) {
+		t.Fatalf("expected UnionTrialError, got %T: %v", err, err)
+		return
+	}
+	if trialErr.Matched != 0 {
+		t.Fatalf("expected Matched 0, got %d", trialErr.Matched)
+	}
+	mustUnmarshalGap(t, []byte(`{"item":{"r":1}}`), &h)
+	if _, ok := h.Item.(GapCircle); !ok {
+		t.Fatalf("expected GapCircle, got %T", h.Item)
+	}
+}
+func TestGapSharedKeyReportsTwoMatches(t *testing.T) {
+	var h GapOverlapHolder
+	err := json.Unmarshal([]byte(`{"item":{"id":1}}`), &h)
+	if err == nil {
+		t.Fatal("expected ambiguity, got nil")
+		return
+	}
+	var trialErr rt.UnionTrialError
+	if !errors.As(err, &trialErr) {
+		t.Fatalf("expected UnionTrialError, got %T: %v", err, err)
+		return
+	}
+	if trialErr.Matched != 2 {
+		t.Fatalf("expected Matched 2, got %d", trialErr.Matched)
+	}
+	if trialErr.Total != 2 {
+		t.Fatalf("expected Total 2, got %d", trialErr.Total)
+	}
+	if len(trialErr.Members) != 2 {
+		t.Fatalf("expected 2 members, got %v", trialErr.Members)
+		return
+	}
+	if !strings.Contains(trialErr.Members[0], "GapAlpha") || !strings.Contains(trialErr.Members[1], "GapBeta") {
+		t.Fatalf("members must be in declaration order, got %v", trialErr.Members)
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "2 of 2") {
+		t.Fatalf("error must report 2 of 2, got %q", msg)
+	}
+}
+func TestGapNonObjectMatchesOnlyKeyless(t *testing.T) {
+	var h GapMixedHolder
+	mustUnmarshalGap(t, []byte(`{"item":5}`), &h)
+	if _, ok := h.Item.(GapLoose); !ok {
+		t.Fatalf("non-object must select keyless, got %T: %#v", h.Item, h.Item)
+		return
+	}
+	var k GapHolder
+	err := json.Unmarshal([]byte(`{"item":5}`), &k)
+	if err == nil {
+		t.Fatal("keyed-only union must reject non-object")
+		return
+	}
+	var trialErr rt.UnionTrialError
+	if !errors.As(err, &trialErr) {
+		t.Fatalf("expected UnionTrialError, got %T", err)
+	}
+	if trialErr.Matched != 0 {
+		t.Fatalf("expected Matched 0, got %d", trialErr.Matched)
+	}
+}
+func TestGapFoldMatchesEncodingJSON(t *testing.T) {
+	var m GapSideMirror
+	mustUnmarshalGap(t, []byte(`{"side":2}`), &m)
+	mustUnmarshalGap(t, []byte(`{"SIDE":2}`), &m)
+	if m.Side != 2 {
+		t.Fatalf("oracle must fold SIDE to Side, got %d", m.Side)
+	}
+	var h GapFoldHolder
+	mustUnmarshalGap(t, []byte(`{"item":{"SIDE":2}}`), &h)
+	s, ok := h.Item.(GapSide)
+	if !ok {
+		t.Fatalf("expected GapSide via folded key, got %T", h.Item)
+		return
+	}
+	if s.Side != 2 {
+		t.Fatalf("expected Side 2, got %d", s.Side)
+	}
+}

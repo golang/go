@@ -1,0 +1,53 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+# The const composite write checks run for loGo/s files only: a Go package that calls a mutating pointer method of an exported const composite, writes its slice and uses the mutating builtins on it compiles and prints what Go prints.
+cd app
+logos build -o $WORK/bin/gohooks$GOEXE .
+exec $WORK/bin/gohooks$GOEXE
+cmp stdout ../want.txt
+
+-- want.txt --
+5 [9 7 3] map[a:1]
+-- lib/go.mod --
+module example.com/ccgolib
+
+go 1.27
+
+-- lib/lib.lgo --
+package lib
+
+type Box struct {
+	M map[string]int
+	L []int
+	N int
+}
+
+func (b *Box) Set(n int) { b.N = n }
+
+const C = Box{M: map[string]int{"a": 1, "z": 2}, L: []int{1, 2, 3}, N: 7}
+-- app/go.mod --
+module example.com/ccgoapp
+
+go 1.27
+
+require example.com/ccgolib v0.0.0
+
+replace example.com/ccgolib => ../lib
+-- app/main.go --
+package main
+
+import (
+	"fmt"
+
+	lib "example.com/ccgolib"
+)
+
+func main() {
+	lib.C.Set(5)
+	lib.C.L[0] = 9
+	copy(lib.C.L[1:], []int{7})
+	delete(lib.C.M, "z")
+	fmt.Println(lib.C.N, lib.C.L, lib.C.M)
+}

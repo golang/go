@@ -9,17 +9,14 @@ import (
 	"go/parser"
 	"go/scanner"
 	"go/token"
+	"internal/logosfile"
 	"io"
 
 	"cmd/go/internal/cfg"
 )
 
-// parseTestFile parses one test file for the test function scan. A loGo/s
-// file holds syntax go/parser rejects (`T?` types, `?`, `??`), so its
-// scan reads tokens instead and builds only the top-level function
-// declarations (SPEC M0-S2: `logos test` finds tests in `_test.lgo`).
 func parseTestFile(fset *token.FileSet, filename string, src io.Reader) (*ast.File, error) {
-	if !cfg.IsLogosFile(filename) {
+	if !logosfile.Is(filename) {
 		return parser.ParseFile(fset, filename, src, parser.ParseComments|parser.SkipObjectResolution)
 	}
 	data, err := io.ReadAll(src)
@@ -29,7 +26,6 @@ func parseTestFile(fset *token.FileSet, filename string, src io.Reader) (*ast.Fi
 	return scanLogosTestFile(fset, filename, data), nil
 }
 
-// logosScan walks the tokens of one loGo/s file.
 type logosScan struct {
 	file     *token.File
 	scan     scanner.Scanner
@@ -41,8 +37,6 @@ type logosScan struct {
 	inGroup  bool
 }
 
-// scanLogosTestFile returns an *ast.File with the top-level function
-// declarations and the comment groups of data.
 func scanLogosTestFile(fset *token.FileSet, filename string, data []byte) *ast.File {
 	file := fset.AddFile(filename, -1, len(data))
 	s := &logosScan{file: file, out: &ast.File{Name: &ast.Ident{Name: "p"}}}
@@ -66,7 +60,6 @@ func scanLogosTestFile(fset *token.FileSet, filename string, data []byte) *ast.F
 	return s.out
 }
 
-// next advances to the next token and files comments into groups.
 func (s *logosScan) next() {
 	for {
 		s.pos, s.tok, s.lit = s.scan.Scan()
@@ -78,8 +71,6 @@ func (s *logosScan) next() {
 	}
 }
 
-// addComment appends a comment to the group of the previous line, or
-// starts a new group.
 func (s *logosScan) addComment() {
 	c := &ast.Comment{Slash: s.pos, Text: s.lit}
 	line := s.file.Line(s.pos)
@@ -94,8 +85,6 @@ func (s *logosScan) addComment() {
 	s.lastLine = s.file.Line(token.Pos(int(s.pos) + len(s.lit) - 1))
 }
 
-// funcDecl scans one `func` declaration at the top level. A method (a
-// receiver in parentheses) is skipped, as the test scan ignores methods.
 func (s *logosScan) funcDecl() {
 	funcPos := s.pos
 	s.next()
@@ -120,7 +109,6 @@ func (s *logosScan) funcDecl() {
 	s.out.Decls = append(s.out.Decls, decl)
 }
 
-// skipGroup consumes a bracketed token group, starting at open.
 func (s *logosScan) skipGroup(open, closing token.Token) {
 	depth := 0
 	for s.tok != token.EOF {
@@ -137,10 +125,6 @@ func (s *logosScan) skipGroup(open, closing token.Token) {
 	}
 }
 
-// params reads a parameter list. The only shape the test scan needs is a
-// single, optionally named, pointer to a plain or qualified type; every
-// other non-empty list becomes one field of unknown type, which no test
-// signature check accepts.
 func (s *logosScan) params() []*ast.Field {
 	var toks []token.Token
 	var lits []string
@@ -164,16 +148,10 @@ func (s *logosScan) params() []*ast.Field {
 	return paramFields(toks, lits)
 }
 
-// paramFields maps the tokens of a parameter list to its fields.
 func paramFields(toks []token.Token, lits []string) []*ast.Field {
 	if len(toks) == 0 {
 		return nil
 	}
-	// Go permits one optional trailing comma in a parameter list and the
-	// token scan keeps it; a lone trailing comma carries no type, so the
-	// exact-length match below sees the list without it. Anything else,
-	// including a newline SEMICOLON without the required comma or a second
-	// comma, still reaches BadExpr through the same match.
 	if toks[len(toks)-1] == token.COMMA {
 		toks = toks[:len(toks)-1]
 		lits = lits[:len(lits)-1]
@@ -195,8 +173,6 @@ func paramFields(toks []token.Token, lits []string) []*ast.Field {
 	return []*ast.Field{{Type: &ast.BadExpr{}}}
 }
 
-// results reports whether tokens other than the body follow the
-// parameters, as a non-empty result list.
 func (s *logosScan) results() *ast.FieldList {
 	var res *ast.FieldList
 	depth := 0
@@ -221,7 +197,6 @@ func (s *logosScan) results() *ast.FieldList {
 	return res
 }
 
-// body consumes a brace-delimited function body and returns its extent.
 func (s *logosScan) body() *ast.BlockStmt {
 	b := &ast.BlockStmt{Lbrace: s.pos}
 	depth := 0
@@ -243,15 +218,6 @@ func (s *logosScan) body() *ast.BlockStmt {
 	return b
 }
 
-// logosTestXTest marks the standard library's external test package of p as
-// standard-library provenance. TestPackagesFor builds that package by hand
-// and its literal copies Goroot but not Standard, so the object for
-// e.g. reflect_test compiles without -std and the linker capabilities
-// audit would blame its frames as third-party dependencies. The mark keeps
-// the exemption tied to the real path (reflect_test), so a third-party
-// package foo_test — including one whose import path ends in _test —
-// stays unmarked and audited. Plain go never sees it, and a nil pxtest has
-// no external test files and is left alone.
 func logosTestXTest(p, pxtest *Package) {
 	if !cfg.Logos || pxtest == nil || !p.Standard {
 		return

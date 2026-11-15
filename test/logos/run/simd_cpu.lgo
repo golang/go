@@ -8,29 +8,18 @@ import (
 	"strings"
 )
 
-// M14-S2 attack (SPEC Sec 2.4, T-204.2): on amd64 the vector form sits
-// behind an archsimd CPU feature guard, so a runtime with the feature
-// disabled via GODEBUG takes the scalar branch and every operator and
-// reduction still matches the scalar oracle. The guard is elided only
-// when the build's GOAMD64 level guarantees the feature (v3: AVX and
-// AVX2; v4: AVX512), so the directive pins GOAMD64=v1, because the logos
-// default target is v3 (M13-S1, SPEC #107). The
-// directive above turns all three features off; checkSeam proves it
-// reached this process, and simd_cpu_seam.go proves the runtime then
-// reports each feature as absent, so the vector branch cannot run
-// unnoticed. This file stays free of simd/archsimd so the unit tests
-// that lower every run fixture without the experiment still check it.
-// The scalar branch is forced only at GOAMD64 v1 or v2: from v3 the
-// compiler drops the AVX and AVX2 checks and the cpu.avx and cpu.avx2
-// knobs no longer exist, so a v3 run takes the vector path and says
-// nothing about the guard.
+func fail(tag string) {
+	fmt.Println("FAIL", tag)
+	os.Exit(1)
+}
 
 func checkSeam() {
 	for _, off := range []string{"cpu.avx=off", "cpu.avx2=off", "cpu.avx512f=off"} {
 		if !strings.Contains(os.Getenv("GODEBUG"), off) {
-			panic("GODEBUG is missing " + off + ": the harness directive did not reach this process")
+			fail("GODEBUG is missing " + off + ": the harness directive did not reach this process")
 		}
 	}
+	fmt.Println("ok seam-disables-simd")
 }
 
 func oracleAdd4(a, b [4]float64) [4]float64 {
@@ -77,14 +66,15 @@ func checkAdd4() {
 	a := [4]float64{1, 2, 3, 4}
 	b := [4]float64{5, 6, 7, 8}
 	if got, want := a+b, oracleAdd4(a, b); got != want {
-		panic(fmt.Sprintf("add4: got %v want %v", got, want))
+		fail(fmt.Sprintf("add4: got %v want %v", got, want))
 	}
 	if s := a.sum(); s != a[0]+a[1]+a[2]+a[3] {
-		panic(fmt.Sprintf("sum4 mismatch: got %v want %v", s, a[0]+a[1]+a[2]+a[3]))
+		fail(fmt.Sprintf("sum4 mismatch: got %v want %v", s, a[0]+a[1]+a[2]+a[3]))
 	}
 	if a.dot(b) != oracleDot4(a, b) {
-		panic("dot4 mismatch")
+		fail("dot4 mismatch")
 	}
+	fmt.Println("ok add-sum-dot-match-scalar")
 }
 
 func checkMul8() {
@@ -94,8 +84,9 @@ func checkMul8() {
 		b[i] = float32(2*i + 1)
 	}
 	if got, want := a*b, oracleMul8(a, b); got != want {
-		panic(fmt.Sprintf("mul8: got %v want %v", got, want))
+		fail(fmt.Sprintf("mul8: got %v want %v", got, want))
 	}
+	fmt.Println("ok mul-matches-scalar")
 }
 
 func checkAnd16() {
@@ -105,11 +96,12 @@ func checkAnd16() {
 		b[i] = byte(i*11 + 5)
 	}
 	if (a & b) != oracleAnd16(a, b) {
-		panic("and16 mismatch")
+		fail("and16 mismatch")
 	}
 	if (a | b) != oracleOr16(a, b) {
-		panic("or16 mismatch")
+		fail("or16 mismatch")
 	}
+	fmt.Println("ok and-or-match-scalar")
 }
 
 func oracleOr16(a, b [16]byte) [16]byte {
@@ -126,7 +118,7 @@ func check64() {
 		c[i] = byte(i + 1)
 	}
 	if c.sum() != oracleSum64(c) {
-		panic("sum64 mismatch")
+		fail("sum64 mismatch")
 	}
 	var x, y [8]float64
 	for i := range x {
@@ -134,7 +126,7 @@ func check64() {
 		y[i] = float64(8 - i)
 	}
 	if got, want := x+y, oracleAdd8(x, y); got != want {
-		panic(fmt.Sprintf("add8: got %v want %v", got, want))
+		fail(fmt.Sprintf("add8: got %v want %v", got, want))
 	}
 	var p, q [4]int64
 	for i := range p {
@@ -142,8 +134,9 @@ func check64() {
 		q[i] = int64(5 - i)
 	}
 	if (p + q) != oracleAdd4i(p, q) {
-		panic("add4i mismatch")
+		fail("add4i mismatch")
 	}
+	fmt.Println("ok wide-sums-match-scalar")
 }
 
 func oracleAdd8(a, b [8]float64) [8]float64 {
@@ -168,5 +161,4 @@ func main() {
 	checkMul8()
 	checkAnd16()
 	check64()
-	fmt.Println("simdcpu ok")
 }

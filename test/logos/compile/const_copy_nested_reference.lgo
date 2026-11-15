@@ -1,0 +1,69 @@
+// errorcheck
+
+package p
+
+type nestedCopy struct{ X [][]int }
+type nestedMapCopy struct{ X []map[int]int }
+type referenceElement struct{ X []int }
+type nestedStructCopy struct{ X []referenceElement }
+
+const nestedCopySource = nestedCopy{X: [][]int{{1}}}
+const nestedMapSource = nestedMapCopy{X: []map[int]int{{1: 2}}}
+const nestedStructSource = nestedStructCopy{X: []referenceElement{{X: []int{1}}}}
+const scalarCopySource = []int{1}
+
+func rejectNestedCopy() {
+	s := nestedCopy{..nestedCopySource}
+	dst := make([][]int, 1)
+	copy(dst, s.X) // ERROR "const_view_mutation"
+}
+
+func rejectNestedAppend() {
+	s := nestedCopy{..nestedCopySource}
+	dst := make([][]int, 0)
+	_ = append(dst, s.X...) // ERROR "const_view_mutation"
+}
+
+func rejectMapCopy() {
+	s := nestedMapCopy{..nestedMapSource}
+	copy(make([]map[int]int, 1), s.X) // ERROR "const_view_mutation"
+}
+
+func rejectPointerCopy(src const []*int) {
+	copy(make([]*int, 0), src) // ERROR "const_view_mutation"
+}
+
+func rejectStructCopy() {
+	s := nestedStructCopy{..nestedStructSource}
+	copy(make([]referenceElement, 1), s.X) // ERROR "const_view_mutation"
+}
+
+func rejectRangeEscape() {
+	s := nestedCopy{..nestedCopySource}
+	var keep []int
+	for _, v := range s.X {
+		keep = v // ERROR "const_view_escape"
+	}
+	_ = keep
+}
+
+func rejectElementMutation() {
+	s := nestedCopy{..nestedCopySource}
+	inner := s.X[0]
+	inner[0] = 9 // ERROR "const_view_mutation"
+}
+
+func allowReferenceFreeCopy() {
+	dst := make([]int, 1)
+	copy(dst, scalarCopySource)
+	_ = append(dst, scalarCopySource...)
+	dst[0] = 9
+}
+
+func allowMutableNestedCopy() {
+	src := [][]int{{1}}
+	dst := make([][]int, 1)
+	copy(dst, src)
+	_ = append(dst, src...)
+	dst[0][0] = 9
+}

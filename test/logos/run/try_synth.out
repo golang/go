@@ -1,8 +1,16 @@
-ok: 7 <nil>
-fail: 0 syn
-shadow: 42 <nil>
-ed-ok: 3 <nil>
-ed-fail: 0 syn
-blank-ok: 9 <nil>
-blank-fail: 0 syn
-ran: rollback
+ok ok-value
+ok ok-err
+ok fail-value
+ok fail-err
+ok shadow-value
+ok shadow-err
+ok ed-ok-value
+ok ed-ok-err
+ok ed-fail-value
+ok ed-fail-err
+ok blank-ok-value
+ok blank-ok-err
+ok blank-fail-value
+ok blank-fail-err
+ok order-len
+ok order-entry

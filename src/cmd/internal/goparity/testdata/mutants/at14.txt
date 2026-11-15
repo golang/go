@@ -1,0 +1,22 @@
+kind: compiler
+file: src/cmd/compile/internal/syntax/scanner_logos.go
+expect: at14_leading_dot.go
+config: K5
+-- old --
+	if s.mode&uint(LogosMode) == 0 || s.ch != '\n' || s.tok == _Question {
+-- new --
+	if s.ch != '\n' || s.tok == _Question {
+
+kind: compiler
+file: src/cmd/compile/internal/syntax/scanner.go
+expect: at14_question_dot.go
+config: K5
+-- old --
+			break
+		}
+		s.errorf("invalid character %#U", s.ch)
+		s.nextch()
+-- new --
+			break
+		}
+		s.nextch()

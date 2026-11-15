@@ -1,0 +1,7 @@
+ok fused-rollback-ran
+ok fused-stops-at-failure
+ok fused-joins-primary
+ok fused-joins-rollback
+ok fused-success-skips-rollback
+ok fused-success-runs-all
+ok fused-success-nil

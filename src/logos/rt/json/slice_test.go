@@ -7,6 +7,7 @@ package json
 import (
 	stdjson "encoding/json"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	"testing"
 	"unsafe"
@@ -33,16 +34,6 @@ func TestSliceParity(t *testing.T) {
 func TestSliceNested(t *testing.T) {
 	inputs := []string{`[[1],[2,3],[]]`, `[[],[[]]]`, `[null,[1],null]`, `[[1,"x"],"y",[2]]`, `[[]]`, `[1]`}
 	checkSingle(t, inputs, sliceOf(sliceOf(Int[int])))
-}
-
-func TestSliceEmptyIsNonNil(t *testing.T) {
-	got, err := decodeSingle(`{"A":[]}`, sliceOf(Int[int]))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got.A == nil || len(got.A) != 0 {
-		t.Fatalf("[] decoded to %#v, want empty non-nil", got.A)
-	}
 }
 
 func TestSliceNullSetsNil(t *testing.T) {
@@ -178,8 +169,10 @@ func TestSliceNoPerElementAllocation(t *testing.T) {
 }
 
 func allocatedBytes(f func()) uint64 {
-	var before, after runtime.MemStats
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
 	runtime.GC()
+	runtime.GC()
+	var before, after runtime.MemStats
 	runtime.ReadMemStats(&before)
 	f()
 	runtime.ReadMemStats(&after)

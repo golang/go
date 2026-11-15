@@ -1,0 +1,57 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# A lambda whose body ends in an index, a slice, a parenthesis, a type
+# assertion, a composite literal or a string holding closers keeps its
+# whole body in the generated function. The module runs natively, ejects,
+# and the ejected module builds and runs with go and with go1.27.2 from
+# $UPROOT1272 and prints the same output.
+cd m
+logos run .
+stdout '^20 3 20 4 5 30 7 4$'
+cp stdout $WORK/native.txt
+logos eject -o out
+exists out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $WORK/native.txt
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
+exec $WORK/upstream$GOEXE
+cmp stdout $WORK/native.txt
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ..
+
+-- m/go.mod --
+module example.com/lambdabody
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import "fmt"
+
+type P struct{ X, Y int }
+
+func apply(f func(int) int, n int) int {
+	return f(n)
+}
+
+func main() {
+	xs := []int{10, 20, 30}
+	a := apply(x => xs[x], 1)
+	b := apply(x => (x + 1), 2)
+	c := apply(x => xs[1:][x], 0)
+	d := apply(x => len(")}//") + x, 0)
+	e := apply(x => P{x, 2}.X, 5)
+	f := apply(x => xs[x] /* trailing */, 2)
+	g := apply(x => any(x).(int), 7) // comment
+	h := apply(x => len(`r
+)`) + x, 1)
+	fmt.Println(a, b, c, d, e, f, g, h)
+}

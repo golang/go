@@ -1,0 +1,118 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+)
+
+var errLoad = errors.New("load")
+
+var ev []string
+
+var failAt string
+
+func load(tag string, v int) (int, error) {
+	ev = append(ev, "load:"+tag)
+	if tag == failAt {
+		return 0, errLoad
+	}
+	return v, nil
+}
+
+func apply(f func(int) int, n int) int { return f(n) }
+
+func assignNested(v int) (int, error) {
+	r := switch n := load("s", apply(x => x + 1, v))?; n { case 8 => 70; default => 1 }
+	return r, nil
+}
+
+func assignRef(v int) (int, error) {
+	a := apply(x => x + 1, v)
+	n := load("s", a)?
+	r := 1
+	if n == 8 {
+		r = 70
+	}
+	return r, nil
+}
+
+func returnNested(v int) (int, error) {
+	return switch n := load("s", apply(x => x + 1, v))?; n { case 8 => 70; default => 1 }, nil
+}
+
+func ifInitNested(v int) (int, error) {
+	if r := switch n := load("s", apply(x => x + 1, v))?; n { case 8 => 70; default => 1 }; r > 0 {
+		return r, nil
+	}
+	return -1, nil
+}
+
+func plainNested(v int) (int, error) {
+	n := load("s", apply(x => x + 1, v))?
+	return n, nil
+}
+
+func plainRef(v int) (int, error) {
+	a := apply(x => x + 1, v)
+	n := load("s", a)?
+	return n, nil
+}
+
+type cell struct {
+	name   string
+	nested func(int) (int, error)
+	ref    func(int) (int, error)
+	want   [4]string
+}
+
+type scenario struct {
+	v    int
+	fail string
+}
+
+var scenarios = [4]scenario{{7, ""}, {7, "s"}, {0, ""}, {0, "s"}}
+
+func show(f func(int) (int, error), sc scenario) string {
+	ev = nil
+	failAt = sc.fail
+	r, err := f(sc.v)
+	if err != nil {
+		return fmt.Sprint("err ", err, " ", ev)
+	}
+	return fmt.Sprint(r, " ", ev)
+}
+
+func cells() []cell {
+	failS := "err load [load:s]"
+	value := [4]string{"70 [load:s]", failS, "1 [load:s]", failS}
+	return []cell{
+		{"lambda-assign", assignNested, assignRef, value},
+		{"lambda-return", returnNested, assignRef, value},
+		{"lambda-if-init", ifInitNested, assignRef, value},
+		{"lambda-try-statement", plainNested, plainRef, [4]string{"8 [load:s]", failS, "1 [load:s]", failS}},
+	}
+}
+
+func main() {
+	failed := false
+	for _, c := range cells() {
+		ok := true
+		for i, sc := range scenarios {
+			got, ref := show(c.nested, sc), show(c.ref, sc)
+			if got != ref || got != c.want[i] {
+				ok = false
+				failed = true
+				fmt.Println("FAIL", c.name, sc, "got", got, "reference", ref, "want", c.want[i])
+			}
+		}
+		if ok {
+			fmt.Println("ok", c.name)
+		}
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

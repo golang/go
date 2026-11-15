@@ -15,7 +15,6 @@ import (
 	"testing"
 )
 
-// TestSplitRuleTag checks the rule ID split of a compiler message.
 func TestSplitRuleTag(t *testing.T) {
 	for _, tc := range []struct{ msg, rule, rest string }{
 		{"[correctness::const_func_impure] call is impure", "correctness::const_func_impure", "call is impure"},
@@ -31,8 +30,6 @@ func TestSplitRuleTag(t *testing.T) {
 	}
 }
 
-// TestCompilerSeverity checks the severity of a compiler error that carries
-// no resolved lint level.
 func TestCompilerSeverity(t *testing.T) {
 	for _, tc := range []struct{ rule, want string }{
 		{"", "deny"},
@@ -46,7 +43,6 @@ func TestCompilerSeverity(t *testing.T) {
 	}
 }
 
-// record decodes one JSON diagnostic line.
 func record(t *testing.T, line string) map[string]any {
 	t.Helper()
 	var m map[string]any
@@ -56,8 +52,6 @@ func record(t *testing.T, line string) map[string]any {
 	return m
 }
 
-// TestLogosRecordFields checks the SPEC Sec 16 field set of a compiler
-// diagnostic and of a lint finding.
 func TestLogosRecordFields(t *testing.T) {
 	wantKeys := []string{"autofix_candidates", "file", "message", "provenance", "rule_id", "schema_version", "severity", "span"}
 	compiler := record(t, logosRecord(errorMsg{logos: logosMsg{raw: "undefined: x"}}))
@@ -100,8 +94,6 @@ func TestLogosRecordFields(t *testing.T) {
 	}
 }
 
-// TestLogosRecordEmptyFixes checks that a record with no candidates
-// encodes an empty array, never null.
 func TestLogosRecordEmptyFixes(t *testing.T) {
 	line := logosRecord(errorMsg{logos: logosMsg{raw: "m"}})
 	if !strings.Contains(line, `"autofix_candidates":[]`) {
@@ -109,7 +101,6 @@ func TestLogosRecordEmptyFixes(t *testing.T) {
 	}
 }
 
-// TestByteOffset checks line and column to byte offset on a real file.
 func TestByteOffset(t *testing.T) {
 	name := filepath.Join(t.TempDir(), "x.go")
 	if err := os.WriteFile(name, []byte("ab\ncd\n\tef\n"), 0o666); err != nil {

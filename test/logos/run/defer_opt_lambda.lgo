@@ -1,0 +1,143 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed = false
+
+func check(name string, ok bool, detail string) {
+	if !ok {
+		fmt.Printf("FAIL %s: %s\n", name, detail)
+		failed = true
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func sameStrings(a, c []string) bool {
+	if len(a) != len(c) {
+		return false
+	}
+	for i := range a {
+		if a[i] != c[i] {
+			return false
+		}
+	}
+	return true
+}
+
+type lUser struct {
+	lName string
+}
+
+var lLog []string
+
+func (u *lUser) lSay(s string) {
+	lLog = append(lLog, s+" "+u.lName)
+}
+
+func lArg(s string) string {
+	lLog = append(lLog, "arg "+s)
+	return s
+}
+
+func plainLogos(o *lUser?) []string {
+	lLog = nil
+	var f func(int) = x => {
+		defer o?.lSay(lArg("plain"))
+		lLog = append(lLog, fmt.Sprint("body ", x))
+	}
+	f(1)
+	return append([]string(nil), lLog...)
+}
+
+func plainHand(o *lUser?) []string {
+	lLog = nil
+	f := func(x int) {
+		if o != nil {
+			defer o.lSay(lArg("plain"))
+		}
+		lLog = append(lLog, fmt.Sprint("body ", x))
+	}
+	f(1)
+	return append([]string(nil), lLog...)
+}
+
+func chainLogos(o *lUser?) ([]string, int) {
+	lLog = nil
+	n := []int{1, 2}.map(x => {
+		defer o?.lSay(lArg("chain"))
+		return x
+	}).count()
+	return append([]string(nil), lLog...), n
+}
+
+func chainHand(o *lUser?) ([]string, int) {
+	lLog = nil
+	n := 0
+	for _, x := range []int{1, 2} {
+		func() {
+			if o != nil {
+				defer o.lSay(lArg("chain"))
+			}
+		}()
+		_ = x
+		n++
+	}
+	return append([]string(nil), lLog...), n
+}
+
+func switchLogos(o *lUser?) []string {
+	lLog = nil
+	var f func(int) = x => {
+		switch x {
+		case 1:
+			defer o?.lSay(lArg("case"))
+		default:
+		}
+		lLog = append(lLog, "end")
+	}
+	f(1)
+	return append([]string(nil), lLog...)
+}
+
+func switchHand(o *lUser?) []string {
+	lLog = nil
+	f := func(x int) {
+		switch x {
+		case 1:
+			if o != nil {
+				defer o.lSay(lArg("case"))
+			}
+		default:
+		}
+		lLog = append(lLog, "end")
+	}
+	f(1)
+	return append([]string(nil), lLog...)
+}
+
+func main() {
+	some := &lUser{lName: "ann"}
+	var none *lUser?
+	var present *lUser? = some
+	pl, ph := plainLogos(present), plainHand(present)
+	check("lambda-plain", sameStrings(pl, ph) && len(ph) == 3, fmt.Sprint("got ", pl, " want ", ph))
+	pln, phn := plainLogos(none), plainHand(none)
+	check("lambda-plain-none", sameStrings(pln, phn) && len(phn) == 1, fmt.Sprint("got ", pln, " want ", phn))
+	cl, cn := chainLogos(present)
+	ch, hn := chainHand(present)
+	check("lambda-chain", sameStrings(cl, ch) && cn == hn && cn == 2 && len(ch) == 4, fmt.Sprint("got ", cl, cn, " want ", ch, hn))
+	cln, _ := chainLogos(none)
+	chn, _ := chainHand(none)
+	check("lambda-chain-none", sameStrings(cln, chn) && len(chn) == 0, fmt.Sprint("got ", cln, " want ", chn))
+	sl, sh := switchLogos(present), switchHand(present)
+	check("lambda-switch", sameStrings(sl, sh) && len(sh) == 3, fmt.Sprint("got ", sl, " want ", sh))
+	if failed {
+		os.Exit(1)
+	}
+}

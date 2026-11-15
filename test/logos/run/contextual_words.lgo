@@ -1,0 +1,55 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var errdefer = 1
+
+func yield() int { return 2 }
+
+type S struct {
+	scope int
+	group string
+}
+
+func main() {
+	group := 3
+	if errdefer != 1 || yield() != 2 || group != 3 {
+		fmt.Println("FAIL values")
+		os.Exit(1)
+	}
+	s := S{scope: 4, group: "g"}
+	if s.scope != 4 || s.group != "g" {
+		fmt.Println("FAIL fields")
+		os.Exit(1)
+	}
+	errdefer = 7
+	group = 8
+	s.scope = 9
+	if errdefer != 7 || group != 8 || s.scope != 9 {
+		fmt.Println("FAIL assign")
+		os.Exit(1)
+	}
+	errdefer:
+	for i := 0; i < 1; i++ {
+		break errdefer
+	}
+	yield:
+	for i := 0; i < 1; i++ {
+		break yield
+	}
+	scope:
+	for i := 0; i < 1; i++ {
+		break scope
+	}
+	group:
+	for i := 0; i < 1; i++ {
+		break group
+	}
+	yield()
+	fmt.Println("ok contextual-words")
+}

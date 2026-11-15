@@ -1,0 +1,89 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type box struct {
+	M map[string]int
+	N int
+}
+
+type outer struct {
+	box
+	Tag string
+}
+
+type item struct {
+	M map[string]int
+}
+
+const keys10 = map[string]int{"a": 0, "b": 1, "c": 2, "d": 3, "e": 4, "f": 5, "g": 6, "h": 7, "i": 8, "j": 9}
+
+const o = outer{box: box{M: keys10}, Tag: "t"}
+
+const items = []item{{M: keys10}, {M: keys10}}
+
+const idx = 1
+
+func sorted(name string, read func() string) {
+	for range 64 {
+		if got := read(); got != "abcdefghij" {
+			check(name, false, got, "abcdefghij")
+			return
+		}
+	}
+	check(name, true, "", "")
+}
+
+func test() {
+	sorted("range-explicit-embedded", func() string {
+		s := ""
+		for k := range o.box.M {
+			s += k
+		}
+		return s
+	})
+	sorted("range-promoted-field", func() string {
+		s := ""
+		for k := range o.M {
+			s += k
+		}
+		return s
+	})
+	sorted("range-hex-index", func() string {
+		s := ""
+		for k := range items[0x1].M {
+			s += k
+		}
+		return s
+	})
+	sorted("range-named-index", func() string {
+		s := ""
+		for k := range items[idx].M {
+			s += k
+		}
+		return s
+	})
+}
+
+func main() {
+	test()
+	if failed {
+		os.Exit(1)
+	}
+}

@@ -9,7 +9,7 @@ func constSwitchSelected(n int) int { // ERROR "correctness::infinite_recursion"
 	case int:
 		return constSwitchSelected(n)
 	}
-	return constSwitchSelected(n) // ERROR "\[nogo::unreachable\]"
+	return constSwitchSelected(n)
 }
 
 func constSwitchDeadBranch(n int) int {
@@ -19,7 +19,7 @@ func constSwitchDeadBranch(n int) int {
 	case int:
 		return n
 	}
-	return n // ERROR "\[nogo::unreachable\]"
+	return n
 }
 
 func constSwitchGenericSelected[T any](n T) T { // ERROR "correctness::infinite_recursion"
@@ -29,7 +29,7 @@ func constSwitchGenericSelected[T any](n T) T { // ERROR "correctness::infinite_
 	case int:
 		return constSwitchGenericSelected[T](n)
 	}
-	return constSwitchGenericSelected[T](n) // ERROR "\[nogo::unreachable\]"
+	return constSwitchGenericSelected[T](n)
 }
 
 func constSwitchGenericDead[T any](n T) T {
@@ -39,5 +39,5 @@ func constSwitchGenericDead[T any](n T) T {
 	case int:
 		return n
 	}
-	return n // ERROR "\[nogo::unreachable\]"
+	return n
 }

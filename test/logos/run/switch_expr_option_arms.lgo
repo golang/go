@@ -1,0 +1,230 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+type pc struct {
+	id int
+}
+
+type U interface {
+	int | string
+}
+
+func some(v int) int? { return v }
+
+func somePC(id int) *pc? { return &pc{id: id} }
+
+func someU(v int) U? { return U(v) }
+
+func showInt(r int?) string {
+	if r != nil {
+		return fmt.Sprint("some ", r)
+	}
+	return "none"
+}
+
+func showPC(r *pc?) string {
+	if r != nil {
+		return fmt.Sprint("some ", r.id)
+	}
+	return "none"
+}
+
+func showU(r U?) string {
+	if r != nil {
+		return fmt.Sprint("some ", r)
+	}
+	return "none"
+}
+
+func intNilLast(v int) string {
+	r := switch n := v; n { case 7 => some(5); default => nil }
+	return showInt(r)
+}
+
+func intNilLastRef(v int) string {
+	var r int? = nil
+	if v == 7 {
+		r = some(5)
+	}
+	return showInt(r)
+}
+
+func intNilFirst(v int) string {
+	r := switch n := v; n { case 7 => nil; default => some(5) }
+	return showInt(r)
+}
+
+func intNilFirstRef(v int) string {
+	var r int? = some(5)
+	if v == 7 {
+		r = nil
+	}
+	return showInt(r)
+}
+
+func intPresentValue(v int) string {
+	var a int? = 5
+	r := switch n := v; n { case 7 => a; default => nil }
+	return showInt(r)
+}
+
+func intPresentValueRef(v int) string {
+	var a int? = 5
+	var r int? = nil
+	if v == 7 {
+		r = a
+	}
+	return showInt(r)
+}
+
+func intExplicitTarget(v int) string {
+	var r int? = switch n := v; n { case 7 => some(5); default => nil }
+	return showInt(r)
+}
+
+func intAssignTarget(v int) string {
+	var r int? = some(1)
+	r = switch n := v; n { case 7 => nil; default => some(5) }
+	return showInt(r)
+}
+
+func intAssignTargetRef(v int) string {
+	var r int? = some(1)
+	if v == 7 {
+		r = nil
+	} else {
+		r = some(5)
+	}
+	return showInt(r)
+}
+
+func intReturned(v int) int? {
+	return switch n := v; n { case 7 => some(5); default => nil }
+}
+
+func intReturnedRef(v int) int? {
+	if v == 7 {
+		return some(5)
+	}
+	return nil
+}
+
+func ptrNil(v int) string {
+	r := switch n := v; n { case 7 => somePC(5); default => nil }
+	return showPC(r)
+}
+
+func ptrNilRef(v int) string {
+	var r *pc? = nil
+	if v == 7 {
+		r = somePC(5)
+	}
+	return showPC(r)
+}
+
+func ptrNilFirst(v int) string {
+	r := switch n := v; n { case 7 => nil; default => somePC(5) }
+	return showPC(r)
+}
+
+func ptrNilFirstRef(v int) string {
+	var r *pc? = somePC(5)
+	if v == 7 {
+		r = nil
+	}
+	return showPC(r)
+}
+
+func unionNil(v int) string {
+	r := switch n := v; n { case 7 => someU(5); default => nil }
+	return showU(r)
+}
+
+func unionNilRef(v int) string {
+	var r U? = nil
+	if v == 7 {
+		r = someU(5)
+	}
+	return showU(r)
+}
+
+func unionNilFirst(v int) string {
+	r := switch n := v; n { case 7 => nil; default => someU(5) }
+	return showU(r)
+}
+
+func unionNilFirstRef(v int) string {
+	var r U? = someU(5)
+	if v == 7 {
+		r = nil
+	}
+	return showU(r)
+}
+
+func tupleNames(v int) string {
+	x, y := (1, "a"), (2, "b")
+	r := switch n := v; n { case 7 => x; default => y }
+	a, b := r
+	return fmt.Sprint(a, " ", b)
+}
+
+func tupleNamesRef(v int) string {
+	x, y := (1, "a"), (2, "b")
+	var r (int, string)
+	if v == 7 {
+		r = x
+	} else {
+		r = y
+	}
+	a, b := r
+	return fmt.Sprint(a, " ", b)
+}
+
+type cell struct {
+	name       string
+	got        func(int) string
+	ref        func(int) string
+	hit, miss string
+}
+
+func intReturnedShown(v int) string    { return showInt(intReturned(v)) }
+func intReturnedRefShown(v int) string { return showInt(intReturnedRef(v)) }
+
+func cells() []cell {
+	return []cell{
+		{"int-nil-last", intNilLast, intNilLastRef, "some 5", "none"},
+		{"int-nil-first", intNilFirst, intNilFirstRef, "none", "some 5"},
+		{"int-present-value", intPresentValue, intPresentValueRef, "some 5", "none"},
+		{"int-explicit-target", intExplicitTarget, intNilLastRef, "some 5", "none"},
+		{"int-assign-target", intAssignTarget, intAssignTargetRef, "none", "some 5"},
+		{"int-returned", intReturnedShown, intReturnedRefShown, "some 5", "none"},
+		{"ptr-nil-last", ptrNil, ptrNilRef, "some 5", "none"},
+		{"ptr-nil-first", ptrNilFirst, ptrNilFirstRef, "none", "some 5"},
+		{"union-nil-last", unionNil, unionNilRef, "some 5", "none"},
+		{"union-nil-first", unionNilFirst, unionNilFirstRef, "none", "some 5"},
+		{"tuple-names", tupleNames, tupleNamesRef, "1 a", "2 b"},
+	}
+}
+
+func main() {
+	failed := false
+	for _, c := range cells() {
+		hit, miss := c.got(7), c.got(1)
+		wantHit, wantMiss := c.ref(7), c.ref(1)
+		if hit == wantHit && miss == wantMiss && hit == c.hit && miss == c.miss {
+			fmt.Println("ok", c.name)
+			continue
+		}
+		failed = true
+		fmt.Println("FAIL", c.name+":", "got", hit, miss, "reference", wantHit, wantMiss, "want", c.hit, c.miss)
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

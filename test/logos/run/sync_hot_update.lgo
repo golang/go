@@ -4,14 +4,21 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"logos/sync"
 )
 
-// M8-S5 sync.Hot.Update from .lgo (SPEC T-206): the callback takes
-// `old const *T`, reading through the view to build its replacement;
-// lowering erases the view, so each update lands as a plain CAS swap
-// and Load observes the final value.
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 type HSCounter struct {
 	Name string
@@ -26,5 +33,8 @@ func main() {
 	})
 	h.Update(old => &HSCounter{Name: old.Name + "+lam", N: old.N + 10})
 	got := h.Load()
-	fmt.Println(got.Name, got.N)
+	check("hot", got.Name == "zero+lit+lam" && got.N == 11, fmt.Sprint(got.Name, got.N), "zero+lit+lam11")
+	if failed {
+		os.Exit(1)
+	}
 }

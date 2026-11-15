@@ -1,0 +1,55 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# A comment or string around the argument of len on a const map does not move the call end.
+cd m
+logos run .
+cmp stdout want.txt
+logos eject -o out
+cd out
+exists $UPROOT1272/bin/go
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout ../want.txt
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ../..
+
+-- m/go.mod --
+module example.com/cclencomment
+
+go 1.27
+
+-- m/want.txt --
+ok close-paren-comment 2
+ok open-paren-comment 2
+ok trailing-line-comment 2
+ok bare-close-paren-comment 3
+ok bare-open-paren-comment 3
+ok sum 5
+-- m/main.lgo --
+package main
+
+import "fmt"
+
+type box struct {
+	M map[string]int
+	N int
+}
+
+const cfg = box{M: map[string]int{"a": 1, "b": 2}, N: 7}
+
+const cm = map[string]int{"x": 1, "y": 2, "z": 3}
+
+func main() {
+	n := len(cfg.M /* ) */)
+	fmt.Println("ok close-paren-comment", n)
+	o := len(cfg.M /* ( */)
+	fmt.Println("ok open-paren-comment", o)
+	t := len(cfg.M) // )
+	fmt.Println("ok trailing-line-comment", t)
+	b := len(cm /* ) */)
+	fmt.Println("ok bare-close-paren-comment", b)
+	c := len(cm /* ( */)
+	fmt.Println("ok bare-open-paren-comment", c)
+	fmt.Println("ok sum", len(cfg.M /* ) */)+len(cm /* ) */))
+}

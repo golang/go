@@ -260,7 +260,7 @@ func pairLoads(f *Func) {
 		// TODO: could maybe look further than just one successor hop.
 		clear(nextBlock)
 		for _, e := range b.Succs {
-			if len(e.b.Preds) > 1 {
+			if !logosPairHoistEdge(b, e.b) {
 				continue
 			}
 			for _, v := range e.b.Values {

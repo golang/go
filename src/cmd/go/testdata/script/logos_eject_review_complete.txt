@@ -1,35 +1,23 @@
-# Review follow-up for logos eject (PRRT_kwDOVOeymc6vU0Cb).
-#
-# Case 1 (PRRT_kwDOVOeymc6vU0Cb): Plain Go main module directly imports logos/rt
-# and logos/sync, with no .lgo support consumer. Eject must recognize support
-# imports from copied Go sources, emit the shared support module, add require/replace
-# in go.mod, and retain relative Go dependency replaces. The consumer build is
-# the actual criterion: the ejected tree must build and run cleanly under plain Go.
-#
-# The platform/custom-tag scenario (PRRT_kwDOVOeymc6vU0Cj) lives in
-# logos_eject_review_platform.txt.
-
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
-# -----------------------------------------------------------------------------
-# Case 1: Plain Go main module with support imports and relative Go dependency
-# -----------------------------------------------------------------------------
 cd plain_support
 
-# Native build control: logos run executes plain Go main module with logos support packages.
 logos run .
 stdout '^relhelp-ok:plain-support-ok:42$'
 cp stdout $WORK/plain-want.txt
 
-# Eject the plain Go module.
 logos eject -o out
 
-# The ejected Go module must build and run cleanly under plain Go.
 cd out
 go build ./...
 go run .
 cmp stdout $WORK/plain-want.txt
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
 cd ../..
 
 -- relhelp/go.mod --

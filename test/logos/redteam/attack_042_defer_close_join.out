@@ -1,5 +1,4 @@
-nil: <nil>
-close: close
-both: first
-close
-is-first: true is-close: true
+ok defer-close-nil-kept
+ok defer-close-error-returned
+ok defer-close-join-keeps-primary
+ok defer-close-join-keeps-close

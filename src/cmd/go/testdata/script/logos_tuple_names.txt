@@ -1,0 +1,107 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+logos run ./ok
+stdout '^ok$'
+! logos build ./...
+stderr 'cannot use'
+
+logos build -o $WORK/ok$GOEXE ./okmain
+
+logos run ./viewread
+stdout '^20 1 40 3 10 4$'
+! logos build -o $WORK/vw$GOEXE ./viewwrite
+stderr 'const_view_mutation\] cannot assign field through const view v'
+! logos build -o $WORK/pw$GOEXE ./pviewwrite
+stderr 'const_view_mutation\] cannot assign field through const view p'
+
+-- go.mod --
+module example.com/tuplenames
+
+go 1.27
+
+-- p/p.lgo --
+package p
+
+func Show(t (x int64, err error)) string {
+	return "ok"
+}
+
+type Pair (id int, n int)
+
+var Xs [](id int, n int) = [](id int, n int){(1, 10), (2, 20)}
+
+var Ps []Pair = []Pair{(3, 30), (4, 40)}
+
+func View() const [](id int, n int) { return Xs }
+
+func PView() const []Pair { return Ps }
+
+-- main.lgo --
+package main
+
+import "example.com/tuplenames/p"
+
+func main() {
+	var v (id int64, err error) = (1, nil)
+	println(p.Show(v))
+}
+
+-- okmain/main.lgo --
+package main
+
+import "example.com/tuplenames/p"
+
+func main() {
+	var v (x int64, err error) = (1, nil)
+	println(p.Show(v))
+}
+
+-- ok/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/tuplenames/p"
+)
+
+func main() {
+	var w (x int64, err error) = (3, nil)
+	fmt.Println(p.Show(w))
+}
+
+-- viewread/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/tuplenames/p"
+)
+
+func main() {
+	v := p.View()
+	q := p.PView()
+	fmt.Println(v[1].n, v[0].id, q[1].n, q[0].id, p.Xs[0].n, p.Ps[1].id)
+}
+
+-- viewwrite/main.lgo --
+package main
+
+import "example.com/tuplenames/p"
+
+func main() {
+	v := p.View()
+	v[0].n = 9
+}
+
+-- pviewwrite/main.lgo --
+package main
+
+import "example.com/tuplenames/p"
+
+func main() {
+	p := p.PView()
+	p[1].id = 9
+}

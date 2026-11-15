@@ -13,15 +13,10 @@ import (
 	"cmd/compile/internal/types2"
 )
 
-// discardedError is slop::discarded_error (SPEC Sec 1.2, #164): an
-// expression statement or a blank assignment that drops an error result.
-// Calls that cannot fail in practice are exempt: callees whose package facts
-// carry AlwaysNilError, fmt.Print*, fmt.Fprint* to os.Stdout or os.Stderr,
-// fmt.Fprint* and io.WriteString directed at a *bytes.Buffer or
-// *strings.Builder, the Write* methods of *bytes.Buffer and *strings.Builder,
-// and Write on a receiver that implements hash.Hash. No producer
-// of the AlwaysNilError fact exists yet, so that exemption applies only to
-// facts the importer has recorded.
+// discardedError is slop::discarded_error (SPEC Sec 1.2, #164): a
+// statement that drops an error result: an expression statement, a call
+// statement, an errdefer or scope defer statement, or a blank identifier
+// that receives the result in an assignment or a variable declaration.
 var discardedError = Rule{
 	ID:    "slop::discarded_error",
 	Group: Slop,
@@ -31,17 +26,23 @@ var discardedError = Rule{
 
 // discardCheck walks one file and reports dropped error results.
 type discardCheck struct {
-	pass *Pass
-	file *syntax.File
+	pass   *Pass
+	file   *syntax.File
+	nilErr map[*types2.Func]bool
 	// returnsError tells whether the function being walked returns error
 	// as its last result.
 	returnsError bool
+	// group is the depth of go group blocks and child blocks around the
+	// statement being walked; a go statement at depth above zero hands its
+	// error to the group.
+	group int
 }
 
 // checkDiscardedError is the Check of discardedError.
 func checkDiscardedError(pass *Pass) {
+	nilErr := facts.AlwaysNilErrorSet(pass.Pkg, pass.Info, pass.Files)
 	for _, f := range pass.Files {
-		c := &discardCheck{pass: pass, file: f}
+		c := &discardCheck{pass: pass, file: f, nilErr: nilErr}
 		c.walk(f)
 	}
 }
@@ -59,37 +60,94 @@ func (c *discardCheck) walk(n syntax.Node) {
 		case *syntax.FuncLit:
 			c.walkFunc(m.Body, m.Type)
 			return false
+		case *syntax.GroupStmt:
+			c.walk(m.Ctx)
+			if m.Limit != nil {
+				c.walk(m.Limit)
+			}
+			c.groupBody(m.Body)
+			return false
+		case *syntax.GroupChild:
+			c.groupBody(m.Body)
+			return false
 		case *syntax.ExprStmt:
 			c.exprStmt(m)
 		case *syntax.AssignStmt:
 			c.assignStmt(m)
+		case *syntax.VarDecl:
+			c.varDecl(m)
+		case *syntax.CallStmt:
+			c.callStmt(m)
+		case *syntax.ErrdeferStmt:
+			c.dropCall(m.Call)
+		case *syntax.ScopeDeferStmt:
+			c.dropCall(m.Call)
 		}
 		return true
 	})
 }
 
-// walkFunc walks the body of a function with the signature sig.
 func (c *discardCheck) walkFunc(body *syntax.BlockStmt, sig *syntax.FuncType) {
 	outer := c.returnsError
+	outerGroup := c.group
 	c.returnsError = lastResultIsError(sig)
+	c.group = 0
 	c.walk(body)
 	c.returnsError = outer
+	c.group = outerGroup
 }
 
-// exprStmt reports a call statement that drops an error result.
 func (c *discardCheck) exprStmt(s *syntax.ExprStmt) {
 	call := callOf(s.X)
-	if call == nil || benignCall(c.pass, call) {
-		return
-	}
-	if !slices.ContainsFunc(resultTypes(call), isErrorType) {
+	if call == nil || !c.dropsError(call) {
 		return
 	}
 	d := c.dropped(call)
 	if c.returnsError && c.pass.Kind == KindLgo {
-		d.Fixes = []Fix{{Description: "add ? to propagate the error", Replacement: syntax.String(call) + "?"}}
+		if text, ok := c.sourceText(d.Pos, d.End); ok {
+			d.Fixes = []Fix{{Description: "add ? to propagate the error", Replacement: text + "?"}}
+		}
 	}
 	c.pass.Report(d)
+}
+
+// sourceText returns the source between start and end.
+func (c *discardCheck) sourceText(start, end syntax.Pos) (string, bool) {
+	src := c.pass.Source(c.file)
+	from, okFrom := sourceOffset(src, start)
+	to, okTo := sourceOffset(src, end)
+	if !okFrom || !okTo || from > to {
+		return "", false
+	}
+	return string(src[from:to]), true
+}
+
+func (c *discardCheck) groupBody(body *syntax.BlockStmt) {
+	c.group++
+	c.walk(body)
+	c.group--
+}
+
+func (c *discardCheck) callStmt(s *syntax.CallStmt) {
+	if s.Tok == syntax.Go && c.group > 0 {
+		return
+	}
+	c.dropCall(s.Call)
+}
+
+func (c *discardCheck) dropCall(e syntax.Expr) {
+	call := callOf(e)
+	if call == nil || !c.dropsError(call) {
+		return
+	}
+	c.pass.Report(c.dropped(call))
+}
+
+func (c *discardCheck) dropsError(call *syntax.CallExpr) bool {
+	if c.benignCall(call) {
+		return false
+	}
+	return slices.ContainsFunc(elemTypes(TypeOf(call)), isErrorType)
 }
 
 // assignStmt reports a blank identifier that receives an error result.
@@ -97,7 +155,17 @@ func (c *discardCheck) assignStmt(s *syntax.AssignStmt) {
 	if s.Rhs == nil || (s.Op != 0 && s.Op != syntax.Def) {
 		return
 	}
-	lhs, rhs := exprList(s.Lhs), exprList(s.Rhs)
+	c.blankReceive(exprList(s.Lhs), exprList(s.Rhs))
+}
+
+// varDecl reports a blank identifier that receives an error result.
+func (c *discardCheck) varDecl(d *syntax.VarDecl) {
+	if lhs, rhs, ok := declPairs(d); ok {
+		c.blankReceive(lhs, rhs)
+	}
+}
+
+func (c *discardCheck) blankReceive(lhs, rhs []syntax.Expr) {
 	var call *syntax.CallExpr
 	switch {
 	case len(lhs) == len(rhs):
@@ -115,10 +183,10 @@ func (c *discardCheck) assignStmt(s *syntax.AssignStmt) {
 func (c *discardCheck) pairedBlankCall(lhs, rhs []syntax.Expr) *syntax.CallExpr {
 	for i := range lhs {
 		call := callOf(rhs[i])
-		if call == nil || !isBlank(lhs[i]) || benignCall(c.pass, call) {
+		if call == nil || !isBlank(lhs[i]) || c.benignCall(call) {
 			continue
 		}
-		if res := resultTypes(call); len(res) == 1 && isErrorType(res[0]) {
+		if res := elemTypes(TypeOf(call)); len(res) == 1 && isErrorType(res[0]) {
 			return call
 		}
 	}
@@ -129,10 +197,10 @@ func (c *discardCheck) pairedBlankCall(lhs, rhs []syntax.Expr) *syntax.CallExpr 
 // at the position of a blank identifier.
 func (c *discardCheck) tupleBlankCall(lhs []syntax.Expr, e syntax.Expr) *syntax.CallExpr {
 	call := callOf(e)
-	if call == nil || benignCall(c.pass, call) {
+	if call == nil || c.benignCall(call) {
 		return nil
 	}
-	res := resultTypes(call)
+	res := elemTypes(TypeOf(call))
 	if len(res) != len(lhs) {
 		return nil
 	}
@@ -168,9 +236,8 @@ func lastResultIsError(sig *syntax.FuncType) bool {
 	return isErrorType(TypeOf(sig.ResultList[len(sig.ResultList)-1].Type))
 }
 
-// benignCall reports whether call is one of the exempt callees.
-func benignCall(pass *Pass, call *syntax.CallExpr) bool {
-	fn := calleeFunc(pass, call)
+func (c *discardCheck) benignCall(call *syntax.CallExpr) bool {
+	fn := calleeFunc(c.pass, call)
 	if fn == nil {
 		return false
 	}
@@ -178,49 +245,33 @@ func benignCall(pass *Pass, call *syntax.CallExpr) bool {
 	case "fmt.Print", "fmt.Printf", "fmt.Println":
 		return true
 	case "fmt.Fprint", "fmt.Fprintf", "fmt.Fprintln":
-		return len(call.ArgList) > 0 && (isStdoutOrStderr(pass, call.ArgList[0]) || isBufferOrBuilderArg(call.ArgList[0]))
+		return len(call.ArgList) > 0 && (isStdoutOrStderr(c.pass, call.ArgList[0]) ||
+			isBufferOrBuilder(c.pass, call.ArgList[0]))
 	case "io.WriteString":
-		return len(call.ArgList) > 0 && isBufferOrBuilderArg(call.ArgList[0])
+		return len(call.ArgList) > 0 && isBufferOrBuilder(c.pass, call.ArgList[0])
 	default:
-		return strings.HasPrefix(name, "(*bytes.Buffer).Write") ||
-			strings.HasPrefix(name, "(*strings.Builder).Write") ||
-			isHashWrite(pass, call) ||
-			alwaysNilError(fn)
+		if strings.HasPrefix(name, "(*bytes.Buffer).Write") ||
+			strings.HasPrefix(name, "(*strings.Builder).Write") || isHashWrite(c.pass, call) {
+			return true
+		}
 	}
+	return c.alwaysNil(fn)
 }
 
-// isBufferOrBuilderArg reports whether e has static type *bytes.Buffer or
-// *strings.Builder. Writes through those types cannot fail, so the wrappers
-// that direct output at them cannot fail either.
-func isBufferOrBuilderArg(e syntax.Expr) bool {
-	ptr, ok := types2.Unalias(TypeOf(e)).(*types2.Pointer)
-	if !ok {
+func (c *discardCheck) alwaysNil(fn *types2.Func) bool {
+	if c.nilErr[fn] {
+		return true
+	}
+	if fn.Pkg() == nil || fn.Pkg() == c.pass.Pkg {
 		return false
 	}
-	named, ok := types2.Unalias(ptr.Elem()).(*types2.Named)
-	if !ok {
-		return false
-	}
-	obj := named.Obj()
-	if obj == nil || obj.Pkg() == nil {
-		return false
-	}
-	return (obj.Pkg().Path() == "bytes" && obj.Name() == "Buffer") ||
-		(obj.Pkg().Path() == "strings" && obj.Name() == "Builder")
+	return facts.AlwaysNilCallee(fn)
 }
 
 // isHashWrite reports whether call writes on a receiver that implements
 // hash.Hash. Such a Write never returns an error.
 func isHashWrite(pass *Pass, call *syntax.CallExpr) bool {
-	fun := call.Fun
-	for {
-		p, ok := fun.(*syntax.ParenExpr)
-		if !ok {
-			break
-		}
-		fun = p.X
-	}
-	sel, ok := fun.(*syntax.SelectorExpr)
+	sel, ok := syntax.Unparen(call.Fun).(*syntax.SelectorExpr)
 	if !ok || sel.Sel.Value != "Write" {
 		return false
 	}
@@ -281,44 +332,6 @@ func findPackage(root *types2.Package, path string) *types2.Package {
 	return nil
 }
 
-// alwaysNilError reports whether the facts recorded for the package of fn
-// mark it AlwaysNilError.
-func alwaysNilError(fn *types2.Func) bool {
-	if fn.Pkg() == nil {
-		return false
-	}
-	f, ok := facts.Lookup(fn.Pkg().Path())
-	if !ok || f == nil {
-		return false
-	}
-	object := factObject(fn)
-	return slices.ContainsFunc(f.Fns, func(ff facts.FnFact) bool {
-		return ff.Object == object && ff.AlwaysNilError
-	})
-}
-
-// factObject returns the name of fn in a facts file: Name, Type.Method, or
-// (*Type).Method.
-func factObject(fn *types2.Func) string {
-	sig, ok := fn.Type().(*types2.Signature)
-	if !ok || sig.Recv() == nil {
-		return fn.Name()
-	}
-	recv := types2.Unalias(sig.Recv().Type())
-	ptr, isPtr := recv.(*types2.Pointer)
-	if isPtr {
-		recv = types2.Unalias(ptr.Elem())
-	}
-	named, ok := recv.(*types2.Named)
-	if !ok {
-		return fn.Name()
-	}
-	if isPtr {
-		return "(*" + named.Obj().Name() + ")." + fn.Name()
-	}
-	return named.Obj().Name() + "." + fn.Name()
-}
-
 // isStdoutOrStderr reports whether w is os.Stdout or os.Stderr.
 func isStdoutOrStderr(pass *Pass, w syntax.Expr) bool {
 	sel, ok := w.(*syntax.SelectorExpr)
@@ -329,4 +342,21 @@ func isStdoutOrStderr(pass *Pass, w syntax.Expr) bool {
 		return v.Name() == "Stdout" || v.Name() == "Stderr"
 	}
 	return false
+}
+
+func isBufferOrBuilder(pass *Pass, w syntax.Expr) bool {
+	ptr, ok := types2.Unalias(TypeOf(w)).(*types2.Pointer)
+	if !ok {
+		return false
+	}
+	named, ok := types2.Unalias(ptr.Elem()).(*types2.Named)
+	if !ok {
+		return false
+	}
+	obj := named.Obj()
+	if obj == nil || obj.Pkg() == nil {
+		return false
+	}
+	return (obj.Pkg().Path() == "bytes" && obj.Name() == "Buffer") ||
+		(obj.Pkg().Path() == "strings" && obj.Name() == "Builder")
 }

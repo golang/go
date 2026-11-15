@@ -15,42 +15,16 @@ import (
 	"cmd/compile/internal/types2"
 )
 
-// This file lowers the M6-S7 chain calls that sit in positions the plain
-// statement hoist would move across an evaluation boundary: `for`
-// conditions and post statements (which run every iteration), `if`
-// conditions behind an init statement (whose names they read), `switch`
-// case guards (which run only when earlier guards miss), right operands of
-// `&&` and `||` (which run only when the left operand lets them), and
-// `go { }` group children (whose `?` returns to the group, not to the
-// enclosing function).
-//
-// Header text is located by scanning the source between the delimiters
-// the parser records, never from syntax end positions, which stop before
-// the closing delimiter of a call or a parenthesized operand. The
-// parser keeps every parenthesis as a ParenExpr node, so each
-// parenthesis the eject text adds around a user expression is a
-// ParenExpr in the native tree as well; the printed native tree and the
-// re-parse of the eject text then agree.
-
-// chainGroup is the group-body scope of one chain list: inGroup tells a
-// group statement body from ordinary code, inChild tells a child body
-// (whose `?` returns only the error) from a group body.
 type chainGroup struct {
 	inGroup bool
 	inChild bool
 }
 
-// chainChildResults spells the results enclosing a group child body: a
-// child returns only the error, so a hoisted `?` returns it directly.
-func chainChildResults() []chainResult {
-	return []chainResult{{typ: types2.Universe.Lookup("error").Type()}}
+func chainChildResults() []resultSpec {
+	return []resultSpec{{typ: types2.Universe.Lookup("error").Type()}}
 }
 
-// lowerChainSpecial lowers the statements whose chains need more than a
-// statement-start hoist: groups, loops, switches, selects, and an if
-// whose init statement declares names its condition may read. It reports
-// false for every other statement, which keeps the plain path.
-func (fl *fileLower) lowerChainSpecial(s syntax.Stmt, enc []chainResult) ([]syntax.Stmt, bool) {
+func (fl *fileLower) lowerChainSpecial(s syntax.Stmt, enc []resultSpec) ([]syntax.Stmt, bool) {
 	inner := s
 	for {
 		lab, ok := inner.(*syntax.LabeledStmt)
@@ -76,8 +50,6 @@ func (fl *fileLower) lowerChainSpecial(s syntax.Stmt, enc []chainResult) ([]synt
 	return nil, false
 }
 
-// recvAssign reports the receive assignment `targets = <-ch` of a select
-// clause, or nil for every other clause.
 func recvAssign(c *syntax.CommClause) *syntax.AssignStmt {
 	as, ok := c.Comm.(*syntax.AssignStmt)
 	if !ok || as.Op != 0 {
@@ -89,12 +61,7 @@ func recvAssign(c *syntax.CommClause) *syntax.AssignStmt {
 	return nil
 }
 
-// lowerChainSelect lowers the chains of one select statement. Channel
-// and send operands evaluate once on entry in source order, which the
-// plain hoist already does. The targets of a receive assignment evaluate
-// only when their clause wins, so a hoisting chain in one receives into
-// temporaries and runs behind the receive, at the top of the clause body.
-func (fl *fileLower) lowerChainSelect(s syntax.Stmt, ss *syntax.SelectStmt, enc []chainResult) []syntax.Stmt {
+func (fl *fileLower) lowerChainSelect(s syntax.Stmt, ss *syntax.SelectStmt, enc []resultSpec) []syntax.Stmt {
 	targets := make([][]chainHoist, len(ss.Body))
 	for i, c := range ss.Body {
 		if as := recvAssign(c); as != nil {
@@ -110,9 +77,6 @@ func (fl *fileLower) lowerChainSelect(s syntax.Stmt, ss *syntax.SelectStmt, enc 
 	return out
 }
 
-// splitRecvTarget rewrites `case lhs = <-ch:` into
-// `case t0, ... := <-ch:` with the hoists and `lhs = t0, ...` leading the
-// body.
 func (fl *fileLower) splitRecvTarget(c *syntax.CommClause, as *syntax.AssignStmt, hoists []chainHoist) {
 	pos := c.Pos()
 	from := fl.off(pos) + len("case")
@@ -163,13 +127,7 @@ func (fl *fileLower) splitRecvTarget(c *syntax.CommClause, as *syntax.AssignStmt
 	c.Body = append(prefix, c.Body...)
 }
 
-// lowerChainGroup lowers the chains of one group statement or child
-// block. Head expressions of a group statement run with the enclosing
-// results. A child block always runs as a child, so `?` returns only
-// the error; so does a group statement that sits in a group body,
-// because the statement pass wraps a nested group as a child of that
-// group.
-func (fl *fileLower) lowerChainGroup(s syntax.Stmt, inner syntax.Stmt, enc []chainResult) []syntax.Stmt {
+func (fl *fileLower) lowerChainGroup(s syntax.Stmt, inner syntax.Stmt, enc []resultSpec) []syntax.Stmt {
 	saved := fl.chainGrp
 	encBody := enc
 	bodyGrp := chainGroup{inGroup: true}
@@ -199,9 +157,6 @@ func (fl *fileLower) lowerChainGroup(s syntax.Stmt, inner syntax.Stmt, enc []cha
 	return append(out, s)
 }
 
-// lowerChainHeadLits lowers the function literals under one header piece
-// with their own results and no group scope. Transparent option wrappers
-// belong to the enclosing function, so the walk descends through them.
 func (fl *fileLower) lowerChainHeadLits(n syntax.Node) {
 	saved := fl.chainGrp
 	syntax.Inspect(n, func(x syntax.Node) bool {
@@ -212,7 +167,7 @@ func (fl *fileLower) lowerChainHeadLits(n syntax.Node) {
 			savedExit := fl.chainExit
 			fl.chainGrp = chainGroup{}
 			fl.chainExit = nil
-			lit.Body.List = fl.lowerChainList(lit.Body.List, fl.chainFuncResults(lit.Type))
+			lit.Body.List = fl.lowerChainList(lit.Body.List, fl.resultSpecs(lit.Type, fl.cfLitSig(lit)))
 			fl.chainGrp = saved
 			fl.chainExit = savedExit
 			return false
@@ -221,10 +176,6 @@ func (fl *fileLower) lowerChainHeadLits(n syntax.Node) {
 	})
 }
 
-// chainsInNode collects the outermost chain calls under one expression
-// or simple statement in source order, skipping nested function
-// literals other than transparent option wrappers, whose chains belong
-// to the enclosing function.
 func (fl *fileLower) chainsInNode(n syntax.Node) []*syntax.CallExpr {
 	var all []*syntax.CallExpr
 	syntax.Inspect(n, func(x syntax.Node) bool {
@@ -239,18 +190,12 @@ func (fl *fileLower) chainsInNode(n syntax.Node) []*syntax.CallExpr {
 	return fl.outermostChains(all)
 }
 
-// lowerChainPiece lowers the chains of one header piece with the
-// enclosing results and returns their hoists in source order. Function
-// literals lower first, so every splice inside the piece exists before
-// any caller reads the piece's text.
-func (fl *fileLower) lowerChainPiece(n syntax.Node, enc []chainResult) []chainHoist {
+func (fl *fileLower) lowerChainPiece(n syntax.Node, enc []resultSpec) []chainHoist {
 	fl.lowerChainHeadLits(n)
 	return fl.lowerChainUnit(n, fl.chainsInNode(n), enc)
 }
 
-// lowerChainPieceExit is lowerChainPiece for a header piece whose hoists
-// run inside a closure: exit spells how a failing hoist leaves it.
-func (fl *fileLower) lowerChainPieceExit(n syntax.Node, enc []chainResult, exit func(err string) string) []chainHoist {
+func (fl *fileLower) lowerChainPieceExit(n syntax.Node, enc []resultSpec, exit func(err string) string) []chainHoist {
 	fl.lowerChainHeadLits(n)
 	saved := fl.chainExit
 	fl.chainExit = exit
@@ -259,9 +204,6 @@ func (fl *fileLower) lowerChainPieceExit(n syntax.Node, enc []chainResult, exit 
 	return out
 }
 
-// stmtStartPos reports the position of the first token of s. The syntax
-// package places a labeled statement at its colon, so a labeled
-// statement starts at its outermost label.
 func stmtStartPos(s syntax.Stmt) syntax.Pos {
 	if lab, ok := s.(*syntax.LabeledStmt); ok {
 		return lab.Label.Pos()
@@ -269,9 +211,6 @@ func stmtStartPos(s syntax.Stmt) syntax.Pos {
 	return syntax.StartPos(s)
 }
 
-// stmtLabels reports every label carried by one labeled statement,
-// outermost first: the wrapper of a lowered switch repeats them ahead of
-// the switch, so `break` and `continue` naming them keep their target.
 func stmtLabels(s syntax.Stmt) []string {
 	var out []string
 	for {
@@ -284,9 +223,6 @@ func stmtLabels(s syntax.Stmt) []string {
 	}
 }
 
-// topSemis reports the offsets of the semicolons of src[from:to] that
-// sit outside every bracket pair: the delimiters of a for or switch
-// header. Automatic semicolons never delimit a header.
 func (fl *fileLower) topSemis(from, to int) []int {
 	var out []int
 	depth := 0
@@ -309,9 +245,6 @@ func (fl *fileLower) topSemis(from, to int) []int {
 	return out
 }
 
-// tokenSpan reports the span of the tokens of src[from:to], from the
-// start of the first to the end of the last, comments and automatic
-// semicolons aside. A range without tokens reports an empty span at from.
 func (fl *fileLower) tokenSpan(from, to int) span {
 	out := span{start: from, end: from}
 	seen := false
@@ -329,15 +262,10 @@ func (fl *fileLower) tokenSpan(from, to int) span {
 	return out
 }
 
-// forHeader locates the tokens of the clauses a for statement keeps in
-// its header.
 type forHeader struct {
 	cond, post span
 }
 
-// forHeaderOf scans the header of fs, which carries a condition or a post
-// statement: either a lone condition (`for cond {`) or three clauses
-// (`for init; cond; post {`).
 func (fl *fileLower) forHeaderOf(fs *syntax.ForStmt) forHeader {
 	from := fl.off(fs.Pos()) + len("for")
 	to := fl.off(fs.Body.Pos())
@@ -356,60 +284,36 @@ func (fl *fileLower) forHeaderOf(fs *syntax.ForStmt) forHeader {
 	return h
 }
 
-// chainErrName mints the error variable of one rewritten statement from
-// its position, so every rewritten statement owns a name no user code can
-// spell.
 func chainErrName(pos syntax.Pos) string {
 	return fmt.Sprintf("_logos_e_%d_%d", pos.Line(), pos.Col())
 }
 
-// condFail spells the failing branch of a hoist inside a condition
-// closure: the error goes to the statement's variable and the condition
-// reports true, so the guarded body runs next and returns the error
-// before any user code.
 func condFail(errVar string) func(err string) string {
 	return func(err string) string { return errVar + " = " + err + "; return true" }
 }
 
-// postFail spells the failing branch of a hoist inside a post closure:
-// the error goes to the statement's variable, which the condition and the
-// body test before they run.
 func postFail(errVar string) func(err string) string {
 	return func(err string) string { return errVar + " = " + err + "; return" }
 }
 
-// declareChainErr declares the error variable of the statement s ahead of
-// it, as eject text and as a native statement.
 func (fl *fileLower) declareChainErr(s syntax.Stmt, errName string) []syntax.Stmt {
 	start := fl.stmtStartOf(s)
 	fl.add(start, start, "var "+errName+" error; ")
 	return parseChainStmtFrag(fl, "var "+errName+" error", stmtStartPos(s))
 }
 
-// chainErrCheck builds `if err != nil { return ... }`, the first
-// statement of a body whose header closures may have failed, as native
-// statements and as eject text.
-func (fl *fileLower) chainErrCheck(enc []chainResult, pos syntax.Pos, errName string) ([]syntax.Stmt, string) {
+func (fl *fileLower) chainErrCheck(enc []resultSpec, pos syntax.Pos, errName string) ([]syntax.Stmt, string) {
 	ret := (&chainGen{fl: fl, pos: pos, enc: enc}).returnText(errName)
 	text := "if " + errName + " != nil { " + ret + " }"
 	return parseChainStmtFrag(fl, text, pos), text
 }
 
-// condRewrite is one condition rewritten into a closure: the native call
-// and the eject text that goes before and after the condition's own
-// tokens, which stay where they are.
 type condRewrite struct {
 	call *syntax.CallExpr
 	head otext
 	tail string
 }
 
-// condClosure wraps cond in `func() bool { hoists; return cond }()`. The
-// hoists run every time the condition is evaluated, which is where the
-// source evaluates its chains, and the condition's tokens stay in place:
-// only insertions go around them, so edits of later passes inside the
-// condition land where the tokens are. The closure's scopes open at
-// anchor.
 func (fl *fileLower) condClosure(cond syntax.Expr, hoists []chainHoist, anchor syntax.Pos) condRewrite {
 	call, ok := parseChainExprFrag(fl, "func() bool { return _logos_cond }()", anchor).(*syntax.CallExpr)
 	if !ok {
@@ -430,10 +334,6 @@ func (fl *fileLower) condClosure(cond syntax.Expr, hoists []chainHoist, anchor s
 	return condRewrite{call: call, head: cat(parts...), tail: " }()"}
 }
 
-// postClosure wraps post in `func() { hoists; post }()`. The call stays
-// the loop's post statement, so Go still makes the next iteration's
-// variables before it runs, and closures of the body keep the values of
-// their own iteration. The post tokens stay in place between insertions.
 func (fl *fileLower) postClosure(post syntax.SimpleStmt, hoists []chainHoist, sp span, anchor syntax.Pos) syntax.SimpleStmt {
 	call, ok := parseChainExprFrag(fl, "func() { }()", anchor).(*syntax.CallExpr)
 	if !ok {
@@ -453,19 +353,7 @@ func (fl *fileLower) postClosure(post syntax.SimpleStmt, hoists []chainHoist, sp
 	return exprStmtOf(anchor, call)
 }
 
-// lowerChainFor lowers the chains of one for statement. Init chains run
-// once before the loop, which the plain hoist already does. A condition
-// chain runs every iteration after the post statement, and a post chain
-// runs every iteration after the body, so each one hoists into a closure
-// that the header keeps in the clause's place: `continue` still reaches
-// the post statement, Go still makes the iteration's variables before the
-// post statement runs, and the clauses run when the source runs them. A
-// closure cannot return from the function, so a failing hoist stores its
-// error in a variable of the loop and lets the clause report true (the
-// condition) or end (the post); the condition tests the variable before
-// it runs again, and the body tests it before any user code. Pure chains
-// lower in place and need no rewrite.
-func (fl *fileLower) lowerChainFor(s syntax.Stmt, fs *syntax.ForStmt, enc []chainResult) []syntax.Stmt {
+func (fl *fileLower) lowerChainFor(s syntax.Stmt, fs *syntax.ForStmt, enc []resultSpec) []syntax.Stmt {
 	var out []syntax.Stmt
 	if fs.Init != nil {
 		for _, h := range fl.lowerChainPiece(fs.Init, enc) {
@@ -488,8 +376,6 @@ func (fl *fileLower) lowerChainFor(s syntax.Stmt, fs *syntax.ForStmt, enc []chai
 	hdr := fl.forHeaderOf(fs)
 	anchor := fs.Body.Pos()
 	out = append(out, fl.declareChainErr(s, errName)...)
-	// The rewritten clauses install after the body lowers, so the walk of
-	// function literals never meets the synthesized closures.
 	cond, post := fs.Cond, fs.Post
 	var head otext
 	var tail string
@@ -518,8 +404,6 @@ func (fl *fileLower) lowerChainFor(s syntax.Stmt, fs *syntax.ForStmt, enc []chai
 	return append(out, s)
 }
 
-// ifCondSpan reports the tokens of the condition of an if with an init
-// statement.
 func (fl *fileLower) ifCondSpan(ifs *syntax.IfStmt) span {
 	from := fl.off(ifs.Pos()) + len("if")
 	to := fl.off(ifs.Then.Pos())
@@ -530,14 +414,7 @@ func (fl *fileLower) ifCondSpan(ifs *syntax.IfStmt) span {
 	return fl.tokenSpan(semis[0]+1, to)
 }
 
-// lowerChainIf lowers the chains of one if statement with an init
-// statement. Init chains run once before the statement, which the plain
-// hoist already does. Condition chains run after the init statement, whose
-// names they may read, so they hoist into a closure that the header keeps
-// in the condition's place, and the then branch tests the error a failing
-// hoist leaves, before any user code: the condition reports true on
-// failure, so the else branch never runs.
-func (fl *fileLower) lowerChainIf(s syntax.Stmt, ifs *syntax.IfStmt, enc []chainResult) []syntax.Stmt {
+func (fl *fileLower) lowerChainIf(s syntax.Stmt, ifs *syntax.IfStmt, enc []resultSpec) []syntax.Stmt {
 	var out []syntax.Stmt
 	start := fl.stmtStartOf(s)
 	for _, h := range fl.lowerChainPiece(ifs.Init, enc) {
@@ -558,11 +435,7 @@ func (fl *fileLower) lowerChainIf(s syntax.Stmt, ifs *syntax.IfStmt, enc []chain
 	return append(out, s)
 }
 
-// rewriteIfCond records the eject text that turns the condition of ifs,
-// whose chains hoist, into a closure call, and builds the native closure
-// call and the error test that leads the then branch. The caller installs
-// both, and declares errName ahead of the if.
-func (fl *fileLower) rewriteIfCond(ifs *syntax.IfStmt, hoists []chainHoist, enc []chainResult, errName string) (*syntax.CallExpr, []syntax.Stmt) {
+func (fl *fileLower) rewriteIfCond(ifs *syntax.IfStmt, hoists []chainHoist, enc []resultSpec, errName string) (*syntax.CallExpr, []syntax.Stmt) {
 	anchor := ifs.Then.Pos()
 	sp := fl.ifCondSpan(ifs)
 	cc := fl.condClosure(ifs.Cond, hoists, anchor)
@@ -574,20 +447,12 @@ func (fl *fileLower) rewriteIfCond(ifs *syntax.IfStmt, hoists []chainHoist, enc 
 	return cc.call, check
 }
 
-// chainPaths records where the chains of one evaluation unit sit relative
-// to its short-circuit operations: ops lists, for every chain, the
-// operations whose right operand holds it, outermost first; spans and
-// types describe the left operand of every operation listed, read from
-// the tree before any lowering rewrites it.
 type chainPaths struct {
 	ops   map[*syntax.CallExpr][]*syntax.Operation
 	spans map[*syntax.Operation]span
 	types map[*syntax.Operation]string
 }
 
-// shortCircuitOffset reports the source offset of the operator of op when
-// op is a written `&&` or `||`. Generated fragments carry normalized
-// positions that never spell the operator.
 func (fl *fileLower) shortCircuitOffset(op *syntax.Operation) (int, bool) {
 	if op.Y == nil || (op.Op != syntax.AndAnd && op.Op != syntax.OrOr) || !op.Pos().IsKnown() {
 		return 0, false
@@ -606,9 +471,6 @@ func (fl *fileLower) shortCircuitOffset(op *syntax.Operation) (int, bool) {
 	return off, true
 }
 
-// operandSpan reports the source span of the left operand of op: from its
-// first token to the end of its last token before the operator. The
-// operand of a binary operation starts at its own leftmost operand.
 func (fl *fileLower) operandSpan(op *syntax.Operation, opOff int) span {
 	x := op.X
 	for {
@@ -622,9 +484,6 @@ func (fl *fileLower) operandSpan(op *syntax.Operation, opOff int) span {
 	return span{start: start, end: lastTokenEnd(fl.src, start, opOff)}
 }
 
-// shortOperandType spells the type of a short-circuit operand for the
-// temporary that holds it: bool, or the named boolean type the operand
-// has.
 func (fl *fileLower) shortOperandType(x syntax.Expr) string {
 	t := fl.pkg.info.TypeOf(x)
 	if t == nil || isUntypedBasic(t) {
@@ -639,10 +498,6 @@ func (fl *fileLower) shortOperandType(x syntax.Expr) string {
 	return "bool"
 }
 
-// chainPathsOf locates the calls of one evaluation unit under the
-// short-circuit operations of root. Function literals other than
-// transparent option wrappers and statements nested under root belong to
-// other units, so the walk never enters them.
 func (fl *fileLower) chainPathsOf(root syntax.Node, calls []*syntax.CallExpr) chainPaths {
 	want := make(map[*syntax.CallExpr]bool, len(calls))
 	for _, c := range calls {
@@ -694,8 +549,6 @@ func (fl *fileLower) chainPathsOf(root syntax.Node, calls []*syntax.CallExpr) ch
 	return out
 }
 
-// chainTries reports whether lowering call hoists a computation: the call,
-// or a chain nested under it, carries a `?` lambda.
 func (fl *fileLower) chainTries(call *syntax.CallExpr) bool {
 	found := false
 	syntax.Inspect(call, func(n syntax.Node) bool {
@@ -710,14 +563,8 @@ func (fl *fileLower) chainTries(call *syntax.CallExpr) bool {
 			return true
 		}
 		for _, arg := range c.ArgList {
-			lam, ok := syntax.Unparen(arg).(*syntax.LambdaExpr)
-			if !ok {
-				continue
-			}
-			if body, ok := lam.Body.(syntax.Expr); ok {
-				if _, ok := syntax.Unparen(body).(*syntax.TryExpr); ok {
-					found = true
-				}
+			if lam, ok := syntax.Unparen(arg).(*syntax.LambdaExpr); ok && types2.LogosLambdaTry(lam) != nil {
+				found = true
 			}
 		}
 		return true
@@ -725,13 +572,7 @@ func (fl *fileLower) chainTries(call *syntax.CallExpr) bool {
 	return found
 }
 
-// lowerChainUnit lowers the outermost chains of one evaluation unit, a
-// statement or a header piece, and returns their hoists in the order the
-// source evaluates them. A hoist computes where the unit starts, so a
-// chain that the source evaluates only when a short-circuit operand lets
-// it run needs more than a place in that order: the operand evaluates
-// first, and the hoist runs only while the operand admits it.
-func (fl *fileLower) lowerChainUnit(root syntax.Node, calls []*syntax.CallExpr, enc []chainResult) []chainHoist {
+func (fl *fileLower) lowerChainUnit(root syntax.Node, calls []*syntax.CallExpr, enc []resultSpec) []chainHoist {
 	if len(calls) == 0 {
 		return nil
 	}
@@ -747,23 +588,18 @@ func (fl *fileLower) lowerChainUnit(root syntax.Node, calls []*syntax.CallExpr, 
 	if !guarded {
 		var out []chainHoist
 		for _, call := range calls {
-			out = append(out, fl.lowerChainTopLevel(call, enc)...)
+			out = append(out, fl.lowerChainGuarded(call, enc, "")...)
 		}
 		return out
 	}
-	// Chains that do not hoist lower where they stand, ahead of every
-	// operand text the guarded hoists copy.
 	for _, call := range calls {
-		if !fl.chainTries(call) && len(fl.lowerChainTopLevel(call, enc)) > 0 {
+		if !fl.chainTries(call) && len(fl.lowerChainGuarded(call, enc, "")) > 0 {
 			base.Fatalf("logos: chain at %s hoists without a `?` lambda", call.Pos().String())
 		}
 	}
 	return fl.lowerChainRegion(hoisting, paths, 0, "", enc)
 }
 
-// chainItem is one step of a region in source order: a chain of the
-// region itself, or a short-circuit operation holding chains in its right
-// operand.
 type chainItem struct {
 	key   int
 	call  *syntax.CallExpr
@@ -771,16 +607,7 @@ type chainItem struct {
 	calls []*syntax.CallExpr
 }
 
-// lowerChainRegion lowers the hoisting chains of one region of a unit:
-// the chains whose enclosing short-circuit operations are the first depth
-// entries of their paths, all behind the same guard. A chain with no
-// further operation hoists under the guard. An operation holding chains
-// in its right operand evaluates its left operand into a temporary, then
-// the chains of the right operand hoist under the guard extended by that
-// temporary (negated for `||`), and the operation reads the temporary in
-// the operand's place. Items run in source order: the operator sits after
-// every chain of its left operand and before every chain of its right.
-func (fl *fileLower) lowerChainRegion(calls []*syntax.CallExpr, paths chainPaths, depth int, guard string, enc []chainResult) []chainHoist {
+func (fl *fileLower) lowerChainRegion(calls []*syntax.CallExpr, paths chainPaths, depth int, guard string, enc []resultSpec) []chainHoist {
 	var items []chainItem
 	byOp := make(map[*syntax.Operation]int)
 	for _, call := range calls {
@@ -820,20 +647,10 @@ func (fl *fileLower) lowerChainRegion(calls []*syntax.CallExpr, paths chainPaths
 	return out
 }
 
-// moveShortOperand hoists the left operand of a short-circuit operation
-// into the temporary name and makes the operation read the temporary. The
-// operand evaluates once, behind guard when the operation itself is
-// conditional; the right operand stays where it is, so the operation
-// still short-circuits on the same value. The operand's source region is
-// a moved region: its edits, including those of later passes, belong to
-// the copy in the hoist text, and the region itself holds the name.
 func (fl *fileLower) moveShortOperand(op *syntax.Operation, sp span, typ, name, guard string) chainHoist {
 	x := op.X
 	pos := op.Pos()
 	fl.lowerChainHeadLits(x)
-	// The native hoists hold the operand node itself. Only the eject text
-	// carries the mark, which resolveChainMoves replaces with the composed
-	// copy of the operand before any edit is emitted; no parser sees it.
 	mark := fl.moveRegion(sp, name)
 	op.X = nameOf(leftmostOf(x), name)
 	if guard == "" {
@@ -851,32 +668,21 @@ func (fl *fileLower) moveShortOperand(op *syntax.Operation, sp span, typ, name, 
 	}
 }
 
-// swGuard is one guard expression of a case clause: the hoists of its
-// chains and, once the switch is known to rewrite, its source tokens.
 type swGuard struct {
 	sp     span
 	hoists []chainHoist
 }
 
-// switchHeader locates the parts of a switch statement header: the
-// region from the first token of the statement (its outermost label, if
-// any) through the opening brace, and the tokens of the init statement
-// and of the tag inside it.
 type switchHeader struct {
 	region    span
 	init, tag span
 }
 
-// isTypeSwitchTag reports whether tag is a type switch guard.
 func isTypeSwitchTag(tag syntax.Expr) bool {
 	_, ok := syntax.Unparen(tag).(*syntax.TypeSwitchGuard)
 	return ok
 }
 
-// switchHeaderOf scans the header of ss, which has at least one clause:
-// the opening brace is the last token before the first clause, and a
-// semicolon outside every bracket pair splits the init statement from
-// the tag.
 func (fl *fileLower) switchHeaderOf(s syntax.Stmt, ss *syntax.SwitchStmt) switchHeader {
 	from := fl.off(ss.Pos()) + len("switch")
 	first := fl.off(ss.Body[0].Pos())
@@ -904,8 +710,6 @@ func (fl *fileLower) switchHeaderOf(s syntax.Stmt, ss *syntax.SwitchStmt) switch
 	return h
 }
 
-// guardSpans splits the source between a case keyword and its colon at
-// the commas outside every bracket pair: one token span per guard.
 func (fl *fileLower) guardSpans(c *syntax.CaseClause) []span {
 	from := fl.off(c.Pos()) + len("case")
 	to := fl.off(c.Colon)
@@ -932,23 +736,11 @@ func (fl *fileLower) guardSpans(c *syntax.CaseClause) []span {
 	return append(out, fl.tokenSpan(start, to))
 }
 
-// clauseGuards reports the guard expressions of one case clause.
 func clauseGuards(c *syntax.CaseClause) []syntax.Expr {
 	return syntax.UnpackListExpr(c.Cases)
 }
 
-// lowerChainSwitch lowers the chains of one switch statement. Init and
-// tag chains run once before any guard, which the plain hoist already
-// does. Guard chains run only when earlier guards miss, so when one
-// hoists the switch splits in two: a selection phase evaluates the tag
-// once and then each guard in source order, only while no guard has
-// matched, recording the number of the matching clause, and the switch
-// itself keeps its clauses and bodies but switches on that number. The
-// bodies keep their break, fallthrough, and default meaning because the
-// clauses keep their order; a default clause anywhere runs when the
-// selection stays zero. Type switches and switches with only pure
-// chains keep the plain path.
-func (fl *fileLower) lowerChainSwitch(s syntax.Stmt, ss *syntax.SwitchStmt, enc []chainResult) []syntax.Stmt {
+func (fl *fileLower) lowerChainSwitch(s syntax.Stmt, ss *syntax.SwitchStmt, enc []resultSpec) []syntax.Stmt {
 	if len(ss.Body) == 0 || isTypeSwitchTag(ss.Tag) {
 		return fl.lowerChainPlain(s, enc)
 	}
@@ -976,9 +768,6 @@ func (fl *fileLower) lowerChainSwitch(s syntax.Stmt, ss *syntax.SwitchStmt, enc 
 			runs[i] = append(runs[i], run)
 		}
 	}
-	// Tag chains evaluate after the init statement, whose names they may
-	// read, so a tag that hoists behind an init statement takes the
-	// wrapper too.
 	if guardHoists == 0 && (ss.Init == nil || len(tagHoists) == 0) {
 		out := pre
 		for _, h := range tagHoists {
@@ -992,12 +781,7 @@ func (fl *fileLower) lowerChainSwitch(s syntax.Stmt, ss *syntax.SwitchStmt, enc 
 	return append(pre, fl.emitChainSwitch(s, ss, tagHoists, runs, enc))
 }
 
-// emitChainSwitch assembles the selection phase and the clause switch of
-// one switch whose guards hoist, as native nodes and as eject text. The
-// wrapper block opens at the first token of the statement and closes at
-// the switch's closing brace, and every synthesized scope opens at the
-// wrapper's position, so scope positions never move backward.
-func (fl *fileLower) emitChainSwitch(s syntax.Stmt, ss *syntax.SwitchStmt, tagHoists []chainHoist, runs [][]swGuard, enc []chainResult) *syntax.BlockStmt {
+func (fl *fileLower) emitChainSwitch(s syntax.Stmt, ss *syntax.SwitchStmt, tagHoists []chainHoist, runs [][]swGuard, enc []resultSpec) *syntax.BlockStmt {
 	hdr := fl.switchHeaderOf(s, ss)
 	p0 := stmtStartPos(s)
 	pfx := fmt.Sprintf("_logos_sw_%d_%d", ss.Pos().Line(), ss.Pos().Col())

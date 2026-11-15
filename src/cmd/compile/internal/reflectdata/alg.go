@@ -21,7 +21,7 @@ import (
 // genhash returns a symbol which is the closure used to compute
 // the hash of a value of type t.
 func genhash(t *types.Type) *obj.LSym {
-	return genhashSig(identitySignature(t))
+	return genhashSig(eqSignature(t))
 }
 
 func genhashSig(sig string) *obj.LSym {
@@ -41,8 +41,6 @@ func genhashSig(sig string) *obj.LSym {
 		return sysClosure("memhash64")
 	case string(sigMemory) + "16":
 		return sysClosure("memhash128")
-	case string(sigPointer):
-		return sysClosure("zgcptrhash")
 	case string(sigString):
 		return sysClosure("strhash")
 	case string(sigIface):
@@ -167,10 +165,6 @@ func hashFunc(sig string) *ir.Func {
 				fn.Body.Append(ir.NewAssignStmt(pos, nh, call))
 			}
 			off += n
-		case sigPointer:
-			call := ir.NewCallExpr(pos, ir.OCALL, zgcRuntimeFunc("zgcptrhash", types.Types[types.TUINTPTR]), []ir.Node{ptr(), nh})
-			fn.Body.Append(ir.NewAssignStmt(pos, nh, call))
-			off += int64(types.PtrSize)
 		case sigFloat32:
 			hash("f32hash", 4)
 		case sigFloat64:
@@ -249,7 +243,7 @@ func geneq(t *types.Type) *obj.LSym {
 		// a type with a nil equality function.
 		return nil
 	}
-	return geneqSig(identitySignature(t))
+	return geneqSig(eqSignature(t))
 }
 
 // geneqSig returns a symbol which is the closure used to compute
@@ -283,8 +277,6 @@ func geneqSig(sig string) *obj.LSym {
 		if align >= 8 {
 			return sysClosure("memequal128")
 		}
-	case string(sigPointer):
-		return sysClosure("zgcptrequal")
 	case string(sigString):
 		return sysClosure("strequal")
 	case string(sigIface):
@@ -467,13 +459,6 @@ func eqFunc(sig string) *ir.Func {
 					n--
 				}
 			}
-		case sigPointer:
-			c := ir.NewBasicLit(pos, types.Types[types.TUINTPTR], constant.MakeInt64(off))
-			p := ir.NewBinaryExpr(pos, ir.OUNSAFEADD, np, c)
-			q := ir.NewBinaryExpr(pos, ir.OUNSAFEADD, nq, c)
-			test(typecheck.Call(pos, zgcRuntimeFunc("zgcptrequal", types.Types[types.TBOOL]), []ir.Node{p, q}, false))
-			hasCall = true
-			off += int64(types.PtrSize)
 		case sigFloat32:
 			compare(load(types.Types[types.TFLOAT32]))
 		case sigFloat64:
@@ -674,17 +659,12 @@ const (
 	sigArrayStart = '[' // followed by an iteration count, element signature, and sigArrayEnd
 	sigArrayEnd   = ']'
 	sigAlign      = 'A' // followed by an integer byte alignment
-	sigPointer    = 'P' // pointer word hashed by object identity (hash signatures under -lb only)
 )
 
 type eqSigBuilder struct {
 	r       strings.Builder
 	regMem  int64 // queued up region of regular memory
 	skipMem int64 // queued up region of memory to skip
-
-	// ptrIdentity emits sigPointer for every pointer word instead of
-	// folding it into regular memory. Only hash signatures set it.
-	ptrIdentity bool
 }
 
 func (e *eqSigBuilder) flush(atEnd bool) {
@@ -742,14 +722,7 @@ func (e *eqSigBuilder) build(t *types.Type) {
 		e.regular(4)
 	case types.TINT64, types.TUINT64:
 		e.regular(8)
-	case types.TPTR, types.TUNSAFEPTR, types.TCHAN:
-		if e.ptrIdentity {
-			e.flush(false)
-			e.r.WriteByte(sigPointer)
-			break
-		}
-		e.regular(int64(types.PtrSize))
-	case types.TINT, types.TUINT, types.TUINTPTR:
+	case types.TINT, types.TUINT, types.TUINTPTR, types.TPTR, types.TUNSAFEPTR, types.TCHAN:
 		e.regular(int64(types.PtrSize))
 	case types.TFLOAT32:
 		e.float32()
@@ -785,7 +758,7 @@ func (e *eqSigBuilder) build(t *types.Type) {
 			e.skip(t.Size() - off)
 		}
 	case types.TARRAY:
-		if types.AlgType(t) == types.AMEM && !(e.ptrIdentity && t.HasPointers()) {
+		if types.AlgType(t) == types.AMEM {
 			// TODO: some "regular equality" types don't hit here,
 			// like [8]sync/atomic.Pointer. Figure out how to
 			// handle the subtle difference between "AMEM" and
@@ -898,8 +871,6 @@ func sigSize(sig string) int64 {
 			size += 4
 		case sigFloat64:
 			size += 8
-		case sigPointer:
-			size += int64(types.PtrSize)
 		case sigString, sigIface, sigEface:
 			size += 2 * int64(types.PtrSize)
 		case sigArrayStart:

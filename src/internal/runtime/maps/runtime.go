@@ -37,21 +37,6 @@ func newarray(typ *abi.Type, n int) unsafe.Pointer
 //go:linkname newobject
 func newobject(typ *abi.Type) unsafe.Pointer
 
-// logosPinMapKey is pushed from runtime. It pins the heap objects whose
-// address the hash of the key at p depends on (M19-S5, #159).
-//
-//go:linkname logosPinMapKey
-//go:noescape
-func logosPinMapKey(key *abi.Type, p unsafe.Pointer)
-
-// pinKey pins the address-hashed objects of an inserted key when the moving
-// collector exists.
-func pinKey(typ *abi.MapType, key unsafe.Pointer) {
-	if goexperiment.LogosGCMoving && typ.Key.Pointers() {
-		logosPinMapKey(typ.Key, key)
-	}
-}
-
 // Pushed from runtime in order to use runtime.plainError
 //
 //go:linkname errNilAssign
@@ -176,7 +161,6 @@ func runtime_mapassign(typ *abi.MapType, m *Map, key unsafe.Pointer) unsafe.Poin
 	}
 
 	hash := typ.Hasher(key, m.seed)
-	pinKey(typ, key)
 
 	// Set writing after calling Hasher, since Hasher may panic, in which
 	// case we have not actually done a write.

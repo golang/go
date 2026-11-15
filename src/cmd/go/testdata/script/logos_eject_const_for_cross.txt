@@ -1,11 +1,3 @@
-# M7-S3 eject with inner lowering in cross-package comptime generics
-# (SPEC Sec 2.5, T-205; T-0.3, T-Sec6): package wire exports comptime
-# generics whose const for bodies hold a `?` call, a `$"..."`
-# interpolation, a chain call, and a nested const for. Package main
-# instantiates them over a local type and over a wire type. The ejected
-# tree holds each expansion copy as plain Go in main, with no marker and
-# no comptime import left, runs under plain go with the output logos run
-# prints, and stays vet- and gofmt-clean.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
@@ -13,12 +5,9 @@ cd m
 
 cp ../want.txt $WORK/want.txt
 
-# logos runs the module before eject and prints the complete expected
-# output, line for line.
 logos run .
 cmp stdout $WORK/want.txt
 
-# Snapshot the source tree; eject must never write into it (#112).
 mkdir $WORK/orig
 cp main.lgo $WORK/orig/main.lgo
 cp wire/wire.lgo $WORK/orig/wire.lgo
@@ -27,27 +16,32 @@ logos eject -o out
 exists out/main.go
 exists out/wire/wire.go
 
-# No ejected file imports comptime, and no expansion marker leaks.
 ! grep '"comptime"' out/main.go
 ! grep '"comptime"' out/wire/wire.go
 ! grep '_logos_ctpkg' out/main.go
 ! grep '_logos_ctimp' out/main.go
 ! grep '_logos_tparam' out/main.go
 ! grep '_logos_ctcomptime' out/main.go
+grep 'Total_logosct' out/main.go
+! grep 'logosct' out/wire/wire.go
+grep 'Weights_logosct2' out/main.go
+! grep 'Weights_logosct4' out/main.go
 
-# The ejected tree runs under plain go with the same complete output.
 cd out
 go run .
 cmp stdout $WORK/want.txt
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
 go vet ./...
 exec $GOROOT/bin/gofmt -l .
 ! stdout .
 cd ..
 
-# The source tree is unchanged after eject (#112).
 cmp main.lgo $WORK/orig/main.lgo
 cmp wire/wire.lgo $WORK/orig/wire.lgo
-
 -- want.txt --
 A=3
 B=6
@@ -60,6 +54,7 @@ A.B=2
 B.A=3
 B.B=4
 4 <nil>
+15
 -- m/go.mod --
 module example.com/ejectcross
 
@@ -141,4 +136,5 @@ func main() {
 	fmt.Println(wire.Total[wire.Row]("3"))
 	fmt.Println(wire.Weights[Local]())
 	fmt.Println(wire.Grid[Local]("1"))
+	fmt.Println(wire.Weights[Local]())
 }

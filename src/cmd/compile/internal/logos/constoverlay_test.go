@@ -298,12 +298,12 @@ func Sum(xs const []int) int {
 	if len(opts) == 0 || len(consts) == 0 {
 		t.Fatalf("want both opt and const facts, got %d opts and %d consts", len(opts), len(consts))
 	}
-	cloned := CloneWithOverlay(lowered, opts)
+	cloned := CloneWithOverlays(lowered, opts, nil)
 	if optAsOption(funcResult(t, cloned, "Find", 0)) == nil {
-		t.Fatal("CloneWithOverlay did not restore the option result")
+		t.Fatal("CloneWithOverlays did not restore the option result")
 	}
 	if constAsView(funcParam(t, cloned, "Sum", 0)) != nil {
-		t.Fatal("CloneWithOverlay unexpectedly restored a const view")
+		t.Fatal("CloneWithOverlays unexpectedly restored a const view")
 	}
 }
 
@@ -376,8 +376,6 @@ func (b GBox[T]) Len() int {
 	if orp := oldSig.RecvTypeParams(); orp != nil && orp.Len() == 1 && newT == orp.At(0) {
 		t.Fatal("view element reuses the old method receiver type parameter")
 	}
-	// Get declares a value receiver, so the clone must keep a value
-	// receiver whose base is an instance of the cloned GBox.
 	recv := types2.Unalias(newSig.Recv().Type())
 	inst, ok := recv.(*types2.Named)
 	if !ok || inst.Origin() != newNamed {
@@ -584,8 +582,8 @@ func checkLoweredForOverlay(t *testing.T, src string) (*types2.Package, []facts.
 	if err := errors.Join(cerrs...); err != nil {
 		t.Fatalf("check: %v", err)
 	}
-	f := EmitOptionFacts(pkg, info)
-	if f = EmitConstFacts(pkg, info, files, f); f == nil {
+	f := facts.Write(pkg, info, files, map[*syntax.File][]byte{file: []byte(src)})
+	if len(f.Opts)+len(f.Consts) == 0 {
 		t.Fatal("no facts emitted")
 	}
 	changed, edits := Lower(pkg, info, files, map[*syntax.File][]byte{file: []byte(src)})

@@ -1,4 +1,4 @@
-// run
+// run -t 60
 
 package main
 
@@ -8,64 +8,133 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"sync/atomic"
+	"slices"
 	"time"
 )
 
-// M8-S4: a child blocked in conn.Read with no data returns within 100 ms
-// after a sibling fails, with an error satisfying os.IsTimeout (#151).
-// The group error propagates like `?`.
-
 var errBoom = errors.New("boom")
 
-var failedAt atomic.Int64
+var bad bool
 
-func readChild(conn net.Conn) error {
-	_, err := conn.Read(make([]byte, 1))
-	took := time.Duration(time.Now().UnixNano() - failedAt.Load())
-	switch {
-	case !os.IsTimeout(err):
-		fmt.Println("child: not a timeout:", err)
-	case took > 100*time.Millisecond:
-		fmt.Println("child: late:", took)
-	default:
-		fmt.Println("child: timeout")
+var errWins int
+
+var timeoutHits int
+
+var imminent = make(chan struct{}, 1)
+
+var failedAt, wokeAt time.Time
+
+const (
+	specBound = 100 * time.Millisecond
+	rounds    = 20
+)
+
+var holdFor time.Duration
+
+func check(tag string, cond bool, got, want string) {
+	if !cond {
+		fmt.Println("FAIL "+tag+": got "+got+" want "+want)
+		bad = true
+		return
 	}
+	fmt.Println("ok", tag)
+}
+//logos:allow(correctness::unbounded_channel_op)
+func readChild(conn net.Conn, res chan string) error {
+	imminent <- struct{}{}
+	_, err := conn.Read(make([]byte, 1))
+	wokeAt = time.Now()
+	if !os.IsTimeout(err) {
+		res <- "not-timeout"
+		return err
+	}
+	res <- "timeout"
 	return nil
 }
 
+//logos:allow(correctness::unbounded_channel_op)
 func sibling() error {
-	time.Sleep(20 * time.Millisecond)
-	failedAt.Store(time.Now().UnixNano())
+	<-imminent
+	time.Sleep(holdFor)
+	failedAt = time.Now()
 	return errBoom
 }
 
-func run(conn net.Conn) error {
+func run(conn net.Conn, res chan string) error {
 	go group (context.Background()) {
-		go readChild(conn)
+		go readChild(conn, res)
 		go sibling()
 	}
 	return nil
 }
 
+func acceptPeer(ln net.Listener, peer string) net.Conn {
+	for {
+		conn, err := ln.Accept()
+		if err != nil {
+			fmt.Println("FAIL group-netpoll-setup: got", err, "want accept")
+			os.Exit(1)
+		}
+		if conn.RemoteAddr().String() == peer {
+			return conn
+		}
+		if err := conn.Close(); err != nil {
+			fmt.Println("FAIL group-netpoll-setup: got", err, "want stray connection closed")
+			os.Exit(1)
+		}
+	}
+}
+
+//logos:allow(correctness::unbounded_channel_op)
+func oneRound(ln net.Listener) time.Duration {
+	cli, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		fmt.Println("FAIL group-netpoll-setup: got", err, "want dial")
+		os.Exit(1)
+	}
+//logos:allow(slop::discarded_error)
+	defer cli.Close()
+	srv := acceptPeer(ln, cli.LocalAddr().String())
+//logos:allow(slop::discarded_error)
+	defer srv.Close()
+	res := make(chan string, 1)
+	if run(srv, res) == errBoom {
+		errWins++
+	}
+	if <-res == "timeout" {
+		timeoutHits++
+	}
+	return wokeAt.Sub(failedAt)
+}
+
+//logos:allow(correctness::unbounded_channel_op)
 func main() {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		fmt.Println("listen:", err)
-		return
+		fmt.Println("FAIL group-netpoll-setup: got", err, "want listener")
+		os.Exit(1)
 	}
+//logos:allow(slop::discarded_error)
 	defer ln.Close()
-	cli, err := net.Dial("tcp", ln.Addr().String())
-	if err != nil {
-		fmt.Println("dial:", err)
-		return
+	watch := time.AfterFunc(30*time.Second, func() {
+		fmt.Println("FAIL group-netpoll-cancel-deadline: group with a parked network read did not finish within 30s")
+		os.Exit(1)
+	})
+	defer watch.Stop()
+	var wakes []time.Duration
+	holdFor = 5 * specBound
+	wakes = append(wakes, oneRound(ln))
+	holdFor = 20 * time.Millisecond
+	for range rounds - 1 {
+		wakes = append(wakes, oneRound(ln))
 	}
-	defer cli.Close()
-	srv, err := ln.Accept()
-	if err != nil {
-		fmt.Println("accept:", err)
-		return
+	wantAll := fmt.Sprintf("%d of %d", rounds, rounds)
+	check("group-netpoll-first-error-wins", errWins == rounds, fmt.Sprint(errWins), wantAll)
+	check("group-netpoll-cancel-wakes-with-timeout", timeoutHits == rounds, fmt.Sprint(timeoutHits), wantAll)
+	spread := fmt.Sprintf("min %v max %v of %d rounds", slices.Min(wakes), slices.Max(wakes), len(wakes))
+	check("group-netpoll-read-held-until-cancel", slices.Min(wakes) >= 0, spread, "no read returned before the cancel, the first round held 5x the bound")
+	check("group-netpoll-wake-prompt", slices.Max(wakes) <= specBound, spread, "every wake within the 100ms SPEC bound")
+	if bad {
+		os.Exit(1)
 	}
-	defer srv.Close()
-	fmt.Println("group:", run(srv))
 }

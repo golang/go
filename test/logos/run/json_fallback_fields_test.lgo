@@ -1,0 +1,181 @@
+// run
+
+package jsonfallback
+
+import (
+	"bytes"
+	"encoding/json"
+	"testing"
+)
+
+type Both int64
+
+func (b Both) MarshalJSON() ([]byte, error) {
+	return []byte(`123`), nil
+}
+
+var unmarshalInputs []string
+
+func (b *Both) UnmarshalJSON(raw []byte) error {
+	unmarshalInputs = append(unmarshalInputs, string(raw))
+	*b = 3
+	return nil
+}
+
+type UnmarshalOnly int64
+
+func (u *UnmarshalOnly) UnmarshalJSON(raw []byte) error {
+	unmarshalInputs = append(unmarshalInputs, string(raw))
+	*u = 45
+	return nil
+}
+
+type Mix struct {
+	A int64         `json:"a"`
+	B string        `json:"b"`
+	M Both          `json:"m"`
+	V Both          `json:"v,string"`
+	U UnmarshalOnly `json:"u,string"`
+	W UnmarshalOnly `json:"w"`
+}
+
+type MixMirror struct {
+	A     int64         `json:"a"`
+	B     string        `json:"b"`
+	M     Both          `json:"m"`
+	V     Both          `json:"v,string"`
+	U     UnmarshalOnly `json:"u,string"`
+	W     UnmarshalOnly `json:"w"`
+	NoGen any           `json:"-"`
+}
+
+type NumberMix struct {
+	A int64       `json:"a"`
+	N json.Number `json:"n,string"`
+}
+
+type NumberMixMirror struct {
+	A     int64       `json:"a"`
+	N     json.Number `json:"n,string"`
+	NoGen any         `json:"-"`
+}
+
+type ModeledOnly struct {
+	A int64  `json:"a"`
+	B string `json:"b"`
+}
+
+type OneFallback struct {
+	A int64  `json:"a"`
+	B string `json:"b"`
+	V Both   `json:"v,string"`
+}
+
+type TwoFallback struct {
+	A int64  `json:"a"`
+	B string `json:"b"`
+	V Both   `json:"v,string"`
+	W Both   `json:"w,string"`
+}
+
+var sink []byte
+
+func must(b []byte, err error) []byte {
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
+
+func TestPerFieldFallbackMatchesEncodingJSON(t *testing.T) {
+	v := Mix{A: -3, B: "b<&>", M: 1, V: 2, U: 4, W: 0}
+	want := must(json.Marshal(MixMirror{A: v.A, B: v.B, M: v.M, V: v.V, U: v.U, W: v.W}))
+	got := must(json.Marshal(v))
+	if !bytes.Equal(got, want) {
+		t.Fatalf("mixed marshal differs from the reflective oracle\n got %s\nwant %s", got, want)
+	}
+
+	nv := NumberMix{A: 5, N: "9"}
+	nwant := must(json.Marshal(NumberMixMirror{A: nv.A, N: nv.N}))
+	ngot := must(json.Marshal(nv))
+	if !bytes.Equal(ngot, nwant) {
+		t.Fatalf("json.Number fallback got %s, want %s", ngot, nwant)
+	}
+}
+
+func hasGeneratedMethods(v any) bool {
+	if _, ok := v.(json.Marshaler); ok {
+		return true
+	}
+	if _, ok := v.(json.Unmarshaler); ok {
+		return true
+	}
+	return false
+}
+
+func TestMixedStructsKeepGeneratedMethods(t *testing.T) {
+	for _, v := range []any{Mix{}, NumberMix{}, &Mix{}, &NumberMix{}} {
+		if !hasGeneratedMethods(v) {
+			t.Fatalf("mixed struct %T lost its generated methods", v)
+		}
+	}
+	for _, v := range []any{MixMirror{}, &MixMirror{}, NumberMixMirror{}, &NumberMixMirror{}} {
+		if hasGeneratedMethods(v) {
+			t.Fatalf("reflective mirror %T has generated methods", v)
+		}
+	}
+}
+
+func TestUnmarshalFallbackDeliversTheSameMethodInput(t *testing.T) {
+	doc := []byte(`{"a":1,"b":"x","m":123,"v":"3","u":"7","w":"45"}`)
+	var v Mix
+	unmarshalInputs = nil
+	if err := json.Unmarshal(doc, &v); err != nil {
+		t.Fatal(err)
+	}
+	if v.A != 1 || v.B != "x" || v.M != 3 || v.V != 3 || v.U != 45 || v.W != 45 {
+		t.Fatalf("decode lost values: %#v", v)
+	}
+	staticInputs := append([]string(nil), unmarshalInputs...)
+
+	var m MixMirror
+	unmarshalInputs = nil
+	if err := json.Unmarshal(doc, &m); err != nil {
+		t.Fatal(err)
+	}
+	reflectiveInputs := append([]string(nil), unmarshalInputs...)
+
+	if len(staticInputs) != 4 || len(reflectiveInputs) != 4 {
+		t.Fatalf("user unmarshalers ran %d (static) and %d (reflective) times: %q vs %q",
+			len(staticInputs), len(reflectiveInputs), staticInputs, reflectiveInputs)
+	}
+	for i := range staticInputs {
+		if staticInputs[i] != reflectiveInputs[i] {
+			t.Fatalf("method input %d diverges from the reflective path: %q vs %q", i, staticInputs, reflectiveInputs)
+		}
+	}
+	if staticInputs[3] != `"45"` {
+		t.Fatalf("a bare field must deliver its raw token: %q", staticInputs)
+	}
+}
+
+func TestModeledFieldsKeepTheFastPath(t *testing.T) {
+	m := ModeledOnly{A: -9, B: "x"}
+	one := OneFallback{A: -9, B: "x", V: 1}
+	two := TwoFallback{A: -9, B: "x", V: 1, W: 2}
+	sink = must(m.MarshalJSON())
+	sink = must(one.MarshalJSON())
+	sink = must(two.MarshalJSON())
+	modeled := testing.AllocsPerRun(100, func() { sink = must(m.MarshalJSON()) })
+	single := testing.AllocsPerRun(100, func() { sink = must(one.MarshalJSON()) })
+	pair := testing.AllocsPerRun(100, func() { sink = must(two.MarshalJSON()) })
+	if modeled != 1 {
+		t.Fatalf("modeled struct allocates %v times, want 1", modeled)
+	}
+	if pair != 2*single-modeled {
+		t.Fatalf("each unmodeled field must pay the same per-field fallback: modeled %v, one %v, two %v", modeled, single, pair)
+	}
+	if single == modeled {
+		t.Fatalf("the unmodeled field paid nothing: modeled %v, one %v", modeled, single)
+	}
+}

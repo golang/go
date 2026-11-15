@@ -1,0 +1,31 @@
+// run
+
+package main
+
+import "unsafe"
+
+type plain struct {
+	L []int
+	N int
+}
+
+const c = plain{L: []int{1, 2}, N: 4}
+
+func view(v const plain) uintptr {
+	return unsafe.Sizeof(v) + unsafe.Alignof(v.L) + unsafe.Offsetof(v.N) - unsafe.Offsetof(plain{}.N)
+}
+
+func main() {
+	z := c
+	s := z.L
+	if unsafe.Sizeof(z) != unsafe.Sizeof(plain{}) || unsafe.Alignof(z) != unsafe.Alignof(plain{}) || unsafe.Offsetof(z.N) != unsafe.Offsetof(plain{}.N) {
+		panic("readonly view changed layout")
+	}
+	if unsafe.Sizeof(s) != unsafe.Sizeof([]int{}) || len(s) != 2 || cap(s) != 2 || view(c) != unsafe.Sizeof(plain{})+unsafe.Alignof(s) {
+		panic("readonly slice observation changed layout or bounds")
+	}
+	if z.N != 4 || len(z.L) != 2 || s[0] != 1 || s[1] != 2 {
+		panic("readonly observation changed literal values")
+	}
+	println("ok const-readonly-builtins")
+}

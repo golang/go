@@ -12,21 +12,6 @@ import (
 	"strconv"
 )
 
-// LoGo/s M7-S2/M7-S3 `const if` inside expansions (SPEC Sec 2.5, T-205).
-// A comptime generic copy and an unrolled const for body are built from
-// source text that the checker never saw per instantiation, so their
-// `const if` statements cannot read a recorded constant. They evaluate
-// here instead: the condition is a boolean expression over `true`,
-// `false`, comptime.IsStruct[X]() with X resolved in the expansion
-// context, and the connectives `!`, `&&`, `||`, `==`, `!=`. A condition
-// that does not depend on the expansion reads the constant the checker
-// recorded. The live branch replaces the statement in the text; the dead
-// branches go away with their text, so a const for over a non-struct
-// inside one never resolves.
-
-// cfCondValue evaluates the constant expression e of a `const if`
-// condition under the active bindings. It reports false when e is not
-// evaluable.
 func (fl *fileLower) cfCondValue(e syntax.Expr, active cfChain, sites *cfSites) (constant.Value, bool) {
 	if v, ok := fl.cfDirectValue(e, active, sites); ok {
 		return v, true
@@ -34,8 +19,6 @@ func (fl *fileLower) cfCondValue(e syntax.Expr, active cfChain, sites *cfSites) 
 	return fl.cfRecordedValue(e, active)
 }
 
-// cfDirectValue evaluates e from its own syntax, without the checker's
-// record.
 func (fl *fileLower) cfDirectValue(e syntax.Expr, active cfChain, sites *cfSites) (constant.Value, bool) {
 	switch e := e.(type) {
 	case *syntax.ParenExpr:
@@ -50,7 +33,6 @@ func (fl *fileLower) cfDirectValue(e syntax.Expr, active cfChain, sites *cfSites
 	return nil, false
 }
 
-// cfNameValue reads `true` and `false`.
 func cfNameValue(n *syntax.Name) (constant.Value, bool) {
 	switch n.Value {
 	case "true":
@@ -61,7 +43,6 @@ func cfNameValue(n *syntax.Name) (constant.Value, bool) {
 	return nil, false
 }
 
-// cfOperationValue evaluates `!x` and the binary connectives.
 func (fl *fileLower) cfOperationValue(e *syntax.Operation, active cfChain, sites *cfSites) (constant.Value, bool) {
 	x, ok := fl.cfCondValue(e.X, active, sites)
 	if !ok {
@@ -77,7 +58,6 @@ func (fl *fileLower) cfOperationValue(e *syntax.Operation, active cfChain, sites
 	return cfBinaryValue(e.Op, x, y)
 }
 
-// cfUnaryValue applies `!` to a boolean value.
 func cfUnaryValue(op syntax.Operator, x constant.Value) (constant.Value, bool) {
 	if op != syntax.Not || x.Kind() != constant.Bool {
 		return nil, false
@@ -85,7 +65,6 @@ func cfUnaryValue(op syntax.Operator, x constant.Value) (constant.Value, bool) {
 	return constant.UnaryOp(token.NOT, x, 0), true
 }
 
-// cfBinaryValue applies a connective to two values of one kind.
 func cfBinaryValue(op syntax.Operator, x, y constant.Value) (constant.Value, bool) {
 	if x.Kind() != y.Kind() {
 		return nil, false
@@ -103,7 +82,6 @@ func cfBinaryValue(op syntax.Operator, x, y constant.Value) (constant.Value, boo
 	return nil, false
 }
 
-// cfBoolOp applies a boolean connective to two boolean values.
 func cfBoolOp(x constant.Value, op token.Token, y constant.Value) (constant.Value, bool) {
 	if x.Kind() != constant.Bool {
 		return nil, false
@@ -111,9 +89,10 @@ func cfBoolOp(x constant.Value, op token.Token, y constant.Value) (constant.Valu
 	return constant.BinaryOp(x, op, y), true
 }
 
-// cfPredicateValue evaluates comptime.IsStruct[X](): true when the type
-// X resolves to, under its underlying type, a struct.
 func (fl *fileLower) cfPredicateValue(call *syntax.CallExpr, active cfChain, sites *cfSites) (constant.Value, bool) {
+	if v, ok := fl.logosLayoutCallValue(call, active, sites); ok {
+		return v, true
+	}
 	targ, ok := cfPredicateTarget(call, sites)
 	if !ok {
 		return nil, false
@@ -126,8 +105,6 @@ func (fl *fileLower) cfPredicateValue(call *syntax.CallExpr, active cfChain, sit
 	return constant.MakeBool(isStruct), true
 }
 
-// cfPredicateTarget returns the type argument of a call written
-// `<comptime>.IsStruct[X]()`.
 func cfPredicateTarget(call *syntax.CallExpr, sites *cfSites) (syntax.Expr, bool) {
 	idx, ok := call.Fun.(*syntax.IndexExpr)
 	if !ok || len(call.ArgList) != 0 || sites == nil {
@@ -145,10 +122,6 @@ func cfPredicateTarget(call *syntax.CallExpr, sites *cfSites) (syntax.Expr, bool
 	return targs[0], true
 }
 
-// cfRecordedValue reads the constant the checker recorded for e. An
-// expression that names an active const for variable has one value per
-// iteration, so the recorded value of the last iteration never stands
-// in for it.
 func (fl *fileLower) cfRecordedValue(e syntax.Expr, active cfChain) (constant.Value, bool) {
 	mentions := false
 	syntax.Inspect(e, func(n syntax.Node) bool {
@@ -163,9 +136,6 @@ func (fl *fileLower) cfRecordedValue(e syntax.Expr, active cfChain) (constant.Va
 	return typeConst(fl.pkg.info, e)
 }
 
-// cfLiveBranch returns the block that the const-if chain rooted at s
-// selects, or nil when no branch is selected. ok is false when a
-// condition of the chain is not evaluable.
 func (fl *fileLower) cfLiveBranch(s *syntax.ConstIfStmt, active cfChain, sites *cfSites) (live *syntax.BlockStmt, ok bool) {
 	val, ok := fl.cfCondValue(s.Cond, active, sites)
 	if !ok || val.Kind() != constant.Bool {
@@ -183,7 +153,6 @@ func (fl *fileLower) cfLiveBranch(s *syntax.ConstIfStmt, active cfChain, sites *
 	return nil, true
 }
 
-// cfInConstFor reports whether n lies under a const for of its tree.
 func cfInConstFor(n syntax.Node, parents map[syntax.Node]syntax.Node) bool {
 	for p := parents[n]; p != nil; p = parents[p] {
 		if _, ok := p.(*syntax.ConstForStmt); ok {
@@ -193,11 +162,6 @@ func cfInConstFor(n syntax.Node, parents map[syntax.Node]syntax.Node) bool {
 	return false
 }
 
-// cfPruneConstIf adds the two deletions that turn the `const if` chain s
-// into its live block: the text before the block and the text after it.
-// With no live block both cover the whole statement. It returns the live
-// block, whose own substitutions the caller still collects, and reports
-// a condition that is not evaluable.
 func (fl *fileLower) cfPruneConstIf(s *syntax.ConstIfStmt, active cfChain, run *cfRun, add func(int, int, string)) *syntax.BlockStmt {
 	live, ok := fl.cfLiveBranch(s, active, run.sites)
 	if !ok {
@@ -216,9 +180,6 @@ func (fl *fileLower) cfPruneConstIf(s *syntax.ConstIfStmt, active cfChain, run *
 	return live
 }
 
-// cfInnerConstFors lists the outermost const fors under body in order
-// that the expansion keeps: a const for in a dead branch of a `const if`
-// is not listed, and no dead branch is searched.
 func (fl *fileLower) cfInnerConstFors(body *syntax.BlockStmt, active cfChain, sites *cfSites) []*syntax.ConstForStmt {
 	var out []*syntax.ConstForStmt
 	var visit func(syntax.Node) bool
@@ -239,17 +200,12 @@ func (fl *fileLower) cfInnerConstFors(body *syntax.BlockStmt, active cfChain, si
 	return out
 }
 
-// foldCond splices the constant sub-conditions of a `const if`
-// condition into the record text as `true` or `false`: a record is
-// parsed again without type information, so a condition that does not
-// depend on a type parameter must already be a literal there. The
-// predicate leaves, which wait for an instantiation, keep their text,
-// and the names inside them take the record's markers through visit.
 func (b *cfRecordBuilder) foldCond(e syntax.Expr) {
 	if val, ok := typeConst(b.fl.pkg.info, e); ok && val.Kind() == constant.Bool {
 		ctx := cfCtx{buf: b.fl.srcMap, starts: b.fl.start}
 		s := offAt(ctx.starts, syntax.StartPos(e))
-		b.subs = append(b.subs, splice{start: s, end: cfExactEnd(ctx, e), text: strconv.FormatBool(constant.BoolVal(val))})
+		end := cfFoldEnd(ctx, e)
+		b.subs = append(b.subs, splice{start: s, end: end, text: keepComments(ctx.buf.b, s, end, strconv.FormatBool(constant.BoolVal(val)))})
 		return
 	}
 	switch e := e.(type) {

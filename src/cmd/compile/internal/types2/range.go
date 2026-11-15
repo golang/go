@@ -32,7 +32,9 @@ func (check *Checker) rangeStmt(inner stmtContext, rangeStmt *syntax.ForStmt, no
 	// described situation.
 
 	check.hasCallOrRecv = false
-	check.expr(nil, &x, rangeVar)
+	if !check.logosRangeExpr(&x, rangeVar) {
+		check.expr(nil, &x, rangeVar)
+	}
 	check.logosConstRange(&x) // logos M5-S1 hook: range over const views.
 
 	if isTypes2 && x.isValid() && sValue == nil && !check.hasCallOrRecv {

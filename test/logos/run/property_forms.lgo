@@ -1,0 +1,60 @@
+// run
+
+package main
+
+import "fmt"
+
+type RO interface {
+	const ID int
+	const Start() error
+}
+
+type Gadget struct : RO {
+	ID int
+}
+
+func (m Gadget) Start() error { return nil }
+
+type Probe struct : RO {
+	ID int
+}
+
+func (m *Probe) Start() error { return nil }
+
+func show[T RO](x T) T { return x }
+
+func get() RO { return Gadget{ID: 3} }
+
+func check(name string, got, want int) {
+	if got != want {
+		fmt.Println("FAIL", name, got, want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func main() {
+	g1 := Gadget{ID: 1}
+	var r RO = g1
+	check("assign", r.ID, g1.ID)
+	g2 := Gadget{ID: 2}
+	r = g2
+	check("reassign", r.ID, g2.ID)
+	check("return", get().ID, 3)
+	rs := []RO{Gadget{ID: 5}}
+	check("slice", rs[0].ID, 5)
+	m := map[string]RO{"a": Gadget{ID: 6}}
+	if mv, ok := m["a"]; ok {
+		check("map", mv.ID, 6)
+	} else {
+		fmt.Println("FAIL map missing")
+	}
+	ch := make(chan RO, 1)
+	ch <- Gadget{ID: 7}
+	check("chan", (<-ch).ID, 7)
+	check("generic", show(Gadget{ID: 8}).ID, 8)
+	var p RO = &Probe{ID: 9}
+	check("ptr", p.ID, 9)
+	var r2 RO = r
+	check("iface", r2.ID, r.ID)
+}

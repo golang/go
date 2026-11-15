@@ -4,10 +4,6 @@
 
 package p
 
-// M6-S2 `&expr` for non-addressable operands (SPEC T-104.5): each form
-// below types as a pointer. Freshness (a distinct variable per
-// evaluation) is a run property pinned by test/logos/run/addr_lit.lgo.
-
 func freshInt() int { return 7 }
 
 func addrLiterals() {

@@ -1,0 +1,54 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd w
+logos build -o $WORK/lib.a ./lib
+go tool pack p $WORK/lib.a __.LOGOS
+stdout '^fn Box\.Pure Readonly,ParamMutated=0$'
+stdout '^fn Summer\.Pure Readonly$'
+
+logos build -o $WORK/ok.a ./okcall
+! logos build -o $WORK/bad.a ./badcall
+stderr 'const_view_mutation.*cannot pass const view'
+
+-- w/go.mod --
+module example.com/readonly
+
+go 1.27
+
+-- w/lib/lib.lgo --
+package lib
+
+type Box struct {
+	V []int
+}
+
+func (b Box) Pure(xs const []int) int {
+	total := 0
+	for _, v := range xs {
+		total += v
+	}
+	return total
+}
+
+type Summer interface {
+	const Pure(xs []int) int
+}
+
+-- w/okcall/ok.lgo --
+package okcall
+
+import "example.com/readonly/lib"
+
+func Use(b lib.Box, cv const []int) int {
+	return b.Pure(cv)
+}
+
+-- w/badcall/bad.lgo --
+package badcall
+
+import "example.com/readonly/lib"
+
+func Use(s lib.Summer, cv const []int) int {
+	return s.Pure(cv)
+}

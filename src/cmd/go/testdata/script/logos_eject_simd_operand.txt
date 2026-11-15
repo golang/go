@@ -1,0 +1,40 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+logos run .
+stdout '^\[6 8 10 12\] \[6 8 10 12\] \[6 8 10 12\] \[6 8 10 12\]$'
+cp stdout $WORK/native.txt
+logos eject -o out
+exists out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $WORK/native.txt
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
+exec $WORK/upstream$GOEXE
+cmp stdout $WORK/native.txt
+cd ..
+
+-- m/go.mod --
+module example.com/simdoperand
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import "fmt"
+
+func main() {
+	a := [4]float64{1, 2, 3, 4}
+	b := [4]float64{5, 6, 7, 8}
+	pa, pb := &a, &b
+	f := func() *[4]float64 { return pb }
+	ch := make(chan [4]float64, 1)
+	ch <- a
+	fmt.Println(*pa+*pb, *(f())+*pa, <-ch+b, (*(f()))+(*pa))
+}

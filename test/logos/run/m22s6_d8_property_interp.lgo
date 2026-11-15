@@ -2,10 +2,21 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
-// M22-S6 defect D8 (SPEC T-104.4, T-203.2): a property read through an
-// interface lowers inside `$"..."` braces like any other read.
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 type A interface {
 	const ID int64
@@ -22,5 +33,9 @@ func audit(a A) string {
 }
 
 func main() {
-	fmt.Println(audit(&R{ID: 1, Name: "n"}))
+	got := audit(&R{ID: 1, Name: "n"})
+	check("interp-const-props-format", got == fmt.Sprintf("%d %s", 1, "n") && got == "1 n", got, "1 n")
+	if failed {
+		os.Exit(1)
+	}
 }

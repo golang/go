@@ -1,0 +1,350 @@
+// run
+
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+	"strings"
+)
+
+var errLoad = errors.New("load")
+
+var failed bool
+
+var events []string
+
+func note(s string) {
+	events = append(events, s)
+}
+
+func load(v int, fail bool) (int, error) {
+	if fail {
+		return 0, errLoad
+	}
+	return v, nil
+}
+
+func next(n int, fail bool) (int, error) {
+	if fail {
+		return 0, errLoad
+	}
+	return n + 1, nil
+}
+
+func run(name string, f func(bool) error, want, wantFail string) {
+	events = nil
+	err := f(false)
+	got := strings.Join(events, ",")
+	events = nil
+	errFail := f(true)
+	gotFail := strings.Join(events, ",")
+	if err != nil || !errors.Is(errFail, errLoad) || got != want || gotFail != wantFail {
+		failed = true
+		fmt.Printf("FAIL %s: got %q %v and %q %v, want %q and %q\n", name, got, err, gotFail, errFail, want, wantFail)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func initOneScope(fail bool) error {
+	scope defer note("fn")
+L:
+	for i := load(0, fail)?; i < 4; i++ {
+		scope defer note("body")
+		note(fmt.Sprint("i", i))
+		if i == 1 {
+			continue L
+		}
+		if i == 2 {
+			break L
+		}
+	}
+	return nil
+}
+
+func initTwoScopes(fail bool) error {
+	scope defer note("fn")
+L:
+	for i := load(0, fail)?; i < 4; i++ {
+		scope defer note("body")
+		{
+			scope defer note("inner")
+			note(fmt.Sprint("i", i))
+			if i == 1 {
+				continue L
+			}
+			if i == 2 {
+				break L
+			}
+		}
+	}
+	return nil
+}
+
+func postOneScope(fail bool) error {
+	scope defer note("fn")
+L:
+	for i := 0; i < 4; i = next(i, fail)? {
+		scope defer note("body")
+		note(fmt.Sprint("i", i))
+		if i == 1 {
+			continue L
+		}
+		if i == 2 {
+			break L
+		}
+	}
+	return nil
+}
+
+func postTwoScopes(fail bool) error {
+	scope defer note("fn")
+L:
+	for i := 0; i < 4; i = next(i, fail)? {
+		scope defer note("body")
+		{
+			scope defer note("inner")
+			note(fmt.Sprint("i", i))
+			if i == 1 {
+				continue L
+			}
+			if i == 2 {
+				break L
+			}
+		}
+	}
+	return nil
+}
+
+func postPlain(fail bool) error {
+	scope defer note("fn")
+	for i := 0; i < 2; i = next(i, fail)? {
+		scope defer note("body")
+		note(fmt.Sprint("i", i))
+	}
+	return nil
+}
+
+func initAndPostTwoScopes(fail bool) error {
+	scope defer note("fn")
+L:
+	for i := load(0, fail)?; i < 4; i = next(i, fail)? {
+		scope defer note("body")
+		{
+			scope defer note("inner")
+			note(fmt.Sprint("i", i))
+			if i == 1 {
+				continue L
+			}
+			if i == 2 {
+				break L
+			}
+		}
+	}
+	return nil
+}
+
+func switchOneScope(fail bool) error {
+	scope defer note("fn")
+L:
+	switch x := load(1, fail)?; x {
+	case 1:
+		scope defer note("case")
+		note("work")
+		if x == 1 {
+			break L
+		}
+		note("unreached")
+	default:
+		note("default")
+	}
+	note("after")
+	return nil
+}
+
+func switchTwoScopes(fail bool) error {
+	scope defer note("fn")
+L:
+	switch x := load(1, fail)?; x {
+	case 1:
+		scope defer note("case")
+		{
+			scope defer note("inner")
+			note("work")
+			break L
+		}
+	default:
+		note("default")
+	}
+	note("after")
+	return nil
+}
+
+func gotoInitOneScope(fail bool) error {
+	scope defer note("fn")
+	pass := 0
+L:
+	for i := load(0, fail)?; i < 4; i++ {
+		scope defer note("body")
+		note(fmt.Sprint("p", pass, "i", i))
+		if i == 1 && pass == 0 {
+			pass++
+			goto L
+		}
+		if i == 2 {
+			break L
+		}
+	}
+	return nil
+}
+
+func gotoInitTwoScopes(fail bool) error {
+	scope defer note("fn")
+	pass := 0
+L:
+	for i := load(0, fail)?; i < 4; i++ {
+		scope defer note("body")
+		{
+			scope defer note("inner")
+			note(fmt.Sprint("p", pass, "i", i))
+			if i == 1 && pass == 0 {
+				pass++
+				goto L
+			}
+			if i == 2 {
+				break L
+			}
+		}
+	}
+	return nil
+}
+
+func gotoPostTwoScopes(fail bool) error {
+	scope defer note("fn")
+	pass := 0
+L:
+	for i := 0; i < 4; i = next(i, fail)? {
+		scope defer note("body")
+		{
+			scope defer note("inner")
+			note(fmt.Sprint("p", pass, "i", i))
+			if i == 1 && pass == 0 {
+				pass++
+				goto L
+			}
+			if i == 2 {
+				break L
+			}
+		}
+	}
+	return nil
+}
+
+func gotoContinueTwoScopes(fail bool) error {
+	scope defer note("fn")
+	pass := 0
+L:
+	for i := load(0, fail)?; i < 3; i++ {
+		scope defer note("body")
+		{
+			scope defer note("inner")
+			note(fmt.Sprint("p", pass, "i", i))
+			if i == 0 && pass == 0 {
+				pass++
+				goto L
+			}
+			if i == 1 {
+				continue L
+			}
+		}
+	}
+	return nil
+}
+
+func gotoSwitchTwoScopes(fail bool) error {
+	scope defer note("fn")
+	pass := 0
+L:
+	switch x := load(1, fail)?; x {
+	case 1:
+		scope defer note("case")
+		{
+			scope defer note("inner")
+			note(fmt.Sprint("p", pass))
+			if pass == 0 {
+				pass++
+				goto L
+			}
+		}
+	}
+	note("after")
+	return nil
+}
+
+func gotoIfTwoScopes(fail bool) error {
+	scope defer note("fn")
+	pass := 0
+L:
+	if x := load(1, fail)?; x > 0 {
+		scope defer note("then")
+		{
+			scope defer note("inner")
+			note(fmt.Sprint("p", pass))
+			if pass == 0 {
+				pass++
+				goto L
+			}
+		}
+	}
+	note("after")
+	return nil
+}
+
+func gotoIfElseTwoScopes(fail bool) error {
+	scope defer note("fn")
+	pass := 0
+L:
+	if x := load(0, fail)?; x > 0 {
+		note("then")
+	} else if y := load(1, fail)?; y > 0 {
+		scope defer note("else")
+		{
+			scope defer note("inner")
+			note(fmt.Sprint("p", pass))
+			if pass == 0 {
+				pass++
+				goto L
+			}
+		}
+	}
+	note("after")
+	return nil
+}
+
+func main() {
+	iter := "i0,%[1]sbody,i1,%[1]sbody,i2,%[1]sbody"
+	run("init-one-scope", initOneScope, fmt.Sprintf(iter, "")+",fn", "fn")
+	run("init-two-scopes", initTwoScopes, fmt.Sprintf(iter, "inner,")+",fn", "fn")
+	run("post-one-scope", postOneScope, fmt.Sprintf(iter, "")+",fn", "i0,body,fn")
+	run("post-two-scopes", postTwoScopes, fmt.Sprintf(iter, "inner,")+",fn", "i0,inner,body,fn")
+	run("post-plain", postPlain, "i0,body,i1,body,fn", "i0,body,fn")
+	run("init-and-post-two-scopes", initAndPostTwoScopes, fmt.Sprintf(iter, "inner,")+",fn", "fn")
+	run("switch-one-scope", switchOneScope, "work,case,after,fn", "fn")
+	run("switch-two-scopes", switchTwoScopes, "work,inner,case,after,fn", "fn")
+	run("goto-init-one-scope", gotoInitOneScope, "p0i0,body,p0i1,body,p1i0,body,p1i1,body,p1i2,body,fn", "fn")
+	run("goto-init-two-scopes", gotoInitTwoScopes, "p0i0,inner,body,p0i1,inner,body,p1i0,inner,body,p1i1,inner,body,p1i2,inner,body,fn", "fn")
+	run("goto-post-two-scopes", gotoPostTwoScopes, "p0i0,inner,body,p0i1,inner,body,p1i0,inner,body,p1i1,inner,body,p1i2,inner,body,fn", "p0i0,inner,body,fn")
+	run("goto-continue-two-scopes", gotoContinueTwoScopes, "p0i0,inner,body,p1i0,inner,body,p1i1,inner,body,p1i2,inner,body,fn", "fn")
+	run("goto-switch-two-scopes", gotoSwitchTwoScopes, "p0,inner,case,p1,inner,case,after,fn", "fn")
+	run("goto-if-two-scopes", gotoIfTwoScopes, "p0,inner,then,p1,inner,then,after,fn", "fn")
+	run("goto-if-else-two-scopes", gotoIfElseTwoScopes, "p0,inner,else,p1,inner,else,after,fn", "fn")
+	if failed {
+		os.Exit(1)
+	}
+}

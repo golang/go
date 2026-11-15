@@ -1,10 +1,6 @@
-# M9-S1 (R-U1): logos lint applies the language-neutral rules to the Go
-# packages of the main module, while logos build and plain go run no lint.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
-# logos lint fails on the dropped error in the .go file, reports no
-# loGo/s-only rule for the bare go statement, and writes no binary.
 cd dropped
 ! logos lint ./...
 stderr 'main\.go:10:2: \[slop::discarded_error\]'
@@ -13,8 +9,6 @@ stderr 'main\.go:10:2: \[slop::discarded_error\]'
 ! exists dropped$GOEXE
 cd ..
 
-# logos build ./... and go build ./... on the same module print no lint
-# diagnostic and exit 0.
 cd dropped
 logos build ./...
 ! stderr .
@@ -22,60 +16,47 @@ go build ./...
 ! stderr .
 cd ..
 
-# //logos:allow(slop::discarded_error) silences the diagnostic.
 cd allowed
 logos lint ./...
 ! stderr .
+logos lint --json-diagnostics ./...
+! stderr .
 cd ..
 
-# logos.toml slop = "warn" turns it into a warning that does not fail.
 cd warned
 logos lint ./...
 stderr 'main\.go:6:2: warning: \[slop::discarded_error\]'
 cd ..
 
-# correctness::infinite_recursion defaults to forbid but runs at deny in a
-# Go package.
 cd recursive
 ! logos lint ./...
 stderr 'main\.go:3:6: \[correctness::infinite_recursion\]'
 ! stderr 'allow_forbidden_rule'
 cd ..
 
-# The directive silences it in the .go file.
 cd recursive_allowed
 logos lint ./...
 ! stderr .
 cd ..
 
-# The same directive in a .lgo file fails with allow_forbidden_rule.
 cd recursive_lgo
 ! logos lint ./...
 stderr 'main\.lgo:3:1: \[correctness::allow_forbidden_rule\]'
 cd ..
 
-# logos lint --json-diagnostics prints one record whose file ends in .go
-# with severity deny (the Go cap);
-# TestLogosJSONDiagnostics checks the record as JSON.
 cd dropped
 ! logos lint --json-diagnostics ./...
 cd ..
 
-# The capped severity of a forbid-default rule is deny in the JSON output;
-# TestLogosJSONDiagnostics checks the record as JSON.
 cd recursive
 ! logos lint --json-diagnostics ./...
 cd ..
 
-# A group configured forbid still runs at deny in a Go package, so the
-# directive silences it there.
 cd goforbid
 logos lint ./...
 ! stderr .
 cd ..
 
-# A Go dependency module, not the main module, gets no lint diagnostic, even
-# when named on the command line.
 cd app
 logos lint ./...
 ! stderr .
@@ -85,8 +66,6 @@ logos build ./...
 ! stderr .
 cd ..
 
-# A loGo dependency module, not the main module, gets no lint diagnostic,
-# even when named on the command line. No logos.toml disables any lint.
 cd lgoapp
 logos lint ./...
 ! stderr .
@@ -96,19 +75,63 @@ logos build ./...
 ! stderr .
 cd ..
 
-# The same dependency linted as its own main module fails, proving the
-# exclusion above is third-party status and not a clean file.
 cd lgodep
 ! logos lint ./...
 stderr 'dep\.lgo:6:2: \[slop::discarded_error\]'
 cd ..
 
-# Positive control: the same package of a workspace module, a main module of
-# the build, is linted.
 cd ws/a
 ! logos lint example.com/wsb
 stderr 'b\.go:6:2: \[slop::discarded_error\]'
 cd ../..
+cd appdirty
+! logos lint ./...
+stderr 'main\.go:10:2: \[slop::discarded_error\]'
+! stderr 'depdirty/dep\.go'
+logos lint example.com/depdirty
+! stderr .
+logos build -o $WORK/bin/appdirty$GOEXE ./...
+! stderr .
+exists $WORK/bin/appdirty$GOEXE
+cd ..
+
+# A Go module may use identifiers that .lgo reserves, and shapes that
+# loGo/s-only rules guard: no loGo/s type rule applies to Go modules,
+# and loGo/s detectors stay inactive in Go, so the build and the lint
+# stay silent.
+cd norules
+logos build ./...
+! stderr .
+logos lint ./...
+! stderr .
+logos lint --json-diagnostics ./...
+! stderr .
+cd ..
+cd atomicwarn
+logos build -o $WORK/bin/atomicwarn$GOEXE .
+! stderr .
+exec $WORK/bin/atomicwarn$GOEXE
+stdout '^1$'
+logos lint ./...
+stderr 'warning: \[portability::atomic_plain_int64\]'
+logos lint --json-diagnostics ./...
+stderr '"rule_id":"portability::atomic_plain_int64"'
+stderr '"severity":"warn"'
+stderr '"start_line":8'
+stderr '"autofix_candidates":\[{"description"'
+stderr '"replacement":"atomic.Int64"'
+
+# The autofix the candidate names applies: declaring plain as
+# atomic.Int64 compiles and clears the rule.
+cp fixed-main.txt main.go
+logos lint ./...
+! stderr .
+logos build -o $WORK/bin/atomicwarn2$GOEXE .
+exec $WORK/bin/atomicwarn2$GOEXE
+stdout '^1$'
+cd ..
+cd ..
+
 
 -- dropped/go.mod --
 module example.com/dropped
@@ -369,4 +392,104 @@ import "os"
 func Name() string {
 	os.Remove("missing")
 	return "dep"
+}
+
+-- appdirty/go.mod --
+module example.com/appdirty
+
+go 1.27
+
+require example.com/depdirty v0.0.0
+
+replace example.com/depdirty => ../depdirty
+
+-- appdirty/main.go --
+package main
+
+import (
+	"os"
+
+	"example.com/depdirty"
+)
+
+func main() {
+	os.Remove("missing")
+	println(depdirty.Name())
+}
+
+-- depdirty/go.mod --
+module example.com/depdirty
+
+go 1.27
+
+-- depdirty/dep.go --
+package depdirty
+
+import "os"
+
+func Name() string {
+	os.Remove("missing")
+	return "depdirty"
+}
+-- norules/go.mod --
+module example.com/norules
+
+go 1.27
+
+-- norules/main.go --
+package main
+
+import "fmt"
+
+const factor = 3
+
+var Logos_x = 1
+
+type record struct {
+	N int    `json:"n"`
+	S string `json:"s"`
+}
+
+func work() {}
+
+func main() {
+	go work()
+	v := 7
+	a := record{N: v, S: "x"}
+	fmt.Println(Logos_x, a.N, a.S, v*factor)
+}
+
+-- atomicwarn/go.mod --
+module example.com/atomicwarn
+
+go 1.27
+
+-- atomicwarn/main.go --
+package main
+
+import (
+	"fmt"
+	"sync/atomic"
+)
+
+var plain int64
+
+func main() {
+	atomic.AddInt64(&plain, 1)
+	fmt.Println(plain)
+}
+
+-- atomicwarn/fixed-main.txt --
+package main
+
+import (
+	"fmt"
+	"sync/atomic"
+)
+
+var plain atomic.Int64
+
+func main() {
+	plain.Add(1)
+	fmt.Println(plain.Load())
 }

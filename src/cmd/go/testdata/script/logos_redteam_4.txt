@@ -1,18 +1,24 @@
-# M18-S1 (#4) side-stack arena growth across parked goroutines (SPEC Sec 8.3,
-# T-301.1, IMPLEMENTATION.md M18-S1 AR4). A goroutine parked with empty
-# arena regions must return its leased chunk, including empty chunks behind
-# a live chunk, while retaining every live chunk and preserving addresses.
-# With no live chunks it must retain no arena capacity. Values alone pass
-# even when empty chunks leak, and Sys still counts P-cached chunks, so a
-# run fixture cannot prove release. This script runs the leased-count waves
-# (well under the 8128 race-detector limit) that fail on count, not values.
-# The duplicate -race leg exists because SPEC.md:2096 requires every runtime
-# attack test to run under the race detector.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 env GOEXPERIMENT=logosarena
-go test -count=1 -run 'TestLogosArenaParkReturnsChunk|TestLogosArenaParkKeepsLiveChunk|TestLogosArenaMarkSurvivesPark|TestLogosArenaParkReleasesEmptyHeadOverLiveTail|TestLogosArenaParkReleasesEmptyChunksBehindLiveHead' runtime
-go test -race -count=1 -run 'TestLogosArenaParkReturnsChunk|TestLogosArenaParkKeepsLiveChunk|TestLogosArenaMarkSurvivesPark|TestLogosArenaParkReleasesEmptyHeadOverLiveTail|TestLogosArenaParkReleasesEmptyChunksBehindLiveHead' runtime
+go test -v -count=1 -run 'TestLogosArenaParkReturnsChunk|TestLogosArenaParkKeepsLiveChunk|TestLogosArenaMarkSurvivesPark|TestLogosArenaParkReleasesEmptyHeadOverLiveTail|TestLogosArenaParkReleasesEmptyChunksBehindLiveHead' runtime
+stdout '--- PASS: TestLogosArenaParkReturnsChunk'
+stdout '--- PASS: TestLogosArenaParkKeepsLiveChunk'
+stdout '--- PASS: TestLogosArenaMarkSurvivesPark'
+stdout '--- PASS: TestLogosArenaParkReleasesEmptyHeadOverLiveTail'
+stdout '--- PASS: TestLogosArenaParkReleasesEmptyChunksBehindLiveHead'
+stdout '^ok\s+runtime'
+! stderr 'no tests to run'
+! stdout 'no tests to run'
+go test -race -v -count=1 -run 'TestLogosArenaParkReturnsChunk|TestLogosArenaParkKeepsLiveChunk|TestLogosArenaMarkSurvivesPark|TestLogosArenaParkReleasesEmptyHeadOverLiveTail|TestLogosArenaParkReleasesEmptyChunksBehindLiveHead' runtime
+stdout '--- PASS: TestLogosArenaParkReturnsChunk'
+stdout '--- PASS: TestLogosArenaParkKeepsLiveChunk'
+stdout '--- PASS: TestLogosArenaMarkSurvivesPark'
+stdout '--- PASS: TestLogosArenaParkReleasesEmptyHeadOverLiveTail'
+stdout '--- PASS: TestLogosArenaParkReleasesEmptyChunksBehindLiveHead'
+stdout '^ok\s+runtime'
+! stderr 'no tests to run'
+! stdout 'no tests to run'
 
 -- go.mod --
 module example.com/redteam4

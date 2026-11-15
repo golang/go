@@ -2,7 +2,21 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
 
 type S struct{ t (int, int) }
 
@@ -17,21 +31,26 @@ func field(s S) (int, int) {
 func main() {
 	t := (1, 2)
 	u, v := (t)
-	fmt.Println(u, v)
+	check("paren-unpack-splits-pair", u == 1 && v == 2, fmt.Sprint(u, v), "1 2")
 	p, q := ((t))
-	fmt.Println(p, q)
+	check("double-paren-unpack-splits-pair", p == 1 && q == 2, fmt.Sprint(p, q), "1 2")
 	var m, n int
 	m, n = (t)
-	fmt.Println(m, n)
+	check("paren-assign-splits-pair", m == 1 && n == 2, fmt.Sprint(m, n), "1 2")
 	m, n = ((t))
-	fmt.Println(m, n)
-	fmt.Println(pass(t))
+	check("double-paren-assign-splits-pair", m == 1 && n == 2, fmt.Sprint(m, n), "1 2")
+	a, b := pass(t)
+	check("paren-passthrough-keeps-pair", a == 1 && b == 2, fmt.Sprint(a, b), "1 2")
 	s := S{t: (3, 4)}
-	a, b := (s.t)
-	fmt.Println(a, b)
-	c, d := ((s.t))
-	fmt.Println(c, d)
+	c, d := (s.t)
+	check("paren-unpack-splits-field", c == 3 && d == 4, fmt.Sprint(c, d), "3 4")
+	e, f := ((s.t))
+	check("double-paren-unpack-splits-field", e == 3 && f == 4, fmt.Sprint(e, f), "3 4")
 	m, n = ((s.t))
-	fmt.Println(m, n)
-	fmt.Println(field(s))
+	check("double-paren-assign-splits-field", m == 3 && n == 4, fmt.Sprint(m, n), "3 4")
+	g, h := field(s)
+	check("paren-return-splits-field", g == 3 && h == 4, fmt.Sprint(g, h), "3 4")
+	if failed {
+		os.Exit(1)
+	}
 }

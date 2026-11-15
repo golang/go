@@ -1,10 +1,10 @@
-live1;live2;
-one
-default
-int
-other
-recv
-closure
-n=3
-nested
-kept
+ok range
+ok switch-one
+ok switch-default
+ok typeswitch-int
+ok typeswitch-other
+ok select
+ok closure
+ok label
+ok nested
+ok kept

@@ -1,0 +1,73 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type pc struct {
+	id int
+}
+
+func structRet() (pc?, error) { return pc{id: 1}, nil }
+
+func ptrRet() (*pc?, error) { return &pc{id: 2}, nil }
+
+func sliceRet() ([]int?, error) { return []int{3, 4}, nil }
+
+func mapRet() (map[int]int?, error) { return map[int]int{0: 5}, nil }
+
+func arrayRet() ([2]int?, error) { return [2]int{6, 7}, nil }
+
+func single() pc? { return pc{id: 8} }
+
+func main() {
+	s, err := structRet()
+	if err != nil {
+		check("struct", false, err, 1)
+	} else {
+		check("struct", err == nil && (s?.id ?? -1) == 1, s?.id ?? -1, 1)
+	}
+	p, err := ptrRet()
+	if err != nil {
+		check("ptr", false, err, 2)
+	} else {
+		check("ptr", err == nil && (p?.id ?? -1) == 2, p?.id ?? -1, 2)
+	}
+	l, err := sliceRet()
+	if err != nil {
+		check("slice", false, err, 4)
+	} else {
+		check("slice", err == nil && (l ?? []int{-1})[1] == 4, (l ?? []int{-1})[1], 4)
+	}
+	m, err := mapRet()
+	if err != nil {
+		check("map", false, err, 5)
+	} else {
+		check("map", err == nil && ((m ?? map[int]int{0: -1})[0] ?? -1) == 5, (m ?? map[int]int{0: -1})[0] ?? -1, 5)
+	}
+	a, err := arrayRet()
+	if err != nil {
+		check("array", false, err, 7)
+	} else {
+		check("array", err == nil && (a ?? [2]int{-1, -1})[1] == 7, (a ?? [2]int{-1, -1})[1], 7)
+	}
+	one := single()
+	check("single", (one?.id ?? -1) == 8, one?.id ?? -1, 8)
+	if failed {
+		os.Exit(1)
+	}
+}

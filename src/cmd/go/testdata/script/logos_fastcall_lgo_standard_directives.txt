@@ -1,0 +1,42 @@
+[!cgo] skip
+[!GOARCH:amd64] [!GOARCH:arm64] skip
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env CGO_ENABLED=1
+env GOEXPERIMENT=logosfastcgo
+
+logos build -o $WORK/paired$GOEXE .
+exec $WORK/paired$GOEXE
+stdout '^ok standard-directive-fastcall$'
+go tool objdump -s 'main\._Cfunc_paired(\.abi0)?$' $WORK/paired$GOEXE
+stdout 'CALL runtime\.logosCgocallFast'
+! stdout 'CALL runtime\.cgocall'
+
+-- go.mod --
+module example.com/standarddirectivefastcall
+
+go 1.27
+
+-- logos.toml --
+[build]
+cgo = "allow"
+
+-- main.lgo --
+package main
+
+/*
+#cgo noescape paired
+#cgo nocallback paired
+int paired(int a, int b) { return a + b; }
+*/
+import "C"
+
+import "fmt"
+
+func main() {
+	if got := int(C.paired(40, 2)); got != 42 {
+		panic("paired C call returned wrong value")
+	}
+	fmt.Println("ok standard-directive-fastcall")
+}

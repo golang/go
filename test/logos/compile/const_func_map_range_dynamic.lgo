@@ -1,0 +1,49 @@
+// errorcheck
+
+package p
+
+const cm = map[int]int{1: 1}
+
+var pkgMap = map[int]int{1: 1}
+
+const func localMap() int {
+	m := map[int]int{1: 1}
+	s := 0
+	for _, v := range m { // ERROR "\[correctness::const_func_impure\]"
+		s += v
+	}
+	return s
+}
+
+const func paramMap(m map[int]int) int {
+	s := 0
+	for _, v := range m { // ERROR "\[correctness::const_func_impure\]"
+		s += v
+	}
+	return s
+}
+
+const func packageVar() int {
+	s := 0
+	for _, v := range pkgMap { // ERROR "\[correctness::const_func_impure\]"
+		s += v
+	}
+	return s
+}
+
+const func copiedConst() int {
+	m := cm
+	s := 0
+	for _, v := range m { // ERROR "\[correctness::const_func_impure\]"
+		s += v
+	}
+	return s
+}
+
+const func constMap() int {
+	s := 0
+	for _, v := range cm {
+		s += v
+	}
+	return s
+}

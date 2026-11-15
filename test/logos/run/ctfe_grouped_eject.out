@@ -1,1 +1,3 @@
-rows 1 2
+ok grouped-const-coalesce
+ok grouped-const-map-index
+ok const-type-block-keeps-label
