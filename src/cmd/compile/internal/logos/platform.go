@@ -12,8 +12,10 @@ import (
 
 // This file lowers M3-S5 platform-pointer stores (SPEC T-202): every
 // expression in info.LogosChecks held a platform pointer for a declared
-// non-nil location, so it becomes _logos_rt.MustNonNil(expr,
-// &_logos_siteK). The native tree gains a call node while the eject text
+// non-nil location, so it becomes _logos_rt.MustNonNil(expr, "<type>",
+// &_logos_siteK), where "<type>" is the stored type's name as
+// reflect.Type.String prints it, or "" when the type mentions a type
+// parameter. The native tree gains a call node while the eject text
 // gains an exact-span splice of the same call, preserving surrounding
 // comments and formatting. lowerPlatform runs first in lowerFile, so
 // later passes fold its splices into theirs through textOf.
@@ -90,14 +92,16 @@ func (fl *fileLower) lowerPlatform() {
 		inner := fl.textOf(j.span)
 		pos := j.expr.Pos()
 		site := fl.newSite(pos, pos.Line())
+		name := staticTypeNameLit(fl.pkg.info.TypeOf(j.expr))
 		wrapped := callOf(pos, rtSel(pos, "MustNonNil"), []syntax.Expr{
 			j.expr,
+			litOf(pos, name, syntax.StringLit),
 			at(&syntax.Operation{Op: syntax.And, X: nameOf(pos, site)}, pos),
 		})
 		j.set(wrapped)
 		fl.wrapSpan[wrapped] = j.span
 		fl.addT(j.span.start, j.span.end, cat(
-			gen(rtAlias+".MustNonNil("), inner, gen(", &"+site+")")))
+			gen(rtAlias+".MustNonNil("), inner, gen(", "+name+", &"+site+")")))
 	}
 }
 

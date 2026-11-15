@@ -141,20 +141,28 @@ func (g *goCallLower) wrapArgs(call *syntax.CallExpr, sig *types2.Signature, pos
 		if arg == nil || isMustNonNilCall(arg) {
 			continue
 		}
-		site := g.newSite(call.Pos())
-		fun := syntax.Expr(rtSel(arg.Pos(), "MustNonNil"))
-		if isNilLiteral(arg) {
-			if targ, ok := explicitTypeArg(params.At(i).Type(), arg.Pos()); ok {
-				fun = at(&syntax.IndexExpr{X: fun, Index: targ}, arg.Pos())
-			}
-		}
-		call.ArgList[i] = callOf(arg.Pos(), fun, []syntax.Expr{
-			arg,
-			at(&syntax.Operation{Op: syntax.And, X: nameOf(arg.Pos(), site)}, arg.Pos()),
-		})
+		call.ArgList[i] = g.mustNonNil(call, arg, params.At(i).Type())
 		changed = true
 	}
 	return changed
+}
+
+func (g *goCallLower) mustNonNil(call *syntax.CallExpr, arg syntax.Expr, param types2.Type) syntax.Expr {
+	pos := arg.Pos()
+	site := g.newSite(call.Pos())
+	fun := syntax.Expr(rtSel(pos, "MustNonNil"))
+	stored := g.info.TypeOf(arg)
+	if isNilLiteral(arg) {
+		stored = param
+		if targ, ok := explicitTypeArg(param, pos); ok {
+			fun = at(&syntax.IndexExpr{X: fun, Index: targ}, pos)
+		}
+	}
+	return callOf(pos, fun, []syntax.Expr{
+		arg,
+		litOf(pos, staticTypeNameLit(stored), syntax.StringLit),
+		at(&syntax.Operation{Op: syntax.And, X: nameOf(pos, site)}, pos),
+	})
 }
 
 func (g *goCallLower) newSite(pos syntax.Pos) string {
@@ -172,8 +180,8 @@ func isNilLiteral(e syntax.Expr) bool {
 	return ok && name.Value == "nil"
 }
 
-// explicitTypeArg spells a pointer param type for MustNonNil[T] when the
-// argument is an untyped nil literal and T cannot be inferred. It
+// explicitTypeArg spells a pointer param type for MustNonNil[P] when the
+// argument is an untyped nil literal and P cannot be inferred. It
 // handles pointer to named (qualified by its package name) and pointer
 // to basic kinds; other shapes rely on inference from typed arguments.
 func explicitTypeArg(pt types2.Type, pos syntax.Pos) (syntax.Expr, bool) {

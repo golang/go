@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	str "strings"
+	"time"
 )
 
 type U interface {
@@ -41,6 +42,10 @@ func check[T any](name string, assert func()) {
 	fmt.Println("ok", name)
 }
 
+func assertParam[T any](u U) func() {
+	return func() { _ = u.(T) }
+}
+
 func main() {
 	var u U = 5
 	check[Cat]("named", func() { _ = u.(Cat) })
@@ -54,6 +59,37 @@ func main() {
 	check[map[string]Cat]("map", func() { _ = u.(map[string]Cat) })
 	check[func(Cat) int]("func", func() { _ = u.(func(Cat) int) })
 	check[float64]("predeclared", func() { _ = u.(float64) })
+	check[[]byte]("byte-alias", func() { _ = u.([]byte) })
+	check[map[string][]rune]("nested-composite", func() { _ = u.(map[string][]rune) })
+	check[chan int]("chan", func() { _ = u.(chan int) })
+	check[<-chan int]("recv-chan", func() { _ = u.(<-chan int) })
+	check[chan<- int]("send-chan", func() { _ = u.(chan<- int) })
+	check[func(int, ...string) (bool, error)]("func-variadic-results", func() { _ = u.(func(int, ...string) (bool, error)) })
+	check[struct{}]("empty-struct", func() { _ = u.(struct{}) })
+	check[struct {
+		X int
+		y string
+	}]("struct-fields", func() {
+		_ = u.(struct {
+			X int
+			y string
+		})
+	})
+	check[Box[[]byte]]("generic-byte-slice", func() { _ = u.(Box[[]byte]) })
+	check[Box[map[string]Cat]]("generic-of-map", func() { _ = u.(Box[map[string]Cat]) })
+	check[Box[Box[int]]]("generic-nested", func() { _ = u.(Box[Box[int]]) })
+	check[Box[any]]("generic-of-any", func() { _ = u.(Box[any]) })
+	check[Box[error]]("generic-of-error", func() { _ = u.(Box[error]) })
+	check[Box[str.Builder]]("generic-of-aliased-import", func() { _ = u.(Box[str.Builder]) })
+	check[Pair[string, str.Builder]]("generic-two-package-args", func() { _ = u.(Pair[string, str.Builder]) })
+	check[time.Duration]("named-other-package", func() { _ = u.(time.Duration) })
+	check[Box[time.Duration]]("generic-of-other-package", func() { _ = u.(Box[time.Duration]) })
+	type local struct{ a int }
+	check[local]("function-scope", func() { _ = u.(local) })
+	check[Box[local]]("generic-of-function-scope", func() { _ = u.(Box[local]) })
+	check[Cat]("type-param-named", assertParam[Cat](u))
+	check[[]Cat]("type-param-slice", assertParam[[]Cat](u))
+	check[Box[int]]("type-param-generic", assertParam[Box[int]](u))
 	var x any = Cat{}
 	got := panicText(func() { _ = x.(U) })
 	want := "interface conversion: main.Cat is not a member of main.U"

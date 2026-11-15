@@ -72,7 +72,7 @@ func tryGenericStore() (value any) {
 
 func nilStoreOracle() (value any) {
 	defer func() { value = recover() }()
-	rt.MustNonNil(flag.Lookup("missing"), &rt.Site{})
+	rt.MustNonNil(flag.Lookup("missing"), "*flag.Flag", &rt.Site{})
 	return
 }
 

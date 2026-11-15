@@ -1,0 +1,97 @@
+// run
+
+package main
+
+import (
+	"container/list"
+	"flag"
+	"fmt"
+	"os"
+	"reflect"
+	"strings"
+	"sync/atomic"
+	"time"
+)
+
+type Box[T any] struct{ v T }
+
+var failed bool
+
+func panicText(f func()) (text string) {
+	defer func() { text = fmt.Sprint(recover()) }()
+	f()
+	return "no panic"
+}
+
+func expectNilStore(name, typ string, store func()) {
+	want := "logos: nil from Go value stored into non-nil " + typ + " at "
+	got := panicText(store)
+	if !strings.HasPrefix(got, want) {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want prefix", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func loadStored[E any](a *atomic.Pointer[E]) *E {
+	var p *E = a.Load()
+	return p
+}
+
+func main() {
+	var basic atomic.Pointer[int]
+	expectNilStore("basic", reflect.TypeFor[*int]().String(), func() {
+		var p *int = basic.Load()
+		_ = p
+	})
+	var mapped atomic.Pointer[map[string]int]
+	expectNilStore("map", reflect.TypeFor[*map[string]int]().String(), func() {
+		var p *map[string]int = mapped.Load()
+		_ = p
+	})
+	var sliced atomic.Pointer[[]byte]
+	expectNilStore("slice", reflect.TypeFor[*[]byte]().String(), func() {
+		var p *[]byte = sliced.Load()
+		_ = p
+	})
+	var funcs atomic.Pointer[func(int) string]
+	expectNilStore("func", reflect.TypeFor[*func(int) string]().String(), func() {
+		var p *func(int) string = funcs.Load()
+		_ = p
+	})
+	var faces atomic.Pointer[any]
+	expectNilStore("interface", reflect.TypeFor[*any]().String(), func() {
+		var p *any = faces.Load()
+		_ = p
+	})
+	var durations atomic.Pointer[time.Duration]
+	expectNilStore("named-other-package", reflect.TypeFor[*time.Duration]().String(), func() {
+		var p *time.Duration = durations.Load()
+		_ = p
+	})
+	var boxes atomic.Pointer[Box[int]]
+	expectNilStore("generic-instance", reflect.TypeFor[*Box[int]]().String(), func() {
+		var p *Box[int] = boxes.Load()
+		_ = p
+	})
+	expectNilStore("flag-lookup", reflect.TypeFor[*flag.Flag]().String(), func() {
+		var p *flag.Flag = flag.Lookup("missing")
+		_ = p
+	})
+	expectNilStore("list-front", reflect.TypeFor[*list.Element]().String(), func() {
+		var p *list.Element = list.New().Front()
+		_ = p
+	})
+	var typed atomic.Pointer[Box[string]]
+	expectNilStore("type-param-generic-instance", reflect.TypeFor[*Box[string]]().String(), func() {
+		_ = loadStored(&typed)
+	})
+	var plain atomic.Pointer[string]
+	expectNilStore("type-param-basic", reflect.TypeFor[*string]().String(), func() {
+		_ = loadStored(&plain)
+	})
+	if failed {
+		os.Exit(1)
+	}
+}

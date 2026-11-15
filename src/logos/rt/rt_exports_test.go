@@ -138,6 +138,34 @@ func TestRtUnionAssertionNamesSides(t *testing.T) {
 	}
 }
 
+func TestRtUnionAssertionNamesAssertedType(t *testing.T) {
+	err := &UnionAssertionError{Value: 7, Union: "pkg.U", Asserted: "pkg.Cat"}
+	want := "interface conversion: pkg.Cat is not a member of pkg.U"
+	if got := err.Error(); got != want {
+		t.Fatalf("UnionAssertionError = %q, want %q", got, want)
+	}
+}
+
+func TestRtTypeNameOrKeepsSpelledName(t *testing.T) {
+	if got := TypeNameOr[strings.Builder]("pkg.Spelled"); got != "pkg.Spelled" {
+		t.Fatalf("TypeNameOr with a name = %q, want the name unchanged", got)
+	}
+}
+
+func TestRtTypeNameOrQualifiesByPackageName(t *testing.T) {
+	cases := []struct{ got, want string }{
+		{TypeNameOr[int](""), "int"},
+		{TypeNameOr[strings.Builder](""), "strings.Builder"},
+		{TypeNameOr[[]*Option[int]](""), "[]*rt.Option[int]"},
+		{TypeNameOr[map[string]error](""), "map[string]error"},
+	}
+	for _, c := range cases {
+		if c.got != c.want {
+			t.Errorf("TypeNameOr = %q, want %q", c.got, c.want)
+		}
+	}
+}
+
 func TestRtRegionHeapEquivalent(t *testing.T) {
 	var r Region
 	p := arena.New[int](r)

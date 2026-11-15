@@ -1023,9 +1023,10 @@ func (fl *fileLower) buildFromDecls(u *unionUse, utype syntax.Expr, pos syntax.P
 	if len(u.locals) > 0 {
 		utype = nameOf(pos, "any")
 	}
-	params := func() []*syntax.Field {
-		return []*syntax.Field{at(&syntax.Field{Name: nameOf(pos, "x"), Type: utype}, pos)}
+	xParam := func() *syntax.Field {
+		return at(&syntax.Field{Name: nameOf(pos, "x"), Type: utype}, pos)
 	}
+	assertedParam := at(&syntax.Field{Name: nameOf(pos, "_logos_asserted"), Type: nameOf(pos, "string")}, pos)
 	assertX := func() *syntax.AssertExpr {
 		return at(&syntax.AssertExpr{X: nameOf(pos, "x"), Type: nameOf(pos, tname)}, pos)
 	}
@@ -1042,13 +1043,15 @@ func (fl *fileLower) buildFromDecls(u *unionUse, utype syntax.Expr, pos syntax.P
 			ifOf(pos, defineOf(pos, []syntax.Expr{nameOf(pos, "v")}, []syntax.Expr{dyn}), isNon, []syntax.Stmt{miss}),
 		}
 	}
-	typeName := callOf(pos, at(&syntax.IndexExpr{X: rtSel(pos, "TypeName"), Index: nameOf(pos, tname)}, pos), nil)
+	typeNameOr := callOf(pos,
+		at(&syntax.IndexExpr{X: rtSel(pos, "TypeNameOr"), Index: nameOf(pos, tname)}, pos),
+		[]syntax.Expr{nameOf(pos, "_logos_asserted")})
 	errLit := at(&syntax.CompositeLit{
 		Type: rtSel(pos, "UnionAssertionError"),
 		ElemList: []syntax.Expr{
 			at(&syntax.KeyValueExpr{Key: nameOf(pos, "Value"), Value: nameOf(pos, "x")}, pos),
 			at(&syntax.KeyValueExpr{Key: nameOf(pos, "Union"), Value: litOf(pos, fmt.Sprintf("%q", u.union), syntax.StringLit)}, pos),
-			at(&syntax.KeyValueExpr{Key: nameOf(pos, "Asserted"), Value: typeName}, pos),
+			at(&syntax.KeyValueExpr{Key: nameOf(pos, "Asserted"), Value: typeNameOr}, pos),
 		},
 		NKeys:  3,
 		Rbrace: pos,
@@ -1060,7 +1063,7 @@ func (fl *fileLower) buildFromDecls(u *unionUse, utype syntax.Expr, pos syntax.P
 		Name:       nameOf(pos, u.fromName()),
 		TParamList: u.tparams(pos, tname),
 		Type: at(&syntax.FuncType{
-			ParamList:  params(),
+			ParamList:  []*syntax.Field{xParam(), assertedParam},
 			ResultList: []*syntax.Field{at(&syntax.Field{Type: nameOf(pos, tname)}, pos)},
 		}, pos),
 		Body: blockOf(pos, append(nonMember(panicCall), returnOf(pos, []syntax.Expr{assertX()}))),
@@ -1070,7 +1073,7 @@ func (fl *fileLower) buildFromDecls(u *unionUse, utype syntax.Expr, pos syntax.P
 		Name:       nameOf(pos, u.from2Name()),
 		TParamList: u.tparams(pos, tname),
 		Type: at(&syntax.FuncType{
-			ParamList: params(),
+			ParamList: []*syntax.Field{xParam()},
 			ResultList: []*syntax.Field{
 				at(&syntax.Field{Type: nameOf(pos, tname)}, pos),
 				at(&syntax.Field{Type: nameOf(pos, "bool")}, pos),
@@ -1128,12 +1131,12 @@ func (fl *fileLower) lowerCommaOkAssign(s *syntax.AssignStmt) {
 		return
 	}
 	if a, u := fl.commaOkTarget(s.Rhs); a != nil {
-		s.Rhs = fl.assertCall(a, u, u.assert2Name(), nil, "")
+		s.Rhs = fl.assertCall(a, u, assertSite{helper: u.assert2Name()})
 		return
 	}
 	if a, ok := unparenAssert(s.Rhs); ok {
 		if ou := fl.fromHelper(a); ou != nil {
-			s.Rhs = fl.fromCall(a, ou, ou.from2Name())
+			s.Rhs = fl.fromCall(a, ou)
 		}
 	}
 }
@@ -1143,22 +1146,22 @@ func (fl *fileLower) lowerCommaOkVar(d *syntax.VarDecl) {
 		return
 	}
 	if a, u := fl.commaOkTarget(d.Values); a != nil {
-		d.Values = fl.assertCall(a, u, u.assert2Name(), nil, "")
+		d.Values = fl.assertCall(a, u, assertSite{helper: u.assert2Name()})
 		return
 	}
 	if a, ok := unparenAssert(d.Values); ok {
 		if ou := fl.fromHelper(a); ou != nil {
-			d.Values = fl.fromCall(a, ou, ou.from2Name())
+			d.Values = fl.fromCall(a, ou)
 		}
 	}
 }
 
 func (fl *fileLower) lowerSingleAssert(a *syntax.AssertExpr) syntax.Expr {
 	if u := fl.useOf(fl.pkg.info.TypeOf(a.Type), a.Pos()); u != nil {
-		return fl.assertCall(a, u, u.assertName(), nil, "")
+		return fl.assertCall(a, u, assertSite{helper: u.assertName()})
 	}
 	if ou := fl.fromHelper(a); ou != nil {
-		return fl.fromCall(a, ou, ou.fromName())
+		return fl.fromPanicCall(a, ou)
 	}
 	return nil
 }
@@ -1193,26 +1196,55 @@ func (fl *fileLower) fromHelper(a *syntax.AssertExpr) *unionUse {
 	return ou
 }
 
-func (fl *fileLower) fromCall(a *syntax.AssertExpr, ou *unionUse, name string) syntax.Expr {
+type assertSite struct {
+	helper       string
+	targ         syntax.Expr
+	targText     string
+	asserted     syntax.Expr
+	assertedText string
+}
+
+func (fl *fileLower) fromSite(a *syntax.AssertExpr, helper string) assertSite {
 	pos := a.Pos()
 	native, eject, ok := fl.spellTypeBoth(fl.pkg.info.TypeOf(a.Type), pos)
 	if !ok {
 		base.Fatalf("logos: cannot spell assertion type at %s", pos.String())
 	}
-	return fl.assertCall(a, ou, name, native, eject)
+	return assertSite{helper: helper, targ: native, targText: eject}
 }
 
-func (fl *fileLower) assertCall(a *syntax.AssertExpr, u *unionUse, name string, targ syntax.Expr, targText string) syntax.Expr {
+func (fl *fileLower) fromCall(a *syntax.AssertExpr, ou *unionUse) syntax.Expr {
+	return fl.assertCall(a, ou, fl.fromSite(a, ou.from2Name()))
+}
+
+func (fl *fileLower) fromPanicCall(a *syntax.AssertExpr, ou *unionUse) syntax.Expr {
+	site := fl.fromSite(a, ou.fromName())
+	site.asserted, site.assertedText = fl.assertedName(a)
+	return fl.assertCall(a, ou, site)
+}
+
+func (fl *fileLower) assertedName(a *syntax.AssertExpr) (syntax.Expr, string) {
+	lit := staticTypeNameLit(fl.pkg.info.TypeOf(a.Type))
+	return litOf(a.Pos(), lit, syntax.StringLit), lit
+}
+
+func (fl *fileLower) assertCall(a *syntax.AssertExpr, u *unionUse, site assertSite) syntax.Expr {
 	pos := a.Pos()
 	xStart := fl.off(syntax.StartPos(a.X))
 	dot, end, ok := splitAssert(fl.src, xStart)
 	if !ok {
 		base.Fatalf("logos: cannot split assertion at %s", pos.String())
 	}
-	fn, head := u.ref(pos, name, targ, targText)
+	fn, head := u.ref(pos, site.helper, site.targ, site.targText)
+	args := []syntax.Expr{a.X}
+	tail := ")"
+	if site.asserted != nil {
+		args = append(args, site.asserted)
+		tail = ", " + site.assertedText + ")"
+	}
 	fl.add(xStart, xStart, head+"(")
-	fl.add(dot, end, ")")
-	return callOf(pos, fn, []syntax.Expr{a.X})
+	fl.add(dot, end, tail)
+	return callOf(pos, fn, args)
 }
 
 func splitAssert(src []byte, xStart int) (dot, end int, ok bool) {

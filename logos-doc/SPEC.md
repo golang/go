@@ -566,9 +566,9 @@ Dereferencing a platform pointer MUST be allowed. [T-202]
 
 Comparing a platform pointer with `nil` MUST be allowed. [T-202]
 
-A store of a platform value into a declared non-nil location MUST wrap the stored expression in `logos/rt.MustNonNil` with the source position. [T-202]
+A store of a platform value into a declared non-nil location MUST wrap the stored expression in `logos/rt.MustNonNil` with the source position and the name of the stored type. [T-202]
 
-A nil value at such a store MUST panic with `logos: nil from Go value stored into non-nil *T at <file>:<line>`, where `<file>:<line>` is the `.lgo` file and line of the store. [T-202][R-U2][A-STD]
+A nil value at such a store MUST panic with `logos: nil from Go value stored into non-nil *T at <file>:<line>`, where `*T` is the string that `reflect.Type.String` returns for the stored type and `<file>:<line>` is the `.lgo` file and line of the store. [T-202][R-U2][A-STD]
 
 `if x != nil` MUST narrow a local or parameter `x` from `T?` to `T` in the guarded block. [T-202]
 

@@ -7,8 +7,10 @@ package rt_test
 import (
 	"context"
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"logos/rt"
 )
@@ -35,7 +37,7 @@ func logosPanicMessage(t *testing.T, f func()) string {
 
 func TestMustNonNilNilSitePanicsDefined(t *testing.T) {
 	var p *int
-	msg := logosPanicMessage(t, func() { rt.MustNonNil(p, nil) })
+	msg := logosPanicMessage(t, func() { rt.MustNonNil(p, "*int", nil) })
 	if !strings.HasPrefix(msg, "logos:") || strings.Contains(msg, "runtime error") {
 		t.Fatalf("MustNonNil(nil site) panic = %q, want defined logos: message", msg)
 	}
@@ -44,12 +46,55 @@ func TestMustNonNilNilSitePanicsDefined(t *testing.T) {
 func TestMustNonNilDocumentedSite(t *testing.T) {
 	var p *int
 	site := rt.Site{File: "use.go", Line: 9}
-	msg := logosPanicMessage(t, func() { rt.MustNonNil(p, &site) })
+	msg := logosPanicMessage(t, func() { rt.MustNonNil(p, "*int", &site) })
 	if msg != "logos: nil from Go value stored into non-nil *int at use.go:9" {
 		t.Fatalf("MustNonNil panic = %q, want documented message", msg)
 	}
-	if got := rt.MustNonNil(3, nil); got != 3 {
-		t.Fatalf("MustNonNil(3, nil) = %d, want passthrough", got)
+	n := 3
+	if got := rt.MustNonNil(&n, "*int", nil); got != &n {
+		t.Fatalf("MustNonNil(&n, nil) = %p, want passthrough of %p", got, &n)
+	}
+}
+
+type box[T any] struct{ v T }
+
+type namedPtr *time.Time
+
+func nilStorePanic[P ~*E, E any](t *testing.T, name string) string {
+	t.Helper()
+	var p P
+	site := rt.Site{File: "use.go", Line: 9}
+	return logosPanicMessage(t, func() { rt.MustNonNil(p, name, &site) })
+}
+
+func wantNilStore(typ reflect.Type) string {
+	return "logos: nil from Go value stored into non-nil " + typ.String() + " at use.go:9"
+}
+
+func TestMustNonNilKeepsGivenName(t *testing.T) {
+	if got, want := nilStorePanic[*box[string]](t, "*pkg.Box[string]"), "logos: nil from Go value stored into non-nil *pkg.Box[string] at use.go:9"; got != want {
+		t.Fatalf("MustNonNil panic = %q, want %q", got, want)
+	}
+}
+
+func TestMustNonNilEmptyNameNamesTypeAtRunTime(t *testing.T) {
+	cases := []struct {
+		got string
+		typ reflect.Type
+	}{
+		{nilStorePanic[*int](t, ""), reflect.TypeFor[*int]()},
+		{nilStorePanic[*map[string]int](t, ""), reflect.TypeFor[*map[string]int]()},
+		{nilStorePanic[*[]byte](t, ""), reflect.TypeFor[*[]byte]()},
+		{nilStorePanic[*func(int) string](t, ""), reflect.TypeFor[*func(int) string]()},
+		{nilStorePanic[*any](t, ""), reflect.TypeFor[*any]()},
+		{nilStorePanic[*time.Duration](t, ""), reflect.TypeFor[*time.Duration]()},
+		{nilStorePanic[*box[strings.Builder]](t, ""), reflect.TypeFor[*box[strings.Builder]]()},
+		{nilStorePanic[namedPtr](t, ""), reflect.TypeFor[namedPtr]()},
+	}
+	for _, c := range cases {
+		if want := wantNilStore(c.typ); c.got != want {
+			t.Errorf("MustNonNil with empty name panic = %q, want %q", c.got, want)
+		}
 	}
 }
 
