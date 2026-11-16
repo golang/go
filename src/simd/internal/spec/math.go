@@ -481,3 +481,36 @@ func Sqrt[E Floats, W Width](x Vec[E, W]) (z Vec[E, W]) {
 		return E(math.Sqrt(float64(x)))
 	})
 }
+
+// SumOf8AbsDiff computes the absolute difference of corresponding elements of
+// x and y, and sums each group of 8 adjacent differences, returning a vector
+// of one eighth as many elements, each with eight times the input element
+// size.
+//
+//	w[i] = abs(x[i] - y[i])
+//	z[j] = w[8*j] + w[8*j+1] + ... + w[8*j+7]
+//
+// Neither the differences nor the sums can overflow.
+//
+//specgen:commutative
+//specgen:require z=Uint64x{xL/8}
+func SumOf8AbsDiff[E int8 | uint8, W Width, zE Uints](x, y Vec[E, W]) (z Vec[zE, W]) {
+	// Only AMD64 implements this (VPSADBW), and only for uint8. It generalizes
+	// naturally to int8: the absolute difference of two int8s always fits in a
+	// uint8, so the result is unsigned either way.
+	//
+	// The "8" in the name is the group size, which is what limits this to
+	// 8-bit elements: a group of 8 wider elements wouldn't fit in any element
+	// type.
+	z = makeVec[zE, W]()
+	for j := range z {
+		for i := 8 * j; i < 8*j+8; i++ {
+			lo, hi := min(x[i], y[i]), max(x[i], y[i])
+			// hi >= lo, so this is exact even if E is signed: the
+			// conversions sign-extend, and the subtraction wraps back
+			// into range.
+			z[j] += zE(hi) - zE(lo)
+		}
+	}
+	return z
+}

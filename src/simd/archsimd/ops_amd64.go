@@ -10120,23 +10120,44 @@ func (x Uint16x32) SubSaturated(y Uint16x32) (z Uint16x32)
 
 /* SumOf8AbsDiff */
 
-// SumOf8AbsDiff computes the absolute difference of x and y and sums each group of 8 results.
-// This method could be seen as the norm of the L1 distance of each 8-element group of the two input vectors.
+// SumOf8AbsDiff computes the absolute difference of corresponding elements of
+// x and y, and sums each group of 8 adjacent differences, returning a vector
+// of one eighth as many elements, each with eight times the input element
+// size.
+//
+//	w[i] = abs(x[i] - y[i])
+//	z[j] = w[8*j] + w[8*j+1] + ... + w[8*j+7]
+//
+// Neither the differences nor the sums can overflow.
 //
 // Asm: VPSADBW, CPU Feature: AVX
-func (x Uint8x16) SumOf8AbsDiff(y Uint8x16) Uint64x2
+func (x Uint8x16) SumOf8AbsDiff(y Uint8x16) (z Uint64x2)
 
-// SumOf8AbsDiff computes the absolute difference of x and y and sums each group of 8 results.
-// This method could be seen as the norm of the L1 distance of each 8-element group of the two input vectors.
+// SumOf8AbsDiff computes the absolute difference of corresponding elements of
+// x and y, and sums each group of 8 adjacent differences, returning a vector
+// of one eighth as many elements, each with eight times the input element
+// size.
+//
+//	w[i] = abs(x[i] - y[i])
+//	z[j] = w[8*j] + w[8*j+1] + ... + w[8*j+7]
+//
+// Neither the differences nor the sums can overflow.
 //
 // Asm: VPSADBW, CPU Feature: AVX2
-func (x Uint8x32) SumOf8AbsDiff(y Uint8x32) Uint64x4
+func (x Uint8x32) SumOf8AbsDiff(y Uint8x32) (z Uint64x4)
 
-// SumOf8AbsDiff computes the absolute difference of x and y and sums each group of 8 results.
-// This method could be seen as the norm of the L1 distance of each 8-element group of the two input vectors.
+// SumOf8AbsDiff computes the absolute difference of corresponding elements of
+// x and y, and sums each group of 8 adjacent differences, returning a vector
+// of one eighth as many elements, each with eight times the input element
+// size.
+//
+//	w[i] = abs(x[i] - y[i])
+//	z[j] = w[8*j] + w[8*j+1] + ... + w[8*j+7]
+//
+// Neither the differences nor the sums can overflow.
 //
 // Asm: VPSADBW, CPU Feature: AVX512
-func (x Uint8x64) SumOf8AbsDiff(y Uint8x64) Uint64x8
+func (x Uint8x64) SumOf8AbsDiff(y Uint8x64) (z Uint64x8)
 
 /* Trunc */
 
