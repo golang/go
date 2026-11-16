@@ -552,24 +552,24 @@ func testTransportNotReadToEndConnectionReuse(t *testing.T, mode testMode) {
 }
 
 func TestTransportMaxConnsPerHostIncludeDialInProgress(t *testing.T) {
-	runNoSynctest(t, testTransportMaxConnsPerHostIncludeDialInProgress, http3SkippedMode)
+	runNoSynctest(t, testTransportMaxConnsPerHostIncludeDialInProgress)
 }
 func testTransportMaxConnsPerHostIncludeDialInProgress(t *testing.T, mode testMode) {
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		_, err := w.Write([]byte("foo"))
 		if err != nil {
 			t.Fatalf("Write: %v", err)
 		}
-	}), optRealNet).ts
-	c := ts.Client()
-	tr := c.Transport.(*Transport)
+	}), optRealNet)
+	ts := cst.ts
+	tr := cst.tr
 	dialStarted := make(chan struct{})
 	stallDial := make(chan struct{})
-	tr.Dial = func(network, addr string) (net.Conn, error) {
+	cst.setDialHook(func() error {
 		dialStarted <- struct{}{}
 		<-stallDial
-		return net.Dial(network, addr)
-	}
+		return nil
+	})
 
 	tr.DisableKeepAlives = true
 	tr.MaxConnsPerHost = 1
@@ -2884,7 +2884,7 @@ func TestTransportEmptyMethod(t *testing.T) {
 }
 
 func TestTransportSocketLateBinding(t *testing.T) {
-	runNoSynctest(t, testTransportSocketLateBinding, http3SkippedMode)
+	runNoSynctest(t, testTransportSocketLateBinding)
 }
 func testTransportSocketLateBinding(t *testing.T, mode testMode) {
 	mux := NewServeMux()
@@ -2897,23 +2897,24 @@ func testTransportSocketLateBinding(t *testing.T, mode testMode) {
 	mux.HandleFunc("/bar", func(w ResponseWriter, r *Request) {
 		w.Header().Set("bar-ipport", r.RemoteAddr)
 	})
-	ts := newClientServerTest(t, mode, mux, optRealNet).ts
+	cst := newClientServerTest(t, mode, mux, optRealNet)
+	ts := cst.ts
 
 	dialGate := make(chan bool, 1)
 	dialing := make(chan bool)
-	c := ts.Client()
-	c.Transport.(*Transport).Dial = func(n, addr string) (net.Conn, error) {
+	c := cst.c
+	cst.setDialHook(func() error {
 		for {
 			select {
 			case ok := <-dialGate:
 				if !ok {
-					return nil, errors.New("manually closed")
+					return errors.New("manually closed")
 				}
-				return net.Dial(n, addr)
+				return nil
 			case dialing <- true:
 			}
 		}
-	}
+	})
 	defer close(dialGate)
 
 	dialGate <- true // only allow one dial
@@ -2932,14 +2933,14 @@ func testTransportSocketLateBinding(t *testing.T, mode testMode) {
 		// read its header. Wait for the bar request to block in Dial, then
 		// let the foo response finish so we can use its connection for /bar.
 
-		if mode == http2Mode {
-			// In HTTP/2 mode, the second Dial won't happen because the protocol
-			// multiplexes the streams by default. Just sleep for an arbitrary time;
+		if mode == http2Mode || mode == http3Mode {
+			// In HTTP/2 and HTTP/3 modes, the second Dial won't happen because the
+			// protocol multiplexes the streams by default. Just sleep for an arbitrary time;
 			// the test should pass regardless of how far the bar request gets by this
 			// point.
 			select {
 			case <-dialing:
-				t.Errorf("unexpected second Dial in HTTP/2 mode")
+				t.Errorf("unexpected second Dial in %s mode", mode)
 			case <-time.After(10 * time.Millisecond):
 			}
 		} else {

@@ -327,11 +327,11 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 		t.Cleanup(func() {
 			tr.HTTP3Transport().Close()
 		})
-		tr.SetHTTP3DialAddrForTesting(func(addr string) string {
+		tr.AddHTTP3TestDialHook(func(addr string) (string, error) {
 			if fakeNet || addr == "example.com:443" || strings.HasSuffix(addr, ".example.com:443") {
-				return cst.ts.Listener.Addr().String()
+				return cst.ts.Listener.Addr().String(), nil
 			}
-			return addr
+			return addr, nil
 		})
 	default:
 		t.Fatalf("unknown test mode %v", mode)
@@ -412,6 +412,30 @@ func (cst *clientServerTest) dialNettest() (net.Conn, *nettest.Conn) {
 		return tlsConn, tlsConn.NetConn().(*nettest.Conn)
 	}
 	return conn, conn.(*nettest.Conn)
+}
+
+func (cst *clientServerTest) setDialHook(f func() error) {
+	if cst.mode == http3Mode {
+		cst.tr.AddHTTP3TestDialHook(func(addr string) (string, error) {
+			return addr, f()
+		})
+		return
+	}
+	for _, dialPtr := range []*func(context.Context, string, string) (net.Conn, error){
+		&cst.tr.DialContext,
+		&cst.tr.DialTLSContext,
+	} {
+		dial := *dialPtr
+		if dial == nil {
+			continue
+		}
+		*dialPtr = func(ctx context.Context, network, address string) (net.Conn, error) {
+			if err := f(); err != nil {
+				return nil, err
+			}
+			return dial(ctx, network, address)
+		}
+	}
 }
 
 func (cst *clientServerTest) setDialNettestHook(f func(*nettest.Conn)) {

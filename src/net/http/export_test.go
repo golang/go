@@ -194,24 +194,31 @@ func (p *Protocols) SetHTTP3(ok bool) {
 	p.setHTTP3(ok)
 }
 
-type remapHTTP3Dialer struct {
+// http3DialerWithHook wraps an http3Transport to run a hook before dialing.
+// It is used by clientServerTest to remap target addresses to the test server,
+// and optionally to insert additional hooks in some tests.
+type http3DialerWithHook struct {
 	http3Transport
 	closeIdleConnectionser
-	remap func(string) string
+	hook func(addr string) (string, error)
 }
 
-func (d remapHTTP3Dialer) DialClientConn(ctx context.Context, addr string, proxy *url.URL, tlsConfig *tls.Config, hook func() error) (RoundTripper, error) {
-	return d.http3Transport.DialClientConn(ctx, d.remap(addr), proxy, tlsConfig, hook)
+func (d http3DialerWithHook) DialClientConn(ctx context.Context, addr string, proxy *url.URL, tlsConfig *tls.Config, stateHook func() error) (RoundTripper, error) {
+	addr, err := d.hook(addr)
+	if err != nil {
+		return nil, err
+	}
+	return d.http3Transport.DialClientConn(ctx, addr, proxy, tlsConfig, stateHook)
 }
 
 func (t *Transport) HTTP3Transport() http3Transport {
 	return t.h3Transport
 }
 
-func (t *Transport) SetHTTP3DialAddrForTesting(remap func(string) string) {
-	t.h3Transport = remapHTTP3Dialer{
+func (t *Transport) AddHTTP3TestDialHook(hook func(addr string) (string, error)) {
+	t.h3Transport = http3DialerWithHook{
 		http3Transport:         t.h3Transport,
 		closeIdleConnectionser: t.h3Transport.(closeIdleConnectionser),
-		remap:                  remap,
+		hook:                   hook,
 	}
 }
