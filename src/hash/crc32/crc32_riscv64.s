@@ -58,7 +58,7 @@ GLOBL mask32<>(SB), RODATA, $8
 	SRLI	$8, X5, X5; \
 	XOR	X15, X5, X5; \
 	ADD	$1, X6; \
-	ADD	$-1, X7
+	SUB	$1, X7
 
 // Carry-less multiply fold step on the 128-bit accumulator (X8, X9) with a
 // freshly loaded 16-byte block (X13=low, X14=high), producing the new
@@ -95,7 +95,7 @@ TEXT ·ieeeUpdateCLMUL(SB), NOSPLIT, $0-44
 
 ieee_align_head:
 	CRC_BYTE()
-	ADD	$-1, X24
+	SUB	$1, X24
 	BNE	X24, ZERO, ieee_align_head
 
 ieee_aligned:
@@ -108,7 +108,7 @@ ieee_aligned:
 	MOV	(X6), X8		// t0 = low 64 bits
 	MOV	8(X6), X9		// t1 = high 64 bits
 	ADD	$16, X6
-	ADD	$-16, X7
+	SUB	$16, X7
 
 	// XOR CRC seed into the low word of the first block
 	XOR	X5, X8, X8
@@ -126,7 +126,7 @@ ieee_fold_loop:
 	MOV	(X6), X13		// d0 = new low 64 bits
 	MOV	8(X6), X14		// d1 = new high 64 bits
 	ADD	$16, X6
-	ADD	$-16, X7
+	SUB	$16, X7
 
 	FOLD_STEP()
 
@@ -209,7 +209,7 @@ TEXT ·castagnoliUpdateCLMUL(SB), NOSPLIT, $0-44
 
 cast_align_head:
 	CRC_BYTE()
-	ADD	$-1, X24
+	SUB	$1, X24
 	BNE	X24, ZERO, cast_align_head
 
 cast_aligned:
@@ -222,7 +222,7 @@ cast_aligned:
 	MOV	(X6), X8		// t0 = low 64 bits
 	MOV	8(X6), X9		// t1 = high 64 bits
 	ADD	$16, X6
-	ADD	$-16, X7
+	SUB	$16, X7
 
 	// XOR CRC seed into the low word of the first block
 	XOR	X5, X8, X8
@@ -240,7 +240,7 @@ cast_fold_loop:
 	MOV	(X6), X13		// d0 = new low 64 bits
 	MOV	8(X6), X14		// d1 = new high 64 bits
 	ADD	$16, X6
-	ADD	$-16, X7
+	SUB	$16, X7
 
 	FOLD_STEP()
 
