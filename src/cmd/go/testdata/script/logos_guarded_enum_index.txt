@@ -1,0 +1,72 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+mkdir go lgo
+cp go.mod.txt go/go.mod
+cp go.mod.txt lgo/go.mod
+cp main.txt go/main.go
+cp main.txt lgo/main.lgo
+
+cd go
+logos lint ./...
+! stderr .
+logos run .
+stderr '^all 256 token values passed$'
+go run .
+stderr '^all 256 token values passed$'
+
+replace 't >= tokenCount' 't > tokenCount' main.go
+! logos run .
+stderr 'panic: runtime error: index out of range \[2\] with length 2'
+! go run .
+stderr 'panic: runtime error: index out of range \[2\] with length 2'
+
+cd ../lgo
+logos lint ./...
+! stderr .
+logos run .
+stderr '^all 256 token values passed$'
+
+replace 't >= tokenCount' 't > tokenCount' main.lgo
+! logos run .
+stderr 'panic: runtime error: index out of range \[2\] with length 2'
+
+-- go.mod.txt --
+module example.com/guardedenum
+
+go 1.27
+
+-- main.txt --
+package main
+
+type token uint8
+
+const (
+	tokenLight token = iota
+	tokenDark
+	tokenCount
+)
+
+func (t token) String() string {
+	names := [...]string{"light", "dark"}
+	if t >= tokenCount {
+		return "unknown"
+	}
+	return names[t]
+}
+
+func main() {
+	for value := range 256 {
+		want := "unknown"
+		switch value {
+		case 0:
+			want = "light"
+		case 1:
+			want = "dark"
+		}
+		if token(value).String() != want {
+			panic("incorrect enum string")
+		}
+	}
+	println("all 256 token values passed")
+}
