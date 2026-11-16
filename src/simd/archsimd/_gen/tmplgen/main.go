@@ -1394,6 +1394,17 @@ func (x {{.VType}}) Less(y {{.VType}}) Mask{{.EWidth}}s {
 }
 `))
 
+// lessEqualTemplateSVE implements LessEqual for SVE scalable vectors as
+// GreaterEqual with the operands swapped, as arm64LessEqualTemplate does for
+// NEON. SVE's CMPLE, CMPLS and FCMLE are assembler aliases of CMPGE, CMPHS and
+// FCMGE with swapped operands.
+var lessEqualTemplateSVE = template.Must(template.New("sve LessEqual methods").Parse(`
+// Emulated, CPU Feature: SVE
+func (x {{.VType}}) LessEqual(y {{.VType}}) Mask{{.EWidth}}s {
+	return y.GreaterEqual(x)
+}
+`))
+
 var reduceSumTemplateArm64 = shapedTemplateOf(arm64ReduceIntegerShapes, "arm64_ReduceSum methods", `
 // ReduceSum reduces x by summing all elements.
 //
@@ -1747,7 +1758,7 @@ func main() {
 
 	// SVE-specific generation
 	if *opSVE != "" {
-		oneSVE(*opSVE, svePrologue, hiToLoTemplateSVE, lessTemplateSVE)
+		oneSVE(*opSVE, svePrologue, hiToLoTemplateSVE, lessTemplateSVE, lessEqualTemplateSVE)
 	}
 
 	nonTemplateRewrites(SSA+"tern_helpers.go", ssaPrologue, classifyBooleanSIMD, ternOpForLogical)

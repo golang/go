@@ -408,6 +408,12 @@ func sveLess(x, y archsimd.Int32s) archsimd.Mask32s {
 	return x.Less(y)
 }
 
+// LessEqual is GreaterEqual with the operands swapped.
+func sveLessEqual(x, y archsimd.Float64s) archsimd.Mask64s {
+	// arm64:`ZFCMGE\s+Z0\.D, Z1\.D, P[0-9]+\.Z, P[0-9]+\.D`
+	return x.LessEqual(y)
+}
+
 // A reduction leaves its result in the SIMD&FP scalar register that a float
 // is returned in.
 func sveReduceSum(x archsimd.Float32s) float32 {
