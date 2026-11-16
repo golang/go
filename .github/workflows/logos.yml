@@ -38,6 +38,9 @@ jobs:
             run: |
               go test -count=1 -short $LOGOS_PACKAGES
               go test -count=1 -race logos/... cmd/go/internal/logos/lsp/...
+              go test -count=1 -short runtime/metrics
+              GOEXPERIMENT=logosarena go test -count=1 -short -race runtime -run '^TestLogos(Arena|Region|GCScan)'
+              GOEXPERIMENT=logosarena,nogreenteagc go test -count=1 -short runtime -run '^TestLogos(Arena|Region|GCScan)'
           - suite: "scripts"
             run: |
               go test -count=1 -timeout 60m cmd/go -run 'Script/^logos_'

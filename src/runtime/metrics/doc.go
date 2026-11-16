@@ -248,7 +248,8 @@ Below is the full list of supported metrics, ordered lexicographically.
 		The total amount of heap space that is scannable.
 
 	/gc/scan/stack:bytes
-		The number of bytes of stack that were scanned last GC cycle.
+		The number of bytes of stack and goroutine-owned region space
+		that were scanned last GC cycle.
 
 	/gc/scan/total:bytes
 		The total amount space that is scannable. Sum of all metrics in

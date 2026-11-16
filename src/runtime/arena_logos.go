@@ -292,37 +292,48 @@ func logosArenaRetTake() bool {
 }
 
 //go:nowritebarrier
-func logosArenaScanStack(gp *g, gcw *gcWork, state *stackScanState) {
+func logosArenaScanStack(gp *g, gcw *gcWork, state *stackScanState) int64 {
+	var scanned int64
 	for c := gp.logosArena; c != nil; c = c.next {
-		logosArenaScanChunk(c, gcw, state)
+		scanned += logosArenaScanChunk(c, gcw, state)
 	}
+	return scanned
 }
 
 //go:nowritebarrier
-func logosArenaScanChunk(c *sideStackChunk, gcw *gcWork, state *stackScanState) {
+func logosArenaScanChunk(c *sideStackChunk, gcw *gcWork, state *stackScanState) int64 {
+	var scanned int64
 	for hdrAddr := c.scanCur; hdrAddr < c.scanBase; {
 		hdr := (*logosArenaScanHeader)(unsafe.Pointer(hdrAddr))
 		obj := hdrAddr + logosArenaScanHeaderBytes
 		hdrAddr = obj + alignUp(hdr.size, logosArenaUnit)
 		if hdr.typ != nil && hdr.size != 0 {
-			logosArenaScanObject(hdr.typ, obj, hdr.size, gcw, state)
+			scanned += logosArenaScanObject(hdr.typ, obj, hdr.size, gcw, state)
 		}
 	}
+	return scanned
 }
 
+// logosArenaScanObject reports the extent through the last pointer slot,
+// matching scanObject. Nil slots count as work, and scalar tails do not.
+//
 //go:nowritebarrier
-func logosArenaScanObject(typ *_type, obj, size uintptr, gcw *gcWork, state *stackScanState) {
+func logosArenaScanObject(typ *_type, obj, size uintptr, gcw *gcWork, state *stackScanState) int64 {
 	limit := obj + size
 	tp := typePointers{elem: obj, addr: obj, mask: readUintptr(getGCMask(typ)), typ: typ}.fastForward(0, limit)
+	var scanned uintptr
 	for {
 		var addr uintptr
 		if tp, addr = tp.nextFast(); addr == 0 {
 			if tp, addr = tp.next(limit); addr == 0 {
-				return
+				return int64(scanned)
 			}
 		}
+		scanned = addr - obj + goarch.PtrSize
 		p := *(*uintptr)(unsafe.Pointer(addr))
-		if p == 0 {
+		// This loop visits every pointer slot in the allocation, so an
+		// internal pointer cannot expose another root.
+		if p == 0 || p-obj < size {
 			continue
 		}
 		if state != nil && p >= state.stack.lo && p < state.stack.hi {
@@ -366,6 +377,10 @@ func logosArenaTake() *sideStackChunk {
 	} else if asanenabled {
 		asanunpoison(unsafe.Pointer(c), logosArenaChunkBytes)
 	}
+	if c != nil {
+		// Region roots share their owner's stack scan work budget.
+		gcController.addScannableStack(nil, logosArenaChunkBytes)
+	}
 	return c
 }
 
@@ -378,6 +393,7 @@ func logosArenaRelease(c *sideStackChunk) {
 	c.next = pp.logosArenaPool
 	pp.logosArenaPool = c
 	pp.logosArenaPoolN++
+	gcController.addScannableStack(nil, -logosArenaChunkBytes)
 	releasem(mp)
 }
 

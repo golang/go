@@ -348,12 +348,14 @@ func logosRegionUnwind(gp *g, sp uintptr) {
 }
 
 //go:nowritebarrier
-func logosRegionScan(gp *g, gcw *gcWork, state *stackScanState) {
+func logosRegionScan(gp *g, gcw *gcWork, state *stackScanState) int64 {
+	var scanned int64
 	for rec := gp.logosRegions; rec != nil; rec = rec.prev {
 		for c := rec.chunk; c != nil; c = c.next {
-			logosArenaScanChunk(c, gcw, state)
+			scanned += logosArenaScanChunk(c, gcw, state)
 		}
 	}
+	return scanned
 }
 
 func logosRegionPark(gp *g) {

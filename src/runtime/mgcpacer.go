@@ -210,18 +210,18 @@ type gcControllerState struct {
 	// Updated when the world is stopped.
 	lastHeapScan uint64
 
-	// lastStackScan is the number of bytes of stack that were scanned
-	// last GC cycle.
+	// lastStackScan is the number of bytes of stack and region roots
+	// that were scanned last GC cycle.
 	lastStackScan atomic.Uint64
 
-	// maxStackScan is the amount of allocated goroutine stack space in
-	// use by goroutines.
+	// maxStackScan is the allocated goroutine stack space plus the
+	// capacity of leased region chunks. Pooled chunks are excluded.
 	//
 	// This number tracks allocated goroutine stack space rather than used
 	// goroutine stack space (i.e. what is actually scanned) because used
 	// goroutine stack space is much harder to measure cheaply. By using
-	// allocated space, we make an overestimate; this is OK, it's better
-	// to conservatively overcount than undercount.
+	// allocated space, including region capacity, we make an overestimate;
+	// this is OK, it's better to conservatively overcount than undercount.
 	maxStackScan atomic.Uint64
 
 	// globalsScan is the total amount of global variable space
@@ -235,7 +235,7 @@ type gcControllerState struct {
 	heapMarked uint64
 
 	// heapScanWork is the total heap scan work performed this cycle.
-	// stackScanWork is the total stack scan work performed this cycle.
+	// stackScanWork is the total stack and region root scan work this cycle.
 	// globalsScanWork is the total globals scan work performed this cycle.
 	//
 	// These are updated atomically during the cycle. Updates occur in
@@ -246,8 +246,8 @@ type gcControllerState struct {
 	// Currently these are measured in bytes. For most uses, this is an
 	// opaque unit of work, but for estimation the definition is important.
 	//
-	// Note that stackScanWork includes only stack space scanned, not all
-	// of the allocated stack.
+	// Note that stackScanWork includes only scanned stack and region
+	// space, not all allocated capacity.
 	heapScanWork    atomic.Int64
 	stackScanWork   atomic.Int64
 	globalsScanWork atomic.Int64
@@ -511,7 +511,7 @@ func (c *gcControllerState) revise() {
 	// maxScanWork is a worst-case estimate of the amount of scan work that
 	// needs to be performed in this GC cycle. Specifically, it represents
 	// the case where *all* scannable memory turns out to be live, and
-	// *all* allocated stack space is scannable.
+	// *all* allocated stack space and leased region capacity is scannable.
 	maxStackScan := c.maxStackScan.Load()
 	maxScanWork := int64(scan + maxStackScan + c.globalsScan.Load())
 	if work > scanWorkExpected {

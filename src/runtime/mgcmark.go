@@ -884,7 +884,7 @@ func gcFlushBgCredit(scanWork int64) {
 	unlock(&work.assistQueue.lock)
 }
 
-// scanstack scans gp's stack, greying all pointers found on the stack.
+// scanstack scans gp's stack and regions, greying all pointers found.
 //
 // Returns the amount of scan work performed, but doesn't update
 // gcController.stackScanWork or flush any credit. Any background credit produced
@@ -924,7 +924,7 @@ func scanstack(gp *g, gcw *gcWork) int64 {
 		throw("can't scan our own stack")
 	}
 
-	// scannedSize is the amount of work we'll be reporting.
+	// scannedSize is the physical stack work, excluding region roots.
 	//
 	// It is less than the allocated size (which is hi-lo).
 	var sp uintptr
@@ -952,9 +952,10 @@ func scanstack(gp *g, gcw *gcWork) int64 {
 	var state stackScanState
 	state.stack = gp.stack
 
+	var regionScanWork int64
 	if goexperiment.LogosArena && (gp.logosArena != nil || gp.logosRegions != nil) {
-		logosArenaScanStack(gp, gcw, &state)
-		logosRegionScan(gp, gcw, &state)
+		regionScanWork = logosArenaScanStack(gp, gcw, &state)
+		regionScanWork += logosRegionScan(gp, gcw, &state)
 	}
 	if stackTraceDebug {
 		println("stack trace goroutine", gp.goid)
@@ -1069,7 +1070,7 @@ func scanstack(gp *g, gcw *gcWork) int64 {
 	if state.buf != nil || state.cbuf != nil || state.freeBuf != nil {
 		throw("remaining pointer buffers")
 	}
-	return int64(scannedSize)
+	return int64(scannedSize) + regionScanWork
 }
 
 // Scan a stack frame: local variables and function arguments/results.

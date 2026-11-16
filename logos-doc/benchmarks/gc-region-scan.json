@@ -1,0 +1,905 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-16",
+  "baselineRevision": "dc95954659ede58433ba7df962cefc4ebb36794a",
+  "productionDelta": "Add p-obj < size after counting the typed pointer slot in logosArenaScanObject; all other measured production sources are identical.",
+  "environment": {
+    "os": "linux",
+    "arch": "amd64",
+    "cpu": "AMD EPYC 9V45 96-Core Processor",
+    "toolchain": "go version go1.27.4 linux/amd64",
+    "hyperfine": "hyperfine 1.19.0",
+    "GOMAXPROCS": 1,
+    "GOAMD64": "v1",
+    "GOEXPERIMENT": "logosarena"
+  },
+  "workload": {
+    "benchmark": "BenchmarkLogosGCScan",
+    "iterations": 1000000,
+    "pointerSlotsPerIteration": 512,
+    "bytesPerIteration": 4096,
+    "GOMAXPROCS": 1,
+    "cases": {
+      "Self": "Every pointer targets the same source allocation",
+      "Nil": "Every pointer is nil",
+      "External": "Every pointer targets another live arena allocation; no heap marking"
+    },
+    "conditions": "Automatic GC disabled during measurement; setup excluded from Go benchmark timing; the same 4 KiB source block is scanned repeatedly; helper calls the actual runtime scanner with no heap work or stack state."
+  },
+  "sourceFingerprints": {
+    "baseline": [
+      {
+        "path": "src/runtime/arena_logos.go",
+        "sha256": "44f213207643a1fb384b08c16e5911bffc496ae515971a2411f03a315d4bf030"
+      },
+      {
+        "path": "src/runtime/region_logos.go",
+        "sha256": "a53a91361fc0c5a97baa8307f96aa6c4308e88fc92bc2634f8a9339e3830bb26"
+      },
+      {
+        "path": "src/runtime/mgcmark.go",
+        "sha256": "079969faea3babae10061c795a379d9fbb37c16019cdc5a08565a27a8423474a"
+      },
+      {
+        "path": "src/runtime/mgcpacer.go",
+        "sha256": "86a8a368a375652f246bde6d42193366e2ad2f571ca1d3c886d2949bcbaff4bb"
+      },
+      {
+        "path": "src/runtime/export_logos_gcscan_test.go",
+        "sha256": "95e0d924faa2b46dcd0e3b0860d3eef5276f4cef917f4fc991f663ffd0400ca1"
+      },
+      {
+        "path": "src/runtime/logos_gcscan_test.go",
+        "sha256": "14b3be62a7e8628298b5e47ca1e2c2ede138d47774b9459552120b5dd3406bfa"
+      }
+    ],
+    "candidate": [
+      {
+        "path": "src/runtime/arena_logos.go",
+        "sha256": "6c4a916ec5fe830d5ae5cb4f7efabc38d4cec82b9a01e68a3d7c17374acda8a8"
+      },
+      {
+        "path": "src/runtime/region_logos.go",
+        "sha256": "a53a91361fc0c5a97baa8307f96aa6c4308e88fc92bc2634f8a9339e3830bb26"
+      },
+      {
+        "path": "src/runtime/mgcmark.go",
+        "sha256": "079969faea3babae10061c795a379d9fbb37c16019cdc5a08565a27a8423474a"
+      },
+      {
+        "path": "src/runtime/mgcpacer.go",
+        "sha256": "86a8a368a375652f246bde6d42193366e2ad2f571ca1d3c886d2949bcbaff4bb"
+      },
+      {
+        "path": "src/runtime/export_logos_gcscan_test.go",
+        "sha256": "95e0d924faa2b46dcd0e3b0860d3eef5276f4cef917f4fc991f663ffd0400ca1"
+      },
+      {
+        "path": "src/runtime/logos_gcscan_test.go",
+        "sha256": "14b3be62a7e8628298b5e47ca1e2c2ede138d47774b9459552120b5dd3406bfa"
+      }
+    ]
+  },
+  "frozenTests": [
+    {
+      "path": "src/runtime/export_logos_gcscan_test.go",
+      "sha256": "95e0d924faa2b46dcd0e3b0860d3eef5276f4cef917f4fc991f663ffd0400ca1"
+    },
+    {
+      "path": "src/runtime/logos_gcscan_test.go",
+      "sha256": "14b3be62a7e8628298b5e47ca1e2c2ede138d47774b9459552120b5dd3406bfa"
+    },
+    {
+      "path": "src/runtime/export_logos_scanwork_test.go",
+      "sha256": "5a8923be31a33a28fc1fb18537d48401075e449f1290f072405f8cfc29c763d3"
+    },
+    {
+      "path": "src/runtime/logos_scanwork_test.go",
+      "sha256": "fbd0bb2f31a6fea493b9011d47c02a319e73a3f9a078e4b1b594631c7a42e790"
+    },
+    {
+      "path": "src/runtime/export_logos_scanbound_test.go",
+      "sha256": "cc0691cb86b69826b3ab298009a541ca0dc76f1a81c4103d02427d9ba5bea456"
+    },
+    {
+      "path": "src/runtime/logos_scanbound_test.go",
+      "sha256": "5428e042ce43c6cb6bd909155b649c178dcce6df7087d0e78072cc23afcdcf91"
+    }
+  ],
+  "binaryBytes": {
+    "baseline": 15997847,
+    "candidate": 15998583
+  },
+  "binarySHA256": {
+    "baseline": "a945b4c2762e61a03a159c523d0d2ab4cc43fe3c7151b1dae748089f224015c3",
+    "candidate": "fb462dc1a06c5570bee23fd7bf6675f9cc32e7c16262b2cd67242bbd450740a8"
+  },
+  "procedure": {
+    "tool": "hyperfine 1.19.0",
+    "warmups": 3,
+    "minRuns": 10,
+    "timedProfiling": false,
+    "score": "ratio * safety * (1 - cost * 0.3)",
+    "cost": 0.05,
+    "safety": 1,
+    "candidateCount": 1,
+    "exception": "One scanner function below 50 lines; one redundant-lookup concern; no layout or API change.",
+    "floor": {
+      "requiredSlots": 512,
+      "proxy": "Nil control through the same production iterator; empirical proxy, not a hardware lower-bound proof",
+      "calibrationSelfNs": 3992,
+      "calibrationNilNs": 1900,
+      "ratio": 2.1010526315789475
+    },
+    "hotPath": "baseline profile: logosArenaScanObject cumulative 99.58%",
+    "integrationOrder": "Self baseline/candidate, Nil baseline/candidate, External baseline/candidate; serial commands on one host"
+  },
+  "initialRuns": {
+    "baseline": {
+      "results": [
+        {
+          "command": "../.outline/optimize/gc-region-scan/baseline/runtime.test -test.run='^$' -test.bench='^BenchmarkLogosGCScan/Self$' -test.benchtime=1000000x -test.benchmem",
+          "mean": 4.59343625896,
+          "stddev": 0.6652117218588741,
+          "median": 4.58284085016,
+          "user": 4.25534538,
+          "system": 0.033095639999999996,
+          "min": 3.67487369916,
+          "max": 5.66726330416,
+          "times": [
+            5.66726330416,
+            4.95576417716,
+            4.04834183716,
+            4.12825469216,
+            5.44723603916,
+            3.67487369916,
+            3.93218126816,
+            4.77150086516,
+            4.39418083516,
+            4.91476587216
+          ],
+          "exit_codes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    "candidate": {
+      "results": [
+        {
+          "command": "../.outline/optimize/gc-region-scan/candidate/runtime.test -test.run='^$' -test.bench='^BenchmarkLogosGCScan/Self$' -test.benchtime=1000000x -test.benchmem",
+          "mean": 1.69084940288,
+          "stddev": 0.21464617964090618,
+          "median": 1.6696719092799999,
+          "user": 1.6880430199999998,
+          "system": 0.01855192,
+          "min": 1.3571994337800002,
+          "max": 2.16241755278,
+          "times": [
+            1.5379300177800002,
+            1.7326077317800002,
+            2.16241755278,
+            1.8857513187800001,
+            1.66562741678,
+            1.3571994337800002,
+            1.64732860578,
+            1.67681347278,
+            1.67371640178,
+            1.56910207678
+          ],
+          "exit_codes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    "note": "Retained as historical measurements. Controls changed between these phases, so the published final comparison uses the adjacent integration measurements."
+  },
+  "integration": {
+    "raw": {
+      "results": [
+        {
+          "command": "../.outline/optimize/gc-region-scan/baseline/runtime.test -test.run='^$' -test.bench='^BenchmarkLogosGCScan/Self$' -test.benchtime=1000000x -test.benchmem",
+          "mean": 3.3181640551,
+          "stddev": 0.3321576754988045,
+          "median": 3.2541671042,
+          "user": 3.30485922,
+          "system": 0.0165158,
+          "min": 2.9392106712,
+          "max": 4.0452304522,
+          "times": [
+            2.9392106712,
+            3.1171120802,
+            3.0735549142,
+            3.2191952852,
+            3.0459733482,
+            3.6360081562,
+            4.0452304522,
+            3.5043940442,
+            3.2891389232,
+            3.3118226762
+          ],
+          "exit_codes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "command": "../.outline/optimize/gc-region-scan/candidate/runtime.test -test.run='^$' -test.bench='^BenchmarkLogosGCScan/Self$' -test.benchtime=1000000x -test.benchmem",
+          "mean": 1.547292509,
+          "stddev": 0.1574452220174789,
+          "median": 1.4943219262,
+          "user": 1.54382472,
+          "system": 0.00754803,
+          "min": 1.3061061722,
+          "max": 1.7696072062,
+          "times": [
+            1.6093753581999999,
+            1.4466431992,
+            1.3061061722,
+            1.4796686832,
+            1.7671863652000002,
+            1.6989022832,
+            1.5056745452,
+            1.4829693072,
+            1.7696072062,
+            1.4067919702
+          ],
+          "exit_codes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "command": "../.outline/optimize/gc-region-scan/baseline/runtime.test -test.run='^$' -test.bench='^BenchmarkLogosGCScan/Nil$' -test.benchtime=1000000x -test.benchmem",
+          "mean": 1.4836623249999998,
+          "stddev": 0.13085801711384093,
+          "median": 1.4899515292,
+          "user": 1.46874842,
+          "system": 0.018640200000000003,
+          "min": 1.2855714622,
+          "max": 1.6887998422,
+          "times": [
+            1.5019020782,
+            1.4034492762,
+            1.2855714622,
+            1.3106357572,
+            1.5514277912,
+            1.4276061112,
+            1.6887998422,
+            1.6376294512,
+            1.4780009802,
+            1.5516005002000002
+          ],
+          "exit_codes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "command": "../.outline/optimize/gc-region-scan/candidate/runtime.test -test.run='^$' -test.bench='^BenchmarkLogosGCScan/Nil$' -test.benchtime=1000000x -test.benchmem",
+          "mean": 1.6400457120000003,
+          "stddev": 0.17263440963985405,
+          "median": 1.5506426782,
+          "user": 1.6290312199999994,
+          "system": 0.019504399999999998,
+          "min": 1.4756684732,
+          "max": 2.0279153712,
+          "times": [
+            1.5447061502000001,
+            1.8319346792000002,
+            1.6866729002,
+            2.0279153712,
+            1.5494598142,
+            1.5467787602,
+            1.5518255422,
+            1.6749498262,
+            1.5105456032,
+            1.4756684732
+          ],
+          "exit_codes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "command": "../.outline/optimize/gc-region-scan/baseline/runtime.test -test.run='^$' -test.bench='^BenchmarkLogosGCScan/External$' -test.benchtime=1000000x -test.benchmem",
+          "mean": 3.1560717531,
+          "stddev": 0.12292089692906302,
+          "median": 3.1804222567,
+          "user": 3.1279287200000003,
+          "system": 0.028812899999999995,
+          "min": 2.9872794932,
+          "max": 3.3958163462,
+          "times": [
+            3.1734608362,
+            3.3958163462,
+            3.2156687082,
+            3.1414596022,
+            3.2301881862,
+            3.0149331092,
+            3.1932629102,
+            3.1873836772,
+            3.0212646622,
+            2.9872794932
+          ],
+          "exit_codes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "command": "../.outline/optimize/gc-region-scan/candidate/runtime.test -test.run='^$' -test.bench='^BenchmarkLogosGCScan/External$' -test.benchtime=1000000x -test.benchmem",
+          "mean": 3.3982009051,
+          "stddev": 0.27325689554874816,
+          "median": 3.3437364857,
+          "user": 3.3743946200000003,
+          "system": 0.030181099999999995,
+          "min": 3.0953645112,
+          "max": 3.8161766072,
+          "times": [
+            3.7986955122,
+            3.8161766072,
+            3.4446094802,
+            3.2874152872,
+            3.0953645112,
+            3.4000576842,
+            3.6490301772,
+            3.1433255262,
+            3.1414474932,
+            3.2058867722
+          ],
+          "exit_codes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    "comparisons": [
+      {
+        "case": "Self",
+        "baseline": {
+          "medianSeconds": 3.2541671042,
+          "stddevSeconds": 0.3321576754988045,
+          "minSeconds": 2.9392106712,
+          "maxSeconds": 4.0452304522,
+          "stddevOverMedian": 0.10207148706964195,
+          "samples": 10
+        },
+        "candidate": {
+          "medianSeconds": 1.4943219262,
+          "stddevSeconds": 0.1574452220174789,
+          "minSeconds": 1.3061061722,
+          "maxSeconds": 1.7696072062,
+          "stddevOverMedian": 0.10536231802330286,
+          "samples": 10
+        },
+        "baselineOverCandidate": 2.177688118700911,
+        "latencyChangePercent": -54.07974211676625
+      },
+      {
+        "case": "Nil",
+        "baseline": {
+          "medianSeconds": 1.4899515292,
+          "stddevSeconds": 0.13085801711384093,
+          "minSeconds": 1.2855714622,
+          "maxSeconds": 1.6887998422,
+          "stddevOverMedian": 0.08782702963773764,
+          "samples": 10
+        },
+        "candidate": {
+          "medianSeconds": 1.5506426782,
+          "stddevSeconds": 0.17263440963985405,
+          "minSeconds": 1.4756684732,
+          "maxSeconds": 2.0279153712,
+          "stddevOverMedian": 0.11133087723359299,
+          "samples": 10
+        },
+        "baselineOverCandidate": 0.9608606483922841,
+        "latencyChangePercent": 4.073363986047718
+      },
+      {
+        "case": "External",
+        "baseline": {
+          "medianSeconds": 3.1804222567,
+          "stddevSeconds": 0.12292089692906302,
+          "minSeconds": 2.9872794932,
+          "maxSeconds": 3.3958163462,
+          "stddevOverMedian": 0.038649238059541666,
+          "samples": 10
+        },
+        "candidate": {
+          "medianSeconds": 3.3437364857,
+          "stddevSeconds": 0.27325689554874816,
+          "minSeconds": 3.0953645112,
+          "maxSeconds": 3.8161766072,
+          "stddevOverMedian": 0.08172201868100941,
+          "samples": 10
+        },
+        "baselineOverCandidate": 0.9511581640184751,
+        "latencyChangePercent": 5.13498572889044
+      }
+    ]
+  },
+  "benchmem": {
+    "baseline": {
+      "samples": [
+        {
+          "case": "Self",
+          "nsPerOp": 4075,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Self",
+          "nsPerOp": 4315,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Self",
+          "nsPerOp": 4353,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Self",
+          "nsPerOp": 4174,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Self",
+          "nsPerOp": 4164,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Self",
+          "nsPerOp": 4083,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Self",
+          "nsPerOp": 4405,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Self",
+          "nsPerOp": 4069,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Self",
+          "nsPerOp": 4429,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Self",
+          "nsPerOp": 4419,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Nil",
+          "nsPerOp": 1653,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Nil",
+          "nsPerOp": 1827,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Nil",
+          "nsPerOp": 2158,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Nil",
+          "nsPerOp": 1662,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Nil",
+          "nsPerOp": 2990,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Nil",
+          "nsPerOp": 3539,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Nil",
+          "nsPerOp": 1969,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Nil",
+          "nsPerOp": 1516,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Nil",
+          "nsPerOp": 1693,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Nil",
+          "nsPerOp": 1745,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "External",
+          "nsPerOp": 7259,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "External",
+          "nsPerOp": 11020,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "External",
+          "nsPerOp": 8900,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "External",
+          "nsPerOp": 5999,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "External",
+          "nsPerOp": 4517,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "External",
+          "nsPerOp": 4676,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "External",
+          "nsPerOp": 4118,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "External",
+          "nsPerOp": 4117,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "External",
+          "nsPerOp": 4187,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "External",
+          "nsPerOp": 4528,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        }
+      ],
+      "medians": {
+        "Self": 4244.5,
+        "Nil": 1786,
+        "External": 4602
+      }
+    },
+    "candidate": {
+      "samples": [
+        {
+          "case": "Self",
+          "nsPerOp": 1302,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Self",
+          "nsPerOp": 1503,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Self",
+          "nsPerOp": 1403,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Self",
+          "nsPerOp": 1348,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Self",
+          "nsPerOp": 1507,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Self",
+          "nsPerOp": 1571,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Self",
+          "nsPerOp": 1473,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Self",
+          "nsPerOp": 1435,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Self",
+          "nsPerOp": 1330,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Self",
+          "nsPerOp": 1379,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Nil",
+          "nsPerOp": 1631,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Nil",
+          "nsPerOp": 1434,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Nil",
+          "nsPerOp": 1452,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Nil",
+          "nsPerOp": 1493,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Nil",
+          "nsPerOp": 1587,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Nil",
+          "nsPerOp": 1406,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Nil",
+          "nsPerOp": 1590,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Nil",
+          "nsPerOp": 1589,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Nil",
+          "nsPerOp": 1559,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "Nil",
+          "nsPerOp": 1570,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "External",
+          "nsPerOp": 3237,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "External",
+          "nsPerOp": 3260,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "External",
+          "nsPerOp": 3096,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "External",
+          "nsPerOp": 3041,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "External",
+          "nsPerOp": 3094,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "External",
+          "nsPerOp": 3214,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "External",
+          "nsPerOp": 3260,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "External",
+          "nsPerOp": 3245,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "External",
+          "nsPerOp": 3593,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        },
+        {
+          "case": "External",
+          "nsPerOp": 3437,
+          "bytesPerOp": 0,
+          "allocsPerOp": 0
+        }
+      ],
+      "medians": {
+        "Self": 1419,
+        "Nil": 1564.5,
+        "External": 3241
+      }
+    },
+    "note": "Ten samples per case from go test -run=^$ -bench=^BenchmarkLogosGCScan$ -benchtime=1000000x -count=10 -benchmem runtime. These are corroborating phase measurements, not the final adjacent elapsed-time comparison."
+  },
+  "profiles": {
+    "baseline": "File: runtime.test\nBuild ID: 3ab77ace769ccb9ded9ad482cce07da595c15671\nType: cpu\nTime: 2026-11-16 12:15:29 KST\nDuration: 6.96s, Total samples = 4.75s (68.26%)\nShowing nodes accounting for 4.72s, 99.37% of 4.75s total\nDropped 7 nodes (cum <= 0.02s)\n      flat  flat%   sum%        cum   cum%\n     1.02s 21.47% 21.47%      4.73s 99.58%  runtime.logosArenaScanObject\n     0.98s 20.63% 42.11%      1.17s 24.63%  runtime.typePointers.next\n     0.87s 18.32% 60.42%      1.28s 26.95%  runtime.tryDeferToSpanScan\n     0.60s 12.63% 73.05%      1.26s 26.53%  runtime.findObject\n     0.37s  7.79% 80.84%      0.37s  7.79%  runtime.arenaIndex (inline)\n     0.37s  7.79% 88.63%      0.63s 13.26%  runtime.spanOf (inline)\n     0.30s  6.32% 94.95%      0.41s  8.63%  runtime.heapArenaOf (inline)\n     0.17s  3.58% 98.53%      0.17s  3.58%  runtime.getGCMask (inline)\n     0.03s  0.63% 99.16%      0.03s  0.63%  internal/runtime/atomic.(*Uint8).Load (inline)\n     0.01s  0.21% 99.37%      4.74s 99.79%  runtime_test.BenchmarkLogosGCScan.func1\n         0     0% 99.37%      0.03s  0.63%  runtime.(*mSpanStateBox).get (inline)\n         0     0% 99.37%      4.73s 99.58%  runtime.LogosArenaScanPointerBlock (inline)\n         0     0% 99.37%      4.74s 99.79%  testing.(*B).launch\n         0     0% 99.37%      4.74s 99.79%  testing.(*B).runN",
+    "candidate": "File: runtime.test\nBuild ID: 6f6988feb8d966d4f379f84627127955f0c58710\nType: cpu\nTime: 2026-11-16 12:29:28 KST\nDuration: 1.46s, Total samples = 1.45s (99.27%)\nShowing nodes accounting for 1.45s, 100% of 1.45s total\nShowing top 15 nodes out of 31\n      flat  flat%   sum%        cum   cum%\n     0.70s 48.28% 48.28%      0.85s 58.62%  runtime.typePointers.next\n     0.56s 38.62% 86.90%      1.43s 98.62%  runtime.logosArenaScanObject\n     0.10s  6.90% 93.79%      0.10s  6.90%  runtime.getGCMask (inline)\n     0.07s  4.83% 98.62%      0.07s  4.83%  runtime.typePointers.nextFast (inline)\n     0.01s  0.69% 99.31%      0.01s  0.69%  internal/runtime/maps.(*Map).getWithoutKeySmallFastStr\n     0.01s  0.69%   100%      0.01s  0.69%  runtime.tracebackPCs\n         0     0%   100%      0.01s  0.69%  os.ReadFile\n         0     0%   100%      0.01s  0.69%  os.readFileContents\n         0     0%   100%      1.43s 98.62%  runtime.LogosArenaScanPointerBlock\n         0     0%   100%      0.01s  0.69%  runtime.callers\n         0     0%   100%      0.01s  0.69%  runtime.callers.func1\n         0     0%   100%      0.01s  0.69%  runtime.growslice\n         0     0%   100%      0.01s  0.69%  runtime.mProf_Malloc\n         0     0%   100%      0.01s  0.69%  runtime.mallocgc\n         0     0%   100%      0.01s  0.69%  runtime.mallocgcSmallNoscan"
+  },
+  "validation": {
+    "toolchainBuild": "PASS",
+    "nativeRuntime": "PASS",
+    "race": "PASS",
+    "nogreenteagc": "PASS",
+    "metrics": "PASS",
+    "vet": "PASS",
+    "nativeEjectedParity": "PASS; upstream Go 1.27.2 builds ejected fixtures",
+    "arm64CrossCompile": "PASS",
+    "arm64Execution": "NOT RUN",
+    "fullRunBash": "NOT RUN",
+    "frozenTests": "PASS",
+    "exteriorPointerMutation": "Both arena and region cases fail because live referent 0 is collected; unmutated binary passes under the same constrained runtime environment",
+    "resourceRetries": "Parallel compiler jobs and an initial serial mutation compile were killed. Budgeted serialized retries completed; compiler failures are not counted as behavioral RED results."
+  },
+  "decision": {
+    "retain": true,
+    "requiredRatio": 1.05,
+    "observedRatio": 2.177688118700911,
+    "score": 2.1450227969203977,
+    "scope": "Retain the self-reference fast path under the existing experiment; disclose measured control costs and do not claim a universal improvement."
+  },
+  "limitations": [
+    "Isolated scanner throughput, not whole-GC duration, pause latency, application throughput, or peak RSS",
+    "External control does not exercise heap marking",
+    "Shared host; every final series satisfies stddev <= 20% of median, but this is not a confidence bound",
+    "Nil and other-arena control medians increased in the final comparison; the benefit depends on pointer distribution",
+    "No new collector mode, policy control, or experiment default is enabled"
+  ]
+}

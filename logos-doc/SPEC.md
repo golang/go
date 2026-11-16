@@ -2,6 +2,7 @@
 
 - Status: Tailored spec, 2026-10-19; amended 2026-11-08 (withdrew GC modes, synthetic PGO, ICF, clone specialization, the fast-cgo default, vet-duplicate lints, and numeric targets; replaced the upstream arena with placement regions; moved nogo into logos lint)
 - Base: Go 1.27.2
+- GC scan amendment: 2026-11-16; shared region scan accounting and same-allocation lookup elision, with the alternate GC modes still withdrawn.
 - Original: `logos-docs/PLAN.md` at commit 57475ed (`git show 57475ed:logos-docs/PLAN.md`)
 - Source files: `.lgo` (canonical); aliases U+1F4DC (scroll), U+26A1 (lightning), and U+0295 U+25D4 U+03D6 U+25D4 U+0294 (gopher); `.go` files stay Go source files with Go language semantics.
 
@@ -1390,6 +1391,29 @@ Selected exports recover Go panics and return status codes; this does not provid
 Concurrent reads use an immutable object.
 The caller joins all reader threads before deleting its handle.
 The fixture's `-buildvcs=false` isolates the test from VCS metadata; it is not an FFI requirement.
+
+### 3.5 RFC-305: GC scan work and optimization
+
+GC improvements MUST use the shared runtime for Go and loGo/s packages under both commands. The region rules below MUST retain the `GOEXPERIMENT=logosarena` gate and the enablement defaults of Sec 3.1. [T-305][R-U1]
+They MUST preserve typed pointer maps, external heap and stack roots, write barriers, safe points, and the lifetime and zeroing rules of Sec 3.1. [T-305]
+They MUST preserve the existing collector selection and the semantics of `GOGC`, `GOMEMLIMIT`, `debug.SetGCPercent`, and `debug.SetMemoryLimit`. They MUST NOT add an alternate GC mode. [T-305]
+
+#### 3.5.1 Region root work
+
+The work that a goroutine root scan reports MUST include its live implicit arena allocations and its open placement regions. [T-305]
+Each scanned allocation MUST contribute the byte extent from its base through its last typed pointer slot. This extent includes scalar gaps before that slot and excludes the scalar tail after it. For repeated element types, it MUST include the extent through the last element's last pointer slot. [T-305]
+Nil and internal pointer values MUST contribute the same scan extent as external pointer values in those slots. Noscan allocations, scan headers, unused chunk capacity, and allocations removed by restore or close MUST NOT contribute. [T-305]
+The runtime MUST sum that work across every live chunk and open region, and MUST report it through the existing stack-root scan credit. [T-305]
+The controller's worst-case root-work estimate MUST include each leased region chunk once and exclude pooled chunks. Reuse, release, and failed acquisition MUST keep this bound consistent. This capacity bound MUST stay separate from completed scan work. [T-305]
+The ordinary goroutine stack-size sample MUST include only the physical stack extent; region scan work MUST NOT enlarge that sample. [T-305]
+
+Implementation note (informative): scan extent is the byte-based GC work estimate used by the collector. It is not a count of pointer words, retained capacity, or process memory. Correcting this estimate does not by itself establish a speed improvement. Optional speed changes require the fixed-work measurements and behavior checks of IMPLEMENTATION G6.
+
+#### 3.5.2 Same-allocation pointer lookup
+
+While scanning a region allocation, the runtime MAY omit heap metadata lookup for a pointer whose target lies within that same allocation. The check MUST use the complete allocation's half-open byte range; sharing a chunk alone MUST NOT qualify. [T-305]
+The scanner MUST still visit every typed pointer slot, including repeated element types and slots beyond the first pointer-mask word. Internal pointer values MUST retain their scan-work contribution under Sec 3.5.1. [T-305]
+External heap and stack pointers MUST retain their existing tracing behavior. Scalar words MUST NOT become roots, and restore or close MUST end the allocation's contribution under the existing lifetime rules. [T-305]
 
 ## 4. Lexer, parser, and syntax
 

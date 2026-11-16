@@ -338,7 +338,7 @@ var allDesc = []Description{
 	},
 	{
 		Name:        "/gc/scan/stack:bytes",
-		Description: "The number of bytes of stack that were scanned last GC cycle.",
+		Description: "The number of bytes of stack and goroutine-owned region space that were scanned last GC cycle.",
 		Kind:        KindUint64,
 	},
 	{
