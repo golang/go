@@ -663,7 +663,9 @@ type Config struct {
 	// With the zero value, a platform-default cache is automatically used, if
 	// one is available. It rejects certificates reported as revoked, but
 	// permits certificates that are not covered by the cache data or contain no
-	// embedded SCTs.
+	// embedded SCTs. The GODEBUG setting tlsupki=0 disables checking for
+	// configurations that rely on the platform-default cache. This is the
+	// default for programs targeting Go 1.27 or earlier.
 	//
 	// UPKIRevocation applies only to client-side verification of server
 	// certificates.

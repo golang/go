@@ -14,6 +14,7 @@ import (
 	"crypto/x509/pkix"
 	"errors"
 	"fmt"
+	"internal/testenv"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -391,15 +392,7 @@ func TestUPKIRevocationDefaultDiscovery(t *testing.T) {
 	}
 
 	chain := newTLSUPKITestChain(t, tlsUPKITestLeafSerial, tlsUPKISCTExtensionValue(t, tlsUPKITestLogID, tlsUPKITestSCTTime))
-	userCache := t.TempDir()
-	t.Setenv("XDG_CACHE_HOME", userCache)
-	cacheDir := filepath.Join(userCache, "upki", "revocation")
-	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	writeTLSUPKITestCacheFilesIn(t, cacheDir, tlsUPKIIndex(tlsUPKITestLogID), map[string][]byte{
-		tlsUPKITestFilterName: tlsUPKIFilter(tlsUPKITestLogID, []tlsUPKITestBlock{{issuer: chain.issuerHash, inverted: true}}),
-	})
+	setTLSUPKIUserCache(t, chain)
 
 	clientConfig := chain.clientConfig("")
 	if err := clientConfig.checkUPKIRevocation(chain.verifiedChains()); !errors.Is(err, ErrUPKIRevoked) {
@@ -435,6 +428,71 @@ func TestUPKIRevocationDefaultDiscovery(t *testing.T) {
 	clientConfig.UPKIRevocation = UPKIRevocationConfig{MissingData: UPKIRevocationPolicyReject}
 	if err := clientConfig.checkUPKIRevocation(chain.verifiedChains()); !errors.Is(err, upki.ErrNoData) {
 		t.Fatalf("required cache = %v, want ErrNoData", err)
+	}
+}
+
+// setTLSUPKIUserCache points the user cache directory at a temporary cache
+// in which chain's certificate is revoked. It sets the environment, so the
+// calling test must not be parallel.
+func setTLSUPKIUserCache(t *testing.T, chain tlsUPKITestChain) {
+	t.Helper()
+
+	userCache := t.TempDir()
+	t.Setenv("XDG_CACHE_HOME", userCache)
+	cacheDir := filepath.Join(userCache, "upki", "revocation")
+	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeTLSUPKITestCacheFilesIn(t, cacheDir, tlsUPKIIndex(tlsUPKITestLogID), map[string][]byte{
+		tlsUPKITestFilterName: tlsUPKIFilter(tlsUPKITestLogID, []tlsUPKITestBlock{{issuer: chain.issuerHash, inverted: true}}),
+	})
+}
+
+// TestUPKIRevocationGODEBUG verifies that tlsupki=0 disables checking for
+// configurations that rely on platform-default discovery and leaves an
+// explicitly configured directory alone. It is not parallel because it sets
+// the environment.
+func TestUPKIRevocationGODEBUG(t *testing.T) {
+	switch runtime.GOOS {
+	case "windows", "darwin", "ios", "plan9":
+		t.Skipf("os.UserCacheDir does not honor XDG_CACHE_HOME on %s", runtime.GOOS)
+	}
+
+	chain := newTLSUPKITestChain(t, tlsUPKITestLeafSerial, tlsUPKISCTExtensionValue(t, tlsUPKITestLogID, tlsUPKITestSCTTime))
+	setTLSUPKIUserCache(t, chain)
+	explicitCache := writeTLSUPKITestCache(t, tlsUPKITestLogID, []tlsUPKITestBlock{{issuer: chain.issuerHash, inverted: true}})
+
+	tests := []struct {
+		name      string
+		godebug   string
+		config    UPKIRevocationConfig
+		wantError error
+	}{
+		{name: "default discovery", godebug: "tlsupki=1", wantError: ErrUPKIRevoked},
+		{name: "default discovery disabled", godebug: "tlsupki=0"},
+		{name: "explicit directory", godebug: "tlsupki=1", config: UPKIRevocationConfig{Directory: explicitCache}, wantError: ErrUPKIRevoked},
+		{name: "explicit directory not disabled", godebug: "tlsupki=0", config: UPKIRevocationConfig{Directory: explicitCache}, wantError: ErrUPKIRevoked},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			testenv.SetGODEBUG(t, test.godebug)
+			clientConfig := chain.clientConfig("")
+			clientConfig.UPKIRevocation = test.config
+			err := clientConfig.checkUPKIRevocation(chain.verifiedChains())
+			if test.wantError != nil && !errors.Is(err, test.wantError) {
+				t.Fatalf("checkUPKIRevocation = %v, want %v", err, test.wantError)
+			}
+			if test.wantError == nil && err != nil {
+				t.Fatalf("checkUPKIRevocation = %v, want nil", err)
+			}
+			clientErr, _ := runTLSUPKIHandshake(t, clientConfig, chain.serverConfig())
+			if test.wantError != nil && !errors.Is(clientErr, test.wantError) {
+				t.Fatalf("handshake error = %v, want %v", clientErr, test.wantError)
+			}
+			if test.wantError == nil && clientErr != nil {
+				t.Fatalf("handshake error = %v, want nil", clientErr)
+			}
+		})
 	}
 }
 

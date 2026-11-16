@@ -9,10 +9,16 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"os"
 	"path/filepath"
 	"runtime"
 )
+
+// tlsupki is a GODEBUG setting that can be set to 0 to disable UPKI
+// revocation checking for configurations that rely on platform-default
+// cache discovery.
+var tlsupki = godebug.New("tlsupki")
 
 // UPKIRevocationConfig controls local, offline UPKI revocation checking of
 // server certificates.
@@ -99,6 +105,13 @@ func (c *Config) checkUPKIRevocation(chains [][]*x509.Certificate) error {
 	}
 
 	if cfg.Disabled {
+		return nil
+	}
+	// GODEBUG=tlsupki=0 turns off the default-on checking. A Config that
+	// names a cache directory explicitly keeps checking it.
+	if cfg.Directory == "" && tlsupki.Value() == "0" {
+		tlsupki.IncNonDefault()
+
 		return nil
 	}
 

@@ -194,6 +194,14 @@ Go 1.28 stopped sending the TLS `signature_algorithms_cert` extension, which
 some middleboxes reject when it lists ML-DSA. The `tlssigalgscert=1` setting
 restores it, without ML-DSA.
 
+Go 1.28 added checking of server certificates against a local UPKI
+revocation cache to [`crypto/tls`](/pkg/crypto/tls) clients. The
+`tlsupki` setting controls checks that use the platform-default cache.
+Programs targeting Go 1.28 or later default to `tlsupki=1`, enabling
+these checks. Programs targeting Go 1.27 or earlier default to `tlsupki=0`,
+disabling them. A [`crypto/tls.Config`](/pkg/crypto/tls#Config) that
+names a cache directory explicitly uses it with either setting.
+
 ### Go 1.27
 
 Go 1.27 removed the `gotypesalias` setting, as noted in the [Go 1.22](#go-122) section.
