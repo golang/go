@@ -60,6 +60,58 @@ func TestReduceSumSVE(t *testing.T) {
 	}
 	testSVEReduceSum(t, "Float32s.ReduceSum", archsimd.Float32s{}.Len(), archsimd.LoadFloat32s, archsimd.Float32s.ReduceSum)
 	testSVEReduceSum(t, "Float64s.ReduceSum", archsimd.Float64s{}.Len(), archsimd.LoadFloat64s, archsimd.Float64s.ReduceSum)
+	testSVEReduceInt(t, "Int8s.ReduceSum", archsimd.Int8s{}.Len(), archsimd.LoadInt8s, archsimd.Int8s.ReduceSum, add[int8])
+	testSVEReduceInt(t, "Int16s.ReduceSum", archsimd.Int16s{}.Len(), archsimd.LoadInt16s, archsimd.Int16s.ReduceSum, add[int16])
+	testSVEReduceInt(t, "Int32s.ReduceSum", archsimd.Int32s{}.Len(), archsimd.LoadInt32s, archsimd.Int32s.ReduceSum, add[int32])
+	testSVEReduceInt(t, "Int64s.ReduceSum", archsimd.Int64s{}.Len(), archsimd.LoadInt64s, archsimd.Int64s.ReduceSum, add[int64])
+	testSVEReduceInt(t, "Uint8s.ReduceSum", archsimd.Uint8s{}.Len(), archsimd.LoadUint8s, archsimd.Uint8s.ReduceSum, add[uint8])
+	testSVEReduceInt(t, "Uint16s.ReduceSum", archsimd.Uint16s{}.Len(), archsimd.LoadUint16s, archsimd.Uint16s.ReduceSum, add[uint16])
+	testSVEReduceInt(t, "Uint32s.ReduceSum", archsimd.Uint32s{}.Len(), archsimd.LoadUint32s, archsimd.Uint32s.ReduceSum, add[uint32])
+	testSVEReduceInt(t, "Uint64s.ReduceSum", archsimd.Uint64s{}.Len(), archsimd.LoadUint64s, archsimd.Uint64s.ReduceSum, add[uint64])
+}
+
+// testSVEReduceInt checks an integer reduction against reduceSlice with fn.
+// The edge values are -1, the minimum and the maximum (for unsigned types: the
+// maximum, the top bit alone and the bits below it). Each edge value and zero
+// fills every lane, which makes a sum wrap, and each edge value is placed in
+// each lane of every fill. Ramps count up from negative starts. A signed result
+// is compared as int64, which sign-extends it after the call.
+func testSVEReduceInt[T integer, V any](t *testing.T, name string, n int, load func([]T) V, reduce func(V) T, fn func(a, b T) T) {
+	t.Helper()
+	xs := make([]T, n)
+	check := func() {
+		t.Helper()
+		if got, w := reduce(load(xs)), reduceSlice(xs, fn); int64(got) != int64(w) {
+			t.Errorf("%s(%v) = %v, want %v", name, xs, got, w)
+		}
+	}
+	ones := ^T(0)
+	top := ones
+	for top<<1 != 0 {
+		top <<= 1
+	}
+	edges := []T{ones, top, top - 1}
+	for _, fill := range append([]T{0}, edges...) {
+		for i := range xs {
+			xs[i] = fill
+		}
+		check()
+		for _, v := range edges {
+			for lane := range xs {
+				for i := range xs {
+					xs[i] = fill
+				}
+				xs[lane] = v
+				check()
+			}
+		}
+	}
+	for start := -20; start <= 20; start += 7 {
+		for i := range xs {
+			xs[i] = T(start + 3*i)
+		}
+		check()
+	}
 }
 
 // testSVEReduceMax checks a float ReduceMax with the maximum in each lane,

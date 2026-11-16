@@ -872,7 +872,11 @@ func overwrite(ops []Operation) error {
 				panic(fmt.Errorf("ElemBits is nil at operand %d of %v", idx, o))
 			}
 			*op[idx].ElemBits = *op[idx].OverwriteElementBits
-			if !op[idx].Bits.Scalable {
+			if op[idx].Class == "fpreg" {
+				// A scalar narrower than its register, e.g. the element-typed
+				// sum UADDV leaves in a 64-bit register.
+				*op[idx].Go = fmt.Sprintf("%s%d", *op[idx].Base, *op[idx].ElemBits)
+			} else if !op[idx].Bits.Scalable {
 				*op[idx].Lanes = op[idx].Bits.N() / *op[idx].ElemBits
 				*op[idx].Go = fmt.Sprintf("%s%dx%d", capitalizeFirst(*op[idx].Base), *op[idx].ElemBits, *op[idx].Lanes)
 			} else {

@@ -117,6 +117,9 @@ func TestSignedness(t *testing.T) {
 		{"ASR", "Arithmetic shift right (predicated)", "int"},
 		{"LSR", "Logical shift right (predicated)", "uint"},
 		{"FLOGB", "Floating-point base 2 logarithm as integer (predicated)", "int"},
+		// UADDV's low <T> bits are the wrapped sum, signed or not.
+		{"UADDV", "Unsigned add reduction to scalar", ""},
+		{"SADDV", "Signed add reduction to scalar", "int"},
 	}
 	for _, c := range cases {
 		if got := briefInst(t, c.mn, c.brief).signedness(); got != c.want {

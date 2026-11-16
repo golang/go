@@ -23,3 +23,20 @@
   - class: mask # governing predicate
   out:
   - *floatScalar
+
+# ReduceSum (integers) -- add across all lanes (ZUADDVD). UADDV leaves a 64-bit
+# sum in a SIMD&FP register, whose low bits are the wrapped sum of the element
+# type, signed or not, so the result takes the element's width
+# (overwriteElementBits). The lowering moves it to a general register, where Go
+# keeps integers.
+- go: ReduceSum
+  asm: "ZUADDVD"
+  in:
+  - go: $t
+    base: $b
+    elemBits: $e
+  - class: mask # governing predicate
+  out:
+  - class: fpreg
+    base: $b
+    overwriteElementBits: $e

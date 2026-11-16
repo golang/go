@@ -5435,6 +5435,10 @@ const (
 	OpARM64ZSUBMergingS
 	OpARM64ZSUBS
 	OpARM64ZTBLB
+	OpARM64ZUADDVDB
+	OpARM64ZUADDVDD
+	OpARM64ZUADDVDH
+	OpARM64ZUADDVDS
 	OpARM64ZUDIVD
 	OpARM64ZUDIVMergingD
 	OpARM64ZUDIVMergingS
@@ -8775,6 +8779,14 @@ const (
 	OpReduceMaxFloat64s
 	OpReduceSumFloat32s
 	OpReduceSumFloat64s
+	OpReduceSumInt16s
+	OpReduceSumInt32s
+	OpReduceSumInt64s
+	OpReduceSumInt8s
+	OpReduceSumUint16s
+	OpReduceSumUint32s
+	OpReduceSumUint64s
+	OpReduceSumUint8s
 	OpRotateAllLeftVarUint16x8
 	OpRotateAllLeftVarUint32x4
 	OpRotateAllLeftVarUint64x2
@@ -95583,6 +95595,62 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
+		Name:   "ZUADDVDB",
+		ArgLen: 2,
+		asm:    arm64.AZUADDVD,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{1, RegMask{V1: 9223372036854775808, V2: 127}}, // P0 P1 P2 P3 P4 P5 P6 P7
+				{0, RegMask{V1: 9223372034707292160, V2: 0}},   // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		Name:   "ZUADDVDD",
+		ArgLen: 2,
+		asm:    arm64.AZUADDVD,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{1, RegMask{V1: 9223372036854775808, V2: 127}}, // P0 P1 P2 P3 P4 P5 P6 P7
+				{0, RegMask{V1: 9223372034707292160, V2: 0}},   // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		Name:   "ZUADDVDH",
+		ArgLen: 2,
+		asm:    arm64.AZUADDVD,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{1, RegMask{V1: 9223372036854775808, V2: 127}}, // P0 P1 P2 P3 P4 P5 P6 P7
+				{0, RegMask{V1: 9223372034707292160, V2: 0}},   // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		Name:   "ZUADDVDS",
+		ArgLen: 2,
+		asm:    arm64.AZUADDVD,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{1, RegMask{V1: 9223372036854775808, V2: 127}}, // P0 P1 P2 P3 P4 P5 P6 P7
+				{0, RegMask{V1: 9223372034707292160, V2: 0}},   // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
 		Name:         "ZUDIVD",
 		ArgLen:       3,
 		ResultInArg0: true,
@@ -128090,6 +128158,46 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:    "ReduceSumFloat64s",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "ReduceSumInt16s",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "ReduceSumInt32s",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "ReduceSumInt64s",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "ReduceSumInt8s",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "ReduceSumUint16s",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "ReduceSumUint32s",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "ReduceSumUint64s",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "ReduceSumUint8s",
 		ArgLen:  1,
 		Generic: true,
 	},

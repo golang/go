@@ -1707,6 +1707,62 @@ func (x Float32s) ReduceSum() (z float32)
 // Asm: ZFADDVD, CPU Feature: SVE
 func (x Float64s) ReduceSum() (z float64)
 
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+//
+// Asm: ZUADDVD, CPU Feature: SVE
+func (x Int8s) ReduceSum() (z int8)
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+//
+// Asm: ZUADDVD, CPU Feature: SVE
+func (x Int16s) ReduceSum() (z int16)
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+//
+// Asm: ZUADDVD, CPU Feature: SVE
+func (x Int32s) ReduceSum() (z int32)
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+//
+// Asm: ZUADDVD, CPU Feature: SVE
+func (x Int64s) ReduceSum() (z int64)
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+//
+// Asm: ZUADDVD, CPU Feature: SVE
+func (x Uint8s) ReduceSum() (z uint8)
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+//
+// Asm: ZUADDVD, CPU Feature: SVE
+func (x Uint16s) ReduceSum() (z uint16)
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+//
+// Asm: ZUADDVD, CPU Feature: SVE
+func (x Uint32s) ReduceSum() (z uint32)
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+//
+// Asm: ZUADDVD, CPU Feature: SVE
+func (x Uint64s) ReduceSum() (z uint64)
+
 /* Round */
 
 // Round returns the nearest integer value to each element of x, rounding ties

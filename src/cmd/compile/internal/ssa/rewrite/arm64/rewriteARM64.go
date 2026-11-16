@@ -2573,6 +2573,22 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpReduceSumFloat32s(v)
 	case ssaop.OpReduceSumFloat64s:
 		return rewriteValue_OpReduceSumFloat64s(v)
+	case ssaop.OpReduceSumInt16s:
+		return rewriteValue_OpReduceSumInt16s(v)
+	case ssaop.OpReduceSumInt32s:
+		return rewriteValue_OpReduceSumInt32s(v)
+	case ssaop.OpReduceSumInt64s:
+		return rewriteValue_OpReduceSumInt64s(v)
+	case ssaop.OpReduceSumInt8s:
+		return rewriteValue_OpReduceSumInt8s(v)
+	case ssaop.OpReduceSumUint16s:
+		return rewriteValue_OpReduceSumUint16s(v)
+	case ssaop.OpReduceSumUint32s:
+		return rewriteValue_OpReduceSumUint32s(v)
+	case ssaop.OpReduceSumUint64s:
+		return rewriteValue_OpReduceSumUint64s(v)
+	case ssaop.OpReduceSumUint8s:
+		return rewriteValue_OpReduceSumUint8s(v)
 	case ssaop.OpRotateLeft16:
 		return rewriteValue_OpRotateLeft16(v)
 	case ssaop.OpRotateLeft32:
@@ -35396,6 +35412,190 @@ func rewriteValue_OpReduceSumFloat64s(v *ssa.Value) bool {
 		v1.AddArg2(v2, v3)
 		v0.AddArg(v1)
 		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValue_OpReduceSumInt16s(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (ReduceSumInt16s x)
+	// result: (FMOVDfpgp (ZUADDVDH x (Select0 <types.TypeMask> (PWHILELTH (MOVDconst [0]) (MOVDconst [16])))))
+	for {
+		x := v_0
+		v.Reset(ssaop.OpARM64FMOVDfpgp)
+		v0 := b.NewValue0(v.Pos, ssaop.OpARM64ZUADDVDH, typ.Float64)
+		v1 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTH, types.NewTuple(typ.Mask, types.TypeFlags))
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(0)
+		v4 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v4.AuxInt = ssa.Int64ToAuxInt(16)
+		v2.AddArg2(v3, v4)
+		v1.AddArg(v2)
+		v0.AddArg2(x, v1)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpReduceSumInt32s(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (ReduceSumInt32s x)
+	// result: (FMOVDfpgp (ZUADDVDS x (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8])))))
+	for {
+		x := v_0
+		v.Reset(ssaop.OpARM64FMOVDfpgp)
+		v0 := b.NewValue0(v.Pos, ssaop.OpARM64ZUADDVDS, typ.Float64)
+		v1 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTS, types.NewTuple(typ.Mask, types.TypeFlags))
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(0)
+		v4 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v4.AuxInt = ssa.Int64ToAuxInt(8)
+		v2.AddArg2(v3, v4)
+		v1.AddArg(v2)
+		v0.AddArg2(x, v1)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpReduceSumInt64s(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (ReduceSumInt64s x)
+	// result: (FMOVDfpgp (ZUADDVDD x (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4])))))
+	for {
+		x := v_0
+		v.Reset(ssaop.OpARM64FMOVDfpgp)
+		v0 := b.NewValue0(v.Pos, ssaop.OpARM64ZUADDVDD, typ.Float64)
+		v1 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTD, types.NewTuple(typ.Mask, types.TypeFlags))
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(0)
+		v4 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v4.AuxInt = ssa.Int64ToAuxInt(4)
+		v2.AddArg2(v3, v4)
+		v1.AddArg(v2)
+		v0.AddArg2(x, v1)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpReduceSumInt8s(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (ReduceSumInt8s x)
+	// result: (FMOVDfpgp (ZUADDVDB x (Select0 <types.TypeMask> (PWHILELTB (MOVDconst [0]) (MOVDconst [32])))))
+	for {
+		x := v_0
+		v.Reset(ssaop.OpARM64FMOVDfpgp)
+		v0 := b.NewValue0(v.Pos, ssaop.OpARM64ZUADDVDB, typ.Float64)
+		v1 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTB, types.NewTuple(typ.Mask, types.TypeFlags))
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(0)
+		v4 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v4.AuxInt = ssa.Int64ToAuxInt(32)
+		v2.AddArg2(v3, v4)
+		v1.AddArg(v2)
+		v0.AddArg2(x, v1)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpReduceSumUint16s(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (ReduceSumUint16s x)
+	// result: (FMOVDfpgp (ZUADDVDH x (Select0 <types.TypeMask> (PWHILELTH (MOVDconst [0]) (MOVDconst [16])))))
+	for {
+		x := v_0
+		v.Reset(ssaop.OpARM64FMOVDfpgp)
+		v0 := b.NewValue0(v.Pos, ssaop.OpARM64ZUADDVDH, typ.Float64)
+		v1 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTH, types.NewTuple(typ.Mask, types.TypeFlags))
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(0)
+		v4 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v4.AuxInt = ssa.Int64ToAuxInt(16)
+		v2.AddArg2(v3, v4)
+		v1.AddArg(v2)
+		v0.AddArg2(x, v1)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpReduceSumUint32s(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (ReduceSumUint32s x)
+	// result: (FMOVDfpgp (ZUADDVDS x (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8])))))
+	for {
+		x := v_0
+		v.Reset(ssaop.OpARM64FMOVDfpgp)
+		v0 := b.NewValue0(v.Pos, ssaop.OpARM64ZUADDVDS, typ.Float64)
+		v1 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTS, types.NewTuple(typ.Mask, types.TypeFlags))
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(0)
+		v4 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v4.AuxInt = ssa.Int64ToAuxInt(8)
+		v2.AddArg2(v3, v4)
+		v1.AddArg(v2)
+		v0.AddArg2(x, v1)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpReduceSumUint64s(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (ReduceSumUint64s x)
+	// result: (FMOVDfpgp (ZUADDVDD x (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4])))))
+	for {
+		x := v_0
+		v.Reset(ssaop.OpARM64FMOVDfpgp)
+		v0 := b.NewValue0(v.Pos, ssaop.OpARM64ZUADDVDD, typ.Float64)
+		v1 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTD, types.NewTuple(typ.Mask, types.TypeFlags))
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(0)
+		v4 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v4.AuxInt = ssa.Int64ToAuxInt(4)
+		v2.AddArg2(v3, v4)
+		v1.AddArg(v2)
+		v0.AddArg2(x, v1)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpReduceSumUint8s(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (ReduceSumUint8s x)
+	// result: (FMOVDfpgp (ZUADDVDB x (Select0 <types.TypeMask> (PWHILELTB (MOVDconst [0]) (MOVDconst [32])))))
+	for {
+		x := v_0
+		v.Reset(ssaop.OpARM64FMOVDfpgp)
+		v0 := b.NewValue0(v.Pos, ssaop.OpARM64ZUADDVDB, typ.Float64)
+		v1 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTB, types.NewTuple(typ.Mask, types.TypeFlags))
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(0)
+		v4 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v4.AuxInt = ssa.Int64ToAuxInt(32)
+		v2.AddArg2(v3, v4)
+		v1.AddArg(v2)
+		v0.AddArg2(x, v1)
+		v.AddArg(v0)
 		return true
 	}
 }

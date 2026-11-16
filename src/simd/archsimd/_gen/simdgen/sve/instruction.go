@@ -275,6 +275,11 @@ func (inst *Instruction) signedness() string {
 		return "int"
 	case "LSR", "LSRR": // logical (zero-filling) shift right
 		return "uint"
+	case "UADDV":
+		// The low <T> bits of its 64-bit sum are the same for signed lanes, and
+		// SADDV has no form for 64-bit lanes, so UADDV serves both. An op that
+		// used the whole sum of signed lanes would need SADDV.
+		return ""
 	}
 	b := strings.ToLower(inst.brief())
 	if signedImmRe.MatchString(b) {

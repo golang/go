@@ -413,6 +413,19 @@ func sveReduceMax(x archsimd.Float64s) float64 {
 	return x.ReduceMax()
 }
 
+// An integer reduction moves its result from the SIMD&FP register to the
+// general-purpose register that an integer is returned in.
+func sveReduceSumInt16(x archsimd.Int16s) int16 {
+	// arm64:`ZUADDVD\s+Z[0-9]+\.H, P[0-9]+, V[0-9]+` `FMOVD\s+F[0-9]+, R[0-9]+`
+	return x.ReduceSum()
+}
+
+// The moved result is not sign-extended, so widening a signed one extends it.
+func sveReduceSumInt8Wide(x archsimd.Int8s) int64 {
+	// arm64:`ZUADDVD\s+Z[0-9]+\.B, P[0-9]+, V[0-9]+` `FMOVD\s+F[0-9]+, R[0-9]+` `MOVB\s+R[0-9]+, R[0-9]+`
+	return int64(x.ReduceSum())
+}
+
 // ShiftAllLeft by a constant below the element width is LSL (immediate), and
 // by a larger constant the zero vector. A variable amount is broadcast to
 // 64-bit lanes and shifts by wide elements, which gives zero for an amount of

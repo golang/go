@@ -376,12 +376,21 @@ func sveShiftLeftPastRangeRules(gOp Operation, asm, pred, bcast string, max int)
 // For example, GreaterInt8s lowers to:
 //
 //	(GreaterInt8s x y) => (ZCMPGTB x y (Select0 <types.TypeMask> (PWHILELTB (MOVDconst [0]) (MOVDconst [32]))))
+//
+// An integer result in a SIMD&FP register is moved to a general-purpose one:
+//
+//	(ReduceSumInt8s x) => (FMOVDfpgp (ZUADDVDB x (Select0 <types.TypeMask> (PWHILELTB (MOVDconst [0]) (MOVDconst [32])))))
 func sveImplicitPredRule(gOp Operation, asm, args string) string {
 	elemBits := *gOp.Out[0].ElemBits
 	letter := sveArrangementLetter(gOp)
 	lanes := types.MaxVectorBits / elemBits
-	return fmt.Sprintf("(%s %s) => (%s %s (Select0 <types.TypeMask> (PWHILELT%s (MOVDconst [0]) (MOVDconst [%d]))))\n",
-		gOp.GenericName(), args, asm, sveBroadcastScalarArgs(gOp, args), letter, lanes)
+	op := fmt.Sprintf("(%s %s (Select0 <types.TypeMask> (PWHILELT%s (MOVDconst [0]) (MOVDconst [%d]))))",
+		asm, sveBroadcastScalarArgs(gOp, args), letter, lanes)
+	if out := gOp.Out[0]; out.Class == "fpreg" && *out.Base != "float" {
+		// Go keeps integers in general-purpose registers.
+		op = "(FMOVDfpgp " + op + ")"
+	}
+	return fmt.Sprintf("(%s %s) => %s\n", gOp.GenericName(), args, op)
 }
 
 // sveFeatureConst maps a def's cpuFeature string to the ssa.CPUfeatures
