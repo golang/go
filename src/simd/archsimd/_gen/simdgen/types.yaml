@@ -67,11 +67,17 @@ in: !repeat
 # Go keeps floats, such as the result of an SVE reduction (FADDV <V><d>).
   - {class: fpreg, go: float64,   base: "float", bits:  64, lanes:  1}
   - {class: fpreg, go: float32,   base: "float", bits:  32, lanes:  1}
-# An integer in the FP/SIMD register bank, such as the 64-bit sum of an SVE
-# integer reduction (UADDV <Dd>). Go keeps integers in general-purpose
+# An integer in the FP/SIMD register bank, such as the result of an SVE integer
+# reduction (UADDV <Dd>, SMAXV <V><d>). Go keeps integers in general-purpose
 # registers, so the lowering moves it to one (FMOVDfpgp).
   - {class: fpreg, go: int64,     base: "int",   bits:  64, lanes:  1}
+  - {class: fpreg, go: int32,     base: "int",   bits:  32, lanes:  1}
+  - {class: fpreg, go: int16,     base: "int",   bits:  16, lanes:  1}
+  - {class: fpreg, go: int8,      base: "int",   bits:   8, lanes:  1}
   - {class: fpreg, go: uint64,    base: "uint",  bits:  64, lanes:  1}
+  - {class: fpreg, go: uint32,    base: "uint",  bits:  32, lanes:  1}
+  - {class: fpreg, go: uint16,    base: "uint",  bits:  16, lanes:  1}
+  - {class: fpreg, go: uint8,     base: "uint",  bits:   8, lanes:  1}
 
 # Special shapes just to make INSERT[IF]128 work.
 # The elemBits field of these shapes are wrong, it would be overwritten by overwriteElemBits.

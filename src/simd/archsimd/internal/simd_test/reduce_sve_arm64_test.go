@@ -164,4 +164,12 @@ func TestReduceMaxSVE(t *testing.T) {
 	}
 	testSVEReduceMax(t, "Float32s.ReduceMax", archsimd.Float32s{}.Len(), archsimd.LoadFloat32s, archsimd.Float32s.ReduceMax)
 	testSVEReduceMax(t, "Float64s.ReduceMax", archsimd.Float64s{}.Len(), archsimd.LoadFloat64s, archsimd.Float64s.ReduceMax)
+	testSVEReduceInt(t, "Int8s.ReduceMax", archsimd.Int8s{}.Len(), archsimd.LoadInt8s, archsimd.Int8s.ReduceMax, max_[int8])
+	testSVEReduceInt(t, "Int16s.ReduceMax", archsimd.Int16s{}.Len(), archsimd.LoadInt16s, archsimd.Int16s.ReduceMax, max_[int16])
+	testSVEReduceInt(t, "Int32s.ReduceMax", archsimd.Int32s{}.Len(), archsimd.LoadInt32s, archsimd.Int32s.ReduceMax, max_[int32])
+	testSVEReduceInt(t, "Int64s.ReduceMax", archsimd.Int64s{}.Len(), archsimd.LoadInt64s, archsimd.Int64s.ReduceMax, max_[int64])
+	testSVEReduceInt(t, "Uint8s.ReduceMax", archsimd.Uint8s{}.Len(), archsimd.LoadUint8s, archsimd.Uint8s.ReduceMax, max_[uint8])
+	testSVEReduceInt(t, "Uint16s.ReduceMax", archsimd.Uint16s{}.Len(), archsimd.LoadUint16s, archsimd.Uint16s.ReduceMax, max_[uint16])
+	testSVEReduceInt(t, "Uint32s.ReduceMax", archsimd.Uint32s{}.Len(), archsimd.LoadUint32s, archsimd.Uint32s.ReduceMax, max_[uint32])
+	testSVEReduceInt(t, "Uint64s.ReduceMax", archsimd.Uint64s{}.Len(), archsimd.LoadUint64s, archsimd.Uint64s.ReduceMax, max_[uint64])
 }

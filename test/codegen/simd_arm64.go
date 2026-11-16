@@ -426,6 +426,12 @@ func sveReduceSumInt8Wide(x archsimd.Int8s) int64 {
 	return int64(x.ReduceSum())
 }
 
+// SMAXV and UMAXV leave a result one element wide, which is moved the same way.
+func sveReduceMaxUint32(x archsimd.Uint32s) uint32 {
+	// arm64:`ZUMAXVS\s+Z[0-9]+\.S, P[0-9]+, V[0-9]+` `FMOVD\s+F[0-9]+, R[0-9]+`
+	return x.ReduceMax()
+}
+
 // ShiftAllLeft by a constant below the element width is LSL (immediate), and
 // by a larger constant the zero vector. A variable amount is broadcast to
 // 64-bit lanes and shifts by wide elements, which gives zero for an amount of

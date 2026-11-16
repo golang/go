@@ -40,3 +40,15 @@
   - class: fpreg
     base: $b
     overwriteElementBits: $e
+
+# ReduceMax (integers) -- maximum across all lanes (SMAXV, UMAXV), the same
+# shape as the integer ReduceSum, with a result one element wide.
+- go: ReduceMax
+  asm: "Z[SU]MAXV[BHSD]"
+  in:
+  - go: $t
+    base: int|uint
+  - class: mask # governing predicate
+  out:
+  - class: fpreg
+    base: int|uint

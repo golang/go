@@ -1685,6 +1685,62 @@ func (x Float32s) ReduceMax() (z float32)
 // Asm: ZFMAXVD, CPU Feature: SVE
 func (x Float64s) ReduceMax() (z float64)
 
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Asm: ZSMAXVB, CPU Feature: SVE
+func (x Int8s) ReduceMax() (z int8)
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Asm: ZSMAXVH, CPU Feature: SVE
+func (x Int16s) ReduceMax() (z int16)
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Asm: ZSMAXVS, CPU Feature: SVE
+func (x Int32s) ReduceMax() (z int32)
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Asm: ZSMAXVD, CPU Feature: SVE
+func (x Int64s) ReduceMax() (z int64)
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Asm: ZUMAXVB, CPU Feature: SVE
+func (x Uint8s) ReduceMax() (z uint8)
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Asm: ZUMAXVH, CPU Feature: SVE
+func (x Uint16s) ReduceMax() (z uint16)
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Asm: ZUMAXVS, CPU Feature: SVE
+func (x Uint32s) ReduceMax() (z uint32)
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Asm: ZUMAXVD, CPU Feature: SVE
+func (x Uint64s) ReduceMax() (z uint64)
+
 /* ReduceSum */
 
 // ReduceSum returns the scalar sum of the elements of x.

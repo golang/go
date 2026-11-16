@@ -209,6 +209,13 @@ func writeSIMDMachineOps(buffer *bytes.Buffer, ops []Operation) {
 			}
 		} else if shapeOut == OneFpregOut {
 			outType = fmt.Sprintf("Float%d", gOp.Out[0].Bits.N())
+			if *gOp.Out[0].Base != "float" {
+				// An integer in a SIMD&FP register, which may be 8 or 16 bits
+				// (SMAXV <V><d>). Writing <V><d> zeroes the rest of the register,
+				// so its low 64 bits are the integer zero-extended, which the
+				// lowering moves to a general register with FMOVDfpgp.
+				outType = "Float64"
+			}
 		} else if shapeOut == OneGregOut {
 			outType = gOp.GoType() // this is a straight Go type, not a VecNNN type
 		} else if shapeOut == OneKmaskOut {
