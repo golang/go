@@ -31,5 +31,10 @@ func archMaxVectorSize() (size, allFeatureSize int, arch string) {
 			allFeatureSize = 512
 		}
 	}
+	// MulAdd requires FMA even for 128-bit vectors. Fall back to
+	// emulation by default if it is unavailable.
+	if !archsimd.X86.FMA() {
+		allFeatureSize = 0
+	}
 	return
 }
