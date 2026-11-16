@@ -22,3 +22,7 @@
   commutative: false
   documentation: !string |-
     // NAME returns the largest element of x.
+- go: ReduceMin
+  commutative: false
+  documentation: !string |-
+    // NAME returns the smallest element of x.

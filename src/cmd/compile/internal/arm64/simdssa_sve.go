@@ -309,24 +309,34 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 
 	case ssaop.OpARM64ZSMAXVBB,
 		ssaop.OpARM64ZUMAXVBB,
+		ssaop.OpARM64ZSMINVBB,
+		ssaop.OpARM64ZUMINVBB,
 		ssaop.OpARM64ZUADDVDB:
 		p = simdZkfp(s, v, arm64.ARNG_B)
 
 	case ssaop.OpARM64ZFMAXVDD,
 		ssaop.OpARM64ZSMAXVDD,
 		ssaop.OpARM64ZUMAXVDD,
+		ssaop.OpARM64ZFMINVDD,
+		ssaop.OpARM64ZSMINVDD,
+		ssaop.OpARM64ZUMINVDD,
 		ssaop.OpARM64ZFADDVDD,
 		ssaop.OpARM64ZUADDVDD:
 		p = simdZkfp(s, v, arm64.ARNG_D)
 
 	case ssaop.OpARM64ZSMAXVHH,
 		ssaop.OpARM64ZUMAXVHH,
+		ssaop.OpARM64ZSMINVHH,
+		ssaop.OpARM64ZUMINVHH,
 		ssaop.OpARM64ZUADDVDH:
 		p = simdZkfp(s, v, arm64.ARNG_H)
 
 	case ssaop.OpARM64ZFMAXVSS,
 		ssaop.OpARM64ZSMAXVSS,
 		ssaop.OpARM64ZUMAXVSS,
+		ssaop.OpARM64ZFMINVSS,
+		ssaop.OpARM64ZSMINVSS,
+		ssaop.OpARM64ZUMINVSS,
 		ssaop.OpARM64ZFADDVSS,
 		ssaop.OpARM64ZUADDVDS:
 		p = simdZkfp(s, v, arm64.ARNG_S)

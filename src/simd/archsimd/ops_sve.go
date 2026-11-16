@@ -1741,6 +1741,82 @@ func (x Uint32s) ReduceMax() (z uint32)
 // Asm: ZUMAXVD, CPU Feature: SVE
 func (x Uint64s) ReduceMax() (z uint64)
 
+/* ReduceMin */
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// The handling of NaN and signed zeroes is platform-dependent. See [Min].
+//
+// Asm: ZFMINVS, CPU Feature: SVE
+func (x Float32s) ReduceMin() (z float32)
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// The handling of NaN and signed zeroes is platform-dependent. See [Min].
+//
+// Asm: ZFMINVD, CPU Feature: SVE
+func (x Float64s) ReduceMin() (z float64)
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Asm: ZSMINVB, CPU Feature: SVE
+func (x Int8s) ReduceMin() (z int8)
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Asm: ZSMINVH, CPU Feature: SVE
+func (x Int16s) ReduceMin() (z int16)
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Asm: ZSMINVS, CPU Feature: SVE
+func (x Int32s) ReduceMin() (z int32)
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Asm: ZSMINVD, CPU Feature: SVE
+func (x Int64s) ReduceMin() (z int64)
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Asm: ZUMINVB, CPU Feature: SVE
+func (x Uint8s) ReduceMin() (z uint8)
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Asm: ZUMINVH, CPU Feature: SVE
+func (x Uint16s) ReduceMin() (z uint16)
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Asm: ZUMINVS, CPU Feature: SVE
+func (x Uint32s) ReduceMin() (z uint32)
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Asm: ZUMINVD, CPU Feature: SVE
+func (x Uint64s) ReduceMin() (z uint64)
+
 /* ReduceSum */
 
 // ReduceSum returns the scalar sum of the elements of x.

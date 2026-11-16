@@ -173,3 +173,63 @@ func TestReduceMaxSVE(t *testing.T) {
 	testSVEReduceInt(t, "Uint32s.ReduceMax", archsimd.Uint32s{}.Len(), archsimd.LoadUint32s, archsimd.Uint32s.ReduceMax, max_[uint32])
 	testSVEReduceInt(t, "Uint64s.ReduceMax", archsimd.Uint64s{}.Len(), archsimd.LoadUint64s, archsimd.Uint64s.ReduceMax, max_[uint64])
 }
+
+// testSVEReduceMin checks a float ReduceMin with the minimum in each lane,
+// with NaN, and with signed zeros.
+func testSVEReduceMin[T float32 | float64, V any](t *testing.T, name string, n int, load func([]T) V, reduce func(V) T) {
+	t.Helper()
+	xs := make([]T, n)
+	for lane := range xs {
+		for i := range xs {
+			xs[i] = T(3*i + 1)
+		}
+		xs[lane] = -5
+		if got := reduce(load(xs)); got != -5 {
+			t.Errorf("%s(%v) = %v, want -5", name, xs, got)
+		}
+	}
+
+	for i := range xs {
+		xs[i] = T(math.Inf(1))
+	}
+	if got := reduce(load(xs)); got != T(math.Inf(1)) {
+		t.Errorf("%s(all +Inf) = %v, want +Inf", name, got)
+	}
+
+	for _, lane := range []int{0, n / 2, n - 1} {
+		for i := range xs {
+			xs[i] = T(i)
+		}
+		xs[lane] = T(math.NaN())
+		if got := reduce(load(xs)); got == got {
+			t.Errorf("%s with NaN in lane %d = %v, want NaN", name, lane, got)
+		}
+	}
+
+	negZero := T(math.Copysign(0, -1))
+	for _, lane := range []int{0, n - 1} {
+		for i := range xs {
+			xs[i] = 0
+		}
+		xs[lane] = negZero
+		if got := reduce(load(xs)); got != 0 || !math.Signbit(float64(got)) {
+			t.Errorf("%s of signed zeros with -0 in lane %d = %v, want -0", name, lane, got)
+		}
+	}
+}
+
+func TestReduceMinSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no SVE")
+	}
+	testSVEReduceMin(t, "Float32s.ReduceMin", archsimd.Float32s{}.Len(), archsimd.LoadFloat32s, archsimd.Float32s.ReduceMin)
+	testSVEReduceMin(t, "Float64s.ReduceMin", archsimd.Float64s{}.Len(), archsimd.LoadFloat64s, archsimd.Float64s.ReduceMin)
+	testSVEReduceInt(t, "Int8s.ReduceMin", archsimd.Int8s{}.Len(), archsimd.LoadInt8s, archsimd.Int8s.ReduceMin, min_[int8])
+	testSVEReduceInt(t, "Int16s.ReduceMin", archsimd.Int16s{}.Len(), archsimd.LoadInt16s, archsimd.Int16s.ReduceMin, min_[int16])
+	testSVEReduceInt(t, "Int32s.ReduceMin", archsimd.Int32s{}.Len(), archsimd.LoadInt32s, archsimd.Int32s.ReduceMin, min_[int32])
+	testSVEReduceInt(t, "Int64s.ReduceMin", archsimd.Int64s{}.Len(), archsimd.LoadInt64s, archsimd.Int64s.ReduceMin, min_[int64])
+	testSVEReduceInt(t, "Uint8s.ReduceMin", archsimd.Uint8s{}.Len(), archsimd.LoadUint8s, archsimd.Uint8s.ReduceMin, min_[uint8])
+	testSVEReduceInt(t, "Uint16s.ReduceMin", archsimd.Uint16s{}.Len(), archsimd.LoadUint16s, archsimd.Uint16s.ReduceMin, min_[uint16])
+	testSVEReduceInt(t, "Uint32s.ReduceMin", archsimd.Uint32s{}.Len(), archsimd.LoadUint32s, archsimd.Uint32s.ReduceMin, min_[uint32])
+	testSVEReduceInt(t, "Uint64s.ReduceMin", archsimd.Uint64s{}.Len(), archsimd.LoadUint64s, archsimd.Uint64s.ReduceMin, min_[uint64])
+}

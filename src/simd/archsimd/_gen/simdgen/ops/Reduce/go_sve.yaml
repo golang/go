@@ -24,6 +24,17 @@
   out:
   - *floatScalar
 
+# ReduceMin -- floating-point minimum across all lanes (ZFMINV), the same shape
+# as ReduceMax. FMINV propagates NaN and orders -0 below +0, as Go's min does.
+- go: ReduceMin
+  asm: "ZFMINV[SD]"
+  in:
+  - go: $t
+    base: float
+  - class: mask # governing predicate
+  out:
+  - *floatScalar
+
 # ReduceSum (integers) -- add across all lanes (ZUADDVD). UADDV leaves a 64-bit
 # sum in a SIMD&FP register, whose low bits are the wrapped sum of the element
 # type, signed or not, so the result takes the element's width
@@ -45,6 +56,18 @@
 # shape as the integer ReduceSum, with a result one element wide.
 - go: ReduceMax
   asm: "Z[SU]MAXV[BHSD]"
+  in:
+  - go: $t
+    base: int|uint
+  - class: mask # governing predicate
+  out:
+  - class: fpreg
+    base: int|uint
+
+# ReduceMin (integers) -- minimum across all lanes (SMINV, UMINV), the same
+# shape as the integer ReduceMax.
+- go: ReduceMin
+  asm: "Z[SU]MINV[BHSD]"
   in:
   - go: $t
     base: int|uint

@@ -413,6 +413,11 @@ func sveReduceMax(x archsimd.Float64s) float64 {
 	return x.ReduceMax()
 }
 
+func sveReduceMin(x archsimd.Float32s) float32 {
+	// arm64:`ZFMINVS\s+Z[0-9]+\.S, P[0-9]+, V[0-9]+` -`FMOV`
+	return x.ReduceMin()
+}
+
 // An integer reduction moves its result from the SIMD&FP register to the
 // general-purpose register that an integer is returned in.
 func sveReduceSumInt16(x archsimd.Int16s) int16 {
@@ -430,6 +435,12 @@ func sveReduceSumInt8Wide(x archsimd.Int8s) int64 {
 func sveReduceMaxUint32(x archsimd.Uint32s) uint32 {
 	// arm64:`ZUMAXVS\s+Z[0-9]+\.S, P[0-9]+, V[0-9]+` `FMOVD\s+F[0-9]+, R[0-9]+`
 	return x.ReduceMax()
+}
+
+// SMINV and UMINV are moved the same way.
+func sveReduceMinInt8(x archsimd.Int8s) int8 {
+	// arm64:`ZSMINVB\s+Z[0-9]+\.B, P[0-9]+, V[0-9]+` `FMOVD\s+F[0-9]+, R[0-9]+`
+	return x.ReduceMin()
 }
 
 // ShiftAllLeft by a constant below the element width is LSL (immediate), and
