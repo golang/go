@@ -207,7 +207,7 @@ func BenchmarkVpsumdSIMD(b *testing.B) {
 }
 
 func TestClMul(t *testing.T) {
-	t.Log("Vector length:", simd.VectorBitSize())
+	t.Log("Vector length:", simd.VectorBits())
 	t.Log("Emulated:", simd.Emulated())
 	t.Log("HasHWCLMUL:", simd.HasHardwareCarrylessMultiply())
 

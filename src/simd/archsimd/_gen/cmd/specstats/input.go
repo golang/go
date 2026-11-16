@@ -116,8 +116,9 @@ func nonSpecOp(name string) bool {
 //
 //   - CPU feature checks, the methods of archsimd.X86Features and
 //     archsimd.ARM64Features (such as X86.AVX512 and ARM64.SVE);
-//   - package simd's queries about the implementation, Emulated, VectorBitSize
-//     and HasHardwareCarrylessMultiply, which the generator README lists as
+//   - package simd's queries about the implementation, Emulated, VectorBits
+//     (and its deprecated old name, VectorBitSize), and
+//     HasHardwareCarrylessMultiply, which the generator README lists as
 //     the one addition to the intersection of the archsimd APIs;
 //   - archsimd.ClearAVXUpperBits, a hint to the hardware with no operands;
 //   - the amd64 Merge methods, which are deprecated in favor of IfElse, which
@@ -138,6 +139,7 @@ func nonSpecDecl(d *decl) bool {
 
 var nonSpecFuncs = map[string]bool{
 	"Emulated":                     true,
+	"VectorBits":                   true,
 	"VectorBitSize":                true,
 	"HasHardwareCarrylessMultiply": true,
 	"ClearAVXUpperBits":            true,

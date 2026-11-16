@@ -88,7 +88,7 @@ func init() {
 }
 // dispatch:
 func init() {
-    switch simd.VectorBitSize() {
+    switch simd.VectorBits() {
     case
         128:
             init@simd128()

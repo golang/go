@@ -10,13 +10,13 @@ package simd
 // doc comment. The state they report is defined per GOARCH: in midway_common.go
 // on GOARCHes with SIMD hardware support, and in simd_emulated.go elsewhere.
 
-// VectorBitSize returns the bit length of the vectors used by this package.
+// VectorBits returns the bit length of the vectors used by this package.
 //
 // If [Emulated] is true, this is 128. Otherwise, it is the longest vector
 // length supported by the hardware and the simd package. It can be artificially
 // reduced by setting the GODEBUG=simd=<smaller size> environment variable
 // before running a program.
-func VectorBitSize() int {
+func VectorBits() int {
 	return maxVectorSize
 }
 

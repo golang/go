@@ -23,7 +23,7 @@ func rewriteSizes() []int {
 const SimdPkg = "simd"
 const SimdBridgePkg = "simd/internal/bridge"
 const archPkg = "bridge"
-const vectorSizeFn = "VectorBitSize"
+const vectorSizeFn = "VectorBits"
 const emulatedFn = "Emulated"
 
 func isSimdTypeName(s string) bool {

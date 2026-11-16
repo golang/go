@@ -14,7 +14,7 @@ import (
 	"simd/internal/simdfmt"
 )
 
-// State reported by VectorBitSize, Emulated, and HasHardwareCarrylessMultiply
+// State reported by VectorBits, Emulated, and HasHardwareCarrylessMultiply
 // (see config.go). On GOARCHes without SIMD hardware support, operations are
 // always emulated.
 const (

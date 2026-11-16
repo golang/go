@@ -19,7 +19,7 @@ func TestVariant(t *testing.T) {
 		t.Skip("Variant test requires arm64")
 		return
 	}
-	if simd.VectorBitSize() != 128 {
+	if simd.VectorBits() != 128 {
 		t.Skip("Variant test requires 128-bit vectors")
 		return
 	}
