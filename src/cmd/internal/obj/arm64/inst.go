@@ -560,7 +560,8 @@ const (
 
 // encodeShiftTriple encodes an shift immediate value in "tszh:tszl:imm3".
 // tszh, tszl, imm3 are in ranges, sorted by bit position.
-// These shifts are also bounded by arrangement element size.
+// The amount is bounded by esize: 1 to esize for right shifts and 0 to
+// esize-1 for left shifts.
 func encodeShiftTriple(v uint32, r [6]int, prevAddr *obj.Addr, op obj.As) (uint32, bool) {
 	// The previous op must be a scalable vector, and we need its arrangement.
 	acl := aclass(prevAddr)
@@ -581,9 +582,6 @@ func encodeShiftTriple(v uint32, r [6]int, prevAddr *obj.Addr, op obj.As) (uint3
 	default:
 		return 0, false
 	}
-	if v >= elemBits {
-		return 0, false
-	}
 	var C uint32
 	// Unfortunately these information are in the decoding ASL.
 	// For these instructions, the esize (see comment in the switch below)
@@ -602,12 +600,15 @@ func encodeShiftTriple(v uint32, r [6]int, prevAddr *obj.Addr, op obj.As) (uint3
 		AZSQSHRNB, AZSQSHRNT, AZSQSHRUNB, AZSQSHRUNT, AZSRSHR, AZUQRSHRNB, AZUQRSHRNT, AZUQSHRNB, AZUQSHRNT,
 		AZURSRA, AZUSRA, AZXAR, AZSRI, AZSRSRA, AZSSRA:
 		// ASL: let shift : integer = (2 * esize) - UInt(tsize::imm3);
-		if v == 0 {
+		if v == 0 || v > effectiveEsize {
 			return 0, false
 		}
 		C = (2 * effectiveEsize) - v
 	default:
 		// ASL: let shift : integer = UInt(tsize::imm3) - esize;
+		if v >= effectiveEsize {
+			return 0, false
+		}
 		C = effectiveEsize + v
 	}
 	var chunks [3]uint32

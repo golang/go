@@ -34,4 +34,11 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZCPY $1536, P5.M, Z6.H             // c6605505
 	ZCPY $-32768, P5.Z, Z6.H           // 06305505
 	ZDUP $-768, Z11.S                  // abffb825
+	// Right shifts by the element size: tsize:imm3 holds 2*esize - shift.
+	ZASR $64, Z7.D, Z23.D              // f790a004
+	ZASR $8, Z23.B, P1.M, Z23.B        // 17850004
+	ZLSR $8, Z7.B, Z23.B               // f7942804
+	ZLSR $16, Z23.H, P1.M, Z23.H       // 17860104
+	ZUSRA $64, Z7.D, Z23.D             // f7e48045
+	ZSHRNB $16, Z7.S, Z23.H            // f7103045
 	RET
