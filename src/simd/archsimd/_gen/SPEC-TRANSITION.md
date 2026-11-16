@@ -297,6 +297,14 @@ prefixes: `Asm:`, `CPU Feature:`, `Emulated[,\n]`, `Deprecated:`,
 first line of a paragraph is checked, so a note can combine prefixes (`Asm:
 VPADDD, CPU Feature: AVX`) and wrap freely.
 
+`CPU Feature:` names the feature a caller must check for before calling the
+method at all. A method that uses a single instruction when some further feature
+is available, and an emulation otherwise, names the feature check that selects
+the instruction in its `Asm:` clause: `Asm: VPCLMULQDQ if AVX2CLMUL, Emulated
+otherwise, CPU Feature: AVX2`. Such a method is safe to call without that
+further feature. The `midway` generator reads only the `CPU Feature:` clause to
+decide whether a method is available to portable `simd` at a given vector size.
+
 **Checks.** Strict ordering is necessary for idempotence, and the tools perform
 the following checks to ensure we maintain it: (a) In an existing comment,
 spec-owned paragraphs (those without an implementation note prefix) must appear

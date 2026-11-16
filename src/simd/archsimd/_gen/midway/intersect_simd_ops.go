@@ -87,6 +87,29 @@ func combine(arch, typ string) string {
 	return arch + "-" + typ
 }
 
+// requiredCPUFeature returns the CPU feature that doc's implementation notes
+// say is required to call the documented method, or "" if there is none. This
+// is the "CPU Feature:" clause of a note like
+//
+//	Asm: VPADDD, CPU Feature: AVX
+//
+// A method that uses an instruction only if some further CPU feature is
+// available, and is emulated otherwise, names that feature in its "Asm:" clause
+// instead, like
+//
+//	Asm: VPCLMULQDQ if AVX2CLMUL, Emulated otherwise, CPU Feature: AVX2
+//
+// Such a method is safe to call without that further feature, so it doesn't
+// count as required.
+func requiredCPUFeature(doc string) string {
+	_, feature, ok := strings.Cut(doc, "CPU Feature:")
+	if !ok {
+		return ""
+	}
+	feature, _, _ = strings.Cut(feature, "\n")
+	return strings.TrimSpace(feature)
+}
+
 var files gentools.Files
 
 func main() {
@@ -298,14 +321,18 @@ func main() {
 						continue
 					}
 
+					// Skip methods that require a CPU feature beyond
+					// what the simd package requires to use vectors
+					// of this size.
+					feature := requiredCPUFeature(funcDecl.Doc.Text())
 					if sizeForType[recvType] == 128 {
-						if s := funcDecl.Doc.Text(); strings.Contains(s, "AVX512") || strings.Contains(s, "AVX2") {
+						if strings.Contains(feature, "AVX512") || strings.Contains(feature, "AVX2") {
 							pv("Skipping 128-bit %s.%s because AVX2/AVX512\n", recvType, methodName)
 							continue
 						}
 					}
 					if sizeForType[recvType] == 256 {
-						if s := funcDecl.Doc.Text(); strings.Contains(s, "AVX512") {
+						if strings.Contains(feature, "AVX512") {
 							pv("Skipping 256-bit %s.%s because AVX512\n", recvType, methodName)
 							continue
 						}
