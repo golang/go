@@ -97,7 +97,7 @@ func combine(arch, typ string) string {
 // available, and is emulated otherwise, names that feature in its "Asm:" clause
 // instead, like
 //
-//	Asm: VPCLMULQDQ if AVX2CLMUL, Emulated otherwise, CPU Feature: AVX2
+//	Asm: VPCLMULQDQ if CPU feature AVX2CLMUL, Emulated otherwise, CPU Feature: AVX2
 //
 // Such a method is safe to call without that further feature, so it doesn't
 // count as required.
