@@ -137,6 +137,20 @@ func godebugSettings() []godebugSetting {
 	// The fallbacks for carryless multiply, which archsimd uses on CPUs
 	// that lack the instruction for it.
 	switch runtime.GOARCH {
+	case "amd64":
+		// Without PCLMULQDQ, archsimd uses software. If PCLMULQDQ is
+		// already off, the current setting tests that.
+		//
+		// This only tests 128-bit vectors. The fallbacks for wider
+		// vectors can't be reached through this package yet, because
+		// it limits the vector size to one where carryless multiply
+		// is a single instruction.
+		if cpu.X86.HasPCLMULQDQ {
+			settings = append(settings, godebugSetting{
+				godebug:    prefix + "simd=128,cpu.pclmulqdq=off",
+				wantConfig: "VectorBits=128 Emulated=false HardwareCLMUL=false",
+			})
+		}
 	case "arm64":
 		// Without PMULL, archsimd emulates carryless multiply using
 		// other Neon instructions. If PMULL is already off, because

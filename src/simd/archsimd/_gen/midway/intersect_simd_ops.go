@@ -143,7 +143,7 @@ func main() {
 	// Hardcoded list of files
 	amd64Files := []string{"ops_amd64.go", "compare_gen_amd64.go", "types_amd64.go",
 		"other_gen_amd64.go", "extra_amd64.go", "maskmerge_gen_amd64.go",
-		"shuffles_amd64.go", "slice_gen_amd64.go", "slicepart_amd64.go",
+		"shuffles_amd64.go", "clmul_amd64.go", "slice_gen_amd64.go", "slicepart_amd64.go",
 		"slicepart_128.go", "ops_emulated_amd64.go", "maskrange_amd64.go",
 		"deprecated_amd64.go", "converts_emulated_amd64.go",
 		"converts_gen_amd64.go"}

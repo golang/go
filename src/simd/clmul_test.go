@@ -251,6 +251,38 @@ func TestClMul(t *testing.T) {
 		}
 	}
 
+	testClMulAllElements(t)
+}
+
+// testClMulAllElements checks the carryless multiply operations on every pair
+// of elements of a vector. The checks above only use elements 0 and 1.
+func testClMulAllElements(t *testing.T) {
+	n := simd.Uint64s{}.Len()
+	xs, ys, zs := make([]uint64, n), make([]uint64, n), make([]uint64, n)
+	// check checks that z is the carryless product of elements xi of each
+	// pair of x and yi of each pair of y.
+	check := func(what string, z simd.Uint64s, xi, yi int) {
+		t.Helper()
+		z.Store(zs)
+		for i := 0; i < n; i += 2 {
+			a, b := xs[i+xi], ys[i+yi]
+			lo, hi := clmul64(a, b)
+			if zs[i] != lo || zs[i+1] != hi {
+				t.Fatalf("%s: elements %d and %d: clmul(%#016x, %#016x) = %#016x_%016x, want %#016x_%016x",
+					what, i, i+1, a, b, zs[i+1], zs[i], hi, lo)
+			}
+		}
+	}
+	for range 1000 {
+		for i := range xs {
+			xs[i], ys[i] = rand.Uint64(), rand.Uint64()
+		}
+		x, y := simd.LoadUint64s(xs), simd.LoadUint64s(ys)
+		check("CarrylessMultiplyEven", x.CarrylessMultiplyEven(y), 0, 0)
+		check("CarrylessMultiplyOdd", x.CarrylessMultiplyOdd(y), 1, 1)
+		check("CarrylessMultiplyEvenOdd", x.CarrylessMultiplyEvenOdd(y), 0, 1)
+		check("CarrylessMultiplyOddEven", x.CarrylessMultiplyOddEven(y), 1, 0)
+	}
 }
 
 // T is a simulated vector type
