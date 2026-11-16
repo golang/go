@@ -452,12 +452,7 @@ func (check *Checker) logosExits(s syntax.Stmt) bool {
 		return check.logosExits(s.Stmt)
 	case *syntax.ExprStmt:
 		if call, ok := syntax.Unparen(s.X).(*syntax.CallExpr); ok {
-			if check.isPanic[call] {
-				return true
-			}
-			if name, ok := syntax.Unparen(call.Fun).(*syntax.Name); ok && name.Value == "panic" {
-				return true
-			}
+			return check.isPanic[call]
 		}
 		return false
 	case *syntax.ForStmt:

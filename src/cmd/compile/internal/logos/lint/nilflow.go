@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"cmd/compile/internal/syntax"
+	"cmd/compile/internal/types2"
 )
 
 // nilFacts is the set of paths a nil test has proved to hold a non-nil value
@@ -329,8 +330,10 @@ func (w *flow) exitsStmt(s syntax.Stmt) bool {
 // endsFlow reports whether call is a call of panic or of a function that
 // never returns normally.
 func endsFlow(pass *Pass, call *syntax.CallExpr) bool {
-	if name, ok := call.Fun.(*syntax.Name); ok && name.Value == "panic" {
-		return true
+	if name, ok := syntax.Unparen(call.Fun).(*syntax.Name); ok {
+		if builtin, ok := pass.Info.Uses[name].(*types2.Builtin); ok && builtin.Name() == "panic" {
+			return true
+		}
 	}
 	fn := calleeFunc(pass, call)
 	if fn == nil {

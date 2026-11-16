@@ -1,0 +1,10 @@
+--- FAIL: TestCompilePanicNarrowing (0.07s)
+    --- FAIL: TestCompilePanicNarrowing/shadowed_function (0.01s)
+        compile_panic_identity_test.go:43: shadowed panic guard: exit 0, output "", object true
+    --- FAIL: TestCompilePanicNarrowing/shadowed_variable (0.01s)
+        compile_panic_identity_test.go:43: shadowed panic guard: exit 0, output "", object true
+    --- FAIL: TestCompilePanicNarrowing/parenthesized_shadow (0.02s)
+        compile_panic_identity_test.go:43: shadowed panic guard: exit 0, output "", object true
+FAIL
+FAIL	cmd/compile/internal/logos/lint	0.077s
+FAIL

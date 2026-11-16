@@ -1,0 +1,12 @@
+--- FAIL: TestTypedNilReturnPanicIdentity (0.00s)
+    --- FAIL: TestTypedNilReturnPanicIdentity/shadowed_function (0.00s)
+        rule_flow_terminator_test.go:42: typed nil results = [], want 1
+    --- FAIL: TestTypedNilReturnPanicIdentity/shadowed_variable (0.00s)
+        rule_flow_terminator_test.go:42: typed nil results = [], want 1
+    --- FAIL: TestTypedNilReturnPanicIdentity/parenthesized_shadow (0.00s)
+        rule_flow_terminator_test.go:42: typed nil results = [], want 1
+    --- FAIL: TestTypedNilReturnPanicIdentity/ordinary_returning_call (0.00s)
+        rule_flow_terminator_test.go:42: typed nil results = [], want 1
+FAIL
+FAIL	cmd/compile/internal/logos/lint	0.007s
+FAIL

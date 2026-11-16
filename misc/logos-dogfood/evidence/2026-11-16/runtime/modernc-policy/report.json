@@ -1,0 +1,146 @@
+{
+  "assessment": {
+    "diagnostics": 0,
+    "duplicate_diagnostics": 0,
+    "normalized_sha256": "",
+    "reason": "",
+    "status": "candidate-failed"
+  },
+  "baseline_sha256": "f9d4469dd962f6ae80d95e2a061f1c88d24cdd8966484e76823c0d2dfccb61b8",
+  "case": {
+    "backend": "modernc",
+    "cgo": 0,
+    "cohort": "stress",
+    "id": "modernc-sqlite",
+    "logos_policy": "",
+    "logos_policy_sha256": "",
+    "module": "modernc.org/sqlite",
+    "operation": "test",
+    "patterns": [
+      "./..."
+    ],
+    "revision": "92d72a45bcb65ab33bbe79c8667f2b8b529ae902",
+    "source": "sqlite",
+    "source_kind": "git",
+    "sum": "",
+    "tags": [],
+    "upstream": "https://gitlab.com/cznic/sqlite.git",
+    "version": ""
+  },
+  "complete": true,
+  "driver_sha256": "4c016af1e3b0b2df74f0056a878b994cb6194887273982cd9f09606e0923e3a5",
+  "events": {
+    "exact_match": false,
+    "expected": [
+      "TestMutexWakeOnce"
+    ],
+    "failed_or_skipped": [],
+    "passed": [],
+    "started": []
+  },
+  "policy_sha256": "5b2a173a8d779e0a92587042884eddaa3a5c30a3ae11a1b913beb53cac4f6c12",
+  "run": {
+    "command": [
+      "/workspace/scratch/93e0563596d1/LoGOs/bin/logos",
+      "test",
+      "-json",
+      "-count=1",
+      "-short",
+      "-timeout=60s",
+      "-run",
+      "^TestMutexWakeOnce$",
+      "."
+    ],
+    "cwd": "/dev/shm/logos-dogfood-93e0563596d1/runtime-modernc-policy-final/work",
+    "environment": {
+      "CC": "/usr/bin/cc",
+      "CGO_ENABLED": "0",
+      "CXX": "/usr/bin/c++",
+      "GOCACHE": "/workspace/scratch/93e0563596d1/cache",
+      "GOENV": "off",
+      "GOFLAGS": "-mod=readonly -buildvcs=false -p=1",
+      "GOMAXPROCS": "1",
+      "GOMEMLIMIT": "512MiB",
+      "GOMODCACHE": "/home/agent/go/pkg/mod",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "GOTELEMETRY": "off",
+      "GOTOOLCHAIN": "local",
+      "GOWORK": "off",
+      "PATH": "/workspace/scratch/93e0563596d1/LoGOs/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+      "TMPDIR": "/dev/shm/logos-dogfood-93e0563596d1"
+    },
+    "error": "",
+    "returncode": 1,
+    "seconds": 121.341,
+    "stderr": "/dev/shm/logos-dogfood-93e0563596d1/runtime-modernc-policy-final/modernc-sqlite-logos.stderr",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout": "/dev/shm/logos-dogfood-93e0563596d1/runtime-modernc-policy-final/modernc-sqlite-logos.stdout",
+    "stdout_sha256": "18f12233ada1ba2833162d9bed081adb1946e4cb6975991805a4b63be765a953",
+    "timed_out": false
+  },
+  "runner_sha256": "e1ac71d02585446d08b4fcaaa5cf63a3b3ec39441d2997ba3d4d7f29289f76a0",
+  "script_sha256": "aded042a1df062337865cdd007263b17dc763746f294fa2a86a58ebbc0c6cda6",
+  "source_digest": "h1:kXR6Mrpps9PPMVlj/4J0iClILWn2DYqdLESTRmIpk0E=",
+  "status": "candidate-failed",
+  "toolchain": {
+    "compiler_source_h1": "h1:tbzm3kxYphDinWJtSi++w2s/e63o9EJIJGOHj3GByXE=",
+    "goroot": "/workspace/scratch/93e0563596d1/LoGOs",
+    "run": {
+      "command": [
+        "/workspace/scratch/93e0563596d1/LoGOs/bin/logos",
+        "env",
+        "-json",
+        "GOROOT",
+        "GOTOOLDIR"
+      ],
+      "cwd": "/workspace/scratch/93e0563596d1/LoGOs/misc/logos-dogfood",
+      "environment": {
+        "CC": "/usr/bin/cc",
+        "CGO_ENABLED": "0",
+        "CXX": "/usr/bin/c++",
+        "GOCACHE": "/workspace/scratch/93e0563596d1/cache",
+        "GOENV": "off",
+        "GOFLAGS": "-mod=readonly -buildvcs=false -p=1",
+        "GOMAXPROCS": "1",
+        "GOMEMLIMIT": "512MiB",
+        "GOMODCACHE": "/home/agent/go/pkg/mod",
+        "GOPROXY": "off",
+        "GOSUMDB": "off",
+        "GOTELEMETRY": "off",
+        "GOTOOLCHAIN": "local",
+        "GOWORK": "off",
+        "PATH": "/workspace/scratch/93e0563596d1/LoGOs/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+        "TMPDIR": "/dev/shm/logos-dogfood-93e0563596d1"
+      },
+      "error": "",
+      "returncode": 0,
+      "seconds": 0.008,
+      "stderr": "/dev/shm/logos-dogfood-93e0563596d1/runtime-modernc-policy-final/tools/logos.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout": "/dev/shm/logos-dogfood-93e0563596d1/runtime-modernc-policy-final/tools/logos.stdout",
+      "stdout_sha256": "00e9ec557a806b8e24f4f88d6eb40614073f2b265f5a8db2af53233b3455e915",
+      "timed_out": false
+    },
+    "source_revision": "b2dcb736df55aeb870fbd18bf002a0c1e4215e82",
+    "source_status": "",
+    "tools": {
+      "asm": {
+        "path": "/workspace/scratch/93e0563596d1/LoGOs/pkg/tool/linux_amd64/asm",
+        "sha256": "bc86977331af77841a2d5c85f23212558233f5320e38fe2e3b59325b84faaca9"
+      },
+      "cgo": {
+        "path": "/workspace/scratch/93e0563596d1/LoGOs/pkg/tool/linux_amd64/cgo",
+        "sha256": "cd4545d93e6e5aef271ee79d0cdc12e055f7b272077d6fd926c703ff9a07a754"
+      },
+      "compile": {
+        "path": "/workspace/scratch/93e0563596d1/LoGOs/pkg/tool/linux_amd64/compile",
+        "sha256": "7c519b46141178df983fe62f9bbb7ef794201dba8daf31a676143ed657373f37"
+      },
+      "link": {
+        "path": "/workspace/scratch/93e0563596d1/LoGOs/pkg/tool/linux_amd64/link",
+        "sha256": "b21cda2370df5c9bd00b225ef92a7e88a3b53ba01fb6a19916b85608bd400232"
+      }
+    }
+  }
+}

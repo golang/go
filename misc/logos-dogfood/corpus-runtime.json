@@ -1,0 +1,44 @@
+[
+  {
+    "id": "xxhash-asm-core",
+    "source_kind": "git",
+    "source": "xxhash",
+    "module": "github.com/cespare/xxhash/v2",
+    "upstream": "https://github.com/cespare/xxhash.git",
+    "revision": "ab37246c889f9db16b606fda1c232d659df9271d",
+    "cohort": "popular",
+    "backend": "assembly",
+    "cgo": 0,
+    "tags": [],
+    "patterns": ["."],
+    "operation": "test"
+  },
+  {
+    "id": "xxhash-purego-core",
+    "source_kind": "git",
+    "source": "xxhash",
+    "module": "github.com/cespare/xxhash/v2",
+    "upstream": "https://github.com/cespare/xxhash.git",
+    "revision": "ab37246c889f9db16b606fda1c232d659df9271d",
+    "cohort": "reference",
+    "backend": "purego-tag",
+    "cgo": 0,
+    "tags": ["purego"],
+    "patterns": ["."],
+    "operation": "test"
+  },
+  {
+    "id": "xxhash-plugin-cgo",
+    "source_kind": "git",
+    "source": "xxhash",
+    "module": "github.com/cespare/xxhash/v2",
+    "upstream": "https://github.com/cespare/xxhash.git",
+    "revision": "ab37246c889f9db16b606fda1c232d659df9271d",
+    "cohort": "stress",
+    "backend": "cgo-plugin",
+    "cgo": 1,
+    "tags": [],
+    "patterns": ["./..."],
+    "operation": "test"
+  }
+]

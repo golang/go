@@ -1,0 +1,7 @@
+ok  	cmd/compile/internal/logos	124.213s
+ok  	cmd/compile/internal/importer	5.394s
+cmd/compile/internal/ssa: /workspace/scratch/93e0563596d1/LoGOs/pkg/tool/linux_amd64/vet: signal: killed
+ok  	cmd/compile/internal/noder	34.830s
+ok  	cmd/compile/internal/logos/lint	2.471s
+ok  	cmd/compile/internal/types2	9.998s
+FAIL

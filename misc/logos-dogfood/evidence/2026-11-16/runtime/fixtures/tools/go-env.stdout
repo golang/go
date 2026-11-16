@@ -1,0 +1,7 @@
+{
+	"CC": "/usr/bin/cc",
+	"CXX": "/usr/bin/c++",
+	"GOARCH": "amd64",
+	"GOOS": "linux",
+	"GOVERSION": "go1.27.4"
+}

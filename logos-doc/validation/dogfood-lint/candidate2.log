@@ -1,0 +1,7 @@
+ok  	cmd/compile/internal/logos/lint	6.424s
+--- FAIL: TestLogos (1.39s)
+    --- FAIL: TestLogos/narrowing.lgo (0.00s)
+        check_test.go:256: ../../../../internal/types/testdata/logos/narrowing.lgo:49:9: no error expected: "[correctness::nil_deref_unproven] cannot access field Name of *User? without proving != nil"
+FAIL
+FAIL	cmd/compile/internal/types2	14.014s
+FAIL

@@ -1,0 +1,124 @@
+{
+  "compiler_source_revision": "39c62004a991501a25f93eae7a63dc7c7fac5646",
+  "cwd": "/workspace/scratch/93e0563596d1/LoGOs/src",
+  "path_prepend": "/workspace/scratch/93e0563596d1/LoGOs/bin",
+  "environment_overrides": {
+    "GOROOT": "/workspace/scratch/93e0563596d1/LoGOs",
+    "GOENV": "off",
+    "GOCACHE": "/workspace/scratch/93e0563596d1/cache",
+    "GOTOOLCHAIN": "local",
+    "GOMAXPROCS": "1",
+    "GOMEMLIMIT": "384MiB",
+    "GOGC": "30",
+    "GOFLAGS": "-p=1",
+    "TMPDIR": "/dev/shm/logos-dogfood-93e0563596d1"
+  },
+  "gates": [
+    {
+      "name": "installed-regressions",
+      "command": [
+        "/workspace/scratch/93e0563596d1/LoGOs/bin/go",
+        "test",
+        "-p=1",
+        "-count=1",
+        "-short",
+        "-v",
+        "-run",
+        "^Test(CompileImportedLocalType|FactScopeLeavesCompilerSymbolsLazy)$",
+        "cmd/compile/internal/logos"
+      ],
+      "exit": 0,
+      "log": "installed.log",
+      "passed_cells": 48,
+      "log_sha256": "8f156cc3832beb0d63d33c83b015316626b0fe5860661d9b42f7a556f269a944"
+    },
+    {
+      "name": "full-short-suites",
+      "command": [
+        "/workspace/scratch/93e0563596d1/LoGOs/bin/go",
+        "test",
+        "-p=1",
+        "-count=1",
+        "-short",
+        "-timeout=30m",
+        "cmd/compile/internal/logos",
+        "cmd/compile/internal/importer",
+        "cmd/compile/internal/noder",
+        "cmd/compile/internal/logos/lint",
+        "cmd/compile/internal/types2"
+      ],
+      "exit": 1,
+      "log": "full-interrupted.log",
+      "package_tests_passed": [
+        "cmd/compile/internal/logos",
+        "cmd/compile/internal/importer",
+        "cmd/compile/internal/noder",
+        "cmd/compile/internal/logos/lint",
+        "cmd/compile/internal/types2"
+      ],
+      "remaining_failure": "automatic SSA vet process was killed",
+      "log_sha256": "e6bab0a94f3603285876a9eb12710de151ef60b82d82167de2a95f9845acff43"
+    },
+    {
+      "name": "ssa-vet-retry",
+      "command": [
+        "/workspace/scratch/93e0563596d1/LoGOs/bin/go",
+        "vet",
+        "-p=1",
+        "cmd/compile/internal/ssa"
+      ],
+      "exit": 0,
+      "log": "ssa-vet-retry.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "noder-normal-gate-retry",
+      "command": [
+        "/workspace/scratch/93e0563596d1/LoGOs/bin/go",
+        "test",
+        "-p=1",
+        "-count=1",
+        "-short",
+        "-timeout=30m",
+        "cmd/compile/internal/noder"
+      ],
+      "exit": 0,
+      "log": "noder-retry.log",
+      "log_sha256": "f316e6ddc246b2f7befa71b88558487599d8cd8b4efa0c5d88a16121850e5e04"
+    },
+    {
+      "name": "earlier-regressions",
+      "command": [
+        "/workspace/scratch/93e0563596d1/LoGOs/bin/go",
+        "test",
+        "-p=1",
+        "-count=1",
+        "-short",
+        "-v",
+        "-run",
+        "^Test(UnclosedCloserAssignedClose|CompileCloserAssignedClose|TypedNilReturnPanicIdentity|InfiniteRecursionPanicIdentity|CompilePanicNarrowing|CompilePanicNarrowingVoid)$",
+        "cmd/compile/internal/logos/lint"
+      ],
+      "exit": 0,
+      "log": "prior-regressions.log",
+      "passed_cells": 61,
+      "log_sha256": "ab00c44cfcc36f653aed872e6470c8f42533f44348e35b439e4e3f0b8baf812c"
+    },
+    {
+      "name": "affected-vet",
+      "command": [
+        "/workspace/scratch/93e0563596d1/LoGOs/bin/go",
+        "vet",
+        "-p=1",
+        "cmd/compile/internal/logos",
+        "cmd/compile/internal/importer",
+        "cmd/compile/internal/noder",
+        "cmd/compile/internal/logos/lint",
+        "cmd/compile/internal/types2"
+      ],
+      "exit": 0,
+      "log": "vet.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

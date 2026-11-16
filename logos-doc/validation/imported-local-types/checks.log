@@ -1,0 +1,12 @@
+src/cmd/compile/internal/logos/compile_local_type_import_test.go: OK
+src/cmd/compile/internal/logos/optfacts_scope_test.go: OK
+src/cmd/compile/internal/logos/optfacts.go: OK
+src/cmd/compile/internal/logos/lint/rule_unclosed_io_closer_test.go: OK
+src/cmd/compile/internal/logos/lint/rule_flow_terminator_test.go: OK
+src/cmd/compile/internal/logos/lint/compile_panic_identity_test.go: OK
+src/cmd/compile/internal/logos/lint/compile_panic_void_identity_test.go: OK
+src/cmd/compile/internal/logos/lint/nilflow.go: OK
+src/cmd/compile/internal/logos/lint/rule_infinite_recursion.go: OK
+src/cmd/compile/internal/logos/lint/rule_unclosed_io_closer.go: OK
+src/cmd/compile/internal/types2/narrow_logos.go: OK
+src/cmd/compile/internal/types2/builtins.go: OK

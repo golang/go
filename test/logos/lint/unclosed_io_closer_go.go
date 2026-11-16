@@ -41,7 +41,7 @@ func pairUse() error {
 }
 
 func explicitClose() {
-	f := mustOpen() // ERROR "unclosed_io_closer"
+	f := mustOpen()
 	if err := f.Close(); err != nil {
 		panic(err)
 	}

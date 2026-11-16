@@ -1,0 +1,72 @@
+package main
+
+import (
+	"errors"
+	"fmt"
+)
+
+var failure = errors.New("expected")
+var calls int
+var assigned int
+
+func fallback() int {
+	calls++
+	return 17
+}
+
+func maybe(n int) int? {
+	if n < 0 {
+		return nil
+	}
+	return n
+}
+
+func load(fail bool) (int, error) {
+	if fail {
+		return 99, failure
+	}
+	return 42, nil
+}
+
+func assign(fail bool) error {
+	assigned = load(fail)?
+	return nil
+}
+
+
+func checkOption(n int) {
+	calls = 0
+	got := maybe(n) ?? fallback()
+	if n < 0 {
+		if got != 17 || calls != 1 {
+			panic("absent option must evaluate fallback exactly once")
+		}
+	} else if got != n || calls != 0 {
+		panic("present option must not evaluate fallback")
+	}
+}
+
+func checkSwitch(n int) {
+	branch := switch n {
+	case -3, -2, -1 => -1
+	case 0 => 0
+	default => 1
+	}
+	if branch*n < 0 || (branch == 0) != (n == 0) {
+		panic("switch expression selected the wrong branch")
+	}
+}
+
+func main() {
+	for n := -3; n <= 3; n++ {
+		checkOption(n)
+		checkSwitch(n)
+	}
+	if err := assign(false); err != nil || assigned != 42 {
+		panic("successful try assignment")
+	}
+	if err := assign(true); err != failure || assigned != 99 {
+		panic("failed try assignment must store the returned value")
+	}
+	fmt.Println("language semantics ok")
+}

@@ -1,0 +1,2 @@
+# Preserve the compiler and test runner's raw output bytes.
+*.log -whitespace

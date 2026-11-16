@@ -1,0 +1,7 @@
+Building Go cmd/dist using /workspace/scratch/3a94cc7b50af/toolchains/go1.27.4. (go1.27.4 linux/amd64)
+Building Go toolchain1 using /workspace/scratch/3a94cc7b50af/toolchains/go1.27.4.
+Building Go bootstrap cmd/go (go_bootstrap) using Go toolchain1.
+Building Go toolchain2 using go_bootstrap and Go toolchain1.
+Building Go toolchain3 using go_bootstrap and Go toolchain2.
+cmd/compile/internal/ssa: /workspace/scratch/93e0563596d1/LoGOs/pkg/tool/linux_amd64/compile: signal: killed
+go tool dist: FAILED: /workspace/scratch/93e0563596d1/LoGOs/pkg/tool/linux_amd64/go_bootstrap install -a cmd/asm cmd/cgo cmd/compile cmd/link cmd/preprofile: exit status 1

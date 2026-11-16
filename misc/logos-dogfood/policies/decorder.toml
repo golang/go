@@ -1,0 +1,8 @@
+[capabilities]
+transitive_unsafe_allowlist = [
+  "golang.org/x/tools/internal/event/core",
+  "golang.org/x/tools/internal/event/label",
+  "golang.org/x/tools/internal/gcimporter",
+  "golang.org/x/tools/internal/tokeninternal",
+  "golang.org/x/tools/internal/typesinternal",
+]

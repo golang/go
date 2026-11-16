@@ -1,0 +1,6 @@
+[capabilities]
+transitive_unsafe_allowlist = [
+  "github.com/yuin/goldmark/util",
+  "golang.org/x/telemetry/internal/counter",
+  "golang.org/x/telemetry/internal/mmap",
+]

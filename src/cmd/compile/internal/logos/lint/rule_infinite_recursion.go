@@ -6,7 +6,6 @@ package lint
 
 import (
 	"slices"
-	"strings"
 
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types2"
@@ -470,7 +469,7 @@ func (r *recursion) leavesSequence(n syntax.Node) bool {
 	case *syntax.ReturnStmt, *syntax.BranchStmt, *syntax.TryExpr, *syntax.YieldStmt, *syntax.GroupStmt, *syntax.GroupChild:
 		return true
 	case *syntax.CallExpr:
-		return r.endsProcess(n)
+		return endsFlow(r.pass, n)
 	case *syntax.ForStmt:
 		if clause, ranged := n.Init.(*syntax.RangeClause); ranged {
 			return onStage(r.pass, clause.X)
@@ -483,17 +482,3 @@ func (r *recursion) leavesSequence(n syntax.Node) bool {
 // terminators are the prefixes of the full names of functions that do not
 // return.
 var terminators = []string{"os.Exit", "syscall.Exit", "runtime.Goexit", "log.Fatal", "log.Panic", "(*log.Logger).Fatal", "(*log.Logger).Panic"}
-
-// endsProcess reports whether call is a call of panic or of a function that
-// never returns normally.
-func (r *recursion) endsProcess(call *syntax.CallExpr) bool {
-	if name, ok := call.Fun.(*syntax.Name); ok && name.Value == "panic" {
-		return true
-	}
-	fn := calleeFunc(r.pass, call)
-	if fn == nil {
-		return false
-	}
-	full := fn.FullName()
-	return slices.ContainsFunc(terminators, func(t string) bool { return strings.HasPrefix(full, t) })
-}

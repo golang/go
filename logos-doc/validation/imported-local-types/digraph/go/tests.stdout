@@ -1,0 +1,164 @@
+{"Time":"2026-11-17T00:14:17.696012541+09:00","Action":"start","Package":"golang.org/x/tools/cmd/digraph"}
+{"Time":"2026-11-17T00:14:17.697997142+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph"}
+{"Time":"2026-11-17T00:14:17.698344859+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph","Output":"=== RUN   TestDigraph\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.69837207+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/nodes"}
+{"Time":"2026-11-17T00:14:17.698374263+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/nodes","Output":"=== RUN   TestDigraph/nodes\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.698395484+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/nodes","Output":"--- PASS: TestDigraph/nodes (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.698400231+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/nodes","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.69843964+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/reverse"}
+{"Time":"2026-11-17T00:14:17.698441793+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/reverse","Output":"=== RUN   TestDigraph/reverse\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.698444527+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/reverse","Output":"--- PASS: TestDigraph/reverse (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.698447332+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/reverse","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.698449935+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/transpose"}
+{"Time":"2026-11-17T00:14:17.698451508+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/transpose","Output":"=== RUN   TestDigraph/transpose\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.698454062+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/transpose","Output":"--- PASS: TestDigraph/transpose (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.698456635+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/transpose","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.698458528+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/forward"}
+{"Time":"2026-11-17T00:14:17.698460121+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/forward","Output":"=== RUN   TestDigraph/forward\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.698462444+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/forward","Output":"--- PASS: TestDigraph/forward (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.698464497+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/forward","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.69846646+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/forward_multiple_args"}
+{"Time":"2026-11-17T00:14:17.698468463+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/forward_multiple_args","Output":"=== RUN   TestDigraph/forward_multiple_args\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.698472469+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/forward_multiple_args","Output":"--- PASS: TestDigraph/forward_multiple_args (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.698474712+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/forward_multiple_args","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.698477396+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/scss"}
+{"Time":"2026-11-17T00:14:17.698479199+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/scss","Output":"=== RUN   TestDigraph/scss\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.698488483+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/scss","Output":"--- PASS: TestDigraph/scss (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.698490476+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/scss","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.698492198+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/scc"}
+{"Time":"2026-11-17T00:14:17.698493751+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/scc","Output":"=== RUN   TestDigraph/scc\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.698496795+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/scc","Output":"--- PASS: TestDigraph/scc (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.698498598+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/scc","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.698500481+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/succs"}
+{"Time":"2026-11-17T00:14:17.698501973+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/succs","Output":"=== RUN   TestDigraph/succs\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.698504096+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/succs","Output":"--- PASS: TestDigraph/succs (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.698505939+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/succs","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.698507982+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/succs-long-token"}
+{"Time":"2026-11-17T00:14:17.698509524+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/succs-long-token","Output":"=== RUN   TestDigraph/succs-long-token\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.699381871+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/succs-long-token","Output":"--- PASS: TestDigraph/succs-long-token (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.699393548+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/succs-long-token","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.699398065+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/preds"}
+{"Time":"2026-11-17T00:14:17.699399928+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/preds","Output":"=== RUN   TestDigraph/preds\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.699402792+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/preds","Output":"--- PASS: TestDigraph/preds (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.699404725+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/preds","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.699407008+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/preds_multiple_args"}
+{"Time":"2026-11-17T00:14:17.699408781+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/preds_multiple_args","Output":"=== RUN   TestDigraph/preds_multiple_args\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.699412106+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/preds_multiple_args","Output":"--- PASS: TestDigraph/preds_multiple_args (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.699414049+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph/preds_multiple_args","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.699416212+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph","Output":"--- PASS: TestDigraph (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.699421911+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestDigraph","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.699423673+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths"}
+{"Time":"2026-11-17T00:14:17.699425276+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths","Output":"=== RUN   TestAllpaths\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.699429041+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Basic"}
+{"Time":"2026-11-17T00:14:17.699430724+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Basic","Output":"=== RUN   TestAllpaths/Basic\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.699432947+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Basic","Output":"--- PASS: TestAllpaths/Basic (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.69943487+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Basic","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.699436683+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Long"}
+{"Time":"2026-11-17T00:14:17.699438175+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Long","Output":"=== RUN   TestAllpaths/Long\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.699440238+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Long","Output":"--- PASS: TestAllpaths/Long (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.69944194+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Long","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.699443583+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Cycle_Basic"}
+{"Time":"2026-11-17T00:14:17.699445365+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Cycle_Basic","Output":"=== RUN   TestAllpaths/Cycle_Basic\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.699447599+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Cycle_Basic","Output":"--- PASS: TestAllpaths/Cycle_Basic (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.699449812+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Cycle_Basic","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.699451855+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Cycle_Path_Out"}
+{"Time":"2026-11-17T00:14:17.699453467+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Cycle_Path_Out","Output":"=== RUN   TestAllpaths/Cycle_Path_Out\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.699455761+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Cycle_Path_Out","Output":"--- PASS: TestAllpaths/Cycle_Path_Out (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.699457704+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Cycle_Path_Out","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.699459877+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Cycle_Path_Out_Further_Out"}
+{"Time":"2026-11-17T00:14:17.699461429+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Cycle_Path_Out_Further_Out","Output":"=== RUN   TestAllpaths/Cycle_Path_Out_Further_Out\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.699481129+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Cycle_Path_Out_Further_Out","Output":"--- PASS: TestAllpaths/Cycle_Path_Out_Further_Out (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.699483152+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Cycle_Path_Out_Further_Out","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.699487638+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Two_Paths_Basic"}
+{"Time":"2026-11-17T00:14:17.699489361+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Two_Paths_Basic","Output":"=== RUN   TestAllpaths/Two_Paths_Basic\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.699504603+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Two_Paths_Basic","Output":"--- PASS: TestAllpaths/Two_Paths_Basic (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.699507187+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Two_Paths_Basic","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.699509631+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Two_Paths_With_One_Immediately_From_Start"}
+{"Time":"2026-11-17T00:14:17.699511824+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Two_Paths_With_One_Immediately_From_Start","Output":"=== RUN   TestAllpaths/Two_Paths_With_One_Immediately_From_Start\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.699516952+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Two_Paths_With_One_Immediately_From_Start","Output":"--- PASS: TestAllpaths/Two_Paths_With_One_Immediately_From_Start (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.699519896+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Two_Paths_With_One_Immediately_From_Start","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.699521749+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Two_Paths_Further_Up"}
+{"Time":"2026-11-17T00:14:17.699523361+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Two_Paths_Further_Up","Output":"=== RUN   TestAllpaths/Two_Paths_Further_Up\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.699566736+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Two_Paths_Further_Up","Output":"--- PASS: TestAllpaths/Two_Paths_Further_Up (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.69956921+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Two_Paths_Further_Up","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.699571082+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Two_Splits"}
+{"Time":"2026-11-17T00:14:17.699572735+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Two_Splits","Output":"=== RUN   TestAllpaths/Two_Splits\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.699575549+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Two_Splits","Output":"--- PASS: TestAllpaths/Two_Splits (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.699577402+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Two_Splits","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.699579124+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Two_Paths_-_Two_Splits_With_Gap"}
+{"Time":"2026-11-17T00:14:17.699580797+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Two_Paths_-_Two_Splits_With_Gap","Output":"=== RUN   TestAllpaths/Two_Paths_-_Two_Splits_With_Gap\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.699606084+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Two_Paths_-_Two_Splits_With_Gap","Output":"--- PASS: TestAllpaths/Two_Paths_-_Two_Splits_With_Gap (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.699608177+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/Two_Paths_-_Two_Splits_With_Gap","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.699611563+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/non-regression_test_for_#74842"}
+{"Time":"2026-11-17T00:14:17.699613075+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/non-regression_test_for_#74842","Output":"=== RUN   TestAllpaths/non-regression_test_for_#74842\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.699627456+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/non-regression_test_for_#74842","Output":"--- PASS: TestAllpaths/non-regression_test_for_#74842 (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.69962979+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/non-regression_test_for_#74842","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.699631642+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/regression_test_for_#74842"}
+{"Time":"2026-11-17T00:14:17.699633315+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/regression_test_for_#74842","Output":"=== RUN   TestAllpaths/regression_test_for_#74842\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.699659053+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/regression_test_for_#74842","Output":"--- PASS: TestAllpaths/regression_test_for_#74842 (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.699661116+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/regression_test_for_#74842","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.699662869+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/another_regression_test_for_#74842"}
+{"Time":"2026-11-17T00:14:17.699664521+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/another_regression_test_for_#74842","Output":"=== RUN   TestAllpaths/another_regression_test_for_#74842\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.699667285+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/another_regression_test_for_#74842","Output":"--- PASS: TestAllpaths/another_regression_test_for_#74842 (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.699669078+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths/another_regression_test_for_#74842","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.699671041+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths","Output":"--- PASS: TestAllpaths (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.69969071+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestAllpaths","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.699692933+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestSomepath"}
+{"Time":"2026-11-17T00:14:17.699694566+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestSomepath","Output":"=== RUN   TestSomepath\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.699768215+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestSomepath/Basic"}
+{"Time":"2026-11-17T00:14:17.699770639+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestSomepath/Basic","Output":"=== RUN   TestSomepath/Basic\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.699823858+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestSomepath/Basic","Output":"--- PASS: TestSomepath/Basic (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.699938929+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestSomepath/Basic","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.699972209+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestSomepath/Basic_With_Cycle"}
+{"Time":"2026-11-17T00:14:17.699974081+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestSomepath/Basic_With_Cycle","Output":"=== RUN   TestSomepath/Basic_With_Cycle\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.699991928+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestSomepath/Basic_With_Cycle","Output":"--- PASS: TestSomepath/Basic_With_Cycle (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.699993951+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestSomepath/Basic_With_Cycle","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.700012338+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestSomepath/Two_Paths"}
+{"Time":"2026-11-17T00:14:17.700028122+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestSomepath/Two_Paths","Output":"=== RUN   TestSomepath/Two_Paths\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.700032198+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestSomepath/Two_Paths","Output":"--- PASS: TestSomepath/Two_Paths (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.700034241+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestSomepath/Two_Paths","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.700035943+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestSomepath/Printed_path_is_minimal"}
+{"Time":"2026-11-17T00:14:17.700037526+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestSomepath/Printed_path_is_minimal","Output":"=== RUN   TestSomepath/Printed_path_is_minimal\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.700039919+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestSomepath/Printed_path_is_minimal","Output":"--- PASS: TestSomepath/Printed_path_is_minimal (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.700041832+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestSomepath/Printed_path_is_minimal","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.700043965+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestSomepath","Output":"--- PASS: TestSomepath (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.700046078+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestSomepath","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.700048332+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestSplit"}
+{"Time":"2026-11-17T00:14:17.700050375+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestSplit","Output":"=== RUN   TestSplit\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.700053479+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestSplit","Output":"--- PASS: TestSplit (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.700055593+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestSplit","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.700057576+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestQuotedLength"}
+{"Time":"2026-11-17T00:14:17.700059589+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestQuotedLength","Output":"=== RUN   TestQuotedLength\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.700061952+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestQuotedLength","Output":"--- PASS: TestQuotedLength (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.700064666+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestQuotedLength","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.700066829+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestFocus"}
+{"Time":"2026-11-17T00:14:17.700068352+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestFocus","Output":"=== RUN   TestFocus\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.700070224+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestFocus/Basic"}
+{"Time":"2026-11-17T00:14:17.700072888+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestFocus/Basic","Output":"=== RUN   TestFocus/Basic\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.700075693+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestFocus/Basic","Output":"--- PASS: TestFocus/Basic (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.700077445+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestFocus/Basic","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.700079328+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestFocus/Some_Nodes_Not_Included"}
+{"Time":"2026-11-17T00:14:17.70008092+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestFocus/Some_Nodes_Not_Included","Output":"=== RUN   TestFocus/Some_Nodes_Not_Included\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.700083594+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestFocus/Some_Nodes_Not_Included","Output":"--- PASS: TestFocus/Some_Nodes_Not_Included (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.700085537+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestFocus/Some_Nodes_Not_Included","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.700087851+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestFocus/Cycle_In_Path"}
+{"Time":"2026-11-17T00:14:17.700089353+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestFocus/Cycle_In_Path","Output":"=== RUN   TestFocus/Cycle_In_Path\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.700103874+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestFocus/Cycle_In_Path","Output":"--- PASS: TestFocus/Cycle_In_Path (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.700105917+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestFocus/Cycle_In_Path","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.70010764+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestFocus/Cycle_Out_Of_Path"}
+{"Time":"2026-11-17T00:14:17.700109172+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestFocus/Cycle_Out_Of_Path","Output":"=== RUN   TestFocus/Cycle_Out_Of_Path\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.700112597+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestFocus/Cycle_Out_Of_Path","Output":"--- PASS: TestFocus/Cycle_Out_Of_Path (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.700114951+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestFocus/Cycle_Out_Of_Path","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.700116583+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestFocus/Complex"}
+{"Time":"2026-11-17T00:14:17.700118106+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestFocus/Complex","Output":"=== RUN   TestFocus/Complex\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.700136032+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestFocus/Complex","Output":"--- PASS: TestFocus/Complex (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.700138085+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestFocus/Complex","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.700140279+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestFocus","Output":"--- PASS: TestFocus (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.700142722+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestFocus","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.700144415+09:00","Action":"run","Package":"golang.org/x/tools/cmd/digraph","Test":"TestToDot"}
+{"Time":"2026-11-17T00:14:17.700145977+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestToDot","Output":"=== RUN   TestToDot\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.700177474+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Test":"TestToDot","Output":"--- PASS: TestToDot (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.700180629+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Test":"TestToDot","Elapsed":0}
+{"Time":"2026-11-17T00:14:17.700182682+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Output":"PASS\n","OutputType":"frame"}
+{"Time":"2026-11-17T00:14:17.701105093+09:00","Action":"output","Package":"golang.org/x/tools/cmd/digraph","Output":"ok  \tgolang.org/x/tools/cmd/digraph\t0.004s\n"}
+{"Time":"2026-11-17T00:14:17.70112328+09:00","Action":"pass","Package":"golang.org/x/tools/cmd/digraph","Elapsed":0.005}

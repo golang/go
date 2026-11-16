@@ -56,6 +56,17 @@ func scriptConditions(t *testing.T) map[string]script.Cond {
 		host, _ := config.ArchLevels("native")
 		return host >= level, nil
 	}))
+	add("host-simd", script.OnceCondition("host can execute GOEXPERIMENT=simd output (arm64 always; amd64 needs GOAMD64 v4)", func() (bool, error) {
+		switch runtime.GOARCH {
+		case "arm64":
+			return true, nil // NEON is the arm64 baseline; no host guard needed
+		case "amd64":
+			host, _ := config.ArchLevels("native")
+			return host >= "v4", nil
+		default:
+			return false, nil
+		}
+	}))
 	add("trimpath", script.OnceCondition("test binary was built with -trimpath", isTrimpath))
 	add("default-cgo", lazyBool("when CGO_ENABLED=1|0 was set in make.bash", defaultCgo))
 	add("wasmfx", script.OnceCondition("node runs WebAssembly stack switching (cont.new/resume)", hasWasmFx))

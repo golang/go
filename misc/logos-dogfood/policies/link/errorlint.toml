@@ -1,0 +1,6 @@
+[capabilities]
+transitive_unsafe_allowlist = ["golang.org/x/tools/internal/event/label"]
+transitive_exec_allowlist = [
+  "golang.org/x/tools/go/packages",
+  "golang.org/x/tools/internal/gocommand",
+]

@@ -1,0 +1,59 @@
+# example.com/genericlocal
+<unknown line number>: internal compiler error: unexpected object with 1 implicit type parameter(s)
+
+goroutine 1 [running]:
+runtime/debug.Stack()
+	runtime/debug/stack.go:26 +0x5e
+cmd/compile/internal/base.FatalfAt({0x3378ea80?, 0x2b9d?}, {0x1548a40, 0x34}, {0x2b9d334f5d68, 0x1, 0x1})
+	cmd/compile/internal/base/print.go:236 +0x18b
+cmd/compile/internal/base.Fatalf(...)
+	cmd/compile/internal/base/print.go:201
+cmd/compile/internal/importer.(*pkgReader).objDictIdx(0x2b9d338340e0, 0x2)
+	cmd/compile/internal/importer/ureader.go:548 +0xb1
+cmd/compile/internal/importer.(*pkgReader).objIdx.func1()
+	cmd/compile/internal/importer/ureader.go:421 +0x65
+cmd/compile/internal/types2.resolve.func1()
+	cmd/compile/internal/types2/scope.go:175 +0x39
+sync.(*Once).doSlow(0xffffffffffffffff?, 0x2b9d33528e00?)
+	sync/once.go:78 +0xab
+sync.(*Once).Do(...)
+	sync/once.go:69
+cmd/compile/internal/types2.resolve(...)
+	cmd/compile/internal/types2/scope.go:174
+cmd/compile/internal/types2.(*Scope).Lookup(0x7f53e8e33248?, {0x7f53e8e33248, 0x8})
+	cmd/compile/internal/types2/scope.go:70 +0x98
+cmd/compile/internal/logos.reachableFuncFactObjects(0x2b9d337d6fc0)
+	cmd/compile/internal/logos/optfacts.go:190 +0x2ae
+cmd/compile/internal/logos.ApplyFuncFacts(0x2b9d337d6fc0, {0x2b9d337d6f60, 0x1, 0x2b9d338340e0?})
+	cmd/compile/internal/logos/optfacts.go:82 +0x4e
+cmd/compile/internal/noder.applyLogosReadonlyForGoImporter({0x5?, 0x2b9d334b4641?}, 0x2b9d337d6fc0, 0x7f53e8e331ca?, 0x2b9d335641c0)
+	cmd/compile/internal/noder/logos_import.go:17 +0x3d
+cmd/compile/internal/noder.readImportFileImpl({0x2b9d334b4641?, 0x1?}, 0x2b9d33524240, 0x2b9d334df8c0, 0x2b9d33573a70, 0x0, 0x0)
+	cmd/compile/internal/noder/import_logos.go:214 +0x789
+cmd/compile/internal/noder.logosImportFrom(0x2b9d334bf460, {0x2b9d334b4641, 0x1c})
+	cmd/compile/internal/noder/import_logos.go:104 +0x5e
+cmd/compile/internal/noder.(*gcimports).ImportFrom(0x233e4c0?, {0x2b9d334b4641?, 0x2b9d334b4641?}, {0x1c?, 0x7ffcd2f8d85b?}, 0xffffffffffffffff?)
+	cmd/compile/internal/noder/import.go:40 +0x1d
+cmd/compile/internal/types2.(*Checker).importPackage(0x2b9d337fe008, {0x2b9d33573980, 0x2, 0x8}, {0x2b9d334b4641, 0x1c}, {0x7ffcd2f8d85b, 0x3d})
+	cmd/compile/internal/types2/resolver.go:156 +0x622
+cmd/compile/internal/types2.(*Checker).collectObjects(0x2b9d337fe008)
+	cmd/compile/internal/types2/resolver.go:265 +0x826
+cmd/compile/internal/types2.(*Checker).checkFiles(0x2b9d337fe008, {0x2b9d33484798, 0x1, 0x1})
+	cmd/compile/internal/types2/check.go:479 +0x255
+cmd/compile/internal/types2.(*Checker).Files(0x7ffcd2f8d789?, {0x2b9d33484798?, 0x0?, 0x0?})
+	cmd/compile/internal/types2/check.go:454 +0x75
+cmd/compile/internal/types2.(*Config).Check(0x2b9d33528c80, {0x7ffcd2f8d789?, 0x2b9d33494117?}, {0x2b9d33484798, 0x1, 0x1}, 0x2b9d3355eb40)
+	cmd/compile/internal/types2/api.go:555 +0x19d
+cmd/compile/internal/noder.checkFiles({0x0, {0x0, 0x0}}, {0x2b9d33484780, 0x1, 0x1})
+	cmd/compile/internal/noder/irgen.go:124 +0x84a
+cmd/compile/internal/noder.writePkgStub({0x0?, {0x0?, 0x0?}}, {0x2b9d33484780, 0x1, 0x1})
+	cmd/compile/internal/noder/unified.go:322 +0x6a
+cmd/compile/internal/noder.unified({0x0?, {0x0?, 0x0?}}, {0x2b9d33484780?, 0x20df908?, 0x2354838?})
+	cmd/compile/internal/noder/unified.go:198 +0xb6
+cmd/compile/internal/noder.LoadPackage({0x2b9d334a4260, 0x1, 0x2})
+	cmd/compile/internal/noder/noder.go:78 +0x546
+cmd/compile/internal/gc.Main(0x2272f28)
+	cmd/compile/internal/gc/main.go:225 +0xd1d
+main.main()
+	cmd/compile/main.go:57 +0x105
+

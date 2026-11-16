@@ -1,0 +1,9 @@
+{"Time":"2026-11-16T23:14:06.772427797+09:00","Action":"start","Package":"modernc.org/sqlite"}
+{"Time":"2026-11-16T23:14:06.782345141+09:00","Action":"output","Package":"modernc.org/sqlite","Output":"test binary compiled for linux/amd64\n"}
+{"Time":"2026-11-16T23:14:06.782583105+09:00","Action":"run","Package":"modernc.org/sqlite","Test":"TestMutexWakeOnce"}
+{"Time":"2026-11-16T23:14:06.782588132+09:00","Action":"output","Package":"modernc.org/sqlite","Test":"TestMutexWakeOnce","Output":"=== RUN   TestMutexWakeOnce\n","OutputType":"frame"}
+{"Time":"2026-11-16T23:14:06.792872832+09:00","Action":"output","Package":"modernc.org/sqlite","Test":"TestMutexWakeOnce","Output":"--- PASS: TestMutexWakeOnce (0.01s)\n","OutputType":"frame"}
+{"Time":"2026-11-16T23:14:06.79289825+09:00","Action":"pass","Package":"modernc.org/sqlite","Test":"TestMutexWakeOnce","Elapsed":0.01}
+{"Time":"2026-11-16T23:14:06.79291867+09:00","Action":"output","Package":"modernc.org/sqlite","Output":"PASS\n","OutputType":"frame"}
+{"Time":"2026-11-16T23:14:06.793273654+09:00","Action":"output","Package":"modernc.org/sqlite","Output":"ok  \tmodernc.org/sqlite\t0.014s\n"}
+{"Time":"2026-11-16T23:14:06.793290799+09:00","Action":"pass","Package":"modernc.org/sqlite","Elapsed":0.021}

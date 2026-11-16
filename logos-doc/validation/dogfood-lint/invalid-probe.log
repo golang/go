@@ -1,0 +1,4 @@
+# cmd/compile/internal/types2
+../logs/panic-mutant.go:454:6: declared and not used: call
+FAIL	cmd/compile/internal/logos/lint [build failed]
+FAIL

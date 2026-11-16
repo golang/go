@@ -1,0 +1,8 @@
+{
+  "observed_at": "2026-11-16T14:59:08.311461+00:00",
+  "successful_dist_banner": true,
+  "bootstrap_dist_removed": true,
+  "build_log": "/workspace/scratch/93e0563596d1/logs/logos-build-import-scope-serial.log",
+  "shell_exit_status": "not recovered after session compaction",
+  "compiler_source_revision": "39c62004a991501a25f93eae7a63dc7c7fac5646"
+}

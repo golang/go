@@ -1,0 +1,55 @@
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"# modernc.org/sqlite\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"ERROR [capabilities::unauthorized_unsafe]: Transitive dependency 'github.com/remyoudompheng/bigfft' imports 'unsafe'\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"  --\u003e Import chain (cmd/go capabilities audit):\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"   1. modernc.org/sqlite/lib\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"   2.   -\u003e modernc.org/libc\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"   3.   -\u003e modernc.org/mathutil\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"   4.   -\u003e github.com/remyoudompheng/bigfft\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"   5.   -\u003e unsafe\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":" = Help: Remove the dependency or explicitly authorize \"github.com/remyoudompheng/bigfft/**\" under 'transitive_unsafe_allowlist' in logos.toml.\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"ERROR [capabilities::unauthorized_unsafe]: Transitive dependency 'golang.org/x/sys/unix' imports 'unsafe'\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"  --\u003e Import chain (cmd/go capabilities audit):\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"   1. modernc.org/sqlite\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"   2.   -\u003e golang.org/x/sys/unix\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"   3.   -\u003e unsafe\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":" = Help: Remove the dependency or explicitly authorize \"golang.org/x/sys/unix/**\" under 'transitive_unsafe_allowlist' in logos.toml.\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"ERROR [capabilities::unclassified_assembly]: Transitive dependency 'golang.org/x/sys/unix' holds assembly files\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"  --\u003e Import chain (cmd/go capabilities audit):\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"   1. modernc.org/sqlite\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"   2.   -\u003e golang.org/x/sys/unix\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":" = Help: Remove the dependency or explicitly authorize \"golang.org/x/sys/unix/**\" under 'transitive_unsafe_allowlist' in logos.toml.\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"ERROR [capabilities::unauthorized_unsafe]: Transitive dependency 'modernc.org/libc' imports 'unsafe'\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"  --\u003e Import chain (cmd/go capabilities audit):\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"   1. modernc.org/sqlite/lib\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"   2.   -\u003e modernc.org/libc\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"   3.   -\u003e unsafe\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":" = Help: Remove the dependency or explicitly authorize \"modernc.org/libc/**\" under 'transitive_unsafe_allowlist' in logos.toml.\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"ERROR [capabilities::unclassified_assembly]: Transitive dependency 'modernc.org/libc' holds assembly files\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"  --\u003e Import chain (cmd/go capabilities audit):\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"   1. modernc.org/sqlite/lib\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"   2.   -\u003e modernc.org/libc\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":" = Help: Remove the dependency or explicitly authorize \"modernc.org/libc/**\" under 'transitive_unsafe_allowlist' in logos.toml.\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"ERROR [capabilities::unauthorized_unsafe]: Transitive dependency 'modernc.org/libc/sys/types' imports 'unsafe'\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"  --\u003e Import chain (cmd/go capabilities audit):\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"   1. modernc.org/sqlite\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"   2.   -\u003e modernc.org/libc/sys/types\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"   3.   -\u003e unsafe\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":" = Help: Remove the dependency or explicitly authorize \"modernc.org/libc/sys/types/**\" under 'transitive_unsafe_allowlist' in logos.toml.\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"ERROR [capabilities::unauthorized_unsafe]: Transitive dependency 'modernc.org/libc/uuid/uuid' imports 'unsafe'\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"  --\u003e Import chain (cmd/go capabilities audit):\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"   1. modernc.org/sqlite/lib\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"   2.   -\u003e modernc.org/libc\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"   3.   -\u003e modernc.org/libc/uuid/uuid\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"   4.   -\u003e unsafe\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":" = Help: Remove the dependency or explicitly authorize \"modernc.org/libc/uuid/uuid/**\" under 'transitive_unsafe_allowlist' in logos.toml.\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"ERROR [capabilities::unauthorized_unsafe]: Transitive dependency 'modernc.org/memory' imports 'unsafe'\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"  --\u003e Import chain (cmd/go capabilities audit):\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"   1. modernc.org/sqlite/lib\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"   2.   -\u003e modernc.org/libc\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"   3.   -\u003e modernc.org/memory\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":"   4.   -\u003e unsafe\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-output","Output":" = Help: Remove the dependency or explicitly authorize \"modernc.org/memory/**\" under 'transitive_unsafe_allowlist' in logos.toml.\n"}
+{"ImportPath":"modernc.org/sqlite","Action":"build-fail"}
+{"Time":"2026-11-16T23:14:08.396637872+09:00","Action":"start","Package":"modernc.org/sqlite"}
+{"Time":"2026-11-16T23:14:08.396738682+09:00","Action":"output","Package":"modernc.org/sqlite","Output":"FAIL\tmodernc.org/sqlite [setup failed]\n","OutputType":"frame"}
+{"Time":"2026-11-16T23:14:08.396756749+09:00","Action":"fail","Package":"modernc.org/sqlite","Elapsed":0,"FailedBuild":"modernc.org/sqlite"}

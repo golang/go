@@ -1,0 +1,5 @@
+bf041b5ba88e5e58dbc4774bb53e6e20da43abec37100107778a179222e0feed  src/cmd/compile/internal/logos/lint/nilflow.go
+cfda9e8d663503b58a5e19de750a9f893afa6ceef661d7cea1c65411768caf99  src/cmd/compile/internal/logos/lint/rule_infinite_recursion.go
+f47bf5a76b1555df605e53becf7fba7750b4a664bc1b992c5af86d83aef08036  src/cmd/compile/internal/logos/lint/rule_unclosed_io_closer.go
+cb56d25a49447469d1ab022cb7f48f1603f685bbb97119309b345b372cdbc1ca  src/cmd/compile/internal/types2/narrow_logos.go
+75ea76f93d132e940f84a4025dedb8479292091bf255a365f1fb51304bf8aefa  src/cmd/compile/internal/types2/builtins.go

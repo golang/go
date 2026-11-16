@@ -1,0 +1,196 @@
+[
+  {
+    "id": "modernc-sqlite",
+    "source_kind": "git",
+    "source": "sqlite",
+    "module": "modernc.org/sqlite",
+    "upstream": "https://gitlab.com/cznic/sqlite.git",
+    "revision": "92d72a45bcb65ab33bbe79c8667f2b8b529ae902",
+    "cohort": "stress",
+    "backend": "modernc",
+    "cgo": 0,
+    "tags": [],
+    "patterns": [
+      "./..."
+    ],
+    "operation": "test",
+    "logos_policy": "policies/modernc-sqlite.toml",
+    "logos_policy_sha256": "5b2a173a8d779e0a92587042884eddaa3a5c30a3ae11a1b913beb53cac4f6c12"
+  },
+  {
+    "id": "errorlint",
+    "source_kind": "git",
+    "source": "errorlint",
+    "module": "codeberg.org/polyfloyd/go-errorlint",
+    "upstream": "https://codeberg.org/polyfloyd/go-errorlint.git",
+    "revision": "7f5db642465f59dc455fe4705b97a8e6484ef81c",
+    "cohort": "reference",
+    "backend": "go-only",
+    "cgo": 0,
+    "tags": [],
+    "patterns": [
+      "./..."
+    ],
+    "operation": "test",
+    "logos_policy": "policies/errorlint.toml",
+    "logos_policy_sha256": "00e6073c0786f26d40db048ac9fb23d51fdd1dd5c8ad2fe92af84c775992f546"
+  },
+  {
+    "id": "govwa",
+    "source_kind": "git",
+    "source": "govwa",
+    "module": "github.com/govwa",
+    "upstream": "https://github.com/0c34/govwa.git",
+    "revision": "4058f79f31eeb4a36d8f1e64bba1f0c899646e6f",
+    "cohort": "stress",
+    "backend": "go-only",
+    "cgo": 0,
+    "tags": [],
+    "patterns": [
+      "./..."
+    ],
+    "operation": "build",
+    "logos_policy": "policies/govwa.toml",
+    "logos_policy_sha256": "7925fa123a4d4c33a6f4ba53c0aae9cc16ff48d4f6a4257e2070c51f8ecb61ee"
+  },
+  {
+    "id": "protobuf",
+    "source_kind": "module",
+    "source": "google.golang.org/protobuf@v1.36.12",
+    "module": "google.golang.org/protobuf",
+    "upstream": "https://go.googlesource.com/protobuf",
+    "revision": "cdd4c5f7406e82462949c7a65defa9f3029c162d",
+    "version": "v1.36.12",
+    "sum": "h1:pJOKDDOyeXErUroCihFAd5LQuwXBSpVnKGrj5o/fwxc=",
+    "cohort": "popular",
+    "backend": "generated",
+    "cgo": 0,
+    "tags": [],
+    "patterns": [
+      "./..."
+    ],
+    "operation": "test",
+    "logos_policy": "policies/protobuf.toml",
+    "logos_policy_sha256": "08520830ccc3fa8176065c680298f53fd3b3a2764da883b58c7498c4ab3b553b"
+  },
+  {
+    "id": "tools",
+    "source_kind": "module",
+    "source": "golang.org/x/tools@v0.52.0",
+    "module": "golang.org/x/tools",
+    "upstream": "https://go.googlesource.com/tools",
+    "revision": "16517d951552611e7bd358c48ee1051fd0e57b0c",
+    "version": "v0.52.0",
+    "sum": "h1:ryxg4U63oaUYk7uOLTF37n43f4qgtGvqV4Ioit1BaEs=",
+    "cohort": "reference",
+    "backend": "go-only",
+    "cgo": 0,
+    "tags": [],
+    "patterns": [
+      "./..."
+    ],
+    "operation": "test",
+    "logos_policy": "policies/tools.toml",
+    "logos_policy_sha256": "005ba0707611025ef364004190601f0f103ab28ab97da9a6acd81e034d7f4d3f"
+  },
+  {
+    "id": "decorder",
+    "source_kind": "module",
+    "source": "gitlab.com/bosi/decorder@v0.4.2",
+    "module": "gitlab.com/bosi/decorder",
+    "upstream": "https://gitlab.com/bosi/decorder.git",
+    "revision": "1590c2504b32b4e93de792936d91cfca4308cf53",
+    "version": "v0.4.2",
+    "sum": "h1:qbQaV3zgwnBZ4zPMhGLW4KZe7A7NwxEhJx39R3shffo=",
+    "cohort": "reference",
+    "backend": "go-only",
+    "cgo": 0,
+    "tags": [],
+    "patterns": [
+      "./..."
+    ],
+    "operation": "test",
+    "logos_policy": "policies/decorder.toml",
+    "logos_policy_sha256": "d74aaa2d019c03e3cb01a7c07059c023d5a1889d5061cb6550ea7dbfe7059615"
+  },
+  {
+    "id": "modernc-libc",
+    "source_kind": "module",
+    "source": "modernc.org/libc@v1.80.1",
+    "module": "modernc.org/libc",
+    "upstream": "https://gitlab.com/cznic/libc",
+    "revision": "612e8b0f2f1b1923d5c24c08bc233722500499cd",
+    "version": "v1.80.1",
+    "sum": "h1:ejn7HtTV3GknNKbklqWQ1nvUrfX8mTxs1D+xp/JQwy4=",
+    "cohort": "stress",
+    "backend": "modernc",
+    "cgo": 0,
+    "tags": [],
+    "patterns": [
+      "./..."
+    ],
+    "operation": "test",
+    "logos_policy": "policies/modernc-libc.toml",
+    "logos_policy_sha256": "3660466661fe2a16701757b863b9192a138486400e19aa75e875d28bc58c4e0f"
+  },
+  {
+    "id": "modernc-memory",
+    "source_kind": "module",
+    "source": "modernc.org/memory@v1.12.1",
+    "module": "modernc.org/memory",
+    "upstream": "https://gitlab.com/cznic/memory",
+    "revision": "bb3d99379ed7361ae4c08f11c2876aef046c2a18",
+    "version": "v1.12.1",
+    "sum": "h1:nFMiWrpStgZczNl6XI9GnIk/rWhYIyHGUaR04pGbp9g=",
+    "cohort": "stress",
+    "backend": "modernc",
+    "cgo": 0,
+    "tags": [],
+    "patterns": [
+      "./..."
+    ],
+    "operation": "test",
+    "logos_policy": "policies/modernc-memory.toml",
+    "logos_policy_sha256": "2766ad291de09b2f7c693d249e01cbd34d6dfd3b2b0b0108dae07ff1764e611e"
+  },
+  {
+    "id": "modernc-mathutil",
+    "source_kind": "module",
+    "source": "modernc.org/mathutil@v1.7.1",
+    "module": "modernc.org/mathutil",
+    "upstream": "https://gitlab.com/cznic/mathutil",
+    "revision": "28129eec384c30a304561c3c8779e4bb29cbff12",
+    "version": "v1.7.1",
+    "sum": "h1:GCZVGXdaN8gTqB1Mf/usp1Y/hSqgI2vAGGP4jZMCxOU=",
+    "cohort": "reference",
+    "backend": "modernc",
+    "cgo": 0,
+    "tags": [],
+    "patterns": [
+      "./..."
+    ],
+    "operation": "test",
+    "logos_policy": "policies/modernc-mathutil.toml",
+    "logos_policy_sha256": "4231cd616071c45cd690e8abb840cb49e60a025f92c9f37a3f2f83d3b2466db5"
+  },
+  {
+    "id": "exhaustive",
+    "source_kind": "module",
+    "source": "github.com/nishanths/exhaustive@v0.17.1",
+    "module": "github.com/nishanths/exhaustive",
+    "upstream": "https://github.com/nishanths/exhaustive",
+    "revision": "9893aa2cdb3fc60cc79ff6fabeafd8f218790145",
+    "version": "v0.17.1",
+    "sum": "h1:zlwR7GV/UqKrm3AJdeXqldUTSsbyfdqS8f/m0oMYLD0=",
+    "cohort": "reference",
+    "backend": "go-only",
+    "cgo": 0,
+    "tags": [],
+    "patterns": [
+      "./..."
+    ],
+    "operation": "test",
+    "logos_policy": "policies/exhaustive.toml",
+    "logos_policy_sha256": "00e6073c0786f26d40db048ac9fb23d51fdd1dd5c8ad2fe92af84c775992f546"
+  }
+]

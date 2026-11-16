@@ -1,0 +1,5 @@
+[capabilities]
+transitive_unsafe_allowlist = [
+  "github.com/google/go-cmp/cmp",
+  "github.com/google/go-cmp/cmp/internal/value",
+]

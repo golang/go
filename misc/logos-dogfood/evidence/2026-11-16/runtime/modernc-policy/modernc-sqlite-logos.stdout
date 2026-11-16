@@ -1,0 +1,5 @@
+{"ImportPath":"modernc.org/sqlite/lib","Action":"build-output","Output":"modernc.org/sqlite/lib: /workspace/scratch/93e0563596d1/LoGOs/pkg/tool/linux_amd64/compile: signal: killed\n"}
+{"ImportPath":"modernc.org/sqlite/lib","Action":"build-fail"}
+{"Time":"2026-11-16T23:17:29.025617549+09:00","Action":"start","Package":"modernc.org/sqlite"}
+{"Time":"2026-11-16T23:17:29.025969422+09:00","Action":"output","Package":"modernc.org/sqlite","Output":"FAIL\tmodernc.org/sqlite [build failed]\n","OutputType":"frame"}
+{"Time":"2026-11-16T23:17:29.026041479+09:00","Action":"fail","Package":"modernc.org/sqlite","Elapsed":0,"FailedBuild":"modernc.org/sqlite/lib"}

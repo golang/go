@@ -1,0 +1,710 @@
+{
+  "complete": true,
+  "part": "sqlite",
+  "replay_sha256": "96417debd3a692b0af85723d4d55a5f3e9273088f50b4b9ac84214d0b028930e",
+  "rows": [
+    {
+      "assessment": {
+        "diagnostics": 0,
+        "duplicate_diagnostics": 0,
+        "normalized_sha256": "",
+        "reason": "",
+        "status": "pass"
+      },
+      "case": {
+        "backend": "cgo",
+        "cgo": 1,
+        "cohort": "popular",
+        "id": "sqlite3-cgo",
+        "module": "github.com/mattn/go-sqlite3",
+        "operation": "test",
+        "patterns": [
+          "./..."
+        ],
+        "revision": "4cddc794daa0340d50de741dae025421bbdbba0c",
+        "source": "sqlite3",
+        "source_kind": "git",
+        "sum": "",
+        "tags": [],
+        "upstream": "https://github.com/mattn/go-sqlite3.git",
+        "version": ""
+      },
+      "events": {
+        "exact_match": true,
+        "expected": [
+          "TestOpen",
+          "TestClose",
+          "TestInsert"
+        ],
+        "failed_or_skipped": [],
+        "passed": [
+          "TestClose",
+          "TestInsert",
+          "TestOpen"
+        ],
+        "started": [
+          "TestClose",
+          "TestInsert",
+          "TestOpen"
+        ]
+      },
+      "label": "sqlite3-cgo-oracle",
+      "run": {
+        "command": [
+          "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4/bin/go",
+          "test",
+          "-json",
+          "-count=1",
+          "-short",
+          "-timeout=60s",
+          "-run",
+          "^(TestOpen|TestClose|TestInsert)$",
+          "."
+        ],
+        "cwd": "/dev/shm/logos-dogfood-93e0563596d1/runtime-sqlite-final/work",
+        "environment": {
+          "CC": "/usr/bin/cc",
+          "CGO_ENABLED": "1",
+          "CXX": "/usr/bin/c++",
+          "GOCACHE": "/workspace/scratch/93e0563596d1/corpus-cache/oracle",
+          "GOENV": "off",
+          "GOFLAGS": "-mod=readonly -buildvcs=false -p=1",
+          "GOMAXPROCS": "1",
+          "GOMEMLIMIT": "512MiB",
+          "GOMODCACHE": "/home/agent/go/pkg/mod",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOTELEMETRY": "off",
+          "GOTOOLCHAIN": "local",
+          "GOWORK": "off",
+          "PATH": "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+          "TMPDIR": "/dev/shm/logos-dogfood-93e0563596d1"
+        },
+        "error": "",
+        "returncode": 0,
+        "seconds": 39.144,
+        "stderr": "/dev/shm/logos-dogfood-93e0563596d1/runtime-sqlite-final/sqlite3-cgo-oracle.stderr",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout": "/dev/shm/logos-dogfood-93e0563596d1/runtime-sqlite-final/sqlite3-cgo-oracle.stdout",
+        "stdout_sha256": "4063e65ba3b968c3fe4be55504c5fe1e48ca8b8a1b7778b028467b5f14a0b339",
+        "timed_out": false
+      },
+      "source_digest": "h1:vHoDGb3ogfiKdLovN6wJYvVlVfZjncMNfPyueSKXIKU=",
+      "status": "pass"
+    },
+    {
+      "assessment": {
+        "diagnostics": 0,
+        "duplicate_diagnostics": 0,
+        "normalized_sha256": "",
+        "reason": "",
+        "status": "pass"
+      },
+      "case": {
+        "backend": "cgo",
+        "cgo": 1,
+        "cohort": "popular",
+        "id": "sqlite3-cgo",
+        "module": "github.com/mattn/go-sqlite3",
+        "operation": "test",
+        "patterns": [
+          "./..."
+        ],
+        "revision": "4cddc794daa0340d50de741dae025421bbdbba0c",
+        "source": "sqlite3",
+        "source_kind": "git",
+        "sum": "",
+        "tags": [],
+        "upstream": "https://github.com/mattn/go-sqlite3.git",
+        "version": ""
+      },
+      "events": {
+        "exact_match": true,
+        "expected": [
+          "TestOpen",
+          "TestClose",
+          "TestInsert"
+        ],
+        "failed_or_skipped": [],
+        "passed": [
+          "TestClose",
+          "TestInsert",
+          "TestOpen"
+        ],
+        "started": [
+          "TestClose",
+          "TestInsert",
+          "TestOpen"
+        ]
+      },
+      "label": "sqlite3-cgo-go",
+      "run": {
+        "command": [
+          "/workspace/scratch/93e0563596d1/LoGOs/bin/go",
+          "test",
+          "-json",
+          "-count=1",
+          "-short",
+          "-timeout=60s",
+          "-run",
+          "^(TestOpen|TestClose|TestInsert)$",
+          "."
+        ],
+        "cwd": "/dev/shm/logos-dogfood-93e0563596d1/runtime-sqlite-final/work",
+        "environment": {
+          "CC": "/usr/bin/cc",
+          "CGO_ENABLED": "1",
+          "CXX": "/usr/bin/c++",
+          "GOCACHE": "/workspace/scratch/93e0563596d1/corpus-cache/go",
+          "GOENV": "off",
+          "GOFLAGS": "-mod=readonly -buildvcs=false -p=1",
+          "GOMAXPROCS": "1",
+          "GOMEMLIMIT": "512MiB",
+          "GOMODCACHE": "/home/agent/go/pkg/mod",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOTELEMETRY": "off",
+          "GOTOOLCHAIN": "local",
+          "GOWORK": "off",
+          "PATH": "/workspace/scratch/93e0563596d1/LoGOs/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+          "TMPDIR": "/dev/shm/logos-dogfood-93e0563596d1"
+        },
+        "error": "",
+        "returncode": 0,
+        "seconds": 40.307,
+        "stderr": "/dev/shm/logos-dogfood-93e0563596d1/runtime-sqlite-final/sqlite3-cgo-go.stderr",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout": "/dev/shm/logos-dogfood-93e0563596d1/runtime-sqlite-final/sqlite3-cgo-go.stdout",
+        "stdout_sha256": "82bc7e4699546e46711a92c680e9bdd1139da04e51fa97c63f3c3b844a054b79",
+        "timed_out": false
+      },
+      "source_digest": "h1:vHoDGb3ogfiKdLovN6wJYvVlVfZjncMNfPyueSKXIKU=",
+      "status": "pass"
+    },
+    {
+      "assessment": {
+        "diagnostics": 0,
+        "duplicate_diagnostics": 0,
+        "normalized_sha256": "",
+        "reason": "",
+        "status": "pass"
+      },
+      "case": {
+        "backend": "cgo",
+        "cgo": 1,
+        "cohort": "popular",
+        "id": "sqlite3-cgo",
+        "module": "github.com/mattn/go-sqlite3",
+        "operation": "test",
+        "patterns": [
+          "./..."
+        ],
+        "revision": "4cddc794daa0340d50de741dae025421bbdbba0c",
+        "source": "sqlite3",
+        "source_kind": "git",
+        "sum": "",
+        "tags": [],
+        "upstream": "https://github.com/mattn/go-sqlite3.git",
+        "version": ""
+      },
+      "events": {
+        "exact_match": true,
+        "expected": [
+          "TestOpen",
+          "TestClose",
+          "TestInsert"
+        ],
+        "failed_or_skipped": [],
+        "passed": [
+          "TestClose",
+          "TestInsert",
+          "TestOpen"
+        ],
+        "started": [
+          "TestClose",
+          "TestInsert",
+          "TestOpen"
+        ]
+      },
+      "label": "sqlite3-cgo-logos",
+      "run": {
+        "command": [
+          "/workspace/scratch/93e0563596d1/LoGOs/bin/logos",
+          "test",
+          "-json",
+          "-count=1",
+          "-short",
+          "-timeout=60s",
+          "-run",
+          "^(TestOpen|TestClose|TestInsert)$",
+          "."
+        ],
+        "cwd": "/dev/shm/logos-dogfood-93e0563596d1/runtime-sqlite-final/work",
+        "environment": {
+          "CC": "/usr/bin/cc",
+          "CGO_ENABLED": "1",
+          "CXX": "/usr/bin/c++",
+          "GOCACHE": "/workspace/scratch/93e0563596d1/corpus-cache/logos",
+          "GOENV": "off",
+          "GOFLAGS": "-mod=readonly -buildvcs=false -p=1",
+          "GOMAXPROCS": "1",
+          "GOMEMLIMIT": "512MiB",
+          "GOMODCACHE": "/home/agent/go/pkg/mod",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOTELEMETRY": "off",
+          "GOTOOLCHAIN": "local",
+          "GOWORK": "off",
+          "PATH": "/workspace/scratch/93e0563596d1/LoGOs/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+          "TMPDIR": "/dev/shm/logos-dogfood-93e0563596d1"
+        },
+        "error": "",
+        "returncode": 0,
+        "seconds": 40.982,
+        "stderr": "/dev/shm/logos-dogfood-93e0563596d1/runtime-sqlite-final/sqlite3-cgo-logos.stderr",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout": "/dev/shm/logos-dogfood-93e0563596d1/runtime-sqlite-final/sqlite3-cgo-logos.stdout",
+        "stdout_sha256": "d22326c5d3918bec0b6e24c0a1821989249930d4fa3988b82b0818a8ae9cdd3d",
+        "timed_out": false
+      },
+      "source_digest": "h1:vHoDGb3ogfiKdLovN6wJYvVlVfZjncMNfPyueSKXIKU=",
+      "status": "pass"
+    },
+    {
+      "assessment": {
+        "diagnostics": 0,
+        "duplicate_diagnostics": 0,
+        "normalized_sha256": "",
+        "reason": "",
+        "status": "pass"
+      },
+      "case": {
+        "backend": "modernc",
+        "cgo": 0,
+        "cohort": "stress",
+        "id": "modernc-sqlite",
+        "module": "modernc.org/sqlite",
+        "operation": "test",
+        "patterns": [
+          "./..."
+        ],
+        "revision": "92d72a45bcb65ab33bbe79c8667f2b8b529ae902",
+        "source": "sqlite",
+        "source_kind": "git",
+        "sum": "",
+        "tags": [],
+        "upstream": "https://gitlab.com/cznic/sqlite.git",
+        "version": ""
+      },
+      "events": {
+        "exact_match": true,
+        "expected": [
+          "TestMutexWakeOnce"
+        ],
+        "failed_or_skipped": [],
+        "passed": [
+          "TestMutexWakeOnce"
+        ],
+        "started": [
+          "TestMutexWakeOnce"
+        ]
+      },
+      "label": "modernc-sqlite-oracle",
+      "run": {
+        "command": [
+          "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4/bin/go",
+          "test",
+          "-json",
+          "-count=1",
+          "-short",
+          "-timeout=60s",
+          "-run",
+          "^(TestMutexWakeOnce)$",
+          "."
+        ],
+        "cwd": "/dev/shm/logos-dogfood-93e0563596d1/runtime-sqlite-final/work",
+        "environment": {
+          "CC": "/usr/bin/cc",
+          "CGO_ENABLED": "0",
+          "CXX": "/usr/bin/c++",
+          "GOCACHE": "/workspace/scratch/93e0563596d1/corpus-cache/oracle",
+          "GOENV": "off",
+          "GOFLAGS": "-mod=readonly -buildvcs=false -p=1",
+          "GOMAXPROCS": "1",
+          "GOMEMLIMIT": "512MiB",
+          "GOMODCACHE": "/home/agent/go/pkg/mod",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOTELEMETRY": "off",
+          "GOTOOLCHAIN": "local",
+          "GOWORK": "off",
+          "PATH": "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+          "TMPDIR": "/dev/shm/logos-dogfood-93e0563596d1"
+        },
+        "error": "",
+        "returncode": 0,
+        "seconds": 32.355,
+        "stderr": "/dev/shm/logos-dogfood-93e0563596d1/runtime-sqlite-final/modernc-sqlite-oracle.stderr",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout": "/dev/shm/logos-dogfood-93e0563596d1/runtime-sqlite-final/modernc-sqlite-oracle.stdout",
+        "stdout_sha256": "75c8447c53a920516f0c3def571f29327e1e1595d9b34755b9e872faa348f940",
+        "timed_out": false
+      },
+      "source_digest": "h1:kXR6Mrpps9PPMVlj/4J0iClILWn2DYqdLESTRmIpk0E=",
+      "status": "pass"
+    },
+    {
+      "assessment": {
+        "diagnostics": 0,
+        "duplicate_diagnostics": 0,
+        "normalized_sha256": "",
+        "reason": "",
+        "status": "pass"
+      },
+      "case": {
+        "backend": "modernc",
+        "cgo": 0,
+        "cohort": "stress",
+        "id": "modernc-sqlite",
+        "module": "modernc.org/sqlite",
+        "operation": "test",
+        "patterns": [
+          "./..."
+        ],
+        "revision": "92d72a45bcb65ab33bbe79c8667f2b8b529ae902",
+        "source": "sqlite",
+        "source_kind": "git",
+        "sum": "",
+        "tags": [],
+        "upstream": "https://gitlab.com/cznic/sqlite.git",
+        "version": ""
+      },
+      "events": {
+        "exact_match": true,
+        "expected": [
+          "TestMutexWakeOnce"
+        ],
+        "failed_or_skipped": [],
+        "passed": [
+          "TestMutexWakeOnce"
+        ],
+        "started": [
+          "TestMutexWakeOnce"
+        ]
+      },
+      "label": "modernc-sqlite-go",
+      "run": {
+        "command": [
+          "/workspace/scratch/93e0563596d1/LoGOs/bin/go",
+          "test",
+          "-json",
+          "-count=1",
+          "-short",
+          "-timeout=60s",
+          "-run",
+          "^(TestMutexWakeOnce)$",
+          "."
+        ],
+        "cwd": "/dev/shm/logos-dogfood-93e0563596d1/runtime-sqlite-final/work",
+        "environment": {
+          "CC": "/usr/bin/cc",
+          "CGO_ENABLED": "0",
+          "CXX": "/usr/bin/c++",
+          "GOCACHE": "/workspace/scratch/93e0563596d1/corpus-cache/go",
+          "GOENV": "off",
+          "GOFLAGS": "-mod=readonly -buildvcs=false -p=1",
+          "GOMAXPROCS": "1",
+          "GOMEMLIMIT": "512MiB",
+          "GOMODCACHE": "/home/agent/go/pkg/mod",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOTELEMETRY": "off",
+          "GOTOOLCHAIN": "local",
+          "GOWORK": "off",
+          "PATH": "/workspace/scratch/93e0563596d1/LoGOs/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+          "TMPDIR": "/dev/shm/logos-dogfood-93e0563596d1"
+        },
+        "error": "",
+        "returncode": 0,
+        "seconds": 62.314,
+        "stderr": "/dev/shm/logos-dogfood-93e0563596d1/runtime-sqlite-final/modernc-sqlite-go.stderr",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout": "/dev/shm/logos-dogfood-93e0563596d1/runtime-sqlite-final/modernc-sqlite-go.stdout",
+        "stdout_sha256": "dcede200dd5bc6ba975241b4bc87b095fc53c9a3ef8283e8818f3a593e8d4565",
+        "timed_out": false
+      },
+      "source_digest": "h1:kXR6Mrpps9PPMVlj/4J0iClILWn2DYqdLESTRmIpk0E=",
+      "status": "pass"
+    },
+    {
+      "assessment": {
+        "diagnostics": 0,
+        "duplicate_diagnostics": 0,
+        "normalized_sha256": "",
+        "reason": "",
+        "status": "candidate-failed"
+      },
+      "case": {
+        "backend": "modernc",
+        "cgo": 0,
+        "cohort": "stress",
+        "id": "modernc-sqlite",
+        "module": "modernc.org/sqlite",
+        "operation": "test",
+        "patterns": [
+          "./..."
+        ],
+        "revision": "92d72a45bcb65ab33bbe79c8667f2b8b529ae902",
+        "source": "sqlite",
+        "source_kind": "git",
+        "sum": "",
+        "tags": [],
+        "upstream": "https://gitlab.com/cznic/sqlite.git",
+        "version": ""
+      },
+      "events": {
+        "exact_match": false,
+        "expected": [
+          "TestMutexWakeOnce"
+        ],
+        "failed_or_skipped": [],
+        "passed": [],
+        "started": []
+      },
+      "label": "modernc-sqlite-logos",
+      "run": {
+        "command": [
+          "/workspace/scratch/93e0563596d1/LoGOs/bin/logos",
+          "test",
+          "-json",
+          "-count=1",
+          "-short",
+          "-timeout=60s",
+          "-run",
+          "^(TestMutexWakeOnce)$",
+          "."
+        ],
+        "cwd": "/dev/shm/logos-dogfood-93e0563596d1/runtime-sqlite-final/work",
+        "environment": {
+          "CC": "/usr/bin/cc",
+          "CGO_ENABLED": "0",
+          "CXX": "/usr/bin/c++",
+          "GOCACHE": "/workspace/scratch/93e0563596d1/corpus-cache/logos",
+          "GOENV": "off",
+          "GOFLAGS": "-mod=readonly -buildvcs=false -p=1",
+          "GOMAXPROCS": "1",
+          "GOMEMLIMIT": "512MiB",
+          "GOMODCACHE": "/home/agent/go/pkg/mod",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOTELEMETRY": "off",
+          "GOTOOLCHAIN": "local",
+          "GOWORK": "off",
+          "PATH": "/workspace/scratch/93e0563596d1/LoGOs/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+          "TMPDIR": "/dev/shm/logos-dogfood-93e0563596d1"
+        },
+        "error": "",
+        "returncode": 1,
+        "seconds": 0.641,
+        "stderr": "/dev/shm/logos-dogfood-93e0563596d1/runtime-sqlite-final/modernc-sqlite-logos.stderr",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout": "/dev/shm/logos-dogfood-93e0563596d1/runtime-sqlite-final/modernc-sqlite-logos.stdout",
+        "stdout_sha256": "0fb30ed2b04244931ef5d6e66e38d58d6de4264b5fe86b5953cec6317f0dc028",
+        "timed_out": false
+      },
+      "source_digest": "h1:kXR6Mrpps9PPMVlj/4J0iClILWn2DYqdLESTRmIpk0E=",
+      "status": "candidate-failed"
+    }
+  ],
+  "runner_sha256": "7afff15634011216ed55ac5d632ab9d1a80d133c6eb3d3e0233b471dd7947eb1",
+  "source_revision": "67da0059b5b0579224c95441a740156ec842e41c",
+  "tools": {
+    "go": {
+      "identity": {
+        "compiler_source_h1": "h1:tbzm3kxYphDinWJtSi++w2s/e63o9EJIJGOHj3GByXE=",
+        "goroot": "/workspace/scratch/93e0563596d1/LoGOs",
+        "run": {
+          "command": [
+            "/workspace/scratch/93e0563596d1/LoGOs/bin/go",
+            "env",
+            "-json",
+            "GOROOT",
+            "GOTOOLDIR"
+          ],
+          "cwd": "/workspace/scratch/93e0563596d1/LoGOs/misc/logos-dogfood",
+          "environment": {
+            "CC": "/usr/bin/cc",
+            "CGO_ENABLED": "0",
+            "CXX": "/usr/bin/c++",
+            "GOCACHE": "/workspace/scratch/93e0563596d1/corpus-cache/go",
+            "GOENV": "off",
+            "GOFLAGS": "-mod=readonly -buildvcs=false -p=1",
+            "GOMAXPROCS": "1",
+            "GOMEMLIMIT": "512MiB",
+            "GOMODCACHE": "/home/agent/go/pkg/mod",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOTELEMETRY": "off",
+            "GOTOOLCHAIN": "local",
+            "GOWORK": "off",
+            "PATH": "/workspace/scratch/93e0563596d1/LoGOs/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+            "TMPDIR": "/dev/shm/logos-dogfood-93e0563596d1"
+          },
+          "error": "",
+          "returncode": 0,
+          "seconds": 0.008,
+          "stderr": "/dev/shm/logos-dogfood-93e0563596d1/runtime-sqlite-final/tools/go.stderr",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout": "/dev/shm/logos-dogfood-93e0563596d1/runtime-sqlite-final/tools/go.stdout",
+          "stdout_sha256": "00e9ec557a806b8e24f4f88d6eb40614073f2b265f5a8db2af53233b3455e915",
+          "timed_out": false
+        },
+        "source_revision": "67da0059b5b0579224c95441a740156ec842e41c",
+        "source_status": "M src/cmd/go/testdata/script/README",
+        "tools": {
+          "asm": {
+            "path": "/workspace/scratch/93e0563596d1/LoGOs/pkg/tool/linux_amd64/asm",
+            "sha256": "bc86977331af77841a2d5c85f23212558233f5320e38fe2e3b59325b84faaca9"
+          },
+          "cgo": {
+            "path": "/workspace/scratch/93e0563596d1/LoGOs/pkg/tool/linux_amd64/cgo",
+            "sha256": "cd4545d93e6e5aef271ee79d0cdc12e055f7b272077d6fd926c703ff9a07a754"
+          },
+          "compile": {
+            "path": "/workspace/scratch/93e0563596d1/LoGOs/pkg/tool/linux_amd64/compile",
+            "sha256": "7c519b46141178df983fe62f9bbb7ef794201dba8daf31a676143ed657373f37"
+          },
+          "link": {
+            "path": "/workspace/scratch/93e0563596d1/LoGOs/pkg/tool/linux_amd64/link",
+            "sha256": "b21cda2370df5c9bd00b225ef92a7e88a3b53ba01fb6a19916b85608bd400232"
+          }
+        }
+      },
+      "sha256": "4c016af1e3b0b2df74f0056a878b994cb6194887273982cd9f09606e0923e3a5"
+    },
+    "logos": {
+      "identity": {
+        "compiler_source_h1": "h1:tbzm3kxYphDinWJtSi++w2s/e63o9EJIJGOHj3GByXE=",
+        "goroot": "/workspace/scratch/93e0563596d1/LoGOs",
+        "run": {
+          "command": [
+            "/workspace/scratch/93e0563596d1/LoGOs/bin/logos",
+            "env",
+            "-json",
+            "GOROOT",
+            "GOTOOLDIR"
+          ],
+          "cwd": "/workspace/scratch/93e0563596d1/LoGOs/misc/logos-dogfood",
+          "environment": {
+            "CC": "/usr/bin/cc",
+            "CGO_ENABLED": "0",
+            "CXX": "/usr/bin/c++",
+            "GOCACHE": "/workspace/scratch/93e0563596d1/corpus-cache/logos",
+            "GOENV": "off",
+            "GOFLAGS": "-mod=readonly -buildvcs=false -p=1",
+            "GOMAXPROCS": "1",
+            "GOMEMLIMIT": "512MiB",
+            "GOMODCACHE": "/home/agent/go/pkg/mod",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOTELEMETRY": "off",
+            "GOTOOLCHAIN": "local",
+            "GOWORK": "off",
+            "PATH": "/workspace/scratch/93e0563596d1/LoGOs/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+            "TMPDIR": "/dev/shm/logos-dogfood-93e0563596d1"
+          },
+          "error": "",
+          "returncode": 0,
+          "seconds": 0.008,
+          "stderr": "/dev/shm/logos-dogfood-93e0563596d1/runtime-sqlite-final/tools/logos.stderr",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout": "/dev/shm/logos-dogfood-93e0563596d1/runtime-sqlite-final/tools/logos.stdout",
+          "stdout_sha256": "00e9ec557a806b8e24f4f88d6eb40614073f2b265f5a8db2af53233b3455e915",
+          "timed_out": false
+        },
+        "source_revision": "67da0059b5b0579224c95441a740156ec842e41c",
+        "source_status": "M src/cmd/go/testdata/script/README",
+        "tools": {
+          "asm": {
+            "path": "/workspace/scratch/93e0563596d1/LoGOs/pkg/tool/linux_amd64/asm",
+            "sha256": "bc86977331af77841a2d5c85f23212558233f5320e38fe2e3b59325b84faaca9"
+          },
+          "cgo": {
+            "path": "/workspace/scratch/93e0563596d1/LoGOs/pkg/tool/linux_amd64/cgo",
+            "sha256": "cd4545d93e6e5aef271ee79d0cdc12e055f7b272077d6fd926c703ff9a07a754"
+          },
+          "compile": {
+            "path": "/workspace/scratch/93e0563596d1/LoGOs/pkg/tool/linux_amd64/compile",
+            "sha256": "7c519b46141178df983fe62f9bbb7ef794201dba8daf31a676143ed657373f37"
+          },
+          "link": {
+            "path": "/workspace/scratch/93e0563596d1/LoGOs/pkg/tool/linux_amd64/link",
+            "sha256": "b21cda2370df5c9bd00b225ef92a7e88a3b53ba01fb6a19916b85608bd400232"
+          }
+        }
+      },
+      "sha256": "4c016af1e3b0b2df74f0056a878b994cb6194887273982cd9f09606e0923e3a5"
+    },
+    "oracle": {
+      "identity": {
+        "compiler_source_h1": "h1:E+85JdaKFrFMOOqiy7ZxDTOB3s28bZCsBLRbm1ztpaI=",
+        "goroot": "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4",
+        "run": {
+          "command": [
+            "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4/bin/go",
+            "env",
+            "-json",
+            "GOROOT",
+            "GOTOOLDIR"
+          ],
+          "cwd": "/workspace/scratch/93e0563596d1/LoGOs/misc/logos-dogfood",
+          "environment": {
+            "CC": "/usr/bin/cc",
+            "CGO_ENABLED": "0",
+            "CXX": "/usr/bin/c++",
+            "GOCACHE": "/workspace/scratch/93e0563596d1/corpus-cache/oracle",
+            "GOENV": "off",
+            "GOFLAGS": "-mod=readonly -buildvcs=false -p=1",
+            "GOMAXPROCS": "1",
+            "GOMEMLIMIT": "512MiB",
+            "GOMODCACHE": "/home/agent/go/pkg/mod",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOTELEMETRY": "off",
+            "GOTOOLCHAIN": "local",
+            "GOWORK": "off",
+            "PATH": "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+            "TMPDIR": "/dev/shm/logos-dogfood-93e0563596d1"
+          },
+          "error": "",
+          "returncode": 0,
+          "seconds": 0.004,
+          "stderr": "/dev/shm/logos-dogfood-93e0563596d1/runtime-sqlite-final/tools/oracle.stderr",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout": "/dev/shm/logos-dogfood-93e0563596d1/runtime-sqlite-final/tools/oracle.stdout",
+          "stdout_sha256": "4bbe537d4c6db4936c01d2cc1f774e66f6f20786a8cde4b83b42595a1af4bf16",
+          "timed_out": false
+        },
+        "tools": {
+          "asm": {
+            "path": "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4/pkg/tool/linux_amd64/asm",
+            "sha256": "a67997d99985e3ef3ecd30f029685d67d778a0c8f78b852396ef7738426c04b5"
+          },
+          "cgo": {
+            "path": "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4/pkg/tool/linux_amd64/cgo",
+            "sha256": "0ac696dfbbcdd912cb833d7190c7f91388bac2d89d4dc79c8915a4e43239b675"
+          },
+          "compile": {
+            "path": "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4/pkg/tool/linux_amd64/compile",
+            "sha256": "40307e5f5c65a4b4220bbf35dbe014348780589ea2964003f0bf318fa14640e1"
+          },
+          "link": {
+            "path": "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4/pkg/tool/linux_amd64/link",
+            "sha256": "e2248a29fbbf15dac1fe72c9d646776dbcd38c9813b78182fe01a4a47f3299c3"
+          }
+        }
+      },
+      "sha256": "de0ae3e082ce7599eae4fb69fa2ef1e43b8f31ffd3fce62cdf81930aa9005050"
+    }
+  }
+}

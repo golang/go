@@ -22,7 +22,8 @@ import (
 // are not calls that return an owner. The function closes the variable when a
 // defer statement, or a loGo/s scope defer, calls its Close, either directly,
 // with or without ?, or inside a deferred function literal, or when a
-// non-deferred v.Close() call appears as a statement or a return operand. An
+// non-deferred v.Close() call appears as a statement, a return operand, or a
+// direct assignment or variable-declaration value. An
 // errdefer does not close it: it runs only on failure. The function hands the variable on when
 // the variable appears anywhere except as the receiver of a method call, a
 // field selection, an operand of == or !=, the target of an assignment, or
@@ -302,18 +303,13 @@ func (c *closerScan) mark(n syntax.Node) bool {
 		return false
 	case *syntax.AssignStmt:
 		c.markTargets(n)
+		c.closeValues(n.Rhs)
+	case *syntax.VarDecl:
+		c.closeValues(n.Values)
 	case *syntax.ExprStmt:
-		if call := closerCall(n.X); call != nil {
-			c.closes(call)
-		}
+		c.closeValues(n.X)
 	case *syntax.ReturnStmt:
-		if n.Results != nil {
-			for _, r := range exprList(n.Results) {
-				if call := closerCall(r); call != nil {
-					c.closes(call)
-				}
-			}
-		}
+		c.closeValues(n.Results)
 	case *syntax.CallExpr:
 		c.markReceiver(n)
 	case *syntax.SelectorExpr:
@@ -328,6 +324,20 @@ func (c *closerScan) mark(n syntax.Node) bool {
 		c.deferred(n.Call)
 	}
 	return true
+}
+
+// closeValues recognizes direct calls in value lists. It does not descend
+// into expressions: a call under && or || need not execute, and a function
+// literal's body belongs to a separate invocation.
+func (c *closerScan) closeValues(values syntax.Expr) {
+	if values == nil {
+		return
+	}
+	for _, value := range exprList(values) {
+		if call := closerCall(value); call != nil {
+			c.closes(call)
+		}
+	}
 }
 
 // discard marks the values a blank assignment drops: `_ = r` hands r to

@@ -1,0 +1,10 @@
+{
+  "Replace": {
+    "/workspace/scratch/93e0563596d1/LoGOs/src/cmd/compile/internal/logos/lint/nilflow.go": "/dev/shm/logos-dogfood-93e0563596d1/implicit-type-ice/baseline/src/cmd/compile/internal/logos/lint/nilflow.go",
+    "/workspace/scratch/93e0563596d1/LoGOs/src/cmd/compile/internal/logos/lint/rule_infinite_recursion.go": "/dev/shm/logos-dogfood-93e0563596d1/implicit-type-ice/baseline/src/cmd/compile/internal/logos/lint/rule_infinite_recursion.go",
+    "/workspace/scratch/93e0563596d1/LoGOs/src/cmd/compile/internal/logos/lint/rule_unclosed_io_closer.go": "/dev/shm/logos-dogfood-93e0563596d1/implicit-type-ice/baseline/src/cmd/compile/internal/logos/lint/rule_unclosed_io_closer.go",
+    "/workspace/scratch/93e0563596d1/LoGOs/src/cmd/compile/internal/types2/narrow_logos.go": "/dev/shm/logos-dogfood-93e0563596d1/implicit-type-ice/baseline/src/cmd/compile/internal/types2/narrow_logos.go",
+    "/workspace/scratch/93e0563596d1/LoGOs/src/cmd/compile/internal/types2/builtins.go": "/dev/shm/logos-dogfood-93e0563596d1/implicit-type-ice/baseline/src/cmd/compile/internal/types2/builtins.go",
+    "/workspace/scratch/93e0563596d1/LoGOs/src/cmd/compile/internal/logos/optfacts.go": "/dev/shm/logos-dogfood-93e0563596d1/implicit-type-ice/baseline/src/cmd/compile/internal/logos/optfacts.go"
+  }
+}

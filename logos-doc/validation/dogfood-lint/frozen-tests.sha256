@@ -1,0 +1,4 @@
+d644dc6e48987aca88d331cf4bab32caf2db1b8effed18a1ae5b63246c2fee90  src/cmd/compile/internal/logos/lint/rule_unclosed_io_closer_test.go
+56d61d6c142480a06477ac24ee75da668220670493d52c3b57391f332552e3c6  src/cmd/compile/internal/logos/lint/rule_flow_terminator_test.go
+d8b8697eccb8bf2c68091cd899aa1158b4cdb66f024df0d76be1490cd3b09327  src/cmd/compile/internal/logos/lint/compile_panic_identity_test.go
+6f71b6d0098dd666dc1fd67ad3852a7841e81ff584b963dc69d1d82c1177f362  src/cmd/compile/internal/logos/lint/compile_panic_void_identity_test.go

@@ -1,0 +1,136 @@
+=== RUN   TestCompilePanicNarrowing
+=== RUN   TestCompilePanicNarrowing/builtin
+=== RUN   TestCompilePanicNarrowing/parenthesized_builtin
+=== RUN   TestCompilePanicNarrowing/shadowed_function
+=== RUN   TestCompilePanicNarrowing/shadowed_variable
+=== RUN   TestCompilePanicNarrowing/parenthesized_shadow
+--- PASS: TestCompilePanicNarrowing (0.07s)
+    --- PASS: TestCompilePanicNarrowing/builtin (0.02s)
+    --- PASS: TestCompilePanicNarrowing/parenthesized_builtin (0.02s)
+    --- PASS: TestCompilePanicNarrowing/shadowed_function (0.01s)
+    --- PASS: TestCompilePanicNarrowing/shadowed_variable (0.01s)
+    --- PASS: TestCompilePanicNarrowing/parenthesized_shadow (0.01s)
+=== RUN   TestCompilePanicNarrowingVoid
+=== RUN   TestCompilePanicNarrowingVoid/builtin
+=== RUN   TestCompilePanicNarrowingVoid/parenthesized_builtin
+=== RUN   TestCompilePanicNarrowingVoid/shadowed_function
+=== RUN   TestCompilePanicNarrowingVoid/shadowed_variable
+--- PASS: TestCompilePanicNarrowingVoid (0.17s)
+    --- PASS: TestCompilePanicNarrowingVoid/builtin (0.02s)
+    --- PASS: TestCompilePanicNarrowingVoid/parenthesized_builtin (0.13s)
+    --- PASS: TestCompilePanicNarrowingVoid/shadowed_function (0.01s)
+    --- PASS: TestCompilePanicNarrowingVoid/shadowed_variable (0.01s)
+=== RUN   TestTypedNilReturnPanicIdentity
+=== RUN   TestTypedNilReturnPanicIdentity/builtin
+=== RUN   TestTypedNilReturnPanicIdentity/parenthesized_builtin
+=== RUN   TestTypedNilReturnPanicIdentity/shadowed_function
+=== RUN   TestTypedNilReturnPanicIdentity/shadowed_variable
+=== RUN   TestTypedNilReturnPanicIdentity/parenthesized_shadow
+=== RUN   TestTypedNilReturnPanicIdentity/ordinary_returning_call
+--- PASS: TestTypedNilReturnPanicIdentity (0.00s)
+    --- PASS: TestTypedNilReturnPanicIdentity/builtin (0.00s)
+    --- PASS: TestTypedNilReturnPanicIdentity/parenthesized_builtin (0.00s)
+    --- PASS: TestTypedNilReturnPanicIdentity/shadowed_function (0.00s)
+    --- PASS: TestTypedNilReturnPanicIdentity/shadowed_variable (0.00s)
+    --- PASS: TestTypedNilReturnPanicIdentity/parenthesized_shadow (0.00s)
+    --- PASS: TestTypedNilReturnPanicIdentity/ordinary_returning_call (0.00s)
+=== RUN   TestInfiniteRecursionPanicIdentity
+=== RUN   TestInfiniteRecursionPanicIdentity/x.go/builtin
+=== RUN   TestInfiniteRecursionPanicIdentity/x.go/parenthesized_builtin
+=== RUN   TestInfiniteRecursionPanicIdentity/x.go/shadowed_function
+=== RUN   TestInfiniteRecursionPanicIdentity/x.go/shadowed_variable
+=== RUN   TestInfiniteRecursionPanicIdentity/x.go/parenthesized_shadow
+=== RUN   TestInfiniteRecursionPanicIdentity/x.go/ordinary_returning_call
+=== RUN   TestInfiniteRecursionPanicIdentity/x.lgo/builtin
+=== RUN   TestInfiniteRecursionPanicIdentity/x.lgo/parenthesized_builtin
+=== RUN   TestInfiniteRecursionPanicIdentity/x.lgo/shadowed_function
+=== RUN   TestInfiniteRecursionPanicIdentity/x.lgo/shadowed_variable
+=== RUN   TestInfiniteRecursionPanicIdentity/x.lgo/parenthesized_shadow
+=== RUN   TestInfiniteRecursionPanicIdentity/x.lgo/ordinary_returning_call
+--- PASS: TestInfiniteRecursionPanicIdentity (0.00s)
+    --- PASS: TestInfiniteRecursionPanicIdentity/x.go/builtin (0.00s)
+    --- PASS: TestInfiniteRecursionPanicIdentity/x.go/parenthesized_builtin (0.00s)
+    --- PASS: TestInfiniteRecursionPanicIdentity/x.go/shadowed_function (0.00s)
+    --- PASS: TestInfiniteRecursionPanicIdentity/x.go/shadowed_variable (0.00s)
+    --- PASS: TestInfiniteRecursionPanicIdentity/x.go/parenthesized_shadow (0.00s)
+    --- PASS: TestInfiniteRecursionPanicIdentity/x.go/ordinary_returning_call (0.00s)
+    --- PASS: TestInfiniteRecursionPanicIdentity/x.lgo/builtin (0.00s)
+    --- PASS: TestInfiniteRecursionPanicIdentity/x.lgo/parenthesized_builtin (0.00s)
+    --- PASS: TestInfiniteRecursionPanicIdentity/x.lgo/shadowed_function (0.00s)
+    --- PASS: TestInfiniteRecursionPanicIdentity/x.lgo/shadowed_variable (0.00s)
+    --- PASS: TestInfiniteRecursionPanicIdentity/x.lgo/parenthesized_shadow (0.00s)
+    --- PASS: TestInfiniteRecursionPanicIdentity/x.lgo/ordinary_returning_call (0.00s)
+=== RUN   TestUnclosedCloserAssignedClose
+=== RUN   TestUnclosedCloserAssignedClose/x.go/assignment
+=== RUN   TestUnclosedCloserAssignedClose/x.go/blank_assignment
+=== RUN   TestUnclosedCloserAssignedClose/x.go/declaration
+=== RUN   TestUnclosedCloserAssignedClose/x.go/parenthesized_call
+=== RUN   TestUnclosedCloserAssignedClose/x.go/parallel_assignment
+=== RUN   TestUnclosedCloserAssignedClose/x.go/parallel_declaration
+=== RUN   TestUnclosedCloserAssignedClose/x.go/if_initializer
+=== RUN   TestUnclosedCloserAssignedClose/x.go/for_initializer
+=== RUN   TestUnclosedCloserAssignedClose/x.go/switch_initializer
+=== RUN   TestUnclosedCloserAssignedClose/x.go/stable_alias
+=== RUN   TestUnclosedCloserAssignedClose/x.go/no_close
+=== RUN   TestUnclosedCloserAssignedClose/x.go/conditional_and
+=== RUN   TestUnclosedCloserAssignedClose/x.go/conditional_or
+=== RUN   TestUnclosedCloserAssignedClose/x.go/different_object
+=== RUN   TestUnclosedCloserAssignedClose/x.go/shadowed_name
+=== RUN   TestUnclosedCloserAssignedClose/x.lgo/assignment
+=== RUN   TestUnclosedCloserAssignedClose/x.lgo/blank_assignment
+=== RUN   TestUnclosedCloserAssignedClose/x.lgo/declaration
+=== RUN   TestUnclosedCloserAssignedClose/x.lgo/parenthesized_call
+=== RUN   TestUnclosedCloserAssignedClose/x.lgo/parallel_assignment
+=== RUN   TestUnclosedCloserAssignedClose/x.lgo/parallel_declaration
+=== RUN   TestUnclosedCloserAssignedClose/x.lgo/if_initializer
+=== RUN   TestUnclosedCloserAssignedClose/x.lgo/for_initializer
+=== RUN   TestUnclosedCloserAssignedClose/x.lgo/switch_initializer
+=== RUN   TestUnclosedCloserAssignedClose/x.lgo/stable_alias
+=== RUN   TestUnclosedCloserAssignedClose/x.lgo/no_close
+=== RUN   TestUnclosedCloserAssignedClose/x.lgo/conditional_and
+=== RUN   TestUnclosedCloserAssignedClose/x.lgo/conditional_or
+=== RUN   TestUnclosedCloserAssignedClose/x.lgo/different_object
+=== RUN   TestUnclosedCloserAssignedClose/x.lgo/shadowed_name
+=== RUN   TestUnclosedCloserAssignedClose/async.go
+=== RUN   TestUnclosedCloserAssignedClose/errdefer.lgo
+--- PASS: TestUnclosedCloserAssignedClose (0.00s)
+    --- PASS: TestUnclosedCloserAssignedClose/x.go/assignment (0.00s)
+    --- PASS: TestUnclosedCloserAssignedClose/x.go/blank_assignment (0.00s)
+    --- PASS: TestUnclosedCloserAssignedClose/x.go/declaration (0.00s)
+    --- PASS: TestUnclosedCloserAssignedClose/x.go/parenthesized_call (0.00s)
+    --- PASS: TestUnclosedCloserAssignedClose/x.go/parallel_assignment (0.00s)
+    --- PASS: TestUnclosedCloserAssignedClose/x.go/parallel_declaration (0.00s)
+    --- PASS: TestUnclosedCloserAssignedClose/x.go/if_initializer (0.00s)
+    --- PASS: TestUnclosedCloserAssignedClose/x.go/for_initializer (0.00s)
+    --- PASS: TestUnclosedCloserAssignedClose/x.go/switch_initializer (0.00s)
+    --- PASS: TestUnclosedCloserAssignedClose/x.go/stable_alias (0.00s)
+    --- PASS: TestUnclosedCloserAssignedClose/x.go/no_close (0.00s)
+    --- PASS: TestUnclosedCloserAssignedClose/x.go/conditional_and (0.00s)
+    --- PASS: TestUnclosedCloserAssignedClose/x.go/conditional_or (0.00s)
+    --- PASS: TestUnclosedCloserAssignedClose/x.go/different_object (0.00s)
+    --- PASS: TestUnclosedCloserAssignedClose/x.go/shadowed_name (0.00s)
+    --- PASS: TestUnclosedCloserAssignedClose/x.lgo/assignment (0.00s)
+    --- PASS: TestUnclosedCloserAssignedClose/x.lgo/blank_assignment (0.00s)
+    --- PASS: TestUnclosedCloserAssignedClose/x.lgo/declaration (0.00s)
+    --- PASS: TestUnclosedCloserAssignedClose/x.lgo/parenthesized_call (0.00s)
+    --- PASS: TestUnclosedCloserAssignedClose/x.lgo/parallel_assignment (0.00s)
+    --- PASS: TestUnclosedCloserAssignedClose/x.lgo/parallel_declaration (0.00s)
+    --- PASS: TestUnclosedCloserAssignedClose/x.lgo/if_initializer (0.00s)
+    --- PASS: TestUnclosedCloserAssignedClose/x.lgo/for_initializer (0.00s)
+    --- PASS: TestUnclosedCloserAssignedClose/x.lgo/switch_initializer (0.00s)
+    --- PASS: TestUnclosedCloserAssignedClose/x.lgo/stable_alias (0.00s)
+    --- PASS: TestUnclosedCloserAssignedClose/x.lgo/no_close (0.00s)
+    --- PASS: TestUnclosedCloserAssignedClose/x.lgo/conditional_and (0.00s)
+    --- PASS: TestUnclosedCloserAssignedClose/x.lgo/conditional_or (0.00s)
+    --- PASS: TestUnclosedCloserAssignedClose/x.lgo/different_object (0.00s)
+    --- PASS: TestUnclosedCloserAssignedClose/x.lgo/shadowed_name (0.00s)
+    --- PASS: TestUnclosedCloserAssignedClose/async.go (0.00s)
+    --- PASS: TestUnclosedCloserAssignedClose/errdefer.lgo (0.00s)
+=== RUN   TestCompileCloserAssignedClose
+=== RUN   TestCompileCloserAssignedClose/x.go
+=== RUN   TestCompileCloserAssignedClose/x.lgo
+--- PASS: TestCompileCloserAssignedClose (0.02s)
+    --- PASS: TestCompileCloserAssignedClose/x.go (0.01s)
+    --- PASS: TestCompileCloserAssignedClose/x.lgo (0.01s)
+PASS
+ok  	cmd/compile/internal/logos/lint	0.280s

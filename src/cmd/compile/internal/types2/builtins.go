@@ -689,10 +689,9 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 	case _Panic:
 		// panic(x)
-		// record panic call if inside a function with result parameters
-		// (for use in Checker.isTerminating)
-		if check.sig != nil && check.sig.results.Len() > 0 {
-			// function has result parameters
+		// Record panic calls for result-bearing function termination and
+		// for loGo/s option narrowing, including functions without results.
+		if check.sig != nil && (check.sig.results.Len() > 0 || check.conf.Logos) {
 			p := check.isPanic
 			if p == nil {
 				// allocate lazily

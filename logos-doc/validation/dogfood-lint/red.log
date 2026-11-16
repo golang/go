@@ -1,0 +1,77 @@
+--- FAIL: TestTypedNilReturnPanicIdentity (0.00s)
+    --- FAIL: TestTypedNilReturnPanicIdentity/shadowed_function (0.00s)
+        rule_flow_terminator_test.go:42: typed nil results = [], want 1
+    --- FAIL: TestTypedNilReturnPanicIdentity/shadowed_variable (0.00s)
+        rule_flow_terminator_test.go:42: typed nil results = [], want 1
+    --- FAIL: TestTypedNilReturnPanicIdentity/parenthesized_shadow (0.00s)
+        rule_flow_terminator_test.go:42: typed nil results = [], want 1
+--- FAIL: TestInfiniteRecursionPanicIdentity (0.00s)
+    --- FAIL: TestInfiniteRecursionPanicIdentity/x.go/parenthesized_builtin (0.00s)
+        rule_flow_terminator_test.go:74: recursion results = [3 correctness::infinite_recursion deny], want 0
+    --- FAIL: TestInfiniteRecursionPanicIdentity/x.go/shadowed_function (0.00s)
+        rule_flow_terminator_test.go:74: recursion results = [], want 1
+    --- FAIL: TestInfiniteRecursionPanicIdentity/x.go/shadowed_variable (0.00s)
+        rule_flow_terminator_test.go:74: recursion results = [], want 1
+    --- FAIL: TestInfiniteRecursionPanicIdentity/x.lgo/parenthesized_builtin (0.00s)
+        rule_flow_terminator_test.go:74: recursion results = [3 correctness::infinite_recursion forbid], want 0
+    --- FAIL: TestInfiniteRecursionPanicIdentity/x.lgo/shadowed_function (0.00s)
+        rule_flow_terminator_test.go:74: recursion results = [], want 1
+    --- FAIL: TestInfiniteRecursionPanicIdentity/x.lgo/shadowed_variable (0.00s)
+        rule_flow_terminator_test.go:74: recursion results = [], want 1
+--- FAIL: TestUnclosedCloserAssignedClose (0.00s)
+    --- FAIL: TestUnclosedCloserAssignedClose/x.go/assignment (0.00s)
+        rule_unclosed_io_closer_test.go:56: unclosed results = [8 correctness::unclosed_io_closer deny], want 0
+    --- FAIL: TestUnclosedCloserAssignedClose/x.go/blank_assignment (0.00s)
+        rule_unclosed_io_closer_test.go:56: unclosed results = [8 correctness::unclosed_io_closer deny], want 0
+    --- FAIL: TestUnclosedCloserAssignedClose/x.go/declaration (0.00s)
+        rule_unclosed_io_closer_test.go:56: unclosed results = [8 correctness::unclosed_io_closer deny], want 0
+    --- FAIL: TestUnclosedCloserAssignedClose/x.go/parenthesized_call (0.00s)
+        rule_unclosed_io_closer_test.go:56: unclosed results = [8 correctness::unclosed_io_closer deny], want 0
+    --- FAIL: TestUnclosedCloserAssignedClose/x.go/parallel_assignment (0.00s)
+        rule_unclosed_io_closer_test.go:56: unclosed results = [8 correctness::unclosed_io_closer deny], want 0
+    --- FAIL: TestUnclosedCloserAssignedClose/x.go/parallel_declaration (0.00s)
+        rule_unclosed_io_closer_test.go:56: unclosed results = [8 correctness::unclosed_io_closer deny], want 0
+    --- FAIL: TestUnclosedCloserAssignedClose/x.go/if_initializer (0.00s)
+        rule_unclosed_io_closer_test.go:56: unclosed results = [8 correctness::unclosed_io_closer deny], want 0
+    --- FAIL: TestUnclosedCloserAssignedClose/x.go/for_initializer (0.00s)
+        rule_unclosed_io_closer_test.go:56: unclosed results = [8 correctness::unclosed_io_closer deny], want 0
+    --- FAIL: TestUnclosedCloserAssignedClose/x.go/switch_initializer (0.00s)
+        rule_unclosed_io_closer_test.go:56: unclosed results = [8 correctness::unclosed_io_closer deny], want 0
+    --- FAIL: TestUnclosedCloserAssignedClose/x.go/stable_alias (0.00s)
+        rule_unclosed_io_closer_test.go:56: unclosed results = [8 correctness::unclosed_io_closer deny], want 0
+    --- FAIL: TestUnclosedCloserAssignedClose/x.go/different_object (0.00s)
+        rule_unclosed_io_closer_test.go:56: unclosed results = [8 correctness::unclosed_io_closer deny 9 correctness::unclosed_io_closer deny], want 1
+    --- FAIL: TestUnclosedCloserAssignedClose/x.go/shadowed_name (0.00s)
+        rule_unclosed_io_closer_test.go:56: unclosed results = [8 correctness::unclosed_io_closer deny 9 correctness::unclosed_io_closer deny], want 1
+    --- FAIL: TestUnclosedCloserAssignedClose/x.lgo/assignment (0.00s)
+        rule_unclosed_io_closer_test.go:56: unclosed results = [8 correctness::unclosed_io_closer deny], want 0
+    --- FAIL: TestUnclosedCloserAssignedClose/x.lgo/blank_assignment (0.00s)
+        rule_unclosed_io_closer_test.go:56: unclosed results = [8 correctness::unclosed_io_closer deny], want 0
+    --- FAIL: TestUnclosedCloserAssignedClose/x.lgo/declaration (0.00s)
+        rule_unclosed_io_closer_test.go:56: unclosed results = [8 correctness::unclosed_io_closer deny], want 0
+    --- FAIL: TestUnclosedCloserAssignedClose/x.lgo/parenthesized_call (0.00s)
+        rule_unclosed_io_closer_test.go:56: unclosed results = [8 correctness::unclosed_io_closer deny], want 0
+    --- FAIL: TestUnclosedCloserAssignedClose/x.lgo/parallel_assignment (0.00s)
+        rule_unclosed_io_closer_test.go:56: unclosed results = [8 correctness::unclosed_io_closer deny], want 0
+    --- FAIL: TestUnclosedCloserAssignedClose/x.lgo/parallel_declaration (0.00s)
+        rule_unclosed_io_closer_test.go:56: unclosed results = [8 correctness::unclosed_io_closer deny], want 0
+    --- FAIL: TestUnclosedCloserAssignedClose/x.lgo/if_initializer (0.00s)
+        rule_unclosed_io_closer_test.go:56: unclosed results = [8 correctness::unclosed_io_closer deny], want 0
+    --- FAIL: TestUnclosedCloserAssignedClose/x.lgo/for_initializer (0.00s)
+        rule_unclosed_io_closer_test.go:56: unclosed results = [8 correctness::unclosed_io_closer deny], want 0
+    --- FAIL: TestUnclosedCloserAssignedClose/x.lgo/switch_initializer (0.00s)
+        rule_unclosed_io_closer_test.go:56: unclosed results = [8 correctness::unclosed_io_closer deny], want 0
+    --- FAIL: TestUnclosedCloserAssignedClose/x.lgo/stable_alias (0.00s)
+        rule_unclosed_io_closer_test.go:56: unclosed results = [8 correctness::unclosed_io_closer deny], want 0
+    --- FAIL: TestUnclosedCloserAssignedClose/x.lgo/different_object (0.00s)
+        rule_unclosed_io_closer_test.go:56: unclosed results = [8 correctness::unclosed_io_closer deny 9 correctness::unclosed_io_closer deny], want 1
+    --- FAIL: TestUnclosedCloserAssignedClose/x.lgo/shadowed_name (0.00s)
+        rule_unclosed_io_closer_test.go:56: unclosed results = [8 correctness::unclosed_io_closer deny 9 correctness::unclosed_io_closer deny], want 1
+--- FAIL: TestCompileCloserAssignedClose (0.01s)
+    --- FAIL: TestCompileCloserAssignedClose/x.go (0.01s)
+        rule_unclosed_io_closer_test.go:90: assigned close: exit 2, output "/dev/shm/logos-dogfood-93e0563596d1/TestCompileCloserAssignedClosex.go672342598/001/x.go:8:2: [correctness::unclosed_io_closer] f holds an io.Closer returned by openResource(): defer f.Close() or hand it to another owner\n", object false
+    --- FAIL: TestCompileCloserAssignedClose/x.lgo (0.01s)
+        rule_unclosed_io_closer_test.go:90: assigned close: exit 2, output "/dev/shm/logos-dogfood-93e0563596d1/TestCompileCloserAssignedClosex.lgo462908462/001/x.lgo:8:2: [correctness::unclosed_io_closer] f holds an io.Closer returned by openResource(): defer f.Close() or hand it to another owner\n", object false
+FAIL
+FAIL	cmd/compile/internal/logos/lint	0.023s
+FAIL

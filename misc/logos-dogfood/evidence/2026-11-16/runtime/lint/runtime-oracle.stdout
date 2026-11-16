@@ -1,0 +1,12 @@
+{"Time":"2026-11-16T23:10:14.580696668+09:00","Action":"start","Package":"example.com/logos-dogfood/lint"}
+{"Time":"2026-11-16T23:10:14.583967978+09:00","Action":"run","Package":"example.com/logos-dogfood/lint","Test":"TestExecutedCloseForms"}
+{"Time":"2026-11-16T23:10:14.58402295+09:00","Action":"output","Package":"example.com/logos-dogfood/lint","Test":"TestExecutedCloseForms","Output":"=== RUN   TestExecutedCloseForms\n","OutputType":"frame"}
+{"Time":"2026-11-16T23:10:14.584044853+09:00","Action":"output","Package":"example.com/logos-dogfood/lint","Test":"TestExecutedCloseForms","Output":"--- PASS: TestExecutedCloseForms (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-16T23:10:14.584050581+09:00","Action":"pass","Package":"example.com/logos-dogfood/lint","Test":"TestExecutedCloseForms","Elapsed":0}
+{"Time":"2026-11-16T23:10:14.584057752+09:00","Action":"run","Package":"example.com/logos-dogfood/lint","Test":"TestShadowedPanicReturnsTypedNil"}
+{"Time":"2026-11-16T23:10:14.584060015+09:00","Action":"output","Package":"example.com/logos-dogfood/lint","Test":"TestShadowedPanicReturnsTypedNil","Output":"=== RUN   TestShadowedPanicReturnsTypedNil\n","OutputType":"frame"}
+{"Time":"2026-11-16T23:10:14.584064912+09:00","Action":"output","Package":"example.com/logos-dogfood/lint","Test":"TestShadowedPanicReturnsTypedNil","Output":"--- PASS: TestShadowedPanicReturnsTypedNil (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-16T23:10:14.584067707+09:00","Action":"pass","Package":"example.com/logos-dogfood/lint","Test":"TestShadowedPanicReturnsTypedNil","Elapsed":0}
+{"Time":"2026-11-16T23:10:14.584069639+09:00","Action":"output","Package":"example.com/logos-dogfood/lint","Output":"PASS\n","OutputType":"frame"}
+{"Time":"2026-11-16T23:10:14.584222531+09:00","Action":"output","Package":"example.com/logos-dogfood/lint","Output":"ok  \texample.com/logos-dogfood/lint\t0.003s\n"}
+{"Time":"2026-11-16T23:10:14.584234008+09:00","Action":"pass","Package":"example.com/logos-dogfood/lint","Elapsed":0.004}

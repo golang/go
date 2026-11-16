@@ -1,0 +1,7 @@
+[capabilities]
+transitive_net_allowlist = [
+  "github.com/go-sql-driver/mysql",
+  "github.com/gorilla/securecookie",
+  "github.com/gorilla/sessions",
+  "github.com/julienschmidt/httprouter",
+]

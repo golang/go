@@ -1,0 +1,315 @@
+{
+  "complete": true,
+  "ejected_digest": "h1:8503ZpdFsyMj9zZwuhKF4tj7Yw0P76zF+QtgCqGrWD0=",
+  "part": "language",
+  "replay_sha256": "96417debd3a692b0af85723d4d55a5f3e9273088f50b4b9ac84214d0b028930e",
+  "rows": [
+    {
+      "label": "native",
+      "run": {
+        "command": [
+          "/workspace/scratch/93e0563596d1/LoGOs/bin/logos",
+          "run",
+          "."
+        ],
+        "cwd": "/dev/shm/logos-dogfood-93e0563596d1/runtime-language-final/work",
+        "environment": {
+          "CC": "/usr/bin/cc",
+          "CGO_ENABLED": "0",
+          "CXX": "/usr/bin/c++",
+          "GOCACHE": "/workspace/scratch/93e0563596d1/corpus-cache/logos",
+          "GOENV": "off",
+          "GOFLAGS": "-mod=readonly -buildvcs=false -p=1",
+          "GOMAXPROCS": "1",
+          "GOMEMLIMIT": "512MiB",
+          "GOMODCACHE": "/home/agent/go/pkg/mod",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOTELEMETRY": "off",
+          "GOTOOLCHAIN": "local",
+          "GOWORK": "off",
+          "PATH": "/workspace/scratch/93e0563596d1/LoGOs/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+          "TMPDIR": "/dev/shm/logos-dogfood-93e0563596d1"
+        },
+        "error": "",
+        "returncode": 0,
+        "seconds": 0.267,
+        "stderr": "/dev/shm/logos-dogfood-93e0563596d1/runtime-language-final/native.stderr",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout": "/dev/shm/logos-dogfood-93e0563596d1/runtime-language-final/native.stdout",
+        "stdout_sha256": "5b4a03b17218e1d49a9e41823a669266d7391a3ce57b75500958a1943c2a83d5",
+        "timed_out": false
+      },
+      "status": "pass"
+    },
+    {
+      "label": "eject",
+      "run": {
+        "command": [
+          "/workspace/scratch/93e0563596d1/LoGOs/bin/logos",
+          "eject",
+          "-o",
+          "/dev/shm/logos-dogfood-93e0563596d1/runtime-language-final/ejected"
+        ],
+        "cwd": "/dev/shm/logos-dogfood-93e0563596d1/runtime-language-final/work",
+        "environment": {
+          "CC": "/usr/bin/cc",
+          "CGO_ENABLED": "0",
+          "CXX": "/usr/bin/c++",
+          "GOCACHE": "/workspace/scratch/93e0563596d1/corpus-cache/logos",
+          "GOENV": "off",
+          "GOFLAGS": "-mod=readonly -buildvcs=false -p=1",
+          "GOMAXPROCS": "1",
+          "GOMEMLIMIT": "512MiB",
+          "GOMODCACHE": "/home/agent/go/pkg/mod",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOTELEMETRY": "off",
+          "GOTOOLCHAIN": "local",
+          "GOWORK": "off",
+          "PATH": "/workspace/scratch/93e0563596d1/LoGOs/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+          "TMPDIR": "/dev/shm/logos-dogfood-93e0563596d1"
+        },
+        "error": "",
+        "returncode": 0,
+        "seconds": 0.319,
+        "stderr": "/dev/shm/logos-dogfood-93e0563596d1/runtime-language-final/eject.stderr",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout": "/dev/shm/logos-dogfood-93e0563596d1/runtime-language-final/eject.stdout",
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "timed_out": false
+      },
+      "status": "pass"
+    },
+    {
+      "label": "ejected-oracle",
+      "run": {
+        "command": [
+          "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4/bin/go",
+          "run",
+          "."
+        ],
+        "cwd": "/dev/shm/logos-dogfood-93e0563596d1/runtime-language-final/ejected",
+        "environment": {
+          "CC": "/usr/bin/cc",
+          "CGO_ENABLED": "0",
+          "CXX": "/usr/bin/c++",
+          "GOCACHE": "/workspace/scratch/93e0563596d1/corpus-cache/oracle",
+          "GOENV": "off",
+          "GOFLAGS": "-mod=readonly -buildvcs=false -p=1",
+          "GOMAXPROCS": "1",
+          "GOMEMLIMIT": "512MiB",
+          "GOMODCACHE": "/home/agent/go/pkg/mod",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOTELEMETRY": "off",
+          "GOTOOLCHAIN": "local",
+          "GOWORK": "off",
+          "PATH": "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+          "TMPDIR": "/dev/shm/logos-dogfood-93e0563596d1"
+        },
+        "error": "",
+        "returncode": 0,
+        "seconds": 0.269,
+        "stderr": "/dev/shm/logos-dogfood-93e0563596d1/runtime-language-final/ejected-oracle.stderr",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout": "/dev/shm/logos-dogfood-93e0563596d1/runtime-language-final/ejected-oracle.stdout",
+        "stdout_sha256": "5b4a03b17218e1d49a9e41823a669266d7391a3ce57b75500958a1943c2a83d5",
+        "timed_out": false
+      },
+      "status": "pass"
+    }
+  ],
+  "runner_sha256": "7afff15634011216ed55ac5d632ab9d1a80d133c6eb3d3e0233b471dd7947eb1",
+  "source_digest": "h1:dFnVeauCrpWX5oM/200T1QjNyGO3u/+NaW5K5M5aLjQ=",
+  "source_revision": "67da0059b5b0579224c95441a740156ec842e41c",
+  "tools": {
+    "go": {
+      "identity": {
+        "compiler_source_h1": "h1:tbzm3kxYphDinWJtSi++w2s/e63o9EJIJGOHj3GByXE=",
+        "goroot": "/workspace/scratch/93e0563596d1/LoGOs",
+        "run": {
+          "command": [
+            "/workspace/scratch/93e0563596d1/LoGOs/bin/go",
+            "env",
+            "-json",
+            "GOROOT",
+            "GOTOOLDIR"
+          ],
+          "cwd": "/workspace/scratch/93e0563596d1/LoGOs/misc/logos-dogfood",
+          "environment": {
+            "CC": "/usr/bin/cc",
+            "CGO_ENABLED": "0",
+            "CXX": "/usr/bin/c++",
+            "GOCACHE": "/workspace/scratch/93e0563596d1/corpus-cache/go",
+            "GOENV": "off",
+            "GOFLAGS": "-mod=readonly -buildvcs=false -p=1",
+            "GOMAXPROCS": "1",
+            "GOMEMLIMIT": "512MiB",
+            "GOMODCACHE": "/home/agent/go/pkg/mod",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOTELEMETRY": "off",
+            "GOTOOLCHAIN": "local",
+            "GOWORK": "off",
+            "PATH": "/workspace/scratch/93e0563596d1/LoGOs/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+            "TMPDIR": "/dev/shm/logos-dogfood-93e0563596d1"
+          },
+          "error": "",
+          "returncode": 0,
+          "seconds": 0.004,
+          "stderr": "/dev/shm/logos-dogfood-93e0563596d1/runtime-language-final/tools/go.stderr",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout": "/dev/shm/logos-dogfood-93e0563596d1/runtime-language-final/tools/go.stdout",
+          "stdout_sha256": "00e9ec557a806b8e24f4f88d6eb40614073f2b265f5a8db2af53233b3455e915",
+          "timed_out": false
+        },
+        "source_revision": "67da0059b5b0579224c95441a740156ec842e41c",
+        "source_status": "",
+        "tools": {
+          "asm": {
+            "path": "/workspace/scratch/93e0563596d1/LoGOs/pkg/tool/linux_amd64/asm",
+            "sha256": "bc86977331af77841a2d5c85f23212558233f5320e38fe2e3b59325b84faaca9"
+          },
+          "cgo": {
+            "path": "/workspace/scratch/93e0563596d1/LoGOs/pkg/tool/linux_amd64/cgo",
+            "sha256": "cd4545d93e6e5aef271ee79d0cdc12e055f7b272077d6fd926c703ff9a07a754"
+          },
+          "compile": {
+            "path": "/workspace/scratch/93e0563596d1/LoGOs/pkg/tool/linux_amd64/compile",
+            "sha256": "7c519b46141178df983fe62f9bbb7ef794201dba8daf31a676143ed657373f37"
+          },
+          "link": {
+            "path": "/workspace/scratch/93e0563596d1/LoGOs/pkg/tool/linux_amd64/link",
+            "sha256": "b21cda2370df5c9bd00b225ef92a7e88a3b53ba01fb6a19916b85608bd400232"
+          }
+        }
+      },
+      "sha256": "4c016af1e3b0b2df74f0056a878b994cb6194887273982cd9f09606e0923e3a5"
+    },
+    "logos": {
+      "identity": {
+        "compiler_source_h1": "h1:tbzm3kxYphDinWJtSi++w2s/e63o9EJIJGOHj3GByXE=",
+        "goroot": "/workspace/scratch/93e0563596d1/LoGOs",
+        "run": {
+          "command": [
+            "/workspace/scratch/93e0563596d1/LoGOs/bin/logos",
+            "env",
+            "-json",
+            "GOROOT",
+            "GOTOOLDIR"
+          ],
+          "cwd": "/workspace/scratch/93e0563596d1/LoGOs/misc/logos-dogfood",
+          "environment": {
+            "CC": "/usr/bin/cc",
+            "CGO_ENABLED": "0",
+            "CXX": "/usr/bin/c++",
+            "GOCACHE": "/workspace/scratch/93e0563596d1/corpus-cache/logos",
+            "GOENV": "off",
+            "GOFLAGS": "-mod=readonly -buildvcs=false -p=1",
+            "GOMAXPROCS": "1",
+            "GOMEMLIMIT": "512MiB",
+            "GOMODCACHE": "/home/agent/go/pkg/mod",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOTELEMETRY": "off",
+            "GOTOOLCHAIN": "local",
+            "GOWORK": "off",
+            "PATH": "/workspace/scratch/93e0563596d1/LoGOs/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+            "TMPDIR": "/dev/shm/logos-dogfood-93e0563596d1"
+          },
+          "error": "",
+          "returncode": 0,
+          "seconds": 0.008,
+          "stderr": "/dev/shm/logos-dogfood-93e0563596d1/runtime-language-final/tools/logos.stderr",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout": "/dev/shm/logos-dogfood-93e0563596d1/runtime-language-final/tools/logos.stdout",
+          "stdout_sha256": "00e9ec557a806b8e24f4f88d6eb40614073f2b265f5a8db2af53233b3455e915",
+          "timed_out": false
+        },
+        "source_revision": "67da0059b5b0579224c95441a740156ec842e41c",
+        "source_status": "",
+        "tools": {
+          "asm": {
+            "path": "/workspace/scratch/93e0563596d1/LoGOs/pkg/tool/linux_amd64/asm",
+            "sha256": "bc86977331af77841a2d5c85f23212558233f5320e38fe2e3b59325b84faaca9"
+          },
+          "cgo": {
+            "path": "/workspace/scratch/93e0563596d1/LoGOs/pkg/tool/linux_amd64/cgo",
+            "sha256": "cd4545d93e6e5aef271ee79d0cdc12e055f7b272077d6fd926c703ff9a07a754"
+          },
+          "compile": {
+            "path": "/workspace/scratch/93e0563596d1/LoGOs/pkg/tool/linux_amd64/compile",
+            "sha256": "7c519b46141178df983fe62f9bbb7ef794201dba8daf31a676143ed657373f37"
+          },
+          "link": {
+            "path": "/workspace/scratch/93e0563596d1/LoGOs/pkg/tool/linux_amd64/link",
+            "sha256": "b21cda2370df5c9bd00b225ef92a7e88a3b53ba01fb6a19916b85608bd400232"
+          }
+        }
+      },
+      "sha256": "4c016af1e3b0b2df74f0056a878b994cb6194887273982cd9f09606e0923e3a5"
+    },
+    "oracle": {
+      "identity": {
+        "compiler_source_h1": "h1:E+85JdaKFrFMOOqiy7ZxDTOB3s28bZCsBLRbm1ztpaI=",
+        "goroot": "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4",
+        "run": {
+          "command": [
+            "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4/bin/go",
+            "env",
+            "-json",
+            "GOROOT",
+            "GOTOOLDIR"
+          ],
+          "cwd": "/workspace/scratch/93e0563596d1/LoGOs/misc/logos-dogfood",
+          "environment": {
+            "CC": "/usr/bin/cc",
+            "CGO_ENABLED": "0",
+            "CXX": "/usr/bin/c++",
+            "GOCACHE": "/workspace/scratch/93e0563596d1/corpus-cache/oracle",
+            "GOENV": "off",
+            "GOFLAGS": "-mod=readonly -buildvcs=false -p=1",
+            "GOMAXPROCS": "1",
+            "GOMEMLIMIT": "512MiB",
+            "GOMODCACHE": "/home/agent/go/pkg/mod",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOTELEMETRY": "off",
+            "GOTOOLCHAIN": "local",
+            "GOWORK": "off",
+            "PATH": "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+            "TMPDIR": "/dev/shm/logos-dogfood-93e0563596d1"
+          },
+          "error": "",
+          "returncode": 0,
+          "seconds": 0.005,
+          "stderr": "/dev/shm/logos-dogfood-93e0563596d1/runtime-language-final/tools/oracle.stderr",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout": "/dev/shm/logos-dogfood-93e0563596d1/runtime-language-final/tools/oracle.stdout",
+          "stdout_sha256": "4bbe537d4c6db4936c01d2cc1f774e66f6f20786a8cde4b83b42595a1af4bf16",
+          "timed_out": false
+        },
+        "tools": {
+          "asm": {
+            "path": "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4/pkg/tool/linux_amd64/asm",
+            "sha256": "a67997d99985e3ef3ecd30f029685d67d778a0c8f78b852396ef7738426c04b5"
+          },
+          "cgo": {
+            "path": "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4/pkg/tool/linux_amd64/cgo",
+            "sha256": "0ac696dfbbcdd912cb833d7190c7f91388bac2d89d4dc79c8915a4e43239b675"
+          },
+          "compile": {
+            "path": "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4/pkg/tool/linux_amd64/compile",
+            "sha256": "40307e5f5c65a4b4220bbf35dbe014348780589ea2964003f0bf318fa14640e1"
+          },
+          "link": {
+            "path": "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4/pkg/tool/linux_amd64/link",
+            "sha256": "e2248a29fbbf15dac1fe72c9d646776dbcd38c9813b78182fe01a4a47f3299c3"
+          }
+        }
+      },
+      "sha256": "de0ae3e082ce7599eae4fb69fa2ef1e43b8f31ffd3fce62cdf81930aa9005050"
+    }
+  }
+}

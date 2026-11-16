@@ -1,0 +1,5 @@
+# example.com/genericlocal
+<unknown line number>: internal compiler error: unexpected object with 1 implicit type parameter(s)
+
+Please file a bug report including a short program that triggers the error.
+https://go.dev/issue/new

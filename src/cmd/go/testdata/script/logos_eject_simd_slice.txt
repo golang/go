@@ -10,8 +10,8 @@ stdout '^f32 130 '
 cp stdout $WORK/scalar-stdout.txt
 
 env GOEXPERIMENT=simd
-logos run .
-cmp stdout $WORK/scalar-stdout.txt
+[host-simd] logos run .
+[host-simd] cmp stdout $WORK/scalar-stdout.txt
 
 logos eject -o out
 exists out/main.go

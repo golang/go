@@ -1,0 +1,4 @@
+{
+	"GOROOT": "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4",
+	"GOTOOLDIR": "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4/pkg/tool/linux_amd64"
+}

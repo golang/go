@@ -1,0 +1,65 @@
+[
+  {
+    "schema_version": "1.0",
+    "severity": "deny",
+    "rule_id": "correctness::unclosed_io_closer",
+    "file": "cases.go",
+    "span": {
+      "start_line": 34,
+      "start_col": 2,
+      "end_line": 34,
+      "end_col": 3,
+      "byte_offset": 600,
+      "byte_len": 1
+    },
+    "message": "r holds an io.Closer returned by acquire(): defer r.Close() or hand it to another owner",
+    "provenance": {
+      "origin_expr": "",
+      "origin_line": 0,
+      "inferred_type": ""
+    },
+    "autofix_candidates": []
+  },
+  {
+    "schema_version": "1.0",
+    "severity": "deny",
+    "rule_id": "correctness::unclosed_io_closer",
+    "file": "cases.go",
+    "span": {
+      "start_line": 39,
+      "start_col": 2,
+      "end_line": 39,
+      "end_col": 3,
+      "byte_offset": 676,
+      "byte_len": 1
+    },
+    "message": "r holds an io.Closer returned by acquire(): defer r.Close() or hand it to another owner",
+    "provenance": {
+      "origin_expr": "",
+      "origin_line": 0,
+      "inferred_type": ""
+    },
+    "autofix_candidates": []
+  },
+  {
+    "schema_version": "1.0",
+    "severity": "deny",
+    "rule_id": "correctness::infinite_recursion",
+    "file": "cases.go",
+    "span": {
+      "start_line": 54,
+      "start_col": 6,
+      "end_line": 54,
+      "end_col": 31,
+      "byte_offset": 938,
+      "byte_len": 25
+    },
+    "message": "function RecurseAfterShadowedPanic calls itself with its own arguments on every path",
+    "provenance": {
+      "origin_expr": "",
+      "origin_line": 0,
+      "inferred_type": ""
+    },
+    "autofix_candidates": []
+  }
+]

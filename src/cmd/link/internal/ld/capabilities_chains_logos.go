@@ -11,9 +11,12 @@ import (
 )
 
 type capGraph struct {
-	parent  []loader.Sym
-	reached []bool
-	preds   [][]loader.Sym
+	parent     []loader.Sym
+	depths     []int
+	reached    []bool
+	preds      [][]loader.Sym
+	roots      []loader.Sym
+	pathsValid bool
 }
 
 func newCapGraph(n int) *capGraph {
@@ -27,12 +30,17 @@ func (g *capGraph) reserve(n int) {
 		return
 	}
 	g.parent = append(g.parent, make([]loader.Sym, n-len(g.parent))...)
+	g.depths = append(g.depths, make([]int, n-len(g.depths))...)
 	g.reached = append(g.reached, make([]bool, n-len(g.reached))...)
 	g.preds = append(g.preds, make([][]loader.Sym, n-len(g.preds))...)
 }
 
 func (g *capGraph) visit(s, p loader.Sym) bool {
-	g.reserve(int(s) + 1)
+	g.reserve(max(int(s), int(p)) + 1)
+	g.pathsValid = false
+	if p == 0 {
+		g.roots = append(g.roots, s)
+	}
 	if ps := g.preds[s]; p != 0 && (len(ps) == 0 || ps[len(ps)-1] != p) {
 		g.preds[s] = append(ps, p)
 	}
@@ -40,8 +48,44 @@ func (g *capGraph) visit(s, p loader.Sym) bool {
 		return false
 	}
 	g.reached[s] = true
-	g.parent[s] = p
 	return true
+}
+
+// preparePaths separates discovery from root ancestry: a relocation may name
+// an inline owner before that owner's incoming edges have been recorded.
+// FIFO traversal of the complete graph gives shortest rooted paths. Each
+// assigned parent has depth one less than its child, so parent walks terminate.
+func (g *capGraph) preparePaths() {
+	if g.pathsValid {
+		return
+	}
+	clear(g.parent)
+	clear(g.depths)
+	next := make([][]loader.Sym, len(g.reached))
+	for s, ps := range g.preds {
+		for _, p := range ps {
+			next[p] = append(next[p], loader.Sym(s))
+		}
+	}
+	var queue []loader.Sym
+	for _, r := range g.roots {
+		if g.depths[r] == 0 {
+			g.depths[r] = 1
+			queue = append(queue, r)
+		}
+	}
+	for head := 0; head < len(queue); head++ {
+		p := queue[head]
+		for _, s := range next[p] {
+			if g.depths[s] != 0 {
+				continue
+			}
+			g.parent[s] = p
+			g.depths[s] = g.depths[p] + 1
+			queue = append(queue, s)
+		}
+	}
+	g.pathsValid = true
 }
 
 func (g *capGraph) chainTo(s loader.Sym) []loader.Sym {
@@ -54,11 +98,7 @@ func (g *capGraph) chainTo(s loader.Sym) []loader.Sym {
 }
 
 func (g *capGraph) depth(s loader.Sym) int {
-	n := 0
-	for cur := s; cur != 0; cur = g.parent[cur] {
-		n++
-	}
-	return n
+	return g.depths[s]
 }
 
 type capRole struct {
@@ -85,6 +125,10 @@ func (g *capGraph) blamedChains(sink loader.Sym, role func(loader.Sym) capRole) 
 	if int(sink) >= len(g.reached) || !g.reached[sink] {
 		return nil
 	}
+	g.preparePaths()
+	if g.depths[sink] == 0 {
+		return nil
+	}
 	tails := map[loader.Sym]capTail{sink: {}}
 	best := make(map[string]capCandidate)
 	queue := []loader.Sym{sink}
@@ -96,7 +140,7 @@ func (g *capGraph) blamedChains(sink loader.Sym, role func(loader.Sym) capRole) 
 			continue
 		}
 		for _, p := range g.preds[u] {
-			if _, seen := tails[p]; !seen && !role(p).wall {
+			if _, seen := tails[p]; !seen && g.depths[p] != 0 && !role(p).wall {
 				tails[p] = capTail{next: u, dist: tails[u].dist + 1}
 				queue = append(queue, p)
 			}

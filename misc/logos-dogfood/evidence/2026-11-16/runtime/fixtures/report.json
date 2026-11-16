@@ -1,0 +1,683 @@
+{
+  "case_count": 2,
+  "cases": [
+    {
+      "case": {
+        "backend": "go-only",
+        "cgo": 0,
+        "cohort": "stress",
+        "id": "fixture-semantics",
+        "module": "example.com/logos-dogfood/semantics",
+        "operation": "test",
+        "patterns": [
+          "./..."
+        ],
+        "revision": "",
+        "source": "fixtures/semantics",
+        "source_kind": "local",
+        "sum": "h1:5bxcmSfapVVogS3lzaRg8TvRIYv9reGXamM+Bau4Hic=",
+        "tags": [],
+        "upstream": "local",
+        "version": ""
+      },
+      "source_digest": "h1:5bxcmSfapVVogS3lzaRg8TvRIYv9reGXamM+Bau4Hic=",
+      "source_path": "/workspace/scratch/93e0563596d1/LoGOs/misc/logos-dogfood/fixtures/semantics",
+      "stages": [
+        {
+          "assessment": {
+            "diagnostics": 0,
+            "duplicate_diagnostics": 0,
+            "normalized_sha256": "",
+            "reason": "",
+            "status": "pass"
+          },
+          "mode": "",
+          "run": {
+            "command": [
+              "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4/bin/go",
+              "test",
+              "-count=1",
+              "-short",
+              "-timeout=175s",
+              "./..."
+            ],
+            "cwd": "/workspace/scratch/93e0563596d1/runtime-fixtures-final/work/fixture-semantics",
+            "environment": {
+              "CC": "/usr/bin/cc",
+              "CGO_ENABLED": "0",
+              "CXX": "/usr/bin/c++",
+              "GOCACHE": "/workspace/scratch/93e0563596d1/corpus-cache/oracle",
+              "GOENV": "off",
+              "GOFLAGS": "-mod=readonly -buildvcs=false -p=1",
+              "GOMAXPROCS": "1",
+              "GOMODCACHE": "/home/agent/go/pkg/mod",
+              "GOPROXY": "off",
+              "GOSUMDB": "off",
+              "GOTELEMETRY": "off",
+              "GOTOOLCHAIN": "local",
+              "GOWORK": "off",
+              "PATH": "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+            },
+            "error": "",
+            "returncode": 0,
+            "seconds": 0.266,
+            "stderr": "/workspace/scratch/93e0563596d1/runtime-fixtures-final/logs/fixture-semantics/oracle.stderr",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stdout": "/workspace/scratch/93e0563596d1/runtime-fixtures-final/logs/fixture-semantics/oracle.stdout",
+            "stdout_sha256": "49f0c84da840b76a81651525fcd72b52632c8f7e4e9bd61eaae6e16dc7c6b24d",
+            "timed_out": false
+          },
+          "stage": "oracle"
+        },
+        {
+          "assessment": {
+            "diagnostics": 0,
+            "duplicate_diagnostics": 0,
+            "normalized_sha256": "",
+            "reason": "",
+            "status": "pass"
+          },
+          "mode": "",
+          "run": {
+            "command": [
+              "/workspace/scratch/93e0563596d1/LoGOs/bin/go",
+              "test",
+              "-count=1",
+              "-short",
+              "-timeout=175s",
+              "./..."
+            ],
+            "cwd": "/workspace/scratch/93e0563596d1/runtime-fixtures-final/work/fixture-semantics",
+            "environment": {
+              "CC": "/usr/bin/cc",
+              "CGO_ENABLED": "0",
+              "CXX": "/usr/bin/c++",
+              "GOCACHE": "/workspace/scratch/93e0563596d1/corpus-cache/go",
+              "GOENV": "off",
+              "GOFLAGS": "-mod=readonly -buildvcs=false -p=1",
+              "GOMAXPROCS": "1",
+              "GOMODCACHE": "/home/agent/go/pkg/mod",
+              "GOPROXY": "off",
+              "GOSUMDB": "off",
+              "GOTELEMETRY": "off",
+              "GOTOOLCHAIN": "local",
+              "GOWORK": "off",
+              "PATH": "/workspace/scratch/93e0563596d1/LoGOs/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+            },
+            "error": "",
+            "returncode": 0,
+            "seconds": 0.516,
+            "stderr": "/workspace/scratch/93e0563596d1/runtime-fixtures-final/logs/fixture-semantics/go.stderr",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stdout": "/workspace/scratch/93e0563596d1/runtime-fixtures-final/logs/fixture-semantics/go.stdout",
+            "stdout_sha256": "0140fb7de3de6466429091d3c0d8fe5e870e2d472542ce2228f83cbdfa44689b",
+            "timed_out": false
+          },
+          "stage": "go"
+        },
+        {
+          "assessment": {
+            "diagnostics": 0,
+            "duplicate_diagnostics": 0,
+            "normalized_sha256": "",
+            "reason": "",
+            "status": "pass"
+          },
+          "mode": "",
+          "run": {
+            "command": [
+              "/workspace/scratch/93e0563596d1/LoGOs/bin/logos",
+              "test",
+              "-count=1",
+              "-short",
+              "-timeout=175s",
+              "./..."
+            ],
+            "cwd": "/workspace/scratch/93e0563596d1/runtime-fixtures-final/work/fixture-semantics",
+            "environment": {
+              "CC": "/usr/bin/cc",
+              "CGO_ENABLED": "0",
+              "CXX": "/usr/bin/c++",
+              "GOCACHE": "/workspace/scratch/93e0563596d1/corpus-cache/logos",
+              "GOENV": "off",
+              "GOFLAGS": "-mod=readonly -buildvcs=false -p=1",
+              "GOMAXPROCS": "1",
+              "GOMODCACHE": "/home/agent/go/pkg/mod",
+              "GOPROXY": "off",
+              "GOSUMDB": "off",
+              "GOTELEMETRY": "off",
+              "GOTOOLCHAIN": "local",
+              "GOWORK": "off",
+              "PATH": "/workspace/scratch/93e0563596d1/LoGOs/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+            },
+            "error": "",
+            "returncode": 0,
+            "seconds": 3.492,
+            "stderr": "/workspace/scratch/93e0563596d1/runtime-fixtures-final/logs/fixture-semantics/logos.stderr",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stdout": "/workspace/scratch/93e0563596d1/runtime-fixtures-final/logs/fixture-semantics/logos.stdout",
+            "stdout_sha256": "0140fb7de3de6466429091d3c0d8fe5e870e2d472542ce2228f83cbdfa44689b",
+            "timed_out": false
+          },
+          "stage": "logos"
+        }
+      ],
+      "status": "finished"
+    },
+    {
+      "case": {
+        "backend": "cgo",
+        "cgo": 1,
+        "cohort": "stress",
+        "id": "fixture-cgo",
+        "module": "example.com/logos-dogfood/cgo",
+        "operation": "test",
+        "patterns": [
+          "./..."
+        ],
+        "revision": "",
+        "source": "fixtures/cgo",
+        "source_kind": "local",
+        "sum": "h1:nkYggvlHaNa3EQAyfdqcbdIoY0h98o0vgHhYRz9wZlM=",
+        "tags": [],
+        "upstream": "local",
+        "version": ""
+      },
+      "source_digest": "h1:nkYggvlHaNa3EQAyfdqcbdIoY0h98o0vgHhYRz9wZlM=",
+      "source_path": "/workspace/scratch/93e0563596d1/LoGOs/misc/logos-dogfood/fixtures/cgo",
+      "stages": [
+        {
+          "assessment": {
+            "diagnostics": 0,
+            "duplicate_diagnostics": 0,
+            "normalized_sha256": "",
+            "reason": "",
+            "status": "pass"
+          },
+          "mode": "",
+          "run": {
+            "command": [
+              "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4/bin/go",
+              "test",
+              "-count=1",
+              "-short",
+              "-timeout=175s",
+              "./..."
+            ],
+            "cwd": "/workspace/scratch/93e0563596d1/runtime-fixtures-final/work/fixture-cgo",
+            "environment": {
+              "CC": "/usr/bin/cc",
+              "CGO_ENABLED": "1",
+              "CXX": "/usr/bin/c++",
+              "GOCACHE": "/workspace/scratch/93e0563596d1/corpus-cache/oracle",
+              "GOENV": "off",
+              "GOFLAGS": "-mod=readonly -buildvcs=false -p=1",
+              "GOMAXPROCS": "1",
+              "GOMODCACHE": "/home/agent/go/pkg/mod",
+              "GOPROXY": "off",
+              "GOSUMDB": "off",
+              "GOTELEMETRY": "off",
+              "GOTOOLCHAIN": "local",
+              "GOWORK": "off",
+              "PATH": "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+            },
+            "error": "",
+            "returncode": 0,
+            "seconds": 0.568,
+            "stderr": "/workspace/scratch/93e0563596d1/runtime-fixtures-final/logs/fixture-cgo/oracle.stderr",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stdout": "/workspace/scratch/93e0563596d1/runtime-fixtures-final/logs/fixture-cgo/oracle.stdout",
+            "stdout_sha256": "1179ca016acfb218369e7d4f14b90d76f53bd1356b9ec188680485e40fb34bb5",
+            "timed_out": false
+          },
+          "stage": "oracle"
+        },
+        {
+          "assessment": {
+            "diagnostics": 0,
+            "duplicate_diagnostics": 0,
+            "normalized_sha256": "",
+            "reason": "",
+            "status": "pass"
+          },
+          "mode": "",
+          "run": {
+            "command": [
+              "/workspace/scratch/93e0563596d1/LoGOs/bin/go",
+              "test",
+              "-count=1",
+              "-short",
+              "-timeout=175s",
+              "./..."
+            ],
+            "cwd": "/workspace/scratch/93e0563596d1/runtime-fixtures-final/work/fixture-cgo",
+            "environment": {
+              "CC": "/usr/bin/cc",
+              "CGO_ENABLED": "1",
+              "CXX": "/usr/bin/c++",
+              "GOCACHE": "/workspace/scratch/93e0563596d1/corpus-cache/go",
+              "GOENV": "off",
+              "GOFLAGS": "-mod=readonly -buildvcs=false -p=1",
+              "GOMAXPROCS": "1",
+              "GOMODCACHE": "/home/agent/go/pkg/mod",
+              "GOPROXY": "off",
+              "GOSUMDB": "off",
+              "GOTELEMETRY": "off",
+              "GOTOOLCHAIN": "local",
+              "GOWORK": "off",
+              "PATH": "/workspace/scratch/93e0563596d1/LoGOs/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+            },
+            "error": "",
+            "returncode": 0,
+            "seconds": 0.67,
+            "stderr": "/workspace/scratch/93e0563596d1/runtime-fixtures-final/logs/fixture-cgo/go.stderr",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stdout": "/workspace/scratch/93e0563596d1/runtime-fixtures-final/logs/fixture-cgo/go.stdout",
+            "stdout_sha256": "1179ca016acfb218369e7d4f14b90d76f53bd1356b9ec188680485e40fb34bb5",
+            "timed_out": false
+          },
+          "stage": "go"
+        },
+        {
+          "assessment": {
+            "diagnostics": 0,
+            "duplicate_diagnostics": 0,
+            "normalized_sha256": "",
+            "reason": "",
+            "status": "pass"
+          },
+          "mode": "",
+          "run": {
+            "command": [
+              "/workspace/scratch/93e0563596d1/LoGOs/bin/logos",
+              "test",
+              "-count=1",
+              "-short",
+              "-timeout=175s",
+              "./..."
+            ],
+            "cwd": "/workspace/scratch/93e0563596d1/runtime-fixtures-final/work/fixture-cgo",
+            "environment": {
+              "CC": "/usr/bin/cc",
+              "CGO_ENABLED": "1",
+              "CXX": "/usr/bin/c++",
+              "GOCACHE": "/workspace/scratch/93e0563596d1/corpus-cache/logos",
+              "GOENV": "off",
+              "GOFLAGS": "-mod=readonly -buildvcs=false -p=1",
+              "GOMAXPROCS": "1",
+              "GOMODCACHE": "/home/agent/go/pkg/mod",
+              "GOPROXY": "off",
+              "GOSUMDB": "off",
+              "GOTELEMETRY": "off",
+              "GOTOOLCHAIN": "local",
+              "GOWORK": "off",
+              "PATH": "/workspace/scratch/93e0563596d1/LoGOs/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+            },
+            "error": "",
+            "returncode": 0,
+            "seconds": 0.565,
+            "stderr": "/workspace/scratch/93e0563596d1/runtime-fixtures-final/logs/fixture-cgo/logos.stderr",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stdout": "/workspace/scratch/93e0563596d1/runtime-fixtures-final/logs/fixture-cgo/logos.stdout",
+            "stdout_sha256": "1179ca016acfb218369e7d4f14b90d76f53bd1356b9ec188680485e40fb34bb5",
+            "timed_out": false
+          },
+          "stage": "logos"
+        }
+      ],
+      "status": "finished"
+    }
+  ],
+  "complete": true,
+  "counts": {
+    "pass": 6
+  },
+  "go_environment": {
+    "run": {
+      "command": [
+        "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4/bin/go",
+        "env",
+        "-json",
+        "GOOS",
+        "GOARCH",
+        "CC",
+        "CXX",
+        "GOVERSION"
+      ],
+      "cwd": "/workspace/scratch/93e0563596d1/LoGOs/misc/logos-dogfood",
+      "environment": {
+        "CC": "/usr/bin/cc",
+        "CGO_ENABLED": "0",
+        "CXX": "/usr/bin/c++",
+        "GOCACHE": "/workspace/scratch/93e0563596d1/corpus-cache/oracle",
+        "GOENV": "off",
+        "GOFLAGS": "-mod=readonly -buildvcs=false -p=1",
+        "GOMAXPROCS": "1",
+        "GOMODCACHE": "/home/agent/go/pkg/mod",
+        "GOPROXY": "off",
+        "GOSUMDB": "off",
+        "GOTELEMETRY": "off",
+        "GOTOOLCHAIN": "local",
+        "GOWORK": "off",
+        "PATH": "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+      },
+      "error": "",
+      "returncode": 0,
+      "seconds": 0.004,
+      "stderr": "/workspace/scratch/93e0563596d1/runtime-fixtures-final/tools/go-env.stderr",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout": "/workspace/scratch/93e0563596d1/runtime-fixtures-final/tools/go-env.stdout",
+      "stdout_sha256": "3767268b63ef1d8d471993016b3a8a30025c4fee6bc0e45a8010f534b16959ac",
+      "timed_out": false
+    },
+    "text": "{\n\t\"CC\": \"/usr/bin/cc\",\n\t\"CXX\": \"/usr/bin/c++\",\n\t\"GOARCH\": \"amd64\",\n\t\"GOOS\": \"linux\",\n\t\"GOVERSION\": \"go1.27.4\"\n}\n"
+  },
+  "jobs": 1,
+  "manifest": "/workspace/scratch/93e0563596d1/LoGOs/misc/logos-dogfood/corpus.json",
+  "manifest_sha256": "328c7de4fc02755244d319099bdc00c400821cc7dd0aa5f78ee2ae2f933e5aa3",
+  "modes": [
+    "basic",
+    "standard",
+    "strict"
+  ],
+  "operation_override": null,
+  "runner_sha256": "7afff15634011216ed55ac5d632ab9d1a80d133c6eb3d3e0233b471dd7947eb1",
+  "schema_version": 1,
+  "sources": 2,
+  "stages": [
+    "oracle",
+    "go",
+    "logos"
+  ],
+  "timeout_seconds": 180.0,
+  "tools": {
+    "go": {
+      "path": "/workspace/scratch/93e0563596d1/LoGOs/bin/go",
+      "sha256": "4c016af1e3b0b2df74f0056a878b994cb6194887273982cd9f09606e0923e3a5"
+    },
+    "logos": {
+      "path": "/workspace/scratch/93e0563596d1/LoGOs/bin/logos",
+      "sha256": "4c016af1e3b0b2df74f0056a878b994cb6194887273982cd9f09606e0923e3a5"
+    },
+    "oracle": {
+      "path": "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4/bin/go",
+      "sha256": "de0ae3e082ce7599eae4fb69fa2ef1e43b8f31ffd3fce62cdf81930aa9005050"
+    }
+  },
+  "versions": {
+    "go": {
+      "run": {
+        "command": [
+          "/workspace/scratch/93e0563596d1/LoGOs/bin/go",
+          "version"
+        ],
+        "cwd": "/workspace/scratch/93e0563596d1/LoGOs/misc/logos-dogfood",
+        "environment": {
+          "CC": "/usr/bin/cc",
+          "CGO_ENABLED": "0",
+          "CXX": "/usr/bin/c++",
+          "GOCACHE": "/workspace/scratch/93e0563596d1/corpus-cache/go",
+          "GOENV": "off",
+          "GOFLAGS": "-mod=readonly -buildvcs=false -p=1",
+          "GOMAXPROCS": "1",
+          "GOMODCACHE": "/home/agent/go/pkg/mod",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOTELEMETRY": "off",
+          "GOTOOLCHAIN": "local",
+          "GOWORK": "off",
+          "PATH": "/workspace/scratch/93e0563596d1/LoGOs/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+        },
+        "error": "",
+        "returncode": 0,
+        "seconds": 0.004,
+        "stderr": "/workspace/scratch/93e0563596d1/runtime-fixtures-final/tools/go.stderr",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout": "/workspace/scratch/93e0563596d1/runtime-fixtures-final/tools/go.stdout",
+        "stdout_sha256": "a29205bd83967c2f70e6768fae009600038d6056499fa289de9d5f9b79beaef4",
+        "timed_out": false
+      },
+      "text": "go version go1.27.4 linux/amd64",
+      "toolchain": {
+        "compiler_source_h1": "h1:tbzm3kxYphDinWJtSi++w2s/e63o9EJIJGOHj3GByXE=",
+        "goroot": "/workspace/scratch/93e0563596d1/LoGOs",
+        "run": {
+          "command": [
+            "/workspace/scratch/93e0563596d1/LoGOs/bin/go",
+            "env",
+            "-json",
+            "GOROOT",
+            "GOTOOLDIR"
+          ],
+          "cwd": "/workspace/scratch/93e0563596d1/LoGOs/misc/logos-dogfood",
+          "environment": {
+            "CC": "/usr/bin/cc",
+            "CGO_ENABLED": "0",
+            "CXX": "/usr/bin/c++",
+            "GOCACHE": "/workspace/scratch/93e0563596d1/corpus-cache/go",
+            "GOENV": "off",
+            "GOFLAGS": "-mod=readonly -buildvcs=false -p=1",
+            "GOMAXPROCS": "1",
+            "GOMODCACHE": "/home/agent/go/pkg/mod",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOTELEMETRY": "off",
+            "GOTOOLCHAIN": "local",
+            "GOWORK": "off",
+            "PATH": "/workspace/scratch/93e0563596d1/LoGOs/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+          },
+          "error": "",
+          "returncode": 0,
+          "seconds": 0.004,
+          "stderr": "/workspace/scratch/93e0563596d1/runtime-fixtures-final/tools/go-identity.stderr",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout": "/workspace/scratch/93e0563596d1/runtime-fixtures-final/tools/go-identity.stdout",
+          "stdout_sha256": "00e9ec557a806b8e24f4f88d6eb40614073f2b265f5a8db2af53233b3455e915",
+          "timed_out": false
+        },
+        "source_revision": "d829fbdfa8a9cdaa403873862fd342c1314e9d1f",
+        "source_status": "",
+        "tools": {
+          "asm": {
+            "path": "/workspace/scratch/93e0563596d1/LoGOs/pkg/tool/linux_amd64/asm",
+            "sha256": "bc86977331af77841a2d5c85f23212558233f5320e38fe2e3b59325b84faaca9"
+          },
+          "cgo": {
+            "path": "/workspace/scratch/93e0563596d1/LoGOs/pkg/tool/linux_amd64/cgo",
+            "sha256": "cd4545d93e6e5aef271ee79d0cdc12e055f7b272077d6fd926c703ff9a07a754"
+          },
+          "compile": {
+            "path": "/workspace/scratch/93e0563596d1/LoGOs/pkg/tool/linux_amd64/compile",
+            "sha256": "7c519b46141178df983fe62f9bbb7ef794201dba8daf31a676143ed657373f37"
+          },
+          "link": {
+            "path": "/workspace/scratch/93e0563596d1/LoGOs/pkg/tool/linux_amd64/link",
+            "sha256": "b21cda2370df5c9bd00b225ef92a7e88a3b53ba01fb6a19916b85608bd400232"
+          }
+        }
+      }
+    },
+    "logos": {
+      "run": {
+        "command": [
+          "/workspace/scratch/93e0563596d1/LoGOs/bin/logos",
+          "version"
+        ],
+        "cwd": "/workspace/scratch/93e0563596d1/LoGOs/misc/logos-dogfood",
+        "environment": {
+          "CC": "/usr/bin/cc",
+          "CGO_ENABLED": "0",
+          "CXX": "/usr/bin/c++",
+          "GOCACHE": "/workspace/scratch/93e0563596d1/corpus-cache/logos",
+          "GOENV": "off",
+          "GOFLAGS": "-mod=readonly -buildvcs=false -p=1",
+          "GOMAXPROCS": "1",
+          "GOMODCACHE": "/home/agent/go/pkg/mod",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOTELEMETRY": "off",
+          "GOTOOLCHAIN": "local",
+          "GOWORK": "off",
+          "PATH": "/workspace/scratch/93e0563596d1/LoGOs/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+        },
+        "error": "",
+        "returncode": 0,
+        "seconds": 0.004,
+        "stderr": "/workspace/scratch/93e0563596d1/runtime-fixtures-final/tools/logos.stderr",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout": "/workspace/scratch/93e0563596d1/runtime-fixtures-final/tools/logos.stdout",
+        "stdout_sha256": "3a7b14cf792a79c78a9e42aab8906e0774b54ecddbbbc520ce94651a34aec2f9",
+        "timed_out": false
+      },
+      "text": "logos version go1.27.4 linux/amd64",
+      "toolchain": {
+        "compiler_source_h1": "h1:tbzm3kxYphDinWJtSi++w2s/e63o9EJIJGOHj3GByXE=",
+        "goroot": "/workspace/scratch/93e0563596d1/LoGOs",
+        "run": {
+          "command": [
+            "/workspace/scratch/93e0563596d1/LoGOs/bin/logos",
+            "env",
+            "-json",
+            "GOROOT",
+            "GOTOOLDIR"
+          ],
+          "cwd": "/workspace/scratch/93e0563596d1/LoGOs/misc/logos-dogfood",
+          "environment": {
+            "CC": "/usr/bin/cc",
+            "CGO_ENABLED": "0",
+            "CXX": "/usr/bin/c++",
+            "GOCACHE": "/workspace/scratch/93e0563596d1/corpus-cache/logos",
+            "GOENV": "off",
+            "GOFLAGS": "-mod=readonly -buildvcs=false -p=1",
+            "GOMAXPROCS": "1",
+            "GOMODCACHE": "/home/agent/go/pkg/mod",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOTELEMETRY": "off",
+            "GOTOOLCHAIN": "local",
+            "GOWORK": "off",
+            "PATH": "/workspace/scratch/93e0563596d1/LoGOs/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+          },
+          "error": "",
+          "returncode": 0,
+          "seconds": 0.004,
+          "stderr": "/workspace/scratch/93e0563596d1/runtime-fixtures-final/tools/logos-identity.stderr",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout": "/workspace/scratch/93e0563596d1/runtime-fixtures-final/tools/logos-identity.stdout",
+          "stdout_sha256": "00e9ec557a806b8e24f4f88d6eb40614073f2b265f5a8db2af53233b3455e915",
+          "timed_out": false
+        },
+        "source_revision": "d829fbdfa8a9cdaa403873862fd342c1314e9d1f",
+        "source_status": "",
+        "tools": {
+          "asm": {
+            "path": "/workspace/scratch/93e0563596d1/LoGOs/pkg/tool/linux_amd64/asm",
+            "sha256": "bc86977331af77841a2d5c85f23212558233f5320e38fe2e3b59325b84faaca9"
+          },
+          "cgo": {
+            "path": "/workspace/scratch/93e0563596d1/LoGOs/pkg/tool/linux_amd64/cgo",
+            "sha256": "cd4545d93e6e5aef271ee79d0cdc12e055f7b272077d6fd926c703ff9a07a754"
+          },
+          "compile": {
+            "path": "/workspace/scratch/93e0563596d1/LoGOs/pkg/tool/linux_amd64/compile",
+            "sha256": "7c519b46141178df983fe62f9bbb7ef794201dba8daf31a676143ed657373f37"
+          },
+          "link": {
+            "path": "/workspace/scratch/93e0563596d1/LoGOs/pkg/tool/linux_amd64/link",
+            "sha256": "b21cda2370df5c9bd00b225ef92a7e88a3b53ba01fb6a19916b85608bd400232"
+          }
+        }
+      }
+    },
+    "oracle": {
+      "run": {
+        "command": [
+          "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4/bin/go",
+          "version"
+        ],
+        "cwd": "/workspace/scratch/93e0563596d1/LoGOs/misc/logos-dogfood",
+        "environment": {
+          "CC": "/usr/bin/cc",
+          "CGO_ENABLED": "0",
+          "CXX": "/usr/bin/c++",
+          "GOCACHE": "/workspace/scratch/93e0563596d1/corpus-cache/oracle",
+          "GOENV": "off",
+          "GOFLAGS": "-mod=readonly -buildvcs=false -p=1",
+          "GOMAXPROCS": "1",
+          "GOMODCACHE": "/home/agent/go/pkg/mod",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOTELEMETRY": "off",
+          "GOTOOLCHAIN": "local",
+          "GOWORK": "off",
+          "PATH": "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+        },
+        "error": "",
+        "returncode": 0,
+        "seconds": 0.004,
+        "stderr": "/workspace/scratch/93e0563596d1/runtime-fixtures-final/tools/oracle.stderr",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout": "/workspace/scratch/93e0563596d1/runtime-fixtures-final/tools/oracle.stdout",
+        "stdout_sha256": "a29205bd83967c2f70e6768fae009600038d6056499fa289de9d5f9b79beaef4",
+        "timed_out": false
+      },
+      "text": "go version go1.27.4 linux/amd64",
+      "toolchain": {
+        "compiler_source_h1": "h1:E+85JdaKFrFMOOqiy7ZxDTOB3s28bZCsBLRbm1ztpaI=",
+        "goroot": "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4",
+        "run": {
+          "command": [
+            "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4/bin/go",
+            "env",
+            "-json",
+            "GOROOT",
+            "GOTOOLDIR"
+          ],
+          "cwd": "/workspace/scratch/93e0563596d1/LoGOs/misc/logos-dogfood",
+          "environment": {
+            "CC": "/usr/bin/cc",
+            "CGO_ENABLED": "0",
+            "CXX": "/usr/bin/c++",
+            "GOCACHE": "/workspace/scratch/93e0563596d1/corpus-cache/oracle",
+            "GOENV": "off",
+            "GOFLAGS": "-mod=readonly -buildvcs=false -p=1",
+            "GOMAXPROCS": "1",
+            "GOMODCACHE": "/home/agent/go/pkg/mod",
+            "GOPROXY": "off",
+            "GOSUMDB": "off",
+            "GOTELEMETRY": "off",
+            "GOTOOLCHAIN": "local",
+            "GOWORK": "off",
+            "PATH": "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+          },
+          "error": "",
+          "returncode": 0,
+          "seconds": 0.004,
+          "stderr": "/workspace/scratch/93e0563596d1/runtime-fixtures-final/tools/oracle-identity.stderr",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout": "/workspace/scratch/93e0563596d1/runtime-fixtures-final/tools/oracle-identity.stdout",
+          "stdout_sha256": "4bbe537d4c6db4936c01d2cc1f774e66f6f20786a8cde4b83b42595a1af4bf16",
+          "timed_out": false
+        },
+        "tools": {
+          "asm": {
+            "path": "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4/pkg/tool/linux_amd64/asm",
+            "sha256": "a67997d99985e3ef3ecd30f029685d67d778a0c8f78b852396ef7738426c04b5"
+          },
+          "cgo": {
+            "path": "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4/pkg/tool/linux_amd64/cgo",
+            "sha256": "0ac696dfbbcdd912cb833d7190c7f91388bac2d89d4dc79c8915a4e43239b675"
+          },
+          "compile": {
+            "path": "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4/pkg/tool/linux_amd64/compile",
+            "sha256": "40307e5f5c65a4b4220bbf35dbe014348780589ea2964003f0bf318fa14640e1"
+          },
+          "link": {
+            "path": "/workspace/scratch/3a94cc7b50af/toolchains/go1.27.4/pkg/tool/linux_amd64/link",
+            "sha256": "e2248a29fbbf15dac1fe72c9d646776dbcd38c9813b78182fe01a4a47f3299c3"
+          }
+        }
+      }
+    }
+  }
+}

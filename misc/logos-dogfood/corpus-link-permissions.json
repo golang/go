@@ -1,0 +1,40 @@
+[
+  {
+    "id": "errorlint",
+    "source_kind": "git",
+    "source": "errorlint",
+    "module": "codeberg.org/polyfloyd/go-errorlint",
+    "upstream": "https://codeberg.org/polyfloyd/go-errorlint.git",
+    "revision": "7f5db642465f59dc455fe4705b97a8e6484ef81c",
+    "cohort": "reference",
+    "backend": "go-only",
+    "cgo": 0,
+    "tags": [],
+    "patterns": [
+      "./..."
+    ],
+    "operation": "test",
+    "logos_policy": "policies/link/errorlint.toml",
+    "logos_policy_sha256": "46e5edabc0c9336b97f79cdb09a5b7240b06fd576e1a7b2bc37c1a2a6b97fa36"
+  },
+  {
+    "id": "exhaustive",
+    "source_kind": "module",
+    "source": "github.com/nishanths/exhaustive@v0.17.1",
+    "module": "github.com/nishanths/exhaustive",
+    "upstream": "https://github.com/nishanths/exhaustive",
+    "revision": "9893aa2cdb3fc60cc79ff6fabeafd8f218790145",
+    "version": "v0.17.1",
+    "sum": "h1:zlwR7GV/UqKrm3AJdeXqldUTSsbyfdqS8f/m0oMYLD0=",
+    "cohort": "reference",
+    "backend": "go-only",
+    "cgo": 0,
+    "tags": [],
+    "patterns": [
+      "./..."
+    ],
+    "operation": "test",
+    "logos_policy": "policies/link/exhaustive.toml",
+    "logos_policy_sha256": "46e5edabc0c9336b97f79cdb09a5b7240b06fd576e1a7b2bc37c1a2a6b97fa36"
+  }
+]

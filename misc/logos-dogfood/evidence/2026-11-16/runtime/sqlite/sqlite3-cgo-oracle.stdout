@@ -1,0 +1,16 @@
+{"Time":"2026-11-16T23:11:08.410814956+09:00","Action":"start","Package":"github.com/mattn/go-sqlite3"}
+{"Time":"2026-11-16T23:11:08.417772+09:00","Action":"run","Package":"github.com/mattn/go-sqlite3","Test":"TestOpen"}
+{"Time":"2026-11-16T23:11:08.417854893+09:00","Action":"output","Package":"github.com/mattn/go-sqlite3","Test":"TestOpen","Output":"=== RUN   TestOpen\n","OutputType":"frame"}
+{"Time":"2026-11-16T23:11:08.418928628+09:00","Action":"output","Package":"github.com/mattn/go-sqlite3","Test":"TestOpen","Output":"--- PASS: TestOpen (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-16T23:11:08.418944912+09:00","Action":"pass","Package":"github.com/mattn/go-sqlite3","Test":"TestOpen","Elapsed":0}
+{"Time":"2026-11-16T23:11:08.418953184+09:00","Action":"run","Package":"github.com/mattn/go-sqlite3","Test":"TestClose"}
+{"Time":"2026-11-16T23:11:08.418955177+09:00","Action":"output","Package":"github.com/mattn/go-sqlite3","Test":"TestClose","Output":"=== RUN   TestClose\n","OutputType":"frame"}
+{"Time":"2026-11-16T23:11:08.419232459+09:00","Action":"output","Package":"github.com/mattn/go-sqlite3","Test":"TestClose","Output":"--- PASS: TestClose (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-16T23:11:08.419239489+09:00","Action":"pass","Package":"github.com/mattn/go-sqlite3","Test":"TestClose","Elapsed":0}
+{"Time":"2026-11-16T23:11:08.419242223+09:00","Action":"run","Package":"github.com/mattn/go-sqlite3","Test":"TestInsert"}
+{"Time":"2026-11-16T23:11:08.419244537+09:00","Action":"output","Package":"github.com/mattn/go-sqlite3","Test":"TestInsert","Output":"=== RUN   TestInsert\n","OutputType":"frame"}
+{"Time":"2026-11-16T23:11:08.419464969+09:00","Action":"output","Package":"github.com/mattn/go-sqlite3","Test":"TestInsert","Output":"--- PASS: TestInsert (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-16T23:11:08.419476236+09:00","Action":"pass","Package":"github.com/mattn/go-sqlite3","Test":"TestInsert","Elapsed":0}
+{"Time":"2026-11-16T23:11:08.41947892+09:00","Action":"output","Package":"github.com/mattn/go-sqlite3","Output":"PASS\n","OutputType":"frame"}
+{"Time":"2026-11-16T23:11:08.419840361+09:00","Action":"output","Package":"github.com/mattn/go-sqlite3","Output":"ok  \tgithub.com/mattn/go-sqlite3\t0.008s\n"}
+{"Time":"2026-11-16T23:11:08.419854512+09:00","Action":"pass","Package":"github.com/mattn/go-sqlite3","Elapsed":0.009}

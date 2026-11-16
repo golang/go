@@ -1,0 +1,8 @@
+{
+  "bin/go": "go version go1.27.4 linux/amd64",
+  "bin/logos": "logos version go1.27.4 linux/amd64",
+  "pkg/tool/linux_amd64/compile": "compile version go1.27.4 buildID=T7WMp7JkvD9AcTzuLiZ0/iVOQUmFMELkq3cu4uPty/9Ha7I0q_tdNsdKk-6Q7-/Wo8slHbr6brEgvZowSjR",
+  "pkg/tool/linux_amd64/link": "link version go1.27.4 buildID=trAiOqYry1rLtWI2hdnT/iqLeR7Lp2lBpnuj4iEa_/-sw4GHtyiB0602dj37b2/VYOssNQ3wv_dnwqozP9i",
+  "pkg/tool/linux_amd64/asm": "asm version go1.27.4 buildID=i4UnTrTsQW5e3yCWKgaS/BwVN81M7Yp7-IZoldjYL/djWOHTFoX-Mz3-ceFMTS/9EE1ihnhxpvur8sbrpj4",
+  "pkg/tool/linux_amd64/cgo": "cgo version go1.27.4 buildID=y7_F0l6QOLNPv-Eky7dS/nof_7ocJWrtLyiaqYw08/4iqyGxx1LpbU5vE6cHsp/LrELc4SemicRH3WkcxKU"
+}
