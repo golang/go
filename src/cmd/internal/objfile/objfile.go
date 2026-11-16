@@ -76,6 +76,7 @@ func Open(name string) (*File, error) {
 	if f, err := openGoFile(r); err == nil {
 		return f, nil
 	} else if _, ok := err.(archive.ErrGoObjOtherVersion); ok {
+		r.Close()
 		return nil, fmt.Errorf("open %s: %v", name, err)
 	}
 	for _, try := range openers {

@@ -1257,6 +1257,7 @@ func hostobjs(ctxt *Link) {
 		f.MustSeek(h.off, 0)
 		if h.ld == nil {
 			Errorf("%s: unrecognized object file format", h.pn)
+			f.Close()
 			continue
 		}
 		h.ld(ctxt, f, h.pkg, h.length, h.pn)

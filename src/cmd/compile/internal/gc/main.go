@@ -36,6 +36,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"cmd/internal/telemetry/counter"
+	"errors"
 	"flag"
 	"fmt"
 	"internal/buildcfg"
@@ -418,11 +419,14 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	}
 }
 
-func writebench(filename string) error {
+func writebench(filename string) (err error) {
 	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		return err
 	}
+	defer func() {
+		err = errors.Join(err, f.Close())
+	}()
 
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, "commit:", buildcfg.Version)
@@ -438,7 +442,7 @@ func writebench(filename string) error {
 		panic("bad writer")
 	}
 
-	return f.Close()
+	return nil
 }
 
 func makePos(b *src.PosBase, line, col uint) src.XPos {
