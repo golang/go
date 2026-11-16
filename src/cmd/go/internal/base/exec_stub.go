@@ -4,10 +4,11 @@
 
 //go:build js || wasip1
 
-package toolchain
+package base
 
-import "cmd/go/internal/base"
+import "log"
 
-func execGoToolchain(gotoolchain, dir, exe string) {
-	base.Fatalf("execGoToolchain unsupported")
+func Exec(name, exe string) {
+	log.SetPrefix("go: ")
+	Fatalf("exec %s unsupported", name)
 }
