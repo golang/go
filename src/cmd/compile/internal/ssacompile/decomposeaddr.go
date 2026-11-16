@@ -31,7 +31,6 @@ package ssacompile
 //   memory usage.
 
 import (
-	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/ssaop"
@@ -132,10 +131,6 @@ func zeroValueForType(f *ssa.Func, t *types.Type) *ssa.Value {
 // (structs and arrays) accessed via OffPtr
 // into separate scalar variables, allowing mem2reg to promote them.
 func decomposeAddr(f *ssa.Func) {
-	if base.Flag.N != 0 {
-		return
-	}
-
 	// Get demographics up front: for a function with no candidate
 	// LocalAddr (the common case) this allocates nothing and the pass
 	// exits before setting up any of its machinery below.
