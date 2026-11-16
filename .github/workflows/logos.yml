@@ -2,15 +2,19 @@ name: "logos"
 
 "on":
   pull_request:
+    paths-ignore:
+      - "**/*.md"
   push:
     branches:
       - "release-branch.go1.27"
+    paths-ignore:
+      - "**/*.md"
 
 permissions:
   contents: "read"
 
 concurrency:
-  group: "logos-${{ github.ref }}"
+  group: "logos-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"
   cancel-in-progress: true
 
 env:
@@ -28,12 +32,14 @@ env:
 jobs:
   logos:
     name: "${{ matrix.suite }}"
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: "ubuntu-26.04"
     timeout-minutes: 90
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         include:
+          # Share one toolchain build across the shorter suites.
           - suite: "unit"
             run: |
               go test -count=1 -short $LOGOS_PACKAGES
@@ -41,14 +47,7 @@ jobs:
               go test -count=1 -short runtime/metrics
               GOEXPERIMENT=logosarena go test -count=1 -short -race runtime -run '^TestLogos(Arena|Region|GCScan)'
               GOEXPERIMENT=logosarena,nogreenteagc go test -count=1 -short runtime -run '^TestLogos(Arena|Region|GCScan)'
-          - suite: "scripts"
-            run: |
-              go test -count=1 -timeout 60m cmd/go -run 'Script/^logos_'
-          - suite: "testdir"
-            run: |
               go test -count=1 -timeout 60m cmd/internal/testdir -run 'Test/logos/'
-          - suite: "lint"
-            run: |
               unformatted=$(gofmt -l logos internal/logosfile cmd/go/internal/logos cmd/compile/internal/logos cmd/internal/logos cmd/internal/logosowned cmd/cgo/internal/testlogos)
               printf '%s\n' "$unformatted"
               test -z "$unformatted"
@@ -59,6 +58,9 @@ jobs:
               tar -xzf "$RUNNER_TEMP/$archive.tar.gz" -C "$RUNNER_TEMP"
               cd cmd
               "$RUNNER_TEMP/$archive/golangci-lint" run --config ../../logos-doc/golangci.yml ./go/internal/logos/...
+          - suite: "scripts"
+            run: |
+              go test -count=1 -timeout 60m cmd/go -run 'Script/^logos_'
     defaults:
       run:
         shell: "bash"
