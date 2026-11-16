@@ -1,0 +1,34 @@
+# Devin environment blueprint for LoGOs.
+# https://docs.devin.ai/onboard-devin/environment-yaml
+# Bootstraps upstream go1.27.4 (sha256-pinned) and builds the fork toolchain so
+# bin/go and bin/logos exist in the snapshot.
+initialize: |
+  set -e
+  if [ ! -x "$HOME/go-bootstrap/bin/go" ]; then
+    curl -LsSf -o /tmp/go.tgz https://go.dev/dl/go1.27.4.linux-amd64.tar.gz
+    echo "7226736c2339719cda28fbf3a54d71aa63bcefe376e98cef00034268dab24840  /tmp/go.tgz" | sha256sum -c -
+    rm -rf "$HOME/go-bootstrap" && mkdir -p "$HOME/go-bootstrap"
+    tar -C "$HOME/go-bootstrap" --strip-components=1 -xzf /tmp/go.tgz
+  fi
+  (cd src && GOROOT_BOOTSTRAP=$HOME/go-bootstrap ./make.bash)
+# $ENVRC is reset when initialize is skipped on differential builds, so PATH
+# lives in maintenance to be restored for every build kind.
+maintenance: |
+  echo "PATH=$(pwd)/bin:$PATH" >> $ENVRC
+knowledge:
+  - name: test
+    contents: |
+      cd src && go test -count=1 -short <pkg>
+      Script tests: go test -count=1 cmd/go -run 'Script/^logos_<name>$'
+      Compiler dir tests: go test -count=1 cmd/internal/testdir -run 'Test/logos/'
+  - name: lint
+    contents: |
+      gofmt -l <files> prints nothing; go vet <pkgs> passes.
+      New packages only: (cd src/cmd && golangci-lint run --config ../../logos-doc/golangci.yml ./go/internal/logos/...)
+  - name: build
+    contents: |
+      (cd src && GOROOT_BOOTSTRAP=$HOME/go-bootstrap ./make.bash)
+      Smoke: logos version; logos help
+  - name: notes
+    contents: |
+      Work on release-branch.go1.27; fork-first PATH. Rebuild after compiler/cmd changes — tests use installed binaries. Milestone gate: (cd src && ./run.bash --no-rebuild).
