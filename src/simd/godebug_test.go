@@ -138,18 +138,21 @@ func godebugSettings() []godebugSetting {
 	// that lack the instruction for it.
 	switch runtime.GOARCH {
 	case "amd64":
-		// Without PCLMULQDQ, archsimd uses software. If PCLMULQDQ is
-		// already off, the current setting tests that.
-		//
-		// This only tests 128-bit vectors. The fallbacks for wider
-		// vectors can't be reached through this package yet, because
-		// it limits the vector size to one where carryless multiply
-		// is a single instruction.
-		if cpu.X86.HasPCLMULQDQ {
-			settings = append(settings, godebugSetting{
-				godebug:    prefix + "simd=128,cpu.pclmulqdq=off",
-				wantConfig: "VectorBits=128 Emulated=false HardwareCLMUL=false",
-			})
+		// Each vector size has its own instruction and fallbacks. If
+		// the CPU lacks an instruction, the tests already test its
+		// fallback.
+		for bits := simd.VectorBits(); bits >= 128; bits /= 2 {
+			size := prefix + fmt.Sprintf("simd=%d,", bits)
+			want := fmt.Sprintf("VectorBits=%d Emulated=false HardwareCLMUL=false", bits)
+			if bits > 128 && cpu.X86.HasVPCLMULQDQ {
+				// Without VPCLMULQDQ, archsimd applies the Uint64x2
+				// instruction to each 128-bit part of wider vectors.
+				settings = append(settings, godebugSetting{godebug: size + "cpu.vpclmulqdq=off", wantConfig: want})
+			}
+			if cpu.X86.HasPCLMULQDQ {
+				// Without PCLMULQDQ, archsimd uses software.
+				settings = append(settings, godebugSetting{godebug: size + "cpu.pclmulqdq=off", wantConfig: want})
+			}
 		}
 	case "arm64":
 		// Without PMULL, archsimd emulates carryless multiply using

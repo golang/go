@@ -29,20 +29,16 @@ func archMaxVectorSize() (size, allFeatureSize int, arch string) {
 	arch = "amd64"
 	if archsimd.X86.AVX() {
 		size = 128
-		allFeatureSize = 128
 	}
 	if archsimd.X86.AVX2() {
 		size = 256
-		if cpu.X86.HasVPCLMULQDQ {
-			allFeatureSize = 256
-		}
 	}
 	if archsimd.X86.AVX512() {
 		size = 512
-		if cpu.X86.HasAVX512VPCLMULQDQ {
-			allFeatureSize = 512
-		}
 	}
+	// Carryless multiply doesn't limit the vector size: archsimd emulates
+	// it on CPUs that lack it at their widest vector size.
+	allFeatureSize = size
 	// MulAdd requires FMA even for 128-bit vectors. Fall back to
 	// emulation by default if it is unavailable.
 	if !archsimd.X86.FMA() {
