@@ -2362,6 +2362,22 @@ func opLen2Imm8_2I(op ssaop.Op, t *types.Type, offset int) func(s *state, n *ir.
 	}
 }
 
+// opLen2Imm8_21I is like opLen2Imm8_2I, but the receiver is the second
+// argument of op and the first argument of the method is the first.
+//
+//go:noinline
+func opLen2Imm8_21I(op ssaop.Op, t *types.Type, offset int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		if args[2].Op == ssaop.OpConst8 || args[2].Op == ssaop.OpConst64 {
+			return s.newValue2I(op, t, int64(int8(args[2].AuxInt<<int64(offset))), args[1], args[0])
+		}
+		return immJumpTable(s, args[2], n, func(sNew *state, idx int) {
+			// Encode as int8 due to requirement of AuxInt, check its comment for details.
+			s.vars[n] = sNew.newValue2I(op, t, int64(int8(idx<<offset)), args[1], args[0])
+		})
+	}
+}
+
 // Two immediates instead of just 1.  Offset is ignored, so it is a _ parameter instead.
 //
 //go:noinline
@@ -2449,6 +2465,22 @@ func opLen2Imm_2I(op ssaop.Op, t *types.Type, offset int, immMax uint64) func(s 
 		return immJumpTableN(s, args[2], n, immMax+1, func(sNew *state, idx int) {
 			// Encode as int8 due to requirement of AuxInt, check its comment for details.
 			s.vars[n] = sNew.newValue2I(op, t, int64(int8(idx<<offset)), args[0], args[1])
+		})
+	}
+}
+
+// opLen2Imm_21I is like opLen2Imm_2I, but the receiver is the second
+// argument of op and the first argument of the method is the first.
+//
+//go:noinline
+func opLen2Imm_21I(op ssaop.Op, t *types.Type, offset int, immMax uint64) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		if (args[2].Op == ssaop.OpConst8 || args[2].Op == ssaop.OpConst64) && uint64(args[2].AuxInt) <= immMax {
+			return s.newValue2I(op, t, int64(int8(args[2].AuxInt<<int64(offset))), args[1], args[0])
+		}
+		return immJumpTableN(s, args[2], n, immMax+1, func(sNew *state, idx int) {
+			// Encode as int8 due to requirement of AuxInt, check its comment for details.
+			s.vars[n] = sNew.newValue2I(op, t, int64(int8(idx<<offset)), args[1], args[0])
 		})
 	}
 }

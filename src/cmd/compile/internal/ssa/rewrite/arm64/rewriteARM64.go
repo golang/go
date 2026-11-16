@@ -1223,7 +1223,7 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpConcatOddUint8x16:
 		v.Op = ssaop.OpARM64VUZP216B
 		return true
-	case ssaop.OpConcatShiftBytesRightUint8x16:
+	case ssaop.OpConcatWindowUint8x16:
 		v.Op = ssaop.OpARM64VEXT16B
 		return true
 	case ssaop.OpCondSelect:

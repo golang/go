@@ -47,33 +47,43 @@ func TestScaleSaturated(t *testing.T) {
 	testUint64x2Shift(t, func(x archsimd.Uint64x2, s archsimd.Int64x2) archsimd.Uint64x2 { return x.ScaleSaturated(s64(s)) }, scaleSaturatingUnsignedSlice[uint64, int64])
 }
 
-func TestConcatShiftBytesRight(t *testing.T) {
-	hide := hideConst[uint64]
+func TestConcatWindow(t *testing.T) {
+	hide := hideConst[uint8]
 
-	csbr := func(shift uint64) func(x, y []uint8) []uint8 {
+	// window returns the 16 elements of the concatenation of x and y that
+	// start at element start.
+	window := func(start uint8) func(x, y []uint8) []uint8 {
 		return func(x, y []uint8) []uint8 {
 			z := make([]uint8, len(x))
 			for i := range z {
-				target := i + int(shift)
+				target := i + int(start)
 				if target < 16 {
-					z[i] = y[target]
+					z[i] = x[target]
 				} else if target < 32 {
-					z[i] = x[(target - 16)]
+					z[i] = y[target-16]
 				}
 			}
 			return z
 		}
 	}
+	// swap returns f with its arguments swapped. The deprecated
+	// ConcatShiftBytesRight is ConcatWindow with x and y swapped.
+	swap := func(f func(x, y []uint8) []uint8) func(x, y []uint8) []uint8 {
+		return func(x, y []uint8) []uint8 { return f(y, x) }
+	}
 
 	t.Run("Uint8x16", func(t *testing.T) {
-		for _, shift := range []uint64{0, 2, 8, 15} {
-			t.Log("shift", shift)
+		for _, start := range []uint8{0, 2, 8, 15} {
+			t.Log("start", start)
 			testUint8x16Binary(t,
-				func(x, y archsimd.Uint8x16) archsimd.Uint8x16 { return x.ConcatShiftBytesRight(y, shift) },
-				csbr(shift))
+				func(x, y archsimd.Uint8x16) archsimd.Uint8x16 { return x.ConcatWindow(y, start) },
+				window(start))
 			testUint8x16Binary(t,
-				func(x, y archsimd.Uint8x16) archsimd.Uint8x16 { return x.ConcatShiftBytesRight(y, hide(shift)) },
-				csbr(hide(shift)))
+				func(x, y archsimd.Uint8x16) archsimd.Uint8x16 { return x.ConcatWindow(y, hide(start)) },
+				window(hide(start)))
+			testUint8x16Binary(t,
+				func(x, y archsimd.Uint8x16) archsimd.Uint8x16 { return x.ConcatShiftBytesRight(y, uint64(start)) },
+				swap(window(start)))
 		}
 	})
 }

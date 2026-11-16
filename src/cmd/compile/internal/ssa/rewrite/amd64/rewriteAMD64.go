@@ -3991,15 +3991,6 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpConcatSaturateToUint16Int32x4:
 		v.Op = ssaop.OpAMD64VPACKUSDW128
 		return true
-	case ssaop.OpConcatShiftBytesRightGroupedUint8x32:
-		v.Op = ssaop.OpAMD64VPALIGNR256
-		return true
-	case ssaop.OpConcatShiftBytesRightGroupedUint8x64:
-		v.Op = ssaop.OpAMD64VPALIGNR512
-		return true
-	case ssaop.OpConcatShiftBytesRightUint8x16:
-		v.Op = ssaop.OpAMD64VPALIGNR128
-		return true
 	case ssaop.OpConcatSubPairsFloat32x4:
 		v.Op = ssaop.OpAMD64VHSUBPS128
 		return true
@@ -4041,6 +4032,15 @@ func RewriteValue(v *ssa.Value) bool {
 		return true
 	case ssaop.OpConcatSubPairsUint32x4:
 		v.Op = ssaop.OpAMD64VPHSUBD128
+		return true
+	case ssaop.OpConcatWindowGroupedUint8x32:
+		v.Op = ssaop.OpAMD64VPALIGNR256
+		return true
+	case ssaop.OpConcatWindowGroupedUint8x64:
+		v.Op = ssaop.OpAMD64VPALIGNR512
+		return true
+	case ssaop.OpConcatWindowUint8x16:
+		v.Op = ssaop.OpAMD64VPALIGNR128
 		return true
 	case ssaop.OpCondSelect:
 		return rewriteValue_OpCondSelect(v)

@@ -302,3 +302,31 @@ func ConcatOdd[E Elt, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
 	}
 	return z
 }
+
+// ConcatWindow returns a window of the concatenation of x (low indices) and y
+// (high indices) that starts at element start and is the length of x.
+//
+//	xy = concat(x, y)
+//	z[i] = xy[start+i]
+//
+// start must be less than {{lanes .x "x"}}. Otherwise, the result is
+// unspecified (and ConcatWindow may panic).
+func ConcatWindow[E Elt, W Width](x, y Vec[E, W], start uint8) (z Vec[E, W]) {
+	n := x.len()
+	if int(start) >= n {
+		panic("start out of range")
+	}
+	z = makeVec[E, W]()
+	copy(z, x[start:])
+	copy(z[n-int(start):], y)
+	return z
+}
+
+// ConcatWindowGrouped divides x, y, and z into groups of 128 bits and performs
+// [ConcatWindow] on each group. start must be less than the number of elements
+// in a group.
+func ConcatWindowGrouped[E Elt, W Width](x, y Vec[E, W], start uint8) (z Vec[E, W]) {
+	return grouped128(func(x, y Vec[E, Width128]) Vec[E, Width128] {
+		return ConcatWindow(x, y, start)
+	}, x, y)
+}

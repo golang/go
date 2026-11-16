@@ -296,18 +296,29 @@
     // 128-bit elements, and returns a 256-bit result formed by
     // concatenating the two elements specified by lo and hi.
 
-- go: ConcatShiftBytesRight
+# TODO: ConcatWindow and ConcatWindowGrouped are only defined on vectors of
+# 8-bit elements, but they could be extended to other element widths. The
+# instructions that implement them, VPALIGNR on amd64 and EXT on arm64, count
+# in bytes, so a window that starts at element k of a vector of b-byte elements
+# is a byte window that starts at byte k*b. On amd64, VALIGND and VALIGNQ
+# implement this directly for 32- and 64-bit elements, and do so across a
+# whole 256- or 512-bit vector rather than within each 128-bit group.
+- go: ConcatWindow
   commutative: false
   documentation: !string |-
-    // NAME concatenates x and y and shifts it right by shift bytes.
-    // The result vector will be the lower half of the concatenated vector.
+    // NAME returns a window of the concatenation of x and y that starts at
+    // element start and is the length of x.
+    //
+    //	xy = concat(x, y)
+    //	z[i] = xy[start+i]
+    //
+    // x supplies the low-indexed elements of xy and y supplies the high-indexed elements.
 
-- go: ConcatShiftBytesRightGrouped
+- go: ConcatWindowGrouped
   commutative: false
   documentation: !string |-
-    // NAME concatenates x and y and shifts it right by shift bytes.
-    // The result vector will be the lower half of the concatenated vector.
-    // This operation is performed grouped by each 16 byte.
+    // NAME divides x, y, and z into groups of 128 bits and performs
+    // [Uint8x16.ConcatWindow] on each group.
 - go: ConcatEven
   commutative: false
   documentation: !string |-

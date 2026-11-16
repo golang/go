@@ -94,7 +94,7 @@ func init() {
 		{name: "ConcatOddUint16x8", argLength: 2},
 		{name: "ConcatOddUint32x4", argLength: 2},
 		{name: "ConcatOddUint64x2", argLength: 2},
-		{name: "ConcatShiftBytesRightUint8x16", argLength: 2, aux: "UInt8"},
+		{name: "ConcatWindowUint8x16", argLength: 2, aux: "UInt8"},
 		{name: "ConvertToFloat32Float64x2", argLength: 1},
 		{name: "ConvertToFloat32Int32x4", argLength: 1},
 		{name: "ConvertToFloat32Uint32x4", argLength: 1},

@@ -831,6 +831,22 @@ func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op2NameAndType "y"}}, {{.ImmName}} {{.
 // Asm: {{.Asm}}{{if .CPUFeature}}, CPU Feature: {{.CPUFeature}}{{end}}
 func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op2NameAndType "y"}}, {{.ImmName}} {{.ImmType}}) {{.GoType}}`)
 
+	// The _21I templates are like _2I, but the receiver is the instruction's
+	// second vector operand and the argument is its first.
+	st.Add("op2Imm8_21I", `{{if .Documentation}}{{.Documentation}}
+//{{end}}
+// Performance: A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
+//
+// Asm: {{.Asm}}{{if .CPUFeature}}, CPU Feature: {{.CPUFeature}}{{end}}
+func ({{.Op2NameAndType "x"}}) {{.Go}}({{.Op1NameAndType "y"}}, {{.ImmName}} {{.ImmType}}) {{.GoType}}`)
+
+	st.Add("op2Imm_21I", `{{if .Documentation}}{{.Documentation}}
+//{{end}}
+// Performance: A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
+//
+// Asm: {{.Asm}}{{if .CPUFeature}}, CPU Feature: {{.CPUFeature}}{{end}}
+func ({{.Op2NameAndType "x"}}) {{.Go}}({{.Op1NameAndType "y"}}, {{.ImmName}} {{.ImmType}}) {{.GoType}}`)
+
 	st.Add("op2Imm8_II", `{{if .Documentation}}{{.Documentation}}
 //{{end}}
 // {{.ImmName}} should be between 0 and 3, inclusive; other values may result in a runtime panic.

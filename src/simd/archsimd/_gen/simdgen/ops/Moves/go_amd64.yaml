@@ -1186,13 +1186,15 @@
   out:
   - *v
 
-- go: ConcatShiftBytesRight
+- go: ConcatWindow
   asm: VPALIGNR
-  operandOrder: 2I
+  # VPALIGNR takes the high half of the concatenation as its first operand and
+  # the low half as its second. The receiver of ConcatWindow is the low half.
+  operandOrder: 21I
   in:
   - class: immediate
     immOffset: 0
-    name: shift
+    name: start
   - &uint128
     go: $t
     base: uint
@@ -1201,13 +1203,14 @@
   out:
   - *uint128
 
-- go: ConcatShiftBytesRightGrouped
+- go: ConcatWindowGrouped
   asm: VPALIGNR
-  operandOrder: 2I
+  # As for ConcatWindow, the receiver is the low half.
+  operandOrder: 21I
   in:
   - class: immediate
     immOffset: 0
-    name: shift
+    name: start
   - &uint256512
     go: $t
     base: uint

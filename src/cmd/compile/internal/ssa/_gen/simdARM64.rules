@@ -126,7 +126,7 @@
 (ConcatOddUint16x8 ...) => (VUZP28H ...) // pureVreg
 (ConcatOddUint32x4 ...) => (VUZP24S ...) // pureVreg
 (ConcatOddUint64x2 ...) => (VUZP22D ...) // pureVreg
-(ConcatShiftBytesRightUint8x16 ...) => (VEXT16B ...) // pureVreg
+(ConcatWindowUint8x16 ...) => (VEXT16B ...) // pureVreg
 (ConvertToFloat32Float64x2 ...) => (VFCVTN2D ...) // pureVreg
 (ConvertToFloat32Int32x4 ...) => (VSCVTF4S ...) // pureVreg
 (ConvertToFloat32Uint32x4 ...) => (VUCVTF4S ...) // pureVreg

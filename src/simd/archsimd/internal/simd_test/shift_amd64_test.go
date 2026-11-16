@@ -232,36 +232,47 @@ func TestShiftConcat(t *testing.T) {
 		}))
 }
 
-func TestConcatShiftBytesRight(t *testing.T) {
-	hide := hideConst[uint64]
+func TestConcatWindow(t *testing.T) {
+	hide := hideConst[uint8]
 
-	csbr := func(shift uint64) func(x, y []uint8) []uint8 {
+	// window returns the 16 elements of the concatenation of x and y that
+	// start at element start. Elements past the end of the concatenation
+	// are zero.
+	window := func(start uint8) func(x, y []uint8) []uint8 {
 		return func(x, y []uint8) []uint8 {
 			z := make([]uint8, len(x))
 			for i := range z {
-				target := i + int(shift)
+				target := i + int(start)
 				if target < 16 {
-					z[i] = y[target]
+					z[i] = x[target]
 				} else if target < 32 {
-					z[i] = x[(target - 16)]
+					z[i] = y[target-16]
 				}
 			}
 			return z
 		}
+	}
+	// swap returns f with its arguments swapped. The deprecated
+	// ConcatShiftBytesRight methods are ConcatWindow with x and y swapped.
+	swap := func(f func(x, y []uint8) []uint8) func(x, y []uint8) []uint8 {
+		return func(x, y []uint8) []uint8 { return f(y, x) }
 	}
 
 	t.Run("Uint8x16", func(t *testing.T) {
 		if !archsimd.X86.AVX() {
 			t.Skip("requires AVX")
 		}
-		for _, shift := range []uint64{0, 2, 16, 20, 32, 128} {
-			t.Log("shift", shift)
+		for _, start := range []uint8{0, 2, 16, 20, 32, 128} {
+			t.Log("start", start)
 			testUint8x16Binary(t,
-				func(x, y archsimd.Uint8x16) archsimd.Uint8x16 { return x.ConcatShiftBytesRight(y, shift) },
-				csbr(shift))
+				func(x, y archsimd.Uint8x16) archsimd.Uint8x16 { return x.ConcatWindow(y, start) },
+				window(start))
 			testUint8x16Binary(t,
-				func(x, y archsimd.Uint8x16) archsimd.Uint8x16 { return x.ConcatShiftBytesRight(y, hide(shift)) },
-				csbr(hide(shift)))
+				func(x, y archsimd.Uint8x16) archsimd.Uint8x16 { return x.ConcatWindow(y, hide(start)) },
+				window(hide(start)))
+			testUint8x16Binary(t,
+				func(x, y archsimd.Uint8x16) archsimd.Uint8x16 { return x.ConcatShiftBytesRight(y, uint64(start)) },
+				swap(window(start)))
 		}
 	})
 
@@ -269,14 +280,19 @@ func TestConcatShiftBytesRight(t *testing.T) {
 		if !archsimd.X86.AVX2() {
 			t.Skip("requires AVX2")
 		}
-		for _, shift := range []uint64{0, 2, 16, 20, 32, 128} {
-			t.Log("shift", shift)
+		for _, start := range []uint8{0, 2, 16, 20, 32, 128} {
+			t.Log("start", start)
 			testUint8x32Binary(t,
-				func(x, y archsimd.Uint8x32) archsimd.Uint8x32 { return x.ConcatShiftBytesRightGrouped(y, shift) },
-				grouped2(csbr(shift)))
+				func(x, y archsimd.Uint8x32) archsimd.Uint8x32 { return x.ConcatWindowGrouped(y, start) },
+				grouped2(window(start)))
 			testUint8x32Binary(t,
-				func(x, y archsimd.Uint8x32) archsimd.Uint8x32 { return x.ConcatShiftBytesRightGrouped(y, hide(shift)) },
-				grouped2(csbr(hide(shift))))
+				func(x, y archsimd.Uint8x32) archsimd.Uint8x32 { return x.ConcatWindowGrouped(y, hide(start)) },
+				grouped2(window(hide(start))))
+			testUint8x32Binary(t,
+				func(x, y archsimd.Uint8x32) archsimd.Uint8x32 {
+					return x.ConcatShiftBytesRightGrouped(y, uint64(start))
+				},
+				grouped2(swap(window(start))))
 		}
 	})
 
@@ -284,14 +300,19 @@ func TestConcatShiftBytesRight(t *testing.T) {
 		if !archsimd.X86.AVX512() {
 			t.Skip("requires AVX512")
 		}
-		for _, shift := range []uint64{0, 2, 16, 20, 32, 128} {
-			t.Log("shift", shift)
+		for _, start := range []uint8{0, 2, 16, 20, 32, 128} {
+			t.Log("start", start)
 			testUint8x64Binary(t,
-				func(x, y archsimd.Uint8x64) archsimd.Uint8x64 { return x.ConcatShiftBytesRightGrouped(y, shift) },
-				grouped2(csbr(shift)))
+				func(x, y archsimd.Uint8x64) archsimd.Uint8x64 { return x.ConcatWindowGrouped(y, start) },
+				grouped2(window(start)))
 			testUint8x64Binary(t,
-				func(x, y archsimd.Uint8x64) archsimd.Uint8x64 { return x.ConcatShiftBytesRightGrouped(y, hide(shift)) },
-				grouped2(csbr(hide(shift))))
+				func(x, y archsimd.Uint8x64) archsimd.Uint8x64 { return x.ConcatWindowGrouped(y, hide(start)) },
+				grouped2(window(hide(start))))
+			testUint8x64Binary(t,
+				func(x, y archsimd.Uint8x64) archsimd.Uint8x64 {
+					return x.ConcatShiftBytesRightGrouped(y, uint64(start))
+				},
+				grouped2(swap(window(start))))
 		}
 	})
 }

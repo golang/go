@@ -7844,9 +7844,6 @@ const (
 	OpConcatSaturateToUint16GroupedInt32x16
 	OpConcatSaturateToUint16GroupedInt32x8
 	OpConcatSaturateToUint16Int32x4
-	OpConcatShiftBytesRightGroupedUint8x32
-	OpConcatShiftBytesRightGroupedUint8x64
-	OpConcatShiftBytesRightUint8x16
 	OpConcatSubPairsFloat32x4
 	OpConcatSubPairsFloat64x2
 	OpConcatSubPairsGroupedFloat32x8
@@ -7861,6 +7858,9 @@ const (
 	OpConcatSubPairsSaturatedInt16x8
 	OpConcatSubPairsUint16x8
 	OpConcatSubPairsUint32x4
+	OpConcatWindowGroupedUint8x32
+	OpConcatWindowGroupedUint8x64
+	OpConcatWindowUint8x16
 	OpConvertToFloat32Float64x2
 	OpConvertToFloat32Float64x4
 	OpConvertToFloat32Float64x8
@@ -122541,24 +122541,6 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
-		Name:    "ConcatShiftBytesRightGroupedUint8x32",
-		AuxType: AuxTypeUInt8,
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "ConcatShiftBytesRightGroupedUint8x64",
-		AuxType: AuxTypeUInt8,
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "ConcatShiftBytesRightUint8x16",
-		AuxType: AuxTypeUInt8,
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
 		Name:    "ConcatSubPairsFloat32x4",
 		ArgLen:  2,
 		Generic: true,
@@ -122625,6 +122607,24 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:    "ConcatSubPairsUint32x4",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatWindowGroupedUint8x32",
+		AuxType: AuxTypeUInt8,
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatWindowGroupedUint8x64",
+		AuxType: AuxTypeUInt8,
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatWindowUint8x16",
+		AuxType: AuxTypeUInt8,
 		ArgLen:  2,
 		Generic: true,
 	},

@@ -730,15 +730,21 @@ func (x Uint32x4) ConcatOdd(y Uint32x4) (z Uint32x4)
 // Asm: VUZP2
 func (x Uint64x2) ConcatOdd(y Uint64x2) (z Uint64x2)
 
-/* ConcatShiftBytesRight */
+/* ConcatWindow */
 
-// ConcatShiftBytesRight concatenates x and y and shifts it right by shift bytes.
-// The result vector will be the lower half of the concatenated vector.
+// ConcatWindow returns a window of the concatenation of x (low indices) and y
+// (high indices) that starts at element start and is the length of x.
 //
-// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
+//	xy = concat(x, y)
+//	z[i] = xy[start+i]
+//
+// start must be less than 16. Otherwise, the result is
+// unspecified (and ConcatWindow may panic).
+//
+// Performance: A non-constant value of start may result in significantly worse performance for this operation.
 //
 // Asm: VEXT
-func (x Uint8x16) ConcatShiftBytesRight(y Uint8x16, shift uint64) Uint8x16
+func (x Uint8x16) ConcatWindow(y Uint8x16, start uint8) (z Uint8x16)
 
 /* ConvertToFloat32 */
 

@@ -98,3 +98,16 @@ func (x Uint32x4) ExtendLo2ToUint64() (z Uint64x2) {
 func (x Float32x4) ConvertLo2ToFloat64() (z Float64x2) {
 	return x.ConvertToFloat64()
 }
+
+// ConcatShiftBytesRight concatenates x and y and shifts it right by shift bytes.
+// The result vector will be the lower half of the concatenated vector.
+//
+// Asm: VEXT
+//
+// Deprecated: use y.ConcatWindow(x, uint8(shift)) instead. ConcatWindow takes
+// x and y in the opposite order.
+//
+//go:fix inline
+func (x Uint8x16) ConcatShiftBytesRight(y Uint8x16, shift uint64) Uint8x16 {
+	return y.ConcatWindow(x, uint8(shift))
+}

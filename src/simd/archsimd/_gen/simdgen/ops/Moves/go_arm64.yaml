@@ -225,14 +225,16 @@
   out:
   - *bytes
 
-# ConcatShiftBytesRight — EXT (extract bytes from concatenated pair)
-- go: ConcatShiftBytesRight
+# ConcatWindow — EXT (extract bytes from concatenated pair)
+- go: ConcatWindow
   asm: "VEXT"
-  operandOrder: 2I
+  # EXT takes the high half of the concatenation as its first operand and the
+  # low half as its second. The receiver of ConcatWindow is the low half.
+  operandOrder: 21I
   in:
   - class: immediate
     immOffset: 0
-    name: shift
+    name: start
   - &uint8x128
     go: $t
     base: uint
