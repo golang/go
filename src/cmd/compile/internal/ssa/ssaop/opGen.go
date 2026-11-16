@@ -5292,13 +5292,19 @@ const (
 	OpARM64ZFSUBMergingS
 	OpARM64ZFSUBS
 	OpARM64ZLSLB
+	OpARM64ZLSLBvec
 	OpARM64ZLSLD
 	OpARM64ZLSLH
+	OpARM64ZLSLHvec
 	OpARM64ZLSLMergingB
+	OpARM64ZLSLMergingBvec
 	OpARM64ZLSLMergingD
 	OpARM64ZLSLMergingH
+	OpARM64ZLSLMergingHvec
 	OpARM64ZLSLMergingS
+	OpARM64ZLSLMergingSvec
 	OpARM64ZLSLS
+	OpARM64ZLSLSvec
 	OpARM64ZMLAB
 	OpARM64ZMLAD
 	OpARM64ZMLAH
@@ -8979,24 +8985,32 @@ const (
 	OpShiftLeftConcatMod64Uint64x2
 	OpShiftLeftConcatMod64Uint64x4
 	OpShiftLeftConcatMod64Uint64x8
+	OpShiftLeftInt16s
 	OpShiftLeftInt16x16
 	OpShiftLeftInt16x32
 	OpShiftLeftInt16x8
+	OpShiftLeftInt32s
 	OpShiftLeftInt32x16
 	OpShiftLeftInt32x4
 	OpShiftLeftInt32x8
+	OpShiftLeftInt64s
 	OpShiftLeftInt64x2
 	OpShiftLeftInt64x4
 	OpShiftLeftInt64x8
+	OpShiftLeftInt8s
+	OpShiftLeftUint16s
 	OpShiftLeftUint16x16
 	OpShiftLeftUint16x32
 	OpShiftLeftUint16x8
+	OpShiftLeftUint32s
 	OpShiftLeftUint32x16
 	OpShiftLeftUint32x4
 	OpShiftLeftUint32x8
+	OpShiftLeftUint64s
 	OpShiftLeftUint64x2
 	OpShiftLeftUint64x4
 	OpShiftLeftUint64x8
+	OpShiftLeftUint8s
 	OpShiftRightConcatMod16Uint16x16
 	OpShiftRightConcatMod16Uint16x32
 	OpShiftRightConcatMod16Uint16x8
@@ -93276,6 +93290,22 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
+		Name:         "ZLSLBvec",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZLSL,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{2, RegMask{V1: 9223372036854775808, V2: 127}}, // P0 P1 P2 P3 P4 P5 P6 P7
+				{0, RegMask{V1: 9223372034707292160, V2: 0}},   // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{1, RegMask{V1: 9223372034707292160, V2: 0}},   // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
 		Name:         "ZLSLD",
 		ArgLen:       3,
 		ResultInArg0: true,
@@ -93306,7 +93336,39 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
+		Name:         "ZLSLHvec",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZLSL,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{2, RegMask{V1: 9223372036854775808, V2: 127}}, // P0 P1 P2 P3 P4 P5 P6 P7
+				{0, RegMask{V1: 9223372034707292160, V2: 0}},   // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{1, RegMask{V1: 9223372034707292160, V2: 0}},   // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
 		Name:         "ZLSLMergingB",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZLSL,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{2, RegMask{V1: 9223372036854775808, V2: 127}}, // P0 P1 P2 P3 P4 P5 P6 P7
+				{0, RegMask{V1: 9223372034707292160, V2: 0}},   // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{1, RegMask{V1: 9223372034707292160, V2: 0}},   // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		Name:         "ZLSLMergingBvec",
 		ArgLen:       3,
 		ResultInArg0: true,
 		asm:          arm64.AZLSL,
@@ -93354,7 +93416,39 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
+		Name:         "ZLSLMergingHvec",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZLSL,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{2, RegMask{V1: 9223372036854775808, V2: 127}}, // P0 P1 P2 P3 P4 P5 P6 P7
+				{0, RegMask{V1: 9223372034707292160, V2: 0}},   // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{1, RegMask{V1: 9223372034707292160, V2: 0}},   // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
 		Name:         "ZLSLMergingS",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZLSL,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{2, RegMask{V1: 9223372036854775808, V2: 127}}, // P0 P1 P2 P3 P4 P5 P6 P7
+				{0, RegMask{V1: 9223372034707292160, V2: 0}},   // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{1, RegMask{V1: 9223372034707292160, V2: 0}},   // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		Name:         "ZLSLMergingSvec",
 		ArgLen:       3,
 		ResultInArg0: true,
 		asm:          arm64.AZLSL,
@@ -93377,6 +93471,22 @@ var OpcodeTable = [...]OpInfo{
 			Inputs: []InputInfo{
 				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
 				{1, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		Name:         "ZLSLSvec",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm64.AZLSL,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{2, RegMask{V1: 9223372036854775808, V2: 127}}, // P0 P1 P2 P3 P4 P5 P6 P7
+				{0, RegMask{V1: 9223372034707292160, V2: 0}},   // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{1, RegMask{V1: 9223372034707292160, V2: 0}},   // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
 			},
 			Outputs: []OutputInfo{
 				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
@@ -128875,6 +128985,11 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
+		Name:    "ShiftLeftInt16s",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
 		Name:    "ShiftLeftInt16x16",
 		ArgLen:  2,
 		Generic: true,
@@ -128886,6 +129001,11 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:    "ShiftLeftInt16x8",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "ShiftLeftInt32s",
 		ArgLen:  2,
 		Generic: true,
 	},
@@ -128905,6 +129025,11 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
+		Name:    "ShiftLeftInt64s",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
 		Name:    "ShiftLeftInt64x2",
 		ArgLen:  2,
 		Generic: true,
@@ -128916,6 +129041,16 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:    "ShiftLeftInt64x8",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "ShiftLeftInt8s",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "ShiftLeftUint16s",
 		ArgLen:  2,
 		Generic: true,
 	},
@@ -128935,6 +129070,11 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
+		Name:    "ShiftLeftUint32s",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
 		Name:    "ShiftLeftUint32x16",
 		ArgLen:  2,
 		Generic: true,
@@ -128950,6 +129090,11 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
+		Name:    "ShiftLeftUint64s",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
 		Name:    "ShiftLeftUint64x2",
 		ArgLen:  2,
 		Generic: true,
@@ -128961,6 +129106,11 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:    "ShiftLeftUint64x8",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "ShiftLeftUint8s",
 		ArgLen:  2,
 		Generic: true,
 	},

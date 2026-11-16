@@ -2828,6 +2828,22 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpShiftAllRightUint64x2(v)
 	case ssaop.OpShiftAllRightUint8x16:
 		return rewriteValue_OpShiftAllRightUint8x16(v)
+	case ssaop.OpShiftLeftInt16s:
+		return rewriteValue_OpShiftLeftInt16s(v)
+	case ssaop.OpShiftLeftInt32s:
+		return rewriteValue_OpShiftLeftInt32s(v)
+	case ssaop.OpShiftLeftInt64s:
+		return rewriteValue_OpShiftLeftInt64s(v)
+	case ssaop.OpShiftLeftInt8s:
+		return rewriteValue_OpShiftLeftInt8s(v)
+	case ssaop.OpShiftLeftUint16s:
+		return rewriteValue_OpShiftLeftUint16s(v)
+	case ssaop.OpShiftLeftUint32s:
+		return rewriteValue_OpShiftLeftUint32s(v)
+	case ssaop.OpShiftLeftUint64s:
+		return rewriteValue_OpShiftLeftUint64s(v)
+	case ssaop.OpShiftLeftUint8s:
+		return rewriteValue_OpShiftLeftUint8s(v)
 	case ssaop.OpSignExt16to32:
 		v.Op = ssaop.OpARM64MOVHreg
 		return true
@@ -22000,6 +22016,37 @@ func rewriteValue_OpARM64ZSELB(v *ssa.Value) bool {
 		v.AddArg2(x, mask)
 		return true
 	}
+	// match: (ZSELB (ZLSLBvec x y (Select0 <types.TypeMask> (PWHILELTB (MOVDconst [0]) (MOVDconst [32])))) x mask)
+	// result: (ZLSLMergingBvec x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZLSLBvec {
+			break
+		}
+		_ = v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		v_0_2 := v_0.Args[2]
+		if v_0_2.Op != ssaop.OpSelect0 || v_0_2.Type != types.TypeMask {
+			break
+		}
+		v_0_2_0 := v_0_2.Args[0]
+		if v_0_2_0.Op != ssaop.OpARM64PWHILELTB {
+			break
+		}
+		_ = v_0_2_0.Args[1]
+		v_0_2_0_0 := v_0_2_0.Args[0]
+		if v_0_2_0_0.Op != ssaop.OpARM64MOVDconst || ssa.AuxIntToInt64(v_0_2_0_0.AuxInt) != 0 {
+			break
+		}
+		v_0_2_0_1 := v_0_2_0.Args[1]
+		if v_0_2_0_1.Op != ssaop.OpARM64MOVDconst || ssa.AuxIntToInt64(v_0_2_0_1.AuxInt) != 32 || x != v_1 {
+			break
+		}
+		mask := v_2
+		v.Reset(ssaop.OpARM64ZLSLMergingBvec)
+		v.AddArg3(x, y, mask)
+		return true
+	}
 	// match: (ZSELB (ZMLAB x y z (Select0 <types.TypeMask> (PWHILELTB (MOVDconst [0]) (MOVDconst [32])))) x mask)
 	// result: (ZMLAMergingB x y z mask)
 	for {
@@ -25241,6 +25288,37 @@ func rewriteValue_OpARM64ZSELH(v *ssa.Value) bool {
 		v.AddArg2(x, mask)
 		return true
 	}
+	// match: (ZSELH (ZLSLHvec x y (Select0 <types.TypeMask> (PWHILELTH (MOVDconst [0]) (MOVDconst [16])))) x mask)
+	// result: (ZLSLMergingHvec x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZLSLHvec {
+			break
+		}
+		_ = v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		v_0_2 := v_0.Args[2]
+		if v_0_2.Op != ssaop.OpSelect0 || v_0_2.Type != types.TypeMask {
+			break
+		}
+		v_0_2_0 := v_0_2.Args[0]
+		if v_0_2_0.Op != ssaop.OpARM64PWHILELTH {
+			break
+		}
+		_ = v_0_2_0.Args[1]
+		v_0_2_0_0 := v_0_2_0.Args[0]
+		if v_0_2_0_0.Op != ssaop.OpARM64MOVDconst || ssa.AuxIntToInt64(v_0_2_0_0.AuxInt) != 0 {
+			break
+		}
+		v_0_2_0_1 := v_0_2_0.Args[1]
+		if v_0_2_0_1.Op != ssaop.OpARM64MOVDconst || ssa.AuxIntToInt64(v_0_2_0_1.AuxInt) != 16 || x != v_1 {
+			break
+		}
+		mask := v_2
+		v.Reset(ssaop.OpARM64ZLSLMergingHvec)
+		v.AddArg3(x, y, mask)
+		return true
+	}
 	// match: (ZSELH (ZMLAH x y z (Select0 <types.TypeMask> (PWHILELTH (MOVDconst [0]) (MOVDconst [16])))) x mask)
 	// result: (ZMLAMergingH x y z mask)
 	for {
@@ -27089,6 +27167,37 @@ func rewriteValue_OpARM64ZSELS(v *ssa.Value) bool {
 		v.Reset(ssaop.OpARM64ZLSLMergingSconst)
 		v.AuxInt = ssa.Uint8ToAuxInt(a)
 		v.AddArg2(x, mask)
+		return true
+	}
+	// match: (ZSELS (ZLSLSvec x y (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8])))) x mask)
+	// result: (ZLSLMergingSvec x y mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZLSLSvec {
+			break
+		}
+		_ = v_0.Args[2]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		v_0_2 := v_0.Args[2]
+		if v_0_2.Op != ssaop.OpSelect0 || v_0_2.Type != types.TypeMask {
+			break
+		}
+		v_0_2_0 := v_0_2.Args[0]
+		if v_0_2_0.Op != ssaop.OpARM64PWHILELTS {
+			break
+		}
+		_ = v_0_2_0.Args[1]
+		v_0_2_0_0 := v_0_2_0.Args[0]
+		if v_0_2_0_0.Op != ssaop.OpARM64MOVDconst || ssa.AuxIntToInt64(v_0_2_0_0.AuxInt) != 0 {
+			break
+		}
+		v_0_2_0_1 := v_0_2_0.Args[1]
+		if v_0_2_0_1.Op != ssaop.OpARM64MOVDconst || ssa.AuxIntToInt64(v_0_2_0_1.AuxInt) != 8 || x != v_1 {
+			break
+		}
+		mask := v_2
+		v.Reset(ssaop.OpARM64ZLSLMergingSvec)
+		v.AddArg3(x, y, mask)
 		return true
 	}
 	// match: (ZSELS (ZMLAS x y z (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8])))) x mask)
@@ -37222,6 +37331,190 @@ func rewriteValue_OpShiftAllRightUint8x16(v *ssa.Value) bool {
 		v1.AddArg2(x, v2)
 		v0.AddArg(v1)
 		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValue_OpShiftLeftInt16s(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (ShiftLeftInt16s x y)
+	// result: (ZLSLHvec x y (Select0 <types.TypeMask> (PWHILELTH (MOVDconst [0]) (MOVDconst [16]))))
+	for {
+		x := v_0
+		y := v_1
+		v.Reset(ssaop.OpARM64ZLSLHvec)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTH, types.NewTuple(typ.Mask, types.TypeFlags))
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v2.AuxInt = ssa.Int64ToAuxInt(0)
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(16)
+		v1.AddArg2(v2, v3)
+		v0.AddArg(v1)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+}
+func rewriteValue_OpShiftLeftInt32s(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (ShiftLeftInt32s x y)
+	// result: (ZLSLSvec x y (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8]))))
+	for {
+		x := v_0
+		y := v_1
+		v.Reset(ssaop.OpARM64ZLSLSvec)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTS, types.NewTuple(typ.Mask, types.TypeFlags))
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v2.AuxInt = ssa.Int64ToAuxInt(0)
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(8)
+		v1.AddArg2(v2, v3)
+		v0.AddArg(v1)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+}
+func rewriteValue_OpShiftLeftInt64s(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (ShiftLeftInt64s x y)
+	// result: (ZLSLD x y (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4]))))
+	for {
+		x := v_0
+		y := v_1
+		v.Reset(ssaop.OpARM64ZLSLD)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTD, types.NewTuple(typ.Mask, types.TypeFlags))
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v2.AuxInt = ssa.Int64ToAuxInt(0)
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(4)
+		v1.AddArg2(v2, v3)
+		v0.AddArg(v1)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+}
+func rewriteValue_OpShiftLeftInt8s(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (ShiftLeftInt8s x y)
+	// result: (ZLSLBvec x y (Select0 <types.TypeMask> (PWHILELTB (MOVDconst [0]) (MOVDconst [32]))))
+	for {
+		x := v_0
+		y := v_1
+		v.Reset(ssaop.OpARM64ZLSLBvec)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTB, types.NewTuple(typ.Mask, types.TypeFlags))
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v2.AuxInt = ssa.Int64ToAuxInt(0)
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(32)
+		v1.AddArg2(v2, v3)
+		v0.AddArg(v1)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+}
+func rewriteValue_OpShiftLeftUint16s(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (ShiftLeftUint16s x y)
+	// result: (ZLSLHvec x y (Select0 <types.TypeMask> (PWHILELTH (MOVDconst [0]) (MOVDconst [16]))))
+	for {
+		x := v_0
+		y := v_1
+		v.Reset(ssaop.OpARM64ZLSLHvec)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTH, types.NewTuple(typ.Mask, types.TypeFlags))
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v2.AuxInt = ssa.Int64ToAuxInt(0)
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(16)
+		v1.AddArg2(v2, v3)
+		v0.AddArg(v1)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+}
+func rewriteValue_OpShiftLeftUint32s(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (ShiftLeftUint32s x y)
+	// result: (ZLSLSvec x y (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8]))))
+	for {
+		x := v_0
+		y := v_1
+		v.Reset(ssaop.OpARM64ZLSLSvec)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTS, types.NewTuple(typ.Mask, types.TypeFlags))
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v2.AuxInt = ssa.Int64ToAuxInt(0)
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(8)
+		v1.AddArg2(v2, v3)
+		v0.AddArg(v1)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+}
+func rewriteValue_OpShiftLeftUint64s(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (ShiftLeftUint64s x y)
+	// result: (ZLSLD x y (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4]))))
+	for {
+		x := v_0
+		y := v_1
+		v.Reset(ssaop.OpARM64ZLSLD)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTD, types.NewTuple(typ.Mask, types.TypeFlags))
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v2.AuxInt = ssa.Int64ToAuxInt(0)
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(4)
+		v1.AddArg2(v2, v3)
+		v0.AddArg(v1)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+}
+func rewriteValue_OpShiftLeftUint8s(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (ShiftLeftUint8s x y)
+	// result: (ZLSLBvec x y (Select0 <types.TypeMask> (PWHILELTB (MOVDconst [0]) (MOVDconst [32]))))
+	for {
+		x := v_0
+		y := v_1
+		v.Reset(ssaop.OpARM64ZLSLBvec)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTB, types.NewTuple(typ.Mask, types.TypeFlags))
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v2.AuxInt = ssa.Int64ToAuxInt(0)
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(32)
+		v1.AddArg2(v2, v3)
+		v0.AddArg(v1)
+		v.AddArg3(x, y, v0)
 		return true
 	}
 }

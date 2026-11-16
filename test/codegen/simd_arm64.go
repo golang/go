@@ -459,6 +459,38 @@ func sveShiftAllLeftVar64(x archsimd.Uint64s, s uint64) archsimd.Uint64s {
 	return x.ShiftAllLeft(s)
 }
 
+// ShiftLeft by vector is LSL (vectors), which is predicated-only, so it runs
+// under an all-true predicate. It yields 0 for an amount of the element width
+// or more, so nothing clamps the amounts.
+
+func sveShiftLeftVec(x archsimd.Int8s, s archsimd.Uint8s) archsimd.Int8s {
+	// arm64:`PWHILELT` `ZLSL\s+Z[0-9]+\.B, Z[0-9]+\.B, P[0-9]+\.M, Z[0-9]+\.B` -`ZSEL` -`ZUMIN`
+	return x.ShiftLeft(s)
+}
+
+func sveShiftLeftVec64(x archsimd.Uint64s, s archsimd.Uint64s) archsimd.Uint64s {
+	// arm64:`PWHILELT` `ZLSL\s+Z[0-9]+\.D, Z[0-9]+\.D, P[0-9]+\.M, Z[0-9]+\.D` -`ZSEL` -`ZUMIN` -`ZDUP`
+	return x.ShiftLeft(s)
+}
+
+func sveShiftLeftVec64Const(x archsimd.Uint64s) archsimd.Uint64s {
+	// 64-bit LSL (vectors) is ShiftAllLeft's instruction too, so a broadcast
+	// constant amount takes its immediate form.
+	// arm64:`ZLSL\s+\$5, Z[0-9]+\.D, Z[0-9]+\.D` -`PWHILELT`
+	return x.ShiftLeft(archsimd.BroadcastUint64s(5))
+}
+
+func sveShiftLeftVecIfElse(x archsimd.Int16s, s archsimd.Uint16s, m archsimd.Mask16s) archsimd.Int16s {
+	// arm64:`ZLSL\s+Z[0-9]+\.H, Z[0-9]+\.H, P[0-9]+\.M, Z[0-9]+\.H` -`ZSEL` -`PWHILELT`
+	return x.ShiftLeft(s).IfElse(m, x)
+}
+
+func sveShiftLeftVecIfElseAmount(x, s archsimd.Uint16s, m archsimd.Mask16s) archsimd.Uint16s {
+	// The merging form keeps x in the inactive lanes, so a select keeping s stays.
+	// arm64:`PWHILELT` `ZSEL`
+	return x.ShiftLeft(s).IfElse(m, s)
+}
+
 // The zero value of a mask is an all-false predicate.
 func sveZeroMask() archsimd.Mask8s {
 	var m archsimd.Mask8s

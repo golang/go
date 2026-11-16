@@ -1807,6 +1807,80 @@ func (x Uint32s) ShiftAllLeft(shift uint64) (z Uint32s)
 // Asm: ZLSL, CPU Feature: SVE
 func (x Uint64s) ShiftAllLeft(shift uint64) (z Uint64s)
 
+/* ShiftLeft */
+
+// ShiftLeft shifts x[i] left by shift[i] bits.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
+//
+//	z[i] = x[i] << shift[i]
+//
+// Asm: ZLSL, CPU Feature: SVE
+func (x Int8s) ShiftLeft(shift Uint8s) (z Int8s)
+
+// ShiftLeft shifts x[i] left by shift[i] bits.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
+//
+//	z[i] = x[i] << shift[i]
+//
+// Asm: ZLSL, CPU Feature: SVE
+func (x Int16s) ShiftLeft(shift Uint16s) (z Int16s)
+
+// ShiftLeft shifts x[i] left by shift[i] bits.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
+//
+//	z[i] = x[i] << shift[i]
+//
+// Asm: ZLSL, CPU Feature: SVE
+func (x Int32s) ShiftLeft(shift Uint32s) (z Int32s)
+
+// ShiftLeft shifts x[i] left by shift[i] bits.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
+//
+//	z[i] = x[i] << shift[i]
+//
+// Asm: ZLSL, CPU Feature: SVE
+func (x Int64s) ShiftLeft(shift Uint64s) (z Int64s)
+
+// ShiftLeft shifts x[i] left by shift[i] bits.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
+//
+//	z[i] = x[i] << shift[i]
+//
+// Asm: ZLSL, CPU Feature: SVE
+func (x Uint8s) ShiftLeft(shift Uint8s) (z Uint8s)
+
+// ShiftLeft shifts x[i] left by shift[i] bits.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
+//
+//	z[i] = x[i] << shift[i]
+//
+// Asm: ZLSL, CPU Feature: SVE
+func (x Uint16s) ShiftLeft(shift Uint16s) (z Uint16s)
+
+// ShiftLeft shifts x[i] left by shift[i] bits.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
+//
+//	z[i] = x[i] << shift[i]
+//
+// Asm: ZLSL, CPU Feature: SVE
+func (x Uint32s) ShiftLeft(shift Uint32s) (z Uint32s)
+
+// ShiftLeft shifts x[i] left by shift[i] bits.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
+//
+//	z[i] = x[i] << shift[i]
+//
+// Asm: ZLSL, CPU Feature: SVE
+func (x Uint64s) ShiftLeft(shift Uint64s) (z Uint64s)
+
 /* Sqrt */
 
 // Sqrt returns the elementwise square root of x.

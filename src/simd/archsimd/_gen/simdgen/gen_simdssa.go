@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strings"
 	"text/template"
+	"unicode"
 )
 
 var (
@@ -144,10 +145,10 @@ type tplSSAHeader struct {
 func getArrangementFromOp(archInfo ArchInfo, caseStr string) string {
 	if archInfo.isSVE() {
 		// SVE machine op names end in a single element-size letter (ZADD -> ZADDB,
-		// ZSQADD -> ZSQADDD), then the ssaVariant if any (ZLSLBconst). Match the
-		// suffix, not any occurrence: "ZSQADDD" contains "S" (from SQADD) but its
-		// arrangement is the trailing "D".
-		name := strings.TrimSuffix(caseStr, "const")
+		// ZSQADD -> ZSQADDD), then the lowercase ssaVariant if any (ZLSLBconst,
+		// ZLSLBvec). Match the suffix, not any occurrence: "ZSQADDD" contains "S"
+		// (from SQADD) but its arrangement is the trailing "D".
+		name := strings.TrimRightFunc(caseStr, unicode.IsLower)
 		for _, a := range archInfo.Arrangements {
 			if strings.HasSuffix(name, a) {
 				return archInfo.Arch + ".ARNG_" + a

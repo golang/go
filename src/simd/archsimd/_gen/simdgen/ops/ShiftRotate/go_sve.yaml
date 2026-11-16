@@ -45,3 +45,37 @@
   - *int
   out:
   - *int
+
+# ShiftLeft -- shift each element by the matching element of shift, LSL
+# (vectors), which is predicated-only, like Div. An amount of the element
+# width or more yields 0, as the API does. For 8- to 32-bit elements the
+# machine ops take the variant "vec" to keep them apart from those of LSL
+# (wide elements), which ShiftAllLeft uses; for 64-bit elements
+# ShiftAllLeft uses this same instruction.
+- go: ShiftLeft
+  asm: "ZLSL"
+  ssaVariant: "vec"
+  in:
+  - &shiftx
+    go: $t
+    base: int|uint
+    elemBits: 8|16|32
+  - &shiftv
+    go: $t
+    overwriteBase: uint
+    name: shift
+  - class: mask # governing predicate
+  out:
+  - *shiftx
+
+- go: ShiftLeft
+  asm: "ZLSL"
+  in:
+  - &shiftx64
+    go: $t
+    base: int|uint
+    elemBits: 64
+  - *shiftv
+  - class: mask # governing predicate
+  out:
+  - *shiftx64

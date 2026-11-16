@@ -92,3 +92,141 @@ func TestShiftAllLeftSVE(t *testing.T) {
 			{33, func(x archsimd.Uint64s) archsimd.Uint64s { return x.ShiftAllLeft(33) }},
 		})
 }
+
+// testSVEShift drives a shift by vector. Every window of xs is paired with
+// every window of amounts. active is the runtime number of live lanes.
+func testSVEShift[T, S integer, V, A any](t *testing.T, xs []T, amounts []S, elemBytes, active int,
+	loadX func([]T) V, loadA func([]S) A, f func(V, A) V, store func(V, []T), want func(T, S) T) {
+	t.Helper()
+	count := sveMaxBytes / elemBytes // lanes in the fixed backing array
+	for i := 0; i < len(xs)-count; i++ {
+		for j := 0; j < len(amounts)-count; j++ {
+			x, y := xs[i:i+count], amounts[j:j+count]
+			g := make([]T, count)
+			store(f(loadX(x), loadA(y)), g)
+			w := make([]T, count)
+			for k := range w {
+				w[k] = want(x[k], y[k])
+			}
+			if !checkSlicesLogInput(t, g[:active], w[:active], 0.0, func() {
+				t.Helper()
+				t.Logf("x=%v", x)
+				t.Logf("shift=%v", y)
+			}) {
+				return
+			}
+		}
+	}
+}
+
+// shiftAmounts returns shift amounts for bits-bit elements: small ones, the
+// element width and either side of it, larger ones, and ones with only high
+// bits set, since SVE reads the whole element as the amount.
+func shiftAmounts[S integer](bits int) []S {
+	top := ^S(0)
+	return nOf(N, []S{0, 1, 2, 3, 5, S(bits / 2), S(bits - 1), S(bits), S(bits + 1), S(2 * bits),
+		S(1) << (bits - 1), S(1) << (bits - 2), top - 1, top})
+}
+
+func shiftLeft[T, S integer](x T, s S) T { return x << s }
+
+func TestShiftLeftSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no SVE")
+	}
+	testSVEShift(t, int8s, shiftAmounts[uint8](8), 1, archsimd.Int8s{}.Len(),
+		archsimd.LoadInt8s, archsimd.LoadUint8s, archsimd.Int8s.ShiftLeft, archsimd.Int8s.Store, shiftLeft[int8, uint8])
+	testSVEShift(t, int16s, shiftAmounts[uint16](16), 2, archsimd.Int16s{}.Len(),
+		archsimd.LoadInt16s, archsimd.LoadUint16s, archsimd.Int16s.ShiftLeft, archsimd.Int16s.Store, shiftLeft[int16, uint16])
+	testSVEShift(t, int32s, shiftAmounts[uint32](32), 4, archsimd.Int32s{}.Len(),
+		archsimd.LoadInt32s, archsimd.LoadUint32s, archsimd.Int32s.ShiftLeft, archsimd.Int32s.Store, shiftLeft[int32, uint32])
+	testSVEShift(t, int64s, shiftAmounts[uint64](64), 8, archsimd.Int64s{}.Len(),
+		archsimd.LoadInt64s, archsimd.LoadUint64s, archsimd.Int64s.ShiftLeft, archsimd.Int64s.Store, shiftLeft[int64, uint64])
+	testSVEShift(t, uint8s, shiftAmounts[uint8](8), 1, archsimd.Uint8s{}.Len(),
+		archsimd.LoadUint8s, archsimd.LoadUint8s, archsimd.Uint8s.ShiftLeft, archsimd.Uint8s.Store, shiftLeft[uint8, uint8])
+	testSVEShift(t, uint16s, shiftAmounts[uint16](16), 2, archsimd.Uint16s{}.Len(),
+		archsimd.LoadUint16s, archsimd.LoadUint16s, archsimd.Uint16s.ShiftLeft, archsimd.Uint16s.Store, shiftLeft[uint16, uint16])
+	testSVEShift(t, uint32s, shiftAmounts[uint32](32), 4, archsimd.Uint32s{}.Len(),
+		archsimd.LoadUint32s, archsimd.LoadUint32s, archsimd.Uint32s.ShiftLeft, archsimd.Uint32s.Store, shiftLeft[uint32, uint32])
+	testSVEShift(t, uint64s, shiftAmounts[uint64](64), 8, archsimd.Uint64s{}.Len(),
+		archsimd.LoadUint64s, archsimd.LoadUint64s, archsimd.Uint64s.ShiftLeft, archsimd.Uint64s.Store, shiftLeft[uint64, uint64])
+}
+
+// shiftIfElse returns, lane by lane, op(x, s) where s is odd and x elsewhere:
+// x.Op(s).IfElse(m, x) for m the odd lanes of s.
+func shiftIfElse[T, S integer](op func(T, S) T) func(T, S) T {
+	return func(x T, s S) T {
+		if s&1 != 0 {
+			return op(x, s)
+		}
+		return x
+	}
+}
+
+// TestShiftLeftIfElseSVE checks ShiftLeft under a select, which folds into its
+// merging form.
+func TestShiftLeftIfElseSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no SVE")
+	}
+	odd8 := func(s archsimd.Uint8s) archsimd.Mask8s {
+		return s.And(archsimd.BroadcastUint8s(1)).NotEqual(archsimd.Uint8s{})
+	}
+	odd16 := func(s archsimd.Uint16s) archsimd.Mask16s {
+		return s.And(archsimd.BroadcastUint16s(1)).NotEqual(archsimd.Uint16s{})
+	}
+	odd32 := func(s archsimd.Uint32s) archsimd.Mask32s {
+		return s.And(archsimd.BroadcastUint32s(1)).NotEqual(archsimd.Uint32s{})
+	}
+	odd64 := func(s archsimd.Uint64s) archsimd.Mask64s {
+		return s.And(archsimd.BroadcastUint64s(1)).NotEqual(archsimd.Uint64s{})
+	}
+	testSVEShift(t, int8s, shiftAmounts[uint8](8), 1, archsimd.Int8s{}.Len(), archsimd.LoadInt8s, archsimd.LoadUint8s,
+		func(x archsimd.Int8s, s archsimd.Uint8s) archsimd.Int8s { return x.ShiftLeft(s).IfElse(odd8(s), x) },
+		archsimd.Int8s.Store, shiftIfElse(shiftLeft[int8, uint8]))
+	testSVEShift(t, uint16s, shiftAmounts[uint16](16), 2, archsimd.Uint16s{}.Len(), archsimd.LoadUint16s, archsimd.LoadUint16s,
+		func(x archsimd.Uint16s, s archsimd.Uint16s) archsimd.Uint16s {
+			return x.ShiftLeft(s).IfElse(odd16(s), x)
+		},
+		archsimd.Uint16s.Store, shiftIfElse(shiftLeft[uint16, uint16]))
+	testSVEShift(t, int32s, shiftAmounts[uint32](32), 4, archsimd.Int32s{}.Len(), archsimd.LoadInt32s, archsimd.LoadUint32s,
+		func(x archsimd.Int32s, s archsimd.Uint32s) archsimd.Int32s { return x.ShiftLeft(s).IfElse(odd32(s), x) },
+		archsimd.Int32s.Store, shiftIfElse(shiftLeft[int32, uint32]))
+	testSVEShift(t, uint64s, shiftAmounts[uint64](64), 8, archsimd.Uint64s{}.Len(), archsimd.LoadUint64s, archsimd.LoadUint64s,
+		func(x archsimd.Uint64s, s archsimd.Uint64s) archsimd.Uint64s {
+			return x.ShiftLeft(s).IfElse(odd64(s), x)
+		},
+		archsimd.Uint64s.Store, shiftIfElse(shiftLeft[uint64, uint64]))
+}
+
+// TestShiftLeftBroadcastSVE checks 64-bit ShiftLeft by a broadcast constant,
+// which shares its instruction with ShiftAllLeft and so its immediate form.
+func TestShiftLeftBroadcastSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no SVE")
+	}
+	n := archsimd.Uint64s{}.Len()
+	xs := make([]uint64, n)
+	for i := range xs {
+		xs[i] = uint64(i)*0x9e3779b97f4a7c15 + 1
+	}
+	got := make([]uint64, n)
+	for _, c := range []struct {
+		s uint64
+		f func(archsimd.Uint64s) archsimd.Uint64s
+	}{
+		{5, func(x archsimd.Uint64s) archsimd.Uint64s { return x.ShiftLeft(archsimd.BroadcastUint64s(5)) }},
+		{63, func(x archsimd.Uint64s) archsimd.Uint64s { return x.ShiftLeft(archsimd.BroadcastUint64s(63)) }},
+		{64, func(x archsimd.Uint64s) archsimd.Uint64s { return x.ShiftLeft(archsimd.BroadcastUint64s(64)) }},
+		{math.MaxUint64, func(x archsimd.Uint64s) archsimd.Uint64s {
+			return x.ShiftLeft(archsimd.BroadcastUint64s(math.MaxUint64))
+		}},
+	} {
+		c.f(archsimd.LoadUint64s(xs)).Store(got)
+		for i, x := range xs {
+			if want := x << c.s; got[i] != want {
+				t.Errorf("Uint64s.ShiftLeft(Broadcast(%d)): lane %d = %#x, want %#x", c.s, i, got[i], want)
+			}
+		}
+	}
+}
