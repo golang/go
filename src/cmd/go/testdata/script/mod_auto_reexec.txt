@@ -1,0 +1,112 @@
+# Test that GO111MODULE=auto starts in module mode and re-execs the go command
+# with GO111MODULE=off when no module or workspace is found and module mode is
+# not forced.
+
+env GO111MODULE=auto
+
+# Outside a module or workspace, GO111MODULE=auto re-execs with GO111MODULE=off.
+go env GO111MODULE
+stdout '^off$'
+go env GOMOD
+! stdout .
+
+# Also verify with GODEBUG=gotoolchainexec=0 (subprocess fallback path).
+env GODEBUG=gotoolchainexec=0
+go env GO111MODULE
+stdout '^off$'
+env GODEBUG=
+
+# Inside a module, GO111MODULE=auto stays in module mode without re-execing.
+cd $WORK/mod
+go env GO111MODULE
+stdout '^auto$'
+go env GOMOD
+stdout 'mod[/\\]go\.mod$'
+
+# Using -C from outside a module into a module stays in module mode.
+cd $GOPATH/src
+go -C $WORK/mod env GO111MODULE
+stdout '^auto$'
+go env -C $WORK/mod GO111MODULE
+stdout '^auto$'
+
+# Inside a workspace (without a go.mod in cwd), GO111MODULE=auto stays in module mode.
+cd $WORK/ws
+go env GO111MODULE
+stdout '^auto$'
+go env GOWORK
+stdout 'ws[/\\]go\.work$'
+env GOWORK=off
+go env GO111MODULE
+stdout '^off$'
+env GOWORK=
+
+# Setting GO111MODULE=auto via go/env file also re-execs with "off" outside a module.
+env GOENV=$WORK/goenv
+env GO111MODULE=
+go env -w GO111MODULE=auto
+cd $GOPATH/src
+go env GO111MODULE
+stdout '^off$'
+cd $WORK/mod
+go env GO111MODULE
+stdout '^auto$'
+env GOENV=
+env GO111MODULE=auto
+
+# Commands that force module mode outside a module stay in module mode.
+mkdir $WORK/newmod
+cd $WORK/newmod
+go mod init example.com/newmod
+exists go.mod
+
+mkdir $WORK/newwork
+cd $WORK/newwork
+go work init
+exists go.work
+
+cd $GOPATH/src
+! go get rsc.io/quote
+stderr '''go get'' is no longer supported outside a module'
+
+! go mod edit -fmt
+stderr 'go\.mod file not found'
+
+go mod edit -print $WORK/mod/go.mod
+stdout '^module example\.com/mod$'
+
+go doc rsc.io/quote@v1.5.2
+stdout 'package quote'
+
+go install -v rsc.io/fortune@v1.0.0
+exists $GOPATH/bin/fortune$GOEXE
+
+# Child processes spawned by 'go run' see GO111MODULE=auto inside a module and
+# GO111MODULE=off after re-execing outside a module.
+cd $WORK/mod
+go run ./printenv.go
+stdout '^GO111MODULE=auto$'
+cd $GOPATH/src
+cp $WORK/mod/printenv.go $GOPATH/src/printenv.go
+go run printenv.go
+stdout '^GO111MODULE=off$'
+
+-- $WORK/mod/go.mod --
+module example.com/mod
+
+go 1.21
+-- $WORK/mod/printenv.go --
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+func main() {
+	fmt.Printf("GO111MODULE=%s\n", os.Getenv("GO111MODULE"))
+}
+-- $WORK/ws/go.work --
+go 1.21
+
+use ../mod

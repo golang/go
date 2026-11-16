@@ -200,6 +200,9 @@ func findEnv(env []cfg.EnvVar, name string) string {
 // ExtraEnvVars returns environment variables that should not leak into child processes.
 func ExtraEnvVars(ld *modload.Loader) []cfg.EnvVar {
 	gomod := ""
+	if cfg.Getenv("GO111MODULE") == "auto" && ld.FindGoWork(base.Cwd()) != "" {
+		ld.ForceUseModules = true
+	}
 	modload.Init(ld)
 	if ld.HasModRoot() {
 		gomod = ld.ModFilePath()

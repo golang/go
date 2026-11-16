@@ -257,3 +257,14 @@ func RunStdin(cmdline []string) {
 // Usage is the usage-reporting function, filled in by package main
 // but here for reference by other packages.
 var Usage func()
+
+// Reexec replaces the current process with a fresh invocation of the current
+// go executable with the current arguments and environment.
+func Reexec() {
+	exe, err := os.Executable()
+	if err != nil {
+		log.SetPrefix("go: ")
+		Fatalf("%v", err)
+	}
+	Exec("go", exe)
+}

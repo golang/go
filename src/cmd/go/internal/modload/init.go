@@ -295,8 +295,7 @@ type Root int
 const (
 	// AutoRoot is the default for most commands. modload.Init will look for
 	// a go.mod file in the current directory or any parent. If none is found,
-	// modules may be disabled (GO111MODULE=auto) or commands may run in a
-	// limited module mode.
+	// commands may run in a limited module mode.
 	AutoRoot Root = iota
 
 	// NoRoot is used for commands that run in module mode and ignore any go.mod
@@ -545,7 +544,6 @@ func Init(ld *Loader) {
 		if ld.ForceUseModules {
 			base.Fatalf("go: modules disabled by GO111MODULE=off; see 'go help modules'")
 		}
-		mustUseModules = false
 		return
 	}
 
@@ -553,19 +551,6 @@ func Init(ld *Loader) {
 		base.Fatal(err)
 	}
 
-	// Disable any prompting for passwords by Git.
-	// Only has an effect for 2.3.0 or later, but avoiding
-	// the prompt in earlier versions is just too hard.
-	// If user has explicitly set GIT_TERMINAL_PROMPT=1, keep
-	// prompting.
-	// See golang.org/issue/9341 and golang.org/issue/12706.
-	if os.Getenv("GIT_TERMINAL_PROMPT") == "" {
-		os.Setenv("GIT_TERMINAL_PROMPT", "0")
-	}
-
-	if os.Getenv("GCM_INTERACTIVE") == "" {
-		os.Setenv("GCM_INTERACTIVE", "never")
-	}
 	if ld.modRoots != nil {
 		// modRoot set before Init was called ("go mod init" does this).
 		// No need to search for go.mod.
@@ -589,8 +574,9 @@ func Init(ld *Loader) {
 			}
 			if !mustUseModules {
 				// GO111MODULE is 'auto', and we can't find a module root.
-				// Stay in GOPATH mode.
-				return
+				// Re-exec in GOPATH mode.
+				os.Setenv("GO111MODULE", "off")
+				base.Reexec()
 			}
 		} else if search.InDir(modRoot, os.TempDir()) == "." {
 			// If you create /tmp/go.mod for experimenting,
@@ -603,7 +589,8 @@ func Init(ld *Loader) {
 				base.Fatal(NewNoMainModulesError(ld))
 			}
 			if !mustUseModules {
-				return
+				os.Setenv("GO111MODULE", "off")
+				base.Reexec()
 			}
 		} else {
 			ld.modRoots = []string{modRoot}
@@ -613,9 +600,6 @@ func Init(ld *Loader) {
 		base.Fatalf("go: -modfile=%s: file does not have .mod extension", cfg.ModFile)
 	}
 
-	// We're in module mode. Set any global variables that need to be set.
-	cfg.ModulesEnabled = true
-	setDefaultBuildMod(ld)
 	list := filepath.SplitList(cfg.BuildContext.GOPATH)
 	if len(list) > 0 && list[0] != "" {
 		gopath = list[0]
@@ -625,10 +609,28 @@ func Init(ld *Loader) {
 				base.Fatal(NewNoMainModulesError(ld))
 			}
 			if !mustUseModules {
-				return
+				os.Setenv("GO111MODULE", "off")
+				base.Reexec()
 			}
 		}
 	}
+
+	// We're in module mode. Set any global variables that need to be set.
+	// Disable any prompting for passwords by Git.
+	// Only has an effect for 2.3.0 or later, but avoiding
+	// the prompt in earlier versions is just too hard.
+	// If user has explicitly set GIT_TERMINAL_PROMPT=1, keep
+	// prompting.
+	// See golang.org/issue/9341 and golang.org/issue/12706.
+	if os.Getenv("GIT_TERMINAL_PROMPT") == "" {
+		os.Setenv("GIT_TERMINAL_PROMPT", "0")
+	}
+
+	if os.Getenv("GCM_INTERACTIVE") == "" {
+		os.Setenv("GCM_INTERACTIVE", "never")
+	}
+	cfg.ModulesEnabled = true
+	setDefaultBuildMod(ld)
 }
 
 // WillBeEnabled checks whether modules should be enabled but does not
@@ -654,15 +656,11 @@ func (ld *Loader) WillBeEnabled() bool {
 	// exits, so it can't call this function directly.
 	env := cfg.Getenv("GO111MODULE")
 	switch env {
-	case "on", "":
+	case "on", "", "auto":
 		return true
-	case "auto":
-		break
 	default:
 		return false
 	}
-
-	return FindGoMod(base.Cwd()) != "" || ld.FindGoWork(base.Cwd()) != ""
 }
 
 // FindGoMod returns the name of the go.mod file for this command,
@@ -673,8 +671,6 @@ func (ld *Loader) WillBeEnabled() bool {
 func FindGoMod(wd string) string {
 	modRoot := findModuleRoot(wd)
 	if modRoot == "" {
-		// GO111MODULE is 'auto', and we can't find a module root.
-		// Stay in GOPATH mode.
 		return ""
 	}
 	if search.InDir(modRoot, os.TempDir()) == "." {
@@ -752,6 +748,7 @@ func (ld *Loader) HasModRoot() bool {
 // MustHaveModRoot checks that a main module or main modules are present,
 // and calls base.Fatalf if there are no main modules.
 func (ld *Loader) MustHaveModRoot() {
+	ld.ForceUseModules = true
 	Init(ld)
 	if !ld.HasModRoot() {
 		die(ld)
