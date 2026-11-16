@@ -3101,7 +3101,7 @@ func testTransportIgnore1xxResponses(t *testing.T, mode testMode) {
 }
 
 func TestTransportLimits1xxResponses(t *testing.T) {
-	runSynctest(t, testTransportLimits1xxResponses, http3SkippedMode)
+	runSynctest(t, testTransportLimits1xxResponses)
 }
 func testTransportLimits1xxResponses(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -3119,16 +3119,18 @@ func testTransportLimits1xxResponses(t *testing.T, mode testMode) {
 		res.Body.Close()
 		t.Fatalf("RoundTrip succeeded; want error")
 	}
-	for _, want := range []string{
+	wants := []string{
 		"response headers exceeded",
 		"too many 1xx",
 		"header list too large",
-	} {
+		"headers too large",
+	}
+	for _, want := range wants {
 		if strings.Contains(err.Error(), want) {
 			return
 		}
 	}
-	t.Errorf(`got error %q; want "response headers exceeded" or "too many 1xx"`, err)
+	t.Errorf("got error %q; want one of %q", err, wants)
 }
 
 func TestTransportDoesNotLimitDelivered1xxResponses(t *testing.T) {
