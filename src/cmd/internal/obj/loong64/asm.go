@@ -1622,6 +1622,14 @@ func buildop(ctxt *obj.Link) {
 			opset(AVSLTH, r0)
 			opset(AVSLTW, r0)
 			opset(AVSLTV, r0)
+			opset(AVMAXB, r0)
+			opset(AVMAXH, r0)
+			opset(AVMAXW, r0)
+			opset(AVMAXV, r0)
+			opset(AVMINB, r0)
+			opset(AVMINH, r0)
+			opset(AVMINW, r0)
+			opset(AVMINV, r0)
 
 		// xvseq.b xd, xj, xk
 		// xvseqi.b xd, xj, si5
@@ -1633,6 +1641,14 @@ func buildop(ctxt *obj.Link) {
 			opset(AXVSLTH, r0)
 			opset(AXVSLTW, r0)
 			opset(AXVSLTV, r0)
+			opset(AXVMAXB, r0)
+			opset(AXVMAXH, r0)
+			opset(AXVMAXW, r0)
+			opset(AXVMAXV, r0)
+			opset(AXVMINB, r0)
+			opset(AXVMINH, r0)
+			opset(AXVMINW, r0)
+			opset(AXVMINV, r0)
 
 		// vslt.bu vd, vj, vk
 		// vslti.bu vd, vj, ui5
@@ -1640,6 +1656,14 @@ func buildop(ctxt *obj.Link) {
 			opset(AVSLTHU, r0)
 			opset(AVSLTWU, r0)
 			opset(AVSLTVU, r0)
+			opset(AVMAXBU, r0)
+			opset(AVMAXHU, r0)
+			opset(AVMAXWU, r0)
+			opset(AVMAXVU, r0)
+			opset(AVMINBU, r0)
+			opset(AVMINHU, r0)
+			opset(AVMINWU, r0)
+			opset(AVMINVU, r0)
 
 		// xvslt.bu xd, xj, xk
 		// xvslti.bu xd, xj, ui5
@@ -1647,6 +1671,14 @@ func buildop(ctxt *obj.Link) {
 			opset(AXVSLTHU, r0)
 			opset(AXVSLTWU, r0)
 			opset(AXVSLTVU, r0)
+			opset(AXVMAXBU, r0)
+			opset(AXVMAXHU, r0)
+			opset(AXVMAXWU, r0)
+			opset(AXVMAXVU, r0)
+			opset(AXVMINBU, r0)
+			opset(AXVMINHU, r0)
+			opset(AXVMINWU, r0)
+			opset(AXVMINVU, r0)
 
 		// vandi.b vd, vj, ui8
 		case AVANDB:
@@ -1858,6 +1890,10 @@ func buildop(ctxt *obj.Link) {
 			opset(AVFMULD, r0)
 			opset(AVFDIVF, r0)
 			opset(AVFDIVD, r0)
+			opset(AVFMAXF, r0)
+			opset(AVFMAXD, r0)
+			opset(AVFMINF, r0)
+			opset(AVFMIND, r0)
 
 		// xvadd.b xd, xj, xk
 		case AXVADDB:
@@ -2035,6 +2071,10 @@ func buildop(ctxt *obj.Link) {
 			opset(AXVFMULD, r0)
 			opset(AXVFDIVF, r0)
 			opset(AXVFDIVD, r0)
+			opset(AXVFMAXF, r0)
+			opset(AXVFMAXD, r0)
+			opset(AXVFMINF, r0)
+			opset(AXVFMIND, r0)
 
 		// vpcnt.b vd, vj
 		case AVPCNTB:

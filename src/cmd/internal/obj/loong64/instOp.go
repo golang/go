@@ -558,6 +558,46 @@ var oprrr = map[obj.As]uint32{
 	AXVFMULD:       0xea72 << 15,        // xvfmul.d
 	AXVFDIVF:       0xea75 << 15,        // xvfdiv.s
 	AXVFDIVD:       0xea76 << 15,        // xvfdiv.d
+	AVMAXB:         0xe0e0 << 15,        // vmax.b
+	AVMAXH:         0xe0e1 << 15,        // vmax.h
+	AVMAXW:         0xe0e2 << 15,        // vmax.w
+	AVMAXV:         0xe0e3 << 15,        // vmax.v
+	AVMINB:         0xe0e4 << 15,        // vmin.b
+	AVMINH:         0xe0e5 << 15,        // vmin.h
+	AVMINW:         0xe0e6 << 15,        // vmin.w
+	AVMINV:         0xe0e7 << 15,        // vmin.v
+	AVMAXBU:        0xe0e8 << 15,        // vmax.bu
+	AVMAXHU:        0xe0e9 << 15,        // vmax.hu
+	AVMAXWU:        0xe0ea << 15,        // vmax.wu
+	AVMAXVU:        0xe0eb << 15,        // vmax.vu
+	AVMINBU:        0xe0ec << 15,        // vmin.bu
+	AVMINHU:        0xe0ed << 15,        // vmin.hu
+	AVMINWU:        0xe0ee << 15,        // vmin.wu
+	AVMINVU:        0xe0ef << 15,        // vmin.vu
+	AXVMAXB:        0xe8e0 << 15,        // xvmax.b
+	AXVMAXH:        0xe8e1 << 15,        // xvmax.h
+	AXVMAXW:        0xe8e2 << 15,        // xvmax.w
+	AXVMAXV:        0xe8e3 << 15,        // xvmax.v
+	AXVMINB:        0xe8e4 << 15,        // xvmin.b
+	AXVMINH:        0xe8e5 << 15,        // xvmin.h
+	AXVMINW:        0xe8e6 << 15,        // xvmin.w
+	AXVMINV:        0xe8e7 << 15,        // xvmin.v
+	AXVMAXBU:       0xe8e8 << 15,        // xvmax.bu
+	AXVMAXHU:       0xe8e9 << 15,        // xvmax.hu
+	AXVMAXWU:       0xe8ea << 15,        // xvmax.wu
+	AXVMAXVU:       0xe8eb << 15,        // xvmax.vu
+	AXVMINBU:       0xe8ec << 15,        // xvmin.bu
+	AXVMINHU:       0xe8ed << 15,        // xvmin.hu
+	AXVMINWU:       0xe8ee << 15,        // xvmin.wu
+	AXVMINVU:       0xe8ef << 15,        // xvmin.vu
+	AVFMAXF:        0xe279 << 15,        // vfmax.s
+	AVFMAXD:        0xe27a << 15,        // vfmax.d
+	AVFMINF:        0xe27d << 15,        // vfmin.s
+	AVFMIND:        0xe27e << 15,        // vfmin.d
+	AXVFMAXF:       0xea79 << 15,        // xvfmax.s
+	AXVFMAXD:       0xea7a << 15,        // xvfmax.d
+	AXVFMINF:       0xea7d << 15,        // xvfmin.s
+	AXVFMIND:       0xea7e << 15,        // xvfmin.d
 }
 
 var oprr = map[obj.As]uint32{
@@ -934,6 +974,38 @@ var opirr = map[obj.As]uint32{
 	AXVBITREVV:  0x1dc6<<18 | 0x1<<16, // xvbitrevi.d
 	AVBITSELB:   0x1cf1 << 18,         // vbitseli.b
 	AXVBITSELB:  0x1df1 << 18,         // xvbitseli.b
+	AVMAXB:      0xe520 << 15,         // vmaxi.b
+	AVMAXH:      0xe521 << 15,         // vmaxi.h
+	AVMAXW:      0xe522 << 15,         // vmaxi.w
+	AVMAXV:      0xe523 << 15,         // vmaxi.v
+	AVMINB:      0xe524 << 15,         // vmini.b
+	AVMINH:      0xe525 << 15,         // vmini.h
+	AVMINW:      0xe526 << 15,         // vmini.w
+	AVMINV:      0xe527 << 15,         // vmini.v
+	AVMAXBU:     0xe528 << 15,         // vmaxi.bu
+	AVMAXHU:     0xe529 << 15,         // vmaxi.hu
+	AVMAXWU:     0xe52a << 15,         // vmaxi.wu
+	AVMAXVU:     0xe52b << 15,         // vmaxi.vu
+	AVMINBU:     0xe52c << 15,         // vmini.bu
+	AVMINHU:     0xe52d << 15,         // vmini.hu
+	AVMINWU:     0xe52e << 15,         // vmini.wu
+	AVMINVU:     0xe52f << 15,         // vmini.vu
+	AXVMAXB:     0xed20 << 15,         // xvmaxi.b
+	AXVMAXH:     0xed21 << 15,         // xvmaxi.h
+	AXVMAXW:     0xed22 << 15,         // xvmaxi.w
+	AXVMAXV:     0xed23 << 15,         // xvmaxi.v
+	AXVMINB:     0xed24 << 15,         // xvmini.b
+	AXVMINH:     0xed25 << 15,         // xvmini.h
+	AXVMINW:     0xed26 << 15,         // xvmini.w
+	AXVMINV:     0xed27 << 15,         // xvmini.v
+	AXVMAXBU:    0xed28 << 15,         // xvmaxi.bu
+	AXVMAXHU:    0xed29 << 15,         // xvmaxi.hu
+	AXVMAXWU:    0xed2a << 15,         // xvmaxi.wu
+	AXVMAXVU:    0xed2b << 15,         // xvmaxi.vu
+	AXVMINBU:    0xed2c << 15,         // xvmini.bu
+	AXVMINHU:    0xed2d << 15,         // xvmini.hu
+	AXVMINWU:    0xed2e << 15,         // xvmini.wu
+	AXVMINVU:    0xed2f << 15,         // xvmini.vu
 }
 
 var opirrr = map[obj.As]uint32{
