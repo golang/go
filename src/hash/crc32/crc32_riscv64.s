@@ -13,13 +13,13 @@ DATA ieee_fold<>+8(SB)/8, $0xae689191   // K1 (fold low)
 GLOBL ieee_fold<>(SB), RODATA, $16
 
 // Final reduction constants for IEEE CRC32 reflected.
-// const_low:  128→64 bit fold constant (low)
-// const_high: 128→64 bit fold constant (high)
-// const_quo:  Barrett reduction quotient μ = floor(x^64 / P(x))
+// const_low:  128->64 bit fold constant (low)
+// const_high: 128->64 bit fold constant (high)
+// const_quo:  Barrett reduction quotient mu = floor(x^64 / P(x))
 // const_poly: CRC32-IEEE polynomial P(x) with implicit x^32 term
 DATA ieee_reduce<>+0(SB)/8, $0xb8bc6765     // const_low
 DATA ieee_reduce<>+8(SB)/8, $0xccaa009e     // const_high
-DATA ieee_reduce<>+16(SB)/8, $0x1f7011641   // const_quo (μ)
+DATA ieee_reduce<>+16(SB)/8, $0x1f7011641   // const_quo (mu)
 DATA ieee_reduce<>+24(SB)/8, $0x1db710641   // const_poly (P)
 GLOBL ieee_reduce<>(SB), RODATA, $32
 
@@ -32,7 +32,7 @@ GLOBL cast_fold<>(SB), RODATA, $16
 // Final reduction constants for Castagnoli CRC32-C reflected.
 DATA cast_reduce<>+0(SB)/8, $0xdd45aab8     // const_low
 DATA cast_reduce<>+8(SB)/8, $0x493c7d27     // const_high
-DATA cast_reduce<>+16(SB)/8, $0x0dea713f1   // const_quo (μ)
+DATA cast_reduce<>+16(SB)/8, $0x0dea713f1   // const_quo (mu)
 DATA cast_reduce<>+24(SB)/8, $0x105ec76f1   // const_poly (P)
 GLOBL cast_reduce<>(SB), RODATA, $32
 
@@ -65,10 +65,10 @@ GLOBL mask32<>(SB), RODATA, $8
 // accumulator in X8, X9. Constants K2 (X10) and K1 (X11) must already be
 // loaded. Clobbers X15-X18.
 #define FOLD_STEP() \
-	CLMUL	X11, X8, X15;		/* clmul(K1, t0) → low result */ \
-	CLMULH	X11, X8, X16;		/* clmulh(K1, t0) → high result */ \
-	CLMUL	X10, X9, X17;		/* clmul(K2, t1) → low result */ \
-	CLMULH	X10, X9, X18;		/* clmulh(K2, t1) → high result */ \
+	CLMUL	X11, X8, X15;		/* clmul(K1, t0) -> low result */ \
+	CLMULH	X11, X8, X16;		/* clmulh(K1, t0) -> high result */ \
+	CLMUL	X10, X9, X17;		/* clmul(K2, t1) -> low result */ \
+	CLMULH	X10, X9, X18;		/* clmulh(K2, t1) -> high result */ \
 	XOR	X15, X17, X8;		/* t0 = fold_low */ \
 	XOR	X8, X13, X8;		/* t0 ^= d0 */ \
 	XOR	X16, X18, X9;		/* t1 = fold_high */ \
@@ -135,13 +135,13 @@ ieee_fold_loop:
 
 ieee_fold_done:
 	// (X8, X9) = (t0, t1) holds the folded 128-bit accumulator.
-	// Now reduce 128 bits → 64 bits → 32 bits.
+	// Now reduce 128 bits -> 64 bits -> 32 bits.
 
 	// Load final reduction constants
 	MOV	ieee_reduce<>+0(SB), X10	// const_low
 	MOV	ieee_reduce<>+8(SB), X11	// const_high
 
-	// 128-bit → 64-bit folding
+	// 128-bit -> 64-bit folding
 	// Formula (from ISA-L reflected CRC):
 	//   t4 = clmul(t0, const_high)
 	//   t3h = clmulh(t0, const_high)
@@ -164,15 +164,15 @@ ieee_fold_done:
 	XOR	X13, X15, X17		// result = (t3h << 32) XOR high32
 	XOR	X17, X16, X17		// result ^= f
 
-	// Barrett reduction: 64 bits → 32 bits
+	// Barrett reduction: 64 bits -> 32 bits
 	// Formula:
-	//   tmp = clmul(result_low32, μ)
+	//   tmp = clmul(result_low32, mu)
 	//   tmp = clmul(tmp_low32, P)
 	//   crc = (result XOR tmp) >> 32
 	AND	X17, X20, X18		// low32 = result & 0xFFFFFFFF
-	MOV	ieee_reduce<>+16(SB), X21	// const_quo (μ)
+	MOV	ieee_reduce<>+16(SB), X21	// const_quo (mu)
 	MOV	ieee_reduce<>+24(SB), X22	// const_poly (P)
-	CLMUL	X21, X18, X18		// tmp = clmul(low32, μ)
+	CLMUL	X21, X18, X18		// tmp = clmul(low32, mu)
 	AND	X18, X20, X18		// tmp = tmp & 0xFFFFFFFF
 	CLMUL	X22, X18, X18		// tmp = clmul(tmp, P)
 	XOR	X17, X18, X18		// result = result XOR tmp
@@ -252,7 +252,7 @@ cast_fold_done:
 	MOV	cast_reduce<>+0(SB), X10	// const_low
 	MOV	cast_reduce<>+8(SB), X11	// const_high
 
-	// 128-bit → 64-bit folding
+	// 128-bit -> 64-bit folding
 	CLMUL	X11, X8, X12		// t4 = clmul(t0, const_high)
 	CLMULH	X11, X8, X13		// t3h = clmulh(t0, const_high)
 	XOR	X9, X12, X9		// t1 = t1 XOR t4
@@ -266,11 +266,11 @@ cast_fold_done:
 	XOR	X13, X15, X17		// result = (t3h << 32) XOR high32
 	XOR	X17, X16, X17		// result ^= f
 
-	// Barrett reduction: 64 bits → 32 bits
+	// Barrett reduction: 64 bits -> 32 bits
 	AND	X17, X20, X18		// low32 = result & 0xFFFFFFFF
-	MOV	cast_reduce<>+16(SB), X21	// const_quo (μ)
+	MOV	cast_reduce<>+16(SB), X21	// const_quo (mu)
 	MOV	cast_reduce<>+24(SB), X22	// const_poly (P)
-	CLMUL	X21, X18, X18		// tmp = clmul(low32, μ)
+	CLMUL	X21, X18, X18		// tmp = clmul(low32, mu)
 	AND	X18, X20, X18		// tmp = tmp & 0xFFFFFFFF
 	CLMUL	X22, X18, X18		// tmp = clmul(tmp, P)
 	XOR	X17, X18, X18		// result = result XOR tmp
