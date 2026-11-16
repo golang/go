@@ -1763,7 +1763,7 @@ func TestTransportDialPreservesNetOpProxyError(t *testing.T) {
 // (A bug caused dialConn to instead write the per-request Proxy-Authorization
 // header through to the shared Header instance, introducing a data race.)
 func TestTransportProxyDialDoesNotMutateProxyConnectHeader(t *testing.T) {
-	runSynctest(t, testTransportProxyDialDoesNotMutateProxyConnectHeader, http3SkippedMode)
+	runSynctest(t, testTransportProxyDialDoesNotMutateProxyConnectHeader)
 }
 func testTransportProxyDialDoesNotMutateProxyConnectHeader(t *testing.T, mode testMode) {
 	proxy := newClientServerTest(t, mode, NotFoundHandler()).ts

@@ -12,6 +12,25 @@ import (
 )
 
 type http3Transport interface {
+	// DialClientConn creates a new client connection to address.
+	//
+	// If proxy is non-nil, the connection should use the provided proxy.
+	// If HTTP/3 proxies are not supported, DialClientConn should return
+	// an error wrapping [errors.ErrUnsupported].
+	//
+	// The RoundTripper returned by DialClientConn must also implement the
+	// genericClientConn interface.
+	//
+	// The client connection should arrange to call internalStateHook
+	// when the connection closes, when requests complete, and when the
+	// connection concurrency limit changes.
+	//
+	// The client connection must call the internal state hook when
+	// the connection state changes asynchronously, such as when a request completes.
+	//
+	// The internal state hook need not be called after synchronous changes
+	// to the state: Close, Reserve, Release, and RoundTrip calls
+	// which don't start a request do not need to call the hook.
 	DialClientConn(ctx context.Context, address string, proxy *url.URL, tlsConfig *tls.Config, internalStateHook func() error) (RoundTripper, error)
 	Close() error
 }
