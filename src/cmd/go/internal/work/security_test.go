@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -1033,13 +1034,29 @@ func TestCheckLinkerCOFFDrectve(t *testing.T) {
 func TestCheckLinkerObjectSections(t *testing.T) {
 	dir := t.TempDir()
 
-	// 1. PE/COFF object with GCC/LLVM LTO sections (.llvmbc or /4 -> .gnu.lto_.symtab.1234) must be rejected.
+	// 1. PE/COFF object with passive embedded LLVM bitcode sections (.llvmbc, .llvmcmd)
+	// should be allowed (#83126), while active LTO sections (.llvm.lto or /4 -> .gnu.lto_.symtab.1234)
+	// must be rejected.
+	coffLlvmBc := filepath.Join(dir, "coff_llvmbc.o")
+	if err := os.WriteFile(coffLlvmBc, makeTestCOFFSection(".llvmbc", []byte("BC\xc0\xde")), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := checkLinkerFlags("LDFLAGS", "#cgo LDFLAGS", []string{coffLlvmBc}); err != nil {
+		t.Errorf("unexpected error for PE/COFF object with .llvmbc section: %v", err)
+	}
+	coffLlvmCmd := filepath.Join(dir, "coff_llvmcmd.o")
+	if err := os.WriteFile(coffLlvmCmd, makeTestCOFFSection(".llvmcmd", []byte("-triple\x00")), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := checkLinkerFlags("LDFLAGS", "#cgo LDFLAGS", []string{coffLlvmCmd}); err != nil {
+		t.Errorf("unexpected error for PE/COFF object with .llvmcmd section: %v", err)
+	}
 	coffLtoShort := filepath.Join(dir, "coff_lto_short.o")
-	if err := os.WriteFile(coffLtoShort, makeTestCOFFSection(".llvmbc", []byte("BC\xc0\xde")), 0644); err != nil {
+	if err := os.WriteFile(coffLtoShort, makeTestCOFFLongSection(".llvm.lto"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	if err := checkLinkerFlags("LDFLAGS", "#cgo LDFLAGS", []string{coffLtoShort}); err == nil {
-		t.Errorf("expected error for PE/COFF object with .llvmbc section, got nil")
+		t.Errorf("expected error for PE/COFF object with .llvm.lto section, got nil")
 	}
 	coffLtoLong := filepath.Join(dir, "coff_lto_long.o")
 	if err := os.WriteFile(coffLtoLong, makeTestCOFFLongSection(".gnu.lto_.symtab.12345678"), 0644); err != nil {
@@ -1047,6 +1064,53 @@ func TestCheckLinkerObjectSections(t *testing.T) {
 	}
 	if err := checkLinkerFlags("LDFLAGS", "#cgo LDFLAGS", []string{coffLtoLong}); err == nil {
 		t.Errorf("expected error for PE/COFF object with /4 .gnu.lto_.symtab.* section, got nil")
+	}
+
+	// 1b. Mach-O 64-bit object with __LLVM,__bitcode and __LLVM,__cmdline (as emitted by
+	// rustc -C embed-bitcode=yes and clang -fembed-bitcode) must be allowed (#83126),
+	// while __GNU_LTO must be rejected.
+	makeMachOSection := func(segName, secName string) []byte {
+		const cmdSize = 72 + 80 // segment_command_64 (72) + section_64 (80)
+		buf := make([]byte, 32+cmdSize+4)
+		binary.LittleEndian.PutUint32(buf[0:4], 0xfeedfacf) // MH_MAGIC_64
+		binary.LittleEndian.PutUint32(buf[4:8], 0x01000007) // CPU_TYPE_X86_64
+		binary.LittleEndian.PutUint32(buf[12:16], 1)        // MH_OBJECT
+		binary.LittleEndian.PutUint32(buf[16:20], 1)        // ncmds = 1
+		binary.LittleEndian.PutUint32(buf[20:24], cmdSize)
+		// LC_SEGMENT_64 (0x19) at offset 32
+		binary.LittleEndian.PutUint32(buf[32:36], 0x19)
+		binary.LittleEndian.PutUint32(buf[36:40], cmdSize)
+		copy(buf[40:56], segName)
+		binary.LittleEndian.PutUint64(buf[64:72], 4)           // vmsize
+		binary.LittleEndian.PutUint64(buf[72:80], 32+cmdSize)  // fileoff
+		binary.LittleEndian.PutUint64(buf[80:88], 4)           // filesize
+		binary.LittleEndian.PutUint32(buf[96:100], 1)          // nsects = 1
+		// section_64 at offset 32+72 = 104
+		copy(buf[104:120], secName)
+		copy(buf[120:136], segName)
+		binary.LittleEndian.PutUint64(buf[144:152], 4)          // size
+		binary.LittleEndian.PutUint32(buf[152:156], 32+cmdSize) // offset
+		return buf
+	}
+	for _, tc := range []struct {
+		seg, sec string
+		wantErr  bool
+	}{
+		{"__LLVM", "__bitcode", false},
+		{"__LLVM", "__cmdline", false},
+		{"__GNU_LTO", "__wrapper_sects", true},
+		{"__TEXT", ".gnu.lto_.opts", true},
+	} {
+		p := filepath.Join(dir, "macho_sec.o")
+		if err := os.WriteFile(p, makeMachOSection(tc.seg, tc.sec), 0644); err != nil {
+			t.Fatal(err)
+		}
+		err := checkLinkerFlags("LDFLAGS", "#cgo LDFLAGS", []string{p})
+		if tc.wantErr && err == nil {
+			t.Errorf("expected error for Mach-O section %s,%s, got nil", tc.seg, tc.sec)
+		} else if !tc.wantErr && err != nil {
+			t.Errorf("unexpected error for Mach-O section %s,%s: %v", tc.seg, tc.sec, err)
+		}
 	}
 
 	// 2. Mach-O 64-bit object containing LC_LINKER_OPTION (0x2d) (B-1 macOS):
@@ -1134,6 +1198,16 @@ func TestCheckLinkerObjectSections(t *testing.T) {
 	}
 	if err := checkLinkerFlags("LDFLAGS", "#cgo LDFLAGS", []string{normalELF}); err != nil {
 		t.Errorf("unexpected error for normal ELF64 .o: %v", err)
+	}
+
+	for _, secName := range []string{".llvmbc", ".llvmcmd"} {
+		llvmEmbedELF := filepath.Join(dir, "llvm_embed.o")
+		if err := os.WriteFile(llvmEmbedELF, makeELF64(1, secName, 1), 0644); err != nil {
+			t.Fatal(err)
+		}
+		if err := checkLinkerFlags("LDFLAGS", "#cgo LDFLAGS", []string{llvmEmbedELF}); err != nil {
+			t.Errorf("unexpected error for ELF64 .o with %s section: %v", secName, err)
+		}
 	}
 
 	gccLtoELF := filepath.Join(dir, "gcc_lto.o")
@@ -1275,5 +1349,72 @@ func TestCheckLinkerObjectSections(t *testing.T) {
 		if err := checkLinkerFlags("LDFLAGS", "#cgo LDFLAGS", []string{"-L/usr/lib"}); err != nil {
 			t.Errorf("unexpected error for host -L/usr/lib: %v", err)
 		}
+	}
+}
+
+func TestCheckLinkerFlagsAllow(t *testing.T) {
+	dir := t.TempDir()
+
+	// 1. Direct linker input file (e.g. a GNU ld linker script or an object with disallowed LTO section)
+	// is rejected by default, but permitted when matched by CGO_LDFLAGS_ALLOW.
+	scriptLib := filepath.Join(dir, "libscript.a")
+	if err := os.WriteFile(scriptLib, []byte("GROUP ( libfoo.a )\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := checkLinkerFlags("LDFLAGS", "#cgo LDFLAGS", []string{scriptLib}); err == nil {
+		t.Fatalf("expected error for linker script %s without CGO_LDFLAGS_ALLOW, got nil", scriptLib)
+	}
+	t.Setenv("CGO_LDFLAGS_ALLOW", `libscript\.a`)
+	if err := checkLinkerFlags("LDFLAGS", "#cgo LDFLAGS", []string{scriptLib}); err != nil {
+		t.Errorf("unexpected error for %s with CGO_LDFLAGS_ALLOW=libscript\\.a: %v", scriptLib, err)
+	}
+	t.Setenv("CGO_LDFLAGS_ALLOW", `.*`)
+	if err := checkLinkerFlags("LDFLAGS", "#cgo LDFLAGS", []string{scriptLib}); err != nil {
+		t.Errorf("unexpected error for %s with CGO_LDFLAGS_ALLOW=.*: %v", scriptLib, err)
+	}
+
+	// 2. -L directory containing a linker script or spec file is rejected by default,
+	// but permitted when either the -L flag or the file inside the directory matches CGO_LDFLAGS_ALLOW.
+	// Matching bare "-L" alone must not allow "-L dir" or "-Ldir".
+	t.Setenv("CGO_LDFLAGS_ALLOW", "")
+	if err := checkLinkerFlags("LDFLAGS", "#cgo LDFLAGS", []string{"-L" + dir}); err == nil {
+		t.Fatalf("expected error for -L%s without CGO_LDFLAGS_ALLOW, got nil", dir)
+	}
+	t.Setenv("CGO_LDFLAGS_ALLOW", `^-L$`)
+	if err := checkLinkerFlags("LDFLAGS", "#cgo LDFLAGS", []string{"-L" + dir}); err == nil {
+		t.Errorf("expected error for -L%s with CGO_LDFLAGS_ALLOW=^-L$, got nil", dir)
+	}
+	if err := checkLinkerFlags("LDFLAGS", "#cgo LDFLAGS", []string{"-L", dir}); err == nil {
+		t.Errorf("expected error for -L %s with CGO_LDFLAGS_ALLOW=^-L$, got nil", dir)
+	}
+	t.Setenv("CGO_LDFLAGS_ALLOW", `-L.*`)
+	if err := checkLinkerFlags("LDFLAGS", "#cgo LDFLAGS", []string{"-L" + dir}); err != nil {
+		t.Errorf("unexpected error for -L%s with CGO_LDFLAGS_ALLOW=-L.*: %v", dir, err)
+	}
+	if err := checkLinkerFlags("LDFLAGS", "#cgo LDFLAGS", []string{"-L", dir}); err != nil {
+		t.Errorf("unexpected error for -L %s with CGO_LDFLAGS_ALLOW=-L.*: %v", dir, err)
+	}
+	// CGO_LDFLAGS_DISALLOW must still take precedence over CGO_LDFLAGS_ALLOW for two-token/recombined flags.
+	for _, disallow := range []string{"-L" + regexp.QuoteMeta(dir), "-L " + regexp.QuoteMeta(dir), regexp.QuoteMeta(dir)} {
+		t.Setenv("CGO_LDFLAGS_DISALLOW", disallow)
+		if err := checkLinkerFlags("LDFLAGS", "#cgo LDFLAGS", []string{"-L", dir}); err == nil {
+			t.Errorf("expected error for -L %s with CGO_LDFLAGS_ALLOW=-L.* and CGO_LDFLAGS_DISALLOW=%s, got nil", dir, disallow)
+		}
+	}
+	t.Setenv("CGO_LDFLAGS_DISALLOW", "")
+	t.Setenv("CGO_LDFLAGS_ALLOW", `libscript\.a`)
+	if err := checkLinkerFlags("LDFLAGS", "#cgo LDFLAGS", []string{"-L" + dir}); err != nil {
+		t.Errorf("unexpected error for -L%s with CGO_LDFLAGS_ALLOW=libscript\\.a: %v", dir, err)
+	}
+
+	// 3. -Wl,--just-symbols pointing to a non-object file is rejected by default,
+	// but permitted when matched by CGO_LDFLAGS_ALLOW.
+	t.Setenv("CGO_LDFLAGS_ALLOW", "")
+	if err := checkLinkerFlags("LDFLAGS", "#cgo LDFLAGS", []string{"-Wl,--just-symbols," + scriptLib}); err == nil {
+		t.Fatalf("expected error for -Wl,--just-symbols without CGO_LDFLAGS_ALLOW, got nil")
+	}
+	t.Setenv("CGO_LDFLAGS_ALLOW", `-Wl,--just-symbols,.*`)
+	if err := checkLinkerFlags("LDFLAGS", "#cgo LDFLAGS", []string{"-Wl,--just-symbols," + scriptLib}); err != nil {
+		t.Errorf("unexpected error for -Wl,--just-symbols with CGO_LDFLAGS_ALLOW: %v", err)
 	}
 }

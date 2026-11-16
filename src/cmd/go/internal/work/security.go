@@ -349,9 +349,20 @@ var validPkgConfigFlags = []*lazyregexp.Regexp{
 // -fopenacc) or %:include(libsanitizer.spec) (-fsanitize=* combined with
 // -static or -static-lib*).
 func hasGCCSpecFlags(list []string) bool {
+	var allow *regexp.Regexp
+	if env := cfg.Getenv("CGO_LDFLAGS_ALLOW"); env != "" {
+		allow, _ = regexp.Compile(env)
+	}
+	return hasGCCSpecFlagsAllow(list, allow)
+}
+
+func hasGCCSpecFlagsAllow(list []string, allow *regexp.Regexp) bool {
 	hasSanitize := false
 	hasStatic := false
 	for _, arg := range list {
+		if matchAllow(allow, arg) {
+			continue
+		}
 		if arg == "-fopenmp" || arg == "-fopenacc" {
 			return true
 		}
@@ -365,6 +376,10 @@ func hasGCCSpecFlags(list []string) bool {
 	return hasSanitize && hasStatic
 }
 
+func matchAllow(allow *regexp.Regexp, s string) bool {
+	return allow != nil && allow.FindString(s) == s
+}
+
 func checkCompilerFlags(name, source string, list []string) error {
 	checkOverrides := true
 	return checkFlags(name, source, list, invalidCompilerFlags, validCompilerFlags, nil, validCompilerFlagsWithNextArg, checkOverrides)
@@ -375,8 +390,16 @@ func checkLinkerFlags(name, source string, list []string) error {
 	if err := checkFlags(name, source, list, invalidLinkerFlags, validLinkerFlags, recombinedLinkerFlagsWithNextArg, validLinkerFlagsWithNextArg, checkOverrides); err != nil {
 		return err
 	}
-	if hasGCCSpecFlags(list) {
-		if err := checkLinkerSpecDir(source, "."); err != nil {
+	var allow *regexp.Regexp
+	if env := cfg.Getenv("CGO_" + name + "_ALLOW"); env != "" {
+		r, err := regexp.Compile(env)
+		if err != nil {
+			return fmt.Errorf("parsing $CGO_%s_ALLOW: %v", name, err)
+		}
+		allow = r
+	}
+	if hasGCCSpecFlagsAllow(list, allow) {
+		if err := scanLinkerSearchDir(source, ".", false, allow); err != nil {
 			return err
 		}
 	}
@@ -384,13 +407,15 @@ func checkLinkerFlags(name, source string, list []string) error {
 		arg := list[i]
 		switch {
 		case strings.HasPrefix(arg, "-L"):
+			raw := arg
 			dir := arg[2:]
 			if dir == "" && i+1 < len(list) {
 				i++
 				dir = list[i]
+				raw = arg + " " + dir
 			}
-			if dir != "" {
-				if err := checkLinkerLibDir(source, dir); err != nil {
+			if dir != "" && !matchAllow(allow, raw) && !matchAllow(allow, "-L"+dir) && !matchAllow(allow, dir) {
+				if err := checkLinkerLibDir(source, dir, allow); err != nil {
 					return err
 				}
 			}
@@ -399,13 +424,19 @@ func checkLinkerFlags(name, source string, list []string) error {
 		// and we include it in validLinkerFlagsWithNextArg on all platforms.
 		case arg == "-isysroot" && i+1 < len(list):
 			i++ // consume next argument
-			if err := checkLinkerSysroot(source, arg+" "+list[i], list[i]); err != nil {
-				return err
+			raw := arg + " " + list[i]
+			if !matchAllow(allow, raw) && !matchAllow(allow, arg+list[i]) && !matchAllow(allow, list[i]) {
+				if err := checkLinkerSysroot(source, raw, list[i], allow); err != nil {
+					return err
+				}
 			}
 		case arg == "-framework" && i+1 < len(list):
 			i++
-			if err := checkLinkerNonPathNonFile(source, arg+" "+list[i], list[i]); err != nil {
-				return err
+			raw := arg + " " + list[i]
+			if !matchAllow(allow, raw) && !matchAllow(allow, arg+list[i]) && !matchAllow(allow, list[i]) {
+				if err := checkLinkerNonPathNonFile(source, raw, list[i]); err != nil {
+					return err
+				}
 			}
 		case strings.HasPrefix(arg, "-Wl,"):
 			raw := arg
@@ -415,12 +446,16 @@ func checkLinkerFlags(name, source string, list []string) error {
 				raw = arg + " " + list[i]
 				warg = arg + "," + strings.TrimPrefix(list[i], "-Wl,")
 			}
-			if err := checkLinkerWlFlag(source, raw, warg); err != nil {
-				return err
+			if !matchAllow(allow, raw) && !matchAllow(allow, warg) {
+				if err := checkLinkerWlFlag(source, raw, warg, allow); err != nil {
+					return err
+				}
 			}
 		case reDirectLinkerInput.MatchString(arg) && isLocalLinkerPath(arg):
-			if err := checkLinkerInputFile(source, arg); err != nil {
-				return err
+			if !matchAllow(allow, arg) && !matchAllow(allow, filepath.Base(arg)) {
+				if err := checkLinkerInputFile(source, arg); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -430,11 +465,11 @@ func checkLinkerFlags(name, source string, list []string) error {
 // checkLinkerSysroot verifies that the target of -isysroot or -Wl,-syslibroot
 // does not name a regular file on disk, which GNU ld.bfd would treat as a
 // positional linker script.
-func checkLinkerSysroot(source, flag, dir string) error {
+func checkLinkerSysroot(source, flag, dir string, allow *regexp.Regexp) error {
 	if fi, err := os.Stat(dir); err == nil && !fi.IsDir() {
 		return fmt.Errorf("invalid flag in %s: %s (not a directory)", source, flag)
 	}
-	return checkLinkerSpecDir(source, dir)
+	return scanLinkerSearchDir(source, dir, false, allow)
 }
 
 // checkLinkerNonPathNonFile verifies that val (such as a framework or symbol
@@ -456,8 +491,8 @@ func checkLinkerNonPathNonFile(source, raw, val string) error {
 	return nil
 }
 
-func checkLinkerObjOrDir(source, raw, val string) error {
-	if !isLocalLinkerPath(val) {
+func checkLinkerObjOrDir(source, raw, val string, allow *regexp.Regexp) error {
+	if !isLocalLinkerPath(val) || matchAllow(allow, val) || matchAllow(allow, filepath.Base(val)) {
 		return nil
 	}
 	if fi, err := os.Stat(val); err == nil && !fi.IsDir() {
@@ -468,7 +503,7 @@ func checkLinkerObjOrDir(source, raw, val string) error {
 	return nil
 }
 
-func checkLinkerWlFlag(source, raw, arg string) error {
+func checkLinkerWlFlag(source, raw, arg string, allow *regexp.Regexp) error {
 	wargs := []string{arg}
 	if strings.HasPrefix(arg, "-Wl,--push-state,") {
 		for _, sub := range strings.Split(arg, ",")[2:] {
@@ -476,11 +511,16 @@ func checkLinkerWlFlag(source, raw, arg string) error {
 		}
 	}
 	for _, warg := range wargs {
+		if matchAllow(allow, warg) {
+			continue
+		}
 		switch {
 		case strings.HasPrefix(warg, "-Wl,-syslibroot,"), strings.HasPrefix(warg, "-Wl,-syslibroot="):
 			dir := warg[len("-Wl,-syslibroot,"):]
-			if err := checkLinkerSysroot(source, raw, dir); err != nil {
-				return err
+			if !matchAllow(allow, dir) {
+				if err := checkLinkerSysroot(source, raw, dir, allow); err != nil {
+					return err
+				}
 			}
 		case strings.HasPrefix(warg, "-Wl,-framework,"):
 			if err := checkLinkerNonPathNonFile(source, raw, warg[len("-Wl,-framework,"):]); err != nil {
@@ -491,7 +531,7 @@ func checkLinkerWlFlag(source, raw, arg string) error {
 				return err
 			}
 		case strings.HasPrefix(warg, "-Wl,--just-symbols,"), strings.HasPrefix(warg, "-Wl,--just-symbols="):
-			if err := checkLinkerObjOrDir(source, raw, warg[len("-Wl,--just-symbols,"):]); err != nil {
+			if err := checkLinkerObjOrDir(source, raw, warg[len("-Wl,--just-symbols,"):], allow); err != nil {
 				return err
 			}
 		case strings.HasPrefix(warg, "-Wl,-R"):
@@ -501,7 +541,7 @@ func checkLinkerWlFlag(source, raw, arg string) error {
 			} else if after, ok := strings.CutPrefix(val, "="); ok {
 				val = after
 			}
-			if err := checkLinkerObjOrDir(source, raw, val); err != nil {
+			if err := checkLinkerObjOrDir(source, raw, val, allow); err != nil {
 				return err
 			}
 		case strings.HasPrefix(warg, "-Wl,-subsystem,"):
@@ -580,11 +620,15 @@ func isLocalLinkerPath(path string) bool {
 }
 
 func checkLinkerSpecDir(source, dir string) error {
-	return scanLinkerSearchDir(source, dir, false)
+	var allow *regexp.Regexp
+	if env := cfg.Getenv("CGO_LDFLAGS_ALLOW"); env != "" {
+		allow, _ = regexp.Compile(env)
+	}
+	return scanLinkerSearchDir(source, dir, false, allow)
 }
 
-func checkLinkerLibDir(source, dir string) error {
-	return scanLinkerSearchDir(source, dir, true)
+func checkLinkerLibDir(source, dir string, allow *regexp.Regexp) error {
+	return scanLinkerSearchDir(source, dir, true, allow)
 }
 
 // scanLinkerSearchDir walks the directory rooted at dir and looks for .spec files,
@@ -602,7 +646,7 @@ func checkLinkerLibDir(source, dir string) error {
 // and just walk the directory looking for a spec file. In theory this can cause
 // failure when we find a spec file that GCC wouldn't load, but it seems better to
 // be safe here.
-func scanLinkerSearchDir(source, rawDir string, checkLibs bool) error {
+func scanLinkerSearchDir(source, rawDir string, checkLibs bool, allow *regexp.Regexp) error {
 	dir := trimLinkerSysrootPrefix(rawDir)
 	if dir == "" || !isLocalLinkerPath(dir) {
 		return nil
@@ -645,11 +689,15 @@ func scanLinkerSearchDir(source, rawDir string, checkLibs bool) error {
 			}
 			lower := strings.ToLower(d.Name())
 			if lower == "specs" || strings.HasSuffix(lower, ".spec") {
-				return fmt.Errorf("disallowed GCC spec file in %s: %s", source, path)
+				if !matchAllow(allow, path) && !matchAllow(allow, d.Name()) {
+					return fmt.Errorf("disallowed GCC spec file in %s: %s", source, path)
+				}
 			}
 			if checkLibs && reLinkerLibFile.MatchString(lower) {
-				if err := checkLinkerInputFile(source, path); err != nil {
-					return err
+				if !matchAllow(allow, path) && !matchAllow(allow, d.Name()) {
+					if err := checkLinkerInputFile(source, path); err != nil {
+						return err
+					}
 				}
 			}
 			return nil
@@ -726,12 +774,17 @@ func checkLinkerInputFile(source, path string) error {
 	return checkLinkerObjectRegion(source, path, io.NewSectionReader(f, 0, fi.Size()), 0)
 }
 
+// isDisallowedLTOSection reports whether name is a section that triggers LTO
+// code generation during linking. Note that passive embedded LLVM bitcode
+// sections (.llvmbc and .llvmcmd, or Mach-O __LLVM,__bitcode and __LLVM,__cmdline
+// emitted by clang -fembed-bitcode and rustc -C embed-bitcode=yes inside native
+// relocatable object files) are ignored by ld/lld/ld64 unless LTO is active and
+// are therefore permitted; standalone LLVM bitcode files and .llvm.lto
+// (SHT_LLVM_LTO) sections remain disallowed.
 func isDisallowedLTOSection(name string) bool {
 	return strings.HasPrefix(name, ".gnu.lto_") ||
 		strings.HasPrefix(name, ".gnu.debuglto_") ||
-		strings.HasPrefix(name, ".llvm.lto") ||
-		name == ".llvmbc" ||
-		name == ".llvmcmd"
+		strings.HasPrefix(name, ".llvm.lto")
 }
 
 func isCOFFMachine(mach uint16) bool {
@@ -1151,13 +1204,13 @@ func checkLinkerObjectRegion(source, path string, r *io.SectionReader, depth int
 				}
 			}
 			if seg, ok := l.(*macho.Segment); ok {
-				if seg.Name == "__LLVM" || seg.Name == "__GNU_LTO" {
+				if seg.Name == "__GNU_LTO" {
 					return fmt.Errorf("disallowed LTO segment %q in %s: %s", seg.Name, source, path)
 				}
 			}
 		}
 		for _, sec := range mf.Sections {
-			if sec.Seg == "__LLVM" || sec.Seg == "__GNU_LTO" || isDisallowedLTOSection(sec.Name) {
+			if sec.Seg == "__GNU_LTO" || isDisallowedLTOSection(sec.Name) {
 				return fmt.Errorf("disallowed LTO section %s,%s in %s: %s", sec.Seg, sec.Name, source, path)
 			}
 		}
@@ -1515,10 +1568,19 @@ func checkFlags(name, source string, list []string, invalid, valid []*lazyregexp
 Args:
 	for i := 0; i < len(list); i++ {
 		arg := list[i]
-		if disallow != nil && disallow.FindString(arg) == arg {
+		if matchAllow(disallow, arg) {
 			goto Bad
 		}
-		if allow != nil && allow.FindString(arg) == arg {
+		if slices.Contains(validNext, arg) && i+1 < len(list) {
+			next := list[i+1]
+			if matchAllow(disallow, next) || matchAllow(disallow, arg+" "+next) || matchAllow(disallow, arg+next) {
+				goto Bad
+			}
+			if matchAllow(allow, arg+" "+next) || matchAllow(allow, arg+next) {
+				i++
+				continue Args
+			}
+		} else if matchAllow(allow, arg) {
 			continue Args
 		}
 		for _, re := range invalid {
