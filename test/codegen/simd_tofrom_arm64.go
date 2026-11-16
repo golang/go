@@ -5,7 +5,7 @@
 // license that can be found in the LICENSE file.
 
 // Verify that portable simd <-> archsimd conversions via ToArch and FromArch
-// inline and fold away with zero overhead on arm64 (including the nclm variant).
+// inline and fold away with zero overhead on arm64.
 
 //go:build goexperiment.simd && arm64
 

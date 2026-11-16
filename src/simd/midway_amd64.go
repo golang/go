@@ -11,7 +11,19 @@ import (
 	"simd/archsimd"
 )
 
-const archHasHwClmul = true
+// archHasHwClmul reports whether carryless multiply on vectors of the given
+// bit size is a single hardware instruction.
+func archHasHwClmul(size int) bool {
+	switch size {
+	case 128:
+		return cpu.X86.HasPCLMULQDQ
+	case 256:
+		return cpu.X86.HasVPCLMULQDQ
+	case 512:
+		return cpu.X86.HasAVX512VPCLMULQDQ
+	}
+	return false
+}
 
 func archMaxVectorSize() (size, allFeatureSize int, arch string) {
 	arch = "amd64"

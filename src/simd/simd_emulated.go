@@ -16,10 +16,9 @@ import (
 // (see config.go). On GOARCHes without SIMD hardware support, operations are
 // always emulated.
 const (
-	maxVectorSize  = 128
-	emulated       = true
-	hwClmul        = false
-	archHasHwClmul = false
+	maxVectorSize = 128
+	emulated      = true
+	hwClmul       = false
 )
 
 // LoadInt8s loads a slice into a vector. If len(s) < z.Len(), it panics.

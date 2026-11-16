@@ -9,9 +9,11 @@ package simd_test
 import (
 	"flag"
 	"fmt"
+	"internal/cpu"
 	"internal/testenv"
 	"os"
 	"os/exec"
+	"runtime"
 	"simd"
 	"slices"
 	"strings"
@@ -128,7 +130,38 @@ func godebugSettings() []godebugSetting {
 		godebug:    prefix + "simd=0",
 		wantConfig: "Emulated=true",
 	})
+	// The rest of the settings turn off CPU features.
+	if !cpuOptionsWork() {
+		return settings
+	}
+	// The fallbacks for carryless multiply, which archsimd uses on CPUs
+	// that lack the instruction for it.
+	switch runtime.GOARCH {
+	case "arm64":
+		// Without PMULL, archsimd emulates carryless multiply using
+		// other Neon instructions. If PMULL is already off, because
+		// the CPU lacks it or because GODEBUG turns it off, the
+		// current setting tests that.
+		if cpu.ARM64.HasPMULL {
+			settings = append(settings, godebugSetting{
+				godebug:    prefix + "cpu.pmull=off",
+				wantConfig: "Emulated=false HardwareCLMUL=false",
+			})
+		}
+	}
 	return settings
+}
+
+// cpuOptionsWork reports whether GODEBUG=cpu.X=off settings take effect on
+// this operating system. The runtime only applies them where it can read
+// the environment early enough in startup, and ignores them elsewhere, such
+// as on Windows. See getGodebugEarly in package runtime.
+func cpuOptionsWork() bool {
+	switch runtime.GOOS {
+	case "aix", "darwin", "ios", "dragonfly", "freebsd", "netbsd", "openbsd", "illumos", "solaris", "linux":
+		return true
+	}
+	return false
 }
 
 // config returns how the simd package is configured in this process.

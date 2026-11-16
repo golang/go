@@ -44,10 +44,7 @@ import (
 // emulation for a (popular) platform that has a mostly-capable set
 // of SIMD operations, rather than emulating all of SIMD, a variant
 // is used that emulates only the missing instruction(s).  Currently,
-// the only instance of this is "arm64 nclm" for Arm64 Neon platforms
-// that lack the carryless multiply instruction -- that is, Raspberry
-// Pi.  Demanding a vector length with a "+" prefix on
-// the "GODEBUG=simd" size bypasses this emulation.
+// there are no such variants.
 
 var simd = godebug.New("#simd")
 
@@ -57,7 +54,8 @@ var hwClmul = true
 
 func init() {
 	actualMax, allFeatureSize, arch := archMaxVectorSize() // zero == no simd, zero == features unavailable
-	maxVectorSize, emulated, hwClmul = configure(actualMax, allFeatureSize, arch, simd.Value())
+	maxVectorSize, emulated, _ = configure(actualMax, allFeatureSize, arch, simd.Value())
+	hwClmul = !emulated && archHasHwClmul(maxVectorSize)
 }
 
 type fromArchError string

@@ -33,5 +33,5 @@ func Emulated() bool {
 // this can indicate the possibility of a missing instruction
 // that will fail ("SIGILL") if it is executed.
 func HasHardwareCarrylessMultiply() bool {
-	return hwClmul && archHasHwClmul
+	return hwClmul
 }

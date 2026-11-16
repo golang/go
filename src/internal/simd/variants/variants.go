@@ -49,13 +49,4 @@ var Variants map[Key]*Variant
 
 func init() {
 	Variants = make(map[Key]*Variant)
-	Variants[Key{"arm64", 128}] = &Variant{
-		Suffix: "nclm",
-		Emulated: map[string]bool{
-			"CarrylessMultiplyEven": true,
-			"CarrylessMultiplyOdd":  true,
-		},
-		DefaultRequires: "HasHardwareCarrylessMultiply",
-	}
-
 }

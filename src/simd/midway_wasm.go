@@ -6,7 +6,12 @@
 
 package simd
 
-const archHasHwClmul = false
+// archHasHwClmul reports whether carryless multiply on vectors of the given
+// bit size is a single hardware instruction. WebAssembly has no such
+// instruction.
+func archHasHwClmul(size int) bool {
+	return false
+}
 
 func archMaxVectorSize() (size, allFeatureSize int, arch string) {
 	return 128, 128, "wasm"
