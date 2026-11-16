@@ -1981,21 +1981,26 @@ type releaseConn func(error)
 type Conn struct {
 	db *DB
 
-	// closemu prevents the connection from closing while there
-	// is an active query. It is held for read during queries
-	// and exclusively during close.
-	closemu closingMutex
-
 	// dc is owned until close, at which point
 	// it's returned to the connection pool.
 	dc *driverConn
 
-	// done transitions from false to true exactly once, on close.
-	// Once done, all operations fail with ErrConnDone.
-	done atomic.Bool
+	// mu coordinates operations with Close and guards the fields below.
+	//
+	// grabConn checks closed and counts the operation in numRefs while
+	// holding mu, so dc remains valid until that operation is released.
+	// Once closed is set no new operation can start, and whoever leaves
+	// the Conn closed with no running operations returns dc to the pool.
+	mu      sync.Mutex
+	numRefs int  // operations using dc
+	closed  bool // no new operations may start
+	bad     bool // an operation reported driver.ErrBadConn
 
-	releaseConnOnce sync.Once
-	// releaseConnCache is a cache of c.closemuRUnlockCondReleaseConn
+	// released is closed once dc is returned to the pool.
+	// It is allocated only if Close has to wait.
+	released chan struct{}
+
+	// releaseConnCache is a cache of c.releaseOp
 	// to save allocations in a call to grabConn.
 	releaseConnCache releaseConn
 }
@@ -2003,13 +2008,15 @@ type Conn struct {
 // grabConn takes a context to implement stmtConnGrabber
 // but the context is not used.
 func (c *Conn) grabConn(context.Context) (*driverConn, releaseConn, error) {
-	if c.done.Load() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.closed {
 		return nil, nil, ErrConnDone
 	}
-	c.releaseConnOnce.Do(func() {
-		c.releaseConnCache = c.closemuRUnlockCondReleaseConn
-	})
-	c.closemu.RLock()
+	c.numRefs++
+	if c.releaseConnCache == nil {
+		c.releaseConnCache = c.releaseOp
+	}
 	return c.dc, c.releaseConnCache, nil
 }
 
@@ -2120,33 +2127,44 @@ func (c *Conn) BeginTx(ctx context.Context, opts *TxOptions) (*Tx, error) {
 	return c.db.beginDC(ctx, dc, release, opts)
 }
 
-// closemuRUnlockCondReleaseConn read unlocks closemu
-// as the sql operation is done with the dc.
-func (c *Conn) closemuRUnlockCondReleaseConn(err error) {
-	c.closemu.RUnlock()
+// releaseOp ends an operation started by grabConn.
+// An operation that reports driver.ErrBadConn closes the Conn.
+// If the Conn is closed and this was the last running operation,
+// releaseOp returns dc to the pool.
+func (c *Conn) releaseOp(err error) {
+	c.mu.Lock()
+	c.numRefs--
 	if errors.Is(err, driver.ErrBadConn) {
-		c.close(err)
+		c.closed = true
+		c.bad = true
+	}
+	last := c.closed && c.numRefs == 0
+	bad, released := c.bad, c.released
+	c.mu.Unlock()
+	if last {
+		c.releaseDC(bad, released)
+	}
+}
+
+// releaseDC returns dc to the pool, discarding it if bad, and then
+// closes released if Close is waiting. It is called exactly once, without
+// c.mu held, by whichever caller left the Conn closed with no running
+// operations.
+func (c *Conn) releaseDC(bad bool, released chan struct{}) {
+	var err error
+	if bad {
+		err = driver.ErrBadConn
+	}
+	c.dc.releaseConn(err)
+	c.dc = nil
+	c.db = nil
+	if released != nil {
+		close(released)
 	}
 }
 
 func (c *Conn) txCtx() context.Context {
 	return nil
-}
-
-func (c *Conn) close(err error) error {
-	if !c.done.CompareAndSwap(false, true) {
-		return ErrConnDone
-	}
-
-	// Lock around releasing the driver connection
-	// to ensure all queries have been stopped before doing so.
-	c.closemu.Lock()
-	defer c.closemu.Unlock()
-
-	c.dc.releaseConn(err)
-	c.dc = nil
-	c.db = nil
-	return err
 }
 
 // Close returns the connection to the connection pool.
@@ -2155,7 +2173,25 @@ func (c *Conn) close(err error) error {
 // block until all other operations finish. It may be useful to first
 // cancel any used context and then call close directly after.
 func (c *Conn) Close() error {
-	return c.close(nil)
+	c.mu.Lock()
+	if c.closed {
+		c.mu.Unlock()
+		return ErrConnDone
+	}
+	c.closed = true
+	if c.numRefs == 0 {
+		c.mu.Unlock()
+		c.releaseDC(false, nil)
+		return nil
+	}
+	// Wait for the last running operation to return dc to the pool.
+	// released is set in the same critical section as closed, so the
+	// operation that drops numRefs to zero always sees it.
+	released := make(chan struct{})
+	c.released = released
+	c.mu.Unlock()
+	<-released
+	return nil
 }
 
 // Tx is an in-progress database transaction.

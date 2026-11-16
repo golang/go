@@ -1619,9 +1619,9 @@ func testConnRaw(t *testing.T, db *DB) {
 			if x == nil {
 				t.Fatal("expected panic")
 			}
-			conn.closemu.Lock()
-			closed := conn.dc == nil
-			conn.closemu.Unlock()
+			conn.mu.Lock()
+			closed := conn.closed && conn.numRefs == 0
+			conn.mu.Unlock()
 			if !closed {
 				t.Fatal("expected connection to be closed after panic")
 			}
@@ -1631,6 +1631,221 @@ func testConnRaw(t *testing.T, db *DB) {
 		})
 		t.Fatal("expected panic from Raw func")
 	}()
+}
+
+// TestConnCloseConcurrentOperation races Conn.Close with an operation on
+// the Conn. The operation must either run normally or fail with ErrConnDone.
+func TestConnCloseConcurrentOperation(t *testing.T) {
+	testDatabase(t, testConnCloseConcurrentOperation)
+}
+func testConnCloseConcurrentOperation(t *testing.T, db *DB) {
+	ctx := t.Context()
+	for range 1000 {
+		conn, err := db.Conn(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		closeErr := make(chan error)
+		go func() {
+			closeErr <- conn.Close()
+		}()
+		runtime.Gosched() // let Close overlap with Raw
+		err = conn.Raw(func(any) error { return nil })
+		if err != nil && err != ErrConnDone {
+			t.Fatalf("Raw = %v, want nil or ErrConnDone", err)
+		}
+		if err := <-closeErr; err != nil {
+			t.Fatalf("Close = %v", err)
+		}
+	}
+}
+
+// TestConnCloseWaitsForOperations verifies that Conn.Close waits for running
+// operations, and that operations started after Close fail without waiting.
+func TestConnCloseWaitsForOperations(t *testing.T) {
+	testDatabase(t, testConnCloseWaitsForOperations)
+}
+func testConnCloseWaitsForOperations(t *testing.T, db *DB) {
+	ctx := t.Context()
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	unblock := make(chan struct{})
+	rawErr := make(chan error)
+	go func() {
+		rawErr <- conn.Raw(func(any) error {
+			<-unblock
+			return nil
+		})
+	}()
+	synctest.Wait()
+
+	closeErr := make(chan error)
+	go func() {
+		closeErr <- conn.Close()
+	}()
+	synctest.Wait()
+	select {
+	case err := <-closeErr:
+		t.Fatalf("Close = %v before running Raw returned", err)
+	default:
+	}
+
+	if err := conn.PingContext(ctx); err != ErrConnDone {
+		t.Errorf("PingContext during Close = %v, want ErrConnDone", err)
+	}
+	if err := conn.Raw(func(any) error { return nil }); err != ErrConnDone {
+		t.Errorf("Raw during Close = %v, want ErrConnDone", err)
+	}
+
+	close(unblock)
+	if err := <-rawErr; err != nil {
+		t.Errorf("Raw = %v", err)
+	}
+	if err := <-closeErr; err != nil {
+		t.Errorf("Close = %v", err)
+	}
+	if st := db.Stats(); st.InUse != 0 || st.Idle != 1 {
+		t.Errorf("after Close: %d in use, %d idle; want 0, 1", st.InUse, st.Idle)
+	}
+}
+
+// TestConnOperationDuringRelease verifies that operations on a closed Conn
+// fail without waiting for the connection to be returned to the pool,
+// which may call into the driver.
+func TestConnOperationDuringRelease(t *testing.T) {
+	testDatabase(t, testConnOperationDuringRelease)
+}
+func testConnOperationDuringRelease(t *testing.T, db *DB) {
+	ctx := t.Context()
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	inPut := make(chan struct{})
+	unblock := make(chan struct{})
+	origHook := putConnHook
+	defer func() { putConnHook = origHook }()
+	putConnHook = func(db *DB, dc *driverConn) {
+		origHook(db, dc)
+		close(inPut)
+		<-unblock
+	}
+
+	closeErr := make(chan error)
+	go func() {
+		closeErr <- conn.Close()
+	}()
+	<-inPut
+
+	pingErr := make(chan error, 1)
+	go func() {
+		pingErr <- conn.PingContext(ctx)
+	}()
+	synctest.Wait()
+	select {
+	case err := <-pingErr:
+		if err != ErrConnDone {
+			t.Errorf("PingContext = %v, want ErrConnDone", err)
+		}
+	default:
+		t.Errorf("PingContext blocked while Close returned the connection to the pool")
+	}
+
+	close(unblock)
+	if err := <-closeErr; err != nil {
+		t.Errorf("Close = %v", err)
+	}
+}
+
+// TestConnBadConnDuringClose verifies that a connection reported bad by an
+// operation running concurrently with Conn.Close is discarded rather than
+// returned to the pool.
+func TestConnBadConnDuringClose(t *testing.T) {
+	testDatabase(t, testConnBadConnDuringClose)
+}
+func testConnBadConnDuringClose(t *testing.T, db *DB) {
+	conn, err := db.Conn(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	unblock := make(chan struct{})
+	rawErr := make(chan error)
+	go func() {
+		rawErr <- conn.Raw(func(any) error {
+			<-unblock
+			return driver.ErrBadConn
+		})
+	}()
+	synctest.Wait()
+
+	closeErr := make(chan error)
+	go func() {
+		closeErr <- conn.Close()
+	}()
+	synctest.Wait() // Close is waiting for Raw.
+
+	close(unblock)
+	if err := <-rawErr; !errors.Is(err, driver.ErrBadConn) {
+		t.Errorf("Raw = %v, want driver.ErrBadConn", err)
+	}
+	if err := <-closeErr; err != nil {
+		t.Errorf("Close = %v", err)
+	}
+	if st := db.Stats(); st.OpenConnections != 0 || st.Idle != 0 {
+		t.Errorf("after bad connection: %d open, %d idle; want 0, 0", st.OpenConnections, st.Idle)
+	}
+}
+
+// TestConnBadConnWithOpenRows verifies that an operation reporting
+// driver.ErrBadConn while Rows from the same Conn are open does not
+// deadlock, and that the connection is discarded once the Rows are closed.
+func TestConnBadConnWithOpenRows(t *testing.T) {
+	testDatabase(t, testConnBadConnWithOpenRows)
+}
+func testConnBadConnWithOpenRows(t *testing.T, db *DB) {
+	populate(t, db, "people")
+	ctx := t.Context()
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows, err := conn.QueryContext(ctx, "SELECT|people|name|")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	hookExecBadConn = func() bool { return true }
+	_, err = conn.ExecContext(ctx, "INSERT|people|name=Dan,age=?", 4)
+	hookExecBadConn = nil
+	if !errors.Is(err, driver.ErrBadConn) {
+		t.Errorf("ExecContext = %v, want driver.ErrBadConn", err)
+	}
+	if err := conn.PingContext(ctx); err != ErrConnDone {
+		t.Errorf("PingContext after bad connection = %v, want ErrConnDone", err)
+	}
+
+	// The open Rows keep using the connection until they are closed.
+	n := 0
+	for rows.Next() {
+		n++
+	}
+	if err := rows.Close(); err != nil {
+		t.Errorf("rows.Close = %v", err)
+	}
+	if n != 3 {
+		t.Errorf("read %d rows, want 3", n)
+	}
+	if err := conn.Close(); err != ErrConnDone {
+		t.Errorf("Close = %v, want ErrConnDone", err)
+	}
+	if st := db.Stats(); st.OpenConnections != 0 {
+		t.Errorf("after bad connection: %d open, want 0", st.OpenConnections)
+	}
 }
 
 func TestCursorFake(t *testing.T) {
