@@ -56,6 +56,15 @@ func TestSSE3DebugOption(t *testing.T) {
 	}
 }
 
+func TestX86VPCLMULQDQImplications(t *testing.T) {
+	if X86.HasVPCLMULQDQ && !(X86.HasAVX && X86.HasPCLMULQDQ) {
+		t.Errorf("HasVPCLMULQDQ is true, but HasAVX=%v, HasPCLMULQDQ=%v", X86.HasAVX, X86.HasPCLMULQDQ)
+	}
+	if X86.HasAVX512VPCLMULQDQ && !(X86.HasAVX512 && X86.HasVPCLMULQDQ) {
+		t.Errorf("HasAVX512VPCLMULQDQ is true, but HasAVX512=%v, HasVPCLMULQDQ=%v", X86.HasAVX512, X86.HasVPCLMULQDQ)
+	}
+}
+
 func TestDisableCascade(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -64,6 +73,7 @@ func TestDisableCascade(t *testing.T) {
 	}{
 		{"aes", 0, "cpu.aes=off"},
 		{"pclmulqdq", 0, "cpu.pclmulqdq=off"},
+		{"vpclmulqdq", 0, "cpu.vpclmulqdq=off"},
 		{"avx", 2, "cpu.avx=off"},
 		{"avx2", 2, "cpu.avx2=off"},
 		{"avx512f", 3, "cpu.avx512f=off"},
@@ -127,6 +137,16 @@ func TestDisableCascadeOption(t *testing.T) {
 		if X86.HasPCLMULQDQ {
 			t.Errorf("X86.HasPCLMULQDQ expected false, got true")
 		}
+		if X86.HasVPCLMULQDQ {
+			t.Errorf("X86.HasVPCLMULQDQ expected false, got true")
+		}
+		if X86.HasAVX512VPCLMULQDQ {
+			t.Errorf("X86.HasAVX512VPCLMULQDQ expected false, got true")
+		}
+	}
+	if godebug.New("#cpu.vpclmulqdq").Value() == "off" {
+		checked = true
+		// Disabling VPCLMULQDQ must disable it at every vector width.
 		if X86.HasVPCLMULQDQ {
 			t.Errorf("X86.HasVPCLMULQDQ expected false, got true")
 		}

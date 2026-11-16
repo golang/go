@@ -81,7 +81,7 @@ func doinit() {
 		{Name: "pclmulqdq", Feature: &X86.HasPCLMULQDQ},
 		{Name: "rdtscp", Feature: &X86.HasRDTSCP},
 		{Name: "sha", Feature: &X86.HasSHA},
-		{Name: "vpclmulqdq", Feature: &X86.HasAVX512VPCLMULQDQ},
+		{Name: "vpclmulqdq", Feature: &X86.HasVPCLMULQDQ},
 		{Name: "xgetbv1", Feature: &X86.HasXGETBV1},
 	}
 	level := getGOAMD64level()
@@ -136,6 +136,12 @@ func doinit() {
 			X86.HasFMA = false
 			X86.HasVAES = false
 			X86.HasVPCLMULQDQ = false
+		}
+		// The same CPUID bit reports VPCLMULQDQ on 256-bit vectors and on
+		// 512-bit vectors, and cpu.vpclmulqdq=off disables the 256-bit
+		// flag, so the 512-bit flag must follow it.
+		if !X86.HasVPCLMULQDQ {
+			X86.HasAVX512VPCLMULQDQ = false
 		}
 		if !X86.HasAVX2 {
 			X86.HasAVXVNNI = false
