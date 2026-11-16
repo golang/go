@@ -1995,6 +1995,80 @@ func (x Uint32s) ShiftAllLeft(shift uint64) (z Uint32s)
 // Asm: ZLSL, CPU Feature: SVE
 func (x Uint64s) ShiftAllLeft(shift uint64) (z Uint64s)
 
+/* ShiftAllRight */
+
+// ShiftAllRight arithmetically shifts each element of x right by shift bits.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0 or -1, depending on the sign of the element.
+//
+//	z[i] = x[i] >> shift
+//
+// Asm: ZASR, CPU Feature: SVE
+func (x Int8s) ShiftAllRight(shift uint64) (z Int8s)
+
+// ShiftAllRight arithmetically shifts each element of x right by shift bits.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0 or -1, depending on the sign of the element.
+//
+//	z[i] = x[i] >> shift
+//
+// Asm: ZASR, CPU Feature: SVE
+func (x Int16s) ShiftAllRight(shift uint64) (z Int16s)
+
+// ShiftAllRight arithmetically shifts each element of x right by shift bits.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0 or -1, depending on the sign of the element.
+//
+//	z[i] = x[i] >> shift
+//
+// Asm: ZASR, CPU Feature: SVE
+func (x Int32s) ShiftAllRight(shift uint64) (z Int32s)
+
+// ShiftAllRight arithmetically shifts each element of x right by shift bits.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0 or -1, depending on the sign of the element.
+//
+//	z[i] = x[i] >> shift
+//
+// Asm: ZASR, CPU Feature: SVE
+func (x Int64s) ShiftAllRight(shift uint64) (z Int64s)
+
+// ShiftAllRight logically shifts each element of x right by shift bits.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0.
+//
+//	z[i] = x[i] >> shift
+//
+// Asm: ZLSR, CPU Feature: SVE
+func (x Uint8s) ShiftAllRight(shift uint64) (z Uint8s)
+
+// ShiftAllRight logically shifts each element of x right by shift bits.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0.
+//
+//	z[i] = x[i] >> shift
+//
+// Asm: ZLSR, CPU Feature: SVE
+func (x Uint16s) ShiftAllRight(shift uint64) (z Uint16s)
+
+// ShiftAllRight logically shifts each element of x right by shift bits.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0.
+//
+//	z[i] = x[i] >> shift
+//
+// Asm: ZLSR, CPU Feature: SVE
+func (x Uint32s) ShiftAllRight(shift uint64) (z Uint32s)
+
+// ShiftAllRight logically shifts each element of x right by shift bits.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0.
+//
+//	z[i] = x[i] >> shift
+//
+// Asm: ZLSR, CPU Feature: SVE
+func (x Uint64s) ShiftAllRight(shift uint64) (z Uint64s)
+
 /* ShiftLeft */
 
 // ShiftLeft shifts x[i] left by shift[i] bits.

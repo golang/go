@@ -14,25 +14,45 @@ import (
 
 type sveShiftCase[V any] struct {
 	shift uint64
-	f     func(V) V // x.ShiftAllLeft(shift) with shift a constant
+	f     func(V) V // x.ShiftAllLeft(shift) or x.ShiftAllRight(shift) with shift a constant
 }
 
 // testSVEShiftAllLeft checks ShiftAllLeft by every amount in amounts, passed
 // as a variable, and by the constant amounts in consts, against Go's <<.
-func testSVEShiftAllLeft[T int8 | int16 | int32 | int64 | uint8 | uint16 | uint32 | uint64, V any](
+func testSVEShiftAllLeft[T integer, V any](
 	t *testing.T, name string, n int, load func([]T) V, store func(V, []T),
 	shift func(V, uint64) V, consts []sveShiftCase[V]) {
+	t.Helper()
+	testSVEShiftAll(t, name+".ShiftAllLeft", n, load, store, shift, consts, func(x T, s uint64) T { return x << s })
+}
+
+// testSVEShiftAllRight is testSVEShiftAllLeft for ShiftAllRight and Go's >>.
+func testSVEShiftAllRight[T integer, V any](
+	t *testing.T, name string, n int, load func([]T) V, store func(V, []T),
+	shift func(V, uint64) V, consts []sveShiftCase[V]) {
+	t.Helper()
+	testSVEShiftAll(t, name+".ShiftAllRight", n, load, store, shift, consts, func(x T, s uint64) T { return x >> s })
+}
+
+// testSVEShiftAll checks name, the shift op, by every amount in amounts,
+// passed as a variable, and by the constant amounts in consts, against ref.
+func testSVEShiftAll[T integer, V any](
+	t *testing.T, name string, n int, load func([]T) V, store func(V, []T),
+	shift func(V, uint64) V, consts []sveShiftCase[V], ref func(T, uint64) T) {
 	t.Helper()
 	xs := make([]T, n)
 	for i := range xs {
 		xs[i] = T(i*37 - 5) // mixes signs and high bits
+		if i%2 == 1 {
+			xs[i] = ^xs[i]
+		}
 	}
 	got := make([]T, n)
 	check := func(s uint64, how string) {
 		t.Helper()
 		for i, x := range xs {
-			if want := x << s; got[i] != want {
-				t.Errorf("%s.ShiftAllLeft(%d) %s: lane %d = %v, want %v", name, s, how, i, got[i], want)
+			if want := ref(x, s); got[i] != want {
+				t.Errorf("%s(%d) %s: lane %d = %v, want %v", name, s, how, i, got[i], want)
 				return
 			}
 		}
@@ -91,6 +111,105 @@ func TestShiftAllLeftSVE(t *testing.T) {
 		[]sveShiftCase[archsimd.Uint64s]{
 			{33, func(x archsimd.Uint64s) archsimd.Uint64s { return x.ShiftAllLeft(33) }},
 		})
+}
+
+func TestShiftAllRightSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no SVE")
+	}
+	testSVEShiftAllRight(t, "Int8s", archsimd.Int8s{}.Len(), archsimd.LoadInt8s, archsimd.Int8s.Store, archsimd.Int8s.ShiftAllRight,
+		[]sveShiftCase[archsimd.Int8s]{
+			{0, func(x archsimd.Int8s) archsimd.Int8s { return x.ShiftAllRight(0) }},
+			{1, func(x archsimd.Int8s) archsimd.Int8s { return x.ShiftAllRight(1) }},
+			{7, func(x archsimd.Int8s) archsimd.Int8s { return x.ShiftAllRight(7) }},
+			{8, func(x archsimd.Int8s) archsimd.Int8s { return x.ShiftAllRight(8) }},
+			{9, func(x archsimd.Int8s) archsimd.Int8s { return x.ShiftAllRight(9) }},
+		})
+	testSVEShiftAllRight(t, "Uint8s", archsimd.Uint8s{}.Len(), archsimd.LoadUint8s, archsimd.Uint8s.Store, archsimd.Uint8s.ShiftAllRight,
+		[]sveShiftCase[archsimd.Uint8s]{
+			{3, func(x archsimd.Uint8s) archsimd.Uint8s { return x.ShiftAllRight(3) }},
+			{8, func(x archsimd.Uint8s) archsimd.Uint8s { return x.ShiftAllRight(8) }},
+			{200, func(x archsimd.Uint8s) archsimd.Uint8s { return x.ShiftAllRight(200) }},
+		})
+	testSVEShiftAllRight(t, "Int16s", archsimd.Int16s{}.Len(), archsimd.LoadInt16s, archsimd.Int16s.Store, archsimd.Int16s.ShiftAllRight,
+		[]sveShiftCase[archsimd.Int16s]{
+			{15, func(x archsimd.Int16s) archsimd.Int16s { return x.ShiftAllRight(15) }},
+			{16, func(x archsimd.Int16s) archsimd.Int16s { return x.ShiftAllRight(16) }},
+			{100, func(x archsimd.Int16s) archsimd.Int16s { return x.ShiftAllRight(100) }},
+		})
+	testSVEShiftAllRight(t, "Uint16s", archsimd.Uint16s{}.Len(), archsimd.LoadUint16s, archsimd.Uint16s.Store, archsimd.Uint16s.ShiftAllRight,
+		[]sveShiftCase[archsimd.Uint16s]{
+			{4, func(x archsimd.Uint16s) archsimd.Uint16s { return x.ShiftAllRight(4) }},
+			{16, func(x archsimd.Uint16s) archsimd.Uint16s { return x.ShiftAllRight(16) }},
+		})
+	testSVEShiftAllRight(t, "Int32s", archsimd.Int32s{}.Len(), archsimd.LoadInt32s, archsimd.Int32s.Store, archsimd.Int32s.ShiftAllRight,
+		[]sveShiftCase[archsimd.Int32s]{
+			{23, func(x archsimd.Int32s) archsimd.Int32s { return x.ShiftAllRight(23) }},
+			{32, func(x archsimd.Int32s) archsimd.Int32s { return x.ShiftAllRight(32) }},
+			{1 << 40, func(x archsimd.Int32s) archsimd.Int32s { return x.ShiftAllRight(1 << 40) }},
+		})
+	testSVEShiftAllRight(t, "Uint32s", archsimd.Uint32s{}.Len(), archsimd.LoadUint32s, archsimd.Uint32s.Store, archsimd.Uint32s.ShiftAllRight,
+		[]sveShiftCase[archsimd.Uint32s]{
+			{31, func(x archsimd.Uint32s) archsimd.Uint32s { return x.ShiftAllRight(31) }},
+			{1 << 40, func(x archsimd.Uint32s) archsimd.Uint32s { return x.ShiftAllRight(1 << 40) }},
+		})
+	testSVEShiftAllRight(t, "Int64s", archsimd.Int64s{}.Len(), archsimd.LoadInt64s, archsimd.Int64s.Store, archsimd.Int64s.ShiftAllRight,
+		[]sveShiftCase[archsimd.Int64s]{
+			{52, func(x archsimd.Int64s) archsimd.Int64s { return x.ShiftAllRight(52) }},
+			{64, func(x archsimd.Int64s) archsimd.Int64s { return x.ShiftAllRight(64) }},
+			{65, func(x archsimd.Int64s) archsimd.Int64s { return x.ShiftAllRight(65) }},
+			{math.MaxUint64, func(x archsimd.Int64s) archsimd.Int64s { return x.ShiftAllRight(math.MaxUint64) }},
+		})
+	testSVEShiftAllRight(t, "Uint64s", archsimd.Uint64s{}.Len(), archsimd.LoadUint64s, archsimd.Uint64s.Store, archsimd.Uint64s.ShiftAllRight,
+		[]sveShiftCase[archsimd.Uint64s]{
+			{33, func(x archsimd.Uint64s) archsimd.Uint64s { return x.ShiftAllRight(33) }},
+			{64, func(x archsimd.Uint64s) archsimd.Uint64s { return x.ShiftAllRight(64) }},
+			{65, func(x archsimd.Uint64s) archsimd.Uint64s { return x.ShiftAllRight(65) }},
+		})
+}
+
+// shiftAllRightIfElse returns, lane by lane, x >> s where x > y and x
+// elsewhere: x.ShiftAllRight(s).IfElse(x.Greater(y), x).
+func shiftAllRightIfElse[T integer](s uint64) func(x, y []T) []T {
+	return func(x, y []T) []T {
+		r := shiftAllRightSlice(x, s)
+		for i := range r {
+			if !(x[i] > y[i]) {
+				r[i] = x[i]
+			}
+		}
+		return r
+	}
+}
+
+// TestShiftAllRightIfElseSVE checks ShiftAllRight under a select, which folds
+// into its merging form, by a constant, by a constant past the element width,
+// and by a variable.
+func TestShiftAllRightIfElseSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no SVE")
+	}
+	for _, s := range []uint64{5, 70} {
+		testInt8sBinary(t, func(x, y archsimd.Int8s) archsimd.Int8s { return x.ShiftAllRight(s).IfElse(x.Greater(y), x) }, shiftAllRightIfElse[int8](s))
+		testUint16sBinary(t, func(x, y archsimd.Uint16s) archsimd.Uint16s { return x.ShiftAllRight(s).IfElse(x.Greater(y), x) }, shiftAllRightIfElse[uint16](s))
+		testInt64sBinary(t, func(x, y archsimd.Int64s) archsimd.Int64s { return x.ShiftAllRight(s).IfElse(x.Greater(y), x) }, shiftAllRightIfElse[int64](s))
+		testUint64sBinary(t, func(x, y archsimd.Uint64s) archsimd.Uint64s { return x.ShiftAllRight(s).IfElse(x.Greater(y), x) }, shiftAllRightIfElse[uint64](s))
+	}
+	testInt8sBinary(t, func(x, y archsimd.Int8s) archsimd.Int8s { return x.ShiftAllRight(3).IfElse(x.Greater(y), x) }, shiftAllRightIfElse[int8](3))
+	testInt8sBinary(t, func(x, y archsimd.Int8s) archsimd.Int8s { return x.ShiftAllRight(9).IfElse(x.Greater(y), x) }, shiftAllRightIfElse[int8](9))
+	testUint16sBinary(t, func(x, y archsimd.Uint16s) archsimd.Uint16s { return x.ShiftAllRight(16).IfElse(x.Greater(y), x) }, shiftAllRightIfElse[uint16](16))
+	testUint16sBinary(t, func(x, y archsimd.Uint16s) archsimd.Uint16s { return x.ShiftAllRight(17).IfElse(x.Greater(y), x) }, shiftAllRightIfElse[uint16](17))
+	testInt64sBinary(t, func(x, y archsimd.Int64s) archsimd.Int64s { return x.ShiftAllRight(64).IfElse(x.Greater(y), x) }, shiftAllRightIfElse[int64](64))
+	testInt64sBinary(t, func(x, y archsimd.Int64s) archsimd.Int64s { return x.ShiftAllRight(65).IfElse(x.Greater(y), x) }, shiftAllRightIfElse[int64](65))
+	testUint64sBinary(t, func(x, y archsimd.Uint64s) archsimd.Uint64s { return x.ShiftAllRight(3).IfElse(x.Greater(y), x) }, shiftAllRightIfElse[uint64](3))
+	testUint64sBinary(t, func(x, y archsimd.Uint64s) archsimd.Uint64s { return x.ShiftAllRight(65).IfElse(x.Greater(y), x) }, shiftAllRightIfElse[uint64](65))
+	testInt16sBinary(t, func(x, y archsimd.Int16s) archsimd.Int16s { return x.ShiftAllRight(1<<40).IfElse(x.Greater(y), x) }, shiftAllRightIfElse[int16](1<<40))
+	testUint32sBinary(t, func(x, y archsimd.Uint32s) archsimd.Uint32s { return x.ShiftAllRight(1<<40).IfElse(x.Greater(y), x) }, shiftAllRightIfElse[uint32](1<<40))
+	testInt32sBinary(t, func(x, y archsimd.Int32s) archsimd.Int32s { return x.ShiftAllRight(7).IfElse(x.Greater(y), x) }, shiftAllRightIfElse[int32](7))
+	testUint8sBinary(t, func(x, y archsimd.Uint8s) archsimd.Uint8s { return x.ShiftAllRight(8).IfElse(x.Greater(y), x) }, shiftAllRightIfElse[uint8](8))
+	testInt64sBinary(t, func(x, y archsimd.Int64s) archsimd.Int64s {
+		return x.ShiftAllRight(math.MaxUint64).IfElse(x.Greater(y), x)
+	}, shiftAllRightIfElse[int64](math.MaxUint64))
 }
 
 // testSVEShift drives a shift by vector. Every window of xs is paired with

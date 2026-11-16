@@ -84,6 +84,12 @@
 (ShiftAllLeftUint8s x y) => (ZLSLB x (ZDUPD y)) // pureVreg
 (ShiftAllLeftUint16s x y) => (ZLSLH x (ZDUPD y)) // pureVreg
 (ShiftAllLeftUint32s x y) => (ZLSLS x (ZDUPD y)) // pureVreg
+(ShiftAllRightInt8s x y) => (ZASRB x (ZDUPD y)) // pureVreg
+(ShiftAllRightInt16s x y) => (ZASRH x (ZDUPD y)) // pureVreg
+(ShiftAllRightInt32s x y) => (ZASRS x (ZDUPD y)) // pureVreg
+(ShiftAllRightUint8s x y) => (ZLSRB x (ZDUPD y)) // pureVreg
+(ShiftAllRightUint16s x y) => (ZLSRH x (ZDUPD y)) // pureVreg
+(ShiftAllRightUint32s x y) => (ZLSRS x (ZDUPD y)) // pureVreg
 (SubFloat32s ...) => (ZFSUBS ...) // pureVreg
 (SubFloat64s ...) => (ZFSUBD ...) // pureVreg
 (SubInt8s ...) => (ZSUBB ...) // pureVreg
@@ -285,6 +291,8 @@
 (RoundFloat64s x) => (ZFRINTND x (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4]))))
 (ShiftAllLeftInt64s x y) => (ZLSLD x (ZDUPD y) (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4]))))
 (ShiftAllLeftUint64s x y) => (ZLSLD x (ZDUPD y) (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4]))))
+(ShiftAllRightInt64s x y) => (ZASRD x (ZDUPD y) (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4]))))
+(ShiftAllRightUint64s x y) => (ZLSRD x (ZDUPD y) (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4]))))
 (ShiftLeftInt16s x y) => (ZLSLHvec x y (Select0 <types.TypeMask> (PWHILELTH (MOVDconst [0]) (MOVDconst [16]))))
 (ShiftLeftInt32s x y) => (ZLSLSvec x y (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8]))))
 (ShiftLeftInt64s x y) => (ZLSLD x y (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4]))))
@@ -305,6 +313,30 @@
 (SqrtFloat64s x) => (ZFSQRTD x (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4]))))
 (TruncFloat32s x) => (ZFRINTZS x (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8]))))
 (TruncFloat64s x) => (ZFRINTZD x (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4]))))
+(ZASRB x (ZDUPDconst [c])) && c >= 1 && c <= 8 => (ZASRBconst [uint8(c)] x) // sftimm
+(ZASRMergingB x (ZDUPDconst [c]) mask) && c >= 1 && c <= 8 => (ZASRMergingBconst [uint8(c)] x mask) // sftimm
+(ZASRB x (ZDUPDconst [c])) && (c < 0 || c > 8) => (ZASRBconst [8] x) // sftimm
+(ZASRB x (ZDUPD (MOVDconst [c]))) && uint64(c) > 8 => (ZASRBconst [8] x) // sftimm
+(ZASRMergingB x (ZDUPDconst [c]) mask) && (c < 0 || c > 8) => (ZASRMergingBconst [8] x mask) // sftimm
+(ZASRMergingB x (ZDUPD (MOVDconst [c])) mask) && uint64(c) > 8 => (ZASRMergingBconst [8] x mask) // sftimm
+(ZASRD x (ZDUPDconst [c]) (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4])))) && c >= 1 && c <= 64 => (ZASRDconst [uint8(c)] x) // sftimm
+(ZASRMergingD x (ZDUPDconst [c]) mask) && c >= 1 && c <= 64 => (ZASRMergingDconst [uint8(c)] x mask) // sftimm
+(ZASRD x (ZDUPDconst [c]) (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4])))) && (c < 0 || c > 64) => (ZASRDconst [64] x) // sftimm
+(ZASRD x (ZDUPD (MOVDconst [c])) (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4])))) && uint64(c) > 64 => (ZASRDconst [64] x) // sftimm
+(ZASRMergingD x (ZDUPDconst [c]) mask) && (c < 0 || c > 64) => (ZASRMergingDconst [64] x mask) // sftimm
+(ZASRMergingD x (ZDUPD (MOVDconst [c])) mask) && uint64(c) > 64 => (ZASRMergingDconst [64] x mask) // sftimm
+(ZASRH x (ZDUPDconst [c])) && c >= 1 && c <= 16 => (ZASRHconst [uint8(c)] x) // sftimm
+(ZASRMergingH x (ZDUPDconst [c]) mask) && c >= 1 && c <= 16 => (ZASRMergingHconst [uint8(c)] x mask) // sftimm
+(ZASRH x (ZDUPDconst [c])) && (c < 0 || c > 16) => (ZASRHconst [16] x) // sftimm
+(ZASRH x (ZDUPD (MOVDconst [c]))) && uint64(c) > 16 => (ZASRHconst [16] x) // sftimm
+(ZASRMergingH x (ZDUPDconst [c]) mask) && (c < 0 || c > 16) => (ZASRMergingHconst [16] x mask) // sftimm
+(ZASRMergingH x (ZDUPD (MOVDconst [c])) mask) && uint64(c) > 16 => (ZASRMergingHconst [16] x mask) // sftimm
+(ZASRS x (ZDUPDconst [c])) && c >= 1 && c <= 32 => (ZASRSconst [uint8(c)] x) // sftimm
+(ZASRMergingS x (ZDUPDconst [c]) mask) && c >= 1 && c <= 32 => (ZASRMergingSconst [uint8(c)] x mask) // sftimm
+(ZASRS x (ZDUPDconst [c])) && (c < 0 || c > 32) => (ZASRSconst [32] x) // sftimm
+(ZASRS x (ZDUPD (MOVDconst [c]))) && uint64(c) > 32 => (ZASRSconst [32] x) // sftimm
+(ZASRMergingS x (ZDUPDconst [c]) mask) && (c < 0 || c > 32) => (ZASRMergingSconst [32] x mask) // sftimm
+(ZASRMergingS x (ZDUPD (MOVDconst [c])) mask) && uint64(c) > 32 => (ZASRMergingSconst [32] x mask) // sftimm
 (ZLSLB x (ZDUPDconst [c])) && c >= 0 && c <= 7 => (ZLSLBconst [uint8(c)] x) // sftimm
 (ZLSLMergingB x (ZDUPDconst [c]) mask) && c >= 0 && c <= 7 => (ZLSLMergingBconst [uint8(c)] x mask) // sftimm
 (ZLSLB x (ZDUPDconst [c])) && (c < 0 || c > 7) => (ZDUPBconst [0]) // sftimm
@@ -329,6 +361,30 @@
 (ZLSLS x (ZDUPD (MOVDconst [c]))) && uint64(c) > 31 => (ZDUPBconst [0]) // sftimm
 (ZLSLMergingS x (ZDUPDconst [c]) mask) && (c < 0 || c > 31) => (ZSELS (ZDUPBconst [0]) x mask) // sftimm
 (ZLSLMergingS x (ZDUPD (MOVDconst [c])) mask) && uint64(c) > 31 => (ZSELS (ZDUPBconst [0]) x mask) // sftimm
+(ZLSRB x (ZDUPDconst [c])) && c >= 1 && c <= 8 => (ZLSRBconst [uint8(c)] x) // sftimm
+(ZLSRMergingB x (ZDUPDconst [c]) mask) && c >= 1 && c <= 8 => (ZLSRMergingBconst [uint8(c)] x mask) // sftimm
+(ZLSRB x (ZDUPDconst [c])) && (c < 0 || c > 8) => (ZDUPBconst [0]) // sftimm
+(ZLSRB x (ZDUPD (MOVDconst [c]))) && uint64(c) > 8 => (ZDUPBconst [0]) // sftimm
+(ZLSRMergingB x (ZDUPDconst [c]) mask) && (c < 0 || c > 8) => (ZSELB (ZDUPBconst [0]) x mask) // sftimm
+(ZLSRMergingB x (ZDUPD (MOVDconst [c])) mask) && uint64(c) > 8 => (ZSELB (ZDUPBconst [0]) x mask) // sftimm
+(ZLSRD x (ZDUPDconst [c]) (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4])))) && c >= 1 && c <= 64 => (ZLSRDconst [uint8(c)] x) // sftimm
+(ZLSRMergingD x (ZDUPDconst [c]) mask) && c >= 1 && c <= 64 => (ZLSRMergingDconst [uint8(c)] x mask) // sftimm
+(ZLSRD x (ZDUPDconst [c]) (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4])))) && (c < 0 || c > 64) => (ZDUPBconst [0]) // sftimm
+(ZLSRD x (ZDUPD (MOVDconst [c])) (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4])))) && uint64(c) > 64 => (ZDUPBconst [0]) // sftimm
+(ZLSRMergingD x (ZDUPDconst [c]) mask) && (c < 0 || c > 64) => (ZSELD (ZDUPBconst [0]) x mask) // sftimm
+(ZLSRMergingD x (ZDUPD (MOVDconst [c])) mask) && uint64(c) > 64 => (ZSELD (ZDUPBconst [0]) x mask) // sftimm
+(ZLSRH x (ZDUPDconst [c])) && c >= 1 && c <= 16 => (ZLSRHconst [uint8(c)] x) // sftimm
+(ZLSRMergingH x (ZDUPDconst [c]) mask) && c >= 1 && c <= 16 => (ZLSRMergingHconst [uint8(c)] x mask) // sftimm
+(ZLSRH x (ZDUPDconst [c])) && (c < 0 || c > 16) => (ZDUPBconst [0]) // sftimm
+(ZLSRH x (ZDUPD (MOVDconst [c]))) && uint64(c) > 16 => (ZDUPBconst [0]) // sftimm
+(ZLSRMergingH x (ZDUPDconst [c]) mask) && (c < 0 || c > 16) => (ZSELH (ZDUPBconst [0]) x mask) // sftimm
+(ZLSRMergingH x (ZDUPD (MOVDconst [c])) mask) && uint64(c) > 16 => (ZSELH (ZDUPBconst [0]) x mask) // sftimm
+(ZLSRS x (ZDUPDconst [c])) && c >= 1 && c <= 32 => (ZLSRSconst [uint8(c)] x) // sftimm
+(ZLSRMergingS x (ZDUPDconst [c]) mask) && c >= 1 && c <= 32 => (ZLSRMergingSconst [uint8(c)] x mask) // sftimm
+(ZLSRS x (ZDUPDconst [c])) && (c < 0 || c > 32) => (ZDUPBconst [0]) // sftimm
+(ZLSRS x (ZDUPD (MOVDconst [c]))) && uint64(c) > 32 => (ZDUPBconst [0]) // sftimm
+(ZLSRMergingS x (ZDUPDconst [c]) mask) && (c < 0 || c > 32) => (ZSELS (ZDUPBconst [0]) x mask) // sftimm
+(ZLSRMergingS x (ZDUPD (MOVDconst [c])) mask) && uint64(c) > 32 => (ZSELS (ZDUPBconst [0]) x mask) // sftimm
 (ZSELB (ZABSB x (Select0 <types.TypeMask> (PWHILELTB (MOVDconst [0]) (MOVDconst [32])))) z mask) => (ZABSMergingB z x mask)
 (ZSELB (ZADDB x y) x mask) => (ZADDMergingB x y mask)
 (ZSELB (ZADDB x y) y mask) => (ZADDMergingB y x mask)
@@ -336,6 +392,8 @@
 (ZSELB (ZANDD x y) x mask) => (ZANDMergingB x y mask)
 (ZSELB (ZANDD x y) y mask) => (ZANDMergingB y x mask)
 (ZSELB (ZANDD x y) z mask) => (ZANDMergingPrefixedB z x y mask)
+(ZSELB (ZASRB x y) x mask) => (ZASRMergingB x y mask)
+(ZSELB (ZASRBconst [a] x) x mask) => (ZASRMergingBconst [a] x mask)
 (ZSELB (ZASRBvec x y (Select0 <types.TypeMask> (PWHILELTB (MOVDconst [0]) (MOVDconst [32])))) x mask) => (ZASRMergingBvec x y mask)
 (ZSELB (ZBICD x y) x mask) => (ZBICMergingB x y mask)
 (ZSELB (ZCNTB x (Select0 <types.TypeMask> (PWHILELTB (MOVDconst [0]) (MOVDconst [32])))) z mask) => (ZCNTMergingB z x mask)
@@ -345,6 +403,8 @@
 (ZSELB (ZLSLB x y) x mask) => (ZLSLMergingB x y mask)
 (ZSELB (ZLSLBconst [a] x) x mask) => (ZLSLMergingBconst [a] x mask)
 (ZSELB (ZLSLBvec x y (Select0 <types.TypeMask> (PWHILELTB (MOVDconst [0]) (MOVDconst [32])))) x mask) => (ZLSLMergingBvec x y mask)
+(ZSELB (ZLSRB x y) x mask) => (ZLSRMergingB x y mask)
+(ZSELB (ZLSRBconst [a] x) x mask) => (ZLSRMergingBconst [a] x mask)
 (ZSELB (ZLSRBvec x y (Select0 <types.TypeMask> (PWHILELTB (MOVDconst [0]) (MOVDconst [32])))) x mask) => (ZLSRMergingBvec x y mask)
 (ZSELB (ZMLAB x y z (Select0 <types.TypeMask> (PWHILELTB (MOVDconst [0]) (MOVDconst [32])))) x mask) => (ZMLAMergingB x y z mask)
 (ZSELB (ZMULMergingB x y (Select0 <types.TypeMask> (PWHILELTB (MOVDconst [0]) (MOVDconst [32])))) x mask) => (ZMULMergingB x y mask)
@@ -390,6 +450,7 @@
 (ZSELD (ZANDD x y) y mask) => (ZANDMergingD y x mask)
 (ZSELD (ZANDD x y) z mask) => (ZANDMergingPrefixedD z x y mask)
 (ZSELD (ZASRD x y (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4])))) x mask) => (ZASRMergingD x y mask)
+(ZSELD (ZASRDconst [a] x) x mask) => (ZASRMergingDconst [a] x mask)
 (ZSELD (ZBICD x y) x mask) => (ZBICMergingD x y mask)
 (ZSELD (ZCNTD x (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4])))) z mask) => (ZCNTMergingD z x mask)
 (ZSELD (ZEORD x y) x mask) => (ZEORMergingD x y mask)
@@ -416,6 +477,7 @@
 (ZSELD (ZLSLD x y (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4])))) x mask) => (ZLSLMergingD x y mask)
 (ZSELD (ZLSLDconst [a] x) x mask) => (ZLSLMergingDconst [a] x mask)
 (ZSELD (ZLSRD x y (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4])))) x mask) => (ZLSRMergingD x y mask)
+(ZSELD (ZLSRDconst [a] x) x mask) => (ZLSRMergingDconst [a] x mask)
 (ZSELD (ZMLAD x y z (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4])))) x mask) => (ZMLAMergingD x y z mask)
 (ZSELD (ZMULMergingD x y (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4])))) x mask) => (ZMULMergingD x y mask)
 (ZSELD (ZMULMergingD x y (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4])))) y mask) => (ZMULMergingD y x mask)
@@ -461,6 +523,8 @@
 (ZSELH (ZANDD x y) x mask) => (ZANDMergingH x y mask)
 (ZSELH (ZANDD x y) y mask) => (ZANDMergingH y x mask)
 (ZSELH (ZANDD x y) z mask) => (ZANDMergingPrefixedH z x y mask)
+(ZSELH (ZASRH x y) x mask) => (ZASRMergingH x y mask)
+(ZSELH (ZASRHconst [a] x) x mask) => (ZASRMergingHconst [a] x mask)
 (ZSELH (ZASRHvec x y (Select0 <types.TypeMask> (PWHILELTH (MOVDconst [0]) (MOVDconst [16])))) x mask) => (ZASRMergingHvec x y mask)
 (ZSELH (ZBICD x y) x mask) => (ZBICMergingH x y mask)
 (ZSELH (ZCNTH x (Select0 <types.TypeMask> (PWHILELTH (MOVDconst [0]) (MOVDconst [16])))) z mask) => (ZCNTMergingH z x mask)
@@ -470,6 +534,8 @@
 (ZSELH (ZLSLH x y) x mask) => (ZLSLMergingH x y mask)
 (ZSELH (ZLSLHconst [a] x) x mask) => (ZLSLMergingHconst [a] x mask)
 (ZSELH (ZLSLHvec x y (Select0 <types.TypeMask> (PWHILELTH (MOVDconst [0]) (MOVDconst [16])))) x mask) => (ZLSLMergingHvec x y mask)
+(ZSELH (ZLSRH x y) x mask) => (ZLSRMergingH x y mask)
+(ZSELH (ZLSRHconst [a] x) x mask) => (ZLSRMergingHconst [a] x mask)
 (ZSELH (ZLSRHvec x y (Select0 <types.TypeMask> (PWHILELTH (MOVDconst [0]) (MOVDconst [16])))) x mask) => (ZLSRMergingHvec x y mask)
 (ZSELH (ZMLAH x y z (Select0 <types.TypeMask> (PWHILELTH (MOVDconst [0]) (MOVDconst [16])))) x mask) => (ZMLAMergingH x y z mask)
 (ZSELH (ZMULMergingH x y (Select0 <types.TypeMask> (PWHILELTH (MOVDconst [0]) (MOVDconst [16])))) x mask) => (ZMULMergingH x y mask)
@@ -514,6 +580,8 @@
 (ZSELS (ZANDD x y) x mask) => (ZANDMergingS x y mask)
 (ZSELS (ZANDD x y) y mask) => (ZANDMergingS y x mask)
 (ZSELS (ZANDD x y) z mask) => (ZANDMergingPrefixedS z x y mask)
+(ZSELS (ZASRS x y) x mask) => (ZASRMergingS x y mask)
+(ZSELS (ZASRSconst [a] x) x mask) => (ZASRMergingSconst [a] x mask)
 (ZSELS (ZASRSvec x y (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8])))) x mask) => (ZASRMergingSvec x y mask)
 (ZSELS (ZBICD x y) x mask) => (ZBICMergingS x y mask)
 (ZSELS (ZCNTS x (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8])))) z mask) => (ZCNTMergingS z x mask)
@@ -542,6 +610,8 @@
 (ZSELS (ZLSLS x y) x mask) => (ZLSLMergingS x y mask)
 (ZSELS (ZLSLSconst [a] x) x mask) => (ZLSLMergingSconst [a] x mask)
 (ZSELS (ZLSLSvec x y (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8])))) x mask) => (ZLSLMergingSvec x y mask)
+(ZSELS (ZLSRS x y) x mask) => (ZLSRMergingS x y mask)
+(ZSELS (ZLSRSconst [a] x) x mask) => (ZLSRMergingSconst [a] x mask)
 (ZSELS (ZLSRSvec x y (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8])))) x mask) => (ZLSRMergingSvec x y mask)
 (ZSELS (ZMLAS x y z (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8])))) x mask) => (ZMLAMergingS x y z mask)
 (ZSELS (ZMULMergingS x y (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8])))) x mask) => (ZMULMergingS x y mask)

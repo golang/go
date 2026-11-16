@@ -489,6 +489,71 @@ func sveShiftAllLeftVar64(x archsimd.Uint64s, s uint64) archsimd.Uint64s {
 	return x.ShiftAllLeft(s)
 }
 
+// ShiftAllRight by a constant from 1 to the element width is ASR or LSR
+// (immediate). By a larger constant, LSR gives the zero vector and ASR the
+// sign, which ASR by the element width already gives. A variable amount
+// shifts by wide elements, as for ShiftAllLeft.
+
+func sveShiftAllRightConst(x archsimd.Int32s) archsimd.Int32s {
+	// arm64:`ZASR\s+\$23, Z[0-9]+\.S, Z[0-9]+\.S` -`ZDUP`
+	return x.ShiftAllRight(23)
+}
+
+func sveShiftAllRightConstWidth(x archsimd.Uint16s) archsimd.Uint16s {
+	// arm64:`ZLSR\s+\$16, Z[0-9]+\.H, Z[0-9]+\.H` -`ZDUP`
+	return x.ShiftAllRight(16)
+}
+
+func sveShiftAllRightConst64(x archsimd.Int64s) archsimd.Int64s {
+	// arm64:`ZASR\s+\$64, Z[0-9]+\.D, Z[0-9]+\.D` -`ZDUP` -`PWHILELT`
+	return x.ShiftAllRight(64)
+}
+
+func sveShiftAllRightConstTooBig(x archsimd.Int16s) archsimd.Int16s {
+	// arm64:`ZASR\s+\$16, Z[0-9]+\.H, Z[0-9]+\.H` -`ZDUP`
+	return x.ShiftAllRight(100)
+}
+
+func sveShiftAllRightConstHuge(x archsimd.Int64s) archsimd.Int64s {
+	// arm64:`ZASR\s+\$64, Z[0-9]+\.D, Z[0-9]+\.D` -`ZDUP` -`PWHILELT`
+	return x.ShiftAllRight(1 << 40)
+}
+
+func sveShiftAllRightConstTooBigUnsigned(x archsimd.Uint32s) archsimd.Uint32s {
+	// arm64:`ZDUP\s+\$0,` -`ZLSR`
+	return x.ShiftAllRight(1 << 40)
+}
+
+func sveShiftAllRightConstIfElse(x archsimd.Int16s, m archsimd.Mask16s) archsimd.Int16s {
+	// arm64:`ZASR\s+\$3, Z[0-9]+\.H, P[0-9]+\.M, Z[0-9]+\.H` -`ZSEL`
+	return x.ShiftAllRight(3).IfElse(m, x)
+}
+
+func sveShiftAllRightConstTooBigIfElse(x archsimd.Int8s, m archsimd.Mask8s) archsimd.Int8s {
+	// arm64:`ZASR\s+\$8, Z[0-9]+\.B, P[0-9]+\.M, Z[0-9]+\.B` -`ZSEL`
+	return x.ShiftAllRight(9).IfElse(m, x)
+}
+
+func sveShiftAllRightVar(x archsimd.Uint16s, s uint64) archsimd.Uint16s {
+	// arm64:`ZDUP\s+R[0-9]+, Z[0-9]+\.D` `ZLSR\s+Z[0-9]+\.D, Z[0-9]+\.H, Z[0-9]+\.H` -`CSEL`
+	return x.ShiftAllRight(s)
+}
+
+func sveShiftAllRightVar64(x archsimd.Int64s, s uint64) archsimd.Int64s {
+	// arm64:`ZASR\s+Z[0-9]+\.D, Z[0-9]+\.D, P[0-9]+\.M, Z[0-9]+\.D`
+	return x.ShiftAllRight(s)
+}
+
+func sveShiftAllRightVarIfElse(x archsimd.Uint16s, s uint64, m archsimd.Mask16s) archsimd.Uint16s {
+	// arm64:`ZLSR\s+Z[0-9]+\.D, Z[0-9]+\.H, P[0-9]+\.M, Z[0-9]+\.H` -`ZSEL`
+	return x.ShiftAllRight(s).IfElse(m, x)
+}
+
+func sveShiftAllRightVar64IfElse(x archsimd.Int64s, s uint64, m archsimd.Mask64s) archsimd.Int64s {
+	// arm64:`ZASR\s+Z[0-9]+\.D, Z[0-9]+\.D, P[0-9]+\.M, Z[0-9]+\.D` -`ZSEL` -`PWHILELT`
+	return x.ShiftAllRight(s).IfElse(m, x)
+}
+
 // ShiftLeft by vector is LSL (vectors), which is predicated-only, so it runs
 // under an all-true predicate. It yields 0 for an amount of the element width
 // or more, so nothing clamps the amounts.

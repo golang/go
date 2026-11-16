@@ -324,24 +324,26 @@ func sveSftimmRule(gOp Operation, asm, pred string, constImmRange map[string][2]
 		mArgs := strings.Replace(sveBroadcastScalarArgs(gOp, "x y"), "("+bcast+" y)", "("+bcast+"const [c])", 1)
 		rules += fmt.Sprintf("(%s %s mask) && c >= %d && c <= %d => (%sconst [uint8(c)] x mask) // sftimm\n", merging, mArgs, r[0], r[1], merging)
 	}
-	if gOp.Go == "ShiftAllLeft" {
-		rules += sveShiftLeftPastRangeRules(gOp, asm, pred, bcast, r[1])
+	if gOp.Go == "ShiftAllLeft" || gOp.Go == "ShiftAllRight" {
+		rules += sveShiftPastRangeRules(gOp, asm, pred, bcast, r[1], constImmRange)
 	}
 	return rules
 }
 
-// sveShiftLeftPastRangeRules returns the rules for a left shift by a constant
-// amount past the immediate's range, max: every bit is shifted out, so the
-// result is the zero vector, and under a select it is zero in the active
-// lanes. A negative ZDUPDconst is a 64-bit amount of 2**63 or more.
+// sveShiftPastRangeRules returns the rules for a shift by a constant amount
+// past the immediate's range, max. A left or logical right shift shifts every
+// bit out, so the result is the zero vector, and under a select it is zero in
+// the active lanes. A negative ZDUPDconst is a 64-bit amount of 2**63 or more.
 //
 //	(ZLSLH x (ZDUPDconst [c])) && (c < 0 || c > 15) => (ZDUPBconst [0])
 //	(ZLSLH x (ZDUPD (MOVDconst [c]))) && uint64(c) > 15 => (ZDUPBconst [0])
 //	(ZLSLMergingH x (ZDUPDconst [c]) mask) && (c < 0 || c > 15) => (ZSELH (ZDUPBconst [0]) x mask)
 //
-// (A logical right shift past its range is zero too; an arithmetic one is the
-// sign, which its immediate form reaches at its maximum.)
-func sveShiftLeftPastRangeRules(gOp Operation, asm, pred, bcast string, max int) string {
+// An arithmetic right shift fills every bit with the sign, which the
+// immediate form already does at its maximum, the element width:
+//
+//	(ZASRH x (ZDUPDconst [c])) && (c < 0 || c > 16) => (ZASRHconst [16] x)
+func sveShiftPastRangeRules(gOp Operation, asm, pred, bcast string, max int, constImmRange map[string][2]int) string {
 	args := func(c string) string {
 		return strings.Replace(sveBroadcastScalarArgs(gOp, "x y"), "("+bcast+" y)", c, 1)
 	}
@@ -352,13 +354,25 @@ func sveShiftLeftPastRangeRules(gOp Operation, asm, pred, bcast string, max int)
 	if pred != "" {
 		p = " " + pred
 	}
-	rules := fmt.Sprintf("(%s %s%s) && %s => (ZDUPBconst [0]) // sftimm\n", asm, args(small), p, smallCond)
-	rules += fmt.Sprintf("(%s %s%s) && %s => (ZDUPBconst [0]) // sftimm\n", asm, args(large), p, largeCond)
+	arith := gOp.Asm == "ZASR"
+	result := "(ZDUPBconst [0])"
+	if arith {
+		result = fmt.Sprintf("(%sconst [%d] x)", asm, max)
+	}
+	rules := fmt.Sprintf("(%s %s%s) && %s => %s // sftimm\n", asm, args(small), p, smallCond, result)
+	rules += fmt.Sprintf("(%s %s%s) && %s => %s // sftimm\n", asm, args(large), p, largeCond, result)
 	sel := "ZSEL" + sveArrangementLetter(gOp)
 	for _, pr := range gOp.svePredicatedOps() {
 		merging := machineOpName(OneMask, pr)
-		rules += fmt.Sprintf("(%s %s mask) && %s => (%s (ZDUPBconst [0]) x mask) // sftimm\n", merging, args(small), smallCond, sel)
-		rules += fmt.Sprintf("(%s %s mask) && %s => (%s (ZDUPBconst [0]) x mask) // sftimm\n", merging, args(large), largeCond, sel)
+		mResult := fmt.Sprintf("(%s (ZDUPBconst [0]) x mask)", sel)
+		if arith {
+			if _, ok := constImmRange[merging+"const"]; !ok {
+				panic(fmt.Errorf("simdgen: SVE sftimm needs a merging immediate form %sconst: %s", merging, gOp))
+			}
+			mResult = fmt.Sprintf("(%sconst [%d] x mask)", merging, max)
+		}
+		rules += fmt.Sprintf("(%s %s mask) && %s => %s // sftimm\n", merging, args(small), smallCond, mResult)
+		rules += fmt.Sprintf("(%s %s mask) && %s => %s // sftimm\n", merging, args(large), largeCond, mResult)
 	}
 	return rules
 }

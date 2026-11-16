@@ -46,6 +46,87 @@
   out:
   - *int
 
+# ShiftAllRight -- ASR for signed and LSR for unsigned elements (wide
+# elements), the same shape as ShiftAllLeft. For an amount of the element
+# width or more, ASR yields the sign and LSR 0, as the API does, so the
+# amount needs no clamping. A constant amount from 1 to the element width
+# becomes the immediate form, shiftAllRightConst (sftimm).
+- go: ShiftAllRight
+  signed: true
+  asm: "ZASR"
+  sftimm: true
+  in:
+  - &sint
+    go: $t
+    base: int
+  - *wideShift
+  out:
+  - *sint
+
+- go: ShiftAllRight
+  signed: false
+  asm: "ZLSR"
+  sftimm: true
+  in:
+  - &suint
+    go: $t
+    base: uint
+  - *wideShift
+  out:
+  - *suint
+
+# ASR and LSR have no wide form for 64-bit elements; the vector forms take
+# the amount from each element of a vector instead.
+- go: ShiftAllRight
+  signed: true
+  asm: "ZASR"
+  sftimm: true
+  in:
+  - &sint64
+    go: $t
+    base: int
+    elemBits: 64
+  - *wideShift
+  - class: mask # governing predicate
+  out:
+  - *sint64
+
+- go: ShiftAllRight
+  signed: false
+  asm: "ZLSR"
+  sftimm: true
+  in:
+  - &suint64
+    go: $t
+    base: uint
+    elemBits: 64
+  - *wideShift
+  - class: mask # governing predicate
+  out:
+  - *suint64
+
+# shiftAllRightConst -- ASR and LSR (immediate, unpredicated), a shift by 1 to
+# the element width. No API; sftimm lowers ShiftAllRight to it.
+- go: shiftAllRightConst
+  signed: true
+  asm: "ZASR"
+  ssaVariant: "const"
+  in:
+  - class: immediate
+  - *sint
+  out:
+  - *sint
+
+- go: shiftAllRightConst
+  signed: false
+  asm: "ZLSR"
+  ssaVariant: "const"
+  in:
+  - class: immediate
+  - *suint
+  out:
+  - *suint
+
 # ShiftLeft -- shift each element by the matching element of shift, LSL
 # (vectors), which is predicated-only, like Div. An amount of the element
 # width or more yields 0, as the API does. For 8- to 32-bit elements the

@@ -18,6 +18,8 @@ import (
 var sveImmRanges = map[string]func(esize int) (min, max int){
 	// LSL (immediate).
 	`Is the immediate shift amount, in the range 0 to number of bits per element minus 1, encoded in "tszh:tszl:imm3".`: func(esize int) (int, int) { return 0, esize - 1 },
+	// ASR and LSR (immediate).
+	`Is the immediate shift amount, in the range 1 to number of bits per element, encoded in "tszh:tszl:imm3".`: func(esize int) (int, int) { return 1, esize },
 }
 
 // resolveSVEImmRanges sets the range of every SVE immediate in ops from
