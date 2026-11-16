@@ -8,6 +8,8 @@ import "cmd/compile/internal/ssa"
 
 func RewriteValue(v *ssa.Value) bool {
 	switch v.Op {
+	case ssaop.OpLOONG64ANDconst:
+		return rewriteValue_OpLOONG64ANDconst(v)
 	case ssaop.OpLOONG64MOVBUreg:
 		return rewriteValue_OpLOONG64MOVBUreg(v)
 	case ssaop.OpLOONG64MOVBreg:
@@ -28,6 +30,58 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpLOONG64MOVWreg(v)
 	case ssaop.OpLOONG64SLLVconst:
 		return rewriteValue_OpLOONG64SLLVconst(v)
+	}
+	return false
+}
+func rewriteValue_OpLOONG64ANDconst(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (ANDconst [c] x)
+	// cond: !ssa.IsU12Bit(c) && ssa.IsContiguousZeros(uint64(c))
+	// result: (BSTRINSV [ssa.GetLoong64BSTRINSVAuxInt(uint64(c))] x (ZERO <typ.UInt64>))
+	for {
+		c := ssa.AuxIntToInt64(v.AuxInt)
+		x := v_0
+		if !(!ssa.IsU12Bit(c) && ssa.IsContiguousZeros(uint64(c))) {
+			break
+		}
+		v.Reset(ssaop.OpLOONG64BSTRINSV)
+		v.AuxInt = ssa.Int64ToAuxInt(ssa.GetLoong64BSTRINSVAuxInt(uint64(c)))
+		v0 := b.NewValue0(v.Pos, ssaop.OpLOONG64ZERO, typ.UInt64)
+		v.AddArg2(x, v0)
+		return true
+	}
+	// match: (ANDconst [c] x)
+	// cond: !ssa.IsU12Bit(c) && ssa.IsContiguousOnes(uint64(c)) && ssa.GetContiguousOnesLSB(uint64(c)) != 0
+	// result: (SLLVconst [ssa.GetContiguousOnesLSB(uint64(c))] (BSTRPICKV [ssa.GetLoong64BSTRPICKVAuxInt(uint64(c))] <typ.UInt64> x))
+	for {
+		c := ssa.AuxIntToInt64(v.AuxInt)
+		x := v_0
+		if !(!ssa.IsU12Bit(c) && ssa.IsContiguousOnes(uint64(c)) && ssa.GetContiguousOnesLSB(uint64(c)) != 0) {
+			break
+		}
+		v.Reset(ssaop.OpLOONG64SLLVconst)
+		v.AuxInt = ssa.Int64ToAuxInt(ssa.GetContiguousOnesLSB(uint64(c)))
+		v0 := b.NewValue0(v.Pos, ssaop.OpLOONG64BSTRPICKV, typ.UInt64)
+		v0.AuxInt = ssa.Int64ToAuxInt(ssa.GetLoong64BSTRPICKVAuxInt(uint64(c)))
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (ANDconst [c] x)
+	// cond: !ssa.IsU12Bit(c) && ssa.IsContiguousOnes(uint64(c)) && ssa.GetContiguousOnesLSB(uint64(c)) == 0
+	// result: (BSTRPICKV [ssa.GetLoong64BSTRPICKVAuxInt(uint64(c))] x)
+	for {
+		c := ssa.AuxIntToInt64(v.AuxInt)
+		x := v_0
+		if !(!ssa.IsU12Bit(c) && ssa.IsContiguousOnes(uint64(c)) && ssa.GetContiguousOnesLSB(uint64(c)) == 0) {
+			break
+		}
+		v.Reset(ssaop.OpLOONG64BSTRPICKV)
+		v.AuxInt = ssa.Int64ToAuxInt(ssa.GetLoong64BSTRPICKVAuxInt(uint64(c)))
+		v.AddArg(x)
+		return true
 	}
 	return false
 }

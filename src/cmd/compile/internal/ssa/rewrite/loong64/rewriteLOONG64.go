@@ -2186,7 +2186,7 @@ func rewriteValue_OpLOONG64AND(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (AND x (MOVVconst [c]))
-	// cond: ssa.Is32Bit(c)
+	// cond: (ssa.Is32Bit(c) || ssa.IsContiguousZeros(uint64(c)) || ssa.IsContiguousOnes(uint64(c)))
 	// result: (ANDconst [c] x)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -2195,7 +2195,7 @@ func rewriteValue_OpLOONG64AND(v *ssa.Value) bool {
 				continue
 			}
 			c := ssa.AuxIntToInt64(v_1.AuxInt)
-			if !(ssa.Is32Bit(c)) {
+			if !(ssa.Is32Bit(c) || ssa.IsContiguousZeros(uint64(c)) || ssa.IsContiguousOnes(uint64(c))) {
 				continue
 			}
 			v.Reset(ssaop.OpLOONG64ANDconst)

@@ -74,3 +74,12 @@
 // But for now, this is enough to get rid of lots of them.
 (MOVVnop (MOVVconst [c])) => (MOVVconst [c])
 
+// Use BSTRINSV/BSTRPICKV for ANDconst when the mask has a single contiguous block of 0s or 1s.
+(ANDconst [c] x) && !ssa.IsU12Bit(c) && ssa.IsContiguousZeros(uint64(c)) =>
+	(BSTRINSV [ssa.GetLoong64BSTRINSVAuxInt(uint64(c))] x (ZERO <typ.UInt64>))
+
+(ANDconst [c] x) && !ssa.IsU12Bit(c) && ssa.IsContiguousOnes(uint64(c)) && ssa.GetContiguousOnesLSB(uint64(c)) != 0 =>
+	(SLLVconst [ssa.GetContiguousOnesLSB(uint64(c))] (BSTRPICKV [ssa.GetLoong64BSTRPICKVAuxInt(uint64(c))] <typ.UInt64> x))
+
+(ANDconst [c] x) && !ssa.IsU12Bit(c) && ssa.IsContiguousOnes(uint64(c)) && ssa.GetContiguousOnesLSB(uint64(c)) == 0 =>
+	(BSTRPICKV [ssa.GetLoong64BSTRPICKVAuxInt(uint64(c))] x)

@@ -1018,6 +1018,11 @@ func Is12Bit(n int64) bool {
 	return -(1<<11) <= n && n < (1<<11)
 }
 
+// IsU12Bit reports whether n can be represented as an unsigned 12 bit integer.
+func IsU12Bit(n int64) bool {
+	return 0 <= n && n < (1<<12)
+}
+
 // Is16Bit reports whether n can be represented as a signed 16 bit integer.
 func Is16Bit(n int64) bool {
 	return n == int64(int16(n))
@@ -1529,4 +1534,87 @@ func IsConstZero(v *Value) bool {
 		return IsConstZero(v.Args[0])
 	}
 	return false
+}
+
+// getContiguousOnesBounds returns the bit positions (msb, lsb) of the contiguous
+// ones in n within its bit width, using standard hardware bit numbering (LSB = 0,
+// MSB = bitWidth - 1). Returns (-1, -1) if the ones are not contiguous.
+func getContiguousOnesBounds[T uint16 | uint32 | uint64](n T) (msb, lsb int) {
+	if n == 0 || n == ^T(0) {
+		return -1, -1
+	}
+
+	v := uint64(n)
+	msb = 63 - bits.LeadingZeros64(v)
+	lsb = bits.TrailingZeros64(v)
+	if (msb - lsb + 1) != bits.OnesCount64(v) {
+		return -1, -1
+	}
+
+	return msb, lsb
+}
+
+// getContiguousZerosBounds returns the bit positions (msb, lsb) of the contiguous
+// zeros in n within its bit width, using standard hardware bit numbering (LSB = 0,
+// MSB = bitWidth - 1). Returns (-1, -1) if the zeros are not contiguous.
+func getContiguousZerosBounds[T uint16 | uint32 | uint64](n T) (msb, lsb int) {
+	return getContiguousOnesBounds(^n)
+}
+
+// IsContiguousZeros reports whether all zero bits in n form a single
+// contiguous block within its bit width:
+//
+//	  valid: 00..11, 11..00, or 11..00..11
+//	rejects: 00..11..00 or multiple 0-blocks
+func IsContiguousZeros[T uint16 | uint32 | uint64](n T) bool {
+	msb, lsb := getContiguousZerosBounds(n)
+	return msb != -1 && lsb != -1
+}
+
+// IsContiguousOnes reports whether all one bits in n form a single
+// contiguous block within its bit width:
+//
+//	  valid: 11..00, 00..11, or 00..11..00
+//	rejects: 11..00..11 or multiple 1-blocks
+func IsContiguousOnes[T uint16 | uint32 | uint64](n T) bool {
+	msb, lsb := getContiguousOnesBounds(n)
+	return msb != -1 && lsb != -1
+}
+
+// GetContiguousOnesLSB returns the least significant bit position of the
+// single contiguous one region in n. It panics if n does not contain a
+// unique contiguous one region.
+func GetContiguousOnesLSB[T uint16 | uint32 | uint64](n T) int64 {
+	msb, lsb := getContiguousOnesBounds(n)
+	if msb == -1 || lsb == -1 {
+		panic(fmt.Sprintf("LOONG64: invalid immediate 0x%016x, no unique contiguous one region", n))
+	}
+
+	return int64(lsb)
+}
+
+// GetLoong64BSTRINSVAuxInt encodes the bit-field boundaries (msbd, lsbd) of the
+// contiguous zero region in a 64-bit mask n into the auxInt format required by
+// the LoongArch64 BSTRINSV instruction (msbd = auxInt>>6, lsbd = auxInt&0x3f).
+// It panics if n does not contain a unique contiguous zero region.
+func GetLoong64BSTRINSVAuxInt(n uint64) int64 {
+	msb, lsb := getContiguousZerosBounds(n)
+	if msb == -1 || lsb == -1 {
+		panic(fmt.Sprintf("LOONG64: invalid immediate 0x%016x, no unique contiguous zero region", n))
+	}
+
+	return int64((msb << 6) | lsb)
+}
+
+// GetLoong64BSTRPICKVAuxInt encodes the bit-field boundaries (msbd, lsbd) of the
+// contiguous one region in a 64-bit mask n into the auxInt format required by
+// the LoongArch64 BSTRPICKV operation (msbd = auxInt>>6, lsbd = auxInt&0x3f).
+// It panics if n does not contain a unique contiguous one region.
+func GetLoong64BSTRPICKVAuxInt(n uint64) int64 {
+	msb, lsb := getContiguousOnesBounds(n)
+	if msb == -1 || lsb == -1 {
+		panic(fmt.Sprintf("LOONG64: invalid immediate 0x%016x, no unique contiguous one region", n))
+	}
+
+	return int64((msb << 6) | lsb)
 }

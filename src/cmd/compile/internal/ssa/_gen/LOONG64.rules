@@ -642,10 +642,10 @@
 // fold constant into arithmetic ops
 (ADDV x (MOVVconst <t> [c])) && ssa.Is32Bit(c) && !t.IsPtr() => (ADDVconst [c] x)
 (SUBV x (MOVVconst [c])) && ssa.Is32Bit(c) => (SUBVconst [c] x)
-(AND x (MOVVconst [c])) && ssa.Is32Bit(c) => (ANDconst [c] x)
 (OR  x (MOVVconst [c])) && ssa.Is32Bit(c) => (ORconst  [c] x)
 (XOR x (MOVVconst [c])) && ssa.Is32Bit(c) => (XORconst [c] x)
 (NOR x (MOVVconst [c])) && ssa.Is32Bit(c) => (NORconst [c] x)
+(AND x (MOVVconst [c])) && (ssa.Is32Bit(c) || ssa.IsContiguousZeros(uint64(c)) || ssa.IsContiguousOnes(uint64(c))) => (ANDconst [c] x)
 
 (SLL _ (MOVVconst [c])) && uint64(c)>=32 => (MOVVconst [0])
 (SLLV _ (MOVVconst [c])) && uint64(c)>=64 => (MOVVconst [0])

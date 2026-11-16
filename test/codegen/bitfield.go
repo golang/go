@@ -57,23 +57,38 @@ func maskshift(x uint64) uint64 {
 // bfi
 func bfi1(x, y uint64) uint64 {
 	// arm64:"BFI [$]4, R[0-9]+, [$]12" -"LSL" -"LSR" -"AND"
+	// loong64:"AND" "SLLV" "BSTRINSV [$]15," "OR"
 	return ((x & 0xfff) << 4) | (y & 0xffffffffffff000f)
 }
 
 func bfi2(x, y uint64) uint64 {
 	// arm64:"BFI [$]12, R[0-9]+, [$]40" -"LSL" -"LSR" -"AND"
+	// loong64:"SLLV" "SRLV" "BSTRINSV [$]51," "OR"
 	return (x << 24 >> 12) | (y & 0xfff0000000000fff)
 }
 
 // bfxil
 func bfxil1(x, y uint64) uint64 {
 	// arm64:"BFXIL [$]5, R[0-9]+, [$]12" -"LSL" -"LSR" -"AND"
+	// loong64:"SRLV" "AND" "BSTRINSV [$]11," "OR"
 	return ((x >> 5) & 0xfff) | (y & 0xfffffffffffff000)
 }
 
 func bfxil2(x, y uint64) uint64 {
 	// arm64:"BFXIL [$]12, R[0-9]+, [$]40" -"LSL" -"LSR" -"AND"
+	// loong64:"BSTRPICKV [$]51," "BSTRINSV [$]39," "OR" -"SLLV" -"SRLV" -"AND"
 	return (x << 12 >> 24) | (y & 0xffffff0000000000)
+}
+
+// bitfield masks with contiguous zeros or ones
+func bitfieldMaskU64(a uint64) (uint64, uint64, uint64) {
+	// loong64:"BSTRINSV [$]47," -"AND" -"MOVV [$]"
+	x := a & 0xffff0000ffffffff
+	// loong64:"BSTRINSV [$]63," -"SLLV" -"AND" -"MOVV [$]"
+	y := a & 0x0000000000ffffff
+	// loong64:"BSTRPICKV [$]43," "SLLV" -"AND" -"MOVV [$]"
+	z := a & 0x00000ffffff00000
+	return x, y, z
 }
 
 // sbfiz

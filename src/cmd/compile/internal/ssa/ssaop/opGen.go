@@ -5587,8 +5587,8 @@ const (
 	OpLOONG64CMPGED
 	OpLOONG64CMPGTF
 	OpLOONG64CMPGTD
-	OpLOONG64BSTRPICKW
 	OpLOONG64BSTRPICKV
+	OpLOONG64BSTRINSV
 	OpLOONG64MOVVconst
 	OpLOONG64MOVFconst
 	OpLOONG64MOVDconst
@@ -97811,11 +97811,11 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:    "BSTRPICKW",
+		Name:    "BSTRPICKV",
 		AuxType: AuxTypeInt64,
 		ArgLen:  1,
 		EarlyOk: true,
-		asm:     loong64.ABSTRPICKW,
+		asm:     loong64.ABSTRPICKV,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{0, RegMask{V1: 1073741816, V2: 0}}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
@@ -97826,14 +97826,16 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:    "BSTRPICKV",
-		AuxType: AuxTypeInt64,
-		ArgLen:  1,
-		EarlyOk: true,
-		asm:     loong64.ABSTRPICKV,
+		Name:         "BSTRINSV",
+		AuxType:      AuxTypeInt64,
+		ArgLen:       2,
+		ResultInArg0: true,
+		EarlyOk:      true,
+		asm:          loong64.ABSTRINSV,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
-				{0, RegMask{V1: 1073741816, V2: 0}}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
+				{0, RegMask{V1: 1071644664, V2: 0}}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
+				{1, RegMask{V1: 1073741817, V2: 0}}, // ZERO R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
 			},
 			Outputs: []OutputInfo{
 				{0, RegMask{V1: 1071644664, V2: 0}}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
