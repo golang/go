@@ -40,7 +40,8 @@ GLOBL cast_reduce<>(SB), RODATA, $32
 DATA mask32<>+0(SB)/8, $0xffffffff
 GLOBL mask32<>(SB), RODATA, $8
 
-// Advance the CRC (in X5) by one byte at (X6), then X6++, X7--.
+// Consume one byte at (X6): update the CRC in X5, then advance the data
+// pointer X6 by 1 and decrement the remaining length X7 by 1.
 // Table pointer is in X30. Clobbers X13, X14, X15.
 //
 // Formula (matches simpleUpdate, on the non-inverted crc held in X5):
