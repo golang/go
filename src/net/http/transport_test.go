@@ -4031,7 +4031,7 @@ func (c *blockCloseConn) Close() error {
 }
 
 func TestTransportRemovesConnsAfterIdle(t *testing.T) {
-	runSynctest(t, testTransportRemovesConnsAfterIdle, http3SkippedMode)
+	runSynctest(t, testTransportRemovesConnsAfterIdle)
 }
 func testTransportRemovesConnsAfterIdle(t *testing.T, mode testMode) {
 	timeout := 1 * time.Second
@@ -4041,34 +4041,38 @@ func testTransportRemovesConnsAfterIdle(t *testing.T, mode testMode) {
 		tr.IdleConnTimeout = timeout
 	}
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-		w.Header().Set("X-Addr", r.RemoteAddr)
+		w.WriteHeader(200)
 	}), trFunc)
 
-	// makeRequest returns the local address a request was made from
-	// (unique for each connection).
-	makeRequest := func() string {
+	var dialed atomic.Bool
+	cst.setDialHook(func() error {
+		dialed.Store(true)
+		return nil
+	})
+	requestUsesNewConn := func() bool {
+		dialed.Store(false)
 		resp, err := cst.c.Get(cst.ts.URL)
 		if err != nil {
 			t.Fatalf("got error: %s", err)
 		}
 		resp.Body.Close()
-		return resp.Header.Get("X-Addr")
+		return dialed.Load()
 	}
 
-	addr1 := makeRequest()
+	if !requestUsesNewConn() {
+		t.Fatalf("first request did not use a new conn")
+	}
 
 	time.Sleep(timeout / 2)
 	synctest.Wait()
-	addr2 := makeRequest()
-	if addr1 != addr2 {
-		t.Fatalf("two requests made within IdleConnTimeout should have used the same conn, but used %v, %v", addr1, addr2)
+	if requestUsesNewConn() {
+		t.Fatalf("two requests made within IdleConnTimeout should have used the same conn")
 	}
 
 	time.Sleep(timeout)
 	synctest.Wait()
-	addr3 := makeRequest()
-	if addr1 == addr3 {
-		t.Fatalf("two requests made more than IdleConnTimeout apart should have used different conns, but used %v, %v", addr1, addr3)
+	if !requestUsesNewConn() {
+		t.Fatalf("two requests made more than IdleConnTimeout apart should have used different conns")
 	}
 }
 
