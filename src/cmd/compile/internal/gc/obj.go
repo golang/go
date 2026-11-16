@@ -47,21 +47,27 @@ func dumpexport() {
 		return
 	}
 	dumpobj1(base.Flag.LowerO, modeCompilerObj)
-	if base.Flag.ExportFD > 0 {
+	if base.Flag.ExportPipe != "" {
 		notifyExport()
 	}
 }
 
 func notifyExport() {
-	f := os.NewFile(uintptr(base.Flag.ExportFD), "exportfd")
-	if _, err := f.Write([]byte{'\n'}); err != nil {
+	f, err := os.OpenFile(base.Flag.ExportPipe, exportPipeOpenFlags, 0)
+	if err != nil {
 		base.FlushErrors()
-		fmt.Printf("can't write to export fd %d: %v\n", base.Flag.ExportFD, err)
+		fmt.Fprintf(os.Stderr, "can't open export pipe %s: %v\n", base.Flag.ExportPipe, err)
+		base.ErrorExit()
+	}
+	if _, err := f.Write([]byte{'\n'}); err != nil {
+		f.Close()
+		base.FlushErrors()
+		fmt.Fprintf(os.Stderr, "can't write to export pipe %s: %v\n", base.Flag.ExportPipe, err)
 		base.ErrorExit()
 	}
 	if err := f.Close(); err != nil {
 		base.FlushErrors()
-		fmt.Printf("can't close export fd %d: %v\n", base.Flag.ExportFD, err)
+		fmt.Fprintf(os.Stderr, "can't close export pipe %s: %v\n", base.Flag.ExportPipe, err)
 		base.ErrorExit()
 	}
 }

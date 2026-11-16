@@ -63,14 +63,13 @@ func (gcToolchain) gc(b *Builder, a *Action, export string, importcfg, embedcfg 
 	sh := b.Shell(a)
 	objdir := a.Objdir
 
-	// earlyExport indicates we will create an os.Pipe and pass the -exportfd flag to
+	// earlyExport indicates we will create a named pipe and pass the -exportpipe flag to
 	// the compiler for it to signal when it is done writing the export data. The compiler
 	// writes the same output files independent of this.
 	// TODO(matloob,thepudds): Give a more precise description of exactly what earlyExport controls.
 	// TODO(matloob): Support early export on Windows, and likely with -toolexec, -x, and possibly other flags.
 	hasObjectAction := slices.ContainsFunc(a.triggers, func(t *Action) bool { return t.Mode == "build" && t.Package == a.Package })
-	goosSupported := runtime.GOOS != "windows" && runtime.GOOS != "plan9"
-	earlyExport := export != "" && hasObjectAction && goosSupported && !(cfg.BuildN || cfg.BuildX || len(cfg.BuildToolexec) > 0)
+	earlyExport := export != "" && hasObjectAction && earlyExportSupported && !(cfg.BuildN || cfg.BuildX || len(cfg.BuildToolexec) > 0)
 	if export == "" {
 		export = objdir + "_go_.x"
 	}
@@ -148,15 +147,16 @@ func (gcToolchain) gc(b *Builder, a *Action, export string, importcfg, embedcfg 
 			return "", nil, nil, err
 		}
 	}
-	var pipeR, pipeW *os.File
-	var extraFiles []*os.File
+	var ep *exportPipe
 	if earlyExport {
-		pipeR, pipeW, err = os.Pipe()
-		if err != nil {
-			return "", nil, nil, err
+		var perr error
+		ep, perr = newExportPipe(objdir)
+		if perr != nil {
+			// Fall back to waiting for the full compile if creating
+			// the named pipe fails (for example, on a filesystem
+			// that does not support FIFOs).
+			earlyExport = false
 		}
-		defer pipeR.Close()
-		extraFiles = []*os.File{pipeW}
 	}
 
 	// Add -c=N to use concurrent backend compilation, if possible.
@@ -181,7 +181,7 @@ func (gcToolchain) gc(b *Builder, a *Action, export string, importcfg, embedcfg 
 		args = append(args, "-asmhdr", objdir+"go_asm.h")
 	}
 	if earlyExport {
-		args = append(args, "-exportfd=3")
+		args = append(args, "-exportpipe="+ep.name())
 	}
 
 	for _, f := range gofiles {
@@ -201,20 +201,26 @@ func (gcToolchain) gc(b *Builder, a *Action, export string, importcfg, embedcfg 
 		// code that uses those values to expect absolute paths.
 		args = append(args, fsys.Actual(f))
 	}
-	sc, err := sh.startOut(base.Cwd(), cfgChangedEnv, extraFiles, release, args...)
-	// If -n is provided sc will always be nil because we don't actually start a command.
-	if err != nil || sc == nil {
-		release()
-		return ofile, nil, nil, err
-	}
 	if !earlyExport {
-		output, err = sc.wait()
+		defer release()
+		output, err = sh.runOut(base.Cwd(), cfgChangedEnv, args...)
 		return ofile, output, nil, err
 	}
-	var ping [1]byte
-	if _, err := pipeR.Read(ping[:]); err != nil {
+	done := func() {
+		ep.close()
+		release()
+	}
+	sc, err := sh.startOut(base.Cwd(), cfgChangedEnv, done, args...)
+	if err != nil || sc == nil {
+		done()
+		return ofile, nil, nil, err
+	}
+	if err := ep.wait(); err != nil {
 		output, werr := sc.wait()
-		return ofile, output, nil, errors.Join(err, werr)
+		if werr != nil || errors.Is(err, io.EOF) {
+			return ofile, output, nil, werr
+		}
+		return ofile, output, nil, err
 	}
 	return ofile, nil, sc, nil
 }

@@ -583,17 +583,14 @@ func (sh *Shell) run(dir string, desc string, env []string, cmdargs ...any) erro
 // It returns the command output and any errors that occurred.
 // It accumulates execution time in a.
 func (sh *Shell) runOut(dir string, env []string, cmdargs ...any) ([]byte, error) {
-	sc, err := sh.startOut(dir, env, nil, nil, cmdargs...)
+	sc, err := sh.startOut(dir, env, nil, cmdargs...)
 	if err != nil || sc == nil {
 		return nil, err
 	}
 	return sc.wait()
 }
 
-func (sh *Shell) startOut(dir string, env []string, extraFiles []*os.File, done func(), cmdargs ...any) (*shellCmd, error) {
-	for _, f := range extraFiles {
-		defer f.Close()
-	}
+func (sh *Shell) startOut(dir string, env []string, done func(), cmdargs ...any) (*shellCmd, error) {
 	a := sh.action
 
 	cmdline := str.StringList(cmdargs...)
@@ -635,10 +632,9 @@ func (sh *Shell) startOut(dir string, env []string, extraFiles []*os.File, done 
 	if cmd.Path != "" {
 		cmd.Args[0] = cmd.Path
 	}
-	sc := &shellCmd{sh: sh, cmd: cmd, cmdline: cmdline, done: done}
+	sc := &shellCmd{sh: sh, cmd: cmd, cmdline: cmdline}
 	cmd.Stdout = &sc.buf
 	cmd.Stderr = &sc.buf
-	cmd.ExtraFiles = extraFiles
 	sc.cleanup = passLongArgsInResponseFiles(cmd)
 	if dir != "." {
 		cmd.Dir = dir
@@ -660,6 +656,16 @@ func (sh *Shell) startOut(dir string, env []string, extraFiles []*os.File, done 
 		sc.cleanup()
 		return nil, fmt.Errorf("%s: %w", cmdline[0], err)
 	}
+	if done != nil {
+		sc.waitCh = make(chan struct{})
+		go func() {
+			sc.cmdErr = cmd.Wait()
+			sc.elapsed = time.Since(sc.start)
+			sc.cleanup()
+			done()
+			close(sc.waitCh)
+		}()
+	}
 	return sc, nil
 }
 
@@ -670,19 +676,27 @@ type shellCmd struct {
 	buf     bytes.Buffer
 	start   time.Time
 	cleanup func()
-	done    func()
+	waitCh  chan struct{} // closed to broadcast that cmd.Wait returned
+	cmdErr  error
+	elapsed time.Duration
 }
 
 func (sc *shellCmd) wait() ([]byte, error) {
-	err := sc.cmd.Wait()
-	sc.cleanup()
-	if sc.done != nil {
-		sc.done()
+	var err error
+	var elapsed time.Duration
+	if sc.waitCh != nil {
+		<-sc.waitCh
+		err = sc.cmdErr
+		elapsed = sc.elapsed
+	} else {
+		err = sc.cmd.Wait()
+		elapsed = time.Since(sc.start)
+		sc.cleanup()
 	}
 	if a := sc.sh.action; a != nil && a.json != nil {
 		aj := a.json
 		aj.Cmd = append(aj.Cmd, joinUnambiguously(sc.cmdline))
-		aj.CmdReal += time.Since(sc.start)
+		aj.CmdReal += elapsed
 		if ps := sc.cmd.ProcessState; ps != nil {
 			aj.CmdUser += ps.UserTime()
 			aj.CmdSys += ps.SystemTime()

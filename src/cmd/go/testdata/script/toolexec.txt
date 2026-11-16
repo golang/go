@@ -27,11 +27,10 @@ stderr -count=1 '^compile'${GOEXE}' TOOLEXEC_IMPORTPATH="test/main/withasm"$'
 stderr -count=1 '^compile'${GOEXE}' TOOLEXEC_IMPORTPATH="test/main"$'
 stderr -count=1 '^link'${GOEXE}' TOOLEXEC_IMPORTPATH="test/main"$'
 
-# For the compiler, also confirm we see -linkobj but not -exportfd (which is disabled
+# For the compiler, also confirm we see -linkobj but not -exportpipe (which is disabled
 # for -toolexec, likely temporarily). See #15734 and https://go.dev/cl/842645.
-# TODO(matloob,thepudds): update this if -exportfd is replaced with something else.
 stderr '^compile'${GOEXE}' ARGS=.*"-linkobj" '
-! stderr '^compile'${GOEXE}' ARGS=.*-exportfd'
+! stderr '^compile'${GOEXE}' ARGS=.*-exportpipe'
 
 # The C compiler used by cgo is not run under -toolexec, so the -### probe
 # used to compute its tool ID must not be run under -toolexec either.
