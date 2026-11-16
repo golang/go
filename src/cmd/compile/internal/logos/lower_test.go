@@ -157,6 +157,7 @@ func TestNoLogosNodesSurvive(t *testing.T) {
 		}
 		found++
 		t.Run(e.Name(), func(t *testing.T) {
+			skipIfBuildTagsExclude(t, filepath.Join(dir, e.Name()))
 			checkLoweredClean(t, imp, filepath.Join(dir, e.Name()))
 		})
 	}

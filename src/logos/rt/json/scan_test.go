@@ -592,6 +592,63 @@ func (r *fallbackQRecorder) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+// quotedJSONProbe records UnmarshalJSON inputs in the value itself, keeping
+// per-test state local. Its string kind keeps the `,string` option
+// effective, as in encoding/json.
+type quotedJSONProbe string
+
+func (r *quotedJSONProbe) UnmarshalJSON(b []byte) error {
+	*r += quotedJSONProbe("|" + string(b))
+	return nil
+}
+
+// quotedTextProbe does the same for the UnmarshalText branch.
+type quotedTextProbe string
+
+func (r *quotedTextProbe) UnmarshalText(b []byte) error {
+	*r += quotedTextProbe("|" + string(b))
+	return nil
+}
+
+// quotedAppendingTextProbe appends to its input the way real
+// UnmarshalText implementations do: the unquoted slice must be capped so
+// the write cannot reach the token's closing quote, which QuotedTextPtr
+// still compares against the "null" literal after the call.
+type quotedAppendingTextProbe struct{ got []byte }
+
+func (p *quotedAppendingTextProbe) UnmarshalText(b []byte) error {
+	p.got = append(b, '!')
+	return nil
+}
+
+func TestQuotedTextAppendCannotCorruptToken(t *testing.T) {
+	for _, in := range []string{`"abc"`, `"null"`} {
+		data := `{"v":` + in + `}`
+		var dst *quotedAppendingTextProbe
+		s := NewScanner([]byte(data), nil)
+		if !s.Object() {
+			t.Fatalf("%s: Object failed: %v", in, s.Err())
+		}
+		if !s.Next() {
+			t.Fatalf("%s: Next failed: %v", in, s.End())
+		}
+		QuotedTextPtr[quotedAppendingTextProbe](&s, &dst)
+		if err := s.End(); err != nil {
+			t.Fatalf("%s: End() = %v", in, err)
+		}
+		switch in {
+		case `"null"`:
+			if dst != nil {
+				t.Errorf("%s: dst = %#v, want nil reset after appending method", in, dst)
+			}
+		default:
+			if dst == nil || string(dst.got) != "abc!" {
+				t.Errorf("%s: dst = %#v, want got %q", in, dst, "abc!")
+			}
+		}
+	}
+}
+
 func TestFallbackQUnwrapsStringOption(t *testing.T) {
 	var r fallbackQRecorder
 	s := NewScanner([]byte(`{"v":"7"}`), (*fallbackTarget)(nil))
@@ -641,6 +698,334 @@ func TestFallbackQBareValueSavesError(t *testing.T) {
 	want := "json: invalid use of ,string struct tag, trying to unmarshal unquoted value into json.fallbackQRecorder"
 	if s.Saved() == nil || s.Saved().Error() != want {
 		t.Fatalf("Saved() = %v, want %q", s.Saved(), want)
+	}
+}
+
+type quotedJSONTarget struct {
+	V quotedJSONProbe `json:"v,string"`
+}
+
+type quotedTextTarget struct {
+	V quotedTextProbe `json:"v,string"`
+}
+
+type quotedJSONPtrTarget struct {
+	V *quotedJSONProbe `json:"v,string"`
+}
+
+type quotedTextPtrTarget struct {
+	V *quotedTextProbe `json:"v,string"`
+}
+
+func decodeQuotedJSON(t *testing.T, data string, typ any, dst *quotedJSONProbe) *Scanner {
+	t.Helper()
+	s := NewScanner([]byte(data), typ)
+	if !s.Object() {
+		t.Fatalf("Object failed: %v", s.Err())
+	}
+	if !s.Next() {
+		t.Fatalf("Next failed: %v", s.End())
+	}
+	QuotedJSON(&s, dst)
+	return &s
+}
+
+func decodeQuotedJSONPtr(t *testing.T, data string, typ any, dst **quotedJSONProbe) *Scanner {
+	t.Helper()
+	s := NewScanner([]byte(data), typ)
+	if !s.Object() {
+		t.Fatalf("Object failed: %v", s.Err())
+	}
+	if !s.Next() {
+		t.Fatalf("Next failed: %v", s.End())
+	}
+	QuotedJSONPtr[quotedJSONProbe](&s, dst)
+	return &s
+}
+
+func decodeQuotedText(t *testing.T, data string, typ any, dst *quotedTextProbe) *Scanner {
+	t.Helper()
+	s := NewScanner([]byte(data), typ)
+	if !s.Object() {
+		t.Fatalf("Object failed: %v", s.Err())
+	}
+	if !s.Next() {
+		t.Fatalf("Next failed: %v", s.End())
+	}
+	QuotedText(&s, dst)
+	return &s
+}
+
+func decodeQuotedTextPtr(t *testing.T, data string, typ any, dst **quotedTextProbe) *Scanner {
+	t.Helper()
+	s := NewScanner([]byte(data), typ)
+	if !s.Object() {
+		t.Fatalf("Object failed: %v", s.Err())
+	}
+	if !s.Next() {
+		t.Fatalf("Next failed: %v", s.End())
+	}
+	QuotedTextPtr[quotedTextProbe](&s, dst)
+	return &s
+}
+
+func decodeQuotedNullFailPtr(t *testing.T, data string, typ any, dst **quotedNullFailProbe) *Scanner {
+	t.Helper()
+	s := NewScanner([]byte(data), typ)
+	if !s.Object() {
+		t.Fatalf("Object failed: %v", s.Err())
+	}
+	if !s.Next() {
+		t.Fatalf("Next failed: %v", s.End())
+	}
+	QuotedJSONPtr[quotedNullFailProbe](&s, dst)
+	return &s
+}
+
+func TestFallbackQuotedMatchesEncodingJSON(t *testing.T) {
+	inputs := []string{
+		`"3"`,
+		`"a\nb"`,
+		`"\"hi\""`,
+		`"é"`,
+		`"<>&\"\\\u0001"`,
+		`"null"`,
+		`null`,
+		`7`,
+		`true`,
+		`[1]`,
+		`{}`,
+		`[]`,
+		`{"x":1}`,
+		`""`,
+	}
+	for _, in := range inputs {
+		data := `{"v":` + in + `}`
+		var got quotedJSONTarget
+		s := decodeQuotedJSON(t, data, (*quotedJSONTarget)(nil), &got.V)
+		var want quotedJSONTarget
+		wantErr := stdjson.Unmarshal([]byte(data), &want)
+		if !sameError(s.End(), wantErr) {
+			t.Errorf("%s: End() = %v, encoding/json = %v", in, s.End(), wantErr)
+			continue
+		}
+		if got.V != want.V {
+			t.Errorf("%s: value = %q, encoding/json = %q", in, got.V, want.V)
+		}
+	}
+}
+
+func TestFallbackQuotedTextMatchesEncodingJSON(t *testing.T) {
+	inputs := []string{
+		`"\"hi\""`,
+		`"\"a\nb\""`,
+		`"hi"`,
+		`"3"`,
+		`""`,
+		`"nope"`,
+		`"nul"`,
+		`"nullx"`,
+		`"null"`,
+		`null`,
+		`7`,
+		`"\"a"`,
+	}
+	for _, in := range inputs {
+		data := `{"v":` + in + `}`
+		var got quotedTextTarget
+		s := decodeQuotedText(t, data, (*quotedTextTarget)(nil), &got.V)
+		var want quotedTextTarget
+		wantErr := stdjson.Unmarshal([]byte(data), &want)
+		if !sameError(s.End(), wantErr) {
+			t.Errorf("%s: End() = %v, encoding/json = %v", in, s.End(), wantErr)
+			continue
+		}
+		switch in {
+		case `"nope"`, `"nul"`, `"nullx"`:
+			if s.Err() != nil {
+				t.Errorf("%s: Err() = %v, want nil (invalid ,string content saves and continues)", in, s.Err())
+			}
+		}
+		if got.V != want.V {
+			t.Errorf("%s: value = %q, encoding/json = %q", in, got.V, want.V)
+		}
+	}
+}
+
+func TestFallbackQuotedPointerMatchesEncodingJSON(t *testing.T) {
+	inputs := []string{`"7"`, `"\"hi\""`, `null`, `"null"`, `{}`, `[]`}
+	for _, in := range inputs {
+		data := `{"v":` + in + `}`
+		var got quotedJSONPtrTarget
+		s := decodeQuotedJSONPtr(t, data, (*quotedJSONPtrTarget)(nil), &got.V)
+		var want quotedJSONPtrTarget
+		wantErr := stdjson.Unmarshal([]byte(data), &want)
+		if !sameError(s.End(), wantErr) {
+			t.Errorf("%s: End() = %v, encoding/json = %v", in, s.End(), wantErr)
+			continue
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("%s: value = %#v, encoding/json = %#v", in, got, want)
+		}
+	}
+}
+
+func TestFallbackQuotedTextPointerMatchesEncodingJSON(t *testing.T) {
+	inputs := []string{`"7"`, `"\"hi\""`, `null`, `"null"`, `"nope"`, `"nul"`, `"nullx"`}
+	for _, in := range inputs {
+		data := `{"v":` + in + `}`
+		var got quotedTextPtrTarget
+		s := decodeQuotedTextPtr(t, data, (*quotedTextPtrTarget)(nil), &got.V)
+		var want quotedTextPtrTarget
+		wantErr := stdjson.Unmarshal([]byte(data), &want)
+		if !sameError(s.End(), wantErr) {
+			t.Errorf("%s: End() = %v, encoding/json = %v", in, s.End(), wantErr)
+			continue
+		}
+		switch in {
+		case `"nope"`, `"nul"`, `"nullx"`:
+			if s.Err() != nil {
+				t.Errorf("%s: Err() = %v, want nil (invalid ,string content saves and continues)", in, s.Err())
+			}
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("%s: value = %#v, encoding/json = %#v", in, got, want)
+		}
+	}
+}
+
+type quotedNullFailProbe string
+
+func (p *quotedNullFailProbe) UnmarshalJSON(b []byte) error {
+	*p += quotedNullFailProbe("|" + string(b))
+	return &stdjson.UnmarshalTypeError{
+		Value: string(b),
+		Type:  reflect.TypeFor[quotedNullFailProbe](),
+	}
+}
+
+type quotedNullFailPtrTarget struct {
+	V *quotedNullFailProbe `json:"v,string"`
+}
+
+func TestFallbackQuotedNullMethodFailureKeepsPointer(t *testing.T) {
+	data := `{"v":"null"}`
+	for _, prealloc := range []bool{false, true} {
+		var got quotedNullFailPtrTarget
+		if prealloc {
+			got.V = new(quotedNullFailProbe)
+		}
+		s := decodeQuotedNullFailPtr(t, data, (*quotedNullFailPtrTarget)(nil), &got.V)
+		var want quotedNullFailPtrTarget
+		if prealloc {
+			want.V = new(quotedNullFailProbe)
+		}
+		wantErr := stdjson.Unmarshal([]byte(data), &want)
+		if !sameError(s.End(), wantErr) {
+			t.Errorf("prealloc=%v: End() = %v, encoding/json = %v", prealloc, s.End(), wantErr)
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("prealloc=%v: value = %#v, encoding/json = %#v", prealloc, got, want)
+		}
+	}
+}
+
+type quotedMethodErrorTarget[T any] struct {
+	V     T   `json:"v,string"`
+	After int `json:"after"`
+}
+
+// quotedNullFailTextProbe records UnmarshalText inputs in the value
+// itself, mirroring quotedNullFailProbe for the encoding.TextUnmarshaler
+// branch of ,string dispatch.
+type quotedNullFailTextProbe string
+
+func (p *quotedNullFailTextProbe) UnmarshalText(b []byte) error {
+	*p += quotedNullFailTextProbe("|" + string(b))
+	return &stdjson.UnmarshalTypeError{
+		Value: string(b),
+		Type:  reflect.TypeFor[quotedNullFailTextProbe](),
+	}
+}
+
+// quotedMethodErrorInputs is the shared bounded corpus for the ,string
+// method-error matrix: bare and quoted spellings across every JSON value
+// kind, including the double-quoted forms that exercise ,string
+// unwrapping before method dispatch.
+var quotedMethodErrorInputs = []string{
+	`null`,
+	`"null"`,
+	`"x"`,
+	`"\"x\""`,
+	`17`,
+	`{}`,
+	`[]`,
+	`true`,
+	`""`,
+	`"nope"`,
+}
+
+// checkQuotedMethodError decodes {"v":<in>,"after":17} through the
+// scanner and encoding/json on the same concrete target type,
+// requiring the same error, fatal or saved, and the same resulting
+// state under both profiles.
+func checkQuotedMethodError[T any](t *testing.T, in string) {
+	t.Helper()
+	data := `{"v":` + in + `,"after":17}`
+	var got, want quotedMethodErrorTarget[T]
+	s := NewScanner([]byte(data), (*quotedMethodErrorTarget[T])(nil))
+	if !s.Object() {
+		t.Fatalf("%s: Object failed: %v", data, s.Err())
+	}
+	for s.Next() {
+		switch s.Key() {
+		case "v":
+			switch dst := any(&got.V).(type) {
+			case *quotedNullFailProbe:
+				QuotedJSON(&s, dst)
+			case **quotedNullFailProbe:
+				QuotedJSONPtr[quotedNullFailProbe](&s, dst)
+			case *quotedNullFailTextProbe:
+				QuotedText(&s, dst)
+			case **quotedNullFailTextProbe:
+				QuotedTextPtr[quotedNullFailTextProbe](&s, dst)
+			default:
+				t.Fatalf("%s: unsupported method-error target %T", data, dst)
+			}
+		case "after":
+			Int(&s, &got.After)
+		}
+	}
+	wantErr := stdjson.Unmarshal([]byte(data), &want)
+	if !sameError(s.End(), wantErr) {
+		t.Errorf("%s: End() = %v, encoding/json = %v", in, s.End(), wantErr)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("%s: value = %#v, encoding/json = %#v", in, got, want)
+	}
+}
+
+func TestFallbackQuotedMethodErrorPointerContinuationMatchesEncodingJSON(t *testing.T) {
+	for _, in := range quotedMethodErrorInputs {
+		checkQuotedMethodError[*quotedNullFailProbe](t, in)
+	}
+}
+
+func TestFallbackQuotedMethodErrorValueContinuationMatchesEncodingJSON(t *testing.T) {
+	for _, in := range quotedMethodErrorInputs {
+		checkQuotedMethodError[quotedNullFailProbe](t, in)
+	}
+}
+
+func TestFallbackQuotedTextMethodErrorPointerContinuationMatchesEncodingJSON(t *testing.T) {
+	for _, in := range quotedMethodErrorInputs {
+		checkQuotedMethodError[*quotedNullFailTextProbe](t, in)
+	}
+}
+
+func TestFallbackQuotedTextMethodErrorValueContinuationMatchesEncodingJSON(t *testing.T) {
+	for _, in := range quotedMethodErrorInputs {
+		checkQuotedMethodError[quotedNullFailTextProbe](t, in)
 	}
 }
 

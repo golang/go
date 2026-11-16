@@ -393,9 +393,10 @@ func (s *Scanner) Fallback(dst any) {
 // encoding/json, matching encoding/json's destring branch for Number. A bare
 // non-string value saves the invalid use of ,string error; null decodes as
 // null (pointer nil, value unchanged) via the same path as Fallback. A field
-// whose type declares its own UnmarshalJSON or UnmarshalText method must use
-// Fallback instead, so the method receives the raw token exactly as
-// encoding/json delivers it.
+// whose type declares its own UnmarshalJSON, UnmarshalText or
+// UnmarshalJSONFrom method uses the compiler-selected typed QuotedJSON,
+// QuotedText or QuotedFrom helpers instead, which keep the profile-specific
+// token and error policy without runtime method discovery.
 func FallbackQ[T any](s *Scanner, dst *T) {
 	item, st := s.readQuoted()
 	switch st {
@@ -410,16 +411,154 @@ func FallbackQ[T any](s *Scanner, dst *T) {
 	}
 }
 
-func (s *Scanner) decodeRaw(raw []byte, dst any) {
+// methodlessType builds the representation of t that carries none of
+// t's own methods: the decode that runs after UnmarshalJSONFrom
+// declined a value must not dispatch the same method a second time.
+// Field, key, element and pointer target types keep their methods;
+// only the outermost type is bare.
+func methodlessType(t reflect.Type) reflect.Type {
+	switch t.Kind() {
+	case reflect.Bool:
+		return reflect.TypeFor[bool]()
+	case reflect.Int:
+		return reflect.TypeFor[int]()
+	case reflect.Int8:
+		return reflect.TypeFor[int8]()
+	case reflect.Int16:
+		return reflect.TypeFor[int16]()
+	case reflect.Int32:
+		return reflect.TypeFor[int32]()
+	case reflect.Int64:
+		return reflect.TypeFor[int64]()
+	case reflect.Uint:
+		return reflect.TypeFor[uint]()
+	case reflect.Uint8:
+		return reflect.TypeFor[uint8]()
+	case reflect.Uint16:
+		return reflect.TypeFor[uint16]()
+	case reflect.Uint32:
+		return reflect.TypeFor[uint32]()
+	case reflect.Uint64:
+		return reflect.TypeFor[uint64]()
+	case reflect.Uintptr:
+		return reflect.TypeFor[uintptr]()
+	case reflect.Float32:
+		return reflect.TypeFor[float32]()
+	case reflect.Float64:
+		return reflect.TypeFor[float64]()
+	case reflect.Complex64:
+		return reflect.TypeFor[complex64]()
+	case reflect.Complex128:
+		return reflect.TypeFor[complex128]()
+	case reflect.String:
+		return reflect.TypeFor[string]()
+	case reflect.Pointer:
+		return reflect.PointerTo(t.Elem())
+	case reflect.Slice:
+		return reflect.SliceOf(t.Elem())
+	case reflect.Array:
+		return reflect.ArrayOf(t.Len(), t.Elem())
+	case reflect.Chan:
+		return reflect.ChanOf(t.ChanDir(), t.Elem())
+	case reflect.Map:
+		return reflect.MapOf(t.Key(), t.Elem())
+	case reflect.Struct:
+		fields := make([]reflect.StructField, 0, t.NumField())
+		for i := 0; i < t.NumField(); i++ {
+			f := t.Field(i)
+			if f.Anonymous && f.PkgPath != "" {
+				// reflect.StructOf cannot represent an unexported
+				// embedded field, and clearing either attribute
+				// changes the type identity Convert relies on. Keep
+				// the original type: its decode dispatches the
+				// streaming method once more, and the method's
+				// decline still falls through to the plain decode
+				// this view exists to run.
+				return t
+			}
+			f.Index = nil
+			f.Offset = 0
+			fields = append(fields, f)
+		}
+		return reflect.StructOf(fields)
+	default:
+		// Func, UnsafePointer and interface kinds have no built
+		// equivalent; they keep their own type.
+		return t
+	}
+}
+
+// decodePlain decodes raw into dst without dispatching T's own unmarshal
+// methods. It is the decode encoding/json runs after a method declined
+// the value: the remaining method set plus the plain decoding. A saved
+// UnmarshalTypeError still names T, not the bare representation.
+func (s *Scanner) decodePlain[T any](raw []byte, dst *T) {
+	t := reflect.TypeFor[T]()
+	st := methodlessType(t)
+	mv := reflect.New(st)
+	mv.Elem().Set(reflect.ValueOf(dst).Elem().Convert(st))
+	ok := s.decodeRaw(raw, mv.Interface())
+	// Decoding is not transactional: fields decoded before an error stay
+	// visible in dst, so the view copies back on failure too.
+	reflect.ValueOf(dst).Elem().Set(mv.Elem().Convert(t))
+	if ok {
+		return
+	}
+	if ute, ok := s.saved.(*stdjson.UnmarshalTypeError); ok && ute.Type == st {
+		ute.Type = t
+	}
+}
+
+// FallbackFrom is Fallback for the value an UnmarshalJSONFrom method
+// just declined. decodeRaw's Unmarshal would dispatch the streaming
+// method again, so the token decodes through the methodless view.
+func FallbackFrom[T any](s *Scanner, dst *T) {
+	if s.scalar() == 0 {
+		return
+	}
+	s.decodePlain(s.data[s.start:s.end], dst)
+}
+
+// FallbackFromPtr is FallbackFrom for a *E field: a nil pointer
+// allocates its element the way encoding/json does.
+func FallbackFromPtr[E any](s *Scanner, dst **E) {
+	if s.scalar() == 0 {
+		return
+	}
+	if s.kind == 'n' {
+		*dst = nil
+		return
+	}
+	// A nil pointer allocates its element before the value decodes, the
+	// way encoding/json does; the token then decodes into the existing
+	// object so aliases observe the update.
+	if *dst == nil {
+		*dst = new(E)
+	}
+	t := reflect.TypeFor[E]()
+	st := methodlessType(t)
+	mv := reflect.New(st)
+	mv.Elem().Set(reflect.ValueOf(*dst).Elem().Convert(st))
+	ok := s.decodeRaw(s.data[s.start:s.end], mv.Interface())
+	reflect.ValueOf(*dst).Elem().Set(mv.Elem().Convert(t))
+	if !ok {
+		if ute, ok := s.saved.(*stdjson.UnmarshalTypeError); ok && ute.Type == st {
+			ute.Type = t
+		}
+	}
+}
+
+func (s *Scanner) decodeRaw(raw []byte, dst any) bool {
 	err := stdjson.Unmarshal(raw, dst)
 	if err == nil {
-		return
+		return true
 	}
 	if ute, ok := err.(*stdjson.UnmarshalTypeError); ok {
 		s.saveFallback(ute)
-		return
+		return false
 	}
 	s.fatal(err)
+	return false
 }
 
 func (s *Scanner) saveFallback(ute *stdjson.UnmarshalTypeError) {

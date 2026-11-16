@@ -101,12 +101,16 @@ func appendUnquoted(dst, body []byte) ([]byte, bool) {
 	return dst, true
 }
 
-func unquoteLiteral(item string) (string, bool) {
+func unquoteLiteralBytes(item string) ([]byte, bool) {
 	if len(item) < 2 || item[0] != '"' || item[len(item)-1] != '"' {
-		return "", false
+		return nil, false
 	}
 	body := []byte(item[1 : len(item)-1])
-	out, ok := appendUnquoted(make([]byte, 0, len(body)), body)
+	return appendUnquoted(make([]byte, 0, len(body)), body)
+}
+
+func unquoteLiteral(item string) (string, bool) {
+	out, ok := unquoteLiteralBytes(item)
 	if !ok {
 		return "", false
 	}

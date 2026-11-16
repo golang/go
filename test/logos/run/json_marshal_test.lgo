@@ -696,16 +696,6 @@ func TestSeparatorsEncodeAndDecodePerEncodingJSON(t *testing.T) {
 	}
 }
 
-func TestDefaultBuildUsesJSONv2(t *testing.T) {
-	got := must(Inner{N: 1, S: "\xff"}.MarshalJSON())
-	if !bytes.Contains(got, []byte("�")) {
-		t.Fatalf("default build does not emit the v2 replacement character: %q", got)
-	}
-	if bytes.Contains(got, []byte(`\ufffd`)) {
-		t.Fatalf("default build emits the v1 escape sequence: %q", got)
-	}
-}
-
 type scalarsMirror struct {
 	A     int64   `json:"a"`
 	B     string  `json:"b"`

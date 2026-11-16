@@ -349,6 +349,67 @@ func hasUnmarshalMethods(t types2.Type) bool {
 	return hasMethodNamed(t, unmarshalMethodNames)
 }
 
+func jsonUnmarshalMethod(t types2.Type, name string) *types2.Func {
+	u := unaliasConstView(t)
+	if p, ok := u.(*types2.Pointer); ok {
+		u = unaliasConstView(p.Elem())
+	}
+	named, ok := u.(*types2.Named)
+	if !ok || named.Obj() == nil {
+		return nil
+	}
+	ptr := types2.NewPointer(named)
+	m, _, _ := types2.LookupFieldOrMethod(ptr, false, named.Obj().Pkg(), name)
+	fn, ok := m.(*types2.Func)
+	if !ok {
+		return nil
+	}
+	return fn
+}
+
+func jsonIsDecoderPointer(t types2.Type) bool {
+	p, ok := types2.Unalias(t).(*types2.Pointer)
+	if !ok {
+		return false
+	}
+	named, ok := types2.Unalias(p.Elem()).(*types2.Named)
+	if !ok || named.Obj() == nil || named.Obj().Pkg() == nil {
+		return false
+	}
+	return named.Obj().Name() == "Decoder" && named.Obj().Pkg().Path() == "encoding/json/jsontext"
+}
+
+func jsonUnmarshalSignature(name string, fn *types2.Func) bool {
+	sig, ok := fn.Type().(*types2.Signature)
+	if !ok || sig.Variadic() {
+		return false
+	}
+	switch name {
+	case "UnmarshalJSON":
+		return tupleMatches(sig.Params(), jsonIsByteSliceType) && tupleMatches(sig.Results(), jsonIsErrorType)
+	case "UnmarshalText":
+		return tupleMatches(sig.Params(), jsonIsByteSliceType) && tupleMatches(sig.Results(), jsonIsErrorType)
+	case "UnmarshalJSONFrom":
+		return tupleMatches(sig.Params(), jsonIsDecoderPointer) && tupleMatches(sig.Results(), jsonIsErrorType)
+	}
+	return false
+}
+
+func hasUnmarshalJSON(t types2.Type) bool {
+	fn := jsonUnmarshalMethod(t, "UnmarshalJSON")
+	return fn != nil && jsonUnmarshalSignature("UnmarshalJSON", fn)
+}
+
+func hasUnmarshalText(t types2.Type) bool {
+	fn := jsonUnmarshalMethod(t, "UnmarshalText")
+	return fn != nil && jsonUnmarshalSignature("UnmarshalText", fn)
+}
+
+func hasUnmarshalFrom(t types2.Type) bool {
+	fn := jsonUnmarshalMethod(t, "UnmarshalJSONFrom")
+	return fn != nil && jsonUnmarshalSignature("UnmarshalJSONFrom", fn)
+}
+
 func isExactNumber(t types2.Type) bool {
 	u := unaliasConstView(t)
 	if p, ok := u.(*types2.Pointer); ok {

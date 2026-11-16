@@ -1,0 +1,33 @@
+//go:build goexperiment.jsonv2
+
+// run
+
+package jsonmarshalv2
+
+import (
+	"bytes"
+	"testing"
+)
+
+type Inner struct {
+	N int32  `json:"n"`
+	S string `json:"s,omitempty"`
+}
+
+func must(b []byte, err error) []byte {
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
+
+func TestDefaultBuildUsesJSONv2(t *testing.T) {
+	got := must(Inner{N: 1, S: "\xff"}.MarshalJSON())
+	if !bytes.Contains(got, []byte("�")) {
+		t.Fatalf("default build does not emit the v2 replacement character: %q", got)
+	}
+	if bytes.Contains(got, []byte(`\ufffd`)) {
+		t.Fatalf("default build emits the v1 escape sequence: %q", got)
+	}
+}
+

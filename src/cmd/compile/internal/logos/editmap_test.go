@@ -7,9 +7,11 @@ package logos
 import (
 	"bytes"
 	"encoding/json"
+	"go/build"
 	"internal/testenv"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -31,6 +33,7 @@ func TestEditMapDescribesEject(t *testing.T) {
 		}
 		checked++
 		t.Run(e.Name(), func(t *testing.T) {
+			skipIfBuildTagsExclude(t, filepath.Join(dir, e.Name()))
 			src, err := os.ReadFile(filepath.Join(dir, e.Name()))
 			if err != nil {
 				t.Fatal(err)
@@ -48,6 +51,19 @@ func TestEditMapDescribesEject(t *testing.T) {
 	}
 	if checked == 0 {
 		t.Fatalf("no .lgo files in %s", dir)
+	}
+}
+
+func skipIfBuildTagsExclude(t *testing.T, path string) {
+	t.Helper()
+	ctxt := build.Default
+	ctxt.ToolTags = append(slices.Clone(ctxt.ToolTags), "logos")
+	match, err := ctxt.MatchFile(filepath.Dir(path), filepath.Base(path))
+	if err != nil {
+		t.Fatalf("%s: %v", path, err)
+	}
+	if !match {
+		t.Skipf("build constraints exclude %s", filepath.Base(path))
 	}
 }
 

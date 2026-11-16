@@ -1,0 +1,57 @@
+// run
+
+package jsonstringwrong
+
+import (
+	"encoding/json"
+	"testing"
+)
+
+type WrongJSON string
+
+func (w *WrongJSON) UnmarshalJSON(v int) error {
+	*w = "method"
+	return nil
+}
+
+type WrongText string
+
+func (w *WrongText) UnmarshalText(b []byte) bool {
+	*w = "method"
+	return true
+}
+
+type WrongHolder struct {
+	V WrongJSON `json:"v,string"`
+	W WrongText `json:"w,string"`
+}
+
+type WrongHolderMirror struct {
+	V     WrongJSON `json:"v,string"`
+	W     WrongText `json:"w,string"`
+	NoGen any       `json:"-"`
+}
+
+func TestStringMethodWrongSignatureStaysScalar(t *testing.T) {
+	docs := []string{
+		`{"v":"hi","w":"yo"}`,
+		`{"v":"\"hi\"","w":"\"yo\""}`,
+		`{"v":null,"w":null}`,
+		`{"v":7,"w":true}`,
+	}
+	for _, doc := range docs {
+		var h WrongHolder
+		var m WrongHolderMirror
+		herr := json.Unmarshal([]byte(doc), &h)
+		merr := json.Unmarshal([]byte(doc), &m)
+		if (herr != nil) != (merr != nil) {
+			t.Fatalf("error parity breaks for %s: static %v, oracle %v", doc, herr, merr)
+		}
+		if h.V != m.V || h.W != m.W {
+			t.Fatalf("scalar behavior diverges for %s: static %+v, oracle %+v", doc, h, m)
+		}
+		if h.V == "method" || h.W == "method" {
+			t.Fatalf("wrong-signature method ran for %s: %+v", doc, h)
+		}
+	}
+}

@@ -1,0 +1,130 @@
+//go:build goexperiment.jsonv2
+
+// run
+
+package jsonstringstream
+
+import (
+	"encoding/json"
+	"encoding/json/jsontext"
+	"logos/rt"
+	"reflect"
+	"slices"
+	"testing"
+)
+
+type StreamCap string
+
+var streamInputs []string
+
+func (c *StreamCap) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	tok, err := dec.ReadValue()
+	if err != nil {
+		return err
+	}
+	streamInputs = append(streamInputs, "from:"+string(tok))
+	*c = "F"
+	return nil
+}
+
+func (c *StreamCap) UnmarshalJSON(b []byte) error {
+	streamInputs = append(streamInputs, "json:"+string(b))
+	*c = "J"
+	return nil
+}
+
+func (c *StreamCap) UnmarshalText(b []byte) error {
+	streamInputs = append(streamInputs, "text:"+string(b))
+	*c = "T"
+	return nil
+}
+
+type StreamHolder struct {
+	V     StreamCap `json:"v,string"`
+	After int64     `json:"after"`
+}
+
+type StreamHolderPtr struct {
+	V     *StreamCap `json:"v,string"`
+	After int64      `json:"after"`
+}
+
+type StreamHolderMirror struct {
+	V     StreamCap `json:"v,string"`
+	After int64     `json:"after"`
+	NoGen any       `json:"-"`
+}
+
+type StreamHolderPtrMirror struct {
+	V     *StreamCap `json:"v,string"`
+	After int64      `json:"after"`
+	NoGen any        `json:"-"`
+}
+
+var streamDocuments = []string{
+	`{"v":"\"hi\"","after":17}`,
+	`{"v":"3","after":17}`,
+	`{"v":"null","after":17}`,
+	`{"v":7,"after":17}`,
+	`{"v":"\"a\nb\"","after":17}`,
+}
+
+func TestStringMethodStreamMatchesOracle(t *testing.T) {
+	oracle := json.Unmarshal
+	documents := append([]string{`{"v":null,"after":17}`}, streamDocuments...)
+	for _, doc := range documents {
+		var h StreamHolder
+		var m StreamHolderMirror
+		streamInputs = nil
+		staticErr := json.Unmarshal([]byte(doc), &h)
+		staticInputs := slices.Clone(streamInputs)
+		streamInputs = nil
+		mirrorErr := oracle([]byte(doc), &m)
+		if !reflect.DeepEqual(staticErr, mirrorErr) {
+			t.Fatalf("error parity breaks for %s: static %#v, oracle %#v", doc, staticErr, mirrorErr)
+		}
+		if !slices.Equal(staticInputs, streamInputs) {
+			t.Fatalf("method input diverges for %s: static %q, oracle %q", doc, staticInputs, streamInputs)
+		}
+		if h.After != m.After || h.V != m.V {
+			t.Fatalf("state diverges for %s: static %+v, oracle %+v", doc, h, m)
+		}
+	}
+}
+
+func TestStringMethodStreamPointerMatchesOracle(t *testing.T) {
+	oracle := json.Unmarshal
+	for _, doc := range streamDocuments {
+		h := StreamHolderPtr{V: new(StreamCap)}
+		m := StreamHolderPtrMirror{V: new(StreamCap)}
+		streamInputs = nil
+		staticErr := json.Unmarshal([]byte(doc), &h)
+		staticInputs := slices.Clone(streamInputs)
+		streamInputs = nil
+		mirrorErr := oracle([]byte(doc), &m)
+		if !reflect.DeepEqual(staticErr, mirrorErr) {
+			t.Fatalf("pointer error parity breaks for %s: static %#v, oracle %#v", doc, staticErr, mirrorErr)
+		}
+		if !slices.Equal(staticInputs, streamInputs) {
+			t.Fatalf("pointer method input diverges for %s: static %q, oracle %q", doc, staticInputs, streamInputs)
+		}
+		if h.After != m.After || !reflect.DeepEqual(h.V, m.V) {
+			t.Fatalf("pointer state diverges for %s: static %+v, oracle %+v", doc, h, m)
+		}
+	}
+}
+
+func TestStringMethodStreamRequiredPointerRejectsNull(t *testing.T) {
+	h := StreamHolderPtr{V: new(StreamCap)}
+	streamInputs = nil
+	err := json.Unmarshal([]byte(`{"v":null,"after":17}`), &h)
+	if err != (rt.MissingFieldError{Type: "StreamHolderPtr", Field: "V"}) {
+		t.Fatalf("required null error: got %#v", err)
+	}
+	if len(streamInputs) != 0 {
+		t.Fatalf("required null called a method: %q", streamInputs)
+	}
+	if h.After != 17 || h.V == nil || *h.V != "" {
+		t.Fatalf("required null changed pointer or skipped continuation: %+v", h)
+	}
+}

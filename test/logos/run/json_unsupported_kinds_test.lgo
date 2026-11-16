@@ -194,7 +194,20 @@ func TestInvalidTagNameUsesTheReflectivePath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want, werr := json.Marshal(map[string]string{"a\u2028b": "x", "c\u2029d": "y"})
+	profileProbe, err := json.Marshal("\xff")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var want []byte
+	var werr error
+	if bytes.Contains(profileProbe, []byte("�")) {
+		want, werr = json.Marshal(map[string]string{"a\u2028b": "x", "c\u2029d": "y"})
+	} else {
+		want, werr = json.Marshal(struct {
+			Odd  string
+			Even string
+		}{Odd: "x", Even: "y"})
+	}
 	if werr != nil {
 		t.Fatal(werr)
 	}

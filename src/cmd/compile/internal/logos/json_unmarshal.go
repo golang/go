@@ -123,8 +123,27 @@ func (js *jsonStruct) valueLines(f *jsonField) []string {
 			if isExactNumber(f.typ) {
 				return []string{fmt.Sprintf("%s.FallbackQ(&_logos_s, &%s)", jsonAlias, field)}
 			}
-			if hasUnmarshalMethods(f.typ) {
-				return []string{fmt.Sprintf("_logos_s.Fallback(&%s)", field)}
+			if hasUnmarshalFrom(f.typ) {
+				var fallback []string
+				switch {
+				case hasUnmarshalJSON(f.typ):
+					fallback = js.quotedMethodCall(f, field, "QuotedJSON", "QuotedJSONPtr")
+				case hasUnmarshalText(f.typ):
+					fallback = js.quotedMethodCall(f, field, "QuotedText", "QuotedTextPtr")
+				default:
+					kind, ok := fallbackScalarKind(f.typ)
+					if !ok {
+						base.Fatalf("logos: ,string fallback field %s has no scalar kind", f.goName)
+					}
+					fallback = f.fallbackQuotedValueLines(field, kind)
+				}
+				return ifLines(js.quotedFromHead(f, field), fallback)
+			}
+			if hasUnmarshalJSON(f.typ) {
+				return js.quotedMethodCall(f, field, "QuotedJSON", "QuotedJSONPtr")
+			}
+			if hasUnmarshalText(f.typ) {
+				return js.quotedMethodCall(f, field, "QuotedText", "QuotedTextPtr")
 			}
 			if kind, ok := fallbackScalarKind(f.typ); ok {
 				return f.fallbackQuotedValueLines(field, kind)
@@ -135,6 +154,23 @@ func (js *jsonStruct) valueLines(f *jsonField) []string {
 		base.Fatalf("logos: unhandled shape kind %v for %s", f.shape.kind, f.goName)
 		return nil
 	}
+}
+
+func (js *jsonStruct) quotedMethodCall(f *jsonField, field, valueName, ptrName string) []string {
+	if p, isPtr := unaliasConstView(f.typ).(*types2.Pointer); isPtr {
+		elem := types2.TypeString(unaliasConstView(p.Elem()), js.qualify)
+		return []string{fmt.Sprintf("%s.%s[%s](&_logos_s, &%s)", jsonAlias, ptrName, elem, field)}
+	}
+	return []string{fmt.Sprintf("%s.%s(&_logos_s, &%s)", jsonAlias, valueName, field)}
+}
+
+func (js *jsonStruct) quotedFromHead(f *jsonField, field string) string {
+	if p, isPtr := unaliasConstView(f.typ).(*types2.Pointer); isPtr {
+		elem := types2.TypeString(unaliasConstView(p.Elem()), js.qualify)
+		return fmt.Sprintf("!%s.QuotedFromPtr[%s](&_logos_s, &%s)", jsonAlias, elem, field)
+	}
+	elem := types2.TypeString(unaliasConstView(f.typ), js.qualify)
+	return fmt.Sprintf("!%s.QuotedFrom[%s](&_logos_s, &%s)", jsonAlias, elem, field)
 }
 
 func (f *jsonField) fallbackQuotedValueLines(field string, kind scalarKind) []string {

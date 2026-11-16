@@ -27,7 +27,21 @@
 // error values encoding/json reports: type errors are saved and decoding
 // continues, syntax errors are fatal and are taken from encoding/json
 // itself so that message and offset are identical.
+// QuotedJSON, QuotedText and QuotedFrom follow the active profile's
+// method-input rules for `,string` fields with compiler-selected dispatch:
+// classic mode unwraps the string before method dispatch; JSONv2 passes the
+// original JSON token, keeping the legacy rule that a quoted `"null"` nulls
+// a pointer field on success. Streaming UnmarshalJSONFrom runs first under
+// JSONv2 with the standard decoder options, preserving ErrUnsupported fallback and
+// singular-value checks; JSON wins over text. A classic method failure
+// terminates decoding, stamping struct/field context onto
+// *UnmarshalTypeError without touching Offset (encoding/json
+// addErrorContext). Under JSONv2 a method's *UnmarshalTypeError is saved
+// verbatim with no Offset/context decoration and decoding continues
+// (ReportErrorsWithLegacySemantics returns method errors unwrapped); any
+// other method error is fatal.
+// Library-generated validation errors are saved and decoding continues.
 //
-// The package imports only encoding/json, internal/jsonscan, math, reflect,
-// strconv, unicode, unicode/utf8 and unsafe.
+// Unmarshal methods receive borrowed input bytes. Methods must copy bytes
+// they retain after returning.
 package json
