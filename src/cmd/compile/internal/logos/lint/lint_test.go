@@ -17,9 +17,10 @@ import (
 	"cmd/compile/internal/types2"
 )
 
-// goRules are the 21 language-neutral rules of SPEC Sec 1.2 and Sec 2.6: the
+// goRules are the language-neutral rules of SPEC Sec 1.2 and Sec 2.6: the
 // rules logos lint applies to Go packages.
 var goRules = []string{
+	"correctness::array_index_out_of_bounds",
 	"correctness::withlock_leak",
 	"correctness::arena_pointer_escape",
 	"correctness::infinite_recursion",
@@ -56,7 +57,7 @@ var lgoRules = []string{
 	"pedantic::exhaustive_union_switch",
 }
 
-// TestRuleScopes asserts that the rules with Go set are exactly the 21
+// TestRuleScopes asserts that the rules with Go set are exactly the
 // language-neutral rules, that every registered rule declares a scope
 // (appears in exactly one of the two SPEC lists), that each rule's Group
 // matches its ID, and that the registry has no duplicate. A SPEC rule that

@@ -4,7 +4,7 @@
 # bin first on PATH:
 #   golangci-lint run --config ../../logos-doc/golangci.yml ./go/internal/logos/...
 # `logos lint` is a separate, native surface: it runs all registered rules
-# on .lgo and the 21 language-neutral rules on Go, at original source
+# on .lgo and the language-neutral rules on Go, at original source
 # positions. This file does not route through `logos lint`, and `logos lint`
 # does not invoke golangci-lint.
 #

@@ -7,6 +7,7 @@ package lint
 // registry lists every rule, one line each. Adding a rule adds one line.
 var registry = []Rule{
 	infiniteRecursion,
+	arrayIndexOutOfBounds,
 	unsupervisedGoroutine,
 	discardedError,
 	exhaustiveUnionSwitch,

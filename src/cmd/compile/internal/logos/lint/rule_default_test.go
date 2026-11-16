@@ -9,13 +9,14 @@ import "testing"
 // denyInForbidGroup are the rules SPEC Sec 1.2 sets at deny although their
 // group, correctness, defaults to forbid.
 var denyInForbidGroup = []string{
+	"correctness::array_index_out_of_bounds",
 	"correctness::unclosed_io_closer",
 	"correctness::unbounded_channel_op",
 }
 
-// TestRuleDefaultSeverity checks the rule-level default: deny for the two
+// TestRuleDefaultSeverity checks the rule-level default: deny for the
 // rules of the forbid group that SPEC sets at deny, forbid for the rest of the
-// group, and a group configured forbid raising both.
+// group, and a group configured forbid raising those defaults.
 func TestRuleDefaultSeverity(t *testing.T) {
 	d := DefaultPolicy()
 	for _, id := range denyInForbidGroup {
@@ -44,6 +45,7 @@ func TestRuleDefaultSeverity(t *testing.T) {
 }
 
 var specSeverity = map[string]Severity{
+	"correctness::array_index_out_of_bounds":   Deny,
 	"concurrency::unguarded_access":            Forbid,
 	"concurrency::nonatomic_access":            Forbid,
 	"concurrency::lock_requirement_unmet":      Forbid,

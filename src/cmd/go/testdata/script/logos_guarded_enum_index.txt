@@ -16,6 +16,8 @@ go run .
 stderr '^all 256 token values passed$'
 
 replace 't >= tokenCount' 't > tokenCount' main.go
+! logos lint --json-diagnostics ./...
+stderr -count=1 '"rule_id":"correctness::array_index_out_of_bounds"'
 ! logos run .
 stderr 'panic: runtime error: index out of range \[2\] with length 2'
 ! go run .
@@ -28,6 +30,9 @@ logos run .
 stderr '^all 256 token values passed$'
 
 replace 't >= tokenCount' 't > tokenCount' main.lgo
+! logos lint --json-diagnostics ./...
+stderr -count=1 '"rule_id":"correctness::array_index_out_of_bounds"'
+replace 'func (t token) String() string {' '//logos:allow(correctness::array_index_out_of_bounds)\nfunc (t token) String() string {' main.lgo
 ! logos run .
 stderr 'panic: runtime error: index out of range \[2\] with length 2'
 
