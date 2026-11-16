@@ -71,15 +71,13 @@ func updateSIMD(d digest, p []byte) digest {
 		for len(q) >= blockSize {
 			b := archsimd.LoadUint8x32(q)
 			vps = vps.Add(vs1)
-			vs1 = vs1.Add(b.SumOf8AbsDiff(zero).AsUint32x8())
-			vs2 = vs2.Add(b.DotProductPairsSaturated(w).DotProductPairs(ones).AsUint32x8())
+			vs1 = vs1.Add(b.SumOf8AbsDiff(zero).ReshapeToUint32s())
+			vs2 = vs2.Add(b.DotProductPairsSaturated(w).DotProductPairs(ones).ToBits())
 			q = q[blockSize:]
 		}
 		vs2 = vs2.Add(vps.ShiftAllLeft(5)) // 32 = blockSize bytes per block
-		r1 := vs1.GetLo().Add(vs1.GetHi())
-		r2 := vs2.GetLo().Add(vs2.GetHi())
-		s2 += uint32(n)*s1 + r2.GetElem(0) + r2.GetElem(1) + r2.GetElem(2) + r2.GetElem(3)
-		s1 += r1.GetElem(0) + r1.GetElem(1) + r1.GetElem(2) + r1.GetElem(3)
+		s2 += uint32(n)*s1 + vs2.ReduceSum()
+		s1 += vs1.ReduceSum()
 		s1 %= mod
 		s2 %= mod
 		p = p[n:]

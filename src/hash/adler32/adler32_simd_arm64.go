@@ -71,17 +71,17 @@ func updateSIMD(d digest, p []byte) digest {
 			vps = vps.Add(vs1)
 
 			// Widen the bytes to uint16 lanes.
-			alo := a.ExtendLo8ToUint16()
-			ahi := a.HiToLo().ExtendLo8ToUint16()
-			blo := b.ExtendLo8ToUint16()
-			bhi := b.HiToLo().ExtendLo8ToUint16()
+			alo := a.ExtendToUint16()
+			ahi := a.HiToLo().ExtendToUint16()
+			blo := b.ExtendToUint16()
+			bhi := b.HiToLo().ExtendToUint16()
 
 			// Byte sums for vs1: each lane of t sums 4 bytes
 			// (<= 1020) and of t2 8 bytes (<= 2040), so uint16
 			// cannot overflow. The low half of t2 covers all of t.
 			t := alo.Add(ahi).Add(blo.Add(bhi))
 			t2 := t.ConcatAddPairs(t)
-			vs1 = vs1.Add(t2.ExtendLo4ToUint32())
+			vs1 = vs1.Add(t2.ExtendToUint32())
 
 			// Weighted sums for vs2: each product is at most 255*32
 			// = 8160, each lane of r sums 4 products (<= 32640) and
@@ -93,7 +93,7 @@ func updateSIMD(d digest, p []byte) digest {
 			pd := bhi.Mul(w3)
 			r := pa.ConcatAddPairs(pb).ConcatAddPairs(pc.ConcatAddPairs(pd))
 			r2 := r.ConcatAddPairs(r)
-			vs2 = vs2.Add(r2.ExtendLo4ToUint32())
+			vs2 = vs2.Add(r2.ExtendToUint32())
 
 			q = q[blockSize:]
 		}
