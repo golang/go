@@ -20,19 +20,17 @@ type DeepCopier struct {
 	pkg             *types2.Package
 	analyzer        *Analyzer
 	dependentSuffix string
-	variantSuffix   string
 
 	vars map[*types2.Var]*types2.Var
 }
 
-func NewDeepCopier(pkg *types2.Package, info *types2.Info, vecLen int, analyzer *Analyzer, depSuffix, varSuffix string) *DeepCopier {
+func NewDeepCopier(pkg *types2.Package, info *types2.Info, vecLen int, analyzer *Analyzer, depSuffix string) *DeepCopier {
 	return &DeepCopier{
 		VecLen:          vecLen,
 		info:            info,
 		pkg:             pkg,
 		analyzer:        analyzer,
 		dependentSuffix: depSuffix,
-		variantSuffix:   varSuffix,
 		vars:            make(map[*types2.Var]*types2.Var),
 	}
 }
@@ -121,7 +119,7 @@ func (c *DeepCopier) OnNameExpr(id *syntax.Name) syntax.Expr {
 
 			count := c.VecLen / width
 			base := name[:len(name)-1]
-			newName := fmt.Sprintf("%sx%d%s", base, count, c.variantSuffix)
+			newName := fmt.Sprintf("%sx%d", base, count)
 			newSelId := syntax.NewName(id.Pos(), newName)
 			newSel := &syntax.SelectorExpr{
 				X:   archsimdId,
@@ -185,7 +183,7 @@ func (c *DeepCopier) OnSelector(se *syntax.SelectorExpr) syntax.Expr {
 
 				count := c.VecLen / width
 				base := name[:len(name)-1]
-				newName := fmt.Sprintf("%sx%d%s", base, count, c.variantSuffix)
+				newName := fmt.Sprintf("%sx%d", base, count)
 				newName = prefix + newName + nameSuffix
 
 				newSelId := syntax.NewName(se.Sel.Pos(), newName)

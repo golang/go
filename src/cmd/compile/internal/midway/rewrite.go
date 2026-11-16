@@ -10,7 +10,6 @@ import (
 	"cmd/compile/internal/types2"
 	"fmt"
 	"internal/buildcfg"
-	"internal/simd/variants"
 	"strings"
 )
 
@@ -57,7 +56,7 @@ import (
 // Note that this applies to functions only, and not methods.
 
 // The third phase specializes dependent functions (both kinds), methods,
-// global variables, and types into size/emulation/feature-specific variants.
+// global variables, and types into size- and emulation-specific versions.
 // Except for methods, this is done by adding a suffix beginning with "@" to
 // the name.  Because "@" cannot appear in legal Go identifiers this removes
 // the risk of a naming overlap.  Methods are specialized, but not renamed,
@@ -184,10 +183,7 @@ func (r *Rewriter) Rewrite(files []*syntax.File) {
 
 		var newDecls []syntax.Decl
 		for _, k := range r.sizes {
-			newDecls = r.generateForSize(fileAST, k, "", newDecls)
-			if v := variants.Variants[variants.Key{Arch: buildcfg.GOARCH, Size: k}]; v != nil {
-				newDecls = r.generateForSize(fileAST, k, v.Suffix, newDecls)
-			}
+			newDecls = r.generateForSize(fileAST, k, newDecls)
 		}
 
 		// Then replace original functions with dispatchers.
@@ -389,8 +385,8 @@ func (r *Rewriter) createDispatcherBody(d *syntax.FuncDecl, sig *types2.Signatur
 
 	var emulation syntax.Stmt
 
-	makeCallReturnStmt := func(k int, variantSuffix string) syntax.Stmt {
-		fnName := fmt.Sprintf("%s@simd%d%s", d.Name.Value, k, variantSuffix)
+	makeCallReturnStmt := func(k int) syntax.Stmt {
+		fnName := fmt.Sprintf("%s@simd%d", d.Name.Value, k)
 		fnIdent := syntax.NewName(d.Pos(), fnName)
 
 		var fun syntax.Expr
@@ -453,7 +449,7 @@ func (r *Rewriter) createDispatcherBody(d *syntax.FuncDecl, sig *types2.Signatur
 
 	for _, k := range r.sizes {
 
-		callReturnStmt := makeCallReturnStmt(k, "")
+		callReturnStmt := makeCallReturnStmt(k)
 
 		if k == 0 {
 			emulation = guardCallWithCondition(emulatedFn, callReturnStmt)
@@ -466,16 +462,6 @@ func (r *Rewriter) createDispatcherBody(d *syntax.FuncDecl, sig *types2.Signatur
 		if emulation != nil && k == 128 {
 			caseBody = append(caseBody, emulation)
 			emulation = nil
-		}
-
-		// if this architecture and size has a variant, then guard
-		// the regular case call with variant.require
-		// and then follow it with the variant case.
-		// `if simd.<require>() { callReturnStmt }`
-		if v := variants.Variants[variants.Key{Arch: buildcfg.GOARCH, Size: k}]; v != nil {
-			callReturnStmt = guardCallWithCondition(v.DefaultRequires, callReturnStmt)
-			caseBody = append(caseBody, callReturnStmt)
-			callReturnStmt = makeCallReturnStmt(k, v.Suffix)
 		}
 
 		caseBody = append(caseBody, callReturnStmt)
@@ -517,8 +503,8 @@ func (r *Rewriter) panicStmt(p syntax.Pos, unquotedMessage string) *syntax.ExprS
 	return panicStmt
 }
 
-func (r *Rewriter) generateForSize(fileAST *syntax.File, k int, variantSuffix string, newDecls []syntax.Decl) []syntax.Decl {
-	copier := NewDeepCopier(r.pkg, r.info, k, r.analyzer, fmt.Sprintf("@simd%d%s", k, variantSuffix), variantSuffix)
+func (r *Rewriter) generateForSize(fileAST *syntax.File, k int, newDecls []syntax.Decl) []syntax.Decl {
+	copier := NewDeepCopier(r.pkg, r.info, k, r.analyzer, fmt.Sprintf("@simd%d", k))
 	for _, decl := range fileAST.DeclList {
 		if r.shouldIncludeDecl(decl) {
 			newDecl := copier.CopyDecl(decl)

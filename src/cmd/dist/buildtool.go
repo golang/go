@@ -157,7 +157,6 @@ var bootstrapDirs = []string{
 	"internal/race",
 	"internal/runtime/gc",
 	"internal/saferio",
-	"internal/simd/variants",
 	"internal/singleflight",
 	"internal/strconv",
 	"internal/syslist",
