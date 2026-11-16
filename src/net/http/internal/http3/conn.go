@@ -6,11 +6,34 @@ package http3
 
 import (
 	"context"
+	"errors"
 	"io"
+	"net"
 	"sync"
+	"time"
 
 	"golang.org/x/net/quic"
 )
+
+// quicNetConn is a fake net.Conn that wraps a quic.Conn for use in GotConn
+// trace hooks and similar callbacks.
+type quicNetConn struct {
+	qconn *quic.Conn
+}
+
+func (c quicNetConn) Read([]byte) (int, error)         { return 0, errors.ErrUnsupported }
+func (c quicNetConn) Write([]byte) (int, error)        { return 0, errors.ErrUnsupported }
+func (c quicNetConn) SetDeadline(time.Time) error      { return errors.ErrUnsupported }
+func (c quicNetConn) SetReadDeadline(time.Time) error  { return errors.ErrUnsupported }
+func (c quicNetConn) SetWriteDeadline(time.Time) error { return errors.ErrUnsupported }
+
+func (c quicNetConn) LocalAddr() net.Addr  { return net.UDPAddrFromAddrPort(c.qconn.LocalAddr()) }
+func (c quicNetConn) RemoteAddr() net.Addr { return net.UDPAddrFromAddrPort(c.qconn.RemoteAddr()) }
+
+func (c quicNetConn) Close() error {
+	c.qconn.Abort(nil)
+	return nil
+}
 
 type streamHandler interface {
 	handleControlStream(*stream) error

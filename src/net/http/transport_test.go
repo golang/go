@@ -4077,7 +4077,7 @@ func testTransportRemovesConnsAfterIdle(t *testing.T, mode testMode) {
 }
 
 func TestTransportRemovesConnsAfterBroken(t *testing.T) {
-	runSynctest(t, testTransportRemovesConnsAfterBroken, http3SkippedMode)
+	runSynctest(t, testTransportRemovesConnsAfterBroken)
 }
 func testTransportRemovesConnsAfterBroken(t *testing.T, mode testMode) {
 	trFunc := func(tr *Transport) {
@@ -4085,38 +4085,38 @@ func testTransportRemovesConnsAfterBroken(t *testing.T, mode testMode) {
 		tr.MaxIdleConnsPerHost = 1
 	}
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-		w.Header().Set("X-Addr", r.RemoteAddr)
+		w.WriteHeader(StatusOK)
 	}), trFunc)
 
-	var conns []*nettest.Conn
-	cst.setDialNettestHook(func(c *nettest.Conn) {
-		conns = append(conns, c)
+	var dialed atomic.Bool
+	cst.setDialHook(func() error {
+		dialed.Store(true)
+		return nil
 	})
 
-	// makeRequest returns the local address a request was made from
-	// (unique for each connection).
-	makeRequest := func() string {
+	requestUsesNewConn := func() bool {
+		dialed.Store(false)
 		resp, err := cst.c.Get(cst.ts.URL)
 		if err != nil {
 			t.Fatalf("got error: %s", err)
 		}
 		resp.Body.Close()
-		return resp.Header.Get("X-Addr")
+		return dialed.Load()
 	}
 
-	addr1 := makeRequest()
-	addr2 := makeRequest()
-	if addr1 != addr2 {
-		t.Fatalf("successive requests should have used the same conn, but used %v, %v", addr1, addr2)
+	if !requestUsesNewConn() {
+		t.Fatalf("first request did not use a new conn")
+	}
+	if requestUsesNewConn() {
+		t.Fatalf("successive requests should have used the same conn")
 	}
 
 	// The connection breaks.
 	synctest.Wait()
-	conns[0].Peer().Close()
+	ExportCloseTransportConnsAbruptly(cst.tr)
 	synctest.Wait()
-	addr3 := makeRequest()
-	if addr1 == addr3 {
-		t.Fatalf("successive requests made with conn broken between should have used different conns, but used %v, %v", addr1, addr3)
+	if !requestUsesNewConn() {
+		t.Fatalf("successive requests made with conn broken between should have used different conns")
 	}
 }
 

@@ -113,7 +113,7 @@ func (s *server) serve(ctx context.Context, e *quic.Endpoint) error {
 		if err != nil {
 			return err
 		}
-		go s.newServerConn(ctx, qconn)
+		go s.newServerConn(s.connContext(ctx, qconn), qconn)
 	}
 }
 
@@ -210,6 +210,13 @@ func (s *server) idleTimeout() time.Duration {
 		return s.readTimeout()
 	}
 	return s.srv1.IdleTimeout
+}
+
+func (s *server) connContext(ctx context.Context, qconn *quic.Conn) context.Context {
+	if s.srv1 == nil || s.srv1.ConnContext == nil {
+		return ctx
+	}
+	return s.srv1.ConnContext(ctx, quicNetConn{qconn})
 }
 
 type serverConn struct {

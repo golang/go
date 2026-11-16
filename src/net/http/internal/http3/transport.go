@@ -290,9 +290,7 @@ func (cc *clientConn) Proto() int {
 }
 
 func (cc *clientConn) NetConn() net.Conn {
-	// TODO: This should return a fake net.Conn that implements RemoteAddr/LocalAddr.
-	// This fake Conn will be provided to user GotConn trace hooks.
-	return nil
+	return quicNetConn{cc.qconn}
 }
 
 func (cc *clientConn) CloseWithError(err error) {

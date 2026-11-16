@@ -6567,7 +6567,7 @@ func TestStripPortFromHost(t *testing.T) {
 	}
 }
 
-func TestServerContexts(t *testing.T) { runSynctest(t, testServerContexts, http3SkippedMode) }
+func TestServerContexts(t *testing.T) { runSynctest(t, testServerContexts) }
 func testServerContexts(t *testing.T, mode testMode) {
 	type baseKey struct{}
 	type connKey struct{}
