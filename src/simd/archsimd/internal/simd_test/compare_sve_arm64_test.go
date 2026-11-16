@@ -210,3 +210,19 @@ func TestGreaterEqualSVE(t *testing.T) {
 	testFloat32sCompare(t, archsimd.Float32s.GreaterEqual, geWant[float32])
 	testFloat64sCompare(t, archsimd.Float64s.GreaterEqual, geWant[float64])
 }
+
+func TestLessSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no SVE")
+	}
+	testInt8sCompare(t, archsimd.Int8s.Less, less[int8])
+	testInt16sCompare(t, archsimd.Int16s.Less, less[int16])
+	testInt32sCompare(t, archsimd.Int32s.Less, less[int32])
+	testInt64sCompare(t, archsimd.Int64s.Less, less[int64])
+	testUint8sCompare(t, archsimd.Uint8s.Less, less[uint8])
+	testUint16sCompare(t, archsimd.Uint16s.Less, less[uint16])
+	testUint32sCompare(t, archsimd.Uint32s.Less, less[uint32])
+	testUint64sCompare(t, archsimd.Uint64s.Less, less[uint64])
+	testFloat32sCompare(t, archsimd.Float32s.Less, less[float32])
+	testFloat64sCompare(t, archsimd.Float64s.Less, less[float64])
+}

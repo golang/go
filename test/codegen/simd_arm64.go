@@ -401,6 +401,13 @@ func sveIfElseFloat(x, y archsimd.Float64s, m archsimd.Mask64s) archsimd.Float64
 	return x.Add(y).IfElse(m, x)
 }
 
+// Less is Greater with the operands swapped, so it is one compare with the
+// sources reversed.
+func sveLess(x, y archsimd.Int32s) archsimd.Mask32s {
+	// arm64:`ZCMPGT\s+Z0\.S, Z1\.S, P[0-9]+\.Z, P[0-9]+\.S`
+	return x.Less(y)
+}
+
 // A reduction leaves its result in the SIMD&FP scalar register that a float
 // is returned in.
 func sveReduceSum(x archsimd.Float32s) float32 {

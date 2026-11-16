@@ -1383,6 +1383,17 @@ func (x {{.VType}}) HiToLo() {{.VType}} {
 }
 `))
 
+// lessTemplateSVE implements Less for SVE scalable vectors as Greater with
+// the operands swapped, as arm64LessTemplate does for NEON. SVE's CMPLT, CMPLO
+// and FCMLT are assembler aliases of CMPGT, CMPHI and FCMGT with swapped
+// operands.
+var lessTemplateSVE = template.Must(template.New("sve Less methods").Parse(`
+// Emulated, CPU Feature: SVE
+func (x {{.VType}}) Less(y {{.VType}}) Mask{{.EWidth}}s {
+	return y.Greater(x)
+}
+`))
+
 var reduceSumTemplateArm64 = shapedTemplateOf(arm64ReduceIntegerShapes, "arm64_ReduceSum methods", `
 // ReduceSum reduces x by summing all elements.
 //
@@ -1736,7 +1747,7 @@ func main() {
 
 	// SVE-specific generation
 	if *opSVE != "" {
-		oneSVE(*opSVE, svePrologue, hiToLoTemplateSVE)
+		oneSVE(*opSVE, svePrologue, hiToLoTemplateSVE, lessTemplateSVE)
 	}
 
 	nonTemplateRewrites(SSA+"tern_helpers.go", ssaPrologue, classifyBooleanSIMD, ternOpForLogical)
