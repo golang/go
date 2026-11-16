@@ -174,6 +174,14 @@ func (d *deadcodePass) flood() {
 				if d.ctxt.canUsePlugins && r.Type().IsDirectCall() {
 					convertWeakToStrong = true
 				}
+				// Under -dynlink, a type's anonymous PtrToThis sub-type
+				// is marked with a weak R_ADDROFF. If the type itself is
+				// reachable, the runtime/reflect can build interfaces to
+				// the pointer-to-type via the typelinks table, so the
+				// referenced type symbol must also remain reachable.
+				if d.dynlink && isgotype && r.Type() == objabi.R_ADDROFF && d.ldr.IsGoType(r.Sym()) {
+					convertWeakToStrong = true
+				}
 				if !convertWeakToStrong {
 					// skip this reloc
 					continue
