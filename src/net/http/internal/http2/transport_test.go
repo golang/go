@@ -3562,8 +3562,11 @@ func TestTransportRequestsLowServerLimit(t *testing.T) {
 		}
 	}
 
-	if connCount != 1 {
-		t.Errorf("created %v connections for %v requests, want 1", connCount, reqCount)
+	connCountMu.Lock()
+	gotConnCount := connCount
+	connCountMu.Unlock()
+	if gotConnCount != 1 {
+		t.Errorf("created %v connections for %v requests, want 1", gotConnCount, reqCount)
 	}
 }
 

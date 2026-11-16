@@ -1310,8 +1310,8 @@ func (cs *clientStream) cleanupWriteRequest(err error) {
 		}
 	}
 
-	close(cs.donec)
 	cc.maybeCallStateHook()
+	close(cs.donec)
 }
 
 func (cc *ClientConn) checkIdleLocked() (closeConn bool) {
