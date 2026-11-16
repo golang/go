@@ -10021,7 +10021,7 @@ func rewriteValue_OpRotateLeft16(v *ssa.Value) bool {
 		return true
 	}
 	// match: (RotateLeft16 <t> x y)
-	// result: (ROTR <t> (OR <typ.UInt32> (ZeroExt16to32 x) (SLLVconst <t> (ZeroExt16to32 x) [16])) (NEGV <typ.Int64> y))
+	// result: (ROTR <t> (OR <typ.UInt32> (ZeroExt16to32 x) (SLLVconst <typ.UInt32> (ZeroExt16to32 x) [16])) (NEGV <typ.Int64> y))
 	for {
 		t := v.Type
 		x := v_0
@@ -10031,7 +10031,7 @@ func rewriteValue_OpRotateLeft16(v *ssa.Value) bool {
 		v0 := b.NewValue0(v.Pos, ssaop.OpLOONG64OR, typ.UInt32)
 		v1 := b.NewValue0(v.Pos, ssaop.OpZeroExt16to32, typ.UInt32)
 		v1.AddArg(x)
-		v2 := b.NewValue0(v.Pos, ssaop.OpLOONG64SLLVconst, t)
+		v2 := b.NewValue0(v.Pos, ssaop.OpLOONG64SLLVconst, typ.UInt32)
 		v2.AuxInt = ssa.Int64ToAuxInt(16)
 		v2.AddArg(v1)
 		v0.AddArg2(v1, v2)

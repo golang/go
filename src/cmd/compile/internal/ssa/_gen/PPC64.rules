@@ -271,7 +271,7 @@
 (Ctz(64|32|16|8)NonZero ...) => (Ctz64 ...)
 
 (Ctz64 x) && buildcfg.GOPPC64 <= 8 => (POPCNTD (ANDN <typ.Int64> (ADDconst <typ.Int64> [-1] x) x))
-(Ctz32 x) && buildcfg.GOPPC64 <= 8 => (POPCNTW (MOVWZreg (ANDN <typ.Int> (ADDconst <typ.Int> [-1] x) x)))
+(Ctz32 x) && buildcfg.GOPPC64 <= 8 => (POPCNTW (MOVWZreg (ANDN <typ.UInt32> (ADDconst <typ.UInt32> [-1] x) x)))
 (Ctz16 x) && buildcfg.GOPPC64 <= 8 => (POPCNTW (MOVHZreg (ANDN <typ.Int16> (ADDconst <typ.Int16> [-1] x) x)))
 (Ctz8  x) && buildcfg.GOPPC64 <= 8 => (POPCNTB (MOVBZreg (ANDN <typ.UInt8> (ADDconst <typ.UInt8> [-1] x) x)))
 
@@ -701,12 +701,12 @@
 (MOV(W|WZ)reg y:(MOV(WZ|W)reg x)) => (MOV(W|WZ)reg x)
 
 // Truncate then logical then truncate: omit first, lesser or equal truncate
-(MOVWZreg ((OR|XOR|AND) <t> x (MOVWZreg y))) => (MOVWZreg ((OR|XOR|AND) <t> x y))
-(MOVHZreg ((OR|XOR|AND) <t> x (MOVWZreg y))) => (MOVHZreg ((OR|XOR|AND) <t> x y))
-(MOVHZreg ((OR|XOR|AND) <t> x (MOVHZreg y))) => (MOVHZreg ((OR|XOR|AND) <t> x y))
-(MOVBZreg ((OR|XOR|AND) <t> x (MOVWZreg y))) => (MOVBZreg ((OR|XOR|AND) <t> x y))
-(MOVBZreg ((OR|XOR|AND) <t> x (MOVHZreg y))) => (MOVBZreg ((OR|XOR|AND) <t> x y))
-(MOVBZreg ((OR|XOR|AND) <t> x (MOVBZreg y))) => (MOVBZreg ((OR|XOR|AND) <t> x y))
+(MOVWZreg ((OR|XOR|AND) x (MOVWZreg y))) => (MOVWZreg ((OR|XOR|AND) <typ.UInt32> x y))
+(MOVHZreg ((OR|XOR|AND) x (MOVWZreg y))) => (MOVHZreg ((OR|XOR|AND) <typ.UInt16> x y))
+(MOVHZreg ((OR|XOR|AND) x (MOVHZreg y))) => (MOVHZreg ((OR|XOR|AND) <typ.UInt16> x y))
+(MOVBZreg ((OR|XOR|AND) x (MOVWZreg y))) => (MOVBZreg ((OR|XOR|AND) <typ.UInt8> x y))
+(MOVBZreg ((OR|XOR|AND) x (MOVHZreg y))) => (MOVBZreg ((OR|XOR|AND) <typ.UInt8> x y))
+(MOVBZreg ((OR|XOR|AND) x (MOVBZreg y))) => (MOVBZreg ((OR|XOR|AND) <typ.UInt8> x y))
 
 (MOV(B|H|W)Zreg z:(ANDconst [c] (MOVBZload ptr x))) => z
 (MOV(B|H|W)Zreg z:(AND y (MOV(B|H|W)Zload ptr x))) => z

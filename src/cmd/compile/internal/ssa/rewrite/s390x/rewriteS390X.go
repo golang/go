@@ -1507,21 +1507,20 @@ func rewriteValue_OpCtz32(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
-	// match: (Ctz32 <t> x)
-	// result: (SUB (MOVDconst [64]) (FLOGR (MOVWZreg (ANDW <t> (SUBWconst <t> [1] x) (NOTW <t> x)))))
+	// match: (Ctz32 x)
+	// result: (SUB (MOVDconst [64]) (FLOGR (MOVWZreg (ANDW <typ.UInt32> (SUBWconst <typ.UInt32> [1] x) (NOTW <typ.UInt32> x)))))
 	for {
-		t := v.Type
 		x := v_0
 		v.Reset(ssaop.OpS390XSUB)
 		v0 := b.NewValue0(v.Pos, ssaop.OpS390XMOVDconst, typ.UInt64)
 		v0.AuxInt = ssa.Int64ToAuxInt(64)
 		v1 := b.NewValue0(v.Pos, ssaop.OpS390XFLOGR, typ.UInt64)
 		v2 := b.NewValue0(v.Pos, ssaop.OpS390XMOVWZreg, typ.UInt64)
-		v3 := b.NewValue0(v.Pos, ssaop.OpS390XANDW, t)
-		v4 := b.NewValue0(v.Pos, ssaop.OpS390XSUBWconst, t)
+		v3 := b.NewValue0(v.Pos, ssaop.OpS390XANDW, typ.UInt32)
+		v4 := b.NewValue0(v.Pos, ssaop.OpS390XSUBWconst, typ.UInt32)
 		v4.AuxInt = ssa.Int32ToAuxInt(1)
 		v4.AddArg(x)
-		v5 := b.NewValue0(v.Pos, ssaop.OpS390XNOTW, t)
+		v5 := b.NewValue0(v.Pos, ssaop.OpS390XNOTW, typ.UInt32)
 		v5.AddArg(x)
 		v3.AddArg2(v4, v5)
 		v2.AddArg(v3)
