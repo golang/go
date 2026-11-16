@@ -67,7 +67,7 @@ func (gcToolchain) gc(b *Builder, a *Action, export string, importcfg, embedcfg 
 	// the compiler for it to signal when it is done writing the export data. The compiler
 	// writes the same output files independent of this.
 	// TODO(matloob,thepudds): Give a more precise description of exactly what earlyExport controls.
-	// TODO(matloob): Support early export on Windows, and likely with -toolexec, -x, and possibly other flags.
+	// TODO(matloob): Support early export with -toolexec, -x, and possibly other flags.
 	hasObjectAction := slices.ContainsFunc(a.triggers, func(t *Action) bool { return t.Mode == "build" && t.Package == a.Package })
 	earlyExport := export != "" && hasObjectAction && earlyExportSupported && !(cfg.BuildN || cfg.BuildX || len(cfg.BuildToolexec) > 0)
 	if export == "" {
