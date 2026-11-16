@@ -1881,6 +1881,80 @@ func (x Uint32s) ShiftLeft(shift Uint32s) (z Uint32s)
 // Asm: ZLSL, CPU Feature: SVE
 func (x Uint64s) ShiftLeft(shift Uint64s) (z Uint64s)
 
+/* ShiftRight */
+
+// ShiftRight arithmetically shifts x[i] right by shift[i] bits.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0 or -1, depending on the sign of the element.
+//
+//	z[i] = x[i] >> shift[i]
+//
+// Asm: ZASR, CPU Feature: SVE
+func (x Int8s) ShiftRight(shift Uint8s) (z Int8s)
+
+// ShiftRight arithmetically shifts x[i] right by shift[i] bits.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0 or -1, depending on the sign of the element.
+//
+//	z[i] = x[i] >> shift[i]
+//
+// Asm: ZASR, CPU Feature: SVE
+func (x Int16s) ShiftRight(shift Uint16s) (z Int16s)
+
+// ShiftRight arithmetically shifts x[i] right by shift[i] bits.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0 or -1, depending on the sign of the element.
+//
+//	z[i] = x[i] >> shift[i]
+//
+// Asm: ZASR, CPU Feature: SVE
+func (x Int32s) ShiftRight(shift Uint32s) (z Int32s)
+
+// ShiftRight arithmetically shifts x[i] right by shift[i] bits.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0 or -1, depending on the sign of the element.
+//
+//	z[i] = x[i] >> shift[i]
+//
+// Asm: ZASR, CPU Feature: SVE
+func (x Int64s) ShiftRight(shift Uint64s) (z Int64s)
+
+// ShiftRight logically shifts x[i] right by shift[i] bits.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
+//
+//	z[i] = x[i] >> shift[i]
+//
+// Asm: ZLSR, CPU Feature: SVE
+func (x Uint8s) ShiftRight(shift Uint8s) (z Uint8s)
+
+// ShiftRight logically shifts x[i] right by shift[i] bits.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
+//
+//	z[i] = x[i] >> shift[i]
+//
+// Asm: ZLSR, CPU Feature: SVE
+func (x Uint16s) ShiftRight(shift Uint16s) (z Uint16s)
+
+// ShiftRight logically shifts x[i] right by shift[i] bits.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
+//
+//	z[i] = x[i] >> shift[i]
+//
+// Asm: ZLSR, CPU Feature: SVE
+func (x Uint32s) ShiftRight(shift Uint32s) (z Uint32s)
+
+// ShiftRight logically shifts x[i] right by shift[i] bits.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
+//
+//	z[i] = x[i] >> shift[i]
+//
+// Asm: ZLSR, CPU Feature: SVE
+func (x Uint64s) ShiftRight(shift Uint64s) (z Uint64s)
+
 /* Sqrt */
 
 // Sqrt returns the elementwise square root of x.

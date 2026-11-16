@@ -128,7 +128,8 @@ func shiftAmounts[S integer](bits int) []S {
 		S(1) << (bits - 1), S(1) << (bits - 2), top - 1, top})
 }
 
-func shiftLeft[T, S integer](x T, s S) T { return x << s }
+func shiftLeft[T, S integer](x T, s S) T  { return x << s }
+func shiftRight[T, S integer](x T, s S) T { return x >> s }
 
 func TestShiftLeftSVE(t *testing.T) {
 	if !archsimd.ARM64.SVE() {
@@ -229,4 +230,82 @@ func TestShiftLeftBroadcastSVE(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestShiftRightSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no SVE")
+	}
+	testSVEShift(t, int8s, shiftAmounts[uint8](8), 1, archsimd.Int8s{}.Len(),
+		archsimd.LoadInt8s, archsimd.LoadUint8s, archsimd.Int8s.ShiftRight, archsimd.Int8s.Store, shiftRight[int8, uint8])
+	testSVEShift(t, int16s, shiftAmounts[uint16](16), 2, archsimd.Int16s{}.Len(),
+		archsimd.LoadInt16s, archsimd.LoadUint16s, archsimd.Int16s.ShiftRight, archsimd.Int16s.Store, shiftRight[int16, uint16])
+	testSVEShift(t, int32s, shiftAmounts[uint32](32), 4, archsimd.Int32s{}.Len(),
+		archsimd.LoadInt32s, archsimd.LoadUint32s, archsimd.Int32s.ShiftRight, archsimd.Int32s.Store, shiftRight[int32, uint32])
+	testSVEShift(t, int64s, shiftAmounts[uint64](64), 8, archsimd.Int64s{}.Len(),
+		archsimd.LoadInt64s, archsimd.LoadUint64s, archsimd.Int64s.ShiftRight, archsimd.Int64s.Store, shiftRight[int64, uint64])
+	testSVEShift(t, uint8s, shiftAmounts[uint8](8), 1, archsimd.Uint8s{}.Len(),
+		archsimd.LoadUint8s, archsimd.LoadUint8s, archsimd.Uint8s.ShiftRight, archsimd.Uint8s.Store, shiftRight[uint8, uint8])
+	testSVEShift(t, uint16s, shiftAmounts[uint16](16), 2, archsimd.Uint16s{}.Len(),
+		archsimd.LoadUint16s, archsimd.LoadUint16s, archsimd.Uint16s.ShiftRight, archsimd.Uint16s.Store, shiftRight[uint16, uint16])
+	testSVEShift(t, uint32s, shiftAmounts[uint32](32), 4, archsimd.Uint32s{}.Len(),
+		archsimd.LoadUint32s, archsimd.LoadUint32s, archsimd.Uint32s.ShiftRight, archsimd.Uint32s.Store, shiftRight[uint32, uint32])
+	testSVEShift(t, uint64s, shiftAmounts[uint64](64), 8, archsimd.Uint64s{}.Len(),
+		archsimd.LoadUint64s, archsimd.LoadUint64s, archsimd.Uint64s.ShiftRight, archsimd.Uint64s.Store, shiftRight[uint64, uint64])
+}
+
+// TestShiftRightIfElseSVE checks ShiftRight under a select, which folds into
+// its merging form.
+func TestShiftRightIfElseSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no SVE")
+	}
+	odd8 := func(s archsimd.Uint8s) archsimd.Mask8s {
+		return s.And(archsimd.BroadcastUint8s(1)).NotEqual(archsimd.Uint8s{})
+	}
+	odd16 := func(s archsimd.Uint16s) archsimd.Mask16s {
+		return s.And(archsimd.BroadcastUint16s(1)).NotEqual(archsimd.Uint16s{})
+	}
+	odd32 := func(s archsimd.Uint32s) archsimd.Mask32s {
+		return s.And(archsimd.BroadcastUint32s(1)).NotEqual(archsimd.Uint32s{})
+	}
+	odd64 := func(s archsimd.Uint64s) archsimd.Mask64s {
+		return s.And(archsimd.BroadcastUint64s(1)).NotEqual(archsimd.Uint64s{})
+	}
+	testSVEShift(t, int8s, shiftAmounts[uint8](8), 1, archsimd.Int8s{}.Len(), archsimd.LoadInt8s, archsimd.LoadUint8s,
+		func(x archsimd.Int8s, s archsimd.Uint8s) archsimd.Int8s { return x.ShiftRight(s).IfElse(odd8(s), x) },
+		archsimd.Int8s.Store, shiftIfElse(shiftRight[int8, uint8]))
+	testSVEShift(t, int16s, shiftAmounts[uint16](16), 2, archsimd.Int16s{}.Len(), archsimd.LoadInt16s, archsimd.LoadUint16s,
+		func(x archsimd.Int16s, s archsimd.Uint16s) archsimd.Int16s {
+			return x.ShiftRight(s).IfElse(odd16(s), x)
+		},
+		archsimd.Int16s.Store, shiftIfElse(shiftRight[int16, uint16]))
+	testSVEShift(t, uint8s, shiftAmounts[uint8](8), 1, archsimd.Uint8s{}.Len(), archsimd.LoadUint8s, archsimd.LoadUint8s,
+		func(x archsimd.Uint8s, s archsimd.Uint8s) archsimd.Uint8s { return x.ShiftRight(s).IfElse(odd8(s), x) },
+		archsimd.Uint8s.Store, shiftIfElse(shiftRight[uint8, uint8]))
+	testSVEShift(t, uint16s, shiftAmounts[uint16](16), 2, archsimd.Uint16s{}.Len(), archsimd.LoadUint16s, archsimd.LoadUint16s,
+		func(x archsimd.Uint16s, s archsimd.Uint16s) archsimd.Uint16s {
+			return x.ShiftRight(s).IfElse(odd16(s), x)
+		},
+		archsimd.Uint16s.Store, shiftIfElse(shiftRight[uint16, uint16]))
+	testSVEShift(t, uint32s, shiftAmounts[uint32](32), 4, archsimd.Uint32s{}.Len(), archsimd.LoadUint32s, archsimd.LoadUint32s,
+		func(x archsimd.Uint32s, s archsimd.Uint32s) archsimd.Uint32s {
+			return x.ShiftRight(s).IfElse(odd32(s), x)
+		},
+		archsimd.Uint32s.Store, shiftIfElse(shiftRight[uint32, uint32]))
+	testSVEShift(t, int32s, shiftAmounts[uint32](32), 4, archsimd.Int32s{}.Len(), archsimd.LoadInt32s, archsimd.LoadUint32s,
+		func(x archsimd.Int32s, s archsimd.Uint32s) archsimd.Int32s {
+			return x.ShiftRight(s).IfElse(odd32(s), x)
+		},
+		archsimd.Int32s.Store, shiftIfElse(shiftRight[int32, uint32]))
+	testSVEShift(t, int64s, shiftAmounts[uint64](64), 8, archsimd.Int64s{}.Len(), archsimd.LoadInt64s, archsimd.LoadUint64s,
+		func(x archsimd.Int64s, s archsimd.Uint64s) archsimd.Int64s {
+			return x.ShiftRight(s).IfElse(odd64(s), x)
+		},
+		archsimd.Int64s.Store, shiftIfElse(shiftRight[int64, uint64]))
+	testSVEShift(t, uint64s, shiftAmounts[uint64](64), 8, archsimd.Uint64s{}.Len(), archsimd.LoadUint64s, archsimd.LoadUint64s,
+		func(x archsimd.Uint64s, s archsimd.Uint64s) archsimd.Uint64s {
+			return x.ShiftRight(s).IfElse(odd64(s), x)
+		},
+		archsimd.Uint64s.Store, shiftIfElse(shiftRight[uint64, uint64]))
 }

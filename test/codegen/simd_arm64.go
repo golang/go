@@ -491,6 +491,29 @@ func sveShiftLeftVecIfElseAmount(x, s archsimd.Uint16s, m archsimd.Mask16s) arch
 	return x.ShiftLeft(s).IfElse(m, s)
 }
 
+// ShiftRight by vector is LSR or ASR (vectors), the same shape as ShiftLeft.
+// For an amount of the element width or more LSR yields 0 and ASR the sign.
+
+func sveShiftRightVec(x archsimd.Int32s, s archsimd.Uint32s) archsimd.Int32s {
+	// arm64:`PWHILELT` `ZASR\s+Z[0-9]+\.S, Z[0-9]+\.S, P[0-9]+\.M, Z[0-9]+\.S` -`ZSEL` -`ZUMIN`
+	return x.ShiftRight(s)
+}
+
+func sveShiftRightVec64(x archsimd.Uint64s, s archsimd.Uint64s) archsimd.Uint64s {
+	// arm64:`PWHILELT` `ZLSR\s+Z[0-9]+\.D, Z[0-9]+\.D, P[0-9]+\.M, Z[0-9]+\.D` -`ZSEL` -`ZUMIN` -`ZDUP`
+	return x.ShiftRight(s)
+}
+
+func sveShiftRightVecIfElse(x archsimd.Uint8s, s archsimd.Uint8s, m archsimd.Mask8s) archsimd.Uint8s {
+	// arm64:`ZLSR\s+Z[0-9]+\.B, Z[0-9]+\.B, P[0-9]+\.M, Z[0-9]+\.B` -`ZSEL` -`PWHILELT`
+	return x.ShiftRight(s).IfElse(m, x)
+}
+
+func sveShiftRightVecIfElse64(x archsimd.Int64s, s archsimd.Uint64s, m archsimd.Mask64s) archsimd.Int64s {
+	// arm64:`ZASR\s+Z[0-9]+\.D, Z[0-9]+\.D, P[0-9]+\.M, Z[0-9]+\.D` -`ZSEL` -`PWHILELT`
+	return x.ShiftRight(s).IfElse(m, x)
+}
+
 // The zero value of a mask is an all-false predicate.
 func sveZeroMask() archsimd.Mask8s {
 	var m archsimd.Mask8s

@@ -79,3 +79,62 @@
   - class: mask # governing predicate
   out:
   - *shiftx64
+
+# ShiftRight -- LSR for unsigned and ASR for signed elements (vectors), the
+# same shape as ShiftLeft. For an amount of the element width or more LSR
+# yields 0 and ASR the sign, as the API does. As for ShiftLeft, 8- to 32-bit
+# elements take the variant "vec" to keep them apart from the wide-element
+# forms ShiftAllRight uses, and 64-bit elements share its op.
+- go: ShiftRight
+  signed: false
+  asm: "ZLSR"
+  ssaVariant: "vec"
+  in:
+  - &shiftxu
+    go: $t
+    base: uint
+    elemBits: 8|16|32
+  - *shiftv
+  - class: mask # governing predicate
+  out:
+  - *shiftxu
+
+- go: ShiftRight
+  signed: false
+  asm: "ZLSR"
+  in:
+  - &shiftxu64
+    go: $t
+    base: uint
+    elemBits: 64
+  - *shiftv
+  - class: mask # governing predicate
+  out:
+  - *shiftxu64
+
+- go: ShiftRight
+  signed: true
+  asm: "ZASR"
+  ssaVariant: "vec"
+  in:
+  - &shiftxs
+    go: $t
+    base: int
+    elemBits: 8|16|32
+  - *shiftv
+  - class: mask # governing predicate
+  out:
+  - *shiftxs
+
+- go: ShiftRight
+  signed: true
+  asm: "ZASR"
+  in:
+  - &shiftxs64
+    go: $t
+    base: int
+    elemBits: 64
+  - *shiftv
+  - class: mask # governing predicate
+  out:
+  - *shiftxs64
