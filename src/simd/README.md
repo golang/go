@@ -75,6 +75,11 @@ IN_QEMU=1 GOEXPERIMENT=simd go test -exec 'qemu-x86_64 -cpu Haswell' simd simd/a
 # Sandy Bridge lacks (go.dev/issue/82892).
 IN_QEMU=1 GOEXPERIMENT=simd go test -exec 'qemu-x86_64 -cpu SandyBridge,+fma' simd
 
+# amd64 without carryless multiply. Haswell above has it only for 128-bit
+# vectors, so 256-bit CarrylessMultiply uses two 128-bit instructions. Removing
+# PCLMULQDQ leaves none, so CarrylessMultiply falls back to software.
+IN_QEMU=1 GOEXPERIMENT=simd go test -exec 'qemu-x86_64 -cpu Haswell,-pclmulqdq' simd simd/archsimd/internal/simd_test
+
 # arm64 NEON only (the same features as the gotip-linux-arm64 builder)
 IN_QEMU=1 GOEXPERIMENT=simd GOARCH=arm64 go test -exec 'qemu-aarch64 -cpu neoverse-n1' simd simd/archsimd/internal/simd_test
 
@@ -117,7 +122,13 @@ Known limitations:
 
 - A few quirks are not represented in our testing set. Rosetta on Apple Silicon
   supports 128-bit CLMUL but not 256. Some Raspberry Pis have NEON, but not
-  PMULL (thus no CLMUL).
+  PMULL (thus no 64-bit CLMUL instruction). `CarrylessMultiply` falls back to
+  narrower instructions or software on such CPUs. The tests cover the fallbacks
+  on any CPU by disabling the CPU features, either directly or, under
+  `-run-godebugs`, with `GODEBUG=cpu.pclmulqdq=off`, `cpu.vpclmulqdq=off`, and
+  `cpu.pmull=off`, but that doesn't prove the fallbacks avoid the missing
+  instructions. The QEMU CPU models above do that for amd64; we have no arm64
+  CPU model without PMULL.
 
 ### Builder and emulator capabilities
 

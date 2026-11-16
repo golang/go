@@ -4302,6 +4302,11 @@ func (x Uint64s) clmul(y Uint64s) Uint64s {
 //	  (x^3 + x^2 + x^1) * (x^3 + x^1 + x^0)
 //	= (x^6 + x^5 + (1^1)x^4 + (1^1)x^3 + (1^1)x^2 + x^1)
 //	= (x^6 + x^5 + x^1)
+//
+// Performance: If the CPU has no carryless multiply instruction at the vector
+// size in use, this is implemented with narrower instructions, or with
+// software if it has none at all. That is slower than the instruction, and
+// can be the case even when [Emulated] returns false.
 func (x Uint64s) CarrylessMultiplyEven(y Uint64s) (z Uint64s) {
 	return x.clmul(y)
 }
@@ -4315,6 +4320,11 @@ func (x Uint64s) CarrylessMultiplyEven(y Uint64s) (z Uint64s) {
 //	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i+1])
 //
 // See [CarrylessMultiplyEven] for details about carryless multiply.
+//
+// Performance: If the CPU has no carryless multiply instruction at the vector
+// size in use, this is implemented with narrower instructions, or with
+// software if it has none at all. That is slower than the instruction, and
+// can be the case even when [Emulated] returns false.
 func (x Uint64s) CarrylessMultiplyEvenOdd(y Uint64s) (z Uint64s) {
 	y.v[0] = y.v[1]
 	return x.clmul(y)
@@ -4328,6 +4338,11 @@ func (x Uint64s) CarrylessMultiplyEvenOdd(y Uint64s) (z Uint64s) {
 //	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i+1])
 //
 // See [CarrylessMultiplyEven] for details about carryless multiply.
+//
+// Performance: If the CPU has no carryless multiply instruction at the vector
+// size in use, this is implemented with narrower instructions, or with
+// software if it has none at all. That is slower than the instruction, and
+// can be the case even when [Emulated] returns false.
 func (x Uint64s) CarrylessMultiplyOdd(y Uint64s) (z Uint64s) {
 	x.v[0] = x.v[1]
 	y.v[0] = y.v[1]
@@ -4343,6 +4358,11 @@ func (x Uint64s) CarrylessMultiplyOdd(y Uint64s) (z Uint64s) {
 //	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i])
 //
 // See [CarrylessMultiplyEven] for details about carryless multiply.
+//
+// Performance: If the CPU has no carryless multiply instruction at the vector
+// size in use, this is implemented with narrower instructions, or with
+// software if it has none at all. That is slower than the instruction, and
+// can be the case even when [Emulated] returns false.
 func (x Uint64s) CarrylessMultiplyOddEven(y Uint64s) (z Uint64s) {
 	x.v[0] = x.v[1]
 	return x.clmul(y)

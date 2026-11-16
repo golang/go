@@ -16,3 +16,18 @@ package simd
 func VectorBitSize() int {
 	return VectorBits()
 }
+
+// HasHardwareCarrylessMultiply reports whether the CarrylessMultiply methods
+// of [Uint64s] are a single hardware instruction at the vector size this
+// package uses.
+//
+// Deprecated: The CarrylessMultiply methods are safe to call on every CPU, so
+// there is no need to check this before calling them. If the CPU lacks a
+// carryless multiply instruction at the vector size in use, they are
+// implemented with narrower instructions or software. Code that selects an
+// algorithm based on whether carryless multiply is fast should instead check
+// the CPU features in [simd/archsimd] that the CarrylessMultiply methods
+// there document.
+func HasHardwareCarrylessMultiply() bool {
+	return hwClmul
+}
