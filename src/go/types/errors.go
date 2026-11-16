@@ -33,14 +33,34 @@ type errorDesc struct {
 	msg  string
 }
 
+// shadowingScope preserves name lookup for diagnostics from delayed checks.
+type shadowingScope struct {
+	scope *Scope
+	pos   token.Pos // lookup position for CheckExpr and Eval, if valid
+}
+
+func (check *Checker) shadowingScope() shadowingScope {
+	return shadowingScope{check.scope, check.exprPos}
+}
+
+func (s shadowingScope) lookup(ident *ast.Ident) Object {
+	pos := s.pos
+	if !pos.IsValid() {
+		pos = ident.Pos()
+	}
+	_, obj := s.scope.LookupParent(ident.Name, pos)
+	return obj
+}
+
 // An error_ represents a type-checking error.
 // A new error_ is created with Checker.newError.
 // To report an error_, call error_.report.
 type error_ struct {
-	check *Checker
-	desc  []errorDesc
-	code  Code
-	soft  bool // TODO(gri) eventually determine this from an error code
+	check    *Checker
+	desc     []errorDesc
+	code     Code
+	soft     bool     // TODO(gri) eventually determine this from an error code
+	shadowed []string // predeclared names hidden by objects involved in the error
 }
 
 // newError returns a new error_ with the given error code.
@@ -58,6 +78,25 @@ func (check *Checker) newError(code Code) *error_ {
 // in the error message (types2) or continuation errors identified by a tab-indented error
 // message (go/types).
 func (err *error_) addf(at positioner, format string, args ...any) {
+	switch err.code {
+	case InvalidSyntaxTree, BadDecl, InvalidLitField, MissingLitField:
+		// Field and declaration names are not lexical references.
+	default:
+		hints := shadowedNames{check: err.check, names: err.shadowed}
+		switch at.(type) {
+		case *operand:
+			hints.add(at)
+		default:
+			switch err.code {
+			case InvalidCond, InvalidArrayLen, MisplacedTypeParam, InvalidDeclCycle, InvalidInitCycle, InvalidInstanceCycle:
+				hints.add(at)
+			}
+		}
+		for _, arg := range args {
+			hints.add(arg)
+		}
+		err.shadowed = hints.names
+	}
 	err.desc = append(err.desc, errorDesc{at, err.check.sprintf(format, args...)})
 }
 
@@ -123,6 +162,8 @@ func (err *error_) report() {
 		}
 	}
 
+	err.addShadowingNotes()
+
 	if check.conf._Trace {
 		check.trace(err.posn().Pos(), "ERROR: %s (code = %d)", err.desc[0].msg, err.code)
 	}
@@ -151,6 +192,7 @@ func (err *error_) report() {
 
 	// make sure the error is not reported twice
 	err.desc = nil
+	err.shadowed = nil
 }
 
 // handleError should only be called by error_.report.

@@ -30,6 +30,44 @@ func defaultImporter(fset *token.FileSet) Importer {
 	return importer.ForCompiler(fset, runtime.Compiler, nil)
 }
 
+func TestShadowedNamesEval(t *testing.T) {
+	const src = `package p
+func f[T ~string](T) {}
+func _() {
+	/* before */
+	int := false
+	_ = int
+	/* after */
+}`
+	fset := token.NewFileSet()
+	file := mustParse(fset, src)
+	pkg, err := new(Config).Check("p", fset, []*ast.File{file}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		marker string
+		shadow bool
+	}{
+		{"/* before */", false},
+		{"/* after */", true},
+	} {
+		pos := fset.File(file.Pos()).Pos(strings.Index(src, test.marker))
+		_, err := Eval(fset, pkg, pos, "f[int](0)")
+		if err == nil || strings.Contains(err.Error(), "predeclared int is shadowed") != test.shadow {
+			t.Errorf("Eval %s: got %v, want shadowing note: %t", test.marker, err, test.shadow)
+		}
+		expr, err := parser.ParseExprFrom(fset, "eval", "f[int](0)", 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = CheckExpr(fset, pkg, pos, expr, nil)
+		if err == nil || strings.Contains(err.Error(), "predeclared int is shadowed") != test.shadow {
+			t.Errorf("CheckExpr %s: got %v, want shadowing note: %t", test.marker, err, test.shadow)
+		}
+	}
+}
+
 func mustParse(fset *token.FileSet, src string) *ast.File {
 	f, err := parser.ParseFile(fset, pkgName(src), src, parser.ParseComments|parser.SkipObjectResolution)
 	if err != nil {

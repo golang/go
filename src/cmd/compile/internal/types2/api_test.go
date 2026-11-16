@@ -22,6 +22,20 @@ import (
 // nopos indicates an unknown position
 var nopos syntax.Pos
 
+func TestShadowingLineDirectives(t *testing.T) {
+	const src = `package p
+func _() {
+//line z.go:1
+	type int[T ~string] struct{}
+//line a.go:1
+	var _ int[bool]
+}`
+	_, err := typecheck(src, nil, nil)
+	if err == nil || !strings.Contains(err.Error(), "predeclared int is shadowed") {
+		t.Errorf("got %v, want shadowing note", err)
+	}
+}
+
 func mustParse(src string) *syntax.File {
 	f, err := syntax.Parse(syntax.NewFileBase(pkgName(src)), strings.NewReader(src), nil, nil, 0)
 	if err != nil {

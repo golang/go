@@ -19,6 +19,19 @@ import (
 // Use T == nil to indicate assignment to an untyped blank identifier.
 // If the assignment check fails, x.mode is set to invalid.
 func (check *Checker) assignment(x *operand, T Type, context string) {
+	check.assignmentWithContext(x, T, context, nil)
+}
+
+// assignmentWithContext is like assignment, with an additional expression
+// describing the context for diagnostics (for example, the callee of a call).
+func (check *Checker) assignmentWithContext(x *operand, T Type, context string, contextExpr syntax.Expr) {
+	errorf := func(code Code, format string, args ...any) {
+		err := check.newError(code)
+		err.addf(x, format, args...)
+		err.addShadowed(contextExpr)
+		err.report()
+	}
+
 	check.singleValue(x)
 
 	switch x.mode() {
@@ -32,7 +45,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 	default:
 		// we may get here because of other problems (go.dev/issue/39634, crash 12)
 		// TODO(gri) do we need a new "generic" error code here?
-		check.errorf(x, IncompatibleAssign, "cannot assign %s to %s in %s", x, T, context)
+		errorf(IncompatibleAssign, "cannot assign %s to %s in %s", x, T, context)
 		x.invalidate()
 		return
 	}
@@ -47,7 +60,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		if isTypes2 {
 			if x.isNil() {
 				if T == nil {
-					check.errorf(x, UntypedNilUse, "use of untyped nil in %s", context)
+					errorf(UntypedNilUse, "use of untyped nil in %s", context)
 					x.invalidate()
 					return
 				}
@@ -57,7 +70,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		} else { // go/types
 			if T == nil || isNonTypeParamInterface(T) {
 				if T == nil && x.typ() == Typ[UntypedNil] {
-					check.errorf(x, UntypedNilUse, "use of untyped nil in %s", context)
+					errorf(UntypedNilUse, "use of untyped nil in %s", context)
 					x.invalidate()
 					return
 				}
@@ -66,16 +79,16 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		}
 		newType, val, code := check.implicitTypeAndValue(x, target)
 		if code != 0 {
-			msg := check.sprintf("cannot use %s as %s value in %s", x, target, context)
+			var qualifier string
 			switch code {
 			case TruncatedFloat:
-				msg += " (truncated)"
+				qualifier = " (truncated)"
 			case NumericOverflow:
-				msg += " (overflows)"
+				qualifier = " (overflows)"
 			default:
 				code = IncompatibleAssign
 			}
-			check.error(x, code, msg)
+			errorf(code, "cannot use %s as %s value in %s%s", x, target, context, qualifier)
 			x.invalidate()
 			return
 		}
@@ -106,9 +119,9 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 	cause := ""
 	if ok, code := x.assignableTo(check, T, &cause); !ok {
 		if cause != "" {
-			check.errorf(x, code, "cannot use %s as %s value in %s: %s", x, T, context, cause)
+			errorf(code, "cannot use %s as %s value in %s: %s", x, T, context, cause)
 		} else {
-			check.errorf(x, code, "cannot use %s as %s value in %s", x, T, context)
+			errorf(code, "cannot use %s as %s value in %s", x, T, context)
 		}
 		x.invalidate()
 	}
@@ -373,9 +386,12 @@ func (check *Checker) returnError(at poser, lhs []*Var, rhs []*operand) {
 		at = rhs[r-1] // report at last value
 	}
 	err := check.newError(WrongResultCount)
+	have, want := operandTypes(rhs), varTypes(lhs)
+	err.addShadowed(have)
+	err.addShadowed(want)
 	err.addf(at, "%s return values", qualifier)
-	err.addf(nopos, "have %s", check.typesSummary(operandTypes(rhs), false, false))
-	err.addf(nopos, "want %s", check.typesSummary(varTypes(lhs), false, false))
+	err.addf(nopos, "have %s", check.typesSummary(have, false, false))
+	err.addf(nopos, "want %s", check.typesSummary(want, false, false))
 	err.report()
 }
 

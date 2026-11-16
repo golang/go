@@ -64,7 +64,10 @@ func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *indexed
 	got, want := len(targs), sig.TypeParams().Len()
 	if got > want {
 		// Providing too many type arguments is always an error.
-		check.errorf(ix.indices[got-1], WrongTypeArgCount, "got %d type arguments but want %d", got, want)
+		err := check.newError(WrongTypeArgCount)
+		err.addShadowed(x)
+		err.addf(ix.indices[got-1], "got %d type arguments but want %d", got, want)
+		err.report()
 		x.invalidate()
 		return nil
 	}
@@ -151,6 +154,7 @@ func (check *Checker) instantiateSignature(pos token.Pos, expr ast.Expr, typ *Si
 	assert(len(xlist) <= len(targs))
 
 	// verify instantiation lazily (was go.dev/issue/50450)
+	scope := check.shadowingScope()
 	check.later(func() {
 		tparams := typ.TypeParams().list()
 		// check type constraints
@@ -160,7 +164,13 @@ func (check *Checker) instantiateSignature(pos token.Pos, expr ast.Expr, typ *Si
 			if i < len(xlist) {
 				pos = xlist[i].Pos()
 			}
-			check.softErrorf(atPos(pos), InvalidTypeArg, "%s", err)
+			diagnostic := check.newError(InvalidTypeArg)
+			diagnostic.addShadowedInScope(scope, expr)
+			diagnostic.addShadowed(targs[i])
+			diagnostic.addShadowed(tparams[i].bound)
+			diagnostic.addf(atPos(pos), "%s", err)
+			diagnostic.soft = true
+			diagnostic.report()
 		} else {
 			check.mono.recordInstance(check.pkg, pos, tparams, targs, xlist)
 		}
@@ -293,7 +303,10 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 		// check number of type arguments (got) vs number of type parameters (want)
 		got, want := len(targs), sig.TypeParams().Len()
 		if got > want {
-			check.errorf(xlist[want], WrongTypeArgCount, "got %d type arguments but want %d", got, want)
+			err := check.newError(WrongTypeArgCount)
+			err.addShadowed(x)
+			err.addf(xlist[want], "got %d type arguments but want %d", got, want)
+			err.report()
 			check.use(call.Args...)
 			x.invalidate()
 			x.expr = call
@@ -554,9 +567,12 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
 			params = sig.params.vars
 		}
 		err := check.newError(WrongArgCount)
+		have, want := operandTypes(args), varTypes(params)
+		err.addShadowed(have)
+		err.addShadowed(want)
 		err.addf(at, "%s arguments in call to %s", qualifier, call.Fun)
-		err.addf(noposn, "have %s", check.typesSummary(operandTypes(args), false, ddd))
-		err.addf(noposn, "want %s", check.typesSummary(varTypes(params), sig.variadic, false))
+		err.addf(noposn, "have %s", check.typesSummary(have, false, ddd))
+		err.addf(noposn, "want %s", check.typesSummary(want, sig.variadic, false))
 		err.report()
 		return
 	}
@@ -640,7 +656,10 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
 			//           Perhaps instantiate as much as we can, also for arguments.
 			//           This will require changes to how infer returns its results.
 			if !err.empty() {
-				check.errorf(err.posn(), CannotInferTypeArgs, "in call to %s, %s", call.Fun, err.msg())
+				callErr := check.newError(CannotInferTypeArgs)
+				callErr.shadowed = err.shadowed
+				callErr.addf(err.posn(), "in call to %s, %s", call.Fun, err.msg())
+				callErr.report()
 			}
 			return
 		}
@@ -675,7 +694,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
 	if len(args) > 0 {
 		context := check.sprintf("argument to %s", call.Fun)
 		for i, a := range args {
-			check.assignment(a, sigParams.vars[i].typ, context)
+			check.assignmentWithContext(a, sigParams.vars[i].typ, context, call.Fun)
 		}
 	}
 

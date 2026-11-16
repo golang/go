@@ -296,7 +296,10 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
 				if at == nil {
 					at = e // e.Index[2] should be present but be careful
 				}
-				check.error(at, InvalidSliceExpr, invalidOp+"3-index slice of string")
+				err := check.newError(InvalidSliceExpr)
+				err.addShadowed(x)
+				err.addf(at, invalidOp+"3-index slice of string")
+				err.report()
 				x.invalidate()
 				return
 			}

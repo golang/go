@@ -42,7 +42,10 @@ func (check *Checker) ident(x *operand, e *ast.Ident, wantType bool) {
 	// (see go.dev/issue/65344).
 	_, gotType := obj.(*TypeName)
 	if !gotType && wantType {
-		check.errorf(e, NotAType, "%s (%s) is not a type", obj.Name(), objectKind(obj))
+		err := check.newError(NotAType)
+		err.addShadowed(obj)
+		err.addf(e, "%s (%s) is not a type", obj.Name(), objectKind(obj))
+		err.report()
 
 		// avoid "declared but not used" errors
 		// (don't use Checker.use - we don't want to evaluate too much)
@@ -430,6 +433,7 @@ func (check *Checker) instantiatedType(ix *indexedExpr) (res Type) {
 	}
 
 	// For Named types, orig.tparams may not be set up, so we need to do expansion later.
+	scope := check.shadowingScope()
 	check.later(func() {
 		// This is an instance from the source, not from recursive substitution,
 		// and so it must be resolved during type-checking so that we can report
@@ -438,7 +442,7 @@ func (check *Checker) instantiatedType(ix *indexedExpr) (res Type) {
 
 		name := inst.(interface{ Obj() *TypeName }).Obj().name
 		tparams := inst.TypeParams().list()
-		if check.validateTArgLen(ix.Pos(), name, len(tparams), len(targs)) {
+		if check.validateTArgLen(ix.Pos(), name, len(tparams), len(targs), inst) {
 			// check type constraints
 			if i, err := check.verify(ix.Pos(), inst.TypeParams().list(), targs, check.context()); err != nil {
 				// best position for error reporting
@@ -446,7 +450,14 @@ func (check *Checker) instantiatedType(ix *indexedExpr) (res Type) {
 				if i < len(ix.indices) {
 					pos = ix.indices[i].Pos()
 				}
-				check.softErrorf(atPos(pos), InvalidTypeArg, "%v", err)
+				diagnostic := check.newError(InvalidTypeArg)
+				diagnostic.addShadowedInScope(scope, ix.x)
+				diagnostic.addShadowedInScope(scope, ix.indices[i])
+				diagnostic.addShadowed(targs[i])
+				diagnostic.addShadowed(tparams[i].bound)
+				diagnostic.addf(atPos(pos), "%s", err)
+				diagnostic.soft = true
+				diagnostic.report()
 			} else {
 				check.mono.recordInstance(check.pkg, ix.Pos(), tparams, targs, ix.indices)
 			}

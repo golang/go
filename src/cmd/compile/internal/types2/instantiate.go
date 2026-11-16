@@ -138,7 +138,7 @@ func (check *Checker) instance(pos syntax.Pos, orig genericType, targs []Type, e
 	case *Alias:
 		// verify type parameter count (see go.dev/issue/71198 for a test case)
 		tparams := orig.TypeParams()
-		if !check.validateTArgLen(pos, orig.obj.Name(), tparams.Len(), len(targs)) {
+		if !check.validateTArgLen(pos, orig.obj.Name(), tparams.Len(), len(targs), orig) {
 			// TODO(gri) Consider returning a valid alias instance with invalid
 			//           underlying (aliased) type to match behavior of *Named
 			//           types. Then this function will never return an invalid
@@ -161,7 +161,7 @@ func (check *Checker) instance(pos syntax.Pos, orig genericType, targs []Type, e
 
 		tparams := orig.TypeParams()
 		// TODO(gri) investigate if this is needed (type argument and parameter count seem to be correct here)
-		if !check.validateTArgLen(pos, orig.String(), tparams.Len(), len(targs)) {
+		if !check.validateTArgLen(pos, orig.String(), tparams.Len(), len(targs), orig) {
 			return Typ[Invalid]
 		}
 		if tparams.Len() == 0 {
@@ -192,7 +192,7 @@ func (check *Checker) instance(pos syntax.Pos, orig genericType, targs []Type, e
 // validateTArgLen checks that the number of type arguments (got) matches the
 // number of type parameters (want); if they don't match an error is reported.
 // If validation fails and check is nil, validateTArgLen panics.
-func (check *Checker) validateTArgLen(pos syntax.Pos, name string, want, got int) bool {
+func (check *Checker) validateTArgLen(pos syntax.Pos, name string, want, got int, typ Type) bool {
 	var qual string
 	switch {
 	case got < want:
@@ -205,7 +205,10 @@ func (check *Checker) validateTArgLen(pos syntax.Pos, name string, want, got int
 
 	msg := check.sprintf("%s type arguments for type %s: have %d, want %d", qual, name, got, want)
 	if check != nil {
-		check.error(atPos(pos), WrongTypeArgCount, msg)
+		err := check.newError(WrongTypeArgCount)
+		err.addShadowed(typ)
+		err.addf(atPos(pos), "%s", msg)
+		err.report()
 		return false
 	}
 

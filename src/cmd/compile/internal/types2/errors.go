@@ -32,14 +32,42 @@ type errorDesc struct {
 	msg string
 }
 
+// shadowingScope preserves name lookup for diagnostics from delayed checks.
+type shadowingScope struct {
+	scope *Scope
+}
+
+func (check *Checker) shadowingScope() shadowingScope {
+	return shadowingScope{check.scope}
+}
+
+func (s shadowingScope) lookup(ident *syntax.Name) Object {
+	pos := ident.Pos()
+	for scope := s.scope; scope != nil; scope = scope.parent {
+		if obj := scope.Lookup(ident.Value); obj != nil {
+			start := obj.scopePos()
+			// Compare physical positions so //line directives cannot reorder
+			// declarations. Package objects may be declared in another file.
+			if start.IsKnown() && start.FileBase() == pos.FileBase() {
+				if start.Line() > pos.Line() || start.Line() == pos.Line() && start.Col() > pos.Col() {
+					continue
+				}
+			}
+			return obj
+		}
+	}
+	return nil
+}
+
 // An error_ represents a type-checking error.
 // A new error_ is created with Checker.newError.
 // To report an error_, call error_.report.
 type error_ struct {
-	check *Checker
-	desc  []errorDesc
-	code  Code
-	soft  bool // TODO(gri) eventually determine this from an error code
+	check    *Checker
+	desc     []errorDesc
+	code     Code
+	soft     bool     // TODO(gri) eventually determine this from an error code
+	shadowed []string // predeclared names hidden by objects involved in the error
 }
 
 // newError returns a new error_ with the given error code.
@@ -57,6 +85,25 @@ func (check *Checker) newError(code Code) *error_ {
 // in the error message (types2) or continuation errors identified by a tab-indented error
 // message (go/types).
 func (err *error_) addf(at poser, format string, args ...any) {
+	switch err.code {
+	case InvalidSyntaxTree, BadDecl, InvalidLitField, MissingLitField:
+		// Field and declaration names are not lexical references.
+	default:
+		hints := shadowedNames{check: err.check, names: err.shadowed}
+		switch at.(type) {
+		case *operand:
+			hints.add(at)
+		default:
+			switch err.code {
+			case InvalidCond, InvalidArrayLen, MisplacedTypeParam, InvalidDeclCycle, InvalidInitCycle, InvalidInstanceCycle:
+				hints.add(at)
+			}
+		}
+		for _, arg := range args {
+			hints.add(arg)
+		}
+		err.shadowed = hints.names
+	}
 	err.desc = append(err.desc, errorDesc{atPos(at), err.check.sprintf(format, args...)})
 }
 
@@ -122,6 +169,8 @@ func (err *error_) report() {
 		}
 	}
 
+	err.addShadowingNotes()
+
 	if check.conf.Trace {
 		check.trace(err.pos(), "ERROR: %s (code = %d)", err.desc[0].msg, err.code)
 	}
@@ -150,6 +199,7 @@ func (err *error_) report() {
 
 	// make sure the error is not reported twice
 	err.desc = nil
+	err.shadowed = nil
 }
 
 // handleError should only be called by error_.report.
