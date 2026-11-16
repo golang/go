@@ -105,6 +105,25 @@ func (x Uint8x16) broadcast1To16() Uint8x16
 //	x.HiToLo().carrylessMultiplyWidenLo(y.HiToLo())
 //
 // Asm: VPMULL
+func (x Uint8x16) carrylessMultiplyWidenLo(y Uint8x16) Uint16x8
+
+// carrylessMultiplyWidenLo returns the carryless (polynomial) product of the low halves
+// of x and y.
+//
+// A carryless multiplication uses bitwise XOR instead of
+// add-with-carry, for example (in base two):
+//
+//	11 * 11 = 11 * (10 ^ 1) = (11 * 10) ^ (11 * 1) = 110 ^ 11 = 101
+//
+// This also models multiplication of polynomials with coefficients
+// from GF(2) -- 11 * 11 models (x+1)*(x+1) = x**2 + (1^1)x + 1 =
+// x**2 + 0x + 1 = x**2 + 1 modeled by 101.  (Note that "+" adds
+// polynomial terms, but coefficients "add" with XOR.)
+// For the high-indexed elements, use HiToLo:
+//
+//	x.HiToLo().carrylessMultiplyWidenLo(y.HiToLo())
+//
+// Asm: VPMULL
 func (x Uint64x2) carrylessMultiplyWidenLo(y Uint64x2) Uint64x2
 
 /* orNot */

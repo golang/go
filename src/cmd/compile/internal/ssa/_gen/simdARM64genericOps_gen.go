@@ -364,6 +364,7 @@ func init() {
 		{name: "broadcast1To8Uint16x8", argLength: 1},
 		{name: "broadcast1To16Int8x16", argLength: 1},
 		{name: "broadcast1To16Uint8x16", argLength: 1},
+		{name: "carrylessMultiplyWidenLoUint8x16", argLength: 2, commutative: true},
 		{name: "carrylessMultiplyWidenLoUint64x2", argLength: 2, commutative: true},
 		{name: "orNotUint8x16", argLength: 2},
 		{name: "reduceMaxFloat32x4", argLength: 1},

@@ -371,6 +371,7 @@ func simdARM64Intrinsics(addF func(pkg, fn string, b intrinsicBuilder, archFamil
 	addF(simdPackage, "Uint16x8.broadcast1To8", opLen1(ssaop.Opbroadcast1To8Uint16x8, types.TypeVec128), sys.ARM64)
 	addF(simdPackage, "Int8x16.broadcast1To16", opLen1(ssaop.Opbroadcast1To16Int8x16, types.TypeVec128), sys.ARM64)
 	addF(simdPackage, "Uint8x16.broadcast1To16", opLen1(ssaop.Opbroadcast1To16Uint8x16, types.TypeVec128), sys.ARM64)
+	addF(simdPackage, "Uint8x16.carrylessMultiplyWidenLo", opLen2(ssaop.OpcarrylessMultiplyWidenLoUint8x16, types.TypeVec128), sys.ARM64)
 	addF(simdPackage, "Uint64x2.carrylessMultiplyWidenLo", opLen2(ssaop.OpcarrylessMultiplyWidenLoUint64x2, types.TypeVec128), sys.ARM64)
 	addF(simdPackage, "Uint8x16.orNot", opLen2(ssaop.OporNotUint8x16, types.TypeVec128), sys.ARM64)
 	addF(simdPackage, "Float32x4.reduceMax", opLen1(ssaop.OpreduceMaxFloat32x4, types.TypeVec128), sys.ARM64)

@@ -395,7 +395,8 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		p = simdV11ImmLong(s, v, arm64.ARNG_8H)
 
 	case ssaop.OpARM64VSMULL16B,
-		ssaop.OpARM64VUMULL16B:
+		ssaop.OpARM64VUMULL16B,
+		ssaop.OpARM64VPMULL16B:
 		p = simdV21Long(s, v, arm64.ARNG_16B)
 
 	case ssaop.OpARM64VPMULL2D:
@@ -463,7 +464,8 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		p = simdV11ImmLong2(s, v, arm64.ARNG_8H)
 
 	case ssaop.OpARM64VSMULL2_16B,
-		ssaop.OpARM64VUMULL2_16B:
+		ssaop.OpARM64VUMULL2_16B,
+		ssaop.OpARM64VPMULL2_16B:
 		p = simdV21Long2(s, v, arm64.ARNG_16B)
 
 	case ssaop.OpARM64VPMULL2_2D:

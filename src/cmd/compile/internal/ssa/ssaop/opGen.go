@@ -4922,6 +4922,8 @@ const (
 	OpARM64VORR16B
 	OpARM64VPMULL2D
 	OpARM64VPMULL2_2D
+	OpARM64VPMULL2_16B
+	OpARM64VPMULL16B
 	OpARM64VSCVTF2D
 	OpARM64VSCVTF4S
 	OpARM64VSMAX4S
@@ -9263,6 +9265,7 @@ const (
 	OpcarrylessMultiplyUint64x4
 	OpcarrylessMultiplyUint64x8
 	OpcarrylessMultiplyWidenLoUint64x2
+	OpcarrylessMultiplyWidenLoUint8x16
 	OpconcatSaturateToInt16Int32x4
 	OpconcatSaturateToInt8GroupedInt16x16
 	OpconcatSaturateToInt8Int16x8
@@ -87829,6 +87832,36 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
+		Name:        "VPMULL2_16B",
+		ArgLen:      2,
+		Commutative: true,
+		asm:         arm64.AVPMULL2,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{1, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		Name:        "VPMULL16B",
+		ArgLen:      2,
+		Commutative: true,
+		asm:         arm64.AVPMULL,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{1, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
 		Name:   "VSCVTF2D",
 		ArgLen: 1,
 		asm:    arm64.AVSCVTF,
@@ -130287,6 +130320,12 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:        "carrylessMultiplyWidenLoUint64x2",
+		ArgLen:      2,
+		Commutative: true,
+		Generic:     true,
+	},
+	{
+		Name:        "carrylessMultiplyWidenLoUint8x16",
 		ArgLen:      2,
 		Commutative: true,
 		Generic:     true,

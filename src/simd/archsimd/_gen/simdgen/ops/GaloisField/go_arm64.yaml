@@ -1,10 +1,19 @@
 !sum
-# Polynomial (carryless) multiply long, P64 variant (2D→1Q).
+# Polynomial (carryless) multiply long. This has two variants:
+#
+# - P8 (8B→8H) multiplies 8-bit polynomials. It is part of baseline Advanced
+#   SIMD.
+#
+# - P64 (1D→1Q) multiplies 64-bit polynomials. It requires FEAT_PMULL. The P8
+#   variant is used to emulate it on CPUs without FEAT_PMULL.
 - go: carrylessMultiplyWidenLo
   asm: VPMULL
   hiHalfAsm: VPMULL2
   in:
-  - go: Uint64x2
-  - go: Uint64x2
+  - go: $t
+    base: uint
+  - go: $t
+    base: uint
   out:
-  - go: Uint64x2
+  - go: $u
+    base: uint
