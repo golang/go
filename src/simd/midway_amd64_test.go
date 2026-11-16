@@ -22,9 +22,10 @@ func TestAMD64WithoutFMA(t *testing.T) {
 	if archsimd.X86.FMA() {
 		t.Skip("FMA is guaranteed by GOAMD64")
 	}
-	size, allFeatureSize, arch := archMaxVectorSize()
-	_, emulated, _ := configure(size, allFeatureSize, arch, "")
-	if !emulated {
-		t.Fatal("hardware SIMD selected without FMA")
+	// Without FMA, no GODEBUG=simd setting selects hardware SIMD.
+	for _, gosimd := range []string{"", "1", "128", "256", "512"} {
+		if _, emulated := configure(archMaxVectorSize(), gosimd); !emulated {
+			t.Errorf("hardware SIMD selected without FMA with GODEBUG=simd=%s", gosimd)
+		}
 	}
 }

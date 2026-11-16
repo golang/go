@@ -13,6 +13,8 @@ func archHasHwClmul(size int) bool {
 	return false
 }
 
-func archMaxVectorSize() (size, allFeatureSize int, arch string) {
-	return 128, 128, "wasm"
+// archMaxVectorSize returns the bit size of the largest vectors the CPU
+// supports.
+func archMaxVectorSize() (size int) {
+	return 128
 }

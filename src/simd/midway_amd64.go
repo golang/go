@@ -25,8 +25,10 @@ func archHasHwClmul(size int) bool {
 	return false
 }
 
-func archMaxVectorSize() (size, allFeatureSize int, arch string) {
-	arch = "amd64"
+// archMaxVectorSize returns the bit size of the largest vectors the CPU
+// supports, or 0 if it doesn't support the SIMD features this package
+// requires.
+func archMaxVectorSize() (size int) {
 	if archsimd.X86.AVX() {
 		size = 128
 	}
@@ -36,13 +38,10 @@ func archMaxVectorSize() (size, allFeatureSize int, arch string) {
 	if archsimd.X86.AVX512() {
 		size = 512
 	}
-	// Carryless multiply doesn't limit the vector size: archsimd emulates
-	// it on CPUs that lack it at their widest vector size.
-	allFeatureSize = size
-	// MulAdd requires FMA even for 128-bit vectors. Fall back to
-	// emulation by default if it is unavailable.
+	// MulAdd requires FMA even for 128-bit vectors, so without FMA the
+	// package can't use SIMD hardware at all.
 	if !archsimd.X86.FMA() {
-		allFeatureSize = 0
+		size = 0
 	}
-	return
+	return size
 }

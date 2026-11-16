@@ -12,89 +12,83 @@ import (
 	"testing"
 )
 
-func TestConfigurePlainPlus(t *testing.T) {
+func TestConfigure(t *testing.T) {
 	for _, test := range []struct {
-		name           string
-		actualMax      int
-		allFeatureSize int
-		wantHWClmul    bool
-		arch           string
+		hwMax        int
+		value        string
+		wantSize     int
+		wantEmulated bool
 	}{
-		{"missing feature", 256, 128, false, "amd64"},
-		{"all features", 256, 256, true, "amd64"},
+		// By default, use the largest vectors the hardware supports.
+		{128, "", 128, false},
+		{256, "", 256, false},
+		{512, "", 512, false},
+		// 1 is the same as the default.
+		{128, "1", 128, false},
+		{256, "1", 256, false},
+		{512, "1", 512, false},
+		// 0 requests emulation.
+		{128, "0", 128, true},
+		{512, "0", 128, true},
+		// A size requests that size.
+		{128, "128", 128, false},
+		{256, "128", 128, false},
+		{256, "256", 256, false},
+		{512, "128", 128, false},
+		{512, "256", 256, false},
+		{512, "512", 512, false},
+		// Without SIMD hardware, always emulate.
+		{0, "", 128, true},
+		{0, "1", 128, true},
+		{0, "0", 128, true},
+		{0, "256", 128, true},
 	} {
-		t.Run(test.name, func(t *testing.T) {
-			max, emulated, hwClmul := configure(test.actualMax, test.allFeatureSize, test.arch, "+")
-			if max != test.actualMax || emulated || hwClmul != test.wantHWClmul {
-				t.Errorf("configure(%d, %d, +) = (%d, %t, %t), want (%d, false, %t)",
-					test.actualMax, test.allFeatureSize, max, emulated, hwClmul,
-					test.actualMax, test.wantHWClmul)
-			}
-
-			maxWithSize, emulatedWithSize, hwClmulWithSize := configure(test.actualMax, test.allFeatureSize, test.arch, "+256")
-			if max != maxWithSize || emulated != emulatedWithSize || hwClmul != hwClmulWithSize {
-				t.Errorf("plain + result (%d, %t, %t) differs from +256 result (%d, %t, %t)",
-					max, emulated, hwClmul, maxWithSize, emulatedWithSize, hwClmulWithSize)
-			}
-		})
-	}
-}
-
-func TestConfigureDefault(t *testing.T) {
-	max, emulated, hwClmul := configure(256, 256, "amd64", "")
-	if max != 256 || emulated || !hwClmul {
-		t.Errorf("configure(256, 256, empty) = (%d, %t, %t), want (256, false, true)",
-			max, emulated, hwClmul)
-	}
-}
-
-func TestConfigureOne(t *testing.T) {
-	for _, test := range []struct {
-		actualMax      int
-		allFeatureSize int
-	}{
-		{128, 0},
-		{128, 128},
-		{256, 128},
-		{256, 256},
-		{512, 256},
-		{512, 512},
-	} {
-		gotMax, gotEmulated, gotHWClmul := configure(test.actualMax, test.allFeatureSize, "amd64", "1")
-		wantMax, wantEmulated, wantHWClmul := configure(test.actualMax, test.allFeatureSize, "amd64", "+")
-		if gotMax != wantMax || gotEmulated != wantEmulated || gotHWClmul != wantHWClmul {
-			t.Errorf("configure(%d, %d, 1) = (%d, %t, %t), want plain + result (%d, %t, %t)",
-				test.actualMax, test.allFeatureSize, gotMax, gotEmulated, gotHWClmul,
-				wantMax, wantEmulated, wantHWClmul)
+		size, emulated := configure(test.hwMax, test.value)
+		if size != test.wantSize || emulated != test.wantEmulated {
+			t.Errorf("configure(%d, %q) = (%d, %t), want (%d, %t)",
+				test.hwMax, test.value, size, emulated, test.wantSize, test.wantEmulated)
 		}
 	}
 }
 
-func TestConfigureInvalidSize(t *testing.T) {
+func TestConfigureInvalid(t *testing.T) {
 	for _, test := range []struct {
+		hwMax int
 		value string
 		want  string
 	}{
-		{"17", "not a supported vector size"},
-		{"64", "not a supported vector size"},
-		{"127", "not a supported vector size"},
-		{"129", "not a supported vector size"},
-		{"200", "not a supported vector size"},
-		{"+17", "not a supported vector size"},
-		{"-1", "is negative"},
-		{"abc", "could not parse"},
+		{512, "17", "is not supported"},
+		{512, "64", "is not supported"},
+		{512, "127", "is not supported"},
+		{512, "129", "is not supported"},
+		{512, "200", "is not supported"},
+		{512, "1024", "is not supported"},
+		{512, "-1", "is not supported"},
+		{512, "abc", "is not supported"},
+		{512, "0128", "is not supported"},
+		// The "+" prefix used to override a limit on the vector size
+		// that no longer exists.
+		{512, "+", "is not supported"},
+		{512, "+256", "is not supported"},
+		{512, "+17", "is not supported"},
+		// "@" used to select a variant, which no longer exist.
+		{128, "@nclm", "is not supported"},
+		// Sizes the hardware doesn't support.
+		{128, "256", "is larger than the SIMD length (128)"},
+		{128, "512", "is larger than the SIMD length (128)"},
+		{256, "512", "is larger than the SIMD length (256)"},
 	} {
-		t.Run(test.value, func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d/%s", test.hwMax, test.value), func(t *testing.T) {
 			defer func() {
 				got := recover()
 				if got == nil {
-					t.Fatalf("configure(512, 512, %q) did not panic", test.value)
+					t.Fatalf("configure(%d, %q) did not panic", test.hwMax, test.value)
 				}
 				if message := fmt.Sprint(got); !strings.Contains(message, test.want) {
-					t.Fatalf("configure(512, 512, %q) panicked with %q, want substring %q", test.value, message, test.want)
+					t.Fatalf("configure(%d, %q) panicked with %q, want substring %q", test.hwMax, test.value, message, test.want)
 				}
 			}()
-			configure(512, 512, "amd64", test.value)
+			configure(test.hwMax, test.value)
 		})
 	}
 }
