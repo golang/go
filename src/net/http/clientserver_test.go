@@ -1400,7 +1400,7 @@ func testTransportGCRequest(t *testing.T, mode testMode, body bool) {
 }
 
 func TestTransportRejectsInvalidHeaders(t *testing.T) {
-	runSynctest(t, testTransportRejectsInvalidHeaders, http3SkippedMode)
+	runSynctest(t, testTransportRejectsInvalidHeaders)
 }
 func testTransportRejectsInvalidHeaders(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {

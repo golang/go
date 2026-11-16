@@ -2148,7 +2148,7 @@ func testTransportPersistConnContextLeakMaxConnsPerHost(t *testing.T, mode testM
 
 // This used to crash; https://golang.org/issue/3266
 func TestTransportIdleConnCrash(t *testing.T) {
-	runSynctest(t, testTransportIdleConnCrash, http3SkippedMode)
+	runSynctest(t, testTransportIdleConnCrash)
 }
 func testTransportIdleConnCrash(t *testing.T, mode testMode) {
 	var tr *Transport
@@ -3132,7 +3132,7 @@ func testTransportLimits1xxResponses(t *testing.T, mode testMode) {
 }
 
 func TestTransportDoesNotLimitDelivered1xxResponses(t *testing.T) {
-	runSynctest(t, testTransportDoesNotLimitDelivered1xxResponses, http3SkippedMode)
+	runSynctest(t, testTransportDoesNotLimitDelivered1xxResponses)
 }
 func testTransportDoesNotLimitDelivered1xxResponses(t *testing.T, mode testMode) {
 	if mode == http2Mode {
