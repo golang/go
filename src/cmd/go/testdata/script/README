@@ -407,6 +407,8 @@ The available conditions are:
 	the local 'git' version is recent enough to support sha256 object/commit hashes
 [go-builder]
 	GO_BUILDER_NAME is non-empty
+[host-goamd64:*]
+	host supports GOAMD64=<suffix>
 [link]
 	testenv.HasLink()
 [msan]

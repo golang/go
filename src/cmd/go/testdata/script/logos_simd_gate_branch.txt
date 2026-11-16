@@ -31,8 +31,8 @@ stdout '^sums ok$'
 
 env GODEBUG=
 env GOAMD64=v3
-logos run .
-stdout '^sums ok$'
+[host-goamd64:v3] logos run .
+[host-goamd64:v3] stdout '^sums ok$'
 
 -- m/go.mod --
 module example.com/gatebranch

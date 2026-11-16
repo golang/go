@@ -18,8 +18,8 @@ stdout 'AVX512'
 go tool objdump -s '^main\.sumI16$' $WORK/exe3
 stdout 'VMOVDQU16\.Z'
 stdout 'AVX512'
-logos run .
-stdout '^sums ok$'
+[host-goamd64:v3] logos run .
+[host-goamd64:v3] stdout '^sums ok$'
 
 env GOAMD64=v4
 logos build -o $WORK/exe4 .
@@ -29,8 +29,8 @@ stdout 'VMOVDQU8\.Z'
 go tool objdump -s '^main\.sumI16$' $WORK/exe4
 stdout 'VMOVDQU16\.Z'
 ! stdout 'AVX512'
-logos run .
-stdout '^sums ok$'
+[host-goamd64:v4] logos run .
+[host-goamd64:v4] stdout '^sums ok$'
 
 -- m/go.mod --
 module example.com/gateavx512

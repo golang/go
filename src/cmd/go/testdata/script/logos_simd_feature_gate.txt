@@ -11,6 +11,8 @@ env GOEXPERIMENT=simd
 env GOAMD64=v1
 
 cd m
+# Keep the objdump checker executable when the target level exceeds the host.
+go build -o $WORK/checkorder ./checkorder
 logos run .
 stdout '^sums ok$'
 cp stdout $WORK/on.txt
@@ -20,11 +22,11 @@ stdout 'host probe ok baseline'
 logos build -o $WORK/exe .
 go tool objdump -s '^main\.sumI32$' $WORK/exe
 cp stdout $WORK/sumI32.txt
-exec go run ./checkorder $WORK/sumI32.txt avx2
+exec $WORK/checkorder $WORK/sumI32.txt avx2
 stdout '^order ok avx2$'
 go tool objdump -s '^main\.sumU8$' $WORK/exe
 cp stdout $WORK/sumU8.txt
-exec go run ./checkorder $WORK/sumU8.txt avx512
+exec $WORK/checkorder $WORK/sumU8.txt avx512
 stdout '^order ok avx512$'
 
 env GODEBUG=cpu.avx2=off
@@ -45,17 +47,17 @@ stdout 'host probe ok avx512off'
 # masked tail load, while sumU8 keeps its AVX512 check in order.
 env GOAMD64=v3
 env GODEBUG=
-logos run .
-stdout '^avx2 true$'
-stdout '^sums ok$'
+[host-goamd64:v3] logos run .
+[host-goamd64:v3] stdout '^avx2 true$'
+[host-goamd64:v3] stdout '^sums ok$'
 logos build -o $WORK/exe-v3 .
 go tool objdump -s '^main\.sumI32$' $WORK/exe-v3
 cp stdout $WORK/sumI32-v3.txt
-exec go run ./checkorder $WORK/sumI32-v3.txt noavx2
+exec $WORK/checkorder $WORK/sumI32-v3.txt noavx2
 stdout '^order ok noavx2$'
 go tool objdump -s '^main\.sumU8$' $WORK/exe-v3
 cp stdout $WORK/sumU8-v3.txt
-exec go run ./checkorder $WORK/sumU8-v3.txt avx512
+exec $WORK/checkorder $WORK/sumU8-v3.txt avx512
 stdout '^order ok avx512$'
 
 # GOAMD64=v4 guarantees AVX512 as well: sumU8 drops its check too.
@@ -63,7 +65,7 @@ env GOAMD64=v4
 logos build -o $WORK/exe-v4 .
 go tool objdump -s '^main\.sumU8$' $WORK/exe-v4
 cp stdout $WORK/sumU8-v4.txt
-exec go run ./checkorder $WORK/sumU8-v4.txt noavx512
+exec $WORK/checkorder $WORK/sumU8-v4.txt noavx512
 stdout '^order ok noavx512$'
 env GOAMD64=v1
 
