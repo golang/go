@@ -733,13 +733,16 @@ func (x Uint64x2) ConcatOdd(y Uint64x2) (z Uint64x2)
 /* ConcatWindow */
 
 // ConcatWindow returns a window of the concatenation of x (low indices) and y
-// (high indices) that starts at element start and is the length of x.
+// (high indices) that starts at element start and is the length of x, padded
+// with zeros if the window extends past the end of the concatenation.
 //
 //	xy = concat(x, y)
-//	z[i] = xy[start+i]
+//	z[i] = xy[start+i]  // start+i < 2*n
+//	z[i] = 0            // otherwise
 //
-// start must be less than 16. Otherwise, the result is
-// unspecified (and ConcatWindow may panic).
+// where n = 16.
+//
+// start must be at most 2*n. Otherwise, ConcatWindow panics.
 //
 // Performance: A non-constant value of start may result in significantly worse performance for this operation.
 //

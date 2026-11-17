@@ -2191,13 +2191,16 @@ func (x Int16x16) ConcatSubPairsSaturatedGrouped(y Int16x16) (z Int16x16)
 /* ConcatWindow */
 
 // ConcatWindow returns a window of the concatenation of x (low indices) and y
-// (high indices) that starts at element start and is the length of x.
+// (high indices) that starts at element start and is the length of x, padded
+// with zeros if the window extends past the end of the concatenation.
 //
 //	xy = concat(x, y)
-//	z[i] = xy[start+i]
+//	z[i] = xy[start+i]  // start+i < 2*n
+//	z[i] = 0            // otherwise
 //
-// start must be less than 16. Otherwise, the result is
-// unspecified (and ConcatWindow may panic).
+// where n = 16.
+//
+// start must be at most 2*n. Otherwise, ConcatWindow panics.
 //
 // Performance: A non-constant value of start may result in significantly worse performance for this operation.
 //
@@ -2207,8 +2210,8 @@ func (x Uint8x16) ConcatWindow(y Uint8x16, start uint8) (z Uint8x16)
 /* ConcatWindowGrouped */
 
 // ConcatWindowGrouped divides x, y, and z into groups of 128 bits and performs
-// [ConcatWindow] on each group. start must be less than the number of elements
-// in a group.
+// [ConcatWindow] on each group. start must be at most twice the number of
+// elements in a 128-bit group; otherwise, ConcatWindowGrouped panics.
 //
 // Performance: A non-constant value of start may result in significantly worse performance for this operation.
 //
@@ -2216,8 +2219,8 @@ func (x Uint8x16) ConcatWindow(y Uint8x16, start uint8) (z Uint8x16)
 func (x Uint8x32) ConcatWindowGrouped(y Uint8x32, start uint8) (z Uint8x32)
 
 // ConcatWindowGrouped divides x, y, and z into groups of 128 bits and performs
-// [ConcatWindow] on each group. start must be less than the number of elements
-// in a group.
+// [ConcatWindow] on each group. start must be at most twice the number of
+// elements in a 128-bit group; otherwise, ConcatWindowGrouped panics.
 //
 // Performance: A non-constant value of start may result in significantly worse performance for this operation.
 //
