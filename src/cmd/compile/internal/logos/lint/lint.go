@@ -6,9 +6,9 @@
 //
 // The compiler calls Run once per package, after the first types2 pass and
 // before lowering, so rules see loGo/s syntax and types. A package is
-// KindLgo or KindGo: a loGo/s package runs every rule on every compile; a
-// Go package runs only the rules with Rule.Go set, and only under logos
-// lint (the compile flag -logos.lintonly). Severities come from the
+// KindLgo or KindGo: a loGo/s package runs its rules on every compile,
+// except rules with Rule.LintOnly set; a Go package runs only the rules
+// with Rule.Go set, and only under logos lint. Severities come from the
 // logos.toml [lints] table, which the go command writes as JSON and passes
 // as -logos.cfg (see ParsePolicy). Run applies four resolution steps to a
 // finding of rule R:
@@ -77,7 +77,7 @@ func Run(in *Input) []Result {
 	for _, r := range registry {
 		out = append(out, runRule(in, policy, dirs, r)...)
 	}
-	out = append(out, dirs.forbidden(policy, in.Kind)...)
+	out = append(out, dirs.forbidden(policy, in)...)
 	slices.SortStableFunc(out, compareResults)
 	return out
 }
@@ -86,7 +86,7 @@ func Run(in *Input) []Result {
 // its Check and those an earlier phase reported under its ID.
 func runRule(in *Input, policy *Policy, dirs *directives, r Rule) []Result {
 	level := policy.Level(r.ID, in.Kind)
-	if level == Allow || (in.Kind == KindGo && !r.Go) {
+	if level == Allow || !r.active(in) {
 		return nil
 	}
 	diags := in.reportedBy(r.ID)

@@ -34,8 +34,10 @@ stderr '\[capabilities::unauthorized_unsafe\].*example\.com/edep'
 cd ../..
 
 cd f/main
-! logos build ./...
-stderr 'ERROR \[capabilities::unauthorized_unsafe\]: Transitive dependency ''example\.com/fdep'' imports ''unsafe'''
+logos build -o $WORK/bin/f$GOEXE ./cmd
+! stderr '\[capabilities::unauthorized_unsafe\]'
+exec $WORK/bin/f$GOEXE
+stdout '^42$'
 cd ../..
 
 cd g/main

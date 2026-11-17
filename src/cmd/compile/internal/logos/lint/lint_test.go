@@ -240,12 +240,13 @@ func check(t testing.TB, kind Kind, name, src string) *Input {
 		t.Fatalf("check %s: %v", name, errs)
 	}
 	return &Input{
-		Pkg:      pkg,
-		Info:     info,
-		Files:    []*syntax.File{file},
-		Sources:  map[*syntax.File][]byte{file: []byte(src)},
-		Kind:     kind,
-		Reported: reported,
+		Pkg:         pkg,
+		Info:        info,
+		Files:       []*syntax.File{file},
+		Sources:     map[*syntax.File][]byte{file: []byte(src)},
+		Kind:        kind,
+		LintCommand: true,
+		Reported:    reported,
 	}
 }
 

@@ -1,0 +1,127 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd g
+cp ../clean.src p.go
+logos build .
+! stderr .
+logos lint .
+! stderr .
+cp ../bad.src p.go
+logos build .
+! stderr .
+! logos lint --json-diagnostics .
+stderr -count=2 '"rule_id":"correctness::arena_pointer_escape"'
+stderr -count=2 '"severity":"deny"'
+! stderr '(?m)^[^{\r\n]'
+! logos lint .
+stderr -count=2 '\[correctness::arena_pointer_escape\]'
+cp ../suppressed.src p.go
+logos lint .
+! stderr .
+cp ../forbid.toml logos.toml
+logos build .
+! stderr .
+logos lint .
+! stderr .
+cd ..
+
+cd l
+cp ../clean.src p.lgo
+logos build .
+! stderr .
+logos lint .
+! stderr .
+cp ../bad.src p.lgo
+logos build .
+! stderr .
+! logos lint --json-diagnostics .
+stderr -count=2 '"rule_id":"correctness::arena_pointer_escape"'
+stderr -count=2 '"severity":"deny"'
+! stderr '(?m)^[^{\r\n]'
+! logos lint .
+stderr -count=2 '\[correctness::arena_pointer_escape\]'
+cp ../suppressed.src p.lgo
+logos lint .
+! stderr .
+cp ../forbid.toml logos.toml
+logos build .
+! stderr .
+! logos lint .
+stderr -count=2 '\[correctness::arena_pointer_escape\]'
+stderr -count=2 '\[correctness::allow_forbidden_rule\]'
+
+-- g/go.mod --
+module example.com/g
+
+go 1.27
+-- l/go.mod --
+module example.com/l
+
+go 1.27
+-- forbid.toml --
+[lints]
+correctness = "forbid"
+-- clean.src --
+package p
+
+import "unsafe"
+
+func Allocated() unsafe.Pointer { return unsafe.Pointer(new(int)) }
+
+func Local() unsafe.Pointer {
+	var value int
+	return unsafe.Pointer(&value)
+}
+
+func Address() uintptr {
+	var value int
+	address := uintptr(unsafe.Pointer(&value))
+	return address
+}
+
+func Offset(p unsafe.Pointer, offset uintptr) unsafe.Pointer {
+	return unsafe.Pointer(offset + uintptr(p))
+}
+
+func SliceView(b []byte) []byte {
+	return unsafe.Slice(unsafe.SliceData(b), len(b))
+}
+
+func StringView(s string) string {
+	return unsafe.String(unsafe.StringData(s), len(s))
+}
+-- bad.src --
+package p
+
+import (
+	"reflect"
+	"unsafe"
+)
+
+func Restored(p unsafe.Pointer) unsafe.Pointer {
+	address := uintptr(p)
+	return unsafe.Pointer(address)
+}
+
+func Header() *reflect.SliceHeader {
+	return &reflect.SliceHeader{}
+}
+-- suppressed.src --
+package p
+
+import (
+	"reflect"
+	"unsafe"
+)
+
+//logos:allow(correctness::arena_pointer_escape)
+func Restored(p unsafe.Pointer) unsafe.Pointer {
+	address := uintptr(p)
+	return unsafe.Pointer(address)
+}
+
+//logos:allow(correctness::arena_pointer_escape)
+func Header() *reflect.SliceHeader {
+	return &reflect.SliceHeader{}
+}

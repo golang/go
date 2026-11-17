@@ -79,7 +79,7 @@ These rules apply to both Go and `.lgo` lint targets, and diagnostics report ori
 | `correctness::nil_to_nonnil` | Use `T?` for a pointer that may be nil. |
 | `correctness::nonnil_uninitialized` | Give the pointer a value at declaration. |
 | `correctness::result_before_error_check` | Read the result only after the error check. |
-| `correctness::arena_pointer_escape` | Do not store arena-allocated pointers into heap-visible locations. |
+| `correctness::arena_pointer_escape` | Keep tracked pointers instead of reconstructing saved integer addresses. Use `unsafe.Slice` or `unsafe.String` instead of fabricating reflection headers. This check runs only under `logos lint`. |
 | `correctness::infinite_recursion` | Terminate recursive call chains with a base case. |
 | `correctness::typed_nil_return` | Return untyped nil instead of typed nil pointer to interface result. |
 | `correctness::unclosed_io_closer` | Close io.Closer resources with defer close. |

@@ -27,6 +27,8 @@ type Rule struct {
 	// Go is true for the language-neutral rules, which logos lint also
 	// runs on Go packages. Every other rule runs on loGo/s packages only.
 	Go bool
+	// LintOnly restricts the rule to logos lint, including cgo lint builds.
+	LintOnly bool
 	// Check inspects Pass.Files and reports findings through Pass. A nil
 	// Check marks a rule enforced under the same ID by an earlier phase,
 	// such as types2: the entry still carries its group and scope, so
@@ -90,12 +92,18 @@ type Input struct {
 	Sources map[*syntax.File][]byte
 	// Kind selects the rules that run and the Go cap.
 	Kind Kind
+	// LintCommand distinguishes logos lint from an ordinary build.
+	LintCommand bool
 	// Policy is the resolved logos.toml [lints] table; nil means defaults.
 	Policy *Policy
 	// Reported holds the findings of the rules that a phase before Run
 	// enforces, such as the warnings of types2; Run resolves them with the
 	// findings of the rules.
 	Reported []Reported
+}
+
+func (r Rule) active(in *Input) bool {
+	return (in.Kind != KindGo || r.Go) && (!r.LintOnly || in.LintCommand)
 }
 
 // Pass is the view of one package a rule's Check receives.

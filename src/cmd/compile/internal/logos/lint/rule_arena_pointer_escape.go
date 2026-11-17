@@ -9,423 +9,122 @@ import (
 	"cmd/compile/internal/types2"
 )
 
-// arenaPointerEscape is correctness::arena_pointer_escape (SPEC Sec 1.2).
 var arenaPointerEscape = Rule{
-	ID:    "correctness::arena_pointer_escape",
-	Group: Correctness,
-	Go:    true,
-	Check: checkArenaPointerEscape,
+	ID:       "correctness::arena_pointer_escape",
+	Group:    Correctness,
+	Default:  Deny,
+	Go:       true,
+	LintOnly: true,
+	Check:    checkUnsafePointer,
 }
 
-type addrKind uint8
-
-const (
-	addrNone addrKind = iota
-	addrUintptr
-	addrPointer
-)
-
-func checkArenaPointerEscape(pass *Pass) {
+func checkUnsafePointer(pass *Pass) {
 	for _, f := range pass.Files {
-		if !importsUnsafe(f) {
-			continue
-		}
 		syntax.Inspect(f, func(n syntax.Node) bool {
 			switch n := n.(type) {
-			case *syntax.FuncDecl:
-				if n.Body != nil {
-					newFrameScan(pass, f, n).run()
+			case *syntax.CallExpr:
+				if convertsType(n) && hasBasicKind(TypeOf(n), types2.UnsafePointer) &&
+					hasBasicKind(TypeOf(n.ArgList[0]), types2.Uintptr) && !safeUintptr(pass, n.ArgList[0]) {
+					pass.Report(Diagnostic{
+						Pos:     syntax.StartPos(n),
+						End:     pass.CallEnd(f, n),
+						Message: "possible misuse of unsafe.Pointer: uintptr does not keep its referent alive; convert directly in the same expression",
+					})
 				}
-				return false
-			case *syntax.FuncLit:
-				newFrameScan(pass, f, n).run()
-				return false
+			case *syntax.Operation:
+				if n.Y != nil {
+					break
+				}
+				var typ types2.Type
+				switch n.Op {
+				case syntax.Mul:
+					typ = TypeOf(n)
+				case syntax.And:
+					typ = TypeOf(n.X)
+				}
+				if name := reflectTypeName(typ); name == "SliceHeader" || name == "StringHeader" {
+					pass.Reportf(n, "possible misuse of reflect.%s value; keep a pointer to the original slice or string", name)
+				}
 			}
 			return true
 		})
 	}
 }
 
-func importsUnsafe(f *syntax.File) bool {
-	for _, d := range f.DeclList {
-		if imp, ok := d.(*syntax.ImportDecl); ok && imp.Path != nil && imp.Path.Value == `"unsafe"` {
-			return true
-		}
-	}
-	return false
-}
-
-type frameScan struct {
-	pass     *Pass
-	file     *syntax.File
-	root     syntax.Node
-	results  map[*types2.Var]bool
-	pointers map[*types2.Var]pointerState
-	addrs    map[*types2.Var]*syntax.CallExpr
-}
-
-type pointerState uint8
-
-const (
-	pointerUnset pointerState = iota
-	pointerFrame
-	pointerOther
-)
-
-func newFrameScan(pass *Pass, f *syntax.File, root syntax.Node) *frameScan {
-	return &frameScan{
-		pass:     pass,
-		file:     f,
-		root:     root,
-		results:  make(map[*types2.Var]bool),
-		pointers: make(map[*types2.Var]pointerState),
-		addrs:    make(map[*types2.Var]*syntax.CallExpr),
-	}
-}
-
-func (s *frameScan) run() {
-	syntax.Inspect(s.root, s.collect)
-	syntax.Inspect(s.root, s.scan)
-}
-
-func (s *frameScan) collect(n syntax.Node) bool {
-	switch n := n.(type) {
-	case *syntax.FuncType:
-		s.noteSignature(n)
-	case *syntax.AssignStmt:
-		s.noteAssign(n)
-	case *syntax.VarDecl:
-		s.noteDecl(n)
-	case *syntax.RangeClause:
-		s.noteTargets(exprList(n.Lhs), nil)
-	}
-	return true
-}
-
-func (s *frameScan) noteSignature(ft *syntax.FuncType) {
-	for _, f := range ft.ParamList {
-		if v := s.fieldVar(f); v != nil {
-			s.pointers[v] = pointerOther
-		}
-	}
-	for _, f := range ft.ResultList {
-		if v := s.fieldVar(f); v != nil {
-			s.results[v] = true
-		}
-	}
-}
-
-func (s *frameScan) fieldVar(f *syntax.Field) *types2.Var {
-	if f.Name == nil {
-		return nil
-	}
-	return localVar(s.pass, f.Name)
-}
-
-func (s *frameScan) noteAssign(a *syntax.AssignStmt) {
-	lhs, rhs, ok := assignPairs(a)
-	if !ok {
-		s.noteTargets(exprList(a.Lhs), nil)
-		return
-	}
-	s.noteTargets(lhs, rhs)
-}
-
-func (s *frameScan) noteDecl(d *syntax.VarDecl) {
-	if lhs, rhs, ok := declPairs(d); ok {
-		s.noteTargets(lhs, rhs)
-	}
-}
-
-func (s *frameScan) noteTargets(targets, values []syntax.Expr) {
-	for i, t := range targets {
-		id, ok := syntax.Unparen(t).(*syntax.Name)
-		if !ok {
-			continue
-		}
-		v := localVar(s.pass, id)
-		if v == nil {
-			continue
-		}
-		delete(s.addrs, v)
-		if len(values) != len(targets) || s.pointers[v] == pointerOther {
-			s.pointers[v] = pointerOther
-			continue
-		}
-		if kind, call := s.carry(values[i]); kind == addrPointer {
-			s.pointers[v] = pointerFrame
-			s.addrs[v] = call
-		} else if s.directAddr(values[i]) {
-			s.pointers[v] = pointerFrame
-		} else {
-			s.pointers[v] = pointerOther
-		}
-	}
-}
-
-func (s *frameScan) scan(n syntax.Node) bool {
-	switch n := n.(type) {
-	case *syntax.AssignStmt:
-		s.assign(n)
-	case *syntax.VarDecl:
-		s.declare(n)
-	case *syntax.ReturnStmt:
-		s.leaveAll(n.Results)
-	case *syntax.SendStmt:
-		s.leave(n.Value)
-	case *syntax.LambdaExpr:
-		if body, ok := n.Body.(syntax.Expr); ok {
-			s.leave(body)
-		}
-	}
-	return true
-}
-
-func (s *frameScan) assign(a *syntax.AssignStmt) {
-	if a.Rhs == nil {
-		return
-	}
-	lhs, rhs := exprList(a.Lhs), exprList(a.Rhs)
-	if len(lhs) != len(rhs) {
-		return
-	}
-	for i, l := range lhs {
-		s.store(l, rhs[i])
-	}
-}
-
-func (s *frameScan) declare(d *syntax.VarDecl) {
-	names, values, ok := declPairs(d)
-	if !ok || len(values) != len(names) {
-		return
-	}
-	for i, name := range names {
-		s.store(name, values[i])
-	}
-}
-
-func (s *frameScan) store(lhs, v syntax.Expr) {
-	switch {
-	case isBlank(lhs):
-	case s.withinFrame(lhs):
-		s.keep(v)
-	default:
-		s.leave(v)
-	}
-}
-
-func (s *frameScan) withinFrame(lhs syntax.Expr) bool {
-	v := s.frameRoot(lhs)
-	return v != nil && !s.results[v]
-}
-
-func (s *frameScan) leaveAll(results syntax.Expr) {
-	if results == nil {
-		return
-	}
-	for _, r := range exprList(results) {
-		s.leave(r)
-	}
-}
-
-func (s *frameScan) leave(x syntax.Expr) {
-	if kind, call := s.carry(x); kind != addrNone {
-		s.report(kind, call)
-	}
-}
-
-func (s *frameScan) keep(x syntax.Expr) {
-	if kind, call := s.carry(x); kind == addrUintptr {
-		s.report(kind, call)
-	}
-}
-
-func (s *frameScan) report(kind addrKind, call *syntax.CallExpr) {
-	text := syntax.String(call)
-	msg := text + " keeps the address of a frame object as an integer the compiler cannot track; keep an unsafe.Pointer"
-	if kind == addrPointer {
-		msg = text + " takes the address of a frame object and stores it outside its frame"
-	}
-	s.pass.Report(Diagnostic{
-		Pos:     syntax.StartPos(call),
-		End:     s.pass.CallEnd(s.file, call),
-		Message: msg,
-	})
-}
-
-func (s *frameScan) carry(x syntax.Expr) (addrKind, *syntax.CallExpr) {
-	switch x := syntax.Unparen(x).(type) {
-	case *syntax.Name:
-		if v := localVar(s.pass, x); v != nil && s.pointers[v] == pointerFrame {
-			if call := s.addrs[v]; call != nil {
-				return addrPointer, call
+func safeUintptr(pass *Pass, expr syntax.Expr) bool {
+	switch x := syntax.Unparen(expr).(type) {
+	case *syntax.SelectorExpr:
+		if x.Sel.Value == "Data" {
+			if ptr, ok := underOrNil(TypeOf(x.X)).(*types2.Pointer); ok {
+				name := reflectTypeName(ptr.Elem())
+				if name == "SliceHeader" || name == "StringHeader" {
+					return true
+				}
 			}
 		}
-		return addrNone, nil
 	case *syntax.CallExpr:
-		return s.carryConversion(x)
-	case *syntax.Operation:
-		return s.carryArith(x)
-	case *syntax.CompositeLit:
-		return s.carryElems(x)
-	}
-	return addrNone, nil
-}
-
-func (s *frameScan) carryConversion(c *syntax.CallExpr) (addrKind, *syntax.CallExpr) {
-	if !convertsType(c) {
-		return addrNone, nil
-	}
-	t := TypeOf(c)
-	switch {
-	case hasBasicKind(t, types2.UnsafePointer):
-		return s.toPointer(c)
-	case hasBasicKind(t, types2.Uintptr):
-		return s.toUintptr(c)
-	}
-	return addrNone, nil
-}
-
-func (s *frameScan) toPointer(c *syntax.CallExpr) (addrKind, *syntax.CallExpr) {
-	arg := c.ArgList[0]
-	if s.frameAddr(arg) {
-		return addrPointer, c
-	}
-	if kind, _ := s.carry(arg); kind != addrNone {
-		return addrPointer, c
-	}
-	return addrNone, nil
-}
-
-func (s *frameScan) toUintptr(c *syntax.CallExpr) (addrKind, *syntax.CallExpr) {
-	if kind, _ := s.carry(c.ArgList[0]); kind != addrNone {
-		return addrUintptr, c
-	}
-	return addrNone, nil
-}
-
-func (s *frameScan) carryArith(op *syntax.Operation) (addrKind, *syntax.CallExpr) {
-	if op.Y == nil || !isArithmetic(op.Op) {
-		return addrNone, nil
-	}
-	if op.Op == syntax.Sub {
-		if base := s.immediateFieldBase(op.X); base != nil && base == s.immediateFieldBase(op.Y) {
-			return addrNone, nil
+		fn := calleeFunc(pass, x)
+		if fn != nil && fn.Pkg() != nil && fn.Pkg().Path() == "reflect" &&
+			(fn.Name() == "Pointer" || fn.Name() == "UnsafeAddr") {
+			sig := fn.Type().(*types2.Signature)
+			if recv := sig.Recv(); recv != nil && reflectTypeName(recv.Type()) == "Value" {
+				return true
+			}
 		}
 	}
-	if kind, call := s.carry(op.X); kind != addrNone {
-		return kind, call
-	}
-	return s.carry(op.Y)
+	return pointerArithmetic(expr) == arithmeticPointer
 }
 
-// immediateFieldBase recognizes uintptr(unsafe.Pointer(&local.field)).
-// Subtracting two such addresses of the same struct cancels its base. Keep
-// the proof free of calls, indexing, indirection, and saved integer addresses.
-func (s *frameScan) immediateFieldBase(x syntax.Expr) *types2.Var {
-	integer, ok := syntax.Unparen(x).(*syntax.CallExpr)
-	if !ok || !convertsType(integer) || !hasBasicKind(TypeOf(integer), types2.Uintptr) {
-		return nil
-	}
-	pointer, ok := syntax.Unparen(integer.ArgList[0]).(*syntax.CallExpr)
-	if !ok || !convertsType(pointer) || !hasBasicKind(TypeOf(pointer), types2.UnsafePointer) {
-		return nil
-	}
-	address, ok := syntax.Unparen(pointer.ArgList[0]).(*syntax.Operation)
-	if !ok || address.Op != syntax.And || address.Y != nil {
-		return nil
-	}
-	field, ok := syntax.Unparen(address.X).(*syntax.SelectorExpr)
-	if !ok {
-		return nil
-	}
-	selection := s.pass.Info.Selections[field]
-	if selection == nil || selection.Kind() != types2.FieldVal || selection.Indirect() || len(selection.Index()) != 1 {
-		return nil
-	}
-	name, ok := syntax.Unparen(field.X).(*syntax.Name)
-	if !ok {
-		return nil
-	}
-	if _, ok := underOrNil(TypeOf(name)).(*types2.Struct); !ok {
-		return nil
-	}
-	return localVar(s.pass, name)
-}
+type arithmeticKind uint8
 
-func (s *frameScan) carryElems(lit *syntax.CompositeLit) (addrKind, *syntax.CallExpr) {
-	for _, e := range lit.ElemList {
-		if kv, ok := e.(*syntax.KeyValueExpr); ok {
-			e = kv.Value
-		}
-		if kind, call := s.carry(e); kind != addrNone {
-			return kind, call
-		}
-	}
-	return addrNone, nil
-}
+const (
+	arithmeticScalar arithmeticKind = iota
+	arithmeticPointer
+	arithmeticInvalid
+)
 
-func (s *frameScan) frameAddr(x syntax.Expr) bool {
-	if s.directAddr(x) {
-		return true
-	}
-	id, ok := syntax.Unparen(x).(*syntax.Name)
-	if !ok {
-		return false
-	}
-	v := localVar(s.pass, id)
-	return v != nil && s.pointers[v] == pointerFrame
-}
-
-func (s *frameScan) directAddr(x syntax.Expr) bool {
-	switch x := syntax.Unparen(x).(type) {
-	case *syntax.Operation:
-		if x.Y != nil || x.Op != syntax.And {
-			return false
-		}
-		if _, ok := syntax.Unparen(x.X).(*syntax.CompositeLit); ok {
-			return true
-		}
-		return s.frameRoot(x.X) != nil
+func pointerArithmetic(expr syntax.Expr) arithmeticKind {
+	switch x := syntax.Unparen(expr).(type) {
 	case *syntax.CallExpr:
-		return callsBuiltin(s.pass, x, "new")
-	}
-	return false
-}
-
-func (s *frameScan) frameRoot(x syntax.Expr) *types2.Var {
-	switch x := syntax.Unparen(x).(type) {
-	case *syntax.Name:
-		return localVar(s.pass, x)
-	case *syntax.SelectorExpr:
-		if sel := s.pass.Info.Selections[x]; sel != nil && sel.Kind() == types2.FieldVal && !sel.Indirect() {
-			return s.frameRoot(x.X)
+		if convertsType(x) {
+			if hasBasicKind(TypeOf(x), types2.Uintptr) && hasBasicKind(TypeOf(x.ArgList[0]), types2.UnsafePointer) {
+				return arithmeticPointer
+			}
+			if pointerArithmetic(x.ArgList[0]) != arithmeticScalar {
+				return arithmeticInvalid
+			}
 		}
-	case *syntax.IndexExpr:
-		if _, ok := underOrNil(TypeOf(x.X)).(*types2.Array); ok {
-			return s.frameRoot(x.X)
+	case *syntax.Operation:
+		left := pointerArithmetic(x.X)
+		right := arithmeticScalar
+		if x.Y != nil {
+			right = pointerArithmetic(x.Y)
 		}
+		if left == arithmeticScalar && right == arithmeticScalar {
+			return arithmeticScalar
+		}
+		if x.Y != nil {
+			switch x.Op {
+			case syntax.Add:
+				if left == arithmeticScalar && right == arithmeticPointer {
+					return arithmeticPointer
+				}
+				fallthrough
+			case syntax.Sub, syntax.AndNot:
+				if left == arithmeticPointer && right == arithmeticScalar {
+					return arithmeticPointer
+				}
+			}
+		}
+		return arithmeticInvalid
 	}
-	return nil
+	return arithmeticScalar
 }
 
-func underOrNil(t types2.Type) types2.Type {
-	if t == nil {
-		return nil
+func reflectTypeName(typ types2.Type) string {
+	named, ok := types2.Unalias(typ).(*types2.Named)
+	if !ok || named.Obj().Pkg() == nil || named.Obj().Pkg().Path() != "reflect" {
+		return ""
 	}
-	return t.Underlying()
-}
-
-func hasBasicKind(t types2.Type, k types2.BasicKind) bool {
-	b, ok := underOrNil(t).(*types2.Basic)
-	return ok && b.Kind() == k
-}
-
-func isArithmetic(op syntax.Operator) bool {
-	switch op {
-	case syntax.Add, syntax.Sub, syntax.Mul, syntax.Div, syntax.Rem,
-		syntax.And, syntax.Or, syntax.Xor, syntax.AndNot, syntax.Shl, syntax.Shr:
-		return true
-	}
-	return false
+	return named.Obj().Name()
 }

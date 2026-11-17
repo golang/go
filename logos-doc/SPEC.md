@@ -190,7 +190,12 @@ A default build MUST stay silent for the pedantic group [T-102].
 `logos lint ./...` MUST report findings without building binaries [T-102].
 The compiler MUST enforce `correctness::nil_deref_unproven` as `forbid` against use of a nullable value before its guard [T-102].
 The compiler MUST enforce `correctness::typed_nil_return` as `forbid` against return of a concrete nil pointer as an interface or `error` result without a dominating nil check [T-102].
-The compiler MUST enforce `correctness::arena_pointer_escape` as `forbid` against storage of a stack or arena pointer outside its frame through an unsafe address [T-102].
+`logos lint` MUST enforce `correctness::arena_pointer_escape` at default `deny` on Go and loGo/s packages against invalid `uintptr` reconstruction as `unsafe.Pointer` and standalone `reflect.SliceHeader` or `reflect.StringHeader` value misuse [T-102][R-U1].
+The rule ID MUST remain unchanged so existing `//logos:allow(correctness::arena_pointer_escape)` directives keep their meaning [T-102].
+The check MUST resolve conversions and reflection types by their checked types. It MUST accept immediate pointer-to-integer-to-pointer conversions with valid `+`, `-`, or `&^` arithmetic, including an offset on either side of `+`, and immediate conversions of the real `reflect.Value.Pointer` or `reflect.Value.UnsafeAddr` result [T-102].
+Returning or storing an `unsafe.Pointer`, or using a converted address only as an integer, MUST NOT trigger this rule [T-102].
+The rule MUST run only under `logos lint`, with the normal severity, directive, and JSON diagnostic policy. `logos build` MUST NOT run this rule [T-102].
+This bounded syntax and type check MUST NOT claim a general proof of pointer bounds, object lifetime, or arbitrary unsafe behavior. Intrinsic const-view, region, and type checks MUST remain enforced during builds [T-102][T-201][T-301.1].
 The compiler MUST enforce `correctness::defer_erases_errdefer_state` as `forbid` against assignment of nil to the error result inside a plain deferred literal in a function with `errdefer` [T-102].
 The compiler MUST enforce `correctness::infinite_recursion` as `forbid` against a function whose every path from entry calls itself with identical arguments before any return [T-102].
 A panic call used to prove termination or narrow an option MUST resolve to the predeclared builtin, including through parentheses and in functions with no results. A user function or variable named `panic` MUST NOT establish that proof [T-102][T-202].
@@ -1636,7 +1641,8 @@ A true value sets `GOEXPERIMENT=logosarena`, which enables implicit placement an
 
 The capabilities table holds four severity keys and four allowlist keys. [T-Sec8]
 transitive_reflect is a string with default "warn". [T-Sec8]
-transitive_exec, transitive_net, and transitive_unsafe are strings with default "deny". [T-Sec8]
+transitive_exec and transitive_net are strings with default "deny". [T-Sec8]
+transitive_unsafe is a string with default "allow". An omitted file, table, or key MUST permit dependencies that import unsafe or hold assembly files or precompiled objects. [T-Sec8][T-Sec11]
 transitive_unsafe and transitive_unsafe_allowlist also govern a package that holds assembly files or a precompiled object, see Sec 11.1. [T-Sec8][T-Sec11]
 Each severity key MUST be one of "deny", "warn", or "allow". [T-Sec8]
 reflect_allowlist, transitive_exec_allowlist, transitive_net_allowlist, and transitive_unsafe_allowlist are string arrays of path globs with default empty. [T-Sec8]
@@ -1776,7 +1782,7 @@ A raw syscall can open a socket or start a process, so each raw entry point coun
 A raw entry point blames only the dependency frame that calls it directly: a chain that reaches it through a standard-library wrapper such as os.ReadFile or syscall.Kill blames nobody, because the other sinks classify the standard library's own system calls, and the golang.org/x/sys/unix entry points blame their callers, not the package that defines them. [T-Sec11]
 Taking the address of a raw entry point is a direct use: a function value of the entry, whether a local, a package variable, an argument, or a method value of a Call method, blames the nearest dependency frame that reaches the value, and only a standard-library frame between that frame and the entry stops the blame. [T-Sec11]
 A direct reference to runtime.cgocall in a dependency, such as one made by //go:linkname, is reported with capabilities::unauthorized_cgo like a cgo wrapper, and the cgo policy authorizes it only for a package that uses cgo; a chain that reaches runtime.cgocall through a standard-library frame blames nobody. [T-Sec11]
-Packages that import unsafe or hold assembly files are found by walking the cmd/go load graph and reading every file of each non-exempt package in it, including the files that the current configuration excludes. [T-Sec11]
+When transitive_unsafe is explicitly "deny" or "warn", packages that import unsafe or hold assembly files are found by walking the cmd/go load graph and reading every file of each non-exempt package in it, including the files that the current configuration excludes. The default "allow" skips this audit. [T-Sec11]
 A file excluded by a //go:build line, a custom tag, or a GOOS or GOARCH file-name suffix still counts: its imports are imports of the package, and an excluded assembly file marks the package. [T-Sec11]
 Every build tag counts as both set and unset except ignore, and a file with a malformed constraint is excluded, which is the file set that go mod tidy reads. [T-Sec11]
 The bound is one read of the import header of each excluded Go file of each non-exempt package in the current load graph. The audit does not follow an excluded file's import into a package that the current load graph lacks, and the sink reachability audit stays per linked configuration, so a program for another GOOS or GOARCH is audited by linking it for that target. [T-Sec11]

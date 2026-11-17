@@ -190,17 +190,20 @@ func (ds *directives) silences(rule string, pos syntax.Pos) bool {
 }
 
 // forbidden returns one allow_forbidden_rule result for each directive
-// that names a rule reporting at forbid in a package of the given kind,
+// that names an active rule reporting at forbid in the given input,
 // plus one allow_malformed result for each malformed directive. Both are
 // directive misuses that Run reports without consulting silencing, so
 // neither can silently disable a rule. Resolve (failed-check packages)
 // reports neither: it applies only severity and silencing to the findings
 // of earlier phases.
-func (ds *directives) forbidden(policy *Policy, kind Kind) []Result {
+func (ds *directives) forbidden(policy *Policy, in *Input) []Result {
 	var out []Result
 	for _, list := range ds.byFile {
 		for _, d := range list {
-			if policy.Level(d.rule, kind) != Forbid {
+			if rule, ok := Lookup(d.rule); ok && !rule.active(in) {
+				continue
+			}
+			if policy.Level(d.rule, in.Kind) != Forbid {
 				continue
 			}
 			out = append(out, Result{

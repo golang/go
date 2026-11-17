@@ -74,11 +74,12 @@ func logosLintHook(m *posMap, files []*syntax.File, pkg *types2.Package, info *t
 	}
 	lintable, sources := logosLintInputs(files)
 	in := &lint.Input{
-		Pkg:     pkg,
-		Info:    info,
-		Files:   lintable,
-		Sources: sources,
-		Kind:    kind,
+		Pkg:         pkg,
+		Info:        info,
+		Files:       lintable,
+		Sources:     sources,
+		Kind:        kind,
+		LintCommand: base.LogosLintEnabled(),
 	}
 	var results []lint.Result
 	var zeroAlloc bool

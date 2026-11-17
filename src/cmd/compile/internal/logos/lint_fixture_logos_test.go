@@ -169,13 +169,14 @@ func lintCheckFixture(t *testing.T, kind lint.Kind, name, src string) ([]lint.Re
 		t.Fatalf("enabling policy rejected: %v", err)
 	}
 	return lint.Run(&lint.Input{
-		Pkg:      pkg,
-		Info:     info,
-		Files:    []*syntax.File{file},
-		Sources:  map[*syntax.File][]byte{file: []byte(src)},
-		Kind:     kind,
-		Policy:   policy,
-		Reported: reported,
+		Pkg:         pkg,
+		Info:        info,
+		Files:       []*syntax.File{file},
+		Sources:     map[*syntax.File][]byte{file: []byte(src)},
+		Kind:        kind,
+		LintCommand: true,
+		Policy:      policy,
+		Reported:    reported,
 	}), tagged
 }
 

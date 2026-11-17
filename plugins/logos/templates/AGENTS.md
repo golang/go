@@ -8,6 +8,7 @@ This repository holds LoGOs code (`.lgo` files) built with the `logos` toolchain
 - Imports cross kinds in both directions: a `.lgo` package may import any Go package, and a Go package may import any LoGOs package.
 - Build with `logos`; plain `go` ignores `.lgo` files.
 - `logos.toml` sits next to `go.mod` in the main module; unknown tables or keys are errors. Plain `go` reads no `logos.toml`; command-line `-O` and `--pedantic` override the file.
+- `unsafe` and assembly-bearing dependencies are allowed by default. Set `[capabilities] transitive_unsafe = "deny"` or `"warn"` to audit their presence. `logos lint` checks risky pointer reconstruction and reflection headers through `correctness::arena_pointer_escape`; ordinary pointer escapes and integer-only addresses pass.
 
 Rule IDs the compiler reports:
 

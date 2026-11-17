@@ -1,0 +1,47 @@
+[!cgo] skip
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd g
+cp ../p.src p.go
+logos build .
+! stderr .
+! logos lint --json-diagnostics .
+stderr -count=1 '"rule_id":"correctness::arena_pointer_escape"'
+stderr '"file":"[^"]*p\.go"'
+! stderr '(?m)^[^{\r\n]'
+cd ..
+
+cd l
+cp ../p.src p.lgo
+logos build .
+! stderr .
+! logos lint --json-diagnostics .
+stderr -count=1 '"rule_id":"correctness::arena_pointer_escape"'
+stderr '"file":"[^"]*p\.lgo"'
+! stderr '(?m)^[^{\r\n]'
+
+-- g/go.mod --
+module example.com/g
+
+go 1.27
+-- l/go.mod --
+module example.com/l
+
+go 1.27
+-- l/logos.toml --
+[build]
+cgo = "allow"
+-- p.src --
+package p
+
+import "C"
+import "unsafe"
+
+var _ C.int
+
+func Restored(p unsafe.Pointer) unsafe.Pointer {
+	address := uintptr(p)
+	return unsafe.Pointer(address)
+}

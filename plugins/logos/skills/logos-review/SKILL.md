@@ -77,7 +77,7 @@ Proven by `test/logos/run/interp.lgo`, `test/logos/run/addr_lit.lgo`, `test/logo
 
 Proven by `src/cmd/go/testdata/script/logos_cap_unsafe.txt` and `src/cmd/go/testdata/script/logos_cap_exec.txt`.
 
-25. Capabilities: `logos.toml` `[capabilities]` severities are `deny`, `warn`, or `allow`; every dependency that reaches a protected sink (reflect constructors, process spawn, socket creation, `unsafe`, cgo entry) is allowlisted or removed. Findings: `capabilities::unauthorized_unsafe`, `capabilities::unauthorized_exec`, `capabilities::unauthorized_reflect`, `capabilities::unauthorized_net`, `capabilities::unauthorized_cgo`.
+25. Capabilities: enforce the configured `logos.toml` `[capabilities]` severity and allowlists. `transitive_unsafe` defaults to `allow`, including assembly-bearing dependencies; importing `unsafe` alone is not a finding under this default. An explicit unsafe `deny` or `warn` policy still audits dependencies. Other protected sinks keep their configured policy. Findings: `capabilities::unauthorized_unsafe`, `capabilities::unauthorized_exec`, `capabilities::unauthorized_reflect`, `capabilities::unauthorized_net`, `capabilities::unauthorized_cgo`.
 
 ## Checklist (M8)
 
@@ -92,6 +92,8 @@ Proven by `src/cmd/go/testdata/script/logos_lint_config.txt`, `src/cmd/go/testda
 27. Lints: code adheres to deny and forbid lint rules across correctness, concurrency, slop, complexity, perf, suspicious, and portability groups. Suppressions require explicit `//logos:allow(<rule>)` directives on the statement or declaration. Findings: `slop::err_chain_reset`, `slop::discarded_error`, `complexity::cognitive_overflow`, `perf::large_backing_array_pin`, `perf::time_after_in_loop`, `correctness::arena_pointer_escape`, `correctness::infinite_recursion`, `correctness::typed_nil_return`, `correctness::unclosed_io_closer`, `correctness::unbounded_channel_op`, `correctness::defer_erases_errdefer_state`, `correctness::allow_forbidden_rule`, `suspicious::side_effect_before_sort`, `portability::serialized_unsized_int`, `pedantic::exhaustive_union_switch`.
 
 Native rules also cover locks, layouts, and unsafe use: `concurrency::unguarded_access`, `concurrency::nonatomic_access`, `concurrency::lock_requirement_unmet`, `correctness::layout_constant_mismatch`, `portability::atomic_plain_int64`, `correctness::linkname_mismatch`, `pedantic::unsafe_outside_unsafe_file`, `correctness::withlock_leak`.
+
+`correctness::arena_pointer_escape` runs only under `logos lint` at default `deny`. Review integer-to-pointer reconstruction and standalone reflection headers. Do not reject normal tracked pointer escapes or addresses used only as integers. A clean result does not prove allocation bounds or lifetime safety.
 
 ## Checklist (M7)
 
@@ -171,7 +173,7 @@ Proven by `test/logos/run/json_marshal_test.lgo`, `test/logos/run/json_binary_te
 | `concurrency::unsupervised_goroutine` | Move bare go f() statements into a go group block. |
 | `concurrency::reentrant_withlock_deadlock` | Do not call WithLock on the same Locked receiver inside its callback. |
 | `concurrency::concurrent_multiword_race` | Protect multi-word structures across goroutines with mutex or atomic pointer. |
-| `correctness::arena_pointer_escape` | Do not store arena-allocated pointers into heap-visible locations. |
+| `correctness::arena_pointer_escape` | Keep tracked pointers instead of reconstructing saved integer addresses. Use `unsafe.Slice` or `unsafe.String` instead of fabricating reflection headers. This check runs only under `logos lint`. |
 | `correctness::infinite_recursion` | Terminate recursive call chains with a base case. |
 | `correctness::typed_nil_return` | Return untyped nil instead of typed nil pointer to interface result. |
 | `correctness::unclosed_io_closer` | Close io.Closer resources with defer close. |

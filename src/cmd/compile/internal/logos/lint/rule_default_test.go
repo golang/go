@@ -9,6 +9,7 @@ import "testing"
 // denyInForbidGroup are the rules SPEC Sec 1.2 sets at deny although their
 // group, correctness, defaults to forbid.
 var denyInForbidGroup = []string{
+	"correctness::arena_pointer_escape",
 	"correctness::array_index_out_of_bounds",
 	"correctness::unclosed_io_closer",
 	"correctness::unbounded_channel_op",
@@ -26,9 +27,6 @@ func TestRuleDefaultSeverity(t *testing.T) {
 		if got := d.Level(id, KindGo); got != Deny {
 			t.Errorf("default Level(%s, go) = %v, want deny", id, got)
 		}
-	}
-	if got := d.Level("correctness::arena_pointer_escape", KindLgo); got != Forbid {
-		t.Errorf("default Level(arena_pointer_escape, lgo) = %v, want forbid", got)
 	}
 	p, err := ParsePolicy([]byte(`{"version":1,"groups":{"correctness":"forbid"}}`))
 	if err != nil {
@@ -57,7 +55,7 @@ var specSeverity = map[string]Severity{
 	"correctness::region_escape":               Forbid,
 	"correctness::nil_deref_unproven":          Forbid,
 	"correctness::typed_nil_return":            Forbid,
-	"correctness::arena_pointer_escape":        Forbid,
+	"correctness::arena_pointer_escape":        Deny,
 	"correctness::defer_erases_errdefer_state": Forbid,
 	"correctness::infinite_recursion":          Forbid,
 	"correctness::withlock_leak":               Deny,

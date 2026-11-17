@@ -1,0 +1,74 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd mainlgo
+logos build -o $WORK/app$GOEXE .
+! stderr 'capabilities::'
+cp ../missing_table.toml logos.toml
+logos build -o $WORK/app$GOEXE .
+! stderr 'capabilities::'
+cp ../missing_key.toml logos.toml
+logos build -o $WORK/app$GOEXE .
+! stderr 'capabilities::'
+cp ../deny.toml logos.toml
+! logos build -o $WORK/app$GOEXE .
+stderr 'capabilities::unauthorized_unsafe'
+stderr 'capabilities::unclassified_assembly'
+cd ..
+
+cd maingo
+logos build -o $WORK/app$GOEXE .
+! stderr 'capabilities::'
+cp ../missing_table.toml logos.toml
+logos build -o $WORK/app$GOEXE .
+! stderr 'capabilities::'
+cp ../missing_key.toml logos.toml
+logos build -o $WORK/app$GOEXE .
+! stderr 'capabilities::'
+cp ../deny.toml logos.toml
+! logos build -o $WORK/app$GOEXE .
+stderr 'capabilities::unauthorized_unsafe'
+stderr 'capabilities::unclassified_assembly'
+cd ..
+
+-- missing_table.toml --
+[build]
+opt_level = "O2"
+-- missing_key.toml --
+[capabilities]
+transitive_net = "warn"
+-- deny.toml --
+[capabilities]
+transitive_unsafe = "deny"
+-- mainlgo/go.mod --
+module example.com/main
+
+go 1.27
+
+require example.com/dep v0.0.0
+replace example.com/dep => ../dep
+-- mainlgo/main.lgo --
+package main
+import _ "example.com/dep"
+func main() {}
+-- maingo/go.mod --
+module example.com/main
+
+go 1.27
+
+require example.com/dep v0.0.0
+replace example.com/dep => ../dep
+-- maingo/main.go --
+package main
+import _ "example.com/dep"
+func main() {}
+-- dep/go.mod --
+module example.com/dep
+
+go 1.27
+-- dep/dep.go --
+package dep
+import "unsafe"
+var _ = unsafe.Sizeof(0)
+-- dep/empty.s --
+// An assembly source is sufficient to exercise the capability policy.

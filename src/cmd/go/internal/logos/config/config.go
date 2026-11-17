@@ -66,7 +66,7 @@ type Build struct {
 // Capabilities holds the [capabilities] table (M12): severity keys, each one
 // of "deny", "warn", or "allow", and allowlist keys holding path globs.
 // Severities default to deny, except TransitiveReflect which defaults to
-// warn; allowlists default to empty.
+// warn and TransitiveUnsafe which defaults to allow; allowlists default to empty.
 type Capabilities struct {
 	// TransitiveReflect guards transitive reachability of reflect sinks.
 	TransitiveReflect string
@@ -98,7 +98,7 @@ func defaultFile() *File {
 			TransitiveReflect: "warn",
 			TransitiveExec:    "deny",
 			TransitiveNet:     "deny",
-			TransitiveUnsafe:  "deny",
+			TransitiveUnsafe:  "allow",
 		},
 	}
 }
@@ -171,7 +171,7 @@ func writeCapabilities(b *strings.Builder, c Capabilities) {
 	emit := c.TransitiveReflect != "" && c.TransitiveReflect != "warn" ||
 		c.TransitiveExec != "" && c.TransitiveExec != "deny" ||
 		c.TransitiveNet != "" && c.TransitiveNet != "deny" ||
-		c.TransitiveUnsafe != "" && c.TransitiveUnsafe != "deny" ||
+		c.TransitiveUnsafe != "" && c.TransitiveUnsafe != "allow" ||
 		c.ReflectAllowlist != nil || c.TransitiveExecAllowlist != nil ||
 		c.TransitiveNetAllowlist != nil || c.TransitiveUnsafeAllowlist != nil
 	if !emit {
@@ -181,7 +181,7 @@ func writeCapabilities(b *strings.Builder, c Capabilities) {
 	sev("transitive_reflect", c.TransitiveReflect, "warn")
 	sev("transitive_exec", c.TransitiveExec, "deny")
 	sev("transitive_net", c.TransitiveNet, "deny")
-	sev("transitive_unsafe", c.TransitiveUnsafe, "deny")
+	sev("transitive_unsafe", c.TransitiveUnsafe, "allow")
 	writeStringArray(b, "reflect_allowlist", c.ReflectAllowlist)
 	writeStringArray(b, "transitive_exec_allowlist", c.TransitiveExecAllowlist)
 	writeStringArray(b, "transitive_net_allowlist", c.TransitiveNetAllowlist)

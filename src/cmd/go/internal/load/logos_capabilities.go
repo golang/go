@@ -56,7 +56,7 @@ func checkLogosCapabilities(ld *modload.Loader, all []*Package) {
 		return
 	}
 	cf, err := logosConfig(ld)
-	sev := capabilities.Deny
+	sev := capabilities.Allow
 	var allowlist []string
 	if err == nil && cf != nil {
 		sev = capabilities.Severity(cf.Capabilities.TransitiveUnsafe)

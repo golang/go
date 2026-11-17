@@ -583,6 +583,14 @@ logos lint [build flags] [--pedantic] [--json-diagnostics] [packages]
   - `--pedantic`: raise the pedantic group from `allow` to `warn`. A stricter `logos.toml` severity stays in force. `--pedantic=false` turns the group off.
   - `--json-diagnostics`: emit one JSON object per diagnostic line on standard error.
 
+#### Unsafe code
+
+`logos build` allows `unsafe` imports and dependencies that contain assembly by default. To audit dependency use explicitly, set `transitive_unsafe = "deny"` or `"warn"` in the `[capabilities]` table of `logos.toml`.
+
+`logos lint` checks risky pointer conversions in both `.go` and `.lgo` packages. The existing `correctness::arena_pointer_escape` rule now reports saved integer addresses converted back to pointers and standalone reflection-header misuse. Ordinary pointer returns and addresses used only as integers pass. Supported immediate pointer arithmetic and immediate reflection conversions also pass.
+
+The rule defaults to `deny` and runs only under `logos lint`. Use `//logos:allow(correctness::arena_pointer_escape)` above a statement or declaration for a reviewed exception. A clean result does not prove allocation bounds or lifetime safety; see [the unsafe lint contract](logos-doc/SPEC.md#12-rfc-102-compiler-linter-and-rule-set).
+
 ## Language
 
 One row per shipped form, with milestone IDs from [logos-doc/IMPLEMENTATION.md](logos-doc/IMPLEMENTATION.md). The full language definition is in [logos-doc/SPEC.md](logos-doc/SPEC.md).

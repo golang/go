@@ -66,6 +66,18 @@ func convertsType(call *syntax.CallExpr) bool {
 	return len(call.ArgList) == 1 && call.Fun.GetTypeInfo().IsType()
 }
 
+func underOrNil(t types2.Type) types2.Type {
+	if t == nil {
+		return nil
+	}
+	return t.Underlying()
+}
+
+func hasBasicKind(t types2.Type, kind types2.BasicKind) bool {
+	basic, ok := underOrNil(t).(*types2.Basic)
+	return ok && basic.Kind() == kind
+}
+
 // localVar returns the variable id names or declares, when it is a
 // variable of a function: not a field and not a package-level variable.
 func localVar(pass *Pass, id *syntax.Name) *types2.Var {

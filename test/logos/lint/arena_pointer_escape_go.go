@@ -2,302 +2,93 @@
 
 package p
 
-import "unsafe"
-
-type holder struct {
-	p unsafe.Pointer
-	u uintptr
-}
-
-type addr uintptr
-
-var (
-	globalU uintptr
-	globalA addr
-	globalP unsafe.Pointer
-	globalH holder
+import (
+	"reflect"
+	"unsafe"
 )
 
-func use(uintptr) {}
+type address uintptr
+type rawPointer = unsafe.Pointer
 
-func keepU() {
+func allocatedPointer() unsafe.Pointer {
+	return unsafe.Pointer(new(int))
+}
+
+func localPointer() unsafe.Pointer {
 	var x int
-	globalU = uintptr(unsafe.Pointer(&x)) // ERROR "arena_pointer_escape"
+	return unsafe.Pointer(&x)
 }
 
-func localU() {
+func integerAddress() uintptr {
 	var x int
-	a := uintptr(unsafe.Pointer(&x)) // ERROR "arena_pointer_escape"
-	_ = a
+	u := uintptr(unsafe.Pointer(&x))
+	return u
 }
 
-func retU() uintptr {
-	var x int
-	return uintptr(unsafe.Pointer(&x)) // ERROR "arena_pointer_escape"
+func immediate(p unsafe.Pointer, offset uintptr) unsafe.Pointer {
+	return unsafe.Pointer(uintptr(p) + offset)
 }
 
-func arithU() {
-	var x int
-	a := uintptr(unsafe.Pointer(&x)) + 8 // ERROR "arena_pointer_escape"
-	_ = a
+func offsetFirst(p unsafe.Pointer, offset uintptr) unsafe.Pointer {
+	return unsafe.Pointer(offset + uintptr(p))
 }
 
-func maskU() {
-	var x int
-	globalU = uintptr(unsafe.Pointer(&x)) &^ 7 // ERROR "arena_pointer_escape"
+func masked(p unsafe.Pointer) unsafe.Pointer {
+	return unsafe.Pointer(uintptr(p) &^ 7)
 }
 
-func litU() {
-	var x int
-	h := holder{u: uintptr(unsafe.Pointer(&x))} // ERROR "arena_pointer_escape"
-	_ = h
+func savedAddress(p unsafe.Pointer) unsafe.Pointer {
+	u := uintptr(p)
+	return unsafe.Pointer(u) // ERROR "arena_pointer_escape"
 }
 
-func fieldU() {
-	var h holder
-	var x int
-	h.u = uintptr(unsafe.Pointer(&x)) // ERROR "arena_pointer_escape"
-	_ = h
+func arbitraryAddress(u uintptr) unsafe.Pointer {
+	return unsafe.Pointer(u) // ERROR "arena_pointer_escape"
 }
 
-func arrayElemU() {
-	var arr [4]int
-	globalU = uintptr(unsafe.Pointer(&arr[2])) // ERROR "arena_pointer_escape"
+func aliasAddress(u address) rawPointer {
+	return rawPointer(u) // ERROR "arena_pointer_escape"
 }
 
-func structFieldU() {
-	var s holder
-	globalU = uintptr(unsafe.Pointer(&s.u)) // ERROR "arena_pointer_escape"
+func twoPointers(p, q unsafe.Pointer) unsafe.Pointer {
+	return unsafe.Pointer(uintptr(p) + uintptr(q)) // ERROR "arena_pointer_escape"
 }
 
-func newU() {
-	globalU = uintptr(unsafe.Pointer(new(int))) // ERROR "arena_pointer_escape"
+func hiddenPointer(p, q unsafe.Pointer) unsafe.Pointer {
+	return unsafe.Pointer(uintptr(p) + uintptr(uint64(uintptr(q)))) // ERROR "arena_pointer_escape"
 }
 
-func litAddrU() {
-	globalU = uintptr(unsafe.Pointer(&holder{})) // ERROR "arena_pointer_escape"
+func reflection(v reflect.Value) unsafe.Pointer {
+	return unsafe.Pointer(v.Pointer())
 }
 
-func aliasU() {
-	var x int
-	p := &x
-	globalU = uintptr(unsafe.Pointer(p)) // ERROR "arena_pointer_escape"
+func reflectionMethod(v reflect.Value) unsafe.Pointer {
+	return unsafe.Pointer(reflect.Value.UnsafeAddr(v))
 }
 
-func aliasTwiceU() {
-	var x, y int
-	p := &x
-	p = &y
-	globalU = uintptr(unsafe.Pointer(p)) // ERROR "arena_pointer_escape"
+func savedReflection(v reflect.Value) unsafe.Pointer {
+	u := v.Pointer()
+	return unsafe.Pointer(u) // ERROR "arena_pointer_escape"
 }
 
-func paramU(n int) uintptr {
-	return uintptr(unsafe.Pointer(&n)) // ERROR "arena_pointer_escape"
+func fabricatedHeader() *reflect.SliceHeader {
+	return &reflect.SliceHeader{} // ERROR "arena_pointer_escape"
 }
 
-func sendU() {
-	var x int
-	ch := make(chan uintptr, 1)
-	ch <- uintptr(unsafe.Pointer(&x)) // ERROR "arena_pointer_escape"
+func copiedHeader(h *reflect.StringHeader) reflect.StringHeader {
+	return *h // ERROR "arena_pointer_escape"
 }
 
-func declU() {
-	var x int
-	var a = uintptr(unsafe.Pointer(&x)) // ERROR "arena_pointer_escape"
-	_ = a
+func headerValue(h reflect.SliceHeader) unsafe.Pointer {
+	return unsafe.Pointer(h.Data) // ERROR "arena_pointer_escape"
 }
 
-func closureU() {
-	var x int
-	func() {
-		globalU = uintptr(unsafe.Pointer(&x)) // ERROR "arena_pointer_escape"
-	}()
-}
-
-func pairU() {
-	var x int
-	a, b := uintptr(unsafe.Pointer(&x)), 1 // ERROR "arena_pointer_escape"
-	_, _ = a, b
-}
-
-func namedTypeU() {
-	var x int
-	globalA = addr(unsafe.Pointer(&x)) // ERROR "arena_pointer_escape"
-}
-
-func retP() unsafe.Pointer {
-	var x int
-	return unsafe.Pointer(&x) // ERROR "arena_pointer_escape"
-}
-
-func keepP() {
-	var x int
-	globalP = unsafe.Pointer(&x) // ERROR "arena_pointer_escape"
-}
-
-func viaParamP(h *holder) {
-	var x int
-	h.p = unsafe.Pointer(&x) // ERROR "arena_pointer_escape"
-}
-
-func globalFieldP() {
-	var x int
-	globalH.p = unsafe.Pointer(&x) // ERROR "arena_pointer_escape"
-}
-
-func sendP() {
-	var x int
-	ch := make(chan unsafe.Pointer, 1)
-	ch <- unsafe.Pointer(&x) // ERROR "arena_pointer_escape"
-}
-
-func arrayElemP() unsafe.Pointer {
-	var arr [4]int
-	return unsafe.Pointer(&arr[1]) // ERROR "arena_pointer_escape"
-}
-
-func newP() unsafe.Pointer {
-	return unsafe.Pointer(new(int)) // ERROR "arena_pointer_escape"
-}
-
-func litAddrP() unsafe.Pointer {
-	return unsafe.Pointer(&holder{}) // ERROR "arena_pointer_escape"
-}
-
-func aliasP() unsafe.Pointer {
-	var x int
-	p := &x
-	return unsafe.Pointer(p) // ERROR "arena_pointer_escape"
-}
-
-func namedResultP() (r unsafe.Pointer) {
-	var x int
-	r = unsafe.Pointer(&x) // ERROR "arena_pointer_escape"
-	return
-}
-
-func mapStoreP() {
-	var x int
-	m := map[int]unsafe.Pointer{}
-	m[0] = unsafe.Pointer(&x) // ERROR "arena_pointer_escape"
-}
-
-func sliceStoreP() {
-	var x int
-	s := make([]unsafe.Pointer, 1)
-	s[0] = unsafe.Pointer(&x) // ERROR "arena_pointer_escape"
-}
-
-func litRetP() holder {
-	var x int
-	return holder{p: unsafe.Pointer(&x)} // ERROR "arena_pointer_escape"
-}
-
-func restoredP() unsafe.Pointer {
-	var arr [4]int
-	return unsafe.Pointer(uintptr(unsafe.Pointer(&arr[0])) + 8) // ERROR "arena_pointer_escape"
-}
-
-func localP() int {
-	var x int
-	p := unsafe.Pointer(&x)
-	return *(*int)(p)
-}
-
-func fieldInFrameP() {
-	var h holder
-	var x int
-	h.p = unsafe.Pointer(&x)
-	_ = h
-}
-
-func restoredLocalP() int {
-	var arr [4]int
-	p := unsafe.Pointer(uintptr(unsafe.Pointer(&arr[0])) + 8)
-	return *(*int)(p)
-}
-
-func argumentU() {
-	var x int
-	use(uintptr(unsafe.Pointer(&x)))
-}
-
-func compareU() bool {
-	var x int
-	return uintptr(unsafe.Pointer(&x)) == 0
-}
-
-func blankU() {
-	var x int
-	_ = uintptr(unsafe.Pointer(&x))
-}
-
-func paramPointerU(p *int) uintptr {
-	return uintptr(unsafe.Pointer(p))
-}
-
-func globalObjectU() uintptr {
-	return uintptr(unsafe.Pointer(&globalU))
-}
-
-func heapSliceU(b []byte) uintptr {
-	return uintptr(unsafe.Pointer(&b[0]))
-}
-
-func viaPointerU(h *holder) uintptr {
-	return uintptr(unsafe.Pointer(&h.u))
-}
-
-func aliasMixedU(other *int) uintptr {
-	var x int
-	p := &x
-	p = other
-	return uintptr(unsafe.Pointer(p))
-}
-
-func plainPointer() *int {
-	var x int
-	return &x
-}
-
-func aliasRetP() unsafe.Pointer {
-	var x int
-	p := unsafe.Pointer(&x) // ERROR "arena_pointer_escape"
-	return p
-}
-
-func aliasChainP() unsafe.Pointer {
-	var x int
-	p := &x
-	q := unsafe.Pointer(p) // ERROR "arena_pointer_escape"
-	return q
-}
-
-func aliasGlobalP() {
-	var x int
-	p := unsafe.Pointer(&x) // ERROR "arena_pointer_escape"
-	globalP = p
-}
-
-func aliasReassignedP(other unsafe.Pointer) unsafe.Pointer {
-	var x int
-	p := unsafe.Pointer(&x)
-	p = other
-	return p
-}
-
-func aliasLocalP() int {
-	var x int
-	p := unsafe.Pointer(&x)
-	return *(*int)(p)
-}
-
-func constantU() uintptr {
-	return uintptr(5)
+func headerOverlay(s []int) unsafe.Pointer {
+	h := (*reflect.SliceHeader)(unsafe.Pointer(&s))
+	return unsafe.Pointer(h.Data)
 }
 
 //logos:allow(correctness::arena_pointer_escape)
-func allowedU() uintptr {
-	var x int
-	return uintptr(unsafe.Pointer(&x))
+func allowedAddress(u uintptr) unsafe.Pointer {
+	return unsafe.Pointer(u)
 }

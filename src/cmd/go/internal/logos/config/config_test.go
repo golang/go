@@ -158,7 +158,7 @@ var validDocs = []validCase{
 				TransitiveReflect:         "warn",
 				TransitiveExec:            "deny",
 				TransitiveNet:             "deny",
-				TransitiveUnsafe:          "deny",
+				TransitiveUnsafe:          "allow",
 				ReflectAllowlist:          []string{"example.com/rt/**"},
 				TransitiveExecAllowlist:   []string{"example.com/exec"},
 				TransitiveNetAllowlist:    []string{"example.com/net/**"},
@@ -201,7 +201,7 @@ func defaultCapabilities() Capabilities {
 		TransitiveReflect: "warn",
 		TransitiveExec:    "deny",
 		TransitiveNet:     "deny",
-		TransitiveUnsafe:  "deny",
+		TransitiveUnsafe:  "allow",
 	}
 }
 
