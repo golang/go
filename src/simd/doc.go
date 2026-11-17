@@ -96,5 +96,4 @@ See the [Int16s.ToArch] example for converting between [simd] and
 package simd
 
 // BUG(reflection): Calls won't work, and there may be other bugs.
-// BUG(global initialization): SIMD-dependent var initializers don't work.
 // BUG(modified names): Modified names may appear in stack traces and debugging.

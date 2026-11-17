@@ -89,7 +89,7 @@ func (c *DeepCopier) OnName(id *syntax.Name) *syntax.Name {
 }
 
 func (c *DeepCopier) bridgePkgIdent() string {
-	if c.analyzer != nil && c.analyzer.inSimd {
+	if c.analyzer.inSimd {
 		return archPkg
 	}
 	return archPkgAlias
@@ -147,9 +147,6 @@ func (c *DeepCopier) bridgeSimdSelector(pos, selPos syntax.Pos, origName string)
 // (either within package simd or via dot-import `import . "simd"`) into
 // <bridge package>.<size-dependent-symbol>.
 func (c *DeepCopier) OnNameExpr(id *syntax.Name) syntax.Expr {
-	if c.info == nil || c.analyzer == nil {
-		return nil
-	}
 	obj := c.info.Uses[id]
 	if obj == nil {
 		obj = c.info.Defs[id]
@@ -178,9 +175,6 @@ func (c *DeepCopier) OnNameExpr(id *syntax.Name) syntax.Expr {
 // appropriately.  Note that this will not work properly within the simd
 // package because there is no "simd." selection there.
 func (c *DeepCopier) OnSelector(se *syntax.SelectorExpr) syntax.Expr {
-	if c.info == nil {
-		return nil
-	}
 	if x, ok := se.X.(*syntax.Name); ok {
 		obj := c.info.Uses[x]
 		if pkgName, isPkg := obj.(*types2.PkgName); isPkg && pkgName.Imported().Path() == SimdPkg {
@@ -595,6 +589,11 @@ func (c *DeepCopier) CopyFieldList(f []*syntax.Field) []*syntax.Field {
 		newF = append(newF, c.CopyField(field))
 	}
 	return newF
+}
+
+// cloneExpr returns a deep copy of e without applying any SIMD renaming.
+func cloneExpr(e syntax.Expr) syntax.Expr {
+	return (&DeepCopier{info: new(types2.Info), analyzer: new(Analyzer)}).CopyExpr(e)
 }
 
 func (c *DeepCopier) CopyField(f *syntax.Field) *syntax.Field {

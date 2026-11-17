@@ -137,6 +137,12 @@ func (s *Schedule) tryStaticInit(curfunc *ir.Func, n ir.Node) bool {
 		lhs, rhs = n.Lhs, n.Rhs[0]
 	case ir.OCALLFUNC:
 		return false // outlined map init call; no mutations
+	case ir.OIF:
+		// Conditional SIMD init; must execute dynamically.
+		if !s.seenMutation {
+			s.seenMutation = mayModifyPkgVar(n)
+		}
+		return false
 	}
 
 	if !s.seenMutation {

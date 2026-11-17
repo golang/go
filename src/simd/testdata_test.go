@@ -129,6 +129,14 @@ func TestToString(t *testing.T) {
 	common(t, "testdata", "tostring_test.go", "")
 }
 
+func TestChainedImport(t *testing.T) {
+	run(t, "testdata/timport", "./main1", "")
+}
+
+func TestRewrittenInit(t *testing.T) {
+	run(t, "testdata/timport", "./main2", "")
+}
+
 func TestB81614(t *testing.T) {
 	run(t, "testdata/b81614a", "./main", "")
 	run(t, "testdata/b81614b", "./main", "")

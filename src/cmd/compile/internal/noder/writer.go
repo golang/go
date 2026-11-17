@@ -18,6 +18,7 @@ import (
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/midway"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types"
 	"cmd/compile/internal/types2"
@@ -3058,8 +3059,25 @@ func (w *writer) pkgDecl(decl syntax.Decl) {
 		w.pkgObjs(decl.Name)
 
 	case *syntax.VarDecl:
+		names := decl.NameList
+		if buildcfg.Experiment.SIMDStable {
+			// Init proxies exist only to carry specialized initializers through
+			// types2; they are rewritten onto the real variable in the IR reader
+			// and should not allocate storage or appear in package declarations.
+			var filtered []*syntax.Name
+			for _, name := range names {
+				if midway.IsSimdInitProxy(name.Value) {
+					continue
+				}
+				filtered = append(filtered, name)
+			}
+			if len(filtered) == 0 {
+				break
+			}
+			names = filtered
+		}
 		w.Code(declVar)
-		w.pkgObjs(decl.NameList...)
+		w.pkgObjs(names...)
 
 		var embeds []pragmaEmbed
 		if p, ok := decl.Pragma.(*pragmas); ok {

@@ -47,7 +47,14 @@ func (a *Analyzer) Analyze(files []*syntax.File) bool {
 		}
 	}
 
-	// Phase 2: Transitive closure via function bodies
+	// Phase 2: Transitive closure via function bodies.
+	//
+	// SIMD-typed package vars were already marked in Phase 1. Package vars
+	// with non-SIMD types but SIMD-dependent initializers ("boundary" vars,
+	// e.g. `var x = simd.Int32s{} == simd.Int32s{}`) stay a single unrenamed
+	// variable, so reading them does not make callers or other initializers
+	// SIMD-dependent; Phase 3 ensures Analyze still reports true for them and
+	// rewriteTopLevelVarDecl splits/rewrites their initializers directly.
 	changed := true
 	for changed {
 		changed = false
@@ -63,6 +70,9 @@ func (a *Analyzer) Analyze(files []*syntax.File) bool {
 					}
 
 					if a.hasBodyDependency(fn) {
+						if base.Debug.Simd > 0 {
+							base.Warn("%s: %v is simd-dependent (from body)", obj.Pos().String(), obj)
+						}
 						a.isDependentObj[obj] = true
 						changed = true
 					}
@@ -71,7 +81,29 @@ func (a *Analyzer) Analyze(files []*syntax.File) bool {
 		}
 	}
 
-	return len(a.isDependentObj) > 0
+	// Phase 3: Identify package-level variable declarations with SIMD-dependent initializers.
+	if len(a.isDependentObj) > 0 && base.Debug.Simd == 0 {
+		return true
+	}
+	hasDependentInit := false
+	for _, file := range files {
+		for _, decl := range file.DeclList {
+			if d, ok := decl.(*syntax.VarDecl); ok && a.varDeclHasDependentInit(d) {
+				if base.Debug.Simd > 0 {
+					base.Warn("%s: var decl has simd-dependent initializer", d.Pos().String())
+					hasDependentInit = true
+				} else {
+					return true
+				}
+			}
+		}
+	}
+
+	return len(a.isDependentObj) > 0 || hasDependentInit
+}
+
+func (a *Analyzer) varDeclHasDependentInit(d *syntax.VarDecl) bool {
+	return d.Values != nil && (a.hasNodeDependency(d.Type) || a.hasNodeDependency(d.Values))
 }
 
 func (a *Analyzer) hasBodyDependency(fn *syntax.FuncDecl) bool {
@@ -79,9 +111,17 @@ func (a *Analyzer) hasBodyDependency(fn *syntax.FuncDecl) bool {
 		return false
 	}
 	// Walk the body and check identifiers
+	return a.hasNodeDependency(fn.Body)
+}
+
+func (a *Analyzer) hasNodeDependency(node syntax.Node) bool {
+	if node == nil {
+		return false
+	}
+	// Walk the node and check identifiers
 	// This will also note any variable references that are dependent.
 	found := false
-	syntax.Inspect(fn.Body, func(n syntax.Node) bool {
+	syntax.Inspect(node, func(n syntax.Node) bool {
 		if id, ok := n.(*syntax.Name); ok {
 			obj := a.info.Uses[id]
 			if obj == nil {

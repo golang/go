@@ -11,6 +11,7 @@ import (
 	"simd"
 	"simd/testdata/iface"
 	"testing"
+	"unsafe"
 )
 
 func TestIFaceFoo(t *testing.T) {
@@ -125,13 +126,35 @@ func TestIFaceEmbedBar(t *testing.T) {
 	t.Logf("reflect.type is %v", rt)
 }
 
+// TestIFaceVL validates a non-SIMD-typed package variable (iface.VL, type int)
+// initialized via a SIMD-dependent generic call using a SIMD type alias
+// (Generic[MyInt8s](1)). Because VL's type does not depend on SIMD, midway
+// initializes it through per-size init proxies rather than splitting VL into
+// per-size variables; cross-package writes, clean functions (GetVL/SetVL), and
+// SIMD-specialized functions (ReadVLFromSimdFn) must all access the same single
+// variable.
 func TestIFaceVL(t *testing.T) {
-	var v simd.Int8s
+	n8 := (simd.Int8s{}).Len()
+
 	if a, b := iface.VL, iface.Generic[simd.Int8s](1); a != b {
 		t.Errorf("expected iface.VL [%d] == iface.Generic[simd.Int8s](1) [%d], but not true", a, b)
 	}
-	if a, b := iface.VL, v.Len()+1; a != b {
-		t.Errorf("expected iface.VL [%d] == v.Len()+1 [%d], but not true", a, b)
+	if a, b := iface.VL, n8+1; a != b {
+		t.Errorf("expected iface.VL [%d] == (simd.Int8s{}).Len()+1 [%d], but not true", a, b)
+	}
+
+	origVL := iface.VL
+	defer func() { iface.VL = origVL }()
+	iface.VL = 1000
+	if got := iface.GetVL(); got != 1000 {
+		t.Errorf("after VL=1000, GetVL() = %d, want 1000", got)
+	}
+	if got := iface.ReadVLFromSimdFn(); got != 1000+n8 {
+		t.Errorf("after VL=1000, ReadVLFromSimdFn() = %d, want %d", got, 1000+n8)
+	}
+	iface.SetVL(7)
+	if iface.VL != 7 || iface.GetVL() != 7 {
+		t.Errorf("after SetVL(7), VL=%d GetVL()=%d, want 7, 7", iface.VL, iface.GetVL())
 	}
 }
 
@@ -229,7 +252,8 @@ func TestDefinedAndLocalSimdTypes(t *testing.T) {
 
 // TestGenericTypeDependence validates SIMD type-dependence analysis and
 // specialization for generic types, aliases, and functions whose type arguments
-// or type constraints reference SIMD types:
+// or type constraints reference SIMD types, covering both cross-package
+// instantiations and package-level variables initialized inside iface:
 //   - Phantom[simd.Int8s], a zero-sized generic struct whose only SIMD
 //     dependence is its type argument (used inside GetLen, not in struct fields).
 //   - Constrained generic structs (ConstrainedBox, InlineUnionBox), a generic
@@ -248,6 +272,7 @@ func TestGenericTypeDependence(t *testing.T) {
 		t.Errorf("expected Phantom.GetLen() == %d, got %d", n8, got)
 	}
 
+	// Cross-package instantiations of SIMD-constrained generic types and functions.
 	crossBox := iface.ConstrainedBox[simd.Int8s]{V: simd.BroadcastInt8s(5)}
 	if got := crossBox.Len(); got != n8 {
 		t.Errorf("expected cross-pkg ConstrainedBox.Len() == %d, got %d", n8, got)
@@ -273,6 +298,29 @@ func TestGenericTypeDependence(t *testing.T) {
 	}
 	if got := iface.SelfVecAddLen(simd.BroadcastInt8s(1), simd.BroadcastInt8s(2)); got != n8 {
 		t.Errorf("expected cross-pkg SelfVecAddLen == %d, got %d", n8, got)
+	}
+
+	// Package-level variables initialized inside package iface.
+	if got := iface.ConstrainedBoxVar.Len(); got != n8 {
+		t.Errorf("expected ConstrainedBoxVar.Len() == %d, got %d", n8, got)
+	}
+	if len(iface.ConstrainedAliasVar) != 1 || iface.ConstrainedAliasVar[0].Len() != n8 {
+		t.Errorf("unexpected ConstrainedAliasVar len=%d", len(iface.ConstrainedAliasVar))
+	}
+	if iface.ConstrainedBlankVar.Tag != 7 {
+		t.Errorf("expected ConstrainedBlankVar.Tag == 7, got %d", iface.ConstrainedBlankVar.Tag)
+	}
+	if iface.ConstrainedLenVar != n8 {
+		t.Errorf("expected ConstrainedLenVar == %d, got %d", n8, iface.ConstrainedLenVar)
+	}
+	if iface.ConstrainedSizeVar != n16 {
+		t.Errorf("expected ConstrainedSizeVar == %d, got %d", n16, iface.ConstrainedSizeVar)
+	}
+	if got := iface.InlineUnionBoxVar.V.Len(); got != n8 {
+		t.Errorf("expected InlineUnionBoxVar.V.Len() == %d, got %d", n8, got)
+	}
+	if iface.SelfVecAddLenVar != n8 {
+		t.Errorf("expected SelfVecAddLenVar == %d, got %d", n8, iface.SelfVecAddLenVar)
 	}
 }
 
@@ -308,6 +356,236 @@ func TestCleanDispatchersAndDeepCopy(t *testing.T) {
 	}
 	if got := iface.DeepCopyStmts(1); got != 3+2*n8 {
 		t.Errorf("expected DeepCopyStmts(1) == %d, got %d", 3+2*n8, got)
+	}
+}
+
+// TestPackageVarSimdValues validates single package-level variables whose types
+// or initializers involve SIMD values:
+//   - Direct SIMD vector (VBroadcast) and SIMD-field struct (VStruct) variables,
+//     which midway splits into per-size copies (<name>@simd<size>).
+//   - Instantiated generic interface (GenericIfaceVar, HasFoo[VectorC]) and
+//     zero-sized generic struct (PhantomVar, Phantom[simd.Int8s]), whose SIMD
+//     dependence comes solely from their type arguments.
+//   - Non-SIMD-typed variables holding a SIMD-using closure (SimdClosure) or a
+//     boxed SIMD value in a non-SIMD interface (SimdAsHasLen), which remain
+//     single variables initialized via per-size init proxies.
+func TestPackageVarSimdValues(t *testing.T) {
+	n8 := (simd.Int8s{}).Len()
+	s := make([]float32, (simd.Float32s{}).Len())
+
+	iface.VBroadcast.Store(s)
+	if s[0] != 3 {
+		t.Errorf("expected VBroadcast[0] == 3, got %f", s[0])
+	}
+
+	clear(s)
+	iface.VStruct.Data().Store(s)
+	if s[0] != 3 {
+		t.Errorf("expected VStruct.Data()[0] == 3, got %f", s[0])
+	}
+
+	clear(s)
+	iface.GenericIfaceVar.Foo(iface.VC(simd.BroadcastFloat32s(1))).Data().Store(s)
+	if s[0] != 10 {
+		t.Errorf("expected GenericIfaceVar.Foo(1)[0] == 10, got %f", s[0])
+	}
+
+	if got := iface.PhantomVar.GetLen(); got != n8 {
+		t.Errorf("expected PhantomVar.GetLen() == %d, got %d", n8, got)
+	}
+	if got := iface.SimdClosure(); got != n8 {
+		t.Errorf("expected SimdClosure() == %d, got %d", n8, got)
+	}
+	if got := iface.SimdAsHasLen.Len(); got != n8 {
+		t.Errorf("expected SimdAsHasLen.Len() == %d, got %d", n8, got)
+	}
+}
+
+// TestPackageVarChainsAndMultiFile validates transitive package-variable
+// dependency chains, user-defined func init(), and multi-file SIMD rewriting:
+//   - ChainA -> ChainB (via chainFunc) -> ChainC (SIMD init proxy) -> ChainD
+//     (plain constant 5), declared in reverse dependency order.
+//   - UserInitVar, assigned in iface's func init() using both ChainA and a
+//     SIMD-dependent generic call, ensuring user init() runs after SIMD
+//     package-var initializers and is itself dispatched.
+//   - UnrelatedInit, verifying plain non-SIMD package vars remain unaffected.
+//   - ExtraSimdLen and ExtraSimdInit, defined in iface/extra.go (which does not
+//     import "simd"), verifying midway injects its private imports and rewrites
+//     both functions and package-var initializers across all files in a package.
+func TestPackageVarChainsAndMultiFile(t *testing.T) {
+	n8 := (simd.Int8s{}).Len()
+
+	wantC := 5 + n8
+	wantB := wantC * 2
+	wantA := wantB + 10
+	if iface.ChainD != 5 {
+		t.Errorf("expected ChainD == 5, got %d", iface.ChainD)
+	}
+	if iface.ChainC != wantC {
+		t.Errorf("expected ChainC == %d, got %d", wantC, iface.ChainC)
+	}
+	if iface.ChainB != wantB {
+		t.Errorf("expected ChainB == %d, got %d", wantB, iface.ChainB)
+	}
+	if iface.ChainA != wantA {
+		t.Errorf("expected ChainA == %d, got %d", wantA, iface.ChainA)
+	}
+
+	wantUserInit := wantA + n8
+	if iface.UserInitVar != wantUserInit {
+		t.Errorf("expected UserInitVar == %d, got %d", wantUserInit, iface.UserInitVar)
+	}
+	if iface.UnrelatedInit != 99 {
+		t.Errorf("expected UnrelatedInit == 99, got %d", iface.UnrelatedInit)
+	}
+
+	if got := iface.ExtraSimdLen(); got != n8 {
+		t.Errorf("expected ExtraSimdLen() == %d, got %d", n8, got)
+	}
+	if iface.ExtraSimdInit != 2+n8 {
+		t.Errorf("expected ExtraSimdInit == %d, got %d", 2+n8, iface.ExtraSimdInit)
+	}
+}
+
+// TestPackageVarMultiDecl validates midway's rewriting of multi-variable
+// package declarations (both parallel N:N and multi-return N:1 forms):
+//   - Untyped parallel N:N mixing an init-proxied non-SIMD var and a SIMD-typed
+//     var (MultiA, MultiB).
+//   - Explicitly typed parallel N:N with SIMD-dependent types (TypedSimdA,
+//     TypedSimdB) and a blank "_" sibling (_, TypedBlankHasBar), which splits
+//     the declaration and clones the shared type AST.
+//   - Explicitly typed parallel N:N mixing SIMD-dependent and plain initializers
+//     in both orders (MixedHoisted1/MixedUnhoisted2, MixedUnhoisted1/MixedHoisted2).
+//   - Parallel N:N sharing a complex array-length type expression containing a
+//     FuncLit with a short variable declaration (CloneExprA, CloneExprB),
+//     regression-testing cloneExpr.
+//   - Multi-return N:1 calling a SIMD-signature function returning mixed
+//     non-SIMD and SIMD types (PairA/PairB and _, BlankPartner), and calling a
+//     clean-signature SIMD dispatcher returning only non-SIMD types (PairIntA/PairIntB).
+func TestPackageVarMultiDecl(t *testing.T) {
+	n8 := (simd.Int8s{}).Len()
+	s := make([]float32, (simd.Float32s{}).Len())
+
+	// Parallel N:N untyped (mixed init-proxied int and SIMD-typed VectorC).
+	if iface.MultiA != 2+n8 {
+		t.Errorf("expected MultiA == %d, got %d", 2+n8, iface.MultiA)
+	}
+	iface.MultiB.Data().Store(s)
+	if s[0] != 7 {
+		t.Errorf("expected MultiB.Data()[0] == 7, got %f", s[0])
+	}
+
+	// Multi-return N:1 with SIMD-dependent return type, with and without blank "_".
+	if iface.PairA != 2+n8 {
+		t.Errorf("expected PairA == %d, got %d", 2+n8, iface.PairA)
+	}
+	clear(s)
+	iface.PairB.Data().Store(s)
+	if s[0] != 7 {
+		t.Errorf("expected PairB.Data()[0] == 7, got %f", s[0])
+	}
+	clear(s)
+	iface.BlankPartner.Data().Store(s)
+	if s[0] != 7 {
+		t.Errorf("expected BlankPartner.Data()[0] == 7, got %f", s[0])
+	}
+
+	// Multi-return N:1 calling a clean-signature dispatcher returning (int, int).
+	if iface.PairIntA != n8+10 || iface.PairIntB != n8+20 {
+		t.Errorf("expected PairIntA=%d PairIntB=%d, got %d %d", n8+10, n8+20, iface.PairIntA, iface.PairIntB)
+	}
+
+	// Parallel N:N explicitly typed mixing SIMD-dependent and plain initializers.
+	if iface.MixedHoisted1 != 3+n8 || iface.MixedUnhoisted2 != 30 {
+		t.Errorf("expected MixedHoisted1=%d MixedUnhoisted2=30, got %d %d", 3+n8, iface.MixedHoisted1, iface.MixedUnhoisted2)
+	}
+	if iface.MixedUnhoisted1 != 40 || iface.MixedHoisted2 != 4+n8 {
+		t.Errorf("expected MixedUnhoisted1=40 MixedHoisted2=%d, got %d %d", 4+n8, iface.MixedUnhoisted1, iface.MixedHoisted2)
+	}
+
+	// Parallel N:N explicitly typed with SIMD-dependent types, including blank "_".
+	clear(s)
+	iface.TypedSimdA.Data().Store(s)
+	if s[0] != 11 {
+		t.Errorf("expected TypedSimdA[0] == 11, got %f", s[0])
+	}
+	clear(s)
+	iface.TypedSimdB.Data().Store(s)
+	if s[0] != 12 {
+		t.Errorf("expected TypedSimdB[0] == 12, got %f", s[0])
+	}
+	clear(s)
+	iface.TypedBlankHasBar.Bar(iface.VC(simd.BroadcastFloat32s(1))).Data().Store(s)
+	if s[0] != 14 {
+		t.Errorf("expected TypedBlankHasBar.Bar(1)[0] == 14, got %f", s[0])
+	}
+
+	// Parallel N:N cloning a shared type expression containing a FuncLit with ":=".
+	if iface.CloneExprA[0] != n8 || iface.CloneExprB[0] != 2 {
+		t.Errorf("expected CloneExprA[0]=%d CloneExprB[0]=2, got %d %d", n8, iface.CloneExprA[0], iface.CloneExprB[0])
+	}
+}
+
+// TestPackageVarDiverseTypes validates package-level variables across diverse
+// Go type forms (unsafe.Pointer, type alias, pointer, slice, array, map,
+// bidirectional/directional channels, anonymous struct with embedding and tags,
+// variadic function, anonymous interface, and generic structs with non-SIMD and
+// SIMD type arguments) initialized directly or transitively from SIMD-dependent
+// values (ChainA..C and VStruct). It also verifies via HoistedUnsafePtr and
+// HoistedPtr that a non-SIMD variable (ChainA) retains a single address shared
+// between package initialization and external callers.
+func TestPackageVarDiverseTypes(t *testing.T) {
+	n8 := (simd.Int8s{}).Len()
+	wantC := 5 + n8
+	wantB := wantC * 2
+	wantA := wantB + 10
+	s := make([]float32, (simd.Float32s{}).Len())
+
+	if *(*int)(iface.HoistedUnsafePtr) != wantA {
+		t.Errorf("expected *HoistedUnsafePtr == %d, got %d", wantA, *(*int)(iface.HoistedUnsafePtr))
+	}
+	if iface.HoistedUnsafePtr != unsafe.Pointer(&iface.ChainA) {
+		t.Errorf("expected HoistedUnsafePtr == &ChainA (%p), got %p", &iface.ChainA, iface.HoistedUnsafePtr)
+	}
+	if iface.HoistedAlias != wantA {
+		t.Errorf("expected HoistedAlias == %d, got %d", wantA, iface.HoistedAlias)
+	}
+	if *iface.HoistedPtr != wantA {
+		t.Errorf("expected *HoistedPtr == %d, got %d", wantA, *iface.HoistedPtr)
+	}
+	if iface.HoistedPtr != &iface.ChainA {
+		t.Errorf("expected HoistedPtr == &ChainA (%p), got %p", &iface.ChainA, iface.HoistedPtr)
+	}
+	if len(iface.HoistedSlice) != 1 || iface.HoistedSlice[0] != wantA {
+		t.Errorf("expected HoistedSlice == [%d], got %v", wantA, iface.HoistedSlice)
+	}
+	if iface.HoistedArray != [2]int{wantA, wantB} {
+		t.Errorf("expected HoistedArray == [%d %d], got %v", wantA, wantB, iface.HoistedArray)
+	}
+	if iface.HoistedMap["a"] != wantA {
+		t.Errorf("expected HoistedMap[\"a\"] == %d, got %d", wantA, iface.HoistedMap["a"])
+	}
+	if cap(iface.HoistedChanBidi) != wantA || iface.HoistedChanSend == nil || iface.HoistedChanRecv == nil {
+		t.Errorf("unexpected HoistedChan state: cap=%d", cap(iface.HoistedChanBidi))
+	}
+	if int(iface.HoistedAnonStruct.EmbeddedField) != wantA || iface.HoistedAnonStruct.X != wantB || iface.HoistedAnonStruct.Y != wantC {
+		t.Errorf("unexpected HoistedAnonStruct: %+v", iface.HoistedAnonStruct)
+	}
+	if got := iface.HoistedFunc(1, 2, 3); got != wantA+6 {
+		t.Errorf("expected HoistedFunc(1, 2, 3) == %d, got %d", wantA+6, got)
+	}
+	if iface.HoistedIface != nil {
+		t.Errorf("expected HoistedIface == nil, got %v", iface.HoistedIface)
+	}
+	if iface.HoistedGeneric1.Val != wantA {
+		t.Errorf("expected HoistedGeneric1.Val == %d, got %d", wantA, iface.HoistedGeneric1.Val)
+	}
+	if iface.HoistedGeneric2.First != wantA {
+		t.Errorf("expected HoistedGeneric2.First == %d, got %d", wantA, iface.HoistedGeneric2.First)
+	}
+	iface.HoistedGeneric2.Second.Data().Store(s)
+	if s[0] != 3 {
+		t.Errorf("expected HoistedGeneric2.Second.Data()[0] == 3, got %f", s[0])
 	}
 }
 

@@ -17,6 +17,14 @@ import (
 // Package variable named simd must not collide with midway's injected @simd import.
 var simd = 42
 
+// Verify that @simdinit proxy rewriting for a package-variable initializer
+// uses @simd/@bridge rather than colliding with user `bridge "fmt"` imports,
+// package-level `simd`, or closure-local `bridge` bindings.
+var aliasInit = len(bridge.Sprint(s.Int8s{}.Len())) + simd + func() int {
+	bridge := 10
+	return bridge + s.Int8s{}.Len()
+}()
+
 // Parameter named simd must not shadow midway's @simd references inside the
 // dispatcher or specialized bodies.
 func shadowSimdParam(simd int) int {
@@ -44,5 +52,17 @@ func TestAliasedAndShadowedImports(t *testing.T) {
 	}
 	if got := shadowBridgeLocal(); got != 5+n {
 		t.Errorf("shadowBridgeLocal() = %d, want %d", got, 5+n)
+	}
+}
+
+// TestAliasedAndShadowedPackageVarInit validates that midway's init-proxy
+// rewriting of a SIMD-dependent package-variable initializer (aliasInit)
+// preserves user import aliases (bridge "fmt", s "simd") and shadowed simd and
+// bridge identifiers.
+func TestAliasedAndShadowedPackageVarInit(t *testing.T) {
+	n := (s.Int8s{}).Len()
+	wantInit := len(bridge.Sprint(n)) + 42 + 10 + n
+	if aliasInit != wantInit {
+		t.Errorf("aliasInit = %d, want %d", aliasInit, wantInit)
 	}
 }

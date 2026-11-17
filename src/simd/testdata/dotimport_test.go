@@ -16,6 +16,15 @@ import (
 var simd = 42
 var bridge = 99
 
+// Package-level SIMD variables and initializers using bare dot-imported names
+// (BroadcastInt8s, LoadInt8s, multi-return LoadInt8sPart, method expression
+// Int8s.Len, and an init-proxied int referencing shadowing vars simd/bridge).
+var dotV1 = BroadcastInt8s(7)
+var dotV2 = LoadInt8s(make([]int8, 64))
+var dotV3, dotN3 = LoadInt8sPart([]int8{1, 2, 3})
+var dotLenExpr = Int8s.Len
+var dotTotal = dotV1.Len() + dotV2.Len() + dotV3.Len() + dotN3 + dotLenExpr(dotV1) + simd + bridge
+
 // dotHelper exercises bare dot-imported SIMD functions (BroadcastInt8s,
 // LoadInt8s, LoadInt8sPart) and method expressions (Int8s.Len) alongside
 // parameters named simd and bridge that shadow the unprefixed package names.
@@ -39,5 +48,17 @@ func TestDotImportSimd(t *testing.T) {
 	}
 	if simd != 42 || bridge != 99 {
 		t.Errorf("unexpected package vars: simd=%d bridge=%d", simd, bridge)
+	}
+}
+
+// TestDotImportPackageVarInit validates package-level variable rewriting
+// (per-size splitting, N:1 multi-return LoadInt8sPart, method-expression
+// initializers, and init proxies) when "simd" is dot-imported alongside
+// shadowing package variables named simd and bridge.
+func TestDotImportPackageVarInit(t *testing.T) {
+	n := (Int8s{}).Len()
+	wantTotal := 4*n + 3 + 42 + 99
+	if dotTotal != wantTotal {
+		t.Errorf("dotTotal = %d, want %d", dotTotal, wantTotal)
 	}
 }

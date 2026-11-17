@@ -169,10 +169,11 @@ func (v VectorC@simd128) Foo(x VectorC@simd128) VectorC@simd128 {
 */
 
 type Rewriter struct {
-	pkg      *types2.Package
-	analyzer *Analyzer
-	info     *types2.Info
-	sizes    []int
+	pkg          *types2.Package
+	analyzer     *Analyzer
+	info         *types2.Info
+	sizes        []int
+	blankCounter int
 }
 
 func NewRewriter(pkg *types2.Package, info *types2.Info, analyzer *Analyzer, sizes []int) *Rewriter {
@@ -184,9 +185,22 @@ func NewRewriter(pkg *types2.Package, info *types2.Info, analyzer *Analyzer, siz
 	}
 }
 
-func (r *Rewriter) Rewrite(files []*syntax.File) {
+func (r *Rewriter) newCopier(k int) *DeepCopier {
+	return NewDeepCopier(r.pkg, r.info, k, r.analyzer, fmt.Sprintf("%s%d", SimdMark, k))
+}
 
-	// First duplicate and specialize all dependent functions and variables.
+func (r *Rewriter) nextBlankTarget() string {
+	id := r.blankCounter
+	r.blankCounter++
+	return fmt.Sprintf("_@%d", id)
+}
+
+func (r *Rewriter) Rewrite(files []*syntax.File) {
+	// First duplicate and specialize all dependent functions and types,
+	// collecting them in newDecls to append at the end of the file.
+	// Top-level variable declarations are instead rewritten in place during
+	// generateDispatchers so that source declaration order (and thus
+	// types2 initialization order) is preserved.
 	for _, fileAST := range files {
 
 		var newDecls []syntax.Decl
@@ -194,7 +208,8 @@ func (r *Rewriter) Rewrite(files []*syntax.File) {
 			newDecls = r.generateForSize(fileAST, k, newDecls)
 		}
 
-		// Then replace original functions with dispatchers.
+		// Then replace original functions with dispatchers and rewrite
+		// top-level variable declarations in place.
 		// This also edits the DeclList of fileAST.
 		r.generateDispatchers(fileAST)
 
@@ -205,7 +220,7 @@ func (r *Rewriter) Rewrite(files []*syntax.File) {
 func (r *Rewriter) generateDispatchers(fileAST *syntax.File) {
 	var newDecls []syntax.Decl
 
-	change := false
+	declListChanged := false
 
 	for _, decl := range fileAST.DeclList {
 		switch d := decl.(type) {
@@ -226,7 +241,7 @@ func (r *Rewriter) generateDispatchers(fileAST *syntax.File) {
 				continue
 			}
 
-			change = true
+			declListChanged = true
 			if r.analyzer.HasDependentSignature(sig) {
 				if base.Debug.Simd > 0 {
 					base.Warn("%s: removing body of dependent-sig original function %v", d.Pos().String(), d.Name.Value)
@@ -247,15 +262,17 @@ func (r *Rewriter) generateDispatchers(fileAST *syntax.File) {
 			newDecls = append(newDecls, d)
 
 		case *syntax.VarDecl:
-			// Keep var decls even if rewritten, so that pre-rewrite code parses correctly.
-			// TODO figure out how to deal with side-effects in initializers.
-			newDecls = append(newDecls, d)
+			rewritten, changed := r.rewriteTopLevelVarDecl(d)
+			if changed {
+				declListChanged = true
+			}
+			newDecls = append(newDecls, rewritten...)
 
 		case *syntax.TypeDecl:
 			// Mark changed even for type-only files so @bridge is imported for
 			// the specialized type definitions appended by generateForSize.
 			if r.shouldIncludeDecl(d) && !r.analyzer.inSimd {
-				change = true
+				declListChanged = true
 			}
 			// Keep all types; we need the untranslated copy if a method referencing it
 			// needs to typecheck pre-translation.
@@ -265,7 +282,7 @@ func (r *Rewriter) generateDispatchers(fileAST *syntax.File) {
 		}
 	}
 
-	if !change {
+	if !declListChanged {
 		return
 	}
 
@@ -398,6 +415,8 @@ func (r *Rewriter) createDispatcherBody(d *syntax.FuncDecl, sig *types2.Signatur
 	//   etc
 	// }
 	//
+	// Keep this runtime dispatch logic in sync with noder.(*reader).simdInitGuard.
+	//
 	// the cases above deal with the usual `return call(...)` vs `call(...); return`
 	switchStmt := &syntax.SwitchStmt{
 		Tag:  simdCallExpr(vectorSizeFn),
@@ -407,7 +426,7 @@ func (r *Rewriter) createDispatcherBody(d *syntax.FuncDecl, sig *types2.Signatur
 	var emulation syntax.Stmt
 
 	makeCallReturnStmt := func(k int) syntax.Stmt {
-		fnName := fmt.Sprintf("%s@simd%d", d.Name.Value, k)
+		fnName := fmt.Sprintf("%s%s%d", d.Name.Value, SimdMark, k)
 		fnIdent := syntax.NewName(d.Pos(), fnName)
 
 		var fun syntax.Expr
@@ -521,14 +540,294 @@ func (r *Rewriter) panicStmt(p syntax.Pos, unquotedMessage string) *syntax.ExprS
 }
 
 func (r *Rewriter) generateForSize(fileAST *syntax.File, k int, newDecls []syntax.Decl) []syntax.Decl {
-	copier := NewDeepCopier(r.pkg, r.info, k, r.analyzer, fmt.Sprintf("@simd%d", k))
+	copier := r.newCopier(k)
 	for _, decl := range fileAST.DeclList {
+		if _, isVar := decl.(*syntax.VarDecl); isVar {
+			// Top-level VarDecls are rewritten in place during generateDispatchers.
+			continue
+		}
 		if r.shouldIncludeDecl(decl) {
 			newDecl := copier.CopyDecl(decl)
 			newDecls = append(newDecls, newDecl)
 		}
 	}
 	return newDecls
+}
+
+// rewriteTopLevelVarDecl rewrites a package-level VarDecl in place.
+//
+// Variables whose type depends on SIMD are split into specialized copies
+// (<name>@simd<size>) while retaining the original declaration for
+// pre-rewrite typechecking and export data.
+//
+// Variables whose type does NOT depend on SIMD, but whose initializer depends
+// on SIMD (including blank "_" initializers), remain a single variable: midway
+// emits one synthetic init-proxy declaration (@simdinit<size>@<target>)
+// per SIMD configuration immediately before the original variable, and rewrites
+// the original non-blank variable's initializer to reference the last proxy so
+// that types2 preserves its inferred type. The pre-rewrite dummy initializers
+// are dropped from info.InitOrder after types2 re-checks the rewritten AST.
+// The unified IR writer omits proxy declarations from pkgDecl, and the unified
+// IR reader rewrites each proxy initializer into a conditional assignment
+// directly to the real variable (or blank).
+func (r *Rewriter) rewriteTopLevelVarDecl(d *syntax.VarDecl) ([]syntax.Decl, bool) {
+	// Package simd's own var initializers run before simd's init() sets
+	// emulated/maxVectorSize, so SIMD-guarded package-var initializers cannot
+	// work inside package simd itself; tofrom_*.go only needs FuncDecl
+	// specialization.
+	if r.analyzer.inSimd {
+		return []syntax.Decl{d}, false
+	}
+
+	// Case 1: no initializer.
+	//   var V simd.Float32s
+	// =>
+	//   var V@simd0 @bridge.Float32s
+	//   var V@simd128 @bridge.Float32x4
+	//   ...
+	//   var V simd.Float32s // retained for export data / pre-rewrite refs
+	if d.Values == nil {
+		hasDepType := false
+		for _, name := range d.NameList {
+			if obj := r.info.Defs[name]; obj != nil && r.analyzer.isDependentObj[obj] {
+				hasDepType = true
+				break
+			}
+		}
+		if !hasDepType {
+			return []syntax.Decl{d}, false
+		}
+		var out []syntax.Decl
+		for _, k := range r.sizes {
+			out = append(out, r.newCopier(k).CopyVarDecl(d))
+		}
+		out = append(out, d)
+		return out, true
+	}
+
+	// Case 2: parallel N:N declaration ("var a, b [T] = e1, e2").
+	// Split into individual 1:1 declarations if any item depends on SIMD so
+	// non-dependent siblings stay untouched and source order is preserved:
+	//   var a, b = 30, simdExpr
+	// =>
+	//   var a = 30
+	//   <Case 3 rewrite of: var b = simdExpr>
+	if list, ok := d.Values.(*syntax.ListExpr); ok {
+		var out []syntax.Decl
+		anyChanged := false
+		for i, name := range d.NameList {
+			item := &syntax.VarDecl{
+				Group:    d.Group,
+				Pragma:   d.Pragma,
+				NameList: []*syntax.Name{name},
+				Type:     d.Type,
+				Values:   list.ElemList[i],
+			}
+			item.SetPos(name.Pos())
+			sub, changed := r.rewriteSingleVarDecl(item, i > 0)
+			anyChanged = anyChanged || changed
+			out = append(out, sub...)
+		}
+		if !anyChanged {
+			return []syntax.Decl{d}, false
+		}
+		return out, true
+	}
+
+	// Case 3: single 1:1 declaration ("var x [T] = expr").
+	// - SIMD-typed:
+	//     var V = expr
+	//   =>
+	//     var V@simd<k> = expr<k> ...
+	//     var V = expr // dummy init dropped from InitOrder
+	// - Non-SIMD-typed ("boundary" var):
+	//     var N = expr
+	//   =>
+	//     var @simdinit<k>@N = expr<k> ... // omitted by writer, redirected in reader
+	//     var N = @simdinit<last>@N        // dummy init dropped from InitOrder
+	if len(d.NameList) == 1 {
+		return r.rewriteSingleVarDecl(d, false)
+	}
+
+	// Case 4: multi-variable N:1 declaration ("var a, b [T] = multiReturn()").
+	// E.g. for non-SIMD `a` and SIMD-typed `b`:
+	//   var a, b = pair()
+	// =>
+	//   var @simdinit<k>@a, b@simd<k> = pair@simd<k>() ...
+	//   var a = @simdinit<last>@a // dummy init dropped from InitOrder
+	//   var _, b = pair()         // retained for b's export data; dropped from InitOrder
+	hasDepType := false
+	for _, name := range d.NameList {
+		if obj := r.info.Defs[name]; obj != nil && r.analyzer.isDependentObj[obj] {
+			hasDepType = true
+			break
+		}
+	}
+	hasDepInit := r.analyzer.hasNodeDependency(d.Values) || (d.Type != nil && r.analyzer.hasNodeDependency(d.Type))
+	// Non-SIMD multi-return var in a file that uses SIMD elsewhere.
+	if !hasDepType && !hasDepInit {
+		return []syntax.Decl{d}, false
+	}
+
+	blankTargets := make([]string, len(d.NameList))
+	for i, name := range d.NameList {
+		if name.Value == "_" {
+			blankTargets[i] = r.nextBlankTarget()
+		}
+	}
+
+	var out []syntax.Decl
+	for _, k := range r.sizes {
+		copier := r.newCopier(k)
+		specNames := make([]*syntax.Name, len(d.NameList))
+		for i, name := range d.NameList {
+			obj := r.info.Defs[name]
+			switch {
+			case obj != nil && r.analyzer.isDependentObj[obj]:
+				specNames[i] = copier.CopyName(name, true)
+			case name.Value == "_":
+				specNames[i] = syntax.NewName(name.Pos(), SimdInitProxyName(blankTargets[i], k))
+			default:
+				proxy := SimdInitProxyName(name.Value, k)
+				if base.Debug.Simd > 0 {
+					base.Warn("%s: creating simd init proxy %s for %s", name.Pos().String(), proxy, name.Value)
+				}
+				specNames[i] = syntax.NewName(name.Pos(), proxy)
+			}
+		}
+		specDecl := &syntax.VarDecl{
+			Group:    d.Group,
+			NameList: specNames,
+			Type:     copier.CopyExpr(d.Type),
+			Values:   copier.CopyExpr(d.Values),
+		}
+		specDecl.SetPos(d.Pos())
+		out = append(out, specDecl)
+	}
+
+	usedType := false
+	nextOrigType := func() syntax.Expr {
+		if d.Type == nil {
+			return nil
+		}
+		if !usedType {
+			usedType = true
+			return d.Type
+		}
+		return cloneExpr(d.Type)
+	}
+
+	lastSize := r.sizes[len(r.sizes)-1]
+	for _, name := range d.NameList {
+		obj := r.info.Defs[name]
+		if name.Value == "_" || (obj != nil && r.analyzer.isDependentObj[obj]) {
+			continue
+		}
+		lastProxyRef := syntax.NewName(name.Pos(), SimdInitProxyName(name.Value, lastSize))
+		origDecl := &syntax.VarDecl{
+			Group:    d.Group,
+			Pragma:   d.Pragma,
+			NameList: []*syntax.Name{name},
+			Type:     nextOrigType(),
+			Values:   lastProxyRef,
+		}
+		origDecl.SetPos(name.Pos())
+		out = append(out, origDecl)
+	}
+
+	if hasDepType {
+		// Retain original declaration for the SIMD-typed variables (replacing
+		// non-SIMD-typed variables with "_") so export data and pre-rewrite
+		// references continue to see their original SIMD types.
+		origNames := make([]*syntax.Name, len(d.NameList))
+		for i, name := range d.NameList {
+			if obj := r.info.Defs[name]; obj != nil && r.analyzer.isDependentObj[obj] {
+				origNames[i] = name
+			} else {
+				origNames[i] = syntax.NewName(name.Pos(), "_")
+			}
+		}
+		origSimd := &syntax.VarDecl{
+			Group:    d.Group,
+			Pragma:   d.Pragma,
+			NameList: origNames,
+			Type:     nextOrigType(),
+			Values:   d.Values,
+		}
+		origSimd.SetPos(d.Pos())
+		out = append(out, origSimd)
+	}
+
+	return out, true
+}
+
+func (r *Rewriter) rewriteSingleVarDecl(d *syntax.VarDecl, cloneOrigType bool) ([]syntax.Decl, bool) {
+	name := d.NameList[0]
+	obj := r.info.Defs[name]
+	isDepType := obj != nil && r.analyzer.isDependentObj[obj]
+	isDepInit := r.analyzer.hasNodeDependency(d.Values) || (d.Type != nil && r.analyzer.hasNodeDependency(d.Type))
+	if !isDepType && !isDepInit {
+		if cloneOrigType && d.Type != nil {
+			d.Type = cloneExpr(d.Type)
+		}
+		return []syntax.Decl{d}, false
+	}
+
+	var out []syntax.Decl
+	if isDepType {
+		for _, k := range r.sizes {
+			out = append(out, r.newCopier(k).CopyVarDecl(d))
+		}
+		if cloneOrigType && d.Type != nil {
+			d.Type = cloneExpr(d.Type)
+		}
+		out = append(out, d)
+		return out, true
+	}
+
+	// Otherwise, d's type does not depend on SIMD (or name is "_"), while its
+	// initializer does: keep a single variable and emit @simdinit proxies.
+	target := name.Value
+	isBlank := target == "_"
+	if isBlank {
+		target = r.nextBlankTarget()
+	}
+
+	for _, k := range r.sizes {
+		copier := r.newCopier(k)
+		proxy := SimdInitProxyName(target, k)
+		if base.Debug.Simd > 0 {
+			base.Warn("%s: creating simd init proxy %s for %s", name.Pos().String(), proxy, name.Value)
+		}
+		specDecl := &syntax.VarDecl{
+			Group:    d.Group,
+			NameList: []*syntax.Name{syntax.NewName(name.Pos(), proxy)},
+			Type:     copier.CopyExpr(d.Type),
+			Values:   copier.CopyExpr(d.Values),
+		}
+		specDecl.SetPos(d.Pos())
+		out = append(out, specDecl)
+	}
+
+	if !isBlank {
+		lastSize := r.sizes[len(r.sizes)-1]
+		lastProxyRef := syntax.NewName(name.Pos(), SimdInitProxyName(target, lastSize))
+		origType := d.Type
+		if cloneOrigType && origType != nil {
+			origType = cloneExpr(origType)
+		}
+		origDecl := &syntax.VarDecl{
+			Group:    d.Group,
+			Pragma:   d.Pragma,
+			NameList: []*syntax.Name{name},
+			Type:     origType,
+			Values:   lastProxyRef,
+		}
+		origDecl.SetPos(d.Pos())
+		out = append(out, origDecl)
+	}
+
+	return out, true
 }
 
 func nameToElemBitWidth(name string) int {
@@ -546,27 +845,32 @@ func nameToElemBitWidth(name string) int {
 	return width
 }
 
+func (r *Rewriter) isExcludedSimdFile(decl syntax.Decl) bool {
+	// Files in package simd only declare stubs backed by simd/internal/bridge,
+	// except for "tofrom_*" files, whose generic *FromArch functions live in
+	// package simd itself and must be specialized by midway.
+	if !r.analyzer.inSimd {
+		return false
+	}
+	theFile := decl.Pos().Base().Filename()
+
+	lastSlash := strings.LastIndex(theFile, SimdPkg+"/")
+	lastBackslash := strings.LastIndex(theFile, SimdPkg+"\\")
+
+	// Windows paths can be chaos, all we care, is whether the very last part
+	// of the path is any-path-separator + "tofrom_" + anything-else, given that
+	// we already know that we are in the simd package.
+	maxSlash := max(lastSlash, lastBackslash)
+	if maxSlash == -1 {
+		return true
+	}
+	return !strings.HasPrefix(theFile[maxSlash:], SimdPkg+"/tofrom_") &&
+		!strings.HasPrefix(theFile[maxSlash:], SimdPkg+"\\tofrom_")
+}
+
 func (r *Rewriter) shouldIncludeDecl(decl syntax.Decl) bool {
-	// Files (and declarations) in the simd package are excluded
-	// from processing, except for those that whose name begins
-	// with "tofrom_".
-	if r.analyzer.inSimd {
-		theFile := decl.Pos().Base().Filename()
-
-		lastSlash := strings.LastIndex(theFile, SimdPkg+"/")
-		lastBackslash := strings.LastIndex(theFile, SimdPkg+"\\")
-
-		// Windows paths can be chaos, all we care, is whether the very last part
-		// of the path is any-path-separator + "tofrom_" + anything-else, given that
-		// we already know that we are in the simd package.
-		maxSlash := max(lastSlash, lastBackslash)
-		if maxSlash == -1 {
-			return false
-		}
-		if !strings.HasPrefix(theFile[maxSlash:], SimdPkg+"/tofrom_") &&
-			!strings.HasPrefix(theFile[maxSlash:], SimdPkg+"\\tofrom_") {
-			return false
-		}
+	if r.isExcludedSimdFile(decl) {
+		return false
 	}
 
 	switch d := decl.(type) {
@@ -576,12 +880,6 @@ func (r *Rewriter) shouldIncludeDecl(decl syntax.Decl) bool {
 		}
 	case *syntax.TypeDecl:
 		return r.analyzer.isDependentObj[r.info.Defs[d.Name]]
-	case *syntax.VarDecl:
-		for _, name := range d.NameList {
-			if r.analyzer.isDependentObj[r.info.Defs[name]] {
-				return true
-			}
-		}
 	}
 	return false
 }

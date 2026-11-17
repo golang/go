@@ -51,6 +51,7 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info, map[*
 	}
 
 	didMidway := false
+	midwayRewrote := false
 	var midwayOriginals []string
 
 recheck:
@@ -194,9 +195,8 @@ recheck:
 	if buildcfg.Experiment.SIMDStable && !didMidway && simdReachable {
 		didMidway = true
 		// Perform midway transformation on AST directly
-		var changed bool
-		midwayOriginals, changed = midway.RewriteWrapper(pkg, info, files)
-		if changed {
+		midwayOriginals, midwayRewrote = midway.RewriteWrapper(pkg, info, files)
+		if midwayRewrote {
 			// midway made changes; type checking must be repeated.
 			if len(base.Debug.AstDump) > 0 {
 				// TODO how should this interact with -W and textual dumps
@@ -210,6 +210,9 @@ recheck:
 			typecheck.Target.Imports = nil
 			goto recheck
 		}
+	}
+	if midwayRewrote {
+		midway.DropPreSimdInits(info)
 	}
 
 	if len(base.Debug.AstDump) > 0 {

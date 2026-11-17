@@ -8,6 +8,7 @@ package iface
 
 import (
 	"simd"
+	"unsafe"
 )
 
 // A SIMD-dependent type alias
@@ -18,12 +19,152 @@ func Generic[T haslen](x int) int {
 	return x + v.Len()
 }
 
-// VL = Generic[MyInt8s](1) doesn't currently work.
-// TODO: automatically transform those initializers into what is done here instead.
-var VL int
+// Non-SIMD-typed package variable with a SIMD-dependent initializer; midway
+// keeps it as a single variable initialized via per-size init proxies.
+var VL = Generic[MyInt8s](1)
+
+func GetVL() int            { return VL }
+func SetVL(x int)           { VL = x }
+func ReadVLFromSimdFn() int { return VL + simd.Int8s{}.Len() }
+
+// Explicitly typed parallel N:N SIMD-dependent package variables, including
+// a blank "_" sibling.
+var TypedSimdA, TypedSimdB VectorC = VectorC{Field: simd.BroadcastFloat32s(11)}, VectorC{Field: simd.BroadcastFloat32s(12)}
+var _, TypedBlankHasBar HasBar = VectorC{}, VectorC{Field: simd.BroadcastFloat32s(13)}
+
+// Multi-return N:1 package variables initialized via a clean-signature SIMD dispatcher.
+func pairIntFunc() (int, int) {
+	n := simd.Int8s{}.Len()
+	return n + 10, n + 20
+}
+
+var PairIntA, PairIntB = pairIntFunc()
+
+// Non-SIMD-typed package variables initialized with a SIMD-using closure
+// or a boxed SIMD value.
+var SimdClosure = func() int { return simd.Int8s{}.Len() }
+var SimdAsHasLen haslen = simd.Int8s{}
+
+// Regression test for cloneExpr on a shared type expression containing a
+// FuncLit with a short variable declaration (AssignStmt).
+var CloneExprA, CloneExprB [unsafe.Sizeof(func() {
+	if x := 1; x > 0 {
+	}
+})]int = func() [unsafe.Sizeof(func() {
+	if x := 1; x > 0 {
+	}
+})]int {
+	var r [unsafe.Sizeof(func() {
+		if x := 1; x > 0 {
+		}
+	})]int
+	r[0] = simd.Int8s{}.Len()
+	return r
+}(), [unsafe.Sizeof(func() {
+	if x := 1; x > 0 {
+	}
+})]int{0: 2}
+
+// Single package variables with SIMD-dependent types (instantiated generic
+// interface, phantom generic struct, direct SIMD vector, and SIMD-field struct).
+var GenericIfaceVar = MakeHasFoo(VectorC{Field: simd.BroadcastFloat32s(9)})
+var PhantomVar = Phantom[simd.Int8s]{}
+
+var VBroadcast = simd.BroadcastFloat32s(3)
+var VStruct = VectorC{Field: VBroadcast}
+
+// Reverse-declared transitive dependency chain rooted at SIMD-initialized ChainC.
+var ChainA = ChainB + 10
+var ChainB = chainFunc()
+var ChainC = Generic[MyInt8s](ChainD)
+var ChainD = 5
+
+func chainFunc() int {
+	return ChainC * 2
+}
+
+// Untyped parallel N:N mixing an init-proxied non-SIMD variable and a
+// SIMD-typed variable.
+var MultiA, MultiB = Generic[MyInt8s](2), VectorC{Field: simd.BroadcastFloat32s(7)}
+
+// Plain non-SIMD package variable (control case).
+var UnrelatedInit = 99
+
+// Multi-return N:1 calling a SIMD-signature function returning mixed
+// non-SIMD and SIMD types, with and without a blank "_" target.
+func pairFunc() (int, VectorC) {
+	return Generic[MyInt8s](2), VectorC{Field: simd.BroadcastFloat32s(7)}
+}
+
+var PairA, PairB = pairFunc()
+var _, BlankPartner = pairFunc()
+
+// Explicitly typed parallel N:N mixing SIMD-dependent and plain constant
+// initializers in both orders.
+var MixedHoisted1, MixedUnhoisted2 int = Generic[MyInt8s](3), 30
+var MixedUnhoisted1, MixedHoisted2 int = 40, Generic[MyInt8s](4)
+
+// Package variables across diverse Go type forms initialized directly or
+// transitively from SIMD-dependent variables (ChainA..C and VStruct).
+type IntAlias = int
+
+func makeIntAlias(x int) IntAlias {
+	return x
+}
+
+type EmbeddedField int
+
+type GenericBox[T any] struct {
+	Val T
+}
+
+type GenericPair[A, B any] struct {
+	First  A
+	Second B
+}
+
+func makeAnonIface(int) interface {
+	haslen
+	Extra() int
+} {
+	return nil
+}
+
+var HoistedUnsafePtr = makeUnsafePtr(&ChainA)
+var HoistedAlias = makeIntAlias(ChainA)
+var HoistedPtr = &ChainA
+var HoistedSlice = []int{ChainA}
+var HoistedArray = [2]int{ChainA, ChainB}
+var HoistedMap = map[string]int{"a": ChainA}
+var HoistedChanBidi = make(chan int, ChainA)
+var HoistedChanSend = (chan<- int)(HoistedChanBidi)
+var HoistedChanRecv = (<-chan int)(HoistedChanBidi)
+var HoistedAnonStruct = struct {
+	EmbeddedField
+	X int
+	Y int `tag:"val"`
+}{
+	EmbeddedField: EmbeddedField(ChainA),
+	X:             ChainB,
+	Y:             ChainC,
+}
+var HoistedFunc = func(a int, b ...int) int {
+	sum := ChainA + a
+	for _, x := range b {
+		sum += x
+	}
+	return sum
+}
+var HoistedIface = makeAnonIface(ChainA)
+var HoistedGeneric1 = GenericBox[int]{Val: ChainA}
+var HoistedGeneric2 = GenericPair[int, VectorC]{First: ChainA, Second: VStruct}
+
+// User-defined init() that runs after SIMD-rewritten package variables and
+// itself uses SIMD.
+var UserInitVar int
 
 func init() {
-	VL = Generic[MyInt8s](1)
+	UserInitVar = ChainA + Generic[MyInt8s](0)
 }
 
 // A struct dependent on SIMD
@@ -332,3 +473,15 @@ func PermLen() int {
 	_ = p
 	return z.Len()
 }
+
+// Package-level variables exercising SIMD-union-constrained generic types
+// and functions.
+var (
+	ConstrainedBoxVar   = ConstrainedBox[simd.Int8s]{V: simd.BroadcastInt8s(1)}
+	ConstrainedAliasVar = ConstrainedAlias[simd.Int8s]{simd.BroadcastInt8s(2)}
+	ConstrainedBlankVar = BlankConstraintParam[simd.Int8s]{Tag: 7}
+	ConstrainedLenVar   = ConstrainedVecLen(simd.BroadcastInt8s(3))
+	ConstrainedSizeVar  = ConstrainedVecSize[simd.Int16s]()
+	InlineUnionBoxVar   = InlineUnionBox[simd.Int8s]{V: simd.BroadcastInt8s(4)}
+	SelfVecAddLenVar    = SelfVecAddLen(simd.BroadcastInt8s(1), simd.BroadcastInt8s(2))
+)

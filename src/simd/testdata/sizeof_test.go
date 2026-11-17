@@ -14,6 +14,7 @@ import (
 )
 
 var v simd.Float32s
+var hoistedUnexportedAlias = pkg.UnexportedAlias(v.Len())
 
 func TestSizeof(t *testing.T) {
 	var f float32
@@ -29,5 +30,16 @@ func TestSizeof(t *testing.T) {
 	}
 	if sV != sv1 {
 		t.Errorf("sV=%d and sv1=%d should be equal but are not", sV, sv1)
+	}
+}
+
+// TestPackageVarUnexportedAlias validates a package-level variable whose
+// SIMD-dependent initializer yields an unexported type alias from another
+// package (pkg.unexportedAlias). Midway's init-proxy rewrite preserves the
+// inferred type without having to spell the unexported type name in rewritten
+// syntax.
+func TestPackageVarUnexportedAlias(t *testing.T) {
+	if hoistedUnexportedAlias != v.Len() {
+		t.Errorf("hoistedUnexportedAlias=%d, want %d", hoistedUnexportedAlias, v.Len())
 	}
 }
