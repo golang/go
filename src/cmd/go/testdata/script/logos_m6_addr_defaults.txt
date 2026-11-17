@@ -20,10 +20,10 @@ cd lmod
 logos build -buildmode=archive -o $WORK/cfg.a ./cfg
 cd ..
 go run gmod/dumpfacts.go $WORK/cfg.a
-stdout '^default Cfg Host 11$'
-stdout '^default Cfg Port 4$'
-stdout '^"localhost"$'
-stdout '^8080$'
+stdout '^default Cfg Host 26$'
+stdout '^Cfg/LogosDefault_Cfg__Host$'
+stdout '^default Cfg Port 26$'
+stdout '^Cfg/LogosDefault_Cfg__Port$'
 
 -- lmod/go.mod --
 module example.com/lmod

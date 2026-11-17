@@ -30,6 +30,9 @@ go 1.27
 require example.com/extunsafe v0.0.0
 
 replace example.com/extunsafe => ../extunsafe
+-- main/logos.toml --
+[capabilities]
+transitive_unsafe = "deny"
 -- main/a/leaf/leaf.go --
 package leaf
 
