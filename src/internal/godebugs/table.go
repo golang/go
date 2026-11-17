@@ -66,6 +66,7 @@ var All = []Info{
 	{Name: "tlsmlkem", Package: "crypto/tls", Changed: 24, Old: "0", Opaque: true},
 	{Name: "tlssecpmlkem", Package: "crypto/tls", Changed: 26, Old: "0", Opaque: true},
 	{Name: "tlssha1", Package: "crypto/tls", Changed: 25, Old: "1"},
+	{Name: "tlssigalgscert", Package: "crypto/tls", Changed: 28, Old: "1"},
 	// Mark tracebacklabels as Opaque so we don't generate a metric that we can't increment.
 	// IncNonDefault uses a sync.Once, which involves sync.Mutex, and is not safe from a signal handler.
 	// (Tracebacks are generated in signal-handlers.)

@@ -2296,46 +2296,204 @@ func TestHandshakeMLKEM(t *testing.T) {
 	}
 }
 
+// TestAdvertisedSignatureAlgorithms checks the signature_algorithms and
+// signature_algorithms_cert extensions sent in ClientHello and
+// CertificateRequest messages, by default and with GODEBUG=tlssigalgscert=1.
+func TestAdvertisedSignatureAlgorithms(t *testing.T) {
+	pss := []SignatureScheme{PSSWithSHA256, PSSWithSHA384, PSSWithSHA512}
+	pkcs1 := []SignatureScheme{PKCS1WithSHA256, PKCS1WithSHA384, PKCS1WithSHA512}
+	sha1 := []SignatureScheme{PKCS1WithSHA1, ECDSAWithSHA1}
+	// legacyCert is the signature_algorithms_cert extension sent with
+	// GODEBUG=tlssigalgscert=1. It matches Go 1.26, so it has no ML-DSA.
+	legacyCert := []SignatureScheme{
+		PSSWithSHA256,
+		ECDSAWithP256AndSHA256,
+		Ed25519,
+		PSSWithSHA384,
+		PSSWithSHA512,
+		PKCS1WithSHA256,
+		PKCS1WithSHA384,
+		PKCS1WithSHA512,
+		ECDSAWithP384AndSHA384,
+		ECDSAWithP521AndSHA512,
+		PKCS1WithSHA1,
+		ECDSAWithSHA1,
+	}
+	if fips140tls.Required() {
+		legacyCert = slices.DeleteFunc(legacyCert, func(s SignatureScheme) bool {
+			return !slices.Contains(allowedSignatureAlgorithmsFIPS, s)
+		})
+	}
+	versions := []struct {
+		minVers, maxVers uint16
+	}{
+		{VersionTLS12, VersionTLS12},
+		{VersionTLS12, VersionTLS13},
+		{VersionTLS13, VersionTLS13},
+		{VersionTLS10, VersionTLS13},
+	}
+
+	// clientHello returns the signature algorithms of a TLS 1.3-only
+	// ClientHello, and certificateRequest returns the signature_algorithms of
+	// a TLS 1.3 CertificateRequest, as seen by the client.
+	clientHello := func(t *testing.T) (sigAlgs, sigAlgsCert []SignatureScheme) {
+		config := testConfigClient()
+		config.MinVersion = VersionTLS13
+		hello, _, _, err := Client(nil, config).makeClientHello()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return hello.supportedSignatureAlgorithms, hello.supportedSignatureAlgorithmsCert
+	}
+	certificateRequest := func(t *testing.T) (sigAlgs []SignatureScheme) {
+		serverConfig := testConfigServer()
+		serverConfig.MinVersion = VersionTLS13
+		serverConfig.ClientAuth = RequestClientCert
+		clientConfig := testConfigClient()
+		clientConfig.GetClientCertificate = func(cri *CertificateRequestInfo) (*Certificate, error) {
+			sigAlgs = cri.SignatureSchemes
+			return new(Certificate), nil
+		}
+		if _, _, err := testHandshake(t, clientConfig, serverConfig); err != nil {
+			t.Fatal(err)
+		}
+		return sigAlgs
+	}
+
+	// checkDefault checks what is advertised for a range of TLS versions when
+	// signature_algorithms_cert is not sent.
+	checkDefault := func(t *testing.T, minVers, maxVers uint16) {
+		sigAlgs, sigAlgsCert := advertisedSignatureAlgorithms(minVers, maxVers)
+		if sigAlgsCert != nil {
+			t.Errorf("signature_algorithms_cert = %v, want it omitted", sigAlgsCert)
+		}
+
+		// Without signature_algorithms_cert, signature_algorithms also applies
+		// to certificates. It lists the algorithms supported in handshake
+		// messages, and PKCS#1 v1.5 even if only TLS 1.3 is enabled, since
+		// crypto/x509 supports it.
+		handshake := supportedSignatureAlgorithms(minVers, maxVers)
+		want := slices.DeleteFunc(defaultSupportedSignatureAlgorithms(), func(s SignatureScheme) bool {
+			return !slices.Contains(handshake, s) && !slices.Contains(pkcs1, s)
+		})
+		if !slices.Equal(sigAlgs, want) {
+			t.Errorf("signature_algorithms = %v, want %v", sigAlgs, want)
+		}
+
+		// SHA-1 is never advertised if only TLS 1.3 is enabled.
+		for _, s := range sha1 {
+			if minVers >= VersionTLS13 && slices.Contains(sigAlgs, s) {
+				t.Errorf("signature_algorithms = %v, want %v omitted", sigAlgs, s)
+			}
+		}
+
+		// A peer with an RSA key that follows our preference order must reach
+		// an algorithm it can use in TLS 1.3 handshake messages before it
+		// reaches PKCS#1 v1.5.
+		for _, s := range pss {
+			if slices.Index(sigAlgs, s) > slices.Index(sigAlgs, pkcs1[0]) {
+				t.Errorf("%v is after %v in signature_algorithms %v", s, pkcs1[0], sigAlgs)
+			}
+		}
+	}
+
+	// checkLegacy checks what is advertised for a range of TLS versions with
+	// GODEBUG=tlssigalgscert=1.
+	checkLegacy := func(t *testing.T, minVers, maxVers uint16) {
+		sigAlgs, sigAlgsCert := advertisedSignatureAlgorithms(minVers, maxVers)
+		if want := supportedSignatureAlgorithms(minVers, maxVers); !slices.Equal(sigAlgs, want) {
+			t.Errorf("signature_algorithms = %v, want %v", sigAlgs, want)
+		}
+		if !slices.Equal(sigAlgsCert, legacyCert) {
+			t.Errorf("signature_algorithms_cert = %v, want %v", sigAlgsCert, legacyCert)
+		}
+	}
+
+	// By default signature_algorithms_cert is not sent, and tlssha1=1 must not
+	// add SHA-1 to TLS 1.3-only lists.
+	for _, godebug := range []string{"tlssigalgscert=0", "tlssigalgscert=0,tlssha1=1"} {
+		t.Run(godebug, func(t *testing.T) {
+			testenv.SetGODEBUG(t, godebug)
+			for _, tt := range versions {
+				t.Run(VersionName(tt.minVers)+"-"+VersionName(tt.maxVers), func(t *testing.T) {
+					checkDefault(t, tt.minVers, tt.maxVers)
+				})
+			}
+
+			sigAlgs, sigAlgsCert := clientHello(t)
+			if want, _ := advertisedSignatureAlgorithms(VersionTLS13, VersionTLS13); !slices.Equal(sigAlgs, want) {
+				t.Errorf("ClientHello signature_algorithms = %v, want %v", sigAlgs, want)
+			}
+			if sigAlgsCert != nil {
+				t.Errorf("ClientHello signature_algorithms_cert = %v, want it omitted", sigAlgsCert)
+			}
+			if sigAlgs := certificateRequest(t); !slices.Contains(sigAlgs, PKCS1WithSHA256) {
+				t.Errorf("CertificateRequest signature_algorithms = %v, want PKCS#1 v1.5 included", sigAlgs)
+			}
+		})
+	}
+
+	t.Run("tlssigalgscert=1", func(t *testing.T) {
+		testenv.SetGODEBUG(t, "tlssigalgscert=1")
+		for _, tt := range versions {
+			t.Run(VersionName(tt.minVers)+"-"+VersionName(tt.maxVers), func(t *testing.T) {
+				checkLegacy(t, tt.minVers, tt.maxVers)
+			})
+		}
+
+		sigAlgs, sigAlgsCert := clientHello(t)
+		if slices.Contains(sigAlgs, PKCS1WithSHA256) {
+			t.Errorf("ClientHello signature_algorithms = %v, want PKCS#1 v1.5 omitted", sigAlgs)
+		}
+		if !slices.Equal(sigAlgsCert, legacyCert) {
+			t.Errorf("ClientHello signature_algorithms_cert = %v, want %v", sigAlgsCert, legacyCert)
+		}
+		if sigAlgs := certificateRequest(t); slices.Contains(sigAlgs, PKCS1WithSHA256) {
+			t.Errorf("CertificateRequest signature_algorithms = %v, want PKCS#1 v1.5 omitted", sigAlgs)
+		}
+	})
+}
+
 // TestSupportedSignatureAlgorithmsMLDSAGating asserts the spec-mandated
 // version-level gating of ML-DSA. Outside the FIPS 140-3 v1.0.0 module:
 // ML-DSA MUST NOT appear in the TLS 1.2 advertised list, MUST appear in
 // the TLS 1.3 advertised list. Under FIPS 140-3 v1.0.0 (which doesn't include
-// ML-DSA), ML-DSA MUST NOT be advertised in either extension.
+// ML-DSA), ML-DSA MUST NOT be advertised for handshake messages or certificates.
 func TestSupportedSignatureAlgorithmsMLDSAGating(t *testing.T) {
 	mldsaSchemes := []SignatureScheme{MLDSA44, MLDSA65, MLDSA87}
 
 	if fips140.Version() == "v1.0.0" {
 		fullRange := supportedSignatureAlgorithms(VersionTLS10, VersionTLS13)
-		certExt := supportedSignatureAlgorithmsCert(VersionTLS10, VersionTLS13)
+		fullRangeCert := enabledSignatureAlgorithms(VersionTLS10, VersionTLS13, sigAlgCertificate)
 		for _, s := range mldsaSchemes {
 			if slices.Contains(fullRange, s) {
 				t.Errorf("supportedSignatureAlgorithms contains %v under FIPS 140-3 v1.0.0", s)
 			}
-			if slices.Contains(certExt, s) {
-				t.Errorf("supportedSignatureAlgorithmsCert contains %v under FIPS 140-3 v1.0.0", s)
+			if slices.Contains(fullRangeCert, s) {
+				t.Errorf("certificate signature algorithms contain %v under FIPS 140-3 v1.0.0", s)
 			}
 		}
 		return
 	}
 
 	tls12Only := supportedSignatureAlgorithms(VersionTLS12, VersionTLS12)
-	tls12OnlyCert := supportedSignatureAlgorithmsCert(VersionTLS12, VersionTLS12)
+	tls12OnlyCert := enabledSignatureAlgorithms(VersionTLS12, VersionTLS12, sigAlgCertificate)
 	for _, s := range mldsaSchemes {
 		if slices.Contains(tls12Only, s) {
 			t.Errorf("supportedSignatureAlgorithms(TLS12, TLS12) contains %v; ML-DSA must not be advertised in TLS 1.2", s)
 		}
 		if slices.Contains(tls12OnlyCert, s) {
-			t.Errorf("supportedSignatureAlgorithmsCert(TLS12, TLS12) contains %v; ML-DSA must not be advertised in TLS 1.2", s)
+			t.Errorf("TLS 1.2 certificate signature algorithms contain %v; ML-DSA must not be advertised in TLS 1.2", s)
 		}
 	}
 	tls13Only := supportedSignatureAlgorithms(VersionTLS13, VersionTLS13)
-	tls13OnlyCert := supportedSignatureAlgorithmsCert(VersionTLS13, VersionTLS13)
+	tls13OnlyCert := enabledSignatureAlgorithms(VersionTLS13, VersionTLS13, sigAlgCertificate)
 	for _, s := range mldsaSchemes {
 		if !slices.Contains(tls13Only, s) {
 			t.Errorf("supportedSignatureAlgorithms(TLS13, TLS13) is missing %v", s)
 		}
 		if !slices.Contains(tls13OnlyCert, s) {
-			t.Errorf("supportedSignatureAlgorithmsCert(TLS13, TLS13) is missing %v", s)
+			t.Errorf("TLS 1.3 certificate signature algorithms are missing %v", s)
 		}
 	}
 }

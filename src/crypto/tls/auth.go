@@ -272,7 +272,7 @@ func selectSignatureScheme(vers uint16, c *Certificate, peerAlgs []SignatureSche
 	// Filter out any unsupported signature algorithms, for example due to
 	// FIPS 140-3 policy, tlssha1=0, or protocol version.
 	supportedAlgs = slices.DeleteFunc(supportedAlgs, func(sigAlg SignatureScheme) bool {
-		return isDisabledSignatureAlgorithm(vers, sigAlg, false)
+		return isDisabledSignatureAlgorithm(vers, sigAlg, sigAlgHandshake)
 	})
 	if len(supportedAlgs) == 0 {
 		return 0, unsupportedCertificateError(c)

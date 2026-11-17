@@ -1774,18 +1774,23 @@ func unexpectedMessageError(wanted, got any) error {
 
 var testingOnlySupportedSignatureAlgorithms []SignatureScheme
 
-// supportedSignatureAlgorithms returns the supported signature algorithms for
-// the given range of TLS versions, to advertise in ClientHello and
-// CertificateRequest messages. An algorithm is included if it is enabled at any
-// version in the range.
+// supportedSignatureAlgorithms returns the signature algorithms supported in
+// handshake messages for the given range of TLS versions. An algorithm is
+// included if it is enabled at any version in the range.
 func supportedSignatureAlgorithms(minVers, maxVers uint16) []SignatureScheme {
+	return enabledSignatureAlgorithms(minVers, maxVers, sigAlgHandshake)
+}
+
+// enabledSignatureAlgorithms returns the signature algorithms enabled for the
+// given use at any TLS version in the range.
+func enabledSignatureAlgorithms(minVers, maxVers uint16, use sigAlgUse) []SignatureScheme {
 	sigAlgs := defaultSupportedSignatureAlgorithms()
 	if testingOnlySupportedSignatureAlgorithms != nil {
 		sigAlgs = slices.Clone(testingOnlySupportedSignatureAlgorithms)
 	}
 	return slices.DeleteFunc(sigAlgs, func(s SignatureScheme) bool {
 		for v := minVers; v <= maxVers; v++ {
-			if !isDisabledSignatureAlgorithm(v, s, false) {
+			if !isDisabledSignatureAlgorithm(v, s, use) {
 				return false
 			}
 		}
@@ -1793,15 +1798,34 @@ func supportedSignatureAlgorithms(minVers, maxVers uint16) []SignatureScheme {
 	})
 }
 
+// A sigAlgUse is a purpose a signature algorithm can be enabled for.
+type sigAlgUse int
+
+const (
+	// sigAlgHandshake is a signature in a handshake message.
+	sigAlgHandshake sigAlgUse = iota
+	// sigAlgCertificate is a signature in a certificate. Every algorithm
+	// enabled for handshake messages is also enabled for certificates.
+	sigAlgCertificate
+	// sigAlgLegacyCertificate is a signature in a certificate, as advertised
+	// in the signature_algorithms_cert extension if GODEBUG=tlssigalgscert=1.
+	sigAlgLegacyCertificate
+)
+
 var tlssha1 = godebug.New("tlssha1")
 
-func isDisabledSignatureAlgorithm(version uint16, s SignatureScheme, isCert bool) bool {
+func isDisabledSignatureAlgorithm(version uint16, s SignatureScheme, use sigAlgUse) bool {
 	if fips140tls.Required() && !slices.Contains(allowedSignatureAlgorithmsFIPS, s) {
 		return true
 	}
 
 	switch s {
 	case MLDSA44, MLDSA65, MLDSA87:
+		// Omit ML-DSA from signature_algorithms_cert to work around
+		// non-compliant middleboxes. See go.dev/issue/81199.
+		if use == sigAlgLegacyCertificate {
+			return true
+		}
 		// ML-DSA is not available in FIPS 140-3 module v1.0.0.
 		if fips140.Version() == "v1.0.0" {
 			return true
@@ -1812,14 +1836,24 @@ func isDisabledSignatureAlgorithm(version uint16, s SignatureScheme, isCert bool
 		}
 	}
 
-	// For the _cert extension we include all algorithms, including SHA-1 and
-	// PKCS#1 v1.5, because it's more likely that something on our side will be
-	// willing to accept a *-with-SHA1 certificate (e.g. with a custom
-	// VerifyConnection or by a direct match with the CertPool), than that the
-	// peer would have a better certificate but is just choosing not to send it.
-	// crypto/x509 will refuse to verify important SHA-1 signatures anyway.
-	if isCert {
+	// The signature_algorithms_cert extension, only sent if
+	// GODEBUG=tlssigalgscert=1 is set, lists every remaining algorithm at any
+	// TLS version, including SHA-1 and PKCS#1 v1.5, in case something on our
+	// side accepts such a certificate (e.g. a custom VerifyConnection or a
+	// direct match with the CertPool).
+	if use == sigAlgLegacyCertificate {
 		return false
+	}
+
+	// In certificates, PKCS#1 v1.5 with SHA-2 is enabled at any TLS version,
+	// since crypto/x509 verifies it. TLS 1.3 only bars it from handshake
+	// messages (RFC 9846, Section 4.3.3). Every other algorithm is enabled in
+	// certificates only where it is enabled in handshake messages.
+	if use == sigAlgCertificate {
+		sigType, sigHash, _ := typeAndHashFromSignatureScheme(s)
+		if sigType == signaturePKCS1v15 && sigHash != crypto.SHA1 {
+			return false
+		}
 	}
 
 	// TLS 1.3 removed support for PKCS#1 v1.5 and SHA-1 signatures,
@@ -1839,18 +1873,28 @@ func isDisabledSignatureAlgorithm(version uint16, s SignatureScheme, isCert bool
 	return false
 }
 
-// supportedSignatureAlgorithmsCert returns the supported algorithms for
-// signatures in certificates.
-func supportedSignatureAlgorithmsCert(minVers, maxVers uint16) []SignatureScheme {
-	sigAlgs := defaultSupportedSignatureAlgorithms()
-	return slices.DeleteFunc(sigAlgs, func(s SignatureScheme) bool {
-		for v := minVers; v <= maxVers; v++ {
-			if !isDisabledSignatureAlgorithm(v, s, true) {
-				return false
-			}
-		}
-		return true
-	})
+// tlssigalgscert=1 restores the pre-Go 1.28 behavior of sending a separate
+// signature_algorithms_cert extension.
+var tlssigalgscert = godebug.New("tlssigalgscert")
+
+// advertisedSignatureAlgorithms returns the contents of the
+// signature_algorithms and signature_algorithms_cert extensions to send in a
+// ClientHello or CertificateRequest for the given range of TLS versions. If
+// sigAlgsCert is nil, the signature_algorithms_cert extension is not sent.
+func advertisedSignatureAlgorithms(minVers, maxVers uint16) (sigAlgs, sigAlgsCert []SignatureScheme) {
+	if tlssigalgscert.Value() == "1" {
+		tlssigalgscert.IncNonDefault()
+		return enabledSignatureAlgorithms(minVers, maxVers, sigAlgHandshake),
+			enabledSignatureAlgorithms(minVers, maxVers, sigAlgLegacyCertificate)
+	}
+
+	// Some middleboxes reject signature_algorithms_cert if it lists algorithms
+	// they don't recognize, such as ML-DSA, and leaving ML-DSA out would tell
+	// peers we don't accept certificates signed with it. Without the extension,
+	// signature_algorithms also applies to certificates (RFC 9846, Section
+	// 4.3.3), so it lists the certificate algorithms, which include the
+	// handshake ones. See go.dev/issue/81199.
+	return enabledSignatureAlgorithms(minVers, maxVers, sigAlgCertificate), nil
 }
 
 func isSupportedSignatureAlgorithm(sigAlg SignatureScheme, supportedSignatureAlgorithms []SignatureScheme) bool {

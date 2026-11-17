@@ -183,6 +183,10 @@ Go 1.28 and all future releases will support both the old and new
 encodings when reading data. This setting may be removed in a future Go release,
 Go 1.34 at the earliest.
 
+Go 1.28 stopped sending the TLS `signature_algorithms_cert` extension, which
+some middleboxes reject when it lists ML-DSA. The `tlssigalgscert=1` setting
+restores it, without ML-DSA.
+
 ### Go 1.27
 
 Go 1.27 removed the `gotypesalias` setting, as noted in the [Go 1.22](#go-122) section.
