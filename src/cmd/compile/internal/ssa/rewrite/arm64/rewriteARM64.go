@@ -17029,13 +17029,14 @@ func rewriteValue_OpARM64REV16(v *ssa.Value) bool {
 func rewriteValue_OpARM64REVW(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (REVW (REVW p))
-	// result: p
+	// result: (MOVWUreg p)
 	for {
 		if v_0.Op != ssaop.OpARM64REVW {
 			break
 		}
 		p := v_0.Args[0]
-		v.CopyOf(p)
+		v.Reset(ssaop.OpARM64MOVWUreg)
+		v.AddArg(p)
 		return true
 	}
 	return false

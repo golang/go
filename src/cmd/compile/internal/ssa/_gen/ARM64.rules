@@ -1864,7 +1864,8 @@
 	&& ssa.Clobber(call)
 	=> (Move [sz] dst src mem)
 
-((REV|REVW) ((REV|REVW) p)) => p
+(REV (REV p)) => p
+(REVW (REVW p)) => (MOVWUreg p)
 
 // internal/runtime/math.MulUintptr intrinsics
 
