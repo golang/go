@@ -694,6 +694,18 @@ func sveElemManyLiveMasks(x, a archsimd.Int32s, i uint8, c0, c1, c2, c3, c4, c5,
 	return e, a
 }
 
+// SetElem: Next after the mask of lanes 0..i-1 selects lane i, and the select
+// over the broadcast folds into a merging CPY.
+func sveSetElem16(x archsimd.Int16s, i uint8, y int16) archsimd.Int16s {
+	// arm64:`PWHILELT.*P[0-9]+\.H` `PPNEXT\s+P[0-9]+\.H, P[0-9]+, P[0-9]+\.H` `ZCPYW\s+R[0-9]+, P[0-9]+\.M, Z[0-9]+\.H` -`ZSEL` -`ZDUP`
+	return x.SetElem(i, y)
+}
+
+func sveSetElemFloat32(x archsimd.Float32s, i uint8, y float32) archsimd.Float32s {
+	// arm64:`PPNEXT\s+P[0-9]+\.S` `ZCPYS\s+V[0-9]+, P[0-9]+\.M, Z[0-9]+\.S` -`ZSEL` -`ZDUP`
+	return x.SetElem(i, y)
+}
+
 func sveBroadcastConstIfElse(m archsimd.Mask16s, z archsimd.Int16s) archsimd.Int16s {
 	// arm64:`ZCPY\s+\$5, P[0-9]+\.M, Z[0-9]+\.H` -`ZDUP` -`ZSEL`
 	return archsimd.BroadcastInt16s(5).IfElse(m, z)

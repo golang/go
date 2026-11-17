@@ -108,6 +108,20 @@ func (x Float32s) Elem(i uint8) (z float32) {
 
 func (x Float32s) elem(i uint8) float32
 
+// SetElem returns x with its i'th element set to y. If i >= x.Len(), it panics.
+//
+//	z = x
+//	z[i] = y
+//
+// Asm: Emulated (a bounds check that can panic, then PNEXT and ZCPY), CPU Feature: SVE
+func (x Float32s) SetElem(i uint8, y float32) (z Float32s) {
+	if int(i) >= x.Len() {
+		panic("simd: Float32s.SetElem: index out of range")
+	}
+	lane := Mask32sAllTrue().Next(Mask32sFromCount(int(i)))
+	return BroadcastFloat32s(y).IfElse(lane, x)
+}
+
 // IfElse returns a vector with elements from x where mask is true, and y where
 // mask is false.
 //
@@ -226,6 +240,20 @@ func (x Float64s) Elem(i uint8) (z float64) {
 
 func (x Float64s) elem(i uint8) float64
 
+// SetElem returns x with its i'th element set to y. If i >= x.Len(), it panics.
+//
+//	z = x
+//	z[i] = y
+//
+// Asm: Emulated (a bounds check that can panic, then PNEXT and ZCPY), CPU Feature: SVE
+func (x Float64s) SetElem(i uint8, y float64) (z Float64s) {
+	if int(i) >= x.Len() {
+		panic("simd: Float64s.SetElem: index out of range")
+	}
+	lane := Mask64sAllTrue().Next(Mask64sFromCount(int(i)))
+	return BroadcastFloat64s(y).IfElse(lane, x)
+}
+
 // IfElse returns a vector with elements from x where mask is true, and y where
 // mask is false.
 //
@@ -342,6 +370,20 @@ func (x Int8s) Elem(i uint8) (z int8) {
 }
 
 func (x Int8s) elem(i uint8) int8
+
+// SetElem returns x with its i'th element set to y. If i >= x.Len(), it panics.
+//
+//	z = x
+//	z[i] = y
+//
+// Asm: Emulated (a bounds check that can panic, then PNEXT and ZCPY), CPU Feature: SVE
+func (x Int8s) SetElem(i uint8, y int8) (z Int8s) {
+	if int(i) >= x.Len() {
+		panic("simd: Int8s.SetElem: index out of range")
+	}
+	lane := Mask8sAllTrue().Next(Mask8sFromCount(int(i)))
+	return BroadcastInt8s(y).IfElse(lane, x)
+}
 
 // IfElse returns a vector with elements from x where mask is true, and y where
 // mask is false.
@@ -469,6 +511,20 @@ func (x Int16s) Elem(i uint8) (z int16) {
 
 func (x Int16s) elem(i uint8) int16
 
+// SetElem returns x with its i'th element set to y. If i >= x.Len(), it panics.
+//
+//	z = x
+//	z[i] = y
+//
+// Asm: Emulated (a bounds check that can panic, then PNEXT and ZCPY), CPU Feature: SVE
+func (x Int16s) SetElem(i uint8, y int16) (z Int16s) {
+	if int(i) >= x.Len() {
+		panic("simd: Int16s.SetElem: index out of range")
+	}
+	lane := Mask16sAllTrue().Next(Mask16sFromCount(int(i)))
+	return BroadcastInt16s(y).IfElse(lane, x)
+}
+
 // IfElse returns a vector with elements from x where mask is true, and y where
 // mask is false.
 //
@@ -594,6 +650,20 @@ func (x Int32s) Elem(i uint8) (z int32) {
 }
 
 func (x Int32s) elem(i uint8) int32
+
+// SetElem returns x with its i'th element set to y. If i >= x.Len(), it panics.
+//
+//	z = x
+//	z[i] = y
+//
+// Asm: Emulated (a bounds check that can panic, then PNEXT and ZCPY), CPU Feature: SVE
+func (x Int32s) SetElem(i uint8, y int32) (z Int32s) {
+	if int(i) >= x.Len() {
+		panic("simd: Int32s.SetElem: index out of range")
+	}
+	lane := Mask32sAllTrue().Next(Mask32sFromCount(int(i)))
+	return BroadcastInt32s(y).IfElse(lane, x)
+}
 
 // IfElse returns a vector with elements from x where mask is true, and y where
 // mask is false.
@@ -721,6 +791,20 @@ func (x Int64s) Elem(i uint8) (z int64) {
 
 func (x Int64s) elem(i uint8) int64
 
+// SetElem returns x with its i'th element set to y. If i >= x.Len(), it panics.
+//
+//	z = x
+//	z[i] = y
+//
+// Asm: Emulated (a bounds check that can panic, then PNEXT and ZCPY), CPU Feature: SVE
+func (x Int64s) SetElem(i uint8, y int64) (z Int64s) {
+	if int(i) >= x.Len() {
+		panic("simd: Int64s.SetElem: index out of range")
+	}
+	lane := Mask64sAllTrue().Next(Mask64sFromCount(int(i)))
+	return BroadcastInt64s(y).IfElse(lane, x)
+}
+
 // IfElse returns a vector with elements from x where mask is true, and y where
 // mask is false.
 //
@@ -847,6 +931,20 @@ func (x Uint8s) Elem(i uint8) (z uint8) {
 
 func (x Uint8s) elem(i uint8) uint8
 
+// SetElem returns x with its i'th element set to y. If i >= x.Len(), it panics.
+//
+//	z = x
+//	z[i] = y
+//
+// Asm: Emulated (a bounds check that can panic, then PNEXT and ZCPY), CPU Feature: SVE
+func (x Uint8s) SetElem(i uint8, y uint8) (z Uint8s) {
+	if int(i) >= x.Len() {
+		panic("simd: Uint8s.SetElem: index out of range")
+	}
+	lane := Mask8sAllTrue().Next(Mask8sFromCount(int(i)))
+	return BroadcastUint8s(y).IfElse(lane, x)
+}
+
 // IfElse returns a vector with elements from x where mask is true, and y where
 // mask is false.
 //
@@ -963,6 +1061,20 @@ func (x Uint16s) Elem(i uint8) (z uint16) {
 }
 
 func (x Uint16s) elem(i uint8) uint16
+
+// SetElem returns x with its i'th element set to y. If i >= x.Len(), it panics.
+//
+//	z = x
+//	z[i] = y
+//
+// Asm: Emulated (a bounds check that can panic, then PNEXT and ZCPY), CPU Feature: SVE
+func (x Uint16s) SetElem(i uint8, y uint16) (z Uint16s) {
+	if int(i) >= x.Len() {
+		panic("simd: Uint16s.SetElem: index out of range")
+	}
+	lane := Mask16sAllTrue().Next(Mask16sFromCount(int(i)))
+	return BroadcastUint16s(y).IfElse(lane, x)
+}
 
 // IfElse returns a vector with elements from x where mask is true, and y where
 // mask is false.
@@ -1081,6 +1193,20 @@ func (x Uint32s) Elem(i uint8) (z uint32) {
 
 func (x Uint32s) elem(i uint8) uint32
 
+// SetElem returns x with its i'th element set to y. If i >= x.Len(), it panics.
+//
+//	z = x
+//	z[i] = y
+//
+// Asm: Emulated (a bounds check that can panic, then PNEXT and ZCPY), CPU Feature: SVE
+func (x Uint32s) SetElem(i uint8, y uint32) (z Uint32s) {
+	if int(i) >= x.Len() {
+		panic("simd: Uint32s.SetElem: index out of range")
+	}
+	lane := Mask32sAllTrue().Next(Mask32sFromCount(int(i)))
+	return BroadcastUint32s(y).IfElse(lane, x)
+}
+
 // IfElse returns a vector with elements from x where mask is true, and y where
 // mask is false.
 //
@@ -1197,6 +1323,20 @@ func (x Uint64s) Elem(i uint8) (z uint64) {
 }
 
 func (x Uint64s) elem(i uint8) uint64
+
+// SetElem returns x with its i'th element set to y. If i >= x.Len(), it panics.
+//
+//	z = x
+//	z[i] = y
+//
+// Asm: Emulated (a bounds check that can panic, then PNEXT and ZCPY), CPU Feature: SVE
+func (x Uint64s) SetElem(i uint8, y uint64) (z Uint64s) {
+	if int(i) >= x.Len() {
+		panic("simd: Uint64s.SetElem: index out of range")
+	}
+	lane := Mask64sAllTrue().Next(Mask64sFromCount(int(i)))
+	return BroadcastUint64s(y).IfElse(lane, x)
+}
 
 // IfElse returns a vector with elements from x where mask is true, and y where
 // mask is false.
