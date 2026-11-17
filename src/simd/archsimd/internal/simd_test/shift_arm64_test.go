@@ -73,7 +73,7 @@ func TestConcatWindow(t *testing.T) {
 	}
 
 	t.Run("Uint8x16", func(t *testing.T) {
-		for _, start := range []uint8{0, 2, 8, 15} {
+		for _, start := range []uint8{0, 2, 8, 15, 16, 20, 31, 32} {
 			t.Log("start", start)
 			testUint8x16Binary(t,
 				func(x, y archsimd.Uint8x16) archsimd.Uint8x16 { return x.ConcatWindow(y, start) },
@@ -84,6 +84,11 @@ func TestConcatWindow(t *testing.T) {
 			testUint8x16Binary(t,
 				func(x, y archsimd.Uint8x16) archsimd.Uint8x16 { return x.ConcatShiftBytesRight(y, uint64(start)) },
 				swap(window(start)))
+		}
+		var x, y archsimd.Uint8x16
+		expectPanic(t, func() { _ = x.ConcatWindow(y, 33) })
+		for _, start := range []uint8{33, 128, 255} {
+			expectPanic(t, func() { _ = x.ConcatWindow(y, hide(start)) })
 		}
 	})
 }

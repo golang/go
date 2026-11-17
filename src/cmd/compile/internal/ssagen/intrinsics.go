@@ -2485,6 +2485,37 @@ func opLen2Imm_21I(op ssaop.Op, t *types.Type, offset int, immMax uint64) func(s
 	}
 }
 
+// opLen2Imm_ConcatWindow implements ConcatWindow and ConcatWindowGrouped
+// (with operandOrder 21I, so args[0] is the low half x and args[1] is the
+// high half y). Indices 0..15 extract from concat(x, y), 16..31 shift in
+// zeros, 32 returns zero, and > 32 panics.
+// The hardware instruction takes indices 0..immMax directly: 31 for amd64's
+// VPALIGNR, and 15 for arm64's EXT (where 16..31 extract from concat(y, 0)
+// at index-16).
+//
+//go:noinline
+func opLen2Imm_ConcatWindow(op ssaop.Op, t *types.Type, offset int, immMax uint64) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	const limit = 32 // index limit returns zero; > limit panics
+	gen := func(s *state, idx uint64, x, y *ssa.Value) *ssa.Value {
+		switch {
+		case idx <= immMax:
+			// Encode as int8 due to requirement of AuxInt, check its comment for details.
+			return s.newValue2I(op, t, int64(int8(idx<<offset)), y, x)
+		case idx < limit:
+			return s.newValue2I(op, t, int64(int8((idx-16)<<offset)), s.newValue0(ssaop.OpZeroSIMD, t), y)
+		}
+		return s.newValue0(ssaop.OpZeroSIMD, t)
+	}
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		if (args[2].Op == ssaop.OpConst8 || args[2].Op == ssaop.OpConst64) && uint64(args[2].AuxInt) <= limit {
+			return gen(s, uint64(args[2].AuxInt), args[0], args[1])
+		}
+		return immJumpTableN(s, args[2], n, limit+1, func(sNew *state, idx int) {
+			s.vars[n] = gen(sNew, uint64(idx), args[0], args[1])
+		})
+	}
+}
+
 //go:noinline
 func opLen3Imm8_2I(op ssaop.Op, t *types.Type, offset int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {

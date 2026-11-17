@@ -262,7 +262,7 @@ func TestConcatWindow(t *testing.T) {
 		if !archsimd.X86.AVX() {
 			t.Skip("requires AVX")
 		}
-		for _, start := range []uint8{0, 2, 16, 20, 32, 128} {
+		for _, start := range []uint8{0, 2, 15, 16, 20, 31, 32} {
 			t.Log("start", start)
 			testUint8x16Binary(t,
 				func(x, y archsimd.Uint8x16) archsimd.Uint8x16 { return x.ConcatWindow(y, start) },
@@ -274,13 +274,18 @@ func TestConcatWindow(t *testing.T) {
 				func(x, y archsimd.Uint8x16) archsimd.Uint8x16 { return x.ConcatShiftBytesRight(y, uint64(start)) },
 				swap(window(start)))
 		}
+		var x, y archsimd.Uint8x16
+		expectPanic(t, func() { _ = x.ConcatWindow(y, 33) })
+		for _, start := range []uint8{33, 128, 255} {
+			expectPanic(t, func() { _ = x.ConcatWindow(y, hide(start)) })
+		}
 	})
 
 	t.Run("Uint8x32", func(t *testing.T) {
 		if !archsimd.X86.AVX2() {
 			t.Skip("requires AVX2")
 		}
-		for _, start := range []uint8{0, 2, 16, 20, 32, 128} {
+		for _, start := range []uint8{0, 2, 15, 16, 20, 31, 32} {
 			t.Log("start", start)
 			testUint8x32Binary(t,
 				func(x, y archsimd.Uint8x32) archsimd.Uint8x32 { return x.ConcatWindowGrouped(y, start) },
@@ -294,13 +299,18 @@ func TestConcatWindow(t *testing.T) {
 				},
 				grouped2(swap(window(start))))
 		}
+		var x, y archsimd.Uint8x32
+		expectPanic(t, func() { _ = x.ConcatWindowGrouped(y, 33) })
+		for _, start := range []uint8{33, 128, 255} {
+			expectPanic(t, func() { _ = x.ConcatWindowGrouped(y, hide(start)) })
+		}
 	})
 
 	t.Run("Uint8x64", func(t *testing.T) {
 		if !archsimd.X86.AVX512() {
 			t.Skip("requires AVX512")
 		}
-		for _, start := range []uint8{0, 2, 16, 20, 32, 128} {
+		for _, start := range []uint8{0, 2, 15, 16, 20, 31, 32} {
 			t.Log("start", start)
 			testUint8x64Binary(t,
 				func(x, y archsimd.Uint8x64) archsimd.Uint8x64 { return x.ConcatWindowGrouped(y, start) },
@@ -313,6 +323,11 @@ func TestConcatWindow(t *testing.T) {
 					return x.ConcatShiftBytesRightGrouped(y, uint64(start))
 				},
 				grouped2(swap(window(start))))
+		}
+		var x, y archsimd.Uint8x64
+		expectPanic(t, func() { _ = x.ConcatWindowGrouped(y, 33) })
+		for _, start := range []uint8{33, 128, 255} {
+			expectPanic(t, func() { _ = x.ConcatWindowGrouped(y, hide(start)) })
 		}
 	})
 }
