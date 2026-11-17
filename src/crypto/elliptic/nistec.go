@@ -6,6 +6,7 @@ package elliptic
 
 import (
 	"crypto/internal/fips140/nistec"
+	"crypto/subtle"
 	"errors"
 	"math/big"
 )
@@ -168,23 +169,41 @@ func (curve *nistCurve[Point]) pointToAffine(p Point) (x, y *big.Int) {
 }
 
 func (curve *nistCurve[Point]) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
-	p1, err := curve.pointFromAffine(x1, y1)
+	var x, y *big.Int
+	var err error
+	subtle.WithDataIndependentTiming(func() {
+		var p1, p2 Point
+		p1, err = curve.pointFromAffine(x1, y1)
+		if err != nil {
+			return
+		}
+		p2, err = curve.pointFromAffine(x2, y2)
+		if err != nil {
+			return
+		}
+		x, y = curve.pointToAffine(p1.Add(p1, p2))
+	})
 	if err != nil {
 		panic("crypto/elliptic: Add was called on an invalid point")
 	}
-	p2, err := curve.pointFromAffine(x2, y2)
-	if err != nil {
-		panic("crypto/elliptic: Add was called on an invalid point")
-	}
-	return curve.pointToAffine(p1.Add(p1, p2))
+	return x, y
 }
 
 func (curve *nistCurve[Point]) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
-	p, err := curve.pointFromAffine(x1, y1)
+	var x, y *big.Int
+	var err error
+	subtle.WithDataIndependentTiming(func() {
+		var p Point
+		p, err = curve.pointFromAffine(x1, y1)
+		if err != nil {
+			return
+		}
+		x, y = curve.pointToAffine(p.Double(p))
+	})
 	if err != nil {
 		panic("crypto/elliptic: Double was called on an invalid point")
 	}
-	return curve.pointToAffine(p.Double(p))
+	return x, y
 }
 
 // normalizeScalar brings the scalar within the byte size of the order of the
@@ -203,25 +222,46 @@ func (curve *nistCurve[Point]) normalizeScalar(scalar []byte) []byte {
 }
 
 func (curve *nistCurve[Point]) ScalarMult(Bx, By *big.Int, scalar []byte) (*big.Int, *big.Int) {
-	p, err := curve.pointFromAffine(Bx, By)
-	if err != nil {
+	var x, y *big.Int
+	var pErr, sErr error
+	subtle.WithDataIndependentTiming(func() {
+		var p Point
+		p, pErr = curve.pointFromAffine(Bx, By)
+		if pErr != nil {
+			return
+		}
+		scalar = curve.normalizeScalar(scalar)
+		p, sErr = p.ScalarMult(p, scalar)
+		if sErr != nil {
+			return
+		}
+		x, y = curve.pointToAffine(p)
+	})
+	if pErr != nil {
 		panic("crypto/elliptic: ScalarMult was called on an invalid point")
 	}
-	scalar = curve.normalizeScalar(scalar)
-	p, err = p.ScalarMult(p, scalar)
-	if err != nil {
+	if sErr != nil {
 		panic("crypto/elliptic: nistec rejected normalized scalar")
 	}
-	return curve.pointToAffine(p)
+	return x, y
 }
 
 func (curve *nistCurve[Point]) ScalarBaseMult(scalar []byte) (*big.Int, *big.Int) {
-	scalar = curve.normalizeScalar(scalar)
-	p, err := curve.newPoint().ScalarBaseMult(scalar)
+	var x, y *big.Int
+	var err error
+	subtle.WithDataIndependentTiming(func() {
+		scalar = curve.normalizeScalar(scalar)
+		var p Point
+		p, err = curve.newPoint().ScalarBaseMult(scalar)
+		if err != nil {
+			return
+		}
+		x, y = curve.pointToAffine(p)
+	})
 	if err != nil {
 		panic("crypto/elliptic: nistec rejected normalized scalar")
 	}
-	return curve.pointToAffine(p)
+	return x, y
 }
 
 func (curve *nistCurve[Point]) Unmarshal(data []byte) (x, y *big.Int) {
