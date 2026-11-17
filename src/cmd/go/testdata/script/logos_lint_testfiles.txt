@@ -1,0 +1,118 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# Internal test files are linted in the package's test variant.
+cd internal
+! logos lint ./...
+stderr 'in_test\.go:6:2: \[slop::discarded_error\]'
+stderr -count=1 'slop::discarded_error'
+cd ..
+
+# External test packages are linted as the pxtest variant.
+cd xtest
+! logos lint ./...
+stderr 'x_test\.go:10:2: \[slop::discarded_error\]'
+cd ..
+
+# A package of only test files is linted instead of silently passing.
+cd testonly
+! logos lint ./...
+stderr 'only_test\.go:8:2: \[slop::discarded_error\]'
+cd ..
+
+# A test file with a broken import reports the load error and still
+# lints the package's non-test files.
+cd broken
+! logos lint ./...
+stderr 'is not in std'
+stderr 'bad\.go:8:2: \[slop::discarded_error\]'
+cd ..
+
+-- internal/go.mod --
+module example.com/internal
+
+go 1.24
+
+-- internal/foo.go --
+package foo
+
+import "errors"
+
+func F() error { return errors.New("x") }
+
+-- internal/in_test.go --
+package foo
+
+import "testing"
+
+func TestF(t *testing.T) {
+	F()
+}
+
+-- xtest/go.mod --
+module example.com/xtest
+
+go 1.24
+
+-- xtest/foo.go --
+package foo
+
+import "errors"
+
+func F() error { return errors.New("x") }
+
+-- xtest/x_test.go --
+package foo_test
+
+import (
+	"testing"
+
+	"example.com/xtest"
+)
+
+func TestF(t *testing.T) {
+	foo.F()
+}
+
+-- testonly/go.mod --
+module example.com/testonly
+
+go 1.24
+
+-- testonly/only_test.go --
+package testonly
+
+import "errors"
+
+func f() error { return errors.New("x") }
+
+func helper() {
+	f()
+}
+
+-- broken/go.mod --
+module example.com/broken
+
+go 1.24
+
+-- broken/bad.go --
+package broken
+
+import "errors"
+
+func M() error { return errors.New("x") }
+
+func Caller() {
+	M()
+}
+
+-- broken/bad_test.go --
+package broken
+
+import (
+	"testing"
+
+	"nonexistent/pkg"
+)
+
+func TestM(t *testing.T) { pkg.X() }

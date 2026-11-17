@@ -42,6 +42,8 @@ pedantic group, raising it from allow to warn. A stricter logos.toml
 severity stays in force, and -pedantic=false turns the group off. The
 -json-diagnostics flag prints one JSON object per diagnostic on stderr.
 Packages of other modules and the standard library are never linted.
+Internal and external test files are linted in their test variants,
+the way 'go vet' analyzes them.
 
 See also: logos build.
 	`,
@@ -64,12 +66,41 @@ func runLint(ctx context.Context, cmd *base.Command, args []string) {
 			base.Fatal(err)
 		}
 	}()
-	pkgs := load.PackagesAndErrors(moduleLoader, ctx, load.PackageOpts{AutoVCS: true}, args)
+	pkgOpts := load.PackageOpts{AutoVCS: true, ModResolveTests: true}
+	pkgs := load.PackagesAndErrors(moduleLoader, ctx, pkgOpts, args)
 	load.CheckPackageErrors(pkgs)
 	root := &work.Action{Mode: "logos lint"}
 	for _, p := range pkgs {
-		if work.LintsPackage(p) {
+		if p.Internal.LogosLint == nil || p.Internal.TestmainGo != nil {
+			continue
+		}
+		if len(p.TestGoFiles) == 0 && len(p.XTestGoFiles) == 0 {
+			if work.LintsPackage(p) {
+				root.Deps = append(root.Deps, b.LintAction(p))
+			}
+			continue
+		}
+		// Lint the test variants like 'go vet' does: ptest carries the
+		// package's Go files plus its internal test files, and pxtest is
+		// the external test package.
+		_, ptest, pxtest, perr := load.TestPackagesFor(moduleLoader, ctx, pkgOpts, p, nil)
+		if perr != nil {
+			base.Errorf("logos lint: %v", perr.Error)
+			if work.LintsPackage(p) {
+				root.Deps = append(root.Deps, b.LintAction(p))
+			}
+			continue
+		}
+		linted := false
+		if ptest != nil && work.LintsPackage(ptest) {
+			root.Deps = append(root.Deps, b.LintAction(ptest))
+			linted = true
+		}
+		if !linted && work.LintsPackage(p) {
 			root.Deps = append(root.Deps, b.LintAction(p))
+		}
+		if pxtest != nil && work.LintsPackage(pxtest) {
+			root.Deps = append(root.Deps, b.LintAction(pxtest))
 		}
 	}
 	b.Do(ctx, root)
