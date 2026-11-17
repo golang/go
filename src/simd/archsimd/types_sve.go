@@ -94,6 +94,20 @@ func (x Float32s) StorePart(s []float32) (n int) {
 //go:noescape
 func (x Float32s) storePart(s []float32)
 
+// Elem returns the i'th element x. If i >= x.Len(), it panics.
+//
+//	z = x[i]
+//
+// Asm: Emulated (a bounds check that can panic, then ZLASTB), CPU Feature: SVE
+func (x Float32s) Elem(i uint8) (z float32) {
+	if int(i) >= x.Len() {
+		panic("simd: Float32s.Elem: index out of range")
+	}
+	return x.elem(i)
+}
+
+func (x Float32s) elem(i uint8) float32
+
 // IfElse returns a vector with elements from x where mask is true, and y where
 // mask is false.
 //
@@ -198,6 +212,20 @@ func (x Float64s) StorePart(s []float64) (n int) {
 //go:noescape
 func (x Float64s) storePart(s []float64)
 
+// Elem returns the i'th element x. If i >= x.Len(), it panics.
+//
+//	z = x[i]
+//
+// Asm: Emulated (a bounds check that can panic, then ZLASTB), CPU Feature: SVE
+func (x Float64s) Elem(i uint8) (z float64) {
+	if int(i) >= x.Len() {
+		panic("simd: Float64s.Elem: index out of range")
+	}
+	return x.elem(i)
+}
+
+func (x Float64s) elem(i uint8) float64
+
 // IfElse returns a vector with elements from x where mask is true, and y where
 // mask is false.
 //
@@ -300,6 +328,20 @@ func (x Int8s) StorePart(s []int8) (n int) {
 
 //go:noescape
 func (x Int8s) storePart(s []int8)
+
+// Elem returns the i'th element x. If i >= x.Len(), it panics.
+//
+//	z = x[i]
+//
+// Asm: Emulated (a bounds check that can panic, then ZLASTB), CPU Feature: SVE
+func (x Int8s) Elem(i uint8) (z int8) {
+	if int(i) >= x.Len() {
+		panic("simd: Int8s.Elem: index out of range")
+	}
+	return x.elem(i)
+}
+
+func (x Int8s) elem(i uint8) int8
 
 // IfElse returns a vector with elements from x where mask is true, and y where
 // mask is false.
@@ -413,6 +455,20 @@ func (x Int16s) StorePart(s []int16) (n int) {
 //go:noescape
 func (x Int16s) storePart(s []int16)
 
+// Elem returns the i'th element x. If i >= x.Len(), it panics.
+//
+//	z = x[i]
+//
+// Asm: Emulated (a bounds check that can panic, then ZLASTB), CPU Feature: SVE
+func (x Int16s) Elem(i uint8) (z int16) {
+	if int(i) >= x.Len() {
+		panic("simd: Int16s.Elem: index out of range")
+	}
+	return x.elem(i)
+}
+
+func (x Int16s) elem(i uint8) int16
+
 // IfElse returns a vector with elements from x where mask is true, and y where
 // mask is false.
 //
@@ -524,6 +580,20 @@ func (x Int32s) StorePart(s []int32) (n int) {
 
 //go:noescape
 func (x Int32s) storePart(s []int32)
+
+// Elem returns the i'th element x. If i >= x.Len(), it panics.
+//
+//	z = x[i]
+//
+// Asm: Emulated (a bounds check that can panic, then ZLASTB), CPU Feature: SVE
+func (x Int32s) Elem(i uint8) (z int32) {
+	if int(i) >= x.Len() {
+		panic("simd: Int32s.Elem: index out of range")
+	}
+	return x.elem(i)
+}
+
+func (x Int32s) elem(i uint8) int32
 
 // IfElse returns a vector with elements from x where mask is true, and y where
 // mask is false.
@@ -637,6 +707,20 @@ func (x Int64s) StorePart(s []int64) (n int) {
 //go:noescape
 func (x Int64s) storePart(s []int64)
 
+// Elem returns the i'th element x. If i >= x.Len(), it panics.
+//
+//	z = x[i]
+//
+// Asm: Emulated (a bounds check that can panic, then ZLASTB), CPU Feature: SVE
+func (x Int64s) Elem(i uint8) (z int64) {
+	if int(i) >= x.Len() {
+		panic("simd: Int64s.Elem: index out of range")
+	}
+	return x.elem(i)
+}
+
+func (x Int64s) elem(i uint8) int64
+
 // IfElse returns a vector with elements from x where mask is true, and y where
 // mask is false.
 //
@@ -749,6 +833,20 @@ func (x Uint8s) StorePart(s []uint8) (n int) {
 //go:noescape
 func (x Uint8s) storePart(s []uint8)
 
+// Elem returns the i'th element x. If i >= x.Len(), it panics.
+//
+//	z = x[i]
+//
+// Asm: Emulated (a bounds check that can panic, then ZLASTB), CPU Feature: SVE
+func (x Uint8s) Elem(i uint8) (z uint8) {
+	if int(i) >= x.Len() {
+		panic("simd: Uint8s.Elem: index out of range")
+	}
+	return x.elem(i)
+}
+
+func (x Uint8s) elem(i uint8) uint8
+
 // IfElse returns a vector with elements from x where mask is true, and y where
 // mask is false.
 //
@@ -851,6 +949,20 @@ func (x Uint16s) StorePart(s []uint16) (n int) {
 
 //go:noescape
 func (x Uint16s) storePart(s []uint16)
+
+// Elem returns the i'th element x. If i >= x.Len(), it panics.
+//
+//	z = x[i]
+//
+// Asm: Emulated (a bounds check that can panic, then ZLASTB), CPU Feature: SVE
+func (x Uint16s) Elem(i uint8) (z uint16) {
+	if int(i) >= x.Len() {
+		panic("simd: Uint16s.Elem: index out of range")
+	}
+	return x.elem(i)
+}
+
+func (x Uint16s) elem(i uint8) uint16
 
 // IfElse returns a vector with elements from x where mask is true, and y where
 // mask is false.
@@ -955,6 +1067,20 @@ func (x Uint32s) StorePart(s []uint32) (n int) {
 //go:noescape
 func (x Uint32s) storePart(s []uint32)
 
+// Elem returns the i'th element x. If i >= x.Len(), it panics.
+//
+//	z = x[i]
+//
+// Asm: Emulated (a bounds check that can panic, then ZLASTB), CPU Feature: SVE
+func (x Uint32s) Elem(i uint8) (z uint32) {
+	if int(i) >= x.Len() {
+		panic("simd: Uint32s.Elem: index out of range")
+	}
+	return x.elem(i)
+}
+
+func (x Uint32s) elem(i uint8) uint32
+
 // IfElse returns a vector with elements from x where mask is true, and y where
 // mask is false.
 //
@@ -1057,6 +1183,20 @@ func (x Uint64s) StorePart(s []uint64) (n int) {
 
 //go:noescape
 func (x Uint64s) storePart(s []uint64)
+
+// Elem returns the i'th element x. If i >= x.Len(), it panics.
+//
+//	z = x[i]
+//
+// Asm: Emulated (a bounds check that can panic, then ZLASTB), CPU Feature: SVE
+func (x Uint64s) Elem(i uint8) (z uint64) {
+	if int(i) >= x.Len() {
+		panic("simd: Uint64s.Elem: index out of range")
+	}
+	return x.elem(i)
+}
+
+func (x Uint64s) elem(i uint8) uint64
 
 // IfElse returns a vector with elements from x where mask is true, and y where
 // mask is false.

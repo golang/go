@@ -597,6 +597,7 @@ func (x {{.Name}}) StoreArray(y *[{{.Lanes}}]{{.Base}})
 // move — min(len(s), Len()), and nothing for an empty or nil slice — and call the
 // unexported raw predicated load/store intrinsic. Keeping the length logic in Go
 // (rather than in the intrinsic) makes the bounds behavior explicit and safe.
+// Elem checks its index against Len() in Go the same way.
 const simdScalableLoadStoreTemplate = `
 // Len returns the number of elements in {{.Article}} {{.Name}}.
 func (x {{.Name}}) Len() int { return {{.LenExpr}} }
@@ -659,6 +660,16 @@ func (x {{.Name}}) StorePart(s []{{.Base}}) int {
 
 //go:noescape
 func (x {{.Name}}) storePart(s []{{.Base}})
+
+// Asm: Emulated (a bounds check that can panic, then ZLASTB), CPU Feature: SVE
+func (x {{.Name}}) Elem(i uint8) {{.Base}} {
+	if int(i) >= x.Len() {
+		panic("simd: {{.Name}}.Elem: index out of range")
+	}
+	return x.elem(i)
+}
+
+func (x {{.Name}}) elem(i uint8) {{.Base}}
 `
 
 const simdMaskFromValTemplate = `

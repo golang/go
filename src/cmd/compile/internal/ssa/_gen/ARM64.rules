@@ -1936,6 +1936,18 @@
 (BroadcastFloat32s x) => (ZDUPIS [0] x)
 (BroadcastFloat64s x) => (ZDUPID [0] x)
 
+// Element i is the last active one of the mask of the first i+1 lanes.
+(ElemInt8s x i) => (ZLASTBB x (Select0 <types.TypeMask> (PWHILELTB (MOVDconst [0]) (ADDconst <typ.UInt64> [1] (MOVBUreg <typ.UInt64> i)))))
+(ElemUint8s x i) => (ZLASTBB x (Select0 <types.TypeMask> (PWHILELTB (MOVDconst [0]) (ADDconst <typ.UInt64> [1] (MOVBUreg <typ.UInt64> i)))))
+(ElemInt16s x i) => (ZLASTBH x (Select0 <types.TypeMask> (PWHILELTH (MOVDconst [0]) (ADDconst <typ.UInt64> [1] (MOVBUreg <typ.UInt64> i)))))
+(ElemUint16s x i) => (ZLASTBH x (Select0 <types.TypeMask> (PWHILELTH (MOVDconst [0]) (ADDconst <typ.UInt64> [1] (MOVBUreg <typ.UInt64> i)))))
+(ElemInt32s x i) => (ZLASTBS x (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (ADDconst <typ.UInt64> [1] (MOVBUreg <typ.UInt64> i)))))
+(ElemUint32s x i) => (ZLASTBS x (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (ADDconst <typ.UInt64> [1] (MOVBUreg <typ.UInt64> i)))))
+(ElemFloat32s x i) => (ZLASTBfpS x (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (ADDconst <typ.UInt64> [1] (MOVBUreg <typ.UInt64> i)))))
+(ElemInt64s x i) => (ZLASTBD x (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (ADDconst <typ.UInt64> [1] (MOVBUreg <typ.UInt64> i)))))
+(ElemUint64s x i) => (ZLASTBD x (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (ADDconst <typ.UInt64> [1] (MOVBUreg <typ.UInt64> i)))))
+(ElemFloat64s x i) => (ZLASTBfpD x (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (ADDconst <typ.UInt64> [1] (MOVBUreg <typ.UInt64> i)))))
+
 // A broadcast of a small constant needs no general register: DUP (immediate)
 // takes a signed 8-bit immediate.
 (ZDUPB (MOVDconst [c])) && c == int64(int8(c)) => (ZDUPBconst [int8(c)])

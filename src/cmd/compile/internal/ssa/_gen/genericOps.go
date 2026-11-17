@@ -819,6 +819,19 @@ var genericOps = []opData{
 	{name: "BroadcastUint64s", argLength: 1},
 	{name: "BroadcastFloat64s", argLength: 1},
 
+	// Elem returns element arg1 of arg0. arg1 = the index (uint8), which
+	// the caller has checked against the runtime number of elements.
+	{name: "ElemInt8s", argLength: 2},
+	{name: "ElemUint8s", argLength: 2},
+	{name: "ElemInt16s", argLength: 2},
+	{name: "ElemUint16s", argLength: 2},
+	{name: "ElemInt32s", argLength: 2},
+	{name: "ElemUint32s", argLength: 2},
+	{name: "ElemFloat32s", argLength: 2},
+	{name: "ElemInt64s", argLength: 2},
+	{name: "ElemUint64s", argLength: 2},
+	{name: "ElemFloat64s", argLength: 2},
+
 	// AllTrue constructs a scalable predicate with every lane true. Written by
 	// hand: there is no instruction operand to unify on, and the lowering is
 	// the same synthesized PWHILELT the implicitly predicated operations use.

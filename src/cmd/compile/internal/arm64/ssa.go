@@ -896,6 +896,18 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		simdZCpyMergingGp(s, v, arm64.ARNG_S)
 	case ssaop.OpARM64ZCPYMergingD:
 		simdZCpyMergingGp(s, v, arm64.ARNG_D)
+	case ssaop.OpARM64ZLASTBB:
+		simdZkgp(s, v, arm64.ARNG_B)
+	case ssaop.OpARM64ZLASTBH:
+		simdZkgp(s, v, arm64.ARNG_H)
+	case ssaop.OpARM64ZLASTBS:
+		simdZkgp(s, v, arm64.ARNG_S)
+	case ssaop.OpARM64ZLASTBD:
+		simdZkgp(s, v, arm64.ARNG_D)
+	case ssaop.OpARM64ZLASTBfpS:
+		simdZkfp(s, v, arm64.ARNG_S)
+	case ssaop.OpARM64ZLASTBfpD:
+		simdZkfp(s, v, arm64.ARNG_D)
 	case ssaop.OpARM64ZCPYIMergingB:
 		simdZCpyMergingVec(s, v, arm64.ARNG_B)
 	case ssaop.OpARM64ZCPYIMergingH:
@@ -2363,10 +2375,10 @@ func simdZkv(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
 	return sveUnaryPred(s, v, arng, v.Args[0].Reg(), v.Args[1].Reg(), arm64.PRED_M)
 }
 
-// simdZkfp emits an SVE reduction across the lanes of arg0 that arg1 governs
-// into a floating-point scalar register, e.g. ZFADDVS Z0.S, P0, V1. The
-// scalar is the low lane of the vector register with the same number, which
-// is where a float value lives.
+// simdZkfp emits an SVE operation on the lanes of arg0 that arg1 governs (a
+// reduction, or LASTB) into a floating-point scalar register, e.g.
+// ZFADDVS Z0.S, P0, V1. The scalar is the low lane of the vector register
+// with the same number, which is where a float value lives.
 func simdZkfp(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	p.From.Type = obj.TYPE_REG
@@ -2374,6 +2386,18 @@ func simdZkfp(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
 	p.AddRestSourceReg(v.Args[1].Reg())          // Pg, unqualified
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = v.Reg() - arm64.REG_F0 + arm64.REG_V0 // Vd
+	return p
+}
+
+// simdZkgp emits an SVE operation on the lanes of arg0 that arg1 governs into
+// a general register, e.g. ZLASTBW Z0.S, P0, R1.
+func simdZkgp(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = zregArng(v.Args[0].Reg(), arng) // Zn
+	p.AddRestSourceReg(v.Args[1].Reg())          // Pg, unqualified
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = v.Reg() // Rd
 	return p
 }
 

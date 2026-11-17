@@ -4787,6 +4787,12 @@ const (
 	OpARM64ZDUPIH
 	OpARM64ZDUPIS
 	OpARM64ZDUPID
+	OpARM64ZLASTBB
+	OpARM64ZLASTBH
+	OpARM64ZLASTBS
+	OpARM64ZLASTBD
+	OpARM64ZLASTBfpS
+	OpARM64ZLASTBfpD
 	OpARM64ZCPYBconst
 	OpARM64ZCPYHconst
 	OpARM64ZCPYSconst
@@ -7541,6 +7547,16 @@ const (
 	OpBroadcastInt64s
 	OpBroadcastUint64s
 	OpBroadcastFloat64s
+	OpElemInt8s
+	OpElemUint8s
+	OpElemInt16s
+	OpElemUint16s
+	OpElemInt32s
+	OpElemUint32s
+	OpElemFloat32s
+	OpElemInt64s
+	OpElemUint64s
+	OpElemFloat64s
 	OpMask8sAllTrue
 	OpMask16sAllTrue
 	OpMask32sAllTrue
@@ -86007,6 +86023,90 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
+		Name:   "ZLASTBB",
+		ArgLen: 2,
+		asm:    arm64.AZLASTBW,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{1, RegMask{V1: 9223372036854775808, V2: 127}}, // P0 P1 P2 P3 P4 P5 P6 P7
+				{0, RegMask{V1: 9223372034707292160, V2: 0}},   // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 335544319, V2: 0}}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
+		Name:   "ZLASTBH",
+		ArgLen: 2,
+		asm:    arm64.AZLASTBW,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{1, RegMask{V1: 9223372036854775808, V2: 127}}, // P0 P1 P2 P3 P4 P5 P6 P7
+				{0, RegMask{V1: 9223372034707292160, V2: 0}},   // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 335544319, V2: 0}}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
+		Name:   "ZLASTBS",
+		ArgLen: 2,
+		asm:    arm64.AZLASTBW,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{1, RegMask{V1: 9223372036854775808, V2: 127}}, // P0 P1 P2 P3 P4 P5 P6 P7
+				{0, RegMask{V1: 9223372034707292160, V2: 0}},   // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 335544319, V2: 0}}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
+		Name:   "ZLASTBD",
+		ArgLen: 2,
+		asm:    arm64.AZLASTB,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{1, RegMask{V1: 9223372036854775808, V2: 127}}, // P0 P1 P2 P3 P4 P5 P6 P7
+				{0, RegMask{V1: 9223372034707292160, V2: 0}},   // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 335544319, V2: 0}}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
+		Name:   "ZLASTBfpS",
+		ArgLen: 2,
+		asm:    arm64.AZLASTBS,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{1, RegMask{V1: 9223372036854775808, V2: 127}}, // P0 P1 P2 P3 P4 P5 P6 P7
+				{0, RegMask{V1: 9223372034707292160, V2: 0}},   // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		Name:   "ZLASTBfpD",
+		ArgLen: 2,
+		asm:    arm64.AZLASTBD,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{1, RegMask{V1: 9223372036854775808, V2: 127}}, // P0 P1 P2 P3 P4 P5 P6 P7
+				{0, RegMask{V1: 9223372034707292160, V2: 0}},   // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
 		Name:    "ZCPYBconst",
 		AuxType: AuxTypeInt8,
 		ArgLen:  1,
@@ -121764,6 +121864,56 @@ var OpcodeTable = [...]OpInfo{
 	{
 		Name:    "BroadcastFloat64s",
 		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "ElemInt8s",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "ElemUint8s",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "ElemInt16s",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "ElemUint16s",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "ElemInt32s",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "ElemUint32s",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "ElemFloat32s",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "ElemInt64s",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "ElemUint64s",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "ElemFloat64s",
+		ArgLen:  2,
 		Generic: true,
 	},
 	{

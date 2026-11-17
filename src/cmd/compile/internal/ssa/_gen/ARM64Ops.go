@@ -210,6 +210,7 @@ func init() {
 		pred1fp        = regInfo{inputs: []regMask{pred}, outputs: []regMask{fp}}
 		fp1predfp      = regInfo{inputs: []regMask{fp, pred}, outputs: []regMask{fp}}
 		fp1pred07fp    = regInfo{inputs: []regMask{fp, pred07}, outputs: []regMask{fp}}
+		fp1pred07gp    = regInfo{inputs: []regMask{fp, pred07}, outputs: []regMask{gp}}
 		fpgppred07fp   = regInfo{inputs: []regMask{fp, gp, pred07}, outputs: []regMask{fp}}
 		fp2pred07pred  = regInfo{inputs: []regMask{fp, fp, pred07}, outputs: []regMask{pred}}
 		fp2predfp      = regInfo{inputs: []regMask{fp, fp, pred}, outputs: []regMask{fp}}
@@ -897,6 +898,16 @@ func init() {
 		{name: "ZDUPIH", argLength: 1, aux: "UInt8", reg: fp11, asm: "ZDUP", typ: "Vec256"}, // arg0=vector, auxint=element index
 		{name: "ZDUPIS", argLength: 1, aux: "UInt8", reg: fp11, asm: "ZDUP", typ: "Vec256"}, // arg0=vector, auxint=element index
 		{name: "ZDUPID", argLength: 1, aux: "UInt8", reg: fp11, asm: "ZDUP", typ: "Vec256"}, // arg0=vector, auxint=element index
+		// ZLASTB{B,H,S,D} copy the last element of arg0 that arg1 governs to a
+		// general register, zero-extended; ZLASTBfp{S,D} copy it to a
+		// floating-point register. LASTB encodes arg1 in three bits, so it is
+		// one of P0-P7.
+		{name: "ZLASTBB", argLength: 2, reg: fp1pred07gp, asm: "ZLASTBW"},                   // arg0=vector, arg1=predicate
+		{name: "ZLASTBH", argLength: 2, reg: fp1pred07gp, asm: "ZLASTBW"},                   // arg0=vector, arg1=predicate
+		{name: "ZLASTBS", argLength: 2, reg: fp1pred07gp, asm: "ZLASTBW"},                   // arg0=vector, arg1=predicate
+		{name: "ZLASTBD", argLength: 2, reg: fp1pred07gp, asm: "ZLASTB"},                    // arg0=vector, arg1=predicate
+		{name: "ZLASTBfpS", argLength: 2, reg: fp1pred07fp, asm: "ZLASTBS", typ: "Float32"}, // arg0=vector, arg1=predicate
+		{name: "ZLASTBfpD", argLength: 2, reg: fp1pred07fp, asm: "ZLASTBD", typ: "Float64"}, // arg0=vector, arg1=predicate
 		// ZCPY is the predicated counterpart of ZDUP.
 		// ZCPY{B,H,S,D}const broadcasts a signed 8-bit immediate to the selected
 		// lanes of a scalable vector and zeroes the inactive lanes (Pg/Z).

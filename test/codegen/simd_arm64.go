@@ -635,6 +635,65 @@ func sveMaskNot(x archsimd.Mask16s) archsimd.Mask16s {
 	return x.Not()
 }
 
+// Elem inlines to a bounds check against the runtime length, then LASTB
+// under the mask of lanes 0..i.
+func sveElem32(x archsimd.Int32s, i uint8) int32 {
+	// arm64:`RDVL` `PWHILELT.*P[0-9]+\.S` `ZLASTBW\s+Z[0-9]+\.S, P[0-9]+, R[0-9]+`
+	return x.Elem(i)
+}
+
+// A constant index folds into the PWHILELT bound, and a signed byte is
+// sign-extended where it is widened.
+func sveElemConst8(x archsimd.Int8s) int64 {
+	// arm64:`PWHILELT.*P[0-9]+\.B` `ZLASTBW\s+Z[0-9]+\.B, P[0-9]+, R[0-9]+` `MOVB\s+R[0-9]+, R[0-9]+` -`ADD\s+\$1,`
+	return int64(x.Elem(3))
+}
+
+func sveElemFloat64(x archsimd.Float64s, i uint8) float64 {
+	// arm64:`PWHILELT.*P[0-9]+\.D` `ZLASTBD\s+Z[0-9]+\.D, P[0-9]+, V[0-9]+`
+	return x.Elem(i)
+}
+
+// LASTB takes its predicate in three bits, so with ten masks live across
+// Elem, the predicate must still be one of P0-P7. The selects after Elem
+// use its result, so Elem cannot be scheduled after them.
+func sveElemManyLiveMasks(x, a archsimd.Int32s, i uint8, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9 int) (int32, archsimd.Int32s) {
+	m0 := archsimd.Mask32sFromCount(c0)
+	m1 := archsimd.Mask32sFromCount(c1)
+	m2 := archsimd.Mask32sFromCount(c2)
+	m3 := archsimd.Mask32sFromCount(c3)
+	m4 := archsimd.Mask32sFromCount(c4)
+	m5 := archsimd.Mask32sFromCount(c5)
+	m6 := archsimd.Mask32sFromCount(c6)
+	m7 := archsimd.Mask32sFromCount(c7)
+	m8 := archsimd.Mask32sFromCount(c8)
+	m9 := archsimd.Mask32sFromCount(c9)
+	a = a.IfElse(m0, x)
+	a = a.IfElse(m1, x)
+	a = a.IfElse(m2, x)
+	a = a.IfElse(m3, x)
+	a = a.IfElse(m4, x)
+	a = a.IfElse(m5, x)
+	a = a.IfElse(m6, x)
+	a = a.IfElse(m7, x)
+	a = a.IfElse(m8, x)
+	a = a.IfElse(m9, x)
+	// arm64:`ZLASTBW\s+Z[0-9]+\.S, P[0-7], R[0-9]+` -`ZLASTBW\s+Z[0-9]+\.S, P(?:[89]|1[0-5]),`
+	e := x.Elem(i)
+	y := x.Add(archsimd.BroadcastInt32s(e))
+	a = a.IfElse(m0, y)
+	a = a.IfElse(m1, y)
+	a = a.IfElse(m2, y)
+	a = a.IfElse(m3, y)
+	a = a.IfElse(m4, y)
+	a = a.IfElse(m5, y)
+	a = a.IfElse(m6, y)
+	a = a.IfElse(m7, y)
+	a = a.IfElse(m8, y)
+	a = a.IfElse(m9, y)
+	return e, a
+}
+
 func sveBroadcastConstIfElse(m archsimd.Mask16s, z archsimd.Int16s) archsimd.Int16s {
 	// arm64:`ZCPY\s+\$5, P[0-9]+\.M, Z[0-9]+\.H` -`ZDUP` -`ZSEL`
 	return archsimd.BroadcastInt16s(5).IfElse(m, z)

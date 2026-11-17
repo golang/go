@@ -1832,6 +1832,26 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		} {
 			addF(simdPackage, "Broadcast"+t.name, opLen1(t.op, types.TypeVec256), sys.ARM64)
 		}
+		// The exported Elem is a Go wrapper (see types_sve.go) that checks
+		// the index against the runtime length; elem is the access itself.
+		for _, t := range []struct {
+			name string
+			op   ssaop.Op
+			elem types.Kind
+		}{
+			{"Int8s", ssaop.OpElemInt8s, types.TINT8},
+			{"Uint8s", ssaop.OpElemUint8s, types.TUINT8},
+			{"Int16s", ssaop.OpElemInt16s, types.TINT16},
+			{"Uint16s", ssaop.OpElemUint16s, types.TUINT16},
+			{"Int32s", ssaop.OpElemInt32s, types.TINT32},
+			{"Uint32s", ssaop.OpElemUint32s, types.TUINT32},
+			{"Float32s", ssaop.OpElemFloat32s, types.TFLOAT32},
+			{"Int64s", ssaop.OpElemInt64s, types.TINT64},
+			{"Uint64s", ssaop.OpElemUint64s, types.TUINT64},
+			{"Float64s", ssaop.OpElemFloat64s, types.TFLOAT64},
+		} {
+			addF(simdPackage, t.name+".elem", opLen2(t.op, types.Types[t.elem]), sys.ARM64)
+		}
 
 		addF(simdPackage, "ClearAVXUpperBits",
 			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
