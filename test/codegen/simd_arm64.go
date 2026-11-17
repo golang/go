@@ -524,6 +524,16 @@ func sveMask8sAnd(x, y archsimd.Mask8s) archsimd.Mask8s {
 	return x.And(y)
 }
 
+func sveMask8sAndNot(x, y archsimd.Mask8s) archsimd.Mask8s {
+	// arm64:`PBIC\s+P[0-9]+\.B, P[0-9]+\.B, P[0-9]+\.Z, P[0-9]+\.B` -`PWHILELT` -`PTRUE`
+	return x.AndNot(y)
+}
+
+func sveMaskAndNot(x, y archsimd.Mask16s) archsimd.Mask16s {
+	// arm64:`PWHILELT.*P[0-9]+\.H` `PBIC\s+P[0-9]+\.B, P[0-9]+\.B, P[0-9]+\.Z, P[0-9]+\.B`
+	return x.AndNot(y)
+}
+
 func sveBroadcastConstIfElse(m archsimd.Mask16s, z archsimd.Int16s) archsimd.Int16s {
 	// arm64:`ZCPY\s+\$5, P[0-9]+\.M, Z[0-9]+\.H` -`ZDUP` -`ZSEL`
 	return archsimd.BroadcastInt16s(5).IfElse(m, z)

@@ -4771,6 +4771,7 @@ const (
 	OpARM64PPNEXTD
 	OpARM64PBICSB
 	OpARM64PANDB
+	OpARM64PBICB
 	OpARM64PPTEST
 	OpARM64ZDUPBconst
 	OpARM64ZDUPHconst
@@ -7526,6 +7527,10 @@ const (
 	OpMask16sAnd
 	OpMask32sAnd
 	OpMask64sAnd
+	OpMask8sAndNot
+	OpMask16sAndNot
+	OpMask32sAndNot
+	OpMask64sAndNot
 	OpAESDecryptLastRoundUint8x16
 	OpAESDecryptLastRoundUint8x32
 	OpAESDecryptLastRoundUint8x64
@@ -85694,6 +85699,21 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
+		Name:   "PBICB",
+		ArgLen: 3,
+		asm:    arm64.APBIC,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+				{1, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+				{2, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+			},
+		},
+	},
+	{
 		Name:   "PPTEST",
 		ArgLen: 2,
 		asm:    arm64.APPTEST,
@@ -121119,6 +121139,26 @@ var OpcodeTable = [...]OpInfo{
 		ArgLen:      2,
 		Commutative: true,
 		Generic:     true,
+	},
+	{
+		Name:    "Mask8sAndNot",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "Mask16sAndNot",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "Mask32sAndNot",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "Mask64sAndNot",
+		ArgLen:  2,
+		Generic: true,
 	},
 	{
 		Name:    "AESDecryptLastRoundUint8x16",

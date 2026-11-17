@@ -871,6 +871,7 @@ func init() {
 		// Predicate logic on byte lanes: the result is computed in the lanes
 		// that arg0 governs and zero in the others.
 		{name: "PANDB", argLength: 3, reg: pred3pred, asm: "PAND", typ: "Mask"}, // arg0=governing predicate, arg1 AND arg2
+		{name: "PBICB", argLength: 3, reg: pred3pred, asm: "PBIC", typ: "Mask"}, // arg0=governing predicate, arg1 AND NOT arg2
 		// PPTEST sets the flags from the lanes of arg1 that arg0 governs: Z if
 		// none is set.
 		{name: "PPTEST", argLength: 2, reg: pred2flags, asm: "PPTEST", typ: "Flags"}, // arg0=governing predicate, arg1

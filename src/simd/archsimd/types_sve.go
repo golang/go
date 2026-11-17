@@ -1186,6 +1186,13 @@ func (x Mask8s) Any() bool
 // Asm: AND (predicate), CPU Feature: SVE
 func (x Mask8s) And(y Mask8s) (z Mask8s)
 
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+//
+// Asm: BIC (predicate), CPU Feature: SVE
+func (x Mask8s) AndNot(y Mask8s) (z Mask8s)
+
 // ToInt8s converts the mask to a vector, where element i is set to ^0 (all bits
 // set, e.g., -1) if mask element i is "true", and 0 otherwise.
 //
@@ -1301,6 +1308,13 @@ func (x Mask16s) Any() bool
 //
 // Asm: AND (predicate), CPU Feature: SVE
 func (x Mask16s) And(y Mask16s) (z Mask16s)
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+//
+// Asm: BIC (predicate), CPU Feature: SVE
+func (x Mask16s) AndNot(y Mask16s) (z Mask16s)
 
 // ToInt16s converts the mask to a vector, where element i is set to ^0 (all bits
 // set, e.g., -1) if mask element i is "true", and 0 otherwise.
@@ -1418,6 +1432,13 @@ func (x Mask32s) Any() bool
 // Asm: AND (predicate), CPU Feature: SVE
 func (x Mask32s) And(y Mask32s) (z Mask32s)
 
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+//
+// Asm: BIC (predicate), CPU Feature: SVE
+func (x Mask32s) AndNot(y Mask32s) (z Mask32s)
+
 // ToInt32s converts the mask to a vector, where element i is set to ^0 (all bits
 // set, e.g., -1) if mask element i is "true", and 0 otherwise.
 //
@@ -1533,6 +1554,13 @@ func (x Mask64s) Any() bool
 //
 // Asm: AND (predicate), CPU Feature: SVE
 func (x Mask64s) And(y Mask64s) (z Mask64s)
+
+// AndNot returns the bitwise AND NOT of x and y.
+//
+//	z[i] = x[i] &^ y[i]
+//
+// Asm: BIC (predicate), CPU Feature: SVE
+func (x Mask64s) AndNot(y Mask64s) (z Mask64s)
 
 // ToInt64s converts the mask to a vector, where element i is set to ^0 (all bits
 // set, e.g., -1) if mask element i is "true", and 0 otherwise.

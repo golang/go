@@ -2009,6 +2009,10 @@
 (Mask16sAnd x y) => (PANDB (Mask16sAllTrue <types.TypeMask>) x y)
 (Mask32sAnd x y) => (PANDB (Mask32sAllTrue <types.TypeMask>) x y)
 (Mask64sAnd x y) => (PANDB (Mask64sAllTrue <types.TypeMask>) x y)
+(Mask8sAndNot x y) => (PBICB x x y)
+(Mask16sAndNot x y) => (PBICB (Mask16sAllTrue <types.TypeMask>) x y)
+(Mask32sAndNot x y) => (PBICB (Mask32sAllTrue <types.TypeMask>) x y)
+(Mask64sAndNot x y) => (PBICB (Mask64sAllTrue <types.TypeMask>) x y)
 
 // == on SIMD vectors and masks. Integer vectors and masks are equal if their
 // XOR is zero. Float vectors are equal if every element compares equal, so NaN
