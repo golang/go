@@ -103,6 +103,13 @@ func reportLinknameMismatch(pass *Pass, locals map[string]types2.Object, ln link
 		return
 	}
 	target := linkedSymbol(imported, remote)
+	if target == nil && pass.in.Importer != nil {
+		// A package reached only transitively carries just the objects the
+		// intermediate package references; import it in full for the rest.
+		if full, err := pass.in.Importer.Import(pkgPath); err == nil {
+			target = linkedSymbol(full, remote)
+		}
+	}
 	if target == nil {
 		return
 	}

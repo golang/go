@@ -210,7 +210,7 @@ recheck:
 
 	if !didLogos {
 		didLogos = true
-		logosLintHook(&m, files, pkg, info) // logos M9 hook: lints see the unlowered tree.
+		logosLintHook(&m, files, pkg, info, &importer) // logos M9 hook: lints see the unlowered tree.
 		if logosRecheckHook(&conf, pkg, info, files) {
 			logosProvenCarry = conf.LogosProvenReadonly
 			goto recheck

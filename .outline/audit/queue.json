@@ -62,6 +62,35 @@
    "status": "triaged",
    "title": "Extreme-scenario grill: all else clean",
    "detail": "Verified: 8-way concurrent logos lint and gglint on same module (byte-identical outputs, no cache races), lint+build race clean, go.work workspace linting (GOWORK=off gives descriptive error), cross-GOOS lint (windows file linted only under GOOS=windows), mixed .go+.lgo package -> correctness::mixed_package, CRLF/BOM .lgo linted with correct positions, invalid UTF-8 -> descriptive error, import cycle / ambiguous stdlib-collision import / bad replace / future go directive -> descriptive errors, cgo-only and asm packages linted, 3814-line file with 3004-line function + 150-deep nesting linted fine (cognitive score 11325), recursive interface types rejected, SIGINT mid-lint exits rc=1 with no cache corruption."
+  },
+  {
+   "id": "L-MAC-1",
+   "severity": "high",
+   "status": "fixed",
+   "title": "linkname-mismatch rule skipped linkname targets in transitively-reached packages",
+   "detail": "Packages reached only through another package's export data are shells carrying just the objects the intermediate package references; linkedSymbol returned nil for linkname targets living in them, so rule_linkname_mismatch silently skipped (TestLinknameMismatchTransitiveImport red at HEAD).",
+   "files": [
+    "src/cmd/compile/internal/logos/lint/rule.go",
+    "src/cmd/compile/internal/logos/lint/rule_linkname_mismatch.go",
+    "src/cmd/compile/internal/noder/logos_lint.go",
+    "src/cmd/compile/internal/noder/irgen.go"
+   ],
+   "fix": "Added optional Input.Importer; on a nil target the rule re-imports the package in full and retries the lookup.",
+   "test": "go test -count=1 -short cmd/compile/internal/logos/lint cmd/compile/internal/noder",
+   "found_via": "macOS audit: TestLinknameMismatchTransitiveImport failed at HEAD"
+  },
+  {
+   "id": "L-MAC-2",
+   "severity": "high",
+   "status": "fixed",
+   "title": "Importer.Import retry on an unresolved transitive package aborts on pkg1.Direct invariant",
+   "detail": "readImportFileImpl set pkg1.Direct = true and appended to target.Imports before the import could fail. types.NewPkg caches *types.Pkg per path, so a failed import left Direct set while packages[path] stayed incomplete; a later import of the same path hit the 'unexpected Direct package' invariant (base.Fatalf).",
+   "files": [
+    "src/cmd/compile/internal/noder/import_logos.go"
+   ],
+   "fix": "On every post-Direct error return, roll back pkg1.Direct and remove pkg1's own target.Imports entry (not the tail: recursive imports may have appended completed dependencies after it) when packages[path] never completed; keep both when it did.",
+   "test": "go test -count=1 -short cmd/compile/internal/logos/lint cmd/compile/internal/noder",
+   "found_via": "Devin Review finding on the L-MAC-1 fix"
   }
  ]
 }

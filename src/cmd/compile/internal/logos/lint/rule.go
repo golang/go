@@ -100,6 +100,11 @@ type Input struct {
 	// enforces, such as the warnings of types2; Run resolves them with the
 	// findings of the rules.
 	Reported []Reported
+	// Importer, when non-nil, fully imports a package the import graph
+	// holds only as a shell: a package reached transitively through
+	// another package's export data exposes just the objects the
+	// intermediate package references.
+	Importer types2.Importer
 }
 
 func (r Rule) active(in *Input) bool {

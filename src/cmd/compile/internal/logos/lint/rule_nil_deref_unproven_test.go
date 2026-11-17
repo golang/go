@@ -21,7 +21,7 @@ func derefErrors(t *testing.T, src string) (*types2.Info, *syntax.File, []types2
 	t.Helper()
 	testenv.MustHaveGoBuild(t)
 	var errs []types2.Error
-	_, file, info, checkErr := checkPkg(t, KindLgo, "x.lgo", src, func(e error) { errs = append(errs, e.(types2.Error)) })
+	_, file, info, _, checkErr := checkPkg(t, KindLgo, "x.lgo", src, func(e error) { errs = append(errs, e.(types2.Error)) })
 	if checkErr != nil && len(errs) == 0 {
 		t.Fatalf("conf.Check %v with no collected errors", checkErr)
 	}

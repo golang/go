@@ -229,7 +229,7 @@ func check(t testing.TB, kind Kind, name, src string) *Input {
 	t.Helper()
 	var errs []error
 	var reported []Reported
-	pkg, file, info, _ := checkPkg(t, kind, name, src, func(err error) {
+	pkg, file, info, imp, _ := checkPkg(t, kind, name, src, func(err error) {
 		if r, ok := ReportedOf(err); ok {
 			reported = append(reported, r)
 			return
@@ -247,10 +247,11 @@ func check(t testing.TB, kind Kind, name, src string) *Input {
 		Kind:        kind,
 		LintCommand: true,
 		Reported:    reported,
+		Importer:    imp,
 	}
 }
 
-func checkPkg(t testing.TB, kind Kind, name, src string, onErr func(error)) (*types2.Package, *syntax.File, *types2.Info, error) {
+func checkPkg(t testing.TB, kind Kind, name, src string, onErr func(error)) (*types2.Package, *syntax.File, *types2.Info, types2.Importer, error) {
 	t.Helper()
 	mode := syntax.CheckBranches
 	if kind == KindLgo {
@@ -272,14 +273,15 @@ func checkPkg(t testing.TB, kind Kind, name, src string, onErr func(error)) (*ty
 		Scopes:             make(map[syntax.Node]*types2.Scope),
 		Instances:          make(map[*syntax.Name]types2.Instance),
 	}
+	imp := &lintImporter{pkgs: make(map[string]*types2.Package)}
 	conf := &types2.Config{
-		Importer:    &lintImporter{pkgs: make(map[string]*types2.Package)},
+		Importer:    imp,
 		Error:       onErr,
 		Logos:       kind == KindLgo,
 		LogosUnions: kind == KindLgo,
 	}
 	pkg, checkErr := conf.Check("p", []*syntax.File{file}, info)
-	return pkg, file, info, checkErr
+	return pkg, file, info, imp, checkErr
 }
 
 // summarize renders results as "line rule severity" strings.

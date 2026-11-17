@@ -64,7 +64,7 @@ func writeLogosLockFacts(pkg *types2.Package, info *types2.Info, files []*syntax
 // compiles, without a policy: the directive is the assertion, so the check
 // arms escape analysis whenever the package marks a function, and a directive
 // that marks nothing fails here.
-func logosLintHook(m *posMap, files []*syntax.File, pkg *types2.Package, info *types2.Info) {
+func logosLintHook(m *posMap, files []*syntax.File, pkg *types2.Package, info *types2.Info, importer types2.Importer) {
 	if !base.Logos && !base.LogosLintEnabled() && !base.LogosAllocFacts {
 		return
 	}
@@ -80,6 +80,7 @@ func logosLintHook(m *posMap, files []*syntax.File, pkg *types2.Package, info *t
 		Sources:     sources,
 		Kind:        kind,
 		LintCommand: base.LogosLintEnabled(),
+		Importer:    importer,
 	}
 	var results []lint.Result
 	var zeroAlloc bool

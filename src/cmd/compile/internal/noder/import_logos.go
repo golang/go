@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"internal/pkgbits"
 	"os"
+	"slices"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/importer"
@@ -176,19 +177,34 @@ func readImportFileImpl(path string, target *ir.Package, env *types2.Context, pa
 	}
 	pkg1.Direct = true
 	target.Imports = append(target.Imports, pkg1)
+	// A failed import leaves pkg1 cached by path: when the types2 package
+	// never completed, undo Direct and the target.Imports entry so a later
+	// import of the same path passes the pkg1.Direct invariant instead of
+	// aborting.
+	undo := func() {
+		if pkg2 := packages[path]; pkg2 == nil || !pkg2.Complete() {
+			pkg1.Direct = false
+			if i := slices.Index(target.Imports, pkg1); i >= 0 {
+				target.Imports = slices.Delete(target.Imports, i, i+1)
+			}
+		}
+	}
 
 	f, err := openPackage(path)
 	if err != nil {
+		undo()
 		return
 	}
 	defer f.Close()
 
 	data, err := readExportData(f)
 	if err != nil {
+		undo()
 		return
 	}
 	var logosFacts *facts.Facts
 	if logosFacts, err = readLogosFacts(f, path, data); err != nil {
+		undo()
 		return
 	}
 
@@ -199,6 +215,7 @@ func readImportFileImpl(path string, target *ir.Package, env *types2.Context, pa
 	pr := pkgbits.NewPkgDecoder(pkg1.Path, data)
 
 	if err = preloadLogosOwners(target, env, packages, &pr, path, logosImporterState{isLogos: isLogos, restoreOverlay: restoreOverlay}); err != nil {
+		undo()
 		return
 	}
 
@@ -208,10 +225,12 @@ func readImportFileImpl(path string, target *ir.Package, env *types2.Context, pa
 	pkg2 = importer.ReadPackage(env, packages, pr)
 	if pkg2 != nil && restoreOverlay {
 		if pkg2, err = applyLogosOverlayForLgoImporter(path, pkg2, packages, logosFacts); err != nil {
+			undo()
 			return
 		}
 	} else if pkg2 != nil && logosFacts != nil {
 		if pkg2, err = applyLogosReadonlyForGoImporter(path, pkg2, packages, logosFacts); err != nil {
+			undo()
 			return
 		}
 	}
