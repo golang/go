@@ -1,0 +1,36 @@
+{"Time":"2026-11-16T09:42:48.415493527Z","Action":"start","Package":"cmd/cgo/internal/testlogos"}
+{"Time":"2026-11-16T09:42:48.419134216Z","Action":"run","Package":"cmd/cgo/internal/testlogos","Test":"TestCgoOptPointerFreeAddressInline"}
+{"Time":"2026-11-16T09:42:48.419175858Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Test":"TestCgoOptPointerFreeAddressInline","Output":"=== RUN   TestCgoOptPointerFreeAddressInline\n","OutputType":"frame"}
+{"Time":"2026-11-16T09:43:02.042041334Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Test":"TestCgoOptPointerFreeAddressInline","Output":"--- PASS: TestCgoOptPointerFreeAddressInline (13.62s)\n","OutputType":"frame"}
+{"Time":"2026-11-16T09:43:02.042699174Z","Action":"pass","Package":"cmd/cgo/internal/testlogos","Test":"TestCgoOptPointerFreeAddressInline","Elapsed":13.62}
+{"Time":"2026-11-16T09:43:02.043096105Z","Action":"run","Package":"cmd/cgo/internal/testlogos","Test":"TestFastcallOneTrampoline"}
+{"Time":"2026-11-16T09:43:02.043106571Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Test":"TestFastcallOneTrampoline","Output":"=== RUN   TestFastcallOneTrampoline\n","OutputType":"frame"}
+{"Time":"2026-11-16T09:43:02.772210668Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Test":"TestFastcallOneTrampoline","Output":"    fastcall_test.go:478: runtime.logosCgocallFast text definitions = 0, want 1\n","OutputType":"error"}
+{"Time":"2026-11-16T09:43:02.772752786Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Test":"TestFastcallOneTrampoline","Output":"--- FAIL: TestFastcallOneTrampoline (0.73s)\n","OutputType":"frame"}
+{"Time":"2026-11-16T09:43:02.772769361Z","Action":"fail","Package":"cmd/cgo/internal/testlogos","Test":"TestFastcallOneTrampoline","Elapsed":0.73}
+{"Time":"2026-11-16T09:43:02.772777222Z","Action":"run","Package":"cmd/cgo/internal/testlogos","Test":"TestFastcallStructure"}
+{"Time":"2026-11-16T09:43:02.772779005Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Test":"TestFastcallStructure","Output":"=== RUN   TestFastcallStructure\n","OutputType":"frame"}
+{"Time":"2026-11-16T09:43:03.408835354Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Test":"TestFastcallStructure","Output":"    fastcall_test.go:510: no logosCgocallFast disassembly:\n","OutputType":"error"}
+{"Time":"2026-11-16T09:43:03.409285555Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Test":"TestFastcallStructure","Output":"--- FAIL: TestFastcallStructure (0.64s)\n","OutputType":"frame"}
+{"Time":"2026-11-16T09:43:03.409297473Z","Action":"fail","Package":"cmd/cgo/internal/testlogos","Test":"TestFastcallStructure","Elapsed":0.64}
+{"Time":"2026-11-16T09:43:03.409303832Z","Action":"run","Package":"cmd/cgo/internal/testlogos","Test":"TestFastcallNoClockInFastBody"}
+{"Time":"2026-11-16T09:43:03.409305525Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Test":"TestFastcallNoClockInFastBody","Output":"=== RUN   TestFastcallNoClockInFastBody\n","OutputType":"frame"}
+{"Time":"2026-11-16T09:43:03.409316811Z","Action":"run","Package":"cmd/cgo/internal/testlogos","Test":"TestFastcallNoClockInFastBody/disassembly"}
+{"Time":"2026-11-16T09:43:03.409319025Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Test":"TestFastcallNoClockInFastBody/disassembly","Output":"=== RUN   TestFastcallNoClockInFastBody/disassembly\n","OutputType":"frame"}
+{"Time":"2026-11-16T09:43:04.01909007Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Test":"TestFastcallNoClockInFastBody/disassembly","Output":"    fastcall_test.go:1344: no disassembly of runtime.logosCgocallFast:\n","OutputType":"error"}
+{"Time":"2026-11-16T09:43:04.019707219Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Test":"TestFastcallNoClockInFastBody/disassembly","Output":"--- FAIL: TestFastcallNoClockInFastBody/disassembly (0.61s)\n","OutputType":"frame"}
+{"Time":"2026-11-16T09:43:04.01973442Z","Action":"fail","Package":"cmd/cgo/internal/testlogos","Test":"TestFastcallNoClockInFastBody/disassembly","Elapsed":0.61}
+{"Time":"2026-11-16T09:43:04.02023094Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Test":"TestFastcallNoClockInFastBody","Output":"--- FAIL: TestFastcallNoClockInFastBody (0.61s)\n","OutputType":"frame"}
+{"Time":"2026-11-16T09:43:04.020253593Z","Action":"fail","Package":"cmd/cgo/internal/testlogos","Test":"TestFastcallNoClockInFastBody","Elapsed":0.61}
+{"Time":"2026-11-16T09:43:04.020257689Z","Action":"run","Package":"cmd/cgo/internal/testlogos","Test":"TestSelfBuildConfiguration"}
+{"Time":"2026-11-16T09:43:04.020260614Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Test":"TestSelfBuildConfiguration","Output":"=== RUN   TestSelfBuildConfiguration\n","OutputType":"frame"}
+{"Time":"2026-11-16T09:43:04.949262493Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Test":"TestSelfBuildConfiguration","Output":"    selfbuild_test.go:34: rebuilt configuration differs; want \"self-build flags: fast=true opt=true check2=false race=false asan=false msan=false\":\n","OutputType":"error"}
+{"Time":"2026-11-16T09:43:04.949314561Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Test":"TestSelfBuildConfiguration","Output":"        === RUN   TestSelfBuildConfiguration\n","OutputType":"error-continue"}
+{"Time":"2026-11-16T09:43:04.949318827Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Test":"TestSelfBuildConfiguration","Output":"        self-build flags: fast=false opt=true check2=false race=false asan=false msan=false\n","OutputType":"error-continue"}
+{"Time":"2026-11-16T09:43:04.949322733Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Test":"TestSelfBuildConfiguration","Output":"        --- PASS: TestSelfBuildConfiguration (0.00s)\n","OutputType":"error-continue"}
+{"Time":"2026-11-16T09:43:04.949324937Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Test":"TestSelfBuildConfiguration","Output":"        PASS\n","OutputType":"error-continue"}
+{"Time":"2026-11-16T09:43:04.949652831Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Test":"TestSelfBuildConfiguration","Output":"--- FAIL: TestSelfBuildConfiguration (0.93s)\n","OutputType":"frame"}
+{"Time":"2026-11-16T09:43:04.949690908Z","Action":"fail","Package":"cmd/cgo/internal/testlogos","Test":"TestSelfBuildConfiguration","Elapsed":0.93}
+{"Time":"2026-11-16T09:43:04.949705139Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Output":"FAIL\n","OutputType":"frame"}
+{"Time":"2026-11-16T09:43:04.950208929Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Output":"FAIL\tcmd/cgo/internal/testlogos\t16.534s\n","OutputType":"frame"}
+{"Time":"2026-11-16T09:43:04.950237862Z","Action":"fail","Package":"cmd/cgo/internal/testlogos","Elapsed":16.535}

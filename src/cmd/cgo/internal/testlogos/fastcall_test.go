@@ -427,12 +427,21 @@ func TestFastcallLayout(t *testing.T) {
 	}
 }
 
+// fastcallToolFlags mirrors this test binary's experiment and instrumentation
+// into explicit test -c builds so disassembly assertions inspect the
+// configuration under test, including the fast-call experiment bit itself.
+func fastcallToolFlags(t *testing.T) []string {
+	t.Helper()
+	return cgoTestToolFlags(t, goexperiment.LogosFastCgo)
+}
+
 func selfTestBin(t *testing.T) string {
 	t.Helper()
 	requireCgo(t)
 	bin := filepath.Join(t.TempDir(), "testlogos.test")
 	srcCmd := filepath.Join(runtime.GOROOT(), "src", "cmd")
-	out, err := runCmd(t, srcCmd, goBin(t), "test", "-c", "-o", bin, "cmd/cgo/internal/testlogos")
+	args := append([]string{"test", "-c", "-o", bin}, fastcallToolFlags(t)...)
+	out, err := runCmd(t, srcCmd, goBin(t), append(args, "cmd/cgo/internal/testlogos")...)
 	if err != nil {
 		t.Fatalf("self build: %v\n%s", err, out)
 	}

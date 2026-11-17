@@ -84,6 +84,10 @@
 {"id": "ENG-19", "description": "M18-S3 Inline noscan bump and GC scanning", "phase": "ENG"}
 {"id": "ENG-25", "description": "M20-S0 cgo in .lgo packages", "phase": "ENG"}
 {"id": "ENG-26", "description": "M20-S1 //logos:cgo_fastcall (GOEXPERIMENT=logosfastcgo)", "phase": "ENG"}
+{"id": "CGO-01", "description": "M20-S2 Ordinary-cgo return-frame specialization", "phase": "CGO"}
+{"id": "CGO-02", "description": "M20-S3 Collect package cgo call contracts", "phase": "CGO"}
+{"id": "CGO-03", "description": "M20-S4 Reuse validated cgo heap spans", "phase": "CGO"}
+{"id": "CGO-04", "description": "M20-S5 Pointer-free typed-address checks", "phase": "CGO"}
 {"id": "DX-16", "description": "M21-S1 Proxy and position mapping", "phase": "DX"}
 {"id": "DX-17", "description": "M21-S2 Inlay hints, hover, code actions", "phase": "DX"}
 {"id": "ENG-27", "description": "M22-S1 Upstream regression at each level", "phase": "ENG"}

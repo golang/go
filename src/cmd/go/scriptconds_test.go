@@ -18,6 +18,7 @@ import (
 	"regexp"
 	"runtime"
 	"runtime/debug"
+	"strings"
 	"testing"
 
 	"golang.org/x/mod/semver"
@@ -59,8 +60,20 @@ func scriptConditions(t *testing.T) map[string]script.Cond {
 	add("trimpath", script.OnceCondition("test binary was built with -trimpath", isTrimpath))
 	add("default-cgo", lazyBool("when CGO_ENABLED=1|0 was set in make.bash", defaultCgo))
 	add("wasmfx", script.OnceCondition("node runs WebAssembly stack switching (cont.new/resume)", hasWasmFx))
+	add("expstamp", script.OnceCondition("installed go driver was built with experiments and reports a -X: stamp", forkDriverStamped))
 
 	return conds
+}
+
+// forkDriverStamped reports whether the installed fork go driver was built
+// with experiments baked in: upstream stamps such a toolchain's version with
+// a -X: suffix, so plain-version assertions must tolerate it.
+func forkDriverStamped() (bool, error) {
+	out, err := exec.Command(filepath.Join(testGOROOT, "bin", "go"+cfg.ExeSuffix), "version").Output()
+	if err != nil {
+		return false, fmt.Errorf("test goroot driver: %w", err)
+	}
+	return strings.Contains(string(out), "-X:"), nil
 }
 
 // hasWasmFx reports whether node in PATH runs WebAssembly stack switching:

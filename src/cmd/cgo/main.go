@@ -449,6 +449,7 @@ func main() {
 	}
 
 	<-q.Idle()
+	logosCollectCgoContracts(p, fs)
 
 	cPrefix = fmt.Sprintf("_%x", h.Sum(nil)[0:6])
 

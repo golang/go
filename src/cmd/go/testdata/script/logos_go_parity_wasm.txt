@@ -14,7 +14,7 @@ exec $UPROOT/bin/go version
 stdout '^go version go1\.27\.4 '
 # Check the installed plain driver, not the potentially experiment-built test binary.
 exec $TESTGO_GOROOT/bin/go$GOEXE version
-stdout '^go version go1\.27\.4 '
+stdout '^go version go1\.27\.4(-X:[^ ]+)? '
 
 env GOOS=js
 env GOARCH=wasm

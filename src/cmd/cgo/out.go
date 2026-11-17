@@ -794,7 +794,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 	if (n.Kind != "macro" && len(n.FuncType.Params) > 0) || tr != nil {
 		fmt.Fprintf(fgcc, "\t%s %v *_cgo_a = v;\n", ctype, p.packedAttribute())
 	}
-	stableReturnFrame := tr != nil && logosStableFastCall(p, n)
+	stableReturnFrame := tr != nil && logosStableCgoFrame(p, n)
 	if tr != nil {
 		if !stableReturnFrame {
 			// Save the stack top for use below.

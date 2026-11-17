@@ -1443,7 +1443,8 @@ The slots contain address copies, not GC roots or pins.
 The ordinary cgo pointer-lifetime rules still apply.
 With `GOEXPERIMENT=logosfastcgo`, eligible result wrappers omit stack-top lookups and result-frame relocation.
 The trusted `nocallback` contract and the runtime's syscall stack rules keep that frame stable.
-Disabled, unmarked, and single-directive calls retain ordinary relocation.
+Outside fast-call eligibility, wrappers retain ordinary relocation unless
+section 3.6's independent `logoscgoopt` experiment proves a stable frame.
 Result stores, sanitizer operations, and callback guards are unchanged.
 These implementation changes do not establish the speed or blocking gates above.
 
@@ -1497,6 +1498,148 @@ Implementation note (informative): scan extent is the byte-based GC work estimat
 While scanning a region allocation, the runtime MAY omit heap metadata lookup for a pointer whose target lies within that same allocation. The check MUST use the complete allocation's half-open byte range; sharing a chunk alone MUST NOT qualify. [T-305]
 The scanner MUST still visit every typed pointer slot, including repeated element types and slots beyond the first pointer-mask word. Internal pointer values MUST retain their scan-work contribution under Sec 3.5.1. [T-305]
 External heap and stack pointers MUST retain their existing tracing behavior. Scalar words MUST NOT become roots, and restore or close MUST end the allocation's contribution under the existing lifetime rules. [T-305]
+
+### 3.6 RFC-306: Cgo compiler optimization
+
+The cgo optimizer MUST specialize the shared cgo pipeline independently of
+fast-cgo trampoline selection. It MUST apply to Go packages built by `go` or
+`logos` and to loGo/s packages built by `logos`. It MUST preserve Go semantics,
+the C ABI, and the cgo pointer rules. [T-306]
+
+#### 3.6.1 Stable return frames
+
+`GOEXPERIMENT=logoscgoopt` MUST enable ordinary-cgo return-frame specialization
+and MUST be off by default. `nologoscgoopt` MUST disable it. The experiment
+MUST NOT require or enable `logosfastcgo`. [T-306]
+
+With `logoscgoopt` enabled, a gc-generated result wrapper whose C function's
+`#cgo nocallback` contract is known during generation MUST omit both
+`_cgo_topofstack()` calls and the result-frame relocation.
+`#cgo noescape` MUST NOT be required for this
+specialization. Calls without `nocallback`, including `noescape`-only calls,
+MUST retain relocation. The gccgo generator MUST remain unchanged. [T-306]
+
+A contract that is unknown when the C wrapper is generated MUST retain the
+conservative path. Section 3.6.3 makes parsed package contracts available
+before emission when `logoscgoopt` is enabled. [T-306][T-306.1]
+
+The ordinary wrapper MUST still call `runtime.cgocall` and enforce the
+`nocallback` contract. Scheduler transitions, system-stack switching, GC
+visibility, call accounting, tracing, profiling, and blocking behavior MUST
+retain the ordinary cgo path. The specialization MUST preserve argument and
+result layout, result stores, errno capture, and TSan/MSan operations. [T-306]
+
+`nocallback` alone MUST NOT imply `noescape`: a function may retain a legally
+pinned Go pointer. Its generated Go wrapper MUST retain the upstream escape
+and liveness treatment. The existing `noescape` plus `nocallback` pair MUST
+keep its upstream keepalive treatment. Pointer checks and pinning requirements
+MUST remain unchanged. [T-306]
+
+When `logosfastcgo` is also enabled, section 3.4 MUST continue to determine
+trampoline eligibility. Disabling `logoscgoopt` MUST NOT disable the existing
+fast-call frame specialization. A call that may enter Go MUST still relocate
+its result frame after a callback that moves the goroutine stack. [T-306]
+
+Correctness argument (informative): `runtime.cgocall` enters syscall state
+before the C wrapper runs and leaves it after the wrapper returns. Without a
+callback, the wrapper stores its result while that state is still active.
+`runtime.copystack` rejects a nonzero `syscallsp`, and `isShrinkStackSafe`
+rejects a syscall stack. The frame therefore cannot move in this interval.
+The proof does not require a short call or a nonblocking function.
+
+#### 3.6.2 Further compiler work (informative)
+
+The following stages are planned work, not behavior enabled by `logoscgoopt`:
+
+| Stage | Decision the compiler can improve | Evidence needed before implementation |
+|---|---|---|
+| C effect and capture summaries | Keep a non-retained argument on the Go stack; distinguish callback and memory effects | Analysis of the actual C implementation and its transitive callees, with per-parameter capture facts and proof that callbacks cannot invalidate stack addresses |
+| ABI specialization | Remove redundant packing, loads, stores, and adapter work | Target-specific layout and calling-convention proofs, including aggregates, alignment, variadic calls, and instrumentation |
+| Call-region optimization | Amortize boundary work across a proven sequence of calls | Preservation of visible side effects, errno, pointer lifetimes, callbacks, scheduling progress, and maximum interruption delay |
+| Cross-language inlining | Remove the boundary for supported kernels | A shared analyzable representation with Go-compatible stack maps, GC roots, safe points, and exception behavior |
+
+An effect summary needs the identity of the function body, transitive callees,
+compiler and flags, target ABI, and linked definitions. Unknown indirect calls,
+symbol interposition, inline assembly, and opaque libraries remain conservative.
+An absent or invalidated summary cannot establish a safety property. A C
+`const` parameter does not prove non-retention, `nocallback` does not prove
+nonblocking behavior, and a profile cannot establish either contract.
+
+LoGOs uses the Go gc backend. Enabling C LTO alone cannot inline C into a Go
+caller. A common IR or a supported C-to-Go-IR translation would be a separate
+compiler project. Arbitrary native C code cannot acquire Go safe points merely
+by being fast in a benchmark.
+
+Verification (informative): M20-S2 records generated-code checks, callback
+stack-growth and pointer-lifetime regressions, and an identical-work A/B
+benchmark with fast-cgo disabled. G2, G3, and G6 in IMPLEMENTATION.md govern
+validation and promotion. The experiment's existence is not a performance
+claim or approval to change its default.
+
+#### 3.6.3 Package-wide cgo contracts
+
+With `logoscgoopt` enabled for the gc generator, cgo MUST collect the
+existing `nocallback` and `noescape` contracts from every parsed input
+after parsing completes and before emitting any C wrapper. Directive-only
+inputs and the contracts mapped from `//logos:cgo_fastcall` MUST participate.
+An eligible call MUST NOT miss return-frame specialization solely because
+its directive appears in a later input file. [T-306.1]
+
+Collection MUST copy only contract metadata. It MUST preserve per-file C
+preambles, macros, and declarations, the existing translation and recording
+order, and the existing phase of unmatched-directive validation. Invalid
+package names, incompatible C declarations, and unmatched directives MUST
+retain their existing rejection. [T-306.1]
+
+The final generated Go wrappers MUST remain unchanged: package collection
+MUST NOT broaden fast-cgo eligibility, change callback guards, or change
+escape and keepalive treatment. A noescape-only function MUST retain
+result-frame relocation. Experiment-off, gccgo, and godefs generation MUST
+remain unchanged. [T-306.1]
+
+#### 3.6.4 Reuse validated heap spans
+
+With `logoscgoopt` enabled, the unknown-pointer cgo checker MUST reuse the
+heap span it has already validated when locating the containing allocation.
+It MUST compute the same allocation base and scan the same pointer bitmap
+and extent as the existing `findObject` path. [T-306.2]
+
+An interior pointer MUST NOT restrict checking to bytes after that pointer.
+Unpinned nested pointers MUST still be rejected in small objects, objects with
+allocation headers, and large objects. Pinning the nested allocation MUST
+retain the existing successful result. Nil, foreign, stack, and global
+addresses MUST retain their existing treatment; unknown data/bss extents
+remain conservative. [T-306.2]
+
+Exported-result root and nested-pointer pinning, GC liveness, instrumentation,
+ordinary runtime entry, and callback behavior MUST remain unchanged. The
+disabled experiment MUST retain `findObject` and its returned base and span.
+The private selection helper MUST inline in both settings. [T-306.2]
+
+#### 3.6.5 Pointer-free typed addresses
+
+With `logoscgoopt` enabled, a cgo argument whose original typed address
+identifies a value containing no Go pointers MUST bypass redundant address
+classification. The optimization MUST preserve cgo's existing address-expression
+provenance and MUST NOT infer a contract from the C parameter type. [T-306.3]
+
+Saved `unsafe.Pointer` values, pointer-bearing values, and slice or array
+provenance MUST retain their existing checks. An arbitrary interior pointer
+MUST still check the allocation required by the upstream cgo rules. A
+pointer-free field MUST NOT make neighboring unpinned pointers safe to pass
+through a saved pointer. [T-306.3]
+
+The optimization MUST preserve argument evaluation count and order, deferred
+calls, typed nil values, GC liveness, pinning requirements, callback and result
+checking, and instrumentation. It MUST remain independent of `logosfastcgo`
+and MUST NOT change the default of `logoscgoopt`. [T-306.3]
+
+Correctness argument (informative): the existing address marker tells the
+runtime to check the pointed-to Go type. When that type contains no pointers,
+the checker returns without reading the address. Its earlier nil/non-Go
+address returns have the same result. The new predicate performs only type
+metadata reads and admits exactly this no-op case. The pointer-bearing and
+unknown-provenance paths remain unchanged.
 
 ## 4. Lexer, parser, and syntax
 

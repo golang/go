@@ -1,0 +1,72 @@
+[
+  {
+    "id": "return-frame-disabled",
+    "kind": "counterfactual-red",
+    "path": "src/cmd/cgo/cgoopt_logos.go",
+    "before": "buildcfg.Experiment.LogosCgoOpt && p.noCallbacks[n.C]",
+    "after": "buildcfg.Experiment.LogosCgoOpt && false",
+    "rebuild": "cgo",
+    "package": "cmd/cgo/internal/testlogos",
+    "test": "TestCgoOptEmission",
+    "diagnostic": "stack-top lookups = 2, want 0"
+  },
+  {
+    "id": "return-frame-callback-inversion",
+    "kind": "mutation",
+    "path": "src/cmd/cgo/cgoopt_logos.go",
+    "before": "buildcfg.Experiment.LogosCgoOpt && p.noCallbacks[n.C]",
+    "after": "buildcfg.Experiment.LogosCgoOpt && !p.noCallbacks[n.C]",
+    "rebuild": "cgo",
+    "package": "cmd/cgo/internal/testlogos",
+    "test": "TestCgoOptEmission",
+    "diagnostic": "stack-top lookups = 2, want 0"
+  },
+  {
+    "id": "package-contract-gate-inversion",
+    "kind": "mutation",
+    "path": "src/cmd/cgo/cgoopt_logos.go",
+    "before": "if !buildcfg.Experiment.LogosCgoOpt || *gccgo || *godefs {",
+    "after": "if buildcfg.Experiment.LogosCgoOpt || *gccgo || *godefs {",
+    "rebuild": "cgo",
+    "package": "cmd/cgo/internal/testlogos",
+    "test": "TestCgoOptPackageContracts",
+    "diagnostic": "stack-top lookups = 2, want 0",
+    "setting": "on"
+  },
+  {
+    "id": "span-lookup-gate-inversion",
+    "kind": "mutation",
+    "setting": "on",
+    "path": "src/runtime/cgospan_logos.go",
+    "before": "if goexperiment.LogosCgoOpt {",
+    "after": "if !goexperiment.LogosCgoOpt {",
+    "rebuild": "toolchain",
+    "package": "cmd/cgo/internal/testlogos",
+    "test": "TestCgoOptSpanCodegen",
+    "diagnostic": "findObject calls = 1, want 0 with logoscgoopt=true"
+  },
+  {
+    "id": "span-scan-zero-base",
+    "kind": "mutation",
+    "setting": "on",
+    "path": "src/runtime/cgospan_logos.go",
+    "before": "return span.objBase(uintptr(p)), span",
+    "after": "return 0, span",
+    "rebuild": "toolchain",
+    "package": "runtime",
+    "test": "TestLogosCgoSpanObject",
+    "diagnostic": "accepted unknown Go memory containing an unpinned Go pointer"
+  },
+  {
+    "id": "pointer-free-address-inversion",
+    "kind": "mutation",
+    "setting": "on",
+    "path": "src/runtime/cgocheck_addr_logos.go",
+    "before": "!(*ptrtype)(unsafe.Pointer(t)).Elem.Pointers()",
+    "after": "(*ptrtype)(unsafe.Pointer(t)).Elem.Pointers()",
+    "rebuild": "toolchain",
+    "package": "runtime",
+    "test": "TestLogosCgoPointerFreeAddrBoundary",
+    "diagnostic": "cgo pointer check accepted an unpinned nested pointer"
+  }
+]

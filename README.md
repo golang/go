@@ -646,7 +646,7 @@ One row per shipped form, with milestone IDs from [logos-doc/IMPLEMENTATION.md](
 | M16 | WASM profile | Automatic for GOOS=js and GOOS=wasip1 under `logos`; `--wasm-features=stack-switching`, `--wasm-loader`, and the `//logos:wasmimport` / `//logos:wasmexport` directives select options. |
 | M17 | Smart stack | Flag only: `GOEXPERIMENT=logosstack` starts goroutines at per-call-site sizes. |
 | M18 | Arena and bump allocation | On by default under `logos` (`[build] arena = true`); `GOEXPERIMENT=logosarena` under plain `go`. |
-| M20 | Fast-CGo | Directive and flag only: `//logos:cgo_fastcall` (or `#cgo noescape` with `#cgo nocallback`) behind `GOEXPERIMENT=logosfastcgo`. |
+| M20 | Cgo optimization | Candidate `GOEXPERIMENT=logoscgoopt` removes return-frame relocation for ordinary `#cgo nocallback` calls while keeping `runtime.cgocall`. The separate `logosfastcgo` experiment selects the fast entry for `//logos:cgo_fastcall` or the `noescape`/`nocallback` pair. Both are off by default; see [SPEC Sec 3.6](logos-doc/SPEC.md#36-rfc-306-cgo-compiler-optimization) and the [validation status](logos-doc/benchmarks/M20-S2.md). |
 | M21 | `logos lsp` | Editor setup: gopls proxy mapping `.lgo` positions, with inlay hints, hover, and code actions. |
 | M22 | Verification suites | Directive only: `//logos:zeroalloc` rejects escape-analysis heap sites in the marked function, not run-time heap fallbacks. |
 

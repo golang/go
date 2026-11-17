@@ -456,7 +456,10 @@ func forkTool(t *testing.T) toolchain {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if v != forkVersionPin {
+	// A toolchain built with GOEXPERIMENT stamps its version with a -X: suffix
+	// upstream-style; the pin audits the base version, not the experiment set.
+	base, _, _ := strings.Cut(v, "-X:")
+	if base != forkVersionPin {
 		t.Fatalf("fork version skew not audited: got %s want %s; re-run `git diff --stat %s <oracle> -- src test` and update the pin in parity_test.go", v, forkVersionPin, forkVersionPin)
 	}
 	logos := filepath.Join(t.TempDir(), "logos")

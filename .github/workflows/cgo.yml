@@ -1,0 +1,240 @@
+name: cgo validation
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/cgo.yml"
+      - "misc/cgo/**"
+      - "src/cmd/cgo/**"
+      - "src/runtime/**"
+      - "src/internal/goexperiment/**"
+      - "src/internal/buildcfg/**"
+      - "src/cmd/go/internal/logos/settings/**"
+      - "logos-doc/**"
+  push:
+    branches: [release-branch.go1.27]
+    paths:
+      - ".github/workflows/cgo.yml"
+      - "misc/cgo/**"
+      - "src/cmd/cgo/**"
+      - "src/runtime/**"
+      - "src/internal/goexperiment/**"
+      - "src/internal/buildcfg/**"
+      - "src/cmd/go/internal/logos/settings/**"
+      - "logos-doc/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cgo-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  focused:
+    name: cgo focused and probes
+    runs-on: ubuntu-26.04
+    timeout-minutes: 120
+    steps:
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.27.4"
+          cache: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "26.13.1"
+      - name: Test evidence checker
+        run: node --test misc/cgo/*.test.mjs
+
+      - name: Install and require C compilers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential gccgo clang
+          command -v gcc
+          command -v g++
+          command -v gccgo
+          command -v clang
+          echo "GCCGO=$(command -v gccgo)" >> "$GITHUB_ENV"
+          echo "UPROOT1274=$(go env GOROOT)" >> "$GITHUB_ENV"
+
+      - name: Build LoGOs
+        working-directory: src
+        env:
+          GOMAXPROCS: "2"
+          GOFLAGS: "-p=2"
+        run: |
+          GOROOT_BOOTSTRAP="$UPROOT1274" ./make.bash
+          echo "$GITHUB_WORKSPACE/bin" >> "$GITHUB_PATH"
+          echo "$GITHUB_WORKSPACE/lib/wasm" >> "$GITHUB_PATH"
+      - name: Require formatted sources and full vet checks in both settings
+        run: node misc/cgo/lint.mjs "$RUNNER_TEMP/cgo-evidence/lint"
+      - name: Preserve self-build configuration and fast-cgo compatibility
+        run: node misc/cgo/compat.mjs "$RUNNER_TEMP/cgo-evidence/compat"
+      - name: Require expected RED and mutation failures, then restore GREEN
+        run: node misc/cgo/probe.mjs "$RUNNER_TEMP/cgo-evidence/probes"
+      - name: Check declared families, sanitizers, and the stock oracle
+        run: node misc/cgo/verify.mjs "$RUNNER_TEMP/cgo-evidence/focused"
+      - name: Preserve focused evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: cgo-focused-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/cgo-evidence
+          if-no-files-found: error
+          retention-days: 30
+
+  full:
+    name: cgo full default-short dist (${{ matrix.setting }})
+    needs: focused
+    runs-on: ubuntu-26.04
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - setting: "off"
+            experiment: nologoscgoopt,nologosfastcgo
+          - setting: "on"
+            experiment: logoscgoopt,nologosfastcgo
+    steps:
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.27.4"
+          cache: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "26.13.1"
+
+      - name: Install and require C compilers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential gccgo clang
+          command -v gcc
+          command -v g++
+          command -v gccgo
+          command -v clang
+          echo "GCCGO=$(command -v gccgo)" >> "$GITHUB_ENV"
+          echo "UPROOT1274=$(go env GOROOT)" >> "$GITHUB_ENV"
+      - name: Install pinned stock oracles
+        run: |
+          for version in 1.27.2 1.27.3; do
+            case "$version" in
+              1.27.2) sha=ecbadb99091a3f46e31f5f934b068b1864eafa7995211b39eaddf76996045fe5 ;;
+              1.27.3) sha=65efbc80fdc1fa2cd2631cad5b481777a68e8725f34e89f50fc6ac714e379b40 ;;
+              *) exit 1 ;;
+            esac
+            archive="$RUNNER_TEMP/go$version.linux-amd64.tar.gz"
+            curl --fail --location --retry 3 "https://go.dev/dl/go$version.linux-amd64.tar.gz" --output "$archive"
+            echo "$sha  $archive" | sha256sum --check --strict
+            destination="$RUNNER_TEMP/upstream-$version"
+            mkdir -p "$destination"
+            tar -xzf "$archive" -C "$destination" --strip-components=1
+            key="UPROOT$(echo "$version" | tr -d .)"
+            echo "$key=$destination" >> "$GITHUB_ENV"
+            "$destination/bin/go" version
+          done
+
+      - name: Build LoGOs
+        working-directory: src
+        env:
+          GOMAXPROCS: "2"
+          GOFLAGS: "-p=2"
+        run: |
+          GOROOT_BOOTSTRAP="$UPROOT1274" ./make.bash
+          echo "$GITHUB_WORKSPACE/bin" >> "$GITHUB_PATH"
+          echo "$GITHUB_WORKSPACE/lib/wasm" >> "$GITHUB_PATH"
+      - name: Record unchanged source and compiler versions
+        run: |
+          node --input-type=module -e 'import { snapshot } from "./misc/cgo/common.mjs"; snapshot(process.env.RUNNER_TEMP + "/cgo-evidence/full/environment");'
+      - name: Run complete default-short dist suite with a compact environment
+        working-directory: src
+        env:
+          CGO_EXPERIMENT: ${{ matrix.experiment }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/cgo-evidence/full"
+          env -i \
+            HOME="$HOME" PATH="$PATH" TMPDIR="$RUNNER_TEMP" LANG=C.UTF-8 TZ=UTC \
+            GOROOT="$GITHUB_WORKSPACE" GOENV=off GOTOOLCHAIN=local \
+            CGO_ENABLED=1 CC=gcc CXX=g++ GCCGO="$GCCGO" \
+            GOMAXPROCS=2 GOFLAGS=-p=2 GO_TEST_TIMEOUT_SCALE=6 GO_TEST_SHORT=1 \
+            GOEXPERIMENT="$CGO_EXPERIMENT" \
+            UPROOT1272="$UPROOT1272" UPROOT1273="$UPROOT1273" UPROOT1274="$UPROOT1274" \
+            bash ./run.bash --no-rebuild -k 2>&1 | tee "$RUNNER_TEMP/cgo-evidence/full/run.log"
+      - name: Preserve full regression evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: cgo-full-${{ matrix.setting }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/cgo-evidence
+          if-no-files-found: error
+          retention-days: 30
+
+  benchmark:
+    name: cgo benchmark per row
+    needs: focused
+    runs-on: ubuntu-26.04
+    timeout-minutes: 120
+    steps:
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.27.4"
+          cache: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "26.13.1"
+
+      - name: Install and require C compilers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential gccgo clang
+          command -v gcc
+          command -v g++
+          command -v gccgo
+          command -v clang
+          echo "GCCGO=$(command -v gccgo)" >> "$GITHUB_ENV"
+          echo "UPROOT1274=$(go env GOROOT)" >> "$GITHUB_ENV"
+
+      - name: Build LoGOs
+        working-directory: src
+        env:
+          GOMAXPROCS: "2"
+          GOFLAGS: "-p=2"
+        run: |
+          GOROOT_BOOTSTRAP="$UPROOT1274" ./make.bash
+          echo "$GITHUB_WORKSPACE/bin" >> "$GITHUB_PATH"
+          echo "$GITHUB_WORKSPACE/lib/wasm" >> "$GITHUB_PATH"
+      - name: Install verified hyperfine
+        run: |
+          archive="$RUNNER_TEMP/hyperfine.tar.gz"
+          curl --fail --location --retry 3 \
+            https://github.com/sharkdp/hyperfine/releases/download/v2.0.0/hyperfine-v2.0.0-x86_64-unknown-linux-musl.tar.gz \
+            --output "$archive"
+          echo "38e59087bd65520930a13cf513d8a493b7043741e8ad62349a8a9929eb61bc5c  $archive" | sha256sum --check --strict
+          tar -xzf "$archive" -C "$RUNNER_TEMP"
+          echo "HYPERFINE=$RUNNER_TEMP/hyperfine-v2.0.0-x86_64-unknown-linux-musl/hyperfine" >> "$GITHUB_ENV"
+      - name: Run one frozen sequential campaign for every declared row
+        run: node misc/cgo/benchmark.mjs "$RUNNER_TEMP/cgo-evidence/benchmark"
+      - name: Preserve binaries, raw samples, and CPU profiles
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: cgo-benchmark-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/cgo-evidence
+          if-no-files-found: error
+          retention-days: 30

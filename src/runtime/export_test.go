@@ -53,6 +53,7 @@ var Memmove = memmove
 var MemclrNoHeapPointers = memclrNoHeapPointers
 
 var CgoCheckPointer = cgoCheckPointer
+var LogosCgoPointerFreeAddr = logosCgoPointerFreeAddr
 
 const CrashStackImplemented = crashStackImplemented
 

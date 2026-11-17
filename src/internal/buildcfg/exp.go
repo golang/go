@@ -87,6 +87,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 		JSONv2:                true,
 		SizeSpecializedMalloc: true,
 		LogosFastCgo:          false,
+		LogosCgoOpt:           false,
 		LogosArena:            false, // M18-S1: stays off until run.bash passes with it on (G3).
 		LogosEscape:           false,
 	}

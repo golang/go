@@ -131,6 +131,10 @@ type Flags struct {
 	// the #cgo noescape plus #cgo nocallback pair (M20-S1).
 	LogosFastCgo bool
 
+	// LogosCgoOpt specializes ordinary cgo wrappers without changing their
+	// runtime entry. Known nocallback results need no stack relocation.
+	LogosCgoOpt bool
+
 	// LogosStack gives each go statement its own initial goroutine
 	// stack size: the moving average of the final stack sizes of the
 	// goroutines it created (M17-S2).

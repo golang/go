@@ -1,0 +1,26 @@
+{"Time":"2026-11-16T10:26:06.258694952Z","Action":"start","Package":"cmd/cgo/internal/testlogos"}
+{"Time":"2026-11-16T10:26:06.266553817Z","Action":"run","Package":"cmd/cgo/internal/testlogos","Test":"TestCgoOptPointerFreeAddressInline"}
+{"Time":"2026-11-16T10:26:06.266731009Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Test":"TestCgoOptPointerFreeAddressInline","Output":"=== RUN   TestCgoOptPointerFreeAddressInline\n","OutputType":"frame"}
+{"Time":"2026-11-16T10:26:06.934953879Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Test":"TestCgoOptPointerFreeAddressInline","Output":"--- PASS: TestCgoOptPointerFreeAddressInline (0.67s)\n","OutputType":"frame"}
+{"Time":"2026-11-16T10:26:06.935016242Z","Action":"pass","Package":"cmd/cgo/internal/testlogos","Test":"TestCgoOptPointerFreeAddressInline","Elapsed":0.67}
+{"Time":"2026-11-16T10:26:06.935034689Z","Action":"run","Package":"cmd/cgo/internal/testlogos","Test":"TestCgoOptSpanCodegen"}
+{"Time":"2026-11-16T10:26:06.935036972Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Test":"TestCgoOptSpanCodegen","Output":"=== RUN   TestCgoOptSpanCodegen\n","OutputType":"frame"}
+{"Time":"2026-11-16T10:26:26.219028351Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Test":"TestCgoOptSpanCodegen","Output":"--- PASS: TestCgoOptSpanCodegen (19.28s)\n","OutputType":"frame"}
+{"Time":"2026-11-16T10:26:26.219102732Z","Action":"pass","Package":"cmd/cgo/internal/testlogos","Test":"TestCgoOptSpanCodegen","Elapsed":19.28}
+{"Time":"2026-11-16T10:26:26.219112006Z","Action":"run","Package":"cmd/cgo/internal/testlogos","Test":"TestCgoOptSpanPointerRules"}
+{"Time":"2026-11-16T10:26:26.219113798Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Test":"TestCgoOptSpanPointerRules","Output":"=== RUN   TestCgoOptSpanPointerRules\n","OutputType":"frame"}
+{"Time":"2026-11-16T10:26:26.802543506Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Test":"TestCgoOptSpanPointerRules","Output":"    cgospan_test.go:63: span pointer fixture: exit status 1\n","OutputType":"error"}
+{"Time":"2026-11-16T10:26:26.802591588Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Test":"TestCgoOptSpanPointerRules","Output":"        span pointer and exported-result checks ok\n","OutputType":"error-continue"}
+{"Time":"2026-11-16T10:26:26.802595774Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Test":"TestCgoOptSpanPointerRules","Output":"        ==8102==LeakSanitizer has encountered a fatal error.\n","OutputType":"error-continue"}
+{"Time":"2026-11-16T10:26:26.802598959Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Test":"TestCgoOptSpanPointerRules","Output":"        ==8102==HINT: For debugging, try setting environment variable LSAN_OPTIONS=verbosity=1:log_threads=1\n","OutputType":"error-continue"}
+{"Time":"2026-11-16T10:26:26.802607782Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Test":"TestCgoOptSpanPointerRules","Output":"        ==8102==HINT: LeakSanitizer does not work under ptrace (strace, gdb, etc)\n","OutputType":"error-continue"}
+{"Time":"2026-11-16T10:26:26.802610536Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Test":"TestCgoOptSpanPointerRules","Output":"        exit status 1\n","OutputType":"error-continue"}
+{"Time":"2026-11-16T10:26:26.802625037Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Test":"TestCgoOptSpanPointerRules","Output":"--- FAIL: TestCgoOptSpanPointerRules (0.58s)\n","OutputType":"frame"}
+{"Time":"2026-11-16T10:26:26.802640831Z","Action":"fail","Package":"cmd/cgo/internal/testlogos","Test":"TestCgoOptSpanPointerRules","Elapsed":0.58}
+{"Time":"2026-11-16T10:26:26.802691506Z","Action":"run","Package":"cmd/cgo/internal/testlogos","Test":"TestSelfBuildConfiguration"}
+{"Time":"2026-11-16T10:26:26.802700209Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Test":"TestSelfBuildConfiguration","Output":"=== RUN   TestSelfBuildConfiguration\n","OutputType":"frame"}
+{"Time":"2026-11-16T10:26:27.63658237Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Test":"TestSelfBuildConfiguration","Output":"--- PASS: TestSelfBuildConfiguration (0.83s)\n","OutputType":"frame"}
+{"Time":"2026-11-16T10:26:27.636657462Z","Action":"pass","Package":"cmd/cgo/internal/testlogos","Test":"TestSelfBuildConfiguration","Elapsed":0.83}
+{"Time":"2026-11-16T10:26:27.636666615Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Output":"FAIL\n","OutputType":"frame"}
+{"Time":"2026-11-16T10:26:27.638518575Z","Action":"output","Package":"cmd/cgo/internal/testlogos","Output":"FAIL\tcmd/cgo/internal/testlogos\t21.379s\n","OutputType":"frame"}
+{"Time":"2026-11-16T10:26:27.638579005Z","Action":"fail","Package":"cmd/cgo/internal/testlogos","Elapsed":21.38}
