@@ -43,15 +43,15 @@ func WithDataIndependentTiming(f func()) {
 		return
 	}
 
-	alreadyEnabled := setDITEnabled()
+	if setDITEnabled() {
+		f()
+		return
+	}
 
-	// disableDIT is called in a deferred function so that if f panics we will
-	// still disable DIT, in case the panic is recovered further up the stack.
-	defer func() {
-		if !alreadyEnabled {
-			setDITDisabled()
-		}
-	}()
+	// setDITDisabled is called in a deferred function so that if f panics we
+	// will still disable DIT, in case the panic is recovered further up the
+	// stack.
+	defer setDITDisabled()
 
 	f()
 }
