@@ -77,7 +77,7 @@ func copyFuncAssert(dst *types2.Func, assert map[string]facts.FnFact, objects ..
 }
 
 func ApplyFuncFacts(pkg *types2.Package, fns []facts.FnFact) error {
-	if pkg == nil || pkg.Scope() == nil {
+	if pkg == nil || pkg.Scope() == nil || len(fns) == 0 {
 		return nil
 	}
 	objects := reachableFuncFactObjects(pkg)
@@ -119,7 +119,7 @@ func ApplyFuncFacts(pkg *types2.Package, fns []facts.FnFact) error {
 }
 
 func ApplyReadonlyFactsInPlace(pkg *types2.Package, readonlys []facts.ReadonlyFact) error {
-	if pkg == nil || pkg.Scope() == nil {
+	if pkg == nil || pkg.Scope() == nil || len(readonlys) == 0 {
 		return nil
 	}
 	funcObjs := reachableFuncFactObjects(pkg)

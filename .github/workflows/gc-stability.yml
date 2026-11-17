@@ -176,8 +176,9 @@ jobs:
           PINS
       - name: "Build the default toolchain"
         run: |
-          export GOROOT_BOOTSTRAP="$(go env GOROOT)"
-          GOEXPERIMENT= ./make.bash
+          GOROOT_BOOTSTRAP="$(go env GOROOT)"
+          export GOROOT_BOOTSTRAP
+          GOEXPERIMENT='' ./make.bash
           printf '%s\n' "$GITHUB_WORKSPACE/lib/wasm" "$GITHUB_WORKSPACE/bin" >> "$GITHUB_PATH"
       - name: "Select the C23 consumer compiler"
         run: |

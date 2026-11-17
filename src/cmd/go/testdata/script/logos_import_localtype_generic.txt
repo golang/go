@@ -1,0 +1,73 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# Regression: importing a package whose generic function declares a local
+# type ("entry·1" in export data) used to crash the compiler while the
+# logos fact overlay eagerly resolved every name in the imported scope:
+# "internal compiler error: unexpected object with N implicit type
+# parameter(s)". Reported via bufbuild/protocompile internal/toposort.
+
+cd w
+go build ./...
+go run ./main
+stderr '^merged: 2$'
+
+-- w/go.mod --
+module example.com/icelocal
+
+go 1.27
+
+-- w/lib/lib.go --
+package lib
+
+import "cmp"
+
+// Heap is a generic container whose type arguments let a caller's local
+// types appear in this package's exported object table.
+type Heap[K cmp.Ordered, V any] struct {
+	n int
+}
+
+func NewHeap[K cmp.Ordered, V any](cap int) *Heap[K, V] {
+	return &Heap[K, V]{n: cap}
+}
+
+func (h *Heap[K, V]) Len() int { return h.n }
+
+// MergeKeySeq declares a local type inside a generic function. The
+// compiler mangles it to "entry·N" with the function's four type
+// parameters recorded as implicit type parameters in the object
+// dictionary — a dictionary the import format forbids readers to load.
+func MergeKeySeq[S ~[]E, E any, K cmp.Ordered, V any](
+	slices []S,
+	key func(slice int, elem E) K,
+	mapper func(slice int, elem E) V,
+) []V {
+	type entry struct {
+		index int
+		slice S
+	}
+	heap := NewHeap[K, entry](len(slices))
+	var out []V
+	for i, slice := range slices {
+		heap.Insert(key(i, slice[0]), entry{i, slice})
+		out = append(out, mapper(i, slice[0]))
+	}
+	return out
+}
+
+func (h *Heap[K, V]) Insert(k K, v V) { h.n++ }
+
+-- w/main/main.go --
+package main
+
+import "example.com/icelocal/lib"
+
+func main() {
+	got := lib.MergeKeySeq(
+		[][]int{{1, 2}, {3}},
+		func(_, e int) int { return e },
+		func(_, e int) int { return e * 10 },
+	)
+	println("merged:", len(got))
+}

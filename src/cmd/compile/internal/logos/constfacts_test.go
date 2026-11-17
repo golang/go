@@ -282,6 +282,34 @@ func TestApplyFuncFactsReachablePrivateOrigin(t *testing.T) {
 	}
 }
 
+func TestApplyFuncFactsTaggedObjects(t *testing.T) {
+	// SIMD specializations and other midway-generated objects carry
+	// package-level names like "Init@simd128". Fact records for them
+	// must still apply; only names that can never be package objects
+	// (locals mangled as "entry·1", method-qualified "T.m") are skipped.
+	pkg := types2.NewPackage("example/taggedfacts", "taggedfacts")
+	pos := syntax.Pos{}
+	sig := types2.NewSignatureType(nil, nil, nil, nil, nil, false)
+	tagged := types2.NewFunc(pos, pkg, "Init@simd128", sig)
+	pkg.Scope().Insert(tagged)
+	if err := ApplyFuncFacts(pkg, []facts.FnFact{{Object: "Init@simd128", Readonly: true}}); err != nil {
+		t.Fatal(err)
+	}
+	if !tagged.LogosReadonly() {
+		t.Fatal("fact for tagged package object was dropped")
+	}
+	// A local-mangled name in scope must not be resolved as a fact
+	// target: it can never be a package-level object.
+	local := types2.NewFunc(pos, pkg, "entry·1", sig)
+	pkg.Scope().Insert(local)
+	if err := ApplyFuncFacts(pkg, []facts.FnFact{{Object: "entry·1", Readonly: true}}); err != nil {
+		t.Fatal(err)
+	}
+	if local.LogosReadonly() {
+		t.Fatal("fact applied to a local-mangled name")
+	}
+}
+
 func TestApplyFuncFactsRejectsMaskOutsideArity(t *testing.T) {
 	for _, tc := range []struct{ name, tp, rtp string }{
 		{"extra function bit", "2", "0"},
