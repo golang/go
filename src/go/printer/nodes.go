@@ -771,7 +771,9 @@ func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1, cutoff, depth int) {
 		// Note: The parser inserts an ast.ParenExpr node; thus this case
 		//       can only occur if the AST is created in a different way.
 		p.print(token.LPAREN)
+		p.exprLev++
 		p.expr0(x, reduceDepth(depth)) // parentheses undo one level of depth
+		p.exprLev--
 		p.print(token.RPAREN)
 		return
 	}
@@ -838,7 +840,9 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 			// parenthesis needed
 			p.print(token.LPAREN)
 			p.print(token.MUL)
+			p.exprLev++
 			p.expr(x.X)
+			p.exprLev--
 			p.print(token.RPAREN)
 		} else {
 			// no parenthesis needed
@@ -851,7 +855,9 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		if prec < prec1 {
 			// parenthesis needed
 			p.print(token.LPAREN)
+			p.exprLev++
 			p.expr(x)
+			p.exprLev--
 			p.print(token.RPAREN)
 		} else {
 			// no parenthesis needed
@@ -875,7 +881,9 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		// See the comment in funcDecl about how the header size is computed.
 		startCol := p.out.Column - len("func")
 		p.signature(x.Type)
+		p.exprLev++
 		p.funcBody(p.distanceFrom(x.Type.Pos(), startCol), blank, x.Body)
+		p.exprLev--
 
 	case *ast.ParenExpr:
 		if _, hasParens := x.X.(*ast.ParenExpr); hasParens {
@@ -884,7 +892,9 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 			p.expr0(x.X, depth)
 		} else {
 			p.print(token.LPAREN)
+			p.exprLev++
 			p.expr0(x.X, reduceDepth(depth)) // parentheses undo one level of depth
+			p.exprLev--
 			p.setPos(x.Rparen)
 			p.print(token.RPAREN)
 		}
@@ -910,7 +920,9 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		p.expr1(x.X, token.HighestPrec, 1)
 		p.setPos(x.Lbrack)
 		p.print(token.LBRACK)
+		p.exprLev++
 		p.expr0(x.Index, depth+1)
+		p.exprLev--
 		p.setPos(x.Rbrack)
 		p.print(token.RBRACK)
 
@@ -920,7 +932,9 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		p.expr1(x.X, token.HighestPrec, 1)
 		p.setPos(x.Lbrack)
 		p.print(token.LBRACK)
+		p.exprLev++
 		p.exprList(x.Lbrack, x.Indices, depth+1, commaTerm, x.Rbrack, false)
+		p.exprLev--
 		p.setPos(x.Rbrack)
 		p.print(token.RBRACK)
 
@@ -929,6 +943,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		p.expr1(x.X, token.HighestPrec, 1)
 		p.setPos(x.Lbrack)
 		p.print(token.LBRACK)
+		p.exprLev++
 		indices := []ast.Expr{x.Low, x.High}
 		if x.Max != nil {
 			indices = append(indices, x.Max)
@@ -964,6 +979,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 				p.expr0(x, depth+1)
 			}
 		}
+		p.exprLev--
 		p.setPos(x.Rbrack)
 		p.print(token.RBRACK)
 
@@ -991,6 +1007,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 
 		p.setPos(x.Lparen)
 		p.print(token.LPAREN)
+		p.exprLev++
 		if x.Ellipsis.IsValid() {
 			p.exprList(x.Lparen, x.Args, depth, 0, x.Ellipsis, false)
 			p.setPos(x.Ellipsis)
@@ -1001,6 +1018,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		} else {
 			p.exprList(x.Lparen, x.Args, depth, commaTerm, x.Rparen, false)
 		}
+		p.exprLev--
 		p.setPos(x.Rparen)
 		p.print(token.RPAREN)
 		if wasIndented {
@@ -1008,6 +1026,15 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		}
 
 	case *ast.CompositeLit:
+		// In a control clause, the opening brace of a composite literal
+		// that starts with a type name is taken for the start of the
+		// statement body. Such a literal must be parenthesized. The parser
+		// requires the parentheses, so they are only missing here if the
+		// AST was created or modified in a different way.
+		paren := p.exprLev < 0 && isTypeName(x.Type)
+		if paren {
+			p.print(token.LPAREN)
+		}
 		// composite literal elements that are composite literals themselves may have the type omitted
 		if x.Type != nil {
 			p.expr1(x.Type, token.HighestPrec, depth)
@@ -1015,7 +1042,9 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		p.level++
 		p.setPos(x.Lbrace)
 		p.print(token.LBRACE)
+		p.exprLev++
 		p.exprList(x.Lbrace, x.Elts, 1, commaTerm, x.Rbrace, x.Incomplete)
+		p.exprLev--
 		// do not insert extra line break following a /*-style comment
 		// before the closing '}' as it might break the code if there
 		// is no trailing ','
@@ -1031,6 +1060,9 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		p.setPos(x.Rbrace)
 		p.print(token.RBRACE, mode)
 		p.level--
+		if paren {
+			p.print(token.RPAREN)
+		}
 
 	case *ast.Ellipsis:
 		p.print(token.ELLIPSIS)
@@ -1041,7 +1073,9 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 	case *ast.ArrayType:
 		p.print(token.LBRACK)
 		if x.Len != nil {
+			p.exprLev++
 			p.expr(x.Len)
+			p.exprLev--
 		}
 		p.print(token.RBRACK)
 		p.expr(x.Elt)
@@ -1232,11 +1266,17 @@ func (p *printer) block(b *ast.BlockStmt, nindent int) {
 	p.print(token.RBRACE)
 }
 
+// isTypeName reports whether x is a possibly qualified
+// and possibly instantiated type name.
 func isTypeName(x ast.Expr) bool {
 	switch t := x.(type) {
 	case *ast.Ident:
 		return true
 	case *ast.SelectorExpr:
+		return isTypeName(t.X)
+	case *ast.IndexExpr:
+		return isTypeName(t.X)
+	case *ast.IndexListExpr:
 		return isTypeName(t.X)
 	}
 	return false
@@ -1276,6 +1316,9 @@ func stripParensAlways(x ast.Expr) ast.Expr {
 }
 
 func (p *printer) controlClause(isForStmt bool, init ast.Stmt, expr ast.Expr, post ast.Stmt) {
+	defer func(lev int) { p.exprLev = lev }(p.exprLev)
+	p.exprLev = -1
+
 	p.print(blank)
 	needsBlank := false
 	if init == nil && post == nil {
@@ -1498,6 +1541,8 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool) {
 
 	case *ast.TypeSwitchStmt:
 		p.print(token.SWITCH)
+		lev := p.exprLev
+		p.exprLev = -1
 		if s.Init != nil {
 			p.print(blank)
 			p.stmt(s.Init, false)
@@ -1505,6 +1550,7 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool) {
 		}
 		p.print(blank)
 		p.stmt(s.Assign, false)
+		p.exprLev = lev
 		p.print(blank)
 		p.block(s.Body, 0)
 
@@ -1539,6 +1585,8 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool) {
 
 	case *ast.RangeStmt:
 		p.print(token.FOR, blank)
+		lev := p.exprLev
+		p.exprLev = -1
 		if s.Key != nil {
 			p.expr(s.Key)
 			if s.Value != nil {
@@ -1554,6 +1602,7 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool) {
 		}
 		p.print(token.RANGE, blank)
 		p.expr(stripParens(s.X))
+		p.exprLev = lev
 		p.print(blank)
 		p.block(s.Body, 1)
 

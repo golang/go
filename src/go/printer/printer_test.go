@@ -829,6 +829,87 @@ func TestParenthesizedDecl(t *testing.T) {
 	}
 }
 
+// A composite literal that starts with a type name must be parenthesized
+// in a control clause, even if the AST doesn't contain the parentheses.
+func TestCompositeLitInControlClause(t *testing.T) { // issue 43598
+	stmts := []struct {
+		format string
+		stmt   func(x ast.Expr) ast.Stmt
+	}{
+		{"if %s {\n}", func(x ast.Expr) ast.Stmt {
+			return &ast.IfStmt{Cond: x, Body: &ast.BlockStmt{}}
+		}},
+		{"if _ = %s; ok {\n}", func(x ast.Expr) ast.Stmt {
+			init := &ast.AssignStmt{Lhs: []ast.Expr{ast.NewIdent("_")}, Tok: token.ASSIGN, Rhs: []ast.Expr{x}}
+			return &ast.IfStmt{Init: init, Cond: ast.NewIdent("ok"), Body: &ast.BlockStmt{}}
+		}},
+		{"for %s {\n}", func(x ast.Expr) ast.Stmt {
+			return &ast.ForStmt{Cond: x, Body: &ast.BlockStmt{}}
+		}},
+		{"for range %s {\n}", func(x ast.Expr) ast.Stmt {
+			return &ast.RangeStmt{X: x, Body: &ast.BlockStmt{}}
+		}},
+		{"switch %s {\n}", func(x ast.Expr) ast.Stmt {
+			return &ast.SwitchStmt{Tag: x, Body: &ast.BlockStmt{}}
+		}},
+		{"switch _ = %s; ok.(type) {\n}", func(x ast.Expr) ast.Stmt {
+			init := &ast.AssignStmt{Lhs: []ast.Expr{ast.NewIdent("_")}, Tok: token.ASSIGN, Rhs: []ast.Expr{x}}
+			assign := &ast.ExprStmt{X: &ast.TypeAssertExpr{X: ast.NewIdent("ok")}}
+			return &ast.TypeSwitchStmt{Init: init, Assign: assign, Body: &ast.BlockStmt{}}
+		}},
+	}
+
+	for _, test := range []struct {
+		expr string // expression in a context that doesn't require parentheses
+		want string // expression as printed in a control clause
+	}{
+		// parentheses required
+		{"T{}", "(T{})"},
+		{"x == T{}", "x == (T{})"},
+		{"x == p.T{}", "x == (p.T{})"},
+		{"x == T[int]{}", "x == (T[int]{})"},
+		{"x == p.T[int, string]{}", "x == (p.T[int, string]{})"},
+		{"&T{} == x", "&(T{}) == x"},
+		{"T{}.m()", "(T{}).m()"},
+		{"T{1, 2}[i]", "(T{1, 2})[i]"},
+
+		// no parentheses required
+		{"(T{})", "(T{})"},
+		{"(x == T{})", "(x == T{})"},
+		{"x == []T{T{}}", "x == []T{T{}}"},
+		{"x == struct{}{}", "x == struct{}{}"},
+		{"x == map[T]T{T{}: T{}}[T{}]", "x == map[T]T{T{}: T{}}[T{}]"},
+		{"f(T{})", "f(T{})"},
+		{"a[T{}.i:]", "a[T{}.i:]"},
+		{"x == [len(T{})]int{}", "x == [len(T{})]int{}"},
+		{"func() bool { return x == T{} }()", "func() bool { return x == T{} }()"},
+	} {
+		for _, s := range stmts {
+			fset := token.NewFileSet()
+			x, err := parser.ParseExprFrom(fset, "", test.expr, 0)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			var buf bytes.Buffer
+			if err := Fprint(&buf, fset, s.stmt(x)); err != nil {
+				t.Fatal(err)
+			}
+			got := buf.String()
+
+			if want := fmt.Sprintf(s.format, test.want); got != want {
+				t.Errorf("%s: got %q, want %q", test.expr, got, want)
+			}
+
+			// The result must be valid Go code.
+			src := "package p; func _() { " + got + " }"
+			if _, err := parser.ParseFile(token.NewFileSet(), "", src, parser.SkipObjectResolution); err != nil {
+				t.Errorf("%s: %q does not parse: %v", test.expr, got, err)
+			}
+		}
+	}
+}
+
 // Verify that we don't print a newline between "return" and its results, as
 // that would incorrectly cause a naked return.
 func TestIssue32854(t *testing.T) {

@@ -60,6 +60,7 @@ type printer struct {
 	output       []byte       // raw printer result
 	indent       int          // current indentation
 	level        int          // level == 0: outside composite literal; level > 0: inside composite literal
+	exprLev      int          // < 0: in control clause, >= 0: in expression (mirrors go/parser)
 	mode         pmode        // current printer mode
 	endAlignment bool         // if set, terminate alignment immediately
 	impliedSemi  bool         // if set, a linebreak implies a semicolon
