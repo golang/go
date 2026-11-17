@@ -161,3 +161,85 @@ func TestRootConsistencyLchown(t *testing.T) {
 		})
 	}
 }
+
+func TestRootOpenFileNoFollow(t *testing.T) {
+	dir := t.TempDir()
+	for name, content := range map[string]string{
+		"target":     "intact",
+		"dir/target": "intact",
+	} {
+		name = filepath.Join(dir, name)
+		if err := os.MkdirAll(filepath.Dir(name), 0o777); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(name, []byte(content), 0o666); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for link, target := range map[string]string{
+		"link":     "target",
+		"dangling": "missing",
+		"dirlink":  "dir",
+	} {
+		if err := os.Symlink(target, filepath.Join(dir, link)); err != nil {
+			t.Skipf("skipping: cannot create symlink: %v", err)
+		}
+	}
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+
+	// O_NOFOLLOW applies to the final path component only.
+	// Root.OpenFile should fail on a symlink there, with the same error
+	// as os.OpenFile, and should follow symlinks in earlier components.
+	for _, test := range []struct {
+		name    string
+		flag    int
+		wantErr bool
+	}{
+		{"link", os.O_WRONLY, false},
+		{"link", os.O_WRONLY | syscall.O_NOFOLLOW, true},
+		{"link", os.O_RDONLY | syscall.O_NOFOLLOW, true},
+		{"link", os.O_WRONLY | os.O_TRUNC | syscall.O_NOFOLLOW, true},
+		{"dangling", os.O_WRONLY | os.O_CREATE | syscall.O_NOFOLLOW, true},
+		{"dirlink", os.O_RDONLY | syscall.O_NOFOLLOW, true},
+		{"dirlink", os.O_RDONLY | syscall.O_DIRECTORY | syscall.O_NOFOLLOW, true},
+		{"target", os.O_RDWR | syscall.O_NOFOLLOW, false},
+		{"dirlink/target", os.O_RDWR | syscall.O_NOFOLLOW, false},
+		{"dir", os.O_RDONLY | syscall.O_DIRECTORY | syscall.O_NOFOLLOW, false},
+	} {
+		name := fmt.Sprintf("%v/%#x", test.name, test.flag)
+		t.Run(name, func(t *testing.T) {
+			f, err := root.OpenFile(test.name, test.flag, 0o666)
+			if err == nil {
+				f.Close()
+			}
+			if got := err != nil; got != test.wantErr {
+				t.Fatalf("root.OpenFile(%q, %#x) = %v, want error: %v", test.name, test.flag, err, test.wantErr)
+			}
+			if !test.wantErr {
+				return
+			}
+			// Match the error os.OpenFile returns.
+			wantF, wantErr := os.OpenFile(filepath.Join(dir, test.name), test.flag, 0o666)
+			if wantErr == nil {
+				wantF.Close()
+				t.Fatalf("os.OpenFile(%q, %#x) unexpectedly succeeded", test.name, test.flag)
+			}
+			pe, ok := err.(*os.PathError)
+			wantPE, wantOK := wantErr.(*os.PathError)
+			if !ok || !wantOK || pe.Err != wantPE.Err {
+				t.Errorf("root.OpenFile(%q, %#x) error = %v, want %v", test.name, test.flag, err, wantErr)
+			}
+			// Nothing may have been created or modified through the link.
+			if _, err := os.Lstat(filepath.Join(dir, "missing")); err == nil {
+				t.Errorf("root.OpenFile(%q, %#x) created the link target", test.name, test.flag)
+			}
+			if got, err := os.ReadFile(filepath.Join(dir, "target")); err != nil || string(got) != "intact" {
+				t.Errorf("target = %q, %v; want %q", got, err, "intact")
+			}
+		})
+	}
+}
