@@ -136,3 +136,55 @@ the complete SSA short suite, and the native/ejected controls.
 The normal `logos.yml` workflow owns the full upstream regression job with
 the same timeout scale. Queued or incomplete CI is not a pass and does not
 permit merging.
+
+### Completed hosted rerun and integration boundary
+
+Source head `08646b895facb9194ec89acf5d1d8f291d338061` passed all seven
+jobs across the second attempts of the [language workflow](https://github.com/gosuda/LoGOs/actions/runs/43885316569/attempts/2),
+[SIMD workflow](https://github.com/gosuda/LoGOs/actions/runs/43885316645/attempts/2),
+and [host-ISA workflow](https://github.com/gosuda/LoGOs/actions/runs/43885316705/attempts/2).
+Those jobs cover unit, scripts, testdir, lint, focused SIMD, full regression,
+and host-ISA scripts.
+
+The SIMD jobs checked out CI merge
+`420233bf572c32b9a9d2ad8fb7bd2cf507e15aa0`. Its
+[difference from the source head](https://github.com/gosuda/LoGOs/compare/08646b895facb9194ec89acf5d1d8f291d338061...420233bf572c32b9a9d2ad8fb7bd2cf507e15aa0)
+is only the added `logos_guarded_enum_index.txt` script from main commit
+`bd318f1c558f3aa73ad434929fba7f237db9877f`; production compiler source
+and the three frozen SIMD attacks are unchanged.
+
+| Hosted gate | Observed result |
+| --- | --- |
+| [Complete uncached SSA short suite](https://github.com/gosuda/LoGOs/actions/runs/43885316645/job/133417552350) | Passed in 54.215 seconds. |
+| [Six race-enabled source/ejection scripts](https://github.com/gosuda/LoGOs/actions/runs/43885316645/job/133417552350) | Passed in 66.540 seconds, including README consistency. |
+| [Full upstream regression](https://github.com/gosuda/LoGOs/actions/runs/43885316645/job/133417552899) | `ALL TESTS PASSED` at 17:03:41 UTC on 2026-11-16; its complete `cmd/internal/testdir` run passed in 433.108 seconds. |
+
+The later combined head `447d6ad7ecff885efed74e14ed7b458f26eb11ea`
+includes the struct-default repair from PR #63 and has the same tree as
+child `eaf5e3e`. That child's full upstream gate failed the Wasm host-environment
+overflow and REDTEAM ledger schema. The schema repair and the independent
+runner correction do not turn the original SIMD pass into combined acceptance.
+[WASM-ENVIRONMENT.md](WASM-ENVIRONMENT.md) records the runner's local
+RED/GREEN/PROBE proof and publication boundary; the candidate's
+[PR #54 checks](https://github.com/gosuda/LoGOs/pull/54/checks) determine full
+upstream acceptance. All three frozen attack hashes still match the table
+above; no speed claim follows from these correctness results.
+
+## Reproduction and merge gate
+
+After `src/make.bash` rebuilds and installs the fork, put its `bin` first on
+`PATH` and run from `src`:
+
+```sh
+go test -count=1 -short cmd/compile/internal/ssa
+go vet cmd/compile/internal/ssa
+go test -count=1 -race -timeout=40m -v cmd/go \
+  -run '^TestScript$/^(README|logos_simd_(zero_dominance|feature_gate|gate_avx512|gate_branch)|logos_eject_simd_slice)$'
+GO_TEST_TIMEOUT_SCALE=8 ./run.bash --no-rebuild
+```
+
+The source/ejection scripts use the repository's pinned upstream 1.27.2,
+1.27.3, and 1.27.4 toolchains as independent oracles. Changed Go files must
+also pass `gofmt`. The dedicated `simd-dominance.yml` workflow separates the
+focused checks from the full regression run. Queued or incomplete CI is not
+a pass and does not permit merging.

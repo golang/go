@@ -1,0 +1,100 @@
+name: "SIMD feature dominance"
+
+"on":
+  pull_request:
+    paths:
+      - ".github/workflows/simd-dominance.yml"
+      - "src/cmd/compile/internal/ssa/**"
+      - "src/cmd/compile/internal/logos/wasm*_test.go"
+      - "src/cmd/go/testdata/script/logos_simd_zero_dominance.txt"
+  workflow_dispatch:
+
+permissions:
+  contents: "read"
+
+concurrency:
+  group: "simd-dominance-${{ github.ref }}"
+  cancel-in-progress: true
+
+env:
+  GOMAXPROCS: "4"
+  GOFLAGS: "-p=2"
+  GOMEMLIMIT: "2GiB"
+  GOAMD64: "v1"
+
+jobs:
+  verify:
+    name: "${{ matrix.suite }}"
+    runs-on: "ubuntu-26.04"
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: ["focused", "regression"]
+    defaults:
+      run:
+        shell: "bash"
+        working-directory: "src"
+    steps:
+      - uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" # v7.0.1
+        with:
+          persist-credentials: false
+          # Keep focused baseline and mutation runs on the published snapshot.
+          ref: "${{ matrix.suite == 'focused' && github.event.pull_request.head.sha || github.sha }}"
+      - uses: "actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e" # v7.0.0
+        with:
+          go-version: "1.27.4"
+          cache: false
+      - uses: "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1" # v7.1.0
+        with:
+          node-version: "26.13.1"
+      - name: "Install the ejection oracles"
+        run: |
+          printf 'UPROOT1274=%s\n' "$(go env GOROOT)" >> "$GITHUB_ENV"
+          while read -r version sha256 root; do
+            archive="$RUNNER_TEMP/go$version.linux-amd64.tar.gz"
+            curl --fail --silent --show-error --location --output "$archive" "https://go.dev/dl/go$version.linux-amd64.tar.gz"
+            printf '%s  %s\n' "$sha256" "$archive" | sha256sum --check --strict -
+            mkdir "$RUNNER_TEMP/go$version"
+            tar -xzf "$archive" -C "$RUNNER_TEMP/go$version" --strip-components=1
+            printf '%s=%s\n' "$root" "$RUNNER_TEMP/go$version" >> "$GITHUB_ENV"
+          done <<'PINS'
+          1.27.2 ecbadb99091a3f46e31f5f934b068b1864eafa7995211b39eaddf76996045fe5 UPROOT1272
+          1.27.3 65efbc80fdc1fa2cd2631cad5b481777a68e8725f34e89f50fc6ac714e379b40 UPROOT1273
+          PINS
+      - name: "Build the toolchain"
+        run: |
+          GOROOT_BOOTSTRAP=$(go env GOROOT)
+          export GOROOT_BOOTSTRAP
+          ./make.bash
+          printf '%s\n' "$GITHUB_WORKSPACE/bin" "$GITHUB_WORKSPACE/lib/wasm" >> "$GITHUB_PATH"
+      - name: "Check Wasm runner isolation"
+        if: "matrix.suite == 'focused'"
+        run: |
+          wasm_cache=$(go env GOCACHE)
+          env -i \
+            PATH="$PATH" GOROOT="$GITHUB_WORKSPACE" GOCACHE="$wasm_cache" \
+            TMPDIR="$RUNNER_TEMP" GOTMPDIR="$RUNNER_TEMP" \
+            GOENV=off GOTOOLCHAIN=local GOTELEMETRY=off \
+            GOMAXPROCS=2 GOFLAGS=-p=2 GOMEMLIMIT=2GiB \
+            go test -count=1 -timeout=10m -v cmd/compile/internal/logos \
+              -run '^TestWasm(RunIgnoresHostEnvironment|ProgramRunsUnderNode|WrongMayYieldTraps|YieldFreeSourcesRunUnderNode)$'
+      - name: "Check formatting and vet"
+        if: "matrix.suite == 'focused'"
+        run: |
+          test -z "$(gofmt -l cmd/compile/internal/ssa/*logos*.go cmd/compile/internal/logos/wasm*_test.go)"
+          go vet cmd/compile/internal/ssa cmd/compile/internal/logos
+      - name: "Run the complete SSA short suite"
+        if: "matrix.suite == 'focused'"
+        run: "go test -count=1 -short cmd/compile/internal/ssa"
+      - name: "Run source dominance and native/ejected SIMD gates"
+        if: "!cancelled() && matrix.suite == 'focused'"
+        run: |
+          go test -count=1 -race -timeout=40m -v cmd/go -run '^TestScript$/^(README|logos_simd_(zero_dominance|feature_gate|gate_avx512|gate_branch)|logos_eject_simd_slice)$'
+      - name: "Run the full upstream regression gate"
+        if: "matrix.suite == 'regression'"
+        env:
+          # cmd/go includes 511 loGo/s scripts in addition to the upstream set.
+          # Match the existing language CI's hour-long outer test budget.
+          GO_TEST_TIMEOUT_SCALE: "8"
+        run: "./run.bash --no-rebuild"

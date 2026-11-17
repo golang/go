@@ -79,6 +79,7 @@ jobs:
       - name: "Install the pinned Go bootstrap"
         run: bash ../.github/scripts/install-ci-tool.sh go
       - name: "Install the pinned Node runtime"
+
         run: bash ../.github/scripts/install-ci-tool.sh node
       - name: "Install the upstream oracle toolchains"
         if: "matrix.suite != 'unit'"

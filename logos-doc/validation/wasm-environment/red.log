@@ -1,0 +1,31 @@
+=== RUN   TestWasmRunIgnoresHostEnvironment
+=== RUN   TestWasmRunIgnoresHostEnvironment/clean
+=== RUN   TestWasmRunIgnoresHostEnvironment/sentinel
+    wasm_env_test.go:56: run: exit status 2
+        got "panic: host-only LOGOS_WASM_TEST_PADDING reached the wasm guest\n\ngoroutine 1 [running]:\nmain.main()\n\t/tmp/TestWasmRunIgnoresHostEnvironment384413406/001/main.go:7 +0x38\n"
+        want "wasm env ok\n"
+=== RUN   TestWasmRunIgnoresHostEnvironment/large
+    wasm_env_test.go:56: run: exit status 1
+        got "Error: total length of command line and environment variables exceeds limit\n    at globalThis.Go.run (/workspace/scratch/fd0d13fb6a48/LoGOs-defaults/lib/wasm/wasm_exec.js:545:11)\n    at /workspace/scratch/fd0d13fb6a48/LoGOs-defaults/lib/wasm/wasm_exec_node.js:36:12\n"
+        want "wasm env ok\n"
+--- FAIL: TestWasmRunIgnoresHostEnvironment (12.35s)
+    --- PASS: TestWasmRunIgnoresHostEnvironment/clean (0.11s)
+    --- FAIL: TestWasmRunIgnoresHostEnvironment/sentinel (0.06s)
+    --- FAIL: TestWasmRunIgnoresHostEnvironment/large (0.04s)
+=== RUN   TestWasmProgramRunsUnderNode
+=== RUN   TestWasmProgramRunsUnderNode/resume_points_everywhere
+=== RUN   TestWasmProgramRunsUnderNode/selective_resume_points
+--- PASS: TestWasmProgramRunsUnderNode (14.09s)
+    --- PASS: TestWasmProgramRunsUnderNode/resume_points_everywhere (0.66s)
+    --- PASS: TestWasmProgramRunsUnderNode/selective_resume_points (13.42s)
+=== RUN   TestWasmWrongMayYieldTraps
+--- PASS: TestWasmWrongMayYieldTraps (0.44s)
+=== RUN   TestWasmYieldFreeSourcesRunUnderNode
+=== RUN   TestWasmYieldFreeSourcesRunUnderNode/plain_go
+=== RUN   TestWasmYieldFreeSourcesRunUnderNode/logos
+--- PASS: TestWasmYieldFreeSourcesRunUnderNode (0.44s)
+    --- PASS: TestWasmYieldFreeSourcesRunUnderNode/plain_go (0.21s)
+    --- PASS: TestWasmYieldFreeSourcesRunUnderNode/logos (0.24s)
+FAIL
+FAIL	cmd/compile/internal/logos	27.318s
+FAIL

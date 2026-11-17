@@ -842,6 +842,7 @@ func (check *Checker) declStmt(list []syntax.Decl) {
 			}
 
 		case *syntax.TypeDecl:
+			top := len(check.delayed)
 			obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Value, nil)
 			// spec: "The scope of a type identifier declared inside a function
 			// begins at the identifier in the TypeSpec and ends at the end of
@@ -851,6 +852,10 @@ func (check *Checker) declStmt(list []syntax.Decl) {
 			check.push(obj) // mark as grey
 			check.typeDecl(obj, s)
 			check.pop()
+			if check.conf.Logos {
+				// Check defaults before the next local type enters this scope.
+				check.processDelayed(top)
+			}
 
 		default:
 			check.errorf(s, InvalidSyntaxTree, "unknown syntax.Decl node %T", s)

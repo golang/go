@@ -1,0 +1,133 @@
+# Anchor: Tony Hoare. A delayed field-default check sees the bindings at its
+# declaration, even if later type specs extend the same local scope.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# All affected types remain unconstructed. Native and ejected checks therefore
+# exercise declaration scope without relying on default-application lowering.
+cd good
+logos run .
+stdout '^grouped declaration scopes checked$'
+cp stdout $WORK/native.txt
+logos eject -o out
+cd out
+go run .
+cmp stdout $WORK/native.txt
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
+exec $WORK/upstream$GOEXE
+cmp stdout $WORK/native.txt
+cd ../../bad
+
+# An earlier local type shadows the outer constant and cannot be a value.
+cp ../cases/earlier.lgo defaults.lgo
+! logos build .
+stderr 'C.*is not an expression'
+! logos eject -o $WORK/earlier-out
+stderr 'C.*is not an expression'
+
+# A later local type is not visible at an earlier default with no outer binding.
+cp ../cases/future.lgo defaults.lgo
+! logos build .
+stderr 'undefined: Missing'
+! logos eject -o $WORK/future-out
+stderr 'undefined: Missing'
+
+-- good/go.mod --
+module example.com/defaultgroupscope
+
+go 1.27
+
+-- good/main.lgo --
+package main
+
+import (
+	"fmt"
+	clock "time"
+)
+
+const C = 17
+const Key = 17
+
+type Forward struct {
+	N int = After
+	Opaque map[int]int
+}
+
+const After = 17
+
+func laterType() {
+	type (
+		Cfg struct { N int = C }
+		C int
+	)
+}
+
+func laterAlias() {
+	const C = 17
+	{
+		type (
+			Cfg struct { N int = C }
+			C = int
+		)
+	}
+}
+
+func laterImportShadow() {
+	type (
+		Cfg struct { Delay clock.Duration = clock.Second }
+		clock int
+	)
+}
+
+func laterMapKeyShadow() {
+	type (
+		Cfg struct { Values map[int]int = map[int]int{Key: 1} }
+		Key int
+	)
+}
+
+func earlierType() {
+	type (
+		Value int
+		Cfg struct { N Value = Value(C) }
+	)
+}
+
+func main() {
+	laterType()
+	laterAlias()
+	laterImportShadow()
+	laterMapKeyShadow()
+	earlierType()
+	fmt.Println("grouped declaration scopes checked")
+}
+
+-- bad/go.mod --
+module example.com/invaliddefaultgroupscope
+
+go 1.27
+
+-- cases/earlier.lgo --
+package bad
+
+const C = 17
+
+func f() {
+	type (
+		C int
+		Cfg struct { N int = C }
+	)
+}
+
+-- cases/future.lgo --
+package bad
+
+func f() {
+	type (
+		Cfg struct { N int = Missing }
+		Missing int
+	)
+}

@@ -28,6 +28,61 @@ stderr 'bad.lgo:3:[0-9]+:.*cannot use'
 ! logos build -o $WORK/blank-group.exe ./blank_group
 stderr 'bad.lgo:3:[0-9]+:.*cannot use'
 
+# Anchor: Tony Hoare. The installed compiler stores types in syntax nodes,
+# so declaration validation must not depend on a populated Info.Types map.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# Imported and local constants retain declaration scope; both uint8 bounds
+# are accepted. Native, ejected, and upstream executions agree.
+cd good
+logos run .
+stdout '^defaults checked: 1000000000 17 0 255$'
+cp stdout $WORK/native.txt
+logos eject -o out
+cd out
+go run .
+cmp stdout $WORK/native.txt
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
+exec $WORK/upstream$GOEXE
+cmp stdout $WORK/native.txt
+cd ../../bad
+
+# None of these types is instantiated. Opaque disables generated serializers,
+# so rejection must come from declaration validation rather than generated Go.
+cp ../cases/below.lgo defaults.lgo
+! logos build .
+stderr 'default for field Value.*overflows'
+! logos eject -o $WORK/below-out
+stderr 'default for field Value.*overflows'
+
+cp ../cases/above.lgo defaults.lgo
+! logos build .
+stderr 'default for field Value.*overflows'
+! logos eject -o $WORK/above-out
+stderr 'default for field Value.*overflows'
+
+cp ../cases/scalar.lgo defaults.lgo
+! logos build .
+stderr 'cannot use.*default for field Value'
+! logos eject -o $WORK/scalar-out
+stderr 'cannot use.*default for field Value'
+
+cp ../cases/composite.lgo defaults.lgo
+! logos build .
+stderr 'cannot use.*default for field Value'
+! logos eject -o $WORK/composite-out
+stderr 'cannot use.*default for field Value'
+
+cp ../cases/mapkey.lgo defaults.lgo
+! logos build .
+stderr '\[correctness::default_not_constant\] non-constant default for field Value'
+! logos eject -o $WORK/mapkey-out
+stderr '\[correctness::default_not_constant\] non-constant default for field Value'
+
 -- go.mod --
 module example.com/defaultvalidation
 
@@ -121,3 +176,85 @@ package main
 func unused() { type Unused struct { _ string; _, Value int = "bad" } }
 
 func main() {}
+-- good/go.mod --
+module example.com/defaultvalidation
+
+go 1.27
+
+-- good/main.lgo --
+package main
+
+import (
+	"fmt"
+	"time"
+)
+
+type Imported struct { Delay time.Duration = time.Second }
+type Bounds struct {
+	Min uint8 = 0
+	Max uint8 = 255
+}
+
+func main() {
+	const amount = 17
+	type Local struct { Value int = amount }
+	a := Imported{}
+	b := Local{}
+	c := Bounds{}
+	if a.Delay != time.Second || b.Value != 17 || c.Min != 0 || c.Max != 255 {
+		panic("wrong declaration default")
+	}
+	fmt.Printf("defaults checked: %d %d %d %d\n", a.Delay, b.Value, c.Min, c.Max)
+}
+
+-- bad/go.mod --
+module example.com/unuseddefault
+
+go 1.27
+
+-- cases/below.lgo --
+package bad
+
+type Unused struct {
+	Value uint8 = -1
+	Opaque map[int]int
+}
+
+-- cases/above.lgo --
+package bad
+
+type Unused struct {
+	Value uint8 = 256
+	Opaque map[int]int
+}
+
+-- cases/scalar.lgo --
+package bad
+
+type Unused struct {
+	Value int = "bad"
+	Opaque map[int]int
+}
+
+-- cases/composite.lgo --
+package bad
+
+type Unused struct {
+	Value []int = []string{"bad"}
+	Opaque map[int]int
+}
+
+-- cases/mapkey.lgo --
+package bad
+
+var Calls int
+
+func key() int {
+	Calls++
+	return 1
+}
+
+type Unused struct {
+	Value map[int]int = map[int]int{key(): 1}
+	Opaque map[int]int
+}

@@ -1,0 +1,9 @@
+Building Go cmd/dist using /workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci. (go1.27.4 linux/amd64)
+Building Go toolchain1 using /workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci.
+Building Go bootstrap cmd/go (go_bootstrap) using Go toolchain1.
+Building Go toolchain2 using go_bootstrap and Go toolchain1.
+Building Go toolchain3 using go_bootstrap and Go toolchain2.
+Building packages and commands for linux/amd64.
+---
+Installed Go for linux/amd64 in /workspace/scratch/fd0d13fb6a48/LoGOs-defaults
+Installed commands in /workspace/scratch/fd0d13fb6a48/LoGOs-defaults/bin

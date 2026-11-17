@@ -1,0 +1,24 @@
+=== RUN   TestWasmRunIgnoresHostEnvironment
+=== RUN   TestWasmRunIgnoresHostEnvironment/clean
+=== RUN   TestWasmRunIgnoresHostEnvironment/sentinel
+=== RUN   TestWasmRunIgnoresHostEnvironment/large
+--- PASS: TestWasmRunIgnoresHostEnvironment (0.36s)
+    --- PASS: TestWasmRunIgnoresHostEnvironment/clean (0.06s)
+    --- PASS: TestWasmRunIgnoresHostEnvironment/sentinel (0.06s)
+    --- PASS: TestWasmRunIgnoresHostEnvironment/large (0.06s)
+=== RUN   TestWasmProgramRunsUnderNode
+=== RUN   TestWasmProgramRunsUnderNode/resume_points_everywhere
+=== RUN   TestWasmProgramRunsUnderNode/selective_resume_points
+--- PASS: TestWasmProgramRunsUnderNode (0.49s)
+    --- PASS: TestWasmProgramRunsUnderNode/resume_points_everywhere (0.26s)
+    --- PASS: TestWasmProgramRunsUnderNode/selective_resume_points (0.23s)
+=== RUN   TestWasmWrongMayYieldTraps
+--- PASS: TestWasmWrongMayYieldTraps (0.35s)
+=== RUN   TestWasmYieldFreeSourcesRunUnderNode
+=== RUN   TestWasmYieldFreeSourcesRunUnderNode/plain_go
+=== RUN   TestWasmYieldFreeSourcesRunUnderNode/logos
+--- PASS: TestWasmYieldFreeSourcesRunUnderNode (0.49s)
+    --- PASS: TestWasmYieldFreeSourcesRunUnderNode/plain_go (0.22s)
+    --- PASS: TestWasmYieldFreeSourcesRunUnderNode/logos (0.27s)
+PASS
+ok  	cmd/compile/internal/logos	1.698s

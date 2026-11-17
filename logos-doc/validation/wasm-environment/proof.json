@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "slice": "M16-S1a",
+  "attempt": 1,
+  "date": "2026-11-16",
+  "local_compiler_source": "447d6ad7ecff885efed74e14ed7b458f26eb11ea",
+  "integrated_baseline": "b154571b8270533c59788405204c3ef0a7b8cc98",
+  "validation_scope": "Local Wasm helper and runtime files match the integrated baseline. The complete integrated production tree requires its hosted regression gate.",
+  "tools": {
+    "go": "go1.27.4 linux/amd64",
+    "logos": "go1.27.4 linux/amd64",
+    "node": "v26.13.1",
+    "go_and_logos_sha256": "293129e95b816bf74be72596a4ac7993d67b872bacacfb7c3730f5911507c03c",
+    "compiler_sha256": "4aaa7bd74c4b01a326abae70117d3009058e7d515f6c8856ecae35c117a8a5da"
+  },
+  "build": {
+    "command": "GOMAXPROCS=4 GOFLAGS=-p=2 GOGC=100 GOMEMLIMIT=2GiB CGO_ENABLED=0 ./make.bash",
+    "result": "PASS"
+  },
+  "fingerprints": {
+    "frozen_test": "0a5176044f8f55cd3ad62d7694ad16e6600f5cd463f3d56e23cb4eee5c4a54e7",
+    "runner_before": "64e2c6a45ee50bc43e1a3340f567571009871df1fbc57a1d739a92556d8221c1",
+    "runner_after": "00110006ef36b4de0baa9134ccc8b9dd767ea6a20a922156222cb57de0f6d695",
+    "wasm_exec_js": "0c949f4996f9a89698e4b5c586de32249c3b69b7baadb64d220073cc04acba14",
+    "wasm_exec_node_js": "86b8ce546ecaa462544f3736adc4c19264eedd257c2ec427c9abc6debc1ee184"
+  },
+  "test_command": "go test -count=1 -timeout=10m -v cmd/compile/internal/logos -run '^TestWasm(RunIgnoresHostEnvironment|ProgramRunsUnderNode|WrongMayYieldTraps|YieldFreeSourcesRunUnderNode)$'",
+  "environment": {
+    "isolation": "env -i",
+    "GOROOT": "task checkout",
+    "PATH": "fork bin, Node 26.13.1 bin, /usr/bin, /bin",
+    "GOCACHE": "task-owned absolute cache",
+    "GOMODCACHE": "task-owned absolute cache for controlled GREEN, PROBE, and RESTORED",
+    "TMPDIR": "/tmp",
+    "GOTMPDIR": "/tmp",
+    "GOENV": "off",
+    "GOTOOLCHAIN": "local",
+    "GOTELEMETRY": "off",
+    "GOMAXPROCS": "4",
+    "GOFLAGS": "-p=2",
+    "GOGC": "100",
+    "GOMEMLIMIT": "2GiB",
+    "CGO_ENABLED": "0"
+  },
+  "results": {
+    "red": {
+      "exit_code": 1,
+      "seconds": 27.318,
+      "clean": "PASS",
+      "sentinel": "FAIL: host-only value reached guest",
+      "large": "FAIL: fixed startup region overflow",
+      "existing_semantic_and_trap_tests": "PASS"
+    },
+    "green": {
+      "exit_code": 0,
+      "seconds": 2.789,
+      "all_four_tests": "PASS",
+      "skips": 0
+    },
+    "probe": {
+      "exit_code": 1,
+      "seconds": 1.882,
+      "mechanism": "Overlay only wasm_test.go with its byte-identical original, restoring inherited execution environment.",
+      "clean": "PASS",
+      "sentinel": "FAIL: host-only value reached guest",
+      "large": "FAIL: fixed startup region overflow",
+      "existing_semantic_and_trap_tests": "PASS"
+    },
+    "restored": {
+      "exit_code": 0,
+      "seconds": 1.698,
+      "all_four_tests": "PASS",
+      "skips": 0
+    },
+    "format": "PASS: gofmt -l prints no changed Go file",
+    "vet": "PASS: go vet cmd/compile/internal/logos",
+    "ledger": {
+      "test": "TestRedteamLedgerRows",
+      "result": "PASS",
+      "seconds": 0.03,
+      "document_snapshot_sha256": "417d76714314a154203e82edc19bdacad05e5541267ade05375bd17d869802ea"
+    },
+    "initial_green": {
+      "exit_code": 0,
+      "seconds": 1.85,
+      "all_four_tests": "PASS",
+      "skips": 0
+    }
+  },
+  "excluded_probe_launch": "The first overlay launch was rejected before tests because GOMODCACHE was empty. No mutation result is attributed to it.",
+  "timing_scope": "Correctness test durations, with differing cache states, are not speed measurements. Host benchmark setup includes TempDir creation; custom guest-loop timing excludes it.",
+  "hosted_acceptance": "At publication, combined-head acceptance is queued. Current status: https://github.com/gosuda/LoGOs/pull/54/checks",
+  "log_sha256": {
+    "build.log": "9bd24b54dc772c62b93681dca625112dbba6ac645b858910d8b3ff0cff3daafc",
+    "red.log": "f62aafd9fcd8f282fe9be6a35bdbfae48203e95fe8c88499c7d6e539679affeb",
+    "green.log": "a6138ab9db57010e37fdfd53e615a23e79f3be1e1294fd0546717e7aba9cd6f1",
+    "probe.log": "c20d74325ebabf64a307b95a8c4f673570f0f4c1e7a4dfcb2b287c6e9f8608dd",
+    "restored.log": "d919c3930a43c253eb64678047a5f34bf5c08be5559034c4f59d43a489481f7d",
+    "overlay-setup-rejected.log": "2b618ecad7f653284d4794ff6a5817bffd24c35bba4e714439cf89e1a237497f"
+  }
+}
