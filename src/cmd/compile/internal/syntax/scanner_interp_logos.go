@@ -62,6 +62,8 @@ func (s *scanner) logosInterp() bool {
 			}
 			s.errorf("unescaped '}' in interpolated string")
 			ok = false
+		case depth == 0:
+			s.nextch()
 		case c == '{':
 			depth++
 			s.nextch()

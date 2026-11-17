@@ -1,0 +1,16 @@
+// run
+
+package main
+
+import "fmt"
+
+func main() {
+	host := "example.com"
+	n := 3
+	fmt.Println($"https://{host}/a//b")
+	fmt.Println($"it's {n} o'clock")
+	fmt.Println($"run `ls {host}` now")
+	fmt.Println($"a /* b {n} */ c")
+	fmt.Println($"rune {string('x')} and {"q'q"} and {`r'r`}")
+	fmt.Println($"script-src 'self' 'nonce-{host}'")
+}
