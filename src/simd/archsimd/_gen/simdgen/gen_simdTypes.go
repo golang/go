@@ -455,6 +455,9 @@ func (x {{.Name}}) And(y {{.Name}}) {{.Name}}
 // Asm: BIC (predicate), CPU Feature: SVE
 func (x {{.Name}}) AndNot(y {{.Name}}) {{.Name}}
 
+// Asm: ORR (predicate), CPU Feature: SVE
+func (x {{.Name}}) Or(y {{.Name}}) {{.Name}}
+
 // To{{.VectorCounterpart}} converts the mask to a vector, where element i is set to ^0 (all bits
 // set, e.g., -1) if mask element i is "true", and 0 otherwise.
 //

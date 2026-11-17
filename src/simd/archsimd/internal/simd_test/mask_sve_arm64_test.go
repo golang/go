@@ -281,6 +281,17 @@ func TestMaskAndNotSVE(t *testing.T) {
 	testMaskPairToMask(t, "Mask64s.AndNot", 8, archsimd.Mask64s.AndNot, andnot)
 }
 
+func TestMaskOrSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no SVE")
+	}
+	or := func(x, y bool) bool { return x || y }
+	testMaskPairToMask(t, "Mask8s.Or", 1, archsimd.Mask8s.Or, or)
+	testMaskPairToMask(t, "Mask16s.Or", 2, archsimd.Mask16s.Or, or)
+	testMaskPairToMask(t, "Mask32s.Or", 4, archsimd.Mask32s.Or, or)
+	testMaskPairToMask(t, "Mask64s.Or", 8, archsimd.Mask64s.Or, or)
+}
+
 func testMaskToIntAndBack[M sveMask, T signed, V any](t *testing.T, name string, laneBytes int,
 	toInt func(M) V, toMask func(V) M, store func(V, []T), load func([]T) V) {
 	t.Helper()

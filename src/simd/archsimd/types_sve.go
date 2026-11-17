@@ -1193,6 +1193,13 @@ func (x Mask8s) And(y Mask8s) (z Mask8s)
 // Asm: BIC (predicate), CPU Feature: SVE
 func (x Mask8s) AndNot(y Mask8s) (z Mask8s)
 
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+//
+// Asm: ORR (predicate), CPU Feature: SVE
+func (x Mask8s) Or(y Mask8s) (z Mask8s)
+
 // ToInt8s converts the mask to a vector, where element i is set to ^0 (all bits
 // set, e.g., -1) if mask element i is "true", and 0 otherwise.
 //
@@ -1315,6 +1322,13 @@ func (x Mask16s) And(y Mask16s) (z Mask16s)
 //
 // Asm: BIC (predicate), CPU Feature: SVE
 func (x Mask16s) AndNot(y Mask16s) (z Mask16s)
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+//
+// Asm: ORR (predicate), CPU Feature: SVE
+func (x Mask16s) Or(y Mask16s) (z Mask16s)
 
 // ToInt16s converts the mask to a vector, where element i is set to ^0 (all bits
 // set, e.g., -1) if mask element i is "true", and 0 otherwise.
@@ -1439,6 +1453,13 @@ func (x Mask32s) And(y Mask32s) (z Mask32s)
 // Asm: BIC (predicate), CPU Feature: SVE
 func (x Mask32s) AndNot(y Mask32s) (z Mask32s)
 
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+//
+// Asm: ORR (predicate), CPU Feature: SVE
+func (x Mask32s) Or(y Mask32s) (z Mask32s)
+
 // ToInt32s converts the mask to a vector, where element i is set to ^0 (all bits
 // set, e.g., -1) if mask element i is "true", and 0 otherwise.
 //
@@ -1561,6 +1582,13 @@ func (x Mask64s) And(y Mask64s) (z Mask64s)
 //
 // Asm: BIC (predicate), CPU Feature: SVE
 func (x Mask64s) AndNot(y Mask64s) (z Mask64s)
+
+// Or returns the bitwise OR of x and y.
+//
+//	z[i] = x[i] | y[i]
+//
+// Asm: ORR (predicate), CPU Feature: SVE
+func (x Mask64s) Or(y Mask64s) (z Mask64s)
 
 // ToInt64s converts the mask to a vector, where element i is set to ^0 (all bits
 // set, e.g., -1) if mask element i is "true", and 0 otherwise.

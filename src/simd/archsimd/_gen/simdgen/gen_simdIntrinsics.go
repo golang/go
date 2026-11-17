@@ -125,7 +125,8 @@ func simd{{GetSIMDTag}}Intrinsics(addF func(pkg, fn string, b intrinsicBuilder, 
 	addF(simdPackage, "{{.Name}}.None", opLen1(ssaop.Op{{.Name}}None, types.Types[types.TBOOL]), {{GetSysArch}})
 	addF(simdPackage, "{{.Name}}.Any", opLen1(ssaop.Op{{.Name}}Any, types.Types[types.TBOOL]), {{GetSysArch}})
 	addF(simdPackage, "{{.Name}}.And", opLen2(ssaop.Op{{.Name}}And, types.TypeMask), {{GetSysArch}})
-	addF(simdPackage, "{{.Name}}.AndNot", opLen2(ssaop.Op{{.Name}}AndNot, types.TypeMask), {{GetSysArch}})`)
+	addF(simdPackage, "{{.Name}}.AndNot", opLen2(ssaop.Op{{.Name}}AndNot, types.TypeMask), {{GetSysArch}})
+	addF(simdPackage, "{{.Name}}.Or", opLen2(ssaop.Op{{.Name}}Or, types.TypeMask), {{GetSysArch}})`)
 
 	var maskedLoadStore = templateNamed("maskedLoadStore", `	addF(simdPackage, "load{{.Name}}ArrayMasked", simdMaskedLoad(ssaop.OpLoadMasked{{.ElemBits}}), sys.AMD64)
 	addF(simdPackage, "{{.Name}}.StoreArrayMasked", simdMaskedStore(ssaop.OpStoreMasked{{.ElemBits}}), sys.AMD64)`)

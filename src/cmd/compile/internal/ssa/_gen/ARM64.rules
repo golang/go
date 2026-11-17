@@ -2013,6 +2013,10 @@
 (Mask16sAndNot x y) => (PBICB (Mask16sAllTrue <types.TypeMask>) x y)
 (Mask32sAndNot x y) => (PBICB (Mask32sAllTrue <types.TypeMask>) x y)
 (Mask64sAndNot x y) => (PBICB (Mask64sAllTrue <types.TypeMask>) x y)
+(Mask8sOr x y) => (PORRB (Mask8sAllTrue <types.TypeMask>) x y)
+(Mask16sOr x y) => (PORRB (Mask16sAllTrue <types.TypeMask>) x y)
+(Mask32sOr x y) => (PORRB (Mask32sAllTrue <types.TypeMask>) x y)
+(Mask64sOr x y) => (PORRB (Mask64sAllTrue <types.TypeMask>) x y)
 
 // == on SIMD vectors and masks. Integer vectors and masks are equal if their
 // XOR is zero. Float vectors are equal if every element compares equal, so NaN
