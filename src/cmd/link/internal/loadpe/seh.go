@@ -102,6 +102,10 @@ func processSEHAMD64(ldr *loader.Loader, pdata sym.LoaderSym) ([]loader.Sym, err
 // Reference:
 // https://learn.microsoft.com/en-us/cpp/build/exception-handling-x64#struct-unwind_info
 func findHandlerInXDataAMD64(ldr *loader.Loader, xsym sym.LoaderSym, add int64) loader.Sym {
+	if outer := ldr.OuterSym(xsym); outer != 0 {
+		add += ldr.SymValue(xsym)
+		xsym = outer
+	}
 	data := ldr.Data(xsym)
 	if add < 0 || add+unwStaticDataSize > int64(len(data)) {
 		return 0

@@ -3234,6 +3234,9 @@ func (ctxt *Link) address() []*sym.Segment {
 		if sect := ldr.SymSect(s); sect != nil {
 			ldr.AddToSymValue(s, int64(sect.Vaddr))
 		}
+		for sub := ldr.SubSym(s); sub != 0; sub = ldr.SubSym(sub) {
+			ldr.AddToSymValue(sub, ldr.SymValue(s))
+		}
 	}
 
 	if ctxt.BuildMode == BuildModeShared {

@@ -1188,6 +1188,22 @@ func TestPErsrcLLVM(t *testing.T) {
 	}
 }
 
+func TestPESEHInteriorSymbol(t *testing.T) {
+	if runtime.GOOS != "windows" || runtime.GOARCH != "amd64" {
+		t.Skip("requires windows/amd64")
+	}
+	testenv.MustHaveGoRun(t)
+	testenv.MustHaveCGO(t)
+	testenv.MustInternalLink(t, testenv.SpecialBuildTypes{Cgo: true})
+	t.Parallel()
+
+	cmd := goCmd(t, "run", "-ldflags=-linkmode=internal", ".")
+	cmd.Dir = filepath.Join("testdata", "pe-seh")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("running SEH test: %v\n%s", err, out)
+	}
+}
+
 func TestPELoaderTLS(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	if runtime.GOOS != "windows" {
