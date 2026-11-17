@@ -511,6 +511,19 @@ func sveMaskToInt(m archsimd.Mask8s) archsimd.Int8s {
 	return m.ToInt8s()
 }
 
+// The predicate logic instructions are always .B; the governing all-true
+// mask is built at the lane size.
+func sveMaskAnd(x, y archsimd.Mask16s) archsimd.Mask16s {
+	// arm64:`PWHILELT.*P[0-9]+\.H` `PAND\s+P[0-9]+\.B, P[0-9]+\.B, P[0-9]+\.Z, P[0-9]+\.B`
+	return x.And(y)
+}
+
+// A Mask8s has a lane for every bit, so x itself governs.
+func sveMask8sAnd(x, y archsimd.Mask8s) archsimd.Mask8s {
+	// arm64:`PAND\s+P[0-9]+\.B, P[0-9]+\.B, P[0-9]+\.Z, P[0-9]+\.B` -`PWHILELT` -`PTRUE`
+	return x.And(y)
+}
+
 func sveBroadcastConstIfElse(m archsimd.Mask16s, z archsimd.Int16s) archsimd.Int16s {
 	// arm64:`ZCPY\s+\$5, P[0-9]+\.M, Z[0-9]+\.H` -`ZDUP` -`ZSEL`
 	return archsimd.BroadcastInt16s(5).IfElse(m, z)

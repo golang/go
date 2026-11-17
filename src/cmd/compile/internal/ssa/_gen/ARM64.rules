@@ -2002,6 +2002,14 @@
 (Mask32sAny m) => (NotEqual (PPTEST (Mask32sAllTrue <types.TypeMask>) m))
 (Mask64sAny m) => (NotEqual (PPTEST (Mask64sAllTrue <types.TypeMask>) m))
 
+// The predicate logic instructions have only a byte form. Governing them by
+// the all-true mask of the lane size zeroes the bits between lanes. A Mask8s
+// has a lane for every bit, so x itself can govern it.
+(Mask8sAnd x y) => (PANDB x x y)
+(Mask16sAnd x y) => (PANDB (Mask16sAllTrue <types.TypeMask>) x y)
+(Mask32sAnd x y) => (PANDB (Mask32sAllTrue <types.TypeMask>) x y)
+(Mask64sAnd x y) => (PANDB (Mask64sAllTrue <types.TypeMask>) x y)
+
 // == on SIMD vectors and masks. Integer vectors and masks are equal if their
 // XOR is zero. Float vectors are equal if every element compares equal, so NaN
 // elements are unequal and +0 equals -0.

@@ -818,6 +818,16 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.AddRestSourceReg(pregMask(v.Args[0].Reg(), arm64.PRED_Z))
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = pregArng(v.Reg0(), arm64.ARNG_B)
+	case ssaop.OpARM64PANDB:
+		// Predicate logic, e.g. PAND P2.B, P1.B, P0.Z, P3.B: P3 = P1 AND P2
+		// on the lanes of P0, with arg0=P0, arg1=P1 and arg2=P2.
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = pregArng(v.Args[2].Reg(), arm64.ARNG_B)
+		p.AddRestSourceReg(pregArng(v.Args[1].Reg(), arm64.ARNG_B))
+		p.AddRestSourceReg(pregMask(v.Args[0].Reg(), arm64.PRED_Z))
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = pregArng(v.Reg(), arm64.ARNG_B)
 	case ssaop.OpARM64PPTEST:
 		// PPTEST P1.B, P0: flags from the lanes of P1 that P0 governs.
 		p := s.Prog(v.Op.Asm())
