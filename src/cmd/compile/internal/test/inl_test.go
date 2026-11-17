@@ -285,10 +285,10 @@ func TestIntendedInlining(t *testing.T) {
 		// (*Bool).CompareAndSwap is just over budget on 32-bit systems (386, arm).
 		want["sync/atomic"] = append(want["sync/atomic"], "(*Bool).CompareAndSwap")
 	}
-	if runtime.GOARCH != "amd64" {
-		// path.Base calls bytealg.LastIndexByteString. On amd64 it is implemented in
-		// assembly and is therefore not inlinable. This pushes path.Base over the
-		// inlining budget.
+	if runtime.GOARCH != "amd64" && runtime.GOARCH != "loong64" {
+		// path.Base calls bytealg.LastIndexByteString. On amd64 and loong64 it is
+		// implemented in assembly and is therefore not inlinable. This pushes
+		// path.Base over the inlining budget.
 		want["path"] = append(want["path"], "Base")
 	}
 
