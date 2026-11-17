@@ -5,6 +5,8 @@
 package sql
 
 import (
+	"internal/race"
+	"internal/testenv"
 	"runtime"
 	"testing"
 	"testing/synctest"
@@ -202,5 +204,37 @@ func TestClosingMutexPanics(t *testing.T) {
 		if got == nil {
 			t.Errorf("no panic, want one")
 		}
+	}
+}
+
+func TestClosingMutexRUnlockAllocs(t *testing.T) {
+	testenv.SkipIfOptimizationOff(t)
+	if race.Enabled {
+		t.Skip("skipping allocation test when using race detector")
+	}
+	var m closingMutex
+	m.mu.Lock()
+	m.init()
+	m.mu.Unlock()
+	n := testing.AllocsPerRun(100, func() {
+		// One reader holds the lock and a writer is waiting,
+		// so RUnlock wakes the writer.
+		m.state.Store(2 | 1)
+		m.RUnlock()
+	})
+	if n > 0 {
+		t.Errorf("RUnlock waking a writer allocated %v objects; want 0", n)
+	}
+}
+
+func BenchmarkClosingMutexRUnlockWakeWriter(b *testing.B) {
+	b.ReportAllocs()
+	var m closingMutex
+	m.mu.Lock()
+	m.init()
+	m.mu.Unlock()
+	for b.Loop() {
+		m.state.Store(2 | 1) // one reader, writer waiting
+		m.RUnlock()
 	}
 }

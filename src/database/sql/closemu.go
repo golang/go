@@ -52,8 +52,8 @@ func (m *closingMutex) RUnlock() {
 				// We were the last reader, and a writer is waiting.
 				// The lock makes sure the writer sees the broadcast.
 				m.mu.Lock()
-				defer m.mu.Unlock()
 				m.write.Broadcast()
+				m.mu.Unlock()
 			}
 			return
 		}
