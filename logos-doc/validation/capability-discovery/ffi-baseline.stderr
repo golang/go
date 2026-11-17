@@ -1,0 +1,122 @@
+SIGQUIT: quit
+PC=0x608c2c m=0 sigcode=0
+
+goroutine 1 gp=0x3e915cd04288 m=0 mp=0xaa2ac0 [running]:
+cmd/link/internal/ld.(*capGraph).depth(...)
+	cmd/link/internal/ld/capabilities_chains_logos.go:59
+cmd/link/internal/ld.(*capGraph).consider(...)
+	cmd/link/internal/ld/capabilities_chains_logos.go:109
+cmd/link/internal/ld.(*capGraph).blamedChains(0x3e915cd7e280, 0x6958, 0x3e915cd2c1a0)
+	cmd/link/internal/ld/capabilities_chains_logos.go:95 +0x2ac fp=0x3e915cd63058 sp=0x3e915cd62d28 pc=0x608c2c
+cmd/link/internal/ld.(*logosCapAuditor).findings(0x3e915d3aa0c0)
+	cmd/link/internal/ld/capabilities_logos.go:572 +0x2b0 fp=0x3e915cd633f8 sp=0x3e915cd63058 pc=0x60ce90
+cmd/link/internal/ld.logosCapAudit(0x3e915ccfe400, 0x3e915cd635c8)
+	cmd/link/internal/ld/capabilities_logos.go:179 +0x70b fp=0x3e915cd63530 sp=0x3e915cd633f8 pc=0x609aab
+cmd/link/internal/ld.deadcode(0x3e915ccfe400)
+	cmd/link/internal/ld/deadcode.go:476 +0x31e fp=0x3e915cd63680 sp=0x3e915cd63530 pc=0x62c2be
+cmd/link/internal/ld.Main(_, {0x20, 0x20, 0x1, 0x7, 0x10, 0x0, {0x3e915cd1255d, 0x1, 0x1}, ...})
+	cmd/link/internal/ld/main.go:374 +0x1458 fp=0x3e915cd63a38 sp=0x3e915cd63680 pc=0x678638
+main.main()
+	cmd/link/main.go:72 +0x1348 fp=0x3e915cd63eb8 sp=0x3e915cd63a38 pc=0x729968
+runtime.main()
+	runtime/proc.go:302 +0x427 fp=0x3e915cd63fe0 sp=0x3e915cd63eb8 pc=0x44fce7
+runtime.goexit({})
+	runtime/asm_amd64.s:1264 +0x1 fp=0x3e915cd63fe8 sp=0x3e915cd63fe0 pc=0x48d841
+
+goroutine 2 gp=0x3e915cd04a08 m=nil [force gc (idle)]:
+runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+	runtime/proc.go:475 +0xca fp=0x3e915cd3efa8 sp=0x3e915cd3ef88 pc=0x48714a
+runtime.goparkunlock(...)
+	runtime/proc.go:481
+runtime.forcegchelper()
+	runtime/proc.go:387 +0xb3 fp=0x3e915cd3efe0 sp=0x3e915cd3efa8 pc=0x44ffb3
+runtime.goexit({})
+	runtime/asm_amd64.s:1264 +0x1 fp=0x3e915cd3efe8 sp=0x3e915cd3efe0 pc=0x48d841
+created by runtime.init.8 in goroutine 1
+	runtime/proc.go:375 +0x1a
+
+goroutine 3 gp=0x3e915cd04c88 m=nil [GC sweep wait]:
+runtime.gopark(0x1?, 0x0?, 0x0?, 0x0?, 0x0?)
+	runtime/proc.go:475 +0xca fp=0x3e915cd3f788 sp=0x3e915cd3f768 pc=0x48714a
+runtime.goparkunlock(...)
+	runtime/proc.go:481
+runtime.bgsweep(0x3e915cd26080)
+	runtime/mgcsweep.go:324 +0x151 fp=0x3e915cd3f7c8 sp=0x3e915cd3f788 pc=0x439a31
+runtime.gcenable.gowrap1()
+	runtime/mgc.go:214 +0x17 fp=0x3e915cd3f7e0 sp=0x3e915cd3f7c8 pc=0x47db77
+runtime.goexit({})
+	runtime/asm_amd64.s:1264 +0x1 fp=0x3e915cd3f7e8 sp=0x3e915cd3f7e0 pc=0x48d841
+created by runtime.gcenable in goroutine 1
+	runtime/mgc.go:214 +0x66
+
+goroutine 4 gp=0x3e915cd04f08 m=nil [GC scavenge wait]:
+runtime.gopark(0x3e915cd26080?, 0x764250?, 0x0?, 0x0?, 0x0?)
+	runtime/proc.go:475 +0xca fp=0x3e915cd3ff78 sp=0x3e915cd3ff58 pc=0x48714a
+runtime.goparkunlock(...)
+	runtime/proc.go:481
+runtime.(*scavengerState).park(0xaa0e60)
+	runtime/mgcscavenge.go:425 +0x49 fp=0x3e915cd3ffa8 sp=0x3e915cd3ff78 pc=0x437529
+runtime.bgscavenge(0x3e915cd26080)
+	runtime/mgcscavenge.go:658 +0x59 fp=0x3e915cd3ffc8 sp=0x3e915cd3ffa8 pc=0x437a99
+runtime.gcenable.gowrap2()
+	runtime/mgc.go:215 +0x17 fp=0x3e915cd3ffe0 sp=0x3e915cd3ffc8 pc=0x47db37
+runtime.goexit({})
+	runtime/asm_amd64.s:1264 +0x1 fp=0x3e915cd3ffe8 sp=0x3e915cd3ffe0 pc=0x48d841
+created by runtime.gcenable in goroutine 1
+	runtime/mgc.go:215 +0xa5
+
+goroutine 5 gp=0x3e915cd05688 m=nil [GOMAXPROCS updater (idle)]:
+runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+	runtime/proc.go:475 +0xca fp=0x3e915cd3e788 sp=0x3e915cd3e768 pc=0x48714a
+runtime.goparkunlock(...)
+	runtime/proc.go:481
+runtime.updateMaxProcsGoroutine()
+	runtime/proc.go:7160 +0xe7 fp=0x3e915cd3e7e0 sp=0x3e915cd3e788 pc=0x45d467
+runtime.goexit({})
+	runtime/asm_amd64.s:1264 +0x1 fp=0x3e915cd3e7e8 sp=0x3e915cd3e7e0 pc=0x48d841
+created by runtime.defaultGOMAXPROCSUpdateEnable in goroutine 1
+	runtime/proc.go:7148 +0x37
+
+goroutine 6 gp=0x3e915cd05908 m=nil [finalizer wait]:
+runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+	runtime/proc.go:475 +0xca fp=0x3e915cd40620 sp=0x3e915cd40600 pc=0x48714a
+runtime.runFinalizers()
+	runtime/mfinal.go:210 +0x107 fp=0x3e915cd407e0 sp=0x3e915cd40620 pc=0x42ac27
+runtime.goexit({})
+	runtime/asm_amd64.s:1264 +0x1 fp=0x3e915cd407e8 sp=0x3e915cd407e0 pc=0x48d841
+created by runtime.createfing in goroutine 1
+	runtime/mfinal.go:172 +0x3d
+
+goroutine 7 gp=0x3e915cd05b88 m=nil [GC worker (idle)]:
+runtime.gopark(0x2a1c41144c21?, 0x0?, 0x0?, 0x0?, 0x0?)
+	runtime/proc.go:475 +0xca fp=0x3e915cd40f40 sp=0x3e915cd40f20 pc=0x48714a
+runtime.gcBgMarkWorker(0x3e915cd22230)
+	runtime/mgc.go:1799 +0xeb fp=0x3e915cd40fc8 sp=0x3e915cd40f40 pc=0x42decb
+runtime.gcBgMarkStartWorkers.gowrap1()
+	runtime/mgc.go:1703 +0x17 fp=0x3e915cd40fe0 sp=0x3e915cd40fc8 pc=0x47e077
+runtime.goexit({})
+	runtime/asm_amd64.s:1264 +0x1 fp=0x3e915cd40fe8 sp=0x3e915cd40fe0 pc=0x48d841
+created by runtime.gcBgMarkStartWorkers in goroutine 1
+	runtime/mgc.go:1703 +0xfc
+
+rax    0x3e915dccd960
+rbx    0x22455
+rcx    0x22455
+rdx    0x58ed283d7
+rdi    0x7f
+rsi    0x3e915cd7e280
+rbp    0x3e915cd63048
+rsp    0x3e915cd62d28
+r8     0x3e915d842000
+r9     0x0
+r10    0x3e915dccd908
+r11    0x8
+r12    0x3e915dccd958
+r13    0x22455
+r14    0x3e915cd04288
+r15    0x2
+rip    0x608c2c
+rflags 0x206
+cs     0x33
+fs     0x0
+gs     0x0

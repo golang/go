@@ -1,0 +1,65 @@
+[!buildmode:plugin] skip
+[!cgo] skip '-buildmode=plugin requires external linking'
+
+env GOTOOLCHAIN=local
+env GOPROXY=off
+env CGO_ENABLED=1
+env GOEXPERIMENT=
+cd m
+
+# Like xxhash's upstream TestMain, the test builds its plugin with plain go.
+# Plugin identity requires matching build settings. Pin the host to plain Go's
+# O1; the unconfigured O2/O1 corpus failure remains separate evidence.
+go test -count=1 -run '^TestChildPlugin$' .
+logos test -O=1 -count=1 -run '^TestChildPlugin$' .
+
+# An explicit arena opt-out and GOEXPERIMENT=none must reach both binaries.
+cp arena-off.toml logos.toml
+env GOEXPERIMENT=none
+logos test -O=1 -count=1 -run '^TestChildPlugin$' .
+
+-- m/go.mod --
+module example.com/testplugin
+
+go 1.27
+-- m/arena-off.toml --
+[build]
+arena = false
+-- m/main.go --
+package testplugin
+-- m/plugin/plugin.go --
+package main
+
+func Answer() int { return 42 }
+-- m/plugin_test.go --
+package testplugin
+
+import (
+	"os/exec"
+	"path/filepath"
+	"plugin"
+	"testing"
+)
+
+func TestChildPlugin(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "child.so")
+	out, err := exec.Command("go", "build", "-buildmode=plugin", "-o", path, "./plugin").CombinedOutput()
+	if err != nil {
+		t.Fatalf("build child plugin: %v\n%s", err, out)
+	}
+	loaded, err := plugin.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	symbol, err := loaded.Lookup("Answer")
+	if err != nil {
+		t.Fatal(err)
+	}
+	answer, ok := symbol.(func() int)
+	if !ok {
+		t.Fatalf("Answer has type %T, want func() int", symbol)
+	}
+	if got := answer(); got != 42 {
+		t.Fatalf("plugin Answer = %d, want 42", got)
+	}
+}

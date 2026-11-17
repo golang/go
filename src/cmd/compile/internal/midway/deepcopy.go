@@ -100,13 +100,12 @@ func (c *DeepCopier) OnNameExpr(id *syntax.Name) syntax.Expr {
 	}
 
 	if isBaseSimdTypeObj(obj) {
-		// if it is a name, that means that this is in the simd package,
-		// and the name must be replaced with a selector referencing
-		// the architecture-dependent packages.
+		// A bare SIMD type occurs in simd itself or through a dot import.
+		// Its replacement needs the bridge binding for this file.
 		name := id.Value
 		width := nameToElemBitWidth(name)
 		if width > 0 {
-			archsimdId := syntax.NewName(id.Pos(), archPkg)
+			archsimdId := syntax.NewName(id.Pos(), c.bridgeQualifier())
 			if c.VecLen == 0 {
 				// special case for emulation
 				newSel := &syntax.SelectorExpr{
@@ -170,7 +169,7 @@ func (c *DeepCopier) OnSelector(se *syntax.SelectorExpr) syntax.Expr {
 
 			width := nameToElemBitWidth(name)
 			if width > 0 {
-				archsimdId := syntax.NewName(se.Pos(), archPkg)
+				archsimdId := syntax.NewName(se.Pos(), c.bridgeQualifier())
 				if c.VecLen == 0 {
 					// emulated instead, name is unchanged
 					newSel := &syntax.SelectorExpr{
@@ -312,11 +311,11 @@ func (c *DeepCopier) CopyName(id *syntax.Name, isDef bool) *syntax.Name {
 }
 
 func (c *DeepCopier) CopyNameExpr(id *syntax.Name) syntax.Expr {
-	if !c.analyzer.inSimd {
-		return c.CopyName(id, false)
-	}
 	if id == nil {
 		return nil
+	}
+	if !c.analyzer.inSimd && !isBaseSimdTypeObj(c.info.Uses[id]) {
+		return c.CopyName(id, false)
 	}
 
 	if match := c.OnNameExpr(id); match != nil {

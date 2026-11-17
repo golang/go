@@ -1,0 +1,226 @@
+FFFFFFFF......                                                           [100%]
+=================================== FAILURES ===================================
+______ test_invalid_package_event_cannot_hide_after_passing_tests[event0] ______
+
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-12/test_invalid_package_event_can0')
+event = {'Action': 'unexpected', 'Package': 'p'}
+
+    @pytest.mark.parametrize(
+        "event",
+        (
+            {"Action": "unexpected", "Package": "p"},
+            {"Action": "run", "Package": "p"},
+            {"Action": "start", "Package": ""},
+            {"Action": "pass"},
+            {"Action": "skip"},
+            {"Action": "build-output", "Package": "p"},
+        ),
+    )
+    def test_invalid_package_event_cannot_hide_after_passing_tests(
+        tmp_path: Path, event: dict[str, str]
+    ) -> None:
+        selected = profile("xxhash-asm-core")
+        text = executed(selected.case.module, ("TestAll",)) + "\n" + json.dumps(event)
+        result = assess_runtime(run_record(tmp_path, text), "oracle", selected, None)
+>       assert result.assessment.status == "invalid-report"
+E       AssertionError: assert 'pass' == 'invalid-report'
+E         
+E         - invalid-report
+E         + pass
+
+test_replay_backend_events.py:32: AssertionError
+______ test_invalid_package_event_cannot_hide_after_passing_tests[event1] ______
+
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-12/test_invalid_package_event_can1')
+event = {'Action': 'run', 'Package': 'p'}
+
+    @pytest.mark.parametrize(
+        "event",
+        (
+            {"Action": "unexpected", "Package": "p"},
+            {"Action": "run", "Package": "p"},
+            {"Action": "start", "Package": ""},
+            {"Action": "pass"},
+            {"Action": "skip"},
+            {"Action": "build-output", "Package": "p"},
+        ),
+    )
+    def test_invalid_package_event_cannot_hide_after_passing_tests(
+        tmp_path: Path, event: dict[str, str]
+    ) -> None:
+        selected = profile("xxhash-asm-core")
+        text = executed(selected.case.module, ("TestAll",)) + "\n" + json.dumps(event)
+        result = assess_runtime(run_record(tmp_path, text), "oracle", selected, None)
+>       assert result.assessment.status == "invalid-report"
+E       AssertionError: assert 'pass' == 'invalid-report'
+E         
+E         - invalid-report
+E         + pass
+
+test_replay_backend_events.py:32: AssertionError
+______ test_invalid_package_event_cannot_hide_after_passing_tests[event2] ______
+
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-12/test_invalid_package_event_can2')
+event = {'Action': 'start', 'Package': ''}
+
+    @pytest.mark.parametrize(
+        "event",
+        (
+            {"Action": "unexpected", "Package": "p"},
+            {"Action": "run", "Package": "p"},
+            {"Action": "start", "Package": ""},
+            {"Action": "pass"},
+            {"Action": "skip"},
+            {"Action": "build-output", "Package": "p"},
+        ),
+    )
+    def test_invalid_package_event_cannot_hide_after_passing_tests(
+        tmp_path: Path, event: dict[str, str]
+    ) -> None:
+        selected = profile("xxhash-asm-core")
+        text = executed(selected.case.module, ("TestAll",)) + "\n" + json.dumps(event)
+        result = assess_runtime(run_record(tmp_path, text), "oracle", selected, None)
+>       assert result.assessment.status == "invalid-report"
+E       AssertionError: assert 'pass' == 'invalid-report'
+E         
+E         - invalid-report
+E         + pass
+
+test_replay_backend_events.py:32: AssertionError
+______ test_invalid_package_event_cannot_hide_after_passing_tests[event3] ______
+
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-12/test_invalid_package_event_can3')
+event = {'Action': 'pass'}
+
+    @pytest.mark.parametrize(
+        "event",
+        (
+            {"Action": "unexpected", "Package": "p"},
+            {"Action": "run", "Package": "p"},
+            {"Action": "start", "Package": ""},
+            {"Action": "pass"},
+            {"Action": "skip"},
+            {"Action": "build-output", "Package": "p"},
+        ),
+    )
+    def test_invalid_package_event_cannot_hide_after_passing_tests(
+        tmp_path: Path, event: dict[str, str]
+    ) -> None:
+        selected = profile("xxhash-asm-core")
+        text = executed(selected.case.module, ("TestAll",)) + "\n" + json.dumps(event)
+        result = assess_runtime(run_record(tmp_path, text), "oracle", selected, None)
+>       assert result.assessment.status == "invalid-report"
+E       AssertionError: assert 'pass' == 'invalid-report'
+E         
+E         - invalid-report
+E         + pass
+
+test_replay_backend_events.py:32: AssertionError
+______ test_invalid_package_event_cannot_hide_after_passing_tests[event4] ______
+
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-12/test_invalid_package_event_can4')
+event = {'Action': 'skip'}
+
+    @pytest.mark.parametrize(
+        "event",
+        (
+            {"Action": "unexpected", "Package": "p"},
+            {"Action": "run", "Package": "p"},
+            {"Action": "start", "Package": ""},
+            {"Action": "pass"},
+            {"Action": "skip"},
+            {"Action": "build-output", "Package": "p"},
+        ),
+    )
+    def test_invalid_package_event_cannot_hide_after_passing_tests(
+        tmp_path: Path, event: dict[str, str]
+    ) -> None:
+        selected = profile("xxhash-asm-core")
+        text = executed(selected.case.module, ("TestAll",)) + "\n" + json.dumps(event)
+        result = assess_runtime(run_record(tmp_path, text), "oracle", selected, None)
+>       assert result.assessment.status == "invalid-report"
+E       AssertionError: assert 'pass' == 'invalid-report'
+E         
+E         - invalid-report
+E         + pass
+
+test_replay_backend_events.py:32: AssertionError
+______ test_invalid_package_event_cannot_hide_after_passing_tests[event5] ______
+
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-12/test_invalid_package_event_can5')
+event = {'Action': 'build-output', 'Package': 'p'}
+
+    @pytest.mark.parametrize(
+        "event",
+        (
+            {"Action": "unexpected", "Package": "p"},
+            {"Action": "run", "Package": "p"},
+            {"Action": "start", "Package": ""},
+            {"Action": "pass"},
+            {"Action": "skip"},
+            {"Action": "build-output", "Package": "p"},
+        ),
+    )
+    def test_invalid_package_event_cannot_hide_after_passing_tests(
+        tmp_path: Path, event: dict[str, str]
+    ) -> None:
+        selected = profile("xxhash-asm-core")
+        text = executed(selected.case.module, ("TestAll",)) + "\n" + json.dumps(event)
+        result = assess_runtime(run_record(tmp_path, text), "oracle", selected, None)
+>       assert result.assessment.status == "invalid-report"
+E       AssertionError: assert 'pass' == 'invalid-report'
+E         
+E         - invalid-report
+E         + pass
+
+test_replay_backend_events.py:32: AssertionError
+____ test_build_failure_cannot_hide_after_passing_tests[example.com/broken] ____
+
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-12/test_build_failure_cannot_hide0')
+package = 'example.com/broken'
+
+    @pytest.mark.parametrize("package", ("example.com/broken", ""))
+    def test_build_failure_cannot_hide_after_passing_tests(
+        tmp_path: Path, package: str
+    ) -> None:
+        selected = profile("xxhash-asm-core")
+        text = executed(selected.case.module, ("TestAll",))
+        text += "\n" + json.dumps({"Action": "build-fail", "ImportPath": package})
+        result = assess_runtime(run_record(tmp_path, text), "oracle", selected, None)
+>       assert result.assessment.status == "upstream-failed"
+E       AssertionError: assert 'pass' == 'upstream-failed'
+E         
+E         - upstream-failed
+E         + pass
+
+test_replay_backend_events.py:45: AssertionError
+_____________ test_build_failure_cannot_hide_after_passing_tests[] _____________
+
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-12/test_build_failure_cannot_hide1')
+package = ''
+
+    @pytest.mark.parametrize("package", ("example.com/broken", ""))
+    def test_build_failure_cannot_hide_after_passing_tests(
+        tmp_path: Path, package: str
+    ) -> None:
+        selected = profile("xxhash-asm-core")
+        text = executed(selected.case.module, ("TestAll",))
+        text += "\n" + json.dumps({"Action": "build-fail", "ImportPath": package})
+        result = assess_runtime(run_record(tmp_path, text), "oracle", selected, None)
+>       assert result.assessment.status == "upstream-failed"
+E       AssertionError: assert 'pass' == 'upstream-failed'
+E         
+E         - upstream-failed
+E         + pass
+
+test_replay_backend_events.py:45: AssertionError
+=========================== short test summary info ============================
+FAILED test_replay_backend_events.py::test_invalid_package_event_cannot_hide_after_passing_tests[event0]
+FAILED test_replay_backend_events.py::test_invalid_package_event_cannot_hide_after_passing_tests[event1]
+FAILED test_replay_backend_events.py::test_invalid_package_event_cannot_hide_after_passing_tests[event2]
+FAILED test_replay_backend_events.py::test_invalid_package_event_cannot_hide_after_passing_tests[event3]
+FAILED test_replay_backend_events.py::test_invalid_package_event_cannot_hide_after_passing_tests[event4]
+FAILED test_replay_backend_events.py::test_invalid_package_event_cannot_hide_after_passing_tests[event5]
+FAILED test_replay_backend_events.py::test_build_failure_cannot_hide_after_passing_tests[example.com/broken]
+FAILED test_replay_backend_events.py::test_build_failure_cannot_hide_after_passing_tests[]
+8 failed, 6 passed in 0.17s

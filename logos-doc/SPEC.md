@@ -34,6 +34,7 @@ Note: the `go` command can differ from the pinned upstream Go release in perform
 The `go` command MUST keep Go language semantics, so every valid Go program MUST keep its Go meaning [T-0.1][R-U1].
 The `go version` output and the `go help` output, including every help topic, MUST stay the upstream text [T-0.1].
 Plain `go` MUST select improvements through flags and `GOEXPERIMENT` and MUST read no `logos.toml` [T-0.1][R-U1].
+Test processes started by either `go test` or `logos test` MUST preserve the caller's inherited `GOEXPERIMENT`, including absence, explicit empty values, and explicit experiment tokens. The test-input cache MUST hash that inherited value and its presence. LoGo/s build defaults apply to compilation and MUST NOT rewrite this user-process environment. [T-0.1]
 A flag that plain `go` gains MUST stay absent from the help text, so that text stays byte-identical to upstream [T-0.1][R-U1].
 The `logos` command MUST build Go modules with Go language semantics [T-0.1].
 Under `logos`, a Go-module build MUST set the `logos` build tag and, with the default arena enablement, the `goexperiment.logosarena` build tag [T-0.1].
@@ -542,6 +543,8 @@ A dynamic call through a constant view to a method the interface does not declar
 The explicit `const` receiver rule and the inference for ordinary concrete value receivers MUST stay unchanged. [T-201]
 
 A method of a generic type MUST be proven readonly by the same proof, from its body and receiver type independently of any instantiation, and an instantiated method MUST carry the proof of its origin; such a method MUST satisfy a readonly method obligation, MUST be callable through a constant view, and MUST export its `FnFact.Readonly` fact exactly as a method of a type without type parameters does. [T-201][T-Sec5]
+
+An array of length zero MUST count as reference-free regardless of its element type. A positive-length array MUST count as reference-free only if its element type is reference-free. A pointer, slice, map, channel, function, or interface remains reference-bearing when it refers to, holds, or returns an empty array. [T-201]
 
 A value whose type is a type parameter MUST count as reference-free only when every type in its constraint's type set is, and a parameter whose type set has no specific types or admits a slice, map, pointer, channel, function, interface, or `unsafe.Pointer` type MUST count as bearing references; a method of a generic type that returns such a value read from its receiver, or writes through it, MUST fail the proof with `[correctness::const_view_mutation]` as the same method of a type without type parameters does. [T-201]
 
@@ -1780,10 +1783,12 @@ The bound is one read of the import header of each excluded Go file of each non-
 A package outside the exempt set that holds assembly files (`.s`, `.S`, or `.sx`) or a precompiled object (`.syso`) is an unclassified capability, because the audit cannot see a raw SYSCALL instruction inside it, and a constructor in a `.syso` object runs at process start under external linking. [T-Sec11]
 cmd/go reports it with capabilities::unclassified_assembly and the shortest import chain, under the transitive_unsafe severity, and an entry in transitive_unsafe_allowlist authorizes it, since a grant of unsafe already names a package trusted to bypass the language's checks. [T-Sec11]
 The standard library, first-party packages under a main module, and the program's own packages are exempt. [T-Sec11]
+An external test package MUST retain the module ownership of its tested package. A `_test` suffix alone MUST NOT establish test provenance. [T-Sec11]
 A dependency MUST NOT count as the standard library merely because its module path has no dot; only packages of the toolchain's own GOROOT are the standard library. [T-Sec11]
 A dependency that imports a sink package but never calls it passes as dead code. [T-Sec11]
 Reflection through reflect.Value.Method counts as reachable. [T-Sec11]
 On diamond graphs the report MUST keep the shortest chain. [T-Sec11]
+The audit MUST terminate on cyclic reachability graphs and report only chains from its entry or initialization roots; edge discovery order MUST NOT change the minimum chain length. [T-Sec11]
 The prefix from an audit root to a blamed frame MUST remain a shortest rooted path when a relocation names an inlined owner before that owner's incoming edges have been discovered. Recorded call edges may contain cycles; discovery order MUST NOT create a cycle in the prefix's parent relation or manufacture a root for an unanchored predecessor. [T-Sec11]
 The audit reports one chain per sink and dependency, so a chain through the standard library alone never hides another dependency's chain to the same sink. [T-Sec11]
 A chain blames the dependency frame nearest the sink, and chains of standard-library or first-party frames blame nobody. [T-Sec11]

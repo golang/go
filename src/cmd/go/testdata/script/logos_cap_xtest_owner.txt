@@ -1,0 +1,127 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# A main module's root external test is first party, like its internal test.
+cd app
+logos test -short -count=1 .
+stdout 'ok\s+example\.com/app\s'
+! stderr 'capabilities::'
+! stdout 'capabilities::'
+
+# A nested dependency's root external test remains third party.
+! logos test -short -count=1 example.com/app/nested
+stderr 'Transitive dependency ''example\.com/app/nested_test'' reaches ''os\.startProcess'''
+
+# A real dependency named with _test is not a synthetic external test.
+! logos test -short -count=1 ./usesmirror
+stderr 'Transitive dependency ''example\.com/app_test'' reaches ''os\.startProcess'''
+! stderr 'Transitive dependency ''example\.com/app/usesmirror_test'''
+
+# Plain go retains its semantics and does not register a capability-origin flag.
+go test -short -count=1 . example.com/app/nested ./usesmirror
+! stderr 'capabilities::'
+! stdout 'capabilities::'
+
+-- app/go.mod --
+module example.com/app
+
+go 1.27
+
+require (
+	example.com/app/nested v0.0.0
+	example.com/app_test v0.0.0
+)
+
+replace example.com/app/nested => ../nested
+replace example.com/app_test => ../mirror
+
+-- app/app.go --
+package app
+
+const Value = 3
+
+-- app/app_test.go --
+package app_test
+
+import (
+	"os/exec"
+	"testing"
+)
+
+func TestExternal(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+	if err := exec.Command("true").Run(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+-- app/internal_test.go --
+package app
+
+import "testing"
+
+func TestInternal(t *testing.T) {
+	if Value != 3 {
+		t.Fatal(Value)
+	}
+}
+
+-- nested/go.mod --
+module example.com/app/nested
+
+go 1.27
+
+-- nested/nested.go --
+package nested
+
+-- nested/nested_test.go --
+package nested_test
+
+import (
+	"os/exec"
+	"testing"
+)
+
+func TestExternal(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+	if err := exec.Command("true").Run(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+-- mirror/go.mod --
+module example.com/app_test
+
+go 1.27
+
+-- mirror/mirror.go --
+package mirror
+
+import "os/exec"
+
+//go:noinline
+func Run() error { return exec.Command("true").Run() }
+
+-- app/usesmirror/usesmirror.go --
+package usesmirror
+
+-- app/usesmirror/usesmirror_test.go --
+package usesmirror_test
+
+import (
+	"example.com/app_test"
+	"testing"
+)
+
+func TestMirror(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+	if err := mirror.Run(); err != nil {
+		t.Fatal(err)
+	}
+}

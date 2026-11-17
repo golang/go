@@ -1,0 +1,3 @@
+7ea346792da0ffa1e13ca3185783c64ec031a74fd7fe55bff80fcfd4da55fc73  src/cmd/go/internal/test/logos_experiment_env_test.go
+6bbbd16bfbcc62d7dade757cff6f634911ba40dfb899cf5d329eb96ccdbf6255  src/cmd/go/testdata/script/logos_test_experiment_env.txt
+70b094051214ac5b464f5227356e4b544848d86ca7e7fde76a298988c79f5b09  src/cmd/go/testdata/script/logos_test_plugin_experiment.txt

@@ -1,0 +1,122 @@
+[
+  {
+    "path": ".github/workflows/logos.yml",
+    "bytes": 24094,
+    "sha256": "455bef900394a8e411bfef8dbc35929778242ca8cf287863b330c794d3af6d43",
+    "git_blob": "5cddf47118497157bd8b89d62e08d0c83d5db8a1",
+    "remote_git_blob": "5cddf47118497157bd8b89d62e08d0c83d5db8a1",
+    "matches": true
+  },
+  {
+    "path": ".github/scripts/logos-test-env.sh",
+    "bytes": 1420,
+    "sha256": "b2760b131c27fe6a0015a1f1d288b573584ed0e16024cdcadb26c095e94f513f",
+    "git_blob": "956ca26b76572bdcbb1647728b8d210be77102b1",
+    "remote_git_blob": "956ca26b76572bdcbb1647728b8d210be77102b1",
+    "matches": true
+  },
+  {
+    "path": ".github/scripts/logos-upstream-identity.sh",
+    "bytes": 1019,
+    "sha256": "c01f7b464d116e72270b13432a2ce12360f65ee7250f16f6cfd26e2bc7d1ee86",
+    "git_blob": "b3300d266b8d5a23d0405219691930df8652295f",
+    "remote_git_blob": "b3300d266b8d5a23d0405219691930df8652295f",
+    "matches": true
+  },
+  {
+    "path": "logos-doc/validation/native_frozen_gate.py",
+    "bytes": 5482,
+    "sha256": "c193924ec9e856158319fb65cd267d6d848ab4039bd86e63b0391a912f5aa3bf",
+    "git_blob": "58178a9bf7875741b371e6daa62b075688b09b12",
+    "remote_git_blob": "58178a9bf7875741b371e6daa62b075688b09b12",
+    "matches": true
+  },
+  {
+    "path": "logos-doc/validation/tagged-method-facts/check_ci.py",
+    "bytes": 20736,
+    "sha256": "16f53011d3df5eb02720803a99428867decaa070c8b3ee3ebd6f0e0e4feaa199",
+    "git_blob": "453bfe9ec012ab5e67c10c04a14826bdf9c8fc8f",
+    "remote_git_blob": "453bfe9ec012ab5e67c10c04a14826bdf9c8fc8f",
+    "matches": true
+  },
+  {
+    "path": "logos-doc/validation/tagged-package-facts/check_ci.py",
+    "bytes": 16844,
+    "sha256": "1996e27f29670a603264c02cc0bbc4b15e87d35ec54a4a51306896ca03e407e9",
+    "git_blob": "873f1c8bb122ef9fddd8f37d6f2dd447744729c5",
+    "remote_git_blob": "873f1c8bb122ef9fddd8f37d6f2dd447744729c5",
+    "matches": true
+  },
+  {
+    "path": "logos-doc/validation/capability-inline-context/check_ci.sh",
+    "bytes": 11814,
+    "sha256": "bf71d2cc4ff51fc84496e5e4d051d2294be5fed1fa65f8333c57f8385801da0e",
+    "git_blob": "a7b4d7035548c6de0fb66da94dda40c22d5c8189",
+    "remote_git_blob": "a7b4d7035548c6de0fb66da94dda40c22d5c8189",
+    "matches": true
+  },
+  {
+    "path": "logos-doc/validation/upstream-host/check_wasm.py",
+    "bytes": 14467,
+    "sha256": "1de5b21b28a8cc0603739d1f103f9c9e42ea6589219c76e87aecff34a525a939",
+    "git_blob": "1c6974b9dc249a2544f933da0871a4b4c7eb903e",
+    "remote_git_blob": "1c6974b9dc249a2544f933da0871a4b4c7eb903e",
+    "matches": true
+  },
+  {
+    "path": "logos-doc/validation/upstream-host/partition_dist.py",
+    "bytes": 4141,
+    "sha256": "3f67d643f4ff333605ac059a36c9024b1509552fa0171ebc1982eedc0cfbc073",
+    "git_blob": "c6d3dbbd7c0429e881251147acc2d255280b5e78",
+    "remote_git_blob": "c6d3dbbd7c0429e881251147acc2d255280b5e78",
+    "matches": true
+  },
+  {
+    "path": "logos-doc/validation/field-offset-lint/field_offset_ci.py",
+    "bytes": 2762,
+    "sha256": "e12b6c03de462dcd84db6afd30fc457c2a6f2ad5dd46dd36e1cfc8c23a29f7fe",
+    "git_blob": "1928dbac270d5886693c5c7356536ef3143247ba",
+    "remote_git_blob": "1928dbac270d5886693c5c7356536ef3143247ba",
+    "matches": true
+  },
+  {
+    "path": "logos-doc/validation/field-offset-lint/frozen.json",
+    "bytes": 5090,
+    "sha256": "40fa23ddbefabafa4a55f8a58132f2eb311c95a8a49fbb46d424677396cba499",
+    "git_blob": "b1ba01f1cd19e37eb57669c198e4e454a3c12fbc",
+    "remote_git_blob": "b1ba01f1cd19e37eb57669c198e4e454a3c12fbc",
+    "matches": true
+  },
+  {
+    "path": "logos-doc/validation/simd-transitive-imports/simd_imports_ci.py",
+    "bytes": 3498,
+    "sha256": "fbc75bc54980fbf9fc315f57f24240e4cd6d48905696f5412e1faa1680738344",
+    "git_blob": "f01e64abcb7b9c34058cb92687526d73da25a65a",
+    "remote_git_blob": "f01e64abcb7b9c34058cb92687526d73da25a65a",
+    "matches": true
+  },
+  {
+    "path": "logos-doc/validation/simd-transitive-imports/frozen.json",
+    "bytes": 5178,
+    "sha256": "1d49081a8f4d89f90e845f27ebed9524fb06becf27b43cbe01160a6bcecce888",
+    "git_blob": "ac2b2e44f394dbd4e748f5bcb21443b05ea52e7f",
+    "remote_git_blob": "ac2b2e44f394dbd4e748f5bcb21443b05ea52e7f",
+    "matches": true
+  },
+  {
+    "path": "logos-doc/validation/zero-array-reference-free/zero_array_ci.py",
+    "bytes": 4925,
+    "sha256": "296630bf4d6893d5d0ee4e19cfe1f2d30f7037c0ad059077aa1599639de99057",
+    "git_blob": "1fe2af07ad8f9f2677bb77f3951b2b41f05579f0",
+    "remote_git_blob": "1fe2af07ad8f9f2677bb77f3951b2b41f05579f0",
+    "matches": true
+  },
+  {
+    "path": "logos-doc/validation/zero-array-reference-free/FROZEN.sha256",
+    "bytes": 2607,
+    "sha256": "b339088687a8d3f439680ac52dc91100c14ca097451762f6135a4fcdfdef11d6",
+    "git_blob": "a1fd835103a5702ed537a2b789363cc6584bafdb",
+    "remote_git_blob": "a1fd835103a5702ed537a2b789363cc6584bafdb",
+    "matches": true
+  }
+]

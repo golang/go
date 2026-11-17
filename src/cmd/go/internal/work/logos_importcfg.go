@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/load"
 )
 
 func logosBuiltPackage(a1 *Action) bool {
@@ -28,6 +29,13 @@ func logosSynthImports(a *Action) []*Action {
 		return nil
 	}
 	all := a.Package.IsLogos()
+	// SIMD-dependent exports can trigger rewriting in an ordinary Go importer.
+	// Only its existing support archives join the import config and action hash.
+	simd := cfg.Experiment != nil && cfg.Experiment.SIMD &&
+		(cfg.Goarch == "amd64" || cfg.Goarch == "arm64" || cfg.Goarch == "wasm")
+	needed := func(p *load.Package) bool {
+		return all || p.IsLogos() || simd && (p.ImportPath == "simd" || p.ImportPath == load.SimdBridgePkg)
+	}
 	byPath := make(map[string]*Action)
 	seenIdx := map[*Action]bool{a: true}
 	var index func(a1 *Action)
@@ -78,8 +86,8 @@ func logosSynthImports(a *Action) []*Action {
 			return
 		}
 		seen[a1] = true
-		if p1 := a1.Package; p1 != nil && p1.ImportPath != "" && !have[p1.ImportPath] && (all || p1.IsLogos()) {
-			if real, ok := byPath[p1.ImportPath]; ok && real.Package != nil && (all || real.Package.IsLogos()) {
+		if p1 := a1.Package; p1 != nil && p1.ImportPath != "" && !have[p1.ImportPath] && needed(p1) {
+			if real, ok := byPath[p1.ImportPath]; ok && real.Package != nil && needed(real.Package) {
 				have[p1.ImportPath] = true
 				extra = append(extra, real)
 			}

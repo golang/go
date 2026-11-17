@@ -1,0 +1,467 @@
+﻿2026-11-16T19:18:43.3927323Z Current runner version: '2.338.2'
+2026-11-16T19:18:43.3948690Z ##[group]Runner Image Provisioner
+2026-11-16T19:18:43.3949496Z Hosted Compute Agent
+2026-11-16T19:18:43.3949991Z Version: 20261103.629
+2026-11-16T19:18:43.3950610Z Commit: 15dbd9ccb5dbf34fae002b6ed1a2670f52df37bc
+2026-11-16T19:18:43.3951267Z Build Date: 2026-11-03T17:26:59Z
+2026-11-16T19:18:43.3951891Z Worker ID: {2d5fec22-9100-4e2e-a5ee-e8b2d17a2a75}
+2026-11-16T19:18:43.3952514Z Region: westus2
+2026-11-16T19:18:43.3953025Z Cloud: Azure
+2026-11-16T19:18:43.3953526Z ##[endgroup]
+2026-11-16T19:18:43.3954943Z ##[group]Operating System
+2026-11-16T19:18:43.3955475Z Ubuntu
+2026-11-16T19:18:43.3956062Z 24.04.5
+2026-11-16T19:18:43.3956515Z LTS
+2026-11-16T19:18:43.3957011Z ##[endgroup]
+2026-11-16T19:18:43.3957521Z ##[group]Runner Image
+2026-11-16T19:18:43.3958027Z Image: ubuntu-24.04
+2026-11-16T19:18:43.3958579Z Version: 20261111.370.1
+2026-11-16T19:18:43.3959652Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261111.370/images/ubuntu/Ubuntu2404-Readme.md
+2026-11-16T19:18:43.3961054Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261111.370
+2026-11-16T19:18:43.3961855Z ##[endgroup]
+2026-11-16T19:18:43.3962871Z ##[group]GITHUB_TOKEN Permissions
+2026-11-16T19:18:43.3964801Z Contents: read
+2026-11-16T19:18:43.3965420Z Metadata: read
+2026-11-16T19:18:43.3965946Z ##[endgroup]
+2026-11-16T19:18:43.3967767Z Secret source: Actions
+2026-11-16T19:18:43.3968613Z Cache mode: write
+2026-11-16T19:18:43.3969489Z Prepare workflow directory
+2026-11-16T19:18:43.4438365Z Prepare all required actions
+2026-11-16T19:18:43.4479195Z Getting action download info
+2026-11-16T19:18:43.7853333Z Download action repository 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1' (SHA:3d3c42e5aac5ba805825da76410c181273ba90b1)
+2026-11-16T19:18:43.9350731Z Download action repository 'actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e' (SHA:b7ad1dad31e06c5925ef5d2fc7ad053ef454303e)
+2026-11-16T19:18:44.2402340Z Download action repository 'actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9' (SHA:cf430e030ddbb5b0abf93d22962f4752f3646cd9)
+2026-11-16T19:18:44.4143284Z Complete job name: tagged-facts
+2026-11-16T19:18:44.4844661Z ##[group]Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+2026-11-16T19:18:44.4845536Z with:
+2026-11-16T19:18:44.4845932Z   ref: 298f8969484af371bb58794610376dae77710a2b
+2026-11-16T19:18:44.4846412Z   persist-credentials: false
+2026-11-16T19:18:44.4846831Z   repository: gosuda/LoGOs
+2026-11-16T19:18:44.4849778Z   token: ***
+2026-11-16T19:18:44.4850143Z   ssh-strict: true
+2026-11-16T19:18:44.4850505Z   ssh-user: git
+2026-11-16T19:18:44.4850850Z   clean: true
+2026-11-16T19:18:44.4851226Z   sparse-checkout-cone-mode: true
+2026-11-16T19:18:44.4851659Z   fetch-depth: 1
+2026-11-16T19:18:44.4852014Z   fetch-tags: false
+2026-11-16T19:18:44.4852378Z   show-progress: true
+2026-11-16T19:18:44.4852745Z   lfs: false
+2026-11-16T19:18:44.4853087Z   submodules: false
+2026-11-16T19:18:44.4853456Z   set-safe-directory: true
+2026-11-16T19:18:44.4853895Z   allow-unsafe-pr-checkout: false
+2026-11-16T19:18:44.4854605Z env:
+2026-11-16T19:18:44.4855036Z   EXPECTED_HEAD: 298f8969484af371bb58794610376dae77710a2b
+2026-11-16T19:18:44.4855555Z   GOMAXPROCS: 2
+2026-11-16T19:18:44.4855902Z   GOMEMLIMIT: 2GiB
+2026-11-16T19:18:44.4856249Z   GOGC: 50
+2026-11-16T19:18:44.4856594Z   GOFLAGS: -p=1
+2026-11-16T19:18:44.4856950Z   GOEXPERIMENT: 
+2026-11-16T19:18:44.4857301Z   GOTOOLCHAIN: local
+2026-11-16T19:18:44.4857657Z   GOWORK: off
+2026-11-16T19:18:44.4857993Z   GOENV: off
+2026-11-16T19:18:44.4858327Z   GOTELEMETRY: off
+2026-11-16T19:18:44.4858698Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T19:18:44.4859148Z   PYTHONDONTWRITEBYTECODE: 1
+2026-11-16T19:18:44.4859545Z ##[endgroup]
+2026-11-16T19:18:44.7306628Z Syncing repository: gosuda/LoGOs
+2026-11-16T19:18:44.7308599Z ##[group]Getting Git version info
+2026-11-16T19:18:44.7309391Z Working directory is '/home/runner/work/LoGOs/LoGOs'
+2026-11-16T19:18:44.7333724Z [command]/usr/bin/git version
+2026-11-16T19:18:44.7480598Z git version 2.56.1
+2026-11-16T19:18:44.7498200Z ##[endgroup]
+2026-11-16T19:18:44.7505613Z Temporarily overriding HOME='/home/runner/work/_temp/eb2babbb-c1e1-4d60-b1e5-b8665155d22e' before making global git config changes
+2026-11-16T19:18:44.7507528Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-16T19:18:44.7509576Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/LoGOs/LoGOs
+2026-11-16T19:18:44.7555152Z Deleting the contents of '/home/runner/work/LoGOs/LoGOs'
+2026-11-16T19:18:44.7565382Z ##[group]Determining repository object format
+2026-11-16T19:18:44.7566246Z ##[endgroup]
+2026-11-16T19:18:44.7566836Z ##[group]Initializing the repository
+2026-11-16T19:18:44.7567363Z [command]/usr/bin/git init /home/runner/work/LoGOs/LoGOs
+2026-11-16T19:18:44.7671165Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-16T19:18:44.7672775Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-16T19:18:44.7674046Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-16T19:18:44.7674917Z hint: call:
+2026-11-16T19:18:44.7675293Z hint:
+2026-11-16T19:18:44.7675823Z hint: 	git config --global init.defaultBranch <name>
+2026-11-16T19:18:44.7676441Z hint:
+2026-11-16T19:18:44.7676938Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-16T19:18:44.7677702Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-16T19:18:44.7678306Z hint:
+2026-11-16T19:18:44.7678676Z hint: 	git branch -m <name>
+2026-11-16T19:18:44.7679081Z hint:
+2026-11-16T19:18:44.7679604Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-16T19:18:44.7686004Z Initialized empty Git repository in /home/runner/work/LoGOs/LoGOs/.git/
+2026-11-16T19:18:44.7695900Z [command]/usr/bin/git remote add origin https://github.com/gosuda/LoGOs
+2026-11-16T19:18:44.7869254Z ##[endgroup]
+2026-11-16T19:18:44.7870308Z ##[group]Disabling automatic garbage collection
+2026-11-16T19:18:44.7873821Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-16T19:18:44.7914049Z ##[endgroup]
+2026-11-16T19:18:44.7915790Z ##[group]Setting up auth
+2026-11-16T19:18:44.7916477Z Removing SSH command configuration
+2026-11-16T19:18:44.7919623Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-16T19:18:44.7970627Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-16T19:18:44.8617046Z Removing HTTP extra header
+2026-11-16T19:18:44.8622104Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-16T19:18:44.8667228Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-16T19:18:44.8867570Z Removing includeIf entries pointing to credentials config files
+2026-11-16T19:18:44.8871640Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-16T19:18:44.8908818Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-16T19:18:44.9166239Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-7f78fd6f-7ba0-425d-8ef2-7f3344ebd5c3.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-16T19:18:44.9168893Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/LoGOs/LoGOs/.git.path /home/runner/work/_temp/git-credentials-7f78fd6f-7ba0-425d-8ef2-7f3344ebd5c3.config
+2026-11-16T19:18:44.9208731Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/LoGOs/LoGOs/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-7f78fd6f-7ba0-425d-8ef2-7f3344ebd5c3.config
+2026-11-16T19:18:44.9253631Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-7f78fd6f-7ba0-425d-8ef2-7f3344ebd5c3.config
+2026-11-16T19:18:44.9293061Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-7f78fd6f-7ba0-425d-8ef2-7f3344ebd5c3.config
+2026-11-16T19:18:44.9328982Z ##[endgroup]
+2026-11-16T19:18:44.9330208Z ##[group]Fetching the repository
+2026-11-16T19:18:44.9334219Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin 298f8969484af371bb58794610376dae77710a2b
+2026-11-16T19:18:50.2805265Z From https://github.com/gosuda/LoGOs
+2026-11-16T19:18:50.2806086Z  * branch              298f8969484af371bb58794610376dae77710a2b -> FETCH_HEAD
+2026-11-16T19:18:50.2815043Z [command]/usr/bin/git rev-parse --verify --quiet 298f8969484af371bb58794610376dae77710a2b^{object}
+2026-11-16T19:18:50.2848709Z 298f8969484af371bb58794610376dae77710a2b
+2026-11-16T19:18:50.2853984Z ##[endgroup]
+2026-11-16T19:18:50.2860702Z ##[group]Determining the checkout info
+2026-11-16T19:18:50.2861419Z ##[endgroup]
+2026-11-16T19:18:50.2875533Z [command]/usr/bin/git sparse-checkout disable
+2026-11-16T19:18:50.4158273Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-16T19:18:50.4776916Z ##[group]Checking out the ref
+2026-11-16T19:18:50.4781962Z [command]/usr/bin/git checkout --progress --force 298f8969484af371bb58794610376dae77710a2b
+2026-11-16T19:18:51.4834319Z Note: switching to '298f8969484af371bb58794610376dae77710a2b'.
+2026-11-16T19:18:51.4834976Z 
+2026-11-16T19:18:51.4835249Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-11-16T19:18:51.4835866Z changes and commit them, and you can discard any commits you make in this
+2026-11-16T19:18:51.4836435Z state without impacting any branches by switching back to a branch.
+2026-11-16T19:18:51.4836840Z 
+2026-11-16T19:18:51.4837065Z If you want to create a new branch to retain commits you create, you may
+2026-11-16T19:18:51.4837902Z do so (now or later) by using -c with the switch command. Example:
+2026-11-16T19:18:51.4838225Z 
+2026-11-16T19:18:51.4838356Z   git switch -c <new-branch-name>
+2026-11-16T19:18:51.4838605Z 
+2026-11-16T19:18:51.4838767Z Or undo this operation with:
+2026-11-16T19:18:51.4838979Z 
+2026-11-16T19:18:51.4839090Z   git switch -
+2026-11-16T19:18:51.4839252Z 
+2026-11-16T19:18:51.4839530Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-11-16T19:18:51.4839967Z 
+2026-11-16T19:18:51.4840220Z HEAD is now at 298f8969 Require exact tagged-fact regression execution in CI
+2026-11-16T19:18:51.4866236Z ##[endgroup]
+2026-11-16T19:18:51.4925021Z [command]/usr/bin/git log -1 --format=%H
+2026-11-16T19:18:51.4960990Z 298f8969484af371bb58794610376dae77710a2b
+2026-11-16T19:18:51.4968973Z ##[group]Removing auth
+2026-11-16T19:18:51.4969296Z Removing SSH command configuration
+2026-11-16T19:18:51.4973075Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-16T19:18:51.5010239Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-16T19:18:51.5235755Z Removing HTTP extra header
+2026-11-16T19:18:51.5238763Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-16T19:18:51.5275615Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-16T19:18:51.5500792Z Removing includeIf entries pointing to credentials config files
+2026-11-16T19:18:51.5504030Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-16T19:18:51.5537193Z includeif.gitdir:/home/runner/work/LoGOs/LoGOs/.git.path
+2026-11-16T19:18:51.5538238Z includeif.gitdir:/home/runner/work/LoGOs/LoGOs/.git/worktrees/*.path
+2026-11-16T19:18:51.5538753Z includeif.gitdir:/github/workspace/.git.path
+2026-11-16T19:18:51.5539238Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-16T19:18:51.5549839Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/LoGOs/LoGOs/.git.path
+2026-11-16T19:18:51.5580498Z /home/runner/work/_temp/git-credentials-7f78fd6f-7ba0-425d-8ef2-7f3344ebd5c3.config
+2026-11-16T19:18:51.5588426Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/LoGOs/LoGOs/.git.path \/home\/runner\/work\/_temp\/git\-credentials\-7f78fd6f\-7ba0\-425d\-8ef2\-7f3344ebd5c3\.config
+2026-11-16T19:18:51.5629177Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/LoGOs/LoGOs/.git/worktrees/*.path
+2026-11-16T19:18:51.5658363Z /home/runner/work/_temp/git-credentials-7f78fd6f-7ba0-425d-8ef2-7f3344ebd5c3.config
+2026-11-16T19:18:51.5665177Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/LoGOs/LoGOs/.git/worktrees/*.path \/home\/runner\/work\/_temp\/git\-credentials\-7f78fd6f\-7ba0\-425d\-8ef2\-7f3344ebd5c3\.config
+2026-11-16T19:18:51.5707475Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+2026-11-16T19:18:51.5737395Z /github/runner_temp/git-credentials-7f78fd6f-7ba0-425d-8ef2-7f3344ebd5c3.config
+2026-11-16T19:18:51.5743269Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path \/github\/runner_temp\/git\-credentials\-7f78fd6f\-7ba0\-425d\-8ef2\-7f3344ebd5c3\.config
+2026-11-16T19:18:51.5782509Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-16T19:18:51.5811629Z /github/runner_temp/git-credentials-7f78fd6f-7ba0-425d-8ef2-7f3344ebd5c3.config
+2026-11-16T19:18:51.5817798Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path \/github\/runner_temp\/git\-credentials\-7f78fd6f\-7ba0\-425d\-8ef2\-7f3344ebd5c3\.config
+2026-11-16T19:18:51.5859084Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-16T19:18:51.6082071Z Removing credentials config '/home/runner/work/_temp/git-credentials-7f78fd6f-7ba0-425d-8ef2-7f3344ebd5c3.config'
+2026-11-16T19:18:51.6090532Z ##[endgroup]
+2026-11-16T19:18:51.6277437Z ##[group]Run EVIDENCE="$RUNNER_TEMP/tagged-facts-evidence"
+2026-11-16T19:18:51.6277894Z [36;1mEVIDENCE="$RUNNER_TEMP/tagged-facts-evidence"[0m
+2026-11-16T19:18:51.6278203Z [36;1mGOCACHE="$RUNNER_TEMP/tagged-facts-cache"[0m
+2026-11-16T19:18:51.6278485Z [36;1mTMPDIR="$RUNNER_TEMP/tagged-facts-tmp"[0m
+2026-11-16T19:18:51.6278873Z [36;1mprintf 'EVIDENCE=%s\nGOCACHE=%s\nTMPDIR=%s\n' "$EVIDENCE" "$GOCACHE" "$TMPDIR" >> "$GITHUB_ENV"[0m
+2026-11-16T19:18:51.6279324Z [36;1mmkdir -p "$EVIDENCE" "$GOCACHE" "$TMPDIR" "$RUNNER_TEMP/tagged-facts-uv"[0m
+2026-11-16T19:18:51.6279697Z [36;1marchive="$RUNNER_TEMP/tagged-facts-uv.tar.gz"[0m
+2026-11-16T19:18:51.6280328Z [36;1mcurl --fail --silent --show-error --location --output "$archive" https://github.com/astral-sh/uv/releases/download/0.13.8/uv-x86_64-unknown-linux-gnu.tar.gz[0m
+2026-11-16T19:18:51.6281224Z [36;1mprintf '%s  %s\n' 5acfd9177cfecf0bf87578f059728215ccc884388988f55f7a65041b57387d91 "$archive" | sha256sum --check --strict - | tee "$EVIDENCE/uv-archive.txt"[0m
+2026-11-16T19:18:51.6281879Z [36;1mtar -xzf "$archive" -C "$RUNNER_TEMP/tagged-facts-uv" --strip-components=1[0m
+2026-11-16T19:18:51.6282266Z [36;1mprintf '%s\n' "$RUNNER_TEMP/tagged-facts-uv" >> "$GITHUB_PATH"[0m
+2026-11-16T19:18:51.6303995Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T19:18:51.6304294Z env:
+2026-11-16T19:18:51.6304671Z   EXPECTED_HEAD: 298f8969484af371bb58794610376dae77710a2b
+2026-11-16T19:18:51.6304936Z   GOMAXPROCS: 2
+2026-11-16T19:18:51.6305107Z   GOMEMLIMIT: 2GiB
+2026-11-16T19:18:51.6305466Z   GOGC: 50
+2026-11-16T19:18:51.6305626Z   GOFLAGS: -p=1
+2026-11-16T19:18:51.6305788Z   GOEXPERIMENT: 
+2026-11-16T19:18:51.6305955Z   GOTOOLCHAIN: local
+2026-11-16T19:18:51.6306125Z   GOWORK: off
+2026-11-16T19:18:51.6306280Z   GOENV: off
+2026-11-16T19:18:51.6306430Z   GOTELEMETRY: off
+2026-11-16T19:18:51.6306643Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T19:18:51.6306911Z   PYTHONDONTWRITEBYTECODE: 1
+2026-11-16T19:18:51.6307122Z ##[endgroup]
+2026-11-16T19:18:51.7696721Z /home/runner/work/_temp/tagged-facts-uv.tar.gz: OK
+2026-11-16T19:18:52.0184318Z ##[group]Run uv --version | tee "$EVIDENCE/uv-version.txt"
+2026-11-16T19:18:52.0184891Z [36;1muv --version | tee "$EVIDENCE/uv-version.txt"[0m
+2026-11-16T19:18:52.0185605Z [36;1muv run --no-project --no-config --python 3.12 --no-python-downloads python logos-doc/validation/tagged-package-facts/check_ci.py verify --root "$GITHUB_WORKSPACE" --out "$EVIDENCE" --expected-head "$EXPECTED_HEAD"[0m
+2026-11-16T19:18:52.0206595Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T19:18:52.0206913Z env:
+2026-11-16T19:18:52.0207124Z   EXPECTED_HEAD: 298f8969484af371bb58794610376dae77710a2b
+2026-11-16T19:18:52.0207375Z   GOMAXPROCS: 2
+2026-11-16T19:18:52.0207544Z   GOMEMLIMIT: 2GiB
+2026-11-16T19:18:52.0207709Z   GOGC: 50
+2026-11-16T19:18:52.0207863Z   GOFLAGS: -p=1
+2026-11-16T19:18:52.0208027Z   GOEXPERIMENT: 
+2026-11-16T19:18:52.0208194Z   GOTOOLCHAIN: local
+2026-11-16T19:18:52.0208362Z   GOWORK: off
+2026-11-16T19:18:52.0208513Z   GOENV: off
+2026-11-16T19:18:52.0208704Z   GOTELEMETRY: off
+2026-11-16T19:18:52.0208881Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T19:18:52.0209101Z   PYTHONDONTWRITEBYTECODE: 1
+2026-11-16T19:18:52.0209381Z   EVIDENCE: /home/runner/work/_temp/tagged-facts-evidence
+2026-11-16T19:18:52.0209665Z   GOCACHE: /home/runner/work/_temp/tagged-facts-cache
+2026-11-16T19:18:52.0209924Z   TMPDIR: /home/runner/work/_temp/tagged-facts-tmp
+2026-11-16T19:18:52.0210156Z ##[endgroup]
+2026-11-16T19:18:52.0295211Z uv 0.13.8 (x86_64-unknown-linux-gnu)
+2026-11-16T19:18:52.3613364Z Frozen sources and clean checkout verified.
+2026-11-16T19:18:52.3734116Z ##[group]Run helper=logos-doc/validation/tagged-package-facts
+2026-11-16T19:18:52.3734687Z [36;1mhelper=logos-doc/validation/tagged-package-facts[0m
+2026-11-16T19:18:52.3735392Z [36;1muv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" python -m pytest -q "$helper/test_check_ci.py" 2>&1 | tee "$EVIDENCE/helper-tests.txt"[0m
+2026-11-16T19:18:52.3736429Z [36;1muv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" pyright "$helper/check_ci.py" "$helper/test_check_ci.py" 2>&1 | tee "$EVIDENCE/helper-types.txt"[0m
+2026-11-16T19:18:52.3737513Z [36;1muv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" ruff check "$helper/check_ci.py" "$helper/test_check_ci.py" 2>&1 | tee "$EVIDENCE/helper-lint.txt"[0m
+2026-11-16T19:18:52.3738630Z [36;1muv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" ruff format --check "$helper/check_ci.py" "$helper/test_check_ci.py" 2>&1 | tee "$EVIDENCE/helper-format.txt"[0m
+2026-11-16T19:18:52.3757181Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T19:18:52.3757447Z env:
+2026-11-16T19:18:52.3757652Z   EXPECTED_HEAD: 298f8969484af371bb58794610376dae77710a2b
+2026-11-16T19:18:52.3757896Z   GOMAXPROCS: 2
+2026-11-16T19:18:52.3758061Z   GOMEMLIMIT: 2GiB
+2026-11-16T19:18:52.3758220Z   GOGC: 50
+2026-11-16T19:18:52.3758373Z   GOFLAGS: -p=1
+2026-11-16T19:18:52.3758533Z   GOEXPERIMENT: 
+2026-11-16T19:18:52.3758701Z   GOTOOLCHAIN: local
+2026-11-16T19:18:52.3758873Z   GOWORK: off
+2026-11-16T19:18:52.3759027Z   GOENV: off
+2026-11-16T19:18:52.3759203Z   GOTELEMETRY: off
+2026-11-16T19:18:52.3759385Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T19:18:52.3759600Z   PYTHONDONTWRITEBYTECODE: 1
+2026-11-16T19:18:52.3760008Z   EVIDENCE: /home/runner/work/_temp/tagged-facts-evidence
+2026-11-16T19:18:52.3760303Z   GOCACHE: /home/runner/work/_temp/tagged-facts-cache
+2026-11-16T19:18:52.3760579Z   TMPDIR: /home/runner/work/_temp/tagged-facts-tmp
+2026-11-16T19:18:52.3760810Z ##[endgroup]
+2026-11-16T19:18:52.6301438Z Downloading pygments (1.2MiB)
+2026-11-16T19:18:52.6302026Z Downloading ruff (10.1MiB)
+2026-11-16T19:18:52.6302350Z Downloading hypothesis (1.1MiB)
+2026-11-16T19:18:52.6304115Z Downloading pyright (5.9MiB)
+2026-11-16T19:18:52.6633293Z  Downloaded hypothesis
+2026-11-16T19:18:52.6694249Z  Downloaded pygments
+2026-11-16T19:18:52.7189969Z  Downloaded ruff
+2026-11-16T19:18:52.8399748Z  Downloaded pyright
+2026-11-16T19:18:53.0479160Z Installed 11 packages in 207ms
+2026-11-16T19:18:54.1158987Z ....................................................                     [100%]
+2026-11-16T19:18:56.2505120Z 52 passed in 0.64s
+2026-11-16T19:18:56.2505483Z 0 errors, 0 warnings, 0 informations
+2026-11-16T19:18:56.3117164Z All checks passed!
+2026-11-16T19:18:56.3564581Z 2 files already formatted
+2026-11-16T19:18:56.4386134Z ##[group]Run actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+2026-11-16T19:18:56.4386469Z with:
+2026-11-16T19:18:56.4386640Z   go-version: 1.27.4
+2026-11-16T19:18:56.4386815Z   cache: false
+2026-11-16T19:18:56.4386988Z   check-latest: false
+2026-11-16T19:18:56.4388820Z   token: ***
+2026-11-16T19:18:56.4388984Z env:
+2026-11-16T19:18:56.4389180Z   EXPECTED_HEAD: 298f8969484af371bb58794610376dae77710a2b
+2026-11-16T19:18:56.4389439Z   GOMAXPROCS: 2
+2026-11-16T19:18:56.4389601Z   GOMEMLIMIT: 2GiB
+2026-11-16T19:18:56.4389759Z   GOGC: 50
+2026-11-16T19:18:56.4389915Z   GOFLAGS: -p=1
+2026-11-16T19:18:56.4390087Z   GOEXPERIMENT: 
+2026-11-16T19:18:56.4390259Z   GOTOOLCHAIN: local
+2026-11-16T19:18:56.4390424Z   GOWORK: off
+2026-11-16T19:18:56.4390574Z   GOENV: off
+2026-11-16T19:18:56.4390724Z   GOTELEMETRY: off
+2026-11-16T19:18:56.4390903Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T19:18:56.4391147Z   PYTHONDONTWRITEBYTECODE: 1
+2026-11-16T19:18:56.4391424Z   EVIDENCE: /home/runner/work/_temp/tagged-facts-evidence
+2026-11-16T19:18:56.4391718Z   GOCACHE: /home/runner/work/_temp/tagged-facts-cache
+2026-11-16T19:18:56.4391981Z   TMPDIR: /home/runner/work/_temp/tagged-facts-tmp
+2026-11-16T19:18:56.4392212Z ##[endgroup]
+2026-11-16T19:18:56.5360230Z Setup go version spec 1.27.4
+2026-11-16T19:18:56.5367602Z Attempting to download 1.27.4...
+2026-11-16T19:18:57.0677525Z matching 1.27.4...
+2026-11-16T19:18:57.0713383Z Acquiring 1.27.4 from https://github.com/actions/go-versions/releases/download/1.27.4-42945153609/go-1.27.4-linux-x64.tar.gz
+2026-11-16T19:18:57.5010231Z Extracting Go...
+2026-11-16T19:18:57.5135036Z [command]/usr/bin/tar xz --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/55adbd22-5774-4439-95de-8b062d6c8bb2 -f /home/runner/work/_temp/89d37423-2a5b-491e-a700-3393579caec2
+2026-11-16T19:18:58.9490710Z Successfully extracted go to /home/runner/work/_temp/55adbd22-5774-4439-95de-8b062d6c8bb2
+2026-11-16T19:18:58.9491182Z Adding to the cache ...
+2026-11-16T19:19:05.1868457Z Successfully cached go to /opt/hostedtoolcache/go/1.27.4/x64
+2026-11-16T19:19:05.1869862Z Added go to the path
+2026-11-16T19:19:05.1871546Z Successfully set up Go version 1.27.4
+2026-11-16T19:19:05.2077466Z go version go1.27.4 linux/amd64
+2026-11-16T19:19:05.2077693Z 
+2026-11-16T19:19:05.2078105Z ##[group]go env
+2026-11-16T19:19:05.3507149Z AR='ar'
+2026-11-16T19:19:05.3507368Z CC='gcc'
+2026-11-16T19:19:05.3507546Z CGO_CFLAGS='-O2 -g'
+2026-11-16T19:19:05.3507744Z CGO_CPPFLAGS=''
+2026-11-16T19:19:05.3507929Z CGO_CXXFLAGS='-O2 -g'
+2026-11-16T19:19:05.3508111Z CGO_ENABLED='1'
+2026-11-16T19:19:05.3508285Z CGO_FFLAGS='-O2 -g'
+2026-11-16T19:19:05.3508455Z CGO_LDFLAGS='-O2 -g'
+2026-11-16T19:19:05.3508627Z CXX='g++'
+2026-11-16T19:19:05.3508787Z GCCGO='gccgo'
+2026-11-16T19:19:05.3508953Z GO111MODULE=''
+2026-11-16T19:19:05.3509108Z GOAMD64='v1'
+2026-11-16T19:19:05.3509270Z GOARCH='amd64'
+2026-11-16T19:19:05.3509908Z GOAUTH='netrc'
+2026-11-16T19:19:05.3510085Z GOBIN='/home/runner/go/bin'
+2026-11-16T19:19:05.3510346Z GOCACHE='/home/runner/work/_temp/tagged-facts-cache'
+2026-11-16T19:19:05.3510600Z GOCACHEPROG=''
+2026-11-16T19:19:05.3510770Z GODEBUG=''
+2026-11-16T19:19:05.3510927Z GOENV=''
+2026-11-16T19:19:05.3511073Z GOEXE=''
+2026-11-16T19:19:05.3511223Z GOEXPERIMENT=''
+2026-11-16T19:19:05.3511389Z GOFIPS140='off'
+2026-11-16T19:19:05.3511554Z GOFLAGS='-p=1'
+2026-11-16T19:19:05.3512235Z GOGCCFLAGS='-fPIC -m64 -pthread -Wl,--no-gc-sections -fmessage-length=0 -ffile-prefix-map=/home/runner/work/_temp/tagged-facts-tmp/go-build204678895=/tmp/go-build -gno-record-gcc-switches'
+2026-11-16T19:19:05.3512813Z GOHOSTARCH='amd64'
+2026-11-16T19:19:05.3512982Z GOHOSTOS='linux'
+2026-11-16T19:19:05.3534186Z GOINSECURE=''
+2026-11-16T19:19:05.3534709Z GOMOD='/dev/null'
+2026-11-16T19:19:05.3535014Z GOMODCACHE='/home/runner/go/pkg/mod'
+2026-11-16T19:19:05.3535324Z GONOPROXY=''
+2026-11-16T19:19:05.3535560Z GONOSUMDB=''
+2026-11-16T19:19:05.3535819Z GOOS='linux'
+2026-11-16T19:19:05.3536124Z GOPACKAGESDRIVER=''
+2026-11-16T19:19:05.3536794Z GOPATH='/home/runner/go'
+2026-11-16T19:19:05.3537136Z GOPRIVATE=''
+2026-11-16T19:19:05.3537470Z GOPROXY='https://proxy.golang.org,direct'
+2026-11-16T19:19:05.3537865Z GOROOT='/opt/hostedtoolcache/go/1.27.4/x64'
+2026-11-16T19:19:05.3538229Z GOSUMDB='sum.golang.org'
+2026-11-16T19:19:05.3538512Z GOTELEMETRY='local'
+2026-11-16T19:19:05.3538845Z GOTELEMETRYDIR='/home/runner/.config/go/telemetry'
+2026-11-16T19:19:05.3539239Z GOTMPDIR=''
+2026-11-16T19:19:05.3539501Z GOTOOLCHAIN='local'
+2026-11-16T19:19:05.3539922Z GOTOOLDIR='/opt/hostedtoolcache/go/1.27.4/x64/pkg/tool/linux_amd64'
+2026-11-16T19:19:05.3540361Z GOVCS=''
+2026-11-16T19:19:05.3540607Z GOVERSION='go1.27.4'
+2026-11-16T19:19:05.3540873Z GOWORK='off'
+2026-11-16T19:19:05.3541152Z PKG_CONFIG='pkg-config'
+2026-11-16T19:19:05.3541357Z 
+2026-11-16T19:19:05.3541901Z ##[endgroup]
+2026-11-16T19:19:05.3681314Z ##[group]Run GOROOT_BOOTSTRAP=$(go env GOROOT)
+2026-11-16T19:19:05.3681635Z [36;1mGOROOT_BOOTSTRAP=$(go env GOROOT)[0m
+2026-11-16T19:19:05.3681882Z [36;1mexport GOROOT_BOOTSTRAP[0m
+2026-11-16T19:19:05.3682148Z [36;1mgo version | tee "$EVIDENCE/bootstrap-version.txt"[0m
+2026-11-16T19:19:05.3682446Z [36;1m./make.bash 2>&1 | tee "$EVIDENCE/build.txt"[0m
+2026-11-16T19:19:05.3682757Z [36;1m../bin/go version | tee "$EVIDENCE/candidate-go-version.txt"[0m
+2026-11-16T19:19:05.3683111Z [36;1m../bin/logos version | tee "$EVIDENCE/candidate-logos-version.txt"[0m
+2026-11-16T19:19:05.3683461Z [36;1mprintf '%s\n' "$GITHUB_WORKSPACE/bin" >> "$GITHUB_PATH"[0m
+2026-11-16T19:19:05.3701925Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T19:19:05.3702194Z env:
+2026-11-16T19:19:05.3702409Z   EXPECTED_HEAD: 298f8969484af371bb58794610376dae77710a2b
+2026-11-16T19:19:05.3702668Z   GOMAXPROCS: 2
+2026-11-16T19:19:05.3702833Z   GOMEMLIMIT: 2GiB
+2026-11-16T19:19:05.3703042Z   GOGC: 50
+2026-11-16T19:19:05.3703198Z   GOFLAGS: -p=1
+2026-11-16T19:19:05.3703360Z   GOEXPERIMENT: 
+2026-11-16T19:19:05.3703531Z   GOTOOLCHAIN: local
+2026-11-16T19:19:05.3703702Z   GOWORK: off
+2026-11-16T19:19:05.3703858Z   GOENV: off
+2026-11-16T19:19:05.3704016Z   GOTELEMETRY: off
+2026-11-16T19:19:05.3704197Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T19:19:05.3704723Z   PYTHONDONTWRITEBYTECODE: 1
+2026-11-16T19:19:05.3704983Z   EVIDENCE: /home/runner/work/_temp/tagged-facts-evidence
+2026-11-16T19:19:05.3705267Z   GOCACHE: /home/runner/work/_temp/tagged-facts-cache
+2026-11-16T19:19:05.3705538Z   TMPDIR: /home/runner/work/_temp/tagged-facts-tmp
+2026-11-16T19:19:05.3705770Z ##[endgroup]
+2026-11-16T19:19:05.3799198Z go version go1.27.4 linux/amd64
+2026-11-16T19:19:05.3907303Z Building Go cmd/dist using /opt/hostedtoolcache/go/1.27.4/x64. (go1.27.4 linux/amd64)
+2026-11-16T19:19:12.5699851Z Building Go toolchain1 using /opt/hostedtoolcache/go/1.27.4/x64.
+2026-11-16T19:19:50.9858464Z Building Go bootstrap cmd/go (go_bootstrap) using Go toolchain1.
+2026-11-16T19:20:09.6005560Z Building Go toolchain2 using go_bootstrap and Go toolchain1.
+2026-11-16T19:20:51.7915205Z Building Go toolchain3 using go_bootstrap and Go toolchain2.
+2026-11-16T19:21:47.1451320Z Building packages and commands for linux/amd64.
+2026-11-16T19:23:27.6313135Z ---
+2026-11-16T19:23:27.6313600Z Installed Go for linux/amd64 in /home/runner/work/LoGOs/LoGOs
+2026-11-16T19:23:27.6313957Z Installed commands in /home/runner/work/LoGOs/LoGOs/bin
+2026-11-16T19:23:27.6314291Z *** You need to add /home/runner/work/LoGOs/LoGOs/bin to your PATH.
+2026-11-16T19:23:29.5062091Z go version go1.27.4 linux/amd64
+2026-11-16T19:23:29.5093482Z logos version go1.27.4 linux/amd64
+2026-11-16T19:23:29.5130619Z ##[group]Run uv run --no-project --no-config --python 3.12 --no-python-downloads python logos-doc/validation/tagged-package-facts/check_ci.py run --root "$GITHUB_WORKSPACE" --out "$EVIDENCE" --expected-head "$EXPECTED_HEAD"
+2026-11-16T19:23:29.5131770Z [36;1muv run --no-project --no-config --python 3.12 --no-python-downloads python logos-doc/validation/tagged-package-facts/check_ci.py run --root "$GITHUB_WORKSPACE" --out "$EVIDENCE" --expected-head "$EXPECTED_HEAD"[0m
+2026-11-16T19:23:29.5150446Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T19:23:29.5150717Z env:
+2026-11-16T19:23:29.5150937Z   EXPECTED_HEAD: 298f8969484af371bb58794610376dae77710a2b
+2026-11-16T19:23:29.5151189Z   GOMAXPROCS: 2
+2026-11-16T19:23:29.5151352Z   GOMEMLIMIT: 2GiB
+2026-11-16T19:23:29.5151512Z   GOGC: 50
+2026-11-16T19:23:29.5151668Z   GOFLAGS: -p=1
+2026-11-16T19:23:29.5151825Z   GOEXPERIMENT: 
+2026-11-16T19:23:29.5151995Z   GOTOOLCHAIN: local
+2026-11-16T19:23:29.5152201Z   GOWORK: off
+2026-11-16T19:23:29.5152359Z   GOENV: off
+2026-11-16T19:23:29.5152510Z   GOTELEMETRY: off
+2026-11-16T19:23:29.5152688Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T19:23:29.5152905Z   PYTHONDONTWRITEBYTECODE: 1
+2026-11-16T19:23:29.5153146Z   EVIDENCE: /home/runner/work/_temp/tagged-facts-evidence
+2026-11-16T19:23:29.5153425Z   GOCACHE: /home/runner/work/_temp/tagged-facts-cache
+2026-11-16T19:23:29.5153699Z   TMPDIR: /home/runner/work/_temp/tagged-facts-tmp
+2026-11-16T19:23:29.5153930Z ##[endgroup]
+2026-11-16T19:24:02.2304523Z {"accepted": true, "command": ["/home/runner/work/LoGOs/LoGOs/bin/go", "test", "-json", "-count=1", "-p=1", "-parallel=1", "-overlay=/home/runner/work/_temp/tagged-facts-evidence/old-production-overlay.json", "-timeout=10m", "-run", "^TestFactScopeTaggedFunctionAssertions$/^Project@simd128$/^mask=0$", "cmd/compile/internal/logos"], "elapsed_seconds": 32.59011067099999, "exit_code": 1, "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "stdout_sha256": "cfdf00fb11b9942b96041a10598675e774c6b42529c135abdeb83dcb99fb508d", "timed_out": false}
+2026-11-16T19:24:36.9797441Z {"accepted": true, "command": ["/home/runner/work/LoGOs/LoGOs/bin/go", "test", "-json", "-count=1", "-p=1", "-parallel=1", "-timeout=30m", "-run", "^(TestCompileImportedLocalType|TestCompileSIMDTaggedFuncFacts|TestFactScopeLeavesCompilerSymbolsLazy|TestFactScopeRejectsMalformedTaggedSymbols|TestFactScopeTaggedClones|TestFactScopeTaggedFunctionAssertions|TestFactScopeTaggedFunctionRejectsInvalidMasks|TestFactScopeTaggedReachableMethod|TestFactScopeTaggedReadonlyType)$", "cmd/compile/internal/logos"], "elapsed_seconds": 34.745712196, "exit_code": 0, "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "stdout_sha256": "145262ebda572d6699777e1262e50eb27476121769a10789499a20869702c4a4", "timed_out": false}
+2026-11-16T19:24:37.0706339Z ##[group]Run actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+2026-11-16T19:24:37.0706666Z with:
+2026-11-16T19:24:37.0706850Z   name: tagged-facts-43937304183-1
+2026-11-16T19:24:37.0707061Z   retention-days: 14
+2026-11-16T19:24:37.0707245Z   if-no-files-found: error
+2026-11-16T19:24:37.0707475Z   path: /home/runner/work/_temp/tagged-facts-evidence
+2026-11-16T19:24:37.0707730Z   compression-level: 6
+2026-11-16T19:24:37.0707908Z   overwrite: false
+2026-11-16T19:24:37.0708088Z   include-hidden-files: false
+2026-11-16T19:24:37.0708465Z   archive: true
+2026-11-16T19:24:37.0708634Z env:
+2026-11-16T19:24:37.0708829Z   EXPECTED_HEAD: 298f8969484af371bb58794610376dae77710a2b
+2026-11-16T19:24:37.0709070Z   GOMAXPROCS: 2
+2026-11-16T19:24:37.0709247Z   GOMEMLIMIT: 2GiB
+2026-11-16T19:24:37.0709413Z   GOGC: 50
+2026-11-16T19:24:37.0709569Z   GOFLAGS: -p=1
+2026-11-16T19:24:37.0709734Z   GOEXPERIMENT: 
+2026-11-16T19:24:37.0709900Z   GOTOOLCHAIN: local
+2026-11-16T19:24:37.0710099Z   GOWORK: off
+2026-11-16T19:24:37.0710256Z   GOENV: off
+2026-11-16T19:24:37.0710415Z   GOTELEMETRY: off
+2026-11-16T19:24:37.0710602Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T19:24:37.0710821Z   PYTHONDONTWRITEBYTECODE: 1
+2026-11-16T19:24:37.0711066Z   EVIDENCE: /home/runner/work/_temp/tagged-facts-evidence
+2026-11-16T19:24:37.0711347Z   GOCACHE: /home/runner/work/_temp/tagged-facts-cache
+2026-11-16T19:24:37.0711617Z   TMPDIR: /home/runner/work/_temp/tagged-facts-tmp
+2026-11-16T19:24:37.0711857Z ##[endgroup]
+2026-11-16T19:24:37.1902121Z With the provided path, there will be 21 files uploaded
+2026-11-16T19:24:37.1907954Z Artifact name is valid!
+2026-11-16T19:24:37.1908622Z Root directory input is valid!
+2026-11-16T19:24:37.5530121Z Uploading artifact: tagged-facts-43937304183-1.zip
+2026-11-16T19:24:37.5560430Z Beginning upload of artifact content to blob storage
+2026-11-16T19:24:37.9776090Z Uploaded bytes 15544
+2026-11-16T19:24:38.0540494Z Finished uploading artifact content to blob storage!
+2026-11-16T19:24:38.0541190Z SHA256 digest of uploaded artifact is 7d6b390e850ff0b778a9f4a80fa3d3e1006736c301d6229678d8ca5e9ec9b8dd
+2026-11-16T19:24:38.0541797Z Finalizing artifact upload
+2026-11-16T19:24:38.5851058Z Artifact tagged-facts-43937304183-1 successfully finalized. Artifact ID 14262890370
+2026-11-16T19:24:38.5851895Z Artifact tagged-facts-43937304183-1 has been successfully uploaded! Final size is 15544 bytes. Artifact ID is 14262890370
+2026-11-16T19:24:38.5854304Z Artifact download URL: https://github.com/gosuda/LoGOs/actions/runs/43937304183/artifacts/14262890370
+2026-11-16T19:24:38.6015287Z Post job cleanup.
+2026-11-16T19:24:38.7068551Z Post job cleanup.
+2026-11-16T19:24:38.7856334Z [command]/usr/bin/git version
+2026-11-16T19:24:38.7895670Z git version 2.56.1
+2026-11-16T19:24:38.7923319Z Temporarily overriding HOME='/home/runner/work/_temp/37b0af3d-4692-41c4-9d6b-8d89e5f2601e' before making global git config changes
+2026-11-16T19:24:38.7924503Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-16T19:24:38.7927047Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/LoGOs/LoGOs
+2026-11-16T19:24:38.7958699Z Removing SSH command configuration
+2026-11-16T19:24:38.7964299Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-16T19:24:38.8000299Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-16T19:24:38.8242166Z Removing HTTP extra header
+2026-11-16T19:24:38.8248195Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-16T19:24:38.8298133Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-16T19:24:38.8552759Z Removing includeIf entries pointing to credentials config files
+2026-11-16T19:24:38.8559867Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-16T19:24:38.8599877Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-16T19:24:38.8967871Z Cleaning up orphan processes

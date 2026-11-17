@@ -1,0 +1,80 @@
+{
+  "schema": 1,
+  "base_commit": "2c337536177f90957a8786e533ccd7a901596747",
+  "execution_status": "not-run; source-derived reachability only",
+  "receiver_tag_value_method": "Box@simd128.Read",
+  "receiver_tag_pointer_method": "(*Box@simd128).Read",
+  "distinct_legacy_method_tag": "Box.Read@simd128",
+  "files": [
+    {
+      "path": "src/cmd/compile/internal/logos/facts/methodobject_tagged_test.go",
+      "sha256": "09bcc42e0d8414e68bad014f3c599c8578d492108cbe02852254c5d3af4628d5"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/optfacts_method_tagged_test.go",
+      "sha256": "af6fe615bab4731cf0c1edfb4ed08483d8500c89a73184e7109552ea4badc494"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/compile_method_tagged_facts_test.go",
+      "sha256": "16ac4b0eb928d29b23dfe12d7bb11311db4c8b6f7bdf4d6e805983c59366cf5c"
+    }
+  ],
+  "existing_package_controls": [
+    {
+      "path": "src/cmd/compile/internal/logos/optfacts_tagged_test.go",
+      "sha256": "cecb8d8738e9c80777700da61c4cbec395cbe9e034d550679101d510f10b6ead"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/compile_tagged_facts_test.go",
+      "sha256": "f3b308710d0f57ed15a2ef94d53750944c14ae9b10bafc788d8a1b26361ecbd8"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/optfacts_scope_test.go",
+      "sha256": "0899e0c6da711b269e4a586ce96e2f9daaa90ccf211541664c30e9977add3317"
+    }
+  ],
+  "real_source": {
+    "path": "src/simd/testdata/iface/iface.go",
+    "git_blob": "697ba6b5eb5366f015bbbe3ed4d4d75dd33d1f6f",
+    "sha256": "00adc9cf8b53e4e78ef162d7675b847b11f688b0cdab9ce18739b9a79a5571dd",
+    "copy_policy": "byte-for-byte into a private ordinary Go module",
+    "expected_method_records": 12,
+    "parameter_mutation_mask": "0",
+    "receiver_mutation": {
+      "VectorC.Foo": true,
+      "VectorC.Bar": true,
+      "(*Q).Qux": false
+    }
+  },
+  "negative_controls": [
+    {
+      "path": "logos-doc/validation/tagged-method-facts/old-facts.go.txt",
+      "original_path": "src/cmd/compile/internal/logos/facts/facts.go",
+      "git_blob": "03d9184cf42b1da5b20f6e9905f30f59335ffd6a",
+      "sha256": "614425cdeb7a9f353d273008959616b332595a15391a3202fe7baa95c9afd29a",
+      "negative_test": "TestTaggedMethodCodecGrammar/Box@simd128.Read",
+      "expected_failure": "ValidObject = false, want true"
+    },
+    {
+      "path": "logos-doc/validation/tagged-method-facts/old-optfacts.go.txt",
+      "original_path": "src/cmd/compile/internal/logos/optfacts.go",
+      "git_blob": "147040d5b3eb103f41f52a8e2660253fdfd5366c",
+      "sha256": "66210d97849f205cb677a60abf2de01d7dc9aea2142f6d2aebfaa1a57fb3b7cd",
+      "negative_test": "TestTaggedInterfaceMethodFactLookup",
+      "expected_failure": "resolved an interface method symbol through the package scope"
+    }
+  ],
+  "required_tests": [
+    "TestTaggedMethodObjectConstructors",
+    "TestTaggedMethodCodecGrammar",
+    "TestTaggedInterfaceReadonlyFactWriter",
+    "TestTaggedMethodFactLookup",
+    "TestTaggedMethodFactRejectsInvalidMask",
+    "TestTaggedInterfaceMethodFactLookup",
+    "TestTaggedMethodStructuralFactLookup",
+    "TestTaggedMethodOptionFactLookup",
+    "TestTaggedMethodIdentityRemainsDistinct",
+    "TestCompileSIMDTaggedMethodFacts/fork-go",
+    "TestCompileSIMDTaggedMethodFacts/logos"
+  ]
+}

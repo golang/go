@@ -1,0 +1,348 @@
+﻿2026-11-16T18:07:51.8615692Z Current runner version: '2.338.2'
+2026-11-16T18:07:51.8641311Z ##[group]Runner Image Provisioner
+2026-11-16T18:07:51.8642291Z Hosted Compute Agent
+2026-11-16T18:07:51.8642917Z Version: 20261103.629
+2026-11-16T18:07:51.8643572Z Commit: 15dbd9ccb5dbf34fae002b6ed1a2670f52df37bc
+2026-11-16T18:07:51.8644433Z Build Date: 2026-11-03T17:26:59Z
+2026-11-16T18:07:51.8645150Z Worker ID: {5468a5ea-0b3b-4a7c-9fbe-f1c5fa98134a}
+2026-11-16T18:07:51.8645852Z Region: westus
+2026-11-16T18:07:51.8646565Z Cloud: Azure
+2026-11-16T18:07:51.8647111Z ##[endgroup]
+2026-11-16T18:07:51.8648809Z ##[group]Operating System
+2026-11-16T18:07:51.8649472Z Ubuntu
+2026-11-16T18:07:51.8650421Z 24.04.5
+2026-11-16T18:07:51.8651055Z LTS
+2026-11-16T18:07:51.8651576Z ##[endgroup]
+2026-11-16T18:07:51.8652216Z ##[group]Runner Image
+2026-11-16T18:07:51.8652855Z Image: ubuntu-24.04
+2026-11-16T18:07:51.8653480Z Version: 20261111.370.1
+2026-11-16T18:07:51.8654864Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261111.370/images/ubuntu/Ubuntu2404-Readme.md
+2026-11-16T18:07:51.8656497Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261111.370
+2026-11-16T18:07:51.8657494Z ##[endgroup]
+2026-11-16T18:07:51.8658670Z ##[group]GITHUB_TOKEN Permissions
+2026-11-16T18:07:51.8661163Z Contents: read
+2026-11-16T18:07:51.8661809Z Metadata: read
+2026-11-16T18:07:51.8662514Z ##[endgroup]
+2026-11-16T18:07:51.8664628Z Secret source: Actions
+2026-11-16T18:07:51.8665690Z Cache mode: write
+2026-11-16T18:07:51.8666800Z Prepare workflow directory
+2026-11-16T18:07:51.9128784Z Prepare all required actions
+2026-11-16T18:07:51.9178155Z Getting action download info
+2026-11-16T18:07:52.3026956Z Download action repository 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1' (SHA:3d3c42e5aac5ba805825da76410c181273ba90b1)
+2026-11-16T18:07:52.4339343Z Download action repository 'actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e' (SHA:b7ad1dad31e06c5925ef5d2fc7ad053ef454303e)
+2026-11-16T18:07:52.8263156Z Download action repository 'actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9' (SHA:55cc8345863c7cc4c66a329aec7e433d2d1c52a9)
+2026-11-16T18:07:52.9376621Z Download action repository 'golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a' (SHA:ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a)
+2026-11-16T18:07:53.4588109Z Complete job name: race
+2026-11-16T18:07:53.5701577Z ##[group]Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+2026-11-16T18:07:53.5703487Z with:
+2026-11-16T18:07:53.5704408Z   persist-credentials: false
+2026-11-16T18:07:53.5705489Z   repository: gosuda/gglint
+2026-11-16T18:07:53.5715034Z   token: ***
+2026-11-16T18:07:53.5715956Z   ssh-strict: true
+2026-11-16T18:07:53.5716876Z   ssh-user: git
+2026-11-16T18:07:53.5717769Z   clean: true
+2026-11-16T18:07:53.5718721Z   sparse-checkout-cone-mode: true
+2026-11-16T18:07:53.5719974Z   fetch-depth: 1
+2026-11-16T18:07:53.5720912Z   fetch-tags: false
+2026-11-16T18:07:53.5721876Z   show-progress: true
+2026-11-16T18:07:53.5722840Z   lfs: false
+2026-11-16T18:07:53.5723765Z   submodules: false
+2026-11-16T18:07:53.5724733Z   set-safe-directory: true
+2026-11-16T18:07:53.5725813Z   allow-unsafe-pr-checkout: false
+2026-11-16T18:07:53.5727196Z env:
+2026-11-16T18:07:53.5728097Z   GOFLAGS: -mod=readonly
+2026-11-16T18:07:53.5729119Z   GOTOOLCHAIN: local
+2026-11-16T18:07:53.5730316Z   GOMAXPROCS: 2
+2026-11-16T18:07:53.5731217Z ##[endgroup]
+2026-11-16T18:07:53.8964094Z Syncing repository: gosuda/gglint
+2026-11-16T18:07:53.8967792Z ##[group]Getting Git version info
+2026-11-16T18:07:53.8969182Z Working directory is '/home/runner/work/gglint/gglint'
+2026-11-16T18:07:53.8972665Z [command]/usr/bin/git version
+2026-11-16T18:07:53.9054069Z git version 2.56.1
+2026-11-16T18:07:53.9080612Z ##[endgroup]
+2026-11-16T18:07:53.9092399Z Temporarily overriding HOME='/home/runner/work/_temp/8cd82b66-5db6-4035-9412-f411367fda3d' before making global git config changes
+2026-11-16T18:07:53.9097641Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-16T18:07:53.9102312Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/gglint/gglint
+2026-11-16T18:07:53.9173389Z Deleting the contents of '/home/runner/work/gglint/gglint'
+2026-11-16T18:07:53.9324672Z ##[group]Determining repository object format
+2026-11-16T18:07:53.9351865Z ##[endgroup]
+2026-11-16T18:07:53.9354618Z ##[group]Initializing the repository
+2026-11-16T18:07:53.9357000Z [command]/usr/bin/git init /home/runner/work/gglint/gglint
+2026-11-16T18:07:53.9414360Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-16T18:07:53.9418853Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-16T18:07:53.9423602Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-16T18:07:53.9427077Z hint: call:
+2026-11-16T18:07:53.9431001Z hint:
+2026-11-16T18:07:53.9432979Z hint: 	git config --global init.defaultBranch <name>
+2026-11-16T18:07:53.9435469Z hint:
+2026-11-16T18:07:53.9438038Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-16T18:07:53.9443652Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-16T18:07:53.9447390Z hint:
+2026-11-16T18:07:53.9449219Z hint: 	git branch -m <name>
+2026-11-16T18:07:53.9454900Z hint:
+2026-11-16T18:07:53.9457675Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-16T18:07:53.9462252Z Initialized empty Git repository in /home/runner/work/gglint/gglint/.git/
+2026-11-16T18:07:53.9469072Z [command]/usr/bin/git remote add origin https://github.com/gosuda/gglint
+2026-11-16T18:07:53.9524245Z ##[endgroup]
+2026-11-16T18:07:53.9528559Z ##[group]Disabling automatic garbage collection
+2026-11-16T18:07:53.9532710Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-16T18:07:53.9598593Z ##[endgroup]
+2026-11-16T18:07:53.9602194Z ##[group]Setting up auth
+2026-11-16T18:07:53.9604544Z Removing SSH command configuration
+2026-11-16T18:07:53.9607834Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-16T18:07:53.9669269Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-16T18:07:54.0176856Z Removing HTTP extra header
+2026-11-16T18:07:54.0184079Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-16T18:07:54.0238934Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-16T18:07:54.0484039Z Removing includeIf entries pointing to credentials config files
+2026-11-16T18:07:54.0488758Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-16T18:07:54.0536029Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-16T18:07:54.0789329Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-b8c672c1-4b88-4284-bb2e-3e7ca36f8bd5.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-16T18:07:54.0841926Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/gglint/gglint/.git.path /home/runner/work/_temp/git-credentials-b8c672c1-4b88-4284-bb2e-3e7ca36f8bd5.config
+2026-11-16T18:07:54.0886842Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/gglint/gglint/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-b8c672c1-4b88-4284-bb2e-3e7ca36f8bd5.config
+2026-11-16T18:07:54.0932071Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-b8c672c1-4b88-4284-bb2e-3e7ca36f8bd5.config
+2026-11-16T18:07:54.0981466Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-b8c672c1-4b88-4284-bb2e-3e7ca36f8bd5.config
+2026-11-16T18:07:54.1024359Z ##[endgroup]
+2026-11-16T18:07:54.1025927Z ##[group]Fetching the repository
+2026-11-16T18:07:54.1031383Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +d67294b7eb975cb3a27dd7dcafab9b00bee267ed:refs/remotes/pull/13/merge
+2026-11-16T18:07:54.7960978Z From https://github.com/gosuda/gglint
+2026-11-16T18:07:54.7963417Z  * [new ref]         d67294b7eb975cb3a27dd7dcafab9b00bee267ed -> pull/13/merge
+2026-11-16T18:07:54.7968323Z ##[endgroup]
+2026-11-16T18:07:54.7969353Z ##[group]Determining the checkout info
+2026-11-16T18:07:54.7970585Z ##[endgroup]
+2026-11-16T18:07:54.7975666Z [command]/usr/bin/git sparse-checkout disable
+2026-11-16T18:07:54.8056488Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-16T18:07:54.8100421Z ##[group]Checking out the ref
+2026-11-16T18:07:54.8106552Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/13/merge
+2026-11-16T18:07:54.8552902Z Note: switching to 'refs/remotes/pull/13/merge'.
+2026-11-16T18:07:54.8553597Z 
+2026-11-16T18:07:54.8554235Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-11-16T18:07:54.8555237Z changes and commit them, and you can discard any commits you make in this
+2026-11-16T18:07:54.8556297Z state without impacting any branches by switching back to a branch.
+2026-11-16T18:07:54.8556913Z 
+2026-11-16T18:07:54.8557613Z If you want to create a new branch to retain commits you create, you may
+2026-11-16T18:07:54.8558620Z do so (now or later) by using -c with the switch command. Example:
+2026-11-16T18:07:54.8559238Z 
+2026-11-16T18:07:54.8559877Z   git switch -c <new-branch-name>
+2026-11-16T18:07:54.8560289Z 
+2026-11-16T18:07:54.8560513Z Or undo this operation with:
+2026-11-16T18:07:54.8560816Z 
+2026-11-16T18:07:54.8561019Z   git switch -
+2026-11-16T18:07:54.8561312Z 
+2026-11-16T18:07:54.8561706Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-11-16T18:07:54.8562331Z 
+2026-11-16T18:07:54.8562783Z HEAD is now at d67294b Merge a95099aae13ff7ffb4b3825bd63f8510bd184c69 into a6a12798390d392b40d7c9c2a1b635a6f2530c99
+2026-11-16T18:07:54.8568881Z ##[endgroup]
+2026-11-16T18:07:54.8632394Z [command]/usr/bin/git log -1 --format=%H
+2026-11-16T18:07:54.8671310Z d67294b7eb975cb3a27dd7dcafab9b00bee267ed
+2026-11-16T18:07:54.8680829Z ##[group]Removing auth
+2026-11-16T18:07:54.8681409Z Removing SSH command configuration
+2026-11-16T18:07:54.8685150Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-16T18:07:54.8729200Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-16T18:07:54.8979186Z Removing HTTP extra header
+2026-11-16T18:07:54.8983076Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-16T18:07:54.9028299Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-16T18:07:54.9277751Z Removing includeIf entries pointing to credentials config files
+2026-11-16T18:07:54.9281696Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-16T18:07:54.9322739Z includeif.gitdir:/home/runner/work/gglint/gglint/.git.path
+2026-11-16T18:07:54.9323665Z includeif.gitdir:/home/runner/work/gglint/gglint/.git/worktrees/*.path
+2026-11-16T18:07:54.9324209Z includeif.gitdir:/github/workspace/.git.path
+2026-11-16T18:07:54.9324637Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-16T18:07:54.9334418Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/gglint/gglint/.git.path
+2026-11-16T18:07:54.9370620Z /home/runner/work/_temp/git-credentials-b8c672c1-4b88-4284-bb2e-3e7ca36f8bd5.config
+2026-11-16T18:07:54.9383699Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/gglint/gglint/.git.path \/home\/runner\/work\/_temp\/git\-credentials\-b8c672c1\-4b88\-4284\-bb2e\-3e7ca36f8bd5\.config
+2026-11-16T18:07:54.9465357Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/gglint/gglint/.git/worktrees/*.path
+2026-11-16T18:07:54.9509895Z /home/runner/work/_temp/git-credentials-b8c672c1-4b88-4284-bb2e-3e7ca36f8bd5.config
+2026-11-16T18:07:54.9519307Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/gglint/gglint/.git/worktrees/*.path \/home\/runner\/work\/_temp\/git\-credentials\-b8c672c1\-4b88\-4284\-bb2e\-3e7ca36f8bd5\.config
+2026-11-16T18:07:54.9566445Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+2026-11-16T18:07:54.9605840Z /github/runner_temp/git-credentials-b8c672c1-4b88-4284-bb2e-3e7ca36f8bd5.config
+2026-11-16T18:07:54.9615397Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path \/github\/runner_temp\/git\-credentials\-b8c672c1\-4b88\-4284\-bb2e\-3e7ca36f8bd5\.config
+2026-11-16T18:07:54.9663745Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-16T18:07:54.9699998Z /github/runner_temp/git-credentials-b8c672c1-4b88-4284-bb2e-3e7ca36f8bd5.config
+2026-11-16T18:07:54.9710672Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path \/github\/runner_temp\/git\-credentials\-b8c672c1\-4b88\-4284\-bb2e\-3e7ca36f8bd5\.config
+2026-11-16T18:07:54.9758933Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-16T18:07:55.0013103Z Removing credentials config '/home/runner/work/_temp/git-credentials-b8c672c1-4b88-4284-bb2e-3e7ca36f8bd5.config'
+2026-11-16T18:07:55.0029961Z ##[endgroup]
+2026-11-16T18:07:55.0290792Z ##[group]Run actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+2026-11-16T18:07:55.0291298Z with:
+2026-11-16T18:07:55.0291551Z   go-version: 1.27.4
+2026-11-16T18:07:55.0291841Z   cache: false
+2026-11-16T18:07:55.0292110Z   check-latest: false
+2026-11-16T18:07:55.0294766Z   token: ***
+2026-11-16T18:07:55.0295023Z env:
+2026-11-16T18:07:55.0295266Z   GOFLAGS: -mod=readonly
+2026-11-16T18:07:55.0295547Z   GOTOOLCHAIN: local
+2026-11-16T18:07:55.0295806Z   GOMAXPROCS: 2
+2026-11-16T18:07:55.0296053Z ##[endgroup]
+2026-11-16T18:07:55.1506868Z Setup go version spec 1.27.4
+2026-11-16T18:07:55.1515883Z Attempting to download 1.27.4...
+2026-11-16T18:07:55.8194830Z matching 1.27.4...
+2026-11-16T18:07:55.8221152Z Acquiring 1.27.4 from https://github.com/actions/go-versions/releases/download/1.27.4-42945153609/go-1.27.4-linux-x64.tar.gz
+2026-11-16T18:07:56.3354917Z Extracting Go...
+2026-11-16T18:07:56.3509443Z [command]/usr/bin/tar xz --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/8eb07534-ae4b-4713-87c3-259ad0c1883e -f /home/runner/work/_temp/41e6f7b2-4b0a-4910-a64a-716e4ced775a
+2026-11-16T18:07:58.0477274Z Successfully extracted go to /home/runner/work/_temp/8eb07534-ae4b-4713-87c3-259ad0c1883e
+2026-11-16T18:07:58.0478365Z Adding to the cache ...
+2026-11-16T18:08:03.0848683Z Successfully cached go to /opt/hostedtoolcache/go/1.27.4/x64
+2026-11-16T18:08:03.0851305Z Added go to the path
+2026-11-16T18:08:03.0853372Z Successfully set up Go version 1.27.4
+2026-11-16T18:08:03.1099278Z go version go1.27.4 linux/amd64
+2026-11-16T18:08:03.1099852Z 
+2026-11-16T18:08:03.1100207Z ##[group]go env
+2026-11-16T18:08:03.2741727Z AR='ar'
+2026-11-16T18:08:03.2742068Z CC='gcc'
+2026-11-16T18:08:03.2742311Z CGO_CFLAGS='-O2 -g'
+2026-11-16T18:08:03.2742562Z CGO_CPPFLAGS=''
+2026-11-16T18:08:03.2742808Z CGO_CXXFLAGS='-O2 -g'
+2026-11-16T18:08:03.2743092Z CGO_ENABLED='1'
+2026-11-16T18:08:03.2743384Z CGO_FFLAGS='-O2 -g'
+2026-11-16T18:08:03.2743616Z CGO_LDFLAGS='-O2 -g'
+2026-11-16T18:08:03.2743863Z CXX='g++'
+2026-11-16T18:08:03.2744061Z GCCGO='gccgo'
+2026-11-16T18:08:03.2744547Z GO111MODULE=''
+2026-11-16T18:08:03.2744757Z GOAMD64='v1'
+2026-11-16T18:08:03.2744972Z GOARCH='amd64'
+2026-11-16T18:08:03.2745173Z GOAUTH='netrc'
+2026-11-16T18:08:03.2745387Z GOBIN='/home/runner/go/bin'
+2026-11-16T18:08:03.2745661Z GOCACHE='/home/runner/.cache/go-build'
+2026-11-16T18:08:03.2745933Z GOCACHEPROG=''
+2026-11-16T18:08:03.2746158Z GODEBUG=''
+2026-11-16T18:08:03.2746387Z GOENV='/home/runner/.config/go/env'
+2026-11-16T18:08:03.2746667Z GOEXE=''
+2026-11-16T18:08:03.2746888Z GOEXPERIMENT=''
+2026-11-16T18:08:03.2747141Z GOFIPS140='off'
+2026-11-16T18:08:03.2747357Z GOFLAGS='-mod=readonly'
+2026-11-16T18:08:03.2748037Z GOGCCFLAGS='-fPIC -m64 -pthread -Wl,--no-gc-sections -fmessage-length=0 -ffile-prefix-map=/tmp/go-build2580767471=/tmp/go-build -gno-record-gcc-switches'
+2026-11-16T18:08:03.2748762Z GOHOSTARCH='amd64'
+2026-11-16T18:08:03.2748981Z GOHOSTOS='linux'
+2026-11-16T18:08:03.2749190Z GOINSECURE=''
+2026-11-16T18:08:03.2749899Z GOMOD='/home/runner/work/gglint/gglint/go.mod'
+2026-11-16T18:08:03.2750291Z GOMODCACHE='/home/runner/go/pkg/mod'
+2026-11-16T18:08:03.2750564Z GONOPROXY=''
+2026-11-16T18:08:03.2750763Z GONOSUMDB=''
+2026-11-16T18:08:03.2750952Z GOOS='linux'
+2026-11-16T18:08:03.2751160Z GOPACKAGESDRIVER=''
+2026-11-16T18:08:03.2751386Z GOPATH='/home/runner/go'
+2026-11-16T18:08:03.2751610Z GOPRIVATE=''
+2026-11-16T18:08:03.2751870Z GOPROXY='https://proxy.golang.org,direct'
+2026-11-16T18:08:03.2752194Z GOROOT='/opt/hostedtoolcache/go/1.27.4/x64'
+2026-11-16T18:08:03.2752537Z GOSUMDB='sum.golang.org'
+2026-11-16T18:08:03.2752768Z GOTELEMETRY='local'
+2026-11-16T18:08:03.2753030Z GOTELEMETRYDIR='/home/runner/.config/go/telemetry'
+2026-11-16T18:08:03.2753365Z GOTMPDIR=''
+2026-11-16T18:08:03.2753562Z GOTOOLCHAIN='local'
+2026-11-16T18:08:03.2753880Z GOTOOLDIR='/opt/hostedtoolcache/go/1.27.4/x64/pkg/tool/linux_amd64'
+2026-11-16T18:08:03.2754231Z GOVCS=''
+2026-11-16T18:08:03.2754429Z GOVERSION='go1.27.4'
+2026-11-16T18:08:03.2754874Z GOWORK=''
+2026-11-16T18:08:03.2755097Z PKG_CONFIG='pkg-config'
+2026-11-16T18:08:03.2755256Z 
+2026-11-16T18:08:03.2755695Z ##[endgroup]
+2026-11-16T18:08:03.3615836Z ##[group]Run actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+2026-11-16T18:08:03.3616243Z with:
+2026-11-16T18:08:03.3616469Z   path: ~/go/pkg/mod
+~/.cache/go-build
+
+2026-11-16T18:08:03.3616970Z   key: go-v1-Linux-X64-1.27.4-race-8bb7ae31aee941cba3696cac16b73b4873a9f126fe75645a37a7581684d50f23
+2026-11-16T18:08:03.3617496Z   restore-keys: go-v1-Linux-X64-1.27.4-race-
+
+2026-11-16T18:08:03.3617799Z   enableCrossOsArchive: false
+2026-11-16T18:08:03.3618055Z   fail-on-cache-miss: false
+2026-11-16T18:08:03.3618292Z   lookup-only: false
+2026-11-16T18:08:03.3618512Z   save-always: false
+2026-11-16T18:08:03.3618715Z env:
+2026-11-16T18:08:03.3618908Z   GOFLAGS: -mod=readonly
+2026-11-16T18:08:03.3619135Z   GOTOOLCHAIN: local
+2026-11-16T18:08:03.3619341Z   GOMAXPROCS: 2
+2026-11-16T18:08:03.3619841Z ##[endgroup]
+2026-11-16T18:08:03.7377952Z Cache not found for input keys: go-v1-Linux-X64-1.27.4-race-8bb7ae31aee941cba3696cac16b73b4873a9f126fe75645a37a7581684d50f23, go-v1-Linux-X64-1.27.4-race-
+2026-11-16T18:08:03.7510650Z ##[group]Run go mod download
+2026-11-16T18:08:03.7510989Z [36;1mgo mod download[0m
+2026-11-16T18:08:03.7535260Z shell: /usr/bin/bash -e {0}
+2026-11-16T18:08:03.7535519Z env:
+2026-11-16T18:08:03.7535718Z   GOFLAGS: -mod=readonly
+2026-11-16T18:08:03.7535949Z   GOTOOLCHAIN: local
+2026-11-16T18:08:03.7536160Z   GOMAXPROCS: 2
+2026-11-16T18:08:03.7536354Z ##[endgroup]
+2026-11-16T18:08:04.7913480Z ##[group]Run packages=$(go list ./...)
+2026-11-16T18:08:04.7913841Z [36;1mpackages=$(go list ./...)[0m
+2026-11-16T18:08:04.7914145Z [36;1mtest_packages=()[0m
+2026-11-16T18:08:04.7914409Z [36;1mwhile IFS= read -r package; do[0m
+2026-11-16T18:08:04.7914690Z [36;1m  case "$package" in[0m
+2026-11-16T18:08:04.7914993Z [36;1m    github.com/gosuda/gglint/internal/vettool) ;;[0m
+2026-11-16T18:08:04.7915356Z [36;1m    *) test_packages+=("$package") ;;[0m
+2026-11-16T18:08:04.7915628Z [36;1m  esac[0m
+2026-11-16T18:08:04.7916021Z [36;1mdone <<< "$packages"[0m
+2026-11-16T18:08:04.7916368Z [36;1m# The corpus builds gglint externally: cached test results can miss[0m
+2026-11-16T18:08:04.7916852Z [36;1m# analyzer changes. Keep compilation caches, but rerun every test.[0m
+2026-11-16T18:08:04.7917353Z [36;1mgo test -race -count=1 -p 1 -parallel 2 -timeout 15m "${test_packages[@]}"[0m
+2026-11-16T18:08:04.7940061Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T18:08:04.7940440Z env:
+2026-11-16T18:08:04.7940639Z   GOFLAGS: -mod=readonly
+2026-11-16T18:08:04.7940866Z   GOTOOLCHAIN: local
+2026-11-16T18:08:04.7941072Z   GOMAXPROCS: 2
+2026-11-16T18:08:04.7941305Z ##[endgroup]
+2026-11-16T18:09:48.2895984Z ?   	github.com/gosuda/gglint/cmd/gglint	[no test files]
+2026-11-16T18:09:58.5135720Z ok  	github.com/gosuda/gglint/internal/analyzers/alias	6.868s
+2026-11-16T18:10:00.0694537Z ok  	github.com/gosuda/gglint/internal/analyzers/backingpin	1.158s
+2026-11-16T18:10:03.3355009Z ok  	github.com/gosuda/gglint/internal/analyzers/chanblock	2.882s
+2026-11-16T18:10:14.0580238Z ok  	github.com/gosuda/gglint/internal/analyzers/chanstate	9.693s
+2026-11-16T18:10:15.6647096Z ok  	github.com/gosuda/gglint/internal/analyzers/checkconst	1.143s
+2026-11-16T18:10:30.8774639Z ok  	github.com/gosuda/gglint/internal/analyzers/checkescape	14.386s
+2026-11-16T18:10:38.8274531Z ok  	github.com/gosuda/gglint/internal/analyzers/checkimports	7.528s
+2026-11-16T18:10:42.9849888Z ok  	github.com/gosuda/gglint/internal/analyzers/checklinkname	3.641s
+2026-11-16T18:10:50.5990725Z ok  	github.com/gosuda/gglint/internal/analyzers/checklocks	6.704s
+2026-11-16T18:10:54.1890737Z ok  	github.com/gosuda/gglint/internal/analyzers/closer	3.187s
+2026-11-16T18:10:59.0472248Z ok  	github.com/gosuda/gglint/internal/analyzers/complexity	4.424s
+2026-11-16T18:11:33.1894516Z ok  	github.com/gosuda/gglint/internal/analyzers/ctxflow	33.704s
+2026-11-16T18:11:37.8383363Z ok  	github.com/gosuda/gglint/internal/analyzers/dupl	4.240s
+2026-11-16T18:11:41.4466477Z ok  	github.com/gosuda/gglint/internal/analyzers/errchainreset	3.220s
+2026-11-16T18:11:55.2666389Z ok  	github.com/gosuda/gglint/internal/analyzers/errdrop	13.367s
+2026-11-16T18:11:56.8224539Z ok  	github.com/gosuda/gglint/internal/analyzers/gofumpt	1.137s
+2026-11-16T18:12:23.0528856Z ok  	github.com/gosuda/gglint/internal/analyzers/gorace	25.794s
+2026-11-16T18:12:27.7772244Z ok  	github.com/gosuda/gglint/internal/analyzers/goroutine	4.320s
+2026-11-16T18:12:33.4755096Z ok  	github.com/gosuda/gglint/internal/analyzers/gosec	5.183s
+2026-11-16T18:12:37.2018315Z ok  	github.com/gosuda/gglint/internal/analyzers/infiniterecursion	3.336s
+2026-11-16T18:13:03.2655009Z ok  	github.com/gosuda/gglint/internal/analyzers/lockstate	25.548s
+2026-11-16T18:13:04.9915680Z ok  	github.com/gosuda/gglint/internal/analyzers/misspell	1.197s
+2026-11-16T18:13:11.8704987Z ok  	github.com/gosuda/gglint/internal/analyzers/placeholder	6.479s
+2026-11-16T18:13:14.9993623Z ok  	github.com/gosuda/gglint/internal/analyzers/reentrantlock	2.728s
+2026-11-16T18:13:38.9153577Z ok  	github.com/gosuda/gglint/internal/analyzers/resstate	22.689s
+2026-11-16T18:14:02.4766550Z ok  	github.com/gosuda/gglint/internal/analyzers/spin	23.120s
+2026-11-16T18:14:04.0233779Z ok  	github.com/gosuda/gglint/internal/analyzers/stackaddr	1.152s
+2026-11-16T18:14:07.3287662Z ok  	github.com/gosuda/gglint/internal/analyzers/timeafter	2.888s
+2026-11-16T18:14:11.1102707Z ok  	github.com/gosuda/gglint/internal/analyzers/typednil	3.384s
+2026-11-16T18:14:12.6923796Z ok  	github.com/gosuda/gglint/internal/analyzers/unparam	1.144s
+2026-11-16T18:14:30.3470624Z ok  	github.com/gosuda/gglint/internal/analyzers/wgstate	17.197s
+2026-11-16T18:14:30.3471282Z ?   	github.com/gosuda/gglint/internal/analyzertest	[no test files]
+2026-11-16T18:16:23.3776098Z ok  	github.com/gosuda/gglint/internal/cli	111.632s
+2026-11-16T18:16:25.0643047Z ok  	github.com/gosuda/gglint/internal/config	1.170s
+2026-11-16T18:16:27.5703568Z ok  	github.com/gosuda/gglint/internal/driver	2.113s
+2026-11-16T18:16:29.0565043Z ok  	github.com/gosuda/gglint/internal/finding	1.122s
+2026-11-16T18:17:23.1337536Z ok  	github.com/gosuda/gglint/internal/flow	52.826s
+2026-11-16T18:17:23.1338282Z ?   	github.com/gosuda/gglint/internal/inspection	[no test files]
+2026-11-16T18:18:12.8729270Z ok  	github.com/gosuda/gglint/internal/precision	49.380s
+2026-11-16T18:18:14.1857260Z ok  	github.com/gosuda/gglint/internal/report	1.016s
+2026-11-16T18:18:43.1015283Z ok  	github.com/gosuda/gglint/internal/rules	27.359s
+2026-11-16T18:18:43.4929902Z Post job cleanup.
+2026-11-16T18:18:43.6584737Z [command]/usr/bin/tar --posix -cf cache.tzst --exclude cache.tzst -P -C /home/runner/work/gglint/gglint --files-from manifest.txt --use-compress-program zstdmt
+2026-11-16T18:18:47.5305871Z Sent 0 of 236514508 (0.0%), 0.0 MBs/sec
+2026-11-16T18:18:48.5272533Z Sent 169405644 of 236514508 (71.6%), 80.7 MBs/sec
+2026-11-16T18:18:48.6436783Z Sent 236514508 of 236514508 (100.0%), 106.5 MBs/sec
+2026-11-16T18:18:48.9597276Z Cache saved with key: go-v1-Linux-X64-1.27.4-race-8bb7ae31aee941cba3696cac16b73b4873a9f126fe75645a37a7581684d50f23
+2026-11-16T18:18:48.9795151Z Post job cleanup.
+2026-11-16T18:18:49.1163203Z Post job cleanup.
+2026-11-16T18:18:49.2080887Z [command]/usr/bin/git version
+2026-11-16T18:18:49.2129740Z git version 2.56.1
+2026-11-16T18:18:49.2200495Z Temporarily overriding HOME='/home/runner/work/_temp/594303b6-849e-46ec-96c9-b20b9dd3f21a' before making global git config changes
+2026-11-16T18:18:49.2201797Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-16T18:18:49.2206495Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/gglint/gglint
+2026-11-16T18:18:49.2247387Z Removing SSH command configuration
+2026-11-16T18:18:49.2248547Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-16T18:18:49.2296215Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-16T18:18:49.2572161Z Removing HTTP extra header
+2026-11-16T18:18:49.2573165Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-16T18:18:49.2611757Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-16T18:18:49.2868162Z Removing includeIf entries pointing to credentials config files
+2026-11-16T18:18:49.2882462Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-16T18:18:49.2947983Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-16T18:18:49.3400527Z Cleaning up orphan processes

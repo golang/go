@@ -1,0 +1,101 @@
+{
+  "accepted": false,
+  "blocked_phase": "logos",
+  "complete": true,
+  "expected_positive_leaf_cases": 78,
+  "expected_positive_named_tests": 89,
+  "phases": [
+    {
+      "accepted": true,
+      "command": [
+        "/home/runner/work/LoGOs/LoGOs/bin/go",
+        "test",
+        "-json",
+        "-count=1",
+        "-p=1",
+        "-parallel=1",
+        "-timeout=10m",
+        "-overlay=/home/runner/work/_temp/logos-regression-evidence/tagged-method/old-codec.overlay.json",
+        "-run",
+        "^TestTaggedMethodCodecGrammar$/^Box@simd128\\.Read$",
+        "cmd/compile/internal/logos/facts"
+      ],
+      "cwd": "/home/runner/work/LoGOs/LoGOs/src",
+      "elapsed_seconds": 15.490152887000022,
+      "exit_code": 1,
+      "phase": "old-codec",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "492f2a5dd11998fbe7d7f6f56fce6d55a6368d2e7ee3dd8e3a6acadc5a39fc36",
+      "timed_out": false
+    },
+    {
+      "accepted": true,
+      "command": [
+        "/home/runner/work/LoGOs/LoGOs/bin/go",
+        "test",
+        "-json",
+        "-count=1",
+        "-p=1",
+        "-parallel=1",
+        "-timeout=10m",
+        "-overlay=/home/runner/work/_temp/logos-regression-evidence/tagged-method/old-package-guard.overlay.json",
+        "-run",
+        "^TestTaggedInterfaceMethodFactLookup$",
+        "cmd/compile/internal/logos"
+      ],
+      "cwd": "/home/runner/work/LoGOs/LoGOs/src",
+      "elapsed_seconds": 15.935009958000023,
+      "exit_code": 1,
+      "phase": "old-package-guard",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "b55acce994907fab8163d976374f1bd706243c266583358f65e357c1ead592e3",
+      "timed_out": false
+    },
+    {
+      "accepted": true,
+      "command": [
+        "/home/runner/work/LoGOs/LoGOs/bin/go",
+        "test",
+        "-json",
+        "-count=1",
+        "-p=1",
+        "-parallel=1",
+        "-timeout=10m",
+        "-run",
+        "^(TestTaggedInterfaceReadonlyFactWriter|TestTaggedMethodCodecGrammar|TestTaggedMethodObjectConstructors)$",
+        "cmd/compile/internal/logos/facts"
+      ],
+      "cwd": "/home/runner/work/LoGOs/LoGOs/src",
+      "elapsed_seconds": 0.9188464910000675,
+      "exit_code": 0,
+      "phase": "facts",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "03e01dfd9d0ea84352c4405c0f0d114ca978f122c1579563d896a1f29b854779",
+      "timed_out": false
+    },
+    {
+      "accepted": false,
+      "command": [
+        "/home/runner/work/LoGOs/LoGOs/bin/go",
+        "test",
+        "-json",
+        "-count=1",
+        "-p=1",
+        "-parallel=1",
+        "-timeout=30m",
+        "-run",
+        "^(TestCompileSIMDTaggedMethodFacts|TestTaggedInterfaceMethodFactLookup|TestTaggedMethodFactLookup|TestTaggedMethodFactRejectsInvalidMask|TestTaggedMethodIdentityRemainsDistinct|TestTaggedMethodOptionFactLookup|TestTaggedMethodStructuralFactLookup)$",
+        "cmd/compile/internal/logos"
+      ],
+      "cwd": "/home/runner/work/LoGOs/LoGOs/src",
+      "elapsed_seconds": 5.3879036150000275,
+      "exit_code": 1,
+      "phase": "logos",
+      "rejection": "test passes: missing={'TestCompileSIMDTaggedMethodFacts/logos': 1, 'TestCompileSIMDTaggedMethodFacts': 1, 'TestCompileSIMDTaggedMethodFacts/fork-go': 1}, extra={}",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "7b27f4cb0b67146edf9b42cd51c5cf35184145185abcec5707121e0dd1dbd894",
+      "timed_out": false
+    }
+  ],
+  "source_and_tools_unchanged": true
+}

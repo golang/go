@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "base_commit": "b48422e8b0c82e9b75108a00306236a5b4a05e64",
+  "source_tree": "df267333b1d5c5727e2477215a6807cae52f8e18",
+  "execution_status": "hosted_go_execution_pending",
+  "files": [
+    {
+      "path": "src/cmd/compile/internal/logos/wasm_test.go",
+      "sha256": "64e2c6a45ee50bc43e1a3340f567571009871df1fbc57a1d739a92556d8221c1"
+    },
+    {
+      "path": "lib/wasm/wasm_exec.js",
+      "sha256": "0c949f4996f9a89698e4b5c586de32249c3b69b7baadb64d220073cc04acba14"
+    },
+    {
+      "path": "lib/wasm/wasm_exec_node.js",
+      "sha256": "86b8ce546ecaa462544f3736adc4c19264eedd257c2ec427c9abc6debc1ee184"
+    },
+    {
+      "path": "src/cmd/dist/test.go",
+      "sha256": "d4e9941604d479b9e64a9be4fff46acfffaabac03f80fb50bc28d3fab349628c"
+    },
+    {
+      "path": "src/cmd/go/script_test.go",
+      "sha256": "4798f38c62c2b2f56e30cda90d7f0c6f833ff595119bf303670b2809ff16a74a"
+    },
+    {
+      "path": "src/run.bash",
+      "sha256": "5da5c4b05c8d9ec80bedb8b6608df6d20a36f5e8cca70aa0eb966cac9d1cf69d"
+    }
+  ],
+  "wasm_named_tests": [
+    "TestWasmProgramRunsUnderNode",
+    "TestWasmProgramRunsUnderNode/resume_points_everywhere",
+    "TestWasmProgramRunsUnderNode/selective_resume_points",
+    "TestWasmWrongMayYieldTraps",
+    "TestWasmYieldFreeSourcesRunUnderNode",
+    "TestWasmYieldFreeSourcesRunUnderNode/plain_go",
+    "TestWasmYieldFreeSourcesRunUnderNode/logos"
+  ],
+  "dist_filters": {
+    "cmd_go": "^cmd/go$",
+    "complement": "!^cmd/go$"
+  },
+  "dist_timeout_scales": {
+    "cmd_go": 4,
+    "complement": 1
+  }
+}

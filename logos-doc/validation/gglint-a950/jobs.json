@@ -1,0 +1,433 @@
+{
+  "total_count": 3,
+  "jobs": [
+    {
+      "id": 133497329552,
+      "run_id": 43923681281,
+      "workflow_name": "CI",
+      "head_branch": "dogfood/lint-proof-refactor-20261116",
+      "run_url": "https://api.github.com/repos/gosuda/gglint/actions/runs/43923681281",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOVnJgBc8AAAAfFQ-XkA",
+      "head_sha": "a95099aae13ff7ffb4b3825bd63f8510bd184c69",
+      "url": "https://api.github.com/repos/gosuda/gglint/actions/jobs/133497329552",
+      "html_url": "https://github.com/gosuda/gglint/actions/runs/43923681281/job/133497329552",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-11-16T17:56:58Z",
+      "started_at": "2026-11-16T18:07:50Z",
+      "completed_at": "2026-11-16T18:18:52Z",
+      "name": "race",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-11-16T18:07:51Z",
+          "completed_at": "2026-11-16T18:07:53Z"
+        },
+        {
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-11-16T18:07:53Z",
+          "completed_at": "2026-11-16T18:07:55Z"
+        },
+        {
+          "name": "Run actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-11-16T18:07:55Z",
+          "completed_at": "2026-11-16T18:08:03Z"
+        },
+        {
+          "name": "Run actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-11-16T18:08:03Z",
+          "completed_at": "2026-11-16T18:08:03Z"
+        },
+        {
+          "name": "Download dependencies",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-11-16T18:08:03Z",
+          "completed_at": "2026-11-16T18:08:04Z"
+        },
+        {
+          "name": "Race tests and precision corpus",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-11-16T18:08:04Z",
+          "completed_at": "2026-11-16T18:18:43Z"
+        },
+        {
+          "name": "Vettool race tests",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 7,
+          "started_at": "2026-11-16T18:18:43Z",
+          "completed_at": "2026-11-16T18:18:43Z"
+        },
+        {
+          "name": "Vet",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 8,
+          "started_at": "2026-11-16T18:18:43Z",
+          "completed_at": "2026-11-16T18:18:43Z"
+        },
+        {
+          "name": "Golangci-lint",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 9,
+          "started_at": "2026-11-16T18:18:43Z",
+          "completed_at": "2026-11-16T18:18:43Z"
+        },
+        {
+          "name": "Self-lint",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 10,
+          "started_at": "2026-11-16T18:18:43Z",
+          "completed_at": "2026-11-16T18:18:43Z"
+        },
+        {
+          "name": "Post Run actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 18,
+          "started_at": "2026-11-16T18:18:43Z",
+          "completed_at": "2026-11-16T18:18:48Z"
+        },
+        {
+          "name": "Post Run actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 19,
+          "started_at": "2026-11-16T18:18:48Z",
+          "completed_at": "2026-11-16T18:18:49Z"
+        },
+        {
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 20,
+          "started_at": "2026-11-16T18:18:49Z",
+          "completed_at": "2026-11-16T18:18:49Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 21,
+          "started_at": "2026-11-16T18:18:49Z",
+          "completed_at": "2026-11-16T18:18:49Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/gosuda/gglint/check-runs/133497329552",
+      "labels": [
+        "ubuntu-24.04"
+      ],
+      "runner_id": 1000117398,
+      "runner_name": "GitHub Actions 1000117398",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    },
+    {
+      "id": 133497329973,
+      "run_id": 43923681281,
+      "workflow_name": "CI",
+      "head_branch": "dogfood/lint-proof-refactor-20261116",
+      "run_url": "https://api.github.com/repos/gosuda/gglint/actions/runs/43923681281",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOVnJgBc8AAAAfFQ-ZNQ",
+      "head_sha": "a95099aae13ff7ffb4b3825bd63f8510bd184c69",
+      "url": "https://api.github.com/repos/gosuda/gglint/actions/jobs/133497329973",
+      "html_url": "https://github.com/gosuda/gglint/actions/runs/43923681281/job/133497329973",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-11-16T17:56:58Z",
+      "started_at": "2026-11-16T18:16:01Z",
+      "completed_at": "2026-11-16T18:17:08Z",
+      "name": "lint",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-11-16T18:16:01Z",
+          "completed_at": "2026-11-16T18:16:04Z"
+        },
+        {
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-11-16T18:16:04Z",
+          "completed_at": "2026-11-16T18:16:09Z"
+        },
+        {
+          "name": "Run actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-11-16T18:16:09Z",
+          "completed_at": "2026-11-16T18:16:15Z"
+        },
+        {
+          "name": "Run actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-11-16T18:16:15Z",
+          "completed_at": "2026-11-16T18:16:17Z"
+        },
+        {
+          "name": "Download dependencies",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-11-16T18:16:17Z",
+          "completed_at": "2026-11-16T18:16:17Z"
+        },
+        {
+          "name": "Race tests and precision corpus",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 6,
+          "started_at": "2026-11-16T18:16:17Z",
+          "completed_at": "2026-11-16T18:16:17Z"
+        },
+        {
+          "name": "Vettool race tests",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 7,
+          "started_at": "2026-11-16T18:16:17Z",
+          "completed_at": "2026-11-16T18:16:17Z"
+        },
+        {
+          "name": "Vet",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8,
+          "started_at": "2026-11-16T18:16:17Z",
+          "completed_at": "2026-11-16T18:16:18Z"
+        },
+        {
+          "name": "Golangci-lint",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9,
+          "started_at": "2026-11-16T18:16:18Z",
+          "completed_at": "2026-11-16T18:16:33Z"
+        },
+        {
+          "name": "Self-lint",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10,
+          "started_at": "2026-11-16T18:16:33Z",
+          "completed_at": "2026-11-16T18:17:06Z"
+        },
+        {
+          "name": "Post Golangci-lint",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 17,
+          "started_at": "2026-11-16T18:17:06Z",
+          "completed_at": "2026-11-16T18:17:06Z"
+        },
+        {
+          "name": "Post Run actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 18,
+          "started_at": "2026-11-16T18:17:06Z",
+          "completed_at": "2026-11-16T18:17:06Z"
+        },
+        {
+          "name": "Post Run actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 19,
+          "started_at": "2026-11-16T18:17:06Z",
+          "completed_at": "2026-11-16T18:17:06Z"
+        },
+        {
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 20,
+          "started_at": "2026-11-16T18:17:06Z",
+          "completed_at": "2026-11-16T18:17:06Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 21,
+          "started_at": "2026-11-16T18:17:06Z",
+          "completed_at": "2026-11-16T18:17:06Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/gosuda/gglint/check-runs/133497329973",
+      "labels": [
+        "ubuntu-24.04"
+      ],
+      "runner_id": 1000117427,
+      "runner_name": "GitHub Actions 1000117427",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    },
+    {
+      "id": 133497330041,
+      "run_id": 43923681281,
+      "workflow_name": "CI",
+      "head_branch": "dogfood/lint-proof-refactor-20261116",
+      "run_url": "https://api.github.com/repos/gosuda/gglint/actions/runs/43923681281",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOVnJgBc8AAAAfFQ-ZeQ",
+      "head_sha": "a95099aae13ff7ffb4b3825bd63f8510bd184c69",
+      "url": "https://api.github.com/repos/gosuda/gglint/actions/jobs/133497330041",
+      "html_url": "https://github.com/gosuda/gglint/actions/runs/43923681281/job/133497330041",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-11-16T17:56:58Z",
+      "started_at": "2026-11-16T18:17:06Z",
+      "completed_at": "2026-11-16T18:19:55Z",
+      "name": "vettool",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-11-16T18:17:06Z",
+          "completed_at": "2026-11-16T18:17:08Z"
+        },
+        {
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-11-16T18:17:08Z",
+          "completed_at": "2026-11-16T18:17:09Z"
+        },
+        {
+          "name": "Run actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-11-16T18:17:09Z",
+          "completed_at": "2026-11-16T18:17:17Z"
+        },
+        {
+          "name": "Run actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-11-16T18:17:17Z",
+          "completed_at": "2026-11-16T18:17:18Z"
+        },
+        {
+          "name": "Download dependencies",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-11-16T18:17:18Z",
+          "completed_at": "2026-11-16T18:17:21Z"
+        },
+        {
+          "name": "Race tests and precision corpus",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 6,
+          "started_at": "2026-11-16T18:17:21Z",
+          "completed_at": "2026-11-16T18:17:21Z"
+        },
+        {
+          "name": "Vettool race tests",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-11-16T18:17:21Z",
+          "completed_at": "2026-11-16T18:19:48Z"
+        },
+        {
+          "name": "Vet",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 8,
+          "started_at": "2026-11-16T18:19:48Z",
+          "completed_at": "2026-11-16T18:19:48Z"
+        },
+        {
+          "name": "Golangci-lint",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 9,
+          "started_at": "2026-11-16T18:19:48Z",
+          "completed_at": "2026-11-16T18:19:48Z"
+        },
+        {
+          "name": "Self-lint",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 10,
+          "started_at": "2026-11-16T18:19:48Z",
+          "completed_at": "2026-11-16T18:19:48Z"
+        },
+        {
+          "name": "Post Run actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 18,
+          "started_at": "2026-11-16T18:19:48Z",
+          "completed_at": "2026-11-16T18:19:52Z"
+        },
+        {
+          "name": "Post Run actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 19,
+          "started_at": "2026-11-16T18:19:52Z",
+          "completed_at": "2026-11-16T18:19:52Z"
+        },
+        {
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 20,
+          "started_at": "2026-11-16T18:19:52Z",
+          "completed_at": "2026-11-16T18:19:52Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 21,
+          "started_at": "2026-11-16T18:19:52Z",
+          "completed_at": "2026-11-16T18:19:52Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/gosuda/gglint/check-runs/133497330041",
+      "labels": [
+        "ubuntu-24.04"
+      ],
+      "runner_id": 1000117428,
+      "runner_name": "GitHub Actions 1000117428",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    }
+  ]
+}

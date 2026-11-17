@@ -1,0 +1,495 @@
+{
+  "tested_commit": {
+    "sha": "df9692747da8b773c8714f5497a5d0f61f06e956",
+    "node_id": "C_kwDOVOeymdoAKGRmOTY5Mjc0N2RhOGI3NzNjODcxNGY1NDk3YTVkMGY2MWYwNmU5NTY",
+    "url": "https://api.github.com/repos/gosuda/LoGOs/git/commits/df9692747da8b773c8714f5497a5d0f61f06e956",
+    "html_url": "https://github.com/gosuda/LoGOs/commit/df9692747da8b773c8714f5497a5d0f61f06e956",
+    "author": {
+      "name": "metaphoric-dev",
+      "email": "161434094+metaphoric-dev@users.noreply.github.com",
+      "date": "2026-11-16T18:21:25Z"
+    },
+    "committer": {
+      "name": "GitHub",
+      "email": "noreply@github.com",
+      "date": "2026-11-16T18:21:25Z"
+    },
+    "tree": {
+      "sha": "b1eca92a0c54e14b8e37974c6516a882d13d1442",
+      "url": "https://api.github.com/repos/gosuda/LoGOs/git/trees/b1eca92a0c54e14b8e37974c6516a882d13d1442"
+    },
+    "message": "Merge bdc5987c526a9e9aa1b43975290f69a2370ae37a into 7d15ec7671582d0f022013bf36cf8f82a1b04cfc",
+    "parents": [
+      {
+        "sha": "7d15ec7671582d0f022013bf36cf8f82a1b04cfc",
+        "url": "https://api.github.com/repos/gosuda/LoGOs/git/commits/7d15ec7671582d0f022013bf36cf8f82a1b04cfc",
+        "html_url": "https://github.com/gosuda/LoGOs/commit/7d15ec7671582d0f022013bf36cf8f82a1b04cfc"
+      },
+      {
+        "sha": "bdc5987c526a9e9aa1b43975290f69a2370ae37a",
+        "url": "https://api.github.com/repos/gosuda/LoGOs/git/commits/bdc5987c526a9e9aa1b43975290f69a2370ae37a",
+        "html_url": "https://github.com/gosuda/LoGOs/commit/bdc5987c526a9e9aa1b43975290f69a2370ae37a"
+      }
+    ],
+    "verification": {
+      "verified": true,
+      "reason": "valid",
+      "signature": "-----BEGIN PGP SIGNATURE-----\n\nwsFcBAABCAAQBQJq+0mlCRC1aQ7uu5UhlAAA6mIQAEouabq/TN7PVPJxYb+qBD22\nr7a4ecP3AmcK9TJIGak0QWRXaY25qMxwIrR9eMXgFhSdriUbUSMaBZ9YLZo9lCq9\n4XY13XkjIct1oMafwqh6+Oj/vSZDLGsd777uiiT8iOOq/BpjjxwF5jxPb2xFoIsK\ntambZI2KPDlfoYWk8OYSxsLxyI7dJvvp0UvdWpJgFQYPe15fIKPe9Qd2V+uto1U5\n8fB0PU+tj061O73QLD79gf4ZmPE4SoJwEBvZSDNVfZWSLTER9XBRm6LXgqQDbO8I\n0uwD6rdYwMzGKyPHhT/cMtihymM3aCOl7THRTCXjwX9AcR9ZwwPlBtEr638pzf3h\nVqph+d65N7/AbyDsj8JZzXCFYS5fl3cbFvI9VM8u4/4o26jDIH2hpwNHiKVxh9tN\nrLOJl/QkNASd9+KwVTwE8C6paLtFdXAs3hAqkGO28/8XTkO2VrWT5JGCiobEu3Z9\ne4gH9QOlO0FGpDHPrW+BAL9dzfCleQnGQqCT0RzzsxKB4uYP9TE1nyNuiR1MV23S\nng+r2u8xVpbKtYDj7nqXdZYDiFV/N2NVRxAEHP44Hbk1woFMAO0VXLwymH8NkG8J\n7gHm+GLP2aukylOYV5YZ8bac/oF1J13hx0GWfW0S6C6/7ubrGoQrAcyuSOhke5TY\nz/INScVSWuH1gxpj2Ch6\n=4pt+\n-----END PGP SIGNATURE-----\n",
+      "payload": "tree b1eca92a0c54e14b8e37974c6516a882d13d1442\nparent 7d15ec7671582d0f022013bf36cf8f82a1b04cfc\nparent bdc5987c526a9e9aa1b43975290f69a2370ae37a\nauthor metaphoric-dev <161434094+metaphoric-dev@users.noreply.github.com> 1794853285 +0000\ncommitter GitHub <noreply@github.com> 1794853285 +0000\n\nMerge bdc5987c526a9e9aa1b43975290f69a2370ae37a into 7d15ec7671582d0f022013bf36cf8f82a1b04cfc\n",
+      "verified_at": "2026-11-16T18:21:25Z"
+    }
+  },
+  "root_tree": {
+    "sha": "b1eca92a0c54e14b8e37974c6516a882d13d1442",
+    "url": "https://api.github.com/repos/gosuda/LoGOs/git/trees/b1eca92a0c54e14b8e37974c6516a882d13d1442",
+    "tree": [
+      {
+        "path": ".claude-plugin",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "af5ce22194554af99442a461ad81610cd670cd91",
+        "url": "https://api.github.com/repos/gosuda/LoGOs/git/trees/af5ce22194554af99442a461ad81610cd670cd91"
+      },
+      {
+        "path": ".devin",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "fab796ba0a5f52fa75c79b6481504522b3a266d2",
+        "url": "https://api.github.com/repos/gosuda/LoGOs/git/trees/fab796ba0a5f52fa75c79b6481504522b3a266d2"
+      },
+      {
+        "path": ".gitattributes",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "cabbb1732c418125f9c773ce7a28ba34f2708554",
+        "size": 639,
+        "url": "https://api.github.com/repos/gosuda/LoGOs/git/blobs/cabbb1732c418125f9c773ce7a28ba34f2708554"
+      },
+      {
+        "path": ".github",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "02e78d2623b49af689c616902ae753c7bb80917d",
+        "url": "https://api.github.com/repos/gosuda/LoGOs/git/trees/02e78d2623b49af689c616902ae753c7bb80917d"
+      },
+      {
+        "path": ".gitignore",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "344b31f7ac1c1d3d8409da4774b9ea13e0142fb5",
+        "size": 975,
+        "url": "https://api.github.com/repos/gosuda/LoGOs/git/blobs/344b31f7ac1c1d3d8409da4774b9ea13e0142fb5"
+      },
+      {
+        "path": "AGENTS.md",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "2fe252a8985e4e53dd4b49a47f4123e7af92b822",
+        "size": 3316,
+        "url": "https://api.github.com/repos/gosuda/LoGOs/git/blobs/2fe252a8985e4e53dd4b49a47f4123e7af92b822"
+      },
+      {
+        "path": "CONTRIBUTING.md",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "4cd76c29503d5dcee45240cd4de94e4f25c78d28",
+        "size": 1337,
+        "url": "https://api.github.com/repos/gosuda/LoGOs/git/blobs/4cd76c29503d5dcee45240cd4de94e4f25c78d28"
+      },
+      {
+        "path": "LICENSE",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "2a7cf70da6e498df9c11ab6a5eaa2ddd7af34da4",
+        "size": 1453,
+        "url": "https://api.github.com/repos/gosuda/LoGOs/git/blobs/2a7cf70da6e498df9c11ab6a5eaa2ddd7af34da4"
+      },
+      {
+        "path": "PATENTS",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "733099041f84fa1e58611ab2e11af51c1f26d1d2",
+        "size": 1303,
+        "url": "https://api.github.com/repos/gosuda/LoGOs/git/blobs/733099041f84fa1e58611ab2e11af51c1f26d1d2"
+      },
+      {
+        "path": "README.go.md",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "71c9d1dc2993880f38d227085d1b48c4070d1e85",
+        "size": 1454,
+        "url": "https://api.github.com/repos/gosuda/LoGOs/git/blobs/71c9d1dc2993880f38d227085d1b48c4070d1e85"
+      },
+      {
+        "path": "README.md",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "f2faac5a2ab145ee8795d2d2770866c2e899f19c",
+        "size": 21780,
+        "url": "https://api.github.com/repos/gosuda/LoGOs/git/blobs/f2faac5a2ab145ee8795d2d2770866c2e899f19c"
+      },
+      {
+        "path": "SECURITY.md",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "e1718f0b012f7cea592027ae7574a6878f05f3fc",
+        "size": 426,
+        "url": "https://api.github.com/repos/gosuda/LoGOs/git/blobs/e1718f0b012f7cea592027ae7574a6878f05f3fc"
+      },
+      {
+        "path": "VERSION",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "2a54d5251fd3f85feba83beb77569c4430239b17",
+        "size": 35,
+        "url": "https://api.github.com/repos/gosuda/LoGOs/git/blobs/2a54d5251fd3f85feba83beb77569c4430239b17"
+      },
+      {
+        "path": "api",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "6a019efbff2047ee292396823fd857000d3b91e4",
+        "url": "https://api.github.com/repos/gosuda/LoGOs/git/trees/6a019efbff2047ee292396823fd857000d3b91e4"
+      },
+      {
+        "path": "codereview.cfg",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "374849066b3121af85e7ebc49c5db32d709f968c",
+        "size": 52,
+        "url": "https://api.github.com/repos/gosuda/LoGOs/git/blobs/374849066b3121af85e7ebc49c5db32d709f968c"
+      },
+      {
+        "path": "doc",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "0e1d61364d8f69eff3ca1728580857dad441b820",
+        "url": "https://api.github.com/repos/gosuda/LoGOs/git/trees/0e1d61364d8f69eff3ca1728580857dad441b820"
+      },
+      {
+        "path": "go.env",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "6ff2b921d464bc64266c9d84a67a33fb5505d216",
+        "size": 505,
+        "url": "https://api.github.com/repos/gosuda/LoGOs/git/blobs/6ff2b921d464bc64266c9d84a67a33fb5505d216"
+      },
+      {
+        "path": "lib",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "3cafa6a8007068f1081ca315f281554164f91363",
+        "url": "https://api.github.com/repos/gosuda/LoGOs/git/trees/3cafa6a8007068f1081ca315f281554164f91363"
+      },
+      {
+        "path": "logos-doc",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "43b4e09accd7d3b473d4b3ab75c328192576bc7b",
+        "url": "https://api.github.com/repos/gosuda/LoGOs/git/trees/43b4e09accd7d3b473d4b3ab75c328192576bc7b"
+      },
+      {
+        "path": "misc",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "110da380fbd225f7bf61932b404f77d3c5b22a03",
+        "url": "https://api.github.com/repos/gosuda/LoGOs/git/trees/110da380fbd225f7bf61932b404f77d3c5b22a03"
+      },
+      {
+        "path": "plugins",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "fb9e4d90e44815fd7896b9e92441bfd61fe5bdab",
+        "url": "https://api.github.com/repos/gosuda/LoGOs/git/trees/fb9e4d90e44815fd7896b9e92441bfd61fe5bdab"
+      },
+      {
+        "path": "src",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "61483affd1671d27e29a1a1aadc5299ba675f789",
+        "url": "https://api.github.com/repos/gosuda/LoGOs/git/trees/61483affd1671d27e29a1a1aadc5299ba675f789"
+      },
+      {
+        "path": "tasks",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "b0017a48faf7e12515f3491ae465ce43adb5f9f7",
+        "url": "https://api.github.com/repos/gosuda/LoGOs/git/trees/b0017a48faf7e12515f3491ae465ce43adb5f9f7"
+      },
+      {
+        "path": "test",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "a64f88184df739e681c29c83e059d44ab6fda7bd",
+        "url": "https://api.github.com/repos/gosuda/LoGOs/git/trees/a64f88184df739e681c29c83e059d44ab6fda7bd"
+      }
+    ],
+    "truncated": false
+  },
+  "head_delta": {
+    "url": "https://api.github.com/repos/gosuda/LoGOs/compare/bdc5987c526a9e9aa1b43975290f69a2370ae37a...df9692747da8b773c8714f5497a5d0f61f06e956",
+    "html_url": "https://github.com/gosuda/LoGOs/compare/bdc5987c526a9e9aa1b43975290f69a2370ae37a...df9692747da8b773c8714f5497a5d0f61f06e956",
+    "permalink_url": "https://github.com/gosuda/LoGOs/compare/gosuda:bdc5987...gosuda:df96927",
+    "diff_url": "https://github.com/gosuda/LoGOs/compare/bdc5987c526a9e9aa1b43975290f69a2370ae37a...df9692747da8b773c8714f5497a5d0f61f06e956.diff",
+    "patch_url": "https://github.com/gosuda/LoGOs/compare/bdc5987c526a9e9aa1b43975290f69a2370ae37a...df9692747da8b773c8714f5497a5d0f61f06e956.patch",
+    "base_commit": {
+      "sha": "bdc5987c526a9e9aa1b43975290f69a2370ae37a",
+      "node_id": "C_kwDOVOeymdoAKGJkYzU5ODdjNTI2YTllOWFhMWI0Mzk3NTI5MGY2OWEyMzcwYWUzN2E",
+      "commit": {
+        "author": {
+          "name": "metaphoric-dev",
+          "email": "161434094+metaphoric-dev@users.noreply.github.com",
+          "date": "2026-11-16T18:21:18Z"
+        },
+        "committer": {
+          "name": "metaphoric-dev",
+          "email": "161434094+metaphoric-dev@users.noreply.github.com",
+          "date": "2026-11-16T18:21:18Z"
+        },
+        "message": "Run the unchanged regression gates on Ubuntu 24.04\n\nThe three Ubuntu 26.04 jobs remain queued without assigned runners. Use the\nUbuntu 24.04 profile that completed the companion Go 1.27.4 linter gates.\nKeep all test commands, timeouts, fixtures, and compiler sources unchanged.\nThis is a host-profile retry, not evidence that Ubuntu 26.04 is unsupported.",
+        "tree": {
+          "sha": "b1eca92a0c54e14b8e37974c6516a882d13d1442",
+          "url": "https://api.github.com/repos/gosuda/LoGOs/git/trees/b1eca92a0c54e14b8e37974c6516a882d13d1442"
+        },
+        "url": "https://api.github.com/repos/gosuda/LoGOs/git/commits/bdc5987c526a9e9aa1b43975290f69a2370ae37a",
+        "comment_count": 0,
+        "verification": {
+          "verified": false,
+          "reason": "unsigned",
+          "signature": null,
+          "payload": null,
+          "verified_at": null
+        }
+      },
+      "url": "https://api.github.com/repos/gosuda/LoGOs/commits/bdc5987c526a9e9aa1b43975290f69a2370ae37a",
+      "html_url": "https://github.com/gosuda/LoGOs/commit/bdc5987c526a9e9aa1b43975290f69a2370ae37a",
+      "comments_url": "https://api.github.com/repos/gosuda/LoGOs/commits/bdc5987c526a9e9aa1b43975290f69a2370ae37a/comments",
+      "author": {
+        "login": "metaphoric-dev",
+        "id": 161434094,
+        "node_id": "U_kgDOCZ9J7g",
+        "avatar_url": "https://avatars.githubusercontent.com/u/161434094?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/metaphoric-dev",
+        "html_url": "https://github.com/metaphoric-dev",
+        "followers_url": "https://api.github.com/users/metaphoric-dev/followers",
+        "following_url": "https://api.github.com/users/metaphoric-dev/following{/other_user}",
+        "gists_url": "https://api.github.com/users/metaphoric-dev/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/metaphoric-dev/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/metaphoric-dev/subscriptions",
+        "organizations_url": "https://api.github.com/users/metaphoric-dev/orgs",
+        "repos_url": "https://api.github.com/users/metaphoric-dev/repos",
+        "events_url": "https://api.github.com/users/metaphoric-dev/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/metaphoric-dev/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "metaphoric-dev",
+        "id": 161434094,
+        "node_id": "U_kgDOCZ9J7g",
+        "avatar_url": "https://avatars.githubusercontent.com/u/161434094?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/metaphoric-dev",
+        "html_url": "https://github.com/metaphoric-dev",
+        "followers_url": "https://api.github.com/users/metaphoric-dev/followers",
+        "following_url": "https://api.github.com/users/metaphoric-dev/following{/other_user}",
+        "gists_url": "https://api.github.com/users/metaphoric-dev/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/metaphoric-dev/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/metaphoric-dev/subscriptions",
+        "organizations_url": "https://api.github.com/users/metaphoric-dev/orgs",
+        "repos_url": "https://api.github.com/users/metaphoric-dev/repos",
+        "events_url": "https://api.github.com/users/metaphoric-dev/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/metaphoric-dev/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "53b7c3aaaee74d8b7c5ff5fd0ce3ad7fd62c144d",
+          "url": "https://api.github.com/repos/gosuda/LoGOs/commits/53b7c3aaaee74d8b7c5ff5fd0ce3ad7fd62c144d",
+          "html_url": "https://github.com/gosuda/LoGOs/commit/53b7c3aaaee74d8b7c5ff5fd0ce3ad7fd62c144d"
+        }
+      ]
+    },
+    "merge_base_commit": {
+      "sha": "bdc5987c526a9e9aa1b43975290f69a2370ae37a",
+      "node_id": "C_kwDOVOeymdoAKGJkYzU5ODdjNTI2YTllOWFhMWI0Mzk3NTI5MGY2OWEyMzcwYWUzN2E",
+      "commit": {
+        "author": {
+          "name": "metaphoric-dev",
+          "email": "161434094+metaphoric-dev@users.noreply.github.com",
+          "date": "2026-11-16T18:21:18Z"
+        },
+        "committer": {
+          "name": "metaphoric-dev",
+          "email": "161434094+metaphoric-dev@users.noreply.github.com",
+          "date": "2026-11-16T18:21:18Z"
+        },
+        "message": "Run the unchanged regression gates on Ubuntu 24.04\n\nThe three Ubuntu 26.04 jobs remain queued without assigned runners. Use the\nUbuntu 24.04 profile that completed the companion Go 1.27.4 linter gates.\nKeep all test commands, timeouts, fixtures, and compiler sources unchanged.\nThis is a host-profile retry, not evidence that Ubuntu 26.04 is unsupported.",
+        "tree": {
+          "sha": "b1eca92a0c54e14b8e37974c6516a882d13d1442",
+          "url": "https://api.github.com/repos/gosuda/LoGOs/git/trees/b1eca92a0c54e14b8e37974c6516a882d13d1442"
+        },
+        "url": "https://api.github.com/repos/gosuda/LoGOs/git/commits/bdc5987c526a9e9aa1b43975290f69a2370ae37a",
+        "comment_count": 0,
+        "verification": {
+          "verified": false,
+          "reason": "unsigned",
+          "signature": null,
+          "payload": null,
+          "verified_at": null
+        }
+      },
+      "url": "https://api.github.com/repos/gosuda/LoGOs/commits/bdc5987c526a9e9aa1b43975290f69a2370ae37a",
+      "html_url": "https://github.com/gosuda/LoGOs/commit/bdc5987c526a9e9aa1b43975290f69a2370ae37a",
+      "comments_url": "https://api.github.com/repos/gosuda/LoGOs/commits/bdc5987c526a9e9aa1b43975290f69a2370ae37a/comments",
+      "author": {
+        "login": "metaphoric-dev",
+        "id": 161434094,
+        "node_id": "U_kgDOCZ9J7g",
+        "avatar_url": "https://avatars.githubusercontent.com/u/161434094?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/metaphoric-dev",
+        "html_url": "https://github.com/metaphoric-dev",
+        "followers_url": "https://api.github.com/users/metaphoric-dev/followers",
+        "following_url": "https://api.github.com/users/metaphoric-dev/following{/other_user}",
+        "gists_url": "https://api.github.com/users/metaphoric-dev/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/metaphoric-dev/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/metaphoric-dev/subscriptions",
+        "organizations_url": "https://api.github.com/users/metaphoric-dev/orgs",
+        "repos_url": "https://api.github.com/users/metaphoric-dev/repos",
+        "events_url": "https://api.github.com/users/metaphoric-dev/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/metaphoric-dev/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "metaphoric-dev",
+        "id": 161434094,
+        "node_id": "U_kgDOCZ9J7g",
+        "avatar_url": "https://avatars.githubusercontent.com/u/161434094?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/metaphoric-dev",
+        "html_url": "https://github.com/metaphoric-dev",
+        "followers_url": "https://api.github.com/users/metaphoric-dev/followers",
+        "following_url": "https://api.github.com/users/metaphoric-dev/following{/other_user}",
+        "gists_url": "https://api.github.com/users/metaphoric-dev/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/metaphoric-dev/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/metaphoric-dev/subscriptions",
+        "organizations_url": "https://api.github.com/users/metaphoric-dev/orgs",
+        "repos_url": "https://api.github.com/users/metaphoric-dev/repos",
+        "events_url": "https://api.github.com/users/metaphoric-dev/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/metaphoric-dev/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "53b7c3aaaee74d8b7c5ff5fd0ce3ad7fd62c144d",
+          "url": "https://api.github.com/repos/gosuda/LoGOs/commits/53b7c3aaaee74d8b7c5ff5fd0ce3ad7fd62c144d",
+          "html_url": "https://github.com/gosuda/LoGOs/commit/53b7c3aaaee74d8b7c5ff5fd0ce3ad7fd62c144d"
+        }
+      ]
+    },
+    "status": "ahead",
+    "ahead_by": 1,
+    "behind_by": 0,
+    "total_commits": 1,
+    "commits": [
+      {
+        "sha": "df9692747da8b773c8714f5497a5d0f61f06e956",
+        "node_id": "C_kwDOVOeymdoAKGRmOTY5Mjc0N2RhOGI3NzNjODcxNGY1NDk3YTVkMGY2MWYwNmU5NTY",
+        "commit": {
+          "author": {
+            "name": "metaphoric-dev",
+            "email": "161434094+metaphoric-dev@users.noreply.github.com",
+            "date": "2026-11-16T18:21:25Z"
+          },
+          "committer": {
+            "name": "GitHub",
+            "email": "noreply@github.com",
+            "date": "2026-11-16T18:21:25Z"
+          },
+          "message": "Merge bdc5987c526a9e9aa1b43975290f69a2370ae37a into 7d15ec7671582d0f022013bf36cf8f82a1b04cfc",
+          "tree": {
+            "sha": "b1eca92a0c54e14b8e37974c6516a882d13d1442",
+            "url": "https://api.github.com/repos/gosuda/LoGOs/git/trees/b1eca92a0c54e14b8e37974c6516a882d13d1442"
+          },
+          "url": "https://api.github.com/repos/gosuda/LoGOs/git/commits/df9692747da8b773c8714f5497a5d0f61f06e956",
+          "comment_count": 0,
+          "verification": {
+            "verified": true,
+            "reason": "valid",
+            "signature": "-----BEGIN PGP SIGNATURE-----\n\nwsFcBAABCAAQBQJq+0mlCRC1aQ7uu5UhlAAA6mIQAEouabq/TN7PVPJxYb+qBD22\nr7a4ecP3AmcK9TJIGak0QWRXaY25qMxwIrR9eMXgFhSdriUbUSMaBZ9YLZo9lCq9\n4XY13XkjIct1oMafwqh6+Oj/vSZDLGsd777uiiT8iOOq/BpjjxwF5jxPb2xFoIsK\ntambZI2KPDlfoYWk8OYSxsLxyI7dJvvp0UvdWpJgFQYPe15fIKPe9Qd2V+uto1U5\n8fB0PU+tj061O73QLD79gf4ZmPE4SoJwEBvZSDNVfZWSLTER9XBRm6LXgqQDbO8I\n0uwD6rdYwMzGKyPHhT/cMtihymM3aCOl7THRTCXjwX9AcR9ZwwPlBtEr638pzf3h\nVqph+d65N7/AbyDsj8JZzXCFYS5fl3cbFvI9VM8u4/4o26jDIH2hpwNHiKVxh9tN\nrLOJl/QkNASd9+KwVTwE8C6paLtFdXAs3hAqkGO28/8XTkO2VrWT5JGCiobEu3Z9\ne4gH9QOlO0FGpDHPrW+BAL9dzfCleQnGQqCT0RzzsxKB4uYP9TE1nyNuiR1MV23S\nng+r2u8xVpbKtYDj7nqXdZYDiFV/N2NVRxAEHP44Hbk1woFMAO0VXLwymH8NkG8J\n7gHm+GLP2aukylOYV5YZ8bac/oF1J13hx0GWfW0S6C6/7ubrGoQrAcyuSOhke5TY\nz/INScVSWuH1gxpj2Ch6\n=4pt+\n-----END PGP SIGNATURE-----\n",
+            "payload": "tree b1eca92a0c54e14b8e37974c6516a882d13d1442\nparent 7d15ec7671582d0f022013bf36cf8f82a1b04cfc\nparent bdc5987c526a9e9aa1b43975290f69a2370ae37a\nauthor metaphoric-dev <161434094+metaphoric-dev@users.noreply.github.com> 1794853285 +0000\ncommitter GitHub <noreply@github.com> 1794853285 +0000\n\nMerge bdc5987c526a9e9aa1b43975290f69a2370ae37a into 7d15ec7671582d0f022013bf36cf8f82a1b04cfc\n",
+            "verified_at": "2026-11-16T18:21:25Z"
+          }
+        },
+        "url": "https://api.github.com/repos/gosuda/LoGOs/commits/df9692747da8b773c8714f5497a5d0f61f06e956",
+        "html_url": "https://github.com/gosuda/LoGOs/commit/df9692747da8b773c8714f5497a5d0f61f06e956",
+        "comments_url": "https://api.github.com/repos/gosuda/LoGOs/commits/df9692747da8b773c8714f5497a5d0f61f06e956/comments",
+        "author": {
+          "login": "metaphoric-dev",
+          "id": 161434094,
+          "node_id": "U_kgDOCZ9J7g",
+          "avatar_url": "https://avatars.githubusercontent.com/u/161434094?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/metaphoric-dev",
+          "html_url": "https://github.com/metaphoric-dev",
+          "followers_url": "https://api.github.com/users/metaphoric-dev/followers",
+          "following_url": "https://api.github.com/users/metaphoric-dev/following{/other_user}",
+          "gists_url": "https://api.github.com/users/metaphoric-dev/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/metaphoric-dev/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/metaphoric-dev/subscriptions",
+          "organizations_url": "https://api.github.com/users/metaphoric-dev/orgs",
+          "repos_url": "https://api.github.com/users/metaphoric-dev/repos",
+          "events_url": "https://api.github.com/users/metaphoric-dev/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/metaphoric-dev/received_events",
+          "type": "User",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "committer": {
+          "login": "web-flow",
+          "id": 19864447,
+          "node_id": "MDQ6VXNlcjE5ODY0NDQ3",
+          "avatar_url": "https://avatars.githubusercontent.com/u/19864447?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/web-flow",
+          "html_url": "https://github.com/web-flow",
+          "followers_url": "https://api.github.com/users/web-flow/followers",
+          "following_url": "https://api.github.com/users/web-flow/following{/other_user}",
+          "gists_url": "https://api.github.com/users/web-flow/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/web-flow/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/web-flow/subscriptions",
+          "organizations_url": "https://api.github.com/users/web-flow/orgs",
+          "repos_url": "https://api.github.com/users/web-flow/repos",
+          "events_url": "https://api.github.com/users/web-flow/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/web-flow/received_events",
+          "type": "User",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "parents": [
+          {
+            "sha": "7d15ec7671582d0f022013bf36cf8f82a1b04cfc",
+            "url": "https://api.github.com/repos/gosuda/LoGOs/commits/7d15ec7671582d0f022013bf36cf8f82a1b04cfc",
+            "html_url": "https://github.com/gosuda/LoGOs/commit/7d15ec7671582d0f022013bf36cf8f82a1b04cfc"
+          },
+          {
+            "sha": "bdc5987c526a9e9aa1b43975290f69a2370ae37a",
+            "url": "https://api.github.com/repos/gosuda/LoGOs/commits/bdc5987c526a9e9aa1b43975290f69a2370ae37a",
+            "html_url": "https://github.com/gosuda/LoGOs/commit/bdc5987c526a9e9aa1b43975290f69a2370ae37a"
+          }
+        ]
+      }
+    ],
+    "files": []
+  },
+  "identical_head_and_tested_tree": true
+}

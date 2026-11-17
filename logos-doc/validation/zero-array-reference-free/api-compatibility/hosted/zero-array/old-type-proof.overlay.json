@@ -1,0 +1,5 @@
+{
+  "Replace": {
+    "/home/runner/work/LoGOs/LoGOs/src/cmd/compile/internal/types2/const_logos.go": "/home/runner/work/LoGOs/LoGOs/logos-doc/validation/zero-array-reference-free/old-const_logos.go.txt"
+  }
+}

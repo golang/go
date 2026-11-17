@@ -1,0 +1,70 @@
+{
+  "schema": 1,
+  "baseline_commit": "1f3ed5cefb5d3005f90852cbe84035b4eb829f1f",
+  "baseline_source_tree": "61483affd1671d27e29a1a1aadc5299ba675f789",
+  "compared_native_head": "bdc5987c526a9e9aa1b43975290f69a2370ae37a",
+  "production_changed": false,
+  "execution_status": "pending_ci",
+  "red_status": "pending_named_test_failure_with_old_production_overlay",
+  "green_status": "pending_unchanged_tests_on_candidate",
+  "old_production": {
+    "source_path": "src/cmd/compile/internal/logos/optfacts.go",
+    "archive_path": "logos-doc/validation/tagged-package-facts/old-optfacts.go.txt",
+    "sha256": "5ff9035b2998b75772223068366f1fdca121b3b738f1e35ba8bc7cc4da00be9d"
+  },
+  "new_tests": [
+    {
+      "path": "src/cmd/compile/internal/logos/optfacts_tagged_test.go",
+      "sha256": "cecb8d8738e9c80777700da61c4cbec395cbe9e034d550679101d510f10b6ead",
+      "leaf_cases": 92
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/compile_tagged_facts_test.go",
+      "sha256": "f3b308710d0f57ed15a2ef94d53750944c14ae9b10bafc788d8a1b26361ecbd8",
+      "leaf_cases": 2
+    }
+  ],
+  "unchanged_existing_tests": [
+    {
+      "path": "src/cmd/compile/internal/logos/optfacts_scope_test.go",
+      "sha256": "0899e0c6da711b269e4a586ce96e2f9daaa90ccf211541664c30e9977add3317",
+      "leaf_cases": 28
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/compile_local_type_import_test.go",
+      "sha256": "05daf14fc22048833996164c3ca56231cc857d67c8a7456bdb3b24d1cd9183af",
+      "leaf_cases": 20
+    }
+  ],
+  "actual_archive_profile": {
+    "driver": "installed_fork_go",
+    "GOOS": "linux",
+    "GOARCH": "amd64",
+    "GOEXPERIMENT": "none,simd",
+    "CGO_ENABLED": "0",
+    "GOTOOLCHAIN": "local",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "GOENV": "off",
+    "target_binary_execution": false,
+    "required_pass_test": "TestCompileSIMDTaggedFuncFacts",
+    "required_pass_subtests": [
+      "TestCompileSIMDTaggedFuncFacts/Float32sFromArch@simd0",
+      "TestCompileSIMDTaggedFuncFacts/Float32sFromArch@simd128"
+    ]
+  },
+  "named_negative_control": "TestFactScopeTaggedFunctionAssertions/Project@simd128/mask=0",
+  "negative_control_must_not_accept": [
+    "compilation_failure",
+    "missing_named_failure_event",
+    "skipped_test",
+    "zero_tests"
+  ],
+  "static_checks": {
+    "gofmt_empty_output": true,
+    "original_test_files_unchanged": true,
+    "archived_old_production_matches": true,
+    "independent_source_review": "no_blocking_api_or_oracle_issue",
+    "local_go_builds_or_tests_run": false
+  }
+}

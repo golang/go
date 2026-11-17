@@ -191,6 +191,9 @@ func (r *Rewriter) Rewrite(files []*syntax.File) {
 		r.generateDispatchers(fileAST)
 
 		fileAST.DeclList = append(fileAST.DeclList, newDecls...)
+		if len(newDecls) > 0 && !r.analyzer.inSimd {
+			r.injectRewriteImports(fileAST)
+		}
 	}
 }
 
@@ -252,56 +255,6 @@ func (r *Rewriter) generateDispatchers(fileAST *syntax.File) {
 	}
 
 	fileAST.DeclList = newDecls
-
-	if !r.analyzer.inSimd {
-		// Inject an import to the bridge package (if not exists)
-		hasArchSimd := false
-		var simdImport *syntax.ImportDecl
-		p := fileAST.Pos()
-		for _, decl := range fileAST.DeclList {
-			if imp, ok := decl.(*syntax.ImportDecl); ok {
-				if imp.Path.Value == `"`+archFullPkg+`"` {
-					hasArchSimd = true
-					if simdImport == nil {
-						p = imp.Pos()
-					}
-				}
-				if imp.Path.Value == `"`+simdPkg+`"` {
-					simdImport = imp
-					p = imp.Pos()
-				}
-			}
-		}
-
-		if !hasArchSimd {
-			r.injectImport(fileAST, archFullPkg, p)
-		}
-
-		// Ensure at least one use of "simd"
-		// var _ = simd.VectorBitLen()
-		fun := &syntax.SelectorExpr{
-			X:   syntax.NewName(p, simdPkg), // Assume this is resolvable
-			Sel: syntax.NewName(p, vectorSizeFn),
-		}
-		fun.SetPos(p)
-		call := &syntax.CallExpr{Fun: fun}
-		call.SetPos(p)
-
-		name := syntax.NewName(p, "_")
-
-		varDecl := &syntax.VarDecl{NameList: []*syntax.Name{name}, Values: call}
-		varDecl.SetPos(p)
-		fileAST.DeclList = append(fileAST.DeclList, varDecl)
-	}
-}
-
-func (r *Rewriter) injectImport(fileAST *syntax.File, toImport string, simdImportPos syntax.Pos) {
-	importDecl := &syntax.ImportDecl{
-		Path: &syntax.BasicLit{Value: `"` + toImport + `"`, Kind: syntax.StringLit},
-	}
-	importDecl.Path.SetPos(simdImportPos)
-	importDecl.SetPos(simdImportPos)
-	fileAST.DeclList = append([]syntax.Decl{importDecl}, fileAST.DeclList...)
 }
 
 func (r *Rewriter) createDispatcherBody(d *syntax.FuncDecl, sig *types2.Signature) *syntax.BlockStmt {
@@ -344,7 +297,7 @@ func (r *Rewriter) createDispatcherBody(d *syntax.FuncDecl, sig *types2.Signatur
 	switchStmt := &syntax.SwitchStmt{
 		Tag: pe(&syntax.CallExpr{
 			Fun: pe(&syntax.SelectorExpr{
-				X:   syntax.NewName(d.Pos(), simdPkg), // Assume this is resolvable
+				X:   syntax.NewName(d.Pos(), simdRewriteName),
 				Sel: syntax.NewName(d.Pos(), vectorSizeFn),
 			}),
 		}),
@@ -382,7 +335,7 @@ func (r *Rewriter) createDispatcherBody(d *syntax.FuncDecl, sig *types2.Signatur
 			// save it for the first part of the 128 case.
 			cond := pe(&syntax.CallExpr{
 				Fun: pe(&syntax.SelectorExpr{
-					X:   syntax.NewName(d.Pos(), simdPkg), // Assume this is resolvable
+					X:   syntax.NewName(d.Pos(), simdRewriteName),
 					Sel: syntax.NewName(d.Pos(), emulatedFn),
 				})})
 

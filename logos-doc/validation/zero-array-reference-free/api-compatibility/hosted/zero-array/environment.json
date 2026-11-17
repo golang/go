@@ -1,0 +1,20 @@
+{
+  "CGO_ENABLED": "0",
+  "GITHUB_REF": "refs/pull/71/merge",
+  "GITHUB_RUN_ATTEMPT": "1",
+  "GITHUB_RUN_ID": "43967559240",
+  "GITHUB_SHA": "80017cfd2cf24c528b5f64bc0bd55112f00cba98",
+  "GOAMD64": "v1",
+  "GOARCH": "amd64",
+  "GODEBUG": "",
+  "GOENV": "off",
+  "GOEXPERIMENT": "none",
+  "GOFLAGS": "-mod=readonly -buildvcs=false",
+  "GOOS": "linux",
+  "GOPROXY": "off",
+  "GOROOT": "/home/runner/work/LoGOs/LoGOs",
+  "GOSUMDB": "off",
+  "GOTELEMETRY": "off",
+  "GOTOOLCHAIN": "local",
+  "GOWORK": "off"
+}

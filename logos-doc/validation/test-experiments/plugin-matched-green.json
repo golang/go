@@ -1,0 +1,132 @@
+{
+  "complete": true,
+  "scope": "corrected frozen plugin fixture with matching O1 host and child; isolated cmd/go overlay",
+  "driver_sha256": "831fcd79bc87bc2aaa0f9cb4fb25f2352b56611ff8b147ad6f0c9f92c867dbb5",
+  "rows": [
+    {
+      "name": "plain",
+      "run": {
+        "command": [
+          "/workspace/scratch/d8d410ec882d/corpus-review/test-env/bin/go",
+          "test",
+          "-count=1",
+          "-timeout=120s",
+          "-run",
+          "^TestChildPlugin$",
+          "."
+        ],
+        "cwd": "/workspace/scratch/d8d410ec882d/corpus-review/test-env/plugin-plain",
+        "environment": {
+          "PATH": "/workspace/scratch/d8d410ec882d/corpus-review/test-env/bin:/workspace/scratch/93e0563596d1/LoGOs/bin:/usr/bin:/bin",
+          "GOROOT": "/workspace/scratch/93e0563596d1/LoGOs",
+          "GOTOOLCHAIN": "local",
+          "GOENV": "off",
+          "GOWORK": "off",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOTELEMETRY": "off",
+          "CGO_ENABLED": "1",
+          "GOFLAGS": "-mod=readonly -buildvcs=false -p=1",
+          "GOMAXPROCS": "1",
+          "GOMEMLIMIT": "512MiB",
+          "GOCACHE": "/workspace/scratch/93e0563596d1/corpus-cache/logos",
+          "TMPDIR": "/dev/shm/dogfood-review-d8d410ec882d",
+          "CC": "/usr/bin/cc",
+          "GOEXPERIMENT": ""
+        },
+        "returncode": 0,
+        "timed_out": false,
+        "error": "",
+        "seconds": 2.212,
+        "stdout": "/workspace/scratch/d8d410ec882d/corpus-review/test-env/plugin-green-logs/plain.stdout",
+        "stderr": "/workspace/scratch/d8d410ec882d/corpus-review/test-env/plugin-green-logs/plain.stderr",
+        "stdout_sha256": "a6ca745fa051e153b1a513f257de7d1138014901ff11823a2c8dc1a56fa1c73d",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "logos-arena",
+      "run": {
+        "command": [
+          "/workspace/scratch/d8d410ec882d/corpus-review/test-env/bin/logos",
+          "test",
+          "-O=1",
+          "-count=1",
+          "-timeout=120s",
+          "-run",
+          "^TestChildPlugin$",
+          "."
+        ],
+        "cwd": "/workspace/scratch/d8d410ec882d/corpus-review/test-env/plugin-logos-arena",
+        "environment": {
+          "PATH": "/workspace/scratch/d8d410ec882d/corpus-review/test-env/bin:/workspace/scratch/93e0563596d1/LoGOs/bin:/usr/bin:/bin",
+          "GOROOT": "/workspace/scratch/93e0563596d1/LoGOs",
+          "GOTOOLCHAIN": "local",
+          "GOENV": "off",
+          "GOWORK": "off",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOTELEMETRY": "off",
+          "CGO_ENABLED": "1",
+          "GOFLAGS": "-mod=readonly -buildvcs=false -p=1",
+          "GOMAXPROCS": "1",
+          "GOMEMLIMIT": "512MiB",
+          "GOCACHE": "/workspace/scratch/93e0563596d1/corpus-cache/logos",
+          "TMPDIR": "/dev/shm/dogfood-review-d8d410ec882d",
+          "CC": "/usr/bin/cc",
+          "GOEXPERIMENT": ""
+        },
+        "returncode": 0,
+        "timed_out": false,
+        "error": "",
+        "seconds": 1.424,
+        "stdout": "/workspace/scratch/d8d410ec882d/corpus-review/test-env/plugin-green-logs/logos-arena.stdout",
+        "stderr": "/workspace/scratch/d8d410ec882d/corpus-review/test-env/plugin-green-logs/logos-arena.stderr",
+        "stdout_sha256": "f6758144c44e057fd008c3ff1d25177912df5f9a04157011d76527005b834d33",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "logos-none-arena-off",
+      "run": {
+        "command": [
+          "/workspace/scratch/d8d410ec882d/corpus-review/test-env/bin/logos",
+          "test",
+          "-O=1",
+          "-count=1",
+          "-timeout=120s",
+          "-run",
+          "^TestChildPlugin$",
+          "."
+        ],
+        "cwd": "/workspace/scratch/d8d410ec882d/corpus-review/test-env/plugin-logos-none-arena-off",
+        "environment": {
+          "PATH": "/workspace/scratch/d8d410ec882d/corpus-review/test-env/bin:/workspace/scratch/93e0563596d1/LoGOs/bin:/usr/bin:/bin",
+          "GOROOT": "/workspace/scratch/93e0563596d1/LoGOs",
+          "GOTOOLCHAIN": "local",
+          "GOENV": "off",
+          "GOWORK": "off",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOTELEMETRY": "off",
+          "CGO_ENABLED": "1",
+          "GOFLAGS": "-mod=readonly -buildvcs=false -p=1",
+          "GOMAXPROCS": "1",
+          "GOMEMLIMIT": "512MiB",
+          "GOCACHE": "/workspace/scratch/93e0563596d1/corpus-cache/logos",
+          "TMPDIR": "/dev/shm/dogfood-review-d8d410ec882d",
+          "CC": "/usr/bin/cc",
+          "GOEXPERIMENT": "none"
+        },
+        "returncode": 0,
+        "timed_out": false,
+        "error": "",
+        "seconds": 33.37,
+        "stdout": "/workspace/scratch/d8d410ec882d/corpus-review/test-env/plugin-green-logs/logos-none-arena-off.stdout",
+        "stderr": "/workspace/scratch/d8d410ec882d/corpus-review/test-env/plugin-green-logs/logos-none-arena-off.stderr",
+        "stdout_sha256": "6334e84eb393f6d1ed0f74a7a6c8924deae58f09a1efe69ee0a737da5532c468",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    }
+  ]
+}

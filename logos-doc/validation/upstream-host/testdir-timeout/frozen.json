@@ -1,0 +1,33 @@
+{
+  "artifact_id": 14274507833,
+  "artifact_zip_sha256": "7be2f648a9c9789a3140e0c2525c8e5775f5b7ce054568d82e7d3c2313079ae0",
+  "base_commit": "ed3b743476c4665e89f18f6c2f3d090bbf3610b8",
+  "execution_status": "new three-way hosted execution pending",
+  "failing_head": "9909feb26fe92b124f17c11fdf0022be7a643188",
+  "failing_run": 43951103189,
+  "files": {
+    "evidence/all-tests.txt": "5b4fb09e6d180e745995ec1d7ac4f614750b9633c996894acf07a59812dcdfd4",
+    "evidence/cmd-go-exit.txt": "a2c822505301ed45c820b2f42288222a2714253bafd3eee7ac7c496d158efb4c",
+    "evidence/cmd-go-profile.txt": "3ae33c2739c081ac0ef6e849b892b048a498f924924645131dc9ec59170567c0",
+    "evidence/cmd-go.log": "bf198604ea9c2983f4cde1511e951858df3126347c8cb74588f8f6614583f119",
+    "evidence/complement-exit.txt": "ddb94d427509d5e8a33f1b3a2071fe2fa273ada894bd38470872a40febd564b4",
+    "evidence/complement-profile.txt": "5cf38d756876ac40a6b1e20429e7fd2ba164edffb94d41cc8e2492419e8be4fe",
+    "evidence/complement.log": "e7ece7db24128ec38148df6cc82c6fce2f5f8476ee9342c204567ac136ca441c",
+    "evidence/partition.json": "b844251ab17f8cb9ffc28bf9ba8ecb27c2e9bdc3a2eab43aa95d866e337eeb00",
+    "old/logos.yml.txt": "5d8ba6d6f5d5caf2903bd01991081e6cc303fac7ad111d97800e95835d0a1b9a",
+    "old/partition_dist.py.txt": "af19c18bdb6f1e47dfa184096369dfb7737a4e09e74c57a846b60e54bb9ecd04",
+    "old/test_partition_dist.py.txt": "f71aae7f7d8264fdbc9c06b8b8e21208bcea36e03f4977cd3154cdad495f34b8"
+  },
+  "inventory_count": 666,
+  "observed_cmd_go_seconds": 1533.587,
+  "observed_testdir_timeout_seconds": 600.05,
+  "original_cmd_go_exit": 0,
+  "original_complement_exit": 1,
+  "schema": 1,
+  "unchanged_native_inputs": {
+    "logos-doc/validation/native_frozen_gate.py": "c193924ec9e856158319fb65cd267d6d848ab4039bd86e63b0391a912f5aa3bf",
+    "src/cmd/dist/test.go": "d4e9941604d479b9e64a9be4fff46acfffaabac03f80fb50bc28d3fab349628c",
+    "src/cmd/internal/testdir/testdir_test.go": "ecb5d0023a810eb63304a595c0b14224cc75d2caa1e8640fccf25e0fa8f518b3",
+    "src/run.bash": "5da5c4b05c8d9ec80bedb8b6608df6d20a36f5e8cca70aa0eb966cac9d1cf69d"
+  }
+}

@@ -1,0 +1,122 @@
+{
+  "schema": 1,
+  "base_commit": "b61a6cfeb33051791348597fbb69818f4e2ec6f7",
+  "original_native_head": "9909feb26fe92b124f17c11fdf0022be7a643188",
+  "original_native_run": 43951103189,
+  "original_native_job": 133593503956,
+  "original_artifact": 14272030204,
+  "status": "Hosted original consumer failure preserved; new tests not executed locally.",
+  "files": [
+    {
+      "path": "src/cmd/go/internal/work/logos_simd_importcfg_test.go",
+      "sha256": "6c591ebdc93dab5ada1be6d820b53d51cbecb604022869856ad9bb4b47c1fa0e"
+    },
+    {
+      "path": "src/cmd/compile/internal/midway/imports_logos_test.go",
+      "sha256": "e49b102e70714378f2f3723bbbfd73d8cdf1b53faf4a442325609e0fb44b11fc"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/compile_simd_imports_test.go",
+      "sha256": "c263124907b547db3fe8045828ea04243ec94cff1e62edc952f9651e395f567d"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/compile_method_tagged_facts_test.go",
+      "sha256": "16ac4b0eb928d29b23dfe12d7bb11311db4c8b6f7bdf4d6e805983c59366cf5c"
+    },
+    {
+      "path": "src/simd/testdata/iface/iface.go",
+      "sha256": "00adc9cf8b53e4e78ef162d7675b847b11f688b0cdab9ce18739b9a79a5571dd"
+    },
+    {
+      "path": "logos-doc/validation/simd-transitive-imports/native-990-after.json",
+      "sha256": "1695240e614c57308e66b3408ff04174754360fa71080d45302b7ee81dfc32dc"
+    },
+    {
+      "path": "logos-doc/validation/simd-transitive-imports/native-990-before.json",
+      "sha256": "1695240e614c57308e66b3408ff04174754360fa71080d45302b7ee81dfc32dc"
+    },
+    {
+      "path": "logos-doc/validation/simd-transitive-imports/native-990-logos.jsonl",
+      "sha256": "7b27f4cb0b67146edf9b42cd51c5cf35184145185abcec5707121e0dd1dbd894"
+    },
+    {
+      "path": "logos-doc/validation/simd-transitive-imports/native-990-report.json",
+      "sha256": "091595e790106f9adee4551f938417ec97e373482cc44ca8a15b78d52e7cd636"
+    },
+    {
+      "path": "logos-doc/validation/simd-transitive-imports/old-deepcopy.go.txt",
+      "sha256": "1c23ab303493678d2cdd78155b08b442b37c53b973f0cb0ee700866fe0a1fa04"
+    },
+    {
+      "path": "logos-doc/validation/simd-transitive-imports/old-logos_importcfg.go.txt",
+      "sha256": "6440ab3207adf79eadf7424ca5f6c55b465bd4145fff8f42c33a9523e811c762"
+    },
+    {
+      "path": "logos-doc/validation/simd-transitive-imports/old-rewrite.go.txt",
+      "sha256": "e511d4a64739300aa86ad3159bc7d76b386c65a8fa64e2e967ebde96d6ae85d9"
+    }
+  ],
+  "required_names": {
+    "work": [
+      "TestSIMDSynthImports",
+      "TestSIMDSynthImportActionID",
+      "TestSIMDSynthImports/amd64",
+      "TestSIMDSynthImports/arm64",
+      "TestSIMDSynthImports/wasm",
+      "TestSIMDSynthImports/unsupported_arch",
+      "TestSIMDSynthImports/experiment_off",
+      "TestSIMDSynthImports/missing_experiment",
+      "TestSIMDSynthImports/dry_run",
+      "TestSIMDSynthImports/already_direct",
+      "TestSIMDSynthImports/unbuilt_archives"
+    ],
+    "midway": [
+      "TestSIMDRewriteImports",
+      "TestSIMDRewriteImports/missing",
+      "TestSIMDRewriteImports/package_shadows",
+      "TestSIMDRewriteImports/parameter_shadows",
+      "TestSIMDRewriteImports/aliased",
+      "TestSIMDRewriteImports/dot",
+      "TestSIMDRewriteImports/blank"
+    ],
+    "compiler": [
+      "TestCompileSIMDTransitiveImports",
+      "TestCompileSIMDTransitiveImports/fork-go",
+      "TestCompileSIMDTransitiveImports/fork-go/transitive",
+      "TestCompileSIMDTransitiveImports/fork-go/type_only",
+      "TestCompileSIMDTransitiveImports/fork-go/package_shadows",
+      "TestCompileSIMDTransitiveImports/fork-go/parameter_shadows",
+      "TestCompileSIMDTransitiveImports/fork-go/aliased_import",
+      "TestCompileSIMDTransitiveImports/fork-go/dot_import",
+      "TestCompileSIMDTransitiveImports/fork-go/blank_import",
+      "TestCompileSIMDTransitiveImports/fork-go/internal_denied",
+      "TestCompileSIMDTransitiveImports/logos",
+      "TestCompileSIMDTransitiveImports/logos/transitive",
+      "TestCompileSIMDTransitiveImports/logos/type_only",
+      "TestCompileSIMDTransitiveImports/logos/package_shadows",
+      "TestCompileSIMDTransitiveImports/logos/parameter_shadows",
+      "TestCompileSIMDTransitiveImports/logos/aliased_import",
+      "TestCompileSIMDTransitiveImports/logos/dot_import",
+      "TestCompileSIMDTransitiveImports/logos/blank_import",
+      "TestCompileSIMDTransitiveImports/logos/internal_denied"
+    ]
+  },
+  "negative_controls": [
+    {
+      "label": "old-importcfg",
+      "package": "cmd/go/internal/work",
+      "name": "TestSIMDSynthImports/amd64",
+      "diagnostic": "SIMD synthetic archive set differs from the required set",
+      "source": "src/cmd/go/internal/work/logos_importcfg.go",
+      "overlay": "logos-doc/validation/simd-transitive-imports/old-logos_importcfg.go.txt"
+    },
+    {
+      "label": "old-rewriter",
+      "package": "cmd/compile/internal/midway",
+      "name": "TestSIMDRewriteImports/missing",
+      "diagnostic": "rewritten SIMD imports are not self-contained",
+      "source": "src/cmd/compile/internal/midway/rewrite.go",
+      "overlay": "logos-doc/validation/simd-transitive-imports/old-rewrite.go.txt"
+    }
+  ]
+}

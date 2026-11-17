@@ -1,0 +1,4 @@
+aced316fe80bd75671719ff34ca6c3272270eb1e755028c581987838585f65f6  src/cmd/link/internal/ld/capabilities_logos.go
+cc119722db4be68d0c50f28b744cf528439645fdf94faa868a97a152e47cd41f  src/cmd/go/internal/work/logos_linkcap.go
+00cf2a5583e26e53a2b0ec7603ca1d163158dde0a09eab780d6cf4e7b0f77b12  src/cmd/go/internal/work/exec.go
+a91c9e6d1e57bb2e164cc18b61bfeba11e6581880194a5d7695615a90307ab49  src/cmd/go/internal/work/gc.go

@@ -308,10 +308,49 @@ func (s *frameScan) carryArith(op *syntax.Operation) (addrKind, *syntax.CallExpr
 	if op.Y == nil || !isArithmetic(op.Op) {
 		return addrNone, nil
 	}
+	if op.Op == syntax.Sub {
+		if base := s.immediateFieldBase(op.X); base != nil && base == s.immediateFieldBase(op.Y) {
+			return addrNone, nil
+		}
+	}
 	if kind, call := s.carry(op.X); kind != addrNone {
 		return kind, call
 	}
 	return s.carry(op.Y)
+}
+
+// immediateFieldBase recognizes uintptr(unsafe.Pointer(&local.field)).
+// Subtracting two such addresses of the same struct cancels its base. Keep
+// the proof free of calls, indexing, indirection, and saved integer addresses.
+func (s *frameScan) immediateFieldBase(x syntax.Expr) *types2.Var {
+	integer, ok := syntax.Unparen(x).(*syntax.CallExpr)
+	if !ok || !convertsType(integer) || !hasBasicKind(TypeOf(integer), types2.Uintptr) {
+		return nil
+	}
+	pointer, ok := syntax.Unparen(integer.ArgList[0]).(*syntax.CallExpr)
+	if !ok || !convertsType(pointer) || !hasBasicKind(TypeOf(pointer), types2.UnsafePointer) {
+		return nil
+	}
+	address, ok := syntax.Unparen(pointer.ArgList[0]).(*syntax.Operation)
+	if !ok || address.Op != syntax.And || address.Y != nil {
+		return nil
+	}
+	field, ok := syntax.Unparen(address.X).(*syntax.SelectorExpr)
+	if !ok {
+		return nil
+	}
+	selection := s.pass.Info.Selections[field]
+	if selection == nil || selection.Kind() != types2.FieldVal || selection.Indirect() || len(selection.Index()) != 1 {
+		return nil
+	}
+	name, ok := syntax.Unparen(field.X).(*syntax.Name)
+	if !ok {
+		return nil
+	}
+	if _, ok := underOrNil(TypeOf(name)).(*types2.Struct); !ok {
+		return nil
+	}
+	return localVar(s.pass, name)
 }
 
 func (s *frameScan) carryElems(lit *syntax.CompositeLit) (addrKind, *syntax.CallExpr) {

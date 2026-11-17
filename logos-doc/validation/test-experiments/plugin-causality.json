@@ -1,0 +1,131 @@
+{
+  "complete": true,
+  "rows": [
+    {
+      "name": "logos-go-flags-o2",
+      "run": {
+        "command": [
+          "/workspace/scratch/d8d410ec882d/corpus-review/test-env/bin/logos",
+          "test",
+          "-count=1",
+          "-timeout=120s",
+          "-run",
+          "^TestChildPlugin$",
+          "."
+        ],
+        "cwd": "/workspace/scratch/d8d410ec882d/corpus-review/test-env/plugin-native-red/m",
+        "environment": {
+          "PATH": "/workspace/scratch/d8d410ec882d/corpus-review/test-env/bin:/workspace/scratch/93e0563596d1/LoGOs/bin:/usr/bin:/bin",
+          "GOROOT": "/workspace/scratch/93e0563596d1/LoGOs",
+          "GOTOOLCHAIN": "local",
+          "GOENV": "off",
+          "GOWORK": "off",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOTELEMETRY": "off",
+          "CGO_ENABLED": "1",
+          "GOFLAGS": "-mod=readonly -buildvcs=false -p=1 -O=2",
+          "GOMAXPROCS": "1",
+          "GOMEMLIMIT": "512MiB",
+          "GOCACHE": "/workspace/scratch/93e0563596d1/corpus-cache/logos",
+          "TMPDIR": "/dev/shm/dogfood-review-d8d410ec882d",
+          "CC": "/usr/bin/cc",
+          "GOEXPERIMENT": ""
+        },
+        "returncode": 0,
+        "timed_out": false,
+        "error": "",
+        "seconds": 9.066,
+        "stdout": "/workspace/scratch/d8d410ec882d/corpus-review/test-env/plugin-probes/logos-go-flags-o2.stdout",
+        "stderr": "/workspace/scratch/d8d410ec882d/corpus-review/test-env/plugin-probes/logos-go-flags-o2.stderr",
+        "stdout_sha256": "c4824e3d01d9cf6d8aa97a3c6499afe463afcb6846cb6cbc7ef924ed1a7be3e4",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "logos-cli-o1",
+      "run": {
+        "command": [
+          "/workspace/scratch/d8d410ec882d/corpus-review/test-env/bin/logos",
+          "test",
+          "-O=1",
+          "-count=1",
+          "-timeout=120s",
+          "-run",
+          "^TestChildPlugin$",
+          "."
+        ],
+        "cwd": "/workspace/scratch/d8d410ec882d/corpus-review/test-env/plugin-native-red/m",
+        "environment": {
+          "PATH": "/workspace/scratch/d8d410ec882d/corpus-review/test-env/bin:/workspace/scratch/93e0563596d1/LoGOs/bin:/usr/bin:/bin",
+          "GOROOT": "/workspace/scratch/93e0563596d1/LoGOs",
+          "GOTOOLCHAIN": "local",
+          "GOENV": "off",
+          "GOWORK": "off",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOTELEMETRY": "off",
+          "CGO_ENABLED": "1",
+          "GOFLAGS": "-mod=readonly -buildvcs=false -p=1",
+          "GOMAXPROCS": "1",
+          "GOMEMLIMIT": "512MiB",
+          "GOCACHE": "/workspace/scratch/93e0563596d1/corpus-cache/logos",
+          "TMPDIR": "/dev/shm/dogfood-review-d8d410ec882d",
+          "CC": "/usr/bin/cc",
+          "GOEXPERIMENT": ""
+        },
+        "returncode": 0,
+        "timed_out": false,
+        "error": "",
+        "seconds": 28.536,
+        "stdout": "/workspace/scratch/d8d410ec882d/corpus-review/test-env/plugin-probes/logos-cli-o1.stdout",
+        "stderr": "/workspace/scratch/d8d410ec882d/corpus-review/test-env/plugin-probes/logos-cli-o1.stderr",
+        "stdout_sha256": "5d866eaf7dbcfb15787c1a3ffbbf33a86fa3b350257add8b8e46720455c9f960",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "go-cli-o2-mismatch",
+      "run": {
+        "command": [
+          "/workspace/scratch/d8d410ec882d/corpus-review/test-env/bin/go",
+          "test",
+          "-O=2",
+          "-count=1",
+          "-timeout=120s",
+          "-run",
+          "^TestChildPlugin$",
+          "."
+        ],
+        "cwd": "/workspace/scratch/d8d410ec882d/corpus-review/test-env/plugin-native-red/m",
+        "environment": {
+          "PATH": "/workspace/scratch/d8d410ec882d/corpus-review/test-env/bin:/workspace/scratch/93e0563596d1/LoGOs/bin:/usr/bin:/bin",
+          "GOROOT": "/workspace/scratch/93e0563596d1/LoGOs",
+          "GOTOOLCHAIN": "local",
+          "GOENV": "off",
+          "GOWORK": "off",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOTELEMETRY": "off",
+          "CGO_ENABLED": "1",
+          "GOFLAGS": "-mod=readonly -buildvcs=false -p=1",
+          "GOMAXPROCS": "1",
+          "GOMEMLIMIT": "512MiB",
+          "GOCACHE": "/workspace/scratch/93e0563596d1/corpus-cache/logos",
+          "TMPDIR": "/dev/shm/dogfood-review-d8d410ec882d",
+          "CC": "/usr/bin/cc",
+          "GOEXPERIMENT": "logosarena",
+          "GOAMD64": "v3"
+        },
+        "returncode": 1,
+        "timed_out": false,
+        "error": "",
+        "seconds": 25.751,
+        "stdout": "/workspace/scratch/d8d410ec882d/corpus-review/test-env/plugin-probes/go-cli-o2-mismatch.stdout",
+        "stderr": "/workspace/scratch/d8d410ec882d/corpus-review/test-env/plugin-probes/go-cli-o2-mismatch.stderr",
+        "stdout_sha256": "dbf98a18eaaa023d3b87c4dd5b7e1df59d4ba54ea0de389bf297f7f061bb4687",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    }
+  ]
+}

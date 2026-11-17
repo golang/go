@@ -1,0 +1,836 @@
+--- FAIL: TestCapGraphDiscoveryOrder (20.08s)
+    --- FAIL: TestCapGraphDiscoveryOrder/rooted_cycle (5.01s)
+        exec.go:219: context deadline exceeded: terminating command: /tmp/go-build3462505921/b001/ld.test -test.run=^TestCapGraphDiscoveryOrder$
+        capabilities_discovery_logos_test.go:62: capability ancestry traversal did not terminate: context deadline exceeded
+            SIGQUIT: quit
+            PC=0x490fa1 m=0 sigcode=0
+            
+            goroutine 0 gp=0x991b80 m=0 mp=0x992a00 [idle]:
+            runtime.futex(0x992b58, 0x80, 0x0, 0x0, 0x0, 0x0)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/sys_linux_amd64.s:575 +0x21 fp=0x7ffc42273e30 sp=0x7ffc42273e28 pc=0x490fa1
+            runtime.futexsleep(0x7ffc42273eb8?, 0x42273ea8?, 0x45e288?)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/os_linux.go:73 +0x30 fp=0x7ffc42273e80 sp=0x7ffc42273e30 pc=0x44a590
+            runtime.notesleep(0x992b58)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/lock_futex.go:47 +0x87 fp=0x7ffc42273eb8 sp=0x7ffc42273e80 pc=0x41d727
+            runtime.mPark(...)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:1986
+            runtime.stopm()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:3024 +0x8c fp=0x7ffc42273ee8 sp=0x7ffc42273eb8 pc=0x4551ac
+            runtime.findRunnable()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:3812 +0xeb7 fp=0x7ffc422740b8 sp=0x7ffc42273ee8 pc=0x456d37
+            runtime.schedule()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:4180 +0xb1 fp=0x7ffc422740f8 sp=0x7ffc422740b8 pc=0x457e51
+            runtime.goschedImpl(0x1a4e36728288, 0x1)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:4361 +0x1dc fp=0x7ffc42274150 sp=0x7ffc422740f8 pc=0x4584dc
+            runtime.gopreempt_m(...)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:4378
+            runtime.asyncPreempt2.func1(0x1a4e36728288)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/preempt.go:330 +0x3f fp=0x7ffc42274170 sp=0x7ffc42274150 pc=0x48463f
+            runtime.mcall()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:463 +0x56 fp=0x7ffc42274188 sp=0x7ffc42274170 pc=0x48da56
+            
+            goroutine 1 gp=0x1a4e366a4288 m=nil [chan receive]:
+            runtime.gopark(0x7f4a0ed16108?, 0x7f4a0ed1f3b0?, 0x50?, 0xb?, 0x9206a8?)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:475 +0xca fp=0x1a4e36757908 sp=0x1a4e367578e8 pc=0x488daa
+            runtime.chanrecv(0x1a4e366c8480, 0x1a4e367579ef, 0x1)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x1a4e36757980 sp=0x1a4e36757908 pc=0x417fae
+            runtime.chanrecv1(0x18?, 0x939c00?)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x1a4e367579a8 sp=0x1a4e36757980 pc=0x417af2
+            testing.(*T).Run(0x1a4e36770008, {0x6b49b3?, 0x1a4e36757aa0?}, 0x962ec8)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2268 +0x4f2 fp=0x1a4e36757a80 sp=0x1a4e367579a8 pc=0x518352
+            testing.runTests.func1(0x1a4e36770008)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2744 +0x37 fp=0x1a4e36757ac0 sp=0x1a4e36757a80 pc=0x51de57
+            testing.tRunner(0x1a4e36770008, 0x1a4e36757bc8)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2195 +0xea fp=0x1a4e36757b10 sp=0x1a4e36757ac0 pc=0x517dea
+            testing.runTests({0x0, 0x0}, {0x6b07e7, 0x14}, 0x1a4e366b0180, {0x98a460, 0x53, 0x53}, {0x0, 0x0, ...})
+            	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2742 +0x510 fp=0x1a4e36757bf8 sp=0x1a4e36757b10 pc=0x51a3b0
+            testing.(*M).Run(0x1a4e3671a1e0)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2602 +0x6af fp=0x1a4e36757e38 sp=0x1a4e36757bf8 pc=0x518f6f
+            main.main()
+            	_testmain.go:210 +0x9b fp=0x1a4e36757eb8 sp=0x1a4e36757e38 pc=0x69683b
+            runtime.main()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:302 +0x427 fp=0x1a4e36757fe0 sp=0x1a4e36757eb8 pc=0x4507c7
+            runtime.goexit({})
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1a4e36757fe8 sp=0x1a4e36757fe0 pc=0x48f441
+            
+            goroutine 2 gp=0x1a4e366a4a08 m=nil [force gc (idle)]:
+            runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:475 +0xca fp=0x1a4e366e2fa8 sp=0x1a4e366e2f88 pc=0x488daa
+            runtime.goparkunlock(...)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:481
+            runtime.forcegchelper()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:387 +0xb3 fp=0x1a4e366e2fe0 sp=0x1a4e366e2fa8 pc=0x450a93
+            runtime.goexit({})
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1a4e366e2fe8 sp=0x1a4e366e2fe0 pc=0x48f441
+            created by runtime.init.8 in goroutine 1
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:375 +0x1a
+            
+            goroutine 3 gp=0x1a4e366a5188 m=nil [GC sweep wait]:
+            runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:475 +0xca fp=0x1a4e366e3788 sp=0x1a4e366e3768 pc=0x488daa
+            runtime.goparkunlock(...)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:481
+            runtime.bgsweep(0x1a4e366c8080)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mgcsweep.go:279 +0x94 fp=0x1a4e366e37c8 sp=0x1a4e366e3788 pc=0x43a074
+            runtime.gcenable.gowrap1()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mgc.go:214 +0x17 fp=0x1a4e366e37e0 sp=0x1a4e366e37c8 pc=0x47f4d7
+            runtime.goexit({})
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1a4e366e37e8 sp=0x1a4e366e37e0 pc=0x48f441
+            created by runtime.gcenable in goroutine 1
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mgc.go:214 +0x66
+            
+            goroutine 4 gp=0x1a4e366a5408 m=nil [GC scavenge wait]:
+            runtime.gopark(0x1a4e366c8080?, 0x6c9cb8?, 0x1?, 0x0?, 0x1a4e366a5408?)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:475 +0xca fp=0x1a4e366e3f78 sp=0x1a4e366e3f58 pc=0x488daa
+            runtime.goparkunlock(...)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:481
+            runtime.(*scavengerState).park(0x991600)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mgcscavenge.go:425 +0x49 fp=0x1a4e366e3fa8 sp=0x1a4e366e3f78 pc=0x437c29
+            runtime.bgscavenge(0x1a4e366c8080)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mgcscavenge.go:653 +0x3c fp=0x1a4e366e3fc8 sp=0x1a4e366e3fa8 pc=0x43817c
+            runtime.gcenable.gowrap2()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mgc.go:215 +0x17 fp=0x1a4e366e3fe0 sp=0x1a4e366e3fc8 pc=0x47f497
+            runtime.goexit({})
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1a4e366e3fe8 sp=0x1a4e366e3fe0 pc=0x48f441
+            created by runtime.gcenable in goroutine 1
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mgc.go:215 +0xa5
+            
+            goroutine 5 gp=0x1a4e366a5b88 m=nil [GOMAXPROCS updater (idle)]:
+            runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:475 +0xca fp=0x1a4e366e2788 sp=0x1a4e366e2768 pc=0x488daa
+            runtime.goparkunlock(...)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:481
+            runtime.updateMaxProcsGoroutine()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:7160 +0xe7 fp=0x1a4e366e27e0 sp=0x1a4e366e2788 pc=0x45df47
+            runtime.goexit({})
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1a4e366e27e8 sp=0x1a4e366e27e0 pc=0x48f441
+            created by runtime.defaultGOMAXPROCSUpdateEnable in goroutine 1
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:7148 +0x37
+            
+            goroutine 6 gp=0x1a4e36728008 m=nil [finalizer wait]:
+            runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:475 +0xca fp=0x1a4e366e4620 sp=0x1a4e366e4600 pc=0x488daa
+            runtime.runFinalizers()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mfinal.go:210 +0x107 fp=0x1a4e366e47e0 sp=0x1a4e366e4620 pc=0x42b327
+            runtime.goexit({})
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1a4e366e47e8 sp=0x1a4e366e47e0 pc=0x48f441
+            created by runtime.createfing in goroutine 1
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mfinal.go:172 +0x3d
+            
+            goroutine 7 gp=0x1a4e36728288 m=nil [runnable]:
+            runtime.asyncPreempt2()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/preempt.go:320 +0x14 fp=0x1a4e36706420 sp=0x1a4e36706400 pc=0x44edb4
+            runtime.asyncPreempt()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/preempt_amd64.s:124 +0x28b fp=0x1a4e367064a8 sp=0x1a4e36706420 pc=0x49056b
+            cmd/link/internal/ld.(*capGraph).depth(...)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/cmd/link/internal/ld/capabilities_chains_logos.go:59
+            cmd/link/internal/ld.(*capGraph).consider(...)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/cmd/link/internal/ld/capabilities_chains_logos.go:109
+            cmd/link/internal/ld.(*capGraph).blamedChains(0x1a4e36706ad8, 0x5, 0x1a4e36706ac8)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/cmd/link/internal/ld/capabilities_chains_logos.go:95 +0x2ac fp=0x1a4e367067d8 sp=0x1a4e367064a8 pc=0x66596c
+            cmd/link/internal/ld.checkCapDiscovery.func1(0x5)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/cmd/link/internal/ld/capabilities_discovery_logos_test.go:125 +0xe6 fp=0x1a4e367069e8 sp=0x1a4e367067d8 pc=0x6912c6
+            cmd/link/internal/ld.checkCapDiscovery(0x1a4e36770248, {0x1a4e366ba900, 0x6, 0x0?}, 0x5, 0x1a4e36716ab0)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/cmd/link/internal/ld/capabilities_discovery_logos_test.go:149 +0x2c9 fp=0x1a4e36706b30 sp=0x1a4e367069e8 pc=0x677849
+            cmd/link/internal/ld.TestCapGraphDiscoveryOrder(0x1a4e36770248)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/cmd/link/internal/ld/capabilities_discovery_logos_test.go:57 +0xacc fp=0x1a4e36706f70 sp=0x1a4e36706b30 pc=0x676a6c
+            testing.tRunner(0x1a4e36770248, 0x962ec8)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2195 +0xea fp=0x1a4e36706fc0 sp=0x1a4e36706f70 pc=0x517dea
+            testing.(*T).Run.gowrap1()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x1a4e36706fe0 sp=0x1a4e36706fc0 pc=0x51dbdb
+            runtime.goexit({})
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1a4e36706fe8 sp=0x1a4e36706fe0 pc=0x48f441
+            created by testing.(*T).Run in goroutine 1
+            	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2260 +0x4d4
+            
+            rax    0xca
+            rbx    0x0
+            rcx    0x490fa3
+            rdx    0x0
+            rdi    0x992b58
+            rsi    0x80
+            rbp    0x7ffc42273e70
+            rsp    0x7ffc42273e28
+            r8     0x0
+            r9     0x0
+            r10    0x0
+            r11    0x286
+            r12    0x7ffc42273ea8
+            r13    0x1
+            r14    0x991b80
+            r15    0x0
+            rip    0x490fa1
+            rflags 0x286
+            cs     0x33
+            fs     0x0
+            gs     0x0
+    --- FAIL: TestCapGraphDiscoveryOrder/disconnected_cycle (5.02s)
+        exec.go:219: context deadline exceeded: terminating command: /tmp/go-build3462505921/b001/ld.test -test.run=^TestCapGraphDiscoveryOrder$
+        capabilities_discovery_logos_test.go:62: capability ancestry traversal did not terminate: context deadline exceeded
+            SIGQUIT: quit
+            PC=0x490fa1 m=0 sigcode=0
+            
+            goroutine 0 gp=0x991b80 m=0 mp=0x992a00 [idle]:
+            runtime.futex(0x992b58, 0x80, 0x0, 0x0, 0x0, 0x0)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/sys_linux_amd64.s:575 +0x21 fp=0x7ffc9b1800d0 sp=0x7ffc9b1800c8 pc=0x490fa1
+            runtime.futexsleep(0x7ffc9b180158?, 0x9b180148?, 0x45e288?)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/os_linux.go:73 +0x30 fp=0x7ffc9b180120 sp=0x7ffc9b1800d0 pc=0x44a590
+            runtime.notesleep(0x992b58)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/lock_futex.go:47 +0x87 fp=0x7ffc9b180158 sp=0x7ffc9b180120 pc=0x41d727
+            runtime.mPark(...)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:1986
+            runtime.stopm()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:3024 +0x8c fp=0x7ffc9b180188 sp=0x7ffc9b180158 pc=0x4551ac
+            runtime.findRunnable()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:3812 +0xeb7 fp=0x7ffc9b180358 sp=0x7ffc9b180188 pc=0x456d37
+            runtime.schedule()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:4180 +0xb1 fp=0x7ffc9b180398 sp=0x7ffc9b180358 pc=0x457e51
+            runtime.goschedImpl(0x28d8875d2288, 0x1)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:4361 +0x1dc fp=0x7ffc9b1803f0 sp=0x7ffc9b180398 pc=0x4584dc
+            runtime.gopreempt_m(...)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:4378
+            runtime.asyncPreempt2.func1(0x28d8875d2288)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/preempt.go:330 +0x3f fp=0x7ffc9b180410 sp=0x7ffc9b1803f0 pc=0x48463f
+            runtime.mcall()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:463 +0x56 fp=0x7ffc9b180428 sp=0x7ffc9b180410 pc=0x48da56
+            
+            goroutine 1 gp=0x28d88754e288 m=nil [chan receive]:
+            runtime.gopark(0x7f80f2bac108?, 0x7f80f2bb53b0?, 0x50?, 0x6b?, 0x9206a8?)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:475 +0xca fp=0x28d887607908 sp=0x28d8876078e8 pc=0x488daa
+            runtime.chanrecv(0x28d887572480, 0x28d8876079ef, 0x1)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x28d887607980 sp=0x28d887607908 pc=0x417fae
+            runtime.chanrecv1(0x18?, 0x939c00?)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x28d8876079a8 sp=0x28d887607980 pc=0x417af2
+            testing.(*T).Run(0x28d88761a008, {0x6b49b3?, 0x28d887607aa0?}, 0x962ec8)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2268 +0x4f2 fp=0x28d887607a80 sp=0x28d8876079a8 pc=0x518352
+            testing.runTests.func1(0x28d88761a008)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2744 +0x37 fp=0x28d887607ac0 sp=0x28d887607a80 pc=0x51de57
+            testing.tRunner(0x28d88761a008, 0x28d887607bc8)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2195 +0xea fp=0x28d887607b10 sp=0x28d887607ac0 pc=0x517dea
+            testing.runTests({0x0, 0x0}, {0x6b07e7, 0x14}, 0x28d88755a180, {0x98a460, 0x53, 0x53}, {0x0, 0x0, ...})
+            	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2742 +0x510 fp=0x28d887607bf8 sp=0x28d887607b10 pc=0x51a3b0
+            testing.(*M).Run(0x28d8875c4140)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2602 +0x6af fp=0x28d887607e38 sp=0x28d887607bf8 pc=0x518f6f
+            main.main()
+            	_testmain.go:210 +0x9b fp=0x28d887607eb8 sp=0x28d887607e38 pc=0x69683b
+            runtime.main()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:302 +0x427 fp=0x28d887607fe0 sp=0x28d887607eb8 pc=0x4507c7
+            runtime.goexit({})
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x28d887607fe8 sp=0x28d887607fe0 pc=0x48f441
+            
+            goroutine 2 gp=0x28d88754ea08 m=nil [force gc (idle)]:
+            runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:475 +0xca fp=0x28d88758cfa8 sp=0x28d88758cf88 pc=0x488daa
+            runtime.goparkunlock(...)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:481
+            runtime.forcegchelper()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:387 +0xb3 fp=0x28d88758cfe0 sp=0x28d88758cfa8 pc=0x450a93
+            runtime.goexit({})
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x28d88758cfe8 sp=0x28d88758cfe0 pc=0x48f441
+            created by runtime.init.8 in goroutine 1
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:375 +0x1a
+            
+            goroutine 3 gp=0x28d88754f188 m=nil [GC sweep wait]:
+            runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:475 +0xca fp=0x28d88758d788 sp=0x28d88758d768 pc=0x488daa
+            runtime.goparkunlock(...)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:481
+            runtime.bgsweep(0x28d887572080)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mgcsweep.go:279 +0x94 fp=0x28d88758d7c8 sp=0x28d88758d788 pc=0x43a074
+            runtime.gcenable.gowrap1()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mgc.go:214 +0x17 fp=0x28d88758d7e0 sp=0x28d88758d7c8 pc=0x47f4d7
+            runtime.goexit({})
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x28d88758d7e8 sp=0x28d88758d7e0 pc=0x48f441
+            created by runtime.gcenable in goroutine 1
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mgc.go:214 +0x66
+            
+            goroutine 4 gp=0x28d88754f408 m=nil [GC scavenge wait]:
+            runtime.gopark(0x28d887572080?, 0x6c9cb8?, 0x1?, 0x0?, 0x28d88754f408?)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:475 +0xca fp=0x28d88758df78 sp=0x28d88758df58 pc=0x488daa
+            runtime.goparkunlock(...)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:481
+            runtime.(*scavengerState).park(0x991600)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mgcscavenge.go:425 +0x49 fp=0x28d88758dfa8 sp=0x28d88758df78 pc=0x437c29
+            runtime.bgscavenge(0x28d887572080)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mgcscavenge.go:653 +0x3c fp=0x28d88758dfc8 sp=0x28d88758dfa8 pc=0x43817c
+            runtime.gcenable.gowrap2()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mgc.go:215 +0x17 fp=0x28d88758dfe0 sp=0x28d88758dfc8 pc=0x47f497
+            runtime.goexit({})
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x28d88758dfe8 sp=0x28d88758dfe0 pc=0x48f441
+            created by runtime.gcenable in goroutine 1
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mgc.go:215 +0xa5
+            
+            goroutine 5 gp=0x28d88754fb88 m=nil [GOMAXPROCS updater (idle)]:
+            runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:475 +0xca fp=0x28d88758c788 sp=0x28d88758c768 pc=0x488daa
+            runtime.goparkunlock(...)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:481
+            runtime.updateMaxProcsGoroutine()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:7160 +0xe7 fp=0x28d88758c7e0 sp=0x28d88758c788 pc=0x45df47
+            runtime.goexit({})
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x28d88758c7e8 sp=0x28d88758c7e0 pc=0x48f441
+            created by runtime.defaultGOMAXPROCSUpdateEnable in goroutine 1
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:7148 +0x37
+            
+            goroutine 6 gp=0x28d8875d2008 m=nil [finalizer wait]:
+            runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:475 +0xca fp=0x28d88758e620 sp=0x28d88758e600 pc=0x488daa
+            runtime.runFinalizers()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mfinal.go:210 +0x107 fp=0x28d88758e7e0 sp=0x28d88758e620 pc=0x42b327
+            runtime.goexit({})
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x28d88758e7e8 sp=0x28d88758e7e0 pc=0x48f441
+            created by runtime.createfing in goroutine 1
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mfinal.go:172 +0x3d
+            
+            goroutine 7 gp=0x28d8875d2288 m=nil [runnable]:
+            runtime.asyncPreempt2()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/preempt.go:320 +0x14 fp=0x28d8875b0420 sp=0x28d8875b0400 pc=0x44edb4
+            runtime.asyncPreempt()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/preempt_amd64.s:124 +0x28b fp=0x28d8875b04a8 sp=0x28d8875b0420 pc=0x49056b
+            cmd/link/internal/ld.(*capGraph).depth(...)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/cmd/link/internal/ld/capabilities_chains_logos.go:59
+            cmd/link/internal/ld.(*capGraph).consider(...)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/cmd/link/internal/ld/capabilities_chains_logos.go:109
+            cmd/link/internal/ld.(*capGraph).blamedChains(0x28d8875b0ad8, 0x5, 0x28d8875b0ac8)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/cmd/link/internal/ld/capabilities_chains_logos.go:95 +0x2ac fp=0x28d8875b07d8 sp=0x28d8875b04a8 pc=0x66596c
+            cmd/link/internal/ld.checkCapDiscovery.func1(0x3)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/cmd/link/internal/ld/capabilities_discovery_logos_test.go:125 +0xe6 fp=0x28d8875b09e8 sp=0x28d8875b07d8 pc=0x6912c6
+            cmd/link/internal/ld.checkCapDiscovery(0x28d88761a248, {0x28d88756c340, 0x4, 0x0?}, 0x5, 0x28d8875c0ab0)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/cmd/link/internal/ld/capabilities_discovery_logos_test.go:149 +0x2c9 fp=0x28d8875b0b30 sp=0x28d8875b09e8 pc=0x677849
+            cmd/link/internal/ld.TestCapGraphDiscoveryOrder(0x28d88761a248)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/cmd/link/internal/ld/capabilities_discovery_logos_test.go:57 +0xacc fp=0x28d8875b0f70 sp=0x28d8875b0b30 pc=0x676a6c
+            testing.tRunner(0x28d88761a248, 0x962ec8)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2195 +0xea fp=0x28d8875b0fc0 sp=0x28d8875b0f70 pc=0x517dea
+            testing.(*T).Run.gowrap1()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x28d8875b0fe0 sp=0x28d8875b0fc0 pc=0x51dbdb
+            runtime.goexit({})
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x28d8875b0fe8 sp=0x28d8875b0fe0 pc=0x48f441
+            created by testing.(*T).Run in goroutine 1
+            	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2260 +0x4d4
+            
+            rax    0xca
+            rbx    0x0
+            rcx    0x490fa3
+            rdx    0x0
+            rdi    0x992b58
+            rsi    0x80
+            rbp    0x7ffc9b180110
+            rsp    0x7ffc9b1800c8
+            r8     0x0
+            r9     0x0
+            r10    0x0
+            r11    0x286
+            r12    0x7ffc9b180148
+            r13    0x1
+            r14    0x991b80
+            r15    0x0
+            rip    0x490fa1
+            rflags 0x286
+            cs     0x33
+            fs     0x0
+            gs     0x0
+    --- FAIL: TestCapGraphDiscoveryOrder/unrooted_incoming_cycle (5.01s)
+        exec.go:219: context deadline exceeded: terminating command: /tmp/go-build3462505921/b001/ld.test -test.run=^TestCapGraphDiscoveryOrder$
+        capabilities_discovery_logos_test.go:62: capability ancestry traversal did not terminate: context deadline exceeded
+            SIGQUIT: quit
+            PC=0x66596c m=0 sigcode=0
+            
+            goroutine 19 gp=0x3ad440e82508 m=0 mp=0x992a00 [running]:
+            cmd/link/internal/ld.(*capGraph).depth(...)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/cmd/link/internal/ld/capabilities_chains_logos.go:59
+            cmd/link/internal/ld.(*capGraph).consider(...)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/cmd/link/internal/ld/capabilities_chains_logos.go:109
+            cmd/link/internal/ld.(*capGraph).blamedChains(0x3ad440f0dad8, 0x5, 0x3ad440f0dac8)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/cmd/link/internal/ld/capabilities_chains_logos.go:95 +0x2ac fp=0x3ad440f0d7d8 sp=0x3ad440f0d4a8 pc=0x66596c
+            cmd/link/internal/ld.checkCapDiscovery.func1(0x4)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/cmd/link/internal/ld/capabilities_discovery_logos_test.go:125 +0xe6 fp=0x3ad440f0d9e8 sp=0x3ad440f0d7d8 pc=0x6912c6
+            cmd/link/internal/ld.checkCapDiscovery(0x3ad440f00248, {0x3ad440ece1b0, 0x5, 0x0?}, 0x5, 0x3ad440e88ab0)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/cmd/link/internal/ld/capabilities_discovery_logos_test.go:149 +0x2c9 fp=0x3ad440f0db30 sp=0x3ad440f0d9e8 pc=0x677849
+            cmd/link/internal/ld.TestCapGraphDiscoveryOrder(0x3ad440f00248)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/cmd/link/internal/ld/capabilities_discovery_logos_test.go:57 +0xacc fp=0x3ad440f0df70 sp=0x3ad440f0db30 pc=0x676a6c
+            testing.tRunner(0x3ad440f00248, 0x962ec8)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3ad440f0dfc0 sp=0x3ad440f0df70 pc=0x517dea
+            testing.(*T).Run.gowrap1()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3ad440f0dfe0 sp=0x3ad440f0dfc0 pc=0x51dbdb
+            runtime.goexit({})
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3ad440f0dfe8 sp=0x3ad440f0dfe0 pc=0x48f441
+            created by testing.(*T).Run in goroutine 1
+            	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2260 +0x4d4
+            
+            goroutine 1 gp=0x3ad440dc8288 m=nil [chan receive]:
+            runtime.gopark(0x7f53b744fa00?, 0x7f5370970c68?, 0x40?, 0xba?, 0x9206a8?)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3ad440edd908 sp=0x3ad440edd8e8 pc=0x488daa
+            runtime.chanrecv(0x3ad440ef0380, 0x3ad440edd9ef, 0x1)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3ad440edd980 sp=0x3ad440edd908 pc=0x417fae
+            runtime.chanrecv1(0x18?, 0x939c00?)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3ad440edd9a8 sp=0x3ad440edd980 pc=0x417af2
+            testing.(*T).Run(0x3ad440f00008, {0x6b49b3?, 0x3ad440eddaa0?}, 0x962ec8)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2268 +0x4f2 fp=0x3ad440edda80 sp=0x3ad440edd9a8 pc=0x518352
+            testing.runTests.func1(0x3ad440f00008)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2744 +0x37 fp=0x3ad440eddac0 sp=0x3ad440edda80 pc=0x51de57
+            testing.tRunner(0x3ad440f00008, 0x3ad440eddbc8)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3ad440eddb10 sp=0x3ad440eddac0 pc=0x517dea
+            testing.runTests({0x0, 0x0}, {0x6b07e7, 0x14}, 0x3ad440ea2168, {0x98a460, 0x53, 0x53}, {0x0, 0x0, ...})
+            	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2742 +0x510 fp=0x3ad440eddbf8 sp=0x3ad440eddb10 pc=0x51a3b0
+            testing.(*M).Run(0x3ad440e92140)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2602 +0x6af fp=0x3ad440edde38 sp=0x3ad440eddbf8 pc=0x518f6f
+            main.main()
+            	_testmain.go:210 +0x9b fp=0x3ad440eddeb8 sp=0x3ad440edde38 pc=0x69683b
+            runtime.main()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:302 +0x427 fp=0x3ad440eddfe0 sp=0x3ad440eddeb8 pc=0x4507c7
+            runtime.goexit({})
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3ad440eddfe8 sp=0x3ad440eddfe0 pc=0x48f441
+            
+            goroutine 2 gp=0x3ad440dc8a08 m=nil [force gc (idle)]:
+            runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3ad440e06fa8 sp=0x3ad440e06f88 pc=0x488daa
+            runtime.goparkunlock(...)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:481
+            runtime.forcegchelper()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:387 +0xb3 fp=0x3ad440e06fe0 sp=0x3ad440e06fa8 pc=0x450a93
+            runtime.goexit({})
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3ad440e06fe8 sp=0x3ad440e06fe0 pc=0x48f441
+            created by runtime.init.8 in goroutine 1
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:375 +0x1a
+            
+            goroutine 3 gp=0x3ad440dc9188 m=nil [GC sweep wait]:
+            runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3ad440e07788 sp=0x3ad440e07768 pc=0x488daa
+            runtime.goparkunlock(...)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:481
+            runtime.bgsweep(0x3ad440dec080)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mgcsweep.go:279 +0x94 fp=0x3ad440e077c8 sp=0x3ad440e07788 pc=0x43a074
+            runtime.gcenable.gowrap1()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mgc.go:214 +0x17 fp=0x3ad440e077e0 sp=0x3ad440e077c8 pc=0x47f4d7
+            runtime.goexit({})
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3ad440e077e8 sp=0x3ad440e077e0 pc=0x48f441
+            created by runtime.gcenable in goroutine 1
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mgc.go:214 +0x66
+            
+            goroutine 4 gp=0x3ad440dc9408 m=nil [GC scavenge wait]:
+            runtime.gopark(0x3ad440dec080?, 0x6c9cb8?, 0x1?, 0x0?, 0x3ad440dc9408?)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3ad440e07f78 sp=0x3ad440e07f58 pc=0x488daa
+            runtime.goparkunlock(...)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:481
+            runtime.(*scavengerState).park(0x991600)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mgcscavenge.go:425 +0x49 fp=0x3ad440e07fa8 sp=0x3ad440e07f78 pc=0x437c29
+            runtime.bgscavenge(0x3ad440dec080)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mgcscavenge.go:653 +0x3c fp=0x3ad440e07fc8 sp=0x3ad440e07fa8 pc=0x43817c
+            runtime.gcenable.gowrap2()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mgc.go:215 +0x17 fp=0x3ad440e07fe0 sp=0x3ad440e07fc8 pc=0x47f497
+            runtime.goexit({})
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3ad440e07fe8 sp=0x3ad440e07fe0 pc=0x48f441
+            created by runtime.gcenable in goroutine 1
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mgc.go:215 +0xa5
+            
+            goroutine 17 gp=0x3ad440e82008 m=nil [GOMAXPROCS updater (idle)]:
+            runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3ad440e02788 sp=0x3ad440e02768 pc=0x488daa
+            runtime.goparkunlock(...)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:481
+            runtime.updateMaxProcsGoroutine()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:7160 +0xe7 fp=0x3ad440e027e0 sp=0x3ad440e02788 pc=0x45df47
+            runtime.goexit({})
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3ad440e027e8 sp=0x3ad440e027e0 pc=0x48f441
+            created by runtime.defaultGOMAXPROCSUpdateEnable in goroutine 1
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:7148 +0x37
+            
+            goroutine 18 gp=0x3ad440e82288 m=nil [finalizer wait]:
+            runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3ad440e02e20 sp=0x3ad440e02e00 pc=0x488daa
+            runtime.runFinalizers()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mfinal.go:210 +0x107 fp=0x3ad440e02fe0 sp=0x3ad440e02e20 pc=0x42b327
+            runtime.goexit({})
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3ad440e02fe8 sp=0x3ad440e02fe0 pc=0x48f441
+            created by runtime.createfing in goroutine 1
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mfinal.go:172 +0x3d
+            
+            rax    0x3ad440f0d5b0
+            rbx    0x2
+            rcx    0x2
+            rdx    0x9448ccdf
+            rdi    0x8
+            rsi    0x3ad440f0dad8
+            rbp    0x3ad440f0d7c8
+            rsp    0x3ad440f0d4a8
+            r8     0x3ad440ed21c0
+            r9     0x7
+            r10    0x0
+            r11    0x2
+            r12    0x3ad440f0d528
+            r13    0x4
+            r14    0x3ad440e82508
+            r15    0x0
+            rip    0x66596c
+            rflags 0x206
+            cs     0x33
+            fs     0x0
+            gs     0x0
+    --- FAIL: TestCapGraphDiscoveryOrder/longer_cycle (5.01s)
+        exec.go:219: context deadline exceeded: terminating command: /tmp/go-build3462505921/b001/ld.test -test.run=^TestCapGraphDiscoveryOrder$
+        capabilities_discovery_logos_test.go:62: capability ancestry traversal did not terminate: context deadline exceeded
+            SIGQUIT: quit
+            PC=0x490fa1 m=0 sigcode=0
+            
+            goroutine 0 gp=0x991b80 m=0 mp=0x992a00 [idle]:
+            runtime.futex(0x992b58, 0x80, 0x0, 0x0, 0x0, 0x0)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/sys_linux_amd64.s:575 +0x21 fp=0x7ffc2031fe30 sp=0x7ffc2031fe28 pc=0x490fa1
+            runtime.futexsleep(0x7ffc2031feb8?, 0x2031fea8?, 0x45e288?)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/os_linux.go:73 +0x30 fp=0x7ffc2031fe80 sp=0x7ffc2031fe30 pc=0x44a590
+            runtime.notesleep(0x992b58)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/lock_futex.go:47 +0x87 fp=0x7ffc2031feb8 sp=0x7ffc2031fe80 pc=0x41d727
+            runtime.mPark(...)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:1986
+            runtime.stopm()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:3024 +0x8c fp=0x7ffc2031fee8 sp=0x7ffc2031feb8 pc=0x4551ac
+            runtime.findRunnable()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:3812 +0xeb7 fp=0x7ffc203200b8 sp=0x7ffc2031fee8 pc=0x456d37
+            runtime.schedule()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:4180 +0xb1 fp=0x7ffc203200f8 sp=0x7ffc203200b8 pc=0x457e51
+            runtime.goschedImpl(0x1974ce282508, 0x1)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:4361 +0x1dc fp=0x7ffc20320150 sp=0x7ffc203200f8 pc=0x4584dc
+            runtime.gopreempt_m(...)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:4378
+            runtime.asyncPreempt2.func1(0x1974ce282508)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/preempt.go:330 +0x3f fp=0x7ffc20320170 sp=0x7ffc20320150 pc=0x48463f
+            runtime.mcall()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:463 +0x56 fp=0x7ffc20320188 sp=0x7ffc20320170 pc=0x48da56
+            
+            goroutine 1 gp=0x1974ce1f4288 m=nil [chan receive]:
+            runtime.gopark(0x7f0f0a5d6a00?, 0x7f0f0a404c68?, 0x40?, 0x2a?, 0x9206a8?)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:475 +0xca fp=0x1974ce2dd908 sp=0x1974ce2dd8e8 pc=0x488daa
+            runtime.chanrecv(0x1974ce2f0380, 0x1974ce2dd9ef, 0x1)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x1974ce2dd980 sp=0x1974ce2dd908 pc=0x417fae
+            runtime.chanrecv1(0x18?, 0x939c00?)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x1974ce2dd9a8 sp=0x1974ce2dd980 pc=0x417af2
+            testing.(*T).Run(0x1974ce300008, {0x6b49b3?, 0x1974ce2ddaa0?}, 0x962ec8)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2268 +0x4f2 fp=0x1974ce2dda80 sp=0x1974ce2dd9a8 pc=0x518352
+            testing.runTests.func1(0x1974ce300008)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2744 +0x37 fp=0x1974ce2ddac0 sp=0x1974ce2dda80 pc=0x51de57
+            testing.tRunner(0x1974ce300008, 0x1974ce2ddbc8)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2195 +0xea fp=0x1974ce2ddb10 sp=0x1974ce2ddac0 pc=0x517dea
+            testing.runTests({0x0, 0x0}, {0x6b07e7, 0x14}, 0x1974ce2a2168, {0x98a460, 0x53, 0x53}, {0x0, 0x0, ...})
+            	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2742 +0x510 fp=0x1974ce2ddbf8 sp=0x1974ce2ddb10 pc=0x51a3b0
+            testing.(*M).Run(0x1974ce292140)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2602 +0x6af fp=0x1974ce2dde38 sp=0x1974ce2ddbf8 pc=0x518f6f
+            main.main()
+            	_testmain.go:210 +0x9b fp=0x1974ce2ddeb8 sp=0x1974ce2dde38 pc=0x69683b
+            runtime.main()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:302 +0x427 fp=0x1974ce2ddfe0 sp=0x1974ce2ddeb8 pc=0x4507c7
+            runtime.goexit({})
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1974ce2ddfe8 sp=0x1974ce2ddfe0 pc=0x48f441
+            
+            goroutine 2 gp=0x1974ce1f4a08 m=nil [force gc (idle)]:
+            runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:475 +0xca fp=0x1974ce232fa8 sp=0x1974ce232f88 pc=0x488daa
+            runtime.goparkunlock(...)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:481
+            runtime.forcegchelper()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:387 +0xb3 fp=0x1974ce232fe0 sp=0x1974ce232fa8 pc=0x450a93
+            runtime.goexit({})
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1974ce232fe8 sp=0x1974ce232fe0 pc=0x48f441
+            created by runtime.init.8 in goroutine 1
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:375 +0x1a
+            
+            goroutine 3 gp=0x1974ce1f5188 m=nil [GC sweep wait]:
+            runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:475 +0xca fp=0x1974ce233788 sp=0x1974ce233768 pc=0x488daa
+            runtime.goparkunlock(...)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:481
+            runtime.bgsweep(0x1974ce218080)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mgcsweep.go:279 +0x94 fp=0x1974ce2337c8 sp=0x1974ce233788 pc=0x43a074
+            runtime.gcenable.gowrap1()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mgc.go:214 +0x17 fp=0x1974ce2337e0 sp=0x1974ce2337c8 pc=0x47f4d7
+            runtime.goexit({})
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1974ce2337e8 sp=0x1974ce2337e0 pc=0x48f441
+            created by runtime.gcenable in goroutine 1
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mgc.go:214 +0x66
+            
+            goroutine 4 gp=0x1974ce1f5408 m=nil [GC scavenge wait]:
+            runtime.gopark(0x1974ce218080?, 0x6c9cb8?, 0x1?, 0x0?, 0x1974ce1f5408?)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:475 +0xca fp=0x1974ce233f78 sp=0x1974ce233f58 pc=0x488daa
+            runtime.goparkunlock(...)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:481
+            runtime.(*scavengerState).park(0x991600)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mgcscavenge.go:425 +0x49 fp=0x1974ce233fa8 sp=0x1974ce233f78 pc=0x437c29
+            runtime.bgscavenge(0x1974ce218080)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mgcscavenge.go:653 +0x3c fp=0x1974ce233fc8 sp=0x1974ce233fa8 pc=0x43817c
+            runtime.gcenable.gowrap2()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mgc.go:215 +0x17 fp=0x1974ce233fe0 sp=0x1974ce233fc8 pc=0x47f497
+            runtime.goexit({})
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1974ce233fe8 sp=0x1974ce233fe0 pc=0x48f441
+            created by runtime.gcenable in goroutine 1
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mgc.go:215 +0xa5
+            
+            goroutine 17 gp=0x1974ce282008 m=nil [GOMAXPROCS updater (idle)]:
+            runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:475 +0xca fp=0x1974ce22e788 sp=0x1974ce22e768 pc=0x488daa
+            runtime.goparkunlock(...)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:481
+            runtime.updateMaxProcsGoroutine()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:7160 +0xe7 fp=0x1974ce22e7e0 sp=0x1974ce22e788 pc=0x45df47
+            runtime.goexit({})
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1974ce22e7e8 sp=0x1974ce22e7e0 pc=0x48f441
+            created by runtime.defaultGOMAXPROCSUpdateEnable in goroutine 1
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:7148 +0x37
+            
+            goroutine 18 gp=0x1974ce282288 m=nil [finalizer wait]:
+            runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:475 +0xca fp=0x1974ce22ee20 sp=0x1974ce22ee00 pc=0x488daa
+            runtime.runFinalizers()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mfinal.go:210 +0x107 fp=0x1974ce22efe0 sp=0x1974ce22ee20 pc=0x42b327
+            runtime.goexit({})
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1974ce22efe8 sp=0x1974ce22efe0 pc=0x48f441
+            created by runtime.createfing in goroutine 1
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mfinal.go:172 +0x3d
+            
+            goroutine 19 gp=0x1974ce282508 m=nil [runnable]:
+            runtime.asyncPreempt2()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/preempt.go:320 +0x14 fp=0x1974ce256420 sp=0x1974ce256400 pc=0x44edb4
+            runtime.asyncPreempt()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/preempt_amd64.s:124 +0x28b fp=0x1974ce2564a8 sp=0x1974ce256420 pc=0x49056b
+            cmd/link/internal/ld.(*capGraph).depth(...)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/cmd/link/internal/ld/capabilities_chains_logos.go:59
+            cmd/link/internal/ld.(*capGraph).consider(...)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/cmd/link/internal/ld/capabilities_chains_logos.go:109
+            cmd/link/internal/ld.(*capGraph).blamedChains(0x1974ce256ad8, 0x5, 0x1974ce256ac8)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/cmd/link/internal/ld/capabilities_chains_logos.go:95 +0x2ac fp=0x1974ce2567d8 sp=0x1974ce2564a8 pc=0x66596c
+            cmd/link/internal/ld.checkCapDiscovery.func1(0x5)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/cmd/link/internal/ld/capabilities_discovery_logos_test.go:125 +0xe6 fp=0x1974ce2569e8 sp=0x1974ce2567d8 pc=0x6912c6
+            cmd/link/internal/ld.checkCapDiscovery(0x1974ce300248, {0x1974ce2ee0c0, 0x7, 0x0?}, 0x5, 0x1974ce288ab0)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/cmd/link/internal/ld/capabilities_discovery_logos_test.go:149 +0x2c9 fp=0x1974ce256b30 sp=0x1974ce2569e8 pc=0x677849
+            cmd/link/internal/ld.TestCapGraphDiscoveryOrder(0x1974ce300248)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/cmd/link/internal/ld/capabilities_discovery_logos_test.go:57 +0xacc fp=0x1974ce256f70 sp=0x1974ce256b30 pc=0x676a6c
+            testing.tRunner(0x1974ce300248, 0x962ec8)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2195 +0xea fp=0x1974ce256fc0 sp=0x1974ce256f70 pc=0x517dea
+            testing.(*T).Run.gowrap1()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x1974ce256fe0 sp=0x1974ce256fc0 pc=0x51dbdb
+            runtime.goexit({})
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x1974ce256fe8 sp=0x1974ce256fe0 pc=0x48f441
+            created by testing.(*T).Run in goroutine 1
+            	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2260 +0x4d4
+            
+            rax    0xca
+            rbx    0x0
+            rcx    0x490fa3
+            rdx    0x0
+            rdi    0x992b58
+            rsi    0x80
+            rbp    0x7ffc2031fe70
+            rsp    0x7ffc2031fe28
+            r8     0x0
+            r9     0x0
+            r10    0x0
+            r11    0x286
+            r12    0x7ffc2031fea8
+            r13    0x1
+            r14    0x991b80
+            r15    0x0
+            rip    0x490fa1
+            rflags 0x286
+            cs     0x33
+            fs     0x0
+            gs     0x0
+    --- FAIL: TestCapGraphDiscoveryOrder/late_shortcut (0.00s)
+        capabilities_discovery_logos_test.go:62: discovery-order check: exit status 1
+            --- FAIL: TestCapGraphDiscoveryOrder (0.00s)
+                capabilities_discovery_logos_test.go:57: step 5: chain lengths map[other:5], oracle map[other:3]; roots [1], edges [[1 2] [2 3] [3 4] [4 5] [1 4]], sink 5, roles map[2:{dep false} 4:{other false}]
+            FAIL
+    --- FAIL: TestCapGraphDiscoveryOrder/late_root (0.00s)
+        capabilities_discovery_logos_test.go:62: discovery-order check: exit status 1
+            --- FAIL: TestCapGraphDiscoveryOrder (0.00s)
+                capabilities_discovery_logos_test.go:57: step 3: chain lengths map[dep:3], oracle map[dep:2]; roots [1 2], edges [[1 2] [2 5]], sink 5, roles map[2:{dep false} 4:{other false}]
+            FAIL
+    --- FAIL: TestCapGraphDiscoveryOrder/multiple_roots (0.00s)
+        capabilities_discovery_logos_test.go:62: discovery-order check: exit status 1
+            --- FAIL: TestCapGraphDiscoveryOrder (0.00s)
+                capabilities_discovery_logos_test.go:57: step 6: chain lengths map[other:5], oracle map[other:3]; roots [1 6], edges [[1 2] [2 3] [3 4] [4 5] [6 4]], sink 5, roles map[2:{dep false} 4:{other false}]
+            FAIL
+    --- FAIL: TestCapGraphDiscoveryOrder/unknown_parent (0.00s)
+        capabilities_discovery_logos_test.go:62: discovery-order check: exit status 2
+            --- FAIL: TestCapGraphDiscoveryOrder (0.00s)
+            panic: runtime error: index out of range [9] with length 6 [recovered, repanicked]
+            
+            goroutine 19 [running]:
+            testing.tRunner.func1.2({0x949fa8, 0x1629fc450138})
+            	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2125 +0x232
+            testing.tRunner.func1()
+            	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2128 +0x329
+            panic({0x949fa8?, 0x1629fc450138?})
+            	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/panic.go:867 +0x125
+            cmd/link/internal/ld.(*capGraph).depth(...)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/cmd/link/internal/ld/capabilities_chains_logos.go:58
+            cmd/link/internal/ld.(*capGraph).consider(...)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/cmd/link/internal/ld/capabilities_chains_logos.go:109
+            cmd/link/internal/ld.(*capGraph).blamedChains(0x1629fc3d0ad8, 0x5, 0x1629fc3d0ac8)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/cmd/link/internal/ld/capabilities_chains_logos.go:95 +0x3a5
+            cmd/link/internal/ld.checkCapDiscovery.func1(0x2)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/cmd/link/internal/ld/capabilities_discovery_logos_test.go:125 +0xe6
+            cmd/link/internal/ld.checkCapDiscovery(0x1629fc480248, {0x1629fc450120, 0x3, 0x0?}, 0x5, 0x1629fc408ab0)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/cmd/link/internal/ld/capabilities_discovery_logos_test.go:149 +0x2c9
+            cmd/link/internal/ld.TestCapGraphDiscoveryOrder(0x1629fc480248)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/cmd/link/internal/ld/capabilities_discovery_logos_test.go:57 +0xacc
+            testing.tRunner(0x1629fc480248, 0x962ec8)
+            	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2195 +0xea
+            created by testing.(*T).Run in goroutine 1
+            	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2260 +0x4d4
+--- FAIL: TestCapGraphShuffledDiscoveryOracle (5.00s)
+    exec.go:219: context deadline exceeded: terminating command: /tmp/go-build3462505921/b001/ld.test -test.run=^TestCapGraphShuffledDiscoveryOracle$
+    capabilities_discovery_logos_test.go:69: capability ancestry traversal did not terminate: context deadline exceeded
+        SIGQUIT: quit
+        PC=0x66596c m=0 sigcode=0
+        
+        goroutine 8 gp=0x2a2ff0904508 m=0 mp=0x992a00 [running]:
+        cmd/link/internal/ld.(*capGraph).depth(...)
+        	/workspace/scratch/93e0563596d1/LoGOs/src/cmd/link/internal/ld/capabilities_chains_logos.go:59
+        cmd/link/internal/ld.(*capGraph).consider(...)
+        	/workspace/scratch/93e0563596d1/LoGOs/src/cmd/link/internal/ld/capabilities_chains_logos.go:109
+        cmd/link/internal/ld.(*capGraph).blamedChains(0x2a2ff08e3eb8, 0x2, 0x2a2ff08e3ea8)
+        	/workspace/scratch/93e0563596d1/LoGOs/src/cmd/link/internal/ld/capabilities_chains_logos.go:95 +0x2ac fp=0x2a2ff08e3bb8 sp=0x2a2ff08e3888 pc=0x66596c
+        cmd/link/internal/ld.checkCapDiscovery.func1(0x5)
+        	/workspace/scratch/93e0563596d1/LoGOs/src/cmd/link/internal/ld/capabilities_discovery_logos_test.go:125 +0xe6 fp=0x2a2ff08e3dc8 sp=0x2a2ff08e3bb8 pc=0x6912c6
+        cmd/link/internal/ld.checkCapDiscovery(0x2a2ff0956488, {0x2a2ff08a4300, 0xf, 0x2a2ff08c0f60?}, 0x2, 0x2a2ff08f2ab0)
+        	/workspace/scratch/93e0563596d1/LoGOs/src/cmd/link/internal/ld/capabilities_discovery_logos_test.go:149 +0x2c9 fp=0x2a2ff08e3f10 sp=0x2a2ff08e3dc8 pc=0x677849
+        cmd/link/internal/ld.TestCapGraphShuffledDiscoveryOracle.func2(0x2a2ff0956488)
+        	/workspace/scratch/93e0563596d1/LoGOs/src/cmd/link/internal/ld/capabilities_discovery_logos_test.go:93 +0x6f fp=0x2a2ff08e3f70 sp=0x2a2ff08e3f10 pc=0x69116f
+        testing.tRunner(0x2a2ff0956488, 0x2a2ff08f18c0)
+        	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2195 +0xea fp=0x2a2ff08e3fc0 sp=0x2a2ff08e3f70 pc=0x517dea
+        testing.(*T).Run.gowrap1()
+        	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x2a2ff08e3fe0 sp=0x2a2ff08e3fc0 pc=0x51dbdb
+        runtime.goexit({})
+        	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x2a2ff08e3fe8 sp=0x2a2ff08e3fe0 pc=0x48f441
+        created by testing.(*T).Run in goroutine 7
+        	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2260 +0x4d4
+        
+        goroutine 1 gp=0x2a2ff0880288 m=nil [chan receive]:
+        runtime.gopark(0x7f44c3f74108?, 0x7f44c3f7d3b0?, 0xa0?, 0xe9?, 0x9206a8?)
+        	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:475 +0xca fp=0x2a2ff0933908 sp=0x2a2ff09338e8 pc=0x488daa
+        runtime.chanrecv(0x2a2ff08a4280, 0x2a2ff09339ef, 0x1)
+        	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x2a2ff0933980 sp=0x2a2ff0933908 pc=0x417fae
+        runtime.chanrecv1(0x18?, 0x939c00?)
+        	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x2a2ff09339a8 sp=0x2a2ff0933980 pc=0x417af2
+        testing.(*T).Run(0x2a2ff0956008, {0x6baa8f?, 0x2a2ff0933aa0?}, 0x962ed0)
+        	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2268 +0x4f2 fp=0x2a2ff0933a80 sp=0x2a2ff09339a8 pc=0x518352
+        testing.runTests.func1(0x2a2ff0956008)
+        	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2744 +0x37 fp=0x2a2ff0933ac0 sp=0x2a2ff0933a80 pc=0x51de57
+        testing.tRunner(0x2a2ff0956008, 0x2a2ff0933bc8)
+        	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2195 +0xea fp=0x2a2ff0933b10 sp=0x2a2ff0933ac0 pc=0x517dea
+        testing.runTests({0x0, 0x0}, {0x6b07e7, 0x14}, 0x2a2ff088c180, {0x98a460, 0x53, 0x53}, {0x0, 0x0, ...})
+        	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2742 +0x510 fp=0x2a2ff0933bf8 sp=0x2a2ff0933b10 pc=0x51a3b0
+        testing.(*M).Run(0x2a2ff08f6140)
+        	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2602 +0x6af fp=0x2a2ff0933e38 sp=0x2a2ff0933bf8 pc=0x518f6f
+        main.main()
+        	_testmain.go:210 +0x9b fp=0x2a2ff0933eb8 sp=0x2a2ff0933e38 pc=0x69683b
+        runtime.main()
+        	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:302 +0x427 fp=0x2a2ff0933fe0 sp=0x2a2ff0933eb8 pc=0x4507c7
+        runtime.goexit({})
+        	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x2a2ff0933fe8 sp=0x2a2ff0933fe0 pc=0x48f441
+        
+        goroutine 2 gp=0x2a2ff0880a08 m=nil [force gc (idle)]:
+        runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+        	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:475 +0xca fp=0x2a2ff08befa8 sp=0x2a2ff08bef88 pc=0x488daa
+        runtime.goparkunlock(...)
+        	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:481
+        runtime.forcegchelper()
+        	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:387 +0xb3 fp=0x2a2ff08befe0 sp=0x2a2ff08befa8 pc=0x450a93
+        runtime.goexit({})
+        	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x2a2ff08befe8 sp=0x2a2ff08befe0 pc=0x48f441
+        created by runtime.init.8 in goroutine 1
+        	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:375 +0x1a
+        
+        goroutine 3 gp=0x2a2ff0881188 m=nil [GC sweep wait]:
+        runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+        	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:475 +0xca fp=0x2a2ff08bf788 sp=0x2a2ff08bf768 pc=0x488daa
+        runtime.goparkunlock(...)
+        	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:481
+        runtime.bgsweep(0x2a2ff08a4080)
+        	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mgcsweep.go:279 +0x94 fp=0x2a2ff08bf7c8 sp=0x2a2ff08bf788 pc=0x43a074
+        runtime.gcenable.gowrap1()
+        	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mgc.go:214 +0x17 fp=0x2a2ff08bf7e0 sp=0x2a2ff08bf7c8 pc=0x47f4d7
+        runtime.goexit({})
+        	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x2a2ff08bf7e8 sp=0x2a2ff08bf7e0 pc=0x48f441
+        created by runtime.gcenable in goroutine 1
+        	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mgc.go:214 +0x66
+        
+        goroutine 4 gp=0x2a2ff0881408 m=nil [GC scavenge wait]:
+        runtime.gopark(0x2a2ff08a4080?, 0x6c9cb8?, 0x1?, 0x0?, 0x2a2ff0881408?)
+        	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:475 +0xca fp=0x2a2ff08bff78 sp=0x2a2ff08bff58 pc=0x488daa
+        runtime.goparkunlock(...)
+        	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:481
+        runtime.(*scavengerState).park(0x991600)
+        	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mgcscavenge.go:425 +0x49 fp=0x2a2ff08bffa8 sp=0x2a2ff08bff78 pc=0x437c29
+        runtime.bgscavenge(0x2a2ff08a4080)
+        	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mgcscavenge.go:653 +0x3c fp=0x2a2ff08bffc8 sp=0x2a2ff08bffa8 pc=0x43817c
+        runtime.gcenable.gowrap2()
+        	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mgc.go:215 +0x17 fp=0x2a2ff08bffe0 sp=0x2a2ff08bffc8 pc=0x47f497
+        runtime.goexit({})
+        	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x2a2ff08bffe8 sp=0x2a2ff08bffe0 pc=0x48f441
+        created by runtime.gcenable in goroutine 1
+        	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mgc.go:215 +0xa5
+        
+        goroutine 5 gp=0x2a2ff0881b88 m=nil [GOMAXPROCS updater (idle)]:
+        runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+        	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:475 +0xca fp=0x2a2ff08be788 sp=0x2a2ff08be768 pc=0x488daa
+        runtime.goparkunlock(...)
+        	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:481
+        runtime.updateMaxProcsGoroutine()
+        	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:7160 +0xe7 fp=0x2a2ff08be7e0 sp=0x2a2ff08be788 pc=0x45df47
+        runtime.goexit({})
+        	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x2a2ff08be7e8 sp=0x2a2ff08be7e0 pc=0x48f441
+        created by runtime.defaultGOMAXPROCSUpdateEnable in goroutine 1
+        	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:7148 +0x37
+        
+        goroutine 6 gp=0x2a2ff0904008 m=nil [finalizer wait]:
+        runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+        	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:475 +0xca fp=0x2a2ff08c0620 sp=0x2a2ff08c0600 pc=0x488daa
+        runtime.runFinalizers()
+        	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mfinal.go:210 +0x107 fp=0x2a2ff08c07e0 sp=0x2a2ff08c0620 pc=0x42b327
+        runtime.goexit({})
+        	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x2a2ff08c07e8 sp=0x2a2ff08c07e0 pc=0x48f441
+        created by runtime.createfing in goroutine 1
+        	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/mfinal.go:172 +0x3d
+        
+        goroutine 7 gp=0x2a2ff0904288 m=nil [chan receive]:
+        runtime.gopark(0x7f44c3f74108?, 0x7f44c3f7d3b0?, 0x3f?, 0x0?, 0x9206a8?)
+        	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:475 +0xca fp=0x2a2ff08e2d00 sp=0x2a2ff08e2ce0 pc=0x488daa
+        runtime.chanrecv(0x2a2ff08a4380, 0x2a2ff08e2de7, 0x1)
+        	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x2a2ff08e2d78 sp=0x2a2ff08e2d00 pc=0x417fae
+        runtime.chanrecv1(0x18?, 0x939c00?)
+        	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x2a2ff08e2da0 sp=0x2a2ff08e2d78 pc=0x417af2
+        testing.(*T).Run(0x2a2ff0956248, {0x6bb8b1?, 0x2a2ff08c0f40?}, 0x2a2ff08f18c0)
+        	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2268 +0x4f2 fp=0x2a2ff08e2e78 sp=0x2a2ff08e2da0 pc=0x518352
+        cmd/link/internal/ld.TestCapGraphShuffledDiscoveryOracle(0x2a2ff0956248)
+        	/workspace/scratch/93e0563596d1/LoGOs/src/cmd/link/internal/ld/capabilities_discovery_logos_test.go:92 +0x137 fp=0x2a2ff08e2f70 sp=0x2a2ff08e2e78 pc=0x676c77
+        testing.tRunner(0x2a2ff0956248, 0x962ed0)
+        	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2195 +0xea fp=0x2a2ff08e2fc0 sp=0x2a2ff08e2f70 pc=0x517dea
+        testing.(*T).Run.gowrap1()
+        	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x2a2ff08e2fe0 sp=0x2a2ff08e2fc0 pc=0x51dbdb
+        runtime.goexit({})
+        	/workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x2a2ff08e2fe8 sp=0x2a2ff08e2fe0 pc=0x48f441
+        created by testing.(*T).Run in goroutine 1
+        	/workspace/scratch/93e0563596d1/LoGOs/src/testing/testing.go:2260 +0x4d4
+        
+        rax    0x2a2ff08e3960
+        rbx    0x2
+        rcx    0x2
+        rdx    0xdc7d1c19
+        rdi    0x8
+        rsi    0x2a2ff08e3eb8
+        rbp    0x2a2ff08e3ba8
+        rsp    0x2a2ff08e3888
+        r8     0x2a2ff08969f0
+        r9     0x2a2ff08f2db0
+        r10    0x2a2ff08f3f30
+        r11    0x2a2ff08f2000
+        r12    0x2a2ff08e3908
+        r13    0x3c
+        r14    0x2a2ff0904508
+        r15    0x677849
+        rip    0x66596c
+        rflags 0x206
+        cs     0x33
+        fs     0x0
+        gs     0x0
+FAIL
+FAIL	cmd/link/internal/ld	25.115s
+FAIL

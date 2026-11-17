@@ -1,0 +1,24 @@
+{
+  "accepted": false,
+  "command": [
+    "/home/runner/work/LoGOs/LoGOs/bin/go",
+    "test",
+    "-json",
+    "-count=1",
+    "-p=1",
+    "-parallel=1",
+    "-vet=off",
+    "-timeout=10m",
+    "-overlay=/home/runner/work/_temp/logos-regression-evidence/zero-array/old-type-proof.overlay.json",
+    "cmd/compile/internal/types2",
+    "-run",
+    "^TestLogosReferenceFreeZeroArrays$/^function$/^zero$"
+  ],
+  "cwd": "/home/runner/work/LoGOs/LoGOs/src",
+  "elapsed_seconds": 0.3149477520000801,
+  "exit_code": 1,
+  "rejection": "build failure or skipped test",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "9afa175eb2c0d885624db4079cc99033b64eb6638bdde73665027023425edc8e",
+  "timed_out": false
+}

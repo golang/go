@@ -1,0 +1,5 @@
+--- FAIL: TestChildPlugin (0.38s)
+    plugin_test.go:18: plugin.Open("/dev/shm/dogfood-review-d8d410ec882d/TestChildPlugin1029731988/001/child"): plugin was built with a different version of package internal/goexperiment
+FAIL
+FAIL	example.com/testplugin	0.380s
+FAIL

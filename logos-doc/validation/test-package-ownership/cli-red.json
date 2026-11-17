@@ -1,0 +1,38 @@
+[
+  {
+    "name": "root",
+    "command": [
+      "/workspace/scratch/93e0563596d1/LoGOs/bin/logos",
+      "test",
+      "-short",
+      "-count=1",
+      "."
+    ],
+    "returncode": 1,
+    "seconds": 0.36856415800139075
+  },
+  {
+    "name": "nested",
+    "command": [
+      "/workspace/scratch/93e0563596d1/LoGOs/bin/logos",
+      "test",
+      "-short",
+      "-count=1",
+      "example.com/app/nested"
+    ],
+    "returncode": 0,
+    "seconds": 0.3148804169977666
+  },
+  {
+    "name": "mirror",
+    "command": [
+      "/workspace/scratch/93e0563596d1/LoGOs/bin/logos",
+      "test",
+      "-short",
+      "-count=1",
+      "./usesmirror"
+    ],
+    "returncode": 1,
+    "seconds": 0.36674442300136434
+  }
+]

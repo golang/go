@@ -1,0 +1,45 @@
+{
+  "run_id": 43972897190,
+  "head": "090bac0f2dbb1a1105d4bcb156fc31ed7c025177",
+  "source_tree": "6a650366141c23a154f6e0b153767527e520a58f",
+  "archive": "corpus-43972897190-evidence.tar.gz",
+  "archive_sha256": "9d13ac44072c487feb5883ca155ff8d4bfbf236aacc30994fd5913ce7118b4e3",
+  "archive_bytes": 3341649,
+  "tar_entries": 1214,
+  "manifest_sha256": "61bb2b3c06db4078827378603f6e17798a86e56ef46ab4277060a3cc82a27cd3",
+  "payload_bytes": 33633699,
+  "recorded_stream_hashes_verified": 952,
+  "early_stream_hashes_verified": 26,
+  "original_artifacts": [
+    {
+      "run_id": 43972897190,
+      "job_id": 133669378368,
+      "artifact_id": 14279877567,
+      "head": "090bac0f2dbb1a1105d4bcb156fc31ed7c025177",
+      "artifact_name": "tools-probe-43972897190-1.zip",
+      "sha256": "8e4cefd9e1fddc78cf9dce85fb7844ee0204bcbcbeed29afba31ac99657c328d",
+      "bytes": 37872,
+      "entry_count": 37,
+      "expanded_bytes": 718755,
+      "downloaded_at": "2026-11-16T22:53:34.073405+00:00",
+      "extracted_files_reverified": 37
+    },
+    {
+      "run_id": 43972897190,
+      "job_id": 133669378368,
+      "artifact_id": 14281572232,
+      "head": "090bac0f2dbb1a1105d4bcb156fc31ed7c025177",
+      "artifact_name": "dogfood-43972897190-1.zip",
+      "sha256": "f551ab4fdec3f21375fa386b811cb7a1e324e73d85d81934029649da5011f185",
+      "bytes": 1795064,
+      "entry_count": 1145,
+      "expanded_bytes": 19278270,
+      "downloaded_at": "2026-11-16T23:28:43.724912+00:00",
+      "extracted_files_reverified": 1145
+    }
+  ],
+  "all_zip_members_verified": true,
+  "readback_verified": true,
+  "repack_byte_identical": true,
+  "inputs_unchanged_after_pack": true
+}

@@ -1,0 +1,23 @@
+{
+  "accepted": false,
+  "command": [
+    "/home/runner/work/LoGOs/LoGOs/bin/go",
+    "test",
+    "-json",
+    "-count=1",
+    "-p=1",
+    "-parallel=1",
+    "-vet=off",
+    "-timeout=10m",
+    "cmd/compile/internal/types2",
+    "-run",
+    "^(TestLogosReferenceFreeZeroArrayNesting|TestLogosReferenceFreeZeroArrayTypeParams|TestLogosReferenceFreeZeroArrays)$"
+  ],
+  "cwd": "/home/runner/work/LoGOs/LoGOs/src",
+  "elapsed_seconds": 0.2661576759999207,
+  "exit_code": 1,
+  "rejection": "build failure or skipped test",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "17f888e66250b9905bdd23905f92d2187841ee3ad113a4933f5764fb0905fc41",
+  "timed_out": false
+}

@@ -1,0 +1,32 @@
+{
+  "head": "bdc5987c526a9e9aa1b43975290f69a2370ae37a",
+  "checkout": "df9692747da8b773c8714f5497a5d0f61f06e956",
+  "tree": "b1eca92a0c54e14b8e37974c6516a882d13d1442",
+  "source_tree": "61483affd1671d27e29a1a1aadc5299ba675f789",
+  "job_id": 133512371888,
+  "run_id": 43927955055,
+  "conclusion": "success",
+  "raw_log_sha256": "97ef8c68cb4a022668516e0ed05e10f10e89124685e3aa51454454ecfb63b793",
+  "raw_log_characters": 65420,
+  "driver_sha256": "28208831b0b9e37ff296118f2ea4d2666487d0af0154341e89002a190822a808",
+  "compiler_sha256": "a2b3a7f9353f5b0e2f7cfdd3007f85b1d5bd92ae3b74eb4dcc7a38f2dc73bb66",
+  "linker_sha256": "a3b952057f0b04b13d7af70aed216dc41c59fc1278f5418af4f99e17b5373ce1",
+  "verified_at_utc": "2026-11-16T18:59:51Z",
+  "gates": [
+    "native build",
+    "smoke",
+    "unit packages",
+    "compiler fixtures",
+    "formatting",
+    "vet",
+    "lint",
+    "race ld/work/test",
+    "generator + shape",
+    "environment and generator negative controls with restored positive reruns"
+  ],
+  "remaining_gates": [
+    "scripts job",
+    "upstream job",
+    "separate corpus replay"
+  ]
+}

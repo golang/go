@@ -1,0 +1,1127 @@
+{
+  "corrected_branch_head_not_tested_by_this_archive": "82c3817d309fdbf6092e4a5ad6f2f9e69aadd0dc",
+  "excluded_directory_names": [
+    ".git",
+    ".ruff_cache",
+    "__pycache__",
+    "cache",
+    "caches",
+    "dependency-prep",
+    "dependency-work",
+    "ejected",
+    "panic-generation",
+    "work"
+  ],
+  "historical_logos_head": "22ab6f7a169e905d9fde5e345db101735a321486",
+  "historical_logos_source_tree": "8d74f82a97b8509400372ae4818525f19e7105ef",
+  "nested_installed_acceptance": {
+    "path": "corpus-review/installed-acceptance.tar.gz",
+    "sha256": "844cb749d84f79db09004b1a92d0a4945823946359e714f10656fe9cc08fbad1",
+    "verified_regular_files": 106
+  },
+  "provenance_rule": "Original report bytes and recorded before/after identities are preserved. No final source check, exit status, completion flag or unobserved result has been added to an interrupted report.",
+  "reports": [
+    {
+      "archive_classification": "diagnostic or provenance record without a campaign completion flag",
+      "path": "corpus-review/dependency-download/report.json",
+      "report_sha256": "485ad078e0a63aa7d7f9e3878019c05d84432fbd658fc159963d333fa52ff5d5"
+    },
+    {
+      "accepted": true,
+      "archive_classification": "recorded campaign completion; inspect failures and timeouts separately",
+      "complete": true,
+      "path": "corpus-review/installed/scripts-valid-vcs/report.json",
+      "report_sha256": "20feaae62e6e9ed4e67307e92aa84776be0414e519bf651ffac4b5f78854eb46",
+      "rows": [
+        {
+          "accepted": true,
+          "events": {
+            "failures": 0,
+            "missing_required_run_or_pass": 0,
+            "passed_count": 3,
+            "skips": 0,
+            "started_count": 3
+          },
+          "name": "scripts",
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 172.408,
+            "timed_out": false
+          }
+        }
+      ],
+      "unchanged": true
+    },
+    {
+      "accepted": false,
+      "archive_classification": "recorded campaign completion; inspect failures and timeouts separately",
+      "complete": true,
+      "path": "corpus-review/installed/scripts/report.json",
+      "report_sha256": "ec91ba38e61c83b3e49656f4ed18454f246239013b6995e6e4057e3a84bbaba9",
+      "rows": [
+        {
+          "accepted": false,
+          "events": {
+            "failures": 3,
+            "missing_required_run_or_pass": 1,
+            "passed_count": 1,
+            "skips": 0,
+            "started_count": 3
+          },
+          "name": "scripts",
+          "run": {
+            "error": "",
+            "returncode": 1,
+            "seconds": 166.576,
+            "timed_out": false
+          }
+        }
+      ],
+      "unchanged": true
+    },
+    {
+      "accepted": true,
+      "archive_classification": "recorded campaign completion; inspect failures and timeouts separately",
+      "complete": true,
+      "path": "corpus-review/installed/unit/report.json",
+      "report_sha256": "8792850e141d10c9c9e5b4d09f6a71d08e66f30d7da7c7fdefb94f6ff44d2a3f",
+      "rows": [
+        {
+          "accepted": true,
+          "events": {
+            "failures": 0,
+            "missing_required_run_or_pass": 0,
+            "passed_count": 17,
+            "skips": 0,
+            "started_count": 17
+          },
+          "name": "normal",
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 78.141,
+            "timed_out": false
+          }
+        },
+        {
+          "accepted": true,
+          "events": {
+            "failures": 0,
+            "missing_required_run_or_pass": 0,
+            "passed_count": 17,
+            "skips": 0,
+            "started_count": 17
+          },
+          "name": "race",
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 82.818,
+            "timed_out": false
+          }
+        },
+        {
+          "accepted": true,
+          "name": "vet",
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 8.694,
+            "timed_out": false
+          }
+        }
+      ],
+      "unchanged": true
+    },
+    {
+      "archive_classification": "interrupted; no completed campaign or final source check is inferred",
+      "assessment_counts": {
+        "findings": 5,
+        "invalid-report": 1,
+        "pass": 16,
+        "timeout": 2
+      },
+      "case_count": 28,
+      "complete": false,
+      "finished_cases": 6,
+      "observed_cases": 7,
+      "path": "corpus-vcs/native-default/report.json",
+      "pending_cases": [
+        "modernc-sqlite"
+      ],
+      "recorded_cells": 24,
+      "report_sha256": "5bdf975f918ffbc980256863a4e2448ffda4f73958aa72dd6fd1c14be434d77a"
+    },
+    {
+      "archive_classification": "recorded campaign completion; inspect failures and timeouts separately",
+      "complete": true,
+      "path": "corpus-vcs/runtime/language/report.json",
+      "report_sha256": "76b4b9a95d971bba6d75f950f54ddf44147b3d323ec5935527eb460d0bc77738",
+      "rows": [
+        {
+          "label": "native",
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 0.618,
+            "timed_out": false
+          },
+          "status": "pass"
+        },
+        {
+          "label": "eject",
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 0.465,
+            "timed_out": false
+          },
+          "status": "pass"
+        },
+        {
+          "label": "ejected-oracle",
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 0.419,
+            "timed_out": false
+          },
+          "status": "pass"
+        }
+      ]
+    },
+    {
+      "archive_classification": "recorded campaign completion; inspect failures and timeouts separately",
+      "complete": true,
+      "path": "corpus-vcs/runtime/lint/report.json",
+      "report_sha256": "036334f04ce789ede4c6a58727ce1b5c18c6ecd623103386d135fbc12faf0503",
+      "rows": [
+        {
+          "assessment": {
+            "diagnostics": 3,
+            "duplicate_diagnostics": 0,
+            "normalized_sha256": "c4af3036167062e8e4e857370d155b8ef31cf1ef0d902e12bb5761706ea8dbba",
+            "reason": "",
+            "status": "findings"
+          },
+          "exact_match": true,
+          "label": "lint",
+          "run": {
+            "error": "",
+            "returncode": 1,
+            "seconds": 0.032,
+            "timed_out": false
+          },
+          "status": "pass"
+        },
+        {
+          "assessment": {
+            "diagnostics": 3,
+            "duplicate_diagnostics": 0,
+            "normalized_sha256": "c4af3036167062e8e4e857370d155b8ef31cf1ef0d902e12bb5761706ea8dbba",
+            "reason": "",
+            "status": "findings"
+          },
+          "exact_match": true,
+          "label": "lint-repeat",
+          "run": {
+            "error": "",
+            "returncode": 1,
+            "seconds": 0.017,
+            "timed_out": false
+          },
+          "status": "pass"
+        },
+        {
+          "events": {
+            "exact_match": true,
+            "expected": 2,
+            "passed": 2,
+            "started": 2
+          },
+          "label": "runtime-oracle",
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 0.416,
+            "timed_out": false
+          },
+          "status": "pass"
+        },
+        {
+          "events": {
+            "exact_match": true,
+            "expected": 2,
+            "passed": 2,
+            "started": 2
+          },
+          "label": "runtime-go",
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 0.618,
+            "timed_out": false
+          },
+          "status": "pass"
+        },
+        {
+          "events": {
+            "exact_match": true,
+            "expected": 2,
+            "passed": 2,
+            "started": 2
+          },
+          "label": "runtime-logos",
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 0.57,
+            "timed_out": false
+          },
+          "status": "pass"
+        }
+      ]
+    },
+    {
+      "archive_classification": "recorded campaign completion; inspect failures and timeouts separately",
+      "complete": true,
+      "path": "corpus-vcs/runtime/modernc-link-policy/report.json",
+      "report_sha256": "1273eac234b1b41aac1da055e1f27f53b14a4907a9fab506160b6c78fa40c047",
+      "status": "candidate-failed"
+    },
+    {
+      "archive_classification": "recorded campaign completion; inspect failures and timeouts separately",
+      "complete": true,
+      "path": "corpus-vcs/runtime/modernc-link-test-policy/report.json",
+      "report_sha256": "e7f0939a07ca4d3345fd1435c9af377e570d22f5c922221f1b7442725a956ac0",
+      "status": "pass"
+    },
+    {
+      "archive_classification": "recorded campaign completion; inspect failures and timeouts separately",
+      "complete": true,
+      "path": "corpus-vcs/runtime/modernc-policy/report.json",
+      "report_sha256": "dd9688223065f0e1c4288cf5024c0fe7264b7a4f4bdf40fe52ace31db59b5695",
+      "status": "candidate-failed"
+    },
+    {
+      "archive_classification": "recorded campaign completion; inspect failures and timeouts separately",
+      "complete": true,
+      "path": "corpus-vcs/runtime/modernc-sql/report.json",
+      "report_sha256": "19f6d9ec6060a597f1f4abdfa1ae9d781e4fe145fcea22917134d6fd4d26cf1f",
+      "rows": [
+        {
+          "assessment": {
+            "diagnostics": 0,
+            "duplicate_diagnostics": 0,
+            "normalized_sha256": "",
+            "reason": "",
+            "status": "pass"
+          },
+          "driver": "oracle",
+          "events": {
+            "exact_match": true,
+            "expected": 15,
+            "passed": 15,
+            "started": 15
+          },
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 55.518,
+            "timed_out": false
+          },
+          "status": "pass"
+        },
+        {
+          "assessment": {
+            "diagnostics": 0,
+            "duplicate_diagnostics": 0,
+            "normalized_sha256": "",
+            "reason": "",
+            "status": "pass"
+          },
+          "driver": "go",
+          "events": {
+            "exact_match": true,
+            "expected": 15,
+            "passed": 15,
+            "started": 15
+          },
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 73.233,
+            "timed_out": false
+          },
+          "status": "pass"
+        },
+        {
+          "assessment": {
+            "diagnostics": 0,
+            "duplicate_diagnostics": 0,
+            "normalized_sha256": "",
+            "reason": "deadline exceeded; process group terminated",
+            "status": "timeout"
+          },
+          "driver": "logos",
+          "events": {
+            "exact_match": false,
+            "expected": 15,
+            "passed": 0,
+            "started": 0
+          },
+          "run": {
+            "error": "",
+            "returncode": -9,
+            "seconds": 601.308,
+            "timed_out": true
+          },
+          "status": "failed"
+        }
+      ],
+      "source_stable": true,
+      "tools_stable": true
+    },
+    {
+      "archive_classification": "recorded campaign completion; inspect failures and timeouts separately",
+      "complete": true,
+      "path": "corpus-vcs/runtime/sqlite/report.json",
+      "report_sha256": "1d1b9134b0a5acf5c76aad2578545f950f057bc00f803f5767e1767b5e41eead",
+      "rows": [
+        {
+          "assessment": {
+            "diagnostics": 0,
+            "duplicate_diagnostics": 0,
+            "normalized_sha256": "",
+            "reason": "",
+            "status": "pass"
+          },
+          "events": {
+            "exact_match": true,
+            "expected": 3,
+            "passed": 3,
+            "started": 3
+          },
+          "label": "sqlite3-cgo-oracle",
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 58.239,
+            "timed_out": false
+          },
+          "status": "pass"
+        },
+        {
+          "assessment": {
+            "diagnostics": 0,
+            "duplicate_diagnostics": 0,
+            "normalized_sha256": "",
+            "reason": "",
+            "status": "pass"
+          },
+          "events": {
+            "exact_match": true,
+            "expected": 3,
+            "passed": 3,
+            "started": 3
+          },
+          "label": "sqlite3-cgo-go",
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 54.296,
+            "timed_out": false
+          },
+          "status": "pass"
+        },
+        {
+          "assessment": {
+            "diagnostics": 0,
+            "duplicate_diagnostics": 0,
+            "normalized_sha256": "",
+            "reason": "",
+            "status": "pass"
+          },
+          "events": {
+            "exact_match": true,
+            "expected": 3,
+            "passed": 3,
+            "started": 3
+          },
+          "label": "sqlite3-cgo-logos",
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 55.989,
+            "timed_out": false
+          },
+          "status": "pass"
+        },
+        {
+          "assessment": {
+            "diagnostics": 0,
+            "duplicate_diagnostics": 0,
+            "normalized_sha256": "",
+            "reason": "",
+            "status": "pass"
+          },
+          "events": {
+            "exact_match": true,
+            "expected": 1,
+            "passed": 1,
+            "started": 1
+          },
+          "label": "modernc-sqlite-oracle",
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 54.344,
+            "timed_out": false
+          },
+          "status": "pass"
+        },
+        {
+          "assessment": {
+            "diagnostics": 0,
+            "duplicate_diagnostics": 0,
+            "normalized_sha256": "",
+            "reason": "",
+            "status": "pass"
+          },
+          "events": {
+            "exact_match": true,
+            "expected": 1,
+            "passed": 1,
+            "started": 1
+          },
+          "label": "modernc-sqlite-go",
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 78.147,
+            "timed_out": false
+          },
+          "status": "pass"
+        },
+        {
+          "assessment": {
+            "diagnostics": 0,
+            "duplicate_diagnostics": 0,
+            "normalized_sha256": "",
+            "reason": "",
+            "status": "candidate-failed"
+          },
+          "events": {
+            "exact_match": false,
+            "expected": 1,
+            "passed": 0,
+            "started": 0
+          },
+          "label": "modernc-sqlite-logos",
+          "run": {
+            "error": "",
+            "returncode": 1,
+            "seconds": 0.424,
+            "timed_out": false
+          },
+          "status": "candidate-failed"
+        }
+      ]
+    },
+    {
+      "archive_classification": "interrupted; no completed campaign or final source check is inferred",
+      "assessment_counts": {
+        "clean": 3,
+        "findings": 43,
+        "timeout": 5
+      },
+      "case_count": 28,
+      "complete": false,
+      "finished_cases": 17,
+      "observed_cases": 18,
+      "path": "corpus-verified-gglint/report.json",
+      "pending_cases": [
+        "sys"
+      ],
+      "recorded_cells": 51,
+      "report_sha256": "9f141284adbbcec076b4bcbfea0f8d40938d4addf0f739a22810200a092189c7"
+    },
+    {
+      "archive_classification": "recorded campaign completion; inspect failures and timeouts separately",
+      "assessment_counts": {
+        "pass": 6
+      },
+      "case_count": 2,
+      "complete": true,
+      "finished_cases": 2,
+      "observed_cases": 2,
+      "path": "corpus-verified-runtime/fixtures/report.json",
+      "pending_cases": [],
+      "recorded_cells": 6,
+      "report_sha256": "e171aa4c1a5bee8869cd1e3a6892bac37840d34447b0fdd856c8ca56707c4be4"
+    },
+    {
+      "archive_classification": "recorded campaign completion; inspect failures and timeouts separately",
+      "complete": true,
+      "path": "corpus-verified-runtime/language/report.json",
+      "report_sha256": "cacdcc65737d44282f38709ad6f6b9e67f9f02b70ddb607efac331c69315f94a",
+      "rows": [
+        {
+          "label": "native",
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 12.388,
+            "timed_out": false
+          },
+          "status": "pass"
+        },
+        {
+          "label": "eject",
+          "run": {
+            "error": "",
+            "returncode": 1,
+            "seconds": 0.036,
+            "timed_out": false
+          },
+          "status": "failed"
+        }
+      ]
+    },
+    {
+      "archive_classification": "recorded campaign completion; inspect failures and timeouts separately",
+      "complete": true,
+      "pass": true,
+      "path": "installed-audit/build/report.json",
+      "report_sha256": "b68a4c0720748526343ba2000d3eb752d6ac54ce64ce8030001fb69a338d749f",
+      "rows": [
+        {
+          "name": "make",
+          "pass": true,
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 676.635,
+            "timed_out": false
+          }
+        }
+      ],
+      "source_stable": true
+    },
+    {
+      "archive_classification": "recorded campaign completion; inspect failures and timeouts separately",
+      "complete": true,
+      "pass": true,
+      "path": "installed-audit/components-vcs/report.json",
+      "report_sha256": "bbb33ac3c990668c50868a4caf7e868defa19de58a8160b27b6b6ab8eb5d6716",
+      "rows": [
+        {
+          "name": "go-version",
+          "pass": true,
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 0.008,
+            "timed_out": false
+          }
+        },
+        {
+          "name": "logos-version",
+          "pass": true,
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 0.008,
+            "timed_out": false
+          }
+        },
+        {
+          "name": "ld",
+          "pass": true,
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 20.679,
+            "timed_out": false
+          }
+        },
+        {
+          "name": "work-race",
+          "pass": true,
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 6.261,
+            "timed_out": false
+          }
+        },
+        {
+          "name": "vet",
+          "pass": true,
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 2.161,
+            "timed_out": false
+          }
+        }
+      ],
+      "source_stable": true,
+      "tools_stable": true
+    },
+    {
+      "archive_classification": "recorded campaign completion; inspect failures and timeouts separately",
+      "complete": true,
+      "pass": false,
+      "path": "installed-audit/components/report.json",
+      "report_sha256": "74763f745fc1b0929a59a5301bcb914dee2764880a097853ae6fb23ed9162641",
+      "rows": [
+        {
+          "name": "go-version",
+          "pass": true,
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 0.018,
+            "timed_out": false
+          }
+        },
+        {
+          "name": "logos-version",
+          "pass": true,
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 0.021,
+            "timed_out": false
+          }
+        },
+        {
+          "name": "ld",
+          "pass": false,
+          "run": {
+            "error": "",
+            "returncode": 1,
+            "seconds": 83.564,
+            "timed_out": false
+          }
+        }
+      ],
+      "source_stable": true,
+      "tools_stable": true
+    },
+    {
+      "archive_classification": "diagnostic or provenance record without a campaign completion flag",
+      "path": "installed-audit/git-probe-repaired/report.json",
+      "report_sha256": "80fa900e6938aae9726e3517fa8910501630bd3959e1a1e2fc95d053b8870fd6",
+      "rows": [
+        {
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 6.77,
+            "timed_out": false
+          }
+        },
+        {
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 0.216,
+            "timed_out": false
+          }
+        }
+      ]
+    },
+    {
+      "archive_classification": "diagnostic or provenance record without a campaign completion flag",
+      "path": "installed-audit/git-probe/oracle-original-report.json",
+      "report_sha256": "ec20d5bc53df757072e96c0ae46c2c54cd4c20d6af6d2db1eaa1a3e9dba8ffe6"
+    },
+    {
+      "archive_classification": "diagnostic or provenance record without a campaign completion flag",
+      "path": "installed-audit/git-probe/report.json",
+      "report_sha256": "3a99bc054a07d6cc45cb7a00f0d2d88cc18d0757ab414107caefc2abea4554b6",
+      "rows": [
+        {
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 0.004,
+            "timed_out": false
+          }
+        },
+        {
+          "run": {
+            "error": "",
+            "returncode": 128,
+            "seconds": 0.004,
+            "timed_out": false
+          }
+        },
+        {
+          "run": {
+            "error": "",
+            "returncode": 1,
+            "seconds": 0.032,
+            "timed_out": false
+          }
+        },
+        {
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 0.004,
+            "timed_out": false
+          }
+        },
+        {
+          "run": {
+            "error": "",
+            "returncode": 128,
+            "seconds": 0.004,
+            "timed_out": false
+          }
+        },
+        {
+          "run": {
+            "error": "",
+            "returncode": 1,
+            "seconds": 0.032,
+            "timed_out": false
+          }
+        }
+      ]
+    },
+    {
+      "archive_classification": "recorded campaign completion; inspect failures and timeouts separately",
+      "complete": true,
+      "pass": true,
+      "path": "installed-audit/scripts/report.json",
+      "report_sha256": "1c7e8ff8eddf2c0bbb8ce0303785404797d5e321842ff28d2ea5e4e8878360c3",
+      "rows": [
+        {
+          "name": "capability-scripts-race",
+          "pass": true,
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 266.186,
+            "timed_out": false
+          }
+        }
+      ],
+      "source_stable": true,
+      "tools_stable": true
+    },
+    {
+      "archive_classification": "interrupted; no completed campaign or final source check is inferred",
+      "complete": false,
+      "path": "installed-audit/upstream/report.json",
+      "report_sha256": "f65f6efcc97b2389b7d6b90fd82152ddd0372fce1a560abb39077db2daf2a1e7"
+    },
+    {
+      "archive_classification": "recorded campaign completion; inspect failures and timeouts separately",
+      "complete": true,
+      "path": "tmp-logos-vcs/corpus-runtime-ffi/report.json",
+      "report_sha256": "6e322eeae231d1e52804e4b0b8105739c83b862ccdc30ec9227d3fc940821e7f",
+      "rows": [
+        {
+          "assessment": {
+            "diagnostics": 0,
+            "duplicate_diagnostics": 0,
+            "normalized_sha256": "",
+            "reason": "",
+            "status": "pass"
+          },
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 2.127,
+            "timed_out": false
+          },
+          "status": "pass"
+        },
+        {
+          "assessment": {
+            "diagnostics": 0,
+            "duplicate_diagnostics": 0,
+            "normalized_sha256": "",
+            "reason": "",
+            "status": "pass"
+          },
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 1.937,
+            "timed_out": false
+          },
+          "status": "pass"
+        },
+        {
+          "assessment": {
+            "diagnostics": 0,
+            "duplicate_diagnostics": 0,
+            "normalized_sha256": "",
+            "reason": "",
+            "status": "pass"
+          },
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 1.73,
+            "timed_out": false
+          },
+          "status": "pass"
+        }
+      ]
+    },
+    {
+      "accepted": true,
+      "archive_classification": "recorded campaign completion; inspect failures and timeouts separately",
+      "complete": true,
+      "path": "tmp-logos-vcs/corpus-runtime-xxhash/report.json",
+      "report_sha256": "4024336070c239b2c5a21494c4adf58083f8da43cc00c90a21b4b90a6dcfb3a5",
+      "rows": [
+        {
+          "accepted": true,
+          "assessment": {
+            "diagnostics": 0,
+            "duplicate_diagnostics": 0,
+            "normalized_sha256": "",
+            "reason": "",
+            "status": "pass"
+          },
+          "events": {
+            "failures": 0,
+            "missing_required_run_or_pass": 0,
+            "passed_count": 159,
+            "skips": 0,
+            "started_count": 159
+          },
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 1.439,
+            "timed_out": false
+          }
+        },
+        {
+          "accepted": true,
+          "assessment": {
+            "diagnostics": 0,
+            "duplicate_diagnostics": 0,
+            "normalized_sha256": "",
+            "reason": "",
+            "status": "pass"
+          },
+          "events": {
+            "failures": 0,
+            "missing_required_run_or_pass": 0,
+            "passed_count": 159,
+            "skips": 0,
+            "started_count": 159
+          },
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 1.375,
+            "timed_out": false
+          }
+        },
+        {
+          "accepted": true,
+          "assessment": {
+            "diagnostics": 0,
+            "duplicate_diagnostics": 0,
+            "normalized_sha256": "",
+            "reason": "",
+            "status": "pass"
+          },
+          "events": {
+            "failures": 0,
+            "missing_required_run_or_pass": 0,
+            "passed_count": 159,
+            "skips": 0,
+            "started_count": 159
+          },
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 42.414,
+            "timed_out": false
+          }
+        },
+        {
+          "accepted": true,
+          "assessment": {
+            "diagnostics": 0,
+            "duplicate_diagnostics": 0,
+            "normalized_sha256": "",
+            "reason": "",
+            "status": "pass"
+          },
+          "events": {
+            "failures": 0,
+            "missing_required_run_or_pass": 0,
+            "passed_count": 159,
+            "skips": 0,
+            "started_count": 159
+          },
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 3.155,
+            "timed_out": false
+          }
+        },
+        {
+          "accepted": true,
+          "assessment": {
+            "diagnostics": 0,
+            "duplicate_diagnostics": 0,
+            "normalized_sha256": "",
+            "reason": "",
+            "status": "pass"
+          },
+          "events": {
+            "failures": 0,
+            "missing_required_run_or_pass": 0,
+            "passed_count": 159,
+            "skips": 0,
+            "started_count": 159
+          },
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 2.842,
+            "timed_out": false
+          }
+        },
+        {
+          "accepted": true,
+          "assessment": {
+            "diagnostics": 0,
+            "duplicate_diagnostics": 0,
+            "normalized_sha256": "",
+            "reason": "",
+            "status": "pass"
+          },
+          "events": {
+            "failures": 0,
+            "missing_required_run_or_pass": 0,
+            "passed_count": 159,
+            "skips": 0,
+            "started_count": 159
+          },
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 3.6,
+            "timed_out": false
+          }
+        },
+        {
+          "accepted": true,
+          "assessment": {
+            "diagnostics": 0,
+            "duplicate_diagnostics": 0,
+            "normalized_sha256": "",
+            "reason": "",
+            "status": "pass"
+          },
+          "events": {
+            "failures": 0,
+            "missing_required_run_or_pass": 0,
+            "passed_count": 223,
+            "skips": 1,
+            "started_count": 223
+          },
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 19.719,
+            "timed_out": false
+          }
+        },
+        {
+          "accepted": true,
+          "assessment": {
+            "diagnostics": 0,
+            "duplicate_diagnostics": 0,
+            "normalized_sha256": "",
+            "reason": "",
+            "status": "pass"
+          },
+          "events": {
+            "failures": 0,
+            "missing_required_run_or_pass": 0,
+            "passed_count": 223,
+            "skips": 1,
+            "started_count": 223
+          },
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 12.243,
+            "timed_out": false
+          }
+        },
+        {
+          "accepted": true,
+          "assessment": {
+            "diagnostics": 0,
+            "duplicate_diagnostics": 0,
+            "normalized_sha256": "",
+            "reason": "",
+            "status": "pass"
+          },
+          "events": {
+            "failures": 0,
+            "missing_required_run_or_pass": 0,
+            "passed_count": 223,
+            "skips": 1,
+            "started_count": 223
+          },
+          "run": {
+            "error": "",
+            "returncode": 0,
+            "seconds": 12.739,
+            "timed_out": false
+          }
+        }
+      ],
+      "unchanged": true
+    }
+  ],
+  "schema_version": 1,
+  "scope_roots": [
+    "installed-audit",
+    "corpus-review",
+    "recovery-evidence",
+    "corpus-verified-runtime",
+    "corpus-vcs/runtime",
+    "corpus-vcs/native-default",
+    "corpus-verified-gglint"
+  ],
+  "selected_additional_names": [
+    "go.mod",
+    "go.sum"
+  ],
+  "selected_suffixes": [
+    ".gz",
+    ".json",
+    ".log",
+    ".md",
+    ".py",
+    ".sh",
+    ".sha256",
+    ".stderr",
+    ".stdout",
+    ".toml",
+    ".txt"
+  ],
+  "verified_distinct_recorded_logs": 504,
+  "verified_recorded_log_references": 504
+}

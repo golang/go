@@ -1,0 +1,48 @@
+{
+  "repository": "gosuda/gglint",
+  "pull_request": 13,
+  "head_sha": "a95099aae13ff7ffb4b3825bd63f8510bd184c69",
+  "run_id": 43923681281,
+  "run_url": "https://github.com/gosuda/gglint/actions/runs/43923681281",
+  "observed_at_utc": "2026-11-16T18:21:31Z",
+  "status": "completed",
+  "conclusion": "success",
+  "toolchain": "go1.27.4 linux/amd64",
+  "workflow_path": ".github/workflows/ci.yml",
+  "workflow_blob_sha": "ec20a287bd5a5a2f0f5280f35060d7b69e844cac",
+  "runner_label": "ubuntu-24.04",
+  "jobs": [
+    {
+      "name": "race",
+      "id": 133497329552,
+      "conclusion": "success",
+      "log": "race.raw.log",
+      "tested_packages": 39,
+      "packages_without_tests": 3,
+      "command": "go test -race -count=1 -p 1 -parallel 2 -timeout 15m \"${test_packages[@]}\"",
+      "coverage": "All discovered packages except internal/vettool; includes precision corpus."
+    },
+    {
+      "name": "lint",
+      "id": 133497329973,
+      "conclusion": "success",
+      "log": "lint.raw.log",
+      "checks": [
+        "go vet ./...",
+        "golangci-lint ./...",
+        "go run ./cmd/gglint run ./..."
+      ]
+    },
+    {
+      "name": "vettool",
+      "id": 133497330041,
+      "conclusion": "success",
+      "log": "vettool.raw.log",
+      "command": "go test -race -count=1 -p 1 -parallel 1 -timeout 15m ./internal/vettool",
+      "package_seconds": 61.286,
+      "coverage": "Full internal/vettool package; existing nine-worker stress test remains enabled."
+    }
+  ],
+  "validation_scope": "Independent GitHub Actions execution on the exact head above. This does not turn prior local resource-killed runs into passes.",
+  "raw_log_note": "Complete text returned by the GitHub workflow-job-logs connector, retained without filtering."
+}

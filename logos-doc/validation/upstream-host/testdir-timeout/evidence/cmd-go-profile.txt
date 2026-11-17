@@ -1,0 +1,3 @@
+filter=^cmd/go$
+timeout_scale=4
+package_timeout_minutes=36

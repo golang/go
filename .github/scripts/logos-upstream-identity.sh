@@ -1,0 +1,30 @@
+#!/bin/bash
+# Capture stable upstream source and installed tools from an explicit root.
+set -euo pipefail
+set -C
+
+if [[ $# -ne 3 ]]; then
+  printf 'usage: %s before|after ABS_REPOSITORY ABS_EVIDENCE\n' "$0" >&2
+  exit 2
+fi
+phase=$1
+repository=$2
+evidence=$3
+case "$phase" in
+  before|after) ;;
+  *) printf 'invalid receipt phase: %s\n' "$phase" >&2; exit 2 ;;
+esac
+[[ "$repository" = /* && "$evidence" = /* && -d "$evidence" ]]
+cd -- "$repository"
+
+git rev-parse HEAD HEAD:src HEAD:test > "$evidence/source-$phase.txt"
+git status --porcelain=v1 --untracked-files=all -- src test > "$evidence/source-$phase.status.txt"
+sha256sum -- bin/go bin/logos pkg/tool/linux_amd64/compile \
+  pkg/tool/linux_amd64/link pkg/tool/linux_amd64/asm pkg/tool/linux_amd64/cgo \
+  > "$evidence/tools-$phase.sha256"
+[[ ! -s "$evidence/source-$phase.status.txt" ]]
+
+if [[ "$phase" = after ]]; then
+  cmp -- "$evidence/source-before.txt" "$evidence/source-after.txt"
+  cmp -- "$evidence/tools-before.sha256" "$evidence/tools-after.sha256"
+fi

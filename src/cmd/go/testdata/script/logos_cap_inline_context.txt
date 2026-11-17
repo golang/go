@@ -1,0 +1,143 @@
+[!GOOS:linux] skip 'the capability controls use Linux socket syscalls'
+
+env CGO_ENABLED=0
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOWORK=off
+mkdir $WORK/bin
+cd main
+
+# A dependency's harmless Once callback does not inherit a different
+# first-party Once callback's network capability. Neither executable opens
+# a socket without an argument; both must still retain the reachable branch.
+go build -O=2 -o $WORK/bin/plain-safe$GOEXE ./cmd/safe
+exec $WORK/bin/plain-safe$GOEXE
+stderr '^inline-once-ok$'
+
+logos build -gcflags=example.com/inlinecapdep/safe=-m -gcflags=example.com/inlinecaphost/cmd/safe=-m -o $WORK/bin/logos-safe$GOEXE ./cmd/safe
+stderr 'safe\.go:[0-9]+:[0-9]+: inlining call to sync\.\(\*Once\)\.Do'
+stderr 'main\.go:[0-9]+:[0-9]+: inlining call to sync\.\(\*Once\)\.Do'
+! stderr 'capabilities::'
+exec $WORK/bin/logos-safe$GOEXE
+stderr '^inline-once-ok$'
+
+# A real dependency callback that opens a socket must remain denied.
+go build -O=2 -o $WORK/bin/plain-callback$GOEXE ./cmd/callback
+! logos build -gcflags=example.com/inlinecapdep/callback=-m -o $WORK/bin/logos-callback$GOEXE ./cmd/callback
+stderr 'callback\.go:[0-9]+:[0-9]+: inlining call to sync\.\(\*Once\)\.Do'
+stderr 'ERROR \[capabilities::unauthorized_net\]: Transitive dependency ''example\.com/inlinecapdep/callback'' reaches ''syscall\.Socket'''
+stderr 'example\.com/inlinecapdep/callback\.openSocket\(\)'
+
+# A dependency's own sink call remains its responsibility after its entire
+# wrapper is inlined into the first-party main function.
+go build -O=2 -o $WORK/bin/plain-direct$GOEXE ./cmd/direct
+! logos build -gcflags=example.com/inlinecaphost/cmd/direct=-m -o $WORK/bin/logos-direct$GOEXE ./cmd/direct
+stderr 'main\.go:[0-9]+:[0-9]+: inlining call to direct\.Open'
+stderr 'ERROR \[capabilities::unauthorized_net\]: Transitive dependency ''example\.com/inlinecapdep/direct'' reaches ''syscall\.Socket'''
+stderr 'example\.com/inlinecapdep/direct\.Open\(\)'
+
+-- main/go.mod --
+module example.com/inlinecaphost
+
+go 1.27
+
+require example.com/inlinecapdep v0.0.0
+
+replace example.com/inlinecapdep => ../dep
+
+-- main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_net = "deny"
+
+-- main/cmd/safe/main.go --
+package main
+
+import (
+	"net"
+	"os"
+	"sync"
+
+	"example.com/inlinecapdep/safe"
+)
+
+var firstOnce sync.Once
+
+func main() {
+	if safe.Touch() != 7 {
+		panic("safe callback did not run")
+	}
+	firstOnce.Do(firstPartyNetwork)
+	println("inline-once-ok")
+}
+
+//go:noinline
+func firstPartyNetwork() {
+	if len(os.Args) > 1 {
+		listener, err := net.Listen("tcp", "127.0.0.1:0")
+		if err == nil {
+			listener.Close()
+		}
+	}
+}
+
+-- main/cmd/callback/main.go --
+package main
+
+import "example.com/inlinecapdep/callback"
+
+func main() { callback.Open() }
+
+-- main/cmd/direct/main.go --
+package main
+
+import "example.com/inlinecapdep/direct"
+
+func main() { direct.Open() }
+
+-- dep/go.mod --
+module example.com/inlinecapdep
+
+go 1.27
+
+-- dep/safe/safe.go --
+package safe
+
+import "sync"
+
+var once sync.Once
+var value int
+
+//go:noinline
+func Touch() int {
+	once.Do(func() { value = 7 })
+	return value
+}
+
+-- dep/callback/callback.go --
+package callback
+
+import (
+	"sync"
+	"syscall"
+)
+
+var once sync.Once
+
+//go:noinline
+func Open() { once.Do(openSocket) }
+
+//go:noinline
+func openSocket() {
+	fd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, 0)
+	if err == nil {
+		syscall.Close(fd)
+	}
+}
+
+-- dep/direct/direct.go --
+package direct
+
+import "syscall"
+
+func Open() { _, _ = syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, 0) }

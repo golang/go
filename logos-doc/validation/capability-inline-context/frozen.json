@@ -1,0 +1,75 @@
+{
+  "base_commit": "1f3ed5cefb5d3005f90852cbe84035b4eb829f1f",
+  "base_source_tree": "61483affd1671d27e29a1a1aadc5299ba675f789",
+  "execution": {
+    "candidate_new_fixture": "pending",
+    "local_go_commands": 0,
+    "mutation_control": "pending",
+    "old_linker_new_fixture": "pending",
+    "peer_review": "source-only approved by logos_audit; no Go execution"
+  },
+  "new_tests": [
+    {
+      "bytes": 3516,
+      "path": "src/cmd/go/testdata/script/logos_cap_inline_context.txt",
+      "sha256": "26feb66faaec2df343f6f531a85584dcc405a0800683f3732cf4c75c708b520f"
+    }
+  ],
+  "observed_ci_head": "c47c4cfc56fc8bfa916d170ed51040195b567dc9",
+  "observed_ci_run": "43928753813",
+  "original_production": {
+    "archive_path": "logos-doc/validation/capability-inline-context/original/capabilities_logos.go",
+    "bytes": 24510,
+    "git_blob": "5ba00054ba2070e1b614f69c41197e82a072977e",
+    "path": "src/cmd/link/internal/ld/capabilities_logos.go",
+    "sha256": "aced316fe80bd75671719ff34ca6c3272270eb1e755028c581987838585f65f6"
+  },
+  "preserved_validation": [
+    {
+      "bytes": 7165,
+      "path": "src/cmd/go/testdata/script/logos_cap_inline.txt",
+      "sha256": "d3caa59d0c968e937924e68faa957ee21d946dbe14dca5da515584339c924c40"
+    },
+    {
+      "bytes": 18105,
+      "path": "src/cmd/go/testdata/script/logos_cap_chains.txt",
+      "sha256": "4c955e8ade8ad62a856dad0b5cd4206aa6dc27ff6c9e3ca185a249c113c603bf"
+    },
+    {
+      "bytes": 2830,
+      "path": "src/cmd/go/testdata/script/logos_cap_deadcode.txt",
+      "sha256": "a81adfc0281dbec8fde184ee224d0ad55f036fb6fc956a07dcf341b7eb670ec7"
+    },
+    {
+      "bytes": 2958,
+      "path": "src/cmd/go/testdata/script/logos_cap_net_socket.txt",
+      "sha256": "c4f796ff91f83fa44853655ef58a74783d703122de2934c65bc17cb9e2cdbc45"
+    },
+    {
+      "bytes": 2106,
+      "path": "src/cmd/go/testdata/script/logos_cap_shortest_frames.txt",
+      "sha256": "74cd65ee1f7aa7c30c62dcb70e38f9ecbef7672fc46ba117a7f7bcc72bdf95ac"
+    },
+    {
+      "bytes": 2317,
+      "path": "src/cmd/go/testdata/script/logos_cap_xtest_owner.txt",
+      "sha256": "9edbfe1ef8805dd87273df750413bb2a4386ee34c33838b7d90b4a770a087ad1"
+    },
+    {
+      "bytes": 9559,
+      "path": "src/cmd/link/internal/ld/capabilities_chains_logos_test.go",
+      "sha256": "5f88f3efea6db5680400307c1e3e08ee259be1ab7eab11a4b7d59ed951b9aec2"
+    },
+    {
+      "bytes": 5440,
+      "path": "src/cmd/link/internal/ld/capabilities_discovery_logos_test.go",
+      "sha256": "884666bdbf5956560246c837a619e6157ea7ff8ad2f4bc27e3ef1fdaa2a8a1f6"
+    },
+    {
+      "bytes": 15610,
+      "path": "src/cmd/link/internal/ld/capabilities_logos_test.go",
+      "sha256": "0dbc548fcc6fec9d01106a686e83a285a21119c8e2a463700fa52e1e69754ce9"
+    }
+  ],
+  "schema": 1
+}

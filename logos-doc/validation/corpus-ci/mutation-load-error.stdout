@@ -1,0 +1,79 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____________ test_raw_evidence_defects_are_rejected[wrong-error] ______________
+
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-18/test_raw_evidence_defects_are_0')
+defect = 'wrong-error'
+
+    @pytest.mark.parametrize(
+        "defect",
+        [
+            "timeout",
+            "signal",
+            "error",
+            "tamper",
+            "outside-log",
+            "empty-error",
+            "wrong-error",
+            "extra-error",
+            "stderr-error",
+            "missing-repeat",
+            "changed-repeat",
+            "changed-input",
+            "policy-on-oracle",
+        ],
+    )
+    def test_raw_evidence_defects_are_rejected(tmp_path: Path, defect: str) -> None:
+        report = complete_report(tmp_path)
+        control = cell(report, "decorder", "gglint", "strict")
+        command = obj(control["run"])
+        if defect == "timeout":
+            command["timed_out"] = True
+        elif defect == "signal":
+            command["returncode"] = -9
+        elif defect == "error":
+            command["error"] = "executable missing"
+        elif defect == "tamper":
+            Path(str(command["stdout"])).write_text("replaced after measurement")
+        elif defect == "outside-log":
+            command["stdout"] = __file__
+            command["stdout_sha256"] = file_hash(Path(__file__))
+        elif defect in ("empty-error", "wrong-error", "extra-error"):
+            document = obj(decode(Path(str(command["stdout"])).read_text()))
+            findings = list(objects(document["findings"]))
+            if defect == "empty-error":
+                findings.clear()
+            elif defect == "wrong-error":
+                findings[0]["message"] = "cannot load unrelated package"
+            else:
+                findings.append({**findings[0], "message": "internal compiler error"})
+            document["findings"] = findings
+            rewrite_log(command, "stdout", json.dumps(document))
+        elif defect == "stderr-error":
+            rewrite_log(
+                command,
+                "stderr",
+                "gglint: config config.toml\nvet failed for another reason\n",
+            )
+        elif defect in ("missing-repeat", "changed-repeat", "changed-input"):
+            positive = cell(report, "fixture-semantics", "gglint", "standard")
+            if defect == "missing-repeat":
+                del positive["repeat"]
+            elif defect == "changed-repeat":
+                obj(positive["repeat"])["environment"] = {"GOMAXPROCS": "1"}
+            else:
+                obj(positive["repeat_inputs"])["effective_source_digest"] = (
+                    "h1:" + "A" * 43 + "="
+                )
+        else:
+            obj(cell(report, "fixture-semantics", "oracle")["inputs"])["policy_sha256"] = (
+                "0" * 64
+            )
+>       with pytest.raises((ValueError, TypeError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (ValueError, TypeError)
+
+test_accept_corpus.py:339: Failed
+=========================== short test summary info ============================
+FAILED test_accept_corpus.py::test_raw_evidence_defects_are_rejected[wrong-error]
+1 failed, 33 deselected in 0.12s

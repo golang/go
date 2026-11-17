@@ -1,0 +1,102 @@
+{
+  "schema": 1,
+  "base_commit": "b61a6cfeb33051791348597fbb69818f4e2ec6f7",
+  "native_head": "9909feb26fe92b124f17c11fdf0022be7a643188",
+  "original_run": 43928753813,
+  "original_log_path": "corpus/logs/protobuf/logos-lint.stderr",
+  "original_log_sha256": "d3d59f3cc1cad50b9ec9d5a7ec50ffb827c2f20a804f6fab8156191fc5c15d62",
+  "source": {
+    "module": "google.golang.org/protobuf",
+    "version": "v1.36.12",
+    "path": "internal/impl/presence.go",
+    "lines": [
+      110,
+      137
+    ]
+  },
+  "status": "Original hosted real-source false positives preserved; new frozen controls have not executed.",
+  "files": [
+    {
+      "path": "src/cmd/compile/internal/logos/lint/rule_field_offset_test.go",
+      "sha256": "3158f66c66b406ca9f5b2e659e250d60ff807e5b6f39e35aa268959785573cad"
+    },
+    {
+      "path": "test/logos/lint/arena_pointer_escape_go.go",
+      "sha256": "7d219db66aaa216b95058c1e9d3b02e1a6b6e6dcc93319ae44ce34d833fe27b4"
+    },
+    {
+      "path": "test/logos/lint/arena_pointer_escape.lgo",
+      "sha256": "1c1f44432f169ed04890da55aa0fa237db08797d8b859069f447d03909a75db3"
+    },
+    {
+      "path": "logos-doc/validation/field-offset-lint/old-rule.go.txt",
+      "sha256": "cdd0e3ac901cb4ac9a8f0669cbaccd686029eb717ccac7b187f1addb507cfad7"
+    },
+    {
+      "path": "logos-doc/validation/field-offset-lint/protobuf-presence.go.txt",
+      "sha256": "96bc1410475292a56be02d2910921879c8b3a6ecdf147bd85ca60f6650f29bcb"
+    },
+    {
+      "path": "logos-doc/validation/field-offset-lint/protobuf-LICENSE",
+      "sha256": "4835612df0098ca95f8e7d9e3bffcb02358d435dbb38057c844c99d7f725eb20"
+    },
+    {
+      "path": "logos-doc/validation/field-offset-lint/protobuf-original-diagnostics.jsonl",
+      "sha256": "269afaa090f49a5832a86ecc8f727c419bc5d209869231eea376c83e4d121d02"
+    }
+  ],
+  "required_names": [
+    "TestArenaFieldOffset",
+    "TestArenaFieldOffset/offset_unsafe.go/address_plus_offset",
+    "TestArenaFieldOffset/offset_unsafe.go/address_sum",
+    "TestArenaFieldOffset/offset_unsafe.go/adjusted_operands",
+    "TestArenaFieldOffset/offset_unsafe.go/composite_delta",
+    "TestArenaFieldOffset/offset_unsafe.go/delta_plus_frame_address",
+    "TestArenaFieldOffset/offset_unsafe.go/different_objects",
+    "TestArenaFieldOffset/offset_unsafe.go/indexed_address",
+    "TestArenaFieldOffset/offset_unsafe.go/masked_operand",
+    "TestArenaFieldOffset/offset_unsafe.go/mixed_call",
+    "TestArenaFieldOffset/offset_unsafe.go/mixed_indirect_field",
+    "TestArenaFieldOffset/offset_unsafe.go/named_conversion_types",
+    "TestArenaFieldOffset/offset_unsafe.go/parentheses",
+    "TestArenaFieldOffset/offset_unsafe.go/pointer_function_call",
+    "TestArenaFieldOffset/offset_unsafe.go/promoted_fields",
+    "TestArenaFieldOffset/offset_unsafe.go/protobuf_delta_plus_index_offset",
+    "TestArenaFieldOffset/offset_unsafe.go/protobuf_field_delta",
+    "TestArenaFieldOffset/offset_unsafe.go/returned_delta",
+    "TestArenaFieldOffset/offset_unsafe.go/reversed_fields",
+    "TestArenaFieldOffset/offset_unsafe.go/same_field",
+    "TestArenaFieldOffset/offset_unsafe.go/scaled_operand",
+    "TestArenaFieldOffset/offset_unsafe.go/shadowed_uintptr_call",
+    "TestArenaFieldOffset/offset_unsafe.go/stored_delta",
+    "TestArenaFieldOffset/offset_unsafe.lgo/address_plus_offset",
+    "TestArenaFieldOffset/offset_unsafe.lgo/address_sum",
+    "TestArenaFieldOffset/offset_unsafe.lgo/adjusted_operands",
+    "TestArenaFieldOffset/offset_unsafe.lgo/composite_delta",
+    "TestArenaFieldOffset/offset_unsafe.lgo/delta_plus_frame_address",
+    "TestArenaFieldOffset/offset_unsafe.lgo/different_objects",
+    "TestArenaFieldOffset/offset_unsafe.lgo/indexed_address",
+    "TestArenaFieldOffset/offset_unsafe.lgo/masked_operand",
+    "TestArenaFieldOffset/offset_unsafe.lgo/mixed_call",
+    "TestArenaFieldOffset/offset_unsafe.lgo/mixed_indirect_field",
+    "TestArenaFieldOffset/offset_unsafe.lgo/named_conversion_types",
+    "TestArenaFieldOffset/offset_unsafe.lgo/parentheses",
+    "TestArenaFieldOffset/offset_unsafe.lgo/pointer_function_call",
+    "TestArenaFieldOffset/offset_unsafe.lgo/promoted_fields",
+    "TestArenaFieldOffset/offset_unsafe.lgo/protobuf_delta_plus_index_offset",
+    "TestArenaFieldOffset/offset_unsafe.lgo/protobuf_field_delta",
+    "TestArenaFieldOffset/offset_unsafe.lgo/returned_delta",
+    "TestArenaFieldOffset/offset_unsafe.lgo/reversed_fields",
+    "TestArenaFieldOffset/offset_unsafe.lgo/same_field",
+    "TestArenaFieldOffset/offset_unsafe.lgo/scaled_operand",
+    "TestArenaFieldOffset/offset_unsafe.lgo/shadowed_uintptr_call",
+    "TestArenaFieldOffset/offset_unsafe.lgo/stored_delta",
+    "TestCompileArenaFieldOffset",
+    "TestCompileArenaFieldOffset/offset_unsafe.go/address",
+    "TestCompileArenaFieldOffset/offset_unsafe.go/delta",
+    "TestCompileArenaFieldOffset/offset_unsafe.lgo/address",
+    "TestCompileArenaFieldOffset/offset_unsafe.lgo/delta"
+  ],
+  "negative_name": "TestArenaFieldOffset/offset_unsafe.go/protobuf_field_delta",
+  "negative_diagnostic": "relative field offset reports a retained frame address"
+}

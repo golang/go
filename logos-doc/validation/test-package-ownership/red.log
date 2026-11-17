@@ -1,0 +1,12 @@
+--- FAIL: TestLogosCapExternalTestOwner (0.00s)
+    --- FAIL: TestLogosCapExternalTestOwner/main_module_root (0.00s)
+        capabilities_testpkg_logos_test.go:114: exemptPkg("example.com/app_test"), origin "example.com/app" = false, want true
+    --- FAIL: TestLogosCapExternalTestOwner/nested_dependency_root (0.00s)
+        capabilities_testpkg_logos_test.go:114: exemptPkg("example.com/app/nested_test"), origin "example.com/app/nested" = true, want false
+    --- FAIL: TestLogosCapExternalTestOwner/longest_workspace_main (0.00s)
+        capabilities_testpkg_logos_test.go:114: exemptPkg("example.com/app/nested/deep_test"), origin "example.com/app/nested/deep" = false, want true
+    --- FAIL: TestLogosCapExternalTestOwner/command_line_external_test (0.00s)
+        capabilities_testpkg_logos_test.go:114: exemptPkg("command-line-arguments_test"), origin "command-line-arguments" = false, want true
+FAIL
+FAIL	cmd/link/internal/ld	0.003s
+FAIL

@@ -1,0 +1,67 @@
+ERROR [capabilities::unauthorized_exec]: Transitive dependency 'github.com/ebitengine/purego_test' reaches 'syscall.AllThreadsSyscall'
+  --> Reachability Call Chain (cmd/link deadcode audit):
+   1. _rt0_amd64_linux()                       at /workspace/scratch/93e0563596d1/LoGOs/src/runtime/rt0_linux_amd64.s:7
+   2.   -> _rt0_amd64()                             at /workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:15
+   3.   -> runtime.rt0_go()                         at /workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:142
+   4.   -> runtime.main()                           at /workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:153
+   5.   -> main.main()                              at _testmain.go:137
+   6.   -> github.com/ebitengine/purego_test.TestAllThreadsSyscall() at /workspace/scratch/93e0563596d1/purego-logos-build-probe/work/syscall_linux_test.go:23
+   7.   -> syscall.AllThreadsSyscall()              at /workspace/scratch/93e0563596d1/LoGOs/src/syscall/syscall_linux.go:1123
+ = Help: Remove the dependency or explicitly authorize "github.com/ebitengine/purego_test/**" under 'transitive_exec_allowlist' in logos.toml.
+
+ERROR [capabilities::unauthorized_net]: Transitive dependency 'github.com/ebitengine/purego_test' reaches 'syscall.AllThreadsSyscall'
+  --> Reachability Call Chain (cmd/link deadcode audit):
+   1. _rt0_amd64_linux()                       at /workspace/scratch/93e0563596d1/LoGOs/src/runtime/rt0_linux_amd64.s:7
+   2.   -> _rt0_amd64()                             at /workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:15
+   3.   -> runtime.rt0_go()                         at /workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:142
+   4.   -> runtime.main()                           at /workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:153
+   5.   -> main.main()                              at _testmain.go:137
+   6.   -> github.com/ebitengine/purego_test.TestAllThreadsSyscall() at /workspace/scratch/93e0563596d1/purego-logos-build-probe/work/syscall_linux_test.go:23
+   7.   -> syscall.AllThreadsSyscall()              at /workspace/scratch/93e0563596d1/LoGOs/src/syscall/syscall_linux.go:1123
+ = Help: Remove the dependency or explicitly authorize "github.com/ebitengine/purego_test/**" under 'transitive_net_allowlist' in logos.toml.
+
+ERROR [capabilities::unauthorized_exec]: Transitive dependency 'github.com/ebitengine/purego_test' reaches 'os.StartProcess'
+  --> Reachability Call Chain (cmd/link deadcode audit):
+   1. _rt0_amd64_linux()                       at /workspace/scratch/93e0563596d1/LoGOs/src/runtime/rt0_linux_amd64.s:7
+   2.   -> _rt0_amd64()                             at /workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:15
+   3.   -> runtime.rt0_go()                         at /workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:142
+   4.   -> runtime.main()                           at /workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:153
+   5.   -> main.main()                              at _testmain.go:137
+   6.   -> github.com/ebitengine/purego_test.TestCallbackEntries() at /workspace/scratch/93e0563596d1/purego-logos-build-probe/work/callback_entries_test.go:25
+   7.   -> os/exec.(*Cmd).CombinedOutput()          at /workspace/scratch/93e0563596d1/LoGOs/src/os/exec/exec.go:1051
+   8.   -> os/exec.(*Cmd).Run()                     at /workspace/scratch/93e0563596d1/LoGOs/src/os/exec/exec.go:639
+   9.   -> os/exec.(*Cmd).Start()                   at /workspace/scratch/93e0563596d1/LoGOs/src/os/exec/exec.go:652
+   10.   -> os.StartProcess()                        at /workspace/scratch/93e0563596d1/LoGOs/src/os/exec.go:271
+ = Help: Remove the dependency or explicitly authorize "github.com/ebitengine/purego_test/**" under 'transitive_exec_allowlist' in logos.toml.
+
+ERROR [capabilities::unauthorized_exec]: Transitive dependency 'github.com/ebitengine/purego_test' reaches 'os.startProcess'
+  --> Reachability Call Chain (cmd/link deadcode audit):
+   1. _rt0_amd64_linux()                       at /workspace/scratch/93e0563596d1/LoGOs/src/runtime/rt0_linux_amd64.s:7
+   2.   -> _rt0_amd64()                             at /workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:15
+   3.   -> runtime.rt0_go()                         at /workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:142
+   4.   -> runtime.main()                           at /workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:153
+   5.   -> main.main()                              at _testmain.go:137
+   6.   -> github.com/ebitengine/purego_test.TestCallbackEntries() at /workspace/scratch/93e0563596d1/purego-logos-build-probe/work/callback_entries_test.go:25
+   7.   -> os/exec.(*Cmd).CombinedOutput()          at /workspace/scratch/93e0563596d1/LoGOs/src/os/exec/exec.go:1051
+   8.   -> os/exec.(*Cmd).Run()                     at /workspace/scratch/93e0563596d1/LoGOs/src/os/exec/exec.go:639
+   9.   -> os/exec.(*Cmd).Start()                   at /workspace/scratch/93e0563596d1/LoGOs/src/os/exec/exec.go:652
+   10.   -> os.StartProcess()                        at /workspace/scratch/93e0563596d1/LoGOs/src/os/exec.go:271
+   11.   -> os.startProcess()                        at /workspace/scratch/93e0563596d1/LoGOs/src/os/exec_posix.go:26
+ = Help: Remove the dependency or explicitly authorize "github.com/ebitengine/purego_test/**" under 'transitive_exec_allowlist' in logos.toml.
+
+ERROR [capabilities::unauthorized_exec]: Transitive dependency 'github.com/ebitengine/purego_test' reaches 'syscall.StartProcess'
+  --> Reachability Call Chain (cmd/link deadcode audit):
+   1. _rt0_amd64_linux()                       at /workspace/scratch/93e0563596d1/LoGOs/src/runtime/rt0_linux_amd64.s:7
+   2.   -> _rt0_amd64()                             at /workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:15
+   3.   -> runtime.rt0_go()                         at /workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:142
+   4.   -> runtime.main()                           at /workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:153
+   5.   -> main.main()                              at _testmain.go:137
+   6.   -> github.com/ebitengine/purego_test.TestCallbackEntries() at /workspace/scratch/93e0563596d1/purego-logos-build-probe/work/callback_entries_test.go:25
+   7.   -> os/exec.(*Cmd).CombinedOutput()          at /workspace/scratch/93e0563596d1/LoGOs/src/os/exec/exec.go:1051
+   8.   -> os/exec.(*Cmd).Run()                     at /workspace/scratch/93e0563596d1/LoGOs/src/os/exec/exec.go:639
+   9.   -> os/exec.(*Cmd).Start()                   at /workspace/scratch/93e0563596d1/LoGOs/src/os/exec/exec.go:652
+   10.   -> os.StartProcess()                        at /workspace/scratch/93e0563596d1/LoGOs/src/os/exec.go:271
+   11.   -> os.startProcess()                        at /workspace/scratch/93e0563596d1/LoGOs/src/os/exec_posix.go:26
+   12.   -> syscall.StartProcess()                   at /workspace/scratch/93e0563596d1/LoGOs/src/syscall/exec_unix.go:257
+ = Help: Remove the dependency or explicitly authorize "github.com/ebitengine/purego_test/**" under 'transitive_exec_allowlist' in logos.toml.
+

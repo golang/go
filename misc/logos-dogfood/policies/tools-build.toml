@@ -1,0 +1,29 @@
+# Proposed profile for golang.org/x/tools@v0.52.0 build/link replay.
+# Network grants include the auditor's conservative interface-call paths.
+# Keep policies/tools.toml unchanged as the original strict-policy witness.
+[capabilities]
+transitive_unsafe_allowlist = [
+  "github.com/yuin/goldmark/util",
+  "golang.org/x/telemetry/internal/counter",
+  "golang.org/x/telemetry/internal/mmap",
+]
+transitive_exec_allowlist = [
+  "golang.org/x/telemetry",
+  "golang.org/x/telemetry/internal/configstore",
+]
+transitive_net_allowlist = [
+  "github.com/yuin/goldmark/ast",
+  "github.com/yuin/goldmark/parser",
+  "github.com/yuin/goldmark/renderer",
+  "github.com/yuin/goldmark/renderer/html",
+  "github.com/yuin/goldmark/text",
+  "github.com/yuin/goldmark/util",
+  "golang.org/x/net/websocket",
+  "golang.org/x/telemetry",
+  "golang.org/x/telemetry/internal/configstore",
+  "golang.org/x/telemetry/internal/counter",
+  "golang.org/x/telemetry/internal/crashmonitor",
+  "golang.org/x/telemetry/internal/mmap",
+  "golang.org/x/telemetry/internal/telemetry",
+  "golang.org/x/telemetry/internal/upload",
+]

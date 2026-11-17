@@ -1,0 +1,2464 @@
+
+##### Test execution environment.
+# GOARCH: amd64
+# CPU: AMD EPYC 7763 64-Core Processor                
+# GOOS: linux
+# OS Version: Linux 7.0.0-1017-azure #17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 18:46:57 UTC 2026 x86_64
+
+##### Testing packages.
+ok  	archive/tar	1.196s
+ok  	archive/zip	0.149s
+ok  	bufio	0.075s
+ok  	bytes	0.201s
+ok  	cmp	0.004s
+ok  	compress/bzip2	0.074s
+ok  	compress/flate	1.292s
+ok  	compress/gzip	2.125s
+ok  	compress/lzw	0.010s
+ok  	compress/zlib	0.045s
+ok  	container/heap	0.004s
+ok  	container/list	0.007s
+ok  	container/ring	0.006s
+ok  	context	0.061s
+ok  	crypto	0.831s
+ok  	crypto/aes	0.008s
+ok  	crypto/cipher	7.092s
+ok  	crypto/des	0.017s
+ok  	crypto/dsa	0.005s
+ok  	crypto/ecdh	0.067s
+ok  	crypto/ecdsa	0.039s
+ok  	crypto/ed25519	0.051s
+ok  	crypto/elliptic	0.009s
+ok  	crypto/fips140	0.011s
+ok  	crypto/hkdf	0.008s
+ok  	crypto/hmac	0.094s
+ok  	crypto/hpke	2.701s
+ok  	crypto/internal/boring	0.004s
+?   	crypto/internal/boring/bbig	[no test files]
+ok  	crypto/internal/boring/bcache	0.139s
+?   	crypto/internal/boring/sig	[no test files]
+?   	crypto/internal/constanttime	[no test files]
+ok  	crypto/internal/cryptotest	0.008s
+?   	crypto/internal/cryptotest/wycheproof	[no test files]
+?   	crypto/internal/cryptotest/x509limbo	[no test files]
+?   	crypto/internal/entropy	[no test files]
+?   	crypto/internal/entropy/v1.0.0	[no test files]
+ok  	crypto/internal/fips140	0.004s
+ok  	crypto/internal/fips140/aes	0.018s
+ok  	crypto/internal/fips140/aes/gcm	0.003s [no tests to run]
+?   	crypto/internal/fips140/alias	[no test files]
+ok  	crypto/internal/fips140/bigmod	0.120s
+?   	crypto/internal/fips140/check	[no test files]
+?   	crypto/internal/fips140/check/checktest	[no test files]
+ok  	crypto/internal/fips140/drbg	0.005s [no tests to run]
+ok  	crypto/internal/fips140/ecdh	0.004s
+ok  	crypto/internal/fips140/ecdsa	0.030s
+?   	crypto/internal/fips140/ed25519	[no test files]
+ok  	crypto/internal/fips140/edwards25519	0.078s
+ok  	crypto/internal/fips140/edwards25519/field	0.025s
+?   	crypto/internal/fips140/hkdf	[no test files]
+?   	crypto/internal/fips140/hmac	[no test files]
+ok  	crypto/internal/fips140/mldsa	1.125s
+ok  	crypto/internal/fips140/mlkem	0.251s
+ok  	crypto/internal/fips140/nistec	0.004s
+ok  	crypto/internal/fips140/nistec/fiat	0.010s [no tests to run]
+?   	crypto/internal/fips140/pbkdf2	[no test files]
+ok  	crypto/internal/fips140/rsa	0.064s
+?   	crypto/internal/fips140/sha256	[no test files]
+?   	crypto/internal/fips140/sha3	[no test files]
+?   	crypto/internal/fips140/sha512	[no test files]
+?   	crypto/internal/fips140/ssh	[no test files]
+ok  	crypto/internal/fips140/subtle	0.008s
+?   	crypto/internal/fips140/tls12	[no test files]
+?   	crypto/internal/fips140/tls13	[no test files]
+ok  	crypto/internal/fips140cache	0.881s
+ok  	crypto/internal/fips140deps	0.085s
+?   	crypto/internal/fips140deps/byteorder	[no test files]
+?   	crypto/internal/fips140deps/cpu	[no test files]
+?   	crypto/internal/fips140deps/godebug	[no test files]
+?   	crypto/internal/fips140deps/time	[no test files]
+?   	crypto/internal/fips140hash	[no test files]
+ok  	crypto/internal/fips140only	0.892s
+ok  	crypto/internal/fips140test	5.529s
+?   	crypto/internal/impl	[no test files]
+?   	crypto/internal/rand	[no test files]
+?   	crypto/internal/randutil	[no test files]
+ok  	crypto/internal/sysrand	0.170s
+?   	crypto/internal/sysrand/internal/seccomp	[no test files]
+ok  	crypto/md5	0.021s
+ok  	crypto/mldsa	1.259s
+ok  	crypto/mlkem	0.156s
+?   	crypto/mlkem/mlkemtest	[no test files]
+ok  	crypto/pbkdf2	0.027s
+ok  	crypto/rand	0.518s
+ok  	crypto/rc4	0.034s
+ok  	crypto/rsa	4.160s
+ok  	crypto/sha1	0.043s
+ok  	crypto/sha256	0.077s
+ok  	crypto/sha3	1.802s
+ok  	crypto/sha512	0.084s
+ok  	crypto/subtle	0.175s
+ok  	crypto/tls	5.494s
+?   	crypto/tls/internal/fips140tls	[no test files]
+ok  	crypto/x509	3.148s
+?   	crypto/x509/pkix	[no test files]
+ok  	database/sql	0.188s
+ok  	database/sql/driver	0.003s
+?   	database/sql/internal	[no test files]
+ok  	debug/buildinfo	0.061s
+ok  	debug/dwarf	0.025s
+ok  	debug/elf	0.153s
+ok  	debug/gosym	0.288s
+ok  	debug/macho	0.006s
+ok  	debug/pe	0.019s
+ok  	debug/plan9obj	0.004s
+ok  	embed	0.004s [no tests to run]
+ok  	embed/internal/embedtest	0.006s
+?   	encoding	[no test files]
+ok  	encoding/ascii85	0.006s
+ok  	encoding/asn1	1.872s
+ok  	encoding/base32	0.044s
+ok  	encoding/base64	0.012s
+ok  	encoding/binary	0.012s
+ok  	encoding/csv	0.022s
+ok  	encoding/gob	3.878s
+ok  	encoding/hex	0.011s
+ok  	encoding/json	5.727s
+?   	encoding/json/internal	[no test files]
+ok  	encoding/json/internal/jsonflags	0.018s
+ok  	encoding/json/internal/jsonopts	0.014s
+?   	encoding/json/internal/jsontest	[no test files]
+ok  	encoding/json/internal/jsonwire	10.812s
+ok  	encoding/json/jsontext	1.708s
+ok  	encoding/json/v2	1.762s
+ok  	encoding/pem	0.717s
+ok  	encoding/xml	0.146s
+ok  	errors	0.006s
+ok  	expvar	0.007s
+ok  	flag	0.035s
+ok  	fmt	0.127s
+ok  	go/ast	0.015s
+ok  	go/build	8.390s
+ok  	go/build/constraint	0.008s
+ok  	go/constant	0.008s
+ok  	go/doc	0.045s
+ok  	go/doc/comment	0.999s
+ok  	go/format	0.009s
+ok  	go/importer	0.288s
+ok  	go/internal/gccgoimporter	0.014s
+ok  	go/internal/gcimporter	18.460s
+ok  	go/internal/srcimporter	12.318s
+ok  	go/parser	0.244s
+ok  	go/printer	0.212s
+ok  	go/scanner	0.011s
+ok  	go/token	0.058s
+ok  	go/types	15.074s
+ok  	go/version	0.003s
+ok  	hash	0.005s
+ok  	hash/adler32	0.009s
+ok  	hash/crc32	0.010s
+ok  	hash/crc64	0.005s
+ok  	hash/fnv	0.007s
+ok  	hash/maphash	0.319s
+ok  	html	0.012s
+ok  	html/template	0.149s
+ok  	image	0.047s
+ok  	image/color	0.044s
+?   	image/color/palette	[no test files]
+ok  	image/draw	0.080s
+ok  	image/gif	0.288s
+?   	image/internal/imageutil	[no test files]
+ok  	image/jpeg	2.396s
+ok  	image/png	0.383s
+ok  	index/suffixarray	0.199s
+ok  	internal/abi	0.190s
+?   	internal/asan	[no test files]
+?   	internal/bisect	[no test files]
+ok  	internal/buildcfg	0.009s
+?   	internal/bytealg	[no test files]
+?   	internal/byteorder	[no test files]
+?   	internal/cfg	[no test files]
+ok  	internal/cgrouptest	0.012s
+ok  	internal/chacha8rand	0.003s
+ok  	internal/copyright	0.103s
+?   	internal/coverage	[no test files]
+?   	internal/coverage/calloc	[no test files]
+ok  	internal/coverage/cfile	3.821s
+ok  	internal/coverage/cformat	0.004s
+ok  	internal/coverage/cmerge	0.005s
+?   	internal/coverage/decodecounter	[no test files]
+?   	internal/coverage/decodemeta	[no test files]
+?   	internal/coverage/encodecounter	[no test files]
+?   	internal/coverage/encodemeta	[no test files]
+ok  	internal/coverage/pods	0.010s
+?   	internal/coverage/rtcov	[no test files]
+ok  	internal/coverage/slicereader	0.010s
+ok  	internal/coverage/slicewriter	0.024s
+?   	internal/coverage/stringtab	[no test files]
+ok  	internal/coverage/test	0.033s
+?   	internal/coverage/uleb128	[no test files]
+ok  	internal/cpu	8.157s
+ok  	internal/dag	0.005s
+ok  	internal/diff	0.005s
+?   	internal/exportdata	[no test files]
+?   	internal/filepathlite	[no test files]
+ok  	internal/fmtsort	0.005s
+ok  	internal/fuzz	0.010s
+ok  	internal/gate	0.009s
+?   	internal/goarch	[no test files]
+ok  	internal/godebug	0.578s
+ok  	internal/godebugs	11.585s
+?   	internal/goexperiment	[no test files]
+?   	internal/goos	[no test files]
+?   	internal/goroot	[no test files]
+ok  	internal/gover	0.004s
+?   	internal/goversion	[no test files]
+ok  	internal/jsonscan	9.067s
+?   	internal/lazyregexp	[no test files]
+?   	internal/lazytemplate	[no test files]
+ok  	internal/logosfile	4.279s
+?   	internal/msan	[no test files]
+ok  	internal/nettest	0.012s
+?   	internal/nettrace	[no test files]
+?   	internal/obscuretestdata	[no test files]
+?   	internal/oserror	[no test files]
+ok  	internal/pkgbits	0.003s
+ok  	internal/platform	0.170s
+ok  	internal/poll	0.111s
+ok  	internal/profile	0.015s
+?   	internal/profilerecord	[no test files]
+?   	internal/race	[no test files]
+ok  	internal/reflectlite	0.016s
+ok  	internal/runtime/atomic	0.023s
+ok  	internal/runtime/cgobench	0.004s [no tests to run]
+ok  	internal/runtime/cgroup	0.130s
+?   	internal/runtime/exithook	[no test files]
+?   	internal/runtime/gc	[no test files]
+?   	internal/runtime/gc/internal/gen	[no test files]
+ok  	internal/runtime/gc/scan	0.079s
+ok  	internal/runtime/maps	0.726s
+ok  	internal/runtime/math	0.010s
+?   	internal/runtime/pprof/label	[no test files]
+?   	internal/runtime/startlinetest	[no test files]
+ok  	internal/runtime/sys	0.008s
+ok  	internal/runtime/syscall/linux	0.007s
+ok  	internal/runtime/wasitest	0.010s
+ok  	internal/saferio	0.063s
+ok  	internal/singleflight	0.033s
+ok  	internal/strconv	0.212s
+?   	internal/stringslite	[no test files]
+ok  	internal/sync	0.876s
+ok  	internal/synctest	1.706s
+?   	internal/syscall/execenv	[no test files]
+ok  	internal/syscall/unix	0.013s
+ok  	internal/sysinfo	0.009s
+?   	internal/syslist	[no test files]
+ok  	internal/testenv	0.365s
+?   	internal/testhash	[no test files]
+?   	internal/testlog	[no test files]
+?   	internal/testpty	[no test files]
+ok  	internal/trace	22.872s
+?   	internal/trace/internal/testgen	[no test files]
+ok  	internal/trace/internal/tracev1	0.237s
+?   	internal/trace/raw	[no test files]
+ok  	internal/trace/testtrace	0.011s
+ok  	internal/trace/tracev2	0.015s
+?   	internal/trace/traceviewer	[no test files]
+?   	internal/trace/traceviewer/format	[no test files]
+?   	internal/trace/version	[no test files]
+?   	internal/txtar	[no test files]
+ok  	internal/types/errors	0.440s
+ok  	internal/unsafeheader	0.003s
+ok  	internal/xcoff	0.009s
+ok  	internal/zstd	0.537s
+ok  	io	0.039s
+ok  	io/fs	0.400s
+ok  	io/ioutil	0.012s
+ok  	iter	0.007s
+ok  	log	0.007s
+?   	log/internal	[no test files]
+ok  	log/slog	0.102s
+?   	log/slog/internal	[no test files]
+ok  	log/slog/internal/benchmarks	0.020s
+ok  	log/slog/internal/buffer	0.014s
+ok  	log/syslog	1.260s
+ok  	logos/arena	0.003s
+ok  	logos/rt	0.710s
+ok  	logos/rt/json	29.466s
+ok  	logos/sync	0.294s
+ok  	maps	0.005s
+ok  	math	0.009s
+ok  	math/big	11.446s
+ok  	math/big/internal/asmgen	0.009s
+ok  	math/bits	0.011s
+ok  	math/cmplx	0.006s
+ok  	math/rand	0.174s
+ok  	math/rand/v2	0.260s
+ok  	mime	0.016s
+ok  	mime/multipart	0.958s
+ok  	mime/quotedprintable	0.025s
+ok  	net	5.763s
+ok  	net/http	4.588s
+ok  	net/http/cgi	0.250s
+ok  	net/http/cookiejar	0.019s
+ok  	net/http/fcgi	0.227s
+ok  	net/http/httptest	0.133s
+ok  	net/http/httptrace	0.010s
+ok  	net/http/httputil	0.799s
+ok  	net/http/internal	0.291s
+ok  	net/http/internal/ascii	0.012s
+ok  	net/http/internal/http2	4.903s
+?   	net/http/internal/httpcommon	[no test files]
+?   	net/http/internal/httpsfv	[no test files]
+?   	net/http/internal/testcert	[no test files]
+ok  	net/http/pprof	5.118s
+ok  	net/internal/cgotest	0.003s
+ok  	net/internal/socktest	0.003s
+ok  	net/mail	0.006s
+ok  	net/netip	0.733s
+ok  	net/rpc	0.028s
+ok  	net/rpc/jsonrpc	0.016s
+ok  	net/smtp	0.023s
+ok  	net/textproto	0.020s
+ok  	net/url	0.038s
+ok  	os	5.582s
+ok  	os/exec	0.521s
+ok  	os/exec/internal/fdtest	0.003s
+ok  	os/signal	2.977s
+ok  	os/user	0.006s
+ok  	path	0.004s
+ok  	path/filepath	0.027s
+ok  	plugin	0.004s
+ok  	reflect	1.100s
+?   	reflect/internal/example1	[no test files]
+?   	reflect/internal/example2	[no test files]
+ok  	regexp	0.785s
+ok  	regexp/syntax	1.824s
+ok  	runtime	143.199s
+ok  	runtime/cgo	0.013s
+?   	runtime/coverage	[no test files]
+ok  	runtime/debug	0.187s
+ok  	runtime/metrics	0.012s
+ok  	runtime/pprof	22.425s
+?   	runtime/race	[no test files]
+?   	runtime/race/internal/amd64v1	[no test files]
+ok  	runtime/trace	6.342s
+ok  	slices	0.075s
+ok  	sort	0.035s
+ok  	strconv	0.237s
+ok  	strings	0.079s
+?   	structs	[no test files]
+ok  	sync	0.345s
+ok  	sync/atomic	3.251s
+ok  	syscall	8.937s
+ok  	testing	4.183s
+ok  	testing/cryptotest	0.015s
+ok  	testing/fstest	0.007s
+?   	testing/internal/testdeps	[no test files]
+ok  	testing/iotest	0.010s
+ok  	testing/quick	0.163s
+ok  	testing/slogtest	0.029s
+ok  	testing/synctest	0.116s
+ok  	text/scanner	0.013s
+ok  	text/tabwriter	0.006s
+ok  	text/template	0.030s
+ok  	text/template/parse	0.007s
+ok  	time	7.734s
+?   	time/tzdata	[no test files]
+ok  	unicode	0.010s
+ok  	unicode/utf16	0.011s
+ok  	unicode/utf8	0.016s
+ok  	unique	0.128s
+?   	unsafe	[no test files]
+ok  	uuid	0.006s
+ok  	weak	0.011s
+ok  	cmd/addr2line	1.008s
+ok  	cmd/api	0.811s
+?   	cmd/asm	[no test files]
+?   	cmd/asm/internal/arch	[no test files]
+ok  	cmd/asm/internal/asm	1.273s
+?   	cmd/asm/internal/flags	[no test files]
+ok  	cmd/asm/internal/lex	0.014s
+?   	cmd/buildid	[no test files]
+?   	cmd/cgo	[no test files]
+?   	cmd/cgo/internal/cgotest	[no test files]
+ok  	cmd/cgo/internal/swig	8.466s
+ok  	cmd/cgo/internal/test	1.301s
+?   	cmd/cgo/internal/test/gcc68255	[no test files]
+?   	cmd/cgo/internal/test/issue23555a	[no test files]
+?   	cmd/cgo/internal/test/issue23555b	[no test files]
+?   	cmd/cgo/internal/test/issue26213	[no test files]
+?   	cmd/cgo/internal/test/issue26430	[no test files]
+?   	cmd/cgo/internal/test/issue26743	[no test files]
+?   	cmd/cgo/internal/test/issue27054	[no test files]
+?   	cmd/cgo/internal/test/issue27340	[no test files]
+?   	cmd/cgo/internal/test/issue29563	[no test files]
+?   	cmd/cgo/internal/test/issue30527	[no test files]
+?   	cmd/cgo/internal/test/issue41761a	[no test files]
+?   	cmd/cgo/internal/test/issue43639	[no test files]
+?   	cmd/cgo/internal/test/issue52611a	[no test files]
+?   	cmd/cgo/internal/test/issue52611b	[no test files]
+?   	cmd/cgo/internal/test/issue76861	[no test files]
+?   	cmd/cgo/internal/test/issue8756	[no test files]
+?   	cmd/cgo/internal/test/issue8828	[no test files]
+?   	cmd/cgo/internal/test/issue9026	[no test files]
+?   	cmd/cgo/internal/test/issue9400	[no test files]
+?   	cmd/cgo/internal/test/issue9510a	[no test files]
+?   	cmd/cgo/internal/test/issue9510b	[no test files]
+ok  	cmd/cgo/internal/testcarchive	0.005s
+ok  	cmd/cgo/internal/testcshared	0.009s
+ok  	cmd/cgo/internal/testerrors	83.590s
+ok  	cmd/cgo/internal/testfortran	8.539s
+ok  	cmd/cgo/internal/testgodefs	2.973s
+ok  	cmd/cgo/internal/testlife	3.367s
+ok  	cmd/cgo/internal/testlogos	196.580s
+ok  	cmd/cgo/internal/testnocgo	0.012s
+ok  	cmd/cgo/internal/testout	0.476s
+ok  	cmd/cgo/internal/testplugin	0.015s
+ok  	cmd/cgo/internal/testsanitizers	139.671s
+ok  	cmd/cgo/internal/testshared	0.020s
+ok  	cmd/cgo/internal/testso	11.548s
+ok  	cmd/cgo/internal/teststdio	11.129s
+ok  	cmd/cgo/internal/testtls	0.040s
+ok  	cmd/compile	57.519s
+?   	cmd/compile/internal/abi	[no test files]
+ok  	cmd/compile/internal/abt	0.008s
+ok  	cmd/compile/internal/amd64	11.960s
+?   	cmd/compile/internal/arm	[no test files]
+?   	cmd/compile/internal/arm64	[no test files]
+ok  	cmd/compile/internal/base	0.012s
+?   	cmd/compile/internal/bitvec	[no test files]
+?   	cmd/compile/internal/bloop	[no test files]
+ok  	cmd/compile/internal/compare	0.017s
+?   	cmd/compile/internal/coverage	[no test files]
+?   	cmd/compile/internal/deadlocals	[no test files]
+ok  	cmd/compile/internal/devirtualize	0.013s
+ok  	cmd/compile/internal/dwarfgen	0.555s
+ok  	cmd/compile/internal/escape	0.011s
+?   	cmd/compile/internal/gc	[no test files]
+ok  	cmd/compile/internal/importer	2.230s
+ok  	cmd/compile/internal/inline	0.005s
+ok  	cmd/compile/internal/inline/inlheur	0.933s
+?   	cmd/compile/internal/inline/interleaved	[no test files]
+ok  	cmd/compile/internal/ir	0.008s
+ok  	cmd/compile/internal/liveness	0.032s
+ok  	cmd/compile/internal/logopt	0.584s
+--- FAIL: TestCompileSIMDTaggedMethodFacts (59.62s)
+    --- FAIL: TestCompileSIMDTaggedMethodFacts/fork-go (29.03s)
+        compile_method_tagged_facts_test.go:92: fork-go consumer import failed: exit status 1
+            # example.com/taggedmethodreal/consumer
+            consumer/consumer.go:1:1: could not import simd/internal/bridge (open : no such file or directory)
+            consumer/consumer.go:1:1: undefined: simd
+    --- FAIL: TestCompileSIMDTaggedMethodFacts/logos (30.59s)
+        compile_method_tagged_facts_test.go:81: VectorC@simd0.Foo mutation metadata = {Object:VectorC@simd0.Foo AlwaysNilError:false ReceiverMutated:true Readonly:false AssertTP: AssertRTP: HasAssert:false ParamMutated:1 MayYield:false HasMayYield:false}, want explicit ParamMutated=0 and ReceiverMutated=true
+        compile_method_tagged_facts_test.go:81: VectorC@simd0.Bar mutation metadata = {Object:VectorC@simd0.Bar AlwaysNilError:false ReceiverMutated:true Readonly:false AssertTP: AssertRTP: HasAssert:false ParamMutated:1 MayYield:false HasMayYield:false}, want explicit ParamMutated=0 and ReceiverMutated=true
+        compile_method_tagged_facts_test.go:81: (*Q@simd0).Qux mutation metadata = {Object:(*Q@simd0).Qux AlwaysNilError:false ReceiverMutated:false Readonly:false AssertTP: AssertRTP: HasAssert:false ParamMutated:1 MayYield:false HasMayYield:false}, want explicit ParamMutated=0 and ReceiverMutated=false
+        compile_method_tagged_facts_test.go:81: VectorC@simd128.Foo mutation metadata = {Object:VectorC@simd128.Foo AlwaysNilError:false ReceiverMutated:true Readonly:false AssertTP: AssertRTP: HasAssert:false ParamMutated:1 MayYield:false HasMayYield:false}, want explicit ParamMutated=0 and ReceiverMutated=true
+        compile_method_tagged_facts_test.go:81: VectorC@simd128.Bar mutation metadata = {Object:VectorC@simd128.Bar AlwaysNilError:false ReceiverMutated:true Readonly:false AssertTP: AssertRTP: HasAssert:false ParamMutated:1 MayYield:false HasMayYield:false}, want explicit ParamMutated=0 and ReceiverMutated=true
+        compile_method_tagged_facts_test.go:81: (*Q@simd128).Qux mutation metadata = {Object:(*Q@simd128).Qux AlwaysNilError:false ReceiverMutated:false Readonly:false AssertTP: AssertRTP: HasAssert:false ParamMutated:1 MayYield:false HasMayYield:false}, want explicit ParamMutated=0 and ReceiverMutated=false
+        compile_method_tagged_facts_test.go:81: VectorC@simd256.Foo mutation metadata = {Object:VectorC@simd256.Foo AlwaysNilError:false ReceiverMutated:true Readonly:false AssertTP: AssertRTP: HasAssert:false ParamMutated:1 MayYield:false HasMayYield:false}, want explicit ParamMutated=0 and ReceiverMutated=true
+        compile_method_tagged_facts_test.go:81: VectorC@simd256.Bar mutation metadata = {Object:VectorC@simd256.Bar AlwaysNilError:false ReceiverMutated:true Readonly:false AssertTP: AssertRTP: HasAssert:false ParamMutated:1 MayYield:false HasMayYield:false}, want explicit ParamMutated=0 and ReceiverMutated=true
+        compile_method_tagged_facts_test.go:81: (*Q@simd256).Qux mutation metadata = {Object:(*Q@simd256).Qux AlwaysNilError:false ReceiverMutated:false Readonly:false AssertTP: AssertRTP: HasAssert:false ParamMutated:1 MayYield:false HasMayYield:false}, want explicit ParamMutated=0 and ReceiverMutated=false
+        compile_method_tagged_facts_test.go:81: VectorC@simd512.Foo mutation metadata = {Object:VectorC@simd512.Foo AlwaysNilError:false ReceiverMutated:true Readonly:false AssertTP: AssertRTP: HasAssert:false ParamMutated:1 MayYield:false HasMayYield:false}, want explicit ParamMutated=0 and ReceiverMutated=true
+        compile_method_tagged_facts_test.go:81: VectorC@simd512.Bar mutation metadata = {Object:VectorC@simd512.Bar AlwaysNilError:false ReceiverMutated:true Readonly:false AssertTP: AssertRTP: HasAssert:false ParamMutated:1 MayYield:false HasMayYield:false}, want explicit ParamMutated=0 and ReceiverMutated=true
+        compile_method_tagged_facts_test.go:81: (*Q@simd512).Qux mutation metadata = {Object:(*Q@simd512).Qux AlwaysNilError:false ReceiverMutated:false Readonly:false AssertTP: AssertRTP: HasAssert:false ParamMutated:1 MayYield:false HasMayYield:false}, want explicit ParamMutated=0 and ReceiverMutated=false
+        compile_method_tagged_facts_test.go:92: logos consumer import failed: exit status 1
+            # example.com/taggedmethodreal/consumer
+            consumer/consumer.go:1:1: could not import simd/internal/bridge (open : no such file or directory)
+            consumer/consumer.go:1:1: undefined: simd
+FAIL
+FAIL	cmd/compile/internal/logos	240.173s
+ok  	cmd/compile/internal/logos/ctfe	15.688s
+ok  	cmd/compile/internal/logos/facts	0.022s
+ok  	cmd/compile/internal/logos/lint	5.105s
+ok  	cmd/compile/internal/logos/wasmyield	0.006s
+?   	cmd/compile/internal/loong64	[no test files]
+ok  	cmd/compile/internal/loopvar	65.322s
+?   	cmd/compile/internal/midway	[no test files]
+?   	cmd/compile/internal/mips	[no test files]
+?   	cmd/compile/internal/mips64	[no test files]
+ok  	cmd/compile/internal/noder	52.329s
+?   	cmd/compile/internal/objw	[no test files]
+?   	cmd/compile/internal/pgoir	[no test files]
+?   	cmd/compile/internal/pkginit	[no test files]
+?   	cmd/compile/internal/ppc64	[no test files]
+ok  	cmd/compile/internal/rangefunc	0.008s
+ok  	cmd/compile/internal/reflectdata	0.015s [no tests to run]
+?   	cmd/compile/internal/riscv64	[no test files]
+?   	cmd/compile/internal/rttype	[no test files]
+?   	cmd/compile/internal/s390x	[no test files]
+?   	cmd/compile/internal/slice	[no test files]
+ok  	cmd/compile/internal/ssa	100.081s
+ok  	cmd/compile/internal/ssagen	0.036s
+?   	cmd/compile/internal/staticdata	[no test files]
+?   	cmd/compile/internal/staticinit	[no test files]
+ok  	cmd/compile/internal/syntax	13.734s
+ok  	cmd/compile/internal/test	40.260s
+?   	cmd/compile/internal/typebits	[no test files]
+ok  	cmd/compile/internal/typecheck	0.584s
+ok  	cmd/compile/internal/types	0.008s
+ok  	cmd/compile/internal/types2	12.220s
+ok  	cmd/compile/internal/walk	0.010s
+?   	cmd/compile/internal/wasm	[no test files]
+?   	cmd/compile/internal/x86	[no test files]
+ok  	cmd/covdata	0.024s
+ok  	cmd/cover	2.661s
+ok  	cmd/dist	0.017s
+ok  	cmd/distpack	0.019s
+?   	cmd/fix	[no test files]
+ok  	cmd/go/internal/auth	0.007s
+?   	cmd/go/internal/base	[no test files]
+?   	cmd/go/internal/bug	[no test files]
+ok  	cmd/go/internal/cache	0.196s
+?   	cmd/go/internal/cacheprog	[no test files]
+ok  	cmd/go/internal/cfg	0.016s
+?   	cmd/go/internal/clean	[no test files]
+?   	cmd/go/internal/cmdflag	[no test files]
+ok  	cmd/go/internal/doc	0.397s
+ok  	cmd/go/internal/envcmd	0.053s
+ok  	cmd/go/internal/fips140	0.171s
+?   	cmd/go/internal/fmtcmd	[no test files]
+ok  	cmd/go/internal/fsys	0.055s
+ok  	cmd/go/internal/generate	0.013s
+ok  	cmd/go/internal/gover	0.010s
+?   	cmd/go/internal/help	[no test files]
+ok  	cmd/go/internal/imports	0.021s
+?   	cmd/go/internal/list	[no test files]
+ok  	cmd/go/internal/load	0.036s
+ok  	cmd/go/internal/lockedfile	0.112s
+ok  	cmd/go/internal/lockedfile/internal/filelock	0.054s
+ok  	cmd/go/internal/logos	0.028s
+ok  	cmd/go/internal/logos/capabilities	0.032s
+ok  	cmd/go/internal/logos/config	0.093s
+?   	cmd/go/internal/logos/contextcmd	[no test files]
+ok  	cmd/go/internal/logos/eject	3.494s
+ok  	cmd/go/internal/logos/hints	11.081s
+?   	cmd/go/internal/logos/lintcmd	[no test files]
+ok  	cmd/go/internal/logos/lsp	13.922s
+ok  	cmd/go/internal/logos/next	0.011s
+ok  	cmd/go/internal/logos/settings	0.019s
+ok  	cmd/go/internal/mmap	0.005s
+?   	cmd/go/internal/modcmd	[no test files]
+ok  	cmd/go/internal/modfetch	0.063s
+ok  	cmd/go/internal/modfetch/codehost	1.334s
+ok  	cmd/go/internal/modfetch/zip_sum_test	0.006s
+?   	cmd/go/internal/modget	[no test files]
+ok  	cmd/go/internal/modindex	0.233s
+?   	cmd/go/internal/modinfo	[no test files]
+ok  	cmd/go/internal/modload	0.013s
+ok  	cmd/go/internal/mvs	0.010s
+?   	cmd/go/internal/run	[no test files]
+?   	cmd/go/internal/search	[no test files]
+ok  	cmd/go/internal/str	0.006s
+?   	cmd/go/internal/telemetrycmd	[no test files]
+?   	cmd/go/internal/telemetrystats	[no test files]
+ok  	cmd/go/internal/test	0.026s
+?   	cmd/go/internal/test/internal/genflags	[no test files]
+?   	cmd/go/internal/tool	[no test files]
+ok  	cmd/go/internal/toolchain	0.009s
+?   	cmd/go/internal/trace	[no test files]
+ok  	cmd/go/internal/vcs	0.032s
+ok  	cmd/go/internal/vcweb	0.012s
+ok  	cmd/go/internal/vcweb/vcstest	27.861s
+?   	cmd/go/internal/version	[no test files]
+ok  	cmd/go/internal/verylongtest	0.005s
+?   	cmd/go/internal/vet	[no test files]
+ok  	cmd/go/internal/web	0.020s
+?   	cmd/go/internal/web/intercept	[no test files]
+ok  	cmd/go/internal/work	0.108s
+?   	cmd/go/internal/workcmd	[no test files]
+ok  	cmd/gofmt	0.072s
+ok  	cmd/internal/archive	1.368s
+?   	cmd/internal/bio	[no test files]
+ok  	cmd/internal/bootstrap_test	0.010s
+?   	cmd/internal/browser	[no test files]
+ok  	cmd/internal/buildid	0.295s
+?   	cmd/internal/codesign	[no test files]
+ok  	cmd/internal/cov	0.623s
+?   	cmd/internal/cov/covcmd	[no test files]
+?   	cmd/internal/disasm	[no test files]
+ok  	cmd/internal/dwarf	0.017s
+ok  	cmd/internal/edit	0.008s
+ok  	cmd/internal/fuzztest	0.715s
+?   	cmd/internal/gcprog	[no test files]
+ok  	cmd/internal/goobj	0.006s
+ok  	cmd/internal/goparity	133.485s
+?   	cmd/internal/hash	[no test files]
+ok  	cmd/internal/logos/editmap	0.010s
+ok  	cmd/internal/logosowned	0.021s
+?   	cmd/internal/macho	[no test files]
+ok  	cmd/internal/moddeps	3.036s
+ok  	cmd/internal/obj	1.618s
+?   	cmd/internal/obj/arm	[no test files]
+ok  	cmd/internal/obj/arm64	0.422s
+ok  	cmd/internal/obj/loong64	0.052s
+?   	cmd/internal/obj/mips	[no test files]
+ok  	cmd/internal/obj/ppc64	0.174s
+ok  	cmd/internal/obj/riscv	0.034s
+ok  	cmd/internal/obj/s390x	0.003s
+?   	cmd/internal/obj/wasm	[no test files]
+ok  	cmd/internal/obj/x86	0.296s
+ok  	cmd/internal/objabi	0.004s
+?   	cmd/internal/objfile	[no test files]
+ok  	cmd/internal/osinfo	0.003s
+ok  	cmd/internal/par	0.010s
+?   	cmd/internal/pathcache	[no test files]
+ok  	cmd/internal/pgo	0.004s
+ok  	cmd/internal/pkgpath	0.016s
+ok  	cmd/internal/pkgpattern	0.005s
+ok  	cmd/internal/quoted	0.005s
+?   	cmd/internal/robustio	[no test files]
+ok  	cmd/internal/script	0.004s
+?   	cmd/internal/script/scripttest	[no test files]
+ok  	cmd/internal/src	0.003s
+ok  	cmd/internal/sys	0.003s
+?   	cmd/internal/telemetry	[no test files]
+?   	cmd/internal/telemetry/counter	[no test files]
+ok  	cmd/internal/test2json	0.849s
+ok  	cmd/link	68.194s
+?   	cmd/link/internal/amd64	[no test files]
+?   	cmd/link/internal/arm	[no test files]
+?   	cmd/link/internal/arm64	[no test files]
+ok  	cmd/link/internal/benchmark	0.045s
+?   	cmd/link/internal/dwtest	[no test files]
+ok  	cmd/link/internal/ld	42.279s
+?   	cmd/link/internal/loadelf	[no test files]
+ok  	cmd/link/internal/loader	0.118s
+?   	cmd/link/internal/loadmacho	[no test files]
+?   	cmd/link/internal/loadpe	[no test files]
+?   	cmd/link/internal/loadxcoff	[no test files]
+?   	cmd/link/internal/loong64	[no test files]
+?   	cmd/link/internal/mips	[no test files]
+?   	cmd/link/internal/mips64	[no test files]
+?   	cmd/link/internal/ppc64	[no test files]
+?   	cmd/link/internal/riscv64	[no test files]
+?   	cmd/link/internal/s390x	[no test files]
+?   	cmd/link/internal/sym	[no test files]
+?   	cmd/link/internal/wasm	[no test files]
+?   	cmd/link/internal/x86	[no test files]
+ok  	cmd/nm	8.563s
+ok  	cmd/objdump	9.516s
+ok  	cmd/pack	2.057s
+ok  	cmd/pprof	2.371s
+?   	cmd/preprofile	[no test files]
+ok  	cmd/relnote	0.014s
+?   	cmd/test2json	[no test files]
+ok  	cmd/trace	0.189s
+ok  	cmd/vet	16.210s
+FAIL
+2026/11/16 21:00:44 Failed: exit status 1
+
+##### os/user with tag osusergo
+ok  	os/user	0.029s
+
+##### net/http with tag nethttpomithttp2
+ok  	net/http	5.301s
+
+##### crypto with tag purego (build and vet only)
+?   	crypto/internal/boring/bbig	[no test files]
+?   	crypto/internal/boring/sig	[no test files]
+?   	crypto/internal/constanttime	[no test files]
+?   	crypto/internal/cryptotest/wycheproof	[no test files]
+?   	crypto/internal/cryptotest/x509limbo	[no test files]
+?   	crypto/internal/entropy	[no test files]
+?   	crypto/internal/entropy/v1.0.0	[no test files]
+?   	crypto/internal/fips140/alias	[no test files]
+?   	crypto/internal/fips140/check	[no test files]
+?   	crypto/internal/fips140/check/checktest	[no test files]
+?   	crypto/internal/fips140/ed25519	[no test files]
+?   	crypto/internal/fips140/hkdf	[no test files]
+?   	crypto/internal/fips140/hmac	[no test files]
+?   	crypto/internal/fips140/pbkdf2	[no test files]
+?   	crypto/internal/fips140/sha256	[no test files]
+?   	crypto/internal/fips140/sha3	[no test files]
+?   	crypto/internal/fips140/sha512	[no test files]
+?   	crypto/internal/fips140/ssh	[no test files]
+?   	crypto/internal/fips140/tls12	[no test files]
+?   	crypto/internal/fips140/tls13	[no test files]
+?   	crypto/internal/fips140deps/byteorder	[no test files]
+?   	crypto/internal/fips140deps/cpu	[no test files]
+?   	crypto/internal/fips140deps/godebug	[no test files]
+?   	crypto/internal/fips140deps/time	[no test files]
+?   	crypto/internal/fips140hash	[no test files]
+?   	crypto/internal/impl	[no test files]
+?   	crypto/internal/rand	[no test files]
+?   	crypto/internal/randutil	[no test files]
+?   	crypto/internal/sysrand/internal/seccomp	[no test files]
+?   	crypto/mlkem/mlkemtest	[no test files]
+?   	crypto/tls/internal/fips140tls	[no test files]
+?   	crypto/x509/pkix	[no test files]
+
+##### GOFIPS140=latest go test crypto/...
+ok  	crypto	3.104s
+ok  	crypto/aes	0.062s
+ok  	crypto/cipher	23.927s
+ok  	crypto/des	0.021s
+ok  	crypto/dsa	0.278s
+ok  	crypto/ecdh	0.611s
+ok  	crypto/ecdsa	1.099s
+ok  	crypto/ed25519	0.982s
+ok  	crypto/elliptic	0.363s
+ok  	crypto/fips140	0.081s
+ok  	crypto/hkdf	0.455s
+ok  	crypto/hmac	0.442s
+ok  	crypto/hpke	9.453s
+ok  	crypto/internal/boring	0.012s
+?   	crypto/internal/boring/bbig	[no test files]
+ok  	crypto/internal/boring/bcache	0.410s
+?   	crypto/internal/boring/sig	[no test files]
+?   	crypto/internal/constanttime	[no test files]
+ok  	crypto/internal/cryptotest	0.012s
+?   	crypto/internal/cryptotest/wycheproof	[no test files]
+?   	crypto/internal/cryptotest/x509limbo	[no test files]
+?   	crypto/internal/entropy	[no test files]
+?   	crypto/internal/entropy/v1.0.0	[no test files]
+ok  	crypto/internal/fips140	0.020s
+ok  	crypto/internal/fips140/aes	0.063s
+ok  	crypto/internal/fips140/aes/gcm	0.010s [no tests to run]
+?   	crypto/internal/fips140/alias	[no test files]
+ok  	crypto/internal/fips140/bigmod	0.692s
+?   	crypto/internal/fips140/check	[no test files]
+?   	crypto/internal/fips140/check/checktest	[no test files]
+ok  	crypto/internal/fips140/drbg	0.048s [no tests to run]
+ok  	crypto/internal/fips140/ecdh	0.018s
+ok  	crypto/internal/fips140/ecdsa	0.453s
+?   	crypto/internal/fips140/ed25519	[no test files]
+ok  	crypto/internal/fips140/edwards25519	0.333s
+ok  	crypto/internal/fips140/edwards25519/field	0.570s
+?   	crypto/internal/fips140/hkdf	[no test files]
+?   	crypto/internal/fips140/hmac	[no test files]
+ok  	crypto/internal/fips140/mldsa	4.670s
+ok  	crypto/internal/fips140/mlkem	1.310s
+ok  	crypto/internal/fips140/nistec	0.026s
+ok  	crypto/internal/fips140/nistec/fiat	0.020s [no tests to run]
+?   	crypto/internal/fips140/pbkdf2	[no test files]
+ok  	crypto/internal/fips140/rsa	0.334s
+?   	crypto/internal/fips140/sha256	[no test files]
+?   	crypto/internal/fips140/sha3	[no test files]
+?   	crypto/internal/fips140/sha512	[no test files]
+?   	crypto/internal/fips140/ssh	[no test files]
+ok  	crypto/internal/fips140/subtle	0.019s
+?   	crypto/internal/fips140/tls12	[no test files]
+?   	crypto/internal/fips140/tls13	[no test files]
+ok  	crypto/internal/fips140cache	1.876s
+ok  	crypto/internal/fips140deps	0.258s
+?   	crypto/internal/fips140deps/byteorder	[no test files]
+?   	crypto/internal/fips140deps/cpu	[no test files]
+?   	crypto/internal/fips140deps/godebug	[no test files]
+?   	crypto/internal/fips140deps/time	[no test files]
+?   	crypto/internal/fips140hash	[no test files]
+ok  	crypto/internal/fips140only	4.232s
+ok  	crypto/internal/fips140test	21.336s
+?   	crypto/internal/impl	[no test files]
+?   	crypto/internal/rand	[no test files]
+?   	crypto/internal/randutil	[no test files]
+ok  	crypto/internal/sysrand	0.678s
+?   	crypto/internal/sysrand/internal/seccomp	[no test files]
+ok  	crypto/md5	0.339s
+ok  	crypto/mldsa	6.472s
+ok  	crypto/mlkem	0.803s
+?   	crypto/mlkem/mlkemtest	[no test files]
+ok  	crypto/pbkdf2	0.055s
+ok  	crypto/rand	1.209s
+ok  	crypto/rc4	0.264s
+ok  	crypto/rsa	16.144s
+ok  	crypto/sha1	0.329s
+ok  	crypto/sha256	0.506s
+ok  	crypto/sha3	8.511s
+ok  	crypto/sha512	0.319s
+ok  	crypto/subtle	0.988s
+ok  	crypto/tls	7.983s
+?   	crypto/tls/internal/fips140tls	[no test files]
+ok  	crypto/x509	13.906s
+?   	crypto/x509/pkix	[no test files]
+
+##### GOFIPS140=v1.0.0-c2097c7c go test crypto/... # (build and vet only)
+?   	crypto/internal/boring/bbig	[no test files]
+?   	crypto/internal/boring/sig	[no test files]
+?   	crypto/internal/constanttime	[no test files]
+?   	crypto/internal/cryptotest/wycheproof	[no test files]
+?   	crypto/internal/cryptotest/x509limbo	[no test files]
+?   	crypto/internal/entropy	[no test files]
+?   	crypto/internal/entropy/v1.0.0	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/alias	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/check	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/check/checktest	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/ed25519	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/hkdf	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/hmac	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/pbkdf2	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/sha256	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/sha3	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/sha512	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/ssh	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/subtle	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/tls12	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/tls13	[no test files]
+?   	crypto/internal/fips140deps/byteorder	[no test files]
+?   	crypto/internal/fips140deps/cpu	[no test files]
+?   	crypto/internal/fips140deps/godebug	[no test files]
+?   	crypto/internal/fips140deps/time	[no test files]
+?   	crypto/internal/fips140hash	[no test files]
+?   	crypto/internal/impl	[no test files]
+?   	crypto/internal/rand	[no test files]
+?   	crypto/internal/randutil	[no test files]
+?   	crypto/internal/sysrand/internal/seccomp	[no test files]
+?   	crypto/mlkem/mlkemtest	[no test files]
+?   	crypto/tls/internal/fips140tls	[no test files]
+?   	crypto/x509/pkix	[no test files]
+
+##### GOFIPS140=v1.26.0 go test crypto/... # (build and vet only)
+?   	crypto/internal/boring/bbig	[no test files]
+?   	crypto/internal/boring/sig	[no test files]
+?   	crypto/internal/constanttime	[no test files]
+?   	crypto/internal/cryptotest/wycheproof	[no test files]
+?   	crypto/internal/cryptotest/x509limbo	[no test files]
+?   	crypto/internal/entropy	[no test files]
+?   	crypto/internal/entropy/v1.0.0	[no test files]
+?   	crypto/internal/fips140/v1.26.0	[no test files]
+?   	crypto/internal/fips140/v1.26.0/alias	[no test files]
+?   	crypto/internal/fips140/v1.26.0/check	[no test files]
+?   	crypto/internal/fips140/v1.26.0/check/checktest	[no test files]
+?   	crypto/internal/fips140/v1.26.0/ed25519	[no test files]
+?   	crypto/internal/fips140/v1.26.0/hkdf	[no test files]
+?   	crypto/internal/fips140/v1.26.0/hmac	[no test files]
+?   	crypto/internal/fips140/v1.26.0/pbkdf2	[no test files]
+?   	crypto/internal/fips140/v1.26.0/sha256	[no test files]
+?   	crypto/internal/fips140/v1.26.0/sha3	[no test files]
+?   	crypto/internal/fips140/v1.26.0/sha512	[no test files]
+?   	crypto/internal/fips140/v1.26.0/ssh	[no test files]
+?   	crypto/internal/fips140/v1.26.0/tls12	[no test files]
+?   	crypto/internal/fips140/v1.26.0/tls13	[no test files]
+?   	crypto/internal/fips140deps/byteorder	[no test files]
+?   	crypto/internal/fips140deps/cpu	[no test files]
+?   	crypto/internal/fips140deps/godebug	[no test files]
+?   	crypto/internal/fips140deps/time	[no test files]
+?   	crypto/internal/fips140hash	[no test files]
+?   	crypto/internal/impl	[no test files]
+?   	crypto/internal/rand	[no test files]
+?   	crypto/internal/randutil	[no test files]
+?   	crypto/internal/sysrand/internal/seccomp	[no test files]
+?   	crypto/mlkem/mlkemtest	[no test files]
+?   	crypto/tls/internal/fips140tls	[no test files]
+?   	crypto/x509/pkix	[no test files]
+
+##### GOFIPS140=certified go test crypto/... # (build and vet only)
+?   	crypto/internal/boring/bbig	[no test files]
+?   	crypto/internal/boring/sig	[no test files]
+?   	crypto/internal/constanttime	[no test files]
+?   	crypto/internal/cryptotest/wycheproof	[no test files]
+?   	crypto/internal/cryptotest/x509limbo	[no test files]
+?   	crypto/internal/entropy	[no test files]
+?   	crypto/internal/entropy/v1.0.0	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/alias	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/check	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/check/checktest	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/ed25519	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/hkdf	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/hmac	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/pbkdf2	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/sha256	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/sha3	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/sha512	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/ssh	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/subtle	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/tls12	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/tls13	[no test files]
+?   	crypto/internal/fips140deps/byteorder	[no test files]
+?   	crypto/internal/fips140deps/cpu	[no test files]
+?   	crypto/internal/fips140deps/godebug	[no test files]
+?   	crypto/internal/fips140deps/time	[no test files]
+?   	crypto/internal/fips140hash	[no test files]
+?   	crypto/internal/impl	[no test files]
+?   	crypto/internal/rand	[no test files]
+?   	crypto/internal/randutil	[no test files]
+?   	crypto/internal/sysrand/internal/seccomp	[no test files]
+?   	crypto/mlkem/mlkemtest	[no test files]
+?   	crypto/tls/internal/fips140tls	[no test files]
+?   	crypto/x509/pkix	[no test files]
+
+##### GOFIPS140=inprocess go test crypto/... # (build and vet only)
+?   	crypto/internal/boring/bbig	[no test files]
+?   	crypto/internal/boring/sig	[no test files]
+?   	crypto/internal/constanttime	[no test files]
+?   	crypto/internal/cryptotest/wycheproof	[no test files]
+?   	crypto/internal/cryptotest/x509limbo	[no test files]
+?   	crypto/internal/entropy	[no test files]
+?   	crypto/internal/entropy/v1.0.0	[no test files]
+?   	crypto/internal/fips140/v1.26.0	[no test files]
+?   	crypto/internal/fips140/v1.26.0/alias	[no test files]
+?   	crypto/internal/fips140/v1.26.0/check	[no test files]
+?   	crypto/internal/fips140/v1.26.0/check/checktest	[no test files]
+?   	crypto/internal/fips140/v1.26.0/ed25519	[no test files]
+?   	crypto/internal/fips140/v1.26.0/hkdf	[no test files]
+?   	crypto/internal/fips140/v1.26.0/hmac	[no test files]
+?   	crypto/internal/fips140/v1.26.0/pbkdf2	[no test files]
+?   	crypto/internal/fips140/v1.26.0/sha256	[no test files]
+?   	crypto/internal/fips140/v1.26.0/sha3	[no test files]
+?   	crypto/internal/fips140/v1.26.0/sha512	[no test files]
+?   	crypto/internal/fips140/v1.26.0/ssh	[no test files]
+?   	crypto/internal/fips140/v1.26.0/tls12	[no test files]
+?   	crypto/internal/fips140/v1.26.0/tls13	[no test files]
+?   	crypto/internal/fips140deps/byteorder	[no test files]
+?   	crypto/internal/fips140deps/cpu	[no test files]
+?   	crypto/internal/fips140deps/godebug	[no test files]
+?   	crypto/internal/fips140deps/time	[no test files]
+?   	crypto/internal/fips140hash	[no test files]
+?   	crypto/internal/impl	[no test files]
+?   	crypto/internal/rand	[no test files]
+?   	crypto/internal/randutil	[no test files]
+?   	crypto/internal/sysrand/internal/seccomp	[no test files]
+?   	crypto/mlkem/mlkemtest	[no test files]
+?   	crypto/tls/internal/fips140tls	[no test files]
+?   	crypto/x509/pkix	[no test files]
+
+##### GOFIPS140=v1.0.0 go test crypto/... # (build and vet only)
+?   	crypto/internal/boring/bbig	[no test files]
+?   	crypto/internal/boring/sig	[no test files]
+?   	crypto/internal/constanttime	[no test files]
+?   	crypto/internal/cryptotest/wycheproof	[no test files]
+?   	crypto/internal/cryptotest/x509limbo	[no test files]
+?   	crypto/internal/entropy	[no test files]
+?   	crypto/internal/entropy/v1.0.0	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/alias	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/check	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/check/checktest	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/ed25519	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/hkdf	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/hmac	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/pbkdf2	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/sha256	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/sha3	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/sha512	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/ssh	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/subtle	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/tls12	[no test files]
+?   	crypto/internal/fips140/v1.0.0-c2097c7c/tls13	[no test files]
+?   	crypto/internal/fips140deps/byteorder	[no test files]
+?   	crypto/internal/fips140deps/cpu	[no test files]
+?   	crypto/internal/fips140deps/godebug	[no test files]
+?   	crypto/internal/fips140deps/time	[no test files]
+?   	crypto/internal/fips140hash	[no test files]
+?   	crypto/internal/impl	[no test files]
+?   	crypto/internal/rand	[no test files]
+?   	crypto/internal/randutil	[no test files]
+?   	crypto/internal/sysrand/internal/seccomp	[no test files]
+?   	crypto/mlkem/mlkemtest	[no test files]
+?   	crypto/tls/internal/fips140tls	[no test files]
+?   	crypto/x509/pkix	[no test files]
+
+##### GOEXPERIMENT=nojsonv2 go test encoding/json/...
+ok  	encoding/json	2.158s
+
+##### GOEXPERIMENT=runtimesecret go test runtime/secret/...
+ok  	runtime/secret	0.197s
+
+##### GOEXPERIMENT=simd go test simd
+ok  	simd	4.428s
+
+##### GOEXPERIMENT=simd go test simd/archsimd/...
+ok  	simd/archsimd	0.018s
+ok  	simd/archsimd/internal/simd_test	35.505s
+?   	simd/archsimd/internal/test_helpers	[no test files]
+
+##### spectre
+ok  	internal/runtime/atomic	0.064s
+ok  	internal/runtime/cgobench	0.016s [no tests to run]
+ok  	internal/runtime/cgroup	0.207s
+?   	internal/runtime/exithook	[no test files]
+?   	internal/runtime/gc	[no test files]
+?   	internal/runtime/gc/internal/gen	[no test files]
+ok  	internal/runtime/gc/scan	0.147s
+ok  	internal/runtime/maps	0.867s
+ok  	internal/runtime/math	0.009s
+?   	internal/runtime/pprof/label	[no test files]
+?   	internal/runtime/startlinetest	[no test files]
+ok  	internal/runtime/sys	0.006s
+ok  	internal/runtime/syscall/linux	0.011s
+ok  	internal/runtime/wasitest	0.007s
+ok  	reflect	2.819s
+ok  	crypto	3.280s
+ok  	crypto/aes	0.036s
+ok  	crypto/cipher	15.505s
+ok  	crypto/des	0.037s
+ok  	crypto/dsa	0.025s
+ok  	crypto/ecdh	0.129s
+ok  	crypto/ecdsa	0.165s
+ok  	crypto/ed25519	0.109s
+ok  	crypto/elliptic	0.016s
+ok  	crypto/fips140	0.044s
+ok  	crypto/hkdf	0.009s
+ok  	crypto/hmac	0.137s
+ok  	crypto/hpke	5.075s
+ok  	crypto/internal/boring	0.007s
+?   	crypto/internal/boring/bbig	[no test files]
+ok  	crypto/internal/boring/bcache	0.257s
+?   	crypto/internal/boring/sig	[no test files]
+?   	crypto/internal/constanttime	[no test files]
+ok  	crypto/internal/cryptotest	0.013s
+?   	crypto/internal/cryptotest/wycheproof	[no test files]
+?   	crypto/internal/cryptotest/x509limbo	[no test files]
+?   	crypto/internal/entropy	[no test files]
+?   	crypto/internal/entropy/v1.0.0	[no test files]
+ok  	crypto/internal/fips140	0.008s
+ok  	crypto/internal/fips140/aes	0.039s
+ok  	crypto/internal/fips140/aes/gcm	0.006s [no tests to run]
+?   	crypto/internal/fips140/alias	[no test files]
+ok  	crypto/internal/fips140/bigmod	0.135s
+?   	crypto/internal/fips140/check	[no test files]
+?   	crypto/internal/fips140/check/checktest	[no test files]
+ok  	crypto/internal/fips140/drbg	0.014s [no tests to run]
+ok  	crypto/internal/fips140/ecdh	0.015s
+ok  	crypto/internal/fips140/ecdsa	0.058s
+?   	crypto/internal/fips140/ed25519	[no test files]
+ok  	crypto/internal/fips140/edwards25519	0.324s
+ok  	crypto/internal/fips140/edwards25519/field	0.049s
+?   	crypto/internal/fips140/hkdf	[no test files]
+?   	crypto/internal/fips140/hmac	[no test files]
+ok  	crypto/internal/fips140/mldsa	2.590s
+ok  	crypto/internal/fips140/mlkem	0.526s
+ok  	crypto/internal/fips140/nistec	0.014s
+ok  	crypto/internal/fips140/nistec/fiat	0.012s [no tests to run]
+?   	crypto/internal/fips140/pbkdf2	[no test files]
+ok  	crypto/internal/fips140/rsa	0.236s
+?   	crypto/internal/fips140/sha256	[no test files]
+?   	crypto/internal/fips140/sha3	[no test files]
+?   	crypto/internal/fips140/sha512	[no test files]
+?   	crypto/internal/fips140/ssh	[no test files]
+ok  	crypto/internal/fips140/subtle	0.016s
+?   	crypto/internal/fips140/tls12	[no test files]
+?   	crypto/internal/fips140/tls13	[no test files]
+ok  	crypto/internal/fips140cache	1.302s
+ok  	crypto/internal/fips140deps	0.137s
+?   	crypto/internal/fips140deps/byteorder	[no test files]
+?   	crypto/internal/fips140deps/cpu	[no test files]
+?   	crypto/internal/fips140deps/godebug	[no test files]
+?   	crypto/internal/fips140deps/time	[no test files]
+?   	crypto/internal/fips140hash	[no test files]
+ok  	crypto/internal/fips140only	1.760s
+ok  	crypto/internal/fips140test	6.714s
+?   	crypto/internal/impl	[no test files]
+?   	crypto/internal/rand	[no test files]
+?   	crypto/internal/randutil	[no test files]
+ok  	crypto/internal/sysrand	0.168s
+?   	crypto/internal/sysrand/internal/seccomp	[no test files]
+ok  	crypto/md5	0.025s
+ok  	crypto/mldsa	2.049s
+ok  	crypto/mlkem	0.152s
+?   	crypto/mlkem/mlkemtest	[no test files]
+ok  	crypto/pbkdf2	0.034s
+ok  	crypto/rand	0.307s
+ok  	crypto/rc4	0.042s
+ok  	crypto/rsa	4.706s
+ok  	crypto/sha1	0.092s
+ok  	crypto/sha256	0.166s
+ok  	crypto/sha3	2.109s
+ok  	crypto/sha512	0.118s
+ok  	crypto/subtle	0.134s
+ok  	crypto/tls	2.559s
+?   	crypto/tls/internal/fips140tls	[no test files]
+ok  	crypto/x509	3.964s
+?   	crypto/x509/pkix	[no test files]
+
+##### Testing without libgcc.
+ok  	net	0.030s
+ok  	os/user	0.031s
+
+##### internal linking, -buildmode=pie
+ok  	reflect	0.961s
+ok  	crypto/internal/fips140test	0.003s [no tests to run]
+ok  	os/user	0.028s
+
+##### external linking, -buildmode=exe
+ok  	crypto/internal/fips140test	0.023s [no tests to run]
+
+##### external linking, -buildmode=pie
+ok  	crypto/internal/fips140test	0.018s [no tests to run]
+
+##### sync -cpu=10
+ok  	sync	0.202s
+
+##### Testing cgo
+ok  	cmd/cgo/internal/test	0.913s
+ok  	cmd/cgo/internal/test	0.864s
+ok  	cmd/cgo/internal/testtls	0.015s
+ok  	cmd/cgo/internal/testtls	0.008s
+ok  	cmd/cgo/internal/testnocgo	0.003s
+ok  	cmd/cgo/internal/testnocgo	0.007s
+ok  	cmd/cgo/internal/test	1.107s
+ok  	cmd/cgo/internal/test	0.846s
+ok  	cmd/cgo/internal/test	0.978s
+ok  	cmd/cgo/internal/test	1.034s
+ok  	cmd/cgo/internal/testtls	0.009s
+ok  	cmd/cgo/internal/testnocgo	0.013s
+
+##### API release note check
+ok  	cmd/relnote	0.009s
+
+##### API check
+ok  	cmd/api	26.995s
+
+##### GOMAXPROCS=2 runtime -cpu=1 -quick
+ok  	runtime	17.187s
+
+##### GOMAXPROCS=2 runtime -cpu=2 -quick
+ok  	runtime	19.279s
+
+##### GOMAXPROCS=2 runtime -cpu=4 -quick
+ok  	runtime	20.111s
+
+##### Testing race detector
+ok  	runtime/race	7.436s
+ok  	flag	1.033s
+ok  	net	1.106s
+ok  	os	1.139s
+ok  	os/exec	2.049s
+ok  	encoding/gob	1.221s
+ok  	flag	1.066s
+ok  	os/exec	2.035s
+
+##### ../test
+panic: test timed out after 10m0s
+	running tests:
+		Test/logos/run/json_key_dispatch_shape.lgo (1s)
+		Test/logos/run/json_marshal_test.lgo (17s)
+		Test/logos/run/json_static_encoder_v1_test.lgo (37s)
+		Test/rangegen.go (1m16s)
+
+goroutine 10402 gp=0x3a539f916288 m=3 mp=0x3a539e837008 [running]:
+panic({0x7fad48?, 0x3a539fad1c80?})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/panic.go:886 +0x159 fp=0x3a539f1b4f10 sp=0x3a539f1b4e68 pc=0x4888d9
+testing.(*M).startAlarm.func1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2961 +0x34a fp=0x3a539f1b4fe0 sp=0x3a539f1b4f10 pc=0x51b6ca
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f1b4fe8 sp=0x3a539f1b4fe0 pc=0x48f561
+created by time.goFunc
+	/home/runner/work/LoGOs/LoGOs/src/time/sleep.go:182 +0x2d
+
+goroutine 1 gp=0x3a539e7f6288 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x7f10009e6108?, 0x7f10009ef3b0?, 0xb0?, 0xfc?, 0x7fad48?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539e91b908 sp=0x3a539e91b8e8 pc=0x488d8a
+runtime.chanrecv(0x3a539e852980, 0x3a539e8939ef, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539e91b980 sp=0x3a539e91b908 pc=0x417f2e
+runtime.chanrecv1(0x18?, 0x80c380?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539e91b9a8 sp=0x3a539e91b980 pc=0x417a72
+testing.(*T).Run(0x3a539e92c488, {0x61027d?, 0x3a539e893aa0?}, 0x825db0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2268 +0x4f2 fp=0x3a539e91ba80 sp=0x3a539e91b9a8 pc=0x515772
+testing.runTests.func1(0x3a539e92c488)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2744 +0x37 fp=0x3a539e91bac0 sp=0x3a539e91ba80 pc=0x51b2f7
+testing.tRunner(0x3a539e92c488, 0x3a539e893bc8)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539e91bb10 sp=0x3a539e91bac0 pc=0x51520a
+testing.runTests({0x0, 0x0}, {0x6154f9, 0x14}, 0x3a539e8021b0, {0x846c50, 0xf, 0xf}, {0xc2b6fa98c044ba1f, 0x8bb2d3557a, ...})
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2742 +0x510 fp=0x3a539e91bbf8 sp=0x3a539e91bb10 pc=0x5177d0
+testing.(*M).Run(0x3a539e86f040)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2602 +0x6af fp=0x3a539e91be38 sp=0x3a539e91bbf8 pc=0x51638f
+main.main()
+	_testmain.go:74 +0x9b fp=0x3a539e91beb8 sp=0x3a539e91be38 pc=0x5feb1b
+runtime.main()
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:302 +0x427 fp=0x3a539e91bfe0 sp=0x3a539e91beb8 pc=0x450887
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539e91bfe8 sp=0x3a539e91bfe0 pc=0x48f561
+
+goroutine 2 gp=0x3a539e7f6a08 m=nil [force gc (idle), 9 minutes]:
+runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539e832fa8 sp=0x3a539e832f88 pc=0x488d8a
+runtime.goparkunlock(...)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:481
+runtime.forcegchelper()
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:387 +0xb3 fp=0x3a539e832fe0 sp=0x3a539e832fa8 pc=0x450b53
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539e832fe8 sp=0x3a539e832fe0 pc=0x48f561
+created by runtime.init.8 in goroutine 1
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:375 +0x1a
+
+goroutine 3 gp=0x3a539e7f7188 m=nil [GC sweep wait]:
+runtime.gopark(0x84c301?, 0x84c3e0?, 0x8?, 0x9?, 0x1?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539e833788 sp=0x3a539e833768 pc=0x488d8a
+runtime.goparkunlock(...)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:481
+runtime.bgsweep(0x3a539e852000)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/mgcsweep.go:324 +0x151 fp=0x3a539e8337c8 sp=0x3a539e833788 pc=0x43a1f1
+runtime.gcenable.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/runtime/mgc.go:214 +0x17 fp=0x3a539e8337e0 sp=0x3a539e8337c8 pc=0x47f4d7
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539e8337e8 sp=0x3a539e8337e0 pc=0x48f561
+created by runtime.gcenable in goroutine 1
+	/home/runner/work/LoGOs/LoGOs/src/runtime/mgc.go:214 +0x66
+
+goroutine 4 gp=0x3a539e7f7408 m=nil [GC scavenge wait]:
+runtime.gopark(0x10e8b3?, 0x7ee4c?, 0x0?, 0x0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539e833f78 sp=0x3a539e833f58 pc=0x488d8a
+runtime.goparkunlock(...)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:481
+runtime.(*scavengerState).park(0x84ca60)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/mgcscavenge.go:425 +0x49 fp=0x3a539e833fa8 sp=0x3a539e833f78 pc=0x437ce9
+runtime.bgscavenge(0x3a539e852000)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/mgcscavenge.go:658 +0x59 fp=0x3a539e833fc8 sp=0x3a539e833fa8 pc=0x438259
+runtime.gcenable.gowrap2()
+	/home/runner/work/LoGOs/LoGOs/src/runtime/mgc.go:215 +0x17 fp=0x3a539e833fe0 sp=0x3a539e833fc8 pc=0x47f497
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539e833fe8 sp=0x3a539e833fe0 pc=0x48f561
+created by runtime.gcenable in goroutine 1
+	/home/runner/work/LoGOs/LoGOs/src/runtime/mgc.go:215 +0xa5
+
+goroutine 5 gp=0x3a539e7f7b88 m=nil [GOMAXPROCS updater (idle), 9 minutes]:
+runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539e834788 sp=0x3a539e834768 pc=0x488d8a
+runtime.goparkunlock(...)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:481
+runtime.updateMaxProcsGoroutine()
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:7160 +0xe7 fp=0x3a539e8347e0 sp=0x3a539e834788 pc=0x45e007
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539e8347e8 sp=0x3a539e8347e0 pc=0x48f561
+created by runtime.defaultGOMAXPROCSUpdateEnable in goroutine 1
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:7148 +0x37
+
+goroutine 6 gp=0x3a539e87a008 m=nil [finalizer wait, 9 minutes]:
+runtime.gopark(0x70?, 0x84df60?, 0x0?, 0x0?, 0x3a539e832668?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539e832620 sp=0x3a539e832600 pc=0x488d8a
+runtime.runFinalizers()
+	/home/runner/work/LoGOs/LoGOs/src/runtime/mfinal.go:210 +0x107 fp=0x3a539e8327e0 sp=0x3a539e832620 pc=0x42b3e7
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539e8327e8 sp=0x3a539e8327e0 pc=0x48f561
+created by runtime.createfing in goroutine 1
+	/home/runner/work/LoGOs/LoGOs/src/runtime/mfinal.go:172 +0x3d
+
+goroutine 29 gp=0x3a539e87a288 m=nil [chan receive]:
+runtime.gopark(0x3a539e955340?, 0x3a539f1a7dc8?, 0xb2?, 0x5f?, 0x3a539e86b800?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f1a7d38 sp=0x3a539f1a7d18 pc=0x488d8a
+runtime.chanrecv(0x3a539eb3b380, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f1a7db0 sp=0x3a539f1a7d38 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x62d540?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f1a7dd8 sp=0x3a539f1a7db0 pc=0x417a72
+testing.tRunner.func1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2144 +0x425 fp=0x3a539f1a7f70 sp=0x3a539f1a7dd8 pc=0x51aa05
+testing.tRunner(0x3a539e9726c8, 0x825db0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2201 +0x123 fp=0x3a539f1a7fc0 sp=0x3a539f1a7f70 pc=0x515243
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f1a7fe0 sp=0x3a539f1a7fc0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f1a7fe8 sp=0x3a539f1a7fe0 pc=0x48f561
+created by testing.(*T).Run in goroutine 1
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 13 gp=0x3a539e87a508 m=nil [cleanup wait, 9 minutes]:
+runtime.gopark(0x51520a?, 0x3a539e92d208?, 0x0?, 0x0?, 0x51a5a0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539e834f68 sp=0x3a539e834f48 pc=0x488d8a
+runtime.goparkunlock(...)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:481
+runtime.(*cleanupQueue).dequeue(0x84cca0)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/mcleanup.go:519 +0xd3 fp=0x3a539e834fa0 sp=0x3a539e834f68 pc=0x428173
+runtime.runCleanups()
+	/home/runner/work/LoGOs/LoGOs/src/runtime/mcleanup.go:715 +0x45 fp=0x3a539e834fe0 sp=0x3a539e834fa0 pc=0x428785
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539e834fe8 sp=0x3a539e834fe0 pc=0x48f561
+created by runtime.(*cleanupQueue).createGs in goroutine 12
+	/home/runner/work/LoGOs/LoGOs/src/runtime/mcleanup.go:669 +0xa5
+
+goroutine 9955 gp=0x3a539eb55908 m=nil [IO wait, 1 minutes]:
+runtime.gopark(0x8262c0?, 0x7f100085f420?, 0x2?, 0x2?, 0x5?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f1a0b98 sp=0x3a539f1a0b78 pc=0x488d8a
+runtime.netpollblock(0xffffffffffffffff?, 0x9eb85c18?, 0x53?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/netpoll.go:596 +0xf7 fp=0x3a539f1a0bd0 sp=0x3a539f1a0b98 pc=0x449cd7
+internal/poll.runtime_pollWait(0x7f100085f400, 0x72)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/netpoll.go:369 +0x85 fp=0x3a539f1a0bf0 sp=0x3a539f1a0bd0 pc=0x4884e5
+internal/poll.(*pollDesc).wait(0x3a539fb822a0?, 0x3a539f9ce200?, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/internal/poll/fd_poll_runtime.go:84 +0x27 fp=0x3a539f1a0c28 sp=0x3a539f1a0bf0 pc=0x4b7387
+internal/poll.(*pollDesc).waitRead(...)
+	/home/runner/work/LoGOs/LoGOs/src/internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x3a539fb822a0, {0x3a539f9ce200, 0x200, 0x200})
+	/home/runner/work/LoGOs/LoGOs/src/internal/poll/fd_unix.go:170 +0x2a8 fp=0x3a539f1a0cc0 sp=0x3a539f1a0c28 pc=0x4b7ac8
+os.(*File).read(...)
+	/home/runner/work/LoGOs/LoGOs/src/os/file_posix.go:30
+os.(*File).Read(0x3a539fd8c120, {0x3a539f9ce200?, 0x7f100000004?, 0x0?})
+	/home/runner/work/LoGOs/LoGOs/src/os/file.go:144 +0x4f fp=0x3a539f1a0d00 sp=0x3a539f1a0cc0 pc=0x4bd38f
+os.fileWithoutWriteTo.Read({{}, 0x3a539fc5a090?}, {0x3a539f9ce200?, 0x3a539eb90c01?, 0x2a?})
+	<autogenerated>:1 +0x18 fp=0x3a539f1a0d30 sp=0x3a539f1a0d00 pc=0x4c5338
+bytes.(*Buffer).ReadFrom(0x3a539fc5a090, {0x824698, 0x3a539fd8c120})
+	/home/runner/work/LoGOs/LoGOs/src/bytes/buffer.go:229 +0x98 fp=0x3a539f1a0d88 sp=0x3a539f1a0d30 pc=0x4fb058
+io.copyBuffer({0x8247d8, 0x3a539fc5a090}, {0x824698, 0x3a539fd8c120}, {0x0, 0x0, 0x0})
+	/home/runner/work/LoGOs/LoGOs/src/io/io.go:415 +0x151 fp=0x3a539f1a0e00 sp=0x3a539f1a0d88 pc=0x4b1df1
+io.Copy(...)
+	/home/runner/work/LoGOs/LoGOs/src/io/io.go:388
+os.genericWriteTo(0x3a539fd8c120?, {0x8247d8?, 0x3a539fc5a090?})
+	/home/runner/work/LoGOs/LoGOs/src/os/file.go:295 +0x35 fp=0x3a539f1a0e48 sp=0x3a539f1a0e00 pc=0x4bdab5
+os.(*File).WriteTo(0x3a539fd8c120, {0x8247d8, 0x3a539fc5a090})
+	/home/runner/work/LoGOs/LoGOs/src/os/file.go:273 +0x9c fp=0x3a539f1a0e88 sp=0x3a539f1a0e48 pc=0x4bd9fc
+io.copyBuffer({0x8247d8, 0x3a539fc5a090}, {0x824718, 0x3a539fd8c120}, {0x0, 0x0, 0x0})
+	/home/runner/work/LoGOs/LoGOs/src/io/io.go:411 +0x9d fp=0x3a539f1a0f00 sp=0x3a539f1a0e88 pc=0x4b1d3d
+io.Copy(...)
+	/home/runner/work/LoGOs/LoGOs/src/io/io.go:388
+os/exec.(*Cmd).writerDescriptor.func1()
+	/home/runner/work/LoGOs/LoGOs/src/os/exec/exec.go:613 +0x34 fp=0x3a539f1a0f60 sp=0x3a539f1a0f00 pc=0x52ae54
+os/exec.(*Cmd).Start.func2(0x3a539eb56920?)
+	/home/runner/work/LoGOs/LoGOs/src/os/exec/exec.go:768 +0x2c fp=0x3a539f1a0fc8 sp=0x3a539f1a0f60 pc=0x52af4c
+os/exec.(*Cmd).Start.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/os/exec/exec.go:780 +0x1b fp=0x3a539f1a0fe0 sp=0x3a539f1a0fc8 pc=0x52aefb
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f1a0fe8 sp=0x3a539f1a0fe0 pc=0x48f561
+created by os/exec.(*Cmd).Start in goroutine 301
+	/home/runner/work/LoGOs/LoGOs/src/os/exec/exec.go:767 +0x92b
+
+goroutine 301 gp=0x3a539eb68508 m=4 mp=0x3a539e880008 [syscall, 1 minutes]:
+syscall.Syscall6(0xf7, 0x3, 0xe, 0x3a539e8926a0, 0x4, 0x3a539fa322d0, 0x0)
+	/home/runner/work/LoGOs/LoGOs/src/syscall/syscall_linux.go:96 +0x39 fp=0x3a539e892618 sp=0x3a539e8925b8 pc=0x49de99
+internal/syscall/unix.Waitid(0x3a539e8926ce?, 0x3a539e8927f8?, 0x5286ab?, 0x18?, 0x80cb38?)
+	/home/runner/work/LoGOs/LoGOs/src/internal/syscall/unix/waitid_linux.go:18 +0x39 fp=0x3a539e892670 sp=0x3a539e892618 pc=0x4b64b9
+os.(*Process).pidfdWait.func1(...)
+	/home/runner/work/LoGOs/LoGOs/src/os/pidfd_linux.go:108
+os.ignoringEINTR(...)
+	/home/runner/work/LoGOs/LoGOs/src/os/file_posix.go:263
+os.(*Process).pidfdWait(0x3a539ea1c0c0)
+	/home/runner/work/LoGOs/LoGOs/src/os/pidfd_linux.go:107 +0x1cf fp=0x3a539e892780 sp=0x3a539e892670 pc=0x4c080f
+os.(*Process).wait(0x1?)
+	/home/runner/work/LoGOs/LoGOs/src/os/exec_unix.go:25 +0x1a fp=0x3a539e892798 sp=0x3a539e892780 pc=0x4bcbfa
+os.(*Process).Wait(...)
+	/home/runner/work/LoGOs/LoGOs/src/os/exec.go:347
+os/exec.(*Cmd).Wait(0x3a539fbf44e0)
+	/home/runner/work/LoGOs/LoGOs/src/os/exec/exec.go:944 +0x45 fp=0x3a539e892808 sp=0x3a539e892798 pc=0x528de5
+os/exec.(*Cmd).Run(0x3a539fbf44e0)
+	/home/runner/work/LoGOs/LoGOs/src/os/exec/exec.go:643 +0x2d fp=0x3a539e892820 sp=0x3a539e892808 pc=0x527d6d
+cmd/internal/testdir_test.test.runAction.func1({0x3a539fb821e0?, 0x612da5?, 0x3a53a0b28000?})
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:727 +0x805 fp=0x3a539e892960 sp=0x3a539e892820 pc=0x5fd905
+cmd/internal/testdir_test.test.runAction({{{0x3a539e80ca20, 0x22}, 0x3a539e852a80}, 0x3a539eb65208, {0x610002, 0x1}, {0x3a539e8054f0, 0xb}}, {0x3a539f508500, 0x2150, ...}, ...)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:1150 +0x396d fp=0x3a539e893d00 sp=0x3a539e892960 pc=0x5ee46d
+cmd/internal/testdir_test.test.run({{{0x3a539e80ca20, 0x22}, 0x3a539e852a80}, 0x3a539eb65208, {0x610002, 0x1}, {0x3a539e8054f0, 0xb}})
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:522 +0x4fe fp=0x3a539e893ef8 sp=0x3a539e893d00 pc=0x5ea89e
+cmd/internal/testdir_test.Test.func2(0x3a539eb65208)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:152 +0x7b fp=0x3a539e893f70 sp=0x3a539e893ef8 pc=0x5fcc1b
+testing.tRunner(0x3a539eb65208, 0x3a539eb561d0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539e893fc0 sp=0x3a539e893f70 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539e893fe0 sp=0x3a539e893fc0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539e893fe8 sp=0x3a539e893fe0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 881 gp=0x3a539ee8cf08 m=nil [GC worker (idle)]:
+runtime.gopark(0x232390cb6d8?, 0x1?, 0x16?, 0x57?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539ee94f40 sp=0x3a539ee94f20 pc=0x488d8a
+runtime.gcBgMarkWorker(0x3a539ee8a540)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/mgc.go:1799 +0xeb fp=0x3a539ee94fc8 sp=0x3a539ee94f40 pc=0x42e68b
+runtime.gcBgMarkStartWorkers.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/runtime/mgc.go:1703 +0x17 fp=0x3a539ee94fe0 sp=0x3a539ee94fc8 pc=0x47f9d7
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539ee94fe8 sp=0x3a539ee94fe0 pc=0x48f561
+created by runtime.gcBgMarkStartWorkers in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/runtime/mgc.go:1703 +0xfc
+
+goroutine 882 gp=0x3a539ee8d188 m=nil [GC worker (idle)]:
+runtime.gopark(0x23238c3d4e6?, 0x3a539e930c00?, 0x1c?, 0xa?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539ee95740 sp=0x3a539ee95720 pc=0x488d8a
+runtime.gcBgMarkWorker(0x3a539ee8a540)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/mgc.go:1799 +0xeb fp=0x3a539ee957c8 sp=0x3a539ee95740 pc=0x42e68b
+runtime.gcBgMarkStartWorkers.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/runtime/mgc.go:1703 +0x17 fp=0x3a539ee957e0 sp=0x3a539ee957c8 pc=0x47f9d7
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539ee957e8 sp=0x3a539ee957e0 pc=0x48f561
+created by runtime.gcBgMarkStartWorkers in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/runtime/mgc.go:1703 +0xfc
+
+goroutine 883 gp=0x3a539ee8d408 m=nil [GC worker (idle), 1 minutes]:
+runtime.gopark(0x232390cbd24?, 0x3a539e930e00?, 0x1c?, 0xa?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539ee95f40 sp=0x3a539ee95f20 pc=0x488d8a
+runtime.gcBgMarkWorker(0x3a539ee8a540)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/mgc.go:1799 +0xeb fp=0x3a539ee95fc8 sp=0x3a539ee95f40 pc=0x42e68b
+runtime.gcBgMarkStartWorkers.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/runtime/mgc.go:1703 +0x17 fp=0x3a539ee95fe0 sp=0x3a539ee95fc8 pc=0x47f9d7
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539ee95fe8 sp=0x3a539ee95fe0 pc=0x48f561
+created by runtime.gcBgMarkStartWorkers in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/runtime/mgc.go:1703 +0xfc
+
+goroutine 884 gp=0x3a539ee8d688 m=nil [GC worker (idle), 1 minutes]:
+runtime.gopark(0x22fa03e437b?, 0x3?, 0x50?, 0xe5?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539ee8e740 sp=0x3a539ee8e720 pc=0x488d8a
+runtime.gcBgMarkWorker(0x3a539ee8a540)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/mgc.go:1799 +0xeb fp=0x3a539ee8e7c8 sp=0x3a539ee8e740 pc=0x42e68b
+runtime.gcBgMarkStartWorkers.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/runtime/mgc.go:1703 +0x17 fp=0x3a539ee8e7e0 sp=0x3a539ee8e7c8 pc=0x47f9d7
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539ee8e7e8 sp=0x3a539ee8e7e0 pc=0x48f561
+created by runtime.gcBgMarkStartWorkers in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/runtime/mgc.go:1703 +0xfc
+
+goroutine 3256 gp=0x3a539f8ea508 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x488d8a?, 0x3a539f8c0fc0?, 0x8?, 0x20?, 0x3a539f8dde28?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f8ddd98 sp=0x3a539f8ddd78 pc=0x488d8a
+runtime.chanrecv(0x3a539e8600e0, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f8dde10 sp=0x3a539f8ddd98 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f8dde38 sp=0x3a539f8dde10 pc=0x417a72
+testing.(*testState).waitParallel(0x3a539e9145f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2379 +0xaa fp=0x3a539f8dde60 sp=0x3a539f8dde38 pc=0x5159ea
+testing.(*T).Parallel(0x3a539f8e7448)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:1960 +0x245 fp=0x3a539f8ddef8 sp=0x3a539f8dde60 pc=0x514ea5
+cmd/internal/testdir_test.Test.func2(0x3a539f8e7448)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:150 +0x25 fp=0x3a539f8ddf70 sp=0x3a539f8ddef8 pc=0x5fcbc5
+testing.tRunner(0x3a539f8e7448, 0x3a539f819c60)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f8ddfc0 sp=0x3a539f8ddf70 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f8ddfe0 sp=0x3a539f8ddfc0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f8ddfe8 sp=0x3a539f8ddfe0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 3257 gp=0x3a539f8ea788 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x488d8a?, 0x3a539f8c1030?, 0x8?, 0x60?, 0x3a539f8de628?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f8de598 sp=0x3a539f8de578 pc=0x488d8a
+runtime.chanrecv(0x3a539e8600e0, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f8de610 sp=0x3a539f8de598 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f8de638 sp=0x3a539f8de610 pc=0x417a72
+testing.(*testState).waitParallel(0x3a539e9145f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2379 +0xaa fp=0x3a539f8de660 sp=0x3a539f8de638 pc=0x5159ea
+testing.(*T).Parallel(0x3a539f8e7688)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:1960 +0x245 fp=0x3a539f8de6f8 sp=0x3a539f8de660 pc=0x514ea5
+cmd/internal/testdir_test.Test.func2(0x3a539f8e7688)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:150 +0x25 fp=0x3a539f8de770 sp=0x3a539f8de6f8 pc=0x5fcbc5
+testing.tRunner(0x3a539f8e7688, 0x3a539f819c90)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f8de7c0 sp=0x3a539f8de770 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f8de7e0 sp=0x3a539f8de7c0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f8de7e8 sp=0x3a539f8de7e0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 3258 gp=0x3a539f8eaa08 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x488d8a?, 0x3a539f8c10a0?, 0x8?, 0x60?, 0x3a539f8dee28?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f8ded98 sp=0x3a539f8ded78 pc=0x488d8a
+runtime.chanrecv(0x3a539e8600e0, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f8dee10 sp=0x3a539f8ded98 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f8dee38 sp=0x3a539f8dee10 pc=0x417a72
+testing.(*testState).waitParallel(0x3a539e9145f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2379 +0xaa fp=0x3a539f8dee60 sp=0x3a539f8dee38 pc=0x5159ea
+testing.(*T).Parallel(0x3a539f8e78c8)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:1960 +0x245 fp=0x3a539f8deef8 sp=0x3a539f8dee60 pc=0x514ea5
+cmd/internal/testdir_test.Test.func2(0x3a539f8e78c8)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:150 +0x25 fp=0x3a539f8def70 sp=0x3a539f8deef8 pc=0x5fcbc5
+testing.tRunner(0x3a539f8e78c8, 0x3a539f819cc0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f8defc0 sp=0x3a539f8def70 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f8defe0 sp=0x3a539f8defc0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f8defe8 sp=0x3a539f8defe0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 3259 gp=0x3a539f8eac88 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x488d8a?, 0x3a539f8c1110?, 0x8?, 0x20?, 0x3a539f8df628?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f8df598 sp=0x3a539f8df578 pc=0x488d8a
+runtime.chanrecv(0x3a539e8600e0, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f8df610 sp=0x3a539f8df598 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f8df638 sp=0x3a539f8df610 pc=0x417a72
+testing.(*testState).waitParallel(0x3a539e9145f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2379 +0xaa fp=0x3a539f8df660 sp=0x3a539f8df638 pc=0x5159ea
+testing.(*T).Parallel(0x3a539f8e7b08)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:1960 +0x245 fp=0x3a539f8df6f8 sp=0x3a539f8df660 pc=0x514ea5
+cmd/internal/testdir_test.Test.func2(0x3a539f8e7b08)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:150 +0x25 fp=0x3a539f8df770 sp=0x3a539f8df6f8 pc=0x5fcbc5
+testing.tRunner(0x3a539f8e7b08, 0x3a539f819cf0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f8df7c0 sp=0x3a539f8df770 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f8df7e0 sp=0x3a539f8df7c0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f8df7e8 sp=0x3a539f8df7e0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 3260 gp=0x3a539f8eaf08 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x488d8a?, 0x3a539f8c1180?, 0x8?, 0x20?, 0x3a539f8dfe28?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f8dfd98 sp=0x3a539f8dfd78 pc=0x488d8a
+runtime.chanrecv(0x3a539e8600e0, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f8dfe10 sp=0x3a539f8dfd98 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f8dfe38 sp=0x3a539f8dfe10 pc=0x417a72
+testing.(*testState).waitParallel(0x3a539e9145f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2379 +0xaa fp=0x3a539f8dfe60 sp=0x3a539f8dfe38 pc=0x5159ea
+testing.(*T).Parallel(0x3a539f8e7d48)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:1960 +0x245 fp=0x3a539f8dfef8 sp=0x3a539f8dfe60 pc=0x514ea5
+cmd/internal/testdir_test.Test.func2(0x3a539f8e7d48)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:150 +0x25 fp=0x3a539f8dff70 sp=0x3a539f8dfef8 pc=0x5fcbc5
+testing.tRunner(0x3a539f8e7d48, 0x3a539f819d20)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f8dffc0 sp=0x3a539f8dff70 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f8dffe0 sp=0x3a539f8dffc0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f8dffe8 sp=0x3a539f8dffe0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 3261 gp=0x3a539f8eb188 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x488d8a?, 0x3a539f8c11f0?, 0x8?, 0x20?, 0x3a539f8e0628?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f8e0598 sp=0x3a539f8e0578 pc=0x488d8a
+runtime.chanrecv(0x3a539e8600e0, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f8e0610 sp=0x3a539f8e0598 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f8e0638 sp=0x3a539f8e0610 pc=0x417a72
+testing.(*testState).waitParallel(0x3a539e9145f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2379 +0xaa fp=0x3a539f8e0660 sp=0x3a539f8e0638 pc=0x5159ea
+testing.(*T).Parallel(0x3a539f8ec008)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:1960 +0x245 fp=0x3a539f8e06f8 sp=0x3a539f8e0660 pc=0x514ea5
+cmd/internal/testdir_test.Test.func2(0x3a539f8ec008)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:150 +0x25 fp=0x3a539f8e0770 sp=0x3a539f8e06f8 pc=0x5fcbc5
+testing.tRunner(0x3a539f8ec008, 0x3a539f819d50)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f8e07c0 sp=0x3a539f8e0770 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f8e07e0 sp=0x3a539f8e07c0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f8e07e8 sp=0x3a539f8e07e0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 3262 gp=0x3a539f8eb408 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x3a539e860148?, 0x3a539f8c1260?, 0x8?, 0x20?, 0x3a539f8f2e28?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f8f2d98 sp=0x3a539f8f2d78 pc=0x488d8a
+runtime.chanrecv(0x3a539e8600e0, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f8f2e10 sp=0x3a539f8f2d98 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f8f2e38 sp=0x3a539f8f2e10 pc=0x417a72
+testing.(*testState).waitParallel(0x3a539e9145f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2379 +0xaa fp=0x3a539f8f2e60 sp=0x3a539f8f2e38 pc=0x5159ea
+testing.(*T).Parallel(0x3a539f8ec248)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:1960 +0x245 fp=0x3a539f8f2ef8 sp=0x3a539f8f2e60 pc=0x514ea5
+cmd/internal/testdir_test.Test.func2(0x3a539f8ec248)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:150 +0x25 fp=0x3a539f8f2f70 sp=0x3a539f8f2ef8 pc=0x5fcbc5
+testing.tRunner(0x3a539f8ec248, 0x3a539f819d80)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f8f2fc0 sp=0x3a539f8f2f70 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f8f2fe0 sp=0x3a539f8f2fc0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f8f2fe8 sp=0x3a539f8f2fe0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 3263 gp=0x3a539f8eb688 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x488d8a?, 0x3a539f8c12d0?, 0x8?, 0x60?, 0x3a539f8f3628?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f8f3598 sp=0x3a539f8f3578 pc=0x488d8a
+runtime.chanrecv(0x3a539e8600e0, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f8f3610 sp=0x3a539f8f3598 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f8f3638 sp=0x3a539f8f3610 pc=0x417a72
+testing.(*testState).waitParallel(0x3a539e9145f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2379 +0xaa fp=0x3a539f8f3660 sp=0x3a539f8f3638 pc=0x5159ea
+testing.(*T).Parallel(0x3a539f8ec488)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:1960 +0x245 fp=0x3a539f8f36f8 sp=0x3a539f8f3660 pc=0x514ea5
+cmd/internal/testdir_test.Test.func2(0x3a539f8ec488)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:150 +0x25 fp=0x3a539f8f3770 sp=0x3a539f8f36f8 pc=0x5fcbc5
+testing.tRunner(0x3a539f8ec488, 0x3a539f819db0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f8f37c0 sp=0x3a539f8f3770 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f8f37e0 sp=0x3a539f8f37c0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f8f37e8 sp=0x3a539f8f37e0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 3264 gp=0x3a539f8eb908 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x3a539e860148?, 0x3a539f8c1340?, 0x8?, 0x60?, 0x3a539f8f3e28?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f8f3d98 sp=0x3a539f8f3d78 pc=0x488d8a
+runtime.chanrecv(0x3a539e8600e0, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f8f3e10 sp=0x3a539f8f3d98 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f8f3e38 sp=0x3a539f8f3e10 pc=0x417a72
+testing.(*testState).waitParallel(0x3a539e9145f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2379 +0xaa fp=0x3a539f8f3e60 sp=0x3a539f8f3e38 pc=0x5159ea
+testing.(*T).Parallel(0x3a539f8ec6c8)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:1960 +0x245 fp=0x3a539f8f3ef8 sp=0x3a539f8f3e60 pc=0x514ea5
+cmd/internal/testdir_test.Test.func2(0x3a539f8ec6c8)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:150 +0x25 fp=0x3a539f8f3f70 sp=0x3a539f8f3ef8 pc=0x5fcbc5
+testing.tRunner(0x3a539f8ec6c8, 0x3a539f819de0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f8f3fc0 sp=0x3a539f8f3f70 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f8f3fe0 sp=0x3a539f8f3fc0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f8f3fe8 sp=0x3a539f8f3fe0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 3265 gp=0x3a539f8ebb88 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x3a539e860148?, 0x3a539f8c13b0?, 0x8?, 0x60?, 0x3a539f8f4628?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f8f4598 sp=0x3a539f8f4578 pc=0x488d8a
+runtime.chanrecv(0x3a539e8600e0, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f8f4610 sp=0x3a539f8f4598 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f8f4638 sp=0x3a539f8f4610 pc=0x417a72
+testing.(*testState).waitParallel(0x3a539e9145f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2379 +0xaa fp=0x3a539f8f4660 sp=0x3a539f8f4638 pc=0x5159ea
+testing.(*T).Parallel(0x3a539f8ec908)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:1960 +0x245 fp=0x3a539f8f46f8 sp=0x3a539f8f4660 pc=0x514ea5
+cmd/internal/testdir_test.Test.func2(0x3a539f8ec908)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:150 +0x25 fp=0x3a539f8f4770 sp=0x3a539f8f46f8 pc=0x5fcbc5
+testing.tRunner(0x3a539f8ec908, 0x3a539f819e10)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f8f47c0 sp=0x3a539f8f4770 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f8f47e0 sp=0x3a539f8f47c0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f8f47e8 sp=0x3a539f8f47e0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 3266 gp=0x3a539f8f8008 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x488d8a?, 0x3a539f8c1420?, 0x8?, 0x60?, 0x3a539f8f4e28?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f8f4d98 sp=0x3a539f8f4d78 pc=0x488d8a
+runtime.chanrecv(0x3a539e8600e0, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f8f4e10 sp=0x3a539f8f4d98 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f8f4e38 sp=0x3a539f8f4e10 pc=0x417a72
+testing.(*testState).waitParallel(0x3a539e9145f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2379 +0xaa fp=0x3a539f8f4e60 sp=0x3a539f8f4e38 pc=0x5159ea
+testing.(*T).Parallel(0x3a539f8ecb48)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:1960 +0x245 fp=0x3a539f8f4ef8 sp=0x3a539f8f4e60 pc=0x514ea5
+cmd/internal/testdir_test.Test.func2(0x3a539f8ecb48)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:150 +0x25 fp=0x3a539f8f4f70 sp=0x3a539f8f4ef8 pc=0x5fcbc5
+testing.tRunner(0x3a539f8ecb48, 0x3a539f819e40)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f8f4fc0 sp=0x3a539f8f4f70 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f8f4fe0 sp=0x3a539f8f4fc0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f8f4fe8 sp=0x3a539f8f4fe0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 3267 gp=0x3a539f8f8288 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x488d8a?, 0x3a539f8c1490?, 0x8?, 0x60?, 0x3a539f8f5628?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f8f5598 sp=0x3a539f8f5578 pc=0x488d8a
+runtime.chanrecv(0x3a539e8600e0, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f8f5610 sp=0x3a539f8f5598 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f8f5638 sp=0x3a539f8f5610 pc=0x417a72
+testing.(*testState).waitParallel(0x3a539e9145f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2379 +0xaa fp=0x3a539f8f5660 sp=0x3a539f8f5638 pc=0x5159ea
+testing.(*T).Parallel(0x3a539f8ecd88)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:1960 +0x245 fp=0x3a539f8f56f8 sp=0x3a539f8f5660 pc=0x514ea5
+cmd/internal/testdir_test.Test.func2(0x3a539f8ecd88)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:150 +0x25 fp=0x3a539f8f5770 sp=0x3a539f8f56f8 pc=0x5fcbc5
+testing.tRunner(0x3a539f8ecd88, 0x3a539f819e70)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f8f57c0 sp=0x3a539f8f5770 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f8f57e0 sp=0x3a539f8f57c0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f8f57e8 sp=0x3a539f8f57e0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 3268 gp=0x3a539f8f8508 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x488d8a?, 0x3a539f8c1500?, 0x8?, 0x60?, 0x3a539f8f5e28?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f8f5d98 sp=0x3a539f8f5d78 pc=0x488d8a
+runtime.chanrecv(0x3a539e8600e0, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f8f5e10 sp=0x3a539f8f5d98 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f8f5e38 sp=0x3a539f8f5e10 pc=0x417a72
+testing.(*testState).waitParallel(0x3a539e9145f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2379 +0xaa fp=0x3a539f8f5e60 sp=0x3a539f8f5e38 pc=0x5159ea
+testing.(*T).Parallel(0x3a539f8ecfc8)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:1960 +0x245 fp=0x3a539f8f5ef8 sp=0x3a539f8f5e60 pc=0x514ea5
+cmd/internal/testdir_test.Test.func2(0x3a539f8ecfc8)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:150 +0x25 fp=0x3a539f8f5f70 sp=0x3a539f8f5ef8 pc=0x5fcbc5
+testing.tRunner(0x3a539f8ecfc8, 0x3a539f819ea0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f8f5fc0 sp=0x3a539f8f5f70 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f8f5fe0 sp=0x3a539f8f5fc0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f8f5fe8 sp=0x3a539f8f5fe0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 3269 gp=0x3a539f8f8788 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x488d8a?, 0x3a539f8c1570?, 0x8?, 0x60?, 0x3a539f8dc628?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f8dc598 sp=0x3a539f8dc578 pc=0x488d8a
+runtime.chanrecv(0x3a539e8600e0, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f8dc610 sp=0x3a539f8dc598 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f8dc638 sp=0x3a539f8dc610 pc=0x417a72
+testing.(*testState).waitParallel(0x3a539e9145f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2379 +0xaa fp=0x3a539f8dc660 sp=0x3a539f8dc638 pc=0x5159ea
+testing.(*T).Parallel(0x3a539f8ed208)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:1960 +0x245 fp=0x3a539f8dc6f8 sp=0x3a539f8dc660 pc=0x514ea5
+cmd/internal/testdir_test.Test.func2(0x3a539f8ed208)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:150 +0x25 fp=0x3a539f8dc770 sp=0x3a539f8dc6f8 pc=0x5fcbc5
+testing.tRunner(0x3a539f8ed208, 0x3a539f819ed0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f8dc7c0 sp=0x3a539f8dc770 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f8dc7e0 sp=0x3a539f8dc7c0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f8dc7e8 sp=0x3a539f8dc7e0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 3270 gp=0x3a539f8f8a08 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x488d8a?, 0x3a539f8c15e0?, 0x8?, 0x60?, 0x3a539f8eee28?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f8eed98 sp=0x3a539f8eed78 pc=0x488d8a
+runtime.chanrecv(0x3a539e8600e0, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f8eee10 sp=0x3a539f8eed98 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f8eee38 sp=0x3a539f8eee10 pc=0x417a72
+testing.(*testState).waitParallel(0x3a539e9145f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2379 +0xaa fp=0x3a539f8eee60 sp=0x3a539f8eee38 pc=0x5159ea
+testing.(*T).Parallel(0x3a539f8ed448)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:1960 +0x245 fp=0x3a539f8eeef8 sp=0x3a539f8eee60 pc=0x514ea5
+cmd/internal/testdir_test.Test.func2(0x3a539f8ed448)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:150 +0x25 fp=0x3a539f8eef70 sp=0x3a539f8eeef8 pc=0x5fcbc5
+testing.tRunner(0x3a539f8ed448, 0x3a539f8fc000)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f8eefc0 sp=0x3a539f8eef70 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f8eefe0 sp=0x3a539f8eefc0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f8eefe8 sp=0x3a539f8eefe0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 3271 gp=0x3a539f8f8c88 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x488d8a?, 0x3a539f8c1650?, 0x8?, 0xa0?, 0x3a539f8ef628?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f8ef598 sp=0x3a539f8ef578 pc=0x488d8a
+runtime.chanrecv(0x3a539e8600e0, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f8ef610 sp=0x3a539f8ef598 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f8ef638 sp=0x3a539f8ef610 pc=0x417a72
+testing.(*testState).waitParallel(0x3a539e9145f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2379 +0xaa fp=0x3a539f8ef660 sp=0x3a539f8ef638 pc=0x5159ea
+testing.(*T).Parallel(0x3a539f8ed688)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:1960 +0x245 fp=0x3a539f8ef6f8 sp=0x3a539f8ef660 pc=0x514ea5
+cmd/internal/testdir_test.Test.func2(0x3a539f8ed688)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:150 +0x25 fp=0x3a539f8ef770 sp=0x3a539f8ef6f8 pc=0x5fcbc5
+testing.tRunner(0x3a539f8ed688, 0x3a539f8fc030)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f8ef7c0 sp=0x3a539f8ef770 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f8ef7e0 sp=0x3a539f8ef7c0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f8ef7e8 sp=0x3a539f8ef7e0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 3272 gp=0x3a539f8f8f08 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x488d8a?, 0x3a539f8c16c0?, 0x8?, 0x60?, 0x3a539f8efe28?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f8efd98 sp=0x3a539f8efd78 pc=0x488d8a
+runtime.chanrecv(0x3a539e8600e0, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f8efe10 sp=0x3a539f8efd98 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f8efe38 sp=0x3a539f8efe10 pc=0x417a72
+testing.(*testState).waitParallel(0x3a539e9145f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2379 +0xaa fp=0x3a539f8efe60 sp=0x3a539f8efe38 pc=0x5159ea
+testing.(*T).Parallel(0x3a539f8ed8c8)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:1960 +0x245 fp=0x3a539f8efef8 sp=0x3a539f8efe60 pc=0x514ea5
+cmd/internal/testdir_test.Test.func2(0x3a539f8ed8c8)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:150 +0x25 fp=0x3a539f8eff70 sp=0x3a539f8efef8 pc=0x5fcbc5
+testing.tRunner(0x3a539f8ed8c8, 0x3a539f8fc060)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f8effc0 sp=0x3a539f8eff70 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f8effe0 sp=0x3a539f8effc0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f8effe8 sp=0x3a539f8effe0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 3273 gp=0x3a539f8f9188 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x488d8a?, 0x3a539f8c1730?, 0x8?, 0x20?, 0x3a539f8f0628?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f8f0598 sp=0x3a539f8f0578 pc=0x488d8a
+runtime.chanrecv(0x3a539e8600e0, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f8f0610 sp=0x3a539f8f0598 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f8f0638 sp=0x3a539f8f0610 pc=0x417a72
+testing.(*testState).waitParallel(0x3a539e9145f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2379 +0xaa fp=0x3a539f8f0660 sp=0x3a539f8f0638 pc=0x5159ea
+testing.(*T).Parallel(0x3a539f8edb08)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:1960 +0x245 fp=0x3a539f8f06f8 sp=0x3a539f8f0660 pc=0x514ea5
+cmd/internal/testdir_test.Test.func2(0x3a539f8edb08)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:150 +0x25 fp=0x3a539f8f0770 sp=0x3a539f8f06f8 pc=0x5fcbc5
+testing.tRunner(0x3a539f8edb08, 0x3a539f8fc090)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f8f07c0 sp=0x3a539f8f0770 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f8f07e0 sp=0x3a539f8f07c0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f8f07e8 sp=0x3a539f8f07e0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 3274 gp=0x3a539f8f9408 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x3a539e860148?, 0x3a539f8c17a0?, 0x8?, 0xa0?, 0x3a539f8f0e28?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f8f0d98 sp=0x3a539f8f0d78 pc=0x488d8a
+runtime.chanrecv(0x3a539e8600e0, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f8f0e10 sp=0x3a539f8f0d98 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f8f0e38 sp=0x3a539f8f0e10 pc=0x417a72
+testing.(*testState).waitParallel(0x3a539e9145f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2379 +0xaa fp=0x3a539f8f0e60 sp=0x3a539f8f0e38 pc=0x5159ea
+testing.(*T).Parallel(0x3a539f8edd48)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:1960 +0x245 fp=0x3a539f8f0ef8 sp=0x3a539f8f0e60 pc=0x514ea5
+cmd/internal/testdir_test.Test.func2(0x3a539f8edd48)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:150 +0x25 fp=0x3a539f8f0f70 sp=0x3a539f8f0ef8 pc=0x5fcbc5
+testing.tRunner(0x3a539f8edd48, 0x3a539f8fc0c0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f8f0fc0 sp=0x3a539f8f0f70 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f8f0fe0 sp=0x3a539f8f0fc0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f8f0fe8 sp=0x3a539f8f0fe0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 3275 gp=0x3a539f8f9688 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x488d8a?, 0x3a539f8c1810?, 0x8?, 0xa0?, 0x3a539f8f1628?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f8f1598 sp=0x3a539f8f1578 pc=0x488d8a
+runtime.chanrecv(0x3a539e8600e0, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f8f1610 sp=0x3a539f8f1598 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f8f1638 sp=0x3a539f8f1610 pc=0x417a72
+testing.(*testState).waitParallel(0x3a539e9145f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2379 +0xaa fp=0x3a539f8f1660 sp=0x3a539f8f1638 pc=0x5159ea
+testing.(*T).Parallel(0x3a539f902008)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:1960 +0x245 fp=0x3a539f8f16f8 sp=0x3a539f8f1660 pc=0x514ea5
+cmd/internal/testdir_test.Test.func2(0x3a539f902008)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:150 +0x25 fp=0x3a539f8f1770 sp=0x3a539f8f16f8 pc=0x5fcbc5
+testing.tRunner(0x3a539f902008, 0x3a539f8fc0f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f8f17c0 sp=0x3a539f8f1770 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f8f17e0 sp=0x3a539f8f17c0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f8f17e8 sp=0x3a539f8f17e0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 3276 gp=0x3a539f8f9908 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x488d8a?, 0x3a539f8c1880?, 0x8?, 0xa0?, 0x3a539f8f1e28?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f8f1d98 sp=0x3a539f8f1d78 pc=0x488d8a
+runtime.chanrecv(0x3a539e8600e0, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f8f1e10 sp=0x3a539f8f1d98 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f8f1e38 sp=0x3a539f8f1e10 pc=0x417a72
+testing.(*testState).waitParallel(0x3a539e9145f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2379 +0xaa fp=0x3a539f8f1e60 sp=0x3a539f8f1e38 pc=0x5159ea
+testing.(*T).Parallel(0x3a539f902248)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:1960 +0x245 fp=0x3a539f8f1ef8 sp=0x3a539f8f1e60 pc=0x514ea5
+cmd/internal/testdir_test.Test.func2(0x3a539f902248)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:150 +0x25 fp=0x3a539f8f1f70 sp=0x3a539f8f1ef8 pc=0x5fcbc5
+testing.tRunner(0x3a539f902248, 0x3a539f8fc120)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f8f1fc0 sp=0x3a539f8f1f70 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f8f1fe0 sp=0x3a539f8f1fc0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f8f1fe8 sp=0x3a539f8f1fe0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 3277 gp=0x3a539f8f9b88 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x488d8a?, 0x3a539f8c18f0?, 0x8?, 0xa0?, 0x3a539f8f2628?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f8f2598 sp=0x3a539f8f2578 pc=0x488d8a
+runtime.chanrecv(0x3a539e8600e0, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f8f2610 sp=0x3a539f8f2598 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f8f2638 sp=0x3a539f8f2610 pc=0x417a72
+testing.(*testState).waitParallel(0x3a539e9145f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2379 +0xaa fp=0x3a539f8f2660 sp=0x3a539f8f2638 pc=0x5159ea
+testing.(*T).Parallel(0x3a539f902488)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:1960 +0x245 fp=0x3a539f8f26f8 sp=0x3a539f8f2660 pc=0x514ea5
+cmd/internal/testdir_test.Test.func2(0x3a539f902488)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:150 +0x25 fp=0x3a539f8f2770 sp=0x3a539f8f26f8 pc=0x5fcbc5
+testing.tRunner(0x3a539f902488, 0x3a539f8fc150)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f8f27c0 sp=0x3a539f8f2770 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f8f27e0 sp=0x3a539f8f27c0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f8f27e8 sp=0x3a539f8f27e0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 3278 gp=0x3a539f904008 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x488d8a?, 0x3a539f8c1960?, 0x8?, 0xa0?, 0x3a539f90ae28?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f90ad98 sp=0x3a539f90ad78 pc=0x488d8a
+runtime.chanrecv(0x3a539e8600e0, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f90ae10 sp=0x3a539f90ad98 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f90ae38 sp=0x3a539f90ae10 pc=0x417a72
+testing.(*testState).waitParallel(0x3a539e9145f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2379 +0xaa fp=0x3a539f90ae60 sp=0x3a539f90ae38 pc=0x5159ea
+testing.(*T).Parallel(0x3a539f9026c8)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:1960 +0x245 fp=0x3a539f90aef8 sp=0x3a539f90ae60 pc=0x514ea5
+cmd/internal/testdir_test.Test.func2(0x3a539f9026c8)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:150 +0x25 fp=0x3a539f90af70 sp=0x3a539f90aef8 pc=0x5fcbc5
+testing.tRunner(0x3a539f9026c8, 0x3a539f8fc180)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f90afc0 sp=0x3a539f90af70 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f90afe0 sp=0x3a539f90afc0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f90afe8 sp=0x3a539f90afe0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 3279 gp=0x3a539f904288 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x488d8a?, 0x3a539f8c19d0?, 0x8?, 0xa0?, 0x3a539f90b628?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f90b598 sp=0x3a539f90b578 pc=0x488d8a
+runtime.chanrecv(0x3a539e8600e0, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f90b610 sp=0x3a539f90b598 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f90b638 sp=0x3a539f90b610 pc=0x417a72
+testing.(*testState).waitParallel(0x3a539e9145f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2379 +0xaa fp=0x3a539f90b660 sp=0x3a539f90b638 pc=0x5159ea
+testing.(*T).Parallel(0x3a539f902908)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:1960 +0x245 fp=0x3a539f90b6f8 sp=0x3a539f90b660 pc=0x514ea5
+cmd/internal/testdir_test.Test.func2(0x3a539f902908)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:150 +0x25 fp=0x3a539f90b770 sp=0x3a539f90b6f8 pc=0x5fcbc5
+testing.tRunner(0x3a539f902908, 0x3a539f8fc1b0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f90b7c0 sp=0x3a539f90b770 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f90b7e0 sp=0x3a539f90b7c0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f90b7e8 sp=0x3a539f90b7e0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 3280 gp=0x3a539f904508 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x3a539e860148?, 0x3a539f8c1a40?, 0x8?, 0xa0?, 0x3a539f90be28?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f90bd98 sp=0x3a539f90bd78 pc=0x488d8a
+runtime.chanrecv(0x3a539e8600e0, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f90be10 sp=0x3a539f90bd98 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f90be38 sp=0x3a539f90be10 pc=0x417a72
+testing.(*testState).waitParallel(0x3a539e9145f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2379 +0xaa fp=0x3a539f90be60 sp=0x3a539f90be38 pc=0x5159ea
+testing.(*T).Parallel(0x3a539f902b48)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:1960 +0x245 fp=0x3a539f90bef8 sp=0x3a539f90be60 pc=0x514ea5
+cmd/internal/testdir_test.Test.func2(0x3a539f902b48)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:150 +0x25 fp=0x3a539f90bf70 sp=0x3a539f90bef8 pc=0x5fcbc5
+testing.tRunner(0x3a539f902b48, 0x3a539f8fc1e0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f90bfc0 sp=0x3a539f90bf70 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f90bfe0 sp=0x3a539f90bfc0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f90bfe8 sp=0x3a539f90bfe0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 3281 gp=0x3a539f904788 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x3a539e860148?, 0x3a539f8c1ab0?, 0x8?, 0xa0?, 0x3a539f90c628?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f90c598 sp=0x3a539f90c578 pc=0x488d8a
+runtime.chanrecv(0x3a539e8600e0, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f90c610 sp=0x3a539f90c598 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f90c638 sp=0x3a539f90c610 pc=0x417a72
+testing.(*testState).waitParallel(0x3a539e9145f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2379 +0xaa fp=0x3a539f90c660 sp=0x3a539f90c638 pc=0x5159ea
+testing.(*T).Parallel(0x3a539f902d88)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:1960 +0x245 fp=0x3a539f90c6f8 sp=0x3a539f90c660 pc=0x514ea5
+cmd/internal/testdir_test.Test.func2(0x3a539f902d88)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:150 +0x25 fp=0x3a539f90c770 sp=0x3a539f90c6f8 pc=0x5fcbc5
+testing.tRunner(0x3a539f902d88, 0x3a539f8fc210)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f90c7c0 sp=0x3a539f90c770 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f90c7e0 sp=0x3a539f90c7c0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f90c7e8 sp=0x3a539f90c7e0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 3282 gp=0x3a539f904a08 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x488d8a?, 0x3a539f8c1b20?, 0x8?, 0xa0?, 0x3a539f90ce28?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f90cd98 sp=0x3a539f90cd78 pc=0x488d8a
+runtime.chanrecv(0x3a539e8600e0, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f90ce10 sp=0x3a539f90cd98 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f90ce38 sp=0x3a539f90ce10 pc=0x417a72
+testing.(*testState).waitParallel(0x3a539e9145f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2379 +0xaa fp=0x3a539f90ce60 sp=0x3a539f90ce38 pc=0x5159ea
+testing.(*T).Parallel(0x3a539f902fc8)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:1960 +0x245 fp=0x3a539f90cef8 sp=0x3a539f90ce60 pc=0x514ea5
+cmd/internal/testdir_test.Test.func2(0x3a539f902fc8)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:150 +0x25 fp=0x3a539f90cf70 sp=0x3a539f90cef8 pc=0x5fcbc5
+testing.tRunner(0x3a539f902fc8, 0x3a539f8fc240)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f90cfc0 sp=0x3a539f90cf70 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f90cfe0 sp=0x3a539f90cfc0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f90cfe8 sp=0x3a539f90cfe0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 3283 gp=0x3a539f904c88 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x488d8a?, 0x3a539f8c1b90?, 0x8?, 0xa0?, 0x3a539f90d628?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f90d598 sp=0x3a539f90d578 pc=0x488d8a
+runtime.chanrecv(0x3a539e8600e0, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f90d610 sp=0x3a539f90d598 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f90d638 sp=0x3a539f90d610 pc=0x417a72
+testing.(*testState).waitParallel(0x3a539e9145f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2379 +0xaa fp=0x3a539f90d660 sp=0x3a539f90d638 pc=0x5159ea
+testing.(*T).Parallel(0x3a539f903208)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:1960 +0x245 fp=0x3a539f90d6f8 sp=0x3a539f90d660 pc=0x514ea5
+cmd/internal/testdir_test.Test.func2(0x3a539f903208)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:150 +0x25 fp=0x3a539f90d770 sp=0x3a539f90d6f8 pc=0x5fcbc5
+testing.tRunner(0x3a539f903208, 0x3a539f8fc270)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f90d7c0 sp=0x3a539f90d770 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f90d7e0 sp=0x3a539f90d7c0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f90d7e8 sp=0x3a539f90d7e0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 3284 gp=0x3a539f904f08 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x488d8a?, 0x3a539f8c1c00?, 0x8?, 0xa0?, 0x3a539f90de28?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f90dd98 sp=0x3a539f90dd78 pc=0x488d8a
+runtime.chanrecv(0x3a539e8600e0, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f90de10 sp=0x3a539f90dd98 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f90de38 sp=0x3a539f90de10 pc=0x417a72
+testing.(*testState).waitParallel(0x3a539e9145f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2379 +0xaa fp=0x3a539f90de60 sp=0x3a539f90de38 pc=0x5159ea
+testing.(*T).Parallel(0x3a539f903448)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:1960 +0x245 fp=0x3a539f90def8 sp=0x3a539f90de60 pc=0x514ea5
+cmd/internal/testdir_test.Test.func2(0x3a539f903448)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:150 +0x25 fp=0x3a539f90df70 sp=0x3a539f90def8 pc=0x5fcbc5
+testing.tRunner(0x3a539f903448, 0x3a539f8fc2a0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f90dfc0 sp=0x3a539f90df70 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f90dfe0 sp=0x3a539f90dfc0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f90dfe8 sp=0x3a539f90dfe0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 3285 gp=0x3a539f905188 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x488d8a?, 0x3a539f8c1c70?, 0x8?, 0xa0?, 0x3a539f8ee628?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f8ee598 sp=0x3a539f8ee578 pc=0x488d8a
+runtime.chanrecv(0x3a539e8600e0, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f8ee610 sp=0x3a539f8ee598 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f8ee638 sp=0x3a539f8ee610 pc=0x417a72
+testing.(*testState).waitParallel(0x3a539e9145f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2379 +0xaa fp=0x3a539f8ee660 sp=0x3a539f8ee638 pc=0x5159ea
+testing.(*T).Parallel(0x3a539f903688)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:1960 +0x245 fp=0x3a539f8ee6f8 sp=0x3a539f8ee660 pc=0x514ea5
+cmd/internal/testdir_test.Test.func2(0x3a539f903688)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:150 +0x25 fp=0x3a539f8ee770 sp=0x3a539f8ee6f8 pc=0x5fcbc5
+testing.tRunner(0x3a539f903688, 0x3a539f8fc2d0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f8ee7c0 sp=0x3a539f8ee770 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f8ee7e0 sp=0x3a539f8ee7c0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f8ee7e8 sp=0x3a539f8ee7e0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 3286 gp=0x3a539f905408 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x488d8a?, 0x3a539f8c1ce0?, 0x8?, 0xa0?, 0x3a539f906e28?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f906d98 sp=0x3a539f906d78 pc=0x488d8a
+runtime.chanrecv(0x3a539e8600e0, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f906e10 sp=0x3a539f906d98 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f906e38 sp=0x3a539f906e10 pc=0x417a72
+testing.(*testState).waitParallel(0x3a539e9145f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2379 +0xaa fp=0x3a539f906e60 sp=0x3a539f906e38 pc=0x5159ea
+testing.(*T).Parallel(0x3a539f9038c8)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:1960 +0x245 fp=0x3a539f906ef8 sp=0x3a539f906e60 pc=0x514ea5
+cmd/internal/testdir_test.Test.func2(0x3a539f9038c8)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:150 +0x25 fp=0x3a539f906f70 sp=0x3a539f906ef8 pc=0x5fcbc5
+testing.tRunner(0x3a539f9038c8, 0x3a539f8fc300)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f906fc0 sp=0x3a539f906f70 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f906fe0 sp=0x3a539f906fc0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f906fe8 sp=0x3a539f906fe0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 3288 gp=0x3a539f905908 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x488d8a?, 0x3a539f8c1dc0?, 0x8?, 0x60?, 0x3a539f907e28?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f907d98 sp=0x3a539f907d78 pc=0x488d8a
+runtime.chanrecv(0x3a539e8600e0, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f907e10 sp=0x3a539f907d98 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f907e38 sp=0x3a539f907e10 pc=0x417a72
+testing.(*testState).waitParallel(0x3a539e9145f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2379 +0xaa fp=0x3a539f907e60 sp=0x3a539f907e38 pc=0x5159ea
+testing.(*T).Parallel(0x3a539f903d48)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:1960 +0x245 fp=0x3a539f907ef8 sp=0x3a539f907e60 pc=0x514ea5
+cmd/internal/testdir_test.Test.func2(0x3a539f903d48)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:150 +0x25 fp=0x3a539f907f70 sp=0x3a539f907ef8 pc=0x5fcbc5
+testing.tRunner(0x3a539f903d48, 0x3a539f8fc360)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f907fc0 sp=0x3a539f907f70 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f907fe0 sp=0x3a539f907fc0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f907fe8 sp=0x3a539f907fe0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 3289 gp=0x3a539f905b88 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x488d8a?, 0x3a539f8c1e30?, 0x8?, 0x60?, 0x3a539f79de28?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f79dd98 sp=0x3a539f79dd78 pc=0x488d8a
+runtime.chanrecv(0x3a539e8600e0, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f79de10 sp=0x3a539f79dd98 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f79de38 sp=0x3a539f79de10 pc=0x417a72
+testing.(*testState).waitParallel(0x3a539e9145f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2379 +0xaa fp=0x3a539f79de60 sp=0x3a539f79de38 pc=0x5159ea
+testing.(*T).Parallel(0x3a539f910008)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:1960 +0x245 fp=0x3a539f79def8 sp=0x3a539f79de60 pc=0x514ea5
+cmd/internal/testdir_test.Test.func2(0x3a539f910008)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:150 +0x25 fp=0x3a539f79df70 sp=0x3a539f79def8 pc=0x5fcbc5
+testing.tRunner(0x3a539f910008, 0x3a539f8fc390)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f79dfc0 sp=0x3a539f79df70 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f79dfe0 sp=0x3a539f79dfc0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f79dfe8 sp=0x3a539f79dfe0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 3290 gp=0x3a539f916008 m=6 mp=0x3a539e881008 [syscall]:
+syscall.Syscall6(0xf7, 0x3, 0x10, 0x3a539f071dd0, 0x4, 0x3a539fbc7dd0, 0x0)
+	/home/runner/work/LoGOs/LoGOs/src/syscall/syscall_linux.go:96 +0x39 fp=0x3a539f071d48 sp=0x3a539f071ce8 pc=0x49de99
+internal/syscall/unix.Waitid(0x3a539f071dfe?, 0x3a539f071f28?, 0x5286ab?, 0x18?, 0x80cb38?)
+	/home/runner/work/LoGOs/LoGOs/src/internal/syscall/unix/waitid_linux.go:18 +0x39 fp=0x3a539f071da0 sp=0x3a539f071d48 pc=0x4b64b9
+os.(*Process).pidfdWait.func1(...)
+	/home/runner/work/LoGOs/LoGOs/src/os/pidfd_linux.go:108
+os.ignoringEINTR(...)
+	/home/runner/work/LoGOs/LoGOs/src/os/file_posix.go:263
+os.(*Process).pidfdWait(0x3a539e85e6c0)
+	/home/runner/work/LoGOs/LoGOs/src/os/pidfd_linux.go:107 +0x1cf fp=0x3a539f071eb0 sp=0x3a539f071da0 pc=0x4c080f
+os.(*Process).wait(0x1?)
+	/home/runner/work/LoGOs/LoGOs/src/os/exec_unix.go:25 +0x1a fp=0x3a539f071ec8 sp=0x3a539f071eb0 pc=0x4bcbfa
+os.(*Process).Wait(...)
+	/home/runner/work/LoGOs/LoGOs/src/os/exec.go:347
+os/exec.(*Cmd).Wait(0x3a539ee23380)
+	/home/runner/work/LoGOs/LoGOs/src/os/exec/exec.go:944 +0x45 fp=0x3a539f071f38 sp=0x3a539f071ec8 pc=0x528de5
+os/exec.(*Cmd).Run(0x3a539ee23380)
+	/home/runner/work/LoGOs/LoGOs/src/os/exec/exec.go:643 +0x2d fp=0x3a539f071f50 sp=0x3a539f071f38 pc=0x527d6d
+cmd/internal/testdir_test.test.runLogos.func1({0x3a539fad1ba0?, 0x3?, 0x3a539fad1b10?})
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/logos_test.go:328 +0x992 fp=0x3a539f072108 sp=0x3a539f071f50 pc=0x5fbc72
+cmd/internal/testdir_test.test.runLogosLgoRun({{{0x3a539e80ca20, 0x22}, 0x3a539e852a80}, 0x3a539f910248, {0x6105fb, 0x5}, {0x3a539f6aad99, 0x1f}}, {{0x3a539eea0866, 0x3}, ...}, ...)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/logos_test.go:472 +0xbb4 fp=0x3a539f072378 sp=0x3a539f072108 pc=0x5da0d4
+cmd/internal/testdir_test.test.runLogosLgo({{{0x3a539e80ca20, 0x22}, 0x3a539e852a80}, 0x3a539f910248, {0x6105fb, 0x5}, {0x3a539f6aad99, 0x1f}}, {{0x3a539eea0866, 0x3}, ...}, ...)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/logos_test.go:383 +0x49e fp=0x3a539f072550 sp=0x3a539f072378 pc=0x5d88de
+cmd/internal/testdir_test.test.runLogos({{{0x3a539e80ca20, 0x22}, 0x3a539e852a80}, 0x3a539f910248, {0x6105fb, 0x5}, {0x3a539f6aad99, 0x1f}}, {{0x3a539eea0866, 0x3}, ...})
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/logos_test.go:356 +0x11f5 fp=0x3a539f072960 sp=0x3a539f072550 pc=0x5d7ab5
+cmd/internal/testdir_test.test.runAction({{{0x3a539e80ca20, 0x22}, 0x3a539e852a80}, 0x3a539f910248, {0x6105fb, 0x5}, {0x3a539f6aad99, 0x1f}}, {0x3a539eec2000, 0xfd3, ...}, ...)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:643 +0x14cb fp=0x3a539f073d00 sp=0x3a539f072960 pc=0x5ebfcb
+cmd/internal/testdir_test.test.run({{{0x3a539e80ca20, 0x22}, 0x3a539e852a80}, 0x3a539f910248, {0x6105fb, 0x5}, {0x3a539f6aad99, 0x1f}})
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:522 +0x4fe fp=0x3a539f073ef8 sp=0x3a539f073d00 pc=0x5ea89e
+cmd/internal/testdir_test.Test.func2(0x3a539f910248)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:152 +0x7b fp=0x3a539f073f70 sp=0x3a539f073ef8 pc=0x5fcc1b
+testing.tRunner(0x3a539f910248, 0x3a539f8fc3c0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f073fc0 sp=0x3a539f073f70 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f073fe0 sp=0x3a539f073fc0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f073fe8 sp=0x3a539f073fe0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 3292 gp=0x3a539f916508 m=0 mp=0x84df60 [syscall]:
+syscall.Syscall6(0xf7, 0x3, 0x11, 0x3a539fa89f98, 0x4, 0x3a539f9cb950, 0x0)
+	/home/runner/work/LoGOs/LoGOs/src/syscall/syscall_linux.go:96 +0x39 fp=0x3a539fa89f10 sp=0x3a539fa89eb0 pc=0x49de99
+internal/syscall/unix.Waitid(0x3a539fa89fc6?, 0x3a539fa8a0f0?, 0x5286ab?, 0x18?, 0x80cb38?)
+	/home/runner/work/LoGOs/LoGOs/src/internal/syscall/unix/waitid_linux.go:18 +0x39 fp=0x3a539fa89f68 sp=0x3a539fa89f10 pc=0x4b64b9
+os.(*Process).pidfdWait.func1(...)
+	/home/runner/work/LoGOs/LoGOs/src/os/pidfd_linux.go:108
+os.ignoringEINTR(...)
+	/home/runner/work/LoGOs/LoGOs/src/os/file_posix.go:263
+os.(*Process).pidfdWait(0x3a539f40dd80)
+	/home/runner/work/LoGOs/LoGOs/src/os/pidfd_linux.go:107 +0x1cf fp=0x3a539fa8a078 sp=0x3a539fa89f68 pc=0x4c080f
+os.(*Process).wait(0x1?)
+	/home/runner/work/LoGOs/LoGOs/src/os/exec_unix.go:25 +0x1a fp=0x3a539fa8a090 sp=0x3a539fa8a078 pc=0x4bcbfa
+os.(*Process).Wait(...)
+	/home/runner/work/LoGOs/LoGOs/src/os/exec.go:347
+os/exec.(*Cmd).Wait(0x3a539ee221a0)
+	/home/runner/work/LoGOs/LoGOs/src/os/exec/exec.go:944 +0x45 fp=0x3a539fa8a100 sp=0x3a539fa8a090 pc=0x528de5
+os/exec.(*Cmd).Run(0x3a539ee221a0)
+	/home/runner/work/LoGOs/LoGOs/src/os/exec/exec.go:643 +0x2d fp=0x3a539fa8a118 sp=0x3a539fa8a100 pc=0x527d6d
+cmd/internal/testdir_test.test.runLogos.func1({0x3a539e910700?, 0x7e1128?, 0x461ee9?})
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/logos_test.go:328 +0x992 fp=0x3a539fa8a2d0 sp=0x3a539fa8a118 pc=0x5fbc72
+cmd/internal/testdir_test.test.runLogosLgoTest({{{0x3a539e80ca20, 0x22}, 0x3a539e852a80}, 0x3a539f9106c8, {0x6105fb, 0x5}, {0x3a539f6aaed9, 0x19}}, {0x0, 0x0, ...}, ...)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/logos_test.go:481 +0x329 fp=0x3a539fa8a378 sp=0x3a539fa8a2d0 pc=0x5da549
+cmd/internal/testdir_test.test.runLogosLgo({{{0x3a539e80ca20, 0x22}, 0x3a539e852a80}, 0x3a539f9106c8, {0x6105fb, 0x5}, {0x3a539f6aaed9, 0x19}}, {{0x3a539ed32ad6, 0x3}, ...}, ...)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/logos_test.go:381 +0x51a fp=0x3a539fa8a550 sp=0x3a539fa8a378 pc=0x5d895a
+cmd/internal/testdir_test.test.runLogos({{{0x3a539e80ca20, 0x22}, 0x3a539e852a80}, 0x3a539f9106c8, {0x6105fb, 0x5}, {0x3a539f6aaed9, 0x19}}, {{0x3a539ed32ad6, 0x3}, ...})
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/logos_test.go:356 +0x11f5 fp=0x3a539fa8a960 sp=0x3a539fa8a550 pc=0x5d7ab5
+cmd/internal/testdir_test.test.runAction({{{0x3a539e80ca20, 0x22}, 0x3a539e852a80}, 0x3a539f9106c8, {0x6105fb, 0x5}, {0x3a539f6aaed9, 0x19}}, {0x3a539f51c000, 0x5196, ...}, ...)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:643 +0x14cb fp=0x3a539fa8bd00 sp=0x3a539fa8a960 pc=0x5ebfcb
+cmd/internal/testdir_test.test.run({{{0x3a539e80ca20, 0x22}, 0x3a539e852a80}, 0x3a539f9106c8, {0x6105fb, 0x5}, {0x3a539f6aaed9, 0x19}})
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:522 +0x4fe fp=0x3a539fa8bef8 sp=0x3a539fa8bd00 pc=0x5ea89e
+cmd/internal/testdir_test.Test.func2(0x3a539f9106c8)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:152 +0x7b fp=0x3a539fa8bf70 sp=0x3a539fa8bef8 pc=0x5fcc1b
+testing.tRunner(0x3a539f9106c8, 0x3a539f8fc420)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539fa8bfc0 sp=0x3a539fa8bf70 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539fa8bfe0 sp=0x3a539fa8bfc0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539fa8bfe8 sp=0x3a539fa8bfe0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 3299 gp=0x3a539f917688 m=2 mp=0x3a539e836808 [syscall]:
+syscall.Syscall6(0xf7, 0x3, 0xd, 0x3a539f015f98, 0x4, 0x3a539f4c9c20, 0x0)
+	/home/runner/work/LoGOs/LoGOs/src/syscall/syscall_linux.go:96 +0x39 fp=0x3a539f015f10 sp=0x3a539f015eb0 pc=0x49de99
+internal/syscall/unix.Waitid(0x3a539f015fc6?, 0x3a539f0160f0?, 0x5286ab?, 0x18?, 0x80cb38?)
+	/home/runner/work/LoGOs/LoGOs/src/internal/syscall/unix/waitid_linux.go:18 +0x39 fp=0x3a539f015f68 sp=0x3a539f015f10 pc=0x4b64b9
+os.(*Process).pidfdWait.func1(...)
+	/home/runner/work/LoGOs/LoGOs/src/os/pidfd_linux.go:108
+os.ignoringEINTR(...)
+	/home/runner/work/LoGOs/LoGOs/src/os/file_posix.go:263
+os.(*Process).pidfdWait(0x3a539f40d840)
+	/home/runner/work/LoGOs/LoGOs/src/os/pidfd_linux.go:107 +0x1cf fp=0x3a539f016078 sp=0x3a539f015f68 pc=0x4c080f
+os.(*Process).wait(0x1?)
+	/home/runner/work/LoGOs/LoGOs/src/os/exec_unix.go:25 +0x1a fp=0x3a539f016090 sp=0x3a539f016078 pc=0x4bcbfa
+os.(*Process).Wait(...)
+	/home/runner/work/LoGOs/LoGOs/src/os/exec.go:347
+os/exec.(*Cmd).Wait(0x3a539ebd4ea0)
+	/home/runner/work/LoGOs/LoGOs/src/os/exec/exec.go:944 +0x45 fp=0x3a539f016100 sp=0x3a539f016090 pc=0x528de5
+os/exec.(*Cmd).Run(0x3a539ebd4ea0)
+	/home/runner/work/LoGOs/LoGOs/src/os/exec/exec.go:643 +0x2d fp=0x3a539f016118 sp=0x3a539f016100 pc=0x527d6d
+cmd/internal/testdir_test.test.runLogos.func1({0x3a539e910380?, 0x7e1128?, 0x461ee9?})
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/logos_test.go:328 +0x992 fp=0x3a539f0162d0 sp=0x3a539f016118 pc=0x5fbc72
+cmd/internal/testdir_test.test.runLogosLgoTest({{{0x3a539e80ca20, 0x22}, 0x3a539e852a80}, 0x3a539f911688, {0x6105fb, 0x5}, {0x3a539f6ab109, 0x23}}, {0x0, 0x0, ...}, ...)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/logos_test.go:481 +0x329 fp=0x3a539f016378 sp=0x3a539f0162d0 pc=0x5da549
+cmd/internal/testdir_test.test.runLogosLgo({{{0x3a539e80ca20, 0x22}, 0x3a539e852a80}, 0x3a539f911688, {0x6105fb, 0x5}, {0x3a539f6ab109, 0x23}}, {{0x3a539ea1b628, 0x3}, ...}, ...)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/logos_test.go:381 +0x51a fp=0x3a539f016550 sp=0x3a539f016378 pc=0x5d895a
+cmd/internal/testdir_test.test.runLogos({{{0x3a539e80ca20, 0x22}, 0x3a539e852a80}, 0x3a539f911688, {0x6105fb, 0x5}, {0x3a539f6ab109, 0x23}}, {{0x3a539ea1b628, 0x3}, ...})
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/logos_test.go:356 +0x11f5 fp=0x3a539f016960 sp=0x3a539f016550 pc=0x5d7ab5
+cmd/internal/testdir_test.test.runAction({{{0x3a539e80ca20, 0x22}, 0x3a539e852a80}, 0x3a539f911688, {0x6105fb, 0x5}, {0x3a539f6ab109, 0x23}}, {0x3a539ed50000, 0xa08e, ...}, ...)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:643 +0x14cb fp=0x3a539f017d00 sp=0x3a539f016960 pc=0x5ebfcb
+cmd/internal/testdir_test.test.run({{{0x3a539e80ca20, 0x22}, 0x3a539e852a80}, 0x3a539f911688, {0x6105fb, 0x5}, {0x3a539f6ab109, 0x23}})
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:522 +0x4fe fp=0x3a539f017ef8 sp=0x3a539f017d00 pc=0x5ea89e
+cmd/internal/testdir_test.Test.func2(0x3a539f911688)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:152 +0x7b fp=0x3a539f017f70 sp=0x3a539f017ef8 pc=0x5fcc1b
+testing.tRunner(0x3a539f911688, 0x3a539f8fc570)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f017fc0 sp=0x3a539f017f70 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f017fe0 sp=0x3a539f017fc0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f017fe8 sp=0x3a539f017fe0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 3301 gp=0x3a539f917b88 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x3a539e860148?, 0x3a539f9124d0?, 0x8?, 0x20?, 0x3a539f921e28?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f921d98 sp=0x3a539f921d78 pc=0x488d8a
+runtime.chanrecv(0x3a539e8600e0, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f921e10 sp=0x3a539f921d98 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f921e38 sp=0x3a539f921e10 pc=0x417a72
+testing.(*testState).waitParallel(0x3a539e9145f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2379 +0xaa fp=0x3a539f921e60 sp=0x3a539f921e38 pc=0x5159ea
+testing.(*T).Parallel(0x3a539f911b08)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:1960 +0x245 fp=0x3a539f921ef8 sp=0x3a539f921e60 pc=0x514ea5
+cmd/internal/testdir_test.Test.func2(0x3a539f911b08)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:150 +0x25 fp=0x3a539f921f70 sp=0x3a539f921ef8 pc=0x5fcbc5
+testing.tRunner(0x3a539f911b08, 0x3a539f8fc5d0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f921fc0 sp=0x3a539f921f70 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f921fe0 sp=0x3a539f921fc0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f921fe8 sp=0x3a539f921fe0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 3302 gp=0x3a539f922008 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x488d8a?, 0x3a539f912540?, 0x8?, 0x20?, 0x3a539f1b5e28?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f1b5d98 sp=0x3a539f1b5d78 pc=0x488d8a
+runtime.chanrecv(0x3a539e8600e0, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f1b5e10 sp=0x3a539f1b5d98 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f1b5e38 sp=0x3a539f1b5e10 pc=0x417a72
+testing.(*testState).waitParallel(0x3a539e9145f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2379 +0xaa fp=0x3a539f1b5e60 sp=0x3a539f1b5e38 pc=0x5159ea
+testing.(*T).Parallel(0x3a539f911d48)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:1960 +0x245 fp=0x3a539f1b5ef8 sp=0x3a539f1b5e60 pc=0x514ea5
+cmd/internal/testdir_test.Test.func2(0x3a539f911d48)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:150 +0x25 fp=0x3a539f1b5f70 sp=0x3a539f1b5ef8 pc=0x5fcbc5
+testing.tRunner(0x3a539f911d48, 0x3a539f8fc600)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f1b5fc0 sp=0x3a539f1b5f70 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f1b5fe0 sp=0x3a539f1b5fc0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f1b5fe8 sp=0x3a539f1b5fe0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 1810 gp=0x3a539f443188 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x3a539e860148?, 0x3a539e87a288?, 0x8?, 0x20?, 0x3a539f91de28?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f91dd98 sp=0x3a539f91dd78 pc=0x488d8a
+runtime.chanrecv(0x3a539e8600e0, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f91de10 sp=0x3a539f91dd98 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f91de38 sp=0x3a539f91de10 pc=0x417a72
+testing.(*testState).waitParallel(0x3a539e9145f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2379 +0xaa fp=0x3a539f91de60 sp=0x3a539f91de38 pc=0x5159ea
+testing.(*T).Parallel(0x3a539f1ce008)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:1960 +0x245 fp=0x3a539f91def8 sp=0x3a539f91de60 pc=0x514ea5
+cmd/internal/testdir_test.Test.func2(0x3a539f1ce008)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:150 +0x25 fp=0x3a539f91df70 sp=0x3a539f91def8 pc=0x5fcbc5
+testing.tRunner(0x3a539f1ce008, 0x3a539f1be000)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f91dfc0 sp=0x3a539f91df70 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f91dfe0 sp=0x3a539f91dfc0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f91dfe8 sp=0x3a539f91dfe0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 1812 gp=0x3a539f443688 m=nil [chan receive, 9 minutes]:
+runtime.gopark(0x3a539e860148?, 0x3a539e87a288?, 0x8?, 0xa0?, 0x3a539f438628?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f438598 sp=0x3a539f438578 pc=0x488d8a
+runtime.chanrecv(0x3a539e8600e0, 0x0, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:667 +0x4ae fp=0x3a539f438610 sp=0x3a539f438598 pc=0x417f2e
+runtime.chanrecv1(0x3a539e860af0?, 0x0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/chan.go:509 +0x12 fp=0x3a539f438638 sp=0x3a539f438610 pc=0x417a72
+testing.(*testState).waitParallel(0x3a539e9145f0)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2379 +0xaa fp=0x3a539f438660 sp=0x3a539f438638 pc=0x5159ea
+testing.(*T).Parallel(0x3a539f441448)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:1960 +0x245 fp=0x3a539f4386f8 sp=0x3a539f438660 pc=0x514ea5
+cmd/internal/testdir_test.Test.func2(0x3a539f441448)
+	/home/runner/work/LoGOs/LoGOs/src/cmd/internal/testdir/testdir_test.go:150 +0x25 fp=0x3a539f438770 sp=0x3a539f4386f8 pc=0x5fcbc5
+testing.tRunner(0x3a539f441448, 0x3a539efa2080)
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2195 +0xea fp=0x3a539f4387c0 sp=0x3a539f438770 pc=0x51520a
+testing.(*T).Run.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x1b fp=0x3a539f4387e0 sp=0x3a539f4387c0 pc=0x51b07b
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f4387e8 sp=0x3a539f4387e0 pc=0x48f561
+created by testing.(*T).Run in goroutine 29
+	/home/runner/work/LoGOs/LoGOs/src/testing/testing.go:2260 +0x4d4
+
+goroutine 10401 gp=0x3a539f443908 m=nil [IO wait]:
+runtime.gopark(0x200?, 0x3a539e880808?, 0x0?, 0xa0?, 0x3a539f7a0be0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f7a0b98 sp=0x3a539f7a0b78 pc=0x488d8a
+runtime.netpollblock(0xffffffffffffffff?, 0x9f7a0c18?, 0x53?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/netpoll.go:596 +0xf7 fp=0x3a539f7a0bd0 sp=0x3a539f7a0b98 pc=0x449cd7
+internal/poll.runtime_pollWait(0x7f100085f200, 0x72)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/netpoll.go:369 +0x85 fp=0x3a539f7a0bf0 sp=0x3a539f7a0bd0 pc=0x4884e5
+internal/poll.(*pollDesc).wait(0x3a539eea2c00?, 0x3a539ef0a000?, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/internal/poll/fd_poll_runtime.go:84 +0x27 fp=0x3a539f7a0c28 sp=0x3a539f7a0bf0 pc=0x4b7387
+internal/poll.(*pollDesc).waitRead(...)
+	/home/runner/work/LoGOs/LoGOs/src/internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x3a539eea2c00, {0x3a539ef0a000, 0x200, 0x200})
+	/home/runner/work/LoGOs/LoGOs/src/internal/poll/fd_unix.go:170 +0x2a8 fp=0x3a539f7a0cc0 sp=0x3a539f7a0c28 pc=0x4b7ac8
+os.(*File).read(...)
+	/home/runner/work/LoGOs/LoGOs/src/os/file_posix.go:30
+os.(*File).Read(0x3a539fbbd638, {0x3a539ef0a000?, 0x7f100000004?, 0x0?})
+	/home/runner/work/LoGOs/LoGOs/src/os/file.go:144 +0x4f fp=0x3a539f7a0d00 sp=0x3a539f7a0cc0 pc=0x4bd38f
+os.fileWithoutWriteTo.Read({{}, 0x3a539f9d6420?}, {0x3a539ef0a000?, 0x3a539f1f3101?, 0x2a?})
+	<autogenerated>:1 +0x18 fp=0x3a539f7a0d30 sp=0x3a539f7a0d00 pc=0x4c5338
+bytes.(*Buffer).ReadFrom(0x3a539f9d6420, {0x824698, 0x3a539fbbd638})
+	/home/runner/work/LoGOs/LoGOs/src/bytes/buffer.go:229 +0x98 fp=0x3a539f7a0d88 sp=0x3a539f7a0d30 pc=0x4fb058
+io.copyBuffer({0x8247d8, 0x3a539f9d6420}, {0x824698, 0x3a539fbbd638}, {0x0, 0x0, 0x0})
+	/home/runner/work/LoGOs/LoGOs/src/io/io.go:415 +0x151 fp=0x3a539f7a0e00 sp=0x3a539f7a0d88 pc=0x4b1df1
+io.Copy(...)
+	/home/runner/work/LoGOs/LoGOs/src/io/io.go:388
+os.genericWriteTo(0x3a539fbbd638?, {0x8247d8?, 0x3a539f9d6420?})
+	/home/runner/work/LoGOs/LoGOs/src/os/file.go:295 +0x35 fp=0x3a539f7a0e48 sp=0x3a539f7a0e00 pc=0x4bdab5
+os.(*File).WriteTo(0x3a539fbbd638, {0x8247d8, 0x3a539f9d6420})
+	/home/runner/work/LoGOs/LoGOs/src/os/file.go:273 +0x9c fp=0x3a539f7a0e88 sp=0x3a539f7a0e48 pc=0x4bd9fc
+io.copyBuffer({0x8247d8, 0x3a539f9d6420}, {0x824718, 0x3a539fbbd638}, {0x0, 0x0, 0x0})
+	/home/runner/work/LoGOs/LoGOs/src/io/io.go:411 +0x9d fp=0x3a539f7a0f00 sp=0x3a539f7a0e88 pc=0x4b1d3d
+io.Copy(...)
+	/home/runner/work/LoGOs/LoGOs/src/io/io.go:388
+os/exec.(*Cmd).writerDescriptor.func1()
+	/home/runner/work/LoGOs/LoGOs/src/os/exec/exec.go:613 +0x34 fp=0x3a539f7a0f60 sp=0x3a539f7a0f00 pc=0x52ae54
+os/exec.(*Cmd).Start.func2(0x3a539efa30b0?)
+	/home/runner/work/LoGOs/LoGOs/src/os/exec/exec.go:768 +0x2c fp=0x3a539f7a0fc8 sp=0x3a539f7a0f60 pc=0x52af4c
+os/exec.(*Cmd).Start.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/os/exec/exec.go:780 +0x1b fp=0x3a539f7a0fe0 sp=0x3a539f7a0fc8 pc=0x52aefb
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f7a0fe8 sp=0x3a539f7a0fe0 pc=0x48f561
+created by os/exec.(*Cmd).Start in goroutine 3290
+	/home/runner/work/LoGOs/LoGOs/src/os/exec/exec.go:767 +0x92b
+
+goroutine 10379 gp=0x3a539f443b88 m=nil [IO wait]:
+runtime.gopark(0x800?, 0x3a539e837008?, 0x0?, 0xb0?, 0x3a539f1a1be0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f1a1b98 sp=0x3a539f1a1b78 pc=0x488d8a
+runtime.netpollblock(0xffffffffffffffff?, 0x9f1a1c18?, 0x53?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/netpoll.go:596 +0xf7 fp=0x3a539f1a1bd0 sp=0x3a539f1a1b98 pc=0x449cd7
+internal/poll.runtime_pollWait(0x7f100085f800, 0x72)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/netpoll.go:369 +0x85 fp=0x3a539f1a1bf0 sp=0x3a539f1a1bd0 pc=0x4884e5
+internal/poll.(*pollDesc).wait(0x3a539ed0d6e0?, 0x3a539ed6b353?, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/internal/poll/fd_poll_runtime.go:84 +0x27 fp=0x3a539f1a1c28 sp=0x3a539f1a1bf0 pc=0x4b7387
+internal/poll.(*pollDesc).waitRead(...)
+	/home/runner/work/LoGOs/LoGOs/src/internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x3a539ed0d6e0, {0x3a539ed6b353, 0x4ad, 0x4ad})
+	/home/runner/work/LoGOs/LoGOs/src/internal/poll/fd_unix.go:170 +0x2a8 fp=0x3a539f1a1cc0 sp=0x3a539f1a1c28 pc=0x4b7ac8
+os.(*File).read(...)
+	/home/runner/work/LoGOs/LoGOs/src/os/file_posix.go:30
+os.(*File).Read(0x3a539fbbd3b8, {0x3a539ed6b353?, 0x7f100000004?, 0x353?})
+	/home/runner/work/LoGOs/LoGOs/src/os/file.go:144 +0x4f fp=0x3a539f1a1d00 sp=0x3a539f1a1cc0 pc=0x4bd38f
+os.fileWithoutWriteTo.Read({{}, 0x3a539fca9b90?}, {0x3a539ed6b353?, 0x3a539f912150?, 0x2a?})
+	<autogenerated>:1 +0x18 fp=0x3a539f1a1d30 sp=0x3a539f1a1d00 pc=0x4c5338
+bytes.(*Buffer).ReadFrom(0x3a539fca9b90, {0x824698, 0x3a539fbbd3b8})
+	/home/runner/work/LoGOs/LoGOs/src/bytes/buffer.go:229 +0x98 fp=0x3a539f1a1d88 sp=0x3a539f1a1d30 pc=0x4fb058
+io.copyBuffer({0x8247d8, 0x3a539fca9b90}, {0x824698, 0x3a539fbbd3b8}, {0x0, 0x0, 0x0})
+	/home/runner/work/LoGOs/LoGOs/src/io/io.go:415 +0x151 fp=0x3a539f1a1e00 sp=0x3a539f1a1d88 pc=0x4b1df1
+io.Copy(...)
+	/home/runner/work/LoGOs/LoGOs/src/io/io.go:388
+os.genericWriteTo(0x3a539fbbd3b8?, {0x8247d8?, 0x3a539fca9b90?})
+	/home/runner/work/LoGOs/LoGOs/src/os/file.go:295 +0x35 fp=0x3a539f1a1e48 sp=0x3a539f1a1e00 pc=0x4bdab5
+os.(*File).WriteTo(0x3a539fbbd3b8, {0x8247d8, 0x3a539fca9b90})
+	/home/runner/work/LoGOs/LoGOs/src/os/file.go:273 +0x9c fp=0x3a539f1a1e88 sp=0x3a539f1a1e48 pc=0x4bd9fc
+io.copyBuffer({0x8247d8, 0x3a539fca9b90}, {0x824718, 0x3a539fbbd3b8}, {0x0, 0x0, 0x0})
+	/home/runner/work/LoGOs/LoGOs/src/io/io.go:411 +0x9d fp=0x3a539f1a1f00 sp=0x3a539f1a1e88 pc=0x4b1d3d
+io.Copy(...)
+	/home/runner/work/LoGOs/LoGOs/src/io/io.go:388
+os/exec.(*Cmd).writerDescriptor.func1()
+	/home/runner/work/LoGOs/LoGOs/src/os/exec/exec.go:613 +0x34 fp=0x3a539f1a1f60 sp=0x3a539f1a1f00 pc=0x52ae54
+os/exec.(*Cmd).Start.func2(0x3a539f8fc420?)
+	/home/runner/work/LoGOs/LoGOs/src/os/exec/exec.go:768 +0x2c fp=0x3a539f1a1fc8 sp=0x3a539f1a1f60 pc=0x52af4c
+os/exec.(*Cmd).Start.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/os/exec/exec.go:780 +0x1b fp=0x3a539f1a1fe0 sp=0x3a539f1a1fc8 pc=0x52aefb
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f1a1fe8 sp=0x3a539f1a1fe0 pc=0x48f561
+created by os/exec.(*Cmd).Start in goroutine 3292
+	/home/runner/work/LoGOs/LoGOs/src/os/exec/exec.go:767 +0x92b
+
+goroutine 10373 gp=0x3a539f923b88 m=nil [IO wait]:
+runtime.gopark(0x1000?, 0x3a539e837008?, 0x0?, 0x30?, 0x3a539f1b0be0?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/proc.go:475 +0xca fp=0x3a539f1b0b98 sp=0x3a539f1b0b78 pc=0x488d8a
+runtime.netpollblock(0xffffffffffffffff?, 0x9f1b0c18?, 0x53?)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/netpoll.go:596 +0xf7 fp=0x3a539f1b0bd0 sp=0x3a539f1b0b98 pc=0x449cd7
+internal/poll.runtime_pollWait(0x7f100085f000, 0x72)
+	/home/runner/work/LoGOs/LoGOs/src/runtime/netpoll.go:369 +0x85 fp=0x3a539f1b0bf0 sp=0x3a539f1b0bd0 pc=0x4884e5
+internal/poll.(*pollDesc).wait(0x3a539ed0c5a0?, 0x3a539ee83cc6?, 0x1)
+	/home/runner/work/LoGOs/LoGOs/src/internal/poll/fd_poll_runtime.go:84 +0x27 fp=0x3a539f1b0c28 sp=0x3a539f1b0bf0 pc=0x4b7387
+internal/poll.(*pollDesc).waitRead(...)
+	/home/runner/work/LoGOs/LoGOs/src/internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x3a539ed0c5a0, {0x3a539ee83cc6, 0x33a, 0x33a})
+	/home/runner/work/LoGOs/LoGOs/src/internal/poll/fd_unix.go:170 +0x2a8 fp=0x3a539f1b0cc0 sp=0x3a539f1b0c28 pc=0x4b7ac8
+os.(*File).read(...)
+	/home/runner/work/LoGOs/LoGOs/src/os/file_posix.go:30
+os.(*File).Read(0x3a539fbbd0f8, {0x3a539ee83cc6?, 0x4865f9?, 0x800?})
+	/home/runner/work/LoGOs/LoGOs/src/os/file.go:144 +0x4f fp=0x3a539f1b0d00 sp=0x3a539f1b0cc0 pc=0x4bd38f
+os.fileWithoutWriteTo.Read({{}, 0x3a539fca8630?}, {0x3a539ee83cc6?, 0x3a539f912460?, 0x2a?})
+	<autogenerated>:1 +0x18 fp=0x3a539f1b0d30 sp=0x3a539f1b0d00 pc=0x4c5338
+bytes.(*Buffer).ReadFrom(0x3a539fca8630, {0x824698, 0x3a539fbbd0f8})
+	/home/runner/work/LoGOs/LoGOs/src/bytes/buffer.go:229 +0x98 fp=0x3a539f1b0d88 sp=0x3a539f1b0d30 pc=0x4fb058
+io.copyBuffer({0x8247d8, 0x3a539fca8630}, {0x824698, 0x3a539fbbd0f8}, {0x0, 0x0, 0x0})
+	/home/runner/work/LoGOs/LoGOs/src/io/io.go:415 +0x151 fp=0x3a539f1b0e00 sp=0x3a539f1b0d88 pc=0x4b1df1
+io.Copy(...)
+	/home/runner/work/LoGOs/LoGOs/src/io/io.go:388
+os.genericWriteTo(0x3a539fbbd0f8?, {0x8247d8?, 0x3a539fca8630?})
+	/home/runner/work/LoGOs/LoGOs/src/os/file.go:295 +0x35 fp=0x3a539f1b0e48 sp=0x3a539f1b0e00 pc=0x4bdab5
+os.(*File).WriteTo(0x3a539fbbd0f8, {0x8247d8, 0x3a539fca8630})
+	/home/runner/work/LoGOs/LoGOs/src/os/file.go:273 +0x9c fp=0x3a539f1b0e88 sp=0x3a539f1b0e48 pc=0x4bd9fc
+io.copyBuffer({0x8247d8, 0x3a539fca8630}, {0x824718, 0x3a539fbbd0f8}, {0x0, 0x0, 0x0})
+	/home/runner/work/LoGOs/LoGOs/src/io/io.go:411 +0x9d fp=0x3a539f1b0f00 sp=0x3a539f1b0e88 pc=0x4b1d3d
+io.Copy(...)
+	/home/runner/work/LoGOs/LoGOs/src/io/io.go:388
+os/exec.(*Cmd).writerDescriptor.func1()
+	/home/runner/work/LoGOs/LoGOs/src/os/exec/exec.go:613 +0x34 fp=0x3a539f1b0f60 sp=0x3a539f1b0f00 pc=0x52ae54
+os/exec.(*Cmd).Start.func2(0x3a539f8fc570?)
+	/home/runner/work/LoGOs/LoGOs/src/os/exec/exec.go:768 +0x2c fp=0x3a539f1b0fc8 sp=0x3a539f1b0f60 pc=0x52af4c
+os/exec.(*Cmd).Start.gowrap1()
+	/home/runner/work/LoGOs/LoGOs/src/os/exec/exec.go:780 +0x1b fp=0x3a539f1b0fe0 sp=0x3a539f1b0fc8 pc=0x52aefb
+runtime.goexit({})
+	/home/runner/work/LoGOs/LoGOs/src/runtime/asm_amd64.s:1264 +0x1 fp=0x3a539f1b0fe8 sp=0x3a539f1b0fe0 pc=0x48f561
+created by os/exec.(*Cmd).Start in goroutine 3299
+	/home/runner/work/LoGOs/LoGOs/src/os/exec/exec.go:767 +0x92b
+FAIL	cmd/internal/testdir	600.050s
+FAIL
+2026/11/16 21:17:23 Failed: exit status 1
+
+FAILED

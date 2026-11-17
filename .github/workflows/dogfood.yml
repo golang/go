@@ -1,0 +1,255 @@
+name: Pinned dogfood corpus
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/dogfood.yml
+      - misc/logos-dogfood/**
+      - src/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dogfood-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  corpus:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    defaults:
+      run:
+        shell: bash
+    env:
+      GOMAXPROCS: '2'
+      GOMEMLIMIT: 2GiB
+      GOGC: '50'
+      GOTOOLCHAIN: local
+      GOWORK: 'off'
+      GOENV: 'off'
+      GOTELEMETRY: 'off'
+      CC: gcc
+      CXX: g++
+      GGLINT_REVISION: 4456e61c4dbdf636fca2b5bd77787873e2d1c1e8
+      PYTEST_DISABLE_PLUGIN_AUTOLOAD: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Install verified Go and uv distributions
+        id: tools
+        run: |
+          INPUTS="$RUNNER_TEMP/logos-corpus-inputs"
+          EVIDENCE="$RUNNER_TEMP/logos-corpus-evidence"
+          printf 'INPUTS=%s\nEVIDENCE=%s\n' "$INPUTS" "$EVIDENCE" >> "$GITHUB_ENV"
+          mkdir -p "$EVIDENCE" "$RUNNER_TEMP/oracle" "$RUNNER_TEMP/uv" "$RUNNER_TEMP/dogfood-tmp"
+          go_archive="$RUNNER_TEMP/go1.27.4.linux-amd64.tar.gz"
+          uv_archive="$RUNNER_TEMP/uv-x86_64-unknown-linux-gnu.tar.gz"
+          curl --fail --silent --show-error --location --output "$go_archive" https://go.dev/dl/go1.27.4.linux-amd64.tar.gz
+          curl --fail --silent --show-error --location --output "$uv_archive" https://github.com/astral-sh/uv/releases/download/0.13.8/uv-x86_64-unknown-linux-gnu.tar.gz
+          printf '%s  %s\n' 7226736c2339719cda28fbf3a54d71aa63bcefe376e98cef00034268dab24840 "$go_archive" | sha256sum --check --strict - | tee "$EVIDENCE/go-archive.txt"
+          printf '%s  %s\n' 5acfd9177cfecf0bf87578f059728215ccc884388988f55f7a65041b57387d91 "$uv_archive" | sha256sum --check --strict - | tee "$EVIDENCE/uv-archive.txt"
+          tar -xzf "$go_archive" -C "$RUNNER_TEMP/oracle" --strip-components=1
+          tar -xzf "$uv_archive" -C "$RUNNER_TEMP/uv" --strip-components=1
+          printf '%s\n' "$RUNNER_TEMP/oracle/bin" "$RUNNER_TEMP/uv" >> "$GITHUB_PATH"
+          printf 'GOROOT_BOOTSTRAP=%s\n' "$RUNNER_TEMP/oracle" >> "$GITHUB_ENV"
+          git rev-parse HEAD HEAD:src | tee "$EVIDENCE/logos-source.txt"
+          printf 'GOMAXPROCS=%s\nGOMEMLIMIT=%s\nGOGC=%s\njobs=2\ncommand_timeout_seconds=600\n' "$GOMAXPROCS" "$GOMEMLIMIT" "$GOGC" | tee "$EVIDENCE/resource-profile.txt"
+          gcc --version | tee "$EVIDENCE/gcc-version.txt"
+          g++ --version | tee "$EVIDENCE/gxx-version.txt"
+
+      - name: Check replay and evidence contracts
+        id: contracts
+        run: |
+          uv --version | tee "$EVIDENCE/uv-version.txt"
+          uv run --no-project --with-requirements misc/logos-dogfood/test-requirements.txt python -m pytest -q misc/logos-dogfood/test_run.py misc/logos-dogfood/test_prepare.py misc/logos-dogfood/test_accept_corpus.py misc/logos-dogfood/test_replay_backends.py misc/logos-dogfood/test_replay_backend_events.py misc/logos-dogfood/test_probe_tools.py 2>&1 | tee "$EVIDENCE/contracts.txt"
+          checked=(misc/logos-dogfood/prepare.py misc/logos-dogfood/test_prepare.py misc/logos-dogfood/accept_corpus.py misc/logos-dogfood/test_accept_corpus.py misc/logos-dogfood/replay_backends.py misc/logos-dogfood/test_replay_backends.py misc/logos-dogfood/test_replay_backend_events.py misc/logos-dogfood/probe_tools.py misc/logos-dogfood/test_probe_tools.py)
+          uv run --no-project --with-requirements misc/logos-dogfood/test-requirements.txt pyright "${checked[@]}" 2>&1 | tee "$EVIDENCE/helper-types.txt"
+          uv run --no-project --with-requirements misc/logos-dogfood/test-requirements.txt ruff check "${checked[@]}" 2>&1 | tee "$EVIDENCE/helper-lint.txt"
+          uv run --no-project --with-requirements misc/logos-dogfood/test-requirements.txt ruff format --check "${checked[@]}" 2>&1 | tee "$EVIDENCE/helper-format.txt"
+
+      - name: Prepare exact sources and dependency versions
+        id: inputs
+        run: |
+          uv run --no-project python misc/logos-dogfood/prepare.py --manifest misc/logos-dogfood/corpus-ci.json --go-oracle "$RUNNER_TEMP/oracle/bin/go" --out "$INPUTS" 2>&1 | tee "$EVIDENCE/preparation.txt"
+
+      - name: Build the native toolchain
+        id: native
+        if: ${{ !cancelled() && steps.contracts.outcome == 'success' }}
+        working-directory: src
+        run: |
+          ./make.bash 2>&1 | tee "$EVIDENCE/native-build.txt"
+          ../bin/go version | tee "$EVIDENCE/fork-go-version.txt"
+          ../bin/logos version | tee "$EVIDENCE/logos-version.txt"
+          sha256sum ../bin/go ../bin/logos ../pkg/tool/linux_amd64/compile ../pkg/tool/linux_amd64/link | tee "$EVIDENCE/native-tools.sha256"
+
+      - name: Build the reviewed gglint revision
+        id: gglint
+        if: ${{ !cancelled() && steps.contracts.outcome == 'success' }}
+        env:
+          GOPROXY: https://proxy.golang.org
+          GOSUMDB: sum.golang.org
+          GOMODCACHE: ${{ runner.temp }}/gglint-modules
+        run: |
+          source="$RUNNER_TEMP/gglint-source"
+          git init --quiet --object-format=sha1 "$source"
+          git -C "$source" remote add origin https://github.com/gosuda/gglint.git
+          git -C "$source" fetch --no-tags --depth=1 origin "$GGLINT_REVISION" 2>&1 | tee "$EVIDENCE/gglint-fetch.txt"
+          git -C "$source" checkout --detach --quiet "$GGLINT_REVISION"
+          test "$(git -C "$source" rev-parse HEAD)" = "$GGLINT_REVISION"
+          cd "$source"
+          git rev-parse HEAD 'HEAD^{tree}' | tee "$EVIDENCE/gglint-source.txt"
+          go mod download -json > "$EVIDENCE/gglint-downloads.json"
+          test -z "$(git status --porcelain --untracked-files=all)"
+          go build -mod=readonly -trimpath -o "$RUNNER_TEMP/gglint" ./cmd/gglint 2>&1 | tee "$EVIDENCE/gglint-build.txt"
+          test -z "$(git status --porcelain --untracked-files=all)"
+          go version -m "$RUNNER_TEMP/gglint" | tee "$EVIDENCE/gglint-build-info.txt"
+          sha256sum "$RUNNER_TEMP/gglint" | tee "$EVIDENCE/gglint.sha256"
+
+      - name: Capture early tools capability diagnostics
+        id: tools_probe
+        if: ${{ !cancelled() && steps.inputs.outcome == 'success' && steps.native.outcome == 'success' }}
+        run: |
+          set +e
+          uv run --no-project python misc/logos-dogfood/run.py \
+            --manifest misc/logos-dogfood/corpus-permissions.json --only tools \
+            --go-oracle "$RUNNER_TEMP/oracle/bin/go" \
+            --go-candidate "$GITHUB_WORKSPACE/bin/go" --logos "$GITHUB_WORKSPACE/bin/logos" \
+            --source-root "$INPUTS/sources" --module-cache "$INPUTS/modules" \
+            --cache-root "$RUNNER_TEMP/corpus-cache" --operation build \
+            --stage oracle --stage go --stage logos \
+            --jobs 2 --timeout 600 --out "$EVIDENCE/tools-probe" \
+            2>&1 | tee "$EVIDENCE/tools-probe-console.txt"
+          statuses=("${PIPESTATUS[@]}")
+          set -e
+          printf 'runner=%s\nconsole_capture=%s\n' "${statuses[0]}" "${statuses[1]}" | tee "$EVIDENCE/tools-probe-exit.txt"
+          test "${statuses[0]}" -eq 0 || test "${statuses[0]}" -eq 1
+          test "${statuses[1]}" -eq 0
+          test -f "$EVIDENCE/tools-probe/report.json"
+          # This diagnostic capture does not accept the corpus. The complete
+          # replay and its unchanged acceptance checker below remain required.
+
+      - name: Capture unlimited strict tools diagnostics
+        id: tools_unlimited
+        if: ${{ !cancelled() && steps.tools_probe.outcome == 'success' }}
+        run: |
+          uv run --no-project python misc/logos-dogfood/probe_tools.py \
+            --logos "$GITHUB_WORKSPACE/bin/logos" \
+            --source-root "$INPUTS/sources" --module-cache "$INPUTS/modules" \
+            --cache-root "$RUNNER_TEMP/corpus-cache" \
+            --baseline "$EVIDENCE/tools-probe/report.json" \
+            --jobs 2 --timeout 600 --out "$EVIDENCE/tools-unlimited"
+
+      - name: Retain early tools diagnostics
+        if: ${{ !cancelled() && steps.tools_probe.outcome != 'skipped' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: tools-probe-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 14
+          if-no-files-found: error
+          path: |
+            ${{ runner.temp }}/logos-corpus-evidence/tools-probe
+            ${{ runner.temp }}/logos-corpus-evidence/tools-probe-console.txt
+            ${{ runner.temp }}/logos-corpus-evidence/tools-probe-exit.txt
+            ${{ runner.temp }}/logos-corpus-evidence/tools-unlimited
+            ${{ runner.temp }}/logos-corpus-evidence/logos-source.txt
+            ${{ runner.temp }}/logos-corpus-evidence/native-tools.sha256
+            ${{ runner.temp }}/logos-corpus-evidence/resource-profile.txt
+            !${{ runner.temp }}/logos-corpus-evidence/tools-probe/work/**
+            !${{ runner.temp }}/logos-corpus-evidence/tools-unlimited/work/**
+
+      - name: Replay and assess all 196 corpus cells
+        if: ${{ !cancelled() && steps.inputs.outcome == 'success' && steps.native.outcome == 'success' && steps.gglint.outcome == 'success' }}
+        run: |
+          set +e
+          uv run --no-project python misc/logos-dogfood/run.py \
+            --manifest misc/logos-dogfood/corpus-ci.json \
+            --go-oracle "$RUNNER_TEMP/oracle/bin/go" \
+            --go-candidate "$GITHUB_WORKSPACE/bin/go" --logos "$GITHUB_WORKSPACE/bin/logos" \
+            --gglint "$RUNNER_TEMP/gglint" \
+            --source-root "$INPUTS/sources" --module-cache "$INPUTS/modules" \
+            --cache-root "$RUNNER_TEMP/corpus-cache" --operation build \
+            --jobs 2 --timeout 600 --out "$EVIDENCE/corpus" \
+            2>&1 | tee "$EVIDENCE/corpus-console.txt"
+          statuses=("${PIPESTATUS[@]}")
+          set -e
+          printf 'runner=%s\nconsole_capture=%s\n' "${statuses[0]}" "${statuses[1]}" | tee "$EVIDENCE/corpus-exit.txt"
+          test "${statuses[0]}" -eq 1
+          test "${statuses[1]}" -eq 0
+          uv run --no-project python misc/logos-dogfood/accept_corpus.py \
+            --manifest misc/logos-dogfood/corpus-ci.json --report "$EVIDENCE/corpus/report.json" \
+            2>&1 | tee "$EVIDENCE/corpus-acceptance.txt"
+
+      - name: Execute semantic and C ABI fixtures
+        if: ${{ !cancelled() && steps.inputs.outcome == 'success' && steps.native.outcome == 'success' }}
+        run: |
+          uv run --no-project python misc/logos-dogfood/run.py \
+            --go-oracle "$RUNNER_TEMP/oracle/bin/go" \
+            --go-candidate "$GITHUB_WORKSPACE/bin/go" --logos "$GITHUB_WORKSPACE/bin/logos" \
+            --source-root "$INPUTS/sources" --module-cache "$INPUTS/modules" \
+            --cache-root "$RUNNER_TEMP/corpus-cache" --operation test \
+            --only fixture-semantics --only fixture-cgo --stage oracle --stage go --stage logos \
+            --jobs 2 --timeout 600 --out "$EVIDENCE/fixtures" \
+            2>&1 | tee "$EVIDENCE/fixtures-console.txt"
+
+      - name: Execute assembly, purego, plugin, and SQLite cases
+        if: ${{ !cancelled() && steps.inputs.outcome == 'success' && steps.native.outcome == 'success' }}
+        run: |
+          uv run --no-project python misc/logos-dogfood/replay_backends.py \
+            --go-oracle "$RUNNER_TEMP/oracle/bin/go" \
+            --go-candidate "$GITHUB_WORKSPACE/bin/go" --logos "$GITHUB_WORKSPACE/bin/logos" \
+            --source-root "$INPUTS/sources" --module-cache "$INPUTS/modules" \
+            --cache-root "$RUNNER_TEMP/corpus-cache" --tmpdir "$RUNNER_TEMP/dogfood-tmp" \
+            --timeout 900 --out "$EVIDENCE/backends" \
+            2>&1 | tee "$EVIDENCE/backends-console.txt"
+
+      - name: Execute eight purego FFI tests
+        if: ${{ !cancelled() && steps.inputs.outcome == 'success' && steps.native.outcome == 'success' }}
+        run: |
+          uv run --no-project python misc/logos-dogfood/replay_ffi.py \
+            --go-oracle "$RUNNER_TEMP/oracle/bin/go" \
+            --go-candidate "$GITHUB_WORKSPACE/bin/go" --logos "$GITHUB_WORKSPACE/bin/logos" \
+            --source-root "$INPUTS/sources" --module-cache "$INPUTS/modules" \
+            --cache-root "$RUNNER_TEMP/corpus-cache" --tmpdir "$RUNNER_TEMP/dogfood-tmp" \
+            --out "$EVIDENCE/ffi" 2>&1 | tee "$EVIDENCE/ffi-console.txt"
+
+      - name: Compare LoGo execution and ejected Go
+        if: ${{ !cancelled() && steps.inputs.outcome == 'success' && steps.native.outcome == 'success' }}
+        run: |
+          uv run --no-project python misc/logos-dogfood/evidence/2026-11-16/runtime/replay.py \
+            --oracle "$RUNNER_TEMP/oracle/bin/go" \
+            --candidate "$GITHUB_WORKSPACE/bin/go" --logos "$GITHUB_WORKSPACE/bin/logos" \
+            --source-root "$INPUTS/sources" --module-cache "$INPUTS/modules" \
+            --cache-root "$RUNNER_TEMP/corpus-cache" --tmpdir "$RUNNER_TEMP/dogfood-tmp" \
+            --part language --out "$EVIDENCE/language" 2>&1 | tee "$EVIDENCE/language-console.txt"
+
+      - name: Verify exact native lint diagnostics and runtime controls
+        if: ${{ !cancelled() && steps.inputs.outcome == 'success' && steps.native.outcome == 'success' }}
+        run: |
+          uv run --no-project python misc/logos-dogfood/evidence/2026-11-16/runtime/replay.py \
+            --oracle "$RUNNER_TEMP/oracle/bin/go" \
+            --candidate "$GITHUB_WORKSPACE/bin/go" --logos "$GITHUB_WORKSPACE/bin/logos" \
+            --source-root "$INPUTS/sources" --module-cache "$INPUTS/modules" \
+            --cache-root "$RUNNER_TEMP/corpus-cache" --tmpdir "$RUNNER_TEMP/dogfood-tmp" \
+            --part lint --out "$EVIDENCE/lint" 2>&1 | tee "$EVIDENCE/lint-console.txt"
+
+      - name: Retain source receipts, reports, and raw evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dogfood-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 14
+          if-no-files-found: error
+          path: |
+            ${{ runner.temp }}/logos-corpus-evidence
+            ${{ runner.temp }}/logos-corpus-inputs/preparation.json
+            ${{ runner.temp }}/logos-corpus-inputs/logs
+            ${{ runner.temp }}/logos-corpus-inputs/inputs
+            misc/logos-dogfood/corpus-ci.json
+            misc/logos-dogfood/policies
+            misc/logos-dogfood/profiles
+            !${{ runner.temp }}/logos-corpus-evidence/**/work/**

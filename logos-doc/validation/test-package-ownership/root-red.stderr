@@ -1,0 +1,43 @@
+# example.com/app.test
+ERROR [capabilities::unauthorized_exec]: Transitive dependency 'example.com/app_test' reaches 'os.StartProcess'
+  --> Reachability Call Chain (cmd/link deadcode audit):
+   1. _rt0_amd64_linux()                       at /workspace/scratch/93e0563596d1/LoGOs/src/runtime/rt0_linux_amd64.s:7
+   2.   -> _rt0_amd64()                             at /workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:15
+   3.   -> runtime.rt0_go()                         at /workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:142
+   4.   -> runtime.main()                           at /workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:153
+   5.   -> main.main()                              at _testmain.go:47
+   6.   -> example.com/app_test.TestExternal()      at /workspace/scratch/d8d410ec882d/testpkg-evidence/fixture/app/app_test.go:8
+   7.   -> os/exec.(*Cmd).Run()                     at /workspace/scratch/93e0563596d1/LoGOs/src/os/exec/exec.go:639
+   8.   -> os/exec.(*Cmd).Start()                   at /workspace/scratch/93e0563596d1/LoGOs/src/os/exec/exec.go:652
+   9.   -> os.StartProcess()                        at /workspace/scratch/93e0563596d1/LoGOs/src/os/exec.go:271
+ = Help: Remove the dependency or explicitly authorize "example.com/app_test/**" under 'transitive_exec_allowlist' in logos.toml.
+
+ERROR [capabilities::unauthorized_exec]: Transitive dependency 'example.com/app_test' reaches 'os.startProcess'
+  --> Reachability Call Chain (cmd/link deadcode audit):
+   1. _rt0_amd64_linux()                       at /workspace/scratch/93e0563596d1/LoGOs/src/runtime/rt0_linux_amd64.s:7
+   2.   -> _rt0_amd64()                             at /workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:15
+   3.   -> runtime.rt0_go()                         at /workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:142
+   4.   -> runtime.main()                           at /workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:153
+   5.   -> main.main()                              at _testmain.go:47
+   6.   -> example.com/app_test.TestExternal()      at /workspace/scratch/d8d410ec882d/testpkg-evidence/fixture/app/app_test.go:8
+   7.   -> os/exec.(*Cmd).Run()                     at /workspace/scratch/93e0563596d1/LoGOs/src/os/exec/exec.go:639
+   8.   -> os/exec.(*Cmd).Start()                   at /workspace/scratch/93e0563596d1/LoGOs/src/os/exec/exec.go:652
+   9.   -> os.StartProcess()                        at /workspace/scratch/93e0563596d1/LoGOs/src/os/exec.go:271
+   10.   -> os.startProcess()                        at /workspace/scratch/93e0563596d1/LoGOs/src/os/exec_posix.go:26
+ = Help: Remove the dependency or explicitly authorize "example.com/app_test/**" under 'transitive_exec_allowlist' in logos.toml.
+
+ERROR [capabilities::unauthorized_exec]: Transitive dependency 'example.com/app_test' reaches 'syscall.StartProcess'
+  --> Reachability Call Chain (cmd/link deadcode audit):
+   1. _rt0_amd64_linux()                       at /workspace/scratch/93e0563596d1/LoGOs/src/runtime/rt0_linux_amd64.s:7
+   2.   -> _rt0_amd64()                             at /workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:15
+   3.   -> runtime.rt0_go()                         at /workspace/scratch/93e0563596d1/LoGOs/src/runtime/asm_amd64.s:142
+   4.   -> runtime.main()                           at /workspace/scratch/93e0563596d1/LoGOs/src/runtime/proc.go:153
+   5.   -> main.main()                              at _testmain.go:47
+   6.   -> example.com/app_test.TestExternal()      at /workspace/scratch/d8d410ec882d/testpkg-evidence/fixture/app/app_test.go:8
+   7.   -> os/exec.(*Cmd).Run()                     at /workspace/scratch/93e0563596d1/LoGOs/src/os/exec/exec.go:639
+   8.   -> os/exec.(*Cmd).Start()                   at /workspace/scratch/93e0563596d1/LoGOs/src/os/exec/exec.go:652
+   9.   -> os.StartProcess()                        at /workspace/scratch/93e0563596d1/LoGOs/src/os/exec.go:271
+   10.   -> os.startProcess()                        at /workspace/scratch/93e0563596d1/LoGOs/src/os/exec_posix.go:26
+   11.   -> syscall.StartProcess()                   at /workspace/scratch/93e0563596d1/LoGOs/src/syscall/exec_unix.go:257
+ = Help: Remove the dependency or explicitly authorize "example.com/app_test/**" under 'transitive_exec_allowlist' in logos.toml.
+

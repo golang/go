@@ -1,0 +1,6 @@
+--- FAIL: TestExperimentEnvironment (0.00s)
+    env_test.go:13: test GOEXPERIMENT = "", want "logosarena"
+    env_test.go:20: child GOEXPERIMENT = "", want "logosarena"
+FAIL
+FAIL	example.com/testenv	0.007s
+FAIL

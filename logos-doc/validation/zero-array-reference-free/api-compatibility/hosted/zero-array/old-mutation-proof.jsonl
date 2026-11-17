@@ -1,0 +1,13 @@
+{"Time":"2026-11-16T22:28:50.288627688Z","Action":"start","Package":"cmd/compile/internal/logos"}
+{"Time":"2026-11-16T22:28:50.291142467Z","Action":"run","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays"}
+{"Time":"2026-11-16T22:28:50.291182716Z","Action":"output","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays","Output":"=== RUN   TestGoMutationFactsZeroArrays\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.29194675Z","Action":"run","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ReturnZero"}
+{"Time":"2026-11-16T22:28:50.291959539Z","Action":"output","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ReturnZero","Output":"=== RUN   TestGoMutationFactsZeroArrays/ReturnZero\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.291991326Z","Action":"output","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ReturnZero","Output":"    constfacts_zero_array_test.go:118: ReturnZero: ParamMutated=\"1\" ReceiverMutated=false, want \"0\" false\n","OutputType":"error"}
+{"Time":"2026-11-16T22:28:50.29201478Z","Action":"output","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ReturnZero","Output":"--- FAIL: TestGoMutationFactsZeroArrays/ReturnZero (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.292021831Z","Action":"fail","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ReturnZero","Elapsed":0}
+{"Time":"2026-11-16T22:28:50.29238139Z","Action":"output","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays","Output":"--- FAIL: TestGoMutationFactsZeroArrays (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.292390513Z","Action":"fail","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays","Elapsed":0}
+{"Time":"2026-11-16T22:28:50.292452725Z","Action":"output","Package":"cmd/compile/internal/logos","Output":"FAIL\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.29286444Z","Action":"output","Package":"cmd/compile/internal/logos","Output":"FAIL\tcmd/compile/internal/logos\t0.004s\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.292879522Z","Action":"fail","Package":"cmd/compile/internal/logos","Elapsed":0.004}

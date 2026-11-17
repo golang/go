@@ -1,0 +1,23 @@
+{
+  "accepted": true,
+  "command": [
+    "/home/runner/work/LoGOs/LoGOs/bin/go",
+    "test",
+    "-json",
+    "-count=1",
+    "-p=1",
+    "-parallel=1",
+    "-vet=off",
+    "-timeout=10m",
+    "-overlay=/home/runner/work/_temp/logos-regression-evidence/zero-array/old-mutation-proof.overlay.json",
+    "cmd/compile/internal/logos",
+    "-run",
+    "^TestGoMutationFactsZeroArrays$/^ReturnZero$"
+  ],
+  "cwd": "/home/runner/work/LoGOs/LoGOs/src",
+  "elapsed_seconds": 8.600482718999956,
+  "exit_code": 1,
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "82019b4c461a1d82572ba5d4741868264e3f9a17b73bbc2472c309db1710a86d",
+  "timed_out": false
+}

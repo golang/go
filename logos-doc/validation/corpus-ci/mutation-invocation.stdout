@@ -1,0 +1,481 @@
+FFFFFFFFF                                                                [100%]
+=================================== FAILURES ===================================
+________ test_coverage_labels_cannot_replace_actual_invocations[driver] ________
+
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-17/test_coverage_labels_cannot_re0')
+defect = 'driver'
+
+    @pytest.mark.parametrize(
+        "defect",
+        ["driver", "pattern", "cgo", "tags", "mode", "tests", "path", "experiments", "cwd"],
+    )
+    def test_coverage_labels_cannot_replace_actual_invocations(
+        tmp_path: Path, defect: str
+    ) -> None:
+        report = complete_report(tmp_path)
+        stage, mode = (
+            ("gglint", "basic")
+            if defect in ("mode", "tags", "tests", "path")
+            else ("oracle", "")
+        )
+        entry = cell(report, "fixture-semantics", stage, mode)
+        command = obj(entry["run"])
+        if defect == "driver":
+            command["command"] = ["/different/compiler", "build", "."]
+        elif defect == "pattern":
+            command["command"] = ["/tools/oracle/bin/tool", "build", "fmt"]
+        elif defect == "cgo":
+            obj(command["environment"])["CGO_ENABLED"] = "1"
+        elif defect in ("tags", "tests"):
+            config = tmp_path / "config" / "fixture-semantics.toml"
+            config.write_text(
+                "[run]\ntests = false\nbuild_tags = []\n"
+                if defect == "tests"
+                else '[run]\ntests = true\nbuild_tags = ["purego"]\n'
+            )
+        elif defect == "mode":
+            command["command"] = [
+                item.replace("basic", "strict") for item in strings(command["command"])
+            ]
+        elif defect == "path":
+            obj(command["environment"])["PATH"] = "/different/go/bin:/usr/bin"
+        elif defect == "experiments":
+            obj(command["environment"])["GOEXPERIMENT"] = "none"
+        else:
+            command["cwd"] = str(tmp_path / "unverified-source")
+        if "repeat" in entry:
+            obj(entry["repeat"])["command"] = command["command"]
+            obj(entry["repeat"])["environment"] = command["environment"]
+            obj(entry["repeat"])["cwd"] = command["cwd"]
+>       with pytest.raises(ValueError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+test_accept_corpus.py:419: Failed
+_______ test_coverage_labels_cannot_replace_actual_invocations[pattern] ________
+
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-17/test_coverage_labels_cannot_re1')
+defect = 'pattern'
+
+    @pytest.mark.parametrize(
+        "defect",
+        ["driver", "pattern", "cgo", "tags", "mode", "tests", "path", "experiments", "cwd"],
+    )
+    def test_coverage_labels_cannot_replace_actual_invocations(
+        tmp_path: Path, defect: str
+    ) -> None:
+        report = complete_report(tmp_path)
+        stage, mode = (
+            ("gglint", "basic")
+            if defect in ("mode", "tags", "tests", "path")
+            else ("oracle", "")
+        )
+        entry = cell(report, "fixture-semantics", stage, mode)
+        command = obj(entry["run"])
+        if defect == "driver":
+            command["command"] = ["/different/compiler", "build", "."]
+        elif defect == "pattern":
+            command["command"] = ["/tools/oracle/bin/tool", "build", "fmt"]
+        elif defect == "cgo":
+            obj(command["environment"])["CGO_ENABLED"] = "1"
+        elif defect in ("tags", "tests"):
+            config = tmp_path / "config" / "fixture-semantics.toml"
+            config.write_text(
+                "[run]\ntests = false\nbuild_tags = []\n"
+                if defect == "tests"
+                else '[run]\ntests = true\nbuild_tags = ["purego"]\n'
+            )
+        elif defect == "mode":
+            command["command"] = [
+                item.replace("basic", "strict") for item in strings(command["command"])
+            ]
+        elif defect == "path":
+            obj(command["environment"])["PATH"] = "/different/go/bin:/usr/bin"
+        elif defect == "experiments":
+            obj(command["environment"])["GOEXPERIMENT"] = "none"
+        else:
+            command["cwd"] = str(tmp_path / "unverified-source")
+        if "repeat" in entry:
+            obj(entry["repeat"])["command"] = command["command"]
+            obj(entry["repeat"])["environment"] = command["environment"]
+            obj(entry["repeat"])["cwd"] = command["cwd"]
+>       with pytest.raises(ValueError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+test_accept_corpus.py:419: Failed
+_________ test_coverage_labels_cannot_replace_actual_invocations[cgo] __________
+
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-17/test_coverage_labels_cannot_re2')
+defect = 'cgo'
+
+    @pytest.mark.parametrize(
+        "defect",
+        ["driver", "pattern", "cgo", "tags", "mode", "tests", "path", "experiments", "cwd"],
+    )
+    def test_coverage_labels_cannot_replace_actual_invocations(
+        tmp_path: Path, defect: str
+    ) -> None:
+        report = complete_report(tmp_path)
+        stage, mode = (
+            ("gglint", "basic")
+            if defect in ("mode", "tags", "tests", "path")
+            else ("oracle", "")
+        )
+        entry = cell(report, "fixture-semantics", stage, mode)
+        command = obj(entry["run"])
+        if defect == "driver":
+            command["command"] = ["/different/compiler", "build", "."]
+        elif defect == "pattern":
+            command["command"] = ["/tools/oracle/bin/tool", "build", "fmt"]
+        elif defect == "cgo":
+            obj(command["environment"])["CGO_ENABLED"] = "1"
+        elif defect in ("tags", "tests"):
+            config = tmp_path / "config" / "fixture-semantics.toml"
+            config.write_text(
+                "[run]\ntests = false\nbuild_tags = []\n"
+                if defect == "tests"
+                else '[run]\ntests = true\nbuild_tags = ["purego"]\n'
+            )
+        elif defect == "mode":
+            command["command"] = [
+                item.replace("basic", "strict") for item in strings(command["command"])
+            ]
+        elif defect == "path":
+            obj(command["environment"])["PATH"] = "/different/go/bin:/usr/bin"
+        elif defect == "experiments":
+            obj(command["environment"])["GOEXPERIMENT"] = "none"
+        else:
+            command["cwd"] = str(tmp_path / "unverified-source")
+        if "repeat" in entry:
+            obj(entry["repeat"])["command"] = command["command"]
+            obj(entry["repeat"])["environment"] = command["environment"]
+            obj(entry["repeat"])["cwd"] = command["cwd"]
+>       with pytest.raises(ValueError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+test_accept_corpus.py:419: Failed
+_________ test_coverage_labels_cannot_replace_actual_invocations[tags] _________
+
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-17/test_coverage_labels_cannot_re3')
+defect = 'tags'
+
+    @pytest.mark.parametrize(
+        "defect",
+        ["driver", "pattern", "cgo", "tags", "mode", "tests", "path", "experiments", "cwd"],
+    )
+    def test_coverage_labels_cannot_replace_actual_invocations(
+        tmp_path: Path, defect: str
+    ) -> None:
+        report = complete_report(tmp_path)
+        stage, mode = (
+            ("gglint", "basic")
+            if defect in ("mode", "tags", "tests", "path")
+            else ("oracle", "")
+        )
+        entry = cell(report, "fixture-semantics", stage, mode)
+        command = obj(entry["run"])
+        if defect == "driver":
+            command["command"] = ["/different/compiler", "build", "."]
+        elif defect == "pattern":
+            command["command"] = ["/tools/oracle/bin/tool", "build", "fmt"]
+        elif defect == "cgo":
+            obj(command["environment"])["CGO_ENABLED"] = "1"
+        elif defect in ("tags", "tests"):
+            config = tmp_path / "config" / "fixture-semantics.toml"
+            config.write_text(
+                "[run]\ntests = false\nbuild_tags = []\n"
+                if defect == "tests"
+                else '[run]\ntests = true\nbuild_tags = ["purego"]\n'
+            )
+        elif defect == "mode":
+            command["command"] = [
+                item.replace("basic", "strict") for item in strings(command["command"])
+            ]
+        elif defect == "path":
+            obj(command["environment"])["PATH"] = "/different/go/bin:/usr/bin"
+        elif defect == "experiments":
+            obj(command["environment"])["GOEXPERIMENT"] = "none"
+        else:
+            command["cwd"] = str(tmp_path / "unverified-source")
+        if "repeat" in entry:
+            obj(entry["repeat"])["command"] = command["command"]
+            obj(entry["repeat"])["environment"] = command["environment"]
+            obj(entry["repeat"])["cwd"] = command["cwd"]
+>       with pytest.raises(ValueError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+test_accept_corpus.py:419: Failed
+_________ test_coverage_labels_cannot_replace_actual_invocations[mode] _________
+
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-17/test_coverage_labels_cannot_re4')
+defect = 'mode'
+
+    @pytest.mark.parametrize(
+        "defect",
+        ["driver", "pattern", "cgo", "tags", "mode", "tests", "path", "experiments", "cwd"],
+    )
+    def test_coverage_labels_cannot_replace_actual_invocations(
+        tmp_path: Path, defect: str
+    ) -> None:
+        report = complete_report(tmp_path)
+        stage, mode = (
+            ("gglint", "basic")
+            if defect in ("mode", "tags", "tests", "path")
+            else ("oracle", "")
+        )
+        entry = cell(report, "fixture-semantics", stage, mode)
+        command = obj(entry["run"])
+        if defect == "driver":
+            command["command"] = ["/different/compiler", "build", "."]
+        elif defect == "pattern":
+            command["command"] = ["/tools/oracle/bin/tool", "build", "fmt"]
+        elif defect == "cgo":
+            obj(command["environment"])["CGO_ENABLED"] = "1"
+        elif defect in ("tags", "tests"):
+            config = tmp_path / "config" / "fixture-semantics.toml"
+            config.write_text(
+                "[run]\ntests = false\nbuild_tags = []\n"
+                if defect == "tests"
+                else '[run]\ntests = true\nbuild_tags = ["purego"]\n'
+            )
+        elif defect == "mode":
+            command["command"] = [
+                item.replace("basic", "strict") for item in strings(command["command"])
+            ]
+        elif defect == "path":
+            obj(command["environment"])["PATH"] = "/different/go/bin:/usr/bin"
+        elif defect == "experiments":
+            obj(command["environment"])["GOEXPERIMENT"] = "none"
+        else:
+            command["cwd"] = str(tmp_path / "unverified-source")
+        if "repeat" in entry:
+            obj(entry["repeat"])["command"] = command["command"]
+            obj(entry["repeat"])["environment"] = command["environment"]
+            obj(entry["repeat"])["cwd"] = command["cwd"]
+>       with pytest.raises(ValueError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+test_accept_corpus.py:419: Failed
+________ test_coverage_labels_cannot_replace_actual_invocations[tests] _________
+
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-17/test_coverage_labels_cannot_re5')
+defect = 'tests'
+
+    @pytest.mark.parametrize(
+        "defect",
+        ["driver", "pattern", "cgo", "tags", "mode", "tests", "path", "experiments", "cwd"],
+    )
+    def test_coverage_labels_cannot_replace_actual_invocations(
+        tmp_path: Path, defect: str
+    ) -> None:
+        report = complete_report(tmp_path)
+        stage, mode = (
+            ("gglint", "basic")
+            if defect in ("mode", "tags", "tests", "path")
+            else ("oracle", "")
+        )
+        entry = cell(report, "fixture-semantics", stage, mode)
+        command = obj(entry["run"])
+        if defect == "driver":
+            command["command"] = ["/different/compiler", "build", "."]
+        elif defect == "pattern":
+            command["command"] = ["/tools/oracle/bin/tool", "build", "fmt"]
+        elif defect == "cgo":
+            obj(command["environment"])["CGO_ENABLED"] = "1"
+        elif defect in ("tags", "tests"):
+            config = tmp_path / "config" / "fixture-semantics.toml"
+            config.write_text(
+                "[run]\ntests = false\nbuild_tags = []\n"
+                if defect == "tests"
+                else '[run]\ntests = true\nbuild_tags = ["purego"]\n'
+            )
+        elif defect == "mode":
+            command["command"] = [
+                item.replace("basic", "strict") for item in strings(command["command"])
+            ]
+        elif defect == "path":
+            obj(command["environment"])["PATH"] = "/different/go/bin:/usr/bin"
+        elif defect == "experiments":
+            obj(command["environment"])["GOEXPERIMENT"] = "none"
+        else:
+            command["cwd"] = str(tmp_path / "unverified-source")
+        if "repeat" in entry:
+            obj(entry["repeat"])["command"] = command["command"]
+            obj(entry["repeat"])["environment"] = command["environment"]
+            obj(entry["repeat"])["cwd"] = command["cwd"]
+>       with pytest.raises(ValueError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+test_accept_corpus.py:419: Failed
+_________ test_coverage_labels_cannot_replace_actual_invocations[path] _________
+
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-17/test_coverage_labels_cannot_re6')
+defect = 'path'
+
+    @pytest.mark.parametrize(
+        "defect",
+        ["driver", "pattern", "cgo", "tags", "mode", "tests", "path", "experiments", "cwd"],
+    )
+    def test_coverage_labels_cannot_replace_actual_invocations(
+        tmp_path: Path, defect: str
+    ) -> None:
+        report = complete_report(tmp_path)
+        stage, mode = (
+            ("gglint", "basic")
+            if defect in ("mode", "tags", "tests", "path")
+            else ("oracle", "")
+        )
+        entry = cell(report, "fixture-semantics", stage, mode)
+        command = obj(entry["run"])
+        if defect == "driver":
+            command["command"] = ["/different/compiler", "build", "."]
+        elif defect == "pattern":
+            command["command"] = ["/tools/oracle/bin/tool", "build", "fmt"]
+        elif defect == "cgo":
+            obj(command["environment"])["CGO_ENABLED"] = "1"
+        elif defect in ("tags", "tests"):
+            config = tmp_path / "config" / "fixture-semantics.toml"
+            config.write_text(
+                "[run]\ntests = false\nbuild_tags = []\n"
+                if defect == "tests"
+                else '[run]\ntests = true\nbuild_tags = ["purego"]\n'
+            )
+        elif defect == "mode":
+            command["command"] = [
+                item.replace("basic", "strict") for item in strings(command["command"])
+            ]
+        elif defect == "path":
+            obj(command["environment"])["PATH"] = "/different/go/bin:/usr/bin"
+        elif defect == "experiments":
+            obj(command["environment"])["GOEXPERIMENT"] = "none"
+        else:
+            command["cwd"] = str(tmp_path / "unverified-source")
+        if "repeat" in entry:
+            obj(entry["repeat"])["command"] = command["command"]
+            obj(entry["repeat"])["environment"] = command["environment"]
+            obj(entry["repeat"])["cwd"] = command["cwd"]
+>       with pytest.raises(ValueError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+test_accept_corpus.py:419: Failed
+_____ test_coverage_labels_cannot_replace_actual_invocations[experiments] ______
+
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-17/test_coverage_labels_cannot_re7')
+defect = 'experiments'
+
+    @pytest.mark.parametrize(
+        "defect",
+        ["driver", "pattern", "cgo", "tags", "mode", "tests", "path", "experiments", "cwd"],
+    )
+    def test_coverage_labels_cannot_replace_actual_invocations(
+        tmp_path: Path, defect: str
+    ) -> None:
+        report = complete_report(tmp_path)
+        stage, mode = (
+            ("gglint", "basic")
+            if defect in ("mode", "tags", "tests", "path")
+            else ("oracle", "")
+        )
+        entry = cell(report, "fixture-semantics", stage, mode)
+        command = obj(entry["run"])
+        if defect == "driver":
+            command["command"] = ["/different/compiler", "build", "."]
+        elif defect == "pattern":
+            command["command"] = ["/tools/oracle/bin/tool", "build", "fmt"]
+        elif defect == "cgo":
+            obj(command["environment"])["CGO_ENABLED"] = "1"
+        elif defect in ("tags", "tests"):
+            config = tmp_path / "config" / "fixture-semantics.toml"
+            config.write_text(
+                "[run]\ntests = false\nbuild_tags = []\n"
+                if defect == "tests"
+                else '[run]\ntests = true\nbuild_tags = ["purego"]\n'
+            )
+        elif defect == "mode":
+            command["command"] = [
+                item.replace("basic", "strict") for item in strings(command["command"])
+            ]
+        elif defect == "path":
+            obj(command["environment"])["PATH"] = "/different/go/bin:/usr/bin"
+        elif defect == "experiments":
+            obj(command["environment"])["GOEXPERIMENT"] = "none"
+        else:
+            command["cwd"] = str(tmp_path / "unverified-source")
+        if "repeat" in entry:
+            obj(entry["repeat"])["command"] = command["command"]
+            obj(entry["repeat"])["environment"] = command["environment"]
+            obj(entry["repeat"])["cwd"] = command["cwd"]
+>       with pytest.raises(ValueError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+test_accept_corpus.py:419: Failed
+_________ test_coverage_labels_cannot_replace_actual_invocations[cwd] __________
+
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-17/test_coverage_labels_cannot_re8')
+defect = 'cwd'
+
+    @pytest.mark.parametrize(
+        "defect",
+        ["driver", "pattern", "cgo", "tags", "mode", "tests", "path", "experiments", "cwd"],
+    )
+    def test_coverage_labels_cannot_replace_actual_invocations(
+        tmp_path: Path, defect: str
+    ) -> None:
+        report = complete_report(tmp_path)
+        stage, mode = (
+            ("gglint", "basic")
+            if defect in ("mode", "tags", "tests", "path")
+            else ("oracle", "")
+        )
+        entry = cell(report, "fixture-semantics", stage, mode)
+        command = obj(entry["run"])
+        if defect == "driver":
+            command["command"] = ["/different/compiler", "build", "."]
+        elif defect == "pattern":
+            command["command"] = ["/tools/oracle/bin/tool", "build", "fmt"]
+        elif defect == "cgo":
+            obj(command["environment"])["CGO_ENABLED"] = "1"
+        elif defect in ("tags", "tests"):
+            config = tmp_path / "config" / "fixture-semantics.toml"
+            config.write_text(
+                "[run]\ntests = false\nbuild_tags = []\n"
+                if defect == "tests"
+                else '[run]\ntests = true\nbuild_tags = ["purego"]\n'
+            )
+        elif defect == "mode":
+            command["command"] = [
+                item.replace("basic", "strict") for item in strings(command["command"])
+            ]
+        elif defect == "path":
+            obj(command["environment"])["PATH"] = "/different/go/bin:/usr/bin"
+        elif defect == "experiments":
+            obj(command["environment"])["GOEXPERIMENT"] = "none"
+        else:
+            command["cwd"] = str(tmp_path / "unverified-source")
+        if "repeat" in entry:
+            obj(entry["repeat"])["command"] = command["command"]
+            obj(entry["repeat"])["environment"] = command["environment"]
+            obj(entry["repeat"])["cwd"] = command["cwd"]
+>       with pytest.raises(ValueError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+test_accept_corpus.py:419: Failed
+=========================== short test summary info ============================
+FAILED test_accept_corpus.py::test_coverage_labels_cannot_replace_actual_invocations[driver]
+FAILED test_accept_corpus.py::test_coverage_labels_cannot_replace_actual_invocations[pattern]
+FAILED test_accept_corpus.py::test_coverage_labels_cannot_replace_actual_invocations[cgo]
+FAILED test_accept_corpus.py::test_coverage_labels_cannot_replace_actual_invocations[tags]
+FAILED test_accept_corpus.py::test_coverage_labels_cannot_replace_actual_invocations[mode]
+FAILED test_accept_corpus.py::test_coverage_labels_cannot_replace_actual_invocations[tests]
+FAILED test_accept_corpus.py::test_coverage_labels_cannot_replace_actual_invocations[path]
+FAILED test_accept_corpus.py::test_coverage_labels_cannot_replace_actual_invocations[experiments]
+FAILED test_accept_corpus.py::test_coverage_labels_cannot_replace_actual_invocations[cwd]
+9 failed, 25 deselected in 0.23s

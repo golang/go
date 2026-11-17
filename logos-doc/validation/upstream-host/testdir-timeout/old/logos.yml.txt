@@ -1,0 +1,349 @@
+name: "logos"
+
+"on":
+  pull_request:
+    types: ["opened", "synchronize", "reopened", "ready_for_review"]
+    paths-ignore:
+      - "AGENTS.md"
+      - "CONTRIBUTING.md"
+      - "README.md"
+      - "SECURITY.md"
+  push:
+    branches:
+      - "release-branch.go1.27"
+    paths-ignore:
+      - "AGENTS.md"
+      - "CONTRIBUTING.md"
+      - "README.md"
+      - "SECURITY.md"
+
+permissions:
+  contents: "read"
+
+concurrency:
+  group: "logos-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"
+  cancel-in-progress: true
+
+env:
+  LOGOS_EXPECTED_HEAD: "${{ github.event.pull_request.head.sha || github.sha }}"
+  LOGOS_PACKAGES: >-
+    logos/...
+    cmd/go/internal/logos/...
+    cmd/compile/internal/logos/...
+    cmd/internal/logos/...
+    cmd/internal/logosowned
+    internal/logosfile
+    cmd/cgo/internal/testlogos
+  GOLANGCI_LINT_VERSION: "2.15.0"
+  GOLANGCI_LINT_SHA256: "9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea"
+
+jobs:
+  logos:
+    name: "${{ matrix.suite }}"
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on: "ubuntu-24.04"
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        # Share one toolchain build across the shorter suites.
+        suite: ["unit", "scripts", "upstream"]
+    defaults:
+      run:
+        shell: "bash"
+        working-directory: "src"
+    steps:
+      - uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" # v7.0.1
+        with:
+          ref: "${{ github.event.pull_request.head.sha || github.sha }}"
+          persist-credentials: false
+      - name: "Record the exact candidate source"
+        run: |
+          test "$(git rev-parse HEAD)" = "$LOGOS_EXPECTED_HEAD"
+          git rev-parse HEAD 'HEAD^{tree}' HEAD:src
+      - name: "Validate workflows and shell scripts"
+        working-directory: "."
+        timeout-minutes: 5
+        env:
+          ACTIONLINT_VERSION: "1.7.12"
+          ACTIONLINT_SHA256: "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8"
+        run: |
+          archive="$RUNNER_TEMP/actionlint.tar.gz"
+          curl --fail --silent --show-error --location --output "$archive" "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          printf '%s  %s\n' "$ACTIONLINT_SHA256" "$archive" | sha256sum --check --strict -
+          tar -xzf "$archive" -C "$RUNNER_TEMP" actionlint
+          shellcheck --version
+          "$RUNNER_TEMP/actionlint" -color
+      - uses: "actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e" # v7.0.0
+        with:
+          go-version: "1.27.4"
+          cache: false
+      - name: "Install the verified evidence runner"
+        run: |
+          archive="$RUNNER_TEMP/logos-regression-uv.tar.gz"
+          runner="$RUNNER_TEMP/logos-regression-uv"
+          evidence="$RUNNER_TEMP/logos-regression-evidence"
+          mkdir -p "$runner" "$evidence"
+          curl --fail --silent --show-error --location --output "$archive" https://github.com/astral-sh/uv/releases/download/0.13.8/uv-x86_64-unknown-linux-gnu.tar.gz
+          printf '%s  %s\n' 5acfd9177cfecf0bf87578f059728215ccc884388988f55f7a65041b57387d91 "$archive" | sha256sum --check --strict - | tee "$evidence/uv-archive.txt"
+          tar -xzf "$archive" -C "$runner" --strip-components=1
+          printf '%s\n' "$runner" >> "$GITHUB_PATH"
+          printf 'PYTHONDONTWRITEBYTECODE=1\nPYTEST_DISABLE_PLUGIN_AUTOLOAD=1\n' >> "$GITHUB_ENV"
+      - uses: "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1" # v7.1.0
+        with:
+          node-version: "26.13.1"
+      - name: "Install the upstream oracle toolchains"
+        if: "matrix.suite != 'unit'"
+        run: |
+          printf 'UPROOT1274=%s\n' "$(go env GOROOT)" >> "$GITHUB_ENV"
+          while read -r version sha256 root; do
+            archive="$RUNNER_TEMP/go$version.linux-amd64.tar.gz"
+            curl --fail --silent --show-error --location --output "$archive" "https://go.dev/dl/go$version.linux-amd64.tar.gz"
+            printf '%s  %s\n' "$sha256" "$archive" | sha256sum --check --strict -
+            mkdir "$RUNNER_TEMP/go$version"
+            tar -xzf "$archive" -C "$RUNNER_TEMP/go$version" --strip-components=1
+            printf '%s=%s\n' "$root" "$RUNNER_TEMP/go$version" >> "$GITHUB_ENV"
+          done <<'PINS'
+          1.27.2 ecbadb99091a3f46e31f5f934b068b1864eafa7995211b39eaddf76996045fe5 UPROOT1272
+          1.27.3 65efbc80fdc1fa2cd2631cad5b481777a68e8725f34e89f50fc6ac714e379b40 UPROOT1273
+          PINS
+      - name: "Provide a C23 compiler for native consumers"
+        if: "matrix.suite != 'unit'"
+        run: |
+          c23_compiler=$(command -v clang-18)
+          c23_dir="$RUNNER_TEMP/logos-c23-cc"
+          mkdir "$c23_dir"
+          "$c23_compiler" --version
+          sha256sum "$c23_compiler"
+          printf 'int main(void) { return 0; }\n' | "$c23_compiler" -std=c23 -Werror -x c - -o "$c23_dir/probe"
+          "$c23_dir/probe"
+          ln -s "$c23_compiler" "$c23_dir/cc"
+          printf '%s\n' "$c23_dir" >> "$GITHUB_PATH"
+      - name: "Verify regression evidence checkers"
+        if: "matrix.suite == 'unit'"
+        working-directory: "."
+        run: |
+          helper=logos-doc/validation/tagged-package-facts
+          method=logos-doc/validation/tagged-method-facts
+          capability=logos-doc/validation/capability-inline-context
+          host=logos-doc/validation/upstream-host
+          offset=logos-doc/validation/field-offset-lint
+          simd_imports=logos-doc/validation/simd-transitive-imports
+          zero=logos-doc/validation/zero-array-reference-free
+          for suite in "$helper" "$method"; do
+            uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" python -m pytest -q "$suite/test_check_ci.py"
+            uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" pyright "$suite/check_ci.py" "$suite/test_check_ci.py"
+          done
+          uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" python -m pytest -q "$capability/test_check_ci.py"
+          uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" pyright "$capability/test_check_ci.py"
+          uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" python -m pytest -q "$host"
+          uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" pyright "$host"/*.py
+          uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" python -m pytest -q "$offset/test_field_offset_ci.py" logos-doc/validation/test_native_frozen_gate.py
+          uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" pyright --project "$offset/pyrightconfig.json"
+          uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" python -m pytest -q "$simd_imports/test_simd_imports_ci.py"
+          uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" pyright --project "$simd_imports/pyrightconfig.json"
+          uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" python -m pytest -q "$zero/test_zero_array_ci.py"
+          uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" pyright --project "$zero/pyrightconfig.json"
+          uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" ruff check "$simd_imports"/*.py
+          uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" ruff format --check "$simd_imports"/*.py
+          uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" ruff check "$helper/check_ci.py" "$helper/test_check_ci.py" "$method/check_ci.py" "$method/test_check_ci.py" "$capability/test_check_ci.py" "$host"/*.py "$zero"/*.py
+          uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" ruff format --check "$helper/check_ci.py" "$helper/test_check_ci.py" "$method/check_ci.py" "$method/test_check_ci.py" "$capability/test_check_ci.py" "$host"/*.py "$zero"/*.py
+          uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" ruff check "$offset"/*.py logos-doc/validation/native_frozen_gate.py logos-doc/validation/test_native_frozen_gate.py
+          uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" ruff format --check "$offset"/*.py logos-doc/validation/native_frozen_gate.py logos-doc/validation/test_native_frozen_gate.py
+          shellcheck "$capability/check_ci.sh" .github/scripts/logos-test-env.sh
+      - name: "Build the toolchain"
+        run: |
+          GOROOT_BOOTSTRAP=$(go env GOROOT)
+          export GOROOT_BOOTSTRAP
+          ./make.bash
+          printf '%s\n' "$GITHUB_WORKSPACE/lib/wasm" "$GITHUB_WORKSPACE/bin" >> "$GITHUB_PATH"
+      - name: "Smoke"
+        id: "smoke"
+        run: |
+          logos version | grep -F "logos version $(head -n 1 ../VERSION)"
+          logos help 2>&1 | grep -F 'logos <command> [arguments]'
+      # Finish independent checks after a test failure, but never after a failed
+      # build/smoke check or workflow cancellation. Failures still fail the job.
+      - name: "Run unit tests"
+        if: "${{ !cancelled() && steps.smoke.outcome == 'success' && matrix.suite == 'unit' }}"
+        run: |
+          read -r -a packages <<< "$LOGOS_PACKAGES"
+          ../.github/scripts/logos-test-env.sh go test -count=1 -short "${packages[@]}"
+          ../.github/scripts/logos-test-env.sh go test -count=1 -race logos/... cmd/go/internal/logos/lsp/...
+          ../.github/scripts/logos-test-env.sh go test -count=1 -short runtime/metrics
+          GOEXPERIMENT=logosarena ../.github/scripts/logos-test-env.sh go test -count=1 -short -race runtime -run '^TestLogos(Arena|Region|GCScan)'
+          GOEXPERIMENT=logosarena,nogreenteagc ../.github/scripts/logos-test-env.sh go test -count=1 -short runtime -run '^TestLogos(Arena|Region|GCScan)'
+      - name: "Require every Wasm runtime control to execute"
+        if: "${{ !cancelled() && steps.smoke.outcome == 'success' && matrix.suite == 'unit' }}"
+        working-directory: "."
+        timeout-minutes: 15
+        run: |
+          node --version
+          uv run --no-project --no-config --python 3.12 --no-python-downloads python logos-doc/validation/upstream-host/check_wasm.py --repo "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/logos-regression-evidence/wasm"
+      - name: "Run compiler fixtures"
+        if: "${{ !cancelled() && steps.smoke.outcome == 'success' && matrix.suite == 'unit' }}"
+        run: |
+          ../.github/scripts/logos-test-env.sh go test -count=1 -timeout 60m cmd/internal/testdir -run 'Test/logos/'
+      - name: "Check formatting"
+        if: "${{ !cancelled() && steps.smoke.outcome == 'success' && matrix.suite == 'unit' }}"
+        run: |
+          unformatted=$(gofmt -l logos internal/logosfile cmd/go/internal/logos cmd/compile/internal/logos cmd/internal/logos cmd/internal/logosowned cmd/cgo/internal/testlogos)
+          printf '%s\n' "$unformatted"
+          test -z "$unformatted"
+      - name: "Vet Go packages"
+        if: "${{ !cancelled() && steps.smoke.outcome == 'success' && matrix.suite == 'unit' }}"
+        run: |
+          read -r -a packages <<< "$LOGOS_PACKAGES"
+          go vet "${packages[@]}"
+      - name: "Lint Go packages"
+        if: "${{ !cancelled() && steps.smoke.outcome == 'success' && matrix.suite == 'unit' }}"
+        run: |
+          archive="golangci-lint-${GOLANGCI_LINT_VERSION}-linux-amd64"
+          curl --fail --silent --show-error --location --output "$RUNNER_TEMP/$archive.tar.gz" "https://github.com/golangci/golangci-lint/releases/download/v${GOLANGCI_LINT_VERSION}/$archive.tar.gz"
+          printf '%s  %s\n' "$GOLANGCI_LINT_SHA256" "$RUNNER_TEMP/$archive.tar.gz" | sha256sum --check --strict -
+          tar -xzf "$RUNNER_TEMP/$archive.tar.gz" -C "$RUNNER_TEMP"
+          cd cmd
+          "$RUNNER_TEMP/$archive/golangci-lint" run --config ../../logos-doc/golangci.yml ./go/internal/logos/...
+      - name: "Run script tests"
+        if: "${{ !cancelled() && steps.smoke.outcome == 'success' && matrix.suite == 'scripts' }}"
+        run: |
+          ../.github/scripts/logos-test-env.sh go test -count=1 -timeout 60m cmd/go -run 'Script/^logos_'
+
+      - name: "Validate installed test subprocess behavior"
+        if: "${{ !cancelled() && steps.smoke.outcome == 'success' && matrix.suite == 'scripts' }}"
+        run: |
+          sha256sum ../bin/go ../bin/logos ../pkg/tool/linux_amd64/compile ../pkg/tool/linux_amd64/link
+          ../.github/scripts/logos-test-env.sh go test -count=1 -race -parallel=1 -timeout 20m cmd/go -run 'Script/^logos_(cap_xtest_owner|test_experiment_env|test_plugin_experiment|test_cache_experiment)$'
+
+      - name: "Require isolated inline capability ownership"
+        if: "${{ !cancelled() && steps.smoke.outcome == 'success' && matrix.suite == 'scripts' }}"
+        working-directory: "."
+        timeout-minutes: 35
+        run: |
+          bash logos-doc/validation/capability-inline-context/check_ci.sh "$RUNNER_TEMP/logos-regression-evidence/cap-inline"
+
+      - name: "Require tagged package fact negative and positive controls"
+        if: "${{ !cancelled() && steps.smoke.outcome == 'success' && matrix.suite == 'unit' }}"
+        working-directory: "."
+        timeout-minutes: 45
+        run: |
+          uv run --no-project --no-config --python 3.12 --no-python-downloads python logos-doc/validation/tagged-package-facts/check_ci.py run --root "$GITHUB_WORKSPACE" --out "$RUNNER_TEMP/logos-regression-evidence/tagged-package" --expected-head "$(git rev-parse HEAD)"
+
+      - name: "Require tagged method codec and lazy-scope controls"
+        if: "${{ !cancelled() && steps.smoke.outcome == 'success' && matrix.suite == 'unit' }}"
+        working-directory: "."
+        timeout-minutes: 35
+        run: |
+          uv run --no-project --no-config --python 3.12 --no-python-downloads python logos-doc/validation/tagged-method-facts/check_ci.py --repo "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/logos-regression-evidence/tagged-method"
+
+      - name: "Require field-offset precision and retained address controls"
+        if: "${{ !cancelled() && steps.smoke.outcome == 'success' && matrix.suite == 'unit' }}"
+        working-directory: "."
+        timeout-minutes: 25
+        run: |
+          uv run --no-project --no-config --python 3.12 --no-python-downloads python logos-doc/validation/field-offset-lint/field_offset_ci.py --repo "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/logos-regression-evidence/field-offset"
+
+      - name: "Require transitive SIMD import and namespace controls"
+        if: "${{ !cancelled() && steps.smoke.outcome == 'success' && matrix.suite == 'unit' }}"
+        working-directory: "."
+        timeout-minutes: 60
+        run: |
+          uv run --no-project --no-config --python 3.12 --no-python-downloads python logos-doc/validation/simd-transitive-imports/simd_imports_ci.py --repo "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/logos-regression-evidence/simd-imports"
+
+      - name: "Require zero-array reference and mutation controls"
+        if: "${{ !cancelled() && steps.smoke.outcome == 'success' && matrix.suite == 'unit' }}"
+        working-directory: "."
+        timeout-minutes: 45
+        run: |
+          uv run --no-project --no-config --python 3.12 --no-python-downloads python logos-doc/validation/zero-array-reference-free/zero_array_ci.py --repo "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/logos-regression-evidence/zero-array"
+
+      - name: "Record the complete upstream test partition"
+        id: "upstream_inventory"
+        if: "${{ !cancelled() && steps.smoke.outcome == 'success' && matrix.suite == 'upstream' }}"
+        run: |
+          evidence="$RUNNER_TEMP/logos-regression-evidence/upstream"
+          mkdir "$evidence"
+          ../.github/scripts/logos-test-env.sh ./run.bash --no-rebuild -list > "$evidence/all-tests.txt"
+          uv run --no-project --no-config --python 3.12 --no-python-downloads python ../logos-doc/validation/upstream-host/partition_dist.py --inventory "$evidence/all-tests.txt" --evidence "$evidence/partition"
+
+      - name: "Run upstream tests outside the command driver"
+        if: "${{ !cancelled() && steps.smoke.outcome == 'success' && matrix.suite == 'upstream' && steps.upstream_inventory.outcome == 'success' }}"
+        run: |
+          evidence="$RUNNER_TEMP/logos-regression-evidence/upstream"
+          printf 'filter=!^cmd/go$\ntimeout_scale=1\n' > "$evidence/complement-profile.txt"
+          set +e
+          GO_TEST_TIMEOUT_SCALE=1 ../.github/scripts/logos-test-env.sh ./run.bash --no-rebuild -k -run='!^cmd/go$' 2>&1 | tee "$evidence/complement.log"
+          statuses=("${PIPESTATUS[@]}")
+          set -e
+          printf 'driver=%s\nconsole_capture=%s\n' "${statuses[0]}" "${statuses[1]}" > "$evidence/complement-exit.txt"
+          test "${statuses[0]}" -eq 0
+          test "${statuses[1]}" -eq 0
+
+      - name: "Run the complete upstream command driver suite"
+        if: "${{ !cancelled() && steps.smoke.outcome == 'success' && matrix.suite == 'upstream' && steps.upstream_inventory.outcome == 'success' }}"
+        timeout-minutes: 45
+        run: |
+          evidence="$RUNNER_TEMP/logos-regression-evidence/upstream"
+          printf 'filter=^cmd/go$\ntimeout_scale=4\npackage_timeout_minutes=36\n' > "$evidence/cmd-go-profile.txt"
+          set +e
+          GO_TEST_TIMEOUT_SCALE=4 ../.github/scripts/logos-test-env.sh ./run.bash --no-rebuild -k -run='^cmd/go$' 2>&1 | tee "$evidence/cmd-go.log"
+          statuses=("${PIPESTATUS[@]}")
+          set -e
+          printf 'driver=%s\nconsole_capture=%s\n' "${statuses[0]}" "${statuses[1]}" > "$evidence/cmd-go-exit.txt"
+          test "${statuses[0]}" -eq 0
+          test "${statuses[1]}" -eq 0
+
+      - name: "Verify dogfood invariants"
+        if: "${{ !cancelled() && steps.smoke.outcome == 'success' && matrix.suite == 'unit' }}"
+        run: |
+          set -euo pipefail
+          sha256sum ../bin/go ../bin/logos ../pkg/tool/linux_amd64/compile ../pkg/tool/linux_amd64/link
+          go test -count=1 -short -race -timeout 20m cmd/link/internal/ld cmd/go/internal/work cmd/go/internal/test
+          go test -count=1 -short go/types -run '^(TestGenerate|TestGoTypesPanicSourceShape)$'
+          go vet cmd/link/internal/ld cmd/go/internal/work cmd/go/internal/test go/types
+          unformatted=$(gofmt -l go/types/generate_test.go go/types/generate_panic_logos_test.go go/types/generate_panic_shape_logos_test.go cmd/go/internal/test/logos_experiment_env_test.go)
+          printf '%s\n' "$unformatted"
+          test -z "$unformatted"
+
+      - name: "Verify regression negative controls"
+        if: "${{ !cancelled() && steps.smoke.outcome == 'success' && matrix.suite == 'unit' }}"
+        run: |
+          set -euo pipefail
+          mutation_dir=$(mktemp -d "$RUNNER_TEMP/logos-mutations.XXXXXX")
+          printf '{"Replace":{"%s":"%s"}}\n' "$GITHUB_WORKSPACE/src/cmd/go/internal/test/logos_env.go" "$GITHUB_WORKSPACE/logos-doc/validation/test-experiments-contract/original/logos_env.go" > "$mutation_dir/environment.json"
+          if go test -overlay="$mutation_dir/environment.json" -json -count=1 -short cmd/go/internal/test -run '^TestLogosTestExperiment(Env|Cache)$' > "$mutation_dir/environment.log" 2>&1; then
+            cat "$mutation_dir/environment.log"
+            exit 1
+          fi
+          cat "$mutation_dir/environment.log"
+          grep -F '"Test":"TestLogosTestExperimentEnv/default"' "$mutation_dir/environment.log" | grep -F '"Action":"fail"'
+          grep -F '"Test":"TestLogosTestExperimentCache/logos"' "$mutation_dir/environment.log" | grep -F '"Action":"fail"'
+          printf 'package types_test\n\nfunc goTypesPanicSource(src []byte) []byte { return src }\n' > "$mutation_dir/generator.go"
+          printf '{"Replace":{"%s":"%s"}}\n' "$GITHUB_WORKSPACE/src/go/types/generate_panic_logos_test.go" "$mutation_dir/generator.go" > "$mutation_dir/generator.json"
+          if go test -overlay="$mutation_dir/generator.json" -json -count=1 -short go/types -run '^TestGenerate$' > "$mutation_dir/generator.log" 2>&1; then
+            cat "$mutation_dir/generator.log"
+            exit 1
+          fi
+          cat "$mutation_dir/generator.log"
+          grep -F '"Test":"TestGenerate"' "$mutation_dir/generator.log" | grep -F '"Action":"fail"'
+          grep -F 'check.conf.Logos' "$mutation_dir/generator.log"
+          go test -count=1 -short cmd/go/internal/test -run '^TestLogosTestExperiment(Env|Cache)$'
+          go test -count=1 -short go/types -run '^(TestGenerate|TestGoTypesPanicSourceShape)$'
+
+      - name: "Retain regression events and exact identities"
+        if: "always()"
+        uses: "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9" # v7.0.2
+        with:
+          name: "logos-${{ matrix.suite }}-${{ github.run_id }}-${{ github.run_attempt }}"
+          retention-days: 14
+          if-no-files-found: "error"
+          path: |
+            ${{ runner.temp }}/logos-regression-evidence/**/*.json
+            ${{ runner.temp }}/logos-regression-evidence/**/*.jsonl
+            ${{ runner.temp }}/logos-regression-evidence/**/*.log
+            ${{ runner.temp }}/logos-regression-evidence/**/*.txt
+            ${{ runner.temp }}/logos-regression-evidence/**/*.sha256
+            ${{ runner.temp }}/logos-regression-evidence/**/*.stderr
+            ${{ runner.temp }}/logos-regression-evidence/**/*.stdout
+            ${{ runner.temp }}/logos-mutations.*/*.log
+            ${{ runner.temp }}/logos-mutations.*/*.json

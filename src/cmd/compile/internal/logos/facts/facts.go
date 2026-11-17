@@ -848,6 +848,22 @@ func isIdent(s string) bool {
 }
 
 func ValidObject(s string) bool {
+	if validLegacyObject(s) {
+		return true
+	}
+	// Receiver-local tags leave the method name untagged.
+	recv, method, ok := strings.CutLast(s, ".")
+	if !ok || !isIdent(method) {
+		return false
+	}
+	if len(recv) >= 2 && recv[0] == '(' && recv[len(recv)-1] == ')' {
+		recv = strings.TrimPrefix(recv[1:len(recv)-1], "*")
+	}
+	base, tag, hasTag := strings.Cut(recv, "@")
+	return hasTag && isIdent(base) && isIdent(tag)
+}
+
+func validLegacyObject(s string) bool {
 	recv, tag, hasTag := strings.Cut(s, "@")
 	if hasTag && !isIdent(tag) {
 		return false

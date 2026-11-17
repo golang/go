@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "source_commit": "22ab6f7a169e905d9fde5e345db101735a321486",
+  "source_tree": "8d74f82a97b8509400372ae4818525f19e7105ef",
+  "prior_contract_commit": "fd146c5550fe49770e84eb11fb1bfb394d9be306",
+  "contract": "logos-doc/IMPLEMENTATION.md M18-S9",
+  "ci": {
+    "run_id": 43903529332,
+    "job_id": 133426172718,
+    "url": "https://github.com/gosuda/LoGOs/actions/runs/43903529332/job/133426172718",
+    "test": "TestScript/logos_test_cache_experiment",
+    "status": "failed",
+    "actual": "GOEXPERIMENT present=true",
+    "expected": "GOEXPERIMENT present=false",
+    "fixture_line": 14,
+    "log": "pr71-scripts-ci.log"
+  },
+  "immutable": {
+    "src/cmd/go/testdata/script/logos_test_cache_experiment.txt": {
+      "git_blob_sha": "52b133be5bd16ef5e92c0131c5ebe9b74a9685db"
+    },
+    "test/logos/codegen/arena_place_off.lgo": {
+      "git_blob_sha": "0e9b481816fb145acc6338e05e2e24a930bb78fe"
+    },
+    "test/logos/codegen/arena_place_off.go": {
+      "git_blob_sha": "02c7c894e64e3f3faaee07821e153f82424a2898"
+    },
+    "test/logos/codegen/arena_frame_local_object_off.lgo": {
+      "git_blob_sha": "ce5f3a0a566ee8be37cc5f0b642b2174a43ab648"
+    }
+  },
+  "original": {
+    "src/cmd/go/internal/test/logos_env.go": {
+      "git_blob_sha": "ce06156dd36bec0a2f22aef7fa563a74f6212ca4",
+      "archive": "original/logos_env.go"
+    },
+    "src/cmd/go/internal/test/logos_experiment_env_test.go": {
+      "git_blob_sha": "38d1d699d0b072a8111c4d01b5d051ce5b0d8a71",
+      "archive": "original/logos_experiment_env_test.go"
+    },
+    "src/cmd/go/testdata/script/logos_test_experiment_env.txt": {
+      "git_blob_sha": "83cbfb416b92882c2f17c9c375451ca8b82b943a",
+      "archive": "original/logos_test_experiment_env.txt"
+    },
+    "src/cmd/go/testdata/script/logos_test_plugin_experiment.txt": {
+      "git_blob_sha": "6db8909527ede6abcfae6223670c25896689f21f",
+      "archive": "original/logos_test_plugin_experiment.txt"
+    }
+  },
+  "production_restoration": {
+    "path": "src/cmd/go/internal/test/logos_env.go",
+    "removed_lines": 6,
+    "expected_blob_sha": "cab15397914ffb0680488d9d61b83a8fde7d8bc7"
+  },
+  "validation": "Existing CI failure is established. Corrected-test execution, fresh installed build, race, vet, arena-off codegen and canonicalization-restoration mutation remain pending. No lost local result was reconstructed."
+}

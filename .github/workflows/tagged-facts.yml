@@ -1,0 +1,101 @@
+name: "Tagged package fact regressions"
+
+"on":
+  pull_request:
+    types: ["opened", "synchronize", "reopened", "converted_to_draft"]
+    paths:
+      - ".github/workflows/tagged-facts.yml"
+      - "logos-doc/validation/tagged-package-facts/**"
+      - "src/cmd/compile/internal/**"
+      - "src/simd/**"
+
+permissions:
+  contents: "read"
+
+concurrency:
+  group: "tagged-facts-${{ github.event.pull_request.number }}"
+  cancel-in-progress: true
+
+jobs:
+  tagged-facts:
+    if: github.event.pull_request.draft
+    runs-on: "ubuntu-24.04"
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: "bash"
+    env:
+      EXPECTED_HEAD: "${{ github.event.pull_request.head.sha }}"
+      GOMAXPROCS: "2"
+      GOMEMLIMIT: "2GiB"
+      GOGC: "50"
+      GOFLAGS: "-p=1"
+      GOEXPERIMENT: ""
+      GOTOOLCHAIN: "local"
+      GOWORK: "off"
+      GOENV: "off"
+      GOTELEMETRY: "off"
+      PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" # v7.0.1
+        with:
+          ref: "${{ github.event.pull_request.head.sha }}"
+          persist-credentials: false
+
+      - name: "Install verified uv"
+        run: |
+          EVIDENCE="$RUNNER_TEMP/tagged-facts-evidence"
+          GOCACHE="$RUNNER_TEMP/tagged-facts-cache"
+          TMPDIR="$RUNNER_TEMP/tagged-facts-tmp"
+          printf 'EVIDENCE=%s\nGOCACHE=%s\nTMPDIR=%s\n' "$EVIDENCE" "$GOCACHE" "$TMPDIR" >> "$GITHUB_ENV"
+          mkdir -p "$EVIDENCE" "$GOCACHE" "$TMPDIR" "$RUNNER_TEMP/tagged-facts-uv"
+          archive="$RUNNER_TEMP/tagged-facts-uv.tar.gz"
+          curl --fail --silent --show-error --location --output "$archive" https://github.com/astral-sh/uv/releases/download/0.13.8/uv-x86_64-unknown-linux-gnu.tar.gz
+          printf '%s  %s\n' 5acfd9177cfecf0bf87578f059728215ccc884388988f55f7a65041b57387d91 "$archive" | sha256sum --check --strict - | tee "$EVIDENCE/uv-archive.txt"
+          tar -xzf "$archive" -C "$RUNNER_TEMP/tagged-facts-uv" --strip-components=1
+          printf '%s\n' "$RUNNER_TEMP/tagged-facts-uv" >> "$GITHUB_PATH"
+
+      - name: "Verify frozen source identities"
+        run: |
+          uv --version | tee "$EVIDENCE/uv-version.txt"
+          uv run --no-project --no-config --python 3.12 --no-python-downloads python logos-doc/validation/tagged-package-facts/check_ci.py verify --root "$GITHUB_WORKSPACE" --out "$EVIDENCE" --expected-head "$EXPECTED_HEAD"
+
+      - name: "Test the acceptance checker"
+        run: |
+          helper=logos-doc/validation/tagged-package-facts
+          uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" python -m pytest -q "$helper/test_check_ci.py" 2>&1 | tee "$EVIDENCE/helper-tests.txt"
+          uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" pyright "$helper/check_ci.py" "$helper/test_check_ci.py" 2>&1 | tee "$EVIDENCE/helper-types.txt"
+          uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" ruff check "$helper/check_ci.py" "$helper/test_check_ci.py" 2>&1 | tee "$EVIDENCE/helper-lint.txt"
+          uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" ruff format --check "$helper/check_ci.py" "$helper/test_check_ci.py" 2>&1 | tee "$EVIDENCE/helper-format.txt"
+
+      - uses: "actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e" # v7.0.0
+        with:
+          go-version: "1.27.4"
+          cache: false
+
+      - name: "Build the candidate toolchain"
+        timeout-minutes: 35
+        working-directory: "src"
+        run: |
+          GOROOT_BOOTSTRAP=$(go env GOROOT)
+          export GOROOT_BOOTSTRAP
+          go version | tee "$EVIDENCE/bootstrap-version.txt"
+          ./make.bash 2>&1 | tee "$EVIDENCE/build.txt"
+          ../bin/go version | tee "$EVIDENCE/candidate-go-version.txt"
+          ../bin/logos version | tee "$EVIDENCE/candidate-logos-version.txt"
+          printf '%s\n' "$GITHUB_WORKSPACE/bin" >> "$GITHUB_PATH"
+
+      - name: "Require the old failure and every candidate pass"
+        timeout-minutes: 52
+        run: |
+          uv run --no-project --no-config --python 3.12 --no-python-downloads python logos-doc/validation/tagged-package-facts/check_ci.py run --root "$GITHUB_WORKSPACE" --out "$EVIDENCE" --expected-head "$EXPECTED_HEAD"
+
+      - name: "Retain raw events, status, and provenance"
+        if: always()
+        uses: "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9" # v7.0.2
+        with:
+          name: "tagged-facts-${{ github.run_id }}-${{ github.run_attempt }}"
+          retention-days: 14
+          if-no-files-found: "error"
+          path: "${{ runner.temp }}/tagged-facts-evidence"

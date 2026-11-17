@@ -1,0 +1,1146 @@
+﻿2026-11-16T22:11:17.6577444Z Current runner version: '2.338.2'
+2026-11-16T22:11:17.6605218Z ##[group]Runner Image Provisioner
+2026-11-16T22:11:17.6606778Z Hosted Compute Agent
+2026-11-16T22:11:17.6607507Z Version: 20261103.629
+2026-11-16T22:11:17.6608360Z Commit: 15dbd9ccb5dbf34fae002b6ed1a2670f52df37bc
+2026-11-16T22:11:17.6609304Z Build Date: 2026-11-03T17:26:59Z
+2026-11-16T22:11:17.6610137Z Worker ID: {523683c8-3cd4-4147-93f3-07211b3bbcef}
+2026-11-16T22:11:17.6611168Z Region: westus3
+2026-11-16T22:11:17.6611922Z Cloud: Azure
+2026-11-16T22:11:17.6612613Z ##[endgroup]
+2026-11-16T22:11:17.6614314Z ##[group]Operating System
+2026-11-16T22:11:17.6615068Z Ubuntu
+2026-11-16T22:11:17.6615884Z 24.04.5
+2026-11-16T22:11:17.6616680Z LTS
+2026-11-16T22:11:17.6617352Z ##[endgroup]
+2026-11-16T22:11:17.6618045Z ##[group]Runner Image
+2026-11-16T22:11:17.6618800Z Image: ubuntu-24.04
+2026-11-16T22:11:17.6619645Z Version: 20261111.370.1
+2026-11-16T22:11:17.6621280Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261111.370/images/ubuntu/Ubuntu2404-Readme.md
+2026-11-16T22:11:17.6623424Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261111.370
+2026-11-16T22:11:17.6624681Z ##[endgroup]
+2026-11-16T22:11:17.6626372Z ##[group]GITHUB_TOKEN Permissions
+2026-11-16T22:11:17.6628662Z Contents: read
+2026-11-16T22:11:17.6629458Z Metadata: read
+2026-11-16T22:11:17.6630124Z ##[endgroup]
+2026-11-16T22:11:17.6632409Z Secret source: Actions
+2026-11-16T22:11:17.6633698Z Cache mode: write
+2026-11-16T22:11:17.6634496Z Prepare workflow directory
+2026-11-16T22:11:17.7073146Z Prepare all required actions
+2026-11-16T22:11:17.7113805Z Getting action download info
+2026-11-16T22:11:18.0101114Z Download action repository 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1' (SHA:3d3c42e5aac5ba805825da76410c181273ba90b1)
+2026-11-16T22:11:18.2384747Z Download action repository 'actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e' (SHA:b7ad1dad31e06c5925ef5d2fc7ad053ef454303e)
+2026-11-16T22:11:18.9444421Z Download action repository 'actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1' (SHA:949feb2413d6458794dcd2491c4babbbce0c15c1)
+2026-11-16T22:11:19.0770165Z Download action repository 'actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9' (SHA:cf430e030ddbb5b0abf93d22962f4752f3646cd9)
+2026-11-16T22:11:19.3287042Z Complete job name: unit
+2026-11-16T22:11:19.4313531Z ##[group]Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+2026-11-16T22:11:19.4314941Z with:
+2026-11-16T22:11:19.4315688Z   ref: f4242fed9cf0707a4103a0adbdb82e866bcabd69
+2026-11-16T22:11:19.4316807Z   persist-credentials: false
+2026-11-16T22:11:19.4317647Z   repository: gosuda/LoGOs
+2026-11-16T22:11:19.4324042Z   token: ***
+2026-11-16T22:11:19.4324741Z   ssh-strict: true
+2026-11-16T22:11:19.4325463Z   ssh-user: git
+2026-11-16T22:11:19.4326230Z   clean: true
+2026-11-16T22:11:19.4326962Z   sparse-checkout-cone-mode: true
+2026-11-16T22:11:19.4327829Z   fetch-depth: 1
+2026-11-16T22:11:19.4328536Z   fetch-tags: false
+2026-11-16T22:11:19.4329294Z   show-progress: true
+2026-11-16T22:11:19.4330032Z   lfs: false
+2026-11-16T22:11:19.4330720Z   submodules: false
+2026-11-16T22:11:19.4331457Z   set-safe-directory: true
+2026-11-16T22:11:19.4332288Z   allow-unsafe-pr-checkout: false
+2026-11-16T22:11:19.4333312Z env:
+2026-11-16T22:11:19.4334214Z   LOGOS_EXPECTED_HEAD: f4242fed9cf0707a4103a0adbdb82e866bcabd69
+2026-11-16T22:11:19.4336603Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T22:11:19.4338724Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T22:11:19.4339995Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T22:11:19.4341351Z ##[endgroup]
+2026-11-16T22:11:19.8862456Z Syncing repository: gosuda/LoGOs
+2026-11-16T22:11:19.8864753Z ##[group]Getting Git version info
+2026-11-16T22:11:19.8865813Z Working directory is '/home/runner/work/LoGOs/LoGOs'
+2026-11-16T22:11:19.8868073Z [command]/usr/bin/git version
+2026-11-16T22:11:20.0992715Z git version 2.56.1
+2026-11-16T22:11:20.1010460Z ##[endgroup]
+2026-11-16T22:11:20.1020495Z Temporarily overriding HOME='/home/runner/work/_temp/f6a5e810-6191-4557-86bb-f6ba0c3e2cf9' before making global git config changes
+2026-11-16T22:11:20.1023391Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-16T22:11:20.1025509Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/LoGOs/LoGOs
+2026-11-16T22:11:20.1233129Z Deleting the contents of '/home/runner/work/LoGOs/LoGOs'
+2026-11-16T22:11:20.1236043Z ##[group]Determining repository object format
+2026-11-16T22:11:20.1237953Z ##[endgroup]
+2026-11-16T22:11:20.1239264Z ##[group]Initializing the repository
+2026-11-16T22:11:20.1240914Z [command]/usr/bin/git init /home/runner/work/LoGOs/LoGOs
+2026-11-16T22:11:20.1716235Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-16T22:11:20.1718527Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-16T22:11:20.1720577Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-16T22:11:20.1721795Z hint: call:
+2026-11-16T22:11:20.1722474Z hint:
+2026-11-16T22:11:20.1723307Z hint: 	git config --global init.defaultBranch <name>
+2026-11-16T22:11:20.1724319Z hint:
+2026-11-16T22:11:20.1725272Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-16T22:11:20.1727188Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-16T22:11:20.1728503Z hint:
+2026-11-16T22:11:20.1729203Z hint: 	git branch -m <name>
+2026-11-16T22:11:20.1729992Z hint:
+2026-11-16T22:11:20.1731019Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-16T22:11:20.1804663Z Initialized empty Git repository in /home/runner/work/LoGOs/LoGOs/.git/
+2026-11-16T22:11:20.1814861Z [command]/usr/bin/git remote add origin https://github.com/gosuda/LoGOs
+2026-11-16T22:11:20.2038721Z ##[endgroup]
+2026-11-16T22:11:20.2040764Z ##[group]Disabling automatic garbage collection
+2026-11-16T22:11:20.2042471Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-16T22:11:20.2151641Z ##[endgroup]
+2026-11-16T22:11:20.2153523Z ##[group]Setting up auth
+2026-11-16T22:11:20.2155196Z Removing SSH command configuration
+2026-11-16T22:11:20.2157386Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-16T22:11:20.2196702Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-16T22:11:20.5479426Z Removing HTTP extra header
+2026-11-16T22:11:20.5484397Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-16T22:11:20.5530182Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-16T22:11:20.5731361Z Removing includeIf entries pointing to credentials config files
+2026-11-16T22:11:20.5736062Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-16T22:11:20.5775059Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-16T22:11:20.5981778Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-f163f55b-f9f7-4739-99bf-e249cc66895e.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-16T22:11:20.6023276Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/LoGOs/LoGOs/.git.path /home/runner/work/_temp/git-credentials-f163f55b-f9f7-4739-99bf-e249cc66895e.config
+2026-11-16T22:11:20.6059733Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/LoGOs/LoGOs/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-f163f55b-f9f7-4739-99bf-e249cc66895e.config
+2026-11-16T22:11:20.6095883Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-f163f55b-f9f7-4739-99bf-e249cc66895e.config
+2026-11-16T22:11:20.6133207Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-f163f55b-f9f7-4739-99bf-e249cc66895e.config
+2026-11-16T22:11:20.6168652Z ##[endgroup]
+2026-11-16T22:11:20.6169979Z ##[group]Fetching the repository
+2026-11-16T22:11:20.6172934Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin f4242fed9cf0707a4103a0adbdb82e866bcabd69
+2026-11-16T22:11:25.7808874Z From https://github.com/gosuda/LoGOs
+2026-11-16T22:11:25.7809610Z  * branch              f4242fed9cf0707a4103a0adbdb82e866bcabd69 -> FETCH_HEAD
+2026-11-16T22:11:25.7817816Z [command]/usr/bin/git rev-parse --verify --quiet f4242fed9cf0707a4103a0adbdb82e866bcabd69^{object}
+2026-11-16T22:11:25.7852974Z f4242fed9cf0707a4103a0adbdb82e866bcabd69
+2026-11-16T22:11:25.7857070Z ##[endgroup]
+2026-11-16T22:11:25.7857626Z ##[group]Determining the checkout info
+2026-11-16T22:11:25.7858378Z ##[endgroup]
+2026-11-16T22:11:25.7863431Z [command]/usr/bin/git sparse-checkout disable
+2026-11-16T22:11:25.8025226Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-16T22:11:25.8067034Z ##[group]Checking out the ref
+2026-11-16T22:11:25.8071445Z [command]/usr/bin/git checkout --progress --force f4242fed9cf0707a4103a0adbdb82e866bcabd69
+2026-11-16T22:11:26.8060025Z Note: switching to 'f4242fed9cf0707a4103a0adbdb82e866bcabd69'.
+2026-11-16T22:11:26.8060420Z 
+2026-11-16T22:11:26.8060695Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-11-16T22:11:26.8061255Z changes and commit them, and you can discard any commits you make in this
+2026-11-16T22:11:26.8061665Z state without impacting any branches by switching back to a branch.
+2026-11-16T22:11:26.8061954Z 
+2026-11-16T22:11:26.8062109Z If you want to create a new branch to retain commits you create, you may
+2026-11-16T22:11:26.8062496Z do so (now or later) by using -c with the switch command. Example:
+2026-11-16T22:11:26.8062710Z 
+2026-11-16T22:11:26.8062809Z   git switch -c <new-branch-name>
+2026-11-16T22:11:26.8063303Z 
+2026-11-16T22:11:26.8063418Z Or undo this operation with:
+2026-11-16T22:11:26.8063559Z 
+2026-11-16T22:11:26.8063636Z   git switch -
+2026-11-16T22:11:26.8063744Z 
+2026-11-16T22:11:26.8063910Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-11-16T22:11:26.8064148Z 
+2026-11-16T22:11:26.8064334Z HEAD is now at f4242fed Separate the complete compiler fixture suite in upstream CI
+2026-11-16T22:11:26.8131406Z ##[endgroup]
+2026-11-16T22:11:26.8265785Z [command]/usr/bin/git log -1 --format=%H
+2026-11-16T22:11:26.8299924Z f4242fed9cf0707a4103a0adbdb82e866bcabd69
+2026-11-16T22:11:26.8308284Z ##[group]Removing auth
+2026-11-16T22:11:26.8308629Z Removing SSH command configuration
+2026-11-16T22:11:26.8312031Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-16T22:11:26.8350308Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-16T22:11:26.8578327Z Removing HTTP extra header
+2026-11-16T22:11:26.8581364Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-16T22:11:26.8619945Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-16T22:11:26.8845597Z Removing includeIf entries pointing to credentials config files
+2026-11-16T22:11:26.8849067Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-16T22:11:26.8885608Z includeif.gitdir:/home/runner/work/LoGOs/LoGOs/.git.path
+2026-11-16T22:11:26.8886406Z includeif.gitdir:/home/runner/work/LoGOs/LoGOs/.git/worktrees/*.path
+2026-11-16T22:11:26.8887056Z includeif.gitdir:/github/workspace/.git.path
+2026-11-16T22:11:26.8887647Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-16T22:11:26.8896445Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/LoGOs/LoGOs/.git.path
+2026-11-16T22:11:26.8931806Z /home/runner/work/_temp/git-credentials-f163f55b-f9f7-4739-99bf-e249cc66895e.config
+2026-11-16T22:11:26.8946682Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/LoGOs/LoGOs/.git.path \/home\/runner\/work\/_temp\/git\-credentials\-f163f55b\-f9f7\-4739\-99bf\-e249cc66895e\.config
+2026-11-16T22:11:26.8989000Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/LoGOs/LoGOs/.git/worktrees/*.path
+2026-11-16T22:11:26.9019353Z /home/runner/work/_temp/git-credentials-f163f55b-f9f7-4739-99bf-e249cc66895e.config
+2026-11-16T22:11:26.9026574Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/LoGOs/LoGOs/.git/worktrees/*.path \/home\/runner\/work\/_temp\/git\-credentials\-f163f55b\-f9f7\-4739\-99bf\-e249cc66895e\.config
+2026-11-16T22:11:26.9068793Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+2026-11-16T22:11:26.9100479Z /github/runner_temp/git-credentials-f163f55b-f9f7-4739-99bf-e249cc66895e.config
+2026-11-16T22:11:26.9105418Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path \/github\/runner_temp\/git\-credentials\-f163f55b\-f9f7\-4739\-99bf\-e249cc66895e\.config
+2026-11-16T22:11:26.9145682Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-16T22:11:26.9176559Z /github/runner_temp/git-credentials-f163f55b-f9f7-4739-99bf-e249cc66895e.config
+2026-11-16T22:11:26.9182714Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path \/github\/runner_temp\/git\-credentials\-f163f55b\-f9f7\-4739\-99bf\-e249cc66895e\.config
+2026-11-16T22:11:26.9223391Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-16T22:11:26.9451928Z Removing credentials config '/home/runner/work/_temp/git-credentials-f163f55b-f9f7-4739-99bf-e249cc66895e.config'
+2026-11-16T22:11:26.9460844Z ##[endgroup]
+2026-11-16T22:11:26.9647553Z ##[group]Run test "$(git rev-parse HEAD)" = "$LOGOS_EXPECTED_HEAD"
+2026-11-16T22:11:26.9648021Z [36;1mtest "$(git rev-parse HEAD)" = "$LOGOS_EXPECTED_HEAD"[0m
+2026-11-16T22:11:26.9648352Z [36;1mgit rev-parse HEAD 'HEAD^{tree}' HEAD:src[0m
+2026-11-16T22:11:26.9670372Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T22:11:26.9670659Z env:
+2026-11-16T22:11:26.9670888Z   LOGOS_EXPECTED_HEAD: f4242fed9cf0707a4103a0adbdb82e866bcabd69
+2026-11-16T22:11:26.9671496Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T22:11:26.9672053Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T22:11:26.9672388Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T22:11:26.9672734Z ##[endgroup]
+2026-11-16T22:11:26.9755227Z f4242fed9cf0707a4103a0adbdb82e866bcabd69
+2026-11-16T22:11:26.9755781Z 42454f406f1032e1b5c9265b97e4b430eb8c4a36
+2026-11-16T22:11:26.9756263Z ee5ae95824022485b74d4e3186a1540ef7124f76
+2026-11-16T22:11:26.9841773Z ##[group]Run archive="$RUNNER_TEMP/actionlint.tar.gz"
+2026-11-16T22:11:26.9842123Z [36;1marchive="$RUNNER_TEMP/actionlint.tar.gz"[0m
+2026-11-16T22:11:26.9842866Z [36;1mcurl --fail --silent --show-error --location --output "$archive" "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"[0m
+2026-11-16T22:11:26.9843613Z [36;1mprintf '%s  %s\n' "$ACTIONLINT_SHA256" "$archive" | sha256sum --check --strict -[0m
+2026-11-16T22:11:26.9844141Z [36;1mtar -xzf "$archive" -C "$RUNNER_TEMP" actionlint[0m
+2026-11-16T22:11:26.9844403Z [36;1mshellcheck --version[0m
+2026-11-16T22:11:26.9844620Z [36;1m"$RUNNER_TEMP/actionlint" -color[0m
+2026-11-16T22:11:26.9862852Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T22:11:26.9863128Z env:
+2026-11-16T22:11:26.9863357Z   LOGOS_EXPECTED_HEAD: f4242fed9cf0707a4103a0adbdb82e866bcabd69
+2026-11-16T22:11:26.9864009Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T22:11:26.9864542Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T22:11:26.9864878Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T22:11:26.9865217Z   ACTIONLINT_VERSION: 1.7.12
+2026-11-16T22:11:26.9865529Z   ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+2026-11-16T22:11:26.9865859Z ##[endgroup]
+2026-11-16T22:11:27.1945999Z /home/runner/work/_temp/actionlint.tar.gz: OK
+2026-11-16T22:11:27.5317914Z ShellCheck - shell script analysis tool
+2026-11-16T22:11:27.5318195Z version: 0.9.0
+2026-11-16T22:11:27.5318401Z license: GNU General Public License, version 3
+2026-11-16T22:11:27.5318694Z website: https://www.shellcheck.net
+2026-11-16T22:11:27.9019772Z ##[group]Run actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+2026-11-16T22:11:27.9020093Z with:
+2026-11-16T22:11:27.9020262Z   go-version: 1.27.4
+2026-11-16T22:11:27.9020443Z   cache: false
+2026-11-16T22:11:27.9020609Z   check-latest: false
+2026-11-16T22:11:27.9022385Z   token: ***
+2026-11-16T22:11:27.9022551Z env:
+2026-11-16T22:11:27.9022770Z   LOGOS_EXPECTED_HEAD: f4242fed9cf0707a4103a0adbdb82e866bcabd69
+2026-11-16T22:11:27.9023367Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T22:11:27.9023939Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T22:11:27.9024276Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T22:11:27.9024614Z ##[endgroup]
+2026-11-16T22:11:28.0080078Z Setup go version spec 1.27.4
+2026-11-16T22:11:28.0086433Z Attempting to download 1.27.4...
+2026-11-16T22:11:28.9507819Z matching 1.27.4...
+2026-11-16T22:11:28.9524258Z Acquiring 1.27.4 from https://github.com/actions/go-versions/releases/download/1.27.4-42945153609/go-1.27.4-linux-x64.tar.gz
+2026-11-16T22:11:29.5653799Z Extracting Go...
+2026-11-16T22:11:29.5891501Z [command]/usr/bin/tar xz --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/b93bf18d-e930-4c27-85b8-bdb74e862828 -f /home/runner/work/_temp/8a18558a-2d64-4a9c-a461-5a079ad39058
+2026-11-16T22:11:31.0693640Z Successfully extracted go to /home/runner/work/_temp/b93bf18d-e930-4c27-85b8-bdb74e862828
+2026-11-16T22:11:31.0694195Z Adding to the cache ...
+2026-11-16T22:11:35.8663823Z Successfully cached go to /opt/hostedtoolcache/go/1.27.4/x64
+2026-11-16T22:11:35.8665212Z Added go to the path
+2026-11-16T22:11:35.8667338Z Successfully set up Go version 1.27.4
+2026-11-16T22:11:35.8910551Z go version go1.27.4 linux/amd64
+2026-11-16T22:11:35.8910780Z 
+2026-11-16T22:11:35.8911036Z ##[group]go env
+2026-11-16T22:11:36.6517561Z AR='ar'
+2026-11-16T22:11:36.6517882Z CC='gcc'
+2026-11-16T22:11:36.6518244Z CGO_CFLAGS='-O2 -g'
+2026-11-16T22:11:36.6518498Z CGO_CPPFLAGS=''
+2026-11-16T22:11:36.6518737Z CGO_CXXFLAGS='-O2 -g'
+2026-11-16T22:11:36.6518984Z CGO_ENABLED='1'
+2026-11-16T22:11:36.6519215Z CGO_FFLAGS='-O2 -g'
+2026-11-16T22:11:36.6519445Z CGO_LDFLAGS='-O2 -g'
+2026-11-16T22:11:36.6519679Z CXX='g++'
+2026-11-16T22:11:36.6519903Z GCCGO='gccgo'
+2026-11-16T22:11:36.6520129Z GO111MODULE=''
+2026-11-16T22:11:36.6520364Z GOAMD64='v1'
+2026-11-16T22:11:36.6520616Z GOARCH='amd64'
+2026-11-16T22:11:36.6520839Z GOAUTH='netrc'
+2026-11-16T22:11:36.6521080Z GOBIN='/home/runner/go/bin'
+2026-11-16T22:11:36.6521753Z GOCACHE='/home/runner/.cache/go-build'
+2026-11-16T22:11:36.6522125Z GOCACHEPROG=''
+2026-11-16T22:11:36.6522377Z GODEBUG=''
+2026-11-16T22:11:36.6522725Z GOENV='/home/runner/.config/go/env'
+2026-11-16T22:11:36.6523046Z GOEXE=''
+2026-11-16T22:11:36.6523293Z GOEXPERIMENT=''
+2026-11-16T22:11:36.6523562Z GOFIPS140='off'
+2026-11-16T22:11:36.6523811Z GOFLAGS=''
+2026-11-16T22:11:36.6524591Z GOGCCFLAGS='-fPIC -m64 -pthread -Wl,--no-gc-sections -fmessage-length=0 -ffile-prefix-map=/tmp/go-build588433476=/tmp/go-build -gno-record-gcc-switches'
+2026-11-16T22:11:36.6525355Z GOHOSTARCH='amd64'
+2026-11-16T22:11:36.6525597Z GOHOSTOS='linux'
+2026-11-16T22:11:36.6525827Z GOINSECURE=''
+2026-11-16T22:11:36.6526047Z GOMOD='/dev/null'
+2026-11-16T22:11:36.6526489Z GOMODCACHE='/home/runner/go/pkg/mod'
+2026-11-16T22:11:36.6526789Z GONOPROXY=''
+2026-11-16T22:11:36.6527007Z GONOSUMDB=''
+2026-11-16T22:11:36.6527215Z GOOS='linux'
+2026-11-16T22:11:36.6527445Z GOPACKAGESDRIVER=''
+2026-11-16T22:11:36.6527689Z GOPATH='/home/runner/go'
+2026-11-16T22:11:36.6527929Z GOPRIVATE=''
+2026-11-16T22:11:36.6528209Z GOPROXY='https://proxy.golang.org,direct'
+2026-11-16T22:11:36.6528573Z GOROOT='/opt/hostedtoolcache/go/1.27.4/x64'
+2026-11-16T22:11:36.6528888Z GOSUMDB='sum.golang.org'
+2026-11-16T22:11:36.6529132Z GOTELEMETRY='local'
+2026-11-16T22:11:36.6529415Z GOTELEMETRYDIR='/home/runner/.config/go/telemetry'
+2026-11-16T22:11:36.6530084Z GOTMPDIR=''
+2026-11-16T22:11:36.6530291Z GOTOOLCHAIN='local'
+2026-11-16T22:11:36.6530623Z GOTOOLDIR='/opt/hostedtoolcache/go/1.27.4/x64/pkg/tool/linux_amd64'
+2026-11-16T22:11:36.6530997Z GOVCS=''
+2026-11-16T22:11:36.6531201Z GOVERSION='go1.27.4'
+2026-11-16T22:11:36.6531425Z GOWORK=''
+2026-11-16T22:11:36.6531636Z PKG_CONFIG='pkg-config'
+2026-11-16T22:11:36.6531794Z 
+2026-11-16T22:11:36.6532169Z ##[endgroup]
+2026-11-16T22:11:36.6735768Z ##[group]Run archive="$RUNNER_TEMP/logos-regression-uv.tar.gz"
+2026-11-16T22:11:36.6736330Z [36;1marchive="$RUNNER_TEMP/logos-regression-uv.tar.gz"[0m
+2026-11-16T22:11:36.6736642Z [36;1mrunner="$RUNNER_TEMP/logos-regression-uv"[0m
+2026-11-16T22:11:36.6736937Z [36;1mevidence="$RUNNER_TEMP/logos-regression-evidence"[0m
+2026-11-16T22:11:36.6737200Z [36;1mmkdir -p "$runner" "$evidence"[0m
+2026-11-16T22:11:36.6737754Z [36;1mcurl --fail --silent --show-error --location --output "$archive" https://github.com/astral-sh/uv/releases/download/0.13.8/uv-x86_64-unknown-linux-gnu.tar.gz[0m
+2026-11-16T22:11:36.6738598Z [36;1mprintf '%s  %s\n' 5acfd9177cfecf0bf87578f059728215ccc884388988f55f7a65041b57387d91 "$archive" | sha256sum --check --strict - | tee "$evidence/uv-archive.txt"[0m
+2026-11-16T22:11:36.6739186Z [36;1mtar -xzf "$archive" -C "$runner" --strip-components=1[0m
+2026-11-16T22:11:36.6739484Z [36;1mprintf '%s\n' "$runner" >> "$GITHUB_PATH"[0m
+2026-11-16T22:11:36.6739901Z [36;1mprintf 'PYTHONDONTWRITEBYTECODE=1\nPYTEST_DISABLE_PLUGIN_AUTOLOAD=1\n' >> "$GITHUB_ENV"[0m
+2026-11-16T22:11:36.6760066Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T22:11:36.6760350Z env:
+2026-11-16T22:11:36.6760579Z   LOGOS_EXPECTED_HEAD: f4242fed9cf0707a4103a0adbdb82e866bcabd69
+2026-11-16T22:11:36.6761189Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T22:11:36.6761741Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T22:11:36.6762074Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T22:11:36.6762414Z   GOTOOLCHAIN: local
+2026-11-16T22:11:36.6762615Z ##[endgroup]
+2026-11-16T22:11:36.9725261Z /home/runner/work/_temp/logos-regression-uv.tar.gz: OK
+2026-11-16T22:11:37.2313945Z ##[group]Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+2026-11-16T22:11:37.2314443Z with:
+2026-11-16T22:11:37.2314699Z   node-version: 26.13.1
+2026-11-16T22:11:37.2314999Z   check-latest: false
+2026-11-16T22:11:37.2318298Z   token: ***
+2026-11-16T22:11:37.2318596Z   package-manager-cache: true
+2026-11-16T22:11:37.2319157Z env:
+2026-11-16T22:11:37.2319494Z   LOGOS_EXPECTED_HEAD: f4242fed9cf0707a4103a0adbdb82e866bcabd69
+2026-11-16T22:11:37.2320468Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T22:11:37.2321352Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T22:11:37.2321868Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T22:11:37.2322400Z   GOTOOLCHAIN: local
+2026-11-16T22:11:37.2322697Z   PYTHONDONTWRITEBYTECODE: 1
+2026-11-16T22:11:37.2323087Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T22:11:37.2323415Z ##[endgroup]
+2026-11-16T22:11:37.3457260Z Attempting to download 26.13.1...
+2026-11-16T22:11:38.3346405Z Acquiring 26.13.1 - x64 from https://github.com/actions/node-versions/releases/download/26.13.1-43134154182/node-26.13.1-linux-x64.tar.gz
+2026-11-16T22:11:38.8394562Z Extracting ...
+2026-11-16T22:11:38.8504201Z [command]/usr/bin/tar xz --strip 1 --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/468d96ab-5658-4e4e-9785-3e0249e2f992 -f /home/runner/work/_temp/1c2468ba-b2e0-49d6-9495-262de85f24ee
+2026-11-16T22:11:40.0089622Z Adding to the cache ...
+2026-11-16T22:11:44.1080008Z ##[group]Environment details
+2026-11-16T22:11:44.4131202Z node: v26.13.1
+2026-11-16T22:11:44.4131458Z npm: 11.20.0
+2026-11-16T22:11:44.4131633Z yarn: 1.22.22
+2026-11-16T22:11:44.4132052Z ##[endgroup]
+2026-11-16T22:11:44.4287798Z ##[group]Run helper=logos-doc/validation/tagged-package-facts
+2026-11-16T22:11:44.4288360Z [36;1mhelper=logos-doc/validation/tagged-package-facts[0m
+2026-11-16T22:11:44.4288660Z [36;1mmethod=logos-doc/validation/tagged-method-facts[0m
+2026-11-16T22:11:44.4288984Z [36;1mcapability=logos-doc/validation/capability-inline-context[0m
+2026-11-16T22:11:44.4289296Z [36;1mhost=logos-doc/validation/upstream-host[0m
+2026-11-16T22:11:44.4289578Z [36;1moffset=logos-doc/validation/field-offset-lint[0m
+2026-11-16T22:11:44.4289904Z [36;1msimd_imports=logos-doc/validation/simd-transitive-imports[0m
+2026-11-16T22:11:44.4290230Z [36;1mzero=logos-doc/validation/zero-array-reference-free[0m
+2026-11-16T22:11:44.4290508Z [36;1mfor suite in "$helper" "$method"; do[0m
+2026-11-16T22:11:44.4291089Z [36;1m  uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" python -m pytest -q "$suite/test_check_ci.py"[0m
+2026-11-16T22:11:44.4291996Z [36;1m  uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" pyright "$suite/check_ci.py" "$suite/test_check_ci.py"[0m
+2026-11-16T22:11:44.4292558Z [36;1mdone[0m
+2026-11-16T22:11:44.4293075Z [36;1muv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" python -m pytest -q "$capability/test_check_ci.py"[0m
+2026-11-16T22:11:44.4293923Z [36;1muv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" pyright "$capability/test_check_ci.py"[0m
+2026-11-16T22:11:44.4294757Z [36;1muv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" python -m pytest -q "$host"[0m
+2026-11-16T22:11:44.4295486Z [36;1muv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" pyright "$host"/*.py[0m
+2026-11-16T22:11:44.4296637Z [36;1muv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" python -m pytest -q "$offset/test_field_offset_ci.py" logos-doc/validation/test_native_frozen_gate.py[0m
+2026-11-16T22:11:44.4297609Z [36;1muv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" pyright --project "$offset/pyrightconfig.json"[0m
+2026-11-16T22:11:44.4298482Z [36;1muv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" python -m pytest -q "$simd_imports/test_simd_imports_ci.py"[0m
+2026-11-16T22:11:44.4299543Z [36;1muv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" pyright --project "$simd_imports/pyrightconfig.json"[0m
+2026-11-16T22:11:44.4300405Z [36;1muv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" python -m pytest -q "$zero/test_zero_array_ci.py"[0m
+2026-11-16T22:11:44.4301242Z [36;1muv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" pyright --project "$zero/pyrightconfig.json"[0m
+2026-11-16T22:11:44.4302045Z [36;1muv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" ruff check "$simd_imports"/*.py[0m
+2026-11-16T22:11:44.4302868Z [36;1muv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" ruff format --check "$simd_imports"/*.py[0m
+2026-11-16T22:11:44.4303954Z [36;1muv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" ruff check "$helper/check_ci.py" "$helper/test_check_ci.py" "$method/check_ci.py" "$method/test_check_ci.py" "$capability/test_check_ci.py" "$host"/*.py "$zero"/*.py[0m
+2026-11-16T22:11:44.4305455Z [36;1muv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" ruff format --check "$helper/check_ci.py" "$helper/test_check_ci.py" "$method/check_ci.py" "$method/test_check_ci.py" "$capability/test_check_ci.py" "$host"/*.py "$zero"/*.py[0m
+2026-11-16T22:11:44.4307023Z [36;1muv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" ruff check "$offset"/*.py logos-doc/validation/native_frozen_gate.py logos-doc/validation/test_native_frozen_gate.py[0m
+2026-11-16T22:11:44.4308212Z [36;1muv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" ruff format --check "$offset"/*.py logos-doc/validation/native_frozen_gate.py logos-doc/validation/test_native_frozen_gate.py[0m
+2026-11-16T22:11:44.4309138Z [36;1mshellcheck "$capability/check_ci.sh" .github/scripts/logos-test-env.sh .github/scripts/logos-upstream-identity.sh[0m
+2026-11-16T22:11:44.4327413Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T22:11:44.4327680Z env:
+2026-11-16T22:11:44.4327907Z   LOGOS_EXPECTED_HEAD: f4242fed9cf0707a4103a0adbdb82e866bcabd69
+2026-11-16T22:11:44.4328519Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T22:11:44.4329075Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T22:11:44.4329412Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T22:11:44.4329748Z   GOTOOLCHAIN: local
+2026-11-16T22:11:44.4329941Z   PYTHONDONTWRITEBYTECODE: 1
+2026-11-16T22:11:44.4330162Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T22:11:44.4330371Z ##[endgroup]
+2026-11-16T22:11:44.6391340Z Downloading pygments (1.2MiB)
+2026-11-16T22:11:44.6392193Z Downloading ruff (10.1MiB)
+2026-11-16T22:11:44.6397455Z Downloading hypothesis (1.1MiB)
+2026-11-16T22:11:44.6398153Z Downloading pyright (5.9MiB)
+2026-11-16T22:11:44.6683999Z  Downloaded hypothesis
+2026-11-16T22:11:44.6887963Z  Downloaded pygments
+2026-11-16T22:11:44.7081277Z  Downloaded ruff
+2026-11-16T22:11:44.8555193Z  Downloaded pyright
+2026-11-16T22:11:44.9452828Z Installed 11 packages in 89ms
+2026-11-16T22:11:47.0801131Z ....................................................                     [100%]
+2026-11-16T22:11:47.0801602Z 52 passed in 0.76s
+2026-11-16T22:11:51.1589343Z 0 errors, 0 warnings, 0 informations
+2026-11-16T22:11:52.1404593Z ........................................................................ [ 79%]
+2026-11-16T22:11:52.3636625Z ...................                                                      [100%]
+2026-11-16T22:11:52.3637019Z 91 passed in 0.82s
+2026-11-16T22:11:54.0567845Z 0 errors, 0 warnings, 0 informations
+2026-11-16T22:11:54.5136708Z .........................                                                [100%]
+2026-11-16T22:11:54.5137246Z 25 passed in 0.07s
+2026-11-16T22:11:55.5820307Z 0 errors, 0 warnings, 0 informations
+2026-11-16T22:11:56.2879914Z ........................................................................ [ 34%]
+2026-11-16T22:11:57.5660152Z ........................................................................ [ 69%]
+2026-11-16T22:11:58.4611839Z ...............................................................          [100%]
+2026-11-16T22:11:58.4612222Z 207 passed in 2.50s
+2026-11-16T22:12:00.2340600Z 0 errors, 0 warnings, 0 informations
+2026-11-16T22:12:00.6567382Z ........                                                                 [100%]
+2026-11-16T22:12:00.6567742Z 8 passed in 0.05s
+2026-11-16T22:12:01.7152577Z 0 errors, 0 warnings, 0 informations
+2026-11-16T22:12:02.1173941Z ..                                                                       [100%]
+2026-11-16T22:12:02.1174445Z 2 passed in 0.02s
+2026-11-16T22:12:03.0263916Z 0 errors, 0 warnings, 0 informations
+2026-11-16T22:12:03.6407149Z ..........................                                               [100%]
+2026-11-16T22:12:03.6407659Z 26 passed in 0.23s
+2026-11-16T22:12:04.7228740Z 0 errors, 0 warnings, 0 informations
+2026-11-16T22:12:04.9441244Z All checks passed!
+2026-11-16T22:12:05.0697439Z 2 files already formatted
+2026-11-16T22:12:05.0997098Z All checks passed!
+2026-11-16T22:12:05.1347145Z 14 files already formatted
+2026-11-16T22:12:05.1622661Z All checks passed!
+2026-11-16T22:12:05.1893282Z 4 files already formatted
+2026-11-16T22:12:05.3114336Z ##[group]Run GOROOT_BOOTSTRAP=$(go env GOROOT)
+2026-11-16T22:12:05.3114658Z [36;1mGOROOT_BOOTSTRAP=$(go env GOROOT)[0m
+2026-11-16T22:12:05.3114884Z [36;1mexport GOROOT_BOOTSTRAP[0m
+2026-11-16T22:12:05.3115086Z [36;1m./make.bash[0m
+2026-11-16T22:12:05.3115389Z [36;1mprintf '%s\n' "$GITHUB_WORKSPACE/lib/wasm" "$GITHUB_WORKSPACE/bin" >> "$GITHUB_PATH"[0m
+2026-11-16T22:12:05.3133627Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T22:12:05.3133891Z env:
+2026-11-16T22:12:05.3134120Z   LOGOS_EXPECTED_HEAD: f4242fed9cf0707a4103a0adbdb82e866bcabd69
+2026-11-16T22:12:05.3134714Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T22:12:05.3135244Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T22:12:05.3135573Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T22:12:05.3135947Z   GOTOOLCHAIN: local
+2026-11-16T22:12:05.3136289Z   PYTHONDONTWRITEBYTECODE: 1
+2026-11-16T22:12:05.3136523Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T22:12:05.3136732Z ##[endgroup]
+2026-11-16T22:12:05.3317464Z Building Go cmd/dist using /opt/hostedtoolcache/go/1.27.4/x64. (go1.27.4 linux/amd64)
+2026-11-16T22:12:10.7345373Z Building Go toolchain1 using /opt/hostedtoolcache/go/1.27.4/x64.
+2026-11-16T22:12:42.6353972Z Building Go bootstrap cmd/go (go_bootstrap) using Go toolchain1.
+2026-11-16T22:12:56.9711669Z Building Go toolchain2 using go_bootstrap and Go toolchain1.
+2026-11-16T22:13:30.3934793Z Building Go toolchain3 using go_bootstrap and Go toolchain2.
+2026-11-16T22:14:12.1649793Z Building packages and commands for linux/amd64.
+2026-11-16T22:15:27.5978150Z ---
+2026-11-16T22:15:27.5978893Z Installed Go for linux/amd64 in /home/runner/work/LoGOs/LoGOs
+2026-11-16T22:15:27.5979787Z Installed commands in /home/runner/work/LoGOs/LoGOs/bin
+2026-11-16T22:15:29.3730912Z *** You need to add /home/runner/work/LoGOs/LoGOs/bin to your PATH.
+2026-11-16T22:15:29.3763470Z ##[group]Run logos version | grep -F "logos version $(head -n 1 ../VERSION)"
+2026-11-16T22:15:29.3764153Z [36;1mlogos version | grep -F "logos version $(head -n 1 ../VERSION)"[0m
+2026-11-16T22:15:29.3764721Z [36;1mlogos help 2>&1 | grep -F 'logos <command> [arguments]'[0m
+2026-11-16T22:15:29.3783397Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T22:15:29.3783796Z env:
+2026-11-16T22:15:29.3784127Z   LOGOS_EXPECTED_HEAD: f4242fed9cf0707a4103a0adbdb82e866bcabd69
+2026-11-16T22:15:29.3784755Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T22:15:29.3785289Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T22:15:29.3785611Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T22:15:29.3785947Z   GOTOOLCHAIN: local
+2026-11-16T22:15:29.3786270Z   PYTHONDONTWRITEBYTECODE: 1
+2026-11-16T22:15:29.3786514Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T22:15:29.3786736Z ##[endgroup]
+2026-11-16T22:15:29.3855044Z logos version go1.27.4 linux/amd64
+2026-11-16T22:15:29.3887105Z 	logos <command> [arguments]
+2026-11-16T22:15:29.3926488Z ##[group]Run read -r -a packages <<< "$LOGOS_PACKAGES"
+2026-11-16T22:15:29.3926839Z [36;1mread -r -a packages <<< "$LOGOS_PACKAGES"[0m
+2026-11-16T22:15:29.3927197Z [36;1m../.github/scripts/logos-test-env.sh go test -count=1 -short "${packages[@]}"[0m
+2026-11-16T22:15:29.3927701Z [36;1m../.github/scripts/logos-test-env.sh go test -count=1 -race logos/... cmd/go/internal/logos/lsp/...[0m
+2026-11-16T22:15:29.3928158Z [36;1m../.github/scripts/logos-test-env.sh go test -count=1 -short runtime/metrics[0m
+2026-11-16T22:15:29.3928720Z [36;1mGOEXPERIMENT=logosarena ../.github/scripts/logos-test-env.sh go test -count=1 -short -race runtime -run '^TestLogos(Arena|Region|GCScan)'[0m
+2026-11-16T22:15:29.3929432Z [36;1mGOEXPERIMENT=logosarena,nogreenteagc ../.github/scripts/logos-test-env.sh go test -count=1 -short runtime -run '^TestLogos(Arena|Region|GCScan)'[0m
+2026-11-16T22:15:29.3947139Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T22:15:29.3947445Z env:
+2026-11-16T22:15:29.3947674Z   LOGOS_EXPECTED_HEAD: f4242fed9cf0707a4103a0adbdb82e866bcabd69
+2026-11-16T22:15:29.3948274Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T22:15:29.3948812Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T22:15:29.3949135Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T22:15:29.3949472Z   GOTOOLCHAIN: local
+2026-11-16T22:15:29.3949663Z   PYTHONDONTWRITEBYTECODE: 1
+2026-11-16T22:15:29.3949875Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T22:15:29.3950084Z ##[endgroup]
+2026-11-16T22:15:37.3200622Z ok  	logos/arena	0.003s
+2026-11-16T22:15:43.3960116Z ok  	logos/rt	0.772s
+2026-11-16T22:15:59.9307211Z ok  	logos/rt/json	17.280s
+2026-11-16T22:15:59.9307913Z ok  	logos/sync	0.247s
+2026-11-16T22:15:59.9308795Z ok  	cmd/go/internal/logos	0.017s
+2026-11-16T22:15:59.9309567Z ok  	cmd/go/internal/logos/capabilities	0.010s
+2026-11-16T22:15:59.9310233Z ok  	cmd/go/internal/logos/config	0.036s
+2026-11-16T22:15:59.9310901Z ?   	cmd/go/internal/logos/contextcmd	[no test files]
+2026-11-16T22:15:59.9311539Z ok  	cmd/go/internal/logos/eject	1.115s
+2026-11-16T22:16:06.6464427Z ok  	cmd/go/internal/logos/hints	9.419s
+2026-11-16T22:16:06.6465261Z ?   	cmd/go/internal/logos/lintcmd	[no test files]
+2026-11-16T22:16:36.9969430Z ok  	cmd/go/internal/logos/lsp	38.974s
+2026-11-16T22:16:36.9969977Z ok  	cmd/go/internal/logos/next	0.034s
+2026-11-16T22:16:36.9970414Z ok  	cmd/go/internal/logos/settings	0.025s
+2026-11-16T22:18:04.2981374Z ok  	cmd/compile/internal/logos	105.737s
+2026-11-16T22:18:04.2985709Z ok  	cmd/compile/internal/logos/ctfe	13.692s
+2026-11-16T22:18:04.2996233Z ok  	cmd/compile/internal/logos/facts	0.016s
+2026-11-16T22:18:04.2997303Z ok  	cmd/compile/internal/logos/lint	14.125s
+2026-11-16T22:18:04.2997996Z ok  	cmd/compile/internal/logos/wasmyield	0.005s
+2026-11-16T22:18:04.2999628Z ok  	cmd/internal/logos/editmap	0.006s
+2026-11-16T22:18:04.3000467Z ok  	cmd/internal/logosowned	0.004s
+2026-11-16T22:18:04.3001451Z ok  	internal/logosfile	3.195s
+2026-11-16T22:18:04.3001995Z ok  	cmd/cgo/internal/testlogos	69.961s
+2026-11-16T22:18:16.0947525Z ok  	logos/arena	1.028s
+2026-11-16T22:18:25.4060234Z ok  	logos/rt	5.368s
+2026-11-16T22:18:56.3507674Z ok  	logos/rt/json	36.312s
+2026-11-16T22:18:56.3509080Z ok  	logos/sync	3.368s
+2026-11-16T22:19:55.4672290Z ok  	cmd/go/internal/logos/lsp	95.429s
+2026-11-16T22:19:55.8425164Z ok  	runtime/metrics	0.003s
+2026-11-16T22:20:18.4482918Z ok  	runtime	2.188s
+2026-11-16T22:20:34.6151251Z ok  	runtime	0.795s
+2026-11-16T22:20:34.6810300Z ##[group]Run node --version
+2026-11-16T22:20:34.6810569Z [36;1mnode --version[0m
+2026-11-16T22:20:34.6811213Z [36;1muv run --no-project --no-config --python 3.12 --no-python-downloads python logos-doc/validation/upstream-host/check_wasm.py --repo "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/logos-regression-evidence/wasm"[0m
+2026-11-16T22:20:34.6830232Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T22:20:34.6830503Z env:
+2026-11-16T22:20:34.6830733Z   LOGOS_EXPECTED_HEAD: f4242fed9cf0707a4103a0adbdb82e866bcabd69
+2026-11-16T22:20:34.6831329Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T22:20:34.6831860Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T22:20:34.6848717Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T22:20:34.6849077Z   GOTOOLCHAIN: local
+2026-11-16T22:20:34.6849301Z   PYTHONDONTWRITEBYTECODE: 1
+2026-11-16T22:20:34.6849511Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T22:20:34.6849725Z ##[endgroup]
+2026-11-16T22:20:34.6925882Z v26.13.1
+2026-11-16T22:20:40.7382958Z ##[group]Run ../.github/scripts/logos-test-env.sh go test -count=1 -timeout 60m cmd/internal/testdir -run 'Test/logos/'
+2026-11-16T22:20:40.7383592Z [36;1m../.github/scripts/logos-test-env.sh go test -count=1 -timeout 60m cmd/internal/testdir -run 'Test/logos/'[0m
+2026-11-16T22:20:40.7402244Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T22:20:40.7402515Z env:
+2026-11-16T22:20:40.7402747Z   LOGOS_EXPECTED_HEAD: f4242fed9cf0707a4103a0adbdb82e866bcabd69
+2026-11-16T22:20:40.7403358Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T22:20:40.7403886Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T22:20:40.7404207Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T22:20:40.7404542Z   GOTOOLCHAIN: local
+2026-11-16T22:20:40.7404728Z   PYTHONDONTWRITEBYTECODE: 1
+2026-11-16T22:20:40.7405010Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T22:20:40.7405217Z ##[endgroup]
+2026-11-16T22:26:35.1927914Z ok  	cmd/internal/testdir	353.714s
+2026-11-16T22:26:35.2040179Z ##[group]Run unformatted=$(gofmt -l logos internal/logosfile cmd/go/internal/logos cmd/compile/internal/logos cmd/internal/logos cmd/internal/logosowned cmd/cgo/internal/testlogos)
+2026-11-16T22:26:35.2041140Z [36;1munformatted=$(gofmt -l logos internal/logosfile cmd/go/internal/logos cmd/compile/internal/logos cmd/internal/logos cmd/internal/logosowned cmd/cgo/internal/testlogos)[0m
+2026-11-16T22:26:35.2041691Z [36;1mprintf '%s\n' "$unformatted"[0m
+2026-11-16T22:26:35.2041914Z [36;1mtest -z "$unformatted"[0m
+2026-11-16T22:26:35.2060736Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T22:26:35.2061007Z env:
+2026-11-16T22:26:35.2061236Z   LOGOS_EXPECTED_HEAD: f4242fed9cf0707a4103a0adbdb82e866bcabd69
+2026-11-16T22:26:35.2061891Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T22:26:35.2062657Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T22:26:35.2063006Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T22:26:35.2063344Z   GOTOOLCHAIN: local
+2026-11-16T22:26:35.2063530Z   PYTHONDONTWRITEBYTECODE: 1
+2026-11-16T22:26:35.2063743Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T22:26:35.2063952Z ##[endgroup]
+2026-11-16T22:26:35.3851085Z 
+2026-11-16T22:26:35.3893655Z ##[group]Run read -r -a packages <<< "$LOGOS_PACKAGES"
+2026-11-16T22:26:35.3894192Z [36;1mread -r -a packages <<< "$LOGOS_PACKAGES"[0m
+2026-11-16T22:26:35.3894580Z [36;1mgo vet "${packages[@]}"[0m
+2026-11-16T22:26:35.3919671Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T22:26:35.3920105Z env:
+2026-11-16T22:26:35.3920439Z   LOGOS_EXPECTED_HEAD: f4242fed9cf0707a4103a0adbdb82e866bcabd69
+2026-11-16T22:26:35.3921431Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T22:26:35.3922340Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T22:26:35.3922860Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T22:26:35.3923403Z   GOTOOLCHAIN: local
+2026-11-16T22:26:35.3923698Z   PYTHONDONTWRITEBYTECODE: 1
+2026-11-16T22:26:35.3924035Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T22:26:35.3924405Z ##[endgroup]
+2026-11-16T22:26:40.0337753Z ##[group]Run archive="golangci-lint-${GOLANGCI_LINT_VERSION}-linux-amd64"
+2026-11-16T22:26:40.0338202Z [36;1marchive="golangci-lint-${GOLANGCI_LINT_VERSION}-linux-amd64"[0m
+2026-11-16T22:26:40.0338927Z [36;1mcurl --fail --silent --show-error --location --output "$RUNNER_TEMP/$archive.tar.gz" "https://github.com/golangci/golangci-lint/releases/download/v${GOLANGCI_LINT_VERSION}/$archive.tar.gz"[0m
+2026-11-16T22:26:40.0339691Z [36;1mprintf '%s  %s\n' "$GOLANGCI_LINT_SHA256" "$RUNNER_TEMP/$archive.tar.gz" | sha256sum --check --strict -[0m
+2026-11-16T22:26:40.0340138Z [36;1mtar -xzf "$RUNNER_TEMP/$archive.tar.gz" -C "$RUNNER_TEMP"[0m
+2026-11-16T22:26:40.0340404Z [36;1mcd cmd[0m
+2026-11-16T22:26:40.0340743Z [36;1m"$RUNNER_TEMP/$archive/golangci-lint" run --config ../../logos-doc/golangci.yml ./go/internal/logos/...[0m
+2026-11-16T22:26:40.0359571Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T22:26:40.0359847Z env:
+2026-11-16T22:26:40.0360113Z   LOGOS_EXPECTED_HEAD: f4242fed9cf0707a4103a0adbdb82e866bcabd69
+2026-11-16T22:26:40.0360724Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T22:26:40.0361262Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T22:26:40.0361585Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T22:26:40.0361939Z   GOTOOLCHAIN: local
+2026-11-16T22:26:40.0362145Z   PYTHONDONTWRITEBYTECODE: 1
+2026-11-16T22:26:40.0362364Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T22:26:40.0362576Z ##[endgroup]
+2026-11-16T22:26:40.3398860Z /home/runner/work/_temp/golangci-lint-2.15.0-linux-amd64.tar.gz: OK
+2026-11-16T22:26:48.7762322Z 0 issues.
+2026-11-16T22:26:48.8188385Z ##[group]Run uv run --no-project --no-config --python 3.12 --no-python-downloads python logos-doc/validation/tagged-package-facts/check_ci.py run --root "$GITHUB_WORKSPACE" --out "$RUNNER_TEMP/logos-regression-evidence/tagged-package" --expected-head "$(git rev-parse HEAD)"
+2026-11-16T22:26:48.8189828Z [36;1muv run --no-project --no-config --python 3.12 --no-python-downloads python logos-doc/validation/tagged-package-facts/check_ci.py run --root "$GITHUB_WORKSPACE" --out "$RUNNER_TEMP/logos-regression-evidence/tagged-package" --expected-head "$(git rev-parse HEAD)"[0m
+2026-11-16T22:26:48.8208668Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T22:26:48.8209120Z env:
+2026-11-16T22:26:48.8209342Z   LOGOS_EXPECTED_HEAD: f4242fed9cf0707a4103a0adbdb82e866bcabd69
+2026-11-16T22:26:48.8209985Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T22:26:48.8210511Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T22:26:48.8210831Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T22:26:48.8211169Z   GOTOOLCHAIN: local
+2026-11-16T22:26:48.8211355Z   PYTHONDONTWRITEBYTECODE: 1
+2026-11-16T22:26:48.8211563Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T22:26:48.8211769Z ##[endgroup]
+2026-11-16T22:26:54.3881930Z {"accepted": true, "command": ["/home/runner/work/LoGOs/LoGOs/bin/go", "test", "-json", "-count=1", "-p=1", "-parallel=1", "-overlay=/home/runner/work/_temp/logos-regression-evidence/tagged-package/old-production-overlay.json", "-timeout=10m", "-run", "^TestFactScopeTaggedFunctionAssertions$/^Project@simd128$/^mask=0$", "cmd/compile/internal/logos"], "elapsed_seconds": 5.4360703009999725, "exit_code": 1, "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "stdout_sha256": "e76b9f498f3661552e0f641deda026d03326630d43c8b89a5fb1f852a0535ed9", "timed_out": false}
+2026-11-16T22:26:57.4122545Z {"accepted": true, "command": ["/home/runner/work/LoGOs/LoGOs/bin/go", "test", "-json", "-count=1", "-p=1", "-parallel=1", "-timeout=30m", "-run", "^(TestCompileImportedLocalType|TestCompileSIMDTaggedFuncFacts|TestFactScopeLeavesCompilerSymbolsLazy|TestFactScopeRejectsMalformedTaggedSymbols|TestFactScopeTaggedClones|TestFactScopeTaggedFunctionAssertions|TestFactScopeTaggedFunctionRejectsInvalidMasks|TestFactScopeTaggedReachableMethod|TestFactScopeTaggedReadonlyType)$", "cmd/compile/internal/logos"], "elapsed_seconds": 3.0204342819999965, "exit_code": 0, "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "stdout_sha256": "1df97478b5cd05e7a826b5d5d80ded99571907101a00ecad1836cd68de6bf46e", "timed_out": false}
+2026-11-16T22:26:57.4991630Z ##[group]Run uv run --no-project --no-config --python 3.12 --no-python-downloads python logos-doc/validation/tagged-method-facts/check_ci.py --repo "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/logos-regression-evidence/tagged-method"
+2026-11-16T22:26:57.4992825Z [36;1muv run --no-project --no-config --python 3.12 --no-python-downloads python logos-doc/validation/tagged-method-facts/check_ci.py --repo "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/logos-regression-evidence/tagged-method"[0m
+2026-11-16T22:26:57.5011631Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T22:26:57.5011886Z env:
+2026-11-16T22:26:57.5012103Z   LOGOS_EXPECTED_HEAD: f4242fed9cf0707a4103a0adbdb82e866bcabd69
+2026-11-16T22:26:57.5012694Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T22:26:57.5013254Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T22:26:57.5013599Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T22:26:57.5013943Z   GOTOOLCHAIN: local
+2026-11-16T22:26:57.5014134Z   PYTHONDONTWRITEBYTECODE: 1
+2026-11-16T22:26:57.5014346Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T22:26:57.5014550Z ##[endgroup]
+2026-11-16T22:27:14.3163492Z {"accepted": true, "command": ["/home/runner/work/LoGOs/LoGOs/bin/go", "test", "-json", "-count=1", "-p=1", "-parallel=1", "-timeout=10m", "-overlay=/home/runner/work/_temp/logos-regression-evidence/tagged-method/old-codec.overlay.json", "-run", "^TestTaggedMethodCodecGrammar$/^Box@simd128\\.Read$", "cmd/compile/internal/logos/facts"], "cwd": "/home/runner/work/LoGOs/LoGOs/src", "elapsed_seconds": 16.68129868899996, "exit_code": 1, "phase": "old-codec", "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "stdout_sha256": "3f7a41c225ffa156cfb4be18286479948c909edb0e5b12762fd9dbae89fc50bb", "timed_out": false}
+2026-11-16T22:27:31.1103369Z {"accepted": true, "command": ["/home/runner/work/LoGOs/LoGOs/bin/go", "test", "-json", "-count=1", "-p=1", "-parallel=1", "-timeout=10m", "-overlay=/home/runner/work/_temp/logos-regression-evidence/tagged-method/old-package-guard.overlay.json", "-run", "^TestTaggedInterfaceMethodFactLookup$", "cmd/compile/internal/logos"], "cwd": "/home/runner/work/LoGOs/LoGOs/src", "elapsed_seconds": 16.793386026999997, "exit_code": 1, "phase": "old-package-guard", "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "stdout_sha256": "b169d8afb6af3dadd40f61e713848adbae74bb9e562922b70030e9c7eb6f00b4", "timed_out": false}
+2026-11-16T22:27:32.0332060Z {"accepted": true, "command": ["/home/runner/work/LoGOs/LoGOs/bin/go", "test", "-json", "-count=1", "-p=1", "-parallel=1", "-timeout=10m", "-run", "^(TestTaggedInterfaceReadonlyFactWriter|TestTaggedMethodCodecGrammar|TestTaggedMethodObjectConstructors)$", "cmd/compile/internal/logos/facts"], "cwd": "/home/runner/work/LoGOs/LoGOs/src", "elapsed_seconds": 0.9225045240000327, "exit_code": 0, "phase": "facts", "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "stdout_sha256": "d4c37d87069277902726d577640d6173795b1b5d3c0283100b4d5a3d5665bedd", "timed_out": false}
+2026-11-16T22:27:37.8712813Z {"accepted": true, "command": ["/home/runner/work/LoGOs/LoGOs/bin/go", "test", "-json", "-count=1", "-p=1", "-parallel=1", "-timeout=30m", "-run", "^(TestCompileSIMDTaggedMethodFacts|TestTaggedInterfaceMethodFactLookup|TestTaggedMethodFactLookup|TestTaggedMethodFactRejectsInvalidMask|TestTaggedMethodIdentityRemainsDistinct|TestTaggedMethodOptionFactLookup|TestTaggedMethodStructuralFactLookup)$", "cmd/compile/internal/logos"], "cwd": "/home/runner/work/LoGOs/LoGOs/src", "elapsed_seconds": 5.837677267999879, "exit_code": 0, "phase": "logos", "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "stdout_sha256": "bcb8627da5544cc0b1bc1ef2742ac0e581fc0a11c790f177c4e83a264454c967", "timed_out": false}
+2026-11-16T22:27:37.9636864Z ##[group]Run uv run --no-project --no-config --python 3.12 --no-python-downloads python logos-doc/validation/field-offset-lint/field_offset_ci.py --repo "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/logos-regression-evidence/field-offset"
+2026-11-16T22:27:37.9638909Z [36;1muv run --no-project --no-config --python 3.12 --no-python-downloads python logos-doc/validation/field-offset-lint/field_offset_ci.py --repo "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/logos-regression-evidence/field-offset"[0m
+2026-11-16T22:27:37.9659849Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T22:27:37.9660241Z env:
+2026-11-16T22:27:37.9660565Z   LOGOS_EXPECTED_HEAD: f4242fed9cf0707a4103a0adbdb82e866bcabd69
+2026-11-16T22:27:37.9661527Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T22:27:37.9662236Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T22:27:37.9662593Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T22:27:37.9662934Z   GOTOOLCHAIN: local
+2026-11-16T22:27:37.9663132Z   PYTHONDONTWRITEBYTECODE: 1
+2026-11-16T22:27:37.9663344Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T22:27:37.9663549Z ##[endgroup]
+2026-11-16T22:27:39.9245090Z {"accepted": true, "command": ["/home/runner/work/LoGOs/LoGOs/bin/go", "test", "-json", "-count=1", "-p=1", "-parallel=1", "-vet=off", "-timeout=10m", "-overlay=/home/runner/work/_temp/logos-regression-evidence/field-offset/old-rule.overlay.json", "cmd/compile/internal/logos/lint", "-run", "^TestArenaFieldOffset$/^offset_unsafe\\.go$/^protobuf_field_delta$"], "cwd": "/home/runner/work/LoGOs/LoGOs/src", "elapsed_seconds": 1.8225284319998991, "exit_code": 1, "phase": "old-rule", "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "stdout_sha256": "f4c005064d2fde868c20a15c56a82c5953d14b4c563d61439ed2e427d788d76c", "timed_out": false}
+2026-11-16T22:27:41.3447627Z {"accepted": true, "command": ["/home/runner/work/LoGOs/LoGOs/bin/go", "test", "-json", "-count=1", "-p=1", "-parallel=1", "-vet=off", "-timeout=10m", "cmd/compile/internal/logos/lint", "-run", "^(TestArenaFieldOffset|TestCompileArenaFieldOffset)$"], "cwd": "/home/runner/work/LoGOs/LoGOs/src", "elapsed_seconds": 1.4199066040000616, "exit_code": 0, "phase": "candidate", "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "stdout_sha256": "46becff495ac302d04da7c193b93b0afd0779c1a9e4f09b42750164e73b042fa", "timed_out": false}
+2026-11-16T22:27:41.4253442Z {
+2026-11-16T22:27:41.4253813Z   "accepted": true,
+2026-11-16T22:27:41.4254115Z   "complete": true,
+2026-11-16T22:27:41.4254380Z   "phases": [
+2026-11-16T22:27:41.4254623Z     {
+2026-11-16T22:27:41.4254880Z       "command": [
+2026-11-16T22:27:41.4255289Z         "/home/runner/work/LoGOs/LoGOs/bin/go",
+2026-11-16T22:27:41.4255661Z         "test",
+2026-11-16T22:27:41.4255963Z         "-json",
+2026-11-16T22:27:41.4256435Z         "-count=1",
+2026-11-16T22:27:41.4256721Z         "-p=1",
+2026-11-16T22:27:41.4256992Z         "-parallel=1",
+2026-11-16T22:27:41.4257275Z         "-vet=off",
+2026-11-16T22:27:41.4257557Z         "-timeout=10m",
+2026-11-16T22:27:41.4258374Z         "-overlay=/home/runner/work/_temp/logos-regression-evidence/field-offset/old-rule.overlay.json",
+2026-11-16T22:27:41.4259070Z         "cmd/compile/internal/logos/lint",
+2026-11-16T22:27:41.4259420Z         "-run",
+2026-11-16T22:27:41.4259996Z         "^TestArenaFieldOffset$/^offset_unsafe\\.go$/^protobuf_field_delta$"
+2026-11-16T22:27:41.4260431Z       ],
+2026-11-16T22:27:41.4260801Z       "cwd": "/home/runner/work/LoGOs/LoGOs/src",
+2026-11-16T22:27:41.4261163Z       "accepted": true,
+2026-11-16T22:27:41.4261454Z       "exit_code": 1,
+2026-11-16T22:27:41.4261756Z       "timed_out": false,
+2026-11-16T22:27:41.4262120Z       "elapsed_seconds": 1.8225284319998991,
+2026-11-16T22:27:41.4263188Z       "stdout_sha256": "f4c005064d2fde868c20a15c56a82c5953d14b4c563d61439ed2e427d788d76c",
+2026-11-16T22:27:41.4264002Z       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+2026-11-16T22:27:41.4264459Z     },
+2026-11-16T22:27:41.4264671Z     {
+2026-11-16T22:27:41.4264956Z       "command": [
+2026-11-16T22:27:41.4265345Z         "/home/runner/work/LoGOs/LoGOs/bin/go",
+2026-11-16T22:27:41.4265685Z         "test",
+2026-11-16T22:27:41.4265927Z         "-json",
+2026-11-16T22:27:41.4266306Z         "-count=1",
+2026-11-16T22:27:41.4266565Z         "-p=1",
+2026-11-16T22:27:41.4266832Z         "-parallel=1",
+2026-11-16T22:27:41.4267110Z         "-vet=off",
+2026-11-16T22:27:41.4267385Z         "-timeout=10m",
+2026-11-16T22:27:41.4267765Z         "cmd/compile/internal/logos/lint",
+2026-11-16T22:27:41.4268090Z         "-run",
+2026-11-16T22:27:41.4268556Z         "^(TestArenaFieldOffset|TestCompileArenaFieldOffset)$"
+2026-11-16T22:27:41.4268927Z       ],
+2026-11-16T22:27:41.4269287Z       "cwd": "/home/runner/work/LoGOs/LoGOs/src",
+2026-11-16T22:27:41.4269666Z       "accepted": true,
+2026-11-16T22:27:41.4269948Z       "exit_code": 0,
+2026-11-16T22:27:41.4270233Z       "timed_out": false,
+2026-11-16T22:27:41.4270624Z       "elapsed_seconds": 1.4199066040000616,
+2026-11-16T22:27:41.4271385Z       "stdout_sha256": "46becff495ac302d04da7c193b93b0afd0779c1a9e4f09b42750164e73b042fa",
+2026-11-16T22:27:41.4272325Z       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+2026-11-16T22:27:41.4272817Z     }
+2026-11-16T22:27:41.4273037Z   ]
+2026-11-16T22:27:41.4273260Z }
+2026-11-16T22:27:41.4386700Z ##[group]Run uv run --no-project --no-config --python 3.12 --no-python-downloads python logos-doc/validation/simd-transitive-imports/simd_imports_ci.py --repo "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/logos-regression-evidence/simd-imports"
+2026-11-16T22:27:41.4387962Z [36;1muv run --no-project --no-config --python 3.12 --no-python-downloads python logos-doc/validation/simd-transitive-imports/simd_imports_ci.py --repo "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/logos-regression-evidence/simd-imports"[0m
+2026-11-16T22:27:41.4407203Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T22:27:41.4407467Z env:
+2026-11-16T22:27:41.4424067Z   LOGOS_EXPECTED_HEAD: f4242fed9cf0707a4103a0adbdb82e866bcabd69
+2026-11-16T22:27:41.4424700Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T22:27:41.4425271Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T22:27:41.4425603Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T22:27:41.4425936Z   GOTOOLCHAIN: local
+2026-11-16T22:27:41.4426234Z   PYTHONDONTWRITEBYTECODE: 1
+2026-11-16T22:27:41.4426443Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T22:27:41.4426650Z ##[endgroup]
+2026-11-16T22:27:55.8635175Z {"accepted": true, "command": ["/home/runner/work/LoGOs/LoGOs/bin/go", "test", "-json", "-count=1", "-p=1", "-parallel=1", "-vet=off", "-timeout=10m", "-overlay=/home/runner/work/_temp/logos-regression-evidence/simd-imports/old-importcfg.overlay.json", "cmd/go/internal/work", "-run", "^TestSIMDSynthImports$/^amd64$"], "cwd": "/home/runner/work/LoGOs/LoGOs/src", "elapsed_seconds": 14.284322091999911, "exit_code": 1, "phase": "old-importcfg", "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "stdout_sha256": "4c90fbb19ae1b55e35e994f394c6e87ac38f9844ea5a31506dcbeee0812e6b75", "timed_out": false}
+2026-11-16T22:27:56.2300462Z {"accepted": true, "command": ["/home/runner/work/LoGOs/LoGOs/bin/go", "test", "-json", "-count=1", "-p=1", "-parallel=1", "-vet=off", "-timeout=10m", "-overlay=/home/runner/work/_temp/logos-regression-evidence/simd-imports/old-rewriter.overlay.json", "cmd/compile/internal/midway", "-run", "^TestSIMDRewriteImports$/^missing$"], "cwd": "/home/runner/work/LoGOs/LoGOs/src", "elapsed_seconds": 0.36596980600006646, "exit_code": 1, "phase": "old-rewriter", "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "stdout_sha256": "e9cd7230781a7f4276cec285b34a8d8986300495a11585ce34c8b95a6cfa830f", "timed_out": false}
+2026-11-16T22:28:39.2207880Z {"accepted": true, "command": ["/home/runner/work/LoGOs/LoGOs/bin/go", "test", "-json", "-count=1", "-p=1", "-parallel=1", "-vet=off", "-timeout=10m", "-race", "cmd/go/internal/work", "-run", "^(TestSIMDSynthImportActionID|TestSIMDSynthImports)$"], "cwd": "/home/runner/work/LoGOs/LoGOs/src", "elapsed_seconds": 42.990350287999945, "exit_code": 0, "phase": "work", "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "stdout_sha256": "4034aaf284cd79cdd03afe96932b9af0736aa592a73894d4100cf684dbce1de2", "timed_out": false}
+2026-11-16T22:28:39.5866642Z {"accepted": true, "command": ["/home/runner/work/LoGOs/LoGOs/bin/go", "test", "-json", "-count=1", "-p=1", "-parallel=1", "-vet=off", "-timeout=10m", "cmd/compile/internal/midway", "-run", "^(TestSIMDRewriteImports)$"], "cwd": "/home/runner/work/LoGOs/LoGOs/src", "elapsed_seconds": 0.36563626399993154, "exit_code": 0, "phase": "midway", "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "stdout_sha256": "d17390ba3813825040fcee55dbe3a2309beee70ac4ca32aadda7e2421794208d", "timed_out": false}
+2026-11-16T22:28:41.2065977Z {"accepted": true, "command": ["/home/runner/work/LoGOs/LoGOs/bin/go", "test", "-json", "-count=1", "-p=1", "-parallel=1", "-vet=off", "-timeout=10m", "cmd/compile/internal/logos", "-run", "^(TestCompileSIMDTransitiveImports)$"], "cwd": "/home/runner/work/LoGOs/LoGOs/src", "elapsed_seconds": 1.6196904250000443, "exit_code": 0, "phase": "compiler", "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "stdout_sha256": "28a1b943d69b49e715dbfee5eb972ebfe811238242ba8047d35fb36b9c6bbaaa", "timed_out": false}
+2026-11-16T22:28:41.2872246Z {
+2026-11-16T22:28:41.2872608Z   "accepted": true,
+2026-11-16T22:28:41.2873272Z   "complete": true,
+2026-11-16T22:28:41.2873467Z   "phases": [
+2026-11-16T22:28:41.2873694Z     {
+2026-11-16T22:28:41.2873944Z       "command": [
+2026-11-16T22:28:41.2874375Z         "/home/runner/work/LoGOs/LoGOs/bin/go",
+2026-11-16T22:28:41.2874799Z         "test",
+2026-11-16T22:28:41.2875063Z         "-json",
+2026-11-16T22:28:41.2875294Z         "-count=1",
+2026-11-16T22:28:41.2875481Z         "-p=1",
+2026-11-16T22:28:41.2875684Z         "-parallel=1",
+2026-11-16T22:28:41.2875887Z         "-vet=off",
+2026-11-16T22:28:41.2876314Z         "-timeout=10m",
+2026-11-16T22:28:41.2877060Z         "-overlay=/home/runner/work/_temp/logos-regression-evidence/simd-imports/old-importcfg.overlay.json",
+2026-11-16T22:28:41.2877518Z         "cmd/go/internal/work",
+2026-11-16T22:28:41.2877729Z         "-run",
+2026-11-16T22:28:41.2877990Z         "^TestSIMDSynthImports$/^amd64$"
+2026-11-16T22:28:41.2878217Z       ],
+2026-11-16T22:28:41.2878482Z       "cwd": "/home/runner/work/LoGOs/LoGOs/src",
+2026-11-16T22:28:41.2878753Z       "accepted": true,
+2026-11-16T22:28:41.2878961Z       "exit_code": 1,
+2026-11-16T22:28:41.2879168Z       "timed_out": false,
+2026-11-16T22:28:41.2879438Z       "elapsed_seconds": 14.284322091999911,
+2026-11-16T22:28:41.2879912Z       "stdout_sha256": "4c90fbb19ae1b55e35e994f394c6e87ac38f9844ea5a31506dcbeee0812e6b75",
+2026-11-16T22:28:41.2880480Z       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+2026-11-16T22:28:41.2880813Z     },
+2026-11-16T22:28:41.2880970Z     {
+2026-11-16T22:28:41.2881152Z       "command": [
+2026-11-16T22:28:41.2881425Z         "/home/runner/work/LoGOs/LoGOs/bin/go",
+2026-11-16T22:28:41.2881670Z         "test",
+2026-11-16T22:28:41.2881846Z         "-json",
+2026-11-16T22:28:41.2882032Z         "-count=1",
+2026-11-16T22:28:41.2882214Z         "-p=1",
+2026-11-16T22:28:41.2882409Z         "-parallel=1",
+2026-11-16T22:28:41.2882619Z         "-vet=off",
+2026-11-16T22:28:41.2882828Z         "-timeout=10m",
+2026-11-16T22:28:41.2883391Z         "-overlay=/home/runner/work/_temp/logos-regression-evidence/simd-imports/old-rewriter.overlay.json",
+2026-11-16T22:28:41.2883852Z         "cmd/compile/internal/midway",
+2026-11-16T22:28:41.2884079Z         "-run",
+2026-11-16T22:28:41.2884351Z         "^TestSIMDRewriteImports$/^missing$"
+2026-11-16T22:28:41.2884577Z       ],
+2026-11-16T22:28:41.2884833Z       "cwd": "/home/runner/work/LoGOs/LoGOs/src",
+2026-11-16T22:28:41.2885090Z       "accepted": true,
+2026-11-16T22:28:41.2885292Z       "exit_code": 1,
+2026-11-16T22:28:41.2885498Z       "timed_out": false,
+2026-11-16T22:28:41.2885783Z       "elapsed_seconds": 0.36596980600006646,
+2026-11-16T22:28:41.2886344Z       "stdout_sha256": "e9cd7230781a7f4276cec285b34a8d8986300495a11585ce34c8b95a6cfa830f",
+2026-11-16T22:28:41.2886909Z       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+2026-11-16T22:28:41.2887229Z     },
+2026-11-16T22:28:41.2887408Z     {
+2026-11-16T22:28:41.2887584Z       "command": [
+2026-11-16T22:28:41.2887870Z         "/home/runner/work/LoGOs/LoGOs/bin/go",
+2026-11-16T22:28:41.2888119Z         "test",
+2026-11-16T22:28:41.2888298Z         "-json",
+2026-11-16T22:28:41.2888489Z         "-count=1",
+2026-11-16T22:28:41.2888686Z         "-p=1",
+2026-11-16T22:28:41.2888882Z         "-parallel=1",
+2026-11-16T22:28:41.2889081Z         "-vet=off",
+2026-11-16T22:28:41.2889283Z         "-timeout=10m",
+2026-11-16T22:28:41.2889477Z         "-race",
+2026-11-16T22:28:41.2889706Z         "cmd/go/internal/work",
+2026-11-16T22:28:41.2889924Z         "-run",
+2026-11-16T22:28:41.2890440Z         "^(TestSIMDSynthImportActionID|TestSIMDSynthImports)$"
+2026-11-16T22:28:41.2890710Z       ],
+2026-11-16T22:28:41.2890965Z       "cwd": "/home/runner/work/LoGOs/LoGOs/src",
+2026-11-16T22:28:41.2891225Z       "accepted": true,
+2026-11-16T22:28:41.2891425Z       "exit_code": 0,
+2026-11-16T22:28:41.2891634Z       "timed_out": false,
+2026-11-16T22:28:41.2891898Z       "elapsed_seconds": 42.990350287999945,
+2026-11-16T22:28:41.2892357Z       "stdout_sha256": "4034aaf284cd79cdd03afe96932b9af0736aa592a73894d4100cf684dbce1de2",
+2026-11-16T22:28:41.2893030Z       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+2026-11-16T22:28:41.2893349Z     },
+2026-11-16T22:28:41.2893502Z     {
+2026-11-16T22:28:41.2893685Z       "command": [
+2026-11-16T22:28:41.2893955Z         "/home/runner/work/LoGOs/LoGOs/bin/go",
+2026-11-16T22:28:41.2894216Z         "test",
+2026-11-16T22:28:41.2894400Z         "-json",
+2026-11-16T22:28:41.2894590Z         "-count=1",
+2026-11-16T22:28:41.2894779Z         "-p=1",
+2026-11-16T22:28:41.2894986Z         "-parallel=1",
+2026-11-16T22:28:41.2895187Z         "-vet=off",
+2026-11-16T22:28:41.2895388Z         "-timeout=10m",
+2026-11-16T22:28:41.2895649Z         "cmd/compile/internal/midway",
+2026-11-16T22:28:41.2895876Z         "-run",
+2026-11-16T22:28:41.2896211Z         "^(TestSIMDRewriteImports)$"
+2026-11-16T22:28:41.2896441Z       ],
+2026-11-16T22:28:41.2896691Z       "cwd": "/home/runner/work/LoGOs/LoGOs/src",
+2026-11-16T22:28:41.2896953Z       "accepted": true,
+2026-11-16T22:28:41.2897149Z       "exit_code": 0,
+2026-11-16T22:28:41.2897352Z       "timed_out": false,
+2026-11-16T22:28:41.2897616Z       "elapsed_seconds": 0.36563626399993154,
+2026-11-16T22:28:41.2898089Z       "stdout_sha256": "d17390ba3813825040fcee55dbe3a2309beee70ac4ca32aadda7e2421794208d",
+2026-11-16T22:28:41.2898654Z       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+2026-11-16T22:28:41.2898967Z     },
+2026-11-16T22:28:41.2899111Z     {
+2026-11-16T22:28:41.2899285Z       "command": [
+2026-11-16T22:28:41.2899570Z         "/home/runner/work/LoGOs/LoGOs/bin/go",
+2026-11-16T22:28:41.2899805Z         "test",
+2026-11-16T22:28:41.2899981Z         "-json",
+2026-11-16T22:28:41.2900167Z         "-count=1",
+2026-11-16T22:28:41.2900349Z         "-p=1",
+2026-11-16T22:28:41.2900539Z         "-parallel=1",
+2026-11-16T22:28:41.2900744Z         "-vet=off",
+2026-11-16T22:28:41.2900940Z         "-timeout=10m",
+2026-11-16T22:28:41.2901197Z         "cmd/compile/internal/logos",
+2026-11-16T22:28:41.2901420Z         "-run",
+2026-11-16T22:28:41.2901693Z         "^(TestCompileSIMDTransitiveImports)$"
+2026-11-16T22:28:41.2901925Z       ],
+2026-11-16T22:28:41.2902177Z       "cwd": "/home/runner/work/LoGOs/LoGOs/src",
+2026-11-16T22:28:41.2902425Z       "accepted": true,
+2026-11-16T22:28:41.2902625Z       "exit_code": 0,
+2026-11-16T22:28:41.2902828Z       "timed_out": false,
+2026-11-16T22:28:41.2903088Z       "elapsed_seconds": 1.6196904250000443,
+2026-11-16T22:28:41.2903553Z       "stdout_sha256": "28a1b943d69b49e715dbfee5eb972ebfe811238242ba8047d35fb36b9c6bbaaa",
+2026-11-16T22:28:41.2904117Z       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+2026-11-16T22:28:41.2904421Z     }
+2026-11-16T22:28:41.2904572Z   ]
+2026-11-16T22:28:41.2904721Z }
+2026-11-16T22:28:41.3002917Z ##[group]Run uv run --no-project --no-config --python 3.12 --no-python-downloads python logos-doc/validation/zero-array-reference-free/zero_array_ci.py --repo "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/logos-regression-evidence/zero-array"
+2026-11-16T22:28:41.3004164Z [36;1muv run --no-project --no-config --python 3.12 --no-python-downloads python logos-doc/validation/zero-array-reference-free/zero_array_ci.py --repo "$GITHUB_WORKSPACE" --evidence "$RUNNER_TEMP/logos-regression-evidence/zero-array"[0m
+2026-11-16T22:28:41.3022661Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T22:28:41.3022932Z env:
+2026-11-16T22:28:41.3023156Z   LOGOS_EXPECTED_HEAD: f4242fed9cf0707a4103a0adbdb82e866bcabd69
+2026-11-16T22:28:41.3023769Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T22:28:41.3024324Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T22:28:41.3024680Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T22:28:41.3025019Z   GOTOOLCHAIN: local
+2026-11-16T22:28:41.3025395Z   PYTHONDONTWRITEBYTECODE: 1
+2026-11-16T22:28:41.3025618Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T22:28:41.3025832Z ##[endgroup]
+2026-11-16T22:28:41.7552698Z {"accepted": false, "command": ["/home/runner/work/LoGOs/LoGOs/bin/go", "test", "-json", "-count=1", "-p=1", "-parallel=1", "-vet=off", "-timeout=10m", "-overlay=/home/runner/work/_temp/logos-regression-evidence/zero-array/old-type-proof.overlay.json", "cmd/compile/internal/types2", "-run", "^TestLogosReferenceFreeZeroArrays$/^function$/^zero$"], "cwd": "/home/runner/work/LoGOs/LoGOs/src", "elapsed_seconds": 0.3149477520000801, "exit_code": 1, "phase": "old-type-proof", "rejection": "build failure or skipped test", "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "stdout_sha256": "9afa175eb2c0d885624db4079cc99033b64eb6638bdde73665027023425edc8e", "timed_out": false}
+2026-11-16T22:28:50.3563254Z {"accepted": true, "command": ["/home/runner/work/LoGOs/LoGOs/bin/go", "test", "-json", "-count=1", "-p=1", "-parallel=1", "-vet=off", "-timeout=10m", "-overlay=/home/runner/work/_temp/logos-regression-evidence/zero-array/old-mutation-proof.overlay.json", "cmd/compile/internal/logos", "-run", "^TestGoMutationFactsZeroArrays$/^ReturnZero$"], "cwd": "/home/runner/work/LoGOs/LoGOs/src", "elapsed_seconds": 8.600482718999956, "exit_code": 1, "phase": "old-mutation-proof", "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "stdout_sha256": "82019b4c461a1d82572ba5d4741868264e3f9a17b73bbc2472c309db1710a86d", "timed_out": false}
+2026-11-16T22:28:50.6228914Z {"accepted": false, "command": ["/home/runner/work/LoGOs/LoGOs/bin/go", "test", "-json", "-count=1", "-p=1", "-parallel=1", "-vet=off", "-timeout=10m", "cmd/compile/internal/types2", "-run", "^(TestLogosReferenceFreeZeroArrayNesting|TestLogosReferenceFreeZeroArrayTypeParams|TestLogosReferenceFreeZeroArrays)$"], "cwd": "/home/runner/work/LoGOs/LoGOs/src", "elapsed_seconds": 0.2661576759999207, "exit_code": 1, "phase": "types", "rejection": "build failure or skipped test", "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "stdout_sha256": "17f888e66250b9905bdd23905f92d2187841ee3ad113a4933f5764fb0905fc41", "timed_out": false}
+2026-11-16T22:28:50.9887978Z {"accepted": true, "command": ["/home/runner/work/LoGOs/LoGOs/bin/go", "test", "-json", "-count=1", "-p=1", "-parallel=1", "-vet=off", "-timeout=10m", "cmd/compile/internal/logos", "-run", "^(TestGoMutationFactsZeroArrays)$"], "cwd": "/home/runner/work/LoGOs/LoGOs/src", "elapsed_seconds": 0.3657292929999585, "exit_code": 0, "phase": "facts", "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "stdout_sha256": "91559ed91f92e78bf21ba314461759de9b45d6c0f7b31c443bc2c2d6a30c817e", "timed_out": false}
+2026-11-16T22:28:51.0706792Z {
+2026-11-16T22:28:51.0707503Z   "accepted": false,
+2026-11-16T22:28:51.0707833Z   "complete": true,
+2026-11-16T22:28:51.0708051Z   "phases": [
+2026-11-16T22:28:51.0708237Z     {
+2026-11-16T22:28:51.0708420Z       "command": [
+2026-11-16T22:28:51.0708707Z         "/home/runner/work/LoGOs/LoGOs/bin/go",
+2026-11-16T22:28:51.0708958Z         "test",
+2026-11-16T22:28:51.0709139Z         "-json",
+2026-11-16T22:28:51.0709331Z         "-count=1",
+2026-11-16T22:28:51.0709514Z         "-p=1",
+2026-11-16T22:28:51.0709720Z         "-parallel=1",
+2026-11-16T22:28:51.0709917Z         "-vet=off",
+2026-11-16T22:28:51.0710114Z         "-timeout=10m",
+2026-11-16T22:28:51.0710672Z         "-overlay=/home/runner/work/_temp/logos-regression-evidence/zero-array/old-type-proof.overlay.json",
+2026-11-16T22:28:51.0711170Z         "cmd/compile/internal/types2",
+2026-11-16T22:28:51.0711408Z         "-run",
+2026-11-16T22:28:51.0711759Z         "^TestLogosReferenceFreeZeroArrays$/^function$/^zero$"
+2026-11-16T22:28:51.0712031Z       ],
+2026-11-16T22:28:51.0712296Z       "cwd": "/home/runner/work/LoGOs/LoGOs/src",
+2026-11-16T22:28:51.0712556Z       "accepted": false,
+2026-11-16T22:28:51.0712761Z       "exit_code": 1,
+2026-11-16T22:28:51.0713160Z       "timed_out": false,
+2026-11-16T22:28:51.0713451Z       "rejection": "build failure or skipped test",
+2026-11-16T22:28:51.0713767Z       "elapsed_seconds": 0.3149477520000801,
+2026-11-16T22:28:51.0714232Z       "stdout_sha256": "9afa175eb2c0d885624db4079cc99033b64eb6638bdde73665027023425edc8e",
+2026-11-16T22:28:51.0714791Z       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+2026-11-16T22:28:51.0715124Z     },
+2026-11-16T22:28:51.0715277Z     {
+2026-11-16T22:28:51.0715450Z       "command": [
+2026-11-16T22:28:51.0715724Z         "/home/runner/work/LoGOs/LoGOs/bin/go",
+2026-11-16T22:28:51.0715965Z         "test",
+2026-11-16T22:28:51.0716337Z         "-json",
+2026-11-16T22:28:51.0716579Z         "-count=1",
+2026-11-16T22:28:51.0716777Z         "-p=1",
+2026-11-16T22:28:51.0716977Z         "-parallel=1",
+2026-11-16T22:28:51.0717176Z         "-vet=off",
+2026-11-16T22:28:51.0717377Z         "-timeout=10m",
+2026-11-16T22:28:51.0717946Z         "-overlay=/home/runner/work/_temp/logos-regression-evidence/zero-array/old-mutation-proof.overlay.json",
+2026-11-16T22:28:51.0718438Z         "cmd/compile/internal/logos",
+2026-11-16T22:28:51.0718662Z         "-run",
+2026-11-16T22:28:51.0718956Z         "^TestGoMutationFactsZeroArrays$/^ReturnZero$"
+2026-11-16T22:28:51.0719203Z       ],
+2026-11-16T22:28:51.0719454Z       "cwd": "/home/runner/work/LoGOs/LoGOs/src",
+2026-11-16T22:28:51.0719718Z       "accepted": true,
+2026-11-16T22:28:51.0719925Z       "exit_code": 1,
+2026-11-16T22:28:51.0720133Z       "timed_out": false,
+2026-11-16T22:28:51.0720401Z       "elapsed_seconds": 8.600482718999956,
+2026-11-16T22:28:51.0720857Z       "stdout_sha256": "82019b4c461a1d82572ba5d4741868264e3f9a17b73bbc2472c309db1710a86d",
+2026-11-16T22:28:51.0721421Z       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+2026-11-16T22:28:51.0721744Z     },
+2026-11-16T22:28:51.0721898Z     {
+2026-11-16T22:28:51.0722071Z       "command": [
+2026-11-16T22:28:51.0722351Z         "/home/runner/work/LoGOs/LoGOs/bin/go",
+2026-11-16T22:28:51.0722595Z         "test",
+2026-11-16T22:28:51.0722779Z         "-json",
+2026-11-16T22:28:51.0722973Z         "-count=1",
+2026-11-16T22:28:51.0723155Z         "-p=1",
+2026-11-16T22:28:51.0723345Z         "-parallel=1",
+2026-11-16T22:28:51.0723541Z         "-vet=off",
+2026-11-16T22:28:51.0723739Z         "-timeout=10m",
+2026-11-16T22:28:51.0723994Z         "cmd/compile/internal/types2",
+2026-11-16T22:28:51.0724224Z         "-run",
+2026-11-16T22:28:51.0724864Z         "^(TestLogosReferenceFreeZeroArrayNesting|TestLogosReferenceFreeZeroArrayTypeParams|TestLogosReferenceFreeZeroArrays)$"
+2026-11-16T22:28:51.0725327Z       ],
+2026-11-16T22:28:51.0725577Z       "cwd": "/home/runner/work/LoGOs/LoGOs/src",
+2026-11-16T22:28:51.0725834Z       "accepted": false,
+2026-11-16T22:28:51.0726380Z       "exit_code": 1,
+2026-11-16T22:28:51.0726617Z       "timed_out": false,
+2026-11-16T22:28:51.0726906Z       "rejection": "build failure or skipped test",
+2026-11-16T22:28:51.0727230Z       "elapsed_seconds": 0.2661576759999207,
+2026-11-16T22:28:51.0727687Z       "stdout_sha256": "17f888e66250b9905bdd23905f92d2187841ee3ad113a4933f5764fb0905fc41",
+2026-11-16T22:28:51.0728264Z       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+2026-11-16T22:28:51.0728588Z     },
+2026-11-16T22:28:51.0728739Z     {
+2026-11-16T22:28:51.0728918Z       "command": [
+2026-11-16T22:28:51.0729184Z         "/home/runner/work/LoGOs/LoGOs/bin/go",
+2026-11-16T22:28:51.0729431Z         "test",
+2026-11-16T22:28:51.0729615Z         "-json",
+2026-11-16T22:28:51.0729805Z         "-count=1",
+2026-11-16T22:28:51.0729980Z         "-p=1",
+2026-11-16T22:28:51.0730168Z         "-parallel=1",
+2026-11-16T22:28:51.0730363Z         "-vet=off",
+2026-11-16T22:28:51.0730559Z         "-timeout=10m",
+2026-11-16T22:28:51.0730814Z         "cmd/compile/internal/logos",
+2026-11-16T22:28:51.0731046Z         "-run",
+2026-11-16T22:28:51.0731304Z         "^(TestGoMutationFactsZeroArrays)$"
+2026-11-16T22:28:51.0731782Z       ],
+2026-11-16T22:28:51.0732027Z       "cwd": "/home/runner/work/LoGOs/LoGOs/src",
+2026-11-16T22:28:51.0732278Z       "accepted": true,
+2026-11-16T22:28:51.0732477Z       "exit_code": 0,
+2026-11-16T22:28:51.0732690Z       "timed_out": false,
+2026-11-16T22:28:51.0732948Z       "elapsed_seconds": 0.3657292929999585,
+2026-11-16T22:28:51.0733404Z       "stdout_sha256": "91559ed91f92e78bf21ba314461759de9b45d6c0f7b31c443bc2c2d6a30c817e",
+2026-11-16T22:28:51.0733952Z       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+2026-11-16T22:28:51.0734259Z     }
+2026-11-16T22:28:51.0734410Z   ]
+2026-11-16T22:28:51.0734638Z }
+2026-11-16T22:28:51.0817513Z ##[error]Process completed with exit code 1.
+2026-11-16T22:28:51.0884683Z ##[group]Run set -euo pipefail
+2026-11-16T22:28:51.0884951Z [36;1mset -euo pipefail[0m
+2026-11-16T22:28:51.0885294Z [36;1msha256sum ../bin/go ../bin/logos ../pkg/tool/linux_amd64/compile ../pkg/tool/linux_amd64/link[0m
+2026-11-16T22:28:51.0885841Z [36;1mgo test -count=1 -short -race -timeout 20m cmd/link/internal/ld cmd/go/internal/work cmd/go/internal/test[0m
+2026-11-16T22:28:51.0886617Z [36;1mgo test -count=1 -short go/types -run '^(TestGenerate|TestGoTypesPanicSourceShape)$'[0m
+2026-11-16T22:28:51.0887071Z [36;1mgo vet cmd/link/internal/ld cmd/go/internal/work cmd/go/internal/test go/types[0m
+2026-11-16T22:28:51.0887748Z [36;1munformatted=$(gofmt -l go/types/generate_test.go go/types/generate_panic_logos_test.go go/types/generate_panic_shape_logos_test.go cmd/go/internal/test/logos_experiment_env_test.go)[0m
+2026-11-16T22:28:51.0888311Z [36;1mprintf '%s\n' "$unformatted"[0m
+2026-11-16T22:28:51.0888528Z [36;1mtest -z "$unformatted"[0m
+2026-11-16T22:28:51.0906874Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T22:28:51.0907136Z env:
+2026-11-16T22:28:51.0907363Z   LOGOS_EXPECTED_HEAD: f4242fed9cf0707a4103a0adbdb82e866bcabd69
+2026-11-16T22:28:51.0907956Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T22:28:51.0908504Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T22:28:51.0908826Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T22:28:51.0909166Z   GOTOOLCHAIN: local
+2026-11-16T22:28:51.0909349Z   PYTHONDONTWRITEBYTECODE: 1
+2026-11-16T22:28:51.0909559Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T22:28:51.0909765Z ##[endgroup]
+2026-11-16T22:28:51.1082337Z 3191301308102ad4dd2ca9d6c51551f3acea9cb4f1dde3964eef9b359daeea20  ../bin/go
+2026-11-16T22:28:51.1197823Z 3191301308102ad4dd2ca9d6c51551f3acea9cb4f1dde3964eef9b359daeea20  ../bin/logos
+2026-11-16T22:28:51.1444372Z 5a3d240773d4fbdc77ed5c7327a169c44edbaa7df7e4e9e70d68b04eaf6550ed  ../pkg/tool/linux_amd64/compile
+2026-11-16T22:28:51.1492910Z acfd602e8bb3a5e5472067fa8c3805d5a7c6b3ab27a9e94f41e68d01d2c8b6bf  ../pkg/tool/linux_amd64/link
+2026-11-16T22:29:44.7594252Z ok  	cmd/link/internal/ld	38.669s
+2026-11-16T22:29:44.7594770Z ok  	cmd/go/internal/work	1.148s
+2026-11-16T22:29:44.7595151Z ok  	cmd/go/internal/test	1.035s
+2026-11-16T22:29:47.2147018Z ok  	go/types	0.063s
+2026-11-16T22:29:49.5857915Z 
+2026-11-16T22:29:49.5890274Z ##[group]Run set -euo pipefail
+2026-11-16T22:29:49.5890554Z [36;1mset -euo pipefail[0m
+2026-11-16T22:29:49.5890834Z [36;1mmutation_dir=$(mktemp -d "$RUNNER_TEMP/logos-mutations.XXXXXX")[0m
+2026-11-16T22:29:49.5891591Z [36;1mprintf '{"Replace":{"%s":"%s"}}\n' "$GITHUB_WORKSPACE/src/cmd/go/internal/test/logos_env.go" "$GITHUB_WORKSPACE/logos-doc/validation/test-experiments-contract/original/logos_env.go" > "$mutation_dir/environment.json"[0m
+2026-11-16T22:29:49.5892620Z [36;1mif go test -overlay="$mutation_dir/environment.json" -json -count=1 -short cmd/go/internal/test -run '^TestLogosTestExperiment(Env|Cache)$' > "$mutation_dir/environment.log" 2>&1; then[0m
+2026-11-16T22:29:49.5893220Z [36;1m  cat "$mutation_dir/environment.log"[0m
+2026-11-16T22:29:49.5893623Z [36;1m  exit 1[0m
+2026-11-16T22:29:49.5893785Z [36;1mfi[0m
+2026-11-16T22:29:49.5893966Z [36;1mcat "$mutation_dir/environment.log"[0m
+2026-11-16T22:29:49.5894428Z [36;1mgrep -F '"Test":"TestLogosTestExperimentEnv/default"' "$mutation_dir/environment.log" | grep -F '"Action":"fail"'[0m
+2026-11-16T22:29:49.5895055Z [36;1mgrep -F '"Test":"TestLogosTestExperimentCache/logos"' "$mutation_dir/environment.log" | grep -F '"Action":"fail"'[0m
+2026-11-16T22:29:49.5895655Z [36;1mprintf 'package types_test\n\nfunc goTypesPanicSource(src []byte) []byte { return src }\n' > "$mutation_dir/generator.go"[0m
+2026-11-16T22:29:49.5896601Z [36;1mprintf '{"Replace":{"%s":"%s"}}\n' "$GITHUB_WORKSPACE/src/go/types/generate_panic_logos_test.go" "$mutation_dir/generator.go" > "$mutation_dir/generator.json"[0m
+2026-11-16T22:29:49.5897350Z [36;1mif go test -overlay="$mutation_dir/generator.json" -json -count=1 -short go/types -run '^TestGenerate$' > "$mutation_dir/generator.log" 2>&1; then[0m
+2026-11-16T22:29:49.5897835Z [36;1m  cat "$mutation_dir/generator.log"[0m
+2026-11-16T22:29:49.5898051Z [36;1m  exit 1[0m
+2026-11-16T22:29:49.5898213Z [36;1mfi[0m
+2026-11-16T22:29:49.5898384Z [36;1mcat "$mutation_dir/generator.log"[0m
+2026-11-16T22:29:49.5898730Z [36;1mgrep -F '"Test":"TestGenerate"' "$mutation_dir/generator.log" | grep -F '"Action":"fail"'[0m
+2026-11-16T22:29:49.5899136Z [36;1mgrep -F 'check.conf.Logos' "$mutation_dir/generator.log"[0m
+2026-11-16T22:29:49.5899534Z [36;1mgo test -count=1 -short cmd/go/internal/test -run '^TestLogosTestExperiment(Env|Cache)$'[0m
+2026-11-16T22:29:49.5900004Z [36;1mgo test -count=1 -short go/types -run '^(TestGenerate|TestGoTypesPanicSourceShape)$'[0m
+2026-11-16T22:29:49.5918218Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T22:29:49.5918484Z env:
+2026-11-16T22:29:49.5918704Z   LOGOS_EXPECTED_HEAD: f4242fed9cf0707a4103a0adbdb82e866bcabd69
+2026-11-16T22:29:49.5919304Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T22:29:49.5919841Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T22:29:49.5920169Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T22:29:49.5920510Z   GOTOOLCHAIN: local
+2026-11-16T22:29:49.5920696Z   PYTHONDONTWRITEBYTECODE: 1
+2026-11-16T22:29:49.5920908Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T22:29:49.5921116Z ##[endgroup]
+2026-11-16T22:29:50.9352384Z {"Time":"2026-11-16T22:29:50.912005021Z","Action":"start","Package":"cmd/go/internal/test"}
+2026-11-16T22:29:50.9353688Z {"Time":"2026-11-16T22:29:50.917184293Z","Action":"run","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv"}
+2026-11-16T22:29:50.9355485Z {"Time":"2026-11-16T22:29:50.917235859Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv","Output":"=== RUN   TestLogosTestExperimentEnv\n","OutputType":"frame"}
+2026-11-16T22:29:50.9356812Z {"Time":"2026-11-16T22:29:50.917261887Z","Action":"run","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/default"}
+2026-11-16T22:29:50.9358276Z {"Time":"2026-11-16T22:29:50.917266123Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/default","Output":"=== RUN   TestLogosTestExperimentEnv/default\n","OutputType":"frame"}
+2026-11-16T22:29:50.9360367Z {"Time":"2026-11-16T22:29:50.917272032Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/default","Output":"    logos_experiment_env_test.go:64: test GOEXPERIMENT = (\"logosarena\", true), want (\"\", false)\n","OutputType":"error"}
+2026-11-16T22:29:50.9362694Z {"Time":"2026-11-16T22:29:50.917279223Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/default","Output":"    logos_experiment_env_test.go:67: cached GOEXPERIMENT = (\"logosarena\", true), want (\"\", false)\n","OutputType":"error"}
+2026-11-16T22:29:50.9365157Z {"Time":"2026-11-16T22:29:50.9172913Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/default","Output":"--- FAIL: TestLogosTestExperimentEnv/default (0.00s)\n","OutputType":"frame"}
+2026-11-16T22:29:50.9366875Z {"Time":"2026-11-16T22:29:50.917295627Z","Action":"fail","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/default","Elapsed":0}
+2026-11-16T22:29:50.9368231Z {"Time":"2026-11-16T22:29:50.917303388Z","Action":"run","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/explicit-empty"}
+2026-11-16T22:29:50.9370309Z {"Time":"2026-11-16T22:29:50.917307144Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/explicit-empty","Output":"=== RUN   TestLogosTestExperimentEnv/explicit-empty\n","OutputType":"frame"}
+2026-11-16T22:29:50.9372617Z {"Time":"2026-11-16T22:29:50.917315406Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/explicit-empty","Output":"    logos_experiment_env_test.go:64: test GOEXPERIMENT = (\"logosarena\", true), want (\"\", true)\n","OutputType":"error"}
+2026-11-16T22:29:50.9374238Z {"Time":"2026-11-16T22:29:50.917320233Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/explicit-empty","Output":"    logos_experiment_env_test.go:67: cached GOEXPERIMENT = (\"logosarena\", true), want (\"\", true)\n","OutputType":"error"}
+2026-11-16T22:29:50.9375684Z {"Time":"2026-11-16T22:29:50.917325861Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/explicit-empty","Output":"--- FAIL: TestLogosTestExperimentEnv/explicit-empty (0.00s)\n","OutputType":"frame"}
+2026-11-16T22:29:50.9377218Z {"Time":"2026-11-16T22:29:50.917332641Z","Action":"fail","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/explicit-empty","Elapsed":0}
+2026-11-16T22:29:50.9378040Z {"Time":"2026-11-16T22:29:50.917336437Z","Action":"run","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/none-with-arena"}
+2026-11-16T22:29:50.9379137Z {"Time":"2026-11-16T22:29:50.917340623Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/none-with-arena","Output":"=== RUN   TestLogosTestExperimentEnv/none-with-arena\n","OutputType":"frame"}
+2026-11-16T22:29:50.9380604Z {"Time":"2026-11-16T22:29:50.917346592Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/none-with-arena","Output":"    logos_experiment_env_test.go:64: test GOEXPERIMENT = (\"none,logosarena\", true), want (\"none\", true)\n","OutputType":"error"}
+2026-11-16T22:29:50.9382172Z {"Time":"2026-11-16T22:29:50.917352571Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/none-with-arena","Output":"    logos_experiment_env_test.go:67: cached GOEXPERIMENT = (\"none,logosarena\", true), want (\"none\", true)\n","OutputType":"error"}
+2026-11-16T22:29:50.9383923Z {"Time":"2026-11-16T22:29:50.91735874Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/none-with-arena","Output":"--- FAIL: TestLogosTestExperimentEnv/none-with-arena (0.00s)\n","OutputType":"frame"}
+2026-11-16T22:29:50.9385429Z {"Time":"2026-11-16T22:29:50.917373071Z","Action":"fail","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/none-with-arena","Elapsed":0}
+2026-11-16T22:29:50.9386936Z {"Time":"2026-11-16T22:29:50.917377097Z","Action":"run","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/classic-json"}
+2026-11-16T22:29:50.9388996Z {"Time":"2026-11-16T22:29:50.917380412Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/classic-json","Output":"=== RUN   TestLogosTestExperimentEnv/classic-json\n","OutputType":"frame"}
+2026-11-16T22:29:50.9390506Z {"Time":"2026-11-16T22:29:50.91738609Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/classic-json","Output":"    logos_experiment_env_test.go:64: test GOEXPERIMENT = (\"nojsonv2,logosarena\", true), want (\"nojsonv2\", true)\n","OutputType":"error"}
+2026-11-16T22:29:50.9392291Z {"Time":"2026-11-16T22:29:50.917394262Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/classic-json","Output":"    logos_experiment_env_test.go:67: cached GOEXPERIMENT = (\"nojsonv2,logosarena\", true), want (\"nojsonv2\", true)\n","OutputType":"error"}
+2026-11-16T22:29:50.9394183Z {"Time":"2026-11-16T22:29:50.91739959Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/classic-json","Output":"--- FAIL: TestLogosTestExperimentEnv/classic-json (0.00s)\n","OutputType":"frame"}
+2026-11-16T22:29:50.9395229Z {"Time":"2026-11-16T22:29:50.917405298Z","Action":"fail","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/classic-json","Elapsed":0}
+2026-11-16T22:29:50.9396022Z {"Time":"2026-11-16T22:29:50.917409264Z","Action":"run","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/jsonv2"}
+2026-11-16T22:29:50.9397240Z {"Time":"2026-11-16T22:29:50.917412849Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/jsonv2","Output":"=== RUN   TestLogosTestExperimentEnv/jsonv2\n","OutputType":"frame"}
+2026-11-16T22:29:50.9399155Z {"Time":"2026-11-16T22:29:50.917435382Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/jsonv2","Output":"    logos_experiment_env_test.go:64: test GOEXPERIMENT = (\"jsonv2,logosarena\", true), want (\"jsonv2\", true)\n","OutputType":"error"}
+2026-11-16T22:29:50.9401072Z {"Time":"2026-11-16T22:29:50.9174404Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/jsonv2","Output":"    logos_experiment_env_test.go:67: cached GOEXPERIMENT = (\"jsonv2,logosarena\", true), want (\"jsonv2\", true)\n","OutputType":"error"}
+2026-11-16T22:29:50.9403080Z {"Time":"2026-11-16T22:29:50.917446949Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/jsonv2","Output":"--- FAIL: TestLogosTestExperimentEnv/jsonv2 (0.00s)\n","OutputType":"frame"}
+2026-11-16T22:29:50.9404389Z {"Time":"2026-11-16T22:29:50.917451286Z","Action":"fail","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/jsonv2","Elapsed":0}
+2026-11-16T22:29:50.9405396Z {"Time":"2026-11-16T22:29:50.917456764Z","Action":"run","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/explicit-arena"}
+2026-11-16T22:29:50.9406740Z {"Time":"2026-11-16T22:29:50.917460269Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/explicit-arena","Output":"=== RUN   TestLogosTestExperimentEnv/explicit-arena\n","OutputType":"frame"}
+2026-11-16T22:29:50.9408277Z {"Time":"2026-11-16T22:29:50.917466448Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/explicit-arena","Output":"--- PASS: TestLogosTestExperimentEnv/explicit-arena (0.00s)\n","OutputType":"frame"}
+2026-11-16T22:29:50.9409525Z {"Time":"2026-11-16T22:29:50.917471896Z","Action":"pass","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/explicit-arena","Elapsed":0}
+2026-11-16T22:29:50.9410587Z {"Time":"2026-11-16T22:29:50.917476903Z","Action":"run","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/arena-off"}
+2026-11-16T22:29:50.9411931Z {"Time":"2026-11-16T22:29:50.917480539Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/arena-off","Output":"=== RUN   TestLogosTestExperimentEnv/arena-off\n","OutputType":"frame"}
+2026-11-16T22:29:50.9413464Z {"Time":"2026-11-16T22:29:50.917501269Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/arena-off","Output":"    logos_experiment_env_test.go:64: test GOEXPERIMENT = (\"\", true), want (\"\", false)\n","OutputType":"error"}
+2026-11-16T22:29:50.9415077Z {"Time":"2026-11-16T22:29:50.917512936Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/arena-off","Output":"    logos_experiment_env_test.go:67: cached GOEXPERIMENT = (\"\", true), want (\"\", false)\n","OutputType":"error"}
+2026-11-16T22:29:50.9416963Z {"Time":"2026-11-16T22:29:50.917535269Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/arena-off","Output":"--- FAIL: TestLogosTestExperimentEnv/arena-off (0.00s)\n","OutputType":"frame"}
+2026-11-16T22:29:50.9418170Z {"Time":"2026-11-16T22:29:50.917541358Z","Action":"fail","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/arena-off","Elapsed":0}
+2026-11-16T22:29:50.9419077Z {"Time":"2026-11-16T22:29:50.917545344Z","Action":"run","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/none-arena-off"}
+2026-11-16T22:29:50.9420276Z {"Time":"2026-11-16T22:29:50.91754952Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/none-arena-off","Output":"=== RUN   TestLogosTestExperimentEnv/none-arena-off\n","OutputType":"frame"}
+2026-11-16T22:29:50.9421746Z {"Time":"2026-11-16T22:29:50.917566255Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/none-arena-off","Output":"--- PASS: TestLogosTestExperimentEnv/none-arena-off (0.00s)\n","OutputType":"frame"}
+2026-11-16T22:29:50.9423069Z {"Time":"2026-11-16T22:29:50.917570571Z","Action":"pass","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/none-arena-off","Elapsed":0}
+2026-11-16T22:29:50.9423935Z {"Time":"2026-11-16T22:29:50.917575368Z","Action":"run","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/duplicates"}
+2026-11-16T22:29:50.9425103Z {"Time":"2026-11-16T22:29:50.917578913Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/duplicates","Output":"=== RUN   TestLogosTestExperimentEnv/duplicates\n","OutputType":"frame"}
+2026-11-16T22:29:50.9426851Z {"Time":"2026-11-16T22:29:50.917585123Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/duplicates","Output":"    logos_experiment_env_test.go:64: test GOEXPERIMENT = (\"nojsonv2,logosarena\", true), want (\"nojsonv2\", true)\n","OutputType":"error"}
+2026-11-16T22:29:50.9428761Z {"Time":"2026-11-16T22:29:50.917591232Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/duplicates","Output":"    logos_experiment_env_test.go:67: cached GOEXPERIMENT = (\"nojsonv2,logosarena\", true), want (\"nojsonv2\", true)\n","OutputType":"error"}
+2026-11-16T22:29:50.9430366Z {"Time":"2026-11-16T22:29:50.917598462Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/duplicates","Output":"--- FAIL: TestLogosTestExperimentEnv/duplicates (0.00s)\n","OutputType":"frame"}
+2026-11-16T22:29:50.9431472Z {"Time":"2026-11-16T22:29:50.91760365Z","Action":"fail","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/duplicates","Elapsed":0}
+2026-11-16T22:29:50.9432343Z {"Time":"2026-11-16T22:29:50.917634415Z","Action":"run","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/plain-unset"}
+2026-11-16T22:29:50.9433476Z {"Time":"2026-11-16T22:29:50.917641245Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/plain-unset","Output":"=== RUN   TestLogosTestExperimentEnv/plain-unset\n","OutputType":"frame"}
+2026-11-16T22:29:50.9434971Z {"Time":"2026-11-16T22:29:50.917652512Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/plain-unset","Output":"--- PASS: TestLogosTestExperimentEnv/plain-unset (0.00s)\n","OutputType":"frame"}
+2026-11-16T22:29:50.9436000Z {"Time":"2026-11-16T22:29:50.91765789Z","Action":"pass","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/plain-unset","Elapsed":0}
+2026-11-16T22:29:50.9436976Z {"Time":"2026-11-16T22:29:50.917663938Z","Action":"run","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/plain-empty"}
+2026-11-16T22:29:50.9438014Z {"Time":"2026-11-16T22:29:50.917667674Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/plain-empty","Output":"=== RUN   TestLogosTestExperimentEnv/plain-empty\n","OutputType":"frame"}
+2026-11-16T22:29:50.9439399Z {"Time":"2026-11-16T22:29:50.917676136Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/plain-empty","Output":"--- PASS: TestLogosTestExperimentEnv/plain-empty (0.00s)\n","OutputType":"frame"}
+2026-11-16T22:29:50.9440512Z {"Time":"2026-11-16T22:29:50.917687293Z","Action":"pass","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/plain-empty","Elapsed":0}
+2026-11-16T22:29:50.9441286Z {"Time":"2026-11-16T22:29:50.917691269Z","Action":"run","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/plain-none"}
+2026-11-16T22:29:50.9442313Z {"Time":"2026-11-16T22:29:50.917694844Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/plain-none","Output":"=== RUN   TestLogosTestExperimentEnv/plain-none\n","OutputType":"frame"}
+2026-11-16T22:29:50.9443571Z {"Time":"2026-11-16T22:29:50.917717167Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/plain-none","Output":"--- PASS: TestLogosTestExperimentEnv/plain-none (0.00s)\n","OutputType":"frame"}
+2026-11-16T22:29:50.9444592Z {"Time":"2026-11-16T22:29:50.917722274Z","Action":"pass","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/plain-none","Elapsed":0}
+2026-11-16T22:29:50.9445374Z {"Time":"2026-11-16T22:29:50.917727582Z","Action":"run","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/plain-classic"}
+2026-11-16T22:29:50.9446564Z {"Time":"2026-11-16T22:29:50.917731358Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/plain-classic","Output":"=== RUN   TestLogosTestExperimentEnv/plain-classic\n","OutputType":"frame"}
+2026-11-16T22:29:50.9447965Z {"Time":"2026-11-16T22:29:50.917742083Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/plain-classic","Output":"--- PASS: TestLogosTestExperimentEnv/plain-classic (0.00s)\n","OutputType":"frame"}
+2026-11-16T22:29:50.9449071Z {"Time":"2026-11-16T22:29:50.917747592Z","Action":"pass","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/plain-classic","Elapsed":0}
+2026-11-16T22:29:50.9450789Z {"Time":"2026-11-16T22:29:50.917752068Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv","Output":"--- FAIL: TestLogosTestExperimentEnv (0.00s)\n","OutputType":"frame"}
+2026-11-16T22:29:50.9452045Z {"Time":"2026-11-16T22:29:50.917757286Z","Action":"fail","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv","Elapsed":0}
+2026-11-16T22:29:50.9452788Z {"Time":"2026-11-16T22:29:50.917760991Z","Action":"run","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentCache"}
+2026-11-16T22:29:50.9453741Z {"Time":"2026-11-16T22:29:50.917764757Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentCache","Output":"=== RUN   TestLogosTestExperimentCache\n","OutputType":"frame"}
+2026-11-16T22:29:50.9454624Z {"Time":"2026-11-16T22:29:50.917779338Z","Action":"run","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentCache/logos"}
+2026-11-16T22:29:50.9455783Z {"Time":"2026-11-16T22:29:50.917783244Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentCache/logos","Output":"=== RUN   TestLogosTestExperimentCache/logos\n","OutputType":"frame"}
+2026-11-16T22:29:50.9457783Z {"Time":"2026-11-16T22:29:50.917801831Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentCache/logos","Output":"    logos_experiment_env_test.go:89: test-input hash includes an experiment absent from the test environment\n","OutputType":"error"}
+2026-11-16T22:29:50.9460369Z {"Time":"2026-11-16T22:29:50.917806658Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentCache/logos","Output":"    logos_experiment_env_test.go:95: test cache conflates absent and present-empty GOEXPERIMENT\n","OutputType":"error"}
+2026-11-16T22:29:50.9462934Z {"Time":"2026-11-16T22:29:50.917812527Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentCache/logos","Output":"    logos_experiment_env_test.go:100: test cache conflates empty and explicit GOEXPERIMENT values\n","OutputType":"error"}
+2026-11-16T22:29:50.9465661Z {"Time":"2026-11-16T22:29:50.917817484Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentCache/logos","Output":"    logos_experiment_env_test.go:103: test cache conflates absent and explicit GOEXPERIMENT values\n","OutputType":"error"}
+2026-11-16T22:29:50.9468035Z {"Time":"2026-11-16T22:29:50.917823373Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentCache/logos","Output":"--- FAIL: TestLogosTestExperimentCache/logos (0.00s)\n","OutputType":"frame"}
+2026-11-16T22:29:50.9469659Z {"Time":"2026-11-16T22:29:50.917832266Z","Action":"fail","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentCache/logos","Elapsed":0}
+2026-11-16T22:29:50.9470872Z {"Time":"2026-11-16T22:29:50.917836923Z","Action":"run","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentCache/go"}
+2026-11-16T22:29:50.9472494Z {"Time":"2026-11-16T22:29:50.917840658Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentCache/go","Output":"=== RUN   TestLogosTestExperimentCache/go\n","OutputType":"frame"}
+2026-11-16T22:29:50.9474555Z {"Time":"2026-11-16T22:29:50.917846647Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentCache/go","Output":"--- PASS: TestLogosTestExperimentCache/go (0.00s)\n","OutputType":"frame"}
+2026-11-16T22:29:50.9476318Z {"Time":"2026-11-16T22:29:50.917850713Z","Action":"pass","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentCache/go","Elapsed":0}
+2026-11-16T22:29:50.9478006Z {"Time":"2026-11-16T22:29:50.917856542Z","Action":"output","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentCache","Output":"--- FAIL: TestLogosTestExperimentCache (0.00s)\n","OutputType":"frame"}
+2026-11-16T22:29:50.9479600Z {"Time":"2026-11-16T22:29:50.917860648Z","Action":"fail","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentCache","Elapsed":0}
+2026-11-16T22:29:50.9480823Z {"Time":"2026-11-16T22:29:50.917865655Z","Action":"output","Package":"cmd/go/internal/test","Output":"FAIL\n","OutputType":"frame"}
+2026-11-16T22:29:50.9482152Z {"Time":"2026-11-16T22:29:50.918408153Z","Action":"output","Package":"cmd/go/internal/test","Output":"FAIL\tcmd/go/internal/test\t0.006s\n","OutputType":"frame"}
+2026-11-16T22:29:50.9483369Z {"Time":"2026-11-16T22:29:50.918420541Z","Action":"fail","Package":"cmd/go/internal/test","Elapsed":0.006}
+2026-11-16T22:29:50.9484536Z {"Time":"2026-11-16T22:29:50.917295627Z","Action":"fail","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentEnv/default","Elapsed":0}
+2026-11-16T22:29:50.9485883Z {"Time":"2026-11-16T22:29:50.917832266Z","Action":"fail","Package":"cmd/go/internal/test","Test":"TestLogosTestExperimentCache/logos","Elapsed":0}
+2026-11-16T22:29:51.7713424Z {"Time":"2026-11-16T22:29:51.700935871Z","Action":"start","Package":"go/types"}
+2026-11-16T22:29:51.7714471Z {"Time":"2026-11-16T22:29:51.702970453Z","Action":"run","Package":"go/types","Test":"TestGenerate"}
+2026-11-16T22:29:51.7716407Z {"Time":"2026-11-16T22:29:51.703004423Z","Action":"output","Package":"go/types","Test":"TestGenerate","Output":"=== RUN   TestGenerate\n","OutputType":"frame"}
+2026-11-16T22:29:51.7717542Z {"Time":"2026-11-16T22:29:51.71280039Z","Action":"output","Package":"go/types","Test":"TestGenerate","Output":"    generate_test.go:103: file on disk in /src/go/types/ is stale:\n","OutputType":"error"}
+2026-11-16T22:29:51.7718875Z {"Time":"2026-11-16T22:29:51.712814561Z","Action":"output","Package":"go/types","Test":"TestGenerate","Output":"        diff builtins.go (on disk in /src/go/types/) builtins.go (generated from /src/cmd/compile/internal/types2/)\n","OutputType":"error-continue"}
+2026-11-16T22:29:51.7720091Z {"Time":"2026-11-16T22:29:51.712818717Z","Action":"output","Package":"go/types","Test":"TestGenerate","Output":"        --- builtins.go (on disk in /src/go/types/)\n","OutputType":"error-continue"}
+2026-11-16T22:29:51.7721418Z {"Time":"2026-11-16T22:29:51.712821631Z","Action":"output","Package":"go/types","Test":"TestGenerate","Output":"        +++ builtins.go (generated from /src/cmd/compile/internal/types2/)\n","OutputType":"error-continue"}
+2026-11-16T22:29:51.7722461Z {"Time":"2026-11-16T22:29:51.712825006Z","Action":"output","Package":"go/types","Test":"TestGenerate","Output":"        @@ -681,10 +681,9 @@\n","OutputType":"error-continue"}
+2026-11-16T22:29:51.7723298Z {"Time":"2026-11-16T22:29:51.712828471Z","Action":"output","Package":"go/types","Test":"TestGenerate","Output":"         \n","OutputType":"error-continue"}
+2026-11-16T22:29:51.7724146Z {"Time":"2026-11-16T22:29:51.712831095Z","Action":"output","Package":"go/types","Test":"TestGenerate","Output":"         \tcase _Panic:\n","OutputType":"error-continue"}
+2026-11-16T22:29:51.7725023Z {"Time":"2026-11-16T22:29:51.712833849Z","Action":"output","Package":"go/types","Test":"TestGenerate","Output":"         \t\t// panic(x)\n","OutputType":"error-continue"}
+2026-11-16T22:29:51.7726070Z {"Time":"2026-11-16T22:29:51.712836633Z","Action":"output","Package":"go/types","Test":"TestGenerate","Output":"        -\t\t// record panic call if inside a function with result parameters\n","OutputType":"error-continue"}
+2026-11-16T22:29:51.7727694Z {"Time":"2026-11-16T22:29:51.712839317Z","Action":"output","Package":"go/types","Test":"TestGenerate","Output":"        -\t\t// (for use in Checker.isTerminating)\n","OutputType":"error-continue"}
+2026-11-16T22:29:51.7729521Z {"Time":"2026-11-16T22:29:51.712843864Z","Action":"output","Package":"go/types","Test":"TestGenerate","Output":"        -\t\tif check.sig != nil \u0026\u0026 check.sig.results.Len() \u003e 0 {\n","OutputType":"error-continue"}
+2026-11-16T22:29:51.7731347Z {"Time":"2026-11-16T22:29:51.71285483Z","Action":"output","Package":"go/types","Test":"TestGenerate","Output":"        -\t\t\t// function has result parameters\n","OutputType":"error-continue"}
+2026-11-16T22:29:51.7732530Z {"Time":"2026-11-16T22:29:51.712857884Z","Action":"output","Package":"go/types","Test":"TestGenerate","Output":"        +\t\t// Record panic calls for result-bearing function termination and\n","OutputType":"error-continue"}
+2026-11-16T22:29:51.7733734Z {"Time":"2026-11-16T22:29:51.712862481Z","Action":"output","Package":"go/types","Test":"TestGenerate","Output":"        +\t\t// for loGo/s option narrowing, including functions without results.\n","OutputType":"error-continue"}
+2026-11-16T22:29:51.7734993Z {"Time":"2026-11-16T22:29:51.712865275Z","Action":"output","Package":"go/types","Test":"TestGenerate","Output":"        +\t\tif check.sig != nil \u0026\u0026 (check.sig.results.Len() \u003e 0 || check.conf.Logos) {\n","OutputType":"error-continue"}
+2026-11-16T22:29:51.7736416Z {"Time":"2026-11-16T22:29:51.712868229Z","Action":"output","Package":"go/types","Test":"TestGenerate","Output":"         \t\t\tp := check.isPanic\n","OutputType":"error-continue"}
+2026-11-16T22:29:51.7737522Z {"Time":"2026-11-16T22:29:51.712871494Z","Action":"output","Package":"go/types","Test":"TestGenerate","Output":"         \t\t\tif p == nil {\n","OutputType":"error-continue"}
+2026-11-16T22:29:51.7738491Z {"Time":"2026-11-16T22:29:51.712874108Z","Action":"output","Package":"go/types","Test":"TestGenerate","Output":"         \t\t\t\t// allocate lazily\n","OutputType":"error-continue"}
+2026-11-16T22:29:51.7739498Z {"Time":"2026-11-16T22:29:51.760502543Z","Action":"output","Package":"go/types","Test":"TestGenerate","Output":"--- FAIL: TestGenerate (0.06s)\n","OutputType":"frame"}
+2026-11-16T22:29:51.7740548Z {"Time":"2026-11-16T22:29:51.760560178Z","Action":"fail","Package":"go/types","Test":"TestGenerate","Elapsed":0.06}
+2026-11-16T22:29:51.7741811Z {"Time":"2026-11-16T22:29:51.760571715Z","Action":"output","Package":"go/types","Output":"FAIL\n","OutputType":"frame"}
+2026-11-16T22:29:51.7742611Z {"Time":"2026-11-16T22:29:51.761451439Z","Action":"output","Package":"go/types","Output":"FAIL\tgo/types\t0.060s\n","OutputType":"frame"}
+2026-11-16T22:29:51.7743369Z {"Time":"2026-11-16T22:29:51.761464408Z","Action":"fail","Package":"go/types","Elapsed":0.061}
+2026-11-16T22:29:51.7743947Z {"Time":"2026-11-16T22:29:51.760560178Z","Action":"fail","Package":"go/types","Test":"TestGenerate","Elapsed":0.06}
+2026-11-16T22:29:51.7745088Z {"Time":"2026-11-16T22:29:51.712865275Z","Action":"output","Package":"go/types","Test":"TestGenerate","Output":"        +\t\tif check.sig != nil \u0026\u0026 (check.sig.results.Len() \u003e 0 || check.conf.Logos) {\n","OutputType":"error-continue"}
+2026-11-16T22:29:52.4698288Z ok  	cmd/go/internal/test	0.005s
+2026-11-16T22:29:52.7422419Z ok  	go/types	0.061s
+2026-11-16T22:29:52.7547751Z ##[group]Run actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+2026-11-16T22:29:52.7548084Z with:
+2026-11-16T22:29:52.7548277Z   name: logos-unit-43967559240-1
+2026-11-16T22:29:52.7548482Z   retention-days: 14
+2026-11-16T22:29:52.7548687Z   if-no-files-found: error
+2026-11-16T22:29:52.7550054Z   path: /home/runner/work/_temp/logos-regression-evidence/**/*.json
+/home/runner/work/_temp/logos-regression-evidence/**/*.jsonl
+/home/runner/work/_temp/logos-regression-evidence/**/*.log
+/home/runner/work/_temp/logos-regression-evidence/**/*.txt
+/home/runner/work/_temp/logos-regression-evidence/**/*.sha256
+/home/runner/work/_temp/logos-regression-evidence/**/*.stderr
+/home/runner/work/_temp/logos-regression-evidence/**/*.stdout
+/home/runner/work/_temp/logos-mutations.*/*.log
+/home/runner/work/_temp/logos-mutations.*/*.json
+
+2026-11-16T22:29:52.7551419Z   compression-level: 6
+2026-11-16T22:29:52.7551596Z   overwrite: false
+2026-11-16T22:29:52.7551798Z   include-hidden-files: false
+2026-11-16T22:29:52.7551995Z   archive: true
+2026-11-16T22:29:52.7552158Z env:
+2026-11-16T22:29:52.7552373Z   LOGOS_EXPECTED_HEAD: f4242fed9cf0707a4103a0adbdb82e866bcabd69
+2026-11-16T22:29:52.7552969Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T22:29:52.7553504Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T22:29:52.7553831Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T22:29:52.7554174Z   GOTOOLCHAIN: local
+2026-11-16T22:29:52.7554360Z   PYTHONDONTWRITEBYTECODE: 1
+2026-11-16T22:29:52.7554574Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T22:29:52.7554785Z ##[endgroup]
+2026-11-16T22:29:52.8975671Z With the provided path, there will be 90 files uploaded
+2026-11-16T22:29:52.8980593Z Artifact name is valid!
+2026-11-16T22:29:52.8981188Z Root directory input is valid!
+2026-11-16T22:29:53.3155912Z Uploading artifact: logos-unit-43967559240-1.zip
+2026-11-16T22:29:53.3184270Z Beginning upload of artifact content to blob storage
+2026-11-16T22:29:53.7543936Z Uploaded bytes 72894
+2026-11-16T22:29:53.8190617Z Finished uploading artifact content to blob storage!
+2026-11-16T22:29:53.8191941Z SHA256 digest of uploaded artifact is b38104026644aeba2d57b3bb531c17f0c6274a83ad17de6d4f69f3bb1d75b475
+2026-11-16T22:29:53.8193060Z Finalizing artifact upload
+2026-11-16T22:29:54.3740483Z Artifact logos-unit-43967559240-1 successfully finalized. Artifact ID 14276199722
+2026-11-16T22:29:54.3741209Z Artifact logos-unit-43967559240-1 has been successfully uploaded! Final size is 72894 bytes. Artifact ID is 14276199722
+2026-11-16T22:29:54.3743860Z Artifact download URL: https://github.com/gosuda/LoGOs/actions/runs/43967559240/artifacts/14276199722
+2026-11-16T22:29:54.3946924Z Post job cleanup.
+2026-11-16T22:29:54.4661457Z [command]/usr/bin/git version
+2026-11-16T22:29:54.4701603Z git version 2.56.1
+2026-11-16T22:29:54.4731169Z Temporarily overriding HOME='/home/runner/work/_temp/a8006559-e621-4d4d-83a4-33f9987996eb' before making global git config changes
+2026-11-16T22:29:54.4732418Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-16T22:29:54.4733437Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/LoGOs/LoGOs
+2026-11-16T22:29:54.4763810Z Removing SSH command configuration
+2026-11-16T22:29:54.4769289Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-16T22:29:54.4803858Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-16T22:29:54.5055568Z Removing HTTP extra header
+2026-11-16T22:29:54.5061491Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-16T22:29:54.5100324Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-16T22:29:54.5354704Z Removing includeIf entries pointing to credentials config files
+2026-11-16T22:29:54.5360239Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-16T22:29:54.5398853Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-16T22:29:54.5770634Z Cleaning up orphan processes

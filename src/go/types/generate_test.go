@@ -55,7 +55,14 @@ func TestGenerate(t *testing.T) {
 func generate(t *testing.T, filename string, write bool) {
 	// parse src (cmd/compile/internal/types2)
 	srcFilename := filepath.FromSlash(runtime.GOROOT() + srcDir + filename)
-	file, err := parser.ParseFile(fset, srcFilename, nil, parser.ParseComments|parser.SkipObjectResolution)
+	src, err := os.ReadFile(srcFilename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if filename == "builtins.go" {
+		src = goTypesPanicSource(src)
+	}
+	file, err := parser.ParseFile(fset, srcFilename, src, parser.ParseComments|parser.SkipObjectResolution)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,0 +1,11 @@
+
+##### Test execution environment.
+# GOARCH: amd64
+# CPU: AMD EPYC 7763 64-Core Processor                
+# GOOS: linux
+# OS Version: Linux 7.0.0-1017-azure #17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 18:46:57 UTC 2026 x86_64
+
+##### Testing packages.
+ok  	cmd/go	1533.587s
+
+ALL TESTS PASSED (some were excluded)

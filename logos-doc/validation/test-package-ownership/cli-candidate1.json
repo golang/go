@@ -1,0 +1,52 @@
+[
+  {
+    "name": "root",
+    "command": [
+      "/workspace/scratch/d8d410ec882d/testpkg-evidence/bin/logos",
+      "test",
+      "-short",
+      "-count=1",
+      "."
+    ],
+    "returncode": 0,
+    "seconds": 0.5265819449996343
+  },
+  {
+    "name": "nested",
+    "command": [
+      "/workspace/scratch/d8d410ec882d/testpkg-evidence/bin/logos",
+      "test",
+      "-short",
+      "-count=1",
+      "example.com/app/nested"
+    ],
+    "returncode": 0,
+    "seconds": 0.41732650799531257
+  },
+  {
+    "name": "mirror",
+    "command": [
+      "/workspace/scratch/d8d410ec882d/testpkg-evidence/bin/logos",
+      "test",
+      "-short",
+      "-count=1",
+      "./usesmirror"
+    ],
+    "returncode": 1,
+    "seconds": 0.6960211730038282
+  },
+  {
+    "name": "plain",
+    "command": [
+      "/workspace/scratch/d8d410ec882d/testpkg-evidence/bin/go",
+      "test",
+      "-short",
+      "-count=1",
+      ".",
+      "example.com/app/nested",
+      "./usesmirror"
+    ],
+    "returncode": 0,
+    "seconds": 1.2731914489995688
+  }
+]

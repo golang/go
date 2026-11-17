@@ -1,0 +1,78 @@
+{
+  "command": [
+    "timeout",
+    "--signal=QUIT",
+    "--kill-after=5s",
+    "30s",
+    "/workspace/scratch/93e0563596d1/LoGOs/pkg/tool/linux_amd64/link",
+    "-o",
+    "/workspace/scratch/93e0563596d1/purego-logos-link-corrected/purego.test",
+    "-importcfg",
+    "/dev/shm/logos-dogfood-93e0563596d1/go-build4123970046/b001/importcfg.link",
+    "-X=runtime.godebugDefault=cryptocustomrand=1,httpservecontentmaxranges=1,tlssecpmlkem=0,tracebacklabels=0,urlstrictcolons=0,x509sslcertoverrideplatform=0",
+    "-buildmode=exe",
+    "-buildid=ULcsRQQBpvCL_6yk2tfh/DfJnbO6g2siJ-iUAC-XM/9cF-uAyoHJ_WKSPib8mG/ULcsRQQBpvCL_6yk2tfh",
+    "-X",
+    "testing.testBinary=1",
+    "-extld=/usr/bin/cc",
+    "-logos.cap=/dev/shm/logos-dogfood-93e0563596d1/go-build4123970046/b001/logos-cap.json",
+    "/dev/shm/logos-dogfood-93e0563596d1/go-build4123970046/b001/_pkg_.a"
+  ],
+  "complete": true,
+  "environment": {
+    "GOAMD64": "v3",
+    "GOARM64": "v8.2",
+    "GOEXPERIMENT": "logosarena",
+    "GOGC": "30",
+    "GOMAXPROCS": "1",
+    "GOMEMLIMIT": "384MiB",
+    "GOROOT": "/workspace/scratch/93e0563596d1/LoGOs"
+  },
+  "input_hashes": {
+    "/dev/shm/logos-dogfood-93e0563596d1/go-build4123970046/b001/_pkg_.a": "cecb474194211b226de8c05f2146bda2c5a0c54321d625ebf4c31b5676950ab0",
+    "/dev/shm/logos-dogfood-93e0563596d1/go-build4123970046/b001/importcfg.link": "819ac7c13d1b69afc654ff7403e8b805fa9f71b50418a8eb2e342fab5598c909",
+    "/dev/shm/logos-dogfood-93e0563596d1/go-build4123970046/b001/logos-cap.json": "62f6de98ea65783b21bd986cba560640e8640405c5e08b4a231eb4bb3b626612"
+  },
+  "link_sha256": "34d1a8ba987d626e7285065e018075da93a98db56abab9ed29bd8b83d424cf62",
+  "purpose": "Repeat the direct linker probe with its original logosarena object experiment; output path is private to this probe",
+  "run": {
+    "command": [
+      "timeout",
+      "--signal=QUIT",
+      "--kill-after=5s",
+      "30s",
+      "/workspace/scratch/93e0563596d1/LoGOs/pkg/tool/linux_amd64/link",
+      "-o",
+      "/workspace/scratch/93e0563596d1/purego-logos-link-corrected/purego.test",
+      "-importcfg",
+      "/dev/shm/logos-dogfood-93e0563596d1/go-build4123970046/b001/importcfg.link",
+      "-X=runtime.godebugDefault=cryptocustomrand=1,httpservecontentmaxranges=1,tlssecpmlkem=0,tracebacklabels=0,urlstrictcolons=0,x509sslcertoverrideplatform=0",
+      "-buildmode=exe",
+      "-buildid=ULcsRQQBpvCL_6yk2tfh/DfJnbO6g2siJ-iUAC-XM/9cF-uAyoHJ_WKSPib8mG/ULcsRQQBpvCL_6yk2tfh",
+      "-X",
+      "testing.testBinary=1",
+      "-extld=/usr/bin/cc",
+      "-logos.cap=/dev/shm/logos-dogfood-93e0563596d1/go-build4123970046/b001/logos-cap.json",
+      "/dev/shm/logos-dogfood-93e0563596d1/go-build4123970046/b001/_pkg_.a"
+    ],
+    "cwd": "/workspace/scratch/93e0563596d1/purego-logos-build-probe/work",
+    "environment": {
+      "GOAMD64": "v3",
+      "GOARM64": "v8.2",
+      "GOEXPERIMENT": "logosarena",
+      "GOGC": "30",
+      "GOMAXPROCS": "1",
+      "GOMEMLIMIT": "384MiB",
+      "GOROOT": "/workspace/scratch/93e0563596d1/LoGOs"
+    },
+    "error": "",
+    "returncode": 124,
+    "seconds": 30.061,
+    "stderr": "/workspace/scratch/93e0563596d1/purego-logos-link-corrected/link.stderr",
+    "stderr_sha256": "b03f4331461644113154aa9ac2b054f66feb1efa42ec33820eeb31e58283e440",
+    "stdout": "/workspace/scratch/93e0563596d1/purego-logos-link-corrected/link.stdout",
+    "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "timed_out": false
+  },
+  "source_revision": "39c62004a991501a25f93eae7a63dc7c7fac5646"
+}

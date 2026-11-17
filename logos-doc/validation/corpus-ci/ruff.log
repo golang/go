@@ -1,0 +1,68 @@
+I001 [*] Import block is un-sorted or un-formatted
+  --> misc/logos-dogfood/test_replay_backend_events.py:4:1
+   |
+ 2 |   """Package and build records must not conceal failures behind passing tests."""
+ 3 |
+ 4 | / from __future__ import annotations
+ 5 | |
+ 6 | | import json
+ 7 | | from pathlib import Path
+ 8 | |
+ 9 | | import pytest
+10 | |
+11 | | from replay_backends import assess_runtime
+12 | | from test_replay_backends import executed, profile, run_record
+   | |______________________________________________________________^
+help: Organize imports
+   |
+9  | import pytest
+   -
+10 | from replay_backends import assess_runtime
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> misc/logos-dogfood/test_replay_backends.py:4:1
+   |
+ 2 |   """A backend pass requires executed tests and a successful matching stock run."""
+ 3 |
+ 4 | / from __future__ import annotations
+ 5 | |
+ 6 | | import argparse
+ 7 | | import json
+ 8 | | from dataclasses import replace
+ 9 | | from pathlib import Path
+10 | |
+11 | | import pytest
+12 | | from hypothesis import given
+13 | | from hypothesis import strategies as st
+14 | |
+15 | | import replay_backends
+16 | | from replay_backends import (
+17 | |     Replay,
+18 | |     assess_runtime,
+19 | |     load_profiles,
+20 | |     make_command,
+21 | |     make_environment,
+22 | |     parse_events,
+23 | |     policy_for,
+24 | |     positive_timeout,
+25 | |     prepare_work,
+26 | | )
+27 | | from run import Run, Source, all_files, file_hash, prepare_source, tree_hash
+   | |____________________________________________________________________________^
+28 |
+29 |   SQLITE_TESTS = ("TestOpen", "TestClose", "TestInsert")
+   |
+help: Organize imports
+   |
+11 | import pytest
+12 + import replay_backends
+13 | from hypothesis import given
+14 | from hypothesis import strategies as st
+   -
+   - import replay_backends
+15 | from replay_backends import (
+   |
+
+Found 2 errors.
+[*] 2 fixable with `--fix`.

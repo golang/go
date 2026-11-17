@@ -1,0 +1,41 @@
+{
+  "artifact": {
+    "bytes": 72894,
+    "id": 14276199722,
+    "sha256": "b38104026644aeba2d57b3bb531c17f0c6274a83ad17de6d4f69f3bb1d75b475",
+    "url": "https://github.com/gosuda/LoGOs/actions/runs/43967559240/artifacts/14276199722"
+  },
+  "failure": "Compiler-internal types2.Interface has no Complete method; fixture lines19 and99 fail package build.",
+  "fixture_sha256": "f486bc2815f967e0810b1b4145848fcf684023a04421932debd6cc41f8033faa",
+  "head": "f4242fed9cf0707a4103a0adbdb82e866bcabd69",
+  "helper_sha256": "296630bf4d6893d5d0ee4e19cfe1f2d30f7037c0ad059077aa1599639de99057",
+  "job_id": 133650880035,
+  "local_go_execution": false,
+  "manifest_sha256": "b339088687a8d3f439680ac52dc91100c14ca097451762f6135a4fcdfdef11d6",
+  "observed": {
+    "facts": {
+      "accepted": true,
+      "named_passes": 15,
+      "named_runs": 15
+    },
+    "old-mutation-proof": {
+      "accepted": true,
+      "named_failures": 2,
+      "named_runs": 2
+    },
+    "old-type-proof": {
+      "accepted": false,
+      "build_failures": 1,
+      "named_runs": 0
+    },
+    "types": {
+      "accepted": false,
+      "build_failures": 1,
+      "named_runs": 0
+    }
+  },
+  "run_id": 43967559240,
+  "schema_version": 1,
+  "source_tree": "ee5ae95824022485b74d4e3186a1540ef7124f76",
+  "tree": "42454f406f1032e1b5c9265b97e4b430eb8c4a36"
+}

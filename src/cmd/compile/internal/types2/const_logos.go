@@ -51,7 +51,7 @@ func logosReferenceFreeAlong(t Type, expanding []*TypeParam) bool {
 	case *Basic:
 		return t.Kind() != UnsafePointer
 	case *Array:
-		return logosReferenceFreeAlong(t.Elem(), expanding)
+		return t.Len() == 0 || logosReferenceFreeAlong(t.Elem(), expanding)
 	case *Struct:
 		for i := range t.NumFields() {
 			if !logosReferenceFreeAlong(t.Field(i).Type(), expanding) {

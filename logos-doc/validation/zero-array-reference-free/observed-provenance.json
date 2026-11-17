@@ -1,0 +1,19 @@
+{
+  "base_head": "b61a6cfeb33051791348597fbb69818f4e2ec6f7",
+  "observed_head": "9909feb26fe92b124f17c11fdf0022be7a643188",
+  "source_tree": "df267333b1d5c5727e2477215a6807cae52f8e18",
+  "run_id": 43951103189,
+  "unit_job_id": 133593503956,
+  "artifact_id": 14272030204,
+  "artifact_sha256": "d4aa5e7a0aebd40acb5c832af3bc3d62599061014a0f1c7ae1ecfab82498e2fa",
+  "unit_raw_sha256": "7ca5bf0702303e5c1a4b2429938e3f6dbc116e7a8b4cd0800a787dbc4da18baa",
+  "observed_result": "real tagged-method integration fails both driver consumer builds; logos also reports twelve ParamMutated=1 values instead of zero",
+  "new_tests_executed": false,
+  "new_source_repair_executed": false,
+  "artifact_files_sha256": {
+    "observed-logos.jsonl": "7b27f4cb0b67146edf9b42cd51c5cf35184145185abcec5707121e0dd1dbd894",
+    "observed-report.json": "091595e790106f9adee4551f938417ec97e373482cc44ca8a15b78d52e7cd636",
+    "observed-before.json": "1695240e614c57308e66b3408ff04174754360fa71080d45302b7ee81dfc32dc",
+    "observed-after.json": "1695240e614c57308e66b3408ff04174754360fa71080d45302b7ee81dfc32dc"
+  }
+}

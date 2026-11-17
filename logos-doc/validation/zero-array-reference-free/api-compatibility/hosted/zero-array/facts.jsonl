@@ -1,0 +1,64 @@
+{"Time":"2026-11-16T22:28:50.936386659Z","Action":"start","Package":"cmd/compile/internal/logos"}
+{"Time":"2026-11-16T22:28:50.938789544Z","Action":"run","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays"}
+{"Time":"2026-11-16T22:28:50.93883443Z","Action":"output","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays","Output":"=== RUN   TestGoMutationFactsZeroArrays\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.939688937Z","Action":"run","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ReturnZero"}
+{"Time":"2026-11-16T22:28:50.93969764Z","Action":"output","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ReturnZero","Output":"=== RUN   TestGoMutationFactsZeroArrays/ReturnZero\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.939712802Z","Action":"output","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ReturnZero","Output":"--- PASS: TestGoMutationFactsZeroArrays/ReturnZero (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.939719241Z","Action":"pass","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ReturnZero","Elapsed":0}
+{"Time":"2026-11-16T22:28:50.939725891Z","Action":"run","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ReturnLive"}
+{"Time":"2026-11-16T22:28:50.939728445Z","Action":"output","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ReturnLive","Output":"=== RUN   TestGoMutationFactsZeroArrays/ReturnLive\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.939744759Z","Action":"output","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ReturnLive","Output":"--- PASS: TestGoMutationFactsZeroArrays/ReturnLive (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.939749235Z","Action":"pass","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ReturnLive","Elapsed":0}
+{"Time":"2026-11-16T22:28:50.939756236Z","Action":"run","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ForwardZero"}
+{"Time":"2026-11-16T22:28:50.939759941Z","Action":"output","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ForwardZero","Output":"=== RUN   TestGoMutationFactsZeroArrays/ForwardZero\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.93976585Z","Action":"output","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ForwardZero","Output":"--- PASS: TestGoMutationFactsZeroArrays/ForwardZero (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.939768744Z","Action":"pass","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ForwardZero","Elapsed":0}
+{"Time":"2026-11-16T22:28:50.939772319Z","Action":"run","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ForwardLive"}
+{"Time":"2026-11-16T22:28:50.939774553Z","Action":"output","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ForwardLive","Output":"=== RUN   TestGoMutationFactsZeroArrays/ForwardLive\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.939780121Z","Action":"output","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ForwardLive","Output":"--- PASS: TestGoMutationFactsZeroArrays/ForwardLive (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.939787031Z","Action":"pass","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ForwardLive","Elapsed":0}
+{"Time":"2026-11-16T22:28:50.939791948Z","Action":"run","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ReturnZeroPointers"}
+{"Time":"2026-11-16T22:28:50.939796725Z","Action":"output","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ReturnZeroPointers","Output":"=== RUN   TestGoMutationFactsZeroArrays/ReturnZeroPointers\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.939802574Z","Action":"output","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ReturnZeroPointers","Output":"--- PASS: TestGoMutationFactsZeroArrays/ReturnZeroPointers (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.939814972Z","Action":"pass","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ReturnZeroPointers","Elapsed":0}
+{"Time":"2026-11-16T22:28:50.939818768Z","Action":"run","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ReturnLivePointers"}
+{"Time":"2026-11-16T22:28:50.939821442Z","Action":"output","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ReturnLivePointers","Output":"=== RUN   TestGoMutationFactsZeroArrays/ReturnLivePointers\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.939825698Z","Action":"output","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ReturnLivePointers","Output":"--- PASS: TestGoMutationFactsZeroArrays/ReturnLivePointers (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.939830385Z","Action":"pass","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ReturnLivePointers","Elapsed":0}
+{"Time":"2026-11-16T22:28:50.939850264Z","Action":"run","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ReturnPointerToZero"}
+{"Time":"2026-11-16T22:28:50.939852848Z","Action":"output","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ReturnPointerToZero","Output":"=== RUN   TestGoMutationFactsZeroArrays/ReturnPointerToZero\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.939858236Z","Action":"output","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ReturnPointerToZero","Output":"--- PASS: TestGoMutationFactsZeroArrays/ReturnPointerToZero (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.939861961Z","Action":"pass","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ReturnPointerToZero","Elapsed":0}
+{"Time":"2026-11-16T22:28:50.939868511Z","Action":"run","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ReturnSliceOfZero"}
+{"Time":"2026-11-16T22:28:50.939872106Z","Action":"output","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ReturnSliceOfZero","Output":"=== RUN   TestGoMutationFactsZeroArrays/ReturnSliceOfZero\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.939878335Z","Action":"output","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ReturnSliceOfZero","Output":"--- PASS: TestGoMutationFactsZeroArrays/ReturnSliceOfZero (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.939882221Z","Action":"pass","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ReturnSliceOfZero","Elapsed":0}
+{"Time":"2026-11-16T22:28:50.939887288Z","Action":"run","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ReturnLiveSibling"}
+{"Time":"2026-11-16T22:28:50.939890423Z","Action":"output","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ReturnLiveSibling","Output":"=== RUN   TestGoMutationFactsZeroArrays/ReturnLiveSibling\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.939894769Z","Action":"output","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ReturnLiveSibling","Output":"--- PASS: TestGoMutationFactsZeroArrays/ReturnLiveSibling (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.939898425Z","Action":"pass","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/ReturnLiveSibling","Elapsed":0}
+{"Time":"2026-11-16T22:28:50.93990184Z","Action":"run","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/Value.Invoke"}
+{"Time":"2026-11-16T22:28:50.939904424Z","Action":"output","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/Value.Invoke","Output":"=== RUN   TestGoMutationFactsZeroArrays/Value.Invoke\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.939920477Z","Action":"output","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/Value.Invoke","Output":"--- PASS: TestGoMutationFactsZeroArrays/Value.Invoke (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.939927698Z","Action":"pass","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/Value.Invoke","Elapsed":0}
+{"Time":"2026-11-16T22:28:50.939931744Z","Action":"run","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/(*Receiver).Return"}
+{"Time":"2026-11-16T22:28:50.939934508Z","Action":"output","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/(*Receiver).Return","Output":"=== RUN   TestGoMutationFactsZeroArrays/(*Receiver).Return\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.939938474Z","Action":"output","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/(*Receiver).Return","Output":"--- PASS: TestGoMutationFactsZeroArrays/(*Receiver).Return (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.939943822Z","Action":"pass","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/(*Receiver).Return","Elapsed":0}
+{"Time":"2026-11-16T22:28:50.939949851Z","Action":"run","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/(*Receiver).Store"}
+{"Time":"2026-11-16T22:28:50.939953916Z","Action":"output","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/(*Receiver).Store","Output":"=== RUN   TestGoMutationFactsZeroArrays/(*Receiver).Store\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.939961027Z","Action":"output","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/(*Receiver).Store","Output":"--- PASS: TestGoMutationFactsZeroArrays/(*Receiver).Store (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.939966305Z","Action":"pass","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/(*Receiver).Store","Elapsed":0}
+{"Time":"2026-11-16T22:28:50.939970391Z","Action":"run","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/GenericZero.Return"}
+{"Time":"2026-11-16T22:28:50.939973335Z","Action":"output","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/GenericZero.Return","Output":"=== RUN   TestGoMutationFactsZeroArrays/GenericZero.Return\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.939978473Z","Action":"output","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/GenericZero.Return","Output":"--- PASS: TestGoMutationFactsZeroArrays/GenericZero.Return (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.939982218Z","Action":"pass","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/GenericZero.Return","Elapsed":0}
+{"Time":"2026-11-16T22:28:50.939987276Z","Action":"run","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/GenericLive.Return"}
+{"Time":"2026-11-16T22:28:50.939989639Z","Action":"output","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/GenericLive.Return","Output":"=== RUN   TestGoMutationFactsZeroArrays/GenericLive.Return\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.94000359Z","Action":"output","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/GenericLive.Return","Output":"--- PASS: TestGoMutationFactsZeroArrays/GenericLive.Return (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.940007365Z","Action":"pass","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays/GenericLive.Return","Elapsed":0}
+{"Time":"2026-11-16T22:28:50.94014995Z","Action":"output","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays","Output":"--- PASS: TestGoMutationFactsZeroArrays (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.940163079Z","Action":"pass","Package":"cmd/compile/internal/logos","Test":"TestGoMutationFactsZeroArrays","Elapsed":0}
+{"Time":"2026-11-16T22:28:50.940185943Z","Action":"output","Package":"cmd/compile/internal/logos","Output":"PASS\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.940582797Z","Action":"output","Package":"cmd/compile/internal/logos","Output":"ok  \tcmd/compile/internal/logos\t0.004s\n"}
+{"Time":"2026-11-16T22:28:50.940594484Z","Action":"pass","Package":"cmd/compile/internal/logos","Elapsed":0.004}

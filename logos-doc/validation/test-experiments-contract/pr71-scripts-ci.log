@@ -1,0 +1,396 @@
+﻿2026-11-16T16:13:34.9227029Z Current runner version: '2.338.2'
+2026-11-16T16:13:34.9244154Z ##[group]Runner Image Provisioner
+2026-11-16T16:13:34.9244820Z Hosted Compute Agent
+2026-11-16T16:13:34.9245274Z Version: 20261103.629
+2026-11-16T16:13:34.9245790Z Commit: 15dbd9ccb5dbf34fae002b6ed1a2670f52df37bc
+2026-11-16T16:13:34.9246296Z Build Date: 2026-11-03T17:26:59Z
+2026-11-16T16:13:34.9246809Z Worker ID: {e7a83f24-0f37-4ac8-8e0f-973ef25791da}
+2026-11-16T16:13:34.9247307Z Region: us-west-2
+2026-11-16T16:13:34.9247700Z Cloud: AWS
+2026-11-16T16:13:34.9248089Z ##[endgroup]
+2026-11-16T16:13:34.9248960Z ##[group]Operating System
+2026-11-16T16:13:34.9249429Z Ubuntu
+2026-11-16T16:13:34.9249793Z 26.04.1
+2026-11-16T16:13:34.9250417Z LTS
+2026-11-16T16:13:34.9250811Z ##[endgroup]
+2026-11-16T16:13:34.9251189Z ##[group]Runner Image
+2026-11-16T16:13:34.9251617Z Image: ubuntu-26.04
+2026-11-16T16:13:34.9252005Z Version: 20261111.82.6
+2026-11-16T16:13:34.9252924Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261111.82/images/ubuntu/Ubuntu2604-Readme.md
+2026-11-16T16:13:34.9254028Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261111.82
+2026-11-16T16:13:34.9254706Z ##[endgroup]
+2026-11-16T16:13:34.9255490Z ##[group]GITHUB_TOKEN Permissions
+2026-11-16T16:13:34.9257148Z Contents: read
+2026-11-16T16:13:34.9257562Z Metadata: read
+2026-11-16T16:13:34.9257931Z ##[endgroup]
+2026-11-16T16:13:34.9259369Z Secret source: Actions
+2026-11-16T16:13:34.9260268Z Cache mode: write
+2026-11-16T16:13:34.9260933Z Prepare workflow directory
+2026-11-16T16:13:34.9534504Z Prepare all required actions
+2026-11-16T16:13:34.9570702Z Getting action download info
+2026-11-16T16:13:35.3435573Z Download action repository 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1' (SHA:3d3c42e5aac5ba805825da76410c181273ba90b1)
+2026-11-16T16:13:39.4097419Z Download action repository 'actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e' (SHA:b7ad1dad31e06c5925ef5d2fc7ad053ef454303e)
+2026-11-16T16:13:39.7344985Z Download action repository 'actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1' (SHA:949feb2413d6458794dcd2491c4babbbce0c15c1)
+2026-11-16T16:13:39.9962324Z Complete job name: scripts
+2026-11-16T16:13:40.0708779Z ##[group]Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+2026-11-16T16:13:40.0710437Z with:
+2026-11-16T16:13:40.0711216Z   persist-credentials: false
+2026-11-16T16:13:40.0712043Z   repository: gosuda/LoGOs
+2026-11-16T16:13:40.0717811Z   token: ***
+2026-11-16T16:13:40.0718503Z   ssh-strict: true
+2026-11-16T16:13:40.0719275Z   ssh-user: git
+2026-11-16T16:13:40.0720119Z   clean: true
+2026-11-16T16:13:40.0720862Z   sparse-checkout-cone-mode: true
+2026-11-16T16:13:40.0721785Z   fetch-depth: 1
+2026-11-16T16:13:40.0722516Z   fetch-tags: false
+2026-11-16T16:13:40.0723397Z   show-progress: true
+2026-11-16T16:13:40.0724179Z   lfs: false
+2026-11-16T16:13:40.0724878Z   submodules: false
+2026-11-16T16:13:40.0725643Z   set-safe-directory: true
+2026-11-16T16:13:40.0726462Z   allow-unsafe-pr-checkout: false
+2026-11-16T16:13:40.0727551Z env:
+2026-11-16T16:13:40.0729404Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T16:13:40.0731623Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T16:13:40.0732912Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T16:13:40.0734228Z ##[endgroup]
+2026-11-16T16:13:46.5308247Z Syncing repository: gosuda/LoGOs
+2026-11-16T16:13:46.5309473Z ##[group]Getting Git version info
+2026-11-16T16:13:46.5310082Z Working directory is '/home/runner/work/LoGOs/LoGOs'
+2026-11-16T16:13:46.5310800Z [command]/usr/bin/git version
+2026-11-16T16:13:46.5320308Z git version 2.56.1
+2026-11-16T16:13:46.5335793Z ##[endgroup]
+2026-11-16T16:13:46.5341267Z Temporarily overriding HOME='/home/runner/work/_temp/761a064d-6e3a-4019-a24b-f69cbc81a4e3' before making global git config changes
+2026-11-16T16:13:46.5342239Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-16T16:13:46.5344741Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/LoGOs/LoGOs
+2026-11-16T16:13:46.5428642Z Deleting the contents of '/home/runner/work/LoGOs/LoGOs'
+2026-11-16T16:13:46.5431132Z ##[group]Determining repository object format
+2026-11-16T16:13:46.5432118Z ##[endgroup]
+2026-11-16T16:13:46.5432564Z ##[group]Initializing the repository
+2026-11-16T16:13:46.5435975Z [command]/usr/bin/git init /home/runner/work/LoGOs/LoGOs
+2026-11-16T16:13:46.6306397Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-16T16:13:46.6306929Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-16T16:13:46.6307324Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-16T16:13:46.6307623Z hint: call:
+2026-11-16T16:13:46.6307802Z hint:
+2026-11-16T16:13:46.6308086Z hint: 	git config --global init.defaultBranch <name>
+2026-11-16T16:13:46.6308411Z hint:
+2026-11-16T16:13:46.6308684Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-16T16:13:46.6309080Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-16T16:13:46.6309443Z hint:
+2026-11-16T16:13:46.6309633Z hint: 	git branch -m <name>
+2026-11-16T16:13:46.6309997Z hint:
+2026-11-16T16:13:46.6310304Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-16T16:13:46.6331504Z Initialized empty Git repository in /home/runner/work/LoGOs/LoGOs/.git/
+2026-11-16T16:13:46.6339566Z [command]/usr/bin/git remote add origin https://github.com/gosuda/LoGOs
+2026-11-16T16:13:46.6402594Z ##[endgroup]
+2026-11-16T16:13:46.6403327Z ##[group]Disabling automatic garbage collection
+2026-11-16T16:13:46.6405728Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-16T16:13:46.6429621Z ##[endgroup]
+2026-11-16T16:13:46.6431034Z ##[group]Setting up auth
+2026-11-16T16:13:46.6431552Z Removing SSH command configuration
+2026-11-16T16:13:46.6434232Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-16T16:13:46.6456432Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-16T16:13:47.2618728Z Removing HTTP extra header
+2026-11-16T16:13:47.2623719Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-16T16:13:47.2654374Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-16T16:13:47.2832044Z Removing includeIf entries pointing to credentials config files
+2026-11-16T16:13:47.2835872Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-16T16:13:47.2858782Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-16T16:13:47.3031995Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-7d17ff8d-0bfb-498c-b20e-1479077ea9b0.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-16T16:13:47.3058015Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/LoGOs/LoGOs/.git.path /home/runner/work/_temp/git-credentials-7d17ff8d-0bfb-498c-b20e-1479077ea9b0.config
+2026-11-16T16:13:47.3076692Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/LoGOs/LoGOs/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-7d17ff8d-0bfb-498c-b20e-1479077ea9b0.config
+2026-11-16T16:13:47.3101131Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-7d17ff8d-0bfb-498c-b20e-1479077ea9b0.config
+2026-11-16T16:13:47.3121308Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-7d17ff8d-0bfb-498c-b20e-1479077ea9b0.config
+2026-11-16T16:13:47.3139045Z ##[endgroup]
+2026-11-16T16:13:47.3139502Z ##[group]Fetching the repository
+2026-11-16T16:13:47.3144428Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +86caf57c455557c777e9ad3272213afe29c004b0:refs/remotes/pull/71/merge
+2026-11-16T16:13:52.4500380Z From https://github.com/gosuda/LoGOs
+2026-11-16T16:13:52.4500818Z  * [new ref]           86caf57c455557c777e9ad3272213afe29c004b0 -> pull/71/merge
+2026-11-16T16:13:52.4504752Z ##[endgroup]
+2026-11-16T16:13:52.4505042Z ##[group]Determining the checkout info
+2026-11-16T16:13:52.4506454Z ##[endgroup]
+2026-11-16T16:13:52.4510002Z [command]/usr/bin/git sparse-checkout disable
+2026-11-16T16:13:52.4575157Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-16T16:13:52.4596644Z ##[group]Checking out the ref
+2026-11-16T16:13:52.4600755Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/71/merge
+2026-11-16T16:13:53.1883248Z Note: switching to 'refs/remotes/pull/71/merge'.
+2026-11-16T16:13:53.1883984Z 
+2026-11-16T16:13:53.1884730Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-11-16T16:13:53.1885241Z changes and commit them, and you can discard any commits you make in this
+2026-11-16T16:13:53.1885604Z state without impacting any branches by switching back to a branch.
+2026-11-16T16:13:53.1885802Z 
+2026-11-16T16:13:53.1885969Z If you want to create a new branch to retain commits you create, you may
+2026-11-16T16:13:53.1886292Z do so (now or later) by using -c with the switch command. Example:
+2026-11-16T16:13:53.1886507Z 
+2026-11-16T16:13:53.1886590Z   git switch -c <new-branch-name>
+2026-11-16T16:13:53.1886762Z 
+2026-11-16T16:13:53.1886837Z Or undo this operation with:
+2026-11-16T16:13:53.1887709Z 
+2026-11-16T16:13:53.1887812Z   git switch -
+2026-11-16T16:13:53.1887988Z 
+2026-11-16T16:13:53.1888219Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-11-16T16:13:53.1888500Z 
+2026-11-16T16:13:53.1889143Z HEAD is now at 86caf57c Merge 22ab6f7a169e905d9fde5e345db101735a321486 into ab75395543f5232cbf9f79c305aadf509d0cfa73
+2026-11-16T16:13:53.1906406Z ##[endgroup]
+2026-11-16T16:13:53.1960565Z [command]/usr/bin/git log -1 --format=%H
+2026-11-16T16:13:53.1980984Z 86caf57c455557c777e9ad3272213afe29c004b0
+2026-11-16T16:13:53.1986737Z ##[group]Removing auth
+2026-11-16T16:13:53.1986951Z Removing SSH command configuration
+2026-11-16T16:13:53.1990231Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-16T16:13:53.2012291Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-16T16:13:53.2213455Z Removing HTTP extra header
+2026-11-16T16:13:53.2216452Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-16T16:13:53.2237629Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-16T16:13:53.2426409Z Removing includeIf entries pointing to credentials config files
+2026-11-16T16:13:53.2429261Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-16T16:13:53.2445608Z includeif.gitdir:/home/runner/work/LoGOs/LoGOs/.git.path
+2026-11-16T16:13:53.2446086Z includeif.gitdir:/home/runner/work/LoGOs/LoGOs/.git/worktrees/*.path
+2026-11-16T16:13:53.2446492Z includeif.gitdir:/github/workspace/.git.path
+2026-11-16T16:13:53.2446799Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-16T16:13:53.2451888Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/LoGOs/LoGOs/.git.path
+2026-11-16T16:13:53.2466686Z /home/runner/work/_temp/git-credentials-7d17ff8d-0bfb-498c-b20e-1479077ea9b0.config
+2026-11-16T16:13:53.2474086Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/LoGOs/LoGOs/.git.path \/home\/runner\/work\/_temp\/git\-credentials\-7d17ff8d\-0bfb\-498c\-b20e\-1479077ea9b0\.config
+2026-11-16T16:13:53.2496961Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/LoGOs/LoGOs/.git/worktrees/*.path
+2026-11-16T16:13:53.2517379Z /home/runner/work/_temp/git-credentials-7d17ff8d-0bfb-498c-b20e-1479077ea9b0.config
+2026-11-16T16:13:53.2523020Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/LoGOs/LoGOs/.git/worktrees/*.path \/home\/runner\/work\/_temp\/git\-credentials\-7d17ff8d\-0bfb\-498c\-b20e\-1479077ea9b0\.config
+2026-11-16T16:13:53.2545490Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+2026-11-16T16:13:53.2561463Z /github/runner_temp/git-credentials-7d17ff8d-0bfb-498c-b20e-1479077ea9b0.config
+2026-11-16T16:13:53.2566931Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path \/github\/runner_temp\/git\-credentials\-7d17ff8d\-0bfb\-498c\-b20e\-1479077ea9b0\.config
+2026-11-16T16:13:53.2589151Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-16T16:13:53.2606246Z /github/runner_temp/git-credentials-7d17ff8d-0bfb-498c-b20e-1479077ea9b0.config
+2026-11-16T16:13:53.2611332Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path \/github\/runner_temp\/git\-credentials\-7d17ff8d\-0bfb\-498c\-b20e\-1479077ea9b0\.config
+2026-11-16T16:13:53.2632030Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-16T16:13:53.2820271Z Removing credentials config '/home/runner/work/_temp/git-credentials-7d17ff8d-0bfb-498c-b20e-1479077ea9b0.config'
+2026-11-16T16:13:53.2825748Z ##[endgroup]
+2026-11-16T16:13:53.2981321Z ##[group]Run archive="$RUNNER_TEMP/actionlint.tar.gz"
+2026-11-16T16:13:53.2981690Z [36;1marchive="$RUNNER_TEMP/actionlint.tar.gz"[0m
+2026-11-16T16:13:53.2982279Z [36;1mcurl --fail --silent --show-error --location --output "$archive" "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"[0m
+2026-11-16T16:13:53.2982912Z [36;1mprintf '%s  %s\n' "$ACTIONLINT_SHA256" "$archive" | sha256sum --check --strict -[0m
+2026-11-16T16:13:53.2983237Z [36;1mtar -xzf "$archive" -C "$RUNNER_TEMP" actionlint[0m
+2026-11-16T16:13:53.2983463Z [36;1mshellcheck --version[0m
+2026-11-16T16:13:53.2983654Z [36;1m"$RUNNER_TEMP/actionlint" -color[0m
+2026-11-16T16:13:53.3007480Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:13:53.3007739Z env:
+2026-11-16T16:13:53.3008258Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T16:13:53.3008762Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T16:13:53.3009068Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T16:13:53.3009391Z   ACTIONLINT_VERSION: 1.7.12
+2026-11-16T16:13:53.3009690Z   ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+2026-11-16T16:13:53.3010183Z ##[endgroup]
+2026-11-16T16:13:53.4308640Z /home/runner/work/_temp/actionlint.tar.gz: OK
+2026-11-16T16:13:54.0656923Z ShellCheck - shell script analysis tool
+2026-11-16T16:13:54.0657288Z version: 0.11.0
+2026-11-16T16:13:54.0657539Z license: GNU General Public License, version 3
+2026-11-16T16:13:54.0657873Z website: https://www.shellcheck.net
+2026-11-16T16:13:54.4409691Z ##[group]Run actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+2026-11-16T16:13:54.4410546Z with:
+2026-11-16T16:13:54.4410725Z   go-version: 1.27.4
+2026-11-16T16:13:54.4410884Z   cache: false
+2026-11-16T16:13:54.4411039Z   check-latest: false
+2026-11-16T16:13:54.4412742Z   token: ***
+2026-11-16T16:13:54.4412891Z env:
+2026-11-16T16:13:54.4413304Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T16:13:54.4413766Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T16:13:54.4414050Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T16:13:54.4414345Z ##[endgroup]
+2026-11-16T16:13:54.5269730Z Setup go version spec 1.27.4
+2026-11-16T16:13:54.5274749Z Attempting to download 1.27.4...
+2026-11-16T16:13:55.4785545Z matching 1.27.4...
+2026-11-16T16:13:55.4804135Z Acquiring 1.27.4 from https://github.com/actions/go-versions/releases/download/1.27.4-42945153609/go-1.27.4-linux-x64.tar.gz
+2026-11-16T16:13:56.4212038Z Extracting Go...
+2026-11-16T16:13:56.4334187Z [command]/usr/bin/tar xz --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/470a5153-6a6e-4793-9156-f83f4049f40f -f /home/runner/work/_temp/ddc6e9c2-665d-492c-a13a-e4dd8c877bcd
+2026-11-16T16:13:57.2618755Z Successfully extracted go to /home/runner/work/_temp/470a5153-6a6e-4793-9156-f83f4049f40f
+2026-11-16T16:13:57.2619101Z Adding to the cache ...
+2026-11-16T16:13:59.7779278Z Successfully cached go to /opt/hostedtoolcache/go/1.27.4/x64
+2026-11-16T16:13:59.7780835Z Added go to the path
+2026-11-16T16:13:59.7782532Z Successfully set up Go version 1.27.4
+2026-11-16T16:13:59.7942825Z go version go1.27.4 linux/amd64
+2026-11-16T16:13:59.7943032Z 
+2026-11-16T16:13:59.7943316Z ##[group]go env
+2026-11-16T16:14:01.9371362Z AR='ar'
+2026-11-16T16:14:01.9371603Z CC='gcc'
+2026-11-16T16:14:01.9371814Z CGO_CFLAGS='-O2 -g'
+2026-11-16T16:14:01.9372067Z CGO_CPPFLAGS=''
+2026-11-16T16:14:01.9372267Z CGO_CXXFLAGS='-O2 -g'
+2026-11-16T16:14:01.9372469Z CGO_ENABLED='1'
+2026-11-16T16:14:01.9372643Z CGO_FFLAGS='-O2 -g'
+2026-11-16T16:14:01.9372822Z CGO_LDFLAGS='-O2 -g'
+2026-11-16T16:14:01.9373011Z CXX='g++'
+2026-11-16T16:14:01.9373195Z GCCGO='gccgo'
+2026-11-16T16:14:01.9373373Z GO111MODULE=''
+2026-11-16T16:14:01.9373549Z GOAMD64='v1'
+2026-11-16T16:14:01.9373719Z GOARCH='amd64'
+2026-11-16T16:14:01.9373889Z GOAUTH='netrc'
+2026-11-16T16:14:01.9374080Z GOBIN='/home/runner/go/bin'
+2026-11-16T16:14:01.9374322Z GOCACHE='/home/runner/.cache/go-build'
+2026-11-16T16:14:01.9374563Z GOCACHEPROG=''
+2026-11-16T16:14:01.9374850Z GODEBUG=''
+2026-11-16T16:14:01.9375069Z GOENV='/home/runner/.config/go/env'
+2026-11-16T16:14:01.9375310Z GOEXE=''
+2026-11-16T16:14:01.9375488Z GOEXPERIMENT=''
+2026-11-16T16:14:01.9375665Z GOFIPS140='off'
+2026-11-16T16:14:01.9375847Z GOFLAGS=''
+2026-11-16T16:14:01.9376458Z GOGCCFLAGS='-fPIC -m64 -pthread -Wl,--no-gc-sections -fmessage-length=0 -ffile-prefix-map=/tmp/go-build3659201572=/tmp/go-build -gno-record-gcc-switches'
+2026-11-16T16:14:01.9377077Z GOHOSTARCH='amd64'
+2026-11-16T16:14:01.9377270Z GOHOSTOS='linux'
+2026-11-16T16:14:01.9377496Z GOINSECURE=''
+2026-11-16T16:14:01.9377699Z GOMOD='/dev/null'
+2026-11-16T16:14:01.9377942Z GOMODCACHE='/home/runner/go/pkg/mod'
+2026-11-16T16:14:01.9378215Z GONOPROXY=''
+2026-11-16T16:14:01.9378413Z GONOSUMDB=''
+2026-11-16T16:14:01.9378610Z GOOS='linux'
+2026-11-16T16:14:01.9378870Z GOPACKAGESDRIVER=''
+2026-11-16T16:14:01.9379099Z GOPATH='/home/runner/go'
+2026-11-16T16:14:01.9379327Z GOPRIVATE=''
+2026-11-16T16:14:01.9379572Z GOPROXY='https://proxy.golang.org,direct'
+2026-11-16T16:14:01.9380022Z GOROOT='/opt/hostedtoolcache/go/1.27.4/x64'
+2026-11-16T16:14:01.9380308Z GOSUMDB='sum.golang.org'
+2026-11-16T16:14:01.9380508Z GOTELEMETRY='local'
+2026-11-16T16:14:01.9380734Z GOTELEMETRYDIR='/home/runner/.config/go/telemetry'
+2026-11-16T16:14:01.9381024Z GOTMPDIR=''
+2026-11-16T16:14:01.9381209Z GOTOOLCHAIN='local'
+2026-11-16T16:14:01.9381770Z GOTOOLDIR='/opt/hostedtoolcache/go/1.27.4/x64/pkg/tool/linux_amd64'
+2026-11-16T16:14:01.9382095Z GOVCS=''
+2026-11-16T16:14:01.9382277Z GOVERSION='go1.27.4'
+2026-11-16T16:14:01.9382467Z GOWORK=''
+2026-11-16T16:14:01.9382656Z PKG_CONFIG='pkg-config'
+2026-11-16T16:14:01.9382956Z 
+2026-11-16T16:14:01.9383324Z ##[endgroup]
+2026-11-16T16:14:01.9522566Z ##[group]Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+2026-11-16T16:14:01.9522963Z with:
+2026-11-16T16:14:01.9523124Z   node-version: 26.13.1
+2026-11-16T16:14:01.9523297Z   check-latest: false
+2026-11-16T16:14:01.9524945Z   token: ***
+2026-11-16T16:14:01.9525111Z   package-manager-cache: true
+2026-11-16T16:14:01.9525295Z env:
+2026-11-16T16:14:01.9525734Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T16:14:01.9526217Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T16:14:01.9526512Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T16:14:01.9526826Z   GOTOOLCHAIN: local
+2026-11-16T16:14:01.9526983Z ##[endgroup]
+2026-11-16T16:14:02.0781984Z Attempting to download 26.13.1...
+2026-11-16T16:14:02.6967633Z Acquiring 26.13.1 - x64 from https://github.com/actions/node-versions/releases/download/26.13.1-43134154182/node-26.13.1-linux-x64.tar.gz
+2026-11-16T16:14:03.1314613Z Extracting ...
+2026-11-16T16:14:03.1402531Z [command]/usr/bin/tar xz --strip 1 --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/f93980bb-d929-43d2-ae07-851222297191 -f /home/runner/work/_temp/86413a5e-1c69-4d39-8809-26a3b10c7f5c
+2026-11-16T16:14:03.8126659Z Adding to the cache ...
+2026-11-16T16:14:04.7659381Z ##[group]Environment details
+2026-11-16T16:14:05.5777924Z node: v26.13.1
+2026-11-16T16:14:05.5778219Z npm: 11.20.0
+2026-11-16T16:14:05.5778419Z yarn: 1.22.22
+2026-11-16T16:14:05.5778936Z ##[endgroup]
+2026-11-16T16:14:05.5885026Z ##[group]Run printf 'UPROOT1274=%s\n' "$(go env GOROOT)" >> "$GITHUB_ENV"
+2026-11-16T16:14:05.5885433Z [36;1mprintf 'UPROOT1274=%s\n' "$(go env GOROOT)" >> "$GITHUB_ENV"[0m
+2026-11-16T16:14:05.5885707Z [36;1mwhile read -r version sha256 root; do[0m
+2026-11-16T16:14:05.5886006Z [36;1m  archive="$RUNNER_TEMP/go$version.linux-amd64.tar.gz"[0m
+2026-11-16T16:14:05.5886453Z [36;1m  curl --fail --silent --show-error --location --output "$archive" "https://go.dev/dl/go$version.linux-amd64.tar.gz"[0m
+2026-11-16T16:14:05.5886881Z [36;1m  printf '%s  %s\n' "$sha256" "$archive" | sha256sum --check --strict -[0m
+2026-11-16T16:14:05.5887147Z [36;1m  mkdir "$RUNNER_TEMP/go$version"[0m
+2026-11-16T16:14:05.5887423Z [36;1m  tar -xzf "$archive" -C "$RUNNER_TEMP/go$version" --strip-components=1[0m
+2026-11-16T16:14:05.5887787Z [36;1m  printf '%s=%s\n' "$root" "$RUNNER_TEMP/go$version" >> "$GITHUB_ENV"[0m
+2026-11-16T16:14:05.5888034Z [36;1mdone <<'PINS'[0m
+2026-11-16T16:14:05.5888356Z [36;1m1.27.2 ecbadb99091a3f46e31f5f934b068b1864eafa7995211b39eaddf76996045fe5 UPROOT1272[0m
+2026-11-16T16:14:05.5888769Z [36;1m1.27.3 65efbc80fdc1fa2cd2631cad5b481777a68e8725f34e89f50fc6ac714e379b40 UPROOT1273[0m
+2026-11-16T16:14:05.5889060Z [36;1mPINS[0m
+2026-11-16T16:14:05.5907903Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:14:05.5908153Z env:
+2026-11-16T16:14:05.5908589Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T16:14:05.5909047Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T16:14:05.5909333Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T16:14:05.5909634Z   GOTOOLCHAIN: local
+2026-11-16T16:14:05.5910086Z ##[endgroup]
+2026-11-16T16:14:06.1248509Z /home/runner/work/_temp/go1.27.2.linux-amd64.tar.gz: OK
+2026-11-16T16:14:07.3118208Z /home/runner/work/_temp/go1.27.3.linux-amd64.tar.gz: OK
+2026-11-16T16:14:08.1417335Z ##[group]Run GOROOT_BOOTSTRAP=$(go env GOROOT)
+2026-11-16T16:14:08.1417645Z [36;1mGOROOT_BOOTSTRAP=$(go env GOROOT)[0m
+2026-11-16T16:14:08.1417854Z [36;1mexport GOROOT_BOOTSTRAP[0m
+2026-11-16T16:14:08.1418034Z [36;1m./make.bash[0m
+2026-11-16T16:14:08.1418306Z [36;1mprintf '%s\n' "$GITHUB_WORKSPACE/lib/wasm" "$GITHUB_WORKSPACE/bin" >> "$GITHUB_PATH"[0m
+2026-11-16T16:14:08.1443101Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:14:08.1443468Z env:
+2026-11-16T16:14:08.1444127Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T16:14:08.1444859Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T16:14:08.1445261Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T16:14:08.1445599Z   GOTOOLCHAIN: local
+2026-11-16T16:14:08.1445915Z   UPROOT1274: /opt/hostedtoolcache/go/1.27.4/x64
+2026-11-16T16:14:08.1446208Z   UPROOT1272: /home/runner/work/_temp/go1.27.2
+2026-11-16T16:14:08.1446466Z   UPROOT1273: /home/runner/work/_temp/go1.27.3
+2026-11-16T16:14:08.1446711Z ##[endgroup]
+2026-11-16T16:14:08.1644097Z Building Go cmd/dist using /opt/hostedtoolcache/go/1.27.4/x64. (go1.27.4 linux/amd64)
+2026-11-16T16:14:12.9163570Z Building Go toolchain1 using /opt/hostedtoolcache/go/1.27.4/x64.
+2026-11-16T16:14:40.0394790Z Building Go bootstrap cmd/go (go_bootstrap) using Go toolchain1.
+2026-11-16T16:14:52.0796354Z Building Go toolchain2 using go_bootstrap and Go toolchain1.
+2026-11-16T16:15:20.3090693Z Building Go toolchain3 using go_bootstrap and Go toolchain2.
+2026-11-16T16:15:55.3192325Z Building packages and commands for linux/amd64.
+2026-11-16T16:16:57.3636566Z ---
+2026-11-16T16:16:57.3636995Z Installed Go for linux/amd64 in /home/runner/work/LoGOs/LoGOs
+2026-11-16T16:16:57.3638602Z Installed commands in /home/runner/work/LoGOs/LoGOs/bin
+2026-11-16T16:16:57.3639090Z *** You need to add /home/runner/work/LoGOs/LoGOs/bin to your PATH.
+2026-11-16T16:16:57.5686908Z ##[group]Run logos version | grep -F "logos version $(head -n 1 ../VERSION)"
+2026-11-16T16:16:57.5687315Z [36;1mlogos version | grep -F "logos version $(head -n 1 ../VERSION)"[0m
+2026-11-16T16:16:57.5687624Z [36;1mlogos help 2>&1 | grep -F 'logos <command> [arguments]'[0m
+2026-11-16T16:16:57.5706309Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:16:57.5706557Z env:
+2026-11-16T16:16:57.5706983Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T16:16:57.5707441Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T16:16:57.5707729Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T16:16:57.5708028Z   GOTOOLCHAIN: local
+2026-11-16T16:16:57.5708210Z   UPROOT1274: /opt/hostedtoolcache/go/1.27.4/x64
+2026-11-16T16:16:57.5708439Z   UPROOT1272: /home/runner/work/_temp/go1.27.2
+2026-11-16T16:16:57.5708707Z   UPROOT1273: /home/runner/work/_temp/go1.27.3
+2026-11-16T16:16:57.5708904Z ##[endgroup]
+2026-11-16T16:16:57.5781159Z logos version go1.27.4 linux/amd64
+2026-11-16T16:16:57.5808339Z 	logos <command> [arguments]
+2026-11-16T16:16:57.5875214Z ##[group]Run go test -count=1 -timeout 60m cmd/go -run 'Script/^logos_'
+2026-11-16T16:16:57.5875666Z [36;1mgo test -count=1 -timeout 60m cmd/go -run 'Script/^logos_'[0m
+2026-11-16T16:16:57.5890986Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:16:57.5891292Z env:
+2026-11-16T16:16:57.5891851Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T16:16:57.5892392Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T16:16:57.5892772Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T16:16:57.5893141Z   GOTOOLCHAIN: local
+2026-11-16T16:16:57.5893385Z   UPROOT1274: /opt/hostedtoolcache/go/1.27.4/x64
+2026-11-16T16:16:57.5893703Z   UPROOT1272: /home/runner/work/_temp/go1.27.2
+2026-11-16T16:16:57.5893975Z   UPROOT1273: /home/runner/work/_temp/go1.27.3
+2026-11-16T16:16:57.5894330Z ##[endgroup]
+2026-11-16T16:35:28.2246416Z vcs-test.golang.org rerouted to http://127.0.0.1:39507
+2026-11-16T16:35:28.2247510Z https://vcs-test.golang.org rerouted to https://127.0.0.1:41085
+2026-11-16T16:35:28.2248097Z go test proxy running at GOPROXY=http://127.0.0.1:40485/mod
+2026-11-16T16:35:28.2248500Z --- FAIL: TestScript (0.02s)
+2026-11-16T16:35:28.2249033Z     --- FAIL: TestScript/logos_test_cache_experiment (0.48s)
+2026-11-16T16:35:28.2249598Z         script_test.go:142: 2026-11-16T16:27:56Z
+2026-11-16T16:35:28.2250798Z         script_test.go:144: $WORK=/tmp/cmd-go-test-2998211131/tmpdir3452509015/logos_test_cache_experiment2387304624
+2026-11-16T16:35:28.2251417Z         script_test.go:166: 
+2026-11-16T16:35:28.2252082Z             # The script env command sets empty values but cannot unset a variable.
+2026-11-16T16:35:28.2253014Z             # Use the host env utility to remove GOEXPERIMENT from the driver environment. (0.000s)
+2026-11-16T16:35:28.2253823Z             # logos: absent and present-empty select the same effective experiment.
+2026-11-16T16:35:28.2254603Z             # The old cache hashes logosarena for both and replays present=false. (0.475s)
+2026-11-16T16:35:28.2255195Z             > exec env -u GOEXPERIMENT logos test -v .
+2026-11-16T16:35:28.2255599Z             [stdout]
+2026-11-16T16:35:28.2255982Z             === RUN   TestExperimentPresence
+2026-11-16T16:35:28.2256599Z                 experiment_test.go:10: GOEXPERIMENT present=true
+2026-11-16T16:35:28.2257177Z             --- PASS: TestExperimentPresence (0.00s)
+2026-11-16T16:35:28.2257561Z             PASS
+2026-11-16T16:35:28.2258052Z             ok  	example.com/testcacheexperiment	0.006s
+2026-11-16T16:35:28.2258574Z             > ! stdout '\(cached\)'
+2026-11-16T16:35:28.2259048Z             > stdout 'GOEXPERIMENT present=false'
+2026-11-16T16:35:28.2260430Z         script_test.go:166: FAIL: testdata/script/logos_test_cache_experiment.txt:14: stdout 'GOEXPERIMENT present=false': no match for `(?m)GOEXPERIMENT present=false` in stdout
+2026-11-16T16:35:28.2261202Z FAIL
+2026-11-16T16:35:28.2261486Z FAIL	cmd/go	1090.594s
+2026-11-16T16:35:28.2261793Z FAIL
+2026-11-16T16:35:28.2682354Z ##[error]Process completed with exit code 1.
+2026-11-16T16:35:28.2777921Z Post job cleanup.
+2026-11-16T16:35:28.3396252Z [command]/usr/bin/git version
+2026-11-16T16:35:28.3427224Z git version 2.56.1
+2026-11-16T16:35:28.3450440Z Temporarily overriding HOME='/home/runner/work/_temp/21598429-7ff2-40be-8da6-7f199815c206' before making global git config changes
+2026-11-16T16:35:28.3451579Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-16T16:35:28.3454474Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/LoGOs/LoGOs
+2026-11-16T16:35:28.3479194Z Removing SSH command configuration
+2026-11-16T16:35:28.3483898Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-16T16:35:28.3507671Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-16T16:35:28.3724180Z Removing HTTP extra header
+2026-11-16T16:35:28.3727703Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-16T16:35:28.3750415Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-16T16:35:28.3958045Z Removing includeIf entries pointing to credentials config files
+2026-11-16T16:35:28.3965319Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-16T16:35:28.3988598Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-16T16:35:28.4326656Z Cleaning up orphan processes

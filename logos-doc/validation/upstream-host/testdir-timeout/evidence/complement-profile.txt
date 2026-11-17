@@ -1,0 +1,2 @@
+filter=!^cmd/go$
+timeout_scale=1

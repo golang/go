@@ -1,0 +1,444 @@
+{
+  "source_before": {
+    "revision": "c47c4cfc56fc8bfa916d170ed51040195b567dc9",
+    "src_status": "",
+    "src_tree": "61483affd1671d27e29a1a1aadc5299ba675f789"
+  },
+  "source_after": {
+    "revision": "c47c4cfc56fc8bfa916d170ed51040195b567dc9",
+    "src_status": "",
+    "src_tree": "61483affd1671d27e29a1a1aadc5299ba675f789"
+  },
+  "fingerprints": {
+    "go": {
+      "stable": true,
+      "driver_sha256": "708b55d5eb5707570b55ffb205a94d320b4e0d598ed7903fdb9863ced1377952",
+      "tools": {
+        "asm": {
+          "path": "/home/runner/work/LoGOs/LoGOs/pkg/tool/linux_amd64/asm",
+          "sha256": "0d65fca7065f4bf0d3f6657c85b35479f6a2fdd6e7e4172f6221c1e96a04081b"
+        },
+        "cgo": {
+          "path": "/home/runner/work/LoGOs/LoGOs/pkg/tool/linux_amd64/cgo",
+          "sha256": "a77ec916f77781551858360f249934b6762a649196b75de330e86200a1156fb9"
+        },
+        "compile": {
+          "path": "/home/runner/work/LoGOs/LoGOs/pkg/tool/linux_amd64/compile",
+          "sha256": "a2b3a7f9353f5b0e2f7cfdd3007f85b1d5bd92ae3b74eb4dcc7a38f2dc73bb66"
+        },
+        "link": {
+          "path": "/home/runner/work/LoGOs/LoGOs/pkg/tool/linux_amd64/link",
+          "sha256": "a3b952057f0b04b13d7af70aed216dc41c59fc1278f5418af4f99e17b5373ce1"
+        }
+      },
+      "compiler_source_h1": "h1:ppbGFSUaTewTAn4SwU1APMPjZXLXnsobf/Zan0rhz7U="
+    },
+    "logos": {
+      "stable": true,
+      "driver_sha256": "708b55d5eb5707570b55ffb205a94d320b4e0d598ed7903fdb9863ced1377952",
+      "tools": {
+        "asm": {
+          "path": "/home/runner/work/LoGOs/LoGOs/pkg/tool/linux_amd64/asm",
+          "sha256": "0d65fca7065f4bf0d3f6657c85b35479f6a2fdd6e7e4172f6221c1e96a04081b"
+        },
+        "cgo": {
+          "path": "/home/runner/work/LoGOs/LoGOs/pkg/tool/linux_amd64/cgo",
+          "sha256": "a77ec916f77781551858360f249934b6762a649196b75de330e86200a1156fb9"
+        },
+        "compile": {
+          "path": "/home/runner/work/LoGOs/LoGOs/pkg/tool/linux_amd64/compile",
+          "sha256": "a2b3a7f9353f5b0e2f7cfdd3007f85b1d5bd92ae3b74eb4dcc7a38f2dc73bb66"
+        },
+        "link": {
+          "path": "/home/runner/work/LoGOs/LoGOs/pkg/tool/linux_amd64/link",
+          "sha256": "a3b952057f0b04b13d7af70aed216dc41c59fc1278f5418af4f99e17b5373ce1"
+        }
+      },
+      "compiler_source_h1": "h1:ppbGFSUaTewTAn4SwU1APMPjZXLXnsobf/Zan0rhz7U="
+    },
+    "oracle": {
+      "stable": true,
+      "driver_sha256": "de0ae3e082ce7599eae4fb69fa2ef1e43b8f31ffd3fce62cdf81930aa9005050",
+      "tools": {
+        "asm": {
+          "path": "/home/runner/work/_temp/oracle/pkg/tool/linux_amd64/asm",
+          "sha256": "a67997d99985e3ef3ecd30f029685d67d778a0c8f78b852396ef7738426c04b5"
+        },
+        "cgo": {
+          "path": "/home/runner/work/_temp/oracle/pkg/tool/linux_amd64/cgo",
+          "sha256": "0ac696dfbbcdd912cb833d7190c7f91388bac2d89d4dc79c8915a4e43239b675"
+        },
+        "compile": {
+          "path": "/home/runner/work/_temp/oracle/pkg/tool/linux_amd64/compile",
+          "sha256": "40307e5f5c65a4b4220bbf35dbe014348780589ea2964003f0bf318fa14640e1"
+        },
+        "link": {
+          "path": "/home/runner/work/_temp/oracle/pkg/tool/linux_amd64/link",
+          "sha256": "e2248a29fbbf15dac1fe72c9d646776dbcd38c9813b78182fe01a4a47f3299c3"
+        }
+      },
+      "compiler_source_h1": "h1:E+85JdaKFrFMOOqiy7ZxDTOB3s28bZCsBLRbm1ztpaI="
+    }
+  },
+  "backend_cases": [
+    {
+      "id": "xxhash-asm-core",
+      "accepted": true,
+      "source_unchanged": true,
+      "stages": [
+        {
+          "stage": "oracle",
+          "accepted": true,
+          "status": "pass"
+        },
+        {
+          "stage": "go",
+          "accepted": true,
+          "status": "pass"
+        },
+        {
+          "stage": "logos",
+          "accepted": true,
+          "status": "pass"
+        }
+      ]
+    },
+    {
+      "id": "xxhash-purego-core",
+      "accepted": true,
+      "source_unchanged": true,
+      "stages": [
+        {
+          "stage": "oracle",
+          "accepted": true,
+          "status": "pass"
+        },
+        {
+          "stage": "go",
+          "accepted": true,
+          "status": "pass"
+        },
+        {
+          "stage": "logos",
+          "accepted": true,
+          "status": "pass"
+        }
+      ]
+    },
+    {
+      "id": "xxhash-plugin-cgo",
+      "accepted": true,
+      "source_unchanged": true,
+      "stages": [
+        {
+          "stage": "oracle",
+          "accepted": true,
+          "status": "pass"
+        },
+        {
+          "stage": "go",
+          "accepted": true,
+          "status": "pass"
+        },
+        {
+          "stage": "logos",
+          "accepted": true,
+          "status": "pass"
+        }
+      ]
+    },
+    {
+      "id": "sqlite3-cgo",
+      "accepted": true,
+      "source_unchanged": true,
+      "stages": [
+        {
+          "stage": "oracle",
+          "accepted": true,
+          "status": "pass"
+        },
+        {
+          "stage": "go",
+          "accepted": true,
+          "status": "pass"
+        },
+        {
+          "stage": "logos",
+          "accepted": true,
+          "status": "pass"
+        }
+      ]
+    },
+    {
+      "id": "modernc-sqlite",
+      "accepted": true,
+      "source_unchanged": true,
+      "stages": [
+        {
+          "stage": "oracle",
+          "accepted": true,
+          "status": "pass"
+        },
+        {
+          "stage": "go",
+          "accepted": true,
+          "status": "pass"
+        },
+        {
+          "stage": "logos",
+          "accepted": true,
+          "status": "pass"
+        }
+      ]
+    }
+  ],
+  "ffi": {
+    "complete": true,
+    "rows": [
+      {
+        "stage": "oracle",
+        "status": "pass",
+        "exact_execution": true,
+        "failed_or_skipped": []
+      },
+      {
+        "stage": "go",
+        "status": "pass",
+        "exact_execution": true,
+        "failed_or_skipped": []
+      },
+      {
+        "stage": "logos",
+        "status": "pass",
+        "exact_execution": true,
+        "failed_or_skipped": []
+      }
+    ]
+  },
+  "language": {
+    "complete": true,
+    "rows": [
+      {
+        "label": "native",
+        "status": "pass"
+      },
+      {
+        "label": "eject",
+        "status": "pass"
+      },
+      {
+        "label": "ejected-oracle",
+        "status": "pass"
+      }
+    ]
+  },
+  "lint": {
+    "complete": true,
+    "rows": [
+      {
+        "label": "lint",
+        "status": "pass",
+        "exact_match": true
+      },
+      {
+        "label": "lint-repeat",
+        "status": "pass",
+        "exact_match": true
+      },
+      {
+        "label": "runtime-oracle",
+        "status": "pass"
+      },
+      {
+        "label": "runtime-go",
+        "status": "pass"
+      },
+      {
+        "label": "runtime-logos",
+        "status": "pass"
+      }
+    ]
+  },
+  "fixtures": {
+    "complete": true,
+    "counts": {
+      "pass": 6
+    },
+    "selected": [
+      {
+        "id": "fixture-semantics",
+        "stages": [
+          {
+            "stage": "oracle",
+            "mode": "",
+            "status": "pass",
+            "returncode": 0,
+            "timed_out": false
+          },
+          {
+            "stage": "go",
+            "mode": "",
+            "status": "pass",
+            "returncode": 0,
+            "timed_out": false
+          },
+          {
+            "stage": "logos",
+            "mode": "",
+            "status": "pass",
+            "returncode": 0,
+            "timed_out": false
+          }
+        ]
+      },
+      {
+        "id": "fixture-cgo",
+        "stages": [
+          {
+            "stage": "oracle",
+            "mode": "",
+            "status": "pass",
+            "returncode": 0,
+            "timed_out": false
+          },
+          {
+            "stage": "go",
+            "mode": "",
+            "status": "pass",
+            "returncode": 0,
+            "timed_out": false
+          },
+          {
+            "stage": "logos",
+            "mode": "",
+            "status": "pass",
+            "returncode": 0,
+            "timed_out": false
+          }
+        ]
+      }
+    ]
+  },
+  "corpus": {
+    "complete": true,
+    "counts": {
+      "candidate-failed": 1,
+      "clean": 10,
+      "findings": 98,
+      "load-failed": 4,
+      "pass": 80,
+      "uncompared": 2,
+      "upstream-failed": 1
+    },
+    "selected": [
+      {
+        "id": "tools",
+        "stages": [
+          {
+            "stage": "oracle",
+            "mode": "",
+            "status": "pass",
+            "returncode": 0,
+            "timed_out": false
+          },
+          {
+            "stage": "go",
+            "mode": "",
+            "status": "pass",
+            "returncode": 0,
+            "timed_out": false
+          },
+          {
+            "stage": "logos",
+            "mode": "",
+            "status": "candidate-failed",
+            "returncode": 1,
+            "timed_out": false
+          },
+          {
+            "stage": "logos-lint",
+            "mode": "",
+            "status": "findings",
+            "returncode": 1,
+            "timed_out": false
+          },
+          {
+            "stage": "gglint",
+            "mode": "basic",
+            "status": "findings",
+            "returncode": 1,
+            "timed_out": false
+          },
+          {
+            "stage": "gglint",
+            "mode": "standard",
+            "status": "findings",
+            "returncode": 1,
+            "timed_out": false
+          },
+          {
+            "stage": "gglint",
+            "mode": "strict",
+            "status": "findings",
+            "returncode": 1,
+            "timed_out": false
+          }
+        ]
+      },
+      {
+        "id": "decorder",
+        "stages": [
+          {
+            "stage": "oracle",
+            "mode": "",
+            "status": "upstream-failed",
+            "returncode": 1,
+            "timed_out": false
+          },
+          {
+            "stage": "go",
+            "mode": "",
+            "status": "uncompared",
+            "returncode": 1,
+            "timed_out": false
+          },
+          {
+            "stage": "logos",
+            "mode": "",
+            "status": "uncompared",
+            "returncode": 1,
+            "timed_out": false
+          },
+          {
+            "stage": "logos-lint",
+            "mode": "",
+            "status": "load-failed",
+            "returncode": 1,
+            "timed_out": false
+          },
+          {
+            "stage": "gglint",
+            "mode": "basic",
+            "status": "load-failed",
+            "returncode": 1,
+            "timed_out": false
+          },
+          {
+            "stage": "gglint",
+            "mode": "standard",
+            "status": "load-failed",
+            "returncode": 1,
+            "timed_out": false
+          },
+          {
+            "stage": "gglint",
+            "mode": "strict",
+            "status": "load-failed",
+            "returncode": 1,
+            "timed_out": false
+          }
+        ]
+      }
+    ]
+  }
+}

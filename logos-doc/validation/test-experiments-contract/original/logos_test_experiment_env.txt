@@ -1,0 +1,99 @@
+# Test subprocesses and their go children receive the experiment used to build
+# the test binary. Plain go keeps its inherited environment.
+env GOTOOLCHAIN=local
+env GOPROXY=off
+env GOEXPERIMENT=
+cd m
+
+env WANT_EXPERIMENT=logosarena
+env WANT_ARENA=on
+env WANT_JSONV2=on
+logos test -count=1 -run '^TestExperimentEnvironment$' .
+
+env WANT_EXPERIMENT=
+env WANT_ARENA=off
+go test -count=1 -run '^TestExperimentEnvironment$' .
+
+env GOEXPERIMENT=none
+env WANT_EXPERIMENT=none,logosarena
+env WANT_ARENA=on
+env WANT_JSONV2=off
+logos test -count=1 -run '^TestExperimentEnvironment$' .
+
+env GOEXPERIMENT=nojsonv2
+env WANT_EXPERIMENT=nojsonv2,logosarena
+logos test -count=1 -run '^TestExperimentEnvironment$' .
+
+env GOEXPERIMENT=jsonv2
+env WANT_EXPERIMENT=jsonv2,logosarena
+env WANT_JSONV2=on
+logos test -count=1 -run '^TestExperimentEnvironment$' .
+
+cp arena-off.toml logos.toml
+env GOEXPERIMENT=none
+env WANT_EXPERIMENT=none
+env WANT_ARENA=off
+env WANT_JSONV2=off
+logos test -count=1 -run '^TestExperimentEnvironment$' .
+go test -count=1 -run '^TestExperimentEnvironment$' .
+
+-- m/go.mod --
+module example.com/testenv
+
+go 1.27
+-- m/arena-off.toml --
+[build]
+arena = false
+-- m/arena_on.go --
+//go:build goexperiment.logosarena
+
+package testenv
+
+const arena = "on"
+-- m/arena_off.go --
+//go:build !goexperiment.logosarena
+
+package testenv
+
+const arena = "off"
+-- m/json_on.go --
+//go:build goexperiment.jsonv2
+
+package testenv
+
+const jsonv2 = "on"
+-- m/json_off.go --
+//go:build !goexperiment.jsonv2
+
+package testenv
+
+const jsonv2 = "off"
+-- m/env_test.go --
+package testenv
+
+import (
+	"os"
+	"os/exec"
+	"strings"
+	"testing"
+)
+
+func TestExperimentEnvironment(t *testing.T) {
+	want := os.Getenv("WANT_EXPERIMENT")
+	if got := os.Getenv("GOEXPERIMENT"); got != want {
+		t.Errorf("test GOEXPERIMENT = %q, want %q", got, want)
+	}
+	out, err := exec.Command("go", "env", "GOEXPERIMENT").CombinedOutput()
+	if err != nil {
+		t.Fatalf("child go env: %v\n%s", err, out)
+	}
+	if got := strings.TrimSpace(string(out)); got != want {
+		t.Errorf("child GOEXPERIMENT = %q, want %q", got, want)
+	}
+	if want := os.Getenv("WANT_ARENA"); arena != want {
+		t.Errorf("compiled arena = %s, want %s", arena, want)
+	}
+	if want := os.Getenv("WANT_JSONV2"); jsonv2 != want {
+		t.Errorf("compiled jsonv2 = %s, want %s", jsonv2, want)
+	}
+}

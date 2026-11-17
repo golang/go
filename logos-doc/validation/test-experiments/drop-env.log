@@ -1,0 +1,18 @@
+--- FAIL: TestLogosTestExperimentEnv (0.00s)
+    --- FAIL: TestLogosTestExperimentEnv/default (0.00s)
+        logos_experiment_env_test.go:63: test GOEXPERIMENT = ("", false), want ("logosarena", true)
+    --- FAIL: TestLogosTestExperimentEnv/explicit-empty (0.00s)
+        logos_experiment_env_test.go:63: test GOEXPERIMENT = ("", true), want ("logosarena", true)
+    --- FAIL: TestLogosTestExperimentEnv/none-with-arena (0.00s)
+        logos_experiment_env_test.go:63: test GOEXPERIMENT = ("none", true), want ("none,logosarena", true)
+    --- FAIL: TestLogosTestExperimentEnv/classic-json (0.00s)
+        logos_experiment_env_test.go:63: test GOEXPERIMENT = ("nojsonv2", true), want ("nojsonv2,logosarena", true)
+    --- FAIL: TestLogosTestExperimentEnv/jsonv2 (0.00s)
+        logos_experiment_env_test.go:63: test GOEXPERIMENT = ("jsonv2", true), want ("jsonv2,logosarena", true)
+    --- FAIL: TestLogosTestExperimentEnv/arena-off (0.00s)
+        logos_experiment_env_test.go:63: test GOEXPERIMENT = ("", false), want ("", true)
+    --- FAIL: TestLogosTestExperimentEnv/duplicates (0.00s)
+        logos_experiment_env_test.go:63: test GOEXPERIMENT = ("nojsonv2", true), want ("nojsonv2,logosarena", true)
+FAIL
+FAIL	cmd/go/internal/test	0.005s
+FAIL

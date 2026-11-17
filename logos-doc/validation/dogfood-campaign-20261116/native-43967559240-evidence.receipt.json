@@ -1,0 +1,65 @@
+{
+  "all_members_and_metadata_verified": true,
+  "archive": "native-43967559240-evidence.tar.gz",
+  "archive_bytes": 294319,
+  "archive_members": 205,
+  "archive_sha256": "98179fa85b3eb0fd8f412000a70e639bdf08e1e7bb547c807dec787baa3b06b3",
+  "conclusion": "failure",
+  "corrected_run_claim": "43972750963 remains separate; this archive makes no complete-success claim for it",
+  "format": {
+    "file_mode": "0644",
+    "gid": 0,
+    "gname": "",
+    "gzip_compression_level": 9,
+    "gzip_filename": "",
+    "gzip_mtime": 0,
+    "member_order": "sorted relative path",
+    "mtime": 0,
+    "tar": "PAX",
+    "uid": 0,
+    "uname": ""
+  },
+  "head": "f4242fed9cf0707a4103a0adbdb82e866bcabd69",
+  "independent_repack_byte_identical": true,
+  "inner_directory": "native-43967559240",
+  "local_go_execution": false,
+  "manifest_sha256": "d9575f5ca040a8ec39c12dd881fb53f9054c675f3c66544c2fc7bbb8017c7060",
+  "original_artifacts": [
+    {
+      "artifact_id": 14279313631,
+      "bytes": 24676,
+      "name": "logos-upstream-43967559240-1",
+      "sha256": "86b27550079cb441c157bacb49cf75818ffcb836565292831ccf943ee08001d6",
+      "verified_members": 19
+    },
+    {
+      "artifact_id": 14278775879,
+      "bytes": 16823,
+      "name": "logos-scripts-43967559240-1",
+      "sha256": "d5010dd41ea4ab7e3e4fe4e65104e6fcc5d4a933fb4335b22f26e67946dc856d",
+      "verified_members": 31
+    },
+    {
+      "artifact_id": 14276199722,
+      "bytes": 72894,
+      "name": "logos-unit-43967559240-1",
+      "sha256": "b38104026644aeba2d57b3bb531c17f0c6274a83ad17de6d4f69f3bb1d75b475",
+      "verified_members": 90
+    }
+  ],
+  "original_copy_complete_and_byte_identical": true,
+  "payload_files": 204,
+  "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+  "python_implementation": "CPython",
+  "repack_script_sha256": "3c7b619e158c54372ad16d6f4d9a7062d5b11c92a8beab19a4225c8ad4ed99af",
+  "repacked_archive": "native-43967559240-repacked.tar.gz",
+  "root_tree": "42454f406f1032e1b5c9265b97e4b430eb8c4a36",
+  "run_attempt": 1,
+  "run_id": 43967559240,
+  "schema_version": 1,
+  "source_edit": false,
+  "source_tree": "ee5ae95824022485b74d4e3186a1540ef7124f76",
+  "test_tree": "a64f88184df739e681c29c83e059d44ab6fda7bd",
+  "zlib_compile_version": "1.3.2",
+  "zlib_runtime_version": "1.3.2"
+}

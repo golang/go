@@ -1,0 +1,55 @@
+{
+  "source_and_tools_unchanged": true,
+  "before": {
+    "source": {
+      "frozen_sha256": {
+        "logos-doc/validation/tagged-package-facts/frozen.json": "fe38455d4fab1e2928336f7d9845c61893ce97d38986edd0154bedab63cc4b4a",
+        "logos-doc/validation/tagged-package-facts/old-optfacts.go.txt": "5ff9035b2998b75772223068366f1fdca121b3b738f1e35ba8bc7cc4da00be9d",
+        "src/cmd/compile/internal/logos/compile_local_type_import_test.go": "05daf14fc22048833996164c3ca56231cc857d67c8a7456bdb3b24d1cd9183af",
+        "src/cmd/compile/internal/logos/compile_tagged_facts_test.go": "f3b308710d0f57ed15a2ef94d53750944c14ae9b10bafc788d8a1b26361ecbd8",
+        "src/cmd/compile/internal/logos/optfacts_scope_test.go": "0899e0c6da711b269e4a586ce96e2f9daaa90ccf211541664c30e9977add3317",
+        "src/cmd/compile/internal/logos/optfacts_tagged_test.go": "cecb8d8738e9c80777700da61c4cbec395cbe9e034d550679101d510f10b6ead"
+      },
+      "head": "298f8969484af371bb58794610376dae77710a2b",
+      "helper_sha256": "1996e27f29670a603264c02cc0bbc4b15e87d35ec54a4a51306896ca03e407e9",
+      "production_sha256": "66210d97849f205cb677a60abf2de01d7dc9aea2142f6d2aebfaa1a57fb3b7cd",
+      "source_tree": "8117b1f085a68753f359402393b7467a58eedacf",
+      "tree": "968c81fdfb9ec52c7d0ab31752036d48b10459aa",
+      "workflow_sha256": "11a7dc8ee08ef920972a6c0213fd41d1574db48b73ca93965f9636edc293383a"
+    },
+    "tools": {
+      "bin/go": "3430b29bb79c985d5f2788d9228d9873ad48600fdb825aa0a71420fffd96b106",
+      "bin/logos": "3430b29bb79c985d5f2788d9228d9873ad48600fdb825aa0a71420fffd96b106",
+      "pkg/tool/linux_amd64/compile": "b47d8f88cf9fbb2063d19fda329a81368dbeab8b33d48702f2a90f66b1c7617c",
+      "pkg/tool/linux_amd64/link": "2c480046d2505926318f925d82f3acfe19c837dfe27e9d135a2cf1285a0fa6c7"
+    }
+  },
+  "streams": {
+    "negative": {
+      "counts": {
+        "run": 2,
+        "output": 5,
+        "fail": 2
+      },
+      "named_runs": 2,
+      "named_passes": 0,
+      "named_failures": 2,
+      "sha256": "cfdf00fb11b9942b96041a10598675e774c6b42529c135abdeb83dcb99fb508d",
+      "exit_code": 1,
+      "elapsed_seconds": 32.59011067099999
+    },
+    "candidate": {
+      "counts": {
+        "run": 150,
+        "output": 300,
+        "pass": 150
+      },
+      "named_runs": 150,
+      "named_passes": 150,
+      "named_failures": 0,
+      "sha256": "145262ebda572d6699777e1262e50eb27476121769a10789499a20869702c4a4",
+      "exit_code": 0,
+      "elapsed_seconds": 34.745712196
+    }
+  }
+}

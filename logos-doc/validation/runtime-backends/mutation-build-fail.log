@@ -1,0 +1,46 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+____ test_build_failure_cannot_hide_after_passing_tests[example.com/broken] ____
+
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-14/test_build_failure_cannot_hide0')
+package = 'example.com/broken'
+
+    @pytest.mark.parametrize("package", ("example.com/broken", ""))
+    def test_build_failure_cannot_hide_after_passing_tests(
+        tmp_path: Path, package: str
+    ) -> None:
+        selected = profile("xxhash-asm-core")
+        text = executed(selected.case.module, ("TestAll",))
+        text += "\n" + json.dumps({"Action": "build-fail", "ImportPath": package})
+        result = assess_runtime(run_record(tmp_path, text), "oracle", selected, None)
+>       assert result.assessment.status == "upstream-failed"
+E       AssertionError: assert 'pass' == 'upstream-failed'
+E         
+E         - upstream-failed
+E         + pass
+
+test_replay_backend_events.py:45: AssertionError
+_____________ test_build_failure_cannot_hide_after_passing_tests[] _____________
+
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-14/test_build_failure_cannot_hide1')
+package = ''
+
+    @pytest.mark.parametrize("package", ("example.com/broken", ""))
+    def test_build_failure_cannot_hide_after_passing_tests(
+        tmp_path: Path, package: str
+    ) -> None:
+        selected = profile("xxhash-asm-core")
+        text = executed(selected.case.module, ("TestAll",))
+        text += "\n" + json.dumps({"Action": "build-fail", "ImportPath": package})
+        result = assess_runtime(run_record(tmp_path, text), "oracle", selected, None)
+>       assert result.assessment.status == "upstream-failed"
+E       AssertionError: assert 'pass' == 'upstream-failed'
+E         
+E         - upstream-failed
+E         + pass
+
+test_replay_backend_events.py:45: AssertionError
+=========================== short test summary info ============================
+FAILED test_replay_backend_events.py::test_build_failure_cannot_hide_after_passing_tests[example.com/broken]
+FAILED test_replay_backend_events.py::test_build_failure_cannot_hide_after_passing_tests[]
+2 failed, 12 deselected in 0.15s

@@ -1,0 +1,461 @@
+{
+  "artifact_id": 14276199722,
+  "name": "logos-unit-43967559240-1.zip",
+  "run_id": 43967559240,
+  "head": "f4242fed9cf0707a4103a0adbdb82e866bcabd69",
+  "bytes": 72894,
+  "sha256": "b38104026644aeba2d57b3bb531c17f0c6274a83ad17de6d4f69f3bb1d75b475",
+  "matches_github_digest": true,
+  "entries": [
+    {
+      "path": "logos-mutations.uDwg0K/environment.json",
+      "bytes": 185,
+      "sha256": "8a480d07cd795ac9dd0be7963728bf05031fd5e7ab5beaeaf4cd21693ad578f9"
+    },
+    {
+      "path": "logos-mutations.uDwg0K/environment.log",
+      "bytes": 17992,
+      "sha256": "df7583a6039399161f1e9588dcabf2c7e7d802d2b2f11fc37c5de8f14db61135"
+    },
+    {
+      "path": "logos-mutations.uDwg0K/generator.json",
+      "bytes": 150,
+      "sha256": "11b3c67cb6b02b238ed9ec73e190e1ec84dcb1c9dffa16ea82819c457a3c096e"
+    },
+    {
+      "path": "logos-mutations.uDwg0K/generator.log",
+      "bytes": 4614,
+      "sha256": "986bd32487735a0e16c9f5be8163682df68a7d82cf5d253abac4bda0574da822"
+    },
+    {
+      "path": "logos-regression-evidence/field-offset/after.json",
+      "bytes": 2515,
+      "sha256": "7a1416e48d6c44939c83d9c8b489532627f7b24500429a5655df637aa54d32de"
+    },
+    {
+      "path": "logos-regression-evidence/field-offset/before.json",
+      "bytes": 2515,
+      "sha256": "7a1416e48d6c44939c83d9c8b489532627f7b24500429a5655df637aa54d32de"
+    },
+    {
+      "path": "logos-regression-evidence/field-offset/candidate.jsonl",
+      "bytes": 44686,
+      "sha256": "46becff495ac302d04da7c193b93b0afd0779c1a9e4f09b42750164e73b042fa"
+    },
+    {
+      "path": "logos-regression-evidence/field-offset/candidate.status.json",
+      "bytes": 606,
+      "sha256": "2f55086e12f99a868dc6d2367792e08b45217e3f71837fe30daa30114e80bb2a"
+    },
+    {
+      "path": "logos-regression-evidence/field-offset/candidate.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logos-regression-evidence/field-offset/environment.json",
+      "bytes": 506,
+      "sha256": "c6db5413d68331058aac8d86f0b1c3edc1b271a8935c2e8848f36c610c431c50"
+    },
+    {
+      "path": "logos-regression-evidence/field-offset/old-rule.jsonl",
+      "bytes": 2716,
+      "sha256": "f4c005064d2fde868c20a15c56a82c5953d14b4c563d61439ed2e427d788d76c"
+    },
+    {
+      "path": "logos-regression-evidence/field-offset/old-rule.overlay.json",
+      "bytes": 212,
+      "sha256": "5ddec5d9b885be602b88b089cf3e4e1bfbcf96529ed0f69743efc0a962640328"
+    },
+    {
+      "path": "logos-regression-evidence/field-offset/old-rule.status.json",
+      "bytes": 721,
+      "sha256": "b0e72455d1637d4448d7459b4867d516701a0924faba1a253c26aedc87314719"
+    },
+    {
+      "path": "logos-regression-evidence/field-offset/old-rule.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logos-regression-evidence/field-offset/report.json",
+      "bytes": 1570,
+      "sha256": "0b37cc02dad6aff0f2f1b3362538453398b9921d2441e0a17a7483468a8e9ac8"
+    },
+    {
+      "path": "logos-regression-evidence/simd-imports/after.json",
+      "bytes": 3592,
+      "sha256": "6afa66d54092313ccb8f81210930729d2138cbb55fc48a58bf2a6e75fe984486"
+    },
+    {
+      "path": "logos-regression-evidence/simd-imports/before.json",
+      "bytes": 3592,
+      "sha256": "6afa66d54092313ccb8f81210930729d2138cbb55fc48a58bf2a6e75fe984486"
+    },
+    {
+      "path": "logos-regression-evidence/simd-imports/compiler.jsonl",
+      "bytes": 16544,
+      "sha256": "28a1b943d69b49e715dbfee5eb972ebfe811238242ba8047d35fb36b9c6bbaaa"
+    },
+    {
+      "path": "logos-regression-evidence/simd-imports/compiler.status.json",
+      "bytes": 585,
+      "sha256": "953922f33e642786f24ac4e78a1124e0e572010b7a470fea31c8bfc87fe8aef2"
+    },
+    {
+      "path": "logos-regression-evidence/simd-imports/compiler.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logos-regression-evidence/simd-imports/environment.json",
+      "bytes": 506,
+      "sha256": "c6db5413d68331058aac8d86f0b1c3edc1b271a8935c2e8848f36c610c431c50"
+    },
+    {
+      "path": "logos-regression-evidence/simd-imports/midway.jsonl",
+      "bytes": 5604,
+      "sha256": "d17390ba3813825040fcee55dbe3a2309beee70ac4ca32aadda7e2421794208d"
+    },
+    {
+      "path": "logos-regression-evidence/simd-imports/midway.status.json",
+      "bytes": 577,
+      "sha256": "46c1a3ab745dde88c384e0eaddd5fc466e5b2c9e744f59ecb72328b07db4c1bc"
+    },
+    {
+      "path": "logos-regression-evidence/simd-imports/midway.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logos-regression-evidence/simd-imports/old-importcfg.jsonl",
+      "bytes": 2299,
+      "sha256": "4c90fbb19ae1b55e35e994f394c6e87ac38f9844ea5a31506dcbeee0812e6b75"
+    },
+    {
+      "path": "logos-regression-evidence/simd-imports/old-importcfg.overlay.json",
+      "bytes": 208,
+      "sha256": "b4bc20a4be1b37bbcf3247c601e4317362e7bfc959f9fd4c24c947903e635c89"
+    },
+    {
+      "path": "logos-regression-evidence/simd-imports/old-importcfg.status.json",
+      "bytes": 679,
+      "sha256": "831d2bb1292bc4f66c68b1e5c3d6b83848091bc36e24c8e0f5af2d5a672cf6a2"
+    },
+    {
+      "path": "logos-regression-evidence/simd-imports/old-importcfg.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logos-regression-evidence/simd-imports/old-rewriter.jsonl",
+      "bytes": 2412,
+      "sha256": "e9cd7230781a7f4276cec285b34a8d8986300495a11585ce34c8b95a6cfa830f"
+    },
+    {
+      "path": "logos-regression-evidence/simd-imports/old-rewriter.overlay.json",
+      "bytes": 199,
+      "sha256": "2110d264dcc9c4c889d4a9cbd3f2225dc2084a289cd16e236ef5dab55e550f34"
+    },
+    {
+      "path": "logos-regression-evidence/simd-imports/old-rewriter.status.json",
+      "bytes": 690,
+      "sha256": "b1d64628b4d3d6f76e2f545a0a7fa4583dde1e213914e728bcd42896bb750055"
+    },
+    {
+      "path": "logos-regression-evidence/simd-imports/old-rewriter.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logos-regression-evidence/simd-imports/report.json",
+      "bytes": 3657,
+      "sha256": "fc36bff588052edf7a6cdbfb8a3a099dcd358bf0f19fb2e4f9a4963f5cf5ed11"
+    },
+    {
+      "path": "logos-regression-evidence/simd-imports/work.jsonl",
+      "bytes": 8161,
+      "sha256": "4034aaf284cd79cdd03afe96932b9af0736aa592a73894d4100cf684dbce1de2"
+    },
+    {
+      "path": "logos-regression-evidence/simd-imports/work.status.json",
+      "bytes": 608,
+      "sha256": "f5c7db10030671a2ed755afa081bfafe798cf6fba775ce1072819748155cfb7e"
+    },
+    {
+      "path": "logos-regression-evidence/simd-imports/work.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logos-regression-evidence/tagged-method/after.json",
+      "bytes": 2397,
+      "sha256": "1685e67f048401b6d7f0def1618bb0d700d7c23ee4ebfba5a2e7a7e546b95ff1"
+    },
+    {
+      "path": "logos-regression-evidence/tagged-method/before.json",
+      "bytes": 2397,
+      "sha256": "1685e67f048401b6d7f0def1618bb0d700d7c23ee4ebfba5a2e7a7e546b95ff1"
+    },
+    {
+      "path": "logos-regression-evidence/tagged-method/facts.jsonl",
+      "bytes": 62725,
+      "sha256": "d4c37d87069277902726d577640d6173795b1b5d3c0283100b4d5a3d5665bedd"
+    },
+    {
+      "path": "logos-regression-evidence/tagged-method/environment.json",
+      "bytes": 1047,
+      "sha256": "3e47603edaf9b43bf954b6c345d03b8b1bd37316ed5ad956128bb55b408e3034"
+    },
+    {
+      "path": "logos-regression-evidence/tagged-method/facts.status.json",
+      "bytes": 644,
+      "sha256": "c3e439e4f43db995be37e98261041ed5ade0717e24df1660c1f43e29f4cb3ca3"
+    },
+    {
+      "path": "logos-regression-evidence/tagged-method/facts.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logos-regression-evidence/tagged-method/logos.jsonl",
+      "bytes": 13520,
+      "sha256": "bcb8627da5544cc0b1bc1ef2742ac0e581fc0a11c790f177c4e83a264454c967"
+    },
+    {
+      "path": "logos-regression-evidence/tagged-method/logos.status.json",
+      "bytes": 780,
+      "sha256": "5013874e84d32e96881b30f2e0ddd2de88c21cdb21c2c7d06ddcf8350c3d0097"
+    },
+    {
+      "path": "logos-regression-evidence/tagged-method/logos.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logos-regression-evidence/tagged-method/old-codec.jsonl",
+      "bytes": 2382,
+      "sha256": "3f7a41c225ffa156cfb4be18286479948c909edb0e5b12762fd9dbae89fc50bb"
+    },
+    {
+      "path": "logos-regression-evidence/tagged-method/old-codec.overlay.json",
+      "bytes": 196,
+      "sha256": "dc50d24f7f14929ab4a0bc2741e02ebe597563b1c41414dda5547d764fcb1111"
+    },
+    {
+      "path": "logos-regression-evidence/tagged-method/old-codec.status.json",
+      "bytes": 692,
+      "sha256": "85c97e3e709c33682387e2567bf2f3f47ee5a072b0cde28abf4953cf7494b20e"
+    },
+    {
+      "path": "logos-regression-evidence/tagged-method/old-codec.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logos-regression-evidence/tagged-method/old-package-guard.jsonl",
+      "bytes": 1553,
+      "sha256": "b169d8afb6af3dadd40f61e713848adbae74bb9e562922b70030e9c7eb6f00b4"
+    },
+    {
+      "path": "logos-regression-evidence/tagged-method/old-package-guard.overlay.json",
+      "bytes": 196,
+      "sha256": "30686f1f70c9cf0fc607d69d0ed7db9f148779b05af0c79432a9aab49ef9ad93"
+    },
+    {
+      "path": "logos-regression-evidence/tagged-method/old-package-guard.status.json",
+      "bytes": 681,
+      "sha256": "e40350b6b26478543ac32db4205308c2a693941fc9f55ceec2bad27cf1d7ea82"
+    },
+    {
+      "path": "logos-regression-evidence/tagged-method/old-package-guard.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logos-regression-evidence/tagged-method/report.json",
+      "bytes": 3433,
+      "sha256": "fe7705fb98aa8028fab088091c7b36c2e2e709e58f74bbdfd76a9f47a8fe1506"
+    },
+    {
+      "path": "logos-regression-evidence/tagged-package/acceptance.json",
+      "bytes": 175,
+      "sha256": "34d6aaa6914cd3e0610bbdec81ed45652094a55588b456958993873bfabfced0"
+    },
+    {
+      "path": "logos-regression-evidence/tagged-package/after.json",
+      "bytes": 1699,
+      "sha256": "5657b7bd09693f80d1da7e7ba67dd582e5a796c5ea9704616e0d692897447b85"
+    },
+    {
+      "path": "logos-regression-evidence/tagged-package/before.json",
+      "bytes": 1699,
+      "sha256": "5657b7bd09693f80d1da7e7ba67dd582e5a796c5ea9704616e0d692897447b85"
+    },
+    {
+      "path": "logos-regression-evidence/tagged-package/candidate.jsonl",
+      "bytes": 139767,
+      "sha256": "1df97478b5cd05e7a826b5d5d80ded99571907101a00ecad1836cd68de6bf46e"
+    },
+    {
+      "path": "logos-regression-evidence/tagged-package/candidate.status.json",
+      "bytes": 810,
+      "sha256": "b10d3c079a4d2e571743915996c2a6655a206ed04dce89d9e1d3da7428068653"
+    },
+    {
+      "path": "logos-regression-evidence/tagged-package/candidate.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logos-regression-evidence/tagged-package/negative.jsonl",
+      "bytes": 2511,
+      "sha256": "e76b9f498f3661552e0f641deda026d03326630d43c8b89a5fb1f852a0535ed9"
+    },
+    {
+      "path": "logos-regression-evidence/tagged-package/negative.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logos-regression-evidence/tagged-package/negative.status.json",
+      "bytes": 662,
+      "sha256": "745de9ce72ae6e4750d8d7c7de95aa5e9b048947d93ab52049b8bba654b9b76e"
+    },
+    {
+      "path": "logos-regression-evidence/tagged-package/old-production-overlay.json",
+      "bytes": 197,
+      "sha256": "be755f3928538774561a8897dd7cacb3b4ffe0285e240b260f94d32c7136eae3"
+    },
+    {
+      "path": "logos-regression-evidence/uv-archive.txt",
+      "bytes": 55,
+      "sha256": "601dfabde7244643673db96d66034033a5ebf4ce2c4d07c3b0b01cd3f04ca2a1"
+    },
+    {
+      "path": "logos-regression-evidence/wasm/after.json",
+      "bytes": 1667,
+      "sha256": "07458d3d4b2e7d57a3307139aa5f792da1a60740aef23e5b9b8aadc22fb9fcab"
+    },
+    {
+      "path": "logos-regression-evidence/wasm/before.json",
+      "bytes": 1667,
+      "sha256": "07458d3d4b2e7d57a3307139aa5f792da1a60740aef23e5b9b8aadc22fb9fcab"
+    },
+    {
+      "path": "logos-regression-evidence/wasm/environment.json",
+      "bytes": 434,
+      "sha256": "31358c34591cd58cb74ae4e7969f1934f4555142664d1df3872916b9e06e9615"
+    },
+    {
+      "path": "logos-regression-evidence/wasm/report.json",
+      "bytes": 1200,
+      "sha256": "0c2c018ec277f6a1429cd52e24b0e419f18c7614b5c9633a5d571587ff7bf0f5"
+    },
+    {
+      "path": "logos-regression-evidence/wasm/wasm.jsonl",
+      "bytes": 5997,
+      "sha256": "869b2173e91041f00d58942456c5b97eb6f5732fb35a17b90a50123b19d6bb61"
+    },
+    {
+      "path": "logos-regression-evidence/wasm/wasm.status.json",
+      "bytes": 683,
+      "sha256": "f0fcd56901bf4b62acb51f0d3b1df41965c9f37af86a56da17c45c850320481c"
+    },
+    {
+      "path": "logos-regression-evidence/wasm/wasm.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logos-regression-evidence/zero-array/after.json",
+      "bytes": 4367,
+      "sha256": "4de119561f5e9a5778d93f5bb3cd5971042e700937a782bc9408cee07627b539"
+    },
+    {
+      "path": "logos-regression-evidence/zero-array/before.json",
+      "bytes": 4367,
+      "sha256": "4de119561f5e9a5778d93f5bb3cd5971042e700937a782bc9408cee07627b539"
+    },
+    {
+      "path": "logos-regression-evidence/zero-array/environment.json",
+      "bytes": 506,
+      "sha256": "c6db5413d68331058aac8d86f0b1c3edc1b271a8935c2e8848f36c610c431c50"
+    },
+    {
+      "path": "logos-regression-evidence/zero-array/facts.jsonl",
+      "bytes": 12589,
+      "sha256": "91559ed91f92e78bf21ba314461759de9b45d6c0f7b31c443bc2c2d6a30c817e"
+    },
+    {
+      "path": "logos-regression-evidence/zero-array/facts.status.json",
+      "bytes": 582,
+      "sha256": "e34bc30735b80e00fc7eb4f6e5bc60850d06bbd1a7b2ab6fb77cf9ca6fb08711"
+    },
+    {
+      "path": "logos-regression-evidence/zero-array/facts.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logos-regression-evidence/zero-array/old-mutation-proof.jsonl",
+      "bytes": 2308,
+      "sha256": "82019b4c461a1d82572ba5d4741868264e3f9a17b73bbc2472c309db1710a86d"
+    },
+    {
+      "path": "logos-regression-evidence/zero-array/old-mutation-proof.overlay.json",
+      "bytes": 209,
+      "sha256": "286abb981a34daa86f3c6975c55db2a666478f062d33df2e04e1883455725c17"
+    },
+    {
+      "path": "logos-regression-evidence/zero-array/old-mutation-proof.status.json",
+      "bytes": 701,
+      "sha256": "61afeee0d42cf249f488df582d979bf2a896018495d4c32b37b706d6936bf134"
+    },
+    {
+      "path": "logos-regression-evidence/zero-array/old-mutation-proof.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logos-regression-evidence/zero-array/old-type-proof.jsonl",
+      "bytes": 1392,
+      "sha256": "9afa175eb2c0d885624db4079cc99033b64eb6638bdde73665027023425edc8e"
+    },
+    {
+      "path": "logos-regression-evidence/zero-array/old-type-proof.overlay.json",
+      "bytes": 209,
+      "sha256": "286abb981a34daa86f3c6975c55db2a666478f062d33df2e04e1883455725c17"
+    },
+    {
+      "path": "logos-regression-evidence/zero-array/old-type-proof.status.json",
+      "bytes": 756,
+      "sha256": "ea1b96f4a19b04f788604c93ad035809ea9bd776045fc5af520f464fc3144594"
+    },
+    {
+      "path": "logos-regression-evidence/zero-array/old-type-proof.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logos-regression-evidence/zero-array/report.json",
+      "bytes": 3189,
+      "sha256": "726cae1a92b5281a23ef8d642b1512ad30c7109c7dea5ebdb65ae72c8c4a1b77"
+    },
+    {
+      "path": "logos-regression-evidence/zero-array/types.jsonl",
+      "bytes": 1391,
+      "sha256": "17f888e66250b9905bdd23905f92d2187841ee3ad113a4933f5764fb0905fc41"
+    },
+    {
+      "path": "logos-regression-evidence/zero-array/types.status.json",
+      "bytes": 716,
+      "sha256": "aaf575aa7f9dd1cfec4802b8b112e461b89b5c29c406d2201f1a17946c78a763"
+    },
+    {
+      "path": "logos-regression-evidence/zero-array/types.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

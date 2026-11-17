@@ -1,0 +1,15 @@
+{
+  "source_base": "ec2f6dab1caf75318d0ba60261422f29a4177d20",
+  "test_correction_commit": "bb3f5bbb3987899ffd60fc200b7c46ebb41a60a2",
+  "baseline_helper_matches_source_base": true,
+  "baseline_helper_sha256": "6ed983a5570c94e69b16bca2e758627fba622fa0aa42719a5a7da22ca44951a0",
+  "candidate_helper_sha256": "d6cb879aee95d94e92dfe68cfefce2614039703e113f630919dcc613e684ad9f",
+  "isolated_driver_sha256": "831fcd79bc87bc2aaa0f9cb4fb25f2352b56611ff8b147ad6f0c9f92c867dbb5",
+  "candidate_sources_sha256": {
+    "src/cmd/go/internal/test/logos_env.go": "d6cb879aee95d94e92dfe68cfefce2614039703e113f630919dcc613e684ad9f",
+    "src/cmd/go/internal/test/logos_experiment_env_test.go": "7ea346792da0ffa1e13ca3185783c64ec031a74fd7fe55bff80fcfd4da55fc73",
+    "src/cmd/go/testdata/script/logos_test_experiment_env.txt": "6bbbd16bfbcc62d7dade757cff6f634911ba40dfb899cf5d329eb96ccdbf6255",
+    "src/cmd/go/testdata/script/logos_test_plugin_experiment.txt": "412f8ed9f4b56e8eaf48f3761f8fbd9e17b1a647ac8d766d830d12111bb93ea0"
+  },
+  "full_make_acceptance": "pending integration"
+}

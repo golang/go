@@ -663,7 +663,7 @@ func (gcToolchain) ld(b *Builder, root *Action, targetPath, importcfg, mainpkg s
 	if err != nil {
 		return err
 	}
-	ldflags = logosLinkCapFlag(ldflags, root.Objdir)
+	ldflags = logosLinkCapFlag(ldflags, root.Objdir, root.Package)
 
 	// On OS X when using external linking to build a shared library,
 	// the argument passed here to -o ends up recorded in the final

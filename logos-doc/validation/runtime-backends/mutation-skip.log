@@ -1,0 +1,27 @@
+F.                                                                       [100%]
+=================================== FAILURES ===================================
+_____________ test_skip_or_failure_cannot_be_hidden_by_pass[skip] ______________
+
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-7/test_skip_or_failure_cannot_be0')
+action = 'skip'
+
+    @pytest.mark.parametrize("action", ("skip", "fail"))
+    def test_skip_or_failure_cannot_be_hidden_by_pass(tmp_path: Path, action: str) -> None:
+        selected = profile("xxhash-asm-core")
+        text = (
+            executed(selected.case.module, ("TestAll",))
+            + "\n"
+            + record(selected.case.module, "TestAll", action)
+        )
+>       assert not assess_runtime(
+            run_record(tmp_path, text), "oracle", selected, None
+        ).accepted
+E       assert not True
+E        +  where True = RuntimeResult(profile=Replay(case=Case(id='xxhash-asm-core', source_kind='git', source='xxhash', module='github.com/ce...m/cespare/xxhash/v2', 'TestAll'),), failures=(), skips=(('github.com/cespare/xxhash/v2', 'TestAll'),)), event_error='').accepted
+E        +    where RuntimeResult(profile=Replay(case=Case(id='xxhash-asm-core', source_kind='git', source='xxhash', module='github.com/ce...m/cespare/xxhash/v2', 'TestAll'),), failures=(), skips=(('github.com/cespare/xxhash/v2', 'TestAll'),)), event_error='') = assess_runtime(Run(command=('fake-go', 'test'), cwd='/tmp/pytest-of-agent/pytest-7/test_skip_or_failure_cannot_be0', environment={}, ...027a1ce23cb10ef256af229e31ffa44b6a3', stderr_sha256='e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'), 'oracle', Replay(case=Case(id='xxhash-asm-core', source_kind='git', source='xxhash', module='github.com/cespare/xxhash/v2', upst...gos_policy='', logos_policy_sha256=''), tests=(), expected=(), required=(('github.com/cespare/xxhash/v2', 'TestAll'),)), None)
+E        +      where Run(command=('fake-go', 'test'), cwd='/tmp/pytest-of-agent/pytest-7/test_skip_or_failure_cannot_be0', environment={}, ...027a1ce23cb10ef256af229e31ffa44b6a3', stderr_sha256='e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855') = run_record(PosixPath('/tmp/pytest-of-agent/pytest-7/test_skip_or_failure_cannot_be0'), '{"Package": "github.com/cespare/xxhash/v2", "Test": "TestAll", "Action": "run"}\n{"Package": "github.com/cespare/xxha..."Test": "TestAll", "Action": "pass"}\n{"Package": "github.com/cespare/xxhash/v2", "Test": "TestAll", "Action": "skip"}')
+
+test_replay_backends.py:140: AssertionError
+=========================== short test summary info ============================
+FAILED test_replay_backends.py::test_skip_or_failure_cannot_be_hidden_by_pass[skip]
+1 failed, 1 passed, 46 deselected in 0.21s

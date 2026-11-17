@@ -1,0 +1,303 @@
+--- FAIL: TestCapGraphDiscoveryOrder (0.04s)
+    --- FAIL: TestCapGraphDiscoveryOrder/unrooted_incoming_cycle (0.00s)
+        capabilities_discovery_logos_test.go:62: discovery-order check: exit status 1
+            --- FAIL: TestCapGraphDiscoveryOrder (0.00s)
+                capabilities_discovery_logos_test.go:57: chain [2 5] for dep does not start at a root
+            FAIL
+--- FAIL: TestCapGraphShuffledDiscoveryOracle (0.07s)
+    capabilities_discovery_logos_test.go:69: discovery-order check: exit status 1
+        --- FAIL: TestCapGraphShuffledDiscoveryOracle (0.06s)
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/9 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [2 1] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/12 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [7 3 1] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/21 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [2 3 4] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/26 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [4 7] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/38 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [2 1] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/49 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [5 2 3] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/52 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [6 1] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/56 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [3 1] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/65 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [8 9] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/67 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [4 1 2] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/75 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [2 7] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/95 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [3 1] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/106 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [3 1 2] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/110 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [2 6] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/112 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [3 4] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/125 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [4 1] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/126 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [4 1 2] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/130 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [4 9 1] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/152 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [8 5] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/156 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [3 1] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/158 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [7 4 8 6] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/167 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [2 1] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/172 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [4 1] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/175 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [6 1] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/178 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [4 3] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/191 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [4 3] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/204 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [3 1] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/207 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [3 2] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/212 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [4 1] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/228 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [5 1] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/230 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [6 5] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/255 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [7 10] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/256 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [5 3 4] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/258 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [9 5] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/264 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [2 4 1] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/270 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [2 4] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/271 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [2 1] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/274 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [4 7 8] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/286 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [6 2] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/288 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [3 2] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/293 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [4 1] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/301 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [3 5 1] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/316 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [3 6] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/324 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [1 5] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/325 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [4 2] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/345 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [5 2 1 6] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/348 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [6 2 1] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/349 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [2 4] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/367 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [3 1] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/369 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [6 5 1] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/371 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [3 1] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/374 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [4 5 1] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/381 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [6 2] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/383 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [3 1 2] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/386 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [2 3] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/389 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [4 2] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/405 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [2 3] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/409 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [5 2] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/412 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [5 1] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/414 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [5 2 3] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/415 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [3 5 7 4] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/416 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [1 4] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/427 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [8 10 4] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/428 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [3 1] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/432 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [1 2] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/434 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [3 6 4] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/436 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [6 3] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/442 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [2 1] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/445 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [5 6] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/454 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [2 1] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/475 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [8 9 5] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/477 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [6 9] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/480 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [5 1 6] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/485 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [2 5 1] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/487 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [2 4 1] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/494 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [5 3] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/497 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [2 6 1] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/521 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [5 4] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/522 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [7 1] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/530 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [3 1] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/538 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [2 3] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/544 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [4 3 1] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/552 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [2 3] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/567 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [5 1] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/570 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [4 2] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/571 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [2 4] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/584 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [5 2] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/588 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [5 1 2] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/605 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [6 5 1] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/615 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [2 1] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/617 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [5 3] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/622 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [3 6] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/626 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [4 1 8] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/636 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [8 6] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/640 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [5 7 8] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/648 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [9 6] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/650 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [6 4] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/654 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [4 5] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/662 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [4 2 3] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/681 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [3 1] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/690 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [2 1] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/691 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [2 3] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/697 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [3 8] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/709 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [5 3] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/726 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [5 1] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/765 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [2 7 5 1] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/773 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [3 4] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/775 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [7 6] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/780 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [2 1] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/782 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [3 1 2] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/784 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [1 7] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/786 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [6 3] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/793 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [6 3 1 2] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/798 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [9 7 4] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/816 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [2 1] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/830 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [7 2] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/844 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [6 2 1] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/849 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [6 2] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/853 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [1 8 4] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/862 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [7 6 9 4] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/878 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [3 1] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/888 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [5 1 2] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/890 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [6 5 1] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/892 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [4 1 7] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/902 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [2 4] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/904 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [4 3] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/905 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [9 3 8] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/907 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [10 1] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/908 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [1 5] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/917 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [3 2] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/933 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [2 1] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/939 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [3 1] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/940 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [3 4] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/941 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [3 1] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/942 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [3 2] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/943 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [4 8] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/946 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [3 2 4 1] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/956 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [2 4] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/957 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [4 2 1] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/963 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [5 1] for d1 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/966 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [3 1 8] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/969 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [2 9] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/977 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [4 5] for d2 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/988 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [4 3 1] for d0 does not start at a root
+            --- FAIL: TestCapGraphShuffledDiscoveryOracle/999 (0.00s)
+                capabilities_discovery_logos_test.go:93: chain [3 2] for d2 does not start at a root
+        FAIL
+FAIL
+FAIL	cmd/link/internal/ld	0.112s
+FAIL

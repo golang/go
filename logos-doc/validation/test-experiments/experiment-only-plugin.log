@@ -1,0 +1,5 @@
+--- FAIL: TestChildPlugin (8.43s)
+    plugin_test.go:18: plugin.Open("/dev/shm/dogfood-review-d8d410ec882d/TestChildPlugin69024801/001/child"): plugin was built with a different version of package math/bits
+FAIL
+FAIL	example.com/testplugin	8.441s
+FAIL

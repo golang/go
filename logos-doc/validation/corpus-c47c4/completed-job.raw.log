@@ -1,0 +1,936 @@
+﻿2026-11-16T18:41:53.5364227Z Current runner version: '2.338.2'
+2026-11-16T18:41:53.5380584Z ##[group]Runner Image Provisioner
+2026-11-16T18:41:53.5381219Z Hosted Compute Agent
+2026-11-16T18:41:53.5381653Z Version: 20261103.629
+2026-11-16T18:41:53.5382127Z Commit: 15dbd9ccb5dbf34fae002b6ed1a2670f52df37bc
+2026-11-16T18:41:53.5382644Z Build Date: 2026-11-03T17:26:59Z
+2026-11-16T18:41:53.5383119Z Worker ID: {d8b2475f-b68b-465f-8f11-4bc75cf0aa72}
+2026-11-16T18:41:53.5383620Z Region: us-west-2
+2026-11-16T18:41:53.5384046Z Cloud: AWS
+2026-11-16T18:41:53.5384440Z ##[endgroup]
+2026-11-16T18:41:53.5385324Z ##[group]Operating System
+2026-11-16T18:41:53.5385753Z Ubuntu
+2026-11-16T18:41:53.5386127Z 24.04.5
+2026-11-16T18:41:53.5386500Z LTS
+2026-11-16T18:41:53.5386867Z ##[endgroup]
+2026-11-16T18:41:53.5387245Z ##[group]Runner Image
+2026-11-16T18:41:53.5387636Z Image: ubuntu-24.04
+2026-11-16T18:41:53.5388097Z Version: 20261111.127.1
+2026-11-16T18:41:53.5389200Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261111.127/images/ubuntu/Ubuntu2404-Readme.md
+2026-11-16T18:41:53.5390343Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261111.127
+2026-11-16T18:41:53.5390996Z ##[endgroup]
+2026-11-16T18:41:53.5391821Z ##[group]GITHUB_TOKEN Permissions
+2026-11-16T18:41:53.5393490Z Contents: read
+2026-11-16T18:41:53.5393897Z Metadata: read
+2026-11-16T18:41:53.5394284Z ##[endgroup]
+2026-11-16T18:41:53.5395734Z Secret source: Actions
+2026-11-16T18:41:53.5396376Z Cache mode: write
+2026-11-16T18:41:53.5396993Z Prepare workflow directory
+2026-11-16T18:41:53.5672828Z Prepare all required actions
+2026-11-16T18:41:53.5708824Z Getting action download info
+2026-11-16T18:41:53.9356293Z Download action repository 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1' (SHA:3d3c42e5aac5ba805825da76410c181273ba90b1)
+2026-11-16T18:41:56.5860004Z Download action repository 'actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9' (SHA:cf430e030ddbb5b0abf93d22962f4752f3646cd9)
+2026-11-16T18:41:56.8792463Z Complete job name: corpus
+2026-11-16T18:41:56.9446808Z ##[group]Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+2026-11-16T18:41:56.9447700Z with:
+2026-11-16T18:41:56.9448129Z   ref: c47c4cfc56fc8bfa916d170ed51040195b567dc9
+2026-11-16T18:41:56.9448713Z   persist-credentials: false
+2026-11-16T18:41:56.9449469Z   repository: gosuda/LoGOs
+2026-11-16T18:41:56.9452743Z   token: ***
+2026-11-16T18:41:56.9453141Z   ssh-strict: true
+2026-11-16T18:41:56.9453537Z   ssh-user: git
+2026-11-16T18:41:56.9454147Z   clean: true
+2026-11-16T18:41:56.9454578Z   sparse-checkout-cone-mode: true
+2026-11-16T18:41:56.9455071Z   fetch-depth: 1
+2026-11-16T18:41:56.9455505Z   fetch-tags: false
+2026-11-16T18:41:56.9455952Z   show-progress: true
+2026-11-16T18:41:56.9456409Z   lfs: false
+2026-11-16T18:41:56.9456795Z   submodules: false
+2026-11-16T18:41:56.9457220Z   set-safe-directory: true
+2026-11-16T18:41:56.9457716Z   allow-unsafe-pr-checkout: false
+2026-11-16T18:41:56.9458386Z env:
+2026-11-16T18:41:56.9458785Z   GOMAXPROCS: 2
+2026-11-16T18:41:56.9459477Z   GOMEMLIMIT: 2GiB
+2026-11-16T18:41:56.9459928Z   GOGC: 50
+2026-11-16T18:41:56.9460315Z   GOTOOLCHAIN: local
+2026-11-16T18:41:56.9460718Z   GOWORK: off
+2026-11-16T18:41:56.9461133Z   GOENV: off
+2026-11-16T18:41:56.9461551Z   GOTELEMETRY: off
+2026-11-16T18:41:56.9461980Z   CC: gcc
+2026-11-16T18:41:56.9462356Z   CXX: g++
+2026-11-16T18:41:56.9462826Z   GGLINT_REVISION: a95099aae13ff7ffb4b3825bd63f8510bd184c69
+2026-11-16T18:41:56.9463475Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T18:41:56.9463953Z ##[endgroup]
+2026-11-16T18:42:00.1360833Z Syncing repository: gosuda/LoGOs
+2026-11-16T18:42:00.1362206Z ##[group]Getting Git version info
+2026-11-16T18:42:00.1362573Z Working directory is '/home/runner/work/LoGOs/LoGOs'
+2026-11-16T18:42:00.1363171Z [command]/usr/bin/git version
+2026-11-16T18:42:00.4419744Z git version 2.56.1
+2026-11-16T18:42:00.4434670Z ##[endgroup]
+2026-11-16T18:42:00.4443799Z Temporarily overriding HOME='/home/runner/work/_temp/fbb1f5db-51ab-4813-ac7e-dc0914146dbf' before making global git config changes
+2026-11-16T18:42:00.4445400Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-16T18:42:00.4448302Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/LoGOs/LoGOs
+2026-11-16T18:42:00.5081331Z Deleting the contents of '/home/runner/work/LoGOs/LoGOs'
+2026-11-16T18:42:00.5083865Z ##[group]Determining repository object format
+2026-11-16T18:42:00.5084681Z ##[endgroup]
+2026-11-16T18:42:00.5085319Z ##[group]Initializing the repository
+2026-11-16T18:42:00.5088717Z [command]/usr/bin/git init /home/runner/work/LoGOs/LoGOs
+2026-11-16T18:42:00.7495141Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-16T18:42:00.7495771Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-16T18:42:00.7496476Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-16T18:42:00.7496914Z hint: call:
+2026-11-16T18:42:00.7497626Z hint:
+2026-11-16T18:42:00.7498361Z hint: 	git config --global init.defaultBranch <name>
+2026-11-16T18:42:00.7498738Z hint:
+2026-11-16T18:42:00.7499432Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-16T18:42:00.7500242Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-16T18:42:00.7500769Z hint:
+2026-11-16T18:42:00.7501082Z hint: 	git branch -m <name>
+2026-11-16T18:42:00.7501406Z hint:
+2026-11-16T18:42:00.7501875Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-16T18:42:00.7510457Z Initialized empty Git repository in /home/runner/work/LoGOs/LoGOs/.git/
+2026-11-16T18:42:00.7518843Z [command]/usr/bin/git remote add origin https://github.com/gosuda/LoGOs
+2026-11-16T18:42:00.7561813Z ##[endgroup]
+2026-11-16T18:42:00.7562274Z ##[group]Disabling automatic garbage collection
+2026-11-16T18:42:00.7564319Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-16T18:42:00.7586864Z ##[endgroup]
+2026-11-16T18:42:00.7587588Z ##[group]Setting up auth
+2026-11-16T18:42:00.7588033Z Removing SSH command configuration
+2026-11-16T18:42:00.7591020Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-16T18:42:00.7617556Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-16T18:42:01.2206945Z Removing HTTP extra header
+2026-11-16T18:42:01.2211327Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-16T18:42:01.2241203Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-16T18:42:01.2382604Z Removing includeIf entries pointing to credentials config files
+2026-11-16T18:42:01.2386644Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-16T18:42:01.2411894Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-16T18:42:01.2558768Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-fb3818ea-a439-4a02-ac7d-3aee651e3cbb.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-16T18:42:01.2585988Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/LoGOs/LoGOs/.git.path /home/runner/work/_temp/git-credentials-fb3818ea-a439-4a02-ac7d-3aee651e3cbb.config
+2026-11-16T18:42:01.2607759Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/LoGOs/LoGOs/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-fb3818ea-a439-4a02-ac7d-3aee651e3cbb.config
+2026-11-16T18:42:01.2630309Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-fb3818ea-a439-4a02-ac7d-3aee651e3cbb.config
+2026-11-16T18:42:01.2652790Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-fb3818ea-a439-4a02-ac7d-3aee651e3cbb.config
+2026-11-16T18:42:01.2673069Z ##[endgroup]
+2026-11-16T18:42:01.2673430Z ##[group]Fetching the repository
+2026-11-16T18:42:01.2677539Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin c47c4cfc56fc8bfa916d170ed51040195b567dc9
+2026-11-16T18:42:07.3326900Z From https://github.com/gosuda/LoGOs
+2026-11-16T18:42:07.3327546Z  * branch              c47c4cfc56fc8bfa916d170ed51040195b567dc9 -> FETCH_HEAD
+2026-11-16T18:42:07.3340273Z [command]/usr/bin/git rev-parse --verify --quiet c47c4cfc56fc8bfa916d170ed51040195b567dc9^{object}
+2026-11-16T18:42:07.3356381Z c47c4cfc56fc8bfa916d170ed51040195b567dc9
+2026-11-16T18:42:07.3360259Z ##[endgroup]
+2026-11-16T18:42:07.3360864Z ##[group]Determining the checkout info
+2026-11-16T18:42:07.3362065Z ##[endgroup]
+2026-11-16T18:42:07.3364596Z [command]/usr/bin/git sparse-checkout disable
+2026-11-16T18:42:07.3433324Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-16T18:42:07.3455775Z ##[group]Checking out the ref
+2026-11-16T18:42:07.3457895Z [command]/usr/bin/git checkout --progress --force c47c4cfc56fc8bfa916d170ed51040195b567dc9
+2026-11-16T18:42:08.0827102Z Note: switching to 'c47c4cfc56fc8bfa916d170ed51040195b567dc9'.
+2026-11-16T18:42:08.0827407Z 
+2026-11-16T18:42:08.0827613Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-11-16T18:42:08.0828136Z changes and commit them, and you can discard any commits you make in this
+2026-11-16T18:42:08.0828539Z state without impacting any branches by switching back to a branch.
+2026-11-16T18:42:08.0828752Z 
+2026-11-16T18:42:08.0828921Z If you want to create a new branch to retain commits you create, you may
+2026-11-16T18:42:08.0829578Z do so (now or later) by using -c with the switch command. Example:
+2026-11-16T18:42:08.0829804Z 
+2026-11-16T18:42:08.0830156Z   git switch -c <new-branch-name>
+2026-11-16T18:42:08.0830322Z 
+2026-11-16T18:42:08.0830486Z Or undo this operation with:
+2026-11-16T18:42:08.0830692Z 
+2026-11-16T18:42:08.0830826Z   git switch -
+2026-11-16T18:42:08.0830940Z 
+2026-11-16T18:42:08.0831149Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-11-16T18:42:08.0831402Z 
+2026-11-16T18:42:08.0831655Z HEAD is now at c47c4cfc Integrate pinned corpus acceptance and backend runtime gates
+2026-11-16T18:42:08.0853254Z ##[endgroup]
+2026-11-16T18:42:08.0894128Z [command]/usr/bin/git log -1 --format=%H
+2026-11-16T18:42:08.0915136Z c47c4cfc56fc8bfa916d170ed51040195b567dc9
+2026-11-16T18:42:08.0921236Z ##[group]Removing auth
+2026-11-16T18:42:08.0921767Z Removing SSH command configuration
+2026-11-16T18:42:08.0924681Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-16T18:42:08.0950115Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-16T18:42:08.1119605Z Removing HTTP extra header
+2026-11-16T18:42:08.1121957Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-16T18:42:08.1144434Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-16T18:42:08.1304882Z Removing includeIf entries pointing to credentials config files
+2026-11-16T18:42:08.1307236Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-16T18:42:08.1329750Z includeif.gitdir:/home/runner/work/LoGOs/LoGOs/.git.path
+2026-11-16T18:42:08.1330553Z includeif.gitdir:/home/runner/work/LoGOs/LoGOs/.git/worktrees/*.path
+2026-11-16T18:42:08.1331033Z includeif.gitdir:/github/workspace/.git.path
+2026-11-16T18:42:08.1331712Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-16T18:42:08.1335886Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/LoGOs/LoGOs/.git.path
+2026-11-16T18:42:08.1362820Z /home/runner/work/_temp/git-credentials-fb3818ea-a439-4a02-ac7d-3aee651e3cbb.config
+2026-11-16T18:42:08.1370274Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/LoGOs/LoGOs/.git.path \/home\/runner\/work\/_temp\/git\-credentials\-fb3818ea\-a439\-4a02\-ac7d\-3aee651e3cbb\.config
+2026-11-16T18:42:08.1393440Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/LoGOs/LoGOs/.git/worktrees/*.path
+2026-11-16T18:42:08.1410521Z /home/runner/work/_temp/git-credentials-fb3818ea-a439-4a02-ac7d-3aee651e3cbb.config
+2026-11-16T18:42:08.1420482Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/LoGOs/LoGOs/.git/worktrees/*.path \/home\/runner\/work\/_temp\/git\-credentials\-fb3818ea\-a439\-4a02\-ac7d\-3aee651e3cbb\.config
+2026-11-16T18:42:08.1447141Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+2026-11-16T18:42:08.1464487Z /github/runner_temp/git-credentials-fb3818ea-a439-4a02-ac7d-3aee651e3cbb.config
+2026-11-16T18:42:08.1468671Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path \/github\/runner_temp\/git\-credentials\-fb3818ea\-a439\-4a02\-ac7d\-3aee651e3cbb\.config
+2026-11-16T18:42:08.1493436Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-16T18:42:08.1511090Z /github/runner_temp/git-credentials-fb3818ea-a439-4a02-ac7d-3aee651e3cbb.config
+2026-11-16T18:42:08.1515618Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path \/github\/runner_temp\/git\-credentials\-fb3818ea\-a439\-4a02\-ac7d\-3aee651e3cbb\.config
+2026-11-16T18:42:08.1539392Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-16T18:42:08.1699412Z Removing credentials config '/home/runner/work/_temp/git-credentials-fb3818ea-a439-4a02-ac7d-3aee651e3cbb.config'
+2026-11-16T18:42:08.1704910Z ##[endgroup]
+2026-11-16T18:42:08.1857596Z ##[group]Run INPUTS="$RUNNER_TEMP/logos-corpus-inputs"
+2026-11-16T18:42:08.1858067Z [36;1mINPUTS="$RUNNER_TEMP/logos-corpus-inputs"[0m
+2026-11-16T18:42:08.1858480Z [36;1mEVIDENCE="$RUNNER_TEMP/logos-corpus-evidence"[0m
+2026-11-16T18:42:08.1858873Z [36;1mprintf 'INPUTS=%s\nEVIDENCE=%s\n' "$INPUTS" "$EVIDENCE" >> "$GITHUB_ENV"[0m
+2026-11-16T18:42:08.1859622Z [36;1mmkdir -p "$EVIDENCE" "$RUNNER_TEMP/oracle" "$RUNNER_TEMP/uv" "$RUNNER_TEMP/dogfood-tmp"[0m
+2026-11-16T18:42:08.1860062Z [36;1mgo_archive="$RUNNER_TEMP/go1.27.4.linux-amd64.tar.gz"[0m
+2026-11-16T18:42:08.1860438Z [36;1muv_archive="$RUNNER_TEMP/uv-x86_64-unknown-linux-gnu.tar.gz"[0m
+2026-11-16T18:42:08.1860986Z [36;1mcurl --fail --silent --show-error --location --output "$go_archive" https://go.dev/dl/go1.27.4.linux-amd64.tar.gz[0m
+2026-11-16T18:42:08.1861818Z [36;1mcurl --fail --silent --show-error --location --output "$uv_archive" https://github.com/astral-sh/uv/releases/download/0.13.8/uv-x86_64-unknown-linux-gnu.tar.gz[0m
+2026-11-16T18:42:08.1862656Z [36;1mprintf '%s  %s\n' 7226736c2339719cda28fbf3a54d71aa63bcefe376e98cef00034268dab24840 "$go_archive" | sha256sum --check --strict - | tee "$EVIDENCE/go-archive.txt"[0m
+2026-11-16T18:42:08.1863448Z [36;1mprintf '%s  %s\n' 5acfd9177cfecf0bf87578f059728215ccc884388988f55f7a65041b57387d91 "$uv_archive" | sha256sum --check --strict - | tee "$EVIDENCE/uv-archive.txt"[0m
+2026-11-16T18:42:08.1864067Z [36;1mtar -xzf "$go_archive" -C "$RUNNER_TEMP/oracle" --strip-components=1[0m
+2026-11-16T18:42:08.1864467Z [36;1mtar -xzf "$uv_archive" -C "$RUNNER_TEMP/uv" --strip-components=1[0m
+2026-11-16T18:42:08.1864864Z [36;1mprintf '%s\n' "$RUNNER_TEMP/oracle/bin" "$RUNNER_TEMP/uv" >> "$GITHUB_PATH"[0m
+2026-11-16T18:42:08.1865338Z [36;1mprintf 'GOROOT_BOOTSTRAP=%s\n' "$RUNNER_TEMP/oracle" >> "$GITHUB_ENV"[0m
+2026-11-16T18:42:08.1865881Z [36;1mgit rev-parse HEAD HEAD:src | tee "$EVIDENCE/logos-source.txt"[0m
+2026-11-16T18:42:08.1866474Z [36;1mprintf 'GOMAXPROCS=%s\nGOMEMLIMIT=%s\nGOGC=%s\njobs=2\ncommand_timeout_seconds=600\n' "$GOMAXPROCS" "$GOMEMLIMIT" "$GOGC" | tee "$EVIDENCE/resource-profile.txt"[0m
+2026-11-16T18:42:08.1867038Z [36;1mgcc --version | tee "$EVIDENCE/gcc-version.txt"[0m
+2026-11-16T18:42:08.1867367Z [36;1mg++ --version | tee "$EVIDENCE/gxx-version.txt"[0m
+2026-11-16T18:42:08.6859925Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T18:42:08.6860370Z env:
+2026-11-16T18:42:08.6860615Z   GOMAXPROCS: 2
+2026-11-16T18:42:08.6860884Z   GOMEMLIMIT: 2GiB
+2026-11-16T18:42:08.6861100Z   GOGC: 50
+2026-11-16T18:42:08.6861310Z   GOTOOLCHAIN: local
+2026-11-16T18:42:08.6861558Z   GOWORK: off
+2026-11-16T18:42:08.6861790Z   GOENV: off
+2026-11-16T18:42:08.6861994Z   GOTELEMETRY: off
+2026-11-16T18:42:08.6862212Z   CC: gcc
+2026-11-16T18:42:08.6862426Z   CXX: g++
+2026-11-16T18:42:08.6862686Z   GGLINT_REVISION: a95099aae13ff7ffb4b3825bd63f8510bd184c69
+2026-11-16T18:42:08.6863016Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T18:42:08.6863541Z ##[endgroup]
+2026-11-16T18:42:09.4976312Z /home/runner/work/_temp/go1.27.4.linux-amd64.tar.gz: OK
+2026-11-16T18:42:09.5096369Z /home/runner/work/_temp/uv-x86_64-unknown-linux-gnu.tar.gz: OK
+2026-11-16T18:42:11.0216110Z c47c4cfc56fc8bfa916d170ed51040195b567dc9
+2026-11-16T18:42:11.0216513Z 61483affd1671d27e29a1a1aadc5299ba675f789
+2026-11-16T18:42:11.0227890Z GOMAXPROCS=2
+2026-11-16T18:42:11.0228282Z GOMEMLIMIT=2GiB
+2026-11-16T18:42:11.0228584Z GOGC=50
+2026-11-16T18:42:11.0228887Z jobs=2
+2026-11-16T18:42:11.0229324Z command_timeout_seconds=600
+2026-11-16T18:42:11.1705175Z gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+2026-11-16T18:42:11.1705746Z Copyright (C) 2023 Free Software Foundation, Inc.
+2026-11-16T18:42:11.1706193Z This is free software; see the source for copying conditions.  There is NO
+2026-11-16T18:42:11.1706915Z warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+2026-11-16T18:42:11.1707225Z 
+2026-11-16T18:42:11.2638823Z g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+2026-11-16T18:42:11.2639707Z Copyright (C) 2023 Free Software Foundation, Inc.
+2026-11-16T18:42:11.2640125Z This is free software; see the source for copying conditions.  There is NO
+2026-11-16T18:42:11.2640803Z warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+2026-11-16T18:42:11.2641090Z 
+2026-11-16T18:42:11.2680088Z ##[group]Run uv --version | tee "$EVIDENCE/uv-version.txt"
+2026-11-16T18:42:11.2680527Z [36;1muv --version | tee "$EVIDENCE/uv-version.txt"[0m
+2026-11-16T18:42:11.2681515Z [36;1muv run --no-project --with-requirements misc/logos-dogfood/test-requirements.txt python -m pytest -q misc/logos-dogfood/test_run.py misc/logos-dogfood/test_prepare.py misc/logos-dogfood/test_accept_corpus.py misc/logos-dogfood/test_replay_backends.py misc/logos-dogfood/test_replay_backend_events.py 2>&1 | tee "$EVIDENCE/contracts.txt"[0m
+2026-11-16T18:42:11.2683077Z [36;1mchecked=(misc/logos-dogfood/prepare.py misc/logos-dogfood/test_prepare.py misc/logos-dogfood/accept_corpus.py misc/logos-dogfood/test_accept_corpus.py misc/logos-dogfood/replay_backends.py misc/logos-dogfood/test_replay_backends.py misc/logos-dogfood/test_replay_backend_events.py)[0m
+2026-11-16T18:42:11.2684226Z [36;1muv run --no-project --with-requirements misc/logos-dogfood/test-requirements.txt pyright "${checked[@]}" 2>&1 | tee "$EVIDENCE/helper-types.txt"[0m
+2026-11-16T18:42:11.2685037Z [36;1muv run --no-project --with-requirements misc/logos-dogfood/test-requirements.txt ruff check "${checked[@]}" 2>&1 | tee "$EVIDENCE/helper-lint.txt"[0m
+2026-11-16T18:42:11.2685817Z [36;1muv run --no-project --with-requirements misc/logos-dogfood/test-requirements.txt ruff format --check "${checked[@]}" 2>&1 | tee "$EVIDENCE/helper-format.txt"[0m
+2026-11-16T18:42:11.2715195Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T18:42:11.2715687Z env:
+2026-11-16T18:42:11.2715920Z   GOMAXPROCS: 2
+2026-11-16T18:42:11.2716183Z   GOMEMLIMIT: 2GiB
+2026-11-16T18:42:11.2716439Z   GOGC: 50
+2026-11-16T18:42:11.2716654Z   GOTOOLCHAIN: local
+2026-11-16T18:42:11.2716878Z   GOWORK: off
+2026-11-16T18:42:11.2717095Z   GOENV: off
+2026-11-16T18:42:11.2717321Z   GOTELEMETRY: off
+2026-11-16T18:42:11.2717534Z   CC: gcc
+2026-11-16T18:42:11.2717725Z   CXX: g++
+2026-11-16T18:42:11.2717977Z   GGLINT_REVISION: a95099aae13ff7ffb4b3825bd63f8510bd184c69
+2026-11-16T18:42:11.2718321Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T18:42:11.2718634Z   INPUTS: /home/runner/work/_temp/logos-corpus-inputs
+2026-11-16T18:42:11.2719158Z   EVIDENCE: /home/runner/work/_temp/logos-corpus-evidence
+2026-11-16T18:42:11.2719545Z   GOROOT_BOOTSTRAP: /home/runner/work/_temp/oracle
+2026-11-16T18:42:11.2719812Z ##[endgroup]
+2026-11-16T18:42:11.2796929Z uv 0.13.8 (x86_64-unknown-linux-gnu)
+2026-11-16T18:42:11.7207880Z Downloading hypothesis (1.1MiB)
+2026-11-16T18:42:11.7208423Z Downloading ruff (10.1MiB)
+2026-11-16T18:42:11.7208804Z Downloading pyright (5.9MiB)
+2026-11-16T18:42:11.7209349Z Downloading pygments (1.2MiB)
+2026-11-16T18:42:11.7609760Z  Downloaded hypothesis
+2026-11-16T18:42:11.7657069Z  Downloaded pygments
+2026-11-16T18:42:11.8069802Z  Downloaded ruff
+2026-11-16T18:42:11.8892492Z  Downloaded pyright
+2026-11-16T18:42:11.9283395Z Installed 11 packages in 38ms
+2026-11-16T18:42:17.9520973Z ............................................. [ 26%]
+2026-11-16T18:42:19.0145559Z ........................................................................ [ 70%]
+2026-11-16T18:42:19.1611182Z ..................................................                       [100%]
+2026-11-16T18:42:19.1611938Z 167 passed, 27 subtests passed in 4.30s
+2026-11-16T18:42:25.8030581Z 0 errors, 0 warnings, 0 informations
+2026-11-16T18:42:25.8604223Z All checks passed!
+2026-11-16T18:42:25.8821596Z 7 files already formatted
+2026-11-16T18:42:25.8871166Z ##[group]Run uv run --no-project python misc/logos-dogfood/prepare.py --manifest misc/logos-dogfood/corpus-ci.json --go-oracle "$RUNNER_TEMP/oracle/bin/go" --out "$INPUTS" 2>&1 | tee "$EVIDENCE/preparation.txt"
+2026-11-16T18:42:25.8872252Z [36;1muv run --no-project python misc/logos-dogfood/prepare.py --manifest misc/logos-dogfood/corpus-ci.json --go-oracle "$RUNNER_TEMP/oracle/bin/go" --out "$INPUTS" 2>&1 | tee "$EVIDENCE/preparation.txt"[0m
+2026-11-16T18:42:25.8899630Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T18:42:25.8899946Z env:
+2026-11-16T18:42:25.8900149Z   GOMAXPROCS: 2
+2026-11-16T18:42:25.8900399Z   GOMEMLIMIT: 2GiB
+2026-11-16T18:42:25.8900708Z   GOGC: 50
+2026-11-16T18:42:25.8900918Z   GOTOOLCHAIN: local
+2026-11-16T18:42:25.8901127Z   GOWORK: off
+2026-11-16T18:42:25.8901312Z   GOENV: off
+2026-11-16T18:42:25.8901533Z   GOTELEMETRY: off
+2026-11-16T18:42:25.8901750Z   CC: gcc
+2026-11-16T18:42:25.8901937Z   CXX: g++
+2026-11-16T18:42:25.8902298Z   GGLINT_REVISION: a95099aae13ff7ffb4b3825bd63f8510bd184c69
+2026-11-16T18:42:25.8902618Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T18:42:25.8902910Z   INPUTS: /home/runner/work/_temp/logos-corpus-inputs
+2026-11-16T18:42:25.8903261Z   EVIDENCE: /home/runner/work/_temp/logos-corpus-evidence
+2026-11-16T18:42:25.8903608Z   GOROOT_BOOTSTRAP: /home/runner/work/_temp/oracle
+2026-11-16T18:42:25.8903865Z ##[endgroup]
+2026-11-16T18:42:26.3799520Z chi: ready (h1:oMQs0ebb+20GDsR632aZraCgKic1nf5stVTvz73euoM=)
+2026-11-16T18:42:26.7362091Z cmp: ready (h1:9C8sMRrWshNCojfOFnA/9holXARbNw3cRqzkfbEPJaU=)
+2026-11-16T18:42:27.0798446Z xxhash-asm, xxhash-purego: ready (h1:zvnvt3XfrJHP2/HKqfjkEaLgXgWz/eEN/qky6OCr5is=)
+2026-11-16T18:42:27.5832717Z purego-ffi: ready (h1:g5LFHeOvTyrW5XNE0UMBjKZUpX8EwJy+J7O8Xp1VyPQ=)
+2026-11-16T18:42:28.7798566Z sqlite3-cgo, sqlite3-stub: ready (h1:vHoDGb3ogfiKdLovN6wJYvVlVfZjncMNfPyueSKXIKU=)
+2026-11-16T18:42:34.6613339Z modernc-sqlite: ready (h1:kXR6Mrpps9PPMVlj/4J0iClILWn2DYqdLESTRmIpk0E=)
+2026-11-16T18:42:36.4048420Z errorlint: ready (h1:XzvLUN9L9Z+8GS7SDEAv4uAMrzqDgH+kCeKIP5aaULE=)
+2026-11-16T18:42:38.9878710Z govwa: ready (h1:S2QIIjQ/JZNaZuhZbP0hKgqneG8qhEbbm+BUhMpuvRo=)
+2026-11-16T18:42:40.1324275Z scfg: ready (h1:q2qh1wU7aX1uhueMIBzWWgZ43AxortmuQ8ZAEEvUT1A=)
+2026-11-16T18:42:41.2089794Z zap: ready (h1:aJMhYGrd5QSmlpLMr2MftRKl7t8J8PTZPA732ud/XR8=)
+2026-11-16T18:42:41.5132540Z multierr: ready (h1:S0h4aNzvfcFsC3dRF1jLoaov7oRaKqRGC/pUEJ2yvPQ=)
+2026-11-16T18:42:41.8298343Z toml-v2: ready (h1:GTRvJQutkOSftxIFD5xw9aepkYNuPWmVJpffdDPYVpY=)
+2026-11-16T18:42:42.4474405Z toml: ready (h1:dRaEfpa2VI55EwlIW72hMRHdWouJeRF7TPYhI+AUQjk=)
+2026-11-16T18:42:42.6837551Z yaml: ready (h1:N6y/pJk8buWs9NY5ERU2HSMfm+IuD/OtfdAnq6kESPw=)
+2026-11-16T18:42:43.6374067Z protobuf: ready (h1:pJOKDDOyeXErUroCihFAd5LQuwXBSpVnKGrj5o/fwxc=)
+2026-11-16T18:42:43.8393417Z sys: ready (h1:XbzkgYJHdqh/8m2Uu0W/dQv8nktxx4BFHp1M0gROTXA=)
+2026-11-16T18:42:45.1708182Z tools: ready (h1:ryxg4U63oaUYk7uOLTF37n43f4qgtGvqV4Ioit1BaEs=)
+2026-11-16T18:42:45.3546078Z garif: ready (h1:K9oYxSlvlXrHXyW26Z4q61bTpJDo1wbvXcYKar/F/LM=)
+2026-11-16T18:42:46.3763526Z decorder: ready (h1:qbQaV3zgwnBZ4zPMhGLW4KZe7A7NwxEhJx39R3shffo=)
+2026-11-16T18:42:50.7194309Z modernc-libc: ready (h1:ejn7HtTV3GknNKbklqWQ1nvUrfX8mTxs1D+xp/JQwy4=)
+2026-11-16T18:42:51.1856891Z modernc-memory: ready (h1:nFMiWrpStgZczNl6XI9GnIk/rWhYIyHGUaR04pGbp9g=)
+2026-11-16T18:42:51.2382188Z modernc-mathutil: ready (h1:GCZVGXdaN8gTqB1Mf/usp1Y/hSqgI2vAGGP4jZMCxOU=)
+2026-11-16T18:42:51.2738778Z uuid: ready (h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=)
+2026-11-16T18:42:51.7492215Z exhaustive: ready (h1:zlwR7GV/UqKrm3AJdeXqldUTSsbyfdqS8f/m0oMYLD0=)
+2026-11-16T18:42:51.7657240Z fixture-semantics: ready (h1:5bxcmSfapVVogS3lzaRg8TvRIYv9reGXamM+Bau4Hic=)
+2026-11-16T18:42:51.7822079Z fixture-cgo: ready (h1:nkYggvlHaNa3EQAyfdqcbdIoY0h98o0vgHhYRz9wZlM=)
+2026-11-16T18:42:51.8004845Z ##[group]Run ./make.bash 2>&1 | tee "$EVIDENCE/native-build.txt"
+2026-11-16T18:42:51.8005269Z [36;1m./make.bash 2>&1 | tee "$EVIDENCE/native-build.txt"[0m
+2026-11-16T18:42:51.8005653Z [36;1m../bin/go version | tee "$EVIDENCE/fork-go-version.txt"[0m
+2026-11-16T18:42:51.8006081Z [36;1m../bin/logos version | tee "$EVIDENCE/logos-version.txt"[0m
+2026-11-16T18:42:51.8006594Z [36;1msha256sum ../bin/go ../bin/logos ../pkg/tool/linux_amd64/compile ../pkg/tool/linux_amd64/link | tee "$EVIDENCE/native-tools.sha256"[0m
+2026-11-16T18:42:51.8033079Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T18:42:51.8033487Z env:
+2026-11-16T18:42:51.8033708Z   GOMAXPROCS: 2
+2026-11-16T18:42:51.8033973Z   GOMEMLIMIT: 2GiB
+2026-11-16T18:42:51.8034188Z   GOGC: 50
+2026-11-16T18:42:51.8034403Z   GOTOOLCHAIN: local
+2026-11-16T18:42:51.8034651Z   GOWORK: off
+2026-11-16T18:42:51.8034860Z   GOENV: off
+2026-11-16T18:42:51.8035067Z   GOTELEMETRY: off
+2026-11-16T18:42:51.8035389Z   CC: gcc
+2026-11-16T18:42:51.8035603Z   CXX: g++
+2026-11-16T18:42:51.8035870Z   GGLINT_REVISION: a95099aae13ff7ffb4b3825bd63f8510bd184c69
+2026-11-16T18:42:51.8036184Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T18:42:51.8036496Z   INPUTS: /home/runner/work/_temp/logos-corpus-inputs
+2026-11-16T18:42:51.8036857Z   EVIDENCE: /home/runner/work/_temp/logos-corpus-evidence
+2026-11-16T18:42:51.8037209Z   GOROOT_BOOTSTRAP: /home/runner/work/_temp/oracle
+2026-11-16T18:42:51.8037494Z ##[endgroup]
+2026-11-16T18:42:51.9316595Z Building Go cmd/dist using /home/runner/work/_temp/oracle. (go1.27.4 linux/amd64)
+2026-11-16T18:42:57.9188312Z Building Go toolchain1 using /home/runner/work/_temp/oracle.
+2026-11-16T18:43:31.3110792Z Building Go bootstrap cmd/go (go_bootstrap) using Go toolchain1.
+2026-11-16T18:43:46.7550521Z Building Go toolchain2 using go_bootstrap and Go toolchain1.
+2026-11-16T18:44:20.9381809Z Building Go toolchain3 using go_bootstrap and Go toolchain2.
+2026-11-16T18:45:06.6456848Z Building packages and commands for linux/amd64.
+2026-11-16T18:46:30.8484375Z ---
+2026-11-16T18:46:30.8484945Z Installed Go for linux/amd64 in /home/runner/work/LoGOs/LoGOs
+2026-11-16T18:46:30.8485374Z Installed commands in /home/runner/work/LoGOs/LoGOs/bin
+2026-11-16T18:46:30.8485968Z *** You need to add /home/runner/work/LoGOs/LoGOs/bin to your PATH.
+2026-11-16T18:46:31.0651478Z go version go1.27.4 linux/amd64
+2026-11-16T18:46:31.0673699Z logos version go1.27.4 linux/amd64
+2026-11-16T18:46:31.0804181Z 708b55d5eb5707570b55ffb205a94d320b4e0d598ed7903fdb9863ced1377952  ../bin/go
+2026-11-16T18:46:31.0917968Z 708b55d5eb5707570b55ffb205a94d320b4e0d598ed7903fdb9863ced1377952  ../bin/logos
+2026-11-16T18:46:31.1154585Z a2b3a7f9353f5b0e2f7cfdd3007f85b1d5bd92ae3b74eb4dcc7a38f2dc73bb66  ../pkg/tool/linux_amd64/compile
+2026-11-16T18:46:31.1202480Z a3b952057f0b04b13d7af70aed216dc41c59fc1278f5418af4f99e17b5373ce1  ../pkg/tool/linux_amd64/link
+2026-11-16T18:46:31.1254058Z ##[group]Run source="$RUNNER_TEMP/gglint-source"
+2026-11-16T18:46:31.1254442Z [36;1msource="$RUNNER_TEMP/gglint-source"[0m
+2026-11-16T18:46:31.1254872Z [36;1mgit init --quiet --object-format=sha1 "$source"[0m
+2026-11-16T18:46:31.1255299Z [36;1mgit -C "$source" remote add origin https://github.com/gosuda/gglint.git[0m
+2026-11-16T18:46:31.1255836Z [36;1mgit -C "$source" fetch --no-tags --depth=1 origin "$GGLINT_REVISION" 2>&1 | tee "$EVIDENCE/gglint-fetch.txt"[0m
+2026-11-16T18:46:31.1256313Z [36;1mgit -C "$source" checkout --detach --quiet "$GGLINT_REVISION"[0m
+2026-11-16T18:46:31.1256715Z [36;1mtest "$(git -C "$source" rev-parse HEAD)" = "$GGLINT_REVISION"[0m
+2026-11-16T18:46:31.1257049Z [36;1mcd "$source"[0m
+2026-11-16T18:46:31.1257355Z [36;1mgit rev-parse HEAD HEAD^{tree} | tee "$EVIDENCE/gglint-source.txt"[0m
+2026-11-16T18:46:31.1257753Z [36;1mgo mod download -json > "$EVIDENCE/gglint-downloads.json"[0m
+2026-11-16T18:46:31.1258199Z [36;1mtest -z "$(git status --porcelain --untracked-files=all)"[0m
+2026-11-16T18:46:31.1258692Z [36;1mgo build -mod=readonly -trimpath -o "$RUNNER_TEMP/gglint" ./cmd/gglint 2>&1 | tee "$EVIDENCE/gglint-build.txt"[0m
+2026-11-16T18:46:31.1259368Z [36;1mtest -z "$(git status --porcelain --untracked-files=all)"[0m
+2026-11-16T18:46:31.1259758Z [36;1mgo version -m "$RUNNER_TEMP/gglint" | tee "$EVIDENCE/gglint-build-info.txt"[0m
+2026-11-16T18:46:31.1260235Z [36;1msha256sum "$RUNNER_TEMP/gglint" | tee "$EVIDENCE/gglint.sha256"[0m
+2026-11-16T18:46:31.1286432Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T18:46:31.1286749Z env:
+2026-11-16T18:46:31.1286970Z   GOMAXPROCS: 2
+2026-11-16T18:46:31.1287205Z   GOMEMLIMIT: 2GiB
+2026-11-16T18:46:31.1287424Z   GOGC: 50
+2026-11-16T18:46:31.1287665Z   GOTOOLCHAIN: local
+2026-11-16T18:46:31.1287887Z   GOWORK: off
+2026-11-16T18:46:31.1288088Z   GOENV: off
+2026-11-16T18:46:31.1288344Z   GOTELEMETRY: off
+2026-11-16T18:46:31.1288556Z   CC: gcc
+2026-11-16T18:46:31.1288798Z   CXX: g++
+2026-11-16T18:46:31.1289222Z   GGLINT_REVISION: a95099aae13ff7ffb4b3825bd63f8510bd184c69
+2026-11-16T18:46:31.1289532Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T18:46:31.1289862Z   INPUTS: /home/runner/work/_temp/logos-corpus-inputs
+2026-11-16T18:46:31.1290197Z   EVIDENCE: /home/runner/work/_temp/logos-corpus-evidence
+2026-11-16T18:46:31.1290554Z   GOROOT_BOOTSTRAP: /home/runner/work/_temp/oracle
+2026-11-16T18:46:31.1290869Z   GOPROXY: https://proxy.golang.org
+2026-11-16T18:46:31.1291148Z   GOSUMDB: sum.golang.org
+2026-11-16T18:46:31.1291442Z   GOMODCACHE: /home/runner/work/_temp/gglint-modules
+2026-11-16T18:46:31.1291717Z ##[endgroup]
+2026-11-16T18:46:31.8344996Z From https://github.com/gosuda/gglint
+2026-11-16T18:46:31.8345781Z  * branch            a95099aae13ff7ffb4b3825bd63f8510bd184c69 -> FETCH_HEAD
+2026-11-16T18:46:31.8606931Z a95099aae13ff7ffb4b3825bd63f8510bd184c69
+2026-11-16T18:46:31.8607389Z 9fc49c87690544f82703c0210d5259aaf5b89684
+2026-11-16T18:47:05.3783713Z /home/runner/work/_temp/gglint: go1.27.4
+2026-11-16T18:47:05.3785475Z 	path	github.com/gosuda/gglint/cmd/gglint
+2026-11-16T18:47:05.3785867Z 	mod	github.com/gosuda/gglint	v0.0.0-20261116175650-a95099aae13f	
+2026-11-16T18:47:05.3788174Z 	dep	4d63.com/gocheckcompilerdirectives	v1.4.0	h1:ZLq62rbGWVmQhiZ8kuNVIT/M09xCSTdJz9K3xOdT/CY=
+2026-11-16T18:47:05.3788900Z 	dep	codeberg.org/polyfloyd/go-errorlint	v1.9.1	h1:4/UVu3tmmRFvO0biLkgU/YanLVLTfOgRRBq3zziOj2o=
+2026-11-16T18:47:05.3790043Z 	dep	github.com/alecthomas/go-check-sumtype	v0.5.0	h1:yIFGZYGU5xv64lXp0llRhji/d/kDfS6AaqOI+wAxTqM=
+2026-11-16T18:47:05.3790786Z 	dep	github.com/alingse/asasalint	v0.0.11	h1:SFwnQXJ49Kx/1GghOFz1XGqHYKp21Kq1nHad/0WQRnw=
+2026-11-16T18:47:05.3791446Z 	dep	github.com/alingse/nilnesserr	v0.2.0	h1:raLem5KG7EFVb4UIDAXgrv3N2JIaffeKNtcEXkEWd/w=
+2026-11-16T18:47:05.3792136Z 	dep	github.com/ashanbrown/makezero/v2	v2.2.1	h1:A7uU8dgB1PA9aelTxHMfHIQ8Qev8AB3JLxJUBUsejqM=
+2026-11-16T18:47:05.3792946Z 	dep	github.com/breml/bidichk	v0.3.4	h1:70G6w80G6GDZTUURHTC5gBKVjMLMw2736CzXquSf5Ek=
+2026-11-16T18:47:05.3793695Z 	dep	github.com/ccojocar/zxcvbn-go	v1.0.4	h1:FWnCIRMXPj43ukfX000kvBZvV6raSxakYr1nzyNrUcc=
+2026-11-16T18:47:05.3794401Z 	dep	github.com/charithe/durationcheck	v0.0.11	h1:g1/EX1eIiKS57NTWsYtHDZ/APfeXKhye1DidBcABctk=
+2026-11-16T18:47:05.3795096Z 	dep	github.com/curioswitch/go-reassign	v0.3.0	h1:dh3kpQHuADL3cobV/sSGETA8DOv457dwl+fbBAhrQPs=
+2026-11-16T18:47:05.3795852Z 	dep	github.com/go-critic/go-critic	v0.15.0	h1:MDUZIQKytIl+vPEc0Igw51m4uLTdi1ZGz2jatEqNs1g=
+2026-11-16T18:47:05.3796458Z 	dep	github.com/go-toolsmith/astcast	v1.1.0	h1:+JN9xZV1A+Re+95pgnMgDboWNVnIMMQXwfBwLRPgSC8=
+2026-11-16T18:47:05.3796954Z 	dep	github.com/go-toolsmith/astcopy	v1.1.0	h1:YGwBN0WM+ekI/6SS6+52zLDEf8Yvp3n2seZITCUBt5s=
+2026-11-16T18:47:05.3797468Z 	dep	github.com/go-toolsmith/astequal	v1.2.0	h1:3Fs3CYZ1k9Vo4FzFhwwewC3CHISHDnVUPC4x0bI2+Cw=
+2026-11-16T18:47:05.3798095Z 	dep	github.com/go-toolsmith/astfmt	v1.1.0	h1:iJVPDPp6/7AaeLJEruMsBUlOYCmvg0MoCfJprsOmcco=
+2026-11-16T18:47:05.3798754Z 	dep	github.com/go-toolsmith/astp	v1.1.0	h1:dXPuCl6u2llURjdPLLDxJeZInAeZ0/eZwFJmqZMnpQA=
+2026-11-16T18:47:05.3799640Z 	dep	github.com/go-toolsmith/strparse	v1.1.0	h1:GAioeZUK9TGxnLS+qfdqNbA4z0SSm5zVNtCQiyP2Bvw=
+2026-11-16T18:47:05.3800455Z 	dep	github.com/go-toolsmith/typep	v1.1.0	h1:fIRYDyF+JywLfqzyhdiHzRop/GQDxxNhLGQ6gFUNHus=
+2026-11-16T18:47:05.3801160Z 	dep	github.com/golangci/dupl	v0.0.0-20260401084720-c99c5cf5c202	h1:CbTB8KpqnViI6lIXxp03Oclc4VFHi3K4BWC1TacsZ+A=
+2026-11-16T18:47:05.3801768Z 	dep	github.com/golangci/misspell	v0.8.0	h1:qvxQhiE2/5z+BVRo1kwYA8yGz+lOlu5Jfvtx2b04Jbg=
+2026-11-16T18:47:05.3802307Z 	dep	github.com/golangci/revgrep	v0.8.0	h1:EZBctwbVd0aMeRnNUsFogoyayvKHyxlV3CdUA46FX2s=
+2026-11-16T18:47:05.3802836Z 	dep	github.com/google/go-cmp	v0.7.0	h1:wk8382ETsv4JYUZwIsn6YpYiWiBsYLSJiTsyBybVuN8=
+2026-11-16T18:47:05.3803406Z 	dep	github.com/gordonklaus/ineffassign	v0.2.0	h1:Uths4KnmwxNJNzq87fwQQDDnbNb7De00VOk9Nu0TySs=
+2026-11-16T18:47:05.3803980Z 	dep	github.com/gostaticanalysis/analysisutil	v0.7.1	h1:ZMCjoue3DtDWQ5WyU16YbjbQEQ3VuzwxALrpYd+HeKk=
+2026-11-16T18:47:05.3804511Z 	dep	github.com/gostaticanalysis/comment	v1.5.0	h1:X82FLl+TswsUMpMh17srGRuKaaXprTaytmEpgnKIDu8=
+2026-11-16T18:47:05.3805113Z 	dep	github.com/gostaticanalysis/forcetypeassert	v0.2.0	h1:uSnWrrUEYDr86OCxWa4/Tp2jeYDlogZiZHzGkWFefTk=
+2026-11-16T18:47:05.3805665Z 	dep	github.com/gostaticanalysis/nilerr	v0.1.2	h1:S6nk8a9N8g062nsx63kUkF6AzbHGw7zzyHMcpu52xQU=
+2026-11-16T18:47:05.3806201Z 	dep	github.com/kkHAIKE/contextcheck	v1.1.6	h1:7HIyRcnyzxL9Lz06NGhiKvenXq7Zw6Q0UQu/ttjfJCE=
+2026-11-16T18:47:05.3806690Z 	dep	github.com/ldez/usetesting	v0.5.0	h1:3/QtzZObBKLy1F4F8jLuKJiKBjjVFi1IavpoWbmqLwc=
+2026-11-16T18:47:05.3807184Z 	dep	github.com/moricho/tparallel	v0.3.2	h1:odr8aZVFA3NZrNybggMkYO3rgPRcqjeQUlBBFVxKHTI=
+2026-11-16T18:47:05.3807689Z 	dep	github.com/nishanths/exhaustive	v0.17.1	h1:zlwR7GV/UqKrm3AJdeXqldUTSsbyfdqS8f/m0oMYLD0=
+2026-11-16T18:47:05.3808227Z 	dep	github.com/pelletier/go-toml/v2	v2.4.3	h1:GTRvJQutkOSftxIFD5xw9aepkYNuPWmVJpffdDPYVpY=
+2026-11-16T18:47:05.3808722Z 	dep	github.com/quasilyte/go-ruleguard	v0.4.5	h1:AGY0tiOT5hJX9BTdx/xBdoCubQUAE2grkqY2lSwvZcA=
+2026-11-16T18:47:05.3809408Z 	dep	github.com/quasilyte/gogrep	v0.5.0	h1:eTKODPXbI8ffJMN+W2aE0+oL0z/nh8/5eNdiO34SOAo=
+2026-11-16T18:47:05.3810050Z 	dep	github.com/quasilyte/regex/syntax	v0.0.0-20210819130434-b3f0c404a727	h1:TCg2WBOl980XxGFEZSS6KlBGIV0diGdySzxATTWoqaU=
+2026-11-16T18:47:05.3810978Z 	dep	github.com/quasilyte/stdinfo	v0.0.0-20220114132959-f7386bf02567	h1:M8mH9eK4OUR4lu7Gd+PU1fV2/qnDNfzT635KRSObncs=
+2026-11-16T18:47:05.3811848Z 	dep	github.com/securego/gosec/v2	v2.30.0	h1:67aF6LHa7SAL6QEc4es857GrXTT50gUqmrl0XPhtDx0=
+2026-11-16T18:47:05.3812429Z 	dep	github.com/sonatard/noctx	v0.5.1	h1:wklWg9c9ZYugOAk7qG4yP4PBrlQsmSLPTvW1K4PRQMs=
+2026-11-16T18:47:05.3813135Z 	dep	github.com/timakin/bodyclose	v0.0.0-20261107224203-8bb60b19bea4	h1:kAmyvrO1ePXQxa1gD3Mq27AtapMDmOJdDd5WW/gCY6s=
+2026-11-16T18:47:05.3813787Z 	dep	go-simpler.org/musttag	v0.14.0	h1:XGySZATqQYSEV3/YTy+iX+aofbZZllJaqwFWs+RTtSo=
+2026-11-16T18:47:05.3814564Z 	dep	go.augendre.info/fatcontext	v0.10.1	h1:HCS/+eob32cM0mEtmZM6NiXdqvS5KiZmsR+fCubTpbc=
+2026-11-16T18:47:05.3815391Z 	dep	golang.org/x/exp/typeparams	v0.0.0-20251023183803-a4bb9ffd2546	h1:HDjDiATsGqvuqvkDvgJjD1IgPrVekcSXVVE21JwvzGE=
+2026-11-16T18:47:05.3816117Z 	dep	golang.org/x/mod	v0.42.0	h1:ICeL3t2L30ljSPHHxDnR4fqVcBt/zR2zJAb9juavmQg=
+2026-11-16T18:47:05.3816658Z 	dep	golang.org/x/sync	v0.24.0	h1:iqiDrGoDgyuvAKrhLQthUEzU/R378N78gXbBjxed7oA=
+2026-11-16T18:47:05.3817166Z 	dep	golang.org/x/tools	v0.52.0	h1:ryxg4U63oaUYk7uOLTF37n43f4qgtGvqV4Ioit1BaEs=
+2026-11-16T18:47:05.3817722Z 	dep	honnef.co/go/tools	v0.8.2	h1:+jPbCzuYxYrcoOvCecYUFDj+XJQRmzIhJmlbpps21Zk=
+2026-11-16T18:47:05.3818266Z 	dep	mvdan.cc/gofumpt	v0.12.0	h1:1Lbudkz2kpM9Cjz2pL4M19u7q+GaEhCTNf7N9mfpcho=
+2026-11-16T18:47:05.3818875Z 	dep	mvdan.cc/unparam	v0.0.0-20261102141913-394cd0a56cd5	h1:+w/oD0+NrvT39TwXLC5ElQte8LwPcFuTWdbJ+98LeAE=
+2026-11-16T18:47:05.3819704Z 	build	-buildmode=exe
+2026-11-16T18:47:05.3820012Z 	build	-compiler=gc
+2026-11-16T18:47:05.3820361Z 	build	-trimpath=true
+2026-11-16T18:47:05.3820684Z 	build	CGO_ENABLED=1
+2026-11-16T18:47:05.3820954Z 	build	GOARCH=amd64
+2026-11-16T18:47:05.3821270Z 	build	GOOS=linux
+2026-11-16T18:47:05.3821551Z 	build	GOAMD64=v1
+2026-11-16T18:47:05.3821864Z 	build	vcs=git
+2026-11-16T18:47:05.3822247Z 	build	vcs.revision=a95099aae13ff7ffb4b3825bd63f8510bd184c69
+2026-11-16T18:47:05.3822689Z 	build	vcs.time=2026-11-16T17:56:50Z
+2026-11-16T18:47:05.3823051Z 	build	vcs.modified=false
+2026-11-16T18:47:05.4021172Z 3adff5060505683489f771dd0a43a75fa28ff0ed5b36a40c4716659088d96c39  /home/runner/work/_temp/gglint
+2026-11-16T18:47:05.4058581Z ##[group]Run set +e
+2026-11-16T18:47:05.4058865Z [36;1mset +e[0m
+2026-11-16T18:47:05.4059448Z [36;1muv run --no-project python misc/logos-dogfood/run.py \[0m
+2026-11-16T18:47:05.4059838Z [36;1m  --manifest misc/logos-dogfood/corpus-ci.json \[0m
+2026-11-16T18:47:05.4060170Z [36;1m  --go-oracle "$RUNNER_TEMP/oracle/bin/go" \[0m
+2026-11-16T18:47:05.4060594Z [36;1m  --go-candidate "$GITHUB_WORKSPACE/bin/go" --logos "$GITHUB_WORKSPACE/bin/logos" \[0m
+2026-11-16T18:47:05.4060970Z [36;1m  --gglint "$RUNNER_TEMP/gglint" \[0m
+2026-11-16T18:47:05.4061352Z [36;1m  --source-root "$INPUTS/sources" --module-cache "$INPUTS/modules" \[0m
+2026-11-16T18:47:05.4061762Z [36;1m  --cache-root "$RUNNER_TEMP/corpus-cache" --operation build \[0m
+2026-11-16T18:47:05.4062181Z [36;1m  --jobs 2 --timeout 600 --out "$EVIDENCE/corpus" \[0m
+2026-11-16T18:47:05.4062505Z [36;1m  2>&1 | tee "$EVIDENCE/corpus-console.txt"[0m
+2026-11-16T18:47:05.4062792Z [36;1mstatuses=("${PIPESTATUS[@]}")[0m
+2026-11-16T18:47:05.4063454Z [36;1mset -e[0m
+2026-11-16T18:47:05.4063829Z [36;1mprintf 'runner=%s\nconsole_capture=%s\n' "${statuses[0]}" "${statuses[1]}" | tee "$EVIDENCE/corpus-exit.txt"[0m
+2026-11-16T18:47:05.4064274Z [36;1mtest "${statuses[0]}" -eq 1[0m
+2026-11-16T18:47:05.4064526Z [36;1mtest "${statuses[1]}" -eq 0[0m
+2026-11-16T18:47:05.4064845Z [36;1muv run --no-project python misc/logos-dogfood/accept_corpus.py \[0m
+2026-11-16T18:47:05.4065321Z [36;1m  --manifest misc/logos-dogfood/corpus-ci.json --report "$EVIDENCE/corpus/report.json" \[0m
+2026-11-16T18:47:05.4065889Z [36;1m  2>&1 | tee "$EVIDENCE/corpus-acceptance.txt"[0m
+2026-11-16T18:47:05.4091271Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T18:47:05.4091765Z env:
+2026-11-16T18:47:05.4091984Z   GOMAXPROCS: 2
+2026-11-16T18:47:05.4092207Z   GOMEMLIMIT: 2GiB
+2026-11-16T18:47:05.4092465Z   GOGC: 50
+2026-11-16T18:47:05.4092671Z   GOTOOLCHAIN: local
+2026-11-16T18:47:05.4092889Z   GOWORK: off
+2026-11-16T18:47:05.4093115Z   GOENV: off
+2026-11-16T18:47:05.4093325Z   GOTELEMETRY: off
+2026-11-16T18:47:05.4093544Z   CC: gcc
+2026-11-16T18:47:05.4093757Z   CXX: g++
+2026-11-16T18:47:05.4094046Z   GGLINT_REVISION: a95099aae13ff7ffb4b3825bd63f8510bd184c69
+2026-11-16T18:47:05.4094366Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T18:47:05.4094663Z   INPUTS: /home/runner/work/_temp/logos-corpus-inputs
+2026-11-16T18:47:05.4095144Z   EVIDENCE: /home/runner/work/_temp/logos-corpus-evidence
+2026-11-16T18:47:05.4095482Z   GOROOT_BOOTSTRAP: /home/runner/work/_temp/oracle
+2026-11-16T18:47:05.4095754Z ##[endgroup]
+2026-11-16T18:47:17.6262576Z chi oracle: pass (0 diagnostics)
+2026-11-16T18:47:29.8560321Z chi go: pass (0 diagnostics)
+2026-11-16T18:47:44.2544821Z chi logos: pass (0 diagnostics)
+2026-11-16T18:47:58.7335098Z chi logos-lint: findings (26 diagnostics)
+2026-11-16T18:48:19.8396599Z chi gglint-basic: findings (3 diagnostics)
+2026-11-16T18:48:30.4494465Z chi gglint-standard: findings (52 diagnostics)
+2026-11-16T18:48:42.9683961Z chi gglint-strict: findings (102 diagnostics)
+2026-11-16T18:48:43.5012814Z cmp oracle: pass (0 diagnostics)
+2026-11-16T18:48:44.0765773Z cmp go: pass (0 diagnostics)
+2026-11-16T18:48:44.7000266Z cmp logos: pass (0 diagnostics)
+2026-11-16T18:48:45.4976162Z cmp logos-lint: findings (26 diagnostics)
+2026-11-16T18:48:52.9754925Z cmp gglint-basic: findings (31 diagnostics)
+2026-11-16T18:48:59.9513888Z cmp gglint-standard: findings (93 diagnostics)
+2026-11-16T18:49:07.9933920Z cmp gglint-strict: findings (137 diagnostics)
+2026-11-16T18:49:08.1716639Z xxhash-asm oracle: pass (0 diagnostics)
+2026-11-16T18:49:08.3406230Z xxhash-asm go: pass (0 diagnostics)
+2026-11-16T18:49:08.5096234Z xxhash-asm logos: pass (0 diagnostics)
+2026-11-16T18:49:08.6964943Z xxhash-asm logos-lint: findings (1 diagnostics)
+2026-11-16T18:49:12.6464745Z xxhash-asm gglint-basic: findings (1 diagnostics)
+2026-11-16T18:49:16.8548886Z xxhash-asm gglint-standard: findings (2 diagnostics)
+2026-11-16T18:49:21.6105349Z xxhash-asm gglint-strict: findings (11 diagnostics)
+2026-11-16T18:49:21.7885706Z xxhash-purego oracle: pass (0 diagnostics)
+2026-11-16T18:49:21.9577558Z xxhash-purego go: pass (0 diagnostics)
+2026-11-16T18:49:22.1272508Z xxhash-purego logos: pass (0 diagnostics)
+2026-11-16T18:49:22.3141524Z xxhash-purego logos-lint: findings (1 diagnostics)
+2026-11-16T18:49:26.2137523Z xxhash-purego gglint-basic: clean (0 diagnostics)
+2026-11-16T18:49:30.4171642Z xxhash-purego gglint-standard: findings (1 diagnostics)
+2026-11-16T18:49:35.2338745Z xxhash-purego gglint-strict: findings (10 diagnostics)
+2026-11-16T18:49:35.9463268Z purego-ffi oracle: pass (0 diagnostics)
+2026-11-16T18:49:36.6929431Z purego-ffi go: pass (0 diagnostics)
+2026-11-16T18:49:37.5380186Z purego-ffi logos: pass (0 diagnostics)
+2026-11-16T18:49:38.5260378Z purego-ffi logos-lint: findings (14 diagnostics)
+2026-11-16T18:49:43.6346174Z purego-ffi gglint-basic: findings (31 diagnostics)
+2026-11-16T18:49:49.1940420Z purego-ffi gglint-standard: findings (47 diagnostics)
+2026-11-16T18:49:55.2650198Z purego-ffi gglint-strict: findings (130 diagnostics)
+2026-11-16T18:50:22.4049824Z sqlite3-cgo oracle: pass (0 diagnostics)
+2026-11-16T18:50:49.3980615Z sqlite3-cgo go: pass (0 diagnostics)
+2026-11-16T18:51:16.9622812Z sqlite3-cgo logos: pass (0 diagnostics)
+2026-11-16T18:52:10.8708315Z sqlite3-cgo logos-lint: findings (42 diagnostics)
+2026-11-16T18:52:40.6231922Z sqlite3-cgo gglint-basic: findings (15 diagnostics)
+2026-11-16T18:52:47.0813232Z sqlite3-cgo gglint-standard: findings (61 diagnostics)
+2026-11-16T18:52:54.3981090Z sqlite3-cgo gglint-strict: findings (115 diagnostics)
+2026-11-16T18:53:07.5968762Z modernc-sqlite oracle: pass (0 diagnostics)
+2026-11-16T18:53:21.4681379Z modernc-sqlite go: pass (0 diagnostics)
+2026-11-16T18:53:39.9391151Z modernc-sqlite logos: pass (0 diagnostics)
+2026-11-16T18:54:04.0358244Z modernc-sqlite logos-lint: findings (1569 diagnostics)
+2026-11-16T18:54:44.1481946Z modernc-sqlite gglint-basic: findings (107 diagnostics)
+2026-11-16T18:55:27.9453963Z modernc-sqlite gglint-standard: findings (459 diagnostics)
+2026-11-16T18:56:35.7448863Z modernc-sqlite gglint-strict: findings (775 diagnostics)
+2026-11-16T18:56:39.7243547Z errorlint oracle: pass (0 diagnostics)
+2026-11-16T18:56:43.8710897Z errorlint go: pass (0 diagnostics)
+2026-11-16T18:56:48.8745323Z errorlint logos: pass (0 diagnostics)
+2026-11-16T18:56:53.6992820Z errorlint logos-lint: findings (10 diagnostics)
+2026-11-16T18:57:07.8070690Z errorlint gglint-basic: findings (4 diagnostics)
+2026-11-16T18:57:17.9453554Z errorlint gglint-standard: findings (16 diagnostics)
+2026-11-16T18:57:29.4451100Z errorlint gglint-strict: findings (35 diagnostics)
+2026-11-16T18:57:30.8454505Z govwa oracle: pass (0 diagnostics)
+2026-11-16T18:57:32.3311182Z govwa go: pass (0 diagnostics)
+2026-11-16T18:57:34.1724104Z govwa logos: pass (0 diagnostics)
+2026-11-16T18:57:35.8438281Z govwa logos-lint: findings (19 diagnostics)
+2026-11-16T18:57:46.8008609Z govwa gglint-basic: clean (0 diagnostics)
+2026-11-16T18:57:57.6085693Z govwa gglint-standard: findings (58 diagnostics)
+2026-11-16T18:58:10.1290543Z govwa gglint-strict: findings (79 diagnostics)
+2026-11-16T18:58:10.2633517Z scfg oracle: pass (0 diagnostics)
+2026-11-16T18:58:10.3824343Z scfg go: pass (0 diagnostics)
+2026-11-16T18:58:10.5519871Z scfg logos: pass (0 diagnostics)
+2026-11-16T18:58:10.7880597Z scfg logos-lint: findings (14 diagnostics)
+2026-11-16T18:58:14.7387999Z scfg gglint-basic: findings (4 diagnostics)
+2026-11-16T18:58:18.9403211Z scfg gglint-standard: findings (15 diagnostics)
+2026-11-16T18:58:23.7919296Z scfg gglint-strict: findings (20 diagnostics)
+2026-11-16T18:58:23.9569449Z sqlite3-stub oracle: pass (0 diagnostics)
+2026-11-16T18:58:24.0999123Z sqlite3-stub go: pass (0 diagnostics)
+2026-11-16T18:58:24.2429693Z sqlite3-stub logos: pass (0 diagnostics)
+2026-11-16T18:58:24.3444284Z sqlite3-stub logos-lint: clean (0 diagnostics)
+2026-11-16T18:58:29.0906882Z sqlite3-stub gglint-basic: findings (1 diagnostics)
+2026-11-16T18:58:33.9431350Z sqlite3-stub gglint-standard: findings (11 diagnostics)
+2026-11-16T18:58:39.2504560Z sqlite3-stub gglint-strict: findings (17 diagnostics)
+2026-11-16T18:58:40.0093078Z zap oracle: pass (0 diagnostics)
+2026-11-16T18:58:40.7994190Z zap go: pass (0 diagnostics)
+2026-11-16T18:58:41.6904818Z zap logos: pass (0 diagnostics)
+2026-11-16T18:58:42.8655997Z zap logos-lint: findings (28 diagnostics)
+2026-11-16T18:58:55.8299356Z zap gglint-basic: findings (2 diagnostics)
+2026-11-16T18:59:07.9999097Z zap gglint-standard: findings (301 diagnostics)
+2026-11-16T18:59:22.2270444Z zap gglint-strict: findings (376 diagnostics)
+2026-11-16T18:59:22.3619223Z multierr oracle: pass (0 diagnostics)
+2026-11-16T18:59:22.4825876Z multierr go: pass (0 diagnostics)
+2026-11-16T18:59:22.6029902Z multierr logos: pass (0 diagnostics)
+2026-11-16T18:59:22.7400397Z multierr logos-lint: findings (6 diagnostics)
+2026-11-16T18:59:32.6144705Z multierr gglint-basic: clean (0 diagnostics)
+2026-11-16T18:59:42.7565583Z multierr gglint-standard: findings (4 diagnostics)
+2026-11-16T18:59:54.5369301Z multierr gglint-strict: findings (13 diagnostics)
+2026-11-16T18:59:55.5437441Z toml-v2 oracle: pass (0 diagnostics)
+2026-11-16T18:59:56.5842436Z toml-v2 go: pass (0 diagnostics)
+2026-11-16T18:59:57.7220417Z toml-v2 logos: pass (0 diagnostics)
+2026-11-16T18:59:58.8436959Z toml-v2 logos-lint: findings (60 diagnostics)
+2026-11-16T19:00:05.6343300Z toml-v2 gglint-basic: findings (82 diagnostics)
+2026-11-16T19:00:12.6886846Z toml-v2 gglint-standard: findings (695 diagnostics)
+2026-11-16T19:00:20.8480517Z toml-v2 gglint-strict: findings (807 diagnostics)
+2026-11-16T19:00:21.7930706Z toml oracle: pass (0 diagnostics)
+2026-11-16T19:00:22.6181421Z toml go: pass (0 diagnostics)
+2026-11-16T19:00:23.5424108Z toml logos: pass (0 diagnostics)
+2026-11-16T19:00:24.5854377Z toml logos-lint: findings (49 diagnostics)
+2026-11-16T19:00:30.6993478Z toml gglint-basic: findings (6 diagnostics)
+2026-11-16T19:00:36.8643836Z toml gglint-standard: findings (44 diagnostics)
+2026-11-16T19:00:43.7852274Z toml gglint-strict: findings (125 diagnostics)
+2026-11-16T19:00:44.2811155Z yaml oracle: pass (0 diagnostics)
+2026-11-16T19:00:44.7541669Z yaml go: pass (0 diagnostics)
+2026-11-16T19:00:45.3275584Z yaml logos: pass (0 diagnostics)
+2026-11-16T19:00:45.6697572Z yaml logos-lint: findings (62 diagnostics)
+2026-11-16T19:00:50.0747459Z yaml gglint-basic: findings (38 diagnostics)
+2026-11-16T19:00:54.7357271Z yaml gglint-standard: findings (106 diagnostics)
+2026-11-16T19:01:00.2977774Z yaml gglint-strict: findings (194 diagnostics)
+2026-11-16T19:01:08.0665906Z protobuf oracle: pass (0 diagnostics)
+2026-11-16T19:01:16.1757000Z protobuf go: pass (0 diagnostics)
+2026-11-16T19:01:25.7187015Z protobuf logos: pass (0 diagnostics)
+2026-11-16T19:01:36.9669935Z protobuf logos-lint: findings (482 diagnostics)
+2026-11-16T19:02:09.3619449Z protobuf gglint-basic: findings (955 diagnostics)
+2026-11-16T19:02:39.4112836Z protobuf gglint-standard: findings (2369 diagnostics)
+2026-11-16T19:03:16.5644134Z protobuf gglint-strict: findings (3355 diagnostics)
+2026-11-16T19:03:17.3219323Z sys oracle: pass (0 diagnostics)
+2026-11-16T19:03:18.0751822Z sys go: pass (0 diagnostics)
+2026-11-16T19:03:18.9308528Z sys logos: pass (0 diagnostics)
+2026-11-16T19:03:19.7316258Z sys logos-lint: findings (68 diagnostics)
+2026-11-16T19:03:28.6035674Z sys gglint-basic: findings (16 diagnostics)
+2026-11-16T19:03:38.1837105Z sys gglint-standard: findings (69 diagnostics)
+2026-11-16T19:03:48.8144212Z sys gglint-strict: findings (218 diagnostics)
+2026-11-16T19:04:03.4140676Z tools oracle: pass (0 diagnostics)
+2026-11-16T19:04:18.7546319Z tools go: pass (0 diagnostics)
+2026-11-16T19:04:37.6120085Z tools logos: candidate-failed (0 diagnostics)
+2026-11-16T19:04:55.3775104Z tools logos-lint: findings (1398 diagnostics)
+2026-11-16T19:05:36.1535247Z tools gglint-basic: findings (334 diagnostics)
+2026-11-16T19:06:13.8869832Z tools gglint-standard: findings (1128 diagnostics)
+2026-11-16T19:06:56.8173026Z tools gglint-strict: findings (3970 diagnostics)
+2026-11-16T19:06:56.9770828Z garif oracle: pass (0 diagnostics)
+2026-11-16T19:06:57.0991345Z garif go: pass (0 diagnostics)
+2026-11-16T19:06:57.2210947Z garif logos: pass (0 diagnostics)
+2026-11-16T19:06:57.3588838Z garif logos-lint: findings (1 diagnostics)
+2026-11-16T19:07:01.3608263Z garif gglint-basic: clean (0 diagnostics)
+2026-11-16T19:07:05.6191203Z garif gglint-standard: findings (17 diagnostics)
+2026-11-16T19:07:10.5242583Z garif gglint-strict: findings (19 diagnostics)
+2026-11-16T19:07:11.2736739Z decorder oracle: upstream-failed (0 diagnostics)
+2026-11-16T19:07:12.0535258Z decorder go: uncompared (0 diagnostics)
+2026-11-16T19:07:12.9327278Z decorder logos: uncompared (0 diagnostics)
+2026-11-16T19:07:13.8141232Z decorder logos-lint: load-failed (2 diagnostics)
+2026-11-16T19:07:22.6283244Z decorder gglint-basic: load-failed (1 diagnostics)
+2026-11-16T19:07:31.0888743Z decorder gglint-standard: load-failed (1 diagnostics)
+2026-11-16T19:07:40.7525871Z decorder gglint-strict: load-failed (1 diagnostics)
+2026-11-16T19:07:45.2138705Z modernc-libc oracle: pass (0 diagnostics)
+2026-11-16T19:07:49.5569524Z modernc-libc go: pass (0 diagnostics)
+2026-11-16T19:07:54.9277704Z modernc-libc logos: pass (0 diagnostics)
+2026-11-16T19:08:00.4851473Z modernc-libc logos-lint: findings (584 diagnostics)
+2026-11-16T19:08:29.7076324Z modernc-libc gglint-basic: findings (1021 diagnostics)
+2026-11-16T19:09:03.0389679Z modernc-libc gglint-standard: findings (1198 diagnostics)
+2026-11-16T19:09:55.4319493Z modernc-libc gglint-strict: findings (5634 diagnostics)
+2026-11-16T19:09:56.0182079Z modernc-memory oracle: pass (0 diagnostics)
+2026-11-16T19:09:56.5443327Z modernc-memory go: pass (0 diagnostics)
+2026-11-16T19:09:57.2712987Z modernc-memory logos: pass (0 diagnostics)
+2026-11-16T19:09:58.0670659Z modernc-memory logos-lint: findings (4 diagnostics)
+2026-11-16T19:10:02.3781986Z modernc-memory gglint-basic: findings (59 diagnostics)
+2026-11-16T19:10:06.6868611Z modernc-memory gglint-standard: findings (86 diagnostics)
+2026-11-16T19:10:11.6487438Z modernc-memory gglint-strict: findings (97 diagnostics)
+2026-11-16T19:10:11.9511495Z modernc-mathutil oracle: pass (0 diagnostics)
+2026-11-16T19:10:12.2800064Z modernc-mathutil go: pass (0 diagnostics)
+2026-11-16T19:10:12.6597126Z modernc-mathutil logos: pass (0 diagnostics)
+2026-11-16T19:10:13.2627042Z modernc-mathutil logos-lint: findings (11 diagnostics)
+2026-11-16T19:10:17.4264810Z modernc-mathutil gglint-basic: findings (13 diagnostics)
+2026-11-16T19:10:22.1429579Z modernc-mathutil gglint-standard: findings (53 diagnostics)
+2026-11-16T19:10:28.0190553Z modernc-mathutil gglint-strict: findings (148 diagnostics)
+2026-11-16T19:10:28.1696933Z uuid oracle: pass (0 diagnostics)
+2026-11-16T19:10:28.3460772Z uuid go: pass (0 diagnostics)
+2026-11-16T19:10:28.5228753Z uuid logos: pass (0 diagnostics)
+2026-11-16T19:10:28.7677906Z uuid logos-lint: findings (4 diagnostics)
+2026-11-16T19:10:34.3330397Z uuid gglint-basic: findings (2 diagnostics)
+2026-11-16T19:10:40.2457250Z uuid gglint-standard: findings (18 diagnostics)
+2026-11-16T19:10:46.8639396Z uuid gglint-strict: findings (54 diagnostics)
+2026-11-16T19:10:47.4669681Z exhaustive oracle: pass (0 diagnostics)
+2026-11-16T19:10:48.0957294Z exhaustive go: pass (0 diagnostics)
+2026-11-16T19:10:48.8275520Z exhaustive logos: pass (0 diagnostics)
+2026-11-16T19:10:49.4797972Z exhaustive logos-lint: findings (20 diagnostics)
+2026-11-16T19:10:58.2581734Z exhaustive gglint-basic: findings (4 diagnostics)
+2026-11-16T19:11:07.3900242Z exhaustive gglint-standard: findings (25 diagnostics)
+2026-11-16T19:11:17.7265416Z exhaustive gglint-strict: findings (56 diagnostics)
+2026-11-16T19:11:17.7633006Z fixture-semantics oracle: pass (0 diagnostics)
+2026-11-16T19:11:17.7794759Z fixture-semantics go: pass (0 diagnostics)
+2026-11-16T19:11:17.7913955Z fixture-semantics logos: pass (0 diagnostics)
+2026-11-16T19:11:17.8076768Z fixture-semantics logos-lint: clean (0 diagnostics)
+2026-11-16T19:11:21.3051053Z fixture-semantics gglint-basic: findings (1 diagnostics)
+2026-11-16T19:11:25.1121619Z fixture-semantics gglint-standard: findings (3 diagnostics)
+2026-11-16T19:11:29.5683779Z fixture-semantics gglint-strict: findings (7 diagnostics)
+2026-11-16T19:11:29.7676378Z fixture-cgo oracle: pass (0 diagnostics)
+2026-11-16T19:11:29.9414471Z fixture-cgo go: pass (0 diagnostics)
+2026-11-16T19:11:30.1150944Z fixture-cgo logos: pass (0 diagnostics)
+2026-11-16T19:11:30.3540129Z fixture-cgo logos-lint: clean (0 diagnostics)
+2026-11-16T19:11:33.9563936Z fixture-cgo gglint-basic: clean (0 diagnostics)
+2026-11-16T19:11:37.8177173Z fixture-cgo gglint-standard: clean (0 diagnostics)
+2026-11-16T19:11:42.3795120Z fixture-cgo gglint-strict: clean (0 diagnostics)
+2026-11-16T19:11:42.4181931Z runner=1
+2026-11-16T19:11:42.4182289Z console_capture=0
+2026-11-16T19:11:42.8801160Z Traceback (most recent call last):
+2026-11-16T19:11:42.8801987Z   File "/home/runner/work/LoGOs/LoGOs/misc/logos-dogfood/accept_corpus.py", line 444, in <module>
+2026-11-16T19:11:42.8803117Z     raise SystemExit(main())
+2026-11-16T19:11:42.8803652Z                      ^^^^^^
+2026-11-16T19:11:42.8804500Z   File "/home/runner/work/LoGOs/LoGOs/misc/logos-dogfood/accept_corpus.py", line 428, in main
+2026-11-16T19:11:42.8805438Z     result = accept(report, cases, report_path.parent)
+2026-11-16T19:11:42.8806039Z              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-16T19:11:42.8806943Z   File "/home/runner/work/LoGOs/LoGOs/misc/logos-dogfood/accept_corpus.py", line 361, in accept
+2026-11-16T19:11:42.8808016Z     for status, count in check_case(row, case, root, tools, jobs).items():
+2026-11-16T19:11:42.8809759Z                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-16T19:11:42.8810633Z   File "/home/runner/work/LoGOs/LoGOs/misc/logos-dogfood/accept_corpus.py", line 296, in check_case
+2026-11-16T19:11:42.8811413Z     require(
+2026-11-16T19:11:42.8811890Z   File "/home/runner/work/LoGOs/LoGOs/misc/logos-dogfood/accept_corpus.py", line 46, in require
+2026-11-16T19:11:42.8812415Z     raise ValueError(message)
+2026-11-16T19:11:42.8813018Z ValueError: tools/logos/: Assessment(status='candidate-failed', reason='', diagnostics=0, duplicate_diagnostics=0, normalized_sha256='')
+2026-11-16T19:11:42.8976900Z ##[error]Process completed with exit code 1.
+2026-11-16T19:11:42.9022877Z ##[group]Run uv run --no-project python misc/logos-dogfood/run.py \
+2026-11-16T19:11:42.9023351Z [36;1muv run --no-project python misc/logos-dogfood/run.py \[0m
+2026-11-16T19:11:42.9023703Z [36;1m  --go-oracle "$RUNNER_TEMP/oracle/bin/go" \[0m
+2026-11-16T19:11:42.9024100Z [36;1m  --go-candidate "$GITHUB_WORKSPACE/bin/go" --logos "$GITHUB_WORKSPACE/bin/logos" \[0m
+2026-11-16T19:11:42.9024578Z [36;1m  --source-root "$INPUTS/sources" --module-cache "$INPUTS/modules" \[0m
+2026-11-16T19:11:42.9024976Z [36;1m  --cache-root "$RUNNER_TEMP/corpus-cache" --operation test \[0m
+2026-11-16T19:11:42.9025472Z [36;1m  --only fixture-semantics --only fixture-cgo --stage oracle --stage go --stage logos \[0m
+2026-11-16T19:11:42.9025922Z [36;1m  --jobs 2 --timeout 600 --out "$EVIDENCE/fixtures" \[0m
+2026-11-16T19:11:42.9026241Z [36;1m  2>&1 | tee "$EVIDENCE/fixtures-console.txt"[0m
+2026-11-16T19:11:42.9052110Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T19:11:42.9052652Z env:
+2026-11-16T19:11:42.9052864Z   GOMAXPROCS: 2
+2026-11-16T19:11:42.9053115Z   GOMEMLIMIT: 2GiB
+2026-11-16T19:11:42.9053332Z   GOGC: 50
+2026-11-16T19:11:42.9053557Z   GOTOOLCHAIN: local
+2026-11-16T19:11:42.9053786Z   GOWORK: off
+2026-11-16T19:11:42.9054010Z   GOENV: off
+2026-11-16T19:11:42.9054238Z   GOTELEMETRY: off
+2026-11-16T19:11:42.9054453Z   CC: gcc
+2026-11-16T19:11:42.9054675Z   CXX: g++
+2026-11-16T19:11:42.9055041Z   GGLINT_REVISION: a95099aae13ff7ffb4b3825bd63f8510bd184c69
+2026-11-16T19:11:42.9055362Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T19:11:42.9055695Z   INPUTS: /home/runner/work/_temp/logos-corpus-inputs
+2026-11-16T19:11:42.9056027Z   EVIDENCE: /home/runner/work/_temp/logos-corpus-evidence
+2026-11-16T19:11:42.9056395Z   GOROOT_BOOTSTRAP: /home/runner/work/_temp/oracle
+2026-11-16T19:11:42.9056678Z ##[endgroup]
+2026-11-16T19:11:44.4388526Z fixture-semantics oracle: pass (0 diagnostics)
+2026-11-16T19:11:45.5080195Z fixture-semantics go: pass (0 diagnostics)
+2026-11-16T19:11:46.6261667Z fixture-semantics logos: pass (0 diagnostics)
+2026-11-16T19:11:47.0437539Z fixture-cgo oracle: pass (0 diagnostics)
+2026-11-16T19:11:47.4602314Z fixture-cgo go: pass (0 diagnostics)
+2026-11-16T19:11:47.8764193Z fixture-cgo logos: pass (0 diagnostics)
+2026-11-16T19:11:47.8910056Z ##[group]Run uv run --no-project python misc/logos-dogfood/replay_backends.py \
+2026-11-16T19:11:47.8910669Z [36;1muv run --no-project python misc/logos-dogfood/replay_backends.py \[0m
+2026-11-16T19:11:47.8911077Z [36;1m  --go-oracle "$RUNNER_TEMP/oracle/bin/go" \[0m
+2026-11-16T19:11:47.8911556Z [36;1m  --go-candidate "$GITHUB_WORKSPACE/bin/go" --logos "$GITHUB_WORKSPACE/bin/logos" \[0m
+2026-11-16T19:11:47.8912085Z [36;1m  --source-root "$INPUTS/sources" --module-cache "$INPUTS/modules" \[0m
+2026-11-16T19:11:47.8912612Z [36;1m  --cache-root "$RUNNER_TEMP/corpus-cache" --tmpdir "$RUNNER_TEMP/dogfood-tmp" \[0m
+2026-11-16T19:11:47.8913086Z [36;1m  --timeout 900 --out "$EVIDENCE/backends" \[0m
+2026-11-16T19:11:47.8913424Z [36;1m  2>&1 | tee "$EVIDENCE/backends-console.txt"[0m
+2026-11-16T19:11:47.8949527Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T19:11:47.8949883Z env:
+2026-11-16T19:11:47.8950106Z   GOMAXPROCS: 2
+2026-11-16T19:11:47.8950395Z   GOMEMLIMIT: 2GiB
+2026-11-16T19:11:47.8950614Z   GOGC: 50
+2026-11-16T19:11:47.8950822Z   GOTOOLCHAIN: local
+2026-11-16T19:11:47.8951048Z   GOWORK: off
+2026-11-16T19:11:47.8951253Z   GOENV: off
+2026-11-16T19:11:47.8951505Z   GOTELEMETRY: off
+2026-11-16T19:11:47.8951713Z   CC: gcc
+2026-11-16T19:11:47.8952101Z   CXX: g++
+2026-11-16T19:11:47.8952383Z   GGLINT_REVISION: a95099aae13ff7ffb4b3825bd63f8510bd184c69
+2026-11-16T19:11:47.8952748Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T19:11:47.8953093Z   INPUTS: /home/runner/work/_temp/logos-corpus-inputs
+2026-11-16T19:11:47.8953473Z   EVIDENCE: /home/runner/work/_temp/logos-corpus-evidence
+2026-11-16T19:11:47.8953864Z   GOROOT_BOOTSTRAP: /home/runner/work/_temp/oracle
+2026-11-16T19:11:47.8954187Z ##[endgroup]
+2026-11-16T19:11:48.4306376Z starting xxhash-asm-core/oracle
+2026-11-16T19:11:49.0993424Z finished xxhash-asm-core/oracle: pass, 0.665s
+2026-11-16T19:11:49.1030415Z starting xxhash-asm-core/go
+2026-11-16T19:11:49.7721215Z finished xxhash-asm-core/go: pass, 0.665s
+2026-11-16T19:11:49.7757181Z starting xxhash-asm-core/logos
+2026-11-16T19:12:07.2289372Z finished xxhash-asm-core/logos: pass, 17.449s
+2026-11-16T19:12:07.2446096Z starting xxhash-purego-core/oracle
+2026-11-16T19:12:08.6152354Z finished xxhash-purego-core/oracle: pass, 1.366s
+2026-11-16T19:12:08.6188402Z starting xxhash-purego-core/go
+2026-11-16T19:12:10.0410384Z finished xxhash-purego-core/go: pass, 1.417s
+2026-11-16T19:12:10.0445707Z starting xxhash-purego-core/logos
+2026-11-16T19:12:11.6680195Z finished xxhash-purego-core/logos: pass, 1.617s
+2026-11-16T19:12:11.6871218Z starting xxhash-plugin-cgo/oracle
+2026-11-16T19:12:38.2597640Z finished xxhash-plugin-cgo/oracle: pass, 26.565s
+2026-11-16T19:12:38.2636632Z starting xxhash-plugin-cgo/go
+2026-11-16T19:13:14.0025502Z finished xxhash-plugin-cgo/go: pass, 35.731s
+2026-11-16T19:13:14.0068519Z starting xxhash-plugin-cgo/logos
+2026-11-16T19:13:57.2610656Z finished xxhash-plugin-cgo/logos: pass, 43.246s
+2026-11-16T19:13:57.3138631Z starting sqlite3-cgo/oracle
+2026-11-16T19:14:26.4439158Z finished sqlite3-cgo/oracle: pass, 29.124s
+2026-11-16T19:14:26.4695902Z starting sqlite3-cgo/go
+2026-11-16T19:14:55.3995782Z finished sqlite3-cgo/go: pass, 28.924s
+2026-11-16T19:14:55.4254242Z starting sqlite3-cgo/logos
+2026-11-16T19:15:25.0560472Z finished sqlite3-cgo/logos: pass, 29.624s
+2026-11-16T19:15:25.6305633Z starting modernc-sqlite/oracle
+2026-11-16T19:15:46.9445319Z finished modernc-sqlite/oracle: pass, 21.308s
+2026-11-16T19:15:47.3754501Z starting modernc-sqlite/go
+2026-11-16T19:16:10.5518660Z finished modernc-sqlite/go: pass, 23.17s
+2026-11-16T19:16:11.1180216Z starting modernc-sqlite/logos
+2026-11-16T19:16:40.1636427Z finished modernc-sqlite/logos: pass, 29.039s
+2026-11-16T19:16:40.8274233Z ##[group]Run uv run --no-project python misc/logos-dogfood/replay_ffi.py \
+2026-11-16T19:16:40.8274641Z [36;1muv run --no-project python misc/logos-dogfood/replay_ffi.py \[0m
+2026-11-16T19:16:40.8274939Z [36;1m  --go-oracle "$RUNNER_TEMP/oracle/bin/go" \[0m
+2026-11-16T19:16:40.8275288Z [36;1m  --go-candidate "$GITHUB_WORKSPACE/bin/go" --logos "$GITHUB_WORKSPACE/bin/logos" \[0m
+2026-11-16T19:16:40.8275674Z [36;1m  --source-root "$INPUTS/sources" --module-cache "$INPUTS/modules" \[0m
+2026-11-16T19:16:40.8276055Z [36;1m  --cache-root "$RUNNER_TEMP/corpus-cache" --tmpdir "$RUNNER_TEMP/dogfood-tmp" \[0m
+2026-11-16T19:16:40.8276441Z [36;1m  --out "$EVIDENCE/ffi" 2>&1 | tee "$EVIDENCE/ffi-console.txt"[0m
+2026-11-16T19:16:40.8302501Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T19:16:40.8302764Z env:
+2026-11-16T19:16:40.8302918Z   GOMAXPROCS: 2
+2026-11-16T19:16:40.8303074Z   GOMEMLIMIT: 2GiB
+2026-11-16T19:16:40.8303237Z   GOGC: 50
+2026-11-16T19:16:40.8303456Z   GOTOOLCHAIN: local
+2026-11-16T19:16:40.8303614Z   GOWORK: off
+2026-11-16T19:16:40.8303762Z   GOENV: off
+2026-11-16T19:16:40.8303907Z   GOTELEMETRY: off
+2026-11-16T19:16:40.8304057Z   CC: gcc
+2026-11-16T19:16:40.8304195Z   CXX: g++
+2026-11-16T19:16:40.8304387Z   GGLINT_REVISION: a95099aae13ff7ffb4b3825bd63f8510bd184c69
+2026-11-16T19:16:40.8304640Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T19:16:40.8304867Z   INPUTS: /home/runner/work/_temp/logos-corpus-inputs
+2026-11-16T19:16:40.8305131Z   EVIDENCE: /home/runner/work/_temp/logos-corpus-evidence
+2026-11-16T19:16:40.8305386Z   GOROOT_BOOTSTRAP: /home/runner/work/_temp/oracle
+2026-11-16T19:16:40.8305771Z ##[endgroup]
+2026-11-16T19:16:43.4919246Z oracle: pass
+2026-11-16T19:16:44.8014265Z go: pass
+2026-11-16T19:16:46.2154736Z logos: pass
+2026-11-16T19:16:46.2291354Z ##[group]Run uv run --no-project python misc/logos-dogfood/evidence/2026-11-16/runtime/replay.py \
+2026-11-16T19:16:46.2291869Z [36;1muv run --no-project python misc/logos-dogfood/evidence/2026-11-16/runtime/replay.py \[0m
+2026-11-16T19:16:46.2292219Z [36;1m  --oracle "$RUNNER_TEMP/oracle/bin/go" \[0m
+2026-11-16T19:16:46.2292535Z [36;1m  --candidate "$GITHUB_WORKSPACE/bin/go" --logos "$GITHUB_WORKSPACE/bin/logos" \[0m
+2026-11-16T19:16:46.2292958Z [36;1m  --source-root "$INPUTS/sources" --module-cache "$INPUTS/modules" \[0m
+2026-11-16T19:16:46.2293324Z [36;1m  --cache-root "$RUNNER_TEMP/corpus-cache" --tmpdir "$RUNNER_TEMP/dogfood-tmp" \[0m
+2026-11-16T19:16:46.2293739Z [36;1m  --part language --out "$EVIDENCE/language" 2>&1 | tee "$EVIDENCE/language-console.txt"[0m
+2026-11-16T19:16:46.2320158Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T19:16:46.2320408Z env:
+2026-11-16T19:16:46.2320561Z   GOMAXPROCS: 2
+2026-11-16T19:16:46.2320778Z   GOMEMLIMIT: 2GiB
+2026-11-16T19:16:46.2320927Z   GOGC: 50
+2026-11-16T19:16:46.2321071Z   GOTOOLCHAIN: local
+2026-11-16T19:16:46.2321226Z   GOWORK: off
+2026-11-16T19:16:46.2321370Z   GOENV: off
+2026-11-16T19:16:46.2321510Z   GOTELEMETRY: off
+2026-11-16T19:16:46.2321660Z   CC: gcc
+2026-11-16T19:16:46.2321796Z   CXX: g++
+2026-11-16T19:16:46.2321983Z   GGLINT_REVISION: a95099aae13ff7ffb4b3825bd63f8510bd184c69
+2026-11-16T19:16:46.2322240Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T19:16:46.2322469Z   INPUTS: /home/runner/work/_temp/logos-corpus-inputs
+2026-11-16T19:16:46.2322737Z   EVIDENCE: /home/runner/work/_temp/logos-corpus-evidence
+2026-11-16T19:16:46.2322995Z   GOROOT_BOOTSTRAP: /home/runner/work/_temp/oracle
+2026-11-16T19:16:46.2323205Z ##[endgroup]
+2026-11-16T19:16:55.3104528Z native: exit=0 pass
+2026-11-16T19:16:55.5761085Z eject: exit=0 pass
+2026-11-16T19:16:55.8445155Z ejected-oracle: exit=0 pass
+2026-11-16T19:16:55.8568202Z ##[group]Run uv run --no-project python misc/logos-dogfood/evidence/2026-11-16/runtime/replay.py \
+2026-11-16T19:16:55.8568684Z [36;1muv run --no-project python misc/logos-dogfood/evidence/2026-11-16/runtime/replay.py \[0m
+2026-11-16T19:16:55.8569197Z [36;1m  --oracle "$RUNNER_TEMP/oracle/bin/go" \[0m
+2026-11-16T19:16:55.8569526Z [36;1m  --candidate "$GITHUB_WORKSPACE/bin/go" --logos "$GITHUB_WORKSPACE/bin/logos" \[0m
+2026-11-16T19:16:55.8569905Z [36;1m  --source-root "$INPUTS/sources" --module-cache "$INPUTS/modules" \[0m
+2026-11-16T19:16:55.8570320Z [36;1m  --cache-root "$RUNNER_TEMP/corpus-cache" --tmpdir "$RUNNER_TEMP/dogfood-tmp" \[0m
+2026-11-16T19:16:55.8570761Z [36;1m  --part lint --out "$EVIDENCE/lint" 2>&1 | tee "$EVIDENCE/lint-console.txt"[0m
+2026-11-16T19:16:55.8598151Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T19:16:55.8598401Z env:
+2026-11-16T19:16:55.8598585Z   GOMAXPROCS: 2
+2026-11-16T19:16:55.8598743Z   GOMEMLIMIT: 2GiB
+2026-11-16T19:16:55.8598948Z   GOGC: 50
+2026-11-16T19:16:55.8599522Z   GOTOOLCHAIN: local
+2026-11-16T19:16:55.8599686Z   GOWORK: off
+2026-11-16T19:16:55.8599832Z   GOENV: off
+2026-11-16T19:16:55.8599975Z   GOTELEMETRY: off
+2026-11-16T19:16:55.8600126Z   CC: gcc
+2026-11-16T19:16:55.8600260Z   CXX: g++
+2026-11-16T19:16:55.8600449Z   GGLINT_REVISION: a95099aae13ff7ffb4b3825bd63f8510bd184c69
+2026-11-16T19:16:55.8600704Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T19:16:55.8600931Z   INPUTS: /home/runner/work/_temp/logos-corpus-inputs
+2026-11-16T19:16:55.8601194Z   EVIDENCE: /home/runner/work/_temp/logos-corpus-evidence
+2026-11-16T19:16:55.8601452Z   GOROOT_BOOTSTRAP: /home/runner/work/_temp/oracle
+2026-11-16T19:16:55.8601667Z ##[endgroup]
+2026-11-16T19:16:56.3690005Z lint: exit=1 pass
+2026-11-16T19:16:56.3863261Z lint-repeat: exit=1 pass
+2026-11-16T19:16:56.6522724Z runtime-oracle: exit=0 pass
+2026-11-16T19:16:56.9185600Z runtime-go: exit=0 pass
+2026-11-16T19:16:57.1843730Z runtime-logos: exit=0 pass
+2026-11-16T19:16:57.1988826Z ##[group]Run actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+2026-11-16T19:16:57.1989319Z with:
+2026-11-16T19:16:57.1989477Z   name: dogfood-43928753813-1
+2026-11-16T19:16:57.1989658Z   retention-days: 14
+2026-11-16T19:16:57.1989823Z   if-no-files-found: error
+2026-11-16T19:16:57.1990758Z   path: /home/runner/work/_temp/logos-corpus-evidence
+/home/runner/work/_temp/logos-corpus-inputs/preparation.json
+/home/runner/work/_temp/logos-corpus-inputs/logs
+/home/runner/work/_temp/logos-corpus-inputs/inputs
+misc/logos-dogfood/corpus-ci.json
+misc/logos-dogfood/policies
+misc/logos-dogfood/profiles
+!/home/runner/work/_temp/logos-corpus-evidence/**/work/**
+
+2026-11-16T19:16:57.1991694Z   compression-level: 6
+2026-11-16T19:16:57.1991862Z   overwrite: false
+2026-11-16T19:16:57.1992024Z   include-hidden-files: false
+2026-11-16T19:16:57.1992199Z   archive: true
+2026-11-16T19:16:57.1992343Z env:
+2026-11-16T19:16:57.1992496Z   GOMAXPROCS: 2
+2026-11-16T19:16:57.1992686Z   GOMEMLIMIT: 2GiB
+2026-11-16T19:16:57.1992835Z   GOGC: 50
+2026-11-16T19:16:57.1992975Z   GOTOOLCHAIN: local
+2026-11-16T19:16:57.1993130Z   GOWORK: off
+2026-11-16T19:16:57.1993276Z   GOENV: off
+2026-11-16T19:16:57.1993417Z   GOTELEMETRY: off
+2026-11-16T19:16:57.1993564Z   CC: gcc
+2026-11-16T19:16:57.1993700Z   CXX: g++
+2026-11-16T19:16:57.1993888Z   GGLINT_REVISION: a95099aae13ff7ffb4b3825bd63f8510bd184c69
+2026-11-16T19:16:57.1994145Z   PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
+2026-11-16T19:16:57.1994370Z   INPUTS: /home/runner/work/_temp/logos-corpus-inputs
+2026-11-16T19:16:57.1994630Z   EVIDENCE: /home/runner/work/_temp/logos-corpus-evidence
+2026-11-16T19:16:57.1994881Z   GOROOT_BOOTSTRAP: /home/runner/work/_temp/oracle
+2026-11-16T19:16:57.1995090Z ##[endgroup]
+2026-11-16T19:16:57.6519705Z Multiple search paths detected. Calculating the least common ancestor of all paths
+2026-11-16T19:16:57.6523502Z The least common ancestor is /home/runner/work. This will be the root directory of the artifact
+2026-11-16T19:16:57.6524041Z With the provided path, there will be 1109 files uploaded
+2026-11-16T19:16:57.6526454Z Artifact name is valid!
+2026-11-16T19:16:57.6526750Z Root directory input is valid!
+2026-11-16T19:16:58.1732408Z Uploading artifact: dogfood-43928753813-1.zip
+2026-11-16T19:16:58.1759511Z Beginning upload of artifact content to blob storage
+2026-11-16T19:16:59.5420859Z Uploaded bytes 1766095
+2026-11-16T19:16:59.6299571Z Finished uploading artifact content to blob storage!
+2026-11-16T19:16:59.6300103Z SHA256 digest of uploaded artifact is 8d6f69a36646775185ca3c7292bcfe3c7ce2bb662300cfcdd76e313483b271ed
+2026-11-16T19:16:59.6300523Z Finalizing artifact upload
+2026-11-16T19:17:00.2083036Z Artifact dogfood-43928753813-1 successfully finalized. Artifact ID 14260349320
+2026-11-16T19:17:00.2083705Z Artifact dogfood-43928753813-1 has been successfully uploaded! Final size is 1766095 bytes. Artifact ID is 14260349320
+2026-11-16T19:17:00.2086967Z Artifact download URL: https://github.com/gosuda/LoGOs/actions/runs/43928753813/artifacts/14260349320
+2026-11-16T19:17:00.2327548Z Post job cleanup.
+2026-11-16T19:17:00.2954215Z [command]/usr/bin/git version
+2026-11-16T19:17:00.2985615Z git version 2.56.1
+2026-11-16T19:17:00.3008507Z Temporarily overriding HOME='/home/runner/work/_temp/66a1a843-44be-4dd4-a613-cfc65d475497' before making global git config changes
+2026-11-16T19:17:00.3009594Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-16T19:17:00.3012073Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/LoGOs/LoGOs
+2026-11-16T19:17:00.3037672Z Removing SSH command configuration
+2026-11-16T19:17:00.3042758Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-16T19:17:00.3067202Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-16T19:17:00.3260932Z Removing HTTP extra header
+2026-11-16T19:17:00.3264700Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-16T19:17:00.3287896Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-16T19:17:00.3487436Z Removing includeIf entries pointing to credentials config files
+2026-11-16T19:17:00.3493881Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-16T19:17:00.3520362Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-16T19:17:00.3806821Z Cleaning up orphan processes

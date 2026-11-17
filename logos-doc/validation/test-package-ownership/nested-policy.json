@@ -1,0 +1,1 @@
+{"transitive_reflect":"warn","transitive_exec":"deny","transitive_net":"deny","reflect_allowlist":null,"transitive_exec_allowlist":null,"transitive_net_allowlist":null,"main_modules":["example.com/app"],"nested_modules":["example.com/app/nested"],"cgo_allowed":null}

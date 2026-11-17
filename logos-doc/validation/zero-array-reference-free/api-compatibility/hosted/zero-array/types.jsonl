@@ -1,0 +1,7 @@
+{"ImportPath":"cmd/compile/internal/types2 [cmd/compile/internal/types2.test]","Action":"build-output","Output":"# cmd/compile/internal/types2 [cmd/compile/internal/types2.test]\n"}
+{"ImportPath":"cmd/compile/internal/types2 [cmd/compile/internal/types2.test]","Action":"build-output","Output":"cmd/compile/internal/types2/referencefree_zero_array_logos_test.go:19:44: NewInterfaceType(nil, nil).Complete undefined (type *Interface has no field or method Complete, but does have field complete)\n"}
+{"ImportPath":"cmd/compile/internal/types2 [cmd/compile/internal/types2.test]","Action":"build-output","Output":"cmd/compile/internal/types2/referencefree_zero_array_logos_test.go:99:47: NewInterfaceType(nil, embeds).Complete undefined (type *Interface has no field or method Complete, but does have field complete)\n"}
+{"ImportPath":"cmd/compile/internal/types2 [cmd/compile/internal/types2.test]","Action":"build-fail"}
+{"Time":"2026-11-16T22:28:50.608213571Z","Action":"start","Package":"cmd/compile/internal/types2"}
+{"Time":"2026-11-16T22:28:50.60830123Z","Action":"output","Package":"cmd/compile/internal/types2","Output":"FAIL\tcmd/compile/internal/types2 [build failed]\n","OutputType":"frame"}
+{"Time":"2026-11-16T22:28:50.608333538Z","Action":"fail","Package":"cmd/compile/internal/types2","Elapsed":0,"FailedBuild":"cmd/compile/internal/types2 [cmd/compile/internal/types2.test]"}

@@ -1,0 +1,85 @@
+{
+  "head": {
+    "sha": "a95099aae13ff7ffb4b3825bd63f8510bd184c69",
+    "node_id": "C_kwDOVnJgBdoAKGE5NTA5OWFhZTEzZmY3ZmZiNGIzODI1YmQ2M2Y4NTEwYmQxODRjNjk",
+    "url": "https://api.github.com/repos/gosuda/gglint/git/commits/a95099aae13ff7ffb4b3825bd63f8510bd184c69",
+    "html_url": "https://github.com/gosuda/gglint/commit/a95099aae13ff7ffb4b3825bd63f8510bd184c69",
+    "author": {
+      "name": "metaphoric-dev",
+      "email": "161434094+metaphoric-dev@users.noreply.github.com",
+      "date": "2026-11-16T17:56:50Z"
+    },
+    "committer": {
+      "name": "metaphoric-dev",
+      "email": "161434094+metaphoric-dev@users.noreply.github.com",
+      "date": "2026-11-16T17:56:50Z"
+    },
+    "tree": {
+      "sha": "9fc49c87690544f82703c0210d5259aaf5b89684",
+      "url": "https://api.github.com/repos/gosuda/gglint/git/trees/9fc49c87690544f82703c0210d5259aaf5b89684"
+    },
+    "message": "Merge reviewed analyzer and driver corrections into Go 1.27.4 validation",
+    "parents": [
+      {
+        "sha": "077dc30277a1a2431059fd12e20e4028a356ec4a",
+        "url": "https://api.github.com/repos/gosuda/gglint/git/commits/077dc30277a1a2431059fd12e20e4028a356ec4a",
+        "html_url": "https://github.com/gosuda/gglint/commit/077dc30277a1a2431059fd12e20e4028a356ec4a"
+      },
+      {
+        "sha": "a6a12798390d392b40d7c9c2a1b635a6f2530c99",
+        "url": "https://api.github.com/repos/gosuda/gglint/git/commits/a6a12798390d392b40d7c9c2a1b635a6f2530c99",
+        "html_url": "https://github.com/gosuda/gglint/commit/a6a12798390d392b40d7c9c2a1b635a6f2530c99"
+      }
+    ],
+    "verification": {
+      "verified": false,
+      "reason": "unsigned",
+      "signature": null,
+      "payload": null,
+      "verified_at": null
+    }
+  },
+  "tested": {
+    "sha": "d67294b7eb975cb3a27dd7dcafab9b00bee267ed",
+    "node_id": "C_kwDOVnJgBdoAKGQ2NzI5NGI3ZWI5NzVjYjNhMjdkZDdkY2FmYWI5YjAwYmVlMjY3ZWQ",
+    "url": "https://api.github.com/repos/gosuda/gglint/git/commits/d67294b7eb975cb3a27dd7dcafab9b00bee267ed",
+    "html_url": "https://github.com/gosuda/gglint/commit/d67294b7eb975cb3a27dd7dcafab9b00bee267ed",
+    "author": {
+      "name": "metaphoric-dev",
+      "email": "161434094+metaphoric-dev@users.noreply.github.com",
+      "date": "2026-11-16T17:56:55Z"
+    },
+    "committer": {
+      "name": "GitHub",
+      "email": "noreply@github.com",
+      "date": "2026-11-16T17:56:55Z"
+    },
+    "tree": {
+      "sha": "9fc49c87690544f82703c0210d5259aaf5b89684",
+      "url": "https://api.github.com/repos/gosuda/gglint/git/trees/9fc49c87690544f82703c0210d5259aaf5b89684"
+    },
+    "message": "Merge a95099aae13ff7ffb4b3825bd63f8510bd184c69 into a6a12798390d392b40d7c9c2a1b635a6f2530c99",
+    "parents": [
+      {
+        "sha": "a6a12798390d392b40d7c9c2a1b635a6f2530c99",
+        "url": "https://api.github.com/repos/gosuda/gglint/git/commits/a6a12798390d392b40d7c9c2a1b635a6f2530c99",
+        "html_url": "https://github.com/gosuda/gglint/commit/a6a12798390d392b40d7c9c2a1b635a6f2530c99"
+      },
+      {
+        "sha": "a95099aae13ff7ffb4b3825bd63f8510bd184c69",
+        "url": "https://api.github.com/repos/gosuda/gglint/git/commits/a95099aae13ff7ffb4b3825bd63f8510bd184c69",
+        "html_url": "https://github.com/gosuda/gglint/commit/a95099aae13ff7ffb4b3825bd63f8510bd184c69"
+      }
+    ],
+    "verification": {
+      "verified": true,
+      "reason": "valid",
+      "signature": "-----BEGIN PGP SIGNATURE-----\n\nwsFcBAABCAAQBQJq+0PnCRC1aQ7uu5UhlAAA1fEQAEDfUFllpDPOfFipAOc3tm92\n0B9wiELuv78Q6QHmLO3Pg/Lldlv9ayBdMM7112Z6LurnvIOQFVzARXVPe9mMjVcK\nm1tl/CnJ8WCFQPyJFEaPK4eE7+DiyA6f3iVdQGfHG1e0s+glHnb/IPB4q6G4kJD3\npNaipFo80Svs8favUyfAITgTIt/K2s3HvbiW5dnhSUDqukySYTQmPmQ+AKHRCMSJ\n46cyqqxbk+IM8jClrpN+e8j3GZG5b+pKOQTUfLSs3kGANp/6IsyGDZhH5DW8lKEH\nmj3IGWh2pyXdj7HM4xxy0qIpBgB4LGfTvQvtrwG1Ar4ujXY7SNHorbe89M8KpV2c\n9kxRlHipuPkKYLLGZcRAa8tGTe7jjGMIcmNwR8rdNtcHw6KZ9xk8ZIueqnlRHjQ7\nLvbTN96bOPAKMBEoQ1gJPw7zGAeiRAkmmd7lr8M0Nslc1b8sAYgnzhClXX7+WFot\nDGu68DMCZI15i3uyj/oJTlc5zYGwloCGtgcvTRWY5oaDKoDbpAV/NjM/+fCe5dwy\n+KCItHdvOe8N9Tx2tvwHZgq0BbghxfzDG+nCz/1Y0etEpMqv9GKKF/fQE3V1rQdT\nCTb8eCkQdWOPrRxCXU8aVRB169k5PFJf814I8r6Y4RQxcCL4CxAlzxg3aoBrEw7Q\n6g8nHf1evbL7MaY6fOCK\n=qVtt\n-----END PGP SIGNATURE-----\n",
+      "payload": "tree 9fc49c87690544f82703c0210d5259aaf5b89684\nparent a6a12798390d392b40d7c9c2a1b635a6f2530c99\nparent a95099aae13ff7ffb4b3825bd63f8510bd184c69\nauthor metaphoric-dev <161434094+metaphoric-dev@users.noreply.github.com> 1794851815 +0000\ncommitter GitHub <noreply@github.com> 1794851815 +0000\n\nMerge a95099aae13ff7ffb4b3825bd63f8510bd184c69 into a6a12798390d392b40d7c9c2a1b635a6f2530c99\n",
+      "verified_at": "2026-11-16T17:56:56Z"
+    }
+  },
+  "identical_tree": true,
+  "verified_at_utc": "2026-11-16T18:26:12Z",
+  "log_evidence": "All three raw logs show checkout of refs/remotes/pull/13/merge and git log -1 reports d67294b7eb975cb3a27dd7dcafab9b00bee267ed."
+}

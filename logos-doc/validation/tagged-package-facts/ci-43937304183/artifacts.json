@@ -1,0 +1,25 @@
+{
+  "total_count": 1,
+  "artifacts": [
+    {
+      "id": 14262890370,
+      "node_id": "MDg6QXJ0aWZhY3QxNDI2Mjg5MDM3MA==",
+      "name": "tagged-facts-43937304183-1",
+      "size_in_bytes": 15544,
+      "url": "https://api.github.com/repos/gosuda/LoGOs/actions/artifacts/14262890370",
+      "archive_download_url": "https://api.github.com/repos/gosuda/LoGOs/actions/artifacts/14262890370/zip",
+      "expired": false,
+      "digest": "sha256:7d6b390e850ff0b778a9f4a80fa3d3e1006736c301d6229678d8ca5e9ec9b8dd",
+      "created_at": "2026-11-16T19:24:38Z",
+      "updated_at": "2026-11-16T19:24:38Z",
+      "expires_at": "2026-11-30T19:24:37Z",
+      "workflow_run": {
+        "id": 43937304183,
+        "repository_id": 1424470681,
+        "head_repository_id": 1424470681,
+        "head_branch": "dogfood/tagged-package-facts-20261116-cc2cfa0d",
+        "head_sha": "298f8969484af371bb58794610376dae77710a2b"
+      }
+    }
+  ]
+}

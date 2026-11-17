@@ -1,0 +1,41 @@
+{
+  "checker_sha256": "56146fab4da8433c4607381190ecc502493092bb4be645d2c2480bb41d387396",
+  "test_sha256": "60f2991bf0cf5444c3075bbcdb5c128a2d9300bb35fd3adacdaf2d4f51d51753",
+  "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+  "controls": [
+    {
+      "mutation": "invocation",
+      "command": [
+        "/home/agent/.cache/uv/builds-v0/.tmpte43vQ/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "test_accept_corpus.py",
+        "-k",
+        "coverage_labels"
+      ],
+      "returncode": 1,
+      "named_control_failed": true,
+      "mutant_sha256": "f2b80d10e38f3770dec77753f8de5e98ce59fa2c02fb2add78644a7303652c85",
+      "stdout_sha256": "22c94e7ee6598f89107e424e5629b861b16bd1b8f4bf4b34812405dc44f2b3dc",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "mutation": "load-error",
+      "command": [
+        "/home/agent/.cache/uv/builds-v0/.tmpte43vQ/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "test_accept_corpus.py",
+        "-k",
+        "raw_evidence_defects_are_rejected and wrong"
+      ],
+      "returncode": 1,
+      "named_control_failed": true,
+      "mutant_sha256": "e235f214d1e1cba640425af2c480500e96028b6932ac03f8e6a88f776e60db81",
+      "stdout_sha256": "3e7d5fc483829bc8cbf53e2d958dad9e5cc43e4cb1788bbf03d7646cbd6c520e",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

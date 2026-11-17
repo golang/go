@@ -1,0 +1,12 @@
+[capabilities]
+transitive_unsafe_allowlist = [
+  "github.com/remyoudompheng/bigfft",
+  "golang.org/x/sys/unix",
+  "modernc.org/libc",
+  "modernc.org/libc/sys/types",
+  "modernc.org/libc/uuid/uuid",
+  "modernc.org/memory",
+]
+
+transitive_exec_allowlist = ["golang.org/x/sys/unix", "modernc.org/libc", "modernc.org/fileutil/ccgo"]
+transitive_net_allowlist = ["golang.org/x/sys/unix", "modernc.org/libc"]

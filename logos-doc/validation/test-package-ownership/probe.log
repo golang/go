@@ -1,0 +1,8 @@
+--- FAIL: TestLogosCapExternalTestOwner (0.00s)
+    --- FAIL: TestLogosCapExternalTestOwner/provenance_is_exact (0.00s)
+        capabilities_testpkg_logos_test.go:114: exemptPkg("example.com/app_test/sub"), origin "example.com/app" = true, want false
+    --- FAIL: TestLogosCapExternalTestOwner/longer_suffix (0.00s)
+        capabilities_testpkg_logos_test.go:114: exemptPkg("example.com/app_tester"), origin "example.com/app" = true, want false
+FAIL
+FAIL	cmd/link/internal/ld	0.003s
+FAIL

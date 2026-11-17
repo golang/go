@@ -1,0 +1,25 @@
+{
+  "total_count": 1,
+  "artifacts": [
+    {
+      "id": 14260349320,
+      "node_id": "MDg6QXJ0aWZhY3QxNDI2MDM0OTMyMA==",
+      "name": "dogfood-43928753813-1",
+      "size_in_bytes": 1766095,
+      "url": "https://api.github.com/repos/gosuda/LoGOs/actions/artifacts/14260349320",
+      "archive_download_url": "https://api.github.com/repos/gosuda/LoGOs/actions/artifacts/14260349320/zip",
+      "expired": false,
+      "digest": "sha256:8d6f69a36646775185ca3c7292bcfe3c7ce2bb662300cfcdd76e313483b271ed",
+      "created_at": "2026-11-16T19:16:59Z",
+      "updated_at": "2026-11-16T19:16:59Z",
+      "expires_at": "2026-11-30T19:16:57Z",
+      "workflow_run": {
+        "id": 43928753813,
+        "repository_id": 1424470681,
+        "head_repository_id": 1424470681,
+        "head_branch": "dogfood/corpus-ci-20261116-c47c4cfc",
+        "head_sha": "c47c4cfc56fc8bfa916d170ed51040195b567dc9"
+      }
+    }
+  ]
+}

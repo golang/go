@@ -1,0 +1,22 @@
+{
+  "accepted": true,
+  "command": [
+    "/home/runner/work/LoGOs/LoGOs/bin/go",
+    "test",
+    "-json",
+    "-count=1",
+    "-p=1",
+    "-parallel=1",
+    "-vet=off",
+    "-timeout=10m",
+    "cmd/compile/internal/logos",
+    "-run",
+    "^(TestGoMutationFactsZeroArrays)$"
+  ],
+  "cwd": "/home/runner/work/LoGOs/LoGOs/src",
+  "elapsed_seconds": 0.3657292929999585,
+  "exit_code": 0,
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "91559ed91f92e78bf21ba314461759de9b45d6c0f7b31c443bc2c2d6a30c817e",
+  "timed_out": false
+}

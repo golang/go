@@ -1,0 +1,10 @@
+{
+  "old_script_sha256": "e62198a4cf88a683da1a225f1f1b652a9de0ffa09aaedba8c07a8ba16020c33b",
+  "before_exit": 0,
+  "after_exit": 0,
+  "tracked_fixture_status": " M test/logos/control.lgo\n",
+  "source_receipts_equal": true,
+  "tool_receipts_equal": true,
+  "observed_false_acceptance": true,
+  "go_executed": false
+}

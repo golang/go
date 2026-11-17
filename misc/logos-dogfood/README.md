@@ -9,6 +9,10 @@ Assembly/purego variants of xxhash and cgo/stub variants of go-sqlite3 bring the
 total to **28 cases**. These are explicit samples, not exhaustive coverage of the
 Go ecosystem or a claim that the third-party projects contain no defects.
 
+The [CI acceptance contract](CI.md) describes automated preparation, the complete
+compile/report matrix, the explicit failed-load control, and independent runtime
+gates. Use [PREPARE.md](PREPARE.md) to fetch and verify the pinned inputs.
+
 ## Inputs
 
 `corpus.json` records each module, upstream URL, revision or module version,
@@ -265,3 +269,104 @@ These tests cover false success on exit 1, partial-error masking, missing packag
 patterns, schema and severity mismatches, typecheck failures, duplicate findings,
 repeat ordering and multiplicity, absent baselines, source hashes, actual
 subprocess timeout and interruption cleanup, and the capability-policy boundary.
+
+## Focused backend runtime comparisons
+
+`replay_backends.py` runs five pinned profiles under stock Go, fork Go and
+LoGOs, in that order for each profile. It uses the existing source verification,
+private-copy, execution, policy and tool-identity primitives in `run.py`.
+
+| Profile | Runtime selection | Build settings |
+|---|---|---|
+| `xxhash-asm-core` | Complete root package, including `TestAll` | cgo disabled; default driver settings |
+| `xxhash-purego-core` | Complete root package, including `TestAll` | cgo disabled; `purego` tag; default driver settings |
+| `xxhash-plugin-cgo` | All packages; `TestAll` and `dynamic.TestDynamic` required | cgo enabled; explicit compatible plugin profile below |
+| `sqlite3-cgo` | `TestOpen`, `TestClose`, `TestInsert` | cgo enabled; exact three test events |
+| `modernc-sqlite` | Seven named top-level tests and eight known subtests | cgo disabled; exact 15 test events; reviewed LoGOs capability policy |
+
+The modernc top-level selection is `TestNamedParameters`, `TestMemDB`,
+`TestBinding`, `TestBeginMode`, `TestMultiStmtQueryStringRoundtrip`,
+`TestExecReturningMultiRow`, and `TestMutexWakeOnce`. Its subtests are
+`TestBinding/DB`, `TestBinding/Prepare`, and the six `TestBeginMode` combinations
+of delete/wal journal modes with deferred/immediate/exclusive transactions.
+The SQL selections do not establish that either complete upstream suite passes.
+
+Every accepted row must contain nonempty, equal run/pass event multisets,
+qualified by package and test name. Test failures and test-level skips fail the
+row. A package-level skip for a package with no tests is permitted. Candidate
+events must match a successful stock baseline from the same profile, including
+duplicate multiplicity. An unsuccessful baseline leaves candidates uncompared.
+Missing, renamed, duplicated or skipped SQL tests cannot satisfy the exact
+three-event or 15-event checks.
+
+### Explicit plugin compatibility profile
+
+All three plugin runs inherit `GOEXPERIMENT=none`. The LoGOs host also uses
+`-O=1` and receives exactly the separately pinned
+[`profiles/xxhash-plugin-arena-off.toml`](profiles/xxhash-plugin-arena-off.toml)
+in its private source copy. Its SHA256 is
+`2ae10a1fe10a8e72ac145fc13e7692747bd06c626ec91a403e9c19d4a4a30e21`.
+
+The arena opt-out is required: [`settings.go`](../../src/cmd/go/internal/logos/settings/settings.go#L116-L120)
+appends the arena experiment when
+[`anyRootArena`](../../src/cmd/go/internal/logos/settings/settings.go#L276-L286)
+finds no explicit `arena = false`, and
+[`WithArena`](../../src/cmd/go/internal/logos/settings/experiment.go#L14-L16)
+appends it after the caller's experiment value, including `none`. The
+[test environment contract](../../src/cmd/go/internal/test/logos_env.go#L15-L20)
+preserves the caller's value for the test and its plain-Go child. The explicit
+configuration makes both builds arena-off; `-O=1` matches the child's default
+optimization level. Stock and fork Go copies receive no configuration file.
+The assembly and purego profiles retain their default settings.
+
+This supplemental profile does not turn the historical mixed-default plugin
+failure into a pass. Its configuration bytes, checksum and resulting source
+digest are recorded separately from the unchanged upstream source digest.
+
+### Reviewed modernc policy
+
+Only the LoGOs modernc copy receives
+[`policies/modernc-sql-runtime.toml`](policies/modernc-sql-runtime.toml), preserved
+from the reviewed historical runtime policy at SHA256
+`5666c90bc1f25d5f0d7d0e5b53e80c2fa8e7ebe341286f7d7b0b1c5651513096`.
+The stock and fork Go copies remain pristine. This uses the existing
+capability-only policy validator unchanged; the plugin build configuration is
+handled separately and cannot broaden that validator's contract.
+
+### Invocation and evidence
+
+Provide prepared pinned sources and dependencies, installed toolchains, and a
+new output directory. The runner performs no source or dependency downloads.
+
+```sh
+uv run --no-project python misc/logos-dogfood/replay_backends.py \
+  --go-oracle "$UPROOT1274/bin/go" \
+  --go-candidate "$PWD/bin/go" --logos "$PWD/bin/logos" \
+  --source-root "$CORPUS_INPUTS/sources" \
+  --module-cache "$CORPUS_INPUTS/modules" \
+  --cache-root "$RUNNER_TEMP/dogfood-cache" \
+  --tmpdir "$RUNNER_TEMP/dogfood-tmp" \
+  --out "$RUNNER_TEMP/backend-runtime" --timeout 900
+```
+
+The process deadline includes compilation and defaults to 900 seconds. Each
+test binary has a 120-second deadline. The runner fixes one package worker and
+`GOMAXPROCS=1`, records `jobs: 1`, and preserves explicit `GOMEMLIMIT` and `GOGC`
+values. Their defaults are `256MiB` and `25` only when absent. Each run records
+its actual command, environment, output hashes, event multisets and assessment.
+Before/after tool checks record executable hashes, compiler/linker identities
+and source provenance. Original source digests are reverified after each
+profile. Interrupted reports remain incomplete; any failed, timed-out,
+uncompared or changed-identity result makes the command exit nonzero.
+
+Run the Python contract checks with:
+
+```sh
+uv run --no-project --with-requirements misc/logos-dogfood/test-requirements.txt \
+  python -m pytest -q \
+  misc/logos-dogfood/test_run.py misc/logos-dogfood/test_replay_backends.py \
+  misc/logos-dogfood/test_replay_backend_events.py
+```
+
+Actual backend runtime evidence is produced by the CI invocation. Python
+contract checks alone do not establish that the installed toolchains pass it.

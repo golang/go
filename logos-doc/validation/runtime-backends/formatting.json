@@ -1,0 +1,9 @@
+{
+  "behavioral_commit": "304deaace804c0c35d16d2f8086ef521f39708ac",
+  "frozen_sha256": "3c5b8777be129cae9b67ab58fbdb300430b25057181ff81bedf95a96328af91f",
+  "import_names_unchanged": true,
+  "non_import_ast_unchanged": true,
+  "published_sha256": "48e519f55b47d38fdf44dcbb4680a8fdd71c58e77d6a9f7b64704af9d2bf436a",
+  "reason": "Ruff classified replay_backends as local only after the new module existed; a separate commit fixes import grouping after frozen repair validation.",
+  "test_function_source_bytes_unchanged": true
+}

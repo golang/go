@@ -1,0 +1,161 @@
+{
+  "total_count": 1,
+  "jobs": [
+    {
+      "id": 133515198978,
+      "run_id": 43928753813,
+      "workflow_name": "Pinned dogfood corpus",
+      "head_branch": "dogfood/corpus-ci-20261116-c47c4cfc",
+      "run_url": "https://api.github.com/repos/gosuda/LoGOs/actions/runs/43928753813",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOVOeymc8AAAAfFiBCAg",
+      "head_sha": "c47c4cfc56fc8bfa916d170ed51040195b567dc9",
+      "url": "https://api.github.com/repos/gosuda/LoGOs/actions/jobs/133515198978",
+      "html_url": "https://github.com/gosuda/LoGOs/actions/runs/43928753813/job/133515198978",
+      "status": "completed",
+      "conclusion": "failure",
+      "created_at": "2026-11-16T18:26:05Z",
+      "started_at": "2026-11-16T18:41:52Z",
+      "completed_at": "2026-11-16T19:17:03Z",
+      "name": "corpus",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-11-16T18:41:53Z",
+          "completed_at": "2026-11-16T18:41:56Z"
+        },
+        {
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-11-16T18:41:56Z",
+          "completed_at": "2026-11-16T18:42:08Z"
+        },
+        {
+          "name": "Install verified Go and uv distributions",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-11-16T18:42:08Z",
+          "completed_at": "2026-11-16T18:42:11Z"
+        },
+        {
+          "name": "Check replay and evidence contracts",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-11-16T18:42:11Z",
+          "completed_at": "2026-11-16T18:42:25Z"
+        },
+        {
+          "name": "Prepare exact sources and dependency versions",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-11-16T18:42:25Z",
+          "completed_at": "2026-11-16T18:42:51Z"
+        },
+        {
+          "name": "Build the native toolchain",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-11-16T18:42:51Z",
+          "completed_at": "2026-11-16T18:46:31Z"
+        },
+        {
+          "name": "Build the reviewed gglint revision",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-11-16T18:46:31Z",
+          "completed_at": "2026-11-16T18:47:05Z"
+        },
+        {
+          "name": "Replay and assess all 196 corpus cells",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 8,
+          "started_at": "2026-11-16T18:47:05Z",
+          "completed_at": "2026-11-16T19:11:42Z"
+        },
+        {
+          "name": "Execute semantic and C ABI fixtures",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9,
+          "started_at": "2026-11-16T19:11:42Z",
+          "completed_at": "2026-11-16T19:11:47Z"
+        },
+        {
+          "name": "Execute assembly, purego, plugin, and SQLite cases",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10,
+          "started_at": "2026-11-16T19:11:47Z",
+          "completed_at": "2026-11-16T19:16:40Z"
+        },
+        {
+          "name": "Execute eight purego FFI tests",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11,
+          "started_at": "2026-11-16T19:16:40Z",
+          "completed_at": "2026-11-16T19:16:46Z"
+        },
+        {
+          "name": "Compare LoGo execution and ejected Go",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 12,
+          "started_at": "2026-11-16T19:16:46Z",
+          "completed_at": "2026-11-16T19:16:55Z"
+        },
+        {
+          "name": "Verify exact native lint diagnostics and runtime controls",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 13,
+          "started_at": "2026-11-16T19:16:55Z",
+          "completed_at": "2026-11-16T19:16:57Z"
+        },
+        {
+          "name": "Retain source receipts, reports, and raw evidence",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 14,
+          "started_at": "2026-11-16T19:16:57Z",
+          "completed_at": "2026-11-16T19:17:00Z"
+        },
+        {
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 28,
+          "started_at": "2026-11-16T19:17:00Z",
+          "completed_at": "2026-11-16T19:17:00Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 29,
+          "started_at": "2026-11-16T19:17:00Z",
+          "completed_at": "2026-11-16T19:17:00Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/gosuda/LoGOs/check-runs/133515198978",
+      "labels": [
+        "ubuntu-24.04"
+      ],
+      "runner_id": 1000117519,
+      "runner_name": "GitHub Actions 1000117519",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    }
+  ]
+}

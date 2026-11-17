@@ -4686,3 +4686,88 @@ Written to `tasks/autoplan-ledger.jsonl` by P0-S6. IDs: phase prefix plus a sequ
 {"id": "AUD-212", "description": "M22-A-S7 Isolate acceptance from bootstrap settings", "phase": "AUD"}
 {"id": "AUD-213", "description": "M22-A-S8 Bound parity child admission", "phase": "AUD"}
 ```
+
+### M0-A-S22 Preserve inherited test experiment identity
+Anchor: Tony Hoare, David Parnas
+- Contract correction: M18-S9 already requires user test, run, generator, and module-tool processes to retain the caller's experiment environment. Commit `fd146c5550fe49770e84eb11fb1bfb394d9be306` pins absent versus present-empty test-cache behavior. The earlier M0-A-S22 oracle incorrectly required implicit experiment propagation for plugins and contradicted that contract. Its original tests, source and successful component logs remain historical evidence; they do not establish the corrected contract.
+- Attack: retain `logos_test_cache_experiment.txt` and the three M18-S9 arena-off codegen fixtures byte-for-byte. Correct the newly introduced environment matrix to assert inherited values and presence while retaining effective compiled-tag checks. The cache unit checks both command modes: changing only the effective build experiment leaves the getenv input hash unchanged; absent, empty and explicit values remain distinct, and the last duplicate wins. Plugin assertions stay unchanged; the host uses O1 and the arena experiment is explicitly supplied to both host and child.
+- Build: remove the six lines that injected and hashed `cfg.RawGOEXPERIMENT` for test processes. Keep `cfg.OrigEnv` lookup, including platform name matching and last-entry precedence. Test-binary build identity already accounts for compilation settings; its getenv input hash represents the environment the running test observes.
+- Gate: fresh `src/make.bash`; full `cmd/go/internal/test` normally and with race, plus vet; the unchanged cache script and corrected environment/plugin scripts under race; the three unchanged arena-off codegen fixtures under both `go test` and `logos test`; a mutation restoring canonicalization must fail the frozen inherited-environment controls. The complete upstream milestone gate remains separate.
+- Evidence: CI run `43903529332`, job `133426172718`, fails the unchanged cache script at line 14: it prints `GOEXPERIMENT present=true` where inherited absence requires false. `validation/test-experiments-contract/README.md` records the mistaken premise, immutable original inputs, decoded CI log and pending gates. The test/doc correction is committed before the production reversal. No local GREEN or mutation pass is claimed after the workspace became unavailable.
+- Red-team row: #337.
+- Docs: T-0.1 and SPEC 0.1 preserve the existing M18-S9 user-process contract.
+
+## M1. `?`, `defer f()?`, `errdefer`, error traces, eject
+
+Anchor: Tony Hoare, Christopher Alexander, Edsger W. Dijkstra
+
+Contract (FrameExit state machine in the review; normative text T-104.1, T-104.2, T-0.3):
+- C1 `?` operand: a call; its last result type is identical to `error`; the enclosing function (or function literal) has last result type identical to `error`.
+- C2 `?` positions: outermost operator of (a) the single right-hand side of `=` or `:=`, (b) an expression statement, (c) the call of `defer` or `errdefer`. A `?` in a for-statement post statement is misplaced. Anywhere else: `[correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer`.
+- C3 Result arity: `x := f()?` binds the call's results minus the error; zero remaining results are allowed only in an expression statement, a defer, or an errdefer.
+- C4 On error, every non-error result is its zero value; the returned error is the call's error value unchanged.
+- C5 `errdefer` is allowed only in functions whose last result is `error`; else `[correctness::errdefer_needs_error_result]`.
+- C6 Identifiers starting with `_logos_` or `Logos_` are rejected in `.lgo`: `[correctness::reserved_identifier]`.
+
+### M12-S3 Preserve rooted ancestry after inline discovery
+Anchor: Tony Hoare, John Carmack
+- Problem: the pinned purego FFI test binary hangs while linking in `capGraph.depth`. Relocation attribution can discover an inline owner before its incoming root path, so first-discovery parents can form a cycle. Later roots and shortcut edges also invalidate the claimed shortest paths.
+- Attack: frozen `src/cmd/link/internal/ld/capabilities_discovery_logos_test.go` checks rooted and disconnected cycles, unrooted incoming cycles, later shortcuts and roots, multiple roots, unknown parents, capacity growth, duplicate edges, walls, and exempt paths. A separate state-space oracle checks 1000 deterministic shuffled graphs after every discovered edge; the existing 3000 graph cases remain unchanged. Child processes bound a nonterminating parent walk.
+- Build: retain discovery ownership and the complete predecessor graph. Before reporting, derive an acyclic parent forest and depths by FIFO traversal from all roots over the completed graph. A parent has depth one less than its child. Rebuild after later discovery; omit unrooted predecessors from blame search. No sink, severity, exemption, or allowlist changes.
+- RED: latest-default source times out in four named cycle cases and the shuffled oracle, reports three nonminimal chains, and panics for an unknown parent. The unchanged prior candidate-one implementation passes all graph cases. This work retains that first attempt and does not reset G1's correction budget.
+- Gate: fresh `make.bash`, `go test -count=1 -short cmd/link/internal/ld`, `go vet cmd/link/internal/ld`, the existing `logos_cap_*` script controls, and the pinned purego FFI link/runtime replay. The rooted-predecessor guard mutation must fail the frozen discovery tests. Full upstream regression remains the milestone gate.
+- Red-team rows: #336.
+- Evidence: `logos-doc/validation/capability-discovery/README.md` distinguishes focused verification from the installed combined-tree gates.
+
+### M12-S4 Preserve external test package ownership
+Anchor: Tony Hoare, David Parnas
+- Problem: the repaired purego link reports its main-module external tests as third-party code. Conversely, a nested dependency's external test name can fall under the main module's prefix and lose its denial.
+- Attack: frozen `src/cmd/link/internal/ld/capabilities_testpkg_logos_test.go` carries 15 ownership cases covering exact provenance, main roots and subpackages, dependency roots, nested dependencies, workspace precedence, absent or wrong provenance, ordinary `_test` packages, longer suffixes, standard tests, command-line tests, and non-test binaries. `src/cmd/go/testdata/script/logos_cap_xtest_owner.txt` builds actual root tests and retains denials for nested dependency tests and ordinary suffixed dependencies, with plain-Go controls.
+- Build: derive an external test origin only when the linked package is a generated test main and its direct import has matching `ForTest`, `_test` import path, and `.test` main path. Hash the exact origin in the link action and pass it as one internal linker argument. The linker uses it only for that exact external package in a test binary, then applies its existing module ownership rule. Consume the already-emitted `nested_modules` policy field as well as build-info dependency rows, because the tested dependency is the test executable's build-info main module.
+- RED: four of 15 unit cases misclassify ownership. The native root test exits 1 with false capability denials; the nested-dependency test incorrectly exits 0. Candidate one fixes the root but still allows the nested dependency. Candidate two consumes the policy's nested-module inventory; frozen attacks stay unchanged.
+- Gate: fresh `make.bash`; affected linker and cmd/go/work unit and vet checks; the new script and existing capability scripts under race; actual purego FFI replay. Broadening exact origin matching to a prefix must fail the frozen boundary controls. Full upstream regression remains the milestone gate.
+- Red-team rows: #338.
+- Evidence: `logos-doc/validation/test-package-ownership/README.md` records both implementation attempts and the installed-gate status.
+
+### M14-A-S4 Supply safe bindings for transitive SIMD rewrites
+Anchor: Tony Hoare
+- Attack: unchanged real SIMD producer plus ordinary consumers, aliased/dot/blank imports, namespace shadows, type-only wrappers, and explicit internal-import denial. Work tests pin supported targets, experiment boundaries, unavailable archives, and cache content identity; rewriter tests recheck generated ASTs and forbid new import-retention calls.
+- Build: expose only already-built transitive SIMD support archives through the existing synthetic-import/action-hash mechanism. Every rewritten file gets compiler-only import qualifiers; source import usage and the special simd-package path remain explicit.
+- Gate: 37 frozen named tests and both archived-source semantic negatives; unchanged real tagged-method compiler witness; fresh installed toolchain and upstream regression floor. Hosted proof pending; no local Go execution.
+- Red-team rows: #443; evidence in `validation/simd-transitive-imports`.
+- Docs: compiler/tooling repair only; no language or capability-policy change.
+
+## M15. Backend peepholes and long-loop preemption
+
+Anchor: John Carmack, Richard Feynman
+
+Notes (m15): loads into the base register itself are not paired; 8-aligned but not 16-aligned 16-byte accesses stay two loads.
+
+### M5-A-S4 Classify empty arrays by their stored references
+Anchor: Tony Hoare, Richard Feynman
+- Contract: an array with exactly zero elements is reference-free regardless of its element type. Every other array keeps the recursive element proof. Pointers, slices, maps, channels, functions, interfaces and live reference-bearing siblings keep their existing obligations; receiver effects remain separate from explicit parameter masks.
+- Attack: `src/cmd/compile/internal/types2/referencefree_zero_array_logos_test.go` pins seven reference kinds at lengths -1, 0, 1 and 2, nested and named storage, aliases, options and generic type sets. `src/cmd/compile/internal/logos/constfacts_zero_array_test.go` pins ordinary Go checking, mutation emission and codec round trip for 14 records, including a conservative unknown receiver call with a zero explicit-parameter mask. The two files have 71 leaf cases and 82 named tests.
+- Observed RED: exact native head 9909feb2, run 43951103189, reports `ParamMutated=1` for all twelve real SIMD method records that require zero. The independent receiver flags remain true/true/false. The simultaneous implicit SIMD consumer-import failure is a separate slice. The unchanged real SIMD source and assertions, earlier generic/const controls, old predicate and raw failure events are pinned in `validation/zero-array-reference-free/FROZEN.sha256`.
+- Build: `types2.logosReferenceFreeAlong` short-circuits only `Array.Len()==0`; positive and unknown lengths retain element recursion. No receiver, writer, codec, SIMD source or existing assertion changes.
+- Gate: a fresh `./make.bash`; focused types2 and Go-mutation tests; the complete real tagged-method integration gate after the independent implicit-import repair; unchanged `TestEmitGoParamMutatedFacts`, `TestLogos`, compiler fixtures, affected-package vet, and `./run.bash --no-rebuild`. Exact old-predicate overlays must reject the function/zero classification and ReturnZero mutation cases for their expected diagnostics, then clean positives must pass again. See `validation/zero-array-reference-free/README.md` for exact commands and identities.
+- Status: first production candidate, source-reviewed only. No local Go execution. Focused RED, installed GREEN, mutation probe and G2 gates remain pending hosted execution; the observed real-SIMD failure is not relabelled as a successful gate.
+- Red-team row: #442.
+- Docs: SPEC 2.1 and Table T-201 define empty storage separately from its element type.
+
+## M6. Sugar: interpolation, `&expr`, defaults, spread, tuples, lambdas, chains, `yield`, `scope defer`
+
+Anchor: Italo Calvino, Edsger W. Dijkstra, Otl Aicher
+
+### M9-A-S19 Preserve relative field offsets in arena lint
+Anchor: Tony Hoare
+- Attack: frozen `rule_field_offset_test.go` covers 44 Go/loGo/s rule cases and four installed compiler cases; the original Protobuf v1.36.12 diagnostics at presence.go:110 and :137 prove the real-source precision failure. Original escape fixtures remain unchanged.
+- Build: recognize only immediate typed direct-field address subtraction on one checker variable of struct-value type. Retain all other arithmetic propagation and existing severity policy.
+- Gate: archived old-rule overlay must fail the exact Protobuf delta subtest; all 50 named candidate tests must execute and pass. Fresh installed lint must remove exactly those two pinned Protobuf findings. Hosted gates pending; no local Go execution.
+- Red-team rows: #441; evidence in `validation/field-offset-lint`.
+- Docs: SPEC 1.2 already forbids retaining a frame address; a relative offset retains none. No language or severity change.
+
+## M10. `logos next` and `logos context`
+
+Anchor: Christopher Alexander, Kenya Hara
+
+Notes (m10): a module with a nonstandard outside dependency needs that dependency present through the existing `replace`; `logos next` does not fetch it.

@@ -1,0 +1,26 @@
+{
+  "head": "9909feb26fe92b124f17c11fdf0022be7a643188",
+  "sha256": {
+    "bin/go": "88da8bd9d078e7a9c71973f5ea6e937fa5720670b349088321fe9c2821b2c905",
+    "bin/logos": "88da8bd9d078e7a9c71973f5ea6e937fa5720670b349088321fe9c2821b2c905",
+    "logos-doc/validation/tagged-method-facts/README.md": "a7d0930f18a490c611c2af1d4e4755bf80e4bf46e6a2eb3e7bb96c4ede198590",
+    "logos-doc/validation/tagged-method-facts/check_ci.py": "16f53011d3df5eb02720803a99428867decaa070c8b3ee3ebd6f0e0e4feaa199",
+    "logos-doc/validation/tagged-method-facts/frozen.json": "679b1704bbd94ee292a8312cbacf315e55bbe41ac876b920bb3e549b5d17d9d3",
+    "logos-doc/validation/tagged-method-facts/old-facts.go.txt": "614425cdeb7a9f353d273008959616b332595a15391a3202fe7baa95c9afd29a",
+    "logos-doc/validation/tagged-method-facts/old-optfacts.go.txt": "66210d97849f205cb677a60abf2de01d7dc9aea2142f6d2aebfaa1a57fb3b7cd",
+    "pkg/tool/linux_amd64/compile": "0d4d73bf90c0db65971ad63c7dd6b3518a6b3a062d9f4d6735d652bc3efde9f4",
+    "pkg/tool/linux_amd64/link": "5175844b844d061ab94197916f4963803e1d369fc7b52baea86d06c602cefbfa",
+    "src/cmd/compile/internal/logos/compile_method_tagged_facts_test.go": "16ac4b0eb928d29b23dfe12d7bb11311db4c8b6f7bdf4d6e805983c59366cf5c",
+    "src/cmd/compile/internal/logos/compile_tagged_facts_test.go": "f3b308710d0f57ed15a2ef94d53750944c14ae9b10bafc788d8a1b26361ecbd8",
+    "src/cmd/compile/internal/logos/facts/facts.go": "3ded6fae47766d39d8403ba913ec7e3a1e0faafb39ecaf7a982ab02ec4b88f51",
+    "src/cmd/compile/internal/logos/facts/methodobject_tagged_test.go": "09bcc42e0d8414e68bad014f3c599c8578d492108cbe02852254c5d3af4628d5",
+    "src/cmd/compile/internal/logos/optfacts.go": "6dcbe4272d7520dc8ef4e136c6d7ee63cb197500c69fdf96e5df4fc900925a5a",
+    "src/cmd/compile/internal/logos/optfacts_method_tagged_test.go": "af6fe615bab4731cf0c1edfb4ed08483d8500c89a73184e7109552ea4badc494",
+    "src/cmd/compile/internal/logos/optfacts_scope_test.go": "0899e0c6da711b269e4a586ce96e2f9daaa90ccf211541664c30e9977add3317",
+    "src/cmd/compile/internal/logos/optfacts_tagged_test.go": "cecb8d8738e9c80777700da61c4cbec395cbe9e034d550679101d510f10b6ead",
+    "src/simd/testdata/iface/iface.go": "00adc9cf8b53e4e78ef162d7675b847b11f688b0cdab9ce18739b9a79a5571dd"
+  },
+  "source_tree": "df267333b1d5c5727e2477215a6807cae52f8e18",
+  "tracked_status": "",
+  "tree": "59be5e6916c8b2b173a19f5f6a55e544ba81af80"
+}
