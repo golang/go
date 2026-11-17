@@ -1,6 +1,6 @@
 !sum
 - go: DotProductPairs
-  commutative: false
+  commutative: true
   documentation: !string |-
     // NAME multiplies the elements and add the pairs together,
     // yielding a vector of half as many elements with twice the input element size.

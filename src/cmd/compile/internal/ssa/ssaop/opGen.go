@@ -33768,6 +33768,7 @@ var OpcodeTable = [...]OpInfo{
 	{
 		Name:         "VPMADDWD128",
 		ArgLen:       2,
+		Commutative:  true,
 		ZeroUpperVec: true,
 		asm:          x86.AVPMADDWD,
 		Reg: RegInfo{
@@ -33783,6 +33784,7 @@ var OpcodeTable = [...]OpInfo{
 	{
 		Name:         "VPMADDWD256",
 		ArgLen:       2,
+		Commutative:  true,
 		ZeroUpperVec: true,
 		asm:          x86.AVPMADDWD,
 		Reg: RegInfo{
@@ -33798,6 +33800,7 @@ var OpcodeTable = [...]OpInfo{
 	{
 		Name:         "VPMADDWD512",
 		ArgLen:       2,
+		Commutative:  true,
 		ZeroUpperVec: true,
 		asm:          x86.AVPMADDWD,
 		Reg: RegInfo{
@@ -33813,6 +33816,7 @@ var OpcodeTable = [...]OpInfo{
 	{
 		Name:         "VPMADDWDMasked128",
 		ArgLen:       3,
+		Commutative:  true,
 		ZeroUpperVec: true,
 		asm:          x86.AVPMADDWD,
 		Reg: RegInfo{
@@ -33829,6 +33833,7 @@ var OpcodeTable = [...]OpInfo{
 	{
 		Name:         "VPMADDWDMasked256",
 		ArgLen:       3,
+		Commutative:  true,
 		ZeroUpperVec: true,
 		asm:          x86.AVPMADDWD,
 		Reg: RegInfo{
@@ -33845,6 +33850,7 @@ var OpcodeTable = [...]OpInfo{
 	{
 		Name:         "VPMADDWDMasked512",
 		ArgLen:       3,
+		Commutative:  true,
 		ZeroUpperVec: true,
 		asm:          x86.AVPMADDWD,
 		Reg: RegInfo{
@@ -122942,19 +122948,22 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
-		Name:    "DotProductPairsInt16x16",
-		ArgLen:  2,
-		Generic: true,
+		Name:        "DotProductPairsInt16x16",
+		ArgLen:      2,
+		Commutative: true,
+		Generic:     true,
 	},
 	{
-		Name:    "DotProductPairsInt16x32",
-		ArgLen:  2,
-		Generic: true,
+		Name:        "DotProductPairsInt16x32",
+		ArgLen:      2,
+		Commutative: true,
+		Generic:     true,
 	},
 	{
-		Name:    "DotProductPairsInt16x8",
-		ArgLen:  2,
-		Generic: true,
+		Name:        "DotProductPairsInt16x8",
+		ArgLen:      2,
+		Commutative: true,
+		Generic:     true,
 	},
 	{
 		Name:    "DotProductPairsSaturatedUint8x16",
