@@ -43,12 +43,14 @@ identity() {
   : "${TESTED_REVISION:?}"
   [[ $TESTED_REVISION =~ ^[0-9a-f]{40}$ ]]
   clean_tip
-  local head tree src_tree requested fingerprint
+  local head tree src_tree fingerprint
   head=$(git rev-parse HEAD)
   tree=$(git rev-parse 'HEAD^{tree}')
   src_tree=$(git rev-parse HEAD:src)
-  requested=$(jq -er '.src_tree' logos-doc/validation/release-acceptance-request.json)
-  test "$src_tree" = "$requested"
+  # The request file pins the frozen test inputs, never the source tree:
+  # TESTED_REVISION + the clean checkout already bind this run to the exact
+  # commit, so a committed src_tree pin would only churn merge conflicts.
+  jq -e 'has("src_tree") | not' logos-doc/validation/release-acceptance-request.json
   jq -er '.frozen_inputs | to_entries[] | "\(.value)  \(.key)"' \
     logos-doc/validation/release-acceptance-request.json > "$evidence/frozen-inputs.sha256"
   sha256sum --check --strict "$evidence/frozen-inputs.sha256"

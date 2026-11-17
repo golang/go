@@ -131,7 +131,7 @@ GO_TEST_TIMEOUT_SCALE=8 ./run.bash --no-rebuild
 The source/ejection scripts use the repository's pinned upstream 1.27.2,
 1.27.3, and 1.27.4 toolchains as independent oracles. Changed Go files must
 also pass `gofmt`. In the combined stabilization candidate,
-`simd-host-gates.yml` runs both independent source-dominance fixtures,
+the `simd-host` leg of `feature-gates.yml` runs both independent source-dominance fixtures,
 the complete SSA short suite, and the native/ejected controls.
 The normal `logos.yml` workflow owns the full upstream regression job with
 the same timeout scale. Queued or incomplete CI is not a pass and does not

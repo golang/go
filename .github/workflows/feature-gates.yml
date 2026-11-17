@@ -1,0 +1,71 @@
+name: "Feature gates"
+
+"on":
+  pull_request:
+    paths:
+      - ".github/scripts/install-ci-tool.sh"
+      - ".github/scripts/install-upstream-oracles.sh"
+      - ".github/scripts/gate-changes.sh"
+      - ".github/scripts/feature-gate.sh"
+      - ".github/workflows/feature-gates.yml"
+      - "src/cmd/compile/internal/logos/**"
+      - "src/cmd/compile/internal/syntax/**"
+      - "src/cmd/compile/internal/types2/**"
+      - "src/cmd/compile/internal/ssa/**"
+      - "src/cmd/go/scriptconds_test.go"
+      - "src/cmd/go/scriptconds_simd_logos_test.go"
+      - "src/cmd/go/internal/logos/config/targetcpu*"
+      - "src/logos/rt/json/**"
+      - "src/cmd/go/testdata/script/logos_*.txt"
+      - "test/logos/run/**"
+  workflow_dispatch:
+
+permissions:
+  contents: "read"
+
+concurrency:
+  group: "feature-gates-${{ github.ref }}"
+  cancel-in-progress: true
+
+env:
+  GOMAXPROCS: "4"
+  GOFLAGS: "-p=2"
+  GOMEMLIMIT: "2GiB"
+
+jobs:
+  changes:
+    name: "Route changed files to gates"
+    runs-on: "ubuntu-24.04"
+    timeout-minutes: 10
+    outputs:
+      gates: "${{ steps.gates.outputs.gates }}"
+    steps:
+      - name: "Check out the tested revision"
+        uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" # v7.0.1
+      - name: "Classify the diff into gates"
+        id: "gates"
+        env:
+          BASE_SHA: "${{ github.event.pull_request.base.sha || '' }}"
+        run: |
+          set -o pipefail
+          gates=$(bash .github/scripts/gate-changes.sh "$BASE_SHA" | sort -u)
+          printf 'triggered gates: %s\n' "$gates"
+          printf 'gates=%s\n' "$(jq -Rn -c '[inputs | select(length > 0)]' <<< "$gates")" >> "$GITHUB_OUTPUT"
+
+  gate:
+    name: "${{ matrix.gate }}"
+    needs: "changes"
+    if: "needs.changes.outputs.gates != '[]'"
+    runs-on: "ubuntu-24.04"
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        gate: "${{ fromJSON(needs.changes.outputs.gates) }}"
+    steps:
+      - name: "Check out the tested revision"
+        uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" # v7.0.1
+      - name: "Build the toolchain and run the gate"
+        env:
+          RUNNER_TEMP: "${{ runner.temp }}"
+        run: bash .github/scripts/feature-gate.sh "${{ matrix.gate }}"

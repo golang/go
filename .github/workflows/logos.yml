@@ -174,35 +174,7 @@ jobs:
       - name: "Verify regression evidence checkers"
         if: "matrix.suite == 'unit'"
         working-directory: "."
-        run: |
-          helper=logos-doc/validation/tagged-package-facts
-          method=logos-doc/validation/tagged-method-facts
-          capability=logos-doc/validation/capability-inline-context
-          host=logos-doc/validation/upstream-host
-          offset=logos-doc/validation/field-offset-lint
-          simd_imports=logos-doc/validation/simd-transitive-imports
-          zero=logos-doc/validation/zero-array-reference-free
-          for suite in "$helper" "$method"; do
-            uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" python -m pytest -q "$suite/test_check_ci.py"
-            uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" pyright "$suite/check_ci.py" "$suite/test_check_ci.py"
-          done
-          uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" python -m pytest -q "$capability/test_check_ci.py"
-          uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" pyright "$capability/test_check_ci.py"
-          uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" python -m pytest -q "$host"
-          uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" pyright "$host"/*.py
-          uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" python -m pytest -q "$offset/test_field_offset_ci.py" logos-doc/validation/test_native_frozen_gate.py
-          uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" pyright --project "$offset/pyrightconfig.json"
-          uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" python -m pytest -q "$simd_imports/test_simd_imports_ci.py"
-          uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" pyright --project "$simd_imports/pyrightconfig.json"
-          uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" python -m pytest -q "$zero/test_zero_array_ci.py"
-          uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" pyright --project "$zero/pyrightconfig.json"
-          uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" ruff check "$simd_imports"/*.py
-          uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" ruff format --check "$simd_imports"/*.py
-          uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" ruff check "$helper/check_ci.py" "$helper/test_check_ci.py" "$method/check_ci.py" "$method/test_check_ci.py" "$capability/test_check_ci.py" "$host"/*.py "$zero"/*.py
-          uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" ruff format --check "$helper/check_ci.py" "$helper/test_check_ci.py" "$method/check_ci.py" "$method/test_check_ci.py" "$capability/test_check_ci.py" "$host"/*.py "$zero"/*.py
-          uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" ruff check "$offset"/*.py logos-doc/validation/native_frozen_gate.py logos-doc/validation/test_native_frozen_gate.py
-          uv run --no-project --no-config --python 3.12 --no-python-downloads --with-requirements "$helper/test-requirements.txt" ruff format --check "$offset"/*.py logos-doc/validation/native_frozen_gate.py logos-doc/validation/test_native_frozen_gate.py
-          shellcheck "$capability/check_ci.sh" .github/scripts/logos-test-env.sh .github/scripts/logos-upstream-identity.sh
+        run: bash .github/scripts/verify-evidence-checkers.sh
       - name: "Require every Wasm runtime control to execute"
         if: "${{ !cancelled() && steps.smoke.outcome == 'success' && matrix.suite == 'unit' }}"
         working-directory: "."
