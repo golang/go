@@ -230,10 +230,10 @@ func (r *Rewriter) generateDispatchers(fileAST *syntax.File) {
 			}
 
 			// Clean signature -> Replace body with dispatcher.
-			// For methods, ensure the receiver has a name so the dispatcher
+			// For methods, ensure the receiver has a usable name so the dispatcher
 			// can forward the call to the specialized method on the receiver.
-			if d.Recv != nil && d.Recv.Name == nil {
-				d.Recv.Name = syntax.NewName(d.Recv.Pos(), "_simdRecv")
+			if d.Recv != nil && (d.Recv.Name == nil || d.Recv.Name.Value == "_") {
+				d.Recv.Name = syntax.NewName(d.Recv.Pos(), "recv@")
 			}
 			d.Body = r.createDispatcherBody(d, sig)
 			newDecls = append(newDecls, d)

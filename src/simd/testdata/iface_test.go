@@ -276,6 +276,41 @@ func TestGenericTypeDependence(t *testing.T) {
 	}
 }
 
+// TestCleanDispatchersAndDeepCopy validates clean-signature dispatcher
+// generation and AST deep-copying for functions/methods whose signatures do not
+// mention SIMD but whose bodies do:
+//   - Methods on non-SIMD receiver PlainRecv with unnamed, blank ("_"), and
+//     named receivers, verifying unnamed and blank receivers receive synthetic
+//     names so dispatchers can forward calls to specialized methods.
+//   - CleanBlankParam, verifying blank ("_") parameters in clean-signature
+//     functions are named in the dispatcher so arguments forward properly.
+//   - DeepCopyStmts, verifying midway's DeepCopier handles diverse statement
+//     forms (map literal, channel send/recv, defer, select with default, labeled
+//     empty statement, goto, for-range, mixed ":=", and if/for init statements).
+func TestCleanDispatchersAndDeepCopy(t *testing.T) {
+	n8 := (simd.Int8s{}).Len()
+
+	pr := iface.PlainRecv{Base: 10}
+	if got := pr.UnnamedRecvSimd(); got != n8 {
+		t.Errorf("expected pr.UnnamedRecvSimd() == %d, got %d", n8, got)
+	}
+	if got := pr.BlankRecvSimd(); got != n8 {
+		t.Errorf("expected pr.BlankRecvSimd() == %d, got %d", n8, got)
+	}
+	if got := pr.BlankRecvSimdParam(7); got != 7+n8 {
+		t.Errorf("expected pr.BlankRecvSimdParam(7) == %d, got %d", 7+n8, got)
+	}
+	if got := pr.NamedRecvSimd(); got != 10+n8 {
+		t.Errorf("expected pr.NamedRecvSimd() == %d, got %d", 10+n8, got)
+	}
+	if got := iface.CleanBlankParam(999, 5); got != 5+n8 {
+		t.Errorf("expected CleanBlankParam(999, 5) == %d, got %d", 5+n8, got)
+	}
+	if got := iface.DeepCopyStmts(1); got != 3+2*n8 {
+		t.Errorf("expected DeepCopyStmts(1) == %d, got %d", 3+2*n8, got)
+	}
+}
+
 // Compile-time regression test: multiple blank package-level SIMD type and
 // function declarations must not be suffixed or collide during specialization.
 type _ = simd.Int8s

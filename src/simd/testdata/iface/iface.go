@@ -117,6 +117,65 @@ func (q *QAlias) QuxAlias(v VectorC) HasFoo[VectorC] {
 	return v
 }
 
+// Clean-signature methods on a non-SIMD receiver exercising unnamed,
+// blank ("_"), and named receiver forwarding in dispatchers.
+type PlainRecv struct {
+	Base int
+}
+
+func (PlainRecv) UnnamedRecvSimd() int {
+	return Generic[MyInt8s](0)
+}
+
+func (_ PlainRecv) BlankRecvSimd() int {
+	return Generic[MyInt8s](0)
+}
+
+func (_ PlainRecv) BlankRecvSimdParam(_simdRecv int) int {
+	return _simdRecv + Generic[MyInt8s](0)
+}
+
+func (p PlainRecv) NamedRecvSimd() int {
+	return p.Base + Generic[MyInt8s](0)
+}
+
+// Clean-signature function with a blank ("_") parameter forwarded by its dispatcher.
+func CleanBlankParam(_ int, x int) int {
+	return x + Generic[MyInt8s](0)
+}
+
+// Clean-signature SIMD function exercising diverse Go statement forms in
+// midway's AST DeepCopier.
+func DeepCopyStmts(x int) int {
+	v := simd.BroadcastInt8s(int8(x))
+	m := map[int]int{0: v.Len()}
+	ch := make(chan int, 2)
+	defer func() {}()
+	ch <- m[0]
+	select {
+	case got := <-ch:
+		x += got
+	default:
+	}
+EmptyLabel:
+	;
+	if false {
+		goto EmptyLabel
+	}
+	arr := [2]int{1, 2}
+	var idx int
+	for idx = range arr {
+		x += idx
+	}
+	x, newVar := x+1, v.Len()
+	x += newVar
+	if noop := func() {}; true {
+		for noop(); false; noop() {
+		}
+	}
+	return x
+}
+
 // Zero-sized generic struct whose SIMD dependence comes solely from its
 // type argument.
 type Phantom[T haslen] struct{}
