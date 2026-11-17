@@ -6,7 +6,17 @@
 
 package cgo
 
-import _ "unsafe" // for go:linkname
+import "unsafe"
+
+// Calls a libc function to execute background work injected via libc
+// interceptors, such as processing pending signals under the thread
+// sanitizer.
+//
+// Left as a nil pointer if no libc interceptors are expected.
+
+//go:cgo_import_static _cgo_yield
+//go:linkname _cgo_yield _cgo_yield
+var _cgo_yield unsafe.Pointer
 
 // Indicates whether a dummy thread key has been created or not.
 //

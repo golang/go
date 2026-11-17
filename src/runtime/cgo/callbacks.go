@@ -4,7 +4,7 @@
 
 package cgo
 
-import "unsafe"
+import _ "unsafe" // for go:linkname
 
 // These utility functions are available to be called from code
 // compiled with gcc via crosscall2.
@@ -53,16 +53,6 @@ func set_crosscall2()
 
 //go:linkname _set_crosscall2 runtime.set_crosscall2
 var _set_crosscall2 = set_crosscall2
-
-// Calls a libc function to execute background work injected via libc
-// interceptors, such as processing pending signals under the thread
-// sanitizer.
-//
-// Left as a nil pointer if no libc interceptors are expected.
-
-//go:cgo_import_static _cgo_yield
-//go:linkname _cgo_yield _cgo_yield
-var _cgo_yield unsafe.Pointer
 
 //go:cgo_export_static _cgo_topofstack
 //go:cgo_export_dynamic _cgo_topofstack

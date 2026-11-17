@@ -1701,9 +1701,11 @@ func TestLinkSysoFiles(t *testing.T) {
 	tg.run("list", "-f", "{{.SysoFiles}}", "syso")
 	tg.grepStdout("a.syso", "missing syso file with CGO_ENABLED=0")
 
-	tg.setenv("CGO_ENABLED", "1")
-	tg.run("list", "-msan", "-f", "{{.SysoFiles}}", "syso")
-	tg.grepStdoutNot("a.syso", "unexpected syso file with -msan")
+	if !goexperiment.CgoBindings {
+		tg.setenv("CGO_ENABLED", "1")
+		tg.run("list", "-msan", "-f", "{{.SysoFiles}}", "syso")
+		tg.grepStdoutNot("a.syso", "unexpected syso file with -msan")
+	}
 }
 
 // Issue 16120.

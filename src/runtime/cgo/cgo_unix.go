@@ -35,15 +35,6 @@ var x_crosscall2_ptr uintptr
 //go:linkname _crosscall2_ptr _crosscall2_ptr
 var _crosscall2_ptr = &x_crosscall2_ptr
 
-//go:linkname _cgo_tsan_acquire_fn _cgo_tsan_acquire_fn
-var _cgo_tsan_acquire_fn uintptr
-
-//go:linkname _cgo_tsan_release_fn _cgo_tsan_release_fn
-var _cgo_tsan_release_fn uintptr
-
-//go:linkname _cgo_msan_unpoison_fn _cgo_msan_unpoison_fn
-var _cgo_msan_unpoison_fn uintptr
-
 //go:linkname _libc_setenv libc_setenv
 var _libc_setenv byte
 var libc_setenv = unsafe.Pointer(&_libc_setenv)
@@ -175,63 +166,31 @@ func cgocall(fn, a0, a1, a2, a3, a4, a5 uintptr) uintptr {
 
 //go:nosplit
 //go:norace
-func tsanAcquire() {
-	if fn := _cgo_tsan_acquire_fn; fn != 0 {
-		runtime_asmcgocall(*(*unsafe.Pointer)(unsafe.Pointer(&fn)), nil)
-	}
-}
+func tsanAcquire() {}
 
 //go:nosplit
 //go:norace
-func tsanAcquireNoG() {
-	if fn := _cgo_tsan_acquire_fn; fn != 0 {
-		runtime_asmcgocall_no_g(*(*unsafe.Pointer)(unsafe.Pointer(&fn)), nil)
-	}
-}
+func tsanAcquireNoG() {}
 
 //go:nosplit
 //go:norace
-func tsanRelease() {
-	if fn := _cgo_tsan_release_fn; fn != 0 {
-		runtime_asmcgocall(*(*unsafe.Pointer)(unsafe.Pointer(&fn)), nil)
-	}
-}
+func tsanRelease() {}
 
 //go:nosplit
 //go:norace
-func tsanReleaseNoG() {
-	if fn := _cgo_tsan_release_fn; fn != 0 {
-		runtime_asmcgocall_no_g(*(*unsafe.Pointer)(unsafe.Pointer(&fn)), nil)
-	}
-}
+func tsanReleaseNoG() {}
 
 //go:nosplit
 //go:norace
-func msanUnpoison(addr unsafe.Pointer, size uintptr) {
-	if _cgo_msan_unpoison_fn != 0 {
-		asmcgocall(_cgo_msan_unpoison_fn, uintptr(addr), size, 0, 0, 0, 0)
-	}
-}
+func msanUnpoison(addr unsafe.Pointer, size uintptr) {}
 
 //go:nosplit
 //go:norace
-func msanUnpoisonNoG(addr unsafe.Pointer, size uintptr) {
-	if _cgo_msan_unpoison_fn != 0 {
-		asmcgocallNoG(_cgo_msan_unpoison_fn, uintptr(addr), size, 0, 0, 0, 0)
-	}
-}
+func msanUnpoisonNoG(addr unsafe.Pointer, size uintptr) {}
 
 //go:nosplit
 //go:norace
-func msanUnpoisonMode(noG bool, addr unsafe.Pointer, size uintptr) {
-	if _cgo_msan_unpoison_fn != 0 {
-		if noG {
-			asmcgocallNoG(_cgo_msan_unpoison_fn, uintptr(addr), size, 0, 0, 0, 0)
-		} else {
-			asmcgocall(_cgo_msan_unpoison_fn, uintptr(addr), size, 0, 0, 0, 0)
-		}
-	}
-}
+func msanUnpoisonMode(noG bool, addr unsafe.Pointer, size uintptr) {}
 
 //go:linknamestd runtime_setg runtime.setg
 func runtime_setg(gg uintptr)
