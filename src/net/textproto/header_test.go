@@ -18,6 +18,18 @@ var canonicalHeaderKeyTests = []canonicalHeaderKeyTest{
 	{"user-agent", "User-Agent"},
 	{"USER-AGENT", "User-Agent"},
 
+	// Longer than 64 bytes
+	{
+		"X-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx", // canonical
+		"X-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx",
+	}, {
+		"X-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-xxx", // almost canonical
+		"X-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx",
+	}, {
+		"X-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-XxX", // almost canonical
+		"X-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx-Xxx",
+	},
+
 	// Other valid tchar bytes in tokens:
 	{"foo-bar_baz", "Foo-Bar_baz"},
 	{"foo-bar$baz", "Foo-Bar$baz"},
@@ -38,6 +50,17 @@ func TestCanonicalMIMEHeaderKey(t *testing.T) {
 		if s := CanonicalMIMEHeaderKey(tt.in); s != tt.out {
 			t.Errorf("CanonicalMIMEHeaderKey(%q) = %q, want %q", tt.in, s, tt.out)
 		}
+	}
+}
+
+func BenchmarkCanonicalMIMEHeaderKey(b *testing.B) {
+	for _, tt := range canonicalHeaderKeyTests {
+		b.Run(tt.in, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				CanonicalMIMEHeaderKey(tt.in)
+			}
+		})
 	}
 }
 
