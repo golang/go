@@ -780,6 +780,106 @@ func TestEscape(t *testing.T) {
 			"<meta http-equiv=\"refresh\" content=\"0;url \t= {{\"javascript:alert(1)\"}}\">",
 			"<meta http-equiv=\"refresh\" content=\"0;url \t= #ZgotmplZ\">",
 		},
+		{
+			"meta content implicit url after semicolon",
+			`<meta http-equiv="refresh" content="0; {{"javascript:alert(1)"}}">`,
+			`<meta http-equiv="refresh" content="0; #ZgotmplZ">`,
+		},
+		{
+			"meta content implicit url after comma",
+			`<meta http-equiv="refresh" content="0,{{"javascript:alert(1)"}}">`,
+			`<meta http-equiv="refresh" content="0,#ZgotmplZ">`,
+		},
+		{
+			"meta content implicit url after whitespace",
+			`<meta http-equiv="refresh" content="5 {{"javascript:alert(1)"}}">`,
+			`<meta http-equiv="refresh" content="5 #ZgotmplZ">`,
+		},
+		{
+			"meta content implicit url in quotes after fractional delay",
+			`<meta http-equiv="refresh" content=" 1.5 ; '{{"javascript:alert(1)"}}'">`,
+			`<meta http-equiv="refresh" content=" 1.5 ; '#ZgotmplZ'">`,
+		},
+		{
+			"meta content implicit url unquoted attribute",
+			`<meta http-equiv=refresh content=0;{{"javascript:alert(1)"}}>`,
+			`<meta http-equiv=refresh content=0;#ZgotmplZ>`,
+		},
+		{
+			"meta content implicit url allowed scheme",
+			`<meta http-equiv="refresh" content="0; {{"https://example.com/next"}}">`,
+			`<meta http-equiv="refresh" content="0; https://example.com/next">`,
+		},
+		{
+			"meta content implicit url after a branch",
+			`<meta http-equiv="refresh" content="{{if true}}0; {{end}}{{"javascript:alert(1)"}}">`,
+			`<meta http-equiv="refresh" content="0; #ZgotmplZ">`,
+		},
+		{
+			"meta content text after a delay is not a url",
+			`<meta name="description" content="10 tips: {{"a: b"}}">`,
+			`<meta name="description" content="10 tips: a: b">`,
+		},
+		{
+			"meta content text in a branch is not a url",
+			`<meta name="description" content="{{if true}}Hello {{end}}{{"a: b"}}">`,
+			`<meta name="description" content="Hello a: b">`,
+		},
+		{
+			"meta name content after a delay is not a url",
+			`<meta name="description" content="10 {{"Go: tips"}}">`,
+			`<meta name="description" content="10 Go: tips">`,
+		},
+		{
+			"meta property content after a delay is not a url",
+			`<meta property="og:description" content="0; {{"Go: tips"}}">`,
+			`<meta property="og:description" content="0; Go: tips">`,
+		},
+		{
+			"meta itemprop content after a delay is not a url",
+			`<meta itemprop="description" content="0,{{"Go: tips"}}">`,
+			`<meta itemprop="description" content="0,Go: tips">`,
+		},
+		{
+			"meta http-equiv other than refresh content after a delay is not a url",
+			`<meta http-equiv="content-language" content="0 {{"Go: tips"}}">`,
+			`<meta http-equiv="content-language" content="0 Go: tips">`,
+		},
+		{
+			"meta name content url still filtered",
+			`<meta name="description" content="url={{"Go: tips"}}">`,
+			`<meta name="description" content="url=#ZgotmplZ">`,
+		},
+		{
+			"meta content implicit url before http-equiv",
+			`<meta content="0; {{"javascript:alert(1)"}}" http-equiv="refresh">`,
+			`<meta content="0; #ZgotmplZ" http-equiv="refresh">`,
+		},
+		{
+			"meta content implicit url with refresh before name",
+			`<meta http-equiv="Refresh" name="x" content="0 {{"javascript:alert(1)"}}">`,
+			`<meta http-equiv="Refresh" name="x" content="0 #ZgotmplZ">`,
+		},
+		{
+			"meta content implicit url with refresh after name",
+			`<meta name="x" http-equiv="refresh" content="0,{{"javascript:alert(1)"}}">`,
+			`<meta name="x" http-equiv="refresh" content="0,#ZgotmplZ">`,
+		},
+		{
+			"meta content implicit url with encoded refresh",
+			`<meta http-equiv="&#114;efresh" content="0; {{"javascript:alert(1)"}}">`,
+			`<meta http-equiv="&#114;efresh" content="0; #ZgotmplZ">`,
+		},
+		{
+			"meta content implicit url with dynamic http-equiv",
+			`<meta http-equiv="{{"refresh"}}" content="0; {{"javascript:alert(1)"}}">`,
+			`<meta http-equiv="refresh" content="0; #ZgotmplZ">`,
+		},
+		{
+			"meta content implicit url with branch in http-equiv",
+			`<meta http-equiv="ref{{if true}}resh{{end}}" content="0; {{"javascript:alert(1)"}}">`,
+			`<meta http-equiv="refresh" content="0; #ZgotmplZ">`,
+		},
 	}
 
 	for _, test := range tests {
@@ -1363,6 +1463,54 @@ func TestEscapeText(t *testing.T) {
 		{
 			`<a href= "`,
 			context{state: stateURL, delim: delimDoubleQuote, attr: attrURL},
+		},
+		{
+			`<meta content="`,
+			context{state: stateMetaContentDelay, delim: delimDoubleQuote, attr: attrMetaContent, element: elementMeta},
+		},
+		{
+			`<meta content="0; `,
+			context{state: stateMetaContentURL, delim: delimDoubleQuote, attr: attrMetaContent, element: elementMeta},
+		},
+		{
+			`<meta content="0,'`,
+			context{state: stateMetaContentURL, delim: delimDoubleQuote, attr: attrMetaContent, element: elementMeta},
+		},
+		{
+			`<meta content="0; https://example.com/`,
+			context{state: stateMetaContent, delim: delimDoubleQuote, attr: attrMetaContent, element: elementMeta},
+		},
+		{
+			`<meta content="width=device-width, `,
+			context{state: stateMetaContent, delim: delimDoubleQuote, attr: attrMetaContent, element: elementMeta},
+		},
+		{
+			`<meta name="description" `,
+			context{state: stateTag, element: elementMetaNoRefresh},
+		},
+		{
+			`<meta http-equiv="content-language" `,
+			context{state: stateTag, element: elementMetaNoRefresh},
+		},
+		{
+			`<meta http-equiv=refresh `,
+			context{state: stateTag, element: elementMetaRefresh},
+		},
+		{
+			`<meta http-equiv="ref`,
+			context{state: stateAttr, delim: delimDoubleQuote, element: elementMetaRefresh},
+		},
+		{
+			`<meta http-equiv="refresh" name="x" `,
+			context{state: stateTag, element: elementMetaRefresh},
+		},
+		{
+			`<meta name="x" content="0; `,
+			context{state: stateMetaContent, delim: delimDoubleQuote, attr: attrMetaContent, element: elementMetaNoRefresh},
+		},
+		{
+			`<meta http-equiv="refresh" content="0; `,
+			context{state: stateMetaContentURL, delim: delimDoubleQuote, attr: attrMetaContent, element: elementMetaRefresh},
 		},
 		{
 			`<a href=""`,
@@ -2344,6 +2492,16 @@ func TestMetaContentEscapeGODEBUG(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	want := `<meta http-equiv="refresh" content="asd; url=javascript:alert(1); asd; url=vbscript:alert(1); asd">`
+	if got := b.String(); got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+
+	tmpl = Must(New("").Parse(`<meta http-equiv="refresh" content="0; {{"javascript:alert(1)"}}">`))
+	b.Reset()
+	if err := tmpl.Execute(&b, nil); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	want = `<meta http-equiv="refresh" content="0; javascript:alert(1)">`
 	if got := b.String(); got != want {
 		t.Fatalf("got %q, want %q", got, want)
 	}
