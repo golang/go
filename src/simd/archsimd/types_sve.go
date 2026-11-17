@@ -1207,6 +1207,13 @@ func (x Mask8s) Or(y Mask8s) (z Mask8s)
 // Asm: EOR (predicate), CPU Feature: SVE
 func (x Mask8s) Xor(y Mask8s) (z Mask8s)
 
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+//
+// Asm: NOT (predicate), CPU Feature: SVE
+func (x Mask8s) Not() (z Mask8s)
+
 // ToInt8s converts the mask to a vector, where element i is set to ^0 (all bits
 // set, e.g., -1) if mask element i is "true", and 0 otherwise.
 //
@@ -1343,6 +1350,13 @@ func (x Mask16s) Or(y Mask16s) (z Mask16s)
 //
 // Asm: EOR (predicate), CPU Feature: SVE
 func (x Mask16s) Xor(y Mask16s) (z Mask16s)
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+//
+// Asm: NOT (predicate), CPU Feature: SVE
+func (x Mask16s) Not() (z Mask16s)
 
 // ToInt16s converts the mask to a vector, where element i is set to ^0 (all bits
 // set, e.g., -1) if mask element i is "true", and 0 otherwise.
@@ -1481,6 +1495,13 @@ func (x Mask32s) Or(y Mask32s) (z Mask32s)
 // Asm: EOR (predicate), CPU Feature: SVE
 func (x Mask32s) Xor(y Mask32s) (z Mask32s)
 
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+//
+// Asm: NOT (predicate), CPU Feature: SVE
+func (x Mask32s) Not() (z Mask32s)
+
 // ToInt32s converts the mask to a vector, where element i is set to ^0 (all bits
 // set, e.g., -1) if mask element i is "true", and 0 otherwise.
 //
@@ -1617,6 +1638,13 @@ func (x Mask64s) Or(y Mask64s) (z Mask64s)
 //
 // Asm: EOR (predicate), CPU Feature: SVE
 func (x Mask64s) Xor(y Mask64s) (z Mask64s)
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+//
+// Asm: NOT (predicate), CPU Feature: SVE
+func (x Mask64s) Not() (z Mask64s)
 
 // ToInt64s converts the mask to a vector, where element i is set to ^0 (all bits
 // set, e.g., -1) if mask element i is "true", and 0 otherwise.

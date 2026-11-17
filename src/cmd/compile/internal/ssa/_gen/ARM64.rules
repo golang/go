@@ -2022,6 +2022,12 @@
 (Mask32sXor x y) => (PEORB (Mask32sAllTrue <types.TypeMask>) x y)
 (Mask64sXor x y) => (PEORB (Mask64sAllTrue <types.TypeMask>) x y)
 
+// NOT is EOR with the governing predicate as the second source.
+(Mask8sNot x) => (PEORB t:(Mask8sAllTrue <types.TypeMask>) x t)
+(Mask16sNot x) => (PEORB t:(Mask16sAllTrue <types.TypeMask>) x t)
+(Mask32sNot x) => (PEORB t:(Mask32sAllTrue <types.TypeMask>) x t)
+(Mask64sNot x) => (PEORB t:(Mask64sAllTrue <types.TypeMask>) x t)
+
 // == on SIMD vectors and masks. Integer vectors and masks are equal if their
 // XOR is zero. Float vectors are equal if every element compares equal, so NaN
 // elements are unequal and +0 equals -0.

@@ -303,6 +303,23 @@ func TestMaskXorSVE(t *testing.T) {
 	testMaskPairToMask(t, "Mask64s.Xor", 8, archsimd.Mask64s.Xor, xor)
 }
 
+func TestMaskNotSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no SVE")
+	}
+	not := func(lanes []bool) []bool {
+		out := make([]bool, len(lanes))
+		for i, l := range lanes {
+			out[i] = !l
+		}
+		return out
+	}
+	testMaskToMask(t, "Mask8s.Not", 1, archsimd.Mask8s.Not, not)
+	testMaskToMask(t, "Mask16s.Not", 2, archsimd.Mask16s.Not, not)
+	testMaskToMask(t, "Mask32s.Not", 4, archsimd.Mask32s.Not, not)
+	testMaskToMask(t, "Mask64s.Not", 8, archsimd.Mask64s.Not, not)
+}
+
 func testMaskToIntAndBack[M sveMask, T signed, V any](t *testing.T, name string, laneBytes int,
 	toInt func(M) V, toMask func(V) M, store func(V, []T), load func([]T) V) {
 	t.Helper()

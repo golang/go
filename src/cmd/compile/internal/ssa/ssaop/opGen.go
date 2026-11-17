@@ -7541,6 +7541,10 @@ const (
 	OpMask16sXor
 	OpMask32sXor
 	OpMask64sXor
+	OpMask8sNot
+	OpMask16sNot
+	OpMask32sNot
+	OpMask64sNot
 	OpAESDecryptLastRoundUint8x16
 	OpAESDecryptLastRoundUint8x32
 	OpAESDecryptLastRoundUint8x64
@@ -121247,6 +121251,26 @@ var OpcodeTable = [...]OpInfo{
 		ArgLen:      2,
 		Commutative: true,
 		Generic:     true,
+	},
+	{
+		Name:    "Mask8sNot",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "Mask16sNot",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "Mask32sNot",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "Mask64sNot",
+		ArgLen:  1,
+		Generic: true,
 	},
 	{
 		Name:    "AESDecryptLastRoundUint8x16",

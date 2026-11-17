@@ -1990,6 +1990,8 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpMask16sNext(v)
 	case ssaop.OpMask16sNone:
 		return rewriteValue_OpMask16sNone(v)
+	case ssaop.OpMask16sNot:
+		return rewriteValue_OpMask16sNot(v)
 	case ssaop.OpMask16sOr:
 		return rewriteValue_OpMask16sOr(v)
 	case ssaop.OpMask16sXor:
@@ -2012,6 +2014,8 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpMask32sNext(v)
 	case ssaop.OpMask32sNone:
 		return rewriteValue_OpMask32sNone(v)
+	case ssaop.OpMask32sNot:
+		return rewriteValue_OpMask32sNot(v)
 	case ssaop.OpMask32sOr:
 		return rewriteValue_OpMask32sOr(v)
 	case ssaop.OpMask32sXor:
@@ -2034,6 +2038,8 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpMask64sNext(v)
 	case ssaop.OpMask64sNone:
 		return rewriteValue_OpMask64sNone(v)
+	case ssaop.OpMask64sNot:
+		return rewriteValue_OpMask64sNot(v)
 	case ssaop.OpMask64sOr:
 		return rewriteValue_OpMask64sOr(v)
 	case ssaop.OpMask64sXor:
@@ -2056,6 +2062,8 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpMask8sNext(v)
 	case ssaop.OpMask8sNone:
 		return rewriteValue_OpMask8sNone(v)
+	case ssaop.OpMask8sNot:
+		return rewriteValue_OpMask8sNot(v)
 	case ssaop.OpMask8sOr:
 		return rewriteValue_OpMask8sOr(v)
 	case ssaop.OpMask8sXor:
@@ -31298,6 +31306,19 @@ func rewriteValue_OpMask16sNone(v *ssa.Value) bool {
 		return true
 	}
 }
+func rewriteValue_OpMask16sNot(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (Mask16sNot x)
+	// result: (PEORB t:(Mask16sAllTrue <types.TypeMask>) x t)
+	for {
+		x := v_0
+		v.Reset(ssaop.OpARM64PEORB)
+		t := b.NewValue0(v.Pos, ssaop.OpMask16sAllTrue, types.TypeMask)
+		v.AddArg3(t, x, t)
+		return true
+	}
+}
 func rewriteValue_OpMask16sOr(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -31466,6 +31487,19 @@ func rewriteValue_OpMask32sNone(v *ssa.Value) bool {
 		v1 := b.NewValue0(v.Pos, ssaop.OpMask32sAllTrue, types.TypeMask)
 		v0.AddArg2(v1, m)
 		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpMask32sNot(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (Mask32sNot x)
+	// result: (PEORB t:(Mask32sAllTrue <types.TypeMask>) x t)
+	for {
+		x := v_0
+		v.Reset(ssaop.OpARM64PEORB)
+		t := b.NewValue0(v.Pos, ssaop.OpMask32sAllTrue, types.TypeMask)
+		v.AddArg3(t, x, t)
 		return true
 	}
 }
@@ -31640,6 +31674,19 @@ func rewriteValue_OpMask64sNone(v *ssa.Value) bool {
 		return true
 	}
 }
+func rewriteValue_OpMask64sNot(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (Mask64sNot x)
+	// result: (PEORB t:(Mask64sAllTrue <types.TypeMask>) x t)
+	for {
+		x := v_0
+		v.Reset(ssaop.OpARM64PEORB)
+		t := b.NewValue0(v.Pos, ssaop.OpMask64sAllTrue, types.TypeMask)
+		v.AddArg3(t, x, t)
+		return true
+	}
+}
 func rewriteValue_OpMask64sOr(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -31804,6 +31851,19 @@ func rewriteValue_OpMask8sNone(v *ssa.Value) bool {
 		v1 := b.NewValue0(v.Pos, ssaop.OpMask8sAllTrue, types.TypeMask)
 		v0.AddArg2(v1, m)
 		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpMask8sNot(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (Mask8sNot x)
+	// result: (PEORB t:(Mask8sAllTrue <types.TypeMask>) x t)
+	for {
+		x := v_0
+		v.Reset(ssaop.OpARM64PEORB)
+		t := b.NewValue0(v.Pos, ssaop.OpMask8sAllTrue, types.TypeMask)
+		v.AddArg3(t, x, t)
 		return true
 	}
 }

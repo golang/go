@@ -461,6 +461,9 @@ func (x {{.Name}}) Or(y {{.Name}}) {{.Name}}
 // Asm: EOR (predicate), CPU Feature: SVE
 func (x {{.Name}}) Xor(y {{.Name}}) {{.Name}}
 
+// Asm: NOT (predicate), CPU Feature: SVE
+func (x {{.Name}}) Not() {{.Name}}
+
 // To{{.VectorCounterpart}} converts the mask to a vector, where element i is set to ^0 (all bits
 // set, e.g., -1) if mask element i is "true", and 0 otherwise.
 //
