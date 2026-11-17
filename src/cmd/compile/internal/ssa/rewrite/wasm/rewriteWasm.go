@@ -385,6 +385,9 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpDivFloat64x2:
 		v.Op = ssaop.OpWasmF64x2Div
 		return true
+	case ssaop.OpDotProductPairsInt16x8:
+		v.Op = ssaop.OpWasmI32x4DotI16x8S
+		return true
 	case ssaop.OpEq16:
 		return rewriteValue_OpEq16(v)
 	case ssaop.OpEq32:

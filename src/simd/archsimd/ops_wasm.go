@@ -541,6 +541,20 @@ func (x Float32x4) Div(y Float32x4) (z Float32x4)
 // Asm: F64x2Div
 func (x Float64x2) Div(y Float64x2) (z Float64x2)
 
+// DotProductPairs multiplies corresponding elements of x and y, and sums
+// adjacent pairs, returning a vector of half as many elements, each with twice
+// the input element size.
+//
+//	w[i] = x[i] * y[i]        // Double width
+//	z[j] = w[2*j] + w[2*j+1]
+//
+// While the products can never overflow, the sum wraps on overflow.
+//
+// This happens in exactly one situation: if all four input elements are MinInt16.
+//
+// Asm: I32x4DotI16x8S
+func (x Int16x8) DotProductPairs(y Int16x8) (z Int32x4)
+
 // Equal returns a mask indicating which elements of x and y are equal.
 //
 // Asm: I8x16Eq

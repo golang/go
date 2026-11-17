@@ -66,6 +66,7 @@ func init() {
 		{name: "ConvertToUint32Float64x2", argLength: 1},
 		{name: "DivFloat32x4", argLength: 2},
 		{name: "DivFloat64x2", argLength: 2},
+		{name: "DotProductPairsInt16x8", argLength: 2, commutative: true},
 		{name: "EqualFloat32x4", argLength: 2, commutative: true},
 		{name: "EqualFloat64x2", argLength: 2, commutative: true},
 		{name: "EqualInt8x16", argLength: 2, commutative: true},

@@ -62,6 +62,7 @@
 (ConvertToUint32Float64x2 ...) => (I32x4TruncSatF64x2UZero ...)
 (DivFloat32x4 ...) => (F32x4Div ...)
 (DivFloat64x2 ...) => (F64x2Div ...)
+(DotProductPairsInt16x8 ...) => (I32x4DotI16x8S ...)
 (EqualInt8x16 ...) => (I8x16Eq ...)
 (EqualUint8x16 ...) => (I8x16Eq ...)
 (EqualInt16x8 ...) => (I16x8Eq ...)

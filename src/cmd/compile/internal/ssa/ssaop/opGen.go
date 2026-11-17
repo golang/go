@@ -6820,6 +6820,7 @@ const (
 	OpWasmI32x4TruncSatF64x2UZero
 	OpWasmF32x4Div
 	OpWasmF64x2Div
+	OpWasmI32x4DotI16x8S
 	OpWasmI8x16Eq
 	OpWasmI16x8Eq
 	OpWasmI32x4Eq
@@ -115497,6 +115498,21 @@ var OpcodeTable = [...]OpInfo{
 		Name:   "F64x2Div",
 		ArgLen: 2,
 		asm:    wasm.AF64x2Div,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+				{1, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+			},
+		},
+	},
+	{
+		Name:        "I32x4DotI16x8S",
+		ArgLen:      2,
+		Commutative: true,
+		asm:         wasm.AI32x4DotI16x8S,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15

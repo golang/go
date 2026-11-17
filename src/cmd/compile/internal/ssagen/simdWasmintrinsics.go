@@ -139,6 +139,7 @@ func initWasmSIMD() {
 	addWasmSIMD("simd/archsimd", "Float64x2.ConvertToUint32", makeSimdOp1(ssaop.OpConvertToUint32Float64x2))
 	addWasmSIMD("simd/archsimd", "Float32x4.Div", makeSimdOp2(ssaop.OpDivFloat32x4))
 	addWasmSIMD("simd/archsimd", "Float64x2.Div", makeSimdOp2(ssaop.OpDivFloat64x2))
+	addWasmSIMD("simd/archsimd", "Int16x8.DotProductPairs", makeSimdOp2(ssaop.OpDotProductPairsInt16x8))
 	addWasmSIMD("simd/archsimd", "Int8x16.Equal", makeSimdOp2(ssaop.OpEqualInt8x16))
 	addWasmSIMD("simd/archsimd", "Uint8x16.Equal", makeSimdOp2(ssaop.OpEqualUint8x16))
 	addWasmSIMD("simd/archsimd", "Int16x8.Equal", makeSimdOp2(ssaop.OpEqualInt16x8))
