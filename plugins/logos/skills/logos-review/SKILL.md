@@ -1,14 +1,14 @@
 ---
 name: logos-review
-description: Review, audit, or check .lgo code or a loGo/s diff for rule violations. Use when the user says review, audit, or check loGo/s code, or asks whether .lgo code follows the compiler rules.
+description: Review, audit, or check .lgo code or a LoGOs diff for rule violations. Use when the user says review, audit, or check LoGOs code, or asks whether .lgo code follows the compiler rules.
 license: BSD-3-Clause
-compatibility: Needs the logos command from github.com/gosuda/loGos on PATH.
+compatibility: Needs the logos command from github.com/gosuda/LoGOs on PATH.
 metadata:
   version: "0.22.0"
   milestone: "M1"
 ---
 
-# Review loGo/s code
+# Review LoGOs code
 
 Check `.lgo` code against the compiler rules. Each checklist item states the rule it checks. Report each finding with its rule ID, fix it, and end with a green build and test.
 
@@ -16,7 +16,7 @@ Coverage: M1 error propagation, M2 closed unions, M3 options and nil flow, M4 in
 
 ## Procedure
 
-1. Confirm the toolchain: run `logos version`. Done when it prints `logos version go1.27`. If the command is missing, stop and tell the user to build github.com/gosuda/loGos (`cd src && ./make.bash`) and put its `bin` directory on PATH.
+1. Confirm the toolchain: run `logos version`. Done when it prints `logos version go1.27`. If the command is missing, stop and tell the user to build github.com/gosuda/LoGOs (`cd src && ./make.bash`) and put its `bin` directory on PATH.
 2. Read every changed `.lgo` file fully. Done when each file has one verdict per checklist item below.
 3. Run each checklist item. Done when each finding carries its rule ID.
 4. Fix every finding, then run `logos build ./...` and `logos test ./...`. Done when both exit 0.

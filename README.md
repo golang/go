@@ -1,13 +1,17 @@
-# loGo/s
+# LoGOs
 
-Go with checked errors, closed unions, and a way back to plain Go.
+**Go with checked errors, closed unions, and a way back to plain Go.**
 
-loGo/s is a Go toolchain fork that compiles both Go and extended `.lgo` source. You get compiler-checked error handling and nil safety, lowered to Go 1.27 by `logos`. Plain `go` keeps upstream language semantics and command text ([README.go.md](README.go.md)). When you want out, `logos eject` returns standard Go with your comments preserved.
+[![Go 1.27](https://img.shields.io/badge/go-1.27-00ADD8?logo=go)](https://go.dev/)
+[![CI](https://github.com/gosuda/LoGOs/actions/workflows/logos.yml/badge.svg)](https://github.com/gosuda/LoGOs/actions/workflows/logos.yml)
+[![License](https://img.shields.io/badge/license-BSD--3-blue)](LICENSE)
+
+LoGOs is a Go toolchain fork that compiles both Go and extended `.lgo` source. You get compiler-checked error handling and nil safety, lowered to Go 1.27 by `logos`. Plain `go` keeps upstream language semantics and command text ([README.go.md](README.go.md)). When you want out, `logos eject` returns standard Go with your comments preserved.
 
 - **Checked errors**: `?` returns early on a non-nil error from a call returning `(T, error)`.
 - **Closed unions**: the compiler checks that type switch expressions cover every variant and `nil`, unless you provide `default`.
 - **Way back**: `logos eject` writes the module as standard Go that builds with upstream Go of the same version or newer ([walkthrough](#eject-to-standard-go)).
-- **Shared toolchain**: Go and loGo/s modules can import each other under `logos`, with one language per module.
+- **Shared toolchain**: Go and LoGOs modules can import each other under `logos`, with one language per module.
 - **Comptime**: `const for` expands struct-field loops during compilation without run-time field lookup.
 - **Diagnostics**: `logos lint` checks main-module packages without generating binaries.
 
@@ -28,13 +32,13 @@ Contents: [Install](#install) · [Quick start](#quick-start) · [Features](#feat
 
 ## Install
 
-Building loGo/s from source requires Bash and a bootstrap Go installation. Go 1.27.3 is known to work; Go 1.26.8 fails to compile the fork's compiler sources.
+Building LoGOs from source requires Bash and a bootstrap Go installation. Go 1.27.3 is known to work; Go 1.26.8 fails to compile the fork's compiler sources.
 
 1. Clone the repository:
 
    ```sh
-   git clone https://github.com/gosuda/loGos.git
-   cd loGos
+   git clone https://github.com/gosuda/LoGOs.git
+   cd LoGOs
    ```
 
 2. Capture your clean host bootstrap Go root and build the toolchain from source:
@@ -136,15 +140,15 @@ Ejection details:
 
 ### Modules and interoperability
 
-You can import Go packages from loGo/s and loGo/s packages from Go when you build with `logos`. Exported loGo/s functions and types have standard Go signatures, with option types and closed unions represented as canonical Go types.
+You can import Go packages from LoGOs and LoGOs packages from Go when you build with `logos`. Exported LoGOs functions and types have standard Go signatures, with option types and closed unions represented as canonical Go types.
 
 - Import standard library packages and external Go modules through standard Go `import` paths.
 - Use `?` directly on calls returning `(T, error)`.
-- Use `.lgo` for loGo/s source, or the aliases U+1F4DC, U+26A1, and the gopher sequence; use `.go` for plain Go.
+- Use `.lgo` for LoGOs source, or the aliases U+1F4DC, U+26A1, and the gopher sequence; use `.go` for plain Go.
 
 Limits:
 - Each module contains either `.lgo` packages or `.go` packages, never both.
-- Plain `go` ignores `.lgo` files, so it cannot build a Go package that imports a loGo/s package; [eject first](#eject-to-standard-go).
+- Plain `go` ignores `.lgo` files, so it cannot build a Go package that imports a LoGOs package; [eject first](#eject-to-standard-go).
 - Property interfaces require an explicit assertion on the implementing struct declaration (`type S struct : I`), not automatic structural subtyping.
 
 ### Comptime
@@ -289,7 +293,7 @@ unknown
 Limits:
 - The compiler rejects field access on optional pointers until you narrow them with a guard or use safe navigation.
 - Pointers from plain Go packages are platform pointers and may be nil.
-- When this toolchain compiles the Go caller, a direct call that passes nil to a non-nil loGo/s parameter gets a run-time `logos/rt.MustNonNil` check instead of a build failure.
+- When this toolchain compiles the Go caller, a direct call that passes nil to a non-nil LoGOs parameter gets a run-time `logos/rt.MustNonNil` check instead of a build failure.
 - Calls through function values, method values, or interfaces are exceptions to that boundary check.
 
 ### Structured concurrency
@@ -549,9 +553,9 @@ You can also use these extensions; see [logos-doc/SPEC.md](logos-doc/SPEC.md) Se
 
 ## Usage
 
-Use `logos run`, `logos build`, and `logos test` on loGo/s modules as you would use their `go` counterparts on Go modules.
+Use `logos run`, `logos build`, and `logos test` on LoGOs modules as you would use their `go` counterparts on Go modules.
 
-Five commands are specific to loGo/s:
+Five commands are specific to LoGOs:
 - `logos context`
 - [`logos eject [-o DIR]`](#eject-to-standard-go)
 - [`logos lint`](#lint)
@@ -590,9 +594,9 @@ One row per shipped form, with milestone IDs from [logos-doc/IMPLEMENTATION.md](
 | M7 | `const if`, `const for`, `const switch T`, `comptime.ViewAs` | Compile-time branching, field unrolling, type dispatch, and read-only views. |
 | M8 | `go group (ctx, limit = N)` | Structured concurrency with automatic joins, cancellation, and a concurrency cap. |
 | M9 | `logos lint`, `--json-diagnostics` | In-compiler checks that stop before code generation, with one JSON object per diagnostic. |
-| M10 | `logos next`, `logos context` | Rewrites a Go module toward loGo/s; prints the declaration and signatures for one symbol. |
+| M10 | `logos next`, `logos context` | Rewrites a Go module toward LoGOs; prints the declaration and signatures for one symbol. |
 | M11 | Generated `MarshalJSON` / `UnmarshalJSON` | Static `MarshalJSON` and `UnmarshalJSON` methods on structs that have JSON tags, defaults, or non-nil pointer fields and no embedded fields, with `encoding/json`-matching output. |
-| M13 | `-O` | Optimization levels `-O=0` to `-O=3` and `-O=s` on the command line, with inline budgets and variable-make stack buffers. In `logos.toml`, `opt_level` takes `O0` to `O3` or `Os` (default `O2`). Backend, runtime, and tooling improvements apply to Go and loGo/s packages under `logos` and plain `go`, except the items SPEC §0.1 lists as loGo/s-only or logos-only. `target_cpu` applies to `logos` builds only; plain `go` keeps the upstream GOAMD64 and GOARM64 defaults. |
+| M13 | `-O` | Optimization levels `-O=0` to `-O=3` and `-O=s` on the command line, with inline budgets and variable-make stack buffers. In `logos.toml`, `opt_level` takes `O0` to `O3` or `Os` (default `O2`). Backend, runtime, and tooling improvements apply to Go and LoGOs packages under `logos` and plain `go`, except the items SPEC §0.1 lists as LoGOs-only or logos-only. `target_cpu` applies to `logos` builds only; plain `go` keeps the upstream GOAMD64 and GOARM64 defaults. |
 | M14 | Fixed-array SIMD | Element-wise operators and reductions on small fixed-size arrays. The vectorized lowering needs `GOEXPERIMENT=simd`; without it the compiler emits unrolled scalar code with the same results. |
 | M16 | WASM profile | Automatic for GOOS=js and GOOS=wasip1 under `logos`; `--wasm-features=stack-switching`, `--wasm-loader`, and the `//logos:wasmimport` / `//logos:wasmexport` directives select options. |
 | M17 | Smart stack | Flag only: `GOEXPERIMENT=logosstack` starts goroutines at per-call-site sizes. |
@@ -605,11 +609,11 @@ One row per shipped form, with milestone IDs from [logos-doc/IMPLEMENTATION.md](
 
 The [plugins/logos/](plugins/logos/) directory packages skills for coding assistants:
 
-- [`logos`](plugins/logos/skills/logos/SKILL.md): Author, build, test, and eject loGo/s modules.
+- [`logos`](plugins/logos/skills/logos/SKILL.md): Author, build, test, and eject LoGOs modules.
 - [`logos-review`](plugins/logos/skills/logos-review/SKILL.md): Review `.lgo` code against compiler rules, diagnostics, and language invariants.
-- [`logos-from-go`](plugins/logos/skills/logos-from-go/SKILL.md): Guide migration of existing plain Go packages to loGo/s syntax.
+- [`logos-from-go`](plugins/logos/skills/logos-from-go/SKILL.md): Guide migration of existing plain Go packages to LoGOs syntax.
 - [`logos-performance`](plugins/logos/skills/logos-performance/SKILL.md): Assist with -O tiers, SIMD, WASM, stack, arena, fast cgo, and zero-alloc.
-- [`logos-concurrency`](plugins/logos/skills/logos-concurrency/SKILL.md): Structure goroutine groups and shared state in loGo/s.
+- [`logos-concurrency`](plugins/logos/skills/logos-concurrency/SKILL.md): Structure goroutine groups and shared state in LoGOs.
 
 To provide coding agents with project conventions and compiler constraints, copy [plugins/logos/templates/AGENTS.md](plugins/logos/templates/AGENTS.md) into the target repository root. See [plugins/logos/](plugins/logos/) for plugin structure and usage documentation.
 
@@ -641,4 +645,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) and [README.go.md](README.go.md) for cont
 
 ## License
 
-loGo/s additions and toolchain modifications use the same BSD-3-Clause license as the standard Go source. See [LICENSE](LICENSE) for the terms.
+LoGOs additions and toolchain modifications use the same BSD-3-Clause license as the standard Go source. See [LICENSE](LICENSE) for the terms.

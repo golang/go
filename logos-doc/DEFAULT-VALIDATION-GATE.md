@@ -11,7 +11,7 @@ Native noder creates `Info{StoreTypesInSyntax: true}` without a `Types`
 map. The retained declaration tests use `Info{}` or `ejectCheck`, which
 allocates a `Types` map. Their printed native-tree runs compile generated
 Go source after direct lowering. Those tests establish useful checker and
-lowering behavior, but do not exercise the installed loGo/s checker's
+lowering behavior, but do not exercise the installed LoGOs checker's
 storage configuration.
 
 The retained validator temporarily allocates a map while checking each
@@ -27,7 +27,7 @@ native gate.
 ## Frozen script
 
 `src/cmd/go/testdata/script/logos_struct_default_validation.txt` builds
-eleven packages in one loGo/s module through the installed `logos`
+eleven packages in one LoGOs module through the installed `logos`
 command. Each tested type is declared in an uncalled function. No value
 of a default-bearing type is constructed, and no serializer is invoked.
 The build still checks each declaration, including its default.

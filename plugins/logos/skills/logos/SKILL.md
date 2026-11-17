@@ -1,22 +1,22 @@
 ---
 name: logos
-description: Write, read, build, test, and eject loGo/s code. Use when files end in .lgo, a logos.toml exists, the user names the logos command, or the user asks about loGo/s syntax, ? error propagation, errdefer, or eject to plain Go.
+description: Write, read, build, test, and eject LoGOs code. Use when files end in .lgo, a logos.toml exists, the user names the logos command, or the user asks about LoGOs syntax, ? error propagation, errdefer, or eject to plain Go.
 license: BSD-3-Clause
-compatibility: Needs the logos command from github.com/gosuda/loGos on PATH.
+compatibility: Needs the logos command from github.com/gosuda/LoGOs on PATH.
 metadata:
   version: "0.22.0"
   milestone: "M1"
 ---
 
-# loGo/s
+# LoGOs
 
-loGo/s is Go with checked error propagation. You write `.lgo` files. The `logos` command checks them, lowers them to plain Go, and builds them with the Go 1.27 backend.
+LoGOs is Go with checked error propagation. You write `.lgo` files. The `logos` command checks them, lowers them to plain Go, and builds them with the Go 1.27 backend.
 
 Coverage: M1 error propagation, M2 closed unions, M3 options and nil flow, M4 interface properties, M5 const composites with CTFE, read-only placement, const views, zero-copy conversions, const maps and `logos/rt.Freeze`, M6 interpolation, address-of, defaults, spread, tuples, lambdas, chains, leading-dot, yield and scope defer, M7 comptime (`const if`, `const for`, `const switch T`, `comptime.ViewAs`), M8 structured concurrency, M9 lints, M10 migration tooling, M11 static JSON, M12 capabilities, M13 optimization tiers (`-O`), M14 fixed-array SIMD, M16 WASM profile, M17 stack sizing, M18 arena allocation, M20 fast cgo, M21 language server (`logos lsp`), M22 zero-allocation enforcement.
 
 ## Procedure
 
-1. Confirm the toolchain: run `logos version`. Done when it prints `logos version go1.27`. If the command is missing, stop and tell the user to build github.com/gosuda/loGos (`cd src && ./make.bash`) and put its `bin` directory on PATH.
+1. Confirm the toolchain: run `logos version`. Done when it prints `logos version go1.27`. If the command is missing, stop and tell the user to build github.com/gosuda/LoGOs (`cd src && ./make.bash`) and put its `bin` directory on PATH.
 2. Classify every module you touch (see "Module rules"). Done when each module holds one kind and each package holds one kind.
 3. Write new code with the "Syntax" tables. Done when each error path uses a shipped form and no hand-written `if err != nil { return ..., err }` remains where `?` applies.
 4. Apply "Best practices". Done when each practice holds.
@@ -28,11 +28,11 @@ Coverage: M1 error propagation, M2 closed unions, M3 options and nil flow, M4 in
 
 ## Module rules
 
-- One kind per module: a loGo/s module holds only `.lgo` packages (tests are `_test.lgo`); a Go module holds only `.go` packages. A package holds one kind. A workspace may hold both kinds.
-- Imports cross kinds in both directions, per import: a `.lgo` package may import any Go package, and a Go package may import any loGo/s package. A Go package sees a loGo/s package through its plain-Go form, the one `logos eject` writes.
-- Build with `logos`. Plain `go` ignores `.lgo` files, so it cannot build a loGo/s package or a Go package that imports one.
+- One kind per module: a LoGOs module holds only `.lgo` packages (tests are `_test.lgo`); a Go module holds only `.go` packages. A package holds one kind. A workspace may hold both kinds.
+- Imports cross kinds in both directions, per import: a `.lgo` package may import any Go package, and a Go package may import any LoGOs package. A Go package sees a LoGOs package through its plain-Go form, the one `logos eject` writes.
+- Build with `logos`. Plain `go` ignores `.lgo` files, so it cannot build a LoGOs package or a Go package that imports one.
 - `logos.toml` sits at the module root. It uses a strict TOML subset (tables, `key = value`, basic and literal strings, integers, booleans, string arrays, `#` comments; 1 MiB cap). Unknown tables or keys are errors, reported as `logos.toml:<line>:<col>: <message>`. Keys shipped so far: `[project] strict_files`; `[build] cgo`, `cgo_allowlist`, `opt_level`, `target_cpu`, `arena`; `[capabilities]` severity and allowlist keys (M12, below); `[lints]` group and threshold keys (M9, below).
-- cgo is off by default in loGo/s modules (`[build] cgo = "forbid"`). Set `"restricted"` with `cgo_allowlist` globs, or `"allow"`, to use it.
+- cgo is off by default in LoGOs modules (`[build] cgo = "forbid"`). Set `"restricted"` with `cgo_allowlist` globs, or `"allow"`, to use it.
 - Closed unions (M2): a Go importer sees a value-used union as its methods-only interface, the declaration `logos eject` writes (terms dropped, methods kept, with a `// loGo/s union: A | B` comment). A union used both as a type constraint and as a value type has no Go form; the Go import fails with `logos build: union U is used as a type constraint and as a value type; Go cannot express both`.
 - Options and platform pointers (M3): declarations from Go packages are platform declarations for `.lgo` code. Call, field, and element results from Go are platform values: usable after the error check and comparable to nil. Storing a nil Go value into a declared non-nil location panics with `logos: nil from Go value stored into non-nil *T at <file>:<line>`. A Go importer sees `*T?` as a bare pointer (nil as none) or as `logos/rt.Option[T]`, and non-nil `*T` as a bare pointer. A Go caller built by `logos` gets the same nil-store panic on direct calls (calls through function values are not checked); code built by upstream `go` from ejected output has no checks.
 - Cross-package facts (M3; proven by `src/cmd/go/testdata/script/logos_facts.txt`, `src/cmd/go/testdata/script/logos_facts_nil.txt`): option positions in exported declarations travel in the `__.LOGOS` archive member beside `__.PKGDEF`; only `.lgo` importers apply them. Rebuilding a dependency without its importers fails the import with `logos: stale facts for <module> (fingerprint mismatch)`. The linker skips the member.
@@ -43,9 +43,9 @@ Coverage: M1 error propagation, M2 closed unions, M3 options and nil flow, M4 in
 
 ## Syntax (M1)
 
-Each row shows the loGo/s form and the plain Go it replaces.
+Each row shows the LoGOs form and the plain Go it replaces.
 
-| loGo/s | Plain Go |
+| LoGOs | Plain Go |
 |---|---|
 | `v := f()?` | `v, err := f()` then `if err != nil { return zero, err }` |
 | `f()?` | `if err := f(); err != nil { return err }` |
@@ -67,7 +67,7 @@ Proven by `test/logos/run/union_basic.lgo`, `test/logos/run/union_assert.lgo`, `
 
 A closed union is an interface whose type set is a finite union of non-`~` terms. Methods are allowed when every member implements them.
 
-| loGo/s | Plain Go |
+| LoGOs | Plain Go |
 |---|---|
 | `type U interface { int \| string }` | methods-only interface plus generated membership functions |
 | `U(x)` | conversion; allowed when `x` is a member or a closed union of members |
@@ -82,13 +82,13 @@ Rules:
 - A type switch without `default` must cover every member in declaration order and `nil`; a case naming a sub-union covers its members. A value switch expression without `default` is an error.
 - Switch-expression arms share one type: a typed arm fixes it, all-untyped arms fold by default type, `*T` plus `nil` gives `*T`. The operand evaluates once; only the chosen arm evaluates. An exhaustive switch that matches nothing panics.
 - `type S struct : I` asserts `*S` implements each listed interface. A struct satisfies a property interface only through this list, in any package. Identifiers starting with `Logos_` are reserved.
-- `x.(U)` checks membership at run time: a non-member gives `ok == false` in comma-ok form and panics as a failed `interface conversion` (`<type> is not a member of <pkg>.U`) in single-value form. A Go caller that assigns a non-member still compiles (documented hole); loGo/s code rejects it.
+- `x.(U)` checks membership at run time: a non-member gives `ok == false` in comma-ok form and panics as a failed `interface conversion` (`<type> is not a member of <pkg>.U`) in single-value form. A Go caller that assigns a non-member still compiles (documented hole); LoGOs code rejects it.
 
 ## Syntax (M3)
 
 Proven by `test/logos/run/option_basic.lgo`, `test/logos/run/option_chain.lgo`, `test/logos/run/option_result.lgo`, `test/logos/run/option_size.lgo`, `test/logos/run/option_nested.lgo`, `test/logos/run/option_union.lgo`, `test/logos/run/map_index.lgo`, `test/logos/run/platform.lgo`, `src/internal/types/testdata/logos/option_types.lgo`, `src/internal/types/testdata/logos/narrowing.lgo`, `src/internal/types/testdata/logos/error_first.lgo`, `src/internal/types/testdata/logos/nonnil_zero.lgo`, `src/internal/types/testdata/logos/map_index.lgo`, `src/cmd/go/testdata/script/logos_interop_nil.txt`, `src/cmd/go/testdata/script/logos_interop_platform.txt`, `src/cmd/go/testdata/script/logos_eject_option.txt`.
 
-| loGo/s | Plain Go |
+| LoGOs | Plain Go |
 |---|---|
 | `var x int?` | presence-bearing `logos/rt.Option[int]` (value plus present flag) |
 | `var u *User?` | bare `*User` with nil as none; same size as `*User` |
@@ -110,7 +110,7 @@ Rules:
 
 Proven by `test/logos/run/properties.lgo`, `src/internal/types/testdata/logos/property_iface.lgo`, `src/cmd/go/testdata/script/logos_interop_prop.txt`.
 
-| loGo/s | Plain Go |
+| LoGOs | Plain Go |
 |---|---|
 | `type C interface { const Name string; HP int; Start() error }` | interface with `Logos_GetName`, `Logos_GetHP`, `Logos_SetHP` methods |
 | `type Monster struct : Creature { Name string; HP int }` | struct plus generated `Logos_GetF`/`Logos_SetF` accessors |
@@ -127,7 +127,7 @@ Rules:
 
 Proven by `test/logos/run/ctfe.lgo`, `test/logos/run/const_init_read.lgo`, `test/logos/run/rodata_write.lgo`, `test/logos/run/rodata_reflect.lgo`, `test/logos/run/rodata_named_map.lgo`, `test/logos/run/constmap_init.lgo`, `test/logos/run/const_map.lgo`, `test/logos/run/constmap_switch.lgo`, `test/logos/run/const_views.lgo`, `test/logos/run/constview_bound.lgo`, `test/logos/run/zerocopy.lgo`, `test/logos/run/freeze.lgo`, `src/internal/types/testdata/logos/ctfe.lgo`, `src/internal/types/testdata/logos/const_views.lgo`, `src/cmd/go/testdata/script/logos_interop_const.txt`.
 
-| loGo/s | Plain Go |
+| LoGOs | Plain Go |
 |---|---|
 | `const func Fib(n int) int { ... }` then `const fib20 = Fib(20)` | evaluated at compile time; the result is a real constant |
 | `const primes = []int{2, 3, 5}` | package-level `var` with `//logos:rodata`, in read-only data (Sec 2.1) |
@@ -153,7 +153,7 @@ Rules:
 
 Proven by `test/logos/run/interp.lgo`, `test/logos/run/addr_lit.lgo`, `test/logos/run/struct_default.lgo`, `test/logos/run/spread.lgo`, `test/logos/run/tuples.lgo`, `test/logos/run/lambda.lgo`, `test/logos/run/chains.lgo`, `test/logos/run/yield.lgo`, `test/logos/run/scope_defer.lgo`, `src/internal/types/testdata/logos/interp.lgo`, `src/internal/types/testdata/logos/addr_lit.lgo`, `src/internal/types/testdata/logos/struct_default.lgo`, `src/internal/types/testdata/logos/spread.lgo`, `src/internal/types/testdata/logos/tuples.lgo`, `src/internal/types/testdata/logos/lambdas.lgo`, `src/internal/types/testdata/logos/chains.lgo`, `src/internal/types/testdata/logos/yield.lgo`, `src/internal/types/testdata/logos/scope_defer.lgo`, `src/cmd/compile/internal/syntax/testdata/logos/interp_parse.lgo`, `src/cmd/compile/internal/syntax/testdata/logos/tuples.lgo`, `src/cmd/compile/internal/syntax/testdata/logos/spread.lgo`, `src/cmd/compile/internal/syntax/testdata/logos/yield_parse.lgo`, `src/cmd/compile/internal/syntax/testdata/logos/scope_defer_parse.lgo`, `src/cmd/compile/internal/syntax/testdata/logos/addr_default_parse.lgo`, `src/cmd/go/testdata/script/logos_m6_addr_defaults.txt`, `src/cmd/go/testdata/script/logos_tuples.txt`, `src/cmd/compile/internal/syntax/scanner_leadingdot_logos_test.go`.
 
-| loGo/s | Plain Go |
+| LoGOs | Plain Go |
 |---|---|
 | `$"User {name} has {n} items"` | one buffer sized from literal bytes plus operand bounds; exactly one allocation |
 | `$"{{secret}}"` | literal braces; the operand text is never a format string |
@@ -186,7 +186,7 @@ Proven by `test/logos/run/const_if_nested.lgo`, `test/logos/codegen/const_if_dea
 
 Virtual package `comptime` provides compile-time reflection (`comptime.Fields[T]()`, `comptime.IsStruct[T]()`, `comptime.TypeOf[T]()`, `comptime.Error(msg)`, `comptime.ViewAs[T](b)`).
 
-| loGo/s | Plain Go |
+| LoGOs | Plain Go |
 |---|---|
 | `const if comptime.IsStruct[T]() { ... }` | live branch retained, dead branch stripped before lowering |
 | `const for _, f := range comptime.Fields[T]() { _ = val.[f] }` | unrolled field access in declaration order; re-checked per copy |

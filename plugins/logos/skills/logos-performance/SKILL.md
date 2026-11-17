@@ -2,7 +2,7 @@
 name: logos-performance
 description: Optimize build and run-time performance with the logos toolchain, for .lgo code and for Go code built by it. Use when a logos.toml exists, the files are .lgo, or the user names the logos command, and the user says optimize, speed up, -O levels, binary size, allocation, arena, SIMD, or zero-alloc.
 license: BSD-3-Clause
-compatibility: Needs the logos command from github.com/gosuda/loGos on PATH.
+compatibility: Needs the logos command from github.com/gosuda/LoGOs on PATH.
 metadata:
   version: "0.22.0"
   milestone: "M13"
@@ -39,7 +39,7 @@ Rules:
 
 ## Fixed-array SIMD (M14)
 
-loGo/s supports element-wise vector operators and reductions on qualifying fixed arrays.
+LoGOs supports element-wise vector operators and reductions on qualifying fixed arrays.
 
 Rules:
 
@@ -96,7 +96,7 @@ Fast-cgo bypasses standard cgo trampoline overhead for eligible non-blocking C f
 | Language | Annotation |
 |---|---|
 | Go | `#cgo noescape F` and `#cgo nocallback F` |
-| loGo/s | `//logos:cgo_fastcall F` in a `.lgo` file |
+| LoGOs | `//logos:cgo_fastcall F` in a `.lgo` file |
 
 Rules:
 

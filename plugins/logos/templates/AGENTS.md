@@ -1,11 +1,11 @@
-# AGENTS.md for a loGo/s repository
+# AGENTS.md for a LoGOs repository
 
-This repository holds loGo/s code (`.lgo` files) built with the `logos` toolchain.
+This repository holds LoGOs code (`.lgo` files) built with the `logos` toolchain.
 
 ## Module rules
 
 - One kind per module: all `.go` or all `.lgo`. A workspace may hold both kinds.
-- Imports cross kinds in both directions: a `.lgo` package may import any Go package, and a Go package may import any loGo/s package.
+- Imports cross kinds in both directions: a `.lgo` package may import any Go package, and a Go package may import any LoGOs package.
 - Build with `logos`; plain `go` ignores `.lgo` files.
 - `logos.toml` sits next to `go.mod` in the main module; unknown tables or keys are errors. Plain `go` reads no `logos.toml`; command-line `-O` and `--pedantic` override the file.
 
@@ -22,7 +22,7 @@ Rule IDs the compiler reports:
 - `logos build ./...`: build. Done when it exits 0.
 - `logos test ./...`: test. Done when it exits 0.
 - `logos lint ./...`: lint code and reports findings.
-- `logos next`: preview Go to loGo/s migration diff; `--fix` applies it.
+- `logos next`: preview Go to LoGOs migration diff; `--fix` applies it.
 - `logos context <pkg>#<symbol>`: print symbol signatures without bodies.
 - `logos lsp`: start the language server proxy for editor integration. It serves over stdio through `gopls`, keeps lowered sources in memory, and merges compiler diagnostics.
 - `logos eject -o DIR`: plain-Go copy in DIR; then `go build ./...` and `go test ./...` in DIR.
@@ -41,4 +41,4 @@ Rule IDs the compiler reports:
 
 ## Agent skills
 
-Install the official plugin: `claude plugin marketplace add gosuda/loGos`.
+Install the official plugin: `claude plugin marketplace add gosuda/LoGOs`.

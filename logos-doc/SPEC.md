@@ -1,4 +1,4 @@
-# loGo/s specification
+# LoGOs specification
 
 - Status: Normative specification; compiler stability clarifications updated 2026-11-16
 - Base: Go 1.27.4, as recorded in `VERSION`; language version Go 1.27; ejected-code floor Go 1.27.2
@@ -11,13 +11,13 @@ The words MUST, MUST NOT, SHOULD, SHOULD NOT, and MAY follow RFC 2119. The text 
 ## 0. Architectural axioms and transpilation contract
 
 ### 0.1 Upstream compatibility
-Every improvement to code generation, runtime, stack, SIMD, wasm, cgo, optimization level, and tooling MUST apply to Go packages and to loGo/s packages [T-0.1][R-U1].
+Every improvement to code generation, runtime, stack, SIMD, wasm, cgo, optimization level, and tooling MUST apply to Go packages and to LoGOs packages [T-0.1][R-U1].
 That rule MUST hold under `logos` and under plain `go` [T-0.1][R-U1].
 The following rules define their scope separately:
 
 | Feature | Scope and controlling section |
 |---|---|
-| Fixed-array operators and reductions | loGo/s packages only; Sec 2.4 |
+| Fixed-array operators and reductions | LoGOs packages only; Sec 2.4 |
 | `make` length-overflow lowering | `.lgo` files only; Sec 3.3 and Sec 13.2 |
 | Slice-sum vector lowering | The `.sum()` chain call, which has no Go spelling; Sec 1.4 |
 | Wasm loop-stride default | `logos` by default; plain `go` through explicit `--wasm-features`; Sec 13 and Sec 12.1 |
@@ -25,8 +25,8 @@ The following rules define their scope separately:
 | Capabilities auditor | `logos` builds only; Sec 11.1 |
 | `//logos:zeroalloc` | `logos lint` and `logos build`; `go build` ignores it in Go packages; Sec 17.2 |
 | `logos` subcommands | `lint`, `eject`, `lsp`, `context`, and `next` have no plain-`go` counterpart. Shared flags and diagnostics remain governed by Sec 0.1, Sec 12, and Sec 14. |
-| loGo/s syntax lowering | Options, unions, tuples, const views and composites, comptime, `go group`, and static JSON/binary forms have no Go spelling. Go importers see their Go-facing forms; Sec 0.3 and Sec 5. |
-| Ejection | One-way conversion from loGo/s to Go; Sec 0.3 |
+| LoGOs syntax lowering | Options, unions, tuples, const views and composites, comptime, `go group`, and static JSON/binary forms have no Go spelling. Go importers see their Go-facing forms; Sec 0.3 and Sec 5. |
+| Ejection | One-way conversion from LoGOs to Go; Sec 0.3 |
 
 Alternate GC modes and synthetic PGO remain withdrawn and impose no rules.
 An improvement that this spec puts behind a named `GOEXPERIMENT` flag MUST stay behind that flag. The `logos_settings_env.txt` script gates the arena and preemptibleloops experiment defaults [T-0.1][R-U1].
@@ -40,20 +40,20 @@ The `logos` command MUST build Go modules with Go language semantics [T-0.1].
 Under `logos`, a Go-module build MUST set the `logos` build tag and, with the default arena enablement, the `goexperiment.logosarena` build tag [T-0.1].
 An author `//logos:zeroalloc` directive in a Go file MUST be checked by `logos build` per Sec 17.2: a misplaced directive or a violation of its allocation and call requirements MUST fail with `[perf::zeroalloc_violation]`; a correctly placed directive whose function satisfies those requirements MUST NOT cause a build failure. The `go build` command MUST ignore the directive [T-0.1].
 Under `logos` with the default arena enablement, `runtime.Version()` MUST carry the `X:logosarena` experiment suffix [T-0.1].
-A Go call into a loGo/s function MUST get the `logos/rt.MustNonNil` check per Sec 5 [T-0.1].
+A Go call into a LoGOs function MUST get the `logos/rt.MustNonNil` check per Sec 5 [T-0.1].
 These four MUST be the only differences from Go language semantics for Go modules under `logos` [T-0.1].
-The `logos` command MUST apply no loGo/s type rules to Go modules [T-0.1].
+The `logos` command MUST apply no LoGOs type rules to Go modules [T-0.1].
 The `logos build` command MUST run no default lint on Go modules; an author `//logos:zeroalloc` directive is the Sec 17.2 exception [T-0.1][T-102][R-U1].
 The `logos lint` command MUST lint Go packages with the language-neutral rules only [T-0.1][T-102][R-U1].
 A module MUST hold one kind only [T-0.1][R-U3].
-A loGo/s module MUST hold only loGo/s packages [T-0.1][R-U3].
+A LoGOs module MUST hold only LoGOs packages [T-0.1][R-U3].
 A Go module MUST hold only `.go` packages [T-0.1][R-U3].
-A workspace MAY hold Go modules and loGo/s modules side by side [T-0.1][R-U3].
+A workspace MAY hold Go modules and LoGOs modules side by side [T-0.1][R-U3].
 A package MUST NOT mix user-authored `.go` files and `.lgo` files. Compiler-generated cgo `.go` outputs are the only exception. [T-0.1][A-CODEGEN]
 The tool MUST reject a mixed package with `correctness::mixed_package` [T-0.1][R-U3].
 The `correctness::mixed_package` text MUST name both file classes [T-0.1][R-U3].
 The tool MUST reject a module with both kinds with `correctness::mixed_module` [T-0.1][R-U3].
-The `correctness::mixed_module` text MUST name the Go packages and the loGo/s packages of the module [T-0.1][R-U3].
+The `correctness::mixed_module` text MUST name the Go packages and the LoGOs packages of the module [T-0.1][R-U3].
 Each module that contributes a loaded source package MUST be checked across all of its active packages, including unselected and unimported packages. [T-0.1][R-U3]
 A duplicate-stem error in an unselected and unimported package MUST NOT abort the census; all of that package's active source-file kinds MUST still count. [T-0.1][R-U3]
 A source-header failure or mixed-package error MUST still fail the census. [T-0.1][R-U3]
@@ -61,21 +61,21 @@ The census MUST honor active build tags, source overlays, nested module boundari
 The census MUST attribute vendored packages through `vendor/modules.txt`. [T-0.1][R-U3]
 Default `logos list` MUST reject a census failure in a module-owned dependency, while `logos list -e` MUST retain structured package errors. [T-0.1][R-U3]
 A synthesized command-line package without a resolved module has no module kind; its module-owned dependencies MUST still undergo the census. [T-0.1][R-U3]
-A loGo/s package MAY import any Go package [T-0.1][R-U2].
-A Go package MAY import any loGo/s package [T-0.1][R-U2].
+A LoGOs package MAY import any Go package [T-0.1][R-U2].
+A Go package MAY import any LoGOs package [T-0.1][R-U2].
 An import across kinds MUST NOT be an error [T-0.1][R-U2].
 Interop MUST work per import and MUST NOT need a package or a module that holds both kinds [T-0.1][R-U3].
 A Go declaration that a `.lgo` file imports MUST be a platform declaration per Sec 2.2 [T-0.1][T-202][A-STD][R-U2].
 See Sec 0.3 for the Go-facing signatures that a Go importer sees.
-A workspace root `logos build ./...` MUST build every Go module and every loGo/s module of the workspace [T-0.1][R-U2].
-The `logos` command alone MUST select the `.lgo` language. This covers file recognition, loGo/s syntax, loGo/s type rules, and loGo/s lints [T-0.1][A-LGOSEL].
+A workspace root `logos build ./...` MUST build every Go module and every LoGOs module of the workspace [T-0.1][R-U2].
+The `logos` command alone MUST select the `.lgo` language. This covers file recognition, LoGOs syntax, LoGOs type rules, and LoGOs lints [T-0.1][A-LGOSEL].
 Plain `go` MUST ignore `.lgo` files [T-0.1][A-LGOSEL].
-Plain `go` MUST report the upstream `no Go files` result for a loGo/s-only package [T-0.1][A-LGOSEL].
-A plain `go` build of a Go package that imports a loGo/s package, including `go build ./...` of its module, MUST fail with a load error that names the imported package, because plain `go` ignores `.lgo` files [T-0.1][A-LGOSEL].
+Plain `go` MUST report the upstream `no Go files` result for a LoGOs-only package [T-0.1][A-LGOSEL].
+A plain `go` build of a Go package that imports a LoGOs package, including `go build ./...` of its module, MUST fail with a load error that names the imported package, because plain `go` ignores `.lgo` files [T-0.1][A-LGOSEL].
 Packages from `golang.org/x` and other third-party Go modules MUST count as Go packages that `.lgo` code MAY import [A-XMOD][R-U2].
-A loGo/s package MUST NOT hold a generated `.go` file except cgo outputs [A-CODEGEN].
-A generator MAY write `.go` files into a Go package that a loGo/s package imports [A-CODEGEN][R-U2].
-Project tools SHOULD use `tool` directives in `go.mod`, never a Go file admitted to the build in a loGo/s module [A-MODKIND][R-U3].
+A LoGOs package MUST NOT hold a generated `.go` file except cgo outputs [A-CODEGEN].
+A generator MAY write `.go` files into a Go package that a LoGOs package imports [A-CODEGEN][R-U2].
+Project tools SHOULD use `tool` directives in `go.mod`, never a Go file admitted to the build in a LoGOs module [A-MODKIND][R-U3].
 
 ### 0.2 No new global keywords
 The language MUST add no new global keywords [T-0.2].
@@ -102,9 +102,9 @@ The helper MUST receive the selected architecture setting as its real `GO$GOARCH
 An explicitly supplied feature-shaped user tag MUST retain its ordinary Go build-tag meaning [T-0.3].
 The output MUST keep all comments from the source, except for the cgo fastcall directive replacement defined below. [T-0.3]
 C import declarations MUST retain their preamble attachment and content after ejection and formatting, except that each active `//logos:cgo_fastcall F` preamble marker MUST become `#cgo noescape F` and `#cgo nocallback F`. Generated Go line directives MUST stay outside the C preamble. Every emitted package clause MUST retain its physical Go filename so upstream cgo tools can reopen the file. Original declaration positions MUST resume after the imports, including a declaration on the same line as the package clause or C import. [T-0.3][T-304]
-An ejected file that imports `C` MUST retain source-level C selectors and types. It MUST receive the same loGo/s checks and lowering as its native form, including checked non-nil stores with the original `.lgo` positions. Upstream cgo MUST regenerate its wrappers, pointer-argument checks and two-result errno calls from that source. Overlays MUST preserve the original logical source filename and the replacement text's line layout; source identity MUST be recovered once before checking. [T-0.3][T-202][T-304]
+An ejected file that imports `C` MUST retain source-level C selectors and types. It MUST receive the same LoGOs checks and lowering as its native form, including checked non-nil stores with the original `.lgo` positions. Upstream cgo MUST regenerate its wrappers, pointer-argument checks and two-result errno calls from that source. Overlays MUST preserve the original logical source filename and the replacement text's line layout; source identity MUST be recovered once before checking. [T-0.3][T-202][T-304]
 Owned composite constants containing C types MUST preserve their checked type identity and values after ejection. [T-0.3][T-201]
-Each non-standard loGo/s dependency module MUST be ejected too [T-0.3].
+Each non-standard LoGOs dependency module MUST be ejected too [T-0.3].
 Each ejected dependency MUST land in `DIR/_logos_deps/<module path>@<version>/` [T-0.3].
 The output `go.mod` MUST carry a `replace` line for each ejected module [T-0.3].
 A Go dependency module MUST stay a `require` entry of the output `go.mod` [T-0.3][R-U2].
@@ -119,7 +119,7 @@ The output MUST NOT emit `_logos_errors` imports [T-0.3].
 Among support imports, lowered files before eject MUST import only `_logos_rt "logos/rt"`, `_logos_json "logos/rt/json"`, plus `_logos_unsafe "unsafe"` where needed, in addition to standard library imports under reserved `_logos_` aliases. Ejected files MUST spell those support imports as `_logos_rt "github.com/gosuda/loGos/rt"` and `_logos_json "github.com/gosuda/loGos/rt/json"` (the eject rewrite in `src/cmd/go/internal/logos/eject/eject.go:supportPathEdit`).
 The tool MUST NOT write ejected files into the source tree [T-0.3].
 Ejected code MUST build with an upstream Go 1.27.2 toolchain [T-0.3].
-A Go package that imports a loGo/s package MUST see each exported declaration with the Go-facing signature that `logos eject` emits for it [T-0.3][R-U2].
+A Go package that imports a LoGOs package MUST see each exported declaration with the Go-facing signature that `logos eject` emits for it [T-0.3][R-U2].
 The output MUST NOT emit colliding helper imports. [T-0.3]
 
 ### 0.4 Design axiom for explicit code
@@ -135,25 +135,25 @@ Building or importing a package with two active files whose names differ only by
 The tool MUST report that failure with `correctness::duplicate_stem_filename` [T-101.1].
 Module zips MUST reject alias extensions as non-letter symbols for publication [T-101.1].
 The tool MUST report warning `portability::alias_extension` for each alias file when the main module path first element holds a dot [T-101.1].
-When the main module is a loGo/s module, `CGO_ENABLED` MUST default to 0 [T-101.2].
-The key `logos.toml [build] cgo` MUST accept `forbid`, `restricted`, or `allow` in a loGo/s main module [T-101.2].
-The default for `[build] cgo` MUST be `forbid` in a loGo/s main module [T-101.2].
+When the main module is a LoGOs module, `CGO_ENABLED` MUST default to 0 [T-101.2].
+The key `logos.toml [build] cgo` MUST accept `forbid`, `restricted`, or `allow` in a LoGOs main module [T-101.2].
+The default for `[build] cgo` MUST be `forbid` in a LoGOs main module [T-101.2].
 The value `restricted` MUST enable cgo only for packages that match `cgo_allowlist` globs [T-101.2].
-In a loGo/s main module, a package with `import "C"` outside the allowlist MUST fail with `restriction::cgo_usage` [T-101.2].
-In a loGo/s main module with no `logos.toml`, a package with `import "C"` MUST fail with `restriction::cgo_usage` and text `cgo is disabled` [T-101.2].
-In a loGo/s main module, an explicit `CGO_ENABLED` in the environment MUST win over the default only when the `cgo` key is absent [T-101.2]. An explicit `[build] cgo = "forbid"` MUST stay enforced against the environment [T-101.2]. An explicit `[build] cgo = "restricted"` allowlist refusal MUST stay enforced against the environment [T-101.2].
-When cgo is enabled, `CC` is unset, and the default C compiler is missing, `logos` and plain `go` MUST use `zig cc -target <zig-arch>-<zig-os>` for every cgo package, Go or loGo/s, when `zig` is in PATH [T-101.2][R-U1]. The target MUST be the GOOS/GOARCH pair of the build, not the host [T-101.2][R-U1].
+In a LoGOs main module, a package with `import "C"` outside the allowlist MUST fail with `restriction::cgo_usage` [T-101.2].
+In a LoGOs main module with no `logos.toml`, a package with `import "C"` MUST fail with `restriction::cgo_usage` and text `cgo is disabled` [T-101.2].
+In a LoGOs main module, an explicit `CGO_ENABLED` in the environment MUST win over the default only when the `cgo` key is absent [T-101.2]. An explicit `[build] cgo = "forbid"` MUST stay enforced against the environment [T-101.2]. An explicit `[build] cgo = "restricted"` allowlist refusal MUST stay enforced against the environment [T-101.2].
+When cgo is enabled, `CC` is unset, and the default C compiler is missing, `logos` and plain `go` MUST use `zig cc -target <zig-arch>-<zig-os>` for every cgo package, Go or LoGOs, when `zig` is in PATH [T-101.2][R-U1]. The target MUST be the GOOS/GOARCH pair of the build, not the host [T-101.2][R-U1].
 The `-musl` suffix MUST apply only for Linux targets [T-101.2].
-The `[build] cgo` policy (`forbid`, `restricted`, `allow`) and its `forbid` default MUST apply to loGo/s main modules only [T-101.2][R-U1].
+The `[build] cgo` policy (`forbid`, `restricted`, `allow`) and its `forbid` default MUST apply to LoGOs main modules only [T-101.2][R-U1].
 A Go main module MUST keep the upstream default for `CGO_ENABLED` under `logos`, and a `cgo` key in its `logos.toml` MUST have no effect [T-101.2][R-U1].
 Plain `go` MUST keep the upstream default for `CGO_ENABLED` [T-101.2].
 With cgo off, `net` and `os/user` in the standard library MUST use their pure-Go paths, which is the upstream `CGO_ENABLED=0` behavior [T-101.2].
 
 ### 1.2 RFC-102: Compiler linter and rule set
-The `logos lint` check MUST run inside the compiler on loGo/s packages for syntax and type rules [T-102].
+The `logos lint` check MUST run inside the compiler on LoGOs packages for syntax and type rules [T-102].
 The `logos lint` check MUST run the language-neutral syntax and type rules on Go packages at the same point [T-102][R-U1].
-The `logos lint` check MUST run inside escape analysis for escape rules, on Go packages and on loGo/s packages [T-102][R-U1].
-A rule MUST count as language-neutral when a Go package can trigger it with Go syntax and types alone and the code it guards exists in Go packages. A loGo/s form inside its detection, such as a group child, a const view, or `?`, MUST stay inactive in Go [T-102][R-U1]. The only exception is a `go` statement inside a `WithLock` callback that spawns a relock, which MUST NOT report under `concurrency::reentrant_withlock_deadlock` [T-102][R-U1].
+The `logos lint` check MUST run inside escape analysis for escape rules, on Go packages and on LoGOs packages [T-102][R-U1].
+A rule MUST count as language-neutral when a Go package can trigger it with Go syntax and types alone and the code it guards exists in Go packages. A LoGOs form inside its detection, such as a group child, a const view, or `?`, MUST stay inactive in Go [T-102][R-U1]. The only exception is a `go` statement inside a `WithLock` callback that spawns a relock, which MUST NOT report under `concurrency::reentrant_withlock_deadlock` [T-102][R-U1].
 The language-neutral rules MUST be `correctness::typed_nil_return` (in Go, the `(*T)(nil)` form only), `correctness::arena_pointer_escape`, `correctness::infinite_recursion`, `correctness::unclosed_io_closer`, `correctness::unbounded_channel_op`, `correctness::array_index_out_of_bounds`, `concurrency::concurrent_multiword_race`, `concurrency::reentrant_withlock_deadlock`, `correctness::withlock_leak`, `slop::err_chain_reset`, `slop::discarded_error`, `complexity::cognitive_overflow`, `perf::large_backing_array_pin`, `perf::time_after_in_loop`, `concurrency::unguarded_access`, `concurrency::nonatomic_access`, `concurrency::lock_requirement_unmet`, `correctness::layout_constant_mismatch`, `portability::atomic_plain_int64`, `correctness::linkname_mismatch`, `perf::arena_fallback`, and `pedantic::unsafe_outside_unsafe_file` [T-102][R-U1].
 The compiler MUST enforce `concurrency::unguarded_access` as `forbid` against a read or write of a field that `//logos:guardedby` guards without its lock held [T-102].
 The compiler MUST enforce `concurrency::nonatomic_access` as `forbid` against a non-`sync/atomic` access of a field that `//logos:atomic` marks [T-102].
@@ -162,23 +162,23 @@ The compiler MUST enforce `correctness::layout_constant_mismatch` as `forbid` ag
 The compiler MUST enforce `portability::atomic_plain_int64` as `warn` against a 64-bit `sync/atomic` call on the address of a plain `int64` or `uint64`, with an autofix to `atomic.Int64` or `atomic.Uint64` [T-102].
 The compiler MUST enforce `correctness::linkname_mismatch` as `forbid` against a `//go:linkname local pkg.name` whose imported signature differs from the local one, when `pkg` is in the import graph [T-102].
 The compiler MUST enforce `pedantic::unsafe_outside_unsafe_file` as `allow` against `import "unsafe"` in a file whose name does not end in `_unsafe.go` or `_test.go` [T-102].
-The compiler MUST enforce `correctness::region_escape` as `forbid` against a `logos/arena.Region` value that leaves its local scope in a loGo/s package [T-102].
-The compiler MUST report `perf::arena_fallback` when a `logos/arena` call escapes to the heap in a loGo/s package. In a Go package, `logos lint` MUST report it and `logos build` MUST NOT, because `logos build` runs no default lint on Go modules [T-102].
+The compiler MUST enforce `correctness::region_escape` as `forbid` against a `logos/arena.Region` value that leaves its local scope in a LoGOs package [T-102].
+The compiler MUST report `perf::arena_fallback` when a `logos/arena` call escapes to the heap in a LoGOs package. In a Go package, `logos lint` MUST report it and `logos build` MUST NOT, because `logos build` runs no default lint on Go modules [T-102].
 The directive grammar for these checks is `//logos:guardedby <mu>`, `//logos:atomic`, `//logos:requires <p.mu>`, `//logos:acquires <p.mu>`, `//logos:releases <p.mu>`, `//logos:zeroalloc [local]`, `//logos:sizeof T`, `//logos:offsetof T.f`, and `//logos:alignof T` [T-102]
-The rules `correctness::nil_deref_unproven`, `correctness::defer_erases_errdefer_state`, `concurrency::unsupervised_goroutine`, `suspicious::unapplied_struct_default`, `suspicious::side_effect_before_sort`, `portability::serialized_unsized_int`, `portability::alias_extension`, and `pedantic::exhaustive_union_switch` MUST NOT apply to Go packages, because each depends on loGo/s syntax, types, or generated code [T-102][R-U1].
+The rules `correctness::nil_deref_unproven`, `correctness::defer_erases_errdefer_state`, `concurrency::unsupervised_goroutine`, `suspicious::unapplied_struct_default`, `suspicious::side_effect_before_sort`, `portability::serialized_unsized_int`, `portability::alias_extension`, and `pedantic::exhaustive_union_switch` MUST NOT apply to Go packages, because each depends on LoGOs syntax, types, or generated code [T-102][R-U1].
 The rule `portability::serialized_unsized_int` guards the generated binary layout of Sec 10.3, which Go packages do not get [T-102][R-U1].
 A Go package MUST get the default group severities, the `logos.toml [lints]` table, and the `//logos:allow(<rule>)` directive of this section [T-102][R-U1].
 A language-neutral rule whose default severity is `forbid` MUST run at `deny` for a Go package [T-102][R-U1].
 `//logos:allow(<rule>)` MUST silence such a rule in a Go package [T-102][R-U1].
-A loGo/s package MUST keep the `forbid` severity of such a rule [T-102].
+A LoGOs package MUST keep the `forbid` severity of such a rule [T-102].
 Third-party modules of either kind MUST get no code lints [T-102][R-U1].
 Capability checks MUST apply to every module in the build [T-102].
 `forbid` MUST NOT be lowered by configuration [T-102].
-In a loGo/s package, `forbid` MUST ignore `//logos:allow(<rule>)` [T-102].
+In a LoGOs package, `forbid` MUST ignore `//logos:allow(<rule>)` [T-102].
 `deny` MUST be an error unless `//logos:allow(<rule>)` precedes the statement or declaration [T-102].
 `warn` MUST print a warning and MUST NOT fail the build [T-102].
 `allow` MUST stay silent [T-102].
-In a loGo/s package, a `//logos:allow` directive on a `forbid` rule MUST itself be an error with `correctness::allow_forbidden_rule` [T-102].
+In a LoGOs package, a `//logos:allow` directive on a `forbid` rule MUST itself be an error with `correctness::allow_forbidden_rule` [T-102].
 The default group severities MUST be `correctness` forbid, `concurrency` forbid, `slop` deny, `complexity` deny, `perf` warn, `style` warn, `suspicious` warn, `portability` warn, `pedantic` allow [T-102].
 The `logos.toml [lints]` table MUST control group severities [T-102].
 Configuration MAY raise `max_comptime_ast_nodes` and `max_ctfe_steps` above their defaults, which Sec 8.5 lists [T-102][T-Sec8].
@@ -214,7 +214,7 @@ A `//logos:allow(portability::alias_extension)` directive MUST silence the rule 
 The compiler MUST enforce `perf::time_after_in_loop` as `warn` against `time.After` inside a loop body [T-102].
 A default over a closed union MUST report pedantic::exhaustive_union_switch when the pedantic group is enabled; that rule defaults to allow and is silent otherwise. [T-102]
 JSON output MUST offer autofix candidates for optional chaining with default, early-return guard, split of a misplaced `?` where a split keeps the meaning of the statement, verb fix to `%w`, and addition of `?` in an error-returning function [T-102].
-JSON output for a Go package MUST offer only the verb fix to `%w` among the previous sentence's candidates, because the other candidates name loGo/s syntax; it MAY also offer the `portability::atomic_plain_int64` wrapper fix. [T-102][R-U1]
+JSON output for a Go package MUST offer only the verb fix to `%w` among the previous sentence's candidates, because the other candidates name LoGOs syntax; it MAY also offer the `portability::atomic_plain_int64` wrapper fix. [T-102][R-U1]
 A statement with several misplaced `?` MUST get one split candidate, which hoists each `?` into its own preceding statement in evaluation order. [T-102]
 A statement with a misplaced `?` under the right operand of `&&`, `||`, or `??` MUST get no split candidate, because a split would run that operand when the left side decides the result; each diagnostic of that statement MUST carry a note that names this reason. [T-102]
 A statement whose remaining call would return more values than the statement binds after a split, such as `v := f1(g1(step()?)?)` with a two-result `f1`, MUST get no split candidate. [T-102]
@@ -228,7 +228,7 @@ The command `logos context <pkg>#<Symbol>` MUST print the declaration plus one l
 `logos context` MUST serve `.lgo` and `.go` packages [T-103].
 The package pattern MUST select exactly one package; zero or multiple matches MUST report the pattern and the match count. [T-103]
 `logos context` MUST report an unknown symbol with text that names the package and the missing symbol [T-103].
-The command `logos next --fix` MUST convert a whole Go module to a loGo/s module [T-103][R-U3].
+The command `logos next --fix` MUST convert a whole Go module to a LoGOs module [T-103][R-U3].
 `logos next` MUST use byte-span splicing and MUST keep every comment and build line byte-identical outside rewrites [T-103].
 `logos next` MUST keep each non-standard Go import of the module as an import of a Go package [T-103][R-U2].
 `logos next` MUST change nothing while it only prints a diff [T-103].
@@ -316,7 +316,7 @@ A struct field default MUST have form `F T = constExpr` before the tag [T-104.5]
 A default MUST be checked in its declaration's lexical scope and MUST be assignable to the field type, even when no composite literal constructs that type [T-104.5]. A later local type specification in the same declaration group MUST NOT change a default's bindings [T-104.5].
 A default MUST be a constant expression or a composite literal whose values and map keys recursively satisfy this rule [T-104.5].
 Defaults MUST apply in composite literals of the type, including address forms and partial literals [T-104.5].
-A Go struct literal of an exported loGo/s struct MUST get zero values and MUST NOT get the field defaults; this is a documented hole [T-104.5][R-U2][A-GOBOUNDARY].
+A Go struct literal of an exported LoGOs struct MUST get zero values and MUST NOT get the field defaults; this is a documented hole [T-104.5][R-U2][A-GOBOUNDARY].
 `var x T` and `new(T)` MUST trigger `suspicious::unapplied_struct_default` [T-104.5].
 A non-constant default MUST fail with `correctness::default_not_constant` [T-104.5].
 Spread `T{..src}` MUST copy fields with identical names and identical types [T-104.5].
@@ -408,7 +408,7 @@ NaN sort keys MUST order deterministically. [T-104.6]
 
 ### 1.5 RFC-105: Optimization tiers
 `logos build` and `go build` MUST accept `-O=0`, `-O=1`, `-O=2`, `-O=3`, and `-O=s` [T-105][R-U1].
-A level MUST apply to every package of the build, Go or loGo/s [T-105][R-U1].
+A level MUST apply to every package of the build, Go or LoGOs [T-105][R-U1].
 Under `logos`, the default level MUST come from `logos.toml [build] opt_level` with default `O2` [T-105].
 Under plain `go`, the default level MUST be `O1` [T-105][R-U1].
 `[build] opt_level` MUST accept `O0`, `O1`, `O2`, `O3`, and `Os` only [T-105].
@@ -423,7 +423,7 @@ A standard-library-provenance package (a standard library package or its externa
 Os MUST set inline budget 15 [T-105].
 O3 MUST add no escape-analysis or prove-pass work budget [T-105].
 `target_cpu` MUST accept `deterministic`, `baseline`, or `native` [T-105].
-`target_cpu` MUST apply to every package that `logos` builds, Go or loGo/s [T-105][R-U1].
+`target_cpu` MUST apply to every package that `logos` builds, Go or LoGOs [T-105][R-U1].
 Plain `go` MUST read no `target_cpu` and MUST keep the upstream `GOAMD64` and `GOARM64` defaults [T-105][R-U1].
 `deterministic` MUST set GOAMD64 v3 and GOARM64 v8.2 unless the environment already sets them [T-105].
 `baseline` MUST set GOAMD64 v1 and GOARM64 v8.0 [T-105].
@@ -435,7 +435,7 @@ Self-aliased calls such as arr = Reverse(arr) MUST return correct results. [T-10
 
 ## 2. Tier 2 specification
 
-This section defines the loGo/s type system: compile-time constants, pointers and options, unions and property interfaces, tuples and fixed-array operators, comptime expansion, and group concurrency.
+This section defines the LoGOs type system: compile-time constants, pointers and options, unions and property interfaces, tuples and fixed-array operators, comptime expansion, and group concurrency.
 
 ### 2.1 RFC-201: Const composites, CTFE, const views, and const maps
 
@@ -470,7 +470,7 @@ On native targets, constant data with pointers MUST live in read-only memory. Na
 
 A known `unsafe` derivation from constant-origin storage MUST preserve its readonly restriction and MUST fail statically if it would expose an ordinary writable reference, before native code generation or `logos eject` emits Go. A store that bypasses checked-source enforcement and reaches native read-only constant storage MUST fault at run time; this is not a promise for every target or every use of `unsafe`. [T-201]
 
-A hand-written `//logos:rodata` directive on its own line in the comment block directly above a package-level `var` declaration or a spec of a `var (...)` group in a loGo/s package MUST place the variable in read-only memory, and a variable under it whose initializer needs dynamic initialization MUST fail compilation with `[correctness::rodata_dynamic_init]` at the variable. A `//logos:rodata` directive anywhere else (above a `const`, a `func`, a `type`, or the `var (` line of a group, inside a function body, after code on its line, or apart from its declaration by a blank line) MUST fail compilation with `[correctness::misplaced_directive]` at the directive. The other `//logos:` directives report a misplaced directive under the rule they serve (Sec 1.2, Sec 17.2), and no rule serves this one. [T-201]
+A hand-written `//logos:rodata` directive on its own line in the comment block directly above a package-level `var` declaration or a spec of a `var (...)` group in a LoGOs package MUST place the variable in read-only memory, and a variable under it whose initializer needs dynamic initialization MUST fail compilation with `[correctness::rodata_dynamic_init]` at the variable. A `//logos:rodata` directive anywhere else (above a `const`, a `func`, a `type`, or the `var (` line of a group, inside a function body, after code on its line, or apart from its declaration by a blank line) MUST fail compilation with `[correctness::misplaced_directive]` at the directive. The other `//logos:` directives report a misplaced directive under the rule they serve (Sec 1.2, Sec 17.2), and no rule serves this one. [T-201]
 
 A write through any alias to a variable placed by that directive MUST fault at run time. [T-201]
 
@@ -488,19 +488,19 @@ A Go importer MUST see an exported `const` composite as a package-level variable
 
 An exported const map is the one exception to the no-heap rule above: its package-level variable holds a built map, so only an unexported const map adds no heap bytes at init. [T-201][T-Sec5][R-U2]
 
-A write from Go into such a variable lies outside the loGo/s contract. The Go compiler does not report it, and the write MAY fault at run time because the data can sit in read-only memory. This is a documented hole. [T-201][T-Sec5][R-U2][A-GOBOUNDARY]
+A write from Go into such a variable lies outside the LoGOs contract. The Go compiler does not report it, and the write MAY fault at run time because the data can sit in read-only memory. This is a documented hole. [T-201][T-Sec5][R-U2][A-GOBOUNDARY]
 
 An `&` over an inline field or an inline array element of a const composite, local or imported, MUST yield a pointer to a fresh variable that holds a copy. Only the copied slots are detached: a fresh outer struct or array copy MUST NOT make a nested pointer, slice, map, or other reference to protected constant storage writable. Writes to detached slots MUST NOT change the constant, and nested references MUST retain their readonly obligation. [T-201][T-104.5]
 
 An `&` whose path traverses a slice element or a dereference inside a const composite, and a slice expression of an array inside a const composite, MUST fail with `[correctness::const_view_mutation]`; copying an enclosing value MUST NOT bypass these rules for references still reaching protected storage. [T-201]
 
-A loGo/s read of an imported struct or other aggregate const composite that holds a map MUST preserve the readonly restriction on its reference descendants, including through a copied outer value; it MUST NOT yield a mutable deep copy per read. A write through a reference descendant that reaches protected constant storage MUST fail with `[correctness::const_view_mutation]`. The fresh-variable address rule above detaches only copied inline slots, not their nested references to protected storage. Bare const-map materialization under Sec 7 and the ordinary Go-importer boundary above are unchanged. [T-201][T-Sec5][T-Sec7][R-U2]
+A LoGOs read of an imported struct or other aggregate const composite that holds a map MUST preserve the readonly restriction on its reference descendants, including through a copied outer value; it MUST NOT yield a mutable deep copy per read. A write through a reference descendant that reaches protected constant storage MUST fail with `[correctness::const_view_mutation]`. The fresh-variable address rule above detaches only copied inline slots, not their nested references to protected storage. Bare const-map materialization under Sec 7 and the ordinary Go-importer boundary above are unchanged. [T-201][T-Sec5][T-Sec7][R-U2]
 
 The checked-source invariant is that constant-origin values MUST NOT expose ordinary writable references to protected storage. The compiler MUST preserve this obligation through aliases, aggregate copies, and known `unsafe.SliceData`, `unsafe.Slice`, `unsafe.Add`, `unsafe.StringData`, and `unsafe.String` derivations. A qualification-erasing escape MUST fail statically with `[correctness::const_view_escape]`, and a forbidden mutation or address/slice operation MUST fail with `[correctness::const_view_mutation]`, before either native compilation or Go ejection. Qualifier erasure during lowering is permitted only after these checks succeed. [T-201]
 
 A Go parameter's proven `ParamMutated=0` fact proves only the permitted call's non-mutation obligation, not independence of its returned aliases. A reference-carrying result that might alias a constant-origin argument MUST retain the readonly obligation unless result independence is separately proven; an unknown result MUST NOT become an ordinary writable reference merely because the parameter has that fact. [T-201][T-Sec5]
 
-This invariant applies to checked loGo/s source, not arbitrary forged `unsafe` addresses. External ordinary Go importers remain subject to the documented Go boundary hole above, and modified ejected Go is outside checked-source enforcement. These boundaries do not weaken rejection of known flows in checked source and do not assert a universal static proof of unsafe behavior. The hand-written `//logos:rodata` directive's scope and alias-store contract above are unchanged. [T-201][T-Sec5][R-U2][A-GOBOUNDARY]
+This invariant applies to checked LoGOs source, not arbitrary forged `unsafe` addresses. External ordinary Go importers remain subject to the documented Go boundary hole above, and modified ejected Go is outside checked-source enforcement. These boundaries do not weaken rejection of known flows in checked source and do not assert a universal static proof of unsafe behavior. The hand-written `//logos:rodata` directive's scope and alias-store contract above are unchanged. [T-201][T-Sec5][R-U2][A-GOBOUNDARY]
 
 An index assignment through a constant view MUST fail with `[correctness::const_view_mutation]` naming the operation and the expression. [T-201]
 
@@ -1018,7 +1018,7 @@ Inside a comptime generic its value MUST be taken per instantiation, and a condi
 
 `comptime.SizeOf[T]()`, `comptime.AlignOf[T]()`, and `comptime.HasPointers[T]()` are compile-time constants describing the size, alignment, and pointer-containing status of `T`.
 
-Each of them MUST equal what `unsafe.Sizeof`, `unsafe.Alignof`, and the garbage collector pointer map give for the Go type that the lowering emits for `T` on the target. That holds for every loGo/s type form: an option that the lowering keeps bare or wraps, a const view, a tuple, a closed union, and any struct, array, or option that holds them. [T-205]
+Each of them MUST equal what `unsafe.Sizeof`, `unsafe.Alignof`, and the garbage collector pointer map give for the Go type that the lowering emits for `T` on the target. That holds for every LoGOs type form: an option that the lowering keeps bare or wraps, a const view, a tuple, a closed union, and any struct, array, or option that holds them. [T-205]
 
 A `const if` inside a comptime generic or a `const for` body MUST evaluate per instantiation or per field over `true`, `false`, constants, `comptime.IsStruct[X]()` with `X` a type argument, a type parameter or `f.Type`, and the connectives `!`, `&&`, `||`, `==`, `!=`. [T-205]
 
@@ -1340,9 +1340,9 @@ An `Open` in an `if`, `switch`, or `for` init clause MUST belong to the whole st
 The compiler MUST place an object in `r` only when escape analysis proves that no pointer to it outlives the owner block of `r`. [T-301.2]
 Otherwise the object MUST go on the heap, and `perf::arena_fallback` MUST name the call and the escaping flow where Sec 1.2 requires the report. [T-301.2]
 A store of a region pointer into a region object whose owner block is the same as, or nested inside, the owner block of the stored pointer's region MUST NOT count as an escape. A store into an object of an enclosing region MUST count as an escape. [T-301.2]
-In a loGo/s package, a `Region` that is stored outside a local variable, returned, sent on a channel, captured by a `go` statement, or captured by an escaping closure MUST fail with `correctness::region_escape`. [T-301.2]
+In a LoGOs package, a `Region` that is stored outside a local variable, returned, sent on a channel, captured by a `go` statement, or captured by an escaping closure MUST fail with `correctness::region_escape`. [T-301.2]
 This return restriction includes bare returns of named results containing a `Region`, directly or through a local holder binding. Returning ordinary values computed using a region does not itself return the region. [T-301.2]
-In a Go package, passing an `r` to a callee is allowed. With `GOEXPERIMENT=logosarena` placement through that region follows the same escape rule as in a loGo/s package: the compiler places the object in the region only when escape analysis proves no pointer to it outlives the owner block of `r`, otherwise the object goes on the heap; a use that would fail with `correctness::region_escape` in a loGo/s package falls back to the heap instead. Under `logos lint` that fallback is reported as `perf::arena_fallback`, naming the call and the escaping flow; `logos build` and plain `go` report no rule ID. Without the experiment every `logos/arena` call behaves as its heap equivalent. [T-301.2][R-U1]
+In a Go package, passing an `r` to a callee is allowed. With `GOEXPERIMENT=logosarena` placement through that region follows the same escape rule as in a LoGOs package: the compiler places the object in the region only when escape analysis proves no pointer to it outlives the owner block of `r`, otherwise the object goes on the heap; a use that would fail with `correctness::region_escape` in a LoGOs package falls back to the heap instead. Under `logos lint` that fallback is reported as `perf::arena_fallback`, naming the call and the escaping flow; `logos build` and plain `go` report no rule ID. Without the experiment every `logos/arena` call behaves as its heap equivalent. [T-301.2][R-U1]
 A `go group` child MAY read a parent-region object through a const view. [T-301.2]
 A non-const capture MUST count as an escape of that object. [T-301.2]
 `logos eject` MUST lower `arena.Open()` to `_logos_rt.Region{}`, `arena.New[T](r)` to `new(T)`, `arena.Make[T](r, n)` to `make([]T, n)`, and `arena.Append[T](r, s, v...)` to `append(s, v...)`. [T-301.2]
@@ -1353,7 +1353,7 @@ The toolchain MUST NOT ship the upstream `arena` package, `reflect.ArenaNew`, or
 
 Comptime and escape analysis:
 Escape analysis MUST record a parameter that leaks only into the pointee of another parameter. [T-301.2][R-U1]
-This precision MUST apply to loGo/s packages, and to Go packages under `GOEXPERIMENT=logosescape`, which is off by default. [T-301.2][R-U1]
+This precision MUST apply to LoGOs packages, and to Go packages under `GOEXPERIMENT=logosescape`, which is off by default. [T-301.2][R-U1]
 
 Recursion MUST return region-allocated results to the caller intact. [T-301.1]
 Idle parked goroutines MUST consume 0 bytes of region memory. [T-301.1]
@@ -1392,16 +1392,16 @@ Go 1.27 lowering already keeps `clear(b)` as a runtime memory clear. [T-303]
 
 ### 3.4 RFC-304: Fast-CGo engine
 
-A loGo/s package MUST accept cgo files beside other `.lgo` files. [T-304][A-CODEGEN]
+A LoGOs package MUST accept cgo files beside other `.lgo` files. [T-304][A-CODEGEN]
 A file that imports `C` MUST use Go syntax only. [T-304][A-CODEGEN]
 LoGo/s syntax in such a file MUST fail with `[correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only`. [T-304][A-CODEGEN]
 Pointers that C returns MUST count as platform pointers. [T-202]
 Storing one into a non-nil location MUST check it. [T-202]
 When the fast path is on, a C function that carries both `#cgo noescape` and `#cgo nocallback` MUST take the fast call path. [T-304][R-U1]
-This rule MUST hold in Go packages under `logos` and under plain `go`, and in loGo/s packages under `logos`. [T-304][R-U1]
+This rule MUST hold in Go packages under `logos` and under plain `go`, and in LoGOs packages under `logos`. [T-304][R-U1]
 Go code MUST need no new directive and no new syntax for the fast path. [T-304][R-U1]
 A C function that carries only one of the two directives, or none, MUST keep the upstream call path. [T-304]
-One fast path MUST serve Go packages and loGo/s packages: the single `runtime.logosCgocallFast` trampoline and the one cgo pipeline of this section. [T-304][R-U1]
+One fast path MUST serve Go packages and LoGOs packages: the single `runtime.logosCgocallFast` trampoline and the one cgo pipeline of this section. [T-304][R-U1]
 The fast path MUST use the syscall-style `reentersyscall`/`asmcgocall`/`exitsyscall` sequence, so it may release the P like a syscall; fast-call diagnostics stay on the original M. [T-304]
 It MUST NOT read a clock in the fast body: no per-call monotonic read takes part, because that read dominated the measured fast path and no consumer read the value. [T-304]
 The fast path MUST stay behind `GOEXPERIMENT=logosfastcgo`, which is off by default under both commands. [T-304][R-U1]
@@ -1456,7 +1456,7 @@ The fixture's `-buildvcs=false` isolates the test from VCS metadata; it is not a
 
 ### 3.5 RFC-305: GC scan work and optimization
 
-GC improvements MUST use the shared runtime for Go and loGo/s packages under both commands. The region rules below MUST retain the `GOEXPERIMENT=logosarena` gate and the enablement defaults of Sec 3.1. [T-305][R-U1]
+GC improvements MUST use the shared runtime for Go and LoGOs packages under both commands. The region rules below MUST retain the `GOEXPERIMENT=logosarena` gate and the enablement defaults of Sec 3.1. [T-305][R-U1]
 They MUST preserve typed pointer maps, external heap and stack roots, write barriers, safe points, and the lifetime and zeroing rules of Sec 3.1. [T-305]
 They MUST preserve the existing collector selection and the semantics of `GOGC`, `GOMEMLIMIT`, `debug.SetGCPercent`, and `debug.SetMemoryLimit`. They MUST NOT add an alternate GC mode. [T-305]
 
@@ -1541,7 +1541,7 @@ An opening `(` MUST branch on the next token after its element list [T-104.6]. A
 
 Fact application and declaration overlays MUST resolve only source declaration identifiers when walking an imported package scope. Compiler-only symbols for hoisted local types and synthetic method entries MUST remain lazy; a generic local type requires its enclosing dictionary and MUST NOT be forced through the public type importer. Legal package-private and Unicode declarations, and methods reached through their declaring types, MUST retain their verified facts. [T-Sec5]
 
-Cross-package facts MUST travel in the archive member `__.LOGOS` [T-Sec5]. Exported declaration signatures remain in `__.PKGDEF`; `__.LOGOS` carries fingerprint-bound typed fact records and no declaration header. [T-Sec5][T-201] The member MUST hold one fact record per function that the rules below give a record. A record carries `ReceiverMutated`, the `ParamMutated` mask, `FnFact.Readonly`, `MayYield`, `AlwaysNilError`, and generic assertion effects `AssertTP` and `AssertRTP` [T-Sec5][T-201]. A function carrying the `AlwaysNilError` flag MUST return a nil error on every return path [T-Sec5][T-102]. Facts MUST use format version 3; older members MUST be rejected rather than read through a compatibility path [T-Sec5][T-201]. Presence of assertion-effect flags MUST distinguish analyzed effects from unknown effects; explicit `AssertTP=0,AssertRTP=0` MUST denote proven-zero effects [T-Sec5][T-201]. Assertion and mutation masks MUST use arbitrary-arity hexadecimal masks without a 64-parameter limit [T-Sec5][T-201]. Encode and decode MUST preserve `FnFact.Readonly` [T-201][T-Sec5]. The facts MUST bind to the `__.PKGDEF` fingerprint, and a stale fingerprint MUST fail the dependent build [T-Sec5]. A Go importer of a loGo/s package MUST see the signatures that `logos eject` emits: a closed union value type as its methods-only interface with the terms dropped, `*T?` as the bare pointer, a non-nil `*T` as a plain `*T`, a property interface as its `Logos_GetF` and `Logos_SetF` accessor methods, a readonly interface method as its plain method, and a const view as its plain type [T-Sec5][R-U2][T-201]. Lowering and eject MUST erase only the `const` keyword of a readonly method for emitted Go, keeping source positions and qualification facts for loGo/s importers [T-201][T-0.3][T-Sec5]. A Go package member, when the writer emits it, MUST carry one `lang go` record and no declaration header [T-Sec5][R-U1][T-201]. Under the `logos` driver the member of a non-standard Go package MUST also carry one `fn` record per exported function or method with parameters and a body, except functions with type parameters, holding an explicit `ParamMutated` mask with `ParamMutated=0` denoting proven zero [T-Sec5][R-U1][T-201]. It MUST NOT carry `FnFact.Readonly` records [T-Sec5][R-U1]. `ReceiverMutated` appears only for methods whose receiver is written [T-Sec5][R-U1][T-201]. A package built without the `logos` driver MUST carry no `ParamMutated` records [T-Sec5][R-U1]. An importer MUST NOT read a package that carries the `lang go` record as a loGo/s package: no non-nil pointer check and no overlay applies to it, and its `ParamMutated` facts apply to const-view arguments as Sec 2.1 states [T-Sec5][R-U1]. Assertion effects are emitted for Go and loGo/s packages at every `-O` level and for every GOARCH, and a Go package with assertion effects writes `__.LOGOS` under `go build` and under `logos build` alike [T-Sec5][T-201]. Importers MUST consume assertion effects from `lang go` members [T-Sec5][R-U1]. Any written Go-package member carries one `lang go` record, and a Go package with no fact to record writes no member [T-Sec5][T-Sec12]. When this toolchain compiles a Go package that calls a loGo/s function or method, the compiler MUST insert a `logos/rt.MustNonNil` check for each non-nil pointer parameter of the callee in a direct call, in a `go` statement, and in a `defer` statement, using the callee facts from `__.LOGOS` [T-Sec5][R-U2]. A call through a function value, a method value, or an interface has no such check; this is a documented hole [T-Sec5][R-U2][A-GOBOUNDARY]. A nil receiver that a Go caller passes to a method with a non-nil pointer receiver has no such check either; this is a documented hole [T-Sec5][R-U2][A-GOBOUNDARY]. Code that an upstream toolchain builds from eject output has no such check either; this is a documented hole, like reflection and `unsafe` [T-Sec5][R-U2][A-GOBOUNDARY]. A Go mutation through a const view and a Go store of a non-member into a closed union are documented holes, and the compiler does not check them [T-Sec5][R-U2][A-GOBOUNDARY].
+Cross-package facts MUST travel in the archive member `__.LOGOS` [T-Sec5]. Exported declaration signatures remain in `__.PKGDEF`; `__.LOGOS` carries fingerprint-bound typed fact records and no declaration header. [T-Sec5][T-201] The member MUST hold one fact record per function that the rules below give a record. A record carries `ReceiverMutated`, the `ParamMutated` mask, `FnFact.Readonly`, `MayYield`, `AlwaysNilError`, and generic assertion effects `AssertTP` and `AssertRTP` [T-Sec5][T-201]. A function carrying the `AlwaysNilError` flag MUST return a nil error on every return path [T-Sec5][T-102]. Facts MUST use format version 3; older members MUST be rejected rather than read through a compatibility path [T-Sec5][T-201]. Presence of assertion-effect flags MUST distinguish analyzed effects from unknown effects; explicit `AssertTP=0,AssertRTP=0` MUST denote proven-zero effects [T-Sec5][T-201]. Assertion and mutation masks MUST use arbitrary-arity hexadecimal masks without a 64-parameter limit [T-Sec5][T-201]. Encode and decode MUST preserve `FnFact.Readonly` [T-201][T-Sec5]. The facts MUST bind to the `__.PKGDEF` fingerprint, and a stale fingerprint MUST fail the dependent build [T-Sec5]. A Go importer of a LoGOs package MUST see the signatures that `logos eject` emits: a closed union value type as its methods-only interface with the terms dropped, `*T?` as the bare pointer, a non-nil `*T` as a plain `*T`, a property interface as its `Logos_GetF` and `Logos_SetF` accessor methods, a readonly interface method as its plain method, and a const view as its plain type [T-Sec5][R-U2][T-201]. Lowering and eject MUST erase only the `const` keyword of a readonly method for emitted Go, keeping source positions and qualification facts for LoGOs importers [T-201][T-0.3][T-Sec5]. A Go package member, when the writer emits it, MUST carry one `lang go` record and no declaration header [T-Sec5][R-U1][T-201]. Under the `logos` driver the member of a non-standard Go package MUST also carry one `fn` record per exported function or method with parameters and a body, except functions with type parameters, holding an explicit `ParamMutated` mask with `ParamMutated=0` denoting proven zero [T-Sec5][R-U1][T-201]. It MUST NOT carry `FnFact.Readonly` records [T-Sec5][R-U1]. `ReceiverMutated` appears only for methods whose receiver is written [T-Sec5][R-U1][T-201]. A package built without the `logos` driver MUST carry no `ParamMutated` records [T-Sec5][R-U1]. An importer MUST NOT read a package that carries the `lang go` record as a LoGOs package: no non-nil pointer check and no overlay applies to it, and its `ParamMutated` facts apply to const-view arguments as Sec 2.1 states [T-Sec5][R-U1]. Assertion effects are emitted for Go and LoGOs packages at every `-O` level and for every GOARCH, and a Go package with assertion effects writes `__.LOGOS` under `go build` and under `logos build` alike [T-Sec5][T-201]. Importers MUST consume assertion effects from `lang go` members [T-Sec5][R-U1]. Any written Go-package member carries one `lang go` record, and a Go package with no fact to record writes no member [T-Sec5][T-Sec12]. When this toolchain compiles a Go package that calls a LoGOs function or method, the compiler MUST insert a `logos/rt.MustNonNil` check for each non-nil pointer parameter of the callee in a direct call, in a `go` statement, and in a `defer` statement, using the callee facts from `__.LOGOS` [T-Sec5][R-U2]. A call through a function value, a method value, or an interface has no such check; this is a documented hole [T-Sec5][R-U2][A-GOBOUNDARY]. A nil receiver that a Go caller passes to a method with a non-nil pointer receiver has no such check either; this is a documented hole [T-Sec5][R-U2][A-GOBOUNDARY]. Code that an upstream toolchain builds from eject output has no such check either; this is a documented hole, like reflection and `unsafe` [T-Sec5][R-U2][A-GOBOUNDARY]. A Go mutation through a const view and a Go store of a non-member into a closed union are documented holes, and the compiler does not check them [T-Sec5][R-U2][A-GOBOUNDARY].
 A package built without the `logos` driver MUST carry no `AlwaysNilError` records [T-Sec5][R-U1].
 A package built for GOARCH=wasm MUST carry the `MayYield` flag in its function records, under `go build` and under `logos build` alike, and a package built for any other GOARCH MUST NOT carry it [T-Sec5][T-Sec12].
 When this toolchain compiles the Go caller, it MUST insert `logos/rt.MustNonNil` and MUST panic with the call position. [T-Sec5]
@@ -1605,13 +1605,13 @@ Each error MUST report file, line, and column as logos.toml:<line>:<col>: <messa
 
 The project table holds strict_files. [T-Sec8]
 strict_files is a string array. [T-Sec8]
-strict_files lists the loGo/s extensions that the module enables, and its default is all four. [T-Sec8][T-101.1]
-A source file whose loGo/s extension is not listed MUST fail with `[correctness::extension_not_enabled] <file>: extension <ext> is not enabled by logos.toml strict_files`. [T-Sec8][T-101.1]
+strict_files lists the LoGOs extensions that the module enables, and its default is all four. [T-Sec8][T-101.1]
+A source file whose LoGOs extension is not listed MUST fail with `[correctness::extension_not_enabled] <file>: extension <ext> is not enabled by logos.toml strict_files`. [T-Sec8][T-101.1]
 Each entry MUST name one of the four source extensions: .lgo, U+1F4DC, U+26A1, or the gopher extension U+0295 U+25D4 U+03D6 U+25D4 U+0294. [T-Sec8][T-101.1]
 
 ### 8.3 Build table
 
-cgo is a string with default "forbid" for a loGo/s main module. [T-Sec8][T-101.2]
+cgo is a string with default "forbid" for a LoGOs main module. [T-Sec8][T-101.2]
 It MUST have no effect in a Go main module. [T-101.2][R-U1]
 It MUST be one of "forbid", "restricted", or "allow". [T-101.2]
 With "forbid", a package that imports C fails with restriction::cgo_usage. [T-101.2]
@@ -1630,7 +1630,7 @@ With "deterministic", logos sets GOAMD64 to v3 and GOARM64 to v8.2 unless the en
 With "native", logos uses the host level. [T-105]
 See Sec 1.5 for the default binary CPU requirement.
 arena is a boolean with default true. [T-Sec8][T-301.1]
-A true value sets `GOEXPERIMENT=logosarena`, which enables implicit placement and the placement regions for Go packages and loGo/s packages under `logos`. [T-Sec8][T-301.1][R-U1]
+A true value sets `GOEXPERIMENT=logosarena`, which enables implicit placement and the placement regions for Go packages and LoGOs packages under `logos`. [T-Sec8][T-301.1][R-U1]
 
 ### 8.4 Capabilities table
 
@@ -1640,7 +1640,7 @@ transitive_exec, transitive_net, and transitive_unsafe are strings with default 
 transitive_unsafe and transitive_unsafe_allowlist also govern a package that holds assembly files or a precompiled object, see Sec 11.1. [T-Sec8][T-Sec11]
 Each severity key MUST be one of "deny", "warn", or "allow". [T-Sec8]
 reflect_allowlist, transitive_exec_allowlist, transitive_net_allowlist, and transitive_unsafe_allowlist are string arrays of path globs with default empty. [T-Sec8]
-An entry MAY name a Go module or a loGo/s module. [T-Sec8][R-U2]
+An entry MAY name a Go module or a LoGOs module. [T-Sec8][R-U2]
 Example entries use module paths such as "example.com/proto-runtime/**". [A-EXAMPLES][T-Sec8]
 logos enforces the policy for every module in the build. [T-Sec8][T-Sec11]
 
@@ -1652,7 +1652,7 @@ correctness and concurrency default to forbid. [T-Sec8][T-102]
 slop and complexity default to deny. [T-Sec8][T-102]
 perf, style, suspicious, and portability default to warn. [T-Sec8][T-102]
 pedantic defaults to allow. [T-Sec8][T-102]
-forbid cannot be lowered and ignores allow directives in a loGo/s package. [T-102]
+forbid cannot be lowered and ignores allow directives in a LoGOs package. [T-102]
 deny fails the build unless a logos allow directive for the rule precedes the statement or declaration. [T-102]
 warn prints a diagnostic. [T-102]
 allow stays silent. [T-102]
@@ -1747,11 +1747,11 @@ Slice and array encode as uvarint count plus elements. [T-Sec10.1]
 Maps with string keys encode as uvarint count plus entries sorted by key. [T-Sec10.1]
 Nested structs encode inline. [T-Sec10.1]
 Optional values MUST encode as 0x00 when absent or 0x01 plus payload when present. [T-Sec10.1]
-A field of type int or uint in a struct with a JSON-tagged field warns portability::serialized_unsized_int in loGo/s packages. [T-Sec10.1]
+A field of type int or uint in a struct with a JSON-tagged field warns portability::serialized_unsized_int in LoGOs packages. [T-Sec10.1]
 A tag `-` excludes the field from binary output; other tag options change nothing. [T-Sec10.1]
 UnmarshalBinary rejects truncation, bad presence bytes, version mismatch, and trailing bytes with errors naming field and offset. [T-Sec10.1]
 UnmarshalBinary MUST reject an integer that its field type cannot hold, with an error naming field and offset. [T-Sec10.1]
-UnmarshalBinary MUST reject a missing value for a non-nil `*T` field of a loGo/s struct, with an error naming field and offset. [T-Sec10.1]
+UnmarshalBinary MUST reject a missing value for a non-nil `*T` field of a LoGOs struct, with an error naming field and offset. [T-Sec10.1]
 For elements with a nonzero wire payload, a count header MUST pre-allocate at most min(len(rest)/2, 1 MiB / sizeof(elem)) elements and MUST grow past that only as input bytes arrive. [T-Sec10.1]
 Charge nothing against a total budget on the count header; a count whose element bytes are all present in the input is lawful and MUST decode, even when the total exceeds 1 MiB. [T-Sec10.1]
 For slices whose elements have zero wire payload, the count itself MUST NOT exceed 1,048,576 (the 1 MiB prealloc bound at unit 1), checked first, and MUST NOT exceed 8 MiB / sizeof(elem), checked next; larger counts MUST be rejected with a count-out-of-range error, encoder symmetric, checked before allocation or element iteration, and a rejected count MUST leave no count header in the encoder output. One zero-wire count MUST NOT allocate more than 8 MiB of element storage in a single allocation. [T-Sec10.1]
@@ -1810,7 +1810,7 @@ The cgo sink is the per-call-site `pkg._Cfunc_*` or `pkg._C2func_*` wrapper of t
 ### 12.1 Selective resume points
 
 The WASM profile MUST activate automatically for GOOS=js GOARCH=wasm and GOOS=wasip1 GOARCH=wasm under `logos`. [T-Sec12]
-It MUST apply to Go packages and to loGo/s packages; under plain `go` it needs the explicit `--wasm-features` flag. [T-Sec12][R-U1]
+It MUST apply to Go packages and to LoGOs packages; under plain `go` it needs the explicit `--wasm-features` flag. [T-Sec12][R-U1]
 It uses the installed toolchain with no external tool. [T-Sec12]
 A MayYield=0 function with straight-line code compiles without resume-point dispatch; one with inter-block jumps keeps the entry-loop dispatch that addresses those jumps. [T-Sec12]
 A function keeps MayYield=0 only with no defer, no indirect call, no call to MayYield=1 or unknown callees, no transitive runtime.gopark, no channel, select, time.Sleep, Gosched, or blocking wasmimport call, no nil check, and no prologue stack check, because stack growth and preemption unwind through runtime.morestack. [T-Sec12]
@@ -1826,7 +1826,7 @@ Deadcode removes unreachable functions, but type and method tables remain so ref
 
 ### 12.2 Host interface and loader
 
-`logos build` MUST emit <name>.loader.mjs beside the wasm file when the output is a `.wasm` file, for a Go main package and for a loGo/s main package. [T-Sec12][R-U1]
+`logos build` MUST emit <name>.loader.mjs beside the wasm file when the output is a `.wasm` file, for a Go main package and for a LoGOs main package. [T-Sec12][R-U1]
 Plain `go` MUST emit the same loader by default for such an output, and `--wasm-loader=false` MUST turn it off. The flag MUST stay absent from the `go help build` text, as Sec 0.1 states for flags that plain `go` gains. [T-Sec12][R-U1]
 The loader MUST have identical bytes under both commands. [T-Sec12][R-U1]
 Both commands MUST add the implicit `logos/rt` import for the loader helpers when they emit the loader for a `-o` output that names a `.wasm` file, unless packages of the main module or the package `github.com/gosuda/loGos/rt` already provide the helpers. [T-Sec12][R-U1]
@@ -1848,8 +1848,8 @@ On nonzero errCode the wrapper throws the message read from wasm memory. [T-Sec1
 
 ## 13. Backend peephole and SIMD passes
 
-- Every pass in this section MUST apply to Go packages under `logos` and under plain `go`, and to loGo/s packages under `logos`, except a rule about a loGo/s language construct (array operators, reduction methods, and `make` length checks) and except the wasm loop-stride default, which applies under `logos` only. [T-303][R-U1]
-- For a vector form selected by a runtime CPU feature check, every instruction of that form, including vector zero initialization, mask operations, and scalar-result operations with SIMD operands, MUST remain unreachable when the check is false. This rule MUST survive inlining and optimization for Go and loGo/s input under both commands. Zero-argument CSE MUST leave SIMD zeros in their original control-flow region. Branch elimination MUST NOT speculate operations with SIMD results or operands. Ordinary dominance-aware CSE MAY share equivalent values within a guarded region. [T-303][T-204.2][R-U1]
+- Every pass in this section MUST apply to Go packages under `logos` and under plain `go`, and to LoGOs packages under `logos`, except a rule about a LoGOs language construct (array operators, reduction methods, and `make` length checks) and except the wasm loop-stride default, which applies under `logos` only. [T-303][R-U1]
+- For a vector form selected by a runtime CPU feature check, every instruction of that form, including vector zero initialization, mask operations, and scalar-result operations with SIMD operands, MUST remain unreachable when the check is false. This rule MUST survive inlining and optimization for Go and LoGOs input under both commands. Zero-argument CSE MUST leave SIMD zeros in their original control-flow region. Branch elimination MUST NOT speculate operations with SIMD results or operands. Ordinary dominance-aware CSE MAY share equivalent values within a guarded region. [T-303][T-204.2][R-U1]
 
 ### 13.1 Arm64 load and store pairing
 
@@ -2002,7 +2002,7 @@ m.WithLock(func(c *Config) {
 - Code actions MUST apply the compiler autofix candidates. [T-Sec16]
 - In a mixed workspace the overlay MUST hold the lowered `.lgo` files only, and Go packages MUST stay on disk for `gopls`. [T-Sec16][R-U3]
 - A definition request across kinds MUST resolve to the declaration in its own file with the positions of that file. It MUST NOT write files to disk. [T-Sec16][R-U2]
-- A Go package that imports a loGo/s package MUST resolve that import through the lowered overlay. [T-Sec16][R-U2]
+- A Go package that imports a LoGOs package MUST resolve that import through the lowered overlay. [T-Sec16][R-U2]
 
 ## 17. Verification suite
 
@@ -2041,9 +2041,9 @@ func pack(v int) []int {
 
 ### 17.5 Interop suite
 
-- Case 1: a loGo/s package that imports a Go package from another workspace module MUST build and run. [T-Sec17][R-U2]
-- Case 2: a Go package that imports a loGo/s package from another workspace module MUST build and run under `logos`; Sec 0.1 states the result under plain `go`. [T-Sec17][R-U2][A-LGOSEL]
-- Case 3: a loGo/s package that imports `fmt` and `context` MUST build and run. [T-Sec17][R-U2]
+- Case 1: a LoGOs package that imports a Go package from another workspace module MUST build and run. [T-Sec17][R-U2]
+- Case 2: a Go package that imports a LoGOs package from another workspace module MUST build and run under `logos`; Sec 0.1 states the result under plain `go`. [T-Sec17][R-U2][A-LGOSEL]
+- Case 3: a LoGOs package that imports `fmt` and `context` MUST build and run. [T-Sec17][R-U2]
 - Case 4: a module that holds both kinds; Sec 0.1 states the `correctness::mixed_module` rule. [T-Sec17][R-U3]
 - Case 5: `logos build ./...` at a workspace root builds both modules as Sec 0.1 states, and each binary MUST run. [T-Sec17][R-U2]
 
@@ -2051,9 +2051,9 @@ func pack(v int) []int {
 
 ### 18.1 Objective
 
-loGo/s is a complete toolchain for Go and for the loGo/s language, which adds checked error propagation to Go. The command `logos eject` writes the pure-Go form of a loGo/s module.
+LoGOs is a complete toolchain for Go and for the LoGOs language, which adds checked error propagation to Go. The command `logos eject` writes the pure-Go form of a LoGOs module.
 Writers write `.lgo` files, the `logos` command checks and lowers them, and the pinned Go backend builds them.
-The toolchain is one complete toolchain for Go and loGo/s: Go packages and loGo/s packages share one backend and one runtime, and each improvement serves both.
+The toolchain is one complete toolchain for Go and LoGOs: Go packages and LoGOs packages share one backend and one runtime, and each improvement serves both.
 
 ### 18.2 Compiler-made names
 

@@ -1,16 +1,16 @@
 ---
 name: logos-concurrency
-description: Structure goroutine groups and shared state in loGo/s. Use when the user says go group, goroutine groups, cancellation, Locked, Hot, or data races in .lgo code.
+description: Structure goroutine groups and shared state in LoGOs. Use when the user says go group, goroutine groups, cancellation, Locked, Hot, or data races in .lgo code.
 license: BSD-3-Clause
-compatibility: Needs the logos command from github.com/gosuda/loGos on PATH.
+compatibility: Needs the logos command from github.com/gosuda/LoGOs on PATH.
 metadata:
   version: "0.22.0"
   milestone: "M8"
 ---
 
-# loGo/s concurrency
+# LoGOs concurrency
 
-loGo/s provides structured concurrency through goroutine groups and panic-safe synchronization primitives. Goroutines in `.lgo` files must run inside a `go group` block. Shared state is coordinated through `logos/sync.Locked[T]` and `logos/sync.Hot[T]`.
+LoGOs provides structured concurrency through goroutine groups and panic-safe synchronization primitives. Goroutines in `.lgo` files must run inside a `go group` block. Shared state is coordinated through `logos/sync.Locked[T]` and `logos/sync.Hot[T]`.
 
 ## Procedure
 
@@ -22,9 +22,9 @@ loGo/s provides structured concurrency through goroutine groups and panic-safe s
 
 ## Group syntax
 
-Each row contrasts the loGo/s form with the plain Go pattern it replaces.
+Each row contrasts the LoGOs form with the plain Go pattern it replaces.
 
-| loGo/s | Plain Go |
+| LoGOs | Plain Go |
 |---|---|
 | `go group (ctx, limit = N) { go { work()? } }` | `g, gctx := rt.NewGroup(ctx, N)` followed by `g.Go(func(ctx context.Context) error { return work() })` and `g.Wait()` |
 | `go group (ctx) { go { work()? } }` | `g, gctx := rt.NewGroup(ctx, 0)` followed by `g.Go(func(ctx context.Context) error { return work() })` and `g.Wait()` |
