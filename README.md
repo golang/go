@@ -6,7 +6,7 @@
 [![CI](https://github.com/gosuda/LoGOs/actions/workflows/logos.yml/badge.svg)](https://github.com/gosuda/LoGOs/actions/workflows/logos.yml)
 [![License](https://img.shields.io/badge/license-BSD--3-blue)](LICENSE)
 
-LoGOs is a Go toolchain fork that compiles both Go and extended `.lgo` source. You get compiler-checked error handling and nil safety, lowered to Go 1.27 by `logos`. Plain `go` keeps upstream language semantics and command text ([README.go.md](README.go.md)). When you want out, `logos eject` returns standard Go with your comments preserved.
+LoGOs is a Go toolchain fork that compiles both Go and extended `.lgo` source. You get compiler-checked error handling and nil safety, lowered to Go 1.27 by `logos`. Plain `go` keeps upstream language semantics and [command text](README.go.md). When you want out, `logos eject` returns standard Go with your comments preserved.
 
 - **Checked errors**: `?` returns early on a non-nil error from a call returning `(T, error)`.
 - **Closed unions**: the compiler checks that type switch expressions cover every variant and `nil`, unless you provide `default`.
