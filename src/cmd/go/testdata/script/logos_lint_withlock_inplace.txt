@@ -1,0 +1,164 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd probe
+logos lint ./inplace
+! stderr .
+logos lint ./scalarread
+! stderr .
+logos lint ./nilcheck
+! stderr .
+! logos lint ./escape
+stderr 'escape\.go:[0-9]+:[0-9]+: \[correctness::withlock_leak\]'
+! logos lint ./outerindex
+stderr 'outerindex\.go:[0-9]+:[0-9]+: \[correctness::withlock_leak\]'
+! logos lint ./holderstore
+stderr 'holderstore\.go:[0-9]+:[0-9]+: \[correctness::withlock_leak\]'
+! logos lint ./storedfn
+stderr 'storedfn\.go:[0-9]+:[0-9]+: \[correctness::withlock_leak\]'
+logos lint ./parenread
+logos lint ./addrof
+! stderr .
+
+-- probe/go.mod --
+module example.com/lockinplace
+
+go 1.27
+-- probe/inplace/inplace.go --
+package inplace
+
+import "logos/sync"
+
+type State struct { Items []string }
+
+func Use() {
+	var lock sync.Locked[State]
+	lock.WithLock(func(s *State) {
+		s.Items = append(s.Items, "a")
+		s.Items[0] = "b"
+	})
+}
+-- probe/scalarread/scalarread.go --
+package scalarread
+
+import "logos/sync"
+
+type State struct { Items []string }
+
+func Use() int {
+	var lock sync.Locked[State]
+	var n, m int
+	lock.WithLock(func(s *State) {
+		n = len(s.Items)
+		m = cap(s.Items)
+	})
+	return n + m
+}
+-- probe/nilcheck/nilcheck.go --
+package nilcheck
+
+import "logos/sync"
+
+type State struct { Items []string }
+
+func Use() bool {
+	var lock sync.Locked[State]
+	var ok bool
+	lock.WithLock(func(s *State) {
+		ok = s.Items != nil
+	})
+	return ok
+}
+-- probe/escape/escape.go --
+package escape
+
+import "logos/sync"
+
+type State struct { Items []string }
+
+var outer []string
+
+func Use() {
+	var lock sync.Locked[State]
+	lock.WithLock(func(s *State) {
+		outer = s.Items
+	})
+}
+-- probe/outerindex/outerindex.go --
+package outerindex
+
+import "logos/sync"
+
+type State struct { Items []string }
+
+var outer [4][]string
+
+func Use() {
+	var lock sync.Locked[State]
+	lock.WithLock(func(s *State) {
+		outer[0] = s.Items
+	})
+}
+-- probe/holderstore/holderstore.go --
+package holderstore
+
+import "logos/sync"
+
+type Holder struct{ Leaked any }
+
+type State struct {
+	Items  []string
+	Target *Holder
+}
+
+func Use() {
+	var lock sync.Locked[State]
+	lock.WithLock(func(s *State) {
+		s.Target.Leaked = s.Items
+	})
+}
+-- probe/storedfn/storedfn.go --
+package storedfn
+
+import "logos/sync"
+
+type State struct{ Items []string }
+
+var fn func() int
+
+func Use() {
+	var lock sync.Locked[State]
+	lock.WithLock(func(s *State) {
+		fn = func() int { return len(s.Items) }
+	})
+}
+-- probe/addrof/addrof.go --
+package addrof
+
+import "logos/sync"
+
+type Inner struct{ Items []string }
+
+type State struct{ Inner Inner }
+
+func Use() {
+	var lock sync.Locked[State]
+	lock.WithLock(func(s *State) {
+		(&s.Inner).Items = s.Inner.Items[:1]
+	})
+}
+-- probe/parenread/parenread.go --
+package parenread
+
+import "logos/sync"
+
+type State struct{ Items []string }
+
+func Use() int {
+	var lock sync.Locked[State]
+	var n int
+	lock.WithLock(func(s *State) {
+		n = len((s.Items))
+	})
+	return n
+}
