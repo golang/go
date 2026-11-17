@@ -4,22 +4,7 @@ Date: 2026-11-16
 
 Base: PR #26, commit `968b8b436b08a0d8772d2159daa36e9c575d4b3d`.
 
-**Status: native repair gates passed; full upstream gate requires a corrected rerun.** Local execution and Codexify remain unavailable, but GitHub Actions is running the new gates. Native arm64 builds, formatting, and vet passed. Ordinary runtime tests with both collectors reproduced the ownership defect below. The repaired source passed all four native runtime configurations and the original-order mutation checks described below. The [first-run record](gc-stability-first-run.md) separates the real defect from fixture errors. PR #26's earlier results do not verify this follow-up.
-
-## Stabilization integration
-
-The selected correctness ancestor is
-`e3a6a4e5602df172660e644b1d204d13ccf824ba`. Its
-[run 43843444561](https://github.com/gosuda/LoGOs/actions/runs/43843444561)
-passed all four native runtime jobs and the complete upstream regression job.
-The separate LoGo/s scripts job failed `logos_eject_simd_slice` with an AVX512
-illegal instruction, which remains a required control for the combined SIMD
-and ownership candidate. Earlier pending-gate notes below describe the
-preceding runs; they do not supersede this completed ancestor evidence.
-
-In the combined candidate, `gc-stability.yml` keeps the native runtime matrix,
-and the normal `logos.yml` job supplies the complete Go regression gate with
-its C23 compiler preflight. Fresh combined acceptance is still required.
+**Status: native repair gates and the complete upstream gate passed; combined acceptance awaits the integrated SIMD repair.** Local execution and Codexify remain unavailable, but GitHub Actions supplies execution. [Run 43843444561](https://github.com/gosuda/LoGOs/actions/runs/43843444561) at `e3a6a4e5602df172660e644b1d204d13ccf824ba` passed all four native runtime configurations and the complete upstream gate (M18-A-S22); the separate LoGo/s script job failed only its SIMD slice fixture, so combined acceptance still requires that integrated repair and a fresh complete run. Native arm64 builds, formatting, and vet passed. Ordinary runtime tests with both collectors reproduced the ownership defect below. The repaired source passed all four native runtime configurations and the original-order mutation checks described below. The [first-run record](gc-stability-first-run.md) separates the real defect from fixture errors. PR #26's earlier results do not verify this follow-up.
 
 ## Reproduced ownership defect
 
@@ -87,3 +72,18 @@ Keep each production candidate separate and retain the fixed behavioral fixtures
 For G6, freeze source and workload; use identical fixed work long enough for each timed invocation to last at least one second, compiled binaries, `GOMAXPROCS=1`, hyperfine with three warmups and at least ten measurements, separate CPU profiles, and ten benchmem samples. Reject noisy samples and non-wins under the repository's existing thresholds. Validate the integrated candidate against its immediate parent.
 
 PR #26 disclosed roughly 4-5% cost in its Nil and other-manual-allocation controls. Those controls remain part of acceptance; a focused Self result is not a whole-GC or application result. The first two queue items are reviewable draft candidates until measurement supports promotion.
+
+
+## Review correction, 2026-11-17
+
+The updated PR retains the region-close ownership repair and the frozen lifecycle,
+heap-graph, and scan-extent regressions. It restores the scanner from the current
+default branch: eager mask initialization and per-pointer extent accounting.
+Neither optional scanner candidate has the caller-contract floor required for
+G6 admission, so both production deltas are deferred. Their original measurement
+records remain available without a promotion claim or a lowered threshold.
+
+The default-branch merge preserves the independent compiler and lint ledgers.
+The GC adversarial rows are now #360 through #362 to avoid colliding with the
+existing #333 through #336 entries. Historical references above describe the
+row numbers at their cited revisions.

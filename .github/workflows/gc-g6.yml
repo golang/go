@@ -1,0 +1,87 @@
+name: "GC fixed-work evidence"
+
+"on":
+  workflow_call:
+    inputs:
+      primary:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+# Measurements execute only in the pull request's cache and token scope.
+# A new head cancels the older run for that PR.
+concurrency:
+  group: "gc-g6-evidence-${{ github.repository }}-${{ github.event.pull_request.number }}"
+  cancel-in-progress: true
+
+jobs:
+  measurements:
+    name: "amd64 fixed-work measurements"
+    if: github.event_name == 'pull_request'
+    runs-on: "ubuntu-24.04"
+    timeout-minutes: 90
+    env:
+      BASE_SHA: "${{ github.event.pull_request.base.sha }}"
+      HEAD_SHA: "${{ github.event.pull_request.head.sha }}"
+      PRIMARY_BENCHMARK: "${{ inputs.primary }}"
+    steps:
+      - name: "Validate immutable revisions"
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$BASE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$BASE_SHA" != "$HEAD_SHA" ]]
+
+      - uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" # v7.0.1
+        with:
+          ref: "${{ github.event.pull_request.base.sha }}"
+          path: baseline
+          persist-credentials: false
+
+      - uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" # v7.0.1
+        with:
+          ref: "${{ github.event.pull_request.head.sha }}"
+          path: candidate
+          persist-credentials: false
+
+      - name: "Check harness syntax"
+        shell: bash
+        run: bash -n candidate/.github/scripts/gc-g6.sh
+
+      - uses: "actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e" # v7.0.0
+        with:
+          go-version: "1.27.4"
+          cache: false
+
+      - name: "Install measurement tools"
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes hyperfine jq
+          hyperfine --version
+          jq --version
+
+      - name: "Build serially and collect fixed-work evidence"
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash candidate/.github/scripts/gc-g6.sh \
+            "$GITHUB_WORKSPACE/baseline" \
+            "$GITHUB_WORKSPACE/candidate" \
+            "$GITHUB_WORKSPACE/candidate/.outline/optimize/gc-g6" \
+            "$PRIMARY_BENCHMARK"
+
+      - name: "Retain measurements, profiles, and build logs"
+        if: always()
+        uses: "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02" # v4.6.2
+        with:
+          name: "gc-g6-${{ github.run_id }}-${{ github.run_attempt }}"
+          path: "candidate/.outline/optimize/gc-g6"
+          include-hidden-files: true
+          if-no-files-found: warn
+          compression-level: 1
+          retention-days: 14

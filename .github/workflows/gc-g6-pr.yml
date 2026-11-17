@@ -1,0 +1,20 @@
+name: "GC candidate measurements"
+
+"on":
+  pull_request:
+    paths:
+      - ".github/workflows/gc-g6*"
+      - ".github/scripts/gc-g6.sh"
+      - "src/runtime/**"
+
+permissions:
+  contents: read
+
+jobs:
+  gc-measurements:
+    if: >-
+      github.event.pull_request.head.ref == 'perf/gc-scan-mask-init' ||
+      github.event.pull_request.head.ref == 'perf/gc-scan-extent'
+    uses: ./.github/workflows/gc-g6.yml
+    with:
+      primary: "${{ github.event.pull_request.head.ref == 'perf/gc-scan-mask-init' && 'BenchmarkLogosGCScanSmall/Pointer/Self' || 'BenchmarkLogosGCScan/Self' }}"

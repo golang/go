@@ -140,3 +140,66 @@ jobs:
               sha256sum "$file"
             done
           fi
+
+  upstream:
+    name: "upstream-linux-amd64"
+    runs-on: "ubuntu-24.04"
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: "bash"
+        working-directory: "src"
+    steps:
+      - uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: "actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e" # v7.0.0
+        with:
+          go-version: "1.27.4"
+          cache: false
+      - uses: "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1" # v7.1.0
+        with:
+          node-version: "26.13.1"
+      - name: "Install upstream script-test oracles"
+        run: |
+          printf 'UPROOT1274=%s\n' "$(go env GOROOT)" >> "$GITHUB_ENV"
+          while read -r version sha256 root; do
+            archive="$RUNNER_TEMP/go$version.linux-amd64.tar.gz"
+            curl --fail --silent --show-error --location --output "$archive" "https://go.dev/dl/go$version.linux-amd64.tar.gz"
+            printf '%s  %s\n' "$sha256" "$archive" | sha256sum --check --strict -
+            mkdir "$RUNNER_TEMP/go$version"
+            tar -xzf "$archive" -C "$RUNNER_TEMP/go$version" --strip-components=1
+            printf '%s=%s\n' "$root" "$RUNNER_TEMP/go$version" >> "$GITHUB_ENV"
+          done <<'PINS'
+          1.27.2 ecbadb99091a3f46e31f5f934b068b1864eafa7995211b39eaddf76996045fe5 UPROOT1272
+          1.27.3 65efbc80fdc1fa2cd2631cad5b481777a68e8725f34e89f50fc6ac714e379b40 UPROOT1273
+          PINS
+      - name: "Build the default toolchain"
+        run: |
+          export GOROOT_BOOTSTRAP="$(go env GOROOT)"
+          GOEXPERIMENT= ./make.bash
+          printf '%s\n' "$GITHUB_WORKSPACE/lib/wasm" "$GITHUB_WORKSPACE/bin" >> "$GITHUB_PATH"
+      - name: "Select the C23 consumer compiler"
+        run: |
+          compiler="$(command -v gcc-14)"
+          compiler_bin="$RUNNER_TEMP/gc-c23-bin"
+          mkdir "$compiler_bin"
+          ln -s "$compiler" "$compiler_bin/cc"
+          "$compiler_bin/cc" --version
+          printf 'int main(void) { return 0; }\n' |
+            "$compiler_bin/cc" -std=c23 -x c - -o "$RUNNER_TEMP/gc-c23-check"
+          "$RUNNER_TEMP/gc-c23-check"
+          printf '%s\n' "$compiler_bin" >> "$GITHUB_PATH"
+      - name: "Check the upstream regression prerequisites"
+        run: |
+          env GOROOT="$GITHUB_WORKSPACE" GOEXPERIMENT= \
+            "$GITHUB_WORKSPACE/bin/go" test -count=1 -short -timeout=5m \
+            cmd/internal/goparity -run '^TestRedteamLedgerRows$'
+          env GOROOT="$GITHUB_WORKSPACE" GOEXPERIMENT= \
+            "$GITHUB_WORKSPACE/bin/go" test -count=1 -timeout=10m \
+            cmd/go -run '^TestScript$/^logos_cgo_shared$'
+      - name: "Run the upstream regression gate"
+        env:
+          GOEXPERIMENT: ""
+          GO_TEST_TIMEOUT_SCALE: "6"
+        run: env -u GOFLAGS -u GOMEMLIMIT ./run.bash --no-rebuild
