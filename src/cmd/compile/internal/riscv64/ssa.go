@@ -599,6 +599,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 				xVal = int(c)
 			} else {
 				// Move constant to a register
+				xIsReg = true
 				if xVal == yVal {
 					xVal = 1
 				}
