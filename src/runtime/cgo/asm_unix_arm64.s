@@ -54,8 +54,7 @@ TEXT ·cgoCallTrampoline(SB),NOSPLIT|NOFRAME,$0-0
 
 TEXT ·x_cgo_threadentry(SB),NOSPLIT|NOFRAME,$0-0
 	CGO_PROLOGUE
-	MOVD	R0, 8(RSP)
-	CALL_GO(·threadentry)
+	CALL_GO(·threadentry<ABIInternal>)
 	CGO_EPILOGUE
 	MOVD	$0, R0
 	RET

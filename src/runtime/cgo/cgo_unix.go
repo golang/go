@@ -8,9 +8,12 @@ package cgo
 
 import (
 	"internal/abi"
+	"internal/cpu"
 	"internal/runtime/sys"
 	"unsafe"
 )
+
+const offsetX86HasAVX = unsafe.Offsetof(cpu.X86.HasAVX)
 
 //go:cgo_import_static x_cgo_bindm
 //go:linkname x_cgo_bindm x_cgo_bindm
@@ -288,14 +291,14 @@ var _cgoThreadStart = cgoThreadStart
 //go:norace
 //go:nocheckptr
 func cgoBlockSigs(oset *sigset) {
-	asmcgocall(uintptr(libc_pthread_sigmask), sigSetMask, uintptr(unsafe.Pointer(&fullSigset)), uintptr(unsafe.Pointer(oset)), 0, 0, 0)
+	asmcgocall(uintptr(libc_pthread_sigmask), _SIG_SETMASK, uintptr(unsafe.Pointer(&fullSigset)), uintptr(unsafe.Pointer(oset)), 0, 0, 0)
 }
 
 //go:nosplit
 //go:norace
 //go:nocheckptr
 func cgoRestoreSigs(oset *sigset) {
-	asmcgocall(uintptr(libc_pthread_sigmask), sigSetMask, uintptr(unsafe.Pointer(oset)), 0, 0, 0, 0)
+	asmcgocall(uintptr(libc_pthread_sigmask), _SIG_SETMASK, uintptr(unsafe.Pointer(oset)), 0, 0, 0, 0)
 }
 
 //go:nosplit
@@ -303,7 +306,7 @@ func cgoRestoreSigs(oset *sigset) {
 //go:nocheckptr
 func cgoInitThreadAttr(attr *pthreadAttr) int32 {
 	asmcgocall(uintptr(libc_pthread_attr_init), uintptr(unsafe.Pointer(attr)), 0, 0, 0, 0, 0)
-	return int32(asmcgocall(uintptr(libc_pthread_attr_setdetachstate), uintptr(unsafe.Pointer(attr)), pthreadCreateDetached, 0, 0, 0, 0))
+	return int32(asmcgocall(uintptr(libc_pthread_attr_setdetachstate), uintptr(unsafe.Pointer(attr)), _PTHREAD_CREATE_DETACHED, 0, 0, 0, 0))
 }
 
 //go:nosplit
@@ -375,7 +378,7 @@ func cgoSysThreadCreate(fn unsafe.Pointer) int32 {
 	var p uintptr
 
 	asmcgocallNoG(uintptr(libc_pthread_attr_init), uintptr(unsafe.Pointer(&attr)), 0, 0, 0, 0, 0)
-	if err := int32(asmcgocallNoG(uintptr(libc_pthread_attr_setdetachstate), uintptr(unsafe.Pointer(&attr)), pthreadCreateDetached, 0, 0, 0, 0)); err != 0 {
+	if err := int32(asmcgocallNoG(uintptr(libc_pthread_attr_setdetachstate), uintptr(unsafe.Pointer(&attr)), _PTHREAD_CREATE_DETACHED, 0, 0, 0, 0)); err != 0 {
 		asmcgocallNoG(uintptr(libc_pthread_attr_destroy), uintptr(unsafe.Pointer(&attr)), 0, 0, 0, 0, 0)
 		return err
 	}

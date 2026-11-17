@@ -9,9 +9,9 @@ package cgo
 import "unsafe"
 
 const (
-	sigSetMask            = 3
-	_EAGAIN               = 35
-	pthreadCreateDetached = 2
+	_SIG_SETMASK             = 3
+	_EAGAIN                  = 35
+	_PTHREAD_CREATE_DETACHED = 2
 )
 
 //go:linkname _libc_pthread_attr_setstacksize libc_pthread_attr_setstacksize

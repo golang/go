@@ -36,10 +36,17 @@ TEXT ·cgoCallTrampoline(SB),NOSPLIT|NOFRAME,$0-0
 
 TEXT ·x_cgo_threadentry(SB),NOSPLIT|NOFRAME,$0-0
 	PUSH_REGS_HOST_TO_ABI0()
-	ADJSP	$8
-	MOVQ	DI, 0(SP)
-	CALL	·threadentry(SB)
-	ADJSP	$-8
+	XORPS	X15, X15
+#ifndef GOAMD64_v3
+#ifndef GOAMD64_v4
+	CMPB	internal∕cpu·X86+const_offsetX86HasAVX(SB), $1
+	JNE	2(PC)
+#endif
+#endif
+	VXORPS	X15, X15, X15
+	XORQ	R14, R14
+	MOVQ	DI, AX
+	CALL	·threadentry<ABIInternal>(SB)
 	POP_REGS_HOST_TO_ABI0()
 	XORL	AX, AX
 	RET

@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	sigSetMask            = 2
-	_EAGAIN               = 11
-	pthreadCreateDetached = 1
+	_SIG_SETMASK             = 2
+	_EAGAIN                  = 11
+	_PTHREAD_CREATE_DETACHED = 1
 )
 
 //go:linkname _libc_pthread_attr_getstacksize libc_pthread_attr_getstacksize

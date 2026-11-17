@@ -839,7 +839,6 @@ func TestGdbInfCallstack(t *testing.T) {
 		bt = []string{
 			`runtime\.setg`,
 			`threadentry`,
-			`threadentry`,
 			`x_cgo_threadentry`,
 		}
 	}
