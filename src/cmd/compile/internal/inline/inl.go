@@ -1006,6 +1006,11 @@ var InlineCall = func(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlInde
 //   - whether the inlined function is "hot" according to PGO.
 func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller, closureCalledOnce bool) (bool, int32, int32, bool) {
 	maxCost := logosBudgetFor(callee, int32(inlineMaxBudget))
+	if caller != nil && caller.Pragma&ir.Nosplit != 0 {
+		// A raised budget can inline a multi-call tree that pushes a
+		// nosplit caller past the 792-byte StackNosplit chain limit.
+		maxCost = int32(inlineMaxBudget)
+	}
 
 	if bigCaller {
 		// We use this to restrict inlining into very big functions.

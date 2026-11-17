@@ -1,0 +1,43 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd probe
+logos build -O=3 -o $WORK/probe$GOEXE .
+logos build -O=2 -o $WORK/probe2$GOEXE .
+exec $WORK/probe$GOEXE a b c d
+stderr '^5$'
+
+-- probe/go.mod --
+module example.com/nosplitrepro
+
+go 1.27
+-- probe/main.go --
+package main
+
+import "os"
+
+type Entry struct {
+	Name string
+}
+
+func (e *Entry) Unmarshal(src []byte, n int) {
+	if n <= 0 || n > len(src) {
+		return
+	}
+	buf := make([]byte, n)
+	copy(buf, src[:n])
+	e.Name = string(buf)
+}
+
+//go:nosplit
+func (e *Entry) CopyIn(src []byte, n int) int {
+	e.Unmarshal(src, n)
+	return len(e.Name)
+}
+
+var sink func(*Entry, []byte, int) int = (*Entry).CopyIn
+
+func main() {
+	var e Entry
+	println(sink(&e, []byte("hello"), len(os.Args)))
+}

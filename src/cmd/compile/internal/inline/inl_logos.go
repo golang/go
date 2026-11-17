@@ -24,6 +24,11 @@ func logosBudgetFor(fn *ir.Func, def int32) int32 {
 	if base.Flag.CompilingRuntime {
 		return def
 	}
+	if fn != nil && fn.Pragma&ir.Nosplit != 0 {
+		// A raised budget can inline a multi-call tree that pushes a
+		// nosplit function past the 792-byte StackNosplit chain limit.
+		return def
+	}
 	if logosRecursiveMarks[fn] {
 		if base.Debug.InlRecursiveBudget != 0 {
 			return int32(base.Debug.InlRecursiveBudget)
@@ -35,6 +40,9 @@ func logosBudgetFor(fn *ir.Func, def int32) int32 {
 
 func logosConservativeBudget(fn *ir.Func) int32 {
 	if base.Debug.InlBudget == 0 || base.Flag.CompilingRuntime || fn == nil {
+		return 0
+	}
+	if fn.Pragma&ir.Nosplit != 0 {
 		return 0
 	}
 	return int32(inlineMaxBudget)

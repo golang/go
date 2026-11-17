@@ -113,6 +113,7 @@ package slice
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/escape"
+	"cmd/compile/internal/inline"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/reflectdata"
 )
@@ -170,7 +171,7 @@ func analyze(fn *ir.Func) {
 	// Every variable (*ir.Name) that we are tracking will have
 	// a non-nil *sliceInfo in its Opt field.
 	haveLocalSlice := false
-	maxStackSize := int64(base.Debug.VariableMakeThreshold)
+	maxStackSize := inline.LogosVariableMakeThreshold(fn)
 	var namedRets []*ir.Name
 	for _, s := range fn.Dcl {
 		if !s.Type().IsSlice() {
