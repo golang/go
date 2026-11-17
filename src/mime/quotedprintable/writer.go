@@ -48,6 +48,7 @@ func (w *Writer) Write(p []byte) (n int, err error) {
 		if err := w.encode(b); err != nil {
 			return n, err
 		}
+		w.cr = false
 		n++
 	}
 
