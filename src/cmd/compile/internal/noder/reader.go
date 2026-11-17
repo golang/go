@@ -3166,12 +3166,30 @@ func (r *reader) multiExpr() []ir.Node {
 		as := ir.NewAssignListStmt(pos, ir.OAS2, nil, []ir.Node{expr})
 		as.Def = true
 		for i := range results {
-			tmp := r.temp(pos, r.typ())
+			typ := r.typ()
+
+			// The writer skips reshaping *types2.Tuple, thus if expr is a
+			// call to a shaped function, its results have shape types, so
+			// we have to declare the tmps with those types and reshape them
+			// back to the caller's types below. Otherwise the assignment is
+			// a no-op, and the shape type reaches the backend. See #71252.
+			tmpTyp := typ
+			if exprTyp := expr.Type(); exprTyp.IsFuncArgStruct() && exprTyp.HasShape() {
+				tmpTyp = exprTyp.Field(i).Type
+			}
+
+			tmp := r.temp(pos, tmpTyp)
 			tmp.Defn = as
 			as.PtrInit().Append(ir.NewDecl(pos, ir.ODCL, tmp))
 			as.Lhs.Append(tmp)
 
 			res := ir.Node(tmp)
+			if tmpTyp != typ {
+				base.AssertfAt(types.Identical(tmpTyp, typ), pos, "%v is not shape-identical to %v", tmpTyp, typ)
+				conv := ir.NewConvExpr(pos, ir.OCONVNOP, typ, res)
+				conv.SetTypecheck(1)
+				res = conv
+			}
 			if r.Bool() {
 				n := ir.NewConvExpr(pos, ir.OCONV, r.typ(), res)
 				n.TypeWord, n.SrcRType = r.convRTTI(pos)
