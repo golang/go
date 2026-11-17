@@ -149,7 +149,7 @@ func (kb *knownBitsState) fold(v *Value) (value, known int64) {
 			return x >> shift, xk >> shift
 		})
 	default:
-		return 0, 0
+		return kb.foldLogos(v)
 	}
 }
 
@@ -183,6 +183,7 @@ func knownBits(f *Func) {
 			}
 			val, k := kb.fold(v)
 			if k != -1 {
+				kb.rewriteLogosRotateProjection(v)
 				continue
 			}
 			if f.pass.debug > 0 {

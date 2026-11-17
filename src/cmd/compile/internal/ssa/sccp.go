@@ -218,7 +218,7 @@ func possibleConst(val *Value) bool {
 		OpXor8, OpXor16, OpXor32, OpXor64:
 		return true
 	default:
-		return false
+		return logosSCCPPossibleConst(val)
 	}
 }
 
@@ -491,7 +491,7 @@ func (t *worklist) visitValue(val *Value) {
 			}
 		}
 	default:
-		// Any other type of value cannot be a constant, they are always worst(Bottom)
+		t.latticeCells[val] = t.logosSCCPLattice(val)
 	}
 }
 

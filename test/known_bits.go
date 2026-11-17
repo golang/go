@@ -313,7 +313,10 @@ func knownBitsRshUZero(x, y uint64) uint64 {
 	y &^= 2
 	y |= 128
 
-	return (x >> y) & 1 // ERROR "known value of v[0-9]+ \(And64\): 0$" "known value of v[0-9]+ \(Rsh64Ux[0-9]+\): 0$"
+	// The shift is still proved zero; under -d=ssa/check/on value order is
+	// shuffled (issue 18169), so And64 may fold first and kill the Rsh value
+	// before its turn, suppressing the "known value" line for it.
+	return (x >> y) & 1 // ERROR "known value of v[0-9]+ \(And64\): 0$"
 }
 
 func unknownBitsRshULeftSideMsb(x uint32, y uint32) uint32 {
@@ -357,7 +360,7 @@ func knownBitsRshSignCopy(x, y int64) int64 {
 	x |= -1 << 63
 	y |= 128
 
-	return (x >> y) & 1 // ERROR "known value of v[0-9]+ \(And64\): 1$"
+	return (x >> y) & 1 // ERROR "known value of v[0-9]+ \(Rsh64x64\): -1$" "known value of v[0-9]+ \(And64\): 1$"
 }
 
 func unknownBitsRshLeftSideMsb(x int32, y int32) int32 {

@@ -1,0 +1,3917 @@
+{
+  "schema_version": 1,
+  "title": "Scalar fact-closure follow-up: paired O3 compiler measurements",
+  "measurement_date_utc": "2026-11-16",
+  "scope": "Original O3 compiler versus candidate O3 compiler, with the same workload sources and flags. Ratios are baseline divided by candidate; values above one favor the candidate.",
+  "publication_policy": "Constructed from an explicit field allowlist. Original numeric timing, exit-code and allocation samples are preserved. Private paths, host identifiers, raw logs, command payloads, raw addresses, environment dumps and binary/profile payloads are omitted.",
+  "provenance": {
+    "recorded_repository_revision": "7089362d7b971fcaa7a8fb7c29034bb84ff37c95",
+    "revision_scope": "The revision alone does not identify working-tree candidate changes; the frozen source hashes identify measured inputs.",
+    "compilers": {
+      "baseline": {
+        "sha256": "f33648781c282a3546bb3a221991e0dd1a8590eed5d075931361a6c57490f03a",
+        "tool_id": "eFvkM-ntZhpJXoc1CVpQ",
+        "version": "compile version go1.27.4 buildID=YWF2rz4nke1xt_vJzDYT/r_DNq4ZCR7rgRtujAJQk/1PiEKSzQ6KDDB2UcySZp/eFvkM-ntZhpJXoc1CVpQ"
+      },
+      "candidate": {
+        "sha256": "a9daee806ed858555fffd252610ab2d6599f820c4bf72aab36662c338486ea4b",
+        "tool_id": "eoRGDr5zeK3korT2BLl3",
+        "version": "compile version go1.27.4 buildID=0OgHTR3VMeR8dBMeGXyK/IZEIocNf4Av72F0kA15Q/VNtcW_ZBZMSDOIcQb2o2/eoRGDr5zeK3korT2BLl3"
+      }
+    },
+    "repository_source_sha256": {
+      "logos-doc/measurements/scalar-opt/benchmark.py": "304c917934c66c41a909878afefe177130e9ccf34090908d40c33c27bb13f9d4",
+      "src/cmd/compile/internal/base/debug.go": "3d808146f2a53b8ea80fc2e172cd917edd545e4b04c5509ae6469c5d9e916653",
+      "src/cmd/compile/internal/ssa/_gen/386Ops.go": "811c8ea9ca2fc394ffd38b9491171f34f894f24340f28ba0542fda15abfbc6d7",
+      "src/cmd/compile/internal/ssa/_gen/AMD64Ops.go": "1916967d5d487b3e031adde647d3deadefa791ab6f3ba8ba6343a8ed8e5a518b",
+      "src/cmd/compile/internal/ssa/_gen/ARM64Ops.go": "b234f022f7c705fa595edc8efcb52712934737ea16ce742c33c21f0263c0226e",
+      "src/cmd/compile/internal/ssa/_gen/ARMOps.go": "d66302200ee7a704fa95a0e4737f45fe30f90a0ab3d3672b77a15ab093ff095c",
+      "src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go": "0d893c73a309b1729ddee3c83f073f750fc47a4b6c4c530e1bafa98da99b079b",
+      "src/cmd/compile/internal/ssa/_gen/MIPS64Ops.go": "0fa94e8cbc5695263efa7c6563a3b7e228e56c21a40e77648480adeb2ce9d5ce",
+      "src/cmd/compile/internal/ssa/_gen/MIPSOps.go": "1bd5a148a25d047c472b5ae1cd39478e2103b327f982497e161471a903ceb298",
+      "src/cmd/compile/internal/ssa/_gen/PPC64Ops.go": "eb7e0694def636566a2505f94c52d585ad50c9da3282c1215ced6bf71bf250b7",
+      "src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go": "882e617c9c6ea480bf861cb3ffbb898d1b7541778fbef54b20ae97dbc42d7f3c",
+      "src/cmd/compile/internal/ssa/_gen/S390XOps.go": "1c84201abd875dcc0a4359b6ebb4f4d827f94583f98f46521ec77db301b9a194",
+      "src/cmd/compile/internal/ssa/_gen/WasmOps.go": "84b112398e8851e7a21db8a2db201a9fe9f02a1db766f3cc42b98f7c58856f32",
+      "src/cmd/compile/internal/ssa/_gen/allocators.go": "7f48615af3b33326b3ba43a89847d51f90c45f6efefab277a85ae939277b9ed5",
+      "src/cmd/compile/internal/ssa/_gen/dec64Ops.go": "28eef926065af1b2c8b9f6c8bf3dac69d2c5055095f1fcf44e17fb5af9e79afd",
+      "src/cmd/compile/internal/ssa/_gen/decOps.go": "fc9fe18479ee9365ba4d3b0e207dc3429c905258f96e6fea0bc801c2a8ad6a93",
+      "src/cmd/compile/internal/ssa/_gen/divisibleOps.go": "45b3ffb5236e907274dbeb9fbfa107cdd014f0706572c93350db5b9c9e044177",
+      "src/cmd/compile/internal/ssa/_gen/divmodOps.go": "e2d1440e6dccd825a7102868b33a4fce1a5982ef2f89b77f38aa0bd899513526",
+      "src/cmd/compile/internal/ssa/_gen/genericOps.go": "38592c72d2e06c0e3c854ac4faafd657b0c0ec27da33f241362c1a0350858875",
+      "src/cmd/compile/internal/ssa/_gen/main.go": "8af7d861023ae5382eabd7fd9e18e86c4f0d22690a444d07e0032770218edb7e",
+      "src/cmd/compile/internal/ssa/_gen/multiscanner.go": "1e527b9dccbf237b8b9496f09ca6f701f9aa26c69b7c9e327454cbcd7f9486b6",
+      "src/cmd/compile/internal/ssa/_gen/rulegen.go": "534e63e79708baaa3ca1c519e32985e365ae53256f2ea9d988f6a93f6c975411",
+      "src/cmd/compile/internal/ssa/_gen/simdAMD64ops.go": "9a80095e8fa87324f6f71f29bb991a2941fd5685ce63b4a66b96537779d626db",
+      "src/cmd/compile/internal/ssa/_gen/simdARM64ops.go": "06e70f4eff5c727db4e91536073794a09e9fa4c915fc2612d61b859698782bec",
+      "src/cmd/compile/internal/ssa/_gen/simdWasmops.go": "b89d54a31517398f48567f0aecacd4e1c253ecf78f477f0a017d8b3277e62983",
+      "src/cmd/compile/internal/ssa/_gen/simdgenericOps.go": "fd4697672b653a5d50d6ac9717f6bf5db2581cfd0c03f8d1c6c2f5d0bcd7cf29",
+      "src/cmd/compile/internal/ssa/_gen/vendor/golang.org/x/tools/go/ast/astutil/enclosing.go": "3fdd04c52f0b6783836ec99e2163d90149c30a8a22bb1bf4d5565862e51ef266",
+      "src/cmd/compile/internal/ssa/_gen/vendor/golang.org/x/tools/go/ast/astutil/imports.go": "8d1158ab60cd8f3822c43ea03be317d24f08c03ae81ad534a115675f8bcb2a8a",
+      "src/cmd/compile/internal/ssa/_gen/vendor/golang.org/x/tools/go/ast/astutil/rewrite.go": "849fa3ec2e6cc84ca8da5e98a9047ab5a90c359749510028ae955780fba92d24",
+      "src/cmd/compile/internal/ssa/_gen/vendor/golang.org/x/tools/go/ast/astutil/util.go": "ce97bffa5cecec7454c12968292351824629ad4bcce4e67f847a609521d2decc",
+      "src/cmd/compile/internal/ssa/addressingmodes.go": "2cbee6c6a528a17ebdd4fa27e8b07aaca9740feccacecd01f38df158e2ed15e1",
+      "src/cmd/compile/internal/ssa/allocators.go": "809226efd370b2188cfccbc1bc846ea11bc8dc662ad1973db543b4228bc09185",
+      "src/cmd/compile/internal/ssa/bench_test.go": "a554af678d0080180e3b663a9cb7b4b9408a8b2e83ff1fd2c7daff9f55f15f80",
+      "src/cmd/compile/internal/ssa/biasedsparsemap.go": "4bbc3f44c6889ebe90d9f9e89189e3b0a80cb485eac3fe1111a336cadcda5d4f",
+      "src/cmd/compile/internal/ssa/block.go": "ca98abe9473d7a4138a954b971afcc975f0a16caa71230e44ff15c2dd0979a0a",
+      "src/cmd/compile/internal/ssa/branchelim.go": "2dc688fa4c8c546228f1c77a36de1229b2c1965c76760e02e42523b0bd3d525c",
+      "src/cmd/compile/internal/ssa/branchelim_test.go": "577f3a171dacbe08cbca0cc75b866206252c892461d46583761bea0c59aad132",
+      "src/cmd/compile/internal/ssa/bswap_logos.go": "0ced7e53101fb5de206cf9d21ff0d06224bdff5c6306277138dcf1ce1c618cc9",
+      "src/cmd/compile/internal/ssa/bswap_logos_test.go": "eac0c5aa68fdd3f7b914f0561fbb8a78d8f958c3646416c68117adec5b3255aa",
+      "src/cmd/compile/internal/ssa/cache.go": "d601a9e18e7ad77caaafd91aba0bba444f50215085da597160cb3cf939c7c9dd",
+      "src/cmd/compile/internal/ssa/check.go": "a5ddbe558549dfc4d063e159344132133383033b3500d32f42e9e243324b8fe9",
+      "src/cmd/compile/internal/ssa/checkbce.go": "60269129ee275e703d8880d14fc9f665bb2cf0f8f75ca1e277c409e89ac5e856",
+      "src/cmd/compile/internal/ssa/compile.go": "5ea46cbc073077f2400febe0e8e910f9a781c4c4ab9dfcd51b7c838f4c9d099a",
+      "src/cmd/compile/internal/ssa/config.go": "064c69f9217f704adf726980edb6cb7fd1fda99a9204f573db54a620ba891746",
+      "src/cmd/compile/internal/ssa/copyelim.go": "13413c71161b3da87046e043db935f253619a6ce177758f71f0e4aaf30f18f85",
+      "src/cmd/compile/internal/ssa/copyelim_test.go": "8d0cbe86b6b2a813185ea2041ae01c1711ed54db2b1d312654bdc03f8146355c",
+      "src/cmd/compile/internal/ssa/correlated_constants_logos.go": "40b77f780a27ad63a056b6d61e7328e709798e140f80fe1bb3a7928e9cd5ff41",
+      "src/cmd/compile/internal/ssa/correlated_constants_logos_test.go": "5a1365cda15074d41f6151b6bc70b0fa385f4d302b19ac9427e62a06dbd81671",
+      "src/cmd/compile/internal/ssa/cpufeatures.go": "406f3a34a86bffde27d3a8970fe3f9e05d609abc6900c1de518cd89d8523ddf7",
+      "src/cmd/compile/internal/ssa/critical.go": "44df09aeccb1158ef2448a4064f87deb9ba114a13debcd8f805367c67faf0e73",
+      "src/cmd/compile/internal/ssa/cse.go": "4361f3eed36ba750d27afd2688dd98bf6226cbd67a6ce438560db1c5b89c980b",
+      "src/cmd/compile/internal/ssa/cse_test.go": "92d66c726f50677c433610feeddf1997a4c4b4e16f03ddd430be9c6869327c9b",
+      "src/cmd/compile/internal/ssa/deadcode.go": "100775d379777ab594974a9eaaad6562cfb6264a1a0080040fb9c2b69b2ea229",
+      "src/cmd/compile/internal/ssa/deadcode_test.go": "1c450c1667c54301d0c1eea5ef27093499abe0a633b18eff28d449aea1613a55",
+      "src/cmd/compile/internal/ssa/deadstore.go": "ed9fc7541803c9d808ffa4ad72ae31d9b83fbe0a5cdbdc647c668d43e5a53170",
+      "src/cmd/compile/internal/ssa/deadstore_test.go": "d01df0d504c4915d44ef4ecdda0a359a259ba2e31e95be1c57da445d917f7ed3",
+      "src/cmd/compile/internal/ssa/debug.go": "2648b007cee4ffc31cf0421cda9cb2297a130ad9ebcab3ad6fb9949d0289008b",
+      "src/cmd/compile/internal/ssa/debug_lines_test.go": "09f64f4e35556d85ba890e9aaed7d90d9fe056f0ff238b0c6fed158143d60ab3",
+      "src/cmd/compile/internal/ssa/debug_test.go": "09747614ab4e425f9644be1fe4fc1ea46a0d339dfb1cda9edf150aa53463d0cc",
+      "src/cmd/compile/internal/ssa/decompose.go": "4272b2a2aaf8024db68a4b09e4c3ce5cdb29cbafdab517a745462e5852f1a416",
+      "src/cmd/compile/internal/ssa/dom.go": "47182fb8eb969fe7c7c4f3378cc350f8dea617d680f4e48db9c40ae177f2ca68",
+      "src/cmd/compile/internal/ssa/dom_test.go": "b6c129b86104e8f827d78cf1ad57c51f8374b52b16a0e8f7605b3360483b88c2",
+      "src/cmd/compile/internal/ssa/downward_counting_loop.go": "35b72239981a2ffbe4a107508b3aa990a8348475851bf39277f37b53f498fd44",
+      "src/cmd/compile/internal/ssa/expand_calls.go": "5b6e17d8340574a332a62f03e6410be6a1ece518a95182dc50ee1726e55868b5",
+      "src/cmd/compile/internal/ssa/export_test.go": "0e3b981113acb7cc13cfe574e0df58cba872913a92d181f0e64b328e926d78f2",
+      "src/cmd/compile/internal/ssa/flagalloc.go": "c770c437656c4c0e2a3fdd058c219dea5fd218124cb4771e9f6c6907b4444fa1",
+      "src/cmd/compile/internal/ssa/flags_test.go": "36d2ea3356e349fdca57543d7c2e6eb5e4993d61a45cffacd7c0290fc5dd1234",
+      "src/cmd/compile/internal/ssa/fmahash_test.go": "90b207469e96c8dec29d670346538c89acea2a54a9f1a029de4c10b76a393506",
+      "src/cmd/compile/internal/ssa/func.go": "c1317a6f408e56f5238d73957afb3c595120b7bbfd55d82507aad742372969da",
+      "src/cmd/compile/internal/ssa/func_test.go": "3911c479ca44aa6c72f79ba5bf6d9c52742b66c5c536267fd57e92bd36af40e9",
+      "src/cmd/compile/internal/ssa/fuse.go": "43432d4312eb7d09a8864586360dbd8cd149b87dcf0a6e53674f5c0a30292b79",
+      "src/cmd/compile/internal/ssa/fuse_branchredirect.go": "b19271a6404d39da10e7d86210d1b3331f69faadc2bf86a5548407db9632f4af",
+      "src/cmd/compile/internal/ssa/fuse_comparisons.go": "8fdf10fc629bdb01ff016379e431ebf4981a4112203965a98df0df49559ee6d6",
+      "src/cmd/compile/internal/ssa/fuse_test.go": "d99c2150af88153e1f015b7232da6dfb18aac31dc13f74157038441bc6f01669",
+      "src/cmd/compile/internal/ssa/generate.go": "159898b22d8963b4fc4de37a7c7914128578daea51c30ec95171f46ade0786b1",
+      "src/cmd/compile/internal/ssa/generate_test.go": "1eb4ede6ccbc9f50833aa4f2a5844174ea65a833200adcfc3b0aa3e64f1f096c",
+      "src/cmd/compile/internal/ssa/html.go": "c8f76afacbe69446aa586f8916cd822a4b0529e32106ab4b85cd9bb2edc8461f",
+      "src/cmd/compile/internal/ssa/id.go": "0d95d9b17b31e4677f25dca65491345963fc6b8ab2c23c356c2cee0f75ddefed",
+      "src/cmd/compile/internal/ssa/known_bits.go": "143c93e01267aa0668b0d2594add5763960ec5053de7e0da2383bd3db54d3ca9",
+      "src/cmd/compile/internal/ssa/known_bits_intrinsics_logos.go": "e4f5cac692e08dd0441984c38b4ef6eb140e50c9836ac52218b44799a277b89d",
+      "src/cmd/compile/internal/ssa/known_bits_intrinsics_logos_test.go": "540de1119792d204b97e6bd4230f3bee5aa1b9d1d2c904699dba98bef93f4319",
+      "src/cmd/compile/internal/ssa/known_bits_logos.go": "6f3920e312d5bec7503ffdd92af53c93eb10de5acaa3fec741e6a23bd346100f",
+      "src/cmd/compile/internal/ssa/known_bits_logos_test.go": "edf03f1ec16955b519aad3115adc726a3c0312c9967809dd1a6e5fdca95ecf40",
+      "src/cmd/compile/internal/ssa/known_bits_projection_logos_test.go": "80472041332c9693d0555e6e96a6236051f1828f64bf3f5f87490ac641fe191f",
+      "src/cmd/compile/internal/ssa/known_bits_test.go": "4bdace833f41d7e4c45822ad59fe67ed32b529f0b8f999398a4424c5452f389c",
+      "src/cmd/compile/internal/ssa/layout.go": "026712634026ebf25e55bde565c5dafdeb7dd040da197598db91ed7bd40c1a42",
+      "src/cmd/compile/internal/ssa/lca.go": "ee26c99804fcbf969685e5d2cf9adcf6f0c62c7f5b36f88c462e252423da4eb9",
+      "src/cmd/compile/internal/ssa/lca_test.go": "33d53d5cbe907b28088a918393bffd5bee16182e5bb6b80155cac3d979543462",
+      "src/cmd/compile/internal/ssa/licm.go": "d4f23c7019d9e726139698580f5b1d3a290503d591ee580e96123ceef4878754",
+      "src/cmd/compile/internal/ssa/licm_test.go": "ddba2c54b96b24d73e96020579d1b899bbbc158979a12842a82324fe02d54a90",
+      "src/cmd/compile/internal/ssa/likelyadjust.go": "6a08a298854c31fd641ebbb59f070d455b365ade3223f6a6fad10644adce3e8f",
+      "src/cmd/compile/internal/ssa/location.go": "50639a724d64710e9aacf379e1553ff516afdecb08f682c66d80bf62e0a56542",
+      "src/cmd/compile/internal/ssa/logos_arena.go": "134186c55e542cb67b335753bf7c30c59b70d8cd80aac5bd713ce17b9a9ef6ea",
+      "src/cmd/compile/internal/ssa/logos_arena_ops_test.go": "bd4546089d242b8102f8c2a7ecd841591255ca074f800230ac6ba116e12b5b1b",
+      "src/cmd/compile/internal/ssa/logos_region_ops_test.go": "4d69c2d7e833015afe2b2e657d3a6d3883c62c04b00f109231f9dc9aca009bd6",
+      "src/cmd/compile/internal/ssa/loopbce.go": "55a9088157284a298c83ac5f0f88adae25a1455b0af195a5b64e5b436bd3d8ed",
+      "src/cmd/compile/internal/ssa/loopreschedchecks.go": "15e07a95f61bdbb06f62d358a37fb43407ada7b7e64558621701eb434204f404",
+      "src/cmd/compile/internal/ssa/looprotate.go": "e0fc548039f01311602cec80eca3e6e93ffe8dc00d03068d5b4ffc1142d35946",
+      "src/cmd/compile/internal/ssa/looprotate_test.go": "f7efcf8458fcc831e9dddce084affcefa1fd0ef1273bda3dec75559baf43f68a",
+      "src/cmd/compile/internal/ssa/loopstride_logos.go": "31b3b8c7e2a73a9e01a3fb1f88f9e3378b75938116066dfbd4c44b19644bef32",
+      "src/cmd/compile/internal/ssa/loopstride_logos_test.go": "a1583da48b923aa64cac4d9194d2778c01e460b9c51eb5c5156b06722b41a83c",
+      "src/cmd/compile/internal/ssa/lower.go": "48d94c4d0f017e5d6201466bd6a959674d2d5b27359388d49cbaae3c03a9ebfc",
+      "src/cmd/compile/internal/ssa/magic.go": "7f12df4b710aaaeb286d9229ec73c2d25e2a7accc9241890e54e93a8cb41bae3",
+      "src/cmd/compile/internal/ssa/magic_test.go": "6eb4629d84d8709f7d64b2b3e32a3c99d9a01ecb92b20e7492338dd8dc361c2f",
+      "src/cmd/compile/internal/ssa/memcombine.go": "c80a22fc6c4fdceca4c70b0ceeb27389253774c8e6503352d67f6dfea9e42a7c",
+      "src/cmd/compile/internal/ssa/merge_conditional_branches.go": "624b8f1b8c4bfc24e0526ebee97335041c6108781e7dbf95c954bf294f1cec0b",
+      "src/cmd/compile/internal/ssa/merge_conditional_branches_test.go": "24857d1068233b38d9e231cfba0272522687db2958403e3975148fbb5104532e",
+      "src/cmd/compile/internal/ssa/nilcheck.go": "44a932038d378b49c263a36253b38943597ee7ccd528f56c69fc7fd0d99e37c0",
+      "src/cmd/compile/internal/ssa/nilcheck_test.go": "4902493fb567ffea0af69ea3eb4af411747876bb06874919f0cfffd3e33dc2cb",
+      "src/cmd/compile/internal/ssa/numberlines.go": "4717ac059456fb3d57a27496370ae63f85d22025285495be6e7b8e16104023ce",
+      "src/cmd/compile/internal/ssa/op.go": "08144145533bc1af98a41f2d1712ec8759deb30251b868aa025f1fe4beb983f9",
+      "src/cmd/compile/internal/ssa/opGen.go": "a5e62888ac3bc2fdfbdf6e9e2027a44a0a1c916e825db3524707528ef63b638b",
+      "src/cmd/compile/internal/ssa/opt.go": "730513746530f0111100b4cdab5a1e6c36df198b3dee176ae7b6c87601efd838",
+      "src/cmd/compile/internal/ssa/pair.go": "23e05b40257ba7473632d948dd05314dc4cea42c3dda28acb2fac87eed8193f7",
+      "src/cmd/compile/internal/ssa/pair_logos.go": "caeae8fbf18f3cdbe2f4b6b2817c11c5ae5ef5a8593c0ce0928a3630f8877143",
+      "src/cmd/compile/internal/ssa/pair_logos_test.go": "7d377522e6c6fdbe977553acae357c9023bca83bc24b9c8b4ee8d228b287ecff",
+      "src/cmd/compile/internal/ssa/passbm_test.go": "2c7f3deb8729deabc57903afd9ec3a647f3c7d9a6217b60b13e2d721f125eff8",
+      "src/cmd/compile/internal/ssa/phiopt.go": "0a79029128654f5cf721c7be4e67ba15c172aa0625ac026ff7eb99b79e6a2f6b",
+      "src/cmd/compile/internal/ssa/poset.go": "74499a2d53a7058b3a6e748ac45e98cfd32262ccd2aa86c16ed513fdd3859471",
+      "src/cmd/compile/internal/ssa/poset_logos.go": "1dca524ed1fd258076623106b87abf71e610a9346dc47f7e830b8f8a5416ae6e",
+      "src/cmd/compile/internal/ssa/poset_test.go": "3a234dd0754edc0c1fb61df0adb279c1abfaf04ee10efa7bc3b01b5d7720f57a",
+      "src/cmd/compile/internal/ssa/print.go": "541bbf2abbbe1e51bbe4a14a7c529bb75a77b3138b2682636b9e5cc78fe3a3b4",
+      "src/cmd/compile/internal/ssa/prove.go": "7d1f86eb29c4343afc9f48bca8d14f61e85428de51d61668e3810e4f69cd8584",
+      "src/cmd/compile/internal/ssa/prove_test.go": "f33dcac0718b29aebc3b52600b265412419fd2fc42e59437a9a48fbf257e6b47",
+      "src/cmd/compile/internal/ssa/regalloc.go": "e70e5d087de7c2c967501bd60ef589c4400de9e029472445691e8564a55eed19",
+      "src/cmd/compile/internal/ssa/regalloc_test.go": "abbb61985475a00a1ae42e30698980295d02a35706f3b8a5e76780997c017fd5",
+      "src/cmd/compile/internal/ssa/rewrite.go": "117fe6808ee549f063a57b5ad1d21fd58c2d09192d9314eb0332102ff7322e73",
+      "src/cmd/compile/internal/ssa/rewrite386.go": "b06f735def444780bd1b34d38dc490c31e364d8cc6fc59a1782a1bdb41d77930",
+      "src/cmd/compile/internal/ssa/rewrite386splitload.go": "6a1dac1a411b5e639810a79c8ba99f84380f4d7b3d18dc5f60183e47e55ff1dd",
+      "src/cmd/compile/internal/ssa/rewriteAMD64.go": "d7a0720ef39f6c38f85bafa69da3c5b8673082c0d713661cb09eb6fdc830c890",
+      "src/cmd/compile/internal/ssa/rewriteAMD64latelower.go": "2737e2fc780a150ccdd59e85cad5aacbec9e419655d8f41d9d2cf7e7340ffac4",
+      "src/cmd/compile/internal/ssa/rewriteAMD64splitload.go": "1f4d0af9aecbf5a1c9b93c360db99779d8c8128df2600b64123156ad817bae91",
+      "src/cmd/compile/internal/ssa/rewriteARM.go": "e36cbe671b7c7468bbae68baa6a461a82b5c0f6fedd686ebe225ccaf1d66aebc",
+      "src/cmd/compile/internal/ssa/rewriteARM64.go": "265155300ac291d15ac061ccff9c7fb7360a3ea2b3d7c7b1bec67cbdd6e3338c",
+      "src/cmd/compile/internal/ssa/rewriteARM64latelower.go": "02101b09ca07977723f35fac2dff4e66cc2aac2aec80729977338f657b074114",
+      "src/cmd/compile/internal/ssa/rewriteCond_test.go": "90e38b5339949020194c5e2d9dade920f3df8f3effa860607c282acf999e0f45",
+      "src/cmd/compile/internal/ssa/rewriteLOONG64.go": "e67cb30fd8cedddc0f6e7183dd1f9f36495e27783c4fc067117c4d67681a1deb",
+      "src/cmd/compile/internal/ssa/rewriteLOONG64latelower.go": "f8a2758ddd9bc74c86b302a76aeb1fd48eb0005d9df1ef071217f7bf6853c6fe",
+      "src/cmd/compile/internal/ssa/rewriteMIPS.go": "51bbd00dd3eaa993f3693f2a917cd1c27abdffbb2a86c550daa1a1e851761065",
+      "src/cmd/compile/internal/ssa/rewriteMIPS64.go": "8fc1a6ea79509d4a8ad6335b197a3f4490f2b62541eb2cbc4f5105725e30ddbf",
+      "src/cmd/compile/internal/ssa/rewriteMIPS64latelower.go": "bb65586748195816b3e9097fdd2aa9224f0bf65c1d4a0dc6306ed2a383e23129",
+      "src/cmd/compile/internal/ssa/rewritePPC64.go": "4d5d998183f3fdaf6bc0e44b5f94fcd1b05dbf43617638e0c022d4bf8cfddcfb",
+      "src/cmd/compile/internal/ssa/rewritePPC64latelower.go": "b1bd5ba7be630e770d2f7e6939613cfc7659bd17bc486bb202ccd870f0d6661e",
+      "src/cmd/compile/internal/ssa/rewriteRISCV64.go": "8e86eb736d70dca48bbe1a1f9c36f9dd66628ece7fae3255abe360c2bea019c5",
+      "src/cmd/compile/internal/ssa/rewriteRISCV64latelower.go": "1c69519945bd9d37a83b4bf96b87f869c8bd12484233885ba330f6e27e532738",
+      "src/cmd/compile/internal/ssa/rewriteS390X.go": "1a0b506f69073833fbc2ccdbe90d7503796af0bfdc53def7c5ee724380a4be09",
+      "src/cmd/compile/internal/ssa/rewriteWasm.go": "63ef206d40d80a6fcbc66b6a13fb0c6770de8e61107c628d0df6791a01cc3b01",
+      "src/cmd/compile/internal/ssa/rewrite_test.go": "697d4e12da2926b63fbf837e1a5faa69e5d64bdf7a2c58c8a9b58e32fc5f40d8",
+      "src/cmd/compile/internal/ssa/rewritedec.go": "e25c8fcee5316e4a328b94b6eb211523b38e09013065ca78ebda053eb87fe987",
+      "src/cmd/compile/internal/ssa/rewritedec64.go": "e30f407aa510bd7d9ee30f9f04ae181641b04635357f29e6b61999f55a04bf4e",
+      "src/cmd/compile/internal/ssa/rewritedivisible.go": "9a81d9ea8e8e26ce85f294a340b206552f7d9835f2588dd6412b72b803b5aa89",
+      "src/cmd/compile/internal/ssa/rewritedivmod.go": "9983704ab26ba547ee13ebc11efb74f5652a50557d3470c984434ade0a34849d",
+      "src/cmd/compile/internal/ssa/rewritegeneric.go": "c02e0298e8dedf7f9c65c03cd4ab093b4c48dfff5ab2c4e3340923816f032eaa",
+      "src/cmd/compile/internal/ssa/rewritetern.go": "6804346cc78dcbdeb5b15b88567ca169e9d7afe71e5d8de741e5d8f90634bd7a",
+      "src/cmd/compile/internal/ssa/sccp.go": "4d20f8cb902347dc176b0012def215a118ab385de2c581eb9955cb3c65e40d03",
+      "src/cmd/compile/internal/ssa/sccp_logos.go": "7bb06bfdd13c046e9d094ad5e19f491a3f4e0a7cb462cfbe6cc90371f2fa0c8e",
+      "src/cmd/compile/internal/ssa/sccp_logos_test.go": "edbf0a7b78de74958f7c8cf6816c26c2fb86e7196474c58822b51ea3349b2969",
+      "src/cmd/compile/internal/ssa/sccp_test.go": "32d5e70c5bba887bcfc0deb3b286fc5cdb7358b54e1100e60ee2ee6bc7228312",
+      "src/cmd/compile/internal/ssa/schedule.go": "d3c68d2efe9e2692f02df0206e675f3ddd91c0f33ec50319e9955a110690ae23",
+      "src/cmd/compile/internal/ssa/schedule_test.go": "fdf0c7dc8785ef88d7c8006a726f4a861cffbae2de2b1413743b0ad74a28e325",
+      "src/cmd/compile/internal/ssa/shift_test.go": "e933640da4bb6c539716edbbe81f473e8d98123a4619e285f02908030bb176af",
+      "src/cmd/compile/internal/ssa/shortcircuit.go": "44785d483de3bc57566e1cef935b03d2d66faddbff16a55ea17452dd659564dd",
+      "src/cmd/compile/internal/ssa/shortcircuit_test.go": "919a5762c5b55eb780115ede914476625374939092317fdd5ce4b71008acd62d",
+      "src/cmd/compile/internal/ssa/sizeof_test.go": "c43322e91f02cf7a557511c3d1cb2ffdea33b573c8ae5814ce76f118fcc726d6",
+      "src/cmd/compile/internal/ssa/softfloat.go": "ab11f5639a0ee882b57758cd79a1094f65adb41e5ec2062024aef5090c52159c",
+      "src/cmd/compile/internal/ssa/sparsemap.go": "2fe4836f406f327f3c4748f8445870d05ca9e6309f56b6a013dbf54da7019b43",
+      "src/cmd/compile/internal/ssa/sparsemappos.go": "89f3209d05f775a9baabcbd13dd4a6a7e7455ddf0d9a185b3a9fb8aa034a5109",
+      "src/cmd/compile/internal/ssa/sparseset.go": "f7b335756234bc83907779b979ad44ed51293d2ed481a37dff527848faf5b210",
+      "src/cmd/compile/internal/ssa/sparsetree.go": "04ad4bf7a1ae78f870cc2049a5f8848da157b8d46550b818156b5c8f8adaa7b7",
+      "src/cmd/compile/internal/ssa/stackalloc.go": "fd8149c7483a92df87a8edce4eea17a0962cdca70deec1117e305a6eda8e13aa",
+      "src/cmd/compile/internal/ssa/stackalloc_live_oracle_test.go": "ae0c84d75f554449628876bc8bcc2ea1fe96bcb38e92a3dd84ad107f89a4f46f",
+      "src/cmd/compile/internal/ssa/stackalloc_logos.go": "e06dc50436705f3375f644a618abadee213968636d78e9a6d5c3f723148cc8f3",
+      "src/cmd/compile/internal/ssa/stmtlines_test.go": "c1746d1a0e654d8933fd7bb061f1df5f5cd72c2d4db0675374838b4da406ef9f",
+      "src/cmd/compile/internal/ssa/tern_helpers.go": "c3a17e890ae50c4e4ede58756c8e2495274639e30cb4ea83553b316abb347bb1",
+      "src/cmd/compile/internal/ssa/testdata/b53456.go": "9e1aed1095a8dac006e8e3f43835f2e24a3cda8eed40e4b83e327b485c560f3d",
+      "src/cmd/compile/internal/ssa/testdata/convertline.go": "a2c31e36a9b1e61d2a91fc4208636a61fe79eee894493c789b662bd1be8df636",
+      "src/cmd/compile/internal/ssa/testdata/fma.go": "84bda257ed3ba19cde7754df0ba618a7dc8d027e8f5c9823aef5c98367dc64df",
+      "src/cmd/compile/internal/ssa/testdata/hist.go": "3eea073865e45ae09c1fcea359279a798d59ffa0c79e2f631d50b9861fab632d",
+      "src/cmd/compile/internal/ssa/testdata/i22558.go": "011cd86bc21f70f26219c2f24a9dd8ab686f68d9ab00f78ba9563f5a17b657e8",
+      "src/cmd/compile/internal/ssa/testdata/i22600.go": "502e99a694fa4384b18702e9cfd4c81c9d4e97e8733fea343ccc4f152e30ed3b",
+      "src/cmd/compile/internal/ssa/testdata/i74576a.go": "a842a16b23f39919cd63dee29f7a10f4720c8a9b3e8c3b4208add289f41109e8",
+      "src/cmd/compile/internal/ssa/testdata/i74576b.go": "ee9bfb7824d3ff023e5acf408476ff8c8d07278f616d54c9ea050758ed1199b7",
+      "src/cmd/compile/internal/ssa/testdata/i74576c.go": "f7c4dfef109d2fe630ce746a60843b7aefb7c49f3120dd41625af6f7647e80ba",
+      "src/cmd/compile/internal/ssa/testdata/infloop.go": "8921fabfb79fe4ab2b844c0405c67bda15ae226df202c750d810d966d96bc364",
+      "src/cmd/compile/internal/ssa/testdata/inline-dump.go": "e17e828f2f8bde1522d3bdcec2a59e5c06d2a06af639d44f8337e40dbf29ace6",
+      "src/cmd/compile/internal/ssa/testdata/pushback.go": "765b5ad7bc51139aa5003b7c3c9e451fd57c1bbaf3b588266daec5b92444e428",
+      "src/cmd/compile/internal/ssa/testdata/sayhi.go": "d5e562537ba3054bb8c9a87a396c689fbc7781a6c02796503f340985cc183d00",
+      "src/cmd/compile/internal/ssa/testdata/scopes.go": "de8b6539f85421ecef858af796bb20edbff4d7628c3c1648c1b7769476eee734",
+      "src/cmd/compile/internal/ssa/tighten.go": "d65fcd9f971eed3ee68573cd670e0f5b04cc34ecdb312407dae576a52d781651",
+      "src/cmd/compile/internal/ssa/trim.go": "e865f146bf15ce764015b8687a8df9aa4cdbfdf6ed18d9942caee9fbd856abad",
+      "src/cmd/compile/internal/ssa/tuple.go": "6f6e7014cff7e438725ed331af35d3951de5067b99010d0b7a0238cf762f1c51",
+      "src/cmd/compile/internal/ssa/uses.go": "6404424749c5c9f4113b089c78744fa94da3fba9abbee21b90ae690310051000",
+      "src/cmd/compile/internal/ssa/value.go": "1b9c1aae99ee4b7563415261d10f09965a8427dfdf9216989b94025e5e715efc",
+      "src/cmd/compile/internal/ssa/writebarrier.go": "eae35261a041217fe1388628eb97b0ae0292d01fd40bbc0f6ca1c75e50a4c91a",
+      "src/cmd/compile/internal/ssa/writebarrier_test.go": "fa04e2e9dee0f151940a63b18accea6d8b3a4927f1149bba07b432245599172a",
+      "src/cmd/compile/internal/ssa/xposmap.go": "85b18918aae9817127b59e7a162e297bb1f51f315e4779290e9281f6214b15a2",
+      "src/cmd/compile/internal/ssa/zcse.go": "89c0d4f2646b5dc9274534fc0f97ce5873a77db208aab96341309f61bf0ff324",
+      "src/cmd/compile/internal/ssa/zeroextension_test.go": "b6ce1064b6409062768b7e6cf6b8cf3c54bcee159c8d93ef045731866036bdf9",
+      "src/cmd/compile/internal/test/testdata/scalaropt/bitfacts_test.go": "eda5ca404021d4685d49aed2f8ff8e1475fcc918454e27d6f876ca34f7bda6f2",
+      "src/cmd/compile/internal/test/testdata/scalaropt/bswap_test.go": "6e2d7270713a38db1427a70b21202b78a1d6d9af5ecebf9cf52fbe771876db0c",
+      "src/cmd/compile/internal/test/testdata/scalaropt/phi01_test.go": "89f8073ad10ffa69db5de852238108a37bf428ffa23beed9da68893de45ca0c3",
+      "src/cmd/compile/internal/test/testdata/scalaropt/processing_test.go": "75d4fc314797bf34fcf89af9e6fe4e258782067a3a541471477497f23f4d6ddd",
+      "src/cmd/compile/internal/test/testdata/scalaropt/scalaropt_test.go": "be97210b775ab079987df7d69aab97598b7ba130ebd2f9884d3cbf444e4b6af7",
+      "src/cmd/go/internal/logos/settings/experiment.go": "3123693ff51b65191b6368ef998cc3d2987b7b6dfea33749a202db59f42e416c",
+      "src/cmd/go/internal/logos/settings/experiment_test.go": "c1a32ba83283d6fa91eff3899a279146507df58c9c23af51754c88c83ec29311",
+      "src/cmd/go/internal/logos/settings/module.go": "337552618f9b0c9ed3ef6c144d0e67a694c48a5ef6543bdacc5bb3649fc7d976",
+      "src/cmd/go/internal/logos/settings/module_test.go": "62748c82f11c7526f34c573b0069483d6ed1276c36719d572f3a619e400e7927",
+      "src/cmd/go/internal/logos/settings/scalaropt_test.go": "7a083b53b73beaeb0221b958e286ce5f6d59513cf11c206f3b343c34ea8380f5",
+      "src/cmd/go/internal/logos/settings/settings.go": "b4b925063b7d89d0f1daf31654154c16c6fd9e8c2ac4aff87799e63163807595",
+      "src/cmd/go/internal/logos/settings/settings_test.go": "ae895ac579894a4ea9f45a79a6f57afec9aa7c29952c72e71a6b7bd50952821f",
+      "src/cmd/go/internal/work/buildid_logos.go": "654d6b74c5a3b0c8bb99b1f5d66627591445f031b25c9548b276c441d0d088c5",
+      "src/cmd/go/internal/work/exec_wasmexec_logos.go": "c6da8a20930a3a886e3754317b1a46c1880c7a864e0c53ec745ad08c071e356b",
+      "src/cmd/go/internal/work/logos_cc.go": "8b9f0aa16fbb31c078f2ae649dd19604fca0790cf869f3f94226241aa325634b",
+      "src/cmd/go/internal/work/logos_importcfg.go": "6440ab3207adf79eadf7424ca5f6c55b465bd4145fff8f42c33a9523e811c762",
+      "src/cmd/go/internal/work/logos_importcfg_test.go": "e2f882a55e31b585b4b0809ff33fffbf1de42dc594908b542f74c2f07c775909",
+      "src/cmd/go/internal/work/logos_linkcap.go": "eaf151020b655750d869a85fc25dedf087f4edf9a805dbe38b6b25d4c4f68f33",
+      "src/cmd/go/internal/work/logos_lint.go": "26b177a481a3832ee822ac11f06cf5b77ab8873e2da14edb42811496385f73ef",
+      "src/cmd/go/internal/work/logos_opt.go": "64573ce154f65282cb8aeac385393ff4f6fbe4e24df68f0138375c28e409c776",
+      "src/cmd/go/internal/work/logos_opt_env_test.go": "c5d69047c013617de0e82d6371a7202b45caf61c9916ab1d8038d329724e45b1",
+      "src/cmd/go/internal/work/logos_rtsel.go": "9455a7f4f9d845a7e37373ba65f1e4aac86e9da194e0b76978ae49aaac3fb303",
+      "src/cmd/go/internal/work/logos_settings.go": "91245ccddffe649d2adaa6241bd8fe96184d1399ac1d078a946d5c06c44a3f2c",
+      "src/cmd/go/internal/work/logos_stagemain.go": "5549306e71f568d9496cf47a99a672891b5e2dfb856c096126f070f978f52784",
+      "src/cmd/go/internal/work/logos_stdlib_gate.go": "3815b423b37c621e0a1a45008b355bcbeadb82bff5a0e32617043cbbd8a26575",
+      "src/cmd/go/internal/work/logos_stdlib_gate_test.go": "17c9111e211abe029cbbd2f094d307d5ae673a8e4c605779e11e2255fbcbbf49",
+      "src/cmd/go/internal/work/logos_stride.go": "f7c729f6588b8ed2f04a2c963392656d95a7e445658a7d62bdacad29a983266c",
+      "src/cmd/go/internal/work/logos_stride_test.go": "6380e5af0a0224b5c170df6707be23124dc4bf9b2a6d10a5371f760c6b5cfff2",
+      "src/cmd/go/internal/work/logos_wasmloader.go": "69523a1a67d8b0852a598aca727425a4bd7e4c439b2d009c64570c306d725ef3",
+      "src/cmd/go/internal/work/logos_wasmprofile.go": "45f50826e55922b22122e83ac32be790e23c8c69b39beee77f2b439ba2532392"
+    },
+    "runtime_binaries": {
+      "baseline": {
+        "sha256": "d109940969f94c98553e98ce19d15bc62dcacb7833388d11fc73c8f365426477",
+        "bytes": 5397753,
+        "parity_test": "passed"
+      },
+      "candidate": {
+        "sha256": "422a9586fcbff2597d28cc98fd43dedf21732e37124b72b934459c766a5561d3",
+        "bytes": 5396217,
+        "parity_test": "passed"
+      }
+    },
+    "runtime_binary_candidate_minus_baseline_bytes": -1536,
+    "go_version": "go1.27.4",
+    "hyperfine_version": "1.19.0",
+    "processor_model": "AMD EPYC 9V45 96-Core Processor"
+  },
+  "protocol": {
+    "controlled_settings": {
+      "GOOS": "linux",
+      "GOARCH": "amd64",
+      "GOAMD64": "v2",
+      "GOEXPERIMENT": "",
+      "GOGC": "100",
+      "GOMEMLIMIT": "1GiB",
+      "GOMAXPROCS": "1",
+      "GODEBUG": null,
+      "logical_cpu_affinity_count": 1,
+      "GOTOOLCHAIN": "local",
+      "GOENV": "off",
+      "GOFLAGS": ""
+    },
+    "runtime_optimization_flags": [
+      "-O=3",
+      "-gcflags=cmd/compile/internal/test/testdata/scalaropt=-d=logosopt=1"
+    ],
+    "compiler_selection": "A per-mode toolexec wrapper selects the recorded compiler for both initial binaries and Go count-10 corroboration; distinct compiler tool IDs separate cache identities.",
+    "direct_compile_configuration": {
+      "compiler_concurrency": 1,
+      "standard_library": true,
+      "complete_package": true,
+      "archive_output": true,
+      "debug_flags": "inlbudget=400,inlrecursivebudget=80,logosopt=1",
+      "cache": "Direct compiler invocations; no Go action-cache lookup in timed batches."
+    },
+    "calibration_target_seconds": 1.5,
+    "minimum_sample_seconds": 1,
+    "hyperfine_warmups_per_side": 3,
+    "hyperfine_runs_per_side": 10,
+    "maximum_stddev_over_median": 0.2,
+    "runtime_go_count_per_side": 10,
+    "same_fixed_work_count_per_pair": true,
+    "timing_order": "Baseline batch then candidate batch; no randomized alternation.",
+    "profile_scope": "Separate CPU-profile invocations are excluded from primary samples. Baseline profiling occurs between baseline and candidate Go corroboration batches. Function cumulative shares include inline callees and must not be added together."
+  },
+  "runtime_results": [
+    {
+      "benchmark": "BenchmarkPhi01Descriptors",
+      "role": "new_workload",
+      "fixed_iterations": 2793817,
+      "hyperfine_seconds": {
+        "baseline": {
+          "mean": 2.1957609598000003,
+          "stddev": 0.12803765334500058,
+          "median": 2.1483884825999997,
+          "user": 2.1637973199999996,
+          "system": 0.017153980000000003,
+          "min": 2.0789776390999997,
+          "max": 2.4703632400999997,
+          "times": [
+            2.4703632400999997,
+            2.1459839760999997,
+            2.0789776390999997,
+            2.1507929890999997,
+            2.1892284141,
+            2.1531178981,
+            2.1092681891,
+            2.1368836980999997,
+            2.1339289291,
+            2.3890646251
+          ],
+          "exit_codes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "sample_count": 10,
+          "stddev_over_median": 0.05959706746800664,
+          "all_samples_at_least_one_second": true,
+          "stddev_at_most_20_percent_of_median": true
+        },
+        "candidate": {
+          "mean": 1.5340722636,
+          "stddev": 0.10212874076864409,
+          "median": 1.5067043046000002,
+          "user": 1.51275772,
+          "system": 0.011194743999999998,
+          "min": 1.4427507021000001,
+          "max": 1.7649275351000002,
+          "times": [
+            1.7649275351000002,
+            1.4662748321,
+            1.5398986991,
+            1.4555222511,
+            1.4939729661,
+            1.4585292001,
+            1.5194356431000002,
+            1.6511535951,
+            1.5482572121,
+            1.4427507021000001
+          ],
+          "exit_codes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "sample_count": 10,
+          "stddev_over_median": 0.0677828691780085,
+          "all_samples_at_least_one_second": true,
+          "stddev_at_most_20_percent_of_median": true
+        }
+      },
+      "go_corroboration": {
+        "baseline": {
+          "sample_count": 10,
+          "samples": [
+            {
+              "iterations": 2793817,
+              "ns_per_op": 743.8,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2793817,
+              "ns_per_op": 740.4,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2793817,
+              "ns_per_op": 792.9,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2793817,
+              "ns_per_op": 799.0,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2793817,
+              "ns_per_op": 839.7,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2793817,
+              "ns_per_op": 811.2,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2793817,
+              "ns_per_op": 833.5,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2793817,
+              "ns_per_op": 799.8,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2793817,
+              "ns_per_op": 741.8,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2793817,
+              "ns_per_op": 800.2,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            }
+          ],
+          "median_ns_per_op": 799.4,
+          "mean_ns_per_op": 790.23,
+          "stddev_ns_per_op": 36.54309632323034,
+          "min_ns_per_op": 740.4,
+          "max_ns_per_op": 839.7,
+          "minimum_useful_seconds": 2.0685421068,
+          "all_samples_at_least_one_second": true
+        },
+        "candidate": {
+          "sample_count": 10,
+          "samples": [
+            {
+              "iterations": 2793817,
+              "ns_per_op": 518.1,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2793817,
+              "ns_per_op": 527.3,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2793817,
+              "ns_per_op": 571.1,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2793817,
+              "ns_per_op": 634.8,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2793817,
+              "ns_per_op": 524.0,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2793817,
+              "ns_per_op": 510.0,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2793817,
+              "ns_per_op": 562.3,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2793817,
+              "ns_per_op": 547.3,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2793817,
+              "ns_per_op": 572.8,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2793817,
+              "ns_per_op": 512.6,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            }
+          ],
+          "median_ns_per_op": 537.3,
+          "mean_ns_per_op": 548.03,
+          "stddev_ns_per_op": 38.706188135749024,
+          "min_ns_per_op": 510.0,
+          "max_ns_per_op": 634.8,
+          "minimum_useful_seconds": 1.42484667,
+          "all_samples_at_least_one_second": true
+        }
+      },
+      "baseline_over_candidate_median": {
+        "hyperfine": 1.4258859392920855,
+        "go_ns_per_op": 1.4878094174576588
+      },
+      "final_calibration_samples": {
+        "baseline": {
+          "iterations": 2793817,
+          "ns_per_op": 886.1,
+          "bytes_per_op": 0.0,
+          "allocs_per_op": 0.0
+        },
+        "candidate": {
+          "iterations": 2793817,
+          "ns_per_op": 584.6,
+          "bytes_per_op": 0.0,
+          "allocs_per_op": 0.0
+        }
+      },
+      "cpu_profiles": {
+        "baseline": {
+          "duration": {
+            "value": 2.33,
+            "unit": "s"
+          },
+          "total_samples": {
+            "value": 2.31,
+            "unit": "s"
+          },
+          "sampled_time_over_duration_percent": 98.99,
+          "selected_functions": [
+            {
+              "function": "cmd/compile/internal/test/testdata/scalaropt.phi01Descriptors",
+              "inline": false,
+              "flat_duration": {
+                "value": 2.27,
+                "unit": "s"
+              },
+              "flat_percent": 98.27,
+              "running_sum_percent": 98.27,
+              "cumulative_duration": {
+                "value": 2.28,
+                "unit": "s"
+              },
+              "cumulative_percent": 98.7
+            }
+          ]
+        },
+        "candidate": {
+          "duration": {
+            "value": 1.46,
+            "unit": "s"
+          },
+          "total_samples": {
+            "value": 1.45,
+            "unit": "s"
+          },
+          "sampled_time_over_duration_percent": 99.56,
+          "selected_functions": [
+            {
+              "function": "cmd/compile/internal/test/testdata/scalaropt.phi01Descriptors",
+              "inline": false,
+              "flat_duration": {
+                "value": 1.44,
+                "unit": "s"
+              },
+              "flat_percent": 99.31,
+              "running_sum_percent": 99.31,
+              "cumulative_duration": {
+                "value": 1.44,
+                "unit": "s"
+              },
+              "cumulative_percent": 99.31
+            }
+          ]
+        }
+      },
+      "assessment": "Both timing methods show at least a 1.05 ratio for this fixed workload; control variability limits causal attribution and precision."
+    },
+    {
+      "benchmark": "BenchmarkBswapLateDispatch",
+      "role": "new_workload",
+      "fixed_iterations": 4870130,
+      "hyperfine_seconds": {
+        "baseline": {
+          "mean": 2.6422804836800005,
+          "stddev": 0.10793205268083216,
+          "median": 2.6439849101800004,
+          "user": 2.6111594800000004,
+          "system": 0.01996798,
+          "min": 2.48169512468,
+          "max": 2.85209221468,
+          "times": [
+            2.60217800568,
+            2.48455351168,
+            2.48169512468,
+            2.65266742368,
+            2.85209221468,
+            2.69785512868,
+            2.70405770368,
+            2.63274767968,
+            2.6796556476799998,
+            2.63530239668
+          ],
+          "exit_codes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "sample_count": 10,
+          "stddev_over_median": 0.040821735504339256,
+          "all_samples_at_least_one_second": true,
+          "stddev_at_most_20_percent_of_median": true
+        },
+        "candidate": {
+          "mean": 1.3943600718800002,
+          "stddev": 0.11644318372662157,
+          "median": 1.33472140668,
+          "user": 1.37328788,
+          "system": 0.011298879999999999,
+          "min": 1.29254068868,
+          "max": 1.64692987968,
+          "times": [
+            1.30641094168,
+            1.29254068868,
+            1.33376297968,
+            1.43686556568,
+            1.31827327668,
+            1.31213942768,
+            1.33567983368,
+            1.52423697568,
+            1.64692987968,
+            1.4367611496800001
+          ],
+          "exit_codes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "sample_count": 10,
+          "stddev_over_median": 0.08724156452713497,
+          "all_samples_at_least_one_second": true,
+          "stddev_at_most_20_percent_of_median": true
+        }
+      },
+      "go_corroboration": {
+        "baseline": {
+          "sample_count": 10,
+          "samples": [
+            {
+              "iterations": 4870130,
+              "ns_per_op": 548.1,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 14945.91
+            },
+            {
+              "iterations": 4870130,
+              "ns_per_op": 537.4,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 15243.59
+            },
+            {
+              "iterations": 4870130,
+              "ns_per_op": 533.6,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 15351.27
+            },
+            {
+              "iterations": 4870130,
+              "ns_per_op": 511.4,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 16017.91
+            },
+            {
+              "iterations": 4870130,
+              "ns_per_op": 507.2,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 16151.77
+            },
+            {
+              "iterations": 4870130,
+              "ns_per_op": 524.7,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 15611.69
+            },
+            {
+              "iterations": 4870130,
+              "ns_per_op": 550.4,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 14882.64
+            },
+            {
+              "iterations": 4870130,
+              "ns_per_op": 529.7,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 15465.53
+            },
+            {
+              "iterations": 4870130,
+              "ns_per_op": 492.3,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 16638.76
+            },
+            {
+              "iterations": 4870130,
+              "ns_per_op": 516.8,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 15850.8
+            }
+          ],
+          "median_ns_per_op": 527.2,
+          "mean_ns_per_op": 525.16,
+          "stddev_ns_per_op": 18.459396884333287,
+          "min_ns_per_op": 492.3,
+          "max_ns_per_op": 550.4,
+          "minimum_useful_seconds": 2.397564999,
+          "all_samples_at_least_one_second": true
+        },
+        "candidate": {
+          "sample_count": 10,
+          "samples": [
+            {
+              "iterations": 4870130,
+              "ns_per_op": 290.0,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 28250.67
+            },
+            {
+              "iterations": 4870130,
+              "ns_per_op": 281.3,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 29119.71
+            },
+            {
+              "iterations": 4870130,
+              "ns_per_op": 286.5,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 28596.3
+            },
+            {
+              "iterations": 4870130,
+              "ns_per_op": 297.8,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 27509.03
+            },
+            {
+              "iterations": 4870130,
+              "ns_per_op": 281.7,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 29076.73
+            },
+            {
+              "iterations": 4870130,
+              "ns_per_op": 263.9,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 31046.49
+            },
+            {
+              "iterations": 4870130,
+              "ns_per_op": 269.9,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 30348.9
+            },
+            {
+              "iterations": 4870130,
+              "ns_per_op": 271.7,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 30145.76
+            },
+            {
+              "iterations": 4870130,
+              "ns_per_op": 260.2,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 31478.82
+            },
+            {
+              "iterations": 4870130,
+              "ns_per_op": 265.5,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 30849.76
+            }
+          ],
+          "median_ns_per_op": 276.5,
+          "mean_ns_per_op": 276.85,
+          "stddev_ns_per_op": 12.458129875707678,
+          "min_ns_per_op": 260.2,
+          "max_ns_per_op": 297.8,
+          "minimum_useful_seconds": 1.267207826,
+          "all_samples_at_least_one_second": true
+        }
+      },
+      "baseline_over_candidate_median": {
+        "hyperfine": 1.9809264292513868,
+        "go_ns_per_op": 1.9066907775768538
+      },
+      "final_calibration_samples": {
+        "baseline": {
+          "iterations": 4870130,
+          "ns_per_op": 527.9,
+          "bytes_per_op": 0.0,
+          "allocs_per_op": 0.0
+        },
+        "candidate": {
+          "iterations": 4870130,
+          "ns_per_op": 286.8,
+          "bytes_per_op": 0.0,
+          "allocs_per_op": 0.0
+        }
+      },
+      "cpu_profiles": {
+        "baseline": {
+          "duration": {
+            "value": 2.81,
+            "unit": "s"
+          },
+          "total_samples": {
+            "value": 2.79,
+            "unit": "s"
+          },
+          "sampled_time_over_duration_percent": 99.32,
+          "selected_functions": [
+            {
+              "function": "cmd/compile/internal/test/testdata/scalaropt.bswapLateDispatch",
+              "inline": false,
+              "flat_duration": {
+                "value": 2.76,
+                "unit": "s"
+              },
+              "flat_percent": 98.92,
+              "running_sum_percent": 98.92,
+              "cumulative_duration": {
+                "value": 2.77,
+                "unit": "s"
+              },
+              "cumulative_percent": 99.28
+            }
+          ]
+        },
+        "candidate": {
+          "duration": {
+            "value": 1.33,
+            "unit": "s"
+          },
+          "total_samples": {
+            "value": 1.31,
+            "unit": "s"
+          },
+          "sampled_time_over_duration_percent": 98.82,
+          "selected_functions": [
+            {
+              "function": "cmd/compile/internal/test/testdata/scalaropt.bswapLateDispatch",
+              "inline": false,
+              "flat_duration": {
+                "value": 1.27,
+                "unit": "s"
+              },
+              "flat_percent": 96.95,
+              "running_sum_percent": 96.95,
+              "cumulative_duration": {
+                "value": 1.28,
+                "unit": "s"
+              },
+              "cumulative_percent": 97.71
+            }
+          ]
+        }
+      },
+      "assessment": "Both timing methods show at least a 1.05 ratio for this fixed workload; control variability limits causal attribution and precision."
+    },
+    {
+      "benchmark": "BenchmarkBswapNetworkByteFields",
+      "role": "new_workload",
+      "fixed_iterations": 3406769,
+      "hyperfine_seconds": {
+        "baseline": {
+          "mean": 2.1280983248000003,
+          "stddev": 0.05659829291127798,
+          "median": 2.1082883828,
+          "user": 2.11710752,
+          "system": 0.0059750919999999996,
+          "min": 2.0329802408,
+          "max": 2.2233532438,
+          "times": [
+            2.0329802408,
+            2.2233532438,
+            2.1061677608,
+            2.1104090048,
+            2.1563683128,
+            2.1936831368000003,
+            2.0904852058000003,
+            2.0980781818,
+            2.1000084788000004,
+            2.1694496818
+          ],
+          "exit_codes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "sample_count": 10,
+          "stddev_over_median": 0.026845612475514504,
+          "all_samples_at_least_one_second": true,
+          "stddev_at_most_20_percent_of_median": true
+        },
+        "candidate": {
+          "mean": 1.5410015881999999,
+          "stddev": 0.09478879680726013,
+          "median": 1.5382900522999998,
+          "user": 1.5282144199999999,
+          "system": 0.005377265999999999,
+          "min": 1.4036769268,
+          "max": 1.6511326218,
+          "times": [
+            1.4488868508,
+            1.5036079058,
+            1.5101752758,
+            1.4275391168,
+            1.6394508988,
+            1.6511326218,
+            1.6380369548,
+            1.6211045017999999,
+            1.5664048287999999,
+            1.4036769268
+          ],
+          "exit_codes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "sample_count": 10,
+          "stddev_over_median": 0.06161958641384639,
+          "all_samples_at_least_one_second": true,
+          "stddev_at_most_20_percent_of_median": true
+        }
+      },
+      "go_corroboration": {
+        "baseline": {
+          "sample_count": 10,
+          "samples": [
+            {
+              "iterations": 3406769,
+              "ns_per_op": 570.2,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 28731.97
+            },
+            {
+              "iterations": 3406769,
+              "ns_per_op": 606.4,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 27020.32
+            },
+            {
+              "iterations": 3406769,
+              "ns_per_op": 690.9,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 23713.64
+            },
+            {
+              "iterations": 3406769,
+              "ns_per_op": 555.2,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 29512.27
+            },
+            {
+              "iterations": 3406769,
+              "ns_per_op": 565.7,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 28962.78
+            },
+            {
+              "iterations": 3406769,
+              "ns_per_op": 567.5,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 28870.12
+            },
+            {
+              "iterations": 3406769,
+              "ns_per_op": 632.9,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 25885.38
+            },
+            {
+              "iterations": 3406769,
+              "ns_per_op": 616.6,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 26569.63
+            },
+            {
+              "iterations": 3406769,
+              "ns_per_op": 661.7,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 24761.21
+            },
+            {
+              "iterations": 3406769,
+              "ns_per_op": 687.6,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 23826.57
+            }
+          ],
+          "median_ns_per_op": 611.5,
+          "mean_ns_per_op": 615.47,
+          "stddev_ns_per_op": 51.50728211729978,
+          "min_ns_per_op": 555.2,
+          "max_ns_per_op": 690.9,
+          "minimum_useful_seconds": 1.8914381488000003,
+          "all_samples_at_least_one_second": true
+        },
+        "candidate": {
+          "sample_count": 10,
+          "samples": [
+            {
+              "iterations": 3406769,
+              "ns_per_op": 386.2,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 42420.33
+            },
+            {
+              "iterations": 3406769,
+              "ns_per_op": 372.1,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 44032.87
+            },
+            {
+              "iterations": 3406769,
+              "ns_per_op": 377.1,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 43443.93
+            },
+            {
+              "iterations": 3406769,
+              "ns_per_op": 407.5,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 40205.37
+            },
+            {
+              "iterations": 3406769,
+              "ns_per_op": 374.3,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 43777.64
+            },
+            {
+              "iterations": 3406769,
+              "ns_per_op": 384.3,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 42634.04
+            },
+            {
+              "iterations": 3406769,
+              "ns_per_op": 380.8,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 43027.75
+            },
+            {
+              "iterations": 3406769,
+              "ns_per_op": 396.3,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 41344.84
+            },
+            {
+              "iterations": 3406769,
+              "ns_per_op": 387.5,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 42285.5
+            },
+            {
+              "iterations": 3406769,
+              "ns_per_op": 411.4,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0,
+              "megabytes_per_second": 39821.8
+            }
+          ],
+          "median_ns_per_op": 385.25,
+          "mean_ns_per_op": 387.75,
+          "stddev_ns_per_op": 13.434635999700333,
+          "min_ns_per_op": 372.1,
+          "max_ns_per_op": 411.4,
+          "minimum_useful_seconds": 1.2676587449,
+          "all_samples_at_least_one_second": true
+        }
+      },
+      "baseline_over_candidate_median": {
+        "hyperfine": 1.3705402174627326,
+        "go_ns_per_op": 1.5872809863724855
+      },
+      "final_calibration_samples": {
+        "baseline": {
+          "iterations": 3406769,
+          "ns_per_op": 642.0,
+          "bytes_per_op": 0.0,
+          "allocs_per_op": 0.0
+        },
+        "candidate": {
+          "iterations": 3406769,
+          "ns_per_op": 408.9,
+          "bytes_per_op": 0.0,
+          "allocs_per_op": 0.0
+        }
+      },
+      "cpu_profiles": {
+        "baseline": {
+          "duration": {
+            "value": 2.46,
+            "unit": "s"
+          },
+          "total_samples": {
+            "value": 2420,
+            "unit": "ms"
+          },
+          "sampled_time_over_duration_percent": 98.26,
+          "selected_functions": [
+            {
+              "function": "cmd/compile/internal/test/testdata/scalaropt.bswapNetworkByteFields",
+              "inline": false,
+              "flat_duration": {
+                "value": 2250,
+                "unit": "ms"
+              },
+              "flat_percent": 92.98,
+              "running_sum_percent": 92.98,
+              "cumulative_duration": {
+                "value": 2370,
+                "unit": "ms"
+              },
+              "cumulative_percent": 97.93
+            }
+          ]
+        },
+        "candidate": {
+          "duration": {
+            "value": 1.32,
+            "unit": "s"
+          },
+          "total_samples": {
+            "value": 1310,
+            "unit": "ms"
+          },
+          "sampled_time_over_duration_percent": 98.93,
+          "selected_functions": [
+            {
+              "function": "cmd/compile/internal/test/testdata/scalaropt.bswapNetworkByteFields",
+              "inline": false,
+              "flat_duration": {
+                "value": 1290,
+                "unit": "ms"
+              },
+              "flat_percent": 98.47,
+              "running_sum_percent": 98.47,
+              "cumulative_duration": {
+                "value": 1290,
+                "unit": "ms"
+              },
+              "cumulative_percent": 98.47
+            }
+          ]
+        }
+      },
+      "assessment": "Both timing methods show at least a 1.05 ratio for this fixed workload; control variability limits causal attribution and precision."
+    },
+    {
+      "benchmark": "BenchmarkAlignedBitCounts",
+      "role": "new_workload",
+      "fixed_iterations": 3402133,
+      "hyperfine_seconds": {
+        "baseline": {
+          "mean": 1.8079851040600001,
+          "stddev": 0.08356164195745762,
+          "median": 1.80758770186,
+          "user": 1.79386544,
+          "system": 0.004850617999999999,
+          "min": 1.72430816586,
+          "max": 2.00259097886,
+          "times": [
+            1.80605263686,
+            2.00259097886,
+            1.87939432086,
+            1.8154660808599998,
+            1.7471461158600001,
+            1.72430816586,
+            1.81445581686,
+            1.7407164018599999,
+            1.8091227668599998,
+            1.74059775586
+          ],
+          "exit_codes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "sample_count": 10,
+          "stddev_over_median": 0.04622826426151995,
+          "all_samples_at_least_one_second": true,
+          "stddev_at_most_20_percent_of_median": true
+        },
+        "candidate": {
+          "mean": 1.6023057342599998,
+          "stddev": 0.11361212532677838,
+          "median": 1.56407606386,
+          "user": 1.59302854,
+          "system": 0.004510915999999999,
+          "min": 1.49886619186,
+          "max": 1.83894674686,
+          "times": [
+            1.52622101186,
+            1.51699443486,
+            1.5567556918599998,
+            1.49886619186,
+            1.64742114586,
+            1.5062657548599998,
+            1.7508488578599999,
+            1.60934107086,
+            1.57139643586,
+            1.83894674686
+          ],
+          "exit_codes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "sample_count": 10,
+          "stddev_over_median": 0.07263849115265776,
+          "all_samples_at_least_one_second": true,
+          "stddev_at_most_20_percent_of_median": true
+        }
+      },
+      "go_corroboration": {
+        "baseline": {
+          "sample_count": 10,
+          "samples": [
+            {
+              "iterations": 3402133,
+              "ns_per_op": 594.6,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3402133,
+              "ns_per_op": 545.9,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3402133,
+              "ns_per_op": 525.1,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3402133,
+              "ns_per_op": 509.4,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3402133,
+              "ns_per_op": 525.4,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3402133,
+              "ns_per_op": 491.4,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3402133,
+              "ns_per_op": 507.3,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3402133,
+              "ns_per_op": 514.2,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3402133,
+              "ns_per_op": 510.1,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3402133,
+              "ns_per_op": 491.9,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            }
+          ],
+          "median_ns_per_op": 512.1500000000001,
+          "mean_ns_per_op": 521.53,
+          "stddev_ns_per_op": 30.332602555299772,
+          "min_ns_per_op": 491.4,
+          "max_ns_per_op": 594.6,
+          "minimum_useful_seconds": 1.6718081561999998,
+          "all_samples_at_least_one_second": true
+        },
+        "candidate": {
+          "sample_count": 10,
+          "samples": [
+            {
+              "iterations": 3402133,
+              "ns_per_op": 458.3,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3402133,
+              "ns_per_op": 454.0,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3402133,
+              "ns_per_op": 483.9,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3402133,
+              "ns_per_op": 470.8,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3402133,
+              "ns_per_op": 441.9,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3402133,
+              "ns_per_op": 433.2,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3402133,
+              "ns_per_op": 429.2,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3402133,
+              "ns_per_op": 447.9,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3402133,
+              "ns_per_op": 495.1,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3402133,
+              "ns_per_op": 496.8,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            }
+          ],
+          "median_ns_per_op": 456.15,
+          "mean_ns_per_op": 461.11,
+          "stddev_ns_per_op": 24.588997087676802,
+          "min_ns_per_op": 429.2,
+          "max_ns_per_op": 496.8,
+          "minimum_useful_seconds": 1.4601954836,
+          "all_samples_at_least_one_second": true
+        }
+      },
+      "baseline_over_candidate_median": {
+        "hyperfine": 1.1556904063853743,
+        "go_ns_per_op": 1.122766633782747
+      },
+      "final_calibration_samples": {
+        "baseline": {
+          "iterations": 3402133,
+          "ns_per_op": 484.9,
+          "bytes_per_op": 0.0,
+          "allocs_per_op": 0.0
+        },
+        "candidate": {
+          "iterations": 3402133,
+          "ns_per_op": 440.6,
+          "bytes_per_op": 0.0,
+          "allocs_per_op": 0.0
+        }
+      },
+      "cpu_profiles": {
+        "baseline": {
+          "duration": {
+            "value": 1.71,
+            "unit": "s"
+          },
+          "total_samples": {
+            "value": 1.7,
+            "unit": "s"
+          },
+          "sampled_time_over_duration_percent": 99.29,
+          "selected_functions": [
+            {
+              "function": "cmd/compile/internal/test/testdata/scalaropt.alignedBitCounts",
+              "inline": false,
+              "flat_duration": {
+                "value": 1.24,
+                "unit": "s"
+              },
+              "flat_percent": 72.94,
+              "running_sum_percent": 72.94,
+              "cumulative_duration": {
+                "value": 1.67,
+                "unit": "s"
+              },
+              "cumulative_percent": 98.24
+            },
+            {
+              "function": "cmd/compile/internal/test/testdata/scalaropt.consumeAlignedCount",
+              "inline": true,
+              "flat_duration": {
+                "value": 0.41,
+                "unit": "s"
+              },
+              "flat_percent": 24.12,
+              "running_sum_percent": 97.06,
+              "cumulative_duration": {
+                "value": 0.41,
+                "unit": "s"
+              },
+              "cumulative_percent": 24.12
+            }
+          ]
+        },
+        "candidate": {
+          "duration": {
+            "value": 1.62,
+            "unit": "s"
+          },
+          "total_samples": {
+            "value": 1560,
+            "unit": "ms"
+          },
+          "sampled_time_over_duration_percent": 96.16,
+          "selected_functions": [
+            {
+              "function": "cmd/compile/internal/test/testdata/scalaropt.alignedBitCounts",
+              "inline": false,
+              "flat_duration": {
+                "value": 1250,
+                "unit": "ms"
+              },
+              "flat_percent": 80.13,
+              "running_sum_percent": 80.13,
+              "cumulative_duration": {
+                "value": 1530,
+                "unit": "ms"
+              },
+              "cumulative_percent": 98.08
+            },
+            {
+              "function": "cmd/compile/internal/test/testdata/scalaropt.consumeAlignedCount",
+              "inline": true,
+              "flat_duration": {
+                "value": 260,
+                "unit": "ms"
+              },
+              "flat_percent": 16.67,
+              "running_sum_percent": 96.79,
+              "cumulative_duration": {
+                "value": 260,
+                "unit": "ms"
+              },
+              "cumulative_percent": 16.67
+            }
+          ]
+        }
+      },
+      "assessment": "Both timing methods show at least a 1.05 ratio for this fixed workload; control variability limits causal attribution and precision."
+    },
+    {
+      "benchmark": "BenchmarkHeaderBitLengths",
+      "role": "new_workload",
+      "fixed_iterations": 3116560,
+      "hyperfine_seconds": {
+        "baseline": {
+          "mean": 3.3440309556,
+          "stddev": 0.15952746790186847,
+          "median": 3.3143606090000004,
+          "user": 3.317319859999999,
+          "system": 0.011031075999999997,
+          "min": 3.148000317,
+          "max": 3.670930975,
+          "times": [
+            3.337021662,
+            3.148000317,
+            3.2259272820000002,
+            3.430996661,
+            3.291699556,
+            3.517474961,
+            3.209711826,
+            3.670930975,
+            3.240380868,
+            3.368165448
+          ],
+          "exit_codes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "sample_count": 10,
+          "stddev_over_median": 0.04813220005954653,
+          "all_samples_at_least_one_second": true,
+          "stddev_at_most_20_percent_of_median": true
+        },
+        "candidate": {
+          "mean": 1.4586264698,
+          "stddev": 0.05501460569811567,
+          "median": 1.4636111315000002,
+          "user": 1.44650316,
+          "system": 0.005206112,
+          "min": 1.3861707790000002,
+          "max": 1.567178192,
+          "times": [
+            1.4696505160000002,
+            1.4944742910000002,
+            1.3890004790000001,
+            1.4471495300000001,
+            1.4751864350000001,
+            1.4575717470000003,
+            1.491135153,
+            1.4087475760000001,
+            1.567178192,
+            1.3861707790000002
+          ],
+          "exit_codes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "sample_count": 10,
+          "stddev_over_median": 0.0375882667971603,
+          "all_samples_at_least_one_second": true,
+          "stddev_at_most_20_percent_of_median": true
+        }
+      },
+      "go_corroboration": {
+        "baseline": {
+          "sample_count": 10,
+          "samples": [
+            {
+              "iterations": 3116560,
+              "ns_per_op": 1088.0,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3116560,
+              "ns_per_op": 1042.0,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3116560,
+              "ns_per_op": 1045.0,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3116560,
+              "ns_per_op": 1069.0,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3116560,
+              "ns_per_op": 1024.0,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3116560,
+              "ns_per_op": 1030.0,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3116560,
+              "ns_per_op": 994.3,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3116560,
+              "ns_per_op": 1006.0,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3116560,
+              "ns_per_op": 1003.0,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3116560,
+              "ns_per_op": 1039.0,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            }
+          ],
+          "median_ns_per_op": 1034.5,
+          "mean_ns_per_op": 1034.03,
+          "stddev_ns_per_op": 29.416701605267267,
+          "min_ns_per_op": 994.3,
+          "max_ns_per_op": 1088.0,
+          "minimum_useful_seconds": 3.098795608,
+          "all_samples_at_least_one_second": true
+        },
+        "candidate": {
+          "sample_count": 10,
+          "samples": [
+            {
+              "iterations": 3116560,
+              "ns_per_op": 438.5,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3116560,
+              "ns_per_op": 442.0,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3116560,
+              "ns_per_op": 439.6,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3116560,
+              "ns_per_op": 450.5,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3116560,
+              "ns_per_op": 444.1,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3116560,
+              "ns_per_op": 427.0,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3116560,
+              "ns_per_op": 420.9,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3116560,
+              "ns_per_op": 444.8,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3116560,
+              "ns_per_op": 452.9,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3116560,
+              "ns_per_op": 467.5,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            }
+          ],
+          "median_ns_per_op": 443.05,
+          "mean_ns_per_op": 442.78,
+          "stddev_ns_per_op": 13.062652444618166,
+          "min_ns_per_op": 420.9,
+          "max_ns_per_op": 467.5,
+          "minimum_useful_seconds": 1.311760104,
+          "all_samples_at_least_one_second": true
+        }
+      },
+      "baseline_over_candidate_median": {
+        "hyperfine": 2.2645090199629982,
+        "go_ns_per_op": 2.3349509084753413
+      },
+      "final_calibration_samples": {
+        "baseline": {
+          "iterations": 3116560,
+          "ns_per_op": 1045.0,
+          "bytes_per_op": 0.0,
+          "allocs_per_op": 0.0
+        },
+        "candidate": {
+          "iterations": 3116560,
+          "ns_per_op": 450.1,
+          "bytes_per_op": 0.0,
+          "allocs_per_op": 0.0
+        }
+      },
+      "cpu_profiles": {
+        "baseline": {
+          "duration": {
+            "value": 3.2,
+            "unit": "s"
+          },
+          "total_samples": {
+            "value": 3.17,
+            "unit": "s"
+          },
+          "sampled_time_over_duration_percent": 99.05,
+          "selected_functions": [
+            {
+              "function": "cmd/compile/internal/test/testdata/scalaropt.consumeLengthCount",
+              "inline": true,
+              "flat_duration": {
+                "value": 2.25,
+                "unit": "s"
+              },
+              "flat_percent": 70.98,
+              "running_sum_percent": 70.98,
+              "cumulative_duration": {
+                "value": 2.26,
+                "unit": "s"
+              },
+              "cumulative_percent": 71.29
+            },
+            {
+              "function": "cmd/compile/internal/test/testdata/scalaropt.headerBitLengths",
+              "inline": false,
+              "flat_duration": {
+                "value": 0.88,
+                "unit": "s"
+              },
+              "flat_percent": 27.76,
+              "running_sum_percent": 98.74,
+              "cumulative_duration": {
+                "value": 3.15,
+                "unit": "s"
+              },
+              "cumulative_percent": 99.37
+            }
+          ]
+        },
+        "candidate": {
+          "duration": {
+            "value": 1.51,
+            "unit": "s"
+          },
+          "total_samples": {
+            "value": 1500,
+            "unit": "ms"
+          },
+          "sampled_time_over_duration_percent": 99.32,
+          "selected_functions": [
+            {
+              "function": "cmd/compile/internal/test/testdata/scalaropt.headerBitLengths",
+              "inline": false,
+              "flat_duration": {
+                "value": 1190,
+                "unit": "ms"
+              },
+              "flat_percent": 79.33,
+              "running_sum_percent": 79.33,
+              "cumulative_duration": {
+                "value": 1500,
+                "unit": "ms"
+              },
+              "cumulative_percent": 100.0
+            },
+            {
+              "function": "cmd/compile/internal/test/testdata/scalaropt.consumeLengthCount",
+              "inline": true,
+              "flat_duration": {
+                "value": 290,
+                "unit": "ms"
+              },
+              "flat_percent": 19.33,
+              "running_sum_percent": 98.67,
+              "cumulative_duration": {
+                "value": 290,
+                "unit": "ms"
+              },
+              "cumulative_percent": 19.33
+            }
+          ]
+        }
+      },
+      "assessment": "Both timing methods show at least a 1.05 ratio for this fixed workload; control variability limits causal attribution and precision."
+    },
+    {
+      "benchmark": "BenchmarkSparsePopulationClasses",
+      "role": "new_workload",
+      "fixed_iterations": 2982701,
+      "hyperfine_seconds": {
+        "baseline": {
+          "mean": 1.89528924026,
+          "stddev": 0.055286405884759325,
+          "median": 1.88966309956,
+          "user": 1.8793545000000003,
+          "system": 0.0076576199999999995,
+          "min": 1.81353786056,
+          "max": 1.97081568656,
+          "times": [
+            1.82228739756,
+            1.81353786056,
+            1.85443323856,
+            1.93447058356,
+            1.9706776415599998,
+            1.88532801056,
+            1.9220157845599999,
+            1.89339378956,
+            1.8859324095599999,
+            1.97081568656
+          ],
+          "exit_codes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "sample_count": 10,
+          "stddev_over_median": 0.02925728183909213,
+          "all_samples_at_least_one_second": true,
+          "stddev_at_most_20_percent_of_median": true
+        },
+        "candidate": {
+          "mean": 1.4247125723600003,
+          "stddev": 0.03710922669183814,
+          "median": 1.41504077156,
+          "user": 1.4195119999999999,
+          "system": 0.00347854,
+          "min": 1.38189541656,
+          "max": 1.49705700356,
+          "times": [
+            1.3967038325599999,
+            1.38189541656,
+            1.44283061356,
+            1.41724692656,
+            1.47304817956,
+            1.4128346165599999,
+            1.4312106865599998,
+            1.40486995656,
+            1.38942849156,
+            1.49705700356
+          ],
+          "exit_codes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "sample_count": 10,
+          "stddev_over_median": 0.026224846264272215,
+          "all_samples_at_least_one_second": true,
+          "stddev_at_most_20_percent_of_median": true
+        }
+      },
+      "go_corroboration": {
+        "baseline": {
+          "sample_count": 10,
+          "samples": [
+            {
+              "iterations": 2982701,
+              "ns_per_op": 659.0,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2982701,
+              "ns_per_op": 590.0,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2982701,
+              "ns_per_op": 640.7,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2982701,
+              "ns_per_op": 634.4,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2982701,
+              "ns_per_op": 649.6,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2982701,
+              "ns_per_op": 706.4,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2982701,
+              "ns_per_op": 638.9,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2982701,
+              "ns_per_op": 631.3,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2982701,
+              "ns_per_op": 614.3,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2982701,
+              "ns_per_op": 630.5,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            }
+          ],
+          "median_ns_per_op": 636.65,
+          "mean_ns_per_op": 639.51,
+          "stddev_ns_per_op": 30.219951099305977,
+          "min_ns_per_op": 590.0,
+          "max_ns_per_op": 706.4,
+          "minimum_useful_seconds": 1.75979359,
+          "all_samples_at_least_one_second": true
+        },
+        "candidate": {
+          "sample_count": 10,
+          "samples": [
+            {
+              "iterations": 2982701,
+              "ns_per_op": 517.3,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2982701,
+              "ns_per_op": 458.0,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2982701,
+              "ns_per_op": 478.9,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2982701,
+              "ns_per_op": 481.5,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2982701,
+              "ns_per_op": 471.4,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2982701,
+              "ns_per_op": 487.3,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2982701,
+              "ns_per_op": 477.3,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2982701,
+              "ns_per_op": 455.1,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2982701,
+              "ns_per_op": 452.8,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2982701,
+              "ns_per_op": 476.4,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            }
+          ],
+          "median_ns_per_op": 476.85,
+          "mean_ns_per_op": 475.6,
+          "stddev_ns_per_op": 18.834070782022184,
+          "min_ns_per_op": 452.8,
+          "max_ns_per_op": 517.3,
+          "minimum_useful_seconds": 1.3505670128,
+          "all_samples_at_least_one_second": true
+        }
+      },
+      "baseline_over_candidate_median": {
+        "hyperfine": 1.3354124754135221,
+        "go_ns_per_op": 1.335115864527629
+      },
+      "final_calibration_samples": {
+        "baseline": {
+          "iterations": 2982701,
+          "ns_per_op": 601.2,
+          "bytes_per_op": 0.0,
+          "allocs_per_op": 0.0
+        },
+        "candidate": {
+          "iterations": 2982701,
+          "ns_per_op": 488.0,
+          "bytes_per_op": 0.0,
+          "allocs_per_op": 0.0
+        }
+      },
+      "cpu_profiles": {
+        "baseline": {
+          "duration": {
+            "value": 1.9,
+            "unit": "s"
+          },
+          "total_samples": {
+            "value": 1.88,
+            "unit": "s"
+          },
+          "sampled_time_over_duration_percent": 99.13,
+          "selected_functions": [
+            {
+              "function": "cmd/compile/internal/test/testdata/scalaropt.sparsePopulationClasses",
+              "inline": false,
+              "flat_duration": {
+                "value": 1.74,
+                "unit": "s"
+              },
+              "flat_percent": 92.55,
+              "running_sum_percent": 92.55,
+              "cumulative_duration": {
+                "value": 1.88,
+                "unit": "s"
+              },
+              "cumulative_percent": 100.0
+            },
+            {
+              "function": "cmd/compile/internal/test/testdata/scalaropt.consumePopulationClass",
+              "inline": true,
+              "flat_duration": {
+                "value": 0.13,
+                "unit": "s"
+              },
+              "flat_percent": 6.91,
+              "running_sum_percent": 99.47,
+              "cumulative_duration": {
+                "value": 0.13,
+                "unit": "s"
+              },
+              "cumulative_percent": 6.91
+            }
+          ]
+        },
+        "candidate": {
+          "duration": {
+            "value": 1.43,
+            "unit": "s"
+          },
+          "total_samples": {
+            "value": 1.43,
+            "unit": "s"
+          },
+          "sampled_time_over_duration_percent": 100.15,
+          "selected_functions": [
+            {
+              "function": "cmd/compile/internal/test/testdata/scalaropt.sparsePopulationClasses",
+              "inline": false,
+              "flat_duration": {
+                "value": 1.33,
+                "unit": "s"
+              },
+              "flat_percent": 93.01,
+              "running_sum_percent": 93.01,
+              "cumulative_duration": {
+                "value": 1.4,
+                "unit": "s"
+              },
+              "cumulative_percent": 97.9
+            },
+            {
+              "function": "cmd/compile/internal/test/testdata/scalaropt.consumePopulationClass",
+              "inline": true,
+              "flat_duration": {
+                "value": 0.06,
+                "unit": "s"
+              },
+              "flat_percent": 4.2,
+              "running_sum_percent": 97.2,
+              "cumulative_duration": {
+                "value": 0.06,
+                "unit": "s"
+              },
+              "cumulative_percent": 4.2
+            }
+          ]
+        }
+      },
+      "assessment": "Both timing methods show at least a 1.05 ratio for this fixed workload; control variability limits causal attribution and precision."
+    },
+    {
+      "benchmark": "BenchmarkFixedPointDispatch",
+      "role": "existing_control",
+      "fixed_iterations": 380904013,
+      "hyperfine_seconds": {
+        "baseline": {
+          "mean": 1.5997938868,
+          "stddev": 0.05916178931610902,
+          "median": 1.5821812936,
+          "user": 1.58924508,
+          "system": 0.00571821,
+          "min": 1.5346939921,
+          "max": 1.7430023971,
+          "times": [
+            1.5832463660999998,
+            1.7430023971,
+            1.5484192740999998,
+            1.5774681161,
+            1.5646729641,
+            1.5811162211,
+            1.5346939921,
+            1.6352632471,
+            1.6193982501,
+            1.6106580401
+          ],
+          "exit_codes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "sample_count": 10,
+          "stddev_over_median": 0.03739254758947115,
+          "all_samples_at_least_one_second": true,
+          "stddev_at_most_20_percent_of_median": true
+        },
+        "candidate": {
+          "mean": 1.5991936933,
+          "stddev": 0.0798702100765802,
+          "median": 1.6058899120999999,
+          "user": 1.58820688,
+          "system": 0.00577914,
+          "min": 1.4558810541,
+          "max": 1.6944256261,
+          "times": [
+            1.6618336571,
+            1.6944256261,
+            1.4945063581,
+            1.4558810541,
+            1.6350113710999998,
+            1.5968403531,
+            1.6065636720999998,
+            1.5480035811,
+            1.6936551081,
+            1.6052161521
+          ],
+          "exit_codes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "sample_count": 10,
+          "stddev_over_median": 0.04973579413805211,
+          "all_samples_at_least_one_second": true,
+          "stddev_at_most_20_percent_of_median": true
+        }
+      },
+      "go_corroboration": {
+        "baseline": {
+          "sample_count": 10,
+          "samples": [
+            {
+              "iterations": 380904013,
+              "ns_per_op": 4.502,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 380904013,
+              "ns_per_op": 4.692,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 380904013,
+              "ns_per_op": 4.841,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 380904013,
+              "ns_per_op": 4.512,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 380904013,
+              "ns_per_op": 4.529,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 380904013,
+              "ns_per_op": 4.54,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 380904013,
+              "ns_per_op": 4.727,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 380904013,
+              "ns_per_op": 4.262,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 380904013,
+              "ns_per_op": 3.998,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 380904013,
+              "ns_per_op": 4.315,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            }
+          ],
+          "median_ns_per_op": 4.5205,
+          "mean_ns_per_op": 4.4918,
+          "stddev_ns_per_op": 0.24708603989523797,
+          "min_ns_per_op": 3.998,
+          "max_ns_per_op": 4.841,
+          "minimum_useful_seconds": 1.522854243974,
+          "all_samples_at_least_one_second": true
+        },
+        "candidate": {
+          "sample_count": 10,
+          "samples": [
+            {
+              "iterations": 380904013,
+              "ns_per_op": 3.918,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 380904013,
+              "ns_per_op": 3.839,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 380904013,
+              "ns_per_op": 3.857,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 380904013,
+              "ns_per_op": 3.911,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 380904013,
+              "ns_per_op": 3.788,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 380904013,
+              "ns_per_op": 3.783,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 380904013,
+              "ns_per_op": 3.943,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 380904013,
+              "ns_per_op": 3.982,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 380904013,
+              "ns_per_op": 3.836,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 380904013,
+              "ns_per_op": 3.868,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            }
+          ],
+          "median_ns_per_op": 3.8625,
+          "mean_ns_per_op": 3.8725,
+          "stddev_ns_per_op": 0.06530143779257691,
+          "min_ns_per_op": 3.783,
+          "max_ns_per_op": 3.982,
+          "minimum_useful_seconds": 1.4409598811789999,
+          "all_samples_at_least_one_second": true
+        }
+      },
+      "baseline_over_candidate_median": {
+        "hyperfine": 0.9852364609047226,
+        "go_ns_per_op": 1.1703559870550162
+      },
+      "final_calibration_samples": {
+        "baseline": {
+          "iterations": 380904013,
+          "ns_per_op": 4.375,
+          "bytes_per_op": 0.0,
+          "allocs_per_op": 0.0
+        },
+        "candidate": {
+          "iterations": 380904013,
+          "ns_per_op": 4.373,
+          "bytes_per_op": 0.0,
+          "allocs_per_op": 0.0
+        }
+      },
+      "cpu_profiles": {
+        "baseline": {
+          "duration": {
+            "value": 1.52,
+            "unit": "s"
+          },
+          "total_samples": {
+            "value": 1500,
+            "unit": "ms"
+          },
+          "sampled_time_over_duration_percent": 98.97,
+          "selected_functions": [
+            {
+              "function": "cmd/compile/internal/test/testdata/scalaropt.fixedPointDispatch",
+              "inline": false,
+              "flat_duration": {
+                "value": 1290,
+                "unit": "ms"
+              },
+              "flat_percent": 86.0,
+              "running_sum_percent": 86.0,
+              "cumulative_duration": {
+                "value": 1290,
+                "unit": "ms"
+              },
+              "cumulative_percent": 86.0
+            }
+          ]
+        },
+        "candidate": {
+          "duration": {
+            "value": 1.54,
+            "unit": "s"
+          },
+          "total_samples": {
+            "value": 1.53,
+            "unit": "s"
+          },
+          "sampled_time_over_duration_percent": 99.37,
+          "selected_functions": [
+            {
+              "function": "cmd/compile/internal/test/testdata/scalaropt.fixedPointDispatch",
+              "inline": false,
+              "flat_duration": {
+                "value": 1.38,
+                "unit": "s"
+              },
+              "flat_percent": 90.2,
+              "running_sum_percent": 90.2,
+              "cumulative_duration": {
+                "value": 1.38,
+                "unit": "s"
+              },
+              "cumulative_percent": 90.2
+            }
+          ]
+        }
+      },
+      "assessment": "Control: timing methods disagree; no speedup claim. Kernel bytes are identical and caller instructions are equivalent after address normalization."
+    },
+    {
+      "benchmark": "BenchmarkPackedDescriptors",
+      "role": "existing_control",
+      "fixed_iterations": 2194266,
+      "hyperfine_seconds": {
+        "baseline": {
+          "mean": 2.28746366616,
+          "stddev": 0.07902770784101254,
+          "median": 2.28818489016,
+          "user": 2.2696743400000003,
+          "system": 0.007932819999999998,
+          "min": 2.15548360416,
+          "max": 2.41458733016,
+          "times": [
+            2.15548360416,
+            2.25593015916,
+            2.2944563751600002,
+            2.28191340516,
+            2.36712625716,
+            2.20395702416,
+            2.22941403616,
+            2.32648133416,
+            2.41458733016,
+            2.34528713616
+          ],
+          "exit_codes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "sample_count": 10,
+          "stddev_over_median": 0.03453729118694013,
+          "all_samples_at_least_one_second": true,
+          "stddev_at_most_20_percent_of_median": true
+        },
+        "candidate": {
+          "mean": 1.31152010556,
+          "stddev": 0.0583486968774422,
+          "median": 1.31722310866,
+          "user": 1.30186974,
+          "system": 0.004998135999999999,
+          "min": 1.18970223516,
+          "max": 1.3796637301599999,
+          "times": [
+            1.36000636016,
+            1.33430208216,
+            1.28675148016,
+            1.27564185416,
+            1.30346521916,
+            1.33098099816,
+            1.18970223516,
+            1.27517580216,
+            1.37951129416,
+            1.3796637301599999
+          ],
+          "exit_codes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "sample_count": 10,
+          "stddev_over_median": 0.04429674555041768,
+          "all_samples_at_least_one_second": true,
+          "stddev_at_most_20_percent_of_median": true
+        }
+      },
+      "go_corroboration": {
+        "baseline": {
+          "sample_count": 10,
+          "samples": [
+            {
+              "iterations": 2194266,
+              "ns_per_op": 1022.0,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2194266,
+              "ns_per_op": 1002.0,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2194266,
+              "ns_per_op": 1053.0,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2194266,
+              "ns_per_op": 1128.0,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2194266,
+              "ns_per_op": 1043.0,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2194266,
+              "ns_per_op": 1001.0,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2194266,
+              "ns_per_op": 992.8,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2194266,
+              "ns_per_op": 1028.0,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2194266,
+              "ns_per_op": 1029.0,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2194266,
+              "ns_per_op": 1040.0,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            }
+          ],
+          "median_ns_per_op": 1028.5,
+          "mean_ns_per_op": 1033.88,
+          "stddev_ns_per_op": 38.48419011605791,
+          "min_ns_per_op": 992.8,
+          "max_ns_per_op": 1128.0,
+          "minimum_useful_seconds": 2.1784672847999995,
+          "all_samples_at_least_one_second": true
+        },
+        "candidate": {
+          "sample_count": 10,
+          "samples": [
+            {
+              "iterations": 2194266,
+              "ns_per_op": 573.3,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2194266,
+              "ns_per_op": 621.7,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2194266,
+              "ns_per_op": 602.5,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2194266,
+              "ns_per_op": 630.1,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2194266,
+              "ns_per_op": 645.7,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2194266,
+              "ns_per_op": 651.3,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2194266,
+              "ns_per_op": 571.4,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2194266,
+              "ns_per_op": 615.7,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2194266,
+              "ns_per_op": 548.3,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 2194266,
+              "ns_per_op": 567.9,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            }
+          ],
+          "median_ns_per_op": 609.1,
+          "mean_ns_per_op": 602.79,
+          "stddev_ns_per_op": 35.7555419169921,
+          "min_ns_per_op": 548.3,
+          "max_ns_per_op": 651.3,
+          "minimum_useful_seconds": 1.2031160478,
+          "all_samples_at_least_one_second": true
+        }
+      },
+      "baseline_over_candidate_median": {
+        "hyperfine": 1.737127807063567,
+        "go_ns_per_op": 1.6885568872106387
+      },
+      "final_calibration_samples": {
+        "baseline": {
+          "iterations": 2194266,
+          "ns_per_op": 1088.0,
+          "bytes_per_op": 0.0,
+          "allocs_per_op": 0.0
+        },
+        "candidate": {
+          "iterations": 2194266,
+          "ns_per_op": 564.2,
+          "bytes_per_op": 0.0,
+          "allocs_per_op": 0.0
+        }
+      },
+      "cpu_profiles": {
+        "baseline": {
+          "duration": {
+            "value": 2.3,
+            "unit": "s"
+          },
+          "total_samples": {
+            "value": 2.28,
+            "unit": "s"
+          },
+          "sampled_time_over_duration_percent": 99.08,
+          "selected_functions": [
+            {
+              "function": "cmd/compile/internal/test/testdata/scalaropt.packDescriptor",
+              "inline": true,
+              "flat_duration": {
+                "value": 1.67,
+                "unit": "s"
+              },
+              "flat_percent": 73.25,
+              "running_sum_percent": 73.25,
+              "cumulative_duration": {
+                "value": 1.68,
+                "unit": "s"
+              },
+              "cumulative_percent": 73.68
+            },
+            {
+              "function": "cmd/compile/internal/test/testdata/scalaropt.packedDescriptors",
+              "inline": false,
+              "flat_duration": {
+                "value": 0.53,
+                "unit": "s"
+              },
+              "flat_percent": 23.25,
+              "running_sum_percent": 96.49,
+              "cumulative_duration": {
+                "value": 2.25,
+                "unit": "s"
+              },
+              "cumulative_percent": 98.68
+            },
+            {
+              "function": "cmd/compile/internal/test/testdata/scalaropt.consumeDescriptor",
+              "inline": true,
+              "flat_duration": {
+                "value": 0.03,
+                "unit": "s"
+              },
+              "flat_percent": 1.32,
+              "running_sum_percent": 97.81,
+              "cumulative_duration": {
+                "value": 0.03,
+                "unit": "s"
+              },
+              "cumulative_percent": 1.32
+            }
+          ]
+        },
+        "candidate": {
+          "duration": {
+            "value": 1.39,
+            "unit": "s"
+          },
+          "total_samples": {
+            "value": 1.37,
+            "unit": "s"
+          },
+          "sampled_time_over_duration_percent": 98.34,
+          "selected_functions": [
+            {
+              "function": "cmd/compile/internal/test/testdata/scalaropt.packDescriptor",
+              "inline": true,
+              "flat_duration": {
+                "value": 0.78,
+                "unit": "s"
+              },
+              "flat_percent": 56.93,
+              "running_sum_percent": 56.93,
+              "cumulative_duration": {
+                "value": 0.79,
+                "unit": "s"
+              },
+              "cumulative_percent": 57.66
+            },
+            {
+              "function": "cmd/compile/internal/test/testdata/scalaropt.packedDescriptors",
+              "inline": false,
+              "flat_duration": {
+                "value": 0.54,
+                "unit": "s"
+              },
+              "flat_percent": 39.42,
+              "running_sum_percent": 96.35,
+              "cumulative_duration": {
+                "value": 1.36,
+                "unit": "s"
+              },
+              "cumulative_percent": 99.27
+            },
+            {
+              "function": "cmd/compile/internal/test/testdata/scalaropt.consumeDescriptor",
+              "inline": true,
+              "flat_duration": {
+                "value": 0.03,
+                "unit": "s"
+              },
+              "flat_percent": 2.19,
+              "running_sum_percent": 98.54,
+              "cumulative_duration": {
+                "value": 0.03,
+                "unit": "s"
+              },
+              "cumulative_percent": 2.19
+            }
+          ]
+        }
+      },
+      "assessment": "Control: measured gains remain unexplained. Kernel bytes are identical and caller instructions are equivalent after address normalization; these are not new instruction wins."
+    },
+    {
+      "benchmark": "BenchmarkPackedHeaders",
+      "role": "existing_control",
+      "fixed_iterations": 3373061,
+      "hyperfine_seconds": {
+        "baseline": {
+          "mean": 1.7597566530600002,
+          "stddev": 0.0661503048099652,
+          "median": 1.74224597156,
+          "user": 1.7545897199999998,
+          "system": 0.003050256,
+          "min": 1.6791027545600001,
+          "max": 1.89563539156,
+          "times": [
+            1.83543901556,
+            1.89563539156,
+            1.7372599105600002,
+            1.6791027545600001,
+            1.7967628635600001,
+            1.7019166865600002,
+            1.7352343385600002,
+            1.74723203256,
+            1.76124059056,
+            1.70774294656
+          ],
+          "exit_codes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "sample_count": 10,
+          "stddev_over_median": 0.03796840738322069,
+          "all_samples_at_least_one_second": true,
+          "stddev_at_most_20_percent_of_median": true
+        },
+        "candidate": {
+          "mean": 1.3947812985599999,
+          "stddev": 0.05956848685810302,
+          "median": 1.40532495806,
+          "user": 1.3889663200000002,
+          "system": 0.0022529039999999996,
+          "min": 1.29154566956,
+          "max": 1.48638832256,
+          "times": [
+            1.40396709256,
+            1.3667827455600001,
+            1.29154566956,
+            1.3102760605600001,
+            1.44081219956,
+            1.4432626935600001,
+            1.40975812056,
+            1.48638832256,
+            1.4066828235600002,
+            1.38833725756
+          ],
+          "exit_codes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "sample_count": 10,
+          "stddev_over_median": 0.04238769582540906,
+          "all_samples_at_least_one_second": true,
+          "stddev_at_most_20_percent_of_median": true
+        }
+      },
+      "go_corroboration": {
+        "baseline": {
+          "sample_count": 10,
+          "samples": [
+            {
+              "iterations": 3373061,
+              "ns_per_op": 576.5,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3373061,
+              "ns_per_op": 605.4,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3373061,
+              "ns_per_op": 551.1,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3373061,
+              "ns_per_op": 567.9,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3373061,
+              "ns_per_op": 538.6,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3373061,
+              "ns_per_op": 537.9,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3373061,
+              "ns_per_op": 583.5,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3373061,
+              "ns_per_op": 557.3,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3373061,
+              "ns_per_op": 528.7,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3373061,
+              "ns_per_op": 511.2,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            }
+          ],
+          "median_ns_per_op": 554.2,
+          "mean_ns_per_op": 555.81,
+          "stddev_ns_per_op": 28.21841203501319,
+          "min_ns_per_op": 511.2,
+          "max_ns_per_op": 605.4,
+          "minimum_useful_seconds": 1.7243087832000001,
+          "all_samples_at_least_one_second": true
+        },
+        "candidate": {
+          "sample_count": 10,
+          "samples": [
+            {
+              "iterations": 3373061,
+              "ns_per_op": 407.2,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3373061,
+              "ns_per_op": 410.3,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3373061,
+              "ns_per_op": 394.6,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3373061,
+              "ns_per_op": 395.3,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3373061,
+              "ns_per_op": 399.0,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3373061,
+              "ns_per_op": 408.3,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3373061,
+              "ns_per_op": 481.4,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3373061,
+              "ns_per_op": 420.2,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3373061,
+              "ns_per_op": 399.2,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 3373061,
+              "ns_per_op": 400.4,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            }
+          ],
+          "median_ns_per_op": 403.79999999999995,
+          "mean_ns_per_op": 411.59,
+          "stddev_ns_per_op": 25.756528837903943,
+          "min_ns_per_op": 394.6,
+          "max_ns_per_op": 481.4,
+          "minimum_useful_seconds": 1.3310098706000002,
+          "all_samples_at_least_one_second": true
+        }
+      },
+      "baseline_over_candidate_median": {
+        "hyperfine": 1.2397459829967776,
+        "go_ns_per_op": 1.3724616146607234
+      },
+      "final_calibration_samples": {
+        "baseline": {
+          "iterations": 3373061,
+          "ns_per_op": 533.1,
+          "bytes_per_op": 0.0,
+          "allocs_per_op": 0.0
+        },
+        "candidate": {
+          "iterations": 3373061,
+          "ns_per_op": 397.5,
+          "bytes_per_op": 0.0,
+          "allocs_per_op": 0.0
+        }
+      },
+      "cpu_profiles": {
+        "baseline": {
+          "duration": {
+            "value": 1.75,
+            "unit": "s"
+          },
+          "total_samples": {
+            "value": 1.76,
+            "unit": "s"
+          },
+          "sampled_time_over_duration_percent": 100.29,
+          "selected_functions": [
+            {
+              "function": "cmd/compile/internal/test/testdata/scalaropt.packedHeaders",
+              "inline": false,
+              "flat_duration": {
+                "value": 1.22,
+                "unit": "s"
+              },
+              "flat_percent": 69.32,
+              "running_sum_percent": 69.32,
+              "cumulative_duration": {
+                "value": 1.74,
+                "unit": "s"
+              },
+              "cumulative_percent": 98.86
+            },
+            {
+              "function": "cmd/compile/internal/test/testdata/scalaropt.packHeader",
+              "inline": true,
+              "flat_duration": {
+                "value": 0.51,
+                "unit": "s"
+              },
+              "flat_percent": 28.98,
+              "running_sum_percent": 98.3,
+              "cumulative_duration": {
+                "value": 0.52,
+                "unit": "s"
+              },
+              "cumulative_percent": 29.55
+            }
+          ]
+        },
+        "candidate": {
+          "duration": {
+            "value": 1.37,
+            "unit": "s"
+          },
+          "total_samples": {
+            "value": 1350,
+            "unit": "ms"
+          },
+          "sampled_time_over_duration_percent": 98.44,
+          "selected_functions": [
+            {
+              "function": "cmd/compile/internal/test/testdata/scalaropt.packedHeaders",
+              "inline": false,
+              "flat_duration": {
+                "value": 830,
+                "unit": "ms"
+              },
+              "flat_percent": 61.48,
+              "running_sum_percent": 61.48,
+              "cumulative_duration": {
+                "value": 1310,
+                "unit": "ms"
+              },
+              "cumulative_percent": 97.04
+            },
+            {
+              "function": "cmd/compile/internal/test/testdata/scalaropt.packHeader",
+              "inline": true,
+              "flat_duration": {
+                "value": 460,
+                "unit": "ms"
+              },
+              "flat_percent": 34.07,
+              "running_sum_percent": 95.56,
+              "cumulative_duration": {
+                "value": 470,
+                "unit": "ms"
+              },
+              "cumulative_percent": 34.81
+            }
+          ]
+        }
+      },
+      "assessment": "Control: measured gains remain unexplained. Kernel bytes are identical and caller instructions are equivalent after address normalization; these are not new instruction wins."
+    },
+    {
+      "benchmark": "BenchmarkCorrelatedDescriptors",
+      "role": "existing_control",
+      "fixed_iterations": 4709577,
+      "hyperfine_seconds": {
+        "baseline": {
+          "mean": 2.59826078716,
+          "stddev": 0.14032759873604367,
+          "median": 2.56983977486,
+          "user": 2.5785312399999993,
+          "system": 0.008085726000000001,
+          "min": 2.45972040086,
+          "max": 2.88608565986,
+          "times": [
+            2.6809672778599998,
+            2.75850043886,
+            2.88608565986,
+            2.48857176386,
+            2.48623446686,
+            2.60191467686,
+            2.53776487286,
+            2.45972040086,
+            2.47834753986,
+            2.60450077386
+          ],
+          "exit_codes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "sample_count": 10,
+          "stddev_over_median": 0.05460558284949436,
+          "all_samples_at_least_one_second": true,
+          "stddev_at_most_20_percent_of_median": true
+        },
+        "candidate": {
+          "mean": 1.45106622036,
+          "stddev": 0.09174291176555412,
+          "median": 1.42165019486,
+          "user": 1.4396440399999997,
+          "system": 0.0054512119999999996,
+          "min": 1.36040122486,
+          "max": 1.68384997786,
+          "times": [
+            1.36040122486,
+            1.42048559586,
+            1.42281479386,
+            1.40110942186,
+            1.68384997786,
+            1.48746856586,
+            1.49727330086,
+            1.43832540486,
+            1.40857511886,
+            1.39035879886
+          ],
+          "exit_codes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "sample_count": 10,
+          "stddev_over_median": 0.064532690318091,
+          "all_samples_at_least_one_second": true,
+          "stddev_at_most_20_percent_of_median": true
+        }
+      },
+      "go_corroboration": {
+        "baseline": {
+          "sample_count": 10,
+          "samples": [
+            {
+              "iterations": 4709577,
+              "ns_per_op": 559.6,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 4709577,
+              "ns_per_op": 556.6,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 4709577,
+              "ns_per_op": 566.6,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 4709577,
+              "ns_per_op": 601.5,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 4709577,
+              "ns_per_op": 580.3,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 4709577,
+              "ns_per_op": 538.6,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 4709577,
+              "ns_per_op": 519.3,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 4709577,
+              "ns_per_op": 508.8,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 4709577,
+              "ns_per_op": 520.1,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 4709577,
+              "ns_per_op": 567.3,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            }
+          ],
+          "median_ns_per_op": 558.1,
+          "mean_ns_per_op": 551.87,
+          "stddev_ns_per_op": 29.645762297876942,
+          "min_ns_per_op": 508.8,
+          "max_ns_per_op": 601.5,
+          "minimum_useful_seconds": 2.3962327776,
+          "all_samples_at_least_one_second": true
+        },
+        "candidate": {
+          "sample_count": 10,
+          "samples": [
+            {
+              "iterations": 4709577,
+              "ns_per_op": 301.2,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 4709577,
+              "ns_per_op": 308.0,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 4709577,
+              "ns_per_op": 293.0,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 4709577,
+              "ns_per_op": 305.9,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 4709577,
+              "ns_per_op": 306.4,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 4709577,
+              "ns_per_op": 316.1,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 4709577,
+              "ns_per_op": 336.4,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 4709577,
+              "ns_per_op": 349.7,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 4709577,
+              "ns_per_op": 319.4,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            },
+            {
+              "iterations": 4709577,
+              "ns_per_op": 293.0,
+              "bytes_per_op": 0.0,
+              "allocs_per_op": 0.0
+            }
+          ],
+          "median_ns_per_op": 307.2,
+          "mean_ns_per_op": 312.90999999999997,
+          "stddev_ns_per_op": 18.26699817217438,
+          "min_ns_per_op": 293.0,
+          "max_ns_per_op": 349.7,
+          "minimum_useful_seconds": 1.379906061,
+          "all_samples_at_least_one_second": true
+        }
+      },
+      "baseline_over_candidate_median": {
+        "hyperfine": 1.8076456389562627,
+        "go_ns_per_op": 1.8167317708333335
+      },
+      "final_calibration_samples": {
+        "baseline": {
+          "iterations": 4709577,
+          "ns_per_op": 553.5,
+          "bytes_per_op": 0.0,
+          "allocs_per_op": 0.0
+        },
+        "candidate": {
+          "iterations": 4709577,
+          "ns_per_op": 312.0,
+          "bytes_per_op": 0.0,
+          "allocs_per_op": 0.0
+        }
+      },
+      "cpu_profiles": {
+        "baseline": {
+          "duration": {
+            "value": 2.71,
+            "unit": "s"
+          },
+          "total_samples": {
+            "value": 2690,
+            "unit": "ms"
+          },
+          "sampled_time_over_duration_percent": 99.21,
+          "selected_functions": [
+            {
+              "function": "cmd/compile/internal/test/testdata/scalaropt.correlatedDescriptors",
+              "inline": false,
+              "flat_duration": {
+                "value": 2650,
+                "unit": "ms"
+              },
+              "flat_percent": 98.51,
+              "running_sum_percent": 98.51,
+              "cumulative_duration": {
+                "value": 2660,
+                "unit": "ms"
+              },
+              "cumulative_percent": 98.88
+            }
+          ]
+        },
+        "candidate": {
+          "duration": {
+            "value": 1.46,
+            "unit": "s"
+          },
+          "total_samples": {
+            "value": 1.46,
+            "unit": "s"
+          },
+          "sampled_time_over_duration_percent": 99.69,
+          "selected_functions": [
+            {
+              "function": "cmd/compile/internal/test/testdata/scalaropt.correlatedDescriptors",
+              "inline": false,
+              "flat_duration": {
+                "value": 1.38,
+                "unit": "s"
+              },
+              "flat_percent": 94.52,
+              "running_sum_percent": 94.52,
+              "cumulative_duration": {
+                "value": 1.39,
+                "unit": "s"
+              },
+              "cumulative_percent": 95.21
+            }
+          ]
+        }
+      },
+      "assessment": "Control: measured gains remain unexplained. Kernel bytes are identical and caller instructions are equivalent after address normalization; these are not new instruction wins."
+    }
+  ],
+  "compiler_results": [
+    {
+      "package": "go/parser",
+      "fixed_compiler_invocations_per_batch": 3,
+      "hyperfine_batch_seconds": {
+        "baseline": {
+          "mean": 1.5677735414599998,
+          "stddev": 0.14164299598650226,
+          "median": 1.57565705106,
+          "user": 1.4593385599999997,
+          "system": 0.09343818,
+          "min": 1.3649011935600002,
+          "max": 1.86102527556,
+          "times": [
+            1.69320645156,
+            1.86102527556,
+            1.5306037295600001,
+            1.57688609656,
+            1.41120553356,
+            1.5744280055600002,
+            1.60729791256,
+            1.3649011935600002,
+            1.58867286056,
+            1.4695083555600001
+          ],
+          "exit_codes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "sample_count": 10,
+          "stddev_over_median": 0.08989455915626691,
+          "all_samples_at_least_one_second": true,
+          "stddev_at_most_20_percent_of_median": true
+        },
+        "candidate": {
+          "mean": 1.6037498641600003,
+          "stddev": 0.14429507044969012,
+          "median": 1.60721476806,
+          "user": 1.4853693599999997,
+          "system": 0.10165667999999999,
+          "min": 1.3716729715600002,
+          "max": 1.8186161495600002,
+          "times": [
+            1.74195175756,
+            1.3716729715600002,
+            1.58978079056,
+            1.8186161495600002,
+            1.5057358445600002,
+            1.62464874556,
+            1.4253654445600001,
+            1.67314585556,
+            1.73884224656,
+            1.5477388355600001
+          ],
+          "exit_codes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "sample_count": 10,
+          "stddev_over_median": 0.08977958224205625,
+          "all_samples_at_least_one_second": true,
+          "stddev_at_most_20_percent_of_median": true
+        }
+      },
+      "observed_baseline_over_candidate_median": 0.9803649657611772,
+      "final_calibration_elapsed_seconds": {
+        "baseline": 1.7839670709981874,
+        "candidate": 1.6943326990003698
+      },
+      "source_hashes": {
+        "src/go/parser/interface.go": "32cfd5a073a595853bc3246fafd7fa71c850d7109bcfdf1e0d06f6fcc05c77eb",
+        "src/go/parser/parser.go": "8cdd62681def6a016c69df417ffd8120eaeab5a4e62ede28b350f47b7381604d",
+        "src/go/parser/resolver.go": "88b407100f2a9f396ec897680ffc04ba2be5d6ca661fcf1e1d78bfe44241179e"
+      },
+      "status": "measured; no compiler speedup claim",
+      "rss_diagnostic": {
+        "scope": "One unprofiled direct compiler child per mode, separate from primary timing; not a distribution or a whole-build measurement.",
+        "modes": {
+          "baseline": {
+            "exit_code": 0,
+            "peak_rss_kib": 78848,
+            "system_seconds": 0.041356,
+            "user_seconds": 0.476304,
+            "wall_seconds": 0.5195049840003776
+          },
+          "candidate": {
+            "exit_code": 0,
+            "peak_rss_kib": 84908,
+            "system_seconds": 0.048533,
+            "user_seconds": 0.5135219999999999,
+            "wall_seconds": 0.5737540169975546
+          }
+        }
+      }
+    },
+    {
+      "package": "encoding/json",
+      "fixed_compiler_invocations_per_batch": 12,
+      "hyperfine_batch_seconds": {
+        "baseline": {
+          "mean": 1.97996547294,
+          "stddev": 0.20631157640015582,
+          "median": 1.97359837094,
+          "user": 1.72438778,
+          "system": 0.22385257999999997,
+          "min": 1.6554624689400002,
+          "max": 2.29671201394,
+          "times": [
+            1.70701334294,
+            1.6554624689400002,
+            2.13022010194,
+            1.93215189194,
+            1.96187432994,
+            2.19501924994,
+            1.84305789994,
+            1.98532241194,
+            2.09282101794,
+            2.29671201394
+          ],
+          "exit_codes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "sample_count": 10,
+          "stddev_over_median": 0.10453574518400734,
+          "all_samples_at_least_one_second": true,
+          "stddev_at_most_20_percent_of_median": true
+        },
+        "candidate": {
+          "mean": 1.8299977632400002,
+          "stddev": 0.4015416453099578,
+          "median": 1.68806646194,
+          "user": 1.5913530800000002,
+          "system": 0.21160707999999998,
+          "min": 1.6010064069399998,
+          "max": 2.92350139894,
+          "times": [
+            2.92350139894,
+            2.00253122194,
+            1.66601677094,
+            1.71011615294,
+            1.75565696794,
+            1.60741289294,
+            1.64306980894,
+            1.74835658794,
+            1.64230942294,
+            1.6010064069399998
+          ],
+          "exit_codes": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "sample_count": 10,
+          "stddev_over_median": 0.23787075589931955,
+          "all_samples_at_least_one_second": true,
+          "stddev_at_most_20_percent_of_median": false
+        }
+      },
+      "observed_baseline_over_candidate_median": 1.1691473146571814,
+      "final_calibration_elapsed_seconds": {
+        "baseline": 2.073547880998376,
+        "candidate": 2.3090326309975353
+      },
+      "source_hashes": {
+        "src/encoding/json/v2_decode.go": "d82e2e8ac32bc64c967b02769fc1fc6e2e5e9d7aae384673709e6af4669bc3fe",
+        "src/encoding/json/v2_encode.go": "8d3601b3a4c652b90ece3b9c5f5b1bcb7ad155eb85e625372a158c1dd9e8c414",
+        "src/encoding/json/v2_indent.go": "f8ac9f3dba216cc5577ca731268db70c7667a1c0d7bb61f436ffd3db92a8f500",
+        "src/encoding/json/v2_inject.go": "b91accbba6b414cbc94bc2e08193736f601e956188bcdff837e2e24f45d74c19",
+        "src/encoding/json/v2_options.go": "253e7ccb9c38463ab47b5c78e1bc1f103b2e95f976dfe0805e23f4922d59ab0a",
+        "src/encoding/json/v2_scanner.go": "d3f720d1a0a001f010c8556dc01507d99d78d6640c953f95c256a6c398fa20ad",
+        "src/encoding/json/v2_stream.go": "ae20daf462b86bf14884637fc2e8256aaadd9bba91c580fbb6840020e6a12898"
+      },
+      "status": "unscored: candidate standard deviation exceeds 20 percent of its median",
+      "speedup_claim_allowed": false,
+      "rss_diagnostic": null
+    }
+  ],
+  "encoding_json_retry": {
+    "status": "calibration_failed",
+    "completed_calibration_attempts": 5,
+    "calibration_target_seconds": 3.0,
+    "timing_result_available": false,
+    "fixed_batch_count_available": false,
+    "ratio": null,
+    "compiler_identities_match_main": true,
+    "repository_source_hashes_match_main": true,
+    "controlled_settings_match_main": true,
+    "note": "Five paired calibration attempts were recorded without reaching a stable accepted batch. No primary timing result or speed ratio exists; individual calibration durations were not recorded by the runner."
+  },
+  "control_disassembly": {
+    "scope": "The actual measured baseline and candidate runtime binaries.",
+    "comparison": [
+      {
+        "symbol": "packedDescriptors",
+        "candidate_minus_baseline": -416,
+        "baseline_size": 73,
+        "candidate_size": 73,
+        "baseline_instruction_count": 21,
+        "candidate_instruction_count": 21,
+        "bytes_equal": true,
+        "instructions_equal_after_address_normalization": true,
+        "baseline_machine_code_sha256": "f0bc302df3e9518b6b7fe9411155c4b73f83b398099b2ce1f47cdbce243dda0b",
+        "candidate_machine_code_sha256": "f0bc302df3e9518b6b7fe9411155c4b73f83b398099b2ce1f47cdbce243dda0b"
+      },
+      {
+        "symbol": "packedHeaders",
+        "candidate_minus_baseline": -416,
+        "baseline_size": 49,
+        "candidate_size": 49,
+        "baseline_instruction_count": 17,
+        "candidate_instruction_count": 17,
+        "bytes_equal": true,
+        "instructions_equal_after_address_normalization": true,
+        "baseline_machine_code_sha256": "3b4ef8d8c467ee9bc0a7a14aa0ffb9ae3fd5f2051d4ac35cdacdac9bfeb2c3e5",
+        "candidate_machine_code_sha256": "3b4ef8d8c467ee9bc0a7a14aa0ffb9ae3fd5f2051d4ac35cdacdac9bfeb2c3e5"
+      },
+      {
+        "symbol": "correlatedDescriptors",
+        "candidate_minus_baseline": -416,
+        "baseline_size": 41,
+        "candidate_size": 41,
+        "baseline_instruction_count": 14,
+        "candidate_instruction_count": 14,
+        "bytes_equal": true,
+        "instructions_equal_after_address_normalization": true,
+        "baseline_machine_code_sha256": "757f599a5da5e2f74aeeec7866284e244699683bb76ccc054753c696cb7161c4",
+        "candidate_machine_code_sha256": "757f599a5da5e2f74aeeec7866284e244699683bb76ccc054753c696cb7161c4"
+      },
+      {
+        "symbol": "fixedPointDispatch",
+        "candidate_minus_baseline": -416,
+        "baseline_size": 21,
+        "candidate_size": 21,
+        "baseline_instruction_count": 9,
+        "candidate_instruction_count": 9,
+        "bytes_equal": true,
+        "instructions_equal_after_address_normalization": true,
+        "baseline_machine_code_sha256": "ac00595d1d56e84b67bd57437b02a6217cee038e9dddb93825390da3f6c7ffc6",
+        "candidate_machine_code_sha256": "ac00595d1d56e84b67bd57437b02a6217cee038e9dddb93825390da3f6c7ffc6"
+      },
+      {
+        "symbol": "BenchmarkPackedDescriptors",
+        "candidate_minus_baseline": -416,
+        "baseline_size": 623,
+        "candidate_size": 623,
+        "baseline_instruction_count": 130,
+        "candidate_instruction_count": 130,
+        "bytes_equal": false,
+        "instructions_equal_after_address_normalization": true,
+        "baseline_machine_code_sha256": "d9ce2ef9a6d9611edf47df47777c933442f63010ba1ac8b070cf136a3f7362df",
+        "candidate_machine_code_sha256": "99685ed82c2a2eed0c009d6468fb642b4d41ada06dc683f82371d345aa6ba2f6"
+      },
+      {
+        "symbol": "BenchmarkPackedHeaders",
+        "candidate_minus_baseline": -416,
+        "baseline_size": 623,
+        "candidate_size": 623,
+        "baseline_instruction_count": 130,
+        "candidate_instruction_count": 130,
+        "bytes_equal": false,
+        "instructions_equal_after_address_normalization": true,
+        "baseline_machine_code_sha256": "cf5ca926078fdc3c5e8304c284a3853b22307ade5c7ad9a644a6ec054cc07f14",
+        "candidate_machine_code_sha256": "01d30e8e834e884eeddd63d2a789b4e3d581cdc3b93786b48a322b2b5144106d"
+      },
+      {
+        "symbol": "BenchmarkCorrelatedDescriptors",
+        "candidate_minus_baseline": -416,
+        "baseline_size": 623,
+        "candidate_size": 623,
+        "baseline_instruction_count": 130,
+        "candidate_instruction_count": 130,
+        "bytes_equal": false,
+        "instructions_equal_after_address_normalization": true,
+        "baseline_machine_code_sha256": "fce8f3c783596f4561a84b4739cc3d3e899fdbfac886f05b0971e3e17e0a80ee",
+        "candidate_machine_code_sha256": "1a6aa724c649e3e8496e035642575829d3923cfe740bd6916325db08d67f35cc"
+      },
+      {
+        "symbol": "BenchmarkFixedPointDispatch",
+        "candidate_minus_baseline": -416,
+        "baseline_size": 108,
+        "candidate_size": 108,
+        "baseline_instruction_count": 29,
+        "candidate_instruction_count": 29,
+        "bytes_equal": false,
+        "instructions_equal_after_address_normalization": true,
+        "baseline_machine_code_sha256": "09c7f6572ffaca1d42fb1b7d3c2d66ea504d12a99e9a64d16de21df9a3d52344",
+        "candidate_machine_code_sha256": "11579247fed35e7faaa1431fc1e8853c0d36910acb4a7a312aa2f92dd03c7c31"
+      }
+    ],
+    "interpretation": "All four control kernels have identical bytes. Their callers have equivalent instructions after address normalization. The recorded placement delta does not establish a cause for observed timing changes; these controls are not evidence of new instruction elimination."
+  },
+  "validation_of_extraction": {
+    "runtime_workloads": 10,
+    "runtime_hyperfine_distributions": 20,
+    "runtime_hyperfine_samples": 200,
+    "runtime_go_corroboration_groups": 20,
+    "runtime_go_corroboration_samples": 200,
+    "compiler_hyperfine_distributions": 4,
+    "compiler_hyperfine_samples": 40,
+    "all_hyperfine_exit_codes_zero": true,
+    "raw_hyperfine_numeric_fields_equal_to_inputs": true,
+    "go_samples_match_raw_output_and_recorded_events": true,
+    "fixed_counts_match_iteration_files_and_recorded_events": true,
+    "reported_ratios_match_recomputed_medians": true,
+    "runtime_binary_hashes_and_sizes_rechecked": true
+  },
+  "limitations": [
+    "The control timing changes are substantial despite identical kernel bytes and equivalent caller instructions. Their cause is unresolved; new-workload ratios are campaign observations, not isolated causal estimates for each optimization.",
+    "FixedPointDispatch timing methods disagree, so no improvement is claimed for that control.",
+    "The main encoding/json distribution failed the stated noise limit and remains unscored. Its retry failed calibration and provides no replacement timing result.",
+    "go/parser is one directly compiled package, with a small observed slowdown and roughly nine-percent timing dispersion. It supports no general compiler-speed claim.",
+    "Single compiler RSS observations and sampled CPU shares are diagnostic only; they do not give stable pass-level memory or CPU-cost distributions.",
+    "Fixed baseline-first order permits temporal drift. One pinned logical CPU was recorded, but CPU frequency/governor state was not captured.",
+    "Measurements target linux/amd64 with GOAMD64=v2. They do not establish whole-application gains, other-architecture gains, an asymptotic improvement or a hardware throughput floor.",
+    "This file reports benchmark evidence and extraction checks, not completion of the repository's full regression gate."
+  ]
+}

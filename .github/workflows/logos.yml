@@ -132,6 +132,11 @@ jobs:
         run: |
           read -r -a packages <<< "$LOGOS_PACKAGES"
           ../.github/scripts/logos-test-env.sh go test -count=1 -short "${packages[@]}"
+          ../.github/scripts/logos-test-env.sh go test -count=1 -short cmd/compile/internal/ssa
+          ../.github/scripts/logos-test-env.sh go test -count=1 cmd/compile/internal/test -run '^TestLogosScalarOptimizationRuntime$'
+          for mode in 0 1; do
+            GOARCH=386 CGO_ENABLED=0 ../.github/scripts/logos-test-env.sh go test -count=1 -gcflags="cmd/compile/internal/test/testdata/scalaropt=-d=logosopt=$mode,ssa/check/on" cmd/compile/internal/test/testdata/scalaropt
+          done
           ../.github/scripts/logos-test-env.sh go test -count=1 -race logos/... cmd/go/internal/logos/lsp/...
           ../.github/scripts/logos-test-env.sh go test -count=1 -short runtime/metrics
           GOEXPERIMENT=logosarena ../.github/scripts/logos-test-env.sh go test -count=1 -short -race runtime -run '^TestLogos(Arena|Region|GCScan)'
@@ -140,6 +145,7 @@ jobs:
         if: "${{ !cancelled() && steps.smoke.outcome == 'success' && matrix.suite == 'unit' }}"
         run: |
           ../.github/scripts/logos-test-env.sh go test -count=1 -timeout 60m cmd/internal/testdir -run 'Test/logos/'
+          ../.github/scripts/logos-test-env.sh go test -count=1 cmd/internal/testdir -run '^Test$/logos/codegen/scalar_' -all_codegen
       - name: "Check formatting"
         if: "${{ !cancelled() && steps.smoke.outcome == 'success' && matrix.suite == 'unit' }}"
         run: |

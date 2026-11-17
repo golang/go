@@ -34,6 +34,7 @@ type DebugFlags struct {
 	InlBudget             int    `help:"max inline cost set by -O tiers (0 keeps the upstream budget)" concurrent:"ok"`
 	InlRecursiveBudget    int    `help:"max inline cost inside recursive call-graph cycles at -O tiers (0 keeps the tier budget)" concurrent:"ok"`
 	LogosLoopStride       int    `help:"wasm loop reschedule interval (0 keeps per-backedge checks)" concurrent:"ok"`
+	LogosOpt              int    `help:"enable bounded scalar constant analysis (set by -O=3)" concurrent:"ok"`
 	LogosConstmapSeeds    int    `help:"cap const map seed trials (0 keeps the 1000000 budget)" concurrent:"ok"`
 	DumpPtrs              int    `help:"show Node pointers values in dump output"`
 	DwarfInl              int    `help:"print information about DWARF inlined function creation"`

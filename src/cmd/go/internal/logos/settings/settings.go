@@ -290,7 +290,7 @@ var optLevelFlags = map[string][]string{
 	"0": {"-N", "-l", "-d=variablemakethreshold=32,variablemakeundern=1"},
 	"1": nil,
 	"2": {"-d=inlbudget=120,variablemakethreshold=256"},
-	"3": {"-d=inlbudget=400,inlrecursivebudget=80,variablemakethreshold=4096"},
+	"3": {"-d=inlbudget=400,inlrecursivebudget=80,variablemakethreshold=4096,logosopt=1"},
 	"s": {"-d=inlbudget=15"},
 }
 

@@ -1,0 +1,582 @@
+{
+  "schema_version": 2,
+  "title": "LoGOs scalar optimization validation",
+  "status_snapshot_utc": "2026-11-16 05:25:21 UTC",
+  "base_revision": "b0bbbc05d5a7dee54e6501415163e78290f72231",
+  "scope": "Final compiler including rotate projection; targeted correctness and integration evidence. Performance measurements are separate.",
+  "status": {
+    "targeted_integration": "pass",
+    "full_upstream_regression_floor": "blocked_incomplete"
+  },
+  "provenance": {
+    "validation_document": "VALIDATION.md",
+    "validation_document_sha256": "8c5a6463f1fe11b2c052dd12c119cacd3d91751911c89923b299bc398567802f",
+    "publication_policy": "Public summary only. Raw execution logs, private workspace paths, host identifiers, historical command payloads, and the private evidence bundle are excluded from this PR.",
+    "evidence_digest_note": "Digests identify the original raw evidence retained outside the public PR. They do not make that evidence publicly available or independently establish a passing result.",
+    "duration_note": "Reported package durations are not benchmark results.",
+    "historical_command_note": "Earliest RED argv were not reliably retained. Portable reproduction commands below are not claimed as historical argv.",
+    "empty_log_note": "Empty cross-target/vet logs were paired with observed wrapper exit 0; emptiness alone is not evidence."
+  },
+  "toolchain_fingerprints": {
+    "go_sha256": "4c4d2f8ca51d5a4960009f5f24256a4dc7f28b305ee74185ff2e0e3eb0fab902",
+    "compile_sha256": "f33648781c282a3546bb3a221991e0dd1a8590eed5d075931361a6c57490f03a"
+  },
+  "gates": [
+    {
+      "id": "build",
+      "status": "pass",
+      "log": "build-projection.log",
+      "installed_at_utc": "2026-11-16 04:30:41 UTC"
+    },
+    {
+      "id": "full-ssa-short",
+      "status": "pass",
+      "log": "green-final-unit.log",
+      "package_duration_seconds": 74.944,
+      "note": "Package passed; combined command failed in work."
+    },
+    {
+      "id": "settings",
+      "status": "pass",
+      "log": "green-final-unit.log",
+      "package_duration_seconds": 0.021
+    },
+    {
+      "id": "work-corrected-environment",
+      "status": "pass",
+      "log": "green-work-final.log",
+      "package_duration_seconds": 0.041
+    },
+    {
+      "id": "runtime-both-flags-and-ssa-checks",
+      "status": "pass",
+      "log": "green-runtime-final.log",
+      "package_duration_seconds": 1.872,
+      "coverage": "Scalar and processing-loop parity, dynamic controls, nil/index/division panics, boolean evaluation effects; fixture runs twice with package-scoped -d=logosopt=0,ssa/check/on and -d=logosopt=1,ssa/check/on."
+    },
+    {
+      "id": "disabled-codegen-control",
+      "status": "expected_behavioral_failure",
+      "log": "red-codegen-corrected.log",
+      "package_duration_seconds": 187.529
+    },
+    {
+      "id": "enabled-codegen",
+      "status": "pass",
+      "log": "green-codegen-final.log",
+      "package_duration_seconds": 1.66,
+      "coverage": [
+        ".go",
+        ".lgo",
+        "amd64/v1",
+        "amd64/v2",
+        "amd64/v3",
+        "amd64/v4",
+        "arm64/v8.0",
+        "arm64/v8.1"
+      ]
+    },
+    {
+      "id": "settings-work-race",
+      "status": "pass_before_projection",
+      "log": "green-race.log",
+      "note": "Settings/work packages were unchanged by projection; not represented as a fresh final race rerun."
+    },
+    {
+      "id": "optimization-scripts",
+      "status": "pass",
+      "log": "green-script-final.log",
+      "package_duration_seconds": 229.432,
+      "coverage": [
+        "logos_opt_scalar",
+        "logos_opt_levels",
+        "logos_opt_go_package",
+        "logos_opt_level_values",
+        "logos_opt_scope"
+      ]
+    },
+    {
+      "id": "selected-stdlib-enabled",
+      "status": "pass",
+      "log": "green-stdlib-opt.log",
+      "package_count": 9
+    },
+    {
+      "id": "sccp-cross-target",
+      "status": "pass_compile_only",
+      "logs": [
+        "green-sccp-386.log",
+        "green-sccp-arm64.log",
+        "green-sccp-wasm.log"
+      ],
+      "note": "Compilation with SSA checking; no claim of target execution."
+    },
+    {
+      "id": "vet",
+      "status": "pass",
+      "log": "green-vet.log",
+      "package_count": 5
+    },
+    {
+      "id": "diff-check",
+      "status": "pass_parent_confirmed",
+      "known_command_id": "final-diff-check"
+    },
+    {
+      "id": "full-upstream-regression-floor",
+      "status": "blocked_incomplete",
+      "log": "full-regression-floor.log",
+      "exit_code": 130,
+      "note": "Interrupted after observed socket-permission failures and killed compiler subprocesses; 203 package pass lines do not establish completion."
+    },
+    {
+      "id": "publication-static-checks",
+      "status": "pass",
+      "coverage": [
+        "gofmt over 17 changed/new Go files",
+        "git diff --check",
+        "YAML parse and regression matrix wiring",
+        "frozen test/workload/measurement/runner hashes",
+        "identical Go and loGo/s codegen twins"
+      ],
+      "note": "Completed after validation documentation and CI additions; no production or measured source changed."
+    }
+  ],
+  "accepted_behavioral_red": [
+    {
+      "surface": "correlated phis and SCCP extensions",
+      "log": "red-ssa.log",
+      "historical_command": null,
+      "observed": "Equal edge-aligned results and SCCP intrinsic, selection and boolean constants remained operations; 7/8-predecessor cases did not fold."
+    },
+    {
+      "surface": "carry and rotate known bits",
+      "log": "red-knownbits.log",
+      "historical_command": null,
+      "observed": "Arithmetic/rotate facts were unknown and the masked-arithmetic branch was not constant true."
+    },
+    {
+      "surface": "O3 tier scope",
+      "log": "red-settings.log",
+      "historical_command": null,
+      "observed": "O3 Go, logos and configuration cases omitted logosopt=1."
+    },
+    {
+      "surface": "initial corrected disabled-feature source codegen",
+      "log": "pre-projection-validation/red-codegen-corrected.log",
+      "historical_command": null,
+      "observed": "Required constants absent and forbidden arithmetic/rotate instructions present with -O=3 -d=logosopt=0."
+    },
+    {
+      "surface": "rotate projection unit matrix",
+      "log": "red-projection-corrected.log",
+      "historical_command": null,
+      "observed": "Only positive width/count cases, packed header, and count-zero cycle failed after CheckFunc validation; guards, range controls, disabled feature, truncation and count-one cycle passed.",
+      "frozen_test_sha256": "80472041332c9693d0555e6e96a6236051f1828f64bf3f5f87490ac641fe191f"
+    },
+    {
+      "surface": "projection source against installed preprojection compiler",
+      "log": "red-projection-codegen.log",
+      "historical_command": null,
+      "observed": "Both source kinds retained ROLQ/RORX plus SHRQ on amd64 and ROR plus LSR on arm64."
+    },
+    {
+      "surface": "final disabled-feature codegen control",
+      "log": "red-codegen-corrected.log",
+      "known_command_id": "final-disabled-codegen",
+      "observed": "Expected missing/forbidden-opcode failures; harness, syntax, flag and killed-process failures were rejected by the wrapper."
+    }
+  ],
+  "frozen_test_snapshots": [
+    {
+      "source_file": "src/cmd/compile/internal/ssa/known_bits_logos_test.go",
+      "retained_snapshot": "red-tests/known_bits_logos_test.go",
+      "sha256": "edf03f1ec16955b519aad3115adc726a3c0312c9967809dd1a6e5fdca95ecf40"
+    },
+    {
+      "source_file": "src/cmd/compile/internal/ssa/correlated_constants_logos_test.go",
+      "retained_snapshot": "red-tests/correlated_constants_logos_test.go",
+      "sha256": "5a1365cda15074d41f6151b6bc70b0fa385f4d302b19ac9427e62a06dbd81671"
+    },
+    {
+      "source_file": "src/cmd/compile/internal/ssa/sccp_logos_test.go",
+      "retained_snapshot": "red-tests/sccp_logos_test.go",
+      "sha256": "edbf0a7b78de74958f7c8cf6816c26c2fb86e7196474c58822b51ea3349b2969"
+    },
+    {
+      "source_file": "src/cmd/compile/internal/ssa/known_bits_projection_logos_test.go",
+      "retained_snapshot": "red-tests/known_bits_projection_logos_test.go",
+      "sha256": "80472041332c9693d0555e6e96a6236051f1828f64bf3f5f87490ac641fe191f"
+    },
+    {
+      "source_file": "src/cmd/go/internal/logos/settings/scalaropt_test.go",
+      "retained_snapshot": "red-tests/scalaropt_test.go",
+      "sha256": "7a083b53b73beaeb0221b958e286ce5f6d59513cf11c206f3b343c34ea8380f5"
+    },
+    {
+      "source_file": "test/logos/codegen/scalar_opt.go",
+      "retained_snapshot": "red-tests/scalar_opt_projection.go",
+      "sha256": "628d42563cf979f1b331cc09348c66a051af8f9a89641295706a88e716e3f4a3",
+      "identical_source_file": "test/logos/codegen/scalar_opt.lgo"
+    }
+  ],
+  "mutation_probes": [
+    {
+      "defect": "Drop input carry from known-bits addition",
+      "test": "TestLogosKnownBitsArithmeticExtremes",
+      "log": "mutations-independent/probes.log",
+      "caught": true,
+      "restored_log": "mutations-independent/restored-green.log"
+    },
+    {
+      "defect": "Remove same-block requirement for correlated phis",
+      "test": "TestLogosCorrelatedConstantsNonlocal",
+      "log": "mutations-independent/probes.log",
+      "caught": true,
+      "restored_log": "mutations-independent/restored-green.log"
+    },
+    {
+      "defect": "Reverse constant-condition selection in SCCP",
+      "test": "TestLogosSCCPSelections",
+      "log": "mutations-independent/probes.log",
+      "caught": true,
+      "restored_log": "mutations-independent/restored-green.log"
+    },
+    {
+      "defect": "Remove projection high-bit knowledge requirement",
+      "test": "TestLogosKnownBitsProjectionGuards",
+      "log": "mutation-projection/probe.log",
+      "caught": true,
+      "restored_log": "mutation-projection/restored-green.log"
+    }
+  ],
+  "mutation_execution": {
+    "first_three_probes": "Independent carry, same-block, and conditional-arm mutations compiled together; a distinct matching test failed for each. All files restored byte for byte before a passing selected rerun.",
+    "first_three_restored_duration_seconds": 0.017,
+    "projection_probe": "Removing the high-bit knowledge requirement failed projection guards. Source restored byte for byte before a passing projection rerun.",
+    "projection_restored_duration_seconds": 0.174,
+    "excluded_attempt": "An earlier mutation build was killed. It is excluded from behavioral probe claims."
+  },
+  "excluded_or_corrected_attempts": [
+    "The first source codegen fixture used invalid comma-separated asmcheck patterns; excluded from behavioral RED.",
+    "An attempted harness invocation passed an unsupported flag and encountered VCS errors; excluded from behavioral RED.",
+    "Projection fixtures were normalized to valid narrow constants and gained SSA validation before implementation and accepted RED.",
+    "A combined final unit command failed in the work package with split temporary roots. SSA and settings passed within that command; the separate work rerun with matching roots passed without source changes.",
+    "Earlier killed builds and a killed mutation compilation are excluded from successful build/probe claims."
+  ],
+  "full_regression_floor": {
+    "status": "blocked_incomplete",
+    "outcome": "Interrupted after observed failures; no full-floor pass.",
+    "passing_result_claimed": false,
+    "executed": true,
+    "started_at_utc": "2026-11-16 05:00:35 UTC",
+    "interrupted_at_utc": "2026-11-16 05:18:57 UTC",
+    "exit_code": 130,
+    "interruption": "Parent sent Ctrl-C after observed failures; exec session returned 130.",
+    "package_pass_lines": 203,
+    "observed_failures": [
+      "log/syslog TestFlap, TestConcurrentReconnect, and TestWithSimulated unix/unixgram: socket: operation not permitted",
+      "runtime compiler subprocess killed while building math/bits; math/bits build failed",
+      "net compiler subprocess killed; net build failed"
+    ],
+    "compiler_sha256_after": "f33648781c282a3546bb3a221991e0dd1a8590eed5d075931361a6c57490f03a",
+    "upstream_socket_reproduction": {
+      "version": "go1.27.4",
+      "command": "go test -count=1 -short log/syslog -run ^TestWithSimulated$",
+      "exit_code": 1,
+      "package_duration_seconds": 0.405,
+      "log": "upstream-syslog-environment.log",
+      "source_hash_manifest": "upstream-syslog-source-hashes.txt",
+      "source_files_compared": 5,
+      "all_source_hashes_identical": true,
+      "conclusion": "Unmodified upstream reproduces the same Unix-socket permission failures. This does not diagnose or resolve the killed compiler subprocesses."
+    },
+    "required_ci": {
+      "workflow": ".github/workflows/logos.yml",
+      "matrix_suite": "regression",
+      "command": "./run.bash --no-rebuild",
+      "status_at_publication": "pending"
+    },
+    "note": "The recorded script was executed. Its interrupted result is incomplete and cannot satisfy the regression floor. The dedicated CI job must pass before merge."
+  },
+  "upstream_syslog_source_hashes": [
+    {
+      "path": "src/log/syslog/doc.go",
+      "sha256": "ba71021c7dbb3c4ea982d2acf26906fc17b6d1a90142f8d07a841bfbfc69ec3f",
+      "matches_upstream_1_27_4": true
+    },
+    {
+      "path": "src/log/syslog/example_test.go",
+      "sha256": "8b40f4dd0924192a904c607ef304a45a730a7da1cb9643eb225a762e881abd22",
+      "matches_upstream_1_27_4": true
+    },
+    {
+      "path": "src/log/syslog/syslog.go",
+      "sha256": "b7d0870a96e9a88085c136212eac02324728af9e95ce2e8cc97ac9a4b37ac0d4",
+      "matches_upstream_1_27_4": true
+    },
+    {
+      "path": "src/log/syslog/syslog_test.go",
+      "sha256": "d7ec50fc36841e81a20057bd8a1486bd80596f504b4c52d1f382e4cc75bd2d35",
+      "matches_upstream_1_27_4": true
+    },
+    {
+      "path": "src/log/syslog/syslog_unix.go",
+      "sha256": "f0bf84686214e5ba255f2f09625d8d109ffb14a954b63a22e047591b3dd36258",
+      "matches_upstream_1_27_4": true
+    }
+  ],
+  "reproduction": {
+    "cwd": "checkout/src",
+    "prerequisites": "Built fork, upstream oracle roots exported as UPROOT1272/UPROOT1273/UPROOT1274, fork bin and lib/wasm on PATH, identical GOTMPDIR and TMPDIR roots for command-security tests.",
+    "commands": [
+      "env -u GOROOT GOROOT_BOOTSTRAP=\"$UPROOT1274\" ./make.bash",
+      "go test -count=1 -short cmd/compile/internal/ssa cmd/go/internal/logos/settings cmd/go/internal/work",
+      "go test -count=1 cmd/compile/internal/test -run '^TestLogosScalarOptimizationRuntime$'",
+      "go test -race -count=1 -short cmd/go/internal/logos/settings cmd/go/internal/work",
+      "go test -count=1 cmd/internal/testdir -run '^Test$/logos/codegen/scalar_opt' -all_codegen",
+      "go test -count=1 cmd/go -run 'Script/^logos_opt_(scalar|levels|go_package|level_values|scope)$'",
+      "go test -count=1 -short -gcflags=all=-d=logosopt=1 math/bits math/big strconv bytes strings encoding/binary encoding/asn1 hash/crc32 hash/maphash",
+      "go vet cmd/compile/internal/base cmd/compile/internal/ssa cmd/compile/internal/test cmd/go/internal/logos/settings cmd/go/internal/work",
+      "./run.bash --no-rebuild"
+    ]
+  },
+  "publication_runner": {
+    "measured_sha256": "e1821be01625e17dc778d12b3c632b0497b134734316fa77fb8b979f6061ec10",
+    "published_sha256": "9edd02370e1b17cc5cfd859dba2fcfa63d2bd8c3f50a421fc7df0a5284710eba",
+    "cleanup": [
+      "Ruff formatting and import sorting",
+      "Equivalent datetime.UTC alias",
+      "Explicit keyword-only capture of the current benchmark name"
+    ],
+    "generated_command_vectors_compared": 28,
+    "all_command_vectors_equal": true,
+    "normalized_module_ast_equivalent": true,
+    "utc_alias_identity_confirmed": true,
+    "workload_sources_and_fixed_counts_unchanged": true,
+    "probe_sha256": "78116b6ca783ccb7284b364290c767166f4a0e1f7d0d00177063930c856549d5",
+    "note": "The public runner is reproducible. The exact measured runner and raw probe output remain outside the public PR; hashes and the verified comparison result are recorded here."
+  },
+  "evidence_digests": {
+    "build-projection.log": {
+      "sha256": "4e5fd810a9bc0e3867954be40f18e301b3d1f37d06ba3c583088299d2b7139b1",
+      "bytes": 582,
+      "line_count": 9
+    },
+    "build-serial.log": {
+      "sha256": "0a1a8b6db93ff31e5ccc8416b21703f6a0540b0548f0faed51ba00a50fa730ba",
+      "bytes": 670,
+      "line_count": 10
+    },
+    "green-unit.log": {
+      "sha256": "e08e3aa08cf0e62a50b6c16bd768752c0ae5ec302caff088acb7782705e26197",
+      "bytes": 81,
+      "line_count": 2
+    },
+    "green-projection.log": {
+      "sha256": "6c5f3cdf27c044c741a59d4c55645bc661911c88a82f96ac59065dd2f90b7bff",
+      "bytes": 37,
+      "line_count": 1
+    },
+    "green-work-final.log": {
+      "sha256": "b0e7195337562f38dedb1e8944c99324541cacc1cc147d5f9cfe9ee05001f8cf",
+      "bytes": 33,
+      "line_count": 1
+    },
+    "green-runtime-final.log": {
+      "sha256": "49e843d70f9d670b12acebbc228995c131d74c1787d7166dac255f54693fc843",
+      "bytes": 38,
+      "line_count": 1
+    },
+    "green-codegen-final.log": {
+      "sha256": "adec565cbf057496ababf20d7fa4a129ab3c60805a0649a3f3008fa06bc84bf4",
+      "bytes": 33,
+      "line_count": 1
+    },
+    "green-script-final.log": {
+      "sha256": "5907aa59ed394a0d07ad79464b4d0f8339f120096a443f6c7f6bbd7b7ed6bd18",
+      "bytes": 21,
+      "line_count": 1
+    },
+    "green-stdlib-opt.log": {
+      "sha256": "3c455218d1a003890351dc31558a029d4074f63459afad47be76aaaff9093ef0",
+      "bytes": 203,
+      "line_count": 9
+    },
+    "green-race.log": {
+      "sha256": "a652e28c29aac3a583601f1452c1e2e1e914fb27cff31f94feb675a8b10832cb",
+      "bytes": 76,
+      "line_count": 2
+    },
+    "green-sccp-386.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "line_count": 0
+    },
+    "green-sccp-arm64.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "line_count": 0
+    },
+    "green-sccp-wasm.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "line_count": 0
+    },
+    "green-vet.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "line_count": 0
+    },
+    "green-runtime.log": {
+      "sha256": "af2d765d8aae234056b1efa7595c607aaece2031c1474a4ba1ca7bf4c19f056b",
+      "bytes": 38,
+      "line_count": 1
+    },
+    "green-runtime-processing.log": {
+      "sha256": "0d6af6fc162954d79b60b510cb5c796bf366713bd0ae772e2f50a11821688b36",
+      "bytes": 38,
+      "line_count": 1
+    },
+    "mutations-independent/restored-green.log": {
+      "sha256": "752000b56be9c696af6bf18fa4250246a9ca52ebbc6c81de44848e91e65121d9",
+      "bytes": 37,
+      "line_count": 1
+    },
+    "mutation-projection/restored-green.log": {
+      "sha256": "bc6fc66b715cf1b56708c2650589e9e90fddf96d66fc63a55d8c2ec10b4fa90a",
+      "bytes": 37,
+      "line_count": 1
+    },
+    "mutation-independent-summary.log": {
+      "sha256": "1ff7ddc3672e1deba7681c7874c53997f97a953679d21c9f257ad3ff505d8866",
+      "bytes": 167,
+      "line_count": 4
+    },
+    "mutation-projection-summary.log": {
+      "sha256": "5ce6a8c013894f01507d7692e75a9621db919bfcaed3b1a56f0bf395f500fe15",
+      "bytes": 88,
+      "line_count": 2
+    },
+    "integration-summary.log": {
+      "sha256": "ad54241169fc5df0a3208284522d8c12c31bb7a91b8ff7b9197bd4f86484c36a",
+      "bytes": 232,
+      "line_count": 6
+    },
+    "build.log": {
+      "sha256": "9660285e0f6b5e047dde63aa903e5222a5be5d4ddb3dcb4ced0b5869b96fdd56",
+      "bytes": 622,
+      "line_count": 6
+    },
+    "mutation-summary.log": {
+      "sha256": "de24c3fd7426f4da4992809911f076991a99e931b666152bf38e6a2841d4be3c",
+      "bytes": 225,
+      "line_count": 4
+    },
+    "mutations/carry.log": {
+      "sha256": "7ea7f2025390895d37d34c3667d3fb8db17011a5206d1b23b6957ce548ac1209",
+      "bytes": 171,
+      "line_count": 3
+    },
+    "codegen-unrelated-harness-vcs-failure.log": {
+      "sha256": "a32c33d7ec297ccbaf734108b5cf96d9d6fea050e3fffc44968209bd6cb7dd5e",
+      "bytes": 554,
+      "line_count": 11
+    },
+    "red-settings.log": {
+      "sha256": "70377dba4e0b54b50f33b59f70e67620e653af5daeb15c69685ec01f150fce1d",
+      "bytes": 764,
+      "line_count": 10
+    },
+    "red-ssa.log": {
+      "sha256": "037667dd9daabf5c8c3ee029c04326f7502054074cbcb0b1f353b27886cb59a4",
+      "bytes": 15409,
+      "line_count": 197
+    },
+    "red-knownbits.log": {
+      "sha256": "3abbc841dbe6de362f4cc7d05b08d166dbf32a9f8757bb9d5b52621b1420cafd",
+      "bytes": 18964,
+      "line_count": 121
+    },
+    "red-codegen-corrected.log": {
+      "sha256": "69dc97a52ba4dec396c3a4254886cbf236e2ba4380e7bf8afebc00a84bd04341",
+      "bytes": 184393,
+      "line_count": 1292
+    },
+    "pre-projection-validation/red-codegen-corrected.log": {
+      "sha256": "f97dedded25f72ee85d2dba8c928f2718e15fa651925204df9f0241d74965f8e",
+      "bytes": 153153,
+      "line_count": 1080
+    },
+    "red-projection-corrected.log": {
+      "sha256": "4392fac0c638f55ca67a57f18a6abb97c3c6bddf7c7c4d0d88c940498a08fef5",
+      "bytes": 52971,
+      "line_count": 521
+    },
+    "red-projection-codegen.log": {
+      "sha256": "2e607ef526d9ed34a70609dcef1da9300c08099dec2b877359bd33443ae1cc2e",
+      "bytes": 29887,
+      "line_count": 244
+    },
+    "mutations-independent/probes.log": {
+      "sha256": "e607009fa77be563c164e44b45770776251bd35c308150a4f6d559c4087ac1bc",
+      "bytes": 4048,
+      "line_count": 45
+    },
+    "mutation-projection/probe.log": {
+      "sha256": "439516a5019fc680a71906fc0de3efc04053e94c05c0769b8956c54955356425",
+      "bytes": 6460,
+      "line_count": 68
+    },
+    "green-final-unit.log": {
+      "sha256": "cf3b0a186963c9fbf50a843af32632d92aee1e2734bc2fab3cfb2f32e4aa26c1",
+      "bytes": 8207,
+      "line_count": 70
+    },
+    "unit-split-temp-roots-failure.log": {
+      "sha256": "cf3b0a186963c9fbf50a843af32632d92aee1e2734bc2fab3cfb2f32e4aa26c1",
+      "bytes": 8207,
+      "line_count": 70
+    },
+    "script-vcs-environment-failure.log": {
+      "sha256": "eb2f2a14d85a5eb5f1008d1f2140b2d47b905ef5b44d124d440a92801254e329",
+      "bytes": 12676,
+      "line_count": 149
+    },
+    "red-codegen.log": {
+      "sha256": "7c0b7e21c28eb7d35ed2bc56b343ff9de16aeb8847d0831b810eab044c42a68c",
+      "bytes": 89457,
+      "line_count": 746
+    },
+    "red-codegen-invalid-harness-flag.log": {
+      "sha256": "ebbba64205bc5acc1222ab3331f8ab1575a125cde93a247e05f44d61b60b0ef3",
+      "bytes": 45220,
+      "line_count": 988
+    },
+    "red-projection.log": {
+      "sha256": "8f5184bb08e5df382e9a245c1f92f85c95f984e99bcc7339ec865dd2d01ccb71",
+      "bytes": 52971,
+      "line_count": 521
+    },
+    "full-regression-floor.log": {
+      "sha256": "94e51ad0249868562a01591c6e4383af39c880545dcaf1ef8fedfaac9ccb97c8",
+      "bytes": 11165,
+      "line_count": 315
+    },
+    "run-regression-floor.sh": {
+      "sha256": "0167c0606c0905db0fb8279edc8a579f25f1296788b51d5e86efc0437b5a0ab8",
+      "bytes": 693,
+      "line_count": 14
+    },
+    "upstream-syslog-environment.log": {
+      "sha256": "40dc51eb686406319442e57e2ef9fe5021cb67ed55f5246c53bf15797df5ff4c",
+      "bytes": 444,
+      "line_count": 8
+    },
+    "upstream-syslog-source-hashes.txt": {
+      "sha256": "88e194ac4e7e0d0770d3060494692a67bfdd5b04e6eb6b4bbf173b6d40e53049",
+      "bytes": 1446,
+      "line_count": 10
+    }
+  }
+}

@@ -151,6 +151,20 @@ Limits:
 - Plain `go` ignores `.lgo` files, so it cannot build a Go package that imports a LoGOs package; [eject first](#eject-to-standard-go).
 - Property interfaces require an explicit assertion on the implementing struct declaration (`type S struct : I`), not automatic structural subtyping.
 
+### Compile-time optimization
+
+Use `logos build -O=3 ./...` or `go build -O=3 ./...` to enable stronger
+scalar constant analysis. The compiler tracks known bits through wrapping
+arithmetic and rotations, preserves relationships between values selected
+by the same branch, and propagates constants through bit-count intrinsics
+and conditional selections. These analyses can remove runtime work while
+preserving integer overflow, side effects, and required panics.
+
+The extra analysis has fixed work bounds and applies to both Go and loGo/s
+packages. Lower tiers keep their existing behavior. See the
+[20-technique comparison and implementation contract](logos-doc/SCALAR-OPTIMIZATION.md)
+for the selected scope and measurement limits.
+
 ### Comptime
 
 Use `const for` to unroll a loop across struct fields and `val.[f]` to read or write each field without run-time lookup. The compiler specializes the code for each struct type and folds metadata such as `f.Name` and `f.Tag.Get` into string constants without interface boxing.
