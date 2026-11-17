@@ -159,7 +159,21 @@ func (check *Checker) validType0(pos token.Pos, typ Type, nest, path []*Named) i
 				// in path at a later (larger or equal) index than in nest. Search again.
 				for start, p := range path {
 					if Identical(p, t) {
-						check.cycleError(makeObjList(path[start:]), false) // TODO(gri) should last argument be true?
+						// Report the error starting with path[start] (firstInSrc == false)
+						// rather than the earliest source position on the cycle: path[start:]
+						// may traverse instantiated helper types inside valid generic type
+						// declarations that appear earlier in the source. For example:
+						//
+						//   type A[P any] [1]P
+						//   type B        A[B]	 // invalid recursive type
+						//
+						// B is invalid, but A is valid. The cycle path contains both A and B
+						// but the error should be on the instantiation A[B] (or B) and not A
+						// (which happens to be first in the source in this example).
+						// In other words, the issue is not the declaration of A, but rather
+						// the instantiation B[C].
+						const firstInSrc = false
+						check.cycleError(makeObjList(path[start:]), firstInSrc)
 						return -1
 					}
 				}
