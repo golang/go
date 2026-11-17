@@ -59,7 +59,7 @@ func Lower(pkg *types2.Package, info *types2.Info, files []*syntax.File, src map
 	f := facts.Write(pkg, info, files, src)
 	f.BareUnions = bareUnions(pkg)
 	facts.SetCurrent(f)
-	shared := &packageLower{info: info, tpkg: pkg, constMaps: collectConstMaps(files, info)}
+	shared := &packageLower{info: info, tpkg: pkg, files: files, src: src, constMaps: collectConstMaps(files, info)}
 	shared.importedMaps = map[*types2.Var]*constMapGen{}
 	shared.importedDone = map[string]bool{}
 	shared.composites, shared.compositeSeq = collectComposites(files, info)
@@ -159,7 +159,36 @@ type packageLower struct {
 	jsonUnionKeys      map[string]bool
 	freezeCopiers      []freezeEntry
 	freezeSeq          int
-	factoryPlan        map[string]bool
+	factoryPlan        map[string]string
+	files              []*syntax.File
+	src                map[*syntax.File][]byte
+	typeDecls          map[*types2.TypeName]*syntax.TypeDecl
+	declSrc            map[*syntax.TypeDecl][]byte
+}
+
+// declOf maps a package-level TypeName back to its TypeDecl and the file's
+// source bytes, lazily built on first use. It lets struct-default lowering
+// recover the owner instantiation from a derived type's declaration.
+func (pl *packageLower) declOf(tn *types2.TypeName) (*syntax.TypeDecl, []byte) {
+	if pl.typeDecls == nil {
+		pl.typeDecls = map[*types2.TypeName]*syntax.TypeDecl{}
+		pl.declSrc = map[*syntax.TypeDecl][]byte{}
+		for _, f := range pl.files {
+			syntax.Inspect(f, func(n syntax.Node) bool {
+				td, ok := n.(*syntax.TypeDecl)
+				if !ok || td.Name == nil {
+					return true
+				}
+				if o, ok := pl.info.Defs[td.Name].(*types2.TypeName); ok {
+					pl.typeDecls[o] = td
+					pl.declSrc[td] = pl.src[f]
+				}
+				return true
+			})
+		}
+	}
+	td := pl.typeDecls[tn]
+	return td, pl.declSrc[td]
 }
 
 // fileLower carries the state of lowering one file.

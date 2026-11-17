@@ -20,6 +20,9 @@ stdout '^box: 8080$'
 stdout '^elx: 8080$'
 stdout '^elp: 8080$'
 stdout '^names: 11 22$'
+stdout '^gen: 8080$'
+stdout '^coll: 3 5$'
+stdout '^derived: 8080 8080 8080 8080 8080 8080$'
 cd ..
 
 -- w/go.work --
@@ -68,6 +71,62 @@ type A struct {
 	B_C int = 22
 }
 
+type G[T any] Config
+
+// A defined type over a generic instantiation still records defaults;
+// the owner arguments come from this declaration, not the literal's.
+type DbBox Box[string]
+
+type Derived[T any] Box[T]
+
+type Args2[A, B any] struct {
+	A A
+	B B
+}
+
+// A nested instantiation exercises bracket recovery in the derived args.
+type Nested Box[Args2[int, string]]
+
+func DerivedPort() int {
+	defaultPort := 5
+	d := Derived[int]{}
+	_ = defaultPort
+	return d.Port
+}
+
+func DbBoxPort() int {
+	h := DbBox{}
+	return h.Port
+}
+
+type Braced Box[struct{ A int }]
+
+// A brace inside a struct tag must not corrupt the arg recovery.
+type Tagged Box[struct {
+	A int `json:"{"`
+}]
+
+func NestedPort() int {
+	n := Nested{}
+	return n.Port
+}
+
+func BracedPort() int {
+	b := Braced{}
+	return b.Port
+}
+
+func TaggedPort() int {
+	t := Tagged{}
+	return t.Port
+}
+
+func LogosDefault_Solo__F() int { return 5 }
+
+type Solo struct {
+	F int = 3
+}
+
 func Kind() string {
 	c := Config{}
 	return fmt.Sprintf("%T", c.Value)
@@ -76,6 +135,11 @@ func Kind() string {
 func Elided() int {
 	s := []Config{{}}
 	return s[0].Port
+}
+
+func IntBoxPort() int {
+	type IntBox Box[int]
+	return (IntBox{}).Port
 }
 
 -- w/l/cmd/main.lgo --
@@ -139,4 +203,8 @@ func main() {
 	fmt.Println("elx:", el[0].Port)
 	fmt.Println("elp:", cfg.Elided())
 	fmt.Println("names:", cfg.A_B{}.C, cfg.A{}.B_C)
+	g := cfg.G[int]{}
+	fmt.Println("gen:", g.Port)
+	fmt.Println("coll:", cfg.Solo{}.F, cfg.LogosDefault_Solo__F())
+	fmt.Println("derived:", cfg.DerivedPort(), cfg.DbBoxPort(), cfg.IntBoxPort(), cfg.NestedPort(), cfg.BracedPort(), cfg.TaggedPort())
 }

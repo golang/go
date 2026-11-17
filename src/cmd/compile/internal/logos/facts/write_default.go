@@ -15,6 +15,7 @@ func writeDefaults(pkg *types2.Package, info *types2.Info, f *Facts) {
 	add := func(d DefaultFact) {
 		f.Defaults = appendUnique(f.Defaults, d)
 	}
+	plan := FactoryNamePlan(info, pkg)
 	for _, name := range pkg.Scope().Names() {
 		obj, ok := pkg.Scope().Lookup(name).(*types2.TypeName)
 		if !ok || obj == nil || !obj.Exported() || obj.IsAlias() {
@@ -29,15 +30,18 @@ func writeDefaults(pkg *types2.Package, info *types2.Info, f *Facts) {
 			continue
 		}
 		for _, d := range info.LogosFieldDefaults[st] {
-			if d.Owner == "" {
-				continue
-			}
 			// The fact names the generated declaration-scope factory, not
 			// the raw default text: consumers emit pkg.Symbol() so private
 			// names and interface dynamic types stay bound where declared.
 			// The owner, not the scope name, names the declaring type, so a
 			// defined type over the same struct resolves the real factory.
-			add(DefaultFact{Type: name, Field: d.Field, Text: "LogosDefault_" + d.Owner + "__" + d.Field})
+			// The plan name is the one the package actually emitted, so a
+			// collision-renamed factory never resolves to a user symbol.
+			// The owner rides in front of the symbol so consumers can check
+			// whether their literal's type arguments fit the factory.
+			if t := plan[d.Owner+"."+d.Field]; t != "" {
+				add(DefaultFact{Type: name, Field: d.Field, Text: d.Owner + "/" + t})
+			}
 		}
 	}
 }
