@@ -27,7 +27,11 @@ env:
 
 jobs:
   compiler:
-    name: "compiler-focused"
+    name: "compiler-${{ matrix.suite }}"
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: ["focused", "upstream"]
     runs-on: "ubuntu-24.04"
     timeout-minutes: 120
     defaults:
@@ -49,7 +53,7 @@ jobs:
         run: bash ../.github/scripts/install-ci-tool.sh node
       - name: "Record source and install upstream oracles"
         run: |
-          evidence="$RUNNER_TEMP/compiler-stability-focused"
+          evidence="$RUNNER_TEMP/compiler-stability-${{ matrix.suite }}"
           mkdir -p "$evidence"
           git rev-parse HEAD > "$evidence/source.txt"
           go version >> "$evidence/source.txt"
@@ -58,7 +62,7 @@ jobs:
         run: |
           GOROOT_BOOTSTRAP=$(go env GOROOT)
           export GOROOT_BOOTSTRAP
-          GOEXPERIMENT="" ./make.bash 2>&1 | tee "$RUNNER_TEMP/compiler-stability-focused/build.log"
+          GOEXPERIMENT="" ./make.bash 2>&1 | tee "$RUNNER_TEMP/compiler-stability-${{ matrix.suite }}/build.log"
           printf '%s\n' "$GITHUB_WORKSPACE/lib/wasm" "$GITHUB_WORKSPACE/bin" >> "$GITHUB_PATH"
       - name: "Select and verify the C23 consumer compiler"
         run: |
@@ -66,7 +70,7 @@ jobs:
           compiler_bin="$RUNNER_TEMP/compiler-stability-c23"
           mkdir "$compiler_bin"
           ln -s "$compiler" "$compiler_bin/cc"
-          evidence="$RUNNER_TEMP/compiler-stability-focused"
+          evidence="$RUNNER_TEMP/compiler-stability-${{ matrix.suite }}"
           "$compiler_bin/cc" --version | tee "$evidence/c23.log"
           printf 'int main(void) { return 0; }\n' |
             "$compiler_bin/cc" -std=c23 -x c - -o "$RUNNER_TEMP/compiler-stability-c23-check" \
@@ -74,8 +78,9 @@ jobs:
           "$RUNNER_TEMP/compiler-stability-c23-check" 2>&1 | tee -a "$evidence/c23.log"
           printf '%s\n' "$compiler_bin" >> "$GITHUB_PATH"
       - name: "Run focused compiler and command checks"
+        if: matrix.suite == 'focused'
         run: |
-          evidence="$RUNNER_TEMP/compiler-stability-focused"
+          evidence="$RUNNER_TEMP/compiler-stability-${{ matrix.suite }}"
           cd ..
           sha256sum --check logos-doc/validation/compiler-stability/frozen-tests-v2.sha256 \
             | tee "$evidence/frozen-tests.log"
@@ -111,10 +116,26 @@ jobs:
             2>&1 | tee "$evidence/noder-vet.log"
           go test -count=1 -short cmd/internal/goparity -run '^TestRedteamLedgerRows$' \
             2>&1 | tee "$evidence/ledger.log"
+      - name: "Check full-regression prerequisites"
+        if: matrix.suite == 'upstream'
+        run: |
+          evidence="$RUNNER_TEMP/compiler-stability-${{ matrix.suite }}"
+          go test -count=1 -short -timeout=5m cmd/internal/goparity -run '^TestRedteamLedgerRows$' \
+            2>&1 | tee "$evidence/ledger-prerequisite.log"
+          go test -count=1 -timeout=10m cmd/go -run '^TestScript$/^logos_cgo_shared$' \
+            2>&1 | tee "$evidence/cgo-shared-prerequisite.log"
+      - name: "Run the complete upstream regression gate"
+        if: matrix.suite == 'upstream'
+        env:
+          GOEXPERIMENT: ""
+          GO_TEST_TIMEOUT_SCALE: "6"
+        run: |
+          env -u GOFLAGS -u GOMEMLIMIT ./run.bash --no-rebuild \
+            2>&1 | tee "$RUNNER_TEMP/compiler-stability-${{ matrix.suite }}/regression.log"
       - name: "Record compiler validation evidence"
         if: always()
         run: |
-          evidence="$RUNNER_TEMP/compiler-stability-focused"
+          evidence="$RUNNER_TEMP/compiler-stability-${{ matrix.suite }}"
           if test -d "$evidence"; then
             for file in "$evidence"/*; do
               test -f "$file" || continue
