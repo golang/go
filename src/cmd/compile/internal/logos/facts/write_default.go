@@ -5,9 +5,6 @@
 package facts
 
 import (
-	"bytes"
-
-	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types2"
 )
 
@@ -32,9 +29,15 @@ func writeDefaults(pkg *types2.Package, info *types2.Info, f *Facts) {
 			continue
 		}
 		for _, d := range info.LogosFieldDefaults[st] {
-			var buf bytes.Buffer
-			_, _ = syntax.Fprint(&buf, d.Default, syntax.LineForm)
-			add(DefaultFact{Type: name, Field: d.Field, Text: buf.String()})
+			if d.Owner == "" {
+				continue
+			}
+			// The fact names the generated declaration-scope factory, not
+			// the raw default text: consumers emit pkg.Symbol() so private
+			// names and interface dynamic types stay bound where declared.
+			// The owner, not the scope name, names the declaring type, so a
+			// defined type over the same struct resolves the real factory.
+			add(DefaultFact{Type: name, Field: d.Field, Text: "LogosDefault_" + d.Owner + "__" + d.Field})
 		}
 	}
 }

@@ -1,0 +1,142 @@
+# Issue #55: struct field defaults bind to their declaration scope, not
+# the use site. Local shadowing must not change values or interface
+# dynamic types, and cross-package consumers must resolve private names.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+cd w
+logos build ./...
+logos build -o $WORK/bin/shadow$GOEXE ./l/cmd
+exec $WORK/bin/shadow$GOEXE
+stdout '^7 true \[7\] map\[n:7\]$'
+stdout '^\[7\] map\[n:7\]$'
+logos build -o $WORK/bin/xpkg$GOEXE ./g/cmd
+exec $WORK/bin/xpkg$GOEXE
+stdout '^port: 8080 kind: cfg.marker$'
+stdout '^pair: 8080 8080$'
+stdout '^db: 8080$'
+stdout '^box: 8080$'
+stdout '^elx: 8080$'
+stdout '^elp: 8080$'
+stdout '^names: 11 22$'
+cd ..
+
+-- w/go.work --
+go 1.27
+
+use (
+	./l
+	./g
+)
+
+-- w/l/go.mod --
+module example.com/l
+
+go 1.27
+
+-- w/l/cfg/cfg.lgo --
+package cfg
+
+import "fmt"
+
+const defaultPort = 8080
+
+type marker int
+
+type Config struct {
+	Port  int = defaultPort
+	Value any = marker(defaultPort)
+	Items []int = []int{defaultPort}
+}
+
+type Pair struct {
+	P, Q int = defaultPort
+}
+
+type DB Config
+
+type Box[T any] struct {
+	Port int = defaultPort
+}
+
+type A_B struct {
+	C int = 11
+}
+
+type A struct {
+	B_C int = 22
+}
+
+func Kind() string {
+	c := Config{}
+	return fmt.Sprintf("%T", c.Value)
+}
+
+func Elided() int {
+	s := []Config{{}}
+	return s[0].Port
+}
+
+-- w/l/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+)
+
+const seed = 7
+
+type marker int
+
+type Local struct {
+	Scalar int            = seed
+	Value  any            = marker(seed)
+	Items  []int          = []int{seed}
+	Index  map[string]int = map[string]int{"n": seed}
+}
+
+func original(v any) bool {
+	_, ok := v.(marker)
+	return ok
+}
+
+func main() {
+	seed := 99
+	type marker string
+	_ = seed
+	a, b := Local{}, Local{}
+	fmt.Println(a.Scalar, original(a.Value), a.Items, a.Index)
+	a.Items[0] = 0
+	a.Index["n"] = 0
+	fmt.Println(b.Items, b.Index)
+}
+
+-- w/g/go.mod --
+module example.com/g
+
+go 1.27
+
+-- w/g/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/l/cfg"
+)
+
+func main() {
+	c := cfg.Config{}
+	fmt.Printf("port: %d kind: %T\n", c.Port, c.Value)
+	p := cfg.Pair{}
+	fmt.Println("pair:", p.P, p.Q)
+	d := cfg.DB{}
+	fmt.Println("db:", d.Port)
+	bx := cfg.Box[int]{}
+	fmt.Println("box:", bx.Port)
+	el := []cfg.Config{{}}
+	fmt.Println("elx:", el[0].Port)
+	fmt.Println("elp:", cfg.Elided())
+	fmt.Println("names:", cfg.A_B{}.C, cfg.A{}.B_C)
+}

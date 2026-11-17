@@ -16,10 +16,11 @@ import (
 
 func (fl *fileLower) lowerStructDefaults() {
 	stripped := make(map[*syntax.FieldDefault]bool)
+	typeNames := fl.defaultTypeNames()
 	syntax.Inspect(fl.file, func(n syntax.Node) bool {
 		switch n := n.(type) {
 		case *syntax.StructType:
-			fl.stripFieldDefaults(n, stripped)
+			fl.stripFieldDefaults(n, stripped, typeNames)
 		case *syntax.CompositeLit:
 			fl.fillStructDefaults(n)
 		}
@@ -27,19 +28,129 @@ func (fl *fileLower) lowerStructDefaults() {
 	})
 }
 
-func (fl *fileLower) stripFieldDefaults(st *syntax.StructType, stripped map[*syntax.FieldDefault]bool) {
+// defaultTypeNames maps each package-level named struct type declaration in
+// this file to its TypeDecl so defaults can bind to declaration-scope
+// factories. Local or anonymous struct types get no entry: they keep the
+// textual default path.
+func (fl *fileLower) defaultTypeNames() map[*syntax.StructType]*syntax.TypeDecl {
+	m := map[*syntax.StructType]*syntax.TypeDecl{}
+	for _, d := range fl.file.DeclList {
+		td, ok := d.(*syntax.TypeDecl)
+		if !ok || td.Alias || td.Name == nil {
+			continue
+		}
+		var st *syntax.StructType
+		switch t := td.Type.(type) {
+		case *syntax.StructType:
+			st = t
+		case *syntax.AssertedStruct:
+			st = t.Struct
+		}
+		if st != nil {
+			m[st] = td
+		}
+	}
+	return m
+}
+
+// defaultFactoryName is the generated declaration-scope binding for one
+// defaulted field. It is exported so ejected and cross-package consumers can
+// reference it; declaration scope keeps private names and interface dynamic
+// types intact while every call allocates fresh composite storage. The double
+// underscore keeps (type, field) pairs like A_B.C and A.B_C distinct.
+func defaultFactoryName(typeName, field string) string {
+	return "LogosDefault_" + typeName + "__" + field
+}
+
+// defaultFactorySkips computes the package-level set of "Owner.Field" pairs
+// that must not reference a generated factory: generated names colliding with
+// each other or with an existing package-scope declaration. The set derives
+// only from checker data, so every file lowering sees the same plan.
+func (pl *packageLower) defaultFactorySkips() map[string]bool {
+	if pl.factoryPlan != nil {
+		return pl.factoryPlan
+	}
+	pl.factoryPlan = map[string]bool{}
+	taken := map[string]string{}
+	if pl.info != nil {
+		for _, defs := range pl.info.LogosFieldDefaults {
+			for _, d := range defs {
+				if d.Owner == "" || d.Field == "_" {
+					continue
+				}
+				key := d.Owner + "." + d.Field
+				fname := defaultFactoryName(d.Owner, d.Field)
+				if prev, dup := taken[fname]; dup && prev != key {
+					pl.factoryPlan[key] = true
+					pl.factoryPlan[prev] = true
+					continue
+				}
+				taken[fname] = key
+			}
+		}
+	}
+	if pl.tpkg != nil && pl.tpkg.Scope() != nil {
+		for fname, key := range taken {
+			if pl.tpkg.Scope().Lookup(fname) != nil {
+				pl.factoryPlan[key] = true
+			}
+		}
+	}
+	return pl.factoryPlan
+}
+
+// importQualifier returns the source qualifier ("pkg." or "") that names the
+// given package in this file, so generated calls survive elided, generic, and
+// aliased literals that carry no selector in lit.Type. synthQualifier reuses
+// the file's import spellings and registers a synthesized import when needed.
+func (fl *fileLower) importQualifier(pkg *types2.Package) string {
+	if pkg == nil || pkg == fl.pkg.tpkg {
+		return ""
+	}
+	q := fl.synthQualifier(pkg)
+	if q == "" || q == "." {
+		return ""
+	}
+	return q + "."
+}
+
+func (fl *fileLower) stripFieldDefaults(st *syntax.StructType, stripped map[*syntax.FieldDefault]bool, typeNames map[*syntax.StructType]*syntax.TypeDecl) {
+	skips := fl.pkg.defaultFactorySkips()
+	td := typeNames[st]
+	var tparams string
+	if td != nil && td.Name != nil && len(td.TParamList) > 0 {
+		var params []string
+		for _, p := range td.TParamList {
+			if p.Name != nil {
+				params = append(params, p.Name.Value+" "+renderExpr(p.Type))
+			} else {
+				params = append(params, renderExpr(p.Type))
+			}
+		}
+		tparams = "[" + strings.Join(params, ", ") + "]"
+	}
 	for i, f := range st.FieldList {
 		fd, ok := f.Type.(*syntax.FieldDefault)
 		if !ok {
 			continue
 		}
 		f.Type = fd.Type
-		if stripped[fd] {
+		if !stripped[fd] {
+			stripped[fd] = true
+			typeEnd := fl.exprEndNested(fl.off(syntax.StartPos(fd.Type)))
+			fl.add(typeEnd, fl.fieldDefaultEnd(st, i, fd, typeEnd), "")
+		}
+		if td == nil || td.Name == nil || f.Name == nil || f.Name.Value == "_" {
 			continue
 		}
-		stripped[fd] = true
-		typeEnd := fl.exprEndNested(fl.off(syntax.StartPos(fd.Type)))
-		fl.add(typeEnd, fl.fieldDefaultEnd(st, i, fd, typeEnd), "")
+		// Grouped fields (A, B int = v) share one FieldDefault: each name
+		// still needs its own factory.
+		if skips[td.Name.Value+"."+f.Name.Value] {
+			continue
+		}
+		text := "func " + defaultFactoryName(td.Name.Value, f.Name.Value) + tparams +
+			"() " + renderExpr(fd.Type) + " {\n\treturn " + renderExpr(fd.Default) + "\n}\n"
+		fl.addGeneratedDecls(fd.Pos(), text)
 	}
 }
 
@@ -87,11 +198,7 @@ func (fl *fileLower) structDefaultFields(pos syntax.Pos, defaults []structDefaul
 }
 
 func (fl *fileLower) missingDefaults(lit *syntax.CompositeLit) []structDefault {
-	t := fl.pkg.info.TypeOf(lit)
-	if t == nil {
-		return nil
-	}
-	names, texts := fl.structDefaultsFor(t)
+	names, texts := fl.structDefaultsFor(lit)
 	if len(names) == 0 {
 		return nil
 	}
@@ -122,7 +229,11 @@ func (fl *fileLower) missingDefaults(lit *syntax.CompositeLit) []structDefault {
 	return out
 }
 
-func (fl *fileLower) structDefaultsFor(t types2.Type) ([]string, []string) {
+func (fl *fileLower) structDefaultsFor(lit *syntax.CompositeLit) ([]string, []string) {
+	t := fl.pkg.info.TypeOf(lit)
+	if t == nil {
+		return nil, nil
+	}
 	u := types2.Unalias(t)
 	st, _ := u.(*types2.Struct)
 	if st == nil {
@@ -135,21 +246,43 @@ func (fl *fileLower) structDefaultsFor(t types2.Type) ([]string, []string) {
 	if st == nil {
 		return nil, nil
 	}
+	named, _ := u.(*types2.Named)
+	var obj *types2.TypeName
+	var targs string
+	if named != nil {
+		if o := named.Obj(); o != nil && o.Pkg() != nil && o.Parent() == o.Pkg().Scope() {
+			obj = o
+			if ta := named.TypeArgs(); ta != nil && ta.Len() > 0 {
+				var parts []string
+				for i := 0; i < ta.Len(); i++ {
+					parts = append(parts, ta.At(i).String())
+				}
+				targs = "[" + strings.Join(parts, ", ") + "]"
+			}
+		}
+	}
+	qual := ""
+	if obj != nil {
+		qual = fl.importQualifier(obj.Pkg())
+	}
+	skips := fl.pkg.defaultFactorySkips()
+	call := func(d types2.LogosFieldDefault) string {
+		return qual + defaultFactoryName(d.Owner, d.Field) + targs + "()"
+	}
 	if defs := fl.pkg.info.LogosFieldDefaults[st]; len(defs) > 0 {
 		names := make([]string, 0, len(defs))
 		texts := make([]string, 0, len(defs))
 		for _, d := range defs {
 			names = append(names, d.Field)
-			texts = append(texts, renderExpr(d.Default))
+			if d.Owner != "" && d.Field != "_" && !skips[d.Owner+"."+d.Field] {
+				texts = append(texts, call(d))
+			} else {
+				texts = append(texts, renderExpr(d.Default))
+			}
 		}
 		return names, texts
 	}
-	named, ok := u.(*types2.Named)
-	if !ok {
-		return nil, nil
-	}
-	obj := named.Obj()
-	if obj == nil || obj.Pkg() == nil || obj.Pkg() == fl.pkg.tpkg {
+	if obj == nil || obj.Pkg() == fl.pkg.tpkg {
 		return nil, nil
 	}
 	imp, ok := facts.Lookup(obj.Pkg().Path())
@@ -160,7 +293,7 @@ func (fl *fileLower) structDefaultsFor(t types2.Type) ([]string, []string) {
 	for _, d := range imp.Defaults {
 		if d.Type == obj.Name() {
 			names = append(names, d.Field)
-			texts = append(texts, d.Text)
+			texts = append(texts, qual+d.Text+targs+"()")
 		}
 	}
 	return names, texts

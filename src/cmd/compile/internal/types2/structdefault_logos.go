@@ -20,6 +20,11 @@ const (
 type LogosFieldDefault struct {
 	Field   string
 	Default syntax.Expr
+	// Owner names the package-level type declaration that carried the
+	// defaults, so consumers emit that type's generated factory even when
+	// the literal uses another name over the same struct (type A B).
+	// Empty for local or anonymous struct declarations.
+	Owner string
 }
 
 func (check *Checker) logosStructFieldType(e syntax.Expr) Type {
@@ -29,9 +34,13 @@ func (check *Checker) logosStructFieldType(e syntax.Expr) Type {
 	return check.varType(e)
 }
 
-func (check *Checker) logosStructDefaults(e *syntax.StructType, styp *Struct) {
+func (check *Checker) logosStructDefaults(e *syntax.StructType, styp *Struct, def *TypeName) {
 	if !check.conf.Logos || check.Info == nil {
 		return
+	}
+	owner := ""
+	if def != nil && def.Pkg() != nil && def.Parent() == def.Pkg().Scope() && !def.IsAlias() {
+		owner = def.Name()
 	}
 	seen := make(map[*syntax.FieldDefault][]*syntax.Name)
 	var order []*syntax.FieldDefault
@@ -46,11 +55,11 @@ func (check *Checker) logosStructDefaults(e *syntax.StructType, styp *Struct) {
 		seen[fd] = append(seen[fd], f.Name)
 	}
 	for _, fd := range order {
-		check.logosRecordFieldDefault(styp, fd, seen[fd])
+		check.logosRecordFieldDefault(styp, fd, seen[fd], owner)
 	}
 }
 
-func (check *Checker) logosRecordFieldDefault(styp *Struct, fd *syntax.FieldDefault, names []*syntax.Name) {
+func (check *Checker) logosRecordFieldDefault(styp *Struct, fd *syntax.FieldDefault, names []*syntax.Name, owner string) {
 	if check.Info.LogosFieldDefaults == nil {
 		check.Info.LogosFieldDefaults = make(map[*Struct][]LogosFieldDefault)
 	}
@@ -60,8 +69,8 @@ func (check *Checker) logosRecordFieldDefault(styp *Struct, fd *syntax.FieldDefa
 		known[d.Field] = true
 	}
 	for _, name := range names {
-		if !known[name.Value] {
-			cur = append(cur, LogosFieldDefault{Field: name.Value, Default: fd.Default})
+		if !known[name.Value] && name.Value != "_" {
+			cur = append(cur, LogosFieldDefault{Field: name.Value, Default: fd.Default, Owner: owner})
 			known[name.Value] = true
 		}
 	}

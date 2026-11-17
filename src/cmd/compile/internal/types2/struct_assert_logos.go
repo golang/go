@@ -14,7 +14,7 @@ import (
 func (check *Checker) logosAssertedStruct(e *syntax.AssertedStruct, def *TypeName) Type {
 	typ := new(Struct)
 	check.structType(typ, e.Struct)
-	check.logosStructDefaults(e.Struct, typ)
+	check.logosStructDefaults(e.Struct, typ, def)
 	check.recordTypeAndValue(e.Struct, typexpr, typ, nil)
 
 	if !check.conf.Logos {
