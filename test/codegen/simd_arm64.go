@@ -539,6 +539,11 @@ func sveMaskOr(x, y archsimd.Mask16s) archsimd.Mask16s {
 	return x.Or(y)
 }
 
+func sveMaskXor(x, y archsimd.Mask16s) archsimd.Mask16s {
+	// arm64:`PWHILELT.*P[0-9]+\.H` `PEOR\s+P[0-9]+\.B, P[0-9]+\.B, P[0-9]+\.Z, P[0-9]+\.B`
+	return x.Xor(y)
+}
+
 func sveBroadcastConstIfElse(m archsimd.Mask16s, z archsimd.Int16s) archsimd.Int16s {
 	// arm64:`ZCPY\s+\$5, P[0-9]+\.M, Z[0-9]+\.H` -`ZDUP` -`ZSEL`
 	return archsimd.BroadcastInt16s(5).IfElse(m, z)

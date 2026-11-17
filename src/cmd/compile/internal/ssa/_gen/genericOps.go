@@ -882,6 +882,12 @@ var genericOps = []opData{
 	{name: "Mask16sOr", argLength: 2, commutative: true},
 	{name: "Mask32sOr", argLength: 2, commutative: true},
 	{name: "Mask64sOr", argLength: 2, commutative: true},
+
+	// Xor returns the lanes active in exactly one of arg0 and arg1.
+	{name: "Mask8sXor", argLength: 2, commutative: true},
+	{name: "Mask16sXor", argLength: 2, commutative: true},
+	{name: "Mask32sXor", argLength: 2, commutative: true},
+	{name: "Mask64sXor", argLength: 2, commutative: true},
 }
 
 //     kind          controls          successors   implicit exit
