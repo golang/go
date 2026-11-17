@@ -205,6 +205,7 @@ func logosArenaAllocScan(typ *byte, size uintptr) unsafe.Pointer
 func logosArenaMarkSave() (chunk, noscan, scan uintptr)
 func logosArenaMarkRestore(chunk, noscan, scan uintptr)
 func logosArenaRetTake() bool
+func logosAutovecPanicOnFault() bool
 func logosArenaRetSet(ok bool)
 func logosRegionOpen() (h unsafe.Pointer, gen uintptr)
 func logosRegionClose(h unsafe.Pointer, gen uintptr)

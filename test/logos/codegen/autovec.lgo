@@ -1,0 +1,40 @@
+// asmcheck -goexperiment simd
+
+package main
+
+//go:noinline
+func addConstant(x []int32) {
+	for i := range x {
+		// amd64/v1:-"VPADDD"
+		// amd64/v2:-"VPADDD"
+		// amd64/v3:"VPADDD"
+		// amd64/v4:"VPADDD"
+		// arm64:"VADD V[0-9]+\\.S4"
+		x[i] += 37
+	}
+}
+
+//go:noinline
+func multiplyInvariant(x []uint16, k uint16) {
+	for i := range x {
+		// amd64/v3:"VPMULLW"
+		// amd64/v4:"VPMULLW"
+		// arm64:"VMUL V[0-9]+\\.H8"
+		x[i] *= k
+	}
+}
+
+//go:noinline
+func addSource(dst, src []int32) {
+	if len(dst) > len(src) {
+		return
+	}
+	for i := range dst {
+		// amd64/v3:"VPADDD"
+		// amd64/v4:"VPADDD"
+		// arm64:"VADD V[0-9]+\\.S4"
+		dst[i] += src[i]
+	}
+}
+
+func main() {}

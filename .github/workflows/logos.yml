@@ -47,7 +47,7 @@ jobs:
       fail-fast: true
       matrix:
         # Share one toolchain build across the shorter suites.
-        suite: ["unit", "scripts", "upstream"]
+        suite: ["unit", "scripts", "upstream", "autovec"]
     defaults:
       run:
         shell: "bash"
@@ -164,6 +164,14 @@ jobs:
         if: "${{ !cancelled() && steps.smoke.outcome == 'success' && steps.c23.outcome == 'success' && matrix.suite == 'scripts' }}"
         run: |
           ../.github/scripts/logos-test-env.sh go test -count=1 -timeout 60m cmd/go -run 'Script/^logos_'
+      - name: "Run automatic vectorization tests"
+        if: "${{ !cancelled() && steps.smoke.outcome == 'success' && matrix.suite == 'autovec' }}"
+        run: |
+          ../.github/scripts/logos-test-env.sh go test -count=1 -short cmd/compile/internal/ssa
+          GOEXPERIMENT=simd GOAMD64=v3 ../.github/scripts/logos-test-env.sh go test -count=1 -timeout 20m cmd/internal/testdir -run '^Test$/^logos$/^(codegen|run)$/^autovec' -all_codegen
+          GOEXPERIMENT=simd GOAMD64=v3 ../.github/scripts/logos-test-env.sh go run -gcflags=-d=ssa/autovec/off ../test/logos/run/autovec.go
+          GOEXPERIMENT=none ../.github/scripts/logos-test-env.sh go run ../test/logos/run/autovec.go
+          GOEXPERIMENT=simd,preemptibleloops GOAMD64=v3 ../.github/scripts/logos-test-env.sh go run ../test/logos/run/autovec.go
       - name: "Run full Go regression"
         if: "${{ !cancelled() && steps.smoke.outcome == 'success' && steps.c23.outcome == 'success' && steps.regression_prerequisites.outcome == 'success' && matrix.suite == 'scripts' }}"
         timeout-minutes: 90

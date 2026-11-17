@@ -1,0 +1,47 @@
+// run -goexperiment simd
+
+package main
+
+//go:noinline
+func update(x []int32, k int32) {
+	for i := range x {
+		x[i] += k
+	}
+}
+
+//go:noinline
+func addSource(dst, src []int32) {
+	if len(dst) > len(src) {
+		return
+	}
+	for i := range dst {
+		dst[i] += src[i]
+	}
+}
+
+func main() {
+	update(nil, 37)
+	for n := 0; n <= 37; n++ {
+		x := make([]int32, n)
+		for i := range x {
+			x[i] = int32(i) - 19
+		}
+		update(x, 37)
+		for i, v := range x {
+			if v != int32(i)+18 {
+				panic("loGo/s autovectorized tail mismatch")
+			}
+		}
+	}
+	// Partial overlap has a loop-carried dependency and must use the scalar path.
+	x := make([]int32, 38)
+	for i := range x {
+		x[i] = 1
+	}
+	addSource(x[1:], x[:37])
+	for i, v := range x {
+		if v != int32(i)+1 {
+			panic("loGo/s autovectorized overlap mismatch")
+		}
+	}
+}

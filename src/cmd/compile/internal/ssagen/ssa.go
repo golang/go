@@ -8136,6 +8136,8 @@ func (e *ssafn) UseWriteBarrier() bool {
 
 func (e *ssafn) Syslook(name string) *obj.LSym {
 	switch name {
+	case "logosAutovecPanicOnFault":
+		return typecheck.LookupRuntimeFunc(name)
 	case "goschedguarded":
 		return ir.Syms.Goschedguarded
 	case "writeBarrier":

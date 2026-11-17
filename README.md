@@ -540,6 +540,29 @@ Limits:
 - Vectorized execution needs `GOEXPERIMENT=simd` and a supported architecture and instruction set.
 - Otherwise, the compiler emits unrolled scalar instructions with identical numeric results but no throughput guarantee.
 
+### Automatic loop vectorization
+
+Ordinary Go and loGo/s integer loops can use SIMD without an import or annotation:
+
+```go
+func add(dst []int32, delta int32) {
+	for i := range dst {
+		dst[i] += delta
+	}
+}
+```
+
+Enable the existing SIMD experiment. On amd64, select an AVX2-capable target:
+
+```sh
+GOEXPERIMENT=simd GOAMD64=v3 go build ./...
+GOEXPERIMENT=simd GOAMD64=v3 logos build ./...
+```
+
+Arm64 uses baseline NEON with `GOEXPERIMENT=simd`. The compiler emits 128-bit vector operations for eligible integer maps and handles the remaining elements with the original scalar loop. Eligible loops may start at a nonzero invariant index; the vector prefix and scalar tail preserve that start and leave earlier elements untouched. Supported operations are addition, subtraction, negation, bitwise complement, AND, OR, and XOR on 8-, 16-, 32-, and 64-bit integers, plus multiplication on 16- and 32-bit integers. Constant shifts smaller than the element width support left shifts and unsigned right shifts on 16-, 32-, and 64-bit integers, and signed right shifts on 16- and 32-bit integers. Byte doubling also vectorizes; other byte shifts and variable counts remain scalar.
+
+Loops over several slices need bounds that the compiler can prove. An overlap guard keeps the original scalar behavior when their memory ranges are unsafe to vectorize. Loops containing calls, unresolved checks, reductions, or floating-point expressions remain scalar, as do instrumented builds, `//go:nosplit` functions, and unsupported loop shapes. When the current goroutine enables `runtime/debug.SetPanicOnFault`, eligible loops use the original scalar path to preserve writes before a recovered fault. `-gcflags=-d=ssa/autovec/debug=1` reports accepted loops; `-gcflags=-d=ssa/autovec/off` disables the pass. See [the exact eligibility rules](logos-doc/SPEC.md#134-automatic-loop-vectorization).
+
 ### Also in the language
 
 You can also use these extensions; see [logos-doc/SPEC.md](logos-doc/SPEC.md) Sec 1.4:

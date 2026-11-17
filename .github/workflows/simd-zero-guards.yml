@@ -1,0 +1,240 @@
+name: "SIMD zero guards"
+
+"on":
+  pull_request:
+    paths:
+      - ".github/workflows/simd-zero-guards.yml"
+      - "src/cmd/compile/internal/ssa/**"
+      - "src/cmd/compile/internal/ssagen/simd*.go"
+      - "src/cmd/compile/internal/ssagen/intrinsics*.go"
+      - "src/cmd/compile/internal/ssagen/ssa.go"
+      - "src/cmd/compile/internal/amd64/ssa.go"
+      - "src/cmd/compile/internal/arm64/ssa.go"
+      - "src/simd/archsimd/**"
+      - "src/cmd/go/scriptconds_test.go"
+      - "src/cmd/go/testdata/script/logos_simd_*"
+      - "src/cmd/go/testdata/script/logos_eject_simd_slice.txt"
+      - "test/logos/run/simd_zero_guard*"
+
+permissions:
+  contents: "read"
+
+concurrency:
+  group: "simd-zero-guards-${{ github.ref }}"
+  cancel-in-progress: true
+
+env:
+  GOMAXPROCS: "4"
+  GOFLAGS: "-p=2"
+  GOMEMLIMIT: "2GiB"
+  GOAMD64: "v1"
+  GOEXPERIMENT: ""
+
+jobs:
+  native:
+    name: "SIMD zero native ${{ matrix.arch }}"
+    runs-on: "${{ matrix.runner }}"
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: "amd64"
+            runner: "ubuntu-26.04"
+          - arch: "arm64"
+            runner: "ubuntu-26.04-arm"
+    defaults:
+      run:
+        shell: "bash"
+        working-directory: "src"
+    steps:
+      - uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" # v7.0.1
+        with:
+          persist-credentials: false
+          ref: "${{ github.event.pull_request.head.sha }}"
+      - uses: "actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e" # v7.0.0
+        with:
+          go-version: "1.27.4"
+          cache: false
+      - name: "Record native environment and exact source head"
+        run: |
+          mkdir -p "$RUNNER_TEMP/simd-zero-evidence"
+          git rev-parse HEAD | tee "$RUNNER_TEMP/simd-zero-evidence/head.txt"
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          test "$(go env GOVERSION)" = go1.27.4
+          test "$(go env GOARCH)" = "${{ matrix.arch }}"
+          printf 'UPROOT1274=%s\n' "$(go env GOROOT)" >> "$GITHUB_ENV"
+          go version | tee "$RUNNER_TEMP/simd-zero-evidence/bootstrap.txt"
+          lscpu | tee "$RUNNER_TEMP/simd-zero-evidence/cpu.txt"
+      - name: "Verify frozen attacks and formatting"
+        id: "frozen"
+        run: |
+          cat > "$RUNNER_TEMP/simd-zero-evidence/attacks.sha256" <<'FROZEN'
+          c0eba294bdac97d1058b40ab07c4c626da02d839940383d4fb0f48c9565e280f  cmd/compile/internal/ssa/zcse_simd_logos_test.go
+          7cdbc8e5243c835e234617fd77a97f9184f799054bb33edbade4db5978c7b323  ../test/logos/run/simd_zero_guard.go
+          fd4f67d871fd0578854e61d239ff21353899fb0440daa94316c8a8ec3d234bdb  ../test/logos/run/simd_zero_guard.out
+          FROZEN
+          sha256sum --check --strict "$RUNNER_TEMP/simd-zero-evidence/attacks.sha256"
+          gofmt -d cmd/compile/internal/ssa/zcse.go cmd/compile/internal/ssa/zcse_simd_logos_test.go ../test/logos/run/simd_zero_guard.go | tee "$RUNNER_TEMP/simd-zero-evidence/gofmt.diff"
+          test ! -s "$RUNNER_TEMP/simd-zero-evidence/gofmt.diff"
+      - name: "Build the default toolchain"
+        id: "build"
+        run: |
+          GOROOT_BOOTSTRAP="$UPROOT1274" ./make.bash 2>&1 | tee "$RUNNER_TEMP/simd-zero-evidence/build.txt"
+          printf '%s\n' "$GITHUB_WORKSPACE/bin" >> "$GITHUB_PATH"
+      - name: "Check the full short SSA suite and vet"
+        if: "!cancelled() && steps.build.outcome == 'success'"
+        run: |
+          test "$(go env GOROOT)" = "$GITHUB_WORKSPACE"
+          go version | tee "$RUNNER_TEMP/simd-zero-evidence/toolchain.txt"
+          go test -count=1 -short cmd/compile/internal/ssa 2>&1 | tee "$RUNNER_TEMP/simd-zero-evidence/ssa.txt"
+          go vet cmd/compile/internal/ssa
+      - name: "Prove the frozen attack rejects the original zero-CSE source"
+        if: "!cancelled() && steps.build.outcome == 'success'"
+        run: |
+          source="$GITHUB_WORKSPACE/src/cmd/compile/internal/ssa/zcse.go"
+          mutation="$RUNNER_TEMP/simd-zero-mutation"
+          mkdir "$mutation"
+          sha256sum "$source" > "$RUNNER_TEMP/simd-zero-evidence/production.sha256"
+          test "$(grep -Fc ' && v.Op != OpZeroSIMD' "$source")" -eq 1
+          test "$(grep -Fc 'A SIMD zero may require a CPU feature checked' "$source")" -eq 1
+          test "$(grep -Fc 'predecessors. Leave it to dominance-aware CSE instead of' "$source")" -eq 1
+          test "$(grep -Fc 'moving it outside the guard.' "$source")" -eq 1
+          sed -e '/^[[:space:]]*\/\/ A SIMD zero may require a CPU feature checked by this block'"'"'s$/d' \
+              -e '/^[[:space:]]*\/\/ predecessors\. Leave it to dominance-aware CSE instead of$/d' \
+              -e '/^[[:space:]]*\/\/ moving it outside the guard\.$/d' \
+              -e 's/ && v\.Op != OpZeroSIMD//' "$source" > "$mutation/zcse.go"
+          printf '%s  %s\n' 89c0d4f2646b5dc9274534fc0f97ce5873a77db208aab96341309f61bf0ff324 "$mutation/zcse.go" | sha256sum --check --strict -
+          jq -n --arg source "$source" --arg replacement "$mutation/zcse.go" '{Replace: {($source): $replacement}}' > "$mutation/overlay.json"
+          if go test -count=1 -short -v -overlay="$mutation/overlay.json" cmd/compile/internal/ssa -run '^TestZCSEPreservesSIMDZeroGuards$' > "$RUNNER_TEMP/simd-zero-evidence/mutation.txt" 2>&1; then
+            cat "$RUNNER_TEMP/simd-zero-evidence/mutation.txt"
+            printf 'SIMD zero-hoisting mutation unexpectedly passed\n' >&2
+            exit 1
+          fi
+          cat "$RUNNER_TEMP/simd-zero-evidence/mutation.txt"
+          for width in 128 256 512; do
+            grep -F -- "--- FAIL: TestZCSEPreservesSIMDZeroGuards/$width " "$RUNNER_TEMP/simd-zero-evidence/mutation.txt"
+          done
+          test "$(grep -Fc 'independently guarded SIMD stores share a zero' "$RUNNER_TEMP/simd-zero-evidence/mutation.txt")" -eq 3
+          sha256sum --check --strict "$RUNNER_TEMP/simd-zero-evidence/production.sha256"
+          go test -count=1 -short -v cmd/compile/internal/ssa -run '^(TestZCSE|TestZCSEPreservesSIMDZeroGuards|TestCSECommonsSIMDZeroWithinGuard)$' 2>&1 | tee "$RUNNER_TEMP/simd-zero-evidence/clean-controls.txt"
+      - name: "Execute native and emulated baseline-target SIMD guards"
+        if: "!cancelled() && steps.build.outcome == 'success' && matrix.arch == 'amd64'"
+        run: |
+          qemu_dir="$RUNNER_TEMP/simd-zero-qemu"
+          mkdir "$qemu_dir"
+          curl --fail --silent --show-error --location --output "$qemu_dir/qemu-x86_64" https://github.com/multiarch/qemu-user-static/releases/download/v7.2.0-1/qemu-x86_64-static
+          printf '%s  %s\n' 7132ffd39aef71c26d3344cc0c7dffc530e10e3e720c58c8279a97ef6fdd7784 "$qemu_dir/qemu-x86_64" | sha256sum --check --strict -
+          chmod +x "$qemu_dir/qemu-x86_64"
+          "$qemu_dir/qemu-x86_64" --version | tee "$RUNNER_TEMP/simd-zero-evidence/qemu-version.txt"
+          printf '%s\n' "$qemu_dir" >> "$GITHUB_PATH"
+          expected=../test/logos/run/simd_zero_guard.out
+          binary="$RUNNER_TEMP/simd-zero-guard"
+          GOEXPERIMENT=simd GOAMD64=v1 go build -o "$binary" ../test/logos/run/simd_zero_guard.go
+          "$binary" > "$RUNNER_TEMP/simd-zero-evidence/native.out"
+          cmp "$expected" "$RUNNER_TEMP/simd-zero-evidence/native.out"
+          for cpu in Nehalem Haswell; do
+            for width in 128 256 512; do
+              output="$RUNNER_TEMP/simd-zero-evidence/qemu-$cpu-$width"
+              "$qemu_dir/qemu-x86_64" -cpu "$cpu" "$binary" "$width" > "$output.out" 2> "$output.err"
+              cmp "$expected" "$output.out"
+              printf 'CPU=%s width=%s: exact output passed\n' "$cpu" "$width"
+            done
+          done | tee "$RUNNER_TEMP/simd-zero-evidence/qemu-checks.txt"
+      - name: "Reproduce the original slice-sum program on lower ISA CPUs"
+        if: "!cancelled() && steps.build.outcome == 'success' && matrix.arch == 'amd64'"
+        run: |
+          fixture=cmd/go/testdata/script/logos_eject_simd_slice.txt
+          module="$RUNNER_TEMP/simd-zero-evidence/eject-simd-slice"
+          mkdir "$module"
+          test "$(grep -Fxc -- '-- m/go.mod --' "$fixture")" -eq 1
+          test "$(grep -Fxc -- '-- m/main.lgo --' "$fixture")" -eq 1
+          awk '$0 == "-- m/go.mod --" { copy = 1; next } copy && /^-- .* --$/ { exit } copy { print }' "$fixture" > "$module/go.mod"
+          awk '$0 == "-- m/main.lgo --" { copy = 1; next } copy && /^-- .* --$/ { exit } copy { print }' "$fixture" > "$module/main.lgo"
+          sha256sum "$module/go.mod" "$module/main.lgo" | tee "$module/sources.sha256"
+          printf '%s  %s\n' 6fe5f1a6cc7f1f3f5aa25b429e2b452a4aa088a3646587e5ba14a3e249cc35f0 "$module/main.lgo" | sha256sum --check --strict -
+          (
+            cd "$module"
+            export GOENV=off GOTOOLCHAIN=local GOWORK=off GOPROXY=off
+            GOEXPERIMENT='' GOAMD64=v1 "$GITHUB_WORKSPACE/bin/logos" build -o "$RUNNER_TEMP/eject-scalar" . 2>&1 | tee "$module/scalar-build.txt"
+            GOEXPERIMENT=simd GOAMD64=v1 "$GITHUB_WORKSPACE/bin/logos" build -o "$RUNNER_TEMP/eject-simd" . 2>&1 | tee "$module/simd-build.txt"
+          )
+          "$RUNNER_TEMP/eject-scalar" > "$module/scalar.out" 2> "$module/scalar.err"
+          test "$(wc -l < "$module/scalar.out")" -eq 72
+          "$RUNNER_TEMP/eject-simd" > "$module/native-simd.out" 2> "$module/native-simd.err"
+          cmp "$module/scalar.out" "$module/native-simd.out"
+          for cpu in Nehalem Haswell; do
+            "$RUNNER_TEMP/simd-zero-qemu/qemu-x86_64" -cpu "$cpu" "$RUNNER_TEMP/eject-simd" > "$module/$cpu.out" 2> "$module/$cpu.err"
+            cmp "$module/scalar.out" "$module/$cpu.out"
+            printf 'Original slice-sum program on %s: exact output passed\n' "$cpu"
+          done | tee "$module/checks.txt"
+      - name: "Install the upstream 1.27.2 ejection oracle"
+        if: "!cancelled() && steps.build.outcome == 'success' && matrix.arch == 'amd64'"
+        run: |
+          archive="$RUNNER_TEMP/go1.27.2.linux-amd64.tar.gz"
+          oracle="$RUNNER_TEMP/simd-zero-go1.27.2"
+          curl --fail --silent --show-error --location --output "$archive" https://go.dev/dl/go1.27.2.linux-amd64.tar.gz
+          printf '%s  %s\n' ecbadb99091a3f46e31f5f934b068b1864eafa7995211b39eaddf76996045fe5 "$archive" | tee "$RUNNER_TEMP/simd-zero-evidence/oracle.sha256" | sha256sum --check --strict -
+          mkdir "$oracle"
+          tar -xzf "$archive" -C "$oracle" --strip-components=1
+          test "$(env -u GOROOT GOENV=off GOTOOLCHAIN=local "$oracle/bin/go" env GOVERSION)" = go1.27.2
+          env -u GOROOT GOENV=off GOTOOLCHAIN=local "$oracle/bin/go" version | tee "$RUNNER_TEMP/simd-zero-evidence/oracle.txt"
+          printf 'UPROOT1272=%s\n' "$oracle" >> "$GITHUB_ENV"
+      - name: "Check landed host gates and scalar fallback scripts"
+        if: "!cancelled() && steps.build.outcome == 'success' && matrix.arch == 'amd64'"
+        run: |
+          selection='^TestScript$/^(README|logos_simd_gate_avx512|logos_simd_feature_gate|logos_simd_gate_branch|logos_simd_gate_noavx_qemu|logos_eject_simd_slice)$'
+          go test -count=1 -short -timeout 30m -v cmd/go -run "$selection" 2>&1 | tee "$RUNNER_TEMP/simd-zero-evidence/scripts.txt"
+          go test -count=1 -short -race -timeout 30m -v cmd/go -run "$selection" 2>&1 | tee "$RUNNER_TEMP/simd-zero-evidence/scripts-race.txt"
+      - name: "Recheck frozen attacks"
+        if: "!cancelled() && steps.frozen.outcome == 'success'"
+        run: |
+          sha256sum --check --strict "$RUNNER_TEMP/simd-zero-evidence/attacks.sha256"
+      - uses: "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9" # v7.0.2
+        if: "always()"
+        with:
+          name: "simd-zero-native-${{ matrix.arch }}-${{ github.run_id }}-${{ github.run_attempt }}"
+          path: "${{ runner.temp }}/simd-zero-evidence"
+
+  simd_std:
+    name: "SIMD baseline-target standard library"
+    runs-on: "ubuntu-26.04"
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: "bash"
+        working-directory: "src"
+    steps:
+      - uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" # v7.0.1
+        with:
+          persist-credentials: false
+          ref: "${{ github.event.pull_request.head.sha }}"
+      - uses: "actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e" # v7.0.0
+        with:
+          go-version: "1.27.4"
+          cache: false
+      - name: "Record exact source head and bootstrap toolchain"
+        run: |
+          mkdir -p "$RUNNER_TEMP/simd-zero-evidence"
+          git rev-parse HEAD | tee "$RUNNER_TEMP/simd-zero-evidence/head.txt"
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          test "$(go env GOVERSION)" = go1.27.4
+          test "$(go env GOARCH)" = amd64
+          printf 'UPROOT1274=%s\n' "$(go env GOROOT)" >> "$GITHUB_ENV"
+          go version | tee "$RUNNER_TEMP/simd-zero-evidence/bootstrap.txt"
+          lscpu | tee "$RUNNER_TEMP/simd-zero-evidence/cpu.txt"
+      - name: "Build the default toolchain"
+        id: "build"
+        run: |
+          GOROOT_BOOTSTRAP="$UPROOT1274" ./make.bash 2>&1 | tee "$RUNNER_TEMP/simd-zero-evidence/build.txt"
+          printf '%s\n' "$GITHUB_WORKSPACE/lib/wasm" "$GITHUB_WORKSPACE/bin" >> "$GITHUB_PATH"
+      - name: "Run the complete SIMD standard library at the baseline target"
+        if: "!cancelled() && steps.build.outcome == 'success'"
+        run: |
+          test "$(go env GOROOT)" = "$GITHUB_WORKSPACE"
+          GOEXPERIMENT=simd GOAMD64=v1 go test -count=1 -timeout 30m std 2>&1 | tee "$RUNNER_TEMP/simd-zero-evidence/simd-std.txt"
+      - uses: "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9" # v7.0.2
+        if: "always()"
+        with:
+          name: "simd-zero-std-${{ github.run_id }}-${{ github.run_attempt }}"
+          path: "${{ runner.temp }}/simd-zero-evidence"

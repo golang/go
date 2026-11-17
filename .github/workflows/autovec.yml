@@ -1,0 +1,284 @@
+name: "autovec stability"
+
+"on":
+  pull_request:
+    paths:
+      - ".github/workflows/autovec.yml"
+      - "src/cmd/compile/internal/ssa/autovec*"
+      - "src/cmd/compile/internal/ssa/compile.go"
+      - "src/cmd/compile/internal/ssagen/ssa.go"
+      - "src/cmd/compile/internal/typecheck/_builtin/runtime.go"
+      - "src/cmd/compile/internal/typecheck/builtin.go"
+      - "src/cmd/compile/internal/ssa/testdata/autovec*"
+      - "src/runtime/autovec*"
+      - "src/runtime/export_autovec_logos_test.go"
+      - "test/logos/**/autovec*"
+
+permissions:
+  contents: "read"
+
+jobs:
+  native:
+    name: "autovec native ${{ matrix.arch }}"
+    concurrency:
+      group: "autovec-native-${{ github.ref }}-${{ matrix.arch }}"
+      cancel-in-progress: true
+    runs-on: "${{ matrix.runner }}"
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: "amd64"
+            runner: "ubuntu-26.04"
+          - arch: "arm64"
+            runner: "ubuntu-26.04-arm"
+    defaults:
+      run:
+        shell: "bash"
+        working-directory: "src"
+    steps:
+      - uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" # v7.0.1
+        with:
+          persist-credentials: false
+          ref: "${{ github.event.pull_request.head.sha }}"
+      - uses: "actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e" # v7.0.0
+        with:
+          go-version: "1.27.4"
+          cache: false
+      - name: "Record native environment"
+        run: |
+          mkdir -p "$RUNNER_TEMP/autovec-evidence"
+          printf 'UPROOT1274=%s\n' "$(go env GOROOT)" >> "$GITHUB_ENV"
+          go version | tee "$RUNNER_TEMP/autovec-evidence/toolchain.txt"
+          lscpu | tee "$RUNNER_TEMP/autovec-evidence/cpu.txt"
+          test "$(go env GOARCH)" = "${{ matrix.arch }}"
+      - name: "Collect formatting and generated builtin differences"
+        id: "source_preflight"
+        continue-on-error: true
+        run: |
+          files=(cmd/compile/internal/ssa/autovec*.go cmd/compile/internal/ssa/testdata/autovec*.go ../test/logos/run/autovec*.go ../test/logos/codegen/autovec*.go runtime/autovec*.go runtime/export_autovec_logos_test.go cmd/compile/internal/ssagen/ssa.go cmd/compile/internal/typecheck/_builtin/runtime.go cmd/compile/internal/typecheck/builtin.go)
+          gofmt -d "${files[@]}" | tee "$RUNNER_TEMP/autovec-evidence/gofmt.diff"
+          (cd cmd/compile/internal/typecheck && go run mkbuiltin.go -stdout) > "$RUNNER_TEMP/autovec-evidence/builtin.generated.go"
+          builtin_diff_status=0
+          diff -u cmd/compile/internal/typecheck/builtin.go "$RUNNER_TEMP/autovec-evidence/builtin.generated.go" > "$RUNNER_TEMP/autovec-evidence/builtin.diff" || builtin_diff_status=$?
+          cat "$RUNNER_TEMP/autovec-evidence/builtin.diff"
+          test "$builtin_diff_status" -le 1
+      - name: "Build the toolchain"
+        id: "build"
+        run: |
+          GOROOT_BOOTSTRAP="$UPROOT1274" ./make.bash
+          printf '%s\n' "$GITHUB_WORKSPACE/bin" >> "$GITHUB_PATH"
+      - name: "Compare recovered mapped-memory faults"
+        if: "!cancelled() && steps.build.outcome == 'success'"
+        run: |
+          probe=cmd/compile/internal/ssa/testdata/autovec_fault_probe.go
+          {
+            printf 'upstream optimized\n'
+            GOEXPERIMENT=none GOAMD64=v3 "$UPROOT1274/bin/go" run "$probe"
+            printf 'upstream unoptimized\n'
+            GOEXPERIMENT=none GOAMD64=v3 "$UPROOT1274/bin/go" run -gcflags=-N "$probe"
+            printf 'fork SIMD enabled\n'
+            GOEXPERIMENT=simd GOAMD64=v3 go run "$probe"
+            printf 'fork pass disabled\n'
+            GOEXPERIMENT=simd GOAMD64=v3 go run -gcflags=-d=ssa/autovec/off "$probe"
+          } | tee "$RUNNER_TEMP/autovec-evidence/fault-order.txt"
+      - name: "Preserve writes before recovered faults"
+        if: "!cancelled() && steps.build.outcome == 'success'"
+        run: |
+          GOEXPERIMENT=simd GOAMD64=v3 go run ../test/logos/run/autovec_fault.go
+      - name: "Check compiler invariants and native fixtures"
+        if: "!cancelled() && steps.build.outcome == 'success'"
+        run: |
+          go test -count=1 -short cmd/compile/internal/ssa
+          go vet cmd/compile/internal/ssa cmd/compile/internal/ssagen cmd/compile/internal/typecheck runtime
+          go test -count=1 -short runtime -run TestLogosAutovecPanicOnFault
+          go test -count=1 -short -race runtime -run TestLogosAutovecPanicOnFault
+          GOEXPERIMENT=simd GOAMD64=v3 go test -count=1 -timeout 20m cmd/internal/testdir -run '^Test$/^logos$/^(codegen|run)$/^autovec' -all_codegen
+      - name: "Check guarded memory under compiler modes"
+        if: "!cancelled() && steps.build.outcome == 'success'"
+        run: |
+          fixture=../test/logos/run/autovec_memory.go
+          GOEXPERIMENT=simd GOAMD64=v3 go build -gcflags=-d=ssa/autovec/debug=1 -o "$RUNNER_TEMP/memory" "$fixture" 2>&1 | tee "$RUNNER_TEMP/autovec-evidence/memory-vectorization.txt"
+          for bits in 8 16 32 64; do
+            grep -E "autovec_memory.go:25:.*autovectorized $bits-bit integer loop" "$RUNNER_TEMP/autovec-evidence/memory-vectorization.txt"
+          done
+          "$RUNNER_TEMP/memory"
+          GOEXPERIMENT=simd GOAMD64=v3 go run -gcflags=-d=ssa/autovec/off "$fixture"
+          GOEXPERIMENT=none go run "$fixture"
+          GOEXPERIMENT=simd GOAMD64=v3 go run -race "$fixture"
+      - name: "Check synchronous GC in the vector loop"
+        if: "!cancelled() && steps.build.outcome == 'success'"
+        run: |
+          GOEXPERIMENT=simd,preemptibleloops GOAMD64=v3 go build -gcflags=-d=ssa/autovec/debug=1 -o "$RUNNER_TEMP/vector-gc" ../test/logos/run/autovec_gc.go 2>&1 | tee "$RUNNER_TEMP/autovec-evidence/gc-vectorization.txt"
+          grep -E 'autovec_gc.go:48:.*autovectorized 64-bit integer loop' "$RUNNER_TEMP/autovec-evidence/gc-vectorization.txt"
+          GODEBUG=asyncpreemptoff=1 timeout 90s "$RUNNER_TEMP/vector-gc"
+      - name: "Build the mutation overlay helper"
+        if: "!cancelled() && steps.build.outcome == 'success'"
+        run: |
+          go build -o "$RUNNER_TEMP/autovec-overlay" cmd/compile/internal/ssa/testdata/autovec_overlay.go
+      - name: "Prove the memory test catches a widened tail"
+        if: "!cancelled() && steps.build.outcome == 'success'"
+        run: |
+          mutation="$RUNNER_TEMP/autovec-tail-mutation"
+          mkdir "$mutation"
+          sha256sum ../test/logos/run/autovec_memory.go cmd/compile/internal/ssa/autovec_logos.go | tee "$RUNNER_TEMP/autovec-evidence/mutation-inputs.sha256"
+          "$RUNNER_TEMP/autovec-overlay" cmd/compile/internal/ssa/autovec_logos.go 'h.SetControl(h.NewValue2(pos, OpLess64,' 'h.SetControl(h.NewValue2(pos, OpLeq64,' "$mutation" > "$mutation/overlay.json"
+          go build -overlay="$mutation/overlay.json" -o "$mutation/compile" cmd/compile
+          cat > "$mutation/toolexec" <<'WRAPPER'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          tool=$1
+          shift
+          if [[ "${tool##*/}" == compile && "${TOOLEXEC_IMPORTPATH-}" == command-line-arguments ]]; then
+            exec "$AUTOVEC_MUTANT_COMPILER" "$@"
+          fi
+          exec "$tool" "$@"
+          WRAPPER
+          chmod +x "$mutation/toolexec"
+          AUTOVEC_MUTANT_COMPILER="$mutation/compile" GOCACHE="$mutation/cache" GOEXPERIMENT=simd GOAMD64=v3 go build -toolexec="$mutation/toolexec" -o "$mutation/memory" ../test/logos/run/autovec_memory.go
+          if "$mutation/memory" > "$RUNNER_TEMP/autovec-evidence/tail-mutation.txt" 2>&1; then
+            cat "$RUNNER_TEMP/autovec-evidence/tail-mutation.txt"
+            printf 'tail mutation unexpectedly passed\n' >&2
+            exit 1
+          fi
+          grep -F 'memoryMap' "$RUNNER_TEMP/autovec-evidence/tail-mutation.txt"
+          grep -E 'SIGSEGV|unexpected fault address' "$RUNNER_TEMP/autovec-evidence/tail-mutation.txt"
+          "$RUNNER_TEMP/memory"
+      - name: "Prove the runtime policy test rejects bypass"
+        if: "!cancelled() && steps.build.outcome == 'success'"
+        run: |
+          mutation="$RUNNER_TEMP/autovec-fault-mutation"
+          mkdir "$mutation"
+          sha256sum runtime/autovec_logos.go runtime/autovec_logos_test.go | tee "$RUNNER_TEMP/autovec-evidence/fault-mutation-inputs.sha256"
+          "$RUNNER_TEMP/autovec-overlay" runtime/autovec_logos.go 'return getg().paniconfault' 'return false' "$mutation" > "$mutation/overlay.json"
+          if GOCACHE="$mutation/cache" go test -count=1 -short -overlay="$mutation/overlay.json" runtime -run '^TestLogosAutovecPanicOnFault$' > "$RUNNER_TEMP/autovec-evidence/fault-mutation.txt" 2>&1; then
+            cat "$RUNNER_TEMP/autovec-evidence/fault-mutation.txt"
+            printf 'fault-policy mutation unexpectedly passed\n' >&2
+            exit 1
+          fi
+          cat "$RUNNER_TEMP/autovec-evidence/fault-mutation.txt"
+          grep -F 'child enabled: got false want true' "$RUNNER_TEMP/autovec-evidence/fault-mutation.txt"
+          go test -count=1 -short runtime -run '^TestLogosAutovecPanicOnFault$'
+          GOEXPERIMENT=simd GOAMD64=v3 go run ../test/logos/run/autovec_fault.go
+      - name: "Prove signed-shift tests reject unsigned lowering"
+        if: "!cancelled() && steps.build.outcome == 'success'"
+        run: |
+          mutation="$RUNNER_TEMP/autovec-shift-mutation"
+          mkdir "$mutation"
+          "$RUNNER_TEMP/autovec-overlay" cmd/compile/internal/ssa/autovec_logos.go 'op, scalarCount = p.lane.signedRight, true' 'op, scalarCount = p.lane.right, true' "$mutation" > "$mutation/overlay.json"
+          if go test -count=1 -short -overlay="$mutation/overlay.json" cmd/compile/internal/ssa -run '^TestLogosAutovecExpressions$' > "$RUNNER_TEMP/autovec-evidence/shift-mutation.txt" 2>&1; then
+            cat "$RUNNER_TEMP/autovec-evidence/shift-mutation.txt"
+            printf 'signed-shift mutation unexpectedly passed\n' >&2
+            exit 1
+          fi
+          cat "$RUNNER_TEMP/autovec-evidence/shift-mutation.txt"
+          grep -E 'missing vector operation ShiftAllRightInt(16x8|32x4)' "$RUNNER_TEMP/autovec-evidence/shift-mutation.txt"
+          go test -count=1 -short cmd/compile/internal/ssa -run '^TestLogosAutovecExpressions$'
+      - name: "Prove the range oracle rejects absolute alias bounds"
+        if: "!cancelled() && steps.build.outcome == 'success'"
+        run: |
+          mutation="$RUNNER_TEMP/autovec-start-mutation"
+          mkdir "$mutation"
+          "$RUNNER_TEMP/autovec-overlay" cmd/compile/internal/ssa/autovec_logos.go 'OpLeq64U, typ.Bool, count, distance' 'OpLeq64U, typ.Bool, end, distance' "$mutation" > "$mutation/overlay.json"
+          if go test -count=1 -short -overlay="$mutation/overlay.json" cmd/compile/internal/ssa -run '^TestLogosAutovecInvariantStartAndAliasGuard$' > "$RUNNER_TEMP/autovec-evidence/start-mutation.txt" 2>&1; then
+            cat "$RUNNER_TEMP/autovec-evidence/start-mutation.txt"
+            printf 'absolute-bound mutation unexpectedly passed\n' >&2
+            exit 1
+          fi
+          cat "$RUNNER_TEMP/autovec-evidence/start-mutation.txt"
+          grep -F 'bound=' "$RUNNER_TEMP/autovec-evidence/start-mutation.txt"
+          go test -count=1 -short cmd/compile/internal/ssa -run '^TestLogosAutovecInvariantStartAndAliasGuard$'
+      - name: "Check native and ejected source with upstream Go"
+        if: "!cancelled() && steps.build.outcome == 'success'"
+        run: |
+          fork="$GITHUB_WORKSPACE"
+          upgo="$UPROOT1274/bin/go"
+          upver=$(env -u GOROOT GOENV=off GOTOOLCHAIN=local "$upgo" version)
+          [[ "$upver" == 'go version go1.27.4 '* ]]
+          export GOENV=off GOFLAGS='' GOWORK=off GOPROXY=off GOTOOLCHAIN=local
+          if [[ $(env -u GOROOT "$fork/bin/go" env GOARCH) == amd64 ]]; then export GOAMD64=v3; fi
+          test -f "$fork/test/logos/run/autovec.lgo"
+          smoke=$(mktemp -d "$RUNNER_TEMP/autovec-eject.XXXXXX")
+          for name in autovec autovec_expr autovec_start; do
+            fixture="$fork/test/logos/run/$name.lgo"
+            if [[ ! -f "$fixture" ]]; then continue; fi
+            dir="$smoke/$name"
+            mkdir "$dir"
+            printf 'module example.com/autovec-eject\n\ngo 1.27\n' > "$dir/go.mod"
+            cp "$fixture" "$dir/main.lgo"
+            (
+              cd "$dir"
+              env -u GOROOT GOEXPERIMENT=simd "$fork/bin/logos" run . > native.out
+              env -u GOROOT GOEXPERIMENT=simd "$fork/bin/logos" eject -o out
+              test -f out/main.go
+              cd out
+              env -u GOROOT GOEXPERIMENT=none "$upgo" run . > ../upstream.out
+              cmp ../native.out ../upstream.out
+            )
+            printf 'Native and upstream eject passed: %s\n' "$name"
+          done
+      - name: "Enforce formatting and generated builtins"
+        if: "always()"
+        run: |
+          test "${{ steps.source_preflight.outcome }}" = success
+          test -f "$RUNNER_TEMP/autovec-evidence/gofmt.diff"
+          test -f "$RUNNER_TEMP/autovec-evidence/builtin.diff"
+          test ! -s "$RUNNER_TEMP/autovec-evidence/gofmt.diff"
+          test ! -s "$RUNNER_TEMP/autovec-evidence/builtin.diff"
+      - uses: "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9" # v7.0.2
+        if: "always()"
+        with:
+          name: "autovec-native-${{ matrix.arch }}-${{ github.run_id }}-${{ github.run_attempt }}"
+          path: "${{ runner.temp }}/autovec-evidence"
+
+  regression:
+    name: "upstream and SIMD regression"
+    concurrency:
+      group: "autovec-upstream-${{ github.ref }}"
+      cancel-in-progress: true
+    runs-on: "ubuntu-26.04"
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: "bash"
+        working-directory: "src"
+    steps:
+      - uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" # v7.0.1
+        with:
+          persist-credentials: false
+          ref: "${{ github.event.pull_request.head.sha }}"
+      - uses: "actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e" # v7.0.0
+        with:
+          go-version: "1.27.4"
+          cache: false
+      - uses: "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1" # v7.1.0
+        with:
+          node-version: "26.13.1"
+      - name: "Install the upstream oracle toolchains"
+        run: |
+          printf 'UPROOT1274=%s\n' "$(go env GOROOT)" >> "$GITHUB_ENV"
+          while read -r version sha256 root; do
+            archive="$RUNNER_TEMP/go$version.linux-amd64.tar.gz"
+            curl --fail --silent --show-error --location --output "$archive" "https://go.dev/dl/go$version.linux-amd64.tar.gz"
+            printf '%s  %s\n' "$sha256" "$archive" | sha256sum --check --strict -
+            mkdir "$RUNNER_TEMP/go$version"
+            tar -xzf "$archive" -C "$RUNNER_TEMP/go$version" --strip-components=1
+            printf '%s=%s\n' "$root" "$RUNNER_TEMP/go$version" >> "$GITHUB_ENV"
+          done <<'PINS'
+          1.27.2 ecbadb99091a3f46e31f5f934b068b1864eafa7995211b39eaddf76996045fe5 UPROOT1272
+          1.27.3 65efbc80fdc1fa2cd2631cad5b481777a68e8725f34e89f50fc6ac714e379b40 UPROOT1273
+          PINS
+      - name: "Build the toolchain"
+        id: "build"
+        run: |
+          GOROOT_BOOTSTRAP="$UPROOT1274" ./make.bash
+          printf '%s\n' "$GITHUB_WORKSPACE/lib/wasm" "$GITHUB_WORKSPACE/bin" >> "$GITHUB_PATH"
+      - name: "Run the complete upstream regression gate"
+        if: "!cancelled() && steps.build.outcome == 'success'"
+        run: |
+          GO_TEST_TIMEOUT_SCALE=8 ./run.bash --no-rebuild
+      - name: "Run the SIMD-enabled standard library"
+        if: "!cancelled() && steps.build.outcome == 'success'"
+        run: |
+          GOEXPERIMENT=simd GOAMD64=v3 go test -count=1 -timeout 30m std

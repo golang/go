@@ -1,0 +1,91 @@
+name: "autovec benchmarks"
+
+"on":
+  pull_request:
+    paths:
+      - ".github/workflows/autovec-bench.yml"
+      - "src/cmd/compile/internal/ssa/autovec_logos.go"
+      - "src/cmd/compile/internal/ssa/testdata/autovec_bench_test.go"
+      - "test/logos/bench/autovec_measure.sh"
+
+permissions:
+  contents: "read"
+
+concurrency:
+  group: "autovec-bench-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  benchmark:
+    name: "autovec benchmark ${{ matrix.arch }}"
+    runs-on: "${{ matrix.runner }}"
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: "amd64"
+            runner: "ubuntu-26.04"
+            archive: "x86_64-unknown-linux-gnu"
+            sha256: "ae2beda2ac99c098427e4f755244552daf20e514422889cca6d44421e2d93c87"
+          - arch: "arm64"
+            runner: "ubuntu-26.04-arm"
+            archive: "aarch64-unknown-linux-gnu"
+            sha256: "f8244d1e17f8da23ee6b3ae2cdc04a6a185a450f6b74e09bff12e498038fcbc9"
+    env:
+      AUTOVEC_BASE_SHA: "${{ github.event.pull_request.base.sha }}"
+      AUTOVEC_CAND_SHA: "${{ github.event.pull_request.head.sha }}"
+      AUTOVEC_OUT_ROOT: "${{ github.workspace }}/.outline/optimize/autovec"
+    defaults:
+      run:
+        shell: "bash"
+    steps:
+      - uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" # v7.0.1
+        with:
+          persist-credentials: false
+          ref: "${{ github.event.pull_request.head.sha }}"
+      - uses: "actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e" # v7.0.0
+        with:
+          go-version: "1.27.4"
+          cache: false
+      - name: "Install the pinned timing tool"
+        run: |
+          archive="hyperfine-v2.0.0-${{ matrix.archive }}"
+          curl --fail --silent --show-error --location --output "$RUNNER_TEMP/$archive.tar.gz" "https://github.com/sharkdp/hyperfine/releases/download/v2.0.0/$archive.tar.gz"
+          printf '%s  %s\n' '${{ matrix.sha256 }}' "$RUNNER_TEMP/$archive.tar.gz" | sha256sum --check --strict -
+          tar -xzf "$RUNNER_TEMP/$archive.tar.gz" -C "$RUNNER_TEMP"
+          printf '%s\n' "$RUNNER_TEMP/$archive" >> "$GITHUB_PATH"
+      - name: "Build both exact revisions on this runner"
+        run: |
+          [[ "$AUTOVEC_BASE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$AUTOVEC_CAND_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$AUTOVEC_CAND_SHA"
+          test "$(go env GOARCH)" = "${{ matrix.arch }}"
+          GOROOT_BOOTSTRAP="$(go env GOROOT)"
+          export GOROOT_BOOTSTRAP
+          git fetch --no-tags --depth=1 origin "$AUTOVEC_BASE_SHA"
+          git worktree add --quiet --detach "$RUNNER_TEMP/autovec-base" "$AUTOVEC_BASE_SHA"
+          (cd "$RUNNER_TEMP/autovec-base/src" && ./make.bash)
+          (cd src && ./make.bash)
+      - name: "Measure frozen workloads sequentially"
+        run: |
+          for benchmark in BenchmarkAutovecFixedPoint BenchmarkAutovecStartFixed BenchmarkAutovecStartVariable; do
+            run="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$benchmark"
+            bash test/logos/bench/autovec_measure.sh \
+              "$run" "$benchmark" \
+              "$RUNNER_TEMP/autovec-base/bin/go" "$GITHUB_WORKSPACE/bin/go" \
+              "$GITHUB_WORKSPACE/src/cmd/compile/internal/ssa/testdata/autovec_bench_test.go" \
+              "$AUTOVEC_BASE_SHA" "$AUTOVEC_CAND_SHA"
+            n=$(jq -er 'select(.event == "measurement") | .iterations' "$AUTOVEC_OUT_ROOT/$run/events.jsonl")
+            AUTOVEC_FIXED_N="$n" bash test/logos/bench/autovec_measure.sh \
+              "$run-integration" "$benchmark" \
+              "$RUNNER_TEMP/autovec-base/bin/go" "$GITHUB_WORKSPACE/bin/go" \
+              "$GITHUB_WORKSPACE/src/cmd/compile/internal/ssa/testdata/autovec_bench_test.go" \
+              "$AUTOVEC_BASE_SHA" "$AUTOVEC_CAND_SHA"
+          done
+      - uses: "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9" # v7.0.2
+        if: "always()"
+        with:
+          name: "autovec-bench-${{ matrix.arch }}-${{ github.run_id }}-${{ github.run_attempt }}"
+          path: "${{ github.workspace }}/.outline/optimize/autovec"
+          include-hidden-files: true

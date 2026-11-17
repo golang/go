@@ -169,6 +169,7 @@ var runtimeDecls = [...]struct {
 	{"logosArenaMarkSave", funcTag, 130},
 	{"logosArenaMarkRestore", funcTag, 131},
 	{"logosArenaRetTake", funcTag, 132},
+	{"logosAutovecPanicOnFault", funcTag, 132},
 	{"logosArenaRetSet", funcTag, 17},
 	{"logosRegionOpen", funcTag, 133},
 	{"logosRegionClose", funcTag, 134},
