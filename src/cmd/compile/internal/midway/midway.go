@@ -22,7 +22,12 @@ func rewriteSizes() []int {
 
 const SimdPkg = "simd"
 const SimdBridgePkg = "simd/internal/bridge"
+
+// Private @-prefixed import aliases used for midway-generated references so
+// injected imports cannot collide with user identifiers, imports, or locals.
+const simdPkgAlias = "@simd"
 const archPkg = "bridge"
+const archPkgAlias = "@bridge"
 const vectorSizeFn = "VectorBits"
 const emulatedFn = "Emulated"
 

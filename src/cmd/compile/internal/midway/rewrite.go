@@ -244,6 +244,11 @@ func (r *Rewriter) generateDispatchers(fileAST *syntax.File) {
 			newDecls = append(newDecls, d)
 
 		case *syntax.TypeDecl:
+			// Mark changed even for type-only files so @bridge is imported for
+			// the specialized type definitions appended by generateForSize.
+			if r.shouldIncludeDecl(d) && !r.analyzer.inSimd {
+				change = true
+			}
 			// Keep all types; we need the untranslated copy if a method referencing it
 			// needs to typecheck pre-translation.
 			newDecls = append(newDecls, d)
@@ -259,62 +264,65 @@ func (r *Rewriter) generateDispatchers(fileAST *syntax.File) {
 	fileAST.DeclList = newDecls
 
 	if !r.analyzer.inSimd {
-		// Inject imports for the simd and bridge packages (if they do not already exist)
-		hasArchSimd := false
-		var simdImport *syntax.ImportDecl
+		// Inject private aliases for the simd and bridge packages so midway-generated
+		// references never collide with user declarations, imports, or locals.
+		var userSimdImports []*syntax.ImportDecl
 		p := fileAST.Pos()
 		for _, decl := range fileAST.DeclList {
 			if imp, ok := decl.(*syntax.ImportDecl); ok {
 				if imp.Path.Value == `"`+SimdBridgePkg+`"` {
-					if imp.LocalPkgName == nil || imp.LocalPkgName.Value == archPkg {
-						hasArchSimd = true
-					} else if imp.LocalPkgName.Value == "_" {
-						imp.LocalPkgName = nil
-						hasArchSimd = true
-					}
-					if simdImport == nil {
+					if len(userSimdImports) == 0 {
 						p = imp.Pos()
 					}
 				}
 				if imp.Path.Value == `"`+SimdPkg+`"` {
-					if imp.LocalPkgName == nil || imp.LocalPkgName.Value == SimdPkg {
-						simdImport = imp
-					} else if imp.LocalPkgName.Value == "_" {
-						imp.LocalPkgName = nil
-						simdImport = imp
+					if imp.LocalPkgName == nil || imp.LocalPkgName.Value != "_" {
+						userSimdImports = append(userSimdImports, imp)
 					}
 					p = imp.Pos()
 				}
 			}
 		}
 
-		if simdImport == nil {
-			r.injectImport(fileAST, SimdPkg, p)
+		r.injectImport(fileAST, simdPkgAlias, SimdPkg, p)
+		r.injectImport(fileAST, archPkgAlias, SimdBridgePkg, p)
+
+		// Ensure at least one use of the injected @simd import and any user
+		// imports of "simd" (unaliased, aliased, or dot-imported) whose
+		// references may have been rewritten.
+		// var _ = <pkgIdent>.VectorBits()  (or var _ = VectorBits() for dot-import)
+		appendSimdUse := func(pkgIdent string, pos syntax.Pos) {
+			var fun syntax.Expr
+			if pkgIdent == "." {
+				fun = syntax.NewName(pos, vectorSizeFn)
+			} else {
+				sel := &syntax.SelectorExpr{
+					X:   syntax.NewName(pos, pkgIdent),
+					Sel: syntax.NewName(pos, vectorSizeFn),
+				}
+				sel.SetPos(pos)
+				fun = sel
+			}
+			call := &syntax.CallExpr{Fun: fun}
+			call.SetPos(pos)
+			name := syntax.NewName(pos, "_")
+			varDecl := &syntax.VarDecl{NameList: []*syntax.Name{name}, Values: call}
+			varDecl.SetPos(pos)
+			fileAST.DeclList = append(fileAST.DeclList, varDecl)
 		}
-		if !hasArchSimd {
-			r.injectImport(fileAST, SimdBridgePkg, p)
+		appendSimdUse(simdPkgAlias, p)
+		for _, imp := range userSimdImports {
+			ident := SimdPkg
+			if imp.LocalPkgName != nil {
+				ident = imp.LocalPkgName.Value
+			}
+			appendSimdUse(ident, imp.Pos())
 		}
 
-		// Ensure at least one use of "simd"
-		// var _ = simd.VectorBitLen()
-		fun := &syntax.SelectorExpr{
-			X:   syntax.NewName(p, SimdPkg), // Assume this is resolvable
-			Sel: syntax.NewName(p, vectorSizeFn),
-		}
-		fun.SetPos(p)
-		call := &syntax.CallExpr{Fun: fun}
-		call.SetPos(p)
-
-		name := syntax.NewName(p, "_")
-
-		varDecl := &syntax.VarDecl{NameList: []*syntax.Name{name}, Values: call}
-		varDecl.SetPos(p)
-		fileAST.DeclList = append(fileAST.DeclList, varDecl)
-
-		// Ensure at least one use of "simd/internal/bridge"
-		// var _ bridge.ZeroSized
+		// Ensure at least one use of the injected @bridge import
+		// var _ @bridge.ZeroSized
 		bridgeType := &syntax.SelectorExpr{
-			X:   syntax.NewName(p, archPkg),
+			X:   syntax.NewName(p, archPkgAlias),
 			Sel: syntax.NewName(p, "ZeroSized"),
 		}
 		bridgeType.SetPos(p)
@@ -325,9 +333,10 @@ func (r *Rewriter) generateDispatchers(fileAST *syntax.File) {
 	}
 }
 
-func (r *Rewriter) injectImport(fileAST *syntax.File, toImport string, simdImportPos syntax.Pos) {
+func (r *Rewriter) injectImport(fileAST *syntax.File, localName, toImport string, simdImportPos syntax.Pos) {
 	importDecl := &syntax.ImportDecl{
-		Path: &syntax.BasicLit{Value: `"` + toImport + `"`, Kind: syntax.StringLit},
+		LocalPkgName: syntax.NewName(simdImportPos, localName),
+		Path:         &syntax.BasicLit{Value: `"` + toImport + `"`, Kind: syntax.StringLit},
 	}
 	importDecl.Path.SetPos(simdImportPos)
 	importDecl.SetPos(simdImportPos)
@@ -363,10 +372,19 @@ func (r *Rewriter) createDispatcherBody(d *syntax.FuncDecl, sig *types2.Signatur
 		return e
 	}
 
+	simdCallExpr := func(fnName string) syntax.Expr {
+		return pe(&syntax.CallExpr{
+			Fun: pe(&syntax.SelectorExpr{
+				X:   syntax.NewName(d.Pos(), simdPkgAlias),
+				Sel: syntax.NewName(d.Pos(), fnName),
+			}),
+		})
+	}
+
 	// switch ast node.
 	// the goal is something like (for now, till there are finer-grained choices)
-	// switch simd.VectorSize() {
-	//   case 128: if simd.Emulated() { call the specialize-for-emulation-code(args) }
+	// switch @simd.VectorBits() {
+	//   case 128: if @simd.Emulated() { call the specialize-for-emulation-code(args) }
 	//             else { call the specialize-for-128-code(args) }
 	//   case 256: call the specialize-for-256-code(args)
 	//   etc
@@ -374,12 +392,7 @@ func (r *Rewriter) createDispatcherBody(d *syntax.FuncDecl, sig *types2.Signatur
 	//
 	// the cases above deal with the usual `return call(...)` vs `call(...); return`
 	switchStmt := &syntax.SwitchStmt{
-		Tag: pe(&syntax.CallExpr{
-			Fun: pe(&syntax.SelectorExpr{
-				X:   syntax.NewName(d.Pos(), SimdPkg), // Assume this is resolvable
-				Sel: syntax.NewName(d.Pos(), vectorSizeFn),
-			}),
-		}),
+		Tag:  simdCallExpr(vectorSizeFn),
 		Body: []*syntax.CaseClause{},
 	}
 
@@ -425,11 +438,7 @@ func (r *Rewriter) createDispatcherBody(d *syntax.FuncDecl, sig *types2.Signatur
 	}
 
 	guardCallWithCondition := func(require string, stmt syntax.Stmt) syntax.Stmt {
-		cond := pe(&syntax.CallExpr{
-			Fun: pe(&syntax.SelectorExpr{
-				X:   syntax.NewName(d.Pos(), SimdPkg), // Assume this is resolvable
-				Sel: syntax.NewName(d.Pos(), require),
-			})})
+		cond := simdCallExpr(require)
 
 		blockStmt, ok := stmt.(*syntax.BlockStmt)
 		if !ok {

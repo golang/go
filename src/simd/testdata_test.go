@@ -100,6 +100,12 @@ func TestIFace(t *testing.T) {
 	common(t, "testdata", "iface_test.go", "")
 }
 
+func TestImportShadowing(t *testing.T) {
+	for _, f := range []string{"dotimport_test.go", "alias_shadow_test.go"} {
+		common(t, "testdata", f, "")
+	}
+}
+
 func TestSizeof(t *testing.T) {
 	common(t, "testdata", "sizeof_test.go", "")
 }

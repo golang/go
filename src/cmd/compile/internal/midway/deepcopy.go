@@ -88,113 +88,103 @@ func (c *DeepCopier) OnName(id *syntax.Name) *syntax.Name {
 	return nil
 }
 
-// OnNameExpr rewrites references to simd.<simd type> into
-// <bridge package>.<size-dependent-type>.
+func (c *DeepCopier) bridgePkgIdent() string {
+	if c.analyzer != nil && c.analyzer.inSimd {
+		return archPkg
+	}
+	return archPkgAlias
+}
+
+// bridgeSimdSelector rewrites a base simd type or Load/Broadcast function name
+// (e.g., "Int8s", "LoadInt8s", "LoadInt8sPart", "BroadcastInt8s") into a
+// selector referencing the corresponding bridge symbol.
+func (c *DeepCopier) bridgeSimdSelector(pos, selPos syntax.Pos, origName string) syntax.Expr {
+	prefix := ""
+	nameSuffix := ""
+	name := origName
+	end := len(name)
+	if strings.HasPrefix(name, "Load") {
+		prefix = "Load"
+		if strings.HasSuffix(name, "Part") {
+			end = strings.Index(name, "Part")
+			nameSuffix = "Part"
+		}
+		name = name[len("Load"):end]
+	} else if strings.HasPrefix(name, "Broadcast") {
+		prefix = "Broadcast"
+		name = name[len("Broadcast"):end]
+	}
+
+	width := nameToElemBitWidth(name)
+	if width == 0 {
+		return nil
+	}
+
+	archsimdId := syntax.NewName(pos, c.bridgePkgIdent())
+	if c.VecLen == 0 {
+		// emulated instead, name is unchanged
+		newSel := &syntax.SelectorExpr{
+			X:   archsimdId,
+			Sel: syntax.NewName(selPos, origName),
+		}
+		newSel.SetPos(pos)
+		return newSel
+	}
+
+	count := c.VecLen / width
+	baseName := name[:len(name)-1]
+	newName := prefix + fmt.Sprintf("%sx%d", baseName, count) + nameSuffix
+
+	newSel := &syntax.SelectorExpr{
+		X:   archsimdId,
+		Sel: syntax.NewName(selPos, newName),
+	}
+	newSel.SetPos(pos)
+	return newSel
+}
+
+// OnNameExpr rewrites bare references to simd types or Load/Broadcast functions
+// (either within package simd or via dot-import `import . "simd"`) into
+// <bridge package>.<size-dependent-symbol>.
 func (c *DeepCopier) OnNameExpr(id *syntax.Name) syntax.Expr {
+	if c.info == nil || c.analyzer == nil {
+		return nil
+	}
 	obj := c.info.Uses[id]
 	if obj == nil {
 		obj = c.info.Defs[id]
 	}
-	if obj == nil {
+	if obj == nil || obj.Pkg() == nil || obj.Pkg().Path() != SimdPkg {
 		return nil
 	}
-
-	if isBaseSimdTypeObj(obj) {
-		// if it is a name, that means that this is in the simd package,
-		// and the name must be replaced with a selector referencing
-		// the architecture-dependent packages.
-		name := id.Value
-		width := nameToElemBitWidth(name)
-		if width > 0 {
-			archsimdId := syntax.NewName(id.Pos(), archPkg)
-			if c.VecLen == 0 {
-				// special case for emulation
-				newSel := &syntax.SelectorExpr{
-					X:   archsimdId,
-					Sel: syntax.NewName(id.Pos(), id.Value),
-				}
-				newSel.SetPos(id.Pos())
-				return newSel
-			}
-
-			count := c.VecLen / width
-			base := name[:len(name)-1]
-			newName := fmt.Sprintf("%sx%d", base, count)
-			newSelId := syntax.NewName(id.Pos(), newName)
-			newSel := &syntax.SelectorExpr{
-				X:   archsimdId,
-				Sel: newSelId,
-			}
-			newSel.SetPos(id.Pos())
-			return newSel
+	// Only rewrite base simd types and package-level Load/Broadcast functions
+	// (not methods or struct fields) so bare dot-imported names map to bridge.
+	switch o := obj.(type) {
+	case *types2.TypeName:
+		if !isBaseSimdTypeObj(o) {
+			return nil
 		}
-	}
-
-	if c.analyzer.isDependentObj[obj] {
-		newId := syntax.NewName(id.Pos(), id.Value+c.dependentSuffix)
-		// Object link will be handled manually in deepcopier Use/Def mapper
-		if base.Debug.Simd > 0 {
-			base.Warn("%s: rewriting name %s to %s", id.Pos().String(), id.Value, newId.Value)
+	case *types2.Func:
+		if sig, ok := o.Type().(*types2.Signature); !ok || sig.Recv() != nil {
+			return nil
 		}
-		return newId
+	default:
+		return nil
 	}
-	return nil
+	return c.bridgeSimdSelector(id.Pos(), id.Pos(), id.Value)
 }
 
 // OnSelector is looking for simd.Something, to be rewritten into
 // appropriately.  Note that this will not work properly within the simd
 // package because there is no "simd." selection there.
 func (c *DeepCopier) OnSelector(se *syntax.SelectorExpr) syntax.Expr {
+	if c.info == nil {
+		return nil
+	}
 	if x, ok := se.X.(*syntax.Name); ok {
 		obj := c.info.Uses[x]
 		if pkgName, isPkg := obj.(*types2.PkgName); isPkg && pkgName.Imported().Path() == SimdPkg {
-			// This first little bit detects name = Load-Type-Width-s-{,Part}
-			// and converts the name to Type-Width-s (for nameToWidth), sets isLoad,
-			// and initializes the suffix appropriately.
-			prefix := ""
-			nameSuffix := ""
-			name := se.Sel.Value
-			end := len(name)
-			if strings.HasPrefix(name, "Load") {
-				prefix = "Load"
-				if strings.HasSuffix(name, "Part") {
-					end = strings.Index(name, "Part")
-					nameSuffix = "Part"
-				}
-				name = name[len("Load"):end]
-			}
-			if strings.HasPrefix(name, "Broadcast") {
-				prefix = "Broadcast"
-				name = name[len("Broadcast"):end]
-			}
-
-			width := nameToElemBitWidth(name)
-			if width > 0 {
-				archsimdId := syntax.NewName(se.Pos(), archPkg)
-				if c.VecLen == 0 {
-					// emulated instead, name is unchanged
-					newSel := &syntax.SelectorExpr{
-						X:   archsimdId,
-						Sel: syntax.NewName(se.Sel.Pos(), se.Sel.Value),
-					}
-					newSel.SetPos(se.Pos())
-					return newSel
-				}
-
-				count := c.VecLen / width
-				base := name[:len(name)-1]
-				newName := fmt.Sprintf("%sx%d", base, count)
-				newName = prefix + newName + nameSuffix
-
-				newSelId := syntax.NewName(se.Sel.Pos(), newName)
-
-				newSel := &syntax.SelectorExpr{
-					X:   archsimdId,
-					Sel: newSelId,
-				}
-				newSel.SetPos(se.Pos())
-				return newSel
-			}
+			return c.bridgeSimdSelector(se.Pos(), se.Sel.Pos(), se.Sel.Value)
 		}
 	}
 	return nil
@@ -312,13 +302,9 @@ func (c *DeepCopier) CopyName(id *syntax.Name, isDef bool) *syntax.Name {
 }
 
 func (c *DeepCopier) CopyNameExpr(id *syntax.Name) syntax.Expr {
-	if !c.analyzer.inSimd {
-		return c.CopyName(id, false)
-	}
 	if id == nil {
 		return nil
 	}
-
 	if match := c.OnNameExpr(id); match != nil {
 		match.SetPos(id.Pos())
 		if n, ok := match.(*syntax.Name); ok {
@@ -326,10 +312,7 @@ func (c *DeepCopier) CopyNameExpr(id *syntax.Name) syntax.Expr {
 		}
 		return match
 	}
-
-	newId := syntax.NewName(id.Pos(), id.Value)
-	c.mapUse(newId, id)
-	return newId
+	return c.CopyName(id, false)
 }
 
 func (c *DeepCopier) CopyExpr(e syntax.Expr) syntax.Expr {
