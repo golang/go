@@ -27,8 +27,8 @@ const (
 )
 
 const (
-	_ = uint(4*goarch.PtrSize - unsafe.Offsetof(g{}.logosArena))
-	_ = uint(unsafe.Offsetof(g{}.logosArena) - 4*goarch.PtrSize)
+	_ = uint(13*goarch.PtrSize - unsafe.Offsetof(g{}.logosArena))
+	_ = uint(unsafe.Offsetof(g{}.logosArena) - 13*goarch.PtrSize)
 	_ = uint(2*goarch.PtrSize - unsafe.Offsetof(sideStackChunk{}.noscanCur))
 	_ = uint(unsafe.Offsetof(sideStackChunk{}.noscanCur) - 2*goarch.PtrSize)
 	_ = uint(3*goarch.PtrSize - unsafe.Offsetof(sideStackChunk{}.scanCur))

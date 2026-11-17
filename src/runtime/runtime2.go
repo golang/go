@@ -480,6 +480,14 @@ type g struct {
 	stackguard0 uintptr // offset known to cmd/internal/obj/*
 	stackguard1 uintptr // offset known to cmd/internal/obj/*
 
+	_panic *_panic // innermost panic
+	_defer *_defer // innermost defer
+	m      *m      // current m
+	sched  gobuf
+
+	// The four arena/region fields live after sched so the upstream
+	// Go 1.27 prefix offsets (_panic, _defer, m, sched) stay intact for
+	// third-party assembly that addresses g fields numerically.
 	// logosArena is the newest chunk of the loGo/s arena chain leased to
 	// this goroutine (M18-S1); older chunks hang off sideStackChunk.next.
 	// Nil when the goroutine holds no arena chunk.
@@ -492,15 +500,10 @@ type g struct {
 	logosArenaRetOK bool
 	logosRegions    *logosRegion
 	logosRegionFree *logosRegion
-
-	_panic    *_panic // innermost panic
-	_defer    *_defer // innermost defer
-	m         *m      // current m
-	sched     gobuf
-	syscallsp uintptr // if status==Gsyscall, syscallsp = sched.sp to use during gc
-	syscallpc uintptr // if status==Gsyscall, syscallpc = sched.pc to use during gc
-	syscallbp uintptr // if status==Gsyscall, syscallbp = sched.bp to use in fpTraceback
-	stktopsp  uintptr // expected sp at top of stack, to check in traceback
+	syscallsp       uintptr // if status==Gsyscall, syscallsp = sched.sp to use during gc
+	syscallpc       uintptr // if status==Gsyscall, syscallpc = sched.pc to use during gc
+	syscallbp       uintptr // if status==Gsyscall, syscallbp = sched.bp to use in fpTraceback
+	stktopsp        uintptr // expected sp at top of stack, to check in traceback
 	// param is a generic pointer parameter field used to pass
 	// values in particular contexts where other storage for the
 	// parameter would be difficult to find. It is currently used

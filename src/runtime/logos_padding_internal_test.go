@@ -23,6 +23,8 @@ var (
 	LogosGGroupSize          = unsafe.Sizeof(g{}.logosGroup)
 	LogosGLastSize           = unsafe.Sizeof(g{}.logosErrLast)
 	LogosGLastTypSize        = unsafe.Sizeof(g{}.logosErrLastTyp)
+	LogosGMOff               = unsafe.Offsetof(g{}.m)
+	LogosGSchedOff           = unsafe.Offsetof(g{}.sched)
 	LogosGArenaOff           = unsafe.Offsetof(g{}.logosArena)
 	LogosGRetOKOff           = unsafe.Offsetof(g{}.logosArenaRetOK)
 	LogosGRegionsOff         = unsafe.Offsetof(g{}.logosRegions)

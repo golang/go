@@ -48,7 +48,7 @@ func TestLogosArenaBumpLowersAMD64(t *testing.T) {
 }
 
 func TestLogosArenaGOffset(t *testing.T) {
-	if logosArenaGOffset != 4*goarch.PtrSize {
-		t.Fatalf("logosArenaGOffset = %d, want 4*goarch.PtrSize = %d", logosArenaGOffset, 4*goarch.PtrSize)
+	if logosArenaGOffset != 13*goarch.PtrSize {
+		t.Fatalf("logosArenaGOffset = %d, want 13*goarch.PtrSize = %d", logosArenaGOffset, 13*goarch.PtrSize)
 	}
 }

@@ -6,7 +6,10 @@ package ssa
 
 import "internal/goarch"
 
-const logosArenaGOffset = 4 * goarch.PtrSize
+// Offset of runtime.g.logosArena: stack(2P) + stackguard0(P) + stackguard1(P)
+// + _panic(P) + _defer(P) + m(P) + sched gobuf(6P). The arena block sits
+// after sched so upstream prefix offsets are preserved.
+const logosArenaGOffset = 13 * goarch.PtrSize
 const LogosArenaGOffset = logosArenaGOffset
 
 const (
