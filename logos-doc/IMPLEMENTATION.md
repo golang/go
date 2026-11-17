@@ -225,7 +225,7 @@ P0 slices are documentation-only. Each carries its named structural Check (count
 - P0-S2 Rewrite `logos-doc/SPEC.md` as the tailored normative spec, and only that: copy the planning-session draft `logos-doc/SPEC.md` byte for byte (`cp <draft> logos-doc/SPEC.md`; it is approved with this plan). If the draft file is missing, stop P0 and report the missing path; never rewrite the spec from scratch. Rules the draft follows (they also govern every later change to SPEC.md):
   Anchor: Tony Hoare, Richard Feynman
   - Content: what users and tools observe (syntax, meaning, diagnostics, commands, flags, config keys, runtime guarantees, limits, performance targets). Internal mechanisms (internal names, struct fields, file locations, assembly sequences, algorithms without an observable effect) stay out; this plan holds them.
-  - Structure: a header (`Status: ...`, `Base: Go 1.27.2`, `Original: ...`), then `## 0.` to `## 18.` with the original section numbers, then `## 18. Spec areas`.
+  - Structure: a header (`Status: ...`, `Base: Go 1.27.4`, `Original: ...`), then `## 0.` to `## 18.` with the original section numbers, then `## 18. Spec areas`.
   - Sources: table T row by row (each row's tailored rule replaces the text it names), table N, R-U1 to R-U4, and assumptions A-STD, A-LGOSEL, A-CODEGEN, A-XMOD, A-EXAMPLES, A-MODKIND. Lexicon G4 names everywhere (`bettergo.toml` -> `logos.toml` with one rename note, `betterlint` -> `logos lint`, `go lint`/`go next`/`go context` -> `logos lint`/`logos next`/`logos context`, "Go 1.24-1.26" -> "Go 1.27").
   - Register: ASD-STE100; one requirement per sentence; RFC 2119 keywords (MUST, MUST NOT, SHOULD, SHOULD NOT, MAY) replace SHALL; each requirement ends with its trace tags, one ID per bracket and adjacent when several (`[T-104.1]`, `[T-104.1][R-U3]`).
   - Section 18 holds 18.1 Objective and 18.2 Compiler-made names.
@@ -247,7 +247,7 @@ P0 slices are documentation-only. Each carries its named structural Check (count
   ````markdown
   # LoGOs
 
-  LoGOs is a fork of Go 1.27.2 that adds the LoGOs language (`.lgo` files) and the `logos` command. It is one toolchain for Go and LoGOs: backend, runtime, cgo, and tooling improvements apply to Go packages too.
+  LoGOs is a fork of Go 1.27.4 that adds the LoGOs language (`.lgo` files) and the `logos` command. It is one toolchain for Go and LoGOs: backend, runtime, cgo, and tooling improvements apply to Go packages too.
 
   ## Commands
 
@@ -396,7 +396,7 @@ Seams (Q-SEAMS = both): cmd/go script tests `src/cmd/go/testdata/script/logos_*.
 
 ### M0-S1 The `logos` command
 Anchor: J.R.R. Tolkien, John Carmack
-- Attack: `src/cmd/go/testdata/script/logos_command.txt`: `logos version` stdout matches `^logos version go1\.27\.2`; `go version` stdout matches `^go version go1\.27\.2`; `logos help` stdout contains `logos <command> [arguments]`; `env GOTOOLCHAIN=go1.99.0` then `logos version` still prints `go1.27.2` (logos mode never switches toolchains).
+- Attack: `src/cmd/go/testdata/script/logos_command.txt`: `logos version` stdout contains the `$GOROOT/VERSION` text (go1.27.4 at the current base); `logos help` stdout contains `logos <command> [arguments]`; `env GOTOOLCHAIN=go1.99.0` then `logos version` still prints the same version text (logos mode never switches toolchains).
 - Attack: `src/cmd/go/testdata/script/logos_toolchain.txt`: a current-version main module imports a local replacement module that requires Go 1.99. With `GOTOOLCHAIN=auto` and `GOPROXY=off`, `logos mod tidy` reports the required version without attempting a switch. Plain `go mod tidy` still attempts the upstream switch. A too-new main module alone does not exercise this dependency-loading path.
 - Build:
   - cmd/dist: right after `goInstall(toolenv(), goBootstrap, toolsToInstall...)` (`src/cmd/dist/build.go:1646`, and the cross-build call at `:1629`), copy `$GOROOT/bin/go` to `$GOROOT/bin/logos` (same `copyfile(..., writeExec)` helper the debug path uses at `build.go:1567`/`:1594`; `.exe` suffix on Windows). Add `logos` to the allowed `$GOROOT/bin` names checked at `build.go:1673`, and to `binExes` in `src/cmd/distpack/pack.go:185-188`. A separate `cmd/logos` main package is not used: it cannot import `cmd/go` (package main), and dist's `install()` path rejects other main packages (`build.go:1164`, applied at `:826`).
@@ -404,7 +404,7 @@ Anchor: J.R.R. Tolkien, John Carmack
   - `src/cmd/go/main.go`: one hook line before `toolchain.Select()` (`main.go:110`): `if cfg.Logos { logos.ConfigureCommand(base.Go) }` where `cmd/go/internal/logos.ConfigureCommand` sets `UsageLine = "logos"` (upstream value at `base/base.go:57`), `Long` = `Logos is a tool for managing loGo/s source code.` plus the upstream list, and registers logos-only subcommands as they land (M1 `eject`, M9 `lint`, M10 `next`, `context`, M21 `lsp`).
   - Toolchain switching: `toolchain.Select` (`toolchain/select.go:98`) returns at entry when `cfg.Logos`. `toolchain.Switcher.NeedSwitch` also returns false in logos mode, so newer dependencies cannot trigger a later switch during module loading. The ordinary Go path retains both switching mechanisms.
   - Help: logos mode uses the logos verb in root and subcommand usage, help references, and unknown-command guidance. The root retains additional help topics. Plain `go` help and version output stay upstream (R-U1). Mode-specific logic lives in the new logos, base, and help files.
-  - Version output: `src/cmd/go/internal/version/version.go` (output near `:91`): when `cfg.Logos`, the `version` command prints `logos version go1.27.2`; otherwise it keeps the upstream `go version go1.27.2` text. This hook owns the `logos version` expectation in the Attack above.
+  - Version output: `src/cmd/go/internal/version/version.go` (output near `:91`): when `cfg.Logos`, the `version` command prints `logos version <runtime version>` (the `$GOROOT/VERSION` text, go1.27.4 at the current base); otherwise it keeps the upstream `go version <runtime version>` text. This hook owns the `logos version` expectation in the Attack above.
   - Script harness: in `src/cmd/go/go_test.go` `TestMain`, after `testGo` is built, create `testLogos = filepath.Join(testBin, "logos"+exeSuffix)` as a hard link (copy on failure); in `scriptcmds_test.go` `scriptCommands` add `add("logos", scriptGoNamed(testLogos, cancel, waitDelay))` (same body as `scriptGo`, parameterized by path).
   - `logos-doc/golangci.yml` (the G2 lint gate config, verified against golangci-lint 2.15.0 with `golangci-lint config verify`): `version: "2"`, `linters.default: standard`, `linters.exclusions.presets: [std-error-handling]`. No formatter section: `gofmt -l` in the slice gate already covers formatting. The same commit adds the lint and `logos` command lines to the root `AGENTS.md` (P0-S8 upkeep).
 - Gate: `go test cmd/go -run 'Script/^logos_(command|toolchain)$'`; `go test -short cmd/dist`; `golangci-lint config verify --config ../logos-doc/golangci.yml`. The installed-command smoke checks version, root/subcommand help, and the ignored `GOTOOLCHAIN` value, then compares plain-`go` version and help output with its pre-change baseline (command identity text stays upstream, R-U1).
@@ -896,6 +896,10 @@ Disclosure record (skill-authoring rules applied; mode skill; every skill model-
 | `logos-review` | review, audit, check `.lgo` code or a LoGOs diff | P1 | Owns the review checklist; each item states its rule |
 | `logos-concurrency` | `go group`, goroutine groups, cancellation, `Locked`, `Hot`, data races in `.lgo` | M8 Docs step | Shipped-features-only rule: its forms (`go group`, `Locked`, `Hot`) ship at M8; a P1 skill would claim unshipped features |
 | `logos-performance` | optimize, speed up, `-O` levels, binary size, allocation, SIMD, zero-alloc | M13 Docs step | Shipped-features-only rule: its flags (`-O` levels, arena) ship at M13 and later; a P1 skill would claim unshipped features |
+| `building-logos-first-from-go` | build LoGOs or logos from source, `make.bash`, `GOROOT_BOOTSTRAP`, no `logos` binary yet | Toolchain upkeep | Owns the stage 1 build from an upstream Go |
+| `bootstrapping-logos` | bootstrap logos with logos, self-host, build logos at `-O3` | Toolchain upkeep | Owns the stage 2 build at `-O=3`; needs stage 1 |
+| `dogfooding-logos` | dogfood logos, install the bootstrapped logos, test the bootstrapped binary | Toolchain upkeep | Owns the symlink install of stage 2 and the stage 2 versus stage 1 test comparison |
+| `updating-logos-baseline-go-version` | update or bump the baseline Go version, a new Go release | Toolchain upkeep | Owns grounding the release and syncing every baseline mention; floors and oracles stay |
 
 - `logos` SKILL.md inlines the M1 syntax and diagnostics tables (every write and eject run needs them; a reference loaded in over 80% of runs is inlined). `references/lowering.md` stays a reference (sharp load condition: only runs that read ejected code or explain run-time behavior reach it). The diagnostics table intentionally lives in both `logos` and `logos-review` (each skill is self-contained; table T is the single upstream source).
 - `logos-from-go` stays a monolith with no `references/` (one ordered job, small enough to inline; no branch-specific bulk).

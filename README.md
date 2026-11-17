@@ -32,7 +32,7 @@ Contents: [Install](#install) · [Quick start](#quick-start) · [Features](#feat
 
 ## Install
 
-Building LoGOs from source requires Bash and a bootstrap Go installation. Go 1.27.3 is known to work; Go 1.26.8 fails to compile the fork's compiler sources.
+Building LoGOs from source requires Bash and a bootstrap Go installation. Go 1.27.4 is known to work; Go 1.26.8 fails to compile the fork's compiler sources.
 
 1. Clone the repository:
 
@@ -659,6 +659,10 @@ The [plugins/logos/](plugins/logos/) directory packages skills for coding assist
 - [`logos-from-go`](plugins/logos/skills/logos-from-go/SKILL.md): Guide migration of existing plain Go packages to LoGOs syntax.
 - [`logos-performance`](plugins/logos/skills/logos-performance/SKILL.md): Assist with -O tiers, SIMD, WASM, stack, arena, fast cgo, and zero-alloc.
 - [`logos-concurrency`](plugins/logos/skills/logos-concurrency/SKILL.md): Structure goroutine groups and shared state in LoGOs.
+- [`building-logos-first-from-go`](plugins/logos/skills/building-logos-first-from-go/SKILL.md): Build the toolchain from source with an upstream Go as bootstrap.
+- [`bootstrapping-logos`](plugins/logos/skills/bootstrapping-logos/SKILL.md): Rebuild the `logos` command with `logos` itself at `-O=3`.
+- [`dogfooding-logos`](plugins/logos/skills/dogfooding-logos/SKILL.md): Install the bootstrapped `logos` and test it against stage 1.
+- [`updating-logos-baseline-go-version`](plugins/logos/skills/updating-logos-baseline-go-version/SKILL.md): Move the baseline Go version to the latest stable release.
 
 To provide coding agents with project conventions and compiler constraints, copy [plugins/logos/templates/AGENTS.md](plugins/logos/templates/AGENTS.md) into the target repository root. See [plugins/logos/](plugins/logos/) for plugin structure and usage documentation.
 
