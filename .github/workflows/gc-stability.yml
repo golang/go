@@ -1,0 +1,142 @@
+name: "gc-stability"
+
+"on":
+  pull_request:
+    paths:
+      - ".github/scripts/install-ci-tool.sh"
+      - ".github/workflows/gc-stability.yml"
+      - "src/runtime/**"
+      - "src/internal/abi/**"
+      - "src/internal/goexperiment/**"
+      - "src/cmd/compile/**"
+      - "src/logos/arena/**"
+  workflow_dispatch:
+
+permissions:
+  contents: "read"
+
+concurrency:
+  group: "gc-stability-${{ github.ref }}"
+  cancel-in-progress: true
+
+env:
+  GOMAXPROCS: "4"
+  GOFLAGS: "-p=2"
+  GOMEMLIMIT: "2GiB"
+
+jobs:
+  runtime:
+    name: "runtime-${{ matrix.runner }}-${{ matrix.experiment }}"
+    runs-on: "${{ matrix.runner }}"
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: ["ubuntu-24.04", "ubuntu-26.04-arm"]
+        experiment: ["logosarena", "logosarena,nogreenteagc"]
+    defaults:
+      run:
+        shell: "bash"
+        working-directory: "src"
+    steps:
+      - name: "Check out the tested revision"
+        working-directory: "${{ github.workspace }}"
+        run: |
+          git init --quiet .
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          git -c protocol.version=2 fetch --no-tags --depth=1 origin "$GITHUB_SHA"
+          git -c advice.detachedHead=false checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - name: "Install the pinned Go bootstrap"
+        run: bash ../.github/scripts/install-ci-tool.sh go
+      - name: "Build the default toolchain"
+        run: |
+          GOROOT_BOOTSTRAP=$(go env GOROOT)
+          export GOROOT_BOOTSTRAP
+          GOEXPERIMENT="" ./make.bash
+          printf '%s\n' "$GITHUB_WORKSPACE/bin" >> "$GITHUB_PATH"
+      - name: "Check formatting and vet"
+        env:
+          GOEXPERIMENT: "${{ matrix.experiment }}"
+        run: |
+          files=(
+            runtime/arena_logos.go
+            runtime/region_logos.go
+            runtime/logos_arena_test.go
+            runtime/export_logos_gc_stability_test.go
+            runtime/logos_gc_stability_test.go
+            runtime/export_logos_gcscan_bounds_test.go
+            runtime/logos_gcscan_bounds_test.go
+          )
+          gofmt -d "${files[@]}"
+          test -z "$(gofmt -l "${files[@]}")"
+          go vet runtime runtime/metrics
+      - name: "Run runtime regression tests"
+        env:
+          GOEXPERIMENT: "${{ matrix.experiment }}"
+        run: go test -count=1 -short -timeout=30m runtime runtime/metrics runtime/pprof runtime/trace
+      - name: "Run region race tests"
+        env:
+          GOEXPERIMENT: "${{ matrix.experiment }}"
+        run: go test -count=1 -short -race -timeout=30m runtime -run '^TestLogos(Arena|Region|GC)'
+      - name: "Stress lifecycle and scan boundaries"
+        env:
+          GOEXPERIMENT: "${{ matrix.experiment }}"
+        run: go test -count=10 -short -cpu=1,2,4 -timeout=30m runtime -run '^(TestLogosRegionReleaseOwnership|TestLogosGCHeapGraphLiveness|TestLogosGCScanLayoutBounds)$'
+      - name: "Stress close entry safepoints"
+        env:
+          GOEXPERIMENT: "${{ matrix.experiment }}"
+          GODEBUG: "asyncpreemptoff=1"
+        run: go test -count=10 -short -gcflags=runtime=-l -timeout=30m runtime -run '^TestLogosRegionReleaseOwnership$'
+      - name: "Check heap graph marking"
+        env:
+          GOEXPERIMENT: "${{ matrix.experiment }}"
+          GODEBUG: "gccheckmark=1"
+        run: go test -count=10 -short -timeout=30m runtime -run '^(TestLogosGCScanExternalPointers|TestLogosGCHeapGraphLiveness)$'
+      - name: "Probe the original close ownership failure"
+        if: matrix.experiment == 'logosarena'
+        env:
+          GOEXPERIMENT: "${{ matrix.experiment }}"
+        run: |
+          probe="$GITHUB_WORKSPACE/.outline/verify/gc-close-$RUNNER_ARCH"
+          mkdir -p "$probe"
+          awk '
+            /^func logosRegionReleaseChunks\(rec \*logosRegion\) \{$/ {
+              in_release = 1
+              seen++
+            }
+            in_release && /^\t\/\/ Detach the published root before any chunk becomes reusable\.$/ { next }
+            in_release && /^\trec\.chunk = nil$/ { removed++; next }
+            in_release && /^}$/ {
+              print "\trec.chunk = nil"
+              in_release = 0
+            }
+            { print }
+            END { if (in_release || seen != 1 || removed != 1) exit 2 }
+          ' runtime/region_logos.go > "$probe/region_logos.go"
+          test "$(git hash-object "$probe/region_logos.go")" = f1c09676d87d8d4bc82255eef5a9a8a7e8794c17
+          jq -n --arg from "$PWD/runtime/region_logos.go" --arg to "$probe/region_logos.go" \
+            '{"Replace": {($from): $to}}' > "$probe/overlay.json"
+          set +e
+          go test -overlay="$probe/overlay.json" -count=10 -short -timeout=10m \
+            runtime -run '^TestLogosRegionReleaseOwnership$' > "$probe/mutation.log" 2>&1
+          status=$?
+          set -e
+          cat "$probe/mutation.log"
+          test "$status" -eq 1
+          awk '
+            /--- FAIL: TestLogosRegionReleaseOwnership/ { named = 1 }
+            /published region root .* is also in a reusable chunk pool/ { diagnostic = 1 }
+            /panic:|fatal error:|build failed|test timed out/ { unrelated = 1 }
+            END { exit !(named && diagnostic && !unrelated) }
+          ' "$probe/mutation.log"
+      - name: "Record ownership probe evidence"
+        if: always() && matrix.experiment == 'logosarena'
+        run: |
+          probe="$GITHUB_WORKSPACE/.outline/verify/gc-close-$RUNNER_ARCH"
+          if test -d "$probe"; then
+            for file in "$probe"/*; do
+              test -f "$file" || continue
+              sha256sum "$file"
+            done
+          fi

@@ -36,36 +36,30 @@ func (s *inlClosureState) tryInlineCallLogos(call *ir.CallExpr, closureCalledOnc
 	return inline.TryInlineCall(s.fn, call, s.bigCaller, s.profile, closureCalledOnce, &s.oracle)
 }
 
-func (s *inlClosureState) fixpointLogos(state *devirtualize.State, changed *bool) bool {
-	for i := range s.parens {
-		s.resolve(state, i)
-	}
-	done := false
-	for !done {
-		done = true
-		s.initOracle()
-		l1 := len(s.parens)
-		l0 := 0
-		for {
-			for i := l0; i < l1; i++ {
-				paren := s.parens[i]
-				if origCall, inlinedCall := s.edit(state, i); inlinedCall != nil {
-					paren.X = inlinedCall
-					ir.EditChildren(inlinedCall, s.mark)
-					state.InlinedCall(s.fn, origCall, inlinedCall)
-					done = false
-					*changed = true
-				}
-			}
-			l0, l1 = l1, len(s.parens)
-			if l0 == l1 {
-				break
-			}
-			s.initOracle()
-			for i := l0; i < l1; i++ {
-				s.resolve(state, i)
+// inlinePassLogos visits every current call site and each batch of sites
+// discovered by inlining. Resolve each new batch before editing it so its
+// closure uses are counted together. The caller initially resolves existing
+// sites and repeats passes in function or SCC order until none changes.
+func (s *inlClosureState) inlinePassLogos(state *devirtualize.State) bool {
+	changed := false
+	s.initOracle()
+	for first, end := 0, len(s.parens); ; {
+		for i := first; i < end; i++ {
+			paren := s.parens[i]
+			if origCall, inlinedCall := s.edit(state, i); inlinedCall != nil {
+				paren.X = inlinedCall
+				ir.EditChildren(inlinedCall, s.mark)
+				state.InlinedCall(s.fn, origCall, inlinedCall)
+				changed = true
 			}
 		}
+		first, end = end, len(s.parens)
+		if first == end {
+			return changed
+		}
+		s.initOracle()
+		for i := first; i < end; i++ {
+			s.resolve(state, i)
+		}
 	}
-	return true
 }

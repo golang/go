@@ -1,0 +1,18 @@
+{
+  "source_temp": "/home/agent/logos-json-final-e96-w7uggmoz",
+  "source_temp_is_real": true,
+  "vcs_markers": [],
+  "build_temp": "/workspace/scratch/9949907ca71e/final-json-build-tmp",
+  "source_temp_reason": "testing.TempDir uses GOTMPDIR; executed binaries use real-home GOTMPDIR",
+  "cc_resolved": "/usr/bin/x86_64-linux-gnu-gcc-14",
+  "cc_sha256": "a23ecab8ff08f09ad8c80602c2c5df7f49e09c25905cb8975902e101bf72635f",
+  "resources": {
+    "MemAvailable": 7514771456,
+    "Shmem": 1631719424,
+    "workspace_free_bytes": 6525722624,
+    "home_free_bytes": 4819632128
+  },
+  "source_edits": false,
+  "overlays": false,
+  "new_mutations": false
+}

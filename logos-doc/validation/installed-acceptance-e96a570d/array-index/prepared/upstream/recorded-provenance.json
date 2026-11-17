@@ -1,0 +1,59 @@
+{
+  "repository": "gosuda/LoGOs",
+  "pull_request": 64,
+  "pull_url": "https://github.com/gosuda/LoGOs/pull/64",
+  "final_pr_head": "f2f6a3d36373c8416aceeeb3625f56d05fc66d67",
+  "release_merge": "7d15ec7671582d0f022013bf36cf8f82a1b04cfc",
+  "upstream_test_first_commit": "326d94605c5ac20a84bdaf74f945e42cd0bb3cee",
+  "upstream_test_first_parent": "bd318f1c558f3aa73ad434929fba7f237db9877f",
+  "upstream_red_test_blob": "9b128de39745732fa9c8129ec622528e92c4c285",
+  "upstream_reported_verified_commit": "235b67e587d90fa8d58a699202c2f668f2721200",
+  "recorded_red": {
+    "source": "PR64 body and test-first commit message",
+    "missing_findings": 4,
+    "cells": [
+      "TestArrayIndexOutOfBounds/offByOneReceiver/x.go",
+      "TestArrayIndexOutOfBounds/offByOneReceiver/x.lgo",
+      "TestArrayIndexOutOfBounds/signedMissingLowerBound/x.go",
+      "TestArrayIndexOutOfBounds/signedMissingLowerBound/x.lgo"
+    ],
+    "accepted_controls": [
+      "guardedReceiver",
+      "signedBothBounds"
+    ],
+    "raw_red_stream_retrieved": false,
+    "independently_rerun_during_preparation": false
+  },
+  "mutation_evidence_in_reviewed_body": false,
+  "commits": [
+    {
+      "sha": "326d94605c5ac20a84bdaf74f945e42cd0bb3cee",
+      "message": "test(lint): require native array bounds findings\n\nThe off-by-one enum guard and missing signed lower bound currently\nproduce no native diagnostic in either source language.",
+      "parents": [
+        "bd318f1c558f3aa73ad434929fba7f237db9877f"
+      ]
+    },
+    {
+      "sha": "235b67e587d90fa8d58a699202c2f668f2721200",
+      "message": "feat(lint): diagnose unsafe array indices\n\nProve boundary inputs through pure native syntax paths in Go and\nloGo/s. Unknown effects stop the proof, and valid enum guards stay\nsilent. Register a suppressible deny rule with operand spans and\nextend the behavior fixtures and language contract.\n\nSee also: gosuda/gglint#6",
+      "parents": [
+        "326d94605c5ac20a84bdaf74f945e42cd0bb3cee"
+      ]
+    },
+    {
+      "sha": "e7ce8d359f739bca0bf18359a2310fb8312e3a72",
+      "message": "test(cmd/go): gate simd eject fixture execution on [host-simd]\n\nThe unguarded simd-mode 'logos run .' SIGILLs on amd64 hosts below GOAMD64 v4: Z-width accumulator slot inits materialize before the AVX512() guard (latent on the base; root fix is #54). The arm64-aware host-simd condition keeps execution coverage on arm64 while the eject, vet, and oracle assertions still run everywhere.\n\nCo-Authored-By: metaphorics <drivedon02+git@gmail.com>",
+      "parents": [
+        "235b67e587d90fa8d58a699202c2f668f2721200"
+      ]
+    },
+    {
+      "sha": "f2f6a3d36373c8416aceeeb3625f56d05fc66d67",
+      "message": "Merge latest release branch",
+      "parents": [
+        "e7ce8d359f739bca0bf18359a2310fb8312e3a72",
+        "e5b95a2ecb5716814e52fbddddb0d6b491b6e1ce"
+      ]
+    }
+  ]
+}

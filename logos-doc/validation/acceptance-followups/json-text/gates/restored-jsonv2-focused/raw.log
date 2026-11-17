@@ -1,0 +1,6 @@
+=== RUN   TestQuotedTextAppendCannotCorruptToken
+--- PASS: TestQuotedTextAppendCannotCorruptToken (0.00s)
+=== RUN   TestQuotedTextPermissiveUnquoteMatchesEncodingJSON
+--- PASS: TestQuotedTextPermissiveUnquoteMatchesEncodingJSON (0.00s)
+PASS
+ok  	logos/rt/json	1.028s

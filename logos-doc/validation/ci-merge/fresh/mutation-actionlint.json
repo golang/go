@@ -1,0 +1,19 @@
+{
+  "command": [
+    "/workspace/scratch/9949907ca71e/language-ci-tools/bin/actionlint",
+    "-color",
+    "-config-file",
+    "/workspace/scratch/9949907ca71e/logos-json-integration/.github/actionlint.yaml",
+    "/workspace/scratch/9949907ca71e/language-evidence/ci-merge/fresh/mutation/compiler-stability.yml"
+  ],
+  "cwd": "/workspace/scratch/9949907ca71e/logos-json-integration",
+  "sourceHead": "e82c916ff4d8c2befc6f1891decb0f623401a94b",
+  "mergeHead": "13a968f350564e739bf700df698a9a635dcdddcd",
+  "status": 1,
+  "signal": null,
+  "error": "",
+  "seconds": 0.097,
+  "stdoutSha256": "00c682556e998e73872a421ab55f8949416b3c0f8892dda3ddc8d39de74e9194",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "provenance": "fresh validation after exact input reconstruction"
+}

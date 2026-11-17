@@ -1,0 +1,8 @@
+{"Time":"2026-11-17T03:51:04.060096757+09:00","Action":"start","Package":"cmd/compile/internal/logos"}
+{"Time":"2026-11-17T03:51:04.064628312+09:00","Action":"run","Package":"cmd/compile/internal/logos","Test":"TestEveryLintRuleHasFixture"}
+{"Time":"2026-11-17T03:51:04.064676389+09:00","Action":"output","Package":"cmd/compile/internal/logos","Test":"TestEveryLintRuleHasFixture","Output":"=== RUN   TestEveryLintRuleHasFixture\n","OutputType":"frame"}
+{"Time":"2026-11-17T03:51:05.318644098+09:00","Action":"output","Package":"cmd/compile/internal/logos","Test":"TestEveryLintRuleHasFixture","Output":"--- PASS: TestEveryLintRuleHasFixture (1.25s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T03:51:05.319105747+09:00","Action":"pass","Package":"cmd/compile/internal/logos","Test":"TestEveryLintRuleHasFixture","Elapsed":1.25}
+{"Time":"2026-11-17T03:51:05.319289969+09:00","Action":"output","Package":"cmd/compile/internal/logos","Output":"PASS\n","OutputType":"frame"}
+{"Time":"2026-11-17T03:51:05.319852083+09:00","Action":"output","Package":"cmd/compile/internal/logos","Output":"ok  \tcmd/compile/internal/logos\t1.258s\n"}
+{"Time":"2026-11-17T03:51:05.319884144+09:00","Action":"pass","Package":"cmd/compile/internal/logos","Elapsed":1.26}

@@ -1,0 +1,60 @@
+{
+  "diagnostic_only": true,
+  "scope": "Three alternating isolated runs of the unchanged at08 fixture per configuration",
+  "literal_child_timeout_seconds": 10,
+  "child_gomaxprocs": 4,
+  "runs": [
+    {
+      "configuration": "K6",
+      "trial": 1,
+      "duration_seconds": 0.78583921,
+      "exit_code": 0,
+      "stdout": "ok\n",
+      "stderr": ""
+    },
+    {
+      "configuration": "U3N",
+      "trial": 1,
+      "duration_seconds": 0.8653991449999999,
+      "exit_code": 0,
+      "stdout": "ok\n",
+      "stderr": ""
+    },
+    {
+      "configuration": "K6",
+      "trial": 2,
+      "duration_seconds": 0.710816926,
+      "exit_code": 0,
+      "stdout": "ok\n",
+      "stderr": ""
+    },
+    {
+      "configuration": "U3N",
+      "trial": 2,
+      "duration_seconds": 0.7570049729999999,
+      "exit_code": 0,
+      "stdout": "ok\n",
+      "stderr": ""
+    },
+    {
+      "configuration": "K6",
+      "trial": 3,
+      "duration_seconds": 0.869198642,
+      "exit_code": 0,
+      "stdout": "ok\n",
+      "stderr": ""
+    },
+    {
+      "configuration": "U3N",
+      "trial": 3,
+      "duration_seconds": 0.794094235,
+      "exit_code": 0,
+      "stdout": "ok\n",
+      "stderr": ""
+    }
+  ],
+  "all_six_passed_without_skips": true,
+  "stdout_sha256": "bb66b94edeee9832681adb6d2754bd613a17e656f10aac78a8db38e674cc5d1b",
+  "causal_contention_proof": false,
+  "complete_release_acceptance": false
+}

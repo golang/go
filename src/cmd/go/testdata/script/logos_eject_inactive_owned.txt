@@ -1,0 +1,61 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOOS=linux
+env GOARCH=amd64
+env GOAMD64=v1
+env CGO_ENABLED=0
+
+cd m
+logos eject -o out
+exists out/windows/value_windows.go
+exists out/tagged/value.go
+cd out
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+exec env -u GOROOT $UPROOT1272/bin/go build -tags=extra ./...
+env GOOS=windows
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+exec env -u GOROOT $UPROOT1272/bin/go build -tags=extra ./...
+
+-- m/go.mod --
+module example.com/ownedvariants
+
+go 1.27
+
+-- m/main.lgo --
+package variants
+
+func Value() int { return 1 }
+
+-- m/owner/type_linux.lgo --
+package owner
+
+type hidden int
+
+const func Make() hidden { return 21 }
+
+-- m/owner/type_windows.lgo --
+package owner
+
+type hidden int
+
+const func Make() hidden { return 42 }
+
+-- m/windows/value_windows.lgo --
+package windows
+
+import "example.com/ownedvariants/owner"
+
+const value = owner.Make()
+
+func Value() int { return int(value) }
+
+-- m/tagged/value.lgo --
+//go:build linux && extra
+
+package tagged
+
+import "example.com/ownedvariants/owner"
+
+const value = owner.Make()
+
+func Value() int { return int(value) }

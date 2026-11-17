@@ -1,0 +1,779 @@
+{
+  "source_commit": "45c29ff215477f7e403188d7452fc79aef05d791",
+  "source_tree": "099367e1031585fa553ef7987b199288df36256a",
+  "fork_still_clean": true,
+  "installed_hashes_unchanged": {
+    "bin/go": "987052b593c41cf60390eec80d98b01b89f9536d6d87b4e73672ab6e7a4eb2ef",
+    "bin/logos": "987052b593c41cf60390eec80d98b01b89f9536d6d87b4e73672ab6e7a4eb2ef",
+    "pkg/tool/linux_amd64/compile": "61749f8f2b2242d26e613993270f654cf47c750739a22b223f94eedd5370bba9"
+  },
+  "test_binary_sha256": {
+    "testdir.test": "5b3b19bef89ccde94a28a64e4c5e295ab6718ccafadcc4293a3fefccf48544a6",
+    "cmdgo-race.test": "0a50f0c568c5e6b6d4b9938cd0e8cadf16ef7b255ef8bf1821c8f0102332d60a"
+  },
+  "candidate_source_patch_unchanged_sha256": "c07a69229c88231ff6c308c404cfb5a02c4007fbefffcc2d27ecd3a8f28b8669",
+  "generated_timezone_sha256": "fdf3446025d8460a2d2e7f2b0fc79906daa338529030dd8204a8307bf4fb0302",
+  "candidate_links_cleanup_owner": "root; links intentionally retained for the queued tooling gate",
+  "scope": "frozen45 installed compiler; candidate testdir inputs are component validation, not a rebuilt follow-up driver",
+  "recorded_utc": "2026-11-16T17:53:58.357429+00:00",
+  "all_required_checks_passed": true,
+  "stages": [
+    {
+      "stage": "native",
+      "completed_utc": "2026-11-16T17:42:50.824622+00:00",
+      "duration_seconds": 36.128,
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout_sha256": "7de1555df0c2700329e815b93b32c571c3ea54dc967b89e81ab73b9972b72d1d",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 2,
+      "stderr_bytes": 0,
+      "passed_tests": [],
+      "passed_leaf_tests": [],
+      "leaf_count": 0,
+      "skipped_tests": []
+    },
+    {
+      "stage": "eject",
+      "completed_utc": "2026-11-16T17:43:02.307532+00:00",
+      "duration_seconds": 0.468,
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 0,
+      "stderr_bytes": 0,
+      "passed_tests": [],
+      "passed_leaf_tests": [],
+      "leaf_count": 0,
+      "skipped_tests": []
+    },
+    {
+      "stage": "ejected-fork",
+      "completed_utc": "2026-11-16T17:43:10.592794+00:00",
+      "duration_seconds": 0.422,
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout_sha256": "7de1555df0c2700329e815b93b32c571c3ea54dc967b89e81ab73b9972b72d1d",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 2,
+      "stderr_bytes": 0,
+      "passed_tests": [],
+      "passed_leaf_tests": [],
+      "leaf_count": 0,
+      "skipped_tests": []
+    },
+    {
+      "stage": "ejected-go1272",
+      "completed_utc": "2026-11-16T17:43:39.276052+00:00",
+      "duration_seconds": 24.598,
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout_sha256": "7de1555df0c2700329e815b93b32c571c3ea54dc967b89e81ab73b9972b72d1d",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 2,
+      "stderr_bytes": 0,
+      "passed_tests": [],
+      "passed_leaf_tests": [],
+      "leaf_count": 0,
+      "skipped_tests": []
+    },
+    {
+      "stage": "ejected-go1273",
+      "completed_utc": "2026-11-16T17:44:06.949356+00:00",
+      "duration_seconds": 23.362,
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout_sha256": "7de1555df0c2700329e815b93b32c571c3ea54dc967b89e81ab73b9972b72d1d",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 2,
+      "stderr_bytes": 0,
+      "passed_tests": [],
+      "passed_leaf_tests": [],
+      "leaf_count": 0,
+      "skipped_tests": []
+    },
+    {
+      "stage": "ejected-go1274",
+      "completed_utc": "2026-11-16T17:44:37.275826+00:00",
+      "duration_seconds": 19.298,
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout_sha256": "7de1555df0c2700329e815b93b32c571c3ea54dc967b89e81ab73b9972b72d1d",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 2,
+      "stderr_bytes": 0,
+      "passed_tests": [],
+      "passed_leaf_tests": [],
+      "leaf_count": 0,
+      "skipped_tests": []
+    },
+    {
+      "stage": "build-testdir",
+      "completed_utc": "2026-11-16T17:44:48.361005+00:00",
+      "duration_seconds": 4.743,
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 0,
+      "stderr_bytes": 0,
+      "passed_tests": [],
+      "passed_leaf_tests": [],
+      "leaf_count": 0,
+      "skipped_tests": []
+    },
+    {
+      "stage": "assignment-controls",
+      "completed_utc": "2026-11-16T17:46:55.299045+00:00",
+      "duration_seconds": 5.225,
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout_sha256": "5b9b0a6386817729a92c58880ed76f09da8787ff8e395cfd0b8a871d9e847c4f",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 15101,
+      "stderr_bytes": 0,
+      "passed_tests": [
+        "TestAssignmentFailureOrder",
+        "TestAssignmentFailureOrder/slice_store_after_rhs",
+        "TestAssignmentFailureOrder/nil_slice_store_after_rhs",
+        "TestAssignmentFailureOrder/nil_map_store_after_rhs",
+        "TestAssignmentFailureOrder/destination_call_before_rhs",
+        "TestAssignmentFailureOrder/index_base_before_index_call",
+        "TestAssignmentFailureOrder/slice_store_bounds",
+        "TestAssignmentFailureOrder/nil_slice_store_bounds",
+        "TestAssignmentFailureOrder/array_store_bounds",
+        "TestAssignmentFailureOrder/nil_map_compound_store",
+        "TestAssignmentEvaluationOrder",
+        "TestAssignmentEvaluationOrder/left_calls_before_right_calls/word4",
+        "TestAssignmentEvaluationOrder/left_calls_before_right_calls/word8",
+        "TestAssignmentEvaluationOrder/compound_left_calls_before_right_calls/word4",
+        "TestAssignmentEvaluationOrder/compound_left_calls_before_right_calls/word8",
+        "TestAssignmentEvaluationOrder/index_base_before_index_operand/word4",
+        "TestAssignmentEvaluationOrder/index_base_before_index_operand/word8",
+        "TestAssignmentEvaluationOrder/map_destination_survives_rebinding/word4",
+        "TestAssignmentEvaluationOrder/map_destination_survives_rebinding/word8",
+        "TestAssignmentEvaluationOrder/nested_map_destination/word4",
+        "TestAssignmentEvaluationOrder/nested_map_destination/word8",
+        "TestAssignmentEvaluationOrder/comma_ok_destination_before_stores/word4",
+        "TestAssignmentEvaluationOrder/comma_ok_destination_before_stores/word8",
+        "TestAssignmentEvaluationOrder/comma_ok_destination_calls_before_lookup/word4",
+        "TestAssignmentEvaluationOrder/comma_ok_destination_calls_before_lookup/word8",
+        "TestAssignmentEvaluationOrder/nil_map_comma_ok_declaration/word4",
+        "TestAssignmentEvaluationOrder/nil_map_comma_ok_declaration/word8",
+        "TestAssignmentEvaluationOrder/nil_map_comma_ok_assignment/word4",
+        "TestAssignmentEvaluationOrder/nil_map_comma_ok_assignment/word8",
+        "TestAssignmentEvaluationOrder/map_lookup_missing_key/word4",
+        "TestAssignmentEvaluationOrder/map_lookup_missing_key/word8",
+        "TestAssignmentEvaluationOrder/slice_destination_survives_rebinding/word4",
+        "TestAssignmentEvaluationOrder/slice_destination_survives_rebinding/word8",
+        "TestAssignmentEvaluationOrder/array_destination_tracks_variable_storage/word4",
+        "TestAssignmentEvaluationOrder/array_destination_tracks_variable_storage/word8",
+        "TestAssignmentEvaluationOrder/repeated_name_stores_left_to_right/word4",
+        "TestAssignmentEvaluationOrder/repeated_name_stores_left_to_right/word8",
+        "TestAssignmentEvaluationOrder/blank_assignment_keeps_calls/word4",
+        "TestAssignmentEvaluationOrder/blank_assignment_keeps_calls/word8",
+        "TestAssignmentNilMapReportsError",
+        "TestAssignmentStorageReturnedValues",
+        "TestAssignmentStorageReturnedValues/array_result_rhs/word4",
+        "TestAssignmentStorageReturnedValues/array_result_rhs/word8",
+        "TestAssignmentStorageReturnedValues/array_result_argument/word4",
+        "TestAssignmentStorageReturnedValues/array_result_argument/word8",
+        "TestAssignmentStorageReturnedValues/array_result_composite/word4",
+        "TestAssignmentStorageReturnedValues/array_result_composite/word8",
+        "TestAssignmentStorageReturnedValues/array_result_append/word4",
+        "TestAssignmentStorageReturnedValues/array_result_append/word8",
+        "TestAssignmentStorageReturnedValues/named_array_result/word4",
+        "TestAssignmentStorageReturnedValues/named_array_result/word8",
+        "TestAssignmentStorageReturnedValues/struct_result_preserves_reference_fields/word4",
+        "TestAssignmentStorageReturnedValues/struct_result_preserves_reference_fields/word8",
+        "TestAssignmentStorageReturnedValues/named_struct_result/word4",
+        "TestAssignmentStorageReturnedValues/named_struct_result/word8",
+        "TestAssignmentStorage",
+        "TestAssignmentStorage/array_variable/word4",
+        "TestAssignmentStorage/array_variable/word8",
+        "TestAssignmentStorage/parallel_array_variable/word4",
+        "TestAssignmentStorage/parallel_array_variable/word8",
+        "TestAssignmentStorage/array_copy_independent/word4",
+        "TestAssignmentStorage/array_copy_independent/word8",
+        "TestAssignmentStorage/nested_array_variable/word4",
+        "TestAssignmentStorage/nested_array_variable/word8",
+        "TestAssignmentStorage/array_element/word4",
+        "TestAssignmentStorage/array_element/word8",
+        "TestAssignmentStorage/slice_element/word4",
+        "TestAssignmentStorage/slice_element/word8",
+        "TestAssignmentStorage/struct_variable/word4",
+        "TestAssignmentStorage/struct_variable/word8",
+        "TestAssignmentStorage/struct_field/word4",
+        "TestAssignmentStorage/struct_field/word8",
+        "TestAssignmentStorage/array_struct_element/word4",
+        "TestAssignmentStorage/array_struct_element/word8",
+        "TestAssignmentStorage/slice_struct_element/word4",
+        "TestAssignmentStorage/slice_struct_element/word8",
+        "TestAssignmentStorage/array_slice_references/word4",
+        "TestAssignmentStorage/array_slice_references/word8",
+        "TestAssignmentStorage/array_map_references/word4",
+        "TestAssignmentStorage/array_map_references/word8",
+        "TestAssignmentStorage/range_assignment/word4",
+        "TestAssignmentStorage/range_assignment/word8",
+        "TestAssignmentStorage/range_declaration_fresh/word4",
+        "TestAssignmentStorage/range_declaration_fresh/word8",
+        "TestAssignmentStorage/clear_views_and_independent_slots/word4",
+        "TestAssignmentStorage/clear_views_and_independent_slots/word8",
+        "TestAssignmentStorage/copy_overlapping_right/word4",
+        "TestAssignmentStorage/copy_overlapping_right/word8",
+        "TestAssignmentStorage/copy_overlapping_left/word4",
+        "TestAssignmentStorage/copy_overlapping_left/word8",
+        "TestAssignmentStorage/append_reused_capacity/word4",
+        "TestAssignmentStorage/append_reused_capacity/word8",
+        "TestAssignmentStorage/append_overlapping_capacity/word4",
+        "TestAssignmentStorage/append_overlapping_capacity/word8",
+        "TestAssignmentStorage/append_growth_copies_arrays/word4",
+        "TestAssignmentStorage/append_growth_copies_arrays/word8",
+        "TestAssignmentStorage/append_growth_initializes_capacity/word4",
+        "TestAssignmentStorage/append_growth_initializes_capacity/word8",
+        "TestAssignmentStorage/zero_length_nested_array/word4",
+        "TestAssignmentStorage/zero_length_nested_array/word8",
+        "TestAssignmentStorage/struct_with_zero_length_array/word4",
+        "TestAssignmentStorage/struct_with_zero_length_array/word8",
+        "TestAssignmentStorage/map_array_value_independent/word4",
+        "TestAssignmentStorage/map_array_value_independent/word8"
+      ],
+      "passed_leaf_tests": [
+        {
+          "name": "TestAssignmentFailureOrder/slice_store_after_rhs",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentFailureOrder/nil_slice_store_after_rhs",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentFailureOrder/nil_map_store_after_rhs",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentFailureOrder/destination_call_before_rhs",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentFailureOrder/index_base_before_index_call",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentFailureOrder/slice_store_bounds",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentFailureOrder/nil_slice_store_bounds",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentFailureOrder/array_store_bounds",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentFailureOrder/nil_map_compound_store",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentEvaluationOrder/left_calls_before_right_calls/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentEvaluationOrder/left_calls_before_right_calls/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentEvaluationOrder/compound_left_calls_before_right_calls/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentEvaluationOrder/compound_left_calls_before_right_calls/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentEvaluationOrder/index_base_before_index_operand/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentEvaluationOrder/index_base_before_index_operand/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentEvaluationOrder/map_destination_survives_rebinding/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentEvaluationOrder/map_destination_survives_rebinding/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentEvaluationOrder/nested_map_destination/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentEvaluationOrder/nested_map_destination/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentEvaluationOrder/comma_ok_destination_before_stores/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentEvaluationOrder/comma_ok_destination_before_stores/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentEvaluationOrder/comma_ok_destination_calls_before_lookup/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentEvaluationOrder/comma_ok_destination_calls_before_lookup/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentEvaluationOrder/nil_map_comma_ok_declaration/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentEvaluationOrder/nil_map_comma_ok_declaration/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentEvaluationOrder/nil_map_comma_ok_assignment/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentEvaluationOrder/nil_map_comma_ok_assignment/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentEvaluationOrder/map_lookup_missing_key/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentEvaluationOrder/map_lookup_missing_key/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentEvaluationOrder/slice_destination_survives_rebinding/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentEvaluationOrder/slice_destination_survives_rebinding/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentEvaluationOrder/array_destination_tracks_variable_storage/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentEvaluationOrder/array_destination_tracks_variable_storage/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentEvaluationOrder/repeated_name_stores_left_to_right/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentEvaluationOrder/repeated_name_stores_left_to_right/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentEvaluationOrder/blank_assignment_keeps_calls/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentEvaluationOrder/blank_assignment_keeps_calls/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentNilMapReportsError",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorageReturnedValues/array_result_rhs/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorageReturnedValues/array_result_rhs/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorageReturnedValues/array_result_argument/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorageReturnedValues/array_result_argument/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorageReturnedValues/array_result_composite/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorageReturnedValues/array_result_composite/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorageReturnedValues/array_result_append/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorageReturnedValues/array_result_append/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorageReturnedValues/named_array_result/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorageReturnedValues/named_array_result/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorageReturnedValues/struct_result_preserves_reference_fields/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorageReturnedValues/struct_result_preserves_reference_fields/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorageReturnedValues/named_struct_result/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorageReturnedValues/named_struct_result/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/array_variable/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/array_variable/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/parallel_array_variable/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/parallel_array_variable/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/array_copy_independent/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/array_copy_independent/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/nested_array_variable/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/nested_array_variable/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/array_element/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/array_element/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/slice_element/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/slice_element/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/struct_variable/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/struct_variable/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/struct_field/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/struct_field/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/array_struct_element/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/array_struct_element/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/slice_struct_element/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/slice_struct_element/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/array_slice_references/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/array_slice_references/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/array_map_references/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/array_map_references/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/range_assignment/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/range_assignment/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/range_declaration_fresh/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/range_declaration_fresh/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/clear_views_and_independent_slots/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/clear_views_and_independent_slots/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/copy_overlapping_right/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/copy_overlapping_right/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/copy_overlapping_left/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/copy_overlapping_left/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/append_reused_capacity/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/append_reused_capacity/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/append_overlapping_capacity/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/append_overlapping_capacity/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/append_growth_copies_arrays/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/append_growth_copies_arrays/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/append_growth_initializes_capacity/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/append_growth_initializes_capacity/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/zero_length_nested_array/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/zero_length_nested_array/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/struct_with_zero_length_array/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/struct_with_zero_length_array/word8",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/map_array_value_independent/word4",
+          "seconds": 0.0
+        },
+        {
+          "name": "TestAssignmentStorage/map_array_value_independent/word8",
+          "seconds": 0.0
+        }
+      ],
+      "leaf_count": 100,
+      "skipped_tests": []
+    },
+    {
+      "stage": "testdir-corrected",
+      "completed_utc": "2026-11-16T17:47:31.055095+00:00",
+      "duration_seconds": 2.024,
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout_sha256": "555113493f3a092077e7aa6f638cbe93e992eb072c47a2851d4308b8da839480",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 751,
+      "stderr_bytes": 0,
+      "passed_tests": [
+        "Test",
+        "Test/logos/compile/const_func_map_store_key.lgo",
+        "Test/logos/run/const_func_map_store_key.lgo",
+        "Test/logos/run/const_func_map_field_store.lgo"
+      ],
+      "passed_leaf_tests": [
+        {
+          "name": "Test/logos/compile/const_func_map_store_key.lgo",
+          "seconds": 0.81
+        },
+        {
+          "name": "Test/logos/run/const_func_map_store_key.lgo",
+          "seconds": 0.58
+        },
+        {
+          "name": "Test/logos/run/const_func_map_field_store.lgo",
+          "seconds": 0.51
+        }
+      ],
+      "leaf_count": 3,
+      "skipped_tests": []
+    }
+  ],
+  "positive_frozen_checks": [
+    {
+      "path": "test/logos/run/const_func_map_field_store.lgo",
+      "sha256": "1ea5cfa8168c9f1736aaeb77b7440126b496bfaaea7216e378989c52096ea2f5"
+    },
+    {
+      "path": "test/logos/run/const_func_map_field_store.out",
+      "sha256": "7de1555df0c2700329e815b93b32c571c3ea54dc967b89e81ab73b9972b72d1d"
+    }
+  ],
+  "genuine_rejection_frozen_checks": [
+    {
+      "path": "test/logos/compile/const_func_map_store_key.lgo",
+      "sha256": "9855cce0007963a86ca8b211c8a46c147ab855f10493ed1aaf2128b77a115655"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/ctfe/assignment_errors_test.go",
+      "sha256": "185a96634cf12bf1615f1486a05da5a678edc3b262b27026c9c530809341c406"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/ctfe/assignment_order_test.go",
+      "sha256": "b0f7f4f681f06ab8aa50ed3fc8307618e74bd4331ca1d7ec82728c83397eb221"
+    }
+  ],
+  "all_ten_M24_checks_unchanged": [
+    {
+      "path": "src/cmd/compile/internal/logos/ctfe/assignment_errors_test.go",
+      "sha256": "185a96634cf12bf1615f1486a05da5a678edc3b262b27026c9c530809341c406"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/ctfe/assignment_order_test.go",
+      "sha256": "b0f7f4f681f06ab8aa50ed3fc8307618e74bd4331ca1d7ec82728c83397eb221"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/ctfe/assignment_storage_return_test.go",
+      "sha256": "38c89dcc0bc5e8308ef7492675ec291c0800e4e135c7a26e7b11d22723ae0365"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/ctfe/assignment_storage_test.go",
+      "sha256": "ad37a45d9468135b7b11e6968d2d86c7485dd179218c073ef4aa3fb8625f9632"
+    },
+    {
+      "path": "src/cmd/go/testdata/script/logos_ctfe_assignment_order.txt",
+      "sha256": "9db2ca84ded49678df96f1738f2b31ab67a3f2c49765aa7f43f0a70f8f30c44c"
+    },
+    {
+      "path": "src/cmd/go/testdata/script/logos_ctfe_assignment_storage.txt",
+      "sha256": "b28087f2aaa9a815b67154aea9bea712da8dd9d060e11196a4842136032e9ea7"
+    },
+    {
+      "path": "test/logos/run/ctfe_assignment_order.lgo",
+      "sha256": "14065ea56b64a9ed61dabb2a82391803a812ec974737c5be52440943ece51bbf"
+    },
+    {
+      "path": "test/logos/run/ctfe_assignment_order.out",
+      "sha256": "16f206b48e0af0dcba75b716dc9a8fb8468eb8436930d0a42c07af7c550cc078"
+    },
+    {
+      "path": "test/logos/run/ctfe_assignment_storage.lgo",
+      "sha256": "f078cea23b03ae2ad22b19e626b6e230eea8f932830e65770d1ab0d5a2f687b3"
+    },
+    {
+      "path": "test/logos/run/ctfe_assignment_storage.out",
+      "sha256": "695092bfe3286d5c45ccf68f349688ca7f73f2173627822f00006ae1052e2493"
+    }
+  ],
+  "additional_observed_controls": [
+    {
+      "path": "test/logos/run/const_func_map_store_key.lgo",
+      "sha256": "ac35a562ad1b77b827cc8595b643ac76d90b784fcd328a088385a8691d874271"
+    },
+    {
+      "path": "test/logos/run/const_func_map_store_key.out",
+      "sha256": "85975837ce05fbf4ca0f34a3dddb24af5f4c76fc932e33f0cba9bb822a6ba921"
+    }
+  ],
+  "pinned_upstream_tools": [
+    {
+      "name": "go1.27.4",
+      "root": "/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci",
+      "binary_sha256": "de0ae3e082ce7599eae4fb69fa2ef1e43b8f31ffd3fce62cdf81930aa9005050",
+      "compiler_sha256": "40307e5f5c65a4b4220bbf35dbe014348780589ea2964003f0bf318fa14640e1"
+    },
+    {
+      "name": "go1.27.2",
+      "root": "/workspace/scratch/9949907ca71e/toolchains/go1.27.2",
+      "binary_sha256": "548d3c32f83fa81152f543eb1526be7884cfe0526eb5e9ce29d3eca14786e7e0",
+      "compiler_sha256": "8d4484dbaa31c4c6cec965aadd42efaa1e8d59e4a30ca3b466b502c377c29121"
+    },
+    {
+      "name": "go1.27.3",
+      "root": "/workspace/scratch/9949907ca71e/toolchains/go1.27.3",
+      "binary_sha256": "5f5eb6d0b2fb6aa0bb5d5f8c5f1c944e0de955c925f0111af92a9d8f79680b5b",
+      "compiler_sha256": "c331d8fc6c4ae9dbe20e8198435db0455f2a5ca55d2d02fc6d7337c906be8283"
+    }
+  ],
+  "excluded_invocation": "testdir/ records a misselected invocation with incomplete generated GOROOT data; see testdir-environment-recovery.json",
+  "new_mutation_probe": false
+}

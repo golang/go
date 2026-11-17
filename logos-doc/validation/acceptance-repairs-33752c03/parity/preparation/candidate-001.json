@@ -1,0 +1,63 @@
+{
+  "schema": 1,
+  "candidate": 1,
+  "created_utc": "2026-11-16T21:09:49.797180+00:00",
+  "worktree": "/workspace/scratch/9949907ca71e/logos-parity-execution-fix",
+  "base_head": "2535486fe9596a9212d525a5007963ef9e8682f0",
+  "base_tree": "5dba686458510aab15094739f8cde6b173425709",
+  "base_source_tree": "e237c399aae8f8065b724e8a0e27585686c7da18",
+  "freeze_manifest": "/workspace/scratch/9949907ca71e/recovery-evidence/parity-execution-limiter/freeze/manifest.json",
+  "freeze_manifest_sha256": "0fb9448d50cb6d8ee73065f65b1e05a6d0fa98d663ee5d47ad3bdfcad05ef92f",
+  "implementation": {
+    "path": "src/cmd/internal/goparity/parity_test.go",
+    "bytes": 87752,
+    "sha256": "d4e7045af9f45037ceb9670a192617915571847bf816b23fd4b2f7fa7f92e6c9"
+  },
+  "frozen_tests": {
+    "path": "src/cmd/internal/goparity/execution_queue_test.go",
+    "bytes": 10411,
+    "sha256": "6c13e3b083cd289ca38aa5c9c9cfe0f8d9eaee9ea6f2654cc7aaa7668b53cc07"
+  },
+  "patch": {
+    "path": "/workspace/scratch/9949907ca71e/recovery-evidence/parity-execution-limiter/candidate-001.patch",
+    "bytes": 919,
+    "sha256": "98850b1a9ae643e640f8f38c15d3cebdc8c26b6d8eb8e918e129c9ecd3344657"
+  },
+  "baseline_red": {
+    "exit_code": 1,
+    "duration_seconds": 10.929,
+    "expected_outcome_matched": true,
+    "files": [
+      {
+        "path": "/workspace/scratch/9949907ca71e/recovery-evidence/acceptance-failure-repairs/parity-queue-red-001/inputs.json",
+        "bytes": 5742,
+        "sha256": "43cf9d0af9b0fa21e586dde00e593fb8de735caa10a53776ce1b7bd1cb091f0f"
+      },
+      {
+        "path": "/workspace/scratch/9949907ca71e/recovery-evidence/acceptance-failure-repairs/parity-queue-red-001/result.json",
+        "bytes": 3268,
+        "sha256": "77d31bf8b852f154b0f2e6594c6c24b6f04eaa0fb0678b482afca9da33810b6b"
+      },
+      {
+        "path": "/workspace/scratch/9949907ca71e/recovery-evidence/acceptance-failure-repairs/parity-queue-red-001/stdout.log",
+        "bytes": 1882,
+        "sha256": "695dda4f4bb51f66903ee45a444bf0565cb09c4a029051343e6478af627cbab6"
+      },
+      {
+        "path": "/workspace/scratch/9949907ca71e/recovery-evidence/acceptance-failure-repairs/parity-queue-red-001/stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ]
+  },
+  "static_checks": {
+    "all_72_other_existing_package_files_unchanged": true,
+    "frozen_new_test_unchanged": true,
+    "only_channel_declaration_and_admission_added": true,
+    "admission_precedes_child_deadline_creation": true,
+    "sweep_semaphore_budgets_APIs_normalizers_corpus_and_stamp_code_unchanged": true,
+    "git_diff_check": "pass"
+  },
+  "go_commands_executed": [],
+  "gate_status": "pending parent orchestration"
+}

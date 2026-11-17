@@ -74,6 +74,9 @@ func (fl *fileLower) ctfeLookup(cd *syntax.ConstDecl) (ctfeResult, bool) {
 	if m, ok := fl.materializeImportedConst(cd, obj, v, init); ok {
 		return m, true
 	}
+	if fl.cgoSource && v.IsComposite() {
+		return fl.materializeComposite(obj, v, init, syntax.StartPos(init))
+	}
 	lit, err := v.Expr(syntax.StartPos(init))
 	if err != nil {
 		return fl.ctfeUnspelled(obj, v, init)

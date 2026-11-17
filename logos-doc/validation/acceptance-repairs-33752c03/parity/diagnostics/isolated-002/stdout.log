@@ -1,0 +1,16 @@
+=== RUN   TestParityAt08IsolatedProbe
+    parity_at08_isolated_probe_test.go:27: probe input path=parity_test.go sha256=1be848e4e5f94f76d3484e12b253d4eaad81990a89635a59cf59f86fa1149bb4
+    parity_at08_isolated_probe_test.go:27: probe input path=testdata/run/at08_recursion_bound/main.go sha256=e1aa8d47d3fe4ddc0d43be98ec361c1ad2dcf9ca8711f1feaa49afc2081bc359
+    parity_at08_isolated_probe_test.go:57: probe build id=K6 elapsed=6.501163806s error=<nil>
+    parity_at08_isolated_probe_test.go:63: probe build id=U3N elapsed=5.797123106s error=<nil>
+    parity_at08_isolated_probe_test.go:83: probe binary id=K6 path=/home/agent/logos-parity-isolated-e96-002/TestParityAt08IsolatedProbe2735704526/002/out-fork-K6/at08_recursion_bound sha256=f4d9203dd9f64396f3d39703018be15b6cc4bace7463143077b9cbd6cda2a7cc args=["-O=0"]
+    parity_at08_isolated_probe_test.go:83: probe binary id=U3N path=/home/agent/logos-parity-isolated-e96-002/TestParityAt08IsolatedProbe2735704526/002/out-up-U3N/at08_recursion_bound sha256=4613adab1f195ccf84c820fe36b3775199f972a5057660bc03ec166c6679fae6 args=["-gcflags=all=-N -l"]
+    parity_at08_isolated_probe_test.go:92: probe run id=K6 trial=1 budget=10s GOMAXPROCS=4 elapsed=785.83921ms error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_isolated_probe_test.go:92: probe run id=U3N trial=1 budget=10s GOMAXPROCS=4 elapsed=865.399145ms error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_isolated_probe_test.go:92: probe run id=K6 trial=2 budget=10s GOMAXPROCS=4 elapsed=710.816926ms error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_isolated_probe_test.go:92: probe run id=U3N trial=2 budget=10s GOMAXPROCS=4 elapsed=757.004973ms error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_isolated_probe_test.go:92: probe run id=K6 trial=3 budget=10s GOMAXPROCS=4 elapsed=869.198642ms error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_isolated_probe_test.go:92: probe run id=U3N trial=3 budget=10s GOMAXPROCS=4 elapsed=794.094235ms error=<nil> exit=0 stdout="ok\n" stderr=""
+--- PASS: TestParityAt08IsolatedProbe (17.14s)
+PASS
+ok  	cmd/internal/goparity	17.144s

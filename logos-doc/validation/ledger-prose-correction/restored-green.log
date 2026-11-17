@@ -1,0 +1,5 @@
+=== RUN   TestRedteamLedgerRows
+--- PASS: TestRedteamLedgerRows (0.01s)
+=== RUN   TestRedteamLedgerRelease
+--- PASS: TestRedteamLedgerRelease (0.00s)
+PASS

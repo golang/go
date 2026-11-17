@@ -1,0 +1,63 @@
+{
+  "recordedAt": "2026-11-16T17:09:09.445Z",
+  "repository": "gosuda/LoGOs",
+  "runId": 43906416853,
+  "jobId": 133436355169,
+  "url": "https://github.com/gosuda/LoGOs/actions/runs/43906416853/job/133436355169",
+  "status": "completed",
+  "conclusion": "success",
+  "prHead": "45c29ff215477f7e403188d7452fc79aef05d791",
+  "actualCheckout": "f2ad58be8742b8ec350db8f06d9dc794ea3302e4",
+  "checkoutEvidence": [
+    "2026-11-16T16:48:46.1638812Z  * branch              f2ad58be8742b8ec350db8f06d9dc794ea3302e4 -> FETCH_HEAD",
+    "2026-11-16T16:48:47.4278588Z HEAD is now at f2ad58be Merge 45c29ff215477f7e403188d7452fc79aef05d791 into 13a968f350564e739bf700df698a9a635dcdddcd"
+  ],
+  "installedToolchainEvidence": [
+    "2026-11-16T16:49:01.4666338Z Building Go toolchain1 using /home/runner/work/_temp/go1.27.4-ci.",
+    "2026-11-16T16:50:07.4151068Z Building Go toolchain2 using go_bootstrap and Go toolchain1.",
+    "2026-11-16T16:50:54.2633519Z Building Go toolchain3 using go_bootstrap and Go toolchain2.",
+    "2026-11-16T16:53:46.1657217Z Installed Go for linux/amd64 in /home/runner/work/LoGOs/LoGOs"
+  ],
+  "profiles": [
+    {
+      "experiment": "jsonv2",
+      "status": "success",
+      "vet": "passed",
+      "runtimeRaceSeconds": 62.684,
+      "loweringRaceSeconds": 188.755,
+      "nativeTestdirSeconds": 80.836,
+      "ejectionAndFallbackRaceSeconds": 18.395
+    },
+    {
+      "experiment": "nojsonv2",
+      "status": "success",
+      "vet": "passed",
+      "runtimeRaceSeconds": 58.926,
+      "loweringRaceSeconds": 175.339,
+      "nativeTestdirSeconds": 57.985,
+      "ejectionAndFallbackRaceSeconds": 16.78
+    }
+  ],
+  "packageResultLines": [
+    "2026-11-16T16:55:24.7253873Z ok  \tlogos/rt/json\t62.684s",
+    "2026-11-16T16:58:00.7398166Z ok  \tcmd/compile/internal/logos\t188.755s",
+    "2026-11-16T16:59:22.8077007Z ok  \tcmd/internal/testdir\t80.836s",
+    "2026-11-16T17:00:15.3552869Z ok  \tcmd/go\t18.395s",
+    "2026-11-16T17:01:46.2010223Z ok  \tlogos/rt/json\t58.926s",
+    "2026-11-16T17:04:12.5737433Z ok  \tcmd/compile/internal/logos\t175.339s",
+    "2026-11-16T17:05:11.7991540Z ok  \tcmd/internal/testdir\t57.985s",
+    "2026-11-16T17:06:02.8557643Z ok  \tcmd/go\t16.780s"
+  ],
+  "guardedTestEvidence": {
+    "name": "TestEjectQuotedCgoTypes",
+    "explicitlyNamedInLog": false,
+    "CGO_ENABLEDPrinted": false,
+    "conclusion": "Both profile package gates passed, but non-verbose output does not directly prove this guarded test ran. Keep the explicit verbose both-profile local gate required."
+  },
+  "rawLog": {
+    "path": "json-43906416853-job-133436355169.log",
+    "sha256": "c2e4b7ac2ca2009be77a2a64d2ab9b407117fc96f9b8f39bd08ec92f937f51a8",
+    "bytes": 9534,
+    "encoding": "UTF-8 decoded GitHub job log; original BOM and LF endings retained"
+  }
+}

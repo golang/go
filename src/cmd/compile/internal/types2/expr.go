@@ -1285,7 +1285,8 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 		goto Error
 
 	case *syntax.ArrayType, *syntax.SliceType, *syntax.StructType, *syntax.FuncType,
-		*syntax.InterfaceType, *syntax.MapType, *syntax.ChanType:
+		*syntax.InterfaceType, *syntax.MapType, *syntax.ChanType,
+		*syntax.OptionType, *syntax.TupleType:
 		x.mode_ = typexpr
 		x.typ_ = check.typ(e)
 		// Note: rawExpr (caller of exprInternal) will call check.recordTypeAndValue

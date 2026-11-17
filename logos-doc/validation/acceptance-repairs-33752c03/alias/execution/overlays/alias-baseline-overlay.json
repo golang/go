@@ -1,0 +1,5 @@
+{
+  "Replace": {
+    "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/cmd/go/internal/load/logos_census_test.go": "/workspace/scratch/9949907ca71e/logos-alias-fix/src/cmd/go/internal/load/logos_census_test.go"
+  }
+}

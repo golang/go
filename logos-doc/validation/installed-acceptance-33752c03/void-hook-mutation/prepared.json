@@ -1,0 +1,10 @@
+{
+  "source": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/cmd/compile/internal/types2/builtins.go",
+  "source_sha256": "5b77424183490de7e8cfd7368a87f4ecb33cc86d3ba64b29427f256e64fc4718",
+  "mutant": "/workspace/scratch/9949907ca71e/recovery-evidence/installed-repair-33752c03/void-hook-mutation/builtins.go",
+  "mutant_sha256": "061834ce3b1998594077c5b799cfa91e7aa445bd7ee011644f39234d2add18b6",
+  "overlay_sha256": "27644522a68e07706d0a327b9522705e0cfd20f5ea9eb6e04fe465df15e1a569",
+  "single_change": "Remove the one check.logosRecordVoidPanic(call) hook call",
+  "go_executed": false,
+  "diagnostic_layout_pending_fresh_make": true
+}

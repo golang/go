@@ -1,0 +1,28 @@
+# Both source kinds use the shared inliner, including its late method wrappers.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cp $GOROOT/test/logos/run/inline_batches.go go/main.go
+cp $GOROOT/test/logos/run/inline_batches.go lgo/main.lgo
+
+cd go
+go run -O=1 .
+go run -O=3 .
+logos run -O=3 .
+
+cd ../lgo
+logos run -O=1 .
+logos run -O=3 .
+
+-- go/go.mod --
+module example.com/inlinebatches/go
+
+go 1.27
+-- lgo/go.mod --
+module example.com/inlinebatches/lgo
+
+go 1.27
+-- lgo/logos.toml --
+[build]
+arena = false
+target_cpu = "baseline"

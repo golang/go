@@ -1,0 +1,12 @@
+{
+  "src_tree": "e237c399aae8f8065b724e8a0e27585686c7da18",
+  "scope": "Independent M22 acceptance; additional blocked M6 binding rows still prevent full release closure.",
+  "frozen_inputs": {
+    "src/cmd/go/testdata/script/logos_redteam_80.txt": "3f0acf124680db65a8eb71b72d0e68b8779b778fa64bffc00ddd9afb42b9aeef",
+    "src/cmd/go/testdata/script/logos_repro.txt": "7ac2ce11b2c16cab25fb7adc1b701de3ed3dc516fb9b2032dbb6943c55e6ba37",
+    "src/cmd/go/testdata/script/logos_eject_example.txt": "9e50e946976217cc6054223c4b04fdf8fb9acd1a7097e9001c67d623ae364f6a",
+    "src/cmd/go/testdata/script/logos_lsp.txt": "f7919d0d47cbf4d50d6af0bbb1ed578111f3b85715df6a7212e8b5f65a8b8a0c",
+    "src/cmd/go/testdata/script/logos_sum_crossarch.txt": "7b5ffb83bceecf552577cf056132f9a86ca2518d86faa231f8e6d6f88adad167",
+    "test/logos/example/order_service.lgo": "3ffb014e7aa3417391c84d1f451e1393fbdd974149cce5c1b5733ae5aeeca130"
+  }
+}

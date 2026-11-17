@@ -427,15 +427,14 @@ func shouldElimIfElse(no, yes, post *Block, arch string) bool {
 // accesses, panics and so on) except for execution time changes. It
 // also ensures that the block does not contain any phis which we can't
 // speculatively execute.
-// Warning: this function cannot currently detect values that represent
-// instructions the execution of which need to be guarded with CPU
-// hardware feature checks. See issue #34950.
+// SIMD values retain their CPU feature guards. This does not detect every
+// other instruction that needs a hardware feature check. See issue #34950.
 func canSpeculativelyExecute(b *Block) bool {
 	// don't fuse memory ops, Phi ops, divides (can panic),
 	// or anything else with side-effects
 	for _, v := range b.Values {
 		if v.Op == OpPhi || isDivMod(v.Op) || isPtrArithmetic(v.Op) ||
-			v.Type.IsMemory() || opcodeTable[v.Op].hasSideEffects {
+			v.Type.IsMemory() || opcodeTable[v.Op].hasSideEffects || usesSIMD(v) {
 			return false
 		}
 

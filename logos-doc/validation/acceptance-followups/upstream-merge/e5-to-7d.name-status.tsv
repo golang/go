@@ -1,0 +1,12 @@
+M	logos-doc/IMPLEMENTATION.md
+M	logos-doc/REDTEAM.md
+M	logos-doc/SPEC.md
+M	logos-doc/golangci.yml
+M	src/cmd/compile/internal/logos/lint/lint_test.go
+M	src/cmd/compile/internal/logos/lint/registry.go
+A	src/cmd/compile/internal/logos/lint/rule_array_index_out_of_bounds.go
+A	src/cmd/compile/internal/logos/lint/rule_array_index_out_of_bounds_test.go
+M	src/cmd/compile/internal/logos/lint/rule_default_test.go
+M	src/cmd/go/testdata/script/logos_guarded_enum_index.txt
+A	test/logos/lint/array_index_out_of_bounds.lgo
+A	test/logos/lint/array_index_out_of_bounds_go.go

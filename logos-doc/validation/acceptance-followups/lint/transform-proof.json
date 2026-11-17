@@ -1,0 +1,112 @@
+{
+  "base": "45c29ff215477f7e403188d7452fc79aef05d791",
+  "repository": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes",
+  "candidateHEAD": "45c29ff215477f7e403188d7452fc79aef05d791",
+  "ownedDiffSHA256": "c07a69229c88231ff6c308c404cfb5a02c4007fbefffcc2d27ecd3a8f28b8669",
+  "compilerSelectorAndAllOtherProductionBytesUnchanged": true,
+  "equivalentCallRewrites": 11,
+  "transformations": [
+    {
+      "file": "src/cmd/go/internal/logos/eject/eject_test.go",
+      "equivalentCallRewrites": 2,
+      "existingInputsAndAssertionsPreserved": true
+    },
+    {
+      "file": "src/cmd/go/internal/logos/eject/variant_features_test.go",
+      "equivalentCallRewrites": 3,
+      "existingInputsAndAssertionsPreserved": true
+    },
+    {
+      "file": "src/cmd/go/internal/logos/eject/variant_host_tags_test.go",
+      "equivalentCallRewrites": 1,
+      "existingInputsAndAssertionsPreserved": true
+    },
+    {
+      "file": "src/cmd/go/internal/logos/eject/variant_tags_test.go",
+      "equivalentCallRewrites": 5,
+      "existingInputsAndAssertionsPreserved": true
+    }
+  ],
+  "hashes": [
+    {
+      "file": "src/cmd/go/internal/logos/eject/eject.go",
+      "oldSHA256": "33fa3dcbfc5e9e4b353d1e6bdc8df547be6374786a0a80e1da1744870162d2b1",
+      "newSHA256": "af53503f6fa1475743b5e80929b6ce955444d85c13e20eb109efc248fdfed479"
+    },
+    {
+      "file": "src/cmd/go/internal/logos/eject/eject_test.go",
+      "oldSHA256": "f95057a188ec9b6133580ac646308e345cf4c8baec2f03b83f0c7d508dfe5ac5",
+      "newSHA256": "4eafc4618d37b1cbfbd3c95346ea66eaf6b3f863541546d5caa27c74871e453f"
+    },
+    {
+      "file": "src/cmd/go/internal/logos/eject/variant_features_test.go",
+      "oldSHA256": "7050804ea4849c055e9fd2927e1e7c0ebf85953acc6de02f835ec67d195f3859",
+      "newSHA256": "c17238fa9bfdb52ee8501f5a72334f10f2738d75e19a3d8de6940fc4f2e23891"
+    },
+    {
+      "file": "src/cmd/go/internal/logos/eject/variant_host_tags_test.go",
+      "oldSHA256": "e76912fcd89b7386f27d04732db9460f12f008e8d8ad97e77510c00305d95062",
+      "newSHA256": "88a15a43988bd1cf6a0fea204903c63f38ba970f7343e03307e2e8588a2103c3"
+    },
+    {
+      "file": "src/cmd/go/internal/logos/eject/variant_tags_test.go",
+      "oldSHA256": "5d273a55a9f451cd03b4afb6b44503a0ec19b3eeb2e3b4c8acf7e78be63027b2",
+      "newSHA256": "c6be111930041e02e0823b382b694e50bc9778daed7822965fa7d97d3ebfcf0c"
+    }
+  ],
+  "manifests": [
+    {
+      "file": "logos-doc/validation/compiler-stability/frozen-tests.sha256",
+      "SHA256": "4d7627941f465cf36eaed189c99e141a0f6a2de0d702d12ea65922c2b10f5a88",
+      "unchanged": true,
+      "entries": [
+        {
+          "line": 7,
+          "text": "e76912fcd89b7386f27d04732db9460f12f008e8d8ad97e77510c00305d95062  src/cmd/go/internal/logos/eject/variant_host_tags_test.go",
+          "affected": [
+            "src/cmd/go/internal/logos/eject/variant_host_tags_test.go"
+          ]
+        },
+        {
+          "line": 8,
+          "text": "5d273a55a9f451cd03b4afb6b44503a0ec19b3eeb2e3b4c8acf7e78be63027b2  src/cmd/go/internal/logos/eject/variant_tags_test.go",
+          "affected": [
+            "src/cmd/go/internal/logos/eject/variant_tags_test.go"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "logos-doc/validation/ejection-target-facts/frozen-tests.sha256",
+      "SHA256": "4ef99705f9141537f3b7c6d0ffcc6bda863fb71ff224526741844c3232c3dc8d",
+      "unchanged": true,
+      "entries": [
+        {
+          "line": 1,
+          "text": "7050804ea4849c055e9fd2927e1e7c0ebf85953acc6de02f835ec67d195f3859  src/cmd/go/internal/logos/eject/variant_features_test.go",
+          "affected": [
+            "src/cmd/go/internal/logos/eject/variant_features_test.go"
+          ]
+        }
+      ]
+    }
+  ],
+  "inventoryScope": "All manifest-named and SHA256 files tracked at the exact base; supplemental searches covered task evidence, publication, recovery, and prerequisite directories without reading caches.",
+  "supplementalMatches": "Only hosted diagnostic metadata and the language lane preflight log name changed tests; no additional frozen hash manifest was found.",
+  "activeGate": ".github/workflows/compiler-stability.yml:80 checks the historical compiler-stability manifest. A versioned successor must be explicit; this proof does not edit it.",
+  "historicalManifestCommits": [
+    {
+      "commit": "53f21cd963662c0ba05d651dbefdab473f74893a",
+      "manifest": "logos-doc/validation/compiler-stability/frozen-tests.sha256"
+    },
+    {
+      "commit": "3aeea9a8ab10e2c2065fac5e02a22c1583ab1ad4",
+      "manifest": "logos-doc/validation/ejection-target-facts/frozen-tests.sha256"
+    },
+    {
+      "commit": "57bd5dddee23f8d4acc1e9549064bc96aebfde8b",
+      "manifest": "logos-doc/validation/ejection-target-facts/frozen-tests.sha256"
+    }
+  ],
+  "goCompilationTestsAndLintExecuted": false
+}

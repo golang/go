@@ -1,0 +1,233 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+mkdir $WORK/bin
+
+cd dotted
+logos build -o $WORK/bin/dotted$GOEXE ./cmd
+stderr -count=1 'go: warning: \[portability::alias_extension\] main\.📜: loGo/s alias extension file'
+! stderr 'error'
+exists $WORK/bin/dotted$GOEXE
+logos build ./lib
+stderr -count=2 'portability::alias_extension'
+stderr -count=1 'lib\.⚡:'
+stderr -count=1 'lib_test\.⚡:'
+cd ..
+
+cd plain
+logos build -o $WORK/bin/plain$GOEXE ./cmd
+! stderr .
+exists $WORK/bin/plain$GOEXE
+logos build ./lib
+! stderr .
+cd ..
+
+cd canonical
+logos build -o $WORK/bin/canonical$GOEXE .
+! stderr .
+exists $WORK/bin/canonical$GOEXE
+cd ..
+
+cd gomod
+logos build -o $WORK/bin/gomod$GOEXE .
+! stderr .
+cd ..
+
+cd denymod
+! logos build -o $WORK/bin/denymod$GOEXE .
+stderr 'portability::alias_extension'
+! exists $WORK/bin/denymod$GOEXE
+cd ..
+
+cd denyallow
+logos build -o $WORK/bin/denyallow$GOEXE .
+! stderr .
+exists $WORK/bin/denyallow$GOEXE
+exec $WORK/bin/denyallow$GOEXE
+stdout '^allow deny ok$'
+cd ..
+
+cd allowpos
+logos build -o $WORK/bin/allowpos$GOEXE .
+stderr -count=2 'portability::alias_extension'
+! stderr 'ok\.📜'
+exists $WORK/bin/allowpos$GOEXE
+exec $WORK/bin/allowpos$GOEXE
+stdout '^helped$'
+stdout '^extra$'
+stdout '^blockmid$'
+stdout '^ok quiet$'
+cd ..
+
+-- dotted/go.mod --
+module example.com/dotted
+
+go 1.27
+-- dotted/cmd/main.📜 --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("dotted ok")
+}
+-- dotted/lib/lib.⚡ --
+package lib
+
+func Name() string { return "lib" }
+-- dotted/lib/lib_test.⚡ --
+package lib
+
+import "testing"
+
+func TestName(t *testing.T) {
+	if Name() != "lib" {
+		t.Fatal("bad name")
+	}
+}
+-- plain/go.mod --
+module plain
+
+go 1.27
+-- plain/cmd/main.📜 --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("plain ok")
+}
+-- plain/lib/lib.⚡ --
+package lib
+
+func Name() string { return "lib" }
+-- plain/lib/lib_test.⚡ --
+package lib
+
+import "testing"
+
+func TestName(t *testing.T) {
+	if Name() != "lib" {
+		t.Fatal("bad name")
+	}
+}
+-- canonical/go.mod --
+module example.com/canonical
+
+go 1.27
+-- canonical/main.lgo --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("canonical ok")
+}
+-- gomod/go.mod --
+module example.com/gomod
+
+go 1.27
+-- gomod/main.go --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("go ok")
+}
+
+-- denymod/go.mod --
+module example.com/denymod
+
+go 1.27
+
+-- denymod/logos.toml --
+[lints]
+portability = "deny"
+
+-- denymod/main.📜 --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("deny ok")
+}
+
+-- denyallow/go.mod --
+module example.com/denyallow
+
+go 1.27
+
+-- denyallow/logos.toml --
+[lints]
+portability = "deny"
+
+-- denyallow/main.📜 --
+//logos:allow(portability::alias_extension)
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("allow deny ok")
+}
+
+-- allowpos/go.mod --
+module example.com/allowpos
+
+go 1.27
+
+-- allowpos/ok.📜 --
+//logos:allow(portability::alias_extension)
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("ok quiet")
+}
+
+-- allowpos/abovefunc.📜 --
+package main
+
+import "fmt"
+
+//logos:allow(portability::alias_extension)
+func helper() string {
+	return "helped"
+}
+
+func init() {
+	fmt.Println(helper())
+}
+
+-- allowpos/blankline.📜 --
+//logos:allow(portability::alias_extension)
+
+package main
+
+import "fmt"
+
+func extra() string {
+	return "extra"
+}
+
+func init() {
+	fmt.Println(extra())
+}
+-- allowpos/blockmid.📜 --
+// Package main stays quiet.
+//logos:allow(portability::alias_extension)
+// The directive is the middle line of the comment block.
+package main
+
+import "fmt"
+
+func blockmid() string {
+	return "blockmid"
+}
+
+func init() {
+	fmt.Println(blockmid())
+}

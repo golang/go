@@ -1,0 +1,43 @@
+{
+  "command": [
+    "/workspace/scratch/9949907ca71e/logos-final-acceptance/bin/go",
+    "test",
+    "-c",
+    "-p=1",
+    "-O=1",
+    "-o",
+    "/workspace/scratch/9949907ca71e/recovery-evidence/acceptance-failure-repairs/environment-binaries/runtime.test",
+    "runtime"
+  ],
+  "cwd": "/workspace/scratch/9949907ca71e/logos-final-acceptance/src",
+  "output": "/workspace/scratch/9949907ca71e/recovery-evidence/acceptance-failure-repairs/environment-runtime-compile-001",
+  "environment": {
+    "GOROOT": "/workspace/scratch/9949907ca71e/logos-final-acceptance",
+    "GOCACHE": "/workspace/scratch/9949907ca71e/final-postbuild-cache",
+    "GOTOOLCHAIN": "local",
+    "GOENV": "off",
+    "GOWORK": "off",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "GOMAXPROCS": "2",
+    "GOGC": "50",
+    "GOMEMLIMIT": "2GiB",
+    "GOFLAGS": "-p=2",
+    "TMPDIR": "/home/agent/logos-parity-isolated-e96-002",
+    "GOTMPDIR": "/home/agent/logos-parity-isolated-e96-002",
+    "UPROOT1274": "/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci",
+    "PATH": "/workspace/scratch/9949907ca71e/logos-final-acceptance/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+  },
+  "files": [
+    "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/runtime/gc_test.go",
+    "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/runtime/testdata/testprog/gc.go"
+  ],
+  "repositories": [],
+  "expected_exit": 0,
+  "required_markers": [],
+  "forbidden_markers": [
+    "[build failed]"
+  ],
+  "timeout_seconds": 600,
+  "boundary": "Compile unchanged runtime assertions with bounded build resources; execution uses a separate clean acceptance environment."
+}

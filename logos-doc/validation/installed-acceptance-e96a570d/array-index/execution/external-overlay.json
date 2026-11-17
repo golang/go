@@ -1,0 +1,5 @@
+{
+  "Replace": {
+    "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/cmd/compile/internal/logos/lint/rule_array_index_out_of_bounds.go": "/workspace/scratch/9949907ca71e/recovery-evidence/array-index-acceptance/mutation/rule_array_index_out_of_bounds.go"
+  }
+}

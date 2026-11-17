@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "worktree": "/workspace/scratch/9949907ca71e/logos-final-acceptance",
+  "commit": "e96a570da271c43a80e23bb1a188aac054acff25",
+  "tree": "0841c3d2a92b7d6091a5e248b82bd820326947a8",
+  "src_tree": "e237c399aae8f8065b724e8a0e27585686c7da18",
+  "installed_binary_sha256": {
+    "bin/go": "34a04896c6bdbedb2a8dbdb491b836b41e80efa47a255286733de021c776e6f9",
+    "bin/logos": "34a04896c6bdbedb2a8dbdb491b836b41e80efa47a255286733de021c776e6f9",
+    "pkg/tool/linux_amd64/compile": "b8d0742e328093b87fec566a68fb810d7043446ce0b575a81f304432bee87b6e",
+    "pkg/tool/linux_amd64/link": "0520fc2422f2d09ccb460c856d98f624164939d4e84ec78c8331e1d0afa59729",
+    "pkg/tool/linux_amd64/asm": "cf19e608ea29badc7c52e96ccddc64fb736098547dbf3bf6848c7b27a588aa3a",
+    "pkg/tool/linux_amd64/cgo": "323a1c76a840a00b36a0b0b1938ecd2b403bad5fea981cffa4f717c2e0a959bd"
+  },
+  "fresh_make_result": {
+    "path": "/workspace/scratch/9949907ca71e/recovery-evidence/fresh-make-e96a570d/result.json",
+    "sha256": "56bfe99ecf0438b97a60e6b7453b0be88945228a8c949702dd19183cc42fc3b2"
+  },
+  "fork_cache": "/workspace/scratch/9949907ca71e/final-postbuild-cache"
+}

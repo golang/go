@@ -1,0 +1,1 @@
+{"command":"restored-unit.test -test.v -test.count=1 -test.short -test.run=^TestInactiveCensusHonorsOverlay$ -test.timeout=2m","startedUTC":"2026-11-16T18:19:44Z","exit":0,"wallSeconds":2,"timeoutSeconds":150,"sourceTemp":"/home/agent/logos-ejection-overlay-9949907ca71e-y20O9N","race":true,"overlay":false}

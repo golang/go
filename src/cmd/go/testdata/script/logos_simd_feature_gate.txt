@@ -270,3 +270,20 @@ func tokens(mode string) ([]string, string) {
 	}
 	return nil, ""
 }
+
+-- m/go.work --
+go 1.27
+
+use (
+	.
+	./hostprobe
+	./checkorder
+)
+-- m/hostprobe/go.mod --
+module example.com/featuregate/hostprobe
+
+go 1.27
+-- m/checkorder/go.mod --
+module example.com/featuregate/checkorder
+
+go 1.27

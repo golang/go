@@ -1,0 +1,78 @@
+{
+  "baseCommit": "45c29ff215477f7e403188d7452fc79aef05d791",
+  "baseTree": "32b96f3a7c289c987bc021fe5a5adbf35cfe226b",
+  "tree": "bbe834fa4760559c16013df73af1b469d410759a",
+  "sourceTreeUnchanged": "099367e1031585fa553ef7987b199288df36256a",
+  "exactDiff": [
+    {
+      "path": "logos-doc/validation/acceptance-followups/ctfe-map-field/const_func_unsupported_store.original.lgo",
+      "before": null,
+      "after": {
+        "sha": "bc8cbfa62cfd6526d3ddeeb9d9f0a8d4937a247a",
+        "mode": "100644",
+        "type": "blob"
+      }
+    },
+    {
+      "path": "logos-doc/validation/acceptance-followups/ctfe-map-field/README.md",
+      "before": null,
+      "after": {
+        "sha": "f7307e23e980aa0a37a9b1e669295b3d86333a34",
+        "mode": "100644",
+        "type": "blob"
+      }
+    },
+    {
+      "path": "test/logos/compile/const_func_unsupported_store.lgo",
+      "before": {
+        "sha": "bc8cbfa62cfd6526d3ddeeb9d9f0a8d4937a247a",
+        "mode": "100644",
+        "type": "blob"
+      },
+      "after": null
+    },
+    {
+      "path": "test/logos/run/const_func_map_field_store.lgo",
+      "before": null,
+      "after": {
+        "sha": "8b6006121a3ba366d2fcec82d367378b903e1e75",
+        "mode": "100644",
+        "type": "blob"
+      }
+    },
+    {
+      "path": "test/logos/run/const_func_map_field_store.out",
+      "before": null,
+      "after": {
+        "sha": "b8626c4cff2849624fb67f87cd0ad72b163671ad",
+        "mode": "100644",
+        "type": "blob"
+      }
+    }
+  ],
+  "readback": [
+    {
+      "path": "test/logos/run/const_func_map_field_store.lgo",
+      "gitBlobSha": "8b6006121a3ba366d2fcec82d367378b903e1e75",
+      "sha256": "1ea5cfa8168c9f1736aaeb77b7440126b496bfaaea7216e378989c52096ea2f5",
+      "bytes": 463
+    },
+    {
+      "path": "test/logos/run/const_func_map_field_store.out",
+      "gitBlobSha": "b8626c4cff2849624fb67f87cd0ad72b163671ad",
+      "sha256": "7de1555df0c2700329e815b93b32c571c3ea54dc967b89e81ab73b9972b72d1d",
+      "bytes": 2
+    },
+    {
+      "path": "logos-doc/validation/acceptance-followups/ctfe-map-field/README.md",
+      "gitBlobSha": "f7307e23e980aa0a37a9b1e669295b3d86333a34",
+      "sha256": "ff8274425890a2ee8445f355065feb04d5c5b35abc4a78fd2578c47e709ecc2c",
+      "bytes": 3520
+    }
+  ],
+  "allFrozenFullFileDigestsMatch": true,
+  "allOtherTreeEntriesIdentical": true,
+  "execution": "not started before executor loss",
+  "createdCommits": 0,
+  "updatedRefs": 0
+}

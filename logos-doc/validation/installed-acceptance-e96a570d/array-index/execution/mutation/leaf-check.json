@@ -1,0 +1,10 @@
+{
+  "expected": [
+    "TestArrayIndexOutOfBounds/guardedReceiver/x.go",
+    "TestArrayIndexOutOfBounds/guardedReceiver/x.lgo"
+  ],
+  "expected_action": "fail",
+  "matched": 2,
+  "wrong": {},
+  "all_observed_skips": []
+}

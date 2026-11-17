@@ -256,8 +256,20 @@ func (fl *fileLower) spellType(typ types2.Type) (string, bool) {
 		}
 		return fl.synthQualifier(p)
 	}
-	text := types2.TypeString(typ, qualify)
-	return text, ok
+	return fl.sourceTypeString(typ, qualify), ok
+}
+
+func (fl *fileLower) sourceTypeString(typ types2.Type, qualify types2.Qualifier) string {
+	return sourceTypeString(typ, qualify, fl.pkg.tpkg, fl.cgoSource)
+}
+
+// sourceTypeString spells syntax emitted into the current source file.
+// Diagnostic labels and semantic keys use types2.TypeString instead.
+func sourceTypeString(typ types2.Type, qualify types2.Qualifier, pkg *types2.Package, cgoSource bool) string {
+	if cgoSource {
+		return types2.LogosCgoTypeString(typ, qualify, pkg)
+	}
+	return types2.TypeString(typ, qualify)
 }
 
 func (fl *fileLower) synthQualifier(p *types2.Package) string {

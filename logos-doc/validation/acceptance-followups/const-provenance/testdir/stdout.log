@@ -1,0 +1,35 @@
+=== RUN   Test
+=== RUN   Test/logos/compile/const_composite_addr.lgo
+=== PAUSE Test/logos/compile/const_composite_addr.lgo
+=== RUN   Test/logos/compile/const_composite_copy_alias.lgo
+=== PAUSE Test/logos/compile/const_composite_copy_alias.lgo
+=== RUN   Test/logos/compile/const_rodata_alias.lgo
+=== PAUSE Test/logos/compile/const_rodata_alias.lgo
+=== RUN   Test/logos/compile/const_unsafe_views.lgo
+=== PAUSE Test/logos/compile/const_unsafe_views.lgo
+=== RUN   Test/logos/run/const_composite_addr.lgo
+=== PAUSE Test/logos/run/const_composite_addr.lgo
+=== RUN   Test/logos/run/const_unsafe_fault.lgo
+=== PAUSE Test/logos/run/const_unsafe_fault.lgo
+=== RUN   Test/logos/run/const_unsafe_views.lgo
+=== PAUSE Test/logos/run/const_unsafe_views.lgo
+=== RUN   Test/logos/run/rodata_write.lgo
+=== PAUSE Test/logos/run/rodata_write.lgo
+=== CONT  Test/logos/compile/const_composite_addr.lgo
+=== CONT  Test/logos/run/rodata_write.lgo
+=== CONT  Test/logos/run/const_unsafe_views.lgo
+=== CONT  Test/logos/run/const_unsafe_fault.lgo
+=== CONT  Test/logos/run/const_composite_addr.lgo
+=== CONT  Test/logos/compile/const_unsafe_views.lgo
+=== CONT  Test/logos/compile/const_rodata_alias.lgo
+=== CONT  Test/logos/compile/const_composite_copy_alias.lgo
+--- PASS: Test (0.10s)
+    --- PASS: Test/logos/compile/const_composite_addr.lgo (1.48s)
+    --- PASS: Test/logos/run/rodata_write.lgo (1.37s)
+    --- PASS: Test/logos/run/const_unsafe_views.lgo (0.41s)
+    --- PASS: Test/logos/run/const_unsafe_fault.lgo (0.43s)
+    --- PASS: Test/logos/run/const_composite_addr.lgo (0.45s)
+    --- PASS: Test/logos/compile/const_unsafe_views.lgo (0.10s)
+    --- PASS: Test/logos/compile/const_rodata_alias.lgo (0.10s)
+    --- PASS: Test/logos/compile/const_composite_copy_alias.lgo (0.11s)
+PASS

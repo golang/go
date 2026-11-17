@@ -1,0 +1,253 @@
+{
+  "recorded_utc": "2026-11-16T18:50:42.971Z",
+  "status": "PREPARED_ONLY_WAITING_FOR_ROOT_GO_LANE",
+  "identity": {
+    "path": "/workspace/scratch/9949907ca71e/recovery-evidence/final-acceptance-tools/identity-e96a570d.json",
+    "sha256": "a52fd73da636ff7b668f8652af4f2e4de672b0e3b79b9b9014d0bccae95ef262",
+    "schema": 1,
+    "worktree": "/workspace/scratch/9949907ca71e/logos-final-acceptance",
+    "commit": "e96a570da271c43a80e23bb1a188aac054acff25",
+    "tree": "0841c3d2a92b7d6091a5e248b82bd820326947a8",
+    "src_tree": "e237c399aae8f8065b724e8a0e27585686c7da18",
+    "installed_binary_sha256": {
+      "bin/go": "34a04896c6bdbedb2a8dbdb491b836b41e80efa47a255286733de021c776e6f9",
+      "bin/logos": "34a04896c6bdbedb2a8dbdb491b836b41e80efa47a255286733de021c776e6f9",
+      "pkg/tool/linux_amd64/compile": "b8d0742e328093b87fec566a68fb810d7043446ce0b575a81f304432bee87b6e",
+      "pkg/tool/linux_amd64/link": "0520fc2422f2d09ccb460c856d98f624164939d4e84ec78c8331e1d0afa59729",
+      "pkg/tool/linux_amd64/asm": "cf19e608ea29badc7c52e96ccddc64fb736098547dbf3bf6848c7b27a588aa3a",
+      "pkg/tool/linux_amd64/cgo": "323a1c76a840a00b36a0b0b1938ecd2b403bad5fea981cffa4f717c2e0a959bd"
+    },
+    "fresh_make_result": {
+      "path": "/workspace/scratch/9949907ca71e/recovery-evidence/fresh-make-e96a570d/result.json",
+      "sha256": "56bfe99ecf0438b97a60e6b7453b0be88945228a8c949702dd19183cc42fc3b2"
+    },
+    "fork_cache": "/workspace/scratch/9949907ca71e/final-postbuild-cache"
+  },
+  "shared_driver": {
+    "path": "PENDING_LANGUAGE_HANDOFF",
+    "required": "Built by the final installed compiler from exact e96 source without overlays; record build command/environment, SHA256, final tool hashes, source tree, and no source changes. Never reuse the45 binary for GREEN."
+  },
+  "environment": {
+    "GOROOT": "/workspace/scratch/9949907ca71e/logos-final-acceptance",
+    "GOCACHE": "/workspace/scratch/9949907ca71e/final-postbuild-cache",
+    "GOMAXPROCS": "1",
+    "GOMEMLIMIT": "512MiB",
+    "GOGC": "20",
+    "GOFLAGS": "-p=1",
+    "GOENV": "off",
+    "GOTOOLCHAIN": "local",
+    "GOWORK": "off",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "GOEXPERIMENT": "",
+    "GOOS": "linux",
+    "GOARCH": "amd64",
+    "GOAMD64": "v1",
+    "CGO_ENABLED": "1",
+    "CC": "/usr/bin/gcc-14",
+    "GOPATH": "/workspace/scratch/9949907ca71e/final-acceptance-gopath",
+    "PATH": "/workspace/scratch/9949907ca71e/logos-final-acceptance/bin:/workspace/scratch/9949907ca71e/toolchains/qemu-10.0.13/usr/bin:/usr/local/bin:/usr/bin:/bin",
+    "compile_temp": "task-owned disk directory",
+    "execute_source_temp": "unique real /home/agent directory with no VCS ancestry"
+  },
+  "sequence": [
+    {
+      "name": "overlay-installed",
+      "cwd": "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/cmd/go",
+      "argv": [
+        "$FINAL_CMDGO_RACE",
+        "-test.v",
+        "-test.count=1",
+        "-test.short",
+        "-test.parallel=1",
+        "-test.timeout=10m",
+        "-test.run=^TestScript$/^logos_eject_overlay_sources$"
+      ],
+      "outer_timeout_seconds": 660,
+      "required": [
+        "TestScript/logos_eject_overlay_sources PASS",
+        "No skips or no-tests result",
+        "Native/ejected exact overlay ok assertions remain frozen"
+      ]
+    },
+    {
+      "name": "linker-build",
+      "cwd": "/workspace/scratch/9949907ca71e/logos-final-acceptance/src",
+      "argv": [
+        "/workspace/scratch/9949907ca71e/logos-final-acceptance/bin/go",
+        "test",
+        "-p=1",
+        "-c",
+        "-o",
+        "$EVIDENCE/linker-capabilities.test",
+        "cmd/link/internal/ld"
+      ],
+      "outer_timeout_seconds": 600
+    },
+    {
+      "name": "linker-installed-components",
+      "cwd": "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/cmd/link/internal/ld",
+      "argv": [
+        "$EVIDENCE/linker-capabilities.test",
+        "-test.v",
+        "-test.count=1",
+        "-test.short",
+        "-test.parallel=1",
+        "-test.timeout=3m",
+        "-test.run=Test(CapGraph|LogosCap)"
+      ],
+      "outer_timeout_seconds": 240,
+      "required": [
+        "25 top-level tests /75 cells from exact frozen selector",
+        "Zero skips/failures",
+        "Literal5-second child bound unchanged"
+      ]
+    },
+    {
+      "name": "linker-vet",
+      "cwd": "/workspace/scratch/9949907ca71e/logos-final-acceptance/src",
+      "argv": [
+        "/workspace/scratch/9949907ca71e/logos-final-acceptance/bin/go",
+        "vet",
+        "-p=1",
+        "cmd/link/internal/ld"
+      ],
+      "outer_timeout_seconds": 600
+    },
+    {
+      "name": "native-capability-scripts",
+      "cwd": "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/cmd/go",
+      "argv": [
+        "$FINAL_CMDGO_RACE",
+        "-test.v",
+        "-test.count=1",
+        "-test.short",
+        "-test.parallel=1",
+        "-test.timeout=20m",
+        "-test.run=^TestScript$/^logos_cap_(chains|exec|policy|shortest_frames|test_scope)$"
+      ],
+      "outer_timeout_seconds": 1260,
+      "required": [
+        "TestScript/logos_cap_chains PASS",
+        "TestScript/logos_cap_exec PASS",
+        "TestScript/logos_cap_policy PASS",
+        "TestScript/logos_cap_shortest_frames PASS",
+        "TestScript/logos_cap_test_scope PASS",
+        "No skips",
+        "Actual manifest -logos.cap= command in policy transcript",
+        "All cgo-conditioned exec cells enabled on Linux/amd64"
+      ]
+    },
+    {
+      "name": "sum-crossarch",
+      "cwd": "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/cmd/go",
+      "argv": [
+        "$FINAL_CMDGO_RACE",
+        "-test.v",
+        "-test.count=1",
+        "-test.parallel=1",
+        "-test.timeout=10m",
+        "-test.run=^TestScript$/^logos_sum_crossarch$"
+      ],
+      "outer_timeout_seconds": 660,
+      "required": [
+        "TestScript/logos_sum_crossarch PASS with zero skips",
+        "Observed exec qemu-aarch64 $WORK/sum-arm64$GOEXE",
+        "Observed cmp $WORK/native.txt $WORK/arm64.txt",
+        "Frozen script SHA2567b5ffb83bceecf552577cf056132f9a86ca2518d86faa231f8e6d6f88adad167"
+      ]
+    }
+  ],
+  "qemu": {
+    "path": "/workspace/scratch/9949907ca71e/toolchains/qemu-10.0.13/usr/bin/qemu-aarch64",
+    "sha256": "73cc2584f119f9e74c85c0a8549dbb6fd104ae3897a06a7500797f9e5b4d0943",
+    "version": "10.0.13 (Debian1:10.0.13+ds-0+deb13u1)",
+    "prerequisite_record": "/workspace/scratch/9949907ca71e/acceptance-prerequisites/qemu-provenance.json"
+  },
+  "sources": [
+    {
+      "path": "src/cmd/go/testdata/script/logos_eject_overlay_sources.txt",
+      "blob": "924e5aa3ef26a7940c3835b291e60548a64496ae",
+      "sha256": "2a445178e1ca9c86fcd59718ab809a2c07a7b2e751193e29fb113ba1f56bb173"
+    },
+    {
+      "path": "src/cmd/go/testdata/script/logos_cap_chains.txt",
+      "blob": "7c6a8f3d5f137fd6c2756d4d1a02cb8c4691797d",
+      "sha256": "4c955e8ade8ad62a856dad0b5cd4206aa6dc27ff6c9e3ca185a249c113c603bf"
+    },
+    {
+      "path": "src/cmd/go/testdata/script/logos_cap_exec.txt",
+      "blob": "18e5e2a1a5231eba69b4a29fb869657a640e12ed",
+      "sha256": "04b842d652fca463ffc4a7205df73519232467b4658a34e34309c223d64d46cf"
+    },
+    {
+      "path": "src/cmd/go/testdata/script/logos_cap_policy.txt",
+      "blob": "b215c5209c64a9d0b9d057ccf88c8f370c2f6eef",
+      "sha256": "509c39a79544b7d477b26bf30d3fc4527a7f12be82ed4e7ab972fd1612b3f3d8"
+    },
+    {
+      "path": "src/cmd/go/testdata/script/logos_cap_shortest_frames.txt",
+      "blob": "db3496f4c1bc6d25db2f9b83fe8da3df18d77f87",
+      "sha256": "74cd65ee1f7aa7c30c62dcb70e38f9ecbef7672fc46ba117a7f7bcc72bdf95ac"
+    },
+    {
+      "path": "src/cmd/go/testdata/script/logos_cap_test_scope.txt",
+      "blob": "3166410e228b80a9f7df395c88cd4286939dc47d",
+      "sha256": "f5013b59b48db94d3416167f9e47019c040a135a2bdb2ba85c85557c0b080065"
+    },
+    {
+      "path": "src/cmd/go/testdata/script/logos_sum_crossarch.txt",
+      "blob": "5dd6dc82299fe02103a0e3677d7c1ef36cbbfadf",
+      "sha256": "7b5ffb83bceecf552577cf056132f9a86ca2518d86faa231f8e6d6f88adad167"
+    },
+    {
+      "path": "src/cmd/go/internal/logos/eject/eject.go",
+      "blob": "68e87a4e66469fef9b2d769f4ccbf2b4ab42d1b0",
+      "sha256": "edf9b1eeaf5eafa00c6215fa0c83fb5bb7973f63249653fb04316c52b7d180b4"
+    },
+    {
+      "path": "src/cmd/go/internal/logos/eject/inactive.go",
+      "blob": "0db787b9a1d8f40b913dcb5cb61abc687d42e21d",
+      "sha256": "23985c7a07d1ada39485baf425fbda937e854c51c086fb5c8f8e1533e174d053"
+    },
+    {
+      "path": "src/cmd/go/internal/logos/eject/inactive_overlay_test.go",
+      "blob": "77305d7ce2ea044b7ecb20fa59d471346cb93816",
+      "sha256": "967941914555b6e7cf16abe38e56b0dd04d051c63e19297493fd96b6968e6f9e"
+    },
+    {
+      "path": "src/cmd/link/internal/ld/capabilities_chains_logos.go",
+      "blob": "062435afe8dc89ec73022f0474d900d6536c33ac",
+      "sha256": "0b44cfb58e95f2a567e0e4055d16b53535b063ffa3faf65ff4d726cbd33f0c2a"
+    },
+    {
+      "path": "src/cmd/link/internal/ld/capabilities_discovery_logos_test.go",
+      "blob": "e75233fbb5ed2849fe502eae253311b90c0c8bae",
+      "sha256": "884666bdbf5956560246c837a619e6157ea7ff8ad2f4bc27e3ef1fdaa2a8a1f6"
+    },
+    {
+      "path": "src/cmd/link/internal/ld/capabilities_chains_logos_test.go",
+      "blob": "890aea45137a48ef6078f9a14f535624266010ea",
+      "sha256": "5f88f3efea6db5680400307c1e3e08ee259be1ab7eab11a4b7d59ed951b9aec2"
+    },
+    {
+      "path": "src/cmd/link/internal/ld/capabilities_complete_logos_test.go",
+      "blob": "1b5ac73036ce99c2140680f2877ecca643871f84",
+      "sha256": "62298945c5da84b93855e850041083f9449373b0400b6c87dc461228fc8417a9"
+    },
+    {
+      "path": "src/cmd/link/internal/ld/capabilities_logos_test.go",
+      "blob": "0fecae3a0d945f676b1397141f36624ee955b955",
+      "sha256": "0dbc548fcc6fec9d01106a686e83a285a21119c8e2a463700fa52e1e69754ce9"
+    }
+  ],
+  "forbidden": [
+    "source/test/assertion edits",
+    "timeout weakening",
+    "VCS suppression",
+    "network/downloads",
+    "concurrent Go processes",
+    "source45 binary as final GREEN"
+  ],
+  "acceptance": "No stages executed by this plan; fresh make PASS is a separate receipt. Root grants sole Go lane before execution."
+}

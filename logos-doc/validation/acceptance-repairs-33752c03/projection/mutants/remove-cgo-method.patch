@@ -1,0 +1,11 @@
+diff --git a/src/go/types/generate_test.go b/src/go/types/generate_test.go
+--- a/src/go/types/generate_test.go
++++ b/src/go/types/generate_test.go
+@@ -804,7 +804,6 @@
+ 	"LogosAssertEffects":        true,
+ 	"SetLogosAssertEffects":     true,
+ 	"SetLogosReadonly":          true,
+-	"logosCgoTypeName":          true,
+ 	"logosStructTupleIdentical": true,
+ }
+ var logosFuncs = map[string]bool{

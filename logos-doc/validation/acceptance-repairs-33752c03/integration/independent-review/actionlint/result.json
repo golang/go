@@ -1,0 +1,37 @@
+{
+  "command": [
+    "/workspace/scratch/9949907ca71e/language-ci-tools/bin/actionlint",
+    "-oneline",
+    "-shellcheck",
+    "/workspace/scratch/9949907ca71e/language-ci-tools/bin/shellcheck",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/.github/workflows/compiler-stability.yml",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/.github/workflows/deferred-callees.yml",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/.github/workflows/gc-stability.yml",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/.github/workflows/generic-type-arguments.yml",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/.github/workflows/json-profile-gates.yml",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/.github/workflows/logos.yml",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/.github/workflows/release-acceptance.yml",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/.github/workflows/simd-host-gates.yml"
+  ],
+  "cwd": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes",
+  "started_utc": "2026-11-16T22:25:29.040868+00:00",
+  "completed_utc": "2026-11-16T22:25:29.260790+00:00",
+  "duration_seconds": 0.22,
+  "exit_code": 0,
+  "input_sha256": {
+    ".github/workflows/compiler-stability.yml": "dceb27ba9a17814cb6bc199a2c80a9f9b62c5cc79f91f4091bea9fab31fbcbfe",
+    ".github/workflows/deferred-callees.yml": "5e1aa6b7732499c8b11fe2ba26d04538049449ce922252770d9b43f1b6cf756d",
+    ".github/workflows/gc-stability.yml": "0d0fdf9c35fdfdf079aa5f3c45eb49ee62ff9656799cccee46e43c8e2dc3fc09",
+    ".github/workflows/generic-type-arguments.yml": "0735adaa8ec190fd5dac351326a682b5662d94ed866b3ccd9fc4da8471d39e12",
+    ".github/workflows/json-profile-gates.yml": "65941fef041205675f932c8fa6e603093f1aebf8fe8551e2583247c735b26bb2",
+    ".github/workflows/logos.yml": "a357e27af0d0c657540d7f972460cfc40d59fe520dbf926ec38370d35405d1c1",
+    ".github/workflows/release-acceptance.yml": "1c935efb8007e2206c405917b9b9a34f3dc9681186883d8343b14672b2ee4f2a",
+    ".github/workflows/simd-host-gates.yml": "3cfd0ae07dadc05598959d9d22e9d3b9b0a6db508b353af10a0a0a8fe7f1914d"
+  },
+  "executable_sha256": "c872d6db8c6bf83a8eaa704fc93999f027d55dffbc63b8a6abdccb47df5f4cd4",
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "input_hashes_unchanged": true,
+  "scope": "Static validation only; no Go compilation, Go test or hosted execution.",
+  "shellcheck_executable_sha256": "4da528ddb3a4d1b7b24a59d4e16eb2f5fd960f4bd9a3708a15baddbdf1d5a55b"
+}

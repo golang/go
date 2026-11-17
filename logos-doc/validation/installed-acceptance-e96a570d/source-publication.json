@@ -1,0 +1,95 @@
+{
+  "repository": "gosuda/LoGOs",
+  "branch": "fix/compiler-stabilization",
+  "ref_moved": false,
+  "source_commit": "e96a570da271c43a80e23bb1a188aac054acff25",
+  "public_source_commit": "071705bf963bf54467e1ab9e3c39d78fca2253fb",
+  "receipts": [
+    {
+      "name": "ctfe",
+      "local_commit": "e5b4ef93f2f58d6dddbf15f5aaac0900c09a2df6",
+      "public_commit": "b55de2ee96b843cd85002c1f613ae70f7b5c46f8",
+      "tree": "24ec19b043d33608fbab9c73c5e0d0aeb61c43eb",
+      "local_parents": [
+        "45c29ff215477f7e403188d7452fc79aef05d791"
+      ],
+      "public_parents": [
+        "45c29ff215477f7e403188d7452fc79aef05d791"
+      ]
+    },
+    {
+      "name": "lint",
+      "local_commit": "73952f7bcb872f345e7c45bcd03d68cf2fe525c5",
+      "public_commit": "a61a242cc4c8179c0981a04c3d992e5f7081f841",
+      "tree": "1c4463a18c854df3b1536a55321cb290f72b45af",
+      "local_parents": [
+        "e5b4ef93f2f58d6dddbf15f5aaac0900c09a2df6"
+      ],
+      "public_parents": [
+        "b55de2ee96b843cd85002c1f613ae70f7b5c46f8"
+      ]
+    },
+    {
+      "name": "records",
+      "local_commit": "ce541122d4578efafc0d6d8289e3ceff25bd00d9",
+      "public_commit": "c8cb2a9bbfaa8b1b6bf5d556219e4649b8dbd6b2",
+      "tree": "0d68692c4ed4bf82a02b0d18fdccf883c964eb31",
+      "local_parents": [
+        "73952f7bcb872f345e7c45bcd03d68cf2fe525c5"
+      ],
+      "public_parents": [
+        "a61a242cc4c8179c0981a04c3d992e5f7081f841"
+      ]
+    },
+    {
+      "name": "merge",
+      "local_commit": "c35b6f857c1e37c538a4c5f93cc50929a8b4ea62",
+      "public_commit": "0ed904218fcb5d3dc0cb6daf39b539af941d732f",
+      "tree": "2a98a310d3efbb3e7fc1038f0dd3ad72cec63249",
+      "local_parents": [
+        "ce541122d4578efafc0d6d8289e3ceff25bd00d9",
+        "8afec95580ed24e593307fd9d30d626eff31e22d"
+      ],
+      "public_parents": [
+        "c8cb2a9bbfaa8b1b6bf5d556219e4649b8dbd6b2",
+        "8afec95580ed24e593307fd9d30d626eff31e22d"
+      ]
+    },
+    {
+      "name": "placement_note",
+      "local_commit": "0c89a9aaadd3bc397211edc401f1543598d1dd13",
+      "public_commit": "917a46af90b43b5a0c2372ee22830bd2da388847",
+      "tree": "64f53732f18e3f598997c5e979e22c0b5c078c4a",
+      "local_parents": [
+        "c35b6f857c1e37c538a4c5f93cc50929a8b4ea62"
+      ],
+      "public_parents": [
+        "0ed904218fcb5d3dc0cb6daf39b539af941d732f"
+      ]
+    },
+    {
+      "name": "placement",
+      "local_commit": "6a36ef74a5dce73a9d2b12285f47054e5f533537",
+      "public_commit": "bd5d4c5347da34c4c9470a94161f1cc7702a3912",
+      "tree": "e5806136a6c116f4cd04759e03ce0cbaaf498114",
+      "local_parents": [
+        "0c89a9aaadd3bc397211edc401f1543598d1dd13"
+      ],
+      "public_parents": [
+        "917a46af90b43b5a0c2372ee22830bd2da388847"
+      ]
+    },
+    {
+      "name": "json",
+      "local_commit": "e96a570da271c43a80e23bb1a188aac054acff25",
+      "public_commit": "071705bf963bf54467e1ab9e3c39d78fca2253fb",
+      "tree": "0841c3d2a92b7d6091a5e248b82bd820326947a8",
+      "local_parents": [
+        "6a36ef74a5dce73a9d2b12285f47054e5f533537"
+      ],
+      "public_parents": [
+        "bd5d4c5347da34c4c9470a94161f1cc7702a3912"
+      ]
+    }
+  ]
+}

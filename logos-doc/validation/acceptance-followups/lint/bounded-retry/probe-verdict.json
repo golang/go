@@ -1,0 +1,9 @@
+{
+  "mutantCaught": true,
+  "expectedExit": 1,
+  "observedExit": 1,
+  "intendedCleanupErrors": 4,
+  "failedSubtests": 4,
+  "unexpectedRacePanicSkip": false,
+  "onlyConditionInverted": true
+}

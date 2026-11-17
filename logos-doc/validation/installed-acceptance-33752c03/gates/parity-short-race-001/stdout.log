@@ -1,0 +1,133 @@
+=== RUN   TestRunBinaryExecutionQueue
+=== RUN   TestRunBinaryExecutionQueue/shared_queue_budget
+    execution_queue_test.go:94: === RUN   TestRunBinaryExecutionQueue
+            execution_queue_test.go:131: capacity N-1: one holder leaves one runnable slot
+            execution_queue_test.go:135: capacity N: two independent runAll rows are ready
+            execution_queue_test.go:158: capacity N+1: third call remained queued longer than its two-second child budget
+        --- PASS: TestRunBinaryExecutionQueue (3.05s)
+        PASS
+=== RUN   TestRunBinaryExecutionQueue/start_error_release
+    execution_queue_test.go:94: === RUN   TestRunBinaryExecutionQueue
+            execution_queue_test.go:179: start failure 0 returned its file-not-found error
+            execution_queue_test.go:179: start failure 1 returned its file-not-found error
+            execution_queue_test.go:179: start failure 2 returned its file-not-found error
+        --- PASS: TestRunBinaryExecutionQueue (0.00s)
+        PASS
+=== RUN   TestRunBinaryExecutionQueue/timeout_release
+    execution_queue_test.go:94: === RUN   TestRunBinaryExecutionQueue
+            execution_queue_test.go:213: timeout 0 returned after child readiness
+            execution_queue_test.go:213: timeout 1 returned after child readiness
+            execution_queue_test.go:213: timeout 2 returned after child readiness
+        --- PASS: TestRunBinaryExecutionQueue (6.03s)
+        PASS
+--- PASS: TestRunBinaryExecutionQueue (16.45s)
+    --- PASS: TestRunBinaryExecutionQueue/shared_queue_budget (4.08s)
+    --- PASS: TestRunBinaryExecutionQueue/start_error_release (1.04s)
+    --- PASS: TestRunBinaryExecutionQueue/timeout_release (7.08s)
+=== RUN   TestTierProblem
+--- PASS: TestTierProblem (0.00s)
+=== RUN   TestTipIdentityNeedsACleanTrackedTree
+--- PASS: TestTipIdentityNeedsACleanTrackedTree (0.05s)
+=== RUN   TestToolVersionComesFromTheBinary
+--- PASS: TestToolVersionComesFromTheBinary (0.00s)
+=== RUN   TestForkToolIgnoresAStaleLogosBinary
+--- PASS: TestForkToolIgnoresAStaleLogosBinary (0.00s)
+=== RUN   TestCorpusDiscoveryRejectsStrayEntries
+--- PASS: TestCorpusDiscoveryRejectsStrayEntries (0.00s)
+=== RUN   TestCgoProgramClassifiesByImport
+--- PASS: TestCgoProgramClassifiesByImport (0.00s)
+=== RUN   TestLevelKeySeparatesOptimizationSettings
+--- PASS: TestLevelKeySeparatesOptimizationSettings (0.00s)
+=== RUN   TestUnmatchedLevelPrefixes
+--- PASS: TestUnmatchedLevelPrefixes (0.00s)
+=== RUN   TestRunBudget
+--- PASS: TestRunBudget (0.00s)
+=== RUN   TestCorpusNormKeepsProgramValues
+--- PASS: TestCorpusNormKeepsProgramValues (0.00s)
+=== RUN   TestRunBinaryTimeoutKillsSleeper
+--- PASS: TestRunBinaryTimeoutKillsSleeper (2.32s)
+=== RUN   TestRunBinaryTimeoutReleasesGrandchildPipe
+--- PASS: TestRunBinaryTimeoutReleasesGrandchildPipe (10.76s)
+=== RUN   TestRunGeneratorTimeoutKillsSleeper
+--- PASS: TestRunGeneratorTimeoutKillsSleeper (2.33s)
+=== RUN   TestCorpusDefectProbes
+--- PASS: TestCorpusDefectProbes (0.00s)
+=== RUN   TestStabilityDiffSeesLevelLines
+--- PASS: TestStabilityDiffSeesLevelLines (0.00s)
+=== RUN   TestStageFailureIsABuildError
+--- PASS: TestStageFailureIsABuildError (0.00s)
+=== RUN   TestForkConfigsReachTheCompiler
+=== RUN   TestForkConfigsReachTheCompiler/K1
+=== RUN   TestForkConfigsReachTheCompiler/K5
+=== RUN   TestForkConfigsReachTheCompiler/K8
+--- PASS: TestForkConfigsReachTheCompiler (0.57s)
+    --- PASS: TestForkConfigsReachTheCompiler/K1 (0.06s)
+    --- PASS: TestForkConfigsReachTheCompiler/K5 (0.11s)
+    --- PASS: TestForkConfigsReachTheCompiler/K8 (0.22s)
+=== RUN   TestCompileProblemsSeeAnIgnoredFlag
+--- PASS: TestCompileProblemsSeeAnIgnoredFlag (0.00s)
+=== RUN   TestParity
+    parity_test.go:1813: parity: 31 programs, 3 fork configs, 2 upstream rows, wall 31.26863037s
+--- PASS: TestParity (31.31s)
+=== RUN   TestParityFailCorpus
+--- PASS: TestParityFailCorpus (5.35s)
+=== RUN   TestAttacksWithoutMutantProbe
+--- PASS: TestAttacksWithoutMutantProbe (0.00s)
+=== RUN   TestParityEveryAttackHasAMutant
+--- PASS: TestParityEveryAttackHasAMutant (0.00s)
+=== RUN   TestParityMutantProbesDefined
+=== RUN   TestParityMutantProbesDefined/at01-at01_arena_escape
+=== RUN   TestParityMutantProbesDefined/at02-at02_loop_restore_depth
+=== RUN   TestParityMutantProbesDefined/at03-at03_consent_chain
+=== RUN   TestParityMutantProbesDefined/at04-at04_arena_park
+=== RUN   TestParityMutantProbesDefined/at05-at05_arena_gc
+=== RUN   TestParityMutantProbesDefined/at06-at06_finalizer_make
+=== RUN   TestParityMutantProbesDefined/at07-at07_append_laws
+=== RUN   TestParityMutantProbesDefined/at08-at08_recursion_bound
+=== RUN   TestParityMutantProbesDefined/at09-at09_defer_recover_frames
+=== RUN   TestParityMutantProbesDefined/at10-at10_rotate_const
+=== RUN   TestParityMutantProbesDefined/at11-at11_float_rounding
+=== RUN   TestParityMutantProbesDefined/at12-at12_symbol_names
+=== RUN   TestParityMutantProbesDefined/at14-1-at14_leading_dot.go
+=== RUN   TestParityMutantProbesDefined/at14-2-at14_question_dot.go
+=== RUN   TestParityMutantProbesDefined/at16-at16_xpkg_escape
+=== RUN   TestParityMutantProbesDefined/at17-1-at17m_both_plain_seq
+=== RUN   TestParityMutantProbesDefined/at17-2-at17m_both_plain_seq
+=== RUN   TestParityMutantProbesDefined/at21-at21_learned_stacks
+=== RUN   TestParityMutantProbesDefined/at22-at22_gc_churn
+--- PASS: TestParityMutantProbesDefined (0.12s)
+    --- PASS: TestParityMutantProbesDefined/at01-at01_arena_escape (0.00s)
+    --- PASS: TestParityMutantProbesDefined/at02-at02_loop_restore_depth (0.00s)
+    --- PASS: TestParityMutantProbesDefined/at03-at03_consent_chain (0.00s)
+    --- PASS: TestParityMutantProbesDefined/at04-at04_arena_park (0.00s)
+    --- PASS: TestParityMutantProbesDefined/at05-at05_arena_gc (0.00s)
+    --- PASS: TestParityMutantProbesDefined/at06-at06_finalizer_make (0.00s)
+    --- PASS: TestParityMutantProbesDefined/at07-at07_append_laws (0.00s)
+    --- PASS: TestParityMutantProbesDefined/at08-at08_recursion_bound (0.00s)
+    --- PASS: TestParityMutantProbesDefined/at09-at09_defer_recover_frames (0.00s)
+    --- PASS: TestParityMutantProbesDefined/at10-at10_rotate_const (0.00s)
+    --- PASS: TestParityMutantProbesDefined/at11-at11_float_rounding (0.00s)
+    --- PASS: TestParityMutantProbesDefined/at12-at12_symbol_names (0.00s)
+    --- PASS: TestParityMutantProbesDefined/at14-1-at14_leading_dot.go (0.00s)
+    --- PASS: TestParityMutantProbesDefined/at14-2-at14_question_dot.go (0.00s)
+    --- PASS: TestParityMutantProbesDefined/at16-at16_xpkg_escape (0.00s)
+    --- PASS: TestParityMutantProbesDefined/at17-1-at17m_both_plain_seq (0.00s)
+    --- PASS: TestParityMutantProbesDefined/at17-2-at17m_both_plain_seq (0.00s)
+    --- PASS: TestParityMutantProbesDefined/at21-at21_learned_stacks (0.00s)
+    --- PASS: TestParityMutantProbesDefined/at22-at22_gc_churn (0.00s)
+=== RUN   TestParityMutants
+    parity_test.go:2326: release tier only; pass -goparity.release
+--- SKIP: TestParityMutants (0.00s)
+=== RUN   TestParitySweepCorpusDefined
+    parity_test.go:2700: sweep corpus: 998 eligible files
+--- PASS: TestParitySweepCorpusDefined (0.43s)
+=== RUN   TestParityUpstreamSweep
+    parity_test.go:2705: release tier only; pass -goparity.release
+--- SKIP: TestParityUpstreamSweep (0.00s)
+=== RUN   TestRedteamLedgerRows
+--- PASS: TestRedteamLedgerRows (0.07s)
+=== RUN   TestRedteamLedgerRelease
+    redteam_ledger_test.go:95: only the release tier needs a ledger with no planned row
+--- SKIP: TestRedteamLedgerRelease (0.00s)
+PASS
+ok  	cmd/internal/goparity	70.809s

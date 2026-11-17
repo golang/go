@@ -107,6 +107,22 @@ func TestSpreadTypedStringToIntRuneRejected(t *testing.T) {
 	}
 }
 
+// A variadic ...any slice has no modeled element type: append growth past
+// capacity must not dereference a nil Elem asking for element zero values.
+func TestAppendGrowthOnAnonElemSlice(t *testing.T) {
+	intT := BasicType("int")
+	h := newFakeHost(t)
+	fn := parseFunc(t, "package p\nfunc Grow(xs ...any) int {\n\tys := append(xs[:1], 1, 2, 3, 4, 5)\n\treturn len(ys) + cap(ys)\n}",
+		true, []*Type{{Kind: KSlice}}, []*Type{intT})
+	fn.Variadic = true
+	h.funcs[fn.Name] = fn
+
+	v, _ := evalOne(t, h, Config{}, parseExpr(t, `Grow(9, 8, 7, 6)`))
+	if got := v.Int64(); got != 14 {
+		t.Fatalf("Grow(9,8,7,6) = %d, want len 6 + cap 8", got)
+	}
+}
+
 func TestSpreadTypedStringToOrdinaryByteRejected(t *testing.T) {
 	intT := BasicType("int")
 	uint8T := BasicType("uint8")

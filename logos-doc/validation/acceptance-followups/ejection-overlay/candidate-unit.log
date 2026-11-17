@@ -1,0 +1,4 @@
+=== RUN   TestInactiveCensusHonorsOverlay
+--- PASS: TestInactiveCensusHonorsOverlay (1.04s)
+PASS
+elapsed 2.150 seconds

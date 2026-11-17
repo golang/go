@@ -1,0 +1,21 @@
+{
+  "first_invocation": "testdir/",
+  "first_invocation_is_acceptance_evidence": false,
+  "selector_error": "The top-level Test prefix was unanchored and slash components were grouped. The intended positive and genuine-error leaves were not selected.",
+  "observed_environment_error": "time/tzdata/tzdata.go:70:7: undefined: zipdata",
+  "first_invocation_exit_code": 1,
+  "first_invocation_duration_seconds": 55.784,
+  "first_invocation_timed_out": false,
+  "generated_input": {
+    "path": "src/time/tzdata/zzipdata.go",
+    "source": "/workspace/scratch/9949907ca71e/logos-json-integration/src/time/tzdata/zzipdata.go",
+    "candidate": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/time/tzdata/zzipdata.go",
+    "preparation": "temporary symlink to verified frozen45 generated file",
+    "sha256": "fdf3446025d8460a2d2e7f2b0fc79906daa338529030dd8204a8307bf4fb0302",
+    "ignored_by": ".gitignore:43"
+  },
+  "corrected_selector": "^Test$/^logos$/^(compile|run)$/^const_func_(map_field_store|map_store_key)\\.lgo$",
+  "fixtures_changed": false,
+  "installed_compiler_changed": false,
+  "candidate_view_is_freshly_built_driver": false
+}

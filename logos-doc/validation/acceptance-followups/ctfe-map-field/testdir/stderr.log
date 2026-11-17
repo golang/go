@@ -1,0 +1,2 @@
+2026/11/17 02:46:00 'go list' failed: exit status 1: # time/tzdata
+../../../time/tzdata/tzdata.go:70:7: undefined: zipdata

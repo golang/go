@@ -1,0 +1,24 @@
+{
+  "head": "45c29ff215477f7e403188d7452fc79aef05d791",
+  "merge": "f2ad58be8742b8ec350db8f06d9dc794ea3302e4",
+  "run": 43906416850,
+  "job": 133436353880,
+  "rawLog": "/workspace/scratch/9949907ca71e/hosted-evidence/runtime/job-133436353880-attempt-1.log",
+  "SHA256": "28a6b80f79ad071d912baefd491ef10e8de5604fe89669f6b3d8b2803856e09e",
+  "findings": [
+    {
+      "file": "src/cmd/go/internal/logos/eject/variant_features_test.go",
+      "line": 115,
+      "column": 36,
+      "linter": "errcheck",
+      "message": "Error return value of `os.RemoveAll` is not checked"
+    },
+    {
+      "file": "src/cmd/go/internal/logos/eject/eject.go",
+      "line": 816,
+      "column": 46,
+      "linter": "unparam",
+      "message": "findVariantContextForFile - hostGOOS always receives \"linux\""
+    }
+  ]
+}

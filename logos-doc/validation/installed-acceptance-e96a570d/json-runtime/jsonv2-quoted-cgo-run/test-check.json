@@ -1,0 +1,15 @@
+{
+  "required_passed": [
+    "TestEjectQuotedCgoTypes"
+  ],
+  "passed_records": 1,
+  "top_level_started": [
+    "TestEjectQuotedCgoTypes"
+  ],
+  "top_level_passed": [
+    "TestEjectQuotedCgoTypes"
+  ],
+  "skipped": [],
+  "failed": [],
+  "scope": "exact quoted-C test executed"
+}

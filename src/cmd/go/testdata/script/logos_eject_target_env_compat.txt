@@ -1,0 +1,49 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOOS=linux
+env GOARCH=386
+env GO386=invalid
+
+cd m
+# Upstream exposes the raw setting through go env and lets the compiler
+# report an invalid GO386 during a build. Driver initialization must not panic.
+exec env -u GOROOT $UPROOT1274/bin/go env GO386
+stdout '^invalid$'
+go env GO386
+stdout '^invalid$'
+! go build .
+stderr 'unsupported setting GO386=invalid'
+! stderr 'panic:'
+env GO386=sse2
+go env GO386
+stdout '^sse2$'
+env GO386=softfloat
+go env GO386
+stdout '^softfloat$'
+
+# Keep existing diagnostics and raw-env behavior of the other settings.
+env GOARCH=arm64
+env GOARM64=invalid
+! go env GOARM64
+stderr 'invalid GOARM64'
+! stderr 'panic:'
+env GOARM64=v8.0
+env GOARCH=amd64
+env GOAMD64=invalid
+go env GOAMD64
+stdout '^invalid$'
+env GOAMD64=v1
+env GOARCH=arm
+env GOARM=invalid
+go env GOARM
+stdout '^invalid$'
+
+-- m/go.mod --
+module example.com/envcompat
+
+go 1.27
+
+-- m/value.go --
+package envcompat
+
+func Value() int { return 42 }

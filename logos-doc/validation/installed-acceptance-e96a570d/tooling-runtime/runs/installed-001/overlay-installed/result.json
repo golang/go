@@ -1,0 +1,16 @@
+{
+  "name": "overlay-installed",
+  "finished_utc": "2026-11-16T18:58:30.982Z",
+  "exit_code": 0,
+  "signal": null,
+  "seconds": 5.635712,
+  "raw_log_sha256": "79b4c09c2e98eab57f13b4e85b59eb63c65396c10f3fe6ce9f6be154586428c3",
+  "passed_tests": [
+    "TestScript",
+    "TestScript/logos_eject_overlay_sources"
+  ],
+  "skipped_tests": [],
+  "failed_tests": [],
+  "missing_tests": [],
+  "observations": {}
+}

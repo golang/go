@@ -1,0 +1,34 @@
+{
+  "checked_utc": "2026-11-16T22:23:06.079860+00:00",
+  "head": "0a8eef6bab7d85e89e8e3efd0b933d73e78dff79",
+  "src_tree": "33752c03819ed5afcb37f87633a3cac668e181a8",
+  "task_count": 306,
+  "attack_count": 350,
+  "attack_status_counts": {
+    "tested": 341,
+    "satisfied upstream": 2,
+    "blocked": 7
+  },
+  "blocked_rows": [
+    "#216",
+    "#217",
+    "#218",
+    "#226",
+    "#403",
+    "#404",
+    "#405"
+  ],
+  "installed_packet_manifest_sha256": "6e4ce2e3a1fe0c13b66fd18b7493989d4c3829d128557b9a24c312dffeeb07aa",
+  "installed_packet_files": 152,
+  "component_checksum_lists_sha256": {
+    "alias": "4f3477a9e29ebd066d6d42952522fc3d979b61dc2092b6973654734880f530f4",
+    "projection": "5f396ae7c1856c5f4ca9473b686f81b2d9684bd61111e6eb1e38065518e05f59",
+    "environment": "0f29fbd82e9d65758c1a5e5e416f762974d5f3d5d7ffbb5648c7dbe7dfa9e73e",
+    "parity": "f6f0a08191dccd3690985b9c31cea9a15669f71496a96d8d999e2f71be525698"
+  },
+  "frozen_request_inputs_unchanged": true,
+  "all_twelve_repaired_files_unchanged": true,
+  "m6_patch_unchanged": true,
+  "status": "PASS",
+  "preflight_note": "The initial metadata checker expected manifest.json in every component packet. Alias uses bundle.json and environment uses summary/copies records. That filesystem assumption stopped the check after the installed packet copy; no source or assertion changed. This verification checks each packet through its existing files.sha256."
+}

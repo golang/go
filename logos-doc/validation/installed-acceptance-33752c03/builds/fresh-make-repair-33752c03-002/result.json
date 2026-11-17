@@ -1,0 +1,35 @@
+{
+  "started_utc": "2026-11-16T21:44:15.549291+00:00",
+  "completed_utc": "2026-11-16T21:52:15.576595+00:00",
+  "duration_seconds": 480.027,
+  "make_exit_code": 0,
+  "source_before": {
+    "head": "2535486fe9596a9212d525a5007963ef9e8682f0",
+    "tree": "098de80a4ddf1e59b2750c1306ef495414f42d1e",
+    "src_tree": "33752c03819ed5afcb37f87633a3cac668e181a8",
+    "status_porcelain": "M  .github/scripts/release-acceptance.sh\nA  logos-doc/validation/release-acceptance/test_bootstrap_environment.py\nM  src/cmd/compile/internal/types2/builtins.go\nM  src/cmd/compile/internal/types2/narrow_logos.go\nM  src/cmd/go/internal/load/logos.go\nA  src/cmd/go/internal/load/logos_census_test.go\nM  src/cmd/go/internal/modindex/logos.go\nA  src/cmd/internal/goparity/execution_queue_test.go\nM  src/cmd/internal/goparity/parity_test.go\nM  src/go/build/logos.go\nM  src/go/types/generate_test.go\nM  src/internal/logosfile/logosfile.go"
+  },
+  "source_after": {
+    "head": "2535486fe9596a9212d525a5007963ef9e8682f0",
+    "tree": "098de80a4ddf1e59b2750c1306ef495414f42d1e",
+    "src_tree": "33752c03819ed5afcb37f87633a3cac668e181a8",
+    "status_porcelain": "M  .github/scripts/release-acceptance.sh\nA  logos-doc/validation/release-acceptance/test_bootstrap_environment.py\nM  src/cmd/compile/internal/types2/builtins.go\nM  src/cmd/compile/internal/types2/narrow_logos.go\nM  src/cmd/go/internal/load/logos.go\nA  src/cmd/go/internal/load/logos_census_test.go\nM  src/cmd/go/internal/modindex/logos.go\nA  src/cmd/internal/goparity/execution_queue_test.go\nM  src/cmd/internal/goparity/parity_test.go\nM  src/go/build/logos.go\nM  src/go/types/generate_test.go\nM  src/internal/logosfile/logosfile.go"
+  },
+  "raw_log": "/workspace/scratch/9949907ca71e/recovery-evidence/fresh-make-repair-33752c03-002/make.log",
+  "raw_log_sha256": "8935955e56399013a5c3989faf84c7b1893dd54ddb38861af602e10d51e3bf6e",
+  "postbuild_cache_still_empty": true,
+  "installed_binary_sha256": {
+    "bin/go": "c8a2b1c7fc3f7d710af1ad3d0bfb077acf9254f2b3caa8cb9a4a50d4e722f77a",
+    "bin/logos": "c8a2b1c7fc3f7d710af1ad3d0bfb077acf9254f2b3caa8cb9a4a50d4e722f77a",
+    "pkg/tool/linux_amd64/compile": "873de794fdbfb5ebd900838e2a238f178a653aa7d7e56d3b1ae1c8afcf717c1c",
+    "pkg/tool/linux_amd64/link": "763e0ca95ec545e4eaf650cc3016999ea9c6712162fdc8e367fc3e43ca8fe1d8",
+    "pkg/tool/linux_amd64/asm": "7c37238bcfb4e4e06fbe64ef7e910d12b1b21173e299bac6f8e2d176b2bfcdfd",
+    "pkg/tool/linux_amd64/cgo": "78e6f8b3b230bb3a426240cd976107d3759516f25210a371bf493e2428e34e38"
+  },
+  "installed_versions": {
+    "go_version": "go version go1.27.4 linux/amd64",
+    "logos_version": "logos version go1.27.4 linux/amd64",
+    "compiler_version": "compile version go1.27.4 buildID=-fbBcKeRpX5uNUcCjXKn/1Kwd8FYbbjQF6Cq4MDgB/vl3CF6ASHgzutqZbDLju/cy6OE6g2ZF3Pcp0NKqCL",
+    "inferred_goroot": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes"
+  }
+}

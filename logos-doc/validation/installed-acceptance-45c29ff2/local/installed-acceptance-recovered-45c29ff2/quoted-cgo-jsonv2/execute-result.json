@@ -1,0 +1,13 @@
+{
+  "started_utc": "2026-11-16T17:05:38.775115+00:00",
+  "completed_utc": "2026-11-16T17:05:58.776567+00:00",
+  "duration_seconds": 20.001,
+  "exit_code": 0,
+  "raw_log_sha256": "3993be03ce1d8a3798e4203e277afafb4257a8564ee95b84f62cbe1186625224",
+  "resources_after": {
+    "MemAvailable": 5738795008,
+    "Shmem": 3081887744,
+    "workspace_available_bytes": 43388649472,
+    "home_available_bytes": 2157641728
+  }
+}

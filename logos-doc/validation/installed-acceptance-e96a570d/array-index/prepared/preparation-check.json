@@ -1,0 +1,57 @@
+{
+  "checked_utc": "2026-11-16T18:14:58.192892+00:00",
+  "status": "prepared; no Go execution",
+  "python_syntax_valid": true,
+  "frozen_files": [
+    {
+      "path": "src/cmd/compile/internal/logos/lint/registry.go",
+      "sha256": "59772a4484e17c9161c7ae0d6b1adceb1927834182e82d5bcc6179ded5470729"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/lint/rule_array_index_out_of_bounds.go",
+      "sha256": "c7b8b42a63d7da6f4b0e39daae1a57bf17735520fad2a214ab1fada1b65ffb59"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/lint/rule_array_index_out_of_bounds_test.go",
+      "sha256": "facd3691c92ef91fc14f92879f8bbfb5296c6fab9c429333dd8b933f14015b5c"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/lint/lint_test.go",
+      "sha256": "422bfa1494dd0aa5b6405daa3683b7527a39f22ed4f6690af9252825bc1143c4"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/lint/rule_default_test.go",
+      "sha256": "c52a369b9915faaf852ca5c9f14db0b172c936579b920c8488fa9a490c2bf305"
+    },
+    {
+      "path": "test/logos/lint/array_index_out_of_bounds.lgo",
+      "sha256": "81f3b9392472049eb6246adcfb406cb4a7e245a6ab63dd3626c663129504831e"
+    },
+    {
+      "path": "test/logos/lint/array_index_out_of_bounds_go.go",
+      "sha256": "81f3b9392472049eb6246adcfb406cb4a7e245a6ab63dd3626c663129504831e"
+    },
+    {
+      "path": "src/cmd/go/testdata/script/logos_guarded_enum_index.txt",
+      "sha256": "1553b6536470ee5c56ed8baccaa7086d33209dc35879d496712aee57cf0d10d9"
+    }
+  ],
+  "exact_unit_leaf_count": 96,
+  "original_red_test_blob": "9b128de39745732fa9c8129ec622528e92c4c285",
+  "original_core_case_bodies_preserved": [
+    "guardedReceiver",
+    "offByOneReceiver",
+    "signedBothBounds",
+    "signedMissingLowerBound"
+  ],
+  "single_condition_external_mutation": true,
+  "go_commands_run": 0,
+  "candidate_source_edits": 0,
+  "pending": [
+    "root final clean source and installed binary binding",
+    "root Go-lane release",
+    "normal gates",
+    "caught mutation",
+    "restored cells and identity check"
+  ]
+}

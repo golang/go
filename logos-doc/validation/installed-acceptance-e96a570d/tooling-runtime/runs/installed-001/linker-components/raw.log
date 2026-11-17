@@ -1,0 +1,151 @@
+=== RUN   TestCapGraphVisitDedupesEdges
+--- PASS: TestCapGraphVisitDedupesEdges (0.00s)
+=== RUN   TestCapGraphChains
+=== RUN   TestCapGraphChains/exempt-only_chain_blames_nobody
+=== RUN   TestCapGraphChains/dependency_chain_survives_a_shorter_exempt_chain
+=== RUN   TestCapGraphChains/first-party_frames_are_exempt_like_standard_library
+=== RUN   TestCapGraphChains/each_dependency_is_reported_once_with_its_own_chain
+=== RUN   TestCapGraphChains/the_dependency_nearest_the_sink_takes_the_blame
+=== RUN   TestCapGraphChains/a_wall_keeps_implicit_runtime_edges_out_of_the_tail
+=== RUN   TestCapGraphChains/a_wall_before_the_blamed_frame_does_not_hide_it
+=== RUN   TestCapGraphChains/a_sink_behind_a_wall_still_blames_its_direct_caller
+=== RUN   TestCapGraphChains/data_symbols_pass_blame_through
+=== RUN   TestCapGraphChains/a_sink_the_dependency_owns_blames_it_with_an_empty_tail
+=== RUN   TestCapGraphChains/the_shortest_chain_among_a_dependency's_frames_wins
+=== RUN   TestCapGraphChains/a_cycle_through_the_tail_repeats_its_frame
+=== RUN   TestCapGraphChains/unreachable_frames_never_blame
+--- PASS: TestCapGraphChains (0.00s)
+    --- PASS: TestCapGraphChains/exempt-only_chain_blames_nobody (0.00s)
+    --- PASS: TestCapGraphChains/dependency_chain_survives_a_shorter_exempt_chain (0.00s)
+    --- PASS: TestCapGraphChains/first-party_frames_are_exempt_like_standard_library (0.00s)
+    --- PASS: TestCapGraphChains/each_dependency_is_reported_once_with_its_own_chain (0.00s)
+    --- PASS: TestCapGraphChains/the_dependency_nearest_the_sink_takes_the_blame (0.00s)
+    --- PASS: TestCapGraphChains/a_wall_keeps_implicit_runtime_edges_out_of_the_tail (0.00s)
+    --- PASS: TestCapGraphChains/a_wall_before_the_blamed_frame_does_not_hide_it (0.00s)
+    --- PASS: TestCapGraphChains/a_sink_behind_a_wall_still_blames_its_direct_caller (0.00s)
+    --- PASS: TestCapGraphChains/data_symbols_pass_blame_through (0.00s)
+    --- PASS: TestCapGraphChains/a_sink_the_dependency_owns_blames_it_with_an_empty_tail (0.00s)
+    --- PASS: TestCapGraphChains/the_shortest_chain_among_a_dependency's_frames_wins (0.00s)
+    --- PASS: TestCapGraphChains/a_cycle_through_the_tail_repeats_its_frame (0.00s)
+    --- PASS: TestCapGraphChains/unreachable_frames_never_blame (0.00s)
+=== RUN   TestCapGraphChainsAreSortedByDependency
+--- PASS: TestCapGraphChainsAreSortedByDependency (0.00s)
+=== RUN   TestCapGraphChainsMatchOracle
+--- PASS: TestCapGraphChainsMatchOracle (0.02s)
+=== RUN   TestLogosCapRawEntriesComplete
+--- PASS: TestLogosCapRawEntriesComplete (0.77s)
+=== RUN   TestCapGraphDiscoveryOrder
+=== RUN   TestCapGraphDiscoveryOrder/rooted_cycle
+=== RUN   TestCapGraphDiscoveryOrder/disconnected_cycle
+=== RUN   TestCapGraphDiscoveryOrder/unrooted_incoming_cycle
+=== RUN   TestCapGraphDiscoveryOrder/longer_cycle
+=== RUN   TestCapGraphDiscoveryOrder/late_shortcut
+=== RUN   TestCapGraphDiscoveryOrder/late_root
+=== RUN   TestCapGraphDiscoveryOrder/multiple_roots
+=== RUN   TestCapGraphDiscoveryOrder/unknown_parent
+=== RUN   TestCapGraphDiscoveryOrder/late_parent_control
+=== RUN   TestCapGraphDiscoveryOrder/duplicate_edges_control
+=== RUN   TestCapGraphDiscoveryOrder/capacity_growth_control
+=== RUN   TestCapGraphDiscoveryOrder/wall_before_control
+=== RUN   TestCapGraphDiscoveryOrder/wall_after_control
+=== RUN   TestCapGraphDiscoveryOrder/empty_graph_control
+=== RUN   TestCapGraphDiscoveryOrder/root_sink_control
+=== RUN   TestCapGraphDiscoveryOrder/exempt_cycle_control
+--- PASS: TestCapGraphDiscoveryOrder (0.06s)
+    --- PASS: TestCapGraphDiscoveryOrder/rooted_cycle (0.01s)
+    --- PASS: TestCapGraphDiscoveryOrder/disconnected_cycle (0.00s)
+    --- PASS: TestCapGraphDiscoveryOrder/unrooted_incoming_cycle (0.00s)
+    --- PASS: TestCapGraphDiscoveryOrder/longer_cycle (0.00s)
+    --- PASS: TestCapGraphDiscoveryOrder/late_shortcut (0.01s)
+    --- PASS: TestCapGraphDiscoveryOrder/late_root (0.00s)
+    --- PASS: TestCapGraphDiscoveryOrder/multiple_roots (0.00s)
+    --- PASS: TestCapGraphDiscoveryOrder/unknown_parent (0.00s)
+    --- PASS: TestCapGraphDiscoveryOrder/late_parent_control (0.00s)
+    --- PASS: TestCapGraphDiscoveryOrder/duplicate_edges_control (0.01s)
+    --- PASS: TestCapGraphDiscoveryOrder/capacity_growth_control (0.00s)
+    --- PASS: TestCapGraphDiscoveryOrder/wall_before_control (0.00s)
+    --- PASS: TestCapGraphDiscoveryOrder/wall_after_control (0.00s)
+    --- PASS: TestCapGraphDiscoveryOrder/empty_graph_control (0.00s)
+    --- PASS: TestCapGraphDiscoveryOrder/root_sink_control (0.01s)
+    --- PASS: TestCapGraphDiscoveryOrder/exempt_cycle_control (0.00s)
+=== RUN   TestCapGraphShuffledDiscoveryOracle
+--- PASS: TestCapGraphShuffledDiscoveryOracle (0.04s)
+=== RUN   TestLogosCapSinks
+--- PASS: TestLogosCapSinks (0.00s)
+=== RUN   TestLogosCapDenyDecision
+--- PASS: TestLogosCapDenyDecision (0.00s)
+=== RUN   TestLogosCapPolicyJSON
+--- PASS: TestLogosCapPolicyJSON (0.00s)
+=== RUN   TestLogosCapTrampoline
+--- PASS: TestLogosCapTrampoline (0.00s)
+=== RUN   TestLogosCapSinkName
+--- PASS: TestLogosCapSinkName (0.00s)
+=== RUN   TestLogosCapReflectLookupClone
+--- PASS: TestLogosCapReflectLookupClone (0.00s)
+=== RUN   TestLogosCapLocalPkg
+--- PASS: TestLogosCapLocalPkg (0.00s)
+=== RUN   TestLogosCapExemptPkg
+--- PASS: TestLogosCapExemptPkg (0.00s)
+=== RUN   TestLogosCapExemptPkgNestedModule
+--- PASS: TestLogosCapExemptPkgNestedModule (0.00s)
+=== RUN   TestLogosCapHasDepPackage
+=== RUN   TestLogosCapHasDepPackage/std_and_main_only
+=== RUN   TestLogosCapHasDepPackage/empty_link
+=== RUN   TestLogosCapHasDepPackage/third-party_package
+=== RUN   TestLogosCapHasDepPackage/std_lookalike
+--- PASS: TestLogosCapHasDepPackage (0.00s)
+    --- PASS: TestLogosCapHasDepPackage/std_and_main_only (0.00s)
+    --- PASS: TestLogosCapHasDepPackage/empty_link (0.00s)
+    --- PASS: TestLogosCapHasDepPackage/third-party_package (0.00s)
+    --- PASS: TestLogosCapHasDepPackage/std_lookalike (0.00s)
+=== RUN   TestLogosCapModinfoDeps
+--- PASS: TestLogosCapModinfoDeps (0.00s)
+=== RUN   TestLogosCapTextPkg
+--- PASS: TestLogosCapTextPkg (0.00s)
+=== RUN   TestLogosCapNamedPkg
+--- PASS: TestLogosCapNamedPkg (0.00s)
+=== RUN   TestLogosCapAllowlisted
+--- PASS: TestLogosCapAllowlisted (0.00s)
+=== RUN   TestLogosCapRender
+--- PASS: TestLogosCapRender (0.00s)
+=== RUN   TestLogosCapEntryFile
+=== RUN   TestLogosCapEntryFile/atext_then_file_2
+=== RUN   TestLogosCapEntryFile/immediate_file_0
+=== RUN   TestLogosCapEntryFile/immediate_file_1
+=== RUN   TestLogosCapEntryFile/empty
+=== RUN   TestLogosCapEntryFile/value_without_pc
+=== RUN   TestLogosCapEntryFile/truncated_varint
+=== RUN   TestLogosCapEntryFile/all_negative
+--- PASS: TestLogosCapEntryFile (0.00s)
+    --- PASS: TestLogosCapEntryFile/atext_then_file_2 (0.00s)
+    --- PASS: TestLogosCapEntryFile/immediate_file_0 (0.00s)
+    --- PASS: TestLogosCapEntryFile/immediate_file_1 (0.00s)
+    --- PASS: TestLogosCapEntryFile/empty (0.00s)
+    --- PASS: TestLogosCapEntryFile/value_without_pc (0.00s)
+    --- PASS: TestLogosCapEntryFile/truncated_varint (0.00s)
+    --- PASS: TestLogosCapEntryFile/all_negative (0.00s)
+=== RUN   TestLogosCapInlineIndex
+=== RUN   TestLogosCapInlineIndex/first_range_start
+=== RUN   TestLogosCapInlineIndex/first_range_end
+=== RUN   TestLogosCapInlineIndex/outside_any_inlined_call
+=== RUN   TestLogosCapInlineIndex/second_inlined_call
+=== RUN   TestLogosCapInlineIndex/last_byte_of_table
+=== RUN   TestLogosCapInlineIndex/past_the_table
+=== RUN   TestLogosCapInlineIndex/scaled_by_the_pc_quantum
+=== RUN   TestLogosCapInlineIndex/scaled_boundary
+=== RUN   TestLogosCapInlineIndex/empty_table
+=== RUN   TestLogosCapInlineIndex/truncated_span
+--- PASS: TestLogosCapInlineIndex (0.00s)
+    --- PASS: TestLogosCapInlineIndex/first_range_start (0.00s)
+    --- PASS: TestLogosCapInlineIndex/first_range_end (0.00s)
+    --- PASS: TestLogosCapInlineIndex/outside_any_inlined_call (0.00s)
+    --- PASS: TestLogosCapInlineIndex/second_inlined_call (0.00s)
+    --- PASS: TestLogosCapInlineIndex/last_byte_of_table (0.00s)
+    --- PASS: TestLogosCapInlineIndex/past_the_table (0.00s)
+    --- PASS: TestLogosCapInlineIndex/scaled_by_the_pc_quantum (0.00s)
+    --- PASS: TestLogosCapInlineIndex/scaled_boundary (0.00s)
+    --- PASS: TestLogosCapInlineIndex/empty_table (0.00s)
+    --- PASS: TestLogosCapInlineIndex/truncated_span (0.00s)
+=== RUN   TestLogosCapSeverityDeny
+--- PASS: TestLogosCapSeverityDeny (0.00s)
+PASS

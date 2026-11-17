@@ -1,0 +1,6 @@
+=== RUN   TestInactiveCensusHonorsOverlay
+    inactive_overlay_test.go:26: overlay census subprocess: exit status 1
+        2026/11/17 03:19:21 logos eject: inventory module example.com/overlay: read inactive source /home/agent/logos-ejection-overlay-9949907ca71e-y20O9N/TestInactiveCensusHonorsOverlay593414497/001/inserted.lgo: open /home/agent/logos-ejection-overlay-9949907ca71e-y20O9N/TestInactiveCensusHonorsOverlay593414497/001/inserted.lgo: no such file or directory
+--- FAIL: TestInactiveCensusHonorsOverlay (0.04s)
+FAIL
+elapsed 0.126 seconds

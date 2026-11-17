@@ -1,0 +1,11 @@
+=== RUN   TestParityAt08IsolatedProbe
+    parity_at08_isolated_probe_test.go:27: probe input path=parity_test.go sha256=1be848e4e5f94f76d3484e12b253d4eaad81990a89635a59cf59f86fa1149bb4
+    parity_at08_isolated_probe_test.go:27: probe input path=testdata/run/at08_recursion_bound/main.go sha256=e1aa8d47d3fe4ddc0d43be98ec361c1ad2dcf9ca8711f1feaa49afc2081bc359
+    parity_at08_isolated_probe_test.go:57: probe build id=K6 elapsed=168.177293ms error=exit status 1
+    parity_at08_isolated_probe_test.go:59: K6 build: exit status 1
+        error obtaining VCS status: exit status 128
+        	Use -buildvcs=false to disable VCS stamping.
+--- FAIL: TestParityAt08IsolatedProbe (0.19s)
+FAIL
+FAIL	cmd/internal/goparity	0.188s
+FAIL

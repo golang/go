@@ -1,0 +1,45 @@
+{
+  "observed_utc": "2026-11-16T21:43:29.825481+00:00",
+  "session_id": 36417,
+  "session_observation": "write_stdin returned Unknown process id",
+  "completion_receipt_exists": false,
+  "files": {
+    "make.log": {
+      "sha256": "4b6bd4da481e25d16653e2ebd1d5f3910a8236a055ab5b02010625996d038dda",
+      "bytes": 426,
+      "mtime_utc": "2026-11-16T21:38:07.208870+00:00"
+    },
+    "resources.jsonl": {
+      "sha256": "b330169168791349e11f6dc659564e95e4a7953ca5afb275f8ae808b3e04f2b8",
+      "bytes": 8496,
+      "mtime_utc": "2026-11-16T21:39:50.028223+00:00"
+    },
+    "inputs.json": {
+      "sha256": "2838f2116f6bcab76e7f4a8343d6fe30e24b8e2ff494d72203eccf259990fc68",
+      "bytes": 5405,
+      "mtime_utc": "2026-11-16T21:22:49.923478+00:00"
+    },
+    "started.json": {
+      "sha256": "537a438e60cfdf398c68280d626931e7f961a377dcf0526e8bcb269d127dd529",
+      "bytes": 130,
+      "mtime_utc": "2026-11-16T21:22:49.925214+00:00"
+    }
+  },
+  "resources_now": {
+    "MemTotal": 10451423232,
+    "MemAvailable": 7086972928,
+    "SwapTotal": 0,
+    "Shmem": 1897574400,
+    "global_oom_kill_counter": 12,
+    "workspace_available_bytes": 4281864192
+  },
+  "index_tree": "098de80a4ddf1e59b2750c1306ef495414f42d1e",
+  "unstaged_source_paths": "",
+  "partial_tools_sha256": {
+    "pkg/tool/linux_amd64/compile": "b219986afd246de278836478db0430db293b0df2f05f68de3395d5aee6e47ddd",
+    "pkg/tool/linux_amd64/link": "b5bd56ed5d3b92d92f0b7d1f904442b2809135f47ec5814f60e4cf710b7322ef",
+    "pkg/tool/linux_amd64/asm": "5e701317913c879a685366a0be7df573bab7950aafdf2481dcdf5be178f5ee0e",
+    "pkg/tool/linux_amd64/cgo": "7b03820fd4e9f3478a02b00dfa0b046d507ef5ead896ceb597edcee065cb5dc7"
+  },
+  "classification": "Incomplete build evidence; no recorded build completion or compiler failure. Termination cause is unconfirmed. Not an implementation correction attempt or accepted build."
+}

@@ -1,0 +1,88 @@
+{
+  "recordedAt": "2026-11-16T17:09:10.424Z",
+  "scope": "Four assigned hosted workflows only; not a claim that every PR workflow passed.",
+  "expectedSource": {
+    "recordedAt": "2026-11-16T16:27:44.408Z",
+    "provenance": "Root reported a read-only fetch and empty diff against the integration checkout; this is an expected source identity pending job-log confirmation.",
+    "repository": "gosuda/LoGOs",
+    "pr": 58,
+    "prHead": "45c29ff215477f7e403188d7452fc79aef05d791",
+    "eventMerge": "f2ad58be8742b8ec350db8f06d9dc794ea3302e4",
+    "mergeParents": [
+      "13a968f350564e739bf700df698a9a635dcdddcd",
+      "45c29ff215477f7e403188d7452fc79aef05d791"
+    ],
+    "fullTree": "32b96f3a7c289c987bc021fe5a5adbf35cfe226b",
+    "compilerSrcTree": "099367e1031585fa553ef7987b199288df36256a"
+  },
+  "runs": [
+    {
+      "lane": "generic",
+      "runId": 43906417073,
+      "jobId": 133436353512,
+      "status": "completed",
+      "conclusion": "success",
+      "actualCheckout": "f2ad58be8742b8ec350db8f06d9dc794ea3302e4",
+      "url": "https://github.com/gosuda/LoGOs/actions/runs/43906417073/job/133436353512",
+      "rawLog": {
+        "path": "generic-43906417073-job-133436353512.log",
+        "sha256": "49a099f23bec11511a78ada5a0739cf778fc9ee858a034053fd381d4893459e1",
+        "bytes": 35424,
+        "encoding": "UTF-8 decoded GitHub job log; original BOM and LF endings retained"
+      }
+    },
+    {
+      "lane": "deferred",
+      "runId": 43906416743,
+      "jobId": 133436352713,
+      "status": "completed",
+      "conclusion": "success",
+      "actualCheckout": "f2ad58be8742b8ec350db8f06d9dc794ea3302e4",
+      "url": "https://github.com/gosuda/LoGOs/actions/runs/43906416743/job/133436352713",
+      "rawLog": {
+        "path": "deferred-43906416743-job-133436352713.log",
+        "sha256": "d951b829cd8397a8fa684a27451775b5ebfc1fc959c033118b4f1c51ee7acdb9",
+        "bytes": 11733,
+        "encoding": "UTF-8 decoded GitHub job log; original BOM and LF endings retained"
+      }
+    },
+    {
+      "lane": "compiler",
+      "runId": 43906416846,
+      "jobId": 133436352976,
+      "status": "completed",
+      "conclusion": "success",
+      "actualCheckout": "f2ad58be8742b8ec350db8f06d9dc794ea3302e4",
+      "url": "https://github.com/gosuda/LoGOs/actions/runs/43906416846/job/133436352976",
+      "rawLog": {
+        "path": "compiler-43906416846-job-133436352976.log",
+        "sha256": "97f5bd5ff3fefe0b1d97d51f759ef9e1232301230bf9962833564d64315fcbe5",
+        "bytes": 19889,
+        "encoding": "UTF-8 decoded GitHub job log; original BOM and LF endings retained"
+      }
+    },
+    {
+      "lane": "json",
+      "runId": 43906416853,
+      "jobId": 133436355169,
+      "status": "completed",
+      "conclusion": "success",
+      "actualCheckout": "f2ad58be8742b8ec350db8f06d9dc794ea3302e4",
+      "url": "https://github.com/gosuda/LoGOs/actions/runs/43906416853/job/133436355169",
+      "rawLog": {
+        "path": "json-43906416853-job-133436355169.log",
+        "sha256": "c2e4b7ac2ca2009be77a2a64d2ab9b407117fc96f9b8f39bd08ec92f937f51a8",
+        "bytes": 9534,
+        "encoding": "UTF-8 decoded GitHub job log; original BOM and LF endings retained"
+      }
+    }
+  ],
+  "acceptanceNotes": [
+    "#386 has successful fresh native/ejected proof in both generic and dedicated deferred workflows.",
+    "#389 has fresh native/race-ejection proof, both caught/restored mutations, and restored syntax/types2/Lower suites.",
+    "#391 has broad JSONv2/classic race and native/ejected gates; explicit guarded-Cgo execution proof is still a separate required local gate.",
+    "#402 is covered by the focused default-validation command selection and broad compiler units; root owns its final acceptance classification.",
+    "#418 has broad merged-toolchain package proof; root's explicit verbose frozen 48-cell local gate remains separate.",
+    "The main workflow's separately reported stale CTFE fixture and adapter issues are outside these four successful runs."
+  ]
+}

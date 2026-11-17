@@ -1,0 +1,13 @@
+{
+  "original": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/cmd/go/internal/logos/eject/variant_features_test.go",
+  "originalSHA256": "c17238fa9bfdb52ee8501f5a72334f10f2738d75e19a3d8de6940fc4f2e23891",
+  "overlaySource": "/workspace/scratch/9949907ca71e/hosted-evidence/runtime/lint-followup/cleanup-mutant/variant_features_test.go",
+  "overlaySHA256": "802d209eafea443c6f218f0e0cfb50556c3632923eabcf8b186c2ce83fa2a263",
+  "replacement": {
+    "from": "if err := os.RemoveAll(out); err != nil {",
+    "to": "if err := os.RemoveAll(out); err == nil {",
+    "count": 1
+  },
+  "expected": "The existing TestVariantFeatureSelectionReachesHelper test must report remove variant output ...: <nil> for successful cleanups. No source fixture or assertion is otherwise changed.",
+  "sourceTreeUnmodified": true
+}

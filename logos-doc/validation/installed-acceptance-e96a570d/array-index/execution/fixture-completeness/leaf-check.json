@@ -1,0 +1,9 @@
+{
+  "expected": [
+    "TestEveryLintRuleHasFixture"
+  ],
+  "expected_action": "pass",
+  "matched": 1,
+  "wrong": {},
+  "all_observed_skips": []
+}

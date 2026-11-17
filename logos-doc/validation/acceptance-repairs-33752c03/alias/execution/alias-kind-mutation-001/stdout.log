@@ -1,0 +1,57 @@
+=== RUN   TestScanModuleKindsDuplicateSiblings
+=== RUN   TestScanModuleKindsDuplicateSiblings/canonical_alias
+    logos_census_test.go:146: census subprocess: exit status 1
+        === RUN   TestScanModuleKindsDuplicateSiblings
+        === RUN   TestScanModuleKindsDuplicateSiblings/canonical_alias
+            logos_census_test.go:193: loGo/s packages = ["example.com/m/good"], want ["example.com/m/good" "example.com/m/sibling"]
+        --- FAIL: TestScanModuleKindsDuplicateSiblings (0.00s)
+            --- FAIL: TestScanModuleKindsDuplicateSiblings/canonical_alias (0.00s)
+        FAIL
+=== RUN   TestScanModuleKindsDuplicateSiblings/alias_alias
+    logos_census_test.go:146: census subprocess: exit status 1
+        === RUN   TestScanModuleKindsDuplicateSiblings
+        === RUN   TestScanModuleKindsDuplicateSiblings/alias_alias
+            logos_census_test.go:193: loGo/s packages = ["example.com/m/good"], want ["example.com/m/good" "example.com/m/sibling"]
+        --- FAIL: TestScanModuleKindsDuplicateSiblings (0.00s)
+            --- FAIL: TestScanModuleKindsDuplicateSiblings/alias_alias (0.00s)
+        FAIL
+=== RUN   TestScanModuleKindsDuplicateSiblings/variation_alias
+    logos_census_test.go:146: census subprocess: exit status 1
+        === RUN   TestScanModuleKindsDuplicateSiblings
+        === RUN   TestScanModuleKindsDuplicateSiblings/variation_alias
+            logos_census_test.go:193: loGo/s packages = ["example.com/m/good"], want ["example.com/m/good" "example.com/m/sibling"]
+        --- FAIL: TestScanModuleKindsDuplicateSiblings (0.00s)
+            --- FAIL: TestScanModuleKindsDuplicateSiblings/variation_alias (0.00s)
+        FAIL
+=== RUN   TestScanModuleKindsDuplicateSiblings/external_test_alias
+    logos_census_test.go:146: census subprocess: exit status 1
+        === RUN   TestScanModuleKindsDuplicateSiblings
+        === RUN   TestScanModuleKindsDuplicateSiblings/external_test_alias
+            logos_census_test.go:193: loGo/s packages = ["example.com/m/good"], want ["example.com/m/good" "example.com/m/sibling"]
+        --- FAIL: TestScanModuleKindsDuplicateSiblings (0.00s)
+            --- FAIL: TestScanModuleKindsDuplicateSiblings/external_test_alias (0.00s)
+        FAIL
+=== RUN   TestScanModuleKindsDuplicateSiblings/duplicate_kind_still_mixes_module
+    logos_census_test.go:146: census subprocess: exit status 1
+        === RUN   TestScanModuleKindsDuplicateSiblings
+        === RUN   TestScanModuleKindsDuplicateSiblings/duplicate_kind_still_mixes_module
+            logos_census_test.go:193: loGo/s packages = [], want ["example.com/m/sibling"]
+            logos_census_test.go:198: mixed module error = <nil>, incomplete = false; want mixed_module rejection
+        --- FAIL: TestScanModuleKindsDuplicateSiblings (0.00s)
+            --- FAIL: TestScanModuleKindsDuplicateSiblings/duplicate_kind_still_mixes_module (0.00s)
+        FAIL
+=== RUN   TestScanModuleKindsDuplicateSiblings/malformed_header_still_fails
+=== RUN   TestScanModuleKindsDuplicateSiblings/mixed_package_still_fails
+=== RUN   TestScanModuleKindsDuplicateSiblings/plain_go_ignores_alias_siblings
+--- FAIL: TestScanModuleKindsDuplicateSiblings (0.05s)
+    --- FAIL: TestScanModuleKindsDuplicateSiblings/canonical_alias (0.01s)
+    --- FAIL: TestScanModuleKindsDuplicateSiblings/alias_alias (0.01s)
+    --- FAIL: TestScanModuleKindsDuplicateSiblings/variation_alias (0.00s)
+    --- FAIL: TestScanModuleKindsDuplicateSiblings/external_test_alias (0.01s)
+    --- FAIL: TestScanModuleKindsDuplicateSiblings/duplicate_kind_still_mixes_module (0.01s)
+    --- PASS: TestScanModuleKindsDuplicateSiblings/malformed_header_still_fails (0.01s)
+    --- PASS: TestScanModuleKindsDuplicateSiblings/mixed_package_still_fails (0.01s)
+    --- PASS: TestScanModuleKindsDuplicateSiblings/plain_go_ignores_alias_siblings (0.01s)
+FAIL
+FAIL	cmd/go/internal/load	0.051s
+FAIL

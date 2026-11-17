@@ -1,0 +1,23 @@
+=== RUN   TestCompilePanicNarrowing
+=== RUN   TestCompilePanicNarrowing/builtin
+=== RUN   TestCompilePanicNarrowing/parenthesized_builtin
+=== RUN   TestCompilePanicNarrowing/shadowed_function
+=== RUN   TestCompilePanicNarrowing/shadowed_variable
+=== RUN   TestCompilePanicNarrowing/parenthesized_shadow
+--- PASS: TestCompilePanicNarrowing (0.06s)
+    --- PASS: TestCompilePanicNarrowing/builtin (0.02s)
+    --- PASS: TestCompilePanicNarrowing/parenthesized_builtin (0.01s)
+    --- PASS: TestCompilePanicNarrowing/shadowed_function (0.01s)
+    --- PASS: TestCompilePanicNarrowing/shadowed_variable (0.01s)
+    --- PASS: TestCompilePanicNarrowing/parenthesized_shadow (0.01s)
+=== RUN   TestCompilePanicNarrowingVoid
+=== RUN   TestCompilePanicNarrowingVoid/builtin
+=== RUN   TestCompilePanicNarrowingVoid/parenthesized_builtin
+=== RUN   TestCompilePanicNarrowingVoid/shadowed_function
+=== RUN   TestCompilePanicNarrowingVoid/shadowed_variable
+--- PASS: TestCompilePanicNarrowingVoid (0.04s)
+    --- PASS: TestCompilePanicNarrowingVoid/builtin (0.01s)
+    --- PASS: TestCompilePanicNarrowingVoid/parenthesized_builtin (0.01s)
+    --- PASS: TestCompilePanicNarrowingVoid/shadowed_function (0.01s)
+    --- PASS: TestCompilePanicNarrowingVoid/shadowed_variable (0.01s)
+PASS

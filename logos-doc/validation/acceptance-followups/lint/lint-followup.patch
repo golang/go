@@ -1,0 +1,155 @@
+diff --git a/src/cmd/go/internal/logos/eject/eject.go b/src/cmd/go/internal/logos/eject/eject.go
+index 51526f4c..f7d66982 100644
+--- a/src/cmd/go/internal/logos/eject/eject.go
++++ b/src/cmd/go/internal/logos/eject/eject.go
+@@ -808,16 +808,11 @@ func collectConstraintTags(expr constraint.Expr, tags *[]string) {
+ 	}
+ }
+ 
+-// findVariantContextForFile finds one host-close build context that
++// selectVariantContext finds one host-close build context that
+ // selects the inactive file, using go/build MatchFile so filename
+ // suffixes and //go:build lines evaluate exactly as the go tool does.
+ // It varies GOOS, GOARCH, and tags from the file; CGO stays host
+ // to keep the helper count to real platform/tag variants.
+-func findVariantContextForFile(pkgDir, name, hostGOOS, hostGOARCH string, hostTags []string) (string, string, []string, bool) {
+-	vc, ok := selectVariantContext(pkgDir, name, hostGOOS, hostGOARCH, hostTags)
+-	return vc.goos, vc.goarch, vc.tags, ok
+-}
+-
+ func selectVariantContext(pkgDir, name, hostGOOS, hostGOARCH string, hostTags []string) (variantCtx, bool) {
+ 	data, err := os.ReadFile(filepath.Join(pkgDir, name))
+ 	if err != nil {
+diff --git a/src/cmd/go/internal/logos/eject/eject_test.go b/src/cmd/go/internal/logos/eject/eject_test.go
+index aebb5a14..53350ab3 100644
+--- a/src/cmd/go/internal/logos/eject/eject_test.go
++++ b/src/cmd/go/internal/logos/eject/eject_test.go
+@@ -13,6 +13,11 @@ import (
+ 	"cmd/go/internal/modinfo"
+ )
+ 
++func findVariantContextFromLinuxAMD64(pkgDir, name string, hostTags []string) (string, string, []string, bool) {
++	vc, ok := selectVariantContext(pkgDir, name, "linux", "amd64", hostTags)
++	return vc.goos, vc.goarch, vc.tags, ok
++}
++
+ func TestEmitPackagePlatformFiles(t *testing.T) {
+ 	modDir := t.TempDir()
+ 	outDir := t.TempDir()
+@@ -125,10 +130,10 @@ func TestFindVariantContextPlatformLogosSyntax(t *testing.T) {
+ 			t.Fatal(err)
+ 		}
+ 	}
+-	if goos, goarch, _, ok := findVariantContextForFile(pkgDir, "plat_windows.lgo", "linux", "amd64", nil); !ok || goos != "windows" {
++	if goos, goarch, _, ok := findVariantContextFromLinuxAMD64(pkgDir, "plat_windows.lgo", nil); !ok || goos != "windows" {
+ 		t.Errorf("plat_windows.lgo context = %q/%q ok=%v, want windows", goos, goarch, ok)
+ 	}
+-	if goos, goarch, _, ok := findVariantContextForFile(pkgDir, "plat_windows_arm64.lgo", "linux", "amd64", nil); !ok || goos != "windows" || goarch != "arm64" {
++	if goos, goarch, _, ok := findVariantContextFromLinuxAMD64(pkgDir, "plat_windows_arm64.lgo", nil); !ok || goos != "windows" || goarch != "arm64" {
+ 		t.Errorf("plat_windows_arm64.lgo context = %q/%q ok=%v, want windows/arm64", goos, goarch, ok)
+ 	}
+ }
+diff --git a/src/cmd/go/internal/logos/eject/variant_features_test.go b/src/cmd/go/internal/logos/eject/variant_features_test.go
+index 24d15681..a441e9b9 100644
+--- a/src/cmd/go/internal/logos/eject/variant_features_test.go
++++ b/src/cmd/go/internal/logos/eject/variant_features_test.go
+@@ -83,7 +83,7 @@ func TestVariantFeaturesCannotBeInvented(t *testing.T) {
+ 	} {
+ 		t.Run(expression, func(t *testing.T) {
+ 			dir, name := variantTagTestFile(t, expression)
+-			goos, goarch, tags, ok := findVariantContextForFile(dir, name, "linux", "amd64", nil)
++			goos, goarch, tags, ok := findVariantContextFromLinuxAMD64(dir, name, nil)
+ 			if ok {
+ 				t.Fatalf("impossible target %q selected by %s/%s tags=%q", expression, goos, goarch, tags)
+ 			}
+@@ -106,13 +106,17 @@ func TestVariantFeatureSelectionReachesHelper(t *testing.T) {
+ 			dir, name := variantTagTestFile(t, tc.expression)
+ 			t.Setenv("LOGOS_TEST_VARIANT_DIR", dir)
+ 			cfg.BuildContext.BuildTags = []string{"keep", "untouched"}
+-			if _, _, _, ok := findVariantContextForFile(dir, name, "linux", "amd64", cfg.BuildContext.BuildTags); !ok {
++			if _, _, _, ok := findVariantContextFromLinuxAMD64(dir, name, cfg.BuildContext.BuildTags); !ok {
+ 				t.Fatal("no context for a valid target feature constraint")
+ 			}
+ 			contexts := variantContextsForFiles([]inactiveFile{{pkg: &load.Package{PackagePublic: load.PackagePublic{Dir: dir}}, name: name}})
+ 			outs := spawnVariantEjects(context.Background(), contexts)
+ 			for _, out := range outs {
+-				t.Cleanup(func() { os.RemoveAll(out) })
++				t.Cleanup(func() {
++					if err := os.RemoveAll(out); err != nil {
++						t.Errorf("remove variant output %s: %v", out, err)
++					}
++				})
+ 			}
+ 			if len(outs) != 1 {
+ 				t.Fatalf("one source produced %d helpers", len(outs))
+@@ -146,7 +150,7 @@ func TestVariantFeaturesPreserveExplicitUserTags(t *testing.T) {
+ 	variantFeatureTestContext(t)
+ 	dir, name := variantTagTestFile(t, "arm64 && amd64.v3 && custom")
+ 	host := []string{"amd64.v3", "untouched"}
+-	_, arch, tags, ok := findVariantContextForFile(dir, name, "linux", "amd64", host)
++	_, arch, tags, ok := findVariantContextFromLinuxAMD64(dir, name, host)
+ 	if !ok || arch != "arm64" || !slices.Equal(tags, []string{"amd64.v3", "custom", "untouched"}) {
+ 		t.Fatalf("explicit architecture-shaped user tag lost: arch=%s tags=%q ok=%v", arch, tags, ok)
+ 	}
+diff --git a/src/cmd/go/internal/logos/eject/variant_host_tags_test.go b/src/cmd/go/internal/logos/eject/variant_host_tags_test.go
+index d6bb46f4..446a8f39 100644
+--- a/src/cmd/go/internal/logos/eject/variant_host_tags_test.go
++++ b/src/cmd/go/internal/logos/eject/variant_host_tags_test.go
+@@ -21,7 +21,7 @@ func TestFindVariantContextKeepsValidHostAssignment(t *testing.T) {
+ 	} {
+ 		t.Run(tt.expr, func(t *testing.T) {
+ 			dir, name := variantTagTestFile(t, tt.expr)
+-			goos, goarch, tags, ok := findVariantContextForFile(dir, name, "linux", "amd64", tt.host)
++			goos, goarch, tags, ok := findVariantContextFromLinuxAMD64(dir, name, tt.host)
+ 			if !ok || goos != "windows" || goarch != "amd64" {
+ 				t.Fatalf("context = %s/%s, found=%v, want windows/amd64", goos, goarch, ok)
+ 			}
+diff --git a/src/cmd/go/internal/logos/eject/variant_tags_test.go b/src/cmd/go/internal/logos/eject/variant_tags_test.go
+index b8343098..f7557a1c 100644
+--- a/src/cmd/go/internal/logos/eject/variant_tags_test.go
++++ b/src/cmd/go/internal/logos/eject/variant_tags_test.go
+@@ -60,7 +60,7 @@ func TestFindVariantContextTagCounts(t *testing.T) {
+ 				want[i] = fmt.Sprintf("variant%d", i)
+ 			}
+ 			dir, name := variantTagTestFile(t, strings.Join(want, " && "))
+-			goos, goarch, tags, ok := findVariantContextForFile(dir, name, "linux", "amd64", nil)
++			goos, goarch, tags, ok := findVariantContextFromLinuxAMD64(dir, name, nil)
+ 			if !ok {
+ 				t.Fatalf("no context for a satisfiable %d-tag conjunction", count)
+ 			}
+@@ -84,7 +84,7 @@ func TestFindVariantContextConstraintReadCount(t *testing.T) {
+ 		return os.Open(path)
+ 	}
+ 	dir, name := variantTagTestFile(t, "a && b && c && d && e && f && g && h && i && j && k && l")
+-	if _, _, _, ok := findVariantContextForFile(dir, name, "linux", "amd64", nil); !ok {
++	if _, _, _, ok := findVariantContextFromLinuxAMD64(dir, name, nil); !ok {
+ 		t.Fatal("no context for a satisfiable conjunction")
+ 	}
+ 	if reads != 1 {
+@@ -98,7 +98,7 @@ func TestFindVariantContextCanUnsetHostTags(t *testing.T) {
+ 		t.Run(expr, func(t *testing.T) {
+ 			dir, name := variantTagTestFile(t, expr)
+ 			host := []string{"selected", "untouched"}
+-			goos, goarch, tags, ok := findVariantContextForFile(dir, name, "linux", "amd64", host)
++			goos, goarch, tags, ok := findVariantContextFromLinuxAMD64(dir, name, host)
+ 			if !ok {
+ 				t.Fatal("no context after disabling a named custom tag")
+ 			}
+@@ -136,7 +136,7 @@ func TestFindVariantContextConstraintOracle(t *testing.T) {
+ 					want = true
+ 				}
+ 			}
+-			goos, goarch, tags, ok := findVariantContextForFile(dir, name, "linux", "amd64", nil)
++			goos, goarch, tags, ok := findVariantContextFromLinuxAMD64(dir, name, nil)
+ 			if ok != want {
+ 				t.Fatalf("found=%v, exhaustive oracle=%v", ok, want)
+ 			}
+@@ -152,7 +152,7 @@ func TestFindVariantContextFixedTags(t *testing.T) {
+ 	for _, expression := range []string{"linux && windows", "cgo && !cgo", "!go1.1", "go1.999", "goexperiment.unavailable"} {
+ 		t.Run(expression, func(t *testing.T) {
+ 			dir, name := variantTagTestFile(t, expression)
+-			if goos, goarch, tags, ok := findVariantContextForFile(dir, name, "linux", "amd64", nil); ok {
++			if goos, goarch, tags, ok := findVariantContextFromLinuxAMD64(dir, name, nil); ok {
+ 				t.Errorf("found impossible context %s/%s tags=%q", goos, goarch, tags)
+ 			}
+ 		})

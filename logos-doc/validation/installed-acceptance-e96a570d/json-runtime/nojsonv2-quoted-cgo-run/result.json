@@ -1,0 +1,15 @@
+{
+  "exit_code": 0,
+  "timed_out": false,
+  "interrupted": false,
+  "duration_seconds": 37.671,
+  "completed_utc": "2026-11-16T19:10:28.118631+00:00",
+  "stdout_sha256": "cfd3212d1e8ba8e84408ab08221c41e7c5b5ba0d315d8c80da2c74de2089ff86",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "resources_after": {
+    "MemAvailable": 7300706304,
+    "Shmem": 1630052352,
+    "workspace_free_bytes": 6011478016,
+    "home_free_bytes": 4819632128
+  }
+}

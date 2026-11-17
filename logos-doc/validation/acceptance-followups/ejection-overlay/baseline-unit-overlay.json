@@ -1,0 +1,5 @@
+{
+  "Replace": {
+    "/workspace/scratch/9949907ca71e/logos-json-integration/src/cmd/go/internal/logos/eject/inactive_overlay_test.go": "/workspace/scratch/9949907ca71e/hosted-evidence/runtime/ejection-overlay/frozen/inactive_overlay_test.go"
+  }
+}

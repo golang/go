@@ -271,3 +271,36 @@
 {"id": "AUD-160", "description": "M13-A-S10 Eject writes the test files of a main module", "phase": "AUD"}
 {"id": "AUD-161", "description": "M14-A-S2 Read array operator object code of arm64 and riscv64 builds", "phase": "AUD"}
 {"id": "AUD-162", "description": "M14-A-S3 Round each scalar lane product of dot", "phase": "AUD"}
+{"id": "AUD-180", "description": "M15-A-S6 Keep vector zero initialization inside CPU guards", "phase": "AUD"}
+{"id": "AUD-181", "description": "M1-A-S13 Capture deferred indexed function values", "phase": "AUD"}
+{"id": "AUD-182", "description": "M1-A-S14 Capture deferred generic method receivers", "phase": "AUD"}
+{"id": "AUD-183", "description": "M21-A-S10 Bound incomplete frame headers", "phase": "AUD"}
+{"id": "AUD-184", "description": "M10-A-S1 Require one context package", "phase": "AUD"}
+{"id": "AUD-185", "description": "M0-A-S14 Check whole-module source kinds", "phase": "AUD"}
+{"id": "AUD-186", "description": "M21-A-S11 Keep metadata independent of VCS stamping", "phase": "AUD"}
+{"id": "AUD-187", "description": "M20-E-S1 Preserve C preambles during ejection", "phase": "AUD"}
+{"id": "AUD-188", "description": "M20-E-S2 Eject checked direct-C source", "phase": "AUD"}
+{"id": "AUD-189", "description": "M0-A-S15 Enforce the upstream Go regression floor in CI", "phase": "AUD"}
+{"id": "AUD-190", "description": "M11-A-S7 Preserve JSON profile dispatch and errors", "phase": "AUD"}
+{"id": "AUD-191", "description": "M3-A-S19 Resolve the first generic type argument", "phase": "AUD"}
+{"id": "AUD-193", "description": "M11-A-S8 Preserve C type arguments in quoted JSON dispatch", "phase": "AUD"}
+{"id": "AUD-194", "description": "M16-A-S6 Isolate the wasm test execution environment", "phase": "AUD"}
+{"id": "AUD-196", "description": "M24-A-S1 Preserve inactive-only packages", "phase": "AUD"}
+{"id": "AUD-197", "description": "M24-A-S2 Keep ejection target facts consistent", "phase": "AUD"}
+{"id": "AUD-198", "description": "M0-A-S16 Respect the CI action ownership policy", "phase": "AUD"}
+{"id": "AUD-192", "description": "M20-E-S3 Keep checked C types in owned constants", "phase": "AUD"}
+{"id": "AUD-199", "description": "M0-A-S17 Keep imported compiler symbols lazy", "phase": "AUD"}
+{"id": "AUD-200", "description": "M0-A-S18 Preserve acceptance gates while consolidating CI", "phase": "AUD"}
+{"id": "AUD-201", "description": "M0-A-S19 Keep ejection test helpers lint-clean", "phase": "AUD"}
+{"id": "AUD-202", "description": "M12-A-S2 Build shortest capability paths from explicit roots", "phase": "AUD"}
+{"id": "AUD-204", "description": "M9-A-S18 Prove native array-index boundary failures", "phase": "AUD"}
+{"id": "AUD-205", "description": "M24-A-S3 Honor overlays during inactive ejection", "phase": "AUD"}
+{"id": "AUD-206", "description": "M18-A-S20 Account for region root scan work", "phase": "AUD"}
+{"id": "AUD-207", "description": "M18-A-S21 Skip redundant same-allocation GC lookup", "phase": "AUD"}
+{"id": "AUD-208", "description": "M18-A-S22 Expand GC boundary and ownership gates", "phase": "AUD"}
+{"id": "AUD-203", "description": "M11-A-S9 Preserve quoted-text Unicode and token ownership", "phase": "AUD"}
+{"id": "AUD-209", "description": "M22-A-S6 Execute independent release acceptance", "phase": "AUD"}
+{"id": "AUD-210", "description": "M0-A-S20 Keep duplicate-stem errors package-local", "phase": "AUD"}
+{"id": "AUD-211", "description": "M0-A-S21 Preserve the Go-only type projection", "phase": "AUD"}
+{"id": "AUD-212", "description": "M22-A-S7 Isolate acceptance from bootstrap settings", "phase": "AUD"}
+{"id": "AUD-213", "description": "M22-A-S8 Bound parity child admission", "phase": "AUD"}

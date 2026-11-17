@@ -1,0 +1,23 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/logos-doc/validation/release-acceptance/check_release_contract.py",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes"
+  ],
+  "cwd": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes",
+  "started_utc": "2026-11-16T22:25:29.027644+00:00",
+  "completed_utc": "2026-11-16T22:25:29.133284+00:00",
+  "duration_seconds": 0.106,
+  "exit_code": 0,
+  "input_sha256": {
+    "logos-doc/validation/release-acceptance/check_release_contract.py": "c46d9cc8569ca80659a999ab11a5208de5afecd8c4e337817af0de81bde20b26",
+    ".github/workflows/release-acceptance.yml": "1c935efb8007e2206c405917b9b9a34f3dc9681186883d8343b14672b2ee4f2a",
+    ".github/scripts/release-acceptance.sh": "168c566d73748dba15535ea57d333581df74e469e2adb0893240d8aa059ec3b5",
+    "logos-doc/validation/release-acceptance-request.json": "c130f0e4e04ec838417ffbe15b2eb33628f6b133c6a73d5730c1140f0f5f206b"
+  },
+  "executable_sha256": "fa67443527ed9647f760d807e2a38f26340757123e643c4639cf273ed15d5ea7",
+  "stdout_sha256": "d38ee45005626d1ffad74168cfebb630e99990b74c70da72f31cdbea09e812f7",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "input_hashes_unchanged": true,
+  "scope": "Static validation only; no Go compilation, Go test or hosted execution."
+}

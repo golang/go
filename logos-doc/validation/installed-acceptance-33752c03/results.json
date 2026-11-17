@@ -1,0 +1,255 @@
+{
+  "source_boundary": "Frozen combined uncommitted source snapshot, not an intermediate slice commit or a clean published release tip.",
+  "tested_source": {
+    "head": "2535486fe9596a9212d525a5007963ef9e8682f0",
+    "tree": "098de80a4ddf1e59b2750c1306ef495414f42d1e",
+    "src_tree": "33752c03819ed5afcb37f87633a3cac668e181a8",
+    "status_porcelain": "M  .github/scripts/release-acceptance.sh\nA  logos-doc/validation/release-acceptance/test_bootstrap_environment.py\nM  src/cmd/compile/internal/types2/builtins.go\nM  src/cmd/compile/internal/types2/narrow_logos.go\nM  src/cmd/go/internal/load/logos.go\nA  src/cmd/go/internal/load/logos_census_test.go\nM  src/cmd/go/internal/modindex/logos.go\nA  src/cmd/internal/goparity/execution_queue_test.go\nM  src/cmd/internal/goparity/parity_test.go\nM  src/go/build/logos.go\nM  src/go/types/generate_test.go\nM  src/internal/logosfile/logosfile.go"
+  },
+  "build": {
+    "exit_code": 0,
+    "duration_seconds": 480.027,
+    "result_sha256": "535382e7564ba3b0aa2a3373ab27d326e237e4fe412e56331c7f3a4532a5ff07",
+    "raw_log_sha256": "8935955e56399013a5c3989faf84c7b1893dd54ddb38861af602e10d51e3bf6e"
+  },
+  "completed_gate_count": 19,
+  "all_expected_outcomes_matched": true,
+  "gates": [
+    {
+      "gate": "alias-race-001",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 69.663,
+      "completed_utc": "2026-11-16T21:54:58.273693+00:00",
+      "result_sha256": "a627592a6f97dd11eba957fd75dd8962ef17d040128229ca322843facaa292b4",
+      "stdout_sha256": "3be0ba2112490d2cc1a7e03594d6331e715fd768d07ea4d231a3ac920de30d89",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "boundary": "Eight frozen census attacks execute with the freshly installed combined source under the race detector."
+    },
+    {
+      "gate": "alias-scripts-race-001",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 75.578,
+      "completed_utc": "2026-11-16T21:57:40.522913+00:00",
+      "result_sha256": "1b8b9daba238471373d01a1d1a3bff2295c49f12c924bf05e73f10ac1ee1d3da",
+      "stdout_sha256": "08aea64b27bfc420bab6ad10691718dd8f85c43364aedbc93805b80ec18e3eb1",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "boundary": "All twelve unchanged alias, module-census, ownership, interoperability, and plain-Go control scripts; verbose no-skip race execution with installed drivers."
+    },
+    {
+      "gate": "cgo-ejection-jsonv2-race-001",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 49.336,
+      "completed_utc": "2026-11-16T22:03:39.890833+00:00",
+      "result_sha256": "232fbd97b5d52ae6097279a29f89f3acc32fc5b1fe16d228e44f6a7b4d957f88",
+      "stdout_sha256": "4f5a887fbcec95a8b96b7ac9fc17b93f252fd73c562d00ab64ed830c4c0d937d",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "boundary": "Unchanged C preamble, fastcall, owned-type and quoted-C tests execute under race and jsonv2. Quoted-C ordinary and ejected programs run through the fork; this test alone does not invoke stock Go."
+    },
+    {
+      "gate": "cgo-quoted-nojsonv2-race-001",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 71.497,
+      "completed_utc": "2026-11-16T22:04:51.681190+00:00",
+      "result_sha256": "56a8bb08b0bf5ec265831c1098dbbafe203f8289836f35f499ea48a925757f51",
+      "stdout_sha256": "f672a7b9c58756f786f8b573f9d74a1e824ed08c828654acebaf8dcf0bc848b9",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "boundary": "Explicit nojsonv2 and CGO_ENABLED=1, with unchanged quoted-C assertions required to execute without a skip. Ordinary and ejected outputs use the installed fork."
+    },
+    {
+      "gate": "cgo-type-const-001",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 8.343,
+      "completed_utc": "2026-11-16T21:55:21.197515+00:00",
+      "result_sha256": "b82de162b0e08ac453da81cd22d1ca22076e2c46ddee1e990eeff4a4ebb7f8e1",
+      "stdout_sha256": "eaeeefcb96da016910ada35b2360cfc6313ff45edd3c82c89624a7ecb57ed1ad",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "boundary": "Existing Go and LoGOs C-constant type-printing controls exercise the retained private compiler type-writer path."
+    },
+    {
+      "gate": "driver-go-help-001",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 0.24,
+      "completed_utc": "2026-11-16T21:53:17.561212+00:00",
+      "result_sha256": "30c8dc58b808f452342bf3d9c7d7976312a391e4e126773b97178f2295e2b42e",
+      "stdout_sha256": "2657f4d2bdc0e1dc961eb7340cd870a2e77af780b600401029b997743a17f1f5",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "boundary": "Plain go retains its Go command usage text."
+    },
+    {
+      "gate": "driver-logos-help-001",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 0.192,
+      "completed_utc": "2026-11-16T21:53:18.014033+00:00",
+      "result_sha256": "93084cde6ebd11e370774c4ea8f811b29eae116f68d2c3156175e22096d0afd0",
+      "stdout_sha256": "881d8579012c2059c2f69ac6d2930d8621852a26bc3200a908dfdf69e3929a1f",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "boundary": "The installed logos driver exposes its distinct command usage text."
+    },
+    {
+      "gate": "gofmt-001",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 0.294,
+      "completed_utc": "2026-11-16T21:53:18.562318+00:00",
+      "result_sha256": "56b729a127958ac551f9f68a85c594eabab8545df1443b12040e304be3772a98",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "boundary": "Formatting gate: gofmt over all ten changed Go files must exit0 and print no file path."
+    },
+    {
+      "gate": "loader-packages-race-001",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 38.255,
+      "completed_utc": "2026-11-16T21:59:08.059103+00:00",
+      "result_sha256": "0db1ae7dedc9c0e021194a889fcc1c35e4d8179b8c03787a7e007f50f93c755b",
+      "stdout_sha256": "ba0062fb48ba52febfa0804f04f0b6efc2f5cb9718a6557ec24268e616588a8f",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "boundary": "Complete short race suites for all four modified loader packages. Existing unrelated upstream skips remain visible and are reviewed separately."
+    },
+    {
+      "gate": "normal-vet-001",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 17.466,
+      "completed_utc": "2026-11-16T22:05:09.383334+00:00",
+      "result_sha256": "429dd3deb758d10bd24ddc2f235a512741b0fa5e5e629b478e7363ff436d2105",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "boundary": "Normal go vet over every modified Go package, including tests and the parity harness."
+    },
+    {
+      "gate": "panic-compile-001",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 13.373,
+      "completed_utc": "2026-11-16T21:55:11.898296+00:00",
+      "result_sha256": "1e087dff05a1d1798653b058a5f3115f945f30f4a235a65991a8e429218ab996",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "boundary": "Compile unchanged panic identity assertions once; later native and diagnostic-compiler runs reuse this exact test binary."
+    },
+    {
+      "gate": "panic-native-001",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 0.329,
+      "completed_utc": "2026-11-16T21:55:12.613503+00:00",
+      "result_sha256": "4b630547148848da7ee8bbad590e044cf5b418c3d8396f17e5763694823993c5",
+      "stdout_sha256": "fdc5277655186fdcb4050d5d59cfd5d8766b789700d58d72bec352e6876fe35c",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "boundary": "Nine unchanged builtin/shadow identity cells execute go tool compile through the freshly installed native compiler, including void and result-bearing functions."
+    },
+    {
+      "gate": "panic-restored-001",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 0.312,
+      "completed_utc": "2026-11-16T22:02:50.284590+00:00",
+      "result_sha256": "feaba7e9f37495bb5036254c91768d252f3949f8934c73a7cf90e91f5cccde13",
+      "stdout_sha256": "fdc5277655186fdcb4050d5d59cfd5d8766b789700d58d72bec352e6876fe35c",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "boundary": "Reuse the exact hashed assertion binary after restoring GOROOT selection to the unchanged fresh installed compiler. All nine original cells must pass without skips. Product source and tools were never mutated."
+    },
+    {
+      "gate": "parity-short-race-001",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 72.524,
+      "completed_utc": "2026-11-16T22:08:21.652340+00:00",
+      "result_sha256": "bdd31aaf9d126ce427fbc8c0153e4e84830ed07a3c0542aaa25b13e0a2c380db",
+      "stdout_sha256": "44fa59636803a9d3bb8b0a050da9822c69b38ccb2f7e2dfb392b976ee5a21293",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "boundary": "Complete short race parity suite on the fresh combined installation. The release-only sweep and ledger gate may skip as designed; this is not the complete stamped release tier."
+    },
+    {
+      "gate": "projection-generate-001",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 29.531,
+      "completed_utc": "2026-11-16T21:53:48.354809+00:00",
+      "result_sha256": "ec7468e8280cb1ddf962fc599c9676ba8e80d1b628261ce023247925643b4683",
+      "stdout_sha256": "e8483f711299b9be53347cfb5fc543041ea8d32c62b8121a55488a2674b7bd9a",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "boundary": "The unchanged generator assertions inspect the physical combined-source GOROOT with its fresh installed toolchain."
+    },
+    {
+      "gate": "projection-scripts-race-001",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 48.781,
+      "completed_utc": "2026-11-16T21:58:29.559933+00:00",
+      "result_sha256": "ab4cf35562feaa9d4a7f2207785a22c86a756fb663d0561436e3b245af7dfab5",
+      "stdout_sha256": "6b74962d9e264f761005e201aa2551782383dab5301c32285a94e120805b470e",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "boundary": "Nine unchanged native panic/cgo and complete C-ejection scripts run with installed drivers; all three pinned upstream oracle roots are supplied."
+    },
+    {
+      "gate": "types-packages-001",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 21.257,
+      "completed_utc": "2026-11-16T21:59:29.563815+00:00",
+      "result_sha256": "f5802c415c03aebd8876bd8ee1f9e20c2aacebd52ef27d29cbb190a4ae7a2be8",
+      "stdout_sha256": "8af1b64803c762bc645014a61e1c09ba4db62fd312874fdf63e6e4e0353e0a0f",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "boundary": "Complete short public and compiler type-checker suites, including the physical generation assertion. Existing unrelated skips remain visible."
+    },
+    {
+      "gate": "void-hook-probe-001",
+      "exit_code": 1,
+      "expected_outcome_matched": true,
+      "duration_seconds": 0.351,
+      "completed_utc": "2026-11-16T22:02:49.720546+00:00",
+      "result_sha256": "e7263cbb7abe6eab8ad128eeaa86e28505a5937d3bdaaaba0a7dda6f13fbd828",
+      "stdout_sha256": "77c3c88d0ca9fe84deedb14331e48489140dc018b6581f76265d75995378412a",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "boundary": "Same hashed assertion binary and frozen test sources, selecting a separately built diagnostic compiler through GOROOT. Only both builtin void-function controls must fail; result-bearing and shadow-name controls must pass. No production source or installed tool is replaced."
+    },
+    {
+      "gate": "void-mutant-compile-001",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 84.843,
+      "completed_utc": "2026-11-16T22:02:49.070117+00:00",
+      "result_sha256": "45fa6ecc99972a8d2ed9e54e36c05e7aa1831ca4b9721b4a335f6575d52bb024",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "boundary": "Build a separate diagnostic compiler with the single void-panic hook call removed. The production working tree and all installed tools remain unchanged. This creates no acceptance toolchain or release claim."
+    }
+  ],
+  "expected_skip_summary": {
+    "types-packages-001": {
+      "go/types": [
+        "TestFixedbugs/issue78346.go",
+        "TestStdlib",
+        "TestStdTest",
+        "TestStdFixed"
+      ],
+      "cmd/compile/internal/types2": [
+        "TestFixedbugs/issue78346.go",
+        "TestStdlib",
+        "TestStdTest",
+        "TestStdFixed"
+      ]
+    },
+    "parity-short-race-001": [
+      "TestParityMutants",
+      "TestParityUpstreamSweep",
+      "TestRedteamLedgerRelease"
+    ]
+  },
+  "pending_acceptance": [
+    "Complete plain-Go regression on the repaired source.",
+    "Complete unfiltered non-short oracle-on release parity, actual release mutants and upstream sweep, with an unchanged clean-tip stamp.",
+    "SWIG-dependent full-regression execution; the focused local commands do not establish it.",
+    "Other release matrix, reproducibility, guarded runtime and blocked-language obligations are not discharged by this packet."
+  ]
+}

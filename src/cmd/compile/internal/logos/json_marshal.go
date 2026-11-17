@@ -543,7 +543,7 @@ func (g *marshalGen) unionCode(f *jsonField) fieldCode {
 		if m.Type == nil {
 			continue
 		}
-		sw = append(sw, "case "+types2.TypeString(m.Type, g.js.qualify)+":", unionMemberStaticCall(m.Type, pkg, b, e))
+		sw = append(sw, "case "+sourceTypeString(m.Type, g.js.qualify, g.js.holderPkg, g.js.cgoSource)+":", unionMemberStaticCall(m.Type, pkg, b, e))
 	}
 	sw = append(sw, "case nil:")
 	sw = append(sw, fmt.Sprintf("\t%s = []byte(\"null\")", b))
@@ -874,7 +874,7 @@ func (fl *fileLower) instHelperModel(core types2.Type) (string, string, *jsonStr
 		return "", "", nil
 	}
 	params := inst.origin.TypeParams()
-	js := &jsonStruct{name: inst.spell, staticJSON: fl.pkg.info.LogosStaticJSON, holderPkg: fl.pkg.tpkg, qualify: fl.genQualifier}
+	js := &jsonStruct{name: inst.spell, staticJSON: fl.pkg.info.LogosStaticJSON, holderPkg: fl.pkg.tpkg, qualify: fl.genQualifier, cgoSource: fl.cgoSource}
 	for i := range st.NumFields() {
 		sf := st.Field(i)
 		ft, ok := substJSONType(sf.Type(), params, inst.args)
@@ -1188,7 +1188,7 @@ func (fl *fileLower) optionJSONContainerCall(plan *jsonWalkPlan, u types2.Type, 
 			"_logos_buf = append(_logos_buf, '\"')",
 			"_logos_buf = " + jsonAlias + ".AppendEscaped(_logos_buf, _logos_key)",
 			"_logos_buf = append(_logos_buf, '\"', ':')",
-			"_logos_item := " + x + "[" + types2.TypeString(mapType.Key(), fl.genQualifier) + "(_logos_key)]",
+			"_logos_item := " + x + "[" + fl.sourceTypeString(mapType.Key(), fl.genQualifier) + "(_logos_key)]",
 		}
 	}
 	body = append(body, "_logos_buf := []byte{"+open+"}")

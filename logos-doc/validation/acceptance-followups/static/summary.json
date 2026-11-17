@@ -1,0 +1,136 @@
+{
+  "scope": "Static candidate validation only; no go, vet, tests, compilation, or source edits.",
+  "base": "45c29ff215477f7e403188d7452fc79aef05d791",
+  "versions": {
+    "actionlint": "1.7.12",
+    "shellcheck": "0.11.0"
+  },
+  "inventory": {
+    "workflows": 7,
+    "actionlintConfig": 1,
+    "workflowStepRunBlocks": 67,
+    "installerScripts": 2,
+    "hashedInputs": 16
+  },
+  "runs": [
+    {
+      "name": "actionlint-version",
+      "command": [
+        "/workspace/scratch/9949907ca71e/language-ci-tools/bin/actionlint",
+        "-version"
+      ],
+      "cwd": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes",
+      "status": 0,
+      "signal": null,
+      "error": "",
+      "seconds": 0.007,
+      "stdoutSHA256": "9d34cdaec053c6005199c08f2bac628bd8c087303faa26fd8ab58c3e22216ff5",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "shellcheck-version",
+      "command": [
+        "/workspace/scratch/9949907ca71e/language-ci-tools/bin/shellcheck",
+        "--version"
+      ],
+      "cwd": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes",
+      "status": 0,
+      "signal": null,
+      "error": "",
+      "seconds": 0.012,
+      "stdoutSHA256": "fc9eec16b4191d058a295813ca9afbe9d2b37b59975da860170726be162a3924",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "actionlint",
+      "command": [
+        "/workspace/scratch/9949907ca71e/language-ci-tools/bin/actionlint",
+        "-color"
+      ],
+      "cwd": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes",
+      "status": 0,
+      "signal": null,
+      "error": "",
+      "seconds": 0.235,
+      "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "shellcheck",
+      "command": [
+        "/workspace/scratch/9949907ca71e/language-ci-tools/bin/shellcheck",
+        ".github/scripts/install-ci-tool.sh",
+        ".github/scripts/install-upstream-oracles.sh"
+      ],
+      "cwd": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes",
+      "status": 0,
+      "signal": null,
+      "error": "",
+      "seconds": 0.037,
+      "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "compiler-successor-manifest",
+      "command": [
+        "sha256sum",
+        "--check",
+        "--strict",
+        "logos-doc/validation/compiler-stability/frozen-tests-v2.sha256"
+      ],
+      "cwd": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes",
+      "status": 0,
+      "signal": null,
+      "error": "",
+      "seconds": 0.008,
+      "stdoutSHA256": "9dbc10ef937768de21cfcc3b58ef94f2bd4b83684082ac9db53154535c0c79e8",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "target-successor-manifest",
+      "command": [
+        "sha256sum",
+        "--check",
+        "--strict",
+        "logos-doc/validation/ejection-target-facts/frozen-tests-v2.sha256"
+      ],
+      "cwd": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes",
+      "status": 0,
+      "signal": null,
+      "error": "",
+      "seconds": 0.005,
+      "stdoutSHA256": "2f2b8ecc3d43ef592de63586f0b6c8cf5b31f5895ed1bbbbd58be282acb761d4",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "successorManifests": {
+    "compiler": {
+      "oldCount": 22,
+      "newCount": 26,
+      "changed": [
+        "src/cmd/go/internal/logos/eject/variant_host_tags_test.go",
+        "src/cmd/go/internal/logos/eject/variant_tags_test.go"
+      ],
+      "added": [
+        "src/cmd/go/internal/logos/eject/eject_test.go",
+        "src/cmd/go/internal/logos/eject/variant_features_test.go",
+        "test/logos/run/const_func_map_field_store.lgo",
+        "test/logos/run/const_func_map_field_store.out"
+      ]
+    },
+    "target": {
+      "oldCount": 4,
+      "newCount": 5,
+      "changed": [
+        "src/cmd/go/internal/logos/eject/variant_features_test.go"
+      ],
+      "added": [
+        "src/cmd/go/internal/logos/eject/eject_test.go"
+      ]
+    }
+  },
+  "workflowDelta": "Exactly the versioned-manifest path and positive map-field fixture selector additions.",
+  "historicalManifestsAndSavedCIMergeSnapshotsUnchanged": true,
+  "inputHashesUnchanged": true,
+  "sourceInputsSHA256": "22238a30a3f964fe6b0ce29cb871abf4982c627b61b2996b9c99c0c27daccf65"
+}

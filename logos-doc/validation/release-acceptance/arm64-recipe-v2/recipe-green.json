@@ -1,0 +1,8 @@
+{
+  "passed": true,
+  "frozen_repro_effective_arm64": "v8.2",
+  "direct_example_export": "v8.2",
+  "recorded_recipe": "v8.2",
+  "executor_sha256": "a9a5fdd226443ee84ac22bb9ccef3f6c52278d55cb7973b0062a73a2a156a7b3",
+  "boundary": "File-only source/recipe comparison; no hosted execution."
+}

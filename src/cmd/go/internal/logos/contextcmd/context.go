@@ -49,6 +49,9 @@ func runContext(ctx context.Context, cmd *base.Command, args []string) {
 	work.BuildInit(moduleLoader)
 	pkgs := load.PackagesAndErrors(moduleLoader, ctx, load.PackageOpts{}, []string{pkgpath})
 	load.CheckPackageErrors(pkgs)
+	if len(pkgs) != 1 {
+		base.Fatalf("logos context: expected one package for %q, found %d", pkgpath, len(pkgs))
+	}
 	pkg := pkgs[0]
 	if len(pkg.GoFiles) == 0 {
 		base.Fatalf("logos context: %s has no Go files", pkgpath)

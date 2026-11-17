@@ -1,0 +1,338 @@
+=== RUN   TestSplitEveryExtension
+--- PASS: TestSplitEveryExtension (0.00s)
+=== RUN   TestSplitRejectsOtherNames
+--- PASS: TestSplitRejectsOtherNames (0.00s)
+=== RUN   TestExtsReturnsACopy
+--- PASS: TestExtsReturnsACopy (0.00s)
+=== RUN   TestExtAndIsAlias
+--- PASS: TestExtAndIsAlias (0.00s)
+=== RUN   TestNoSecondExtensionList
+--- PASS: TestNoSecondExtensionList (13.31s)
+PASS
+ok  	internal/logosfile	14.323s
+=== RUN   TestMatch
+--- PASS: TestMatch (0.00s)
+=== RUN   TestDotSlashImport
+--- PASS: TestDotSlashImport (0.00s)
+=== RUN   TestEmptyImport
+--- PASS: TestEmptyImport (0.00s)
+=== RUN   TestEmptyFolderImport
+--- PASS: TestEmptyFolderImport (0.00s)
+=== RUN   TestMultiplePackageImport
+--- PASS: TestMultiplePackageImport (0.00s)
+=== RUN   TestLocalDirectory
+--- PASS: TestLocalDirectory (0.00s)
+=== RUN   TestShouldBuild
+=== RUN   TestShouldBuild/Yes
+=== RUN   TestShouldBuild/Yes2
+=== RUN   TestShouldBuild/Or
+=== RUN   TestShouldBuild/Or2
+=== RUN   TestShouldBuild/And
+=== RUN   TestShouldBuild/And2
+=== RUN   TestShouldBuild/Cgo
+=== RUN   TestShouldBuild/Cgo2
+=== RUN   TestShouldBuild/AfterPackage
+=== RUN   TestShouldBuild/TooClose
+=== RUN   TestShouldBuild/TooClose2
+=== RUN   TestShouldBuild/TooCloseNo
+=== RUN   TestShouldBuild/TooCloseNo2
+=== RUN   TestShouldBuild/BinaryOnly
+=== RUN   TestShouldBuild/BinaryOnly2
+=== RUN   TestShouldBuild/ValidGoBuild
+=== RUN   TestShouldBuild/MissingBuild2
+=== RUN   TestShouldBuild/Comment1
+=== RUN   TestShouldBuild/Comment2
+=== RUN   TestShouldBuild/Comment3
+=== RUN   TestShouldBuild/Comment4
+=== RUN   TestShouldBuild/Comment5
+--- PASS: TestShouldBuild (0.00s)
+    --- PASS: TestShouldBuild/Yes (0.00s)
+    --- PASS: TestShouldBuild/Yes2 (0.00s)
+    --- PASS: TestShouldBuild/Or (0.00s)
+    --- PASS: TestShouldBuild/Or2 (0.00s)
+    --- PASS: TestShouldBuild/And (0.00s)
+    --- PASS: TestShouldBuild/And2 (0.00s)
+    --- PASS: TestShouldBuild/Cgo (0.00s)
+    --- PASS: TestShouldBuild/Cgo2 (0.00s)
+    --- PASS: TestShouldBuild/AfterPackage (0.00s)
+    --- PASS: TestShouldBuild/TooClose (0.00s)
+    --- PASS: TestShouldBuild/TooClose2 (0.00s)
+    --- PASS: TestShouldBuild/TooCloseNo (0.00s)
+    --- PASS: TestShouldBuild/TooCloseNo2 (0.00s)
+    --- PASS: TestShouldBuild/BinaryOnly (0.00s)
+    --- PASS: TestShouldBuild/BinaryOnly2 (0.00s)
+    --- PASS: TestShouldBuild/ValidGoBuild (0.00s)
+    --- PASS: TestShouldBuild/MissingBuild2 (0.00s)
+    --- PASS: TestShouldBuild/Comment1 (0.00s)
+    --- PASS: TestShouldBuild/Comment2 (0.00s)
+    --- PASS: TestShouldBuild/Comment3 (0.00s)
+    --- PASS: TestShouldBuild/Comment4 (0.00s)
+    --- PASS: TestShouldBuild/Comment5 (0.00s)
+=== RUN   TestGoodOSArchFile
+--- PASS: TestGoodOSArchFile (0.00s)
+=== RUN   TestMatchFile
+--- PASS: TestMatchFile (0.00s)
+=== RUN   TestImportCmd
+--- PASS: TestImportCmd (0.00s)
+=== RUN   TestExpandSrcDir
+    build_test.go:466: "-L ${SRCDIR}/libs -ladd" expands to "-L /projects/src/add/libs -ladd" with SRCDIR="/projects/src/add"
+    build_test.go:466: "${SRCDIR}/add_linux_386.a -pthread -lstdc++" expands to "/projects/src/add/add_linux_386.a -pthread -lstdc++" with SRCDIR="/projects/src/add"
+    build_test.go:466: "Nothing to expand here!" expands to "Nothing to expand here!" with SRCDIR="/projects/src/add"
+    build_test.go:466: "$" expands to "$" with SRCDIR="/projects/src/add"
+    build_test.go:466: "$$" expands to "$$" with SRCDIR="/projects/src/add"
+    build_test.go:466: "${" expands to "${" with SRCDIR="/projects/src/add"
+    build_test.go:466: "$}" expands to "$}" with SRCDIR="/projects/src/add"
+    build_test.go:466: "$FOO ${BAR}" expands to "$FOO ${BAR}" with SRCDIR="/projects/src/add"
+    build_test.go:466: "Find me the $SRCDIRECTORY." expands to "Find me the $SRCDIRECTORY." with SRCDIR="/projects/src/add"
+    build_test.go:466: "$SRCDIR is missing braces" expands to "$SRCDIR is missing braces" with SRCDIR="/projects/src/add"
+--- PASS: TestExpandSrcDir (0.00s)
+=== RUN   TestShellSafety
+--- PASS: TestShellSafety (0.00s)
+=== RUN   TestImportDirNotExist
+=== RUN   TestImportDirNotExist/GO111MODULE=off
+=== RUN   TestImportDirNotExist/GO111MODULE=on
+--- PASS: TestImportDirNotExist (0.01s)
+    --- PASS: TestImportDirNotExist/GO111MODULE=off (0.00s)
+    --- PASS: TestImportDirNotExist/GO111MODULE=on (0.01s)
+=== RUN   TestImportVendor
+--- PASS: TestImportVendor (0.00s)
+=== RUN   TestImportVendorFailure
+--- PASS: TestImportVendorFailure (0.00s)
+=== RUN   TestImportVendorParentFailure
+--- PASS: TestImportVendorParentFailure (0.00s)
+=== RUN   TestImportPackageOutsideModule
+    build_test.go:673: ctxt.Import("example.com/p", _, FindOnly): no required module provides package example.com/p: go.mod file not found in current directory or any parent directory; see 'go help modules'
+--- PASS: TestImportPackageOutsideModule (0.00s)
+=== RUN   TestIssue23594
+--- PASS: TestIssue23594 (0.00s)
+=== RUN   TestIssue56509
+--- PASS: TestIssue56509 (0.00s)
+=== RUN   TestMissingImportErrorRepetition
+--- PASS: TestMissingImportErrorRepetition (0.00s)
+=== RUN   TestCgoImportsIgnored
+--- PASS: TestCgoImportsIgnored (0.00s)
+=== RUN   TestAllTags
+--- PASS: TestAllTags (0.00s)
+=== RUN   TestAllTagsNonSourceFile
+--- PASS: TestAllTagsNonSourceFile (0.00s)
+=== RUN   TestDirectives
+--- PASS: TestDirectives (0.00s)
+=== RUN   TestContextImportGoWithUseAllFiles
+--- PASS: TestContextImportGoWithUseAllFiles (0.00s)
+=== RUN   TestDependencies
+--- PASS: TestDependencies (7.08s)
+=== RUN   TestStdlibLowercase
+--- PASS: TestStdlibLowercase (0.04s)
+=== RUN   TestFindImports
+    deps_test.go:1057: go/build imports ["bufio" "bytes" "errors" "fmt" "go/ast" "go/build/constraint" "go/doc" "go/parser" "go/scanner" "go/token" "internal/buildcfg" "internal/godebug" "internal/goroot" "internal/goversion" "internal/logosfile" "internal/platform" "internal/syslist" "io" "io/fs" "os" "os/exec" "path" "path/filepath" "runtime" "slices" "strconv" "strings" "unicode" "unicode/utf8" "unsafe"]
+--- PASS: TestFindImports (0.00s)
+=== RUN   TestReadGoInfo
+--- PASS: TestReadGoInfo (0.00s)
+=== RUN   TestReadComments
+--- PASS: TestReadComments (0.00s)
+=== RUN   TestReadFailuresIgnored
+--- PASS: TestReadFailuresIgnored (0.00s)
+=== RUN   TestReadEmbed
+--- PASS: TestReadEmbed (0.00s)
+=== RUN   TestGoodOSArch
+--- PASS: TestGoodOSArch (0.00s)
+=== RUN   TestVendorPackages
+--- PASS: TestVendorPackages (0.50s)
+=== RUN   TestIsAllowed
+--- PASS: TestIsAllowed (0.00s)
+PASS
+ok  	go/build	8.676s
+=== RUN   TestIndex
+=== RUN   TestIndex/crypto
+=== RUN   TestIndex/encoding
+=== RUN   TestIndex/unsafe
+=== RUN   TestIndex/encoding/json
+=== RUN   TestIndex/runtime
+=== RUN   TestIndex/net
+=== RUN   TestIndex/all
+--- PASS: TestIndex (0.50s)
+    --- PASS: TestIndex/crypto (0.00s)
+    --- PASS: TestIndex/encoding (0.00s)
+    --- PASS: TestIndex/unsafe (0.00s)
+    --- PASS: TestIndex/encoding/json (0.02s)
+    --- PASS: TestIndex/runtime (0.11s)
+    --- PASS: TestIndex/net (0.03s)
+    --- PASS: TestIndex/all (0.15s)
+=== RUN   TestImportRaw_IgnoreNonGo
+--- PASS: TestImportRaw_IgnoreNonGo (0.00s)
+=== RUN   TestScanDirLogosIndexed
+=== RUN   TestScanDirLogosIndexed/logos
+=== RUN   TestScanDirLogosIndexed/plainExplicitLogosTag
+=== RUN   TestScanDirLogosIndexed/plainAnyTags
+--- PASS: TestScanDirLogosIndexed (0.00s)
+    --- PASS: TestScanDirLogosIndexed/logos (0.00s)
+    --- PASS: TestScanDirLogosIndexed/plainExplicitLogosTag (0.00s)
+    --- PASS: TestScanDirLogosIndexed/plainAnyTags (0.00s)
+=== RUN   TestScanDirLogosOnlyIndexed
+--- PASS: TestScanDirLogosOnlyIndexed (0.00s)
+=== RUN   TestScanDirLogosGetPackage
+--- PASS: TestScanDirLogosGetPackage (0.00s)
+=== RUN   TestGoodOSArch
+--- PASS: TestGoodOSArch (0.00s)
+PASS
+ok  	cmd/go/internal/modindex	1.540s
+=== RUN   TestPerPackageFlag
+=== RUN   TestPerPackageFlag/#0
+    flag_test.go:122: set(-S)
+=== RUN   TestPerPackageFlag/#1
+    flag_test.go:122: set(-S)
+    flag_test.go:122: set()
+=== RUN   TestPerPackageFlag/#2
+    flag_test.go:122: set(net=-S)
+=== RUN   TestPerPackageFlag/#3
+    flag_test.go:122: set(net=-S)
+    flag_test.go:122: set(net=)
+=== RUN   TestPerPackageFlag/#4
+    flag_test.go:122: set(net/...=-S)
+=== RUN   TestPerPackageFlag/#5
+    flag_test.go:122: set(net/...=-S)
+    flag_test.go:122: set(-m)
+=== RUN   TestPerPackageFlag/#6
+    flag_test.go:122: set(.=-S)
+=== RUN   TestPerPackageFlag/#7
+    flag_test.go:122: set(..=-S)
+=== RUN   TestPerPackageFlag/#8
+    flag_test.go:122: set(./sub=-S)
+=== RUN   TestPerPackageFlag/#9
+    flag_test.go:122: set(../other=-S)
+=== RUN   TestPerPackageFlag/#10
+    flag_test.go:122: set(./...=-S)
+=== RUN   TestPerPackageFlag/#11
+    flag_test.go:122: set(../...=-S)
+=== RUN   TestPerPackageFlag/#12
+    flag_test.go:122: set(../...sub...=-S)
+--- PASS: TestPerPackageFlag (0.00s)
+    --- PASS: TestPerPackageFlag/#0 (0.00s)
+    --- PASS: TestPerPackageFlag/#1 (0.00s)
+    --- PASS: TestPerPackageFlag/#2 (0.00s)
+    --- PASS: TestPerPackageFlag/#3 (0.00s)
+    --- PASS: TestPerPackageFlag/#4 (0.00s)
+    --- PASS: TestPerPackageFlag/#5 (0.00s)
+    --- PASS: TestPerPackageFlag/#6 (0.00s)
+    --- PASS: TestPerPackageFlag/#7 (0.00s)
+    --- PASS: TestPerPackageFlag/#8 (0.00s)
+    --- PASS: TestPerPackageFlag/#9 (0.00s)
+    --- PASS: TestPerPackageFlag/#10 (0.00s)
+    --- PASS: TestPerPackageFlag/#11 (0.00s)
+    --- PASS: TestPerPackageFlag/#12 (0.00s)
+=== RUN   TestScanModuleKindsDuplicateSiblings
+=== RUN   TestScanModuleKindsDuplicateSiblings/canonical_alias
+=== RUN   TestScanModuleKindsDuplicateSiblings/alias_alias
+=== RUN   TestScanModuleKindsDuplicateSiblings/variation_alias
+=== RUN   TestScanModuleKindsDuplicateSiblings/external_test_alias
+=== RUN   TestScanModuleKindsDuplicateSiblings/duplicate_kind_still_mixes_module
+=== RUN   TestScanModuleKindsDuplicateSiblings/malformed_header_still_fails
+=== RUN   TestScanModuleKindsDuplicateSiblings/mixed_package_still_fails
+=== RUN   TestScanModuleKindsDuplicateSiblings/plain_go_ignores_alias_siblings
+--- PASS: TestScanModuleKindsDuplicateSiblings (8.38s)
+    --- PASS: TestScanModuleKindsDuplicateSiblings/canonical_alias (1.04s)
+    --- PASS: TestScanModuleKindsDuplicateSiblings/alias_alias (1.03s)
+    --- PASS: TestScanModuleKindsDuplicateSiblings/variation_alias (1.07s)
+    --- PASS: TestScanModuleKindsDuplicateSiblings/external_test_alias (1.06s)
+    --- PASS: TestScanModuleKindsDuplicateSiblings/duplicate_kind_still_mixes_module (1.04s)
+    --- PASS: TestScanModuleKindsDuplicateSiblings/malformed_header_still_fails (1.03s)
+    --- PASS: TestScanModuleKindsDuplicateSiblings/mixed_package_still_fails (1.04s)
+    --- PASS: TestScanModuleKindsDuplicateSiblings/plain_go_ignores_alias_siblings (1.07s)
+=== RUN   TestFileWasmExportNames
+=== RUN   TestFileWasmExportNames/function_directive
+=== RUN   TestFileWasmExportNames/block_comment
+=== RUN   TestFileWasmExportNames/raw_string
+=== RUN   TestFileWasmExportNames/two_names
+=== RUN   TestFileWasmExportNames/no_name
+=== RUN   TestFileWasmExportNames/indented_directive
+=== RUN   TestFileWasmExportNames/tab_separator
+=== RUN   TestFileWasmExportNames/variable_directive
+=== RUN   TestFileWasmExportNames/code_before_directive
+=== RUN   TestFileWasmExportNames/method_directive
+=== RUN   TestFileWasmExportNames/multiple_functions
+=== RUN   TestFileWasmExportNames/interpolated_string
+=== RUN   TestFileWasmExportNames/postfix_question
+=== RUN   TestFileWasmExportNames/raw_string_in_hole
+=== RUN   TestFileWasmExportNames/comment_in_hole
+=== RUN   TestFileWasmExportNames/literal_braces_in_interpolation
+=== RUN   TestFileWasmExportNames/blank_line_and_comment
+=== RUN   TestFileWasmExportNames/two_directives
+=== RUN   TestFileWasmExportNames/type_after_directive
+=== RUN   TestFileWasmExportNames/truncated_interpolation
+=== RUN   TestFileWasmExportNames/truncated_raw_string
+=== RUN   TestFileWasmExportNames/truncated_block_comment
+=== RUN   TestFileWasmExportNames/funcs_identifier
+=== RUN   TestFileWasmExportNames/newline_before_the_function_name
+=== RUN   TestFileWasmExportNames/comments_before_the_function_name
+=== RUN   TestFileWasmExportNames/receiver_after_a_newline
+=== RUN   TestFileWasmExportNames/logos_spelling
+=== RUN   TestFileWasmExportNames/mixed_spellings
+=== RUN   TestFileWasmExportNames/logos_spelling_in_a_Go_file
+=== RUN   TestFileWasmExportNames/logos_spelling_with_a_longer_word
+=== RUN   TestFileWasmExportNames/logos_spelling_with_a_tab_separator
+--- PASS: TestFileWasmExportNames (0.00s)
+    --- PASS: TestFileWasmExportNames/function_directive (0.00s)
+    --- PASS: TestFileWasmExportNames/block_comment (0.00s)
+    --- PASS: TestFileWasmExportNames/raw_string (0.00s)
+    --- PASS: TestFileWasmExportNames/two_names (0.00s)
+    --- PASS: TestFileWasmExportNames/no_name (0.00s)
+    --- PASS: TestFileWasmExportNames/indented_directive (0.00s)
+    --- PASS: TestFileWasmExportNames/tab_separator (0.00s)
+    --- PASS: TestFileWasmExportNames/variable_directive (0.00s)
+    --- PASS: TestFileWasmExportNames/code_before_directive (0.00s)
+    --- PASS: TestFileWasmExportNames/method_directive (0.00s)
+    --- PASS: TestFileWasmExportNames/multiple_functions (0.00s)
+    --- PASS: TestFileWasmExportNames/interpolated_string (0.00s)
+    --- PASS: TestFileWasmExportNames/postfix_question (0.00s)
+    --- PASS: TestFileWasmExportNames/raw_string_in_hole (0.00s)
+    --- PASS: TestFileWasmExportNames/comment_in_hole (0.00s)
+    --- PASS: TestFileWasmExportNames/literal_braces_in_interpolation (0.00s)
+    --- PASS: TestFileWasmExportNames/blank_line_and_comment (0.00s)
+    --- PASS: TestFileWasmExportNames/two_directives (0.00s)
+    --- PASS: TestFileWasmExportNames/type_after_directive (0.00s)
+    --- PASS: TestFileWasmExportNames/truncated_interpolation (0.00s)
+    --- PASS: TestFileWasmExportNames/truncated_raw_string (0.00s)
+    --- PASS: TestFileWasmExportNames/truncated_block_comment (0.00s)
+    --- PASS: TestFileWasmExportNames/funcs_identifier (0.00s)
+    --- PASS: TestFileWasmExportNames/newline_before_the_function_name (0.00s)
+    --- PASS: TestFileWasmExportNames/comments_before_the_function_name (0.00s)
+    --- PASS: TestFileWasmExportNames/receiver_after_a_newline (0.00s)
+    --- PASS: TestFileWasmExportNames/logos_spelling (0.00s)
+    --- PASS: TestFileWasmExportNames/mixed_spellings (0.00s)
+    --- PASS: TestFileWasmExportNames/logos_spelling_in_a_Go_file (0.00s)
+    --- PASS: TestFileWasmExportNames/logos_spelling_with_a_longer_word (0.00s)
+    --- PASS: TestFileWasmExportNames/logos_spelling_with_a_tab_separator (0.00s)
+=== RUN   TestWasmLoaderHelpersReadTheSourceBeingCompiled
+--- PASS: TestWasmLoaderHelpersReadTheSourceBeingCompiled (0.00s)
+=== RUN   TestPkgDefaultExecName
+--- PASS: TestPkgDefaultExecName (0.00s)
+=== RUN   TestIsVersionElement
+=== PAUSE TestIsVersionElement
+=== RUN   TestLogosScanTrailingComma
+=== RUN   TestLogosScanTrailingComma/test_single_trailing_comma
+=== RUN   TestLogosScanTrailingComma/test_multiline_trailing_comma
+=== RUN   TestLogosScanTrailingComma/benchmark_trailing_comma
+=== RUN   TestLogosScanTrailingComma/fuzz_trailing_comma
+=== RUN   TestLogosScanTrailingComma/benchmark_multiline_trailing_comma
+=== RUN   TestLogosScanTrailingComma/fuzz_multiline_trailing_comma
+=== RUN   TestLogosScanTrailingComma/double_comma_stays_BadExpr
+=== RUN   TestLogosScanTrailingComma/no_comma_ordinary_case
+--- PASS: TestLogosScanTrailingComma (0.00s)
+    --- PASS: TestLogosScanTrailingComma/test_single_trailing_comma (0.00s)
+    --- PASS: TestLogosScanTrailingComma/test_multiline_trailing_comma (0.00s)
+    --- PASS: TestLogosScanTrailingComma/benchmark_trailing_comma (0.00s)
+    --- PASS: TestLogosScanTrailingComma/fuzz_trailing_comma (0.00s)
+    --- PASS: TestLogosScanTrailingComma/benchmark_multiline_trailing_comma (0.00s)
+    --- PASS: TestLogosScanTrailingComma/fuzz_multiline_trailing_comma (0.00s)
+    --- PASS: TestLogosScanTrailingComma/double_comma_stays_BadExpr (0.00s)
+    --- PASS: TestLogosScanTrailingComma/no_comma_ordinary_case (0.00s)
+=== RUN   TestLogosScanChild
+--- PASS: TestLogosScanChild (0.00s)
+=== RUN   TestLogosScanProgressBounded
+--- PASS: TestLogosScanProgressBounded (1.04s)
+=== RUN   TestLogosLintMarkSkipsNonMainModules
+--- PASS: TestLogosLintMarkSkipsNonMainModules (0.00s)
+=== CONT  TestIsVersionElement
+--- PASS: TestIsVersionElement (0.00s)
+PASS
+ok  	cmd/go/internal/load	10.451s

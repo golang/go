@@ -1,0 +1,11 @@
+--- .github/scripts/release-acceptance.sh
++++ .github/scripts/release-acceptance.sh
+@@ -152,7 +152,7 @@
+   grep -Fx os "$evidence/packages-all.txt"
+   mapfile -t packages < <(awk '$0 != "os"' "$evidence/packages-all.txt")
+   test "${#packages[@]}" -gt 0
+-  run matrix-bulk "$driver" test "-O=$level" -count=1 -p=3 -timeout=60m -skip "$skip" "${packages[@]}"
++  run matrix-bulk "$driver" test "-O=$level" -short -count=1 -p=3 -timeout=60m -skip "$skip" "${packages[@]}"
+   run matrix-os "$driver" test "-O=$level" -count=1 -parallel=1 -timeout=60m -skip "$skip" os
+   clean_tip
+ }

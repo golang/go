@@ -13,6 +13,11 @@ import (
 	"cmd/go/internal/modinfo"
 )
 
+func findVariantContextFromLinuxAMD64(pkgDir, name string, hostTags []string) (string, string, []string, bool) {
+	vc, ok := selectVariantContext(pkgDir, name, "linux", "amd64", hostTags)
+	return vc.goos, vc.goarch, vc.tags, ok
+}
+
 func TestEmitPackagePlatformFiles(t *testing.T) {
 	modDir := t.TempDir()
 	outDir := t.TempDir()
@@ -125,10 +130,10 @@ func TestFindVariantContextPlatformLogosSyntax(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if goos, goarch, _, ok := findVariantContextForFile(pkgDir, "plat_windows.lgo", "linux", "amd64", nil); !ok || goos != "windows" {
+	if goos, goarch, _, ok := findVariantContextFromLinuxAMD64(pkgDir, "plat_windows.lgo", nil); !ok || goos != "windows" {
 		t.Errorf("plat_windows.lgo context = %q/%q ok=%v, want windows", goos, goarch, ok)
 	}
-	if goos, goarch, _, ok := findVariantContextForFile(pkgDir, "plat_windows_arm64.lgo", "linux", "amd64", nil); !ok || goos != "windows" || goarch != "arm64" {
+	if goos, goarch, _, ok := findVariantContextFromLinuxAMD64(pkgDir, "plat_windows_arm64.lgo", nil); !ok || goos != "windows" || goarch != "arm64" {
 		t.Errorf("plat_windows_arm64.lgo context = %q/%q ok=%v, want windows/arm64", goos, goarch, ok)
 	}
 }

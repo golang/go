@@ -1,0 +1,9 @@
+{
+  "semanticRed": true,
+  "observedExit": 1,
+  "mechanism": "The physical census retains ignored.lgo although the overlay replaces its build constraint with ignore. Target selection then has no valid context.",
+  "frozenScriptUnchanged": true,
+  "environmentFailure": false,
+  "reused45RaceBinary": true,
+  "newCmdGoBuild": false
+}

@@ -1,0 +1,30 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env CGO_ENABLED=0
+
+# Vendored ownership must not make wildcard-excluded fixtures active.
+logos list example.com/dep/g
+stdout '^example.com/dep/g$'
+go list example.com/dep/g
+stdout '^example.com/dep/g$'
+
+-- go.mod --
+module example.com/client
+
+go 1.27
+
+require example.com/dep v1.0.0
+-- client.go --
+package client
+-- vendor/modules.txt --
+# example.com/dep v1.0.0
+## explicit; go 1.27
+example.com/dep/g
+example.com/dep/_hidden
+example.com/dep/testdata
+-- vendor/example.com/dep/g/g.go --
+package g
+-- vendor/example.com/dep/_hidden/p.lgo --
+package p
+-- vendor/example.com/dep/testdata/p.lgo --
+package p

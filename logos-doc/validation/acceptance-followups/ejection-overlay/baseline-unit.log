@@ -1,0 +1,6 @@
+=== RUN   TestInactiveCensusHonorsOverlay
+    inactive_overlay_test.go:26: overlay census subprocess: exit status 1
+        2026/11/17 03:16:48 logos eject: match inactive file /home/agent/logos-ejection-overlay-9949907ca71e-y20O9N/TestInactiveCensusHonorsOverlay1546914417/001/removed.lgo: Open /home/agent/logos-ejection-overlay-9949907ca71e-y20O9N/TestInactiveCensusHonorsOverlay1546914417/001/removed.lgo: deleted in overlay
+--- FAIL: TestInactiveCensusHonorsOverlay (0.03s)
+FAIL
+elapsed 0.069 seconds

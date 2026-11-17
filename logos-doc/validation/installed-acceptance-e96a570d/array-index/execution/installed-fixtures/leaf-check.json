@@ -1,0 +1,10 @@
+{
+  "expected": [
+    "Test/logos/lint/array_index_out_of_bounds.lgo",
+    "Test/logos/lint/array_index_out_of_bounds_go.go"
+  ],
+  "expected_action": "pass",
+  "matched": 2,
+  "wrong": {},
+  "all_observed_skips": []
+}

@@ -1,0 +1,66 @@
+{
+  "cwd": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes",
+  "all_passed": true,
+  "commands": [
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 uv run --offline --no-project --python /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3 python logos-doc/validation/release-acceptance/check_release_contract.py .",
+      "exit_code": 0,
+      "output": "frozen-contract.json"
+    },
+    {
+      "command": "/workspace/scratch/9949907ca71e/language-ci-tools/bin/actionlint -config-file .github/actionlint.yaml -shellcheck /workspace/scratch/9949907ca71e/language-ci-tools/bin/shellcheck .github/workflows/*.yml",
+      "exit_code": 0,
+      "workflow_count": 8,
+      "output": "actionlint.log"
+    },
+    {
+      "command": "/workspace/scratch/9949907ca71e/language-ci-tools/bin/shellcheck --format=gcc .github/scripts/install-ci-tool.sh .github/scripts/install-upstream-oracles.sh .github/scripts/release-acceptance.sh",
+      "exit_code": 0,
+      "script_count": 3,
+      "output": "shellcheck.log"
+    },
+    {
+      "command": "sha256sum --check --strict logos-doc/validation/release-acceptance/arm64-recipe-v2/files.sha256",
+      "exit_code": 0,
+      "verified_files": 50,
+      "output": "v2-manifest.log"
+    },
+    {
+      "command": "git diff --check -- logos-doc/IMPLEMENTATION.md tasks/autoplan-ledger.jsonl logos-doc/validation/stabilization-candidate.md",
+      "exit_code": 0
+    }
+  ],
+  "metadata_verification": {
+    "passed": true,
+    "head_during_validation": "4c927acb24c10739b996f6b52d176b33c1d1be74",
+    "src_tree": "e237c399aae8f8065b724e8a0e27585686c7da18",
+    "task_rows": 302,
+    "task_ledgers_byte_identical": true,
+    "last_task": {
+      "id": "AUD-209",
+      "description": "M22-A-S6 Execute independent release acceptance",
+      "phase": "AUD"
+    },
+    "redteam_rows": 346,
+    "redteam_counts": {
+      "tested": 337,
+      "satisfied upstream": 2,
+      "blocked": 7
+    },
+    "planned_rows": 0,
+    "blocked_patch_sha256": "3d1bd84ac779294170db7d8e5e3d6403d005be31b94a634f5f9e4a16ae37d012",
+    "frozen_request_inputs_verified": 6,
+    "source_spec_tests_redteam_blocked_patch_unmodified": true,
+    "changed_files": {
+      "logos-doc/IMPLEMENTATION.md": "a0b51dc7229069856528e1eb39d620035470052b148830aeff5a2e1ffcd26088",
+      "tasks/autoplan-ledger.jsonl": "5eb5e2c3ee4fb0cedb059633ea7de91edca5dfcf4b44f91a4af18337b17a7a4c",
+      "logos-doc/validation/stabilization-candidate.md": "f31258da55bf408fb427db9784d2799ce12dfd22254c1b7312828f1eb9d6504b",
+      "logos-doc/validation/release-acceptance/INTEGRATION.md": "696c7e47830b5d4ee7d6a61ecbd827b8a14f35bd38bdebaedea679204f0570d9"
+    },
+    "go_executed": false
+  },
+  "integration_note_local_links_verified": 10,
+  "integration_note_trailing_whitespace": false,
+  "go_executed": false,
+  "commit_created": false
+}

@@ -1,0 +1,69 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd variants
+logos run .
+stdout '^0$'
+logos run -tags=alpha .
+stdout '^21$'
+logos run -tags=beta .
+stdout '^41$'
+logos run -tags=alpha,beta .
+stdout '^62$'
+
+# Each inactive file is lowered separately, but the emitted files must
+# also compile together. Their filenames differ only in punctuation.
+logos eject -o out
+cd out
+exists feature-a.go
+exists feature_a.go
+exists $UPROOT1274/bin/go
+exec env -u GOROOT $UPROOT1274/bin/go run .
+stdout '^0$'
+exec env -u GOROOT $UPROOT1274/bin/go run -tags=alpha .
+stdout '^21$'
+exec env -u GOROOT $UPROOT1274/bin/go run -tags=beta .
+stdout '^41$'
+exec env -u GOROOT $UPROOT1274/bin/go run -tags=alpha,beta .
+stdout '^62$'
+
+-- variants/go.mod --
+module example.com/tuplevariants
+
+go 1.27
+
+-- variants/main.lgo --
+package main
+
+import "fmt"
+
+var total int
+
+func pair(n int) (int, int) { return n, n + 1 }
+func main() { fmt.Println(total) }
+
+-- variants/feature-a.lgo --
+//go:build alpha
+
+package main
+
+var a = pair(10)
+
+func init() {
+	x, y := a
+	total += x + y
+}
+
+-- variants/feature_a.lgo --
+//go:build beta
+
+package main
+
+
+
+var b = pair(20)
+
+func init() {
+	x, y := b
+	total += x + y
+}

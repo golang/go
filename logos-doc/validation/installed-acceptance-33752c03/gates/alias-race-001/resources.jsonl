@@ -1,0 +1,3 @@
+{"elapsed_seconds": 0.001, "MemAvailable": 6929801216, "Shmem": 1893732352, "workspace_available_bytes": 5722263552, "global_oom_kill_counter": 12}
+{"elapsed_seconds": 25.001, "MemAvailable": 6885990400, "Shmem": 1972133888, "workspace_available_bytes": 5642616832, "global_oom_kill_counter": 12}
+{"elapsed_seconds": 50.002, "MemAvailable": 6788755456, "Shmem": 2049343488, "workspace_available_bytes": 5564297216, "global_oom_kill_counter": 12}

@@ -1,0 +1,333 @@
+# A vector zero inside a feature-guarded loop must not be hoisted to
+# function entry. Check the emitted control flow even on hosts whose
+# CPU supports every tested instruction, then exercise both dispatches.
+[!GOARCH:amd64] skip 'SIMD dominance objdump needs amd64'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOEXPERIMENT=simd
+env GOAMD64=v1
+env GODEBUG=
+
+cd g
+go build -o $WORK/checkguard ./checkguard
+go build -gcflags=-d=ssa/check/on -o $WORK/go-exe .
+go tool objdump -s '^main\.nested256$' $WORK/go-exe
+cp stdout $WORK/go-256.txt
+exec $WORK/checkguard $WORK/go-256.txt AVX2
+stdout '^guard dominates SIMD$'
+go tool objdump -s '^main\.nested512$' $WORK/go-exe
+cp stdout $WORK/go-512.txt
+exec $WORK/checkguard $WORK/go-512.txt AVX512
+stdout '^guard dominates SIMD$'
+exec $WORK/go-exe
+stdout '^sums ok$'
+
+env GODEBUG=cpu.avx2=off,cpu.avx512f=off
+exec $WORK/go-exe
+stdout '^features false false$'
+stdout '^sums ok$'
+
+cd ../l
+env GODEBUG=
+logos build -O=2 -gcflags=-d=ssa/check/on -o $WORK/logos-exe .
+go tool objdump -s '^main\.nested256$' $WORK/logos-exe
+cp stdout $WORK/logos-256.txt
+exec $WORK/checkguard $WORK/logos-256.txt AVX2
+stdout '^guard dominates SIMD$'
+go tool objdump -s '^main\.nested512$' $WORK/logos-exe
+cp stdout $WORK/logos-512.txt
+exec $WORK/checkguard $WORK/logos-512.txt AVX512
+stdout '^guard dominates SIMD$'
+exec $WORK/logos-exe
+stdout '^sums ok$'
+env GODEBUG=cpu.avx2=off,cpu.avx512f=off
+exec $WORK/logos-exe
+stdout '^features false false$'
+stdout '^sums ok$'
+
+-- g/go.mod --
+module example.com/simdzerogo
+
+go 1.27
+
+-- g/main.go --
+package main
+
+import (
+	"fmt"
+	"simd/archsimd"
+)
+
+//go:noinline
+func nested256(xs []int32, repeats int) int32 {
+	var total int32
+	for range repeats {
+		if archsimd.X86.AVX2() {
+			var acc archsimd.Int32x8
+			i := 0
+			for len(xs)-i >= 8 {
+				acc = acc.Add(archsimd.LoadInt32x8(xs[i:]))
+				i += 8
+			}
+			var lanes [8]int32
+			acc.StoreArray(&lanes)
+			for _, v := range lanes {
+				total += v
+			}
+			for ; i < len(xs); i++ {
+				total += xs[i]
+			}
+		} else {
+			for _, v := range xs {
+				total += v
+			}
+		}
+	}
+	return total
+}
+
+//go:noinline
+func nested512(xs []uint8, repeats int) uint8 {
+	var total uint8
+	for range repeats {
+		if archsimd.X86.AVX512() {
+			var acc archsimd.Uint8x64
+			i := 0
+			for len(xs)-i >= 64 {
+				acc = acc.Add(archsimd.LoadUint8x64(xs[i:]))
+				i += 64
+			}
+			var lanes [64]uint8
+			acc.StoreArray(&lanes)
+			for _, v := range lanes {
+				total += v
+			}
+			for ; i < len(xs); i++ {
+				total += xs[i]
+			}
+		} else {
+			for _, v := range xs {
+				total += v
+			}
+		}
+	}
+	return total
+}
+
+func main() {
+	fmt.Println("features", archsimd.X86.AVX2(), archsimd.X86.AVX512())
+	for _, n := range []int{0, 1, 7, 8, 9, 63, 64, 65, 129} {
+		xs := make([]int32, n)
+		us := make([]uint8, n)
+		var want32 int32
+		var want8 uint8
+		for i := range n {
+			xs[i] = int32(i*17 - 91)
+			us[i] = uint8(i*13 + 1)
+			want32 += xs[i]
+			want8 += us[i]
+		}
+		for _, repeats := range []int{0, 1, 3} {
+			if got := nested256(xs, repeats); got != want32*int32(repeats) {
+				panic(fmt.Sprintf("int32 n=%d repeats=%d: got %d", n, repeats, got))
+			}
+			if got := nested512(us, repeats); got != want8*uint8(repeats) {
+				panic(fmt.Sprintf("uint8 n=%d repeats=%d: got %d", n, repeats, got))
+			}
+		}
+	}
+	fmt.Println("sums ok")
+}
+
+-- l/go.mod --
+module example.com/simdzerologos
+
+go 1.27
+
+-- l/main.lgo --
+package main
+
+import (
+	"fmt"
+	"simd/archsimd"
+)
+
+//go:noinline
+func nested256(xs []int32, repeats int) int32 {
+	var total int32
+	for range repeats {
+		total += xs.sum()
+	}
+	return total
+}
+
+//go:noinline
+func nested512(xs []uint8, repeats int) uint8 {
+	var total uint8
+	for range repeats {
+		total += xs.sum()
+	}
+	return total
+}
+
+func main() {
+	fmt.Println("features", archsimd.X86.AVX2(), archsimd.X86.AVX512())
+	for _, n := range []int{0, 1, 7, 8, 9, 63, 64, 65, 129} {
+		xs := make([]int32, n)
+		us := make([]uint8, n)
+		var want32 int32
+		var want8 uint8
+		for i := range n {
+			xs[i] = int32(i*17 - 91)
+			us[i] = uint8(i*13 + 1)
+			want32 += xs[i]
+			want8 += us[i]
+		}
+		for _, repeats := range []int{0, 1, 3} {
+			if got := nested256(xs, repeats); got != want32*int32(repeats) {
+				panic(fmt.Sprintf("int32 n=%d repeats=%d: got %d", n, repeats, got))
+			}
+			if got := nested512(us, repeats); got != want8*uint8(repeats) {
+				panic(fmt.Sprintf("uint8 n=%d repeats=%d: got %d", n, repeats, got))
+			}
+		}
+	}
+	fmt.Println("sums ok")
+}
+
+-- g/checkguard/main.go --
+package main
+
+import (
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
+)
+
+type instruction struct {
+	pc   uint64
+	op   string
+	args string
+}
+
+func fail(format string, args ...any) {
+	fmt.Fprintf(os.Stderr, format+"\n", args...)
+	os.Exit(1)
+}
+
+func address(s string) uint64 {
+	pc, err := strconv.ParseUint(s, 0, 64)
+	if err != nil {
+		fail("invalid instruction address %q: %v", s, err)
+	}
+	return pc
+}
+
+func main() {
+	if len(os.Args) != 3 || (os.Args[2] != "AVX2" && os.Args[2] != "AVX512") {
+		fail("usage: checkguard <objdump> AVX2|AVX512")
+	}
+	data, err := os.ReadFile(os.Args[1])
+	if err != nil {
+		fail("read objdump: %v", err)
+	}
+	var code []instruction
+	index := make(map[uint64]int)
+	symbol := ""
+	for _, line := range strings.Split(string(data), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 0 {
+			continue
+		}
+		if fields[0] == "TEXT" {
+			if len(fields) < 2 || symbol != "" {
+				fail("expected exactly one function")
+			}
+			symbol = fields[1]
+			continue
+		}
+		if len(fields) < 4 || !strings.HasPrefix(fields[1], "0x") {
+			fail("invalid objdump instruction %q", line)
+		}
+		pc := address(fields[1])
+		if _, exists := index[pc]; exists {
+			fail("duplicate instruction address %#x", pc)
+		}
+		index[pc] = len(code)
+		code = append(code, instruction{pc, fields[3], strings.Join(fields[4:], " ")})
+	}
+	if len(code) == 0 {
+		fail("missing function instructions")
+	}
+	guard := -1
+	for i, ins := range code {
+		next := i + 1
+		switch {
+		case ins.op == "CALL" && ins.args == "simd/archsimd.X86Features."+os.Args[2]+"(SB)":
+			if next >= len(code) || code[next].op != "TESTL" || code[next].args != "AL, AL" {
+				fail("feature call must be followed by TESTL AL, AL")
+			}
+			next++
+		case ins.op == "CMPB" && strings.HasPrefix(ins.args, "internal/cpu.X86+") && strings.HasSuffix(ins.args, "(SB), $0x0"):
+			// The fixture's sole X86 field read is its inlined feature
+			// predicate. Its layout offset is not part of this contract.
+		default:
+			continue
+		}
+		if guard >= 0 || next >= len(code) || (code[next].op != "JE" && code[next].op != "JNE") {
+			fail("expected one feature predicate followed by JE/JNE")
+		}
+		guard = next
+	}
+	if guard < 0 {
+		fail("missing %s feature branch", os.Args[2])
+	}
+	// Remove the feature-true edge. No feature-dependent instruction may
+	// remain reachable from entry, including across loops or cold paths.
+	seen := make([]bool, len(code))
+	work := []int{0}
+	vectors := 0
+	for _, ins := range code {
+		if strings.HasPrefix(ins.op, "V") || strings.HasPrefix(ins.op, "K") {
+			vectors++
+		}
+	}
+	if vectors == 0 {
+		fail("missing vector instructions")
+	}
+	for len(work) != 0 {
+		i := work[len(work)-1]
+		work = work[:len(work)-1]
+		if i >= len(code) || seen[i] {
+			continue
+		}
+		seen[i] = true
+		ins := code[i]
+		if strings.HasPrefix(ins.op, "V") || strings.HasPrefix(ins.op, "K") {
+			fail("%s at %#x is reachable without %s", ins.op, ins.pc, os.Args[2])
+		}
+		if ins.op == "RET" || ins.op == "UD2" || ins.op == "INT" || ins.op == "HLT" {
+			continue
+		}
+		if strings.HasPrefix(ins.op, "J") {
+			pc := code[0].pc
+			if ins.args != symbol {
+				pc = address(ins.args)
+			}
+			target, ok := index[pc]
+			if !ok {
+				fail("jump at %#x leaves function", ins.pc)
+			}
+			if i != guard || ins.op == "JE" {
+				work = append(work, target)
+			}
+			if ins.op == "JMP" || (i == guard && ins.op == "JE") {
+				continue
+			}
+		}
+		work = append(work, i+1)
+	}
+	fmt.Println("guard dominates SIMD")
+}

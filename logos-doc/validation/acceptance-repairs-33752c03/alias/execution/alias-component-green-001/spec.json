@@ -1,0 +1,63 @@
+{
+  "command": [
+    "/workspace/scratch/9949907ca71e/logos-final-acceptance/bin/go",
+    "test",
+    "-count=1",
+    "-p=1",
+    "-parallel=1",
+    "-short",
+    "-v",
+    "-timeout=5m",
+    "-overlay=/workspace/scratch/9949907ca71e/recovery-evidence/acceptance-failure-repairs/alias-candidate-overlay.json",
+    "cmd/go/internal/load",
+    "-run=^TestScanModuleKindsDuplicateSiblings$"
+  ],
+  "cwd": "/workspace/scratch/9949907ca71e/logos-final-acceptance/src",
+  "output": "/workspace/scratch/9949907ca71e/recovery-evidence/acceptance-failure-repairs/alias-component-green-001",
+  "environment": {
+    "GOROOT": "/workspace/scratch/9949907ca71e/logos-final-acceptance",
+    "GOCACHE": "/workspace/scratch/9949907ca71e/final-postbuild-cache",
+    "GOTOOLCHAIN": "local",
+    "GOENV": "off",
+    "GOWORK": "off",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "GOMAXPROCS": "2",
+    "GOGC": "50",
+    "GOMEMLIMIT": "2GiB",
+    "GOFLAGS": "-p=2",
+    "TMPDIR": "/home/agent/logos-parity-isolated-e96-002",
+    "GOTMPDIR": "/home/agent/logos-parity-isolated-e96-002",
+    "UPROOT1274": "/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci",
+    "PATH": "/workspace/scratch/9949907ca71e/logos-final-acceptance/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+  },
+  "files": [
+    "/workspace/scratch/9949907ca71e/logos-alias-fix/src/cmd/go/internal/load/logos.go",
+    "/workspace/scratch/9949907ca71e/logos-alias-fix/src/cmd/go/internal/modindex/logos.go",
+    "/workspace/scratch/9949907ca71e/logos-alias-fix/src/go/build/logos.go",
+    "/workspace/scratch/9949907ca71e/logos-alias-fix/src/internal/logosfile/logosfile.go",
+    "/workspace/scratch/9949907ca71e/logos-alias-fix/src/cmd/go/internal/load/logos_census_test.go",
+    "/workspace/scratch/9949907ca71e/recovery-evidence/acceptance-failure-repairs/alias-candidate-overlay.json"
+  ],
+  "repositories": [
+    "/workspace/scratch/9949907ca71e/logos-alias-fix"
+  ],
+  "expected_exit": 0,
+  "required_markers": [
+    "--- PASS: TestScanModuleKindsDuplicateSiblings/canonical_alias",
+    "--- PASS: TestScanModuleKindsDuplicateSiblings/alias_alias",
+    "--- PASS: TestScanModuleKindsDuplicateSiblings/variation_alias",
+    "--- PASS: TestScanModuleKindsDuplicateSiblings/external_test_alias",
+    "--- PASS: TestScanModuleKindsDuplicateSiblings/duplicate_kind_still_mixes_module",
+    "--- PASS: TestScanModuleKindsDuplicateSiblings/malformed_header_still_fails",
+    "--- PASS: TestScanModuleKindsDuplicateSiblings/mixed_package_still_fails",
+    "--- PASS: TestScanModuleKindsDuplicateSiblings/plain_go_ignores_alias_siblings"
+  ],
+  "forbidden_markers": [
+    "--- FAIL:",
+    "--- SKIP:",
+    "[build failed]"
+  ],
+  "timeout_seconds": 360,
+  "boundary": "Component overlay of all4 candidate source files and the frozen new test against installed e96 tools. Native driver acceptance requires the later fresh combined make."
+}

@@ -1,0 +1,47 @@
+{
+  "stage": "s3",
+  "case": "nested-two-parameters",
+  "command": [
+    "/workspace/scratch/9949907ca71e/LoGOs-cgo-eject/bin/go",
+    "run",
+    "-p=1",
+    "."
+  ],
+  "cwd": "/workspace/scratch/9949907ca71e/language-evidence/digraph-import/inputs/nested-two-parameters/main",
+  "environment": {
+    "GOROOT": "/workspace/scratch/9949907ca71e/LoGOs-cgo-eject",
+    "GOCACHE": "/workspace/scratch/9949907ca71e/digraph-probe-cache/s3",
+    "GOTMPDIR": "/home/agent/logos-digraph-gates-9949907ca71e",
+    "TMPDIR": "/home/agent/logos-digraph-gates-9949907ca71e",
+    "GOENV": "off",
+    "GOWORK": "off",
+    "GOTOOLCHAIN": "local",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "GOTELEMETRY": "off",
+    "GOMODCACHE": "/home/agent/go/pkg/mod",
+    "CGO_ENABLED": "0",
+    "GOOS": "linux",
+    "GOARCH": "amd64",
+    "GOAMD64": "v1",
+    "GOEXPERIMENT": "",
+    "GOMAXPROCS": "1",
+    "GOMEMLIMIT": "384MiB",
+    "GOGC": "50",
+    "GOFLAGS": "-mod=readonly -buildvcs=false -p=1",
+    "PATH": "/workspace/scratch/9949907ca71e/LoGOs-cgo-eject/bin:/home/agent/.codex/tmp/arg0-linux/codex-arg0V4wbLP:/opt/codex/codex-path:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+  },
+  "driverSha256": "3d9780d7f455d7b75920b5ce61f8cd34ed6a4f1c3bc539c394ee2b91d3ee2baf",
+  "compilerSha256": "85d01f687bcd896258299e4e0a74b21d2e817f1ab1393b20109bf96ba26954ee",
+  "code": 1,
+  "signal": null,
+  "timedOut": false,
+  "seconds": 0.121,
+  "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderrSha256": "cc34374eafec9b215e8a1eaea9b3aeb413dd67ea157cf6c6ff95368d14a88586",
+  "expected": {
+    "code": 0,
+    "combinedOutput": "generic local ok\n"
+  },
+  "matchesOracle": false
+}

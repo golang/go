@@ -1,0 +1,8 @@
+kind: runtime
+file: src/runtime/stack_logos.go
+expect: at21_learned_stacks
+config: K19
+-- old --
+return uint32(max(fixedStack, min(size, ceiling)))
+-- new --
+return uint32(max(fixedStack, min(size, ceiling))) + 1

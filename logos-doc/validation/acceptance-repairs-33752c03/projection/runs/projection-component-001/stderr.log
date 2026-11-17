@@ -1,0 +1,12 @@
+# internal/buildcfg
+internal/buildcfg/cfg.go:24:30: undefined: defaultGOARCH
+internal/buildcfg/cfg.go:25:28: undefined: defaultGOOS
+internal/buildcfg/cfg.go:26:29: undefined: DefaultGO386
+internal/buildcfg/cfg.go:36:14: undefined: defaultGO_LDSO
+internal/buildcfg/cfg.go:38:14: undefined: version
+internal/buildcfg/cfg.go:60:31: undefined: DefaultGOAMD64
+internal/buildcfg/cfg.go:71:13: undefined: DefaultGOAMD64
+internal/buildcfg/cfg.go:146:9: undefined: DefaultGOARM
+internal/buildcfg/cfg.go:249:43: undefined: DefaultGOARM64
+internal/buildcfg/exp.go:42:29: undefined: defaultGOEXPERIMENT
+internal/buildcfg/cfg.go:249:43: too many errors

@@ -44,3 +44,15 @@ func TestAdd(t *testing.T) {
 		t.Fatal("bad add")
 	}
 }
+
+-- go.work --
+go 1.27
+
+use (
+	.
+	./mix
+)
+-- mix/go.mod --
+module example.com/t/mix
+
+go 1.27

@@ -1,0 +1,13 @@
+// errorcheck
+
+package p
+
+type S struct{ M map[string]int }
+
+const func storeField() int {
+	s := S{M: map[string]int{}}
+	s.M["k"] = 4
+	return s.M["k"] ?? -1
+}
+
+const stored = storeField() // ERROR "\[correctness::const_eval\]"

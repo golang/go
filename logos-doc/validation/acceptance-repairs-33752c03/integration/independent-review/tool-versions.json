@@ -1,0 +1,22 @@
+{
+  "actionlint": {
+    "command": [
+      "/workspace/scratch/9949907ca71e/language-ci-tools/bin/actionlint",
+      "-version"
+    ],
+    "executable_sha256": "c872d6db8c6bf83a8eaa704fc93999f027d55dffbc63b8a6abdccb47df5f4cd4",
+    "stdout": "1.7.12\ninstalled by downloading from release page\nbuilt with go1.26.1 compiler for linux/amd64\n",
+    "stderr": "",
+    "exit_code": 0
+  },
+  "shellcheck": {
+    "command": [
+      "/workspace/scratch/9949907ca71e/language-ci-tools/bin/shellcheck",
+      "--version"
+    ],
+    "executable_sha256": "4da528ddb3a4d1b7b24a59d4e16eb2f5fd960f4bd9a3708a15baddbdf1d5a55b",
+    "stdout": "ShellCheck - shell script analysis tool\nversion: 0.11.0\nlicense: GNU General Public License, version 3\nwebsite: https://www.shellcheck.net\n",
+    "stderr": "",
+    "exit_code": 0
+  }
+}

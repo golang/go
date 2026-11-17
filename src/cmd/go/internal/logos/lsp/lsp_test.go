@@ -67,6 +67,12 @@ type fakeScript struct {
 }
 
 func TestMain(m *testing.M) {
+	if log := os.Getenv(gitFailureEnv); log != "" {
+		if err := os.WriteFile(log, []byte("git invoked\n"), 0o600); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
+		os.Exit(128)
+	}
 	if os.Getenv(fakeEnv) != "" {
 		os.Exit(runFakeGopls())
 	}

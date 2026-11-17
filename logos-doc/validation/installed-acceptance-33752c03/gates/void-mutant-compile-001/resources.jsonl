@@ -1,0 +1,4 @@
+{"elapsed_seconds": 0.0, "MemAvailable": 7089770496, "Shmem": 1895804928, "workspace_available_bytes": 4950827008, "global_oom_kill_counter": 12}
+{"elapsed_seconds": 25.001, "MemAvailable": 6798614528, "Shmem": 1988157440, "workspace_available_bytes": 4857929728, "global_oom_kill_counter": 12}
+{"elapsed_seconds": 50.002, "MemAvailable": 6849024000, "Shmem": 2057101312, "workspace_available_bytes": 4788920320, "global_oom_kill_counter": 12}
+{"elapsed_seconds": 75.003, "MemAvailable": 6662074368, "Shmem": 2147196928, "workspace_available_bytes": 4698353664, "global_oom_kill_counter": 12}

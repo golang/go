@@ -154,7 +154,12 @@ func (e *evaluator) evalUserCall(fr *frame, fn *Func, c *syntax.CallExpr) ([]Val
 			}
 			vals = append(vals, v)
 		}
-		return vals, len(vals) > 1, nil
+		f.values = vals
+	}
+	// A returned aggregate is a value before a later operand can mutate the
+	// callee's storage. Reference fields still share their referents.
+	for i := range f.values {
+		f.values[i] = copyValue(f.values[i])
 	}
 	return f.values, len(f.values) > 1, nil
 }
@@ -362,7 +367,7 @@ func (e *evaluator) execRange(fr *frame, s *syntax.ForStmt, rc *syntax.RangeClau
 func (e *evaluator) assignName(fr *frame, name string, v Value) {
 	for i := len(fr.scopes) - 1; i >= 0; i-- {
 		if _, ok := fr.scopes[i][name]; ok {
-			fr.scopes[i][name] = v
+			fr.scopes[i][name] = storeValue(fr.scopes[i][name], v)
 			return
 		}
 	}

@@ -1,0 +1,212 @@
+﻿2026-11-16T16:35:54.1193332Z Current runner version: '2.338.2'
+2026-11-16T16:35:54.1210693Z ##[group]Runner Image Provisioner
+2026-11-16T16:35:54.1211479Z Hosted Compute Agent
+2026-11-16T16:35:54.1211910Z Version: 20261103.629
+2026-11-16T16:35:54.1212395Z Commit: 15dbd9ccb5dbf34fae002b6ed1a2670f52df37bc
+2026-11-16T16:35:54.1212922Z Build Date: 2026-11-03T17:26:59Z
+2026-11-16T16:35:54.1213460Z Worker ID: {134f2b10-9ea5-4987-96d1-30752dc81b77}
+2026-11-16T16:35:54.1213958Z Region: us-west-2
+2026-11-16T16:35:54.1214343Z Cloud: AWS
+2026-11-16T16:35:54.1214730Z ##[endgroup]
+2026-11-16T16:35:54.1215637Z ##[group]Operating System
+2026-11-16T16:35:54.1216068Z Ubuntu
+2026-11-16T16:35:54.1216457Z 26.04.1
+2026-11-16T16:35:54.1216816Z LTS
+2026-11-16T16:35:54.1217179Z ##[endgroup]
+2026-11-16T16:35:54.1217566Z ##[group]Runner Image
+2026-11-16T16:35:54.1218019Z Image: ubuntu-26.04
+2026-11-16T16:35:54.1218429Z Version: 20261111.82.6
+2026-11-16T16:35:54.1219469Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261111.82/images/ubuntu/Ubuntu2604-Readme.md
+2026-11-16T16:35:54.1220616Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261111.82
+2026-11-16T16:35:54.1221317Z ##[endgroup]
+2026-11-16T16:35:54.1222096Z ##[group]GITHUB_TOKEN Permissions
+2026-11-16T16:35:54.1223604Z Contents: read
+2026-11-16T16:35:54.1224028Z Metadata: read
+2026-11-16T16:35:54.1224430Z ##[endgroup]
+2026-11-16T16:35:54.1225843Z Secret source: Actions
+2026-11-16T16:35:54.1226498Z Cache mode: write
+2026-11-16T16:35:54.1226973Z Prepare workflow directory
+2026-11-16T16:35:54.1502340Z Prepare all required actions
+2026-11-16T16:35:54.1563763Z Complete job name: unit
+2026-11-16T16:35:54.2317785Z ##[group]Run git init --quiet .
+2026-11-16T16:35:54.2318326Z [36;1mgit init --quiet .[0m
+2026-11-16T16:35:54.2318948Z [36;1mgit remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"[0m
+2026-11-16T16:35:54.2320228Z [36;1mgit -c protocol.version=2 fetch --no-tags --depth=1 origin "$GITHUB_SHA"[0m
+2026-11-16T16:35:54.2320974Z [36;1mgit -c advice.detachedHead=false checkout --detach FETCH_HEAD[0m
+2026-11-16T16:35:54.2321658Z [36;1mtest "$(git rev-parse HEAD)" = "$GITHUB_SHA"[0m
+2026-11-16T16:35:56.6765591Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:35:56.6766255Z env:
+2026-11-16T16:35:56.6766867Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T16:35:56.6767519Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T16:35:56.6768108Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T16:35:56.6768571Z ##[endgroup]
+2026-11-16T16:36:06.7979842Z From https://github.com/gosuda/LoGOs
+2026-11-16T16:36:06.7980459Z  * branch              f2ad58be8742b8ec350db8f06d9dc794ea3302e4 -> FETCH_HEAD
+2026-11-16T16:36:07.5461474Z HEAD is now at f2ad58be Merge 45c29ff215477f7e403188d7452fc79aef05d791 into 13a968f350564e739bf700df698a9a635dcdddcd
+2026-11-16T16:36:07.5634392Z ##[group]Run archive="$RUNNER_TEMP/actionlint.tar.gz"
+2026-11-16T16:36:07.5634833Z [36;1marchive="$RUNNER_TEMP/actionlint.tar.gz"[0m
+2026-11-16T16:36:07.5635664Z [36;1mcurl --fail --silent --show-error --location --output "$archive" "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"[0m
+2026-11-16T16:36:07.5636433Z [36;1mprintf '%s  %s\n' "$ACTIONLINT_SHA256" "$archive" | sha256sum --check --strict -[0m
+2026-11-16T16:36:07.5636865Z [36;1mtar -xzf "$archive" -C "$RUNNER_TEMP" actionlint[0m
+2026-11-16T16:36:07.5637176Z [36;1mshellcheck --version[0m
+2026-11-16T16:36:07.5637472Z [36;1m"$RUNNER_TEMP/actionlint" -color[0m
+2026-11-16T16:36:07.5655534Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:36:07.5655921Z env:
+2026-11-16T16:36:07.5656540Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T16:36:07.5657342Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T16:36:07.5657722Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T16:36:07.5658122Z   ACTIONLINT_VERSION: 1.7.12
+2026-11-16T16:36:07.5658490Z   ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+2026-11-16T16:36:07.5658884Z ##[endgroup]
+2026-11-16T16:36:07.6954878Z /home/runner/work/_temp/actionlint.tar.gz: OK
+2026-11-16T16:36:08.7405799Z ShellCheck - shell script analysis tool
+2026-11-16T16:36:08.7406308Z version: 0.11.0
+2026-11-16T16:36:08.7406928Z license: GNU General Public License, version 3
+2026-11-16T16:36:08.7407479Z website: https://www.shellcheck.net
+2026-11-16T16:36:09.2611472Z ##[group]Run bash ../.github/scripts/install-ci-tool.sh go
+2026-11-16T16:36:09.2611918Z [36;1mbash ../.github/scripts/install-ci-tool.sh go[0m
+2026-11-16T16:36:09.2629971Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:36:09.2630298Z env:
+2026-11-16T16:36:09.2630890Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T16:36:09.2631462Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T16:36:09.2631835Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T16:36:09.2632207Z ##[endgroup]
+2026-11-16T16:36:09.7073357Z /home/runner/work/_temp/go1.27.4.linux-amd64.tar.gz: OK
+2026-11-16T16:36:10.4606568Z go version go1.27.4 linux/amd64
+2026-11-16T16:36:10.4669767Z ##[group]Run GOROOT_BOOTSTRAP=$(go env GOROOT)
+2026-11-16T16:36:10.4670160Z [36;1mGOROOT_BOOTSTRAP=$(go env GOROOT)[0m
+2026-11-16T16:36:10.4670429Z [36;1mexport GOROOT_BOOTSTRAP[0m
+2026-11-16T16:36:10.4670724Z [36;1m./make.bash[0m
+2026-11-16T16:36:10.4671068Z [36;1mprintf '%s\n' "$GITHUB_WORKSPACE/lib/wasm" "$GITHUB_WORKSPACE/bin" >> "$GITHUB_PATH"[0m
+2026-11-16T16:36:10.4691513Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:36:10.4691926Z env:
+2026-11-16T16:36:10.4692537Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T16:36:10.4693125Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T16:36:10.4693537Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T16:36:10.4693959Z ##[endgroup]
+2026-11-16T16:36:10.9633979Z Building Go cmd/dist using /home/runner/work/_temp/go1.27.4-ci. (go1.27.4 linux/amd64)
+2026-11-16T16:36:15.3655736Z Building Go toolchain1 using /home/runner/work/_temp/go1.27.4-ci.
+2026-11-16T16:36:42.9316804Z Building Go bootstrap cmd/go (go_bootstrap) using Go toolchain1.
+2026-11-16T16:36:54.5734009Z Building Go toolchain2 using go_bootstrap and Go toolchain1.
+2026-11-16T16:37:22.3192483Z Building Go toolchain3 using go_bootstrap and Go toolchain2.
+2026-11-16T16:37:57.4381289Z Building packages and commands for linux/amd64.
+2026-11-16T16:39:02.0269201Z ---
+2026-11-16T16:39:02.0269992Z Installed Go for linux/amd64 in /home/runner/work/LoGOs/LoGOs
+2026-11-16T16:39:02.0270536Z Installed commands in /home/runner/work/LoGOs/LoGOs/bin
+2026-11-16T16:39:02.0271257Z *** You need to add /home/runner/work/LoGOs/LoGOs/bin to your PATH.
+2026-11-16T16:39:02.2373441Z ##[group]Run logos version | grep -F "logos version $(head -n 1 ../VERSION)"
+2026-11-16T16:39:02.2373989Z [36;1mlogos version | grep -F "logos version $(head -n 1 ../VERSION)"[0m
+2026-11-16T16:39:02.2374380Z [36;1mlogos help 2>&1 | grep -F 'logos <command> [arguments]'[0m
+2026-11-16T16:39:02.2391387Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:39:02.2391741Z env:
+2026-11-16T16:39:02.2392300Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T16:39:02.2393070Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T16:39:02.2393497Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T16:39:02.2393874Z ##[endgroup]
+2026-11-16T16:39:02.2462243Z logos version go1.27.4 linux/amd64
+2026-11-16T16:39:02.2487454Z 	logos <command> [arguments]
+2026-11-16T16:39:02.2536768Z ##[group]Run read -r -a packages <<< "$LOGOS_PACKAGES"
+2026-11-16T16:39:02.2537177Z [36;1mread -r -a packages <<< "$LOGOS_PACKAGES"[0m
+2026-11-16T16:39:02.2537528Z [36;1mgo test -count=1 -short "${packages[@]}"[0m
+2026-11-16T16:39:02.2537885Z [36;1mgo test -count=1 -race logos/... cmd/go/internal/logos/lsp/...[0m
+2026-11-16T16:39:02.2538226Z [36;1mgo test -count=1 -short runtime/metrics[0m
+2026-11-16T16:39:02.2538654Z [36;1mGOEXPERIMENT=logosarena go test -count=1 -short -race runtime -run '^TestLogos(Arena|Region|GCScan)'[0m
+2026-11-16T16:39:02.2539408Z [36;1mGOEXPERIMENT=logosarena,nogreenteagc go test -count=1 -short runtime -run '^TestLogos(Arena|Region|GCScan)'[0m
+2026-11-16T16:39:02.2553948Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:39:02.2554255Z env:
+2026-11-16T16:39:02.2554875Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T16:39:02.2555458Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T16:39:02.2555841Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T16:39:02.2556240Z ##[endgroup]
+2026-11-16T16:39:08.5870390Z ok  	logos/arena	0.003s
+2026-11-16T16:39:14.2424444Z ok  	logos/rt	0.716s
+2026-11-16T16:39:35.1650433Z ok  	logos/rt/json	21.635s
+2026-11-16T16:39:35.1651264Z ok  	logos/sync	0.308s
+2026-11-16T16:39:35.1680242Z ok  	cmd/go/internal/logos	0.006s
+2026-11-16T16:39:35.1700758Z ok  	cmd/go/internal/logos/capabilities	0.004s
+2026-11-16T16:39:35.1710060Z ok  	cmd/go/internal/logos/config	0.019s
+2026-11-16T16:39:35.1800470Z ?   	cmd/go/internal/logos/contextcmd	[no test files]
+2026-11-16T16:39:35.1833162Z ok  	cmd/go/internal/logos/eject	1.021s
+2026-11-16T16:39:35.1920228Z ok  	cmd/go/internal/logos/hints	6.396s
+2026-11-16T16:39:35.1950371Z ?   	cmd/go/internal/logos/lintcmd	[no test files]
+2026-11-16T16:39:59.6271450Z ok  	cmd/go/internal/logos/lsp	34.991s
+2026-11-16T16:39:59.6272113Z ok  	cmd/go/internal/logos/next	0.005s
+2026-11-16T16:39:59.6272477Z ok  	cmd/go/internal/logos/settings	0.007s
+2026-11-16T16:41:09.0272566Z ok  	cmd/compile/internal/logos	85.202s
+2026-11-16T16:41:09.0278462Z ok  	cmd/compile/internal/logos/ctfe	11.733s
+2026-11-16T16:41:09.0278968Z ok  	cmd/compile/internal/logos/facts	0.022s
+2026-11-16T16:41:09.0279388Z ok  	cmd/compile/internal/logos/lint	11.699s
+2026-11-16T16:41:09.0280035Z ok  	cmd/compile/internal/logos/wasmyield	0.003s
+2026-11-16T16:41:09.0280393Z ok  	cmd/internal/logos/editmap	0.004s
+2026-11-16T16:41:09.0280728Z ok  	cmd/internal/logosowned	0.003s
+2026-11-16T16:41:09.0281163Z ok  	internal/logosfile	3.247s
+2026-11-16T16:41:09.0281554Z ok  	cmd/cgo/internal/testlogos	57.546s
+2026-11-16T16:41:18.7542926Z ok  	logos/arena	1.015s
+2026-11-16T16:41:26.5619790Z ok  	logos/rt	4.736s
+2026-11-16T16:41:57.6922940Z ok  	logos/rt/json	35.868s
+2026-11-16T16:41:57.6923618Z ok  	logos/sync	2.362s
+2026-11-16T16:42:56.2142705Z ok  	cmd/go/internal/logos/lsp	94.097s
+2026-11-16T16:42:56.4274867Z ok  	runtime/metrics	0.003s
+2026-11-16T16:43:16.0353956Z ok  	runtime	2.294s
+2026-11-16T16:43:29.7296415Z ok  	runtime	0.871s
+2026-11-16T16:43:29.7572655Z ##[group]Run go test -count=1 -timeout 60m cmd/internal/testdir -run 'Test/logos/'
+2026-11-16T16:43:29.7573401Z [36;1mgo test -count=1 -timeout 60m cmd/internal/testdir -run 'Test/logos/'[0m
+2026-11-16T16:43:29.7599838Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:43:29.7600303Z env:
+2026-11-16T16:43:29.7601149Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T16:43:29.7602206Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T16:43:29.7602738Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T16:43:29.7603295Z ##[endgroup]
+2026-11-16T16:49:04.6965667Z --- FAIL: Test (0.02s)
+2026-11-16T16:49:04.6966284Z     --- FAIL: Test/logos/compile/const_func_unsupported_store.lgo (0.05s)
+2026-11-16T16:49:04.6966946Z         testdir_test.go:158: compilation succeeded unexpectedly
+2026-11-16T16:49:04.6967534Z             
+2026-11-16T16:49:04.6967887Z FAIL
+2026-11-16T16:49:04.6968150Z FAIL	cmd/internal/testdir	334.307s
+2026-11-16T16:49:04.6968428Z FAIL
+2026-11-16T16:49:04.7010211Z ##[error]Process completed with exit code 1.
+2026-11-16T16:49:04.7061013Z ##[group]Run unformatted=$(gofmt -l logos internal/logosfile cmd/go/internal/logos cmd/compile/internal/logos cmd/internal/logos cmd/internal/logosowned cmd/cgo/internal/testlogos)
+2026-11-16T16:49:04.7062021Z [36;1munformatted=$(gofmt -l logos internal/logosfile cmd/go/internal/logos cmd/compile/internal/logos cmd/internal/logos cmd/internal/logosowned cmd/cgo/internal/testlogos)[0m
+2026-11-16T16:49:04.7062679Z [36;1mprintf '%s\n' "$unformatted"[0m
+2026-11-16T16:49:04.7062974Z [36;1mtest -z "$unformatted"[0m
+2026-11-16T16:49:04.7081812Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:49:04.7082201Z env:
+2026-11-16T16:49:04.7082802Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T16:49:04.7083432Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T16:49:04.7083903Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T16:49:04.7084381Z ##[endgroup]
+2026-11-16T16:49:04.8759178Z 
+2026-11-16T16:49:04.8806013Z ##[group]Run read -r -a packages <<< "$LOGOS_PACKAGES"
+2026-11-16T16:49:04.8806484Z [36;1mread -r -a packages <<< "$LOGOS_PACKAGES"[0m
+2026-11-16T16:49:04.8806858Z [36;1mgo vet "${packages[@]}"[0m
+2026-11-16T16:49:04.8826016Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:49:04.8826431Z env:
+2026-11-16T16:49:04.8827022Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T16:49:04.8827640Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T16:49:04.8828031Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T16:49:04.8828409Z ##[endgroup]
+2026-11-16T16:49:08.5645126Z ##[group]Run archive="golangci-lint-${GOLANGCI_LINT_VERSION}-linux-amd64"
+2026-11-16T16:49:08.5645603Z [36;1marchive="golangci-lint-${GOLANGCI_LINT_VERSION}-linux-amd64"[0m
+2026-11-16T16:49:08.5646359Z [36;1mcurl --fail --silent --show-error --location --output "$RUNNER_TEMP/$archive.tar.gz" "https://github.com/golangci/golangci-lint/releases/download/v${GOLANGCI_LINT_VERSION}/$archive.tar.gz"[0m
+2026-11-16T16:49:08.5647164Z [36;1mprintf '%s  %s\n' "$GOLANGCI_LINT_SHA256" "$RUNNER_TEMP/$archive.tar.gz" | sha256sum --check --strict -[0m
+2026-11-16T16:49:08.5647681Z [36;1mtar -xzf "$RUNNER_TEMP/$archive.tar.gz" -C "$RUNNER_TEMP"[0m
+2026-11-16T16:49:08.5647994Z [36;1mcd cmd[0m
+2026-11-16T16:49:08.5648384Z [36;1m"$RUNNER_TEMP/$archive/golangci-lint" run --config ../../logos-doc/golangci.yml ./go/internal/logos/...[0m
+2026-11-16T16:49:08.5666712Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:49:08.5667058Z env:
+2026-11-16T16:49:08.5667726Z   LOGOS_PACKAGES: logos/... cmd/go/internal/logos/... cmd/compile/internal/logos/... cmd/internal/logos/... cmd/internal/logosowned internal/logosfile cmd/cgo/internal/testlogos
+2026-11-16T16:49:08.5668315Z   GOLANGCI_LINT_VERSION: 2.15.0
+2026-11-16T16:49:08.5668705Z   GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+2026-11-16T16:49:08.5669130Z ##[endgroup]
+2026-11-16T16:49:08.8490294Z /home/runner/work/_temp/golangci-lint-2.15.0-linux-amd64.tar.gz: OK
+2026-11-16T16:49:16.2966108Z ../src/cmd/go/internal/logos/eject/variant_features_test.go:115:36: Error return value of `os.RemoveAll` is not checked (errcheck)
+2026-11-16T16:49:16.2967312Z 				t.Cleanup(func() { os.RemoveAll(out) })
+2026-11-16T16:49:16.2967835Z 				                               ^
+2026-11-16T16:49:16.2968681Z ../src/cmd/go/internal/logos/eject/eject.go:816:46: findVariantContextForFile - hostGOOS always receives "linux" (unparam)
+2026-11-16T16:49:16.2970047Z func findVariantContextForFile(pkgDir, name, hostGOOS, hostGOARCH string, hostTags []string) (string, string, []string, bool) {
+2026-11-16T16:49:16.2970841Z                                              ^
+2026-11-16T16:49:16.2971297Z 2 issues:
+2026-11-16T16:49:16.2972365Z * errcheck: 1
+2026-11-16T16:49:16.2972988Z * unparam: 1
+2026-11-16T16:49:16.3184970Z ##[error]Process completed with exit code 1.
+2026-11-16T16:49:16.3276567Z Cleaning up orphan processes

@@ -1,0 +1,13 @@
+{
+  "observed_utc": "2026-11-16T20:48:55.893Z",
+  "repository": "gosuda/LoGOs",
+  "run_id": 43939662630,
+  "job_id": 133553485876,
+  "job_name": "std-cmd-go-O1",
+  "status": "completed",
+  "conclusion": "failure",
+  "provider": "github_fetch_workflow_job_logs structuredContent.content",
+  "expectedCharacters": 143406,
+  "bytes": 143420,
+  "sha256": "06b7bc0d4fa864f786beb477c37b3f72838988aa54f2a7b94b563f4719d939ea"
+}

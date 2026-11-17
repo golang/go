@@ -1,0 +1,71 @@
+{
+  "source": {
+    "head": "45c29ff215477f7e403188d7452fc79aef05d791",
+    "tree": "32b96f3a7c289c987bc021fe5a5adbf35cfe226b",
+    "src": "099367e1031585fa553ef7987b199288df36256a",
+    "status": ""
+  },
+  "command": [
+    "/workspace/scratch/9949907ca71e/logos-json-integration/bin/go",
+    "test",
+    "-p=1",
+    "-count=1",
+    "-parallel=1",
+    "-race",
+    "-timeout=20m",
+    "-v",
+    "-overlay=/workspace/scratch/9949907ca71e/recovery-evidence/upstream-e5b95a2e-comparison/json-candidate-overlay.json",
+    "logos/rt/json",
+    "-run",
+    "."
+  ],
+  "cwd": "/workspace/scratch/9949907ca71e/logos-json-integration/src",
+  "environment": {
+    "GOROOT": "/workspace/scratch/9949907ca71e/logos-json-integration",
+    "GOMAXPROCS": "1",
+    "GOFLAGS": "-p=1",
+    "GOGC": "20",
+    "GOMEMLIMIT": "512MiB",
+    "GOTOOLCHAIN": "local",
+    "GOENV": "off",
+    "GOWORK": "off",
+    "GOPROXY": "off",
+    "GOEXPERIMENT": "nojsonv2",
+    "GOCACHE": "/workspace/scratch/9949907ca71e/postbuild-cache",
+    "GOPATH": "/workspace/scratch/9949907ca71e/acceptance-gopath",
+    "CC": "/usr/bin/cc",
+    "GOTMPDIR": "/workspace/scratch/9949907ca71e/json-regression-tmp",
+    "TMPDIR": "/home/agent/logos-json-regression-9949907ca71e-yy7xu8wt",
+    "PWD": "/workspace/scratch/9949907ca71e/logos-json-integration/src",
+    "PATH": "/workspace/scratch/9949907ca71e/logos-json-integration/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/home/agent/.codex/tmp/arg0-linux/codex-arg00QAduY:/opt/codex/codex-path:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+  },
+  "overlay": "/workspace/scratch/9949907ca71e/recovery-evidence/upstream-e5b95a2e-comparison/json-candidate-overlay.json",
+  "overlay_sha256": "9b23c9c1593e0f30066fb27292e08c10f4904fa5eb7c837c883f50e1ff15df20",
+  "mapped_file_identities": {
+    "/workspace/scratch/9949907ca71e/logos-json-integration/src/logos/rt/json/stream_v2_test.go": {
+      "replacement": "/workspace/scratch/9949907ca71e/recovery-evidence/upstream-e5b95a2e-comparison/frozen-json-tests-corrected/stream_v2_test.go",
+      "sha256": "08729986d528dd8a0c003893b0069639b5f3d7201b122a4105be162bfa088232"
+    },
+    "/workspace/scratch/9949907ca71e/logos-json-integration/src/logos/rt/json/path_v2.go": {
+      "replacement": "/workspace/scratch/9949907ca71e/recovery-evidence/upstream-e5b95a2e-comparison/candidate-runtime/path_v2.go",
+      "sha256": "1e226a2d7f6b230299fcc9e55752bb6ee6b896ce87bf41197b4b6628f7a405b1"
+    }
+  },
+  "wrapper_sha256": "2c1de6e7965fe8d1191fd3e5cb0555f147b2b151e88c7d532c562dc0ead7b7a4",
+  "installed_binary_sha256": {
+    "bin/go": "987052b593c41cf60390eec80d98b01b89f9536d6d87b4e73672ab6e7a4eb2ef",
+    "bin/logos": "987052b593c41cf60390eec80d98b01b89f9536d6d87b4e73672ab6e7a4eb2ef",
+    "pkg/tool/linux_amd64/compile": "61749f8f2b2242d26e613993270f654cf47c750739a22b223f94eedd5370bba9",
+    "pkg/tool/linux_amd64/link": "8de04dd6ee98e46757ad12a6e11d968a4a75594d3c863319cca18833b6f9ca9f",
+    "pkg/tool/linux_amd64/asm": "ba74e1169103009e33cc3ed0516fe41ab05f71455c562b2866e1d91a02e7f92c",
+    "pkg/tool/linux_amd64/cgo": "aa3c7182db2db4b139400223d4d1c413d14cd2e1e194d4aa77b7ecd0e056b755"
+  },
+  "source_temp_is_real": true,
+  "source_temp_ancestor_vcs_markers": [],
+  "started_utc": "2026-11-16T17:55:19.424675+00:00",
+  "resources_before": {
+    "MemAvailable": 7031074816,
+    "Shmem": 713572352,
+    "workspace_available_bytes": 17068216320
+  }
+}

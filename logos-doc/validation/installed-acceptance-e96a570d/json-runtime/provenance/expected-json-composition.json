@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "prepared_utc": "2026-11-16T18:13:21.685451+00:00",
+  "base_commit": "45c29ff215477f7e403188d7452fc79aef05d791",
+  "incoming_commit": "8afec95580ed24e593307fd9d30d626eff31e22d",
+  "signature_commit": "c986384f43ed5c2b0759580d98814f2494a7bd7c",
+  "tested_candidate_path_v2_sha256": "1e226a2d7f6b230299fcc9e55752bb6ee6b896ce87bf41197b4b6628f7a405b1",
+  "path_v2_derivation": "Apply exactly one QuotedText element/pointer constraint replacement and one TypeFor[E] replacement to the frozen tested candidate.",
+  "path_v2_independent_crosscheck": "Identical to incoming path_v2 after removing only the duplicate permissiveUnquote implementation and its three imports, then routing its two calls to unquoteLiteralBytes(string(tok)).",
+  "go_commands_executed": false,
+  "expected_files": {
+    "src/logos/rt/json/stream_v2_test.go": {
+      "sha256": "08729986d528dd8a0c003893b0069639b5f3d7201b122a4105be162bfa088232",
+      "bytes": 16593
+    },
+    "src/logos/rt/json/scan.go": {
+      "sha256": "a4fe21da48eea8ce7ff96faed3ff4ec10d0685f98930a73cf83cd51798226854",
+      "bytes": 14283
+    },
+    "src/logos/rt/json/path_v1.go": {
+      "sha256": "d07f9a34d01110e84a2bf13138af6e23c9ff8a7d71baa0b1b3ba1131b63ddd5c",
+      "bytes": 4278
+    },
+    "src/logos/rt/json/path_v2.go": {
+      "sha256": "937c332fdc99c1f5f28b2879495a6fc2dcf2baad67019e9af83c2ee28c6a00de",
+      "bytes": 7376
+    }
+  }
+}

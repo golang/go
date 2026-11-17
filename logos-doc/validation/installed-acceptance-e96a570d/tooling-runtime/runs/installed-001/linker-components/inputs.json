@@ -1,0 +1,47 @@
+{
+  "started_utc": "2026-11-16T18:58:42.706Z",
+  "command": [
+    "/usr/bin/timeout",
+    "--kill-after=10s",
+    "240s",
+    "/workspace/scratch/9949907ca71e/hosted-evidence/runtime/final-installed-gates-e96a570d/runs/installed-001/linker-capabilities.test",
+    "-test.v",
+    "-test.count=1",
+    "-test.short",
+    "-test.parallel=1",
+    "-test.timeout=3m",
+    "-test.run=Test(CapGraph|LogosCap)"
+  ],
+  "cwd": "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/cmd/link/internal/ld",
+  "environment_overrides": {
+    "GOROOT": "/workspace/scratch/9949907ca71e/logos-final-acceptance",
+    "GOCACHE": "/workspace/scratch/9949907ca71e/final-postbuild-cache",
+    "GOMAXPROCS": "1",
+    "GOMEMLIMIT": "512MiB",
+    "GOGC": "20",
+    "GOFLAGS": "-p=1",
+    "GOENV": "off",
+    "GOTOOLCHAIN": "local",
+    "GOWORK": "off",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "GOEXPERIMENT": "",
+    "GOOS": "linux",
+    "GOARCH": "amd64",
+    "GOAMD64": "v1",
+    "CC": "/usr/bin/gcc-14",
+    "GOPATH": "/workspace/scratch/9949907ca71e/final-acceptance-gopath",
+    "PATH": "/workspace/scratch/9949907ca71e/logos-final-acceptance/bin:/workspace/scratch/9949907ca71e/toolchains/qemu-10.0.13/usr/bin:/usr/local/bin:/usr/bin:/bin",
+    "TMPDIR": "/home/agent/logos-final-tooling-9949907ca71e-7giRHT",
+    "GOTMPDIR": "/home/agent/logos-final-tooling-9949907ca71e-7giRHT",
+    "PWD": "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/cmd/link/internal/ld",
+    "CGO_ENABLED": "1"
+  },
+  "removed_environment_keys": [],
+  "CGO_ENABLED_present": true,
+  "resources": {
+    "MemAvailable": 6740250624,
+    "workspaceAvailable": 6941495296,
+    "homeAvailable": 4819632128
+  }
+}

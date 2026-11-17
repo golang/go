@@ -1,0 +1,93 @@
+{
+  "binding": {
+    "source": {
+      "HEAD": "e96a570da271c43a80e23bb1a188aac054acff25",
+      "HEAD:src": "e237c399aae8f8065b724e8a0e27585686c7da18"
+    },
+    "clean": true,
+    "sha256": {
+      "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/cmd/internal/goparity/parity_test.go": "1be848e4e5f94f76d3484e12b253d4eaad81990a89635a59cf59f86fa1149bb4",
+      "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/cmd/internal/goparity/testdata/run/at08_recursion_bound/main.go": "e1aa8d47d3fe4ddc0d43be98ec361c1ad2dcf9ca8711f1feaa49afc2081bc359",
+      "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/cmd/internal/goparity/testdata/mutants/at08.txt": "7e432078f7cc2a48ac4d5baaedc6f920485f2a42041a67eb83292fdff5e6db99",
+      "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/cmd/go/internal/logos/settings/settings.go": "46dac9c2495aa2aee8e3afbda984107ef1b318efa88cf2cd7aff0796d23531d5",
+      "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/cmd/compile/internal/inline/stackbuf_logos.go": "d3474e408715d3001b82ac5b8868d02ada389dd4526f4b35edfd738e46da5a7a",
+      "/workspace/scratch/9949907ca71e/recovery-evidence/parity-timeout-investigation/parity_at08_isolated_probe_test.go": "890de5c3311660070fb7e0cd02bcfb4e34bccb4c58ce6b863f9ba414a7675ebc",
+      "/workspace/scratch/9949907ca71e/recovery-evidence/parity-timeout-investigation/overlay.json": "c688b2f534bbd88e0adc79c5b6da5f3802e456ececfdabf5634088cb83198c00",
+      "/workspace/scratch/9949907ca71e/logos-final-acceptance/bin/go": "34a04896c6bdbedb2a8dbdb491b836b41e80efa47a255286733de021c776e6f9",
+      "/workspace/scratch/9949907ca71e/logos-final-acceptance/bin/logos": "34a04896c6bdbedb2a8dbdb491b836b41e80efa47a255286733de021c776e6f9",
+      "/workspace/scratch/9949907ca71e/logos-final-acceptance/pkg/tool/linux_amd64/compile": "b8d0742e328093b87fec566a68fb810d7043446ce0b575a81f304432bee87b6e",
+      "/workspace/scratch/9949907ca71e/logos-final-acceptance/pkg/tool/linux_amd64/link": "0520fc2422f2d09ccb460c856d98f624164939d4e84ec78c8331e1d0afa59729",
+      "/workspace/scratch/9949907ca71e/logos-final-acceptance/pkg/tool/linux_amd64/asm": "cf19e608ea29badc7c52e96ccddc64fb736098547dbf3bf6848c7b27a588aa3a",
+      "/workspace/scratch/9949907ca71e/logos-final-acceptance/pkg/tool/linux_amd64/cgo": "323a1c76a840a00b36a0b0b1938ecd2b403bad5fea981cffa4f717c2e0a959bd"
+    }
+  },
+  "files_sha256": {
+    "/workspace/scratch/9949907ca71e/logos-alias-fix/src/cmd/go/internal/load/logos.go": "acabbbe1e6581770d383a1dc9d301ffe70f33968e974eb50703882813b46674c",
+    "/workspace/scratch/9949907ca71e/logos-alias-fix/src/cmd/go/internal/modindex/logos.go": "178e61d77f6b0665bb29c4af7f6595935b52e7fbf4a4aeb6a21ddfdbca076e8e",
+    "/workspace/scratch/9949907ca71e/logos-alias-fix/src/go/build/logos.go": "addc9448a772b9d27f8545fb5347d8530ca000572e74e3dde84ef93ebf22edfc",
+    "/workspace/scratch/9949907ca71e/logos-alias-fix/src/internal/logosfile/logosfile.go": "852bcabc847f6eecfe60e02acd7ac71e13aac46d1e62879ff1d200c9b3520b39",
+    "/workspace/scratch/9949907ca71e/logos-alias-fix/src/cmd/go/internal/load/logos_census_test.go": "3a07ac609dc04cd1b0b250b0a366ae535ac25138dfb425365e67e101f992e19f",
+    "/workspace/scratch/9949907ca71e/recovery-evidence/acceptance-failure-repairs/alias-candidate-overlay.json": "c10a8e7ce15cc0cc04142c92e7f35f25225252bcd03d538d294b95f1f1e40021"
+  },
+  "repositories": {
+    "/workspace/scratch/9949907ca71e/logos-alias-fix": {
+      "head": "2535486fe9596a9212d525a5007963ef9e8682f0",
+      "source_tree": "e237c399aae8f8065b724e8a0e27585686c7da18",
+      "status": " M src/cmd/go/internal/load/logos.go\n M src/cmd/go/internal/modindex/logos.go\n M src/go/build/logos.go\n M src/internal/logosfile/logosfile.go\n?? src/cmd/go/internal/load/logos_census_test.go\n",
+      "tracked_diff": "diff --git a/src/cmd/go/internal/load/logos.go b/src/cmd/go/internal/load/logos.go\nindex e92c4e38..4cb1a8a1 100644\n--- a/src/cmd/go/internal/load/logos.go\n+++ b/src/cmd/go/internal/load/logos.go\n@@ -138,7 +138,11 @@ func scanModuleKinds(ctx context.Context, ld *modload.Loader, g *moduleKinds) er\n \t\t\tif _, noGo := errors.AsType[*build.NoGoError](err); noGo {\n \t\t\t\tcontinue\n \t\t\t}\n-\t\t\treturn fmt.Errorf(\"classifying package %s in module %s: %w\", name, m.Path, err)\n+\t\t\tif _, duplicate := errors.AsType[logosfile.DuplicateStemError](err); !duplicate {\n+\t\t\t\treturn fmt.Errorf(\"classifying package %s in module %s: %w\", name, m.Path, err)\n+\t\t\t}\n+\t\t\t// Duplicate stems invalidate this package, but its complete file\n+\t\t\t// lists must still contribute to the module's source kinds.\n \t\t}\n \t\tfor _, files := range [][]string{p.GoFiles, p.CgoFiles, p.TestGoFiles, p.XTestGoFiles} {\n \t\t\tfor _, file := range files {\ndiff --git a/src/cmd/go/internal/modindex/logos.go b/src/cmd/go/internal/modindex/logos.go\nindex 1ed4e636..4efdaf83 100644\n--- a/src/cmd/go/internal/modindex/logos.go\n+++ b/src/cmd/go/internal/modindex/logos.go\n@@ -49,7 +49,7 @@ func mixedPackageError(goFiles, logosFiles []string) error {\n \n // duplicateStemError mirrors the go/build duplicate-stem diagnostic.\n func duplicateStemError(first, second, stem string) error {\n-\treturn fmt.Errorf(\"[correctness::duplicate_stem_filename] files %s and %s share stem %q\", first, second, stem)\n+\treturn logosfile.DuplicateStemError(fmt.Sprintf(\"[correctness::duplicate_stem_filename] files %s and %s share stem %q\", first, second, stem))\n }\n \n // checkLogosPackage mirrors go/build checkLogosPackage over the admitted\ndiff --git a/src/go/build/logos.go b/src/go/build/logos.go\nindex 360ce3e4..1a6ef030 100644\n--- a/src/go/build/logos.go\n+++ b/src/go/build/logos.go\n@@ -107,8 +107,8 @@ func checkLogosDuplicateStems(logosFiles []string) error {\n \tfor _, name := range logosFiles {\n \t\tstem, _, _ := logosfile.Split(name)\n \t\tif prev, ok := seen[stem]; ok {\n-\t\t\treturn fmt.Errorf(\"[correctness::duplicate_stem_filename] files %s and %s share stem %q\",\n-\t\t\t\tprev, name, stem)\n+\t\t\treturn logosfile.DuplicateStemError(fmt.Sprintf(\"[correctness::duplicate_stem_filename] files %s and %s share stem %q\",\n+\t\t\t\tprev, name, stem))\n \t\t}\n \t\tseen[stem] = name\n \t}\ndiff --git a/src/internal/logosfile/logosfile.go b/src/internal/logosfile/logosfile.go\nindex 2ddc8067..99676a53 100644\n--- a/src/internal/logosfile/logosfile.go\n+++ b/src/internal/logosfile/logosfile.go\n@@ -19,6 +19,14 @@ var exts = [...]string{Canonical, \".\ud83d\udcdc\", \".\u26a1\", \".\u0295\u25d4\u03d6\u25d4\u0294\"}\n \n const variationSelectors = \"\\uFE0E\\uFE0F\"\n \n+// DuplicateStemError reports active loGo/s files that share a stem.\n+// Source loaders return it after completing the active file lists and\n+// validating source headers and package kinds. A census may use those\n+// lists, while loading the package still fails.\n+type DuplicateStemError string\n+\n+func (e DuplicateStemError) Error() string { return string(e) }\n+\n // Exts returns every loGo/s source extension, dot included, canonical first.\n func Exts() []string {\n \treturn slices.Clone(exts[:])\n"
+    }
+  },
+  "command": [
+    "/workspace/scratch/9949907ca71e/logos-final-acceptance/bin/go",
+    "test",
+    "-race",
+    "-count=1",
+    "-p=1",
+    "-parallel=1",
+    "-short",
+    "-v",
+    "-timeout=5m",
+    "-overlay=/workspace/scratch/9949907ca71e/recovery-evidence/acceptance-failure-repairs/alias-candidate-overlay.json",
+    "cmd/go/internal/load",
+    "-run=^TestScanModuleKindsDuplicateSiblings$"
+  ],
+  "cwd": "/workspace/scratch/9949907ca71e/logos-final-acceptance/src",
+  "environment_overrides": {
+    "GOROOT": "/workspace/scratch/9949907ca71e/logos-final-acceptance",
+    "GOCACHE": "/workspace/scratch/9949907ca71e/final-postbuild-cache",
+    "GOTOOLCHAIN": "local",
+    "GOENV": "off",
+    "GOWORK": "off",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "GOMAXPROCS": "2",
+    "GOGC": "50",
+    "GOMEMLIMIT": "2GiB",
+    "GOFLAGS": "-p=2",
+    "TMPDIR": "/home/agent/logos-parity-isolated-e96-002",
+    "GOTMPDIR": "/home/agent/logos-parity-isolated-e96-002",
+    "UPROOT1274": "/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci",
+    "PATH": "/workspace/scratch/9949907ca71e/logos-final-acceptance/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+  },
+  "boundary": "Restored all4 candidate source files plus frozen test, compiled and executed under the race detector. Native driver gate awaits fresh make.",
+  "expected_exit": 0,
+  "required_markers": [
+    "--- PASS: TestScanModuleKindsDuplicateSiblings/canonical_alias",
+    "--- PASS: TestScanModuleKindsDuplicateSiblings/alias_alias",
+    "--- PASS: TestScanModuleKindsDuplicateSiblings/variation_alias",
+    "--- PASS: TestScanModuleKindsDuplicateSiblings/external_test_alias",
+    "--- PASS: TestScanModuleKindsDuplicateSiblings/duplicate_kind_still_mixes_module",
+    "--- PASS: TestScanModuleKindsDuplicateSiblings/malformed_header_still_fails",
+    "--- PASS: TestScanModuleKindsDuplicateSiblings/mixed_package_still_fails",
+    "--- PASS: TestScanModuleKindsDuplicateSiblings/plain_go_ignores_alias_siblings"
+  ],
+  "forbidden_markers": [
+    "--- FAIL:",
+    "--- SKIP:",
+    "[build failed]"
+  ],
+  "outer_timeout_seconds": 360,
+  "started_utc": "2026-11-16T21:06:37.659590+00:00",
+  "spec_sha256": "04864765f6d5b4ece2ae9a11739cbf3829ed14f68583b3c0b16069b07f0f409e",
+  "runner_sha256": "991db63c8ce68789b2180452e7659b2ed6e885ca31e933e0a49d668d4b7392d0"
+}

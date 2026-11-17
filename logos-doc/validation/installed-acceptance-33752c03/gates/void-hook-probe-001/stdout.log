@@ -1,0 +1,25 @@
+=== RUN   TestCompilePanicNarrowing
+=== RUN   TestCompilePanicNarrowing/builtin
+=== RUN   TestCompilePanicNarrowing/parenthesized_builtin
+=== RUN   TestCompilePanicNarrowing/shadowed_function
+=== RUN   TestCompilePanicNarrowing/shadowed_variable
+=== RUN   TestCompilePanicNarrowing/parenthesized_shadow
+--- PASS: TestCompilePanicNarrowing (0.06s)
+    --- PASS: TestCompilePanicNarrowing/builtin (0.02s)
+    --- PASS: TestCompilePanicNarrowing/parenthesized_builtin (0.01s)
+    --- PASS: TestCompilePanicNarrowing/shadowed_function (0.01s)
+    --- PASS: TestCompilePanicNarrowing/shadowed_variable (0.01s)
+    --- PASS: TestCompilePanicNarrowing/parenthesized_shadow (0.01s)
+=== RUN   TestCompilePanicNarrowingVoid
+=== RUN   TestCompilePanicNarrowingVoid/builtin
+    compile_panic_void_identity_test.go:37: real panic guard: exit 2, output "/home/agent/logos-repair-33752c03/tmp/go-tmp/TestCompilePanicNarrowingVoidbuiltin477217278/001/x.lgo:6:6: [correctness::nil_deref_unproven] cannot access field n of *payload? without proving != nil\n", object false
+=== RUN   TestCompilePanicNarrowingVoid/parenthesized_builtin
+    compile_panic_void_identity_test.go:37: real panic guard: exit 2, output "/home/agent/logos-repair-33752c03/tmp/go-tmp/TestCompilePanicNarrowingVoidparenthesized_builtin587364949/001/x.lgo:6:6: [correctness::nil_deref_unproven] cannot access field n of *payload? without proving != nil\n", object false
+=== RUN   TestCompilePanicNarrowingVoid/shadowed_function
+=== RUN   TestCompilePanicNarrowingVoid/shadowed_variable
+--- FAIL: TestCompilePanicNarrowingVoid (0.04s)
+    --- FAIL: TestCompilePanicNarrowingVoid/builtin (0.01s)
+    --- FAIL: TestCompilePanicNarrowingVoid/parenthesized_builtin (0.01s)
+    --- PASS: TestCompilePanicNarrowingVoid/shadowed_function (0.01s)
+    --- PASS: TestCompilePanicNarrowingVoid/shadowed_variable (0.01s)
+FAIL

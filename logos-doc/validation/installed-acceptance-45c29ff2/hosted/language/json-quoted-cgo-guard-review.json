@@ -1,0 +1,22 @@
+{
+  "recordedAt": "2026-11-16T16:35:30.376Z",
+  "status": "execution proof pending",
+  "test": "TestEjectQuotedCgoTypes",
+  "path": "src/cmd/compile/internal/logos/json_cgo_quoted_test.go",
+  "guards": [
+    "testenv.MustHaveGoBuild(t)",
+    "testenv.MustHaveCGO(t)"
+  ],
+  "goBuildSkipConditions": [
+    "GO_GCFLAGS is nonempty",
+    "The selected go tool or its compiler is unavailable"
+  ],
+  "cgoGuard": "Queries the selected go env CGO_ENABLED using testenv origEnv; skips if false.",
+  "testBehavior": "After both guards, the test runs ordinary-Go and ejected Cgo programs and checks exact JSON outputs. Each nested go run explicitly sets CGO_ENABLED=1, GOPROXY=off, and GOTOOLCHAIN=local.",
+  "workflowProfiles": [
+    "jsonv2",
+    "nojsonv2"
+  ],
+  "workflowObservation": "The workflow does not set CGO_ENABLED or GO_GCFLAGS and invokes the package tests without -v. Package success alone does not directly identify execution of this guarded test.",
+  "requiredAcceptance": "Keep an explicit verbose pass for TestEjectQuotedCgoTypes in both profiles required unless hosted logs establish actual execution independently."
+}

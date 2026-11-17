@@ -1,0 +1,123 @@
+# Function-local declarations exercise the installed default validator.
+# Their scope excludes generated serialization methods and constructors.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# Accepted controls cover numeric boundaries, composite keys and blank fields.
+logos build -o $WORK/control.exe ./control
+
+# The default is checked in its declaration's file or local scope.
+logos build -o $WORK/imported.exe ./imported
+logos build -o $WORK/local.exe ./local
+
+# Every invalid declaration must fail without constructing its type.
+! logos build -o $WORK/overflow-low.exe ./overflow_low
+stderr 'bad.lgo:3:[0-9]+:.*overflows'
+! logos build -o $WORK/overflow-high.exe ./overflow_high
+stderr 'bad.lgo:3:[0-9]+:.*overflows'
+! logos build -o $WORK/scalar.exe ./scalar
+stderr 'bad.lgo:3:[0-9]+:.*cannot use'
+! logos build -o $WORK/composite.exe ./composite
+stderr 'bad.lgo:3:[0-9]+:.*cannot use'
+! logos build -o $WORK/map-key.exe ./map_key
+stderr 'bad.lgo:5:[0-9]+:.*\[correctness::default_not_constant\]'
+! logos build -o $WORK/blank.exe ./blank
+stderr 'bad.lgo:3:[0-9]+:.*cannot use'
+! logos build -o $WORK/blank-defaults.exe ./blank_defaults
+stderr 'bad.lgo:3:[0-9]+:.*cannot use'
+! logos build -o $WORK/blank-group.exe ./blank_group
+stderr 'bad.lgo:3:[0-9]+:.*cannot use'
+
+-- go.mod --
+module example.com/defaultvalidation
+
+go 1.27
+-- control/main.lgo --
+package main
+
+func unused() {
+	type Bounds struct {
+		Zero      uint8 = 0
+		One       uint8 = 1
+		BeforeMax uint8 = 254
+		Max       uint8 = 255
+	}
+	type Composites struct {
+		Numbers []int = []int{1, 2}
+		Fields struct { N int } = struct { N int }{N: 1}
+		Table map[int]string = map[int]string{1: "ok"}
+	}
+	type BlankAfter struct { _ int; _ string = "ok" }
+	type BlankDefaults struct { _ int = 1; _ string = "ok" }
+	type BlankGroup struct { _ int; _, Value string = "ok" }
+	type BlankTail struct { _ int; Value, _ string = "ok" }
+}
+
+func main() {}
+-- imported/main.lgo --
+package main
+
+import "time"
+
+func unused() { type Unused struct { Delay time.Duration = time.Second } }
+
+func main() {}
+-- local/main.lgo --
+package main
+
+func unused() {
+	const local = 17
+	type Unused struct { Value int = local }
+}
+
+func main() {}
+-- overflow_low/bad.lgo --
+package main
+
+func unused() { type Unused struct { Value uint8 = -1 } }
+
+func main() {}
+-- overflow_high/bad.lgo --
+package main
+
+func unused() { type Unused struct { Value uint8 = 256 } }
+
+func main() {}
+-- scalar/bad.lgo --
+package main
+
+func unused() { type Unused struct { Value int = "bad" } }
+
+func main() {}
+-- composite/bad.lgo --
+package main
+
+func unused() { type Unused struct { Value []int = []string{"bad"} } }
+
+func main() {}
+-- map_key/bad.lgo --
+package main
+
+var calls int
+func key() int { calls++; return calls }
+func unused() { type Unused struct { Value map[int]int = map[int]int{key(): 1} } }
+
+func main() {}
+-- blank/bad.lgo --
+package main
+
+func unused() { type Unused struct { _ string; _ int = "bad" } }
+
+func main() {}
+-- blank_defaults/bad.lgo --
+package main
+
+func unused() { type Unused struct { _ string = "first"; _ int = "bad" } }
+
+func main() {}
+-- blank_group/bad.lgo --
+package main
+
+func unused() { type Unused struct { _ string; _, Value int = "bad" } }
+
+func main() {}

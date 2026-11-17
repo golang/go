@@ -1,0 +1,33 @@
+{
+  "run_id": 43906416710,
+  "job_id": 133436352368,
+  "attempt": 1,
+  "conclusion": "success",
+  "source": {
+    "merge_sha": "f2ad58be8742b8ec350db8f06d9dc794ea3302e4",
+    "head_sha": "45c29ff215477f7e403188d7452fc79aef05d791",
+    "tree_sha": "32b96f3a7c289c987bc021fe5a5adbf35cfe226b",
+    "src_tree": "099367e1031585fa553ef7987b199288df36256a"
+  },
+  "native_target": "linux/amd64",
+  "completed_gates": [
+    "native checkout and pinned tool installation",
+    "fresh make.bash",
+    "formatting and vet",
+    "full cmd/compile/internal/ssa suite",
+    "TestLogosHostAMD64Condition",
+    "README",
+    "logos_simd_zero_dominance",
+    "logos_simd_gate_branch",
+    "logos_simd_gate_avx512",
+    "logos_simd_nested_guard",
+    "logos_simd_feature_gate",
+    "logos_eject_simd_slice"
+  ],
+  "ssa_seconds": 23.476,
+  "cmd_go_race_seconds": 66.663,
+  "test_level_skips": [],
+  "log_file": "job-133436352368-attempt-1.log",
+  "log_sha256": "f3e625d0f6c9dd5feb77d8c278a2abc1c7b07e6bfc3c22c4891b5f7bfa66ae5b"
+}
+

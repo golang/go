@@ -409,8 +409,6 @@ The available conditions are:
 	GO_BUILDER_NAME is non-empty
 [host-goamd64:*]
 	host supports GOAMD64=<suffix>
-[host-simd]
-	host can execute GOEXPERIMENT=simd output (arm64 always; amd64 needs GOAMD64 v4)
 [link]
 	testenv.HasLink()
 [msan]

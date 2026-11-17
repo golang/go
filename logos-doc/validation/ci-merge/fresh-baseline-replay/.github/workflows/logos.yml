@@ -1,0 +1,158 @@
+name: "logos"
+
+"on":
+  pull_request:
+    types: ["opened", "synchronize", "reopened", "ready_for_review"]
+    paths-ignore:
+      - "AGENTS.md"
+      - "CONTRIBUTING.md"
+      - "README.md"
+      - "SECURITY.md"
+  push:
+    branches:
+      - "release-branch.go1.27"
+    paths-ignore:
+      - "AGENTS.md"
+      - "CONTRIBUTING.md"
+      - "README.md"
+      - "SECURITY.md"
+
+permissions:
+  contents: "read"
+
+concurrency:
+  group: "logos-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"
+  cancel-in-progress: true
+
+env:
+  LOGOS_PACKAGES: >-
+    logos/...
+    cmd/go/internal/logos/...
+    cmd/compile/internal/logos/...
+    cmd/internal/logos/...
+    cmd/internal/logosowned
+    internal/logosfile
+    cmd/cgo/internal/testlogos
+  GOLANGCI_LINT_VERSION: "2.15.0"
+  GOLANGCI_LINT_SHA256: "9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea"
+
+jobs:
+  logos:
+    name: "${{ matrix.suite }}"
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on: "${{ matrix.suite == 'scripts' && 'ubuntu-24.04' || 'ubuntu-26.04' }}"
+    timeout-minutes: "${{ matrix.suite == 'scripts' && 180 || 90 }}"
+    strategy:
+      fail-fast: true
+      matrix:
+        # Share one toolchain build across the shorter suites.
+        suite: ["unit", "scripts"]
+    defaults:
+      run:
+        shell: "bash"
+        working-directory: "src"
+    steps:
+      - name: "Check out the tested revision"
+        working-directory: "${{ github.workspace }}"
+        run: |
+          git init --quiet .
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          git -c protocol.version=2 fetch --no-tags --depth=1 origin "$GITHUB_SHA"
+          git -c advice.detachedHead=false checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - name: "Validate workflows and shell scripts"
+        working-directory: "."
+        timeout-minutes: 5
+        env:
+          ACTIONLINT_VERSION: "1.7.12"
+          ACTIONLINT_SHA256: "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8"
+        run: |
+          archive="$RUNNER_TEMP/actionlint.tar.gz"
+          curl --fail --silent --show-error --location --output "$archive" "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          printf '%s  %s\n' "$ACTIONLINT_SHA256" "$archive" | sha256sum --check --strict -
+          tar -xzf "$archive" -C "$RUNNER_TEMP" actionlint
+          shellcheck --version
+          "$RUNNER_TEMP/actionlint" -color
+      - name: "Install the pinned Go bootstrap"
+        run: bash ../.github/scripts/install-ci-tool.sh go
+      - name: "Install the pinned Node runtime"
+        if: "matrix.suite == 'scripts'"
+        run: bash ../.github/scripts/install-ci-tool.sh node
+      - name: "Install the upstream oracle toolchains"
+        if: "matrix.suite == 'scripts'"
+        run: bash ../.github/scripts/install-upstream-oracles.sh
+      - name: "Build the toolchain"
+        run: |
+          GOROOT_BOOTSTRAP=$(go env GOROOT)
+          export GOROOT_BOOTSTRAP
+          ./make.bash
+          printf '%s\n' "$GITHUB_WORKSPACE/lib/wasm" "$GITHUB_WORKSPACE/bin" >> "$GITHUB_PATH"
+      - name: "Smoke"
+        id: "smoke"
+        run: |
+          logos version | grep -F "logos version $(head -n 1 ../VERSION)"
+          logos help 2>&1 | grep -F 'logos <command> [arguments]'
+      - name: "Select and verify the C23 consumer compiler"
+        id: "c23"
+        if: "matrix.suite == 'scripts'"
+        run: |
+          compiler="$(command -v gcc-14)"
+          compiler_bin="$RUNNER_TEMP/logos-c23-bin"
+          mkdir "$compiler_bin"
+          ln -s "$compiler" "$compiler_bin/cc"
+          "$compiler_bin/cc" --version
+          printf 'int main(void) { return 0; }\n' |
+            "$compiler_bin/cc" -std=c23 -x c - -o "$RUNNER_TEMP/logos-c23-check"
+          "$RUNNER_TEMP/logos-c23-check"
+          printf '%s\n' "$compiler_bin" >> "$GITHUB_PATH"
+      - name: "Check full-regression prerequisites"
+        id: "regression_prerequisites"
+        if: "matrix.suite == 'scripts'"
+        run: |
+          go test -count=1 -short -timeout=5m cmd/internal/goparity -run '^TestRedteamLedgerRows$'
+          go test -count=1 -timeout=10m cmd/go -run '^TestScript$/^logos_cgo_shared$'
+      # Finish independent checks after a test failure, but never after a failed
+      # build/smoke check or workflow cancellation. Failures still fail the job.
+      - name: "Run unit tests"
+        if: "${{ !cancelled() && steps.smoke.outcome == 'success' && matrix.suite == 'unit' }}"
+        run: |
+          read -r -a packages <<< "$LOGOS_PACKAGES"
+          go test -count=1 -short "${packages[@]}"
+          go test -count=1 -race logos/... cmd/go/internal/logos/lsp/...
+          go test -count=1 -short runtime/metrics
+          GOEXPERIMENT=logosarena go test -count=1 -short -race runtime -run '^TestLogos(Arena|Region|GCScan)'
+          GOEXPERIMENT=logosarena,nogreenteagc go test -count=1 -short runtime -run '^TestLogos(Arena|Region|GCScan)'
+      - name: "Run compiler fixtures"
+        if: "${{ !cancelled() && steps.smoke.outcome == 'success' && matrix.suite == 'unit' }}"
+        run: |
+          go test -count=1 -timeout 60m cmd/internal/testdir -run 'Test/logos/'
+      - name: "Check formatting"
+        if: "${{ !cancelled() && steps.smoke.outcome == 'success' && matrix.suite == 'unit' }}"
+        run: |
+          unformatted=$(gofmt -l logos internal/logosfile cmd/go/internal/logos cmd/compile/internal/logos cmd/internal/logos cmd/internal/logosowned cmd/cgo/internal/testlogos)
+          printf '%s\n' "$unformatted"
+          test -z "$unformatted"
+      - name: "Vet Go packages"
+        if: "${{ !cancelled() && steps.smoke.outcome == 'success' && matrix.suite == 'unit' }}"
+        run: |
+          read -r -a packages <<< "$LOGOS_PACKAGES"
+          go vet "${packages[@]}"
+      - name: "Lint Go packages"
+        if: "${{ !cancelled() && steps.smoke.outcome == 'success' && matrix.suite == 'unit' }}"
+        run: |
+          archive="golangci-lint-${GOLANGCI_LINT_VERSION}-linux-amd64"
+          curl --fail --silent --show-error --location --output "$RUNNER_TEMP/$archive.tar.gz" "https://github.com/golangci/golangci-lint/releases/download/v${GOLANGCI_LINT_VERSION}/$archive.tar.gz"
+          printf '%s  %s\n' "$GOLANGCI_LINT_SHA256" "$RUNNER_TEMP/$archive.tar.gz" | sha256sum --check --strict -
+          tar -xzf "$RUNNER_TEMP/$archive.tar.gz" -C "$RUNNER_TEMP"
+          cd cmd
+          "$RUNNER_TEMP/$archive/golangci-lint" run --config ../../logos-doc/golangci.yml ./go/internal/logos/...
+      - name: "Run script tests"
+        if: "${{ !cancelled() && steps.smoke.outcome == 'success' && steps.c23.outcome == 'success' && matrix.suite == 'scripts' }}"
+        run: |
+          go test -count=1 -timeout 60m cmd/go -run 'Script/^logos_'
+      - name: "Run full Go regression"
+        if: "${{ !cancelled() && steps.smoke.outcome == 'success' && steps.c23.outcome == 'success' && steps.regression_prerequisites.outcome == 'success' && matrix.suite == 'scripts' }}"
+        timeout-minutes: 90
+        run: |
+          # cmd/go includes the fork's additional language scripts.
+          GO_TEST_TIMEOUT_SCALE=8 ./run.bash --no-rebuild

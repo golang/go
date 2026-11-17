@@ -1,0 +1,397 @@
+{
+  "run_id": 43906416850,
+  "attempt": 1,
+  "conclusion": "failure",
+  "source": {
+    "merge_sha": "f2ad58be8742b8ec350db8f06d9dc794ea3302e4",
+    "head_sha": "45c29ff215477f7e403188d7452fc79aef05d791",
+    "tree_sha": "32b96f3a7c289c987bc021fe5a5adbf35cfe226b",
+    "src_tree": "099367e1031585fa553ef7987b199288df36256a"
+  },
+  "unit": {
+    "job_id": 133436353880,
+    "conclusion": "failure",
+    "accepted_steps": [
+      "fresh toolchain build",
+      "smoke",
+      "complete configured unit-test step",
+      "formatting",
+      "vet"
+    ],
+    "failures": [
+      {
+        "step": "Run compiler fixtures",
+        "test": "Test/logos/compile/const_func_unsupported_store.lgo",
+        "diagnostic": "compilation succeeded unexpectedly",
+        "suite_seconds": 334.307
+      },
+      {
+        "step": "Lint Go packages",
+        "file": "src/cmd/go/internal/logos/eject/variant_features_test.go",
+        "line": 115,
+        "linter": "errcheck",
+        "diagnostic": "Error return value of os.RemoveAll is not checked"
+      },
+      {
+        "step": "Lint Go packages",
+        "file": "src/cmd/go/internal/logos/eject/eject.go",
+        "line": 816,
+        "linter": "unparam",
+        "diagnostic": "findVariantContextForFile - hostGOOS always receives linux"
+      }
+    ],
+    "log_file": "job-133436353880-attempt-1.log",
+    "log_sha256": "28a6b80f79ad071d912baefd491ef10e8de5604fe89669f6b3d8b2803856e09e"
+  },
+  "scripts": {
+    "job_id": 133436354201,
+    "conclusion": "cancelled",
+    "accepted_steps": [
+      "native checkout",
+      "actionlint and ShellCheck",
+      "pinned Go and Node installers",
+      "upstream oracle installers",
+      "fresh toolchain build",
+      "smoke",
+      "C23 compiler compile/run probe",
+      "TestRedteamLedgerRows",
+      "logos_cgo_shared"
+    ],
+    "ledger_seconds": 0.008,
+    "shared_c_seconds": 7.156,
+    "broad_scripts": "cancelled while running; no acceptance result",
+    "full_go": "skipped; never started",
+    "log_file": "job-133436354201-attempt-1.log",
+    "log_sha256": "cfd43341d99402d61e4aec65dcee47edbc3c0acb87df34d52b199e82fcafa213"
+  },
+  "job_metadata": [
+    {
+      "id": 133436353880,
+      "name": "unit",
+      "status": "completed",
+      "conclusion": "failure",
+      "run_id": 43906416850,
+      "run_attempt": 1,
+      "head_sha": "45c29ff215477f7e403188d7452fc79aef05d791",
+      "started_at": "2026-11-16T16:35:53Z",
+      "completed_at": "2026-11-16T16:49:18Z",
+      "html_url": "https://github.com/gosuda/LoGOs/actions/runs/43906416850/job/133436353880",
+      "check_run_url": "https://api.github.com/repos/gosuda/LoGOs/check-runs/133436353880",
+      "labels": [
+        "ubuntu-26.04"
+      ],
+      "runner_id": 1000117047,
+      "runner_name": "GitHub Actions 1000117047",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-11-16T16:35:54Z",
+          "completed_at": "2026-11-16T16:35:54Z"
+        },
+        {
+          "name": "Check out the tested revision",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-11-16T16:35:54Z",
+          "completed_at": "2026-11-16T16:36:07Z"
+        },
+        {
+          "name": "Validate workflows and shell scripts",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-11-16T16:36:07Z",
+          "completed_at": "2026-11-16T16:36:09Z"
+        },
+        {
+          "name": "Install the pinned Go bootstrap",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-11-16T16:36:09Z",
+          "completed_at": "2026-11-16T16:36:10Z"
+        },
+        {
+          "name": "Install the pinned Node runtime",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 5,
+          "started_at": "2026-11-16T16:36:10Z",
+          "completed_at": "2026-11-16T16:36:10Z"
+        },
+        {
+          "name": "Install the upstream oracle toolchains",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 6,
+          "started_at": "2026-11-16T16:36:10Z",
+          "completed_at": "2026-11-16T16:36:10Z"
+        },
+        {
+          "name": "Build the toolchain",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-11-16T16:36:10Z",
+          "completed_at": "2026-11-16T16:39:02Z"
+        },
+        {
+          "name": "Smoke",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8,
+          "started_at": "2026-11-16T16:39:02Z",
+          "completed_at": "2026-11-16T16:39:02Z"
+        },
+        {
+          "name": "Select and verify the C23 consumer compiler",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 9,
+          "started_at": "2026-11-16T16:39:02Z",
+          "completed_at": "2026-11-16T16:39:02Z"
+        },
+        {
+          "name": "Check full-regression prerequisites",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 10,
+          "started_at": "2026-11-16T16:39:02Z",
+          "completed_at": "2026-11-16T16:39:02Z"
+        },
+        {
+          "name": "Run unit tests",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11,
+          "started_at": "2026-11-16T16:39:02Z",
+          "completed_at": "2026-11-16T16:43:29Z"
+        },
+        {
+          "name": "Run compiler fixtures",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 12,
+          "started_at": "2026-11-16T16:43:29Z",
+          "completed_at": "2026-11-16T16:49:04Z"
+        },
+        {
+          "name": "Check formatting",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 13,
+          "started_at": "2026-11-16T16:49:04Z",
+          "completed_at": "2026-11-16T16:49:04Z"
+        },
+        {
+          "name": "Vet Go packages",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 14,
+          "started_at": "2026-11-16T16:49:04Z",
+          "completed_at": "2026-11-16T16:49:08Z"
+        },
+        {
+          "name": "Lint Go packages",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 15,
+          "started_at": "2026-11-16T16:49:08Z",
+          "completed_at": "2026-11-16T16:49:16Z"
+        },
+        {
+          "name": "Run script tests",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 16,
+          "started_at": "2026-11-16T16:49:16Z",
+          "completed_at": "2026-11-16T16:49:16Z"
+        },
+        {
+          "name": "Run full Go regression",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 17,
+          "started_at": "2026-11-16T16:49:16Z",
+          "completed_at": "2026-11-16T16:49:16Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 18,
+          "started_at": "2026-11-16T16:49:16Z",
+          "completed_at": "2026-11-16T16:49:16Z"
+        }
+      ]
+    },
+    {
+      "id": 133436354201,
+      "name": "scripts",
+      "status": "completed",
+      "conclusion": "cancelled",
+      "run_id": 43906416850,
+      "run_attempt": 1,
+      "head_sha": "45c29ff215477f7e403188d7452fc79aef05d791",
+      "started_at": "2026-11-16T16:32:49Z",
+      "completed_at": "2026-11-16T16:49:38Z",
+      "html_url": "https://github.com/gosuda/LoGOs/actions/runs/43906416850/job/133436354201",
+      "check_run_url": "https://api.github.com/repos/gosuda/LoGOs/check-runs/133436354201",
+      "labels": [
+        "ubuntu-24.04"
+      ],
+      "runner_id": 1000117037,
+      "runner_name": "GitHub Actions 1000117037",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-11-16T16:32:50Z",
+          "completed_at": "2026-11-16T16:32:50Z"
+        },
+        {
+          "name": "Check out the tested revision",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-11-16T16:32:50Z",
+          "completed_at": "2026-11-16T16:32:56Z"
+        },
+        {
+          "name": "Validate workflows and shell scripts",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-11-16T16:32:56Z",
+          "completed_at": "2026-11-16T16:32:57Z"
+        },
+        {
+          "name": "Install the pinned Go bootstrap",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-11-16T16:32:57Z",
+          "completed_at": "2026-11-16T16:33:01Z"
+        },
+        {
+          "name": "Install the pinned Node runtime",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-11-16T16:33:01Z",
+          "completed_at": "2026-11-16T16:33:03Z"
+        },
+        {
+          "name": "Install the upstream oracle toolchains",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-11-16T16:33:03Z",
+          "completed_at": "2026-11-16T16:33:07Z"
+        },
+        {
+          "name": "Build the toolchain",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-11-16T16:33:07Z",
+          "completed_at": "2026-11-16T16:36:24Z"
+        },
+        {
+          "name": "Smoke",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8,
+          "started_at": "2026-11-16T16:36:24Z",
+          "completed_at": "2026-11-16T16:36:24Z"
+        },
+        {
+          "name": "Select and verify the C23 consumer compiler",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9,
+          "started_at": "2026-11-16T16:36:24Z",
+          "completed_at": "2026-11-16T16:36:25Z"
+        },
+        {
+          "name": "Check full-regression prerequisites",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10,
+          "started_at": "2026-11-16T16:36:25Z",
+          "completed_at": "2026-11-16T16:36:57Z"
+        },
+        {
+          "name": "Run unit tests",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 11,
+          "started_at": "2026-11-16T16:36:57Z",
+          "completed_at": "2026-11-16T16:36:57Z"
+        },
+        {
+          "name": "Run compiler fixtures",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 12,
+          "started_at": "2026-11-16T16:36:57Z",
+          "completed_at": "2026-11-16T16:36:57Z"
+        },
+        {
+          "name": "Check formatting",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 13,
+          "started_at": "2026-11-16T16:36:57Z",
+          "completed_at": "2026-11-16T16:36:57Z"
+        },
+        {
+          "name": "Vet Go packages",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 14,
+          "started_at": "2026-11-16T16:36:57Z",
+          "completed_at": "2026-11-16T16:36:57Z"
+        },
+        {
+          "name": "Lint Go packages",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 15,
+          "started_at": "2026-11-16T16:36:57Z",
+          "completed_at": "2026-11-16T16:36:57Z"
+        },
+        {
+          "name": "Run script tests",
+          "status": "completed",
+          "conclusion": "cancelled",
+          "number": 16,
+          "started_at": "2026-11-16T16:36:57Z",
+          "completed_at": "2026-11-16T16:49:31Z"
+        },
+        {
+          "name": "Run full Go regression",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 17,
+          "started_at": "2026-11-16T16:49:31Z",
+          "completed_at": "2026-11-16T16:49:31Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 18,
+          "started_at": "2026-11-16T16:49:31Z",
+          "completed_at": "2026-11-16T16:49:31Z"
+        }
+      ]
+    }
+  ]
+}

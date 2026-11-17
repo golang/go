@@ -1,0 +1,16 @@
+{
+  "command": [
+    "/workspace/scratch/9949907ca71e/logos-json-integration/bin/gofmt",
+    "-l",
+    "/workspace/scratch/9949907ca71e/recovery-evidence/upstream-e5b95a2e-comparison/candidate-runtime/path_v2.go",
+    "/workspace/scratch/9949907ca71e/recovery-evidence/upstream-e5b95a2e-comparison/frozen-json-tests-corrected/stream_v2_test.go"
+  ],
+  "cwd": "/workspace/scratch/9949907ca71e/logos-json-integration",
+  "started_utc": "2026-11-16T18:02:13.371667+00:00",
+  "completed_utc": "2026-11-16T18:02:13.379007+00:00",
+  "duration_seconds": 0.007,
+  "exit_code": 0,
+  "stdout": "",
+  "stderr": "",
+  "binary_sha256": "987465c7a554cc2896f1600b25500e5b3a462df2c448d25c662f8f043a03018c"
+}

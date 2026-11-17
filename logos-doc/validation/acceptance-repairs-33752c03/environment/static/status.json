@@ -1,0 +1,70 @@
+{
+  "status": "PASS",
+  "records": [
+    {
+      "name": "release-static-checker-001",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 0.739,
+      "command": [
+        "uv",
+        "run",
+        "--offline",
+        "--no-cache",
+        "--no-project",
+        "python",
+        "-B",
+        "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/logos-doc/validation/release-acceptance/check_release_contract.py",
+        "/workspace/scratch/9949907ca71e/logos-acceptance-fixes"
+      ],
+      "cwd": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes",
+      "stdout_sha256": "fcb85f78a3e21417642eb53b90d18188df57389f45c327ce582cc94f7a8edb81",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "classification": "static check only; no compiler or Go test execution"
+    },
+    {
+      "name": "release-bash-syntax-001",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 0.121,
+      "command": [
+        "bash",
+        "-n",
+        "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/.github/scripts/release-acceptance.sh"
+      ],
+      "cwd": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "classification": "static check only; no compiler or Go test execution"
+    },
+    {
+      "name": "release-shellcheck-001",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 1.086,
+      "command": [
+        "/workspace/scratch/9949907ca71e/language-ci-tools/bin/shellcheck",
+        "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/.github/scripts/release-acceptance.sh"
+      ],
+      "cwd": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "classification": "static check only; no compiler or Go test execution"
+    },
+    {
+      "name": "release-actionlint-001",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 0.747,
+      "command": [
+        "/workspace/scratch/9949907ca71e/language-ci-tools/bin/actionlint",
+        "-color"
+      ],
+      "cwd": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "classification": "static check only; no compiler or Go test execution"
+    }
+  ],
+  "boundary": "Actual recorded commands; no source edits or static reruns by the packaging lane."
+}

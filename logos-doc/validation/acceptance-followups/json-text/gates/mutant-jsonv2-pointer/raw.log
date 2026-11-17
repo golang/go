@@ -1,0 +1,13 @@
+=== RUN   TestQuotedTextAppendCannotCorruptToken
+--- PASS: TestQuotedTextAppendCannotCorruptToken (0.00s)
+=== RUN   TestQuotedTextPermissiveUnquoteMatchesEncodingJSON
+    stream_v2_test.go:331: "\ud800": End() = json: cannot unmarshal number into Go struct field streamTarget[*logos/rt/json.streamUnsupportedTextProbe].v of type json.streamUnsupportedTextProbe: JSON value must be string type, encoding/json = <nil>
+    stream_v2_test.go:331: "\ud800": value = json.streamTarget[*logos/rt/json.streamUnsupportedTextProbe]{V:(*json.streamUnsupportedTextProbe)(0xc000032b20), After:17}, encoding/json = json.streamTarget[*logos/rt/json.streamUnsupportedTextProbe]{V:(*json.streamUnsupportedTextProbe)(0xc000032b30), After:17}
+    stream_v2_test.go:331: "ÿ": End() = json: cannot unmarshal number into Go struct field streamTarget[*logos/rt/json.streamUnsupportedTextProbe].v of type json.streamUnsupportedTextProbe: JSON value must be string type, encoding/json = <nil>
+    stream_v2_test.go:331: "ÿ": value = json.streamTarget[*logos/rt/json.streamUnsupportedTextProbe]{V:(*json.streamUnsupportedTextProbe)(0xc000032c40), After:17}, encoding/json = json.streamTarget[*logos/rt/json.streamUnsupportedTextProbe]{V:(*json.streamUnsupportedTextProbe)(0xc000032c50), After:17}
+    stream_v2_test.go:331: "x\ud800y": End() = json: cannot unmarshal number into Go struct field streamTarget[*logos/rt/json.streamUnsupportedTextProbe].v of type json.streamUnsupportedTextProbe: JSON value must be string type, encoding/json = <nil>
+    stream_v2_test.go:331: "x\ud800y": value = json.streamTarget[*logos/rt/json.streamUnsupportedTextProbe]{V:(*json.streamUnsupportedTextProbe)(0xc000032d00), After:17}, encoding/json = json.streamTarget[*logos/rt/json.streamUnsupportedTextProbe]{V:(*json.streamUnsupportedTextProbe)(0xc000032d10), After:17}
+--- FAIL: TestQuotedTextPermissiveUnquoteMatchesEncodingJSON (0.01s)
+FAIL
+FAIL	logos/rt/json	0.051s
+FAIL

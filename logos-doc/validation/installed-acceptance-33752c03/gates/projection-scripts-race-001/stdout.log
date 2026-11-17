@@ -1,0 +1,1453 @@
+=== RUN   TestScript
+=== PAUSE TestScript
+=== CONT  TestScript
+vcs-test.golang.org rerouted to http://127.0.0.1:36487
+https://vcs-test.golang.org rerouted to https://127.0.0.1:35507
+go test proxy running at GOPROXY=http://127.0.0.1:33511/mod
+=== RUN   TestScript/logos_cgo_lgo
+=== PAUSE TestScript/logos_cgo_lgo
+=== RUN   TestScript/logos_chains_panic_close
+=== PAUSE TestScript/logos_chains_panic_close
+=== RUN   TestScript/logos_eject_cgo
+=== PAUSE TestScript/logos_eject_cgo
+=== RUN   TestScript/logos_eject_cgo_codegen
+=== PAUSE TestScript/logos_eject_cgo_codegen
+=== RUN   TestScript/logos_eject_cgo_codegen_edges
+=== PAUSE TestScript/logos_eject_cgo_codegen_edges
+=== RUN   TestScript/logos_eject_cgo_mode
+=== PAUSE TestScript/logos_eject_cgo_mode
+=== RUN   TestScript/logos_eject_cgo_owned
+=== PAUSE TestScript/logos_eject_cgo_owned
+=== RUN   TestScript/logos_eject_cgo_paths
+=== PAUSE TestScript/logos_eject_cgo_paths
+=== RUN   TestScript/logos_eject_cgo_types
+=== PAUSE TestScript/logos_eject_cgo_types
+=== CONT  TestScript/logos_cgo_lgo
+=== CONT  TestScript/logos_eject_cgo_owned
+    script_test.go:142: 2026-11-16T21:57:42Z
+    script_test.go:144: $WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo_owned367422783
+=== NAME  TestScript/logos_cgo_lgo
+    script_test.go:142: 2026-11-16T21:57:42Z
+    script_test.go:144: $WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_cgo_lgo921233377
+    script_test.go:166: 
+        PATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/testbin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/recovery-evidence/installed-repair-33752c03/c23-bin:/workspace/scratch/9949907ca71e/toolchains/node-v26.13.1-ci/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/lib/wasm:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback
+        HOME=/no-home
+        CCACHE_DISABLE=1
+        GOARCH=amd64
+        TESTGO_GOHOSTARCH=amd64
+        GOCACHE=/workspace/scratch/9949907ca71e/repair-postbuild-cache
+        GOCOVERDIR=
+        GODEBUG=
+        GOEXE=
+        GOEXPERIMENT=
+        GOOS=linux
+        TESTGO_GOHOSTOS=linux
+        GOPROXY=http://127.0.0.1:33511/mod
+        GOPRIVATE=
+        GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        GOTRACEBACK=system
+        TESTGO_GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        TESTGO_EXE=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/testbin/go
+        TESTGO_VCSTEST_HOST=127.0.0.1:36487
+        TESTGO_VCSTEST_TLS_HOST=127.0.0.1:35507
+        TESTGO_VCSTEST_CERT=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/vcstest3534802283/cert.pem
+        TESTGONETWORK=panic
+        GOSUMDB=localhost.localdev/sumdb+00000c67+AcTrnkbUA+TU4heY3hkjiSES/DSQniBqIeQ/YppAUtK6
+        TESTGO_SUMDB=localhost.localdev/sumdb
+        GONOPROXY=
+        GONOSUMDB=
+        GOVCS=*:all
+        devnull=/dev/null
+        goversion=1.27.4
+        CMDGO_TEST_RUN_MAIN=true
+        HGRCPATH=
+        GOTOOLCHAIN=auto
+        newline=
+        
+        CGO_ENABLED=1
+        CC=/usr/bin/gcc-14
+        UPROOT1272=/workspace/scratch/9949907ca71e/toolchains/go1.27.2
+        UPROOT1273=/workspace/scratch/9949907ca71e/toolchains/go1.27.3
+        UPROOT1274=/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci
+        WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_cgo_lgo921233377
+        TEST_TELEMETRY_DIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_cgo_lgo921233377/telemetry
+        TMPDIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_cgo_lgo921233377/tmp
+        GOPATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_cgo_lgo921233377/gopath
+        PWD=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_cgo_lgo921233377/gopath/src
+        
+        > [!cgo] skip 'cgo is not available'
+        [condition not met]
+        > env GOPROXY=off
+        > env GOTOOLCHAIN=local
+        > env CC=
+        > logos build -x -o $WORK/ok.bin ./ok
+        [stderr]
+        WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_cgo_lgo921233377/tmp/go-build1907819027
+        mkdir -p $WORK/b061/
+        cd /workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/cgo
+        TERM='dumb' GOAMD64='v3' GOARM64='v8.2' CGO_LDFLAGS='' /workspace/scratch/9949907ca71e/logos-acceptance-fixes/pkg/tool/linux_amd64/cgo -objdir $WORK/b061/ -importpath runtime/cgo -import_runtime_cgo=false -import_syscall=false "-ldflags=\"-O2\" \"-g\" \"-lpthread\"" -- -I $WORK/b061/ -O2 -g -Wall -Werror -fno-stack-protector -Wdeclaration-after-statement -std=gnu90 ./cgo.go
+        cd $WORK/b061
+        TERM='dumb' /usr/bin/gcc-14 -I /workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/cgo -fPIC -m64 -pthread -Wl,--no-gc-sections -fmessage-length=0 -ffile-prefix-map=$WORK/b061=/tmp/go-build -gno-record-gcc-switches -I $WORK/b061/ -O2 -g -Wall -Werror -fno-stack-protector -Wdeclaration-after-statement -std=gnu90 -ffile-prefix-map=/workspace/scratch/9949907ca71e/logos-acceptance-fixes=/_/GOROOT -frandom-seed=cT_hMMAqWxJYzeuX22c0 -o $WORK/b061/_x001.o -c _cgo_export.c
+        cd /workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/cgo
+        TERM='dumb' /usr/bin/gcc-14 -I . -fPIC -m64 -pthread -Wl,--no-gc-sections -fmessage-length=0 -ffile-prefix-map=$WORK/b061=/tmp/go-build -gno-record-gcc-switches -I $WORK/b061/ -O2 -g -Wall -Werror -fno-stack-protector -Wdeclaration-after-statement -std=gnu90 -ffile-prefix-map=/workspace/scratch/9949907ca71e/logos-acceptance-fixes=/_/GOROOT -frandom-seed=g_2d18q84657VxU5tgfT -o $WORK/b061/_x007.o -c gcc_libinit_unix.c
+        TERM='dumb' /usr/bin/gcc-14 -I . -fPIC -m64 -pthread -Wl,--no-gc-sections -fmessage-length=0 -ffile-prefix-map=$WORK/b061=/tmp/go-build -gno-record-gcc-switches -I $WORK/b061/ -O2 -g -Wall -Werror -fno-stack-protector -Wdeclaration-after-statement -std=gnu90 -ffile-prefix-map=/workspace/scratch/9949907ca71e/logos-acceptance-fixes=/_/GOROOT -frandom-seed=vqXK90UwqFUbH5uHDmK8 -o $WORK/b061/_x004.o -c gcc_clearenv.c
+        TERM='dumb' /usr/bin/gcc-14 -I . -fPIC -m64 -pthread -Wl,--no-gc-sections -fmessage-length=0 -ffile-prefix-map=$WORK/b061=/tmp/go-build -gno-record-gcc-switches -I $WORK/b061/ -O2 -g -Wall -Werror -fno-stack-protector -Wdeclaration-after-statement -std=gnu90 -ffile-prefix-map=/workspace/scratch/9949907ca71e/logos-acceptance-fixes=/_/GOROOT -frandom-seed=x2gLzKR5lNsCSs6adfcz -o $WORK/b061/_x006.o -c gcc_fatalf.c
+        TERM='dumb' /usr/bin/gcc-14 -I . -fPIC -m64 -pthread -Wl,--no-gc-sections -fmessage-length=0 -ffile-prefix-map=$WORK/b061=/tmp/go-build -gno-record-gcc-switches -I $WORK/b061/ -O2 -g -Wall -Werror -fno-stack-protector -Wdeclaration-after-statement -std=gnu90 -ffile-prefix-map=/workspace/scratch/9949907ca71e/logos-acceptance-fixes=/_/GOROOT -frandom-seed=o1XXrgzo2fdNXeyOXYmf -o $WORK/b061/_x005.o -c gcc_context.c
+        TERM='dumb' /usr/bin/gcc-14 -I . -fPIC -m64 -pthread -Wl,--no-gc-sections -fmessage-length=0 -ffile-prefix-map=$WORK/b061=/tmp/go-build -gno-record-gcc-switches -I $WORK/b061/ -O2 -g -Wall -Werror -fno-stack-protector -Wdeclaration-after-statement -std=gnu90 -ffile-prefix-map=/workspace/scratch/9949907ca71e/logos-acceptance-fixes=/_/GOROOT -frandom-seed=txas7gVit_i6B5aJWn1P -o $WORK/b061/_x008.o -c gcc_mmap.c
+        TERM='dumb' /usr/bin/gcc-14 -I . -fPIC -m64 -pthread -Wl,--no-gc-sections -fmessage-length=0 -ffile-prefix-map=$WORK/b061=/tmp/go-build -gno-record-gcc-switches -I $WORK/b061/ -O2 -g -Wall -Werror -fno-stack-protector -Wdeclaration-after-statement -std=gnu90 -ffile-prefix-map=/workspace/scratch/9949907ca71e/logos-acceptance-fixes=/_/GOROOT -frandom-seed=D9RNkvqbO0m-SDRmmSAH -o $WORK/b061/_x009.o -c gcc_setenv.c
+        TERM='dumb' /usr/bin/gcc-14 -I . -fPIC -m64 -pthread -Wl,--no-gc-sections -fmessage-length=0 -ffile-prefix-map=$WORK/b061=/tmp/go-build -gno-record-gcc-switches -I $WORK/b061/ -O2 -g -Wall -Werror -fno-stack-protector -Wdeclaration-after-statement -std=gnu90 -ffile-prefix-map=/workspace/scratch/9949907ca71e/logos-acceptance-fixes=/_/GOROOT -frandom-seed=G6cqQ55F3lws3J4l03Jp -o $WORK/b061/_x003.o -c gcc_amd64.S
+        cd $WORK/b061
+        TERM='dumb' /usr/bin/gcc-14 -I /workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/cgo -fPIC -m64 -pthread -Wl,--no-gc-sections -fmessage-length=0 -ffile-prefix-map=$WORK/b061=/tmp/go-build -gno-record-gcc-switches -I $WORK/b061/ -O2 -g -Wall -Werror -fno-stack-protector -Wdeclaration-after-statement -std=gnu90 -ffile-prefix-map=/workspace/scratch/9949907ca71e/logos-acceptance-fixes=/_/GOROOT -frandom-seed=tO8vIbRA-XkFUh43jxF0 -o $WORK/b061/_x002.o -c cgo.cgo2.c
+        cd /workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/cgo
+        TERM='dumb' /usr/bin/gcc-14 -I . -fPIC -m64 -pthread -Wl,--no-gc-sections -fmessage-length=0 -ffile-prefix-map=$WORK/b061=/tmp/go-build -gno-record-gcc-switches -I $WORK/b061/ -O2 -g -Wall -Werror -fno-stack-protector -Wdeclaration-after-statement -std=gnu90 -ffile-prefix-map=/workspace/scratch/9949907ca71e/logos-acceptance-fixes=/_/GOROOT -frandom-seed=s7RkmigfI40co7NjzS2o -o $WORK/b061/_x010.o -c gcc_sigaction.c
+        TERM='dumb' /usr/bin/gcc-14 -I . -fPIC -m64 -pthread -Wl,--no-gc-sections -fmessage-length=0 -ffile-prefix-map=$WORK/b061=/tmp/go-build -gno-record-gcc-switches -I $WORK/b061/ -O2 -g -Wall -Werror -fno-stack-protector -Wdeclaration-after-statement -std=gnu90 -ffile-prefix-map=/workspace/scratch/9949907ca71e/logos-acceptance-fixes=/_/GOROOT -frandom-seed=b2zKgOCtyRLP5xN3Vd3t -o $WORK/b061/_x011.o -c gcc_traceback.c
+        TERM='dumb' /usr/bin/gcc-14 -I . -fPIC -m64 -pthread -Wl,--no-gc-sections -fmessage-length=0 -ffile-prefix-map=$WORK/b061=/tmp/go-build -gno-record-gcc-switches -I $WORK/b061/ -O2 -g -Wall -Werror -fno-stack-protector -Wdeclaration-after-statement -std=gnu90 -ffile-prefix-map=/workspace/scratch/9949907ca71e/logos-acceptance-fixes=/_/GOROOT -frandom-seed=0hAHiSM5SdStM1OkaxyK -o $WORK/b061/_x012.o -c gcc_unix.c
+        TERM='dumb' /usr/bin/gcc-14 -I . -fPIC -m64 -pthread -Wl,--no-gc-sections -fmessage-length=0 -ffile-prefix-map=$WORK/b061=/tmp/go-build -gno-record-gcc-switches -I $WORK/b061/ -O2 -g -Wall -Werror -fno-stack-protector -Wdeclaration-after-statement -std=gnu90 -ffile-prefix-map=/workspace/scratch/9949907ca71e/logos-acceptance-fixes=/_/GOROOT -frandom-seed=jeQOa9gEGrHWRugwC_nQ -o $WORK/b061/_x013.o -c gcc_util.c
+        TERM='dumb' /usr/bin/gcc-14 -I . -fPIC -m64 -pthread -Wl,--no-gc-sections -fmessage-length=0 -ffile-prefix-map=$WORK/b061=/tmp/go-build -gno-record-gcc-switches -I $WORK/b061/ -O2 -g -Wall -Werror -fno-stack-protector -Wdeclaration-after-statement -std=gnu90 -ffile-prefix-map=/workspace/scratch/9949907ca71e/logos-acceptance-fixes=/_/GOROOT -frandom-seed=p4y3lRz3NmG1gbkJC4b6 -o $WORK/b061/_x014.o -c linux_syscall.c
+        TERM='dumb' /usr/bin/gcc-14 -I . -fPIC -m64 -pthread -Wl,--no-gc-sections -fmessage-length=0 -ffile-prefix-map=$WORK/b061=/tmp/go-build -gno-record-gcc-switches -I $WORK/b061/ -O2 -g -Wall -Werror -fno-stack-protector -Wdeclaration-after-statement -std=gnu90 -ffile-prefix-map=/workspace/scratch/9949907ca71e/logos-acceptance-fixes=/_/GOROOT -frandom-seed=L8-7INZtoXUJpulq24QC -o $WORK/b061/_x015.o -c pthread_unix.c
+        cd $WORK/b061
+        TERM='dumb' /usr/bin/gcc-14 -I /workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/cgo -fPIC -m64 -pthread -Wl,--no-gc-sections -fmessage-length=0 -ffile-prefix-map=$WORK/b061=/tmp/go-build -gno-record-gcc-switches -I $WORK/b061/ -O2 -g -Wall -Werror -fno-stack-protector -Wdeclaration-after-statement -std=gnu90 -ffile-prefix-map=/workspace/scratch/9949907ca71e/logos-acceptance-fixes=/_/GOROOT -frandom-seed=_-_YSaDybLA6rBPWAFHs -o $WORK/b061/_cgo_main.o -c _cgo_main.c
+        cd /home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_cgo_lgo921233377/gopath/src
+        TERM='dumb' /usr/bin/gcc-14 -I /workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/cgo -fPIC -m64 -pthread -Wl,--no-gc-sections -fmessage-length=0 -ffile-prefix-map=$WORK/b061=/tmp/go-build -gno-record-gcc-switches -o $WORK/b061/_cgo_.o $WORK/b061/_cgo_main.o $WORK/b061/_x001.o $WORK/b061/_x002.o $WORK/b061/_x003.o $WORK/b061/_x004.o $WORK/b061/_x005.o $WORK/b061/_x006.o $WORK/b061/_x007.o $WORK/b061/_x008.o $WORK/b061/_x009.o $WORK/b061/_x010.o $WORK/b061/_x011.o $WORK/b061/_x012.o $WORK/b061/_x013.o $WORK/b061/_x014.o $WORK/b061/_x015.o -O2 -g -lpthread
+        /usr/bin/gcc-14 -I /workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/cgo -fPIC -m64 -pthread -Wl,--no-gc-sections -fmessage-length=0 -ffile-prefix-map=$WORK/b061=/tmp/go-build -gno-record-gcc-switches -o $WORK/b061/_cgo_.o $WORK/b061/_cgo_main.o $WORK/b061/_x001.o $WORK/b061/_x002.o $WORK/b061/_x003.o $WORK/b061/_x004.o $WORK/b061/_x005.o $WORK/b061/_x006.o $WORK/b061/_x007.o $WORK/b061/_x008.o $WORK/b061/_x009.o $WORK/b061/_x010.o $WORK/b061/_x011.o $WORK/b061/_x012.o $WORK/b061/_x013.o $WORK/b061/_x014.o $WORK/b061/_x015.o -O2 -g -lpthread # test for internal linking errors (succeeded)
+        TERM='dumb' /workspace/scratch/9949907ca71e/logos-acceptance-fixes/pkg/tool/linux_amd64/cgo -dynpackage cgo -dynimport $WORK/b061/_cgo_.o -dynout $WORK/b061/_cgo_import.go -dynlinker
+        echo -n > $WORK/b061/go_asm.h # internal
+        cd /workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/cgo
+        GOAMD64='v3' GOARM64='v8.2' /workspace/scratch/9949907ca71e/logos-acceptance-fixes/pkg/tool/linux_amd64/asm -p runtime/cgo -trimpath "$WORK/b061=>" -I $WORK/b061/ -I /workspace/scratch/9949907ca71e/logos-acceptance-fixes/pkg/include -D GOOS_linux -D GOARCH_amd64 -std -D GOAMD64_v3 -gensymabis -o $WORK/b061/symabis ./asm_amd64.s
+        cat >/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_cgo_lgo921233377/tmp/go-build1907819027/b061/importcfg << 'EOF' # internal
+        # import config
+        packagefile internal/runtime/sys=/workspace/scratch/9949907ca71e/repair-postbuild-cache/1e/1e8d3098f4dcdbb5a49193791bae70911796d0854f48779f7c6d89a3a280f545-d
+        packagefile sync=/workspace/scratch/9949907ca71e/repair-postbuild-cache/ec/ecb80719b1551491e286ae22908f789c2ebd3b306397c674c810979e88f43136-d
+        packagefile sync/atomic=/workspace/scratch/9949907ca71e/repair-postbuild-cache/f3/f36b75d49559f8ed685fa650f0bb13568d446c69db82c1640af35be562b68451-d
+        EOF
+        cd /home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_cgo_lgo921233377/gopath/src
+        GOAMD64='v3' GOARM64='v8.2' /workspace/scratch/9949907ca71e/logos-acceptance-fixes/pkg/tool/linux_amd64/compile -o $WORK/b061/_pkg_.a -trimpath "$WORK/b061=>" -p runtime/cgo -lang=go1.27 -std -buildid _-_YSaDybLA6rBPWAFHs/_-_YSaDybLA6rBPWAFHs -goversion go1.27.4 -symabis $WORK/b061/symabis -c=9 -d=inlbudget=120 -logos.allocfacts -nolocalimports -importcfg $WORK/b061/importcfg -pack -asmhdr $WORK/b061/go_asm.h /workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/cgo/callbacks.go /workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/cgo/callbacks_traceback.go /workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/cgo/callbacks_unix.go /workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/cgo/clearenv.go /workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/cgo/handle.go /workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/cgo/iscgo.go /workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/cgo/linux.go /workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/cgo/mmap.go /workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/cgo/setenv.go /workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/cgo/sigaction.go $WORK/b061/_cgo_gotypes.go $WORK/b061/cgo.cgo1.go $WORK/b061/_cgo_import.go
+        cp /workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/cgo/abi_amd64.h $WORK/b061/abi_GOARCH.h
+        cd /workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/cgo
+        GOAMD64='v3' GOARM64='v8.2' /workspace/scratch/9949907ca71e/logos-acceptance-fixes/pkg/tool/linux_amd64/asm -p runtime/cgo -trimpath "$WORK/b061=>" -I $WORK/b061/ -I /workspace/scratch/9949907ca71e/logos-acceptance-fixes/pkg/include -D GOOS_linux -D GOARCH_amd64 -std -D GOAMD64_v3 -o $WORK/b061/asm_amd64.o ./asm_amd64.s
+        go tool pack r $WORK/b061/_pkg_.a $WORK/b061/asm_amd64.o $WORK/b061/_x001.o $WORK/b061/_x002.o $WORK/b061/_x003.o $WORK/b061/_x004.o $WORK/b061/_x005.o $WORK/b061/_x006.o $WORK/b061/_x007.o $WORK/b061/_x008.o $WORK/b061/_x009.o $WORK/b061/_x010.o $WORK/b061/_x011.o $WORK/b061/_x012.o $WORK/b061/_x013.o $WORK/b061/_x014.o $WORK/b061/_x015.o # internal
+        go tool buildid -w $WORK/b061/_pkg_.a # internal
+        cp $WORK/b061/_pkg_.a /workspace/scratch/9949907ca71e/repair-postbuild-cache/87/8795ee157e57829481be16f11c4db3121759187d9831045ef8c41c887d3b2b72-d # internal
+        mkdir -p $WORK/b001/
+        cd /home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_cgo_lgo921233377/gopath/src/ok
+        TERM='dumb' GOAMD64='v3' GOARM64='v8.2' CGO_LDFLAGS='' /workspace/scratch/9949907ca71e/logos-acceptance-fixes/pkg/tool/linux_amd64/cgo -objdir $WORK/b001/ -importpath example.com/m/ok "-ldflags=\"-O2\" \"-g\"" -- -I $WORK/b001/ -O2 -g ./c_bridge.lgo
+        cd $WORK/b001
+        TERM='dumb' /usr/bin/gcc-14 -I /home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_cgo_lgo921233377/gopath/src/ok -fPIC -m64 -pthread -Wl,--no-gc-sections -fmessage-length=0 -ffile-prefix-map=$WORK/b001=/tmp/go-build -gno-record-gcc-switches -I $WORK/b001/ -O2 -g -frandom-seed=AaHWYoySV8rHTSBSE6_L -o $WORK/b001/_x002.o -c c_bridge.lgo.cgo2.c
+        TERM='dumb' /usr/bin/gcc-14 -I /home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_cgo_lgo921233377/gopath/src/ok -fPIC -m64 -pthread -Wl,--no-gc-sections -fmessage-length=0 -ffile-prefix-map=$WORK/b001=/tmp/go-build -gno-record-gcc-switches -I $WORK/b001/ -O2 -g -frandom-seed=GOV660yIMb_NwakHM_Aj -o $WORK/b001/_x001.o -c _cgo_export.c
+        TERM='dumb' /usr/bin/gcc-14 -I /home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_cgo_lgo921233377/gopath/src/ok -fPIC -m64 -pthread -Wl,--no-gc-sections -fmessage-length=0 -ffile-prefix-map=$WORK/b001=/tmp/go-build -gno-record-gcc-switches -I $WORK/b001/ -O2 -g -frandom-seed=PBquEMJ1gyrlODXCobQA -o $WORK/b001/_cgo_main.o -c _cgo_main.c
+        cd /home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_cgo_lgo921233377/gopath/src
+        TERM='dumb' /usr/bin/gcc-14 -I ./ok -fPIC -m64 -pthread -Wl,--no-gc-sections -fmessage-length=0 -ffile-prefix-map=$WORK/b001=/tmp/go-build -gno-record-gcc-switches -o $WORK/b001/_cgo_.o $WORK/b001/_cgo_main.o $WORK/b001/_x001.o $WORK/b001/_x002.o -O2 -g
+        /usr/bin/gcc-14 -I /home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_cgo_lgo921233377/gopath/src/ok -fPIC -m64 -pthread -Wl,--no-gc-sections -fmessage-length=0 -ffile-prefix-map=$WORK/b001=/tmp/go-build -gno-record-gcc-switches -o $WORK/b001/_cgo_.o $WORK/b001/_cgo_main.o $WORK/b001/_x001.o $WORK/b001/_x002.o -O2 -g # test for internal linking errors (succeeded)
+        TERM='dumb' /workspace/scratch/9949907ca71e/logos-acceptance-fixes/pkg/tool/linux_amd64/cgo -dynpackage main -dynimport $WORK/b001/_cgo_.o -dynout $WORK/b001/_cgo_import.go
+        cat >/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_cgo_lgo921233377/tmp/go-build1907819027/b001/logos.cfg.json << 'EOF' # internal
+        {"version":1,"groups":{},"thresholds":{}}EOF
+        cat >/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_cgo_lgo921233377/tmp/go-build1907819027/b001/importcfg << 'EOF' # internal
+        # import config
+        packagefile fmt=/workspace/scratch/9949907ca71e/repair-postbuild-cache/3a/3a2e5a173c6da17dacd44fc08081d46b9533a49bca2d68cb47ee8e2b04abfe39-d
+        packagefile strconv=/workspace/scratch/9949907ca71e/repair-postbuild-cache/6e/6e4e36e395aeebc9d816adb28e4c90ebaa2a03856d7448c7e1690e9252e98f0e-d
+        packagefile runtime/cgo=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_cgo_lgo921233377/tmp/go-build1907819027/b061/_pkg_.a
+        packagefile syscall=/workspace/scratch/9949907ca71e/repair-postbuild-cache/54/54b6252a3e91402f32fbab0299710431ffa7a4b9afd626d7e73e609045c8c09c-d
+        packagefile logos/rt=/workspace/scratch/9949907ca71e/repair-postbuild-cache/af/afd438a169d15b73b253cac6c4cedb010feccf0a1cc1fc4cfcd18b260493b8c7-d
+        packagefile logos/rt/json=/workspace/scratch/9949907ca71e/repair-postbuild-cache/53/5312ca5c544b3d49c0f379718561928e12455869421b239502b5383bc86a4a0b-d
+        packagefile encoding/binary=/workspace/scratch/9949907ca71e/repair-postbuild-cache/05/05d235994509f4541af6f162387475bd1d4988d3499589b4625759c2896f9f65-d
+        packagefile math=/workspace/scratch/9949907ca71e/repair-postbuild-cache/f8/f8f13ff0b6a8d506a761b11f98d0516b50dc4ba2dc2b75ac44fb6d53bc19ba4e-d
+        packagefile slices=/workspace/scratch/9949907ca71e/repair-postbuild-cache/11/1144955e64f1b2949eb031b93b8ab849e3fb284e2e3013af22aaa23af31448da-d
+        packagefile runtime=/workspace/scratch/9949907ca71e/repair-postbuild-cache/90/90b5ad01fdfb22e70ffdcb87d5533c98696b87039fb3e78467fd007081702d81-d
+        packagefile bytes=/workspace/scratch/9949907ca71e/repair-postbuild-cache/4b/4b5b0e8a739d1e392e08d53ca9c87c87f15c364dea64aed61f060ad97354f437-d
+        packagefile cmp=/workspace/scratch/9949907ca71e/repair-postbuild-cache/0c/0cff14cb7b56ec887aa8485aa83edb8bede6b60d77ee39cde3ea688da5c08097-d
+        packagefile context=/workspace/scratch/9949907ca71e/repair-postbuild-cache/29/296235cd8845f7ad1877bc9dad1c9251f78baf4861aebf14b8bedc8e9b6386ea-d
+        packagefile encoding=/workspace/scratch/9949907ca71e/repair-postbuild-cache/19/19c5360acc0aeb6db290c5e700ab3d9191c8a8cadf68fd5bc3e6db407263b5c8-d
+        packagefile encoding/base32=/workspace/scratch/9949907ca71e/repair-postbuild-cache/a0/a0c46139730b920c84e0949226ff20fc5bc78d400e17d36b381b0c34513a506a-d
+        packagefile encoding/base64=/workspace/scratch/9949907ca71e/repair-postbuild-cache/e6/e6829f8edbbbfcb4d8dddec7a6d1c8443532dc054c67afb49c2a5277ea5b0fae-d
+        packagefile encoding/hex=/workspace/scratch/9949907ca71e/repair-postbuild-cache/5d/5d6116b2018ae7a7d8c663f947d0f3acef0697880da6deff45a5adeacafe14cb-d
+        packagefile encoding/json=/workspace/scratch/9949907ca71e/repair-postbuild-cache/11/11afa4ce8cbd8f9dac95ff475d05ca268713c2f03b4995e04f3408837e1e25ca-d
+        packagefile encoding/json/internal=/workspace/scratch/9949907ca71e/repair-postbuild-cache/e9/e9cd4d0c0fe42fc18afb47f028617aceb40211e6730331ae8b9d17ffcd5ad2a3-d
+        packagefile encoding/json/internal/jsonflags=/workspace/scratch/9949907ca71e/repair-postbuild-cache/47/4776540718f65947c6b445d5fa33f3ba3ff06705f78ba3b3b0cf2f00fc3dd959-d
+        packagefile encoding/json/internal/jsonopts=/workspace/scratch/9949907ca71e/repair-postbuild-cache/b3/b3d914bd9aeb4067334f267fc3d98bba6cd3bd3e62a18a5ecf2742488392a82d-d
+        packagefile encoding/json/internal/jsonwire=/workspace/scratch/9949907ca71e/repair-postbuild-cache/24/2433a426af73e74aa77dbb6436e49220d2f89b27e52efbca41e8d6ba212ae281-d
+        packagefile encoding/json/jsontext=/workspace/scratch/9949907ca71e/repair-postbuild-cache/b7/b72ec5c3a81d06f2173c3ca09d0c7dd34086cc97b719d6e0c85ddf8ceb854470-d
+        packagefile encoding/json/v2=/workspace/scratch/9949907ca71e/repair-postbuild-cache/86/86e9181fa89c307240d15f54208a02b20e43fbb8624545ca23b343f074cf661a-d
+        packagefile errors=/workspace/scratch/9949907ca71e/repair-postbuild-cache/e1/e110a8dcaf0ac4798a58d956192123a6144ec7ed5c1a6bbe1622499c3caa8230-d
+        packagefile internal/abi=/workspace/scratch/9949907ca71e/repair-postbuild-cache/2e/2e893d3a977aba3ae4f5b897633d5d4ada0e1dd46bc35526633d9c1049c79952-d
+        packagefile internal/asan=/workspace/scratch/9949907ca71e/repair-postbuild-cache/f5/f579995aac5b0911c227359b6a7eec0ad36198ff2eed333c15bb621172459e4f-d
+        packagefile internal/bytealg=/workspace/scratch/9949907ca71e/repair-postbuild-cache/69/69a0208756fa54c6aefd0860dfaa36d0458acc217a9a65ed23adf1b5103a7271-d
+        packagefile internal/byteorder=/workspace/scratch/9949907ca71e/repair-postbuild-cache/9f/9f79685e77676bae6aee0157aac8efdc8f63f92cfca580030fb5c61b8e49ec11-d
+        packagefile internal/chacha8rand=/workspace/scratch/9949907ca71e/repair-postbuild-cache/80/8084eeef16761b78439596ad7f41e2e0fdc141d0eef8d0ccb334e0edbc9f47a3-d
+        packagefile internal/coverage/rtcov=/workspace/scratch/9949907ca71e/repair-postbuild-cache/9f/9ff4de5d06cbb84a2892d5d28f757c7d76c4719f1ec63b6b2e06aa291fda36ca-d
+        packagefile internal/cpu=/workspace/scratch/9949907ca71e/repair-postbuild-cache/39/39c42e745beaf4db5f41fa927b5467f0f032e08fc083bfea94d702e3626608a0-d
+        packagefile internal/filepathlite=/workspace/scratch/9949907ca71e/repair-postbuild-cache/0b/0b646786d9f97783ebb833550d84b1324505813c7f45d37416eaae5a0c963b33-d
+        packagefile internal/fmtsort=/workspace/scratch/9949907ca71e/repair-postbuild-cache/7b/7bba5f5bc753b48c6a998cafa80921d7ea185946336181465e9edb82443a06b2-d
+        packagefile internal/goarch=/workspace/scratch/9949907ca71e/repair-postbuild-cache/31/311ad2544e7f0c9f7243dcd6a3765086fb747b0acacdb58daa4df08ba53a7f07-d
+        packagefile internal/godebugs=/workspace/scratch/9949907ca71e/repair-postbuild-cache/4e/4e3c7421696082ac8e798f41e7d8bd9adcfceaabf76e3e7e382633c905a654d7-d
+        packagefile internal/goexperiment=/workspace/scratch/9949907ca71e/repair-postbuild-cache/2e/2e6472be1832fce9c8bdb415fb3a0d41eb0dcb0f14ac87eac9a892972b0030f8-d
+        packagefile internal/goos=/workspace/scratch/9949907ca71e/repair-postbuild-cache/dc/dc16bfaf4df17d409225926df38114bf4dfd7fb2234174b0f1b9b2017569c336-d
+        packagefile internal/jsonscan=/workspace/scratch/9949907ca71e/repair-postbuild-cache/46/46639b8be24c87cce91776f617ff885e55a29f34b1a89ade82c4ff2c789a9bc9-d
+        packagefile internal/msan=/workspace/scratch/9949907ca71e/repair-postbuild-cache/f9/f92d3bedad5952e1438987b5f3b5415b1335ced4cd728e95905aad7a0559115d-d
+        packagefile internal/oserror=/workspace/scratch/9949907ca71e/repair-postbuild-cache/1a/1a46d8ab9a8689b40f44966649986dcebde2e77715c679973f5c519fe75d5cfe-d
+        packagefile internal/poll=/workspace/scratch/9949907ca71e/repair-postbuild-cache/78/7883722b390dfe36fd97666308e6d02e9f6d19462ae1233de60056aa4dabad3a-d
+        packagefile internal/profilerecord=/workspace/scratch/9949907ca71e/repair-postbuild-cache/40/40daedffb5db88b56ec0a79adee6a00eb540d72a569d234ac44d0f4a4c5cba6f-d
+        packagefile internal/race=/workspace/scratch/9949907ca71e/repair-postbuild-cache/ba/ba95a3c253ec1d9be0d2e06cf0dfcf04eab114853255728539f29ebc08ff83ae-d
+        packagefile internal/reflectlite=/workspace/scratch/9949907ca71e/repair-postbuild-cache/da/dafc39ddb3b02556c87cc9758d54a630cb03838910bda71216e4785fe18b67e3-d
+        packagefile internal/runtime/atomic=/workspace/scratch/9949907ca71e/repair-postbuild-cache/d0/d08e01b0319f516a8a7fb2ae5548d486dd81169099737b639dc346cf982622ca-d
+        packagefile internal/runtime/cgroup=/workspace/scratch/9949907ca71e/repair-postbuild-cache/2c/2c461aec3a86cd4ce1905928b8b22ae1575f26e1839b1815356f415003402344-d
+        packagefile internal/runtime/exithook=/workspace/scratch/9949907ca71e/repair-postbuild-cache/18/184e7a699d0d1c327c1c9178b152bd1824d1996dce02b73281145c992de548cd-d
+        packagefile internal/runtime/gc=/workspace/scratch/9949907ca71e/repair-postbuild-cache/f4/f40f1f09fc4684f11602075817605ab7183dc194b35af51d9eb3228c2342a5b6-d
+        packagefile internal/runtime/gc/scan=/workspace/scratch/9949907ca71e/repair-postbuild-cache/a3/a3d2dd0478d1a2ea0c5777e895ba74afdd22a025edde6ddf71a1c541e2c3bf76-d
+        packagefile internal/runtime/maps=/workspace/scratch/9949907ca71e/repair-postbuild-cache/25/2530312e2947cf1bf0087f37b8829cd492cdab8738699f72d8ddbc3ae8dce18f-d
+        packagefile internal/runtime/math=/workspace/scratch/9949907ca71e/repair-postbuild-cache/d6/d6839508d3328c30f28cd5a05370cb3011ef87fb78761b2f649474b521a244d1-d
+        packagefile internal/runtime/pprof/label=/workspace/scratch/9949907ca71e/repair-postbuild-cache/33/334040b99626777eca8539d298ddeca168ca72a6ac6db2b2bc254b5e544cb051-d
+        packagefile internal/runtime/sys=/workspace/scratch/9949907ca71e/repair-postbuild-cache/1e/1e8d3098f4dcdbb5a49193791bae70911796d0854f48779f7c6d89a3a280f545-d
+        packagefile internal/runtime/syscall/linux=/workspace/scratch/9949907ca71e/repair-postbuild-cache/7f/7f8df82e422bbc1246e969d0012fcb6423e69c1b6941533551aa647ba2c8b486-d
+        packagefile internal/strconv=/workspace/scratch/9949907ca71e/repair-postbuild-cache/fc/fc9bc684c6f0bfb0e522f76e45edaad2be161b2991b0471665441c71a40cd186-d
+        packagefile internal/stringslite=/workspace/scratch/9949907ca71e/repair-postbuild-cache/33/337804cd90f19dad8c692e573c2a73575636f21efb0dcd00f975c903e915eb39-d
+        packagefile internal/sync=/workspace/scratch/9949907ca71e/repair-postbuild-cache/7b/7bdade6aa505cbecc2603458e27c1b273fdc33fe2b47bfc64330e02035f4fb44-d
+        packagefile internal/synctest=/workspace/scratch/9949907ca71e/repair-postbuild-cache/b7/b7c2dc21e6e20b4749be9915ec3a2385c051a6a2f75252c4741f9e688515a5c3-d
+        packagefile internal/syscall/execenv=/workspace/scratch/9949907ca71e/repair-postbuild-cache/39/3968920fe8877dbf48a24d1e556fbeb5763c88e926ecbee09b0eefc6ae7b217c-d
+        packagefile internal/syscall/unix=/workspace/scratch/9949907ca71e/repair-postbuild-cache/ee/ee1a258adcac11a9b0d4bd0fc575576795c366d116842f845bad184ba76407eb-d
+        packagefile internal/testlog=/workspace/scratch/9949907ca71e/repair-postbuild-cache/3a/3ac42468c104d15272ca9c5d879c1fc89502eb5c617653aa6948392dc2809220-d
+        packagefile internal/trace/tracev2=/workspace/scratch/9949907ca71e/repair-postbuild-cache/86/8619d96fef21759d312e729de8aba681c3549877b9bcea2de5ab9f27f5386dc7-d
+        packagefile internal/unsafeheader=/workspace/scratch/9949907ca71e/repair-postbuild-cache/2e/2ede1a495262c5f2029e8e21085860a9009b10680ccd57f764d792132a2219f2-d
+        packagefile io=/workspace/scratch/9949907ca71e/repair-postbuild-cache/82/8273a30be0c0e5d7408efe91941aa655d018cad2913e72eadcf5e1014762b0eb-d
+        packagefile io/fs=/workspace/scratch/9949907ca71e/repair-postbuild-cache/83/8336b3dcf44ba3b80bfb2372076d3cdc98b1d6109418abd497f03d25f786b884-d
+        packagefile iter=/workspace/scratch/9949907ca71e/repair-postbuild-cache/7a/7af6b69a1966ca31abcf7ebe523f61dfc1115e94167aacfd837789222041735d-d
+        packagefile logos/arena=/workspace/scratch/9949907ca71e/repair-postbuild-cache/d6/d6aa4ab34c4b21e705aced4ddf8c422c3972f4573a322b3c11c642711e51eadd-d
+        packagefile maps=/workspace/scratch/9949907ca71e/repair-postbuild-cache/6e/6e22807889e85e360ce40ce5f7b8567e6cf7d9edb36c7c835bb79f7e2c08be94-d
+        packagefile math/bits=/workspace/scratch/9949907ca71e/repair-postbuild-cache/d8/d8a9d78298e23899733981ba7aa372db2acd165974cc05d2fd91edabff4a4732-d
+        packagefile os=/workspace/scratch/9949907ca71e/repair-postbuild-cache/f7/f71bced81d8c8d9f2e32b660faa4bea65b82f83b8cee99c700d665ac052755a6-d
+        packagefile path=/workspace/scratch/9949907ca71e/repair-postbuild-cache/5b/5bc73854e6586d7abef9c5fcdec073a615778296b1470a96de09e9c91bb285c9-d
+        packagefile reflect=/workspace/scratch/9949907ca71e/repair-postbuild-cache/96/961363e5e7fc556589f44f6053c51609ff41cde7c1bd6a36159a0d913d8bef90-d
+        packagefile strings=/workspace/scratch/9949907ca71e/repair-postbuild-cache/d6/d6ad475c7655fbbfbe8fe3d96e7a68b444a09b72085745b6bb0fceac03a375b0-d
+        packagefile sync=/workspace/scratch/9949907ca71e/repair-postbuild-cache/ec/ecb80719b1551491e286ae22908f789c2ebd3b306397c674c810979e88f43136-d
+        packagefile sync/atomic=/workspace/scratch/9949907ca71e/repair-postbuild-cache/f3/f36b75d49559f8ed685fa650f0bb13568d446c69db82c1640af35be562b68451-d
+        packagefile time=/workspace/scratch/9949907ca71e/repair-postbuild-cache/60/606b6466829de1a557cc8e7d501b329602e1937330c781469c749156386c78ff-d
+        packagefile unicode=/workspace/scratch/9949907ca71e/repair-postbuild-cache/35/35262a317c4362150f9eed911dde6574b85647729744ffca1cad73296ed2caa3-d
+        packagefile unicode/utf16=/workspace/scratch/9949907ca71e/repair-postbuild-cache/d3/d30000195d8f7dc4d8f1a48321b2bef6d5c74d067bc95abfdeb95f0d5dc713f4-d
+        packagefile unicode/utf8=/workspace/scratch/9949907ca71e/repair-postbuild-cache/d6/d60a59a2b7a746b5eb3b2120545f0785cb0bfea9cc76b2b8c31deb3e9aa01464-d
+        EOF
+        GOAMD64='v3' GOARM64='v8.2' /workspace/scratch/9949907ca71e/logos-acceptance-fixes/pkg/tool/linux_amd64/compile -o $WORK/b001/_pkg_.a -trimpath "$WORK/b001=>" -p main -lang=go1.27 -buildid PBquEMJ1gyrlODXCobQA/PBquEMJ1gyrlODXCobQA -goversion go1.27.4 -c=9 -d=inlbudget=120,variablemakethreshold=256 -logos.allocfacts -logos.cfg=$WORK/b001/logos.cfg.json -nolocalimports -importcfg $WORK/b001/importcfg -pack ./ok/app.lgo $WORK/b001/_cgo_gotypes.go $WORK/b001/c_bridge.lgo.cgo1.go $WORK/b001/_cgo_import.go
+        cd /home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_cgo_lgo921233377/gopath/src/ok
+        go tool pack r $WORK/b001/_pkg_.a $WORK/b001/_x001.o $WORK/b001/_x002.o # internal
+        go tool buildid -w $WORK/b001/_pkg_.a # internal
+        cp $WORK/b001/_pkg_.a /workspace/scratch/9949907ca71e/repair-postbuild-cache/dd/dd7fc208392703cca89bbc28eeb71b3c87ef4b6ad02e02c60e33e04a20363ba0-d # internal
+        cat >/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_cgo_lgo921233377/tmp/go-build1907819027/b001/importcfg.link << 'EOF' # internal
+        packagefile example.com/m/ok=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_cgo_lgo921233377/tmp/go-build1907819027/b001/_pkg_.a
+        packagefile fmt=/workspace/scratch/9949907ca71e/repair-postbuild-cache/3a/3a2e5a173c6da17dacd44fc08081d46b9533a49bca2d68cb47ee8e2b04abfe39-d
+        packagefile strconv=/workspace/scratch/9949907ca71e/repair-postbuild-cache/6e/6e4e36e395aeebc9d816adb28e4c90ebaa2a03856d7448c7e1690e9252e98f0e-d
+        packagefile runtime/cgo=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_cgo_lgo921233377/tmp/go-build1907819027/b061/_pkg_.a
+        packagefile syscall=/workspace/scratch/9949907ca71e/repair-postbuild-cache/54/54b6252a3e91402f32fbab0299710431ffa7a4b9afd626d7e73e609045c8c09c-d
+        packagefile logos/rt=/workspace/scratch/9949907ca71e/repair-postbuild-cache/af/afd438a169d15b73b253cac6c4cedb010feccf0a1cc1fc4cfcd18b260493b8c7-d
+        packagefile logos/rt/json=/workspace/scratch/9949907ca71e/repair-postbuild-cache/53/5312ca5c544b3d49c0f379718561928e12455869421b239502b5383bc86a4a0b-d
+        packagefile encoding/binary=/workspace/scratch/9949907ca71e/repair-postbuild-cache/05/05d235994509f4541af6f162387475bd1d4988d3499589b4625759c2896f9f65-d
+        packagefile math=/workspace/scratch/9949907ca71e/repair-postbuild-cache/f8/f8f13ff0b6a8d506a761b11f98d0516b50dc4ba2dc2b75ac44fb6d53bc19ba4e-d
+        packagefile slices=/workspace/scratch/9949907ca71e/repair-postbuild-cache/11/1144955e64f1b2949eb031b93b8ab849e3fb284e2e3013af22aaa23af31448da-d
+        packagefile runtime=/workspace/scratch/9949907ca71e/repair-postbuild-cache/90/90b5ad01fdfb22e70ffdcb87d5533c98696b87039fb3e78467fd007081702d81-d
+        packagefile errors=/workspace/scratch/9949907ca71e/repair-postbuild-cache/e1/e110a8dcaf0ac4798a58d956192123a6144ec7ed5c1a6bbe1622499c3caa8230-d
+        packagefile internal/fmtsort=/workspace/scratch/9949907ca71e/repair-postbuild-cache/7b/7bba5f5bc753b48c6a998cafa80921d7ea185946336181465e9edb82443a06b2-d
+        packagefile internal/stringslite=/workspace/scratch/9949907ca71e/repair-postbuild-cache/33/337804cd90f19dad8c692e573c2a73575636f21efb0dcd00f975c903e915eb39-d
+        packagefile io=/workspace/scratch/9949907ca71e/repair-postbuild-cache/82/8273a30be0c0e5d7408efe91941aa655d018cad2913e72eadcf5e1014762b0eb-d
+        packagefile os=/workspace/scratch/9949907ca71e/repair-postbuild-cache/f7/f71bced81d8c8d9f2e32b660faa4bea65b82f83b8cee99c700d665ac052755a6-d
+        packagefile reflect=/workspace/scratch/9949907ca71e/repair-postbuild-cache/96/961363e5e7fc556589f44f6053c51609ff41cde7c1bd6a36159a0d913d8bef90-d
+        packagefile sync=/workspace/scratch/9949907ca71e/repair-postbuild-cache/ec/ecb80719b1551491e286ae22908f789c2ebd3b306397c674c810979e88f43136-d
+        packagefile unicode/utf8=/workspace/scratch/9949907ca71e/repair-postbuild-cache/d6/d60a59a2b7a746b5eb3b2120545f0785cb0bfea9cc76b2b8c31deb3e9aa01464-d
+        packagefile internal/bytealg=/workspace/scratch/9949907ca71e/repair-postbuild-cache/69/69a0208756fa54c6aefd0860dfaa36d0458acc217a9a65ed23adf1b5103a7271-d
+        packagefile internal/strconv=/workspace/scratch/9949907ca71e/repair-postbuild-cache/fc/fc9bc684c6f0bfb0e522f76e45edaad2be161b2991b0471665441c71a40cd186-d
+        packagefile internal/runtime/sys=/workspace/scratch/9949907ca71e/repair-postbuild-cache/1e/1e8d3098f4dcdbb5a49193791bae70911796d0854f48779f7c6d89a3a280f545-d
+        packagefile sync/atomic=/workspace/scratch/9949907ca71e/repair-postbuild-cache/f3/f36b75d49559f8ed685fa650f0bb13568d446c69db82c1640af35be562b68451-d
+        packagefile internal/asan=/workspace/scratch/9949907ca71e/repair-postbuild-cache/f5/f579995aac5b0911c227359b6a7eec0ad36198ff2eed333c15bb621172459e4f-d
+        packagefile internal/byteorder=/workspace/scratch/9949907ca71e/repair-postbuild-cache/9f/9f79685e77676bae6aee0157aac8efdc8f63f92cfca580030fb5c61b8e49ec11-d
+        packagefile internal/goarch=/workspace/scratch/9949907ca71e/repair-postbuild-cache/31/311ad2544e7f0c9f7243dcd6a3765086fb747b0acacdb58daa4df08ba53a7f07-d
+        packagefile internal/msan=/workspace/scratch/9949907ca71e/repair-postbuild-cache/f9/f92d3bedad5952e1438987b5f3b5415b1335ced4cd728e95905aad7a0559115d-d
+        packagefile internal/oserror=/workspace/scratch/9949907ca71e/repair-postbuild-cache/1a/1a46d8ab9a8689b40f44966649986dcebde2e77715c679973f5c519fe75d5cfe-d
+        packagefile internal/race=/workspace/scratch/9949907ca71e/repair-postbuild-cache/ba/ba95a3c253ec1d9be0d2e06cf0dfcf04eab114853255728539f29ebc08ff83ae-d
+        packagefile internal/runtime/syscall/linux=/workspace/scratch/9949907ca71e/repair-postbuild-cache/7f/7f8df82e422bbc1246e969d0012fcb6423e69c1b6941533551aa647ba2c8b486-d
+        packagefile cmp=/workspace/scratch/9949907ca71e/repair-postbuild-cache/0c/0cff14cb7b56ec887aa8485aa83edb8bede6b60d77ee39cde3ea688da5c08097-d
+        packagefile context=/workspace/scratch/9949907ca71e/repair-postbuild-cache/29/296235cd8845f7ad1877bc9dad1c9251f78baf4861aebf14b8bedc8e9b6386ea-d
+        packagefile iter=/workspace/scratch/9949907ca71e/repair-postbuild-cache/7a/7af6b69a1966ca31abcf7ebe523f61dfc1115e94167aacfd837789222041735d-d
+        packagefile logos/arena=/workspace/scratch/9949907ca71e/repair-postbuild-cache/d6/d6aa4ab34c4b21e705aced4ddf8c422c3972f4573a322b3c11c642711e51eadd-d
+        packagefile maps=/workspace/scratch/9949907ca71e/repair-postbuild-cache/6e/6e22807889e85e360ce40ce5f7b8567e6cf7d9edb36c7c835bb79f7e2c08be94-d
+        packagefile math/bits=/workspace/scratch/9949907ca71e/repair-postbuild-cache/d8/d8a9d78298e23899733981ba7aa372db2acd165974cc05d2fd91edabff4a4732-d
+        packagefile strings=/workspace/scratch/9949907ca71e/repair-postbuild-cache/d6/d6ad475c7655fbbfbe8fe3d96e7a68b444a09b72085745b6bb0fceac03a375b0-d
+        packagefile bytes=/workspace/scratch/9949907ca71e/repair-postbuild-cache/4b/4b5b0e8a739d1e392e08d53ca9c87c87f15c364dea64aed61f060ad97354f437-d
+        packagefile encoding=/workspace/scratch/9949907ca71e/repair-postbuild-cache/19/19c5360acc0aeb6db290c5e700ab3d9191c8a8cadf68fd5bc3e6db407263b5c8-d
+        packagefile encoding/base64=/workspace/scratch/9949907ca71e/repair-postbuild-cache/e6/e6829f8edbbbfcb4d8dddec7a6d1c8443532dc054c67afb49c2a5277ea5b0fae-d
+        packagefile encoding/json=/workspace/scratch/9949907ca71e/repair-postbuild-cache/11/11afa4ce8cbd8f9dac95ff475d05ca268713c2f03b4995e04f3408837e1e25ca-d
+        packagefile encoding/json/jsontext=/workspace/scratch/9949907ca71e/repair-postbuild-cache/b7/b72ec5c3a81d06f2173c3ca09d0c7dd34086cc97b719d6e0c85ddf8ceb854470-d
+        packagefile encoding/json/v2=/workspace/scratch/9949907ca71e/repair-postbuild-cache/86/86e9181fa89c307240d15f54208a02b20e43fbb8624545ca23b343f074cf661a-d
+        packagefile internal/jsonscan=/workspace/scratch/9949907ca71e/repair-postbuild-cache/46/46639b8be24c87cce91776f617ff885e55a29f34b1a89ade82c4ff2c789a9bc9-d
+        packagefile unicode=/workspace/scratch/9949907ca71e/repair-postbuild-cache/35/35262a317c4362150f9eed911dde6574b85647729744ffca1cad73296ed2caa3-d
+        packagefile internal/cpu=/workspace/scratch/9949907ca71e/repair-postbuild-cache/39/39c42e745beaf4db5f41fa927b5467f0f032e08fc083bfea94d702e3626608a0-d
+        packagefile internal/abi=/workspace/scratch/9949907ca71e/repair-postbuild-cache/2e/2e893d3a977aba3ae4f5b897633d5d4ada0e1dd46bc35526633d9c1049c79952-d
+        packagefile internal/chacha8rand=/workspace/scratch/9949907ca71e/repair-postbuild-cache/80/8084eeef16761b78439596ad7f41e2e0fdc141d0eef8d0ccb334e0edbc9f47a3-d
+        packagefile internal/coverage/rtcov=/workspace/scratch/9949907ca71e/repair-postbuild-cache/9f/9ff4de5d06cbb84a2892d5d28f757c7d76c4719f1ec63b6b2e06aa291fda36ca-d
+        packagefile internal/godebugs=/workspace/scratch/9949907ca71e/repair-postbuild-cache/4e/4e3c7421696082ac8e798f41e7d8bd9adcfceaabf76e3e7e382633c905a654d7-d
+        packagefile internal/goexperiment=/workspace/scratch/9949907ca71e/repair-postbuild-cache/2e/2e6472be1832fce9c8bdb415fb3a0d41eb0dcb0f14ac87eac9a892972b0030f8-d
+        packagefile internal/goos=/workspace/scratch/9949907ca71e/repair-postbuild-cache/dc/dc16bfaf4df17d409225926df38114bf4dfd7fb2234174b0f1b9b2017569c336-d
+        packagefile internal/profilerecord=/workspace/scratch/9949907ca71e/repair-postbuild-cache/40/40daedffb5db88b56ec0a79adee6a00eb540d72a569d234ac44d0f4a4c5cba6f-d
+        packagefile internal/runtime/atomic=/workspace/scratch/9949907ca71e/repair-postbuild-cache/d0/d08e01b0319f516a8a7fb2ae5548d486dd81169099737b639dc346cf982622ca-d
+        packagefile internal/runtime/cgroup=/workspace/scratch/9949907ca71e/repair-postbuild-cache/2c/2c461aec3a86cd4ce1905928b8b22ae1575f26e1839b1815356f415003402344-d
+        packagefile internal/runtime/exithook=/workspace/scratch/9949907ca71e/repair-postbuild-cache/18/184e7a699d0d1c327c1c9178b152bd1824d1996dce02b73281145c992de548cd-d
+        packagefile internal/runtime/gc=/workspace/scratch/9949907ca71e/repair-postbuild-cache/f4/f40f1f09fc4684f11602075817605ab7183dc194b35af51d9eb3228c2342a5b6-d
+        packagefile internal/runtime/gc/scan=/workspace/scratch/9949907ca71e/repair-postbuild-cache/a3/a3d2dd0478d1a2ea0c5777e895ba74afdd22a025edde6ddf71a1c541e2c3bf76-d
+        packagefile internal/runtime/maps=/workspace/scratch/9949907ca71e/repair-postbuild-cache/25/2530312e2947cf1bf0087f37b8829cd492cdab8738699f72d8ddbc3ae8dce18f-d
+        packagefile internal/runtime/math=/workspace/scratch/9949907ca71e/repair-postbuild-cache/d6/d6839508d3328c30f28cd5a05370cb3011ef87fb78761b2f649474b521a244d1-d
+        packagefile internal/runtime/pprof/label=/workspace/scratch/9949907ca71e/repair-postbuild-cache/33/334040b99626777eca8539d298ddeca168ca72a6ac6db2b2bc254b5e544cb051-d
+        packagefile internal/trace/tracev2=/workspace/scratch/9949907ca71e/repair-postbuild-cache/86/8619d96fef21759d312e729de8aba681c3549877b9bcea2de5ab9f27f5386dc7-d
+        packagefile internal/reflectlite=/workspace/scratch/9949907ca71e/repair-postbuild-cache/da/dafc39ddb3b02556c87cc9758d54a630cb03838910bda71216e4785fe18b67e3-d
+        packagefile internal/filepathlite=/workspace/scratch/9949907ca71e/repair-postbuild-cache/0b/0b646786d9f97783ebb833550d84b1324505813c7f45d37416eaae5a0c963b33-d
+        packagefile internal/poll=/workspace/scratch/9949907ca71e/repair-postbuild-cache/78/7883722b390dfe36fd97666308e6d02e9f6d19462ae1233de60056aa4dabad3a-d
+        packagefile internal/syscall/execenv=/workspace/scratch/9949907ca71e/repair-postbuild-cache/39/3968920fe8877dbf48a24d1e556fbeb5763c88e926ecbee09b0eefc6ae7b217c-d
+        packagefile internal/syscall/unix=/workspace/scratch/9949907ca71e/repair-postbuild-cache/ee/ee1a258adcac11a9b0d4bd0fc575576795c366d116842f845bad184ba76407eb-d
+        packagefile internal/testlog=/workspace/scratch/9949907ca71e/repair-postbuild-cache/3a/3ac42468c104d15272ca9c5d879c1fc89502eb5c617653aa6948392dc2809220-d
+        packagefile io/fs=/workspace/scratch/9949907ca71e/repair-postbuild-cache/83/8336b3dcf44ba3b80bfb2372076d3cdc98b1d6109418abd497f03d25f786b884-d
+        packagefile time=/workspace/scratch/9949907ca71e/repair-postbuild-cache/60/606b6466829de1a557cc8e7d501b329602e1937330c781469c749156386c78ff-d
+        packagefile internal/unsafeheader=/workspace/scratch/9949907ca71e/repair-postbuild-cache/2e/2ede1a495262c5f2029e8e21085860a9009b10680ccd57f764d792132a2219f2-d
+        packagefile internal/sync=/workspace/scratch/9949907ca71e/repair-postbuild-cache/7b/7bdade6aa505cbecc2603458e27c1b273fdc33fe2b47bfc64330e02035f4fb44-d
+        packagefile internal/synctest=/workspace/scratch/9949907ca71e/repair-postbuild-cache/b7/b7c2dc21e6e20b4749be9915ec3a2385c051a6a2f75252c4741f9e688515a5c3-d
+        packagefile encoding/json/internal=/workspace/scratch/9949907ca71e/repair-postbuild-cache/e9/e9cd4d0c0fe42fc18afb47f028617aceb40211e6730331ae8b9d17ffcd5ad2a3-d
+        packagefile encoding/json/internal/jsonflags=/workspace/scratch/9949907ca71e/repair-postbuild-cache/47/4776540718f65947c6b445d5fa33f3ba3ff06705f78ba3b3b0cf2f00fc3dd959-d
+        packagefile encoding/json/internal/jsonopts=/workspace/scratch/9949907ca71e/repair-postbuild-cache/b3/b3d914bd9aeb4067334f267fc3d98bba6cd3bd3e62a18a5ecf2742488392a82d-d
+        packagefile encoding/json/internal/jsonwire=/workspace/scratch/9949907ca71e/repair-postbuild-cache/24/2433a426af73e74aa77dbb6436e49220d2f89b27e52efbca41e8d6ba212ae281-d
+        packagefile encoding/base32=/workspace/scratch/9949907ca71e/repair-postbuild-cache/a0/a0c46139730b920c84e0949226ff20fc5bc78d400e17d36b381b0c34513a506a-d
+        packagefile encoding/hex=/workspace/scratch/9949907ca71e/repair-postbuild-cache/5d/5d6116b2018ae7a7d8c663f947d0f3acef0697880da6deff45a5adeacafe14cb-d
+        packagefile path=/workspace/scratch/9949907ca71e/repair-postbuild-cache/5b/5bc73854e6586d7abef9c5fcdec073a615778296b1470a96de09e9c91bb285c9-d
+        packagefile unicode/utf16=/workspace/scratch/9949907ca71e/repair-postbuild-cache/d3/d30000195d8f7dc4d8f1a48321b2bef6d5c74d067bc95abfdeb95f0d5dc713f4-d
+        modinfo "0w\xaf\f\x92t\b\x02A\xe1\xc1\a\xe6\xd6\x18\xe6path\texample.com/m/ok\nmod\texample.com/m\t(devel)\t\nbuild\t-buildmode=exe\nbuild\t-compiler=gc\nbuild\tCGO_ENABLED=1\nbuild\tCGO_CFLAGS=\nbuild\tCGO_CPPFLAGS=\nbuild\tCGO_CXXFLAGS=\nbuild\tCGO_LDFLAGS=\nbuild\tGOARCH=amd64\nbuild\tGOEXPERIMENT=logosarena\nbuild\tGOOS=linux\nbuild\tGOAMD64=v3\n\xf92C1\x86\x18 r\x00\x82B\x10A\x16\xd8\xf2"
+        EOF
+        mkdir -p $WORK/b001/exe/
+        cd .
+        GOAMD64='v3' GOARM64='v8.2' GOROOT='/workspace/scratch/9949907ca71e/logos-acceptance-fixes' /workspace/scratch/9949907ca71e/logos-acceptance-fixes/pkg/tool/linux_amd64/link -o $WORK/b001/exe/a.out -importcfg $WORK/b001/importcfg.link -buildmode=exe -buildid=ZYS73Nx3N5a3wBpNqDFI/PBquEMJ1gyrlODXCobQA/VI-Av0jdG7svwMjdfd1A/ZYS73Nx3N5a3wBpNqDFI -extld=/usr/bin/gcc-14 -logos.cap=$WORK/b001/logos-cap.json $WORK/b001/_pkg_.a
+        go tool buildid -w $WORK/b001/exe/a.out # internal
+        mkdir -p /home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_cgo_lgo921233377/
+        mv $WORK/b001/exe/a.out /home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_cgo_lgo921233377/ok.bin
+        rm -rf $WORK/b001/
+        > stderr 'c_bridge\.lgo\.cgo1\.go'
+        matched: GOAMD64='v3' GOARM64='v8.2' /workspace/scratch/9949907ca71e/logos-acceptance-fixes/pkg/tool/linux_amd64/compile -o $WORK/b001/_pkg_.a -trimpath "$WORK/b001=>" -p main -lang=go1.27 -buildid PBquEMJ1gyrlODXCobQA/PBquEMJ1gyrlODXCobQA -goversion go1.27.4 -c=9 -d=inlbudget=120,variablemakethreshold=256 -logos.allocfacts -logos.cfg=$WORK/b001/logos.cfg.json -nolocalimports -importcfg $WORK/b001/importcfg -pack ./ok/app.lgo $WORK/b001/_cgo_gotypes.go $WORK/b001/c_bridge.lgo.cgo1.go $WORK/b001/_cgo_import.go
+        > stderr '_cgo_gotypes\.go'
+        matched: GOAMD64='v3' GOARM64='v8.2' /workspace/scratch/9949907ca71e/logos-acceptance-fixes/pkg/tool/linux_amd64/compile -o $WORK/b061/_pkg_.a -trimpath "$WORK/b061=>" -p runtime/cgo -lang=go1.27 -std -buildid _-_YSaDybLA6rBPWAFHs/_-_YSaDybLA6rBPWAFHs -goversion go1.27.4 -symabis $WORK/b061/symabis -c=9 -d=inlbudget=120 -logos.allocfacts -nolocalimports -importcfg $WORK/b061/importcfg -pack -asmhdr $WORK/b061/go_asm.h /workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/cgo/callbacks.go /workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/cgo/callbacks_traceback.go /workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/cgo/callbacks_unix.go /workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/cgo/clearenv.go /workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/cgo/handle.go /workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/cgo/iscgo.go /workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/cgo/linux.go /workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/cgo/mmap.go /workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/cgo/setenv.go /workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/cgo/sigaction.go $WORK/b061/_cgo_gotypes.go $WORK/b061/cgo.cgo1.go $WORK/b061/_cgo_import.go
+        > exec $WORK/ok.bin
+        [stdout]
+        sum: 42
+        bad: true
+        num:42
+        str:none
+        find: id:7
+        stored: id:7
+        find-missing: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at c_bridge.lgo:39
+        stored-missing: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at c_bridge.lgo:44
+        arg: id:7
+        field: id:7
+        lit: id:7
+        slice: id:7
+        isnil-missing: true
+        isnil-present: false
+        arg-missing: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at c_bridge.lgo:67
+        field-missing: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at c_bridge.lgo:78
+        lit-missing: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at c_bridge.lgo:84
+        slice-missing: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at c_bridge.lgo:92
+        next: 7
+        item: 0
+        > stdout '^sum: 42$'
+        matched: sum: 42
+        > stdout '^bad: true$'
+        matched: bad: true
+        > stdout '^num:42$'
+        matched: num:42
+        > stdout '^str:none$'
+        matched: str:none
+        > stdout '^find: id:7$'
+        matched: find: id:7
+        > stdout '^stored: id:7$'
+        matched: stored: id:7
+        > stdout '^arg: id:7$'
+        matched: arg: id:7
+        > stdout '^field: id:7$'
+        matched: field: id:7
+        > stdout '^lit: id:7$'
+        matched: lit: id:7
+        > stdout '^slice: id:7$'
+        matched: slice: id:7
+        > stdout '^next: 7$'
+        matched: next: 7
+        > stdout '^item: 0$'
+        matched: item: 0
+        > stdout '^isnil-missing: true$'
+        matched: isnil-missing: true
+        > stdout '^isnil-present: false$'
+        matched: isnil-present: false
+        > stdout '^find-missing: logos: nil from Go value stored into non-nil .* at c_bridge\.lgo:39$'
+        matched: find-missing: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at c_bridge.lgo:39
+        > stdout '^stored-missing: logos: nil from Go value stored into non-nil .* at c_bridge\.lgo:44$'
+        matched: stored-missing: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at c_bridge.lgo:44
+        > stdout '^arg-missing: logos: nil from Go value stored into non-nil .* at c_bridge\.lgo:67$'
+        matched: arg-missing: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at c_bridge.lgo:67
+        > stdout '^field-missing: logos: nil from Go value stored into non-nil .* at c_bridge\.lgo:78$'
+        matched: field-missing: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at c_bridge.lgo:78
+        > stdout '^lit-missing: logos: nil from Go value stored into non-nil .* at c_bridge\.lgo:84$'
+        matched: lit-missing: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at c_bridge.lgo:84
+        > stdout '^slice-missing: logos: nil from Go value stored into non-nil .* at c_bridge\.lgo:92$'
+        matched: slice-missing: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at c_bridge.lgo:92
+        > ! logos build -o $WORK/badtry.bin ./badtry
+        [stderr]
+        # example.com/m/badtry
+        badtry/c_bridge.lgo:13:22: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        [exit status 1]
+        > stderr 'c_bridge\.lgo:13:22: \[correctness::cgo_file_logos_syntax\] files that import "C" must use Go syntax only$'
+        matched: badtry/c_bridge.lgo:13:22: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        > ! stderr 'illegal character'
+        > ! stderr 'expected'
+        > ! logos build -o $WORK/badlambda.bin ./badlambda
+        [stderr]
+        # example.com/m/badlambda
+        badlambda/c_bridge.lgo:9:11: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        [exit status 1]
+        > stderr 'c_bridge\.lgo:9:11: \[correctness::cgo_file_logos_syntax\] files that import "C" must use Go syntax only$'
+        matched: badlambda/c_bridge.lgo:9:11: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        > ! logos build -o $WORK/badinterp.bin ./badinterp
+        [stderr]
+        # example.com/m/badinterp
+        badinterp/c_bridge.lgo:9:9: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        [exit status 1]
+        > stderr 'c_bridge\.lgo:9:9: \[correctness::cgo_file_logos_syntax\] files that import "C" must use Go syntax only$'
+        matched: badinterp/c_bridge.lgo:9:9: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        > ! logos build -o $WORK/badspread.bin ./badspread
+        [stderr]
+        # example.com/m/badspread
+        badspread/c_bridge.lgo:10:14: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        [exit status 1]
+        > stderr 'c_bridge\.lgo:10:14: \[correctness::cgo_file_logos_syntax\] files that import "C" must use Go syntax only$'
+        matched: badspread/c_bridge.lgo:10:14: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        > ! logos build -o $WORK/baddot.bin ./baddot
+        [stderr]
+        # example.com/m/baddot
+        baddot/c_bridge.lgo:11:3: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        [exit status 1]
+        > stderr 'c_bridge\.lgo:11:3: \[correctness::cgo_file_logos_syntax\] files that import "C" must use Go syntax only$'
+        matched: baddot/c_bridge.lgo:11:3: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        > ! logos build -o $WORK/baderrdefer.bin ./baderrdefer
+        [stderr]
+        # example.com/m/baderrdefer
+        baderrdefer/c_bridge.lgo:9:2: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        [exit status 1]
+        > stderr 'c_bridge\.lgo:9:2: \[correctness::cgo_file_logos_syntax\] files that import "C" must use Go syntax only$'
+        matched: baderrdefer/c_bridge.lgo:9:2: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        > ! logos build -o $WORK/badyield.bin ./badyield
+        [stderr]
+        # example.com/m/badyield
+        badyield/c_bridge.lgo:9:2: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        [exit status 1]
+        > stderr 'c_bridge\.lgo:9:2: \[correctness::cgo_file_logos_syntax\] files that import "C" must use Go syntax only$'
+        matched: badyield/c_bridge.lgo:9:2: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        > ! logos build -o $WORK/badscopedefer.bin ./badscopedefer
+        [stderr]
+        # example.com/m/badscopedefer
+        badscopedefer/c_bridge.lgo:9:2: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        [exit status 1]
+        > stderr 'c_bridge\.lgo:9:2: \[correctness::cgo_file_logos_syntax\] files that import "C" must use Go syntax only$'
+        matched: badscopedefer/c_bridge.lgo:9:2: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        > ! logos build -o $WORK/badgroup.bin ./badgroup
+        [stderr]
+        # example.com/m/badgroup
+        badgroup/c_bridge.lgo:9:2: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        [exit status 1]
+        > stderr 'c_bridge\.lgo:9:2: \[correctness::cgo_file_logos_syntax\] files that import "C" must use Go syntax only$'
+        matched: badgroup/c_bridge.lgo:9:2: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        > ! logos build -o $WORK/badgochild.bin ./badgochild
+        [stderr]
+        # example.com/m/badgochild
+        badgochild/c_bridge.lgo:9:2: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        [exit status 1]
+        > stderr 'c_bridge\.lgo:9:2: \[correctness::cgo_file_logos_syntax\] files that import "C" must use Go syntax only$'
+        matched: badgochild/c_bridge.lgo:9:2: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        > ! logos build -o $WORK/badconstif.bin ./badconstif
+        [stderr]
+        # example.com/m/badconstif
+        badconstif/c_bridge.lgo:9:2: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        [exit status 1]
+        > stderr 'c_bridge\.lgo:9:2: \[correctness::cgo_file_logos_syntax\] files that import "C" must use Go syntax only$'
+        matched: badconstif/c_bridge.lgo:9:2: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        > ! logos build -o $WORK/badconstfor.bin ./badconstfor
+        [stderr]
+        # example.com/m/badconstfor
+        badconstfor/c_bridge.lgo:10:2: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        [exit status 1]
+        > stderr 'c_bridge\.lgo:10:2: \[correctness::cgo_file_logos_syntax\] files that import "C" must use Go syntax only$'
+        matched: badconstfor/c_bridge.lgo:10:2: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        > ! logos build -o $WORK/badconstswitch.bin ./badconstswitch
+        [stderr]
+        # example.com/m/badconstswitch
+        badconstswitch/c_bridge.lgo:9:2: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        [exit status 1]
+        > stderr 'c_bridge\.lgo:9:2: \[correctness::cgo_file_logos_syntax\] files that import "C" must use Go syntax only$'
+        matched: badconstswitch/c_bridge.lgo:9:2: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        > ! logos build -o $WORK/badtuple.bin ./badtuple
+        [stderr]
+        # example.com/m/badtuple
+        badtuple/c_bridge.lgo:9:20: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        [exit status 1]
+        > stderr 'c_bridge\.lgo:9:20: \[correctness::cgo_file_logos_syntax\] files that import "C" must use Go syntax only$'
+        matched: badtuple/c_bridge.lgo:9:20: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        > ! logos build -o $WORK/badassert.bin ./badassert
+        [stderr]
+        # example.com/m/badassert
+        badassert/c_bridge.lgo:8:18: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        [exit status 1]
+        > stderr 'c_bridge\.lgo:8:18: \[correctness::cgo_file_logos_syntax\] files that import "C" must use Go syntax only$'
+        matched: badassert/c_bridge.lgo:8:18: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        > ! logos build -o $WORK/badproperty.bin ./badproperty
+        [stderr]
+        # example.com/m/badproperty
+        badproperty/c_bridge.lgo:9:2: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        [exit status 1]
+        > stderr 'c_bridge\.lgo:9:2: \[correctness::cgo_file_logos_syntax\] files that import "C" must use Go syntax only$'
+        matched: badproperty/c_bridge.lgo:9:2: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        > ! logos build -o $WORK/badreadonly.bin ./badreadonly
+        [stderr]
+        # example.com/m/badreadonly
+        badreadonly/c_bridge.lgo:9:2: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        [exit status 1]
+        > stderr 'c_bridge\.lgo:9:2: \[correctness::cgo_file_logos_syntax\] files that import "C" must use Go syntax only$'
+        matched: badreadonly/c_bridge.lgo:9:2: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        > ! logos build -o $WORK/badconstview.bin ./badconstview
+        [stderr]
+        # example.com/m/badconstview
+        badconstview/c_bridge.lgo:8:15: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        [exit status 1]
+        > stderr 'c_bridge\.lgo:8:15: \[correctness::cgo_file_logos_syntax\] files that import "C" must use Go syntax only$'
+        matched: badconstview/c_bridge.lgo:8:15: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        > ! logos build -o $WORK/badconstviewvar.bin ./badconstviewvar
+        [stderr]
+        # example.com/m/badconstviewvar
+        badconstviewvar/c_bridge.lgo:8:10: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        [exit status 1]
+        > stderr 'c_bridge\.lgo:8:10: \[correctness::cgo_file_logos_syntax\] files that import "C" must use Go syntax only$'
+        matched: badconstviewvar/c_bridge.lgo:8:10: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        > ! logos build -o $WORK/badproj.bin ./badproj
+        [stderr]
+        # example.com/m/badproj
+        badproj/c_bridge.lgo:12:10: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        [exit status 1]
+        > stderr 'c_bridge\.lgo:12:10: \[correctness::cgo_file_logos_syntax\] files that import "C" must use Go syntax only$'
+        matched: badproj/c_bridge.lgo:12:10: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        > ! logos build -o $WORK/baddefault.bin ./baddefault
+        [stderr]
+        # example.com/m/baddefault
+        baddefault/c_bridge.lgo:9:11: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        [exit status 1]
+        > stderr 'c_bridge\.lgo:9:11: \[correctness::cgo_file_logos_syntax\] files that import "C" must use Go syntax only$'
+        matched: baddefault/c_bridge.lgo:9:11: [correctness::cgo_file_logos_syntax] files that import "C" must use Go syntax only
+        > logos build -o $WORK/bridge.bin ./okbridge
+        > ! exec $WORK/bridge.bin
+        [stderr]
+        panic: logos: nil from Go value stored into non-nil *main._Ctype_int at c_bridge.lgo:10
+        
+        goroutine 1 gp=0x26b844b86288 m=0 mp=0x53be40 [running]:
+        panic({0x525980?, 0x26b844d1c010?})
+        	/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/panic.go:886 +0x159 fp=0x26b844bf5df0 sp=0x26b844bf5d48 pc=0x477e39
+        logos/rt.MustNonNil[...](0x481e90?, {0x484ac4?, 0x0?}, 0x5324e0?)
+        	/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/logos/rt/rt.go:64 +0x8a fp=0x26b844bf5e78 sp=0x26b844bf5df0 pc=0x481b0a
+        main.main()
+        	/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_cgo_lgo921233377/gopath/src/okbridge/c_bridge.lgo:10 +0x45 fp=0x26b844bf5eb8 sp=0x26b844bf5e78 pc=0x481a45
+        runtime.main()
+        	/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/proc.go:302 +0x427 fp=0x26b844bf5fe0 sp=0x26b844bf5eb8 pc=0x4471a7
+        runtime.goexit({})
+        	/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/asm_amd64.s:1264 +0x1 fp=0x26b844bf5fe8 sp=0x26b844bf5fe0 pc=0x47d481
+        
+        goroutine 2 gp=0x26b844b87188 m=nil [force gc (idle)]:
+        runtime.gopark(0x52fc10, 0x53ab20, 0xb, 0xa, 0x1)
+        	/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/proc.go:475 +0x128 fp=0x26b844be2fa8 sp=0x26b844be2f78 pc=0x4782c8
+        runtime.goparkunlock(...)
+        	/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/proc.go:481
+        runtime.forcegchelper()
+        	/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/proc.go:387 +0xb3 fp=0x26b844be2fe0 sp=0x26b844be2fa8 pc=0x447473
+        runtime.goexit({})
+        	/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/asm_amd64.s:1264 +0x1 fp=0x26b844be2fe8 sp=0x26b844be2fe0 pc=0x47d481
+        created by runtime.init.8 in goroutine 1
+        	/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/proc.go:375 +0x1a
+        
+        goroutine 3 gp=0x26b844b87908 m=nil [GC sweep wait]:
+        runtime.gopark(0x52fc10, 0x53ac40, 0x8, 0x9, 0x1)
+        	/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/proc.go:475 +0x128 fp=0x26b844be3788 sp=0x26b844be3758 pc=0x4782c8
+        runtime.goparkunlock(...)
+        	/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/proc.go:481
+        runtime.bgsweep(0x26b844bac100)
+        	/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/mgcsweep.go:279 +0x94 fp=0x26b844be37c8 sp=0x26b844be3788 pc=0x433b94
+        runtime.gcenable.gowrap1()
+        	/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/mgc.go:214 +0x17 fp=0x26b844be37e0 sp=0x26b844be37c8 pc=0x472017
+        runtime.goexit({})
+        	/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/asm_amd64.s:1264 +0x1 fp=0x26b844be37e8 sp=0x26b844be37e0 pc=0x47d481
+        created by runtime.gcenable in goroutine 1
+        	/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/mgc.go:214 +0x66
+        
+        goroutine 4 gp=0x26b844b87b88 m=nil [GC scavenge wait]:
+        runtime.gopark(0x52fc10, 0x53ae20, 0x9, 0xa, 0x2)
+        	/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/proc.go:475 +0x128 fp=0x26b844be3f78 sp=0x26b844be3f48 pc=0x4782c8
+        runtime.goparkunlock(...)
+        	/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/proc.go:481
+        runtime.(*scavengerState).park(0x53ae20)
+        	/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/mgcscavenge.go:425 +0x49 fp=0x26b844be3fa8 sp=0x26b844be3f78 pc=0x4317a9
+        runtime.bgscavenge(0x26b844bac100)
+        	/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/mgcscavenge.go:653 +0x3c fp=0x26b844be3fc8 sp=0x26b844be3fa8 pc=0x431cfc
+        runtime.gcenable.gowrap2()
+        	/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/mgc.go:215 +0x17 fp=0x26b844be3fe0 sp=0x26b844be3fc8 pc=0x471fd7
+        runtime.goexit({})
+        	/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/asm_amd64.s:1264 +0x1 fp=0x26b844be3fe8 sp=0x26b844be3fe0 pc=0x47d481
+        created by runtime.gcenable in goroutine 1
+        	/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/mgc.go:215 +0xa5
+        
+        goroutine 18 gp=0x26b844d02008 m=nil [GOMAXPROCS updater (idle)]:
+        runtime.gopark(0x52fc10, 0x53aa80, 0xc, 0xa, 0x1)
+        	/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/proc.go:475 +0x128 fp=0x26b844bde788 sp=0x26b844bde758 pc=0x4782c8
+        runtime.goparkunlock(...)
+        	/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/proc.go:481
+        runtime.updateMaxProcsGoroutine()
+        	/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/proc.go:7160 +0xe7 fp=0x26b844bde7e0 sp=0x26b844bde788 pc=0x454a27
+        runtime.goexit({})
+        	/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/asm_amd64.s:1264 +0x1 fp=0x26b844bde7e8 sp=0x26b844bde7e0 pc=0x47d481
+        created by runtime.defaultGOMAXPROCSUpdateEnable in goroutine 1
+        	/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/runtime/proc.go:7148 +0x37
+        [exit status 2]
+        > stderr 'logos: nil from Go value stored into non-nil .* at c_bridge\.lgo:10$'
+        matched: panic: logos: nil from Go value stored into non-nil *main._Ctype_int at c_bridge.lgo:10
+        > ! logos build -o $WORK/goerr.bin ./goerr
+        [stderr]
+        # example.com/m/goerr
+        goerr/c_bridge.lgo:8:14: expected ')', found '{'
+        goerr/c_bridge.lgo:10:2: expected declaration, found _
+        [exit status 1]
+        > stderr 'c_bridge\.lgo:8:[0-9]+: expected'
+        matched: goerr/c_bridge.lgo:8:14: expected ')', found '{'
+        > ! stderr 'cgo_file_logos_syntax'
+        > cd gomod
+        > ! go build ./...
+        [stderr]
+        # example.com/gomod
+        ./main.go:9:21: illegal character U+003F '?'
+        ./main.go:11:3: expected '}', found 'EOF'
+        [exit status 1]
+        > stderr 'illegal character U\+003F'
+        matched: ./main.go:9:21: illegal character U+003F '?'
+        > ! stderr 'cgo_file_logos_syntax'
+        > cd ..
+=== CONT  TestScript/logos_eject_cgo_types
+    script_test.go:142: 2026-11-16T21:57:52Z
+    script_test.go:144: $WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo_types3077172486
+=== NAME  TestScript/logos_eject_cgo_owned
+    script_test.go:166: 
+        PATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/testbin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/recovery-evidence/installed-repair-33752c03/c23-bin:/workspace/scratch/9949907ca71e/toolchains/node-v26.13.1-ci/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/lib/wasm:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback
+        HOME=/no-home
+        CCACHE_DISABLE=1
+        GOARCH=amd64
+        TESTGO_GOHOSTARCH=amd64
+        GOCACHE=/workspace/scratch/9949907ca71e/repair-postbuild-cache
+        GOCOVERDIR=
+        GODEBUG=
+        GOEXE=
+        GOEXPERIMENT=
+        GOOS=linux
+        TESTGO_GOHOSTOS=linux
+        GOPROXY=http://127.0.0.1:33511/mod
+        GOPRIVATE=
+        GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        GOTRACEBACK=system
+        TESTGO_GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        TESTGO_EXE=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/testbin/go
+        TESTGO_VCSTEST_HOST=127.0.0.1:36487
+        TESTGO_VCSTEST_TLS_HOST=127.0.0.1:35507
+        TESTGO_VCSTEST_CERT=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/vcstest3534802283/cert.pem
+        TESTGONETWORK=panic
+        GOSUMDB=localhost.localdev/sumdb+00000c67+AcTrnkbUA+TU4heY3hkjiSES/DSQniBqIeQ/YppAUtK6
+        TESTGO_SUMDB=localhost.localdev/sumdb
+        GONOPROXY=
+        GONOSUMDB=
+        GOVCS=*:all
+        devnull=/dev/null
+        goversion=1.27.4
+        CMDGO_TEST_RUN_MAIN=true
+        HGRCPATH=
+        GOTOOLCHAIN=auto
+        newline=
+        
+        CGO_ENABLED=1
+        CC=/usr/bin/gcc-14
+        UPROOT1272=/workspace/scratch/9949907ca71e/toolchains/go1.27.2
+        UPROOT1273=/workspace/scratch/9949907ca71e/toolchains/go1.27.3
+        UPROOT1274=/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci
+        WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo_owned367422783
+        TEST_TELEMETRY_DIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo_owned367422783/telemetry
+        TMPDIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo_owned367422783/tmp
+        GOPATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo_owned367422783/gopath
+        PWD=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo_owned367422783/gopath/src
+        
+        > [!cgo] skip 'cgo is not available'
+        [condition not met]
+        > env GOPROXY=off
+        > env GOTOOLCHAIN=local
+        > env CGO_ENABLED=1
+        > env GOEXPERIMENT=nologosfastcgo
+        > logos run .
+        [stdout]
+        owned C: 3 7 11 15
+        > stdout '^owned C: 3 7 11 15$'
+        matched: owned C: 3 7 11 15
+        > cp stdout $WORK/native.txt
+        > logos eject -o $WORK/out
+        > cd $WORK/out
+        > env GOEXPERIMENT=
+        > exec env -u GOROOT $UPROOT1272/bin/go run .
+        [stdout]
+        owned C: 3 7 11 15
+        > cmp stdout $WORK/native.txt
+        > exec env -u GOROOT $UPROOT1273/bin/go run .
+        [stdout]
+        owned C: 3 7 11 15
+        > cmp stdout $WORK/native.txt
+        > exec env -u GOROOT $UPROOT1273/bin/go vet ./...
+=== CONT  TestScript/logos_eject_cgo_paths
+    script_test.go:142: 2026-11-16T21:57:56Z
+    script_test.go:144: $WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo_paths1222716235
+=== NAME  TestScript/logos_eject_cgo_types
+    script_test.go:166: 
+        PATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/testbin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/recovery-evidence/installed-repair-33752c03/c23-bin:/workspace/scratch/9949907ca71e/toolchains/node-v26.13.1-ci/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/lib/wasm:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback
+        HOME=/no-home
+        CCACHE_DISABLE=1
+        GOARCH=amd64
+        TESTGO_GOHOSTARCH=amd64
+        GOCACHE=/workspace/scratch/9949907ca71e/repair-postbuild-cache
+        GOCOVERDIR=
+        GODEBUG=
+        GOEXE=
+        GOEXPERIMENT=
+        GOOS=linux
+        TESTGO_GOHOSTOS=linux
+        GOPROXY=http://127.0.0.1:33511/mod
+        GOPRIVATE=
+        GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        GOTRACEBACK=system
+        TESTGO_GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        TESTGO_EXE=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/testbin/go
+        TESTGO_VCSTEST_HOST=127.0.0.1:36487
+        TESTGO_VCSTEST_TLS_HOST=127.0.0.1:35507
+        TESTGO_VCSTEST_CERT=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/vcstest3534802283/cert.pem
+        TESTGONETWORK=panic
+        GOSUMDB=localhost.localdev/sumdb+00000c67+AcTrnkbUA+TU4heY3hkjiSES/DSQniBqIeQ/YppAUtK6
+        TESTGO_SUMDB=localhost.localdev/sumdb
+        GONOPROXY=
+        GONOSUMDB=
+        GOVCS=*:all
+        devnull=/dev/null
+        goversion=1.27.4
+        CMDGO_TEST_RUN_MAIN=true
+        HGRCPATH=
+        GOTOOLCHAIN=auto
+        newline=
+        
+        CGO_ENABLED=1
+        CC=/usr/bin/gcc-14
+        UPROOT1272=/workspace/scratch/9949907ca71e/toolchains/go1.27.2
+        UPROOT1273=/workspace/scratch/9949907ca71e/toolchains/go1.27.3
+        UPROOT1274=/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci
+        WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo_types3077172486
+        TEST_TELEMETRY_DIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo_types3077172486/telemetry
+        TMPDIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo_types3077172486/tmp
+        GOPATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo_types3077172486/gopath
+        PWD=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo_types3077172486/gopath/src
+        
+        > [!cgo] skip 'cgo is not available'
+        [condition not met]
+        > env GOPROXY=off
+        > env GOTOOLCHAIN=local
+        > env CGO_ENABLED=1
+        > env GOEXPERIMENT=nologosfastcgo,nosimd
+        > logos run .
+        [stdout]
+        C types: 10 26 42
+        > stdout '^C types: 10 26 42$'
+        matched: C types: 10 26 42
+        > cp stdout $WORK/native.txt
+        > logos eject -o $WORK/out
+        > cd $WORK/out
+        > env GOEXPERIMENT=
+        > exec env -u GOROOT $UPROOT1272/bin/go run .
+        [stdout]
+        C types: 10 26 42
+        > cmp stdout $WORK/native.txt
+        > exec env -u GOROOT $UPROOT1273/bin/go run .
+        [stdout]
+        C types: 10 26 42
+        > cmp stdout $WORK/native.txt
+=== CONT  TestScript/logos_eject_cgo_mode
+    script_test.go:142: 2026-11-16T21:57:57Z
+    script_test.go:144: $WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo_mode2649685678
+    script_test.go:166: 
+        PATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/testbin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/recovery-evidence/installed-repair-33752c03/c23-bin:/workspace/scratch/9949907ca71e/toolchains/node-v26.13.1-ci/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/lib/wasm:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback
+        HOME=/no-home
+        CCACHE_DISABLE=1
+        GOARCH=amd64
+        TESTGO_GOHOSTARCH=amd64
+        GOCACHE=/workspace/scratch/9949907ca71e/repair-postbuild-cache
+        GOCOVERDIR=
+        GODEBUG=
+        GOEXE=
+        GOEXPERIMENT=
+        GOOS=linux
+        TESTGO_GOHOSTOS=linux
+        GOPROXY=http://127.0.0.1:33511/mod
+        GOPRIVATE=
+        GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        GOTRACEBACK=system
+        TESTGO_GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        TESTGO_EXE=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/testbin/go
+        TESTGO_VCSTEST_HOST=127.0.0.1:36487
+        TESTGO_VCSTEST_TLS_HOST=127.0.0.1:35507
+        TESTGO_VCSTEST_CERT=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/vcstest3534802283/cert.pem
+        TESTGONETWORK=panic
+        GOSUMDB=localhost.localdev/sumdb+00000c67+AcTrnkbUA+TU4heY3hkjiSES/DSQniBqIeQ/YppAUtK6
+        TESTGO_SUMDB=localhost.localdev/sumdb
+        GONOPROXY=
+        GONOSUMDB=
+        GOVCS=*:all
+        devnull=/dev/null
+        goversion=1.27.4
+        CMDGO_TEST_RUN_MAIN=true
+        HGRCPATH=
+        GOTOOLCHAIN=auto
+        newline=
+        
+        CGO_ENABLED=1
+        CC=/usr/bin/gcc-14
+        UPROOT1272=/workspace/scratch/9949907ca71e/toolchains/go1.27.2
+        UPROOT1273=/workspace/scratch/9949907ca71e/toolchains/go1.27.3
+        UPROOT1274=/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci
+        WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo_mode2649685678
+        TEST_TELEMETRY_DIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo_mode2649685678/telemetry
+        TMPDIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo_mode2649685678/tmp
+        GOPATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo_mode2649685678/gopath
+        PWD=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo_mode2649685678/gopath/src
+        
+        # The source frontend is an internal, checked mode with no object output. (1.232s)
+        > env GOTOOLCHAIN=local
+        > ! go tool compile -logos.cgoeject -logos.eject=$WORK/plain-out plain/main.go
+        [stdout]
+        logos.cgoeject requires original loGo/s cgo sources
+        [exit status 2]
+        > stdout 'logos.cgoeject requires original loGo/s cgo sources'
+        matched: logos.cgoeject requires original loGo/s cgo sources
+        > ! exists $WORK/plain-out
+        > ! go tool compile -logos.cgoeject -logos.eject=$WORK/lgo-out lgo/main.lgo
+        [stdout]
+        logos.cgoeject requires original loGo/s cgo sources
+        [exit status 2]
+        > stdout 'logos.cgoeject requires original loGo/s cgo sources'
+        matched: logos.cgoeject requires original loGo/s cgo sources
+        > ! exists $WORK/lgo-out
+        > ! go tool compile -logos.cgoeject -logos.eject=$WORK/missing-out cgo/main.lgo
+        [stdout]
+        cgo/main.lgo:4:9: undefined: C.int
+        [exit status 2]
+        > stdout 'main.lgo:4:.*undefined: C.int'
+        matched: cgo/main.lgo:4:9: undefined: C.int
+        > ! exists $WORK/missing-out
+        > ! go tool compile -logos.cgoeject -logos.eject=$WORK/wrong-out cgo/wrong.lgo cgo/_cgo_gotypes.go
+        [stdout]
+        cgo/wrong.lgo:4:15: cannot use "bad" (untyped string constant) as _Ctype_int value in variable declaration
+        [exit status 2]
+        > stdout 'wrong.lgo:4:.*cannot use "bad"'
+        matched: cgo/wrong.lgo:4:15: cannot use "bad" (untyped string constant) as _Ctype_int value in variable declaration
+        > ! exists $WORK/wrong-out
+        > go tool compile -p p -o source.o -logos.cgoeject -logos.eject=$WORK/valid-out cgo/main.lgo cgo/_cgo_gotypes.go
+        > exists $WORK/valid-out/main.go
+        > grep 'var X C.int = 1' $WORK/valid-out/main.go
+        matched: var X C.int = 1
+        > ! exists source.o
+=== CONT  TestScript/logos_eject_cgo
+    script_test.go:142: 2026-11-16T21:57:58Z
+    script_test.go:144: $WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo867089655
+=== NAME  TestScript/logos_eject_cgo_paths
+    script_test.go:166: 
+        PATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/testbin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/recovery-evidence/installed-repair-33752c03/c23-bin:/workspace/scratch/9949907ca71e/toolchains/node-v26.13.1-ci/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/lib/wasm:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback
+        HOME=/no-home
+        CCACHE_DISABLE=1
+        GOARCH=amd64
+        TESTGO_GOHOSTARCH=amd64
+        GOCACHE=/workspace/scratch/9949907ca71e/repair-postbuild-cache
+        GOCOVERDIR=
+        GODEBUG=
+        GOEXE=
+        GOEXPERIMENT=
+        GOOS=linux
+        TESTGO_GOHOSTOS=linux
+        GOPROXY=http://127.0.0.1:33511/mod
+        GOPRIVATE=
+        GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        GOTRACEBACK=system
+        TESTGO_GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        TESTGO_EXE=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/testbin/go
+        TESTGO_VCSTEST_HOST=127.0.0.1:36487
+        TESTGO_VCSTEST_TLS_HOST=127.0.0.1:35507
+        TESTGO_VCSTEST_CERT=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/vcstest3534802283/cert.pem
+        TESTGONETWORK=panic
+        GOSUMDB=localhost.localdev/sumdb+00000c67+AcTrnkbUA+TU4heY3hkjiSES/DSQniBqIeQ/YppAUtK6
+        TESTGO_SUMDB=localhost.localdev/sumdb
+        GONOPROXY=
+        GONOSUMDB=
+        GOVCS=*:all
+        devnull=/dev/null
+        goversion=1.27.4
+        CMDGO_TEST_RUN_MAIN=true
+        HGRCPATH=
+        GOTOOLCHAIN=auto
+        newline=
+        
+        CGO_ENABLED=1
+        CC=/usr/bin/gcc-14
+        UPROOT1272=/workspace/scratch/9949907ca71e/toolchains/go1.27.2
+        UPROOT1273=/workspace/scratch/9949907ca71e/toolchains/go1.27.3
+        UPROOT1274=/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci
+        WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo_paths1222716235
+        TEST_TELEMETRY_DIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo_paths1222716235/telemetry
+        TMPDIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo_paths1222716235/tmp
+        GOPATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo_paths1222716235/gopath
+        PWD=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo_paths1222716235/gopath/src
+        
+        > [!cgo] skip 'cgo is not available'
+        [condition not met]
+        > env GOPROXY=off
+        > env GOTOOLCHAIN=local
+        > env CGO_ENABLED=1
+        > env GOEXPERIMENT=nologosfastcgo
+        > cd m
+        > cp main.⚡ $WORK/original.txt
+        > cp overlay/replacement.go $WORK/backing.txt
+        > logos run -trimpath .
+        [stdout]
+        path: 5
+        checked: logos: nil from Go value stored into non-nil *main._Ctype_int at main.⚡:12
+        [stderr]
+        go: warning: [portability::alias_extension] main.⚡: loGo/s alias extension file; rename to .lgo before publishing
+        > stdout '^path: 5$'
+        matched: path: 5
+        > stdout 'at main[.]⚡:12$'
+        matched: checked: logos: nil from Go value stored into non-nil *main._Ctype_int at main.⚡:12
+        > cp stdout $WORK/native.txt
+        > logos build -trimpath --emit-go=$WORK/plain-out
+        [stderr]
+        go: warning: [portability::alias_extension] main.⚡: loGo/s alias extension file; rename to .lgo before publishing
+        > exists $WORK/plain-out/main.go
+        > cd $WORK/plain-out
+        > exec env -u GOROOT GOEXPERIMENT= $UPROOT1272/bin/go run .
+        [stdout]
+        path: 5
+        checked: logos: nil from Go value stored into non-nil *main._Ctype_int at main.⚡:12
+        > cmp stdout $WORK/native.txt
+        > exec env -u GOROOT GOEXPERIMENT= $UPROOT1273/bin/go run .
+        [stdout]
+        path: 5
+        checked: logos: nil from Go value stored into non-nil *main._Ctype_int at main.⚡:12
+        > cmp stdout $WORK/native.txt
+        # The backing file also matches the module-directory trimpath rule. (5.240s)
+        > cd $GOPATH/src/m
+        > logos run -trimpath -overlay=overlay.json .
+        [stdout]
+        path: 17
+        checked: logos: nil from Go value stored into non-nil *main._Ctype_int at main.⚡:15
+        [stderr]
+        go: warning: [portability::alias_extension] main.⚡: loGo/s alias extension file; rename to .lgo before publishing
+        > stdout '^path: 17$'
+        matched: path: 17
+        > stdout 'at main[.]⚡:15$'
+        matched: checked: logos: nil from Go value stored into non-nil *main._Ctype_int at main.⚡:15
+        > cp stdout $WORK/overlaid.txt
+        > logos build -trimpath -overlay=overlay.json --emit-go=$WORK/overlay-out
+        [stderr]
+        go: warning: [portability::alias_extension] main.⚡: loGo/s alias extension file; rename to .lgo before publishing
+        > exists $WORK/overlay-out/main.go
+        > ! exists $WORK/overlay-out/replacement.go
+        > cmp main.⚡ $WORK/original.txt
+        > cmp overlay/replacement.go $WORK/backing.txt
+        > cd $WORK/overlay-out
+        > exec env -u GOROOT GOEXPERIMENT= $UPROOT1272/bin/go run .
+        [stdout]
+        path: 17
+        checked: logos: nil from Go value stored into non-nil *main._Ctype_int at main.⚡:15
+        > cmp stdout $WORK/overlaid.txt
+        > exec env -u GOROOT GOEXPERIMENT= $UPROOT1273/bin/go run .
+        [stdout]
+        path: 17
+        checked: logos: nil from Go value stored into non-nil *main._Ctype_int at main.⚡:15
+        > cmp stdout $WORK/overlaid.txt
+        # Source identity is recovered once, before checking. A second rewrite
+        # would blame twice/wrong.lgo instead of the logical original source. (0.018s)
+        > cd $WORK
+        > ! go tool compile -p p -logos.cgoeject -logos.eject=$WORK/bad-out -trimpath=$GOPATH/src/diagnostics/wrong.lgo=>mapped/original.lgo;mapped/original.lgo=>twice/wrong.lgo $GOPATH/src/diagnostics/wrong.lgo $GOPATH/src/diagnostics/_cgo_gotypes.go
+        [stdout]
+        mapped/original.lgo:4:15: cannot use "bad" (untyped string constant) as _Ctype_int value in variable declaration
+        [exit status 2]
+        > stdout '^mapped/original.lgo:4:15: cannot use "bad"'
+        matched: mapped/original.lgo:4:15: cannot use "bad" (untyped string constant) as _Ctype_int value in variable declaration
+        > ! exists bad-out
+=== CONT  TestScript/logos_eject_cgo_codegen_edges
+    script_test.go:142: 2026-11-16T21:58:13Z
+    script_test.go:144: $WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo_codegen_edges1102165715
+=== NAME  TestScript/logos_eject_cgo
+    script_test.go:166: 
+        PATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/testbin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/recovery-evidence/installed-repair-33752c03/c23-bin:/workspace/scratch/9949907ca71e/toolchains/node-v26.13.1-ci/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/lib/wasm:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback
+        HOME=/no-home
+        CCACHE_DISABLE=1
+        GOARCH=amd64
+        TESTGO_GOHOSTARCH=amd64
+        GOCACHE=/workspace/scratch/9949907ca71e/repair-postbuild-cache
+        GOCOVERDIR=
+        GODEBUG=
+        GOEXE=
+        GOEXPERIMENT=
+        GOOS=linux
+        TESTGO_GOHOSTOS=linux
+        GOPROXY=http://127.0.0.1:33511/mod
+        GOPRIVATE=
+        GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        GOTRACEBACK=system
+        TESTGO_GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        TESTGO_EXE=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/testbin/go
+        TESTGO_VCSTEST_HOST=127.0.0.1:36487
+        TESTGO_VCSTEST_TLS_HOST=127.0.0.1:35507
+        TESTGO_VCSTEST_CERT=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/vcstest3534802283/cert.pem
+        TESTGONETWORK=panic
+        GOSUMDB=localhost.localdev/sumdb+00000c67+AcTrnkbUA+TU4heY3hkjiSES/DSQniBqIeQ/YppAUtK6
+        TESTGO_SUMDB=localhost.localdev/sumdb
+        GONOPROXY=
+        GONOSUMDB=
+        GOVCS=*:all
+        devnull=/dev/null
+        goversion=1.27.4
+        CMDGO_TEST_RUN_MAIN=true
+        HGRCPATH=
+        GOTOOLCHAIN=auto
+        newline=
+        
+        CGO_ENABLED=1
+        CC=/usr/bin/gcc-14
+        UPROOT1272=/workspace/scratch/9949907ca71e/toolchains/go1.27.2
+        UPROOT1273=/workspace/scratch/9949907ca71e/toolchains/go1.27.3
+        UPROOT1274=/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci
+        WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo867089655
+        TEST_TELEMETRY_DIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo867089655/telemetry
+        TMPDIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo867089655/tmp
+        GOPATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo867089655/gopath
+        PWD=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo867089655/gopath/src
+        
+        > [!cgo] skip 'cgo is not available'
+        [condition not met]
+        > env GOPROXY=off
+        > env GOTOOLCHAIN=local
+        > env CGO_ENABLED=1
+        > env GOEXPERIMENT=nologosfastcgo
+        > cd m
+        > logos run .
+        [stdout]
+        sum: 42
+        separate: 23
+        pointer: 42
+        errno: -1 true
+        nilable: true
+        bridge: 42
+        return: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at cbridge.lgo:24
+        local: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at cbridge.lgo:28
+        argument: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at cbridge.lgo:33
+        field: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at cbridge.lgo:37
+        literal: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at cbridge.lgo:40
+        slice: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at cbridge.lgo:44
+        callback: runtime: function marked with #cgo nocallback called back into Go
+        > stdout '^sum: 42$'
+        matched: sum: 42
+        > stdout '^separate: 23$'
+        matched: separate: 23
+        > stdout '^pointer: 42$'
+        matched: pointer: 42
+        > stdout '^errno: -1 true$'
+        matched: errno: -1 true
+        > stdout '^nilable: true$'
+        matched: nilable: true
+        > stdout '^bridge: 42$'
+        matched: bridge: 42
+        > stdout '^return: logos: nil from Go value stored into non-nil .* at cbridge\.lgo:[0-9]+$'
+        matched: return: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at cbridge.lgo:24
+        > stdout '^local: logos: nil from Go value stored into non-nil .* at cbridge\.lgo:[0-9]+$'
+        matched: local: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at cbridge.lgo:28
+        > stdout '^argument: logos: nil from Go value stored into non-nil .* at cbridge\.lgo:[0-9]+$'
+        matched: argument: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at cbridge.lgo:33
+        > stdout '^field: logos: nil from Go value stored into non-nil .* at cbridge\.lgo:[0-9]+$'
+        matched: field: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at cbridge.lgo:37
+        > stdout '^literal: logos: nil from Go value stored into non-nil .* at cbridge\.lgo:[0-9]+$'
+        matched: literal: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at cbridge.lgo:40
+        > stdout '^slice: logos: nil from Go value stored into non-nil .* at cbridge\.lgo:[0-9]+$'
+        matched: slice: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at cbridge.lgo:44
+        > stdout '^callback: runtime: function marked with #cgo nocallback called back into Go$'
+        matched: callback: runtime: function marked with #cgo nocallback called back into Go
+        > cp stdout $WORK/native.txt
+        > cp cbridge.lgo $WORK/original-cbridge.lgo
+        > cp second.lgo $WORK/original-second.lgo
+        # Ejection must replay checked-source semantics onto the original C
+        # source. Cgo's rewritten calls may contain pointer-check closures. (6.417s)
+        > logos eject -o ../out
+        > exists ../out/cbridge.go
+        > exists ../out/second.go
+        > exists ../out/bridge/bridge.go
+        > grep '#cgo noescape invoke' ../out/cbridge.go
+        matched: #cgo noescape invoke
+        > grep '#cgo nocallback invoke' ../out/cbridge.go
+        matched: #cgo nocallback invoke
+        > ! grep '_Cfunc_|_cgoCheckPointer|\.cgo1\.go' ../out/cbridge.go
+        > cmp cbridge.lgo $WORK/original-cbridge.lgo
+        > cmp second.lgo $WORK/original-second.lgo
+        > cd ../out
+        > env GOEXPERIMENT=
+        > exists $UPROOT1272/bin/go
+        > exec env -u GOROOT $UPROOT1272/bin/go run .
+        [stdout]
+        sum: 42
+        separate: 23
+        pointer: 42
+        errno: -1 true
+        nilable: true
+        bridge: 42
+        return: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at cbridge.lgo:24
+        local: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at cbridge.lgo:28
+        argument: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at cbridge.lgo:33
+        field: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at cbridge.lgo:37
+        literal: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at cbridge.lgo:40
+        slice: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at cbridge.lgo:44
+        callback: runtime: function marked with #cgo nocallback called back into Go
+        > cmp stdout $WORK/native.txt
+        > exists $UPROOT1273/bin/go
+        > exec env -u GOROOT $UPROOT1273/bin/go run .
+        [stdout]
+        sum: 42
+        separate: 23
+        pointer: 42
+        errno: -1 true
+        nilable: true
+        bridge: 42
+        return: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at cbridge.lgo:24
+        local: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at cbridge.lgo:28
+        argument: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at cbridge.lgo:33
+        field: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at cbridge.lgo:37
+        literal: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at cbridge.lgo:40
+        slice: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at cbridge.lgo:44
+        callback: runtime: function marked with #cgo nocallback called back into Go
+        > cmp stdout $WORK/native.txt
+        > exec env -u GOROOT $UPROOT1273/bin/go vet ./...
+        > exec $GOROOT/bin/gofmt -l .
+        > ! stdout .
+        # The source contract does not depend on selecting the fast trampoline. (10.093s)
+        > cd ../m
+        > env GOEXPERIMENT=logosfastcgo
+        > logos run .
+        [stdout]
+        sum: 42
+        separate: 23
+        pointer: 42
+        errno: -1 true
+        nilable: true
+        bridge: 42
+        return: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at cbridge.lgo:24
+        local: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at cbridge.lgo:28
+        argument: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at cbridge.lgo:33
+        field: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at cbridge.lgo:37
+        literal: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at cbridge.lgo:40
+        slice: logos: nil from Go value stored into non-nil *main._Ctype_struct_item at cbridge.lgo:44
+        callback: runtime: function marked with #cgo nocallback called back into Go
+        > cmp stdout $WORK/native.txt
+        > logos eject -o ../out-fast
+        > cmp ../out/cbridge.go ../out-fast/cbridge.go
+        > cmp ../out/second.go ../out-fast/second.go
+        > cmp ../out/bridge/bridge.go ../out-fast/bridge/bridge.go
+        # The frontend-only mode must require an eject destination. It must not
+        # silently turn an ordinary compiler invocation into a successful build. (0.027s)
+        > ! go tool compile -logos.cgoeject ../invalid.lgo
+        [stdout]
+        logos.cgoeject requires logos.eject
+        [exit status 2]
+        > stdout 'logos.cgoeject requires logos.eject'
+        matched: logos.cgoeject requires logos.eject
+=== CONT  TestScript/logos_eject_cgo_codegen
+    script_test.go:142: 2026-11-16T21:58:17Z
+    script_test.go:144: $WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo_codegen3181796738
+    script_test.go:166: 
+        PATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/testbin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/recovery-evidence/installed-repair-33752c03/c23-bin:/workspace/scratch/9949907ca71e/toolchains/node-v26.13.1-ci/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/lib/wasm:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback
+        HOME=/no-home
+        CCACHE_DISABLE=1
+        GOARCH=amd64
+        TESTGO_GOHOSTARCH=amd64
+        GOCACHE=/workspace/scratch/9949907ca71e/repair-postbuild-cache
+        GOCOVERDIR=
+        GODEBUG=
+        GOEXE=
+        GOEXPERIMENT=
+        GOOS=linux
+        TESTGO_GOHOSTOS=linux
+        GOPROXY=http://127.0.0.1:33511/mod
+        GOPRIVATE=
+        GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        GOTRACEBACK=system
+        TESTGO_GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        TESTGO_EXE=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/testbin/go
+        TESTGO_VCSTEST_HOST=127.0.0.1:36487
+        TESTGO_VCSTEST_TLS_HOST=127.0.0.1:35507
+        TESTGO_VCSTEST_CERT=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/vcstest3534802283/cert.pem
+        TESTGONETWORK=panic
+        GOSUMDB=localhost.localdev/sumdb+00000c67+AcTrnkbUA+TU4heY3hkjiSES/DSQniBqIeQ/YppAUtK6
+        TESTGO_SUMDB=localhost.localdev/sumdb
+        GONOPROXY=
+        GONOSUMDB=
+        GOVCS=*:all
+        devnull=/dev/null
+        goversion=1.27.4
+        CMDGO_TEST_RUN_MAIN=true
+        HGRCPATH=
+        GOTOOLCHAIN=auto
+        newline=
+        
+        CGO_ENABLED=1
+        CC=/usr/bin/gcc-14
+        UPROOT1272=/workspace/scratch/9949907ca71e/toolchains/go1.27.2
+        UPROOT1273=/workspace/scratch/9949907ca71e/toolchains/go1.27.3
+        UPROOT1274=/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci
+        WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo_codegen3181796738
+        TEST_TELEMETRY_DIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo_codegen3181796738/telemetry
+        TMPDIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo_codegen3181796738/tmp
+        GOPATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo_codegen3181796738/gopath
+        PWD=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo_codegen3181796738/gopath/src
+        
+        > [!cgo] skip 'cgo is not available'
+        [condition not met]
+        > env GOPROXY=off
+        > env GOTOOLCHAIN=local
+        > env CGO_ENABLED=1
+        > env GOEXPERIMENT=nologosfastcgo
+        > logos run .
+        [stdout]
+        generated: 0 5 2
+        json: {"Value":7,"Count":9}
+        decode: logos: json: ambiguous unmarshal into union Choice: 2 of 2 members matched (*Item[_Ctype_int], *Item[_Ctype_word])
+        [stderr]
+        # example.com/cgogenerated
+        $WORK/b001/main.lgo.cgo1.go:39:61: warning: [perf::arena_fallback] arena.Make[C.int] at ./main.lgo:36:24 falls back to the heap: region unknown
+        $WORK/b001/main.lgo.cgo1.go:41:18: warning: [perf::arena_fallback] arena.Append[C.int] at ./main.lgo:38:18 falls back to the heap: region unknown
+        > stdout '^generated: 0 5 2$'
+        matched: generated: 0 5 2
+        > stdout '^json: [{]"Value":7,"Count":9[}]$'
+        matched: json: {"Value":7,"Count":9}
+        > stdout '^decode: logos: json: ambiguous unmarshal into union Choice: 2 of 2 members matched'
+        matched: decode: logos: json: ambiguous unmarshal into union Choice: 2 of 2 members matched (*Item[_Ctype_int], *Item[_Ctype_word])
+        > cp stdout $WORK/native.txt
+        > logos eject -o $WORK/out
+        [stderr]
+        # example.com/cgogenerated
+        $WORK/b001/main.lgo.cgo1.go:39:61: warning: [perf::arena_fallback] arena.Make[C.int] at ./main.lgo:36:24 falls back to the heap: region unknown
+        $WORK/b001/main.lgo.cgo1.go:41:18: warning: [perf::arena_fallback] arena.Append[C.int] at ./main.lgo:38:18 falls back to the heap: region unknown
+        > cd $WORK/out
+        > env GOEXPERIMENT=
+        > exec env -u GOROOT $UPROOT1272/bin/go run .
+        [stdout]
+        generated: 0 5 2
+        json: {"Value":7,"Count":9}
+        decode: logos: json: ambiguous unmarshal into union Choice: 2 of 2 members matched (*Item[_Ctype_int], *Item[_Ctype_word])
+        > cmp stdout $WORK/native.txt
+        > exec env -u GOROOT $UPROOT1273/bin/go run .
+        [stdout]
+        generated: 0 5 2
+        json: {"Value":7,"Count":9}
+        decode: logos: json: ambiguous unmarshal into union Choice: 2 of 2 members matched (*Item[_Ctype_int], *Item[_Ctype_word])
+        > cmp stdout $WORK/native.txt
+=== CONT  TestScript/logos_chains_panic_close
+    script_test.go:142: 2026-11-16T21:58:23Z
+    script_test.go:144: $WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_chains_panic_close3839375221
+=== NAME  TestScript/logos_eject_cgo_codegen_edges
+    script_test.go:166: 
+        PATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/testbin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/recovery-evidence/installed-repair-33752c03/c23-bin:/workspace/scratch/9949907ca71e/toolchains/node-v26.13.1-ci/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/lib/wasm:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback
+        HOME=/no-home
+        CCACHE_DISABLE=1
+        GOARCH=amd64
+        TESTGO_GOHOSTARCH=amd64
+        GOCACHE=/workspace/scratch/9949907ca71e/repair-postbuild-cache
+        GOCOVERDIR=
+        GODEBUG=
+        GOEXE=
+        GOEXPERIMENT=
+        GOOS=linux
+        TESTGO_GOHOSTOS=linux
+        GOPROXY=http://127.0.0.1:33511/mod
+        GOPRIVATE=
+        GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        GOTRACEBACK=system
+        TESTGO_GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        TESTGO_EXE=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/testbin/go
+        TESTGO_VCSTEST_HOST=127.0.0.1:36487
+        TESTGO_VCSTEST_TLS_HOST=127.0.0.1:35507
+        TESTGO_VCSTEST_CERT=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/vcstest3534802283/cert.pem
+        TESTGONETWORK=panic
+        GOSUMDB=localhost.localdev/sumdb+00000c67+AcTrnkbUA+TU4heY3hkjiSES/DSQniBqIeQ/YppAUtK6
+        TESTGO_SUMDB=localhost.localdev/sumdb
+        GONOPROXY=
+        GONOSUMDB=
+        GOVCS=*:all
+        devnull=/dev/null
+        goversion=1.27.4
+        CMDGO_TEST_RUN_MAIN=true
+        HGRCPATH=
+        GOTOOLCHAIN=auto
+        newline=
+        
+        CGO_ENABLED=1
+        CC=/usr/bin/gcc-14
+        UPROOT1272=/workspace/scratch/9949907ca71e/toolchains/go1.27.2
+        UPROOT1273=/workspace/scratch/9949907ca71e/toolchains/go1.27.3
+        UPROOT1274=/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci
+        WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo_codegen_edges1102165715
+        TEST_TELEMETRY_DIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo_codegen_edges1102165715/telemetry
+        TMPDIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo_codegen_edges1102165715/tmp
+        GOPATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo_codegen_edges1102165715/gopath
+        PWD=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_eject_cgo_codegen_edges1102165715/gopath/src
+        
+        > [!cgo] skip 'cgo is not available'
+        [condition not met]
+        > env GOPROXY=off
+        > env GOTOOLCHAIN=local
+        > env CGO_ENABLED=1
+        > env GOEXPERIMENT=nologosfastcgo
+        # Effectful arena calls preserve an imported type's source alias. (4.738s)
+        > cd arena
+        > logos run .
+        [stdout]
+        duration: 1ns 1
+        [stderr]
+        # example.com/cgoarena
+        $WORK/b001/main.lgo.cgo1.go:20:38: warning: [perf::arena_fallback] arena.Make[time.Duration] at ./main.lgo:17:38 falls back to the heap: region unknown
+        > stdout '^duration: 1ns 1$'
+        matched: duration: 1ns 1
+        > cp stdout $WORK/arena.txt
+        > logos eject -o $WORK/arena-out
+        [stderr]
+        # example.com/cgoarena
+        $WORK/b001/main.lgo.cgo1.go:20:38: warning: [perf::arena_fallback] arena.Make[time.Duration] at ./main.lgo:17:38 falls back to the heap: region unknown
+        > cd $WORK/arena-out
+        > exec env -u GOROOT GOEXPERIMENT= $UPROOT1272/bin/go run .
+        [stdout]
+        duration: 1ns 1
+        > cmp stdout $WORK/arena.txt
+        > exec env -u GOROOT GOEXPERIMENT= $UPROOT1273/bin/go run .
+        [stdout]
+        duration: 1ns 1
+        > cmp stdout $WORK/arena.txt
+        # A method-bearing pointer union emits C types in its typed-nil checks. (5.521s)
+        > cd $GOPATH/src/json
+        > logos run .
+        [stdout]
+        zero: {"value":7,"count":9}
+        > stdout '^zero: [{]"value":7,"count":9[}]$'
+        matched: zero: {"value":7,"count":9}
+        > cp stdout $WORK/json.txt
+        > logos eject -o $WORK/json-out
+        > cd $WORK/json-out
+        > exec env -u GOROOT GOEXPERIMENT= $UPROOT1272/bin/go run .
+        [stdout]
+        zero: {"value":7,"count":9}
+        > cmp stdout $WORK/json.txt
+        > exec env -u GOROOT GOEXPERIMENT= $UPROOT1273/bin/go run .
+        [stdout]
+        zero: {"value":7,"count":9}
+        > cmp stdout $WORK/json.txt
+=== NAME  TestScript/logos_chains_panic_close
+    script_test.go:166: 
+        PATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/testbin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/recovery-evidence/installed-repair-33752c03/c23-bin:/workspace/scratch/9949907ca71e/toolchains/node-v26.13.1-ci/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/lib/wasm:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback
+        HOME=/no-home
+        CCACHE_DISABLE=1
+        GOARCH=amd64
+        TESTGO_GOHOSTARCH=amd64
+        GOCACHE=/workspace/scratch/9949907ca71e/repair-postbuild-cache
+        GOCOVERDIR=
+        GODEBUG=
+        GOEXE=
+        GOEXPERIMENT=
+        GOOS=linux
+        TESTGO_GOHOSTOS=linux
+        GOPROXY=http://127.0.0.1:33511/mod
+        GOPRIVATE=
+        GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        GOTRACEBACK=system
+        TESTGO_GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        TESTGO_EXE=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/testbin/go
+        TESTGO_VCSTEST_HOST=127.0.0.1:36487
+        TESTGO_VCSTEST_TLS_HOST=127.0.0.1:35507
+        TESTGO_VCSTEST_CERT=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/vcstest3534802283/cert.pem
+        TESTGONETWORK=panic
+        GOSUMDB=localhost.localdev/sumdb+00000c67+AcTrnkbUA+TU4heY3hkjiSES/DSQniBqIeQ/YppAUtK6
+        TESTGO_SUMDB=localhost.localdev/sumdb
+        GONOPROXY=
+        GONOSUMDB=
+        GOVCS=*:all
+        devnull=/dev/null
+        goversion=1.27.4
+        CMDGO_TEST_RUN_MAIN=true
+        HGRCPATH=
+        GOTOOLCHAIN=auto
+        newline=
+        
+        CGO_ENABLED=1
+        CC=/usr/bin/gcc-14
+        UPROOT1272=/workspace/scratch/9949907ca71e/toolchains/go1.27.2
+        UPROOT1273=/workspace/scratch/9949907ca71e/toolchains/go1.27.3
+        UPROOT1274=/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci
+        WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_chains_panic_close3839375221
+        TEST_TELEMETRY_DIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_chains_panic_close3839375221/telemetry
+        TMPDIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_chains_panic_close3839375221/tmp
+        GOPATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_chains_panic_close3839375221/gopath
+        PWD=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-3886130277/tmpdir3666945962/logos_chains_panic_close3839375221/gopath/src
+        
+        > env GOPROXY=off
+        > env GOTOOLCHAIN=local
+        > cp $GOROOT/test/logos/run/chains_panic_close.lgo a/main.lgo
+        > cd a
+        > logos run .
+        [stdout]
+        ok panic-close
+        ok loop-oracle
+        ok chain-loop-parity
+        ok calm-path
+        ok alloc-parity
+        > cmp stdout $GOROOT/test/logos/run/chains_panic_close.out
+        > logos eject -o out
+        > exists out/main.go
+        > ! exists out/main.lgo
+        > cd out
+        > go run .
+        [stdout]
+        ok panic-close
+        ok loop-oracle
+        ok chain-loop-parity
+        ok calm-path
+        ok alloc-parity
+        > cmp stdout $GOROOT/test/logos/run/chains_panic_close.out
+        # SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272. (0.645s)
+        > exists $UPROOT1272/bin/go
+        > exec $UPROOT1272/bin/go version
+        [stdout]
+        go version go1.27.2 linux/amd64
+        > stdout '^go version go1\.27\.2 '
+        matched: go version go1.27.2 linux/amd64
+        > exec env -u GOROOT $UPROOT1272/bin/go build ./...
+        > exec $GOROOT/bin/gofmt -l .
+        > ! stdout .
+        > cd ../..
+--- PASS: TestScript (0.45s)
+    --- PASS: TestScript/logos_cgo_lgo (10.35s)
+    --- PASS: TestScript/logos_eject_cgo_owned (13.97s)
+    --- PASS: TestScript/logos_eject_cgo_types (4.45s)
+    --- PASS: TestScript/logos_eject_cgo_mode (1.24s)
+    --- PASS: TestScript/logos_eject_cgo_paths (16.87s)
+    --- PASS: TestScript/logos_eject_cgo (18.99s)
+    --- PASS: TestScript/logos_eject_cgo_codegen (5.88s)
+    --- PASS: TestScript/logos_eject_cgo_codegen_edges (10.27s)
+    --- PASS: TestScript/logos_chains_panic_close (4.77s)
+PASS
+ok  	cmd/go	47.179s

@@ -1,0 +1,8 @@
+{
+  "phase": "all",
+  "passed": true,
+  "error": null,
+  "identities_unchanged": true,
+  "mutation_scope": "external overlay recompiles the lint package; installed compiler is unchanged",
+  "release_scope": "focused acceptance only; full language and Go regression remain separate"
+}

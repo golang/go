@@ -1,0 +1,31 @@
+=== RUN   TestRunBinaryExecutionQueue
+=== RUN   TestRunBinaryExecutionQueue/shared_queue_budget
+    execution_queue_test.go:92: execution queue scenario shared_queue_budget: exit status 1 (watchdog: <nil>)
+        === RUN   TestRunBinaryExecutionQueue
+            execution_queue_test.go:131: capacity N-1: one holder leaves one runnable slot
+            execution_queue_test.go:135: capacity N: two independent runAll rows are ready
+            execution_queue_test.go:148: third call returned while two independent rows still held their slots: observation={exit:0 stdout:ok
+                 stderr:} error=<nil>
+        --- FAIL: TestRunBinaryExecutionQueue (0.03s)
+        FAIL
+=== RUN   TestRunBinaryExecutionQueue/start_error_release
+    execution_queue_test.go:94: === RUN   TestRunBinaryExecutionQueue
+            execution_queue_test.go:179: start failure 0 returned its file-not-found error
+            execution_queue_test.go:179: start failure 1 returned its file-not-found error
+            execution_queue_test.go:179: start failure 2 returned its file-not-found error
+        --- PASS: TestRunBinaryExecutionQueue (0.00s)
+        PASS
+=== RUN   TestRunBinaryExecutionQueue/timeout_release
+    execution_queue_test.go:94: === RUN   TestRunBinaryExecutionQueue
+            execution_queue_test.go:213: timeout 0 returned after child readiness
+            execution_queue_test.go:213: timeout 1 returned after child readiness
+            execution_queue_test.go:213: timeout 2 returned after child readiness
+        --- PASS: TestRunBinaryExecutionQueue (6.02s)
+        PASS
+--- FAIL: TestRunBinaryExecutionQueue (9.92s)
+    --- FAIL: TestRunBinaryExecutionQueue/shared_queue_budget (0.04s)
+    --- PASS: TestRunBinaryExecutionQueue/start_error_release (0.00s)
+    --- PASS: TestRunBinaryExecutionQueue/timeout_release (6.02s)
+FAIL
+FAIL	cmd/internal/goparity	9.924s
+FAIL

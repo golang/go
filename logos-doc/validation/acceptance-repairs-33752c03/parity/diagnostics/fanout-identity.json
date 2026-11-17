@@ -1,0 +1,75 @@
+{
+  "status": "prepared; not executed or compiled",
+  "installed_source_commit": "e96a570da271c43a80e23bb1a188aac054acff25",
+  "source_tree": "e237c399aae8f8065b724e8a0e27585686c7da18",
+  "goroot": "/workspace/scratch/9949907ca71e/logos-final-acceptance",
+  "virtual_test_path": "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/cmd/internal/goparity/parity_at08_fanout_probe_test.go",
+  "test_name": "TestParityAt08FanoutProbe",
+  "inputs": [
+    {
+      "path": "src/cmd/internal/goparity/parity_test.go",
+      "bytes": 87423,
+      "sha256": "1be848e4e5f94f76d3484e12b253d4eaad81990a89635a59cf59f86fa1149bb4"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/run/at08_recursion_bound/main.go",
+      "bytes": 1410,
+      "sha256": "e1aa8d47d3fe4ddc0d43be98ec361c1ad2dcf9ca8711f1feaa49afc2081bc359"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/mutants/at08.txt",
+      "bytes": 257,
+      "sha256": "7e432078f7cc2a48ac4d5baaedc6f920485f2a42041a67eb83292fdff5e6db99"
+    },
+    {
+      "path": "src/cmd/go/internal/logos/settings/settings.go",
+      "bytes": 8060,
+      "sha256": "46dac9c2495aa2aee8e3afbda984107ef1b318efa88cf2cd7aff0796d23531d5"
+    },
+    {
+      "path": "src/cmd/compile/internal/inline/stackbuf_logos.go",
+      "bytes": 521,
+      "sha256": "d3474e408715d3001b82ac5b8868d02ada389dd4526f4b35edfd738e46da5a7a"
+    }
+  ],
+  "prepared": [
+    {
+      "path": "parity_at08_fanout_probe_test.go",
+      "bytes": 6850,
+      "sha256": "37d4550736a69c48b93dd3992009822ef95ab49042520a950289fdcc4318faed"
+    },
+    {
+      "path": "fanout-overlay.json",
+      "bytes": 498,
+      "sha256": "718175af0560cdcfa107317fd70178a8eae60e0fd3f680b2b2d0ae961e2b4516"
+    },
+    {
+      "path": "parity_at08_isolated_probe_test.go",
+      "bytes": 3557,
+      "sha256": "890de5c3311660070fb7e0cd02bcfb4e34bccb4c58ce6b863f9ba414a7675ebc"
+    }
+  ],
+  "sealed_isolated_identity_sha256": "329f0c57dade43d58e5abc90c8b3841f706683be4fe8ee4bc566b6e54d57dc35",
+  "sealed_isolated_success_stdout_sha256": "bb66b94edeee9832681adb6d2754bd613a17e656f10aac78a8db38e674cc5d1b",
+  "method": "Existing buildFork/buildUpstream produce frozen at08 K6 and U3N binaries. Each binary receives 24 unique hardlinks. Unchanged runAll runs the two rows concurrently, followed by the identical 48 linked programs through two shared workers invoking unchanged runBinary.",
+  "runtime_budget_seconds": 10,
+  "child_GOMAXPROCS": 4,
+  "required_cpu_affinity_count": 2,
+  "copies_per_row": 24,
+  "rows": [
+    "K6",
+    "U3N"
+  ],
+  "bounded_workers": 2,
+  "expected_witness": [
+    "At least one unbounded row first error is the original runtime timeout.",
+    "Every retained unbounded observation has exit 0, stdout ok followed by newline, and empty stderr.",
+    "Every exposed unbounded row error is a runtime timeout; a non-timeout error fails the diagnostic.",
+    "All 48 bounded outcomes complete within their unchanged per-child budget with exact expected observations.",
+    "Root resource recorder must establish no OOM, process-start resource failure, or low-memory abort before accepting contention evidence."
+  ],
+  "evidence_boundary": "Controlled stress comparison only, not a replay of the 775-program release composition or product acceptance. Unchanged runAll exposes only the first error per row; absent observations and hidden later errors cannot be individually reconstructed.",
+  "resource_boundary": "Root imposes affinity to two allowed CPUs, records MemAvailable, aggregate child RSS and oom_kill before/after, and aborts below 1 GiB available. Existing helper baseEnv and caches under os.TempDir remain unchanged; reuse the real /home/agent/logos-parity-isolated-e96-002 location.",
+  "dependency": "The separate overlay includes the unchanged isolated diagnostic file only to reuse parityAt08ProbeHash; the selected run must match only TestParityAt08FanoutProbe.",
+  "execution": "Root supplies and runs record_controlled.py. This lane has performed file-only preparation."
+}

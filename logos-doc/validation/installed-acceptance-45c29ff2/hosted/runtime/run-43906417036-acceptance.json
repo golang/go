@@ -1,0 +1,119 @@
+{
+  "run_id": 43906417036,
+  "attempt": 1,
+  "conclusion": "success",
+  "source": {
+    "merge_sha": "f2ad58be8742b8ec350db8f06d9dc794ea3302e4",
+    "head_sha": "45c29ff215477f7e403188d7452fc79aef05d791",
+    "tree_sha": "32b96f3a7c289c987bc021fe5a5adbf35cfe226b",
+    "src_tree": "099367e1031585fa553ef7987b199288df36256a"
+  },
+  "jobs": [
+    {
+      "id": 133436353801,
+      "name": "runtime-ubuntu-24.04-logosarena",
+      "conclusion": "success",
+      "native_arch": "amd64",
+      "experiment": "logosarena",
+      "completed_steps": [
+        "Set up job",
+        "Check out the tested revision",
+        "Install the pinned Go bootstrap",
+        "Build the default toolchain",
+        "Check formatting and vet",
+        "Run runtime regression tests",
+        "Run region race tests",
+        "Stress lifecycle and scan boundaries",
+        "Stress close entry safepoints",
+        "Check heap graph marking",
+        "Probe the original close ownership failure",
+        "Record ownership probe evidence",
+        "Complete job"
+      ],
+      "expected_skipped_steps": [],
+      "ownership_mutant_caught": 10,
+      "log_file": "job-133436353801-attempt-1.log",
+      "log_sha256": "96a7e23de6f9c2d2ec5a9c07db24bee83d83bb90f70323891cf0f294b80390a7"
+    },
+    {
+      "id": 133436354288,
+      "name": "runtime-ubuntu-26.04-arm-logosarena,nogreenteagc",
+      "conclusion": "success",
+      "native_arch": "arm64",
+      "experiment": "logosarena,nogreenteagc",
+      "completed_steps": [
+        "Set up job",
+        "Check out the tested revision",
+        "Install the pinned Go bootstrap",
+        "Build the default toolchain",
+        "Check formatting and vet",
+        "Run runtime regression tests",
+        "Run region race tests",
+        "Stress lifecycle and scan boundaries",
+        "Stress close entry safepoints",
+        "Check heap graph marking",
+        "Complete job"
+      ],
+      "expected_skipped_steps": [
+        "Probe the original close ownership failure",
+        "Record ownership probe evidence"
+      ],
+      "ownership_mutant_caught": null,
+      "log_file": "job-133436354288-attempt-1.log",
+      "log_sha256": "9080f98efb16fd2f4b1ce7c3201c0ba7d7f4685bd8a7c95ecf3867767f430c74"
+    },
+    {
+      "id": 133436354362,
+      "name": "runtime-ubuntu-24.04-logosarena,nogreenteagc",
+      "conclusion": "success",
+      "native_arch": "amd64",
+      "experiment": "logosarena,nogreenteagc",
+      "completed_steps": [
+        "Set up job",
+        "Check out the tested revision",
+        "Install the pinned Go bootstrap",
+        "Build the default toolchain",
+        "Check formatting and vet",
+        "Run runtime regression tests",
+        "Run region race tests",
+        "Stress lifecycle and scan boundaries",
+        "Stress close entry safepoints",
+        "Check heap graph marking",
+        "Complete job"
+      ],
+      "expected_skipped_steps": [
+        "Probe the original close ownership failure",
+        "Record ownership probe evidence"
+      ],
+      "ownership_mutant_caught": null,
+      "log_file": "job-133436354362-attempt-1.log",
+      "log_sha256": "778ea53997e917a784395b24e22127a5b8252d7017d80175e6789e79b3259fe5"
+    },
+    {
+      "id": 133436354581,
+      "name": "runtime-ubuntu-26.04-arm-logosarena",
+      "conclusion": "success",
+      "native_arch": "arm64",
+      "experiment": "logosarena",
+      "completed_steps": [
+        "Set up job",
+        "Check out the tested revision",
+        "Install the pinned Go bootstrap",
+        "Build the default toolchain",
+        "Check formatting and vet",
+        "Run runtime regression tests",
+        "Run region race tests",
+        "Stress lifecycle and scan boundaries",
+        "Stress close entry safepoints",
+        "Check heap graph marking",
+        "Probe the original close ownership failure",
+        "Record ownership probe evidence",
+        "Complete job"
+      ],
+      "expected_skipped_steps": [],
+      "ownership_mutant_caught": 10,
+      "log_file": "job-133436354581-attempt-1.log",
+      "log_sha256": "9a0b5619884054384f359ea69a38943e91faf4f1dd8ad183a476c8d1501c9bf2"
+    }
+  ]
+}

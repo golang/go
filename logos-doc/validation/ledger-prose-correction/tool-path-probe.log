@@ -1,0 +1,4 @@
+=== RUN   TestRedteamLedgerRows
+    redteam_ledger_test.go:80: #441: proving test test/tool does not exist
+--- FAIL: TestRedteamLedgerRows (0.01s)
+FAIL

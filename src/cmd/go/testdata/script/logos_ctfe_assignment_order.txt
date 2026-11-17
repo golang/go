@@ -1,0 +1,21 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# Compile-time constants agree with ordinary function execution and eject.
+cd m
+cp $GOROOT/test/logos/run/ctfe_assignment_order.lgo main.lgo
+cp $GOROOT/test/logos/run/ctfe_assignment_order.out expected.txt
+logos run .
+cmp stdout expected.txt
+logos eject -o out
+cd out
+go run .
+cmp stdout ../expected.txt
+exists $UPROOT1274/bin/go
+exec env -u GOROOT $UPROOT1274/bin/go run .
+cmp stdout ../expected.txt
+
+-- m/go.mod --
+module example.com/ctfeassignment
+
+go 1.27

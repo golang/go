@@ -1,0 +1,14 @@
+ok generic-plain-errdefer-value
+ok generic-partial-errdefer-value
+ok generic-defer-value-and-partial
+ok generic-pointer-receiver-keeps-object
+ok generic-pointer-receiver-keeps-address
+ok generic-value-receiver-copies-dereference
+ok generic-promoted-value-copies-receiver
+ok generic-promoted-pointer-keeps-object
+ok generic-success-evaluates-receiver
+ok generic-receiver-before-arguments
+ok generic-scope-binds-explicit-type
+ok generic-loop-scope-captures-each-iteration
+ok generic-tuple-and-option-arguments
+ok generic-inference-and-method-expression

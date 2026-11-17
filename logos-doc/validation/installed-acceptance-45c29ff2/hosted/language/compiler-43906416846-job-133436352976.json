@@ -1,0 +1,102 @@
+{
+  "recordedAt": "2026-11-16T16:42:08.774Z",
+  "repository": "gosuda/LoGOs",
+  "runId": 43906416846,
+  "jobId": 133436352976,
+  "url": "https://github.com/gosuda/LoGOs/actions/runs/43906416846/job/133436352976",
+  "status": "completed",
+  "conclusion": "success",
+  "prHead": "45c29ff215477f7e403188d7452fc79aef05d791",
+  "actualCheckout": "f2ad58be8742b8ec350db8f06d9dc794ea3302e4",
+  "checkoutEvidence": [
+    "2026-11-16T16:32:53.7834364Z  * branch              f2ad58be8742b8ec350db8f06d9dc794ea3302e4 -> FETCH_HEAD",
+    "2026-11-16T16:32:54.5188577Z HEAD is now at f2ad58be Merge 45c29ff215477f7e403188d7452fc79aef05d791 into 13a968f350564e739bf700df698a9a635dcdddcd"
+  ],
+  "installedToolchainEvidence": [
+    "2026-11-16T16:33:07.1449020Z Building Go toolchain1 using /home/runner/work/_temp/go1.27.4-ci.",
+    "2026-11-16T16:33:49.4556444Z Building Go toolchain2 using go_bootstrap and Go toolchain1.",
+    "2026-11-16T16:34:19.0438697Z Building Go toolchain3 using go_bootstrap and Go toolchain2.",
+    "2026-11-16T16:36:06.6247765Z Installed Go for linux/amd64 in /home/runner/work/LoGOs/LoGOs"
+  ],
+  "bootstrapVersionNote": "The go1.27.4 line in source.txt was recorded before make.bash. It identifies the bootstrap, not independently the installed fork's version.",
+  "c23ConsumerGate": "Passed the selected C compiler's -std=c23 compile-and-run check.",
+  "completedGates": [
+    {
+      "name": "focused compiler/frontend/command units",
+      "status": "success"
+    },
+    {
+      "name": "work/eject/buildcfg race checks",
+      "status": "success"
+    },
+    {
+      "name": "CTFE/tuple/default/inline command scripts",
+      "status": "success",
+      "seconds": 22.426
+    },
+    {
+      "name": "Cgo and variant ejection scripts with race detection",
+      "status": "success",
+      "seconds": 62.413
+    },
+    {
+      "name": "native CTFE/default/inline testdir",
+      "status": "success",
+      "seconds": 7.797
+    },
+    {
+      "name": "vet plus noder default.pgo vet",
+      "status": "success"
+    },
+    {
+      "name": "actual REDTEAM ledger checker",
+      "status": "success",
+      "seconds": 0.005
+    }
+  ],
+  "packageResultLines": [
+    "2026-11-16T16:36:18.9181475Z ok  \tcmd/compile/internal/inline\t0.003s",
+    "2026-11-16T16:36:23.4846709Z ok  \tcmd/compile/internal/inline/inlheur\t4.033s",
+    "2026-11-16T16:37:57.1446018Z ok  \tcmd/compile/internal/logos\t82.544s",
+    "2026-11-16T16:37:57.1447191Z ok  \tcmd/compile/internal/logos/ctfe\t5.817s",
+    "2026-11-16T16:37:57.1447847Z ok  \tcmd/compile/internal/logos/facts\t0.007s",
+    "2026-11-16T16:37:57.1448407Z ok  \tcmd/compile/internal/logos/lint\t2.082s",
+    "2026-11-16T16:37:57.1449059Z ok  \tcmd/compile/internal/logos/wasmyield\t0.004s",
+    "2026-11-16T16:37:57.1449568Z ok  \tcmd/compile/internal/base\t0.003s",
+    "2026-11-16T16:37:57.1450145Z ok  \tcmd/compile/internal/noder\t16.709s",
+    "2026-11-16T16:37:57.1450730Z ok  \tcmd/compile/internal/syntax\t2.841s",
+    "2026-11-16T16:37:57.1451252Z ok  \tcmd/compile/internal/types2\t5.111s",
+    "2026-11-16T16:37:57.1451789Z ok  \tcmd/go/internal/work\t0.021s",
+    "2026-11-16T16:37:57.1452207Z ok  \tcmd/go/internal/logos/eject\t0.363s",
+    "2026-11-16T16:37:57.1453271Z ok  \tinternal/buildcfg\t0.002s",
+    "2026-11-16T16:38:22.3939326Z ok  \tcmd/go/internal/work\t1.144s",
+    "2026-11-16T16:38:27.6418169Z ok  \tcmd/go/internal/logos/eject\t5.502s",
+    "2026-11-16T16:38:27.6418744Z ok  \tinternal/buildcfg\t1.009s",
+    "2026-11-16T16:38:57.8414251Z ok  \tcmd/go\t22.426s",
+    "2026-11-16T16:40:05.3939943Z ok  \tcmd/go\t62.413s",
+    "2026-11-16T16:40:13.6623891Z ok  \tcmd/internal/testdir\t7.797s",
+    "2026-11-16T16:40:49.9224676Z ok  \tcmd/internal/goparity\t0.005s"
+  ],
+  "sourceEvidenceLogHashes": [
+    "2026-11-16T16:40:49.9361930Z 6068f85b6f1f91e6ae75a9bf8917c9286e0715c3b1e5af086d19cb25de98ae0f  /home/runner/work/_temp/compiler-stability-focused/build.log",
+    "2026-11-16T16:40:49.9371502Z c5b14ae4ff5b4db780f49699fe9d64a0a19cc8db54bd82938c3380a3d4539bca  /home/runner/work/_temp/compiler-stability-focused/c23.log",
+    "2026-11-16T16:40:49.9382060Z 92869a6ad657774aba757d2e2c258423e382db4ac0c922e9ef3d01035cd99dd9  /home/runner/work/_temp/compiler-stability-focused/cgo-and-variant-integration.log",
+    "2026-11-16T16:40:49.9391053Z 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b  /home/runner/work/_temp/compiler-stability-focused/format.log",
+    "2026-11-16T16:40:49.9400057Z b54d6786b3d56fe2eda29c94bf4ed207f4cf671ca2fc996650cff65d5642cabf  /home/runner/work/_temp/compiler-stability-focused/frozen-tests.log",
+    "2026-11-16T16:40:49.9408900Z c532cec377b45537fa00c11f3e312cf542acefc88db9826596c1136e6d998e7c  /home/runner/work/_temp/compiler-stability-focused/integration.log",
+    "2026-11-16T16:40:49.9417855Z 3a8a04290bd61c9992a74f34dba6f36995f9c15780ae4d98cd4ebceffb18887a  /home/runner/work/_temp/compiler-stability-focused/ledger.log",
+    "2026-11-16T16:40:49.9426721Z e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  /home/runner/work/_temp/compiler-stability-focused/noder-vet.log",
+    "2026-11-16T16:40:49.9435709Z e2108dcb008916a32726f9c79b855793bc7c93e757939deba7e50807d824814c  /home/runner/work/_temp/compiler-stability-focused/race.log",
+    "2026-11-16T16:40:49.9444740Z 43ec0fc4d2654c7e8831616806791bd71f21a74a6573e68cd3c044ee6ea5a316  /home/runner/work/_temp/compiler-stability-focused/source.txt",
+    "2026-11-16T16:40:49.9453787Z cbaf3a284dc06d98345872e18b16f0aa3a956a14c94425a192bd209ac3117e40  /home/runner/work/_temp/compiler-stability-focused/testdir.log",
+    "2026-11-16T16:40:49.9462283Z 9dfe8c38a19eb753e30a24c3aabed6301f007d720f2cf88a7533df910c6ce2ba  /home/runner/work/_temp/compiler-stability-focused/unit.log",
+    "2026-11-16T16:40:49.9471003Z e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  /home/runner/work/_temp/compiler-stability-focused/vet.log"
+  ],
+  "coverageBoundary": "These are broad installed gates. Non-verbose package output is not a direct per-test execution record. Keep root's explicit verbose both-profile TestEjectQuotedCgoTypes gate and the #418 frozen 48-cell gate pending.",
+  "rawLog": {
+    "path": "compiler-43906416846-job-133436352976.log",
+    "sha256": "97f5bd5ff3fefe0b1d97d51f759ef9e1232301230bf9962833564d64315fcbe5",
+    "bytes": 19889,
+    "encoding": "UTF-8 decoded GitHub job log; original BOM and LF endings retained"
+  }
+}

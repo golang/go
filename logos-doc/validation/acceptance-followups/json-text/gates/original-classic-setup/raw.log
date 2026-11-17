@@ -1,0 +1,6 @@
+=== RUN   TestQuotedTextAppendCannotCorruptToken
+    scan_test.go:641: "abc": End() = json: invalid use of ,string struct tag, trying to unmarshal "abc" into *json.quotedAppendingTextProbe
+--- FAIL: TestQuotedTextAppendCannotCorruptToken (0.00s)
+FAIL
+FAIL	logos/rt/json	0.010s
+FAIL

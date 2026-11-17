@@ -1,0 +1,17 @@
+func TestGenerate(t *testing.T) {
+	// If filesToWrite is set, write the generated content to disk.
+	// In the special case of "all", write all files in filemap.
+	write := *filesToWrite != ""
+	var files []string // files to process
+	if *filesToWrite != "" && *filesToWrite != "all" {
+		files = strings.Split(*filesToWrite, ",")
+	} else {
+		for file := range filemap {
+			files = append(files, file)
+		}
+	}
+
+	for _, filename := range files {
+		generate(t, filename, write)
+	}
+}

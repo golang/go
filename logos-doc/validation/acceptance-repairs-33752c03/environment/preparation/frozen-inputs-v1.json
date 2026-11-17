@@ -1,0 +1,26 @@
+{
+  "recorded_utc": "2026-11-16T21:02:30.021Z",
+  "root": "/workspace/scratch/9949907ca71e/logos-release-env-fix",
+  "base": "2535486fe9596a9212d525a5007963ef9e8682f0",
+  "src_tree": "e237c399aae8f8065b724e8a0e27585686c7da18",
+  "boundary": "Test-only inputs frozen before RED; no production edits or local Go execution",
+  "sha256": {
+    ".github/scripts/release-acceptance.sh": "a9a5fdd226443ee84ac22bb9ccef3f6c52278d55cb7973b0062a73a2a156a7b3",
+    ".github/workflows/release-acceptance.yml": "1c935efb8007e2206c405917b9b9a34f3dc9681186883d8343b14672b2ee4f2a",
+    "logos-doc/validation/release-acceptance/check_release_contract.py": "c46d9cc8569ca80659a999ab11a5208de5afecd8c4e337817af0de81bde20b26",
+    "logos-doc/validation/release-acceptance/test_bootstrap_environment.py": "7474040278eb8e00e7861678fb0698d16380092312090b8b700c6fae40dab942",
+    "src/cmd/cgo/internal/swig/swig_test.go": "aa7dbd968c7889576cee109326bbcd79d7a84b3b8d5141acca33ad23fe080ce3",
+    "src/cmd/cgo/internal/swig/testdata/callback/main.cc": "e2d363d200d58799719220bdbe5a6e57167856e642d1d760d570e00a0cc50145",
+    "src/cmd/cgo/internal/swig/testdata/callback/main.go": "91ee83dfcee78636a1fc9f8b198c3f0c1422b14029cc78e5c9e74829b34dd135",
+    "src/cmd/cgo/internal/swig/testdata/callback/main.h": "02d8bcd98cb18035d44f92068f60d3ffac24c8fccbab46a0fb9a18b1b3721896",
+    "src/cmd/cgo/internal/swig/testdata/callback/main.swigcxx": "6d101915dad15246b005d54302ee42149e0a2b66ac365a1218fabe31f2222137",
+    "src/cmd/cgo/internal/swig/testdata/stdio/main.go": "0067703849f1a6c3ee3352fadc47307f02d88060a8105ad5a36d3cecdbf2e2e3",
+    "src/cmd/cgo/internal/swig/testdata/stdio/main.swig": "5f1499fd3e611242bd1d294b452417074bb46c112b814ec59fcb474fb4211467",
+    "src/cmd/go/internal/work/security.go": "26fdfc0ec56e7e3fd149bf8de9f20b34063616ee6b9336e79d03e45bef7d15a6",
+    "src/cmd/go/internal/work/security_test.go": "09601b2c3520a29bce3a02a9740e5e7593d81c619792e6725fd1df91c5ddc434",
+    "src/cmd/go/testdata/script/logos_redteam_80.txt": "3f0acf124680db65a8eb71b72d0e68b8779b778fa64bffc00ddd9afb42b9aeef",
+    "src/runtime/gc_test.go": "242f8bc65dd504fee148cea8f6710f07ecd4faa29828aff6c927ccc5d6ddb044",
+    "src/runtime/testdata/testprog/gc.go": "6e456ad39729d17bdc71e2653ebd386b7b9666d703bf61a7b3e862b6f4dd7090",
+    "src/testing/testing.go": "27c59df1832eae458ab8d2d4b6a6252bbd1ea2a3001734910d1ce2decff16f81"
+  }
+}

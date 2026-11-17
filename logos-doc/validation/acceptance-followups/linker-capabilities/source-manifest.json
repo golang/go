@@ -1,0 +1,44 @@
+{
+  "base": "45c29ff215477f7e403188d7452fc79aef05d791",
+  "incoming": "8afec95580ed24e593307fd9d30d626eff31e22d",
+  "equivalentReviewedSource": "e5b95a2ecb5716814e52fbddddb0d6b491b6e1ce",
+  "overlaidFiles": [
+    {
+      "path": "src/cmd/link/internal/ld/capabilities_chains_logos.go",
+      "gitBlob": "062435afe8dc89ec73022f0474d900d6536c33ac",
+      "sha256": "0b44cfb58e95f2a567e0e4055d16b53535b063ffa3faf65ff4d726cbd33f0c2a",
+      "matchesReviewedE5": true
+    },
+    {
+      "path": "src/cmd/link/internal/ld/capabilities_discovery_logos_test.go",
+      "gitBlob": "e75233fbb5ed2849fe502eae253311b90c0c8bae",
+      "sha256": "884666bdbf5956560246c837a619e6157ea7ff8ad2f4bc27e3ef1fdaa2a8a1f6",
+      "matchesReviewedE5": true
+    }
+  ],
+  "retainedControls": [
+    {
+      "path": "src/cmd/link/internal/ld/capabilities_chains_logos_test.go",
+      "gitBlob": "890aea45137a48ef6078f9a14f535624266010ea",
+      "sha256": "5f88f3efea6db5680400307c1e3e08ee259be1ab7eab11a4b7d59ed951b9aec2",
+      "unchanged": true
+    },
+    {
+      "path": "src/cmd/link/internal/ld/capabilities_complete_logos_test.go",
+      "gitBlob": "1b5ac73036ce99c2140680f2877ecca643871f84",
+      "sha256": "62298945c5da84b93855e850041083f9449373b0400b6c87dc461228fc8417a9",
+      "unchanged": true
+    },
+    {
+      "path": "src/cmd/link/internal/ld/capabilities_logos_test.go",
+      "gitBlob": "0fecae3a0d945f676b1397141f36624ee955b955",
+      "sha256": "0dbc548fcc6fec9d01106a686e83a285a21119c8e2a463700fa52e1e69754ce9",
+      "unchanged": true
+    }
+  ],
+  "childBudgetSeconds": 5,
+  "childBudgetUnchanged": true,
+  "sourceCheckoutUntouched": true,
+  "candidateCheckoutUntouched": true,
+  "newMutation": "Not replayed: exact source is identical to reviewed upstream; existing adversarial oracle checks each insertion and prior RED/probe is recorded."
+}

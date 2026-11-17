@@ -6,7 +6,9 @@ package load
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"go/build"
 	"internal/logosfile"
 	"maps"
 	"slices"
@@ -14,6 +16,8 @@ import (
 
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/modload"
+
+	"golang.org/x/mod/module"
 )
 
 // IsLogos reports whether p is a loGo/s package: its first known source
@@ -43,36 +47,114 @@ func logosScrubGoFactsFlags(flags []string) []string {
 	return kept
 }
 
-// moduleKinds groups one module's loaded packages by kind, keyed by import
-// path so repeated observations of one package stay a single entry.
+// moduleKinds separates a module's source census from its loaded packages.
+// Only a loaded, error-free package can carry a diagnostic to the caller.
 type moduleKinds struct {
-	goPkgs    map[string]*Package
-	logosPkgs map[string]*Package
+	goPkgs    map[string]bool
+	logosPkgs map[string]bool
+	module    module.Version
+	carrier   *Package
+}
+
+// logosModuleError identifies a failed module census while retaining its
+// diagnostic and cause. Unlike ordinary dependency errors, a failed census
+// must also make default logos list reject the selected package graph.
+type logosModuleError struct{ err error }
+
+func (e *logosModuleError) Error() string { return e.err.Error() }
+
+func (e *logosModuleError) Unwrap() error { return e.err }
+
+// ReportLogosModuleDependencyErrors reports census failures below roots.
+// The caller reports errors on roots and owns the exit status.
+func ReportLogosModuleDependencyErrors(roots []*Package) {
+	if !cfg.Logos {
+		return
+	}
+	selected := make(map[*Package]bool, len(roots))
+	for _, p := range roots {
+		selected[p] = true
+	}
+	for _, p := range PackageList(roots) {
+		if selected[p] || p.Error == nil {
+			continue
+		}
+		if _, ok := errors.AsType[*logosModuleError](p.Error.Err); ok {
+			DefaultPrinter().Errorf(p, "%v", p.Error)
+		}
+	}
 }
 
 func (g *moduleKinds) add(p *Package) {
 	if p.IsLogos() {
-		g.logosPkgs[p.ImportPath] = p
+		g.logosPkgs[p.ImportPath] = true
 	} else {
-		g.goPkgs[p.ImportPath] = p
+		g.goPkgs[p.ImportPath] = true
+	}
+	if p.Error == nil && (g.carrier == nil || p.ImportPath < g.carrier.ImportPath) {
+		g.carrier = p
 	}
 }
 
 // checkLogosModules reports [correctness::mixed_module] once per module
-// whose loaded packages span both kinds. The error rides the existing
+// whose active packages span both kinds, including unselected siblings.
+// The error rides the existing
 // per-package error mechanism on the lexicographically first error-free
 // package of the mixed module. The generated test main is exempt from the
 // census. Packages outside any module (standard library,
 // command-line-arguments without a resolved module) and packages with no
 // source files are skipped.
-func checkLogosModules(all []*Package) {
+func checkLogosModules(ctx context.Context, ld *modload.Loader, all []*Package) {
 	if !cfg.Logos {
 		return
 	}
 	byModule := censusModuleKinds(all)
 	for _, modPath := range slices.Sorted(maps.Keys(byModule)) {
-		reportMixedModule(modPath, byModule[modPath])
+		g := byModule[modPath]
+		if g.carrier == nil {
+			continue
+		}
+		if err := scanModuleKinds(ctx, ld, g); err != nil {
+			g.carrier.Error = &PackageError{Err: &logosModuleError{err: err}}
+			g.carrier.Incomplete = true
+			continue
+		}
+		reportMixedModule(modPath, g)
 	}
+}
+
+func scanModuleKinds(ctx context.Context, ld *modload.Loader, g *moduleKinds) error {
+	m := g.module
+	dirs, err := modload.LogosModulePackageDirs(ctx, ld, m)
+	if err != nil {
+		return fmt.Errorf("classifying packages in module %s: %w", m.Path, err)
+	}
+	for _, name := range slices.Sorted(maps.Keys(dirs)) {
+		if g.goPkgs[name] || g.logosPkgs[name] {
+			continue
+		}
+		p, err := cfg.BuildContext.ImportDir(dirs[name], 0)
+		if err != nil {
+			if _, noGo := errors.AsType[*build.NoGoError](err); noGo {
+				continue
+			}
+			if _, duplicate := errors.AsType[logosfile.DuplicateStemError](err); !duplicate {
+				return fmt.Errorf("classifying package %s in module %s: %w", name, m.Path, err)
+			}
+			// Duplicate stems invalidate this package, but its complete file
+			// lists must still contribute to the module's source kinds.
+		}
+		for _, files := range [][]string{p.GoFiles, p.CgoFiles, p.TestGoFiles, p.XTestGoFiles} {
+			for _, file := range files {
+				if logosfile.Is(file) {
+					g.logosPkgs[name] = true
+				} else {
+					g.goPkgs[name] = true
+				}
+			}
+		}
+	}
+	return nil
 }
 
 // addLogosRTForGoImporter loads the implicit logos/rt import for a Go
@@ -133,8 +215,9 @@ func censusModuleKinds(all []*Package) map[string]*moduleKinds {
 		g := byModule[p.Module.Path]
 		if g == nil {
 			g = &moduleKinds{
-				goPkgs:    make(map[string]*Package),
-				logosPkgs: make(map[string]*Package),
+				goPkgs:    make(map[string]bool),
+				logosPkgs: make(map[string]bool),
+				module:    module.Version{Path: p.Module.Path, Version: p.Module.Version},
 			}
 			byModule[p.Module.Path] = g
 		}
@@ -151,45 +234,14 @@ func reportMixedModule(modPath string, g *moduleKinds) {
 	}
 	goNames := slices.Sorted(maps.Keys(g.goPkgs))
 	logosNames := slices.Sorted(maps.Keys(g.logosPkgs))
-	carrier := firstCleanPackage(g, goNames, logosNames)
+	carrier := g.carrier
 	if carrier == nil {
 		return
 	}
 	carrier.Error = &PackageError{
-		Err: fmt.Errorf("[correctness::mixed_module] module %s has Go packages (%s) and loGo/s packages (%s)", modPath, strings.Join(goNames, ", "), strings.Join(logosNames, ", ")),
+		Err: &logosModuleError{err: fmt.Errorf("[correctness::mixed_module] module %s has Go packages (%s) and loGo/s packages (%s)", modPath, strings.Join(goNames, ", "), strings.Join(logosNames, ", "))},
 	}
 	carrier.Incomplete = true
-}
-
-// firstCleanPackage returns the lexicographically first error-free package
-// of a mixed module, or nil when every package already has an error. The
-// census diagnostic lands there so it never overwrites a more specific
-// error, and it is suppressed only when the module already fails everywhere.
-func firstCleanPackage(g *moduleKinds, goNames, logosNames []string) *Package {
-	for len(goNames) > 0 && len(logosNames) > 0 {
-		if goNames[0] < logosNames[0] {
-			if p := g.goPkgs[goNames[0]]; p.Error == nil {
-				return p
-			}
-			goNames = goNames[1:]
-			continue
-		}
-		if p := g.logosPkgs[logosNames[0]]; p.Error == nil {
-			return p
-		}
-		logosNames = logosNames[1:]
-	}
-	for _, name := range goNames {
-		if p := g.goPkgs[name]; p.Error == nil {
-			return p
-		}
-	}
-	for _, name := range logosNames {
-		if p := g.logosPkgs[name]; p.Error == nil {
-			return p
-		}
-	}
-	return nil
 }
 
 // needsLogosRT decides the implicit logos/rt import: every logos package

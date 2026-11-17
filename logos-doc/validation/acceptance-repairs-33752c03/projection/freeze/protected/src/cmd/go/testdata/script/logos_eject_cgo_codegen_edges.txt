@@ -1,0 +1,106 @@
+[!cgo] skip 'cgo is not available'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env CGO_ENABLED=1
+env GOEXPERIMENT=nologosfastcgo
+
+# Effectful arena calls preserve an imported type's source alias.
+cd arena
+logos run .
+stdout '^duration: 1ns 1$'
+cp stdout $WORK/arena.txt
+logos eject -o $WORK/arena-out
+cd $WORK/arena-out
+exec env -u GOROOT GOEXPERIMENT= $UPROOT1272/bin/go run .
+cmp stdout $WORK/arena.txt
+exec env -u GOROOT GOEXPERIMENT= $UPROOT1273/bin/go run .
+cmp stdout $WORK/arena.txt
+
+# A method-bearing pointer union emits C types in its typed-nil checks.
+cd $GOPATH/src/json
+logos run .
+stdout '^zero: [{]"value":7,"count":9[}]$'
+cp stdout $WORK/json.txt
+logos eject -o $WORK/json-out
+cd $WORK/json-out
+exec env -u GOROOT GOEXPERIMENT= $UPROOT1272/bin/go run .
+cmp stdout $WORK/json.txt
+exec env -u GOROOT GOEXPERIMENT= $UPROOT1273/bin/go run .
+cmp stdout $WORK/json.txt
+
+-- arena/go.mod --
+module example.com/cgoarena
+
+go 1.27
+
+-- arena/logos.toml --
+[build]
+cgo = "allow"
+
+-- arena/main.lgo --
+package main
+
+import "C"
+
+import (
+	"fmt"
+	"logos/arena"
+	clock "time"
+)
+
+var regions [1]arena.Region
+var calls int
+
+func tick() int { calls++; return 0 }
+
+func main() {
+	values := arena.Make[clock.Duration](regions[tick()], int(C.int(1)))
+	values[0] = clock.Second
+	fmt.Println("duration:", values[0]/clock.Second, calls)
+}
+
+-- json/go.mod --
+module example.com/cgojson
+
+go 1.27
+
+-- json/logos.toml --
+[build]
+cgo = "allow"
+
+-- json/main.lgo --
+package main
+
+/*
+typedef unsigned long word;
+*/
+import "C"
+
+import (
+	"encoding/json"
+	"fmt"
+)
+
+type Item[T any] struct { Value T }
+
+func (i Item[T]) MarshalJSON() ([]byte, error) { return json.Marshal(i.Value) }
+func (i *Item[T]) UnmarshalJSON(data []byte) error { return json.Unmarshal(data, &i.Value) }
+func (i *Item[T]) IsZero() bool { return false }
+
+type Choice interface {
+	*Item[C.int] | *Item[C.word]
+	IsZero() bool
+}
+
+type Packet struct {
+	Value Choice `json:"value,omitzero"`
+	Count *C.int `json:"count"`
+}
+
+func main() {
+	count := C.int(9)
+	data, err := json.Marshal(Packet{Value: &Item[C.int]{Value: 7}, Count: &count})
+	if err != nil { panic(err) }
+	fmt.Printf("zero: %s\n", data)
+}

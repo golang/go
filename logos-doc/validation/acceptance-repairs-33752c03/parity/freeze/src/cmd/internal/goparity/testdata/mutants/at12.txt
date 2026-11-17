@@ -1,0 +1,8 @@
+kind: linker
+file: src/cmd/link/internal/ld/pcln_logos.go
+expect: at12_symbol_names
+config: K1
+-- old --
+	if ldr.SymAttr(s)&goobj.SymFlagLogosCtClone != 0 {
+-- new --
+	if ldr.SymAttr(s)&goobj.SymFlagLogosCtClone != 0 || true {

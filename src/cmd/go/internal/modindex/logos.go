@@ -49,7 +49,7 @@ func mixedPackageError(goFiles, logosFiles []string) error {
 
 // duplicateStemError mirrors the go/build duplicate-stem diagnostic.
 func duplicateStemError(first, second, stem string) error {
-	return fmt.Errorf("[correctness::duplicate_stem_filename] files %s and %s share stem %q", first, second, stem)
+	return logosfile.DuplicateStemError(fmt.Sprintf("[correctness::duplicate_stem_filename] files %s and %s share stem %q", first, second, stem))
 }
 
 // checkLogosPackage mirrors go/build checkLogosPackage over the admitted

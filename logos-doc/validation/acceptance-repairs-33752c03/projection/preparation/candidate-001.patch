@@ -1,0 +1,71 @@
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 4c797fa5..f5c552e6 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -689,9 +689,10 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ 	case _Panic:
+ 		// panic(x)
+-		// Record panic calls for result-bearing function termination and
+-		// for loGo/s option narrowing, including functions without results.
+-		if check.sig != nil && (check.sig.results.Len() > 0 || check.conf.Logos) {
++		// record panic call if inside a function with result parameters
++		// (for use in Checker.isTerminating)
++		if check.sig != nil && check.sig.results.Len() > 0 {
++			// function has result parameters
+ 			p := check.isPanic
+ 			if p == nil {
+ 				// allocate lazily
+@@ -700,6 +701,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 			}
+ 			p[call] = true
+ 		}
++		check.logosRecordVoidPanic(call)
+ 
+ 		check.assignment(x, &emptyInterface, "argument to panic")
+ 		if !x.isValid() {
+diff --git a/src/cmd/compile/internal/types2/narrow_logos.go b/src/cmd/compile/internal/types2/narrow_logos.go
+index c16c5244..e06045f5 100644
+--- a/src/cmd/compile/internal/types2/narrow_logos.go
++++ b/src/cmd/compile/internal/types2/narrow_logos.go
+@@ -428,6 +428,18 @@ func (check *Checker) logosAfterStmt(s syntax.Stmt) {
+ 	}
+ }
+ 
++// logosRecordVoidPanic records builtin panic calls for loGo/s narrowing in
++// functions without result parameters.
++func (check *Checker) logosRecordVoidPanic(call *syntax.CallExpr) {
++	if !check.conf.Logos || check.sig == nil || check.sig.results.Len() != 0 {
++		return
++	}
++	if check.isPanic == nil {
++		check.isPanic = make(map[*syntax.CallExpr]bool)
++	}
++	check.isPanic[call] = true
++}
++
+ func (check *Checker) logosExits(s syntax.Stmt) bool {
+ 	switch s := s.(type) {
+ 	case *syntax.ReturnStmt:
+diff --git a/src/go/types/generate_test.go b/src/go/types/generate_test.go
+index 9c8a5273..fc278b94 100644
+--- a/src/go/types/generate_test.go
++++ b/src/go/types/generate_test.go
+@@ -804,6 +804,7 @@ var logosMethods = map[string]bool{
+ 	"LogosAssertEffects":        true,
+ 	"SetLogosAssertEffects":     true,
+ 	"SetLogosReadonly":          true,
++	"logosCgoTypeName":          true,
+ 	"logosStructTupleIdentical": true,
+ }
+ var logosFuncs = map[string]bool{
+@@ -883,7 +884,8 @@ var logosDecls = map[string]bool{
+ 	"logosMonoCyclicNamed":  true,
+ }
+ var logosFields = map[string]map[string]bool{
+-	"Func": {"logosReadonly": true, "logosAssert": true},
++	"Func":       {"logosReadonly": true, "logosAssert": true},
++	"typeWriter": {"logosCgoPkg": true},
+ }
+ 
+ func stripLogosDecls(f *ast.File, drop func(from, to token.Pos)) {

@@ -1,0 +1,43 @@
+{
+  "checked_utc": "2026-11-16T20:55:18.182Z",
+  "fork_src_tree": "e237c399aae8f8065b724e8a0e27585686c7da18",
+  "upstream_root": "/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci",
+  "files": [
+    {
+      "path": "src/cmd/go/internal/work/security.go",
+      "fork_sha256": "26fdfc0ec56e7e3fd149bf8de9f20b34063616ee6b9336e79d03e45bef7d15a6",
+      "upstream_sha256": "26fdfc0ec56e7e3fd149bf8de9f20b34063616ee6b9336e79d03e45bef7d15a6",
+      "byte_identical": true
+    },
+    {
+      "path": "src/cmd/go/internal/work/security_test.go",
+      "fork_sha256": "09601b2c3520a29bce3a02a9740e5e7593d81c619792e6725fd1df91c5ddc434",
+      "upstream_sha256": "09601b2c3520a29bce3a02a9740e5e7593d81c619792e6725fd1df91c5ddc434",
+      "byte_identical": true
+    },
+    {
+      "path": "src/testing/testing.go",
+      "fork_sha256": "27c59df1832eae458ab8d2d4b6a6252bbd1ea2a3001734910d1ce2decff16f81",
+      "upstream_sha256": "27c59df1832eae458ab8d2d4b6a6252bbd1ea2a3001734910d1ce2decff16f81",
+      "byte_identical": true
+    },
+    {
+      "path": "src/runtime/gc_test.go",
+      "fork_sha256": "242f8bc65dd504fee148cea8f6710f07ecd4faa29828aff6c927ccc5d6ddb044",
+      "upstream_sha256": "242f8bc65dd504fee148cea8f6710f07ecd4faa29828aff6c927ccc5d6ddb044",
+      "byte_identical": true
+    },
+    {
+      "path": "src/runtime/testdata/testprog/gc.go",
+      "fork_sha256": "6e456ad39729d17bdc71e2653ebd386b7b9666d703bf61a7b3e862b6f4dd7090",
+      "upstream_sha256": "6e456ad39729d17bdc71e2653ebd386b7b9666d703bf61a7b3e862b6f4dd7090",
+      "byte_identical": true
+    },
+    {
+      "path": "src/cmd/cgo/internal/swig/swig_test.go",
+      "fork_sha256": "aa7dbd968c7889576cee109326bbcd79d7a84b3b8d5141acca33ad23fe080ce3",
+      "upstream_sha256": "aa7dbd968c7889576cee109326bbcd79d7a84b3b8d5141acca33ad23fe080ce3",
+      "byte_identical": true
+    }
+  ]
+}

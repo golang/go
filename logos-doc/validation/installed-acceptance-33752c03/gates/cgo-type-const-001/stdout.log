@@ -1,0 +1,20 @@
+=== RUN   TestLogosCgoConstTypes
+=== RUN   TestLogosCgoConstTypes/map/slice
+=== RUN   TestLogosCgoConstTypes/map/array
+=== RUN   TestLogosCgoConstTypes/map/local
+=== RUN   TestLogosCgoConstTypes/map/overflow
+=== RUN   TestLogosCgoConstTypes/syntax/slice
+=== RUN   TestLogosCgoConstTypes/syntax/array
+=== RUN   TestLogosCgoConstTypes/syntax/local
+=== RUN   TestLogosCgoConstTypes/syntax/overflow
+--- PASS: TestLogosCgoConstTypes (0.00s)
+    --- PASS: TestLogosCgoConstTypes/map/slice (0.00s)
+    --- PASS: TestLogosCgoConstTypes/map/array (0.00s)
+    --- PASS: TestLogosCgoConstTypes/map/local (0.00s)
+    --- PASS: TestLogosCgoConstTypes/map/overflow (0.00s)
+    --- PASS: TestLogosCgoConstTypes/syntax/slice (0.00s)
+    --- PASS: TestLogosCgoConstTypes/syntax/array (0.00s)
+    --- PASS: TestLogosCgoConstTypes/syntax/local (0.00s)
+    --- PASS: TestLogosCgoConstTypes/syntax/overflow (0.00s)
+PASS
+ok  	cmd/compile/internal/types2	0.004s

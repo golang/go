@@ -66,3 +66,15 @@ func main() {
 	a, b := loadPair(p)
 	fmt.Println(a, b)
 }
+
+-- m/go.work --
+go 1.27
+
+use (
+	.
+	./lgoonly
+)
+-- m/lgoonly/go.mod --
+module example.com/backendkinds/lgoonly
+
+go 1.27

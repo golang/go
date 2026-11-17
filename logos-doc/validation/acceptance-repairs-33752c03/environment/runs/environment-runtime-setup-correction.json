@@ -1,0 +1,7 @@
+{
+  "prior": "environment-runtime-execute-001",
+  "classification": "setup failure before child compilation",
+  "cause": "Compiled runtime test binary was launched from src instead of its package directory src/runtime; relative testdata/testprog was absent.",
+  "correction": "Run the identical binary, environment and flags from src/runtime.",
+  "implementation_attempts_added": 0
+}

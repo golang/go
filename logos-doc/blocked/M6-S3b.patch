@@ -1,0 +1,1332 @@
+diff --git a/src/cmd/compile/internal/logos/structdefault_validation_test.go b/src/cmd/compile/internal/logos/structdefault_validation_test.go
+deleted file mode 100644
+--- a/src/cmd/compile/internal/logos/structdefault_validation_test.go
++++ /dev/null
+@@ -1,130 +0,0 @@
+-// Copyright 2026 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package logos
+-
+-import (
+-	"bytes"
+-	"internal/testenv"
+-	"os"
+-	"os/exec"
+-	"path/filepath"
+-	"strings"
+-	"testing"
+-
+-	"cmd/compile/internal/syntax"
+-	"cmd/compile/internal/types2"
+-)
+-
+-func TestStructDefaultLexicalScope(t *testing.T) {
+-	for _, tc := range []struct {
+-		name string
+-		src  string
+-	}{
+-		{
+-			name: "file import",
+-			src: `package main
+-import "time"
+-type Cfg struct { Delay time.Duration = time.Second }
+-func main() {
+-	if (Cfg{}).Delay != 1000000000 { panic("wrong imported constant") }
+-	println("ok lexical scope")
+-}
+-`,
+-		},
+-		{
+-			name: "local constant",
+-			src: `package main
+-func main() {
+-	const local = 17
+-	type Cfg struct { Value int = local }
+-	if (Cfg{}).Value != 17 { panic("wrong local constant") }
+-	println("ok lexical scope")
+-}
+-`,
+-		},
+-	} {
+-		t.Run(tc.name, func(t *testing.T) {
+-			runStructDefaultLowerings(t, tc.src, "ok lexical scope\n")
+-		})
+-	}
+-}
+-
+-func TestStructDefaultRejectsInvalidDeclaration(t *testing.T) {
+-	for _, tc := range []struct {
+-		name string
+-		decl string
+-		want string
+-	}{
+-		{"byte below minimum", "Value uint8 = -1", "overflows"},
+-		{"byte minimum", "Value uint8 = 0", ""},
+-		{"byte maximum", "Value uint8 = 255", ""},
+-		{"byte above maximum", "Value uint8 = 256", "overflows"},
+-		{"wrong scalar type", `Value int = "bad"`, "cannot use"},
+-		{"wrong composite type", `Value []int = []string{"bad"}`, "cannot use"},
+-		{"dynamic map key", `Value map[int]int = map[int]int{key(): 1}`, "default_not_constant"},
+-	} {
+-		t.Run(tc.name, func(t *testing.T) {
+-			src := "package p\nfunc key() int { return 1 }\ntype Unused struct { " + tc.decl + " }\n"
+-			file := ejectParse(t, syntax.NewFileBase("defaultcheck.lgo"), []byte(src), syntax.LogosMode)
+-			var errors []string
+-			conf := types2.Config{
+-				Logos: true,
+-				Error: func(err error) { errors = append(errors, err.Error()) },
+-			}
+-			_, err := conf.Check("p", []*syntax.File{file}, &types2.Info{})
+-			if tc.want == "" {
+-				if err != nil {
+-					t.Fatalf("valid field default rejected: %v", err)
+-				}
+-				return
+-			}
+-			if err == nil || !strings.Contains(strings.Join(errors, "\n"), tc.want) {
+-				t.Fatalf("field default errors = %v, want %q without constructing Unused", errors, tc.want)
+-			}
+-		})
+-	}
+-}
+-
+-func runStructDefaultLowerings(t *testing.T, src, want string) {
+-	t.Helper()
+-	data := []byte(src)
+-	base := syntax.NewFileBase("defaultbinding.lgo")
+-	file := ejectParse(t, base, data, syntax.LogosMode|syntax.CheckBranches)
+-	pkg, info := ejectCheck(t, file)
+-	edits := ejectLower(t, pkg, info, file, data)
+-	ejected, err := ApplyEdits(data, base, edits)
+-	if err != nil {
+-		t.Fatalf("eject field defaults: %v", err)
+-	}
+-	var native bytes.Buffer
+-	if _, err := syntax.Fprint(&native, file, 0); err != nil {
+-		t.Fatalf("print lowered field defaults: %v", err)
+-	}
+-	t.Run("native tree", func(t *testing.T) {
+-		runStructDefaultGo(t, native.Bytes(), want)
+-	})
+-	t.Run("ejected text", func(t *testing.T) {
+-		runStructDefaultGo(t, ejected, want)
+-	})
+-}
+-
+-func runStructDefaultGo(t *testing.T, src []byte, want string) {
+-	t.Helper()
+-	testenv.MustHaveGoBuild(t)
+-	dir := t.TempDir()
+-	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module defaultbinding\n\ngo 1.27\n"), 0o644); err != nil {
+-		t.Fatal(err)
+-	}
+-	if err := os.WriteFile(filepath.Join(dir, "main.go"), src, 0o644); err != nil {
+-		t.Fatal(err)
+-	}
+-	cmd := exec.Command(testenv.GoToolPath(t), "run", ".")
+-	cmd.Dir = dir
+-	cmd.Env = append(os.Environ(), "GOPROXY=off", "GOTOOLCHAIN=local", "GOWORK=off")
+-	out, err := cmd.CombinedOutput()
+-	if err != nil || string(out) != want {
+-		t.Fatalf("field default behavior: %v\n%s\nwant %s", err, out, want)
+-	}
+-}
+diff --git a/src/cmd/compile/internal/logos/structdefault_binding_test.go b/src/cmd/compile/internal/logos/structdefault_binding_test.go
+new file mode 100644
+--- /dev/null
++++ b/src/cmd/compile/internal/logos/structdefault_binding_test.go
+@@ -0,0 +1,254 @@
++// Copyright 2026 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package logos
++
++import (
++	"bytes"
++	"internal/testenv"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"runtime"
++	"strings"
++	"testing"
++
++	"cmd/compile/internal/syntax"
++	"cmd/compile/internal/types2"
++)
++
++// Both forms must retain declaration bindings. The Go compiler that runs
++// the result is an independent oracle for lexical scope and constant types.
++func TestStructDefaultDeclarationBinding(t *testing.T) {
++	const src = `package main
++
++const port = 8080
++const key = 7
++type code int
++const status code = 9
++
++type Cfg struct {
++	Port int = port
++	Items []int = []int{port, 2}
++	Entries map[int]int = map[int]int{key: port}
++	Status any = status
++}
++
++func main() {
++	const port = 99
++	const key = 3
++	const status = "shadow"
++	_ = port
++	_ = key
++	_ = status
++	c := Cfg{}
++	entry, present := c.Entries[7]
++	if c.Port != 8080 || c.Items[0] != 8080 || !present || entry != 8080 {
++		panic("field defaults captured use-site names")
++	}
++	if _, ok := c.Status.(code); !ok {
++		panic("field default lost its declared constant type")
++	}
++	d := Cfg{Port: 23}
++	if d.Port != 23 {
++		panic("field default replaced an explicit initializer")
++	}
++	c.Items[0] = 1
++	if d.Items[0] != 8080 {
++		panic("default composites share mutable storage")
++	}
++	println("ok declaration bindings")
++}
++`
++	runStructDefaultLowerings(t, src, "ok declaration bindings\n")
++}
++
++func TestStructDefaultLexicalScope(t *testing.T) {
++	for _, tc := range []struct {
++		name string
++		src  string
++	}{
++		{
++			name: "file import",
++			src: `package main
++import "time"
++type Cfg struct { Delay time.Duration = time.Second }
++func main() {
++	if (Cfg{}).Delay != 1000000000 { panic("wrong imported constant") }
++	println("ok lexical scope")
++}
++`,
++		},
++		{
++			name: "local constant",
++			src: `package main
++func main() {
++	const local = 17
++	type Cfg struct { Value int = local }
++	if (Cfg{}).Value != 17 { panic("wrong local constant") }
++	println("ok lexical scope")
++}
++`,
++		},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			runStructDefaultLowerings(t, tc.src, "ok lexical scope\n")
++		})
++	}
++}
++
++func TestStructDefaultRejectsInvalidDeclaration(t *testing.T) {
++	for _, tc := range []struct {
++		name string
++		decl string
++		want string
++	}{
++		{"byte below minimum", "Value uint8 = -1", "overflows"},
++		{"byte minimum", "Value uint8 = 0", ""},
++		{"byte maximum", "Value uint8 = 255", ""},
++		{"byte above maximum", "Value uint8 = 256", "overflows"},
++		{"wrong scalar type", `Value int = "bad"`, "cannot use"},
++		{"wrong composite type", `Value []int = []string{"bad"}`, "cannot use"},
++		{"dynamic map key", `Value map[int]int = map[int]int{key(): 1}`, "default_not_constant"},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			src := "package p\nfunc key() int { return 1 }\ntype Unused struct { " + tc.decl + " }\n"
++			file := ejectParse(t, syntax.NewFileBase("defaultcheck.lgo"), []byte(src), syntax.LogosMode)
++			var errors []string
++			conf := types2.Config{
++				Logos: true,
++				Error: func(err error) { errors = append(errors, err.Error()) },
++			}
++			_, err := conf.Check("p", []*syntax.File{file}, &types2.Info{})
++			if tc.want == "" {
++				if err != nil {
++					t.Fatalf("valid field default rejected: %v", err)
++				}
++				return
++			}
++			if err == nil || !strings.Contains(strings.Join(errors, "\n"), tc.want) {
++				t.Fatalf("field default errors = %v, want %q without constructing Unused", errors, tc.want)
++			}
++		})
++	}
++}
++
++func TestStructDefaultExportedConstantBindings(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	dir := t.TempDir()
++	for name, src := range map[string]string{
++		"go.mod": "module example.com/defaultbinding\n\ngo 1.27\n",
++		"producer/defaults.lgo": `package producer
++const hidden = 8080
++const index = 1
++type code int
++const status code = 9
++type Cfg struct {
++	Port int = hidden
++	Half float64 = 1.0 / 2
++	Values [2]int = [2]int{index: hidden}
++	Status any = status
++}
++func HasCode(c Cfg) bool {
++	_, ok := c.Status.(code)
++	return ok
++}
++`,
++		"main.lgo": `package main
++import renamed "example.com/defaultbinding/producer"
++const hidden = 99
++const index = 0
++const status = "shadow"
++func main() {
++	c := renamed.Cfg{}
++	if c.Port != 8080 || c.Half != 0.5 || c.Values != [2]int{0, 8080} {
++		panic("exported defaults captured consumer names")
++	}
++	if !renamed.HasCode(c) { panic("exported default lost its private type") }
++	println("ok exported bindings")
++}
++`,
++	} {
++		path := filepath.Join(dir, name)
++		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
++			t.Fatal(err)
++		}
++		if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
++			t.Fatal(err)
++		}
++	}
++	goTool := testenv.GoToolPath(t)
++	logosName := "logos"
++	if runtime.GOOS == "windows" {
++		logosName += ".exe"
++	}
++	logosTool := filepath.Join(filepath.Dir(goTool), logosName)
++	env := append(os.Environ(), "GOPROXY=off", "GOTOOLCHAIN=local", "GOWORK=off", "GOAMD64=v1")
++	t.Run("native", func(t *testing.T) {
++		cmd := exec.Command(logosTool, "run", ".")
++		cmd.Dir = dir
++		cmd.Env = env
++		out, err := cmd.CombinedOutput()
++		if err != nil || string(out) != "ok exported bindings\n" {
++			t.Fatalf("native imported defaults: %v\n%s", err, out)
++		}
++	})
++	t.Run("ejected", func(t *testing.T) {
++		cmd := exec.Command(logosTool, "eject", "-o", "out")
++		cmd.Dir = dir
++		cmd.Env = env
++		if out, err := cmd.CombinedOutput(); err != nil {
++			t.Fatalf("eject imported defaults: %v\n%s", err, out)
++		}
++		cmd = exec.Command(goTool, "run", ".")
++		cmd.Dir = filepath.Join(dir, "out")
++		cmd.Env = env
++		out, err := cmd.CombinedOutput()
++		if err != nil || string(out) != "ok exported bindings\n" {
++			t.Fatalf("ejected imported defaults: %v\n%s", err, out)
++		}
++	})
++}
++
++func runStructDefaultLowerings(t *testing.T, src, want string) {
++	t.Helper()
++	data := []byte(src)
++	base := syntax.NewFileBase("defaultbinding.lgo")
++	file := ejectParse(t, base, data, syntax.LogosMode|syntax.CheckBranches)
++	pkg, info := ejectCheck(t, file)
++	edits := ejectLower(t, pkg, info, file, data)
++	ejected, err := ApplyEdits(data, base, edits)
++	if err != nil {
++		t.Fatalf("eject field defaults: %v", err)
++	}
++	var native bytes.Buffer
++	if _, err := syntax.Fprint(&native, file, 0); err != nil {
++		t.Fatalf("print lowered field defaults: %v", err)
++	}
++	t.Run("native tree", func(t *testing.T) {
++		runStructDefaultGo(t, native.Bytes(), want)
++	})
++	t.Run("ejected text", func(t *testing.T) {
++		runStructDefaultGo(t, ejected, want)
++	})
++}
++
++func runStructDefaultGo(t *testing.T, src []byte, want string) {
++	t.Helper()
++	testenv.MustHaveGoBuild(t)
++	dir := t.TempDir()
++	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module defaultbinding\n\ngo 1.27\n"), 0o644); err != nil {
++		t.Fatal(err)
++	}
++	if err := os.WriteFile(filepath.Join(dir, "main.go"), src, 0o644); err != nil {
++		t.Fatal(err)
++	}
++	cmd := exec.Command(testenv.GoToolPath(t), "run", ".")
++	cmd.Dir = dir
++	cmd.Env = append(os.Environ(), "GOPROXY=off", "GOTOOLCHAIN=local", "GOWORK=off")
++	out, err := cmd.CombinedOutput()
++	if err != nil || string(out) != want {
++		t.Fatalf("field default behavior: %v\n%s\nwant %s", err, out, want)
++	}
++}
+diff --git a/src/cmd/compile/internal/logos/structdefault_blank_lowering_test.go b/src/cmd/compile/internal/logos/structdefault_blank_lowering_test.go
+new file mode 100644
+--- /dev/null
++++ b/src/cmd/compile/internal/logos/structdefault_blank_lowering_test.go
+@@ -0,0 +1,44 @@
++// Copyright 2026 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package logos
++
++import "testing"
++
++// Blank defaults are checked at their declaration, but cannot become literal
++// keys. Ignoring them must preserve named defaults and explicit initializers.
++func TestStructDefaultBlankFieldLowering(t *testing.T) {
++	const src = `package main
++
++type Unused struct {
++	_ int
++	_ string = "unused"
++	Value int = 31
++}
++
++type Cfg struct {
++	_ int = 1
++	_ string = "padding"
++	Value int = 17
++}
++
++type OnlyBlank struct {
++	_ int = 1
++	_ string = "padding"
++}
++
++func main() {
++	a := Cfg{}
++	b := Cfg{Value: 23}
++	c := &Cfg{}
++	if a.Value != 17 || b.Value != 23 || c.Value != 17 {
++		panic("blank fields changed named defaults or explicit values")
++	}
++	_ = OnlyBlank{}
++	_ = &OnlyBlank{}
++	println("ok blank defaults")
++}
++`
++	runStructDefaultLowerings(t, src, "ok blank defaults\n")
++}
+diff --git a/src/cmd/compile/internal/logos/structdefault_derived_test.go b/src/cmd/compile/internal/logos/structdefault_derived_test.go
+new file mode 100644
+--- /dev/null
++++ b/src/cmd/compile/internal/logos/structdefault_derived_test.go
+@@ -0,0 +1,40 @@
++// Copyright 2026 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package logos
++
++import "testing"
++
++// A local definition has a distinct named type but retains the struct's
++// defaults. Passing through the producer helper must preserve that type.
++func TestStructDefaultLocalDerivedType(t *testing.T) {
++	const src = `package main
++
++type Cfg struct {
++	Count int = 17
++	Items []int = []int{17}
++}
++
++func main() {
++	type Local Cfg
++	type Alias = Local
++	a := Local{}
++	b := Local{Count: 23}
++	c := &Alias{}
++	var exact Local = a
++	if exact.Count != 17 || b.Count != 23 || c.Count != 17 {
++		panic("local derived type lost its defaults or explicit initializer")
++	}
++	if a.Items[0] != 17 || b.Items[0] != 17 || c.Items[0] != 17 {
++		panic("local derived type lost its composite default")
++	}
++	a.Items[0] = 1
++	if b.Items[0] != 17 || c.Items[0] != 17 {
++		panic("local derived type defaults share mutable storage")
++	}
++	println("ok local derived defaults")
++}
++`
++	runStructDefaultLowerings(t, src, "ok local derived defaults\n")
++}
+diff --git a/src/cmd/compile/internal/logos/structdefault_generic_capture_test.go b/src/cmd/compile/internal/logos/structdefault_generic_capture_test.go
+new file mode 100644
+--- /dev/null
++++ b/src/cmd/compile/internal/logos/structdefault_generic_capture_test.go
+@@ -0,0 +1,26 @@
++// Copyright 2026 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package logos
++
++import "testing"
++
++func TestStructDefaultLocalGenericCapture(t *testing.T) {
++	const src = `package main
++
++func main() {
++	type Box[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10 any] struct {
++		Count int = 17
++		Items []T10 = []T10{}
++	}
++	c := Box[int, int, int, int, int, int, int, int, int, int, string]{}
++	var _ []string = c.Items
++	if c.Count != 17 || c.Items == nil || len(c.Items) != 0 {
++		panic("local generic default lost its type argument")
++	}
++	println("ok local generic capture")
++}
++`
++	runStructDefaultLowerings(t, src, "ok local generic capture\n")
++}
+diff --git a/src/cmd/compile/internal/logos/structdefault_helper_boundary_test.go b/src/cmd/compile/internal/logos/structdefault_helper_boundary_test.go
+new file mode 100644
+--- /dev/null
++++ b/src/cmd/compile/internal/logos/structdefault_helper_boundary_test.go
+@@ -0,0 +1,221 @@
++// Copyright 2026 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package logos
++
++import (
++	"bytes"
++	"internal/testenv"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"strings"
++	"testing"
++
++	"cmd/compile/internal/logos/facts"
++	"cmd/compile/internal/syntax"
++	"cmd/compile/internal/types2"
++	"cmd/internal/goobj"
++)
++
++func TestStructDefaultHelperSignature(t *testing.T) {
++	const head = `package producer
++type Config struct { Value int }
++type Other struct { Value int }
++type Alias = Config
++`
++	for _, tc := range []struct {
++		name string
++		decl string
++		want string
++	}{
++		{"missing", "", "not a function"},
++		{"constant", "const Logos_Default_Config = 1", "not a function"},
++		{"function variable", "var Logos_Default_Config func(Config, [1]bool) Config", "not a function"},
++		{"missing parameter", "func Logos_Default_Config(v Config) Config { return v }", "incompatible signature"},
++		{"extra parameter", "func Logos_Default_Config(v Config, m [1]bool, extra int) Config { return v }", "incompatible signature"},
++		{"different named input", "func Logos_Default_Config(v Other, m [1]bool) Config { return Config(v) }", "incompatible signature"},
++		{"short mask", "func Logos_Default_Config(v Config, m [0]bool) Config { return v }", "incompatible signature"},
++		{"long mask", "func Logos_Default_Config(v Config, m [2]bool) Config { return v }", "incompatible signature"},
++		{"wrong mask element", "func Logos_Default_Config(v Config, m [1]int) Config { return v }", "incompatible signature"},
++		{"slice mask", "func Logos_Default_Config(v Config, m []bool) Config { return v }", "incompatible signature"},
++		{"missing result", "func Logos_Default_Config(v Config, m [1]bool) {}", "incompatible signature"},
++		{"extra result", "func Logos_Default_Config(v Config, m [1]bool) (Config, Config) { return v, v }", "incompatible signature"},
++		{"different named result", "func Logos_Default_Config(v Config, m [1]bool) Other { return Other(v) }", "incompatible signature"},
++		{"variadic", "func Logos_Default_Config(v Config, m ...bool) Config { return v }", "incompatible signature"},
++		{"unexpected generic parameter", "func Logos_Default_Config[T any](v Config, m [1]bool) Config { return v }", "incompatible type parameters"},
++		{"exact signature", "func Logos_Default_Config(v Config, m [1]bool) Config { return v }", ""},
++		{"identical aliases", "func Logos_Default_Config(v Alias, m [1]bool) Alias { return v }", ""},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			pkg := checkDefaultHelperPackage(t, "example.com/helper-signature", head+tc.decl)
++			typ := pkg.Scope().Lookup("Config").Type()
++			err := checkDefaultHelper(pkg, typ, "Logos_Default_Config", nil)
++			if tc.want == "" {
++				if err != nil {
++					t.Fatalf("valid producer helper rejected: %v", err)
++				}
++			} else if err == nil || !strings.Contains(err.Error(), tc.want) {
++				t.Fatalf("helper validation = %v, want %q", err, tc.want)
++			}
++		})
++	}
++}
++
++func TestStructDefaultHelperGenericSignature(t *testing.T) {
++	const head = `package producer
++type Config[T any] struct { Value T }
++var Target Config[int]
++`
++	for _, tc := range []struct {
++		name string
++		decl string
++		want string
++	}{
++		{"missing type parameter", "func Logos_Default_Config(v Config[int], m [1]bool) Config[int] { return v }", "incompatible type parameters"},
++		{"extra type parameter", "func Logos_Default_Config[T, U any](v Config[T], m [1]bool) Config[T] { return v }", "incompatible type parameters"},
++		{"incompatible constraint", "func Logos_Default_Config[T ~string](v Config[T], m [1]bool) Config[T] { return v }", "does not satisfy"},
++		{"exact generic signature", "func Logos_Default_Config[T any](v Config[T], m [1]bool) Config[T] { return v }", ""},
++		{"compatible constraint", "func Logos_Default_Config[T ~int](v Config[T], m [1]bool) Config[T] { return v }", ""},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			pkg := checkDefaultHelperPackage(t, "example.com/helper-generic", head+tc.decl)
++			typ := pkg.Scope().Lookup("Target").Type().(*types2.Named)
++			err := checkDefaultHelper(pkg, typ, "Logos_Default_Config", typ.TypeArgs())
++			if tc.want == "" {
++				if err != nil {
++					t.Fatalf("valid generic producer helper rejected: %v", err)
++				}
++			} else if err == nil || !strings.Contains(err.Error(), tc.want) {
++				t.Fatalf("generic helper validation = %v, want %q", err, tc.want)
++			}
++		})
++	}
++}
++
++// Matching-fingerprint metadata may describe a default, but its source text
++// is never executable consumer code. Only the checked producer helper runs.
++func TestStructDefaultImportedTextIsOpaque(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	const module = "example.com/defaultopaque"
++	const path = module + "/producer"
++	const producer = `package producer
++type Config struct {
++	Value int
++	First int
++	Second int
++	hidden int
++}
++func Logos_Default_Config(v Config, present [4]bool) Config {
++	if !present[0] { v.Value = 17 }
++	if !present[3] { v.hidden = 29 }
++	return v
++}
++func Valid(v Config) bool { return v.hidden == 29 }
++`
++	pkg := checkDefaultHelperPackage(t, path, producer)
++	const hostile = `func() int { panic("untrusted default expression executed") }()`
++	fp := goobj.FingerprintType{1, 3, 5, 7, 2, 4, 6, 8}
++	metadata := &facts.Facts{
++		Defaults: []facts.DefaultFact{
++			{Type: "Config", Field: "Value", Text: hostile},
++			{Type: "Config", Field: "hidden", Text: hostile},
++		},
++		DefaultHelpers: []facts.DefaultHelperFact{{Type: "Config", Helper: "Logos_Default_Config"}},
++	}
++	if _, err := facts.Import(path, string(fp[:]), facts.Encode(fp, metadata)); err != nil {
++		t.Fatalf("import structurally valid helper metadata: %v", err)
++	}
++	const consumer = `package main
++import source "example.com/defaultopaque/producer"
++type Alias = source.Config
++var valid = source.Valid
++var order int
++func next(v int) int { order = order*10 + v; return v }
++func main() {
++	const source = 91
++	_ = source
++	a := Alias{First: next(1), Second: next(2)}
++	b := Alias{Value: next(3), First: next(4), Second: next(5)}
++	if order != 12345 || a.Value != 17 || b.Value != 3 ||
++		a.First != 1 || a.Second != 2 || b.First != 4 || b.Second != 5 ||
++		!valid(a) || !valid(b) {
++		panic("producer helper lost defaults, explicit values, or evaluation order")
++	}
++	println("ok opaque default metadata")
++}
++`
++	data := []byte(consumer)
++	base := syntax.NewFileBase("defaultopaque.lgo")
++	file := ejectParse(t, base, data, syntax.LogosMode|syntax.CheckBranches)
++	imp := newTestImporter(t)
++	imp.pkgs[path] = pkg
++	info := &types2.Info{
++		Types:      make(map[syntax.Expr]types2.TypeAndValue),
++		Instances:  make(map[*syntax.Name]types2.Instance),
++		Defs:       make(map[*syntax.Name]types2.Object),
++		Uses:       make(map[*syntax.Name]types2.Object),
++		Implicits:  make(map[syntax.Node]types2.Object),
++		Selections: make(map[*syntax.SelectorExpr]*types2.Selection),
++		Scopes:     make(map[syntax.Node]*types2.Scope),
++	}
++	conf := types2.Config{Importer: imp, Logos: true}
++	consumerPkg, err := conf.Check(module, []*syntax.File{file}, info)
++	if err != nil {
++		t.Fatalf("check consumer: %v", err)
++	}
++	edits := ejectLower(t, consumerPkg, info, file, data)
++	ejected, err := ApplyEdits(data, base, edits)
++	if err != nil {
++		t.Fatalf("eject consumer: %v", err)
++	}
++	var native bytes.Buffer
++	if _, err := syntax.Fprint(&native, file, 0); err != nil {
++		t.Fatal(err)
++	}
++	for _, tc := range []struct {
++		name string
++		src  []byte
++	}{
++		{"native tree", native.Bytes()},
++		{"ejected text", ejected},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			if bytes.Contains(tc.src, []byte("untrusted default expression executed")) {
++				t.Fatal("imported default text entered generated consumer code")
++			}
++			dir := t.TempDir()
++			if err := os.Mkdir(filepath.Join(dir, "producer"), 0o755); err != nil {
++				t.Fatal(err)
++			}
++			for name, text := range map[string][]byte{
++				"go.mod":               []byte("module " + module + "\n\ngo 1.27\n"),
++				"main.go":              tc.src,
++				"producer/producer.go": []byte(producer),
++			} {
++				if err := os.WriteFile(filepath.Join(dir, name), text, 0o644); err != nil {
++					t.Fatal(err)
++				}
++			}
++			cmd := exec.Command(testenv.GoToolPath(t), "run", ".")
++			cmd.Dir = dir
++			cmd.Env = append(os.Environ(), "GOPROXY=off", "GOTOOLCHAIN=local", "GOWORK=off")
++			out, err := cmd.CombinedOutput()
++			if err != nil || string(out) != "ok opaque default metadata\n" {
++				t.Fatalf("producer helper execution: %v\n%s", err, out)
++			}
++		})
++	}
++}
++
++func checkDefaultHelperPackage(t *testing.T, path, src string) *types2.Package {
++	t.Helper()
++	file := ejectParse(t, syntax.NewFileBase("helper.go"), []byte(src), 0)
++	conf := types2.Config{}
++	pkg, err := conf.Check(path, []*syntax.File{file}, nil)
++	if err != nil {
++		t.Fatalf("check producer helper: %v", err)
++	}
++	return pkg
++}
+diff --git a/src/cmd/compile/internal/logos/structdefault_implicit_shadow_test.go b/src/cmd/compile/internal/logos/structdefault_implicit_shadow_test.go
+new file mode 100644
+--- /dev/null
++++ b/src/cmd/compile/internal/logos/structdefault_implicit_shadow_test.go
+@@ -0,0 +1,37 @@
++// Copyright 2026 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package logos
++
++import "testing"
++
++func TestStructDefaultImplicitElementTypeShadow(t *testing.T) {
++	const src = `package main
++
++type Cfg struct { N int = 17 }
++type Rows []Cfg
++type Alias = Cfg
++type AliasRows []Alias
++
++func value(c Cfg) int { return c.N }
++
++func main() {
++	Cfg := 0
++	Alias := 0
++	_ = Cfg
++	_ = Alias
++	a := Rows{{}}
++	b := Rows{{N: 23}}
++	c := AliasRows{{}}
++	d := AliasRows{{N: 29}}
++	var exact Rows = a
++	var aliasExact AliasRows = c
++	if value(exact[0]) != 17 || value(b[0]) != 23 || value(aliasExact[0]) != 17 || value(d[0]) != 29 {
++		panic("implicit element type captured a constructor-local name")
++	}
++	println("ok implicit element type")
++}
++`
++	runStructDefaultLowerings(t, src, "ok implicit element type\n")
++}
+diff --git a/src/cmd/compile/internal/logos/structdefault_inferred_array_test.go b/src/cmd/compile/internal/logos/structdefault_inferred_array_test.go
+new file mode 100644
+--- /dev/null
++++ b/src/cmd/compile/internal/logos/structdefault_inferred_array_test.go
+@@ -0,0 +1,35 @@
++// Copyright 2026 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package logos
++
++import "testing"
++
++// The inferred length belongs to the composite literal. Capturing its type
++// must retain the checked array length and the constant's declaration binding.
++func TestStructDefaultLocalInferredArray(t *testing.T) {
++	const src = `package main
++
++const defaultValue = 17
++
++func main() {
++	type Cfg struct {
++		Values [3]int = [...]int{defaultValue, 2, 3}
++	}
++	a := Cfg{}
++	b := &Cfg{}
++	c := Cfg{Values: [3]int{7, 8, 9}}
++	if a.Values != [3]int{17, 2, 3} || b.Values != a.Values ||
++		c.Values != [3]int{7, 8, 9} {
++		panic("inferred array default lost its length, values, or explicit override")
++	}
++	a.Values[0] = 99
++	if b.Values[0] != 17 {
++		panic("inferred array defaults share storage")
++	}
++	println("ok inferred array defaults")
++}
++`
++	runStructDefaultLowerings(t, src, "ok inferred array defaults\n")
++}
+diff --git a/src/cmd/compile/internal/logos/structdefault_multifile_test.go b/src/cmd/compile/internal/logos/structdefault_multifile_test.go
+new file mode 100644
+--- /dev/null
++++ b/src/cmd/compile/internal/logos/structdefault_multifile_test.go
+@@ -0,0 +1,107 @@
++// Copyright 2026 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package logos
++
++import (
++	"bytes"
++	"internal/testenv"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"testing"
++
++	"cmd/compile/internal/syntax"
++	"cmd/compile/internal/types2"
++)
++
++func TestStructDefaultContainerAcrossFiles(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	// Keep the constructor file first: bindings must be available before the
++	// file containing the anonymous element type reaches its lowering pass.
++	inputs := []struct {
++		name string
++		src  string
++	}{
++		{"a", `package main
++
++func main() {
++	r := Rows{{}}
++	if r[0].Value != 17 {
++		panic("anonymous element default depends on file lowering order")
++	}
++	println("ok defaults across files")
++}
++`},
++		{"b", `package main
++
++const v = 17
++type Rows []struct { Value int = v }
++`},
++	}
++	var files []*syntax.File
++	srcs := make(map[*syntax.File][]byte)
++	for _, input := range inputs {
++		data := []byte(input.src)
++		file := ejectParse(t, syntax.NewFileBase(input.name+".lgo"), data, syntax.LogosMode|syntax.CheckBranches)
++		files = append(files, file)
++		srcs[file] = data
++	}
++	info := &types2.Info{
++		Types:      make(map[syntax.Expr]types2.TypeAndValue),
++		Instances:  make(map[*syntax.Name]types2.Instance),
++		Defs:       make(map[*syntax.Name]types2.Object),
++		Uses:       make(map[*syntax.Name]types2.Object),
++		Implicits:  make(map[syntax.Node]types2.Object),
++		Selections: make(map[*syntax.SelectorExpr]*types2.Selection),
++		Scopes:     make(map[syntax.Node]*types2.Scope),
++	}
++	conf := types2.Config{Logos: true}
++	pkg, err := conf.Check("defaultmultifile", files, info)
++	if err != nil {
++		t.Fatalf("check defaults across files: %v", err)
++	}
++	_, edits := Lower(pkg, info, files, srcs)
++	for _, form := range []struct {
++		name   string
++		native bool
++	}{
++		{"native tree", true},
++		{"ejected text", false},
++	} {
++		t.Run(form.name, func(t *testing.T) {
++			dir := t.TempDir()
++			if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module defaultmultifile\n\ngo 1.27\n"), 0o644); err != nil {
++				t.Fatal(err)
++			}
++			for i, file := range files {
++				var data []byte
++				if form.native {
++					var b bytes.Buffer
++					if _, err := syntax.Fprint(&b, file, 0); err != nil {
++						t.Fatalf("print lowered %s: %v", inputs[i].name, err)
++					}
++					data = b.Bytes()
++				} else {
++					var err error
++					data, err = ApplyEdits(srcs[file], file.Pos().FileBase(), edits[file])
++					if err != nil {
++						t.Fatalf("eject %s: %v", inputs[i].name, err)
++					}
++				}
++				if err := os.WriteFile(filepath.Join(dir, inputs[i].name+".go"), data, 0o644); err != nil {
++					t.Fatal(err)
++				}
++			}
++			cmd := exec.Command(testenv.GoToolPath(t), "run", ".")
++			cmd.Dir = dir
++			cmd.Env = append(os.Environ(), "GOPROXY=off", "GOTOOLCHAIN=local", "GOWORK=off")
++			out, err := cmd.CombinedOutput()
++			const want = "ok defaults across files\n"
++			if err != nil || string(out) != want {
++				t.Fatalf("defaults across files: %v\n%s\nwant %s", err, out, want)
++			}
++		})
++	}
++}
+diff --git a/src/cmd/compile/internal/logos/structdefault_new_shadow_test.go b/src/cmd/compile/internal/logos/structdefault_new_shadow_test.go
+new file mode 100644
+--- /dev/null
++++ b/src/cmd/compile/internal/logos/structdefault_new_shadow_test.go
+@@ -0,0 +1,39 @@
++// Copyright 2026 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package logos
++
++import "testing"
++
++// Applying defaults must not introduce a reference to a shadowed builtin.
++// Both explicit addresses and implicit pointer elements keep their exact type.
++func TestStructDefaultNewShadow(t *testing.T) {
++	const src = `package main
++
++type Cfg struct { N int = 17 }
++
++func value(c *Cfg) int { return c.N }
++
++func main() {
++	new := 0
++	_ = new
++	a := &Cfg{}
++	b := &Cfg{N: 23}
++	rows := []*Cfg{{}, {N: 29}}
++	var exact *Cfg = a
++	var explicit *Cfg = b
++	var exactRows []*Cfg = rows
++	if value(exact) != 17 || value(explicit) != 23 ||
++		value(exactRows[0]) != 17 || value(exactRows[1]) != 29 {
++		panic("shadowed new changed pointer defaults or explicit fields")
++	}
++	a.N = 41
++	if value(exactRows[0]) != 17 || value(explicit) != 23 {
++		panic("defaulted pointer literals share storage")
++	}
++	println("ok shadowed new")
++}
++`
++	runStructDefaultLowerings(t, src, "ok shadowed new\n")
++}
+diff --git a/src/cmd/compile/internal/logos/structdefault_origin_test.go b/src/cmd/compile/internal/logos/structdefault_origin_test.go
+new file mode 100644
+--- /dev/null
++++ b/src/cmd/compile/internal/logos/structdefault_origin_test.go
+@@ -0,0 +1,49 @@
++// Copyright 2026 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package logos
++
++import "testing"
++
++func TestStructDefaultGenericDerivedOrigins(t *testing.T) {
++	const src = `package main
++
++type Base[Element any] struct {
++	Count int = 17
++	Items []Element = []Element{}
++}
++type Middle[Item any] Base[Item]
++type Leaf[Value any] Middle[Value]
++
++func main() {
++	a := Leaf[string]{}
++	b := Leaf[int]{Count: 23}
++	if a.Count != 17 || b.Count != 23 || a.Items == nil || b.Items == nil {
++		panic("derived generic defaults lost their substitutions")
++	}
++	a.Items = append(a.Items, "a")
++	b.Items = append(b.Items, 2)
++	if a.Items[0] != "a" || b.Items[0] != 2 {
++		panic("derived generic defaults have the wrong element type")
++	}
++	println("ok derived generic defaults")
++}
++`
++	runStructDefaultLowerings(t, src, "ok derived generic defaults\n")
++}
++
++func TestStructDefaultInlineAnonymousVar(t *testing.T) {
++	const src = `package main
++
++func main() {
++	const count = 17
++	var x = struct { Count int = count }{}
++	if x.Count != 17 {
++		panic("anonymous var initializer lost its declaration binding")
++	}
++	println("ok anonymous var defaults")
++}
++`
++	runStructDefaultLowerings(t, src, "ok anonymous var defaults\n")
++}
+diff --git a/src/cmd/compile/internal/logos/structdefault_predeclared_test.go b/src/cmd/compile/internal/logos/structdefault_predeclared_test.go
+new file mode 100644
+--- /dev/null
++++ b/src/cmd/compile/internal/logos/structdefault_predeclared_test.go
+@@ -0,0 +1,38 @@
++// Copyright 2026 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package logos
++
++import "testing"
++
++func TestStructDefaultPredeclaredShadows(t *testing.T) {
++	for _, tc := range []struct {
++		name string
++		pkg  string
++		body string
++	}{
++		{"package type and value", "type bool = int\nconst true = 7\n", ""},
++		{"local type and value", "", "type bool = int\nconst true = 7\n_ = true\n"},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			src := "package main\n" + tc.pkg + `
++type Cfg struct {
++	First int = 17
++	Second int = 31
++	Unused map[int]int // Keep automatic serializers outside this mask test.
++}
++func main() {
++` + tc.body + `
++	a := Cfg{}
++	b := Cfg{First: 23}
++	if a.First != 17 || a.Second != 31 || b.First != 23 || b.Second != 31 {
++		panic("predeclared shadows changed defaults")
++	}
++	println("ok predeclared shadows")
++}
++`
++			runStructDefaultLowerings(t, src, "ok predeclared shadows\n")
++		})
++	}
++}
+diff --git a/src/cmd/compile/internal/logos/structdefault_shapes_test.go b/src/cmd/compile/internal/logos/structdefault_shapes_test.go
+new file mode 100644
+--- /dev/null
++++ b/src/cmd/compile/internal/logos/structdefault_shapes_test.go
+@@ -0,0 +1,127 @@
++// Copyright 2026 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package logos
++
++import (
++	"internal/testenv"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"runtime"
++	"testing"
++)
++
++func TestStructDefaultGenericInstances(t *testing.T) {
++	const src = `package main
++
++type Box[T any] struct {
++	Value T
++	Count int = 17
++	Items []T = []T{}
++}
++
++func main() {
++	a := Box[string]{Value: "a"}
++	b := Box[int]{Value: 2}
++	c := Box[int]{Value: 3, Count: 23}
++	if a.Count != 17 || b.Count != 17 || c.Count != 23 {
++		panic("generic instances lost their origin defaults")
++	}
++	if a.Items == nil || b.Items == nil {
++		panic("generic composite default became a zero value")
++	}
++	println("ok generic defaults")
++}
++`
++	runStructDefaultLowerings(t, src, "ok generic defaults\n")
++}
++
++func TestStructDefaultAnonymousAliasBinding(t *testing.T) {
++	const src = `package main
++
++const count = 17
++type Cfg = struct { Count int = count }
++
++func main() {
++	const count = 99
++	_ = count
++	if (Cfg{}).Count != 17 {
++		panic("anonymous alias default captured use-site names")
++	}
++	println("ok anonymous defaults")
++}
++`
++	runStructDefaultLowerings(t, src, "ok anonymous defaults\n")
++}
++
++func TestStructDefaultExportedPrivateFields(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	dir := t.TempDir()
++	for name, src := range map[string]string{
++		"go.mod": "module example.com/defaultprivate\n\ngo 1.27\n",
++		"lib/defaults.lgo": `package lib
++type Cfg struct {
++	private int = 13
++	Public int = 7
++}
++type hidden struct {
++	private int = 17
++	Public int = 9
++}
++type Alias = hidden
++func Check(a Cfg, b Alias) bool {
++	return a.private == 13 && a.Public == 23 && b.private == 17 && b.Public == 29
++}
++`,
++		"main.lgo": `package main
++import "example.com/defaultprivate/lib"
++func main() {
++	a := lib.Cfg{Public: 23}
++	b := lib.Alias{Public: 29}
++	if !lib.Check(a, b) { panic("imported private defaults were not applied") }
++	println("ok private defaults")
++}
++`,
++	} {
++		path := filepath.Join(dir, name)
++		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
++			t.Fatal(err)
++		}
++		if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
++			t.Fatal(err)
++		}
++	}
++	goTool := testenv.GoToolPath(t)
++	logosName := "logos"
++	if runtime.GOOS == "windows" {
++		logosName += ".exe"
++	}
++	logosTool := filepath.Join(filepath.Dir(goTool), logosName)
++	env := append(os.Environ(), "GOPROXY=off", "GOTOOLCHAIN=local", "GOWORK=off", "GOAMD64=v1")
++	t.Run("native", func(t *testing.T) {
++		cmd := exec.Command(logosTool, "run", ".")
++		cmd.Dir = dir
++		cmd.Env = env
++		out, err := cmd.CombinedOutput()
++		if err != nil || string(out) != "ok private defaults\n" {
++			t.Fatalf("native private defaults: %v\n%s", err, out)
++		}
++	})
++	t.Run("ejected", func(t *testing.T) {
++		cmd := exec.Command(logosTool, "eject", "-o", "out")
++		cmd.Dir = dir
++		cmd.Env = env
++		if out, err := cmd.CombinedOutput(); err != nil {
++			t.Fatalf("eject private defaults: %v\n%s", err, out)
++		}
++		cmd = exec.Command(goTool, "run", ".")
++		cmd.Dir = filepath.Join(dir, "out")
++		cmd.Env = env
++		out, err := cmd.CombinedOutput()
++		if err != nil || string(out) != "ok private defaults\n" {
++			t.Fatalf("ejected private defaults: %v\n%s", err, out)
++		}
++	})
++}
+diff --git a/src/cmd/compile/internal/logos/facts/default_helper_wire_test.go b/src/cmd/compile/internal/logos/facts/default_helper_wire_test.go
+new file mode 100644
+--- /dev/null
++++ b/src/cmd/compile/internal/logos/facts/default_helper_wire_test.go
+@@ -0,0 +1,115 @@
++// Copyright 2026 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package facts_test
++
++import (
++	"strings"
++	"testing"
++
++	"cmd/compile/internal/logos/facts"
++	"cmd/internal/goobj"
++)
++
++func TestDefaultHelperWireRoundTrip(t *testing.T) {
++	const wire = "logos-facts 3\nfingerprint 0001020304050607\n" +
++		"default Config Port 4\n8080\n" +
++		"default hidden Value 1\n7\n" +
++		"defaulthelper Config Logos_Default_Config\n" +
++		"defaulthelper hidden Logos_Default_hidden\n"
++	f, err := facts.Decode([]byte(wire))
++	if err != nil {
++		t.Fatalf("decode producer default helpers: %v", err)
++	}
++	if len(f.Defaults) != 2 {
++		t.Fatalf("decoded default descriptions = %d, want 2", len(f.Defaults))
++	}
++	if got := string(facts.Encode(f.Fingerprint, f)); got != wire {
++		t.Fatalf("default helper round trip:\n got %q\nwant %q", got, wire)
++	}
++	const path = "example.com/defaulthelper/complete"
++	if _, err := facts.Import(path, string(f.Fingerprint[:]), []byte(wire)); err != nil {
++		t.Fatalf("import complete producer default helpers: %v", err)
++	}
++	if _, ok := facts.Lookup(path); !ok {
++		t.Fatal("complete imported default helpers were not registered")
++	}
++}
++
++func TestDefaultHelperWireRejectsDuplicateType(t *testing.T) {
++	for _, second := range []string{"Logos_Default_Config", "Logos_Default_Other"} {
++		t.Run(second, func(t *testing.T) {
++			wire := dupHead() + "defaulthelper Config Logos_Default_Config\n" +
++				"defaulthelper Config " + second + "\n"
++			_, err := facts.Decode([]byte(wire))
++			if err == nil || !strings.Contains(err.Error(), "uplicate") ||
++				!strings.Contains(err.Error(), "Config") {
++				t.Fatalf("duplicate helper mapping error = %v, want Config duplication", err)
++			}
++		})
++	}
++}
++
++func TestDefaultHelperWireRejectsMalformed(t *testing.T) {
++	for _, record := range []string{
++		"defaulthelper",
++		"defaulthelper Config",
++		"defaulthelper Config Logos_Default_Config extra",
++		"defaulthelper (*Config).Method Logos_Default_Config",
++		"defaulthelper Config.Make Logos_Default_Config",
++		"defaulthelper Config 1helper",
++		"defaulthelper Config privateHelper",
++		"defaulthelper Config MakeConfig",
++		"defaulthelper Config other.Logos_Default_Config",
++		"defaulthelper Config Logos_Default_Config()",
++		"defaulthelper Config Logos_Default_Config@simd0",
++	} {
++		t.Run(record, func(t *testing.T) {
++			_, err := facts.Decode([]byte(dupHead() + record + "\n"))
++			if err == nil {
++				t.Fatal("malformed default helper record was accepted")
++			}
++			msg := err.Error()
++			if strings.Contains(msg, "unknown record") || !strings.Contains(msg, "line 3") ||
++				(!strings.Contains(msg, "bad") && !strings.Contains(msg, "invalid")) {
++				t.Fatalf("malformed helper error = %q, want a line 3 syntax or identifier diagnostic", msg)
++			}
++		})
++	}
++}
++
++func TestDefaultHelperImportRejectsMissingMapping(t *testing.T) {
++	fp := goobj.FingerprintType{0, 1, 2, 3, 4, 5, 6, 7}
++	for _, tc := range []struct {
++		name string
++		body string
++		want string
++	}{
++		{
++			name: "legacy expression only",
++			body: "default Config Port 4\n8080\n",
++			want: "Config",
++		},
++		{
++			name: "second type lacks helper",
++			body: "default Config Port 4\n8080\n" +
++				"default Other Value 1\n7\n" +
++				"defaulthelper Config Logos_Default_Config\n",
++			want: "Other",
++		},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			path := "example.com/defaulthelper/" + strings.ReplaceAll(tc.name, " ", "-")
++			wire := dupHead() + tc.body
++			_, err := facts.Import(path, string(fp[:]), []byte(wire))
++			if err == nil || !strings.Contains(err.Error(), tc.want) ||
++				!strings.Contains(err.Error(), "helper") || strings.Contains(err.Error(), "unknown record") {
++				t.Errorf("missing helper import error = %v, want missing %s helper", err, tc.want)
++			}
++			if _, ok := facts.Lookup(path); ok {
++				t.Error("rejected default metadata was registered")
++			}
++		})
++	}
++}

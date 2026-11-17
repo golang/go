@@ -1,0 +1,19 @@
+=== RUN   TestGenerate
+    generate_test.go:96: file on disk in /src/go/types/ is stale:
+        diff typestring.go (on disk in /src/go/types/) typestring.go (generated from /src/cmd/compile/internal/types2/)
+        --- typestring.go (on disk in /src/go/types/)
+        +++ typestring.go (generated from /src/cmd/compile/internal/types2/)
+        @@ -430,6 +430,9 @@
+         }
+         
+         func (w *typeWriter) typeName(obj *TypeName) {
+        +	if w.logosCgoTypeName(obj) {
+        +		return
+        +	}
+         	w.string(packagePrefix(obj.pkg, w.qf))
+         	w.string(obj.name)
+         }
+--- FAIL: TestGenerate (0.10s)
+FAIL
+FAIL	go/types	0.109s
+FAIL

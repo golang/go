@@ -101,37 +101,9 @@ func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgoir.Profile) {
 				s := inlState[fn]
 
 				ir.WithFunc(fn, func() {
-					s.initOracle()
-					l1 := len(s.parens)
-					l0 := 0
-
-					// Batch iterations so that newly discovered call sites are
-					// resolved in a batch before inlining attempts.
-					// Do this to avoid discovering new closure calls 1 at a time
-					// which might cause first call to be seen as a single (high-budget)
-					// call before the second is observed.
-					for {
-						for i := l0; i < l1; i++ { // can't use "range parens" here
-							paren := s.parens[i]
-							if origCall, inlinedCall := s.edit(&state, i); inlinedCall != nil {
-								// Update AST and recursively mark nodes.
-								paren.X = inlinedCall
-								ir.EditChildren(inlinedCall, s.mark) // mark may append to parens
-								state.InlinedCall(s.fn, origCall, inlinedCall)
-								done = false
-							}
-						}
-						l0, l1 = l1, len(s.parens)
-						if l0 == l1 {
-							break
-						}
-						s.initOracle()
-						for i := l0; i < l1; i++ {
-							s.resolve(&state, i)
-						}
-
+					if s.inlinePassLogos(&state) {
+						done = false
 					}
-
 				}) // WithFunc
 
 			}
@@ -322,20 +294,11 @@ func (s *inlClosureState) fixpoint() bool {
 	changed := false
 	var state devirtualize.State
 	ir.WithFunc(s.fn, func() {
-		done := false
-		for !s.fixpointLogos(&state, &changed) && !done {
-			done = true
-			for i := 0; i < len(s.parens); i++ { // can't use "range parens" here
-				paren := s.parens[i]
-				if origCall, inlinedCall := s.edit(&state, i); inlinedCall != nil {
-					// Update AST and recursively mark nodes.
-					paren.X = inlinedCall
-					ir.EditChildren(inlinedCall, s.mark) // mark may append to parens
-					state.InlinedCall(s.fn, origCall, inlinedCall)
-					done = false
-					changed = true
-				}
-			}
+		for i := range s.parens {
+			s.resolve(&state, i)
+		}
+		for s.inlinePassLogos(&state) {
+			changed = true
 		}
 	})
 	return changed

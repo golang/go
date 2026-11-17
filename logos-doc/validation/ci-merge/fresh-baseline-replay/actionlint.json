@@ -1,0 +1,30 @@
+{
+  "command": [
+    "/workspace/scratch/9949907ca71e/language-ci-tools/bin/actionlint",
+    "-color",
+    "-config-file",
+    "/workspace/scratch/9949907ca71e/language-evidence/ci-merge/fresh-baseline-replay/.github/actionlint.yaml",
+    "/workspace/scratch/9949907ca71e/language-evidence/ci-merge/fresh-baseline-replay/.github/workflows/compiler-stability.yml",
+    "/workspace/scratch/9949907ca71e/language-evidence/ci-merge/fresh-baseline-replay/.github/workflows/deferred-callees.yml",
+    "/workspace/scratch/9949907ca71e/language-evidence/ci-merge/fresh-baseline-replay/.github/workflows/gc-stability.yml",
+    "/workspace/scratch/9949907ca71e/language-evidence/ci-merge/fresh-baseline-replay/.github/workflows/generic-type-arguments.yml",
+    "/workspace/scratch/9949907ca71e/language-evidence/ci-merge/fresh-baseline-replay/.github/workflows/json-profile-gates.yml",
+    "/workspace/scratch/9949907ca71e/language-evidence/ci-merge/fresh-baseline-replay/.github/workflows/logos.yml",
+    "/workspace/scratch/9949907ca71e/language-evidence/ci-merge/fresh-baseline-replay/.github/workflows/simd-host-gates.yml"
+  ],
+  "cwd": "/workspace/scratch/9949907ca71e/logos-json-integration",
+  "status": 1,
+  "seconds": 0.288,
+  "stdoutSha256": "69762c1380d9839448e38afe8a70d04e7f74dc6aa60a4341d0f34706e0f65f72",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "provenance": "fresh diagnostic replay, not recovered historical raw output",
+  "preMergeParent": "e82c916ff4d8c2befc6f1891decb0f623401a94b",
+  "releaseParent": "9a628f5b87f3c69a392ba539d11c7c9a37b98566",
+  "diagnosticCounts": {
+    "SC2155": 5,
+    "SC1007": 3,
+    "SC2086": 2,
+    "runner-label": 1
+  },
+  "construction": "Five workflows from e82; config from 9a; SIMD from e82 with the exact 9a bootstrap block; hash-verified merged logos.yml and both installers retained"
+}

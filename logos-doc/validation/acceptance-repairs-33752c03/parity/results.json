@@ -1,0 +1,53 @@
+{
+  "slice": "M22-A-S8",
+  "attack": 445,
+  "audit": "AUD-213",
+  "implementation_attempts": 1,
+  "baseline_source_tree": "e237c399aae8f8065b724e8a0e27585686c7da18",
+  "candidate_base": "2535486fe9596a9212d525a5007963ef9e8682f0",
+  "integration_source_tree": "33752c03819ed5afcb37f87633a3cac668e181a8",
+  "component_status": "queue_red_green_two_mutations_restored_race_complete",
+  "installed_combined_status": "pending",
+  "complete_unfiltered_release_parity_and_stamp": "pending; no stamp claimed",
+  "runs": [
+    {
+      "run": "parity-queue-red-001",
+      "status": "semantic_red",
+      "exit_code": 1,
+      "duration_seconds": 10.929,
+      "expected_outcome_matched": true
+    },
+    {
+      "run": "parity-queue-green-001",
+      "status": "green",
+      "exit_code": 0,
+      "duration_seconds": 10.788,
+      "expected_outcome_matched": true
+    },
+    {
+      "run": "parity-queue-bypass-mutation-001",
+      "status": "caught_mutation",
+      "exit_code": 1,
+      "duration_seconds": 7.4,
+      "expected_outcome_matched": true
+    },
+    {
+      "run": "parity-queue-early-deadline-mutation-001",
+      "status": "caught_mutation",
+      "exit_code": 1,
+      "duration_seconds": 11.594,
+      "expected_outcome_matched": true
+    },
+    {
+      "run": "parity-queue-restored-race-001",
+      "status": "restored_race_green",
+      "exit_code": 0,
+      "duration_seconds": 15.145,
+      "expected_outcome_matched": true
+    }
+  ],
+  "frozen_baseline_package_files": 73,
+  "frozen_new_test_sha256": "6c13e3b083cd289ca38aa5c9c9cfe0f8d9eaee9ea6f2654cc7aaa7668b53cc07",
+  "controlled_stress_is_complete_release_acceptance": false,
+  "diagnostic_scope": "Six isolated K6/U3N runs plus 48 same-fixture children on two CPUs, compared with a diagnostic two-worker schedule; original 10s child budget and GOMAXPROCS4 retained."
+}

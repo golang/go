@@ -1,0 +1,20 @@
+{"Time":"2026-11-17T03:55:15.137543296+09:00","Action":"start","Package":"cmd/compile/internal/logos/lint"}
+{"Time":"2026-11-17T03:55:15.147632087+09:00","Action":"run","Package":"cmd/compile/internal/logos/lint","Test":"TestArrayIndexOutOfBounds"}
+{"Time":"2026-11-17T03:55:15.147673179+09:00","Action":"output","Package":"cmd/compile/internal/logos/lint","Test":"TestArrayIndexOutOfBounds","Output":"=== RUN   TestArrayIndexOutOfBounds\n","OutputType":"frame"}
+{"Time":"2026-11-17T03:55:15.147687591+09:00","Action":"run","Package":"cmd/compile/internal/logos/lint","Test":"TestArrayIndexOutOfBounds/guardedReceiver"}
+{"Time":"2026-11-17T03:55:15.14769083+09:00","Action":"output","Package":"cmd/compile/internal/logos/lint","Test":"TestArrayIndexOutOfBounds/guardedReceiver","Output":"=== RUN   TestArrayIndexOutOfBounds/guardedReceiver\n","OutputType":"frame"}
+{"Time":"2026-11-17T03:55:15.14769534+09:00","Action":"run","Package":"cmd/compile/internal/logos/lint","Test":"TestArrayIndexOutOfBounds/guardedReceiver/x.lgo"}
+{"Time":"2026-11-17T03:55:15.147697891+09:00","Action":"output","Package":"cmd/compile/internal/logos/lint","Test":"TestArrayIndexOutOfBounds/guardedReceiver/x.lgo","Output":"=== RUN   TestArrayIndexOutOfBounds/guardedReceiver/x.lgo\n","OutputType":"frame"}
+{"Time":"2026-11-17T03:55:15.147729838+09:00","Action":"output","Package":"cmd/compile/internal/logos/lint","Test":"TestArrayIndexOutOfBounds/guardedReceiver/x.lgo","Output":"--- PASS: TestArrayIndexOutOfBounds/guardedReceiver/x.lgo (0.01s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T03:55:15.147735072+09:00","Action":"pass","Package":"cmd/compile/internal/logos/lint","Test":"TestArrayIndexOutOfBounds/guardedReceiver/x.lgo","Elapsed":0.01}
+{"Time":"2026-11-17T03:55:15.147747527+09:00","Action":"run","Package":"cmd/compile/internal/logos/lint","Test":"TestArrayIndexOutOfBounds/guardedReceiver/x.go"}
+{"Time":"2026-11-17T03:55:15.147749975+09:00","Action":"output","Package":"cmd/compile/internal/logos/lint","Test":"TestArrayIndexOutOfBounds/guardedReceiver/x.go","Output":"=== RUN   TestArrayIndexOutOfBounds/guardedReceiver/x.go\n","OutputType":"frame"}
+{"Time":"2026-11-17T03:55:15.147754377+09:00","Action":"output","Package":"cmd/compile/internal/logos/lint","Test":"TestArrayIndexOutOfBounds/guardedReceiver/x.go","Output":"--- PASS: TestArrayIndexOutOfBounds/guardedReceiver/x.go (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T03:55:15.147758645+09:00","Action":"pass","Package":"cmd/compile/internal/logos/lint","Test":"TestArrayIndexOutOfBounds/guardedReceiver/x.go","Elapsed":0}
+{"Time":"2026-11-17T03:55:15.147761659+09:00","Action":"output","Package":"cmd/compile/internal/logos/lint","Test":"TestArrayIndexOutOfBounds/guardedReceiver","Output":"--- PASS: TestArrayIndexOutOfBounds/guardedReceiver (0.01s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T03:55:15.14776547+09:00","Action":"pass","Package":"cmd/compile/internal/logos/lint","Test":"TestArrayIndexOutOfBounds/guardedReceiver","Elapsed":0.01}
+{"Time":"2026-11-17T03:55:15.147768336+09:00","Action":"output","Package":"cmd/compile/internal/logos/lint","Test":"TestArrayIndexOutOfBounds","Output":"--- PASS: TestArrayIndexOutOfBounds (0.01s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T03:55:15.14777143+09:00","Action":"pass","Package":"cmd/compile/internal/logos/lint","Test":"TestArrayIndexOutOfBounds","Elapsed":0.01}
+{"Time":"2026-11-17T03:55:15.147773346+09:00","Action":"output","Package":"cmd/compile/internal/logos/lint","Output":"PASS\n","OutputType":"frame"}
+{"Time":"2026-11-17T03:55:15.147796591+09:00","Action":"output","Package":"cmd/compile/internal/logos/lint","Output":"ok  \tcmd/compile/internal/logos/lint\t0.010s\n"}
+{"Time":"2026-11-17T03:55:15.147803642+09:00","Action":"pass","Package":"cmd/compile/internal/logos/lint","Elapsed":0.01}

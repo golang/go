@@ -1,0 +1,102 @@
+=== RUN   TestCompileImportedLocalType
+=== RUN   TestCompileImportedLocalType/generic_method/go
+=== RUN   TestCompileImportedLocalType/generic_method/logos_go
+=== RUN   TestCompileImportedLocalType/generic_method/logos_interop
+=== RUN   TestCompileImportedLocalType/generic_method/logos_overlay
+=== RUN   TestCompileImportedLocalType/generic_function/go
+=== RUN   TestCompileImportedLocalType/generic_function/logos_go
+=== RUN   TestCompileImportedLocalType/generic_function/logos_interop
+=== RUN   TestCompileImportedLocalType/generic_function/logos_overlay
+=== RUN   TestCompileImportedLocalType/nested_two_parameters/go
+=== RUN   TestCompileImportedLocalType/nested_two_parameters/logos_go
+=== RUN   TestCompileImportedLocalType/nested_two_parameters/logos_interop
+=== RUN   TestCompileImportedLocalType/nested_two_parameters/logos_overlay
+=== RUN   TestCompileImportedLocalType/nongeneric_local_control/go
+=== RUN   TestCompileImportedLocalType/nongeneric_local_control/logos_go
+=== RUN   TestCompileImportedLocalType/nongeneric_local_control/logos_interop
+=== RUN   TestCompileImportedLocalType/nongeneric_local_control/logos_overlay
+=== RUN   TestCompileImportedLocalType/package_generic_control/go
+=== RUN   TestCompileImportedLocalType/package_generic_control/logos_go
+=== RUN   TestCompileImportedLocalType/package_generic_control/logos_interop
+=== RUN   TestCompileImportedLocalType/package_generic_control/logos_overlay
+--- PASS: TestCompileImportedLocalType (51.76s)
+    --- PASS: TestCompileImportedLocalType/generic_method/go (8.47s)
+    --- PASS: TestCompileImportedLocalType/generic_method/logos_go (10.73s)
+    --- PASS: TestCompileImportedLocalType/generic_method/logos_interop (27.89s)
+    --- PASS: TestCompileImportedLocalType/generic_method/logos_overlay (0.69s)
+    --- PASS: TestCompileImportedLocalType/generic_function/go (0.12s)
+    --- PASS: TestCompileImportedLocalType/generic_function/logos_go (0.16s)
+    --- PASS: TestCompileImportedLocalType/generic_function/logos_interop (0.19s)
+    --- PASS: TestCompileImportedLocalType/generic_function/logos_overlay (0.40s)
+    --- PASS: TestCompileImportedLocalType/nested_two_parameters/go (0.12s)
+    --- PASS: TestCompileImportedLocalType/nested_two_parameters/logos_go (0.44s)
+    --- PASS: TestCompileImportedLocalType/nested_two_parameters/logos_interop (0.20s)
+    --- PASS: TestCompileImportedLocalType/nested_two_parameters/logos_overlay (0.44s)
+    --- PASS: TestCompileImportedLocalType/nongeneric_local_control/go (0.12s)
+    --- PASS: TestCompileImportedLocalType/nongeneric_local_control/logos_go (0.16s)
+    --- PASS: TestCompileImportedLocalType/nongeneric_local_control/logos_interop (0.17s)
+    --- PASS: TestCompileImportedLocalType/nongeneric_local_control/logos_overlay (0.37s)
+    --- PASS: TestCompileImportedLocalType/package_generic_control/go (0.14s)
+    --- PASS: TestCompileImportedLocalType/package_generic_control/logos_go (0.17s)
+    --- PASS: TestCompileImportedLocalType/package_generic_control/logos_interop (0.27s)
+    --- PASS: TestCompileImportedLocalType/package_generic_control/logos_overlay (0.50s)
+=== RUN   TestFactScopeLeavesCompilerSymbolsLazy
+=== RUN   TestFactScopeLeavesCompilerSymbolsLazy/local·1/functions
+=== RUN   TestFactScopeLeavesCompilerSymbolsLazy/local·1/readonly
+=== RUN   TestFactScopeLeavesCompilerSymbolsLazy/local·1/empty_functions
+=== RUN   TestFactScopeLeavesCompilerSymbolsLazy/local·1/empty_readonly
+=== RUN   TestFactScopeLeavesCompilerSymbolsLazy/local·1/declaration_clone
+=== RUN   TestFactScopeLeavesCompilerSymbolsLazy/local·1/structural_clone
+=== RUN   TestFactScopeLeavesCompilerSymbolsLazy/local·1/readonly_symbol
+=== RUN   TestFactScopeLeavesCompilerSymbolsLazy/hidden·23/functions
+=== RUN   TestFactScopeLeavesCompilerSymbolsLazy/hidden·23/readonly
+=== RUN   TestFactScopeLeavesCompilerSymbolsLazy/hidden·23/empty_functions
+=== RUN   TestFactScopeLeavesCompilerSymbolsLazy/hidden·23/empty_readonly
+=== RUN   TestFactScopeLeavesCompilerSymbolsLazy/hidden·23/declaration_clone
+=== RUN   TestFactScopeLeavesCompilerSymbolsLazy/hidden·23/structural_clone
+=== RUN   TestFactScopeLeavesCompilerSymbolsLazy/hidden·23/readonly_symbol
+=== RUN   TestFactScopeLeavesCompilerSymbolsLazy/Box.Method/functions
+=== RUN   TestFactScopeLeavesCompilerSymbolsLazy/Box.Method/readonly
+=== RUN   TestFactScopeLeavesCompilerSymbolsLazy/Box.Method/empty_functions
+=== RUN   TestFactScopeLeavesCompilerSymbolsLazy/Box.Method/empty_readonly
+=== RUN   TestFactScopeLeavesCompilerSymbolsLazy/Box.Method/declaration_clone
+=== RUN   TestFactScopeLeavesCompilerSymbolsLazy/Box.Method/structural_clone
+=== RUN   TestFactScopeLeavesCompilerSymbolsLazy/Box.Method/readonly_symbol
+=== RUN   TestFactScopeLeavesCompilerSymbolsLazy/Box[go.shape.int]/functions
+=== RUN   TestFactScopeLeavesCompilerSymbolsLazy/Box[go.shape.int]/readonly
+=== RUN   TestFactScopeLeavesCompilerSymbolsLazy/Box[go.shape.int]/empty_functions
+=== RUN   TestFactScopeLeavesCompilerSymbolsLazy/Box[go.shape.int]/empty_readonly
+=== RUN   TestFactScopeLeavesCompilerSymbolsLazy/Box[go.shape.int]/declaration_clone
+=== RUN   TestFactScopeLeavesCompilerSymbolsLazy/Box[go.shape.int]/structural_clone
+=== RUN   TestFactScopeLeavesCompilerSymbolsLazy/Box[go.shape.int]/readonly_symbol
+--- PASS: TestFactScopeLeavesCompilerSymbolsLazy (0.00s)
+    --- PASS: TestFactScopeLeavesCompilerSymbolsLazy/local·1/functions (0.00s)
+    --- PASS: TestFactScopeLeavesCompilerSymbolsLazy/local·1/readonly (0.00s)
+    --- PASS: TestFactScopeLeavesCompilerSymbolsLazy/local·1/empty_functions (0.00s)
+    --- PASS: TestFactScopeLeavesCompilerSymbolsLazy/local·1/empty_readonly (0.00s)
+    --- PASS: TestFactScopeLeavesCompilerSymbolsLazy/local·1/declaration_clone (0.00s)
+    --- PASS: TestFactScopeLeavesCompilerSymbolsLazy/local·1/structural_clone (0.00s)
+    --- PASS: TestFactScopeLeavesCompilerSymbolsLazy/local·1/readonly_symbol (0.00s)
+    --- PASS: TestFactScopeLeavesCompilerSymbolsLazy/hidden·23/functions (0.00s)
+    --- PASS: TestFactScopeLeavesCompilerSymbolsLazy/hidden·23/readonly (0.00s)
+    --- PASS: TestFactScopeLeavesCompilerSymbolsLazy/hidden·23/empty_functions (0.00s)
+    --- PASS: TestFactScopeLeavesCompilerSymbolsLazy/hidden·23/empty_readonly (0.00s)
+    --- PASS: TestFactScopeLeavesCompilerSymbolsLazy/hidden·23/declaration_clone (0.00s)
+    --- PASS: TestFactScopeLeavesCompilerSymbolsLazy/hidden·23/structural_clone (0.00s)
+    --- PASS: TestFactScopeLeavesCompilerSymbolsLazy/hidden·23/readonly_symbol (0.00s)
+    --- PASS: TestFactScopeLeavesCompilerSymbolsLazy/Box.Method/functions (0.00s)
+    --- PASS: TestFactScopeLeavesCompilerSymbolsLazy/Box.Method/readonly (0.00s)
+    --- PASS: TestFactScopeLeavesCompilerSymbolsLazy/Box.Method/empty_functions (0.00s)
+    --- PASS: TestFactScopeLeavesCompilerSymbolsLazy/Box.Method/empty_readonly (0.00s)
+    --- PASS: TestFactScopeLeavesCompilerSymbolsLazy/Box.Method/declaration_clone (0.00s)
+    --- PASS: TestFactScopeLeavesCompilerSymbolsLazy/Box.Method/structural_clone (0.00s)
+    --- PASS: TestFactScopeLeavesCompilerSymbolsLazy/Box.Method/readonly_symbol (0.00s)
+    --- PASS: TestFactScopeLeavesCompilerSymbolsLazy/Box[go.shape.int]/functions (0.00s)
+    --- PASS: TestFactScopeLeavesCompilerSymbolsLazy/Box[go.shape.int]/readonly (0.00s)
+    --- PASS: TestFactScopeLeavesCompilerSymbolsLazy/Box[go.shape.int]/empty_functions (0.00s)
+    --- PASS: TestFactScopeLeavesCompilerSymbolsLazy/Box[go.shape.int]/empty_readonly (0.00s)
+    --- PASS: TestFactScopeLeavesCompilerSymbolsLazy/Box[go.shape.int]/declaration_clone (0.00s)
+    --- PASS: TestFactScopeLeavesCompilerSymbolsLazy/Box[go.shape.int]/structural_clone (0.00s)
+    --- PASS: TestFactScopeLeavesCompilerSymbolsLazy/Box[go.shape.int]/readonly_symbol (0.00s)
+PASS
+ok  	cmd/compile/internal/logos	51.768s

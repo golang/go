@@ -1,0 +1,32 @@
+{
+  "scope": "Fresh download and verification of the exact previously recorded local validators; no workflow validation performed by this record",
+  "actionlint": {
+    "version": "1.7.12",
+    "metadataUrl": "https://api.github.com/repos/rhysd/actionlint/releases/tags/v1.7.12",
+    "metadataPath": "/workspace/scratch/9949907ca71e/language-ci-tools/downloads/actionlint-v1.7.12-release.json",
+    "archiveUrl": "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz",
+    "archivePath": "/workspace/scratch/9949907ca71e/language-ci-tools/downloads/actionlint_1.7.12_linux_amd64.tar.gz",
+    "archiveSha256": "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8",
+    "executablePath": "/workspace/scratch/9949907ca71e/language-ci-tools/bin/actionlint",
+    "executableSha256": "c872d6db8c6bf83a8eaa704fc93999f027d55dffbc63b8a6abdccb47df5f4cd4",
+    "archiveMatchesFreshOfficialMetadata": true,
+    "archiveMatchesRetainedPin": true,
+    "executableMatchesParentRetainedHash": true,
+    "versionOutput": "1.7.12\ninstalled by downloading from release page\nbuilt with go1.26.1 compiler for linux/amd64\n"
+  },
+  "shellcheck": {
+    "version": "0.11.0",
+    "scope": "Local validator only; not a hosted workflow pin",
+    "metadataUrl": "https://api.github.com/repos/koalaman/shellcheck/releases/tags/v0.11.0",
+    "metadataPath": "/workspace/scratch/9949907ca71e/language-ci-tools/downloads/shellcheck-v0.11.0-release.json",
+    "archiveUrl": "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.xz",
+    "archivePath": "/workspace/scratch/9949907ca71e/language-ci-tools/downloads/shellcheck-v0.11.0.linux.x86_64.tar.xz",
+    "archiveSha256": "8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198",
+    "executablePath": "/workspace/scratch/9949907ca71e/language-ci-tools/bin/shellcheck",
+    "executableSha256": "4da528ddb3a4d1b7b24a59d4e16eb2f5fd960f4bd9a3708a15baddbdf1d5a55b",
+    "archiveMatchesFreshOfficialMetadata": true,
+    "archiveMatchesRetainedPin": true,
+    "executableMatchesParentRetainedHash": true,
+    "versionOutput": "ShellCheck - shell script analysis tool\nversion: 0.11.0\nlicense: GNU General Public License, version 3\nwebsite: https://www.shellcheck.net\n"
+  }
+}

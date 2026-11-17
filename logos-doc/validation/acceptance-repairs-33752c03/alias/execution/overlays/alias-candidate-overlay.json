@@ -1,0 +1,9 @@
+{
+  "Replace": {
+    "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/cmd/go/internal/load/logos.go": "/workspace/scratch/9949907ca71e/logos-alias-fix/src/cmd/go/internal/load/logos.go",
+    "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/cmd/go/internal/modindex/logos.go": "/workspace/scratch/9949907ca71e/logos-alias-fix/src/cmd/go/internal/modindex/logos.go",
+    "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/go/build/logos.go": "/workspace/scratch/9949907ca71e/logos-alias-fix/src/go/build/logos.go",
+    "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/internal/logosfile/logosfile.go": "/workspace/scratch/9949907ca71e/logos-alias-fix/src/internal/logosfile/logosfile.go",
+    "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/cmd/go/internal/load/logos_census_test.go": "/workspace/scratch/9949907ca71e/logos-alias-fix/src/cmd/go/internal/load/logos_census_test.go"
+  }
+}

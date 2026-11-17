@@ -97,3 +97,16 @@ func rol(x uint64) uint64 {
 func main() {
 	fmt.Println(rol(1))
 }
+
+-- m/go.work --
+go 1.27
+
+use (
+	.
+	./base
+	./checkrorx
+)
+-- m/checkrorx/go.mod --
+module example.com/targetcpuisa/checkrorx
+
+go 1.27

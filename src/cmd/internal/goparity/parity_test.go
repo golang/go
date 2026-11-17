@@ -1011,7 +1011,15 @@ func TestCorpusNormKeepsProgramValues(t *testing.T) {
 	}
 }
 
+// binaryRunSlots bounds active execution-helper calls across all rows. Its
+// capacity snapshots GOMAXPROCS at package initialization.
+var binaryRunSlots = make(chan struct{}, runtime.GOMAXPROCS(0))
+
 func runBinaryTimeout(path, maxProcs string, budget time.Duration, norm normalizer) (observation, error) {
+	// Queue time does not consume the child execution budget.
+	binaryRunSlots <- struct{}{}
+	defer func() { <-binaryRunSlots }()
+
 	ctx, cancel := context.WithTimeoutCause(context.Background(), budget, errors.New("goparity run timeout"))
 	defer cancel()
 	cmd := exec.CommandContext(ctx, path)

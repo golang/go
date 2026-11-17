@@ -1,0 +1,405 @@
+﻿2026-11-16T19:35:58.0213809Z Current runner version: '2.338.2'
+2026-11-16T19:35:58.0231714Z ##[group]Runner Image Provisioner
+2026-11-16T19:35:58.0232331Z Hosted Compute Agent
+2026-11-16T19:35:58.0232870Z Version: 20261103.629
+2026-11-16T19:35:58.0233327Z Commit: 15dbd9ccb5dbf34fae002b6ed1a2670f52df37bc
+2026-11-16T19:35:58.0233840Z Build Date: 2026-11-03T17:26:59Z
+2026-11-16T19:35:58.0234347Z Worker ID: {992540e8-4114-4692-bb94-51d591650319}
+2026-11-16T19:35:58.0234839Z Region: us-east-1
+2026-11-16T19:35:58.0235624Z Cloud: AWS
+2026-11-16T19:35:58.0236065Z ##[endgroup]
+2026-11-16T19:35:58.0237093Z ##[group]Operating System
+2026-11-16T19:35:58.0237562Z Ubuntu
+2026-11-16T19:35:58.0237940Z 24.04.5
+2026-11-16T19:35:58.0238363Z LTS
+2026-11-16T19:35:58.0238741Z ##[endgroup]
+2026-11-16T19:35:58.0239139Z ##[group]Runner Image
+2026-11-16T19:35:58.0239580Z Image: ubuntu-24.04
+2026-11-16T19:35:58.0239983Z Version: 20261111.127.1
+2026-11-16T19:35:58.0240950Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261111.127/images/ubuntu/Ubuntu2404-Readme.md
+2026-11-16T19:35:58.0242081Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261111.127
+2026-11-16T19:35:58.0242785Z ##[endgroup]
+2026-11-16T19:35:58.0243695Z ##[group]GITHUB_TOKEN Permissions
+2026-11-16T19:35:58.0245309Z Contents: read
+2026-11-16T19:35:58.0245991Z Metadata: read
+2026-11-16T19:35:58.0246398Z ##[endgroup]
+2026-11-16T19:35:58.0247883Z Secret source: Actions
+2026-11-16T19:35:58.0248607Z Cache mode: write
+2026-11-16T19:35:58.0249287Z Prepare workflow directory
+2026-11-16T19:35:58.0774201Z Prepare all required actions
+2026-11-16T19:35:58.0844410Z Complete job name: complete-clean-tip-parity
+2026-11-16T19:35:58.1747161Z ##[group]Run [[ $TESTED_REVISION =~ ^[0-9a-f]{40}$ ]]
+2026-11-16T19:35:58.1748194Z [36;1m[[ $TESTED_REVISION =~ ^[0-9a-f]{40}$ ]][0m
+2026-11-16T19:35:58.1748932Z [36;1mgit init --quiet .[0m
+2026-11-16T19:35:58.1749958Z [36;1mgit remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"[0m
+2026-11-16T19:35:58.1751104Z [36;1mgit -c protocol.version=2 fetch --no-tags --depth=1 origin "$TESTED_REVISION"[0m
+2026-11-16T19:35:58.1752178Z [36;1mgit -c advice.detachedHead=false checkout --detach FETCH_HEAD[0m
+2026-11-16T19:35:58.1753133Z [36;1mtest "$(git rev-parse HEAD)" = "$TESTED_REVISION"[0m
+2026-11-16T19:36:00.3990337Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T19:36:00.3991050Z env:
+2026-11-16T19:36:00.3991400Z   TESTED_REVISION: 1a4c7635f38dbf303833ff8e718f95541558f8be
+2026-11-16T19:36:00.3991802Z ##[endgroup]
+2026-11-16T19:36:06.3518087Z From https://github.com/gosuda/LoGOs
+2026-11-16T19:36:06.3519098Z  * branch              1a4c7635f38dbf303833ff8e718f95541558f8be -> FETCH_HEAD
+2026-11-16T19:36:07.1167689Z HEAD is now at 1a4c7635 Execute the independent release acceptance gates
+2026-11-16T19:36:07.1298811Z ##[group]Run bash .github/scripts/release-acceptance.sh parity
+2026-11-16T19:36:07.1299289Z [36;1mbash .github/scripts/release-acceptance.sh parity[0m
+2026-11-16T19:36:07.1327668Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T19:36:07.1328246Z env:
+2026-11-16T19:36:07.1328605Z   TESTED_REVISION: 1a4c7635f38dbf303833ff8e718f95541558f8be
+2026-11-16T19:36:07.1329056Z ##[endgroup]
+2026-11-16T19:36:07.2690263Z src/cmd/go/testdata/script/logos_redteam_80.txt: OK
+2026-11-16T19:36:07.2690795Z src/cmd/go/testdata/script/logos_repro.txt: OK
+2026-11-16T19:36:07.2691264Z src/cmd/go/testdata/script/logos_eject_example.txt: OK
+2026-11-16T19:36:07.2691620Z src/cmd/go/testdata/script/logos_lsp.txt: OK
+2026-11-16T19:36:07.2691977Z src/cmd/go/testdata/script/logos_sum_crossarch.txt: OK
+2026-11-16T19:36:07.2692377Z test/logos/example/order_service.lgo: OK
+2026-11-16T19:36:07.2737533Z {
+2026-11-16T19:36:07.2737958Z   "head": "1a4c7635f38dbf303833ff8e718f95541558f8be",
+2026-11-16T19:36:07.2738433Z   "tree": "65f576af0515bdf1fa73c878f71e4adbfa53fc72",
+2026-11-16T19:36:07.2738841Z   "src_tree": "e237c399aae8f8065b724e8a0e27585686c7da18",
+2026-11-16T19:36:07.2739219Z   "event_sha": "f854c268ae8937d512a49a620bbc12944a80dc9d",
+2026-11-16T19:36:07.2739818Z   "run_id": "43939662630",
+2026-11-16T19:36:07.2740135Z   "run_attempt": "1",
+2026-11-16T19:36:07.2740430Z   "job": "parity",
+2026-11-16T19:36:07.2740702Z   "runner": "GitHub Actions 1000117650",
+2026-11-16T19:36:07.2741014Z   "image": "ubuntu24",
+2026-11-16T19:36:07.2741439Z   "host_fingerprint": "72684e5a75a2ae99c692791fbe9701e99f684ca843ff09ca346263f2f4f10736",
+2026-11-16T19:36:07.2741898Z   "log_retention_days": "90"
+2026-11-16T19:36:07.2742169Z }
+2026-11-16T19:36:07.2811889Z 2026-11-16T19:36:07Z mode=parity mem_available=15481217024 disk_available=94711525376 required_mem=10737418240 required_disk=10737418240
+2026-11-16T19:36:07.7890704Z /home/runner/work/_temp/go1.27.4.linux-amd64.tar.gz: OK
+2026-11-16T19:36:09.0884107Z go version go1.27.4 linux/amd64
+2026-11-16T19:36:09.2356064Z /home/runner/work/_temp/node-v26.13.1-linux-x64.tar.xz: OK
+2026-11-16T19:36:11.1116569Z v26.13.1
+2026-11-16T19:36:11.6592964Z /home/runner/work/_temp/go1.27.2.linux-amd64.tar.gz: OK
+2026-11-16T19:36:13.4011322Z /home/runner/work/_temp/go1.27.3.linux-amd64.tar.gz: OK
+2026-11-16T19:36:14.9117937Z Building Go cmd/dist using /home/runner/work/_temp/go1.27.4-ci. (go1.27.4 linux/amd64)
+2026-11-16T19:36:21.4801137Z Building Go toolchain1 using /home/runner/work/_temp/go1.27.4-ci.
+2026-11-16T19:36:55.1637314Z Building Go bootstrap cmd/go (go_bootstrap) using Go toolchain1.
+2026-11-16T19:37:12.8250472Z Building Go toolchain2 using go_bootstrap and Go toolchain1.
+2026-11-16T19:37:56.4498591Z Building Go toolchain3 using go_bootstrap and Go toolchain2.
+2026-11-16T19:38:51.5658855Z Building packages and commands for linux/amd64.
+2026-11-16T19:40:33.0190889Z ---
+2026-11-16T19:40:33.0191730Z Installed Go for linux/amd64 in /home/runner/work/LoGOs/LoGOs
+2026-11-16T19:40:33.0194871Z Installed commands in /home/runner/work/LoGOs/LoGOs/bin
+2026-11-16T19:40:33.0195637Z *** You need to add /home/runner/work/LoGOs/LoGOs/bin to your PATH.
+2026-11-16T19:40:33.2464855Z go version go1.27.4 linux/amd64
+2026-11-16T19:40:33.2527541Z logos version go1.27.4 linux/amd64
+2026-11-16T19:40:35.0480429Z 2026-11-16T19:40:35Z mode=parity mem_available=15156203520 disk_available=93164531712 required_mem=10737418240 required_disk=10737418240
+2026-11-16T19:40:43.6877551Z === RUN   TestTierProblem
+2026-11-16T19:40:43.6878657Z --- PASS: TestTierProblem (0.00s)
+2026-11-16T19:40:43.7036536Z === RUN   TestTipIdentityNeedsACleanTrackedTree
+2026-11-16T19:40:43.7037143Z --- PASS: TestTipIdentityNeedsACleanTrackedTree (0.02s)
+2026-11-16T19:40:43.7037502Z === RUN   TestToolVersionComesFromTheBinary
+2026-11-16T19:40:43.7048327Z --- PASS: TestToolVersionComesFromTheBinary (0.00s)
+2026-11-16T19:40:43.7049017Z === RUN   TestForkToolIgnoresAStaleLogosBinary
+2026-11-16T19:40:43.7059141Z --- PASS: TestForkToolIgnoresAStaleLogosBinary (0.00s)
+2026-11-16T19:40:43.7060200Z === RUN   TestCorpusDiscoveryRejectsStrayEntries
+2026-11-16T19:40:43.7061119Z --- PASS: TestCorpusDiscoveryRejectsStrayEntries (0.00s)
+2026-11-16T19:40:43.7062025Z === RUN   TestCgoProgramClassifiesByImport
+2026-11-16T19:40:43.7063136Z --- PASS: TestCgoProgramClassifiesByImport (0.00s)
+2026-11-16T19:40:43.7064071Z === RUN   TestLevelKeySeparatesOptimizationSettings
+2026-11-16T19:40:43.7064819Z --- PASS: TestLevelKeySeparatesOptimizationSettings (0.00s)
+2026-11-16T19:40:43.7065868Z === RUN   TestUnmatchedLevelPrefixes
+2026-11-16T19:40:43.7066239Z --- PASS: TestUnmatchedLevelPrefixes (0.00s)
+2026-11-16T19:40:43.7066709Z === RUN   TestRunBudget
+2026-11-16T19:40:43.7067033Z --- PASS: TestRunBudget (0.00s)
+2026-11-16T19:40:43.7067591Z === RUN   TestCorpusNormKeepsProgramValues
+2026-11-16T19:40:43.7068019Z --- PASS: TestCorpusNormKeepsProgramValues (0.00s)
+2026-11-16T19:40:43.7068415Z === RUN   TestRunBinaryTimeoutKillsSleeper
+2026-11-16T19:40:49.2588195Z --- PASS: TestRunBinaryTimeoutKillsSleeper (5.55s)
+2026-11-16T19:40:49.2589092Z === RUN   TestRunBinaryTimeoutReleasesGrandchildPipe
+2026-11-16T19:40:59.7121251Z --- PASS: TestRunBinaryTimeoutReleasesGrandchildPipe (10.45s)
+2026-11-16T19:40:59.7122121Z === RUN   TestRunGeneratorTimeoutKillsSleeper
+2026-11-16T19:41:01.8554745Z --- PASS: TestRunGeneratorTimeoutKillsSleeper (2.14s)
+2026-11-16T19:41:01.8556295Z === RUN   TestCorpusDefectProbes
+2026-11-16T19:41:01.8557477Z --- PASS: TestCorpusDefectProbes (0.00s)
+2026-11-16T19:41:01.8557854Z === RUN   TestStabilityDiffSeesLevelLines
+2026-11-16T19:41:01.8558315Z --- PASS: TestStabilityDiffSeesLevelLines (0.00s)
+2026-11-16T19:41:01.8558754Z === RUN   TestStageFailureIsABuildError
+2026-11-16T19:41:01.8559125Z --- PASS: TestStageFailureIsABuildError (0.00s)
+2026-11-16T19:41:01.8559608Z === RUN   TestForkConfigsReachTheCompiler
+2026-11-16T19:41:01.8583214Z === RUN   TestForkConfigsReachTheCompiler/K1
+2026-11-16T19:41:01.8814060Z === RUN   TestForkConfigsReachTheCompiler/K3
+2026-11-16T19:41:01.9078134Z === RUN   TestForkConfigsReachTheCompiler/K4
+2026-11-16T19:41:01.9335669Z === RUN   TestForkConfigsReachTheCompiler/K5
+2026-11-16T19:41:01.9593671Z === RUN   TestForkConfigsReachTheCompiler/K6
+2026-11-16T19:41:01.9841638Z === RUN   TestForkConfigsReachTheCompiler/K7
+2026-11-16T19:41:02.0097805Z === RUN   TestForkConfigsReachTheCompiler/K8
+2026-11-16T19:41:02.0354965Z === RUN   TestForkConfigsReachTheCompiler/K10
+2026-11-16T19:41:02.0613952Z === RUN   TestForkConfigsReachTheCompiler/K2
+2026-11-16T19:41:02.0856623Z === RUN   TestForkConfigsReachTheCompiler/K11
+2026-11-16T19:41:02.1096446Z === RUN   TestForkConfigsReachTheCompiler/K12
+2026-11-16T19:41:02.1344007Z === RUN   TestForkConfigsReachTheCompiler/K13
+2026-11-16T19:41:02.1586314Z === RUN   TestForkConfigsReachTheCompiler/K14
+2026-11-16T19:41:02.1834009Z === RUN   TestForkConfigsReachTheCompiler/K15
+2026-11-16T19:41:02.2083970Z === RUN   TestForkConfigsReachTheCompiler/K16
+2026-11-16T19:41:02.2421111Z === RUN   TestForkConfigsReachTheCompiler/K17
+2026-11-16T19:41:02.2667167Z === RUN   TestForkConfigsReachTheCompiler/K18
+2026-11-16T19:41:02.2909647Z === RUN   TestForkConfigsReachTheCompiler/K19
+2026-11-16T19:41:02.3147397Z === RUN   TestForkConfigsReachTheCompiler/K20
+2026-11-16T19:41:02.3384325Z === RUN   TestForkConfigsReachTheCompiler/K21
+2026-11-16T19:41:02.3631901Z --- PASS: TestForkConfigsReachTheCompiler (0.51s)
+2026-11-16T19:41:02.3632420Z     --- PASS: TestForkConfigsReachTheCompiler/K1 (0.02s)
+2026-11-16T19:41:02.3632876Z     --- PASS: TestForkConfigsReachTheCompiler/K3 (0.03s)
+2026-11-16T19:41:02.3633271Z     --- PASS: TestForkConfigsReachTheCompiler/K4 (0.03s)
+2026-11-16T19:41:02.3633591Z     --- PASS: TestForkConfigsReachTheCompiler/K5 (0.03s)
+2026-11-16T19:41:02.3633948Z     --- PASS: TestForkConfigsReachTheCompiler/K6 (0.02s)
+2026-11-16T19:41:02.3634275Z     --- PASS: TestForkConfigsReachTheCompiler/K7 (0.03s)
+2026-11-16T19:41:02.3634669Z     --- PASS: TestForkConfigsReachTheCompiler/K8 (0.03s)
+2026-11-16T19:41:02.3635828Z     --- PASS: TestForkConfigsReachTheCompiler/K10 (0.03s)
+2026-11-16T19:41:02.3636280Z     --- PASS: TestForkConfigsReachTheCompiler/K2 (0.02s)
+2026-11-16T19:41:02.3636749Z     --- PASS: TestForkConfigsReachTheCompiler/K11 (0.02s)
+2026-11-16T19:41:02.3637211Z     --- PASS: TestForkConfigsReachTheCompiler/K12 (0.02s)
+2026-11-16T19:41:02.3637638Z     --- PASS: TestForkConfigsReachTheCompiler/K13 (0.02s)
+2026-11-16T19:41:02.3638052Z     --- PASS: TestForkConfigsReachTheCompiler/K14 (0.02s)
+2026-11-16T19:41:02.3638387Z     --- PASS: TestForkConfigsReachTheCompiler/K15 (0.02s)
+2026-11-16T19:41:02.3638727Z     --- PASS: TestForkConfigsReachTheCompiler/K16 (0.03s)
+2026-11-16T19:41:02.3639100Z     --- PASS: TestForkConfigsReachTheCompiler/K17 (0.02s)
+2026-11-16T19:41:02.3639474Z     --- PASS: TestForkConfigsReachTheCompiler/K18 (0.02s)
+2026-11-16T19:41:02.3639874Z     --- PASS: TestForkConfigsReachTheCompiler/K19 (0.02s)
+2026-11-16T19:41:02.3640246Z     --- PASS: TestForkConfigsReachTheCompiler/K20 (0.02s)
+2026-11-16T19:41:02.3640716Z     --- PASS: TestForkConfigsReachTheCompiler/K21 (0.02s)
+2026-11-16T19:41:02.3641207Z === RUN   TestCompileProblemsSeeAnIgnoredFlag
+2026-11-16T19:41:02.3641613Z --- PASS: TestCompileProblemsSeeAnIgnoredFlag (0.00s)
+2026-11-16T19:41:02.3642112Z === RUN   TestParity
+2026-11-16T19:44:41.2746392Z     parity_test.go:1665: fork runs K6 failed: running /home/runner/work/_temp/logos-release-parity/go-tmp/TestParity623629138/002/out-fork-K6/at08_recursion_bound: goparity run timeout
+2026-11-16T19:44:41.5458125Z     parity_test.go:1805: parity: 31 programs, 20 fork configs, 5 upstream rows, wall 3m39.182330429s
+2026-11-16T19:44:41.7172030Z --- FAIL: TestParity (219.35s)
+2026-11-16T19:44:41.7172602Z === RUN   TestParityFailCorpus
+2026-11-16T19:44:48.6601418Z --- PASS: TestParityFailCorpus (6.94s)
+2026-11-16T19:44:48.6603237Z === RUN   TestAttacksWithoutMutantProbe
+2026-11-16T19:44:48.6603762Z --- PASS: TestAttacksWithoutMutantProbe (0.00s)
+2026-11-16T19:44:48.6604361Z === RUN   TestParityEveryAttackHasAMutant
+2026-11-16T19:44:48.6604772Z --- PASS: TestParityEveryAttackHasAMutant (0.00s)
+2026-11-16T19:44:48.6605160Z === RUN   TestParityMutantProbesDefined
+2026-11-16T19:44:48.6636630Z === RUN   TestParityMutantProbesDefined/at01-at01_arena_escape
+2026-11-16T19:44:48.6637525Z === RUN   TestParityMutantProbesDefined/at02-at02_loop_restore_depth
+2026-11-16T19:44:48.6639741Z === RUN   TestParityMutantProbesDefined/at03-at03_consent_chain
+2026-11-16T19:44:48.6640780Z === RUN   TestParityMutantProbesDefined/at04-at04_arena_park
+2026-11-16T19:44:48.6641350Z === RUN   TestParityMutantProbesDefined/at05-at05_arena_gc
+2026-11-16T19:44:48.6642514Z === RUN   TestParityMutantProbesDefined/at06-at06_finalizer_make
+2026-11-16T19:44:48.6654192Z === RUN   TestParityMutantProbesDefined/at07-at07_append_laws
+2026-11-16T19:44:48.6655008Z === RUN   TestParityMutantProbesDefined/at08-at08_recursion_bound
+2026-11-16T19:44:48.6656088Z === RUN   TestParityMutantProbesDefined/at09-at09_defer_recover_frames
+2026-11-16T19:44:48.6662234Z === RUN   TestParityMutantProbesDefined/at10-at10_rotate_const
+2026-11-16T19:44:48.6662928Z === RUN   TestParityMutantProbesDefined/at11-at11_float_rounding
+2026-11-16T19:44:48.6663374Z === RUN   TestParityMutantProbesDefined/at12-at12_symbol_names
+2026-11-16T19:44:48.6663830Z === RUN   TestParityMutantProbesDefined/at14-1-at14_leading_dot.go
+2026-11-16T19:44:48.6664317Z === RUN   TestParityMutantProbesDefined/at14-2-at14_question_dot.go
+2026-11-16T19:44:48.6664757Z === RUN   TestParityMutantProbesDefined/at16-at16_xpkg_escape
+2026-11-16T19:44:48.6665198Z === RUN   TestParityMutantProbesDefined/at17-1-at17m_both_plain_seq
+2026-11-16T19:44:48.6670050Z === RUN   TestParityMutantProbesDefined/at17-2-at17m_both_plain_seq
+2026-11-16T19:44:48.6670611Z === RUN   TestParityMutantProbesDefined/at21-at21_learned_stacks
+2026-11-16T19:44:48.6671217Z === RUN   TestParityMutantProbesDefined/at22-at22_gc_churn
+2026-11-16T19:44:48.6673165Z --- PASS: TestParityMutantProbesDefined (0.01s)
+2026-11-16T19:44:48.6674091Z     --- PASS: TestParityMutantProbesDefined/at01-at01_arena_escape (0.00s)
+2026-11-16T19:44:48.6674728Z     --- PASS: TestParityMutantProbesDefined/at02-at02_loop_restore_depth (0.00s)
+2026-11-16T19:44:48.6675506Z     --- PASS: TestParityMutantProbesDefined/at03-at03_consent_chain (0.00s)
+2026-11-16T19:44:48.6675990Z     --- PASS: TestParityMutantProbesDefined/at04-at04_arena_park (0.00s)
+2026-11-16T19:44:48.6676597Z     --- PASS: TestParityMutantProbesDefined/at05-at05_arena_gc (0.00s)
+2026-11-16T19:44:48.6677245Z     --- PASS: TestParityMutantProbesDefined/at06-at06_finalizer_make (0.00s)
+2026-11-16T19:44:48.6677705Z     --- PASS: TestParityMutantProbesDefined/at07-at07_append_laws (0.00s)
+2026-11-16T19:44:48.6678227Z     --- PASS: TestParityMutantProbesDefined/at08-at08_recursion_bound (0.00s)
+2026-11-16T19:44:48.6678751Z     --- PASS: TestParityMutantProbesDefined/at09-at09_defer_recover_frames (0.00s)
+2026-11-16T19:44:48.6679190Z     --- PASS: TestParityMutantProbesDefined/at10-at10_rotate_const (0.00s)
+2026-11-16T19:44:48.6679699Z     --- PASS: TestParityMutantProbesDefined/at11-at11_float_rounding (0.00s)
+2026-11-16T19:44:48.6680176Z     --- PASS: TestParityMutantProbesDefined/at12-at12_symbol_names (0.00s)
+2026-11-16T19:44:48.6680738Z     --- PASS: TestParityMutantProbesDefined/at14-1-at14_leading_dot.go (0.00s)
+2026-11-16T19:44:48.6681232Z     --- PASS: TestParityMutantProbesDefined/at14-2-at14_question_dot.go (0.00s)
+2026-11-16T19:44:48.6681742Z     --- PASS: TestParityMutantProbesDefined/at16-at16_xpkg_escape (0.00s)
+2026-11-16T19:44:48.6682213Z     --- PASS: TestParityMutantProbesDefined/at17-1-at17m_both_plain_seq (0.00s)
+2026-11-16T19:44:48.6682884Z     --- PASS: TestParityMutantProbesDefined/at17-2-at17m_both_plain_seq (0.00s)
+2026-11-16T19:44:48.6683442Z     --- PASS: TestParityMutantProbesDefined/at21-at21_learned_stacks (0.00s)
+2026-11-16T19:44:48.6683879Z     --- PASS: TestParityMutantProbesDefined/at22-at22_gc_churn (0.00s)
+2026-11-16T19:44:48.6684273Z === RUN   TestParityMutants
+2026-11-16T19:44:48.7997012Z === RUN   TestParityMutants/at01-at01_arena_escape
+2026-11-16T19:45:33.4150814Z === RUN   TestParityMutants/at02-at02_loop_restore_depth
+2026-11-16T19:45:51.6653655Z === RUN   TestParityMutants/at03-at03_consent_chain
+2026-11-16T19:46:05.9703101Z === RUN   TestParityMutants/at04-at04_arena_park
+2026-11-16T19:46:14.3597236Z === RUN   TestParityMutants/at05-at05_arena_gc
+2026-11-16T19:46:21.8201439Z === RUN   TestParityMutants/at06-at06_finalizer_make
+2026-11-16T19:46:30.0477302Z === RUN   TestParityMutants/at07-at07_append_laws
+2026-11-16T19:46:41.3637487Z === RUN   TestParityMutants/at08-at08_recursion_bound
+2026-11-16T19:46:58.1540742Z === RUN   TestParityMutants/at09-at09_defer_recover_frames
+2026-11-16T19:47:06.4209271Z === RUN   TestParityMutants/at10-at10_rotate_const
+2026-11-16T19:47:30.5824759Z === RUN   TestParityMutants/at11-at11_float_rounding
+2026-11-16T19:47:44.2100827Z === RUN   TestParityMutants/at12-at12_symbol_names
+2026-11-16T19:47:56.9757354Z === RUN   TestParityMutants/at14-1-at14_leading_dot.go
+2026-11-16T19:48:09.1614561Z     parity_test.go:2394: mutant killed: fail corpus file at14_leading_dot.go now builds under K5
+2026-11-16T19:48:09.1661247Z === RUN   TestParityMutants/at14-2-at14_question_dot.go
+2026-11-16T19:48:20.6972836Z     parity_test.go:2394: mutant killed: fail corpus file at14_question_dot.go now builds under K5
+2026-11-16T19:48:20.6982991Z === RUN   TestParityMutants/at16-at16_xpkg_escape
+2026-11-16T19:48:35.6243617Z === RUN   TestParityMutants/at17-1-at17m_both_plain_seq
+2026-11-16T19:48:42.3863916Z === RUN   TestParityMutants/at17-2-at17m_both_plain_seq
+2026-11-16T19:48:51.5461283Z === RUN   TestParityMutants/at21-at21_learned_stacks
+2026-11-16T19:48:58.3713977Z === RUN   TestParityMutants/at22-at22_gc_churn
+2026-11-16T19:49:05.8893707Z --- PASS: TestParityMutants (257.22s)
+2026-11-16T19:49:05.8894370Z     --- PASS: TestParityMutants/at01-at01_arena_escape (44.62s)
+2026-11-16T19:49:05.8895117Z     --- PASS: TestParityMutants/at02-at02_loop_restore_depth (18.25s)
+2026-11-16T19:49:05.8895620Z     --- PASS: TestParityMutants/at03-at03_consent_chain (14.30s)
+2026-11-16T19:49:05.8896011Z     --- PASS: TestParityMutants/at04-at04_arena_park (8.39s)
+2026-11-16T19:49:05.8896482Z     --- PASS: TestParityMutants/at05-at05_arena_gc (7.46s)
+2026-11-16T19:49:05.8896904Z     --- PASS: TestParityMutants/at06-at06_finalizer_make (8.23s)
+2026-11-16T19:49:05.8897372Z     --- PASS: TestParityMutants/at07-at07_append_laws (11.32s)
+2026-11-16T19:49:05.8897755Z     --- PASS: TestParityMutants/at08-at08_recursion_bound (16.79s)
+2026-11-16T19:49:05.8898179Z     --- PASS: TestParityMutants/at09-at09_defer_recover_frames (8.27s)
+2026-11-16T19:49:05.8898552Z     --- PASS: TestParityMutants/at10-at10_rotate_const (24.16s)
+2026-11-16T19:49:05.8898975Z     --- PASS: TestParityMutants/at11-at11_float_rounding (13.63s)
+2026-11-16T19:49:05.8899341Z     --- PASS: TestParityMutants/at12-at12_symbol_names (12.77s)
+2026-11-16T19:49:05.8899770Z     --- PASS: TestParityMutants/at14-1-at14_leading_dot.go (12.19s)
+2026-11-16T19:49:05.8900188Z     --- PASS: TestParityMutants/at14-2-at14_question_dot.go (11.53s)
+2026-11-16T19:49:05.8900608Z     --- PASS: TestParityMutants/at16-at16_xpkg_escape (14.93s)
+2026-11-16T19:49:05.8901127Z     --- PASS: TestParityMutants/at17-1-at17m_both_plain_seq (6.76s)
+2026-11-16T19:49:05.8901512Z     --- PASS: TestParityMutants/at17-2-at17m_both_plain_seq (9.16s)
+2026-11-16T19:49:05.8901937Z     --- PASS: TestParityMutants/at21-at21_learned_stacks (6.83s)
+2026-11-16T19:49:05.8902384Z     --- PASS: TestParityMutants/at22-at22_gc_churn (7.50s)
+2026-11-16T19:49:05.8902801Z === RUN   TestParitySweepCorpusDefined
+2026-11-16T19:49:05.9451686Z     parity_test.go:2692: sweep corpus: 998 eligible files
+2026-11-16T19:49:05.9452278Z --- PASS: TestParitySweepCorpusDefined (0.06s)
+2026-11-16T19:49:05.9452670Z === RUN   TestParityUpstreamSweep
+2026-11-16T20:31:35.6463794Z     parity_test.go:2744: sweep: excluded fixedbugs/bug514.go: upstream build failed: exit status 1 package sweep/f249: build constraints exclude all Go files in /home/runner/work/_temp/logos-release-par...
+2026-11-16T20:31:35.6465204Z     parity_test.go:2744: sweep: excluded fixedbugs/issue10607.go: upstream build failed: exit status 1 package sweep/f260: build constraints exclude all Go files in /home/runner/work/_temp/logos-release-par...
+2026-11-16T20:31:35.6467924Z     parity_test.go:2744: sweep: excluded fixedbugs/issue24187.go: upstream build failed: exit status 1 package sweep/f372: build constraints exclude all Go files in /home/runner/work/_temp/logos-release-par...
+2026-11-16T20:31:35.6469022Z     parity_test.go:2744: sweep: excluded fixedbugs/issue38093.go: upstream build failed: exit status 1 package sweep/f457: build constraints exclude all Go files in /home/runner/work/_temp/logos-release-par...
+2026-11-16T20:31:35.6469984Z     parity_test.go:2744: sweep: excluded fixedbugs/issue40954.go: upstream build failed: exit status 1 package sweep/f467: build constraints exclude all Go files in /home/runner/work/_temp/logos-release-par...
+2026-11-16T20:31:35.6470950Z     parity_test.go:2744: sweep: excluded fixedbugs/issue42032.go: upstream build failed: exit status 1 package sweep/f472: build constraints exclude all Go files in /home/runner/work/_temp/logos-release-par...
+2026-11-16T20:31:35.6471932Z     parity_test.go:2744: sweep: excluded fixedbugs/issue42076.go: upstream build failed: exit status 1 package sweep/f473: build constraints exclude all Go files in /home/runner/work/_temp/logos-release-par...
+2026-11-16T20:31:35.6472929Z     parity_test.go:2744: sweep: excluded fixedbugs/issue46903.go: upstream build failed: exit status 1 package sweep/f506: build constraints exclude all Go files in /home/runner/work/_temp/logos-release-par...
+2026-11-16T20:31:35.6473904Z     parity_test.go:2744: sweep: excluded fixedbugs/issue51733.go: upstream build failed: exit status 1 package sweep/f530: build constraints exclude all Go files in /home/runner/work/_temp/logos-release-par...
+2026-11-16T20:31:35.6474781Z     parity_test.go:2744: sweep: excluded linkmain_run.go: upstream rows differ (no stable oracle)
+2026-11-16T20:31:35.6476035Z     parity_test.go:2744: sweep: excluded nilptr_aix.go: upstream build failed: exit status 1 package sweep/f806: build constraints exclude all Go files in /home/runner/work/_temp/logos-release-par...
+2026-11-16T20:31:35.6476783Z     parity_test.go:2744: sweep: excluded noinit.go: upstream rows differ (no stable oracle)
+2026-11-16T20:31:35.6477378Z     parity_test.go:2756: sweep: 986 files compared, 12 excluded, 20 fork configs, 5 upstream rows, wall 42m29.701498157s
+2026-11-16T20:31:35.6665285Z --- PASS: TestParityUpstreamSweep (2549.72s)
+2026-11-16T20:31:35.6665857Z === RUN   TestRedteamLedgerRows
+2026-11-16T20:31:35.6746367Z     redteam_ledger_test.go:80: #336: proving test test/root does not exist
+2026-11-16T20:31:35.6753899Z     redteam_ledger_test.go:80: #441: proving test test/tool does not exist
+2026-11-16T20:31:35.6754561Z --- FAIL: TestRedteamLedgerRows (0.01s)
+2026-11-16T20:31:35.6754901Z === RUN   TestRedteamLedgerRelease
+2026-11-16T20:31:35.6757667Z --- PASS: TestRedteamLedgerRelease (0.00s)
+2026-11-16T20:31:35.6762681Z FAIL
+2026-11-16T20:31:35.6775202Z FAIL	cmd/internal/goparity	3051.991s
+2026-11-16T20:31:35.6779493Z FAIL
+2026-11-16T20:31:35.6984840Z ##[error]Process completed with exit code 1.
+2026-11-16T20:31:35.7038680Z ##[group]Run if test -f .github/scripts/release-acceptance.sh; then
+2026-11-16T20:31:35.7039137Z [36;1mif test -f .github/scripts/release-acceptance.sh; then[0m
+2026-11-16T20:31:35.7039560Z [36;1m  bash .github/scripts/release-acceptance.sh retain[0m
+2026-11-16T20:31:35.7039879Z [36;1mfi[0m
+2026-11-16T20:31:35.7068526Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T20:31:35.7068874Z env:
+2026-11-16T20:31:35.7069242Z   TESTED_REVISION: 1a4c7635f38dbf303833ff8e718f95541558f8be
+2026-11-16T20:31:35.7069587Z   UPROOT1274: /home/runner/work/_temp/go1.27.4-ci
+2026-11-16T20:31:35.7069906Z   UPROOT1272: /home/runner/work/_temp/go1.27.2
+2026-11-16T20:31:35.7070199Z   UPROOT1273: /home/runner/work/_temp/go1.27.3
+2026-11-16T20:31:35.7070481Z ##[endgroup]
+2026-11-16T20:31:35.7204035Z LOGOS_RELEASE_EVIDENCE_BEGIN parity
+2026-11-16T20:31:35.7213570Z 020b3174a4c5d2c0688d544341aba5a6f2cb68411427771e88809d3f2b373026  /home/runner/work/_temp/logos-release-parity/evidence.tar.gz
+2026-11-16T20:31:35.7231242Z H4sIAAAAAAACA+xd2Y4bx5LVM7+ioCf5wiRzXwToQfb1IsjXNizdO5h5IXLtpsVmEVVFWfJg/n1O
+2026-11-16T20:31:35.7231962Z ki2JTbIXEmpKlqseutnFjMglIk6cyFp6NH5w7wfBoaVc/cax/XvPZ0UEe1DJByc4lm3nmqp68Dc9
+2026-11-16T20:31:35.7232556Z RmNf113bNW4xPKtHob64cPP48e2vhLje/lJctT9lhNEHFentf++Hd+15NTqbdudLP25DM1107Xg6
+2026-11-16T20:31:35.7233096Z x6LMZsMwHXZ1PRuhyVldDR70x5ce/7P67H7w/6b4p3wL/ymlUvfxf4pjfF5fpHGznM9TM/6jbl6N
+2026-11-16T20:31:35.7233898Z J126WIzPajpieiRGs+l8+WboLqISI6zU6OzPx9UvzwfAg9epaaf1vHrXtFo1Ha+a9ljx14z/JrXL
+2026-11-16T20:31:35.7234528Z WTf6va3nJ4x/pbfzv9Kqj/9THP87qKqHZQm6ybILDx9XD8G91JDSIVUvqX3M1WOi/+fh16VZmsfr
+2026-11-16T20:31:35.7234984Z G9l3jd5Mu0moY0IzsjqDnDK5cnbwfz08fI7xP4d97qMCuJ3/q+3454L38f858f/iG30F8DeI/3uo
+2026-11-16T20:31:35.7235624Z AG7N/2S7/qcSv/r4/4T8v/jC8DVTI8pHdLguAt5clgBv1iXAu297VPiS4v8eKoDD+T9ntOf/nw3/
+2026-11-16T20:31:35.7236122Z t3fg/5T2/P+vGf+B8SFI/2I6S/ez/X9r/DNFt/O/6OP/0+Z/BG3dDps0S65Nw4Vrpt3b4irjEKph
+2026-11-16T20:31:35.7236570Z 28Un+FwdLnyewqsRNNRHyvYlyL3G/71s/99e/29/pkTKnv9/Avvfy/bvMfu/TPf7P58F/xPkMee3
+2026-11-16T20:31:35.7237020Z 8b/SSPT8768b/0jD98T97oT/ehf/dY//nyn/62nYlxn/98P9juJ/RGsm+vg/rf3vh/sdx/+oEP39
+2026-11-16T20:31:35.7237505Z P58N/xM9//uC4z+9SWHZ1c2w2GjUvek+Af6znfjvr/+d5uiv3vXxv0ihS3HYTRf3Ev53uP9nZ/+f
+2026-11-16T20:31:35.7237943Z atbH/0ni34mgFZeZm+gzJ9xwnrNJmppspRRUSpONTz1MfKnxn6ez1I7ac8ek+iT1n9RKbu//UNrv
+2026-11-16T20:31:35.7238423Z /57kkNoE6l1MNCmfUpTWsJCYtsToqEkSQVFJZJbaBSJY8EpLarjUKdlovaiq/U+QDWxWUCJS4tkY
+2026-11-16T20:31:35.7238896Z zxUJ2SaporOKcJokF47GAGXBOh8MsYk4lYXP+IuawHcUo4wYEG1dMoZ7QhOacR4wQBmZhxqpuKHS
+2026-11-16T20:31:35.7239385Z kERE1CKksouYiU46UA2U41KJsKN0o+gdcJNpMsERxTkXImRPFBaEJadlxOCk8YoybznXRhMqnWQ2
+2026-11-16T20:31:35.7239863Z 5iQSi95wq64q37yZdsCFxmG1UNkQGW2WMVKXpOSAXhkcCwJLLjlTORGpjDc0YblzlsoFK+we1WU5
+2026-11-16T20:31:35.7240341Z 0E7rxB3PyXFBMkSTUwI28ophIWTQnghBGQGGR56ZY1TRFCkWnTHL96jdXBBhDNQyoTNRmDU30jnC
+2026-11-16T20:31:35.7240849Z MVDricSoMglBUqhPPEkT4Q9BKa61Mhwm0Kmo33N3wSDBfkEIZk0ONFBhXfZZBGOtyt4yLIVLgiah
+2026-11-16T20:31:35.7241343Z hMVqi+CEldZSr41k3ki5rbcshfDEWMWj0MQboQgJBkOR3DrJgT5KuUhthi8moeEvzmRYtDT22cjk
+2026-11-16T20:31:35.7241835Z 9bbOzXVAeKCpD0wReKyGH0VOaUracyZ5iEbq4HNUxhIrDeUUVrXwFEWJ1fzDeDd22T/aGlzu3A0M
+2026-11-16T20:31:35.7242333Z gSovtYZZfWKIvCioA42KLMPggThYSsdoLJzNKcO0YRxuyL0x2Wu3qe+KD2D8TihPbeTCxMCABPBM
+2026-11-16T20:31:35.7242815Z +HHKZbklN8ljhFhxknmwgAUpHIOnE3SmVuPcqTAHNLvkDIvomTkvbaDRRXgaVSQF4I/Dea8ilzxF
+2026-11-16T20:31:35.7243307Z rvGbKKdJ1BkhJ7TKa61XeesAUKWdClokOKvD5LmS4DMqCG8VAs4yDpRgsJ3xOYgQuFYh+BAyQk/E
+2026-11-16T20:31:35.7243792Z lbvmpv4zzYfT+WLZvUuKA2EJNUAW7phTmmmMRgAPYQ2SncHMERUGi4C5U/idpx5LRRViIyUK/CyK
+2026-11-16T20:31:35.7244304Z pzHNu2n39hJqfMo6FBUQsJaHTOFcWEYS4GnaOwAsQDLgd3I2UepFpFEgyjUMnVZ4cHmTNhZgA3Ud
+2026-11-16T20:31:35.7244832Z s4xIHwseaRgLCK4Qj1huQmyxEWieAkwIa7NjxkaguMzWa+uTS1nsKC6+5RmsQKIkNsM6cB0dUkIc
+2026-11-16T20:31:35.7245571Z CR+j9MBcpjlDQDGEHKZFLA1wO0JjDIJ4tat008Ecyxymtdr5ooFGhcAgKUtnuGY0UoQEzAh/ohkr
+2026-11-16T20:31:35.7246364Z AxQiMIXJcGcvgO1Xla8uW3yAXac9FcW+zGkbtMFaCuacR6SqRDRmIEUKMXrv4RkkJCuUpAA9h4lm
+2026-11-16T20:31:35.7246929Z u0/3x1+Qtd7NNQkYmhaMUkw9ewUUBmjD7ZUhhGIu1lCqnENIA8ql9Sp4xByHOeHcWrir+tvUddP5
+2026-11-16T20:31:35.7247452Z WbuOPI88YQGRyHM+YHTOspATzR6RLBHnOcMvM3c52GiAfNRnlRE58DugT7yqujwd8D5MPCGI+FQq
+2026-11-16T20:31:35.7247988Z ChmBkZJqbuG8zAJ+M8V8kpKwBsBDOBukRjBnkxGrhkQmVkF94V59yBOKwHON9BDOFsIuaeksANtS
+2026-11-16T20:31:35.7248474Z jQRmigmpDNyDTrhMjALEB88knNrA4T8oLDbDactZMIhgnjBT2NirpJTWxltrBBK/z5oBK4I1iSUP
+2026-11-16T20:31:35.7248967Z DE+c+gCDAdTje2WbhjI+gDohvfBki6EAALCdBXgj1wpBVnCcpIXTKoO+TcG5QEwkIEfMrLLO+tra
+2026-11-16T20:31:35.7249477Z +0nLQjoCQEFKDYeE23PAIwe8e56AbmAcOK0xMAf4sAIcwgKXdaIczIfxDZVl2hkttYqZRycMcqRB
+2026-11-16T20:31:35.7249933Z twHRQJmEVRnWy8mSt5PgYBIWHoYvGfQjOYFQ+A11mxP/GOlrMXPzOZyoqf9Y+yZTitrC34B2zJf4
+2026-11-16T20:31:35.7250420Z ArtDbDKMB4BJrQLE8vIDVDLHQJFmokX8Uk8j2halGGS9bEJaB6oFHwIAaNSxBiTF6uiZACtUlBoH
+2026-11-16T20:31:35.7250920Z UgoOqpDAKYyjIoloAc+UcEgBG5K8MvpyAXqU3MWwblwopdI7S2UJj5chK4+5eSeS4qBvEhQVZ8H4
+2026-11-16T20:31:35.7251458Z ACWGO++RfYsBCJCcOYLkWxzRMbZXeRl1oABoCirhnc4IQQEwcY4JrCWYBWINzMUAKhE8IKtMhwwE
+2026-11-16T20:31:35.7251945Z ywSM2ETkI7dX8ab1rtZ/e1LeSes/yjjf3v9R/f2fpzk4eHBhHwKRH4F0DnSuQAZDQKlVfQFyoOFo
+2026-11-16T20:31:35.7252413Z KCuQGgDxIFIIdoFCyCEQq6ptwjhcxPFZPe5S20XXucsHydY3EUyaFDt44sSQVZSjkATDA6VhARzJ
+2026-11-16T20:31:35.7252922Z Aa8L/0Q0exRVMRXGF0GdCo54hnIDAKCs4EFKVKggQHfqcdHUq85QcpKS1K1WDEkjgPsIxjgoIaqr
+2026-11-16T20:31:35.7253398Z iADCLBD/IJdWJwtfBIeMinEHnBG5hNKtnaXfQUMn6Y27WKBuKJ2Cb4AuE9QiKAsEYCwqpCdwDGRx
+2026-11-16T20:31:35.7253890Z 1NuU0gzaLZG7IroAyWEJ1D2XxfcGCHGHTmftmvNqyGVUnx4EJGQpGSqAUOpAysFfAAaoLVGvIy9n
+2026-11-16T20:31:35.7254395Z IAgHZCQVQd6NQyKi6i6L2S4vJqGp29Y14XzVKUeXhIqkHZhSSfI0GPDTLEB4ka14Bg1CrYusEEKS
+2026-11-16T20:31:35.7254868Z MCzILFZUwl8CWDmpqtLTWv34cuHGdRNTM2lT83oakLHP6n7H8TT7f1cqk0+x/0e02L3/S/XX/093
+2026-11-16T20:31:35.7255514Z /f88uViu6t/1YsD6Sj/4Rbmc/1CV3cGCcJKi8gRXd5oHg5yhQQAdFDnJUVSwtRTwZvJOMjGuA2oE
+2026-11-16T20:31:35.7255999Z 5xL0EiWRd0QCBCYU2eDopvBdR83lnQWv4agTEJQiirpABIbSKBnLNWoN8G3rFAPMghdaIUpRgRJm
+2026-11-16T20:31:35.7256489Z Ldos55PpaooC+IR6hClOPnzlunLPW7dagvXZ32tf/loz3/cN56kpZ3+Ydj8uffU0dNN63la0cBiq
+2026-11-16T20:31:35.7256979Z lbzUOL1wZ6vpLf1y3i2ZWJ8+r9tuklGIpWbRTOer3jRmIACMqGuYSxY8HLzTohgDVSUUJ1DygTwb
+2026-11-16T20:31:35.7257472Z ATMQGwC3ZeSZZZEp0Vw9fH+DRZO6Esb1fBLd27botuThHW602L+PcOLrf3Tn+V/dv//nNMfGe3z6
+2026-11-16T20:31:35.7257930Z hPv3zP9b232f4Pq/2H3/V//+v5PHf/8erz7+P5v3f4n+/r/T8f+P8fwX7+///avH/5WLZyfl/zvx
+2026-11-16T20:31:35.7258339Z 37//50THyuZ9CdDH/+YF7pPz/93rP6K///cTxH9fAvTx//FLgCPe/8Vlf/235//9cdL437xR7KT5
+2026-11-16T20:31:35.7258781Z n+zwf0FlH/+nOF7TwWDQPwTYx//W3ZwnjH/K9Pbzv6x//udEB/FcxaSTd4IwSlTiPhL87aiMMsnA
+2026-11-16T20:31:35.7259242Z tXEqW+2ljYZIfFY8MsLLc0FZklTteZHfT/UPv7SXP/10Pj6rB6foZkVfB95EogVLnBliuTc6pyCV
+2026-11-16T20:31:35.7259719Z cspkbyiJGtWmECok4qWWztDMiRCc+ZSM9urWnhavzsYlUMarEmmyKpHGl0+NDIhkJAcmGMssEhuC
+2026-11-16T20:31:35.7260212Z F4oEI1W0JqvyfIOw3EaRjEhBm2A4p4lG4rKTVjN7VOf4/GoQMrVJEZMcs97FoINkyaoQYgxKZK+5
+2026-11-16T20:31:35.7260690Z ItZIocuNHb7cVmCC9kw7aYxz3B3Vs2svBjlFEWSOOcnEaUhZeKK00AlBnIhhhnmZjIuSGE4FidwG
+2026-11-16T20:31:35.7261144Z RnS2kenyMNRxUw797WEfDf83b7m/J4y5df935/lP3uP/Se2/+jcQfUj9be1/fy//ugP/o9vvf0EC
+2026-11-16T20:31:35.7261611Z l/37v05yfLOcziKK/uqHuiq3gcdp21XLtpy57V/DDcN0VD3at2X81WBTbcne4dxN5/QAxVc0vH9G
+2026-11-16T20:31:35.7262093Z uVrfqV56nbw/+dWl2itdjfYPgV223ZSvkPjuJMzvIsw2hBcuvHJnqV01ukyxbZXrZnOxRoPhcDh4
+2026-11-16T20:31:35.7262563Z 9q4KK8q2WlTT+c0kaUP6fS+3yRTKPPjHP/5R/Xe9rOYJol1duRhvlyoN39bLpvr16csfR33S+BLw
+2026-11-16T20:31:35.7262998Z //5e/vfgqPf/0f79z6c57vD/P6jo9/+/4Pi/+vzxp6j/GN/+/39E9/XfaQ6QqfIwXjUM9XLePaHV
+2026-11-16T20:31:35.7263671Z sJtepHrZPeHn1fD1inBN511q5m4G5rV2lmr47tPo8g3RG2ewnheLJwe9Vzq9Lg+hhTS+qqQvSE8Y
+2026-11-16T20:31:35.7264166Z //dYAd4c/5wIuvP8H5F9/J/kePLkSfXbv3+uquolYODlNDW/NrWfpYtSlYDhv3jxePub6hEZEdJ+
+2026-11-16T20:31:35.7264609Z NdiWXTy7fJT0Z5QT7dNvEePzlw1qoBRfNintaLyl/aofttsPKq3/rO9X+hYY037f1Bcvz9M307lr
+2026-11-16T20:31:35.7265079Z 3m73cVPba+bxPcCqyD07m9egxU9foLJKPxXY2tvFbc2v6eXbulks239O21C/Ts3b31ZPkbcvUFK+
+2026-11-16T20:31:35.7265817Z /W7eNdPUbvVzu8B1PZ3VMNxZ4y6+nbm2nWY0/ebts4tF3XTbfdzQ9BrtP6XXafY8vX2RgCMOqeSX
+2026-11-16T20:31:35.7266321Z BRLI9E9XnkV8cXlDwVY3d5K5pr9/zy9cF85TXCn5tUl5+mZnrfY3ukbjb8v5N8t4lrYX4/35Gy34
+2026-11-16T20:31:35.7266777Z c91cPE9p0V4u3H/cbHmN7fY3vWFUK/95uU7Hz6ezWftiBvHU7BnodU2rR3Ik5a3af1vn4/aHBhQw
+2026-11-16T20:31:35.7267239Z nE9n8dfpIt3Sz36h6hElI7G3yx8SyIDr6uZOc7qpdfWIjai4LqhSRmgUsLouiDYaXLP8iGI/nQGa
+2026-11-16T20:31:35.7267711Z /jnN+UVK7cqTfprOd1Te0PJ63WfpezedLZv0rH262i36rmnqZlfz/nY3ANe39TxPz9rfkgvnALpv
+2026-11-16T20:31:35.7268177Z 19clm7u3HD+nhzTmhzQWhzSWhzRWhzTWhzQ2By0dOaQ1O0j1QWahh+k+yIr0IDPSg+xIDzIkPciS
+2026-11-16T20:31:35.7268655Z 9DBT2oNMeZjh6R4OcU3rEuuSItahuLqzFMb/nj0dKMhXgvxwQXGsoDxWUB07R31sj+ZYQUqOlWTH
+2026-11-16T20:31:35.7269140Z TpIe7QL0+D750ZLiaEl5tKQ62pz66D7N0ZL2WElGjpak1xRhl00uK8IWvOfpfF0Bxe9n7myHdt3Y
+2026-11-16T20:31:35.7269628Z +ho+8+tqY2I15PUexaTsVI3O6sdUKfm4XCV7VTXLeVsBCTJ4UoqPy9/zm64x7t1/OquHHb770Kli
+2026-11-16T20:31:35.7270091Z XDFLuRkTwsYgn8PS2fC5GruOmEmTwnJVVE58vZyj1/cbY+iwutxA2ztwQzDw9cnHFafVYl0KtF9X
+2026-11-16T20:31:35.7270552Z MNJqQmFti68rWb17h19V3pD4dfWHm80qfsHtiBrGORHMrsno90+f/fR4Y8nAjqkdcXnNihZKuSbC
+2026-11-16T20:31:35.7270999Z W2ba/rp6pEZ2l2U/7TrU6O1/TbtzTPNfy87N12R6S9217W6093elul2L/ujap2uxvQPd2/JG3Rtj
+2026-11-16T20:31:35.7271486Z KEUAOHq8a7tieDosPyauSXM3SW1wKJEOEGdFnE1mdb2AB7WobNIkpkV3fogSXpTwCbykLW9DWl1y
+2026-11-16T20:31:35.7271964Z PkReFHlxOQc44qtDhGURlpfCZ+EQUVVEVXn/kZtN/0zNpFx2PESBLgr0xC0W5TLUzP3RHiJthvsC
+2026-11-16T20:31:35.7272408Z 9xANtmiwMFjG4KGn7MJMMmI3HTIQSoblx6Spu/9v72p6G7eB6Hn3VwjoqUDDFSl+SAbyC1qgwBa9
+2026-11-16T20:31:35.7272929Z 9CIkteIVYluOKe+m/fWdoR1vbFE2Raeuisw7GIYtPnEkcvhIiTN3beVuYzukODZBzsuHeXPXAgnY
+2026-11-16T20:31:35.7273378Z AM5uCAE2Qi5K+9fivpmXy6HVlzeuBrIE/4mnLqcNOrZhFGJL8bSBQ13EqsEc2Jq4Lp9Xj7PhHZGb
+2026-11-16T20:31:35.7273869Z rRFmAa2g/VKu5tCHSls9DeMQl3IIrIXgeCnX8EtpnbscQoBVEAJ6IviBzXrp9ZKeos5H+ucUQ/3f
+2026-11-16T20:31:35.7274346Z 3t0OpOr1hbGEPr8Yy9XxkbFER/4ylsbrO2PJun40lsnvU2PZTvjXSEqfr42l8vrdWDKPD46l6vHH
+2026-11-16T20:31:35.7274810Z 8XR+3xzL1/XTsUx9PjueT7wln9+Xx5Id+fUATXtq2LDDtauN1as2QqPaobrUDtOiNkZ/2sGa00bp
+2026-11-16T20:31:35.7275477Z TBuvLe1wPWljNKQdrhvtKa3omReLrJCTZLGdwT3WczeVxyk9TIfdTBSTlCU+R7dsviX3+GTEJmBI
+2026-11-16T20:31:35.7276021Z tU46Dw489eoRoJdV7NhlRtRskKy1kVLWRspXGyNZ7TCZCh5TKMOEOOszba8glZLpwPInVCjPmVBh
+2026-11-16T20:31:35.7276536Z LH7pySXL0jACj97MWVaEFe5oTMOkDivaoyvB8iyMwKclOWdZ4OXvE5BcMxNo/UnVCIaYIBq/UhSS
+2026-11-16T20:31:35.7277037Z 8bAr2ScPecZ02KX0a0IumAm0oFcIAgcvQjn61B/cVBVoiE/yQV8oAov36zxoFDqUo0/bFaF3tE/P
+2026-11-16T20:31:35.7277508Z aZaHGdLVcIapPg3327eqWu3fTXDLkr6xSBdiklg8djf6TJKiyJNqXs/qexiGXCZPr3ftnsBpSt1T
+2026-11-16T20:31:35.7278013Z n993C8+umLcqRspdVSZJ9fznfDMFSnzLZnq/mdlP8KHgpsOR3xex3Vi4X6fHF8ITuKotjKH8ZaPM
+2026-11-16T20:31:35.7278497Z lvHTg5DFZHe864truIEwNuxOlOA6OO6SQXP9+1x61voZYzHW1NZuKp7q1MRbpNPRWSQkz+MtyowY
+2026-11-16T20:31:35.7278992Z nUUZbvmPtkgqMzqLZFqo+H4k9Qgtwpw+8RaNsNWBRUZfYFE2Pot0kcb3I5Xq0VmEuQgvsCgbgffG
+2026-11-16T20:31:35.7279465Z MB8LVDKYovXAEnw8nEzrhwd8XWjZoBkoB7aZ334MP8Oynq/adXlXP0dfqXwM937Z1Mu6vfwaKb3n
+2026-11-16T20:31:35.7279934Z LnK9qzWGeoHJ1vSnhIv9KYMf30uxEAUzKZdFzpXxq7UD+YUzYglFuu9gfN7mVfulms6q9Wc4h7Pi
+2026-11-16T20:31:35.7280491Z Jdva3P28tyaHFvxDloFFq3XzFWcnbtuPS8S1bpo2mTZg3BK+wP217VkqKbmPCrdBH1MdvqLQqfX+
+2026-11-16T20:31:35.7280955Z adQp67Yt4fglYc8h+7VSPKP7+ODdwvQhSxVnRcHt9sh3v//nX9wBHLH/V2mK/zmK/b+4tVed3P8r
+2026-11-16T20:31:35.7281397Z 4Aj+6qBXO3057f/9H/T/ozS819//2/nOObQv6v/Xuf8HGZP/g/2faSqF6OR/VBT/9SroRHtIzR/J
+2026-11-16T20:31:35.7281848Z Ahz17e6N1kW1KO++gvZHvXzLlcy54CYVEtS0fXz1VyENjNtCZUaDcnza1CAfSyh9i5kKjeS5kOn3
+2026-11-16T20:31:35.7282307Z P7Dw638++oadkxUBjSDSTIHwPq5IxrVUGTcg0CMq8t76f19+8yv6f92J/6pJ/10HLvAfm9Xtl839
+2026-11-16T20:31:35.7282794Z Lu+zfQkJfNNpGhQk8B30/zeXAefnf8f6Dxw75X+6Cs7E4hPMxaG72UaqgyvFZn9Pkl9//nimXNZX
+2026-11-16T20:31:35.7283241Z jnrc6Pv/m68EReR/UZLif45i/Qfjv/Fz8d8OgsRR/DcCgUAgEAgEAoFAIBAIBAKBQCAQCAQCgUAg
+2026-11-16T20:31:35.7283642Z EAgEAoFAuAb+AcYoRBkA8AAA
+2026-11-16T20:31:35.7283908Z LOGOS_RELEASE_EVIDENCE_END parity
+2026-11-16T20:31:35.7361616Z Cleaning up orphan processes

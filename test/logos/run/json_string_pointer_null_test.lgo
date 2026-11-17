@@ -1,0 +1,57 @@
+// run
+
+package jsonstringpointer
+
+import (
+	"encoding/json"
+	"reflect"
+	"testing"
+)
+
+type Pointers struct {
+	S     *string  `json:"s,string"`
+	I     *int64   `json:"i,string"`
+	U     *uint64  `json:"u,string"`
+	B     *bool    `json:"b,string"`
+	F     *float64 `json:"f,string"`
+	After int64    `json:"after"`
+}
+
+type PointersMirror struct {
+	S     *string  `json:"s,string"`
+	I     *int64   `json:"i,string"`
+	U     *uint64  `json:"u,string"`
+	B     *bool    `json:"b,string"`
+	F     *float64 `json:"f,string"`
+	After int64    `json:"after"`
+	NoGen any      `json:"-"`
+}
+
+func TestStringPointerNullMatchesProfile(t *testing.T) {
+	documents := []string{
+		`{"s":"null","i":"null","u":"null","b":"null","f":"null","after":17}`,
+		`{"s":"\u006eull","i":"\u006eull","u":"\u006eull","b":"\u006eull","f":"\u006eull","after":17}`,
+		`{"s":"\"new\"","i":"7","u":"8","b":"true","f":"1.25","after":17}`,
+	}
+	for _, doc := range documents {
+		t.Run(doc, func(t *testing.T) {
+			got := Pointers{S: new("seed"), I: new(int64(5)), U: new(uint64(5)), B: new(false), F: new(5.0)}
+			want := PointersMirror{S: new("seed"), I: new(int64(5)), U: new(uint64(5)), B: new(false), F: new(5.0)}
+			gotAlias, wantAlias := got, want
+			if err := json.Unmarshal([]byte(doc), &got); err != nil {
+				t.Fatalf("generated decode: %v", err)
+			}
+			if err := json.Unmarshal([]byte(doc), &want); err != nil {
+				t.Fatalf("encoding/json: %v", err)
+			}
+			wantValue := Pointers{S: want.S, I: want.I, U: want.U, B: want.B, F: want.F, After: want.After}
+			if !reflect.DeepEqual(got, wantValue) {
+				t.Fatalf("value = %+v, encoding/json = %+v", got, wantValue)
+			}
+			wantAliases := Pointers{S: wantAlias.S, I: wantAlias.I, U: wantAlias.U, B: wantAlias.B, F: wantAlias.F, After: wantAlias.After}
+			if !reflect.DeepEqual(gotAlias, wantAliases) {
+				t.Fatalf("alias values = %+v, encoding/json = %+v", gotAlias, wantAliases)
+			}
+		})
+	}
+}

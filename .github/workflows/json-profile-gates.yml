@@ -1,0 +1,74 @@
+name: "JSON profile compatibility"
+
+"on":
+  pull_request:
+    paths:
+      - ".github/scripts/install-ci-tool.sh"
+      - ".github/scripts/install-upstream-oracles.sh"
+      - ".github/workflows/json-profile-gates.yml"
+      - "src/cmd/compile/internal/logos/**"
+      - "src/logos/rt/json/**"
+      - "src/cmd/go/testdata/script/logos_*json*.txt"
+      - "test/logos/run/json*.lgo"
+      - "test/logos/run/comptime_json*.lgo"
+  workflow_dispatch:
+
+permissions:
+  contents: "read"
+
+concurrency:
+  group: "json-profiles-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  profiles:
+    runs-on: "ubuntu-26.04"
+    timeout-minutes: 90
+    env:
+      GOMAXPROCS: "4"
+      GOFLAGS: "-p=2"
+      GOMEMLIMIT: "2GiB"
+    defaults:
+      run:
+        shell: "bash"
+        working-directory: "src"
+    steps:
+      - name: "Check out the tested revision"
+        working-directory: "${{ github.workspace }}"
+        run: |
+          git init --quiet .
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          git -c protocol.version=2 fetch --no-tags --depth=1 origin "$GITHUB_SHA"
+          git -c advice.detachedHead=false checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - name: "Install the pinned Go bootstrap"
+        run: bash ../.github/scripts/install-ci-tool.sh go
+      - name: "Install upstream ejection toolchains"
+        run: bash ../.github/scripts/install-upstream-oracles.sh
+      - name: "Build the toolchain"
+        id: build
+        run: |
+          GOROOT_BOOTSTRAP=$(go env GOROOT)
+          export GOROOT_BOOTSTRAP
+          GOEXPERIMENT="" ./make.bash
+          printf '%s\n' "$GITHUB_WORKSPACE/bin" >> "$GITHUB_PATH"
+      - name: "Check formatting"
+        run: |
+          test -z "$(gofmt -l logos/rt/json cmd/compile/internal/logos)"
+      - name: "Check JSONv2"
+        env:
+          GOEXPERIMENT: "jsonv2"
+        run: |
+          go vet logos/rt/json cmd/compile/internal/logos
+          go test -count=1 -race -timeout=20m logos/rt/json cmd/compile/internal/logos
+          go test -count=1 -timeout=30m cmd/internal/testdir -run 'Test/logos/run/(json|comptime_json)'
+          go test -count=1 -race -timeout=20m cmd/go -run 'Script/^logos_(eject_json_(embedded|cycle)|json_fallback_string)$'
+      - name: "Check classic JSON"
+        if: "always() && steps.build.outcome == 'success'"
+        env:
+          GOEXPERIMENT: "nojsonv2"
+        run: |
+          go vet logos/rt/json cmd/compile/internal/logos
+          go test -count=1 -race -timeout=20m logos/rt/json cmd/compile/internal/logos
+          go test -count=1 -timeout=30m cmd/internal/testdir -run 'Test/logos/run/(json|comptime_json)'
+          go test -count=1 -race -timeout=20m cmd/go -run 'Script/^logos_(eject_json_(embedded|cycle)|json_fallback_string)$'

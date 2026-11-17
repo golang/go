@@ -1,0 +1,8 @@
+kind: runtime
+file: src/runtime/arena_logos.go
+expect: at04_arena_park
+config: K5
+-- old --
+		if c.empty() {
+-- new --
+		if true {

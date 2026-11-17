@@ -1,0 +1,70 @@
+{
+  "recordedAt": "2026-11-16T16:30:58.995Z",
+  "repository": "gosuda/LoGOs",
+  "runId": 43906417073,
+  "jobId": 133436353512,
+  "url": "https://github.com/gosuda/LoGOs/actions/runs/43906417073/job/133436353512",
+  "status": "completed",
+  "conclusion": "success",
+  "prHead": "45c29ff215477f7e403188d7452fc79aef05d791",
+  "actualCheckout": "f2ad58be8742b8ec350db8f06d9dc794ea3302e4",
+  "checkoutEvidence": [
+    "2026-11-16T16:23:12.6743821Z  * branch              f2ad58be8742b8ec350db8f06d9dc794ea3302e4 -> FETCH_HEAD",
+    "2026-11-16T16:23:13.6089083Z HEAD is now at f2ad58be Merge 45c29ff215477f7e403188d7452fc79aef05d791 into 13a968f350564e739bf700df698a9a635dcdddcd"
+  ],
+  "installedToolchainEvidence": [
+    "2026-11-16T16:23:24.0449540Z Building Go toolchain1 using /home/runner/work/_temp/go1.27.4-ci.",
+    "2026-11-16T16:24:02.1349086Z Building Go toolchain2 using go_bootstrap and Go toolchain1.",
+    "2026-11-16T16:24:29.9913789Z Building Go toolchain3 using go_bootstrap and Go toolchain2.",
+    "2026-11-16T16:26:07.5509880Z Installed Go for linux/amd64 in /home/runner/work/LoGOs/LoGOs"
+  ],
+  "sourceTreeCrossCheck": "Actual checkout matches root's independently fetched merge; root reported full tree 32b96f3a7c289c987bc021fe5a5adbf35cfe226b and src tree 099367e1031585fa553ef7987b199288df36256a.",
+  "focusedRedteamRows": [
+    386,
+    389
+  ],
+  "completedGates": [
+    {
+      "name": "native type arguments and captures",
+      "status": "success",
+      "package": "cmd/internal/testdir",
+      "seconds": 18.251
+    },
+    {
+      "name": "ejection with race detection",
+      "status": "success",
+      "package": "cmd/go",
+      "seconds": 24.389
+    },
+    {
+      "name": "generic target mutation",
+      "status": "caught and restored"
+    },
+    {
+      "name": "type prefix mutation",
+      "status": "caught and restored"
+    },
+    {
+      "name": "restored syntax",
+      "status": "success",
+      "seconds": 5.826
+    },
+    {
+      "name": "restored types2",
+      "status": "success",
+      "seconds": 10.512
+    },
+    {
+      "name": "restored Lower",
+      "status": "success",
+      "seconds": 47.307
+    }
+  ],
+  "expectedFailures": "FAIL lines in this successful job belong to its two deliberately caught mutation probes.",
+  "rawLog": {
+    "path": "generic-43906417073-job-133436353512.log",
+    "sha256": "49a099f23bec11511a78ada5a0739cf778fc9ee858a034053fd381d4893459e1",
+    "bytes": 35424,
+    "encoding": "UTF-8 decoded GitHub job log; original BOM and LF endings retained"
+  }
+}

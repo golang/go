@@ -1,0 +1,5 @@
+{
+  "Replace": {
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/cmd/go/internal/logos/eject/inactive.go": "/workspace/scratch/9949907ca71e/hosted-evidence/runtime/ejection-overlay/mutation/inactive.go"
+  }
+}

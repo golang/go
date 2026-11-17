@@ -1,0 +1,81 @@
+{
+  "source": "/workspace/scratch/9949907ca71e/logos-json-integration",
+  "sourceHEAD": "45c29ff215477f7e403188d7452fc79aef05d791",
+  "sourceTree": "099367e1031585fa553ef7987b199288df36256a",
+  "candidate": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes",
+  "links": [
+    {
+      "path": "bin",
+      "target": "/workspace/scratch/9949907ca71e/logos-json-integration/bin",
+      "purpose": "read-only reuse of installed tools/includes; no install or make"
+    },
+    {
+      "path": "pkg/tool",
+      "target": "/workspace/scratch/9949907ca71e/logos-json-integration/pkg/tool",
+      "purpose": "read-only reuse of installed tools/includes; no install or make"
+    },
+    {
+      "path": "pkg/include",
+      "target": "/workspace/scratch/9949907ca71e/logos-json-integration/pkg/include",
+      "purpose": "read-only reuse of installed tools/includes; no install or make"
+    }
+  ],
+  "copiedGeneratedConfiguration": [
+    {
+      "path": "src/cmd/cgo/zdefaultcc.go",
+      "SHA256": "89d5d351ddc635bad240c80562adb5762b511b2be9aa3a3577e14304e8ac35de"
+    },
+    {
+      "path": "src/cmd/go/internal/cfg/zdefaultcc.go",
+      "SHA256": "27889a141497607e7d3cce147313a1e84e62425105a756e090ca4b6dfd3c5c55"
+    },
+    {
+      "path": "src/cmd/internal/objabi/zbootstrap.go",
+      "SHA256": "d747f1f15f91fd8154c3572b1ecd48ccdf991bee4ea06650cbc1177c76917f76"
+    },
+    {
+      "path": "src/internal/buildcfg/zbootstrap.go",
+      "SHA256": "1d4118e0234ab404bc09a92f3fb557b6cc639a28622eaefd21e03e56bf4c0ce8"
+    },
+    {
+      "path": "src/internal/runtime/sys/zversion.go",
+      "SHA256": "f69c03727973664529c2e6fa2d2c53b2d3440c887938d0d9b22254f7984052f2"
+    }
+  ],
+  "installedTools": [
+    {
+      "path": "bin/go",
+      "SHA256": "987052b593c41cf60390eec80d98b01b89f9536d6d87b4e73672ab6e7a4eb2ef"
+    },
+    {
+      "path": "bin/gofmt",
+      "SHA256": "987465c7a554cc2896f1600b25500e5b3a462df2c448d25c662f8f043a03018c"
+    },
+    {
+      "path": "bin/logos",
+      "SHA256": "987052b593c41cf60390eec80d98b01b89f9536d6d87b4e73672ab6e7a4eb2ef"
+    },
+    {
+      "path": "pkg/tool/linux_amd64/compile",
+      "SHA256": "61749f8f2b2242d26e613993270f654cf47c750739a22b223f94eedd5370bba9"
+    },
+    {
+      "path": "pkg/tool/linux_amd64/asm",
+      "SHA256": "ba74e1169103009e33cc3ed0516fe41ab05f71455c562b2866e1d91a02e7f92c"
+    },
+    {
+      "path": "pkg/tool/linux_amd64/link",
+      "SHA256": "8de04dd6ee98e46757ad12a6e11d968a4a75594d3c863319cca18833b6f9ca9f"
+    },
+    {
+      "path": "pkg/tool/linux_amd64/cgo",
+      "SHA256": "aa3c7182db2db4b139400223d4d1c413d14cd2e1e194d4aa77b7ecd0e056b755"
+    },
+    {
+      "path": "pkg/tool/linux_amd64/vet",
+      "SHA256": "60c65c470ba9b4b4374c5a96c774c77ad38b51b53e59c5fae7b7a1e746778cb6"
+    }
+  ],
+  "candidateSourceValidationOnly": true,
+  "requiresFreshHostedMakeAfterPublication": true
+}

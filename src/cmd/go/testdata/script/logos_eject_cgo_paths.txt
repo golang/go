@@ -1,0 +1,121 @@
+[!cgo] skip 'cgo is not available'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env CGO_ENABLED=1
+env GOEXPERIMENT=nologosfastcgo
+cd m
+cp main.⚡ $WORK/original.txt
+cp overlay/replacement.go $WORK/backing.txt
+logos run -trimpath .
+stdout '^path: 5$'
+stdout 'at main[.]⚡:12$'
+cp stdout $WORK/native.txt
+logos build -trimpath --emit-go=$WORK/plain-out
+exists $WORK/plain-out/main.go
+cd $WORK/plain-out
+exec env -u GOROOT GOEXPERIMENT= $UPROOT1272/bin/go run .
+cmp stdout $WORK/native.txt
+exec env -u GOROOT GOEXPERIMENT= $UPROOT1273/bin/go run .
+cmp stdout $WORK/native.txt
+
+# The backing file also matches the module-directory trimpath rule.
+cd $GOPATH/src/m
+logos run -trimpath -overlay=overlay.json .
+stdout '^path: 17$'
+stdout 'at main[.]⚡:15$'
+cp stdout $WORK/overlaid.txt
+logos build -trimpath -overlay=overlay.json --emit-go=$WORK/overlay-out
+exists $WORK/overlay-out/main.go
+! exists $WORK/overlay-out/replacement.go
+cmp main.⚡ $WORK/original.txt
+cmp overlay/replacement.go $WORK/backing.txt
+cd $WORK/overlay-out
+exec env -u GOROOT GOEXPERIMENT= $UPROOT1272/bin/go run .
+cmp stdout $WORK/overlaid.txt
+exec env -u GOROOT GOEXPERIMENT= $UPROOT1273/bin/go run .
+cmp stdout $WORK/overlaid.txt
+
+# Source identity is recovered once, before checking. A second rewrite
+# would blame twice/wrong.lgo instead of the logical original source.
+cd $WORK
+! go tool compile -p p -logos.cgoeject -logos.eject=$WORK/bad-out -trimpath=$GOPATH/src/diagnostics/wrong.lgo=>mapped/original.lgo;mapped/original.lgo=>twice/wrong.lgo $GOPATH/src/diagnostics/wrong.lgo $GOPATH/src/diagnostics/_cgo_gotypes.go
+stdout '^mapped/original.lgo:4:15: cannot use "bad"'
+! exists bad-out
+
+-- m/go.mod --
+module example.com/cgopaths
+
+go 1.27
+
+-- m/logos.toml --
+[build]
+cgo = "allow"
+
+-- m/main.⚡ --
+package main
+
+/*
+static int value(void) { return 5; }
+static int *missing(void) { return 0; }
+*/
+import "C"
+
+import "fmt"
+
+func checked() *C.int {
+	return C.missing()
+}
+
+func main() {
+	fmt.Println("path:", C.value())
+	defer func() { fmt.Println("checked:", recover()) }()
+	checked()
+}
+
+-- m/overlay.json --
+{
+	"Replace": {
+		"main.⚡": "overlay/replacement.go"
+	}
+}
+
+-- m/overlay/go.mod --
+module example.com/cgobacking
+
+go 1.27
+
+-- m/overlay/replacement.go --
+package main
+
+/*
+static int value(void) { return 17; }
+static int *missing(void) { return 0; }
+*/
+import "C"
+
+import "fmt"
+
+// This source has its own physical name and line layout. The loader
+// presents it as the parent module's main source file.
+
+func checked() *C.int {
+	return C.missing()
+}
+
+func main() {
+	fmt.Println("path:", C.value())
+	defer func() { fmt.Println("checked:", recover()) }()
+	checked()
+}
+
+-- diagnostics/wrong.lgo --
+package p
+import "C"
+
+var X C.int = "bad"
+
+-- diagnostics/_cgo_gotypes.go --
+package p
+
+type _Ctype_int int32

@@ -33,6 +33,11 @@ func Eject(dir string, files []*syntax.File, src map[*syntax.File][]byte, edits 
 		}
 		base := file.Pos().FileBase()
 		lowered := edits[file]
+		headerLines, headerEdits, err := ejectSourceHeader(file, data)
+		if err != nil {
+			return err
+		}
+		lowered = append(headerEdits, lowered...)
 		var lineEdits []Edit
 		if starts := lineStarts(data); len(starts) > 0 {
 			type span struct{ s, e int }
@@ -70,6 +75,9 @@ func Eject(dir string, files []*syntax.File, src map[*syntax.File][]byte, edits 
 			})
 			for line, off := range starts {
 				no := line + 1
+				if headerLines[no] {
+					continue
+				}
 				in := false
 				for _, c := range covered {
 					if off >= c.s && off < c.e {

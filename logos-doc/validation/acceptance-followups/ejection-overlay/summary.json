@@ -1,0 +1,166 @@
+{
+  "slice": "M24-A-S3",
+  "redteam": 441,
+  "status": "component-gates-passed; final installed script pending",
+  "scope": "Final merged ejection source with immutable45 installed tools. No candidate source edits; mutation uses an external overlay.",
+  "sourceManifest": "source-manifest.json",
+  "gates": {
+    "baseline-build": {
+      "command": "go test -c -race -overlay=baseline-unit-overlay.json cmd/go/internal/logos/eject",
+      "startedUTC": "2026-11-16T18:16:27Z",
+      "exit": 0,
+      "wallSeconds": 5,
+      "timeoutSeconds": 600,
+      "killAfterSeconds": 10,
+      "elapsedSeconds": 4.825
+    },
+    "baseline-unit": {
+      "command": "baseline-unit.test -test.v -test.count=1 -test.short -test.run=^TestInactiveCensusHonorsOverlay$ -test.timeout=2m",
+      "startedUTC": "2026-11-16T18:16:48Z",
+      "exit": 1,
+      "wallSeconds": 0,
+      "timeoutSeconds": 150,
+      "sourceTemp": "/home/agent/logos-ejection-overlay-9949907ca71e-y20O9N",
+      "elapsedSeconds": 0.069
+    },
+    "baseline-script": {
+      "command": "existing45 cmdgo-race.test -test.v -test.count=1 -test.short -test.run=Script/^logos_eject_overlay_sources$ -test.parallel=1 -test.timeout=3m",
+      "startedUTC": "2026-11-16T18:18:26Z",
+      "exit": 1,
+      "wallSeconds": 1,
+      "timeoutSeconds": 210,
+      "sourceTemp": "/home/agent/logos-ejection-overlay-9949907ca71e-y20O9N",
+      "newCmdGoBuild": false,
+      "elapsedSeconds": 0.961
+    },
+    "candidate-build": {
+      "command": "go test -c -race cmd/go/internal/logos/eject",
+      "startedUTC": "2026-11-16T18:17:18Z",
+      "exit": 0,
+      "wallSeconds": 5,
+      "timeoutSeconds": 600,
+      "killAfterSeconds": 10,
+      "source": "final merged ejection package hashes in source-manifest.json",
+      "tools": "immutable45",
+      "elapsedSeconds": 4.133
+    },
+    "candidate-unit": {
+      "command": "candidate-unit.test -test.v -test.count=1 -test.short -test.run=^TestInactiveCensusHonorsOverlay$ -test.timeout=2m",
+      "startedUTC": "2026-11-16T18:17:48Z",
+      "exit": 0,
+      "wallSeconds": 2,
+      "timeoutSeconds": 150,
+      "sourceTemp": "/home/agent/logos-ejection-overlay-9949907ca71e-y20O9N",
+      "race": true,
+      "elapsedSeconds": 2.15
+    },
+    "mutant-build": {
+      "command": "go test -c -race -overlay=mutation/overlay.json cmd/go/internal/logos/eject",
+      "startedUTC": "2026-11-16T18:18:52Z",
+      "exit": 0,
+      "wallSeconds": 6,
+      "timeoutSeconds": 300,
+      "killAfterSeconds": 10,
+      "mutation": "one fsys.ReadFile(path) call becomes os.ReadFile(path)",
+      "elapsedSeconds": 5.938
+    },
+    "mutant-unit": {
+      "command": "mutant-unit.test -test.v -test.count=1 -test.short -test.run=^TestInactiveCensusHonorsOverlay$ -test.timeout=2m",
+      "startedUTC": "2026-11-16T18:19:21Z",
+      "exit": 1,
+      "wallSeconds": 0,
+      "timeoutSeconds": 150,
+      "sourceTemp": "/home/agent/logos-ejection-overlay-9949907ca71e-y20O9N",
+      "race": true,
+      "elapsedSeconds": 0.126
+    },
+    "restored-build": {
+      "command": "go test -c -race cmd/go/internal/logos/eject",
+      "startedUTC": "2026-11-16T18:19:42Z",
+      "exit": 0,
+      "wallSeconds": 2,
+      "timeoutSeconds": 300,
+      "overlay": false,
+      "elapsedSeconds": 2.159
+    },
+    "restored-unit": {
+      "command": "restored-unit.test -test.v -test.count=1 -test.short -test.run=^TestInactiveCensusHonorsOverlay$ -test.timeout=2m",
+      "startedUTC": "2026-11-16T18:19:44Z",
+      "exit": 0,
+      "wallSeconds": 2,
+      "timeoutSeconds": 150,
+      "sourceTemp": "/home/agent/logos-ejection-overlay-9949907ca71e-y20O9N",
+      "race": true,
+      "overlay": false,
+      "elapsedSeconds": 2.064
+    },
+    "vet": {
+      "command": "go vet cmd/go/internal/logos/eject",
+      "startedUTC": "2026-11-16T18:20:11Z",
+      "exit": 0,
+      "wallSeconds": 1,
+      "timeoutSeconds": 600,
+      "killAfterSeconds": 10,
+      "elapsedSeconds": 1.431
+    }
+  },
+  "baseline": {
+    "unit": {
+      "semanticRed": true,
+      "observedExit": 1,
+      "mechanism": "The physical census retains removed.lgo even though its overlay entry deletes it. Existing target matching then reports deleted in overlay.",
+      "frozenTestUnchanged": true,
+      "environmentFailure": false,
+      "initialLogClassifier": "Initially anticipated the later census-vector assertion; the actual earlier failure proves the deleted-source invariant directly. No test or expected test input changed."
+    },
+    "script": {
+      "semanticRed": true,
+      "observedExit": 1,
+      "mechanism": "The physical census retains ignored.lgo although the overlay replaces its build constraint with ignore. Target selection then has no valid context.",
+      "frozenScriptUnchanged": true,
+      "environmentFailure": false,
+      "reused45RaceBinary": true,
+      "newCmdGoBuild": false
+    },
+    "existing45CmdGoRaceBinaryReused": true
+  },
+  "mutation": {
+    "caught": true,
+    "observedExit": 1,
+    "mechanism": "The physical read cannot open the overlay-inserted source. The frozen test catches the regression through its isolated child.",
+    "oneCallChanged": true,
+    "frozenInputsUnchanged": true,
+    "sourceTreeUnmodified": true
+  },
+  "sourceProof": {
+    "allPackageFiles": 18,
+    "allPackageHashesUnchanged": true,
+    "frozenUnitAndScriptUnchanged": true,
+    "immutable45SourceUnchanged": true,
+    "sourceWasNeverMutated": true
+  },
+  "binaries": [
+    {
+      "path": "baseline-unit.test",
+      "sha256": "5c468f36030cdd08b15a20ab87d92728cb2ca4ae1e0a94c6c004a47527c270fb"
+    },
+    {
+      "path": "candidate-unit.test",
+      "sha256": "39922d245a018f79a2b5c25e6c2298ac801fc2a047fd494860275093403b6b59"
+    },
+    {
+      "path": "mutant-unit.test",
+      "sha256": "a62b975c5c56070d7f7b47493cb8ef4fbca949d407444cb73c1fc628b46ebe1d"
+    },
+    {
+      "path": "restored-unit.test",
+      "sha256": "39922d245a018f79a2b5c25e6c2298ac801fc2a047fd494860275093403b6b59"
+    }
+  ],
+  "allCommandSessionsCompleted": true,
+  "goLaneReleased": true,
+  "installedScriptGreen": {
+    "status": "not executed",
+    "requires": "Final clean make, then Script/^logos_eject_overlay_sources$ against the newly installed merged toolchain."
+  }
+}

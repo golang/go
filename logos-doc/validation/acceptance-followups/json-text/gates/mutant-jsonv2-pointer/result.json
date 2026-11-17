@@ -1,0 +1,27 @@
+{
+  "started": true,
+  "started_utc": "2026-11-16T17:58:27.020667+00:00",
+  "completed_utc": "2026-11-16T17:58:35.232179+00:00",
+  "duration_seconds": 8.211,
+  "exit_code": 1,
+  "raw_log_sha256": "eda68c9ba76035c36eea571c0376adb382b34ff35ee2b8b0065c812ecbc31010",
+  "source_after": {
+    "head": "45c29ff215477f7e403188d7452fc79aef05d791",
+    "tree": "32b96f3a7c289c987bc021fe5a5adbf35cfe226b",
+    "src": "099367e1031585fa553ef7987b199288df36256a",
+    "status": ""
+  },
+  "mapped_files_unchanged": true,
+  "passed_tests": [
+    "TestQuotedTextAppendCannotCorruptToken"
+  ],
+  "failed_tests": [
+    "TestQuotedTextPermissiveUnquoteMatchesEncodingJSON"
+  ],
+  "skipped_tests": [],
+  "resources_after": {
+    "MemAvailable": 7241818112,
+    "Shmem": 713617408,
+    "workspace_available_bytes": 14135689216
+  }
+}

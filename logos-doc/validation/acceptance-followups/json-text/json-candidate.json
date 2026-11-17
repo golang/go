@@ -1,0 +1,16 @@
+{
+  "created_utc": "2026-11-16T17:52:44.413735+00:00",
+  "production_attempt": 1,
+  "baseline_result_sha256": "55bf0770a3c3229506c47378de95c4c0df023748b6b8420c4d9f51a2c7f1254f",
+  "baseline_raw_log_sha256": "de859bfbc81be32550651a393ab5a61da4c3a55b815bafffaf29e7b6c2a96488",
+  "base_production_sha256": "64588102fcf7c10f5362e0ba5a2427e148cbf7ebd74139341a1e83e4d39270a3",
+  "candidate_production_sha256": "1e226a2d7f6b230299fcc9e55752bb6ee6b896ce87bf41197b4b6628f7a405b1",
+  "candidate_patch_sha256": "e31c09141c2c345f950b49279d239924fc13438b5ec53db986b54e72e001a56d",
+  "candidate_overlay": "/workspace/scratch/9949907ca71e/recovery-evidence/upstream-e5b95a2e-comparison/json-candidate-overlay.json",
+  "production_changed_lines": 3,
+  "scope": "Two QuotedText/QuotedTextPtr decoding call sites and the corresponding pointer-local error declaration.",
+  "frozen_test_file_sha256": "08729986d528dd8a0c003893b0069639b5f3d7201b122a4105be162bfa088232",
+  "gofmt_exit": 0,
+  "git_apply_check_exit": 0,
+  "candidate_go_tests_started": false
+}

@@ -1,0 +1,115 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env REDTEAM80_SKIP='^(TestACVP|TestBogoSuite|TestCBCAESWycheproof|TestCMACWycheproof|TestChaCha20Poly1305Wycheproof|TestDSAWycheproof|TestECDSAWycheproof|TestEd25519Vectors|TestEd25519Wycheproof|TestGCMWycheproof|TestHKDFWycheproof|TestHMACWycheproof|TestKeyGenWycheproof|TestMkmalloc|TestPipeThreads|TestMLKEMDecapsWycheproof|TestMLKEMEncapsWycheproof|TestMLKEMSemiExpandedDecapsWycheproof|TestMLDSANoSeedWycheproof|TestMLDSASignSeedRandomizedWycheproof|TestRSAOAEPDecryptWycheproof|TestRSAPKCS1DecryptWycheproof|TestRSAPKCS1SignaturesWycheproof|TestRSAPSSSignaturesWycheproof|TestSecpECDHSPKIWycheproof|TestSecpECDHWycheproof|TestSignSeedWycheproof|TestVerifyWycheproof|TestWycheproof|TestX509Limbo|TestX25519ECDHWycheproof)$'
+env REDTEAM80_SKIP
+stdout '\)\$$'
+
+mkdir $WORK/rt80
+env TMPDIR=$WORK/rt80
+env GOMODCACHE=$WORK/rt80/modcache
+
+grep -count=1 'func TestCBCAESWycheproof\(' $GOROOT/src/crypto/cipher/cbc_aes_wycheproof_test.go
+grep -count=1 'func TestGCMWycheproof\(' $GOROOT/src/crypto/cipher/gcm_wycheproof_test.go
+grep -count=1 'func TestDSAWycheproof\(' $GOROOT/src/crypto/dsa/dsa_wycheproof_test.go
+grep -count=1 'func TestSecpECDHWycheproof\(' $GOROOT/src/crypto/ecdh/ecdh_wycheproof_test.go
+grep -count=1 'func TestSecpECDHSPKIWycheproof\(' $GOROOT/src/crypto/ecdh/ecdh_wycheproof_test.go
+grep -count=1 'func TestX25519ECDHWycheproof\(' $GOROOT/src/crypto/ecdh/ecdh_wycheproof_test.go
+grep -count=1 'func TestECDSAWycheproof\(' $GOROOT/src/crypto/ecdsa/ecdsa_wycheproof_test.go
+grep -count=1 'func TestEd25519Wycheproof\(' $GOROOT/src/crypto/ed25519/ed25519_wycheproof_test.go
+grep -count=1 'func TestEd25519Vectors\(' $GOROOT/src/crypto/ed25519/ed25519vectors_test.go
+grep -count=1 'func TestHKDFWycheproof\(' $GOROOT/src/crypto/hkdf/hkdf_wycheproof_test.go
+grep -count=1 'func TestHMACWycheproof\(' $GOROOT/src/crypto/hmac/hmac_wycheproof_test.go
+grep -count=1 'func TestChaCha20Poly1305Wycheproof\(' $GOROOT/src/crypto/internal/cryptotest/chacha20poly1305_wycheproof_test.go
+grep -count=1 'func TestACVP\(' $GOROOT/src/crypto/internal/fips140test/acvp_test.go
+grep -count=1 'func TestCMACWycheproof\(' $GOROOT/src/crypto/internal/fips140test/cmac_wycheproof_test.go
+grep -count=1 'func TestVerifyWycheproof\(' $GOROOT/src/crypto/mldsa/mldsa_wycheproof_test.go
+grep -count=1 'func TestSignSeedWycheproof\(' $GOROOT/src/crypto/mldsa/mldsa_wycheproof_test.go
+grep -count=1 'func TestMLDSASignSeedRandomizedWycheproof\(' $GOROOT/src/crypto/mldsa/mldsa_wycheproof_test.go
+grep -count=1 'func TestMLDSANoSeedWycheproof\(' $GOROOT/src/crypto/mldsa/mldsa_wycheproof_test.go
+grep -count=1 'func TestKeyGenWycheproof\(' $GOROOT/src/crypto/mlkem/mlkem_wycheproof_test.go
+grep -count=1 'func TestMLKEMEncapsWycheproof\(' $GOROOT/src/crypto/mlkem/mlkem_wycheproof_test.go
+grep -count=1 'func TestMLKEMDecapsWycheproof\(' $GOROOT/src/crypto/mlkem/mlkem_wycheproof_test.go
+grep -count=1 'func TestMLKEMSemiExpandedDecapsWycheproof\(' $GOROOT/src/crypto/mlkem/mlkem_wycheproof_test.go
+grep -count=1 'func TestWycheproof\(' $GOROOT/src/crypto/pbkdf2/pbkdf2_wycheproof_test.go
+grep -count=1 'func TestRSAOAEPDecryptWycheproof\(' $GOROOT/src/crypto/rsa/rsa_wycheproof_test.go
+grep -count=1 'func TestRSAPKCS1DecryptWycheproof\(' $GOROOT/src/crypto/rsa/rsa_wycheproof_test.go
+grep -count=1 'func TestRSAPKCS1SignaturesWycheproof\(' $GOROOT/src/crypto/rsa/rsa_wycheproof_test.go
+grep -count=1 'func TestRSAPSSSignaturesWycheproof\(' $GOROOT/src/crypto/rsa/rsa_wycheproof_test.go
+grep -count=1 'func TestBogoSuite\(' $GOROOT/src/crypto/tls/bogo_shim_test.go
+grep -count=1 'func TestX509Limbo\(' $GOROOT/src/crypto/x509/x509limbo_test.go
+grep -count=1 'func TestMkmalloc\(' $GOROOT/src/runtime/malloc_test.go
+grep -count=1 'func TestPipeThreads\(' $GOROOT/src/os/os_test.go
+go run ./skipcheck
+stdout '^skip names ok: 31$'
+
+go test -v -count=1 -skip $REDTEAM80_SKIP -run 'TestHMAC$|TestHMACWycheproof$' crypto/hmac
+stdout '--- PASS: TestHMAC'
+stdout -count=1 '--- PASS'
+stdout '^ok'
+! stderr 'no tests to run'
+go test -v -count=1 -skip $REDTEAM80_SKIP -run 'TestGCM$|TestGCMWycheproof$' crypto/cipher
+stdout '--- PASS: TestGCM'
+stdout -count=1 '--- PASS'
+stdout '^ok'
+! stderr 'no tests to run'
+
+-- go.mod --
+module example.com/redteam80
+
+go 1.27
+
+-- skipcheck/main.go --
+package main
+
+import (
+	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+func main() {
+	skip := os.Getenv("REDTEAM80_SKIP")
+	skip = strings.TrimPrefix(skip, "^(")
+	skip = strings.TrimSuffix(skip, ")$")
+	names := strings.Split(skip, "|")
+	roots := []string{
+		filepath.Join(os.Getenv("GOROOT"), "src", "crypto"),
+		filepath.Join(os.Getenv("GOROOT"), "src", "os"),
+		filepath.Join(os.Getenv("GOROOT"), "src", "runtime"),
+	}
+	found := map[string]bool{}
+	for _, root := range roots {
+		filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() || !strings.HasSuffix(p, "_test.go") {
+				return nil
+			}
+			b, err := os.ReadFile(p)
+			if err != nil {
+				return nil
+			}
+			for _, line := range strings.Split(string(b), "\n") {
+				line = strings.TrimSpace(line)
+				if !strings.HasPrefix(line, "func Test") {
+					continue
+				}
+				if end := strings.Index(line, "("); end > 5 {
+					found[strings.TrimSpace(line[len("func "):end])] = true
+				}
+			}
+			return nil
+		})
+	}
+	failed := false
+	for _, n := range names {
+		if !found[n] {
+			fmt.Println("skip name not found upstream:", n)
+			failed = true
+		}
+	}
+	if failed {
+		os.Exit(1)
+	}
+	fmt.Println("skip names ok:", len(names))
+}

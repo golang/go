@@ -1,0 +1,1 @@
+{"command":"go vet cmd/go/internal/logos/eject","startedUTC":"2026-11-16T18:05:01Z","exit":0,"wallSeconds":8,"timeoutSeconds":600,"killAfterSeconds":10,"candidateHEAD":"e5b4ef93f2f58d6dddbf15f5aaac0900c09a2df6","installedSourceHEAD":"45c29ff215477f7e403188d7452fc79aef05d791"}

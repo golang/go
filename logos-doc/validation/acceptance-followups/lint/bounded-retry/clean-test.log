@@ -1,0 +1,12 @@
+=== RUN   TestVariantFeatureSelectionReachesHelper
+=== RUN   TestVariantFeatureSelectionReachesHelper/amd64_&&_amd64.v3_&&_!amd64.v4_&&_keep
+=== RUN   TestVariantFeatureSelectionReachesHelper/amd64_&&_!amd64.v2_&&_keep
+=== RUN   TestVariantFeatureSelectionReachesHelper/arm64_&&_arm64.v9.1_&&_!amd64.v1_&&_keep
+=== RUN   TestVariantFeatureSelectionReachesHelper/386_&&_!goexperiment.regabiargs_&&_keep
+--- PASS: TestVariantFeatureSelectionReachesHelper (4.12s)
+    --- PASS: TestVariantFeatureSelectionReachesHelper/amd64_&&_amd64.v3_&&_!amd64.v4_&&_keep (1.02s)
+    --- PASS: TestVariantFeatureSelectionReachesHelper/amd64_&&_!amd64.v2_&&_keep (1.06s)
+    --- PASS: TestVariantFeatureSelectionReachesHelper/arm64_&&_arm64.v9.1_&&_!amd64.v1_&&_keep (1.02s)
+    --- PASS: TestVariantFeatureSelectionReachesHelper/386_&&_!goexperiment.regabiargs_&&_keep (1.02s)
+PASS
+elapsed 5.158 seconds

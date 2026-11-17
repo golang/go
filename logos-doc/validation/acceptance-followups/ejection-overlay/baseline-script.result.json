@@ -1,0 +1,1 @@
+{"command":"existing45 cmdgo-race.test -test.v -test.count=1 -test.short -test.run=Script/^logos_eject_overlay_sources$ -test.parallel=1 -test.timeout=3m","startedUTC":"2026-11-16T18:18:26Z","exit":1,"wallSeconds":1,"timeoutSeconds":210,"sourceTemp":"/home/agent/logos-ejection-overlay-9949907ca71e-y20O9N","newCmdGoBuild":false}

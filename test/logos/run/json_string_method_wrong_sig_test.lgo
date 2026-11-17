@@ -4,6 +4,8 @@ package jsonstringwrong
 
 import (
 	"encoding/json"
+	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -12,6 +14,42 @@ type WrongJSON string
 func (w *WrongJSON) UnmarshalJSON(v int) error {
 	*w = "method"
 	return nil
+}
+
+type WrongPointerHolder struct {
+	V     *WrongJSON `json:"v,string"`
+	After int64      `json:"after"`
+}
+
+type WrongPointerHolderMirror struct {
+	V     *WrongJSON `json:"v,string"`
+	After int64      `json:"after"`
+	NoGen any        `json:"-"`
+}
+
+func TestStringMethodWrongSignaturePointerNull(t *testing.T) {
+	for _, token := range []string{`"null"`, `"\u006eull"`, `"\"new\""`, `"bad"`} {
+		t.Run(token, func(t *testing.T) {
+			gotAlias, wantAlias := new(WrongJSON("seed")), new(WrongJSON("seed"))
+			got := WrongPointerHolder{V: gotAlias}
+			want := WrongPointerHolderMirror{V: wantAlias}
+			doc := `{"v":` + token + `,"after":17}`
+			gotErr := json.Unmarshal([]byte(doc), &got)
+			wantErr := json.Unmarshal([]byte(doc), &want)
+			if (gotErr == nil) != (wantErr == nil) {
+				t.Fatalf("error = %v, encoding/json = %v", gotErr, wantErr)
+			}
+			if gotErr != nil && gotErr.Error() != strings.ReplaceAll(wantErr.Error(), "WrongPointerHolderMirror", "WrongPointerHolder") {
+				t.Fatalf("error = %v, encoding/json = %v", gotErr, wantErr)
+			}
+			if !reflect.DeepEqual(got.V, want.V) || got.After != want.After {
+				t.Fatalf("value = %+v, encoding/json = %+v", got, want)
+			}
+			if (got.V == gotAlias) != (want.V == wantAlias) || *gotAlias != *wantAlias {
+				t.Fatalf("alias update = %v/%v, encoding/json = %v/%v", got.V == gotAlias, *gotAlias, want.V == wantAlias, *wantAlias)
+			}
+		})
+	}
 }
 
 type WrongText string

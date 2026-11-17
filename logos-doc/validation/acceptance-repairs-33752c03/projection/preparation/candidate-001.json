@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "candidate": 1,
+  "created_utc": "2026-11-16T20:56:30.961528+00:00",
+  "worktree": "/workspace/scratch/9949907ca71e/logos-types-projection-fix",
+  "base_head": "2535486fe9596a9212d525a5007963ef9e8682f0",
+  "base_tree": "5dba686458510aab15094739f8cde6b173425709",
+  "base_source_tree": "e237c399aae8f8065b724e8a0e27585686c7da18",
+  "freeze_manifest": "/workspace/scratch/9949907ca71e/recovery-evidence/types-projection-investigation/freeze/manifest.json",
+  "freeze_manifest_sha256": "31e1e118df37fdf5672b4c7d20500ea1ec10ebff50b8b8226d1167f136f5350f",
+  "candidate_patch": "/workspace/scratch/9949907ca71e/recovery-evidence/types-projection-investigation/candidate-001.patch",
+  "candidate_patch_sha256": "76d3716c72822ffa960b4cb848ec4269e30180a84b4cd3ae2fe79e7edde1edfb",
+  "files": [
+    {
+      "path": "src/cmd/compile/internal/types2/builtins.go",
+      "bytes": 32420,
+      "sha256": "5b77424183490de7e8cfd7368a87f4ecb33cc86d3ba64b29427f256e64fc4718"
+    },
+    {
+      "path": "src/cmd/compile/internal/types2/narrow_logos.go",
+      "bytes": 35915,
+      "sha256": "cb00158cf2ac405ca931705de43e7c6ac0c390d880c3ed9eb5f0ffeabc3962af"
+    },
+    {
+      "path": "src/go/types/generate_test.go",
+      "bytes": 32288,
+      "sha256": "6885172a41d17d13de5e7ab442d6abea0233e9377040d951d04129fc5d068c5c"
+    }
+  ],
+  "static_checks": {
+    "all_23_protected_files_unchanged": true,
+    "both_frozen_test_assertion_bodies_unchanged": true,
+    "native_panic_block_minus_private_hook_matches_public_projection": true,
+    "only_three_authorized_files_changed": true,
+    "git_diff_check": "pass"
+  },
+  "go_commands_executed": [],
+  "formatting_and_runtime_gate_status": "pending parent orchestration"
+}

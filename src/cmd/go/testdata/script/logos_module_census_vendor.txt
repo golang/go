@@ -1,0 +1,75 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env CGO_ENABLED=0
+
+# Vendor ownership comes from modules.txt, including unimported packages.
+cd vendored
+! logos list .
+stderr '\[correctness::mixed_module\] module example.com/dep has Go packages \(example.com/dep/g\) and loGo/s packages \(example.com/dep/l\)'
+
+# A nested module path is a separate owner in the flattened vendor tree.
+rm vendor/example.com/dep/l/l.lgo
+logos list .
+stdout '^example.com/client$'
+logos list example.com/dep/child
+stdout '^example.com/dep/child$'
+go list .
+stdout '^example.com/client$'
+
+# Workspace modules with overlapping import prefixes remain separate.
+cd ../workspace
+logos list example.com/shared/g
+stdout '^example.com/shared/g$'
+logos list example.com/shared/l
+stdout '^example.com/shared/l$'
+
+-- vendored/go.mod --
+module example.com/client
+
+go 1.27
+
+require (
+    example.com/dep v1.0.0
+    example.com/dep/child v1.0.0
+)
+-- vendored/client.go --
+package client
+
+import "example.com/dep/g"
+
+const Value = g.Value
+-- vendored/vendor/modules.txt --
+# example.com/dep v1.0.0
+## explicit; go 1.27
+example.com/dep/g
+example.com/dep/l
+# example.com/dep/child v1.0.0
+## explicit; go 1.27
+example.com/dep/child
+-- vendored/vendor/example.com/dep/g/g.go --
+package g
+
+const Value = 1
+-- vendored/vendor/example.com/dep/l/l.lgo --
+package l
+-- vendored/vendor/example.com/dep/child/p.lgo --
+package child
+-- workspace/go.work --
+go 1.27
+
+use (
+    ./g
+    ./l
+)
+-- workspace/g/go.mod --
+module example.com/shared
+
+go 1.27
+-- workspace/g/g/g.go --
+package g
+-- workspace/l/go.mod --
+module example.com/shared/l
+
+go 1.27
+-- workspace/l/l.lgo --
+package l

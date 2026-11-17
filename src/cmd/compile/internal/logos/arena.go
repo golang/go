@@ -280,12 +280,7 @@ func (a *arenaEject) spell(t types2.Type) string {
 	if t == nil {
 		base.Fatalf("logos eject: %s: missing type", a.fl.baseName)
 	}
-	return types2.TypeString(t, func(p *types2.Package) string {
-		if p == a.fl.pkg.tpkg {
-			return ""
-		}
-		return p.Name() + "."
-	})
+	return a.fl.sourceTypeString(t, a.fl.genQualifier)
 }
 
 func (a *arenaEject) typeArgText(c *syntax.CallExpr) string {

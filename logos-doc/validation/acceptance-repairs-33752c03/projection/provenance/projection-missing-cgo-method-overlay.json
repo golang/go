@@ -1,0 +1,5 @@
+{
+  "Replace": {
+    "/workspace/scratch/9949907ca71e/logos-types-projection-fix/src/go/types/generate_test.go": "/workspace/scratch/9949907ca71e/recovery-evidence/acceptance-failure-repairs/projection-missing-cgo-method.go"
+  }
+}

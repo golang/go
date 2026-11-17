@@ -1,0 +1,23 @@
+diff --git a/src/logos/rt/json/path_v2.go b/src/logos/rt/json/path_v2.go
+--- a/src/logos/rt/json/path_v2.go
++++ b/src/logos/rt/json/path_v2.go
+@@ -192,7 +192,7 @@
+ 		return
+ 	}
+ 	if len(tok) > 0 && tok[0] == '"' {
+-		if unq, err := jsontext.AppendUnquote(nil, tok); err == nil {
++		if unq, ok := unquoteLiteralBytes(string(tok)); ok {
+ 			s.saveMethodError(rejectMethodUnsupported(dst.UnmarshalText(unq), "UnmarshalText method"))
+ 			return
+ 		}
+@@ -220,8 +220,8 @@
+ 		if *dst == nil {
+ 			*dst = new(E)
+ 		}
+-		if unq, err := jsontext.AppendUnquote(nil, tok); err == nil {
+-			err = rejectMethodUnsupported((*dst).UnmarshalText(unq), "UnmarshalText method")
++		if unq, ok := unquoteLiteralBytes(string(tok)); ok {
++			err := rejectMethodUnsupported((*dst).UnmarshalText(unq), "UnmarshalText method")
+ 			s.saveMethodError(err)
+ 			if err == nil && bytes.Equal(tok, quotedNullLiteral) {
+ 				*dst = nil

@@ -19,6 +19,14 @@ var exts = [...]string{Canonical, ".📜", ".⚡", ".ʕ◔ϖ◔ʔ"}
 
 const variationSelectors = "\uFE0E\uFE0F"
 
+// DuplicateStemError reports active loGo/s files that share a stem.
+// Source loaders return it after completing the active file lists and
+// validating source headers and package kinds. A census may use those
+// lists, while loading the package still fails.
+type DuplicateStemError string
+
+func (e DuplicateStemError) Error() string { return string(e) }
+
 // Exts returns every loGo/s source extension, dot included, canonical first.
 func Exts() []string {
 	return slices.Clone(exts[:])

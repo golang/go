@@ -1,0 +1,36 @@
+{
+  "command": [
+    "uv",
+    "run",
+    "--offline",
+    "--no-cache",
+    "--no-project",
+    "python",
+    "-B",
+    "/workspace/scratch/9949907ca71e/logos-release-env-fix/logos-doc/validation/release-acceptance/test_bootstrap_environment.py",
+    "/workspace/scratch/9949907ca71e/recovery-evidence/acceptance-failure-repairs/env-mutant-cxx"
+  ],
+  "cwd": "/workspace/scratch/9949907ca71e",
+  "output": "/workspace/scratch/9949907ca71e/recovery-evidence/acceptance-failure-repairs/release-env-cxx-mutation-001",
+  "environment": {},
+  "files": [
+    "/workspace/scratch/9949907ca71e/logos-release-env-fix/logos-doc/validation/release-acceptance/test_bootstrap_environment.py",
+    "/workspace/scratch/9949907ca71e/logos-release-env-fix/.github/scripts/release-acceptance.sh",
+    "/workspace/scratch/9949907ca71e/logos-release-env-fix/logos-doc/validation/release-acceptance/check_release_contract.py",
+    "/workspace/scratch/9949907ca71e/recovery-evidence/acceptance-failure-repairs/env-mutant-cxx/.github/scripts/release-acceptance.sh"
+  ],
+  "repositories": [
+    "/workspace/scratch/9949907ca71e/logos-release-env-fix"
+  ],
+  "expected_exit": 1,
+  "required_markers": [
+    "C and C++ LTO versions differ",
+    "FAILED (failures=1)"
+  ],
+  "forbidden_markers": [
+    "ERROR:",
+    "skipped="
+  ],
+  "timeout_seconds": 30,
+  "boundary": "Frozen bootstrap test executed against isolated executor mutant cxx; source candidate remains unchanged."
+}

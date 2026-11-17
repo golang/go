@@ -428,6 +428,18 @@ func (check *Checker) logosAfterStmt(s syntax.Stmt) {
 	}
 }
 
+// logosRecordVoidPanic records builtin panic calls for loGo/s narrowing in
+// functions without result parameters.
+func (check *Checker) logosRecordVoidPanic(call *syntax.CallExpr) {
+	if !check.conf.Logos || check.sig == nil || check.sig.results.Len() != 0 {
+		return
+	}
+	if check.isPanic == nil {
+		check.isPanic = make(map[*syntax.CallExpr]bool)
+	}
+	check.isPanic[call] = true
+}
+
 func (check *Checker) logosExits(s syntax.Stmt) bool {
 	switch s := s.(type) {
 	case *syntax.ReturnStmt:

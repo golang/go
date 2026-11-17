@@ -1,0 +1,70 @@
+=== RUN   TestScript
+=== PAUSE TestScript
+=== CONT  TestScript
+vcs-test.golang.org rerouted to http://127.0.0.1:42223
+https://vcs-test.golang.org rerouted to https://127.0.0.1:41997
+go test proxy running at GOPROXY=http://127.0.0.1:38607/mod
+=== RUN   TestScript/logos_eject_overlay_sources
+=== PAUSE TestScript/logos_eject_overlay_sources
+=== CONT  TestScript/logos_eject_overlay_sources
+    script_test.go:142: 2026-11-16T18:18:26Z
+    script_test.go:144: $WORK=/home/agent/logos-ejection-overlay-9949907ca71e-y20O9N/cmd-go-test-1892198602/tmpdir2948729946/logos_eject_overlay_sources724347514
+    script_test.go:166: 
+        PATH=/home/agent/logos-ejection-overlay-9949907ca71e-y20O9N/cmd-go-test-1892198602/tmpdir2948729946/testbin:/workspace/scratch/9949907ca71e/logos-json-integration/bin:/usr/local/bin:/usr/bin:/bin
+        HOME=/no-home
+        CCACHE_DISABLE=1
+        GOARCH=amd64
+        TESTGO_GOHOSTARCH=amd64
+        GOCACHE=/workspace/scratch/9949907ca71e/postbuild-cache
+        GOCOVERDIR=
+        GODEBUG=
+        GOEXE=
+        GOEXPERIMENT=
+        GOOS=linux
+        TESTGO_GOHOSTOS=linux
+        GOPROXY=http://127.0.0.1:38607/mod
+        GOPRIVATE=
+        GOROOT=/workspace/scratch/9949907ca71e/logos-json-integration
+        GOTRACEBACK=system
+        TESTGO_GOROOT=/workspace/scratch/9949907ca71e/logos-json-integration
+        TESTGO_EXE=/home/agent/logos-ejection-overlay-9949907ca71e-y20O9N/cmd-go-test-1892198602/tmpdir2948729946/testbin/go
+        TESTGO_VCSTEST_HOST=127.0.0.1:42223
+        TESTGO_VCSTEST_TLS_HOST=127.0.0.1:41997
+        TESTGO_VCSTEST_CERT=/home/agent/logos-ejection-overlay-9949907ca71e-y20O9N/cmd-go-test-1892198602/vcstest862595341/cert.pem
+        TESTGONETWORK=panic
+        GOSUMDB=localhost.localdev/sumdb+00000c67+AcTrnkbUA+TU4heY3hkjiSES/DSQniBqIeQ/YppAUtK6
+        TESTGO_SUMDB=localhost.localdev/sumdb
+        GONOPROXY=
+        GONOSUMDB=
+        GOVCS=*:all
+        devnull=/dev/null
+        goversion=1.27.4
+        CMDGO_TEST_RUN_MAIN=true
+        HGRCPATH=
+        GOTOOLCHAIN=auto
+        newline=
+        
+        TESTGOVCSREMOTE=panic
+        CGO_ENABLED=1
+        CC=/usr/bin/gcc-14
+        WORK=/home/agent/logos-ejection-overlay-9949907ca71e-y20O9N/cmd-go-test-1892198602/tmpdir2948729946/logos_eject_overlay_sources724347514
+        TEST_TELEMETRY_DIR=/home/agent/logos-ejection-overlay-9949907ca71e-y20O9N/cmd-go-test-1892198602/tmpdir2948729946/logos_eject_overlay_sources724347514/telemetry
+        TMPDIR=/home/agent/logos-ejection-overlay-9949907ca71e-y20O9N/cmd-go-test-1892198602/tmpdir2948729946/logos_eject_overlay_sources724347514/tmp
+        GOPATH=/home/agent/logos-ejection-overlay-9949907ca71e-y20O9N/cmd-go-test-1892198602/tmpdir2948729946/logos_eject_overlay_sources724347514/gopath
+        PWD=/home/agent/logos-ejection-overlay-9949907ca71e-y20O9N/cmd-go-test-1892198602/tmpdir2948729946/logos_eject_overlay_sources724347514/gopath/src
+        
+        > env GOPROXY=off
+        > env GOTOOLCHAIN=local
+        > env GOFLAGS=-buildvcs=false
+        > env CGO_ENABLED=0
+        > cd m
+        # Deleted invalid sources must stay absent. Inactive replacements and inserted
+        # sources must be selected from their effective contents in every helper. (0.627s)
+        > logos build -overlay=overlay.json --emit-go=out .
+        [stderr]
+        logos eject: no build context selects inactive file /home/agent/logos-ejection-overlay-9949907ca71e-y20O9N/cmd-go-test-1892198602/tmpdir2948729946/logos_eject_overlay_sources724347514/gopath/src/m/ignored.lgo
+    script_test.go:166: FAIL: testdata/script/logos_eject_overlay_sources.txt:10: logos build -overlay=overlay.json --emit-go=out .: exit status 1
+--- FAIL: TestScript (0.23s)
+    --- FAIL: TestScript/logos_eject_overlay_sources (0.63s)
+FAIL
+elapsed 0.961 seconds

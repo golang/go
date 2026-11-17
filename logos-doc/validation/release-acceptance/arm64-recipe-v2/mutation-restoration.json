@@ -1,0 +1,11 @@
+{
+  "checker_sha256": "c46d9cc8569ca80659a999ab11a5208de5afecd8c4e337817af0de81bde20b26",
+  "original_sha256": "a9a5fdd226443ee84ac22bb9ccef3f6c52278d55cb7973b0062a73a2a156a7b3",
+  "mutant_sha256": "103379b859c11568237784fba619524ff081940c405de1c711c738b70baf9b63",
+  "restored_sha256": "a9a5fdd226443ee84ac22bb9ccef3f6c52278d55cb7973b0062a73a2a156a7b3",
+  "probe_exit_code": 1,
+  "restored_exit_code": 0,
+  "mutation": "Add -short to the bulk matrix command only",
+  "assertions_and_checker_unchanged": true,
+  "go_executed": false
+}

@@ -89,6 +89,8 @@ func logosRegionClose(h unsafe.Pointer, gen uintptr) {
 
 func logosRegionReleaseChunks(rec *logosRegion) {
 	c := rec.chunk
+	// Detach the published root before any chunk becomes reusable.
+	rec.chunk = nil
 	for c != nil {
 		next := c.next
 		c.popScan(c.scanBase)
@@ -99,7 +101,6 @@ func logosRegionReleaseChunks(rec *logosRegion) {
 		logosArenaRelease(c)
 		c = next
 	}
-	rec.chunk = nil
 }
 
 func logosRegionBump(h unsafe.Pointer, gen uintptr, size uintptr) unsafe.Pointer {

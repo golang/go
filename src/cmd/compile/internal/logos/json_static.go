@@ -68,6 +68,7 @@ type jsonStruct struct {
 	holderPkg  *types2.Package
 	pos        syntax.Pos
 	qualify    func(*types2.Package) string
+	cgoSource  bool
 }
 
 func (fl *fileLower) genQualifier(p *types2.Package) string {
@@ -188,7 +189,7 @@ func parseGeneratedDecls(text string, pos syntax.Pos) []syntax.Decl {
 }
 
 func (fl *fileLower) buildJSONStruct(name string, st *types2.Struct, fields []*types2.Var) *jsonStruct {
-	js := &jsonStruct{name: name, staticJSON: fl.pkg.info.LogosStaticJSON, holderPkg: fl.pkg.tpkg, qualify: fl.genQualifier}
+	js := &jsonStruct{name: name, staticJSON: fl.pkg.info.LogosStaticJSON, holderPkg: fl.pkg.tpkg, qualify: fl.genQualifier, cgoSource: fl.cgoSource}
 
 	for _, fld := range fields {
 		i := fieldIndexOf(st, fld)

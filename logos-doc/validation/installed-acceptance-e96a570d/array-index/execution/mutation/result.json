@@ -1,0 +1,9 @@
+{
+  "exit_code": 1,
+  "timed_out": false,
+  "interrupted": false,
+  "duration_seconds": 5.292,
+  "completed_utc": "2026-11-16T18:55:14.645053+00:00",
+  "stdout_sha256": "7ba2a42cd85b4d662f1402e184f03af9b11112bd9a5bac51beeee72c7d3475a4",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

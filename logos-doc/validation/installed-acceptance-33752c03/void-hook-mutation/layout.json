@@ -1,0 +1,38 @@
+{
+  "purpose": "Select one separate diagnostic compiler through GOROOT while preserving all production sources and installed tools",
+  "goroot": "/workspace/scratch/9949907ca71e/recovery-evidence/installed-repair-33752c03/void-hook-mutation/goroot",
+  "compiler_output": "/workspace/scratch/9949907ca71e/recovery-evidence/installed-repair-33752c03/void-hook-mutation/goroot/pkg/tool/linux_amd64/compile",
+  "links": {
+    "src": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src",
+    "lib": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/lib",
+    "test": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/test",
+    "VERSION": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/VERSION",
+    "go.env": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/go.env",
+    "bin/go": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin/go",
+    "bin/logos": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin/logos",
+    "pkg/include": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/pkg/include",
+    "pkg/tool/linux_amd64/asm": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/pkg/tool/linux_amd64/asm",
+    "pkg/tool/linux_amd64/cgo": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/pkg/tool/linux_amd64/cgo",
+    "pkg/tool/linux_amd64/cover": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/pkg/tool/linux_amd64/cover",
+    "pkg/tool/linux_amd64/fix": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/pkg/tool/linux_amd64/fix",
+    "pkg/tool/linux_amd64/link": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/pkg/tool/linux_amd64/link",
+    "pkg/tool/linux_amd64/preprofile": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/pkg/tool/linux_amd64/preprofile",
+    "pkg/tool/linux_amd64/vet": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/pkg/tool/linux_amd64/vet"
+  },
+  "linked_file_sha256": {
+    "VERSION": "28ff77ac2178f2faca8a4f535e60b1738e397c9086b3ecfc18c9955abe75634a",
+    "go.env": "98fcab78e155e9fa0c36b18874add30724d04c2452078117c78618107ebfbc9e",
+    "bin/go": "c8a2b1c7fc3f7d710af1ad3d0bfb077acf9254f2b3caa8cb9a4a50d4e722f77a",
+    "bin/logos": "c8a2b1c7fc3f7d710af1ad3d0bfb077acf9254f2b3caa8cb9a4a50d4e722f77a",
+    "pkg/tool/linux_amd64/asm": "7c37238bcfb4e4e06fbe64ef7e910d12b1b21173e299bac6f8e2d176b2bfcdfd",
+    "pkg/tool/linux_amd64/cgo": "78e6f8b3b230bb3a426240cd976107d3759516f25210a371bf493e2428e34e38",
+    "pkg/tool/linux_amd64/cover": "956cd8a389e0cccf5c129729d92d08aa281d468ff2c2ac2626e94758efe0005d",
+    "pkg/tool/linux_amd64/fix": "885c65fb698b94254bc7b3c2b3d7cc45b72be0e0cccff8835737c8f1258af1fc",
+    "pkg/tool/linux_amd64/link": "763e0ca95ec545e4eaf650cc3016999ea9c6712162fdc8e367fc3e43ca8fe1d8",
+    "pkg/tool/linux_amd64/preprofile": "d5960d546c71d9531b3dac4e23af929f022eff4e497907bd7b80a031c615bc30",
+    "pkg/tool/linux_amd64/vet": "a031f99a8b3a7b348dc068104c4d6e4e50183041da0d7557a7b7ed4ee9cd35ad"
+  },
+  "fresh_make_result_sha256": "535382e7564ba3b0aa2a3373ab27d326e237e4fe412e56331c7f3a4532a5ff07",
+  "production_files_modified": false,
+  "diagnostic_compiler_build_pending": true
+}

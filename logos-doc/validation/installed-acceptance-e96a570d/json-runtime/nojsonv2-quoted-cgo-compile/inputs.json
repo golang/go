@@ -1,0 +1,48 @@
+{
+  "command": [
+    "/workspace/scratch/9949907ca71e/logos-final-acceptance/bin/go",
+    "test",
+    "-p=1",
+    "-race",
+    "-c",
+    "-o",
+    "/workspace/scratch/9949907ca71e/recovery-evidence/json-installed-e96a570d/binaries/quoted-cgo-nojsonv2.test",
+    "cmd/compile/internal/logos"
+  ],
+  "cwd": "/workspace/scratch/9949907ca71e/logos-final-acceptance/src",
+  "environment": {
+    "GOROOT": "/workspace/scratch/9949907ca71e/logos-final-acceptance",
+    "GOCACHE": "/workspace/scratch/9949907ca71e/final-postbuild-cache",
+    "GOPATH": "/workspace/scratch/9949907ca71e/acceptance-gopath",
+    "GOTMPDIR": "/workspace/scratch/9949907ca71e/final-json-build-tmp",
+    "TMPDIR": "/home/agent/logos-json-final-e96-w7uggmoz",
+    "GOMAXPROCS": "1",
+    "GOGC": "20",
+    "GOMEMLIMIT": "512MiB",
+    "GOFLAGS": "-p=1",
+    "GOEXPERIMENT": "nojsonv2",
+    "GOTOOLCHAIN": "local",
+    "GOENV": "off",
+    "GOWORK": "off",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "CGO_ENABLED": "1",
+    "CC": "/usr/bin/cc",
+    "PATH": "/workspace/scratch/9949907ca71e/logos-final-acceptance/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/home/agent/.codex/tmp/arg0-linux/codex-arg00QAduY:/opt/codex/codex-path:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+    "PWD": "/workspace/scratch/9949907ca71e/logos-final-acceptance/src"
+  },
+  "started_utc": "2026-11-16T19:08:27.662862+00:00",
+  "outer_timeout_seconds": 1260,
+  "resources_before": {
+    "MemAvailable": 7248437248,
+    "Shmem": 1632112640,
+    "workspace_free_bytes": 6241837056,
+    "home_free_bytes": 4819632128
+  },
+  "runner_sha256": "a50f6284bc83c830a58457bf004f049a4e6d7d5f08c559649f80c1aab0defeaf",
+  "overlay": null,
+  "absent_environment": [
+    "GO_GCFLAGS",
+    "BOOT_GO_GCFLAGS"
+  ]
+}

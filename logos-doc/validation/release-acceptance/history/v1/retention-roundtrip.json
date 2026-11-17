@@ -1,0 +1,15 @@
+{
+  "command": [
+    "bash",
+    "/workspace/scratch/9949907ca71e/recovery-evidence/hosted-release-proposal/candidate/.github/scripts/release-acceptance.sh",
+    "retain"
+  ],
+  "exit_code": 0,
+  "passed": true,
+  "non_utf8_bytes_preserved": true,
+  "archive_sha256": "601673848cb4327c578bd77cf9c1a58444b99996a473fba484183daaed4190fe",
+  "raw_sha256": "9007883ebfb6807f3153c13ae123b928aa8ee940921873492e543fb614539203",
+  "timestamped_log_supported": true,
+  "corruption_caught": "archive digest does not match retained evidence",
+  "go_executed": false
+}

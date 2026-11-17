@@ -1,0 +1,18 @@
+diff --git a/src/cmd/internal/goparity/parity_test.go b/src/cmd/internal/goparity/parity_test.go
+--- a/src/cmd/internal/goparity/parity_test.go
++++ b/src/cmd/internal/goparity/parity_test.go
+@@ -1016,12 +1016,12 @@
+ var binaryRunSlots = make(chan struct{}, runtime.GOMAXPROCS(0))
+ 
+ func runBinaryTimeout(path, maxProcs string, budget time.Duration, norm normalizer) (observation, error) {
++	ctx, cancel := context.WithTimeoutCause(context.Background(), budget, errors.New("goparity run timeout"))
++	defer cancel()
+ 	// Queue time does not consume the child execution budget.
+ 	binaryRunSlots <- struct{}{}
+ 	defer func() { <-binaryRunSlots }()
+ 
+-	ctx, cancel := context.WithTimeoutCause(context.Background(), budget, errors.New("goparity run timeout"))
+-	defer cancel()
+ 	cmd := exec.CommandContext(ctx, path)
+ 	cmd.Env = []string{
+ 		"PATH=/usr/bin:/bin",

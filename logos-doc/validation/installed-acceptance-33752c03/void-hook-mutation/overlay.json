@@ -1,0 +1,5 @@
+{
+  "Replace": {
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/cmd/compile/internal/types2/builtins.go": "/workspace/scratch/9949907ca71e/recovery-evidence/installed-repair-33752c03/void-hook-mutation/builtins.go"
+  }
+}

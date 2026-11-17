@@ -1,0 +1,14 @@
+{
+  "recorded_utc": "2026-11-16T18:27:33.403624+00:00",
+  "reason": "Root requested retaining the final cmd/go race test binary for queued tooling and compatible cgo gates.",
+  "previous_manifest_sha256": "00f2e8916e4303915605c409225c7b0f414f56e14e3f04f36e0eceaf841d443b",
+  "modified_files": [
+    "run_acceptance.py",
+    "README.md"
+  ],
+  "test_assertions_and_timeouts_unchanged": true,
+  "frozen_source_tests_scripts_unchanged": true,
+  "go_commands_run": 0,
+  "binary_built": false,
+  "runner_python_syntax_valid": true
+}

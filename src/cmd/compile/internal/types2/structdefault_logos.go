@@ -33,7 +33,7 @@ func (check *Checker) logosStructDefaults(e *syntax.StructType, styp *Struct) {
 	if !check.conf.Logos || check.Info == nil {
 		return
 	}
-	seen := make(map[*syntax.FieldDefault][]string)
+	seen := make(map[*syntax.FieldDefault][]*syntax.Name)
 	var order []*syntax.FieldDefault
 	for _, f := range e.FieldList {
 		fd, ok := f.Type.(*syntax.FieldDefault)
@@ -43,14 +43,14 @@ func (check *Checker) logosStructDefaults(e *syntax.StructType, styp *Struct) {
 		if _, dup := seen[fd]; !dup {
 			order = append(order, fd)
 		}
-		seen[fd] = append(seen[fd], f.Name.Value)
+		seen[fd] = append(seen[fd], f.Name)
 	}
 	for _, fd := range order {
 		check.logosRecordFieldDefault(styp, fd, seen[fd])
 	}
 }
 
-func (check *Checker) logosRecordFieldDefault(styp *Struct, fd *syntax.FieldDefault, names []string) {
+func (check *Checker) logosRecordFieldDefault(styp *Struct, fd *syntax.FieldDefault, names []*syntax.Name) {
 	if check.Info.LogosFieldDefaults == nil {
 		check.Info.LogosFieldDefaults = make(map[*Struct][]LogosFieldDefault)
 	}
@@ -60,49 +60,82 @@ func (check *Checker) logosRecordFieldDefault(styp *Struct, fd *syntax.FieldDefa
 		known[d.Field] = true
 	}
 	for _, name := range names {
-		if !known[name] {
-			cur = append(cur, LogosFieldDefault{Field: name, Default: fd.Default})
-			known[name] = true
+		if !known[name.Value] {
+			cur = append(cur, LogosFieldDefault{Field: name.Value, Default: fd.Default})
+			known[name.Value] = true
 		}
 	}
 	check.Info.LogosFieldDefaults[styp] = cur
+	var typ Type
+	for _, field := range styp.fields {
+		if field.Pos() == names[0].Pos() {
+			typ = field.typ
+			break
+		}
+	}
+	if typ == nil {
+		return // a duplicate non-blank field already has a diagnostic
+	}
+	scope := check.scope
 	check.later(func() {
 		outer := check.scope
-		check.scope = check.pkg.Scope()
+		check.scope = scope
 		defer func() { check.scope = outer }()
-		check.logosCheckFieldDefault(fd, names[0])
-	}).describef(fd.Default, "check field default %s", names[0])
+		check.logosCheckFieldDefault(fd, names[0].Value, typ)
+	}).describef(fd.Default, "check field default %s", names[0].Value)
 }
 
-func (check *Checker) logosCheckFieldDefault(fd *syntax.FieldDefault, name string) {
+func (check *Checker) logosCheckFieldDefault(fd *syntax.FieldDefault, name string, typ Type) {
+	// Types is optional for callers of Config.Check. The constant-composite
+	// proof needs the checked type of each literal to distinguish map keys
+	// from struct field names, even when the caller did not request it.
+	if check.Types == nil {
+		check.Types = make(map[syntax.Expr]TypeAndValue)
+		defer func() { check.Types = nil }()
+	}
 	var x operand
 	check.expr(nil, &x, fd.Default)
 	if !x.isValid() {
 		return
 	}
-	if x.mode() == constant_ {
+	if !check.logosConstantDefault(fd.Default) {
+		check.errorf(fd.Default, InvalidConstInit, "%s non-constant default for field %s", logosDefaultNotConstant, name)
 		return
 	}
-	if lit, ok := syntax.Unparen(fd.Default).(*syntax.CompositeLit); ok && check.logosCompositeConst(lit) {
-		return
-	}
-	check.errorf(fd.Default, InvalidConstInit, "%s non-constant default for field %s", logosDefaultNotConstant, name)
+	check.assignment(&x, typ, "default for field "+name)
 }
 
-func (check *Checker) logosCompositeConst(lit *syntax.CompositeLit) bool {
+func (check *Checker) logosConstantDefault(e syntax.Expr) bool {
+	e = syntax.Unparen(e)
+	if check.Types[e].Value != nil {
+		return true
+	}
+	if info, ok := check.untyped[e]; ok && info.mode == constant_ {
+		return true
+	}
+	lit, ok := e.(*syntax.CompositeLit)
+	if !ok {
+		return false
+	}
+	typ := check.Types[lit].Type
+	if typ == nil || !isValid(typ) {
+		return false // an invalid nested literal already has a diagnostic
+	}
+	u, _ := commonUnder(typ, nil)
+	if lit.Type == nil {
+		if ptr, ok := u.(*Pointer); ok {
+			u, _ = commonUnder(ptr.base, nil)
+		}
+	}
+	_, mapLiteral := u.(*Map)
 	for _, e := range lit.ElemList {
 		if kv, ok := syntax.Unparen(e).(*syntax.KeyValueExpr); ok {
-			e = kv.Value
-		}
-		if inner, ok := syntax.Unparen(e).(*syntax.CompositeLit); ok {
-			if !check.logosCompositeConst(inner) {
+			if mapLiteral && !check.logosConstantDefault(kv.Key) {
 				return false
 			}
-			continue
+			e = kv.Value
 		}
-		var x operand
-		check.expr(nil, &x, e)
-		if !x.isValid() || x.mode() != constant_ {
+		if !check.logosConstantDefault(e) {
 			return false
 		}
 	}

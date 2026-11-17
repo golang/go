@@ -1,0 +1,44 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env CGO_ENABLED=0
+
+# Structured listing retains the dependency's error and incomplete state.
+cd client
+logos list -e -f '{{.Incomplete}} {{len .DepsErrors}}' .
+stdout '^true 1$'
+go list -e -f '{{.Incomplete}} {{len .DepsErrors}}' .
+stdout '^false 0$'
+
+# Build errors stay on the dependency and are reported once.
+! logos build .
+cp stderr build.stderr
+grep -count=1 '\[correctness::mixed_module\] module example.com/mixed' build.stderr
+
+# Default listing must reject the same invalid module.
+! logos list .
+stderr '\[correctness::mixed_module\] module example.com/mixed'
+
+-- client/go.mod --
+module example.com/client
+
+go 1.27
+
+require example.com/mixed v0.0.0
+
+replace example.com/mixed => ../mixed
+-- client/p.go --
+package client
+
+import "example.com/mixed/g"
+
+const Value = g.Value
+-- mixed/go.mod --
+module example.com/mixed
+
+go 1.27
+-- mixed/g/g.go --
+package g
+
+const Value = 1
+-- mixed/l/l.lgo --
+package l

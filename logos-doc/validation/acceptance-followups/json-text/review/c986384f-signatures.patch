@@ -1,0 +1,81 @@
+diff --git a/src/logos/rt/json/path_v1.go b/src/logos/rt/json/path_v1.go
+index a27a94d9..aa32f739 100644
+--- a/src/logos/rt/json/path_v1.go
++++ b/src/logos/rt/json/path_v1.go
+@@ -115,30 +115,33 @@ func QuotedJSONPtr[E any, T interface {
+ 	}
+ }
+ 
+-func QuotedText[T encoding.TextUnmarshaler](s *Scanner, dst T) {
++func QuotedText[E any, T interface {
++	*E
++	encoding.TextUnmarshaler
++}](s *Scanner, dst T) {
+ 	item, st := s.readQuoted()
+ 	switch st {
+ 	case quotedBare:
+-		s.save(tagUnquoted(reflect.TypeOf(dst).Elem()))
++		s.save(tagUnquoted(reflect.TypeFor[E]()))
+ 	case quotedContent:
+ 		if item == "" {
+-			s.save(tagMismatch(item, reflect.TypeOf(dst).Elem()))
++			s.save(tagMismatch(item, reflect.TypeFor[E]()))
+ 			return
+ 		}
+ 		if item[0] == 'n' {
+ 			if item == "null" {
+ 				return
+ 			}
+-			s.save(tagMismatch(item, reflect.TypeOf(dst).Elem()))
++			s.save(tagMismatch(item, reflect.TypeFor[E]()))
+ 			return
+ 		}
+ 		if item[0] != '"' {
+-			s.save(tagMismatch(item, reflect.TypeOf(dst).Elem()))
++			s.save(tagMismatch(item, reflect.TypeFor[E]()))
+ 			return
+ 		}
+ 		unq, ok := unquoteLiteralBytes(item)
+ 		if !ok {
+-			s.fatal(tagMismatch(item, reflect.TypeOf(dst).Elem()))
++			s.fatal(tagMismatch(item, reflect.TypeFor[E]()))
+ 			return
+ 		}
+ 		s.fatalMethodError(dst.UnmarshalText(unq))
+diff --git a/src/logos/rt/json/path_v2.go b/src/logos/rt/json/path_v2.go
+index 3f5e91bd..e9b7dd88 100644
+--- a/src/logos/rt/json/path_v2.go
++++ b/src/logos/rt/json/path_v2.go
+@@ -14,7 +14,6 @@ import (
+ 	"errors"
+ 	"reflect"
+ 	"strconv"
+-	"strings"
+ 	"unicode"
+ 	"unicode/utf16"
+ 	"unicode/utf8"
+@@ -187,7 +186,10 @@ func (s *Scanner) rejectNonString(tok []byte, typ reflect.Type) {
+ 		Value: value, Type: typ, Offset: off, Err: errNonStringValue})
+ }
+ 
+-func QuotedText[T encoding.TextUnmarshaler](s *Scanner, dst T) {
++func QuotedText[E any, T interface {
++	*E
++	encoding.TextUnmarshaler
++}](s *Scanner, dst T) {
+ 	if s.scalar() == 0 {
+ 		return
+ 	}
+@@ -201,11 +203,7 @@ func QuotedText[T encoding.TextUnmarshaler](s *Scanner, dst T) {
+ 			return
+ 		}
+ 	}
+-	typ := reflect.TypeFor[T]()
+-	if typ.Kind() == reflect.Pointer {
+-		typ = typ.Elem()
+-	}
+-	s.rejectNonString(tok, typ)
++	s.rejectNonString(tok, reflect.TypeFor[E]())
+ }
+ 
+ func QuotedTextPtr[E any, T interface {

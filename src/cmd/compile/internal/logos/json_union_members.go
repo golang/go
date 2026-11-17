@@ -30,12 +30,12 @@ type unionNames struct {
 	code    string
 }
 
-func classifyUnionMembers(holderPkg *types2.Package, staticJSON map[*types2.Named]bool, unionType types2.Type, codeQual func(*types2.Package) string) ([]unionMemberClass, unionNames, bool) {
+func classifyUnionMembers(holderPkg *types2.Package, staticJSON map[*types2.Named]bool, unionType types2.Type, codeQual func(*types2.Package) string, cgoSource bool) ([]unionMemberClass, unionNames, bool) {
 	typ := unionType
 	if cv, ok := types2.Unalias(typ).(*types2.ConstView); ok {
 		typ = cv.Elem
 	}
-	names := unionNames{display: types2.TypeString(typ, qualifierFor(holderPkg)), code: types2.TypeString(typ, codeQual)}
+	names := unionNames{display: types2.TypeString(typ, qualifierFor(holderPkg)), code: sourceTypeString(typ, codeQual, holderPkg, cgoSource)}
 	members, ok := types2.LogosUnionMembers(typ)
 	if !ok {
 		return nil, names, false
@@ -47,7 +47,7 @@ func classifyUnionMembers(holderPkg *types2.Package, staticJSON map[*types2.Name
 		var classified bool
 		if m.Type != nil {
 			c, classified = classifyOneMember(holderPkg, staticJSON, m.Type, qual)
-			c.code = types2.TypeString(m.Type, codeQual)
+			c.code = sourceTypeString(m.Type, codeQual, holderPkg, cgoSource)
 		} else {
 			c, classified = classifyFactMember(holderPkg, m.Text(), codeQual)
 		}

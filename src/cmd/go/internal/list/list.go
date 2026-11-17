@@ -623,6 +623,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 	logosArmCompiled()
 	pkgs := load.PackagesAndErrors(moduleLoader, ctx, pkgOpts, args)
 	if !*listE {
+		load.ReportLogosModuleDependencyErrors(pkgs)
 		w := 0
 		for _, pkg := range pkgs {
 			if pkg.Error != nil {

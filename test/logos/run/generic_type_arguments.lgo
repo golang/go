@@ -1,0 +1,63 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+)
+
+type unary[T any] func(T) T
+type box[T any] struct { value T }
+type receiver struct { tag string }
+
+func identity[T any](v T) T { return v }
+func (receiver) identity[T any](v T) T { return v }
+func (r receiver) done[T any](v T) {
+	_ = v
+	fmt.Println("cleanup", r.tag)
+}
+
+var _ unary[int?] = identity[int?]
+var _ unary[(int?)?] = identity[(int?)?]
+var _ unary[*int?] = identity[*int?]
+var _ unary[*(int?)] = identity[*(int?)]
+var _ unary[(*int)?] = identity[(*int)?]
+var _ unary[**int?] = identity[**int?]
+var _ unary[[]int?] = identity[[]int?]
+var _ unary[<-chan int?] = identity[<-chan int?]
+var _ unary[(<-chan int)?] = identity[(<-chan int)?]
+var _ unary[(int, string)] = identity[(int, string)]
+var _ unary[(int?, (string, bool))] = identity[(int?, (string, bool))]
+var _ unary[(x int, y string)] = identity[(x int, y string)]
+var _ unary[(x: int, y: string)] = identity[(x: int, y: string)]
+var _ unary[(x *int?, y *(int?))] = identity[(x *int?, y *(int?))]
+var _ unary[(x []int, y [2]string)] = identity[(x []int, y [2]string)]
+var _ unary[(x map[string]int, y chan int)] = identity[(x map[string]int, y chan int)]
+var _ unary[(x (int, string), y (int?)?)] = identity[(x (int, string), y (int?)?)]
+
+func cleanup() error {
+	r := receiver{tag: "before"}
+	errdefer r.done[(x int, y string)]((3, "three"))
+	errdefer r.done[int?](nil)
+	r.tag = "after"
+	return errors.New("failure")
+}
+
+func main() {
+	fmt.Println("option", identity[int?](7) ?? 0)
+	fmt.Println("absent", receiver{}.identity[int?](nil) ?? 9)
+	fmt.Println("pointer", identity[*int?](nil) == nil)
+	pair := identity[(int, string)]((3, "three"))
+	a, b := pair
+	fmt.Println("tuple", a, b)
+	named := identity[/* type-slot-comment */ (x int, y string)]((4, "four"))
+	fmt.Println("named", named.x, named.y)
+	fields := receiver{}.identity[(x []int, y [2]string)](([]int{5}, [2]string{"a", "b"}))
+	fmt.Println("fields", fields.x[0], fields.y[1])
+	literal := box[int?]{value: 6}
+	fmt.Println("literal", literal.value ?? 0)
+	if err := cleanup(); err == nil {
+		panic("missing primary error")
+	}
+}

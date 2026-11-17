@@ -204,12 +204,15 @@ func (b *spreadBuilder) body() {
 	c := b.c
 	pos := b.pos
 	v := func() *syntax.Name { return nameOf(pos, b.vSpelling) }
+	defaults, defaultText := b.fl.structDefaultFields(pos, b.fl.missingDefaults(c))
 	b.native = append(b.native, defineOf(pos,
 		[]syntax.Expr{v()},
-		[]syntax.Expr{at(&syntax.CompositeLit{Type: b.nativeType(), Rbrace: c.Rbrace}, pos)}))
+		[]syntax.Expr{at(&syntax.CompositeLit{
+			Type: b.nativeType(), ElemList: defaults, NKeys: len(defaults), Rbrace: c.Rbrace,
+		}, pos)}))
 	b.text = append(b.text, defineOf(pos,
 		[]syntax.Expr{v()},
-		[]syntax.Expr{at(&syntax.CompositeLit{Type: b.tw.mark(pos, b.typeText()), Rbrace: c.Rbrace}, pos)}))
+		[]syntax.Expr{b.tw.mark(pos, cat(b.typeText(), gen("{"+defaultText+"}")))}))
 	spreads := 0
 	for _, el := range c.ElemList {
 		if se, ok := el.(*syntax.SpreadExpr); ok {

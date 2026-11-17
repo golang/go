@@ -1,0 +1,14 @@
+{
+  "recordedAt": "2026-11-16T16:27:44.408Z",
+  "provenance": "Root reported a read-only fetch and empty diff against the integration checkout; this is an expected source identity pending job-log confirmation.",
+  "repository": "gosuda/LoGOs",
+  "pr": 58,
+  "prHead": "45c29ff215477f7e403188d7452fc79aef05d791",
+  "eventMerge": "f2ad58be8742b8ec350db8f06d9dc794ea3302e4",
+  "mergeParents": [
+    "13a968f350564e739bf700df698a9a635dcdddcd",
+    "45c29ff215477f7e403188d7452fc79aef05d791"
+  ],
+  "fullTree": "32b96f3a7c289c987bc021fe5a5adbf35cfe226b",
+  "compilerSrcTree": "099367e1031585fa553ef7987b199288df36256a"
+}

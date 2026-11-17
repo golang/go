@@ -1,0 +1,9 @@
+{
+  "expected": [
+    "TestScript/logos_guarded_enum_index"
+  ],
+  "expected_action": "pass",
+  "matched": 1,
+  "wrong": {},
+  "all_observed_skips": []
+}

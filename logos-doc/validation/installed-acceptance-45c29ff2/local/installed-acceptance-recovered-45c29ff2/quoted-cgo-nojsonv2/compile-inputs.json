@@ -1,0 +1,46 @@
+{
+  "started_utc": "2026-11-16T17:05:58.965026+00:00",
+  "command": [
+    "/workspace/scratch/9949907ca71e/logos-json-integration/bin/go",
+    "test",
+    "-p=1",
+    "-race",
+    "-c",
+    "-o",
+    "/workspace/scratch/9949907ca71e/recovery-evidence/installed-acceptance-recovered-45c29ff2/quoted-cgo-nojsonv2/logos-race.test",
+    "cmd/compile/internal/logos"
+  ],
+  "cwd": "/workspace/scratch/9949907ca71e/logos-json-integration/src",
+  "environment": {
+    "GOROOT": "/workspace/scratch/9949907ca71e/logos-json-integration",
+    "GOMAXPROCS": "1",
+    "GOFLAGS": "-p=1",
+    "GOGC": "20",
+    "GOMEMLIMIT": "512MiB",
+    "GOTOOLCHAIN": "local",
+    "GOENV": "off",
+    "GOWORK": "off",
+    "GOPROXY": "off",
+    "GOEXPERIMENT": "nojsonv2",
+    "GOCACHE": "/workspace/scratch/9949907ca71e/postbuild-cache",
+    "GOPATH": "/workspace/scratch/9949907ca71e/acceptance-gopath",
+    "GOTMPDIR": "/workspace/scratch/9949907ca71e/acceptance-tmp",
+    "TMPDIR": "/workspace/scratch/9949907ca71e/acceptance-tmp",
+    "UPROOT1272": "/workspace/scratch/9949907ca71e/toolchains/go1.27.2",
+    "UPROOT1273": "/workspace/scratch/9949907ca71e/toolchains/go1.27.3",
+    "UPROOT1274": "/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci",
+    "CC": "/usr/bin/cc",
+    "PATH": "/workspace/scratch/9949907ca71e/logos-json-integration/bin:/workspace/scratch/9949907ca71e/logos-json-integration/lib/wasm:/workspace/scratch/9949907ca71e/toolchains/node-v26.13.1-ci/bin:/workspace/scratch/9949907ca71e/toolchains/qemu-10.0.13/usr/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/home/agent/.codex/tmp/arg0-linux/codex-arg0pouDth:/opt/codex/codex-path:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+    "CGO_ENABLED": "1"
+  },
+  "absent_environment": [
+    "GO_GCFLAGS",
+    "BOOT_GO_GCFLAGS"
+  ],
+  "resources_before": {
+    "MemAvailable": 5737758720,
+    "Shmem": 3081887744,
+    "workspace_available_bytes": 43388489728,
+    "home_available_bytes": 2157641728
+  }
+}

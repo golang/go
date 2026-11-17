@@ -1,0 +1,50 @@
+{
+  "slice": "M0-A-S21",
+  "attack": 443,
+  "audit": "AUD-211",
+  "implementation_attempts": 1,
+  "baseline_source_tree": "e237c399aae8f8065b724e8a0e27585686c7da18",
+  "candidate_base": "2535486fe9596a9212d525a5007963ef9e8682f0",
+  "integration_source_tree": "33752c03819ed5afcb37f87633a3cac668e181a8",
+  "component_status": "generation_red_green_mutation_restoration_complete",
+  "installed_native_and_ejection_status": "pending",
+  "combined_make_status": "running; no success claimed",
+  "runs": [
+    {
+      "run": "baseline-001-go-types-generate",
+      "status": "semantic_red",
+      "exit_code": 1,
+      "duration_seconds": 4.765
+    },
+    {
+      "run": "projection-component-001",
+      "status": "setup_failure_before_test_execution",
+      "exit_code": 1,
+      "duration_seconds": 0.542,
+      "expected_outcome_matched": false
+    },
+    {
+      "run": "projection-component-002",
+      "status": "green",
+      "exit_code": 0,
+      "duration_seconds": 1.879,
+      "expected_outcome_matched": true
+    },
+    {
+      "run": "projection-method-mutation-001",
+      "status": "caught_mutation",
+      "exit_code": 1,
+      "duration_seconds": 1.824,
+      "expected_outcome_matched": true
+    },
+    {
+      "run": "projection-restored-001",
+      "status": "restored_green",
+      "exit_code": 0,
+      "duration_seconds": 0.47,
+      "expected_outcome_matched": true
+    }
+  ],
+  "setup_failure_is_a_semantic_attempt": false,
+  "frozen_test_bodies_and_23_protected_files": "unchanged"
+}

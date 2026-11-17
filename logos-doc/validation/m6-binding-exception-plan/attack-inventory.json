@@ -1,0 +1,140 @@
+{
+  "rejected_commit": "96a5a8cc599cbcc55263d32c4ceb2348abc6f0fd",
+  "original_attack_files": [
+    {
+      "path": "src/cmd/compile/internal/logos/structdefault_binding_test.go",
+      "git_blob": "1bc01ca53d6c5ac8af96d0f057e14cb53e009e97",
+      "sha256": "d6db2aef195c19b1072d8716082382c0c689da781cd026b506a197284034dcb4",
+      "bytes": 7064
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/structdefault_blank_lowering_test.go",
+      "git_blob": "36de32a6c096e9bf2e1831ce376c795c08d16d08",
+      "sha256": "caf46dae632857e01dd125ae2ff995181cf8d2fae8fedfd3a975dd075620fd7a",
+      "bytes": 945
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/structdefault_blank_test.go",
+      "git_blob": "43818acdf3e94d52c792bfbe755d63234b2057a1",
+      "sha256": "36288ae8a2ff903f8592b398927778c5585ca657f532581ca468e8ed8384edfe",
+      "bytes": 1854
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/structdefault_derived_test.go",
+      "git_blob": "a96da07abdfd4acd283356c064d5e5cb55fab5b3",
+      "sha256": "48bd7ac9ffaf6242c25409d280feaab801cda4d9a02c98cf4e61cd6a128b130a",
+      "bytes": 1097
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/structdefault_generic_capture_test.go",
+      "git_blob": "c6e9fc5dcc23252f4c799afbe121886d2da9dc9b",
+      "sha256": "c94f84908a7e08dd716c5dae39d779738e0b41e6c01ae2825b78ca0cdbef2b0c",
+      "bytes": 727
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/structdefault_helper_boundary_test.go",
+      "git_blob": "b997daf11b90e3b0c368f0d268598e61b30ddeea",
+      "sha256": "d58563417b5139381021db6cb7374fe0179ac793a9cde0ff9b1dae0a333edee8",
+      "bytes": 8754
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/structdefault_implicit_shadow_test.go",
+      "git_blob": "b608ce5f63719f3c2e0c54c864b229e9665aa12a",
+      "sha256": "7de5824b61181c5908dd2900caf3ad1fb52b5bbdf67f6d87ff6e0d93ece9c8a4",
+      "bytes": 875
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/structdefault_inferred_array_test.go",
+      "git_blob": "b0ba13b6a14ee9e2ae3287ca84dc5aa181c2e4ea",
+      "sha256": "70e699dd376929b10ed778feb1462435b4da9a40141c091f9a47b9d87c55cd6b",
+      "bytes": 983
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/structdefault_multifile_test.go",
+      "git_blob": "bd9e5215a33a4acb8223f8f3f63b62add3de3d36",
+      "sha256": "39de51957596c655080da953e50c888fcf4bd291913332a7d09b98dae88f417c",
+      "bytes": 3048
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/structdefault_new_shadow_test.go",
+      "git_blob": "2de72cb62f880b97bd24d42ab9d4c16beb909f74",
+      "sha256": "b79814adff6e1a870d4c6d304afc0cdceadab4701bb46a8fbb0deafa5da7423a",
+      "bytes": 1053
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/structdefault_origin_test.go",
+      "git_blob": "82b6a17f7f873683db7ed49a3977e7e597038410",
+      "sha256": "ee859ed1ea15e70497c3c860d6e8de4c70cb32af63ba8e15e3fad990aed90f5c",
+      "bytes": 1273
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/structdefault_predeclared_test.go",
+      "git_blob": "0c5273b8e50aa16d83825ed5168a4641ce903a40",
+      "sha256": "0fdcb69a5a56c832fcc02a0432252b9eb333457e41016aab1cf7772a9c53381f",
+      "bytes": 988
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/structdefault_shapes_test.go",
+      "git_blob": "91e0ea4a4bbb7f433fb35188f82596be3a952dc4",
+      "sha256": "977fac5dbf5fe1cb4fd270f844cea481feeaae4ae4be28b35767dfea45c018b8",
+      "bytes": 3211
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/facts/default_helper_wire_test.go",
+      "git_blob": "f0193251f3bce4492b3fcd7c5090f177cb46683c",
+      "sha256": "9c0ec0aec4b33fa502713f106d145ea7461c1fc7cc219819e6e451a7327863c6",
+      "bytes": 3896
+    }
+  ],
+  "original_file_count": 14,
+  "blocked_patch_sha256": "3d1bd84ac779294170db7d8e5e3d6403d005be31b94a634f5f9e4a16ae37d012",
+  "blocked_patch_diff_paths": [
+    "src/cmd/compile/internal/logos/structdefault_validation_test.go",
+    "src/cmd/compile/internal/logos/structdefault_binding_test.go",
+    "src/cmd/compile/internal/logos/structdefault_blank_lowering_test.go",
+    "src/cmd/compile/internal/logos/structdefault_derived_test.go",
+    "src/cmd/compile/internal/logos/structdefault_generic_capture_test.go",
+    "src/cmd/compile/internal/logos/structdefault_helper_boundary_test.go",
+    "src/cmd/compile/internal/logos/structdefault_implicit_shadow_test.go",
+    "src/cmd/compile/internal/logos/structdefault_inferred_array_test.go",
+    "src/cmd/compile/internal/logos/structdefault_multifile_test.go",
+    "src/cmd/compile/internal/logos/structdefault_new_shadow_test.go",
+    "src/cmd/compile/internal/logos/structdefault_origin_test.go",
+    "src/cmd/compile/internal/logos/structdefault_predeclared_test.go",
+    "src/cmd/compile/internal/logos/structdefault_shapes_test.go",
+    "src/cmd/compile/internal/logos/facts/default_helper_wire_test.go"
+  ],
+  "restored_test_function_names": [
+    "TestStructDefaultDeclarationBinding",
+    "TestStructDefaultLexicalScope",
+    "TestStructDefaultRejectsInvalidDeclaration",
+    "TestStructDefaultExportedConstantBindings",
+    "TestStructDefaultBlankFieldLowering",
+    "TestStructDefaultLocalDerivedType",
+    "TestStructDefaultLocalGenericCapture",
+    "TestStructDefaultHelperSignature",
+    "TestStructDefaultHelperGenericSignature",
+    "TestStructDefaultImportedTextIsOpaque",
+    "TestStructDefaultImplicitElementTypeShadow",
+    "TestStructDefaultLocalInferredArray",
+    "TestStructDefaultContainerAcrossFiles",
+    "TestStructDefaultNewShadow",
+    "TestStructDefaultGenericDerivedOrigins",
+    "TestStructDefaultInlineAnonymousVar",
+    "TestStructDefaultPredeclaredShadows",
+    "TestStructDefaultGenericInstances",
+    "TestStructDefaultAnonymousAliasBinding",
+    "TestStructDefaultExportedPrivateFields",
+    "TestDefaultHelperWireRoundTrip",
+    "TestDefaultHelperWireRejectsDuplicateType",
+    "TestDefaultHelperWireRejectsMalformed",
+    "TestDefaultHelperImportRejectsMissingMapping"
+  ],
+  "restored_test_function_count": 24,
+  "still_active_blank_identity": {
+    "path": "src/cmd/compile/internal/logos/structdefault_blank_test.go",
+    "sha256": "36288ae8a2ff903f8592b398927778c5585ca657f532581ca468e8ed8384edfe"
+  },
+  "interpretation": "14 original attack files: 13 restored by additions plus the unchanged active blank-identity file; patch also removes the extracted validator copy to avoid duplicate declarations",
+  "tests_run_during_review": false
+}

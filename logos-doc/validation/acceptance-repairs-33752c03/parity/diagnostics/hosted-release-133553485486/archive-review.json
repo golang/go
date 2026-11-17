@@ -1,0 +1,269 @@
+{
+  "all_file_checksums_match": true,
+  "archive": "evidence.tar.gz",
+  "archive_sha256": "020b3174a4c5d2c0688d544341aba5a6f2cb68411427771e88809d3f2b373026",
+  "expected_source_identity": {
+    "head": "1a4c7635f38dbf303833ff8e718f95541558f8be",
+    "src_tree": "e237c399aae8f8065b724e8a0e27585686c7da18",
+    "tree": "65f576af0515bdf1fa73c878f71e4adbfa53fc72"
+  },
+  "files": [
+    {
+      "name": "bootstrap-go.command",
+      "sha256": "578c1bade1e6beed5982ce279087d70e4c61505f57ac042cb67518357ee9d9b4",
+      "size": 44
+    },
+    {
+      "name": "bootstrap-go.log",
+      "sha256": "9f67904ee3f88b360cf9e56da96031e534a1dc751c9abc809e0a6f4bfabc18c3",
+      "size": 88
+    },
+    {
+      "name": "bootstrap-go.result.json",
+      "sha256": "079ae883b01ebc133ce4c5d2b51c56381580e04d74ce0105f07e7c171a43564c",
+      "size": 119
+    },
+    {
+      "name": "bootstrap-node.command",
+      "sha256": "38f1e8ca0633344cfb06ed52ea75d0a658b612b933787015a529dfe4e2db8396",
+      "size": 46
+    },
+    {
+      "name": "bootstrap-node.log",
+      "sha256": "3477779746f805d9f5dd1ae5536355ca2c42795326fe0568b81ec04ff56ac949",
+      "size": 68
+    },
+    {
+      "name": "bootstrap-node.result.json",
+      "sha256": "8b877e3a3fea340f056ea64b67b620e05c7b0441208f8d3f2a2161ed11c92293",
+      "size": 119
+    },
+    {
+      "name": "c23-compile.command",
+      "sha256": "488a34247f06933385aa032799b05949f0cc51412e3e58d9d9c663776834d77e",
+      "size": 177
+    },
+    {
+      "name": "c23-compile.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "name": "c23-compile.result.json",
+      "sha256": "4b08963d470b84600c8637539a5300666ad19f3f8e47d2ba8f0a6470bbf85eb7",
+      "size": 119
+    },
+    {
+      "name": "c23-run.command",
+      "sha256": "bad647bc260dc7764cd311ee7b3253cd857cbfd6890958131363912b61097355",
+      "size": 56
+    },
+    {
+      "name": "c23-run.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "name": "c23-run.result.json",
+      "sha256": "80298b577293be2904d41a172d2fed1c0a5147dd89a2ca6827823f5d3b88fb7a",
+      "size": 119
+    },
+    {
+      "name": "executor-exit.txt",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "size": 2
+    },
+    {
+      "name": "expected-tip.txt",
+      "sha256": "1faea82dfb72ab59c1dad424160ec2ceab72b6d353ed37d3506a70d7f529476f",
+      "size": 41
+    },
+    {
+      "name": "files.sha256",
+      "sha256": "408f8cb85122ac65544c50646da2393958fb8b521db19e2655ba3d26593d24c5",
+      "size": 3061
+    },
+    {
+      "name": "frozen-inputs.sha256",
+      "sha256": "4c67a6c74e933a1a13650386c4b965dd9231c52d318bfc4cc376ccbccf7954de",
+      "size": 667
+    },
+    {
+      "name": "identity.json",
+      "sha256": "490185803a2a6727506457a91b0fa8600a038bb9ee910c8b1b34816c51ee1c61",
+      "size": 480
+    },
+    {
+      "name": "installed-go.command",
+      "sha256": "3bef7c7a9110c993cf1260b930c6477ba35731eca35ea9e11b4d1d4ea37802e9",
+      "size": 12
+    },
+    {
+      "name": "installed-go.log",
+      "sha256": "a29205bd83967c2f70e6768fae009600038d6056499fa289de9d5f9b79beaef4",
+      "size": 32
+    },
+    {
+      "name": "installed-go.result.json",
+      "sha256": "b2ed30d509fec28277ceee474bdd5b15827328f02863f7c091c2d201ddc40b64",
+      "size": 119
+    },
+    {
+      "name": "installed-logos.command",
+      "sha256": "a2f370d97abf0281d6b0c0ef5a83721d18995034601f77b33805808f514b47c1",
+      "size": 15
+    },
+    {
+      "name": "installed-logos.log",
+      "sha256": "3a7b14cf792a79c78a9e42aab8906e0774b54ecddbbbc520ce94651a34aec2f9",
+      "size": 35
+    },
+    {
+      "name": "installed-logos.result.json",
+      "sha256": "b2ed30d509fec28277ceee474bdd5b15827328f02863f7c091c2d201ddc40b64",
+      "size": 119
+    },
+    {
+      "name": "installed-settings.txt",
+      "sha256": "c07774211995fb68a31ed76f6800192a98116aaa51d1159b6cb4a2389dd3174a",
+      "size": 7
+    },
+    {
+      "name": "installed-tools.sha256",
+      "sha256": "1b40f9b84ca0bc3f7a92cfe1fb53856b1ffc7af3afc9d8bad1bf6f2318021b7d",
+      "size": 698
+    },
+    {
+      "name": "make.command",
+      "sha256": "b00d86e1a4c5d4cd517399e129666f1421e654cf46f4a9c57529f8f33a80d24f",
+      "size": 13
+    },
+    {
+      "name": "make.log",
+      "sha256": "6068f85b6f1f91e6ae75a9bf8917c9286e0715c3b1e5af086d19cb25de98ae0f",
+      "size": 578
+    },
+    {
+      "name": "make.result.json",
+      "sha256": "25d932c8a673e85634ab6e66778b99848cabf724b9c98e2eb639e31bc0b6581d",
+      "size": 119
+    },
+    {
+      "name": "parity.command",
+      "sha256": "8bcade0663e9fb68e91c07927af2a44077293e5938068c8a81dadc08d0679287",
+      "size": 158
+    },
+    {
+      "name": "parity.log",
+      "sha256": "506edcc995570ce60139c13029b3e6c7dfe0ce71bcaa919455398dc7e13e0423",
+      "size": 12552
+    },
+    {
+      "name": "parity.result.json",
+      "sha256": "f71b76df3da48b088928c2a7125f2329cba5d9c6e437e396802a72e71c440f0b",
+      "size": 119
+    },
+    {
+      "name": "planned-rows.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "name": "resources.log",
+      "sha256": "266190e04b4d2b0d50e4cdbb22e7bef1969ee369eef9efdc1274d9ecd1b1d0e4",
+      "size": 274
+    },
+    {
+      "name": "upstream-oracles.command",
+      "sha256": "96ea14c75418e3e97db245f06118ab364a163cd168c6d0d3e94a953a849270fd",
+      "size": 50
+    },
+    {
+      "name": "upstream-oracles.log",
+      "sha256": "f5b005cf6b959ba4e636fe579a05c34746583abbd1c6df30ea92a0ca6d932a22",
+      "size": 112
+    },
+    {
+      "name": "upstream-oracles.result.json",
+      "sha256": "c15641958ba7fbad4328aa2449b363a25a648281f8fa0627cfddbf0ebc8da86a",
+      "size": 119
+    }
+  ],
+  "filesystem_extraction_performed": false,
+  "manifest_entries": 35,
+  "regular_files": 36,
+  "retained_results": {
+    "bootstrap-go.result.json": {
+      "end_utc": "2026-11-16T19:36:09Z",
+      "exit_code": 0,
+      "log_exit_code": 0,
+      "start_utc": "2026-11-16T19:36:07Z"
+    },
+    "bootstrap-node.result.json": {
+      "end_utc": "2026-11-16T19:36:11Z",
+      "exit_code": 0,
+      "log_exit_code": 0,
+      "start_utc": "2026-11-16T19:36:09Z"
+    },
+    "c23-compile.result.json": {
+      "end_utc": "2026-11-16T19:40:34Z",
+      "exit_code": 0,
+      "log_exit_code": 0,
+      "start_utc": "2026-11-16T19:40:33Z"
+    },
+    "c23-run.result.json": {
+      "end_utc": "2026-11-16T19:40:34Z",
+      "exit_code": 0,
+      "log_exit_code": 0,
+      "start_utc": "2026-11-16T19:40:34Z"
+    },
+    "executor-exit.txt": "1\n",
+    "expected-tip.txt": "1a4c7635f38dbf303833ff8e718f95541558f8be\n",
+    "identity.json": {
+      "event_sha": "f854c268ae8937d512a49a620bbc12944a80dc9d",
+      "head": "1a4c7635f38dbf303833ff8e718f95541558f8be",
+      "host_fingerprint": "72684e5a75a2ae99c692791fbe9701e99f684ca843ff09ca346263f2f4f10736",
+      "image": "ubuntu24",
+      "job": "parity",
+      "log_retention_days": "90",
+      "run_attempt": "1",
+      "run_id": "43939662630",
+      "runner": "GitHub Actions 1000117650",
+      "src_tree": "e237c399aae8f8065b724e8a0e27585686c7da18",
+      "tree": "65f576af0515bdf1fa73c878f71e4adbfa53fc72"
+    },
+    "installed-go.result.json": {
+      "end_utc": "2026-11-16T19:40:33Z",
+      "exit_code": 0,
+      "log_exit_code": 0,
+      "start_utc": "2026-11-16T19:40:33Z"
+    },
+    "installed-logos.result.json": {
+      "end_utc": "2026-11-16T19:40:33Z",
+      "exit_code": 0,
+      "log_exit_code": 0,
+      "start_utc": "2026-11-16T19:40:33Z"
+    },
+    "make.result.json": {
+      "end_utc": "2026-11-16T19:40:33Z",
+      "exit_code": 0,
+      "log_exit_code": 0,
+      "start_utc": "2026-11-16T19:36:14Z"
+    },
+    "parity.result.json": {
+      "end_utc": "2026-11-16T20:31:35Z",
+      "exit_code": 1,
+      "log_exit_code": 0,
+      "start_utc": "2026-11-16T19:40:35Z"
+    },
+    "planned-rows.txt": "",
+    "upstream-oracles.result.json": {
+      "end_utc": "2026-11-16T19:36:14Z",
+      "exit_code": 0,
+      "log_exit_code": 0,
+      "start_utc": "2026-11-16T19:36:11Z"
+    }
+  },
+  "safe_member_types_and_paths": true,
+  "source_identity_matches_published_head": true
+}

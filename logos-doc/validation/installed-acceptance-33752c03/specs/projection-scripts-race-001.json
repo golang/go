@@ -1,0 +1,73 @@
+{
+  "command": [
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin/go",
+    "test",
+    "-count=1",
+    "-p=1",
+    "-parallel=2",
+    "-v",
+    "-timeout=30m",
+    "-race",
+    "cmd/go",
+    "-run=^TestScript$/^(logos_chains_panic_close|logos_cgo_lgo|logos_eject_cgo|logos_eject_cgo_types|logos_eject_cgo_mode|logos_eject_cgo_paths|logos_eject_cgo_codegen|logos_eject_cgo_codegen_edges|logos_eject_cgo_owned)$"
+  ],
+  "cwd": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src",
+  "output": "/workspace/scratch/9949907ca71e/recovery-evidence/installed-repair-33752c03/projection-scripts-race-001",
+  "environment": {
+    "GOROOT": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes",
+    "GOCACHE": "/workspace/scratch/9949907ca71e/repair-postbuild-cache",
+    "GOPATH": "/workspace/scratch/9949907ca71e/repair-acceptance-gopath",
+    "GOTOOLCHAIN": "local",
+    "GOENV": "off",
+    "GOWORK": "off",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "GOMAXPROCS": "2",
+    "GOGC": "50",
+    "GOMEMLIMIT": "2GiB",
+    "GOFLAGS": "-p=2",
+    "GOEXPERIMENT": "",
+    "CGO_ENABLED": "1",
+    "TMPDIR": "/home/agent/logos-repair-33752c03/tmp",
+    "GOTMPDIR": "/home/agent/logos-repair-33752c03/tmp/go-tmp",
+    "CC": "/usr/bin/gcc-14",
+    "CXX": "/usr/bin/g++-14",
+    "UPROOT1272": "/workspace/scratch/9949907ca71e/toolchains/go1.27.2",
+    "UPROOT1273": "/workspace/scratch/9949907ca71e/toolchains/go1.27.3",
+    "UPROOT1274": "/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci",
+    "PATH": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/recovery-evidence/installed-repair-33752c03/c23-bin:/workspace/scratch/9949907ca71e/toolchains/node-v26.13.1-ci/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/lib/wasm:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+  },
+  "files": [
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/cmd/go/testdata/script/logos_chains_panic_close.txt",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/cmd/go/testdata/script/logos_cgo_lgo.txt",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/cmd/go/testdata/script/logos_eject_cgo.txt",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/cmd/go/testdata/script/logos_eject_cgo_types.txt",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/cmd/go/testdata/script/logos_eject_cgo_mode.txt",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/cmd/go/testdata/script/logos_eject_cgo_paths.txt",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/cmd/go/testdata/script/logos_eject_cgo_codegen.txt",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/cmd/go/testdata/script/logos_eject_cgo_codegen_edges.txt",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/cmd/go/testdata/script/logos_eject_cgo_owned.txt"
+  ],
+  "repositories": [
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes"
+  ],
+  "expected_exit": 0,
+  "required_markers": [
+    "--- PASS: TestScript/logos_chains_panic_close ",
+    "--- PASS: TestScript/logos_cgo_lgo ",
+    "--- PASS: TestScript/logos_eject_cgo ",
+    "--- PASS: TestScript/logos_eject_cgo_types ",
+    "--- PASS: TestScript/logos_eject_cgo_mode ",
+    "--- PASS: TestScript/logos_eject_cgo_paths ",
+    "--- PASS: TestScript/logos_eject_cgo_codegen ",
+    "--- PASS: TestScript/logos_eject_cgo_codegen_edges ",
+    "--- PASS: TestScript/logos_eject_cgo_owned "
+  ],
+  "forbidden_markers": [
+    "--- FAIL:",
+    "--- SKIP:",
+    "[build failed]"
+  ],
+  "timeout_seconds": 1860,
+  "boundary": "Nine unchanged native panic/cgo and complete C-ejection scripts run with installed drivers; all three pinned upstream oracle roots are supplied."
+}

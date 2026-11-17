@@ -1,0 +1,8 @@
+kind: compiler
+file: src/cmd/compile/internal/walk/expr.go
+expect: at03_consent_chain
+config: K17
+-- old --
+						appendWalkStmt(init, mkcall("logosArenaRetSet", nil, init, tok))
+-- new --
+						appendWalkStmt(init, mkcall("logosArenaRetSet", nil, init, typecheck.Expr(ir.NewBinaryExpr(base.Pos, ir.OEQ, ir.NewInt(base.Pos, 0), ir.NewInt(base.Pos, 0)))))

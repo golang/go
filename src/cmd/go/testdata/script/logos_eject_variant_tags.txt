@@ -1,0 +1,66 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd variants
+
+logos run -tags=selected .
+stdout '^selected$'
+logos run .
+stdout '^unselected$'
+
+# Eject must select inactive files even when the active build sets a
+# custom tag which those files negate.
+logos build -tags=selected --emit-go=out
+exists out/unselected.go
+exists out/selected.go
+exists out/many.go
+cd out
+exec env -u GOROOT $UPROOT1272/bin/go run .
+stdout '^unselected$'
+exec env -u GOROOT $UPROOT1272/bin/go run -tags=selected .
+stdout '^selected$'
+cd ..
+
+# A helper's tag set is complete, including an empty set. Parent flags
+# must not be unioned into it when the helper is entered via emit-go.
+env LOGOSEJECT_IN_VARIANT=1
+env LOGOSEJECT_TAGS=
+logos build -tags=selected --emit-go=out-empty
+exists out-empty/unselected.go
+! exists out-empty/selected.go
+cd out-empty
+exec env -u GOROOT $UPROOT1272/bin/go run .
+stdout '^unselected$'
+
+-- variants/go.mod --
+module example.com/variants
+
+go 1.27
+
+-- variants/main.lgo --
+package main
+
+import "fmt"
+
+func main() { fmt.Println(message()) }
+
+-- variants/selected.lgo --
+//go:build selected
+
+package main
+
+func message() string { return "selected" }
+
+-- variants/unselected.lgo --
+//go:build !selected
+
+package main
+
+func message() string { return "unselected" }
+
+-- variants/many.lgo --
+//go:build tag00 && tag01 && tag02 && tag03 && tag04 && tag05 && tag06 && tag07 && tag08 && tag09 && tag10 && tag11 && tag12 && tag13 && tag14 && tag15 && tag16 && tag17 && tag18 && tag19 && tag20 && tag21 && tag22 && tag23 && tag24 && tag25 && tag26 && tag27 && tag28 && tag29 && tag30 && tag31 && tag32 && tag33 && tag34 && tag35 && tag36 && tag37 && tag38 && tag39 && tag40 && tag41 && tag42 && tag43 && tag44 && tag45 && tag46 && tag47 && tag48 && tag49 && tag50 && tag51 && tag52 && tag53 && tag54 && tag55 && tag56 && tag57 && tag58 && tag59 && tag60 && tag61 && tag62
+
+package main
+
+func many() int { return 63 }

@@ -1,0 +1,6 @@
+{
+  "Replace": {
+    "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/cmd/internal/goparity/parity_test.go": "/workspace/scratch/9949907ca71e/recovery-evidence/acceptance-failure-repairs/parity-queue-bypass.go",
+    "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/cmd/internal/goparity/execution_queue_test.go": "/workspace/scratch/9949907ca71e/logos-parity-execution-fix/src/cmd/internal/goparity/execution_queue_test.go"
+  }
+}

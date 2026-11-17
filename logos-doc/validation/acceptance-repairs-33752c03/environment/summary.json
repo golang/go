@@ -1,0 +1,293 @@
+{
+  "prepared_utc": "2026-11-16T21:35:27.512Z",
+  "slice": "M22-A-S7",
+  "redteam": "#444",
+  "audit": "AUD-212",
+  "base": "2535486fe9596a9212d525a5007963ef9e8682f0",
+  "src_tree": "e237c399aae8f8065b724e8a0e27585686c7da18",
+  "implementation_attempts": 1,
+  "attack_sha256": "7474040278eb8e00e7861678fb0698d16380092312090b8b700c6fae40dab942",
+  "executor_baseline_sha256": "a9a5fdd226443ee84ac22bb9ccef3f6c52278d55cb7973b0062a73a2a156a7b3",
+  "executor_candidate_sha256": "168c566d73748dba15535ea57d333581df74e469e2adb0893240d8aa059ec3b5",
+  "frozen_nonexecutor_inputs_unchanged": 16,
+  "runs": [
+    {
+      "name": "release-environment-red-001",
+      "exit_code": 1,
+      "expected_outcome_matched": true,
+      "duration_seconds": 0.285,
+      "command": [
+        "uv",
+        "run",
+        "--offline",
+        "--no-cache",
+        "--no-project",
+        "python",
+        "-B",
+        "/workspace/scratch/9949907ca71e/logos-release-env-fix/logos-doc/validation/release-acceptance/test_bootstrap_environment.py",
+        "/workspace/scratch/9949907ca71e/logos-release-env-fix"
+      ],
+      "cwd": "/workspace/scratch/9949907ca71e",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "5937ba27f644a14db77ea1989446435d49f9dfae4337ddf6a11a00f6eeaecfdc",
+      "classification": "recorded gate"
+    },
+    {
+      "name": "release-environment-green-001",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 0.271,
+      "command": [
+        "uv",
+        "run",
+        "--offline",
+        "--no-cache",
+        "--no-project",
+        "python",
+        "-B",
+        "/workspace/scratch/9949907ca71e/logos-release-env-fix/logos-doc/validation/release-acceptance/test_bootstrap_environment.py",
+        "/workspace/scratch/9949907ca71e/logos-release-env-fix"
+      ],
+      "cwd": "/workspace/scratch/9949907ca71e",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "1e88840824d6af3947fccc890dc4505ce26583ef60995df77428c1c193e14529",
+      "classification": "recorded gate"
+    },
+    {
+      "name": "release-env-limits-mutation-001",
+      "exit_code": 1,
+      "expected_outcome_matched": true,
+      "duration_seconds": 1.027,
+      "command": [
+        "uv",
+        "run",
+        "--offline",
+        "--no-cache",
+        "--no-project",
+        "python",
+        "-B",
+        "/workspace/scratch/9949907ca71e/logos-release-env-fix/logos-doc/validation/release-acceptance/test_bootstrap_environment.py",
+        "/workspace/scratch/9949907ca71e/recovery-evidence/acceptance-failure-repairs/env-mutant-limits"
+      ],
+      "cwd": "/workspace/scratch/9949907ca71e",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "8496ee156ba65dc57a47e24fa3d6f4be7cda416e65c0456e4bc94d67a60b3a0b",
+      "classification": "recorded gate"
+    },
+    {
+      "name": "release-env-cxx-mutation-001",
+      "exit_code": 1,
+      "expected_outcome_matched": true,
+      "duration_seconds": 0.698,
+      "command": [
+        "uv",
+        "run",
+        "--offline",
+        "--no-cache",
+        "--no-project",
+        "python",
+        "-B",
+        "/workspace/scratch/9949907ca71e/logos-release-env-fix/logos-doc/validation/release-acceptance/test_bootstrap_environment.py",
+        "/workspace/scratch/9949907ca71e/recovery-evidence/acceptance-failure-repairs/env-mutant-cxx"
+      ],
+      "cwd": "/workspace/scratch/9949907ca71e",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "2f894c21932bd970e935f286e1337b02c87bc2effa926f4f06fefd21590b572b",
+      "classification": "recorded gate"
+    },
+    {
+      "name": "release-env-temporary-mutation-001",
+      "exit_code": 1,
+      "expected_outcome_matched": true,
+      "duration_seconds": 0.357,
+      "command": [
+        "uv",
+        "run",
+        "--offline",
+        "--no-cache",
+        "--no-project",
+        "python",
+        "-B",
+        "/workspace/scratch/9949907ca71e/logos-release-env-fix/logos-doc/validation/release-acceptance/test_bootstrap_environment.py",
+        "/workspace/scratch/9949907ca71e/recovery-evidence/acceptance-failure-repairs/env-mutant-temporary"
+      ],
+      "cwd": "/workspace/scratch/9949907ca71e",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "3cf01cf5c7f993faffaaea92b18bed753012d6d7d6f9195d20617d74fe07e53c",
+      "classification": "recorded gate"
+    },
+    {
+      "name": "release-environment-restored-001",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 0.224,
+      "command": [
+        "uv",
+        "run",
+        "--offline",
+        "--no-cache",
+        "--no-project",
+        "python",
+        "-B",
+        "/workspace/scratch/9949907ca71e/logos-release-env-fix/logos-doc/validation/release-acceptance/test_bootstrap_environment.py",
+        "/workspace/scratch/9949907ca71e/logos-release-env-fix"
+      ],
+      "cwd": "/workspace/scratch/9949907ca71e",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "2477adaf19f28555a5ac290848b1461f885d12467f12c21fa634ac1258609150",
+      "classification": "recorded gate"
+    },
+    {
+      "name": "environment-runtime-compile-001",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 36.778,
+      "command": [
+        "/workspace/scratch/9949907ca71e/logos-final-acceptance/bin/go",
+        "test",
+        "-c",
+        "-p=1",
+        "-O=1",
+        "-o",
+        "/workspace/scratch/9949907ca71e/recovery-evidence/acceptance-failure-repairs/environment-binaries/runtime.test",
+        "runtime"
+      ],
+      "cwd": "/workspace/scratch/9949907ca71e/logos-final-acceptance/src",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "classification": "recorded gate"
+    },
+    {
+      "name": "environment-runtime-execute-001",
+      "exit_code": 1,
+      "expected_outcome_matched": false,
+      "duration_seconds": 0.029,
+      "command": [
+        "/workspace/scratch/9949907ca71e/recovery-evidence/acceptance-failure-repairs/environment-binaries/runtime.test",
+        "-test.count=1",
+        "-test.v",
+        "-test.timeout=15m",
+        "-test.run=^TestMemoryLimit(NoGCPercent)?$"
+      ],
+      "cwd": "/workspace/scratch/9949907ca71e/logos-final-acceptance/src",
+      "stdout_sha256": "ebae67dd7ce0b3a711e3a0093de52d0ce1945ea0356a95a640986eb7ef5822a2",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "classification": "setup-only wrong package cwd, not a semantic RED or implementation attempt"
+    },
+    {
+      "name": "environment-runtime-execute-002",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 4.258,
+      "command": [
+        "/workspace/scratch/9949907ca71e/recovery-evidence/acceptance-failure-repairs/environment-binaries/runtime.test",
+        "-test.count=1",
+        "-test.v",
+        "-test.timeout=15m",
+        "-test.run=^TestMemoryLimit(NoGCPercent)?$"
+      ],
+      "cwd": "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/runtime",
+      "stdout_sha256": "59f5d48ce42d08c55586bffd5e6d106be7bd292fe722825a850879aa901a2608",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "classification": "recorded gate"
+    },
+    {
+      "name": "environment-linker-security-001",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 6.388,
+      "command": [
+        "/workspace/scratch/9949907ca71e/logos-final-acceptance/bin/go",
+        "test",
+        "-O=1",
+        "-count=1",
+        "-p=1",
+        "-v",
+        "-timeout=5m",
+        "cmd/go/internal/work",
+        "-run=^(TestCheckGCCSpecFiles|TestCheckLinker.*)$"
+      ],
+      "cwd": "/workspace/scratch/9949907ca71e/logos-final-acceptance/src",
+      "stdout_sha256": "faf701a3ab3f3674e2759c43e295b20ef6f27be44d2a84db26988c083a5d3b33",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "classification": "recorded gate"
+    },
+    {
+      "name": "release-static-checker-001",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 0.739,
+      "command": [
+        "uv",
+        "run",
+        "--offline",
+        "--no-cache",
+        "--no-project",
+        "python",
+        "-B",
+        "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/logos-doc/validation/release-acceptance/check_release_contract.py",
+        "/workspace/scratch/9949907ca71e/logos-acceptance-fixes"
+      ],
+      "cwd": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes",
+      "stdout_sha256": "fcb85f78a3e21417642eb53b90d18188df57389f45c327ce582cc94f7a8edb81",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "classification": "static check only; no compiler or Go test execution"
+    },
+    {
+      "name": "release-bash-syntax-001",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 0.121,
+      "command": [
+        "bash",
+        "-n",
+        "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/.github/scripts/release-acceptance.sh"
+      ],
+      "cwd": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "classification": "static check only; no compiler or Go test execution"
+    },
+    {
+      "name": "release-shellcheck-001",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 1.086,
+      "command": [
+        "/workspace/scratch/9949907ca71e/language-ci-tools/bin/shellcheck",
+        "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/.github/scripts/release-acceptance.sh"
+      ],
+      "cwd": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "classification": "static check only; no compiler or Go test execution"
+    },
+    {
+      "name": "release-actionlint-001",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 0.747,
+      "command": [
+        "/workspace/scratch/9949907ca71e/language-ci-tools/bin/actionlint",
+        "-color"
+      ],
+      "cwd": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "classification": "static check only; no compiler or Go test execution"
+    }
+  ],
+  "native_scope": "Unchanged runtime and cmd/go/internal/work tests with installed e96 tools on source e237; not a new-source final release acceptance claim.",
+  "pending": [
+    "Hosted SWIG ordinary and LTO paths with no skips",
+    "Fresh final installed acceptance",
+    "All six complete optimization cells and their separate os phases",
+    "Independent cmd/go shared-deadline failures"
+  ],
+  "exclusions": [
+    "No compiled binaries",
+    "No claim that the O3 deadline failure passed",
+    "No current e6e3 reproducibility proof mixed into this repair bundle"
+  ],
+  "static_scope": "Four actual recorded static gates passed against the frozen main candidate; command, inputs, result and raw streams included."
+}

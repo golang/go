@@ -1,0 +1,48 @@
+[!cgo] skip 'cgo is not available'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env CGO_ENABLED=1
+env GOEXPERIMENT=nologosfastcgo
+
+logos run .
+stdout '^owned C: 3 7 11 15$'
+cp stdout $WORK/native.txt
+logos eject -o $WORK/out
+cd $WORK/out
+env GOEXPERIMENT=
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $WORK/native.txt
+exec env -u GOROOT $UPROOT1273/bin/go run .
+cmp stdout $WORK/native.txt
+exec env -u GOROOT $UPROOT1273/bin/go vet ./...
+
+-- go.mod --
+module example.com/cgoowned
+
+go 1.27
+
+-- logos.toml --
+[build]
+cgo = "allow"
+
+-- main.lgo --
+package main
+
+/*
+typedef unsigned long word;
+*/
+import "C"
+
+import "fmt"
+
+type Local C.int
+
+const values = []C.int{1, 2}
+const words = []C.word{3, 4}
+const array = [2]C.int{5, 6}
+const locals = []Local{7, 8}
+
+func main() {
+	fmt.Println("owned C:", values[0]+values[1], words[0]+words[1], array[0]+array[1], locals[0]+locals[1])
+}

@@ -1,0 +1,54 @@
+Go is a tool for managing Go source code.
+
+Usage:
+
+	go <command> [arguments]
+
+The commands are:
+
+	bug         start a bug report
+	build       compile packages and dependencies
+	clean       remove object files and cached files
+	doc         show documentation for package or symbol
+	env         print Go environment information
+	fix         apply fixes suggested by static checkers
+	fmt         gofmt (reformat) package sources
+	generate    generate Go files by processing source
+	get         add dependencies to current module and install them
+	install     compile and install packages and dependencies
+	list        list packages or modules
+	mod         module maintenance
+	run         compile and run Go program
+	telemetry   manage telemetry data and settings
+	test        test packages
+	tool        run specified go tool
+	version     print Go version
+	vet         report likely mistakes in packages
+	work        workspace maintenance
+
+Use "go help <command>" for more information about a command.
+
+Additional help topics:
+
+	buildconstraint build constraints
+	buildjson       build -json encoding
+	buildmode       build modes
+	c               calling between Go and C
+	cache           build and test caching
+	environment     environment variables
+	filetype        file types
+	goauth          GOAUTH environment variable
+	go.mod          the go.mod file
+	gopath          GOPATH environment variable
+	goproxy         module proxy protocol
+	importpath      import path syntax
+	modules         modules, module versions, and more
+	module-auth     module authentication using go.sum
+	packages        package lists and patterns
+	private         configuration for downloading non-public code
+	testflag        testing flags
+	testfunc        testing functions
+	vcs             controlling version control with GOVCS
+
+Use "go help <topic>" for more information about that topic.
+

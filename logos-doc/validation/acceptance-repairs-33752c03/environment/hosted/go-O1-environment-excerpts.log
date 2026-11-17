@@ -1,0 +1,84 @@
+--- original log lines 601-613 ---
+2026-11-16T19:50:53.8758403Z ?   	reflect/internal/example2	[no test files]
+2026-11-16T19:51:00.3008361Z ok  	regexp	9.299s
+2026-11-16T19:51:00.3009500Z ok  	regexp/syntax	0.493s
+2026-11-16T19:55:54.1542473Z --- FAIL: TestMemoryLimit (0.00s)
+2026-11-16T19:55:54.1613215Z     gc_test.go:780: /home/runner/work/_temp/logos-release-optimization/tmp/go-build2499440776/testprog.exe GCMemoryLimit (1.253296ms): ok
+2026-11-16T19:55:54.1614561Z     gc_test.go:783: expected "OK\n", but got "insufficient CPUs\n"
+2026-11-16T19:55:54.1642562Z --- FAIL: TestMemoryLimitNoGCPercent (0.00s)
+2026-11-16T19:55:54.1671223Z     gc_test.go:794: /home/runner/work/_temp/logos-release-optimization/tmp/go-build2499440776/testprog.exe GCMemoryLimitNoGCPercent (2.072525ms): ok
+2026-11-16T19:55:54.1692468Z     gc_test.go:797: expected "OK\n", but got "insufficient CPUs\n"
+2026-11-16T19:55:54.1721931Z FAIL
+2026-11-16T19:55:54.1752279Z FAIL	runtime	285.038s
+2026-11-16T19:55:54.1782678Z ok  	runtime/cgo	0.003s
+2026-11-16T19:55:54.1805769Z ?   	runtime/coverage	[no test files]
+
+--- original log lines 684-693 ---
+2026-11-16T19:55:54.2178992Z         swig_test.go:63: # cmd/cgo/internal/swig/testdata/callback
+2026-11-16T19:55:54.2179997Z             /home/runner/work/LoGOs/LoGOs/pkg/tool/linux_amd64/link: running g++ failed: exit status 1
+2026-11-16T19:55:54.2193477Z             /usr/bin/g++ -m64 -s -Wl,--build-id=0x89ff0bf03a8b2d319620794867c7ce3c32361ab7 -o $WORK/b001/exe/callback -Wl,--export-dynamic-symbol=Swig_DirectorCallback_callback_run_main_905969086ef7fd43 -Wl,--export-dynamic-symbol=Swiggo_DeleteDirector_Callback_main_905969086ef7fd43 -Wl,--export-dynamic-symbol=_cgo_panic -Wl,--export-dynamic-symbol=_cgo_topofstack -Wl,--export-dynamic-symbol=crosscall2 -Wl,--compress-debug-sections=zlib /home/runner/work/_temp/logos-release-optimization/tmp/go-link-3270334403/go.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-3270334403/000000.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-3270334403/000001.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-3270334403/000002.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-3270334403/000003.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-3270334403/000004.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-3270334403/000005.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-3270334403/000006.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-3270334403/000007.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-3270334403/000008.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-3270334403/000009.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-3270334403/000010.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-3270334403/000011.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-3270334403/000012.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-3270334403/000013.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-3270334403/000014.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-3270334403/000015.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-3270334403/000016.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-3270334403/000017.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-3270334403/000018.o -flto -Wno-lto-type-mismatch -Wno-unknown-warning-option -flto -Wno-lto-type-mismatch -Wno-unknown-warning-option -lpthread -no-pie
+2026-11-16T19:55:54.2716079Z             lto1: fatal error: bytecode stream in file ‘/home/runner/work/_temp/logos-release-optimization/tmp/go-link-3270334403/000000.o’ generated with LTO version 14.0 instead of the expected 13.1
+2026-11-16T19:55:54.2717745Z             compilation terminated.
+2026-11-16T19:55:54.2718221Z             lto-wrapper: fatal error: g++ returned 1 exit status
+2026-11-16T19:55:54.2718681Z             compilation terminated.
+2026-11-16T19:55:54.2719117Z             /usr/bin/ld: error: lto-wrapper failed
+2026-11-16T19:55:54.2719610Z             collect2: error: ld returned 1 exit status
+2026-11-16T19:55:54.2720018Z             
+
+--- original log lines 697-706 ---
+2026-11-16T19:55:54.2721907Z         swig_test.go:63: # cmd/cgo/internal/swig/testdata/callback
+2026-11-16T19:55:54.2722626Z             /home/runner/work/LoGOs/LoGOs/pkg/tool/linux_amd64/link: running g++ failed: exit status 1
+2026-11-16T19:55:54.2750291Z             /usr/bin/g++ -m64 -s -Wl,--build-id=0x89ff0bf03a8b2d319620794867c7ce3c32361ab7 -o $WORK/b001/exe/callback -Wl,--export-dynamic-symbol=Swig_DirectorCallback_callback_run_main_905969086ef7fd43 -Wl,--export-dynamic-symbol=Swiggo_DeleteDirector_Callback_main_905969086ef7fd43 -Wl,--export-dynamic-symbol=_cgo_panic -Wl,--export-dynamic-symbol=_cgo_topofstack -Wl,--export-dynamic-symbol=crosscall2 -Wl,--compress-debug-sections=zlib /home/runner/work/_temp/logos-release-optimization/tmp/go-link-1057036386/go.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-1057036386/000000.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-1057036386/000001.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-1057036386/000002.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-1057036386/000003.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-1057036386/000004.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-1057036386/000005.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-1057036386/000006.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-1057036386/000007.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-1057036386/000008.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-1057036386/000009.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-1057036386/000010.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-1057036386/000011.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-1057036386/000012.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-1057036386/000013.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-1057036386/000014.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-1057036386/000015.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-1057036386/000016.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-1057036386/000017.o /home/runner/work/_temp/logos-release-optimization/tmp/go-link-1057036386/000018.o -flto -Wno-lto-type-mismatch -Wno-unknown-warning-option -flto -Wno-lto-type-mismatch -Wno-unknown-warning-option -lpthread -no-pie
+2026-11-16T19:55:54.2760783Z             lto1: fatal error: bytecode stream in file ‘/home/runner/work/_temp/logos-release-optimization/tmp/go-link-1057036386/000000.o’ generated with LTO version 14.0 instead of the expected 13.1
+2026-11-16T19:55:54.2774076Z             compilation terminated.
+2026-11-16T19:55:54.2774545Z             lto-wrapper: fatal error: g++ returned 1 exit status
+2026-11-16T19:55:54.2775123Z             compilation terminated.
+2026-11-16T19:55:54.2775531Z             /usr/bin/ld: error: lto-wrapper failed
+2026-11-16T19:55:54.2776042Z             collect2: error: ld returned 1 exit status
+2026-11-16T19:55:54.2776413Z             
+
+--- original log lines 900-943 ---
+2026-11-16T20:48:04.8512255Z     security_test.go:527: expected error for ["-fsanitize=undefined" "-static-libubsan"] with spec file in CWD and no -L, got nil
+2026-11-16T20:48:04.8512878Z     security_test.go:527: expected error for ["-fsanitize=address" "-static"] with spec file in CWD and no -L, got nil
+2026-11-16T20:48:04.8513408Z     security_test.go:527: expected error for ["-fopenmp"] with spec file in CWD and no -L, got nil
+2026-11-16T20:48:04.8513863Z --- FAIL: TestCheckLinkerWlFlags (0.00s)
+2026-11-16T20:48:04.8514428Z     security_test.go:605: missing error for ["-Wl,--just-symbols=/home/runner/work/_temp/logos-release-optimization/go-tmp/TestCheckLinkerWlFlags1394633866/001/script.ld"]
+2026-11-16T20:48:04.8515304Z     security_test.go:605: missing error for ["-Wl,--just-symbols,/home/runner/work/_temp/logos-release-optimization/go-tmp/TestCheckLinkerWlFlags1394633866/001/script.ld"]
+2026-11-16T20:48:04.8516225Z     security_test.go:605: missing error for ["-Wl,--just-symbols" "-Wl,/home/runner/work/_temp/logos-release-optimization/go-tmp/TestCheckLinkerWlFlags1394633866/001/script.ld"]
+2026-11-16T20:48:04.8517086Z     security_test.go:605: missing error for ["-Wl,--push-state,--just-symbols=/home/runner/work/_temp/logos-release-optimization/go-tmp/TestCheckLinkerWlFlags1394633866/001/script.ld"]
+2026-11-16T20:48:04.8517989Z     security_test.go:605: missing error for ["-Wl,-R,/home/runner/work/_temp/logos-release-optimization/go-tmp/TestCheckLinkerWlFlags1394633866/001/script.ld"]
+2026-11-16T20:48:04.8518756Z     security_test.go:605: missing error for ["-Wl,-R=/home/runner/work/_temp/logos-release-optimization/go-tmp/TestCheckLinkerWlFlags1394633866/001/script.ld"]
+2026-11-16T20:48:04.8519513Z     security_test.go:605: missing error for ["-Wl,-R/home/runner/work/_temp/logos-release-optimization/go-tmp/TestCheckLinkerWlFlags1394633866/001/script.ld"]
+2026-11-16T20:48:04.8520293Z     security_test.go:605: missing error for ["-Wl,-R" "/home/runner/work/_temp/logos-release-optimization/go-tmp/TestCheckLinkerWlFlags1394633866/001/script.ld"]
+2026-11-16T20:48:04.8521067Z     security_test.go:605: missing error for ["-Wl,-R" "-Wl,/home/runner/work/_temp/logos-release-optimization/go-tmp/TestCheckLinkerWlFlags1394633866/001/script.ld"]
+2026-11-16T20:48:04.8522080Z     security_test.go:605: missing error for ["-Wl,--push-state,-R/home/runner/work/_temp/logos-release-optimization/go-tmp/TestCheckLinkerWlFlags1394633866/001/script.ld"]
+2026-11-16T20:48:04.8522899Z     security_test.go:605: missing error for ["-Wl,--push-state,-R=/home/runner/work/_temp/logos-release-optimization/go-tmp/TestCheckLinkerWlFlags1394633866/001/script.ld"]
+2026-11-16T20:48:04.8523461Z --- FAIL: TestCheckLinkerInputFiles (0.00s)
+2026-11-16T20:48:04.8524112Z     security_test.go:848: expected error for GNU ld script disguised as .so in ["/home/runner/work/_temp/logos-release-optimization/go-tmp/TestCheckLinkerInputFiles3025431841/001/evil.so"], got nil
+2026-11-16T20:48:04.8525103Z     security_test.go:848: expected error for GNU ld script disguised as .so in ["-Wl,--just-symbols=/home/runner/work/_temp/logos-release-optimization/go-tmp/TestCheckLinkerInputFiles3025431841/001/evil.so"], got nil
+2026-11-16T20:48:04.8526163Z     security_test.go:848: expected error for GNU ld script disguised as .so in ["-Wl,--just-symbols,/home/runner/work/_temp/logos-release-optimization/go-tmp/TestCheckLinkerInputFiles3025431841/001/evil.so"], got nil
+2026-11-16T20:48:04.8527130Z     security_test.go:848: expected error for GNU ld script disguised as .so in ["-Wl,-R,/home/runner/work/_temp/logos-release-optimization/go-tmp/TestCheckLinkerInputFiles3025431841/001/evil.so"], got nil
+2026-11-16T20:48:04.8528124Z     security_test.go:848: expected error for GNU ld script disguised as .so in ["-Wl,-R/home/runner/work/_temp/logos-release-optimization/go-tmp/TestCheckLinkerInputFiles3025431841/001/evil.so"], got nil
+2026-11-16T20:48:04.8529119Z     security_test.go:881: expected error for -L directory ["-L/home/runner/work/_temp/logos-release-optimization/go-tmp/TestCheckLinkerInputFiles3025431841/001/lib"] containing linker script libc.so, got nil
+2026-11-16T20:48:04.8530134Z     security_test.go:881: expected error for -L directory ["-L" "/home/runner/work/_temp/logos-release-optimization/go-tmp/TestCheckLinkerInputFiles3025431841/001/lib"] containing linker script libc.so, got nil
+2026-11-16T20:48:04.8531161Z     security_test.go:881: expected error for -L directory ["-L=/home/runner/work/_temp/logos-release-optimization/go-tmp/TestCheckLinkerInputFiles3025431841/001/lib"] containing linker script libc.so, got nil
+2026-11-16T20:48:04.8532328Z     security_test.go:881: expected error for -L directory ["-L$SYSROOT/home/runner/work/_temp/logos-release-optimization/go-tmp/TestCheckLinkerInputFiles3025431841/001/lib"] containing linker script libc.so, got nil
+2026-11-16T20:48:04.8533119Z     security_test.go:888: expected error for -L directory containing symlinked subdirectory with linker script, got nil
+2026-11-16T20:48:04.8533746Z     security_test.go:900: expected error for -L directory containing linker script foo.lib, got nil
+2026-11-16T20:48:04.8534285Z     security_test.go:910: expected error for -L directory containing linker script ..dll, got nil
+2026-11-16T20:48:04.8534775Z     security_test.go:924: expected error for archive containing dangerous .drectve member, got nil
+2026-11-16T20:48:04.8535241Z     security_test.go:939: expected error for BSD archive member named __.SYMDEF.o, got nil
+2026-11-16T20:48:04.8535712Z     security_test.go:951: expected error for BSD archive member with >64-byte __.SYMDEF* name, got nil
+2026-11-16T20:48:04.8536233Z     security_test.go:962: expected error for second archive member named __.SYMDEF, got nil
+2026-11-16T20:48:04.8536726Z     security_test.go:971: expected error for truncated !<arch> file, got nil
+2026-11-16T20:48:04.8537087Z --- FAIL: TestCheckLinkerCOFFDrectve (0.00s)
+2026-11-16T20:48:04.8537508Z     security_test.go:1001: expected error for PE/COFF object with dangerous .drectve, got nil
+2026-11-16T20:48:04.8537964Z     security_test.go:1009: expected error for PE/COFF object with -L/-T .drectve, got nil
+2026-11-16T20:48:04.8538522Z     security_test.go:1017: expected error for PE/COFF object with drive-relative /DEFAULTLIB:C:evil.lib, got nil
+2026-11-16T20:48:04.8538960Z --- FAIL: TestCheckLinkerObjectSections (0.00s)
+2026-11-16T20:48:04.8539343Z     security_test.go:1039: expected error for PE/COFF object with .llvmbc section, got nil
+2026-11-16T20:48:04.8539836Z     security_test.go:1046: expected error for PE/COFF object with /4 .gnu.lto_.symtab.* section, got nil
+2026-11-16T20:48:04.8540337Z     security_test.go:1078: expected error for Mach-O object with disallowed LC_LINKER_OPTION, got nil
+2026-11-16T20:48:04.8541147Z     security_test.go:1078: expected error for Mach-O object with disallowed LC_LINKER_OPTION, got nil
+2026-11-16T20:48:04.8541869Z     security_test.go:1078: expected error for Mach-O object with disallowed LC_LINKER_OPTION, got nil
+2026-11-16T20:48:04.8542387Z     security_test.go:1078: expected error for Mach-O object with disallowed LC_LINKER_OPTION, got nil

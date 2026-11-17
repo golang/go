@@ -1,0 +1,56 @@
+{
+  "command": [
+    "/workspace/scratch/9949907ca71e/logos-final-acceptance/bin/go",
+    "test",
+    "-p=1",
+    "-count=1",
+    "-parallel=1",
+    "-short",
+    "-timeout=10m",
+    "-v",
+    "-overlay=/workspace/scratch/9949907ca71e/recovery-evidence/acceptance-failure-repairs/parity-queue-baseline-overlay.json",
+    "cmd/internal/goparity",
+    "-run=^TestRunBinaryExecutionQueue$"
+  ],
+  "cwd": "/workspace/scratch/9949907ca71e/logos-final-acceptance/src",
+  "output": "/workspace/scratch/9949907ca71e/recovery-evidence/acceptance-failure-repairs/parity-queue-red-001",
+  "environment": {
+    "GOROOT": "/workspace/scratch/9949907ca71e/logos-final-acceptance",
+    "GOCACHE": "/workspace/scratch/9949907ca71e/final-postbuild-cache",
+    "GOTOOLCHAIN": "local",
+    "GOENV": "off",
+    "GOWORK": "off",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "GOMAXPROCS": "2",
+    "GOGC": "50",
+    "GOMEMLIMIT": "2GiB",
+    "GOFLAGS": "-p=2",
+    "TMPDIR": "/home/agent/logos-parity-isolated-e96-002",
+    "GOTMPDIR": "/home/agent/logos-parity-isolated-e96-002",
+    "UPROOT1274": "/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci",
+    "PATH": "/workspace/scratch/9949907ca71e/logos-final-acceptance/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+  },
+  "files": [
+    "/workspace/scratch/9949907ca71e/logos-parity-execution-fix/src/cmd/internal/goparity/execution_queue_test.go",
+    "/workspace/scratch/9949907ca71e/recovery-evidence/acceptance-failure-repairs/parity-queue-baseline-overlay.json",
+    "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/cmd/internal/goparity/parity_test.go"
+  ],
+  "repositories": [
+    "/workspace/scratch/9949907ca71e/logos-parity-execution-fix"
+  ],
+  "expected_exit": 1,
+  "required_markers": [
+    "third call returned while two independent rows still held their slots",
+    "--- FAIL: TestRunBinaryExecutionQueue/shared_queue_budget",
+    "--- PASS: TestRunBinaryExecutionQueue/start_error_release",
+    "--- PASS: TestRunBinaryExecutionQueue/timeout_release"
+  ],
+  "forbidden_markers": [
+    "[build failed]",
+    "--- SKIP:",
+    "panic: test timed out"
+  ],
+  "timeout_seconds": 660,
+  "boundary": "Frozen black-box queue attacks added through an overlay to unchanged e96 execution helpers. No limiter implementation exists yet; both error-path controls should pass."
+}

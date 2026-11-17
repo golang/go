@@ -1,0 +1,49 @@
+package main
+
+import (
+	"errors"
+	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+)
+
+func fail(err error) {
+	fmt.Fprintln(os.Stderr, err)
+	os.Exit(1)
+}
+
+func main() {
+	if got := os.Getenv("GOMAXPROCS"); got != "4" {
+		fail(fmt.Errorf("child GOMAXPROCS = %q, want 4", got))
+	}
+	path := os.Args[0]
+	ready := path + ".ready"
+	if err := os.WriteFile(ready+".tmp", []byte(strconv.Itoa(os.Getpid())), 0o600); err != nil {
+		fail(err)
+	}
+	if err := os.Rename(ready+".tmp", ready); err != nil {
+		fail(err)
+	}
+	name := filepath.Base(path)
+	if strings.HasPrefix(name, "holder") || strings.HasPrefix(name, "timeout") {
+		deadline := time.Now().Add(30 * time.Second)
+		for {
+			_, err := os.Stat(path + ".release")
+			if err == nil {
+				break
+			}
+			if !errors.Is(err, fs.ErrNotExist) {
+				fail(err)
+			}
+			if time.Now().After(deadline) {
+				fail(fmt.Errorf("%s was never released", name))
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+	fmt.Print("ok\n")
+}

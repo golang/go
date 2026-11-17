@@ -1,0 +1,15 @@
+=== RUN   Test
+=== RUN   Test/logos/compile/const_func_map_store_key.lgo
+=== PAUSE Test/logos/compile/const_func_map_store_key.lgo
+=== RUN   Test/logos/run/const_func_map_field_store.lgo
+=== PAUSE Test/logos/run/const_func_map_field_store.lgo
+=== RUN   Test/logos/run/const_func_map_store_key.lgo
+=== PAUSE Test/logos/run/const_func_map_store_key.lgo
+=== CONT  Test/logos/compile/const_func_map_store_key.lgo
+=== CONT  Test/logos/run/const_func_map_store_key.lgo
+=== CONT  Test/logos/run/const_func_map_field_store.lgo
+--- PASS: Test (0.07s)
+    --- PASS: Test/logos/compile/const_func_map_store_key.lgo (0.81s)
+    --- PASS: Test/logos/run/const_func_map_store_key.lgo (0.58s)
+    --- PASS: Test/logos/run/const_func_map_field_store.lgo (0.51s)
+PASS

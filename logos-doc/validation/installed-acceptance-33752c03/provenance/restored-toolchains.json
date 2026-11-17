@@ -1,0 +1,57 @@
+{
+  "recorded_utc": "2026-11-16T16:14:00.059189+00:00",
+  "tools": [
+    {
+      "name": "go1.27.4",
+      "root": "/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci",
+      "archive": "/workspace/scratch/9949907ca71e/toolchains/go1.27.4.linux-amd64.tar.gz",
+      "archive_sha256": "7226736c2339719cda28fbf3a54d71aa63bcefe376e98cef00034268dab24840",
+      "version": "go version go1.27.4 linux/amd64",
+      "binary": "/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci/bin/go",
+      "binary_sha256": "de0ae3e082ce7599eae4fb69fa2ef1e43b8f31ffd3fce62cdf81930aa9005050",
+      "inferred_goroot": "/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci",
+      "compiler": "/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci/pkg/tool/linux_amd64/compile",
+      "compiler_sha256": "40307e5f5c65a4b4220bbf35dbe014348780589ea2964003f0bf318fa14640e1",
+      "version_file": "go1.27.4\ntime 2026-11-02T20:36:20Z\n"
+    },
+    {
+      "name": "go1.27.2",
+      "root": "/workspace/scratch/9949907ca71e/toolchains/go1.27.2",
+      "archive": "/workspace/scratch/9949907ca71e/toolchains/go1.27.2.linux-amd64.tar.gz",
+      "archive_sha256": "ecbadb99091a3f46e31f5f934b068b1864eafa7995211b39eaddf76996045fe5",
+      "version": "go version go1.27.2 linux/amd64",
+      "binary": "/workspace/scratch/9949907ca71e/toolchains/go1.27.2/bin/go",
+      "binary_sha256": "548d3c32f83fa81152f543eb1526be7884cfe0526eb5e9ce29d3eca14786e7e0",
+      "inferred_goroot": "/workspace/scratch/9949907ca71e/toolchains/go1.27.2",
+      "compiler": "/workspace/scratch/9949907ca71e/toolchains/go1.27.2/pkg/tool/linux_amd64/compile",
+      "compiler_sha256": "8d4484dbaa31c4c6cec965aadd42efaa1e8d59e4a30ca3b466b502c377c29121",
+      "version_file": "go1.27.2\ntime 2026-10-02T20:28:03Z\n"
+    },
+    {
+      "name": "go1.27.3",
+      "root": "/workspace/scratch/9949907ca71e/toolchains/go1.27.3",
+      "archive": "/workspace/scratch/9949907ca71e/toolchains/go1.27.3.linux-amd64.tar.gz",
+      "archive_sha256": "65efbc80fdc1fa2cd2631cad5b481777a68e8725f34e89f50fc6ac714e379b40",
+      "version": "go version go1.27.3 linux/amd64",
+      "binary": "/workspace/scratch/9949907ca71e/toolchains/go1.27.3/bin/go",
+      "binary_sha256": "5f5eb6d0b2fb6aa0bb5d5f8c5f1c944e0de955c925f0111af92a9d8f79680b5b",
+      "inferred_goroot": "/workspace/scratch/9949907ca71e/toolchains/go1.27.3",
+      "compiler": "/workspace/scratch/9949907ca71e/toolchains/go1.27.3/pkg/tool/linux_amd64/compile",
+      "compiler_sha256": "c331d8fc6c4ae9dbe20e8198435db0455f2a5ca55d2d02fc6d7337c906be8283",
+      "version_file": "go1.27.3\ntime 2026-10-19T22:20:36Z\n"
+    },
+    {
+      "name": "node26.13.1",
+      "root": "/workspace/scratch/9949907ca71e/toolchains/node-v26.13.1-ci",
+      "archive": "/workspace/scratch/9949907ca71e/toolchains/node-v26.13.1-linux-x64.tar.xz",
+      "archive_sha256": "5c063e46bab0fbc1c17cc445d7ff129cbdcd0471be6ed83b6ab864f8143bc864",
+      "version": "v26.13.1",
+      "binary": "/workspace/scratch/9949907ca71e/toolchains/node-v26.13.1-ci/bin/node",
+      "binary_sha256": "d931c649850ffa7155b8ceffb400dc916ef325866e509cc52ae36e33e8fbb9a9"
+    }
+  ],
+  "build_cache": "/workspace/scratch/9949907ca71e/build-cache",
+  "build_tmp": "/workspace/scratch/9949907ca71e/build-tmp",
+  "postbuild_cache": "/workspace/scratch/9949907ca71e/postbuild-cache",
+  "postbuild_cache_initially_empty": true
+}

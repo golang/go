@@ -1,0 +1,61 @@
+{
+  "recorded_utc": "2026-11-16T17:42:05.564831+00:00",
+  "module": "/home/agent/logos-language-9949907ca71e-wqeffb1m/m",
+  "home_temp": "/home/agent/logos-language-9949907ca71e-wqeffb1m/tmp",
+  "real_home_directory": true,
+  "fork_source": "45c29ff215477f7e403188d7452fc79aef05d791\n32b96f3a7c289c987bc021fe5a5adbf35cfe226b\n099367e1031585fa553ef7987b199288df36256a",
+  "fork_clean": true,
+  "candidate_status": "M .github/workflows/compiler-stability.yml\n M logos-doc/IMPLEMENTATION.md\n M logos-doc/validation/compiler-stability/README.md\n M logos-doc/validation/ejection-target-facts/README.md\n M logos-doc/validation/stabilization-candidate.md\n M src/cmd/go/internal/logos/eject/eject.go\n M src/cmd/go/internal/logos/eject/eject_test.go\n M src/cmd/go/internal/logos/eject/variant_features_test.go\n M src/cmd/go/internal/logos/eject/variant_host_tags_test.go\n M src/cmd/go/internal/logos/eject/variant_tags_test.go\n D test/logos/compile/const_func_unsupported_store.lgo\n?? bin\n?? logos-doc/validation/compiler-stability/frozen-tests-v2.sha256\n?? logos-doc/validation/ejection-target-facts/frozen-tests-v2.sha256\n?? logos-doc/validation/installed-acceptance-45c29ff2/\n?? test/logos/run/const_func_map_field_store.lgo\n?? test/logos/run/const_func_map_field_store.out",
+  "candidate_diff_sha256": "8edd157b957af3b737127da03312ab7ddd81abe9ac4eb3870e3cdca21bb69492",
+  "installed_hashes": {
+    "bin/go": "987052b593c41cf60390eec80d98b01b89f9536d6d87b4e73672ab6e7a4eb2ef",
+    "bin/logos": "987052b593c41cf60390eec80d98b01b89f9536d6d87b4e73672ab6e7a4eb2ef",
+    "pkg/tool/linux_amd64/compile": "61749f8f2b2242d26e613993270f654cf47c750739a22b223f94eedd5370bba9"
+  },
+  "positive_sha256": "1ea5cfa8168c9f1736aaeb77b7440126b496bfaaea7216e378989c52096ea2f5",
+  "expected_output_sha256": "7de1555df0c2700329e815b93b32c571c3ea54dc967b89e81ab73b9972b72d1d",
+  "ctfe_frozen_checks": [
+    {
+      "path": "src/cmd/compile/internal/logos/ctfe/assignment_errors_test.go",
+      "sha256": "185a96634cf12bf1615f1486a05da5a678edc3b262b27026c9c530809341c406"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/ctfe/assignment_order_test.go",
+      "sha256": "b0f7f4f681f06ab8aa50ed3fc8307618e74bd4331ca1d7ec82728c83397eb221"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/ctfe/assignment_storage_return_test.go",
+      "sha256": "38c89dcc0bc5e8308ef7492675ec291c0800e4e135c7a26e7b11d22723ae0365"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/ctfe/assignment_storage_test.go",
+      "sha256": "ad37a45d9468135b7b11e6968d2d86c7485dd179218c073ef4aa3fb8625f9632"
+    },
+    {
+      "path": "src/cmd/go/testdata/script/logos_ctfe_assignment_order.txt",
+      "sha256": "9db2ca84ded49678df96f1738f2b31ab67a3f2c49765aa7f43f0a70f8f30c44c"
+    },
+    {
+      "path": "src/cmd/go/testdata/script/logos_ctfe_assignment_storage.txt",
+      "sha256": "b28087f2aaa9a815b67154aea9bea712da8dd9d060e11196a4842136032e9ea7"
+    },
+    {
+      "path": "test/logos/run/ctfe_assignment_order.lgo",
+      "sha256": "14065ea56b64a9ed61dabb2a82391803a812ec974737c5be52440943ece51bbf"
+    },
+    {
+      "path": "test/logos/run/ctfe_assignment_order.out",
+      "sha256": "16f206b48e0af0dcba75b716dc9a8fb8468eb8436930d0a42c07af7c550cc078"
+    },
+    {
+      "path": "test/logos/run/ctfe_assignment_storage.lgo",
+      "sha256": "f078cea23b03ae2ad22b19e626b6e230eea8f932830e65770d1ab0d5a2f687b3"
+    },
+    {
+      "path": "test/logos/run/ctfe_assignment_storage.out",
+      "sha256": "695092bfe3286d5c45ccf68f349688ca7f73f2173627822f00006ae1052e2493"
+    }
+  ],
+  "candidate_bin_target": "/workspace/scratch/9949907ca71e/logos-json-integration/bin",
+  "scope": "frozen45 installed compiler; candidate test inputs are component validation"
+}

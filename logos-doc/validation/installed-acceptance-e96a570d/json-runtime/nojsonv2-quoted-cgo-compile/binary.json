@@ -1,0 +1,8 @@
+{
+  "path": "/workspace/scratch/9949907ca71e/recovery-evidence/json-installed-e96a570d/binaries/quoted-cgo-nojsonv2.test",
+  "sha256": "9f95befba8f3370fdb4ec51df47251f87983867aa1dc7cde6ee574882d10a6eb",
+  "bytes": 26533450,
+  "profile": "nojsonv2",
+  "race": true,
+  "source_commit": "e96a570da271c43a80e23bb1a188aac054acff25"
+}

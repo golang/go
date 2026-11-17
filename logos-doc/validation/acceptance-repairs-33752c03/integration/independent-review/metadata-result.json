@@ -1,0 +1,54 @@
+{
+  "checked_utc": "2026-11-16T22:25:04.640844+00:00",
+  "head": "0a8eef6bab7d85e89e8e3efd0b933d73e78dff79",
+  "source_tree": "33752c03819ed5afcb37f87633a3cac668e181a8",
+  "task_count": 306,
+  "embedded_ledger_byte_equal": true,
+  "prior_task_records_unchanged": true,
+  "attack_count": 350,
+  "attack_status_counts": {
+    "tested": 341,
+    "satisfied upstream": 2,
+    "blocked": 7
+  },
+  "blocked_rows": [
+    "#216",
+    "#217",
+    "#218",
+    "#226",
+    "#403",
+    "#404",
+    "#405"
+  ],
+  "proving_path_occurrences_checked": 583,
+  "request_frozen_inputs_verified": 6,
+  "m6_blocked_patch_unchanged": true,
+  "repaired_file_hashes_verified": 12,
+  "installed_packet_files_byte_equal": 152,
+  "component_checksums": {
+    "alias": {
+      "checksum_count": 56,
+      "checksum_list_sha256": "4f3477a9e29ebd066d6d42952522fc3d979b61dc2092b6973654734880f530f4"
+    },
+    "projection": {
+      "checksum_count": 74,
+      "checksum_list_sha256": "5f396ae7c1856c5f4ca9473b686f81b2d9684bd61111e6eb1e38065518e05f59"
+    },
+    "environment": {
+      "checksum_count": 113,
+      "checksum_list_sha256": "0f29fbd82e9d65758c1a5e5e416f762974d5f3d5d7ffbb5648c7dbe7dfa9e73e"
+    },
+    "parity": {
+      "checksum_count": 147,
+      "checksum_list_sha256": "f6f0a08191dccd3690985b9c31cea9a15669f71496a96d8d999e2f71be525698"
+    }
+  },
+  "active_manifests": {
+    "logos-doc/validation/compiler-stability/frozen-tests-v2.sha256": 26,
+    "logos-doc/validation/release-acceptance/frozen-checker.sha256": 2
+  },
+  "local_markdown_links_checked": 31,
+  "frozen_audit_inputs_unchanged": true,
+  "status": "PASS",
+  "scope": "File and metadata checks only. No Go test or hosted execution inferred."
+}

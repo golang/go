@@ -1,0 +1,18 @@
+{
+  "source_tree": "e237c399aae8f8065b724e8a0e27585686c7da18",
+  "facts": {
+    "script_env": "Does not forward GOAMD64 or GOARM64",
+    "deterministic_defaults": {
+      "GOAMD64": "v3",
+      "GOARM64": "v8.2"
+    },
+    "CGO_ENABLED": "0 explicitly in both repro paths",
+    "GOEXPERIMENT_input": "",
+    "default_lowering_experiments": "Both LoGOs paths add the same default logosarena and Wasm preemptibleloops; JSONv2 remains the default"
+  },
+  "source_sha256": {
+    "src/cmd/go/script_test.go": "4798f38c62c2b2f56e30cda90d7f0c6f833ff595119bf303670b2809ff16a74a",
+    "src/cmd/go/internal/logos/config/targetcpu.go": "4d9982afd8ca42864be34ffddd78b23930e79e84c9e4b1d5fc0280032c7f631f",
+    "src/cmd/go/internal/logos/settings/settings.go": "46dac9c2495aa2aee8e3afbda984107ef1b318efa88cf2cd7aff0796d23531d5"
+  }
+}

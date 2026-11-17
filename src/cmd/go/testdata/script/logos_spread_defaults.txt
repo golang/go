@@ -1,0 +1,22 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# Defaults fill fields provided by neither a spread nor an explicit value.
+# Composite defaults stay fresh and every spread source runs exactly once.
+cd m
+cp $GOROOT/test/logos/run/spread_defaults.lgo main.lgo
+cp $GOROOT/test/logos/run/spread_defaults.out expected.txt
+logos run .
+cmp stdout expected.txt
+logos eject -o out
+cd out
+go run .
+cmp stdout ../expected.txt
+exists $UPROOT1274/bin/go
+exec env -u GOROOT $UPROOT1274/bin/go run .
+cmp stdout ../expected.txt
+
+-- m/go.mod --
+module example.com/spreaddefaults
+
+go 1.27

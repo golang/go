@@ -1,0 +1,49 @@
+{
+  "command": [
+    "/workspace/scratch/9949907ca71e/logos-final-acceptance/bin/go",
+    "test",
+    "-json",
+    "-p=1",
+    "-count=1",
+    "-parallel=1",
+    "-timeout=10m",
+    "-race",
+    "-o=/workspace/scratch/9949907ca71e/recovery-evidence/array-index-acceptance/runs/e96-final-001/binaries/cmdgo-race.test",
+    "-run=^TestScript$/^logos_guarded_enum_index$",
+    "cmd/go"
+  ],
+  "cwd": "/workspace/scratch/9949907ca71e/logos-final-acceptance/src",
+  "environment_overrides": {
+    "GOROOT": "/workspace/scratch/9949907ca71e/logos-final-acceptance",
+    "GOCACHE": "/workspace/scratch/9949907ca71e/final-postbuild-cache",
+    "GOTMPDIR": "/home/agent/logos-array-index-e96-7952kg8p",
+    "TMPDIR": "/home/agent/logos-array-index-e96-7952kg8p",
+    "GOMAXPROCS": "1",
+    "GOGC": "20",
+    "GOMEMLIMIT": "512MiB",
+    "GOTOOLCHAIN": "local",
+    "GOENV": "off",
+    "GOWORK": "off",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "CGO_ENABLED": "1",
+    "CC": "/usr/bin/cc",
+    "PATH": "/workspace/scratch/9949907ca71e/logos-final-acceptance/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/home/agent/.codex/tmp/arg0-linux/codex-arg00QAduY:/opt/codex/codex-path:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+    "PWD": "/workspace/scratch/9949907ca71e/logos-final-acceptance/src"
+  },
+  "removed_environment_keys": [
+    "GO_GCFLAGS",
+    "BOOT_GO_GCFLAGS",
+    "GOOS",
+    "GOARCH",
+    "GOAMD64",
+    "GOARM64",
+    "GODEBUG",
+    "GOEXPERIMENT",
+    "GOROOT",
+    "GOFLAGS"
+  ],
+  "started_utc": "2026-11-16T18:52:30.608992+00:00",
+  "outer_timeout_seconds": 660,
+  "runner_sha256": "4ead51298d9e92e4caf3cabfe5cf2e0c0153c3199b5c5641c4bed597af11baa5"
+}

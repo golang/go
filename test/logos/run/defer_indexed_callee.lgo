@@ -1,0 +1,232 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+)
+
+var events []string
+var failed bool
+var failure = errors.New("primary")
+var cleanupFailure = errors.New("cleanup")
+
+func check(name, want string) {
+	got := fmt.Sprint(events)
+	if got != want {
+		fmt.Printf("FAIL %s: got %s want %s\n", name, got, want)
+		failed = true
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func first(v int) {
+	events = append(events, fmt.Sprint("first:", v))
+}
+
+func second(v int) {
+	events = append(events, fmt.Sprint("second:", v))
+}
+
+func firstError(v int) error {
+	first(v)
+	return cleanupFailure
+}
+
+func secondError(v int) error {
+	second(v)
+	return nil
+}
+
+func index() int {
+	events = append(events, "index")
+	return 0
+}
+
+func argument() int {
+	events = append(events, "argument")
+	return 7
+}
+
+func plainErrdefer() error {
+	fs := []func(int){first, second}
+	i := 0
+	errdefer fs[i](7)
+	i = 1
+	fs[0] = second
+	events = append(events, "body")
+	return failure
+}
+
+func checkedErrdefer() error {
+	fs := [2]func(int) error{firstError, secondError}
+	i := 0
+	errdefer fs[i](7)?
+	i = 1
+	fs[0] = secondError
+	events = append(events, "body")
+	return failure
+}
+
+func checkedDefer() error {
+	fs := [2]func(int) error{firstError, secondError}
+	i := 0
+	defer (fs[i])(7)?
+	i = 1
+	fs[0] = secondError
+	events = append(events, "body")
+	return nil
+}
+
+func successfulErrdefer() error {
+	fs := []func(int){first}
+	errdefer fs[index()](argument())
+	events = append(events, "body")
+	return nil
+}
+
+func orderedErrdefer() error {
+	fs := []func(int){first}
+	errdefer fs[index()](argument())
+	events = append(events, "body")
+	return failure
+}
+
+func pointerArrayErrdefer() error {
+	fs := &[1]func(int){first}
+	errdefer fs[0](7)
+	fs[0] = second
+	return failure
+}
+
+func nestedArrayErrdefer() error {
+	fs := [1][1]func(int){{first}}
+	errdefer fs[0][0](7)
+	fs[0][0] = second
+	return failure
+}
+
+func scoped() {
+	fs := []func(int){first}
+	{
+		scope defer fs[index()](argument())
+		fs[0] = second
+		events = append(events, "body")
+	}
+	events = append(events, "outside")
+}
+
+func boundsAtRegistration() (panicked bool) {
+	defer func() {
+		panicked = recover() != nil
+	}()
+	if err := func() error {
+		fs := []func(int){first}
+		i := len(fs)
+		errdefer fs[i](argument())
+		events = append(events, "body")
+		return nil
+	}(); err != nil {
+		panic(err)
+	}
+	return
+}
+
+func generic[T, U any](a T, b U) error {
+	events = append(events, fmt.Sprint(a, ":", b))
+	return nil
+}
+
+func genericControls() error {
+	defer generic("implicit", 1)?
+	defer generic[string]("partial", 2)?
+	defer generic[string, int]("explicit", 3)?
+	errdefer generic[string]("errdefer", 4)?
+	return failure
+}
+
+func checkCleanupForms() {
+	events = nil
+	if err := plainErrdefer(); err != failure {
+		panic("plain errdefer changed the primary error")
+	}
+	check("errdefer-captures-slice-function", "[body first:7]")
+
+	events = nil
+	err := checkedErrdefer()
+	if !errors.Is(err, failure) || !errors.Is(err, cleanupFailure) {
+		fmt.Println("FAIL errdefer-joins-captured-error:", err)
+		failed = true
+	} else {
+		fmt.Println("ok errdefer-joins-captured-error")
+	}
+	check("errdefer-captures-array-function", "[body first:7]")
+
+	events = nil
+	if err := checkedDefer(); err != cleanupFailure {
+		fmt.Println("FAIL defer-returns-captured-error:", err)
+		failed = true
+	} else {
+		fmt.Println("ok defer-returns-captured-error")
+	}
+	check("defer-captures-indexed-function", "[body first:7]")
+}
+
+func checkCalleeExpressions() {
+	events = nil
+	if err := successfulErrdefer(); err != nil {
+		panic(err)
+	}
+	check("success-evaluates-callee-without-calling", "[index argument body]")
+
+	events = nil
+	if err := orderedErrdefer(); err != failure {
+		panic("ordered errdefer changed the primary error")
+	}
+	check("callee-precedes-arguments", "[index argument body first:7]")
+
+	events = nil
+	if err := pointerArrayErrdefer(); err != failure {
+		panic("pointer-array errdefer changed the primary error")
+	}
+	check("captures-pointer-array-function", "[first:7]")
+
+	events = nil
+	if err := nestedArrayErrdefer(); err != failure {
+		panic("nested-array errdefer changed the primary error")
+	}
+	check("captures-nested-indexed-function", "[first:7]")
+
+	events = nil
+	scoped()
+	check("scope-captures-indexed-function", "[index argument body first:7 outside]")
+}
+
+func checkBoundsAndGenerics() {
+	events = nil
+	if !boundsAtRegistration() {
+		fmt.Println("FAIL out-of-bounds-callee-panics-at-registration")
+		failed = true
+	} else {
+		fmt.Println("ok out-of-bounds-callee-panics-at-registration")
+	}
+	check("bounds-failure-stops-body", "[argument]")
+
+	events = nil
+	if err := genericControls(); err != failure {
+		panic("generic errdefer changed the primary error")
+	}
+	check("generic-inference-controls", "[errdefer:4 explicit:3 partial:2 implicit:1]")
+}
+
+func main() {
+	checkCleanupForms()
+	checkCalleeExpressions()
+	checkBoundsAndGenerics()
+	if failed {
+		os.Exit(1)
+	}
+}

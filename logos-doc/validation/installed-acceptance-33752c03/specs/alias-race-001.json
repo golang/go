@@ -1,0 +1,65 @@
+{
+  "command": [
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin/go",
+    "test",
+    "-count=1",
+    "-p=1",
+    "-parallel=2",
+    "-v",
+    "-timeout=20m",
+    "-race",
+    "-short",
+    "cmd/go/internal/load",
+    "-run=^TestScanModuleKindsDuplicateSiblings$"
+  ],
+  "cwd": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src",
+  "output": "/workspace/scratch/9949907ca71e/recovery-evidence/installed-repair-33752c03/alias-race-001",
+  "environment": {
+    "GOROOT": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes",
+    "GOCACHE": "/workspace/scratch/9949907ca71e/repair-postbuild-cache",
+    "GOPATH": "/workspace/scratch/9949907ca71e/repair-acceptance-gopath",
+    "GOTOOLCHAIN": "local",
+    "GOENV": "off",
+    "GOWORK": "off",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "GOMAXPROCS": "2",
+    "GOGC": "50",
+    "GOMEMLIMIT": "2GiB",
+    "GOFLAGS": "-p=2",
+    "GOEXPERIMENT": "",
+    "CGO_ENABLED": "1",
+    "TMPDIR": "/home/agent/logos-repair-33752c03/tmp",
+    "GOTMPDIR": "/home/agent/logos-repair-33752c03/tmp/go-tmp",
+    "CC": "/usr/bin/gcc-14",
+    "CXX": "/usr/bin/g++-14",
+    "UPROOT1272": "/workspace/scratch/9949907ca71e/toolchains/go1.27.2",
+    "UPROOT1273": "/workspace/scratch/9949907ca71e/toolchains/go1.27.3",
+    "UPROOT1274": "/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci",
+    "PATH": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/recovery-evidence/installed-repair-33752c03/c23-bin:/workspace/scratch/9949907ca71e/toolchains/node-v26.13.1-ci/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/lib/wasm:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+  },
+  "files": [
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/cmd/go/internal/load/logos_census_test.go"
+  ],
+  "repositories": [
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes"
+  ],
+  "expected_exit": 0,
+  "required_markers": [
+    "--- PASS: TestScanModuleKindsDuplicateSiblings/canonical_alias",
+    "--- PASS: TestScanModuleKindsDuplicateSiblings/alias_alias",
+    "--- PASS: TestScanModuleKindsDuplicateSiblings/variation_alias",
+    "--- PASS: TestScanModuleKindsDuplicateSiblings/external_test_alias",
+    "--- PASS: TestScanModuleKindsDuplicateSiblings/duplicate_kind_still_mixes_module",
+    "--- PASS: TestScanModuleKindsDuplicateSiblings/malformed_header_still_fails",
+    "--- PASS: TestScanModuleKindsDuplicateSiblings/mixed_package_still_fails",
+    "--- PASS: TestScanModuleKindsDuplicateSiblings/plain_go_ignores_alias_siblings"
+  ],
+  "forbidden_markers": [
+    "--- FAIL:",
+    "--- SKIP:",
+    "[build failed]"
+  ],
+  "timeout_seconds": 1260,
+  "boundary": "Eight frozen census attacks execute with the freshly installed combined source under the race detector."
+}

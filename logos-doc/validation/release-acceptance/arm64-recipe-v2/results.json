@@ -1,0 +1,106 @@
+{
+  "version": 2,
+  "slice": "M22-A-S6",
+  "audit": "AUD-209",
+  "recorded_utc": "2026-11-16T19:11:03.728321+00:00",
+  "source_tree": "e237c399aae8f8065b724e8a0e27585686c7da18",
+  "v1_unchanged": true,
+  "v1_manifest_sha256": "3c2e61b6785bc94d5b9be58faf9a3ac5f10b232f46538c476d4056f01e6ec372",
+  "v1_executor_sha256": "2d8ec5d123a2d962ca39fd04952b93412385d43946ee820f875b866da74900f1",
+  "v2_executor_sha256": "a9a5fdd226443ee84ac22bb9ccef3f6c52278d55cb7973b0062a73a2a156a7b3",
+  "correction_patch_sha256": "f8fa7a96667b17b4a10dbc2229c4ed7beb5a3ae9cf2f5c0b98b685a41b4221e0",
+  "checker_sha256": "c46d9cc8569ca80659a999ab11a5208de5afecd8c4e337817af0de81bde20b26",
+  "candidate_contract": {
+    "command": [
+      "uv",
+      "run",
+      "--offline",
+      "--no-project",
+      "--python",
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "python",
+      "/workspace/scratch/9949907ca71e/recovery-evidence/hosted-release-proposal/check_release_contract.py",
+      "/workspace/scratch/9949907ca71e/recovery-evidence/hosted-release-proposal/arm64-recipe-v2/candidate"
+    ],
+    "exit_code": 0,
+    "output": "candidate-contract.json"
+  },
+  "short_mode_probe": {
+    "command": [
+      "uv",
+      "run",
+      "--offline",
+      "--no-project",
+      "--python",
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "python",
+      "/workspace/scratch/9949907ca71e/recovery-evidence/hosted-release-proposal/check_release_contract.py",
+      "/workspace/scratch/9949907ca71e/recovery-evidence/hosted-release-proposal/arm64-recipe-v2/probe"
+    ],
+    "exit_code": 1,
+    "output": "short-mode-probe.json"
+  },
+  "restoration": {
+    "exit_code": 0,
+    "output": "restored-contract.json",
+    "record": "mutation-restoration.json",
+    "sha256": "a9a5fdd226443ee84ac22bb9ccef3f6c52278d55cb7973b0062a73a2a156a7b3"
+  },
+  "bash_syntax": {
+    "command": [
+      "bash",
+      "-n",
+      "/workspace/scratch/9949907ca71e/recovery-evidence/hosted-release-proposal/arm64-recipe-v2/candidate/.github/scripts/release-acceptance.sh"
+    ],
+    "exit_code": 0
+  },
+  "actionlint": {
+    "command": [
+      "/workspace/scratch/9949907ca71e/language-ci-tools/bin/actionlint",
+      "-shellcheck",
+      "/workspace/scratch/9949907ca71e/language-ci-tools/bin/shellcheck",
+      "/workspace/scratch/9949907ca71e/recovery-evidence/hosted-release-proposal/arm64-recipe-v2/candidate/.github/workflows/release-acceptance.yml"
+    ],
+    "version": "1.7.12",
+    "binary_sha256": "c872d6db8c6bf83a8eaa704fc93999f027d55dffbc63b8a6abdccb47df5f4cd4",
+    "exit_code": 0,
+    "output": "actionlint.log"
+  },
+  "shellcheck": {
+    "command": [
+      "/workspace/scratch/9949907ca71e/language-ci-tools/bin/shellcheck",
+      "--format=gcc",
+      "/workspace/scratch/9949907ca71e/recovery-evidence/hosted-release-proposal/arm64-recipe-v2/candidate/.github/scripts/release-acceptance.sh"
+    ],
+    "version": "0.11.0",
+    "binary_sha256": "4da528ddb3a4d1b7b24a59d4e16eb2f5fd960f4bd9a3708a15baddbdf1d5a55b",
+    "exit_code": 0,
+    "output": "shellcheck.log"
+  },
+  "source_comparison": {
+    "v1_matches_effective_script_recipe": false,
+    "v2_matches_effective_script_recipe": true,
+    "records": [
+      "recipe-baseline-red.json",
+      "recipe-green.json",
+      "source-facts.json"
+    ],
+    "kind": "file-only comparison, not runtime execution"
+  },
+  "independent_review": {
+    "agent": "/root/tooling_runtime_audit",
+    "accepted_executor_sha256": "a9a5fdd226443ee84ac22bb9ccef3f6c52278d55cb7973b0062a73a2a156a7b3",
+    "scope": "Exactly two v8.2 replacements; workflow/request unchanged; no further concrete defect found in reviewed executor boundaries"
+  },
+  "candidate_sha256": {
+    ".github/scripts/release-acceptance.sh": "a9a5fdd226443ee84ac22bb9ccef3f6c52278d55cb7973b0062a73a2a156a7b3",
+    ".github/workflows/release-acceptance.yml": "1c935efb8007e2206c405917b9b9a34f3dc9681186883d8343b14672b2ee4f2a",
+    "logos-doc/validation/release-acceptance-request.json": "fa03ac7f9e17e209767c99d5689e89219d22db152024998f66c4352a11d68e25"
+  },
+  "go_executed": false,
+  "hosted_executed": false,
+  "remaining": [
+    "Actual hosted release acceptance on a stable clean tip",
+    "Strict M22 closure still excludes the additional M6-S3b blocked contracts"
+  ]
+}

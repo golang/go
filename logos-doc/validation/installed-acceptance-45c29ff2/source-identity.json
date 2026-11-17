@@ -1,0 +1,9 @@
+{
+  "head": "45c29ff215477f7e403188d7452fc79aef05d791",
+  "tested_merge": "f2ad58be8742b8ec350db8f06d9dc794ea3302e4",
+  "tree": "32b96f3a7c289c987bc021fe5a5adbf35cfe226b",
+  "src_tree": "099367e1031585fa553ef7987b199288df36256a",
+  "tested_merge_tree_equal": true,
+  "local_source_clean": true,
+  "scope": "Completed results for this source snapshot; follow-up changes and release-wide gates require their own evidence."
+}

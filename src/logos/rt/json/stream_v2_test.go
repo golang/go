@@ -239,21 +239,13 @@ func checkStreamFallback[T any](t *testing.T, in string, newDst func(*streamTarg
 			case **streamNoConsumeProbe:
 				QuotedFromPtr[streamNoConsumeProbe](&s, dst)
 			case *streamDeclineTextProbe:
-				if !QuotedFrom[streamDeclineTextProbe](&s, dst) {
-					QuotedText(&s, dst)
-				}
+				s.Fallback(dst)
 			case **streamDeclineTextProbe:
-				if !QuotedFromPtr[streamDeclineTextProbe](&s, dst) {
-					QuotedTextPtr[streamDeclineTextProbe](&s, dst)
-				}
+				s.Fallback(dst)
 			case *streamDeclineOnlyProbe:
-				if !QuotedFrom[streamDeclineOnlyProbe](&s, dst) {
-					FallbackFrom(&s, dst)
-				}
+				s.Fallback(dst)
 			case **streamDeclineOnlyProbe:
-				if !QuotedFromPtr[streamDeclineOnlyProbe](&s, dst) {
-					FallbackFromPtr(&s, dst)
-				}
+				s.Fallback(dst)
 			default:
 				t.Fatalf("%s: unsupported fallback target %T", data, dst)
 			}
@@ -291,6 +283,45 @@ func TestStreamDeclineFallbackMatchesEncodingJSON(t *testing.T) {
 	}
 }
 
+// quotedAppendingTextProbe appends to its input the way real
+// UnmarshalText implementations do: the unquoted slice must be capped so
+// the write cannot reach the token's closing quote, which QuotedTextPtr
+// still compares against the "null" literal after the call.
+type quotedAppendingTextProbe struct{ got []byte }
+
+func (p *quotedAppendingTextProbe) UnmarshalText(b []byte) error {
+	p.got = append(b, '!')
+	return nil
+}
+
+func TestQuotedTextAppendCannotCorruptToken(t *testing.T) {
+	for _, in := range []string{`"abc"`, `"null"`} {
+		data := `{"v":` + in + `}`
+		var dst *quotedAppendingTextProbe
+		s := NewScanner([]byte(data), nil)
+		if !s.Object() {
+			t.Fatalf("%s: Object failed: %v", in, s.Err())
+		}
+		if !s.Next() {
+			t.Fatalf("%s: Next failed: %v", in, s.End())
+		}
+		QuotedTextPtr[quotedAppendingTextProbe](&s, &dst)
+		if err := s.End(); err != nil {
+			t.Fatalf("%s: End() = %v", in, err)
+		}
+		switch in {
+		case `"null"`:
+			if dst != nil {
+				t.Errorf("%s: dst = %#v, want nil reset after appending method", in, dst)
+			}
+		default:
+			if dst == nil || string(dst.got) != "abc!" {
+				t.Errorf("%s: dst = %#v, want got %q", in, dst, "abc!")
+			}
+		}
+	}
+}
+
 // encoding/json unquotes `,string` method input permissively: unpaired
 // surrogates and malformed UTF-8 decode as U+FFFD rather than rejecting the
 // string token.
@@ -312,9 +343,9 @@ func TestStreamProtocolErrorMatchesEncodingJSON(t *testing.T) {
 	}
 }
 
-// streamDeclinePartialProbe decodes fields of a struct through the
-// methodless fallback: valid writes must survive a later field error,
-// matching encoding/json's non-transactional decode.
+// Structs use the ordinary fallback because ,string applies only to
+// scalar kinds. Valid writes must survive a later field error, matching
+// encoding/json's non-transactional decode after a streaming decline.
 type streamDeclinePartialProbe struct {
 	Calls int `json:"-"`
 	A     int
@@ -326,7 +357,7 @@ func (p *streamDeclinePartialProbe) UnmarshalJSONFrom(dec *jsontext.Decoder) err
 	return errors.ErrUnsupported
 }
 
-func TestFallbackFromKeepsPartialUpdates(t *testing.T) {
+func TestFallbackKeepsPartialUpdatesAfterStreamDecline(t *testing.T) {
 	data := `{"v":{"A":1,"B":"bad"},"after":17}`
 	var got, want streamTarget[streamDeclinePartialProbe]
 	s := NewScanner([]byte(data), (*streamTarget[streamDeclinePartialProbe])(nil))
@@ -334,9 +365,7 @@ func TestFallbackFromKeepsPartialUpdates(t *testing.T) {
 	for s.Next() {
 		switch s.Key() {
 		case "v":
-			if !QuotedFrom[streamDeclinePartialProbe](&s, &got.V) {
-				FallbackFrom(&s, &got.V)
-			}
+			s.Fallback(&got.V)
 		case "after":
 			Int(&s, &got.After)
 		}
@@ -353,7 +382,7 @@ func TestFallbackFromKeepsPartialUpdates(t *testing.T) {
 	}
 }
 
-func TestFallbackFromPtrPreservesExistingAlias(t *testing.T) {
+func TestFallbackPreservesExistingAliasAfterStreamDecline(t *testing.T) {
 	data := `{"v":{"Text":"x"},"after":17}`
 	shared := &streamDeclineOnlyProbe{Text: "seed"}
 	alias := shared
@@ -367,9 +396,7 @@ func TestFallbackFromPtrPreservesExistingAlias(t *testing.T) {
 	for s.Next() {
 		switch s.Key() {
 		case "v":
-			if !QuotedFromPtr[streamDeclineOnlyProbe](&s, &got.V) {
-				FallbackFromPtr[streamDeclineOnlyProbe](&s, &got.V)
-			}
+			s.Fallback(&got.V)
 		case "after":
 			Int(&s, &got.After)
 		}
@@ -382,6 +409,9 @@ func TestFallbackFromPtrPreservesExistingAlias(t *testing.T) {
 	}
 	if alias.Text != "x" {
 		t.Fatalf("alias did not observe update: Text = %q", alias.Text)
+	}
+	if alias.Calls != 1 || got.After != 17 {
+		t.Fatalf("streaming calls = %d, continuation = %d", alias.Calls, got.After)
 	}
 }
 
@@ -446,10 +476,8 @@ func TestQuotedJSONMethodInputIsCapped(t *testing.T) {
 	}
 }
 
-// streamDeclineEmbedProbe has an unexported embedded field, a shape
-// reflect.StructOf cannot rebuild without its methods. The fallback
-// decodes through the type itself instead: the streaming method sees
-// one more decline, and the promoted fields still decode.
+// An unexported embedded field keeps its ordinary encoding/json behavior:
+// the streaming method declines once, then the promoted fields decode.
 type streamDeclineEmbedInner struct {
 	A int
 }
@@ -465,17 +493,15 @@ func (p *streamDeclineEmbedProbe) UnmarshalJSONFrom(dec *jsontext.Decoder) error
 	return errors.ErrUnsupported
 }
 
-func TestFallbackFromUnexportedEmbedDecodes(t *testing.T) {
+func TestFallbackUnexportedEmbedDecodesAfterStreamDecline(t *testing.T) {
 	data := `{"v":{"A":1,"B":2},"after":17}`
-	var got streamTarget[streamDeclineEmbedProbe]
+	var got, want streamTarget[streamDeclineEmbedProbe]
 	s := NewScanner([]byte(data), (*streamDeclineEmbedProbe)(nil))
 	s.Object()
 	for s.Next() {
 		switch s.Key() {
 		case "v":
-			if !QuotedFrom[streamDeclineEmbedProbe](&s, &got.V) {
-				FallbackFrom(&s, &got.V)
-			}
+			s.Fallback(&got.V)
 		case "after":
 			Int(&s, &got.After)
 		}
@@ -485,5 +511,52 @@ func TestFallbackFromUnexportedEmbedDecodes(t *testing.T) {
 	}
 	if got.V.A != 1 || got.V.B != 2 || got.After != 17 {
 		t.Fatalf("got %#v", got)
+	}
+	if err := stdjson.Unmarshal([]byte(data), &want); err != nil {
+		t.Fatal(err)
+	}
+	if got != want || got.V.Calls != 1 {
+		t.Fatalf("value = %+v, encoding/json = %+v", got, want)
+	}
+}
+
+type StreamMethodFields struct {
+	A int
+}
+
+func (StreamMethodFields) Marker() {}
+
+type streamDeclineExportedEmbedProbe struct {
+	Calls int `json:"-"`
+	StreamMethodFields
+	B int
+}
+
+func (p *streamDeclineExportedEmbedProbe) UnmarshalJSONFrom(*jsontext.Decoder) error {
+	p.Calls++
+	return errors.ErrUnsupported
+}
+
+func TestFallbackExportedEmbedDecodesAfterStreamDecline(t *testing.T) {
+	data := `{"v":{"A":1,"B":2},"after":17}`
+	var got, want streamTarget[streamDeclineExportedEmbedProbe]
+	s := NewScanner([]byte(data), (*streamTarget[streamDeclineExportedEmbedProbe])(nil))
+	s.Object()
+	for s.Next() {
+		switch s.Key() {
+		case "v":
+			s.Fallback(&got.V)
+		case "after":
+			Int(&s, &got.After)
+		}
+	}
+	if err := s.End(); err != nil {
+		t.Fatal(err)
+	}
+	if err := stdjson.Unmarshal([]byte(data), &want); err != nil {
+		t.Fatal(err)
+	}
+	if got != want || got.V.Calls != 1 {
+		t.Fatalf("value = %+v, encoding/json = %+v", got, want)
 	}
 }

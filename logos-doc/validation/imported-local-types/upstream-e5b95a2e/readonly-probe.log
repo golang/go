@@ -1,0 +1,28 @@
+--- FAIL: TestFactScopeLeavesCompilerSymbolsLazy (0.00s)
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/local·1/readonly (0.00s)
+        optfacts_scope_test.go:77: lost reachable interface method metadata
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/local·1/declaration_clone (0.00s)
+        optfacts_scope_test.go:77: lost reachable interface method metadata
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/local·1/readonly_symbol (0.00s)
+        optfacts_scope_test.go:37: resolved compiler-only symbol "local·1" during readonly symbol
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/hidden·23/readonly (0.00s)
+        optfacts_scope_test.go:77: lost reachable interface method metadata
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/hidden·23/declaration_clone (0.00s)
+        optfacts_scope_test.go:77: lost reachable interface method metadata
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/hidden·23/readonly_symbol (0.00s)
+        optfacts_scope_test.go:37: resolved compiler-only symbol "hidden·23" during readonly symbol
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/Box.Method/readonly (0.00s)
+        optfacts_scope_test.go:77: lost reachable interface method metadata
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/Box.Method/declaration_clone (0.00s)
+        optfacts_scope_test.go:77: lost reachable interface method metadata
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/Box.Method/readonly_symbol (0.00s)
+        optfacts_scope_test.go:37: resolved compiler-only symbol "Box.Method" during readonly symbol
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/Box[go.shape.int]/readonly (0.00s)
+        optfacts_scope_test.go:77: lost reachable interface method metadata
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/Box[go.shape.int]/declaration_clone (0.00s)
+        optfacts_scope_test.go:77: lost reachable interface method metadata
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/Box[go.shape.int]/readonly_symbol (0.00s)
+        optfacts_scope_test.go:37: resolved compiler-only symbol "Box[go.shape.int]" during readonly symbol
+FAIL
+FAIL	cmd/compile/internal/logos	0.003s
+FAIL

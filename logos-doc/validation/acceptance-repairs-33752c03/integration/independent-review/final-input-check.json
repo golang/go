@@ -1,0 +1,13 @@
+{
+  "checked_utc": "2026-11-16T22:26:21.393344+00:00",
+  "audit_inputs_unchanged": true,
+  "frozen_input_count": 32,
+  "public_go_types_targets_unchanged": true,
+  "historical_dogfood_manifest_referenced_by_active_ci": false,
+  "static_exits": {
+    "contract": 0,
+    "actionlint": 0,
+    "shellcheck": 0
+  },
+  "status": "PASS"
+}

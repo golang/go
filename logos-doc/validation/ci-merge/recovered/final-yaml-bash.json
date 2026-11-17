@@ -1,0 +1,23 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/uv",
+    "run",
+    "--offline",
+    "--no-cache",
+    "--no-project",
+    "--python",
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+    "python",
+    "-B",
+    "/workspace/scratch/9949907ca71e/language-evidence/ci-merge/check-yaml-shell.py",
+    "/workspace/scratch/9949907ca71e/logos-json-integration"
+  ],
+  "cwd": "/workspace/scratch/9949907ca71e/logos-json-integration",
+  "sourceHead": "cb22f3a3762838fe85692403dbcd1206ae2c2375",
+  "status": 0,
+  "signal": null,
+  "error": "",
+  "seconds": 0.21,
+  "stdoutSha256": "167c8f23faadc4c041c7ec2527a9dbabe9acac0ab53cfb0484f7cd0f3bcdf5d6",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

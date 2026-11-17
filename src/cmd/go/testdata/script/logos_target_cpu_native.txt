@@ -123,3 +123,15 @@ func main() {
 	}
 	fmt.Printf("native level match GOAMD64=%s cpuinfo=%s\n", got, want)
 }
+
+-- go.work --
+go 1.27
+
+use (
+	.
+	./cpulevel
+)
+-- cpulevel/go.mod --
+module example.com/nativelvl/cpulevel
+
+go 1.27

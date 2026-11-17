@@ -30,4 +30,3 @@ func TestDefaultBuildUsesJSONv2(t *testing.T) {
 		t.Fatalf("default build emits the v1 escape sequence: %q", got)
 	}
 }
-

@@ -1,0 +1,69 @@
+// run
+
+package main
+
+import "fmt"
+
+type Config struct {
+	Port int = 8080
+	Name string = "default"
+	Items []int = []int{1, 2}
+	Index map[string]int = map[string]int{"n": 3}
+}
+
+type NameSource struct { Name string }
+type PortSource struct { Port int }
+type Empty struct{}
+
+var calls int
+var failures int
+
+func named(name string) NameSource {
+	calls++
+	return NameSource{Name: name}
+}
+
+func empty() Empty {
+	calls++
+	return Empty{}
+}
+
+func check(name string, ok bool) {
+	if !ok {
+		failures++
+		fmt.Println("FAIL", name)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func main() {
+	a := Config{..named("first")}
+	check("missing-fields", a.Port == 8080 && a.Name == "first" && len(a.Items) == 2 && len(a.Index) == 1)
+	check("source-once", calls == 1)
+	zero := Config{..PortSource{Port: 0}}
+	check("spread-zero-wins", zero.Port == 0 && zero.Name == "default")
+	explicit := Config{Port: 99, ..PortSource{Port: 42}}
+	check("explicit-wins", explicit.Port == 99 && explicit.Name == "default")
+	multiple := Config{..named("second"), ..PortSource{Port: 17}}
+	check("multiple-sources", multiple.Port == 17 && multiple.Name == "second" && calls == 2)
+	p := &Config{..named("pointer")}
+	check("address-literal", p.Port == 8080 && p.Name == "pointer" && calls == 3)
+	all := Config{..empty()}
+	check("empty-source-once", all.Port == 8080 && all.Name == "default" && calls == 4)
+	if len(a.Items) == 2 && len(p.Items) == 2 && len(a.Index) == 1 && len(p.Index) == 1 {
+		a.Items[0] = 88
+		a.Index["n"] = 77
+		check("fresh-composite-defaults", p.Items[0] == 1 && (p.Index["n"] ?? -1) == 3)
+	} else {
+		check("fresh-composite-defaults", false)
+	}
+	self := Config{Port: 7, Name: "live", Items: []int{9}, Index: map[string]int{"n": 6}}
+	self = Config{Name: "updated", ..self}
+	check("self-update-keeps-values", self.Port == 7 && self.Name == "updated" && len(self.Items) == 1 && self.Items[0] == 9 && (self.Index["n"] ?? -1) == 6)
+	full := Config{Port: 0, Name: "", Items: nil, Index: nil, ..empty()}
+	check("explicit-zero-and-nil", full.Port == 0 && full.Name == "" && full.Items == nil && full.Index == nil && calls == 5)
+	if failures != 0 {
+		panic("spread defaults failed")
+	}
+}

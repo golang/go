@@ -1,0 +1,3 @@
+=== RUN   TestEjectQuotedCgoTypes
+--- PASS: TestEjectQuotedCgoTypes (8.76s)
+PASS

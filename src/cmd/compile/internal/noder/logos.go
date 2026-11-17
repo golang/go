@@ -91,6 +91,7 @@ func allLogos(noders []*noder) bool {
 func checkLogosMixedPackage(filenames []string) {
 	var goFiles, logosFiles []string
 	for _, name := range filenames {
+		name = logosCgoSourceName(name)
 		if isCgoOutput(name) {
 			continue
 		}

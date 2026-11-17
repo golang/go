@@ -1,0 +1,28 @@
+{
+  "job_url": "https://github.com/gosuda/LoGOs/actions/runs/43939662630/job/133553485876",
+  "run_id": 43939662630,
+  "job_id": 133553485876,
+  "head": "1a4c7635f38dbf303833ff8e718f95541558f8be",
+  "src_tree": "e237c399aae8f8065b724e8a0e27585686c7da18",
+  "raw_log_sha256": "06b7bc0d4fa864f786beb477c37b3f72838988aa54f2a7b94b563f4719d939ea",
+  "excerpt_sha256": "9fa75aa04cb2cd79c6eb8b7db60ba7a2f291e1a9396ccc75876b311b9440ff9e",
+  "ranges": [
+    {
+      "first_line": 601,
+      "last_line": 613
+    },
+    {
+      "first_line": 684,
+      "last_line": 693
+    },
+    {
+      "first_line": 697,
+      "last_line": 706
+    },
+    {
+      "first_line": 900,
+      "last_line": 943
+    }
+  ],
+  "boundary": "Exact line excerpts of the preserved hosted failure log; no base64 archive or compiled binary included."
+}

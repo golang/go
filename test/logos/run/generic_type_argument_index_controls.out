@@ -1,0 +1,11 @@
+ok index-call
+ok tuple-calls
+ok nested-calls
+ok variadic-call
+ok lambda-argument
+ok conversions
+ok multiplications
+ok nested-index
+ok slice-argument
+ok full-slice-argument
+ok parenthesized-call

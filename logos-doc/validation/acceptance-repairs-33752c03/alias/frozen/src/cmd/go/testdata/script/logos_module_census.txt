@@ -1,0 +1,105 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env CGO_ENABLED=0
+
+# Selecting only one package must not bypass the module's language rule.
+cd mixed
+! logos list ./g
+stderr '\[correctness::mixed_module\] module example.com/mixed has Go packages \(example.com/mixed/g\) and loGo/s packages \(example.com/mixed/l\)'
+! logos list ./l
+stderr '\[correctness::mixed_module\]'
+! logos build ./g
+stderr '\[correctness::mixed_module\]'
+! logos build ./l
+stderr '\[correctness::mixed_module\]'
+go list ./g
+stdout '^example.com/mixed/g$'
+
+# The same check applies to a dependency whose other package is unimported.
+cd ../client
+! logos list .
+stderr '\[correctness::mixed_module\] module example.com/mixed'
+
+# A test-only package has a language kind even when no test is selected.
+cd ../testonly
+! logos list ./g
+stderr '\[correctness::mixed_module\].*example.com/testonly/l'
+
+# Package selection must use the active build tags and module boundaries.
+cd ../clean
+logos list ./g
+stdout '^example.com/clean/g$'
+! logos list -tags=extra ./g
+stderr '\[correctness::mixed_module\].*example.com/clean/extra'
+
+# An overlay-only sibling participates without being written to disk.
+! logos list -overlay=overlay.json ./g
+stderr '\[correctness::mixed_module\].*example.com/clean/virtual'
+! exists virtual/p.lgo
+
+-- mixed/go.mod --
+module example.com/mixed
+
+go 1.27
+-- mixed/g/g.go --
+package g
+
+const Value = 1
+-- mixed/l/l.lgo --
+package l
+
+const Value = 2
+-- client/go.mod --
+module example.com/client
+
+go 1.27
+
+require example.com/mixed v0.0.0
+
+replace example.com/mixed => ../mixed
+-- client/p.go --
+package client
+
+import "example.com/mixed/g"
+
+const Value = g.Value
+-- testonly/go.mod --
+module example.com/testonly
+
+go 1.27
+-- testonly/g/g.go --
+package g
+-- testonly/l/l_test.lgo --
+package l
+-- clean/go.mod --
+module example.com/clean
+
+go 1.27
+-- clean/g/g.go --
+package g
+-- clean/extra/p.lgo --
+//go:build extra
+
+package p
+-- clean/ignored/p.lgo --
+//go:build ignore
+
+package p
+-- clean/testdata/p.lgo --
+package p
+-- clean/_hidden/p.lgo --
+package p
+-- clean/.hidden/p.lgo --
+package p
+-- clean/vendor/example.com/unused/p.lgo --
+package p
+-- clean/nested/go.mod --
+module example.com/nested
+
+go 1.27
+-- clean/nested/p.lgo --
+package p
+-- clean/overlay.json --
+{"Replace":{"virtual/p.lgo":"../overlay-source"}}
+-- overlay-source --
+package p

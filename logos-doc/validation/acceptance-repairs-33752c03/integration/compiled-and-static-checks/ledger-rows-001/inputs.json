@@ -1,0 +1,114 @@
+{
+  "binding": {
+    "head": "0a8eef6bab7d85e89e8e3efd0b933d73e78dff79",
+    "index_tree": "1b7206610fee4f2ff3f6d7d73e34d4ba7aa0f721",
+    "source_tree": "33752c03819ed5afcb37f87633a3cac668e181a8",
+    "status_porcelain": "M logos-doc/validation/release-acceptance-request.json\n M logos-doc/validation/stabilization-candidate.md\n?? logos-doc/validation/acceptance-repairs-33752c03/README.md\n?? logos-doc/validation/installed-acceptance-33752c03/",
+    "build_result_sha256": "535382e7564ba3b0aa2a3373ab27d326e237e4fe412e56331c7f3a4532a5ff07",
+    "integration_manifest_sha256": "a40044c2f21180f6a46e6fd9ae56668181ff6cb1fe197bdbda144e9ae3dd5b23",
+    "sha256": {
+      "bin/go": "c8a2b1c7fc3f7d710af1ad3d0bfb077acf9254f2b3caa8cb9a4a50d4e722f77a",
+      "bin/logos": "c8a2b1c7fc3f7d710af1ad3d0bfb077acf9254f2b3caa8cb9a4a50d4e722f77a",
+      "pkg/tool/linux_amd64/compile": "873de794fdbfb5ebd900838e2a238f178a653aa7d7e56d3b1ae1c8afcf717c1c",
+      "pkg/tool/linux_amd64/link": "763e0ca95ec545e4eaf650cc3016999ea9c6712162fdc8e367fc3e43ca8fe1d8",
+      "pkg/tool/linux_amd64/asm": "7c37238bcfb4e4e06fbe64ef7e910d12b1b21173e299bac6f8e2d176b2bfcdfd",
+      "pkg/tool/linux_amd64/cgo": "78e6f8b3b230bb3a426240cd976107d3759516f25210a371bf493e2428e34e38",
+      "src/cmd/go/internal/load/logos.go": "acabbbe1e6581770d383a1dc9d301ffe70f33968e974eb50703882813b46674c",
+      "src/cmd/go/internal/modindex/logos.go": "178e61d77f6b0665bb29c4af7f6595935b52e7fbf4a4aeb6a21ddfdbca076e8e",
+      "src/go/build/logos.go": "addc9448a772b9d27f8545fb5347d8530ca000572e74e3dde84ef93ebf22edfc",
+      "src/internal/logosfile/logosfile.go": "852bcabc847f6eecfe60e02acd7ac71e13aac46d1e62879ff1d200c9b3520b39",
+      "src/cmd/go/internal/load/logos_census_test.go": "3a07ac609dc04cd1b0b250b0a366ae535ac25138dfb425365e67e101f992e19f",
+      "src/cmd/compile/internal/types2/builtins.go": "5b77424183490de7e8cfd7368a87f4ecb33cc86d3ba64b29427f256e64fc4718",
+      "src/cmd/compile/internal/types2/narrow_logos.go": "cb00158cf2ac405ca931705de43e7c6ac0c390d880c3ed9eb5f0ffeabc3962af",
+      "src/go/types/generate_test.go": "6885172a41d17d13de5e7ab442d6abea0233e9377040d951d04129fc5d068c5c",
+      ".github/scripts/release-acceptance.sh": "168c566d73748dba15535ea57d333581df74e469e2adb0893240d8aa059ec3b5",
+      "logos-doc/validation/release-acceptance/test_bootstrap_environment.py": "7474040278eb8e00e7861678fb0698d16380092312090b8b700c6fae40dab942",
+      "src/cmd/internal/goparity/parity_test.go": "d4e7045af9f45037ceb9670a192617915571847bf816b23fd4b2f7fa7f92e6c9",
+      "src/cmd/internal/goparity/execution_queue_test.go": "6c13e3b083cd289ca38aa5c9c9cfe0f8d9eaee9ea6f2654cc7aaa7668b53cc07"
+    },
+    "boundary": "Fresh installed combined source snapshot; no clean published-tip claim"
+  },
+  "files_sha256": {
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/logos-doc/IMPLEMENTATION.md": "ecb0505ef7ecac86578d4644f6a3afdeba163b18dcd5c557747fd09ae6c841ca",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/logos-doc/REDTEAM.md": "4e74823745e9e217d6de8e185b8a2cc30b4087c4ee0ebb125750a2cf5ffd3a12",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/tasks/autoplan-ledger.jsonl": "e8d2b7c8c762d1b9135ac783b24f8a56d866607e6011ceffd58c87f70f71ec6d",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/logos-doc/SPEC.md": "a55e00c7d1a0d1a0fac763e6cd093bf25c05da92148a34db72f9037e2ae20d75",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/logos-doc/validation/release-acceptance-request.json": "c130f0e4e04ec838417ffbe15b2eb33628f6b133c6a73d5730c1140f0f5f206b",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/logos-doc/validation/stabilization-candidate.md": "a287e283b4ee462204dca306bb798d954c438b3421c3bfb7e5215341932f64b4",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/logos-doc/validation/acceptance-repairs-33752c03/README.md": "e78ded5f418cf4ddb43d4d16a667c1f797496a53b39734bbddb859153bc6162c",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/logos-doc/validation/release-acceptance/check_release_contract.py": "c46d9cc8569ca80659a999ab11a5208de5afecd8c4e337817af0de81bde20b26",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/cmd/internal/goparity/parity_test.go": "d4e7045af9f45037ceb9670a192617915571847bf816b23fd4b2f7fa7f92e6c9",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/cmd/internal/goparity/execution_queue_test.go": "6c13e3b083cd289ca38aa5c9c9cfe0f8d9eaee9ea6f2654cc7aaa7668b53cc07",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/cmd/internal/goparity/redteam_ledger_test.go": "4871b7713e5c22d2f3ca8b2512060c8ce4da8d508fffbc4d2eb3b2db3dfdc3d6"
+  },
+  "repositories": {
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes": {
+      "head": "0a8eef6bab7d85e89e8e3efd0b933d73e78dff79",
+      "source_tree": "33752c03819ed5afcb37f87633a3cac668e181a8",
+      "status": " M logos-doc/validation/release-acceptance-request.json\n M logos-doc/validation/stabilization-candidate.md\n?? logos-doc/validation/acceptance-repairs-33752c03/README.md\n?? logos-doc/validation/installed-acceptance-33752c03/\n",
+      "tracked_diff": "diff --git a/logos-doc/validation/release-acceptance-request.json b/logos-doc/validation/release-acceptance-request.json\nindex 4596fb94..23e4f8de 100644\n--- a/logos-doc/validation/release-acceptance-request.json\n+++ b/logos-doc/validation/release-acceptance-request.json\n@@ -1,5 +1,5 @@\n {\n-  \"src_tree\": \"e237c399aae8f8065b724e8a0e27585686c7da18\",\n+  \"src_tree\": \"33752c03819ed5afcb37f87633a3cac668e181a8\",\n   \"scope\": \"Independent M22 acceptance; additional blocked M6 binding rows still prevent full release closure.\",\n   \"frozen_inputs\": {\n     \"src/cmd/go/testdata/script/logos_redteam_80.txt\": \"3f0acf124680db65a8eb71b72d0e68b8779b778fa64bffc00ddd9afb42b9aeef\",\ndiff --git a/logos-doc/validation/stabilization-candidate.md b/logos-doc/validation/stabilization-candidate.md\nindex fe7f5994..4205c358 100644\n--- a/logos-doc/validation/stabilization-candidate.md\n+++ b/logos-doc/validation/stabilization-candidate.md\n@@ -6,9 +6,79 @@ not a completed release certificate. The shared Go and loGo/s implementation,\n specification changes, frozen attacks, and remaining gates are published\n together.\n \n-## Current source composition\n-\n-The final local source freeze for this acceptance round is\n+## Current acceptance repair composition\n+\n+The current `src` tree is `33752c03819ed5afcb37f87633a3cac668e181a8`.\n+Four independently recorded slices repair failures found by the preceding\n+hosted acceptance round:\n+\n+| Slice | Repair | Scoped evidence |\n+|---|---|---|\n+| M0-A-S20 / #442 | Keep an unrelated duplicate-stem package in the module census without rejecting the selected package; retain mixed-language and malformed-header rejection | Eight frozen census cases, twelve unchanged scripts, and the complete short loader package suites pass under race detection |\n+| M0-A-S21 / #443 | Strip the two private C type-printing facts from public `go/types` generation; keep void-panic tracking behind a private compiler hook | Unchanged physical `TestGenerate`, both complete short type-checker suites, native panic controls, and C/ejection scripts pass; removing the hook fails exactly the two builtin-void attacks |\n+| M22-A-S7 / #444 | End bootstrap resource settings before acceptance, keep Go temporary files under `TMPDIR`, and use a matched GCC 14 C/C++ pair | Four frozen executable bootstrap-contract tests and three caught mutations pass; prior native runtime/security regressions are separately recorded |\n+| M22-A-S8 / #445 | Limit active parity execution calls across rows and start each child deadline after admission | Three frozen queue scenarios and the complete short parity race suite pass; release-only mutant/sweep execution remains a separate gate |\n+\n+Each slice used one implementation candidate. Their immutable\n+[component records](acceptance-repairs-33752c03/README.md) retain RED, GREEN,\n+caught mutations, restoration, and their original source boundaries. Pending\n+statements inside those original packets describe their assembly time; the\n+[installed acceptance packet](installed-acceptance-33752c03/README.md) supplies\n+the later combined-source results without rewriting historical evidence.\n+\n+A normal fresh `make.bash` passed on 2026-11-16 from 21:44:15 to 21:52:15 UTC\n+in 480.027 seconds, with final PGO and dist cleanup enabled. The first make\n+lost its execution session without a completion receipt; its cause remains\n+unconfirmed and its partial output is preserved. No implementation or attack\n+changed between the two build invocations.\n+\n+All nineteen installed gate commands matched their recorded expectations.\n+Eighteen exited successfully; the intentional void-hook mutation exited with\n+the expected two semantic failures, then the restored compiler passed all\n+nine cells using the same assertion binary. The complete short type-checker\n+suites retain eight documented upstream/short-mode skips in total. Short\n+parity retains its three documented release-only skips. No skipped release\n+test is counted as executed acceptance.\n+\n+These build and gate receipts bind the combined uncommitted snapshot based\n+on local HEAD `2535486fe9596a9212d525a5007963ef9e8682f0`, with index tree\n+`098de80a4ddf1e59b2750c1306ef495414f42d1e`. The subsequent four slice commits\n+end at local `0a8eef6bab7d85e89e8e3efd0b933d73e78dff79` and preserve the same\n+complete `src` tree and all twelve repaired-file hashes. The evidence does\n+not represent a separate rebuild of each intermediate commit.\n+\n+The synchronized task ledgers contain 306 unique, identical records. The\n+attack ledger contains 350 unique rows: 341 tested, two satisfied upstream,\n+no planned rows, and seven blocked rows. The blocked rows remain #216,\n+#217, #218, #226, #403, #404 and #405. SPEC and Table T now state the selected\n+package boundary for duplicate-stem errors. No M6-S3b implementation or\n+frozen attack changed.\n+\n+### Remaining combined release gates\n+\n+Fresh hosted acceptance must use this exact source tree. The earlier\n+published head `e6e3f9bf` has source tree `e237c399`; its results cannot\n+certify these compiler and harness repairs. The active release request now\n+names `33752c03` and retains all six original frozen-input hashes.\n+\n+The remaining gates are the complete plain-Go regression\n+(`GO_TEST_TIMEOUT_SCALE=8 ./run.bash --no-rebuild`), the full script and\n+compiler-fixture suites, all six no-short `go`/`logos` O1/O2/O3 cells with\n+their separate `os` legs, actual SWIG/LTO coverage, and the unfiltered\n+oracle-on parity/mutant/sweep suite with a clean-tip release stamp. Fresh\n+focused workflows, runtime jobs, and independent-host reproducibility must\n+also retain their own source identity. Local installed evidence is Linux\n+amd64 evidence; it does not establish native Windows acceptance.\n+\n+M6-S3b remains rolled back after the three-attempt limit. The\n+[bounded exception plan](m6-binding-exception-plan/README.md) records the\n+unchanged attacks and next native/export/ejection gates. Completing the\n+independent acceptance repairs does not authorize another M6 candidate or\n+establish complete language closure.\n+\n+## Earlier source composition\n+\n+The preceding local source freeze for the earlier acceptance round is\n `e96a570da271c43a80e23bb1a188aac054acff25`, with complete tree\n `0841c3d2a92b7d6091a5e248b82bd820326947a8` and `src` tree\n `e237c399aae8f8065b724e8a0e27585686c7da18`. It preserves concurrent PR head\n@@ -32,7 +102,7 @@ preserves the build and binary identities. Component evidence is linked from\n [acceptance follow-ups](acceptance-followups/README.md); completed build,\n installed behavioral acceptance and hosted gates are separate results.\n \n-The current metadata records 302 identical task-ledger entries and 346 unique\n+At that snapshot, the metadata records 302 identical task-ledger entries and 346 unique\n attack rows: 337 tested, two satisfied upstream, no planned rows and seven\n blocked rows. The four former planned rows #386, #389, #391 and #402 are\n promoted against the completed installed source-45 evidence below. Rows #336\n@@ -205,7 +275,10 @@ never started. [Acceptance follow-ups](acceptance-followups/README.md) records\n the separate test-oracle correction and test-infrastructure repair. No broad\n gate is promoted by the six successful focused workflows.\n \n-## Required release acceptance\n+## Earlier release acceptance setup and results\n+\n+This section retains the preceding source-e237 acceptance boundary. Its\n+pending statements are historical; the current requirements are above.\n \n The first hosted follow-up at published head `1a4c7635` found two ambiguous\n prose phrases in REDTEAM #336 and #441 at the compiler workflow's final ledger\n"
+    }
+  },
+  "command": [
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin/go",
+    "test",
+    "-count=1",
+    "-short",
+    "-v",
+    "-timeout=5m",
+    "cmd/internal/goparity",
+    "-run",
+    "^TestRedteamLedgerRows$"
+  ],
+  "cwd": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src",
+  "environment_overrides": {
+    "GOROOT": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes",
+    "GOCACHE": "/workspace/scratch/9949907ca71e/repair-postbuild-cache",
+    "GOPATH": "/workspace/scratch/9949907ca71e/repair-acceptance-gopath",
+    "GOTOOLCHAIN": "local",
+    "GOENV": "off",
+    "GOWORK": "off",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "GOMAXPROCS": "2",
+    "GOGC": "50",
+    "GOMEMLIMIT": "2GiB",
+    "GOFLAGS": "-p=2",
+    "GOEXPERIMENT": "",
+    "CGO_ENABLED": "1",
+    "TMPDIR": "/home/agent/logos-repair-33752c03/tmp",
+    "GOTMPDIR": "/home/agent/logos-repair-33752c03/tmp/go-tmp",
+    "CC": "/usr/bin/gcc-14",
+    "CXX": "/usr/bin/g++-14",
+    "UPROOT1272": "/workspace/scratch/9949907ca71e/toolchains/go1.27.2",
+    "UPROOT1273": "/workspace/scratch/9949907ca71e/toolchains/go1.27.3",
+    "UPROOT1274": "/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci",
+    "PATH": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/recovery-evidence/installed-repair-33752c03/c23-bin:/workspace/scratch/9949907ca71e/toolchains/node-v26.13.1-ci/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/lib/wasm:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+  },
+  "boundary": "Existing compiled ledger validator on the unchanged fresh combined compiler after four repair-slice commits and metadata reconciliation. This filtered short metadata gate creates no release stamp.",
+  "expected_exit": 0,
+  "required_markers": [
+    "--- PASS: TestRedteamLedgerRows ",
+    "PASS"
+  ],
+  "forbidden_markers": [
+    "--- FAIL:",
+    "--- SKIP:",
+    "[build failed]"
+  ],
+  "outer_timeout_seconds": 360,
+  "started_utc": "2026-11-16T22:23:16.355848+00:00",
+  "spec_sha256": "5791116d03dbac35306985ec3b42f3165b44e45c9ae043d1f6786a1d5c7c9195",
+  "runner_sha256": "e9c29d157b54448d80472f383aef3ce86edbc88ccb58cfccfd580fe1e75ab780",
+  "expected_produced_files": [],
+  "dependencies_sha256": {
+    "run_gate.py": "991db63c8ce68789b2180452e7659b2ed6e885ca31e933e0a49d668d4b7392d0",
+    "record_isolated.py": "9d174085ea44830377c348bb2f37d88f2d7d0abe10be7478df3d16d417bbba90"
+  },
+  "resources_before": {
+    "MemAvailable": 6791577600,
+    "Shmem": 2179248128,
+    "workspace_available_bytes": 4211822592,
+    "global_oom_kill_counter": 12
+  }
+}

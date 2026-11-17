@@ -1,0 +1,4 @@
+../language-evidence/ci-merge/mutation/compiler-stability.yml:58:9: shellcheck reported issue in this script: SC2155:warning:1:8: Declare and assign separately to avoid masking return values [shellcheck]
+   |
+58 |         run: |
+   |         ^~~~

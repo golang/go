@@ -1,0 +1,22 @@
+{
+  "recorded_utc": "2026-11-16T21:04:00.707Z",
+  "candidate": 1,
+  "root": "/workspace/scratch/9949907ca71e/logos-release-env-fix",
+  "base": "2535486fe9596a9212d525a5007963ef9e8682f0",
+  "src_tree": "e237c399aae8f8065b724e8a0e27585686c7da18",
+  "changed_frozen_inputs": [
+    ".github/scripts/release-acceptance.sh"
+  ],
+  "unchanged_frozen_count": 16,
+  "source_sha256": "168c566d73748dba15535ea57d333581df74e469e2adb0893240d8aa059ec3b5",
+  "test_sha256": "7474040278eb8e00e7861678fb0698d16380092312090b8b700c6fae40dab942",
+  "checker_sha256": "c46d9cc8569ca80659a999ab11a5208de5afecd8c4e337817af0de81bde20b26",
+  "patch_sha256": "e5422292cea1c7c41008ac4e8c846153706147e411b37a1488da55483dfe0691",
+  "validation": "Not executed; parent owns all remaining tests and Go gates",
+  "changes": [
+    "Nest GOTMPDIR under TMPDIR",
+    "Clear GOMAXPROCS GOGC GOMEMLIMIT GOFLAGS immediately after make",
+    "Resolve gcc-14 and g++-14 separately, record both versions, export paired CC/CXX"
+  ],
+  "git_status": "M .github/scripts/release-acceptance.sh\n?? logos-doc/validation/release-acceptance/test_bootstrap_environment.py"
+}

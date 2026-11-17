@@ -36,6 +36,10 @@ func logosStashesGo() bool {
 }
 
 func parseLogosFile(fbase *syntax.PosBase, f *os.File, filename string, errh syntax.ErrorHandler, pragh syntax.PragmaHandler) *syntax.File {
+	if base.LogosCgoEject {
+		filename = logosCgoSourceName(filename)
+		fbase = syntax.NewTrimmedFileBase(filename, true)
+	}
 	mode := syntax.CheckBranches | logosMode(filename)
 	cgoUser := isLogosCgoUser(filename)
 	if !logosfile.Is(filename) && !logosStashesGo() && !cgoUser {

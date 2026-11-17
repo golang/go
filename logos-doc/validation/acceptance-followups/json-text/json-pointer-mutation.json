@@ -1,0 +1,7 @@
+{
+  "mutation": "Restore only QuotedTextPtr to strict jsontext.AppendUnquote; keep QuotedText repaired.",
+  "candidate_sha256": "1e226a2d7f6b230299fcc9e55752bb6ee6b896ce87bf41197b4b6628f7a405b1",
+  "mutant_sha256": "7f98be8ec16c4ccbc7ef6ae7c3810cabbc995a7246c5e36da109e5fec347a7c6",
+  "candidate_file_unchanged": true,
+  "frozen_test_sha256": "08729986d528dd8a0c003893b0069639b5f3d7201b122a4105be162bfa088232"
+}

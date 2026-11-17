@@ -1,0 +1,26 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# Views follow aggregate stores, with Go copies and reference sharing.
+# Compile-time results agree with ordinary execution and ejected Go.
+cd m
+cp $GOROOT/test/logos/run/ctfe_assignment_storage.lgo main.lgo
+cp $GOROOT/test/logos/run/ctfe_assignment_storage.out expected.txt
+logos run .
+cmp stdout expected.txt
+logos eject -o out
+cd out
+go run .
+cmp stdout ../expected.txt
+exists $UPROOT1274/bin/go
+exec env -u GOROOT $UPROOT1274/bin/go run .
+cmp stdout ../expected.txt
+
+-- m/go.mod --
+module example.com/ctfestorage
+
+go 1.27
+-- m/logos.toml --
+[build]
+arena = false
+target_cpu = "baseline"

@@ -1,0 +1,347 @@
+# Inlining a slice sum inside an outer loop must not move vector zeroing
+# ahead of its feature check. Inspect the code even on an AVX512 host,
+# where an unguarded instruction would otherwise execute successfully.
+[!GOARCH:amd64] skip 'nested SIMD guard inspection needs amd64'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOAMD64=v1
+env GOEXPERIMENT=simd
+
+cd checker
+go build -o $WORK/checkguard .
+cd ../m
+exec $WORK/checkguard safe.txt avx512
+stdout '^guard excludes vectors avx512$'
+exec $WORK/checkguard safe-alignment.txt avx512
+stdout '^guard excludes vectors avx512$'
+! exec $WORK/checkguard before-branch.txt avx512
+stderr 'feature check is not followed by TESTL and JE'
+! exec $WORK/checkguard alignment-before-vector.txt avx512
+stderr 'feature check is not followed by TESTL and JE'
+! exec $WORK/checkguard alignment-before-clobber.txt avx512
+stderr 'feature check is not followed by TESTL and JE'
+! exec $WORK/checkguard false-target.txt avx512
+stderr 'vector instruction reachable with avx512 false'
+logos build -gcflags=-d=ssa/check/on -o $WORK/exe .
+go tool objdump -s '^main\.nestedU8$' $WORK/exe
+stdout 'VPADDB'
+stdout 'VMOVDQU8'
+cp stdout $WORK/u8.txt
+exec $WORK/checkguard $WORK/u8.txt avx512
+stdout '^guard excludes vectors avx512$'
+go tool objdump -s '^main\.nestedI32$' $WORK/exe
+stdout 'VPADDD'
+stdout 'VPMASKMOVD'
+cp stdout $WORK/i32.txt
+exec $WORK/checkguard $WORK/i32.txt avx2
+stdout '^guard excludes vectors avx2$'
+exec $WORK/exe
+stdout '^nested sums ok$'
+env GODEBUG=cpu.avx2=off,cpu.avx512f=off
+exec $WORK/exe
+stdout '^nested sums ok$'
+
+# The shared backend must preserve the same guard for ordinary Go input
+# under both drivers. Keep the feature methods as calls so this fixture
+# uses the same explicit guard oracle as the inlined loGo/s reduction.
+cd ../g
+env GODEBUG=
+go build -gcflags='-l -d=ssa/check/on' -o $WORK/go-exe .
+go tool objdump -s '^main\.zeroU8$' $WORK/go-exe
+cp stdout $WORK/go-u8.txt
+exec $WORK/checkguard $WORK/go-u8.txt avx512
+stdout '^guard excludes vectors avx512$'
+go tool objdump -s '^main\.zeroI32$' $WORK/go-exe
+cp stdout $WORK/go-i32.txt
+exec $WORK/checkguard $WORK/go-i32.txt avx2
+stdout '^guard excludes vectors avx2$'
+exec $WORK/go-exe
+stdout '^guarded Go zeros ok$'
+env GODEBUG=cpu.avx2=off,cpu.avx512f=off
+exec $WORK/go-exe
+stdout '^guarded Go zeros ok$'
+logos build -gcflags='-l -d=ssa/check/on' -o $WORK/logos-go-exe .
+go tool objdump -s '^main\.zeroU8$' $WORK/logos-go-exe
+cp stdout $WORK/logos-go-u8.txt
+exec $WORK/checkguard $WORK/logos-go-u8.txt avx512
+stdout '^guard excludes vectors avx512$'
+go tool objdump -s '^main\.zeroI32$' $WORK/logos-go-exe
+cp stdout $WORK/logos-go-i32.txt
+exec $WORK/checkguard $WORK/logos-go-i32.txt avx2
+stdout '^guard excludes vectors avx2$'
+exec $WORK/logos-go-exe
+stdout '^guarded Go zeros ok$'
+env GODEBUG=
+exec $WORK/logos-go-exe
+stdout '^guarded Go zeros ok$'
+
+-- m/go.mod --
+module example.com/nestedguard
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import "fmt"
+
+func sumU8(xs []uint8) uint8 { return xs.sum() }
+func sumI32(xs []int32) int32 { return xs.sum() }
+
+//go:noinline
+func nestedU8(chunks [][]uint8) uint8 {
+	var total uint8
+	for _, xs := range chunks {
+		total += sumU8(xs)
+	}
+	return total
+}
+
+//go:noinline
+func nestedI32(chunks [][]int32) int32 {
+	var total int32
+	for _, xs := range chunks {
+		total += sumI32(xs)
+	}
+	return total
+}
+
+func main() {
+	lengths := []int{0, 1, 7, 8, 9, 63, 64, 65, 130}
+	bytes := make([][]uint8, len(lengths))
+	words := make([][]int32, len(lengths))
+	var wantU8 uint8
+	var wantI32 int32
+	for i, n := range lengths {
+		bytes[i] = make([]uint8, n)
+		words[i] = make([]int32, n)
+		for j := range n {
+			bytes[i][j] = uint8(j*37 + n)
+			words[i][j] = int32(j*131 - n*29)
+			wantU8 += bytes[i][j]
+			wantI32 += words[i][j]
+		}
+	}
+	if nestedU8(bytes) != wantU8 || nestedI32(words) != wantI32 {
+		panic("nested sum differs from scalar oracle")
+	}
+	fmt.Println("nested sums ok")
+}
+
+-- checker/go.mod --
+module example.com/guardcheck
+
+go 1.27
+
+-- checker/main.go --
+package main
+
+import (
+	"fmt"
+	"os"
+	"strings"
+)
+
+type instruction struct {
+	op   string
+	args string
+}
+
+func main() {
+	if len(os.Args) != 3 {
+		panic("usage: checkguard <objdump> <avx2|avx512>")
+	}
+	data, err := os.ReadFile(os.Args[1])
+	if err != nil {
+		panic(err)
+	}
+	mode := os.Args[2]
+	if mode != "avx2" && mode != "avx512" {
+		panic("unrecognized feature: " + mode)
+	}
+	var code []instruction
+	labels := make(map[string]int)
+	guard := -1
+	hasVector := false
+	for _, line := range strings.Split(string(data), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 4 || !strings.HasPrefix(fields[1], "0x") {
+			continue
+		}
+		inst := instruction{fields[3], strings.Join(fields[4:], " ")}
+		labels[fields[1]] = len(code)
+		if inst.op == "CALL" && strings.Contains(inst.args, "X86Features."+strings.ToUpper(mode)+"(SB)") {
+			if guard >= 0 {
+				panic("multiple feature checks in fixture")
+			}
+			guard = len(code)
+		}
+		hasVector = hasVector || strings.HasPrefix(inst.op, "V") || strings.HasPrefix(inst.op, "K")
+		code = append(code, inst)
+	}
+	if guard < 0 || !hasVector {
+		panic("missing feature check or vector instruction")
+	}
+	// Alignment may insert no-ops between the call, test, and branch.
+	// Skip only those instructions; real work here could execute a vector
+	// too early or change the flags that determine the false-feature edge.
+	skipAlignment := func(i int) int {
+		for i < len(code) {
+			switch code[i].op {
+			case "NOP", "NOPL", "NOPW":
+				i++
+			default:
+				return i
+			}
+		}
+		return i
+	}
+	test := skipAlignment(guard + 1)
+	branch := skipAlignment(test + 1)
+	if test >= len(code) || code[test] != (instruction{"TESTL", "AL, AL"}) || branch >= len(code) || code[branch].op != "JE" {
+		panic("feature check is not followed by TESTL and JE")
+	}
+	if _, ok := labels[code[branch].args]; !ok {
+		panic("feature-false branch target is outside the fixture")
+	}
+	seen := make([]bool, len(code))
+	work := []int{0}
+	for len(work) != 0 {
+		i := work[len(work)-1]
+		work = work[:len(work)-1]
+		if i >= len(code) || seen[i] {
+			continue
+		}
+		seen[i] = true
+		inst := code[i]
+		if strings.HasPrefix(inst.op, "V") || strings.HasPrefix(inst.op, "K") {
+			panic("vector instruction reachable with " + mode + " false")
+		}
+		if strings.HasPrefix(inst.op, "J") {
+			if target, ok := labels[inst.args]; ok {
+				work = append(work, target)
+			} else if strings.HasPrefix(inst.args, "0x") {
+				panic("jump target is outside the fixture")
+			}
+		}
+		// A false feature takes JE. Other conditional branches may take either
+		// edge; direct jumps and returns have no fallthrough edge.
+		if i != branch && inst.op != "JMP" && inst.op != "RET" {
+			work = append(work, i+1)
+		}
+	}
+	fmt.Println("guard excludes vectors", mode)
+}
+
+-- m/safe.txt --
+fixture:1 0x10 e8 CALL simd/archsimd.X86Features.AVX512(SB)
+fixture:2 0x11 84 TESTL AL, AL
+fixture:3 0x12 74 JE 0x20
+fixture:4 0x13 62 VPXORQ Z0, Z0, Z0
+fixture:5 0x14 c3 RET
+fixture:6 0x20 c3 RET
+
+-- m/before-branch.txt --
+fixture:1 0x10 e8 CALL simd/archsimd.X86Features.AVX512(SB)
+fixture:2 0x11 62 VPXORQ Z0, Z0, Z0
+fixture:3 0x12 84 TESTL AL, AL
+fixture:4 0x13 74 JE 0x20
+fixture:5 0x14 c3 RET
+fixture:6 0x20 c3 RET
+
+-- m/safe-alignment.txt --
+fixture:1 0x10 e8 CALL simd/archsimd.X86Features.AVX512(SB)
+fixture:2 0x11 0f NOPL 0(AX)
+fixture:3 0x12 66 NOPW
+fixture:4 0x13 84 TESTL AL, AL
+fixture:5 0x14 90 NOP
+fixture:6 0x15 74 JE 0x20
+fixture:7 0x16 62 VPXORQ Z0, Z0, Z0
+fixture:8 0x17 c3 RET
+fixture:9 0x20 c3 RET
+
+-- m/alignment-before-vector.txt --
+fixture:1 0x10 e8 CALL simd/archsimd.X86Features.AVX512(SB)
+fixture:2 0x11 0f NOPL 0(AX)
+fixture:3 0x12 62 VPXORQ Z0, Z0, Z0
+fixture:4 0x13 84 TESTL AL, AL
+fixture:5 0x14 74 JE 0x20
+fixture:6 0x15 c3 RET
+fixture:7 0x20 c3 RET
+
+-- m/alignment-before-clobber.txt --
+fixture:1 0x10 e8 CALL simd/archsimd.X86Features.AVX512(SB)
+fixture:2 0x11 84 TESTL AL, AL
+fixture:3 0x12 0f NOPL 0(AX)
+fixture:4 0x13 31 XORL AX, AX
+fixture:5 0x14 74 JE 0x20
+fixture:6 0x15 62 VPXORQ Z0, Z0, Z0
+fixture:7 0x16 c3 RET
+fixture:8 0x20 c3 RET
+
+-- m/false-target.txt --
+fixture:1 0x10 e8 CALL simd/archsimd.X86Features.AVX512(SB)
+fixture:2 0x11 84 TESTL AL, AL
+fixture:3 0x12 74 JE 0x20
+fixture:4 0x13 c3 RET
+fixture:5 0x20 62 VPXORQ Z0, Z0, Z0
+fixture:6 0x21 c3 RET
+
+-- g/go.mod --
+module example.com/goguard
+
+go 1.27
+
+-- g/main.go --
+package main
+
+import (
+	"fmt"
+	"simd/archsimd"
+)
+
+//go:noinline
+func zeroU8(chunks [][64]uint8) {
+	for i := range chunks {
+		if archsimd.X86.AVX512() {
+			var zero archsimd.Uint8x64
+			zero.StoreArray(&chunks[i])
+		} else {
+			chunks[i] = [64]uint8{}
+		}
+	}
+}
+
+//go:noinline
+func zeroI32(chunks [][8]int32) {
+	for i := range chunks {
+		if archsimd.X86.AVX2() {
+			var zero archsimd.Int32x8
+			zero.StoreArray(&chunks[i])
+		} else {
+			chunks[i] = [8]int32{}
+		}
+	}
+}
+
+func main() {
+	bytes := make([][64]uint8, 3)
+	words := make([][8]int32, 3)
+	for i := range bytes {
+		for j := range bytes[i] {
+			bytes[i][j] = uint8(i + j + 1)
+		}
+		for j := range words[i] {
+			words[i][j] = int32(i + j + 1)
+		}
+	}
+	zeroU8(bytes)
+	zeroI32(words)
+	for i := range bytes {
+		if bytes[i] != [64]uint8{} || words[i] != [8]int32{} {
+			panic("guarded zero differs from scalar oracle")
+		}
+	}
+	fmt.Println("guarded Go zeros ok")
+}

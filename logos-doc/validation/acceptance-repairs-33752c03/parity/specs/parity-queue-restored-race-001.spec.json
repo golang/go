@@ -1,0 +1,60 @@
+{
+  "command": [
+    "/workspace/scratch/9949907ca71e/logos-final-acceptance/bin/go",
+    "test",
+    "-race",
+    "-p=1",
+    "-count=1",
+    "-parallel=1",
+    "-short",
+    "-timeout=10m",
+    "-v",
+    "-overlay=/workspace/scratch/9949907ca71e/recovery-evidence/acceptance-failure-repairs/parity-queue-candidate-overlay.json",
+    "cmd/internal/goparity",
+    "-run=^TestRunBinaryExecutionQueue$"
+  ],
+  "cwd": "/workspace/scratch/9949907ca71e/logos-final-acceptance/src",
+  "output": "/workspace/scratch/9949907ca71e/recovery-evidence/acceptance-failure-repairs/parity-queue-restored-race-001",
+  "environment": {
+    "GOROOT": "/workspace/scratch/9949907ca71e/logos-final-acceptance",
+    "GOCACHE": "/workspace/scratch/9949907ca71e/final-postbuild-cache",
+    "GOTOOLCHAIN": "local",
+    "GOENV": "off",
+    "GOWORK": "off",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "GOMAXPROCS": "2",
+    "GOGC": "50",
+    "GOMEMLIMIT": "2GiB",
+    "GOFLAGS": "-p=2",
+    "TMPDIR": "/home/agent/logos-parity-isolated-e96-002",
+    "GOTMPDIR": "/home/agent/logos-parity-isolated-e96-002",
+    "UPROOT1274": "/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci",
+    "PATH": "/workspace/scratch/9949907ca71e/logos-final-acceptance/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+  },
+  "files": [
+    "/workspace/scratch/9949907ca71e/logos-parity-execution-fix/src/cmd/internal/goparity/parity_test.go",
+    "/workspace/scratch/9949907ca71e/logos-parity-execution-fix/src/cmd/internal/goparity/execution_queue_test.go",
+    "/workspace/scratch/9949907ca71e/recovery-evidence/acceptance-failure-repairs/parity-queue-candidate-overlay.json"
+  ],
+  "repositories": [
+    "/workspace/scratch/9949907ca71e/logos-parity-execution-fix"
+  ],
+  "expected_exit": 0,
+  "required_markers": [
+    "capacity N-1:",
+    "capacity N:",
+    "capacity N+1:",
+    "--- PASS: TestRunBinaryExecutionQueue/shared_queue_budget",
+    "--- PASS: TestRunBinaryExecutionQueue/start_error_release",
+    "--- PASS: TestRunBinaryExecutionQueue/timeout_release"
+  ],
+  "forbidden_markers": [
+    "--- FAIL:",
+    "[build failed]",
+    "--- SKIP:",
+    "panic: test timed out"
+  ],
+  "timeout_seconds": 660,
+  "boundary": "Exact restored candidate with frozen black-box attacks under race detection, after both admission and deadline mutations."
+}

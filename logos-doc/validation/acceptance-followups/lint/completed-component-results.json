@@ -1,0 +1,65 @@
+{
+  "scope": "Candidate-source/component validation with the freshly installed integration45c29ff2 compiler; fresh hosted make remains required.",
+  "base": "45c29ff215477f7e403188d7452fc79aef05d791",
+  "lint": {
+    "status": "passed",
+    "version": "2.15.0",
+    "command": "golangci-lint run --config ../../logos-doc/golangci.yml ./go/internal/logos/...",
+    "exit": 0,
+    "issues": 0,
+    "seconds": 109.337,
+    "log": "lint-full-run1.log"
+  },
+  "raceBuild": {
+    "status": "passed",
+    "exit": 0,
+    "seconds": 52.021,
+    "log": "eject-race-build.log"
+  },
+  "race": {
+    "status": "passed",
+    "exit": 0,
+    "seconds": 11.047,
+    "topLevelPassed": 45,
+    "totalPassed": 100,
+    "skipped": 0,
+    "failed": 0,
+    "log": "eject-race-suite.log",
+    "binarySHA256": "d281c9ca7caa0b6216f2a4f447d6e07c6671bdafd48dec86f3a18bf8cb696216",
+    "binaryHashProvenance": "Existing compilation-time record; binary not rehashed during this finalization."
+  },
+  "vet": {
+    "status": "inconclusive",
+    "executionSession": 99924,
+    "sessionExit": 130,
+    "diagnosticBytes": 0,
+    "reason": "Interrupted at the ten-minute bound during independently observed unrelated I/O stalls. The shell wrapper produced no exit file; exit130 is the recorded execution-session result.",
+    "log": "eject-vet.log"
+  },
+  "cleanupProbe": {
+    "status": "not executed",
+    "preparedOverlay": "cleanup-mutant/overlay.json"
+  },
+  "initialWrapper": {
+    "exit": 127,
+    "lintStarted": false,
+    "reason": "/usr/bin/time absent; preserved separately before the successful Bash-time invocation."
+  },
+  "fiveFileHashesMatch": true,
+  "historicalManifestsUnchanged": true,
+  "linkOwnership": {
+    "owner": "root/language",
+    "linksRetained": true,
+    "linksChangedByFinalizer": false
+  },
+  "environment": {
+    "workspace": "recovered intact",
+    "newGoCommandsInThisFinalization": 0,
+    "installedToolIdentities": "candidate-goroot.json",
+    "runtimeEnvironment": "component-environment.log"
+  },
+  "remainingAcceptance": [
+    "Fresh hosted make",
+    "Normal vet acceptance"
+  ]
+}

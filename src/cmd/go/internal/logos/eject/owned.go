@@ -45,6 +45,13 @@ func emitOwnedHelpers(ctx context.Context, plan *ejectPlan, staging, out string,
 	for i := range reqs {
 		req := &reqs[i]
 		owner := findOwnedOwner(plan, req.Owner)
+		if owner != nil && owner.Name != req.Package {
+			// Platform-selected source files may use different package names.
+			// A request must match an actual load, not just the host inventory.
+			if variant := selectOwnedPackage(plan.provenance[req.Owner], req.Owner, req.Package); variant != nil {
+				owner = variant
+			}
+		}
 		if owner == nil {
 			return false, fmt.Errorf("owned request for %q has no ejected destination (standard library packages are not writable)", req.Owner)
 		}
@@ -199,10 +206,10 @@ func ownedRequestsEqual(a, b logosowned.Request) bool {
 	return true
 }
 
-func selectOwnedPackage(pkgs []*load.Package, owner string) *load.Package {
+func selectOwnedPackage(pkgs []*load.Package, owner, name string) *load.Package {
 	var fallback *load.Package
 	for _, p := range pkgs {
-		if p.ImportPath != owner {
+		if p.ImportPath != owner || name != "" && p.Name != name {
 			continue
 		}
 		if p.ForTest == "" && p.Internal.TestmainGo == nil {
@@ -220,13 +227,13 @@ func findOwnedOwner(plan *ejectPlan, owner string) *load.Package {
 	for _, path := range slices.Sorted(maps.Keys(plan.depByPath)) {
 		all = append(all, plan.depByPath[path].pkgs...)
 	}
-	return selectOwnedPackage(all, owner)
+	return selectOwnedPackage(all, owner, "")
 }
 
 func ownedFindDeclPackage(plan *ejectPlan, owner string) *load.Package {
 	if plan != nil && plan.provenance != nil {
 		if pkgs, ok := plan.provenance[owner]; ok && len(pkgs) > 0 {
-			if hit := selectOwnedPackage(pkgs, owner); hit != nil {
+			if hit := selectOwnedPackage(pkgs, owner, ""); hit != nil {
 				return hit
 			}
 		}
@@ -304,20 +311,27 @@ func gorootContains(dir string) bool {
 }
 
 func applyOwnedConditionsAndCollisions(ctx context.Context, plan *ejectPlan, dests []*ownedDest) ([]*ownedDest, error) {
-	groups := map[string][]*ownedDest{}
-	var keys []string
+	type packageKey struct{ dir, name string }
+	groups := map[packageKey][]*ownedDest{}
+	var keys []packageKey
 	for _, d := range dests {
-		if groups[d.dstDir] == nil {
-			keys = append(keys, d.dstDir)
+		key := packageKey{d.dstDir, d.owner.Name}
+		if groups[key] == nil {
+			keys = append(keys, key)
 		}
-		groups[d.dstDir] = append(groups[d.dstDir], d)
+		groups[key] = append(groups[key], d)
 	}
-	slices.Sort(keys)
+	slices.SortFunc(keys, func(a, b packageKey) int {
+		if c := strings.Compare(a.dir, b.dir); c != 0 {
+			return c
+		}
+		return strings.Compare(a.name, b.name)
+	})
 	writers := make([]*ownedDest, 0, len(dests))
-	for _, dir := range keys {
-		groupWriters, err := ownedResolveGroup(ctx, plan, dir, groups[dir])
+	for _, key := range keys {
+		groupWriters, err := ownedResolveGroup(ctx, plan, key.dir, groups[key])
 		if err != nil {
-			return nil, fmt.Errorf("owned request for %q: %v", groups[dir][0].req.Owner, err)
+			return nil, fmt.Errorf("owned request for %q: %v", groups[key][0].req.Owner, err)
 		}
 		writers = append(writers, groupWriters...)
 	}
@@ -508,6 +522,17 @@ func ownedDeclarationCondition(plan *ejectPlan, declOwner, declFile string) (con
 		return nil, false, fmt.Errorf("declaration owner %q not in package plan", declOwner)
 	}
 	original, isTest, err := ownedSelectedFile(pkg, declFile)
+	if err != nil {
+		// Inactive helpers retain actual loader-selected inventories. A
+		// declaration ignored by the host may be selected by one of them;
+		// filenames absent from every loaded inventory still fail below.
+		for _, candidate := range plan.provenance[declOwner] {
+			if selected, test, selectErr := ownedSelectedFile(candidate, declFile); selectErr == nil {
+				pkg, original, isTest, err = candidate, selected, test, nil
+				break
+			}
+		}
+	}
 	if err != nil {
 		return nil, false, err
 	}

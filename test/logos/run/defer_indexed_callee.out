@@ -1,0 +1,13 @@
+ok errdefer-captures-slice-function
+ok errdefer-joins-captured-error
+ok errdefer-captures-array-function
+ok defer-returns-captured-error
+ok defer-captures-indexed-function
+ok success-evaluates-callee-without-calling
+ok callee-precedes-arguments
+ok captures-pointer-array-function
+ok captures-nested-indexed-function
+ok scope-captures-indexed-function
+ok out-of-bounds-callee-panics-at-registration
+ok bounds-failure-stops-body
+ok generic-inference-controls

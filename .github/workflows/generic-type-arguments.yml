@@ -1,0 +1,94 @@
+name: "Generic type argument correctness"
+
+"on":
+  pull_request:
+    paths:
+      - ".github/scripts/install-ci-tool.sh"
+      - ".github/scripts/install-upstream-oracles.sh"
+      - ".github/workflows/generic-type-arguments.yml"
+      - "src/cmd/compile/internal/syntax/**"
+      - "src/cmd/compile/internal/types2/**"
+      - "src/cmd/compile/internal/logos/**"
+      - "src/cmd/go/testdata/script/logos_eject_generic_type_arguments.txt"
+      - "test/logos/run/generic_type_arg*"
+  workflow_dispatch:
+
+permissions:
+  contents: "read"
+
+concurrency:
+  group: "generic-type-arguments-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  generic-type-arguments:
+    runs-on: "ubuntu-26.04"
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: "bash"
+        working-directory: "src"
+    steps:
+      - name: "Check out the tested revision"
+        working-directory: "${{ github.workspace }}"
+        run: |
+          git init --quiet .
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          git -c protocol.version=2 fetch --no-tags --depth=1 origin "$GITHUB_SHA"
+          git -c advice.detachedHead=false checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - name: "Install the pinned Go bootstrap"
+        run: bash ../.github/scripts/install-ci-tool.sh go
+      - name: "Install upstream ejection toolchains"
+        run: bash ../.github/scripts/install-upstream-oracles.sh
+      - name: "Build the toolchain"
+        run: |
+          GOROOT_BOOTSTRAP=$(go env GOROOT)
+          export GOROOT_BOOTSTRAP
+          ./make.bash
+          printf '%s\n' "$GITHUB_WORKSPACE/bin" >> "$GITHUB_PATH"
+      - name: "Check formatting and vet"
+        run: |
+          test -z "$(gofmt -l cmd/compile/internal/syntax/nodes.go cmd/compile/internal/syntax/parser.go cmd/compile/internal/syntax/parser_tuple_logos.go cmd/compile/internal/syntax/parser_typeargs_logos.go cmd/compile/internal/syntax/typeargs_logos.go cmd/compile/internal/types2/expr.go cmd/compile/internal/types2/index.go cmd/compile/internal/types2/typexpr.go cmd/compile/internal/types2/typeargs_logos_test.go cmd/compile/internal/types2/typeargs_nested_logos_test.go cmd/compile/internal/logos/defer.go cmd/compile/internal/logos/tuple.go)"
+          go vet cmd/compile/internal/syntax cmd/compile/internal/types2 cmd/compile/internal/logos
+          sha256sum cmd/compile/internal/types2/typeargs_logos_test.go cmd/compile/internal/types2/typeargs_nested_logos_test.go ../test/logos/run/generic_type_arguments.lgo ../test/logos/run/generic_type_arguments.out ../test/logos/run/generic_type_argument_index_controls.lgo ../test/logos/run/generic_type_argument_index_controls.out cmd/go/testdata/script/logos_eject_generic_type_arguments.txt > "$RUNNER_TEMP/typeargs-fixtures.sha256"
+      - name: "Check native type arguments and captures"
+        run: |
+          go test -count=1 -timeout 20m cmd/internal/testdir -run 'Test/logos/run/(generic_type_arguments|generic_type_argument_index_controls|defer_generic_receiver|defer_indexed_callee)'
+      - name: "Check ejection with race detection"
+        run: |
+          go test -count=1 -race -timeout 20m cmd/go -run 'Script/^logos_(eject_generic_type_arguments|eject_defer_generic_receiver|eject_defer_indexed_callee)$'
+      - name: "Catch and restore a generic target mutation"
+        run: |
+          target=cmd/compile/internal/types2/index.go
+          saved="$RUNNER_TEMP/typeargs-index.go.saved"
+          cp "$target" "$saved"
+          trap 'cp "$saved" "$target"' EXIT
+          perl -0pi -e 's/\Qsyntax.LogosTypeArguments(e)\E/\/\/ mutation: skip confirmed function type arguments/ == 1 or die "expected one generic hook\n";' "$target"
+          if go test -count=1 -short cmd/compile/internal/types2 -run '^TestLogos(GenericTypeArgumentPositions|NestedTypeArgumentPositions|TypeArgumentIndexControls)$' > "$RUNNER_TEMP/typeargs-generic-probe.log" 2>&1; then
+            cat "$RUNNER_TEMP/typeargs-generic-probe.log"
+            exit 1
+          fi
+          cat "$RUNNER_TEMP/typeargs-generic-probe.log"
+          grep -F 'int? is not a type' "$RUNNER_TEMP/typeargs-generic-probe.log"
+          cp "$saved" "$target"
+          cmp "$saved" "$target"
+      - name: "Catch and restore a type prefix mutation"
+        run: |
+          target=cmd/compile/internal/logos/defer.go
+          saved="$RUNNER_TEMP/typeargs-defer.go.saved"
+          cp "$target" "$saved"
+          trap 'cp "$saved" "$target"' EXIT
+          perl -0pi -e 's/\Qhead := drainOwnedAt(fl.ownerOfInsertion(part.start), part.start, 0)\E/head := otext{}/ == 1 or die "expected one type prefix capture\n";' "$target"
+          if go test -count=1 -short cmd/compile/internal/logos -run '^TestNoLogosNodesSurvive$/^generic_type_arguments.lgo$' > "$RUNNER_TEMP/typeargs-prefix-probe.log" 2>&1; then
+            cat "$RUNNER_TEMP/typeargs-prefix-probe.log"
+            exit 1
+          fi
+          cat "$RUNNER_TEMP/typeargs-prefix-probe.log"
+          grep -F 'syntax error: unexpected ]' "$RUNNER_TEMP/typeargs-prefix-probe.log"
+          cp "$saved" "$target"
+          cmp "$saved" "$target"
+      - name: "Check restored component suites"
+        run: |
+          sha256sum --check --strict "$RUNNER_TEMP/typeargs-fixtures.sha256"
+          go test -count=1 -short -timeout 20m cmd/compile/internal/syntax cmd/compile/internal/types2 cmd/compile/internal/logos

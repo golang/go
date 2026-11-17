@@ -1,0 +1,31 @@
+{
+  "exit_code": 1,
+  "timed_out": false,
+  "interrupted": false,
+  "duration_seconds": 1.417,
+  "completed_utc": "2026-11-16T20:40:15.082025+00:00",
+  "stdout_sha256": "a37fac919e6db02dc93547595675131c145040748a6279a714538024a6e145a8",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "binding_after": {
+    "source": {
+      "HEAD": "e96a570da271c43a80e23bb1a188aac054acff25",
+      "HEAD:src": "e237c399aae8f8065b724e8a0e27585686c7da18"
+    },
+    "clean": true,
+    "sha256": {
+      "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/cmd/internal/goparity/parity_test.go": "1be848e4e5f94f76d3484e12b253d4eaad81990a89635a59cf59f86fa1149bb4",
+      "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/cmd/internal/goparity/testdata/run/at08_recursion_bound/main.go": "e1aa8d47d3fe4ddc0d43be98ec361c1ad2dcf9ca8711f1feaa49afc2081bc359",
+      "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/cmd/internal/goparity/testdata/mutants/at08.txt": "7e432078f7cc2a48ac4d5baaedc6f920485f2a42041a67eb83292fdff5e6db99",
+      "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/cmd/go/internal/logos/settings/settings.go": "46dac9c2495aa2aee8e3afbda984107ef1b318efa88cf2cd7aff0796d23531d5",
+      "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/cmd/compile/internal/inline/stackbuf_logos.go": "d3474e408715d3001b82ac5b8868d02ada389dd4526f4b35edfd738e46da5a7a",
+      "/workspace/scratch/9949907ca71e/recovery-evidence/parity-timeout-investigation/parity_at08_isolated_probe_test.go": "890de5c3311660070fb7e0cd02bcfb4e34bccb4c58ce6b863f9ba414a7675ebc",
+      "/workspace/scratch/9949907ca71e/recovery-evidence/parity-timeout-investigation/overlay.json": "c688b2f534bbd88e0adc79c5b6da5f3802e456ececfdabf5634088cb83198c00",
+      "/workspace/scratch/9949907ca71e/logos-final-acceptance/bin/go": "34a04896c6bdbedb2a8dbdb491b836b41e80efa47a255286733de021c776e6f9",
+      "/workspace/scratch/9949907ca71e/logos-final-acceptance/bin/logos": "34a04896c6bdbedb2a8dbdb491b836b41e80efa47a255286733de021c776e6f9",
+      "/workspace/scratch/9949907ca71e/logos-final-acceptance/pkg/tool/linux_amd64/compile": "b8d0742e328093b87fec566a68fb810d7043446ce0b575a81f304432bee87b6e",
+      "/workspace/scratch/9949907ca71e/logos-final-acceptance/pkg/tool/linux_amd64/link": "0520fc2422f2d09ccb460c856d98f624164939d4e84ec78c8331e1d0afa59729",
+      "/workspace/scratch/9949907ca71e/logos-final-acceptance/pkg/tool/linux_amd64/asm": "cf19e608ea29badc7c52e96ccddc64fb736098547dbf3bf6848c7b27a588aa3a",
+      "/workspace/scratch/9949907ca71e/logos-final-acceptance/pkg/tool/linux_amd64/cgo": "323a1c76a840a00b36a0b0b1938ecd2b403bad5fea981cffa4f717c2e0a959bd"
+    }
+  }
+}

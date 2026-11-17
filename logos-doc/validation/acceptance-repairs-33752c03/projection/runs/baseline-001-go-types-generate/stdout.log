@@ -1,0 +1,56 @@
+=== RUN   TestGenerate
+    generate_test.go:96: file on disk in /src/go/types/ is stale:
+        diff builtins.go (on disk in /src/go/types/) builtins.go (generated from /src/cmd/compile/internal/types2/)
+        --- builtins.go (on disk in /src/go/types/)
+        +++ builtins.go (generated from /src/cmd/compile/internal/types2/)
+        @@ -681,10 +681,9 @@
+         
+         	case _Panic:
+         		// panic(x)
+        -		// record panic call if inside a function with result parameters
+        -		// (for use in Checker.isTerminating)
+        -		if check.sig != nil && check.sig.results.Len() > 0 {
+        -			// function has result parameters
+        +		// Record panic calls for result-bearing function termination and
+        +		// for loGo/s option narrowing, including functions without results.
+        +		if check.sig != nil && (check.sig.results.Len() > 0 || check.conf.Logos) {
+         			p := check.isPanic
+         			if p == nil {
+         				// allocate lazily
+    generate_test.go:96: file on disk in /src/go/types/ is stale:
+        diff typestring.go (on disk in /src/go/types/) typestring.go (generated from /src/cmd/compile/internal/types2/)
+        --- typestring.go (on disk in /src/go/types/)
+        +++ typestring.go (generated from /src/cmd/compile/internal/types2/)
+        @@ -76,15 +76,16 @@
+         	paramNames   bool           // if set, write function parameter names, otherwise, write types only
+         	tpSubscripts bool           // if set, write type parameter indices as subscripts
+         	pkgInfo      bool           // package-annotate first unexported-type field to avoid confusing type description
+        +	logosCgoPkg  *Package       // original C spellings for this source package
+         }
+         
+         func newTypeWriter(buf *bytes.Buffer, qf Qualifier) *typeWriter {
+        -	return &typeWriter{buf, make(map[Type]bool), qf, nil, nil, true, false, false}
+        +	return &typeWriter{buf, make(map[Type]bool), qf, nil, nil, true, false, false, nil}
+         }
+         
+         func newTypeHasher(buf *bytes.Buffer, ctxt *Context) *typeWriter {
+         	assert(ctxt != nil)
+        -	return &typeWriter{buf, make(map[Type]bool), nil, ctxt, nil, false, false, false}
+        +	return &typeWriter{buf, make(map[Type]bool), nil, ctxt, nil, false, false, false, nil}
+         }
+         
+         func (w *typeWriter) byte(b byte) {
+        @@ -430,6 +431,9 @@
+         }
+         
+         func (w *typeWriter) typeName(obj *TypeName) {
+        +	if w.logosCgoTypeName(obj) {
+        +		return
+        +	}
+         	w.string(packagePrefix(obj.pkg, w.qf))
+         	w.string(obj.name)
+         }
+--- FAIL: TestGenerate (0.10s)
+FAIL
+FAIL	go/types	0.099s
+FAIL

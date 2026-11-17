@@ -240,7 +240,7 @@ func (e *jsonEnc) methodArg(lt types2.Type, x, p string) (string, bool) {
 }
 
 func (e *jsonEnc) zero() *jsonZero {
-	return &jsonZero{qualify: e.fl.genQualifier, pkg: e.fl.pkg.tpkg}
+	return &jsonZero{qualify: e.fl.genQualifier, pkg: e.fl.pkg.tpkg, cgoSource: e.fl.cgoSource}
 }
 
 func (e *jsonEnc) spell(t types2.Type) (string, bool) {

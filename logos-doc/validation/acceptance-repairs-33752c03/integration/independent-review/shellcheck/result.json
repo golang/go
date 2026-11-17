@@ -1,0 +1,25 @@
+{
+  "command": [
+    "/workspace/scratch/9949907ca71e/language-ci-tools/bin/shellcheck",
+    "--shell=bash",
+    "-x",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/.github/scripts/install-ci-tool.sh",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/.github/scripts/install-upstream-oracles.sh",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/.github/scripts/release-acceptance.sh"
+  ],
+  "cwd": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes",
+  "started_utc": "2026-11-16T22:25:29.034253+00:00",
+  "completed_utc": "2026-11-16T22:25:29.535035+00:00",
+  "duration_seconds": 0.501,
+  "exit_code": 0,
+  "input_sha256": {
+    ".github/scripts/install-ci-tool.sh": "8915caa9a9ebdede4dac53424ff5809321f74b9672cdcc3fe51a8bec5176cd82",
+    ".github/scripts/install-upstream-oracles.sh": "dd0c459057173097348912638bfb85bde1a8591a222cfee9335b00856f94dc21",
+    ".github/scripts/release-acceptance.sh": "168c566d73748dba15535ea57d333581df74e469e2adb0893240d8aa059ec3b5"
+  },
+  "executable_sha256": "4da528ddb3a4d1b7b24a59d4e16eb2f5fd960f4bd9a3708a15baddbdf1d5a55b",
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "input_hashes_unchanged": true,
+  "scope": "Static validation only; no Go compilation, Go test or hosted execution."
+}

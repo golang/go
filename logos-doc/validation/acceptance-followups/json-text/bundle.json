@@ -1,0 +1,19 @@
+{
+  "packaged_utc": "2026-11-16T18:09:06.436634+00:00",
+  "slice": "M11-A-S9",
+  "redteam": 419,
+  "component_source_commit": "45c29ff215477f7e403188d7452fc79aef05d791",
+  "reviewed_signature_commit": "c986384f43ed5c2b0759580d98814f2494a7bd7c",
+  "reviewed_live_commit": "8afec95580ed24e593307fd9d30d626eff31e22d",
+  "historical_files_copied_byte_for_byte": 51,
+  "historical_json_states_preserved": true,
+  "component_gates_complete": true,
+  "production_attempts": 1,
+  "new_go_execution_during_packaging": false,
+  "final_merged_source_gates_pending": true,
+  "binaries_caches_or_temp_trees_included": false,
+  "intentional_non_utf8_raw_logs": [
+    "gates/corrected-jsonv2-red/raw.log",
+    "gates/mutant-jsonv2-pointer/raw.log"
+  ]
+}

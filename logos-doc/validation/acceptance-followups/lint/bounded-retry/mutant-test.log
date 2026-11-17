@@ -1,0 +1,16 @@
+=== RUN   TestVariantFeatureSelectionReachesHelper
+=== RUN   TestVariantFeatureSelectionReachesHelper/amd64_&&_amd64.v3_&&_!amd64.v4_&&_keep
+    variant_features_test.go:117: remove variant output /home/agent/logos-eject-cleanup-9949907ca71e-IUzwJn/logoseject-variant2301529278: <nil>
+=== RUN   TestVariantFeatureSelectionReachesHelper/amd64_&&_!amd64.v2_&&_keep
+    variant_features_test.go:117: remove variant output /home/agent/logos-eject-cleanup-9949907ca71e-IUzwJn/logoseject-variant177890858: <nil>
+=== RUN   TestVariantFeatureSelectionReachesHelper/arm64_&&_arm64.v9.1_&&_!amd64.v1_&&_keep
+    variant_features_test.go:117: remove variant output /home/agent/logos-eject-cleanup-9949907ca71e-IUzwJn/logoseject-variant1103549379: <nil>
+=== RUN   TestVariantFeatureSelectionReachesHelper/386_&&_!goexperiment.regabiargs_&&_keep
+    variant_features_test.go:117: remove variant output /home/agent/logos-eject-cleanup-9949907ca71e-IUzwJn/logoseject-variant3874420174: <nil>
+--- FAIL: TestVariantFeatureSelectionReachesHelper (4.15s)
+    --- FAIL: TestVariantFeatureSelectionReachesHelper/amd64_&&_amd64.v3_&&_!amd64.v4_&&_keep (1.03s)
+    --- FAIL: TestVariantFeatureSelectionReachesHelper/amd64_&&_!amd64.v2_&&_keep (1.03s)
+    --- FAIL: TestVariantFeatureSelectionReachesHelper/arm64_&&_arm64.v9.1_&&_!amd64.v1_&&_keep (1.05s)
+    --- FAIL: TestVariantFeatureSelectionReachesHelper/386_&&_!goexperiment.regabiargs_&&_keep (1.04s)
+FAIL
+elapsed 4.190 seconds

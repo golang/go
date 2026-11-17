@@ -1,0 +1,41 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cp $GOROOT/test/logos/run/generic_type_arguments.lgo behavior/main.lgo
+cp behavior/main.lgo original.lgo.txt
+cd behavior
+logos run .
+cmp stdout $GOROOT/test/logos/run/generic_type_arguments.out
+logos eject -o ../behavior-out
+cmp main.lgo ../original.lgo.txt
+cd ../behavior-out
+grep -count=1 'type-slot-comment' main.go
+go run .
+cmp stdout $GOROOT/test/logos/run/generic_type_arguments.out
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/generic_type_arguments.out
+exec env -u GOROOT $UPROOT1273/bin/go run .
+cmp stdout $GOROOT/test/logos/run/generic_type_arguments.out
+
+cd ../controls
+cp $GOROOT/test/logos/run/generic_type_argument_index_controls.lgo main.lgo
+logos run .
+cmp stdout $GOROOT/test/logos/run/generic_type_argument_index_controls.out
+logos eject -o ../controls-out
+cd ../controls-out
+go run .
+cmp stdout $GOROOT/test/logos/run/generic_type_argument_index_controls.out
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/generic_type_argument_index_controls.out
+exec env -u GOROOT $UPROOT1273/bin/go run .
+cmp stdout $GOROOT/test/logos/run/generic_type_argument_index_controls.out
+
+-- behavior/go.mod --
+module example.com/typearguments
+
+go 1.27
+
+-- controls/go.mod --
+module example.com/indexcontrols
+
+go 1.27

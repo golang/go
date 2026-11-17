@@ -106,9 +106,10 @@ func basicEmptyTest(b *types2.Basic, x string) string {
 }
 
 type jsonZero struct {
-	qualify func(*types2.Package) string
-	pkg     *types2.Package
-	depth   int
+	qualify   func(*types2.Package) string
+	pkg       *types2.Package
+	depth     int
+	cgoSource bool
 }
 
 func (z *jsonZero) zeroTest(t types2.Type, x, addr string) string {
@@ -143,7 +144,7 @@ func (z *jsonZero) interfaceZero(lt types2.Type, x string) string {
 	for _, m := range members {
 		if m.Type != nil {
 			if _, isPtr := types2.Unalias(m.Type).(*types2.Pointer); isPtr {
-				tests = append(tests, x+" == ("+types2.TypeString(m.Type, z.qualify)+")(nil)")
+				tests = append(tests, x+" == ("+sourceTypeString(m.Type, z.qualify, z.pkg, z.cgoSource)+")(nil)")
 			}
 			continue
 		}
@@ -276,7 +277,7 @@ func (z *jsonZero) layoutStruct(sizes types2.Sizes, st *types2.Struct, off strin
 }
 
 func (g *marshalGen) zero() *jsonZero {
-	return &jsonZero{qualify: g.js.qualify, pkg: g.js.holderPkg}
+	return &jsonZero{qualify: g.js.qualify, pkg: g.js.holderPkg, cgoSource: g.js.cgoSource}
 }
 
 type jsonOmitOpts struct {

@@ -1,0 +1,81 @@
+{
+  "assembled_utc": "2026-11-16T22:26:55.214308+00:00",
+  "status": "PASS",
+  "source_tree": "33752c03819ed5afcb37f87633a3cac668e181a8",
+  "ready_head": "0a8eef6bab7d85e89e8e3efd0b933d73e78dff79",
+  "boundary": "Independent file/static audit of frozen uncommitted metadata integration. No Go command, main edit, commit or ref mutation. Remaining behavioral gates are not inferred.",
+  "files": {
+    "CHECKLIST.md": {
+      "sha256": "faf84c6b3b26534ee67256ee30d0c8fd493c2d8af8f10d5b095477228cd4d432",
+      "bytes": 9340
+    },
+    "REVIEW.md": {
+      "sha256": "9fe64bd57ceca91061236b706581ae1791fa69157cd1b365ba28534c0d62ecc0",
+      "bytes": 5526
+    },
+    "actionlint/result.json": {
+      "sha256": "4fdff913978e6965769d2825dc2ff040497e4e70c0f5e120b42ec58f4755722c",
+      "bytes": 2645
+    },
+    "actionlint/stderr.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "actionlint/stdout.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "audit_metadata.py": {
+      "sha256": "9a00ba9046ca0adddf312bc83070633ef43355df8e4fab8575284bb9c3dc7b47",
+      "bytes": 8473
+    },
+    "contract/result.json": {
+      "sha256": "3a4fc69f3d7d688217e1b502699acc5ffda426f5c3f717d08d24daa4d54cce38",
+      "bytes": 1422
+    },
+    "contract/stderr.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "contract/stdout.log": {
+      "sha256": "d38ee45005626d1ffad74168cfebb630e99990b74c70da72f31cdbea09e812f7",
+      "bytes": 507
+    },
+    "files.sha256": {
+      "sha256": "638c5867b394ae6201f23db9c1a4353732ad3e537a5aaf10146b1d25afbf6f92",
+      "bytes": 1447
+    },
+    "final-input-check.json": {
+      "sha256": "e67dbcf0853d656de402c4d4dc7370551e19f06e00d607576b752b1a7ff2491c",
+      "bytes": 332
+    },
+    "inputs.json": {
+      "sha256": "9699fc142b2a69a86c93965c848dcee52d89df79cd29834b0336371569fc446b",
+      "bytes": 6126
+    },
+    "metadata-result.json": {
+      "sha256": "08b15c545d05e893c6957832c0e4af8962ad0b27ec38c98c7c055ffb0b2f6d62",
+      "bytes": 1694
+    },
+    "run_static.py": {
+      "sha256": "750c2999487216b5dd22fa809e6ef64508d2271fab7cceaab3066bb2ae1923a9",
+      "bytes": 3044
+    },
+    "shellcheck/result.json": {
+      "sha256": "66d35df58c1a88a750d5bbf71f3e5ac6a30ee1cb8cb751ccfb8a7e8d7d606735",
+      "bytes": 1400
+    },
+    "shellcheck/stderr.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "shellcheck/stdout.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "tool-versions.json": {
+      "sha256": "79dbdbecec3a085b660cf0392a0cd0833e067c8218523a23e8e0060bf9835b4c",
+      "bytes": 817
+    }
+  }
+}

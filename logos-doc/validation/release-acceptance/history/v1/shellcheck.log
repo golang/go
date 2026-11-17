@@ -1,0 +1,7 @@
+recovery-evidence/hosted-release-proposal/candidate/.github/scripts/release-acceptance.sh:48:29: warning: This { is literal. Check expression (missing ;/\n?) or quote it. [SC1083]
+recovery-evidence/hosted-release-proposal/candidate/.github/scripts/release-acceptance.sh:48:34: warning: This } is literal. Check expression (missing ;/\n?) or quote it. [SC1083]
+recovery-evidence/hosted-release-proposal/candidate/.github/scripts/release-acceptance.sh:299:12: note: Expressions don't expand in single quotes, use double quotes for that. [SC2016]
+recovery-evidence/hosted-release-proposal/candidate/.github/scripts/release-acceptance.sh:300:12: note: Expressions don't expand in single quotes, use double quotes for that. [SC2016]
+recovery-evidence/hosted-release-proposal/candidate/.github/scripts/release-acceptance.sh:301:11: note: Expressions don't expand in single quotes, use double quotes for that. [SC2016]
+recovery-evidence/hosted-release-proposal/candidate/.github/scripts/release-acceptance.sh:328:26: note: Make sure not to read and write the same file in the same pipeline. [SC2094]
+recovery-evidence/hosted-release-proposal/candidate/.github/scripts/release-acceptance.sh:328:83: note: Make sure not to read and write the same file in the same pipeline. [SC2094]

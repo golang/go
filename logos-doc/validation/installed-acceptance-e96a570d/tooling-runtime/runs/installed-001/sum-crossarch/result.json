@@ -1,0 +1,19 @@
+{
+  "name": "sum-crossarch",
+  "finished_utc": "2026-11-16T19:00:23.410Z",
+  "exit_code": 0,
+  "signal": null,
+  "seconds": 10.432213,
+  "raw_log_sha256": "f680b45bf4548cd9f7aecd0ce5f72da14b6ebc1621586733d2ca4caf838a8770",
+  "passed_tests": [
+    "TestScript",
+    "TestScript/logos_sum_crossarch"
+  ],
+  "skipped_tests": [],
+  "failed_tests": [],
+  "missing_tests": [],
+  "observations": {
+    "qemuExecutionObserved": true,
+    "nativeArm64ComparisonObserved": true
+  }
+}

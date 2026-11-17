@@ -1,0 +1,1 @@
+{"command":"eject-cleanup-mutant.test -test.v -test.count=1 -test.short -test.run=^TestVariantFeatureSelectionReachesHelper$ -test.timeout=1m","startedUTC":"2026-11-16T18:06:06Z","exit":1,"wallSeconds":4,"timeoutSeconds":75,"sourceTemp":"/home/agent/logos-eject-cleanup-9949907ca71e-IUzwJn"}

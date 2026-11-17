@@ -1,0 +1,18 @@
+{
+  "correction": "The five failing old Go O1 security families start with TestCheckGCCSpecFiles, not TestCheckLinkerSysrootFlags.",
+  "original_memo_sha256": "844a6181e5e82123585baaa78944f29c9ed6b6257e96babda3d2eb6ffb495b89",
+  "actual_failed_tests": [
+    "TestCheckGCCSpecFiles",
+    "TestCheckLinkerWlFlags",
+    "TestCheckLinkerInputFiles",
+    "TestCheckLinkerCOFFDrectve",
+    "TestCheckLinkerObjectSections"
+  ],
+  "native_gate": "environment-linker-security-001 covers all five plus TestCheckLinkerFlags and TestCheckLinkerSysrootFlags; all seven pass without skips.",
+  "impact": "Evidence-label correction only. The frozen test, candidate, and actual native gate are unchanged.",
+  "excerpt": {
+    "file": "hosted/gcc-spec-failure-excerpt.log",
+    "source_first_line": 886,
+    "source_last_line": 904
+  }
+}

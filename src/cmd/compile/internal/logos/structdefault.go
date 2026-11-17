@@ -56,24 +56,34 @@ type structDefault struct {
 }
 
 func (fl *fileLower) fillStructDefaults(lit *syntax.CompositeLit) {
+	if fl.hasSpread(lit) {
+		// Spread lowering emits its initializer and its text together. A
+		// generated default has no source span to reuse as a spread operand.
+		return
+	}
 	missing := fl.missingDefaults(lit)
 	if len(missing) == 0 {
 		return
 	}
-	var text strings.Builder
-	var native []syntax.Expr
-	for _, d := range missing {
-		value := fl.reparseDefault(d.text, lit.Pos())
-		native = append(native, at(&syntax.KeyValueExpr{
-			Key:   nameOf(lit.Pos(), d.field),
-			Value: value,
-		}, lit.Pos()))
-		text.WriteString(d.field + ": " + d.text + ", ")
-	}
+	native, text := fl.structDefaultFields(lit.Pos(), missing)
 	lit.ElemList = append(native, lit.ElemList...)
 	lit.NKeys += len(native)
 	brace := fl.literalBrace(lit)
-	fl.add(brace+1, brace+1, text.String())
+	fl.add(brace+1, brace+1, text)
+}
+
+func (fl *fileLower) structDefaultFields(pos syntax.Pos, defaults []structDefault) ([]syntax.Expr, string) {
+	var text strings.Builder
+	var native []syntax.Expr
+	for _, d := range defaults {
+		value := fl.reparseDefault(d.text, pos)
+		native = append(native, at(&syntax.KeyValueExpr{
+			Key:   nameOf(pos, d.field),
+			Value: value,
+		}, pos))
+		text.WriteString(d.field + ": " + d.text + ", ")
+	}
+	return native, text.String()
 }
 
 func (fl *fileLower) missingDefaults(lit *syntax.CompositeLit) []structDefault {
@@ -86,7 +96,15 @@ func (fl *fileLower) missingDefaults(lit *syntax.CompositeLit) []structDefault {
 		return nil
 	}
 	present := make(map[string]bool)
+	for _, spread := range fl.pkg.info.LogosSpreads[lit] {
+		for _, name := range spread.Fields {
+			present[name] = true
+		}
+	}
 	for _, e := range lit.ElemList {
+		if _, ok := e.(*syntax.SpreadExpr); ok {
+			continue
+		}
 		kv, ok := syntax.Unparen(e).(*syntax.KeyValueExpr)
 		if !ok {
 			return nil

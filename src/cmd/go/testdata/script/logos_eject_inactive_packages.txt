@@ -1,0 +1,155 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOOS=linux
+env GOARCH=amd64
+env GOAMD64=v1
+env CGO_ENABLED=0
+
+cd m
+logos eject -o out
+exists out/winonly/value_windows.go
+exists out/winleaf/value_windows.go
+exists out/archonly/value_arm64.go
+exists out/tagonly/value.go
+exists out/onlytests/value_windows_test.go
+exists out/_logos_deps/example.com/dependency@v1.0.0/value_windows.go
+exists out/_logos_deps/example.com/dependency@v1.0.0/nested/value_arm64.go
+! exists out/testdata/ignored_windows.go
+! exists out/_scratch/ignored_windows.go
+! exists out/.hidden/ignored_windows.go
+! exists out/nestedmodule/ignored_windows.go
+! exists out/ignored.go
+grep 'example.com/dependency v1.0.0 => ./_logos_deps/example.com/dependency@v1.0.0' out/go.mod
+cd out
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+exec env -u GOROOT $UPROOT1272/bin/go build -tags=eject_extra ./...
+env GOOS=windows
+exec env -u GOROOT $UPROOT1272/bin/go list ./winonly ./winleaf ./onlytests
+stdout '^example.com/inactive/winonly$'
+stdout '^example.com/inactive/winleaf$'
+stdout '^example.com/inactive/onlytests$'
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+env GOOS=linux
+env GOARCH=arm64
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+exec env -u GOROOT $UPROOT1272/bin/go build example.com/dependency/nested
+cd ../..
+
+# A module with no host-selected package still has a complete eject.
+env GOARCH=amd64
+cd emptyhost
+logos eject -o out
+exists out/value_windows.go
+cd out
+env GOOS=windows
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+
+-- m/go.mod --
+module example.com/inactive
+
+go 1.27
+
+require example.com/dependency v1.0.0
+
+replace example.com/dependency => ../dependency
+
+-- m/main.lgo --
+package inactive
+
+func Host() int { return 1 }
+
+-- m/winonly/value_windows.lgo --
+package winonly
+
+import (
+	"example.com/dependency"
+	"example.com/inactive/winleaf"
+)
+
+func Value() int { return winleaf.Value() + dependency.Value() }
+
+-- m/winleaf/value_windows.lgo --
+package winleaf
+
+func Value() int { return 20 }
+
+-- m/archonly/value_arm64.lgo --
+package archonly
+
+func Value() int { return 64 }
+
+-- m/tagonly/value.lgo --
+//go:build eject_extra
+
+package tagonly
+
+func Value() int { return 7 }
+
+-- m/onlytests/value_windows_test.lgo --
+package onlytests
+
+import "testing"
+
+func TestValue(t *testing.T) {
+	var value int? = 42
+	if (value ?? 0) != 42 {
+		t.Fatal("option value changed")
+	}
+}
+
+-- m/ignored.lgo --
+//go:build ignore
+
+package ignored
+
+func Broken() { noSuchName() }
+
+-- m/testdata/ignored_windows.lgo --
+package ignored
+
+func Broken() { noSuchName() }
+
+-- m/_scratch/ignored_windows.lgo --
+package ignored
+
+func Broken() { noSuchName() }
+
+-- m/.hidden/ignored_windows.lgo --
+package ignored
+
+func Broken() { noSuchName() }
+
+-- m/nestedmodule/go.mod --
+module example.com/separate
+
+go 1.27
+
+-- m/nestedmodule/ignored_windows.lgo --
+package ignored
+
+func Broken() { noSuchName() }
+
+-- dependency/go.mod --
+module example.com/dependency
+
+go 1.27
+
+-- dependency/value_windows.lgo --
+package dependency
+
+func Value() int { return 22 }
+
+-- dependency/nested/value_arm64.lgo --
+package nested
+
+func Value() int { return 64 }
+
+-- emptyhost/go.mod --
+module example.com/emptyhost
+
+go 1.27
+
+-- emptyhost/value_windows.lgo --
+package emptyhost
+
+func Value() int { return 42 }

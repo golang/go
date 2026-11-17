@@ -1,0 +1,18 @@
+{
+  "base_commit": "45c29ff215477f7e403188d7452fc79aef05d791",
+  "original_patch_sha256": "8657405d111d316e58c754fc8b6aa27281c88ccc5915a45055f30273be2c681f",
+  "original_branchless_tree": "3912153cc5c66fec2783828cecc9651dab39249b",
+  "corrected_patch_sha256": "8588c088e140b104ebe1ebf08f8f87b9ae748130d8f8e931250531d4483ba251",
+  "changed_file": "src/logos/rt/json/stream_v2_test.go",
+  "base_file_sha256": "e1abf7432d9ef84e5b1795fdc48076a050775ab580f9e6083afd94bcdd76b6dc",
+  "candidate_file_sha256": "08729986d528dd8a0c003893b0069639b5f3d7201b122a4105be162bfa088232",
+  "candidate_git_blob": "f4ada6bf7f75061701503ed5ec61a404dee9ac4b",
+  "append_block_sha256": "a3c011c29f7a76988be7d246888408f92db894e5b27b3a3696700c7baff6c8cd",
+  "permissive_block_sha256": "cd7ce3f9f4b541616f149ef9174617bcd6b1d5869ec7f8d5650c38300ee2c8a0",
+  "assertions_or_inputs_changed": false,
+  "existing_helpers_or_tests_changed": false,
+  "production_changed": false,
+  "setup_correction": "Move the exact append helper/test to the jsonv2-tagged stream_v2_test.go; preserve the original untagged proposal for its once-only classic setup-failure observation.",
+  "git_apply_check_exit": 0,
+  "go_commands_executed": false
+}

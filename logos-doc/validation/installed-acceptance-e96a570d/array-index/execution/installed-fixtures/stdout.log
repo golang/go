@@ -1,0 +1,24 @@
+{"Time":"2026-11-17T03:51:07.013966403+09:00","Action":"start","Package":"cmd/internal/testdir"}
+{"Time":"2026-11-17T03:51:07.016234+09:00","Action":"run","Package":"cmd/internal/testdir","Test":"Test"}
+{"Time":"2026-11-17T03:51:07.016276593+09:00","Action":"output","Package":"cmd/internal/testdir","Test":"Test","Output":"=== RUN   Test\n","OutputType":"frame"}
+{"Time":"2026-11-17T03:51:07.360331838+09:00","Action":"run","Package":"cmd/internal/testdir","Test":"Test/logos/lint/array_index_out_of_bounds.lgo"}
+{"Time":"2026-11-17T03:51:07.360907013+09:00","Action":"output","Package":"cmd/internal/testdir","Test":"Test/logos/lint/array_index_out_of_bounds.lgo","Output":"=== RUN   Test/logos/lint/array_index_out_of_bounds.lgo\n","OutputType":"frame"}
+{"Time":"2026-11-17T03:51:07.361080326+09:00","Action":"output","Package":"cmd/internal/testdir","Test":"Test/logos/lint/array_index_out_of_bounds.lgo","Output":"=== PAUSE Test/logos/lint/array_index_out_of_bounds.lgo\n","OutputType":"frame"}
+{"Time":"2026-11-17T03:51:07.361085231+09:00","Action":"pause","Package":"cmd/internal/testdir","Test":"Test/logos/lint/array_index_out_of_bounds.lgo"}
+{"Time":"2026-11-17T03:51:07.361088361+09:00","Action":"run","Package":"cmd/internal/testdir","Test":"Test/logos/lint/array_index_out_of_bounds_go.go"}
+{"Time":"2026-11-17T03:51:07.361091096+09:00","Action":"output","Package":"cmd/internal/testdir","Test":"Test/logos/lint/array_index_out_of_bounds_go.go","Output":"=== RUN   Test/logos/lint/array_index_out_of_bounds_go.go\n","OutputType":"frame"}
+{"Time":"2026-11-17T03:51:07.361322079+09:00","Action":"output","Package":"cmd/internal/testdir","Test":"Test/logos/lint/array_index_out_of_bounds_go.go","Output":"=== PAUSE Test/logos/lint/array_index_out_of_bounds_go.go\n","OutputType":"frame"}
+{"Time":"2026-11-17T03:51:07.361327597+09:00","Action":"pause","Package":"cmd/internal/testdir","Test":"Test/logos/lint/array_index_out_of_bounds_go.go"}
+{"Time":"2026-11-17T03:51:07.375577293+09:00","Action":"cont","Package":"cmd/internal/testdir","Test":"Test/logos/lint/array_index_out_of_bounds.lgo"}
+{"Time":"2026-11-17T03:51:07.375607922+09:00","Action":"output","Package":"cmd/internal/testdir","Test":"Test/logos/lint/array_index_out_of_bounds.lgo","Output":"=== CONT  Test/logos/lint/array_index_out_of_bounds.lgo\n","OutputType":"frame"}
+{"Time":"2026-11-17T03:52:30.575887742+09:00","Action":"output","Package":"cmd/internal/testdir","Test":"Test/logos/lint/array_index_out_of_bounds.lgo","Output":"--- PASS: Test/logos/lint/array_index_out_of_bounds.lgo (83.20s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T03:52:30.577339668+09:00","Action":"pass","Package":"cmd/internal/testdir","Test":"Test/logos/lint/array_index_out_of_bounds.lgo","Elapsed":83.2}
+{"Time":"2026-11-17T03:52:30.57769932+09:00","Action":"cont","Package":"cmd/internal/testdir","Test":"Test/logos/lint/array_index_out_of_bounds_go.go"}
+{"Time":"2026-11-17T03:52:30.57772573+09:00","Action":"output","Package":"cmd/internal/testdir","Test":"Test/logos/lint/array_index_out_of_bounds_go.go","Output":"=== CONT  Test/logos/lint/array_index_out_of_bounds_go.go\n","OutputType":"frame"}
+{"Time":"2026-11-17T03:52:30.589860983+09:00","Action":"output","Package":"cmd/internal/testdir","Test":"Test/logos/lint/array_index_out_of_bounds_go.go","Output":"--- PASS: Test/logos/lint/array_index_out_of_bounds_go.go (0.02s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T03:52:30.589967223+09:00","Action":"pass","Package":"cmd/internal/testdir","Test":"Test/logos/lint/array_index_out_of_bounds_go.go","Elapsed":0.02}
+{"Time":"2026-11-17T03:52:30.589972957+09:00","Action":"output","Package":"cmd/internal/testdir","Test":"Test","Output":"--- PASS: Test (0.35s)\n","OutputType":"frame"}
+{"Time":"2026-11-17T03:52:30.589979641+09:00","Action":"pass","Package":"cmd/internal/testdir","Test":"Test","Elapsed":0.35}
+{"Time":"2026-11-17T03:52:30.590036348+09:00","Action":"output","Package":"cmd/internal/testdir","Output":"PASS\n","OutputType":"frame"}
+{"Time":"2026-11-17T03:52:30.591859157+09:00","Action":"output","Package":"cmd/internal/testdir","Output":"ok  \tcmd/internal/testdir\t83.577s\n"}
+{"Time":"2026-11-17T03:52:30.592076214+09:00","Action":"pass","Package":"cmd/internal/testdir","Elapsed":83.578}

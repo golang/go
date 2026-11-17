@@ -1,0 +1,8 @@
+kind: runtime
+file: src/runtime/arena_logos.go
+expect: at06_finalizer_make
+config: K5
+-- old --
+if goexperiment.LogosArena && inLogosArenaChunk(uintptr(p)) {
+-- new --
+if goexperiment.LogosArena && !inLogosArenaChunk(uintptr(p)) {

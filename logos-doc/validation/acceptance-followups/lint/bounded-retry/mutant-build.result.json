@@ -1,0 +1,1 @@
+{"command":"go test -c -race -overlay=cleanup-mutant/overlay.json cmd/go/internal/logos/eject","startedUTC":"2026-11-16T18:05:36Z","exit":0,"wallSeconds":4,"timeoutSeconds":300,"killAfterSeconds":10}

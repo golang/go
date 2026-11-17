@@ -1,0 +1,16 @@
+{
+  "recorded_utc": "2026-11-16T21:44:12.889426+00:00",
+  "previous_interrupted_run": "/workspace/scratch/9949907ca71e/recovery-evidence/fresh-make-repair-33752c03",
+  "previous_interruption_sha256": "fdb37e60f7a9315011e1e64ad0208c99ca988e9f0deefa64235beac0254d13c4",
+  "removed_reproducible_build_intermediates": [
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/pkg/obj",
+    "/workspace/scratch/9949907ca71e/repair-build-cache",
+    "/workspace/scratch/9949907ca71e/repair-build-tmp",
+    "/workspace/scratch/9949907ca71e/repair-build-gopath"
+  ],
+  "new_runner": "/workspace/scratch/9949907ca71e/recovery-evidence/run-repair-make-002.py",
+  "new_runner_sha256": "decf2e2d0b3d4217711c4274dee82d0c9bd88735f70f791367cf04c3271f5eb4",
+  "environment_change": "Bounded build concurrency rises from1 to2; compiler c=1, GC20, memorylimit512MiB and normal final PGO/dist cleanup remain. Execution interruption did not change implementation or attacks.",
+  "candidate_attempt": 1,
+  "source_tree": "33752c03819ed5afcb37f87633a3cac668e181a8"
+}

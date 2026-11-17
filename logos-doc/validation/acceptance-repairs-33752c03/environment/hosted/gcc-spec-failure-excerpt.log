@@ -1,0 +1,19 @@
+2026-11-16T20:48:04.8501900Z --- FAIL: TestCheckGCCSpecFiles (0.00s)
+2026-11-16T20:48:04.8502523Z     security_test.go:447: expected error for GCC spec file in ["-L/home/runner/work/_temp/logos-release-optimization/go-tmp/TestCheckGCCSpecFiles4172305953/002" "-fopenmp"], got nil
+2026-11-16T20:48:04.8503445Z     security_test.go:447: expected error for GCC spec file in ["-L" "/home/runner/work/_temp/logos-release-optimization/go-tmp/TestCheckGCCSpecFiles4172305953/002" "-fopenmp"], got nil
+2026-11-16T20:48:04.8504399Z     security_test.go:447: expected error for GCC spec file in ["-L=/home/runner/work/_temp/logos-release-optimization/go-tmp/TestCheckGCCSpecFiles4172305953/002" "-fopenmp"], got nil
+2026-11-16T20:48:04.8505294Z     security_test.go:447: expected error for GCC spec file in ["-L$SYSROOT/home/runner/work/_temp/logos-release-optimization/go-tmp/TestCheckGCCSpecFiles4172305953/002" "-fopenmp"], got nil
+2026-11-16T20:48:04.8506241Z     security_test.go:447: expected error for GCC spec file in ["-isysroot" "/home/runner/work/_temp/logos-release-optimization/go-tmp/TestCheckGCCSpecFiles4172305953/002" "-fopenmp"], got nil
+2026-11-16T20:48:04.8507147Z     security_test.go:447: expected error for GCC spec file in ["-Wl,-syslibroot,/home/runner/work/_temp/logos-release-optimization/go-tmp/TestCheckGCCSpecFiles4172305953/002" "-fopenmp"], got nil
+2026-11-16T20:48:04.8508110Z     security_test.go:447: expected error for GCC spec file in ["-Wl,--push-state,-syslibroot=/home/runner/work/_temp/logos-release-optimization/go-tmp/TestCheckGCCSpecFiles4172305953/002" "-fopenmp"], got nil
+2026-11-16T20:48:04.8508857Z     security_test.go:461: expected error for nested spec file in -L directory, got nil
+2026-11-16T20:48:04.8509305Z     security_test.go:479: expected error for multilib sibling spec file in ../lib64, got nil
+2026-11-16T20:48:04.8509823Z     security_test.go:482: expected error for multilib sibling spec file via nonexistent child dir, got nil
+2026-11-16T20:48:04.8510482Z     security_test.go:491: expected error for symlinked -L directory containing spec file, got nil
+2026-11-16T20:48:04.8511019Z     security_test.go:494: expected error for -L directory with subdirectory symlink to spec file, got nil
+2026-11-16T20:48:04.8511670Z     security_test.go:501: expected error for symlinked -L directory with multilib sibling spec file, got nil
+2026-11-16T20:48:04.8512255Z     security_test.go:527: expected error for ["-fsanitize=undefined" "-static-libubsan"] with spec file in CWD and no -L, got nil
+2026-11-16T20:48:04.8512878Z     security_test.go:527: expected error for ["-fsanitize=address" "-static"] with spec file in CWD and no -L, got nil
+2026-11-16T20:48:04.8513408Z     security_test.go:527: expected error for ["-fopenmp"] with spec file in CWD and no -L, got nil
+2026-11-16T20:48:04.8513863Z --- FAIL: TestCheckLinkerWlFlags (0.00s)
+2026-11-16T20:48:04.8514428Z     security_test.go:605: missing error for ["-Wl,--just-symbols=/home/runner/work/_temp/logos-release-optimization/go-tmp/TestCheckLinkerWlFlags1394633866/001/script.ld"]

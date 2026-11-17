@@ -1,0 +1,11 @@
+--- frozen/rule_array_index_out_of_bounds.go
++++ mutation/rule_array_index_out_of_bounds.go
+@@ -54,7 +54,7 @@
+ 		}
+ 		for _, value := range arrayIndexWitnesses(sizes, param, array.Len()) {
+ 			proof := arrayIndexProof{pass: pass, target: index, param: param, value: value}
+-			if proof.block(fn.Body.List) == arrayIndexReached {
++			if proof.block(fn.Body.List) != arrayIndexReached {
+ 				pass.Reportf(index.Index, "index %s can be %s at this access, outside the array's bounds [0, %d)",
+ 					param.Name(), value.ExactString(), array.Len())
+ 				break

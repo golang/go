@@ -1,0 +1,95 @@
+{
+  "review_commit": "e96a570da271c43a80e23bb1a188aac054acff25",
+  "review_tree": "0841c3d2a92b7d6091a5e248b82bd820326947a8",
+  "review_src_tree": "e237c399aae8f8065b724e8a0e27585686c7da18",
+  "source_clean": true,
+  "current_files": {
+    "AGENTS.md": {
+      "git_blob": "2fe252a8985e4e53dd4b49a47f4123e7af92b822",
+      "sha256": "2ac3e20747de292c9c180aeb38c1d9e7b9bf722c6080fe3440f4eaf5df33dcb4"
+    },
+    "logos-doc/SPEC.md": {
+      "git_blob": "0468beecc850ba775a9969cd7a6d9891f2204321",
+      "sha256": "a3aa81dc833cf232637cf47634c775d7437e504a26102155c461d77dfbd9ae05"
+    },
+    "logos-doc/IMPLEMENTATION.md": {
+      "git_blob": "411abe93f581bbcea2117b7261bd12f7d271c846",
+      "sha256": "7af5a85013661a9e64b786276a41c2920c4bc7541acc550a173ac0ec63e7c085"
+    },
+    "logos-doc/REDTEAM.md": {
+      "git_blob": "1e6edd97203875c901c505ae2e4e46242ef83991",
+      "sha256": "fdae63c02b99e89e142870b36f15a5bb7871ad7c6892717e155a0c6cbcc0bc04"
+    },
+    "logos-doc/DEFAULT-VALIDATION-GATE.md": {
+      "git_blob": "7adace0f9a49e5fced3920ae7ef44baf4ae12888",
+      "sha256": "5f6cbaab723a5a9567a6d9cde59dd1f4e568c7fe68866c390452f718ba7a7a08"
+    },
+    "logos-doc/blocked/M6-S3b.patch": {
+      "git_blob": "8f10f61a018c241511b2967b1ef411978bd0e88f",
+      "sha256": "3d1bd84ac779294170db7d8e5e3d6403d005be31b94a634f5f9e4a16ae37d012"
+    },
+    "src/cmd/compile/internal/logos/structdefault.go": {
+      "git_blob": "75bb3545eb8e5c0387716936f93fefc8fffd3d9c",
+      "sha256": "755f4f44928e615ae1156c2ce366a8242bbbc018b675772c901c657bad4a5879"
+    },
+    "src/cmd/compile/internal/logos/build.go": {
+      "git_blob": "9284b498267c8d0c019b489a431419fc4686754d",
+      "sha256": "55c2112b0e79d26c53b09dac74f17d7fdbda85809685c621c58add77b92586fa"
+    },
+    "src/cmd/compile/internal/logos/spread.go": {
+      "git_blob": "aae396c4a476e401d2484cf013b387edb26df678",
+      "sha256": "44bbe4c58ed04567a6b40fff424e7b4434c4f62eb54b1a4e36dcbc673e830130"
+    },
+    "src/cmd/compile/internal/logos/chains.go": {
+      "git_blob": "d0f5f7b9ab76f4bd9c8e82b8f164cd0724337612",
+      "sha256": "f5622e77ce287f00d337d9a050e73f2a7142109588a969a7bcd244bc57d0a5f0"
+    },
+    "src/cmd/compile/internal/logos/facts/write_default.go": {
+      "git_blob": "51a4cf03a9d3a784c5f4b7d3985fb347b85cbe9a",
+      "sha256": "0045f96a316def7ce6b4fae5059ee2d318720883945d23ee09f7c37731d2d48e"
+    },
+    "src/cmd/compile/internal/logos/facts/facts.go": {
+      "git_blob": "03d9184cf42b1da5b20f6e9905f30f59335ffd6a",
+      "sha256": "614425cdeb7a9f353d273008959616b332595a15391a3202fe7baa95c9afd29a"
+    },
+    "src/cmd/compile/internal/types2/structdefault_logos.go": {
+      "git_blob": "d5c2df60fa7f99199abb04851ee51837349d3002",
+      "sha256": "372cf9b49f21ef4698d1be739544d1f07d5dce2917267892b067005f6576d645"
+    },
+    "src/cmd/compile/internal/types2/api.go": {
+      "git_blob": "a865467f5b495311ad1abf739b489e6ba36557c5",
+      "sha256": "97aea84967f361a3dd369aa65f70227b2ce2c942b77d31794822f9f06c078f56"
+    },
+    "src/cmd/compile/internal/noder/irgen.go": {
+      "git_blob": "d2e49979c5be865dab751cb590e2040a1ef237e1",
+      "sha256": "b4438bd0a04854858cc715ed728f4a5832fca957e2f0dc3a7f8b210ee489a9c2"
+    },
+    "src/cmd/compile/internal/syntax/type.go": {
+      "git_blob": "0be7e250ee25625cc4ab8d12a635c9c87f05a4e6",
+      "sha256": "cf198a9e3d8385e14d486aa420586a0584bde44da90a736567c9432a2c71f3bb"
+    }
+  },
+  "historical_objects": [
+    {
+      "commit": "96a5a8cc599cbcc55263d32c4ceb2348abc6f0fd",
+      "path": "logos-doc/DEFAULT-BINDINGS.md",
+      "git_blob": "96412be5bdbb24d3f2884b8d9bf24b134c671ba7",
+      "sha256": "ca72d5f9b0ca6ef58fd0894e3cb1b8112dcdf3bcb14e3aea29ade87b5c857709",
+      "bytes": 23839,
+      "copied_as": "historical/DEFAULT-BINDINGS.md"
+    },
+    {
+      "commit": "96a5a8cc599cbcc55263d32c4ceb2348abc6f0fd",
+      "path": "logos-doc/benchmarks/struct-default-allocations.lgo",
+      "git_blob": "4896621da70f3d9543e391be5079161e502b5dbb",
+      "sha256": "6cb0f0c37c863e8382c3b5aa07e1e834c445e71735c4064c80dfe08d1b03f051",
+      "bytes": 1353,
+      "copied_as": "historical/struct-default-allocations.lgo"
+    }
+  ],
+  "raw_historical_logs_recovered": false,
+  "go_commands_run": 0,
+  "source_or_test_edits": false,
+  "production_attempts_started": 0,
+  "exception_authorized": false
+}

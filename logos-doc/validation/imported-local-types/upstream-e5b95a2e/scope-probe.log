@@ -1,0 +1,60 @@
+--- FAIL: TestFactScopeLeavesCompilerSymbolsLazy (0.00s)
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/local·1/functions (0.00s)
+        optfacts_scope_test.go:37: resolved compiler-only symbol "local·1" during functions
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/local·1/readonly (0.00s)
+        optfacts_scope_test.go:37: resolved compiler-only symbol "local·1" during readonly
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/local·1/empty_functions (0.00s)
+        optfacts_scope_test.go:37: resolved compiler-only symbol "local·1" during empty functions
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/local·1/empty_readonly (0.00s)
+        optfacts_scope_test.go:37: resolved compiler-only symbol "local·1" during empty readonly
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/local·1/declaration_clone (0.00s)
+        optfacts_scope_test.go:37: resolved compiler-only symbol "local·1" during declaration clone
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/local·1/structural_clone (0.00s)
+        optfacts_scope_test.go:37: resolved compiler-only symbol "local·1" during structural clone
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/local·1/readonly_symbol (0.00s)
+        optfacts_scope_test.go:37: resolved compiler-only symbol "local·1" during readonly symbol
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/hidden·23/functions (0.00s)
+        optfacts_scope_test.go:37: resolved compiler-only symbol "hidden·23" during functions
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/hidden·23/readonly (0.00s)
+        optfacts_scope_test.go:37: resolved compiler-only symbol "hidden·23" during readonly
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/hidden·23/empty_functions (0.00s)
+        optfacts_scope_test.go:37: resolved compiler-only symbol "hidden·23" during empty functions
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/hidden·23/empty_readonly (0.00s)
+        optfacts_scope_test.go:37: resolved compiler-only symbol "hidden·23" during empty readonly
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/hidden·23/declaration_clone (0.00s)
+        optfacts_scope_test.go:37: resolved compiler-only symbol "hidden·23" during declaration clone
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/hidden·23/structural_clone (0.00s)
+        optfacts_scope_test.go:37: resolved compiler-only symbol "hidden·23" during structural clone
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/hidden·23/readonly_symbol (0.00s)
+        optfacts_scope_test.go:37: resolved compiler-only symbol "hidden·23" during readonly symbol
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/Box.Method/functions (0.00s)
+        optfacts_scope_test.go:37: resolved compiler-only symbol "Box.Method" during functions
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/Box.Method/readonly (0.00s)
+        optfacts_scope_test.go:37: resolved compiler-only symbol "Box.Method" during readonly
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/Box.Method/empty_functions (0.00s)
+        optfacts_scope_test.go:37: resolved compiler-only symbol "Box.Method" during empty functions
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/Box.Method/empty_readonly (0.00s)
+        optfacts_scope_test.go:37: resolved compiler-only symbol "Box.Method" during empty readonly
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/Box.Method/declaration_clone (0.00s)
+        optfacts_scope_test.go:37: resolved compiler-only symbol "Box.Method" during declaration clone
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/Box.Method/structural_clone (0.00s)
+        optfacts_scope_test.go:37: resolved compiler-only symbol "Box.Method" during structural clone
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/Box.Method/readonly_symbol (0.00s)
+        optfacts_scope_test.go:37: resolved compiler-only symbol "Box.Method" during readonly symbol
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/Box[go.shape.int]/functions (0.00s)
+        optfacts_scope_test.go:37: resolved compiler-only symbol "Box[go.shape.int]" during functions
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/Box[go.shape.int]/readonly (0.00s)
+        optfacts_scope_test.go:37: resolved compiler-only symbol "Box[go.shape.int]" during readonly
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/Box[go.shape.int]/empty_functions (0.00s)
+        optfacts_scope_test.go:37: resolved compiler-only symbol "Box[go.shape.int]" during empty functions
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/Box[go.shape.int]/empty_readonly (0.00s)
+        optfacts_scope_test.go:37: resolved compiler-only symbol "Box[go.shape.int]" during empty readonly
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/Box[go.shape.int]/declaration_clone (0.00s)
+        optfacts_scope_test.go:37: resolved compiler-only symbol "Box[go.shape.int]" during declaration clone
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/Box[go.shape.int]/structural_clone (0.00s)
+        optfacts_scope_test.go:37: resolved compiler-only symbol "Box[go.shape.int]" during structural clone
+    --- FAIL: TestFactScopeLeavesCompilerSymbolsLazy/Box[go.shape.int]/readonly_symbol (0.00s)
+        optfacts_scope_test.go:37: resolved compiler-only symbol "Box[go.shape.int]" during readonly symbol
+FAIL
+FAIL	cmd/compile/internal/logos	0.003s
+FAIL

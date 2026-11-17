@@ -1,0 +1,129 @@
+{
+  "slice": "M24-A-S3",
+  "redteam": 441,
+  "baselineCommit": "45c29ff215477f7e403188d7452fc79aef05d791",
+  "incomingCommit": "8afec95580ed24e593307fd9d30d626eff31e22d",
+  "candidateHEAD": "c35b6f857c1e37c538a4c5f93cc50929a8b4ea62",
+  "candidateBinding": "Uncommitted8afe merge plus committed five-file lint cleanup; exact package hashes below bind this gate independently of evolving documentation/JSON.",
+  "frozen": [
+    {
+      "path": "src/cmd/go/internal/logos/eject/inactive_overlay_test.go",
+      "sha256": "967941914555b6e7cf16abe38e56b0dd04d051c63e19297493fd96b6968e6f9e",
+      "gitBlob": "77305d7ce2ea044b7ecb20fa59d471346cb93816",
+      "matchesIncoming": true
+    },
+    {
+      "path": "src/cmd/go/testdata/script/logos_eject_overlay_sources.txt",
+      "sha256": "2a445178e1ca9c86fcd59718ab809a2c07a7b2e751193e29fb113ba1f56bb173",
+      "gitBlob": "924e5aa3ef26a7940c3835b291e60548a64496ae",
+      "matchesIncoming": true
+    }
+  ],
+  "packageFiles": [
+    {
+      "path": "src/cmd/go/internal/logos/eject/eject.go",
+      "sha256": "edf9b1eeaf5eafa00c6215fa0c83fb5bb7973f63249653fb04316c52b7d180b4",
+      "gitBlob": "68e87a4e66469fef9b2d769f4ccbf2b4ab42d1b0"
+    },
+    {
+      "path": "src/cmd/go/internal/logos/eject/eject_test.go",
+      "sha256": "4eafc4618d37b1cbfbd3c95346ea66eaf6b3f863541546d5caa27c74871e453f",
+      "gitBlob": "53350ab3ac31bc486caa52094263ab337840fdda"
+    },
+    {
+      "path": "src/cmd/go/internal/logos/eject/gofmt_test.go",
+      "sha256": "734f080bcbe56a21a3c7b26671f56c89a0825cf82054a2299f864f5b4789f268",
+      "gitBlob": "bdb39be75b9abbf2a46ca503047a6a870a90fc8a"
+    },
+    {
+      "path": "src/cmd/go/internal/logos/eject/inactive.go",
+      "sha256": "23985c7a07d1ada39485baf425fbda937e854c51c086fb5c8f8e1533e174d053",
+      "gitBlob": "0db787b9a1d8f40b913dcb5cb61abc687d42e21d"
+    },
+    {
+      "path": "src/cmd/go/internal/logos/eject/inactive_gofmt_test.go",
+      "sha256": "7b8b7000969e75852bfe37074a1391926ef13745a2a6e5fb5fa208ae4ff4d047",
+      "gitBlob": "77ba0df3d66836f3b436b97095ba43c5eff49fa8"
+    },
+    {
+      "path": "src/cmd/go/internal/logos/eject/inactive_overlay_test.go",
+      "sha256": "967941914555b6e7cf16abe38e56b0dd04d051c63e19297493fd96b6968e6f9e",
+      "gitBlob": "77305d7ce2ea044b7ecb20fa59d471346cb93816"
+    },
+    {
+      "path": "src/cmd/go/internal/logos/eject/inactive_owned_test.go",
+      "sha256": "29cc3aec31cbe677f9c009e1a956828ec20a3f66541e686a62ebc94c57c15780",
+      "gitBlob": "98e8b4d7599342de6bde8a644d381bfe0f024df6"
+    },
+    {
+      "path": "src/cmd/go/internal/logos/eject/inactive_owner_names_test.go",
+      "sha256": "56eb59ba1d62395b0f3d58656095351b33ff4ea86d92bc40987d1bf7f5df3e9d",
+      "gitBlob": "7f691efd7e592925ecc1d58c5e8c6faa82ef5787"
+    },
+    {
+      "path": "src/cmd/go/internal/logos/eject/inactive_ownership_test.go",
+      "sha256": "ad83147a4c0aa3b27bc8a4db932f0d86febcdeaf0b3c6329b14520734ab6a744",
+      "gitBlob": "2a0d9f82ac144c3cb3feef9c5a4857b5ec9fabfc"
+    },
+    {
+      "path": "src/cmd/go/internal/logos/eject/inactive_packages_test.go",
+      "sha256": "7b3c15b14420d505a9ced7d21d53b3ae72d159af4496992d98acabf6a05cab88",
+      "gitBlob": "51f5e8099a46517639458963404f89849891975c"
+    },
+    {
+      "path": "src/cmd/go/internal/logos/eject/owned.go",
+      "sha256": "10ec48409cce9f26f20440a3072dc1cfacdec16c0247ec53053bbb56e01d05f5",
+      "gitBlob": "afa729e732bc28bb9a323a1861161321864c945b"
+    },
+    {
+      "path": "src/cmd/go/internal/logos/eject/owned_test.go",
+      "sha256": "ad9622d64e1c917eb21256cbc20ad958757b3c29da9ece992710238a314adfa2",
+      "gitBlob": "50337c03fb9a5296e4ad95ee49d509a74dad99e4"
+    },
+    {
+      "path": "src/cmd/go/internal/logos/eject/variant_features.go",
+      "sha256": "69fdf0d8b8a7f9e4e5415b9276b3d3b88acd9c86b3bbf0db0f1db5a991b01fd2",
+      "gitBlob": "78d7c60e9462291dc3f10a27defa1d7d59beea1a"
+    },
+    {
+      "path": "src/cmd/go/internal/logos/eject/variant_features_test.go",
+      "sha256": "c17238fa9bfdb52ee8501f5a72334f10f2738d75e19a3d8de6940fc4f2e23891",
+      "gitBlob": "a441e9b9caa1370217195720086463c5cf563335"
+    },
+    {
+      "path": "src/cmd/go/internal/logos/eject/variant_host_tags_test.go",
+      "sha256": "88a15a43988bd1cf6a0fea204903c63f38ba970f7343e03307e2e8588a2103c3",
+      "gitBlob": "446a8f397d5dafc5a6fe0072be47cce9c5d16c0a"
+    },
+    {
+      "path": "src/cmd/go/internal/logos/eject/variant_state.go",
+      "sha256": "560a938e418198d81b8b75bb59572c7f4bdb9be44d2783dbf362bb181783e048",
+      "gitBlob": "6d77f4f53d8022ec2ba67d210b239f8b183da146"
+    },
+    {
+      "path": "src/cmd/go/internal/logos/eject/variant_tags.go",
+      "sha256": "1de4493a1ce1674a6edbe628ab71d26be8c289615870e3c11117ee8ea44526cf",
+      "gitBlob": "32b4d80d8de65a34b6db03e53f7ede8a1791ed0e"
+    },
+    {
+      "path": "src/cmd/go/internal/logos/eject/variant_tags_test.go",
+      "sha256": "c6be111930041e02e0823b382b694e50bc9778daed7822965fa7d97d3ebfcf0c",
+      "gitBlob": "f7557a1ccc74fa3a734a02052aa79caa9f98f289"
+    }
+  ],
+  "mutation": {
+    "path": "src/cmd/go/internal/logos/eject/inactive.go",
+    "from": "data, err := fsys.ReadFile(path)",
+    "to": "data, err := os.ReadFile(path)",
+    "occurrences": 1,
+    "originalSHA256": "23985c7a07d1ada39485baf425fbda937e854c51c086fb5c8f8e1533e174d053",
+    "mutantSHA256": "bb989af3c340002d36edb6e0978b11b5cff0875d89561de794ad9319d3d0447b",
+    "externalOverlayOnly": true
+  },
+  "selectors": {
+    "unit": "^TestInactiveCensusHonorsOverlay$",
+    "script": "Script/^logos_eject_overlay_sources$"
+  },
+  "installedTools": "Read-only installed45 bin/pkg/tool links, already recorded in lint-followup/candidate-goroot.json",
+  "requiresFreshFinalMake": true
+}

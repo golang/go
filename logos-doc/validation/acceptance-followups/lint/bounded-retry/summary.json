@@ -1,0 +1,109 @@
+{
+  "scope": "Candidate-source component verification only; freshly installed integration45 compiler with frozen five-file candidate, no full make or installed-driver replacement.",
+  "candidateHEAD": "e5b4ef93f2f58d6dddbf15f5aaac0900c09a2df6",
+  "installedSourceHEAD": "45c29ff215477f7e403188d7452fc79aef05d791",
+  "sourceFiles": [
+    {
+      "path": "src/cmd/go/internal/logos/eject/eject.go",
+      "sha256": "af53503f6fa1475743b5e80929b6ce955444d85c13e20eb109efc248fdfed479",
+      "unchanged": true
+    },
+    {
+      "path": "src/cmd/go/internal/logos/eject/eject_test.go",
+      "sha256": "4eafc4618d37b1cbfbd3c95346ea66eaf6b3f863541546d5caa27c74871e453f",
+      "unchanged": true
+    },
+    {
+      "path": "src/cmd/go/internal/logos/eject/variant_features_test.go",
+      "sha256": "c17238fa9bfdb52ee8501f5a72334f10f2738d75e19a3d8de6940fc4f2e23891",
+      "unchanged": true
+    },
+    {
+      "path": "src/cmd/go/internal/logos/eject/variant_host_tags_test.go",
+      "sha256": "88a15a43988bd1cf6a0fea204903c63f38ba970f7343e03307e2e8588a2103c3",
+      "unchanged": true
+    },
+    {
+      "path": "src/cmd/go/internal/logos/eject/variant_tags_test.go",
+      "sha256": "c6be111930041e02e0823b382b694e50bc9778daed7822965fa7d97d3ebfcf0c",
+      "unchanged": true
+    }
+  ],
+  "vet": {
+    "command": "go vet cmd/go/internal/logos/eject",
+    "startedUTC": "2026-11-16T18:05:01Z",
+    "exit": 0,
+    "wallSeconds": 8,
+    "timeoutSeconds": 600,
+    "killAfterSeconds": 10,
+    "candidateHEAD": "e5b4ef93f2f58d6dddbf15f5aaac0900c09a2df6",
+    "installedSourceHEAD": "45c29ff215477f7e403188d7452fc79aef05d791",
+    "elapsedSeconds": 8.305,
+    "status": "passed",
+    "priorInterruptedAttemptRetained": true
+  },
+  "mutation": {
+    "command": "eject-cleanup-mutant.test -test.v -test.count=1 -test.short -test.run=^TestVariantFeatureSelectionReachesHelper$ -test.timeout=1m",
+    "startedUTC": "2026-11-16T18:06:06Z",
+    "exit": 1,
+    "wallSeconds": 4,
+    "timeoutSeconds": 75,
+    "sourceTemp": "/home/agent/logos-eject-cleanup-9949907ca71e-IUzwJn",
+    "elapsedSeconds": 4.19,
+    "status": "caught",
+    "build": {
+      "command": "go test -c -race -overlay=cleanup-mutant/overlay.json cmd/go/internal/logos/eject",
+      "startedUTC": "2026-11-16T18:05:36Z",
+      "exit": 0,
+      "wallSeconds": 4,
+      "timeoutSeconds": 300,
+      "killAfterSeconds": 10
+    },
+    "expectedCleanupFailures": 4,
+    "oneConditionOnly": true
+  },
+  "restoration": {
+    "command": "eject-cleanup-clean.test -test.v -test.count=1 -test.short -test.run=^TestVariantFeatureSelectionReachesHelper$ -test.timeout=1m",
+    "startedUTC": "2026-11-16T18:06:34Z",
+    "exit": 0,
+    "wallSeconds": 5,
+    "timeoutSeconds": 75,
+    "sourceTemp": "/home/agent/logos-eject-cleanup-9949907ca71e-IUzwJn",
+    "elapsedSeconds": 5.158,
+    "status": "passed",
+    "build": {
+      "command": "go test -c -race cmd/go/internal/logos/eject",
+      "startedUTC": "2026-11-16T18:06:32Z",
+      "exit": 0,
+      "wallSeconds": 2,
+      "timeoutSeconds": 300,
+      "overlay": false
+    },
+    "passedTopLevel": 1,
+    "passedSubtests": 4,
+    "skips": 0,
+    "sourceWasNeverMutated": true
+  },
+  "links": [
+    {
+      "path": "bin",
+      "target": "/workspace/scratch/9949907ca71e/logos-json-integration/bin",
+      "changed": false
+    },
+    {
+      "path": "pkg/tool",
+      "target": "/workspace/scratch/9949907ca71e/logos-json-integration/pkg/tool",
+      "changed": false
+    },
+    {
+      "path": "pkg/include",
+      "target": "/workspace/scratch/9949907ca71e/logos-json-integration/pkg/include",
+      "changed": false
+    }
+  ],
+  "historicalManifestsUpdated": false,
+  "fullLintRepeated": false,
+  "fullRaceSuiteRepeated": false,
+  "allCommandSessionsCompleted": true,
+  "remainingGate": "Fresh merged-toolchain make and installed acceptance after publication."
+}

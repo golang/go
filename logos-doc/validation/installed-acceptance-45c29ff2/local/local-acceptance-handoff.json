@@ -1,0 +1,63 @@
+{
+  "recorded_utc": "2026-11-16T17:09:47.654801+00:00",
+  "source": {
+    "head": "45c29ff215477f7e403188d7452fc79aef05d791",
+    "tree": "32b96f3a7c289c987bc021fe5a5adbf35cfe226b",
+    "src": "099367e1031585fa553ef7987b199288df36256a",
+    "status": ""
+  },
+  "make_passed": true,
+  "imported_local_type_cells_passed": 48,
+  "validator_package_commands_passed": 11,
+  "quoted_profiles_passed": [
+    "jsonv2",
+    "nojsonv2"
+  ],
+  "quoted_test_started_and_not_skipped": true,
+  "initial_environment_failure_preserved": true,
+  "compiler_flags_absent_during_acceptance": [
+    "GO_GCFLAGS",
+    "BOOT_GO_GCFLAGS"
+  ],
+  "fork_cache": "/workspace/scratch/9949907ca71e/postbuild-cache",
+  "stock_cache_used": false,
+  "installed_binaries_reverified": {
+    "bin/go": "987052b593c41cf60390eec80d98b01b89f9536d6d87b4e73672ab6e7a4eb2ef",
+    "bin/logos": "987052b593c41cf60390eec80d98b01b89f9536d6d87b4e73672ab6e7a4eb2ef",
+    "pkg/tool/linux_amd64/compile": "61749f8f2b2242d26e613993270f654cf47c750739a22b223f94eedd5370bba9",
+    "pkg/tool/linux_amd64/link": "8de04dd6ee98e46757ad12a6e11d968a4a75594d3c863319cca18833b6f9ca9f",
+    "pkg/tool/linux_amd64/asm": "ba74e1169103009e33cc3ed0516fe41ab05f71455c562b2866e1d91a02e7f92c",
+    "pkg/tool/linux_amd64/cgo": "aa3c7182db2db4b139400223d4d1c413d14cd2e1e194d4aa77b7ecd0e056b755"
+  },
+  "evidence": {
+    "make": {
+      "path": "/workspace/scratch/9949907ca71e/recovery-evidence/fresh-make-45c29ff2/result.json",
+      "sha256": "11d52c0a1989de26f3602e2497c8a59c06b44e752cec2bfb28d61509b17a522e"
+    },
+    "imported_local_types": {
+      "path": "/workspace/scratch/9949907ca71e/recovery-evidence/installed-acceptance-45c29ff2/imported-local-types/result.json",
+      "sha256": "10ce8c8fbe603a1f978091cdb0db1aee17b6327668fc6291fd40529f0b6046f7"
+    },
+    "initial_validator_environment_failure": {
+      "path": "/workspace/scratch/9949907ca71e/recovery-evidence/installed-acceptance-45c29ff2/default-validation/result.json",
+      "sha256": "1612d7dafab6013fd7278b635d319d54d039a3640e1a9f493810263f931e57ce"
+    },
+    "location_comparison": {
+      "path": "/workspace/scratch/9949907ca71e/recovery-evidence/vcs-environment-recovery/comparison.json",
+      "sha256": "4da9534fb02580e5799e118cd1a1088f429db0c3fa17ee9d98ef1565700117db"
+    },
+    "validator_recovered": {
+      "path": "/workspace/scratch/9949907ca71e/recovery-evidence/installed-acceptance-recovered-45c29ff2/default-validation/result.json",
+      "sha256": "5e4a499d7e42449ee394c3c7b765837e59ef409e0a00e62c64d88494fcfe766f"
+    },
+    "quoted_jsonv2": {
+      "path": "/workspace/scratch/9949907ca71e/recovery-evidence/installed-acceptance-recovered-45c29ff2/quoted-cgo-jsonv2/result.json",
+      "sha256": "b0f63a51e4399ccd0ee01a869c2114dc4d5d4c6b0def167ff1a2114738ac204b"
+    },
+    "quoted_nojsonv2": {
+      "path": "/workspace/scratch/9949907ca71e/recovery-evidence/installed-acceptance-recovered-45c29ff2/quoted-cgo-nojsonv2/result.json",
+      "sha256": "89c8994daf0923064608539e7bb7087c716f69ada0a01f6243ec9dabeec46294"
+    }
+  },
+  "remaining_queue": "Await root instructions for real gopls/QEMU and other acceptance gaps; no additional Go processes started"
+}

@@ -1,0 +1,13 @@
+{
+  "source": "/workspace/scratch/9949907ca71e/logos-final-acceptance",
+  "target": "/workspace/scratch/9949907ca71e/logos-types-projection-fix",
+  "files_sha256": {
+    "src/cmd/cgo/zdefaultcc.go": "89d5d351ddc635bad240c80562adb5762b511b2be9aa3a3577e14304e8ac35de",
+    "src/cmd/go/internal/cfg/zdefaultcc.go": "27889a141497607e7d3cce147313a1e84e62425105a756e090ca4b6dfd3c5c55",
+    "src/cmd/internal/objabi/zbootstrap.go": "d747f1f15f91fd8154c3572b1ecd48ccdf991bee4ea06650cbc1177c76917f76",
+    "src/internal/buildcfg/zbootstrap.go": "1d4118e0234ab404bc09a92f3fb557b6cc639a28622eaefd21e03e56bf4c0ce8",
+    "src/internal/runtime/sys/zversion.go": "f69c03727973664529c2e6fa2d2c53b2d3440c887938d0d9b22254f7984052f2",
+    "src/time/tzdata/zzipdata.go": "fdf3446025d8460a2d2e7f2b0fc79906daa338529030dd8204a8307bf4fb0302"
+  },
+  "boundary": "Unmodified ignored generated build inputs copied from the frozen installed toolchain; no tracked source changed. First gate failed before TestGenerate because these were absent."
+}

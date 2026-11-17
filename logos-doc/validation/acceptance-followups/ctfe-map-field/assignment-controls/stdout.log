@@ -1,0 +1,210 @@
+=== RUN   TestAssignmentFailureOrder
+=== RUN   TestAssignmentFailureOrder/slice_store_after_rhs
+=== RUN   TestAssignmentFailureOrder/nil_slice_store_after_rhs
+=== RUN   TestAssignmentFailureOrder/nil_map_store_after_rhs
+=== RUN   TestAssignmentFailureOrder/destination_call_before_rhs
+=== RUN   TestAssignmentFailureOrder/index_base_before_index_call
+=== RUN   TestAssignmentFailureOrder/slice_store_bounds
+=== RUN   TestAssignmentFailureOrder/nil_slice_store_bounds
+=== RUN   TestAssignmentFailureOrder/array_store_bounds
+=== RUN   TestAssignmentFailureOrder/nil_map_compound_store
+--- PASS: TestAssignmentFailureOrder (0.00s)
+    --- PASS: TestAssignmentFailureOrder/slice_store_after_rhs (0.00s)
+    --- PASS: TestAssignmentFailureOrder/nil_slice_store_after_rhs (0.00s)
+    --- PASS: TestAssignmentFailureOrder/nil_map_store_after_rhs (0.00s)
+    --- PASS: TestAssignmentFailureOrder/destination_call_before_rhs (0.00s)
+    --- PASS: TestAssignmentFailureOrder/index_base_before_index_call (0.00s)
+    --- PASS: TestAssignmentFailureOrder/slice_store_bounds (0.00s)
+    --- PASS: TestAssignmentFailureOrder/nil_slice_store_bounds (0.00s)
+    --- PASS: TestAssignmentFailureOrder/array_store_bounds (0.00s)
+    --- PASS: TestAssignmentFailureOrder/nil_map_compound_store (0.00s)
+=== RUN   TestAssignmentEvaluationOrder
+=== RUN   TestAssignmentEvaluationOrder/left_calls_before_right_calls/word4
+=== RUN   TestAssignmentEvaluationOrder/left_calls_before_right_calls/word8
+=== RUN   TestAssignmentEvaluationOrder/compound_left_calls_before_right_calls/word4
+=== RUN   TestAssignmentEvaluationOrder/compound_left_calls_before_right_calls/word8
+=== RUN   TestAssignmentEvaluationOrder/index_base_before_index_operand/word4
+=== RUN   TestAssignmentEvaluationOrder/index_base_before_index_operand/word8
+=== RUN   TestAssignmentEvaluationOrder/map_destination_survives_rebinding/word4
+=== RUN   TestAssignmentEvaluationOrder/map_destination_survives_rebinding/word8
+=== RUN   TestAssignmentEvaluationOrder/nested_map_destination/word4
+=== RUN   TestAssignmentEvaluationOrder/nested_map_destination/word8
+=== RUN   TestAssignmentEvaluationOrder/comma_ok_destination_before_stores/word4
+=== RUN   TestAssignmentEvaluationOrder/comma_ok_destination_before_stores/word8
+=== RUN   TestAssignmentEvaluationOrder/comma_ok_destination_calls_before_lookup/word4
+=== RUN   TestAssignmentEvaluationOrder/comma_ok_destination_calls_before_lookup/word8
+=== RUN   TestAssignmentEvaluationOrder/nil_map_comma_ok_declaration/word4
+=== RUN   TestAssignmentEvaluationOrder/nil_map_comma_ok_declaration/word8
+=== RUN   TestAssignmentEvaluationOrder/nil_map_comma_ok_assignment/word4
+=== RUN   TestAssignmentEvaluationOrder/nil_map_comma_ok_assignment/word8
+=== RUN   TestAssignmentEvaluationOrder/map_lookup_missing_key/word4
+=== RUN   TestAssignmentEvaluationOrder/map_lookup_missing_key/word8
+=== RUN   TestAssignmentEvaluationOrder/slice_destination_survives_rebinding/word4
+=== RUN   TestAssignmentEvaluationOrder/slice_destination_survives_rebinding/word8
+=== RUN   TestAssignmentEvaluationOrder/array_destination_tracks_variable_storage/word4
+=== RUN   TestAssignmentEvaluationOrder/array_destination_tracks_variable_storage/word8
+=== RUN   TestAssignmentEvaluationOrder/repeated_name_stores_left_to_right/word4
+=== RUN   TestAssignmentEvaluationOrder/repeated_name_stores_left_to_right/word8
+=== RUN   TestAssignmentEvaluationOrder/blank_assignment_keeps_calls/word4
+=== RUN   TestAssignmentEvaluationOrder/blank_assignment_keeps_calls/word8
+--- PASS: TestAssignmentEvaluationOrder (0.00s)
+    --- PASS: TestAssignmentEvaluationOrder/left_calls_before_right_calls/word4 (0.00s)
+    --- PASS: TestAssignmentEvaluationOrder/left_calls_before_right_calls/word8 (0.00s)
+    --- PASS: TestAssignmentEvaluationOrder/compound_left_calls_before_right_calls/word4 (0.00s)
+    --- PASS: TestAssignmentEvaluationOrder/compound_left_calls_before_right_calls/word8 (0.00s)
+    --- PASS: TestAssignmentEvaluationOrder/index_base_before_index_operand/word4 (0.00s)
+    --- PASS: TestAssignmentEvaluationOrder/index_base_before_index_operand/word8 (0.00s)
+    --- PASS: TestAssignmentEvaluationOrder/map_destination_survives_rebinding/word4 (0.00s)
+    --- PASS: TestAssignmentEvaluationOrder/map_destination_survives_rebinding/word8 (0.00s)
+    --- PASS: TestAssignmentEvaluationOrder/nested_map_destination/word4 (0.00s)
+    --- PASS: TestAssignmentEvaluationOrder/nested_map_destination/word8 (0.00s)
+    --- PASS: TestAssignmentEvaluationOrder/comma_ok_destination_before_stores/word4 (0.00s)
+    --- PASS: TestAssignmentEvaluationOrder/comma_ok_destination_before_stores/word8 (0.00s)
+    --- PASS: TestAssignmentEvaluationOrder/comma_ok_destination_calls_before_lookup/word4 (0.00s)
+    --- PASS: TestAssignmentEvaluationOrder/comma_ok_destination_calls_before_lookup/word8 (0.00s)
+    --- PASS: TestAssignmentEvaluationOrder/nil_map_comma_ok_declaration/word4 (0.00s)
+    --- PASS: TestAssignmentEvaluationOrder/nil_map_comma_ok_declaration/word8 (0.00s)
+    --- PASS: TestAssignmentEvaluationOrder/nil_map_comma_ok_assignment/word4 (0.00s)
+    --- PASS: TestAssignmentEvaluationOrder/nil_map_comma_ok_assignment/word8 (0.00s)
+    --- PASS: TestAssignmentEvaluationOrder/map_lookup_missing_key/word4 (0.00s)
+    --- PASS: TestAssignmentEvaluationOrder/map_lookup_missing_key/word8 (0.00s)
+    --- PASS: TestAssignmentEvaluationOrder/slice_destination_survives_rebinding/word4 (0.00s)
+    --- PASS: TestAssignmentEvaluationOrder/slice_destination_survives_rebinding/word8 (0.00s)
+    --- PASS: TestAssignmentEvaluationOrder/array_destination_tracks_variable_storage/word4 (0.00s)
+    --- PASS: TestAssignmentEvaluationOrder/array_destination_tracks_variable_storage/word8 (0.00s)
+    --- PASS: TestAssignmentEvaluationOrder/repeated_name_stores_left_to_right/word4 (0.00s)
+    --- PASS: TestAssignmentEvaluationOrder/repeated_name_stores_left_to_right/word8 (0.00s)
+    --- PASS: TestAssignmentEvaluationOrder/blank_assignment_keeps_calls/word4 (0.00s)
+    --- PASS: TestAssignmentEvaluationOrder/blank_assignment_keeps_calls/word8 (0.00s)
+=== RUN   TestAssignmentNilMapReportsError
+--- PASS: TestAssignmentNilMapReportsError (0.00s)
+=== RUN   TestAssignmentStorageReturnedValues
+=== RUN   TestAssignmentStorageReturnedValues/array_result_rhs/word4
+=== RUN   TestAssignmentStorageReturnedValues/array_result_rhs/word8
+=== RUN   TestAssignmentStorageReturnedValues/array_result_argument/word4
+=== RUN   TestAssignmentStorageReturnedValues/array_result_argument/word8
+=== RUN   TestAssignmentStorageReturnedValues/array_result_composite/word4
+=== RUN   TestAssignmentStorageReturnedValues/array_result_composite/word8
+=== RUN   TestAssignmentStorageReturnedValues/array_result_append/word4
+=== RUN   TestAssignmentStorageReturnedValues/array_result_append/word8
+=== RUN   TestAssignmentStorageReturnedValues/named_array_result/word4
+=== RUN   TestAssignmentStorageReturnedValues/named_array_result/word8
+=== RUN   TestAssignmentStorageReturnedValues/struct_result_preserves_reference_fields/word4
+=== RUN   TestAssignmentStorageReturnedValues/struct_result_preserves_reference_fields/word8
+=== RUN   TestAssignmentStorageReturnedValues/named_struct_result/word4
+=== RUN   TestAssignmentStorageReturnedValues/named_struct_result/word8
+--- PASS: TestAssignmentStorageReturnedValues (0.00s)
+    --- PASS: TestAssignmentStorageReturnedValues/array_result_rhs/word4 (0.00s)
+    --- PASS: TestAssignmentStorageReturnedValues/array_result_rhs/word8 (0.00s)
+    --- PASS: TestAssignmentStorageReturnedValues/array_result_argument/word4 (0.00s)
+    --- PASS: TestAssignmentStorageReturnedValues/array_result_argument/word8 (0.00s)
+    --- PASS: TestAssignmentStorageReturnedValues/array_result_composite/word4 (0.00s)
+    --- PASS: TestAssignmentStorageReturnedValues/array_result_composite/word8 (0.00s)
+    --- PASS: TestAssignmentStorageReturnedValues/array_result_append/word4 (0.00s)
+    --- PASS: TestAssignmentStorageReturnedValues/array_result_append/word8 (0.00s)
+    --- PASS: TestAssignmentStorageReturnedValues/named_array_result/word4 (0.00s)
+    --- PASS: TestAssignmentStorageReturnedValues/named_array_result/word8 (0.00s)
+    --- PASS: TestAssignmentStorageReturnedValues/struct_result_preserves_reference_fields/word4 (0.00s)
+    --- PASS: TestAssignmentStorageReturnedValues/struct_result_preserves_reference_fields/word8 (0.00s)
+    --- PASS: TestAssignmentStorageReturnedValues/named_struct_result/word4 (0.00s)
+    --- PASS: TestAssignmentStorageReturnedValues/named_struct_result/word8 (0.00s)
+=== RUN   TestAssignmentStorage
+=== RUN   TestAssignmentStorage/array_variable/word4
+=== RUN   TestAssignmentStorage/array_variable/word8
+=== RUN   TestAssignmentStorage/parallel_array_variable/word4
+=== RUN   TestAssignmentStorage/parallel_array_variable/word8
+=== RUN   TestAssignmentStorage/array_copy_independent/word4
+=== RUN   TestAssignmentStorage/array_copy_independent/word8
+=== RUN   TestAssignmentStorage/nested_array_variable/word4
+=== RUN   TestAssignmentStorage/nested_array_variable/word8
+=== RUN   TestAssignmentStorage/array_element/word4
+=== RUN   TestAssignmentStorage/array_element/word8
+=== RUN   TestAssignmentStorage/slice_element/word4
+=== RUN   TestAssignmentStorage/slice_element/word8
+=== RUN   TestAssignmentStorage/struct_variable/word4
+=== RUN   TestAssignmentStorage/struct_variable/word8
+=== RUN   TestAssignmentStorage/struct_field/word4
+=== RUN   TestAssignmentStorage/struct_field/word8
+=== RUN   TestAssignmentStorage/array_struct_element/word4
+=== RUN   TestAssignmentStorage/array_struct_element/word8
+=== RUN   TestAssignmentStorage/slice_struct_element/word4
+=== RUN   TestAssignmentStorage/slice_struct_element/word8
+=== RUN   TestAssignmentStorage/array_slice_references/word4
+=== RUN   TestAssignmentStorage/array_slice_references/word8
+=== RUN   TestAssignmentStorage/array_map_references/word4
+=== RUN   TestAssignmentStorage/array_map_references/word8
+=== RUN   TestAssignmentStorage/range_assignment/word4
+=== RUN   TestAssignmentStorage/range_assignment/word8
+=== RUN   TestAssignmentStorage/range_declaration_fresh/word4
+=== RUN   TestAssignmentStorage/range_declaration_fresh/word8
+=== RUN   TestAssignmentStorage/clear_views_and_independent_slots/word4
+=== RUN   TestAssignmentStorage/clear_views_and_independent_slots/word8
+=== RUN   TestAssignmentStorage/copy_overlapping_right/word4
+=== RUN   TestAssignmentStorage/copy_overlapping_right/word8
+=== RUN   TestAssignmentStorage/copy_overlapping_left/word4
+=== RUN   TestAssignmentStorage/copy_overlapping_left/word8
+=== RUN   TestAssignmentStorage/append_reused_capacity/word4
+=== RUN   TestAssignmentStorage/append_reused_capacity/word8
+=== RUN   TestAssignmentStorage/append_overlapping_capacity/word4
+=== RUN   TestAssignmentStorage/append_overlapping_capacity/word8
+=== RUN   TestAssignmentStorage/append_growth_copies_arrays/word4
+=== RUN   TestAssignmentStorage/append_growth_copies_arrays/word8
+=== RUN   TestAssignmentStorage/append_growth_initializes_capacity/word4
+=== RUN   TestAssignmentStorage/append_growth_initializes_capacity/word8
+=== RUN   TestAssignmentStorage/zero_length_nested_array/word4
+=== RUN   TestAssignmentStorage/zero_length_nested_array/word8
+=== RUN   TestAssignmentStorage/struct_with_zero_length_array/word4
+=== RUN   TestAssignmentStorage/struct_with_zero_length_array/word8
+=== RUN   TestAssignmentStorage/map_array_value_independent/word4
+=== RUN   TestAssignmentStorage/map_array_value_independent/word8
+--- PASS: TestAssignmentStorage (0.00s)
+    --- PASS: TestAssignmentStorage/array_variable/word4 (0.00s)
+    --- PASS: TestAssignmentStorage/array_variable/word8 (0.00s)
+    --- PASS: TestAssignmentStorage/parallel_array_variable/word4 (0.00s)
+    --- PASS: TestAssignmentStorage/parallel_array_variable/word8 (0.00s)
+    --- PASS: TestAssignmentStorage/array_copy_independent/word4 (0.00s)
+    --- PASS: TestAssignmentStorage/array_copy_independent/word8 (0.00s)
+    --- PASS: TestAssignmentStorage/nested_array_variable/word4 (0.00s)
+    --- PASS: TestAssignmentStorage/nested_array_variable/word8 (0.00s)
+    --- PASS: TestAssignmentStorage/array_element/word4 (0.00s)
+    --- PASS: TestAssignmentStorage/array_element/word8 (0.00s)
+    --- PASS: TestAssignmentStorage/slice_element/word4 (0.00s)
+    --- PASS: TestAssignmentStorage/slice_element/word8 (0.00s)
+    --- PASS: TestAssignmentStorage/struct_variable/word4 (0.00s)
+    --- PASS: TestAssignmentStorage/struct_variable/word8 (0.00s)
+    --- PASS: TestAssignmentStorage/struct_field/word4 (0.00s)
+    --- PASS: TestAssignmentStorage/struct_field/word8 (0.00s)
+    --- PASS: TestAssignmentStorage/array_struct_element/word4 (0.00s)
+    --- PASS: TestAssignmentStorage/array_struct_element/word8 (0.00s)
+    --- PASS: TestAssignmentStorage/slice_struct_element/word4 (0.00s)
+    --- PASS: TestAssignmentStorage/slice_struct_element/word8 (0.00s)
+    --- PASS: TestAssignmentStorage/array_slice_references/word4 (0.00s)
+    --- PASS: TestAssignmentStorage/array_slice_references/word8 (0.00s)
+    --- PASS: TestAssignmentStorage/array_map_references/word4 (0.00s)
+    --- PASS: TestAssignmentStorage/array_map_references/word8 (0.00s)
+    --- PASS: TestAssignmentStorage/range_assignment/word4 (0.00s)
+    --- PASS: TestAssignmentStorage/range_assignment/word8 (0.00s)
+    --- PASS: TestAssignmentStorage/range_declaration_fresh/word4 (0.00s)
+    --- PASS: TestAssignmentStorage/range_declaration_fresh/word8 (0.00s)
+    --- PASS: TestAssignmentStorage/clear_views_and_independent_slots/word4 (0.00s)
+    --- PASS: TestAssignmentStorage/clear_views_and_independent_slots/word8 (0.00s)
+    --- PASS: TestAssignmentStorage/copy_overlapping_right/word4 (0.00s)
+    --- PASS: TestAssignmentStorage/copy_overlapping_right/word8 (0.00s)
+    --- PASS: TestAssignmentStorage/copy_overlapping_left/word4 (0.00s)
+    --- PASS: TestAssignmentStorage/copy_overlapping_left/word8 (0.00s)
+    --- PASS: TestAssignmentStorage/append_reused_capacity/word4 (0.00s)
+    --- PASS: TestAssignmentStorage/append_reused_capacity/word8 (0.00s)
+    --- PASS: TestAssignmentStorage/append_overlapping_capacity/word4 (0.00s)
+    --- PASS: TestAssignmentStorage/append_overlapping_capacity/word8 (0.00s)
+    --- PASS: TestAssignmentStorage/append_growth_copies_arrays/word4 (0.00s)
+    --- PASS: TestAssignmentStorage/append_growth_copies_arrays/word8 (0.00s)
+    --- PASS: TestAssignmentStorage/append_growth_initializes_capacity/word4 (0.00s)
+    --- PASS: TestAssignmentStorage/append_growth_initializes_capacity/word8 (0.00s)
+    --- PASS: TestAssignmentStorage/zero_length_nested_array/word4 (0.00s)
+    --- PASS: TestAssignmentStorage/zero_length_nested_array/word8 (0.00s)
+    --- PASS: TestAssignmentStorage/struct_with_zero_length_array/word4 (0.00s)
+    --- PASS: TestAssignmentStorage/struct_with_zero_length_array/word8 (0.00s)
+    --- PASS: TestAssignmentStorage/map_array_value_independent/word4 (0.00s)
+    --- PASS: TestAssignmentStorage/map_array_value_independent/word8 (0.00s)
+PASS
+ok  	cmd/compile/internal/logos/ctfe	0.012s

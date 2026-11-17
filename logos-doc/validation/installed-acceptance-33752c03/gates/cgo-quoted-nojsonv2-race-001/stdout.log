@@ -1,0 +1,4 @@
+=== RUN   TestEjectQuotedCgoTypes
+--- PASS: TestEjectQuotedCgoTypes (13.22s)
+PASS
+ok  	cmd/compile/internal/logos	14.239s

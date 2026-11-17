@@ -17,7 +17,10 @@ func zcse(f *Func) {
 	for _, b := range f.Blocks {
 		for i := 0; i < len(b.Values); i++ {
 			v := b.Values[i]
-			if opcodeTable[v.Op].argLen == 0 {
+			// A SIMD zero may require a CPU feature checked by this block's
+			// predecessors. Leave it to dominance-aware CSE instead of
+			// moving it outside the guard.
+			if opcodeTable[v.Op].argLen == 0 && v.Op != OpZeroSIMD {
 				key := vkey{v.Op, keyFor(v), v.Aux, v.Type}
 				if vals[key] == nil {
 					vals[key] = v

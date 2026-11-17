@@ -70,13 +70,14 @@ func (rd *reader) read() (*message, error) {
 
 func (rd *reader) contentLength() (int, error) {
 	n, total := -1, 0
-	lines := 0
-	line, err := rd.r.ReadString('\n')
-	for err == nil {
+	for range maxHeaderLines {
+		line, err := rd.headerLine(maxHeaderBytes - total)
 		total += len(line)
-		lines++
-		if tooBig(total, lines) {
-			return 0, errors.New("message header too large")
+		if err != nil {
+			if errors.Is(err, io.EOF) && total == 0 {
+				return 0, io.EOF
+			}
+			return 0, fmt.Errorf("reading message header: %w", midMessage(err))
 		}
 		trimmed := strings.TrimRight(line, "\r\n")
 		if trimmed == "" {
@@ -87,16 +88,26 @@ func (rd *reader) contentLength() (int, error) {
 				return 0, err
 			}
 		}
-		line, err = rd.r.ReadString('\n')
 	}
-	if errors.Is(err, io.EOF) && line == "" && total == 0 {
-		return 0, io.EOF
-	}
-	return 0, fmt.Errorf("reading message header: %w", midMessage(err))
+	return 0, errors.New("message header too large")
 }
 
-func tooBig(total, lines int) bool {
-	return total > maxHeaderBytes || lines > maxHeaderLines
+// headerLine stops at the remaining header budget even without a newline.
+// Reading an entire line before checking its length would leave allocation
+// and reads unbounded for an incomplete frame.
+func (rd *reader) headerLine(remaining int) (string, error) {
+	var line strings.Builder
+	for range remaining {
+		c, err := rd.r.ReadByte()
+		if err != nil {
+			return line.String(), err
+		}
+		line.WriteByte(c)
+		if c == '\n' {
+			return line.String(), nil
+		}
+	}
+	return line.String(), errors.New("message header too large")
 }
 
 func checkedLength(n int) (int, error) {

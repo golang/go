@@ -1,0 +1,139 @@
+{
+  "attacks": [
+    {
+      "bytes": 6813,
+      "git_blob": "f8ab8204db4b92c28b6a6d6a2f7c30361d9abeec",
+      "path": "src/cmd/go/internal/load/logos_census_test.go",
+      "sha256": "1c7ac53ad74b2677d4c8393d0cd87ef368b4e422e2bb34e678c89e35ece16ca9"
+    }
+  ],
+  "base_commit": "2535486fe9596a9212d525a5007963ef9e8682f0",
+  "branch": "fix/alias-census-scope",
+  "case_count": 8,
+  "controls": [
+    {
+      "bytes": 4359,
+      "git_blob": "d23581328c979e4fb117f1f4f5ed21d12a173f0f",
+      "path": "src/cmd/go/testdata/script/logos_alias.txt",
+      "sha256": "0a34cb1bf2b38cf4cbff5eae00562e476cc7b9a10a2ad4e631aa7f18085822d5"
+    },
+    {
+      "bytes": 2324,
+      "git_blob": "008ee63758551430e614a19a7ee836332b82839d",
+      "path": "src/cmd/go/testdata/script/logos_module_census.txt",
+      "sha256": "4d317a4adbe428c2ddc93cd1d4dc099c79e0ce6fc91b2ad9123c082d808e05fe"
+    },
+    {
+      "bytes": 953,
+      "git_blob": "ed32c1b317ee52496e8fb5249a4c3a4fc8e7d205",
+      "path": "src/cmd/go/testdata/script/logos_module_census_errors.txt",
+      "sha256": "38c6e2b2cc0ab5d97a57940ad04f442ae89d5cfb3c99d84024d66273985ce39b"
+    },
+    {
+      "bytes": 1884,
+      "git_blob": "72805b0213c3aee13f3fcb48004a960ed48bba9d",
+      "path": "src/cmd/go/testdata/script/logos_module_census_list_modes.txt",
+      "sha256": "4a7be8dd0ceaad4c374541e70a70d4e4d47673d9c1c18cbcdddde14a982f2b46"
+    },
+    {
+      "bytes": 1624,
+      "git_blob": "e7541c4513680387ada6936e3958f78d91dcceb4",
+      "path": "src/cmd/go/testdata/script/logos_module_census_vendor.txt",
+      "sha256": "3b404d20b2a89d15ab824f9256230c02a58f3df1cc5449a41c8c016629f498b8"
+    },
+    {
+      "bytes": 643,
+      "git_blob": "cf9f4f4ab40173fbf00640d827c6ee1d24c31d31",
+      "path": "src/cmd/go/testdata/script/logos_module_census_ignored_vendor.txt",
+      "sha256": "8dc6538418ec4c8730f348d66dc35b9930bb6845acf7e543fb3fc4b06ba00212"
+    },
+    {
+      "bytes": 316,
+      "git_blob": "f4ae59eaa04914b7463e54ca5535162853d680a8",
+      "path": "src/cmd/go/testdata/script/logos_nomix.txt",
+      "sha256": "798a793ec95d36b7a3667f3091111db7526665bd25f29ad1738a1df08ca27811"
+    },
+    {
+      "bytes": 3648,
+      "git_blob": "e07fc82ecfff535b8d9c52e366b6058251034a57",
+      "path": "src/cmd/go/testdata/script/logos_interop.txt",
+      "sha256": "a6bfb75f8f4f1862f86a8ad4058ed05e36650d0b31a6827eefb0e2cf8244b129"
+    },
+    {
+      "bytes": 3578,
+      "git_blob": "f52b5099fc7d013b043c79f1b180b207309aa74f",
+      "path": "src/cmd/go/testdata/script/logos_lint_alias_extension.txt",
+      "sha256": "8f9e75e6e5687b4b0b13ae4fc65d6c5ddb0841bfc2791a64a1e253ec684f87d4"
+    },
+    {
+      "bytes": 359,
+      "git_blob": "b5aceae21ea2a29db70b8705cea6e86a44176ddd",
+      "path": "src/cmd/go/testdata/script/logos_extension_normalization.txt",
+      "sha256": "6337b7adb2098fe7c90d581f42990473a8c614ba7f8eeef0647baa253c7c26bd"
+    },
+    {
+      "bytes": 2591,
+      "git_blob": "6e72e4e53bf5947e9c2fd20e7fb0543700c0478a",
+      "path": "src/cmd/go/testdata/script/logos_module_zip_alias.txt",
+      "sha256": "b9b7277af3b21244782f941b42428977a6f5aa1751c92e6b8a2c76d533736c88"
+    },
+    {
+      "bytes": 861,
+      "git_blob": "1bdf58d4449242120e13b11dbdb80ea05ec08c6f",
+      "path": "src/cmd/go/testdata/script/logos_plain_lgo_selection.txt",
+      "sha256": "c6d5e5ff88df297e11810676bb203a3635a22bae73803c1b59788ec124236533"
+    }
+  ],
+  "controls_equal_base": true,
+  "format_check": "Not run; root may format before the first baseline execution and final freeze",
+  "go_executed": false,
+  "production_attempts": 0,
+  "production_equal_base": true,
+  "source_tree": "e237c399aae8f8065b724e8a0e27585686c7da18",
+  "sources": [
+    {
+      "bytes": 15827,
+      "git_blob": "e92c4e38d6c16588fb6d3cf2ab84627298594f68",
+      "path": "src/cmd/go/internal/load/logos.go",
+      "sha256": "2ec862de22cf8d981fb5766bd8ef67ff05c9d09e68897a84240699e6beaf47f9"
+    },
+    {
+      "bytes": 1545,
+      "git_blob": "82de2f9a0648e56a76312fc111b474a972a00fb7",
+      "path": "src/cmd/go/internal/modload/census_logos.go",
+      "sha256": "f892ba40349c989dc3630cd95b4a0cd3b3c0f69fe49b1d5fb9c2ac4c0aa5b82c"
+    },
+    {
+      "bytes": 4208,
+      "git_blob": "360ce3e44dfc27f5881c4d29a34c343bd2909662",
+      "path": "src/go/build/logos.go",
+      "sha256": "9718395948125749e7953ce953304a6a0e2aab2c589501edac9a3c2bdf8ea346"
+    },
+    {
+      "bytes": 63971,
+      "git_blob": "56e8e7f9c1fa80d16c74f196563bd5e4dd11d043",
+      "path": "src/go/build/build.go",
+      "sha256": "ffa7bb3924e804b5ae44987be9048d0a6f2f6a53bfbb2407cfd7f2c6c9d46444"
+    },
+    {
+      "bytes": 3357,
+      "git_blob": "1ed4e636bea1319a94d7f0d563d49722d5438e11",
+      "path": "src/cmd/go/internal/modindex/logos.go",
+      "sha256": "bc4f1f589b694495ea04f167ece5f8813e2558cf1107a9da992b8e5d14b64dc5"
+    },
+    {
+      "bytes": 32275,
+      "git_blob": "cbedfe0e629d13793ad7d082dc14ede05cabb96a",
+      "path": "src/cmd/go/internal/modindex/read.go",
+      "sha256": "0e202af84372f8d111d4061f24ca726f6d44c64cb790c019802c49b126da8ac8"
+    },
+    {
+      "bytes": 1761,
+      "git_blob": "2ddc8067dc033f90023d545a3e61d1f7fa7b6c03",
+      "path": "src/internal/logosfile/logosfile.go",
+      "sha256": "fe1df4d0648db9b3763c30c86b7d229a0b3d552355be4451aca89654b4c22e3b"
+    }
+  ],
+  "test_selector": "^TestScanModuleKindsDuplicateSiblings$",
+  "worktree": "/workspace/scratch/9949907ca71e/logos-alias-fix"
+}

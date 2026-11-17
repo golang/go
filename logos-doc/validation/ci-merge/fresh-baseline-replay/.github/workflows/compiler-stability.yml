@@ -1,0 +1,125 @@
+name: "compiler-stability"
+
+"on":
+  pull_request:
+    paths:
+      - ".github/scripts/install-ci-tool.sh"
+      - ".github/scripts/install-upstream-oracles.sh"
+      - ".github/workflows/compiler-stability.yml"
+      - "src/cmd/compile/**"
+      - "src/cmd/go/**"
+      - "src/internal/buildcfg/**"
+      - "test/logos/**"
+      - "logos-doc/**"
+  workflow_dispatch:
+
+permissions:
+  contents: "read"
+
+concurrency:
+  group: "compiler-stability-${{ github.ref }}"
+  cancel-in-progress: true
+
+env:
+  GOMAXPROCS: "4"
+  GOFLAGS: "-p=2"
+  GOMEMLIMIT: "2GiB"
+
+jobs:
+  compiler:
+    name: "compiler-focused"
+    runs-on: "ubuntu-24.04"
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: "bash"
+        working-directory: "src"
+    steps:
+      - name: "Check out the tested revision"
+        working-directory: "${{ github.workspace }}"
+        run: |
+          git init --quiet .
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          git -c protocol.version=2 fetch --no-tags --depth=1 origin "$GITHUB_SHA"
+          git -c advice.detachedHead=false checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - name: "Install the pinned Go bootstrap"
+        run: bash ../.github/scripts/install-ci-tool.sh go
+      - name: "Install the pinned Node runtime"
+        run: bash ../.github/scripts/install-ci-tool.sh node
+      - name: "Record source and install upstream oracles"
+        run: |
+          evidence="$RUNNER_TEMP/compiler-stability-focused"
+          mkdir -p "$evidence"
+          git rev-parse HEAD > "$evidence/source.txt"
+          go version >> "$evidence/source.txt"
+          bash ../.github/scripts/install-upstream-oracles.sh
+      - name: "Build the complete toolchain"
+        run: |
+          export GOROOT_BOOTSTRAP="$(go env GOROOT)"
+          GOEXPERIMENT= ./make.bash 2>&1 | tee "$RUNNER_TEMP/compiler-stability-focused/build.log"
+          printf '%s\n' "$GITHUB_WORKSPACE/lib/wasm" "$GITHUB_WORKSPACE/bin" >> "$GITHUB_PATH"
+      - name: "Select and verify the C23 consumer compiler"
+        run: |
+          compiler="$(command -v gcc-14)"
+          compiler_bin="$RUNNER_TEMP/compiler-stability-c23"
+          mkdir "$compiler_bin"
+          ln -s "$compiler" "$compiler_bin/cc"
+          evidence="$RUNNER_TEMP/compiler-stability-focused"
+          "$compiler_bin/cc" --version | tee "$evidence/c23.log"
+          printf 'int main(void) { return 0; }\n' |
+            "$compiler_bin/cc" -std=c23 -x c - -o "$RUNNER_TEMP/compiler-stability-c23-check" \
+            2>&1 | tee -a "$evidence/c23.log"
+          "$RUNNER_TEMP/compiler-stability-c23-check" 2>&1 | tee -a "$evidence/c23.log"
+          printf '%s\n' "$compiler_bin" >> "$GITHUB_PATH"
+      - name: "Run focused compiler and command checks"
+        run: |
+          evidence="$RUNNER_TEMP/compiler-stability-focused"
+          cd ..
+          sha256sum --check logos-doc/validation/compiler-stability/frozen-tests.sha256 \
+            | tee "$evidence/frozen-tests.log"
+          cd src
+          unformatted=$(gofmt -l cmd/compile/internal/inline/interleaved \
+            cmd/compile/internal/logos cmd/go/internal/logos/eject)
+          printf '%s\n' "$unformatted" | tee "$evidence/format.log"
+          test -z "$unformatted"
+          go test -count=1 -short -timeout=20m \
+            cmd/compile/internal/inline/... cmd/compile/internal/logos/... \
+            cmd/compile/internal/base cmd/compile/internal/noder \
+            cmd/compile/internal/syntax cmd/compile/internal/types2 \
+            cmd/go/internal/work cmd/go/internal/logos/eject internal/buildcfg \
+            2>&1 | tee "$evidence/unit.log"
+          go test -count=1 -short -race -timeout=15m \
+            cmd/go/internal/work cmd/go/internal/logos/eject internal/buildcfg \
+            2>&1 | tee "$evidence/race.log"
+          go test -count=1 -timeout=20m cmd/go \
+            -run 'Script/^logos_(ctfe_assignment_.*|tuple_(package_names|variant_names)|spread_defaults|inline_batches|eject_variant_tags|struct_default_validation)$' \
+            2>&1 | tee "$evidence/integration.log"
+          go test -count=1 -race -timeout=30m cmd/go \
+            -run 'Script/^logos_(eject_cgo.*|cgo_lgo|eject|eject_target_(features|env_compat)|eject_inactive.*|eject_variant_package_names)$' \
+            2>&1 | tee "$evidence/cgo-and-variant-integration.log"
+          go test -count=1 -timeout=20m cmd/internal/testdir \
+            -run 'Test/logos/run/(ctfe_assignment_.*|spread_defaults|inline_batches)' \
+            2>&1 | tee "$evidence/testdir.log"
+          go vet cmd/compile/internal/inline/... cmd/compile/internal/logos/... \
+            cmd/compile/internal/base cmd/compile/internal/syntax \
+            cmd/compile/internal/types2 cmd/go/internal/work \
+            cmd/go/internal/logos/eject internal/buildcfg \
+            2>&1 | tee "$evidence/vet.log"
+          go vet -pgo="$PWD/cmd/compile/default.pgo" cmd/compile/internal/noder \
+            2>&1 | tee "$evidence/noder-vet.log"
+          go test -count=1 -short cmd/internal/goparity -run '^TestRedteamLedgerRows$' \
+            2>&1 | tee "$evidence/ledger.log"
+      - name: "Record compiler validation evidence"
+        if: always()
+        run: |
+          evidence="$RUNNER_TEMP/compiler-stability-focused"
+          if test -d "$evidence"; then
+            for file in "$evidence"/*; do
+              test -f "$file" || continue
+              sha256sum "$file"
+            done
+            if test -f "$evidence/source.txt"; then
+              cat "$evidence/source.txt"
+            fi
+          fi

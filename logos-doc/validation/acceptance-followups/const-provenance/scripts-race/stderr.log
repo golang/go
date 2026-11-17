@@ -1,0 +1,3 @@
+vcs-test.golang.org rerouted to http://127.0.0.1:39829
+https://vcs-test.golang.org rerouted to https://127.0.0.1:38173
+go test proxy running at GOPROXY=http://127.0.0.1:44785/mod

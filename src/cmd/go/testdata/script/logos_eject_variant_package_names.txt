@@ -1,0 +1,72 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOOS=linux
+env GOARCH=amd64
+env GOAMD64=v1
+env CGO_ENABLED=0
+
+cd m
+# Explicit aliases make both selected package clauses legal imports.
+logos build -tags=extra ./...
+env GOOS=windows
+logos build -tags=extra ./...
+env GOOS=linux
+logos eject -o out
+exists out/windows/value_windows.go
+exists out/tagged/value.go
+cd out
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+exec env -u GOROOT $UPROOT1272/bin/go build -tags=extra ./...
+env GOOS=windows
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+exec env -u GOROOT $UPROOT1272/bin/go build -tags=extra ./...
+
+-- m/go.mod --
+module example.com/ownednames
+
+go 1.27
+
+-- m/main.lgo --
+package variants
+
+func Value() int { return 1 }
+
+-- m/owner/type_linux.lgo --
+package linuxowner
+
+type hidden int
+
+const func Make() hidden { return 21 }
+
+-- m/owner/type_windows.lgo --
+package windowsowner
+
+type hidden int
+
+const func Make() hidden { return 42 }
+
+-- m/windows/value_windows.lgo --
+package windows
+
+import owner "example.com/ownednames/owner"
+
+const value = owner.Make()
+
+var _ [42-int(value)]struct{}
+var _ [int(value)-42]struct{}
+
+func Value() int { return int(value) }
+
+-- m/tagged/value.lgo --
+//go:build linux && extra
+
+package tagged
+
+import owner "example.com/ownednames/owner"
+
+const value = owner.Make()
+
+var _ [21-int(value)]struct{}
+var _ [int(value)-21]struct{}
+
+func Value() int { return int(value) }

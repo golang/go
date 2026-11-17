@@ -34,7 +34,9 @@ type parser struct {
 	xnest  int    // expression nesting level (for complit ambiguity resolution)
 	indent []byte // tracing support
 
-	lambdaBan int // M6-S6: `=>` suppression depth for switch-expression arm cases.
+	lambdaBan         int // M6-S6: `=>` suppression depth for switch-expression arm cases.
+	logosTypeArgDepth int
+	logosTypeArgField *parenElem
 }
 
 func (p *parser) init(file *PosBase, r io.Reader, errh ErrorHandler, pragh PragmaHandler, mode Mode) {
@@ -1188,6 +1190,9 @@ loop:
 
 		case _Lbrack:
 			p.next()
+			if p.logosTypeArgSlice(x, pos) {
+				return x
+			}
 
 			var i Expr
 			if p.tok != _Colon {
@@ -1251,7 +1256,7 @@ loop:
 			t.pos = pos
 			p.next()
 			t.Fun = x
-			t.ArgList, t.HasDots = p.argList()
+			t.ArgList, t.HasDots = p.logosTypeArgCall(x, pos)
 			x = t
 
 		case _Lbrace:
@@ -1312,6 +1317,9 @@ func isValue(x Expr) bool {
 	case *BasicLit, *CompositeLit, *FuncLit, *SliceExpr, *AssertExpr, *TypeSwitchGuard, *CallExpr:
 		return true
 	case *Operation:
+		if x.Op == Recv && x.Y == nil && logosReceiveType(x.X) != nil {
+			return false
+		}
 		return x.Op != Mul || x.Y != nil // *T may be a type
 	case *ParenExpr:
 		return isValue(x.X)
@@ -1506,6 +1514,7 @@ func (p *parser) typeInstance(typ Expr) Expr {
 	x := new(IndexExpr)
 	x.pos = pos
 	x.X = typ
+	x.LogosTypeArgs = true
 	if p.tok == _Rbrack {
 		p.syntaxError("expected type argument list")
 		x.Index = p.badExpr()
@@ -2954,7 +2963,7 @@ func (p *parser) typeList(strict bool) (x Expr, comma bool) {
 	if strict {
 		x = p.type_()
 	} else {
-		x = p.expr()
+		x = p.logosTypeArgExpr()
 	}
 	if p.got(_Comma) {
 		comma = true

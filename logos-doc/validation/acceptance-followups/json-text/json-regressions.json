@@ -1,0 +1,79 @@
+{
+  "base_commit": "45c29ff215477f7e403188d7452fc79aef05d791",
+  "upstream_commit": "e5b95a2ecb5716814e52fbddddb0d6b491b6e1ce",
+  "patch_sha256": "8657405d111d316e58c754fc8b6aa27281c88ccc5915a45055f30273be2c681f",
+  "files": [
+    {
+      "path": "src/logos/rt/json/scan_test.go",
+      "base_git_blob": "68551bf23dc8a4ffddd1cee28434e141ac8fd79d",
+      "incoming_git_blob": "a0f058b19c09a53f5ef09d5c1321b1a56d99e107",
+      "base_sha256": "bbd47346374d4ba8c09a93f6353b18bb6c208f34c1186029a2105e78c6c0463a",
+      "candidate_sha256": "68604b9d0b2535b3350d767a958ca5c22d5751eb0bef2dbb6fcf1a7758f3753c",
+      "upstream_block_sha256": "a3c011c29f7a76988be7d246888408f92db894e5b27b3a3696700c7baff6c8cd",
+      "inserted_lines": 39,
+      "assertion_adaptations": []
+    },
+    {
+      "path": "src/logos/rt/json/stream_v2_test.go",
+      "base_git_blob": "751ae027ff615599d018c1bef3d695f9768a3424",
+      "incoming_git_blob": "381d0b560a7acbd5ed506fd35f8895e17d913599",
+      "base_sha256": "e1abf7432d9ef84e5b1795fdc48076a050775ab580f9e6083afd94bcdd76b6dc",
+      "candidate_sha256": "4012cd8fee6d97dcebd13935785576f95c24165d575137b2723bd352ee2cd88e",
+      "upstream_block_sha256": "cd7ce3f9f4b541616f149ef9174617bcd6b1d5869ec7f8d5650c38300ee2c8a0",
+      "inserted_lines": 11,
+      "assertion_adaptations": []
+    }
+  ],
+  "production_changes": [],
+  "existing_tests_and_helpers_changed": false,
+  "setup_adaptations": [],
+  "execution_status": "not run; awaiting the assigned Go execution lane",
+  "branchless_tree": "3912153cc5c66fec2783828cecc9651dab39249b",
+  "tree_verification": [
+    {
+      "base_tree": "32b96f3a7c289c987bc021fe5a5adbf35cfe226b",
+      "candidate_tree": "3912153cc5c66fec2783828cecc9651dab39249b",
+      "changed_entries": [
+        "src"
+      ],
+      "unchanged_entries": 23
+    },
+    {
+      "base_tree": "099367e1031585fa553ef7987b199288df36256a",
+      "candidate_tree": "2dfd5f68a70a76f9319326d8f4525e91ebb4dd2c",
+      "changed_entries": [
+        "logos"
+      ],
+      "unchanged_entries": 76
+    },
+    {
+      "base_tree": "3b85e0f1193428cf29f6846e452b2ecc6a848f88",
+      "candidate_tree": "0a9fb456b65707912349d50cf3025d28fa372189",
+      "changed_entries": [
+        "rt"
+      ],
+      "unchanged_entries": 2
+    },
+    {
+      "base_tree": "ce749455d2ebb31aee69dc28a22dfcdeec3de554",
+      "candidate_tree": "e70dd723bd6e8e3a45edf71926d3105ffd4c497d",
+      "changed_entries": [
+        "json"
+      ],
+      "unchanged_entries": 63
+    },
+    {
+      "base_tree": "5981a894553b9ace89573649a5542a162dad34de",
+      "candidate_tree": "23c18b74a18fb02d407526fdc244f464bd00346a",
+      "changed_entries": [
+        "scan_test.go",
+        "stream_v2_test.go"
+      ],
+      "unchanged_entries": 34
+    }
+  ],
+  "verified_git_blobs": {
+    "scan_test.go": "2bea2f88c0eb7a0233128631e5faaae40935d667",
+    "stream_v2_test.go": "90c68d595990e4ea018665772999591fc3a5dda5"
+  }
+}

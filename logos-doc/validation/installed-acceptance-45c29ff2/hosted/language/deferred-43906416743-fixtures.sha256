@@ -1,0 +1,3 @@
+57b4ce73702affb2fe9faf2a9461d3724160f64273774705a86ce50d8a71702a  test/logos/run/defer_indexed_callee.lgo
+e50eba4dae3cabbfb1a388f2fa91a66351ce8dee74643206aa7b2abbeef4b7ce  test/logos/run/defer_indexed_callee.out
+8855a98a8b89c9c2777dfa4841c7011d609eb63fb82ba88b14f324420d51e299  src/cmd/go/testdata/script/logos_eject_defer_indexed_callee.txt

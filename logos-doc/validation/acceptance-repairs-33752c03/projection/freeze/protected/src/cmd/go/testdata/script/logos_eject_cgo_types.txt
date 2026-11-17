@@ -1,0 +1,52 @@
+[!cgo] skip 'cgo is not available'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env CGO_ENABLED=1
+env GOEXPERIMENT=nologosfastcgo,nosimd
+
+logos run .
+stdout '^C types: 10 26 42$'
+cp stdout $WORK/native.txt
+logos eject -o $WORK/out
+cd $WORK/out
+env GOEXPERIMENT=
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $WORK/native.txt
+exec env -u GOROOT $UPROOT1273/bin/go run .
+cmp stdout $WORK/native.txt
+
+-- go.mod --
+module example.com/cgotypes
+
+go 1.27
+
+-- logos.toml --
+[build]
+cgo = "allow"
+
+-- main.lgo --
+package main
+
+/*
+typedef unsigned long word;
+*/
+import "C"
+
+import "fmt"
+
+// An ordinary local type remains its own type during lowering.
+type Local int
+
+func main() {
+	a := [2]C.int{1, 2}
+	b := [2]C.int{3, 4}
+	x := a + b
+	c := [2]C.word{5, 6}
+	d := [2]C.word{7, 8}
+	y := c + d
+	e := [2]Local{9, 10}
+	f := [2]Local{11, 12}
+	z := e + f
+	fmt.Println("C types:", x[0]+x[1], y[0]+y[1], z[0]+z[1])
+}

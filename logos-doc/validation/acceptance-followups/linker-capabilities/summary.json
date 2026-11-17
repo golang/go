@@ -1,0 +1,49 @@
+{
+  "scope": "Incoming linker production and frozen discovery tests overlaid on immutable45; exact installed45 compiler, retained existing oracle/helper bytes. Component verification only, not a final installed toolchain build.",
+  "sourceManifest": "source-manifest.json",
+  "build": {
+    "command": "go test -c -overlay=overlay.json cmd/link/internal/ld",
+    "startedUTC": "2026-11-16T18:11:20Z",
+    "exit": 0,
+    "wallSeconds": 12,
+    "timeoutSeconds": 600,
+    "killAfterSeconds": 10,
+    "elapsedSeconds": 11.667
+  },
+  "test": {
+    "command": "linker-capabilities.test -test.v -test.count=1 -test.short -test.run=Test(CapGraph|LogosCap) -test.timeout=3m",
+    "startedUTC": "2026-11-16T18:12:07Z",
+    "exit": 0,
+    "wallSeconds": 1,
+    "timeoutSeconds": 210,
+    "testTimeoutSeconds": 180,
+    "discoveryChildTimeoutSeconds": 5,
+    "sourceTemp": "/home/agent/logos-linker-capabilities-9949907ca71e-3rkqRX",
+    "elapsedSeconds": 0.963,
+    "topLevelPassed": 25,
+    "reportedPassedCells": 75,
+    "skipped": 0,
+    "failed": 0,
+    "shuffledChildGraphs": 1000,
+    "existingRootOrderedOracleGraphs": 3000
+  },
+  "vet": {
+    "command": "go vet -overlay=overlay.json cmd/link/internal/ld",
+    "startedUTC": "2026-11-16T18:12:15Z",
+    "exit": 0,
+    "wallSeconds": 1,
+    "timeoutSeconds": 600,
+    "killAfterSeconds": 10,
+    "elapsedSeconds": 1.442,
+    "status": "passed"
+  },
+  "childBudgetSeconds": 5,
+  "childBudgetUnchanged": true,
+  "afterHashesMatch": true,
+  "source45Untouched": true,
+  "candidateUntouchedByThisAgent": true,
+  "newMutationExecuted": false,
+  "mutationReason": "Exact upstream files match reviewed e5; recorded RED/probe already exists and the retained oracle validates every inserted edge. No additional concrete composition risk warranted a new mutation.",
+  "allCommandSessionsCompleted": true,
+  "goLaneReleased": true
+}

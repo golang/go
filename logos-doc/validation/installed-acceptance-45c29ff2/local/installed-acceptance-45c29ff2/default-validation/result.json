@@ -1,0 +1,35 @@
+{
+  "started_utc": "2026-11-16T16:54:27.431666+00:00",
+  "completed_utc": "2026-11-16T16:56:47.441298+00:00",
+  "duration_seconds": 140.01,
+  "exit_code": 1,
+  "executed_pass_names": [],
+  "missing_pass_names": [
+    "TestScript",
+    "TestScript/logos_struct_default_validation"
+  ],
+  "skipped_tests": [],
+  "acceptance_passed": false,
+  "raw_log_sha256": "21122df8968dc5d5990889020a921db703fbe32c0895647eab5f62a50e469a1b",
+  "source_after": {
+    "head": "45c29ff215477f7e403188d7452fc79aef05d791",
+    "tree": "32b96f3a7c289c987bc021fe5a5adbf35cfe226b",
+    "src": "099367e1031585fa553ef7987b199288df36256a",
+    "status": ""
+  },
+  "fixtures_unchanged": true,
+  "unconditional_script_builds": [
+    "logos build -o $WORK/control.exe ./control",
+    "logos build -o $WORK/imported.exe ./imported",
+    "logos build -o $WORK/local.exe ./local",
+    "! logos build -o $WORK/overflow-low.exe ./overflow_low",
+    "! logos build -o $WORK/overflow-high.exe ./overflow_high",
+    "! logos build -o $WORK/scalar.exe ./scalar",
+    "! logos build -o $WORK/composite.exe ./composite",
+    "! logos build -o $WORK/map-key.exe ./map_key",
+    "! logos build -o $WORK/blank.exe ./blank",
+    "! logos build -o $WORK/blank-defaults.exe ./blank_defaults",
+    "! logos build -o $WORK/blank-group.exe ./blank_group"
+  ],
+  "script_executed": false
+}

@@ -1,0 +1,10 @@
+--- a/src/cmd/go/internal/load/logos.go
++++ b/src/cmd/go/internal/load/logos.go
+@@ -141,6 +141,7 @@
+ 			if _, duplicate := errors.AsType[logosfile.DuplicateStemError](err); !duplicate {
+ 				return fmt.Errorf("classifying package %s in module %s: %w", name, m.Path, err)
+ 			}
++			continue
+ 			// Duplicate stems invalidate this package, but its complete file
+ 			// lists must still contribute to the module's source kinds.
+ 		}

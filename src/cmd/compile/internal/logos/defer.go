@@ -30,6 +30,7 @@ type capturePiece struct {
 type callPlan struct {
 	fun      capturePiece
 	args     []capturePiece
+	typeArgs []capturePiece
 	dots     bool
 	end      int
 	isMethod bool
@@ -68,7 +69,7 @@ func (fc *funcLower) planCall(call *syntax.CallExpr) (*callPlan, bool) {
 	}
 	plan := &callPlan{dots: call.HasDots, end: split.end}
 	fun := capturePiece{expr: call.Fun}
-	fun.start = fl.off(leftmostOf(call.Fun))
+	fun.start = fl.exprStart(call.Fun)
 	fun.end = lastTokenEnd(src, fun.start, lparen)
 	if _, isType := typeFlagsOf(fl, call.Fun); isType {
 		return nil, false
@@ -81,6 +82,24 @@ func (fc *funcLower) planCall(call *syntax.CallExpr) (*callPlan, bool) {
 		plan.isMethod = true
 		plan.recv = recv
 		plan.method = method
+		if index, ok := syntax.Unparen(call.Fun).(*syntax.IndexExpr); ok {
+			args := syntax.UnpackListExpr(index.Index)
+			types, ok := splitCall(src, fl.off(index.Pos()))
+			if !ok || len(types.args) != len(args) {
+				return nil, false
+			}
+			names := fc.nextTemps(len(args))
+			for i, arg := range args {
+				part := types.args[i]
+				// An earlier type lowering may insert a prefix at this
+				// boundary. It belongs to the type moved into the alias.
+				head := drainOwnedAt(fl.ownerOfInsertion(part.start), part.start, 0)
+				plan.typeArgs = append(plan.typeArgs, capturePiece{
+					expr: arg, text: cat(head, fl.lazyText(part)), start: part.start,
+					end: part.end, single: names[i],
+				})
+			}
+		}
 	} else {
 		fun.capture = !isBuiltinExpr(fc, call.Fun) && !genericTarget(fc, call.Fun)
 		if fun.capture {
@@ -124,8 +143,10 @@ func (fc *funcLower) calleeFunc(fun syntax.Expr) (*types2.Func, bool) {
 }
 
 func genericTarget(fc *funcLower, fun syntax.Expr) bool {
-	if _, ok := syntax.Unparen(fun).(*syntax.IndexExpr); ok {
-		return true
+	if index, ok := syntax.Unparen(fun).(*syntax.IndexExpr); ok {
+		// Both indexing and instantiation use IndexExpr. Only a generic
+		// function can remain at the call for argument type inference.
+		fun = index.X
 	}
 	fn, ok := fc.calleeFunc(fun)
 	if !ok {
@@ -149,7 +170,11 @@ func (fc *funcLower) planScopeCall(call *syntax.CallExpr) (*callPlan, bool) {
 
 func (fc *funcLower) methodRecv(call *syntax.CallExpr) (capturePiece, string, bool) {
 	fl := fc.fl
-	sel, ok := syntax.Unparen(call.Fun).(*syntax.SelectorExpr)
+	fun := syntax.Unparen(call.Fun)
+	if index, ok := fun.(*syntax.IndexExpr); ok {
+		fun = syntax.Unparen(index.X)
+	}
+	sel, ok := fun.(*syntax.SelectorExpr)
 	if !ok || sel.Sel == nil {
 		return capturePiece{}, "", false
 	}
@@ -161,7 +186,9 @@ func (fc *funcLower) methodRecv(call *syntax.CallExpr) (capturePiece, string, bo
 	if !ok || s.Kind() != types2.MethodVal {
 		return capturePiece{}, "", false
 	}
-	rspan := fl.receiverSpan(call)
+	receiverCall := *call
+	receiverCall.Fun = sel
+	rspan := fl.receiverSpan(&receiverCall)
 	recv := capturePiece{expr: sel.X, capture: true}
 	recv.start = rspan.start
 	recv.end = rspan.end
@@ -223,7 +250,7 @@ func (fc *funcLower) recvTarget(s *types2.Selection, x syntax.Expr, text otext) 
 		if ptr, ok := st.(*types2.Pointer); ok {
 			st = types2.Unalias(ptr.Elem())
 		}
-		strct, ok := st.(*types2.Struct)
+		strct, ok := st.Underlying().(*types2.Struct)
 		if !ok || fi < 0 || fi >= strct.NumFields() {
 			return x, text, nil
 		}
@@ -274,6 +301,23 @@ func (fc *funcLower) multiNames(raw syntax.Expr) []string {
 	return names
 }
 
+// Bind explicit type arguments where the call was registered. Each original
+// type subtree moves into one alias; later calls use fresh names, including
+// inside scope-exit stanzas that may shadow the source's type names.
+func planTypeDecls(plan *callPlan, tw *twin) []syntax.Stmt {
+	var decls []syntax.Stmt
+	for _, arg := range plan.typeArgs {
+		pos := arg.expr.Pos()
+		typ := arg.expr
+		if tw != nil {
+			typ = tw.mark(pos, arg.text)
+		}
+		decl := at(&syntax.TypeDecl{Name: nameOf(pos, arg.single), Alias: true, Type: typ}, pos)
+		decls = append(decls, at(&syntax.DeclStmt{DeclList: []syntax.Decl{decl}}, pos))
+	}
+	return decls
+}
+
 func (fc *funcLower) checkPair(plan *callPlan, cpos syntax.Pos) ([]syntax.Stmt, []syntax.Stmt, *twin) {
 	fc.fl.needRT = true
 	tw := &twin{}
@@ -288,7 +332,7 @@ func (fc *funcLower) checkPair(plan *callPlan, cpos syntax.Pos) ([]syntax.Stmt, 
 	callT := callOf(cpos, funT, argT)
 	callT.HasDots = plan.dots
 	checkT := ifOf(cpos, defineOf(cpos, []syntax.Expr{nameOf(cpos, inner)}, []syntax.Expr{callT}), notNil(cpos, nameOf(cpos, inner)), joinT)
-	var native, text []syntax.Stmt
+	native, text := planTypeDecls(plan, nil), planTypeDecls(plan, tw)
 	if len(capNamesN) > 0 {
 		native = append(native, defineOf(cpos, capNamesN, capValsN))
 		text = append(text, defineOf(cpos, capNamesT, capValsT))
@@ -317,6 +361,14 @@ func (fc *funcLower) planUses(plan *callPlan, tw *twin) (syntax.Expr, []syntax.E
 	var args, names, vals []syntax.Expr
 	if plan.isMethod {
 		fun = selOf(plan.fun.expr.Pos(), use(plan.recv, pieceNames(plan.recv)), plan.method)
+		if len(plan.typeArgs) > 0 {
+			pos := syntax.Unparen(plan.fun.expr).Pos()
+			args := make([]syntax.Expr, len(plan.typeArgs))
+			for i, arg := range plan.typeArgs {
+				args[i] = nameOf(arg.expr.Pos(), arg.single)
+			}
+			fun = at(&syntax.IndexExpr{X: fun, Index: listOf(pos, args)}, pos)
+		}
 		names = append(names, nameList(plan.recv)...)
 		vals = append(vals, valList(plan.recv, tw)...)
 	} else {
@@ -438,11 +490,11 @@ func (fc *funcLower) lowerErrdefer(s *syntax.ErrdeferStmt) []syntax.Stmt {
 	callT.HasDots = plan.dots
 	bodyN := []syntax.Stmt{exprStmtOf(cpos, callN)}
 	bodyT := []syntax.Stmt{exprStmtOf(cpos, callT)}
-	native := fc.guardedDefer(cpos, bodyN, capNamesN, capValsN)
+	native := append(planTypeDecls(plan, nil), fc.guardedDefer(cpos, bodyN, capNamesN, capValsN)...)
 	if plan.isMethod && plan.recv.nilCheck {
 		native = spliceRecvCheck(native, ifaceNilCheckStmt(cpos, plan.recv.single, plan.method))
 	}
-	text := fc.guardedDefer(cpos, bodyT, capNamesT, capValsT)
+	text := append(planTypeDecls(plan, tw), fc.guardedDefer(cpos, bodyT, capNamesT, capValsT)...)
 	if plan.isMethod && plan.recv.nilCheck {
 		text = spliceRecvCheck(text, ifaceNilCheckStmt(cpos, plan.recv.single, plan.method))
 	}
@@ -491,6 +543,12 @@ func scoped(pos syntax.Pos, stmts []syntax.Stmt) []syntax.Stmt {
 
 func planSpans(plan *callPlan) []span {
 	spans := []span{{start: plan.fun.start, end: plan.fun.end}}
+	if len(plan.typeArgs) > 0 {
+		spans[0] = span{start: plan.recv.start, end: plan.recv.end}
+		for _, arg := range plan.typeArgs {
+			spans = append(spans, span{start: arg.start, end: arg.end})
+		}
+	}
 	for _, arg := range plan.args {
 		spans = append(spans, span{start: arg.start, end: arg.end})
 	}

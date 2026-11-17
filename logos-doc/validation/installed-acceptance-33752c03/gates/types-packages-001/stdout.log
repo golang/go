@@ -1,0 +1,3272 @@
+=== RUN   TestContextHashCollisions
+--- PASS: TestContextHashCollisions (0.00s)
+=== RUN   TestError
+--- PASS: TestError (0.00s)
+=== RUN   TestStripAnnotations
+--- PASS: TestStripAnnotations (0.00s)
+=== RUN   TestSizeof
+--- PASS: TestSizeof (0.00s)
+=== RUN   TestTermlistAll
+--- PASS: TestTermlistAll (0.00s)
+=== RUN   TestTermlistString
+--- PASS: TestTermlistString (0.00s)
+=== RUN   TestTermlistIsEmpty
+--- PASS: TestTermlistIsEmpty (0.00s)
+=== RUN   TestTermlistIsAll
+--- PASS: TestTermlistIsAll (0.00s)
+=== RUN   TestTermlistNorm
+--- PASS: TestTermlistNorm (0.00s)
+=== RUN   TestTermlistUnion
+--- PASS: TestTermlistUnion (0.00s)
+=== RUN   TestTermlistIntersect
+--- PASS: TestTermlistIntersect (0.00s)
+=== RUN   TestTermlistEqual
+--- PASS: TestTermlistEqual (0.00s)
+=== RUN   TestTermlistIncludes
+--- PASS: TestTermlistIncludes (0.00s)
+=== RUN   TestTermlistSupersetOf
+--- PASS: TestTermlistSupersetOf (0.00s)
+=== RUN   TestTermlistSubsetOf
+--- PASS: TestTermlistSubsetOf (0.00s)
+=== RUN   TestZeroTok
+--- PASS: TestZeroTok (0.00s)
+=== RUN   TestAssignOp
+--- PASS: TestAssignOp (0.00s)
+=== RUN   TestTrie
+--- PASS: TestTrie (0.00s)
+=== RUN   TestAnyValue
+--- PASS: TestAnyValue (0.00s)
+=== RUN   TestInvalidTypeSet
+--- PASS: TestInvalidTypeSet (0.00s)
+=== RUN   TestTypeSetString
+--- PASS: TestTypeSetString (0.00s)
+=== RUN   TestTermString
+--- PASS: TestTermString (0.00s)
+=== RUN   TestTermEqual
+--- PASS: TestTermEqual (0.00s)
+=== RUN   TestTermUnion
+--- PASS: TestTermUnion (0.00s)
+=== RUN   TestTermIntersection
+--- PASS: TestTermIntersection (0.00s)
+=== RUN   TestTermIncludes
+--- PASS: TestTermIncludes (0.00s)
+=== RUN   TestTermSubsetOf
+--- PASS: TestTermSubsetOf (0.00s)
+=== RUN   TestTermDisjoint
+--- PASS: TestTermDisjoint (0.00s)
+=== RUN   TestIssue74181
+--- PASS: TestIssue74181 (0.00s)
+=== RUN   TestPartialTypeCheckUndeclaredAliasPanic
+--- PASS: TestPartialTypeCheckUndeclaredAliasPanic (0.00s)
+=== RUN   TestValuesInfo
+--- PASS: TestValuesInfo (0.00s)
+=== RUN   TestTypesInfo
+--- PASS: TestTypesInfo (0.01s)
+=== RUN   TestInstanceInfo
+=== RUN   TestInstanceInfo/p0
+=== RUN   TestInstanceInfo/p1
+=== RUN   TestInstanceInfo/p2
+=== RUN   TestInstanceInfo/p3
+=== RUN   TestInstanceInfo/p4
+=== RUN   TestInstanceInfo/s1
+=== RUN   TestInstanceInfo/s2
+=== RUN   TestInstanceInfo/s3
+=== RUN   TestInstanceInfo/s4
+=== RUN   TestInstanceInfo/t1
+=== RUN   TestInstanceInfo/t2
+=== RUN   TestInstanceInfo/t3
+=== RUN   TestInstanceInfo/t4
+=== RUN   TestInstanceInfo/i0
+=== RUN   TestInstanceInfo/duplfunc0
+=== RUN   TestInstanceInfo/duplfunc1
+=== RUN   TestInstanceInfo/type0
+=== RUN   TestInstanceInfo/type1
+=== RUN   TestInstanceInfo/type2
+=== RUN   TestInstanceInfo/type3
+=== RUN   TestInstanceInfo/type4
+=== RUN   TestInstanceInfo/dupltype0
+=== RUN   TestInstanceInfo/dupltype1
+=== RUN   TestInstanceInfo/dupltype1#01
+=== RUN   TestInstanceInfo/issue51803
+=== RUN   TestInstanceInfo/reverse1a
+=== RUN   TestInstanceInfo/reverse1b
+=== RUN   TestInstanceInfo/reverse2a
+=== RUN   TestInstanceInfo/reverse2b
+=== RUN   TestInstanceInfo/reverse2c
+=== RUN   TestInstanceInfo/reverse3b
+=== RUN   TestInstanceInfo/reverse4a
+=== RUN   TestInstanceInfo/reverse4b
+=== RUN   TestInstanceInfo/issue59956
+--- PASS: TestInstanceInfo (0.00s)
+    --- PASS: TestInstanceInfo/p0 (0.00s)
+    --- PASS: TestInstanceInfo/p1 (0.00s)
+    --- PASS: TestInstanceInfo/p2 (0.00s)
+    --- PASS: TestInstanceInfo/p3 (0.00s)
+    --- PASS: TestInstanceInfo/p4 (0.00s)
+    --- PASS: TestInstanceInfo/s1 (0.00s)
+    --- PASS: TestInstanceInfo/s2 (0.00s)
+    --- PASS: TestInstanceInfo/s3 (0.00s)
+    --- PASS: TestInstanceInfo/s4 (0.00s)
+    --- PASS: TestInstanceInfo/t1 (0.00s)
+    --- PASS: TestInstanceInfo/t2 (0.00s)
+    --- PASS: TestInstanceInfo/t3 (0.00s)
+    --- PASS: TestInstanceInfo/t4 (0.00s)
+    --- PASS: TestInstanceInfo/i0 (0.00s)
+    --- PASS: TestInstanceInfo/duplfunc0 (0.00s)
+    --- PASS: TestInstanceInfo/duplfunc1 (0.00s)
+    --- PASS: TestInstanceInfo/type0 (0.00s)
+    --- PASS: TestInstanceInfo/type1 (0.00s)
+    --- PASS: TestInstanceInfo/type2 (0.00s)
+    --- PASS: TestInstanceInfo/type3 (0.00s)
+    --- PASS: TestInstanceInfo/type4 (0.00s)
+    --- PASS: TestInstanceInfo/dupltype0 (0.00s)
+    --- PASS: TestInstanceInfo/dupltype1 (0.00s)
+    --- PASS: TestInstanceInfo/dupltype1#01 (0.00s)
+    --- PASS: TestInstanceInfo/issue51803 (0.00s)
+    --- PASS: TestInstanceInfo/reverse1a (0.00s)
+    --- PASS: TestInstanceInfo/reverse1b (0.00s)
+    --- PASS: TestInstanceInfo/reverse2a (0.00s)
+    --- PASS: TestInstanceInfo/reverse2b (0.00s)
+    --- PASS: TestInstanceInfo/reverse2c (0.00s)
+    --- PASS: TestInstanceInfo/reverse3b (0.00s)
+    --- PASS: TestInstanceInfo/reverse4a (0.00s)
+    --- PASS: TestInstanceInfo/reverse4b (0.00s)
+    --- PASS: TestInstanceInfo/issue59956 (0.00s)
+=== RUN   TestDefsInfo
+--- PASS: TestDefsInfo (0.00s)
+=== RUN   TestUsesInfo
+--- PASS: TestUsesInfo (0.00s)
+=== RUN   TestGenericMethodInfo
+--- PASS: TestGenericMethodInfo (0.00s)
+=== RUN   TestImplicitsInfo
+--- PASS: TestImplicitsInfo (0.07s)
+=== RUN   TestPkgNameOf
+--- PASS: TestPkgNameOf (0.24s)
+=== RUN   TestPredicatesInfo
+--- PASS: TestPredicatesInfo (0.00s)
+=== RUN   TestScopesInfo
+--- PASS: TestScopesInfo (0.00s)
+=== RUN   TestInitOrderInfo
+--- PASS: TestInitOrderInfo (0.00s)
+=== RUN   TestMultiFileInitOrder
+--- PASS: TestMultiFileInitOrder (0.00s)
+=== RUN   TestFiles
+--- PASS: TestFiles (0.00s)
+=== RUN   TestSelection
+--- PASS: TestSelection (0.00s)
+=== RUN   TestIssue8518
+    api_test.go:1814: a:3:8: could not import missing (package "missing" not found)
+    api_test.go:1814: a:4:12: undefined: foo
+--- PASS: TestIssue8518 (0.00s)
+=== RUN   TestIssue59603
+    api_test.go:1843: a:3:11: undefined: foo
+--- PASS: TestIssue59603 (0.00s)
+=== RUN   TestLookupFieldOrMethodOnNil
+--- PASS: TestLookupFieldOrMethodOnNil (0.00s)
+=== RUN   TestLookupFieldOrMethod
+--- PASS: TestLookupFieldOrMethod (0.00s)
+=== RUN   TestLookupFieldOrMethod_RecursiveGeneric
+--- PASS: TestLookupFieldOrMethod_RecursiveGeneric (0.00s)
+=== RUN   TestConvertibleTo
+--- PASS: TestConvertibleTo (0.00s)
+=== RUN   TestAssignableTo
+--- PASS: TestAssignableTo (0.00s)
+=== RUN   TestIdentical
+--- PASS: TestIdentical (0.00s)
+=== RUN   TestIdentical_issue15173
+--- PASS: TestIdentical_issue15173 (0.00s)
+=== RUN   TestIdenticalUnions
+--- PASS: TestIdenticalUnions (0.00s)
+=== RUN   TestIssue61737
+--- PASS: TestIssue61737 (0.00s)
+=== RUN   TestNewAlias_Issue65455
+--- PASS: TestNewAlias_Issue65455 (0.00s)
+=== RUN   TestIssue15305
+--- PASS: TestIssue15305 (0.00s)
+=== RUN   TestCompositeLitTypes
+--- PASS: TestCompositeLitTypes (0.00s)
+=== RUN   TestObjectParents
+--- PASS: TestObjectParents (0.00s)
+=== RUN   TestFailedImport
+--- PASS: TestFailedImport (0.00s)
+=== RUN   TestInstantiate
+--- PASS: TestInstantiate (0.00s)
+=== RUN   TestInstantiateConcurrent
+--- PASS: TestInstantiateConcurrent (0.00s)
+=== RUN   TestInstantiateErrors
+--- PASS: TestInstantiateErrors (0.00s)
+=== RUN   TestArgumentErrorUnwrapping
+--- PASS: TestArgumentErrorUnwrapping (0.00s)
+=== RUN   TestInstanceIdentity
+--- PASS: TestInstanceIdentity (0.00s)
+=== RUN   TestInstantiatedObjects
+=== RUN   TestInstantiatedObjects/field
+=== RUN   TestInstantiatedObjects/field#01
+=== RUN   TestInstantiatedObjects/concreteMethod
+=== RUN   TestInstantiatedObjects/recv
+=== RUN   TestInstantiatedObjects/mParam
+=== RUN   TestInstantiatedObjects/mResult
+=== RUN   TestInstantiatedObjects/interfaceMethod
+=== RUN   TestInstantiatedObjects/ftParam
+=== RUN   TestInstantiatedObjects/ftResult
+=== RUN   TestInstantiatedObjects/fParam
+=== RUN   TestInstantiatedObjects/fResult
+--- PASS: TestInstantiatedObjects (0.00s)
+    --- PASS: TestInstantiatedObjects/field (0.00s)
+    --- PASS: TestInstantiatedObjects/field#01 (0.00s)
+    --- PASS: TestInstantiatedObjects/concreteMethod (0.00s)
+    --- PASS: TestInstantiatedObjects/recv (0.00s)
+    --- PASS: TestInstantiatedObjects/mParam (0.00s)
+    --- PASS: TestInstantiatedObjects/mResult (0.00s)
+    --- PASS: TestInstantiatedObjects/interfaceMethod (0.00s)
+    --- PASS: TestInstantiatedObjects/ftParam (0.00s)
+    --- PASS: TestInstantiatedObjects/ftResult (0.00s)
+    --- PASS: TestInstantiatedObjects/fParam (0.00s)
+    --- PASS: TestInstantiatedObjects/fResult (0.00s)
+=== RUN   TestImplements
+--- PASS: TestImplements (0.00s)
+=== RUN   TestMissingMethodAlternative
+--- PASS: TestMissingMethodAlternative (0.00s)
+=== RUN   TestErrorURL
+--- PASS: TestErrorURL (0.00s)
+=== RUN   TestModuleVersion
+--- PASS: TestModuleVersion (0.00s)
+=== RUN   TestFileVersions
+--- PASS: TestFileVersions (0.00s)
+=== RUN   TestTooNew
+--- PASS: TestTooNew (0.00s)
+=== RUN   TestUnaliasTooSoonInCycle
+--- PASS: TestUnaliasTooSoonInCycle (0.00s)
+=== RUN   TestAlias_Rhs
+--- PASS: TestAlias_Rhs (0.00s)
+=== RUN   TestVersionIssue69477
+--- PASS: TestVersionIssue69477 (0.00s)
+=== RUN   TestVersionWithoutPos
+--- PASS: TestVersionWithoutPos (0.00s)
+=== RUN   TestVarKind
+--- PASS: TestVarKind (0.00s)
+=== RUN   TestIssue73871
+--- PASS: TestIssue73871 (0.00s)
+=== RUN   TestIssue79657
+--- PASS: TestIssue79657 (0.00s)
+=== RUN   TestBuiltinSignatures
+--- PASS: TestBuiltinSignatures (0.01s)
+=== RUN   TestManual
+
+== initFiles ==
+
+== collectObjects ==
+
+== sortObjects ==
+
+== directCycles ==
+
+== packageObjects ==
+
+== processDelayed ==
+
+== cleanup ==
+
+== initOrder ==
+
+== unusedImports ==
+
+== recordUntyped ==
+--- PASS: TestManual (0.00s)
+=== RUN   TestLongConstants
+--- PASS: TestLongConstants (0.00s)
+=== RUN   TestIndexRepresentability
+--- PASS: TestIndexRepresentability (0.00s)
+=== RUN   TestIssue47243_TypedRHS
+--- PASS: TestIssue47243_TypedRHS (0.00s)
+=== RUN   TestCheck
+=== RUN   TestCheck/blank.go
+=== RUN   TestCheck/builtins0.go
+=== RUN   TestCheck/builtins1.go
+=== RUN   TestCheck/chans.go
+=== RUN   TestCheck/compliterals.go
+=== RUN   TestCheck/const0.go
+=== RUN   TestCheck/const1.go
+=== RUN   TestCheck/constdecl.go
+=== RUN   TestCheck/conversions0.go
+=== RUN   TestCheck/conversions1.go
+=== RUN   TestCheck/cycles0.go
+=== RUN   TestCheck/cycles1.go
+=== RUN   TestCheck/cycles2.go
+=== RUN   TestCheck/cycles3.go
+=== RUN   TestCheck/cycles4.go
+=== RUN   TestCheck/cycles5.go
+=== RUN   TestCheck/cycles6.go
+=== RUN   TestCheck/decls0.go
+=== RUN   TestCheck/decls1.go
+=== RUN   TestCheck/decls2
+=== RUN   TestCheck/decls3.go
+=== RUN   TestCheck/decls4.go
+=== RUN   TestCheck/decls5.go
+=== RUN   TestCheck/doubled_labels.go
+=== RUN   TestCheck/errors.go
+=== RUN   TestCheck/expr0.go
+=== RUN   TestCheck/expr1.go
+=== RUN   TestCheck/expr2.go
+=== RUN   TestCheck/expr3.go
+=== RUN   TestCheck/funcinference.go
+=== RUN   TestCheck/go1_12.go
+=== RUN   TestCheck/go1_13.go
+=== RUN   TestCheck/go1_16.go
+=== RUN   TestCheck/go1_19.go
+=== RUN   TestCheck/go1_19_20.go
+=== RUN   TestCheck/go1_20_19.go
+=== RUN   TestCheck/go1_21_19.go
+=== RUN   TestCheck/go1_21_22.go
+=== RUN   TestCheck/go1_22_21.go
+=== RUN   TestCheck/go1_25.go
+=== RUN   TestCheck/go1_8.go
+=== RUN   TestCheck/go1_xx_19.go
+=== RUN   TestCheck/gotos.go
+=== RUN   TestCheck/importC.go
+=== RUN   TestCheck/importdecl0
+=== RUN   TestCheck/importdecl1
+=== RUN   TestCheck/init0.go
+=== RUN   TestCheck/init1.go
+=== RUN   TestCheck/init2.go
+=== RUN   TestCheck/issue25008
+=== RUN   TestCheck/issue70974.go
+=== RUN   TestCheck/issues0.go
+=== RUN   TestCheck/issues1.go
+=== RUN   TestCheck/labels.go
+=== RUN   TestCheck/linalg.go
+=== RUN   TestCheck/literals.go
+=== RUN   TestCheck/lookup1.go
+=== RUN   TestCheck/lookup2.go
+=== RUN   TestCheck/main0.go
+=== RUN   TestCheck/main1.go
+=== RUN   TestCheck/map0.go
+=== RUN   TestCheck/map1.go
+=== RUN   TestCheck/methodsets.go
+=== RUN   TestCheck/shifts.go
+=== RUN   TestCheck/slices.go
+=== RUN   TestCheck/stmt0.go
+=== RUN   TestCheck/stmt1.go
+=== RUN   TestCheck/typeinference.go
+=== RUN   TestCheck/typeinst0.go
+=== RUN   TestCheck/typeinst1.go
+=== RUN   TestCheck/typeinstcycles.go
+=== RUN   TestCheck/typeparams.go
+=== RUN   TestCheck/unions.go
+=== RUN   TestCheck/vardecl.go
+--- PASS: TestCheck (10.04s)
+    --- PASS: TestCheck/blank.go (0.00s)
+    --- PASS: TestCheck/builtins0.go (0.01s)
+    --- PASS: TestCheck/builtins1.go (0.00s)
+    --- PASS: TestCheck/chans.go (0.07s)
+    --- PASS: TestCheck/compliterals.go (0.00s)
+    --- PASS: TestCheck/const0.go (0.00s)
+    --- PASS: TestCheck/const1.go (0.00s)
+    --- PASS: TestCheck/constdecl.go (0.00s)
+    --- PASS: TestCheck/conversions0.go (0.00s)
+    --- PASS: TestCheck/conversions1.go (0.00s)
+    --- PASS: TestCheck/cycles0.go (0.00s)
+    --- PASS: TestCheck/cycles1.go (0.00s)
+    --- PASS: TestCheck/cycles2.go (0.00s)
+    --- PASS: TestCheck/cycles3.go (0.00s)
+    --- PASS: TestCheck/cycles4.go (0.00s)
+    --- PASS: TestCheck/cycles5.go (0.00s)
+    --- PASS: TestCheck/cycles6.go (0.00s)
+    --- PASS: TestCheck/decls0.go (0.00s)
+    --- PASS: TestCheck/decls1.go (0.00s)
+    --- PASS: TestCheck/decls2 (0.04s)
+    --- PASS: TestCheck/decls3.go (0.00s)
+    --- PASS: TestCheck/decls4.go (0.00s)
+    --- PASS: TestCheck/decls5.go (0.00s)
+    --- PASS: TestCheck/doubled_labels.go (0.00s)
+    --- PASS: TestCheck/errors.go (0.00s)
+    --- PASS: TestCheck/expr0.go (0.00s)
+    --- PASS: TestCheck/expr1.go (0.00s)
+    --- PASS: TestCheck/expr2.go (0.00s)
+    --- PASS: TestCheck/expr3.go (0.00s)
+    --- PASS: TestCheck/funcinference.go (0.04s)
+    --- PASS: TestCheck/go1_12.go (0.00s)
+    --- PASS: TestCheck/go1_13.go (0.00s)
+    --- PASS: TestCheck/go1_16.go (0.00s)
+    --- PASS: TestCheck/go1_19.go (0.00s)
+    --- PASS: TestCheck/go1_19_20.go (0.00s)
+    --- PASS: TestCheck/go1_20_19.go (0.00s)
+    --- PASS: TestCheck/go1_21_19.go (0.00s)
+    --- PASS: TestCheck/go1_21_22.go (0.00s)
+    --- PASS: TestCheck/go1_22_21.go (0.00s)
+    --- PASS: TestCheck/go1_25.go (0.00s)
+    --- PASS: TestCheck/go1_8.go (0.00s)
+    --- PASS: TestCheck/go1_xx_19.go (0.00s)
+    --- PASS: TestCheck/gotos.go (0.00s)
+    --- PASS: TestCheck/importC.go (0.00s)
+    --- PASS: TestCheck/importdecl0 (9.50s)
+    --- PASS: TestCheck/importdecl1 (0.06s)
+    --- PASS: TestCheck/init0.go (0.00s)
+    --- PASS: TestCheck/init1.go (0.00s)
+    --- PASS: TestCheck/init2.go (0.00s)
+    --- PASS: TestCheck/issue25008 (0.00s)
+    --- PASS: TestCheck/issue70974.go (0.00s)
+    --- PASS: TestCheck/issues0.go (0.19s)
+    --- PASS: TestCheck/issues1.go (0.05s)
+    --- PASS: TestCheck/labels.go (0.00s)
+    --- PASS: TestCheck/linalg.go (0.00s)
+    --- PASS: TestCheck/literals.go (0.00s)
+    --- PASS: TestCheck/lookup1.go (0.00s)
+    --- PASS: TestCheck/lookup2.go (0.00s)
+    --- PASS: TestCheck/main0.go (0.00s)
+    --- PASS: TestCheck/main1.go (0.00s)
+    --- PASS: TestCheck/map0.go (0.00s)
+    --- PASS: TestCheck/map1.go (0.00s)
+    --- PASS: TestCheck/methodsets.go (0.00s)
+    --- PASS: TestCheck/shifts.go (0.00s)
+    --- PASS: TestCheck/slices.go (0.00s)
+    --- PASS: TestCheck/stmt0.go (0.00s)
+    --- PASS: TestCheck/stmt1.go (0.00s)
+    --- PASS: TestCheck/typeinference.go (0.00s)
+    --- PASS: TestCheck/typeinst0.go (0.00s)
+    --- PASS: TestCheck/typeinst1.go (0.00s)
+    --- PASS: TestCheck/typeinstcycles.go (0.00s)
+    --- PASS: TestCheck/typeparams.go (0.00s)
+    --- PASS: TestCheck/unions.go (0.00s)
+    --- PASS: TestCheck/vardecl.go (0.00s)
+=== RUN   TestSpec
+=== RUN   TestSpec/assignability.go
+=== RUN   TestSpec/comparable.go
+=== RUN   TestSpec/comparable1.19.go
+=== RUN   TestSpec/comparisons.go
+=== RUN   TestSpec/conversions.go
+=== RUN   TestSpec/methods.go
+=== RUN   TestSpec/range.go
+=== RUN   TestSpec/range_int.go
+=== RUN   TestSpec/receivers.go
+=== RUN   TestSpec/structLits.go
+=== RUN   TestSpec/typeAliases1.22.go
+=== RUN   TestSpec/typeAliases1.23.go
+=== RUN   TestSpec/typeAliases1.8.go
+--- PASS: TestSpec (0.01s)
+    --- PASS: TestSpec/assignability.go (0.00s)
+    --- PASS: TestSpec/comparable.go (0.00s)
+    --- PASS: TestSpec/comparable1.19.go (0.00s)
+    --- PASS: TestSpec/comparisons.go (0.00s)
+    --- PASS: TestSpec/conversions.go (0.00s)
+    --- PASS: TestSpec/methods.go (0.00s)
+    --- PASS: TestSpec/range.go (0.00s)
+    --- PASS: TestSpec/range_int.go (0.00s)
+    --- PASS: TestSpec/receivers.go (0.00s)
+    --- PASS: TestSpec/structLits.go (0.00s)
+    --- PASS: TestSpec/typeAliases1.22.go (0.00s)
+    --- PASS: TestSpec/typeAliases1.23.go (0.00s)
+    --- PASS: TestSpec/typeAliases1.8.go (0.00s)
+=== RUN   TestExamples
+=== RUN   TestExamples/constraints.go
+=== RUN   TestExamples/functions.go
+=== RUN   TestExamples/inference.go
+=== RUN   TestExamples/inference2.go
+=== RUN   TestExamples/methods.go
+=== RUN   TestExamples/operations.go
+=== RUN   TestExamples/types.go
+=== RUN   TestExamples/typesets.go
+--- PASS: TestExamples (0.01s)
+    --- PASS: TestExamples/constraints.go (0.00s)
+    --- PASS: TestExamples/functions.go (0.00s)
+    --- PASS: TestExamples/inference.go (0.00s)
+    --- PASS: TestExamples/inference2.go (0.00s)
+    --- PASS: TestExamples/methods.go (0.00s)
+    --- PASS: TestExamples/operations.go (0.00s)
+    --- PASS: TestExamples/types.go (0.00s)
+    --- PASS: TestExamples/typesets.go (0.00s)
+=== RUN   TestFixedbugs
+=== RUN   TestFixedbugs/issue20583.go
+=== RUN   TestFixedbugs/issue23203a.go
+=== RUN   TestFixedbugs/issue23203b.go
+=== RUN   TestFixedbugs/issue25838.go
+=== RUN   TestFixedbugs/issue26390.go
+=== RUN   TestFixedbugs/issue28251.go
+=== RUN   TestFixedbugs/issue3117.go
+=== RUN   TestFixedbugs/issue39634.go
+=== RUN   TestFixedbugs/issue39664.go
+=== RUN   TestFixedbugs/issue39680.go
+=== RUN   TestFixedbugs/issue39693.go
+=== RUN   TestFixedbugs/issue39699.go
+=== RUN   TestFixedbugs/issue39711.go
+=== RUN   TestFixedbugs/issue39723.go
+=== RUN   TestFixedbugs/issue39725.go
+=== RUN   TestFixedbugs/issue39754.go
+=== RUN   TestFixedbugs/issue39755.go
+=== RUN   TestFixedbugs/issue39768.go
+=== RUN   TestFixedbugs/issue39938.go
+=== RUN   TestFixedbugs/issue39948.go
+=== RUN   TestFixedbugs/issue39976.go
+=== RUN   TestFixedbugs/issue39982.go
+=== RUN   TestFixedbugs/issue40038.go
+=== RUN   TestFixedbugs/issue40056.go
+=== RUN   TestFixedbugs/issue40057.go
+=== RUN   TestFixedbugs/issue40301.go
+=== RUN   TestFixedbugs/issue40350.go
+=== RUN   TestFixedbugs/issue40684.go
+=== RUN   TestFixedbugs/issue40789.go
+=== RUN   TestFixedbugs/issue41124.go
+=== RUN   TestFixedbugs/issue41176.go
+=== RUN   TestFixedbugs/issue42695.go
+=== RUN   TestFixedbugs/issue42758.go
+=== RUN   TestFixedbugs/issue42881.go
+=== RUN   TestFixedbugs/issue42987.go
+=== RUN   TestFixedbugs/issue43056.go
+=== RUN   TestFixedbugs/issue43087.go
+=== RUN   TestFixedbugs/issue43109.go
+=== RUN   TestFixedbugs/issue43110.go
+=== RUN   TestFixedbugs/issue43124.go
+=== RUN   TestFixedbugs/issue43190.go
+=== RUN   TestFixedbugs/issue43527.go
+=== RUN   TestFixedbugs/issue43671.go
+=== RUN   TestFixedbugs/issue44688.go
+=== RUN   TestFixedbugs/issue44799.go
+=== RUN   TestFixedbugs/issue45114.go
+=== RUN   TestFixedbugs/issue45548.go
+=== RUN   TestFixedbugs/issue45550.go
+=== RUN   TestFixedbugs/issue45635.go
+=== RUN   TestFixedbugs/issue45639.go
+=== RUN   TestFixedbugs/issue45920.go
+=== RUN   TestFixedbugs/issue45985.go
+=== RUN   TestFixedbugs/issue46090.go
+=== RUN   TestFixedbugs/issue46275.go
+=== RUN   TestFixedbugs/issue46403.go
+=== RUN   TestFixedbugs/issue46404.go
+=== RUN   TestFixedbugs/issue46461.go
+=== RUN   TestFixedbugs/issue46583.go
+=== RUN   TestFixedbugs/issue47031.go
+=== RUN   TestFixedbugs/issue47115.go
+=== RUN   TestFixedbugs/issue47127.go
+=== RUN   TestFixedbugs/issue47411.go
+=== RUN   TestFixedbugs/issue47747.go
+=== RUN   TestFixedbugs/issue47796.go
+=== RUN   TestFixedbugs/issue47818.go
+=== RUN   TestFixedbugs/issue47887.go
+=== RUN   TestFixedbugs/issue47968.go
+=== RUN   TestFixedbugs/issue48008.go
+=== RUN   TestFixedbugs/issue48018.go
+=== RUN   TestFixedbugs/issue48048.go
+=== RUN   TestFixedbugs/issue48082.go
+=== RUN   TestFixedbugs/issue48083.go
+=== RUN   TestFixedbugs/issue48136.go
+=== RUN   TestFixedbugs/issue48234.go
+=== RUN   TestFixedbugs/issue48312.go
+=== RUN   TestFixedbugs/issue48472.go
+=== RUN   TestFixedbugs/issue48529.go
+=== RUN   TestFixedbugs/issue48582.go
+=== RUN   TestFixedbugs/issue48619.go
+=== RUN   TestFixedbugs/issue48656.go
+=== RUN   TestFixedbugs/issue48695.go
+=== RUN   TestFixedbugs/issue48703.go
+=== RUN   TestFixedbugs/issue48712.go
+=== RUN   TestFixedbugs/issue48819.go
+=== RUN   TestFixedbugs/issue48827.go
+=== RUN   TestFixedbugs/issue48951.go
+=== RUN   TestFixedbugs/issue48962.go
+=== RUN   TestFixedbugs/issue48974.go
+=== RUN   TestFixedbugs/issue49003.go
+=== RUN   TestFixedbugs/issue49005.go
+=== RUN   TestFixedbugs/issue49043.go
+=== RUN   TestFixedbugs/issue49112.go
+=== RUN   TestFixedbugs/issue49179.go
+=== RUN   TestFixedbugs/issue49242.go
+=== RUN   TestFixedbugs/issue49247.go
+=== RUN   TestFixedbugs/issue49276.go
+=== RUN   TestFixedbugs/issue49296.go
+=== RUN   TestFixedbugs/issue49439.go
+=== RUN   TestFixedbugs/issue49482.go
+=== RUN   TestFixedbugs/issue49541.go
+=== RUN   TestFixedbugs/issue49579.go
+=== RUN   TestFixedbugs/issue49592.go
+=== RUN   TestFixedbugs/issue49602.go
+=== RUN   TestFixedbugs/issue49705.go
+=== RUN   TestFixedbugs/issue49735.go
+=== RUN   TestFixedbugs/issue49736.go
+=== RUN   TestFixedbugs/issue49739.go
+=== RUN   TestFixedbugs/issue49864.go
+=== RUN   TestFixedbugs/issue50259.go
+=== RUN   TestFixedbugs/issue50276.go
+=== RUN   TestFixedbugs/issue50281.go
+=== RUN   TestFixedbugs/issue50321.go
+=== RUN   TestFixedbugs/issue50372.go
+=== RUN   TestFixedbugs/issue50417.go
+=== RUN   TestFixedbugs/issue50426.go
+=== RUN   TestFixedbugs/issue50427a.go
+=== RUN   TestFixedbugs/issue50427b.go
+=== RUN   TestFixedbugs/issue50450.go
+=== RUN   TestFixedbugs/issue50516.go
+=== RUN   TestFixedbugs/issue50646.go
+=== RUN   TestFixedbugs/issue50729.go
+=== RUN   TestFixedbugs/issue50729b.go
+=== RUN   TestFixedbugs/issue50755.go
+=== RUN   TestFixedbugs/issue50779.go
+=== RUN   TestFixedbugs/issue50782.go
+=== RUN   TestFixedbugs/issue50816.go
+=== RUN   TestFixedbugs/issue50833.go
+=== RUN   TestFixedbugs/issue50912.go
+=== RUN   TestFixedbugs/issue50918.go
+=== RUN   TestFixedbugs/issue50929.go
+=== RUN   TestFixedbugs/issue50965.go
+=== RUN   TestFixedbugs/issue51025.go
+=== RUN   TestFixedbugs/issue51048.go
+=== RUN   TestFixedbugs/issue51139.go
+=== RUN   TestFixedbugs/issue51145.go
+=== RUN   TestFixedbugs/issue51158.go
+=== RUN   TestFixedbugs/issue51229.go
+=== RUN   TestFixedbugs/issue51232.go
+=== RUN   TestFixedbugs/issue51233.go
+=== RUN   TestFixedbugs/issue51257.go
+=== RUN   TestFixedbugs/issue51335.go
+=== RUN   TestFixedbugs/issue51339.go
+=== RUN   TestFixedbugs/issue51360.go
+=== RUN   TestFixedbugs/issue51376.go
+=== RUN   TestFixedbugs/issue51386.go
+=== RUN   TestFixedbugs/issue51437.go
+=== RUN   TestFixedbugs/issue51472.go
+=== RUN   TestFixedbugs/issue51503.go
+=== RUN   TestFixedbugs/issue51509.go
+=== RUN   TestFixedbugs/issue51525.go
+=== RUN   TestFixedbugs/issue51533.go
+=== RUN   TestFixedbugs/issue51578.go
+=== RUN   TestFixedbugs/issue51593.go
+=== RUN   TestFixedbugs/issue51607.go
+=== RUN   TestFixedbugs/issue51610.go
+=== RUN   TestFixedbugs/issue51616.go
+=== RUN   TestFixedbugs/issue51658.go
+=== RUN   TestFixedbugs/issue51877.go
+=== RUN   TestFixedbugs/issue52031.go
+=== RUN   TestFixedbugs/issue52401.go
+=== RUN   TestFixedbugs/issue52529.go
+=== RUN   TestFixedbugs/issue52698.go
+=== RUN   TestFixedbugs/issue52915.go
+=== RUN   TestFixedbugs/issue53358.go
+=== RUN   TestFixedbugs/issue53535.go
+=== RUN   TestFixedbugs/issue53650.go
+=== RUN   TestFixedbugs/issue53692.go
+=== RUN   TestFixedbugs/issue54280.go
+=== RUN   TestFixedbugs/issue54405.go
+=== RUN   TestFixedbugs/issue54424.go
+=== RUN   TestFixedbugs/issue54942.go
+=== RUN   TestFixedbugs/issue56351.go
+=== RUN   TestFixedbugs/issue56425.go
+=== RUN   TestFixedbugs/issue56665.go
+=== RUN   TestFixedbugs/issue57155.go
+=== RUN   TestFixedbugs/issue57160.go
+=== RUN   TestFixedbugs/issue57192.go
+=== RUN   TestFixedbugs/issue57352.go
+=== RUN   TestFixedbugs/issue57486.go
+=== RUN   TestFixedbugs/issue57500.go
+=== RUN   TestFixedbugs/issue57522.go
+=== RUN   TestFixedbugs/issue58611.go
+=== RUN   TestFixedbugs/issue58612.go
+=== RUN   TestFixedbugs/issue58671.go
+=== RUN   TestFixedbugs/issue58742.go
+=== RUN   TestFixedbugs/issue59190.go
+=== RUN   TestFixedbugs/issue59207.go
+=== RUN   TestFixedbugs/issue59209.go
+=== RUN   TestFixedbugs/issue59338a.go
+=== RUN   TestFixedbugs/issue59338b.go
+=== RUN   TestFixedbugs/issue59371.go
+=== RUN   TestFixedbugs/issue59639.go
+=== RUN   TestFixedbugs/issue59740.go
+=== RUN   TestFixedbugs/issue59848.go
+=== RUN   TestFixedbugs/issue59890.go
+=== RUN   TestFixedbugs/issue59953.go
+=== RUN   TestFixedbugs/issue59956.go
+=== RUN   TestFixedbugs/issue59958.go
+=== RUN   TestFixedbugs/issue60346.go
+=== RUN   TestFixedbugs/issue60377.go
+=== RUN   TestFixedbugs/issue60434.go
+=== RUN   TestFixedbugs/issue60460.go
+=== RUN   TestFixedbugs/issue60500.go
+=== RUN   TestFixedbugs/issue60542.go
+=== RUN   TestFixedbugs/issue60556.go
+=== RUN   TestFixedbugs/issue60562.go
+=== RUN   TestFixedbugs/issue60688.go
+=== RUN   TestFixedbugs/issue60747.go
+=== RUN   TestFixedbugs/issue60906.go
+=== RUN   TestFixedbugs/issue60933.go
+=== RUN   TestFixedbugs/issue60946.go
+=== RUN   TestFixedbugs/issue61486.go
+=== RUN   TestFixedbugs/issue61685.go
+=== RUN   TestFixedbugs/issue61822.go
+=== RUN   TestFixedbugs/issue61879.go
+=== RUN   TestFixedbugs/issue61903.go
+=== RUN   TestFixedbugs/issue62157.go
+=== RUN   TestFixedbugs/issue63563.go
+=== RUN   TestFixedbugs/issue64406.go
+=== RUN   TestFixedbugs/issue64704.go
+=== RUN   TestFixedbugs/issue65344.go
+=== RUN   TestFixedbugs/issue65711.go
+=== RUN   TestFixedbugs/issue65854.go
+=== RUN   TestFixedbugs/issue66064.go
+=== RUN   TestFixedbugs/issue66285.go
+=== RUN   TestFixedbugs/issue66323.go
+=== RUN   TestFixedbugs/issue66751.go
+=== RUN   TestFixedbugs/issue66878.go
+=== RUN   TestFixedbugs/issue67547.go
+=== RUN   TestFixedbugs/issue67628.go
+=== RUN   TestFixedbugs/issue67683.go
+=== RUN   TestFixedbugs/issue67872.go
+=== RUN   TestFixedbugs/issue67962.go
+=== RUN   TestFixedbugs/issue6814.go
+=== RUN   TestFixedbugs/issue68162.go
+=== RUN   TestFixedbugs/issue68184.go
+=== RUN   TestFixedbugs/issue68903.go
+=== RUN   TestFixedbugs/issue68935.go
+=== RUN   TestFixedbugs/issue69576.go
+=== RUN   TestFixedbugs/issue6977.go
+=== RUN   TestFixedbugs/issue69955.go
+=== RUN   TestFixedbugs/issue70150.go
+=== RUN   TestFixedbugs/issue70417.go
+=== RUN   TestFixedbugs/issue70526.go
+=== RUN   TestFixedbugs/issue70549.go
+=== RUN   TestFixedbugs/issue71131.go
+=== RUN   TestFixedbugs/issue71198.go
+=== RUN   TestFixedbugs/issue71284.go
+=== RUN   TestFixedbugs/issue72936.go
+=== RUN   TestFixedbugs/issue73428.go
+=== RUN   TestFixedbugs/issue75194.go
+=== RUN   TestFixedbugs/issue75883.go
+=== RUN   TestFixedbugs/issue75885.go
+=== RUN   TestFixedbugs/issue75918.go
+=== RUN   TestFixedbugs/issue75986.go
+=== RUN   TestFixedbugs/issue76103.go
+=== RUN   TestFixedbugs/issue76220.go
+=== RUN   TestFixedbugs/issue76366.go
+=== RUN   TestFixedbugs/issue76383.go
+=== RUN   TestFixedbugs/issue76384.go
+=== RUN   TestFixedbugs/issue76478.go
+=== RUN   TestFixedbugs/issue77245.go
+=== RUN   TestFixedbugs/issue77382.go
+=== RUN   TestFixedbugs/issue77905.go
+=== RUN   TestFixedbugs/issue78163.go
+=== RUN   TestFixedbugs/issue78346.go
+    check_test.go:481: all files skipped by build tags
+=== RUN   TestFixedbugs/issue78483.go
+=== RUN   TestFixedbugs/issue78884.go
+=== RUN   TestFixedbugs/issue79265.go
+=== RUN   TestFixedbugs/issue79687.go
+=== RUN   TestFixedbugs/issue79832.go
+=== RUN   TestFixedbugs/issue79883.go
+=== RUN   TestFixedbugs/issue80042.go
+=== RUN   TestFixedbugs/issue80172.go
+=== RUN   TestFixedbugs/logos_nested_union_ordered.go
+--- PASS: TestFixedbugs (0.79s)
+    --- PASS: TestFixedbugs/issue20583.go (0.00s)
+    --- PASS: TestFixedbugs/issue23203a.go (0.00s)
+    --- PASS: TestFixedbugs/issue23203b.go (0.00s)
+    --- PASS: TestFixedbugs/issue25838.go (0.00s)
+    --- PASS: TestFixedbugs/issue26390.go (0.00s)
+    --- PASS: TestFixedbugs/issue28251.go (0.00s)
+    --- PASS: TestFixedbugs/issue3117.go (0.00s)
+    --- PASS: TestFixedbugs/issue39634.go (0.00s)
+    --- PASS: TestFixedbugs/issue39664.go (0.00s)
+    --- PASS: TestFixedbugs/issue39680.go (0.00s)
+    --- PASS: TestFixedbugs/issue39693.go (0.00s)
+    --- PASS: TestFixedbugs/issue39699.go (0.00s)
+    --- PASS: TestFixedbugs/issue39711.go (0.00s)
+    --- PASS: TestFixedbugs/issue39723.go (0.00s)
+    --- PASS: TestFixedbugs/issue39725.go (0.00s)
+    --- PASS: TestFixedbugs/issue39754.go (0.00s)
+    --- PASS: TestFixedbugs/issue39755.go (0.00s)
+    --- PASS: TestFixedbugs/issue39768.go (0.00s)
+    --- PASS: TestFixedbugs/issue39938.go (0.00s)
+    --- PASS: TestFixedbugs/issue39948.go (0.00s)
+    --- PASS: TestFixedbugs/issue39976.go (0.00s)
+    --- PASS: TestFixedbugs/issue39982.go (0.00s)
+    --- PASS: TestFixedbugs/issue40038.go (0.00s)
+    --- PASS: TestFixedbugs/issue40056.go (0.00s)
+    --- PASS: TestFixedbugs/issue40057.go (0.00s)
+    --- PASS: TestFixedbugs/issue40301.go (0.00s)
+    --- PASS: TestFixedbugs/issue40350.go (0.00s)
+    --- PASS: TestFixedbugs/issue40684.go (0.00s)
+    --- PASS: TestFixedbugs/issue40789.go (0.00s)
+    --- PASS: TestFixedbugs/issue41124.go (0.00s)
+    --- PASS: TestFixedbugs/issue41176.go (0.00s)
+    --- PASS: TestFixedbugs/issue42695.go (0.00s)
+    --- PASS: TestFixedbugs/issue42758.go (0.00s)
+    --- PASS: TestFixedbugs/issue42881.go (0.00s)
+    --- PASS: TestFixedbugs/issue42987.go (0.00s)
+    --- PASS: TestFixedbugs/issue43056.go (0.00s)
+    --- PASS: TestFixedbugs/issue43087.go (0.00s)
+    --- PASS: TestFixedbugs/issue43109.go (0.00s)
+    --- PASS: TestFixedbugs/issue43110.go (0.00s)
+    --- PASS: TestFixedbugs/issue43124.go (0.00s)
+    --- PASS: TestFixedbugs/issue43190.go (0.00s)
+    --- PASS: TestFixedbugs/issue43527.go (0.00s)
+    --- PASS: TestFixedbugs/issue43671.go (0.00s)
+    --- PASS: TestFixedbugs/issue44688.go (0.00s)
+    --- PASS: TestFixedbugs/issue44799.go (0.00s)
+    --- PASS: TestFixedbugs/issue45114.go (0.00s)
+    --- PASS: TestFixedbugs/issue45548.go (0.00s)
+    --- PASS: TestFixedbugs/issue45550.go (0.00s)
+    --- PASS: TestFixedbugs/issue45635.go (0.00s)
+    --- PASS: TestFixedbugs/issue45639.go (0.00s)
+    --- PASS: TestFixedbugs/issue45920.go (0.00s)
+    --- PASS: TestFixedbugs/issue45985.go (0.00s)
+    --- PASS: TestFixedbugs/issue46090.go (0.00s)
+    --- PASS: TestFixedbugs/issue46275.go (0.00s)
+    --- PASS: TestFixedbugs/issue46403.go (0.00s)
+    --- PASS: TestFixedbugs/issue46404.go (0.00s)
+    --- PASS: TestFixedbugs/issue46461.go (0.00s)
+    --- PASS: TestFixedbugs/issue46583.go (0.00s)
+    --- PASS: TestFixedbugs/issue47031.go (0.00s)
+    --- PASS: TestFixedbugs/issue47115.go (0.00s)
+    --- PASS: TestFixedbugs/issue47127.go (0.00s)
+    --- PASS: TestFixedbugs/issue47411.go (0.00s)
+    --- PASS: TestFixedbugs/issue47747.go (0.00s)
+    --- PASS: TestFixedbugs/issue47796.go (0.00s)
+    --- PASS: TestFixedbugs/issue47818.go (0.00s)
+    --- PASS: TestFixedbugs/issue47887.go (0.00s)
+    --- PASS: TestFixedbugs/issue47968.go (0.00s)
+    --- PASS: TestFixedbugs/issue48008.go (0.00s)
+    --- PASS: TestFixedbugs/issue48018.go (0.00s)
+    --- PASS: TestFixedbugs/issue48048.go (0.00s)
+    --- PASS: TestFixedbugs/issue48082.go (0.00s)
+    --- PASS: TestFixedbugs/issue48083.go (0.00s)
+    --- PASS: TestFixedbugs/issue48136.go (0.00s)
+    --- PASS: TestFixedbugs/issue48234.go (0.00s)
+    --- PASS: TestFixedbugs/issue48312.go (0.00s)
+    --- PASS: TestFixedbugs/issue48472.go (0.00s)
+    --- PASS: TestFixedbugs/issue48529.go (0.00s)
+    --- PASS: TestFixedbugs/issue48582.go (0.00s)
+    --- PASS: TestFixedbugs/issue48619.go (0.00s)
+    --- PASS: TestFixedbugs/issue48656.go (0.00s)
+    --- PASS: TestFixedbugs/issue48695.go (0.00s)
+    --- PASS: TestFixedbugs/issue48703.go (0.00s)
+    --- PASS: TestFixedbugs/issue48712.go (0.00s)
+    --- PASS: TestFixedbugs/issue48819.go (0.00s)
+    --- PASS: TestFixedbugs/issue48827.go (0.00s)
+    --- PASS: TestFixedbugs/issue48951.go (0.00s)
+    --- PASS: TestFixedbugs/issue48962.go (0.00s)
+    --- PASS: TestFixedbugs/issue48974.go (0.00s)
+    --- PASS: TestFixedbugs/issue49003.go (0.00s)
+    --- PASS: TestFixedbugs/issue49005.go (0.00s)
+    --- PASS: TestFixedbugs/issue49043.go (0.00s)
+    --- PASS: TestFixedbugs/issue49112.go (0.00s)
+    --- PASS: TestFixedbugs/issue49179.go (0.00s)
+    --- PASS: TestFixedbugs/issue49242.go (0.00s)
+    --- PASS: TestFixedbugs/issue49247.go (0.00s)
+    --- PASS: TestFixedbugs/issue49276.go (0.00s)
+    --- PASS: TestFixedbugs/issue49296.go (0.00s)
+    --- PASS: TestFixedbugs/issue49439.go (0.00s)
+    --- PASS: TestFixedbugs/issue49482.go (0.00s)
+    --- PASS: TestFixedbugs/issue49541.go (0.00s)
+    --- PASS: TestFixedbugs/issue49579.go (0.00s)
+    --- PASS: TestFixedbugs/issue49592.go (0.00s)
+    --- PASS: TestFixedbugs/issue49602.go (0.00s)
+    --- PASS: TestFixedbugs/issue49705.go (0.00s)
+    --- PASS: TestFixedbugs/issue49735.go (0.00s)
+    --- PASS: TestFixedbugs/issue49736.go (0.00s)
+    --- PASS: TestFixedbugs/issue49739.go (0.00s)
+    --- PASS: TestFixedbugs/issue49864.go (0.00s)
+    --- PASS: TestFixedbugs/issue50259.go (0.00s)
+    --- PASS: TestFixedbugs/issue50276.go (0.00s)
+    --- PASS: TestFixedbugs/issue50281.go (0.00s)
+    --- PASS: TestFixedbugs/issue50321.go (0.00s)
+    --- PASS: TestFixedbugs/issue50372.go (0.00s)
+    --- PASS: TestFixedbugs/issue50417.go (0.00s)
+    --- PASS: TestFixedbugs/issue50426.go (0.00s)
+    --- PASS: TestFixedbugs/issue50427a.go (0.00s)
+    --- PASS: TestFixedbugs/issue50427b.go (0.00s)
+    --- PASS: TestFixedbugs/issue50450.go (0.00s)
+    --- PASS: TestFixedbugs/issue50516.go (0.00s)
+    --- PASS: TestFixedbugs/issue50646.go (0.00s)
+    --- PASS: TestFixedbugs/issue50729.go (0.00s)
+    --- PASS: TestFixedbugs/issue50729b.go (0.00s)
+    --- PASS: TestFixedbugs/issue50755.go (0.00s)
+    --- PASS: TestFixedbugs/issue50779.go (0.00s)
+    --- PASS: TestFixedbugs/issue50782.go (0.00s)
+    --- PASS: TestFixedbugs/issue50816.go (0.00s)
+    --- PASS: TestFixedbugs/issue50833.go (0.00s)
+    --- PASS: TestFixedbugs/issue50912.go (0.00s)
+    --- PASS: TestFixedbugs/issue50918.go (0.00s)
+    --- PASS: TestFixedbugs/issue50929.go (0.00s)
+    --- PASS: TestFixedbugs/issue50965.go (0.00s)
+    --- PASS: TestFixedbugs/issue51025.go (0.00s)
+    --- PASS: TestFixedbugs/issue51048.go (0.00s)
+    --- PASS: TestFixedbugs/issue51139.go (0.00s)
+    --- PASS: TestFixedbugs/issue51145.go (0.00s)
+    --- PASS: TestFixedbugs/issue51158.go (0.00s)
+    --- PASS: TestFixedbugs/issue51229.go (0.00s)
+    --- PASS: TestFixedbugs/issue51232.go (0.00s)
+    --- PASS: TestFixedbugs/issue51233.go (0.00s)
+    --- PASS: TestFixedbugs/issue51257.go (0.00s)
+    --- PASS: TestFixedbugs/issue51335.go (0.00s)
+    --- PASS: TestFixedbugs/issue51339.go (0.00s)
+    --- PASS: TestFixedbugs/issue51360.go (0.00s)
+    --- PASS: TestFixedbugs/issue51376.go (0.00s)
+    --- PASS: TestFixedbugs/issue51386.go (0.00s)
+    --- PASS: TestFixedbugs/issue51437.go (0.00s)
+    --- PASS: TestFixedbugs/issue51472.go (0.00s)
+    --- PASS: TestFixedbugs/issue51503.go (0.00s)
+    --- PASS: TestFixedbugs/issue51509.go (0.00s)
+    --- PASS: TestFixedbugs/issue51525.go (0.00s)
+    --- PASS: TestFixedbugs/issue51533.go (0.00s)
+    --- PASS: TestFixedbugs/issue51578.go (0.00s)
+    --- PASS: TestFixedbugs/issue51593.go (0.00s)
+    --- PASS: TestFixedbugs/issue51607.go (0.00s)
+    --- PASS: TestFixedbugs/issue51610.go (0.00s)
+    --- PASS: TestFixedbugs/issue51616.go (0.00s)
+    --- PASS: TestFixedbugs/issue51658.go (0.00s)
+    --- PASS: TestFixedbugs/issue51877.go (0.00s)
+    --- PASS: TestFixedbugs/issue52031.go (0.00s)
+    --- PASS: TestFixedbugs/issue52401.go (0.00s)
+    --- PASS: TestFixedbugs/issue52529.go (0.00s)
+    --- PASS: TestFixedbugs/issue52698.go (0.00s)
+    --- PASS: TestFixedbugs/issue52915.go (0.00s)
+    --- PASS: TestFixedbugs/issue53358.go (0.00s)
+    --- PASS: TestFixedbugs/issue53535.go (0.00s)
+    --- PASS: TestFixedbugs/issue53650.go (0.00s)
+    --- PASS: TestFixedbugs/issue53692.go (0.00s)
+    --- PASS: TestFixedbugs/issue54280.go (0.00s)
+    --- PASS: TestFixedbugs/issue54405.go (0.00s)
+    --- PASS: TestFixedbugs/issue54424.go (0.00s)
+    --- PASS: TestFixedbugs/issue54942.go (0.62s)
+    --- PASS: TestFixedbugs/issue56351.go (0.00s)
+    --- PASS: TestFixedbugs/issue56425.go (0.00s)
+    --- PASS: TestFixedbugs/issue56665.go (0.00s)
+    --- PASS: TestFixedbugs/issue57155.go (0.00s)
+    --- PASS: TestFixedbugs/issue57160.go (0.00s)
+    --- PASS: TestFixedbugs/issue57192.go (0.00s)
+    --- PASS: TestFixedbugs/issue57352.go (0.00s)
+    --- PASS: TestFixedbugs/issue57486.go (0.00s)
+    --- PASS: TestFixedbugs/issue57500.go (0.00s)
+    --- PASS: TestFixedbugs/issue57522.go (0.00s)
+    --- PASS: TestFixedbugs/issue58611.go (0.05s)
+    --- PASS: TestFixedbugs/issue58612.go (0.00s)
+    --- PASS: TestFixedbugs/issue58671.go (0.00s)
+    --- PASS: TestFixedbugs/issue58742.go (0.00s)
+    --- PASS: TestFixedbugs/issue59190.go (0.00s)
+    --- PASS: TestFixedbugs/issue59207.go (0.00s)
+    --- PASS: TestFixedbugs/issue59209.go (0.00s)
+    --- PASS: TestFixedbugs/issue59338a.go (0.00s)
+    --- PASS: TestFixedbugs/issue59338b.go (0.00s)
+    --- PASS: TestFixedbugs/issue59371.go (0.00s)
+    --- PASS: TestFixedbugs/issue59639.go (0.00s)
+    --- PASS: TestFixedbugs/issue59740.go (0.00s)
+    --- PASS: TestFixedbugs/issue59848.go (0.00s)
+    --- PASS: TestFixedbugs/issue59890.go (0.00s)
+    --- PASS: TestFixedbugs/issue59953.go (0.00s)
+    --- PASS: TestFixedbugs/issue59956.go (0.00s)
+    --- PASS: TestFixedbugs/issue59958.go (0.00s)
+    --- PASS: TestFixedbugs/issue60346.go (0.00s)
+    --- PASS: TestFixedbugs/issue60377.go (0.00s)
+    --- PASS: TestFixedbugs/issue60434.go (0.00s)
+    --- PASS: TestFixedbugs/issue60460.go (0.00s)
+    --- PASS: TestFixedbugs/issue60500.go (0.00s)
+    --- PASS: TestFixedbugs/issue60542.go (0.00s)
+    --- PASS: TestFixedbugs/issue60556.go (0.00s)
+    --- PASS: TestFixedbugs/issue60562.go (0.00s)
+    --- PASS: TestFixedbugs/issue60688.go (0.00s)
+    --- PASS: TestFixedbugs/issue60747.go (0.00s)
+    --- PASS: TestFixedbugs/issue60906.go (0.00s)
+    --- PASS: TestFixedbugs/issue60933.go (0.00s)
+    --- PASS: TestFixedbugs/issue60946.go (0.00s)
+    --- PASS: TestFixedbugs/issue61486.go (0.00s)
+    --- PASS: TestFixedbugs/issue61685.go (0.00s)
+    --- PASS: TestFixedbugs/issue61822.go (0.00s)
+    --- PASS: TestFixedbugs/issue61879.go (0.00s)
+    --- PASS: TestFixedbugs/issue61903.go (0.00s)
+    --- PASS: TestFixedbugs/issue62157.go (0.00s)
+    --- PASS: TestFixedbugs/issue63563.go (0.00s)
+    --- PASS: TestFixedbugs/issue64406.go (0.00s)
+    --- PASS: TestFixedbugs/issue64704.go (0.00s)
+    --- PASS: TestFixedbugs/issue65344.go (0.00s)
+    --- PASS: TestFixedbugs/issue65711.go (0.00s)
+    --- PASS: TestFixedbugs/issue65854.go (0.00s)
+    --- PASS: TestFixedbugs/issue66064.go (0.04s)
+    --- PASS: TestFixedbugs/issue66285.go (0.00s)
+    --- PASS: TestFixedbugs/issue66323.go (0.00s)
+    --- PASS: TestFixedbugs/issue66751.go (0.00s)
+    --- PASS: TestFixedbugs/issue66878.go (0.00s)
+    --- PASS: TestFixedbugs/issue67547.go (0.00s)
+    --- PASS: TestFixedbugs/issue67628.go (0.00s)
+    --- PASS: TestFixedbugs/issue67683.go (0.00s)
+    --- PASS: TestFixedbugs/issue67872.go (0.00s)
+    --- PASS: TestFixedbugs/issue67962.go (0.00s)
+    --- PASS: TestFixedbugs/issue6814.go (0.00s)
+    --- PASS: TestFixedbugs/issue68162.go (0.00s)
+    --- PASS: TestFixedbugs/issue68184.go (0.00s)
+    --- PASS: TestFixedbugs/issue68903.go (0.00s)
+    --- PASS: TestFixedbugs/issue68935.go (0.00s)
+    --- PASS: TestFixedbugs/issue69576.go (0.00s)
+    --- PASS: TestFixedbugs/issue6977.go (0.00s)
+    --- PASS: TestFixedbugs/issue69955.go (0.00s)
+    --- PASS: TestFixedbugs/issue70150.go (0.00s)
+    --- PASS: TestFixedbugs/issue70417.go (0.00s)
+    --- PASS: TestFixedbugs/issue70526.go (0.00s)
+    --- PASS: TestFixedbugs/issue70549.go (0.00s)
+    --- PASS: TestFixedbugs/issue71131.go (0.00s)
+    --- PASS: TestFixedbugs/issue71198.go (0.00s)
+    --- PASS: TestFixedbugs/issue71284.go (0.00s)
+    --- PASS: TestFixedbugs/issue72936.go (0.00s)
+    --- PASS: TestFixedbugs/issue73428.go (0.00s)
+    --- PASS: TestFixedbugs/issue75194.go (0.00s)
+    --- PASS: TestFixedbugs/issue75883.go (0.00s)
+    --- PASS: TestFixedbugs/issue75885.go (0.00s)
+    --- PASS: TestFixedbugs/issue75918.go (0.00s)
+    --- PASS: TestFixedbugs/issue75986.go (0.00s)
+    --- PASS: TestFixedbugs/issue76103.go (0.00s)
+    --- PASS: TestFixedbugs/issue76220.go (0.00s)
+    --- PASS: TestFixedbugs/issue76366.go (0.00s)
+    --- PASS: TestFixedbugs/issue76383.go (0.00s)
+    --- PASS: TestFixedbugs/issue76384.go (0.00s)
+    --- PASS: TestFixedbugs/issue76478.go (0.00s)
+    --- PASS: TestFixedbugs/issue77245.go (0.00s)
+    --- PASS: TestFixedbugs/issue77382.go (0.00s)
+    --- PASS: TestFixedbugs/issue77905.go (0.00s)
+    --- PASS: TestFixedbugs/issue78163.go (0.00s)
+    --- SKIP: TestFixedbugs/issue78346.go (0.00s)
+    --- PASS: TestFixedbugs/issue78483.go (0.00s)
+    --- PASS: TestFixedbugs/issue78884.go (0.00s)
+    --- PASS: TestFixedbugs/issue79265.go (0.00s)
+    --- PASS: TestFixedbugs/issue79687.go (0.00s)
+    --- PASS: TestFixedbugs/issue79832.go (0.00s)
+    --- PASS: TestFixedbugs/issue79883.go (0.00s)
+    --- PASS: TestFixedbugs/issue80042.go (0.00s)
+    --- PASS: TestFixedbugs/issue80172.go (0.00s)
+    --- PASS: TestFixedbugs/logos_nested_union_ordered.go (0.00s)
+=== RUN   TestLocal
+=== RUN   TestLocal/issue47996.go
+=== RUN   TestLocal/shifts.go
+--- PASS: TestLocal (0.00s)
+    --- PASS: TestLocal/issue47996.go (0.00s)
+    --- PASS: TestLocal/shifts.go (0.00s)
+=== RUN   TestCommentMap
+--- PASS: TestCommentMap (0.00s)
+=== RUN   TestErrorCalls
+--- PASS: TestErrorCalls (0.02s)
+=== RUN   TestEvalBasic
+--- PASS: TestEvalBasic (0.00s)
+=== RUN   TestEvalComposite
+--- PASS: TestEvalComposite (0.00s)
+=== RUN   TestEvalArith
+--- PASS: TestEvalArith (0.00s)
+=== RUN   TestEvalPos
+--- PASS: TestEvalPos (0.00s)
+=== RUN   TestCheckExpr
+--- PASS: TestCheckExpr (0.00s)
+=== RUN   TestIssue65898
+--- PASS: TestIssue65898 (0.00s)
+=== RUN   TestExprString
+--- PASS: TestExprString (0.00s)
+=== RUN   TestGenerate
+--- PASS: TestGenerate (0.07s)
+=== RUN   TestHasher
+=== RUN   TestHasher/Hasher
+=== RUN   TestHasher/HasherIgnoreTags
+--- PASS: TestHasher (0.00s)
+    --- PASS: TestHasher/Hasher (0.00s)
+    --- PASS: TestHasher/HasherIgnoreTags (0.00s)
+=== RUN   TestHilbert
+--- PASS: TestHilbert (0.00s)
+=== RUN   TestInstantiateEquality
+=== RUN   TestInstantiateEquality/basictype
+=== RUN   TestInstantiateEquality/differenttypeargs
+=== RUN   TestInstantiateEquality/typeslice
+=== RUN   TestInstantiateEquality/equivalentinterfaces
+=== RUN   TestInstantiateEquality/equivalenttypesets
+=== RUN   TestInstantiateEquality/basicfunc
+=== RUN   TestInstantiateEquality/funcslice
+=== RUN   TestInstantiateEquality/funcwithparams
+=== RUN   TestInstantiateEquality/differentfuncargs
+=== RUN   TestInstantiateEquality/funcequality
+=== RUN   TestInstantiateEquality/funcsymmetry
+--- PASS: TestInstantiateEquality (0.00s)
+    --- PASS: TestInstantiateEquality/basictype (0.00s)
+    --- PASS: TestInstantiateEquality/differenttypeargs (0.00s)
+    --- PASS: TestInstantiateEquality/typeslice (0.00s)
+    --- PASS: TestInstantiateEquality/equivalentinterfaces (0.00s)
+    --- PASS: TestInstantiateEquality/equivalenttypesets (0.00s)
+    --- PASS: TestInstantiateEquality/basicfunc (0.00s)
+    --- PASS: TestInstantiateEquality/funcslice (0.00s)
+    --- PASS: TestInstantiateEquality/funcwithparams (0.00s)
+    --- PASS: TestInstantiateEquality/differentfuncargs (0.00s)
+    --- PASS: TestInstantiateEquality/funcequality (0.00s)
+    --- PASS: TestInstantiateEquality/funcsymmetry (0.00s)
+=== RUN   TestInstantiateNonEquality
+--- PASS: TestInstantiateNonEquality (0.00s)
+=== RUN   TestMethodInstantiation
+--- PASS: TestMethodInstantiation (0.00s)
+=== RUN   TestImmutableSignatures
+--- PASS: TestImmutableSignatures (0.00s)
+=== RUN   TestIssue5770
+--- PASS: TestIssue5770 (0.00s)
+=== RUN   TestIssue5849
+--- PASS: TestIssue5849 (0.00s)
+=== RUN   TestIssue6413
+--- PASS: TestIssue6413 (0.00s)
+=== RUN   TestIssue7245
+--- PASS: TestIssue7245 (0.00s)
+=== RUN   TestIssue7827
+    issues_test.go:155: p:6:9: cannot assign to w
+--- PASS: TestIssue7827 (0.00s)
+=== RUN   TestIssue13898
+--- PASS: TestIssue13898 (2.29s)
+=== RUN   TestIssue22525
+--- PASS: TestIssue22525 (0.00s)
+=== RUN   TestIssue25627
+--- PASS: TestIssue25627 (0.00s)
+=== RUN   TestIssue28005
+--- PASS: TestIssue28005 (0.00s)
+=== RUN   TestIssue28282
+--- PASS: TestIssue28282 (0.00s)
+=== RUN   TestIssue29029
+--- PASS: TestIssue29029 (0.00s)
+=== RUN   TestIssue34151
+--- PASS: TestIssue34151 (0.00s)
+=== RUN   TestIssue34921
+--- PASS: TestIssue34921 (0.00s)
+=== RUN   TestIssue43088
+--- PASS: TestIssue43088 (0.00s)
+=== RUN   TestIssue44515
+--- PASS: TestIssue44515 (0.00s)
+=== RUN   TestIssue43124
+--- PASS: TestIssue43124 (0.00s)
+=== RUN   TestIssue50646
+--- PASS: TestIssue50646 (0.00s)
+=== RUN   TestIssue55030
+--- PASS: TestIssue55030 (0.00s)
+=== RUN   TestIssue51093
+--- PASS: TestIssue51093 (0.00s)
+=== RUN   TestIssue54258
+    issues_test.go:870: Saw expected
+        	main:6:12: cannot use b.S{} (value of struct type b.S) as I0 value in variable declaration: b.S does not implement I0 (wrong type for method M0)
+        		have M0(struct{f string /* package b */ })
+        		want M0(struct{f string /* package main */ })
+    issues_test.go:870: Saw expected
+        	main:6:12: cannot use b.S{} (value of struct type b.S) as I1 value in variable declaration: b.S does not implement I1 (wrong type for method M1)
+        		have M1(struct{string /* package b */ })
+        		want M1(struct{string /* package main */ })
+    issues_test.go:870: Saw expected
+        	main:6:12: cannot use b.S{} (value of struct type b.S) as I2 value in variable declaration: b.S does not implement I2 (wrong type for method M2)
+        		have M2(struct{f struct{f string} /* package b */ })
+        		want M2(struct{f struct{f string} /* package main */ })
+    issues_test.go:870: Saw expected
+        	main:6:12: cannot use b.S{} (value of struct type b.S) as I3 value in variable declaration: b.S does not implement I3 (wrong type for method M3)
+        		have M3(struct{F struct{f string /* package b */ }})
+        		want M3(struct{F struct{f string /* package main */ }})
+    issues_test.go:870: Saw expected
+        	main:6:12: cannot use b.S{} (value of struct type b.S) as I4 value in variable declaration: b.S does not implement I4 (wrong type for method M4)
+        		have M4(struct{*string /* package b */ })
+        		want M4(struct{*string /* package main */ })
+    issues_test.go:870: Saw expected
+        	main:7:12: cannot use b.S{} (value of struct type b.S) as I5 value in variable declaration: b.S does not implement I5 (wrong type for method M5)
+        		have M5(struct{b.S; b.t})
+        		want M5(struct{b.S; t})
+--- PASS: TestIssue54258 (0.00s)
+=== RUN   TestIssue59944
+--- PASS: TestIssue59944 (0.11s)
+=== RUN   TestIssue61931
+--- PASS: TestIssue61931 (0.00s)
+=== RUN   TestIssue61938
+--- PASS: TestIssue61938 (0.00s)
+=== RUN   TestIssue63260
+--- PASS: TestIssue63260 (0.00s)
+=== RUN   TestIssue44410
+--- PASS: TestIssue44410 (0.00s)
+=== RUN   TestIssue59831
+--- PASS: TestIssue59831 (0.00s)
+=== RUN   TestIssue64759
+--- PASS: TestIssue64759 (0.00s)
+=== RUN   TestIssue68334
+--- PASS: TestIssue68334 (0.00s)
+=== RUN   TestIssue68877
+--- PASS: TestIssue68877 (0.00s)
+=== RUN   TestIssue69092
+--- PASS: TestIssue69092 (0.00s)
+=== RUN   TestIssue72978
+--- PASS: TestIssue72978 (0.00s)
+=== RUN   TestNewMethodSet
+--- PASS: TestNewMethodSet (0.00s)
+=== RUN   TestNewMethodSet_RecursiveGeneric
+--- PASS: TestNewMethodSet_RecursiveGeneric (0.00s)
+=== RUN   TestIssue60634
+--- PASS: TestIssue60634 (0.00s)
+=== RUN   TestMonoGood
+--- PASS: TestMonoGood (0.00s)
+=== RUN   TestMonoBad
+    mono_test.go:43: x:2:8: instantiation cycle:
+        x:2:22: 	T instantiated as *T
+    mono_test.go:43: x:2:8: instantiation cycle:
+        x:2:21: 	T instantiated as *T
+    mono_test.go:43: x:2:8: instantiation cycle:
+        x:2:21: 	T instantiated as []T
+    mono_test.go:43: x:2:8: instantiation cycle:
+        x:2:21: 	T instantiated as [1]T
+    mono_test.go:43: x:2:8: instantiation cycle:
+        x:2:21: 	T instantiated as chan T
+    mono_test.go:43: x:2:8: instantiation cycle:
+        x:2:21: 	T instantiated as map[*T]int
+    mono_test.go:43: x:2:8: instantiation cycle:
+        x:2:21: 	T instantiated as map[error]T
+    mono_test.go:43: x:2:8: instantiation cycle:
+        x:2:21: 	T instantiated as func(T)
+    mono_test.go:43: x:2:8: instantiation cycle:
+        x:2:21: 	T instantiated as func() T
+    mono_test.go:43: x:2:8: instantiation cycle:
+        x:2:21: 	T instantiated as struct{t T}
+    mono_test.go:43: x:2:8: instantiation cycle:
+        x:2:21: 	T instantiated as interface{t() T}
+    mono_test.go:43: x:2:27: instantiation cycle:
+        x:2:40: 	T instantiated as U[T]
+    mono_test.go:43: x:2:8: instantiation cycle:
+        x:2:33: 	T instantiated as U
+        x:2:24: 	U implicitly parameterized by T
+    mono_test.go:43: x:2:8: instantiation cycle:
+        x:2:33: 	T instantiated as *U
+        x:2:24: 	U implicitly parameterized by T
+    mono_test.go:43: x:2:8: instantiation cycle:
+        x:2:46: 	T instantiated as *T
+    mono_test.go:43: x:2:8: instantiation cycle:
+        x:2:47: 	T instantiated as *T
+    mono_test.go:43: x:2:8: instantiation cycle:
+        x:2:72: 	T1 instantiated as T2
+        x:2:33: 	T2 instantiated as *T1
+    mono_test.go:43: x:2:8: instantiation cycle:
+        x:2:33: 	A instantiated as B
+        x:2:36: 	B instantiated as C
+        x:2:39: 	C instantiated as D
+        x:2:42: 	D instantiated as E
+        x:2:45: 	E instantiated as *A
+    mono_test.go:43: x:2:60: instantiation cycle:
+        x:2:71: 	T instantiated as *T
+    mono_test.go:43: x:2:8: instantiation cycle:
+        x:2:34: 	T instantiated as A
+    mono_test.go:43: x:2:26: invalid recursive type: A[*T] refers to itself
+    mono_test.go:43: x:2:31: instantiation cycle:
+        x:2:46: 	P instantiated as *P
+    mono_test.go:43: x:2:31: instantiation cycle:
+        x:2:83: 	P instantiated as *Q
+        x:2:46: 	Q instantiated as *P
+    mono_test.go:43: x:2:36: instantiation cycle:
+        x:2:51: 	P instantiated as *P
+    mono_test.go:43: x:2:36: instantiation cycle:
+        x:2:91: 	P instantiated as *Q
+        x:2:51: 	Q instantiated as *P
+--- PASS: TestMonoBad (0.00s)
+=== RUN   TestFiniteTypeExpansion
+--- PASS: TestFiniteTypeExpansion (0.00s)
+=== RUN   TestMethodOrdering
+--- PASS: TestMethodOrdering (0.00s)
+=== RUN   TestIsAlias
+--- PASS: TestIsAlias (0.00s)
+=== RUN   TestEmbeddedMethod
+--- PASS: TestEmbeddedMethod (0.00s)
+=== RUN   TestObjectString
+=== RUN   TestObjectString/0
+=== RUN   TestObjectString/1
+=== RUN   TestObjectString/2
+=== RUN   TestObjectString/3
+=== RUN   TestObjectString/4
+=== RUN   TestObjectString/5
+=== RUN   TestObjectString/6
+=== RUN   TestObjectString/7
+=== RUN   TestObjectString/8
+=== RUN   TestObjectString/9
+=== RUN   TestObjectString/10
+=== RUN   TestObjectString/11
+=== RUN   TestObjectString/12
+=== RUN   TestObjectString/13
+=== RUN   TestObjectString/14
+=== RUN   TestObjectString/15
+=== RUN   TestObjectString/16
+--- PASS: TestObjectString (0.00s)
+    --- PASS: TestObjectString/0 (0.00s)
+    --- PASS: TestObjectString/1 (0.00s)
+    --- PASS: TestObjectString/2 (0.00s)
+    --- PASS: TestObjectString/3 (0.00s)
+    --- PASS: TestObjectString/4 (0.00s)
+    --- PASS: TestObjectString/5 (0.00s)
+    --- PASS: TestObjectString/6 (0.00s)
+    --- PASS: TestObjectString/7 (0.00s)
+    --- PASS: TestObjectString/8 (0.00s)
+    --- PASS: TestObjectString/9 (0.00s)
+    --- PASS: TestObjectString/10 (0.00s)
+    --- PASS: TestObjectString/11 (0.00s)
+    --- PASS: TestObjectString/12 (0.00s)
+    --- PASS: TestObjectString/13 (0.00s)
+    --- PASS: TestObjectString/14 (0.00s)
+    --- PASS: TestObjectString/15 (0.00s)
+    --- PASS: TestObjectString/16 (0.00s)
+=== RUN   TestResolveIdents
+--- PASS: TestResolveIdents (0.11s)
+=== RUN   TestScopeLookupParent
+--- PASS: TestScopeLookupParent (0.00s)
+=== RUN   TestSelf
+--- PASS: TestSelf (0.65s)
+=== RUN   TestMultipleSizeUse
+--- PASS: TestMultipleSizeUse (0.00s)
+=== RUN   TestAlignofNaclSlice
+--- PASS: TestAlignofNaclSlice (0.00s)
+=== RUN   TestIssue16902
+--- PASS: TestIssue16902 (0.00s)
+=== RUN   TestAtomicAlign
+=== RUN   TestAtomicAlign/386
+=== RUN   TestAtomicAlign/amd64
+--- PASS: TestAtomicAlign (0.00s)
+    --- PASS: TestAtomicAlign/386 (0.00s)
+    --- PASS: TestAtomicAlign/amd64 (0.00s)
+=== RUN   TestGCSizes
+=== RUN   TestGCSizes/issue60431
+=== PAUSE TestGCSizes/issue60431
+=== RUN   TestGCSizes/issue60734
+=== PAUSE TestGCSizes/issue60734
+=== CONT  TestGCSizes/issue60431
+=== CONT  TestGCSizes/issue60734
+--- PASS: TestGCSizes (0.00s)
+    --- PASS: TestGCSizes/issue60431 (0.00s)
+    --- PASS: TestGCSizes/issue60734 (0.00s)
+=== RUN   TestStdlib
+    stdlib_test.go:44: skipping in short mode
+--- SKIP: TestStdlib (0.00s)
+=== RUN   TestStdTest
+    stdlib_test.go:291: skipping in short mode
+--- SKIP: TestStdTest (0.00s)
+=== RUN   TestStdFixed
+    stdlib_test.go:309: skipping in short mode
+--- SKIP: TestStdFixed (0.00s)
+=== RUN   TestStdKen
+--- PASS: TestStdKen (0.45s)
+=== RUN   TestTypeString
+--- PASS: TestTypeString (0.02s)
+=== RUN   TestQualifiedTypeString
+--- PASS: TestQualifiedTypeString (0.00s)
+=== RUN   ExampleScope
+--- PASS: ExampleScope (0.00s)
+=== RUN   ExampleMethodSet
+--- PASS: ExampleMethodSet (0.00s)
+=== RUN   ExampleInfo
+--- PASS: ExampleInfo (0.00s)
+PASS
+ok  	go/types	14.945s
+=== RUN   TestLogosCopyImportedStepLimit
+--- PASS: TestLogosCopyImportedStepLimit (0.00s)
+=== RUN   TestLogosCopyImportedUnderLimit
+--- PASS: TestLogosCopyImportedUnderLimit (0.00s)
+=== RUN   TestLogosCopyWithoutImporterFailsClosed
+--- PASS: TestLogosCopyWithoutImporterFailsClosed (0.00s)
+=== RUN   TestLogosPlainCheckUnaffected
+--- PASS: TestLogosPlainCheckUnaffected (0.00s)
+=== RUN   TestLogosConstComputeNilTypeFailsClosed
+--- PASS: TestLogosConstComputeNilTypeFailsClosed (0.00s)
+=== RUN   TestLogosParseConstFnUnitValidation
+=== RUN   TestLogosParseConstFnUnitValidation/valid
+=== RUN   TestLogosParseConstFnUnitValidation/missing_root
+=== RUN   TestLogosParseConstFnUnitValidation/plain_same_name
+=== RUN   TestLogosParseConstFnUnitValidation/method_root
+=== RUN   TestLogosParseConstFnUnitValidation/generic_root
+=== RUN   TestLogosParseConstFnUnitValidation/no_body
+=== RUN   TestLogosParseConstFnUnitValidation/parse_error
+=== RUN   TestLogosParseConstFnUnitValidation/duplicate
+--- PASS: TestLogosParseConstFnUnitValidation (0.00s)
+    --- PASS: TestLogosParseConstFnUnitValidation/valid (0.00s)
+    --- PASS: TestLogosParseConstFnUnitValidation/missing_root (0.00s)
+    --- PASS: TestLogosParseConstFnUnitValidation/plain_same_name (0.00s)
+    --- PASS: TestLogosParseConstFnUnitValidation/method_root (0.00s)
+    --- PASS: TestLogosParseConstFnUnitValidation/generic_root (0.00s)
+    --- PASS: TestLogosParseConstFnUnitValidation/no_body (0.00s)
+    --- PASS: TestLogosParseConstFnUnitValidation/parse_error (0.00s)
+    --- PASS: TestLogosParseConstFnUnitValidation/duplicate (0.00s)
+=== RUN   TestLogosIndexUnitConstsGroups
+--- PASS: TestLogosIndexUnitConstsGroups (0.00s)
+=== RUN   TestLogosUnitConstValueIota
+--- PASS: TestLogosUnitConstValueIota (0.00s)
+=== RUN   TestLogosUnitConstValueDeclaredType
+--- PASS: TestLogosUnitConstValueDeclaredType (0.00s)
+=== RUN   TestLogosUnitConstValueFreshValuesStayUntyped
+--- PASS: TestLogosUnitConstValueFreshValuesStayUntyped (0.00s)
+=== RUN   TestLogosUnitConstValueCycle
+--- PASS: TestLogosUnitConstValueCycle (0.00s)
+=== RUN   TestLogosBuildFuncAnonymousParam
+--- PASS: TestLogosBuildFuncAnonymousParam (0.00s)
+=== RUN   TestLogosBuildUnitFuncKinds
+--- PASS: TestLogosBuildUnitFuncKinds (0.00s)
+=== RUN   TestLogosResolveOrdinaryImport
+--- PASS: TestLogosResolveOrdinaryImport (0.00s)
+=== RUN   TestLogosUnitForNode
+--- PASS: TestLogosUnitForNode (0.00s)
+=== RUN   TestContextHashCollisions
+--- PASS: TestContextHashCollisions (0.00s)
+=== RUN   TestLogosCgoConstTypes
+=== RUN   TestLogosCgoConstTypes/map/slice
+=== RUN   TestLogosCgoConstTypes/map/array
+=== RUN   TestLogosCgoConstTypes/map/local
+=== RUN   TestLogosCgoConstTypes/map/overflow
+=== RUN   TestLogosCgoConstTypes/syntax/slice
+=== RUN   TestLogosCgoConstTypes/syntax/array
+=== RUN   TestLogosCgoConstTypes/syntax/local
+=== RUN   TestLogosCgoConstTypes/syntax/overflow
+--- PASS: TestLogosCgoConstTypes (0.00s)
+    --- PASS: TestLogosCgoConstTypes/map/slice (0.00s)
+    --- PASS: TestLogosCgoConstTypes/map/array (0.00s)
+    --- PASS: TestLogosCgoConstTypes/map/local (0.00s)
+    --- PASS: TestLogosCgoConstTypes/map/overflow (0.00s)
+    --- PASS: TestLogosCgoConstTypes/syntax/slice (0.00s)
+    --- PASS: TestLogosCgoConstTypes/syntax/array (0.00s)
+    --- PASS: TestLogosCgoConstTypes/syntax/local (0.00s)
+    --- PASS: TestLogosCgoConstTypes/syntax/overflow (0.00s)
+=== RUN   TestError
+--- PASS: TestError (0.00s)
+=== RUN   TestStripAnnotations
+--- PASS: TestStripAnnotations (0.00s)
+=== RUN   TestLogosOwnedUnregisteredNodeMisses
+--- PASS: TestLogosOwnedUnregisteredNodeMisses (0.00s)
+=== RUN   TestLogosOwnedFactoryResolvesFresh
+--- PASS: TestLogosOwnedFactoryResolvesFresh (0.00s)
+=== RUN   TestLogosOwnedFactoryRejectsPrivate
+--- PASS: TestLogosOwnedFactoryRejectsPrivate (0.00s)
+=== RUN   TestLogosOwnedMalformedDescriptor
+--- PASS: TestLogosOwnedMalformedDescriptor (0.00s)
+=== RUN   TestLogosOwnedFactoryEndToEnd
+--- PASS: TestLogosOwnedFactoryEndToEnd (0.00s)
+=== RUN   TestLogosOwnedWitnessOnDemand
+--- PASS: TestLogosOwnedWitnessOnDemand (0.00s)
+=== RUN   TestLogosOwnedWalkSteps
+--- PASS: TestLogosOwnedWalkSteps (0.00s)
+=== RUN   TestLogosOwnedSelectorBypass
+--- PASS: TestLogosOwnedSelectorBypass (0.00s)
+=== RUN   TestLogosOwnedLitFieldBypass
+--- PASS: TestLogosOwnedLitFieldBypass (0.00s)
+=== RUN   TestLogosOwnedIdentConversionResolves
+--- PASS: TestLogosOwnedIdentConversionResolves (0.00s)
+=== RUN   TestLogosOwnedPositionalLiteralBypass
+--- PASS: TestLogosOwnedPositionalLiteralBypass (0.00s)
+=== RUN   TestLogosOwnedPosLitFieldBypass
+--- PASS: TestLogosOwnedPosLitFieldBypass (0.00s)
+=== RUN   TestLogosOwnedFirstCheckReceivesNothing
+--- PASS: TestLogosOwnedFirstCheckReceivesNothing (0.00s)
+=== RUN   TestSizeof
+--- PASS: TestSizeof (0.00s)
+=== RUN   TestTermlistAll
+--- PASS: TestTermlistAll (0.00s)
+=== RUN   TestTermlistString
+--- PASS: TestTermlistString (0.00s)
+=== RUN   TestTermlistIsEmpty
+--- PASS: TestTermlistIsEmpty (0.00s)
+=== RUN   TestTermlistIsAll
+--- PASS: TestTermlistIsAll (0.00s)
+=== RUN   TestTermlistNorm
+--- PASS: TestTermlistNorm (0.00s)
+=== RUN   TestTermlistUnion
+--- PASS: TestTermlistUnion (0.00s)
+=== RUN   TestTermlistIntersect
+--- PASS: TestTermlistIntersect (0.00s)
+=== RUN   TestTermlistEqual
+--- PASS: TestTermlistEqual (0.00s)
+=== RUN   TestTermlistIncludes
+--- PASS: TestTermlistIncludes (0.00s)
+=== RUN   TestTermlistSupersetOf
+--- PASS: TestTermlistSupersetOf (0.00s)
+=== RUN   TestTermlistSubsetOf
+--- PASS: TestTermlistSubsetOf (0.00s)
+=== RUN   TestTrie
+--- PASS: TestTrie (0.00s)
+=== RUN   TestAnyValue
+--- PASS: TestAnyValue (0.00s)
+=== RUN   TestInvalidTypeSet
+--- PASS: TestInvalidTypeSet (0.00s)
+=== RUN   TestTypeSetString
+--- PASS: TestTypeSetString (0.00s)
+=== RUN   TestTermString
+--- PASS: TestTermString (0.00s)
+=== RUN   TestTermEqual
+--- PASS: TestTermEqual (0.00s)
+=== RUN   TestTermUnion
+--- PASS: TestTermUnion (0.00s)
+=== RUN   TestTermIntersection
+--- PASS: TestTermIntersection (0.00s)
+=== RUN   TestTermIncludes
+--- PASS: TestTermIncludes (0.00s)
+=== RUN   TestTermSubsetOf
+--- PASS: TestTermSubsetOf (0.00s)
+=== RUN   TestTermDisjoint
+--- PASS: TestTermDisjoint (0.00s)
+=== RUN   TestIssue74181
+--- PASS: TestIssue74181 (0.00s)
+=== RUN   TestPartialTypeCheckUndeclaredAliasPanic
+--- PASS: TestPartialTypeCheckUndeclaredAliasPanic (0.00s)
+=== RUN   TestValuesInfo
+--- PASS: TestValuesInfo (0.00s)
+=== RUN   TestTypesInfo
+--- PASS: TestTypesInfo (0.01s)
+=== RUN   TestInstanceInfo
+=== RUN   TestInstanceInfo/p0
+=== RUN   TestInstanceInfo/p1
+=== RUN   TestInstanceInfo/p2
+=== RUN   TestInstanceInfo/p3
+=== RUN   TestInstanceInfo/p4
+=== RUN   TestInstanceInfo/s1
+=== RUN   TestInstanceInfo/s2
+=== RUN   TestInstanceInfo/s3
+=== RUN   TestInstanceInfo/s4
+=== RUN   TestInstanceInfo/t1
+=== RUN   TestInstanceInfo/t2
+=== RUN   TestInstanceInfo/t3
+=== RUN   TestInstanceInfo/t4
+=== RUN   TestInstanceInfo/i0
+=== RUN   TestInstanceInfo/duplfunc0
+=== RUN   TestInstanceInfo/duplfunc1
+=== RUN   TestInstanceInfo/type0
+=== RUN   TestInstanceInfo/type1
+=== RUN   TestInstanceInfo/type2
+=== RUN   TestInstanceInfo/type3
+=== RUN   TestInstanceInfo/type4
+=== RUN   TestInstanceInfo/dupltype0
+=== RUN   TestInstanceInfo/dupltype1
+=== RUN   TestInstanceInfo/dupltype1#01
+=== RUN   TestInstanceInfo/issue51803
+=== RUN   TestInstanceInfo/reverse1a
+=== RUN   TestInstanceInfo/reverse1b
+=== RUN   TestInstanceInfo/reverse2a
+=== RUN   TestInstanceInfo/reverse2b
+=== RUN   TestInstanceInfo/reverse2c
+=== RUN   TestInstanceInfo/reverse3b
+=== RUN   TestInstanceInfo/reverse4a
+=== RUN   TestInstanceInfo/reverse4b
+=== RUN   TestInstanceInfo/issue59956
+--- PASS: TestInstanceInfo (0.00s)
+    --- PASS: TestInstanceInfo/p0 (0.00s)
+    --- PASS: TestInstanceInfo/p1 (0.00s)
+    --- PASS: TestInstanceInfo/p2 (0.00s)
+    --- PASS: TestInstanceInfo/p3 (0.00s)
+    --- PASS: TestInstanceInfo/p4 (0.00s)
+    --- PASS: TestInstanceInfo/s1 (0.00s)
+    --- PASS: TestInstanceInfo/s2 (0.00s)
+    --- PASS: TestInstanceInfo/s3 (0.00s)
+    --- PASS: TestInstanceInfo/s4 (0.00s)
+    --- PASS: TestInstanceInfo/t1 (0.00s)
+    --- PASS: TestInstanceInfo/t2 (0.00s)
+    --- PASS: TestInstanceInfo/t3 (0.00s)
+    --- PASS: TestInstanceInfo/t4 (0.00s)
+    --- PASS: TestInstanceInfo/i0 (0.00s)
+    --- PASS: TestInstanceInfo/duplfunc0 (0.00s)
+    --- PASS: TestInstanceInfo/duplfunc1 (0.00s)
+    --- PASS: TestInstanceInfo/type0 (0.00s)
+    --- PASS: TestInstanceInfo/type1 (0.00s)
+    --- PASS: TestInstanceInfo/type2 (0.00s)
+    --- PASS: TestInstanceInfo/type3 (0.00s)
+    --- PASS: TestInstanceInfo/type4 (0.00s)
+    --- PASS: TestInstanceInfo/dupltype0 (0.00s)
+    --- PASS: TestInstanceInfo/dupltype1 (0.00s)
+    --- PASS: TestInstanceInfo/dupltype1#01 (0.00s)
+    --- PASS: TestInstanceInfo/issue51803 (0.00s)
+    --- PASS: TestInstanceInfo/reverse1a (0.00s)
+    --- PASS: TestInstanceInfo/reverse1b (0.00s)
+    --- PASS: TestInstanceInfo/reverse2a (0.00s)
+    --- PASS: TestInstanceInfo/reverse2b (0.00s)
+    --- PASS: TestInstanceInfo/reverse2c (0.00s)
+    --- PASS: TestInstanceInfo/reverse3b (0.00s)
+    --- PASS: TestInstanceInfo/reverse4a (0.00s)
+    --- PASS: TestInstanceInfo/reverse4b (0.00s)
+    --- PASS: TestInstanceInfo/issue59956 (0.00s)
+=== RUN   TestDefsInfo
+--- PASS: TestDefsInfo (0.00s)
+=== RUN   TestUsesInfo
+--- PASS: TestUsesInfo (0.00s)
+=== RUN   TestGenericMethodInfo
+--- PASS: TestGenericMethodInfo (0.00s)
+=== RUN   TestImplicitsInfo
+--- PASS: TestImplicitsInfo (0.06s)
+=== RUN   TestPkgNameOf
+--- PASS: TestPkgNameOf (0.21s)
+=== RUN   TestPredicatesInfo
+--- PASS: TestPredicatesInfo (0.00s)
+=== RUN   TestScopesInfo
+--- PASS: TestScopesInfo (0.00s)
+=== RUN   TestInitOrderInfo
+--- PASS: TestInitOrderInfo (0.00s)
+=== RUN   TestMultiFileInitOrder
+--- PASS: TestMultiFileInitOrder (0.00s)
+=== RUN   TestFiles
+--- PASS: TestFiles (0.00s)
+=== RUN   TestSelection
+--- PASS: TestSelection (0.00s)
+=== RUN   TestIssue8518
+    api_test.go:1811: a:3:8: could not import missing (package "missing" not found)
+    api_test.go:1811: a:4:12: undefined: foo
+--- PASS: TestIssue8518 (0.00s)
+=== RUN   TestIssue59603
+    api_test.go:1839: a:3:11: undefined: foo
+--- PASS: TestIssue59603 (0.00s)
+=== RUN   TestLookupFieldOrMethodOnNil
+--- PASS: TestLookupFieldOrMethodOnNil (0.00s)
+=== RUN   TestLookupFieldOrMethod
+--- PASS: TestLookupFieldOrMethod (0.00s)
+=== RUN   TestLookupFieldOrMethod_RecursiveGeneric
+--- PASS: TestLookupFieldOrMethod_RecursiveGeneric (0.00s)
+=== RUN   TestConvertibleTo
+--- PASS: TestConvertibleTo (0.00s)
+=== RUN   TestAssignableTo
+--- PASS: TestAssignableTo (0.00s)
+=== RUN   TestIdentical
+--- PASS: TestIdentical (0.00s)
+=== RUN   TestIdentical_issue15173
+--- PASS: TestIdentical_issue15173 (0.00s)
+=== RUN   TestIdenticalUnions
+--- PASS: TestIdenticalUnions (0.00s)
+=== RUN   TestIssue61737
+--- PASS: TestIssue61737 (0.00s)
+=== RUN   TestNewAlias_Issue65455
+--- PASS: TestNewAlias_Issue65455 (0.00s)
+=== RUN   TestIssue15305
+--- PASS: TestIssue15305 (0.00s)
+=== RUN   TestCompositeLitTypes
+--- PASS: TestCompositeLitTypes (0.00s)
+=== RUN   TestObjectParents
+--- PASS: TestObjectParents (0.00s)
+=== RUN   TestFailedImport
+--- PASS: TestFailedImport (0.00s)
+=== RUN   TestInstantiate
+--- PASS: TestInstantiate (0.00s)
+=== RUN   TestInstantiateConcurrent
+--- PASS: TestInstantiateConcurrent (0.00s)
+=== RUN   TestInstantiateErrors
+--- PASS: TestInstantiateErrors (0.00s)
+=== RUN   TestArgumentErrorUnwrapping
+--- PASS: TestArgumentErrorUnwrapping (0.00s)
+=== RUN   TestInstanceIdentity
+--- PASS: TestInstanceIdentity (0.00s)
+=== RUN   TestInstantiatedObjects
+=== RUN   TestInstantiatedObjects/field
+=== RUN   TestInstantiatedObjects/field#01
+=== RUN   TestInstantiatedObjects/concreteMethod
+=== RUN   TestInstantiatedObjects/recv
+=== RUN   TestInstantiatedObjects/mParam
+=== RUN   TestInstantiatedObjects/mResult
+=== RUN   TestInstantiatedObjects/interfaceMethod
+=== RUN   TestInstantiatedObjects/ftParam
+=== RUN   TestInstantiatedObjects/ftResult
+=== RUN   TestInstantiatedObjects/fParam
+=== RUN   TestInstantiatedObjects/fResult
+--- PASS: TestInstantiatedObjects (0.00s)
+    --- PASS: TestInstantiatedObjects/field (0.00s)
+    --- PASS: TestInstantiatedObjects/field#01 (0.00s)
+    --- PASS: TestInstantiatedObjects/concreteMethod (0.00s)
+    --- PASS: TestInstantiatedObjects/recv (0.00s)
+    --- PASS: TestInstantiatedObjects/mParam (0.00s)
+    --- PASS: TestInstantiatedObjects/mResult (0.00s)
+    --- PASS: TestInstantiatedObjects/interfaceMethod (0.00s)
+    --- PASS: TestInstantiatedObjects/ftParam (0.00s)
+    --- PASS: TestInstantiatedObjects/ftResult (0.00s)
+    --- PASS: TestInstantiatedObjects/fParam (0.00s)
+    --- PASS: TestInstantiatedObjects/fResult (0.00s)
+=== RUN   TestImplements
+--- PASS: TestImplements (0.00s)
+=== RUN   TestMissingMethodAlternative
+--- PASS: TestMissingMethodAlternative (0.00s)
+=== RUN   TestErrorURL
+--- PASS: TestErrorURL (0.00s)
+=== RUN   TestModuleVersion
+--- PASS: TestModuleVersion (0.00s)
+=== RUN   TestFileVersions
+--- PASS: TestFileVersions (0.00s)
+=== RUN   TestTooNew
+--- PASS: TestTooNew (0.00s)
+=== RUN   TestUnaliasTooSoonInCycle
+--- PASS: TestUnaliasTooSoonInCycle (0.00s)
+=== RUN   TestAlias_Rhs
+--- PASS: TestAlias_Rhs (0.00s)
+=== RUN   TestVersionWithoutPos
+--- PASS: TestVersionWithoutPos (0.00s)
+=== RUN   TestVarKind
+--- PASS: TestVarKind (0.00s)
+=== RUN   TestIssue79657
+--- PASS: TestIssue79657 (0.00s)
+=== RUN   TestBuiltinSignatures
+--- PASS: TestBuiltinSignatures (0.01s)
+=== RUN   TestLogosGroupStageReceiverKinds
+=== RUN   TestLogosGroupStageReceiverKinds/slice
+=== RUN   TestLogosGroupStageReceiverKinds/array
+=== RUN   TestLogosGroupStageReceiverKinds/sequence
+=== RUN   TestLogosGroupStageReceiverKinds/receive_channel
+=== RUN   TestLogosGroupStageReceiverKinds/bidirectional_channel
+=== RUN   TestLogosGroupStageReceiverKinds/named_slice
+=== RUN   TestLogosGroupStageReceiverKinds/named_array
+=== RUN   TestLogosGroupStageReceiverKinds/named_sequence
+=== RUN   TestLogosGroupStageReceiverKinds/named_receive_channel
+=== RUN   TestLogosGroupStageReceiverKinds/named_bidirectional_channel
+--- PASS: TestLogosGroupStageReceiverKinds (0.00s)
+    --- PASS: TestLogosGroupStageReceiverKinds/slice (0.00s)
+    --- PASS: TestLogosGroupStageReceiverKinds/array (0.00s)
+    --- PASS: TestLogosGroupStageReceiverKinds/sequence (0.00s)
+    --- PASS: TestLogosGroupStageReceiverKinds/receive_channel (0.00s)
+    --- PASS: TestLogosGroupStageReceiverKinds/bidirectional_channel (0.00s)
+    --- PASS: TestLogosGroupStageReceiverKinds/named_slice (0.00s)
+    --- PASS: TestLogosGroupStageReceiverKinds/named_array (0.00s)
+    --- PASS: TestLogosGroupStageReceiverKinds/named_sequence (0.00s)
+    --- PASS: TestLogosGroupStageReceiverKinds/named_receive_channel (0.00s)
+    --- PASS: TestLogosGroupStageReceiverKinds/named_bidirectional_channel (0.00s)
+=== RUN   TestLogosGroupStageRejectsReceivers
+=== RUN   TestLogosGroupStageRejectsReceivers/map
+=== RUN   TestLogosGroupStageRejectsReceivers/send_channel
+=== RUN   TestLogosGroupStageRejectsReceivers/integer
+=== RUN   TestLogosGroupStageRejectsReceivers/string
+=== RUN   TestLogosGroupStageRejectsReceivers/struct
+=== RUN   TestLogosGroupStageRejectsReceivers/function_without_yield
+=== RUN   TestLogosGroupStageRejectsReceivers/function_with_yield_result
+=== RUN   TestLogosGroupStageRejectsReceivers/yield_with_two_values
+--- PASS: TestLogosGroupStageRejectsReceivers (0.00s)
+    --- PASS: TestLogosGroupStageRejectsReceivers/map (0.00s)
+    --- PASS: TestLogosGroupStageRejectsReceivers/send_channel (0.00s)
+    --- PASS: TestLogosGroupStageRejectsReceivers/integer (0.00s)
+    --- PASS: TestLogosGroupStageRejectsReceivers/string (0.00s)
+    --- PASS: TestLogosGroupStageRejectsReceivers/struct (0.00s)
+    --- PASS: TestLogosGroupStageRejectsReceivers/function_without_yield (0.00s)
+    --- PASS: TestLogosGroupStageRejectsReceivers/function_with_yield_result (0.00s)
+    --- PASS: TestLogosGroupStageRejectsReceivers/yield_with_two_values (0.00s)
+=== RUN   TestLogosGroupStageKeepsGoMethods
+=== RUN   TestLogosGroupStageKeepsGoMethods/struct
+=== RUN   TestLogosGroupStageKeepsGoMethods/slice
+=== RUN   TestLogosGroupStageKeepsGoMethods/channel
+--- PASS: TestLogosGroupStageKeepsGoMethods (0.00s)
+    --- PASS: TestLogosGroupStageKeepsGoMethods/struct (0.00s)
+    --- PASS: TestLogosGroupStageKeepsGoMethods/slice (0.00s)
+    --- PASS: TestLogosGroupStageKeepsGoMethods/channel (0.00s)
+=== RUN   TestLogosGroupStageUnorderedFollowsGroupOnly
+--- PASS: TestLogosGroupStageUnorderedFollowsGroupOnly (0.00s)
+=== RUN   TestManual
+
+== initFiles ==
+
+== collectObjects ==
+
+== sortObjects ==
+
+== directCycles ==
+
+== packageObjects ==
+
+== processDelayed ==
+
+== cleanup ==
+
+== initOrder ==
+
+== unusedImports ==
+
+== recordUntyped ==
+--- PASS: TestManual (0.00s)
+=== RUN   TestLongConstants
+--- PASS: TestLongConstants (0.00s)
+=== RUN   TestIndexRepresentability
+--- PASS: TestIndexRepresentability (0.00s)
+=== RUN   TestIssue47243_TypedRHS
+--- PASS: TestIssue47243_TypedRHS (0.00s)
+=== RUN   TestCheck
+=== RUN   TestCheck/blank.go
+=== RUN   TestCheck/builtins0.go
+=== RUN   TestCheck/builtins1.go
+=== RUN   TestCheck/chans.go
+=== RUN   TestCheck/compliterals.go
+=== RUN   TestCheck/const0.go
+=== RUN   TestCheck/const1.go
+=== RUN   TestCheck/constdecl.go
+=== RUN   TestCheck/conversions0.go
+=== RUN   TestCheck/conversions1.go
+=== RUN   TestCheck/cycles0.go
+=== RUN   TestCheck/cycles1.go
+=== RUN   TestCheck/cycles2.go
+=== RUN   TestCheck/cycles3.go
+=== RUN   TestCheck/cycles4.go
+=== RUN   TestCheck/cycles5.go
+=== RUN   TestCheck/cycles6.go
+=== RUN   TestCheck/decls0.go
+=== RUN   TestCheck/decls1.go
+=== RUN   TestCheck/decls2
+=== RUN   TestCheck/decls3.go
+=== RUN   TestCheck/decls4.go
+=== RUN   TestCheck/decls5.go
+=== RUN   TestCheck/doubled_labels.go
+=== RUN   TestCheck/errors.go
+=== RUN   TestCheck/expr0.go
+=== RUN   TestCheck/expr1.go
+=== RUN   TestCheck/expr2.go
+=== RUN   TestCheck/expr3.go
+=== RUN   TestCheck/funcinference.go
+=== RUN   TestCheck/go1_12.go
+=== RUN   TestCheck/go1_13.go
+=== RUN   TestCheck/go1_16.go
+=== RUN   TestCheck/go1_19.go
+=== RUN   TestCheck/go1_19_20.go
+=== RUN   TestCheck/go1_20_19.go
+=== RUN   TestCheck/go1_21_19.go
+=== RUN   TestCheck/go1_21_22.go
+=== RUN   TestCheck/go1_22_21.go
+=== RUN   TestCheck/go1_25.go
+=== RUN   TestCheck/go1_8.go
+=== RUN   TestCheck/go1_xx_19.go
+=== RUN   TestCheck/gotos.go
+=== RUN   TestCheck/importC.go
+=== RUN   TestCheck/importdecl0
+=== RUN   TestCheck/importdecl1
+=== RUN   TestCheck/init0.go
+=== RUN   TestCheck/init1.go
+=== RUN   TestCheck/init2.go
+=== RUN   TestCheck/issue25008
+=== RUN   TestCheck/issue70974.go
+=== RUN   TestCheck/issues0.go
+=== RUN   TestCheck/issues1.go
+=== RUN   TestCheck/labels.go
+=== RUN   TestCheck/linalg.go
+=== RUN   TestCheck/literals.go
+=== RUN   TestCheck/lookup1.go
+=== RUN   TestCheck/lookup2.go
+=== RUN   TestCheck/main0.go
+=== RUN   TestCheck/main1.go
+=== RUN   TestCheck/map0.go
+=== RUN   TestCheck/map1.go
+=== RUN   TestCheck/methodsets.go
+=== RUN   TestCheck/shifts.go
+=== RUN   TestCheck/slices.go
+=== RUN   TestCheck/stmt0.go
+=== RUN   TestCheck/stmt1.go
+=== RUN   TestCheck/typeinference.go
+=== RUN   TestCheck/typeinst0.go
+=== RUN   TestCheck/typeinst1.go
+=== RUN   TestCheck/typeinstcycles.go
+=== RUN   TestCheck/typeparams.go
+=== RUN   TestCheck/unions.go
+=== RUN   TestCheck/vardecl.go
+--- PASS: TestCheck (0.89s)
+    --- PASS: TestCheck/blank.go (0.00s)
+    --- PASS: TestCheck/builtins0.go (0.01s)
+    --- PASS: TestCheck/builtins1.go (0.00s)
+    --- PASS: TestCheck/chans.go (0.07s)
+    --- PASS: TestCheck/compliterals.go (0.00s)
+    --- PASS: TestCheck/const0.go (0.00s)
+    --- PASS: TestCheck/const1.go (0.00s)
+    --- PASS: TestCheck/constdecl.go (0.00s)
+    --- PASS: TestCheck/conversions0.go (0.00s)
+    --- PASS: TestCheck/conversions1.go (0.00s)
+    --- PASS: TestCheck/cycles0.go (0.00s)
+    --- PASS: TestCheck/cycles1.go (0.00s)
+    --- PASS: TestCheck/cycles2.go (0.00s)
+    --- PASS: TestCheck/cycles3.go (0.00s)
+    --- PASS: TestCheck/cycles4.go (0.00s)
+    --- PASS: TestCheck/cycles5.go (0.00s)
+    --- PASS: TestCheck/cycles6.go (0.00s)
+    --- PASS: TestCheck/decls0.go (0.00s)
+    --- PASS: TestCheck/decls1.go (0.00s)
+    --- PASS: TestCheck/decls2 (0.05s)
+    --- PASS: TestCheck/decls3.go (0.00s)
+    --- PASS: TestCheck/decls4.go (0.00s)
+    --- PASS: TestCheck/decls5.go (0.00s)
+    --- PASS: TestCheck/doubled_labels.go (0.00s)
+    --- PASS: TestCheck/errors.go (0.00s)
+    --- PASS: TestCheck/expr0.go (0.00s)
+    --- PASS: TestCheck/expr1.go (0.00s)
+    --- PASS: TestCheck/expr2.go (0.00s)
+    --- PASS: TestCheck/expr3.go (0.00s)
+    --- PASS: TestCheck/funcinference.go (0.04s)
+    --- PASS: TestCheck/go1_12.go (0.00s)
+    --- PASS: TestCheck/go1_13.go (0.00s)
+    --- PASS: TestCheck/go1_16.go (0.00s)
+    --- PASS: TestCheck/go1_19.go (0.00s)
+    --- PASS: TestCheck/go1_19_20.go (0.00s)
+    --- PASS: TestCheck/go1_20_19.go (0.00s)
+    --- PASS: TestCheck/go1_21_19.go (0.00s)
+    --- PASS: TestCheck/go1_21_22.go (0.00s)
+    --- PASS: TestCheck/go1_22_21.go (0.00s)
+    --- PASS: TestCheck/go1_25.go (0.00s)
+    --- PASS: TestCheck/go1_8.go (0.00s)
+    --- PASS: TestCheck/go1_xx_19.go (0.00s)
+    --- PASS: TestCheck/gotos.go (0.00s)
+    --- PASS: TestCheck/importC.go (0.00s)
+    --- PASS: TestCheck/importdecl0 (0.30s)
+    --- PASS: TestCheck/importdecl1 (0.12s)
+    --- PASS: TestCheck/init0.go (0.00s)
+    --- PASS: TestCheck/init1.go (0.00s)
+    --- PASS: TestCheck/init2.go (0.00s)
+    --- PASS: TestCheck/issue25008 (0.00s)
+    --- PASS: TestCheck/issue70974.go (0.00s)
+    --- PASS: TestCheck/issues0.go (0.19s)
+    --- PASS: TestCheck/issues1.go (0.05s)
+    --- PASS: TestCheck/labels.go (0.00s)
+    --- PASS: TestCheck/linalg.go (0.00s)
+    --- PASS: TestCheck/literals.go (0.00s)
+    --- PASS: TestCheck/lookup1.go (0.00s)
+    --- PASS: TestCheck/lookup2.go (0.00s)
+    --- PASS: TestCheck/main0.go (0.00s)
+    --- PASS: TestCheck/main1.go (0.00s)
+    --- PASS: TestCheck/map0.go (0.00s)
+    --- PASS: TestCheck/map1.go (0.00s)
+    --- PASS: TestCheck/methodsets.go (0.00s)
+    --- PASS: TestCheck/shifts.go (0.00s)
+    --- PASS: TestCheck/slices.go (0.00s)
+    --- PASS: TestCheck/stmt0.go (0.00s)
+    --- PASS: TestCheck/stmt1.go (0.00s)
+    --- PASS: TestCheck/typeinference.go (0.00s)
+    --- PASS: TestCheck/typeinst0.go (0.00s)
+    --- PASS: TestCheck/typeinst1.go (0.00s)
+    --- PASS: TestCheck/typeinstcycles.go (0.00s)
+    --- PASS: TestCheck/typeparams.go (0.00s)
+    --- PASS: TestCheck/unions.go (0.00s)
+    --- PASS: TestCheck/vardecl.go (0.00s)
+=== RUN   TestSpec
+=== RUN   TestSpec/assignability.go
+=== RUN   TestSpec/comparable.go
+=== RUN   TestSpec/comparable1.19.go
+=== RUN   TestSpec/comparisons.go
+=== RUN   TestSpec/conversions.go
+=== RUN   TestSpec/methods.go
+=== RUN   TestSpec/range.go
+=== RUN   TestSpec/range_int.go
+=== RUN   TestSpec/receivers.go
+=== RUN   TestSpec/structLits.go
+=== RUN   TestSpec/typeAliases1.22.go
+=== RUN   TestSpec/typeAliases1.23.go
+=== RUN   TestSpec/typeAliases1.8.go
+--- PASS: TestSpec (0.01s)
+    --- PASS: TestSpec/assignability.go (0.00s)
+    --- PASS: TestSpec/comparable.go (0.00s)
+    --- PASS: TestSpec/comparable1.19.go (0.00s)
+    --- PASS: TestSpec/comparisons.go (0.00s)
+    --- PASS: TestSpec/conversions.go (0.00s)
+    --- PASS: TestSpec/methods.go (0.00s)
+    --- PASS: TestSpec/range.go (0.00s)
+    --- PASS: TestSpec/range_int.go (0.00s)
+    --- PASS: TestSpec/receivers.go (0.00s)
+    --- PASS: TestSpec/structLits.go (0.00s)
+    --- PASS: TestSpec/typeAliases1.22.go (0.00s)
+    --- PASS: TestSpec/typeAliases1.23.go (0.00s)
+    --- PASS: TestSpec/typeAliases1.8.go (0.00s)
+=== RUN   TestExamples
+=== RUN   TestExamples/constraints.go
+=== RUN   TestExamples/functions.go
+=== RUN   TestExamples/inference.go
+=== RUN   TestExamples/inference2.go
+=== RUN   TestExamples/methods.go
+=== RUN   TestExamples/operations.go
+=== RUN   TestExamples/types.go
+=== RUN   TestExamples/typesets.go
+--- PASS: TestExamples (0.01s)
+    --- PASS: TestExamples/constraints.go (0.00s)
+    --- PASS: TestExamples/functions.go (0.00s)
+    --- PASS: TestExamples/inference.go (0.00s)
+    --- PASS: TestExamples/inference2.go (0.00s)
+    --- PASS: TestExamples/methods.go (0.00s)
+    --- PASS: TestExamples/operations.go (0.00s)
+    --- PASS: TestExamples/types.go (0.00s)
+    --- PASS: TestExamples/typesets.go (0.00s)
+=== RUN   TestFixedbugs
+=== RUN   TestFixedbugs/issue20583.go
+=== RUN   TestFixedbugs/issue23203a.go
+=== RUN   TestFixedbugs/issue23203b.go
+=== RUN   TestFixedbugs/issue25838.go
+=== RUN   TestFixedbugs/issue26390.go
+=== RUN   TestFixedbugs/issue28251.go
+=== RUN   TestFixedbugs/issue3117.go
+=== RUN   TestFixedbugs/issue39634.go
+=== RUN   TestFixedbugs/issue39664.go
+=== RUN   TestFixedbugs/issue39680.go
+=== RUN   TestFixedbugs/issue39693.go
+=== RUN   TestFixedbugs/issue39699.go
+=== RUN   TestFixedbugs/issue39711.go
+=== RUN   TestFixedbugs/issue39723.go
+=== RUN   TestFixedbugs/issue39725.go
+=== RUN   TestFixedbugs/issue39754.go
+=== RUN   TestFixedbugs/issue39755.go
+=== RUN   TestFixedbugs/issue39768.go
+=== RUN   TestFixedbugs/issue39938.go
+=== RUN   TestFixedbugs/issue39948.go
+=== RUN   TestFixedbugs/issue39976.go
+=== RUN   TestFixedbugs/issue39982.go
+=== RUN   TestFixedbugs/issue40038.go
+=== RUN   TestFixedbugs/issue40056.go
+=== RUN   TestFixedbugs/issue40057.go
+=== RUN   TestFixedbugs/issue40301.go
+=== RUN   TestFixedbugs/issue40350.go
+=== RUN   TestFixedbugs/issue40684.go
+=== RUN   TestFixedbugs/issue40789.go
+=== RUN   TestFixedbugs/issue41124.go
+=== RUN   TestFixedbugs/issue41176.go
+=== RUN   TestFixedbugs/issue42695.go
+=== RUN   TestFixedbugs/issue42758.go
+=== RUN   TestFixedbugs/issue42881.go
+=== RUN   TestFixedbugs/issue42987.go
+=== RUN   TestFixedbugs/issue43056.go
+=== RUN   TestFixedbugs/issue43087.go
+=== RUN   TestFixedbugs/issue43109.go
+=== RUN   TestFixedbugs/issue43110.go
+=== RUN   TestFixedbugs/issue43124.go
+=== RUN   TestFixedbugs/issue43190.go
+=== RUN   TestFixedbugs/issue43527.go
+=== RUN   TestFixedbugs/issue43671.go
+=== RUN   TestFixedbugs/issue44688.go
+=== RUN   TestFixedbugs/issue44799.go
+=== RUN   TestFixedbugs/issue45114.go
+=== RUN   TestFixedbugs/issue45548.go
+=== RUN   TestFixedbugs/issue45550.go
+=== RUN   TestFixedbugs/issue45635.go
+=== RUN   TestFixedbugs/issue45639.go
+=== RUN   TestFixedbugs/issue45920.go
+=== RUN   TestFixedbugs/issue45985.go
+=== RUN   TestFixedbugs/issue46090.go
+=== RUN   TestFixedbugs/issue46275.go
+=== RUN   TestFixedbugs/issue46403.go
+=== RUN   TestFixedbugs/issue46404.go
+=== RUN   TestFixedbugs/issue46461.go
+=== RUN   TestFixedbugs/issue46583.go
+=== RUN   TestFixedbugs/issue47031.go
+=== RUN   TestFixedbugs/issue47115.go
+=== RUN   TestFixedbugs/issue47127.go
+=== RUN   TestFixedbugs/issue47411.go
+=== RUN   TestFixedbugs/issue47747.go
+=== RUN   TestFixedbugs/issue47796.go
+=== RUN   TestFixedbugs/issue47818.go
+=== RUN   TestFixedbugs/issue47887.go
+=== RUN   TestFixedbugs/issue47968.go
+=== RUN   TestFixedbugs/issue48008.go
+=== RUN   TestFixedbugs/issue48018.go
+=== RUN   TestFixedbugs/issue48048.go
+=== RUN   TestFixedbugs/issue48082.go
+=== RUN   TestFixedbugs/issue48083.go
+=== RUN   TestFixedbugs/issue48136.go
+=== RUN   TestFixedbugs/issue48234.go
+=== RUN   TestFixedbugs/issue48312.go
+=== RUN   TestFixedbugs/issue48472.go
+=== RUN   TestFixedbugs/issue48529.go
+=== RUN   TestFixedbugs/issue48582.go
+=== RUN   TestFixedbugs/issue48619.go
+=== RUN   TestFixedbugs/issue48656.go
+=== RUN   TestFixedbugs/issue48695.go
+=== RUN   TestFixedbugs/issue48703.go
+=== RUN   TestFixedbugs/issue48712.go
+=== RUN   TestFixedbugs/issue48819.go
+=== RUN   TestFixedbugs/issue48827.go
+=== RUN   TestFixedbugs/issue48951.go
+=== RUN   TestFixedbugs/issue48962.go
+=== RUN   TestFixedbugs/issue48974.go
+=== RUN   TestFixedbugs/issue49003.go
+=== RUN   TestFixedbugs/issue49005.go
+=== RUN   TestFixedbugs/issue49043.go
+=== RUN   TestFixedbugs/issue49112.go
+=== RUN   TestFixedbugs/issue49179.go
+=== RUN   TestFixedbugs/issue49242.go
+=== RUN   TestFixedbugs/issue49247.go
+=== RUN   TestFixedbugs/issue49276.go
+=== RUN   TestFixedbugs/issue49296.go
+=== RUN   TestFixedbugs/issue49439.go
+=== RUN   TestFixedbugs/issue49482.go
+=== RUN   TestFixedbugs/issue49541.go
+=== RUN   TestFixedbugs/issue49579.go
+=== RUN   TestFixedbugs/issue49592.go
+=== RUN   TestFixedbugs/issue49602.go
+=== RUN   TestFixedbugs/issue49705.go
+=== RUN   TestFixedbugs/issue49735.go
+=== RUN   TestFixedbugs/issue49736.go
+=== RUN   TestFixedbugs/issue49739.go
+=== RUN   TestFixedbugs/issue49864.go
+=== RUN   TestFixedbugs/issue50259.go
+=== RUN   TestFixedbugs/issue50276.go
+=== RUN   TestFixedbugs/issue50281.go
+=== RUN   TestFixedbugs/issue50321.go
+=== RUN   TestFixedbugs/issue50372.go
+=== RUN   TestFixedbugs/issue50417.go
+=== RUN   TestFixedbugs/issue50426.go
+=== RUN   TestFixedbugs/issue50427a.go
+=== RUN   TestFixedbugs/issue50427b.go
+=== RUN   TestFixedbugs/issue50450.go
+=== RUN   TestFixedbugs/issue50516.go
+=== RUN   TestFixedbugs/issue50646.go
+=== RUN   TestFixedbugs/issue50729.go
+=== RUN   TestFixedbugs/issue50729b.go
+=== RUN   TestFixedbugs/issue50755.go
+=== RUN   TestFixedbugs/issue50779.go
+=== RUN   TestFixedbugs/issue50782.go
+=== RUN   TestFixedbugs/issue50816.go
+=== RUN   TestFixedbugs/issue50833.go
+=== RUN   TestFixedbugs/issue50912.go
+=== RUN   TestFixedbugs/issue50918.go
+=== RUN   TestFixedbugs/issue50929.go
+=== RUN   TestFixedbugs/issue50965.go
+=== RUN   TestFixedbugs/issue51025.go
+=== RUN   TestFixedbugs/issue51048.go
+=== RUN   TestFixedbugs/issue51139.go
+=== RUN   TestFixedbugs/issue51145.go
+=== RUN   TestFixedbugs/issue51158.go
+=== RUN   TestFixedbugs/issue51229.go
+=== RUN   TestFixedbugs/issue51232.go
+=== RUN   TestFixedbugs/issue51233.go
+=== RUN   TestFixedbugs/issue51257.go
+=== RUN   TestFixedbugs/issue51335.go
+=== RUN   TestFixedbugs/issue51339.go
+=== RUN   TestFixedbugs/issue51360.go
+=== RUN   TestFixedbugs/issue51376.go
+=== RUN   TestFixedbugs/issue51386.go
+=== RUN   TestFixedbugs/issue51437.go
+=== RUN   TestFixedbugs/issue51472.go
+=== RUN   TestFixedbugs/issue51503.go
+=== RUN   TestFixedbugs/issue51509.go
+=== RUN   TestFixedbugs/issue51525.go
+=== RUN   TestFixedbugs/issue51533.go
+=== RUN   TestFixedbugs/issue51578.go
+=== RUN   TestFixedbugs/issue51593.go
+=== RUN   TestFixedbugs/issue51607.go
+=== RUN   TestFixedbugs/issue51610.go
+=== RUN   TestFixedbugs/issue51616.go
+=== RUN   TestFixedbugs/issue51658.go
+=== RUN   TestFixedbugs/issue51877.go
+=== RUN   TestFixedbugs/issue52031.go
+=== RUN   TestFixedbugs/issue52401.go
+=== RUN   TestFixedbugs/issue52529.go
+=== RUN   TestFixedbugs/issue52698.go
+=== RUN   TestFixedbugs/issue52915.go
+=== RUN   TestFixedbugs/issue53358.go
+=== RUN   TestFixedbugs/issue53535.go
+=== RUN   TestFixedbugs/issue53650.go
+=== RUN   TestFixedbugs/issue53692.go
+=== RUN   TestFixedbugs/issue54280.go
+=== RUN   TestFixedbugs/issue54405.go
+=== RUN   TestFixedbugs/issue54424.go
+=== RUN   TestFixedbugs/issue54942.go
+=== RUN   TestFixedbugs/issue56351.go
+=== RUN   TestFixedbugs/issue56425.go
+=== RUN   TestFixedbugs/issue56665.go
+=== RUN   TestFixedbugs/issue57155.go
+=== RUN   TestFixedbugs/issue57160.go
+=== RUN   TestFixedbugs/issue57192.go
+=== RUN   TestFixedbugs/issue57352.go
+=== RUN   TestFixedbugs/issue57486.go
+=== RUN   TestFixedbugs/issue57500.go
+=== RUN   TestFixedbugs/issue57522.go
+=== RUN   TestFixedbugs/issue58611.go
+=== RUN   TestFixedbugs/issue58612.go
+=== RUN   TestFixedbugs/issue58671.go
+=== RUN   TestFixedbugs/issue58742.go
+=== RUN   TestFixedbugs/issue59190.go
+=== RUN   TestFixedbugs/issue59207.go
+=== RUN   TestFixedbugs/issue59209.go
+=== RUN   TestFixedbugs/issue59338a.go
+=== RUN   TestFixedbugs/issue59338b.go
+=== RUN   TestFixedbugs/issue59371.go
+=== RUN   TestFixedbugs/issue59639.go
+=== RUN   TestFixedbugs/issue59740.go
+=== RUN   TestFixedbugs/issue59848.go
+=== RUN   TestFixedbugs/issue59890.go
+=== RUN   TestFixedbugs/issue59953.go
+=== RUN   TestFixedbugs/issue59956.go
+=== RUN   TestFixedbugs/issue59958.go
+=== RUN   TestFixedbugs/issue60346.go
+=== RUN   TestFixedbugs/issue60377.go
+=== RUN   TestFixedbugs/issue60434.go
+=== RUN   TestFixedbugs/issue60460.go
+=== RUN   TestFixedbugs/issue60500.go
+=== RUN   TestFixedbugs/issue60542.go
+=== RUN   TestFixedbugs/issue60556.go
+=== RUN   TestFixedbugs/issue60562.go
+=== RUN   TestFixedbugs/issue60688.go
+=== RUN   TestFixedbugs/issue60747.go
+=== RUN   TestFixedbugs/issue60906.go
+=== RUN   TestFixedbugs/issue60933.go
+=== RUN   TestFixedbugs/issue60946.go
+=== RUN   TestFixedbugs/issue61486.go
+=== RUN   TestFixedbugs/issue61685.go
+=== RUN   TestFixedbugs/issue61822.go
+=== RUN   TestFixedbugs/issue61879.go
+=== RUN   TestFixedbugs/issue61903.go
+=== RUN   TestFixedbugs/issue62157.go
+=== RUN   TestFixedbugs/issue63563.go
+=== RUN   TestFixedbugs/issue64406.go
+=== RUN   TestFixedbugs/issue64704.go
+=== RUN   TestFixedbugs/issue65344.go
+=== RUN   TestFixedbugs/issue65711.go
+=== RUN   TestFixedbugs/issue65854.go
+=== RUN   TestFixedbugs/issue66064.go
+=== RUN   TestFixedbugs/issue66285.go
+=== RUN   TestFixedbugs/issue66323.go
+=== RUN   TestFixedbugs/issue66751.go
+=== RUN   TestFixedbugs/issue66878.go
+=== RUN   TestFixedbugs/issue67547.go
+=== RUN   TestFixedbugs/issue67628.go
+=== RUN   TestFixedbugs/issue67683.go
+=== RUN   TestFixedbugs/issue67872.go
+=== RUN   TestFixedbugs/issue67962.go
+=== RUN   TestFixedbugs/issue6814.go
+=== RUN   TestFixedbugs/issue68162.go
+=== RUN   TestFixedbugs/issue68184.go
+=== RUN   TestFixedbugs/issue68903.go
+=== RUN   TestFixedbugs/issue68935.go
+=== RUN   TestFixedbugs/issue69576.go
+=== RUN   TestFixedbugs/issue6977.go
+=== RUN   TestFixedbugs/issue69955.go
+=== RUN   TestFixedbugs/issue70150.go
+=== RUN   TestFixedbugs/issue70417.go
+=== RUN   TestFixedbugs/issue70526.go
+=== RUN   TestFixedbugs/issue70549.go
+=== RUN   TestFixedbugs/issue71131.go
+=== RUN   TestFixedbugs/issue71198.go
+=== RUN   TestFixedbugs/issue71284.go
+=== RUN   TestFixedbugs/issue72936.go
+=== RUN   TestFixedbugs/issue73428.go
+=== RUN   TestFixedbugs/issue75194.go
+=== RUN   TestFixedbugs/issue75883.go
+=== RUN   TestFixedbugs/issue75885.go
+=== RUN   TestFixedbugs/issue75918.go
+=== RUN   TestFixedbugs/issue75986.go
+=== RUN   TestFixedbugs/issue76103.go
+=== RUN   TestFixedbugs/issue76220.go
+=== RUN   TestFixedbugs/issue76366.go
+=== RUN   TestFixedbugs/issue76383.go
+=== RUN   TestFixedbugs/issue76384.go
+=== RUN   TestFixedbugs/issue76478.go
+=== RUN   TestFixedbugs/issue77245.go
+=== RUN   TestFixedbugs/issue77382.go
+=== RUN   TestFixedbugs/issue77905.go
+=== RUN   TestFixedbugs/issue78163.go
+=== RUN   TestFixedbugs/issue78346.go
+    check_test.go:465: all files skipped by build tags
+=== RUN   TestFixedbugs/issue78483.go
+=== RUN   TestFixedbugs/issue78884.go
+=== RUN   TestFixedbugs/issue79265.go
+=== RUN   TestFixedbugs/issue79687.go
+=== RUN   TestFixedbugs/issue79832.go
+=== RUN   TestFixedbugs/issue79883.go
+=== RUN   TestFixedbugs/issue80042.go
+=== RUN   TestFixedbugs/issue80172.go
+=== RUN   TestFixedbugs/logos_nested_union_ordered.go
+--- PASS: TestFixedbugs (0.23s)
+    --- PASS: TestFixedbugs/issue20583.go (0.00s)
+    --- PASS: TestFixedbugs/issue23203a.go (0.00s)
+    --- PASS: TestFixedbugs/issue23203b.go (0.00s)
+    --- PASS: TestFixedbugs/issue25838.go (0.00s)
+    --- PASS: TestFixedbugs/issue26390.go (0.00s)
+    --- PASS: TestFixedbugs/issue28251.go (0.00s)
+    --- PASS: TestFixedbugs/issue3117.go (0.00s)
+    --- PASS: TestFixedbugs/issue39634.go (0.00s)
+    --- PASS: TestFixedbugs/issue39664.go (0.00s)
+    --- PASS: TestFixedbugs/issue39680.go (0.00s)
+    --- PASS: TestFixedbugs/issue39693.go (0.00s)
+    --- PASS: TestFixedbugs/issue39699.go (0.00s)
+    --- PASS: TestFixedbugs/issue39711.go (0.00s)
+    --- PASS: TestFixedbugs/issue39723.go (0.00s)
+    --- PASS: TestFixedbugs/issue39725.go (0.00s)
+    --- PASS: TestFixedbugs/issue39754.go (0.00s)
+    --- PASS: TestFixedbugs/issue39755.go (0.00s)
+    --- PASS: TestFixedbugs/issue39768.go (0.00s)
+    --- PASS: TestFixedbugs/issue39938.go (0.00s)
+    --- PASS: TestFixedbugs/issue39948.go (0.00s)
+    --- PASS: TestFixedbugs/issue39976.go (0.00s)
+    --- PASS: TestFixedbugs/issue39982.go (0.00s)
+    --- PASS: TestFixedbugs/issue40038.go (0.00s)
+    --- PASS: TestFixedbugs/issue40056.go (0.00s)
+    --- PASS: TestFixedbugs/issue40057.go (0.00s)
+    --- PASS: TestFixedbugs/issue40301.go (0.00s)
+    --- PASS: TestFixedbugs/issue40350.go (0.00s)
+    --- PASS: TestFixedbugs/issue40684.go (0.00s)
+    --- PASS: TestFixedbugs/issue40789.go (0.00s)
+    --- PASS: TestFixedbugs/issue41124.go (0.00s)
+    --- PASS: TestFixedbugs/issue41176.go (0.00s)
+    --- PASS: TestFixedbugs/issue42695.go (0.00s)
+    --- PASS: TestFixedbugs/issue42758.go (0.00s)
+    --- PASS: TestFixedbugs/issue42881.go (0.00s)
+    --- PASS: TestFixedbugs/issue42987.go (0.00s)
+    --- PASS: TestFixedbugs/issue43056.go (0.00s)
+    --- PASS: TestFixedbugs/issue43087.go (0.00s)
+    --- PASS: TestFixedbugs/issue43109.go (0.00s)
+    --- PASS: TestFixedbugs/issue43110.go (0.00s)
+    --- PASS: TestFixedbugs/issue43124.go (0.00s)
+    --- PASS: TestFixedbugs/issue43190.go (0.00s)
+    --- PASS: TestFixedbugs/issue43527.go (0.00s)
+    --- PASS: TestFixedbugs/issue43671.go (0.00s)
+    --- PASS: TestFixedbugs/issue44688.go (0.00s)
+    --- PASS: TestFixedbugs/issue44799.go (0.00s)
+    --- PASS: TestFixedbugs/issue45114.go (0.00s)
+    --- PASS: TestFixedbugs/issue45548.go (0.00s)
+    --- PASS: TestFixedbugs/issue45550.go (0.00s)
+    --- PASS: TestFixedbugs/issue45635.go (0.00s)
+    --- PASS: TestFixedbugs/issue45639.go (0.00s)
+    --- PASS: TestFixedbugs/issue45920.go (0.00s)
+    --- PASS: TestFixedbugs/issue45985.go (0.00s)
+    --- PASS: TestFixedbugs/issue46090.go (0.00s)
+    --- PASS: TestFixedbugs/issue46275.go (0.00s)
+    --- PASS: TestFixedbugs/issue46403.go (0.00s)
+    --- PASS: TestFixedbugs/issue46404.go (0.00s)
+    --- PASS: TestFixedbugs/issue46461.go (0.00s)
+    --- PASS: TestFixedbugs/issue46583.go (0.00s)
+    --- PASS: TestFixedbugs/issue47031.go (0.00s)
+    --- PASS: TestFixedbugs/issue47115.go (0.00s)
+    --- PASS: TestFixedbugs/issue47127.go (0.00s)
+    --- PASS: TestFixedbugs/issue47411.go (0.00s)
+    --- PASS: TestFixedbugs/issue47747.go (0.00s)
+    --- PASS: TestFixedbugs/issue47796.go (0.00s)
+    --- PASS: TestFixedbugs/issue47818.go (0.00s)
+    --- PASS: TestFixedbugs/issue47887.go (0.00s)
+    --- PASS: TestFixedbugs/issue47968.go (0.00s)
+    --- PASS: TestFixedbugs/issue48008.go (0.00s)
+    --- PASS: TestFixedbugs/issue48018.go (0.00s)
+    --- PASS: TestFixedbugs/issue48048.go (0.00s)
+    --- PASS: TestFixedbugs/issue48082.go (0.00s)
+    --- PASS: TestFixedbugs/issue48083.go (0.00s)
+    --- PASS: TestFixedbugs/issue48136.go (0.00s)
+    --- PASS: TestFixedbugs/issue48234.go (0.00s)
+    --- PASS: TestFixedbugs/issue48312.go (0.00s)
+    --- PASS: TestFixedbugs/issue48472.go (0.00s)
+    --- PASS: TestFixedbugs/issue48529.go (0.00s)
+    --- PASS: TestFixedbugs/issue48582.go (0.00s)
+    --- PASS: TestFixedbugs/issue48619.go (0.00s)
+    --- PASS: TestFixedbugs/issue48656.go (0.00s)
+    --- PASS: TestFixedbugs/issue48695.go (0.00s)
+    --- PASS: TestFixedbugs/issue48703.go (0.00s)
+    --- PASS: TestFixedbugs/issue48712.go (0.00s)
+    --- PASS: TestFixedbugs/issue48819.go (0.00s)
+    --- PASS: TestFixedbugs/issue48827.go (0.00s)
+    --- PASS: TestFixedbugs/issue48951.go (0.00s)
+    --- PASS: TestFixedbugs/issue48962.go (0.00s)
+    --- PASS: TestFixedbugs/issue48974.go (0.00s)
+    --- PASS: TestFixedbugs/issue49003.go (0.00s)
+    --- PASS: TestFixedbugs/issue49005.go (0.00s)
+    --- PASS: TestFixedbugs/issue49043.go (0.00s)
+    --- PASS: TestFixedbugs/issue49112.go (0.00s)
+    --- PASS: TestFixedbugs/issue49179.go (0.00s)
+    --- PASS: TestFixedbugs/issue49242.go (0.00s)
+    --- PASS: TestFixedbugs/issue49247.go (0.00s)
+    --- PASS: TestFixedbugs/issue49276.go (0.00s)
+    --- PASS: TestFixedbugs/issue49296.go (0.00s)
+    --- PASS: TestFixedbugs/issue49439.go (0.00s)
+    --- PASS: TestFixedbugs/issue49482.go (0.00s)
+    --- PASS: TestFixedbugs/issue49541.go (0.00s)
+    --- PASS: TestFixedbugs/issue49579.go (0.00s)
+    --- PASS: TestFixedbugs/issue49592.go (0.00s)
+    --- PASS: TestFixedbugs/issue49602.go (0.00s)
+    --- PASS: TestFixedbugs/issue49705.go (0.00s)
+    --- PASS: TestFixedbugs/issue49735.go (0.00s)
+    --- PASS: TestFixedbugs/issue49736.go (0.00s)
+    --- PASS: TestFixedbugs/issue49739.go (0.00s)
+    --- PASS: TestFixedbugs/issue49864.go (0.00s)
+    --- PASS: TestFixedbugs/issue50259.go (0.00s)
+    --- PASS: TestFixedbugs/issue50276.go (0.00s)
+    --- PASS: TestFixedbugs/issue50281.go (0.00s)
+    --- PASS: TestFixedbugs/issue50321.go (0.00s)
+    --- PASS: TestFixedbugs/issue50372.go (0.00s)
+    --- PASS: TestFixedbugs/issue50417.go (0.00s)
+    --- PASS: TestFixedbugs/issue50426.go (0.00s)
+    --- PASS: TestFixedbugs/issue50427a.go (0.00s)
+    --- PASS: TestFixedbugs/issue50427b.go (0.00s)
+    --- PASS: TestFixedbugs/issue50450.go (0.00s)
+    --- PASS: TestFixedbugs/issue50516.go (0.00s)
+    --- PASS: TestFixedbugs/issue50646.go (0.00s)
+    --- PASS: TestFixedbugs/issue50729.go (0.00s)
+    --- PASS: TestFixedbugs/issue50729b.go (0.00s)
+    --- PASS: TestFixedbugs/issue50755.go (0.00s)
+    --- PASS: TestFixedbugs/issue50779.go (0.00s)
+    --- PASS: TestFixedbugs/issue50782.go (0.00s)
+    --- PASS: TestFixedbugs/issue50816.go (0.00s)
+    --- PASS: TestFixedbugs/issue50833.go (0.00s)
+    --- PASS: TestFixedbugs/issue50912.go (0.00s)
+    --- PASS: TestFixedbugs/issue50918.go (0.00s)
+    --- PASS: TestFixedbugs/issue50929.go (0.00s)
+    --- PASS: TestFixedbugs/issue50965.go (0.00s)
+    --- PASS: TestFixedbugs/issue51025.go (0.00s)
+    --- PASS: TestFixedbugs/issue51048.go (0.00s)
+    --- PASS: TestFixedbugs/issue51139.go (0.00s)
+    --- PASS: TestFixedbugs/issue51145.go (0.00s)
+    --- PASS: TestFixedbugs/issue51158.go (0.00s)
+    --- PASS: TestFixedbugs/issue51229.go (0.00s)
+    --- PASS: TestFixedbugs/issue51232.go (0.00s)
+    --- PASS: TestFixedbugs/issue51233.go (0.00s)
+    --- PASS: TestFixedbugs/issue51257.go (0.00s)
+    --- PASS: TestFixedbugs/issue51335.go (0.00s)
+    --- PASS: TestFixedbugs/issue51339.go (0.00s)
+    --- PASS: TestFixedbugs/issue51360.go (0.00s)
+    --- PASS: TestFixedbugs/issue51376.go (0.00s)
+    --- PASS: TestFixedbugs/issue51386.go (0.00s)
+    --- PASS: TestFixedbugs/issue51437.go (0.00s)
+    --- PASS: TestFixedbugs/issue51472.go (0.00s)
+    --- PASS: TestFixedbugs/issue51503.go (0.00s)
+    --- PASS: TestFixedbugs/issue51509.go (0.00s)
+    --- PASS: TestFixedbugs/issue51525.go (0.00s)
+    --- PASS: TestFixedbugs/issue51533.go (0.00s)
+    --- PASS: TestFixedbugs/issue51578.go (0.00s)
+    --- PASS: TestFixedbugs/issue51593.go (0.00s)
+    --- PASS: TestFixedbugs/issue51607.go (0.00s)
+    --- PASS: TestFixedbugs/issue51610.go (0.00s)
+    --- PASS: TestFixedbugs/issue51616.go (0.00s)
+    --- PASS: TestFixedbugs/issue51658.go (0.00s)
+    --- PASS: TestFixedbugs/issue51877.go (0.00s)
+    --- PASS: TestFixedbugs/issue52031.go (0.00s)
+    --- PASS: TestFixedbugs/issue52401.go (0.00s)
+    --- PASS: TestFixedbugs/issue52529.go (0.00s)
+    --- PASS: TestFixedbugs/issue52698.go (0.00s)
+    --- PASS: TestFixedbugs/issue52915.go (0.00s)
+    --- PASS: TestFixedbugs/issue53358.go (0.00s)
+    --- PASS: TestFixedbugs/issue53535.go (0.00s)
+    --- PASS: TestFixedbugs/issue53650.go (0.00s)
+    --- PASS: TestFixedbugs/issue53692.go (0.00s)
+    --- PASS: TestFixedbugs/issue54280.go (0.00s)
+    --- PASS: TestFixedbugs/issue54405.go (0.00s)
+    --- PASS: TestFixedbugs/issue54424.go (0.00s)
+    --- PASS: TestFixedbugs/issue54942.go (0.09s)
+    --- PASS: TestFixedbugs/issue56351.go (0.00s)
+    --- PASS: TestFixedbugs/issue56425.go (0.00s)
+    --- PASS: TestFixedbugs/issue56665.go (0.00s)
+    --- PASS: TestFixedbugs/issue57155.go (0.00s)
+    --- PASS: TestFixedbugs/issue57160.go (0.00s)
+    --- PASS: TestFixedbugs/issue57192.go (0.00s)
+    --- PASS: TestFixedbugs/issue57352.go (0.00s)
+    --- PASS: TestFixedbugs/issue57486.go (0.00s)
+    --- PASS: TestFixedbugs/issue57500.go (0.00s)
+    --- PASS: TestFixedbugs/issue57522.go (0.00s)
+    --- PASS: TestFixedbugs/issue58611.go (0.04s)
+    --- PASS: TestFixedbugs/issue58612.go (0.00s)
+    --- PASS: TestFixedbugs/issue58671.go (0.00s)
+    --- PASS: TestFixedbugs/issue58742.go (0.00s)
+    --- PASS: TestFixedbugs/issue59190.go (0.00s)
+    --- PASS: TestFixedbugs/issue59207.go (0.00s)
+    --- PASS: TestFixedbugs/issue59209.go (0.00s)
+    --- PASS: TestFixedbugs/issue59338a.go (0.00s)
+    --- PASS: TestFixedbugs/issue59338b.go (0.00s)
+    --- PASS: TestFixedbugs/issue59371.go (0.00s)
+    --- PASS: TestFixedbugs/issue59639.go (0.00s)
+    --- PASS: TestFixedbugs/issue59740.go (0.00s)
+    --- PASS: TestFixedbugs/issue59848.go (0.00s)
+    --- PASS: TestFixedbugs/issue59890.go (0.00s)
+    --- PASS: TestFixedbugs/issue59953.go (0.00s)
+    --- PASS: TestFixedbugs/issue59956.go (0.00s)
+    --- PASS: TestFixedbugs/issue59958.go (0.00s)
+    --- PASS: TestFixedbugs/issue60346.go (0.00s)
+    --- PASS: TestFixedbugs/issue60377.go (0.00s)
+    --- PASS: TestFixedbugs/issue60434.go (0.00s)
+    --- PASS: TestFixedbugs/issue60460.go (0.00s)
+    --- PASS: TestFixedbugs/issue60500.go (0.00s)
+    --- PASS: TestFixedbugs/issue60542.go (0.00s)
+    --- PASS: TestFixedbugs/issue60556.go (0.00s)
+    --- PASS: TestFixedbugs/issue60562.go (0.00s)
+    --- PASS: TestFixedbugs/issue60688.go (0.00s)
+    --- PASS: TestFixedbugs/issue60747.go (0.00s)
+    --- PASS: TestFixedbugs/issue60906.go (0.00s)
+    --- PASS: TestFixedbugs/issue60933.go (0.00s)
+    --- PASS: TestFixedbugs/issue60946.go (0.00s)
+    --- PASS: TestFixedbugs/issue61486.go (0.00s)
+    --- PASS: TestFixedbugs/issue61685.go (0.00s)
+    --- PASS: TestFixedbugs/issue61822.go (0.00s)
+    --- PASS: TestFixedbugs/issue61879.go (0.00s)
+    --- PASS: TestFixedbugs/issue61903.go (0.00s)
+    --- PASS: TestFixedbugs/issue62157.go (0.00s)
+    --- PASS: TestFixedbugs/issue63563.go (0.00s)
+    --- PASS: TestFixedbugs/issue64406.go (0.00s)
+    --- PASS: TestFixedbugs/issue64704.go (0.00s)
+    --- PASS: TestFixedbugs/issue65344.go (0.00s)
+    --- PASS: TestFixedbugs/issue65711.go (0.00s)
+    --- PASS: TestFixedbugs/issue65854.go (0.00s)
+    --- PASS: TestFixedbugs/issue66064.go (0.04s)
+    --- PASS: TestFixedbugs/issue66285.go (0.00s)
+    --- PASS: TestFixedbugs/issue66323.go (0.00s)
+    --- PASS: TestFixedbugs/issue66751.go (0.00s)
+    --- PASS: TestFixedbugs/issue66878.go (0.00s)
+    --- PASS: TestFixedbugs/issue67547.go (0.00s)
+    --- PASS: TestFixedbugs/issue67628.go (0.00s)
+    --- PASS: TestFixedbugs/issue67683.go (0.00s)
+    --- PASS: TestFixedbugs/issue67872.go (0.00s)
+    --- PASS: TestFixedbugs/issue67962.go (0.00s)
+    --- PASS: TestFixedbugs/issue6814.go (0.00s)
+    --- PASS: TestFixedbugs/issue68162.go (0.00s)
+    --- PASS: TestFixedbugs/issue68184.go (0.00s)
+    --- PASS: TestFixedbugs/issue68903.go (0.00s)
+    --- PASS: TestFixedbugs/issue68935.go (0.00s)
+    --- PASS: TestFixedbugs/issue69576.go (0.00s)
+    --- PASS: TestFixedbugs/issue6977.go (0.00s)
+    --- PASS: TestFixedbugs/issue69955.go (0.00s)
+    --- PASS: TestFixedbugs/issue70150.go (0.00s)
+    --- PASS: TestFixedbugs/issue70417.go (0.00s)
+    --- PASS: TestFixedbugs/issue70526.go (0.00s)
+    --- PASS: TestFixedbugs/issue70549.go (0.00s)
+    --- PASS: TestFixedbugs/issue71131.go (0.00s)
+    --- PASS: TestFixedbugs/issue71198.go (0.00s)
+    --- PASS: TestFixedbugs/issue71284.go (0.00s)
+    --- PASS: TestFixedbugs/issue72936.go (0.00s)
+    --- PASS: TestFixedbugs/issue73428.go (0.00s)
+    --- PASS: TestFixedbugs/issue75194.go (0.00s)
+    --- PASS: TestFixedbugs/issue75883.go (0.00s)
+    --- PASS: TestFixedbugs/issue75885.go (0.00s)
+    --- PASS: TestFixedbugs/issue75918.go (0.00s)
+    --- PASS: TestFixedbugs/issue75986.go (0.00s)
+    --- PASS: TestFixedbugs/issue76103.go (0.00s)
+    --- PASS: TestFixedbugs/issue76220.go (0.00s)
+    --- PASS: TestFixedbugs/issue76366.go (0.00s)
+    --- PASS: TestFixedbugs/issue76383.go (0.00s)
+    --- PASS: TestFixedbugs/issue76384.go (0.00s)
+    --- PASS: TestFixedbugs/issue76478.go (0.00s)
+    --- PASS: TestFixedbugs/issue77245.go (0.00s)
+    --- PASS: TestFixedbugs/issue77382.go (0.00s)
+    --- PASS: TestFixedbugs/issue77905.go (0.00s)
+    --- PASS: TestFixedbugs/issue78163.go (0.00s)
+    --- SKIP: TestFixedbugs/issue78346.go (0.00s)
+    --- PASS: TestFixedbugs/issue78483.go (0.00s)
+    --- PASS: TestFixedbugs/issue78884.go (0.00s)
+    --- PASS: TestFixedbugs/issue79265.go (0.00s)
+    --- PASS: TestFixedbugs/issue79687.go (0.00s)
+    --- PASS: TestFixedbugs/issue79832.go (0.00s)
+    --- PASS: TestFixedbugs/issue79883.go (0.00s)
+    --- PASS: TestFixedbugs/issue80042.go (0.00s)
+    --- PASS: TestFixedbugs/issue80172.go (0.00s)
+    --- PASS: TestFixedbugs/logos_nested_union_ordered.go (0.00s)
+=== RUN   TestLocal
+=== RUN   TestLocal/issue47996.go
+=== RUN   TestLocal/issue68183.go
+=== RUN   TestLocal/issue71254.go
+--- PASS: TestLocal (0.00s)
+    --- PASS: TestLocal/issue47996.go (0.00s)
+    --- PASS: TestLocal/issue68183.go (0.00s)
+    --- PASS: TestLocal/issue71254.go (0.00s)
+=== RUN   TestLogos
+=== RUN   TestLogos/addr_lit.lgo
+=== RUN   TestLogos/chain_stage.lgo
+=== RUN   TestLogos/chains.lgo
+=== RUN   TestLogos/chains_shadow.lgo
+=== RUN   TestLogos/coalesce_precedence.lgo
+=== RUN   TestLogos/comptime_layout.lgo
+=== RUN   TestLogos/comptime_layout_too_large.lgo
+=== RUN   TestLogos/const_for.lgo
+=== RUN   TestLogos/const_if.lgo
+=== RUN   TestLogos/const_map_key_types.lgo
+=== RUN   TestLogos/const_slice_cov.lgo
+=== RUN   TestLogos/const_switch.lgo
+=== RUN   TestLogos/const_view_infer.lgo
+=== RUN   TestLogos/const_views.lgo
+=== RUN   TestLogos/ctfe.lgo
+=== RUN   TestLogos/error_first.lgo
+=== RUN   TestLogos/error_first_flow.lgo
+=== RUN   TestLogos/errors.lgo
+=== RUN   TestLogos/global_option_scope.lgo
+=== RUN   TestLogos/group.lgo
+=== RUN   TestLogos/group_plain.lgo
+=== RUN   TestLogos/group_plain_generic.lgo
+=== RUN   TestLogos/interp.lgo
+=== RUN   TestLogos/lambda_errdefer.lgo
+=== RUN   TestLogos/lambdas.lgo
+=== RUN   TestLogos/map_index.lgo
+=== RUN   TestLogos/narrowing.lgo
+=== RUN   TestLogos/narrowing_stale.lgo
+=== RUN   TestLogos/nonnil_zero.lgo
+=== RUN   TestLogos/option_types.lgo
+=== RUN   TestLogos/plain.lgo
+=== RUN   TestLogos/property_const_readonly.lgo
+=== RUN   TestLogos/property_constraint.lgo
+=== RUN   TestLogos/property_getter_readonly.lgo
+=== RUN   TestLogos/property_iface.lgo
+=== RUN   TestLogos/property_missing_name.lgo
+=== RUN   TestLogos/property_option.lgo
+=== RUN   TestLogos/property_promoted.lgo
+=== RUN   TestLogos/property_readonly_method.lgo
+=== RUN   TestLogos/property_selfref.lgo
+=== RUN   TestLogos/property_slice_cov.lgo
+=== RUN   TestLogos/readonly_generic_cycle.lgo
+=== RUN   TestLogos/readonly_generic_receiver.lgo
+=== RUN   TestLogos/region_escape.lgo
+=== RUN   TestLogos/scope_defer.lgo
+=== RUN   TestLogos/shadowed_err.lgo
+=== RUN   TestLogos/simd_types.lgo
+=== RUN   TestLogos/spread.lgo
+=== RUN   TestLogos/struct_assert.lgo
+=== RUN   TestLogos/struct_assert_generic.lgo
+=== RUN   TestLogos/struct_default.lgo
+=== RUN   TestLogos/switch_expr_types.lgo
+=== RUN   TestLogos/try.lgo
+=== RUN   TestLogos/try_review.lgo
+=== RUN   TestLogos/try_switch_positions.lgo
+=== RUN   TestLogos/try_switch_reject.lgo
+=== RUN   TestLogos/tuple_defined.lgo
+=== RUN   TestLogos/tuples.lgo
+=== RUN   TestLogos/tuples_noncomparable.lgo
+=== RUN   TestLogos/union_exhaustive.lgo
+=== RUN   TestLogos/union_member_methods.lgo
+=== RUN   TestLogos/union_members.lgo
+=== RUN   TestLogos/union_positions.go
+=== RUN   TestLogos/viewas.lgo
+=== RUN   TestLogos/yield.lgo
+=== RUN   TestLogos/yield_forms.lgo
+--- PASS: TestLogos (2.60s)
+    --- PASS: TestLogos/addr_lit.lgo (0.00s)
+    --- PASS: TestLogos/chain_stage.lgo (0.04s)
+    --- PASS: TestLogos/chains.lgo (0.00s)
+    --- PASS: TestLogos/chains_shadow.lgo (0.00s)
+    --- PASS: TestLogos/coalesce_precedence.lgo (0.00s)
+    --- PASS: TestLogos/comptime_layout.lgo (0.00s)
+    --- PASS: TestLogos/comptime_layout_too_large.lgo (0.00s)
+    --- PASS: TestLogos/const_for.lgo (0.00s)
+    --- PASS: TestLogos/const_if.lgo (0.00s)
+    --- PASS: TestLogos/const_map_key_types.lgo (0.00s)
+    --- PASS: TestLogos/const_slice_cov.lgo (0.00s)
+    --- PASS: TestLogos/const_switch.lgo (0.00s)
+    --- PASS: TestLogos/const_view_infer.lgo (0.00s)
+    --- PASS: TestLogos/const_views.lgo (0.00s)
+    --- PASS: TestLogos/ctfe.lgo (2.36s)
+    --- PASS: TestLogos/error_first.lgo (0.05s)
+    --- PASS: TestLogos/error_first_flow.lgo (0.01s)
+    --- PASS: TestLogos/errors.lgo (0.00s)
+    --- PASS: TestLogos/global_option_scope.lgo (0.00s)
+    --- PASS: TestLogos/group.lgo (0.00s)
+    --- PASS: TestLogos/group_plain.lgo (0.00s)
+    --- PASS: TestLogos/group_plain_generic.lgo (0.00s)
+    --- PASS: TestLogos/interp.lgo (0.00s)
+    --- PASS: TestLogos/lambda_errdefer.lgo (0.00s)
+    --- PASS: TestLogos/lambdas.lgo (0.00s)
+    --- PASS: TestLogos/map_index.lgo (0.00s)
+    --- PASS: TestLogos/narrowing.lgo (0.00s)
+    --- PASS: TestLogos/narrowing_stale.lgo (0.00s)
+    --- PASS: TestLogos/nonnil_zero.lgo (0.00s)
+    --- PASS: TestLogos/option_types.lgo (0.00s)
+    --- PASS: TestLogos/plain.lgo (0.00s)
+    --- PASS: TestLogos/property_const_readonly.lgo (0.00s)
+    --- PASS: TestLogos/property_constraint.lgo (0.00s)
+    --- PASS: TestLogos/property_getter_readonly.lgo (0.00s)
+    --- PASS: TestLogos/property_iface.lgo (0.00s)
+    --- PASS: TestLogos/property_missing_name.lgo (0.00s)
+    --- PASS: TestLogos/property_option.lgo (0.00s)
+    --- PASS: TestLogos/property_promoted.lgo (0.00s)
+    --- PASS: TestLogos/property_readonly_method.lgo (0.00s)
+    --- PASS: TestLogos/property_selfref.lgo (0.00s)
+    --- PASS: TestLogos/property_slice_cov.lgo (0.00s)
+    --- PASS: TestLogos/readonly_generic_cycle.lgo (0.00s)
+    --- PASS: TestLogos/readonly_generic_receiver.lgo (0.01s)
+    --- PASS: TestLogos/region_escape.lgo (0.04s)
+    --- PASS: TestLogos/scope_defer.lgo (0.00s)
+    --- PASS: TestLogos/shadowed_err.lgo (0.00s)
+    --- PASS: TestLogos/simd_types.lgo (0.00s)
+    --- PASS: TestLogos/spread.lgo (0.00s)
+    --- PASS: TestLogos/struct_assert.lgo (0.00s)
+    --- PASS: TestLogos/struct_assert_generic.lgo (0.00s)
+    --- PASS: TestLogos/struct_default.lgo (0.00s)
+    --- PASS: TestLogos/switch_expr_types.lgo (0.00s)
+    --- PASS: TestLogos/try.lgo (0.00s)
+    --- PASS: TestLogos/try_review.lgo (0.00s)
+    --- PASS: TestLogos/try_switch_positions.lgo (0.00s)
+    --- PASS: TestLogos/try_switch_reject.lgo (0.02s)
+    --- PASS: TestLogos/tuple_defined.lgo (0.00s)
+    --- PASS: TestLogos/tuples.lgo (0.00s)
+    --- PASS: TestLogos/tuples_noncomparable.lgo (0.00s)
+    --- PASS: TestLogos/union_exhaustive.lgo (0.00s)
+    --- PASS: TestLogos/union_member_methods.lgo (0.00s)
+    --- PASS: TestLogos/union_members.lgo (0.00s)
+    --- PASS: TestLogos/union_positions.go (0.00s)
+    --- PASS: TestLogos/viewas.lgo (0.00s)
+    --- PASS: TestLogos/yield.lgo (0.00s)
+    --- PASS: TestLogos/yield_forms.lgo (0.00s)
+=== RUN   TestErrorCalls
+--- PASS: TestErrorCalls (0.07s)
+=== RUN   TestHilbert
+--- PASS: TestHilbert (0.00s)
+=== RUN   TestInstantiateEquality
+=== RUN   TestInstantiateEquality/basictype
+=== RUN   TestInstantiateEquality/differenttypeargs
+=== RUN   TestInstantiateEquality/typeslice
+=== RUN   TestInstantiateEquality/equivalentinterfaces
+=== RUN   TestInstantiateEquality/equivalenttypesets
+=== RUN   TestInstantiateEquality/basicfunc
+=== RUN   TestInstantiateEquality/funcslice
+=== RUN   TestInstantiateEquality/funcwithparams
+=== RUN   TestInstantiateEquality/differentfuncargs
+=== RUN   TestInstantiateEquality/funcequality
+=== RUN   TestInstantiateEquality/funcsymmetry
+--- PASS: TestInstantiateEquality (0.00s)
+    --- PASS: TestInstantiateEquality/basictype (0.00s)
+    --- PASS: TestInstantiateEquality/differenttypeargs (0.00s)
+    --- PASS: TestInstantiateEquality/typeslice (0.00s)
+    --- PASS: TestInstantiateEquality/equivalentinterfaces (0.00s)
+    --- PASS: TestInstantiateEquality/equivalenttypesets (0.00s)
+    --- PASS: TestInstantiateEquality/basicfunc (0.00s)
+    --- PASS: TestInstantiateEquality/funcslice (0.00s)
+    --- PASS: TestInstantiateEquality/funcwithparams (0.00s)
+    --- PASS: TestInstantiateEquality/differentfuncargs (0.00s)
+    --- PASS: TestInstantiateEquality/funcequality (0.00s)
+    --- PASS: TestInstantiateEquality/funcsymmetry (0.00s)
+=== RUN   TestInstantiateNonEquality
+--- PASS: TestInstantiateNonEquality (0.00s)
+=== RUN   TestMethodInstantiation
+--- PASS: TestMethodInstantiation (0.00s)
+=== RUN   TestImmutableSignatures
+--- PASS: TestImmutableSignatures (0.00s)
+=== RUN   TestIssue5770
+--- PASS: TestIssue5770 (0.00s)
+=== RUN   TestIssue5849
+--- PASS: TestIssue5849 (0.00s)
+=== RUN   TestIssue6413
+--- PASS: TestIssue6413 (0.00s)
+=== RUN   TestIssue7245
+--- PASS: TestIssue7245 (0.00s)
+=== RUN   TestIssue7827
+    issues_test.go:148: p:6:9: cannot assign to w
+--- PASS: TestIssue7827 (0.00s)
+=== RUN   TestIssue13898
+--- PASS: TestIssue13898 (0.17s)
+=== RUN   TestIssue22525
+--- PASS: TestIssue22525 (0.00s)
+=== RUN   TestIssue25627
+--- PASS: TestIssue25627 (0.00s)
+=== RUN   TestIssue28005
+--- PASS: TestIssue28005 (0.00s)
+=== RUN   TestIssue28282
+--- PASS: TestIssue28282 (0.00s)
+=== RUN   TestIssue29029
+--- PASS: TestIssue29029 (0.00s)
+=== RUN   TestIssue34151
+--- PASS: TestIssue34151 (0.00s)
+=== RUN   TestIssue34921
+--- PASS: TestIssue34921 (0.00s)
+=== RUN   TestIssue43088
+--- PASS: TestIssue43088 (0.00s)
+=== RUN   TestIssue44515
+--- PASS: TestIssue44515 (0.00s)
+=== RUN   TestIssue43124
+--- PASS: TestIssue43124 (0.00s)
+=== RUN   TestIssue50646
+--- PASS: TestIssue50646 (0.00s)
+=== RUN   TestIssue55030
+--- PASS: TestIssue55030 (0.00s)
+=== RUN   TestIssue51093
+--- PASS: TestIssue51093 (0.00s)
+=== RUN   TestIssue54258
+    issues_test.go:858: Saw expected
+        	main:6:12: cannot use b.S{} (value of struct type b.S) as I0 value in variable declaration: b.S does not implement I0 (wrong type for method M0)
+        		have M0(struct{f string /* package b */ })
+        		want M0(struct{f string /* package main */ })
+    issues_test.go:858: Saw expected
+        	main:6:12: cannot use b.S{} (value of struct type b.S) as I1 value in variable declaration: b.S does not implement I1 (wrong type for method M1)
+        		have M1(struct{string /* package b */ })
+        		want M1(struct{string /* package main */ })
+    issues_test.go:858: Saw expected
+        	main:6:12: cannot use b.S{} (value of struct type b.S) as I2 value in variable declaration: b.S does not implement I2 (wrong type for method M2)
+        		have M2(struct{f struct{f string} /* package b */ })
+        		want M2(struct{f struct{f string} /* package main */ })
+    issues_test.go:858: Saw expected
+        	main:6:12: cannot use b.S{} (value of struct type b.S) as I3 value in variable declaration: b.S does not implement I3 (wrong type for method M3)
+        		have M3(struct{F struct{f string /* package b */ }})
+        		want M3(struct{F struct{f string /* package main */ }})
+    issues_test.go:858: Saw expected
+        	main:6:12: cannot use b.S{} (value of struct type b.S) as I4 value in variable declaration: b.S does not implement I4 (wrong type for method M4)
+        		have M4(struct{*string /* package b */ })
+        		want M4(struct{*string /* package main */ })
+    issues_test.go:858: Saw expected
+        	main:7:12: cannot use b.S{} (value of struct type b.S) as I5 value in variable declaration: b.S does not implement I5 (wrong type for method M5)
+        		have M5(struct{b.S; b.t})
+        		want M5(struct{b.S; t})
+--- PASS: TestIssue54258 (0.00s)
+=== RUN   TestIssue59944
+--- PASS: TestIssue59944 (0.10s)
+=== RUN   TestIssue61931
+--- PASS: TestIssue61931 (0.00s)
+=== RUN   TestIssue61938
+--- PASS: TestIssue61938 (0.00s)
+=== RUN   TestIssue63260
+--- PASS: TestIssue63260 (0.00s)
+=== RUN   TestIssue44410
+--- PASS: TestIssue44410 (0.00s)
+=== RUN   TestIssue59831
+--- PASS: TestIssue59831 (0.00s)
+=== RUN   TestIssue64759
+--- PASS: TestIssue64759 (0.00s)
+=== RUN   TestIssue68334
+--- PASS: TestIssue68334 (0.00s)
+=== RUN   TestIssue68877
+--- PASS: TestIssue68877 (0.00s)
+=== RUN   TestIssue69092
+--- PASS: TestIssue69092 (0.00s)
+=== RUN   TestIssue72978
+--- PASS: TestIssue72978 (0.00s)
+=== RUN   TestGoModeCallCostDoesNotGrowWithCalleeBody
+--- PASS: TestGoModeCallCostDoesNotGrowWithCalleeBody (0.04s)
+=== RUN   TestImportedMethodOrder
+--- PASS: TestImportedMethodOrder (0.01s)
+=== RUN   TestMonoGood
+--- PASS: TestMonoGood (0.00s)
+=== RUN   TestMonoBad
+    mono_test.go:43: x:2:8: instantiation cycle:
+        	x:2:23: T instantiated as *T
+    mono_test.go:43: x:2:8: instantiation cycle:
+        	x:2:21: T instantiated as *T
+    mono_test.go:43: x:2:8: instantiation cycle:
+        	x:2:21: T instantiated as []T
+    mono_test.go:43: x:2:8: instantiation cycle:
+        	x:2:21: T instantiated as [1]T
+    mono_test.go:43: x:2:8: instantiation cycle:
+        	x:2:21: T instantiated as chan T
+    mono_test.go:43: x:2:8: instantiation cycle:
+        	x:2:21: T instantiated as map[*T]int
+    mono_test.go:43: x:2:8: instantiation cycle:
+        	x:2:21: T instantiated as map[error]T
+    mono_test.go:43: x:2:8: instantiation cycle:
+        	x:2:25: T instantiated as func(T)
+    mono_test.go:43: x:2:8: instantiation cycle:
+        	x:2:25: T instantiated as func() T
+    mono_test.go:43: x:2:8: instantiation cycle:
+        	x:2:21: T instantiated as struct{t T}
+    mono_test.go:43: x:2:8: instantiation cycle:
+        	x:2:21: T instantiated as interface{t() T}
+    mono_test.go:43: x:2:27: instantiation cycle:
+        	x:2:40: T instantiated as U[T]
+    mono_test.go:43: x:2:8: instantiation cycle:
+        	x:2:33: T instantiated as U
+        	x:2:24: U implicitly parameterized by T
+    mono_test.go:43: x:2:8: instantiation cycle:
+        	x:2:33: T instantiated as *U
+        	x:2:24: U implicitly parameterized by T
+    mono_test.go:43: x:2:8: instantiation cycle:
+        	x:2:46: T instantiated as *T
+    mono_test.go:43: x:2:8: instantiation cycle:
+        	x:2:47: T instantiated as *T
+    mono_test.go:43: x:2:8: instantiation cycle:
+        	x:2:72: T1 instantiated as T2
+        	x:2:33: T2 instantiated as *T1
+    mono_test.go:43: x:2:8: instantiation cycle:
+        	x:2:33: A instantiated as B
+        	x:2:36: B instantiated as C
+        	x:2:39: C instantiated as D
+        	x:2:42: D instantiated as E
+        	x:2:45: E instantiated as *A
+    mono_test.go:43: x:2:60: instantiation cycle:
+        	x:2:71: T instantiated as *T
+    mono_test.go:43: x:2:8: instantiation cycle:
+        	x:2:34: T instantiated as A
+    mono_test.go:43: x:2:26: invalid recursive type: A[*T] refers to itself
+    mono_test.go:43: x:2:31: instantiation cycle:
+        	x:2:46: P instantiated as *P
+    mono_test.go:43: x:2:31: instantiation cycle:
+        	x:2:83: P instantiated as *Q
+        	x:2:46: Q instantiated as *P
+    mono_test.go:43: x:2:36: instantiation cycle:
+        	x:2:51: P instantiated as *P
+    mono_test.go:43: x:2:36: instantiation cycle:
+        	x:2:91: P instantiated as *Q
+        	x:2:51: Q instantiated as *P
+--- PASS: TestMonoBad (0.00s)
+=== RUN   TestFiniteTypeExpansion
+--- PASS: TestFiniteTypeExpansion (0.00s)
+=== RUN   TestMethodOrdering
+--- PASS: TestMethodOrdering (0.00s)
+=== RUN   TestIsAlias
+--- PASS: TestIsAlias (0.00s)
+=== RUN   TestEmbeddedMethod
+--- PASS: TestEmbeddedMethod (0.00s)
+=== RUN   TestObjectString
+=== RUN   TestObjectString/0
+=== RUN   TestObjectString/1
+=== RUN   TestObjectString/2
+=== RUN   TestObjectString/3
+=== RUN   TestObjectString/4
+=== RUN   TestObjectString/5
+=== RUN   TestObjectString/6
+=== RUN   TestObjectString/7
+=== RUN   TestObjectString/8
+=== RUN   TestObjectString/9
+=== RUN   TestObjectString/10
+=== RUN   TestObjectString/11
+=== RUN   TestObjectString/12
+=== RUN   TestObjectString/13
+=== RUN   TestObjectString/14
+=== RUN   TestObjectString/15
+=== RUN   TestObjectString/16
+--- PASS: TestObjectString (0.00s)
+    --- PASS: TestObjectString/0 (0.00s)
+    --- PASS: TestObjectString/1 (0.00s)
+    --- PASS: TestObjectString/2 (0.00s)
+    --- PASS: TestObjectString/3 (0.00s)
+    --- PASS: TestObjectString/4 (0.00s)
+    --- PASS: TestObjectString/5 (0.00s)
+    --- PASS: TestObjectString/6 (0.00s)
+    --- PASS: TestObjectString/7 (0.00s)
+    --- PASS: TestObjectString/8 (0.00s)
+    --- PASS: TestObjectString/9 (0.00s)
+    --- PASS: TestObjectString/10 (0.00s)
+    --- PASS: TestObjectString/11 (0.00s)
+    --- PASS: TestObjectString/12 (0.00s)
+    --- PASS: TestObjectString/13 (0.00s)
+    --- PASS: TestObjectString/14 (0.00s)
+    --- PASS: TestObjectString/15 (0.00s)
+    --- PASS: TestObjectString/16 (0.00s)
+=== RUN   TestResolveIdents
+--- PASS: TestResolveIdents (0.10s)
+=== RUN   TestSelf
+--- PASS: TestSelf (0.78s)
+=== RUN   TestMultipleSizeUse
+--- PASS: TestMultipleSizeUse (0.00s)
+=== RUN   TestAlignofNaclSlice
+--- PASS: TestAlignofNaclSlice (0.00s)
+=== RUN   TestIssue16902
+--- PASS: TestIssue16902 (0.00s)
+=== RUN   TestAtomicAlign
+=== RUN   TestAtomicAlign/386
+=== RUN   TestAtomicAlign/amd64
+--- PASS: TestAtomicAlign (0.00s)
+    --- PASS: TestAtomicAlign/386 (0.00s)
+    --- PASS: TestAtomicAlign/amd64 (0.00s)
+=== RUN   TestGCSizes
+=== RUN   TestGCSizes/issue60431
+=== PAUSE TestGCSizes/issue60431
+=== RUN   TestGCSizes/issue60734
+=== PAUSE TestGCSizes/issue60734
+=== CONT  TestGCSizes/issue60431
+=== CONT  TestGCSizes/issue60734
+--- PASS: TestGCSizes (0.00s)
+    --- PASS: TestGCSizes/issue60431 (0.00s)
+    --- PASS: TestGCSizes/issue60734 (0.00s)
+=== RUN   TestStdlib
+    stdlib_test.go:33: skipping in short mode
+--- SKIP: TestStdlib (0.00s)
+=== RUN   TestStdTest
+    stdlib_test.go:290: skipping in short mode
+--- SKIP: TestStdTest (0.00s)
+=== RUN   TestStdFixed
+    stdlib_test.go:308: skipping in short mode
+--- SKIP: TestStdFixed (0.00s)
+=== RUN   TestStdKen
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/array.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/chan.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/chan1.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/complit.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/convert.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/cplx0.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/cplx1.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/cplx2.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/cplx3.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/cplx4.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/cplx5.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/divconst.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/divmod.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/embed.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/for.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/interbasic.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/interfun.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/intervar.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/label.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/litfun.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/mfunc.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/modconst.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/ptrfun.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/ptrvar.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/range.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/rob1.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/rob2.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/robfor.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/robfunc.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/shift.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/simparray.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/simpbool.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/simpconv.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/simpfun.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/simpswitch.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/simpvar.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/slicearray.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/sliceslice.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/string.go
+	 /workspace/scratch/9949907ca71e/logos-acceptance-fixes/test/ken/strvar.go
+--- PASS: TestStdKen (0.08s)
+=== RUN   TestLogosGenericTypeArgumentPositions
+=== RUN   TestLogosGenericTypeArgumentPositions/int
+=== RUN   TestLogosGenericTypeArgumentPositions/int/strict
+=== RUN   TestLogosGenericTypeArgumentPositions/int/alias
+=== RUN   TestLogosGenericTypeArgumentPositions/int/later
+=== RUN   TestLogosGenericTypeArgumentPositions/int/function
+=== RUN   TestLogosGenericTypeArgumentPositions/int/method
+=== RUN   TestLogosGenericTypeArgumentPositions/int/literal
+=== RUN   TestLogosGenericTypeArgumentPositions/int?
+=== RUN   TestLogosGenericTypeArgumentPositions/int?/strict
+=== RUN   TestLogosGenericTypeArgumentPositions/int?/alias
+=== RUN   TestLogosGenericTypeArgumentPositions/int?/later
+=== RUN   TestLogosGenericTypeArgumentPositions/int?/function
+=== RUN   TestLogosGenericTypeArgumentPositions/int?/method
+=== RUN   TestLogosGenericTypeArgumentPositions/int?/literal
+=== RUN   TestLogosGenericTypeArgumentPositions/(int?)?
+=== RUN   TestLogosGenericTypeArgumentPositions/(int?)?/strict
+=== RUN   TestLogosGenericTypeArgumentPositions/(int?)?/alias
+=== RUN   TestLogosGenericTypeArgumentPositions/(int?)?/later
+=== RUN   TestLogosGenericTypeArgumentPositions/(int?)?/function
+=== RUN   TestLogosGenericTypeArgumentPositions/(int?)?/method
+=== RUN   TestLogosGenericTypeArgumentPositions/(int?)?/literal
+=== RUN   TestLogosGenericTypeArgumentPositions/*int?
+=== RUN   TestLogosGenericTypeArgumentPositions/*int?/strict
+=== RUN   TestLogosGenericTypeArgumentPositions/*int?/alias
+=== RUN   TestLogosGenericTypeArgumentPositions/*int?/later
+=== RUN   TestLogosGenericTypeArgumentPositions/*int?/function
+=== RUN   TestLogosGenericTypeArgumentPositions/*int?/method
+=== RUN   TestLogosGenericTypeArgumentPositions/*int?/literal
+=== RUN   TestLogosGenericTypeArgumentPositions/*(int?)
+=== RUN   TestLogosGenericTypeArgumentPositions/*(int?)/strict
+=== RUN   TestLogosGenericTypeArgumentPositions/*(int?)/alias
+=== RUN   TestLogosGenericTypeArgumentPositions/*(int?)/later
+=== RUN   TestLogosGenericTypeArgumentPositions/*(int?)/function
+=== RUN   TestLogosGenericTypeArgumentPositions/*(int?)/method
+=== RUN   TestLogosGenericTypeArgumentPositions/*(int?)/literal
+=== RUN   TestLogosGenericTypeArgumentPositions/(*int)?
+=== RUN   TestLogosGenericTypeArgumentPositions/(*int)?/strict
+=== RUN   TestLogosGenericTypeArgumentPositions/(*int)?/alias
+=== RUN   TestLogosGenericTypeArgumentPositions/(*int)?/later
+=== RUN   TestLogosGenericTypeArgumentPositions/(*int)?/function
+=== RUN   TestLogosGenericTypeArgumentPositions/(*int)?/method
+=== RUN   TestLogosGenericTypeArgumentPositions/(*int)?/literal
+=== RUN   TestLogosGenericTypeArgumentPositions/**int?
+=== RUN   TestLogosGenericTypeArgumentPositions/**int?/strict
+=== RUN   TestLogosGenericTypeArgumentPositions/**int?/alias
+=== RUN   TestLogosGenericTypeArgumentPositions/**int?/later
+=== RUN   TestLogosGenericTypeArgumentPositions/**int?/function
+=== RUN   TestLogosGenericTypeArgumentPositions/**int?/method
+=== RUN   TestLogosGenericTypeArgumentPositions/**int?/literal
+=== RUN   TestLogosGenericTypeArgumentPositions/[]int?
+=== RUN   TestLogosGenericTypeArgumentPositions/[]int?/strict
+=== RUN   TestLogosGenericTypeArgumentPositions/[]int?/alias
+=== RUN   TestLogosGenericTypeArgumentPositions/[]int?/later
+=== RUN   TestLogosGenericTypeArgumentPositions/[]int?/function
+=== RUN   TestLogosGenericTypeArgumentPositions/[]int?/method
+=== RUN   TestLogosGenericTypeArgumentPositions/[]int?/literal
+=== RUN   TestLogosGenericTypeArgumentPositions/<-chan_int?
+=== RUN   TestLogosGenericTypeArgumentPositions/<-chan_int?/strict
+=== RUN   TestLogosGenericTypeArgumentPositions/<-chan_int?/alias
+=== RUN   TestLogosGenericTypeArgumentPositions/<-chan_int?/later
+=== RUN   TestLogosGenericTypeArgumentPositions/<-chan_int?/function
+=== RUN   TestLogosGenericTypeArgumentPositions/<-chan_int?/method
+=== RUN   TestLogosGenericTypeArgumentPositions/<-chan_int?/literal
+=== RUN   TestLogosGenericTypeArgumentPositions/(<-chan_int)?
+=== RUN   TestLogosGenericTypeArgumentPositions/(<-chan_int)?/strict
+=== RUN   TestLogosGenericTypeArgumentPositions/(<-chan_int)?/alias
+=== RUN   TestLogosGenericTypeArgumentPositions/(<-chan_int)?/later
+=== RUN   TestLogosGenericTypeArgumentPositions/(<-chan_int)?/function
+=== RUN   TestLogosGenericTypeArgumentPositions/(<-chan_int)?/method
+=== RUN   TestLogosGenericTypeArgumentPositions/(<-chan_int)?/literal
+=== RUN   TestLogosGenericTypeArgumentPositions/(int,_string)
+=== RUN   TestLogosGenericTypeArgumentPositions/(int,_string)/strict
+=== RUN   TestLogosGenericTypeArgumentPositions/(int,_string)/alias
+=== RUN   TestLogosGenericTypeArgumentPositions/(int,_string)/later
+=== RUN   TestLogosGenericTypeArgumentPositions/(int,_string)/function
+=== RUN   TestLogosGenericTypeArgumentPositions/(int,_string)/method
+=== RUN   TestLogosGenericTypeArgumentPositions/(int,_string)/literal
+=== RUN   TestLogosGenericTypeArgumentPositions/(int?,_(string,_bool))
+=== RUN   TestLogosGenericTypeArgumentPositions/(int?,_(string,_bool))/strict
+=== RUN   TestLogosGenericTypeArgumentPositions/(int?,_(string,_bool))/alias
+=== RUN   TestLogosGenericTypeArgumentPositions/(int?,_(string,_bool))/later
+=== RUN   TestLogosGenericTypeArgumentPositions/(int?,_(string,_bool))/function
+=== RUN   TestLogosGenericTypeArgumentPositions/(int?,_(string,_bool))/method
+=== RUN   TestLogosGenericTypeArgumentPositions/(int?,_(string,_bool))/literal
+=== RUN   TestLogosGenericTypeArgumentPositions/(x_int,_y_string)
+=== RUN   TestLogosGenericTypeArgumentPositions/(x_int,_y_string)/strict
+=== RUN   TestLogosGenericTypeArgumentPositions/(x_int,_y_string)/alias
+=== RUN   TestLogosGenericTypeArgumentPositions/(x_int,_y_string)/later
+=== RUN   TestLogosGenericTypeArgumentPositions/(x_int,_y_string)/function
+=== RUN   TestLogosGenericTypeArgumentPositions/(x_int,_y_string)/method
+=== RUN   TestLogosGenericTypeArgumentPositions/(x_int,_y_string)/literal
+=== RUN   TestLogosGenericTypeArgumentPositions/(x:_int,_y:_string)
+=== RUN   TestLogosGenericTypeArgumentPositions/(x:_int,_y:_string)/strict
+=== RUN   TestLogosGenericTypeArgumentPositions/(x:_int,_y:_string)/alias
+=== RUN   TestLogosGenericTypeArgumentPositions/(x:_int,_y:_string)/later
+=== RUN   TestLogosGenericTypeArgumentPositions/(x:_int,_y:_string)/function
+=== RUN   TestLogosGenericTypeArgumentPositions/(x:_int,_y:_string)/method
+=== RUN   TestLogosGenericTypeArgumentPositions/(x:_int,_y:_string)/literal
+=== RUN   TestLogosGenericTypeArgumentPositions/(x_*int?,_y_*(int?))
+=== RUN   TestLogosGenericTypeArgumentPositions/(x_*int?,_y_*(int?))/strict
+=== RUN   TestLogosGenericTypeArgumentPositions/(x_*int?,_y_*(int?))/alias
+=== RUN   TestLogosGenericTypeArgumentPositions/(x_*int?,_y_*(int?))/later
+=== RUN   TestLogosGenericTypeArgumentPositions/(x_*int?,_y_*(int?))/function
+=== RUN   TestLogosGenericTypeArgumentPositions/(x_*int?,_y_*(int?))/method
+=== RUN   TestLogosGenericTypeArgumentPositions/(x_*int?,_y_*(int?))/literal
+=== RUN   TestLogosGenericTypeArgumentPositions/(x_[]int,_y_[2]string)
+=== RUN   TestLogosGenericTypeArgumentPositions/(x_[]int,_y_[2]string)/strict
+=== RUN   TestLogosGenericTypeArgumentPositions/(x_[]int,_y_[2]string)/alias
+=== RUN   TestLogosGenericTypeArgumentPositions/(x_[]int,_y_[2]string)/later
+=== RUN   TestLogosGenericTypeArgumentPositions/(x_[]int,_y_[2]string)/function
+=== RUN   TestLogosGenericTypeArgumentPositions/(x_[]int,_y_[2]string)/method
+=== RUN   TestLogosGenericTypeArgumentPositions/(x_[]int,_y_[2]string)/literal
+=== RUN   TestLogosGenericTypeArgumentPositions/(x_map[string]int,_y_chan_int)
+=== RUN   TestLogosGenericTypeArgumentPositions/(x_map[string]int,_y_chan_int)/strict
+=== RUN   TestLogosGenericTypeArgumentPositions/(x_map[string]int,_y_chan_int)/alias
+=== RUN   TestLogosGenericTypeArgumentPositions/(x_map[string]int,_y_chan_int)/later
+=== RUN   TestLogosGenericTypeArgumentPositions/(x_map[string]int,_y_chan_int)/function
+=== RUN   TestLogosGenericTypeArgumentPositions/(x_map[string]int,_y_chan_int)/method
+=== RUN   TestLogosGenericTypeArgumentPositions/(x_map[string]int,_y_chan_int)/literal
+=== RUN   TestLogosGenericTypeArgumentPositions/(x_(int,_string),_y_(int?)?)
+=== RUN   TestLogosGenericTypeArgumentPositions/(x_(int,_string),_y_(int?)?)/strict
+=== RUN   TestLogosGenericTypeArgumentPositions/(x_(int,_string),_y_(int?)?)/alias
+=== RUN   TestLogosGenericTypeArgumentPositions/(x_(int,_string),_y_(int?)?)/later
+=== RUN   TestLogosGenericTypeArgumentPositions/(x_(int,_string),_y_(int?)?)/function
+=== RUN   TestLogosGenericTypeArgumentPositions/(x_(int,_string),_y_(int?)?)/method
+=== RUN   TestLogosGenericTypeArgumentPositions/(x_(int,_string),_y_(int?)?)/literal
+--- PASS: TestLogosGenericTypeArgumentPositions (0.01s)
+    --- PASS: TestLogosGenericTypeArgumentPositions/int (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/int/strict (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/int/alias (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/int/later (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/int/function (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/int/method (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/int/literal (0.00s)
+    --- PASS: TestLogosGenericTypeArgumentPositions/int? (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/int?/strict (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/int?/alias (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/int?/later (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/int?/function (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/int?/method (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/int?/literal (0.00s)
+    --- PASS: TestLogosGenericTypeArgumentPositions/(int?)? (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(int?)?/strict (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(int?)?/alias (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(int?)?/later (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(int?)?/function (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(int?)?/method (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(int?)?/literal (0.00s)
+    --- PASS: TestLogosGenericTypeArgumentPositions/*int? (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/*int?/strict (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/*int?/alias (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/*int?/later (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/*int?/function (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/*int?/method (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/*int?/literal (0.00s)
+    --- PASS: TestLogosGenericTypeArgumentPositions/*(int?) (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/*(int?)/strict (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/*(int?)/alias (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/*(int?)/later (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/*(int?)/function (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/*(int?)/method (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/*(int?)/literal (0.00s)
+    --- PASS: TestLogosGenericTypeArgumentPositions/(*int)? (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(*int)?/strict (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(*int)?/alias (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(*int)?/later (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(*int)?/function (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(*int)?/method (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(*int)?/literal (0.00s)
+    --- PASS: TestLogosGenericTypeArgumentPositions/**int? (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/**int?/strict (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/**int?/alias (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/**int?/later (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/**int?/function (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/**int?/method (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/**int?/literal (0.00s)
+    --- PASS: TestLogosGenericTypeArgumentPositions/[]int? (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/[]int?/strict (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/[]int?/alias (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/[]int?/later (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/[]int?/function (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/[]int?/method (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/[]int?/literal (0.00s)
+    --- PASS: TestLogosGenericTypeArgumentPositions/<-chan_int? (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/<-chan_int?/strict (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/<-chan_int?/alias (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/<-chan_int?/later (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/<-chan_int?/function (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/<-chan_int?/method (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/<-chan_int?/literal (0.00s)
+    --- PASS: TestLogosGenericTypeArgumentPositions/(<-chan_int)? (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(<-chan_int)?/strict (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(<-chan_int)?/alias (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(<-chan_int)?/later (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(<-chan_int)?/function (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(<-chan_int)?/method (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(<-chan_int)?/literal (0.00s)
+    --- PASS: TestLogosGenericTypeArgumentPositions/(int,_string) (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(int,_string)/strict (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(int,_string)/alias (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(int,_string)/later (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(int,_string)/function (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(int,_string)/method (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(int,_string)/literal (0.00s)
+    --- PASS: TestLogosGenericTypeArgumentPositions/(int?,_(string,_bool)) (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(int?,_(string,_bool))/strict (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(int?,_(string,_bool))/alias (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(int?,_(string,_bool))/later (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(int?,_(string,_bool))/function (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(int?,_(string,_bool))/method (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(int?,_(string,_bool))/literal (0.00s)
+    --- PASS: TestLogosGenericTypeArgumentPositions/(x_int,_y_string) (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(x_int,_y_string)/strict (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(x_int,_y_string)/alias (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(x_int,_y_string)/later (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(x_int,_y_string)/function (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(x_int,_y_string)/method (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(x_int,_y_string)/literal (0.00s)
+    --- PASS: TestLogosGenericTypeArgumentPositions/(x:_int,_y:_string) (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(x:_int,_y:_string)/strict (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(x:_int,_y:_string)/alias (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(x:_int,_y:_string)/later (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(x:_int,_y:_string)/function (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(x:_int,_y:_string)/method (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(x:_int,_y:_string)/literal (0.00s)
+    --- PASS: TestLogosGenericTypeArgumentPositions/(x_*int?,_y_*(int?)) (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(x_*int?,_y_*(int?))/strict (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(x_*int?,_y_*(int?))/alias (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(x_*int?,_y_*(int?))/later (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(x_*int?,_y_*(int?))/function (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(x_*int?,_y_*(int?))/method (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(x_*int?,_y_*(int?))/literal (0.00s)
+    --- PASS: TestLogosGenericTypeArgumentPositions/(x_[]int,_y_[2]string) (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(x_[]int,_y_[2]string)/strict (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(x_[]int,_y_[2]string)/alias (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(x_[]int,_y_[2]string)/later (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(x_[]int,_y_[2]string)/function (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(x_[]int,_y_[2]string)/method (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(x_[]int,_y_[2]string)/literal (0.00s)
+    --- PASS: TestLogosGenericTypeArgumentPositions/(x_map[string]int,_y_chan_int) (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(x_map[string]int,_y_chan_int)/strict (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(x_map[string]int,_y_chan_int)/alias (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(x_map[string]int,_y_chan_int)/later (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(x_map[string]int,_y_chan_int)/function (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(x_map[string]int,_y_chan_int)/method (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(x_map[string]int,_y_chan_int)/literal (0.00s)
+    --- PASS: TestLogosGenericTypeArgumentPositions/(x_(int,_string),_y_(int?)?) (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(x_(int,_string),_y_(int?)?)/strict (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(x_(int,_string),_y_(int?)?)/alias (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(x_(int,_string),_y_(int?)?)/later (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(x_(int,_string),_y_(int?)?)/function (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(x_(int,_string),_y_(int?)?)/method (0.00s)
+        --- PASS: TestLogosGenericTypeArgumentPositions/(x_(int,_string),_y_(int?)?)/literal (0.00s)
+=== RUN   TestLogosTypeArgumentIndexControls
+--- PASS: TestLogosTypeArgumentIndexControls (0.00s)
+=== RUN   TestLogosNestedTypeArgumentPositions
+=== RUN   TestLogosNestedTypeArgumentPositions/*[]int?
+=== RUN   TestLogosNestedTypeArgumentPositions/*[]int?/identity[argument]
+=== RUN   TestLogosNestedTypeArgumentPositions/*[]int?/identity[*[]int?]
+=== RUN   TestLogosNestedTypeArgumentPositions/*[]int?/receiver{}.identity[*[]int?]
+=== RUN   TestLogosNestedTypeArgumentPositions/*([]int?)
+=== RUN   TestLogosNestedTypeArgumentPositions/*([]int?)/identity[argument]
+=== RUN   TestLogosNestedTypeArgumentPositions/*([]int?)/identity[*([]int?)]
+=== RUN   TestLogosNestedTypeArgumentPositions/*([]int?)/receiver{}.identity[*([]int?)]
+=== RUN   TestLogosNestedTypeArgumentPositions/(<-chan<-chan_int)?
+=== RUN   TestLogosNestedTypeArgumentPositions/(<-chan<-chan_int)?/identity[argument]
+=== RUN   TestLogosNestedTypeArgumentPositions/(<-chan<-chan_int)?/identity[(<-chan<-chan_int)?]
+=== RUN   TestLogosNestedTypeArgumentPositions/(<-chan<-chan_int)?/receiver{}.identity[(<-chan<-chan_int)?]
+=== RUN   TestLogosNestedTypeArgumentPositions/(x_(a_int,_b_string),_y_[2](c_int,_d_string))
+=== RUN   TestLogosNestedTypeArgumentPositions/(x_(a_int,_b_string),_y_[2](c_int,_d_string))/identity[argument]
+=== RUN   TestLogosNestedTypeArgumentPositions/(x_(a_int,_b_string),_y_[2](c_int,_d_string))/identity[(x_(a_int,_b_string),_y_[2](c_int,_d_string))]
+=== RUN   TestLogosNestedTypeArgumentPositions/(x_(a_int,_b_string),_y_[2](c_int,_d_string))/receiver{}.identity[(x_(a_int,_b_string),_y_[2](c_int,_d_string))]
+=== RUN   TestLogosNestedTypeArgumentPositions/(x_[2][]int?,_y_[3]*int?)
+=== RUN   TestLogosNestedTypeArgumentPositions/(x_[2][]int?,_y_[3]*int?)/identity[argument]
+=== RUN   TestLogosNestedTypeArgumentPositions/(x_[2][]int?,_y_[3]*int?)/identity[(x_[2][]int?,_y_[3]*int?)]
+=== RUN   TestLogosNestedTypeArgumentPositions/(x_[2][]int?,_y_[3]*int?)/receiver{}.identity[(x_[2][]int?,_y_[3]*int?)]
+=== RUN   TestLogosNestedTypeArgumentPositions/(x_[]map[string]int,_y_<-chan_(int,_string))
+=== RUN   TestLogosNestedTypeArgumentPositions/(x_[]map[string]int,_y_<-chan_(int,_string))/identity[argument]
+=== RUN   TestLogosNestedTypeArgumentPositions/(x_[]map[string]int,_y_<-chan_(int,_string))/identity[(x_[]map[string]int,_y_<-chan_(int,_string))]
+=== RUN   TestLogosNestedTypeArgumentPositions/(x_[]map[string]int,_y_<-chan_(int,_string))/receiver{}.identity[(x_[]map[string]int,_y_<-chan_(int,_string))]
+--- PASS: TestLogosNestedTypeArgumentPositions (0.00s)
+    --- PASS: TestLogosNestedTypeArgumentPositions/*[]int? (0.00s)
+        --- PASS: TestLogosNestedTypeArgumentPositions/*[]int?/identity[argument] (0.00s)
+        --- PASS: TestLogosNestedTypeArgumentPositions/*[]int?/identity[*[]int?] (0.00s)
+        --- PASS: TestLogosNestedTypeArgumentPositions/*[]int?/receiver{}.identity[*[]int?] (0.00s)
+    --- PASS: TestLogosNestedTypeArgumentPositions/*([]int?) (0.00s)
+        --- PASS: TestLogosNestedTypeArgumentPositions/*([]int?)/identity[argument] (0.00s)
+        --- PASS: TestLogosNestedTypeArgumentPositions/*([]int?)/identity[*([]int?)] (0.00s)
+        --- PASS: TestLogosNestedTypeArgumentPositions/*([]int?)/receiver{}.identity[*([]int?)] (0.00s)
+    --- PASS: TestLogosNestedTypeArgumentPositions/(<-chan<-chan_int)? (0.00s)
+        --- PASS: TestLogosNestedTypeArgumentPositions/(<-chan<-chan_int)?/identity[argument] (0.00s)
+        --- PASS: TestLogosNestedTypeArgumentPositions/(<-chan<-chan_int)?/identity[(<-chan<-chan_int)?] (0.00s)
+        --- PASS: TestLogosNestedTypeArgumentPositions/(<-chan<-chan_int)?/receiver{}.identity[(<-chan<-chan_int)?] (0.00s)
+    --- PASS: TestLogosNestedTypeArgumentPositions/(x_(a_int,_b_string),_y_[2](c_int,_d_string)) (0.00s)
+        --- PASS: TestLogosNestedTypeArgumentPositions/(x_(a_int,_b_string),_y_[2](c_int,_d_string))/identity[argument] (0.00s)
+        --- PASS: TestLogosNestedTypeArgumentPositions/(x_(a_int,_b_string),_y_[2](c_int,_d_string))/identity[(x_(a_int,_b_string),_y_[2](c_int,_d_string))] (0.00s)
+        --- PASS: TestLogosNestedTypeArgumentPositions/(x_(a_int,_b_string),_y_[2](c_int,_d_string))/receiver{}.identity[(x_(a_int,_b_string),_y_[2](c_int,_d_string))] (0.00s)
+    --- PASS: TestLogosNestedTypeArgumentPositions/(x_[2][]int?,_y_[3]*int?) (0.00s)
+        --- PASS: TestLogosNestedTypeArgumentPositions/(x_[2][]int?,_y_[3]*int?)/identity[argument] (0.00s)
+        --- PASS: TestLogosNestedTypeArgumentPositions/(x_[2][]int?,_y_[3]*int?)/identity[(x_[2][]int?,_y_[3]*int?)] (0.00s)
+        --- PASS: TestLogosNestedTypeArgumentPositions/(x_[2][]int?,_y_[3]*int?)/receiver{}.identity[(x_[2][]int?,_y_[3]*int?)] (0.00s)
+    --- PASS: TestLogosNestedTypeArgumentPositions/(x_[]map[string]int,_y_<-chan_(int,_string)) (0.00s)
+        --- PASS: TestLogosNestedTypeArgumentPositions/(x_[]map[string]int,_y_<-chan_(int,_string))/identity[argument] (0.00s)
+        --- PASS: TestLogosNestedTypeArgumentPositions/(x_[]map[string]int,_y_<-chan_(int,_string))/identity[(x_[]map[string]int,_y_<-chan_(int,_string))] (0.00s)
+        --- PASS: TestLogosNestedTypeArgumentPositions/(x_[]map[string]int,_y_<-chan_(int,_string))/receiver{}.identity[(x_[]map[string]int,_y_<-chan_(int,_string))] (0.00s)
+=== RUN   TestTypeString
+--- PASS: TestTypeString (0.02s)
+=== RUN   TestQualifiedTypeString
+--- PASS: TestQualifiedTypeString (0.00s)
+=== RUN   ExampleScope
+--- PASS: ExampleScope (0.00s)
+=== RUN   ExampleInfo
+--- PASS: ExampleInfo (0.00s)
+PASS
+ok  	cmd/compile/internal/types2	5.494s

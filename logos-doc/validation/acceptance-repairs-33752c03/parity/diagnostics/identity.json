@@ -1,0 +1,55 @@
+{
+  "status": "prepared; not executed or compiled",
+  "installed_source_commit": "e96a570da271c43a80e23bb1a188aac054acff25",
+  "source_tree": "e237c399aae8f8065b724e8a0e27585686c7da18",
+  "goroot": "/workspace/scratch/9949907ca71e/logos-final-acceptance",
+  "virtual_test_path": "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/cmd/internal/goparity/parity_at08_isolated_probe_test.go",
+  "test_name": "TestParityAt08IsolatedProbe",
+  "inputs": [
+    {
+      "path": "src/cmd/internal/goparity/parity_test.go",
+      "bytes": 87423,
+      "sha256": "1be848e4e5f94f76d3484e12b253d4eaad81990a89635a59cf59f86fa1149bb4"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/run/at08_recursion_bound/main.go",
+      "bytes": 1410,
+      "sha256": "e1aa8d47d3fe4ddc0d43be98ec361c1ad2dcf9ca8711f1feaa49afc2081bc359"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/mutants/at08.txt",
+      "bytes": 257,
+      "sha256": "7e432078f7cc2a48ac4d5baaedc6f920485f2a42041a67eb83292fdff5e6db99"
+    },
+    {
+      "path": "src/cmd/go/internal/logos/settings/settings.go",
+      "bytes": 8060,
+      "sha256": "46dac9c2495aa2aee8e3afbda984107ef1b318efa88cf2cd7aff0796d23531d5"
+    },
+    {
+      "path": "src/cmd/compile/internal/inline/stackbuf_logos.go",
+      "bytes": 521,
+      "sha256": "d3474e408715d3001b82ac5b8868d02ada389dd4526f4b35edfd738e46da5a7a"
+    }
+  ],
+  "prepared": [
+    {
+      "path": "parity_at08_isolated_probe_test.go",
+      "bytes": 3557,
+      "sha256": "890de5c3311660070fb7e0cd02bcfb4e34bccb4c58ce6b863f9ba414a7675ebc"
+    },
+    {
+      "path": "overlay.json",
+      "bytes": 262,
+      "sha256": "c688b2f534bbd88e0adc79c5b6da5f3802e456ececfdabf5634088cb83198c00"
+    }
+  ],
+  "method": "Existing forkTool/upstreamTool, buildFork/buildUpstream and runBinary helpers; at08 only; sequential K6 then U3N builds; three alternating sequential trials per binary. No fixture, budget, configuration, or existing assertion changes.",
+  "runtime_budget_seconds": 10,
+  "child_GOMAXPROCS": 4,
+  "build_boundary": "The existing helper baseEnv retains GOMAXPROCS=8 and its own fork/upstream caches under os.TempDir; the parent test process GOFLAGS/GOMEMLIMIT do not cap those child builds.",
+  "evidence_boundary": "The old runtime phase can launch 31 programs across 20 fork and 5 oracle rows (775 child attempts). runAll retains only the first error in a row and TestParity discards that row observation map on any run error. This probe is diagnostic only and cannot produce a complete release stamp.",
+  "old_job": 133553485486,
+  "old_log": "../hosted-final-1a4c/tooling/jobs/133553485486/job.log",
+  "execution": "Root supplies and runs the bounded recorder; this lane performed file-only preparation."
+}

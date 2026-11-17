@@ -1,0 +1,213 @@
+[!cgo] skip 'cgo is not available'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env CGO_ENABLED=1
+env GOEXPERIMENT=nologosfastcgo
+
+cd m
+logos run .
+stdout '^sum: 42$'
+stdout '^separate: 23$'
+stdout '^pointer: 42$'
+stdout '^errno: -1 true$'
+stdout '^nilable: true$'
+stdout '^bridge: 42$'
+stdout '^return: logos: nil from Go value stored into non-nil .* at cbridge\.lgo:[0-9]+$'
+stdout '^local: logos: nil from Go value stored into non-nil .* at cbridge\.lgo:[0-9]+$'
+stdout '^argument: logos: nil from Go value stored into non-nil .* at cbridge\.lgo:[0-9]+$'
+stdout '^field: logos: nil from Go value stored into non-nil .* at cbridge\.lgo:[0-9]+$'
+stdout '^literal: logos: nil from Go value stored into non-nil .* at cbridge\.lgo:[0-9]+$'
+stdout '^slice: logos: nil from Go value stored into non-nil .* at cbridge\.lgo:[0-9]+$'
+stdout '^callback: runtime: function marked with #cgo nocallback called back into Go$'
+cp stdout $WORK/native.txt
+cp cbridge.lgo $WORK/original-cbridge.lgo
+cp second.lgo $WORK/original-second.lgo
+
+# Ejection must replay checked-source semantics onto the original C
+# source. Cgo's rewritten calls may contain pointer-check closures.
+logos eject -o ../out
+exists ../out/cbridge.go
+exists ../out/second.go
+exists ../out/bridge/bridge.go
+grep '#cgo noescape invoke' ../out/cbridge.go
+grep '#cgo nocallback invoke' ../out/cbridge.go
+! grep '_Cfunc_|_cgoCheckPointer|\.cgo1\.go' ../out/cbridge.go
+cmp cbridge.lgo $WORK/original-cbridge.lgo
+cmp second.lgo $WORK/original-second.lgo
+
+cd ../out
+env GOEXPERIMENT=
+exists $UPROOT1272/bin/go
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $WORK/native.txt
+exists $UPROOT1273/bin/go
+exec env -u GOROOT $UPROOT1273/bin/go run .
+cmp stdout $WORK/native.txt
+exec env -u GOROOT $UPROOT1273/bin/go vet ./...
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+
+# The source contract does not depend on selecting the fast trampoline.
+cd ../m
+env GOEXPERIMENT=logosfastcgo
+logos run .
+cmp stdout $WORK/native.txt
+logos eject -o ../out-fast
+cmp ../out/cbridge.go ../out-fast/cbridge.go
+cmp ../out/second.go ../out-fast/second.go
+cmp ../out/bridge/bridge.go ../out-fast/bridge/bridge.go
+
+# The frontend-only mode must require an eject destination. It must not
+# silently turn an ordinary compiler invocation into a successful build.
+! go tool compile -logos.cgoeject ../invalid.lgo
+stdout 'logos.cgoeject requires logos.eject'
+
+-- m/go.mod --
+module example.com/directcgo
+
+go 1.27
+
+-- m/logos.toml --
+[build]
+cgo = "allow"
+
+-- m/main.lgo --
+package main
+
+import (
+	"fmt"
+	"strconv"
+
+	"example.com/directcgo/bridge"
+)
+
+func parsed() (int, error) {
+	n := strconv.Atoi("19")?
+	return n + Separate(), nil
+}
+
+func caught(f func()) (message string) {
+	defer func() {
+		if p := recover(); p != nil {
+			message = fmt.Sprint(p)
+		}
+	}()
+	f()
+	return "no panic"
+}
+
+func main() {
+	n, err := parsed()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("sum:", n)
+	fmt.Println("separate:", Separate())
+	fmt.Println("pointer:", PointerArg())
+	v, errno := Errno()
+	fmt.Println("errno:", v, errno)
+	fmt.Println("nilable:", Nilable())
+	fmt.Println("bridge:", bridge.Answer())
+	fmt.Println("return:", caught(ReturnNil))
+	fmt.Println("local:", caught(LocalNil))
+	fmt.Println("argument:", caught(ArgumentNil))
+	fmt.Println("field:", caught(FieldNil))
+	fmt.Println("literal:", caught(LiteralNil))
+	fmt.Println("slice:", caught(SliceNil))
+	fmt.Println("callback:", caught(Callback))
+}
+
+-- m/cbridge.lgo --
+package main
+
+/*
+#include <errno.h>
+#include <stddef.h>
+
+struct item { int value; struct item *next; };
+static struct item present = {42, 0};
+static struct item *missing(void) { return NULL; }
+static struct item *found(void) { return &present; }
+static int *pointer_arg(void **p) { return &present.value; }
+static int failure(void) { errno = EINVAL; return -1; }
+
+extern int callback(int);
+//logos:cgo_fastcall invoke
+static int invoke(void) { return callback(41); }
+*/
+import "C"
+
+import "unsafe"
+
+type holder struct { p *C.struct_item }
+
+func item() *C.struct_item { return C.missing() }
+func ReturnNil() { _ = item() }
+
+func LocalNil() {
+	var p *C.struct_item = C.missing()
+	_ = p
+}
+
+func take(p *C.struct_item) { _ = p }
+func ArgumentNil() { take(C.missing()) }
+
+func FieldNil() {
+	h := holder{p: C.found()}
+	h.p = C.missing()
+}
+
+func LiteralNil() { _ = holder{p: C.missing()} }
+
+func SliceNil() {
+	x := []*C.struct_item{C.found()}
+	x[0] = C.missing()
+}
+
+func pointer() *C.int {
+	var p unsafe.Pointer
+	return C.pointer_arg(&p)
+}
+
+func PointerArg() int { return int(*pointer()) }
+
+func Errno() (int, bool) {
+	v, err := C.failure()
+	return int(v), err != nil
+}
+
+func Nilable() bool {
+	var value C.struct_item
+	return value.next == nil && C.missing() == nil
+}
+
+//export callback
+func callback(v C.int) C.int { return v + 1 }
+
+func Callback() { C.invoke() }
+
+-- m/second.lgo --
+package main
+
+// #define LOCAL_VALUE 23
+// static int local(void) { return LOCAL_VALUE; }
+import "C"
+
+func Separate() int { return int(C.local()) }
+
+-- m/bridge/bridge.lgo --
+package bridge
+
+/*
+#define LOCAL_VALUE 42
+static int local(void) { return LOCAL_VALUE; }
+*/
+import "C"
+
+func Answer() int { return int(C.local()) }
+
+-- invalid.lgo --
+package main
+
+func broken() { undefined() }

@@ -1,0 +1,281 @@
+{
+  "proof": {
+    "base": "45c29ff215477f7e403188d7452fc79aef05d791",
+    "baseTree": "32b96f3a7c289c987bc021fe5a5adbf35cfe226b",
+    "transformation": "Exactly the previously accepted deterministic five-file lint cleanup",
+    "allRecordedOldAndNewSHA256Match": true,
+    "equivalentCallRewrites": 11,
+    "transformations": [
+      {
+        "path": "src/cmd/go/internal/logos/eject/eject.go",
+        "removedTestOnlyAdapter": true,
+        "actualSelectorAndOtherProductionBytesUnchanged": true
+      },
+      {
+        "path": "src/cmd/go/internal/logos/eject/eject_test.go",
+        "equivalentCallRewrites": 2,
+        "existingInputsAndAssertionsPreserved": true
+      },
+      {
+        "path": "src/cmd/go/internal/logos/eject/variant_features_test.go",
+        "equivalentCallRewrites": 3,
+        "existingInputsAndAssertionsPreserved": true
+      },
+      {
+        "path": "src/cmd/go/internal/logos/eject/variant_host_tags_test.go",
+        "equivalentCallRewrites": 1,
+        "existingInputsAndAssertionsPreserved": true
+      },
+      {
+        "path": "src/cmd/go/internal/logos/eject/variant_tags_test.go",
+        "equivalentCallRewrites": 5,
+        "existingInputsAndAssertionsPreserved": true
+      }
+    ],
+    "files": [
+      {
+        "path": "src/cmd/go/internal/logos/eject/eject.go",
+        "oldSHA256": "33fa3dcbfc5e9e4b353d1e6bdc8df547be6374786a0a80e1da1744870162d2b1",
+        "newSHA256": "af53503f6fa1475743b5e80929b6ce955444d85c13e20eb109efc248fdfed479",
+        "bytes": 57259,
+        "gitBlobSHA": "f7d6698286e3f0042739019ff1f2de4f66e4317b"
+      },
+      {
+        "path": "src/cmd/go/internal/logos/eject/eject_test.go",
+        "oldSHA256": "f95057a188ec9b6133580ac646308e345cf4c8baec2f03b83f0c7d508dfe5ac5",
+        "newSHA256": "4eafc4618d37b1cbfbd3c95346ea66eaf6b3f863541546d5caa27c74871e453f",
+        "bytes": 5885,
+        "gitBlobSHA": "53350ab3ac31bc486caa52094263ab337840fdda"
+      },
+      {
+        "path": "src/cmd/go/internal/logos/eject/variant_features_test.go",
+        "oldSHA256": "7050804ea4849c055e9fd2927e1e7c0ebf85953acc6de02f835ec67d195f3859",
+        "newSHA256": "c17238fa9bfdb52ee8501f5a72334f10f2738d75e19a3d8de6940fc4f2e23891",
+        "bytes": 5256,
+        "gitBlobSHA": "a441e9b9caa1370217195720086463c5cf563335"
+      },
+      {
+        "path": "src/cmd/go/internal/logos/eject/variant_host_tags_test.go",
+        "oldSHA256": "e76912fcd89b7386f27d04732db9460f12f008e8d8ad97e77510c00305d95062",
+        "newSHA256": "88a15a43988bd1cf6a0fea204903c63f38ba970f7343e03307e2e8588a2103c3",
+        "bytes": 1000,
+        "gitBlobSHA": "446a8f397d5dafc5a6fe0072be47cce9c5d16c0a"
+      },
+      {
+        "path": "src/cmd/go/internal/logos/eject/variant_tags_test.go",
+        "oldSHA256": "5d273a55a9f451cd03b4afb6b44503a0ec19b3eeb2e3b4c8acf7e78be63027b2",
+        "newSHA256": "c6be111930041e02e0823b382b694e50bc9778daed7822965fa7d97d3ebfcf0c",
+        "bytes": 5104,
+        "gitBlobSHA": "f7557a1ccc74fa3a734a02052aa79caa9f98f289"
+      }
+    ],
+    "historicalManifests": [
+      {
+        "path": "logos-doc/validation/compiler-stability/frozen-tests.sha256",
+        "SHA256": "4d7627941f465cf36eaed189c99e141a0f6a2de0d702d12ea65922c2b10f5a88",
+        "unchanged": true
+      },
+      {
+        "path": "logos-doc/validation/ejection-target-facts/frozen-tests.sha256",
+        "SHA256": "4ef99705f9141537f3b7c6d0ffcc6bda863fb71ff224526741844c3232c3dc8d",
+        "unchanged": true
+      }
+    ],
+    "noNewTestsOrCompilation": true,
+    "executor": "unavailable",
+    "tree": "ecc8fccaaa83be0f04fce9d8752e42eb2809b656",
+    "remoteBlobReadbackMatches": true,
+    "scopeVerification": [
+      {
+        "directory": ".",
+        "baseTree": "32b96f3a7c289c987bc021fe5a5adbf35cfe226b",
+        "candidateTree": "ecc8fccaaa83be0f04fce9d8752e42eb2809b656",
+        "changedPaths": [
+          "src"
+        ]
+      },
+      {
+        "directory": "src",
+        "baseTree": "099367e1031585fa553ef7987b199288df36256a",
+        "candidateTree": "59d814bffe2b4ee345334ed70806662ddba99b43",
+        "changedPaths": [
+          "cmd"
+        ]
+      },
+      {
+        "directory": "src/cmd",
+        "baseTree": "9cb08f93594fe023df9184658c984eadd89371cf",
+        "candidateTree": "8eba13c53db6a83f0680f1fba87f56535909d7e6",
+        "changedPaths": [
+          "go"
+        ]
+      },
+      {
+        "directory": "src/cmd/go",
+        "baseTree": "984085447cc1219e3d53eb9a0091bf3d02d3de7b",
+        "candidateTree": "7a701e69a8aed09faf6fb96ba24d665261b19021",
+        "changedPaths": [
+          "internal"
+        ]
+      },
+      {
+        "directory": "src/cmd/go/internal",
+        "baseTree": "eb1ea0320193262417e1b33dde3095f1f57fb3fe",
+        "candidateTree": "f10034f9685a9c8d43545405d4262d8c9422e6c8",
+        "changedPaths": [
+          "logos"
+        ]
+      },
+      {
+        "directory": "src/cmd/go/internal/logos",
+        "baseTree": "682e67ae2b424e3e8c82e1b5515d8dad815390e6",
+        "candidateTree": "44ae0bcb156d2a47b4dfb600ac3b70e08fa767d4",
+        "changedPaths": [
+          "eject"
+        ]
+      },
+      {
+        "directory": "src/cmd/go/internal/logos/eject",
+        "baseTree": "1c277e33f0e08b62fba21da9169563ae4882fc54",
+        "candidateTree": "642f7c1a1a08bf6846b16928f640c933ccb1c572",
+        "changedPaths": [
+          "eject.go",
+          "eject_test.go",
+          "variant_features_test.go",
+          "variant_host_tags_test.go",
+          "variant_tags_test.go"
+        ]
+      }
+    ],
+    "exactlyFiveFileChanges": true,
+    "unchangedDocumentationTree": "2d38aa82971f2e246c2d8eb4f8406c9ef9c746aa"
+  },
+  "result": {
+    "kind": "accepted-lint-patch-reconstruction",
+    "repository": "gosuda/LoGOs",
+    "baseCommit": "45c29ff215477f7e403188d7452fc79aef05d791",
+    "baseTree": "32b96f3a7c289c987bc021fe5a5adbf35cfe226b",
+    "tree": "ecc8fccaaa83be0f04fce9d8752e42eb2809b656",
+    "files": [
+      {
+        "path": "src/cmd/go/internal/logos/eject/eject.go",
+        "gitBlobSHA": "f7d6698286e3f0042739019ff1f2de4f66e4317b",
+        "SHA256": "af53503f6fa1475743b5e80929b6ce955444d85c13e20eb109efc248fdfed479",
+        "bytes": 57259
+      },
+      {
+        "path": "src/cmd/go/internal/logos/eject/eject_test.go",
+        "gitBlobSHA": "53350ab3ac31bc486caa52094263ab337840fdda",
+        "SHA256": "4eafc4618d37b1cbfbd3c95346ea66eaf6b3f863541546d5caa27c74871e453f",
+        "bytes": 5885
+      },
+      {
+        "path": "src/cmd/go/internal/logos/eject/variant_features_test.go",
+        "gitBlobSHA": "a441e9b9caa1370217195720086463c5cf563335",
+        "SHA256": "c17238fa9bfdb52ee8501f5a72334f10f2738d75e19a3d8de6940fc4f2e23891",
+        "bytes": 5256
+      },
+      {
+        "path": "src/cmd/go/internal/logos/eject/variant_host_tags_test.go",
+        "gitBlobSHA": "446a8f397d5dafc5a6fe0072be47cce9c5d16c0a",
+        "SHA256": "88a15a43988bd1cf6a0fea204903c63f38ba970f7343e03307e2e8588a2103c3",
+        "bytes": 1000
+      },
+      {
+        "path": "src/cmd/go/internal/logos/eject/variant_tags_test.go",
+        "gitBlobSHA": "f7557a1ccc74fa3a734a02052aa79caa9f98f289",
+        "SHA256": "c6be111930041e02e0823b382b694e50bc9778daed7822965fa7d97d3ebfcf0c",
+        "bytes": 5104
+      }
+    ],
+    "integrity": {
+      "recordedOldHashesMatched": true,
+      "recordedTargetHashesMatched": true,
+      "remoteBlobReadbackMatched": true,
+      "exactlyFiveChangedFiles": true,
+      "equivalentCallRewrites": 11,
+      "existingInputsAndAssertionsPreserved": true,
+      "actualProductionSelectorUnchanged": true,
+      "historicalManifestsUnchanged": true,
+      "unchangedDocumentationTree": "2d38aa82971f2e246c2d8eb4f8406c9ef9c746aa",
+      "priorExactPatchSHA256": "c07a69229c88231ff6c308c404cfb5a02c4007fbefffcc2d27ecd3a8f28b8669"
+    },
+    "effects": {
+      "gitBlobsCreated": 5,
+      "branchlessTreeCreated": true,
+      "commitsCreated": 0,
+      "refsMoved": 0,
+      "pullRequestsOpened": 0,
+      "commentsSent": 0
+    },
+    "previouslyObservedValidation": {
+      "scope": "Candidate-source/component validation with the freshly installed integration45c29ff2 toolchain; not a fresh build of the follow-up candidate.",
+      "sourceCommit": "45c29ff215477f7e403188d7452fc79aef05d791",
+      "compilerSHA256": "61749f8f2b2242d26e613993270f654cf47c750739a22b223f94eedd5370bba9",
+      "goSHA256": "987052b593c41cf60390eec80d98b01b89f9536d6d87b4e73672ab6e7a4eb2ef",
+      "limits": {
+        "GOMAXPROCS": 1,
+        "GOFLAGS": "-p=1",
+        "GOMEMLIMIT": "512MiB",
+        "GOGC": 50
+      },
+      "tempRoots": "Compilation/cache on disk; race test SOURCE temp under real /home/agent/logos-eject-lint-9949907ca71e, with VCS behavior unchanged.",
+      "lint": {
+        "status": "passed",
+        "tool": "golangci-lint 2.15.0",
+        "command": "golangci-lint run --config ../../logos-doc/golangci.yml ./go/internal/logos/...",
+        "exitCode": 0,
+        "issues": 0,
+        "elapsedSeconds": 109.337
+      },
+      "raceCompilation": {
+        "status": "passed",
+        "command": "go test -c -race -o <evidence>/eject-race.test cmd/go/internal/logos/eject",
+        "exitCode": 0,
+        "elapsedSeconds": 52.021
+      },
+      "raceExecution": {
+        "status": "passed",
+        "command": "<evidence>/eject-race.test -test.v -test.count=1 -test.short -test.timeout=20m",
+        "exitCode": 0,
+        "elapsedSeconds": 11.047,
+        "topLevelPassed": 45,
+        "totalTestCellsPassed": 100,
+        "skipped": 0,
+        "failed": 0
+      },
+      "vet": {
+        "status": "inconclusive",
+        "command": "go vet cmd/go/internal/logos/eject",
+        "executionSession": 99924,
+        "exitCodeAfterInterruption": 130,
+        "diagnosticBytes": 0,
+        "reason": "Interrupted at ten-minute bound during independently observed unrelated filesystem stalls."
+      },
+      "cleanupMutationProbe": {
+        "status": "not executed",
+        "preparation": "External overlay inverted only the new RemoveAll error condition; no mutation compile or execution occurred."
+      },
+      "initialTimingWrapper": {
+        "exitCode": 127,
+        "reason": "/usr/bin/time absent; lint did not execute in that invocation. The subsequent exact lint command passed with Bash built-in time."
+      },
+      "remainingAcceptance": "Fresh hosted make and normal vet remain required; the unexecuted mutation probe is not claimed GREEN."
+    },
+    "currentEnvironment": {
+      "executorAtTaskAssignment": "unavailable",
+      "latestEnvironmentContext": "Workspace context reappeared after reconstruction; availability was not probed.",
+      "localExecutionAttempted": false,
+      "newCompilation": false,
+      "newProductTests": false,
+      "proofStorage": "tool-session state; recovered source blobs and branchless tree available through GitHub"
+    },
+    "records": {
+      "proofStoreKey": "lint-reconstruct/proof",
+      "resultStoreKey": "lint-reconstruct/result",
+      "contentStoreKey": "lint-reconstruct/after",
+      "previousEvidenceDirectory": "/workspace/scratch/9949907ca71e/hosted-evidence/runtime/lint-followup",
+      "previousEvidenceCurrentlyAccessible": "not rechecked"
+    }
+  }
+}

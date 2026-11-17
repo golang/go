@@ -1,0 +1,85 @@
+=== RUN   TestScript
+=== PAUSE TestScript
+=== CONT  TestScript
+vcs-test.golang.org rerouted to http://127.0.0.1:33479
+https://vcs-test.golang.org rerouted to https://127.0.0.1:34511
+go test proxy running at GOPROXY=http://127.0.0.1:40605/mod
+=== RUN   TestScript/logos_eject_overlay_sources
+=== PAUSE TestScript/logos_eject_overlay_sources
+=== CONT  TestScript/logos_eject_overlay_sources
+    script_test.go:142: 2026-11-16T18:58:25Z
+    script_test.go:144: $WORK=/home/agent/logos-final-tooling-9949907ca71e-7giRHT/cmd-go-test-3010466076/tmpdir2278793611/logos_eject_overlay_sources3169866726
+    script_test.go:166: 
+        PATH=/home/agent/logos-final-tooling-9949907ca71e-7giRHT/cmd-go-test-3010466076/tmpdir2278793611/testbin:/workspace/scratch/9949907ca71e/logos-final-acceptance/bin:/workspace/scratch/9949907ca71e/toolchains/qemu-10.0.13/usr/bin:/usr/local/bin:/usr/bin:/bin
+        HOME=/no-home
+        CCACHE_DISABLE=1
+        GOARCH=amd64
+        TESTGO_GOHOSTARCH=amd64
+        GOCACHE=/workspace/scratch/9949907ca71e/final-postbuild-cache
+        GOCOVERDIR=
+        GODEBUG=
+        GOEXE=
+        GOEXPERIMENT=
+        GOOS=linux
+        TESTGO_GOHOSTOS=linux
+        GOPROXY=http://127.0.0.1:40605/mod
+        GOPRIVATE=
+        GOROOT=/workspace/scratch/9949907ca71e/logos-final-acceptance
+        GOTRACEBACK=system
+        TESTGO_GOROOT=/workspace/scratch/9949907ca71e/logos-final-acceptance
+        TESTGO_EXE=/home/agent/logos-final-tooling-9949907ca71e-7giRHT/cmd-go-test-3010466076/tmpdir2278793611/testbin/go
+        TESTGO_VCSTEST_HOST=127.0.0.1:33479
+        TESTGO_VCSTEST_TLS_HOST=127.0.0.1:34511
+        TESTGO_VCSTEST_CERT=/home/agent/logos-final-tooling-9949907ca71e-7giRHT/cmd-go-test-3010466076/vcstest2931642054/cert.pem
+        TESTGONETWORK=panic
+        GOSUMDB=localhost.localdev/sumdb+00000c67+AcTrnkbUA+TU4heY3hkjiSES/DSQniBqIeQ/YppAUtK6
+        TESTGO_SUMDB=localhost.localdev/sumdb
+        GONOPROXY=
+        GONOSUMDB=
+        GOVCS=*:all
+        devnull=/dev/null
+        goversion=1.27.4
+        CMDGO_TEST_RUN_MAIN=true
+        HGRCPATH=
+        GOTOOLCHAIN=auto
+        newline=
+        
+        TESTGOVCSREMOTE=panic
+        CGO_ENABLED=1
+        CC=/usr/bin/gcc-14
+        WORK=/home/agent/logos-final-tooling-9949907ca71e-7giRHT/cmd-go-test-3010466076/tmpdir2278793611/logos_eject_overlay_sources3169866726
+        TEST_TELEMETRY_DIR=/home/agent/logos-final-tooling-9949907ca71e-7giRHT/cmd-go-test-3010466076/tmpdir2278793611/logos_eject_overlay_sources3169866726/telemetry
+        TMPDIR=/home/agent/logos-final-tooling-9949907ca71e-7giRHT/cmd-go-test-3010466076/tmpdir2278793611/logos_eject_overlay_sources3169866726/tmp
+        GOPATH=/home/agent/logos-final-tooling-9949907ca71e-7giRHT/cmd-go-test-3010466076/tmpdir2278793611/logos_eject_overlay_sources3169866726/gopath
+        PWD=/home/agent/logos-final-tooling-9949907ca71e-7giRHT/cmd-go-test-3010466076/tmpdir2278793611/logos_eject_overlay_sources3169866726/gopath/src
+        
+        > env GOPROXY=off
+        > env GOTOOLCHAIN=local
+        > env GOFLAGS=-buildvcs=false
+        > env CGO_ENABLED=0
+        > cd m
+        # Deleted invalid sources must stay absent. Inactive replacements and inserted
+        # sources must be selected from their effective contents in every helper. (4.339s)
+        > logos build -overlay=overlay.json --emit-go=out .
+        > exists out/main.go
+        > exists out/variant.go
+        > exists out/inserted.go
+        > ! exists out/removed.go
+        > ! exists out/ignored.go
+        > ! exists out/.overlay/variant.go
+        > ! exists out/.overlay/inserted.go
+        > ! exists out/.overlay/ignored.go
+        > ! grep 'physicalOnly|missing' out/variant.go
+        > grep 'Variant' out/variant.go
+        matched: func Variant() int {
+        > grep 'Inserted' out/inserted.go
+        matched: func Inserted() int {
+        > cd out
+        > go run -tags=overlay_extra .
+        [stderr]
+        overlay ok
+        > stderr '^overlay ok$'
+        matched: overlay ok
+--- PASS: TestScript (0.18s)
+    --- PASS: TestScript/logos_eject_overlay_sources (4.35s)
+PASS

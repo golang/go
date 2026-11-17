@@ -1,0 +1,7 @@
+{
+  "phase": "before any Go execution",
+  "command": "pwd",
+  "workdir": "/workspace/scratch/9949907ca71e",
+  "message": "exec_command failed: CreateProcess { message: \"Rejected(\\\"Failed to create unified exec process: exec-server transport disconnected; failed to resume exec-server session: recovery timed out after 45s\\\")\" }",
+  "recordedUtc": "2026-11-16T17:33:10.374Z"
+}

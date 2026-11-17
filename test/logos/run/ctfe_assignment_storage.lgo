@@ -1,0 +1,117 @@
+// run
+
+package main
+
+import "fmt"
+
+const func arrayVariable() int { a := [1]int{1}; view := a[:]; a = [1]int{2}; return view[0] }
+
+const func nestedArray() int {
+	a := [1][2]int{{1, 2}}
+	view := a[0][:]
+	a = [1][2]int{{3, 4}}
+	return view[0]*10 + view[1]
+}
+
+const func structField() int {
+	a := struct{ A [1]int }{[1]int{1}}
+	view := a.A[:]
+	a.A = [1]int{2}
+	return view[0]
+}
+
+const func sliceElement() int { a := [][1]int{{1}}; view := a[0][:]; a[0] = [1]int{2}; return view[0] }
+
+const func copyRight() int {
+	a := [][1]int{{1}, {2}, {3}}
+	first := a[1][:]
+	second := a[2][:]
+	copy(a[1:], a[:2])
+	return first[0]*1000 + second[0]*100 + a[1][0]*10 + a[2][0]
+}
+
+const func clearSlots() int {
+	a := [][1]int{{1}, {2}}
+	first := a[0][:]
+	second := a[1][:]
+	clear(a)
+	first[0] = 7
+	return a[0][0]*100 + second[0]*10 + a[1][0]
+}
+
+const func appendReused() int {
+	a := [][1]int{{1}, {2}}
+	view := a[1][:]
+	s := a[:1]
+	s = append(s, [1]int{3})
+	return view[0]*10 + s[1][0]
+}
+
+const func appendGrowth() int {
+	a := [][1]int{{1}}
+	old := a[0][:]
+	a = append(a, [1]int{2})
+	next := a[0][:]
+	next[0] = 3
+	return old[0]*10 + next[0]
+}
+
+const func appendCapacity() int {
+	a := [][1]int{{1}, {2}}
+	a = append(a, [1]int{3})
+	a = a[:4]
+	view := a[3][:]
+	a[3] = [1]int{4}
+	return view[0]
+}
+
+const func rangeAssignment() int {
+	a := [1]int{0}
+	view := a[:]
+	for _, a = range [][1]int{{1}, {2}} {
+	}
+	return view[0]
+}
+
+const func rangeDeclaration() int {
+	views := [][]int{}
+	for _, a := range [][1]int{{1}, {2}} {
+		views = append(views, a[:])
+	}
+	return views[0][0]*10 + views[1][0]
+}
+
+const func referenceFields() int {
+	a := [1][]int{{1}}
+	b := a
+	view := a[:]
+	a = b
+	b[0][0] = 7
+	b[0] = []int{9}
+	return view[0][0]*100 + a[0][0]*10 + b[0][0]
+}
+
+const c0 = arrayVariable()
+const c1 = nestedArray()
+const c2 = structField()
+const c3 = sliceElement()
+const c4 = copyRight()
+const c5 = clearSlots()
+const c6 = appendReused()
+const c7 = appendGrowth()
+const c8 = appendCapacity()
+const c9 = rangeAssignment()
+const c10 = rangeDeclaration()
+const c11 = referenceFields()
+
+func main() {
+	want := []int{2, 34, 2, 2, 1212, 700, 33, 13, 4, 2, 12, 779}
+	constant := []int{c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11}
+	runtime := []int{arrayVariable(), nestedArray(), structField(), sliceElement(), copyRight(), clearSlots(), appendReused(), appendGrowth(), appendCapacity(), rangeAssignment(), rangeDeclaration(), referenceFields()}
+	for i, value := range want {
+		if constant[i] != value || runtime[i] != value {
+			panic(fmt.Sprintf("case %d: compile-time %d, runtime %d; want %d", i, constant[i], runtime[i], value))
+		}
+	}
+	fmt.Println("assignment storage ok")
+}

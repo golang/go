@@ -5,6 +5,7 @@
 package load
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -20,10 +21,23 @@ import (
 	"cmd/go/internal/modload"
 )
 
-func checkLogosLoaded(ld *modload.Loader, all []*Package) {
-	checkLogosModules(all)
+func checkLogosLoaded(ctx context.Context, ld *modload.Loader, all []*Package) {
+	checkLogosModules(ctx, ld, all)
 	checkLogosCapabilities(ld, all)
 	noteLogosBuildModules(all)
+	if cfg.Logos {
+		// These checks run after load propagated its errors. PackageList is
+		// in postorder, so each importer sees its dependencies' final state.
+		// Keep each diagnostic on the package that owns it.
+		for _, p := range all {
+			for _, dep := range p.Internal.Imports {
+				if dep.Incomplete {
+					p.Incomplete = true
+					break
+				}
+			}
+		}
+	}
 }
 
 func noteLogosBuildModules(all []*Package) {

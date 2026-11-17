@@ -1,0 +1,41 @@
+{
+  "recorded_utc": "2026-11-16T19:02:03.213Z",
+  "scope": "File-only review of completed installed acceptance; no additional execution",
+  "nativeCapabilityCgo": {
+    "CGO_ENABLED": "1",
+    "denial": {
+      "line": 2133,
+      "text": "ERROR [capabilities::unauthorized_cgo]: Transitive dependency 'example.com/cdep' reaches 'runtime.cgocall'"
+    },
+    "allowedExecution": {
+      "line": 2477,
+      "text": "> [cgo] exec $WORK/bin/s2l$GOEXE"
+    },
+    "allowedStdout": "42",
+    "actualBranchesObserved": true
+  },
+  "capabilityManifestLinkInvocation": {
+    "line": 1412,
+    "text": "GOAMD64='v3' GOARM64='v8.2' GOROOT='/workspace/scratch/9949907ca71e/logos-final-acceptance' /workspace/scratch/9949907ca71e/logos-final-acceptance/pkg/tool/linux_amd64/link -o $WORK/b001/exe/a.out -importcfg $WORK/b001/importcfg.link -buildmode=exe -buildid=s-jlAF7CCOaDV1B96x-O/ppqEl9wlRpjHaDv4Jopl/2Ig5YnwvG-wNfvjB1LpQ/s-jlAF7CCOaDV1B96x-O -extld=/usr/bin/gcc-14 -logos.cap=$WORK/b001/logos-cap.json $WORK/b001/_pkg_.a"
+  },
+  "crossArchitecture": {
+    "CGO_ENABLED_present": false,
+    "qemuCommandLine": 115,
+    "comparison": {
+      "line": 162,
+      "text": "> cmp $WORK/native.txt $WORK/arm64.txt"
+    },
+    "outputLines": 44,
+    "outputsEqual": true,
+    "nativeStdoutSHA256": "d172edf61d429e43008426771cc5a601a1fb7a1533f2f40c6cf16ba0ce5c2470",
+    "arm64StdoutSHA256": "d172edf61d429e43008426771cc5a601a1fb7a1533f2f40c6cf16ba0ce5c2470"
+  },
+  "sourceAndToolBindings": {
+    "byteIdentical": true,
+    "beforeSHA256": "8c2632b49e69aac1efb2c5137a59f4b768295e0f02254acaf99f93fb5c668ee4",
+    "afterSHA256": "8c2632b49e69aac1efb2c5137a59f4b768295e0f02254acaf99f93fb5c668ee4"
+  },
+  "allSixStagesExitZero": true,
+  "zeroSkips": true,
+  "conclusion": "Installed #336 and #441 gates accepted for exact e96; actual sum-crossarch accepted. Full regression, hosted workflow acceptance, and release parity remain separate."
+}

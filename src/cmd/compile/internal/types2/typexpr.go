@@ -303,6 +303,9 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *TypeName) (T Type) {
 		}
 
 	case *syntax.IndexExpr:
+		if check.conf.Logos {
+			syntax.LogosTypeArguments(e)
+		}
 		check.verifyVersionf(e, go1_18, "type instantiation")
 		return check.instantiatedType(e.X, syntax.UnpackListExpr(e.Index))
 

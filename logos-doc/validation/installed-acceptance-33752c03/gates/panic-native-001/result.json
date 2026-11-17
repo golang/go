@@ -1,0 +1,64 @@
+{
+  "exit_code": 0,
+  "interrupted_or_outer_timeout": false,
+  "expected_outcome_matched": true,
+  "required_markers": {
+    "--- PASS: TestCompilePanicNarrowing/builtin ": true,
+    "--- PASS: TestCompilePanicNarrowing/parenthesized_builtin ": true,
+    "--- PASS: TestCompilePanicNarrowing/shadowed_function ": true,
+    "--- PASS: TestCompilePanicNarrowing/shadowed_variable ": true,
+    "--- PASS: TestCompilePanicNarrowing/parenthesized_shadow ": true,
+    "--- PASS: TestCompilePanicNarrowingVoid/builtin ": true,
+    "--- PASS: TestCompilePanicNarrowingVoid/parenthesized_builtin ": true,
+    "--- PASS: TestCompilePanicNarrowingVoid/shadowed_function ": true,
+    "--- PASS: TestCompilePanicNarrowingVoid/shadowed_variable ": true
+  },
+  "forbidden_markers": {
+    "--- FAIL:": false,
+    "--- SKIP:": false,
+    "[build failed]": false
+  },
+  "frozen_files_unchanged": true,
+  "repository_states_unchanged": true,
+  "installed_binding_unchanged": true,
+  "duration_seconds": 0.329,
+  "completed_utc": "2026-11-16T21:55:12.613503+00:00",
+  "stdout_sha256": "fdc5277655186fdcb4050d5d59cfd5d8766b789700d58d72bec352e6876fe35c",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "produced_files_sha256": {},
+  "resources_after": {
+    "MemAvailable": 6956445696,
+    "Shmem": 1893728256,
+    "workspace_available_bytes": 5500956672,
+    "global_oom_kill_counter": 12
+  },
+  "binding_after": {
+    "head": "2535486fe9596a9212d525a5007963ef9e8682f0",
+    "index_tree": "098de80a4ddf1e59b2750c1306ef495414f42d1e",
+    "source_tree": "33752c03819ed5afcb37f87633a3cac668e181a8",
+    "status_porcelain": "M  .github/scripts/release-acceptance.sh\nA  logos-doc/validation/release-acceptance/test_bootstrap_environment.py\nM  src/cmd/compile/internal/types2/builtins.go\nM  src/cmd/compile/internal/types2/narrow_logos.go\nM  src/cmd/go/internal/load/logos.go\nA  src/cmd/go/internal/load/logos_census_test.go\nM  src/cmd/go/internal/modindex/logos.go\nA  src/cmd/internal/goparity/execution_queue_test.go\nM  src/cmd/internal/goparity/parity_test.go\nM  src/go/build/logos.go\nM  src/go/types/generate_test.go\nM  src/internal/logosfile/logosfile.go",
+    "build_result_sha256": "535382e7564ba3b0aa2a3373ab27d326e237e4fe412e56331c7f3a4532a5ff07",
+    "integration_manifest_sha256": "a40044c2f21180f6a46e6fd9ae56668181ff6cb1fe197bdbda144e9ae3dd5b23",
+    "sha256": {
+      "bin/go": "c8a2b1c7fc3f7d710af1ad3d0bfb077acf9254f2b3caa8cb9a4a50d4e722f77a",
+      "bin/logos": "c8a2b1c7fc3f7d710af1ad3d0bfb077acf9254f2b3caa8cb9a4a50d4e722f77a",
+      "pkg/tool/linux_amd64/compile": "873de794fdbfb5ebd900838e2a238f178a653aa7d7e56d3b1ae1c8afcf717c1c",
+      "pkg/tool/linux_amd64/link": "763e0ca95ec545e4eaf650cc3016999ea9c6712162fdc8e367fc3e43ca8fe1d8",
+      "pkg/tool/linux_amd64/asm": "7c37238bcfb4e4e06fbe64ef7e910d12b1b21173e299bac6f8e2d176b2bfcdfd",
+      "pkg/tool/linux_amd64/cgo": "78e6f8b3b230bb3a426240cd976107d3759516f25210a371bf493e2428e34e38",
+      "src/cmd/go/internal/load/logos.go": "acabbbe1e6581770d383a1dc9d301ffe70f33968e974eb50703882813b46674c",
+      "src/cmd/go/internal/modindex/logos.go": "178e61d77f6b0665bb29c4af7f6595935b52e7fbf4a4aeb6a21ddfdbca076e8e",
+      "src/go/build/logos.go": "addc9448a772b9d27f8545fb5347d8530ca000572e74e3dde84ef93ebf22edfc",
+      "src/internal/logosfile/logosfile.go": "852bcabc847f6eecfe60e02acd7ac71e13aac46d1e62879ff1d200c9b3520b39",
+      "src/cmd/go/internal/load/logos_census_test.go": "3a07ac609dc04cd1b0b250b0a366ae535ac25138dfb425365e67e101f992e19f",
+      "src/cmd/compile/internal/types2/builtins.go": "5b77424183490de7e8cfd7368a87f4ecb33cc86d3ba64b29427f256e64fc4718",
+      "src/cmd/compile/internal/types2/narrow_logos.go": "cb00158cf2ac405ca931705de43e7c6ac0c390d880c3ed9eb5f0ffeabc3962af",
+      "src/go/types/generate_test.go": "6885172a41d17d13de5e7ab442d6abea0233e9377040d951d04129fc5d068c5c",
+      ".github/scripts/release-acceptance.sh": "168c566d73748dba15535ea57d333581df74e469e2adb0893240d8aa059ec3b5",
+      "logos-doc/validation/release-acceptance/test_bootstrap_environment.py": "7474040278eb8e00e7861678fb0698d16380092312090b8b700c6fae40dab942",
+      "src/cmd/internal/goparity/parity_test.go": "d4e7045af9f45037ceb9670a192617915571847bf816b23fd4b2f7fa7f92e6c9",
+      "src/cmd/internal/goparity/execution_queue_test.go": "6c13e3b083cd289ca38aa5c9c9cfe0f8d9eaee9ea6f2654cc7aaa7668b53cc07"
+    },
+    "boundary": "Fresh installed combined source snapshot; no clean published-tip claim"
+  }
+}

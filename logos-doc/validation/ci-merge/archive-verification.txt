@@ -1,0 +1,2 @@
+/workspace/scratch/9949907ca71e/language-ci-tools/downloads/actionlint_1.7.12_linux_amd64.tar.gz: OK
+/workspace/scratch/9949907ca71e/language-ci-tools/downloads/shellcheck-v0.11.0.linux.x86_64.tar.xz: OK

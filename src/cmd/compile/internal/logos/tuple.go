@@ -16,8 +16,19 @@ import (
 	"cmd/compile/internal/types2"
 )
 
-func tupleTempKey(pos syntax.Pos, i int) string {
-	return fmt.Sprintf("_logos_tup%d_%d_%d", pos.Line(), pos.Col(), i)
+// newTupleGroup distinguishes lowering sites, including expansions that
+// share source positions. The counter belongs to the file so independent
+// build-variant compilations produce names that can coexist after ejection.
+func (fl *fileLower) newTupleGroup() int {
+	group := fl.tupleSeq
+	fl.tupleSeq++
+	return group
+}
+
+func (fl *fileLower) tupleTempKey(group, i int) string {
+	// Hex preserves every basename byte. The occurrence distinguishes raw
+	// compiler inputs with equal basenames from different directories.
+	return fmt.Sprintf("_logos_tup%x_%d_%d_%d", fl.baseName, fl.tupleFile, group, i)
 }
 
 func joinO(parts []otext, sep string) otext {
@@ -116,7 +127,7 @@ func (fl *fileLower) lowerTupleUnpackDecl(decl *syntax.VarDecl, val syntax.Expr)
 		fl.lowerTupleVarValues(decl)
 		return []syntax.Decl{decl}
 	}
-	tn := tupleTempKey(pos, 0)
+	tn := fl.tupleTempKey(fl.newTupleGroup(), 0)
 	last := decl.NameList[len(decl.NameList)-1]
 	nameStart := fl.off(decl.NameList[0].Pos())
 	namesEnd := fl.off(last.Pos()) + len(last.Value)
@@ -169,8 +180,9 @@ func (fl *fileLower) lowerTuplePackValues(decl *syntax.VarDecl, call *syntax.Cal
 	pos := decl.Pos()
 	tempNames := make([]string, len(names))
 	nameList := make([]*syntax.Name, len(names))
+	group := fl.newTupleGroup()
 	for i := range names {
-		tempNames[i] = tupleTempKey(pos, i)
+		tempNames[i] = fl.tupleTempKey(group, i)
 		nameList[i] = nameOf(pos, tempNames[i])
 	}
 	callSpan := fl.callBodySpan(call)
@@ -424,6 +436,15 @@ func (fl *fileLower) lowerTupleType(t *syntax.TupleType) {
 		if f.Name != nil {
 			name = f.Name.Value
 			to += len(name)
+			scanSegment(fl.src, to, split.args[i].end, func(t tok) bool {
+				if t.comment {
+					return true
+				}
+				if t.kind == token.COLON {
+					fl.add(t.start, t.end, "")
+				}
+				return false
+			})
 		}
 		lname := tupleLoweredName(name, i)
 		st.FieldList = append(st.FieldList, &syntax.Field{Name: nameOf(pos, lname), Type: f.Type})
@@ -766,8 +787,9 @@ func (fl *fileLower) lowerTuplePackStmt(s *syntax.AssignStmt, lhs []syntax.Expr,
 	pos := s.Pos()
 	temps := make([]syntax.Expr, len(names))
 	tempNames := make([]string, len(names))
+	group := fl.newTupleGroup()
 	for i := range names {
-		tempNames[i] = tupleTempKey(pos, i)
+		tempNames[i] = fl.tupleTempKey(group, i)
 		temps[i] = nameOf(pos, tempNames[i])
 	}
 	callSpan := fl.callBodySpan(call)
@@ -852,7 +874,7 @@ func (fl *fileLower) lowerTupleUnpackStmt(s *syntax.AssignStmt, lhs []syntax.Exp
 		fl.addT(start, end, joinO(texts, ", "))
 		return nil
 	}
-	tn := tupleTempKey(pos, 0)
+	tn := fl.tupleTempKey(fl.newTupleGroup(), 0)
 	start, end := fl.tupleOperandSpan(r)
 	reads, texts := tupleReads(pos, tn, elems)
 	op := " = "
@@ -910,7 +932,7 @@ func (fl *fileLower) lowerTupleReturnStmt(s *syntax.ReturnStmt) []syntax.Stmt {
 		fl.addT(start, end, joinO(texts, ", "))
 		return nil
 	}
-	tn := tupleTempKey(pos, 0)
+	tn := fl.tupleTempKey(fl.newTupleGroup(), 0)
 	start, end := fl.tupleOperandSpan(r)
 	reads, texts := tupleReads(pos, tn, elems)
 	fl.add(fl.off(syntax.StartPos(s)), start, tn+" := ")

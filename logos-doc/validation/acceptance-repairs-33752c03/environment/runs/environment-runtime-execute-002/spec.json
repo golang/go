@@ -1,0 +1,46 @@
+{
+  "command": [
+    "/workspace/scratch/9949907ca71e/recovery-evidence/acceptance-failure-repairs/environment-binaries/runtime.test",
+    "-test.count=1",
+    "-test.v",
+    "-test.timeout=15m",
+    "-test.run=^TestMemoryLimit(NoGCPercent)?$"
+  ],
+  "cwd": "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/runtime",
+  "output": "/workspace/scratch/9949907ca71e/recovery-evidence/acceptance-failure-repairs/environment-runtime-execute-002",
+  "environment": {
+    "GOROOT": "/workspace/scratch/9949907ca71e/logos-final-acceptance",
+    "GOCACHE": "/workspace/scratch/9949907ca71e/final-postbuild-cache",
+    "GOTOOLCHAIN": "local",
+    "GOENV": "off",
+    "GOWORK": "off",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "TMPDIR": "/home/agent/logos-release-env-validation/tmp",
+    "GOTMPDIR": "/home/agent/logos-release-env-validation/tmp/go-tmp",
+    "UPROOT1274": "/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci",
+    "PATH": "/workspace/scratch/9949907ca71e/logos-final-acceptance/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback",
+    "CC": "/usr/bin/gcc-14",
+    "CXX": "/usr/bin/g++-14"
+  },
+  "files": [
+    "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/runtime/gc_test.go",
+    "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/runtime/testdata/testprog/gc.go",
+    "/workspace/scratch/9949907ca71e/recovery-evidence/acceptance-failure-repairs/environment-binaries/runtime.test"
+  ],
+  "repositories": [],
+  "expected_exit": 0,
+  "required_markers": [
+    "--- PASS: TestMemoryLimit ",
+    "--- PASS: TestMemoryLimitNoGCPercent ",
+    "\nPASS\n"
+  ],
+  "forbidden_markers": [
+    "--- FAIL:",
+    "--- SKIP:",
+    "insufficient CPUs",
+    "panic: test timed out"
+  ],
+  "timeout_seconds": 960,
+  "boundary": "Unchanged native upstream-identical memory-limit assertions executed with make-only runtime/Go limits absent, paired GCC14 tools and nested temporary paths. This validates environment semantics on local9CPU host, not a full release matrix."
+}

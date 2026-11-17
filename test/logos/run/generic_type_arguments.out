@@ -1,0 +1,9 @@
+option 7
+absent 9
+pointer true
+tuple 3 three
+named 4 four
+fields 5 b
+literal 6
+cleanup before
+cleanup before

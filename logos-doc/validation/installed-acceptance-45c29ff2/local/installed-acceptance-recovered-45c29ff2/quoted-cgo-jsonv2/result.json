@@ -1,0 +1,28 @@
+{
+  "profile": "jsonv2",
+  "source": {
+    "head": "45c29ff215477f7e403188d7452fc79aef05d791",
+    "tree": "32b96f3a7c289c987bc021fe5a5adbf35cfe226b",
+    "src": "099367e1031585fa553ef7987b199288df36256a",
+    "status": ""
+  },
+  "source_after": {
+    "head": "45c29ff215477f7e403188d7452fc79aef05d791",
+    "tree": "32b96f3a7c289c987bc021fe5a5adbf35cfe226b",
+    "src": "099367e1031585fa553ef7987b199288df36256a",
+    "status": ""
+  },
+  "fixture_sha256": "bc1903980a8fa11ad0724c8eada997d0b5bdbfb5713efbe46d27cffdacac3084",
+  "fixture_and_binary_unchanged": true,
+  "binary": "/workspace/scratch/9949907ca71e/recovery-evidence/installed-acceptance-recovered-45c29ff2/quoted-cgo-jsonv2/logos-race.test",
+  "binary_sha256": "b84594c700448fe87d8177a318437cb478fa2845f7fb7fe3a2bb4dd0835a97af",
+  "source_temp": "/home/agent/logos-quoted-jsonv2-9949907ca71e-g9yacidv",
+  "source_temp_is_real_directory": true,
+  "test_started": true,
+  "test_passed": true,
+  "skipped_tests": [],
+  "acceptance_passed": true,
+  "compilation_used_disk_temp": true,
+  "execution_used_home_temp": true,
+  "cache": "/workspace/scratch/9949907ca71e/postbuild-cache"
+}

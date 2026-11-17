@@ -1,0 +1,6 @@
+{
+  "original_sha256": "2d38d84d5eef34909e23d22452f6616a256a0594942053247513cb472fb84d53",
+  "mutant_sha256": "f29369212eda1149ce87d16ee4b6373b18acd4a6743fb272671216b17b69456c",
+  "checker_sha256": "c46d9cc8569ca80659a999ab11a5208de5afecd8c4e337817af0de81bde20b26",
+  "change": "Add -short to the bulk no-short matrix command only"
+}

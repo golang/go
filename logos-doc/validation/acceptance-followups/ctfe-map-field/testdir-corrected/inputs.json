@@ -1,0 +1,49 @@
+{
+  "started_utc": "2026-11-16T17:47:29.030914+00:00",
+  "command": [
+    "/workspace/scratch/9949907ca71e/language-evidence/bounded-acceptance/testdir.test",
+    "-test.v",
+    "-test.count=1",
+    "-test.parallel=1",
+    "-test.timeout=4m",
+    "-test.run=^Test$/^logos$/^(compile|run)$/^const_func_(map_field_store|map_store_key)\\.lgo$"
+  ],
+  "cwd": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/cmd/internal/testdir",
+  "timeout_seconds": 300,
+  "environment_overrides": {
+    "GOMAXPROCS": "1",
+    "GOGC": "20",
+    "GOMEMLIMIT": "512MiB",
+    "GOFLAGS": "-p=1",
+    "GOTOOLCHAIN": "local",
+    "GOENV": "off",
+    "GOWORK": "off",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "GOEXPERIMENT": "",
+    "CGO_ENABLED": "1",
+    "CC": "/usr/bin/cc",
+    "GOCACHE": "/workspace/scratch/9949907ca71e/postbuild-cache",
+    "GOPATH": "/workspace/scratch/9949907ca71e/acceptance-gopath",
+    "GOTMPDIR": "/home/agent/logos-language-9949907ca71e-wqeffb1m/tmp",
+    "TMPDIR": "/home/agent/logos-language-9949907ca71e-wqeffb1m/tmp",
+    "UPROOT1272": "/workspace/scratch/9949907ca71e/toolchains/go1.27.2",
+    "UPROOT1273": "/workspace/scratch/9949907ca71e/toolchains/go1.27.3",
+    "UPROOT1274": "/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci",
+    "GOROOT": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes",
+    "PATH": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/home/agent/.codex/tmp/arg0-linux/codex-arg00QAduY:/opt/codex/codex-path:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+  },
+  "removed_before_overrides": [
+    "GO_GCFLAGS",
+    "BOOT_GO_GCFLAGS",
+    "GOOS",
+    "GOARCH",
+    "GOAMD64",
+    "GOARM64",
+    "GODEBUG",
+    "GOEXPERIMENT",
+    "GOROOT",
+    "GOFLAGS"
+  ],
+  "runner_sha256": "48dc890ac36a4e7b46cbdaedb72e54379eddef537c6b21c2e80bc4ec025e7843"
+}

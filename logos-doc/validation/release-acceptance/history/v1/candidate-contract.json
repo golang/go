@@ -1,0 +1,12 @@
+{
+  "boundary": "Static coverage contract only. No hosted job or runtime was executed.",
+  "failures": [
+    "each actual-example build needs a new empty cache and stable build flags"
+  ],
+  "input_sha256": {
+    ".github/scripts/release-acceptance.sh": "dcd3dcbd070348e2e5fa54089589fa3806d169c9b5b56d81cf4dd3be1745e61e",
+    ".github/workflows/release-acceptance.yml": "4c60820be99dedcdab0168ae393d1e9f2b1b395f541ba097d4eb9905ed0aea10",
+    "logos-doc/validation/release-acceptance-request.json": "fa03ac7f9e17e209767c99d5689e89219d22db152024998f66c4352a11d68e25"
+  },
+  "passed": false
+}

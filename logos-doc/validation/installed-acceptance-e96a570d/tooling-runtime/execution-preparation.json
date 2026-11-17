@@ -1,0 +1,110 @@
+{
+  "status": "PREPARED_ONLY",
+  "identityPath": "/workspace/scratch/9949907ca71e/recovery-evidence/final-acceptance-tools/identity-e96a570d.json",
+  "identityHash": "a52fd73da636ff7b668f8652af4f2e4de672b0e3b79b9b9014d0bccae95ef262",
+  "receiptPath": "/workspace/scratch/9949907ca71e/recovery-evidence/array-index-acceptance/runs/e96-final-001/guarded-enum-race/retained-binary.json",
+  "receiptSHA256": "2d6e60aa7e580e42b81b82315c768a5b513ed0431e75992ec2db77fd1c292f29",
+  "stages": [
+    {
+      "name": "overlay-installed",
+      "cwd": "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/cmd/go",
+      "seconds": 660,
+      "argv": [
+        "/workspace/scratch/9949907ca71e/recovery-evidence/array-index-acceptance/runs/e96-final-001/binaries/cmdgo-race.test",
+        "-test.v",
+        "-test.count=1",
+        "-test.short",
+        "-test.parallel=1",
+        "-test.timeout=10m",
+        "-test.run=^TestScript$/^logos_eject_overlay_sources$"
+      ],
+      "tests": [
+        "TestScript",
+        "TestScript/logos_eject_overlay_sources"
+      ]
+    },
+    {
+      "name": "linker-build",
+      "cwd": "/workspace/scratch/9949907ca71e/logos-final-acceptance/src",
+      "seconds": 600,
+      "compile": true,
+      "argv": [
+        "/workspace/scratch/9949907ca71e/logos-final-acceptance/bin/go",
+        "test",
+        "-p=1",
+        "-c",
+        "-o",
+        "/workspace/scratch/9949907ca71e/hosted-evidence/runtime/final-installed-gates-e96a570d/runs/installed-001/linker-capabilities.test",
+        "cmd/link/internal/ld"
+      ]
+    },
+    {
+      "name": "linker-components",
+      "cwd": "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/cmd/link/internal/ld",
+      "seconds": 240,
+      "argv": [
+        "/workspace/scratch/9949907ca71e/hosted-evidence/runtime/final-installed-gates-e96a570d/runs/installed-001/linker-capabilities.test",
+        "-test.v",
+        "-test.count=1",
+        "-test.short",
+        "-test.parallel=1",
+        "-test.timeout=3m",
+        "-test.run=Test(CapGraph|LogosCap)"
+      ]
+    },
+    {
+      "name": "linker-vet",
+      "cwd": "/workspace/scratch/9949907ca71e/logos-final-acceptance/src",
+      "seconds": 600,
+      "compile": true,
+      "argv": [
+        "/workspace/scratch/9949907ca71e/logos-final-acceptance/bin/go",
+        "vet",
+        "-p=1",
+        "cmd/link/internal/ld"
+      ]
+    },
+    {
+      "name": "capability-scripts",
+      "cwd": "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/cmd/go",
+      "seconds": 1260,
+      "argv": [
+        "/workspace/scratch/9949907ca71e/recovery-evidence/array-index-acceptance/runs/e96-final-001/binaries/cmdgo-race.test",
+        "-test.v",
+        "-test.count=1",
+        "-test.short",
+        "-test.parallel=1",
+        "-test.timeout=20m",
+        "-test.run=^TestScript$/^logos_cap_(chains|exec|policy|shortest_frames|test_scope)$"
+      ],
+      "tests": [
+        "TestScript",
+        "TestScript/logos_cap_chains",
+        "TestScript/logos_cap_exec",
+        "TestScript/logos_cap_policy",
+        "TestScript/logos_cap_shortest_frames",
+        "TestScript/logos_cap_test_scope"
+      ]
+    },
+    {
+      "name": "sum-crossarch",
+      "cwd": "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/cmd/go",
+      "seconds": 660,
+      "cross": true,
+      "argv": [
+        "/workspace/scratch/9949907ca71e/recovery-evidence/array-index-acceptance/runs/e96-final-001/binaries/cmdgo-race.test",
+        "-test.v",
+        "-test.count=1",
+        "-test.parallel=1",
+        "-test.timeout=10m",
+        "-test.run=^TestScript$/^logos_sum_crossarch$"
+      ],
+      "tests": [
+        "TestScript",
+        "TestScript/logos_sum_crossarch"
+      ]
+    }
+  ],
+  "crossStageCGOEnabled": "UNSET",
+  "nativeCGOEnabled": "1"
+}

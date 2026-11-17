@@ -87,6 +87,7 @@ recheck:
 		// expand as needed
 	}
 	logosConfigureComptime(&conf, info) // logos M5-S2 hook: configure comptime step and node limits.
+	logosConfigureCgoEject(&conf, files)
 	if didLogos {
 		logosConfigureOwnedConstantsLowered(&conf) // generated nodes alone receive fresh private-type references.
 	}
@@ -216,6 +217,7 @@ recheck:
 		}
 	}
 	types2.LogosStampProvenReadonly(pkg, provenForThisCheck)
+	logosFinishCgoEject(files)
 
 	if buildcfg.Experiment.SIMD && !didMidway {
 		didMidway = true

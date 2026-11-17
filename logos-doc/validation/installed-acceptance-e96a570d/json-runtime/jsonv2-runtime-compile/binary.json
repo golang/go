@@ -1,0 +1,8 @@
+{
+  "path": "/workspace/scratch/9949907ca71e/recovery-evidence/json-installed-e96a570d/binaries/runtime-jsonv2.test",
+  "sha256": "e8563e7a1c6ece8186d0a7fdb919604e9219e80d56d5df4edf97154590121960",
+  "bytes": 10038969,
+  "profile": "jsonv2",
+  "race": true,
+  "source_commit": "e96a570da271c43a80e23bb1a188aac054acff25"
+}

@@ -1,0 +1,71 @@
+=== RUN   TestScript
+=== PAUSE TestScript
+=== CONT  TestScript
+vcs-test.golang.org rerouted to http://127.0.0.1:36869
+https://vcs-test.golang.org rerouted to https://127.0.0.1:42939
+go test proxy running at GOPROXY=http://127.0.0.1:36981/mod
+=== RUN   TestScript/logos_struct_default_validation
+=== PAUSE TestScript/logos_struct_default_validation
+=== CONT  TestScript/logos_struct_default_validation
+    script_test.go:142: 2026-11-16T16:56:47Z
+    script_test.go:144: $WORK=/workspace/scratch/9949907ca71e/acceptance-tmp/cmd-go-test-3276419729/tmpdir4022577812/logos_struct_default_validation3030823025
+    script_test.go:166: 
+        PATH=/workspace/scratch/9949907ca71e/acceptance-tmp/cmd-go-test-3276419729/tmpdir4022577812/testbin:/workspace/scratch/9949907ca71e/logos-json-integration/bin:/workspace/scratch/9949907ca71e/logos-json-integration/bin:/workspace/scratch/9949907ca71e/logos-json-integration/lib/wasm:/workspace/scratch/9949907ca71e/toolchains/node-v26.13.1-ci/bin:/workspace/scratch/9949907ca71e/toolchains/qemu-10.0.13/usr/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/home/agent/.codex/tmp/arg0-linux/codex-arg0pouDth:/opt/codex/codex-path:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback
+        HOME=/no-home
+        CCACHE_DISABLE=1
+        GOARCH=amd64
+        TESTGO_GOHOSTARCH=amd64
+        GOCACHE=/workspace/scratch/9949907ca71e/postbuild-cache
+        GOCOVERDIR=
+        GODEBUG=
+        GOEXE=
+        GOEXPERIMENT=
+        GOOS=linux
+        TESTGO_GOHOSTOS=linux
+        GOPROXY=http://127.0.0.1:36981/mod
+        GOPRIVATE=
+        GOROOT=/workspace/scratch/9949907ca71e/logos-json-integration
+        GOTRACEBACK=system
+        TESTGO_GOROOT=/workspace/scratch/9949907ca71e/logos-json-integration
+        TESTGO_EXE=/workspace/scratch/9949907ca71e/acceptance-tmp/cmd-go-test-3276419729/tmpdir4022577812/testbin/go
+        TESTGO_VCSTEST_HOST=127.0.0.1:36869
+        TESTGO_VCSTEST_TLS_HOST=127.0.0.1:42939
+        TESTGO_VCSTEST_CERT=/workspace/scratch/9949907ca71e/acceptance-tmp/cmd-go-test-3276419729/vcstest397933979/cert.pem
+        TESTGONETWORK=panic
+        GOSUMDB=localhost.localdev/sumdb+00000c67+AcTrnkbUA+TU4heY3hkjiSES/DSQniBqIeQ/YppAUtK6
+        TESTGO_SUMDB=localhost.localdev/sumdb
+        GONOPROXY=
+        GONOSUMDB=
+        GOVCS=*:all
+        devnull=/dev/null
+        goversion=1.27.4
+        CMDGO_TEST_RUN_MAIN=true
+        HGRCPATH=
+        GOTOOLCHAIN=auto
+        newline=
+        
+        CC=/usr/bin/cc
+        UPROOT1272=/workspace/scratch/9949907ca71e/toolchains/go1.27.2
+        UPROOT1273=/workspace/scratch/9949907ca71e/toolchains/go1.27.3
+        UPROOT1274=/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci
+        WORK=/workspace/scratch/9949907ca71e/acceptance-tmp/cmd-go-test-3276419729/tmpdir4022577812/logos_struct_default_validation3030823025
+        TEST_TELEMETRY_DIR=/workspace/scratch/9949907ca71e/acceptance-tmp/cmd-go-test-3276419729/tmpdir4022577812/logos_struct_default_validation3030823025/telemetry
+        TMPDIR=/workspace/scratch/9949907ca71e/acceptance-tmp/cmd-go-test-3276419729/tmpdir4022577812/logos_struct_default_validation3030823025/tmp
+        GOPATH=/workspace/scratch/9949907ca71e/acceptance-tmp/cmd-go-test-3276419729/tmpdir4022577812/logos_struct_default_validation3030823025/gopath
+        PWD=/workspace/scratch/9949907ca71e/acceptance-tmp/cmd-go-test-3276419729/tmpdir4022577812/logos_struct_default_validation3030823025/gopath/src
+        
+        # Function-local declarations exercise the installed default validator.
+        # Their scope excludes generated serialization methods and constructors. (0.000s)
+        > env GOPROXY=off
+        > env GOTOOLCHAIN=local
+        # Accepted controls cover numeric boundaries, composite keys and blank fields. (0.122s)
+        > logos build -o $WORK/control.exe ./control
+        [stderr]
+        error obtaining VCS status: exit status 128
+        	Use -buildvcs=false to disable VCS stamping.
+    script_test.go:166: FAIL: testdata/script/logos_struct_default_validation.txt:7: logos build -o /workspace/scratch/9949907ca71e/acceptance-tmp/cmd-go-test-3276419729/tmpdir4022577812/logos_struct_default_validation3030823025/control.exe ./control: exit status 1
+--- FAIL: TestScript (0.21s)
+    --- FAIL: TestScript/logos_struct_default_validation (0.13s)
+FAIL
+FAIL	cmd/go	0.408s
+FAIL

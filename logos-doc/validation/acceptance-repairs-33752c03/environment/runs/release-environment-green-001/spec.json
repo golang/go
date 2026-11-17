@@ -1,0 +1,40 @@
+{
+  "command": [
+    "uv",
+    "run",
+    "--offline",
+    "--no-cache",
+    "--no-project",
+    "python",
+    "-B",
+    "/workspace/scratch/9949907ca71e/logos-release-env-fix/logos-doc/validation/release-acceptance/test_bootstrap_environment.py",
+    "/workspace/scratch/9949907ca71e/logos-release-env-fix"
+  ],
+  "cwd": "/workspace/scratch/9949907ca71e",
+  "output": "/workspace/scratch/9949907ca71e/recovery-evidence/acceptance-failure-repairs/release-environment-green-001",
+  "environment": {},
+  "files": [
+    "/workspace/scratch/9949907ca71e/logos-release-env-fix/logos-doc/validation/release-acceptance/test_bootstrap_environment.py",
+    "/workspace/scratch/9949907ca71e/logos-release-env-fix/.github/scripts/release-acceptance.sh",
+    "/workspace/scratch/9949907ca71e/logos-release-env-fix/logos-doc/validation/release-acceptance/check_release_contract.py"
+  ],
+  "repositories": [
+    "/workspace/scratch/9949907ca71e/logos-release-env-fix"
+  ],
+  "expected_exit": 0,
+  "required_markers": [
+    "test_acceptance_does_not_inherit_build_limits",
+    "test_c_and_cxx_compilers_have_matching_lto_versions",
+    "test_go_test_temp_files_are_inside_the_local_temp_boundary",
+    "test_make_is_bounded_and_acceptance_uses_a_new_cache",
+    "Ran 4 tests",
+    "\nOK\n"
+  ],
+  "forbidden_markers": [
+    "FAIL:",
+    "ERROR:",
+    "skipped="
+  ],
+  "timeout_seconds": 30,
+  "boundary": "Parent executes the frozen boundary attacks against executor candidate1. Inert bootstrap harness proves environment state only; real runtime/SWIG/security gates remain separate."
+}

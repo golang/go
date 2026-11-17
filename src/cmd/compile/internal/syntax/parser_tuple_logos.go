@@ -70,7 +70,13 @@ func (p *parser) logosParen(keepParens, inType bool) (Expr, bool) {
 			p.syntaxError("expected comma or ) in tuple literal")
 		}
 	}
-	if inType {
+	isType := inType
+	if p.logosTypeArgDepth > 0 {
+		for _, el := range elems {
+			isType = isType || el.name != nil
+		}
+	}
+	if isType {
 		t := new(TupleType)
 		t.pos = pos
 		for _, el := range elems {
@@ -124,6 +130,9 @@ func (p *parser) logosParenLambda(pos Pos, elems []parenElem) Expr {
 }
 
 func (p *parser) logosParenValueElem(keepParens bool) parenElem {
+	if p.logosTypeArgDepth > 0 && p.tok == _Name {
+		return p.logosTypeArgNameElem(keepParens)
+	}
 	switch p.tok {
 	case _Lparen:
 		e, _ := p.logosParen(keepParens, false)

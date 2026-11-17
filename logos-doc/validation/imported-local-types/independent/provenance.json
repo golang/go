@@ -1,0 +1,44 @@
+{
+  "author_candidate": "39c62004a991501a25f93eae7a63dc7c7fac5646",
+  "author_head": "c3e375a0e443b0f8e7808c4f70fce519430907de",
+  "source": {
+    "module": "golang.org/x/tools@v0.52.0",
+    "revision": "16517d951552611e7bd358c48ee1051fd0e57b0c",
+    "moduleSum": "h1:ryxg4U63oaUYk7uOLTF37n43f4qgtGvqV4Ioit1BaEs=",
+    "verifiedModuleFiles": 1624,
+    "subsetFiles": 24
+  },
+  "cases": [
+    {
+      "name": "generic method",
+      "id": "generic-method"
+    },
+    {
+      "name": "generic function",
+      "id": "generic-function"
+    },
+    {
+      "name": "nested two parameters",
+      "id": "nested-two-parameters"
+    },
+    {
+      "name": "nongeneric local control",
+      "id": "nongeneric-local-control"
+    },
+    {
+      "name": "package generic control",
+      "id": "package-generic-control"
+    }
+  ],
+  "expected": {
+    "exit": 0,
+    "combinedOutput": "generic local ok\n"
+  },
+  "fork": {
+    "root": "/workspace/scratch/9949907ca71e/LoGOs-cgo-eject",
+    "source": "584c7ece750d3e9508bb21c5a95d751dbf18cce2"
+  },
+  "oracle": {
+    "root": "/workspace/scratch/e4ca27f294b1/toolchains/go1.27.4"
+  }
+}

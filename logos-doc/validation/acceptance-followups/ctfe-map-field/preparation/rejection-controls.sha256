@@ -1,0 +1,3 @@
+9855cce0007963a86ca8b211c8a46c147ab855f10493ed1aaf2128b77a115655  test/logos/compile/const_func_map_store_key.lgo
+185a96634cf12bf1615f1486a05da5a678edc3b262b27026c9c530809341c406  src/cmd/compile/internal/logos/ctfe/assignment_errors_test.go
+b0f7f4f681f06ab8aa50ed3fc8307618e74bd4331ca1d7ec82728c83397eb221  src/cmd/compile/internal/logos/ctfe/assignment_order_test.go

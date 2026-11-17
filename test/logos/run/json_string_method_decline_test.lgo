@@ -1,0 +1,177 @@
+//go:build goexperiment.jsonv2
+
+// run
+
+package jsonstringdecline
+
+import (
+	"encoding/json"
+	"encoding/json/jsontext"
+	"errors"
+	"reflect"
+	"slices"
+	"strings"
+	"testing"
+)
+
+var declineCalls []string
+
+type DeclineString string
+type DeclineInt int64
+type DeclineBool bool
+type DeclineFloat float64
+type DeclineJSON string
+type DeclineText string
+
+func (*DeclineString) UnmarshalJSONFrom(*jsontext.Decoder) error {
+	declineCalls = append(declineCalls, "string")
+	return errors.ErrUnsupported
+}
+
+func (*DeclineInt) UnmarshalJSONFrom(*jsontext.Decoder) error {
+	declineCalls = append(declineCalls, "int")
+	return errors.ErrUnsupported
+}
+
+func (*DeclineBool) UnmarshalJSONFrom(*jsontext.Decoder) error {
+	declineCalls = append(declineCalls, "bool")
+	return errors.ErrUnsupported
+}
+
+func (*DeclineFloat) UnmarshalJSONFrom(*jsontext.Decoder) error {
+	declineCalls = append(declineCalls, "float")
+	return errors.ErrUnsupported
+}
+
+func (*DeclineJSON) UnmarshalJSONFrom(*jsontext.Decoder) error {
+	declineCalls = append(declineCalls, "json-stream")
+	return errors.ErrUnsupported
+}
+
+func (p *DeclineJSON) UnmarshalJSON(raw []byte) error {
+	declineCalls = append(declineCalls, "json")
+	*p = DeclineJSON(raw)
+	return nil
+}
+
+func (*DeclineText) UnmarshalJSONFrom(*jsontext.Decoder) error {
+	declineCalls = append(declineCalls, "text-stream")
+	return errors.ErrUnsupported
+}
+
+func (p *DeclineText) UnmarshalText(raw []byte) error {
+	declineCalls = append(declineCalls, "text")
+	*p = DeclineText(raw)
+	return nil
+}
+
+type DeclineHolder struct {
+	S     DeclineString `json:"s,string"`
+	I     DeclineInt    `json:"i,string"`
+	B     DeclineBool   `json:"b,string"`
+	F     DeclineFloat  `json:"f,string"`
+	J     DeclineJSON   `json:"j,string"`
+	T     DeclineText   `json:"t,string"`
+	After int64         `json:"after"`
+}
+
+type DeclineHolderMirror struct {
+	S     DeclineString `json:"s,string"`
+	I     DeclineInt    `json:"i,string"`
+	B     DeclineBool   `json:"b,string"`
+	F     DeclineFloat  `json:"f,string"`
+	J     DeclineJSON   `json:"j,string"`
+	T     DeclineText   `json:"t,string"`
+	After int64         `json:"after"`
+	NoGen any           `json:"-"`
+}
+
+func checkDeclineError(t *testing.T, got, want error) {
+	t.Helper()
+	if (got == nil) != (want == nil) {
+		t.Fatalf("error = %v, encoding/json = %v", got, want)
+	}
+	if got == nil {
+		return
+	}
+	if reflect.TypeOf(got) != reflect.TypeOf(want) {
+		t.Fatalf("error type = %T, encoding/json = %T", got, want)
+	}
+	wantText := strings.ReplaceAll(want.Error(), "HolderMirror", "Holder")
+	if got.Error() != wantText {
+		t.Fatalf("error = %q, encoding/json = %q", got, wantText)
+	}
+	if g, ok := got.(*json.UnmarshalTypeError); ok {
+		w := *want.(*json.UnmarshalTypeError)
+		w.Struct = strings.ReplaceAll(w.Struct, "HolderMirror", "Holder")
+		if !reflect.DeepEqual(*g, w) {
+			t.Fatalf("type error = %#v, encoding/json = %#v", *g, w)
+		}
+	}
+}
+
+func TestStringMethodDeclineMatchesOracle(t *testing.T) {
+	documents := []string{
+		`{"s":"\"hi\"","i":"7","b":"true","f":"1.25","j":"x","t":"y","after":17}`,
+		`{"s":"x","i":7,"b":true,"f":1.25,"j":7,"t":7,"after":17}`,
+		`{"s":null,"i":null,"b":null,"f":null,"j":null,"t":null,"after":17}`,
+		`{"s":"null","i":"null","b":"null","f":"null","j":"null","t":"null","after":17}`,
+		`{"s":{},"i":[],"b":"maybe","f":"bad","j":{},"t":[],"after":17}`,
+	}
+	for _, doc := range documents {
+		t.Run(doc, func(t *testing.T) {
+			var got DeclineHolder
+			var want DeclineHolderMirror
+			declineCalls = nil
+			gotErr := json.Unmarshal([]byte(doc), &got)
+			gotCalls := slices.Clone(declineCalls)
+			declineCalls = nil
+			wantErr := json.Unmarshal([]byte(doc), &want)
+			checkDeclineError(t, gotErr, wantErr)
+			if !slices.Equal(gotCalls, declineCalls) {
+				t.Fatalf("method calls = %q, encoding/json = %q", gotCalls, declineCalls)
+			}
+			wantValue := DeclineHolder{S: want.S, I: want.I, B: want.B, F: want.F, J: want.J, T: want.T, After: want.After}
+			if got != wantValue {
+				t.Fatalf("value = %+v, encoding/json = %+v", got, wantValue)
+			}
+		})
+	}
+}
+
+type DeclinePointerHolder struct {
+	V     *DeclineInt `json:"v,string"`
+	After int64       `json:"after"`
+}
+
+type DeclinePointerHolderMirror struct {
+	V     *DeclineInt `json:"v,string"`
+	After int64       `json:"after"`
+	NoGen any         `json:"-"`
+}
+
+func TestStringMethodDeclinePreservesPointerAlias(t *testing.T) {
+	for _, token := range []string{`"7"`, `"bad"`, `7`, `{}`, `"null"`} {
+		t.Run(token, func(t *testing.T) {
+			gotAlias, wantAlias := new(DeclineInt(5)), new(DeclineInt(5))
+			got := DeclinePointerHolder{V: gotAlias}
+			want := DeclinePointerHolderMirror{V: wantAlias}
+			doc := `{"v":` + token + `,"after":17}`
+			declineCalls = nil
+			gotErr := json.Unmarshal([]byte(doc), &got)
+			gotCalls := slices.Clone(declineCalls)
+			declineCalls = nil
+			wantErr := json.Unmarshal([]byte(doc), &want)
+			checkDeclineError(t, gotErr, wantErr)
+			if !slices.Equal(gotCalls, declineCalls) {
+				t.Fatalf("method calls = %q, encoding/json = %q", gotCalls, declineCalls)
+			}
+			if !reflect.DeepEqual(got.V, want.V) || got.After != want.After {
+				t.Fatalf("value = %+v, encoding/json = %+v", got, want)
+			}
+			if (got.V == gotAlias) != (want.V == wantAlias) || *gotAlias != *wantAlias {
+				t.Fatalf("alias update = %v/%v, encoding/json = %v/%v", got.V == gotAlias, *gotAlias, want.V == wantAlias, *wantAlias)
+			}
+		})
+	}
+}

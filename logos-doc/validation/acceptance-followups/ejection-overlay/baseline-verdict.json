@@ -1,0 +1,8 @@
+{
+  "semanticRed": true,
+  "observedExit": 1,
+  "mechanism": "The physical census retains removed.lgo even though its overlay entry deletes it. Existing target matching then reports deleted in overlay.",
+  "frozenTestUnchanged": true,
+  "environmentFailure": false,
+  "initialLogClassifier": "Initially anticipated the later census-vector assertion; the actual earlier failure proves the deleted-source invariant directly. No test or expected test input changed."
+}

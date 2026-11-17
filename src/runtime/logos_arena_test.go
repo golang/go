@@ -837,6 +837,9 @@ func TestLogosArenaDynamicMakeWatermark(t *testing.T) {
 	if !goexperiment.LogosArena {
 		t.Skip("skipping test: GOEXPERIMENT=logosarena not enabled")
 	}
+	if runtime.GOARCH != "amd64" {
+		t.Skip("skipping test: arena make lowering is amd64-only")
+	}
 	inFreshGoroutine(t, func() {
 		before := runtime.LogosArenaStat().NoscanUsed
 
@@ -878,6 +881,9 @@ func TestLogosArenaPanicUnwindRecovery(t *testing.T) {
 	if !goexperiment.LogosArena {
 		t.Skip("skipping test: GOEXPERIMENT=logosarena not enabled")
 	}
+	if runtime.GOARCH != "amd64" {
+		t.Skip("skipping test: arena make lowering is amd64-only")
+	}
 	inFreshGoroutine(t, func() {
 		before := runtime.LogosArenaStat().NoscanUsed
 
@@ -914,6 +920,9 @@ func arenaMakeLoop(iters, allocSize int) uintptr {
 func TestLogosArenaLoopWatermarkBounded(t *testing.T) {
 	if !goexperiment.LogosArena {
 		t.Skip("skipping test: GOEXPERIMENT=logosarena not enabled")
+	}
+	if runtime.GOARCH != "amd64" {
+		t.Skip("skipping test: arena make lowering is amd64-only")
 	}
 	inFreshGoroutine(t, func() {
 		before := runtime.LogosArenaStat().NoscanUsed
@@ -1151,9 +1160,35 @@ func arenaMakeRun(t *testing.T, size uintptr, arena, heap func(n, c int)) {
 	}
 }
 
+// The direct runtime entry point is available even where compiler arena-make
+// lowering is not. Keep its overflow contract covered on every architecture.
+func TestLogosArenaRuntimeMakeOverflow(t *testing.T) {
+	for _, layout := range []struct {
+		name string
+		elem any
+		size uintptr
+	}{
+		{"int64", int64(0), 8},
+		{"elem24", arenaElem24{}, 24},
+	} {
+		t.Run(layout.name, func(t *testing.T) {
+			for _, tc := range arenaMakeOverflowCases(layout.size) {
+				t.Run(fmt.Sprintf("len=%d,cap=%d", tc.len, tc.cap), func(t *testing.T) {
+					arenaMakeMustPanic(t, "runtime arena make", tc.want, func() {
+						runtime.LogosArenaMakeSlice(layout.elem, tc.len, tc.cap)
+					})
+				})
+			}
+		})
+	}
+}
+
 func TestLogosArenaMakeOverflow(t *testing.T) {
 	if !goexperiment.LogosArena {
 		t.Skip("skipping test: GOEXPERIMENT=logosarena not enabled")
+	}
+	if runtime.GOARCH != "amd64" {
+		t.Skip("skipping test: arena make lowering is amd64-only")
 	}
 	t.Run("int64", func(t *testing.T) {
 		arenaMakeRun(t, 8, func(n, c int) { arenaSeamInt64(n, c) }, heapSeamInt64)
@@ -1166,6 +1201,9 @@ func TestLogosArenaMakeOverflow(t *testing.T) {
 func TestLogosArenaMakeOverflowWide(t *testing.T) {
 	if !goexperiment.LogosArena {
 		t.Skip("skipping test: GOEXPERIMENT=logosarena not enabled")
+	}
+	if runtime.GOARCH != "amd64" {
+		t.Skip("skipping test: arena make lowering is amd64-only")
 	}
 	top := uint64(1) << 63
 	wrap := uint64(1) << 62
@@ -1186,6 +1224,9 @@ func TestLogosArenaMakeOverflowWide(t *testing.T) {
 func TestLogosArenaMakeOverflowMaxAlloc(t *testing.T) {
 	if !goexperiment.LogosArena {
 		t.Skip("skipping test: GOEXPERIMENT=logosarena not enabled")
+	}
+	if runtime.GOARCH != "amd64" {
+		t.Skip("skipping test: arena make lowering is amd64-only")
 	}
 	wrapsToZero := int(^uintptr(0)/8 + 1)
 	if _, panicked := recoverMsg(func() { arenaSeamInt64(0, wrapsToZero) }); !panicked {

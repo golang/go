@@ -63,7 +63,7 @@ func (fc *funcLower) lowerYield() bool {
 	spellings := make([]string, len(targs))
 	natives := make([]syntax.Expr, len(targs))
 	for i, targ := range targs {
-		spellings[i] = types2.TypeString(targ, fc.yieldQualifier)
+		spellings[i] = fl.sourceTypeString(targ, fc.yieldQualifier)
 		decl, isType := reparseType(spellings[i])
 		if !isType {
 			base.Fatalf("logos: cannot respell yield type %q", spellings[i])

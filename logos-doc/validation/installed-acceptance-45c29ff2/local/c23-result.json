@@ -1,0 +1,17 @@
+{
+  "compiler": "/usr/bin/x86_64-linux-gnu-gcc-14",
+  "version": "cc (Debian 14.2.0-19) 14.2.0\nCopyright (C) 2024 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+  "compiler_sha256": "a23ecab8ff08f09ad8c80602c2c5df7f49e09c25905cb8975902e101bf72635f",
+  "compile_command": [
+    "cc",
+    "-std=c23",
+    "-x",
+    "c",
+    "-",
+    "-o",
+    "/workspace/scratch/9949907ca71e/recovery-evidence/c23-check"
+  ],
+  "source_sha256": "2ad75d95660563887d8d3f1d0ae1dcf18c2379cbd83a5c72f5ab276351ee6949",
+  "compile_status": 0,
+  "run_status": 0
+}

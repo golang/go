@@ -2,6 +2,9 @@
 
 env GOPROXY=off
 env GOTOOLCHAIN=local
+# Execute the runtime feature guards even on hosts below AVX-512.
+env GOAMD64=v1
+env GOARM64=v8.0
 
 cd m
 
@@ -10,8 +13,8 @@ stdout '^f32 130 '
 cp stdout $WORK/scalar-stdout.txt
 
 env GOEXPERIMENT=simd
-[host-simd] logos run .
-[host-simd] cmp stdout $WORK/scalar-stdout.txt
+logos run .
+cmp stdout $WORK/scalar-stdout.txt
 
 logos eject -o out
 exists out/main.go

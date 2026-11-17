@@ -107,8 +107,8 @@ func checkLogosDuplicateStems(logosFiles []string) error {
 	for _, name := range logosFiles {
 		stem, _, _ := logosfile.Split(name)
 		if prev, ok := seen[stem]; ok {
-			return fmt.Errorf("[correctness::duplicate_stem_filename] files %s and %s share stem %q",
-				prev, name, stem)
+			return logosfile.DuplicateStemError(fmt.Sprintf("[correctness::duplicate_stem_filename] files %s and %s share stem %q",
+				prev, name, stem))
 		}
 		seen[stem] = name
 	}

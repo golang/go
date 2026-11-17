@@ -1,0 +1,69 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+
+# Package patterns must identify one package before the compiler runs.
+! logos context './missing...#Value'
+stderr '^logos context: expected one package for "./missing...", found 0$'
+! stderr 'panic:'
+
+! logos context './...#Value'
+stderr '^logos context: expected one package for "./...", found 2$'
+! stdout 'type Value'
+! stderr 'panic:'
+
+# Literal paths and patterns with exactly one match both remain useful.
+logos context './one#Value'
+stdout '^type Value struct'
+stdout 'One int'
+! stdout 'Two string'
+
+logos context './two/...#Value'
+stdout '^type Value struct'
+stdout 'Two string'
+! stdout 'One int'
+
+# The same selection rule applies to loGo/s modules.
+cd ../l
+! logos context './missing...#Value'
+stderr '^logos context: expected one package for "./missing...", found 0$'
+! stderr 'panic:'
+
+! logos context './...#Value'
+stderr '^logos context: expected one package for "./...", found 2$'
+! stdout 'type Value'
+! stderr 'panic:'
+
+logos context './one#Value'
+stdout '^type Value struct'
+stdout 'One int'
+
+logos context './two/...#Value'
+stdout '^type Value struct'
+stdout 'Two string'
+
+-- m/go.mod --
+module example.com/m
+
+go 1.27
+-- m/one/one.go --
+package one
+
+type Value struct { One int }
+-- m/two/two.go --
+package two
+
+type Value struct { Two string }
+-- l/go.mod --
+module example.com/l
+
+go 1.27
+-- l/one/one.lgo --
+package one
+
+type Value struct { One int }
+-- l/two/two.lgo --
+package two
+
+type Value struct { Two string }

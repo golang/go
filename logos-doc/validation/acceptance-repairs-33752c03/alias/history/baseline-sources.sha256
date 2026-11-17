@@ -1,0 +1,7 @@
+2ec862de22cf8d981fb5766bd8ef67ff05c9d09e68897a84240699e6beaf47f9  src/cmd/go/internal/load/logos.go
+f892ba40349c989dc3630cd95b4a0cd3b3c0f69fe49b1d5fb9c2ac4c0aa5b82c  src/cmd/go/internal/modload/census_logos.go
+9718395948125749e7953ce953304a6a0e2aab2c589501edac9a3c2bdf8ea346  src/go/build/logos.go
+ffa7bb3924e804b5ae44987be9048d0a6f2f6a53bfbb2407cfd7f2c6c9d46444  src/go/build/build.go
+bc4f1f589b694495ea04f167ece5f8813e2558cf1107a9da992b8e5d14b64dc5  src/cmd/go/internal/modindex/logos.go
+0e202af84372f8d111d4061f24ca726f6d44c64cb790c019802c49b126da8ac8  src/cmd/go/internal/modindex/read.go
+fe1df4d0648db9b3763c30c86b7d229a0b3d552355be4451aca89654b4c22e3b  src/internal/logosfile/logosfile.go

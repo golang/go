@@ -1,0 +1,76 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# Identical source positions in distinct files do not identify one tuple
+# temporary. Packed and unpacked package initializers keep their own values.
+cd m
+logos run .
+cmp stdout expected.txt
+logos eject -o out
+cd out
+go run .
+cmp stdout ../expected.txt
+exists $UPROOT1274/bin/go
+exec env -u GOROOT $UPROOT1274/bin/go run .
+cmp stdout ../expected.txt
+
+-- m/go.mod --
+module example.com/tuplenames
+
+go 1.27
+
+-- m/a.lgo --
+package main
+
+var a = pair(11)
+var a0, a1 = a
+
+-- m/b.lgo --
+package main
+
+var b = pair(22)
+var b0, b1 = b
+
+-- m/main.lgo --
+package main
+
+import (
+	"comptime"
+	"fmt"
+)
+
+type Fields struct { A, B, C int }
+
+var calls int
+
+func pair(n int) (int, int) {
+	calls++
+	return n, n + 1
+}
+
+func expanded[T any]() int {
+	total := 0
+	const for i, _ := range comptime.Fields[T]() {
+		first := pair(i + 1)
+		second := pair(i + 10)
+		x, y := first
+		var z, w = second
+		total += x + y + z + w
+	}
+	return total
+}
+
+func main() {
+	if a0 != 11 || a1 != 12 || b0 != 22 || b1 != 23 || calls != 2 {
+		panic("package tuple initialization")
+	}
+	x := expanded[Fields]()
+	y := expanded[Fields]()
+	if x != 84 || y != 84 || calls != 14 {
+		panic("expanded tuple initialization")
+	}
+	fmt.Println(a0, a1, b0, b1, x, y, calls)
+}
+
+-- m/expected.txt --
+11 12 22 23 84 84 14

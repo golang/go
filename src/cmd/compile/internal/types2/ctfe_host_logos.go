@@ -255,8 +255,8 @@ func (h *ctfeHost) TypeOf(e syntax.Expr) *ctfe.Type {
 	if u := check.logosUnitForNode(e); u != nil {
 		return h.resolveUnitTypeExpr(u, e)
 	}
-	if tv, ok := check.Info.Types[e]; ok && tv.Type != nil {
-		if t := h.fromType(tv.Type); t != nil {
+	if typ := check.Info.TypeOf(e); typ != nil {
+		if t := h.fromType(typ); t != nil {
 			return t
 		}
 	}

@@ -1,0 +1,10 @@
+{
+  "passed": false,
+  "source_tree": "e237c399aae8f8065b724e8a0e27585686c7da18",
+  "script_environment_forwards_GOARM64": false,
+  "frozen_repro_effective_arm64": "v8.2",
+  "v1_direct_example_arm64": "v8.0",
+  "v1_recorded_arm64": "v8.0",
+  "executor_sha256": "2d8ec5d123a2d962ca39fd04952b93412385d43946ee820f875b866da74900f1",
+  "boundary": "File-only source/recipe comparison; no Go build or hosted run."
+}

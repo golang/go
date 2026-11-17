@@ -1,0 +1,32 @@
+{
+  "command": [
+    "/workspace/scratch/9949907ca71e/language-ci-tools/bin/actionlint",
+    "-color"
+  ],
+  "cwd": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes",
+  "output": "/workspace/scratch/9949907ca71e/recovery-evidence/acceptance-failure-repairs/release-actionlint-001",
+  "environment": {
+    "PATH": "/workspace/scratch/9949907ca71e/language-ci-tools/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+  },
+  "files": [
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/.github/scripts/release-acceptance.sh",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/.github/workflows/release-acceptance.yml",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/logos-doc/validation/release-acceptance-request.json",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/logos-doc/validation/release-acceptance/check_release_contract.py",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/.github/workflows/compiler-stability.yml",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/.github/workflows/deferred-callees.yml",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/.github/workflows/gc-stability.yml",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/.github/workflows/generic-type-arguments.yml",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/.github/workflows/json-profile-gates.yml",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/.github/workflows/logos.yml",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/.github/workflows/simd-host-gates.yml"
+  ],
+  "repositories": [
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes"
+  ],
+  "expected_exit": 0,
+  "required_markers": [],
+  "forbidden_markers": [],
+  "timeout_seconds": 120,
+  "boundary": "Static checks only. Actual frozen candidate files are inspected while the independent compiler build runs; this command starts no compiler or Go test and makes no hosted acceptance claim."
+}

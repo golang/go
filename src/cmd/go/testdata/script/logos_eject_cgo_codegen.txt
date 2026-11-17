@@ -1,0 +1,78 @@
+[!cgo] skip 'cgo is not available'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env CGO_ENABLED=1
+env GOEXPERIMENT=nologosfastcgo
+
+logos run .
+stdout '^generated: 0 5 2$'
+stdout '^json: [{]"Value":7,"Count":9[}]$'
+stdout '^decode: logos: json: ambiguous unmarshal into union Choice: 2 of 2 members matched'
+cp stdout $WORK/native.txt
+logos eject -o $WORK/out
+cd $WORK/out
+env GOEXPERIMENT=
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $WORK/native.txt
+exec env -u GOROOT $UPROOT1273/bin/go run .
+cmp stdout $WORK/native.txt
+
+-- go.mod --
+module example.com/cgogenerated
+
+go 1.27
+
+-- logos.toml --
+[build]
+cgo = "allow"
+
+-- main.lgo --
+package main
+
+/*
+typedef unsigned long word;
+*/
+import "C"
+
+import (
+	"encoding/json"
+	"fmt"
+	"iter"
+	"logos/arena"
+)
+
+type Item[T any] struct { Value T }
+
+func (i Item[T]) MarshalJSON() ([]byte, error) { return json.Marshal(i.Value) }
+func (i *Item[T]) UnmarshalJSON(data []byte) error { return json.Unmarshal(data, &i.Value) }
+
+type Choice interface { *Item[C.int] | *Item[C.word] }
+type Packet struct { Value Choice; Count *C.int }
+
+func Empty() iter.Seq[C.int] {}
+
+var regionCalls int
+var regions [1]arena.Region
+
+func regionIndex() int {
+	regionCalls++
+	return 0
+}
+
+func main() {
+	n := 0
+	for range Empty() { n++ }
+	s := arena.Make[C.int](regions[regionIndex()], 1)
+	s[0] = 2
+	s = arena.Append(regions[regionIndex()], s, []C.int{3}...)
+	fmt.Println("generated:", n, s[0]+s[1], regionCalls)
+	count := C.int(9)
+	data, err := json.Marshal(Packet{Value: &Item[C.int]{Value: 7}, Count: &count})
+	if err != nil { panic(err) }
+	fmt.Printf("json: %s\n", data)
+	zero := C.int(0)
+	decoded := Packet{Value: &Item[C.int]{}, Count: &zero}
+	err = json.Unmarshal(data, &decoded)
+	fmt.Println("decode:", err)
+}

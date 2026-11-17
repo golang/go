@@ -12,41 +12,47 @@ import (
 	stdjson "encoding/json"
 	"encoding/json/jsontext"
 	"errors"
-	"io"
 	"reflect"
 	"strconv"
-	"strings"
-	"unicode"
-	"unicode/utf16"
-	"unicode/utf8"
 )
 
 const indexedFieldPaths = true
 
-var stringContentReplacer = strings.NewReplacer(
-	"object name", "object key",
-	"at start of value", "looking for beginning of value",
-	"at start of string", "looking for beginning of object key string",
-	"after object value", "after object key:value pair",
-	"in number", "in numeric literal",
-)
+func fallbackStructName(_ string, root string) string {
+	return root
+}
+
+// QuotedNull consumes the exact token "null" under JSONv2's legacy
+// ,string pointer rule. Escaped spellings leave the pointer unchanged.
+func (s *Scanner) QuotedNull() bool {
+	i := skipSpace(s.data, s.pos)
+	end := i + len(`"null"`)
+	if end > len(s.data) || string(s.data[i:end]) != `"null"` {
+		return false
+	}
+	if end < len(s.data) && !isDelimiter(s.data[end]) {
+		return false
+	}
+	s.pos = end
+	return true
+}
 
 func stringContentError(item string) error {
-	_, err := jsontext.AppendUnquote(nil, []byte(item))
+	// SyntaxError's message is private. Let encoding/json construct the
+	// public error, including its type and offset, on this error path.
+	var dst struct {
+		V string `json:"v,string"`
+	}
+	raw := AppendEscaped([]byte(`{"v":"`), item)
+	raw = append(raw, '"', '}')
+	err := stdjson.Unmarshal(raw, &dst)
 	if err == nil {
 		return nil
 	}
-	msg := err.Error()
-	if syn, ok := err.(*jsontext.SyntacticError); ok && syn.Err != nil {
-		msg = syn.Err.Error()
+	if ute, ok := err.(*stdjson.UnmarshalTypeError); ok {
+		return ute.Err
 	}
-	if msg == io.ErrUnexpectedEOF.Error() {
-		return errors.New("unexpected end of JSON input")
-	}
-	if before, _, found := strings.Cut(msg, " (expecting"); found && !strings.Contains(msg, " in literal") {
-		msg = before
-	}
-	return errors.New(stringContentReplacer.Replace(msg))
+	return err
 }
 
 func (s *Scanner) rejectQuotedBare(typ reflect.Type) {
@@ -177,7 +183,10 @@ func (s *Scanner) rejectNonString(tok []byte, typ reflect.Type) {
 		Value: value, Type: typ, Offset: off, Err: errNonStringValue})
 }
 
-func QuotedText[T encoding.TextUnmarshaler](s *Scanner, dst T) {
+func QuotedText[E any, T interface {
+	*E
+	encoding.TextUnmarshaler
+}](s *Scanner, dst T) {
 	if s.scalar() == 0 {
 		return
 	}
@@ -186,16 +195,12 @@ func QuotedText[T encoding.TextUnmarshaler](s *Scanner, dst T) {
 		return
 	}
 	if len(tok) > 0 && tok[0] == '"' {
-		if unq, ok := permissiveUnquote(tok); ok {
+		if unq, ok := unquoteLiteralBytes(string(tok)); ok {
 			s.saveMethodError(rejectMethodUnsupported(dst.UnmarshalText(unq), "UnmarshalText method"))
 			return
 		}
 	}
-	typ := reflect.TypeFor[T]()
-	if typ.Kind() == reflect.Pointer {
-		typ = typ.Elem()
-	}
-	s.rejectNonString(tok, typ)
+	s.rejectNonString(tok, reflect.TypeFor[E]())
 }
 
 func QuotedTextPtr[E any, T interface {
@@ -214,7 +219,7 @@ func QuotedTextPtr[E any, T interface {
 		if *dst == nil {
 			*dst = new(E)
 		}
-		if unq, ok := permissiveUnquote(tok); ok {
+		if unq, ok := unquoteLiteralBytes(string(tok)); ok {
 			err := rejectMethodUnsupported((*dst).UnmarshalText(unq), "UnmarshalText method")
 			s.saveMethodError(err)
 			if err == nil && bytes.Equal(tok, quotedNullLiteral) {
@@ -227,110 +232,6 @@ func QuotedTextPtr[E any, T interface {
 		*dst = new(E)
 	}
 	s.rejectNonString(tok, reflect.TypeFor[E]())
-}
-
-// permissiveUnquote mirrors encoding/json unquoteBytes for the `,string` text
-// methods: malformed UTF-8 bytes and unpaired surrogates decode as U+FFFD
-// instead of rejecting the string token, so the method sees the same bytes
-// the legacy profile would pass it. jsontext.AppendUnquote is strict about
-// both and must not gate method dispatch here.
-func permissiveUnquote(tok []byte) ([]byte, bool) {
-	if len(tok) < 2 || tok[0] != '"' || tok[len(tok)-1] != '"' {
-		return nil, false
-	}
-	s := tok[1 : len(tok)-1]
-
-	r := 0
-	for r < len(s) {
-		c := s[r]
-		if c == '\\' || c == '"' || c < ' ' {
-			break
-		}
-		rr, size := utf8.DecodeRune(s[r:])
-		if rr == utf8.RuneError && size == 1 {
-			break
-		}
-		r += size
-	}
-	if r == len(s) {
-		// Cap the fast path so an UnmarshalText that appends to its input
-		// allocates instead of overwriting the token's closing quote, which
-		// QuotedTextPtr still compares against quotedNullLiteral.
-		return s[:len(s):len(s)], true
-	}
-
-	b := make([]byte, len(s)+2*utf8.UTFMax)
-	w := copy(b, s[:r])
-	for r < len(s) {
-		if w >= len(b)-2*utf8.UTFMax {
-			nb := make([]byte, (len(b)+utf8.UTFMax)*2)
-			copy(nb, b[:w])
-			b = nb
-		}
-		switch c := s[r]; {
-		case c == '\\':
-			r++
-			if r >= len(s) {
-				return nil, false
-			}
-			switch s[r] {
-			default:
-				return nil, false
-			case '"', '\\', '/', '\'':
-				b[w] = s[r]
-				r++
-				w++
-			case 'b':
-				b[w] = '\b'
-				r++
-				w++
-			case 'f':
-				b[w] = '\f'
-				r++
-				w++
-			case 'n':
-				b[w] = '\n'
-				r++
-				w++
-			case 'r':
-				b[w] = '\r'
-				r++
-				w++
-			case 't':
-				b[w] = '\t'
-				r++
-				w++
-			case 'u':
-				r--
-				rr := getu4(s[r:])
-				if rr < 0 {
-					return nil, false
-				}
-				r += 6
-				if utf16.IsSurrogate(rr) {
-					rr1 := getu4(s[r:])
-					if dec := utf16.DecodeRune(rr, rr1); dec != unicode.ReplacementChar {
-						r += 6
-						w += utf8.EncodeRune(b[w:], dec)
-						break
-					}
-					rr = unicode.ReplacementChar
-				}
-				w += utf8.EncodeRune(b[w:], rr)
-			}
-		case c == '"', c < ' ':
-			return nil, false
-		case c < utf8.RuneSelf:
-			b[w] = c
-			r++
-			w++
-		default:
-			rr, size := utf8.DecodeRune(s[r:])
-			r += size
-			w += utf8.EncodeRune(b[w:], rr)
-		}
-	}
-	return b[:w], true
 }
 
 func QuotedFrom[T any, PT interface {

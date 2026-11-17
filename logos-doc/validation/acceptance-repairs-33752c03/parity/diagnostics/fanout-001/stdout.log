@@ -1,0 +1,65 @@
+=== RUN   TestParityAt08FanoutProbe
+    parity_at08_fanout_probe_test.go:32: probe input path=parity_test.go sha256=1be848e4e5f94f76d3484e12b253d4eaad81990a89635a59cf59f86fa1149bb4
+    parity_at08_fanout_probe_test.go:32: probe input path=testdata/run/at08_recursion_bound/main.go sha256=e1aa8d47d3fe4ddc0d43be98ec361c1ad2dcf9ca8711f1feaa49afc2081bc359
+    parity_at08_fanout_probe_test.go:34: probe CPUs=2 parentGOMAXPROCS=2 children=48 childGOMAXPROCS=4 budget=10s
+    parity_at08_fanout_probe_test.go:64: probe build id=K6 elapsed=186.148047ms error=<nil>
+    parity_at08_fanout_probe_test.go:70: probe build id=U3N elapsed=210.829466ms error=<nil>
+    parity_at08_fanout_probe_test.go:110: probe binary id=K6 sha256=20c117a353f28dde366d59e9c3350502d956cd7f57b60b2be211e10228abe138 hardlinks=24 args=["-O=0"]
+    parity_at08_fanout_probe_test.go:110: probe binary id=U3N sha256=6cd7653b7a84945e684f43ea5307f3d11893915861ba42717bfb84be3856e480 hardlinks=24 args=["-gcflags=all=-N -l"]
+    parity_at08_fanout_probe_test.go:120: probe phase=unbounded begin=2026-11-16T20:47:31.514287768Z
+    parity_at08_fanout_probe_test.go:132: probe phase=unbounded elapsed=10.201950103s
+    parity_at08_fanout_probe_test.go:136: probe unbounded id=K6 completed=0/24 elapsed=10.184251307s first_error=running /home/agent/logos-parity-isolated-e96-002/TestParityAt08FanoutProbe572223683/002/out-fork-K6/at08_K6_04: goparity run timeout
+    parity_at08_fanout_probe_test.go:136: probe unbounded id=U3N completed=0/24 elapsed=10.201701793s first_error=running /home/agent/logos-parity-isolated-e96-002/TestParityAt08FanoutProbe572223683/002/out-up-U3N/at08_U3N_03: goparity run timeout
+    parity_at08_fanout_probe_test.go:176: probe phase=bounded workers=2 begin=2026-11-16T20:47:41.721858681Z
+    parity_at08_fanout_probe_test.go:202: probe bounded id=K6 name=at08_K6_00 elapsed=900.284299ms error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=U3N name=at08_U3N_00 elapsed=1.237617582s error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=K6 name=at08_K6_01 elapsed=1.342322634s error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=K6 name=at08_K6_02 elapsed=721.898702ms error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=U3N name=at08_U3N_01 elapsed=1.747588833s error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=K6 name=at08_K6_03 elapsed=855.834657ms error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=U3N name=at08_U3N_02 elapsed=1.184974123s error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=U3N name=at08_U3N_03 elapsed=1.459923826s error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=K6 name=at08_K6_04 elapsed=1.15781553s error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=K6 name=at08_K6_05 elapsed=767.712664ms error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=U3N name=at08_U3N_04 elapsed=1.208131613s error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=U3N name=at08_U3N_05 elapsed=1.410490679s error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=K6 name=at08_K6_06 elapsed=1.025204074s error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=K6 name=at08_K6_07 elapsed=827.878069ms error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=U3N name=at08_U3N_06 elapsed=1.259409431s error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=K6 name=at08_K6_08 elapsed=880.419168ms error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=U3N name=at08_U3N_07 elapsed=1.339181971s error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=K6 name=at08_K6_09 elapsed=862.578888ms error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=U3N name=at08_U3N_08 elapsed=1.130187206s error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=K6 name=at08_K6_10 elapsed=920.577166ms error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=U3N name=at08_U3N_09 elapsed=1.253144053s error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=U3N name=at08_U3N_10 elapsed=1.044699097s error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=K6 name=at08_K6_11 elapsed=1.040017022s error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=K6 name=at08_K6_12 elapsed=856.483118ms error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=U3N name=at08_U3N_11 elapsed=1.174424494s error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=K6 name=at08_K6_13 elapsed=738.027912ms error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=U3N name=at08_U3N_12 elapsed=1.125885879s error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=U3N name=at08_U3N_13 elapsed=1.14822257s error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=K6 name=at08_K6_14 elapsed=1.001830744s error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=K6 name=at08_K6_15 elapsed=776.084023ms error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=U3N name=at08_U3N_14 elapsed=1.045723333s error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=K6 name=at08_K6_16 elapsed=727.491063ms error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=U3N name=at08_U3N_15 elapsed=1.230361258s error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=U3N name=at08_U3N_16 elapsed=1.105772757s error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=K6 name=at08_K6_17 elapsed=879.820242ms error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=K6 name=at08_K6_18 elapsed=921.005962ms error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=U3N name=at08_U3N_17 elapsed=1.360015177s error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=U3N name=at08_U3N_18 elapsed=1.296430195s error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=K6 name=at08_K6_19 elapsed=1.027921063s error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=K6 name=at08_K6_20 elapsed=992.910744ms error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=U3N name=at08_U3N_19 elapsed=1.098923379s error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=K6 name=at08_K6_21 elapsed=1.049393522s error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=U3N name=at08_U3N_20 elapsed=1.253536173s error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=K6 name=at08_K6_22 elapsed=828.596989ms error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=U3N name=at08_U3N_21 elapsed=1.134360606s error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=K6 name=at08_K6_23 elapsed=1.083445074s error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=U3N name=at08_U3N_22 elapsed=1.321983578s error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:202: probe bounded id=U3N name=at08_U3N_23 elapsed=863.778642ms error=<nil> exit=0 stdout="ok\n" stderr=""
+    parity_at08_fanout_probe_test.go:212: probe phase=bounded completed=48/48 elapsed=26.175401334s
+--- PASS: TestParityAt08FanoutProbe (36.82s)
+PASS
+ok  	cmd/internal/goparity	36.820s

@@ -1,0 +1,198 @@
+{
+  "source_commit": "45c29ff215477f7e403188d7452fc79aef05d791",
+  "source_tree": "099367e1031585fa553ef7987b199288df36256a",
+  "fork_still_clean": true,
+  "installed_hashes_unchanged": {
+    "bin/go": "987052b593c41cf60390eec80d98b01b89f9536d6d87b4e73672ab6e7a4eb2ef",
+    "bin/logos": "987052b593c41cf60390eec80d98b01b89f9536d6d87b4e73672ab6e7a4eb2ef",
+    "pkg/tool/linux_amd64/compile": "61749f8f2b2242d26e613993270f654cf47c750739a22b223f94eedd5370bba9"
+  },
+  "test_binary_sha256": {
+    "testdir.test": "5b3b19bef89ccde94a28a64e4c5e295ab6718ccafadcc4293a3fefccf48544a6",
+    "cmdgo-race.test": "0a50f0c568c5e6b6d4b9938cd0e8cadf16ef7b255ef8bf1821c8f0102332d60a"
+  },
+  "candidate_source_patch_unchanged_sha256": "c07a69229c88231ff6c308c404cfb5a02c4007fbefffcc2d27ecd3a8f28b8669",
+  "generated_timezone_sha256": "fdf3446025d8460a2d2e7f2b0fc79906daa338529030dd8204a8307bf4fb0302",
+  "candidate_links_cleanup_owner": "root; links intentionally retained for the queued tooling gate",
+  "scope": "frozen45 installed compiler; candidate testdir inputs are component validation, not a rebuilt follow-up driver",
+  "recorded_utc": "2026-11-16T17:53:58.357429+00:00",
+  "all_selected_existing_checks_passed": true,
+  "stages": [
+    {
+      "stage": "testdir",
+      "completed_utc": "2026-11-16T17:48:08.334374+00:00",
+      "duration_seconds": 4.602,
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout_sha256": "306c60a1a0e3d3eea7d5bd486fce65814b7f4dd75b4b151dd525d839abe5f806",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 1763,
+      "stderr_bytes": 0,
+      "passed_tests": [
+        "Test",
+        "Test/logos/compile/const_composite_addr.lgo",
+        "Test/logos/run/rodata_write.lgo",
+        "Test/logos/run/const_unsafe_views.lgo",
+        "Test/logos/run/const_unsafe_fault.lgo",
+        "Test/logos/run/const_composite_addr.lgo",
+        "Test/logos/compile/const_unsafe_views.lgo",
+        "Test/logos/compile/const_rodata_alias.lgo",
+        "Test/logos/compile/const_composite_copy_alias.lgo"
+      ],
+      "passed_leaf_tests": [
+        {
+          "name": "Test/logos/compile/const_composite_addr.lgo",
+          "seconds": 1.48
+        },
+        {
+          "name": "Test/logos/run/rodata_write.lgo",
+          "seconds": 1.37
+        },
+        {
+          "name": "Test/logos/run/const_unsafe_views.lgo",
+          "seconds": 0.41
+        },
+        {
+          "name": "Test/logos/run/const_unsafe_fault.lgo",
+          "seconds": 0.43
+        },
+        {
+          "name": "Test/logos/run/const_composite_addr.lgo",
+          "seconds": 0.45
+        },
+        {
+          "name": "Test/logos/compile/const_unsafe_views.lgo",
+          "seconds": 0.1
+        },
+        {
+          "name": "Test/logos/compile/const_rodata_alias.lgo",
+          "seconds": 0.1
+        },
+        {
+          "name": "Test/logos/compile/const_composite_copy_alias.lgo",
+          "seconds": 0.11
+        }
+      ],
+      "leaf_count": 8,
+      "skipped_tests": []
+    },
+    {
+      "stage": "build-cmdgo-race",
+      "completed_utc": "2026-11-16T17:48:39.720360+00:00",
+      "duration_seconds": 4.396,
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 0,
+      "stderr_bytes": 0,
+      "passed_tests": [],
+      "passed_leaf_tests": [],
+      "leaf_count": 0,
+      "skipped_tests": []
+    },
+    {
+      "stage": "scripts-race",
+      "completed_utc": "2026-11-16T17:49:54.892176+00:00",
+      "duration_seconds": 27.307,
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout_sha256": "4f10bf28b631635ee858dc5fa2ee3c8c6a5eb169d0a86f6df36f4699dd03b1cd",
+      "stderr_sha256": "8cfb4d8743409fbf2255512ab4cea3e2d9e51fcfa3e03258a990bd75e3df27d9",
+      "stdout_bytes": 164058,
+      "stderr_bytes": 179,
+      "passed_tests": [
+        "TestScript",
+        "TestScript/logos_const_rodata_reloc",
+        "TestScript/logos_const_imported_rodata",
+        "TestScript/logos_const_alias_rejection"
+      ],
+      "passed_leaf_tests": [
+        {
+          "name": "TestScript/logos_const_rodata_reloc",
+          "seconds": 1.81
+        },
+        {
+          "name": "TestScript/logos_const_imported_rodata",
+          "seconds": 3.59
+        },
+        {
+          "name": "TestScript/logos_const_alias_rejection",
+          "seconds": 20.33
+        }
+      ],
+      "leaf_count": 3,
+      "skipped_tests": []
+    }
+  ],
+  "pre_run_frozen_checks": [
+    {
+      "path": "src/cmd/go/testdata/script/logos_const_alias_rejection.txt",
+      "sha256": "a53cf6106a8f9d05054a9e30fa17516f9adb6351bc4429ea6f00c1d5aa5b561e"
+    },
+    {
+      "path": "src/cmd/go/testdata/script/logos_const_imported_rodata.txt",
+      "sha256": "5b2aa95fbfd5b5592b3ed27cfeb9e71246c1ae0fd91e9bf559f60ca9e48d0582"
+    },
+    {
+      "path": "src/cmd/go/testdata/script/logos_const_rodata_reloc.txt",
+      "sha256": "137e7d7bebd372c104744760bfe166a9a7143bf8653e1c6b560c2a2fe83e2020"
+    },
+    {
+      "path": "test/logos/compile/const_composite_addr.lgo",
+      "sha256": "c97be3bcc200951723c2c844f20a942d8e4695d5831c6d34cc26e520a1346859"
+    },
+    {
+      "path": "test/logos/compile/const_composite_copy_alias.lgo",
+      "sha256": "525345854bc35310261dc3c31e37f0a5430f9a2ac84c47a9f4d75a83c5ad2bea"
+    },
+    {
+      "path": "test/logos/compile/const_rodata_alias.lgo",
+      "sha256": "e07b19a8ce41fe74d46c0f7e39e7a158f565ed97c4100d1ecb771627600ee584"
+    },
+    {
+      "path": "test/logos/compile/const_unsafe_views.lgo",
+      "sha256": "6f97a0fefc064429a42e3b030fedfe06d30b9139f9f211c53230c5fed656d0c9"
+    },
+    {
+      "path": "test/logos/run/rodata_write.lgo",
+      "sha256": "65f227125edaa187cae2aaf83478cf8391d3c33e7a3078f1917e131226adba66"
+    },
+    {
+      "path": "test/logos/run/rodata_write.out",
+      "sha256": "915886cfe810c0ed8b92bc55e6c79d738342c88cbab85c4fe68d91412bf9d2ff"
+    },
+    {
+      "path": "test/logos/run/const_unsafe_views.lgo",
+      "sha256": "bb881fad4055fb1fde1693377e562010cf25914fa293e7601f5dfc5849f0a080"
+    },
+    {
+      "path": "test/logos/run/const_unsafe_views.out",
+      "sha256": "3094499fb6b100d7f4c626244cf4009b57b13d01bc239ec96df988ebef28abb6"
+    },
+    {
+      "path": "test/logos/run/const_unsafe_fault.lgo",
+      "sha256": "5fa765e77e5e0fe54521715899769cdd877c6c2fde7ff8a365585a4a67f22c45"
+    },
+    {
+      "path": "test/logos/run/const_unsafe_fault.out",
+      "sha256": "cf513c2c9f1dbd978795a66cca9aaf8db6e3696e1bed2ac0db0c05a761fbec66"
+    }
+  ],
+  "additional_observed_controls": [
+    {
+      "path": "test/logos/run/const_composite_addr.lgo",
+      "sha256": "bc3e5ec9f07fd1f8ab3727937b9f7e5adb584ab631ab984badce6c62295a7e2f"
+    },
+    {
+      "path": "test/logos/run/const_composite_addr.out",
+      "sha256": "4ee0054e6a7da865c1f0292b9ba8bd1ca768b511f40c8714d74f1772d782dcf7"
+    }
+  ],
+  "alias_matrix": {
+    "native_rejections": 10,
+    "eject_rejections": 10,
+    "accepted_exact_outputs": 2
+  },
+  "new_mutation_probe": false
+}

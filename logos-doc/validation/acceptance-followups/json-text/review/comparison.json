@@ -1,0 +1,1913 @@
+{
+  "recorded_utc": "2026-11-16T17:28:55.933347+00:00",
+  "base": "13a968f350564e739bf700df698a9a635dcdddcd",
+  "ours": "45c29ff215477f7e403188d7452fc79aef05d791",
+  "theirs": "e5b95a2ecb5716814e52fbddddb0d6b491b6e1ce",
+  "current_head": "45c29ff215477f7e403188d7452fc79aef05d791",
+  "worktree_status": "",
+  "counts": {
+    "divergent": 13,
+    "already_identical": 45,
+    "incoming_only": 179
+  },
+  "files": [
+    {
+      "path": "logos-doc/IMPLEMENTATION.md",
+      "status": "M",
+      "category": "divergent",
+      "base_blob": "1f1953dffd62e144962574bf44f94422ed40473e",
+      "current_blob": "41eeb652956c0f31e7da4a7975033b68b25f5491",
+      "incoming_blob": "7c41779494a950310668870854d5d90a7c6929d8"
+    },
+    {
+      "path": "logos-doc/REDTEAM.md",
+      "status": "M",
+      "category": "divergent",
+      "base_blob": "dc7109eded049652398bf056c537b89d73a376a6",
+      "current_blob": "8767424c3cc0c948c30e1e7f5ed3f61f651dbb7e",
+      "incoming_blob": "2d72d3e49254865b888c96daf4ee4bd2e89a7415"
+    },
+    {
+      "path": "logos-doc/SPEC.md",
+      "status": "M",
+      "category": "divergent",
+      "base_blob": "c40a29a1cc05323695208298a52a0bc293c755b1",
+      "current_blob": "6fc97dd0115f871f77f2bcc9dd660998d667fa9b",
+      "incoming_blob": "3fead911b161de830b9c5d62aab8037341f903d9"
+    },
+    {
+      "path": "logos-doc/validation/dogfood-lint/README.md",
+      "status": "A",
+      "category": "already_identical",
+      "base_blob": null,
+      "current_blob": "c069680a7f10dfdc51d6f8acb47c4da105098faf",
+      "incoming_blob": "c069680a7f10dfdc51d6f8acb47c4da105098faf"
+    },
+    {
+      "path": "logos-doc/validation/dogfood-lint/binaries.sha256",
+      "status": "A",
+      "category": "already_identical",
+      "base_blob": null,
+      "current_blob": "93d7bfe24be3272bdbbe12c514926422affefd94",
+      "incoming_blob": "93d7bfe24be3272bdbbe12c514926422affefd94"
+    },
+    {
+      "path": "logos-doc/validation/dogfood-lint/build.log",
+      "status": "A",
+      "category": "already_identical",
+      "base_blob": null,
+      "current_blob": "980f8189e239ec2a60ff6a88a9ad1e69132e94a5",
+      "incoming_blob": "980f8189e239ec2a60ff6a88a9ad1e69132e94a5"
+    },
+    {
+      "path": "logos-doc/validation/dogfood-lint/candidate1.log",
+      "status": "A",
+      "category": "already_identical",
+      "base_blob": null,
+      "current_blob": "2e7089c11ed1f7313fdcc42ba9d64ff9bbebf8c2",
+      "incoming_blob": "2e7089c11ed1f7313fdcc42ba9d64ff9bbebf8c2"
+    },
+    {
+      "path": "logos-doc/validation/dogfood-lint/candidate2.log",
+      "status": "A",
+      "category": "already_identical",
+      "base_blob": null,
+      "current_blob": "7bba2d991ffabea435749db4f79d8f3215da1321",
+      "incoming_blob": "7bba2d991ffabea435749db4f79d8f3215da1321"
+    },
+    {
+      "path": "logos-doc/validation/dogfood-lint/closer-probe.log",
+      "status": "A",
+      "category": "already_identical",
+      "base_blob": null,
+      "current_blob": "7580619c7119ee39278fb6fa874e42ffe42b7f65",
+      "incoming_blob": "7580619c7119ee39278fb6fa874e42ffe42b7f65"
+    },
+    {
+      "path": "logos-doc/validation/dogfood-lint/compiler-red.log",
+      "status": "A",
+      "category": "already_identical",
+      "base_blob": null,
+      "current_blob": "92d84fe2d583bb501e6860ef45e93a36a68650d1",
+      "incoming_blob": "92d84fe2d583bb501e6860ef45e93a36a68650d1"
+    },
+    {
+      "path": "logos-doc/validation/dogfood-lint/fixtures.log",
+      "status": "A",
+      "category": "already_identical",
+      "base_blob": null,
+      "current_blob": "dca76194502e72aaf6018c60094d3f9f036f8d36",
+      "incoming_blob": "dca76194502e72aaf6018c60094d3f9f036f8d36"
+    },
+    {
+      "path": "logos-doc/validation/dogfood-lint/frozen-tests.sha256",
+      "status": "A",
+      "category": "already_identical",
+      "base_blob": null,
+      "current_blob": "fc58077c4a4b60ae37d5ca29f80ab2b5b9d3b383",
+      "incoming_blob": "fc58077c4a4b60ae37d5ca29f80ab2b5b9d3b383"
+    },
+    {
+      "path": "logos-doc/validation/dogfood-lint/green.log",
+      "status": "A",
+      "category": "already_identical",
+      "base_blob": null,
+      "current_blob": "3420805b81a77b30f7670a8fae30e61b8f4078be",
+      "incoming_blob": "3420805b81a77b30f7670a8fae30e61b8f4078be"
+    },
+    {
+      "path": "logos-doc/validation/dogfood-lint/invalid-probe.log",
+      "status": "A",
+      "category": "already_identical",
+      "base_blob": null,
+      "current_blob": "49de6e89bbc87a7629d866b0d6e79ffee039e6ee",
+      "incoming_blob": "49de6e89bbc87a7629d866b0d6e79ffee039e6ee"
+    },
+    {
+      "path": "logos-doc/validation/dogfood-lint/panic-probe.log",
+      "status": "A",
+      "category": "already_identical",
+      "base_blob": null,
+      "current_blob": "d4b881d7fd2e0c6a44cec161981b8de335dc869c",
+      "incoming_blob": "d4b881d7fd2e0c6a44cec161981b8de335dc869c"
+    },
+    {
+      "path": "logos-doc/validation/dogfood-lint/production.sha256",
+      "status": "A",
+      "category": "already_identical",
+      "base_blob": null,
+      "current_blob": "5ccdf2e4c7548788b60e130ca6e81fe77add7bea",
+      "incoming_blob": "5ccdf2e4c7548788b60e130ca6e81fe77add7bea"
+    },
+    {
+      "path": "logos-doc/validation/dogfood-lint/red.log",
+      "status": "A",
+      "category": "already_identical",
+      "base_blob": null,
+      "current_blob": "a2e79a5cd6f43e2b5c4428f2524e74a1cfbcd984",
+      "incoming_blob": "a2e79a5cd6f43e2b5c4428f2524e74a1cfbcd984"
+    },
+    {
+      "path": "logos-doc/validation/dogfood-lint/restored.log",
+      "status": "A",
+      "category": "already_identical",
+      "base_blob": null,
+      "current_blob": "1ad5b6bb77ea4dfcfc843eca650307ccc461207c",
+      "incoming_blob": "1ad5b6bb77ea4dfcfc843eca650307ccc461207c"
+    },
+    {
+      "path": "logos-doc/validation/dogfood-lint/vet.log",
+      "status": "A",
+      "category": "already_identical",
+      "base_blob": null,
+      "current_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "logos-doc/validation/dogfood-lint/void-probe.log",
+      "status": "A",
+      "category": "already_identical",
+      "base_blob": null,
+      "current_blob": "6946f4f87b58c0ed0316ff982a7042c743ee5808",
+      "incoming_blob": "6946f4f87b58c0ed0316ff982a7042c743ee5808"
+    },
+    {
+      "path": "logos-doc/validation/dogfood-lint/void-red.log",
+      "status": "A",
+      "category": "already_identical",
+      "base_blob": null,
+      "current_blob": "ee6e1355dd40b3c95fc68199b2795953d0b0b75a",
+      "incoming_blob": "ee6e1355dd40b3c95fc68199b2795953d0b0b75a"
+    },
+    {
+      "path": "logos-doc/validation/dogfood-lint/void-restored.log",
+      "status": "A",
+      "category": "already_identical",
+      "base_blob": null,
+      "current_blob": "18b939116167f47fe374c7336ccac786062b5a86",
+      "incoming_blob": "18b939116167f47fe374c7336ccac786062b5a86"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/.gitattributes",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "a51fbb09dc9767e373fda5cfefa61f87faa45aa4"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/README.md",
+      "status": "A",
+      "category": "divergent",
+      "base_blob": null,
+      "current_blob": "5dc04ca5b41d08b675133ae8d55888345d720c1d",
+      "incoming_blob": "ade9378b373d373bd8452a60bae48aa1611008bb"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/baseline-binary.sha256",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "eb4758ee7a66816a63f6a2727cb3ff23632d27e0"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/baseline-build.log",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/baseline-launch-rejected.log",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "eb88c7e95a9fe5fdbd1793259686eef6370c5290"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/baseline-overlay.json",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "c4179586ea9c9c449d9d0fbc70a6954cc3657115"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/baseline-source.sha256",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "01d07562c9e4d95ad31718319e153407b64a37e7"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/baseline-toolexec.sh",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "c5b86de03b043fc678e41526c6875993ab10a18d"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/binaries.sha256",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "0e4987ab4e80d31020e267cdc45d105a0cad1923"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/build-interrupted.log",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "035d3f9db4aa100a3d93e035e7505dd64d7e529e"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/build-observation.json",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "cb497c90953fd21cbdf126244c59476af31bac1b"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/build-source.txt",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "a82ed51aac64860c61804df78b2972a0fed70200"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/build.log",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "980f8189e239ec2a60ff6a88a9ad1e69132e94a5"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/cache-launch-failed.log",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "559d3e0a62e1a56e68846992510c4adc57f3036a"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/checks.log",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "3a328b6002b2d52335d372436c756403fd4c2793"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/digraph-baseline-red.log",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "78428ef4acede4835c438bb65270d2d01a3a94f1"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/digraph-oracle.log",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/digraph-red.log",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "696b5d0169cbfedf2de80cb344daa8206297bf6a"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/digraph/go/identity.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/digraph/go/identity.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "438c3b8565668702e0059f5c3a121b5397dd6593"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/digraph/go/tests.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/digraph/go/tests.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "8994d7d108188aa14086c0ee4964057a07d818b1"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/digraph/logos/identity.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/digraph/logos/identity.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "438c3b8565668702e0059f5c3a121b5397dd6593"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/digraph/logos/tests.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/digraph/logos/tests.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "afe80819aff901421fb417f3d1b8cfccffa324cd"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/digraph/oracle/identity.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/digraph/oracle/identity.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "4a13b09ad4034cc05d68ec6e1b8dab3237ca44b0"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/digraph/oracle/tests.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/digraph/oracle/tests.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "f1f50b69c25e3d548649dd65f97518d5d91a883a"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/digraph/report.json",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "65f99a7370765750639a7caab4e4f40cb8fa3611"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/files.sha256",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "406cc6daa15ca23ef27e685faefe3271b64daec8"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/format.log",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/frozen-tests.sha256",
+      "status": "A",
+      "category": "already_identical",
+      "base_blob": null,
+      "current_blob": "26a1e642f29026e76e9798ed5a763e9fb840b33b",
+      "incoming_blob": "26a1e642f29026e76e9798ed5a763e9fb840b33b"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/full-interrupted.log",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "46fe48fd042554d7e745702b6875d1f571896988"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/gates.json",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "500a06b497a3d748643b37a13429fb3b355c98b5"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/installed.log",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "6b4c7623f0dcd9043240f021d01f18f151f7ee44"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/minimal-baseline-red.log",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "49fe897c0239f6bceff0ef81ce1df886e8a93c8f"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/minimal-oracle.log",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/minimal-red.log",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "6316d85dd1c8f8740e00b305a10cea8e42a85664"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/noder-retry.log",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "9bf2e61a234a2967612789875ea84f51d042904f"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/prior-regressions.log",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "7e93f27eac8827c4dcf32e66f5523a6424c49a55"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/production.sha256",
+      "status": "A",
+      "category": "already_identical",
+      "base_blob": null,
+      "current_blob": "71e8800bb4c877c7fe4563dca112518a05cf97ea",
+      "incoming_blob": "71e8800bb4c877c7fe4563dca112518a05cf97ea"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/readonly-probe.log",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "0cf00fd3434fe1124ffe60d185f459507097da7a"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/red.log",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "751303ca5f6cd661fd33334bb6034b465bbf815a"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/replay-checks.log",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "0acae56c04a492d1b5d20479d89304d88e381e2e"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/replay_digraph.py",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "f25c54f4257e669e22ae24cb5d8d890bca440105"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/restored.log",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "0da005cd83e33ac559a2687356e9b9c1f18aefca"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/scope-green.log",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "04b32d6e941ba4c07148061882eacc4cab326d84"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/scope-probe.log",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "4c6bfc5b4f24c5b8f0f1f2d5ab3b90912a006f46"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/ssa-vet-retry.log",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/upstream-input.sha256",
+      "status": "A",
+      "category": "already_identical",
+      "base_blob": null,
+      "current_blob": "66bdf9bf4cd7da092f3d427ec19fc43b6cf0cb1a",
+      "incoming_blob": "66bdf9bf4cd7da092f3d427ec19fc43b6cf0cb1a"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/versions.json",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "61261db4935294bab4bcbdef67adf66c48f28480"
+    },
+    {
+      "path": "logos-doc/validation/imported-local-types/vet.log",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/.gitignore",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "c18dd8d83ceed1806b50b0aaa46beb7e335fff13"
+    },
+    {
+      "path": "misc/logos-dogfood/README.md",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "01e91003a5e56fc6ec35d62a42ea29e5ce5a02fa"
+    },
+    {
+      "path": "misc/logos-dogfood/corpus-link-permissions.json",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "63026a47d77204cc5177ee66735c6bdd6ead9e22"
+    },
+    {
+      "path": "misc/logos-dogfood/corpus-permissions.json",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e7fcd0c04478ee01dfb5aac3fd7855afa875a80f"
+    },
+    {
+      "path": "misc/logos-dogfood/corpus-runtime.json",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "3b7486de97fd84452a6227b444cbeffdfbebf950"
+    },
+    {
+      "path": "misc/logos-dogfood/corpus.json",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "b473fececc3abafbe183628278e1cae2b8c39095"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/corpus/README.md",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "c3a526e8dc6c087f886e54e51828518adc7ff1a1"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/corpus/files.sha256",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "cc53a07efc1441114cc570d77c61557ae1d8e7b1"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/corpus/initial-corpus.tar.gz",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "41a4f7898c1d221f436cf8959af0a62240aa19c4"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/corpus/raw-files.sha256",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "c9985dd8fd41f61dccbe0c64621d669b44b751ee"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/corpus/summary.json",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "740b8ebc2631f6c4ceedb895f60260221c625e40"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/README.md",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "5aec28828d744ba5b60f6c81757e77140fac0706"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/files.sha256",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "4e7d182f6c651b4bf770b924f9dc6d340022c2a4"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/fixtures/logs/fixture-cgo/go.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/fixtures/logs/fixture-cgo/go.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "eef8cd5052ecb6afdd2dcb5d854637532e9ea1b4"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/fixtures/logs/fixture-cgo/logos.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/fixtures/logs/fixture-cgo/logos.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "eef8cd5052ecb6afdd2dcb5d854637532e9ea1b4"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/fixtures/logs/fixture-cgo/oracle.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/fixtures/logs/fixture-cgo/oracle.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "eef8cd5052ecb6afdd2dcb5d854637532e9ea1b4"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/fixtures/logs/fixture-semantics/go.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/fixtures/logs/fixture-semantics/go.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "b213fa20e7e81bd310375eff013ede95069f35f5"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/fixtures/logs/fixture-semantics/logos.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/fixtures/logs/fixture-semantics/logos.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "b213fa20e7e81bd310375eff013ede95069f35f5"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/fixtures/logs/fixture-semantics/oracle.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/fixtures/logs/fixture-semantics/oracle.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "350f97cbeb3a322c4777418f524d3517bffa3d8b"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/fixtures/report.json",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "469cb994f7b6cea4c75184558fc23cde129dbd3a"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/fixtures/tools/go-env.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/fixtures/tools/go-env.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "442695ffa9efd057e049431b0ac05146d5822bcf"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/fixtures/tools/go-identity.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/fixtures/tools/go-identity.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "438c3b8565668702e0059f5c3a121b5397dd6593"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/fixtures/tools/go.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/fixtures/tools/go.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "3a7b1e2f00b161ce757dcbc5e58f77b0976da02f"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/fixtures/tools/logos-identity.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/fixtures/tools/logos-identity.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "438c3b8565668702e0059f5c3a121b5397dd6593"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/fixtures/tools/logos.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/fixtures/tools/logos.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "c4a2cbdf57bb4a987519c996f5d2b5f1b82f2934"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/fixtures/tools/oracle-identity.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/fixtures/tools/oracle-identity.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "4a13b09ad4034cc05d68ec6e1b8dab3237ca44b0"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/fixtures/tools/oracle.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/fixtures/tools/oracle.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "3a7b1e2f00b161ce757dcbc5e58f77b0976da02f"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/language/eject.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/language/eject.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/language/ejected-oracle.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/language/ejected-oracle.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "ccd892fdc730fde4bf7689b20e235da5ecebf6b4"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/language/native.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/language/native.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "ccd892fdc730fde4bf7689b20e235da5ecebf6b4"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/language/report.json",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "31d0ea48231fb79ce5c5913cb6668012c0cb6744"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/language/tools/go.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/language/tools/go.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "438c3b8565668702e0059f5c3a121b5397dd6593"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/language/tools/logos.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/language/tools/logos.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "438c3b8565668702e0059f5c3a121b5397dd6593"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/language/tools/oracle.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/language/tools/oracle.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "4a13b09ad4034cc05d68ec6e1b8dab3237ca44b0"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/lint/expected.json",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "aee7ba3c24dfbdfb0be1f2d27ecc95b2bc572580"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/lint/lint-repeat.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "0dfee5b34db0158cf040543b42b726af5f8f0466"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/lint/lint-repeat.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/lint/lint.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "0dfee5b34db0158cf040543b42b726af5f8f0466"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/lint/lint.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/lint/report.json",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "c044cab3cf4e3ec1ddbec5263bb63601d2926afb"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/lint/runtime-go.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/lint/runtime-go.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "accc44b2b1e63254c0ba5d1fe41e9cc8270b9436"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/lint/runtime-logos.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/lint/runtime-logos.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "243cfad056e67518fe23950adbb5c44b72cc2a41"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/lint/runtime-oracle.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/lint/runtime-oracle.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "3a0d0b32f950ec3737ca5b16a8386e7dd039b3cf"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/lint/tools/go.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/lint/tools/go.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "438c3b8565668702e0059f5c3a121b5397dd6593"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/lint/tools/logos.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/lint/tools/logos.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "438c3b8565668702e0059f5c3a121b5397dd6593"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/lint/tools/oracle.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/lint/tools/oracle.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "4a13b09ad4034cc05d68ec6e1b8dab3237ca44b0"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/modernc-policy/modernc-sqlite-logos.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/modernc-policy/modernc-sqlite-logos.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "ab70d169731ef2b8414fd7d2c43bcaf7be737679"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/modernc-policy/policy.toml",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "d165b31a4d3426f25034ff47ff60701ff7a2f328"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/modernc-policy/report.json",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "6dd0ebd5f265cc68c549c1472f7a1c2cb3364197"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/modernc-policy/tools/logos.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/modernc-policy/tools/logos.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "438c3b8565668702e0059f5c3a121b5397dd6593"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/policy_replay.py",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "03515cb8370082fb2ea7758bff7be2e38630fda8"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/replay.py",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "275b85fb85b8c93f25d15c624dca3709f79ba932"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/sqlite/modernc-sqlite-go.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/sqlite/modernc-sqlite-go.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "a252ff03784aca8dd1f9134b6a4404aaa75e77c0"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/sqlite/modernc-sqlite-logos.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/sqlite/modernc-sqlite-logos.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "968d833c7df528b4dbf550d5ce5936b62d7dcd06"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/sqlite/modernc-sqlite-oracle.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/sqlite/modernc-sqlite-oracle.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "61bdaadfcf8663f313437aab99f664c955ce3807"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/sqlite/report.json",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "48543bc47df6af1b37b593d88599d2883e110c48"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/sqlite/sqlite3-cgo-go.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/sqlite/sqlite3-cgo-go.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "36eec9248af06c833d5b16bbb97cb66d29114330"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/sqlite/sqlite3-cgo-logos.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/sqlite/sqlite3-cgo-logos.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "6b491f6a5eb0ec1ea76bc1d86cf09eb79ed548f5"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/sqlite/sqlite3-cgo-oracle.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/sqlite/sqlite3-cgo-oracle.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "db606101bf8c22201842540aedab8c0440cd0a68"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/sqlite/tools/go.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/sqlite/tools/go.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "438c3b8565668702e0059f5c3a121b5397dd6593"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/sqlite/tools/logos.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/sqlite/tools/logos.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "438c3b8565668702e0059f5c3a121b5397dd6593"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/sqlite/tools/oracle.stderr",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "misc/logos-dogfood/evidence/2026-11-16/runtime/sqlite/tools/oracle.stdout",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "4a13b09ad4034cc05d68ec6e1b8dab3237ca44b0"
+    },
+    {
+      "path": "misc/logos-dogfood/fixtures/cgo/go.mod",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "d113c29e8cd078fb40ba2269db971859be5bc5c6"
+    },
+    {
+      "path": "misc/logos-dogfood/fixtures/cgo/probe.go",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "fd90e7e5e27c05a7bc162b173153894037a4280a"
+    },
+    {
+      "path": "misc/logos-dogfood/fixtures/cgo/probe_test.go",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "d7ebc6338408332a3187c5c9ccd0464b63c5cbc8"
+    },
+    {
+      "path": "misc/logos-dogfood/fixtures/language/go.mod",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "bbff07284d025d1459004a20c57acf93af3712a1"
+    },
+    {
+      "path": "misc/logos-dogfood/fixtures/language/main.lgo",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "a816a67679fd49b3709604e238f3eb8f7877ff2b"
+    },
+    {
+      "path": "misc/logos-dogfood/fixtures/lint/cases.go",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "a1189d5c4e1c07422b779c6dca0fba0f8fe47970"
+    },
+    {
+      "path": "misc/logos-dogfood/fixtures/lint/cases_test.go",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "b135ed679b37251fc8e56905b4ad5eabab9554ad"
+    },
+    {
+      "path": "misc/logos-dogfood/fixtures/lint/go.mod",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "bd0e9393ab77d86665a07118baf8a8729958dc15"
+    },
+    {
+      "path": "misc/logos-dogfood/fixtures/semantics/go.mod",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "12330b97e882feea735ae4b70f83fa63a3f033b2"
+    },
+    {
+      "path": "misc/logos-dogfood/fixtures/semantics/semantics_test.go",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "63bb6a121717ee8d8a78c2d8599ebc9d3cab9f50"
+    },
+    {
+      "path": "misc/logos-dogfood/policies/decorder.toml",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "133ab2570bc07c2e931c6c0e2aafe558f87bb287"
+    },
+    {
+      "path": "misc/logos-dogfood/policies/errorlint.toml",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "05c6e79f9c0afc9d561aaba61ab495a74bd4a922"
+    },
+    {
+      "path": "misc/logos-dogfood/policies/exhaustive.toml",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "05c6e79f9c0afc9d561aaba61ab495a74bd4a922"
+    },
+    {
+      "path": "misc/logos-dogfood/policies/govwa.toml",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "793432ce80408ae9197085be70d244d9d9babe0e"
+    },
+    {
+      "path": "misc/logos-dogfood/policies/link/errorlint.toml",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "7f727209eb5505fe9b1c8a6cadcac402f0d30fe4"
+    },
+    {
+      "path": "misc/logos-dogfood/policies/link/exhaustive.toml",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "7f727209eb5505fe9b1c8a6cadcac402f0d30fe4"
+    },
+    {
+      "path": "misc/logos-dogfood/policies/modernc-libc.toml",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "5e80d861e42d072bc88c31f245d36b33148318cd"
+    },
+    {
+      "path": "misc/logos-dogfood/policies/modernc-mathutil.toml",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "50915d8ecd26a8c0c0742560379e3adb3dbfa6e7"
+    },
+    {
+      "path": "misc/logos-dogfood/policies/modernc-memory.toml",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "0790a354ca0069dfc13920d564837a72cbfcc258"
+    },
+    {
+      "path": "misc/logos-dogfood/policies/modernc-sqlite.toml",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "d165b31a4d3426f25034ff47ff60701ff7a2f328"
+    },
+    {
+      "path": "misc/logos-dogfood/policies/protobuf.toml",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "a5dbaa3322c0f474be2bca0c9b78ea18c91a74b4"
+    },
+    {
+      "path": "misc/logos-dogfood/policies/tools.toml",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "6405082ccaeb3d9ada840524555585297f17b4e5"
+    },
+    {
+      "path": "misc/logos-dogfood/replay_ffi.py",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "33fe627842a1c33a8898bc86262ea5144b3741d7"
+    },
+    {
+      "path": "misc/logos-dogfood/run.py",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "f3fcb0c6c920292205623bb644f2b6135db4d08c"
+    },
+    {
+      "path": "misc/logos-dogfood/test_run.py",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "03529909e8c52ded3c1eb79319e7436068fabed5"
+    },
+    {
+      "path": "misc/logos-dogfood/testdata/compiler-error.jsonl",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "8dd2f53b6cc3f7c5967140d93d36762988bd071b"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/compile_local_type_import_test.go",
+      "status": "A",
+      "category": "already_identical",
+      "base_blob": null,
+      "current_blob": "538942d21a9bdaa0825ec76a29c694fc98784b43",
+      "incoming_blob": "538942d21a9bdaa0825ec76a29c694fc98784b43"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/editmap_test.go",
+      "status": "M",
+      "category": "already_identical",
+      "base_blob": "c1f1c9f75b200d77cdc30dc26b6fcc28e1921314",
+      "current_blob": "e422bc65e33bea19849b8f30211bf1fc9881dfa4",
+      "incoming_blob": "e422bc65e33bea19849b8f30211bf1fc9881dfa4"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/json_static.go",
+      "status": "M",
+      "category": "divergent",
+      "base_blob": "d7bc4f0a68b1fb0dc3ee7a4310de8c58bda18570",
+      "current_blob": "d6c0ba07a25a1842fbc5dfdff19e16f29d108db2",
+      "incoming_blob": "2da76927b6f83ae45d5d134c44c3d91209052f9f"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/json_unmarshal.go",
+      "status": "M",
+      "category": "divergent",
+      "base_blob": "925fa672be43e8ea1f08b4c03c02500403bc5d71",
+      "current_blob": "efd60d52115e68d828b0a583caa868a5674f9fd0",
+      "incoming_blob": "dd61cbbad47ec4d26e819cdcd991850be01b5e11"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/lint/compile_panic_identity_test.go",
+      "status": "A",
+      "category": "already_identical",
+      "base_blob": null,
+      "current_blob": "ae3a2a821d30a88129afb805b0502b59fdf9c5ea",
+      "incoming_blob": "ae3a2a821d30a88129afb805b0502b59fdf9c5ea"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/lint/compile_panic_void_identity_test.go",
+      "status": "A",
+      "category": "already_identical",
+      "base_blob": null,
+      "current_blob": "5cc85eb8fd8afe6f82b01b68f1f4c2fbfe5b76fb",
+      "incoming_blob": "5cc85eb8fd8afe6f82b01b68f1f4c2fbfe5b76fb"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/lint/nilflow.go",
+      "status": "M",
+      "category": "already_identical",
+      "base_blob": "89e7eab3a9cf8b81f94be5a89c7fd7b294235794",
+      "current_blob": "566b6006336d8eb9e3cbcc3f501a9c233758365b",
+      "incoming_blob": "566b6006336d8eb9e3cbcc3f501a9c233758365b"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/lint/rule_flow_terminator_test.go",
+      "status": "A",
+      "category": "already_identical",
+      "base_blob": null,
+      "current_blob": "98bb935730957bae539e7e201b8a745937fe3371",
+      "incoming_blob": "98bb935730957bae539e7e201b8a745937fe3371"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/lint/rule_infinite_recursion.go",
+      "status": "M",
+      "category": "already_identical",
+      "base_blob": "cbf7fa6401ce43fe98a27829d0bbf90c85f4a0fd",
+      "current_blob": "8e43f06e7e39cfdefe1835f6118fed5bb56bf0e3",
+      "incoming_blob": "8e43f06e7e39cfdefe1835f6118fed5bb56bf0e3"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/lint/rule_unclosed_io_closer.go",
+      "status": "M",
+      "category": "already_identical",
+      "base_blob": "dbd974af6c6e964613e431410758167bef6be441",
+      "current_blob": "b44c89acb7ea00928b52fc6dd983c563a6028a12",
+      "incoming_blob": "b44c89acb7ea00928b52fc6dd983c563a6028a12"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/lint/rule_unclosed_io_closer_test.go",
+      "status": "A",
+      "category": "already_identical",
+      "base_blob": null,
+      "current_blob": "4ba17950d35d92e1fef758e73c45f3067b2d8bbb",
+      "incoming_blob": "4ba17950d35d92e1fef758e73c45f3067b2d8bbb"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/lower_test.go",
+      "status": "M",
+      "category": "already_identical",
+      "base_blob": "a559bb634711ace3c2bf1ad7ad68a86473bd8445",
+      "current_blob": "adc3a76bb78477c832226b2e0ac882a43515a579",
+      "incoming_blob": "adc3a76bb78477c832226b2e0ac882a43515a579"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/optfacts.go",
+      "status": "M",
+      "category": "already_identical",
+      "base_blob": "244bee7ce0a20ca12c78d7a95c8966f8e7560bad",
+      "current_blob": "ec7bea568aabf5aa8ecbcbd9e54705812259e2b9",
+      "incoming_blob": "ec7bea568aabf5aa8ecbcbd9e54705812259e2b9"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/optfacts_scope_test.go",
+      "status": "A",
+      "category": "already_identical",
+      "base_blob": null,
+      "current_blob": "655153773eaa07c19953d845729085786eead74c",
+      "incoming_blob": "655153773eaa07c19953d845729085786eead74c"
+    },
+    {
+      "path": "src/cmd/compile/internal/types2/builtins.go",
+      "status": "M",
+      "category": "already_identical",
+      "base_blob": "5bebd3ab27f59e71d7562403d9592567224e1da4",
+      "current_blob": "4c797fa577fbee9c985a0fb5ff711531027f9b2c",
+      "incoming_blob": "4c797fa577fbee9c985a0fb5ff711531027f9b2c"
+    },
+    {
+      "path": "src/cmd/compile/internal/types2/narrow_logos.go",
+      "status": "M",
+      "category": "already_identical",
+      "base_blob": "6253906f5b0a55114e92b69ee9ce59f710454625",
+      "current_blob": "c16c5244db2ad2f6943f4d38277ca2aff9088fa0",
+      "incoming_blob": "c16c5244db2ad2f6943f4d38277ca2aff9088fa0"
+    },
+    {
+      "path": "src/cmd/go/scriptconds_test.go",
+      "status": "M",
+      "category": "incoming_only",
+      "base_blob": "0a186afcf05314553d46435649b21fde4bb26c71",
+      "current_blob": "0a186afcf05314553d46435649b21fde4bb26c71",
+      "incoming_blob": "aea9bf209621643b11e9bc532047ae3038d567ab"
+    },
+    {
+      "path": "src/cmd/go/testdata/script/README",
+      "status": "M",
+      "category": "incoming_only",
+      "base_blob": "f4269dfef1a646479e09fdc30bd535bef2bedf0b",
+      "current_blob": "f4269dfef1a646479e09fdc30bd535bef2bedf0b",
+      "incoming_blob": "b555e50f7defc2882270ff40821625224399ee8c"
+    },
+    {
+      "path": "src/cmd/go/testdata/script/logos_eject_simd_slice.txt",
+      "status": "M",
+      "category": "incoming_only",
+      "base_blob": "593c32df9dfab4ff48000b54a37b3fa0b30167fb",
+      "current_blob": "593c32df9dfab4ff48000b54a37b3fa0b30167fb",
+      "incoming_blob": "947dfbe29553be8c94e1014dfdef5f78cab89dc3"
+    },
+    {
+      "path": "src/cmd/link/internal/ld/capabilities_chains_logos.go",
+      "status": "M",
+      "category": "incoming_only",
+      "base_blob": "d4eb1fb970bc926a92367039936266e5cedac390",
+      "current_blob": "d4eb1fb970bc926a92367039936266e5cedac390",
+      "incoming_blob": "062435afe8dc89ec73022f0474d900d6536c33ac"
+    },
+    {
+      "path": "src/cmd/link/internal/ld/capabilities_discovery_logos_test.go",
+      "status": "A",
+      "category": "incoming_only",
+      "base_blob": null,
+      "current_blob": null,
+      "incoming_blob": "e75233fbb5ed2849fe502eae253311b90c0c8bae"
+    },
+    {
+      "path": "src/logos/rt/json/doc.go",
+      "status": "M",
+      "category": "already_identical",
+      "base_blob": "f08a68b246f2acf7a825bb4b6bae9ee292366c58",
+      "current_blob": "00e2bcdf08ee55a34280a2b26cb5ef1ba64fc01b",
+      "incoming_blob": "00e2bcdf08ee55a34280a2b26cb5ef1ba64fc01b"
+    },
+    {
+      "path": "src/logos/rt/json/path_v1.go",
+      "status": "M",
+      "category": "divergent",
+      "base_blob": "8099c543323c91564c01fde1a7ab3895167ba790",
+      "current_blob": "a27a94d913f6148cb460a90292392dd27b0e8c2d",
+      "incoming_blob": "46dad0fd35f51cfa27178399f575c3d0c423532f"
+    },
+    {
+      "path": "src/logos/rt/json/path_v2.go",
+      "status": "M",
+      "category": "divergent",
+      "base_blob": "a66573fa3e802242d1d966f46c4f204a5415a228",
+      "current_blob": "0ad3e07de152e93627389a33bdfb4487e5db41a5",
+      "incoming_blob": "894ad2f5590f23c0440c25c4a636e6c9074a9846"
+    },
+    {
+      "path": "src/logos/rt/json/quoted_input_v1_test.go",
+      "status": "A",
+      "category": "already_identical",
+      "base_blob": null,
+      "current_blob": "e3bd7788f8f77526305c523b5bb66777f99e334c",
+      "incoming_blob": "e3bd7788f8f77526305c523b5bb66777f99e334c"
+    },
+    {
+      "path": "src/logos/rt/json/scan.go",
+      "status": "M",
+      "category": "divergent",
+      "base_blob": "cf0cf96a3a885405fbd853bdbca7b7eba5b49796",
+      "current_blob": "635bbba9af046a5ebf8c6407cfaf3caa9af33659",
+      "incoming_blob": "13b3c20d486fb5d8e6804e5a323be51424b8f137"
+    },
+    {
+      "path": "src/logos/rt/json/scan_test.go",
+      "status": "M",
+      "category": "divergent",
+      "base_blob": "fb8ed2f5211235f7a284d4368b7a2fc7df8f9409",
+      "current_blob": "68551bf23dc8a4ffddd1cee28434e141ac8fd79d",
+      "incoming_blob": "a0f058b19c09a53f5ef09d5c1321b1a56d99e107"
+    },
+    {
+      "path": "src/logos/rt/json/stream_v2_test.go",
+      "status": "A",
+      "category": "divergent",
+      "base_blob": null,
+      "current_blob": "751ae027ff615599d018c1bef3d695f9768a3424",
+      "incoming_blob": "381d0b560a7acbd5ed506fd35f8895e17d913599"
+    },
+    {
+      "path": "src/logos/rt/json/unquote.go",
+      "status": "M",
+      "category": "already_identical",
+      "base_blob": "085f372d86a3dace68b311e8f30c062d3b76a7cf",
+      "current_blob": "88e97cb9ccc766d057e89e30abdf66cbe4f64314",
+      "incoming_blob": "88e97cb9ccc766d057e89e30abdf66cbe4f64314"
+    },
+    {
+      "path": "test/logos/lint/unclosed_io_closer.lgo",
+      "status": "M",
+      "category": "already_identical",
+      "base_blob": "a1b0ae951489815ffd6b419546812595576913ed",
+      "current_blob": "0bad50b6677eeccc1d2ef252f0fcf54d973f203d",
+      "incoming_blob": "0bad50b6677eeccc1d2ef252f0fcf54d973f203d"
+    },
+    {
+      "path": "test/logos/lint/unclosed_io_closer_go.go",
+      "status": "M",
+      "category": "already_identical",
+      "base_blob": "fbaa48213c07841f3561d75b301f05c7ac9dfe4f",
+      "current_blob": "8d518b9385ec0a2738662c6276554ee6fbb3021b",
+      "incoming_blob": "8d518b9385ec0a2738662c6276554ee6fbb3021b"
+    },
+    {
+      "path": "test/logos/run/json_marshal_test.lgo",
+      "status": "M",
+      "category": "already_identical",
+      "base_blob": "151c1a6bfb74a54787606c97fabe82ed78bd5f96",
+      "current_blob": "a9e8f8b48b94edee614f0052b5dd6ea15304d4ee",
+      "incoming_blob": "a9e8f8b48b94edee614f0052b5dd6ea15304d4ee"
+    },
+    {
+      "path": "test/logos/run/json_marshal_v2_test.lgo",
+      "status": "A",
+      "category": "divergent",
+      "base_blob": null,
+      "current_blob": "9fe60cad12406e1a4f79e59bb454b8ae4b18c2b5",
+      "incoming_blob": "b2ecd7f0e6710cbccabc8909ab8dce63bbb08030"
+    },
+    {
+      "path": "test/logos/run/json_static_encoder_methods_test.lgo",
+      "status": "M",
+      "category": "already_identical",
+      "base_blob": "6aa90f5fdf7a3bce77a80afaadbf56cfbf6d6213",
+      "current_blob": "b6c96182b47ab361f03f0a017af4b219d88c8460",
+      "incoming_blob": "b6c96182b47ab361f03f0a017af4b219d88c8460"
+    },
+    {
+      "path": "test/logos/run/json_string_method_stream_test.lgo",
+      "status": "A",
+      "category": "already_identical",
+      "base_blob": null,
+      "current_blob": "018408410f91dbfbc29ed42746c15624cb6e5834",
+      "incoming_blob": "018408410f91dbfbc29ed42746c15624cb6e5834"
+    },
+    {
+      "path": "test/logos/run/json_string_method_wrong_sig_test.lgo",
+      "status": "A",
+      "category": "divergent",
+      "base_blob": null,
+      "current_blob": "ea2706146c4a2050f1a03d0647eb037a659d2cd8",
+      "incoming_blob": "7a8a84e0df7d5a48eea3adab67344ce7fda5a3d1"
+    },
+    {
+      "path": "test/logos/run/json_unsupported_kinds_test.lgo",
+      "status": "M",
+      "category": "already_identical",
+      "base_blob": "86d03d1dd49efe658d98b6a40722862f0df89afc",
+      "current_blob": "b33cec7db7377132a811dd844d92b584a2e15c96",
+      "incoming_blob": "b33cec7db7377132a811dd844d92b584a2e15c96"
+    }
+  ],
+  "merge_tree_exit_code": 1,
+  "merge_tree_result": "80d9d05c73b3af05107e64a1bcb483552dd3baac"
+}

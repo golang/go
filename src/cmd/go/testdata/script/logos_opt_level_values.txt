@@ -75,3 +75,15 @@ func main() {
 package helper
 
 func Hello() {}
+
+-- mixed/go.work --
+go 1.27
+
+use (
+	.
+	./helper
+)
+-- mixed/helper/go.mod --
+module example.com/optlevelvalues/mixed/helper
+
+go 1.27

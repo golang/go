@@ -1,0 +1,99 @@
+{
+  "revision": "8afec95580ed24e593307fd9d30d626eff31e22d",
+  "tree": "8f750747af1eed986913e78e56c1106d03aa3d30",
+  "files": [
+    {
+      "path": "src/cmd/compile/internal/logos/lint/registry.go",
+      "blob": "e33e662819a44d3d5175f6b6f58cc2001245a3e9",
+      "sha256": "59772a4484e17c9161c7ae0d6b1adceb1927834182e82d5bcc6179ded5470729",
+      "bytes": 904,
+      "execution_frozen": true
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/lint/rule_array_index_out_of_bounds.go",
+      "blob": "efb6768ede24aacf37ed7828d740a2c4e2c2ee73",
+      "sha256": "c7b8b42a63d7da6f4b0e39daae1a57bf17735520fad2a214ab1fada1b65ffb59",
+      "bytes": 11238,
+      "execution_frozen": true
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/lint/rule_array_index_out_of_bounds_test.go",
+      "blob": "6c65bb9853523e8e496273f3bf78e6e2779c68a9",
+      "sha256": "facd3691c92ef91fc14f92879f8bbfb5296c6fab9c429333dd8b933f14015b5c",
+      "bytes": 8976,
+      "execution_frozen": true
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/lint/lint_test.go",
+      "blob": "b67b45af1b5338f1a4005f4fa7ceb773a6284d70",
+      "sha256": "422bfa1494dd0aa5b6405daa3683b7527a39f22ed4f6690af9252825bc1143c4",
+      "bytes": 32206,
+      "execution_frozen": true
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/lint/rule_default_test.go",
+      "blob": "0bb35f04d08238e9aed2962b5d71b2dd61475898",
+      "sha256": "c52a369b9915faaf852ca5c9f14db0b172c936579b920c8488fa9a490c2bf305",
+      "bytes": 3920,
+      "execution_frozen": true
+    },
+    {
+      "path": "test/logos/lint/array_index_out_of_bounds.lgo",
+      "blob": "4082371d650fed5d82342c4c304d9ef7b2ac3b72",
+      "sha256": "81f3b9392472049eb6246adcfb406cb4a7e245a6ab63dd3626c663129504831e",
+      "bytes": 1584,
+      "execution_frozen": true
+    },
+    {
+      "path": "test/logos/lint/array_index_out_of_bounds_go.go",
+      "blob": "4082371d650fed5d82342c4c304d9ef7b2ac3b72",
+      "sha256": "81f3b9392472049eb6246adcfb406cb4a7e245a6ab63dd3626c663129504831e",
+      "bytes": 1584,
+      "execution_frozen": true
+    },
+    {
+      "path": "src/cmd/go/testdata/script/logos_guarded_enum_index.txt",
+      "blob": "4a737bfaeb1d2ddba2ea0fcfc1646bf65c3cc607",
+      "sha256": "1553b6536470ee5c56ed8baccaa7086d33209dc35879d496712aee57cf0d10d9",
+      "bytes": 1640,
+      "execution_frozen": true
+    },
+    {
+      "path": "logos-doc/IMPLEMENTATION.md",
+      "blob": "a48b83a7f26e1124cff049d4dc43c51b96a784dc",
+      "sha256": "cff850a6d735600df48b6bc55abc1afda0f680557fb78830b8c4de53eeb4885f",
+      "bytes": 705391,
+      "execution_frozen": false
+    },
+    {
+      "path": "logos-doc/REDTEAM.md",
+      "blob": "9cca21c7cb5594b59b39bc4344ab04d2063b7496",
+      "sha256": "a604aa4bf97673ec8dd1ce93b35533916cf2598fd9aa44cfe935ea519a488de8",
+      "bytes": 128166,
+      "execution_frozen": false
+    },
+    {
+      "path": "logos-doc/SPEC.md",
+      "blob": "a5e4f8839a0e16e14e1b56bb08c2c95bf9779b98",
+      "sha256": "7d95f12e7732d23c833fe524ccce368de69cbda8b9e9069c5325422b2726689f",
+      "bytes": 192578,
+      "execution_frozen": false
+    },
+    {
+      "path": "logos-doc/golangci.yml",
+      "blob": "26fe9f8ec8a0b249179e5641ae7a81954ac5273b",
+      "sha256": "248b858ccac1c3b8fe8ac383b3cf8f6ba2362f1e160267cf7f1aa40248452791",
+      "bytes": 2734,
+      "execution_frozen": false
+    }
+  ],
+  "unit_leaf_count": 96,
+  "mutation": {
+    "path": "src/cmd/compile/internal/logos/lint/rule_array_index_out_of_bounds.go",
+    "old": "proof.block(fn.Body.List) == arrayIndexReached",
+    "new": "proof.block(fn.Body.List) != arrayIndexReached",
+    "original_sha256": "c7b8b42a63d7da6f4b0e39daae1a57bf17735520fad2a214ab1fada1b65ffb59",
+    "mutant_sha256": "7bb00ee9b5b9ac7dc6a82a70aa06fa5860c758dbce0ac87a5f47607ce53cfac9"
+  },
+  "execution": "not started; final source/toolchain binding and Go lane pending"
+}

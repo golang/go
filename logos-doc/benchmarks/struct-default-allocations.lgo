@@ -1,0 +1,68 @@
+package main
+
+import (
+	"fmt"
+	"testing"
+)
+
+type Config struct {
+	A01 int = 1
+	A02 int = 2
+	A03 int = 3
+	A04 int = 4
+	A05 int = 5
+	A06 int = 6
+	A07 int = 7
+	A08 int = 8
+	A09 int = 9
+	A10 int = 10
+	A11 int = 11
+	A12 int = 12
+	A13 int = 13
+	A14 int = 14
+	A15 int = 15
+	A16 int = 16
+	A17 int = 17
+	A18 int = 18
+	A19 int = 19
+	A20 int = 20
+	A21 int = 21
+	A22 int = 22
+	A23 int = 23
+	A24 int = 24
+	A25 int = 25
+	A26 int = 26
+	A27 int = 27
+	A28 int = 28
+	A29 int = 29
+	A30 int = 30
+	A31 int = 31
+	A32 int = 32
+	Items []int = []int{1, 2, 3, 4}
+	Lookup map[int]int = map[int]int{1: 7, 2: 9}
+}
+
+var sink int
+
+//go:noinline
+func constructAndUse(delta int) int {
+	c := Config{}
+	c.Items[0] += delta
+	c.Lookup[1] += delta
+	first, _ := c.Lookup[1]
+	second, _ := c.Lookup[2]
+	return (
+		c.A01 + c.A02 + c.A03 + c.A04 + c.A05 + c.A06 + c.A07 + c.A08 +
+		c.A09 + c.A10 + c.A11 + c.A12 + c.A13 + c.A14 + c.A15 + c.A16 +
+		c.A17 + c.A18 + c.A19 + c.A20 + c.A21 + c.A22 + c.A23 + c.A24 +
+		c.A25 + c.A26 + c.A27 + c.A28 + c.A29 + c.A30 + c.A31 + c.A32 +
+		c.Items[0] + first + second + len(c.Items) + len(c.Lookup))
+}
+
+func main() {
+	const repetitions = 10000
+	allocations := testing.AllocsPerRun(repetitions, func() {
+		sink = constructAndUse(3)
+	})
+	fmt.Printf("default_fields=34 repetitions=%d allocations_per_run=%.6f checksum=%d\n", repetitions, allocations, sink)
+}

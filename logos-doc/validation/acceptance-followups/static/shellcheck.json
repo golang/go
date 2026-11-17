@@ -1,0 +1,14 @@
+{
+  "command": [
+    "/workspace/scratch/9949907ca71e/language-ci-tools/bin/shellcheck",
+    ".github/scripts/install-ci-tool.sh",
+    ".github/scripts/install-upstream-oracles.sh"
+  ],
+  "cwd": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes",
+  "status": 0,
+  "signal": null,
+  "error": "",
+  "seconds": 0.037,
+  "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

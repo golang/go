@@ -1,0 +1,46 @@
+# The source frontend is an internal, checked mode with no object output.
+env GOTOOLCHAIN=local
+
+! go tool compile -logos.cgoeject -logos.eject=$WORK/plain-out plain/main.go
+stdout 'logos.cgoeject requires original loGo/s cgo sources'
+! exists $WORK/plain-out
+
+! go tool compile -logos.cgoeject -logos.eject=$WORK/lgo-out lgo/main.lgo
+stdout 'logos.cgoeject requires original loGo/s cgo sources'
+! exists $WORK/lgo-out
+
+! go tool compile -logos.cgoeject -logos.eject=$WORK/missing-out cgo/main.lgo
+stdout 'main.lgo:4:.*undefined: C.int'
+! exists $WORK/missing-out
+
+! go tool compile -logos.cgoeject -logos.eject=$WORK/wrong-out cgo/wrong.lgo cgo/_cgo_gotypes.go
+stdout 'wrong.lgo:4:.*cannot use "bad"'
+! exists $WORK/wrong-out
+
+go tool compile -p p -o source.o -logos.cgoeject -logos.eject=$WORK/valid-out cgo/main.lgo cgo/_cgo_gotypes.go
+exists $WORK/valid-out/main.go
+grep 'var X C.int = 1' $WORK/valid-out/main.go
+! exists source.o
+
+-- plain/main.go --
+package p
+
+-- lgo/main.lgo --
+package p
+
+-- cgo/main.lgo --
+package p
+import "C"
+
+var X C.int = 1
+
+-- cgo/wrong.lgo --
+package p
+import "C"
+
+var X C.int = "bad"
+
+-- cgo/_cgo_gotypes.go --
+package p
+
+type _Ctype_int int32

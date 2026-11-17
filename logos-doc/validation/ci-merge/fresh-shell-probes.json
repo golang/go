@@ -1,0 +1,65 @@
+{
+  "scope": "Fresh isolated Bash behavior probes; no compiler build or repository mutation",
+  "bootstrap_lookup_failure": {
+    "old": {
+      "command": [
+        "bash",
+        "--noprofile",
+        "--norc",
+        "-euo",
+        "pipefail",
+        "-c",
+        "go() { return 37; }; export GOROOT_BOOTSTRAP=\"$(go env GOROOT)\"; printf \"BUILD_REACHED\\n\""
+      ],
+      "status": 0,
+      "stdout": "BUILD_REACHED\n",
+      "stderr": ""
+    },
+    "fixed": {
+      "command": [
+        "bash",
+        "--noprofile",
+        "--norc",
+        "-euo",
+        "pipefail",
+        "-c",
+        "go() { return 37; }; GOROOT_BOOTSTRAP=$(go env GOROOT); export GOROOT_BOOTSTRAP; printf \"BUILD_REACHED\\n\""
+      ],
+      "status": 37,
+      "stdout": "",
+      "stderr": ""
+    }
+  },
+  "simd_expansion": {
+    "old": {
+      "command": [
+        "bash",
+        "--noprofile",
+        "--norc",
+        "-euo",
+        "pipefail",
+        "-c",
+        "files=\"cmd/go/scriptconds_test.go cmd/go/scriptconds_simd_logos_test.go cmd/compile/internal/ssa/zcse.go cmd/compile/internal/ssa/branchelim.go cmd/compile/internal/ssa/*logos*.go\"; printf \"%s\\n\" $files"
+      ],
+      "status": 0,
+      "stdout": "cmd/go/scriptconds_test.go\ncmd/go/scriptconds_simd_logos_test.go\ncmd/compile/internal/ssa/zcse.go\ncmd/compile/internal/ssa/branchelim.go\ncmd/compile/internal/ssa/branchelim_logos_test.go\ncmd/compile/internal/ssa/logos_arena.go\ncmd/compile/internal/ssa/logos_arena_ops_test.go\ncmd/compile/internal/ssa/logos_region_ops_test.go\ncmd/compile/internal/ssa/loopstride_logos.go\ncmd/compile/internal/ssa/loopstride_logos_test.go\ncmd/compile/internal/ssa/pair_logos.go\ncmd/compile/internal/ssa/pair_logos_test.go\ncmd/compile/internal/ssa/poset_logos.go\ncmd/compile/internal/ssa/simd_guard_logos.go\ncmd/compile/internal/ssa/stackalloc_logos.go\ncmd/compile/internal/ssa/zcse_logos_test.go\ncmd/compile/internal/ssa/zcse_simd_logos_test.go\n",
+      "stderr": ""
+    },
+    "fixed": {
+      "command": [
+        "bash",
+        "--noprofile",
+        "--norc",
+        "-euo",
+        "pipefail",
+        "-c",
+        "files=(cmd/go/scriptconds_test.go cmd/go/scriptconds_simd_logos_test.go cmd/compile/internal/ssa/zcse.go cmd/compile/internal/ssa/branchelim.go cmd/compile/internal/ssa/*logos*.go); printf \"%s\\n\" \"${files[@]}\""
+      ],
+      "status": 0,
+      "stdout": "cmd/go/scriptconds_test.go\ncmd/go/scriptconds_simd_logos_test.go\ncmd/compile/internal/ssa/zcse.go\ncmd/compile/internal/ssa/branchelim.go\ncmd/compile/internal/ssa/branchelim_logos_test.go\ncmd/compile/internal/ssa/logos_arena.go\ncmd/compile/internal/ssa/logos_arena_ops_test.go\ncmd/compile/internal/ssa/logos_region_ops_test.go\ncmd/compile/internal/ssa/loopstride_logos.go\ncmd/compile/internal/ssa/loopstride_logos_test.go\ncmd/compile/internal/ssa/pair_logos.go\ncmd/compile/internal/ssa/pair_logos_test.go\ncmd/compile/internal/ssa/poset_logos.go\ncmd/compile/internal/ssa/simd_guard_logos.go\ncmd/compile/internal/ssa/stackalloc_logos.go\ncmd/compile/internal/ssa/zcse_logos_test.go\ncmd/compile/internal/ssa/zcse_simd_logos_test.go\n",
+      "stderr": ""
+    },
+    "identical": true,
+    "file_count": 17
+  }
+}

@@ -1,0 +1,268 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+)
+
+var events []string
+var failed bool
+var failure = errors.New("primary")
+var cleanupFailure = errors.New("cleanup")
+
+type box struct {
+	tag string
+}
+
+type holder struct {
+	*box
+}
+
+type pairArgument = (int, string)
+type optionArgument = int?
+
+func record(tag string, value any) {
+	events = append(events, fmt.Sprint(tag, ":", value))
+}
+
+func (b box) plain[T any](v T) {
+	record(b.tag, v)
+}
+
+func (b box) value[T any](v T) error {
+	record(b.tag, v)
+	return cleanupFailure
+}
+
+func (b *box) pointer[T any](v T) error {
+	record(b.tag, v)
+	return nil
+}
+
+func (b box) partial[T, U any](v U) error {
+	events = append(events, fmt.Sprintf("%s:%T:%v", b.tag, *new(T), v))
+	return cleanupFailure
+}
+
+func (b box) partialPlain[T, U any](v U) {
+	events = append(events, fmt.Sprintf("%s:%T:%v", b.tag, *new(T), v))
+}
+
+func (b box) typed[T any](v T, want string) error {
+	if fmt.Sprintf("%T", v) != want || fmt.Sprintf("%T", *new(T)) != want {
+		panic("explicit type argument changed")
+	}
+	events = append(events, b.tag)
+	return nil
+}
+
+func check(name, want string) {
+	got := fmt.Sprint(events)
+	if got != want {
+		fmt.Printf("FAIL %s: got %s want %s\n", name, got, want)
+		failed = true
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func plainErrdefer() error {
+	b := box{tag: "before"}
+	errdefer b.plain[int](7)
+	b.tag = "after"
+	return failure
+}
+
+func checkedErrdefer() error {
+	b := box{tag: "before"}
+	errdefer b.partial[int](7)?
+	b.tag = "after"
+	return failure
+}
+
+func checkedDefer() error {
+	b := box{tag: "before"}
+	defer (b.value[int])(7)?
+	defer b.partial[int](8)?
+	b.tag = "after"
+	return nil
+}
+
+func pointerErrdefer() error {
+	first := &box{tag: "first"}
+	p := first
+	errdefer p.pointer[int](7)?
+	p = &box{tag: "second"}
+	first.tag = "changed"
+	return failure
+}
+
+func addressErrdefer() error {
+	b := box{tag: "before"}
+	errdefer b.pointer[int](7)?
+	b.tag = "after"
+	return failure
+}
+
+func dereferenceErrdefer() error {
+	b := &box{tag: "before"}
+	errdefer b.plain[int](7)
+	b.tag = "after"
+	return failure
+}
+
+func promotedErrdefer() error {
+	first := &box{tag: "before"}
+	h := holder{box: first}
+	errdefer h.plain[int](7)
+	h.box = &box{tag: "second"}
+	first.tag = "changed"
+	return failure
+}
+
+func promotedPointerErrdefer() error {
+	first := &box{tag: "before"}
+	h := holder{box: first}
+	errdefer h.pointer[int](7)?
+	h.box = &box{tag: "second"}
+	first.tag = "changed"
+	return failure
+}
+
+func receiver() box {
+	events = append(events, "receiver")
+	return box{tag: "before"}
+}
+
+func argument() int {
+	events = append(events, "argument")
+	return 7
+}
+
+func ordered(success bool) error {
+	errdefer receiver().plain[int](argument())
+	events = append(events, "body")
+	if success {
+		return nil
+	}
+	return failure
+}
+
+func scopedShadow() {
+	b := box{tag: "before"}
+outer:
+	switch {
+	default:
+		type Kind = int
+		scope defer b.partialPlain[Kind](7)
+		b.tag = "after"
+		{
+			type Kind = string
+			_ = Kind("")
+			break outer
+		}
+	}
+}
+
+func scopedLoop() {
+	for i := 0; i < 2; i++ {
+		b := box{tag: fmt.Sprint(i)}
+		scope defer b.partialPlain[int](i)
+		b.tag = "after"
+		if i == 0 {
+			continue
+		}
+		break
+	}
+}
+
+func aggregateTypes() error {
+	b := box{tag: "before"}
+	pair := (7, "tuple")
+	var option int? = 9
+	errdefer b.typed[pairArgument](pair, fmt.Sprintf("%T", pair))?
+	errdefer b.typed[optionArgument](option, fmt.Sprintf("%T", option))?
+	defer b.typed[/* generic-type-comment */ optionArgument](option, fmt.Sprintf("%T", option))?
+	b.tag = "after"
+	return failure
+}
+
+func inferenceControls() error {
+	b := box{tag: "before"}
+	errdefer b.plain(7)
+	errdefer box.plain[int](b, 8)
+	errdefer b.partialPlain[int, string]("full")
+	b.tag = "after"
+	return failure
+}
+
+func requireFailure(f func() error) {
+	events = nil
+	if err := f(); !errors.Is(err, failure) {
+		panic("primary error changed")
+	}
+}
+
+func checkCleanupForms() {
+	requireFailure(plainErrdefer)
+	check("generic-plain-errdefer-value", "[before:7]")
+	events = nil
+	err := checkedErrdefer()
+	if !errors.Is(err, failure) || !errors.Is(err, cleanupFailure) {
+		panic("generic errdefer failed to join errors")
+	}
+	check("generic-partial-errdefer-value", "[before:int:7]")
+	events = nil
+	if err := checkedDefer(); !errors.Is(err, cleanupFailure) {
+		panic("generic defer lost its error")
+	}
+	check("generic-defer-value-and-partial", "[before:int:8 before:7]")
+}
+
+func checkReceivers() {
+	requireFailure(pointerErrdefer)
+	check("generic-pointer-receiver-keeps-object", "[changed:7]")
+	requireFailure(addressErrdefer)
+	check("generic-pointer-receiver-keeps-address", "[after:7]")
+	requireFailure(dereferenceErrdefer)
+	check("generic-value-receiver-copies-dereference", "[before:7]")
+	requireFailure(promotedErrdefer)
+	check("generic-promoted-value-copies-receiver", "[before:7]")
+	requireFailure(promotedPointerErrdefer)
+	check("generic-promoted-pointer-keeps-object", "[changed:7]")
+}
+
+func checkScopesAndTypes() {
+	events = nil
+	if err := ordered(true); err != nil {
+		panic(err)
+	}
+	check("generic-success-evaluates-receiver", "[receiver argument body]")
+	events = nil
+	if err := ordered(false); err != failure {
+		panic("ordered errdefer changed error")
+	}
+	check("generic-receiver-before-arguments", "[receiver argument body before:7]")
+	events = nil
+	scopedShadow()
+	check("generic-scope-binds-explicit-type", "[before:int:7]")
+	events = nil
+	scopedLoop()
+	check("generic-loop-scope-captures-each-iteration", "[0:int:0 1:int:1]")
+	requireFailure(aggregateTypes)
+	check("generic-tuple-and-option-arguments", "[before before before]")
+	requireFailure(inferenceControls)
+	check("generic-inference-and-method-expression", "[before:int:full before:8 before:7]")
+}
+
+func main() {
+	checkCleanupForms()
+	checkReceivers()
+	checkScopesAndTypes()
+	if failed {
+		os.Exit(1)
+	}
+}

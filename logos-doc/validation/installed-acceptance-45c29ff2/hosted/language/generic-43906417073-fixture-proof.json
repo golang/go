@@ -1,0 +1,49 @@
+{
+  "recordedAt": "2026-11-16T16:35:30.375Z",
+  "actualCheckout": "f2ad58be8742b8ec350db8f06d9dc794ea3302e4",
+  "hashProvenance": "Read-only git show of each fixture at the actual job checkout, piped to sha256sum; these digest values were not printed by the hosted job.",
+  "localComparison": "All seven Git-blob SHA-256 values equal independently read local fixture hashes.",
+  "hostedCheckProvenance": "The job captured SHA-256 values before its mutations and checked the same manifest after restoration. The raw job log prints the command and all seven OK results.",
+  "hostedCheckLines": [
+    "2026-11-16T16:26:09.1824987Z \u001b[36;1msha256sum cmd/compile/internal/types2/typeargs_logos_test.go cmd/compile/internal/types2/typeargs_nested_logos_test.go ../test/logos/run/generic_type_arguments.lgo ../test/logos/run/generic_type_arguments.out ../test/logos/run/generic_type_argument_index_controls.lgo ../test/logos/run/generic_type_argument_index_controls.out cmd/go/testdata/script/logos_eject_generic_type_arguments.txt > \"$RUNNER_TEMP/typeargs-fixtures.sha256\"\u001b[0m",
+    "2026-11-16T16:27:44.4447930Z ##[group]Run sha256sum --check --strict \"$RUNNER_TEMP/typeargs-fixtures.sha256\"",
+    "2026-11-16T16:27:44.4448297Z \u001b[36;1msha256sum --check --strict \"$RUNNER_TEMP/typeargs-fixtures.sha256\"\u001b[0m",
+    "2026-11-16T16:27:44.4560717Z cmd/compile/internal/types2/typeargs_logos_test.go: OK",
+    "2026-11-16T16:27:44.4561172Z cmd/compile/internal/types2/typeargs_nested_logos_test.go: OK",
+    "2026-11-16T16:27:44.4561527Z ../test/logos/run/generic_type_arguments.lgo: OK",
+    "2026-11-16T16:27:44.4561860Z ../test/logos/run/generic_type_arguments.out: OK",
+    "2026-11-16T16:27:44.4562201Z ../test/logos/run/generic_type_argument_index_controls.lgo: OK",
+    "2026-11-16T16:27:44.4562573Z ../test/logos/run/generic_type_argument_index_controls.out: OK",
+    "2026-11-16T16:27:44.4562958Z cmd/go/testdata/script/logos_eject_generic_type_arguments.txt: OK"
+  ],
+  "fixtures": [
+    {
+      "path": "src/cmd/compile/internal/types2/typeargs_logos_test.go",
+      "sha256": "423be69fa13988528c32a81a05446325ec89077d02c87097837381c37eaaaed3"
+    },
+    {
+      "path": "src/cmd/compile/internal/types2/typeargs_nested_logos_test.go",
+      "sha256": "5ade1c3e166647f371b3732f99545e3dd5bb2bd858e16ad35b48ccbd90498a0c"
+    },
+    {
+      "path": "test/logos/run/generic_type_arguments.lgo",
+      "sha256": "e23ff620606f5b8ee89557cb13a46ccf6a7989ebd10e816df02be0bacc366b6f"
+    },
+    {
+      "path": "test/logos/run/generic_type_arguments.out",
+      "sha256": "7cc0845db3769a3dc30938c460e6dff8f87b6dfbcbfe96f7e0110a5e7df6a55b"
+    },
+    {
+      "path": "test/logos/run/generic_type_argument_index_controls.lgo",
+      "sha256": "18c964a15be665be951a0324a11cb5c9908c62a2c831921927dd28c24e083895"
+    },
+    {
+      "path": "test/logos/run/generic_type_argument_index_controls.out",
+      "sha256": "caa7798867ca8377ff4a3bddfa4d43847dd8f140bcbd651d7725dc3280c8561c"
+    },
+    {
+      "path": "src/cmd/go/testdata/script/logos_eject_generic_type_arguments.txt",
+      "sha256": "b55f2e5b97fbaa353fd8501ffa6ecd9fc93358fd06bd2c7f9466ae96559dbd01"
+    }
+  ]
+}

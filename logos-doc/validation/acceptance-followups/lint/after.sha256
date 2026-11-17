@@ -1,0 +1,5 @@
+af53503f6fa1475743b5e80929b6ce955444d85c13e20eb109efc248fdfed479  src/cmd/go/internal/logos/eject/eject.go
+4eafc4618d37b1cbfbd3c95346ea66eaf6b3f863541546d5caa27c74871e453f  src/cmd/go/internal/logos/eject/eject_test.go
+c17238fa9bfdb52ee8501f5a72334f10f2738d75e19a3d8de6940fc4f2e23891  src/cmd/go/internal/logos/eject/variant_features_test.go
+88a15a43988bd1cf6a0fea204903c63f38ba970f7343e03307e2e8588a2103c3  src/cmd/go/internal/logos/eject/variant_host_tags_test.go
+c6be111930041e02e0823b382b694e50bc9778daed7822965fa7d97d3ebfcf0c  src/cmd/go/internal/logos/eject/variant_tags_test.go

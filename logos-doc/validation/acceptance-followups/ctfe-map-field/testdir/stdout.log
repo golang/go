@@ -1,0 +1,41 @@
+=== RUN   TestLogosUnsupportedActionText
+--- PASS: TestLogosUnsupportedActionText (0.00s)
+=== RUN   TestRouteLogosHarnessSkipBypass
+--- PASS: TestRouteLogosHarnessSkipBypass (0.00s)
+=== RUN   TestLogosCompilerFlagsScopedToTestPackage
+--- PASS: TestLogosCompilerFlagsScopedToTestPackage (0.00s)
+=== RUN   TestLogosTestCmd
+--- PASS: TestLogosTestCmd (0.00s)
+=== RUN   TestLogosRunScenarioChild
+--- PASS: TestLogosRunScenarioChild (0.00s)
+=== RUN   TestLogosRunMainTestLgoOutputChecked
+    logos_run_main_test.go:125: scenario child process did not record outcome (exec error: exit status 1):
+        2026/11/17 02:45:57 'go list' failed: exit status 1: # time/tzdata
+        ../../../time/tzdata/tzdata.go:70:7: undefined: zipdata
+--- FAIL: TestLogosRunMainTestLgoOutputChecked (52.84s)
+=== RUN   TestLogosRunMainTestLgoPanicFails
+    logos_run_main_test.go:135: scenario child process did not record outcome (exec error: exit status 1):
+        2026/11/17 02:45:58 'go list' failed: exit status 1: # time/tzdata
+        ../../../time/tzdata/tzdata.go:70:7: undefined: zipdata
+--- FAIL: TestLogosRunMainTestLgoPanicFails (0.85s)
+=== RUN   TestLogosRunNonMainTestLgoUsesTesting
+    logos_run_main_test.go:145: scenario child process did not record outcome (exec error: exit status 1):
+        2026/11/17 02:45:59 'go list' failed: exit status 1: # time/tzdata
+        ../../../time/tzdata/tzdata.go:70:7: undefined: zipdata
+--- FAIL: TestLogosRunNonMainTestLgoUsesTesting (0.81s)
+=== RUN   TestRouteLogosHarnessScopesToLogos
+--- PASS: TestRouteLogosHarnessScopesToLogos (0.00s)
+=== RUN   TestPinTargetFlagsMovesGOAMD64
+--- PASS: TestPinTargetFlagsMovesGOAMD64 (0.00s)
+=== RUN   TestLogosGoBuildPreservesFlags
+--- PASS: TestLogosGoBuildPreservesFlags (0.00s)
+=== RUN   TestLogosCompilerFlagsHasE
+--- PASS: TestLogosCompilerFlagsHasE (0.00s)
+=== RUN   TestLogosAsmcheckEnvCarriesRunenv
+--- PASS: TestLogosAsmcheckEnvCarriesRunenv (0.00s)
+=== RUN   Test
+=== RUN   Test/escape_logos_import.go
+=== PAUSE Test/escape_logos_import.go
+=== RUN   Test/escape_logos_pointee.go
+=== PAUSE Test/escape_logos_pointee.go
+=== CONT  Test/escape_logos_import.go

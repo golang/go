@@ -1,0 +1,1 @@
+{"command":"baseline-unit.test -test.v -test.count=1 -test.short -test.run=^TestInactiveCensusHonorsOverlay$ -test.timeout=2m","startedUTC":"2026-11-16T18:16:48Z","exit":1,"wallSeconds":0,"timeoutSeconds":150,"sourceTemp":"/home/agent/logos-ejection-overlay-9949907ca71e-y20O9N"}

@@ -1,0 +1,3481 @@
+=== RUN   TestScript
+=== PAUSE TestScript
+=== CONT  TestScript
+=== RUN   TestScript/logos_const_alias_rejection
+=== PAUSE TestScript/logos_const_alias_rejection
+=== RUN   TestScript/logos_const_imported_rodata
+=== PAUSE TestScript/logos_const_imported_rodata
+=== RUN   TestScript/logos_const_rodata_reloc
+=== PAUSE TestScript/logos_const_rodata_reloc
+=== CONT  TestScript/logos_const_rodata_reloc
+    script_test.go:142: 2026-11-16T17:49:28Z
+    script_test.go:144: $WORK=/home/agent/logos-language-9949907ca71e-wqeffb1m/tmp/cmd-go-test-3909545402/tmpdir362298468/logos_const_rodata_reloc3835524501
+    script_test.go:166: 
+        PATH=/home/agent/logos-language-9949907ca71e-wqeffb1m/tmp/cmd-go-test-3909545402/tmpdir362298468/testbin:/workspace/scratch/9949907ca71e/logos-json-integration/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/home/agent/.codex/tmp/arg0-linux/codex-arg00QAduY:/opt/codex/codex-path:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback
+        HOME=/no-home
+        CCACHE_DISABLE=1
+        GOARCH=amd64
+        TESTGO_GOHOSTARCH=amd64
+        GOCACHE=/workspace/scratch/9949907ca71e/postbuild-cache
+        GOCOVERDIR=
+        GODEBUG=
+        GOEXE=
+        GOEXPERIMENT=
+        GOOS=linux
+        TESTGO_GOHOSTOS=linux
+        GOPROXY=http://127.0.0.1:44785/mod
+        GOPRIVATE=
+        GOROOT=/workspace/scratch/9949907ca71e/logos-json-integration
+        GOTRACEBACK=system
+        TESTGO_GOROOT=/workspace/scratch/9949907ca71e/logos-json-integration
+        TESTGO_EXE=/home/agent/logos-language-9949907ca71e-wqeffb1m/tmp/cmd-go-test-3909545402/tmpdir362298468/testbin/go
+        TESTGO_VCSTEST_HOST=127.0.0.1:39829
+        TESTGO_VCSTEST_TLS_HOST=127.0.0.1:38173
+        TESTGO_VCSTEST_CERT=/home/agent/logos-language-9949907ca71e-wqeffb1m/tmp/cmd-go-test-3909545402/vcstest1485281559/cert.pem
+        TESTGONETWORK=panic
+        GOSUMDB=localhost.localdev/sumdb+00000c67+AcTrnkbUA+TU4heY3hkjiSES/DSQniBqIeQ/YppAUtK6
+        TESTGO_SUMDB=localhost.localdev/sumdb
+        GONOPROXY=
+        GONOSUMDB=
+        GOVCS=*:all
+        devnull=/dev/null
+        goversion=1.27.4
+        CMDGO_TEST_RUN_MAIN=true
+        HGRCPATH=
+        GOTOOLCHAIN=auto
+        newline=
+        
+        CGO_ENABLED=1
+        CC=/usr/bin/cc
+        UPROOT1272=/workspace/scratch/9949907ca71e/toolchains/go1.27.2
+        UPROOT1273=/workspace/scratch/9949907ca71e/toolchains/go1.27.3
+        UPROOT1274=/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci
+        WORK=/home/agent/logos-language-9949907ca71e-wqeffb1m/tmp/cmd-go-test-3909545402/tmpdir362298468/logos_const_rodata_reloc3835524501
+        TEST_TELEMETRY_DIR=/home/agent/logos-language-9949907ca71e-wqeffb1m/tmp/cmd-go-test-3909545402/tmpdir362298468/logos_const_rodata_reloc3835524501/telemetry
+        TMPDIR=/home/agent/logos-language-9949907ca71e-wqeffb1m/tmp/cmd-go-test-3909545402/tmpdir362298468/logos_const_rodata_reloc3835524501/tmp
+        GOPATH=/home/agent/logos-language-9949907ca71e-wqeffb1m/tmp/cmd-go-test-3909545402/tmpdir362298468/logos_const_rodata_reloc3835524501/gopath
+        PWD=/home/agent/logos-language-9949907ca71e-wqeffb1m/tmp/cmd-go-test-3909545402/tmpdir362298468/logos_const_rodata_reloc3835524501/gopath/src
+        
+        > env GOPROXY=off
+        > env GOTOOLCHAIN=local
+        > cd caller
+        > logos run .
+        [stdout]
+        7 reloc
+        reloc-write-fault
+        > stdout '^7 reloc$'
+        matched: 7 reloc
+        > stdout '^reloc-write-fault$'
+        matched: reloc-write-fault
+        > cd ..
+=== CONT  TestScript/logos_const_imported_rodata
+    script_test.go:142: 2026-11-16T17:49:29Z
+    script_test.go:144: $WORK=/home/agent/logos-language-9949907ca71e-wqeffb1m/tmp/cmd-go-test-3909545402/tmpdir362298468/logos_const_imported_rodata3884118827
+    script_test.go:166: 
+        PATH=/home/agent/logos-language-9949907ca71e-wqeffb1m/tmp/cmd-go-test-3909545402/tmpdir362298468/testbin:/workspace/scratch/9949907ca71e/logos-json-integration/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/home/agent/.codex/tmp/arg0-linux/codex-arg00QAduY:/opt/codex/codex-path:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback
+        HOME=/no-home
+        CCACHE_DISABLE=1
+        GOARCH=amd64
+        TESTGO_GOHOSTARCH=amd64
+        GOCACHE=/workspace/scratch/9949907ca71e/postbuild-cache
+        GOCOVERDIR=
+        GODEBUG=
+        GOEXE=
+        GOEXPERIMENT=
+        GOOS=linux
+        TESTGO_GOHOSTOS=linux
+        GOPROXY=http://127.0.0.1:44785/mod
+        GOPRIVATE=
+        GOROOT=/workspace/scratch/9949907ca71e/logos-json-integration
+        GOTRACEBACK=system
+        TESTGO_GOROOT=/workspace/scratch/9949907ca71e/logos-json-integration
+        TESTGO_EXE=/home/agent/logos-language-9949907ca71e-wqeffb1m/tmp/cmd-go-test-3909545402/tmpdir362298468/testbin/go
+        TESTGO_VCSTEST_HOST=127.0.0.1:39829
+        TESTGO_VCSTEST_TLS_HOST=127.0.0.1:38173
+        TESTGO_VCSTEST_CERT=/home/agent/logos-language-9949907ca71e-wqeffb1m/tmp/cmd-go-test-3909545402/vcstest1485281559/cert.pem
+        TESTGONETWORK=panic
+        GOSUMDB=localhost.localdev/sumdb+00000c67+AcTrnkbUA+TU4heY3hkjiSES/DSQniBqIeQ/YppAUtK6
+        TESTGO_SUMDB=localhost.localdev/sumdb
+        GONOPROXY=
+        GONOSUMDB=
+        GOVCS=*:all
+        devnull=/dev/null
+        goversion=1.27.4
+        CMDGO_TEST_RUN_MAIN=true
+        HGRCPATH=
+        GOTOOLCHAIN=auto
+        newline=
+        
+        CGO_ENABLED=1
+        CC=/usr/bin/cc
+        UPROOT1272=/workspace/scratch/9949907ca71e/toolchains/go1.27.2
+        UPROOT1273=/workspace/scratch/9949907ca71e/toolchains/go1.27.3
+        UPROOT1274=/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci
+        WORK=/home/agent/logos-language-9949907ca71e-wqeffb1m/tmp/cmd-go-test-3909545402/tmpdir362298468/logos_const_imported_rodata3884118827
+        TEST_TELEMETRY_DIR=/home/agent/logos-language-9949907ca71e-wqeffb1m/tmp/cmd-go-test-3909545402/tmpdir362298468/logos_const_imported_rodata3884118827/telemetry
+        TMPDIR=/home/agent/logos-language-9949907ca71e-wqeffb1m/tmp/cmd-go-test-3909545402/tmpdir362298468/logos_const_imported_rodata3884118827/tmp
+        GOPATH=/home/agent/logos-language-9949907ca71e-wqeffb1m/tmp/cmd-go-test-3909545402/tmpdir362298468/logos_const_imported_rodata3884118827/gopath
+        PWD=/home/agent/logos-language-9949907ca71e-wqeffb1m/tmp/cmd-go-test-3909545402/tmpdir362298468/logos_const_imported_rodata3884118827/gopath/src
+        
+        > env GOPROXY=off
+        > env GOTOOLCHAIN=local
+        # Ordinary Go imports erase const qualifiers; native placement is still protected.
+        # Checked loGo/s alias rejection is covered separately, not bypassed here. (3.562s)
+        > cd prog
+        > logos build -o prog.exe .
+        > exec ./prog.exe
+        [stdout]
+        read 2s 1.000042ms March drwxr-xr-x 2 2 3ns true 3 2 true 5
+        ok slice-fault
+        ok months-fault
+        ok modes-fault
+        ok nested-fault
+        ok anon-fault
+        ok lists-fault
+        ok stamps-fault
+        ok recs-fault
+        > stdout '^read 2s 1.000042ms March drwxr-xr-x 2 2 3ns true 3 2 true 5$'
+        matched: read 2s 1.000042ms March drwxr-xr-x 2 2 3ns true 3 2 true 5
+        > stdout '^ok slice-fault$'
+        matched: ok slice-fault
+        > stdout '^ok months-fault$'
+        matched: ok months-fault
+        > stdout '^ok modes-fault$'
+        matched: ok modes-fault
+        > stdout '^ok nested-fault$'
+        matched: ok nested-fault
+        > stdout '^ok anon-fault$'
+        matched: ok anon-fault
+        > stdout '^ok lists-fault$'
+        matched: ok lists-fault
+        > stdout '^ok stamps-fault$'
+        matched: ok stamps-fault
+        > stdout '^ok recs-fault$'
+        matched: ok recs-fault
+        > ! stdout 'FAIL'
+        > exec go tool nm prog.exe
+        [stdout]
+          4d6218 r $f64.3eb0000000000000
+          4d6220 r $f64.3f847ae147ae147b
+          4d6228 r $f64.3fd0000000000000
+          4d6230 r $f64.3fd3333333333333
+          4d6238 r $f64.3fe0000000000000
+          4d6240 r $f64.3fe8000000000000
+          4d6248 r $f64.3fee666666666666
+          4d6250 r $f64.3ff0000000000000
+          4d6258 r $f64.3ff199999999999a
+          4d6260 r $f64.3ff3333333333333
+          4d6268 r $f64.4000000000000000
+          4d6270 r $f64.4010000000000000
+          4d6278 r $f64.403a000000000000
+          4d6280 r $f64.4059000000000000
+          4d6288 r $f64.40c3880000000000
+          4d6290 r $f64.40f0000000000000
+          4d6298 r $f64.412e848000000000
+          4d62a0 r $f64.41cdcd6500000000
+          4d62a8 r $f64.43e0000000000000
+          4d62b0 r $f64.8000000000000000
+          4d62b8 r $f64.bfd3333333333333
+          4d62c0 r $f64.bfe62e42fefa39ef
+          477c00 t _.goready.func1
+          5daca0 B _cgo_call_symbolizer_function
+          5dac98 B _cgo_call_traceback_function
+          5dac90 B _cgo_callers
+          5dacb8 B _cgo_getstackbound
+          5dac78 B _cgo_init
+          5dacc8 B _cgo_mmap
+          5dacd0 B _cgo_munmap
+          5dac88 B _cgo_notify_runtime_init_done
+          5dacb0 B _cgo_pthread_key_created
+          5dacd8 B _cgo_sigaction
+          5dac80 B _cgo_thread_start
+          5daca8 B _cgo_yield
+          484680 T _rt0_amd64
+          487620 T _rt0_amd64_linux
+          4da580 r bad_cpu_msg
+          48d420 T bytes.(*Buffer).Read
+          48cfc0 T bytes.(*Buffer).ReadFrom
+          48cc00 T bytes.(*Buffer).String
+          48cec0 T bytes.(*Buffer).Write
+          48d300 T bytes.(*Buffer).WriteTo
+          48cc80 T bytes.(*Buffer).grow
+          5d4d10 D bytes.ErrTooLarge
+          48d520 T bytes.Index
+          5d4d20 D bytes.errNegativeRead
+          48d160 T bytes.growSlice
+          48dc20 t bytes.growSlice.func1
+          4841a0 t callRet
+          408a00 t cmpbody
+          5ce720 D context..inittask
+          5dac70 B context.closedchan
+          4c1620 T context.init
+          4c1680 T context.init.0
+          408be0 t countbody
+          484420 t debugCall1024
+          484360 t debugCall128
+          484560 t debugCall16384
+          484460 t debugCall2048
+          4843a0 t debugCall256
+          484320 t debugCall32
+          4845c0 t debugCall32768
+          4844a0 t debugCall4096
+          4843e0 t debugCall512
+          484340 t debugCall64
+          484620 t debugCall65536
+          484500 t debugCall8192
+          4d69d0 r debugCallFrameTooLarge
+          489300 T errors.(*errorString).Error
+          5ce610 D errors..inittask
+          5d55e0 d errors..interfaceSwitch.0
+          5d5450 d errors..typeAssert.1
+          5d4f00 D errors.ErrUnsupported
+          489320 T errors.Is
+          5dadb0 B errors.errorType
+          489260 T errors.init
+          489400 T errors.is
+          4d6a90 R example.com/rodvalues/p.Anon
+          4d6320 R example.com/rodvalues/p.Anon.logos_backing0
+          4d6de0 R example.com/rodvalues/p.Array
+          4d6be0 R example.com/rodvalues/p.ListsValue
+          4d6330 R example.com/rodvalues/p.ListsValue.logos_backing0
+          4d6a50 R example.com/rodvalues/p.Modes
+          4d61f4 R example.com/rodvalues/p.Modes.logos_backing0
+          4d6a30 R example.com/rodvalues/p.Months
+          4d6300 R example.com/rodvalues/p.Months.logos_backing0
+          4d6a70 R example.com/rodvalues/p.Nested
+          4d6ce8 R example.com/rodvalues/p.Nested.logos_backing0
+          4d6310 R example.com/rodvalues/p.Nested.logos_backing0.logos_backing0
+          4d6200 R example.com/rodvalues/p.Nested.logos_backing0.logos_backing24
+          4d6ad0 R example.com/rodvalues/p.Recs
+          4d6e20 R example.com/rodvalues/p.Recs.logos_backing0
+          4d6a10 R example.com/rodvalues/p.Slice
+          4d62f0 R example.com/rodvalues/p.Slice.logos_backing0
+          4d6ab0 R example.com/rodvalues/p.Stamps
+          4d6d18 R example.com/rodvalues/p.Stamps.logos_backing0
+          4b9280 T fmt.(*fmt).fmtBoolean
+          4b9f60 T fmt.(*fmt).fmtBs
+          4baae0 T fmt.(*fmt).fmtC
+          4bad80 T fmt.(*fmt).fmtFloat
+          4b96e0 T fmt.(*fmt).fmtInteger
+          4c1460 t fmt.(*fmt).fmtInteger.deferwrap1
+          4ba900 T fmt.(*fmt).fmtQ
+          4bac20 T fmt.(*fmt).fmtQc
+          4b9fe0 T fmt.(*fmt).fmtSbx
+          4b92e0 T fmt.(*fmt).fmtUnicode
+          4c1420 t fmt.(*fmt).fmtUnicode.deferwrap1
+          4b86e0 T fmt.(*fmt).pad
+          4b8d20 T fmt.(*fmt).padString
+          4b9e40 T fmt.(*fmt).truncate
+          4bb6c0 T fmt.(*pp).Write
+          4bbe40 T fmt.(*pp).badVerb
+          4bde80 T fmt.(*pp).catchPanic
+          4bc760 T fmt.(*pp).fmtBool
+          4bd1e0 T fmt.(*pp).fmtBytes
+          4bcc60 T fmt.(*pp).fmtComplex
+          4bcae0 T fmt.(*pp).fmtFloat
+          4bc820 T fmt.(*pp).fmtInteger
+          4bd8c0 T fmt.(*pp).fmtPointer
+          4bcf40 T fmt.(*pp).fmtString
+          4be5a0 T fmt.(*pp).handleMethods
+          4c1560 t fmt.(*pp).handleMethods.deferwrap1
+          4c1520 t fmt.(*pp).handleMethods.deferwrap2
+          4c14e0 t fmt.(*pp).handleMethods.deferwrap3
+          4c14a0 t fmt.(*pp).handleMethods.deferwrap4
+          4bed20 T fmt.(*pp).printArg
+          4bf440 T fmt.(*pp).printValue
+          4bbb80 T fmt.(*pp).unknownType
+          5d55c0 d fmt..interfaceSwitch.0
+          5d52d0 d fmt..typeAssert.2
+          5d52f0 d fmt..typeAssert.3
+          5d5310 d fmt..typeAssert.4
+          4bb7e0 T fmt.Fprintln
+          4bbb00 T fmt.getField
+          4c13e0 t fmt.init.func1
+          5d5b60 D fmt.ppFree
+          484240 t gcWriteBarrier
+               0 _ go.go
+          5ce000 D go:buildinfo
+          4d62e8 R go:buildinfo.ref
+          5daad1 d go:datafipsend
+          5daad0 d go:datafipsstart
+          5ce1c0 D go:fipsinfo
+          57c5c0 r go:func.*
+          5cd380 r go:funcdesc
+          5ceb80 D go:main.inittasks
+          5d4b01 d go:noptrdatafipsend
+          5d4b00 d go:noptrdatafipsstart
+          4dc861 r go:rodatafipsend
+          4dc860 r go:rodatafipsstart
+          5ce740 D go:runtime.inittasks
+          4cb000 r go:string.*
+          4caa60 t go:textfipsend
+          4caa40 t go:textfipsstart
+          484160 t gogo
+          4841e0 t gosave_systemstack_switch
+          408f00 t indexbody
+          4092a0 t indexbytebody
+          4019e0 T internal/abi.(*Kind).String
+          401860 T internal/abi.(*Type).DescriptorSize
+          401160 T internal/abi.(*Type).ExportedMethods
+          4d69a0 R internal/abi..dict.Escape[*internal/poll.splicePipe]
+          4d6600 R internal/abi..dict.Escape[*os.Process]
+          4d6610 R internal/abi..dict.Escape[func(*os.processHandle)]
+          4d69b0 R internal/abi..dict.Escape[func(internal/poll.splicePipeFields)]
+          4d6ba0 R internal/abi..dict.TypeFor[internal/poll.splicePipe]
+          4d6b20 R internal/abi..dict.TypeFor[os.Process]
+          401000 T internal/abi.BoundsDecode
+          401100 T internal/abi.Kind.String
+          401200 T internal/abi.Name.IsBlank
+          401260 T internal/abi.Name.Name
+          401300 T internal/abi.Name.Tag
+          401400 T internal/abi.NewName
+          4010e0 T internal/abi.NoEscape
+          401140 T internal/abi.TypeOf
+          5fb304 B internal/abi.alwaysFalse
+          5dada0 B internal/abi.escapeSink
+          5d53d0 D internal/abi.kindNames
+          4c2040 T internal/bisect.(*Matcher).stack
+          4c3540 T internal/bisect.(*dedup).seen
+          4c3520 T internal/bisect.(*parseError).Error
+          4c2d80 T internal/bisect.Hash
+          4c16c0 T internal/bisect.New
+          4c23a0 T internal/bisect.PrintMarker
+          4c24c0 T internal/bisect.printStack
+          4d6b00 R internal/bytealg..dict.IndexRabinKarp[[]uint8]
+          4d6b40 R internal/bytealg..dict.IndexRabinKarp[string]
+          4d62d0 R internal/bytealg..dict.hashStr[[]uint8]
+          4d62e0 R internal/bytealg..dict.hashStr[string]
+          5ce5f0 D internal/bytealg..inittask
+          408ba0 T internal/bytealg.Compare
+          408da0 T internal/bytealg.Count.abi0
+          408dc0 T internal/bytealg.CountString.abi0
+          409220 T internal/bytealg.Index.abi0
+          4093e0 T internal/bytealg.IndexByte.abi0
+          409400 T internal/bytealg.IndexByteString.abi0
+          48dc80 T internal/bytealg.IndexRabinKarp[go.shape.[]uint8]
+          411980 T internal/bytealg.IndexRabinKarp[go.shape.string]
+          409260 T internal/bytealg.IndexString.abi0
+          4827e0 T internal/bytealg.MakeNoZero
+          5fb550 B internal/bytealg.MaxLen
+          4089c0 T internal/bytealg.init.0
+          411dc0 T internal/chacha8rand.(*State).Init
+          411e60 T internal/chacha8rand.(*State).Refill
+          411f40 T internal/chacha8rand.(*State).Reseed
+          412040 T internal/chacha8rand.block
+          5ce520 D internal/cpu.CacheLineSize
+          401a40 T internal/cpu.Initialize
+          5fbb20 B internal/cpu.X86
+          402ae0 T internal/cpu.cpuid.abi0
+          5dac00 B internal/cpu.doDerived
+          401fa0 T internal/cpu.doinit
+          402aa0 t internal/cpu.doinit.func1
+          402b20 T internal/cpu.getGOAMD64level.abi0
+          5fb36c B internal/cpu.maxExtendedFunctionInformation
+          5db080 B internal/cpu.options
+          401aa0 T internal/cpu.processOptions
+          402b00 T internal/cpu.xgetbv.abi0
+          4aa5c0 T internal/filepathlite.Clean
+          495a20 T internal/fmtsort.Sort
+          496e40 t internal/fmtsort.Sort.func1
+          495d60 T internal/fmtsort.compare
+          496ba0 T internal/fmtsort.nilCompare
+          4c44a0 T internal/godebug.(*Setting).IncNonDefault-fm
+          4c3680 T internal/godebug.(*Setting).Value
+          4c4060 t internal/godebug.(*Setting).Value.func1
+          4c4360 T internal/godebug.(*Setting).register-fm
+          4c3fe0 T internal/godebug.(*runtimeStderr).Write
+          5ce680 D internal/godebug..inittask
+          5db280 B internal/godebug.cache
+          5db140 B internal/godebug.empty
+          4c39c0 T internal/godebug.init.0
+          4c3740 T internal/godebug.lookup
+          4c3a00 T internal/godebug.newIncNonDefault
+          4c3d00 T internal/godebug.parse
+          47f860 T internal/godebug.registerMetric
+          481560 T internal/godebug.setNewIncNonDefault
+          4814e0 T internal/godebug.setUpdate
+          5fb2e0 B internal/godebug.stderr
+          4c3ae0 T internal/godebug.update
+          4c4300 t internal/godebug.update.deferwrap1
+          4c4220 t internal/godebug.update.func1
+          4c4140 t internal/godebug.update.func2
+          5fb590 B internal/godebug.updateMu
+          5d53f0 D internal/godebugs.All
+          5d5410 D internal/godebugs.Removed
+          410160 t internal/godebugs.init.func1
+          410140 T internal/godebugs.one
+          410120 T internal/godebugs.zero
+          5d5100 D internal/oserror.ErrClosed
+          5d50e0 D internal/oserror.ErrExist
+          5d50c0 D internal/oserror.ErrInvalid
+          5d50f0 D internal/oserror.ErrNotExist
+          5d50d0 D internal/oserror.ErrPermission
+          4abbe0 T internal/poll.(*DeadlineExceededError).Error
+          4ac280 T internal/poll.(*FD).Close
+          4ad100 T internal/poll.(*FD).Fstat
+          4af8a0 t internal/poll.(*FD).Fstat.deferwrap1
+          4ada60 T internal/poll.(*FD).Fstatat
+          4afa00 t internal/poll.(*FD).Fstatat.deferwrap1
+          4ad320 T internal/poll.(*FD).RawRead
+          4af920 t internal/poll.(*FD).RawRead.deferwrap1
+          4ac4e0 T internal/poll.(*FD).Read
+          4af7e0 t internal/poll.(*FD).Read.deferwrap1
+          4ad6c0 T internal/poll.(*FD).ReadDirent
+          4af980 t internal/poll.(*FD).ReadDirent.deferwrap1
+          4ac380 T internal/poll.(*FD).SetBlocking
+          4af760 t internal/poll.(*FD).SetBlocking.deferwrap1
+          4aca00 T internal/poll.(*FD).Write
+          4af840 t internal/poll.(*FD).Write.deferwrap1
+          4abfa0 T internal/poll.(*FD).decref
+          4ac1e0 T internal/poll.(*FD).destroy
+          4ac040 T internal/poll.(*FD).readUnlock
+          4ac0a0 T internal/poll.(*FD).writeUnlock
+          4b02e0 T internal/poll.(*errNetClosing).Error
+          4abc00 T internal/poll.(*fdMutex).increfAndClose
+          4abd20 T internal/poll.(*fdMutex).rwlock
+          4abea0 T internal/poll.(*fdMutex).rwunlock
+          4ac100 T internal/poll.(*pollDesc).init
+          5ce670 D internal/poll..inittask
+          5d4bd0 D internal/poll.CloseFunc
+          4ab560 T internal/poll.CopyFileRange
+          5d5070 D internal/poll.ErrDeadlineExceeded
+          5d5050 D internal/poll.ErrFileClosing
+          5d5060 D internal/poll.ErrNoDeadline
+          5d5080 D internal/poll.ErrNotPollable
+          4adc60 T internal/poll.SendFile
+          4ae500 T internal/poll.Splice
+          4afb40 t internal/poll.Splice.deferwrap1
+          5d4bd8 D internal/poll.TestHookDidSendFile
+          4ab8c0 T internal/poll.copyFileRange
+          4af700 t internal/poll.copyFileRange.deferwrap1
+          4af6a0 t internal/poll.copyFileRange.deferwrap2
+          4af440 T internal/poll.destroyPipe
+          5d5020 D internal/poll.errEAGAIN
+          5d5030 D internal/poll.errEINVAL
+          5d5040 D internal/poll.errENOENT
+          4abbc0 T internal/poll.errNetClosing.Error
+          4ab480 T internal/poll.init
+          4af640 t internal/poll.init.func1
+          4af680 t internal/poll.init.func3
+          4af3c0 T internal/poll.newPipe
+          4af2c0 T internal/poll.newPoolPipe
+          4afc40 t internal/poll.newPoolPipe.func1
+          4af340 T internal/poll.putPipe
+          481980 T internal/poll.runtime_Semacquire
+          481b20 T internal/poll.runtime_Semrelease
+          47fcc0 T internal/poll.runtime_pollClose
+          47fb40 T internal/poll.runtime_pollOpen
+          47fd80 T internal/poll.runtime_pollReset
+          47fb20 T internal/poll.runtime_pollServerInit
+          47ffc0 T internal/poll.runtime_pollUnblock
+          47fe00 T internal/poll.runtime_pollWait
+          4adcc0 T internal/poll.sendFile
+          4afa80 t internal/poll.sendFile.deferwrap1
+          4afae0 t internal/poll.sendFile.func1
+          5fb5c8 B internal/poll.serverInit
+          4ae7a0 T internal/poll.spliceDrain
+          4afb80 t internal/poll.spliceDrain.deferwrap1
+          5d5c20 D internal/poll.splicePipePool
+          4aece0 T internal/poll.splicePump
+          4afbe0 t internal/poll.splicePump.deferwrap1
+          5dac68 B internal/poll.supportCopyFileRange
+          4891e0 T internal/reflectlite.(*rtype).Name
+          489220 T internal/reflectlite.(*rtype).String
+          489120 T internal/reflectlite.elem
+          4817e0 T internal/reflectlite.resolveNameOff
+          489060 T internal/reflectlite.rtype.Name
+          488fe0 T internal/reflectlite.rtype.String
+          408980 T internal/runtime/atomic.(*Int32).Store
+          4089a0 T internal/runtime/atomic.(*Uint64).Store
+          47e9a0 T internal/runtime/atomic.casPointer
+          47e960 T internal/runtime/atomic.storePointer
+          40fe60 T internal/runtime/cgroup.(*lineReader).next
+          410100 T internal/runtime/cgroup.(*stringError).Error
+          40f0a0 T internal/runtime/cgroup.CPU.Close
+          5d4e20 D internal/runtime/cgroup.ErrNoCgroup
+          40f760 T internal/runtime/cgroup.FindCPU
+          40f960 T internal/runtime/cgroup.FindCPUCgroup
+          40fb20 T internal/runtime/cgroup.FindCPUMountPoint
+          40f160 T internal/runtime/cgroup.OpenCPU
+          40f4c0 T internal/runtime/cgroup.ReadCPULimit
+          40e240 T internal/runtime/cgroup.containsCPU
+          5d4e80 D internal/runtime/cgroup.errEOF
+          5d4e60 D internal/runtime/cgroup.errIncompleteLine
+          5d4e40 D internal/runtime/cgroup.errInvalidEscape
+          5d4e30 D internal/runtime/cgroup.errMalformedFile
+          5d4e50 D internal/runtime/cgroup.errPathTooLong
+          5d4e70 D internal/runtime/cgroup.errSyscallFailed
+          40dd20 T internal/runtime/cgroup.parseCPUCgroup
+          40e380 T internal/runtime/cgroup.parseCPUMount
+          40d980 T internal/runtime/cgroup.parseV1Number
+          40da60 T internal/runtime/cgroup.parseV2Limit
+          40f5e0 T internal/runtime/cgroup.readV1Number
+          40f6a0 T internal/runtime/cgroup.readV2Limit
+          40fe40 T internal/runtime/cgroup.stringError.Error
+          480620 T internal/runtime/cgroup.throw
+          40ef60 T internal/runtime/cgroup.unescapePath
+          5dac10 B internal/runtime/exithook.Goid
+          5dac08 B internal/runtime/exithook.Gosched
+          411ba0 T internal/runtime/exithook.Run
+          411d60 t internal/runtime/exithook.Run.deferwrap1
+          411d40 t internal/runtime/exithook.Run.deferwrap2
+          411d80 t internal/runtime/exithook.Run.func1
+          5dac18 B internal/runtime/exithook.Throw
+          5db0a0 B internal/runtime/exithook.hooks
+          5fb370 B internal/runtime/exithook.locked
+          5fb560 B internal/runtime/exithook.runGoid
+          5cf300 D internal/runtime/gc.SizeClassToDivMagic
+          5ce980 D internal/runtime/gc.SizeClassToNPages
+          5ceae0 D internal/runtime/gc.SizeClassToSize
+          5ceee0 D internal/runtime/gc.SizeToSizeClass128
+          5cea40 D internal/runtime/gc.SizeToSizeClass8
+          5ce600 D internal/runtime/gc/scan..inittask
+          4113a0 T internal/runtime/gc/scan.FilterNilAVX512.abi0
+          4102e0 T internal/runtime/gc/scan.ScanSpanPackedAVX512
+          5fb307 B internal/runtime/gc/scan.avx512ScanPackedReqsMet
+          4103a0 t internal/runtime/gc/scan.expandAVX512_1
+          4105e0 t internal/runtime/gc/scan.expandAVX512_10
+          4d72a0 r internal/runtime/gc/scan.expandAVX512_10_inShuf0
+          4d7320 r internal/runtime/gc/scan.expandAVX512_10_inShuf1
+          4d73a0 r internal/runtime/gc/scan.expandAVX512_10_inShuf2
+          4d72e0 r internal/runtime/gc/scan.expandAVX512_10_mat0
+          4d7360 r internal/runtime/gc/scan.expandAVX512_10_mat1
+          4d73e0 r internal/runtime/gc/scan.expandAVX512_10_mat2
+          4d9560 R internal/runtime/gc/scan.expandAVX512_10_outShufHi
+          4d9520 R internal/runtime/gc/scan.expandAVX512_10_outShufLo
+          410660 t internal/runtime/gc/scan.expandAVX512_12
+          4d7420 r internal/runtime/gc/scan.expandAVX512_12_inShuf0
+          4d74a0 r internal/runtime/gc/scan.expandAVX512_12_inShuf1
+          4d7520 r internal/runtime/gc/scan.expandAVX512_12_inShuf2
+          4d7460 r internal/runtime/gc/scan.expandAVX512_12_mat0
+          4d74e0 r internal/runtime/gc/scan.expandAVX512_12_mat1
+          4d7560 r internal/runtime/gc/scan.expandAVX512_12_mat2
+          4d95e0 R internal/runtime/gc/scan.expandAVX512_12_outShufHi
+          4d95a0 R internal/runtime/gc/scan.expandAVX512_12_outShufLo
+          4106e0 t internal/runtime/gc/scan.expandAVX512_14
+          4d75a0 r internal/runtime/gc/scan.expandAVX512_14_inShuf0
+          4d7620 r internal/runtime/gc/scan.expandAVX512_14_inShuf1
+          4d76a0 r internal/runtime/gc/scan.expandAVX512_14_inShuf2
+          4d7720 r internal/runtime/gc/scan.expandAVX512_14_inShuf3
+          4d75e0 r internal/runtime/gc/scan.expandAVX512_14_mat0
+          4d7660 r internal/runtime/gc/scan.expandAVX512_14_mat1
+          4d76e0 r internal/runtime/gc/scan.expandAVX512_14_mat2
+          4d7760 r internal/runtime/gc/scan.expandAVX512_14_mat3
+          4d9660 R internal/runtime/gc/scan.expandAVX512_14_outShufHi0
+          4d96a0 R internal/runtime/gc/scan.expandAVX512_14_outShufHi1
+          4d9620 R internal/runtime/gc/scan.expandAVX512_14_outShufLo
+          4107c0 t internal/runtime/gc/scan.expandAVX512_16
+          4d77a0 r internal/runtime/gc/scan.expandAVX512_16_inShuf0
+          4d7820 r internal/runtime/gc/scan.expandAVX512_16_inShuf1
+          4d77e0 r internal/runtime/gc/scan.expandAVX512_16_mat0
+          4d96e0 R internal/runtime/gc/scan.expandAVX512_16_outShufLo
+          410820 t internal/runtime/gc/scan.expandAVX512_18
+          4d7860 r internal/runtime/gc/scan.expandAVX512_18_inShuf0
+          4d78e0 r internal/runtime/gc/scan.expandAVX512_18_inShuf1
+          4d7960 r internal/runtime/gc/scan.expandAVX512_18_inShuf2
+          4d79e0 r internal/runtime/gc/scan.expandAVX512_18_inShuf3
+          4d78a0 r internal/runtime/gc/scan.expandAVX512_18_mat0
+          4d7920 r internal/runtime/gc/scan.expandAVX512_18_mat1
+          4d79a0 r internal/runtime/gc/scan.expandAVX512_18_mat2
+          4d7a20 r internal/runtime/gc/scan.expandAVX512_18_mat3
+          4d9760 R internal/runtime/gc/scan.expandAVX512_18_outShufHi0
+          4d97a0 R internal/runtime/gc/scan.expandAVX512_18_outShufHi1
+          4d9720 R internal/runtime/gc/scan.expandAVX512_18_outShufLo
+          4103c0 t internal/runtime/gc/scan.expandAVX512_2
+          410900 t internal/runtime/gc/scan.expandAVX512_20
+          4d7a60 r internal/runtime/gc/scan.expandAVX512_20_inShuf0
+          4d7ae0 r internal/runtime/gc/scan.expandAVX512_20_inShuf1
+          4d7b60 r internal/runtime/gc/scan.expandAVX512_20_inShuf2
+          4d7aa0 r internal/runtime/gc/scan.expandAVX512_20_mat0
+          4d7b20 r internal/runtime/gc/scan.expandAVX512_20_mat1
+          4d7ba0 r internal/runtime/gc/scan.expandAVX512_20_mat2
+          4d9820 R internal/runtime/gc/scan.expandAVX512_20_outShufHi
+          4d97e0 R internal/runtime/gc/scan.expandAVX512_20_outShufLo
+          410980 t internal/runtime/gc/scan.expandAVX512_22
+          4d7be0 r internal/runtime/gc/scan.expandAVX512_22_inShuf0
+          4d7c60 r internal/runtime/gc/scan.expandAVX512_22_inShuf1
+          4d7ce0 r internal/runtime/gc/scan.expandAVX512_22_inShuf2
+          4d7d60 r internal/runtime/gc/scan.expandAVX512_22_inShuf3
+          4d7c20 r internal/runtime/gc/scan.expandAVX512_22_mat0
+          4d7ca0 r internal/runtime/gc/scan.expandAVX512_22_mat1
+          4d7d20 r internal/runtime/gc/scan.expandAVX512_22_mat2
+          4d7da0 r internal/runtime/gc/scan.expandAVX512_22_mat3
+          4d98a0 R internal/runtime/gc/scan.expandAVX512_22_outShufHi0
+          4d98e0 R internal/runtime/gc/scan.expandAVX512_22_outShufHi1
+          4d9860 R internal/runtime/gc/scan.expandAVX512_22_outShufLo
+          410a60 t internal/runtime/gc/scan.expandAVX512_24
+          4d7de0 r internal/runtime/gc/scan.expandAVX512_24_inShuf0
+          4d7e60 r internal/runtime/gc/scan.expandAVX512_24_inShuf1
+          4d7ea0 r internal/runtime/gc/scan.expandAVX512_24_inShuf2
+          4d7f20 r internal/runtime/gc/scan.expandAVX512_24_inShuf3
+          4d7e20 r internal/runtime/gc/scan.expandAVX512_24_mat0
+          4d7ee0 r internal/runtime/gc/scan.expandAVX512_24_mat2
+          4d7f60 r internal/runtime/gc/scan.expandAVX512_24_mat3
+          4d9960 R internal/runtime/gc/scan.expandAVX512_24_outShufHi0
+          4d99a0 R internal/runtime/gc/scan.expandAVX512_24_outShufHi1
+          4d9920 R internal/runtime/gc/scan.expandAVX512_24_outShufLo
+          410b40 t internal/runtime/gc/scan.expandAVX512_26
+          4d7fa0 r internal/runtime/gc/scan.expandAVX512_26_inShuf0
+          4d8020 r internal/runtime/gc/scan.expandAVX512_26_inShuf1
+          4d80a0 r internal/runtime/gc/scan.expandAVX512_26_inShuf2
+          4d8120 r internal/runtime/gc/scan.expandAVX512_26_inShuf3
+          4d7fe0 r internal/runtime/gc/scan.expandAVX512_26_mat0
+          4d8060 r internal/runtime/gc/scan.expandAVX512_26_mat1
+          4d80e0 r internal/runtime/gc/scan.expandAVX512_26_mat2
+          4d8160 r internal/runtime/gc/scan.expandAVX512_26_mat3
+          4d9a20 R internal/runtime/gc/scan.expandAVX512_26_outShufHi0
+          4d9a60 R internal/runtime/gc/scan.expandAVX512_26_outShufHi1
+          4d99e0 R internal/runtime/gc/scan.expandAVX512_26_outShufLo
+          410c20 t internal/runtime/gc/scan.expandAVX512_28
+          4d81a0 r internal/runtime/gc/scan.expandAVX512_28_inShuf0
+          4d8220 r internal/runtime/gc/scan.expandAVX512_28_inShuf1
+          4d82a0 r internal/runtime/gc/scan.expandAVX512_28_inShuf2
+          4d8320 r internal/runtime/gc/scan.expandAVX512_28_inShuf3
+          4d81e0 r internal/runtime/gc/scan.expandAVX512_28_mat0
+          4d8260 r internal/runtime/gc/scan.expandAVX512_28_mat1
+          4d82e0 r internal/runtime/gc/scan.expandAVX512_28_mat2
+          4d8360 r internal/runtime/gc/scan.expandAVX512_28_mat3
+          4d9ae0 R internal/runtime/gc/scan.expandAVX512_28_outShufHi0
+          4d9b20 R internal/runtime/gc/scan.expandAVX512_28_outShufHi1
+          4d9aa0 R internal/runtime/gc/scan.expandAVX512_28_outShufLo
+          4d6e60 r internal/runtime/gc/scan.expandAVX512_2_inShuf0
+          4d6ee0 r internal/runtime/gc/scan.expandAVX512_2_inShuf1
+          4d6ea0 r internal/runtime/gc/scan.expandAVX512_2_mat0
+          4d9360 R internal/runtime/gc/scan.expandAVX512_2_outShufLo
+          410420 t internal/runtime/gc/scan.expandAVX512_3
+          410d00 t internal/runtime/gc/scan.expandAVX512_30
+          4d83a0 r internal/runtime/gc/scan.expandAVX512_30_inShuf0
+          4d8420 r internal/runtime/gc/scan.expandAVX512_30_inShuf1
+          4d84a0 r internal/runtime/gc/scan.expandAVX512_30_inShuf2
+          4d8520 r internal/runtime/gc/scan.expandAVX512_30_inShuf3
+          4d83e0 r internal/runtime/gc/scan.expandAVX512_30_mat0
+          4d8460 r internal/runtime/gc/scan.expandAVX512_30_mat1
+          4d84e0 r internal/runtime/gc/scan.expandAVX512_30_mat2
+          4d8560 r internal/runtime/gc/scan.expandAVX512_30_mat3
+          4d9ba0 R internal/runtime/gc/scan.expandAVX512_30_outShufHi0
+          4d9be0 R internal/runtime/gc/scan.expandAVX512_30_outShufHi1
+          4d9b60 R internal/runtime/gc/scan.expandAVX512_30_outShufLo
+          410de0 t internal/runtime/gc/scan.expandAVX512_32
+          4d85a0 r internal/runtime/gc/scan.expandAVX512_32_inShuf0
+          4d8620 r internal/runtime/gc/scan.expandAVX512_32_inShuf1
+          4d85e0 r internal/runtime/gc/scan.expandAVX512_32_mat0
+          4d9c20 R internal/runtime/gc/scan.expandAVX512_32_outShufLo
+          410e40 t internal/runtime/gc/scan.expandAVX512_36
+          4d8660 r internal/runtime/gc/scan.expandAVX512_36_inShuf0
+          4d86e0 r internal/runtime/gc/scan.expandAVX512_36_inShuf1
+          4d8760 r internal/runtime/gc/scan.expandAVX512_36_inShuf2
+          4d86a0 r internal/runtime/gc/scan.expandAVX512_36_mat0
+          4d8720 r internal/runtime/gc/scan.expandAVX512_36_mat1
+          4d87a0 r internal/runtime/gc/scan.expandAVX512_36_mat2
+          4d9ca0 R internal/runtime/gc/scan.expandAVX512_36_outShufHi
+          4d9c60 R internal/runtime/gc/scan.expandAVX512_36_outShufLo
+          4d6f20 r internal/runtime/gc/scan.expandAVX512_3_inShuf0
+          4d6fa0 r internal/runtime/gc/scan.expandAVX512_3_inShuf1
+          4d6fe0 r internal/runtime/gc/scan.expandAVX512_3_inShuf2
+          4d6f60 r internal/runtime/gc/scan.expandAVX512_3_mat0
+          4d93e0 R internal/runtime/gc/scan.expandAVX512_3_outShufHi
+          4d93a0 R internal/runtime/gc/scan.expandAVX512_3_outShufLo
+          4104a0 t internal/runtime/gc/scan.expandAVX512_4
+          410ec0 t internal/runtime/gc/scan.expandAVX512_40
+          4d87e0 r internal/runtime/gc/scan.expandAVX512_40_inShuf0
+          4d8860 r internal/runtime/gc/scan.expandAVX512_40_inShuf1
+          4d88e0 r internal/runtime/gc/scan.expandAVX512_40_inShuf2
+          4d8960 r internal/runtime/gc/scan.expandAVX512_40_inShuf3
+          4d8820 r internal/runtime/gc/scan.expandAVX512_40_mat0
+          4d88a0 r internal/runtime/gc/scan.expandAVX512_40_mat1
+          4d8920 r internal/runtime/gc/scan.expandAVX512_40_mat2
+          4d89a0 r internal/runtime/gc/scan.expandAVX512_40_mat3
+          4d9d20 R internal/runtime/gc/scan.expandAVX512_40_outShufHi0
+          4d9d60 R internal/runtime/gc/scan.expandAVX512_40_outShufHi1
+          4d9ce0 R internal/runtime/gc/scan.expandAVX512_40_outShufLo
+          410fa0 t internal/runtime/gc/scan.expandAVX512_44
+          4d89e0 r internal/runtime/gc/scan.expandAVX512_44_inShuf0
+          4d8a60 r internal/runtime/gc/scan.expandAVX512_44_inShuf1
+          4d8ae0 r internal/runtime/gc/scan.expandAVX512_44_inShuf2
+          4d8b60 r internal/runtime/gc/scan.expandAVX512_44_inShuf3
+          4d8a20 r internal/runtime/gc/scan.expandAVX512_44_mat0
+          4d8aa0 r internal/runtime/gc/scan.expandAVX512_44_mat1
+          4d8b20 r internal/runtime/gc/scan.expandAVX512_44_mat2
+          4d8ba0 r internal/runtime/gc/scan.expandAVX512_44_mat3
+          4d9de0 R internal/runtime/gc/scan.expandAVX512_44_outShufHi0
+          4d9e20 R internal/runtime/gc/scan.expandAVX512_44_outShufHi1
+          4d9da0 R internal/runtime/gc/scan.expandAVX512_44_outShufLo
+          411080 t internal/runtime/gc/scan.expandAVX512_48
+          4d8be0 r internal/runtime/gc/scan.expandAVX512_48_inShuf0
+          4d8c60 r internal/runtime/gc/scan.expandAVX512_48_inShuf1
+          4d8ce0 r internal/runtime/gc/scan.expandAVX512_48_inShuf2
+          4d8c20 r internal/runtime/gc/scan.expandAVX512_48_mat0
+          4d8ca0 r internal/runtime/gc/scan.expandAVX512_48_mat1
+          4d8d20 r internal/runtime/gc/scan.expandAVX512_48_mat2
+          4d9ea0 R internal/runtime/gc/scan.expandAVX512_48_outShufHi
+          4d9e60 R internal/runtime/gc/scan.expandAVX512_48_outShufLo
+          4d7020 r internal/runtime/gc/scan.expandAVX512_4_inShuf0
+          4d70a0 r internal/runtime/gc/scan.expandAVX512_4_inShuf1
+          4d7060 r internal/runtime/gc/scan.expandAVX512_4_mat0
+          4d9420 R internal/runtime/gc/scan.expandAVX512_4_outShufLo
+          411100 t internal/runtime/gc/scan.expandAVX512_52
+          4d8d60 r internal/runtime/gc/scan.expandAVX512_52_inShuf0
+          4d8de0 r internal/runtime/gc/scan.expandAVX512_52_inShuf1
+          4d8e60 r internal/runtime/gc/scan.expandAVX512_52_inShuf2
+          4d8ee0 r internal/runtime/gc/scan.expandAVX512_52_inShuf3
+          4d8da0 r internal/runtime/gc/scan.expandAVX512_52_mat0
+          4d8e20 r internal/runtime/gc/scan.expandAVX512_52_mat1
+          4d8ea0 r internal/runtime/gc/scan.expandAVX512_52_mat2
+          4d8f20 r internal/runtime/gc/scan.expandAVX512_52_mat3
+          4d9f20 R internal/runtime/gc/scan.expandAVX512_52_outShufHi0
+          4d9f60 R internal/runtime/gc/scan.expandAVX512_52_outShufHi1
+          4d9ee0 R internal/runtime/gc/scan.expandAVX512_52_outShufLo
+          4111e0 t internal/runtime/gc/scan.expandAVX512_56
+          4d8f60 r internal/runtime/gc/scan.expandAVX512_56_inShuf0
+          4d8fe0 r internal/runtime/gc/scan.expandAVX512_56_inShuf1
+          4d9020 r internal/runtime/gc/scan.expandAVX512_56_inShuf2
+          4d8fa0 r internal/runtime/gc/scan.expandAVX512_56_mat0
+          4d9060 r internal/runtime/gc/scan.expandAVX512_56_mat2
+          4d9fe0 R internal/runtime/gc/scan.expandAVX512_56_outShufHi
+          4d9fa0 R internal/runtime/gc/scan.expandAVX512_56_outShufLo
+          410500 t internal/runtime/gc/scan.expandAVX512_6
+          411260 t internal/runtime/gc/scan.expandAVX512_60
+          4d90a0 r internal/runtime/gc/scan.expandAVX512_60_inShuf0
+          4d9120 r internal/runtime/gc/scan.expandAVX512_60_inShuf1
+          4d91a0 r internal/runtime/gc/scan.expandAVX512_60_inShuf2
+          4d9220 r internal/runtime/gc/scan.expandAVX512_60_inShuf3
+          4d90e0 r internal/runtime/gc/scan.expandAVX512_60_mat0
+          4d9160 r internal/runtime/gc/scan.expandAVX512_60_mat1
+          4d91e0 r internal/runtime/gc/scan.expandAVX512_60_mat2
+          4d9260 r internal/runtime/gc/scan.expandAVX512_60_mat3
+          4da060 R internal/runtime/gc/scan.expandAVX512_60_outShufHi0
+          4da0a0 R internal/runtime/gc/scan.expandAVX512_60_outShufHi1
+          4da020 R internal/runtime/gc/scan.expandAVX512_60_outShufLo
+          411340 t internal/runtime/gc/scan.expandAVX512_64
+          4d92a0 r internal/runtime/gc/scan.expandAVX512_64_inShuf0
+          4d9320 r internal/runtime/gc/scan.expandAVX512_64_inShuf1
+          4d92e0 r internal/runtime/gc/scan.expandAVX512_64_mat0
+          4da0e0 R internal/runtime/gc/scan.expandAVX512_64_outShufLo
+          4d70e0 r internal/runtime/gc/scan.expandAVX512_6_inShuf0
+          4d7160 r internal/runtime/gc/scan.expandAVX512_6_inShuf1
+          4d71a0 r internal/runtime/gc/scan.expandAVX512_6_inShuf2
+          4d7120 r internal/runtime/gc/scan.expandAVX512_6_mat0
+          4d94a0 R internal/runtime/gc/scan.expandAVX512_6_outShufHi
+          4d9460 R internal/runtime/gc/scan.expandAVX512_6_outShufLo
+          410580 t internal/runtime/gc/scan.expandAVX512_8
+          4d71e0 r internal/runtime/gc/scan.expandAVX512_8_inShuf0
+          4d7260 r internal/runtime/gc/scan.expandAVX512_8_inShuf1
+          4d7220 r internal/runtime/gc/scan.expandAVX512_8_mat0
+          4d94e0 R internal/runtime/gc/scan.expandAVX512_8_outShufLo
+          4db9c0 R internal/runtime/gc/scan.gcExpandersAVX512
+          410280 T internal/runtime/gc/scan.init
+          411440 T internal/runtime/gc/scan.scanSpanPackedAVX512.abi0
+          4053c0 T internal/runtime/maps.(*Iter).Init
+          405600 T internal/runtime/maps.(*Iter).Next
+          405500 T internal/runtime/maps.(*Iter).grownKeyElem
+          4030c0 T internal/runtime/maps.(*Map).getWithKey
+          4031c0 T internal/runtime/maps.(*Map).getWithKeySmall
+          404200 T internal/runtime/maps.(*Map).getWithoutKeySmallFastStr
+          4035a0 T internal/runtime/maps.(*Map).growToSmall
+          403620 T internal/runtime/maps.(*Map).growToTable
+          402e60 T internal/runtime/maps.(*Map).installTableSplit
+          403300 T internal/runtime/maps.(*Map).putSlotSmall
+          403c40 T internal/runtime/maps.(*Map).putSlotSmallFast32
+          403e00 T internal/runtime/maps.(*Map).putSlotSmallFast64
+          403fc0 T internal/runtime/maps.(*Map).putSlotSmallFastPtr
+          404420 T internal/runtime/maps.(*Map).putSlotSmallFastStr
+          404b00 T internal/runtime/maps.(*table).getWithKey
+          405f00 T internal/runtime/maps.(*table).grow
+          4050a0 T internal/runtime/maps.(*table).pruneTombstones
+          405c80 T internal/runtime/maps.(*table).rehash
+          4049e0 T internal/runtime/maps.(*table).reset
+          405ce0 T internal/runtime/maps.(*table).split
+          404cc0 T internal/runtime/maps.(*table).uncheckedPutSlot
+          404ea0 T internal/runtime/maps.(*table).uncheckedPutSlotForAssign
+          403d00 T internal/runtime/maps.(*table).uncheckedPutSlotForAssignFast32
+          403ec0 T internal/runtime/maps.(*table).uncheckedPutSlotForAssignFast64
+          4040e0 T internal/runtime/maps.(*table).uncheckedPutSlotForAssignFastPtr
+          404600 T internal/runtime/maps.(*table).uncheckedPutSlotForAssignFastStr
+          4088a0 T internal/runtime/maps.(*unhashableTypeError).Error
+          403b80 T internal/runtime/maps.AlgInit
+          403a20 T internal/runtime/maps.MemHash
+          403a80 T internal/runtime/maps.MemHash32
+          403b00 T internal/runtime/maps.MemHash64
+          402c40 T internal/runtime/maps.NewMap
+          5fb305 B internal/runtime/maps.UseAeshash
+          5fba00 B internal/runtime/maps.aeskeysched
+          408800 T internal/runtime/maps.checkMasksAndShiftsAlignment
+          5d5160 D internal/runtime/maps.errNilAssign
+          480560 T internal/runtime/maps.fatal
+          5fb780 B internal/runtime/maps.hashkey
+          4037c0 T internal/runtime/maps.mapKeyError2
+          408820 T internal/runtime/maps.memHash32AES
+          408860 T internal/runtime/maps.memHash64AES
+          408280 T internal/runtime/maps.memHashAES
+          404740 T internal/runtime/maps.memHashFallback
+          404900 T internal/runtime/maps.newTable
+          47f380 T internal/runtime/maps.newarray
+          47f260 T internal/runtime/maps.newobject
+          481300 T internal/runtime/maps.rand
+          484100 T internal/runtime/maps.typeString
+          47f540 T internal/runtime/maps.typedmemmove
+          4039c0 T internal/runtime/maps.unhashableTypeError.Error
+          5fb306 B internal/runtime/sys.DITSupported
+          40d720 T internal/runtime/syscall/linux.EpollWait
+          40d7c0 T internal/runtime/syscall/linux.Open
+          40d8a0 T internal/runtime/syscall/linux.Pread
+          40d820 T internal/runtime/syscall/linux.Read
+          40d940 T internal/runtime/syscall/linux.Syscall6
+          5fb558 B internal/runtime/syscall/linux._zero
+          40d600 T internal/strconv.(*Error).Error
+          409d40 T internal/strconv.(*decimal).Assign
+          40a300 T internal/strconv.(*decimal).Round
+          40a240 T internal/strconv.(*decimal).Shift
+          4d6060 R internal/strconv..dict.shortFloat[float32]
+          4d6060 R internal/strconv..dict.shortFloat[float64]
+          409b00 T internal/strconv.AppendComplex
+          40a420 T internal/strconv.AppendFloat
+          40c560 T internal/strconv.AppendInt
+          40c620 T internal/strconv.AppendUint
+          409900 T internal/strconv.Atoi
+          409420 T internal/strconv.Error.Error
+          40c400 T internal/strconv.FormatInt
+          409740 T internal/strconv.ParseInt
+          409460 T internal/strconv.ParseUint
+          40cb60 T internal/strconv.RuntimeFormatBase10
+          40ce80 T internal/strconv.fixedWidthFloat
+          40bc40 T internal/strconv.fmtB
+          40b280 T internal/strconv.fmtEFG
+          40bd60 T internal/strconv.fmtX
+          40cc20 T internal/strconv.formatBase10
+          40c820 T internal/strconv.formatBits
+          40a4e0 T internal/strconv.ftoa32
+          40aba0 T internal/strconv.ftoa64
+          40a040 T internal/strconv.leftShift
+          5d5430 D internal/strconv.leftcheats
+          5ce483 D internal/strconv.optimize
+          5d1f80 D internal/strconv.pow10Tab
+          409e60 T internal/strconv.rightShift
+          40d020 T internal/strconv.setDigits
+          40d360 T internal/strconv.shortFloat[go.shape.float32]
+          40d0e0 T internal/strconv.shortFloat[go.shape.float64]
+          5ced40 D internal/strconv.uint64pow10
+          409a00 T internal/strconv.underscoreOK
+          411560 T internal/stringslite.Index
+          48b920 T internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).Load
+          48b2a0 T internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).LoadOrStore
+          48ae40 t internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).LoadOrStore.deferwrap1
+          48afe0 T internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).Range
+          48b080 T internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).expand
+          48bac0 T internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).initSlow
+          48ae80 t internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).initSlow.deferwrap1
+          48aec0 T internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).iter
+          4899c0 T internal/sync.(*Mutex).Unlock
+          489720 T internal/sync.(*Mutex).lockSlow
+          489a00 T internal/sync.(*Mutex).unlockSlow
+          4dbbe0 R internal/sync..dict.HashTrieMap[interface {},interface {}]
+          4db1e0 R internal/sync..dict.entry[interface {},interface {}]
+          4d6750 R internal/sync..dict.indirect[interface {},interface {}]
+          4d6b60 R internal/sync..dict.newEntryNode[interface {},interface {}]
+          4d6740 R internal/sync..dict.newIndirectNode[interface {},interface {}]
+          4da520 R internal/sync..dict.node[interface {},interface {}]
+          4805e0 T internal/sync.fatal
+          481a00 T internal/sync.runtime_SemacquireMutex
+          481b60 T internal/sync.runtime_Semrelease
+          481120 T internal/sync.runtime_canSpin
+          4811a0 T internal/sync.runtime_doSpin
+          481c40 T internal/sync.runtime_nanotime
+          4805a0 T internal/sync.throw
+          4ab1a0 T internal/syscall/unix.Fstatat
+          4ab300 T internal/syscall/unix.KernelVersion
+          5d4be0 D internal/syscall/unix.faccessat
+          4ab0a0 T internal/testlog.PanicOnExit0
+          4ab160 t internal/testlog.PanicOnExit0.deferwrap1
+          5dac60 B internal/testlog.logger
+          5fb5b8 B internal/testlog.panicOnExit0
+          5d5470 d io..typeAssert.1
+          5d5490 d io..typeAssert.2
+          5d4f40 D io.EOF
+          5d4f20 D io.ErrShortWrite
+          5d4f50 D io.ErrUnexpectedEOF
+          48bf40 T io.copyBuffer
+          5d4f30 D io.errInvalidWrite
+          4aa380 T io/fs.(*FileMode).IsDir
+          4aa3a0 T io/fs.(*FileMode).String
+          4aa5a0 T io/fs.(*FileMode).Type
+          4aa2a0 T io/fs.(*PathError).Error
+          4aa320 T io/fs.(*PathError).Unwrap
+          5ce660 D io/fs..inittask
+          5dae00 B io/fs.ErrClosed
+          5dade0 B io/fs.ErrExist
+          5dadc0 B io/fs.ErrInvalid
+          5dadf0 B io/fs.ErrNotExist
+          5dadd0 B io/fs.ErrPermission
+          4aa260 T io/fs.FileMode.IsDir
+          4aa080 T io/fs.FileMode.String
+          4aa280 T io/fs.FileMode.Type
+          4a9b00 T io/fs.FormatDirEntry
+          4aa340 t io/fs.FormatDirEntry.deferwrap1
+          5d4fc0 D io/fs.SkipAll
+          5d4fb0 D io/fs.SkipDir
+          4a99c0 T io/fs.init
+          5ce630 D iter..inittask
+          5d4fa0 D iter.goexitPanicValue
+          48cba0 T iter.init
+          4c9dc0 T main.check
+          5fb2e8 B main.failed
+          4ca1e0 T main.faults
+          4ca460 T main.main
+          4c9fe0 T main.poke
+          4dae60 r masks
+          5ce650 D math..inittask
+          48eee0 T math.init
+          5fb308 B math.useFMA
+          408de0 t memeqbody
+          4b38a0 T os.(*File).Close
+          4b2fc0 T os.(*File).Name
+          4b2fe0 T os.(*File).Read
+          4b30a0 T os.(*File).ReadFrom
+          4b6040 T os.(*File).Stat
+          4b3800 T os.(*File).SyscallConn
+          4b31e0 T os.(*File).Write
+          4b3380 T os.(*File).WriteTo
+          4b6c40 T os.(*File).copyFileRange
+          4b6400 T os.(*File).lstatat
+          4b6540 T os.(*File).lstatatNolog
+          4b69e0 T os.(*File).readFrom
+          4b0620 T os.(*File).readdir
+          4b7220 t os.(*File).readdir.deferwrap1
+          4b6a80 T os.(*File).spliceToFile
+          4b35a0 T os.(*File).wrapErr
+          4b6700 T os.(*File).writeTo
+          4b73c0 t os.(*File).writeTo.func1
+          4b1c40 T os.(*Process).doRelease
+          4b1b00 T os.(*Process).handleTransientRelease
+          4b2b20 T os.(*Process).pidSignal
+          4b7260 t os.(*Process).pidSignal.deferwrap1
+          4b2680 T os.(*Process).pidWait
+          4b5460 T os.(*Process).pidfdSendSignal
+          4b7300 t os.(*Process).pidfdSendSignal.deferwrap1
+          4b4f60 T os.(*Process).pidfdWait
+          4b72a0 t os.(*Process).pidfdWait.deferwrap1
+          4b2a60 T os.(*Process).signal
+          4b2640 T os.(*Process).wait
+          4b2340 T os.(*ProcessState).String
+          4b19c0 T os.(*SyscallError).Error
+          4b1a40 T os.(*SyscallError).Unwrap
+          4b3fa0 T os.(*file).close
+          4b66c0 T os.(*fileStat).IsDir
+          4b66e0 T os.(*fileStat).Mode
+          4b66a0 T os.(*fileStat).Name
+          4b7ec0 T os.(*fileWithoutReadFrom).Close
+          4b7f40 T os.(*fileWithoutReadFrom).Name
+          4b7fc0 T os.(*fileWithoutReadFrom).Read
+          4b8080 T os.(*fileWithoutReadFrom).SyscallConn
+          4b81a0 T os.(*fileWithoutReadFrom).Write
+          4b8220 T os.(*fileWithoutReadFrom).WriteTo
+          4b8300 T os.(*fileWithoutWriteTo).Close
+          4b8380 T os.(*fileWithoutWriteTo).Name
+          4b8400 T os.(*fileWithoutWriteTo).Read
+          4b8480 T os.(*fileWithoutWriteTo).ReadFrom
+          4b8540 T os.(*fileWithoutWriteTo).SyscallConn
+          4b8660 T os.(*fileWithoutWriteTo).Write
+          4b7e00 T os.(*noReadFrom).ReadFrom
+          4b8240 T os.(*noWriteTo).WriteTo
+          4b1a60 T os.(*processHandle).release
+          4b4180 T os.(*unixDirent).IsDir
+          4b4160 T os.(*unixDirent).Name
+          4b41c0 T os.(*unixDirent).String
+          4b41a0 T os.(*unixDirent).Type
+          5ce6c0 D os..inittask
+          5d5330 d os..typeAssert.4
+          5d5350 d os..typeAssert.5
+          5db060 B os.Args
+          5dad70 B os.ErrClosed
+          5dad90 B os.ErrDeadlineExceeded
+          5dad50 B os.ErrExist
+          5dad30 B os.ErrInvalid
+          5dad80 B os.ErrNoDeadline
+          5dad60 B os.ErrNotExist
+          5dad40 B os.ErrPermission
+          5d4d50 D os.ErrProcessDone
+          4b5cc0 T os.Exit
+          4b1920 T os.Getenv
+          4b4360 T os.Getwd
+          5d4d70 D os.Kill
+          4b34c0 T os.OpenFile
+          4b5b40 T os.Pipe
+          4b1b60 T os.StartProcess
+          4b5d40 T os.Stat
+          5dabd8 B os.Stderr
+          5dabc8 B os.Stdin
+          5dabd0 B os.Stdout
+          49dfc0 T os.checkClonePidfd
+          4b5680 T os.checkPidfd
+          4b7360 t os.checkPidfd.deferwrap1
+          5dabe0 B os.checkPidfdOnce
+          5fb303 B os.checkWrapErr
+          5d5ba0 D os.dirBufPool
+          5d4d60 D os.errProcessReleased
+          4b2de0 T os.executable
+          4b7e60 T os.fileWithoutReadFrom.Close
+          4b7f20 T os.fileWithoutReadFrom.Name
+          4b7f60 T os.fileWithoutReadFrom.Read
+          4b7fe0 T os.fileWithoutReadFrom.SyscallConn
+          4b8140 T os.fileWithoutReadFrom.Write
+          4b81c0 T os.fileWithoutReadFrom.WriteTo
+          4b82a0 T os.fileWithoutWriteTo.Close
+          4b8360 T os.fileWithoutWriteTo.Name
+          4b83a0 T os.fileWithoutWriteTo.Read
+          4b8420 T os.fileWithoutWriteTo.ReadFrom
+          4b84a0 T os.fileWithoutWriteTo.SyscallConn
+          4b8600 T os.fileWithoutWriteTo.Write
+          4b5de0 T os.fillFileStatFromSys
+          4b4ea0 T os.getPidfd
+          4b6e40 T os.getPollFDAndNetwork
+          5db040 B os.getwdCache
+          4b0300 T os.init
+          4b5c60 T os.init.0
+          4b7180 t os.init.func1
+          4b6280 T os.lstatNolog
+          4b39e0 T os.newFile
+          4b3900 T os.newFileFromNewFile
+          4b4200 T os.newUnixDirent
+          4b31a0 T os.noReadFrom.ReadFrom
+          4b3480 T os.noWriteTo.WriteTo
+          4b3e20 T os.openDirNolog
+          4b3c20 T os.openFileNolog
+          5d4b58 D os.pollCopyFileRange
+          5d4b60 D os.pollSplice
+          4813e0 T os.runtime_args
+          4806c0 T os.runtime_beforeExit
+          481c80 T os.sigpipe
+          4b1cc0 T os.startProcess
+          4b6120 T os.statNolog
+          5dabe8 B os.stathook
+          4c7300 T os/exec.(*Cmd).Run
+          4c7360 T os/exec.(*Cmd).Start
+          4c99a0 t os/exec.(*Cmd).Start.func1
+          4c98c0 t os/exec.(*Cmd).Start.func2
+          4c9880 t os/exec.(*Cmd).Start.gowrap1
+          4c9840 t os/exec.(*Cmd).Start.gowrap2
+          4c6640 T os/exec.(*Cmd).String
+          4c8360 T os/exec.(*Cmd).Wait
+          4c8600 T os/exec.(*Cmd).awaitGoroutines
+          4c9ae0 t os/exec.(*Cmd).awaitGoroutines.func1
+          4c6e60 T os/exec.(*Cmd).childStderr
+          4c6aa0 T os/exec.(*Cmd).childStdin
+          4c9660 t os/exec.(*Cmd).childStdin.func1
+          4c8920 T os/exec.(*Cmd).environ
+          4c7e00 T os/exec.(*Cmd).watchCtx
+          4c6f00 T os/exec.(*Cmd).writerDescriptor
+          4c97c0 t os/exec.(*Cmd).writerDescriptor.func1
+          4c5f80 T os/exec.(*Error).Error
+          4c60c0 T os/exec.(*Error).Unwrap
+          4c8320 T os/exec.(*ExitError).Error
+          4c9da0 T os/exec.(*ExitError).String
+          4c9ca0 T os/exec.(*wrappedError).Error
+          4c9d20 T os/exec.(*wrappedError).Unwrap
+          4c61a0 T os/exec.Command
+          4c9b80 t os/exec.Command.func1
+          5d4db0 D os/exec.ErrDot
+          5d4dc0 D os/exec.ErrNotFound
+          5d4da0 D os/exec.ErrWaitDelay
+          4c9d40 T os/exec.ExitError.String
+          4c8ac0 T os/exec.dedupEnvCase
+          5d4b70 D os/exec.execerrdot
+          5d4b68 D os/exec.execwait
+          4c9000 T os/exec.findExecutable
+          4c69e0 T os/exec.interfaceEqual
+          4c9b60 t os/exec.interfaceEqual.func1
+          4c9180 T os/exec.lookPath
+          4c60e0 T os/exec.wrappedError.Error
+          4c6180 T os/exec.wrappedError.Unwrap
+          5ce690 D path/filepath..inittask
+          5dae20 B path/filepath.SkipAll
+          5dae10 B path/filepath.SkipDir
+          4c5da0 T path/filepath.init
+          4c5ee0 T path/filepath.join
+          4c5e40 T path/filepath.unixAbs
+          495800 T reflect.(*ChanDir).String
+          495760 T reflect.(*Kind).String
+          491300 T reflect.(*MapIter).Key
+          491440 T reflect.(*MapIter).Next
+          4913a0 T reflect.(*MapIter).Value
+          4958c0 T reflect.(*Value).Kind
+          4958e0 T reflect.(*Value).String
+          4928c0 T reflect.(*ValueError).Error
+          48efa0 T reflect.(*abiSeq).addArg
+          48f2a0 T reflect.(*abiSeq).addRcvr
+          48f700 T reflect.(*abiSeq).regAssign
+          495260 T reflect.(*rtype).Elem
+          4952c0 T reflect.(*rtype).Field
+          495100 T reflect.(*rtype).Kind
+          4951a0 T reflect.(*rtype).Name
+          495120 T reflect.(*rtype).NumMethod
+          495080 T reflect.(*rtype).String
+          4917c0 T reflect.(*structType).Field
+          5ce640 D reflect..inittask
+          491720 T reflect.ChanDir.String
+          4915e0 T reflect.Kind.String
+          4941a0 T reflect.Value.Elem
+          4943c0 T reflect.Value.Field
+          494500 T reflect.Value.Index
+          4946c0 T reflect.Value.Kind
+          4949a0 T reflect.Value.Pointer
+          494ba0 T reflect.Value.String
+          494e80 T reflect.Value.UnsafePointer
+          494d40 T reflect.Value.abiTypeSlow
+          492ba0 T reflect.Value.bytesSlow
+          4946e0 T reflect.Value.lenNonSlice
+          494c20 T reflect.Value.stringNonString
+          494ce0 T reflect.Value.typeSlow
+          481820 T reflect.addReflectOff
+          4922a0 T reflect.addTypeBits
+          5dac38 B reflect.bytesType
+          4930c0 T reflect.callMethod
+          495980 T reflect.callMethod.abi0
+          47ebc0 T reflect.chanlen
+          494900 T reflect.copyVal
+          5db100 B reflect.dummy
+          491660 T reflect.elem
+          491520 T reflect.flag.panicNotMap
+          5ce530 D reflect.floatArgRegs
+          5ce538 D reflect.floatRegSize
+          4919c0 T reflect.funcLayout
+          495040 t reflect.funcLayout.func1
+          48ef00 T reflect.init
+          5ce528 D reflect.intArgRegs
+          5d5570 D reflect.kindNames
+          5db240 B reflect.layoutCache
+          490e00 T reflect.makeMethodValue
+          4912c0 T reflect.mapIterNext
+          491260 T reflect.mapIterStart
+          47f460 T reflect.maplen
+          4829e0 T reflect.memmove
+          492da0 T reflect.methodReceiver
+          4955e0 T reflect.methodValueCall.abi0
+          4911c0 T reflect.moveMakeFuncArgPtrs
+          495940 T reflect.moveMakeFuncArgPtrs.abi0
+          490540 T reflect.newAbiDesc
+          492800 T reflect.packEfaceData
+          481720 T reflect.resolveNameOff
+          4817a0 T reflect.resolveTextOff
+          481760 T reflect.resolveTypeOff
+          5dac30 B reflect.stringType
+          47f620 T reflect.typedmemclr
+          47f500 T reflect.typedmemmove
+          5dac40 B reflect.uint8Type
+          47f2a0 T reflect.unsafe_New
+          495420 T reflect.valueInterface
+          4929e0 T reflect.valueMethodName
+          47f7e0 T reflect.verifyNotInHeapPtr
+          466760 T runtime.(*Frames).Next
+          467600 T runtime.(*Func).Entry
+          447ac0 T runtime.(*PanicNilError).Error
+          448e40 T runtime.(*Pinner).Pin
+          47e500 t runtime.(*Pinner).Pin.func1
+          449040 T runtime.(*Pinner).Unpin
+          416d00 T runtime.(*TypeAssertionError).Error
+          447e60 T runtime.(*_panic).initOpenCodedDefers
+          447c60 T runtime.(*_panic).nextDefer
+          447dc0 T runtime.(*_panic).nextFrame
+          479920 t runtime.(*_panic).nextFrame.func1
+          447ae0 T runtime.(*_panic).start
+          4377c0 T runtime.(*activeSweep).end
+          443c80 T runtime.(*addrRanges).add
+          4441a0 T runtime.(*addrRanges).cloneInto
+          443b80 T runtime.(*addrRanges).findAddrGreaterEqual
+          443ac0 T runtime.(*addrRanges).findSucc
+          443a20 T runtime.(*addrRanges).init
+          444720 T runtime.(*atomicHeadTailIndex).incTail
+          488100 T runtime.(*boundsError).Error
+          441e40 T runtime.(*bucket).bp
+          441de0 T runtime.(*bucket).mp
+          441d80 T runtime.(*bucket).stk
+          4262c0 T runtime.(*cleanupQueue).createGs
+          425d00 T runtime.(*cleanupQueue).dequeue
+          425ae0 T runtime.(*cleanupQueue).enqueue
+          425e00 T runtime.(*cleanupQueue).flush
+          426160 T runtime.(*cleanupQueue).wake
+          4448a0 T runtime.(*consistentHeapStats).acquire
+          444960 T runtime.(*consistentHeapStats).release
+          416360 T runtime.(*cpuProfile).add
+          4165c0 T runtime.(*cpuProfile).addExtra
+          4164c0 T runtime.(*cpuProfile).addNonGo
+          444a00 T runtime.(*cpuStats).accumulate
+          488080 T runtime.(*errorAddressString).Error
+          488220 T runtime.(*errorString).Error
+          429c00 T runtime.(*fixalloc).alloc
+          429d20 T runtime.(*fixalloc).free
+          429ae0 T runtime.(*fixalloc).init
+          42ac00 T runtime.(*g).isMaybeRunnable
+          42d540 T runtime.(*gcCPULimiterState).accumulate
+          42d1c0 T runtime.(*gcCPULimiterState).finishGCTransition
+          42d5e0 T runtime.(*gcCPULimiterState).resetCapacity
+          42d120 T runtime.(*gcCPULimiterState).startGCTransition
+          42d280 T runtime.(*gcCPULimiterState).update
+          42d320 T runtime.(*gcCPULimiterState).updateLocked
+          434fc0 T runtime.(*gcControllerState).addIdleMarkWorker
+          434320 T runtime.(*gcControllerState).assignWaitingGCWorker
+          434d80 T runtime.(*gcControllerState).commit
+          433d80 T runtime.(*gcControllerState).endCycle
+          4341c0 T runtime.(*gcControllerState).enlistWorker
+          434560 T runtime.(*gcControllerState).findRunnableGCWorker
+          434ac0 T runtime.(*gcControllerState).heapGoalInternal
+          4337e0 T runtime.(*gcControllerState).init
+          4348e0 T runtime.(*gcControllerState).markWorkerStop
+          434b40 T runtime.(*gcControllerState).memoryLimitHeapGoal
+          434740 T runtime.(*gcControllerState).releaseNextGCMarkWorker
+          4350a0 T runtime.(*gcControllerState).removeIdleMarkWorker
+          4347e0 T runtime.(*gcControllerState).resetLive
+          433bc0 T runtime.(*gcControllerState).revise
+          435180 T runtime.(*gcControllerState).setMaxIdleMarkWorkers
+          433880 T runtime.(*gcControllerState).startCycle
+          434c00 T runtime.(*gcControllerState).trigger
+          434980 T runtime.(*gcControllerState).update
+          439ac0 T runtime.(*gcWork).balance
+          439900 T runtime.(*gcWork).dispose
+          439b80 T runtime.(*gcWork).empty
+          4394e0 T runtime.(*gcWork).init
+          439540 T runtime.(*gcWork).putObj
+          439660 T runtime.(*gcWork).putObjBatch
+          439820 T runtime.(*gcWork).tryGetObj
+          431a20 T runtime.(*gcWork).tryGetSpan
+          4323c0 T runtime.(*gcWork).tryStealSpan
+          45c040 T runtime.(*godebugInc).IncNonDefault
+          418f60 T runtime.(*hexdumper).flushLine
+          418e80 T runtime.(*hexdumper).init
+          418cc0 T runtime.(*hexdumper).write
+          4682a0 T runtime.(*inlineUnwinder).next
+          419bc0 T runtime.(*itabTableType).add
+          4882e0 T runtime.(*itabTableType).add-fm
+          4199e0 T runtime.(*itabTableType).find
+          41ace0 T runtime.(*lfstack).pop
+          41ac60 T runtime.(*lfstack).push
+          42d6e0 T runtime.(*limiterEvent).consume
+          42d780 T runtime.(*limiterEvent).stop
+          41e720 T runtime.(*linearAlloc).alloc
+          41ae40 T runtime.(*listHeadManual).pop
+          41ada0 T runtime.(*listHeadManual).push
+          41af00 T runtime.(*listHeadManual).remove
+          488160 T runtime.(*lockRank).String
+          44d420 T runtime.(*m).clearAllpSnapshot
+          44d3a0 T runtime.(*m).snapshotAllp
+          442d00 T runtime.(*mLockProfile).captureStack
+          479580 t runtime.(*mLockProfile).captureStack.func1
+          442bc0 T runtime.(*mLockProfile).recordUnlock
+          442b40 T runtime.(*mLockProfile).start
+          442de0 T runtime.(*mLockProfile).storeSlow
+          43c560 T runtime.(*mSpanList).insert
+          43c3e0 T runtime.(*mSpanList).remove
+          423f80 T runtime.(*mcache).allocLarge
+          41d120 T runtime.(*mcache).nextFree
+          424360 T runtime.(*mcache).prepareForSweep
+          423d20 T runtime.(*mcache).refill
+          424160 T runtime.(*mcache).releaseAll
+          424440 T runtime.(*mcentral).cacheSpan
+          4249e0 T runtime.(*mcentral).grow
+          4248e0 T runtime.(*mcentral).uncacheSpan
+          43ad80 T runtime.(*mheap).alloc
+          479340 t runtime.(*mheap).alloc.func1
+          43b0a0 T runtime.(*mheap).allocMSpanLocked
+          43ae20 T runtime.(*mheap).allocManual
+          43af40 T runtime.(*mheap).allocNeedsZero
+          43b180 T runtime.(*mheap).allocSpan
+          47e140 t runtime.(*mheap).allocSpan.func1
+          41d060 T runtime.(*mheap).enableMetadataHugePages
+          43be60 T runtime.(*mheap).freeManual
+          479180 t runtime.(*mheap).freeSpan.func1
+          43bfa0 T runtime.(*mheap).freeSpanLocked
+          43bae0 T runtime.(*mheap).grow
+          43a360 T runtime.(*mheap).init
+          43b7c0 T runtime.(*mheap).initSpan
+          437660 T runtime.(*mheap).nextSpanForSweep
+          43a5c0 T runtime.(*mheap).reclaim
+          43a900 T runtime.(*mheap).reclaimChunk
+          43ae80 T runtime.(*mheap).setSpans
+          41c940 T runtime.(*mheap).sysAlloc
+          467580 T runtime.(*moduledata).funcName
+          467460 T runtime.(*moduledata).textAddr
+          4497e0 T runtime.(*mspan).decPinCounter
+          437f00 T runtime.(*mspan).ensureSwept
+          422cc0 T runtime.(*mspan).heapBits
+          422d40 T runtime.(*mspan).heapBitsSmallForAddr
+          4496a0 T runtime.(*mspan).incPinCounter
+          43c360 T runtime.(*mspan).init
+          422be0 T runtime.(*mspan).initHeapBits
+          4316c0 T runtime.(*mspan).moveInlineMarks
+          423000 T runtime.(*mspan).nextFreeIndex
+          422fe0 T runtime.(*mspan).refillAllocCache
+          449560 T runtime.(*mspan).refreshPinnerBits
+          438ec0 T runtime.(*mspan).reportZombies
+          422120 T runtime.(*mspan).typePointersOf
+          422280 T runtime.(*mspan).typePointersOfType
+          4221c0 T runtime.(*mspan).typePointersOfUnchecked
+          422e20 T runtime.(*mspan).writeHeapBitsSmall
+          4562c0 T runtime.(*p).destroy
+          47ad60 t runtime.(*p).destroy.func1
+          4560e0 T runtime.(*p).init
+          43f980 T runtime.(*pageAlloc).alloc
+          43e940 T runtime.(*pageAlloc).allocRange
+          441240 T runtime.(*pageAlloc).allocToCache
+          43e220 T runtime.(*pageAlloc).enableChunkHugePages
+          43ee20 T runtime.(*pageAlloc).find
+          4793c0 t runtime.(*pageAlloc).find.func1
+          43ed60 T runtime.(*pageAlloc).findMappedAddr
+          43fc20 T runtime.(*pageAlloc).free
+          43df60 T runtime.(*pageAlloc).grow
+          43dda0 T runtime.(*pageAlloc).init
+          43ffa0 T runtime.(*pageAlloc).markRandomPaddingPages
+          435cc0 T runtime.(*pageAlloc).scavenge
+          479120 t runtime.(*pageAlloc).scavenge.func1
+          435fc0 T runtime.(*pageAlloc).scavengeOne
+          4405a0 T runtime.(*pageAlloc).sysGrow
+          440460 T runtime.(*pageAlloc).sysInit
+          43e3a0 T runtime.(*pageAlloc).update
+          4415e0 T runtime.(*pageBits).clearRange
+          441740 T runtime.(*pageBits).popcntRange
+          441520 T runtime.(*pageBits).setRange
+          440ea0 T runtime.(*pageCache).alloc
+          440f40 T runtime.(*pageCache).allocN
+          441000 T runtime.(*pageCache).flush
+          4419c0 T runtime.(*pallocBits).find
+          441b60 T runtime.(*pallocBits).findLargeN
+          441a60 T runtime.(*pallocBits).findSmallN
+          441840 T runtime.(*pallocBits).summarize
+          441c60 T runtime.(*pallocData).allocRange
+          436540 T runtime.(*pallocData).findScavengeCandidate
+          437080 T runtime.(*piController).next
+          449100 T runtime.(*pinner).unpin
+          4880e0 T runtime.(*plainError).Error
+          4453c0 T runtime.(*pollCache).alloc
+          444fa0 T runtime.(*pollCache).free
+          444e60 T runtime.(*pollDesc).publishInfo
+          444ec0 T runtime.(*pollDesc).setEventErr
+          45a720 T runtime.(*profBuf).canWriteRecord
+          45a7c0 T runtime.(*profBuf).canWriteTwoRecords
+          45aec0 T runtime.(*profBuf).close
+          45afa0 T runtime.(*profBuf).read
+          45af20 T runtime.(*profBuf).wakeupExtra
+          45a8a0 T runtime.(*profBuf).write
+          45d320 T runtime.(*rwmutex).rlock
+          47b020 t runtime.(*rwmutex).rlock.func1
+          45d3a0 T runtime.(*rwmutex).runlock
+          436ea0 T runtime.(*scavChunkData).alloc
+          436fa0 T runtime.(*scavChunkData).free
+          436b20 T runtime.(*scavengeIndex).alloc
+          436980 T runtime.(*scavengeIndex).find
+          436c20 T runtime.(*scavengeIndex).free
+          436900 T runtime.(*scavengeIndex).grow
+          436820 T runtime.(*scavengeIndex).init
+          436da0 T runtime.(*scavengeIndex).nextGen
+          436de0 T runtime.(*scavengeIndex).setEmpty
+          440b00 T runtime.(*scavengeIndex).sysGrow
+          440e00 T runtime.(*scavengeIndex).sysInit
+          435a40 T runtime.(*scavengerState).controllerFailed
+          435500 T runtime.(*scavengerState).init
+          47cce0 t runtime.(*scavengerState).init.func1
+          47cd60 t runtime.(*scavengerState).init.func2
+          47ce20 t runtime.(*scavengerState).init.func3
+          47ce60 t runtime.(*scavengerState).init.func4
+          4356c0 T runtime.(*scavengerState).park
+          435aa0 T runtime.(*scavengerState).run
+          4357e0 T runtime.(*scavengerState).sleep
+          435740 T runtime.(*scavengerState).wake
+          45f680 T runtime.(*semaRoot).dequeue
+          45f260 T runtime.(*semaRoot).queue
+          45fa00 T runtime.(*semaRoot).rotateLeft
+          45fb60 T runtime.(*semaRoot).rotateRight
+          4130a0 T runtime.(*sideStackChunk).popScan
+          412fa0 T runtime.(*sideStackChunk).tryScan
+          4603e0 T runtime.(*sigctxt).preparePanic
+          4315c0 T runtime.(*spanInlineMarkBits).init
+          431640 T runtime.(*spanInlineMarkBits).tryAcquire
+          432000 T runtime.(*spanQueue).destroy
+          431c60 T runtime.(*spanQueue).drain
+          431b20 T runtime.(*spanQueue).put
+          431f00 T runtime.(*spanQueue).refill
+          431e40 T runtime.(*spanQueue).steal
+          431d80 T runtime.(*spanQueue).tryDrain
+          432240 T runtime.(*spanSPMC).deinit
+          444420 T runtime.(*spanSet).pop
+          444260 T runtime.(*spanSet).push
+          444560 T runtime.(*spanSet).reset
+          4446a0 T runtime.(*spanSetBlockAlloc).alloc
+          4373e0 T runtime.(*stackScanState).addObject
+          4372c0 T runtime.(*stackScanState).getPtr
+          4371a0 T runtime.(*stackScanState).putPtr
+          465040 T runtime.(*stkframe).argBytes
+          4650a0 T runtime.(*stkframe).argMapInternal
+          465380 T runtime.(*stkframe).getStackMap
+          438040 T runtime.(*sweepLocked).sweep
+          437c00 T runtime.(*sweepLocker).tryAcquire
+          468360 T runtime.(*synctestBubble).changegstatus
+          4685a0 T runtime.(*synctestBubble).decActive
+          468540 T runtime.(*synctestBubble).incActive
+          468660 T runtime.(*synctestBubble).maybeWakeLocked
+          4447e0 T runtime.(*sysMemStat).add
+          45bfa0 T runtime.(*ticksType).init
+          419680 T runtime.(*timeHistogram).record
+          419700 T runtime.(*timeHistogram).write
+          469100 T runtime.(*timer).maybeAdd
+          46a4e0 T runtime.(*timer).maybeRunChan
+          47b1a0 t runtime.(*timer).maybeRunChan.func1
+          468d80 T runtime.(*timer).modify
+          47b140 t runtime.(*timer).modify.func1
+          468ae0 T runtime.(*timer).stop
+          469ca0 T runtime.(*timer).unlockAndRun
+          47e540 t runtime.(*timer).unlockAndRun.func1
+          468840 T runtime.(*timer).updateHeap
+          468960 T runtime.(*timers).addHeap
+          469620 T runtime.(*timers).adjust
+          469900 T runtime.(*timers).check
+          469300 T runtime.(*timers).cleanHead
+          468c00 T runtime.(*timers).deleteMin
+          46a460 T runtime.(*timers).initHeap
+          469b40 T runtime.(*timers).run
+          46a220 T runtime.(*timers).siftDown
+          46a0c0 T runtime.(*timers).siftUp
+          469500 T runtime.(*timers).take
+          46aa60 T runtime.(*traceAdvancerState).stop
+          46f6a0 T runtime.(*traceBuf).varintAt
+          4707a0 T runtime.(*traceMap).newTraceMapNode
+          470620 T runtime.(*traceMap).put
+          470880 T runtime.(*traceMap).reset
+          4708e0 T runtime.(*traceRegionAlloc).alloc
+          47bf60 t runtime.(*traceRegionAlloc).alloc.func1
+          470a20 T runtime.(*traceRegionAlloc).drop
+          472b20 T runtime.(*traceStackTable).dump
+          472aa0 T runtime.(*traceStackTable).put
+          473ce0 T runtime.(*traceStringTable).put
+          47c1a0 t runtime.(*traceStringTable).put.func1
+          474040 T runtime.(*traceStringTable).reset
+          47c1e0 t runtime.(*traceStringTable).reset.func1
+          473dc0 T runtime.(*traceStringTable).writeString
+          474540 T runtime.(*traceTypeTable).dump
+          4744e0 T runtime.(*traceTypeTable).put
+          46bb20 T runtime.(*unwinder).cgoCallers
+          46b960 T runtime.(*unwinder).finishInternal
+          46b000 T runtime.(*unwinder).initAt
+          46b660 T runtime.(*unwinder).next
+          46b380 T runtime.(*unwinder).resolveInternal
+          46baa0 T runtime.(*unwinder).symPC
+          4881e0 T runtime.(*waitReason).String
+          46ab40 T runtime.(*wakeableSleep).close
+          46aac0 T runtime.(*wakeableSleep).wake
+          444ac0 T runtime.(*wbBuf).reset
+          44a6a0 T runtime.(*xRegPerP).free
+          4da960 R runtime..dict.AddCleanup[internal/poll.splicePipe,internal/poll.splicePipeFields]
+          4da8a0 R runtime..dict.AddCleanup[os.Process,*os.processHandle]
+          4d6c80 R runtime..dict.callCleanup[*os.processHandle]
+          4d6cc0 R runtime..dict.callCleanup[internal/poll.splicePipeFields]
+          5ce5c1 d runtime..gobytes.2
+          5ce910 d runtime..gobytes.3
+          5ce5b4 d runtime..gobytes.4
+          5ce9e0 D runtime..inittask
+          5d55a0 d runtime..interfaceSwitch.0
+          4b77e0 T runtime.AddCleanup[go.shape.struct { Pid int; os.state sync/atomic.Uint32; os.sigMu sync.RWMutex; os.handle *os.processHandle; os.cleanup runtime.Cleanup },go.shape.*uint8]
+          4b7460 t runtime.AddCleanup[go.shape.struct { Pid int; os.state sync/atomic.Uint32; os.sigMu sync.RWMutex; os.handle *os.processHandle; os.cleanup runtime.Cleanup },go.shape.*uint8].func1
+          4afd20 T runtime.AddCleanup[go.shape.struct { internal/poll.splicePipeFields; internal/poll.cleanup runtime.Cleanup },go.shape.struct { internal/poll.rfd int; internal/poll.wfd int; internal/poll.data int }]
+          4afcc0 t runtime.AddCleanup[go.shape.struct { internal/poll.splicePipeFields; internal/poll.cleanup runtime.Cleanup },go.shape.struct { internal/poll.rfd int; internal/poll.wfd int; internal/poll.data int }].func1
+          425860 T runtime.Cleanup.Stop
+          4167c0 T runtime.GOMAXPROCS
+          44be00 T runtime.Gosched
+          5ce4d0 D runtime.MemProfileRate
+          429440 T runtime.SetFinalizer
+          4786a0 t runtime.SetFinalizer.func1
+          4785e0 t runtime.SetFinalizer.func2
+          443700 T runtime.Stack
+          4796a0 t runtime.Stack.func1
+          455bc0 T runtime._ExternalCode
+          455c00 T runtime._GC
+          455c40 T runtime._LostContendedRuntimeLock
+          455be0 T runtime._LostExternalCode
+          455c20 T runtime._LostSIGPROFDuringAtomic64
+          455ba0 T runtime._System
+          455c60 T runtime._VDSO
+          5dace0 B runtime._cgo_setenv
+          5dace8 B runtime._cgo_unsetenv
+          4862c0 T runtime.abort.abi0
+          44be60 T runtime.acquireSudog
+          457420 T runtime.acquirep
+          4574e0 T runtime.acquirepNoTrace
+          43cd00 T runtime.addCleanup
+          44ff60 T runtime.addExtraM
+          41a0c0 T runtime.addModuleItabs
+          43ca40 T runtime.addfinalizer
+          443940 T runtime.addrRange.subtract
+          5fb2f4 B runtime.addrspace_vec
+          43c660 T runtime.addspecial
+          414780 T runtime.adjustCgroupGOMAXPROCS
+          460c00 T runtime.adjustSignalStack
+          460e20 T runtime.adjustSignalStack2
+          5d4b50 D runtime.adjustSignalStack2Indirect
+          463960 T runtime.adjustctxt
+          4639a0 T runtime.adjustdefers
+          463720 T runtime.adjustframe
+          463520 T runtime.adjustpointers
+          463a20 T runtime.adjustsudogs
+          5ce488 D runtime.adviseUnused
+          42d900 T runtime.allGsSnapshotSortedForGC
+          5fb410 B runtime.allfin
+          44c640 T runtime.allgadd
+          5fb4a0 B runtime.allglen
+          5fb498 B runtime.allglock
+          5dab60 B runtime.allgptr
+          5daed0 B runtime.allgs
+          5dab90 B runtime.allm
+          44f520 T runtime.allocm
+          47a360 t runtime.allocm.func1
+          5fb820 B runtime.allocmLock
+          423c60 T runtime.allocmcache
+          478280 t runtime.allocmcache.func1
+          5dafb0 B runtime.allp
+          5fb4e0 B runtime.allpLock
+          5fb344 B runtime.argc
+          45c260 T runtime.args
+          4885e0 T runtime.args.abi0
+          5daf50 B runtime.argslice
+          5dab88 B runtime.argv
+          488700 T runtime.asmcgocall
+          4861e0 T runtime.asmcgocall.abi0
+          4861c0 T runtime.asmcgocall_landingpad.abi0
+          4848a0 T runtime.asminit.abi0
+          487100 T runtime.asyncPreempt.abi0
+          44a0a0 T runtime.asyncPreempt2
+          488440 T runtime.asyncPreempt2.abi0
+          47ca40 t runtime.asyncPreempt2.func1
+          5ce4f0 D runtime.asyncPreemptStack
+          47e8e0 T runtime.atomicwb
+          5daf70 B runtime.auxv
+          5fc860 B runtime.auxvreadbuf
+          423200 T runtime.badPointer
+          44c440 T runtime.badmcall
+          488460 T runtime.badmcall.abi0
+          44c480 T runtime.badmcall2
+          4884a0 T runtime.badmcall2.abi0
+          44c500 T runtime.badmorestackg0
+          488500 T runtime.badmorestackg0.abi0
+          47a100 t runtime.badmorestackg0.func1
+          44c540 T runtime.badmorestackgsignal
+          488520 T runtime.badmorestackgsignal.abi0
+          44c4c0 T runtime.badreflectcall
+          4884e0 T runtime.badreflectcall.abi0
+          461ca0 T runtime.badsignal
+          466720 T runtime.badsystemstack
+          488680 T runtime.badsystemstack.abi0
+          455b60 T runtime.badunlockosthread
+          5dab30 B runtime.bbuckets
+          435c20 T runtime.bgscavenge
+          437a60 T runtime.bgsweep
+          437540 T runtime.binarySearchTree
+          474c80 T runtime.bitCursor.write
+          46a620 T runtime.blockTimerChan
+          47fa40 T runtime.blockevent
+          5fb430 B runtime.blockprofilerate
+          4811e0 T runtime.bootstrapRand
+          45b920 T runtime.bootstrapRandReseed
+          5daeb0 B runtime.boringCaches
+          417120 T runtime.boundsError.Error
+          5d6140 D runtime.boundsErrorFmts
+          5d60c0 D runtime.boundsNegErrorFmts
+          5daae0 b runtime.bss
+          5dab40 B runtime.buckhash
+          474d20 T runtime.buildGCMask
+          41a9e0 T runtime.buildInterfaceSwitchCache
+          41a5e0 T runtime.buildTypeAssertCache
+          5d4c00 D runtime.buildVersion
+          4d69f0 R runtime.buildVersion.str
+          423440 T runtime.bulkBarrierBitmap
+          4226c0 T runtime.bulkBarrierPreWrite
+          422a40 T runtime.bulkBarrierPreWriteSrcOnly
+          412ca0 T runtime.c128equal
+          412a00 T runtime.c128hash
+          412c60 T runtime.c64equal
+          4129a0 T runtime.c64hash
+          485200 T runtime.call1024.abi0
+          485940 T runtime.call1048576.abi0
+          4860c0 T runtime.call1073741824.abi0
+          485020 T runtime.call128.abi0
+          485700 T runtime.call131072.abi0
+          485e80 T runtime.call134217728.abi0
+          484ea0 T runtime.call16.abi0
+          4854c0 T runtime.call16384.abi0
+          485c40 T runtime.call16777216.abi0
+          4852a0 T runtime.call2048.abi0
+          485a00 T runtime.call2097152.abi0
+          4850c0 T runtime.call256.abi0
+          4857c0 T runtime.call262144.abi0
+          485f40 T runtime.call268435456.abi0
+          484f20 T runtime.call32.abi0
+          485580 T runtime.call32768.abi0
+          485d00 T runtime.call33554432.abi0
+          485340 T runtime.call4096.abi0
+          485ac0 T runtime.call4194304.abi0
+          485160 T runtime.call512.abi0
+          485880 T runtime.call524288.abi0
+          486000 T runtime.call536870912.abi0
+          484fa0 T runtime.call64.abi0
+          485640 T runtime.call65536.abi0
+          485dc0 T runtime.call67108864.abi0
+          485400 T runtime.call8192.abi0
+          485b80 T runtime.call8388608.abi0
+          487c80 T runtime.callCgoMmap.abi0
+          487d20 T runtime.callCgoMunmap.abi0
+          487a40 T runtime.callCgoSigaction.abi0
+          46ef60 T runtime.callCgoSymbolizer
+          4b7d20 T runtime.callCleanup[go.shape.*uint8]
+          4b0280 T runtime.callCleanup[go.shape.struct { internal/poll.rfd int; internal/poll.wfd int; internal/poll.data int }]
+          414540 T runtime.callbackUpdateSystemStack
+          484040 T runtime.callers
+          47ba80 t runtime.callers.func1
+          448c40 T runtime.canpanic
+          44e220 T runtime.casGFromPreempted
+          44e180 T runtime.casGToPreemptScan
+          44e100 T runtime.casGToWaitingForSuspendG
+          44d820 T runtime.casfrom_Gscanstatus
+          44dd20 T runtime.casgstatus
+          47a240 t runtime.casgstatus.func1
+          47c9a0 t runtime.casgstatus.func2
+          47a200 t runtime.casgstatus.func3
+          5fb2fa B runtime.casgstatusAlwaysTrack
+          44dc20 T runtime.castogscanstatus
+          46efe0 T runtime.cgoContextPCs
+          5fb2e9 B runtime.cgoHasExtraM
+          487b40 T runtime.cgoSigtramp.abi0
+          5dabb8 B runtime.cgoSymbolizer
+          5dabb0 B runtime.cgoTraceback
+          5d4b20 D runtime.cgo_yield
+          47eae0 T runtime.cgocall
+          5fb610 B runtime.cgroupCPU
+          5fb2ea B runtime.cgroupOK
+          5ff940 B runtime.cgroupScratch
+          416220 T runtime.chanparkcommit
+          415900 T runtime.chanrecv
+          477c40 t runtime.chanrecv.func1
+          4158e0 T runtime.chanrecv1
+          5fb4f8 B runtime.chanrecvpc
+          414aa0 T runtime.chansend
+          477bc0 t runtime.chansend.func1
+          414a80 T runtime.chansend1
+          5fb4f0 B runtime.chansendpc
+          45c6e0 T runtime.check
+          488620 T runtime.check.abi0
+          424f00 T runtime.checkFinalizersAndCleanups
+          478300 t runtime.checkFinalizersAndCleanups.func1
+          478560 t runtime.checkFinalizersAndCleanups.func1.1
+          452ac0 T runtime.checkIdleGCNoP
+          4528e0 T runtime.checkRunqsNoP
+          452a20 T runtime.checkTimersNoP
+          4578a0 T runtime.checkdead
+          47af20 t runtime.checkdead.func1
+          418800 T runtime.checkfds
+          44cfc0 T runtime.checkmcount
+          5fb3e0 B runtime.cleanupBlockPtrMask
+          5ce480 D runtime.cleanupFnPtrMask
+          43d120 T runtime.clearCleanupContext
+          460680 T runtime.clearSignalHandlers
+          42cda0 T runtime.clearpools
+          487dc0 T runtime.clone.abi0
+          415420 T runtime.closechan
+          487740 T runtime.closefd.abi0
+          408bc0 T runtime.cmpstring
+          428bc0 T runtime.compute0
+          5fb4c0 B runtime.computeMaxProcsLock
+          465ca0 T runtime.concatstring2
+          465d40 T runtime.concatstring3
+          465e00 T runtime.concatstring4
+          465ee0 T runtime.concatstring5
+          465aa0 T runtime.concatstrings
+          5d4b28 D runtime.containermaxprocs
+          5fb2eb B runtime.containermaxprocsNonDefault
+          41a2e0 T runtime.convT
+          41a3e0 T runtime.convT32
+          47eea0 T runtime.convT64
+          41a360 T runtime.convTnoptr
+          47efa0 T runtime.convTslice
+          47ef00 T runtime.convTstring
+          463bc0 T runtime.copystack
+          610970 b runtime.covctrs
+          5de7c0 B runtime.cpuprof
+          486300 T runtime.cputicks.abi0
+          5fb4c8 B runtime.crashFD
+          5fb360 B runtime.crashing
+          5dab58 B runtime.crashingG
+          428e20 T runtime.createfing
+          5d4b20 d runtime.data
+          5d5230 D runtime.dbgvars
+          5fb460 B runtime.deadlock
+          5fba80 B runtime.debug
+          416900 T runtime.debugCallCheck
+          488320 T runtime.debugCallCheck.abi0
+          477c80 t runtime.debugCallCheck.func1
+          4866e0 T runtime.debugCallPanicked.abi0
+          486460 T runtime.debugCallV2
+          4169c0 T runtime.debugCallWrap
+          488360 T runtime.debugCallWrap.abi0
+          477fa0 t runtime.debugCallWrap.func1
+          47e3c0 t runtime.debugCallWrap.func2
+          416aa0 T runtime.debugCallWrap1
+          47e160 t runtime.debugCallWrap1.func1
+          416b20 T runtime.debugCallWrap2
+          4780c0 t runtime.debugCallWrap2.func1
+          5fb2f1 B runtime.debugPinnerKeepUnpin
+          4168a0 T runtime.debugPinnerV1
+          5fb470 B runtime.debuglock
+          476da0 T runtime.decoderune
+          421f20 T runtime.deductAssistCredit
+          439200 T runtime.deductSweepCredit
+          414720 T runtime.defaultGOMAXPROCS
+          414640 T runtime.defaultGOMAXPROCSInit
+          459160 T runtime.defaultGOMAXPROCSUpdateEnable
+          5d4bf0 D runtime.defaultGOROOT
+          4d6d60 R runtime.defaultGOROOT.str
+          447360 T runtime.deferconvert
+          447440 T runtime.deferprocStack
+          447760 T runtime.deferreturn
+          5fb2f6 B runtime.didothers
+          4618c0 T runtime.dieFromSignal
+          5ce482 D runtime.disableMemoryProfiling
+          5d5170 D runtime.divideError
+          45a240 T runtime.doInit1
+          443320 T runtime.doRecordGoroutineProfile
+          479640 t runtime.doRecordGoroutineProfile.func1
+          460740 T runtime.doSigPreempt
+          448880 T runtime.dopanic_m
+          479fc0 t runtime.dopanic_m.func1
+          44fc00 T runtime.dropm
+          433020 T runtime.dumpScanStats
+          472c00 T runtime.dumpStacksRec
+          4745e0 T runtime.dumpTypesRec
+          45fe00 T runtime.dumpregs
+          5fb2d8 b runtime.ebss
+          610970 b runtime.ecovctrs
+          5daad2 d runtime.edata
+          412e00 T runtime.efaceeq
+          4d61e9 r runtime.egcbss
+          4d611e r runtime.egcdata
+          415860 T runtime.empty
+          5fb6e0 B runtime.emptyInterfaceSwitchCache
+          5fb630 B runtime.emptyTypeAssertCache
+          5db400 B runtime.emptymspan
+          476f00 T runtime.encoderune
+          610970 b runtime.end
+          424b60 T runtime.endCheckmarks
+          610970 b runtime.enoptrbss
+          5d4b02 d runtime.enoptrdata
+          4809c0 T runtime.entersyscall
+          4547a0 T runtime.entersyscallHandleGCWait
+          454740 T runtime.entersyscallWakeSysmon
+          480a00 T runtime.entersyscallblock
+          47a880 t runtime.entersyscallblock.func1
+          47a840 t runtime.entersyscallblock.func2
+          47a740 t runtime.entersyscallblock.func3
+          47a640 t runtime.entersyscallblock.func4
+          47a5e0 t runtime.entersyscallblock.func5
+          5daf30 B runtime.envs
+          5a24a3 r runtime.epclntab
+          5ce490 D runtime.epfd
+          4dc862 r runtime.erodata
+          4170a0 T runtime.errorAddressString.Error
+          417040 T runtime.errorString.Error
+          4caa70 t runtime.etext
+          5cd380 r runtime.etypes
+          5fb860 B runtime.execLock
+          450f60 T runtime.execute
+          4876c0 T runtime.exit.abi0
+          4876e0 T runtime.exitThread.abi0
+          480cc0 T runtime.exitsyscall
+          47c860 t runtime.exitsyscall.func1
+          47aaa0 t runtime.exitsyscall.func2
+          47a9c0 t runtime.exitsyscall.func3
+          47a980 t runtime.exitsyscall.func4
+          454a20 T runtime.exitsyscallNoP
+          4548e0 T runtime.exitsyscallTryGetP
+          466fc0 T runtime.expandCgoFrames
+          5fb4a8 B runtime.extraM
+          5fb378 B runtime.extraMInUse
+          5fb338 B runtime.extraMLength
+          5fb33c B runtime.extraMWaiters
+          432f80 T runtime.extractHeapBitsSmall
+          412c20 T runtime.f32equal
+          412820 T runtime.f32hash
+          412c40 T runtime.f64equal
+          4128e0 T runtime.f64hash
+          5fb510 B runtime.faketime
+          41e2e0 T runtime.fastexprand
+          5cf0e0 D runtime.fastlog2Table
+          448160 T runtime.fatal
+          479dc0 t runtime.fatal.func1
+          448640 T runtime.fatalpanic
+          479f00 t runtime.fatalpanic.func1
+          47caa0 t runtime.fatalpanic.func2
+          461560 T runtime.fatalsignal
+          4485c0 T runtime.fatalthrow
+          479e40 t runtime.fatalthrow.func1
+          480180 T runtime.fcntl
+          4363a0 T runtime.fillAligned
+          428ee0 T runtime.finReadQueueStats
+          5ce4ac D runtime.finalizer1
+          428e80 T runtime.finalizercommit
+          5fb3f8 B runtime.finc
+          42aea0 T runtime.findGoroutineLeaks
+          42ace0 T runtime.findMaybeRunnableGoroutines
+          47f6a0 T runtime.findObject
+          451180 T runtime.findRunnable
+          483160 T runtime.findfunc
+          5a14e0 r runtime.findfunctab
+          466680 T runtime.findnull
+          5fb408 B runtime.finexecuted
+          5dab18 B runtime.fing
+          5fb314 B runtime.fingStatus
+          45cb40 T runtime.finishDebugVarsSetup
+          437960 T runtime.finishsweep_m
+          5fb3e8 B runtime.finlock
+          5fb8a0 B runtime.finptrmask
+          5fb3f0 B runtime.finq
+          5fb400 B runtime.finqueued
+          5ce240 D runtime.firstmoduledata
+          5d4c80 D runtime.floatError
+          4189e0 T runtime.floor
+          42cf80 T runtime.fmtNSAsMS
+          44c7a0 T runtime.forEachG
+          44c840 T runtime.forEachGRace
+          478a60 t runtime.forEachP.func1
+          44f160 T runtime.forEachPInternal
+          4256e0 T runtime.forEachSpecial
+          5daf90 B runtime.forcegc
+          44bce0 T runtime.forcegchelper
+          5ce4f8 D runtime.forcegcperiod
+          442920 T runtime.fpTracebackPartialExpand
+          473500 T runtime.fpunwindExpand
+          4322e0 T runtime.freeDeadSpanSPMCs
+          43a080 T runtime.freeSomeWbufs
+          4792a0 t runtime.freeSomeWbufs.func1
+          43d580 T runtime.freeSpecial
+          464e00 T runtime.freeStackSpans
+          47ad00 t runtime.freemcache.func1
+          44d720 T runtime.freezetheworld
+          5fb2f9 B runtime.freezing
+          467ea0 T runtime.funcMaxSPDelta
+          46c7e0 T runtime.funcNameForPrint
+          46c480 T runtime.funcNamePiecesForPrint
+          467de0 T runtime.funcfile
+          4832c0 T runtime.funcline1
+          467d40 T runtime.funcpkgpath
+          487d80 T runtime.futex.abi0
+          445c80 T runtime.futexsleep
+          445d40 T runtime.futexwakeup
+          479820 t runtime.futexwakeup.func1
+          5fc400 B runtime.fwdSig
+          5db700 B runtime.g0
+          5d61e0 D runtime.gStatusStrings
+          42e7e0 T runtime.gcAssistAlloc
+          4790c0 t runtime.gcAssistAlloc.func1
+          479080 t runtime.gcAssistAlloc.func2
+          42ee00 T runtime.gcAssistAlloc1
+          42c460 T runtime.gcBeginWork
+          42bf00 T runtime.gcBgMarkStartWorkers
+          478c40 t runtime.gcBgMarkStartWorkers.gowrap1
+          42c060 T runtime.gcBgMarkWorker
+          47cea0 t runtime.gcBgMarkWorker.func1
+          478c80 t runtime.gcBgMarkWorker.func2
+          5fb354 B runtime.gcBgMarkWorkerCount
+          5fb4e8 B runtime.gcBgMarkWorkerPool
+          5fb7a0 B runtime.gcBitsArenas
+          5fb31c B runtime.gcBlackenEnabled
+          5fb8e0 B runtime.gcCPULimiter
+          5db600 B runtime.gcCleanups
+          464f80 T runtime.gcComputeStartingStackSize
+          5fc060 B runtime.gcController
+          435260 T runtime.gcControllerCommit
+          5fb30c B runtime.gcDebugMarkDone
+          42fe40 T runtime.gcDrain
+          4303c0 T runtime.gcDrainN
+          430f00 T runtime.gcDumpObject
+          42c520 T runtime.gcEndWork
+          42f220 T runtime.gcFlushBgCredit
+          42c640 T runtime.gcMark
+          42a840 T runtime.gcMarkDone
+          47d2c0 t runtime.gcMarkDone.func1
+          478a00 t runtime.gcMarkDone.func2
+          478960 t runtime.gcMarkDone.func3
+          4788c0 t runtime.gcMarkDone.func4
+          5fb320 B runtime.gcMarkDoneFlushed
+          42dc80 T runtime.gcMarkRootCheck
+          478e20 t runtime.gcMarkRootCheck.func1
+          42b060 T runtime.gcMarkTermination
+          478c00 t runtime.gcMarkTermination.func1
+          478b40 t runtime.gcMarkTermination.func2
+          47cf20 t runtime.gcMarkTermination.func2.1
+          478ae0 t runtime.gcMarkTermination.func3
+          47cf40 t runtime.gcMarkTermination.func4
+          47d0e0 t runtime.gcMarkTermination.func4.1
+          47d140 t runtime.gcMarkTermination.func5
+          431500 T runtime.gcMarkTinyAllocs
+          5d5ec0 D runtime.gcMarkWorkerModeStrings
+          42fdc0 T runtime.gcNextMarkRoot
+          435360 T runtime.gcPaceScavenger
+          439440 T runtime.gcPaceSweeper
+          42f0e0 T runtime.gcParkAssist
+          42da40 T runtime.gcPrepareMarkRoots
+          42cca0 T runtime.gcResetMarkState
+          47ce80 t runtime.gcResetMarkState.func1
+          47d180 t runtime.gcRestoreSyncObjects.func1
+          42e720 T runtime.gcScanFinalizer
+          42c3a0 T runtime.gcShouldScheduleWorker
+          42a080 T runtime.gcStart
+          478860 t runtime.gcStart.func1
+          478800 t runtime.gcStart.func2
+          47d340 t runtime.gcStart.func3
+          478780 t runtime.gcStart.func4
+          42ca60 T runtime.gcSweep
+          429f80 T runtime.gcTrigger.test
+          42f060 T runtime.gcWakeAllAssists
+          43d440 T runtime.gcWakeAllStrongFromWeak
+          486380 T runtime.gcWriteBarrier1
+          4863a0 T runtime.gcWriteBarrier2
+          4863c0 T runtime.gcWriteBarrier3
+          4863e0 T runtime.gcWriteBarrier4
+          486400 T runtime.gcWriteBarrier5
+          486420 T runtime.gcWriteBarrier6
+          486440 T runtime.gcWriteBarrier8
+          46dc20 T runtime.gcallers
+          4d5d10 r runtime.gcbits.*
+          4d611e r runtime.gcbss
+          4d6060 r runtime.gcdata
+          429de0 T runtime.gcenable
+          478740 t runtime.gcenable.gowrap1
+          478700 t runtime.gcenable.gowrap2
+          429d40 T runtime.gcinit
+          431340 T runtime.gcmarknewobject
+          610940 b runtime.gcmask.*
+          5fb318 B runtime.gcphase
+          5db940 B runtime.gcrash
+          5ce498 D runtime.gcsema
+          450e40 T runtime.gcstopm
+          453f40 T runtime.gdestroy
+          445de0 T runtime.getCPUCount
+          43d020 T runtime.getCleanupContext
+          44ff00 T runtime.getExtraM
+          474b80 T runtime.getGCMaskOnDemand
+          47c2c0 t runtime.getGCMaskOnDemand.func1
+          44c8c0 T runtime.getGodebugEarly
+          446440 T runtime.getHugePageSize
+          47f060 T runtime.getStaticuint64s
+          45d300 T runtime.getcallerfp
+          439be0 T runtime.getempty
+          479240 t runtime.getempty.func1
+          4867a0 T runtime.getfp
+          47ebe0 T runtime.getitab
+          487860 T runtime.getpid.abi0
+          4877e0 T runtime.gettid.abi0
+          455780 T runtime.gfget
+          47aca0 t runtime.gfget.func1
+          47ac60 t runtime.gfget.func2
+          455960 T runtime.gfpurge
+          455540 T runtime.gfput
+          5fb650 B runtime.globalAlloc
+          5fbf00 B runtime.globalRand
+          459680 T runtime.globrunqgetbatch
+          473c40 T runtime.goStatusToTraceGoStatus
+          45c2c0 T runtime.goargs
+          5dad00 B runtime.godebugDefault
+          5dab78 B runtime.godebugEnv
+          5dab80 B runtime.godebugNewIncNonDefault
+          45c140 T runtime.godebugNotify
+          5dab70 B runtime.godebugUpdate
+          45c3c0 T runtime.goenvs_unix
+          486340 T runtime.goexit.abi0
+          453f00 T runtime.goexit0
+          453e60 T runtime.goexit1
+          488580 T runtime.goexit1.abi0
+          416be0 T runtime.gogetenv
+          4848e0 T runtime.gogo.abi0
+          5fb348 B runtime.gomaxprocs
+          4801c0 T runtime.gopanic
+          480700 T runtime.gopark
+          4480a0 T runtime.gorecover
+          479b40 t runtime.gorecover.func1
+          5d5f00 D runtime.goroutineProfile
+          46e0e0 T runtime.goroutineheader
+          44be20 T runtime.goschedIfBusy
+          453600 T runtime.goschedImpl
+          453940 T runtime.gosched_m
+          453980 T runtime.goschedguarded_m
+          464bc0 T runtime.gostartcallfn
+          482940 T runtime.gostring
+          453d20 T runtime.goyield_m
+          430b40 T runtime.greyobject
+          482100 T runtime.growslice
+          44aac0 T runtime.gwrite
+          5fbde0 B runtime.handlingSig
+          439ee0 T runtime.handoff
+          450800 T runtime.handoffp
+          5fb3c8 B runtime.heapRandSeed
+          5fb3d0 B runtime.heapRandSeedBitsRemaining
+          4195c0 T runtime.hexdumpMarker.start
+          418b80 T runtime.hexdumpWords
+          478120 t runtime.hexdumpWords.func1
+          5dafd0 B runtime.idlepMask
+          412ec0 T runtime.ifaceeq
+          5fb2fb B runtime.inForkedChild
+          414200 T runtime.inLogosArenaChunk
+          5fb302 B runtime.inProgress
+          457840 T runtime.incidlelocked
+          5fb398 B runtime.inf
+          412600 T runtime.init
+          412f80 T runtime.init.0
+          416300 T runtime.init.1
+          41bf80 T runtime.init.2
+          4447c0 T runtime.init.5
+          44a0e0 T runtime.init.6
+          44bc20 T runtime.init.7
+          47c9e0 t runtime.init.7.func1
+          44bca0 T runtime.init.8
+          4779c0 t runtime.init.func1
+          426f20 T runtime.initMetrics
+          47d360 t runtime.initMetrics.func1
+          47d5a0 t runtime.initMetrics.func10
+          47d5e0 t runtime.initMetrics.func11
+          47d620 t runtime.initMetrics.func12
+          47d660 t runtime.initMetrics.func13
+          47d680 t runtime.initMetrics.func14
+          47d6a0 t runtime.initMetrics.func15
+          47d6c0 t runtime.initMetrics.func16
+          47d6e0 t runtime.initMetrics.func17
+          47d700 t runtime.initMetrics.func18
+          47d720 t runtime.initMetrics.func19
+          47d3a0 t runtime.initMetrics.func2
+          47d740 t runtime.initMetrics.func20
+          47d760 t runtime.initMetrics.func21
+          47d780 t runtime.initMetrics.func22
+          47d7a0 t runtime.initMetrics.func23
+          47d7c0 t runtime.initMetrics.func24
+          47d960 t runtime.initMetrics.func25
+          47d980 t runtime.initMetrics.func26
+          47d9a0 t runtime.initMetrics.func27
+          47db40 t runtime.initMetrics.func28
+          47db60 t runtime.initMetrics.func29
+          47d3e0 t runtime.initMetrics.func3
+          47db80 t runtime.initMetrics.func30
+          47dba0 t runtime.initMetrics.func31
+          47dbc0 t runtime.initMetrics.func32
+          47dbe0 t runtime.initMetrics.func33
+          47dc00 t runtime.initMetrics.func34
+          47dc20 t runtime.initMetrics.func35
+          47dc40 t runtime.initMetrics.func36
+          47dc60 t runtime.initMetrics.func37
+          47dca0 t runtime.initMetrics.func38
+          47dcc0 t runtime.initMetrics.func39
+          47d420 t runtime.initMetrics.func4
+          47dce0 t runtime.initMetrics.func40
+          47dd00 t runtime.initMetrics.func41
+          47dd20 t runtime.initMetrics.func42
+          47dd40 t runtime.initMetrics.func43
+          47dd60 t runtime.initMetrics.func44
+          47dd80 t runtime.initMetrics.func45
+          47dda0 t runtime.initMetrics.func46
+          47ddc0 t runtime.initMetrics.func47
+          47dde0 t runtime.initMetrics.func48
+          47de00 t runtime.initMetrics.func49
+          47d460 t runtime.initMetrics.func5
+          47de20 t runtime.initMetrics.func50
+          47de40 t runtime.initMetrics.func51
+          47de60 t runtime.initMetrics.func52
+          47dea0 t runtime.initMetrics.func53
+          47dec0 t runtime.initMetrics.func54
+          47dee0 t runtime.initMetrics.func55
+          47df00 t runtime.initMetrics.func56
+          47df20 t runtime.initMetrics.func57
+          47df40 t runtime.initMetrics.func58
+          47df60 t runtime.initMetrics.func59
+          47d4a0 t runtime.initMetrics.func6
+          47df80 t runtime.initMetrics.func60
+          47dfc0 t runtime.initMetrics.func61
+          47e000 t runtime.initMetrics.func62
+          47e040 t runtime.initMetrics.func63
+          47e080 t runtime.initMetrics.func64
+          47e0c0 t runtime.initMetrics.func65
+          47e0e0 t runtime.initMetrics.func66
+          47d4e0 t runtime.initMetrics.func7
+          47d520 t runtime.initMetrics.func8
+          47d560 t runtime.initMetrics.func9
+          5fb490 B runtime.initSigmask
+          4604c0 T runtime.initsig
+          5fb740 B runtime.inittrace
+          452d00 T runtime.injectglist
+          47c8a0 t runtime.injectglist.func1
+          5ce510 D runtime.intArgRegs
+          412d40 T runtime.interequal
+          41a800 T runtime.interfaceSwitch
+          412a60 T runtime.interhash
+          466260 T runtime.intstring
+          5db1c0 B runtime.invalidGODEBUG
+          448e00 T runtime.isAbortPC
+          44a1c0 T runtime.isAsyncSafePoint
+          46dfa0 T runtime.isExportedRuntime
+          5ce8a0 D runtime.isIdleInSynctest
+          5fb2fd B runtime.isIntel
+          423140 T runtime.isMarkedOrNotInHeap
+          46eb80 T runtime.isSystemGoroutine
+          5ce860 D runtime.isWaitingForSuspendG
+          5fb2ff B runtime.isarchive
+          5fb30a B runtime.iscgo
+          5fb2fe B runtime.islibrary
+          419a40 T runtime.itabAdd
+          419c20 T runtime.itabInit
+          5fb3a0 B runtime.itabLock
+          5d4b30 D runtime.itabTable
+          5d9ac0 D runtime.itabTableInit
+          41a020 T runtime.itabsinit
+          5ce588 D runtime.lastmoduledatap
+          5ce7a0 D runtime.levelBits
+          5ce820 D runtime.levelLogPages
+          5ce7e0 D runtime.levelShift
+          41ad20 T runtime.lfnodeValidate
+          41b5a0 T runtime.lock
+          41b5e0 T runtime.lock2
+          5d5190 D runtime.lockNames
+          41bf20 T runtime.lockRank.String
+          41b4c0 T runtime.lockVerifyMSize
+          44fe20 T runtime.lockextra
+          413120 T runtime.logosArenaAlloc
+          413540 T runtime.logosArenaAllocScan
+          5fb388 B runtime.logosArenaChunkLimit
+          5fb380 B runtime.logosArenaChunkTotal
+          413ee0 T runtime.logosArenaDrop
+          4140c0 T runtime.logosArenaExit
+          47d0a0 t runtime.logosArenaFlushP.1
+          477a60 t runtime.logosArenaFlushP.func1
+          414120 T runtime.logosArenaFreePool
+          4132a0 T runtime.logosArenaMakeSlice
+          413800 T runtime.logosArenaMarkRestore
+          4137c0 T runtime.logosArenaMarkSave
+          413dc0 T runtime.logosArenaNewChunk
+          477a00 t runtime.logosArenaNewChunk.func1
+          4133a0 T runtime.logosArenaNoscanLinked
+          413f80 T runtime.logosArenaPark
+          413fe0 T runtime.logosArenaParkChain
+          413d40 T runtime.logosArenaRelease
+          413680 T runtime.logosArenaRestore
+          413840 T runtime.logosArenaRetSet
+          413860 T runtime.logosArenaRetTake
+          413920 T runtime.logosArenaScanChunk
+          413480 T runtime.logosArenaScanLinked
+          413a00 T runtime.logosArenaScanObject
+          413880 T runtime.logosArenaScanStack
+          413c80 T runtime.logosArenaTake
+          41c300 T runtime.logosPollPurge
+          45bda0 T runtime.logosRegionExit
+          45bca0 T runtime.logosRegionPark
+          45baa0 T runtime.logosRegionReleaseChunks
+          45bc00 T runtime.logosRegionScan
+          45bb40 T runtime.logosRegionUnwind
+          5dae30 B runtime.logosSlotCancel
+          5dab08 B runtime.logosWaitAfterRegisterHook
+          41bfa0 T runtime.logosWaitRegister
+          41c180 T runtime.logosWaitRelease
+          5fb310 B runtime.logosWaiterCount
+          5dae50 B runtime.logosWaiters
+          5fb3a8 B runtime.logosWaitersLock
+          5dc580 B runtime.m0
+          5fb324 B runtime.mProfCycle
+          4422c0 T runtime.mProf_Flush
+          442380 T runtime.mProf_FlushLocked
+          4425e0 T runtime.mProf_Free
+          442420 T runtime.mProf_Malloc
+          479540 t runtime.mProf_Malloc.func1
+          44d060 T runtime.mReserveID
+          5d51b0 D runtime.mSpanStateNames
+          487d60 T runtime.madvise.abi0
+          44b6a0 T runtime.main
+          47ca00 t runtime.main.func1
+          47a0c0 t runtime.main.func2
+          5fb2f7 B runtime.mainInitDone
+          5dab50 B runtime.mainInitDoneChan
+          4d62c8 R runtime.mainPC
+          5fb2f8 B runtime.mainStarted
+          4438c0 T runtime.makeAddrRange
+          473400 T runtime.makeTraceFrame
+          473140 T runtime.makeTraceFrames
+          414860 T runtime.makechan
+          47f400 T runtime.makemap
+          47f3c0 T runtime.makemap_small
+          482020 T runtime.makeslice
+          462480 T runtime.makeslicecopy
+          454c80 T runtime.malg
+          47aba0 t runtime.malg.func1
+          5d6fe0 D runtime.mallocNoScanTable
+          421ee0 T runtime.mallocPanic
+          5d6d40 D runtime.mallocScanTable
+          47f080 T runtime.mallocgc
+          41dca0 T runtime.mallocgcLarge
+          4203a0 T runtime.mallocgcSmallNoScanSC2
+          420600 T runtime.mallocgcSmallNoScanSC3
+          420860 T runtime.mallocgcSmallNoScanSC4
+          420ac0 T runtime.mallocgcSmallNoScanSC5
+          420d20 T runtime.mallocgcSmallNoScanSC6
+          420f80 T runtime.mallocgcSmallNoScanSC7
+          421b60 T runtime.mallocgcSmallNoScanSlowPath
+          41d320 T runtime.mallocgcSmallNoscan
+          41d940 T runtime.mallocgcSmallScanHeader
+          41d600 T runtime.mallocgcSmallScanNoHeader
+          41e840 T runtime.mallocgcSmallScanNoHeaderSC1
+          41ea80 T runtime.mallocgcSmallScanNoHeaderSC2
+          41ede0 T runtime.mallocgcSmallScanNoHeaderSC3
+          41f1e0 T runtime.mallocgcSmallScanNoHeaderSC4
+          41f540 T runtime.mallocgcSmallScanNoHeaderSC5
+          41f940 T runtime.mallocgcSmallScanNoHeaderSC6
+          41fcc0 T runtime.mallocgcSmallScanNoHeaderSC7
+          421580 T runtime.mallocgcSmallScanSlowPath
+          4200c0 T runtime.mallocgcTinySC2
+          4211e0 T runtime.mallocgcTinySlowPath
+          41c560 T runtime.mallocinit
+          406940 T runtime.mapaccess1_fast32
+          406fa0 T runtime.mapaccess1_fast64
+          407a00 T runtime.mapaccess1_faststr
+          4060e0 T runtime.mapaccess2
+          406980 T runtime.mapaccess2_fast32
+          406fe0 T runtime.mapaccess2_fast64
+          407a60 T runtime.mapaccess2_faststr
+          4063a0 T runtime.mapassign
+          406bc0 T runtime.mapassign_fast32
+          407220 T runtime.mapassign_fast64
+          407600 T runtime.mapassign_fast64ptr
+          407d00 T runtime.mapassign_faststr
+          484140 T runtime.mapinitnoop
+          42dd60 T runtime.markroot
+          478f40 t runtime.markroot.func1
+          42e200 T runtime.markrootBlock
+          42e2a0 T runtime.markrootFreeGStacks
+          42e3e0 T runtime.markrootSpans
+          5ce4e0 D runtime.maxOffAddr
+          5ce508 D runtime.maxstackceiling
+          5ce500 D runtime.maxstacksize
+          5dab28 B runtime.mbuckets
+          5fb480 B runtime.mcache0
+          484900 T runtime.mcall
+          44d0c0 T runtime.mcommoninit
+          47f660 T runtime.memclrHasPointers
+          4867c0 T runtime.memclrNoHeapPointers
+          41e120 T runtime.memclrNoHeapPointersChunked
+          408ec0 T runtime.memequal
+          412b60 T runtime.memequal0
+          412c00 T runtime.memequal128
+          412ba0 T runtime.memequal16
+          412bc0 T runtime.memequal32
+          412be0 T runtime.memequal64
+          412b80 T runtime.memequal8
+          408ee0 T runtime.memequal_varlen
+          4127a0 T runtime.memhash128
+          412800 T runtime.memhash32
+          4127e0 T runtime.memhash64
+          486a00 T runtime.memmove
+          5fb2f0 B runtime.memmoveBits
+          5d4c90 D runtime.memoryError
+          5fd060 B runtime.memstats
+          440320 T runtime.mergeSummaries
+          5fb5f0 B runtime.methodValueCallFrameObjs
+          488280 T runtime.metricReader.compute-fm
+          5dab10 B runtime.metrics
+          5fb2f3 B runtime.metricsInit
+          5ce48c D runtime.metricsSema
+          44eea0 T runtime.mexit
+          459600 T runtime.mgetSpecific
+          5e4600 B runtime.mheap_
+          5ce4d8 D runtime.minOffAddr
+          487900 T runtime.mincore.abi0
+          5fb478 B runtime.minhexdigits
+          4466a0 T runtime.minit
+          462100 T runtime.minitSignalMask
+          462000 T runtime.minitSignalStack
+          461fe0 T runtime.minitSignals
+          414280 T runtime.mmap
+          477aa0 t runtime.mmap.func1
+          418a80 T runtime.modf
+          5d4ca0 D runtime.modinfo
+          4db060 R runtime.modinfo.str
+          5dabc0 B runtime.moduleToTypelinks
+          5fb518 B runtime.moduleToTypelinksLock
+          475d60 T runtime.moduleTypelinks
+          482a20 T runtime.moduledataverify1
+          5daba8 B runtime.modulesSlice
+          467240 T runtime.modulesinit
+          484a60 T runtime.morestack.abi0
+          484b00 T runtime.morestack_noctxt.abi0
+          482920 T runtime.morestackc
+          488660 T runtime.morestackc.abi0
+          462600 T runtime.moveSliceNoCapNoScan
+          4595c0 T runtime.mput
+          45b9a0 T runtime.mrandinit
+          450540 T runtime.mspinning
+          4848c0 T runtime.mstart.abi0
+          44eca0 T runtime.mstart0
+          488560 T runtime.mstart0.abi0
+          44ed40 T runtime.mstart1
+          44ee40 T runtime.mstartm0
+          414360 T runtime.munmap
+          477b20 t runtime.munmap.func1
+          443060 T runtime.mutexevent
+          5fb438 B runtime.mutexprofilerate
+          487920 T runtime.nanotime1.abi0
+          5fb390 B runtime.ncgocall
+          44f820 T runtime.needm
+          4458c0 T runtime.netpoll
+          4457e0 T runtime.netpollBreak
+          5fb450 B runtime.netpollEventFd
+          444f40 T runtime.netpollGenericInit
+          5fb448 B runtime.netpollInitLock
+          5fb328 B runtime.netpollInited
+          5fb374 B runtime.netpollWaiters
+          5fb32c B runtime.netpollWakeSig
+          4452a0 T runtime.netpollblock
+          4451e0 T runtime.netpollblockcommit
+          445160 T runtime.netpollcheckerr
+          445760 T runtime.netpollclose
+          445220 T runtime.netpollgoready
+          445500 T runtime.netpollinit
+          4456c0 T runtime.netpollopen
+          445040 T runtime.netpollready
+          43dce0 T runtime.newArenaMayUnlock
+          441ce0 T runtime.newBucket
+          4833c0 T runtime.newInlineUnwinder
+          43d920 T runtime.newMarkBits
+          432160 T runtime.newSpanSPMC
+          47f2e0 T runtime.newarray
+          44fa40 T runtime.newextram
+          44ffc0 T runtime.newm
+          450160 T runtime.newm1
+          5fb7e0 B runtime.newmHandoff
+          41e1c0 T runtime.newobject
+          445ec0 T runtime.newosproc
+          4798a0 t runtime.newosproc.func1
+          454d40 T runtime.newproc
+          4885a0 T runtime.newproc.abi0
+          47abe0 t runtime.newproc.func1
+          454dc0 T runtime.newproc1
+          5fb350 B runtime.newprocs
+          463fc0 T runtime.newstack
+          488640 T runtime.newstack.abi0
+          41c4a0 T runtime.nextHeapRandBits
+          43dc20 T runtime.nextMarkBitArenaEpoch
+          464ba0 T runtime.nilfunc
+          412da0 T runtime.nilinterequal
+          47e5a0 T runtime.nilinterhash
+          5fb2e0 b runtime.noptrbss
+          5ce480 d runtime.noptrdata
+          41b060 T runtime.notesleep
+          41b320 T runtime.notetsleep
+          41b160 T runtime.notetsleep_internal
+          41b3a0 T runtime.notetsleepg
+          41afc0 T runtime.notewakeup
+          5fb34c B runtime.numCPUStartup
+          44faa0 T runtime.oneNewExtraM
+          5ce481 D runtime.oneptrmask
+          487700 T runtime.open.abi0
+          446560 T runtime.osinit
+          488400 T runtime.osinit.abi0
+          488420 T runtime.osyield
+          487ee0 T runtime.osyield.abi0
+          5d5180 D runtime.overflowError
+          5dab68 B runtime.overflowTag
+          5dacf0 B runtime.overrideWrite
+          486720 T runtime.panicBounds
+          447140 T runtime.panicBounds64
+          447020 T runtime.panicCheck1
+          4470e0 T runtime.panicCheck2
+          447300 T runtime.panicdivide
+          41a160 T runtime.panicdottypeE
+          41a220 T runtime.panicdottypeI
+          5fb334 B runtime.panicking
+          5fb458 B runtime.paniclk
+          462440 T runtime.panicmakeslicelen
+          5d4b38 D runtime.panicnil
+          4472a0 T runtime.panicshift
+          476c60 T runtime.panicunsafeslicelen
+          476ca0 T runtime.panicunsafeslicelen1
+          476d00 T runtime.panicunsafeslicenilptr
+          476d40 T runtime.panicunsafeslicenilptr1
+          476be0 T runtime.panicunsafestringlen
+          476c20 T runtime.panicunsafestringnilptr
+          4184a0 T runtime.panicwrap
+          453360 T runtime.park_m
+          453320 T runtime.parkunlock_c
+          466460 T runtime.parseByteCount
+          45ca00 T runtime.parseRuntimeDebugVars
+          45cd80 T runtime.parsegodebug
+          467fe0 T runtime.pcdatavalue
+          468060 T runtime.pcdatavalue1
+          4680e0 T runtime.pcdatavalue2
+          4dc868 r runtime.pclntab
+          467680 T runtime.pcvalue
+          5d4c60 D runtime.pdEface
+          5dab48 B runtime.pdType
+          5fb940 B runtime.perThreadSyscall
+          5fb3d8 B runtime.persistentChunks
+          41e400 T runtime.persistentalloc
+          478240 t runtime.persistentalloc.func1
+          41e460 T runtime.persistentalloc1
+          5fb3c0 B runtime.physHugePageShift
+          5fb3b8 B runtime.physHugePageSize
+          5fb3b0 B runtime.physPageSize
+          459980 T runtime.pidleget
+          459ae0 T runtime.pidlegetSpinning
+          4597a0 T runtime.pidleput
+          5db010 B runtime.pinnedTypemaps
+          449200 T runtime.pinnerGetPtr
+          5d4b40 D runtime.pinnerLeakPanic
+          475620 T runtime.pkgPath
+          417100 T runtime.plainError.Error
+          429ec0 T runtime.pollFractionalWorkerExit
+          452400 T runtime.pollWork
+          4797e0 t runtime.poll_runtime_pollWait.deferwrap1
+          5fb5e0 B runtime.pollcache
+          5dab20 B runtime.poolcleanup
+          4474a0 T runtime.popDefer
+          41dfe0 T runtime.postMallocgcDebug
+          5fb300 B runtime.prSetVMAUnsupported
+          41df20 T runtime.preMallocgcDebug
+          453a40 T runtime.preemptPark
+          458660 T runtime.preemptall
+          4586e0 T runtime.preemptone
+          439f80 T runtime.prepareFreeWorkbufs
+          4477e0 T runtime.preprintpanics
+          47cae0 t runtime.preprintpanics.func1
+          46d840 T runtime.printAncestorTraceback
+          46da20 T runtime.printAncestorTracebackFuncInfo
+          46bfe0 T runtime.printArgs
+          5fc200 B runtime.printBacklog
+          5fb468 B runtime.printBacklogIndex
+          46ec80 T runtime.printCgoTraceback
+          47c480 t runtime.printCgoTraceback.func1
+          46c840 T runtime.printFuncName
+          46eda0 T runtime.printOneCgoTraceback
+          448220 T runtime.printPreFatalDeferPanic
+          435de0 T runtime.printScavTrace
+          417c60 T runtime.printanycustomtype
+          44ac80 T runtime.printbool
+          44adc0 T runtime.printcomplex128
+          44ae40 T runtime.printcomplex64
+          46c980 T runtime.printcreatedby
+          46ca40 T runtime.printcreatedby1
+          44ad40 T runtime.printfloat32
+          44ace0 T runtime.printfloat64
+          44b120 T runtime.printhex
+          44b000 T runtime.printhexopts
+          418380 T runtime.printindented
+          44af40 T runtime.printint
+          44aa00 T runtime.printlock
+          44ac40 T runtime.printnl
+          447980 T runtime.printpanics
+          417840 T runtime.printpanicval
+          44b4e0 T runtime.printpointer
+          44b160 T runtime.printquoted
+          44b5c0 T runtime.printslice
+          44ac00 T runtime.printsp
+          44b560 T runtime.printstring
+          44aec0 T runtime.printuint
+          44b520 T runtime.printuintptr
+          44aa60 T runtime.printunlock
+          5d51d0 D runtime.procAuxv
+          5fb358 B runtime.processorVersionInfo
+          4566a0 T runtime.procresize
+          486180 T runtime.procyieldAsm.abi0
+          5fb4b0 B runtime.prof
+          5fb420 B runtime.profBlockLock
+          5fb418 B runtime.profInsertLock
+          5fb428 B runtime.profMemActiveLock
+          5fb670 B runtime.profMemFutureLock
+          41e200 T runtime.profilealloc
+          4237e0 T runtime.progToPointerMask
+          4861a0 T runtime.publicationBarrier
+          439dc0 T runtime.putempty
+          439e20 T runtime.putfull
+          428be0 T runtime.queuefinalizer
+          487800 T runtime.raise.abi0
+          4619e0 T runtime.raisebadsignal
+          487840 T runtime.raiseproc.abi0
+          481280 T runtime.rand
+          45b520 T runtime.randinit
+          466320 T runtime.rawbyteslice
+          4660e0 T runtime.rawstringtmp
+          487780 T runtime.read.abi0
+          434e80 T runtime.readGOGC
+          434f00 T runtime.readGOMEMLIMIT
+          4465a0 T runtime.readRandom
+          5fb2fc B runtime.readRandomFailed
+          45b820 T runtime.readTimeRandom
+          44d480 T runtime.ready
+          45ec40 T runtime.readyWithTime
+          44a8a0 T runtime.recordForPanic
+          43a140 T runtime.recordspan
+          4482c0 T runtime.recovery
+          415fe0 T runtime.recv
+          4153a0 T runtime.recvDirect
+          454380 T runtime.reentersyscall
+          47a500 t runtime.reentersyscall.func1
+          47a420 t runtime.reentersyscall.func2
+          47a3e0 t runtime.reentersyscall.func3
+          47a3a0 t runtime.reentersyscall.func4
+          5db1a0 B runtime.reflectOffs
+          4886a0 T runtime.reflectcall
+          484ca0 T runtime.reflectcall.abi0
+          421fe0 T runtime.reflectcallmove
+          4883a0 T runtime.reflectcallmove.abi0
+          44c140 T runtime.releaseSudog
+          457620 T runtime.releasep
+          4576e0 T runtime.releasepNoTrace
+          43cc60 T runtime.removefinalizer
+          43c880 T runtime.removespecial
+          45cbe0 T runtime.reparsedebugvars
+          452c80 T runtime.resetspinning
+          474f00 T runtime.resolveNameOff
+          475180 T runtime.resolveTypeOff
+          449ec0 T runtime.resumeG
+          458080 T runtime.retake
+          45bf00 T runtime.retryOnEAGAIN
+          4cb000 r runtime.rodata
+          4846a0 T runtime.rt0_go.abi0
+          487a20 T runtime.rt_sigaction.abi0
+          4879e0 T runtime.rtsigprocmask.abi0
+          474aa0 T runtime.rtype.pkgpath
+          474a20 T runtime.rtype.string
+          475440 T runtime.rtype.textOff
+          424e40 T runtime.runCheckmark
+          4263a0 T runtime.runCleanups
+          428f40 T runtime.runFinalizers
+          4238c0 T runtime.runGCProg
+          446cc0 T runtime.runPerThreadSyscall
+          44f480 T runtime.runSafePointFn
+          5fb330 B runtime.runningPanicDefers
+          459e60 T runtime.runqdrain
+          459fa0 T runtime.runqgrab
+          459b40 T runtime.runqput
+          459de0 T runtime.runqputbatch
+          459c20 T runtime.runqputslow
+          45a160 T runtime.runqsteal
+          5fb488 B runtime.runtimeInitTime
+          5ce6a0 D runtime.runtime_inittasks
+          454300 T runtime.save
+          4552a0 T runtime.saveAncestors
+          442f20 T runtime.saveBlockEventStack
+          4426a0 T runtime.saveblockevent
+          4434e0 T runtime.saveg
+          430840 T runtime.scanConservative
+          433460 T runtime.scanObject
+          432ae0 T runtime.scanObjectSmall
+          432c80 T runtime.scanObjectsSmall
+          432600 T runtime.scanSpan
+          4306c0 T runtime.scanblock
+          42fb80 T runtime.scanframeworker
+          42f3c0 T runtime.scanstack
+          5fb700 B runtime.scavenge
+          5db4a0 B runtime.scavenger
+          5dcce0 B runtime.sched
+          459480 T runtime.schedEnableUser
+          487f00 T runtime.sched_getaffinity.abi0
+          44c9e0 T runtime.schedinit
+          488540 T runtime.schedinit.abi0
+          4587c0 T runtime.schedtrace
+          47c640 t runtime.schedtrace.func1
+          4530a0 T runtime.schedule
+          5fb2f5 B runtime.secureMode
+          45d6e0 T runtime.selectgo
+          47b100 t runtime.selectgo.func2
+          47b0c0 t runtime.selectgo.func3
+          4162c0 T runtime.selectnbrecv
+          416280 T runtime.selectnbsend
+          45d480 T runtime.sellock
+          45d640 T runtime.selparkcommit
+          45d560 T runtime.selunlock
+          45ece0 T runtime.semacquire1
+          41b440 T runtime.semasleep
+          45f020 T runtime.semrelease1
+          5e0740 B runtime.semtable
+          4150a0 T runtime.send
+          415320 T runtime.sendDirect
+          458320 T runtime.setBlockOnExitSyscall
+          424c20 T runtime.setCheckmark
+          43cee0 T runtime.setCleanupContext
+          4492a0 T runtime.setPinned
+          47a040 t runtime.setPinned.func1
+          479fe0 t runtime.setPinned.func2
+          47d200 t runtime.setSyncObjectsUntraceable.func1
+          4468c0 T runtime.setThreadCPUProfiler
+          43d380 T runtime.setTinyBlockContext
+          45fcc0 T runtime.setVMAName
+          5dacc0 B runtime.set_crosscall2
+          4862a0 T runtime.setg.abi0
+          43d4c0 T runtime.setprofilebucket
+          4466e0 T runtime.setsig
+          446760 T runtime.setsigstack
+          487ea0 T runtime.settls.abi0
+          430ac0 T runtime.shade
+          5d4c70 D runtime.shiftError
+          448d60 T runtime.shouldPushSigpanic
+          46dd20 T runtime.showframe
+          46dde0 T runtime.showfuncinfo
+          464c40 T runtime.shrinkstack
+          5fb9a0 B runtime.sig
+          461b20 T runtime.sigNotOnStack
+          414400 T runtime.sigaction
+          477b60 t runtime.sigaction.func1
+          487e60 T runtime.sigaltstack.abi0
+          461ec0 T runtime.sigblock
+          487a80 T runtime.sigfwd.abi0
+          461d40 T runtime.sigfwdgo
+          460ee0 T runtime.sighandler
+          446840 T runtime.signalM
+          5fb301 B runtime.signalsOK
+          4622a0 T runtime.signalstack
+          481cc0 T runtime.sigpanic
+          486360 T runtime.sigpanic0.abi0
+          4606e0 T runtime.sigpipe
+          455c80 T runtime.sigprof
+          5fbbe0 B runtime.sigprofCallers
+          5fb35c B runtime.sigprofCallersUse
+          460b00 T runtime.sigprofNonGo
+          460ba0 T runtime.sigprofNonGoPC
+          487640 t runtime.sigprofNonGoWrapper
+          487c00 T runtime.sigreturn__sigaction.abi0
+          462300 T runtime.sigsend
+          5fb500 B runtime.sigsetAllExiting
+          5ce4e8 D runtime.sigset_all
+          5fb364 B runtime.sigsysIgnored
+          5d7f80 D runtime.sigtable
+          487ac0 T runtime.sigtramp.abi0
+          460840 T runtime.sigtrampgo
+          5dae70 B runtime.sizeClassBuckets
+          5d4c50 D runtime.sliceEface
+          5dab00 B runtime.sliceType
+          465fe0 T runtime.slicebytetostring
+          43a2e0 T runtime.spanOfHeap
+          5fb440 B runtime.spanSetBlockPool
+          4329c0 T runtime.spanSetScans
+          484b20 T runtime.spillArgs.abi0
+          5fc620 B runtime.stackLarge
+          5fb508 B runtime.stackPoisonCopy
+          462de0 T runtime.stackalloc
+          462d00 T runtime.stackcache_clear
+          462ac0 T runtime.stackcacherefill
+          462bc0 T runtime.stackcacherelease
+          4862e0 T runtime.stackcheck.abi0
+          463180 T runtime.stackfree
+          5fbce0 B runtime.stackpool
+          4627a0 T runtime.stackpoolalloc
+          462940 T runtime.stackpoolfree
+          424a60 T runtime.startCheckmarks
+          473840 T runtime.startPCForTrace
+          450260 T runtime.startTemplateThread
+          44e3c0 T runtime.startTheWorld
+          47a320 t runtime.startTheWorld.func1
+          44e540 T runtime.startTheWorldGC
+          44e9e0 T runtime.startTheWorldWithSema
+          5ce4a0 D runtime.startingStackSize
+          450da0 T runtime.startlockedm
+          450560 T runtime.startm
+          448700 T runtime.startpanic_m
+          5fb4b8 B runtime.starttime
+          5daf10 B runtime.startupRand
+          4dc060 R runtime.staticuint64s
+          5db180 B runtime.stealOrder
+          452500 T runtime.stealWork
+          468160 T runtime.step
+          441ea0 T runtime.stkbucket
+          4659c0 T runtime.stkobjinit
+          44e2c0 T runtime.stopTheWorld
+          47a2e0 t runtime.stopTheWorld.func1
+          5fb720 B runtime.stopTheWorldContext
+          44e4e0 T runtime.stopTheWorldGC
+          44e5a0 T runtime.stopTheWorldWithSema
+          450b20 T runtime.stoplockedm
+          450420 T runtime.stopm
+          412ce0 T runtime.strequal
+          47e580 T runtime.strhash
+          5d4c40 D runtime.stringEface
+          5daaf8 B runtime.stringType
+          4661a0 T runtime.stringtoslicebyte
+          5d6480 D runtime.stwReasonStrings
+          449960 T runtime.suspendG
+          5db160 B runtime.sweep
+          437ca0 T runtime.sweepone
+          47cc40 t runtime.sweepone.func1
+          44c580 T runtime.switchToCrashStack
+          484a20 T runtime.switchToCrashStack0
+          463a80 T runtime.syncadjustsudogs
+          426560 T runtime.sysAlloc
+          4267c0 T runtime.sysAllocOS
+          426c60 T runtime.sysFaultOS
+          4265c0 T runtime.sysFree
+          426b60 T runtime.sysHugePageOS
+          426720 T runtime.sysMap
+          426da0 T runtime.sysMapOS
+          487c20 T runtime.sysMmap.abi0
+          487ce0 T runtime.sysMunmap.abi0
+          426be0 T runtime.sysNoHugePageOS
+          426620 T runtime.sysReserveAligned
+          426d00 T runtime.sysReserveOS
+          4467c0 T runtime.sysSigaction
+          47cbc0 t runtime.sysSigaction.func1
+          5d51f0 D runtime.sysTHPSizePath
+          4268c0 T runtime.sysUnusedOS
+          426aa0 T runtime.sysUsedOS
+          446060 T runtime.sysargs
+          446300 T runtime.sysauxv
+          458460 T runtime.syscallingThread.gcstopP
+          458500 T runtime.syscallingThread.releaseP
+          457be0 T runtime.sysmon
+          459340 T runtime.sysmonUpdateGOMAXPROCS
+          484980 T runtime.systemstack.abi0
+          484960 T runtime.systemstack_switch.abi0
+          4686e0 T runtime.taggedPointerPack
+          450320 T runtime.templateThread
+          45c4e0 T runtime.testAtomic64
+          5dab98 B runtime.testSigtrap
+          5daba0 B runtime.testSigusr1
+          5fb4d8 B runtime.test_x64
+          5fb4d0 B runtime.test_z64
+          401000 t runtime.text
+          4d6bc0 R runtime.textsectionmap
+          487880 T runtime.tgkill.abi0
+          480660 T runtime.throw
+          479d40 t runtime.throw.func1
+          5fb760 B runtime.ticks
+          5dae90 B runtime.timeHistBuckets
+          4198e0 T runtime.timeHistogramMetricsBuckets
+          46a000 T runtime.timeSleepUntil
+          4878a0 T runtime.timer_create.abi0
+          4878e0 T runtime.timer_delete.abi0
+          4878c0 T runtime.timer_settime.abi0
+          415260 T runtime.timerchandrain
+          5daff0 B runtime.timerpMask
+          5dbec0 B runtime.trace
+          470b20 T runtime.traceAcquire
+          470b40 T runtime.traceAcquireEnabled
+          483720 T runtime.traceAdvance
+          47b520 t runtime.traceAdvance.func1
+          47b720 t runtime.traceAdvance.func1.1
+          47c4c0 t runtime.traceAdvance.func2
+          47c5e0 t runtime.traceAdvance.func3
+          47b380 t runtime.traceAdvance.func4
+          47b320 t runtime.traceAdvance.func5
+          47b1e0 t runtime.traceAdvance.func6
+          5ce4a4 D runtime.traceAdvanceSema
+          5dad10 B runtime.traceAdvancer
+          470b00 T runtime.traceAllocFreeEnabled
+          5d65a0 D runtime.traceBlockReasonStrings
+          46f740 T runtime.traceBufFlush
+          46fec0 T runtime.traceCPUFlush
+          47bee0 t runtime.traceCPUFlush.func1
+          46ff40 T runtime.traceCPUSample
+          4704c0 T runtime.traceEventWriter.event
+          5d5c60 D runtime.traceGoStopReasonStrings
+          470ae0 T runtime.traceLockInit
+          470e60 T runtime.traceLocker.GCActive
+          470fc0 T runtime.traceLocker.GCDone
+          471520 T runtime.traceLocker.GCMarkAssistDone
+          471460 T runtime.traceLocker.GCMarkAssistStart
+          470ee0 T runtime.traceLocker.GCStart
+          471380 T runtime.traceLocker.GCSweepDone
+          471260 T runtime.traceLocker.GCSweepSpan
+          4711e0 T runtime.traceLocker.GCSweepStart
+          471580 T runtime.traceLocker.GoCreate
+          4722a0 T runtime.traceLocker.GoCreateSyscall
+          472360 T runtime.traceLocker.GoDestroySyscall
+          471840 T runtime.traceLocker.GoEnd
+          4719c0 T runtime.traceLocker.GoPark
+          471700 T runtime.traceLocker.GoStart
+          4718a0 T runtime.traceLocker.GoStop
+          471da0 T runtime.traceLocker.GoSysCall
+          471ea0 T runtime.traceLocker.GoSysExit
+          471b00 T runtime.traceLocker.GoUnpark
+          470c40 T runtime.traceLocker.Gomaxprocs
+          46aea0 T runtime.traceLocker.GoroutineStackAlloc
+          46af80 T runtime.traceLocker.GoroutineStackFree
+          472180 T runtime.traceLocker.HeapAlloc
+          472200 T runtime.traceLocker.HeapGoal
+          46ad20 T runtime.traceLocker.HeapObjectAlloc
+          46ae20 T runtime.traceLocker.HeapObjectFree
+          470d20 T runtime.traceLocker.ProcStart
+          471f40 T runtime.traceLocker.ProcSteal
+          470de0 T runtime.traceLocker.ProcStop
+          471180 T runtime.traceLocker.STWDone
+          471040 T runtime.traceLocker.STWStart
+          46abc0 T runtime.traceLocker.SpanAlloc
+          46ac80 T runtime.traceLocker.SpanFree
+          471c40 T runtime.traceLocker.emitUnblockStatus
+          4701a0 T runtime.traceLocker.eventWriter
+          470bc0 T runtime.traceLocker.ok
+          470580 T runtime.traceLocker.startPC
+          46f900 T runtime.traceReadCPU
+          46a9e0 T runtime.traceReader
+          46a7e0 T runtime.traceRegisterLabelsAndReasons
+          470be0 T runtime.traceRelease
+          5ce4a8 D runtime.traceShutdownSema
+          4725a0 T runtime.traceStack
+          46f800 T runtime.traceStopReadCPU
+          4740e0 T runtime.traceSyncBatch
+          47c260 t runtime.traceSyncBatch.func1
+          472520 T runtime.traceThreadDestroy
+          47c0c0 t runtime.traceThreadDestroy.func1
+          46f280 T runtime.traceWriter.ensure
+          46f0a0 T runtime.traceWriter.event
+          46f2e0 T runtime.traceWriter.flush
+          47bda0 t runtime.traceWriter.flush.func1
+          46f360 T runtime.traceWriter.refill
+          47be00 t runtime.traceWriter.refill.func1
+          4738e0 T runtime.traceWriter.writeGoStatus
+          473b60 T runtime.traceWriter.writeProcStatus
+          473a00 T runtime.traceWriter.writeProcStatusForP
+          46ccc0 T runtime.traceback1
+          47b860 t runtime.traceback1.func1
+          46cfc0 T runtime.traceback2
+          47ba20 t runtime.traceback2.func1
+          46e9a0 T runtime.tracebackHexdump
+          47bca0 t runtime.tracebackHexdump.func1
+          46bc20 T runtime.tracebackPCs
+          5ce49c D runtime.traceback_cache
+          5fb340 B runtime.traceback_env
+          47e560 t runtime.tracebackothers.1
+          47c4a0 t runtime.tracebackothers.func1
+          46e880 T runtime.tracebacksomeothers
+          47bb60 t runtime.tracebacksomeothers.func1
+          46cc40 T runtime.tracebacktrap
+          431780 T runtime.tryDeferToSpanScan
+          443180 T runtime.tryRecordGoroutineProfile
+          443120 T runtime.tryRecordGoroutineProfileWB
+          439e80 T runtime.trygetfull
+          41a440 T runtime.typeAssert
+          4235e0 T runtime.typeBitsBulkBarrier
+          422460 T runtime.typePointers.fastForward
+          422300 T runtime.typePointers.next
+          4220c0 T runtime.typedmemclr
+          47f480 T runtime.typedmemmove
+          47f580 T runtime.typedslicecopy
+          47e6a0 T runtime.typehash
+          475740 T runtime.typelinksinit
+          5a24b0 r runtime.types
+          476020 T runtime.typesEqual
+          5d4c10 D runtime.uint16Eface
+          5daae0 B runtime.uint16Type
+          5d4c20 D runtime.uint32Eface
+          5daae8 B runtime.uint32Type
+          5d4c30 D runtime.uint64Eface
+          5daaf0 B runtime.uint64Type
+          46a740 T runtime.unblockTimerChan
+          461f60 T runtime.unblocksig
+          41ba20 T runtime.unlock
+          41ba60 T runtime.unlock2
+          41bc40 T runtime.unlock2Wake
+          455ae0 T runtime.unlockOSThread
+          462200 T runtime.unminitSignals
+          41ac20 T runtime.unreachableMethod
+          484be0 T runtime.unspillArgs.abi0
+          5daef0 B runtime.updateMaxProcsG
+          4591c0 T runtime.updateMaxProcsGoroutine
+          5d4b48 D runtime.updatemaxprocs
+          5d5210 D runtime.urandom_dev
+          5fb2f2 B runtime.useCheckmark
+          4877a0 T runtime.usleep.abi0
+          5fb5a0 B runtime.vdsoClockgettimeSym
+          4773a0 T runtime.vdsoFindVersion
+          5fb530 B runtime.vdsoGetrandomSym
+          5fb598 B runtime.vdsoGettimeofdaySym
+          477000 T runtime.vdsoInitFromSysinfoEhdr
+          5d5250 D runtime.vdsoLinuxVersion
+          5fb528 B runtime.vdsoLoadEnd
+          5fb520 B runtime.vdsoLoadStart
+          4774a0 T runtime.vdsoParseSymbols
+          47c300 t runtime.vdsoParseSymbols.func1
+          5d5270 D runtime.vdsoSymbolKeys
+          477780 T runtime.vdsoauxv
+          487f20 T runtime.vgetrandom1
+          5db200 B runtime.vgetrandomAlloc
+          4778c0 T runtime.vgetrandomDestroy
+          477820 T runtime.vgetrandomInit
+          45d2c0 T runtime.waitReason.String
+          5d7280 D runtime.waitReasonStrings
+          452c20 T runtime.wakeNetPoller
+          480880 T runtime.wakep
+          444ae0 T runtime.wbBufFlush
+          4883e0 T runtime.wbBufFlush.abi0
+          47cc00 t runtime.wbBufFlush.func1
+          444b40 T runtime.wbBufFlush1
+          421fa0 T runtime.wbMove
+          421f80 T runtime.wbZero
+          457560 T runtime.wirep
+          47c820 t runtime.wirep.func1
+          47ae40 t runtime.wirep.func2
+          5dbb80 B runtime.work
+          5ce494 D runtime.worldsema
+          4836c0 T runtime.write
+          488740 T runtime.write.abi0
+          487760 T runtime.write1.abi0
+          5fb600 B runtime.writeBarrier
+          45c1e0 T runtime.writeErrData
+          5fb2ec B runtime.x86HasAVX
+          5fb2ed B runtime.x86HasFMA
+          5fb2ee B runtime.x86HasPOPCNT
+          5fb2ef B runtime.x86HasSSE41
+          5db320 B runtime.xRegAlloc
+          44a600 T runtime.xRegRestore
+          47a080 t runtime.xRegRestore.func1
+          44a500 T runtime.xRegSave
+          44a740 T runtime.xRegScan
+          5dab38 B runtime.xbuckets
+          5fcc60 B runtime.zeroVal
+          5fb2e0 B runtime.zerobase
+          4815e0 T runtime/debug.SetTraceback
+          484220 t setg_gcc
+          4daf60 r shifts
+          4d6950 R slices..dict.insertionSortCmpFunc[internal/fmtsort.KeyValue]
+          4d6b80 R slices..dict.rotateCmpFunc[internal/fmtsort.KeyValue]
+          4d6c40 R slices..dict.stableCmpFunc[internal/fmtsort.KeyValue]
+          4d6960 R slices..dict.swapRangeCmpFunc[internal/fmtsort.KeyValue]
+          4d6c20 R slices..dict.symMergeCmpFunc[internal/fmtsort.KeyValue]
+          497f60 T slices.rotateCmpFunc[go.shape.struct { Key reflect.Value; Value reflect.Value }]
+          496f00 T slices.stableCmpFunc[go.shape.struct { Key reflect.Value; Value reflect.Value }]
+          497660 T slices.symMergeCmpFunc[go.shape.struct { Key reflect.Value; Value reflect.Value }]
+          48eaa0 T strconv.CanBackquote
+          48eba0 T strconv.IsPrint
+          48e2c0 T strconv.appendEscapedRune
+          48dee0 T strconv.appendQuotedWith
+          5d5550 D strconv.isGraphic
+          5d54f0 D strconv.isNotPrint16
+          5d5530 D strconv.isNotPrint32
+          5d54d0 D strconv.isPrint16
+          5d5510 D strconv.isPrint32
+          4c45e0 T strings.(*Builder).Grow
+          4c4900 T strings.Count
+          4c4cc0 T strings.Join
+          4c5100 T strings.Map
+          4c5940 T strings.ToLower
+          4c4720 T strings.explode
+          4c4a60 T strings.genSplit
+          489ae0 T sync.(*Mutex).Unlock
+          489b20 T sync.(*Once).Do
+          489b60 T sync.(*Once).doSlow
+          48ab60 t sync.(*Once).doSlow.deferwrap1
+          48ab40 t sync.(*Once).doSlow.deferwrap2
+          489d40 T sync.(*Pool).Get
+          489c80 T sync.(*Pool).Put
+          489e20 T sync.(*Pool).getSlow
+          489fa0 T sync.(*Pool).pin
+          48a020 T sync.(*Pool).pinSlow
+          48aca0 t sync.(*Pool).pinSlow.deferwrap1
+          48aa00 T sync.(*RWMutex).Lock
+          48a940 T sync.(*RWMutex).RUnlock
+          48aa80 T sync.(*RWMutex).Unlock
+          48a980 T sync.(*RWMutex).rUnlockSlow
+          48a700 T sync.(*poolChain).popHead
+          48a840 T sync.(*poolChain).popTail
+          48a3e0 T sync.(*poolChain).pushHead
+          48a2e0 T sync.(*poolDequeue).popTail
+          4d6c60 R sync..dict.OnceValue[bool]
+          4d6c00 R sync..dict.OnceValue[error]
+          5ce6e0 D sync..inittask
+          49dc20 t sync.OnceFunc.func1
+          48aba0 t sync.OnceFunc.func1.1
+          48ac20 t sync.OnceFunc.func1.1.1
+          4af4a0 t sync.OnceValue[go.shape.bool].func1
+          4af520 t sync.OnceValue[go.shape.bool].func1.1
+          4af5c0 t sync.OnceValue[go.shape.bool].func1.1.1
+          4b6fc0 t sync.OnceValue[go.shape.interface { Error() string }].func1
+          4b7040 t sync.OnceValue[go.shape.interface { Error() string }].func1.1
+          4b7100 t sync.OnceValue[go.shape.interface { Error() string }].func1.1.1
+          5db0c0 B sync.allPools
+          5fb568 B sync.allPoolsMu
+          480520 T sync.fatal
+          48a2a0 T sync.init.0
+          48a900 T sync.init.1
+          5db0e0 B sync.oldPools
+          48ace0 T sync.poolCleanup
+          481ac0 T sync.runtime_SemacquireRWMutex
+          481a60 T sync.runtime_SemacquireRWMutexR
+          4819c0 T sync.runtime_Semrelease
+          481ba0 T sync.runtime_notifyListCheck
+          4810e0 T sync.runtime_procPin
+          481100 T sync.runtime_procUnpin
+          47f9e0 T sync.runtime_registerPoolCleanup
+          4896a0 T sync/atomic.(*Bool).Store
+          4c4340 T sync/atomic.(*Uint64).Load-fm
+          4da820 R sync/atomic..dict.Pointer[internal/sync.entry[interface {},interface {}]]
+          4da720 R sync/atomic..dict.Pointer[internal/sync.indirect[interface {},interface {}]]
+          4da7a0 R sync/atomic..dict.Pointer[internal/sync.node[interface {},interface {}]]
+          47ea80 T sync/atomic.CompareAndSwapPointer
+          4896e0 T sync/atomic.CompareAndSwapUintptr
+          47ea00 T sync/atomic.StorePointer
+          489700 T sync/atomic.StoreUintptr
+          47ea40 T sync/atomic.SwapPointer
+          4896c0 T sync/atomic.SwapUintptr
+          49e580 T syscall.(*Errno).Error
+          49e620 T syscall.(*Errno).Is
+          49e7c0 T syscall.(*Signal).String
+          5ce700 D syscall..inittask
+          49d5c0 T syscall.Close
+          498780 T syscall.Environ
+          49de20 t syscall.Environ.deferwrap1
+          49cb00 T syscall.Errno.Error
+          49cb80 T syscall.Errno.Is
+          4814a0 T syscall.Exit
+          49bce0 T syscall.Faccessat
+          49df40 t syscall.Faccessat.deferwrap1
+          5fb6b0 B syscall.ForkLock
+          49d4e0 T syscall.Getcwd
+          49d680 T syscall.Getdents
+          498560 T syscall.Getenv
+          49dde0 t syscall.Getenv.deferwrap1
+          49c560 T syscall.Getgroups
+          49df80 t syscall.Getgroups.deferwrap1
+          49c440 T syscall.Pipe2
+          49e280 T syscall.RawSyscall
+          49e2a0 T syscall.RawSyscall6
+          49adc0 T syscall.SetNonblock
+          49cd20 T syscall.Signal.String
+          49aba0 T syscall.SlicePtrFromStrings
+          5ce550 D syscall.Stderr
+          5fb588 B syscall.Stdin
+          5ce548 D syscall.Stdout
+          49e2c0 T syscall.Syscall
+          49e340 T syscall.Syscall6
+          49c9e0 T syscall.Wait4
+          5fb580 B syscall._zero
+          49b8e0 T syscall.acquireForkLock
+          49dec0 t syscall.acquireForkLock.deferwrap1
+          5dac50 B syscall.copyenv
+          49ab00 T syscall.doCheckClonePidfd
+          5dac48 B syscall.env
+          5fb690 B syscall.envLock
+          5db120 B syscall.envs
+          5d4ff0 D syscall.errEAGAIN
+          5d5000 D syscall.errEINVAL
+          5d5010 D syscall.errENOENT
+          5d85a0 D syscall.errors
+          49cda0 T syscall.faccessat
+          49cf40 T syscall.faccessat2
+          5ce540 D syscall.fcntl64Syscall
+          5fb309 B syscall.forceClone3
+          498980 T syscall.forkAndExecInChild
+          498be0 T syscall.forkAndExecInChild1
+          49af60 T syscall.forkExec
+          5fb578 B syscall.forking
+          5fb570 B syscall.forkingLock
+          49a2e0 T syscall.formatIDMappings
+          49da40 T syscall.fstatat
+          48ae20 T syscall.hasWaitingReaders
+          498420 T syscall.init
+          49bb80 T syscall.init.0
+          49dc80 t syscall.init.func1
+          49e3e0 T syscall.mmap
+          49d980 T syscall.munmap
+          5ce4b4 D syscall.none
+          49d100 T syscall.openat
+          5dac58 B syscall.origRlimitNofile
+          49de60 t syscall.os_checkClonePidfd.deferwrap1
+          49e540 T syscall.rawSyscallNoError.abi0
+          49e4e0 T syscall.rawVforkSyscall.abi0
+          49d780 T syscall.read
+          49d2e0 T syscall.readlinkat
+          49baa0 T syscall.releaseForkLock
+          49df00 t syscall.releaseForkLock.deferwrap1
+          480fe0 T syscall.runtime_AfterFork
+          481060 T syscall.runtime_AfterForkInChild
+          480f60 T syscall.runtime_BeforeFork
+          481320 T syscall.runtime_envs
+          5d6b40 D syscall.signals
+          5ce484 D syscall.slash
+          49d880 T syscall.write
+          49a5c0 T syscall.writeIDMappings
+          49a780 T syscall.writeSetgroups
+          49a940 T syscall.writeUidGidMappings
+          5db2c0 B syscall.zeroProcAttr
+          5db540 B syscall.zeroSysProcAttr
+          4a9880 T time.(*Duration).String
+          4a3a20 T time.(*Location).String
+          4a3aa0 T time.(*Location).lookup
+          4a9740 T time.(*Month).String
+          4a9680 T time.(*Time).GoString
+          4a96e0 T time.(*Time).String
+          4a58c0 T time.(*dataIO).big8
+          4a9900 T time.(*fileSizeError).Error
+          5ce5e0 D time..inittask
+          4a3360 T time.Duration.String
+          4a33e0 T time.Duration.format
+          4a5a40 T time.LoadLocationFromTZData
+          5d4b80 D time.Local
+          4a2e00 T time.Month.String
+          4a2a60 T time.NewTimer
+          4a95a0 T time.Now
+          4a3860 T time.Time.Add
+          49fa20 T time.Time.AppendFormat
+          49f2a0 T time.Time.GoString
+          4a87c0 t time.Time.GoString.deferwrap1
+          49ef80 T time.Time.String
+          4a8780 t time.Time.String.deferwrap1
+          4a30c0 T time.Time.absSec
+          49fc20 T time.Time.appendFormat
+          4a2620 T time.Time.appendFormatRFC3339
+          4a3200 T time.Time.locabs
+          5d4b78 D time.UTC
+          4a2f20 T time.absDays.date
+          4a2fe0 T time.absDays.yearYday
+          49e860 T time.appendInt
+          4a8740 t time.appendInt.deferwrap1
+          49ee20 T time.appendNano
+          4a2bc0 T time.closefd
+          5d4e00 D time.errBadData
+          4a5860 T time.fileSizeError.Error
+          4a9640 T time.init
+          4a83c0 T time.initLocal
+          5dabf0 B time.loadFromEmbeddedTZData
+          4a7b20 T time.loadLocation
+          4a7a60 T time.loadTzinfo
+          4a6de0 T time.loadTzinfoFromDirOrZip
+          5dabf8 B time.loadTzinfoFromTzdata
+          4a6ea0 T time.loadTzinfoFromZip
+          4a8840 t time.loadTzinfoFromZip.deferwrap1
+          5db380 B time.localLoc
+          5fb5a8 B time.localOnce
+          5d5370 D time.longDayNames
+          5d5390 D time.longMonthNames
+          483540 T time.newTimer
+          4a8900 T time.nextStdChunk
+          487fa0 T time.now
+          5d53b0 D time.platformZoneSources
+          4a2c20 T time.preadn
+          4a20c0 T time.quote
+          4a8800 t time.quote.deferwrap1
+          4a7f80 T time.readFile
+          4a88a0 t time.readFile.deferwrap1
+          4834e0 T time.runtimeNano
+          483480 T time.runtimeNow
+          4a2b00 T time.sendTime
+          5fb548 B time.startNano
+          5ce8e0 D time.std0x
+          483660 T time.stopTimer
+          4a5560 T time.tzruleTime
+          4a3dc0 T time.tzset
+          4a46c0 T time.tzsetOffset
+          4a4bc0 T time.tzsetRule
+          5d5fe0 D time.utcLoc
+          4a2a00 T time.when
+          5a24b8 R type:*
+          48bc60 T type:.eq.EM112
+          48bce0 T type:.eq.EM16
+          488780 T type:.eq.EM76
+          488ec0 T type:.eq.GGGGGGM2
+          48c320 T type:.eq.IM8
+          488a00 T type:.eq.M12K4M16
+          488ae0 T type:.eq.M12K4M26K6M16
+          488f40 T type:.eq.M12K4M8
+          488cc0 T type:.eq.M16SSM40
+          488bc0 T type:.eq.M17K7M20K4M8
+          4c15a0 T type:.eq.M17K7M84
+          48bd60 T type:.eq.M1K3M20[4M32]
+          488c20 T type:.eq.M1K7M44K4M9
+          48be20 T type:.eq.M1K7M8EE
+          4c4520 T type:.eq.M20K4M16
+          488860 T type:.eq.M24K8M40
+          488e40 T type:.eq.M24S
+          488980 T type:.eq.M26K2M84
+          4959c0 T type:.eq.M26K6M32
+          488e00 T type:.eq.M32
+          4b8680 T type:.eq.M36K4M24
+          408900 T type:.eq.M36K4M8
+          488800 T type:.eq.M42K1M1
+          488b40 T type:.eq.M4K4M2122K6M2720
+          488960 T type:.eq.M4K4M8
+          4b7660 T type:.eq.M51K5SM12
+          488a40 T type:.eq.M54K2M88
+          488c80 T type:.eq.M6K2M12
+          408940 T type:.eq.M7K1M24
+          48c3a0 T type:.eq.M8I
+          4b7d80 T type:.eq.SI
+          402b40 T type:.eq.SM10
+          4b74c0 T type:.eq.SM12K4M168
+          4c4560 T type:.eq.SM12K4M8
+          488da0 T type:.eq.SM8
+          4a9960 T type:.eq.SM9
+          40d6a0 T type:.eq.SS
+          48ee20 T type:.eq.SSI
+          495660 T type:.eq.SSIM32
+          4b7720 T type:.eq.SSM4K4I
+          4888c0 T type:.eq.SSM8
+          4101a0 T type:.eq.SSM8SM2
+          4b7560 T type:.eq.SSSI
+          488f60 T type:.eq.[2M16SSM40]
+          48bec0 T type:.eq.[4M32]
+          402bc0 T type:.eq.[8SM10K6]
+          5ce620 D unicode..inittask
+          5d54b0 D unicode.CaseRanges
+          5dac20 B unicode.FoldCategory
+          5dac28 B unicode.FoldScript
+          48c860 T unicode.ToLower
+          5d4bb8 D unicode.foldCommon
+          5d4bc0 D unicode.foldGreek
+          5d4bc8 D unicode.foldInherited
+          5d4b88 D unicode.foldL
+          5d4b90 D unicode.foldLl
+          5d4b98 D unicode.foldLt
+          5d4ba0 D unicode.foldLu
+          5d4ba8 D unicode.foldM
+          5d4bb0 D unicode.foldMn
+          48c8c0 T unicode.init
+          48c7c0 T unicode.to
+          5ce760 D unicode/utf8.acceptRanges
+          48c560 T unicode/utf8.decodeRuneInStringSlow
+          48c400 T unicode/utf8.decodeRuneSlow
+          48c6c0 T unicode/utf8.encodeRuneNonASCII
+          5cefe0 D unicode/utf8.first
+        > stdout ' R example\.com/rodvalues/p\.Slice$'
+        matched:   4d6a10 R example.com/rodvalues/p.Slice
+        > stdout ' R example\.com/rodvalues/p\.Slice\.logos_backing0$'
+        matched:   4d62f0 R example.com/rodvalues/p.Slice.logos_backing0
+        > stdout ' R example\.com/rodvalues/p\.Array$'
+        matched:   4d6de0 R example.com/rodvalues/p.Array
+        > stdout ' R example\.com/rodvalues/p\.Months$'
+        matched:   4d6a30 R example.com/rodvalues/p.Months
+        > stdout ' R example\.com/rodvalues/p\.Months\.logos_backing0$'
+        matched:   4d6300 R example.com/rodvalues/p.Months.logos_backing0
+        > stdout ' R example\.com/rodvalues/p\.Modes$'
+        matched:   4d6a50 R example.com/rodvalues/p.Modes
+        > stdout ' R example\.com/rodvalues/p\.Modes\.logos_backing0$'
+        matched:   4d61f4 R example.com/rodvalues/p.Modes.logos_backing0
+        > stdout ' R example\.com/rodvalues/p\.Nested$'
+        matched:   4d6a70 R example.com/rodvalues/p.Nested
+        > stdout ' R example\.com/rodvalues/p\.Anon$'
+        matched:   4d6a90 R example.com/rodvalues/p.Anon
+        > stdout ' R example\.com/rodvalues/p\.ListsValue$'
+        matched:   4d6be0 R example.com/rodvalues/p.ListsValue
+        > stdout ' R example\.com/rodvalues/p\.ListsValue\.logos_backing0$'
+        matched:   4d6330 R example.com/rodvalues/p.ListsValue.logos_backing0
+        > stdout ' R example\.com/rodvalues/p\.Stamps$'
+        matched:   4d6ab0 R example.com/rodvalues/p.Stamps
+        > stdout ' R example\.com/rodvalues/p\.Stamps\.logos_backing0$'
+        matched:   4d6d18 R example.com/rodvalues/p.Stamps.logos_backing0
+        > stdout ' R example\.com/rodvalues/p\.Recs$'
+        matched:   4d6ad0 R example.com/rodvalues/p.Recs
+        > stdout ' R example\.com/rodvalues/p\.Recs\.logos_backing0$'
+        matched:   4d6e20 R example.com/rodvalues/p.Recs.logos_backing0
+        > ! stdout ' [Tt] (main|example\.com/rodvalues/p)\.init'
+=== CONT  TestScript/logos_const_alias_rejection
+    script_test.go:142: 2026-11-16T17:49:33Z
+    script_test.go:144: $WORK=/home/agent/logos-language-9949907ca71e-wqeffb1m/tmp/cmd-go-test-3909545402/tmpdir362298468/logos_const_alias_rejection4118663554
+    script_test.go:166: 
+        PATH=/home/agent/logos-language-9949907ca71e-wqeffb1m/tmp/cmd-go-test-3909545402/tmpdir362298468/testbin:/workspace/scratch/9949907ca71e/logos-json-integration/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/home/agent/.codex/tmp/arg0-linux/codex-arg00QAduY:/opt/codex/codex-path:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback
+        HOME=/no-home
+        CCACHE_DISABLE=1
+        GOARCH=amd64
+        TESTGO_GOHOSTARCH=amd64
+        GOCACHE=/workspace/scratch/9949907ca71e/postbuild-cache
+        GOCOVERDIR=
+        GODEBUG=
+        GOEXE=
+        GOEXPERIMENT=
+        GOOS=linux
+        TESTGO_GOHOSTOS=linux
+        GOPROXY=http://127.0.0.1:44785/mod
+        GOPRIVATE=
+        GOROOT=/workspace/scratch/9949907ca71e/logos-json-integration
+        GOTRACEBACK=system
+        TESTGO_GOROOT=/workspace/scratch/9949907ca71e/logos-json-integration
+        TESTGO_EXE=/home/agent/logos-language-9949907ca71e-wqeffb1m/tmp/cmd-go-test-3909545402/tmpdir362298468/testbin/go
+        TESTGO_VCSTEST_HOST=127.0.0.1:39829
+        TESTGO_VCSTEST_TLS_HOST=127.0.0.1:38173
+        TESTGO_VCSTEST_CERT=/home/agent/logos-language-9949907ca71e-wqeffb1m/tmp/cmd-go-test-3909545402/vcstest1485281559/cert.pem
+        TESTGONETWORK=panic
+        GOSUMDB=localhost.localdev/sumdb+00000c67+AcTrnkbUA+TU4heY3hkjiSES/DSQniBqIeQ/YppAUtK6
+        TESTGO_SUMDB=localhost.localdev/sumdb
+        GONOPROXY=
+        GONOSUMDB=
+        GOVCS=*:all
+        devnull=/dev/null
+        goversion=1.27.4
+        CMDGO_TEST_RUN_MAIN=true
+        HGRCPATH=
+        GOTOOLCHAIN=auto
+        newline=
+        
+        CGO_ENABLED=1
+        CC=/usr/bin/cc
+        UPROOT1272=/workspace/scratch/9949907ca71e/toolchains/go1.27.2
+        UPROOT1273=/workspace/scratch/9949907ca71e/toolchains/go1.27.3
+        UPROOT1274=/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci
+        WORK=/home/agent/logos-language-9949907ca71e-wqeffb1m/tmp/cmd-go-test-3909545402/tmpdir362298468/logos_const_alias_rejection4118663554
+        TEST_TELEMETRY_DIR=/home/agent/logos-language-9949907ca71e-wqeffb1m/tmp/cmd-go-test-3909545402/tmpdir362298468/logos_const_alias_rejection4118663554/telemetry
+        TMPDIR=/home/agent/logos-language-9949907ca71e-wqeffb1m/tmp/cmd-go-test-3909545402/tmpdir362298468/logos_const_alias_rejection4118663554/tmp
+        GOPATH=/home/agent/logos-language-9949907ca71e-wqeffb1m/tmp/cmd-go-test-3909545402/tmpdir362298468/logos_const_alias_rejection4118663554/gopath
+        PWD=/home/agent/logos-language-9949907ca71e-wqeffb1m/tmp/cmd-go-test-3909545402/tmpdir362298468/logos_const_alias_rejection4118663554/gopath/src
+        
+        > env GOPROXY=off
+        > env GOTOOLCHAIN=local
+        > mkdir $WORK/bin
+        # Each consumer must be rejected by both checked-source output paths.
+        # Keep cases outside the module so eject checks only the selected consumer. (5.149s)
+        > cd m
+        > cp ../direct.lgo main.lgo
+        > ! logos build -o $WORK/bin/direct$GOEXE .
+        [stderr]
+        # example.com/aliasmatrix
+        ./main.lgo:6:3: [correctness::const_view_mutation] cannot assign through const view unsafe.SliceData(root.Inner.L)
+        [exit status 1]
+        > stderr '\[correctness::const_view_(mutation|escape)\]'
+        matched: ./main.lgo:6:3: [correctness::const_view_mutation] cannot assign through const view unsafe.SliceData(root.Inner.L)
+        > ! logos eject -o $WORK/direct-out
+        [stderr]
+        # example.com/aliasmatrix
+        ./main.lgo:6:3: [correctness::const_view_mutation] cannot assign through const view unsafe.SliceData(root.Inner.L)
+        [exit status 1]
+        > stderr '\[correctness::const_view_(mutation|escape)\]'
+        matched: ./main.lgo:6:3: [correctness::const_view_mutation] cannot assign through const view unsafe.SliceData(root.Inner.L)
+        > cp ../header.lgo main.lgo
+        > ! logos build -o $WORK/bin/header$GOEXE .
+        [stderr]
+        # example.com/aliasmatrix
+        ./main.lgo:7:3: [correctness::const_view_mutation] cannot assign through const view unsafe.SliceData(xs)
+        [exit status 1]
+        > stderr '\[correctness::const_view_(mutation|escape)\]'
+        matched: ./main.lgo:7:3: [correctness::const_view_mutation] cannot assign through const view unsafe.SliceData(xs)
+        > ! logos eject -o $WORK/header-out
+        [stderr]
+        # example.com/aliasmatrix
+        ./main.lgo:7:3: [correctness::const_view_mutation] cannot assign through const view unsafe.SliceData(xs)
+        [exit status 1]
+        > stderr '\[correctness::const_view_(mutation|escape)\]'
+        matched: ./main.lgo:7:3: [correctness::const_view_mutation] cannot assign through const view unsafe.SliceData(xs)
+        > cp ../nested.lgo main.lgo
+        > ! logos build -o $WORK/bin/nested$GOEXE .
+        [stderr]
+        # example.com/aliasmatrix
+        ./main.lgo:8:20: [correctness::const_view_escape] cannot pass readonly descendants to builtin SliceData
+        [exit status 1]
+        > stderr '\[correctness::const_view_(mutation|escape)\]'
+        matched: ./main.lgo:8:20: [correctness::const_view_escape] cannot pass readonly descendants to builtin SliceData
+        > ! logos eject -o $WORK/nested-out
+        [stderr]
+        # example.com/aliasmatrix
+        ./main.lgo:8:20: [correctness::const_view_escape] cannot pass readonly descendants to builtin SliceData
+        [exit status 1]
+        > stderr '\[correctness::const_view_(mutation|escape)\]'
+        matched: ./main.lgo:8:20: [correctness::const_view_escape] cannot pass readonly descendants to builtin SliceData
+        > cp ../chain.lgo main.lgo
+        > ! logos build -o $WORK/bin/chain$GOEXE .
+        [stderr]
+        # example.com/aliasmatrix
+        ./main.lgo:6:22: [correctness::const_view_escape] cannot convert const view unsafe.SliceData(root.Inner.L) to unsafe.Pointer
+        [exit status 1]
+        > stderr '\[correctness::const_view_(mutation|escape)\]'
+        matched: ./main.lgo:6:22: [correctness::const_view_escape] cannot convert const view unsafe.SliceData(root.Inner.L) to unsafe.Pointer
+        > ! logos eject -o $WORK/chain-out
+        [stderr]
+        # example.com/aliasmatrix
+        ./main.lgo:6:22: [correctness::const_view_escape] cannot convert const view unsafe.SliceData(root.Inner.L) to unsafe.Pointer
+        [exit status 1]
+        > stderr '\[correctness::const_view_(mutation|escape)\]'
+        matched: ./main.lgo:6:22: [correctness::const_view_escape] cannot convert const view unsafe.SliceData(root.Inner.L) to unsafe.Pointer
+        > cp ../mutable.lgo main.lgo
+        > ! logos build -o $WORK/bin/mutable$GOEXE .
+        [stderr]
+        # example.com/aliasmatrix
+        ./main.lgo:6:12: [correctness::const_view_mutation] cannot pass const view root.Inner.L to parameter xs of dep.Write
+        [exit status 1]
+        > stderr '\[correctness::const_view_(mutation|escape)\]'
+        matched: ./main.lgo:6:12: [correctness::const_view_mutation] cannot pass const view root.Inner.L to parameter xs of dep.Write
+        > ! logos eject -o $WORK/mutable-out
+        [stderr]
+        # example.com/aliasmatrix
+        ./main.lgo:6:12: [correctness::const_view_mutation] cannot pass const view root.Inner.L to parameter xs of dep.Write
+        [exit status 1]
+        > stderr '\[correctness::const_view_(mutation|escape)\]'
+        matched: ./main.lgo:6:12: [correctness::const_view_mutation] cannot pass const view root.Inner.L to parameter xs of dep.Write
+        > cp ../returned.lgo main.lgo
+        > ! logos build -o $WORK/bin/returned$GOEXE .
+        [stderr]
+        # example.com/aliasmatrix
+        ./main.lgo:6:18: [correctness::const_view_mutation] cannot pass const view root.Inner.L to parameter xs of dep.Alias
+        [exit status 1]
+        > stderr '\[correctness::const_view_(mutation|escape)\]'
+        matched: ./main.lgo:6:18: [correctness::const_view_mutation] cannot pass const view root.Inner.L to parameter xs of dep.Alias
+        > ! logos eject -o $WORK/returned-out
+        [stderr]
+        # example.com/aliasmatrix
+        ./main.lgo:6:18: [correctness::const_view_mutation] cannot pass const view root.Inner.L to parameter xs of dep.Alias
+        [exit status 1]
+        > stderr '\[correctness::const_view_(mutation|escape)\]'
+        matched: ./main.lgo:6:18: [correctness::const_view_mutation] cannot pass const view root.Inner.L to parameter xs of dep.Alias
+        > cp ../imported.lgo main.lgo
+        > ! logos build -o $WORK/bin/imported$GOEXE .
+        [stderr]
+        # example.com/aliasmatrix
+        ./main.lgo:7:2: [correctness::const_view_mutation] cannot assign index through const view outer.L
+        ./main.lgo:9:2: [correctness::const_view_mutation] cannot assign index through const view copy.M
+        [exit status 1]
+        > stderr -count=2 '\[correctness::const_view_mutation\]'
+        > ! logos eject -o $WORK/imported-out
+        [stderr]
+        # example.com/aliasmatrix
+        ./main.lgo:7:2: [correctness::const_view_mutation] cannot assign index through const view outer.L
+        ./main.lgo:9:2: [correctness::const_view_mutation] cannot assign index through const view copy.M
+        [exit status 1]
+        > stderr -count=2 '\[correctness::const_view_mutation\]'
+        > cp ../address.lgo main.lgo
+        > ! logos build -o $WORK/bin/address$GOEXE .
+        [stderr]
+        # example.com/aliasmatrix
+        ./main.lgo:6:3: [correctness::const_view_mutation] cannot assign through const view p
+        [exit status 1]
+        > stderr '\[correctness::const_view_mutation\]'
+        matched: ./main.lgo:6:3: [correctness::const_view_mutation] cannot assign through const view p
+        > ! logos eject -o $WORK/address-out
+        [stderr]
+        # example.com/aliasmatrix
+        ./main.lgo:6:3: [correctness::const_view_mutation] cannot assign through const view p
+        [exit status 1]
+        > stderr '\[correctness::const_view_mutation\]'
+        matched: ./main.lgo:6:3: [correctness::const_view_mutation] cannot assign through const view p
+        > cp ../arrayslice.lgo main.lgo
+        > ! logos build -o $WORK/bin/arrayslice$GOEXE .
+        [stderr]
+        # example.com/aliasmatrix
+        ./main.lgo:4:14: [correctness::const_view_mutation] cannot slice an array through const view root
+        [exit status 1]
+        > stderr '\[correctness::const_view_mutation\]'
+        matched: ./main.lgo:4:14: [correctness::const_view_mutation] cannot slice an array through const view root
+        > ! logos eject -o $WORK/arrayslice-out
+        [stderr]
+        # example.com/aliasmatrix
+        ./main.lgo:4:14: [correctness::const_view_mutation] cannot slice an array through const view root
+        [exit status 1]
+        > stderr '\[correctness::const_view_mutation\]'
+        matched: ./main.lgo:4:14: [correctness::const_view_mutation] cannot slice an array through const view root
+        > cp ../string.lgo main.lgo
+        > ! logos build -o $WORK/bin/string$GOEXE .
+        [stderr]
+        # example.com/aliasmatrix
+        ./main.lgo:10:2: [correctness::const_view_mutation] cannot assign index through const view xs
+        [exit status 1]
+        > stderr '\[correctness::const_view_(mutation|escape)\]'
+        matched: ./main.lgo:10:2: [correctness::const_view_mutation] cannot assign index through const view xs
+        > ! logos eject -o $WORK/string-out
+        [stderr]
+        # example.com/aliasmatrix
+        ./main.lgo:10:2: [correctness::const_view_mutation] cannot assign index through const view xs
+        [exit status 1]
+        > stderr '\[correctness::const_view_(mutation|escape)\]'
+        matched: ./main.lgo:10:2: [correctness::const_view_mutation] cannot assign index through const view xs
+        # Detached inline slots and independent mutable storage remain writable. (15.175s)
+        > cp ../ok.lgo main.lgo
+        > logos build -o $WORK/bin/ok$GOEXE .
+        > exec $WORK/bin/ok$GOEXE
+        [stdout]
+        alias-controls-ok
+        > cmp stdout ../want.txt
+        > logos eject -o $WORK/ejected
+        > cd $WORK/ejected
+        > exists $UPROOT1272/bin/go
+        > exec env -u GOROOT $UPROOT1272/bin/go run .
+        [stdout]
+        alias-controls-ok
+        > cmp stdout $GOPATH/src/want.txt
+--- PASS: TestScript (0.40s)
+    --- PASS: TestScript/logos_const_rodata_reloc (1.81s)
+    --- PASS: TestScript/logos_const_imported_rodata (3.59s)
+    --- PASS: TestScript/logos_const_alias_rejection (20.33s)
+PASS

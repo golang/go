@@ -1,0 +1,11 @@
+{
+  "completed_utc": "2026-11-16T15:42:57.545283+00:00",
+  "authorized_manifest": "/workspace/scratch/9949907ca71e/cgo-eject-evidence/build-tmpfs-cache-candidates.json",
+  "manifest_sha256": "d850ca4f6b33a3ec3635eaa6e117df8f989a8bbb13ed0460bc8a3377cafe4f9d",
+  "pairs_removed": 14,
+  "tmpfs_allocated_bytes_removed": 414523392,
+  "protected_items_unchanged": 38399,
+  "workspace_available_bytes": 3965952000,
+  "MemAvailable": 3213959168,
+  "Shmem": 5532160000
+}

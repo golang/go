@@ -1,0 +1,48 @@
+// run
+
+package main
+
+import "fmt"
+
+var trace []int
+
+func mark(v int) int {
+	trace = append(trace, v)
+	return v
+}
+
+func sum(values ...int) int {
+	total := 0
+	for _, v := range values {
+		total += v
+	}
+	return total
+}
+
+func apply(f func(int) int, v int) int { return f(v) }
+
+func check(label string, got int, want int, wantTrace string) {
+	if got != want || fmt.Sprint(trace) != wantTrace {
+		panic(fmt.Sprintf("%s: got %d %v, want %d %s", label, got, trace, want, wantTrace))
+	}
+	fmt.Println("ok", label)
+	trace = nil
+}
+
+func main() {
+	xs := []int{10, 20, 30, 40}
+	m := map[(int, int)]int{(1, 2): 7, (3, 2): 8, (2, 2): 9}
+	values := []int{1, 2}
+	matrix := [][]int{{1, 2}}
+	check("index-call", xs[sum(mark(1), mark(2))], 40, "[1 2]")
+	check("tuple-calls", m[(mark(1), mark(2))] ?? 0, 7, "[1 2]")
+	check("nested-calls", m[(sum(mark(0), mark(1)), sum(mark(1), mark(1)))] ?? 0, 7, "[0 1 1 1]")
+	check("variadic-call", m[(sum(values...), mark(2))] ?? 0, 8, "[2]")
+	check("lambda-argument", m[(apply(x => x + 1, mark(0)), mark(2))] ?? 0, 7, "[0 2]")
+	check("conversions", m[(int(mark(1)), int(mark(2)))] ?? 0, 7, "[1 2]")
+	check("multiplications", m[(mark(1) * mark(1), mark(1) * mark(2))] ?? 0, 7, "[1 1 1 2]")
+	check("nested-index", m[(matrix[0][1], mark(2))] ?? 0, 9, "[2]")
+	check("slice-argument", m[(sum(values[0:1]...), mark(2))] ?? 0, 7, "[2]")
+	check("full-slice-argument", m[(sum(values[0:1:2]...), mark(2))] ?? 0, 7, "[2]")
+	check("parenthesized-call", m[((sum)(mark(1), mark(2)), mark(2))] ?? 0, 8, "[1 2 2]")
+}

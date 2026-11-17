@@ -1,0 +1,8 @@
+{
+  "path": "/workspace/scratch/9949907ca71e/recovery-evidence/json-installed-e96a570d/binaries/runtime-nojsonv2.test",
+  "sha256": "e60aac74ebd29b6505685503ec47ced193ec9ef1bddebbb38bd9a76e2898f98c",
+  "bytes": 8918531,
+  "profile": "nojsonv2",
+  "race": true,
+  "source_commit": "e96a570da271c43a80e23bb1a188aac054acff25"
+}

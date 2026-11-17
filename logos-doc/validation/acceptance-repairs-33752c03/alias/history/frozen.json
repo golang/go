@@ -1,0 +1,18 @@
+{
+  "base_commit": "2535486fe9596a9212d525a5007963ef9e8682f0",
+  "case_count": 8,
+  "formatting": "Root applied installed frozen gofmt before first RED execution; no production edits",
+  "observed_utc": "2026-11-16T21:00:08.053000+00:00",
+  "preparation_record": "prepared.json",
+  "prepared_test_sha256": "1c7ac53ad74b2677d4c8393d0cd87ef368b4e422e2bb34e678c89e35ece16ca9",
+  "production_attempts": 0,
+  "source_tree": "e237c399aae8f8065b724e8a0e27585686c7da18",
+  "subagent_go_executed": false,
+  "test_bytes": 6799,
+  "test_git_blob": "3c88b806444f7004675b40111a292e340a8eb8b2",
+  "test_path": "src/cmd/go/internal/load/logos_census_test.go",
+  "test_selector": "^TestScanModuleKindsDuplicateSiblings$",
+  "test_sha256": "3a07ac609dc04cd1b0b250b0a366ae535ac25138dfb425365e67e101f992e19f",
+  "unchanged_control_count": 12,
+  "unchanged_production_source_count": 7
+}

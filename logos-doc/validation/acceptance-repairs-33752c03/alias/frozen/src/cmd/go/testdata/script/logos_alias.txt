@@ -1,0 +1,248 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+mkdir $WORK/bin
+
+logos build -o $WORK/bin/scroll$GOEXE ./scroll
+stderr -count=1 'portability::alias_extension'
+exists $WORK/bin/scroll$GOEXE
+
+logos run ./scroll
+stdout '^scroll ok$'
+stderr -count=1 'portability::alias_extension'
+
+logos build -o $WORK/bin/lightning$GOEXE ./lightning
+stderr -count=1 'portability::alias_extension'
+exists $WORK/bin/lightning$GOEXE
+
+logos run ./lightning
+stdout '^lightning ok$'
+stderr -count=1 'portability::alias_extension'
+
+logos build -o $WORK/bin/gopher$GOEXE ./gopher
+stderr -count=1 'portability::alias_extension'
+exists $WORK/bin/gopher$GOEXE
+
+logos run ./gopher
+stdout '^gopher ok$'
+stderr -count=1 'portability::alias_extension'
+
+logos build -o $WORK/bin/vs$GOEXE ./vs
+stderr -count=1 'portability::alias_extension'
+exists $WORK/bin/vs$GOEXE
+
+logos run ./vs
+stdout '^vs ok$'
+stderr -count=1 'portability::alias_extension'
+
+logos build -o $WORK/bin/txt$GOEXE ./txt
+stderr -count=1 'portability::alias_extension'
+exists $WORK/bin/txt$GOEXE
+
+logos run ./txt
+stdout '^txt ok$'
+stderr -count=1 'portability::alias_extension'
+
+logos build -o $WORK/bin/multi$GOEXE ./multi
+stderr -count=2 'portability::alias_extension'
+exists $WORK/bin/multi$GOEXE
+
+logos run ./multi
+stdout '^multi ok$'
+stderr -count=2 'portability::alias_extension'
+
+logos run ./binary
+stdout '^binary scroll ok$'
+stdout '^binary lightning ok$'
+stdout '^binary gopher ok$'
+stdout '^binary vs ok$'
+stderr -count=4 'portability::alias_extension'
+
+logos run ./deferq
+stdout '^deferq true \[body deferred\]$'
+stderr -count=1 'portability::alias_extension'
+
+! go build ./scroll
+stderr 'no Go files in '
+
+logos build ./dupok
+stderr -count=1 'portability::alias_extension'
+
+! logos build ./dup
+stderr 'correctness::duplicate_stem_filename'
+
+! logos build ./dup2
+stderr 'correctness::duplicate_stem_filename'
+stderr 'x\.📜'
+stderr 'x\.⚡'
+
+-- go.mod --
+module example.com/m
+
+go 1.27
+
+-- scroll/main.📜 --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("scroll ok")
+}
+
+-- lightning/main.⚡ --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("lightning ok")
+}
+
+-- gopher/main.ʕ◔ϖ◔ʔ --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("gopher ok")
+}
+
+-- vs/main.⚡️ --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("vs ok")
+}
+
+-- multi/a.📜 --
+package main
+
+func greeting() string { return "multi ok" }
+
+-- multi/b.⚡ --
+package main
+
+import "fmt"
+
+func main() { fmt.Println(greeting()) }
+
+-- dupok/x.📜 --
+package dupok
+
+func X() int { return 1 }
+
+-- dup/x.📜 --
+package dup
+
+func X() int { return 1 }
+
+-- dup/x.lgo --
+package dup
+
+func Y() int { return 2 }
+
+-- txt/main.⚡︎ --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("txt ok")
+}
+
+-- dup2/x.📜 --
+package dup2
+
+func X() int { return 1 }
+
+-- dup2/x.⚡ --
+package dup2
+
+func Y() int { return 2 }
+
+-- binary/main.lgo --
+package main
+
+import (
+	"fmt"
+	"strings"
+)
+
+type Inner struct {
+	X int64 `json:"x"`
+}
+
+func rejects(name, field string, err error) {
+	if err == nil || !strings.Contains(err.Error(), field) || !strings.Contains(err.Error(), "offset 1") {
+		fmt.Printf("FAIL binary %s: %v\n", name, err)
+		return
+	}
+	fmt.Println("binary " + name + " ok")
+}
+
+func main() {
+	s := ScrollHolder{P: &Inner{}}
+	rejects("scroll", "ScrollHolder.P", s.UnmarshalBinary([]byte{1, 0}))
+	l := LightningHolder{P: &Inner{}}
+	rejects("lightning", "LightningHolder.P", l.UnmarshalBinary([]byte{1, 0}))
+	g := GopherHolder{P: &Inner{}}
+	rejects("gopher", "GopherHolder.P", g.UnmarshalBinary([]byte{1, 0}))
+	v := VSHolder{P: &Inner{}}
+	rejects("vs", "VSHolder.P", v.UnmarshalBinary([]byte{1, 0}))
+}
+
+-- binary/scroll.📜 --
+package main
+
+type ScrollHolder struct {
+	P *Inner `json:"p"`
+}
+
+-- binary/lightning.⚡ --
+package main
+
+type LightningHolder struct {
+	P *Inner `json:"p"`
+}
+
+-- binary/gopher.ʕ◔ϖ◔ʔ --
+package main
+
+type GopherHolder struct {
+	P *Inner `json:"p"`
+}
+
+-- binary/vs.⚡️ --
+package main
+
+type VSHolder struct {
+	P *Inner `json:"p"`
+}
+
+-- deferq/main.lgo --
+package main
+
+import "fmt"
+
+func main() {
+	var log []string
+	err := runVS(&log)
+	fmt.Println("deferq", err == nil, log)
+}
+
+-- deferq/vs.⚡️ --
+package main
+
+func step(log *[]string) error {
+	*log = append(*log, "deferred")
+	return nil
+}
+
+func runVS(log *[]string) error {
+	defer step(log)?
+	*log = append(*log, "body")
+	return nil
+}

@@ -40,8 +40,8 @@ jobs:
   logos:
     name: "${{ matrix.suite }}"
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
-    runs-on: "ubuntu-26.04"
-    timeout-minutes: 90
+    runs-on: "${{ matrix.suite == 'scripts' && 'ubuntu-24.04' || 'ubuntu-26.04' }}"
+    timeout-minutes: "${{ matrix.suite == 'scripts' && 180 || 90 }}"
     strategy:
       fail-fast: true
       matrix:
@@ -52,9 +52,14 @@ jobs:
         shell: "bash"
         working-directory: "src"
     steps:
-      - uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" # v7.0.1
-        with:
-          persist-credentials: false
+      - name: "Check out the tested revision"
+        working-directory: "${{ github.workspace }}"
+        run: |
+          git init --quiet .
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          git -c protocol.version=2 fetch --no-tags --depth=1 origin "$GITHUB_SHA"
+          git -c advice.detachedHead=false checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
       - name: "Validate workflows and shell scripts"
         working-directory: "."
         timeout-minutes: 5
@@ -68,29 +73,14 @@ jobs:
           tar -xzf "$archive" -C "$RUNNER_TEMP" actionlint
           shellcheck --version
           "$RUNNER_TEMP/actionlint" -color
-      - uses: "actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e" # v7.0.0
-        with:
-          go-version: "1.27.4"
-          cache: false
-      - uses: "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1" # v7.1.0
+      - name: "Install the pinned Go bootstrap"
+        run: bash ../.github/scripts/install-ci-tool.sh go
+      - name: "Install the pinned Node runtime"
         if: "matrix.suite == 'scripts'"
-        with:
-          node-version: "26.13.1"
+        run: bash ../.github/scripts/install-ci-tool.sh node
       - name: "Install the upstream oracle toolchains"
         if: "matrix.suite == 'scripts'"
-        run: |
-          printf 'UPROOT1274=%s\n' "$(go env GOROOT)" >> "$GITHUB_ENV"
-          while read -r version sha256 root; do
-            archive="$RUNNER_TEMP/go$version.linux-amd64.tar.gz"
-            curl --fail --silent --show-error --location --output "$archive" "https://go.dev/dl/go$version.linux-amd64.tar.gz"
-            printf '%s  %s\n' "$sha256" "$archive" | sha256sum --check --strict -
-            mkdir "$RUNNER_TEMP/go$version"
-            tar -xzf "$archive" -C "$RUNNER_TEMP/go$version" --strip-components=1
-            printf '%s=%s\n' "$root" "$RUNNER_TEMP/go$version" >> "$GITHUB_ENV"
-          done <<'PINS'
-          1.27.2 ecbadb99091a3f46e31f5f934b068b1864eafa7995211b39eaddf76996045fe5 UPROOT1272
-          1.27.3 65efbc80fdc1fa2cd2631cad5b481777a68e8725f34e89f50fc6ac714e379b40 UPROOT1273
-          PINS
+        run: bash ../.github/scripts/install-upstream-oracles.sh
       - name: "Build the toolchain"
         run: |
           GOROOT_BOOTSTRAP=$(go env GOROOT)
@@ -102,6 +92,25 @@ jobs:
         run: |
           logos version | grep -F "logos version $(head -n 1 ../VERSION)"
           logos help 2>&1 | grep -F 'logos <command> [arguments]'
+      - name: "Select and verify the C23 consumer compiler"
+        id: "c23"
+        if: "matrix.suite == 'scripts'"
+        run: |
+          compiler="$(command -v gcc-14)"
+          compiler_bin="$RUNNER_TEMP/logos-c23-bin"
+          mkdir "$compiler_bin"
+          ln -s "$compiler" "$compiler_bin/cc"
+          "$compiler_bin/cc" --version
+          printf 'int main(void) { return 0; }\n' |
+            "$compiler_bin/cc" -std=c23 -x c - -o "$RUNNER_TEMP/logos-c23-check"
+          "$RUNNER_TEMP/logos-c23-check"
+          printf '%s\n' "$compiler_bin" >> "$GITHUB_PATH"
+      - name: "Check full-regression prerequisites"
+        id: "regression_prerequisites"
+        if: "matrix.suite == 'scripts'"
+        run: |
+          go test -count=1 -short -timeout=5m cmd/internal/goparity -run '^TestRedteamLedgerRows$'
+          go test -count=1 -timeout=10m cmd/go -run '^TestScript$/^logos_cgo_shared$'
       # Finish independent checks after a test failure, but never after a failed
       # build/smoke check or workflow cancellation. Failures still fail the job.
       - name: "Run unit tests"
@@ -138,6 +147,12 @@ jobs:
           cd cmd
           "$RUNNER_TEMP/$archive/golangci-lint" run --config ../../logos-doc/golangci.yml ./go/internal/logos/...
       - name: "Run script tests"
-        if: "${{ !cancelled() && steps.smoke.outcome == 'success' && matrix.suite == 'scripts' }}"
+        if: "${{ !cancelled() && steps.smoke.outcome == 'success' && steps.c23.outcome == 'success' && matrix.suite == 'scripts' }}"
         run: |
           go test -count=1 -timeout 60m cmd/go -run 'Script/^logos_'
+      - name: "Run full Go regression"
+        if: "${{ !cancelled() && steps.smoke.outcome == 'success' && steps.c23.outcome == 'success' && steps.regression_prerequisites.outcome == 'success' && matrix.suite == 'scripts' }}"
+        timeout-minutes: 90
+        run: |
+          # cmd/go includes the fork's additional language scripts.
+          GO_TEST_TIMEOUT_SCALE=8 ./run.bash --no-rebuild

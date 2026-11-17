@@ -1,0 +1,103 @@
+// run
+
+package main
+
+import "fmt"
+
+const func mark(log []int, digit int) int {
+	log[0] = log[0]*10 + digit
+	return 0
+}
+
+const func base(log []int) []int {
+	log[0] = log[0]*10 + 1
+	return []int{0}
+}
+
+const func read(m map[int]int, key int) int {
+	value, _ := m[key]
+	return value
+}
+
+const func assignCalls() int {
+	log := []int{0}
+	dst := []int{0}
+	dst[mark(log, 1)] = mark(log, 2)
+	return log[0]
+}
+
+const func compoundCalls() int {
+	log := []int{0}
+	dst := []int{0}
+	dst[mark(log, 1)] += mark(log, 2)
+	return log[0]
+}
+
+const func indexCalls() int {
+	log := []int{0}
+	base(log)[mark(log, 2)] = mark(log, 3)
+	return log[0]
+}
+
+const func mapRebind() int {
+	m := map[int]int{0: 1}
+	next := map[int]int{0: 2}
+	old := m
+	m, m[0] = next, 9
+	return read(old, 0)*10 + read(m, 0)
+}
+
+const func sliceRebind() int {
+	s := []int{1}
+	next := []int{2}
+	old := s
+	s, s[0] = next, 9
+	return old[0]*10 + s[0]
+}
+
+const func mapTarget() int {
+	maps := []map[int]int{{0: 1}}
+	maps[0][0] = 9
+	return read(maps[0], 0)
+}
+
+const func commaStores() int {
+	i := 0
+	flags := []bool{false, false}
+	m := map[int]int{7: 1}
+	i, flags[i] = m[7]
+	if flags[0] && !flags[1] {
+		return i + 10
+	}
+	return -1
+}
+
+const func nilLookup() int {
+	var m map[int]int
+	value, present := m[7]
+	if present {
+		return -1
+	}
+	return value
+}
+
+const a = assignCalls()
+const b = compoundCalls()
+const c = indexCalls()
+const d = mapRebind()
+const e = sliceRebind()
+const f = mapTarget()
+const g = commaStores()
+const h = nilLookup()
+
+func main() {
+	want := []int{12, 12, 123, 92, 92, 9, 11, 0}
+	constant := []int{a, b, c, d, e, f, g, h}
+	runtime := []int{assignCalls(), compoundCalls(), indexCalls(), mapRebind(), sliceRebind(), mapTarget(), commaStores(), nilLookup()}
+	for i, value := range want {
+		if constant[i] != value || runtime[i] != value {
+			panic("compile-time assignment differs from Go execution")
+		}
+	}
+	fmt.Println("assignment order ok")
+}

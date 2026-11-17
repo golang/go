@@ -1,0 +1,1 @@
+{"command":"linker-capabilities.test -test.v -test.count=1 -test.short -test.run=Test(CapGraph|LogosCap) -test.timeout=3m","startedUTC":"2026-11-16T18:12:07Z","exit":0,"wallSeconds":1,"timeoutSeconds":210,"testTimeoutSeconds":180,"discoveryChildTimeoutSeconds":5,"sourceTemp":"/home/agent/logos-linker-capabilities-9949907ca71e-3rkqRX"}

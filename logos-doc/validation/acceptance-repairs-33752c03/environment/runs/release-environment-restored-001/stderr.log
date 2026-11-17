@@ -1,0 +1,9 @@
+test_acceptance_does_not_inherit_build_limits (__main__.BootstrapEnvironmentTests.test_acceptance_does_not_inherit_build_limits) ... ok
+test_c_and_cxx_compilers_have_matching_lto_versions (__main__.BootstrapEnvironmentTests.test_c_and_cxx_compilers_have_matching_lto_versions) ... ok
+test_go_test_temp_files_are_inside_the_local_temp_boundary (__main__.BootstrapEnvironmentTests.test_go_test_temp_files_are_inside_the_local_temp_boundary) ... ok
+test_make_is_bounded_and_acceptance_uses_a_new_cache (__main__.BootstrapEnvironmentTests.test_make_is_bounded_and_acceptance_uses_a_new_cache) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.019s
+
+OK

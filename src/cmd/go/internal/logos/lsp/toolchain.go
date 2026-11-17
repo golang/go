@@ -151,7 +151,7 @@ func (t *toolchain) runOnce(ctx context.Context, dir string, buffers map[string]
 			err = rerr
 		}
 	}()
-	stdout, stderr, err := t.run(ctx, dir, "list", "-e", "-deps", "-export", "-compiled", "-json", "--json-diagnostics", "-overlay="+ov.json, ".")
+	stdout, stderr, err := t.run(ctx, dir, "list", "-e", "-deps", "-export", "-compiled", "-buildvcs=false", "-json", "--json-diagnostics", "-overlay="+ov.json, ".")
 	if err != nil {
 		return nil, err
 	}

@@ -1,0 +1,12 @@
+{
+  "boundary": "Static coverage contract only. No hosted job or runtime was executed.",
+  "failures": [
+    "matrix must be uncached and non-short"
+  ],
+  "input_sha256": {
+    ".github/scripts/release-acceptance.sh": "f29369212eda1149ce87d16ee4b6373b18acd4a6743fb272671216b17b69456c",
+    ".github/workflows/release-acceptance.yml": "7ae657742f1898ea1903d5fa716c7ff7e91ffa7191f049eb79bb036071c0e4e8",
+    "logos-doc/validation/release-acceptance-request.json": "fa03ac7f9e17e209767c99d5689e89219d22db152024998f66c4352a11d68e25"
+  },
+  "passed": false
+}

@@ -1,0 +1,12 @@
+{
+  "recorded_utc": "2026-11-16T21:58:55.347497+00:00",
+  "source_tree": "33752c03819ed5afcb37f87633a3cac668e181a8",
+  "fresh_make_result_sha256": "535382e7564ba3b0aa2a3373ab27d326e237e4fe412e56331c7f3a4532a5ff07",
+  "installed_gate_runner_sha256": "e9c29d157b54448d80472f383aef3ce86edbc88ccb58cfccfd580fe1e75ab780",
+  "first_make": "Interrupted, no completion receipt; retained separately and never counted as a passing build",
+  "second_make": "Normal make passed with normal final PGO and cleanup; source and all six tool identities are bound by each installed gate",
+  "compiler_flags": "Only make uses BOOT_GO_GCFLAGS/GO_GCFLAGS=-c=1; installed gates clear them. Scoped local test resource settings are recorded, and do not substitute for the repaired hosted acceptance environment.",
+  "assertion_binary": "The panic compile receipt records produced_files_sha256; native, diagnostic and restored runs bind the same binary plus that receipt",
+  "raw_logs": "Markers are checked as bytes; original stdout/stderr are retained without decoding changes",
+  "publication_boundary": "The installed source was a frozen combined uncommitted index snapshot; no intermediate slice commit or clean published-tip release claim is made"
+}

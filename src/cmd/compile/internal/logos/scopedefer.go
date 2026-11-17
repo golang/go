@@ -278,6 +278,8 @@ func (fc *funcLower) scopePrelude(sd *syntax.ScopeDeferStmt, ctx *scopeDeferCtx,
 		native = append(native, recv.native...)
 		prefix = cat(prefix, recv.render())
 	}
+	native = append(native, planTypeDecls(plan, nil)...)
+	text = append(text, planTypeDecls(plan, tw)...)
 	if len(capNamesN) > 0 {
 		native = append(native, fc.bindCaptures(pos, plan, capNamesN, capValsN))
 		text = append(text, fc.bindCaptures(pos, plan, capNamesT, capValsT))
@@ -357,6 +359,8 @@ func (fc *funcLower) scopeHoistedPrelude(sd *syntax.ScopeDeferStmt, ctx *scopeDe
 		native = append(native, recv.native...)
 		prefix = cat(prefix, recv.render())
 	}
+	native = append(native, planTypeDecls(plan, nil)...)
+	text = append(text, planTypeDecls(plan, tw)...)
 	if len(capNamesN) > 0 {
 		native = append(native, fc.bindCaptures(pos, plan, capNamesN, capValsN))
 		text = append(text, fc.bindCaptures(pos, plan, capNamesT, capValsT))

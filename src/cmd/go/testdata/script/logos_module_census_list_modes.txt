@@ -1,0 +1,70 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env CGO_ENABLED=0
+
+cd client
+! logos list -deps .
+stderr '\[correctness::mixed_module\] module example.com/mixed'
+! logos list -json .
+stderr '\[correctness::mixed_module\] module example.com/mixed'
+! logos list -compiled .
+stderr '\[correctness::mixed_module\] module example.com/mixed'
+! logos list p.go
+stderr '\[correctness::mixed_module\] module example.com/mixed'
+
+# Shared dependencies and explicitly selected dependencies report once.
+! logos list . ./other
+cp stderr shared.stderr
+grep -count=1 '\[correctness::mixed_module\] module example.com/mixed' shared.stderr
+! logos list . example.com/mixed/g
+cp stderr selected.stderr
+grep -count=1 '\[correctness::mixed_module\] module example.com/mixed' selected.stderr
+
+# Every selected root retains its structured dependency error under -e.
+logos list -e -f '{{.Incomplete}} {{len .DepsErrors}}' . ./other
+cp stdout structured.stdout
+grep -count=2 '^true 1$' structured.stdout
+logos list -e -f '{{.Incomplete}} {{len .DepsErrors}}' p.go
+stdout '^true 1$'
+
+# A dependency census that cannot classify a source must also fail closed.
+cp bad-header ../mixed/l/l.lgo
+! logos list .
+stderr 'classifying package example.com/mixed/l in module example.com/mixed:'
+logos list -e -f '{{(index .DepsErrors 0).Err}}' .
+stdout 'classifying package example.com/mixed/l in module example.com/mixed:'
+go list .
+stdout '^example.com/client$'
+
+-- client/go.mod --
+module example.com/client
+
+go 1.27
+
+require example.com/mixed v0.0.0
+
+replace example.com/mixed => ../mixed
+-- client/p.go --
+package client
+
+import "example.com/mixed/g"
+
+const Value = g.Value
+-- client/other/p.go --
+package other
+
+import "example.com/mixed/g"
+
+const Value = g.Value
+-- client/bad-header --
+package
+-- mixed/go.mod --
+module example.com/mixed
+
+go 1.27
+-- mixed/g/g.go --
+package g
+
+const Value = 1
+-- mixed/l/l.lgo --
+package l

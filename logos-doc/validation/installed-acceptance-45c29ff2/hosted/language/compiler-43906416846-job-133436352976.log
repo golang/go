@@ -1,0 +1,256 @@
+﻿2026-11-16T16:32:43.8863545Z Current runner version: '2.338.2'
+2026-11-16T16:32:43.8879629Z ##[group]Runner Image Provisioner
+2026-11-16T16:32:43.8880312Z Hosted Compute Agent
+2026-11-16T16:32:43.8880721Z Version: 20261103.629
+2026-11-16T16:32:43.8881154Z Commit: 15dbd9ccb5dbf34fae002b6ed1a2670f52df37bc
+2026-11-16T16:32:43.8881719Z Build Date: 2026-11-03T17:26:59Z
+2026-11-16T16:32:43.8882189Z Worker ID: {ab265fb8-20ca-42af-992a-6d004f65c3de}
+2026-11-16T16:32:43.8882684Z Region: us-west-2
+2026-11-16T16:32:43.8883373Z Cloud: AWS
+2026-11-16T16:32:43.8883745Z ##[endgroup]
+2026-11-16T16:32:43.8884776Z ##[group]Operating System
+2026-11-16T16:32:43.8885202Z Ubuntu
+2026-11-16T16:32:43.8885601Z 24.04.5
+2026-11-16T16:32:43.8885959Z LTS
+2026-11-16T16:32:43.8886310Z ##[endgroup]
+2026-11-16T16:32:43.8886713Z ##[group]Runner Image
+2026-11-16T16:32:43.8887132Z Image: ubuntu-24.04
+2026-11-16T16:32:43.8887509Z Version: 20261111.127.1
+2026-11-16T16:32:43.8888424Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261111.127/images/ubuntu/Ubuntu2404-Readme.md
+2026-11-16T16:32:43.8889546Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261111.127
+2026-11-16T16:32:43.8890223Z ##[endgroup]
+2026-11-16T16:32:43.8891209Z ##[group]GITHUB_TOKEN Permissions
+2026-11-16T16:32:43.8893014Z Contents: read
+2026-11-16T16:32:43.8893460Z Metadata: read
+2026-11-16T16:32:43.8893881Z ##[endgroup]
+2026-11-16T16:32:43.8895380Z Secret source: Actions
+2026-11-16T16:32:43.8896049Z Cache mode: write
+2026-11-16T16:32:43.8896628Z Prepare workflow directory
+2026-11-16T16:32:43.9167644Z Prepare all required actions
+2026-11-16T16:32:43.9220583Z Complete job name: compiler-focused
+2026-11-16T16:32:43.9937072Z ##[group]Run git init --quiet .
+2026-11-16T16:32:43.9937640Z [36;1mgit init --quiet .[0m
+2026-11-16T16:32:43.9938202Z [36;1mgit remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"[0m
+2026-11-16T16:32:43.9939141Z [36;1mgit -c protocol.version=2 fetch --no-tags --depth=1 origin "$GITHUB_SHA"[0m
+2026-11-16T16:32:43.9939907Z [36;1mgit -c advice.detachedHead=false checkout --detach FETCH_HEAD[0m
+2026-11-16T16:32:43.9940524Z [36;1mtest "$(git rev-parse HEAD)" = "$GITHUB_SHA"[0m
+2026-11-16T16:32:46.8939160Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:32:46.8940110Z env:
+2026-11-16T16:32:46.8940400Z   GOMAXPROCS: 4
+2026-11-16T16:32:46.8940715Z   GOFLAGS: -p=2
+2026-11-16T16:32:46.8941032Z   GOMEMLIMIT: 2GiB
+2026-11-16T16:32:46.8941288Z ##[endgroup]
+2026-11-16T16:32:53.7831916Z From https://github.com/gosuda/LoGOs
+2026-11-16T16:32:53.7834364Z  * branch              f2ad58be8742b8ec350db8f06d9dc794ea3302e4 -> FETCH_HEAD
+2026-11-16T16:32:54.5188577Z HEAD is now at f2ad58be Merge 45c29ff215477f7e403188d7452fc79aef05d791 into 13a968f350564e739bf700df698a9a635dcdddcd
+2026-11-16T16:32:54.5356854Z ##[group]Run bash ../.github/scripts/install-ci-tool.sh go
+2026-11-16T16:32:54.5357269Z [36;1mbash ../.github/scripts/install-ci-tool.sh go[0m
+2026-11-16T16:32:54.5383244Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:32:54.5383687Z env:
+2026-11-16T16:32:54.5383929Z   GOMAXPROCS: 4
+2026-11-16T16:32:54.5384199Z   GOFLAGS: -p=2
+2026-11-16T16:32:54.5384459Z   GOMEMLIMIT: 2GiB
+2026-11-16T16:32:54.5384693Z ##[endgroup]
+2026-11-16T16:32:55.0827854Z /home/runner/work/_temp/go1.27.4.linux-amd64.tar.gz: OK
+2026-11-16T16:32:56.3438317Z go version go1.27.4 linux/amd64
+2026-11-16T16:32:56.3480432Z ##[group]Run bash ../.github/scripts/install-ci-tool.sh node
+2026-11-16T16:32:56.3480854Z [36;1mbash ../.github/scripts/install-ci-tool.sh node[0m
+2026-11-16T16:32:56.3509995Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:32:56.3510368Z env:
+2026-11-16T16:32:56.3510566Z   GOMAXPROCS: 4
+2026-11-16T16:32:56.3510810Z   GOFLAGS: -p=2
+2026-11-16T16:32:56.3511080Z   GOMEMLIMIT: 2GiB
+2026-11-16T16:32:56.3511303Z ##[endgroup]
+2026-11-16T16:32:56.5647931Z /home/runner/work/_temp/node-v26.13.1-linux-x64.tar.xz: OK
+2026-11-16T16:32:58.4267180Z v26.13.1
+2026-11-16T16:32:58.4300086Z ##[group]Run evidence="$RUNNER_TEMP/compiler-stability-focused"
+2026-11-16T16:32:58.4300720Z [36;1mevidence="$RUNNER_TEMP/compiler-stability-focused"[0m
+2026-11-16T16:32:58.4301057Z [36;1mmkdir -p "$evidence"[0m
+2026-11-16T16:32:58.4301349Z [36;1mgit rev-parse HEAD > "$evidence/source.txt"[0m
+2026-11-16T16:32:58.4301685Z [36;1mgo version >> "$evidence/source.txt"[0m
+2026-11-16T16:32:58.4301994Z [36;1mbash ../.github/scripts/install-upstream-oracles.sh[0m
+2026-11-16T16:32:58.4327383Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:32:58.4327790Z env:
+2026-11-16T16:32:58.4328009Z   GOMAXPROCS: 4
+2026-11-16T16:32:58.4328227Z   GOFLAGS: -p=2
+2026-11-16T16:32:58.4328473Z   GOMEMLIMIT: 2GiB
+2026-11-16T16:32:58.4328694Z ##[endgroup]
+2026-11-16T16:32:58.9191325Z /home/runner/work/_temp/go1.27.2.linux-amd64.tar.gz: OK
+2026-11-16T16:33:00.7225101Z /home/runner/work/_temp/go1.27.3.linux-amd64.tar.gz: OK
+2026-11-16T16:33:02.0043949Z ##[group]Run GOROOT_BOOTSTRAP=$(go env GOROOT)
+2026-11-16T16:33:02.0044335Z [36;1mGOROOT_BOOTSTRAP=$(go env GOROOT)[0m
+2026-11-16T16:33:02.0044630Z [36;1mexport GOROOT_BOOTSTRAP[0m
+2026-11-16T16:33:02.0045059Z [36;1mGOEXPERIMENT="" ./make.bash 2>&1 | tee "$RUNNER_TEMP/compiler-stability-focused/build.log"[0m
+2026-11-16T16:33:02.0045541Z [36;1mprintf '%s\n' "$GITHUB_WORKSPACE/lib/wasm" "$GITHUB_WORKSPACE/bin" >> "$GITHUB_PATH"[0m
+2026-11-16T16:33:02.0072363Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:33:02.0072728Z env:
+2026-11-16T16:33:02.0073089Z   GOMAXPROCS: 4
+2026-11-16T16:33:02.0073343Z   GOFLAGS: -p=2
+2026-11-16T16:33:02.0073560Z   GOMEMLIMIT: 2GiB
+2026-11-16T16:33:02.0073812Z   UPROOT1274: /home/runner/work/_temp/go1.27.4-ci
+2026-11-16T16:33:02.0074120Z   UPROOT1272: /home/runner/work/_temp/go1.27.2
+2026-11-16T16:33:02.0074430Z   UPROOT1273: /home/runner/work/_temp/go1.27.3
+2026-11-16T16:33:02.0074727Z ##[endgroup]
+2026-11-16T16:33:02.1341185Z Building Go cmd/dist using /home/runner/work/_temp/go1.27.4-ci. (go1.27.4 linux/amd64)
+2026-11-16T16:33:07.1449020Z Building Go toolchain1 using /home/runner/work/_temp/go1.27.4-ci.
+2026-11-16T16:33:36.3749075Z Building Go bootstrap cmd/go (go_bootstrap) using Go toolchain1.
+2026-11-16T16:33:49.4556444Z Building Go toolchain2 using go_bootstrap and Go toolchain1.
+2026-11-16T16:34:19.0438697Z Building Go toolchain3 using go_bootstrap and Go toolchain2.
+2026-11-16T16:34:56.7347168Z Building packages and commands for linux/amd64.
+2026-11-16T16:36:06.6247252Z ---
+2026-11-16T16:36:06.6247765Z Installed Go for linux/amd64 in /home/runner/work/LoGOs/LoGOs
+2026-11-16T16:36:06.6248239Z Installed commands in /home/runner/work/LoGOs/LoGOs/bin
+2026-11-16T16:36:06.6248596Z *** You need to add /home/runner/work/LoGOs/LoGOs/bin to your PATH.
+2026-11-16T16:36:06.8364856Z ##[group]Run compiler="$(command -v gcc-14)"
+2026-11-16T16:36:06.8365227Z [36;1mcompiler="$(command -v gcc-14)"[0m
+2026-11-16T16:36:06.8365553Z [36;1mcompiler_bin="$RUNNER_TEMP/compiler-stability-c23"[0m
+2026-11-16T16:36:06.8367044Z [36;1mmkdir "$compiler_bin"[0m
+2026-11-16T16:36:06.8367702Z [36;1mln -s "$compiler" "$compiler_bin/cc"[0m
+2026-11-16T16:36:06.8368217Z [36;1mevidence="$RUNNER_TEMP/compiler-stability-focused"[0m
+2026-11-16T16:36:06.8368798Z [36;1m"$compiler_bin/cc" --version | tee "$evidence/c23.log"[0m
+2026-11-16T16:36:06.8369285Z [36;1mprintf 'int main(void) { return 0; }\n' |[0m
+2026-11-16T16:36:06.8369829Z [36;1m  "$compiler_bin/cc" -std=c23 -x c - -o "$RUNNER_TEMP/compiler-stability-c23-check" \[0m
+2026-11-16T16:36:06.8370378Z [36;1m  2>&1 | tee -a "$evidence/c23.log"[0m
+2026-11-16T16:36:06.8371103Z [36;1m"$RUNNER_TEMP/compiler-stability-c23-check" 2>&1 | tee -a "$evidence/c23.log"[0m
+2026-11-16T16:36:06.8371739Z [36;1mprintf '%s\n' "$compiler_bin" >> "$GITHUB_PATH"[0m
+2026-11-16T16:36:06.8410335Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:36:06.8411076Z env:
+2026-11-16T16:36:06.8411373Z   GOMAXPROCS: 4
+2026-11-16T16:36:06.8411688Z   GOFLAGS: -p=2
+2026-11-16T16:36:06.8412167Z   GOMEMLIMIT: 2GiB
+2026-11-16T16:36:06.8412487Z   UPROOT1274: /home/runner/work/_temp/go1.27.4-ci
+2026-11-16T16:36:06.8413275Z   UPROOT1272: /home/runner/work/_temp/go1.27.2
+2026-11-16T16:36:06.8413730Z   UPROOT1273: /home/runner/work/_temp/go1.27.3
+2026-11-16T16:36:06.8414120Z ##[endgroup]
+2026-11-16T16:36:07.0059027Z cc (Ubuntu 14.2.0-4ubuntu2~24.04.1) 14.2.0
+2026-11-16T16:36:07.0059366Z Copyright (C) 2024 Free Software Foundation, Inc.
+2026-11-16T16:36:07.0059968Z This is free software; see the source for copying conditions.  There is NO
+2026-11-16T16:36:07.0060621Z warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+2026-11-16T16:36:07.0060970Z 
+2026-11-16T16:36:08.9213665Z ##[group]Run evidence="$RUNNER_TEMP/compiler-stability-focused"
+2026-11-16T16:36:08.9214324Z [36;1mevidence="$RUNNER_TEMP/compiler-stability-focused"[0m
+2026-11-16T16:36:08.9214733Z [36;1mcd ..[0m
+2026-11-16T16:36:08.9215289Z [36;1msha256sum --check logos-doc/validation/compiler-stability/frozen-tests.sha256 \[0m
+2026-11-16T16:36:08.9215889Z [36;1m  | tee "$evidence/frozen-tests.log"[0m
+2026-11-16T16:36:08.9216461Z [36;1mcd src[0m
+2026-11-16T16:36:08.9216858Z [36;1munformatted=$(gofmt -l cmd/compile/internal/inline/interleaved \[0m
+2026-11-16T16:36:08.9217427Z [36;1m  cmd/compile/internal/logos cmd/go/internal/logos/eject)[0m
+2026-11-16T16:36:08.9217981Z [36;1mprintf '%s\n' "$unformatted" | tee "$evidence/format.log"[0m
+2026-11-16T16:36:08.9218414Z [36;1mtest -z "$unformatted"[0m
+2026-11-16T16:36:08.9218797Z [36;1mgo test -count=1 -short -timeout=20m \[0m
+2026-11-16T16:36:08.9219310Z [36;1m  cmd/compile/internal/inline/... cmd/compile/internal/logos/... \[0m
+2026-11-16T16:36:08.9220002Z [36;1m  cmd/compile/internal/base cmd/compile/internal/noder \[0m
+2026-11-16T16:36:08.9220526Z [36;1m  cmd/compile/internal/syntax cmd/compile/internal/types2 \[0m
+2026-11-16T16:36:08.9221090Z [36;1m  cmd/go/internal/work cmd/go/internal/logos/eject internal/buildcfg \[0m
+2026-11-16T16:36:08.9221613Z [36;1m  2>&1 | tee "$evidence/unit.log"[0m
+2026-11-16T16:36:08.9222072Z [36;1mgo test -count=1 -short -race -timeout=15m \[0m
+2026-11-16T16:36:08.9222596Z [36;1m  cmd/go/internal/work cmd/go/internal/logos/eject internal/buildcfg \[0m
+2026-11-16T16:36:08.9223356Z [36;1m  2>&1 | tee "$evidence/race.log"[0m
+2026-11-16T16:36:08.9223737Z [36;1mgo test -count=1 -timeout=20m cmd/go \[0m
+2026-11-16T16:36:08.9224547Z [36;1m  -run 'Script/^logos_(ctfe_assignment_.*|tuple_(package_names|variant_names)|spread_defaults|inline_batches|eject_variant_tags|struct_default_validation)$' \[0m
+2026-11-16T16:36:08.9225348Z [36;1m  2>&1 | tee "$evidence/integration.log"[0m
+2026-11-16T16:36:08.9225869Z [36;1mgo test -count=1 -race -timeout=30m cmd/go \[0m
+2026-11-16T16:36:08.9226629Z [36;1m  -run 'Script/^logos_(eject_cgo.*|cgo_lgo|eject|eject_target_(features|env_compat)|eject_inactive.*|eject_variant_package_names)$' \[0m
+2026-11-16T16:36:08.9227412Z [36;1m  2>&1 | tee "$evidence/cgo-and-variant-integration.log"[0m
+2026-11-16T16:36:08.9227966Z [36;1mgo test -count=1 -timeout=20m cmd/internal/testdir \[0m
+2026-11-16T16:36:08.9228542Z [36;1m  -run 'Test/logos/run/(ctfe_assignment_.*|spread_defaults|inline_batches)' \[0m
+2026-11-16T16:36:08.9229088Z [36;1m  2>&1 | tee "$evidence/testdir.log"[0m
+2026-11-16T16:36:08.9229645Z [36;1mgo vet cmd/compile/internal/inline/... cmd/compile/internal/logos/... \[0m
+2026-11-16T16:36:08.9230234Z [36;1m  cmd/compile/internal/base cmd/compile/internal/syntax \[0m
+2026-11-16T16:36:08.9230715Z [36;1m  cmd/compile/internal/types2 cmd/go/internal/work \[0m
+2026-11-16T16:36:08.9231213Z [36;1m  cmd/go/internal/logos/eject internal/buildcfg \[0m
+2026-11-16T16:36:08.9231648Z [36;1m  2>&1 | tee "$evidence/vet.log"[0m
+2026-11-16T16:36:08.9232207Z [36;1mgo vet -pgo="$PWD/cmd/compile/default.pgo" cmd/compile/internal/noder \[0m
+2026-11-16T16:36:08.9232713Z [36;1m  2>&1 | tee "$evidence/noder-vet.log"[0m
+2026-11-16T16:36:08.9234029Z [36;1mgo test -count=1 -short cmd/internal/goparity -run '^TestRedteamLedgerRows$' \[0m
+2026-11-16T16:36:08.9234778Z [36;1m  2>&1 | tee "$evidence/ledger.log"[0m
+2026-11-16T16:36:08.9267626Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:36:08.9268052Z env:
+2026-11-16T16:36:08.9268489Z   GOMAXPROCS: 4
+2026-11-16T16:36:08.9268851Z   GOFLAGS: -p=2
+2026-11-16T16:36:08.9269194Z   GOMEMLIMIT: 2GiB
+2026-11-16T16:36:08.9269519Z   UPROOT1274: /home/runner/work/_temp/go1.27.4-ci
+2026-11-16T16:36:08.9269923Z   UPROOT1272: /home/runner/work/_temp/go1.27.2
+2026-11-16T16:36:08.9270330Z   UPROOT1273: /home/runner/work/_temp/go1.27.3
+2026-11-16T16:36:08.9270684Z ##[endgroup]
+2026-11-16T16:36:08.9332510Z src/cmd/compile/internal/logos/ctfe/assignment_errors_test.go: OK
+2026-11-16T16:36:08.9333499Z src/cmd/compile/internal/logos/ctfe/assignment_order_test.go: OK
+2026-11-16T16:36:08.9334086Z src/cmd/compile/internal/logos/ctfe/assignment_storage_return_test.go: OK
+2026-11-16T16:36:08.9334855Z src/cmd/compile/internal/logos/ctfe/assignment_storage_test.go: OK
+2026-11-16T16:36:08.9335427Z src/cmd/compile/internal/logos/tuple_names_test.go: OK
+2026-11-16T16:36:08.9335926Z src/cmd/compile/internal/logos/tuple_variant_names_test.go: OK
+2026-11-16T16:36:08.9336496Z src/cmd/go/internal/logos/eject/variant_host_tags_test.go: OK
+2026-11-16T16:36:08.9337016Z src/cmd/go/internal/logos/eject/variant_tags_test.go: OK
+2026-11-16T16:36:08.9337571Z src/cmd/go/testdata/script/logos_ctfe_assignment_order.txt: OK
+2026-11-16T16:36:08.9338128Z src/cmd/go/testdata/script/logos_ctfe_assignment_storage.txt: OK
+2026-11-16T16:36:08.9338633Z src/cmd/go/testdata/script/logos_eject_variant_tags.txt: OK
+2026-11-16T16:36:08.9339109Z src/cmd/go/testdata/script/logos_inline_batches.txt: OK
+2026-11-16T16:36:08.9339580Z src/cmd/go/testdata/script/logos_spread_defaults.txt: OK
+2026-11-16T16:36:08.9340087Z src/cmd/go/testdata/script/logos_tuple_package_names.txt: OK
+2026-11-16T16:36:08.9340647Z src/cmd/go/testdata/script/logos_tuple_variant_names.txt: OK
+2026-11-16T16:36:08.9341097Z test/logos/run/ctfe_assignment_order.lgo: OK
+2026-11-16T16:36:08.9341578Z test/logos/run/ctfe_assignment_order.out: OK
+2026-11-16T16:36:08.9342000Z test/logos/run/ctfe_assignment_storage.lgo: OK
+2026-11-16T16:36:08.9342445Z test/logos/run/ctfe_assignment_storage.out: OK
+2026-11-16T16:36:08.9343152Z test/logos/run/inline_batches.go: OK
+2026-11-16T16:36:08.9343583Z test/logos/run/spread_defaults.lgo: OK
+2026-11-16T16:36:08.9344013Z test/logos/run/spread_defaults.out: OK
+2026-11-16T16:36:09.0499330Z 
+2026-11-16T16:36:18.9181475Z ok  	cmd/compile/internal/inline	0.003s
+2026-11-16T16:36:23.4846709Z ok  	cmd/compile/internal/inline/inlheur	4.033s
+2026-11-16T16:37:57.1445532Z ?   	cmd/compile/internal/inline/interleaved	[no test files]
+2026-11-16T16:37:57.1446018Z ok  	cmd/compile/internal/logos	82.544s
+2026-11-16T16:37:57.1447191Z ok  	cmd/compile/internal/logos/ctfe	5.817s
+2026-11-16T16:37:57.1447847Z ok  	cmd/compile/internal/logos/facts	0.007s
+2026-11-16T16:37:57.1448407Z ok  	cmd/compile/internal/logos/lint	2.082s
+2026-11-16T16:37:57.1449059Z ok  	cmd/compile/internal/logos/wasmyield	0.004s
+2026-11-16T16:37:57.1449568Z ok  	cmd/compile/internal/base	0.003s
+2026-11-16T16:37:57.1450145Z ok  	cmd/compile/internal/noder	16.709s
+2026-11-16T16:37:57.1450730Z ok  	cmd/compile/internal/syntax	2.841s
+2026-11-16T16:37:57.1451252Z ok  	cmd/compile/internal/types2	5.111s
+2026-11-16T16:37:57.1451789Z ok  	cmd/go/internal/work	0.021s
+2026-11-16T16:37:57.1452207Z ok  	cmd/go/internal/logos/eject	0.363s
+2026-11-16T16:37:57.1453271Z ok  	internal/buildcfg	0.002s
+2026-11-16T16:38:22.3939326Z ok  	cmd/go/internal/work	1.144s
+2026-11-16T16:38:27.6418169Z ok  	cmd/go/internal/logos/eject	5.502s
+2026-11-16T16:38:27.6418744Z ok  	internal/buildcfg	1.009s
+2026-11-16T16:38:57.8414251Z ok  	cmd/go	22.426s
+2026-11-16T16:40:05.3939943Z ok  	cmd/go	62.413s
+2026-11-16T16:40:13.6623891Z ok  	cmd/internal/testdir	7.797s
+2026-11-16T16:40:49.9224676Z ok  	cmd/internal/goparity	0.005s
+2026-11-16T16:40:49.9278398Z ##[group]Run evidence="$RUNNER_TEMP/compiler-stability-focused"
+2026-11-16T16:40:49.9278938Z [36;1mevidence="$RUNNER_TEMP/compiler-stability-focused"[0m
+2026-11-16T16:40:49.9279279Z [36;1mif test -d "$evidence"; then[0m
+2026-11-16T16:40:49.9279539Z [36;1m  for file in "$evidence"/*; do[0m
+2026-11-16T16:40:49.9279820Z [36;1m    test -f "$file" || continue[0m
+2026-11-16T16:40:49.9280073Z [36;1m    sha256sum "$file"[0m
+2026-11-16T16:40:49.9280294Z [36;1m  done[0m
+2026-11-16T16:40:49.9280549Z [36;1m  if test -f "$evidence/source.txt"; then[0m
+2026-11-16T16:40:49.9280820Z [36;1m    cat "$evidence/source.txt"[0m
+2026-11-16T16:40:49.9281043Z [36;1m  fi[0m
+2026-11-16T16:40:49.9281255Z [36;1mfi[0m
+2026-11-16T16:40:49.9307576Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:40:49.9307902Z env:
+2026-11-16T16:40:49.9308114Z   GOMAXPROCS: 4
+2026-11-16T16:40:49.9308327Z   GOFLAGS: -p=2
+2026-11-16T16:40:49.9308547Z   GOMEMLIMIT: 2GiB
+2026-11-16T16:40:49.9308867Z   UPROOT1274: /home/runner/work/_temp/go1.27.4-ci
+2026-11-16T16:40:49.9309175Z   UPROOT1272: /home/runner/work/_temp/go1.27.2
+2026-11-16T16:40:49.9309459Z   UPROOT1273: /home/runner/work/_temp/go1.27.3
+2026-11-16T16:40:49.9309724Z ##[endgroup]
+2026-11-16T16:40:49.9361930Z 6068f85b6f1f91e6ae75a9bf8917c9286e0715c3b1e5af086d19cb25de98ae0f  /home/runner/work/_temp/compiler-stability-focused/build.log
+2026-11-16T16:40:49.9371502Z c5b14ae4ff5b4db780f49699fe9d64a0a19cc8db54bd82938c3380a3d4539bca  /home/runner/work/_temp/compiler-stability-focused/c23.log
+2026-11-16T16:40:49.9382060Z 92869a6ad657774aba757d2e2c258423e382db4ac0c922e9ef3d01035cd99dd9  /home/runner/work/_temp/compiler-stability-focused/cgo-and-variant-integration.log
+2026-11-16T16:40:49.9391053Z 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b  /home/runner/work/_temp/compiler-stability-focused/format.log
+2026-11-16T16:40:49.9400057Z b54d6786b3d56fe2eda29c94bf4ed207f4cf671ca2fc996650cff65d5642cabf  /home/runner/work/_temp/compiler-stability-focused/frozen-tests.log
+2026-11-16T16:40:49.9408900Z c532cec377b45537fa00c11f3e312cf542acefc88db9826596c1136e6d998e7c  /home/runner/work/_temp/compiler-stability-focused/integration.log
+2026-11-16T16:40:49.9417855Z 3a8a04290bd61c9992a74f34dba6f36995f9c15780ae4d98cd4ebceffb18887a  /home/runner/work/_temp/compiler-stability-focused/ledger.log
+2026-11-16T16:40:49.9426721Z e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  /home/runner/work/_temp/compiler-stability-focused/noder-vet.log
+2026-11-16T16:40:49.9435709Z e2108dcb008916a32726f9c79b855793bc7c93e757939deba7e50807d824814c  /home/runner/work/_temp/compiler-stability-focused/race.log
+2026-11-16T16:40:49.9444740Z 43ec0fc4d2654c7e8831616806791bd71f21a74a6573e68cd3c044ee6ea5a316  /home/runner/work/_temp/compiler-stability-focused/source.txt
+2026-11-16T16:40:49.9453787Z cbaf3a284dc06d98345872e18b16f0aa3a956a14c94425a192bd209ac3117e40  /home/runner/work/_temp/compiler-stability-focused/testdir.log
+2026-11-16T16:40:49.9462283Z 9dfe8c38a19eb753e30a24c3aabed6301f007d720f2cf88a7533df910c6ce2ba  /home/runner/work/_temp/compiler-stability-focused/unit.log
+2026-11-16T16:40:49.9471003Z e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  /home/runner/work/_temp/compiler-stability-focused/vet.log
+2026-11-16T16:40:49.9477813Z f2ad58be8742b8ec350db8f06d9dc794ea3302e4
+2026-11-16T16:40:49.9478144Z go version go1.27.4 linux/amd64
+2026-11-16T16:40:49.9558022Z Cleaning up orphan processes

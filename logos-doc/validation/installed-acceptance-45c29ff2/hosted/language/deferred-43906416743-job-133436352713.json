@@ -1,0 +1,80 @@
+{
+  "recordedAt": "2026-11-16T16:37:29.267Z",
+  "repository": "gosuda/LoGOs",
+  "runId": 43906416743,
+  "jobId": 133436352713,
+  "url": "https://github.com/gosuda/LoGOs/actions/runs/43906416743/job/133436352713",
+  "status": "completed",
+  "conclusion": "success",
+  "prHead": "45c29ff215477f7e403188d7452fc79aef05d791",
+  "actualCheckout": "f2ad58be8742b8ec350db8f06d9dc794ea3302e4",
+  "checkoutEvidence": [
+    "2026-11-16T16:29:12.3566183Z  * branch              f2ad58be8742b8ec350db8f06d9dc794ea3302e4 -> FETCH_HEAD",
+    "2026-11-16T16:29:13.3561499Z HEAD is now at f2ad58be Merge 45c29ff215477f7e403188d7452fc79aef05d791 into 13a968f350564e739bf700df698a9a635dcdddcd"
+  ],
+  "installedToolchainEvidence": [
+    "2026-11-16T16:29:27.4641050Z Building Go toolchain1 using /home/runner/work/_temp/go1.27.4-ci.",
+    "2026-11-16T16:30:13.1112881Z Building Go toolchain2 using go_bootstrap and Go toolchain1.",
+    "2026-11-16T16:30:46.2063321Z Building Go toolchain3 using go_bootstrap and Go toolchain2.",
+    "2026-11-16T16:32:41.0253561Z Installed Go for linux/amd64 in /home/runner/work/LoGOs/LoGOs"
+  ],
+  "focusedRedteamRows": [
+    380,
+    386
+  ],
+  "completedGates": [
+    {
+      "name": "full Lower",
+      "status": "success",
+      "seconds": 74.317
+    },
+    {
+      "name": "native deferred calls",
+      "status": "success",
+      "seconds": 13.716
+    },
+    {
+      "name": "ejection with race detection",
+      "status": "success",
+      "seconds": 42.88
+    },
+    {
+      "name": "callee span mutation",
+      "status": "caught and restored"
+    },
+    {
+      "name": "restored callee fixture",
+      "status": "success",
+      "seconds": 0.12
+    }
+  ],
+  "expectedFailures": "The failing syntax diagnostic at defer_indexed_callee.lgo:110:20 belongs to the deliberately caught callee-span mutation.",
+  "restoredFixtureChecks": [
+    "2026-11-16T16:35:44.9874552Z \u001b[36;1msha256sum ../test/logos/run/defer_indexed_callee.lgo ../test/logos/run/defer_indexed_callee.out cmd/go/testdata/script/logos_eject_defer_indexed_callee.txt > \"$RUNNER_TEMP/deferred-fixtures.sha256\"\u001b[0m",
+    "2026-11-16T16:35:44.9879361Z \u001b[36;1msha256sum --check --strict \"$RUNNER_TEMP/deferred-fixtures.sha256\"\u001b[0m",
+    "2026-11-16T16:35:50.1030893Z ../test/logos/run/defer_indexed_callee.lgo: OK",
+    "2026-11-16T16:35:50.1031404Z ../test/logos/run/defer_indexed_callee.out: OK",
+    "2026-11-16T16:35:50.1031958Z cmd/go/testdata/script/logos_eject_defer_indexed_callee.txt: OK"
+  ],
+  "fixtureHashProvenance": "SHA-256 values computed read-only from Git blobs at the actual merge checkout. CI printed the original-manifest creation command and restoration OK checks, not the digest values.",
+  "fixtures": [
+    {
+      "path": "test/logos/run/defer_indexed_callee.lgo",
+      "sha256": "57b4ce73702affb2fe9faf2a9461d3724160f64273774705a86ce50d8a71702a"
+    },
+    {
+      "path": "test/logos/run/defer_indexed_callee.out",
+      "sha256": "e50eba4dae3cabbfb1a388f2fa91a66351ce8dee74643206aa7b2abbeef4b7ce"
+    },
+    {
+      "path": "src/cmd/go/testdata/script/logos_eject_defer_indexed_callee.txt",
+      "sha256": "8855a98a8b89c9c2777dfa4841c7011d609eb63fb82ba88b14f324420d51e299"
+    }
+  ],
+  "rawLog": {
+    "path": "deferred-43906416743-job-133436352713.log",
+    "sha256": "d951b829cd8397a8fa684a27451775b5ebfc1fc959c033118b4f1c51ee7acdb9",
+    "bytes": 11733,
+    "encoding": "UTF-8 decoded GitHub job log; original BOM and LF endings retained"
+  }
+}

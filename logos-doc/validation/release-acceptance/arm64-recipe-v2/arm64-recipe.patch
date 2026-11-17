@@ -1,0 +1,20 @@
+--- a/.github/scripts/release-acceptance.sh
++++ b/.github/scripts/release-acceptance.sh
+@@ -184,7 +184,7 @@
+ 
+ repro_gate() {
+   bootstrap
+-  export CGO_ENABLED=0 GOAMD64=v3 GOARM64=v8.0 GOEXPERIMENT=
++  export CGO_ENABLED=0 GOAMD64=v3 GOARM64=v8.2 GOEXPERIMENT=
+   run repro-script go test -count=1 -parallel=1 -v -timeout=60m cmd/go -run '^TestScript$/^logos_repro$'
+   verify_script logos_repro "$evidence/repro-script.log"
+   run example-contract go test -count=1 -parallel=1 -v -timeout=30m cmd/go -run '^TestScript$/^logos_eject_example$'
+@@ -224,7 +224,7 @@
+   jq -Rn '[inputs | split("\t") | {key:.[0],value:.[1]}] | from_entries' \
+     < "$evidence/digests.tsv" > "$evidence/digests.json"
+   jq --slurpfile digests "$evidence/digests.json" \
+-    '. + {digests:$digests[0],recipe:{goamd64:"v3",goarm64:"v8.0",cgo:"0",experiment:"",flags:["-trimpath","-buildvcs=false"]}}' \
++    '. + {digests:$digests[0],recipe:{goamd64:"v3",goarm64:"v8.2",cgo:"0",experiment:"",flags:["-trimpath","-buildvcs=false"]}}' \
+     "$evidence/identity.json" > "$evidence/repro-result.json"
+   printf 'result=%s\n' "$(jq -c . "$evidence/repro-result.json")" >> "$GITHUB_OUTPUT"
+   cd "$repo"

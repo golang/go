@@ -1,0 +1,15 @@
+{
+  "command": [
+    "sha256sum",
+    "--check",
+    "--strict",
+    "logos-doc/validation/ejection-target-facts/frozen-tests-v2.sha256"
+  ],
+  "cwd": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes",
+  "status": 0,
+  "signal": null,
+  "error": "",
+  "seconds": 0.005,
+  "stdoutSHA256": "2f2b8ecc3d43ef592de63586f0b6c8cf5b31f5895ed1bbbbd58be282acb761d4",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

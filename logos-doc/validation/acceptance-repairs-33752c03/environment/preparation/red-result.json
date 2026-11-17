@@ -1,0 +1,22 @@
+{
+  "start_utc": "2026-11-16T21:02:46.487Z",
+  "end_utc": "2026-11-16T21:02:46.612Z",
+  "cwd": "/workspace/scratch/9949907ca71e/logos-release-env-fix",
+  "argv": [
+    "uv",
+    "run",
+    "--offline",
+    "--no-project",
+    "--python",
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+    "python",
+    "logos-doc/validation/release-acceptance/test_bootstrap_environment.py",
+    "/workspace/scratch/9949907ca71e/logos-release-env-fix"
+  ],
+  "exit_code": 1,
+  "signal": null,
+  "error": null,
+  "all_17_inputs_unchanged": true,
+  "log_sha256": "d551c82a03261ba8a94a4864593147b26ee76088bfa5cb7b6759243b2a1f946c",
+  "boundary": "Extracted real bootstrap shell only; all downloads, Go/builds and C compilation stubbed; no production edits"
+}

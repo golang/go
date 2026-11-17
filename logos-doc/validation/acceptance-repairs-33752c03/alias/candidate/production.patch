@@ -1,0 +1,64 @@
+diff --git a/src/cmd/go/internal/load/logos.go b/src/cmd/go/internal/load/logos.go
+index e92c4e38..4cb1a8a1 100644
+--- a/src/cmd/go/internal/load/logos.go
++++ b/src/cmd/go/internal/load/logos.go
+@@ -138,7 +138,11 @@ func scanModuleKinds(ctx context.Context, ld *modload.Loader, g *moduleKinds) er
+ 			if _, noGo := errors.AsType[*build.NoGoError](err); noGo {
+ 				continue
+ 			}
+-			return fmt.Errorf("classifying package %s in module %s: %w", name, m.Path, err)
++			if _, duplicate := errors.AsType[logosfile.DuplicateStemError](err); !duplicate {
++				return fmt.Errorf("classifying package %s in module %s: %w", name, m.Path, err)
++			}
++			// Duplicate stems invalidate this package, but its complete file
++			// lists must still contribute to the module's source kinds.
+ 		}
+ 		for _, files := range [][]string{p.GoFiles, p.CgoFiles, p.TestGoFiles, p.XTestGoFiles} {
+ 			for _, file := range files {
+diff --git a/src/cmd/go/internal/modindex/logos.go b/src/cmd/go/internal/modindex/logos.go
+index 1ed4e636..4efdaf83 100644
+--- a/src/cmd/go/internal/modindex/logos.go
++++ b/src/cmd/go/internal/modindex/logos.go
+@@ -49,7 +49,7 @@ func mixedPackageError(goFiles, logosFiles []string) error {
+ 
+ // duplicateStemError mirrors the go/build duplicate-stem diagnostic.
+ func duplicateStemError(first, second, stem string) error {
+-	return fmt.Errorf("[correctness::duplicate_stem_filename] files %s and %s share stem %q", first, second, stem)
++	return logosfile.DuplicateStemError(fmt.Sprintf("[correctness::duplicate_stem_filename] files %s and %s share stem %q", first, second, stem))
+ }
+ 
+ // checkLogosPackage mirrors go/build checkLogosPackage over the admitted
+diff --git a/src/go/build/logos.go b/src/go/build/logos.go
+index 360ce3e4..1a6ef030 100644
+--- a/src/go/build/logos.go
++++ b/src/go/build/logos.go
+@@ -107,8 +107,8 @@ func checkLogosDuplicateStems(logosFiles []string) error {
+ 	for _, name := range logosFiles {
+ 		stem, _, _ := logosfile.Split(name)
+ 		if prev, ok := seen[stem]; ok {
+-			return fmt.Errorf("[correctness::duplicate_stem_filename] files %s and %s share stem %q",
+-				prev, name, stem)
++			return logosfile.DuplicateStemError(fmt.Sprintf("[correctness::duplicate_stem_filename] files %s and %s share stem %q",
++				prev, name, stem))
+ 		}
+ 		seen[stem] = name
+ 	}
+diff --git a/src/internal/logosfile/logosfile.go b/src/internal/logosfile/logosfile.go
+index 2ddc8067..99676a53 100644
+--- a/src/internal/logosfile/logosfile.go
++++ b/src/internal/logosfile/logosfile.go
+@@ -19,6 +19,14 @@ var exts = [...]string{Canonical, ".📜", ".⚡", ".ʕ◔ϖ◔ʔ"}
+ 
+ const variationSelectors = "\uFE0E\uFE0F"
+ 
++// DuplicateStemError reports active loGo/s files that share a stem.
++// Source loaders return it after completing the active file lists and
++// validating source headers and package kinds. A census may use those
++// lists, while loading the package still fails.
++type DuplicateStemError string
++
++func (e DuplicateStemError) Error() string { return string(e) }
++
+ // Exts returns every loGo/s source extension, dot included, canonical first.
+ func Exts() []string {
+ 	return slices.Clone(exts[:])

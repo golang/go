@@ -1,0 +1,278 @@
+{
+  "reviewed_utc": "2026-11-16T22:07:54.178622+00:00",
+  "boundary": "File-only review of six completed installed receipts and normative/implementation scope. No test invocation or source/fixture/assertion edit. No Windows runtime claim.",
+  "index_tree": "098de80a4ddf1e59b2750c1306ef495414f42d1e",
+  "source_tree": "33752c03819ed5afcb37f87633a3cac668e181a8",
+  "build_result_sha256": "535382e7564ba3b0aa2a3373ab27d326e237e4fe412e56331c7f3a4532a5ff07",
+  "gates": [
+    {
+      "gate": "void-mutant-compile-001",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 84.843,
+      "completed_utc": "2026-11-16T22:02:49.070117+00:00",
+      "inputs_sha256": "6342e5e7d4f9f4b68381fbffcbb8c9c5980b3259a837f8c410f4823ef62428a8",
+      "result_sha256": "45fa6ecc99972a8d2ed9e54e36c05e7aa1831ca4b9721b4a335f6575d52bb024",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "required_markers": {},
+      "forbidden_markers": {
+        "--- FAIL:": false,
+        "--- SKIP:": false,
+        "[build failed]": false
+      },
+      "pass_events": [],
+      "fail_events": [],
+      "skip_events": [],
+      "source_tools_and_frozen_inputs_verified": true,
+      "produced_files_sha256": {
+        "/workspace/scratch/9949907ca71e/recovery-evidence/installed-repair-33752c03/void-hook-mutation/goroot/pkg/tool/linux_amd64/compile": "5a46c109c6f28ff2d3e6f016d9eccb367971a86c5ea85ccaa204cc533e19a51e"
+      }
+    },
+    {
+      "gate": "void-hook-probe-001",
+      "exit_code": 1,
+      "expected_outcome_matched": true,
+      "duration_seconds": 0.351,
+      "completed_utc": "2026-11-16T22:02:49.720546+00:00",
+      "inputs_sha256": "dac63536d3359d15993e021086abce17e79c5e8b38bd9d4c05fbeec2f1e111e0",
+      "result_sha256": "e7263cbb7abe6eab8ad128eeaa86e28505a5937d3bdaaaba0a7dda6f13fbd828",
+      "stdout_sha256": "77c3c88d0ca9fe84deedb14331e48489140dc018b6581f76265d75995378412a",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "required_markers": {
+        "--- PASS: TestCompilePanicNarrowing/builtin ": true,
+        "--- PASS: TestCompilePanicNarrowing/parenthesized_builtin ": true,
+        "--- PASS: TestCompilePanicNarrowing/shadowed_function ": true,
+        "--- PASS: TestCompilePanicNarrowing/shadowed_variable ": true,
+        "--- PASS: TestCompilePanicNarrowing/parenthesized_shadow ": true,
+        "--- PASS: TestCompilePanicNarrowingVoid/shadowed_function ": true,
+        "--- PASS: TestCompilePanicNarrowingVoid/shadowed_variable ": true,
+        "--- FAIL: TestCompilePanicNarrowingVoid/builtin ": true,
+        "--- FAIL: TestCompilePanicNarrowingVoid/parenthesized_builtin ": true,
+        "[correctness::nil_deref_unproven]": true
+      },
+      "forbidden_markers": {
+        "--- SKIP:": false,
+        "[build failed]": false,
+        "--- FAIL: TestCompilePanicNarrowing/": false,
+        "--- FAIL: TestCompilePanicNarrowingVoid/shadowed": false
+      },
+      "pass_events": [
+        "TestCompilePanicNarrowing",
+        "TestCompilePanicNarrowing/builtin",
+        "TestCompilePanicNarrowing/parenthesized_builtin",
+        "TestCompilePanicNarrowing/shadowed_function",
+        "TestCompilePanicNarrowing/shadowed_variable",
+        "TestCompilePanicNarrowing/parenthesized_shadow",
+        "TestCompilePanicNarrowingVoid/shadowed_function",
+        "TestCompilePanicNarrowingVoid/shadowed_variable"
+      ],
+      "fail_events": [
+        "TestCompilePanicNarrowingVoid",
+        "TestCompilePanicNarrowingVoid/builtin",
+        "TestCompilePanicNarrowingVoid/parenthesized_builtin"
+      ],
+      "skip_events": [],
+      "source_tools_and_frozen_inputs_verified": true,
+      "produced_files_sha256": {}
+    },
+    {
+      "gate": "panic-restored-001",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 0.312,
+      "completed_utc": "2026-11-16T22:02:50.284590+00:00",
+      "inputs_sha256": "cdf3dbea736ceb8e02835f5cb0bf8aea9058b4a84c5fc353214d1748f79a79ff",
+      "result_sha256": "feaba7e9f37495bb5036254c91768d252f3949f8934c73a7cf90e91f5cccde13",
+      "stdout_sha256": "fdc5277655186fdcb4050d5d59cfd5d8766b789700d58d72bec352e6876fe35c",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "required_markers": {
+        "--- PASS: TestCompilePanicNarrowing/builtin ": true,
+        "--- PASS: TestCompilePanicNarrowing/parenthesized_builtin ": true,
+        "--- PASS: TestCompilePanicNarrowing/shadowed_function ": true,
+        "--- PASS: TestCompilePanicNarrowing/shadowed_variable ": true,
+        "--- PASS: TestCompilePanicNarrowing/parenthesized_shadow ": true,
+        "--- PASS: TestCompilePanicNarrowingVoid/builtin ": true,
+        "--- PASS: TestCompilePanicNarrowingVoid/parenthesized_builtin ": true,
+        "--- PASS: TestCompilePanicNarrowingVoid/shadowed_function ": true,
+        "--- PASS: TestCompilePanicNarrowingVoid/shadowed_variable ": true
+      },
+      "forbidden_markers": {
+        "--- FAIL:": false,
+        "--- SKIP:": false,
+        "[build failed]": false
+      },
+      "pass_events": [
+        "TestCompilePanicNarrowing",
+        "TestCompilePanicNarrowing/builtin",
+        "TestCompilePanicNarrowing/parenthesized_builtin",
+        "TestCompilePanicNarrowing/shadowed_function",
+        "TestCompilePanicNarrowing/shadowed_variable",
+        "TestCompilePanicNarrowing/parenthesized_shadow",
+        "TestCompilePanicNarrowingVoid",
+        "TestCompilePanicNarrowingVoid/builtin",
+        "TestCompilePanicNarrowingVoid/parenthesized_builtin",
+        "TestCompilePanicNarrowingVoid/shadowed_function",
+        "TestCompilePanicNarrowingVoid/shadowed_variable"
+      ],
+      "fail_events": [],
+      "skip_events": [],
+      "source_tools_and_frozen_inputs_verified": true,
+      "produced_files_sha256": {}
+    },
+    {
+      "gate": "cgo-ejection-jsonv2-race-001",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 49.336,
+      "completed_utc": "2026-11-16T22:03:39.890833+00:00",
+      "inputs_sha256": "3a64bd8062ebbee3c7c755901fcdcf0d21a9105605b3aaf7e0f1401f20d61f54",
+      "result_sha256": "232fbd97b5d52ae6097279a29f89f3acc32fc5b1fe16d228e44f6a7b4d957f88",
+      "stdout_sha256": "4f5a887fbcec95a8b96b7ac9fc17b93f252fd73c562d00ab64ed830c4c0d937d",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "required_markers": {
+        "--- PASS: TestEjectCgoPreamble": true,
+        "--- PASS: TestEjectCgoFastcall": true,
+        "--- PASS: TestEjectCgoOwnedTypes": true,
+        "--- PASS: TestEjectQuotedCgoTypes": true
+      },
+      "forbidden_markers": {
+        "--- FAIL:": false,
+        "--- SKIP:": false,
+        "[build failed]": false
+      },
+      "pass_events": [
+        "TestEjectCgoFastcall",
+        "TestEjectCgoFastcall/block",
+        "TestEjectCgoFastcall/line",
+        "TestEjectCgoFastcall/group",
+        "TestEjectCgoFastcall/split_block",
+        "TestEjectCgoFastcall/split_line",
+        "TestEjectCgoFastcall/carriage_return",
+        "TestEjectCgoFastcall/ordinary_comment",
+        "TestEjectCgoFastcall/detached",
+        "TestEjectCgoFastcall/malformed",
+        "TestEjectCgoFastcall/joined_suffix",
+        "TestEjectCgoOwnedTypes",
+        "TestEjectCgoOwnedTypes/original",
+        "TestEjectCgoOwnedTypes/ordinary",
+        "TestEjectCgoPreamble",
+        "TestEjectCgoPreamble/block",
+        "TestEjectCgoPreamble/line",
+        "TestEjectCgoPreamble/group",
+        "TestEjectCgoPreamble/group_decl",
+        "TestEjectCgoPreamble/empty",
+        "TestEjectQuotedCgoTypes"
+      ],
+      "fail_events": [],
+      "skip_events": [],
+      "source_tools_and_frozen_inputs_verified": true,
+      "produced_files_sha256": {}
+    },
+    {
+      "gate": "cgo-quoted-nojsonv2-race-001",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 71.497,
+      "completed_utc": "2026-11-16T22:04:51.681190+00:00",
+      "inputs_sha256": "6ef1ec1ecdedfcf5e4201456732e212cb88d13a619eccea72061364b53238619",
+      "result_sha256": "56a8bb08b0bf5ec265831c1098dbbafe203f8289836f35f499ea48a925757f51",
+      "stdout_sha256": "f672a7b9c58756f786f8b573f9d74a1e824ed08c828654acebaf8dcf0bc848b9",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "required_markers": {
+        "--- PASS: TestEjectQuotedCgoTypes": true
+      },
+      "forbidden_markers": {
+        "--- FAIL:": false,
+        "--- SKIP:": false,
+        "[build failed]": false
+      },
+      "pass_events": [
+        "TestEjectQuotedCgoTypes"
+      ],
+      "fail_events": [],
+      "skip_events": [],
+      "source_tools_and_frozen_inputs_verified": true,
+      "produced_files_sha256": {}
+    },
+    {
+      "gate": "normal-vet-001",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 17.466,
+      "completed_utc": "2026-11-16T22:05:09.383334+00:00",
+      "inputs_sha256": "9efca4e426b5c1b65b64d4edd389353ede31f0a79ac9292b031f548c2eea39f6",
+      "result_sha256": "429dd3deb758d10bd24ddc2f235a512741b0fa5e5e629b478e7363ff436d2105",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "required_markers": {},
+      "forbidden_markers": {},
+      "pass_events": [],
+      "fail_events": [],
+      "skip_events": [],
+      "source_tools_and_frozen_inputs_verified": true,
+      "produced_files_sha256": {}
+    }
+  ],
+  "issues": [],
+  "panic_assertion_binary_sha256": "3d647542dc92bfd64257f30e8bc458e69a30c0da8fa7408c8636dd4483b05874",
+  "panic_compile_receipt_sha256": "1e087dff05a1d1798653b058a5f3115f945f30f4a235a65991a8e429218ab996",
+  "production_compiler_sha256": "873de794fdbfb5ebd900838e2a238f178a653aa7d7e56d3b1ae1c8afcf717c1c",
+  "diagnostic_compiler_sha256": "5a46c109c6f28ff2d3e6f016d9eccb367971a86c5ea85ccaa204cc533e19a51e",
+  "mutation_changes": "Exactly one call to check.logosRecordVoidPanic(call) removed from external builtins.go; all other bytes identical.",
+  "mutation_source_sha256": "061834ce3b1998594077c5b799cfa91e7aa445bd7ee011644f39234d2add18b6",
+  "overlay_sha256": "27644522a68e07706d0a327b9522705e0cfd20f5ea9eb6e04fe465df15e1a569",
+  "layout_sha256": "dc7399bbfbda9628f1e14d6bc19bfc66b4d3f0e50aa2eea8bb9fa39b79869903",
+  "layout_links_verified": true,
+  "layout_pending_flag_boundary": "Preserved preparation-time state; later successful compile and execution receipts prove completion.",
+  "public_projection_unchanged": {
+    "src/go/types/builtins.go": "5a85992f8539b3f64fd99efd827d5a6a518ffd379a8f75f3e5cc5f1efc0fe240",
+    "src/go/types/typestring.go": "c757b6ad9a4c3a6940a52b341377b646afbcc38fc0cd5dafb3128c7451af8c52"
+  },
+  "contract_scope": {
+    "explicit_native_windows_goparity_requirement_found": false,
+    "preserved_broader_obligations": [
+      "SPEC0.1 Go language semantics are host-neutral.",
+      "M0-S1 explicitly requires Windows driver .exe installation.",
+      "Windows capability sinks remain covered as target-analysis obligations."
+    ],
+    "specified_repro_targets": [
+      "linux/amd64",
+      "linux/arm64",
+      "js/wasm"
+    ],
+    "documents": {
+      "logos-doc/SPEC.md": {
+        "sha256": "a3aa81dc833cf232637cf47634c775d7437e504a26102155c461d77dfbd9ae05",
+        "windows_references": [
+          {
+            "line": 1767,
+            "section": "### 11.1 Sink symbols"
+          },
+          {
+            "line": 1768,
+            "section": "### 11.1 Sink symbols"
+          }
+        ]
+      },
+      "logos-doc/IMPLEMENTATION.md": {
+        "sha256": "4e9b69ab76838989dd8ef9579a684b9b57254360deed93543f67e9f8fea9602b",
+        "windows_references": [
+          {
+            "line": 324,
+            "section": "### Table T: tailored rules (normative content of SPEC.md)"
+          },
+          {
+            "line": 390,
+            "section": "### M0-S1 The `logos` command"
+          },
+          {
+            "line": 2885,
+            "section": "### M12-S2 Reachability sinks (linker)"
+          }
+        ]
+      }
+    }
+  },
+  "contract_scope_note_sha256": "4a16ac6aeb3525602fbbffd44dad8a4f103ad6763d4c5fa73229c3bc9d7bd9ce"
+}

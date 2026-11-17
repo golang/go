@@ -1,0 +1,4 @@
+=== RUN   TestRedteamLedgerRows
+--- PASS: TestRedteamLedgerRows (0.01s)
+PASS
+ok  	cmd/internal/goparity	0.008s

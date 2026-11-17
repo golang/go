@@ -1,0 +1,148 @@
+{
+  "reviewed_utc": "2026-11-16T20:34:11.467Z",
+  "job_id": 133553485486,
+  "run_id": 43939662630,
+  "conclusion": "failure",
+  "log_sha256": "e868b565b33413d51266fa3471ad84e3456dcbb6cb5f65576c0b8228b0b6273a",
+  "archive_sha256": "020b3174a4c5d2c0688d544341aba5a6f2cb68411427771e88809d3f2b373026",
+  "regular_files": 36,
+  "manifest_entries": 35,
+  "all_archive_and_inner_hashes_verified": true,
+  "filesystem_extraction_performed": false,
+  "head": "1a4c7635f38dbf303833ff8e718f95541558f8be",
+  "tree": "65f576af0515bdf1fa73c878f71e4adbfa53fc72",
+  "src_tree": "e237c399aae8f8065b724e8a0e27585686c7da18",
+  "expected_tip": "1a4c7635f38dbf303833ff8e718f95541558f8be\n",
+  "exact_tip_stamp_present": false,
+  "parity_exit": 1,
+  "parity_log_exit": 0,
+  "executor_exit": 1,
+  "observed_failures": [
+    {
+      "test": "TestParity",
+      "config": "K6",
+      "command_profile": "logos -O=0, GOAMD64=v3; upstream U3N",
+      "program": "at08_recursion_bound",
+      "error": "goparity run timeout",
+      "literal_child_budget_seconds": 10,
+      "diagnosis": "Undetermined: the log proves a timeout, not an output/LAW mismatch.",
+      "reporting_limit": "runAll retains only its first error for each row; other failed children in the same row are not ruled out by this log."
+    },
+    {
+      "test": "TestRedteamLedgerRows",
+      "errors": [
+        "#336: proving test test/root does not exist",
+        "#441: proving test test/tool does not exist"
+      ],
+      "classification": "Known old-head metadata defects corrected in e6e3"
+    }
+  ],
+  "accepted_partial_gates": {
+    "fail_corpus": true,
+    "mutant_probes": 19,
+    "upstream_sweep": {
+      "files_compared": 986,
+      "exclusions": 12,
+      "fork_configs": 20,
+      "upstream_rows": 5,
+      "seconds": 2549.72
+    }
+  },
+  "test_skips": [],
+  "source_context": {
+    "config_definition": "src/cmd/internal/goparity/parity_test.go:338",
+    "child_budget": "src/cmd/internal/goparity/parity_test.go:947",
+    "row_program_concurrency": "src/cmd/internal/goparity/parity_test.go:1351",
+    "row_concurrency": "src/cmd/internal/goparity/parity_test.go:1632",
+    "child_gomaxprocs": "4",
+    "timeout_scaling": "Only -race multiplies this child budget by 5; GO_TEST_TIMEOUT_SCALE does not affect it.",
+    "at08": "src/cmd/internal/goparity/testdata/run/at08_recursion_bound/main.go",
+    "at08_work": "Three recursion shapes at depth 20000, k 4096; 245760000 byte-fill loop iterations."
+  },
+  "key_evidence": [
+    {
+      "line": 167,
+      "text": "2026-11-16T19:44:41.2746392Z     parity_test.go:1665: fork runs K6 failed: running /home/runner/work/_temp/logos-release-parity/go-tmp/TestParity623629138/002/out-fork-K6/at08_recursion_bound: goparity run timeout"
+    },
+    {
+      "line": 169,
+      "text": "2026-11-16T19:44:41.7172030Z --- FAIL: TestParity (219.35s)"
+    },
+    {
+      "line": 171,
+      "text": "2026-11-16T19:44:48.6601418Z --- PASS: TestParityFailCorpus (6.94s)"
+    },
+    {
+      "line": 238,
+      "text": "2026-11-16T19:49:05.8893707Z --- PASS: TestParityMutants (257.22s)"
+    },
+    {
+      "line": 262,
+      "text": "2026-11-16T20:31:35.6463794Z     parity_test.go:2744: sweep: excluded fixedbugs/bug514.go: upstream build failed: exit status 1 package sweep/f249: build constraints exclude all Go files in /home/runner/work/_temp/logos-release-par..."
+    },
+    {
+      "line": 263,
+      "text": "2026-11-16T20:31:35.6465204Z     parity_test.go:2744: sweep: excluded fixedbugs/issue10607.go: upstream build failed: exit status 1 package sweep/f260: build constraints exclude all Go files in /home/runner/work/_temp/logos-release-par..."
+    },
+    {
+      "line": 264,
+      "text": "2026-11-16T20:31:35.6467924Z     parity_test.go:2744: sweep: excluded fixedbugs/issue24187.go: upstream build failed: exit status 1 package sweep/f372: build constraints exclude all Go files in /home/runner/work/_temp/logos-release-par..."
+    },
+    {
+      "line": 265,
+      "text": "2026-11-16T20:31:35.6469022Z     parity_test.go:2744: sweep: excluded fixedbugs/issue38093.go: upstream build failed: exit status 1 package sweep/f457: build constraints exclude all Go files in /home/runner/work/_temp/logos-release-par..."
+    },
+    {
+      "line": 266,
+      "text": "2026-11-16T20:31:35.6469984Z     parity_test.go:2744: sweep: excluded fixedbugs/issue40954.go: upstream build failed: exit status 1 package sweep/f467: build constraints exclude all Go files in /home/runner/work/_temp/logos-release-par..."
+    },
+    {
+      "line": 267,
+      "text": "2026-11-16T20:31:35.6470950Z     parity_test.go:2744: sweep: excluded fixedbugs/issue42032.go: upstream build failed: exit status 1 package sweep/f472: build constraints exclude all Go files in /home/runner/work/_temp/logos-release-par..."
+    },
+    {
+      "line": 268,
+      "text": "2026-11-16T20:31:35.6471932Z     parity_test.go:2744: sweep: excluded fixedbugs/issue42076.go: upstream build failed: exit status 1 package sweep/f473: build constraints exclude all Go files in /home/runner/work/_temp/logos-release-par..."
+    },
+    {
+      "line": 269,
+      "text": "2026-11-16T20:31:35.6472929Z     parity_test.go:2744: sweep: excluded fixedbugs/issue46903.go: upstream build failed: exit status 1 package sweep/f506: build constraints exclude all Go files in /home/runner/work/_temp/logos-release-par..."
+    },
+    {
+      "line": 270,
+      "text": "2026-11-16T20:31:35.6473904Z     parity_test.go:2744: sweep: excluded fixedbugs/issue51733.go: upstream build failed: exit status 1 package sweep/f530: build constraints exclude all Go files in /home/runner/work/_temp/logos-release-par..."
+    },
+    {
+      "line": 271,
+      "text": "2026-11-16T20:31:35.6474781Z     parity_test.go:2744: sweep: excluded linkmain_run.go: upstream rows differ (no stable oracle)"
+    },
+    {
+      "line": 272,
+      "text": "2026-11-16T20:31:35.6476035Z     parity_test.go:2744: sweep: excluded nilptr_aix.go: upstream build failed: exit status 1 package sweep/f806: build constraints exclude all Go files in /home/runner/work/_temp/logos-release-par..."
+    },
+    {
+      "line": 273,
+      "text": "2026-11-16T20:31:35.6476783Z     parity_test.go:2744: sweep: excluded noinit.go: upstream rows differ (no stable oracle)"
+    },
+    {
+      "line": 274,
+      "text": "2026-11-16T20:31:35.6477378Z     parity_test.go:2756: sweep: 986 files compared, 12 excluded, 20 fork configs, 5 upstream rows, wall 42m29.701498157s"
+    },
+    {
+      "line": 275,
+      "text": "2026-11-16T20:31:35.6665285Z --- PASS: TestParityUpstreamSweep (2549.72s)"
+    },
+    {
+      "line": 277,
+      "text": "2026-11-16T20:31:35.6746367Z     redteam_ledger_test.go:80: #336: proving test test/root does not exist"
+    },
+    {
+      "line": 278,
+      "text": "2026-11-16T20:31:35.6753899Z     redteam_ledger_test.go:80: #441: proving test test/tool does not exist"
+    },
+    {
+      "line": 279,
+      "text": "2026-11-16T20:31:35.6754561Z --- FAIL: TestRedteamLedgerRows (0.01s)"
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "command": [
+    "uv",
+    "run",
+    "--offline",
+    "--no-cache",
+    "--no-project",
+    "python",
+    "-B",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/logos-doc/validation/release-acceptance/check_release_contract.py",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes"
+  ],
+  "cwd": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes",
+  "output": "/workspace/scratch/9949907ca71e/recovery-evidence/repair-final-metadata/release-contract-001",
+  "environment": {
+    "GOROOT": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes",
+    "GOCACHE": "/workspace/scratch/9949907ca71e/repair-postbuild-cache",
+    "GOPATH": "/workspace/scratch/9949907ca71e/repair-acceptance-gopath",
+    "GOTOOLCHAIN": "local",
+    "GOENV": "off",
+    "GOWORK": "off",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "GOMAXPROCS": "2",
+    "GOGC": "50",
+    "GOMEMLIMIT": "2GiB",
+    "GOFLAGS": "-p=2",
+    "GOEXPERIMENT": "",
+    "CGO_ENABLED": "1",
+    "TMPDIR": "/home/agent/logos-repair-33752c03/tmp",
+    "GOTMPDIR": "/home/agent/logos-repair-33752c03/tmp/go-tmp",
+    "CC": "/usr/bin/gcc-14",
+    "CXX": "/usr/bin/g++-14",
+    "UPROOT1272": "/workspace/scratch/9949907ca71e/toolchains/go1.27.2",
+    "UPROOT1273": "/workspace/scratch/9949907ca71e/toolchains/go1.27.3",
+    "UPROOT1274": "/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci",
+    "PATH": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/recovery-evidence/installed-repair-33752c03/c23-bin:/workspace/scratch/9949907ca71e/toolchains/node-v26.13.1-ci/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/lib/wasm:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+  },
+  "files": [
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/logos-doc/IMPLEMENTATION.md",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/logos-doc/REDTEAM.md",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/tasks/autoplan-ledger.jsonl",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/logos-doc/SPEC.md",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/logos-doc/validation/release-acceptance-request.json",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/logos-doc/validation/stabilization-candidate.md",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/logos-doc/validation/acceptance-repairs-33752c03/README.md",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/logos-doc/validation/release-acceptance/check_release_contract.py",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/.github/scripts/release-acceptance.sh",
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/.github/workflows/release-acceptance.yml"
+  ],
+  "repositories": [
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes"
+  ],
+  "expected_exit": 0,
+  "required_markers": [
+    "\"passed\": true"
+  ],
+  "forbidden_markers": [],
+  "timeout_seconds": 120,
+  "boundary": "Existing static release-contract checker against the current active source request; no hosted behavioral claim."
+}

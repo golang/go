@@ -1,0 +1,1256 @@
+=== RUN   TestScript
+=== PAUSE TestScript
+=== CONT  TestScript
+vcs-test.golang.org rerouted to http://127.0.0.1:41227
+https://vcs-test.golang.org rerouted to https://127.0.0.1:33209
+go test proxy running at GOPROXY=http://127.0.0.1:46627/mod
+=== RUN   TestScript/logos_alias
+=== PAUSE TestScript/logos_alias
+=== RUN   TestScript/logos_extension_normalization
+=== PAUSE TestScript/logos_extension_normalization
+=== RUN   TestScript/logos_interop
+=== PAUSE TestScript/logos_interop
+=== RUN   TestScript/logos_lint_alias_extension
+=== PAUSE TestScript/logos_lint_alias_extension
+=== RUN   TestScript/logos_module_census
+=== PAUSE TestScript/logos_module_census
+=== RUN   TestScript/logos_module_census_errors
+=== PAUSE TestScript/logos_module_census_errors
+=== RUN   TestScript/logos_module_census_ignored_vendor
+=== PAUSE TestScript/logos_module_census_ignored_vendor
+=== RUN   TestScript/logos_module_census_list_modes
+=== PAUSE TestScript/logos_module_census_list_modes
+=== RUN   TestScript/logos_module_census_vendor
+=== PAUSE TestScript/logos_module_census_vendor
+=== RUN   TestScript/logos_module_zip_alias
+=== PAUSE TestScript/logos_module_zip_alias
+=== RUN   TestScript/logos_nomix
+=== PAUSE TestScript/logos_nomix
+=== RUN   TestScript/logos_plain_lgo_selection
+=== PAUSE TestScript/logos_plain_lgo_selection
+=== CONT  TestScript/logos_extension_normalization
+=== CONT  TestScript/logos_module_census_list_modes
+    script_test.go:142: 2026-11-16T21:56:51Z
+    script_test.go:144: $WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_census_list_modes2651032879
+=== NAME  TestScript/logos_extension_normalization
+    script_test.go:142: 2026-11-16T21:56:51Z
+    script_test.go:144: $WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_extension_normalization2925878345
+=== NAME  TestScript/logos_module_census_list_modes
+    script_test.go:166: 
+        PATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/testbin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/recovery-evidence/installed-repair-33752c03/c23-bin:/workspace/scratch/9949907ca71e/toolchains/node-v26.13.1-ci/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/lib/wasm:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback
+        HOME=/no-home
+        CCACHE_DISABLE=1
+        GOARCH=amd64
+        TESTGO_GOHOSTARCH=amd64
+        GOCACHE=/workspace/scratch/9949907ca71e/repair-postbuild-cache
+        GOCOVERDIR=
+        GODEBUG=
+        GOEXE=
+        GOEXPERIMENT=
+        GOOS=linux
+        TESTGO_GOHOSTOS=linux
+        GOPROXY=http://127.0.0.1:46627/mod
+        GOPRIVATE=
+        GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        GOTRACEBACK=system
+        TESTGO_GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        TESTGO_EXE=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/testbin/go
+        TESTGO_VCSTEST_HOST=127.0.0.1:41227
+        TESTGO_VCSTEST_TLS_HOST=127.0.0.1:33209
+        TESTGO_VCSTEST_CERT=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/vcstest3978770506/cert.pem
+        TESTGONETWORK=panic
+        GOSUMDB=localhost.localdev/sumdb+00000c67+AcTrnkbUA+TU4heY3hkjiSES/DSQniBqIeQ/YppAUtK6
+        TESTGO_SUMDB=localhost.localdev/sumdb
+        GONOPROXY=
+        GONOSUMDB=
+        GOVCS=*:all
+        devnull=/dev/null
+        goversion=1.27.4
+        CMDGO_TEST_RUN_MAIN=true
+        HGRCPATH=
+        GOTOOLCHAIN=auto
+        newline=
+        
+        CGO_ENABLED=1
+        CC=/usr/bin/gcc-14
+        UPROOT1272=/workspace/scratch/9949907ca71e/toolchains/go1.27.2
+        UPROOT1273=/workspace/scratch/9949907ca71e/toolchains/go1.27.3
+        UPROOT1274=/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci
+        WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_census_list_modes2651032879
+        TEST_TELEMETRY_DIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_census_list_modes2651032879/telemetry
+        TMPDIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_census_list_modes2651032879/tmp
+        GOPATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_census_list_modes2651032879/gopath
+        PWD=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_census_list_modes2651032879/gopath/src
+        
+        > env GOPROXY=off
+        > env GOTOOLCHAIN=local
+        > env CGO_ENABLED=0
+        > cd client
+        > ! logos list -deps .
+        [stderr]
+        [correctness::mixed_module] module example.com/mixed has Go packages (example.com/mixed/g) and loGo/s packages (example.com/mixed/l)
+        [exit status 1]
+        > stderr '\[correctness::mixed_module\] module example.com/mixed'
+        matched: [correctness::mixed_module] module example.com/mixed has Go packages (example.com/mixed/g) and loGo/s packages (example.com/mixed/l)
+        > ! logos list -json .
+        [stderr]
+        [correctness::mixed_module] module example.com/mixed has Go packages (example.com/mixed/g) and loGo/s packages (example.com/mixed/l)
+        [exit status 1]
+        > stderr '\[correctness::mixed_module\] module example.com/mixed'
+        matched: [correctness::mixed_module] module example.com/mixed has Go packages (example.com/mixed/g) and loGo/s packages (example.com/mixed/l)
+        > ! logos list -compiled .
+        [stderr]
+        [correctness::mixed_module] module example.com/mixed has Go packages (example.com/mixed/g) and loGo/s packages (example.com/mixed/l)
+        [exit status 1]
+        > stderr '\[correctness::mixed_module\] module example.com/mixed'
+        matched: [correctness::mixed_module] module example.com/mixed has Go packages (example.com/mixed/g) and loGo/s packages (example.com/mixed/l)
+        > ! logos list p.go
+        [stderr]
+        [correctness::mixed_module] module example.com/mixed has Go packages (example.com/mixed/g) and loGo/s packages (example.com/mixed/l)
+        [exit status 1]
+        > stderr '\[correctness::mixed_module\] module example.com/mixed'
+        matched: [correctness::mixed_module] module example.com/mixed has Go packages (example.com/mixed/g) and loGo/s packages (example.com/mixed/l)
+        # Shared dependencies and explicitly selected dependencies report once. (0.083s)
+        > ! logos list . ./other
+        [stderr]
+        [correctness::mixed_module] module example.com/mixed has Go packages (example.com/mixed/g) and loGo/s packages (example.com/mixed/l)
+        [exit status 1]
+        > cp stderr shared.stderr
+        > grep -count=1 '\[correctness::mixed_module\] module example.com/mixed' shared.stderr
+        > ! logos list . example.com/mixed/g
+        [stderr]
+        [correctness::mixed_module] module example.com/mixed has Go packages (example.com/mixed/g) and loGo/s packages (example.com/mixed/l)
+        [exit status 1]
+        > cp stderr selected.stderr
+        > grep -count=1 '\[correctness::mixed_module\] module example.com/mixed' selected.stderr
+        # Every selected root retains its structured dependency error under -e. (2.062s)
+        > logos list -e -f '{{.Incomplete}} {{len .DepsErrors}}' . ./other
+        [stdout]
+        true 1
+        true 1
+        > cp stdout structured.stdout
+        > grep -count=2 '^true 1$' structured.stdout
+        > logos list -e -f '{{.Incomplete}} {{len .DepsErrors}}' p.go
+        [stdout]
+        true 1
+        > stdout '^true 1$'
+        matched: true 1
+        # A dependency census that cannot classify a source must also fail closed. (2.319s)
+        > cp bad-header ../mixed/l/l.lgo
+        > ! logos list .
+        [stderr]
+        classifying package example.com/mixed/l in module example.com/mixed: /home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_census_list_modes2651032879/gopath/src/mixed/l/l.lgo:1:9: expected 'IDENT', found 'EOF'
+        [exit status 1]
+        > stderr 'classifying package example.com/mixed/l in module example.com/mixed:'
+        matched: classifying package example.com/mixed/l in module example.com/mixed: /home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_census_list_modes2651032879/gopath/src/mixed/l/l.lgo:1:9: expected 'IDENT', found 'EOF'
+        > logos list -e -f '{{(index .DepsErrors 0).Err}}' .
+        [stdout]
+        classifying package example.com/mixed/l in module example.com/mixed: /home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_census_list_modes2651032879/gopath/src/mixed/l/l.lgo:1:9: expected 'IDENT', found 'EOF'
+        > stdout 'classifying package example.com/mixed/l in module example.com/mixed:'
+        matched: classifying package example.com/mixed/l in module example.com/mixed: /home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_census_list_modes2651032879/gopath/src/mixed/l/l.lgo:1:9: expected 'IDENT', found 'EOF'
+        > go list .
+        [stdout]
+        example.com/client
+        > stdout '^example.com/client$'
+        matched: example.com/client
+=== CONT  TestScript/logos_plain_lgo_selection
+    script_test.go:142: 2026-11-16T21:56:55Z
+    script_test.go:144: $WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_plain_lgo_selection2296325484
+    script_test.go:166: 
+        PATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/testbin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/recovery-evidence/installed-repair-33752c03/c23-bin:/workspace/scratch/9949907ca71e/toolchains/node-v26.13.1-ci/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/lib/wasm:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback
+        HOME=/no-home
+        CCACHE_DISABLE=1
+        GOARCH=amd64
+        TESTGO_GOHOSTARCH=amd64
+        GOCACHE=/workspace/scratch/9949907ca71e/repair-postbuild-cache
+        GOCOVERDIR=
+        GODEBUG=
+        GOEXE=
+        GOEXPERIMENT=
+        GOOS=linux
+        TESTGO_GOHOSTOS=linux
+        GOPROXY=http://127.0.0.1:46627/mod
+        GOPRIVATE=
+        GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        GOTRACEBACK=system
+        TESTGO_GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        TESTGO_EXE=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/testbin/go
+        TESTGO_VCSTEST_HOST=127.0.0.1:41227
+        TESTGO_VCSTEST_TLS_HOST=127.0.0.1:33209
+        TESTGO_VCSTEST_CERT=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/vcstest3978770506/cert.pem
+        TESTGONETWORK=panic
+        GOSUMDB=localhost.localdev/sumdb+00000c67+AcTrnkbUA+TU4heY3hkjiSES/DSQniBqIeQ/YppAUtK6
+        TESTGO_SUMDB=localhost.localdev/sumdb
+        GONOPROXY=
+        GONOSUMDB=
+        GOVCS=*:all
+        devnull=/dev/null
+        goversion=1.27.4
+        CMDGO_TEST_RUN_MAIN=true
+        HGRCPATH=
+        GOTOOLCHAIN=auto
+        newline=
+        
+        CGO_ENABLED=1
+        CC=/usr/bin/gcc-14
+        UPROOT1272=/workspace/scratch/9949907ca71e/toolchains/go1.27.2
+        UPROOT1273=/workspace/scratch/9949907ca71e/toolchains/go1.27.3
+        UPROOT1274=/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci
+        WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_plain_lgo_selection2296325484
+        TEST_TELEMETRY_DIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_plain_lgo_selection2296325484/telemetry
+        TMPDIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_plain_lgo_selection2296325484/tmp
+        GOPATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_plain_lgo_selection2296325484/gopath
+        PWD=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_plain_lgo_selection2296325484/gopath/src
+        
+        > env GOPROXY=off
+        > env GOTOOLCHAIN=local
+        > env GOEXPERIMENT=
+        > go run ./plain
+        [stderr]
+        selection-ok
+        > stderr '^selection-ok$'
+        matched: selection-ok
+        > ! go build ./only
+        [stderr]
+        no Go files in /home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_plain_lgo_selection2296325484/gopath/src/only
+        [exit status 1]
+        > stderr 'no Go files in .*only'
+        matched: no Go files in /home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_plain_lgo_selection2296325484/gopath/src/only
+        > ! go build ./importer
+        [stderr]
+        importer/p.go:6:8: no required module provides package example.com/selection/only; to add it:
+        	go get example.com/selection/only
+        [exit status 1]
+        > stderr 'example.com/selection/only'
+        matched: importer/p.go:6:8: no required module provides package example.com/selection/only; to add it:
+        > ! go build ./...
+        [stderr]
+        importer/p.go:6:8: no required module provides package example.com/selection/only; to add it:
+        	go get example.com/selection/only
+        [exit status 1]
+        > stderr 'example.com/selection/only'
+        matched: importer/p.go:6:8: no required module provides package example.com/selection/only; to add it:
+=== CONT  TestScript/logos_module_zip_alias
+    script_test.go:142: 2026-11-16T21:56:57Z
+    script_test.go:144: $WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_zip_alias3970648979
+=== NAME  TestScript/logos_extension_normalization
+    script_test.go:166: 
+        PATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/testbin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/recovery-evidence/installed-repair-33752c03/c23-bin:/workspace/scratch/9949907ca71e/toolchains/node-v26.13.1-ci/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/lib/wasm:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback
+        HOME=/no-home
+        CCACHE_DISABLE=1
+        GOARCH=amd64
+        TESTGO_GOHOSTARCH=amd64
+        GOCACHE=/workspace/scratch/9949907ca71e/repair-postbuild-cache
+        GOCOVERDIR=
+        GODEBUG=
+        GOEXE=
+        GOEXPERIMENT=
+        GOOS=linux
+        TESTGO_GOHOSTOS=linux
+        GOPROXY=http://127.0.0.1:46627/mod
+        GOPRIVATE=
+        GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        GOTRACEBACK=system
+        TESTGO_GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        TESTGO_EXE=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/testbin/go
+        TESTGO_VCSTEST_HOST=127.0.0.1:41227
+        TESTGO_VCSTEST_TLS_HOST=127.0.0.1:33209
+        TESTGO_VCSTEST_CERT=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/vcstest3978770506/cert.pem
+        TESTGONETWORK=panic
+        GOSUMDB=localhost.localdev/sumdb+00000c67+AcTrnkbUA+TU4heY3hkjiSES/DSQniBqIeQ/YppAUtK6
+        TESTGO_SUMDB=localhost.localdev/sumdb
+        GONOPROXY=
+        GONOSUMDB=
+        GOVCS=*:all
+        devnull=/dev/null
+        goversion=1.27.4
+        CMDGO_TEST_RUN_MAIN=true
+        HGRCPATH=
+        GOTOOLCHAIN=auto
+        newline=
+        
+        CGO_ENABLED=1
+        CC=/usr/bin/gcc-14
+        UPROOT1272=/workspace/scratch/9949907ca71e/toolchains/go1.27.2
+        UPROOT1273=/workspace/scratch/9949907ca71e/toolchains/go1.27.3
+        UPROOT1274=/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci
+        WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_extension_normalization2925878345
+        TEST_TELEMETRY_DIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_extension_normalization2925878345/telemetry
+        TMPDIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_extension_normalization2925878345/tmp
+        GOPATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_extension_normalization2925878345/gopath
+        PWD=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_extension_normalization2925878345/gopath/src
+        
+        > env GOPROXY=off
+        > env GOTOOLCHAIN=local
+        > ! logos build ./lookalike
+        [stderr]
+        no Go files in /home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_extension_normalization2925878345/gopath/src/lookalike
+        [exit status 1]
+        > stderr 'no Go files|build constraints exclude all Go files'
+        matched: no Go files in /home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_extension_normalization2925878345/gopath/src/lookalike
+        > logos build -o exact$GOEXE ./exact
+        [stderr]
+        go: warning: [portability::alias_extension] main.ʕ◔ϖ◔ʔ: loGo/s alias extension file; rename to .lgo before publishing
+        > exists exact$GOEXE
+=== CONT  TestScript/logos_nomix
+    script_test.go:142: 2026-11-16T21:56:58Z
+    script_test.go:144: $WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_nomix845066350
+    script_test.go:166: 
+        PATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/testbin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/recovery-evidence/installed-repair-33752c03/c23-bin:/workspace/scratch/9949907ca71e/toolchains/node-v26.13.1-ci/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/lib/wasm:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback
+        HOME=/no-home
+        CCACHE_DISABLE=1
+        GOARCH=amd64
+        TESTGO_GOHOSTARCH=amd64
+        GOCACHE=/workspace/scratch/9949907ca71e/repair-postbuild-cache
+        GOCOVERDIR=
+        GODEBUG=
+        GOEXE=
+        GOEXPERIMENT=
+        GOOS=linux
+        TESTGO_GOHOSTOS=linux
+        GOPROXY=http://127.0.0.1:46627/mod
+        GOPRIVATE=
+        GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        GOTRACEBACK=system
+        TESTGO_GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        TESTGO_EXE=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/testbin/go
+        TESTGO_VCSTEST_HOST=127.0.0.1:41227
+        TESTGO_VCSTEST_TLS_HOST=127.0.0.1:33209
+        TESTGO_VCSTEST_CERT=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/vcstest3978770506/cert.pem
+        TESTGONETWORK=panic
+        GOSUMDB=localhost.localdev/sumdb+00000c67+AcTrnkbUA+TU4heY3hkjiSES/DSQniBqIeQ/YppAUtK6
+        TESTGO_SUMDB=localhost.localdev/sumdb
+        GONOPROXY=
+        GONOSUMDB=
+        GOVCS=*:all
+        devnull=/dev/null
+        goversion=1.27.4
+        CMDGO_TEST_RUN_MAIN=true
+        HGRCPATH=
+        GOTOOLCHAIN=auto
+        newline=
+        
+        CGO_ENABLED=1
+        CC=/usr/bin/gcc-14
+        UPROOT1272=/workspace/scratch/9949907ca71e/toolchains/go1.27.2
+        UPROOT1273=/workspace/scratch/9949907ca71e/toolchains/go1.27.3
+        UPROOT1274=/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci
+        WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_nomix845066350
+        TEST_TELEMETRY_DIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_nomix845066350/telemetry
+        TMPDIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_nomix845066350/tmp
+        GOPATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_nomix845066350/gopath
+        PWD=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_nomix845066350/gopath/src
+        
+        > env GOPROXY=off
+        > ! logos build .
+        [stderr]
+        [correctness::mixed_package] cannot mix .go files (a.go) and .lgo files (b.lgo) in one package
+        [exit status 1]
+        > stderr '\[correctness::mixed_package\] cannot mix \.go files \(a\.go\) and \.lgo files \(b\.lgo\) in one package'
+        matched: [correctness::mixed_package] cannot mix .go files (a.go) and .lgo files (b.lgo) in one package
+=== CONT  TestScript/logos_module_census_vendor
+    script_test.go:142: 2026-11-16T21:56:58Z
+    script_test.go:144: $WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_census_vendor1956330115
+go proxy: open /workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/cmd/go/testdata/mod/rsc.io_v1.0.0.txt: no such file or directory
+go proxy: no archive rsc.io v1.0.0: file does not exist
+=== NAME  TestScript/logos_module_zip_alias
+    script_test.go:166: 
+        PATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/testbin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/recovery-evidence/installed-repair-33752c03/c23-bin:/workspace/scratch/9949907ca71e/toolchains/node-v26.13.1-ci/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/lib/wasm:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback
+        HOME=/no-home
+        CCACHE_DISABLE=1
+        GOARCH=amd64
+        TESTGO_GOHOSTARCH=amd64
+        GOCACHE=/workspace/scratch/9949907ca71e/repair-postbuild-cache
+        GOCOVERDIR=
+        GODEBUG=
+        GOEXE=
+        GOEXPERIMENT=
+        GOOS=linux
+        TESTGO_GOHOSTOS=linux
+        GOPROXY=http://127.0.0.1:46627/mod
+        GOPRIVATE=
+        GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        GOTRACEBACK=system
+        TESTGO_GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        TESTGO_EXE=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/testbin/go
+        TESTGO_VCSTEST_HOST=127.0.0.1:41227
+        TESTGO_VCSTEST_TLS_HOST=127.0.0.1:33209
+        TESTGO_VCSTEST_CERT=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/vcstest3978770506/cert.pem
+        TESTGONETWORK=panic
+        GOSUMDB=localhost.localdev/sumdb+00000c67+AcTrnkbUA+TU4heY3hkjiSES/DSQniBqIeQ/YppAUtK6
+        TESTGO_SUMDB=localhost.localdev/sumdb
+        GONOPROXY=
+        GONOSUMDB=
+        GOVCS=*:all
+        devnull=/dev/null
+        goversion=1.27.4
+        CMDGO_TEST_RUN_MAIN=true
+        HGRCPATH=
+        GOTOOLCHAIN=auto
+        newline=
+        
+        CGO_ENABLED=1
+        CC=/usr/bin/gcc-14
+        UPROOT1272=/workspace/scratch/9949907ca71e/toolchains/go1.27.2
+        UPROOT1273=/workspace/scratch/9949907ca71e/toolchains/go1.27.3
+        UPROOT1274=/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci
+        WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_zip_alias3970648979
+        TEST_TELEMETRY_DIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_zip_alias3970648979/telemetry
+        TMPDIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_zip_alias3970648979/tmp
+        GOPATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_zip_alias3970648979/gopath
+        PWD=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_zip_alias3970648979/gopath/src
+        
+        > env GO111MODULE=on
+        # A zip carrying an alias-extension file is rejected through a local
+        # file proxy with no network, while a zip carrying the canonical .lgo
+        # spelling of the same module downloads. The rejection names the alias
+        # file, so it comes from the module zip validation and not the network.
+        # The proxy settings stay on the download commands so the network
+        # section below keeps the harness proxy. (2.506s)
+        > go run genzip.go $WORK/proxy
+        [stdout]
+        wrote example.com/aliasmod v1.0.0
+        wrote example.com/lgomod v1.0.0
+        > exec env GOPROXY=file://$WORK/proxy GOSUMDB=off GOFLAGS=-mod=mod go mod download example.com/lgomod@v1.0.0
+        > ! exec env GOPROXY=file://$WORK/proxy GOSUMDB=off GOFLAGS=-mod=mod go mod download example.com/aliasmod@v1.0.0
+        [stderr]
+        -> unzip /home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_zip_alias3970648979/gopath/pkg/mod/cache/download/example.com/aliasmod/@v/v1.0.0.zip: example.com/aliasmod@v1.0.0/x.📜: malformed file path "x.📜": invalid char '📜'
+        go: unzip /home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_zip_alias3970648979/gopath/pkg/mod/cache/download/example.com/aliasmod/@v/v1.0.0.zip: example.com/aliasmod@v1.0.0/x.📜: malformed file path "x.📜": invalid char '📜'
+        [exit status 1]
+        > stderr 'x\.📜'
+        matched: -> unzip /home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_zip_alias3970648979/gopath/pkg/mod/cache/download/example.com/aliasmod/@v/v1.0.0.zip: example.com/aliasmod@v1.0.0/x.📜: malformed file path "x.📜": invalid char '📜'
+        > ! go get rsc.io/badlogos@v1.0.0
+        [stderr]
+        go: downloading rsc.io/badlogos v1.0.0
+        -> unzip /home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_zip_alias3970648979/gopath/pkg/mod/cache/download/rsc.io/badlogos/@v/v1.0.0.zip: rsc.io/badlogos@v1.0.0/x.📜: malformed file path "x.📜": invalid char '📜'
+        rsc.io/badlogos@v1.0.0/x.⚡: malformed file path "x.⚡": invalid char '⚡'
+        rsc.io/badlogos@v1.0.0/x.ʕ◔ϖ◔ʔ: malformed file path "x.ʕ◔ϖ◔ʔ": invalid char '◔'
+        go: rsc.io/badlogos@v1.0.0: unzip /home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_zip_alias3970648979/gopath/pkg/mod/cache/download/rsc.io/badlogos/@v/v1.0.0.zip: rsc.io/badlogos@v1.0.0/x.📜: malformed file path "x.📜": invalid char '📜'
+        rsc.io/badlogos@v1.0.0/x.⚡: malformed file path "x.⚡": invalid char '⚡'
+        rsc.io/badlogos@v1.0.0/x.ʕ◔ϖ◔ʔ: malformed file path "x.ʕ◔ϖ◔ʔ": invalid char '◔'
+        [exit status 1]
+        > stderr 'badlogos.*malformed file path "x.📜": invalid char'
+        matched: -> unzip /home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_zip_alias3970648979/gopath/pkg/mod/cache/download/rsc.io/badlogos/@v/v1.0.0.zip: rsc.io/badlogos@v1.0.0/x.📜: malformed file path "x.📜": invalid char '📜'
+        > stderr 'badlogos.*malformed file path "x.⚡": invalid char'
+        matched: rsc.io/badlogos@v1.0.0/x.⚡: malformed file path "x.⚡": invalid char '⚡'
+        > stderr 'badlogos.*malformed file path "x.ʕ◔ϖ◔ʔ": invalid char'
+        matched: rsc.io/badlogos@v1.0.0/x.ʕ◔ϖ◔ʔ: malformed file path "x.ʕ◔ϖ◔ʔ": invalid char '◔'
+=== CONT  TestScript/logos_module_census_ignored_vendor
+    script_test.go:142: 2026-11-16T21:56:59Z
+    script_test.go:144: $WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_census_ignored_vendor2632831504
+    script_test.go:166: 
+        PATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/testbin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/recovery-evidence/installed-repair-33752c03/c23-bin:/workspace/scratch/9949907ca71e/toolchains/node-v26.13.1-ci/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/lib/wasm:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback
+        HOME=/no-home
+        CCACHE_DISABLE=1
+        GOARCH=amd64
+        TESTGO_GOHOSTARCH=amd64
+        GOCACHE=/workspace/scratch/9949907ca71e/repair-postbuild-cache
+        GOCOVERDIR=
+        GODEBUG=
+        GOEXE=
+        GOEXPERIMENT=
+        GOOS=linux
+        TESTGO_GOHOSTOS=linux
+        GOPROXY=http://127.0.0.1:46627/mod
+        GOPRIVATE=
+        GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        GOTRACEBACK=system
+        TESTGO_GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        TESTGO_EXE=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/testbin/go
+        TESTGO_VCSTEST_HOST=127.0.0.1:41227
+        TESTGO_VCSTEST_TLS_HOST=127.0.0.1:33209
+        TESTGO_VCSTEST_CERT=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/vcstest3978770506/cert.pem
+        TESTGONETWORK=panic
+        GOSUMDB=localhost.localdev/sumdb+00000c67+AcTrnkbUA+TU4heY3hkjiSES/DSQniBqIeQ/YppAUtK6
+        TESTGO_SUMDB=localhost.localdev/sumdb
+        GONOPROXY=
+        GONOSUMDB=
+        GOVCS=*:all
+        devnull=/dev/null
+        goversion=1.27.4
+        CMDGO_TEST_RUN_MAIN=true
+        HGRCPATH=
+        GOTOOLCHAIN=auto
+        newline=
+        
+        CGO_ENABLED=1
+        CC=/usr/bin/gcc-14
+        UPROOT1272=/workspace/scratch/9949907ca71e/toolchains/go1.27.2
+        UPROOT1273=/workspace/scratch/9949907ca71e/toolchains/go1.27.3
+        UPROOT1274=/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci
+        WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_census_ignored_vendor2632831504
+        TEST_TELEMETRY_DIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_census_ignored_vendor2632831504/telemetry
+        TMPDIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_census_ignored_vendor2632831504/tmp
+        GOPATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_census_ignored_vendor2632831504/gopath
+        PWD=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_census_ignored_vendor2632831504/gopath/src
+        
+        > env GOPROXY=off
+        > env GOTOOLCHAIN=local
+        > env CGO_ENABLED=0
+        # Vendored ownership must not make wildcard-excluded fixtures active. (2.043s)
+        > logos list example.com/dep/g
+        [stdout]
+        example.com/dep/g
+        > stdout '^example.com/dep/g$'
+        matched: example.com/dep/g
+        > go list example.com/dep/g
+        [stdout]
+        example.com/dep/g
+        > stdout '^example.com/dep/g$'
+        matched: example.com/dep/g
+=== CONT  TestScript/logos_module_census
+    script_test.go:142: 2026-11-16T21:57:01Z
+    script_test.go:144: $WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_census1140722977
+=== NAME  TestScript/logos_module_census_vendor
+    script_test.go:166: 
+        PATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/testbin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/recovery-evidence/installed-repair-33752c03/c23-bin:/workspace/scratch/9949907ca71e/toolchains/node-v26.13.1-ci/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/lib/wasm:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback
+        HOME=/no-home
+        CCACHE_DISABLE=1
+        GOARCH=amd64
+        TESTGO_GOHOSTARCH=amd64
+        GOCACHE=/workspace/scratch/9949907ca71e/repair-postbuild-cache
+        GOCOVERDIR=
+        GODEBUG=
+        GOEXE=
+        GOEXPERIMENT=
+        GOOS=linux
+        TESTGO_GOHOSTOS=linux
+        GOPROXY=http://127.0.0.1:46627/mod
+        GOPRIVATE=
+        GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        GOTRACEBACK=system
+        TESTGO_GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        TESTGO_EXE=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/testbin/go
+        TESTGO_VCSTEST_HOST=127.0.0.1:41227
+        TESTGO_VCSTEST_TLS_HOST=127.0.0.1:33209
+        TESTGO_VCSTEST_CERT=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/vcstest3978770506/cert.pem
+        TESTGONETWORK=panic
+        GOSUMDB=localhost.localdev/sumdb+00000c67+AcTrnkbUA+TU4heY3hkjiSES/DSQniBqIeQ/YppAUtK6
+        TESTGO_SUMDB=localhost.localdev/sumdb
+        GONOPROXY=
+        GONOSUMDB=
+        GOVCS=*:all
+        devnull=/dev/null
+        goversion=1.27.4
+        CMDGO_TEST_RUN_MAIN=true
+        HGRCPATH=
+        GOTOOLCHAIN=auto
+        newline=
+        
+        CGO_ENABLED=1
+        CC=/usr/bin/gcc-14
+        UPROOT1272=/workspace/scratch/9949907ca71e/toolchains/go1.27.2
+        UPROOT1273=/workspace/scratch/9949907ca71e/toolchains/go1.27.3
+        UPROOT1274=/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci
+        WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_census_vendor1956330115
+        TEST_TELEMETRY_DIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_census_vendor1956330115/telemetry
+        TMPDIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_census_vendor1956330115/tmp
+        GOPATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_census_vendor1956330115/gopath
+        PWD=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_census_vendor1956330115/gopath/src
+        
+        > env GOPROXY=off
+        > env GOTOOLCHAIN=local
+        > env CGO_ENABLED=0
+        # Vendor ownership comes from modules.txt, including unimported packages. (0.026s)
+        > cd vendored
+        > ! logos list .
+        [stderr]
+        [correctness::mixed_module] module example.com/dep has Go packages (example.com/dep/g) and loGo/s packages (example.com/dep/l)
+        [exit status 1]
+        > stderr '\[correctness::mixed_module\] module example.com/dep has Go packages \(example.com/dep/g\) and loGo/s packages \(example.com/dep/l\)'
+        matched: [correctness::mixed_module] module example.com/dep has Go packages (example.com/dep/g) and loGo/s packages (example.com/dep/l)
+        # A nested module path is a separate owner in the flattened vendor tree. (3.193s)
+        > rm vendor/example.com/dep/l/l.lgo
+        > logos list .
+        [stdout]
+        example.com/client
+        > stdout '^example.com/client$'
+        matched: example.com/client
+        > logos list example.com/dep/child
+        [stdout]
+        example.com/dep/child
+        > stdout '^example.com/dep/child$'
+        matched: example.com/dep/child
+        > go list .
+        [stdout]
+        example.com/client
+        > stdout '^example.com/client$'
+        matched: example.com/client
+        # Workspace modules with overlapping import prefixes remain separate. (2.161s)
+        > cd ../workspace
+        > logos list example.com/shared/g
+        [stdout]
+        example.com/shared/g
+        > stdout '^example.com/shared/g$'
+        matched: example.com/shared/g
+        > logos list example.com/shared/l
+        [stdout]
+        example.com/shared/l
+        > stdout '^example.com/shared/l$'
+        matched: example.com/shared/l
+=== CONT  TestScript/logos_module_census_errors
+    script_test.go:142: 2026-11-16T21:57:03Z
+    script_test.go:144: $WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_census_errors1441880909
+=== NAME  TestScript/logos_module_census
+    script_test.go:166: 
+        PATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/testbin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/recovery-evidence/installed-repair-33752c03/c23-bin:/workspace/scratch/9949907ca71e/toolchains/node-v26.13.1-ci/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/lib/wasm:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback
+        HOME=/no-home
+        CCACHE_DISABLE=1
+        GOARCH=amd64
+        TESTGO_GOHOSTARCH=amd64
+        GOCACHE=/workspace/scratch/9949907ca71e/repair-postbuild-cache
+        GOCOVERDIR=
+        GODEBUG=
+        GOEXE=
+        GOEXPERIMENT=
+        GOOS=linux
+        TESTGO_GOHOSTOS=linux
+        GOPROXY=http://127.0.0.1:46627/mod
+        GOPRIVATE=
+        GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        GOTRACEBACK=system
+        TESTGO_GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        TESTGO_EXE=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/testbin/go
+        TESTGO_VCSTEST_HOST=127.0.0.1:41227
+        TESTGO_VCSTEST_TLS_HOST=127.0.0.1:33209
+        TESTGO_VCSTEST_CERT=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/vcstest3978770506/cert.pem
+        TESTGONETWORK=panic
+        GOSUMDB=localhost.localdev/sumdb+00000c67+AcTrnkbUA+TU4heY3hkjiSES/DSQniBqIeQ/YppAUtK6
+        TESTGO_SUMDB=localhost.localdev/sumdb
+        GONOPROXY=
+        GONOSUMDB=
+        GOVCS=*:all
+        devnull=/dev/null
+        goversion=1.27.4
+        CMDGO_TEST_RUN_MAIN=true
+        HGRCPATH=
+        GOTOOLCHAIN=auto
+        newline=
+        
+        CGO_ENABLED=1
+        CC=/usr/bin/gcc-14
+        UPROOT1272=/workspace/scratch/9949907ca71e/toolchains/go1.27.2
+        UPROOT1273=/workspace/scratch/9949907ca71e/toolchains/go1.27.3
+        UPROOT1274=/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci
+        WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_census1140722977
+        TEST_TELEMETRY_DIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_census1140722977/telemetry
+        TMPDIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_census1140722977/tmp
+        GOPATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_census1140722977/gopath
+        PWD=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_census1140722977/gopath/src
+        
+        > env GOPROXY=off
+        > env GOTOOLCHAIN=local
+        > env CGO_ENABLED=0
+        # Selecting only one package must not bypass the module's language rule. (1.255s)
+        > cd mixed
+        > ! logos list ./g
+        [stderr]
+        [correctness::mixed_module] module example.com/mixed has Go packages (example.com/mixed/g) and loGo/s packages (example.com/mixed/l)
+        [exit status 1]
+        > stderr '\[correctness::mixed_module\] module example.com/mixed has Go packages \(example.com/mixed/g\) and loGo/s packages \(example.com/mixed/l\)'
+        matched: [correctness::mixed_module] module example.com/mixed has Go packages (example.com/mixed/g) and loGo/s packages (example.com/mixed/l)
+        > ! logos list ./l
+        [stderr]
+        [correctness::mixed_module] module example.com/mixed has Go packages (example.com/mixed/g) and loGo/s packages (example.com/mixed/l)
+        [exit status 1]
+        > stderr '\[correctness::mixed_module\]'
+        matched: [correctness::mixed_module] module example.com/mixed has Go packages (example.com/mixed/g) and loGo/s packages (example.com/mixed/l)
+        > ! logos build ./g
+        [stderr]
+        [correctness::mixed_module] module example.com/mixed has Go packages (example.com/mixed/g) and loGo/s packages (example.com/mixed/l)
+        [exit status 1]
+        > stderr '\[correctness::mixed_module\]'
+        matched: [correctness::mixed_module] module example.com/mixed has Go packages (example.com/mixed/g) and loGo/s packages (example.com/mixed/l)
+        > ! logos build ./l
+        [stderr]
+        [correctness::mixed_module] module example.com/mixed has Go packages (example.com/mixed/g) and loGo/s packages (example.com/mixed/l)
+        [exit status 1]
+        > stderr '\[correctness::mixed_module\]'
+        matched: [correctness::mixed_module] module example.com/mixed has Go packages (example.com/mixed/g) and loGo/s packages (example.com/mixed/l)
+        > go list ./g
+        [stdout]
+        example.com/mixed/g
+        > stdout '^example.com/mixed/g$'
+        matched: example.com/mixed/g
+        # The same check applies to a dependency whose other package is unimported. (0.021s)
+        > cd ../client
+        > ! logos list .
+        [stderr]
+        [correctness::mixed_module] module example.com/mixed has Go packages (example.com/mixed/g) and loGo/s packages (example.com/mixed/l)
+        [exit status 1]
+        > stderr '\[correctness::mixed_module\] module example.com/mixed'
+        matched: [correctness::mixed_module] module example.com/mixed has Go packages (example.com/mixed/g) and loGo/s packages (example.com/mixed/l)
+        # A test-only package has a language kind even when no test is selected. (0.019s)
+        > cd ../testonly
+        > ! logos list ./g
+        [stderr]
+        [correctness::mixed_module] module example.com/testonly has Go packages (example.com/testonly/g) and loGo/s packages (example.com/testonly/l)
+        [exit status 1]
+        > stderr '\[correctness::mixed_module\].*example.com/testonly/l'
+        matched: [correctness::mixed_module] module example.com/testonly has Go packages (example.com/testonly/g) and loGo/s packages (example.com/testonly/l)
+        # Package selection must use the active build tags and module boundaries. (1.056s)
+        > cd ../clean
+        > logos list ./g
+        [stdout]
+        example.com/clean/g
+        > stdout '^example.com/clean/g$'
+        matched: example.com/clean/g
+        > ! logos list -tags=extra ./g
+        [stderr]
+        [correctness::mixed_module] module example.com/clean has Go packages (example.com/clean/g) and loGo/s packages (example.com/clean/extra)
+        [exit status 1]
+        > stderr '\[correctness::mixed_module\].*example.com/clean/extra'
+        matched: [correctness::mixed_module] module example.com/clean has Go packages (example.com/clean/g) and loGo/s packages (example.com/clean/extra)
+        # An overlay-only sibling participates without being written to disk. (0.022s)
+        > ! logos list -overlay=overlay.json ./g
+        [stderr]
+        [correctness::mixed_module] module example.com/clean has Go packages (example.com/clean/g) and loGo/s packages (example.com/clean/virtual)
+        [exit status 1]
+        > stderr '\[correctness::mixed_module\].*example.com/clean/virtual'
+        matched: [correctness::mixed_module] module example.com/clean has Go packages (example.com/clean/g) and loGo/s packages (example.com/clean/virtual)
+        > ! exists virtual/p.lgo
+=== CONT  TestScript/logos_lint_alias_extension
+    script_test.go:142: 2026-11-16T21:57:04Z
+    script_test.go:144: $WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_lint_alias_extension535472466
+=== NAME  TestScript/logos_module_census_errors
+    script_test.go:166: 
+        PATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/testbin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/recovery-evidence/installed-repair-33752c03/c23-bin:/workspace/scratch/9949907ca71e/toolchains/node-v26.13.1-ci/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/lib/wasm:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback
+        HOME=/no-home
+        CCACHE_DISABLE=1
+        GOARCH=amd64
+        TESTGO_GOHOSTARCH=amd64
+        GOCACHE=/workspace/scratch/9949907ca71e/repair-postbuild-cache
+        GOCOVERDIR=
+        GODEBUG=
+        GOEXE=
+        GOEXPERIMENT=
+        GOOS=linux
+        TESTGO_GOHOSTOS=linux
+        GOPROXY=http://127.0.0.1:46627/mod
+        GOPRIVATE=
+        GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        GOTRACEBACK=system
+        TESTGO_GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        TESTGO_EXE=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/testbin/go
+        TESTGO_VCSTEST_HOST=127.0.0.1:41227
+        TESTGO_VCSTEST_TLS_HOST=127.0.0.1:33209
+        TESTGO_VCSTEST_CERT=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/vcstest3978770506/cert.pem
+        TESTGONETWORK=panic
+        GOSUMDB=localhost.localdev/sumdb+00000c67+AcTrnkbUA+TU4heY3hkjiSES/DSQniBqIeQ/YppAUtK6
+        TESTGO_SUMDB=localhost.localdev/sumdb
+        GONOPROXY=
+        GONOSUMDB=
+        GOVCS=*:all
+        devnull=/dev/null
+        goversion=1.27.4
+        CMDGO_TEST_RUN_MAIN=true
+        HGRCPATH=
+        GOTOOLCHAIN=auto
+        newline=
+        
+        CGO_ENABLED=1
+        CC=/usr/bin/gcc-14
+        UPROOT1272=/workspace/scratch/9949907ca71e/toolchains/go1.27.2
+        UPROOT1273=/workspace/scratch/9949907ca71e/toolchains/go1.27.3
+        UPROOT1274=/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci
+        WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_census_errors1441880909
+        TEST_TELEMETRY_DIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_census_errors1441880909/telemetry
+        TMPDIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_census_errors1441880909/tmp
+        GOPATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_census_errors1441880909/gopath
+        PWD=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_module_census_errors1441880909/gopath/src
+        
+        > env GOPROXY=off
+        > env GOTOOLCHAIN=local
+        > env CGO_ENABLED=0
+        # Structured listing retains the dependency's error and incomplete state. (2.052s)
+        > cd client
+        > logos list -e -f '{{.Incomplete}} {{len .DepsErrors}}' .
+        [stdout]
+        true 1
+        > stdout '^true 1$'
+        matched: true 1
+        > go list -e -f '{{.Incomplete}} {{len .DepsErrors}}' .
+        [stdout]
+        false 0
+        > stdout '^false 0$'
+        matched: false 0
+        # Build errors stay on the dependency and are reported once. (0.022s)
+        > ! logos build .
+        [stderr]
+        [correctness::mixed_module] module example.com/mixed has Go packages (example.com/mixed/g) and loGo/s packages (example.com/mixed/l)
+        [exit status 1]
+        > cp stderr build.stderr
+        > grep -count=1 '\[correctness::mixed_module\] module example.com/mixed' build.stderr
+        # Default listing must reject the same invalid module. (0.022s)
+        > ! logos list .
+        [stderr]
+        [correctness::mixed_module] module example.com/mixed has Go packages (example.com/mixed/g) and loGo/s packages (example.com/mixed/l)
+        [exit status 1]
+        > stderr '\[correctness::mixed_module\] module example.com/mixed'
+        matched: [correctness::mixed_module] module example.com/mixed has Go packages (example.com/mixed/g) and loGo/s packages (example.com/mixed/l)
+=== CONT  TestScript/logos_interop
+    script_test.go:142: 2026-11-16T21:57:05Z
+    script_test.go:144: $WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_interop1865345255
+=== NAME  TestScript/logos_lint_alias_extension
+    script_test.go:166: 
+        PATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/testbin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/recovery-evidence/installed-repair-33752c03/c23-bin:/workspace/scratch/9949907ca71e/toolchains/node-v26.13.1-ci/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/lib/wasm:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback
+        HOME=/no-home
+        CCACHE_DISABLE=1
+        GOARCH=amd64
+        TESTGO_GOHOSTARCH=amd64
+        GOCACHE=/workspace/scratch/9949907ca71e/repair-postbuild-cache
+        GOCOVERDIR=
+        GODEBUG=
+        GOEXE=
+        GOEXPERIMENT=
+        GOOS=linux
+        TESTGO_GOHOSTOS=linux
+        GOPROXY=http://127.0.0.1:46627/mod
+        GOPRIVATE=
+        GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        GOTRACEBACK=system
+        TESTGO_GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        TESTGO_EXE=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/testbin/go
+        TESTGO_VCSTEST_HOST=127.0.0.1:41227
+        TESTGO_VCSTEST_TLS_HOST=127.0.0.1:33209
+        TESTGO_VCSTEST_CERT=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/vcstest3978770506/cert.pem
+        TESTGONETWORK=panic
+        GOSUMDB=localhost.localdev/sumdb+00000c67+AcTrnkbUA+TU4heY3hkjiSES/DSQniBqIeQ/YppAUtK6
+        TESTGO_SUMDB=localhost.localdev/sumdb
+        GONOPROXY=
+        GONOSUMDB=
+        GOVCS=*:all
+        devnull=/dev/null
+        goversion=1.27.4
+        CMDGO_TEST_RUN_MAIN=true
+        HGRCPATH=
+        GOTOOLCHAIN=auto
+        newline=
+        
+        CGO_ENABLED=1
+        CC=/usr/bin/gcc-14
+        UPROOT1272=/workspace/scratch/9949907ca71e/toolchains/go1.27.2
+        UPROOT1273=/workspace/scratch/9949907ca71e/toolchains/go1.27.3
+        UPROOT1274=/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci
+        WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_lint_alias_extension535472466
+        TEST_TELEMETRY_DIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_lint_alias_extension535472466/telemetry
+        TMPDIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_lint_alias_extension535472466/tmp
+        GOPATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_lint_alias_extension535472466/gopath
+        PWD=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_lint_alias_extension535472466/gopath/src
+        
+        > env GOPROXY=off
+        > env GOTOOLCHAIN=local
+        > mkdir $WORK/bin
+        > cd dotted
+        > logos build -o $WORK/bin/dotted$GOEXE ./cmd
+        [stderr]
+        go: warning: [portability::alias_extension] main.📜: loGo/s alias extension file; rename to .lgo before publishing
+        > stderr -count=1 'go: warning: \[portability::alias_extension\] main\.📜: loGo/s alias extension file'
+        > ! stderr 'error'
+        > exists $WORK/bin/dotted$GOEXE
+        > logos build ./lib
+        [stderr]
+        go: warning: [portability::alias_extension] lib.⚡: loGo/s alias extension file; rename to .lgo before publishing
+        go: warning: [portability::alias_extension] lib_test.⚡: loGo/s alias extension file; rename to .lgo before publishing
+        > stderr -count=2 'portability::alias_extension'
+        > stderr -count=1 'lib\.⚡:'
+        > stderr -count=1 'lib_test\.⚡:'
+        > cd ..
+        > cd plain
+        > logos build -o $WORK/bin/plain$GOEXE ./cmd
+        > ! stderr .
+        > exists $WORK/bin/plain$GOEXE
+        > logos build ./lib
+        > ! stderr .
+        > cd ..
+        > cd canonical
+        > logos build -o $WORK/bin/canonical$GOEXE .
+        > ! stderr .
+        > exists $WORK/bin/canonical$GOEXE
+        > cd ..
+        > cd gomod
+        > logos build -o $WORK/bin/gomod$GOEXE .
+        > ! stderr .
+        > cd ..
+        > cd denymod
+        > ! logos build -o $WORK/bin/denymod$GOEXE .
+        [stderr]
+        [portability::alias_extension] main.📜: loGo/s alias extension file; rename to .lgo before publishing
+        [exit status 1]
+        > stderr 'portability::alias_extension'
+        matched: [portability::alias_extension] main.📜: loGo/s alias extension file; rename to .lgo before publishing
+        > ! exists $WORK/bin/denymod$GOEXE
+        > cd ..
+        > cd denyallow
+        > logos build -o $WORK/bin/denyallow$GOEXE .
+        > ! stderr .
+        > exists $WORK/bin/denyallow$GOEXE
+        > exec $WORK/bin/denyallow$GOEXE
+        [stdout]
+        allow deny ok
+        > stdout '^allow deny ok$'
+        matched: allow deny ok
+        > cd ..
+        > cd allowpos
+        > logos build -o $WORK/bin/allowpos$GOEXE .
+        [stderr]
+        go: warning: [portability::alias_extension] abovefunc.📜: loGo/s alias extension file; rename to .lgo before publishing
+        go: warning: [portability::alias_extension] blankline.📜: loGo/s alias extension file; rename to .lgo before publishing
+        > stderr -count=2 'portability::alias_extension'
+        > ! stderr 'ok\.📜'
+        > exists $WORK/bin/allowpos$GOEXE
+        > exec $WORK/bin/allowpos$GOEXE
+        [stdout]
+        helped
+        extra
+        blockmid
+        ok quiet
+        > stdout '^helped$'
+        matched: helped
+        > stdout '^extra$'
+        matched: extra
+        > stdout '^blockmid$'
+        matched: blockmid
+        > stdout '^ok quiet$'
+        matched: ok quiet
+        > cd ..
+=== CONT  TestScript/logos_alias
+    script_test.go:142: 2026-11-16T21:57:18Z
+    script_test.go:144: $WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_alias1412417227
+=== NAME  TestScript/logos_interop
+    script_test.go:166: 
+        PATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/testbin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/recovery-evidence/installed-repair-33752c03/c23-bin:/workspace/scratch/9949907ca71e/toolchains/node-v26.13.1-ci/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/lib/wasm:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback
+        HOME=/no-home
+        CCACHE_DISABLE=1
+        GOARCH=amd64
+        TESTGO_GOHOSTARCH=amd64
+        GOCACHE=/workspace/scratch/9949907ca71e/repair-postbuild-cache
+        GOCOVERDIR=
+        GODEBUG=
+        GOEXE=
+        GOEXPERIMENT=
+        GOOS=linux
+        TESTGO_GOHOSTOS=linux
+        GOPROXY=http://127.0.0.1:46627/mod
+        GOPRIVATE=
+        GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        GOTRACEBACK=system
+        TESTGO_GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        TESTGO_EXE=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/testbin/go
+        TESTGO_VCSTEST_HOST=127.0.0.1:41227
+        TESTGO_VCSTEST_TLS_HOST=127.0.0.1:33209
+        TESTGO_VCSTEST_CERT=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/vcstest3978770506/cert.pem
+        TESTGONETWORK=panic
+        GOSUMDB=localhost.localdev/sumdb+00000c67+AcTrnkbUA+TU4heY3hkjiSES/DSQniBqIeQ/YppAUtK6
+        TESTGO_SUMDB=localhost.localdev/sumdb
+        GONOPROXY=
+        GONOSUMDB=
+        GOVCS=*:all
+        devnull=/dev/null
+        goversion=1.27.4
+        CMDGO_TEST_RUN_MAIN=true
+        HGRCPATH=
+        GOTOOLCHAIN=auto
+        newline=
+        
+        CGO_ENABLED=1
+        CC=/usr/bin/gcc-14
+        UPROOT1272=/workspace/scratch/9949907ca71e/toolchains/go1.27.2
+        UPROOT1273=/workspace/scratch/9949907ca71e/toolchains/go1.27.3
+        UPROOT1274=/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci
+        WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_interop1865345255
+        TEST_TELEMETRY_DIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_interop1865345255/telemetry
+        TMPDIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_interop1865345255/tmp
+        GOPATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_interop1865345255/gopath
+        PWD=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_interop1865345255/gopath/src
+        
+        > env GOPROXY=off
+        > env GOTOOLCHAIN=local
+        > mkdir $WORK/bin
+        > cd w1
+        > logos build ./...
+        > logos build -o $WORK/bin/w1$GOEXE ./l/cmd
+        > exec $WORK/bin/w1$GOEXE
+        [stdout]
+        from-go
+        > stdout '^from-go$'
+        matched: from-go
+        > logos test ./...
+        [stdout]
+        ?   	example.com/l/cmd	[no test files]
+        ok  	example.com/l/p	0.002s
+        ?   	example.com/g/q	[no test files]
+        > stdout '^ok\s+example\.com/l/p'
+        matched: ok  	example.com/l/p	0.002s
+        > cd ..
+        > cd w2
+        > logos build ./...
+        > logos build -o $WORK/bin/w2$GOEXE ./g/cmd
+        > exec $WORK/bin/w2$GOEXE
+        [stdout]
+        from-logos
+        > stdout '^from-logos$'
+        matched: from-logos
+        > logos test ./...
+        [stdout]
+        ?   	example.com/l/p	[no test files]
+        ?   	example.com/g/cmd	[no test files]
+        ok  	example.com/g/q	0.004s
+        > stdout '^ok\s+example\.com/g/q'
+        matched: ok  	example.com/g/q	0.004s
+        > cd g
+        > ! go build ./...
+        [stderr]
+        q/q.go:3:8: no required module provides package example.com/l/p; to add it:
+        	go get example.com/l/p
+        [exit status 1]
+        > stderr 'no required module provides package example\.com/l/p'
+        matched: q/q.go:3:8: no required module provides package example.com/l/p; to add it:
+        > cd ../..
+        > cd std
+        > logos build ./...
+        > logos run .
+        [stdout]
+        std-ok
+        > stdout '^std-ok$'
+        matched: std-ok
+        > cd ..
+        > cd mixedmod
+        > ! logos build ./...
+        [stderr]
+        [correctness::mixed_module] module example.com/m has Go packages (example.com/m/a) and loGo/s packages (example.com/m/b)
+        [exit status 1]
+        > stderr '\[correctness::mixed_module\] module example\.com/m has Go packages \(example\.com/m/a\) and loGo/s packages \(example\.com/m/b\)'
+        matched: [correctness::mixed_module] module example.com/m has Go packages (example.com/m/a) and loGo/s packages (example.com/m/b)
+        > cd ..
+        > cd ws
+        > logos build ./...
+        > logos vet ./...
+        > logos test ./...
+        [stdout]
+        ok  	example.com/gws	0.003s
+        ok  	example.com/lws	0.002s
+        > stdout '^ok\s+example\.com/gws'
+        matched: ok  	example.com/gws	0.003s
+        > stdout '^ok\s+example\.com/lws'
+        matched: ok  	example.com/lws	0.002s
+        > go build -o $WORK/bin/gohello-plain$GOEXE ./gomod
+        > logos build -o $WORK/bin/gohello$GOEXE ./gomod
+        > logos build -o $WORK/bin/lgohello$GOEXE ./lgomod
+        > exec $WORK/bin/gohello$GOEXE
+        [stdout]
+        go-ok
+        > stdout '^go-ok$'
+        matched: go-ok
+        > exec $WORK/bin/gohello-plain$GOEXE
+        [stdout]
+        go-ok
+        > stdout '^go-ok$'
+        matched: go-ok
+        > exec $WORK/bin/lgohello$GOEXE
+        [stdout]
+        lgo-ok
+        > stdout '^lgo-ok$'
+        matched: lgo-ok
+=== NAME  TestScript/logos_alias
+    script_test.go:166: 
+        PATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/testbin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/recovery-evidence/installed-repair-33752c03/c23-bin:/workspace/scratch/9949907ca71e/toolchains/node-v26.13.1-ci/bin:/workspace/scratch/9949907ca71e/logos-acceptance-fixes/lib/wasm:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback
+        HOME=/no-home
+        CCACHE_DISABLE=1
+        GOARCH=amd64
+        TESTGO_GOHOSTARCH=amd64
+        GOCACHE=/workspace/scratch/9949907ca71e/repair-postbuild-cache
+        GOCOVERDIR=
+        GODEBUG=
+        GOEXE=
+        GOEXPERIMENT=
+        GOOS=linux
+        TESTGO_GOHOSTOS=linux
+        GOPROXY=http://127.0.0.1:46627/mod
+        GOPRIVATE=
+        GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        GOTRACEBACK=system
+        TESTGO_GOROOT=/workspace/scratch/9949907ca71e/logos-acceptance-fixes
+        TESTGO_EXE=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/testbin/go
+        TESTGO_VCSTEST_HOST=127.0.0.1:41227
+        TESTGO_VCSTEST_TLS_HOST=127.0.0.1:33209
+        TESTGO_VCSTEST_CERT=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/vcstest3978770506/cert.pem
+        TESTGONETWORK=panic
+        GOSUMDB=localhost.localdev/sumdb+00000c67+AcTrnkbUA+TU4heY3hkjiSES/DSQniBqIeQ/YppAUtK6
+        TESTGO_SUMDB=localhost.localdev/sumdb
+        GONOPROXY=
+        GONOSUMDB=
+        GOVCS=*:all
+        devnull=/dev/null
+        goversion=1.27.4
+        CMDGO_TEST_RUN_MAIN=true
+        HGRCPATH=
+        GOTOOLCHAIN=auto
+        newline=
+        
+        CGO_ENABLED=1
+        CC=/usr/bin/gcc-14
+        UPROOT1272=/workspace/scratch/9949907ca71e/toolchains/go1.27.2
+        UPROOT1273=/workspace/scratch/9949907ca71e/toolchains/go1.27.3
+        UPROOT1274=/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci
+        WORK=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_alias1412417227
+        TEST_TELEMETRY_DIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_alias1412417227/telemetry
+        TMPDIR=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_alias1412417227/tmp
+        GOPATH=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_alias1412417227/gopath
+        PWD=/home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_alias1412417227/gopath/src
+        
+        > env GOPROXY=off
+        > env GOTOOLCHAIN=local
+        > mkdir $WORK/bin
+        > logos build -o $WORK/bin/scroll$GOEXE ./scroll
+        [stderr]
+        go: warning: [portability::alias_extension] main.📜: loGo/s alias extension file; rename to .lgo before publishing
+        > stderr -count=1 'portability::alias_extension'
+        > exists $WORK/bin/scroll$GOEXE
+        > logos run ./scroll
+        [stdout]
+        scroll ok
+        [stderr]
+        go: warning: [portability::alias_extension] main.📜: loGo/s alias extension file; rename to .lgo before publishing
+        > stdout '^scroll ok$'
+        matched: scroll ok
+        > stderr -count=1 'portability::alias_extension'
+        > logos build -o $WORK/bin/lightning$GOEXE ./lightning
+        [stderr]
+        go: warning: [portability::alias_extension] main.⚡: loGo/s alias extension file; rename to .lgo before publishing
+        > stderr -count=1 'portability::alias_extension'
+        > exists $WORK/bin/lightning$GOEXE
+        > logos run ./lightning
+        [stdout]
+        lightning ok
+        [stderr]
+        go: warning: [portability::alias_extension] main.⚡: loGo/s alias extension file; rename to .lgo before publishing
+        > stdout '^lightning ok$'
+        matched: lightning ok
+        > stderr -count=1 'portability::alias_extension'
+        > logos build -o $WORK/bin/gopher$GOEXE ./gopher
+        [stderr]
+        go: warning: [portability::alias_extension] main.ʕ◔ϖ◔ʔ: loGo/s alias extension file; rename to .lgo before publishing
+        > stderr -count=1 'portability::alias_extension'
+        > exists $WORK/bin/gopher$GOEXE
+        > logos run ./gopher
+        [stdout]
+        gopher ok
+        [stderr]
+        go: warning: [portability::alias_extension] main.ʕ◔ϖ◔ʔ: loGo/s alias extension file; rename to .lgo before publishing
+        > stdout '^gopher ok$'
+        matched: gopher ok
+        > stderr -count=1 'portability::alias_extension'
+        > logos build -o $WORK/bin/vs$GOEXE ./vs
+        [stderr]
+        go: warning: [portability::alias_extension] main.⚡️: loGo/s alias extension file; rename to .lgo before publishing
+        > stderr -count=1 'portability::alias_extension'
+        > exists $WORK/bin/vs$GOEXE
+        > logos run ./vs
+        [stdout]
+        vs ok
+        [stderr]
+        go: warning: [portability::alias_extension] main.⚡️: loGo/s alias extension file; rename to .lgo before publishing
+        > stdout '^vs ok$'
+        matched: vs ok
+        > stderr -count=1 'portability::alias_extension'
+        > logos build -o $WORK/bin/txt$GOEXE ./txt
+        [stderr]
+        go: warning: [portability::alias_extension] main.⚡︎: loGo/s alias extension file; rename to .lgo before publishing
+        > stderr -count=1 'portability::alias_extension'
+        > exists $WORK/bin/txt$GOEXE
+        > logos run ./txt
+        [stdout]
+        txt ok
+        [stderr]
+        go: warning: [portability::alias_extension] main.⚡︎: loGo/s alias extension file; rename to .lgo before publishing
+        > stdout '^txt ok$'
+        matched: txt ok
+        > stderr -count=1 'portability::alias_extension'
+        > logos build -o $WORK/bin/multi$GOEXE ./multi
+        [stderr]
+        go: warning: [portability::alias_extension] a.📜: loGo/s alias extension file; rename to .lgo before publishing
+        go: warning: [portability::alias_extension] b.⚡: loGo/s alias extension file; rename to .lgo before publishing
+        > stderr -count=2 'portability::alias_extension'
+        > exists $WORK/bin/multi$GOEXE
+        > logos run ./multi
+        [stdout]
+        multi ok
+        [stderr]
+        go: warning: [portability::alias_extension] a.📜: loGo/s alias extension file; rename to .lgo before publishing
+        go: warning: [portability::alias_extension] b.⚡: loGo/s alias extension file; rename to .lgo before publishing
+        > stdout '^multi ok$'
+        matched: multi ok
+        > stderr -count=2 'portability::alias_extension'
+        > logos run ./binary
+        [stdout]
+        binary scroll ok
+        binary lightning ok
+        binary gopher ok
+        binary vs ok
+        [stderr]
+        go: warning: [portability::alias_extension] gopher.ʕ◔ϖ◔ʔ: loGo/s alias extension file; rename to .lgo before publishing
+        go: warning: [portability::alias_extension] lightning.⚡: loGo/s alias extension file; rename to .lgo before publishing
+        go: warning: [portability::alias_extension] scroll.📜: loGo/s alias extension file; rename to .lgo before publishing
+        go: warning: [portability::alias_extension] vs.⚡️: loGo/s alias extension file; rename to .lgo before publishing
+        > stdout '^binary scroll ok$'
+        matched: binary scroll ok
+        > stdout '^binary lightning ok$'
+        matched: binary lightning ok
+        > stdout '^binary gopher ok$'
+        matched: binary gopher ok
+        > stdout '^binary vs ok$'
+        matched: binary vs ok
+        > stderr -count=4 'portability::alias_extension'
+        > logos run ./deferq
+        [stdout]
+        deferq true [body deferred]
+        [stderr]
+        go: warning: [portability::alias_extension] vs.⚡️: loGo/s alias extension file; rename to .lgo before publishing
+        > stdout '^deferq true \[body deferred\]$'
+        matched: deferq true [body deferred]
+        > stderr -count=1 'portability::alias_extension'
+        > ! go build ./scroll
+        [stderr]
+        no Go files in /home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_alias1412417227/gopath/src/scroll
+        [exit status 1]
+        > stderr 'no Go files in '
+        matched: no Go files in /home/agent/logos-repair-33752c03/tmp/cmd-go-test-1590757668/tmpdir4268027920/logos_alias1412417227/gopath/src/scroll
+        > logos build ./dupok
+        [stderr]
+        go: warning: [portability::alias_extension] x.📜: loGo/s alias extension file; rename to .lgo before publishing
+        > stderr -count=1 'portability::alias_extension'
+        > ! logos build ./dup
+        [stderr]
+        go: warning: [portability::alias_extension] x.📜: loGo/s alias extension file; rename to .lgo before publishing
+        [correctness::duplicate_stem_filename] files x.lgo and x.📜 share stem "x"
+        [exit status 1]
+        > stderr 'correctness::duplicate_stem_filename'
+        matched: [correctness::duplicate_stem_filename] files x.lgo and x.📜 share stem "x"
+        > ! logos build ./dup2
+        [stderr]
+        go: warning: [portability::alias_extension] x.⚡: loGo/s alias extension file; rename to .lgo before publishing
+        go: warning: [portability::alias_extension] x.📜: loGo/s alias extension file; rename to .lgo before publishing
+        [correctness::duplicate_stem_filename] files x.⚡ and x.📜 share stem "x"
+        [exit status 1]
+        > stderr 'correctness::duplicate_stem_filename'
+        matched: [correctness::duplicate_stem_filename] files x.⚡ and x.📜 share stem "x"
+        > stderr 'x\.📜'
+        matched: go: warning: [portability::alias_extension] x.📜: loGo/s alias extension file; rename to .lgo before publishing
+        > stderr 'x\.⚡'
+        matched: go: warning: [portability::alias_extension] x.⚡: loGo/s alias extension file; rename to .lgo before publishing
+--- PASS: TestScript (0.54s)
+    --- PASS: TestScript/logos_module_census_list_modes (4.57s)
+    --- PASS: TestScript/logos_plain_lgo_selection (1.32s)
+    --- PASS: TestScript/logos_extension_normalization (7.04s)
+    --- PASS: TestScript/logos_nomix (0.11s)
+    --- PASS: TestScript/logos_module_zip_alias (2.51s)
+    --- PASS: TestScript/logos_module_census_ignored_vendor (2.05s)
+    --- PASS: TestScript/logos_module_census_vendor (5.39s)
+    --- PASS: TestScript/logos_module_census (2.38s)
+    --- PASS: TestScript/logos_module_census_errors (2.10s)
+    --- PASS: TestScript/logos_lint_alias_extension (14.65s)
+    --- PASS: TestScript/logos_interop (23.21s)
+    --- PASS: TestScript/logos_alias (20.62s)
+PASS
+ok  	cmd/go	49.690s

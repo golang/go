@@ -1,0 +1,36 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOEXPERIMENT=
+
+go run ./plain
+stderr '^selection-ok$'
+! go build ./only
+stderr 'no Go files in .*only'
+! go build ./importer
+stderr 'example.com/selection/only'
+! go build ./...
+stderr 'example.com/selection/only'
+
+-- go.mod --
+module example.com/selection
+
+go 1.27
+-- plain/main.go --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+func main() { println("selection-ok") }
+-- plain/ignored.lgo --
+not valid Go or loGo/s syntax
+-- only/p.lgo --
+package only
+-- importer/p.go --
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package importer
+import _ "example.com/selection/only"

@@ -1,0 +1,151 @@
+{
+  "slice": "M22-A-S6",
+  "audit": "AUD-209",
+  "recorded_utc": "2026-11-16T19:01:05.899963+00:00",
+  "source": {
+    "head": "e96a570da271c43a80e23bb1a188aac054acff25",
+    "tree": "0841c3d2a92b7d6091a5e248b82bd820326947a8",
+    "src_tree": "e237c399aae8f8065b724e8a0e27585686c7da18",
+    "status_porcelain": ""
+  },
+  "checker_sha256": "c46d9cc8569ca80659a999ab11a5208de5afecd8c4e337817af0de81bde20b26",
+  "baseline": {
+    "command": [
+      "uv",
+      "run",
+      "--offline",
+      "--no-project",
+      "--python",
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "python",
+      "/workspace/scratch/9949907ca71e/recovery-evidence/hosted-release-proposal/check_release_contract.py",
+      "/workspace/scratch/9949907ca71e/logos-final-acceptance"
+    ],
+    "exit_code": 1,
+    "output": "baseline-red.json",
+    "stage": "before production proposal existed"
+  },
+  "static_green": {
+    "command": [
+      "uv",
+      "run",
+      "--offline",
+      "--no-project",
+      "--python",
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "python",
+      "/workspace/scratch/9949907ca71e/recovery-evidence/hosted-release-proposal/check_release_contract.py",
+      "/workspace/scratch/9949907ca71e/recovery-evidence/hosted-release-proposal/candidate"
+    ],
+    "exit_code": 0,
+    "output": "final-candidate-contract.json"
+  },
+  "probe": {
+    "command": [
+      "uv",
+      "run",
+      "--offline",
+      "--no-project",
+      "--python",
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "python",
+      "/workspace/scratch/9949907ca71e/recovery-evidence/hosted-release-proposal/check_release_contract.py",
+      "/workspace/scratch/9949907ca71e/recovery-evidence/hosted-release-proposal/probe"
+    ],
+    "mutation": "one-line addition of -short to the bulk matrix command",
+    "exit_code": 1,
+    "output": "final-short-mode-probe.json"
+  },
+  "restoration": {
+    "exit_code": 0,
+    "output": "final-restored-contract.json",
+    "record": "final-mutation-restoration.json",
+    "exact_executor_sha256": "2d8ec5d123a2d962ca39fd04952b93412385d43946ee820f875b866da74900f1"
+  },
+  "bash_syntax": {
+    "command": [
+      "bash",
+      "-n",
+      "/workspace/scratch/9949907ca71e/recovery-evidence/hosted-release-proposal/candidate/.github/scripts/release-acceptance.sh"
+    ],
+    "exit_code": 0
+  },
+  "actionlint": {
+    "command": [
+      "/workspace/scratch/9949907ca71e/language-ci-tools/bin/actionlint",
+      "-shellcheck",
+      "/workspace/scratch/9949907ca71e/language-ci-tools/bin/shellcheck",
+      "/workspace/scratch/9949907ca71e/recovery-evidence/hosted-release-proposal/candidate/.github/workflows/release-acceptance.yml"
+    ],
+    "version": "1.7.12",
+    "binary_sha256": "c872d6db8c6bf83a8eaa704fc93999f027d55dffbc63b8a6abdccb47df5f4cd4",
+    "exit_code": 0,
+    "output": "final-actionlint.log"
+  },
+  "shellcheck": {
+    "command": [
+      "/workspace/scratch/9949907ca71e/language-ci-tools/bin/shellcheck",
+      "--format=gcc",
+      "/workspace/scratch/9949907ca71e/recovery-evidence/hosted-release-proposal/candidate/.github/scripts/release-acceptance.sh"
+    ],
+    "version": "0.11.0",
+    "binary_sha256": "4da528ddb3a4d1b7b24a59d4e16eb2f5fd960f4bd9a3708a15baddbdf1d5a55b",
+    "exit_code": 0,
+    "output": "final-shellcheck.log"
+  },
+  "python_environment": {
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "PyYAML": "6.0.3",
+    "project": "none",
+    "offline": true
+  },
+  "extraction": {
+    "record": "extraction-check.json",
+    "passed": true,
+    "member": "m/go.mod",
+    "source_filename": "order_service.lgo"
+  },
+  "retention": {
+    "record": "retention-roundtrip.json",
+    "passed": true,
+    "raw_non_utf8_roundtrip": true,
+    "corruption_caught": true
+  },
+  "current_ledger_preflight": {
+    "exit_code": 1,
+    "planned_ids": [
+      336,
+      386,
+      389,
+      391,
+      402,
+      441
+    ],
+    "output": "current-planned-rows.txt"
+  },
+  "historical_static_findings": [
+    "candidate-contract.json: static checker expected whole quoted GOCACHE argument; proposal spelling corrected without checker change",
+    "shellcheck.log: quoted Git brace expression, intentional literal transcript variables, and manifest output path corrected",
+    "actionlint.log: unsupported ubuntu-26.04 label replaced by ubuntu-latest independent job",
+    "parent review: exact txtar member is m/go.mod and source basename must remain order_service.lgo; file-only extraction proof added"
+  ],
+  "candidate_sha256": {
+    ".github/workflows/release-acceptance.yml": "1c935efb8007e2206c405917b9b9a34f3dc9681186883d8343b14672b2ee4f2a",
+    ".github/scripts/release-acceptance.sh": "2d8ec5d123a2d962ca39fd04952b93412385d43946ee820f875b866da74900f1",
+    "logos-doc/validation/release-acceptance-request.json": "fa03ac7f9e17e209767c99d5689e89219d22db152024998f66c4352a11d68e25"
+  },
+  "go_executed": false,
+  "hosted_executed": false,
+  "remaining": [
+    "actual hosted matrix, complete stamped parity, independent-host digest comparison and real runtime jobs",
+    "factual promotion of all proved planned rows before parity",
+    "M6-S3b blocked binding contracts still prevent strict M22 closure; not retried"
+  ],
+  "first_commit": {
+    "local": "e3c5780e1cae526a8e818f0f50dcf78e5bc6d751",
+    "public": "f4c7ca0927d65770a0ead41e1471f27efa551b54",
+    "tree": "d893559ac0471e077c9954404a339f8a0fb36192",
+    "checker_and_baseline_match": true,
+    "parent_owned": true
+  }
+}

@@ -1,0 +1,25 @@
+// run
+
+package main
+
+import "fmt"
+
+type S struct{ M map[string]int }
+
+const func storeField() int {
+	s := S{M: map[string]int{}}
+	s.M["k"] = 4
+	return s.M["k"] ?? -1
+}
+
+const stored = storeField()
+
+// The array assignment requires stored to be the compile-time constant 4.
+var _ [4]struct{} = [stored]struct{}{}
+
+func main() {
+	if got := storeField(); got != stored {
+		panic("map field store differs between compile time and runtime")
+	}
+	fmt.Println(stored)
+}

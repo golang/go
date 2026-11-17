@@ -215,8 +215,9 @@ type (
 	// X[Index]
 	// X[T1, T2, ...] (with Ti = Index.(*ListExpr).ElemList[i])
 	IndexExpr struct {
-		X     Expr
-		Index Expr
+		X             Expr
+		Index         Expr
+		LogosTypeArgs bool // arguments already have unambiguous type syntax
 		expr
 	}
 

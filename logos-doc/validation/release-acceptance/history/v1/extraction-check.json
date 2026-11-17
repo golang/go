@@ -1,0 +1,16 @@
+{
+  "passed": true,
+  "command": [
+    "extracted unchanged txtar_file function",
+    "/workspace/scratch/9949907ca71e/logos-final-acceptance/src/cmd/go/testdata/script/logos_eject_example.txt",
+    "m/go.mod",
+    "/workspace/scratch/9949907ca71e/recovery-evidence/hosted-release-proposal/extraction-check/go.mod"
+  ],
+  "module_bytes_match": true,
+  "module_sha256": "c2fef6cf15fb6c8135ee7e7ad92af36a925d52da2a10f42bf7a808cb11526429",
+  "source_filename": "order_service.lgo",
+  "source_sha256": "3ffb014e7aa3417391c84d1f451e1393fbdd974149cce5c1b5733ae5aeeca130",
+  "staged_source_sha256": "3ffb014e7aa3417391c84d1f451e1393fbdd974149cce5c1b5733ae5aeeca130",
+  "executor_sha256": "2d8ec5d123a2d962ca39fd04952b93412385d43946ee820f875b866da74900f1",
+  "go_executed": false
+}

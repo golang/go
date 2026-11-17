@@ -1,0 +1,6 @@
+{
+  "Replace": {
+    "/workspace/scratch/9949907ca71e/logos-json-integration/src/cmd/link/internal/ld/capabilities_chains_logos.go": "/workspace/scratch/9949907ca71e/hosted-evidence/runtime/linker-capabilities/overlay-source/capabilities_chains_logos.go",
+    "/workspace/scratch/9949907ca71e/logos-json-integration/src/cmd/link/internal/ld/capabilities_discovery_logos_test.go": "/workspace/scratch/9949907ca71e/hosted-evidence/runtime/linker-capabilities/overlay-source/capabilities_discovery_logos_test.go"
+  }
+}

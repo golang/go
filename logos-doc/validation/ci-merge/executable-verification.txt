@@ -1,0 +1,2 @@
+/workspace/scratch/9949907ca71e/language-ci-tools/bin/actionlint: OK
+/workspace/scratch/9949907ca71e/language-ci-tools/bin/shellcheck: OK

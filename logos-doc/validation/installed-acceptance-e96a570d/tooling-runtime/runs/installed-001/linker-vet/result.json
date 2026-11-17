@@ -1,0 +1,13 @@
+{
+  "name": "linker-vet",
+  "finished_utc": "2026-11-16T18:58:45.534Z",
+  "exit_code": 0,
+  "signal": null,
+  "seconds": 1.913971,
+  "raw_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "passed_tests": [],
+  "skipped_tests": [],
+  "failed_tests": [],
+  "missing_tests": [],
+  "observations": {}
+}

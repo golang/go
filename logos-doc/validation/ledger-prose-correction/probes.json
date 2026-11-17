@@ -1,0 +1,51 @@
+{
+  "scope": "metadata-only ledger checks; no parity corpus or release stamp claimed",
+  "goroot_for_metadata": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes",
+  "test_binary_compiled_from": "e96a570da271c43a80e23bb1a188aac054acff25",
+  "test_binary_sha256": "59c88e7bd1cef0e36a5a1e559f12fead791a427afd1c75b704e4a43183d1f61d",
+  "candidate_ledger_sha256": "59548b29b4e13b21568118d5cae192d01e3ed9e69609b823bce2ac034e349874",
+  "source_and_test_edits": false,
+  "probes_and_restoration": [
+    {
+      "label": "root-path-probe",
+      "command": [
+        "/workspace/scratch/9949907ca71e/recovery-evidence/ledger-prose-correction/goparity.test",
+        "-test.run=^TestRedteamLedgerRows$",
+        "-test.count=1",
+        "-test.v",
+        "-test.timeout=5m"
+      ],
+      "exit_code": 1,
+      "expected_diagnostic": "#336: proving test test/root does not exist",
+      "caught": true,
+      "log_sha256": "2218fb69830ad5ffc0e773176d9db0599e4973adfb088b05b9474b7f1e470d8d"
+    },
+    {
+      "label": "tool-path-probe",
+      "command": [
+        "/workspace/scratch/9949907ca71e/recovery-evidence/ledger-prose-correction/goparity.test",
+        "-test.run=^TestRedteamLedgerRows$",
+        "-test.count=1",
+        "-test.v",
+        "-test.timeout=5m"
+      ],
+      "exit_code": 1,
+      "expected_diagnostic": "#441: proving test test/tool does not exist",
+      "caught": true,
+      "log_sha256": "d80a2ac75a565046255d5911a41a55480878c78b7fccef0470d2ddbd1c3ef28e"
+    },
+    {
+      "label": "restored-green",
+      "command": [
+        "/workspace/scratch/9949907ca71e/recovery-evidence/ledger-prose-correction/goparity.test",
+        "-test.run=^TestRedteamLedger(Rows|Release)$",
+        "-test.count=1",
+        "-test.v",
+        "-test.timeout=5m",
+        "-goparity.release"
+      ],
+      "exit_code": 0,
+      "log_sha256": "e21621581adcf7230905e9862688ef4d9b29b1fca90bf0a91f57ff1402c28a18"
+    }
+  ]
+}

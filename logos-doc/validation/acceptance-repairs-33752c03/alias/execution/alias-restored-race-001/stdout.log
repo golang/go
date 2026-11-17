@@ -1,0 +1,20 @@
+=== RUN   TestScanModuleKindsDuplicateSiblings
+=== RUN   TestScanModuleKindsDuplicateSiblings/canonical_alias
+=== RUN   TestScanModuleKindsDuplicateSiblings/alias_alias
+=== RUN   TestScanModuleKindsDuplicateSiblings/variation_alias
+=== RUN   TestScanModuleKindsDuplicateSiblings/external_test_alias
+=== RUN   TestScanModuleKindsDuplicateSiblings/duplicate_kind_still_mixes_module
+=== RUN   TestScanModuleKindsDuplicateSiblings/malformed_header_still_fails
+=== RUN   TestScanModuleKindsDuplicateSiblings/mixed_package_still_fails
+=== RUN   TestScanModuleKindsDuplicateSiblings/plain_go_ignores_alias_siblings
+--- PASS: TestScanModuleKindsDuplicateSiblings (9.50s)
+    --- PASS: TestScanModuleKindsDuplicateSiblings/canonical_alias (1.05s)
+    --- PASS: TestScanModuleKindsDuplicateSiblings/alias_alias (1.08s)
+    --- PASS: TestScanModuleKindsDuplicateSiblings/variation_alias (1.49s)
+    --- PASS: TestScanModuleKindsDuplicateSiblings/external_test_alias (1.34s)
+    --- PASS: TestScanModuleKindsDuplicateSiblings/duplicate_kind_still_mixes_module (1.21s)
+    --- PASS: TestScanModuleKindsDuplicateSiblings/malformed_header_still_fails (1.16s)
+    --- PASS: TestScanModuleKindsDuplicateSiblings/mixed_package_still_fails (1.10s)
+    --- PASS: TestScanModuleKindsDuplicateSiblings/plain_go_ignores_alias_siblings (1.06s)
+PASS
+ok  	cmd/go/internal/load	10.635s

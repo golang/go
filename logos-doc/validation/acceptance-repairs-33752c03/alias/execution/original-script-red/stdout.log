@@ -1,0 +1,61 @@
+=== RUN   TestScript
+=== PAUSE TestScript
+=== CONT  TestScript
+=== RUN   TestScript/logos_alias
+=== PAUSE TestScript/logos_alias
+=== CONT  TestScript/logos_alias
+    script_test.go:142: 2026-11-16T20:52:59Z
+    script_test.go:144: $WORK=/home/agent/logos-parity-isolated-e96-002/cmd-go-test-1571444275/tmpdir3267607079/logos_alias2520837583
+    script_test.go:166: 
+        PATH=/home/agent/logos-parity-isolated-e96-002/cmd-go-test-1571444275/tmpdir3267607079/testbin:/workspace/scratch/9949907ca71e/logos-final-acceptance/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback
+        HOME=/no-home
+        CCACHE_DISABLE=1
+        GOARCH=amd64
+        TESTGO_GOHOSTARCH=amd64
+        GOCACHE=/workspace/scratch/9949907ca71e/final-postbuild-cache
+        GOCOVERDIR=
+        GODEBUG=
+        GOEXE=
+        GOEXPERIMENT=
+        GOOS=linux
+        TESTGO_GOHOSTOS=linux
+        GOPROXY=http://127.0.0.1:41833/mod
+        GOPRIVATE=
+        GOROOT=/workspace/scratch/9949907ca71e/logos-final-acceptance
+        GOTRACEBACK=system
+        TESTGO_GOROOT=/workspace/scratch/9949907ca71e/logos-final-acceptance
+        TESTGO_EXE=/home/agent/logos-parity-isolated-e96-002/cmd-go-test-1571444275/tmpdir3267607079/testbin/go
+        TESTGO_VCSTEST_HOST=127.0.0.1:34703
+        TESTGO_VCSTEST_TLS_HOST=127.0.0.1:41619
+        TESTGO_VCSTEST_CERT=/home/agent/logos-parity-isolated-e96-002/cmd-go-test-1571444275/vcstest58685994/cert.pem
+        TESTGONETWORK=panic
+        GOSUMDB=localhost.localdev/sumdb+00000c67+AcTrnkbUA+TU4heY3hkjiSES/DSQniBqIeQ/YppAUtK6
+        TESTGO_SUMDB=localhost.localdev/sumdb
+        GONOPROXY=
+        GONOSUMDB=
+        GOVCS=*:all
+        devnull=/dev/null
+        goversion=1.27.4
+        CMDGO_TEST_RUN_MAIN=true
+        HGRCPATH=
+        GOTOOLCHAIN=auto
+        newline=
+        
+        UPROOT1274=/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci
+        WORK=/home/agent/logos-parity-isolated-e96-002/cmd-go-test-1571444275/tmpdir3267607079/logos_alias2520837583
+        TEST_TELEMETRY_DIR=/home/agent/logos-parity-isolated-e96-002/cmd-go-test-1571444275/tmpdir3267607079/logos_alias2520837583/telemetry
+        TMPDIR=/home/agent/logos-parity-isolated-e96-002/cmd-go-test-1571444275/tmpdir3267607079/logos_alias2520837583/tmp
+        GOPATH=/home/agent/logos-parity-isolated-e96-002/cmd-go-test-1571444275/tmpdir3267607079/logos_alias2520837583/gopath
+        PWD=/home/agent/logos-parity-isolated-e96-002/cmd-go-test-1571444275/tmpdir3267607079/logos_alias2520837583/gopath/src
+        
+        > env GOPROXY=off
+        > env GOTOOLCHAIN=local
+        > mkdir $WORK/bin
+        > logos build -o $WORK/bin/scroll$GOEXE ./scroll
+        [stderr]
+        go: warning: [portability::alias_extension] main.📜: loGo/s alias extension file; rename to .lgo before publishing
+        classifying package example.com/m/dup in module example.com/m: [correctness::duplicate_stem_filename] files x.lgo and x.📜 share stem "x"
+    script_test.go:166: FAIL: testdata/script/logos_alias.txt:6: logos build -o /home/agent/logos-parity-isolated-e96-002/cmd-go-test-1571444275/tmpdir3267607079/logos_alias2520837583/bin/scroll ./scroll: exit status 1
+--- FAIL: TestScript (0.19s)
+    --- FAIL: TestScript/logos_alias (0.12s)
+FAIL

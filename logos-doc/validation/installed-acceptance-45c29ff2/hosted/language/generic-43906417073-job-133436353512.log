@@ -1,0 +1,347 @@
+﻿2026-11-16T16:23:07.4565123Z Current runner version: '2.338.2'
+2026-11-16T16:23:07.4583412Z ##[group]Runner Image Provisioner
+2026-11-16T16:23:07.4584049Z Hosted Compute Agent
+2026-11-16T16:23:07.4584430Z Version: 20261103.629
+2026-11-16T16:23:07.4584831Z Commit: 15dbd9ccb5dbf34fae002b6ed1a2670f52df37bc
+2026-11-16T16:23:07.4585347Z Build Date: 2026-11-03T17:26:59Z
+2026-11-16T16:23:07.4585810Z Worker ID: {f24f4cd8-b905-4ec0-8f3e-ce588aeef3fc}
+2026-11-16T16:23:07.4586427Z Region: southcentralus
+2026-11-16T16:23:07.4586805Z Cloud: Azure
+2026-11-16T16:23:07.4587147Z ##[endgroup]
+2026-11-16T16:23:07.4587975Z ##[group]Operating System
+2026-11-16T16:23:07.4588384Z Ubuntu
+2026-11-16T16:23:07.4588703Z 26.04.1
+2026-11-16T16:23:07.4589078Z LTS
+2026-11-16T16:23:07.4589404Z ##[endgroup]
+2026-11-16T16:23:07.4589813Z ##[group]Runner Image
+2026-11-16T16:23:07.4590224Z Image: ubuntu-26.04
+2026-11-16T16:23:07.4590570Z Version: 20261111.196.1
+2026-11-16T16:23:07.4591401Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261111.196/images/ubuntu/Ubuntu2604-Readme.md
+2026-11-16T16:23:07.4592363Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261111.196
+2026-11-16T16:23:07.4592978Z ##[endgroup]
+2026-11-16T16:23:07.4593664Z ##[group]GITHUB_TOKEN Permissions
+2026-11-16T16:23:07.4594899Z Contents: read
+2026-11-16T16:23:07.4595245Z Metadata: read
+2026-11-16T16:23:07.4595696Z ##[endgroup]
+2026-11-16T16:23:07.4597615Z Secret source: Actions
+2026-11-16T16:23:07.4598259Z Cache mode: write
+2026-11-16T16:23:07.4598700Z Prepare workflow directory
+2026-11-16T16:23:07.4861717Z Prepare all required actions
+2026-11-16T16:23:07.4913323Z Complete job name: generic-type-arguments
+2026-11-16T16:23:07.5816150Z ##[group]Run git init --quiet .
+2026-11-16T16:23:07.5816750Z [36;1mgit init --quiet .[0m
+2026-11-16T16:23:07.5817410Z [36;1mgit remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"[0m
+2026-11-16T16:23:07.5818449Z [36;1mgit -c protocol.version=2 fetch --no-tags --depth=1 origin "$GITHUB_SHA"[0m
+2026-11-16T16:23:07.5819377Z [36;1mgit -c advice.detachedHead=false checkout --detach FETCH_HEAD[0m
+2026-11-16T16:23:07.5820124Z [36;1mtest "$(git rev-parse HEAD)" = "$GITHUB_SHA"[0m
+2026-11-16T16:23:07.6297945Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:23:07.6298484Z ##[endgroup]
+2026-11-16T16:23:12.6743155Z From https://github.com/gosuda/LoGOs
+2026-11-16T16:23:12.6743821Z  * branch              f2ad58be8742b8ec350db8f06d9dc794ea3302e4 -> FETCH_HEAD
+2026-11-16T16:23:13.6089083Z HEAD is now at f2ad58be Merge 45c29ff215477f7e403188d7452fc79aef05d791 into 13a968f350564e739bf700df698a9a635dcdddcd
+2026-11-16T16:23:13.6220689Z ##[group]Run bash ../.github/scripts/install-ci-tool.sh go
+2026-11-16T16:23:13.6221003Z [36;1mbash ../.github/scripts/install-ci-tool.sh go[0m
+2026-11-16T16:23:13.6265081Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:23:13.6265320Z ##[endgroup]
+2026-11-16T16:23:14.2456263Z /home/runner/work/_temp/go1.27.4.linux-amd64.tar.gz: OK
+2026-11-16T16:23:15.2783832Z go version go1.27.4 linux/amd64
+2026-11-16T16:23:15.2860983Z ##[group]Run bash ../.github/scripts/install-upstream-oracles.sh
+2026-11-16T16:23:15.2861328Z [36;1mbash ../.github/scripts/install-upstream-oracles.sh[0m
+2026-11-16T16:23:15.2907282Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:23:15.2907538Z ##[endgroup]
+2026-11-16T16:23:15.9934615Z /home/runner/work/_temp/go1.27.2.linux-amd64.tar.gz: OK
+2026-11-16T16:23:17.9406118Z /home/runner/work/_temp/go1.27.3.linux-amd64.tar.gz: OK
+2026-11-16T16:23:18.8362383Z ##[group]Run GOROOT_BOOTSTRAP=$(go env GOROOT)
+2026-11-16T16:23:18.8362619Z [36;1mGOROOT_BOOTSTRAP=$(go env GOROOT)[0m
+2026-11-16T16:23:18.8362793Z [36;1mexport GOROOT_BOOTSTRAP[0m
+2026-11-16T16:23:18.8362949Z [36;1m./make.bash[0m
+2026-11-16T16:23:18.8363123Z [36;1mprintf '%s\n' "$GITHUB_WORKSPACE/bin" >> "$GITHUB_PATH"[0m
+2026-11-16T16:23:18.8406142Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:23:18.8406341Z env:
+2026-11-16T16:23:18.8406673Z   UPROOT1274: /home/runner/work/_temp/go1.27.4-ci
+2026-11-16T16:23:18.8406875Z   UPROOT1272: /home/runner/work/_temp/go1.27.2
+2026-11-16T16:23:18.8407063Z   UPROOT1273: /home/runner/work/_temp/go1.27.3
+2026-11-16T16:23:18.8407237Z ##[endgroup]
+2026-11-16T16:23:18.8644070Z Building Go cmd/dist using /home/runner/work/_temp/go1.27.4-ci. (go1.27.4 linux/amd64)
+2026-11-16T16:23:24.0449540Z Building Go toolchain1 using /home/runner/work/_temp/go1.27.4-ci.
+2026-11-16T16:23:50.5640125Z Building Go bootstrap cmd/go (go_bootstrap) using Go toolchain1.
+2026-11-16T16:24:02.1349086Z Building Go toolchain2 using go_bootstrap and Go toolchain1.
+2026-11-16T16:24:29.9913789Z Building Go toolchain3 using go_bootstrap and Go toolchain2.
+2026-11-16T16:25:05.1317904Z Building packages and commands for linux/amd64.
+2026-11-16T16:26:07.5509518Z ---
+2026-11-16T16:26:07.5509880Z Installed Go for linux/amd64 in /home/runner/work/LoGOs/LoGOs
+2026-11-16T16:26:07.5510136Z Installed commands in /home/runner/work/LoGOs/LoGOs/bin
+2026-11-16T16:26:07.5510681Z *** You need to add /home/runner/work/LoGOs/LoGOs/bin to your PATH.
+2026-11-16T16:26:09.1820659Z ##[group]Run test -z "$(gofmt -l cmd/compile/internal/syntax/nodes.go cmd/compile/internal/syntax/parser.go cmd/compile/internal/syntax/parser_tuple_logos.go cmd/compile/internal/syntax/parser_typeargs_logos.go cmd/compile/internal/syntax/typeargs_logos.go cmd/compile/internal/types2/expr.go cmd/compile/internal/types2/index.go cmd/compile/internal/types2/typexpr.go cmd/compile/internal/types2/typeargs_logos_test.go cmd/compile/internal/types2/typeargs_nested_logos_test.go cmd/compile/internal/logos/defer.go cmd/compile/internal/logos/tuple.go)"
+2026-11-16T16:26:09.1822781Z [36;1mtest -z "$(gofmt -l cmd/compile/internal/syntax/nodes.go cmd/compile/internal/syntax/parser.go cmd/compile/internal/syntax/parser_tuple_logos.go cmd/compile/internal/syntax/parser_typeargs_logos.go cmd/compile/internal/syntax/typeargs_logos.go cmd/compile/internal/types2/expr.go cmd/compile/internal/types2/index.go cmd/compile/internal/types2/typexpr.go cmd/compile/internal/types2/typeargs_logos_test.go cmd/compile/internal/types2/typeargs_nested_logos_test.go cmd/compile/internal/logos/defer.go cmd/compile/internal/logos/tuple.go)"[0m
+2026-11-16T16:26:09.1824010Z [36;1mgo vet cmd/compile/internal/syntax cmd/compile/internal/types2 cmd/compile/internal/logos[0m
+2026-11-16T16:26:09.1824987Z [36;1msha256sum cmd/compile/internal/types2/typeargs_logos_test.go cmd/compile/internal/types2/typeargs_nested_logos_test.go ../test/logos/run/generic_type_arguments.lgo ../test/logos/run/generic_type_arguments.out ../test/logos/run/generic_type_argument_index_controls.lgo ../test/logos/run/generic_type_argument_index_controls.out cmd/go/testdata/script/logos_eject_generic_type_arguments.txt > "$RUNNER_TEMP/typeargs-fixtures.sha256"[0m
+2026-11-16T16:26:09.1868853Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:26:09.1869066Z env:
+2026-11-16T16:26:09.1869214Z   UPROOT1274: /home/runner/work/_temp/go1.27.4-ci
+2026-11-16T16:26:09.1869417Z   UPROOT1272: /home/runner/work/_temp/go1.27.2
+2026-11-16T16:26:09.1869607Z   UPROOT1273: /home/runner/work/_temp/go1.27.3
+2026-11-16T16:26:09.1869774Z ##[endgroup]
+2026-11-16T16:26:22.4160588Z ##[group]Run go test -count=1 -timeout 20m cmd/internal/testdir -run 'Test/logos/run/(generic_type_arguments|generic_type_argument_index_controls|defer_generic_receiver|defer_indexed_callee)'
+2026-11-16T16:26:22.4161325Z [36;1mgo test -count=1 -timeout 20m cmd/internal/testdir -run 'Test/logos/run/(generic_type_arguments|generic_type_argument_index_controls|defer_generic_receiver|defer_indexed_callee)'[0m
+2026-11-16T16:26:22.4203272Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:26:22.4203476Z env:
+2026-11-16T16:26:22.4203621Z   UPROOT1274: /home/runner/work/_temp/go1.27.4-ci
+2026-11-16T16:26:22.4203814Z   UPROOT1272: /home/runner/work/_temp/go1.27.2
+2026-11-16T16:26:22.4203996Z   UPROOT1273: /home/runner/work/_temp/go1.27.3
+2026-11-16T16:26:22.4204317Z ##[endgroup]
+2026-11-16T16:26:45.0458426Z ok  	cmd/internal/testdir	18.251s
+2026-11-16T16:26:45.0664925Z ##[group]Run go test -count=1 -race -timeout 20m cmd/go -run 'Script/^logos_(eject_generic_type_arguments|eject_defer_generic_receiver|eject_defer_indexed_callee)$'
+2026-11-16T16:26:45.0665563Z [36;1mgo test -count=1 -race -timeout 20m cmd/go -run 'Script/^logos_(eject_generic_type_arguments|eject_defer_generic_receiver|eject_defer_indexed_callee)$'[0m
+2026-11-16T16:26:45.0707998Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:26:45.0708193Z env:
+2026-11-16T16:26:45.0708371Z   UPROOT1274: /home/runner/work/_temp/go1.27.4-ci
+2026-11-16T16:26:45.0708598Z   UPROOT1272: /home/runner/work/_temp/go1.27.2
+2026-11-16T16:26:45.0708780Z   UPROOT1273: /home/runner/work/_temp/go1.27.3
+2026-11-16T16:26:45.0708959Z ##[endgroup]
+2026-11-16T16:27:35.5954648Z ok  	cmd/go	24.389s
+2026-11-16T16:27:36.0101160Z ##[group]Run target=cmd/compile/internal/types2/index.go
+2026-11-16T16:27:36.0101606Z [36;1mtarget=cmd/compile/internal/types2/index.go[0m
+2026-11-16T16:27:36.0101956Z [36;1msaved="$RUNNER_TEMP/typeargs-index.go.saved"[0m
+2026-11-16T16:27:36.0102267Z [36;1mcp "$target" "$saved"[0m
+2026-11-16T16:27:36.0102518Z [36;1mtrap 'cp "$saved" "$target"' EXIT[0m
+2026-11-16T16:27:36.0103151Z [36;1mperl -0pi -e 's/\Qsyntax.LogosTypeArguments(e)\E/\/\/ mutation: skip confirmed function type arguments/ == 1 or die "expected one generic hook\n";' "$target"[0m
+2026-11-16T16:27:36.0104319Z [36;1mif go test -count=1 -short cmd/compile/internal/types2 -run '^TestLogos(GenericTypeArgumentPositions|NestedTypeArgumentPositions|TypeArgumentIndexControls)$' > "$RUNNER_TEMP/typeargs-generic-probe.log" 2>&1; then[0m
+2026-11-16T16:27:36.0105204Z [36;1m  cat "$RUNNER_TEMP/typeargs-generic-probe.log"[0m
+2026-11-16T16:27:36.0105508Z [36;1m  exit 1[0m
+2026-11-16T16:27:36.0105701Z [36;1mfi[0m
+2026-11-16T16:27:36.0106155Z [36;1mcat "$RUNNER_TEMP/typeargs-generic-probe.log"[0m
+2026-11-16T16:27:36.0106567Z [36;1mgrep -F 'int? is not a type' "$RUNNER_TEMP/typeargs-generic-probe.log"[0m
+2026-11-16T16:27:36.0106935Z [36;1mcp "$saved" "$target"[0m
+2026-11-16T16:27:36.0107176Z [36;1mcmp "$saved" "$target"[0m
+2026-11-16T16:27:36.0152230Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:27:36.0152431Z env:
+2026-11-16T16:27:36.0152700Z   UPROOT1274: /home/runner/work/_temp/go1.27.4-ci
+2026-11-16T16:27:36.0152993Z   UPROOT1272: /home/runner/work/_temp/go1.27.2
+2026-11-16T16:27:36.0153282Z   UPROOT1273: /home/runner/work/_temp/go1.27.3
+2026-11-16T16:27:36.0153552Z ##[endgroup]
+2026-11-16T16:27:39.6056670Z --- FAIL: TestLogosGenericTypeArgumentPositions (0.01s)
+2026-11-16T16:27:39.6057154Z     --- FAIL: TestLogosGenericTypeArgumentPositions/int? (0.00s)
+2026-11-16T16:27:39.6057590Z         --- FAIL: TestLogosGenericTypeArgumentPositions/int?/function (0.00s)
+2026-11-16T16:27:39.6058081Z             typeargs_logos_test.go:55: type int? in function position:
+2026-11-16T16:27:39.6058427Z                 typeargs.lgo:9:30: int? is not a type
+2026-11-16T16:27:39.6068915Z                 typeargs.lgo:9:33: [correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer
+2026-11-16T16:27:39.6069358Z         --- FAIL: TestLogosGenericTypeArgumentPositions/int?/method (0.00s)
+2026-11-16T16:27:39.6069646Z             typeargs_logos_test.go:55: type int? in method position:
+2026-11-16T16:27:39.6069880Z                 typeargs.lgo:9:41: int? is not a type
+2026-11-16T16:27:39.6070662Z                 typeargs.lgo:9:44: [correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer
+2026-11-16T16:27:39.6071023Z     --- FAIL: TestLogosGenericTypeArgumentPositions/(int?)? (0.00s)
+2026-11-16T16:27:39.6071336Z         --- FAIL: TestLogosGenericTypeArgumentPositions/(int?)?/function (0.00s)
+2026-11-16T16:27:39.6071660Z             typeargs_logos_test.go:55: type (int?)? in function position:
+2026-11-16T16:27:39.6072046Z                 typeargs.lgo:9:33: (int?)? is not a type
+2026-11-16T16:27:39.6072842Z                 typeargs.lgo:9:37: [correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer
+2026-11-16T16:27:39.6073518Z                 typeargs.lgo:9:39: [correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer
+2026-11-16T16:27:39.6073907Z         --- FAIL: TestLogosGenericTypeArgumentPositions/(int?)?/method (0.00s)
+2026-11-16T16:27:39.6074195Z             typeargs_logos_test.go:55: type (int?)? in method position:
+2026-11-16T16:27:39.6074420Z                 typeargs.lgo:9:44: (int?)? is not a type
+2026-11-16T16:27:39.6074749Z                 typeargs.lgo:9:48: [correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer
+2026-11-16T16:27:39.6075350Z                 typeargs.lgo:9:50: [correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer
+2026-11-16T16:27:39.6075701Z     --- FAIL: TestLogosGenericTypeArgumentPositions/*int? (0.00s)
+2026-11-16T16:27:39.6076279Z         --- FAIL: TestLogosGenericTypeArgumentPositions/*int?/function (0.00s)
+2026-11-16T16:27:39.6076702Z             typeargs_logos_test.go:55: type *int? in function position:
+2026-11-16T16:27:39.6076939Z                 typeargs.lgo:9:32: int? is not a type
+2026-11-16T16:27:39.6077267Z                 typeargs.lgo:9:35: [correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer
+2026-11-16T16:27:39.6077632Z         --- FAIL: TestLogosGenericTypeArgumentPositions/*int?/method (0.00s)
+2026-11-16T16:27:39.6077902Z             typeargs_logos_test.go:55: type *int? in method position:
+2026-11-16T16:27:39.6078128Z                 typeargs.lgo:9:43: int? is not a type
+2026-11-16T16:27:39.6078456Z                 typeargs.lgo:9:46: [correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer
+2026-11-16T16:27:39.6078805Z     --- FAIL: TestLogosGenericTypeArgumentPositions/*(int?) (0.00s)
+2026-11-16T16:27:39.6079100Z         --- FAIL: TestLogosGenericTypeArgumentPositions/*(int?)/function (0.00s)
+2026-11-16T16:27:39.6079383Z             typeargs_logos_test.go:55: type *(int?) in function position:
+2026-11-16T16:27:39.6079607Z                 typeargs.lgo:9:35: int? is not a type
+2026-11-16T16:27:39.6079933Z                 typeargs.lgo:9:38: [correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer
+2026-11-16T16:27:39.6080301Z         --- FAIL: TestLogosGenericTypeArgumentPositions/*(int?)/method (0.00s)
+2026-11-16T16:27:39.6080576Z             typeargs_logos_test.go:55: type *(int?) in method position:
+2026-11-16T16:27:39.6080790Z                 typeargs.lgo:9:46: int? is not a type
+2026-11-16T16:27:39.6081117Z                 typeargs.lgo:9:49: [correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer
+2026-11-16T16:27:39.6081462Z     --- FAIL: TestLogosGenericTypeArgumentPositions/(*int)? (0.00s)
+2026-11-16T16:27:39.6081751Z         --- FAIL: TestLogosGenericTypeArgumentPositions/(*int)?/function (0.00s)
+2026-11-16T16:27:39.6082029Z             typeargs_logos_test.go:55: type (*int)? in function position:
+2026-11-16T16:27:39.6082255Z                 typeargs.lgo:9:33: (*int)? is not a type
+2026-11-16T16:27:39.6082584Z                 typeargs.lgo:9:39: [correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer
+2026-11-16T16:27:39.6082944Z         --- FAIL: TestLogosGenericTypeArgumentPositions/(*int)?/method (0.00s)
+2026-11-16T16:27:39.6083220Z             typeargs_logos_test.go:55: type (*int)? in method position:
+2026-11-16T16:27:39.6083440Z                 typeargs.lgo:9:44: (*int)? is not a type
+2026-11-16T16:27:39.6083782Z                 typeargs.lgo:9:50: [correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer
+2026-11-16T16:27:39.6084135Z     --- FAIL: TestLogosGenericTypeArgumentPositions/**int? (0.00s)
+2026-11-16T16:27:39.6084534Z         --- FAIL: TestLogosGenericTypeArgumentPositions/**int?/function (0.00s)
+2026-11-16T16:27:39.6084820Z             typeargs_logos_test.go:55: type **int? in function position:
+2026-11-16T16:27:39.6085042Z                 typeargs.lgo:9:34: int? is not a type
+2026-11-16T16:27:39.6085376Z                 typeargs.lgo:9:37: [correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer
+2026-11-16T16:27:39.6085741Z         --- FAIL: TestLogosGenericTypeArgumentPositions/**int?/method (0.00s)
+2026-11-16T16:27:39.6086370Z             typeargs_logos_test.go:55: type **int? in method position:
+2026-11-16T16:27:39.6086594Z                 typeargs.lgo:9:45: int? is not a type
+2026-11-16T16:27:39.6086938Z                 typeargs.lgo:9:48: [correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer
+2026-11-16T16:27:39.6087432Z     --- FAIL: TestLogosGenericTypeArgumentPositions/<-chan_int? (0.00s)
+2026-11-16T16:27:39.6087742Z         --- FAIL: TestLogosGenericTypeArgumentPositions/<-chan_int?/function (0.00s)
+2026-11-16T16:27:39.6088057Z             typeargs_logos_test.go:55: type <-chan int? in function position:
+2026-11-16T16:27:39.6088306Z                 typeargs.lgo:9:37: <-chan int? is not a type
+2026-11-16T16:27:39.6088544Z                 typeargs.lgo:9:39: chan int? (type) is not an expression
+2026-11-16T16:27:39.6088832Z         --- FAIL: TestLogosGenericTypeArgumentPositions/<-chan_int?/method (0.00s)
+2026-11-16T16:27:39.6089134Z             typeargs_logos_test.go:55: type <-chan int? in method position:
+2026-11-16T16:27:39.6089380Z                 typeargs.lgo:9:48: <-chan int? is not a type
+2026-11-16T16:27:39.6089635Z                 typeargs.lgo:9:50: chan int? (type) is not an expression
+2026-11-16T16:27:39.6089945Z     --- FAIL: TestLogosGenericTypeArgumentPositions/(<-chan_int)? (0.00s)
+2026-11-16T16:27:39.6090267Z         --- FAIL: TestLogosGenericTypeArgumentPositions/(<-chan_int)?/function (0.00s)
+2026-11-16T16:27:39.6090585Z             typeargs_logos_test.go:55: type (<-chan int)? in function position:
+2026-11-16T16:27:39.6090835Z                 typeargs.lgo:9:39: (<-chan int)? is not a type
+2026-11-16T16:27:39.6091192Z                 typeargs.lgo:9:51: [correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer
+2026-11-16T16:27:39.6091581Z         --- FAIL: TestLogosGenericTypeArgumentPositions/(<-chan_int)?/method (0.00s)
+2026-11-16T16:27:39.6091888Z             typeargs_logos_test.go:55: type (<-chan int)? in method position:
+2026-11-16T16:27:39.6092132Z                 typeargs.lgo:9:50: (<-chan int)? is not a type
+2026-11-16T16:27:39.6092494Z                 typeargs.lgo:9:62: [correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer
+2026-11-16T16:27:39.6092859Z     --- FAIL: TestLogosGenericTypeArgumentPositions/(int,_string) (0.00s)
+2026-11-16T16:27:39.6093186Z         --- FAIL: TestLogosGenericTypeArgumentPositions/(int,_string)/function (0.00s)
+2026-11-16T16:27:39.6093503Z             typeargs_logos_test.go:55: type (int, string) in function position:
+2026-11-16T16:27:39.6093757Z                 typeargs.lgo:9:39: (int, string) is not a type
+2026-11-16T16:27:39.6093985Z                 typeargs.lgo:9:40: int (type) is not an expression
+2026-11-16T16:27:39.6094271Z         --- FAIL: TestLogosGenericTypeArgumentPositions/(int,_string)/method (0.00s)
+2026-11-16T16:27:39.6094574Z             typeargs_logos_test.go:55: type (int, string) in method position:
+2026-11-16T16:27:39.6094827Z                 typeargs.lgo:9:50: (int, string) is not a type
+2026-11-16T16:27:39.6095052Z                 typeargs.lgo:9:51: int (type) is not an expression
+2026-11-16T16:27:39.6095334Z     --- FAIL: TestLogosGenericTypeArgumentPositions/(int?,_(string,_bool)) (0.00s)
+2026-11-16T16:27:39.6095694Z         --- FAIL: TestLogosGenericTypeArgumentPositions/(int?,_(string,_bool))/function (0.00s)
+2026-11-16T16:27:39.6096225Z             typeargs_logos_test.go:55: type (int?, (string, bool)) in function position:
+2026-11-16T16:27:39.6096604Z                 typeargs.lgo:9:48: (int?, (string, bool)) is not a type
+2026-11-16T16:27:39.6096968Z                 typeargs.lgo:9:52: [correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer
+2026-11-16T16:27:39.6097378Z         --- FAIL: TestLogosGenericTypeArgumentPositions/(int?,_(string,_bool))/method (0.00s)
+2026-11-16T16:27:39.6097714Z             typeargs_logos_test.go:55: type (int?, (string, bool)) in method position:
+2026-11-16T16:27:39.6097987Z                 typeargs.lgo:9:59: (int?, (string, bool)) is not a type
+2026-11-16T16:27:39.6098352Z                 typeargs.lgo:9:63: [correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer
+2026-11-16T16:27:39.6098732Z     --- FAIL: TestLogosGenericTypeArgumentPositions/(x_*int?,_y_*(int?)) (0.00s)
+2026-11-16T16:27:39.6099153Z         --- FAIL: TestLogosGenericTypeArgumentPositions/(x_*int?,_y_*(int?))/function (0.00s)
+2026-11-16T16:27:39.6099484Z             typeargs_logos_test.go:55: type (x *int?, y *(int?)) in function position:
+2026-11-16T16:27:39.6099750Z                 typeargs.lgo:9:46: (x * int?, y * (int?)) is not a type
+2026-11-16T16:27:39.6099961Z                 typeargs.lgo:9:47: undefined: x
+2026-11-16T16:27:39.6100286Z                 typeargs.lgo:9:53: [correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer
+2026-11-16T16:27:39.6100677Z         --- FAIL: TestLogosGenericTypeArgumentPositions/(x_*int?,_y_*(int?))/method (0.00s)
+2026-11-16T16:27:39.6101000Z             typeargs_logos_test.go:55: type (x *int?, y *(int?)) in method position:
+2026-11-16T16:27:39.6101263Z                 typeargs.lgo:9:57: (x * int?, y * (int?)) is not a type
+2026-11-16T16:27:39.6101470Z                 typeargs.lgo:9:58: undefined: x
+2026-11-16T16:27:39.6101793Z                 typeargs.lgo:9:64: [correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer
+2026-11-16T16:27:39.6102180Z     --- FAIL: TestLogosGenericTypeArgumentPositions/(x_(int,_string),_y_(int?)?) (0.00s)
+2026-11-16T16:27:39.6102551Z         --- FAIL: TestLogosGenericTypeArgumentPositions/(x_(int,_string),_y_(int?)?)/function (0.00s)
+2026-11-16T16:27:39.6102905Z             typeargs_logos_test.go:55: type (x (int, string), y (int?)?) in function position:
+2026-11-16T16:27:39.6103192Z                 typeargs.lgo:9:54: (x(int, string), y(int?)?) is not a type
+2026-11-16T16:27:39.6103412Z                 typeargs.lgo:9:55: undefined: x
+2026-11-16T16:27:39.6103693Z         --- FAIL: TestLogosGenericTypeArgumentPositions/(x_(int,_string),_y_(int?)?)/method (0.00s)
+2026-11-16T16:27:39.6104040Z             typeargs_logos_test.go:55: type (x (int, string), y (int?)?) in method position:
+2026-11-16T16:27:39.6104325Z                 typeargs.lgo:9:65: (x(int, string), y(int?)?) is not a type
+2026-11-16T16:27:39.6104537Z                 typeargs.lgo:9:66: undefined: x
+2026-11-16T16:27:39.6104748Z --- FAIL: TestLogosNestedTypeArgumentPositions (0.00s)
+2026-11-16T16:27:39.6105003Z     --- FAIL: TestLogosNestedTypeArgumentPositions/*[]int? (0.00s)
+2026-11-16T16:27:39.6105302Z         --- FAIL: TestLogosNestedTypeArgumentPositions/*[]int?/identity[*[]int?] (0.00s)
+2026-11-16T16:27:39.6105618Z             typeargs_nested_logos_test.go:27: type *[]int? via identity[*[]int?]:
+2026-11-16T16:27:39.6106182Z                 typeargs.lgo:10:25: cannot use identity[*[]int?] (value of type func(v *[]int?) *[]int?) as unary[argument] value in variable declaration
+2026-11-16T16:27:39.6106611Z         --- FAIL: TestLogosNestedTypeArgumentPositions/*[]int?/receiver{}.identity[*[]int?] (0.00s)
+2026-11-16T16:27:39.6106958Z             typeargs_nested_logos_test.go:27: type *[]int? via receiver{}.identity[*[]int?]:
+2026-11-16T16:27:39.6107393Z                 typeargs.lgo:10:25: cannot use receiver{}.identity[*[]int?] (value of type func(v *[]int?) *[]int?) as unary[argument] value in variable declaration
+2026-11-16T16:27:39.6107876Z     --- FAIL: TestLogosNestedTypeArgumentPositions/*([]int?) (0.00s)
+2026-11-16T16:27:39.6108186Z         --- FAIL: TestLogosNestedTypeArgumentPositions/*([]int?)/identity[*([]int?)] (0.00s)
+2026-11-16T16:27:39.6108513Z             typeargs_nested_logos_test.go:27: type *([]int?) via identity[*([]int?)]:
+2026-11-16T16:27:39.6108764Z                 typeargs.lgo:10:36: []int? is not a type
+2026-11-16T16:27:39.6109098Z                 typeargs.lgo:10:41: [correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer
+2026-11-16T16:27:39.6109513Z         --- FAIL: TestLogosNestedTypeArgumentPositions/*([]int?)/receiver{}.identity[*([]int?)] (0.00s)
+2026-11-16T16:27:39.6109868Z             typeargs_nested_logos_test.go:27: type *([]int?) via receiver{}.identity[*([]int?)]:
+2026-11-16T16:27:39.6110206Z                 typeargs.lgo:10:47: []int? is not a type
+2026-11-16T16:27:39.6110540Z                 typeargs.lgo:10:52: [correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer
+2026-11-16T16:27:39.6110920Z     --- FAIL: TestLogosNestedTypeArgumentPositions/(<-chan<-chan_int)? (0.00s)
+2026-11-16T16:27:39.6111318Z         --- FAIL: TestLogosNestedTypeArgumentPositions/(<-chan<-chan_int)?/identity[(<-chan<-chan_int)?] (0.00s)
+2026-11-16T16:27:39.6111730Z             typeargs_nested_logos_test.go:27: type (<-chan<-chan int)? via identity[(<-chan<-chan int)?]:
+2026-11-16T16:27:39.6112053Z                 typeargs.lgo:10:34: (<-chan <-chan int)? is not a type
+2026-11-16T16:27:39.6112422Z                 typeargs.lgo:10:52: [correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer
+2026-11-16T16:27:39.6112902Z         --- FAIL: TestLogosNestedTypeArgumentPositions/(<-chan<-chan_int)?/receiver{}.identity[(<-chan<-chan_int)?] (0.00s)
+2026-11-16T16:27:39.6113343Z             typeargs_nested_logos_test.go:27: type (<-chan<-chan int)? via receiver{}.identity[(<-chan<-chan int)?]:
+2026-11-16T16:27:39.6113658Z                 typeargs.lgo:10:45: (<-chan <-chan int)? is not a type
+2026-11-16T16:27:39.6114011Z                 typeargs.lgo:10:63: [correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer
+2026-11-16T16:27:39.6114437Z     --- FAIL: TestLogosNestedTypeArgumentPositions/(x_(a_int,_b_string),_y_[2](c_int,_d_string)) (0.00s)
+2026-11-16T16:27:39.6114940Z         --- FAIL: TestLogosNestedTypeArgumentPositions/(x_(a_int,_b_string),_y_[2](c_int,_d_string))/identity[(x_(a_int,_b_string),_y_[2](c_int,_d_string))] (0.00s)
+2026-11-16T16:27:39.6115485Z             typeargs_nested_logos_test.go:27: type (x (a int, b string), y [2](c int, d string)) via identity[(x (a int, b string), y [2](c int, d string))]:
+2026-11-16T16:27:39.6116064Z                 typeargs.lgo:10:34: (x((a int, b string)), y[2]((c int, d string))) is not a type
+2026-11-16T16:27:39.6116396Z                 typeargs.lgo:10:35: undefined: x
+2026-11-16T16:27:39.6116812Z         --- FAIL: TestLogosNestedTypeArgumentPositions/(x_(a_int,_b_string),_y_[2](c_int,_d_string))/receiver{}.identity[(x_(a_int,_b_string),_y_[2](c_int,_d_string))] (0.00s)
+2026-11-16T16:27:39.6117390Z             typeargs_nested_logos_test.go:27: type (x (a int, b string), y [2](c int, d string)) via receiver{}.identity[(x (a int, b string), y [2](c int, d string))]:
+2026-11-16T16:27:39.6117809Z                 typeargs.lgo:10:45: (x((a int, b string)), y[2]((c int, d string))) is not a type
+2026-11-16T16:27:39.6118050Z                 typeargs.lgo:10:46: undefined: x
+2026-11-16T16:27:39.6118308Z     --- FAIL: TestLogosNestedTypeArgumentPositions/(x_[2][]int?,_y_[3]*int?) (0.00s)
+2026-11-16T16:27:39.6118704Z         --- FAIL: TestLogosNestedTypeArgumentPositions/(x_[2][]int?,_y_[3]*int?)/identity[(x_[2][]int?,_y_[3]*int?)] (0.00s)
+2026-11-16T16:27:39.6119113Z             typeargs_nested_logos_test.go:27: type (x [2][]int?, y [3]*int?) via identity[(x [2][]int?, y [3]*int?)]:
+2026-11-16T16:27:39.6119404Z                 typeargs.lgo:10:48: y[3] * int? is not a type
+2026-11-16T16:27:39.6119696Z                 typeargs.lgo:10:48: undefined: y
+2026-11-16T16:27:39.6120024Z                 typeargs.lgo:10:57: [correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer
+2026-11-16T16:27:39.6120483Z         --- FAIL: TestLogosNestedTypeArgumentPositions/(x_[2][]int?,_y_[3]*int?)/receiver{}.identity[(x_[2][]int?,_y_[3]*int?)] (0.00s)
+2026-11-16T16:27:39.6120923Z             typeargs_nested_logos_test.go:27: type (x [2][]int?, y [3]*int?) via receiver{}.identity[(x [2][]int?, y [3]*int?)]:
+2026-11-16T16:27:39.6121231Z                 typeargs.lgo:10:59: y[3] * int? is not a type
+2026-11-16T16:27:39.6121430Z                 typeargs.lgo:10:59: undefined: y
+2026-11-16T16:27:39.6121760Z                 typeargs.lgo:10:68: [correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer
+2026-11-16T16:27:39.6122122Z FAIL
+2026-11-16T16:27:39.6122258Z FAIL	cmd/compile/internal/types2	0.012s
+2026-11-16T16:27:39.6122412Z FAIL
+2026-11-16T16:27:39.6122575Z                 typeargs.lgo:9:30: int? is not a type
+2026-11-16T16:27:39.6122768Z                 typeargs.lgo:9:41: int? is not a type
+2026-11-16T16:27:39.6123074Z                 typeargs.lgo:9:32: int? is not a type
+2026-11-16T16:27:39.6123349Z                 typeargs.lgo:9:43: int? is not a type
+2026-11-16T16:27:39.6123535Z                 typeargs.lgo:9:35: int? is not a type
+2026-11-16T16:27:39.6123718Z                 typeargs.lgo:9:46: int? is not a type
+2026-11-16T16:27:39.6123899Z                 typeargs.lgo:9:34: int? is not a type
+2026-11-16T16:27:39.6124079Z                 typeargs.lgo:9:45: int? is not a type
+2026-11-16T16:27:39.6124304Z                 typeargs.lgo:9:37: <-chan int? is not a type
+2026-11-16T16:27:39.6124534Z                 typeargs.lgo:9:48: <-chan int? is not a type
+2026-11-16T16:27:39.6124737Z                 typeargs.lgo:10:36: []int? is not a type
+2026-11-16T16:27:39.6124970Z                 typeargs.lgo:10:47: []int? is not a type
+2026-11-16T16:27:39.6125178Z                 typeargs.lgo:10:48: y[3] * int? is not a type
+2026-11-16T16:27:39.6125386Z                 typeargs.lgo:10:59: y[3] * int? is not a type
+2026-11-16T16:27:39.6328471Z ##[group]Run target=cmd/compile/internal/logos/defer.go
+2026-11-16T16:27:39.6328724Z [36;1mtarget=cmd/compile/internal/logos/defer.go[0m
+2026-11-16T16:27:39.6328928Z [36;1msaved="$RUNNER_TEMP/typeargs-defer.go.saved"[0m
+2026-11-16T16:27:39.6329107Z [36;1mcp "$target" "$saved"[0m
+2026-11-16T16:27:39.6329269Z [36;1mtrap 'cp "$saved" "$target"' EXIT[0m
+2026-11-16T16:27:39.6329659Z [36;1mperl -0pi -e 's/\Qhead := drainOwnedAt(fl.ownerOfInsertion(part.start), part.start, 0)\E/head := otext{}/ == 1 or die "expected one type prefix capture\n";' "$target"[0m
+2026-11-16T16:27:39.6330270Z [36;1mif go test -count=1 -short cmd/compile/internal/logos -run '^TestNoLogosNodesSurvive$/^generic_type_arguments.lgo$' > "$RUNNER_TEMP/typeargs-prefix-probe.log" 2>&1; then[0m
+2026-11-16T16:27:39.6330695Z [36;1m  cat "$RUNNER_TEMP/typeargs-prefix-probe.log"[0m
+2026-11-16T16:27:39.6330870Z [36;1m  exit 1[0m
+2026-11-16T16:27:39.6330984Z [36;1mfi[0m
+2026-11-16T16:27:39.6331148Z [36;1mcat "$RUNNER_TEMP/typeargs-prefix-probe.log"[0m
+2026-11-16T16:27:39.6331402Z [36;1mgrep -F 'syntax error: unexpected ]' "$RUNNER_TEMP/typeargs-prefix-probe.log"[0m
+2026-11-16T16:27:39.6331641Z [36;1mcp "$saved" "$target"[0m
+2026-11-16T16:27:39.6331788Z [36;1mcmp "$saved" "$target"[0m
+2026-11-16T16:27:39.6372073Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:27:39.6372269Z env:
+2026-11-16T16:27:39.6372411Z   UPROOT1274: /home/runner/work/_temp/go1.27.4-ci
+2026-11-16T16:27:39.6372614Z   UPROOT1272: /home/runner/work/_temp/go1.27.2
+2026-11-16T16:27:39.6372787Z   UPROOT1273: /home/runner/work/_temp/go1.27.3
+2026-11-16T16:27:39.6372946Z ##[endgroup]
+2026-11-16T16:27:44.4356730Z --- FAIL: TestNoLogosNodesSurvive (0.07s)
+2026-11-16T16:27:44.4357088Z     --- FAIL: TestNoLogosNodesSurvive/generic_type_arguments.lgo (0.06s)
+2026-11-16T16:27:44.4357845Z         lower_test.go:161: /tmp/TestNoLogosNodesSurvivegeneric_type_arguments.lgo3659897633/001/generic_type_arguments.lgo:54:22: syntax error: unexpected ] at end of statement
+2026-11-16T16:27:44.4358465Z             /tmp/TestNoLogosNodesSurvivegeneric_type_arguments.lgo3659897633/001/generic_type_arguments.lgo:54:22: syntax error: unexpected ] at end of statement
+2026-11-16T16:27:44.4358926Z FAIL
+2026-11-16T16:27:44.4359126Z FAIL	cmd/compile/internal/logos	0.069s
+2026-11-16T16:27:44.4359372Z FAIL
+2026-11-16T16:27:44.4370202Z         lower_test.go:161: /tmp/TestNoLogosNodesSurvivegeneric_type_arguments.lgo3659897633/001/generic_type_arguments.lgo:54:22: syntax error: unexpected ] at end of statement
+2026-11-16T16:27:44.4371177Z             /tmp/TestNoLogosNodesSurvivegeneric_type_arguments.lgo3659897633/001/generic_type_arguments.lgo:54:22: syntax error: unexpected ] at end of statement
+2026-11-16T16:27:44.4447930Z ##[group]Run sha256sum --check --strict "$RUNNER_TEMP/typeargs-fixtures.sha256"
+2026-11-16T16:27:44.4448297Z [36;1msha256sum --check --strict "$RUNNER_TEMP/typeargs-fixtures.sha256"[0m
+2026-11-16T16:27:44.4448691Z [36;1mgo test -count=1 -short -timeout 20m cmd/compile/internal/syntax cmd/compile/internal/types2 cmd/compile/internal/logos[0m
+2026-11-16T16:27:44.4490121Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:27:44.4490319Z env:
+2026-11-16T16:27:44.4490465Z   UPROOT1274: /home/runner/work/_temp/go1.27.4-ci
+2026-11-16T16:27:44.4490662Z   UPROOT1272: /home/runner/work/_temp/go1.27.2
+2026-11-16T16:27:44.4490848Z   UPROOT1273: /home/runner/work/_temp/go1.27.3
+2026-11-16T16:27:44.4491065Z ##[endgroup]
+2026-11-16T16:27:44.4560717Z cmd/compile/internal/types2/typeargs_logos_test.go: OK
+2026-11-16T16:27:44.4561172Z cmd/compile/internal/types2/typeargs_nested_logos_test.go: OK
+2026-11-16T16:27:44.4561527Z ../test/logos/run/generic_type_arguments.lgo: OK
+2026-11-16T16:27:44.4561860Z ../test/logos/run/generic_type_arguments.out: OK
+2026-11-16T16:27:44.4562201Z ../test/logos/run/generic_type_argument_index_controls.lgo: OK
+2026-11-16T16:27:44.4562573Z ../test/logos/run/generic_type_argument_index_controls.out: OK
+2026-11-16T16:27:44.4562958Z cmd/go/testdata/script/logos_eject_generic_type_arguments.txt: OK
+2026-11-16T16:27:51.9017576Z ok  	cmd/compile/internal/syntax	5.826s
+2026-11-16T16:27:56.5773637Z ok  	cmd/compile/internal/types2	10.512s
+2026-11-16T16:28:39.8893313Z ok  	cmd/compile/internal/logos	47.307s
+2026-11-16T16:28:39.9129947Z Cleaning up orphan processes

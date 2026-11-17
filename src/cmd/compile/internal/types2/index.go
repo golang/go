@@ -37,6 +37,9 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 	case value:
 		if sig, _ := x.typ().Underlying().(*Signature); sig != nil && sig.TypeParams().Len() > 0 {
 			// function instantiation
+			if check.conf.Logos {
+				syntax.LogosTypeArguments(e)
+			}
 			return true
 		}
 	}

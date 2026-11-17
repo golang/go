@@ -158,7 +158,7 @@ func (js *jsonStruct) valueLines(f *jsonField) []string {
 
 func (js *jsonStruct) quotedMethodCall(f *jsonField, field, valueName, ptrName string) []string {
 	if p, isPtr := unaliasConstView(f.typ).(*types2.Pointer); isPtr {
-		elem := types2.TypeString(unaliasConstView(p.Elem()), js.qualify)
+		elem := sourceTypeString(unaliasConstView(p.Elem()), js.qualify, js.holderPkg, js.cgoSource)
 		return []string{fmt.Sprintf("%s.%s[%s](&_logos_s, &%s)", jsonAlias, ptrName, elem, field)}
 	}
 	return []string{fmt.Sprintf("%s.%s(&_logos_s, &%s)", jsonAlias, valueName, field)}
@@ -166,10 +166,10 @@ func (js *jsonStruct) quotedMethodCall(f *jsonField, field, valueName, ptrName s
 
 func (js *jsonStruct) quotedFromHead(f *jsonField, field string) string {
 	if p, isPtr := unaliasConstView(f.typ).(*types2.Pointer); isPtr {
-		elem := types2.TypeString(unaliasConstView(p.Elem()), js.qualify)
+		elem := sourceTypeString(unaliasConstView(p.Elem()), js.qualify, js.holderPkg, js.cgoSource)
 		return fmt.Sprintf("!%s.QuotedFromPtr[%s](&_logos_s, &%s)", jsonAlias, elem, field)
 	}
-	elem := types2.TypeString(unaliasConstView(f.typ), js.qualify)
+	elem := sourceTypeString(unaliasConstView(f.typ), js.qualify, js.holderPkg, js.cgoSource)
 	return fmt.Sprintf("!%s.QuotedFrom[%s](&_logos_s, &%s)", jsonAlias, elem, field)
 }
 
@@ -201,7 +201,7 @@ type jsonUnionClass struct {
 }
 
 func (js *jsonStruct) unionMembersOf(utyp types2.Type) (jsonUnionClass, bool) {
-	members, names, ok := classifyUnionMembers(js.holderPkg, js.staticJSON, utyp, js.qualify)
+	members, names, ok := classifyUnionMembers(js.holderPkg, js.staticJSON, utyp, js.qualify, js.cgoSource)
 	if !ok || len(members) == 0 {
 		return jsonUnionClass{}, false
 	}
@@ -469,7 +469,7 @@ func (js *jsonStruct) unionContainerType(t types2.Type) string {
 	case *types2.Map:
 		return "map[" + js.unionContainerType(u.Key()) + "]" + js.unionContainerType(u.Elem())
 	}
-	return types2.TypeString(t, js.qualify)
+	return sourceTypeString(t, js.qualify, js.holderPkg, js.cgoSource)
 }
 
 func (js *jsonStruct) unionAddr(uc *unionContainer, target string) string {
@@ -578,10 +578,14 @@ func (js *jsonStruct) unionLevelLines(f *jsonField, cls jsonUnionClass, uc *unio
 
 func (f *jsonField) pointerLines(field string) []string {
 	fill := fmt.Sprintf("%s(&_logos_s, %s.Alloc(&%s))", f.codec().decodeFn(), jsonAlias, field)
-	if f.required >= 0 {
-		return []string{fill}
+	lines := []string{fill}
+	if f.required < 0 {
+		lines = ifElseLines("_logos_s.Null()", []string{field + " = nil"}, lines)
 	}
-	return ifElseLines("_logos_s.Null()", []string{field + " = nil"}, []string{fill})
+	if f.quoted {
+		return ifElseLines("_logos_s.QuotedNull()", []string{field + " = nil"}, lines)
+	}
+	return lines
 }
 
 func (js *jsonStruct) requiredCheck() []string {
@@ -675,7 +679,7 @@ func (js *jsonStruct) foreignKeyedMembers(f *jsonField) []unionMemberClass {
 		}
 		typ = uc.union
 	}
-	members, _, ok := classifyUnionMembers(js.holderPkg, js.staticJSON, typ, js.qualify)
+	members, _, ok := classifyUnionMembers(js.holderPkg, js.staticJSON, typ, js.qualify, js.cgoSource)
 	if !ok {
 		return nil
 	}

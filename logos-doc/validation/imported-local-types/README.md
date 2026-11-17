@@ -1,263 +1,109 @@
-# Imported generic local type validation
+# Imported compiler symbols: M0-A-S17
 
-The real-code corpus exposed an internal compiler error in valid Go:
-`golang.org/x/tools/cmd/digraph` imported a package containing a local type
-that captures a generic receiver's type parameter. The LoGOs fact walker
-resolved that compiler-only local symbol through the public type importer,
-which correctly rejected the missing enclosing dictionary.
+Existing candidate `39c62004a991501a25f93eae7a63dc7c7fac5646` repairs an ordinary-Go
+compiler error when an imported generic function or method declares a local
+type that captures its type parameters. This integration preserves the single
+production file and both frozen test files byte for byte. REDTEAM #418 remains
+planned until the merged toolchain completes its acceptance gates.
 
-Production revision `39c62004a991501a25f93eae7a63dc7c7fac5646` restricts
-eager scope lookups to valid source declaration identifiers. All 48 new cells
-and all 61 earlier dogfood regression cells pass with the rebuilt installed
-toolchain. The five affected packages pass their full short test suites,
-and the pinned upstream `digraph` package passes all seven top-level tests
-under stock Go, fork Go, and LoGOs. The initially killed automatic vet process
-passed its dedicated retry; the normal package gate and affected-package vet
-also pass.
+## Source and binary provenance
 
-The [gate record](gates.json) preserves commands, environment overrides, exit
-codes, and log hashes, including the interrupted combined command.
-Raw `.log` files retain the compiler and test runner's exact whitespace.
-This directory's `.gitattributes` marks those logs as verbatim data for Git
-whitespace checking; authored source, documentation, and replay code use the
-normal checks.
+The original corpus input is `golang.org/x/tools v0.52.0`, revision
+`16517d951552611e7bd358c48ee1051fd0e57b0c`. Independent hashing of all 1,624
+extracted module files gives the pinned digest
+`h1:ryxg4U63oaUYk7uOLTF37n43f4qgtGvqV4Ioit1BaEs=`. The original comparison ran
+`go build ./...` with cgo disabled and downloads off. The focused replay builds
+24 byte-identical files from `go.mod`, `go.sum`, `cmd/digraph`, and
+`internal/graph`; [upstream-input.sha256](upstream-input.sha256) records their
+paths relative to that module. The external source is not duplicated here.
 
-## Real source and reduction
+| Comparator | Source identity | Driver SHA-256 | Compiler SHA-256 |
+|---|---|---|---|
+| Stock Go | Pristine Go 1.27.4 | `de0ae3e082ce7599eae4fb69fa2ef1e43b8f31ffd3fce62cdf81930aa9005050` | `40307e5f5c65a4b4220bbf35dbe014348780589ea2964003f0bf318fa14640e1` |
+| S3 fork | `584c7ece750d3e9508bb21c5a95d751dbf18cce2` | `3d9780d7f455d7b75920b5ce61f8cd34ed6a4f1c3bc539c394ee2b91d3ee2baf` | `85d01f687bcd896258299e4e0a74b21d2e817f1ab1393b20109bf96ba26954ee` |
+| Existing repaired fork | Recorded build source `39c62004a991501a25f93eae7a63dc7c7fac5646` | `9625c880740e0b8ba821dbc5f3ab9ff16ceb727799e340be902a0b94ad900c8e` | `11647b40eb1e8d4442f1ef8409ff4e4acb230b6ffc3635365b96112df01be0fd` |
 
-The original source is `golang.org/x/tools v0.52.0`, from the
-[Go source mirror](https://go.googlesource.com/tools), revision
-`16517d951552611e7bd358c48ee1051fd0e57b0c`, with verified module digest
-`h1:ryxg4U63oaUYk7uOLTF37n43f4qgtGvqV4Ioit1BaEs=`. The corpus manifest and
-report retain this provenance. Its `internal/graph/graphfmt/dot.go` contains a
-local `cluster` type inside `Dot[NodeID].Sprint`; that local type contains a
-`[]NodeID` field. The focused replay uses only the original module files,
-`cmd/digraph`, and `internal/graph`; all 24 copied files are byte-identical to
-the verified module source and recorded in [upstream-input.sha256](upstream-input.sha256).
+S3 is a component toolchain based on the earlier fork, not a rebuilt combined
+integration. The repaired fork's six installed tool hashes match
+[author/binaries.sha256](author/binaries.sha256). Its current source has no
+changes under `src` after the recorded repair commit. The source and frozen
+test hashes match that commit. Each independent candidate invocation checked
+the driver and compiler identities before and after execution.
 
-The reduced imported library is:
+## Frozen independent replay
 
-```go
-package lib
+The five programs are the unchanged plain-Go cells of
+`src/cmd/compile/internal/logos/compile_local_type_import_test.go`, including
+separate importing modules and exact result assertions.
 
-type Box[T any] struct{}
+| Input | Stock Go | S3 fork | Existing repair |
+|---|---|---|---|
+| Generic method with a captured local type | Correct output | ICE: 1 implicit parameter | Correct output |
+| Generic function with a captured local type | Correct output | ICE: 1 implicit parameter | Correct output |
+| Nested locals capturing two parameters | Correct output | ICE: 2 implicit parameters | Correct output |
+| Nongeneric local-type control | Correct output | Correct output | Correct output |
+| Package-level generic-type control | Correct output | Correct output | Correct output |
+| Exact upstream `cmd/digraph` build | Builds | ICE: 1 implicit parameter | Builds |
 
-func (Box[T]) Pass(value T) T {
-    type local struct{ value T }
-    return local{value}.value
-}
-```
+These are **18 commands: 15 program executions and three builds**. Successful
+programs exit zero and print exactly `generic local ok\n`; successful builds
+exit zero without output and produce an executable. The four S3 failures have
+the expected internal compiler error. No command times out or exhausts memory.
 
-A separate main package imports it, calls `(lib.Box[string]{}).Pass("ok")`, and checks
-the returned value. Stock Go 1.27.4 executes this program and builds the exact
-upstream `cmd/digraph` source. The pre-repair fork crashes on both. The preserved
-[real-code stack](digraph-red.log) locates the call chain:
-`ApplyFuncFacts`, `reachableFuncFactObjects`, `Scope.Lookup`, and then
-`importer.objDictIdx`.
+The [independent records](independent/) preserve all commands, environment
+overrides, times, exit codes, hashes, and raw stdout/stderr. The historical
+[input manifest](independent/input-manifest.txt) was frozen before execution
+and verified afterward; its paths are relative to the original replay root,
+not this repository. Its two original test-file hashes identify the committed
+fixtures, and its upstream hashes identify the pinned module subset.
+All runs used private caches, `GOMAXPROCS=1`, `-p=1`, a 384 MiB soft heap limit,
+`CGO_ENABLED=0`, local toolchain selection, and disabled downloads. Existing
+source and module caches were read-only inputs. No compiler rebuild or
+production edit was performed during this independent review or integration.
 
-Imported scopes contain lazy compiler symbols such as `local·1`. These are not
-source declaration names, but the old filter excluded only names containing
-an ASCII period. Resolving a hoisted generic local type requires its enclosing
-dictionary. Fact application has no reason to force this local symbol.
+## Reviewed candidate evidence and attempt count
 
-## Invariant and repair
+The retained author evidence covers **48 frozen cells**: 28 lazy-scope tests
+and 20 compiler/runtime cells across plain Go, LoGOs handling Go, interoperation,
+and structural overlays. [RED](author/red.log) records 16 forbidden lazy
+lookups and 12 generic compiler errors; the other cells are controls.
+[Installed GREEN](author/installed.log) explicitly runs all 48 cells without
+skips. The [identifier-filter probe](author/scope-probe.log) fails 28 cells;
+the [direct-readonly-lookup probe](author/readonly-probe.log) fails 12.
+[Restoration](author/restored.log) passes the scope and existing metadata gates.
+These complete author gates are reviewed records, not independent reruns here.
+Raw logs retain their original bytes, including whitespace in the RED output.
 
-Before looking up scope objects, fact traversal and overlay cloning now retain
-only `token.IsIdentifier` names. The same condition guards the direct readonly
-fact lookup. Private declarations and valid Unicode identifiers remain
-reachable. Methods continue to be reached through their declaring types.
+This slice has used **one production candidate out of three**. The interrupted
+bootstrap and cache setup failure are retained separately and did not change
+the implementation. The [build observation](author/build-observation.json)
+records the final dist completion banner and installed-tool observation; the
+original shell exit status was not recovered. No exit status is invented.
 
-The public importer assertion and the export format are unchanged. The scope's
-fresh sorted name slice is filtered in place, preserving declaration order.
-The [production digest](production.sha256) identifies the single changed
-production file.
+The repair and frozen tests were locally committed when reviewed. The author's
+validation directory was then untracked; the selected records here preserve
+that reviewed snapshot. The public PR #66 head at review was
+`3a87df9d1b60279aafcfd01e5692719f53d9a57c`, which did not contain this repair.
 
-## Test-first evidence
+## Integration and required acceptance
 
-The attack tests were added before changing production code and remain at
-their [frozen hashes](frozen-tests.sha256). There are **48 new cells**:
+The candidate's production preimage matched integration base
+`198b36928fa826a2a8331efcaed883debb3def49`. Cherry-pick `0db13853` preserves its
+production and frozen-test bytes; follow-up integration changes only tracking
+and evidence. SPEC 5 and T-Sec5 state the invariant: resolve source declaration
+identifiers before lazy lookup, retain legal private/Unicode declarations, and
+reach method facts through declaring types. The importer assertion and export
+format remain unchanged.
 
-- **28 scope cells** cross four compiler-only symbol forms with function
-  facts, readonly facts, empty facts, declaration cloning, structural cloning,
-  and direct readonly lookup. A lazy resolver fails immediately if invoked.
-  Each operation also checks the source declarations and applicable metadata
-  it must preserve, including `private`, `Ω`, interface method facts, and a
-  structural const overlay.
-- **20 compiler cells** cross generic method locals, generic function locals,
-  nested locals capturing two type parameters, and two valid nearby controls
-  with plain Go, LoGOs handling Go, Go-to-LoGOs interoperation, and a native
-  structural overlay. Every cell runs a fresh module and requires its exact
-  `generic local ok` output.
-
-| Stage | Observed result | Evidence |
-| --- | --- | --- |
-| Stock Go oracle | Reduced program executes; exact upstream `cmd/digraph` builds. | [Minimal oracle](minimal-oracle.log), [upstream oracle](digraph-oracle.log) |
-| Pre-repair fork | Reduced and upstream imports crash with an implicit type parameter error. | [Minimal RED](minimal-red.log), [upstream RED](digraph-red.log) |
-| Reconstructed baseline production | Both cases reproduce the same error with baseline compiler source. | [Minimal baseline](minimal-baseline-red.log), [upstream baseline](digraph-baseline-red.log) |
-| Frozen regression tests | 16 scope cells force forbidden lazy objects; 12 generic compiler cells crash. The other 20 cells pass. | [Frozen RED](red.log) |
-| Attempt one, scope tests | All 28 scope cells pass. | [Unit GREEN](scope-green.log) |
-| Clean restoration | New scope tests and existing Apply, CloneWith, and CopyFunc tests pass with `-count=1`. | [Restored gate](restored.log) |
-| Rebuilt installed compiler | All 20 compiler/runtime cells and all 28 scope cells pass, with no skips. | [Installed gate](installed.log) |
-| Full short package tests | Logos, importer, noder, lint, and types2 test suites pass individually. The combined command exits 1 because SSA's automatic vet process was killed. | [Interrupted combined gate](full-interrupted.log) |
-| Dedicated retry | Standalone SSA vet exits zero. Noder's full short suite then exits zero with normal automatic vet enabled. | [SSA vet](ssa-vet-retry.log), [noder retry](noder-retry.log) |
-| Earlier repairs and final checks | All 61 closer/panic regression cells pass; vet for all five affected packages, formatting, source identity, and frozen hashes pass. | [Earlier regressions](prior-regressions.log), [vet](vet.log), [formatting](format.log), [hash checks](checks.log) |
-| Upstream runtime | All seven top-level tests and 33 subtests pass under each of three drivers, with original input bytes preserved. | [Runtime report](digraph/report.json) |
-
-The empty stock-Go oracle logs are successful commands with no output. They
-are build and reduction evidence; they are not included in the three upstream
-package-test invocations below. The final vet and format logs are also empty
-successful results.
-
-### Baseline reconstruction
-
-The pristine fork production baseline is
-`bd318f1c558f3aa73ad434929fba7f237db9877f`. To distinguish this defect from
-earlier dogfood repairs without replacing the installed toolchain, a Go source
-overlay restored the six production files changed since that baseline. No
-other non-test compiler production file differed. Their exact baseline bytes
-are recorded in [baseline-source.sha256](baseline-source.sha256).
-
-The [overlay](baseline-overlay.json) built a separate compiler, identified by
-[its digest](baseline-binary.sha256). A [transparent wrapper](baseline-toolexec.sh)
-selected that binary only for compilation; all other tools remained the
-installed tools. This source reconstruction used the installed host toolchain;
-its build metadata can differ from an original baseline build. The compiler
-was invoked through a symlink named `compile`,
-as required by Go's tool-version handshake. An initial launch under the name
-`compile-baseline` was rejected by that handshake. Its [log](baseline-launch-rejected.log)
-is retained but is excluded from behavioral evidence. The subsequent reduced
-and real-code failures came from the correctly launched baseline compiler.
-
-The checked-in overlay and wrapper preserve original evidence paths. Recreate
-them with local paths when replaying; obtain each listed source from
-`git show bd318f1c558f3aa73ad434929fba7f237db9877f:<path>`.
-
-### Mutation controls
-
-Both probes use source overlays and leave the production tree unchanged.
-
-| Mutation | Observed failure | Evidence |
-| --- | --- | --- |
-| Invert the declaration identifier filter. | All 28 scope cells fail on forced compiler symbols or lost source declarations. | [Scope probe](scope-probe.log) |
-| Invert the direct readonly lookup guard. | 12 cells fail on lost interface method metadata or forced compiler symbols. | [Readonly probe](readonly-probe.log) |
-
-The unmodified production source passes the restoration gate afterward. This
-slice has used one implementation candidate; the killed bootstrap process
-does not change the implementation or establish a test result.
-
-## Rebuilt toolchain
-
-The first full rebuild was [interrupted](build-interrupted.log) when its
-compiler process was killed during toolchain three. A serial retry used
-`GOMAXPROCS=1`, `GOFLAGS=-p=1`, `GOMEMLIMIT=384MiB`, `GOGC=30`, and a disk-backed
-temporary directory. The [successful build log](build.log) records dist's final
-completion banner. The shell session's exit metadata was lost during session
-compaction, so the [observation record](build-observation.json) preserves the
-observed banner and removed bootstrap tool without inventing an exit status.
-
-Compiler source remained fixed at the [recorded revision](build-source.txt).
-The six final tool hashes are in [binaries.sha256](binaries.sha256), with their
-reported [versions](versions.json). An initial test launch encountered a
-dangling cache symlink because dist had removed its private cache at exit.
-The [setup error](cache-launch-failed.log) occurred before any test started.
-The cache was replaced with an independent directory before the passing
-installed gate; this setup failure contributes no test count.
-
-The first combined package command produced five passing test-package results
-but exited 1 because SSA's automatic vet process was killed. The exact raw
-failure is retained. Other validation jobs were paused for the standalone SSA
-vet retry and the subsequent noder retry; both exited zero. No analyzer or
-test was disabled. The final explicit vet command also passed for logos,
-importer, noder, lint, and types2.
-
-## Pinned upstream runtime
-
-The [replay script](replay_digraph.py) verifies the complete module against its
-pinned digest, checks the focused input manifest, creates an independent
-private source copy for each driver, and runs:
-
-```sh
-go test -p=1 -count=1 -json -timeout=120s ./cmd/digraph
-```
-
-It requires exactly the seven expected top-level test names, a passing package
-event, matching run/pass events for every subtest, and no failed, skipped, or
-duplicate test events. The original input file digests must remain unchanged.
-The report records the actual command, environment, exit code, elapsed time,
-output hashes, driver/tool hashes, and compiler source digest.
-
-| Driver | Package-test invocations | Top-level tests | Subtests | Result |
-| --- | ---: | ---: | ---: | --- |
-| Stock Go 1.27.4 | 1 | 7 | 33 | Pass, 1.534s |
-| Rebuilt fork Go | 1 | 7 | 33 | Pass, 1.782s |
-| Rebuilt LoGOs | 1 | 7 | 33 | Pass, 1.522s |
-
-`TestToDot` executes the precise generic receiver method that exposed the
-compiler error and checks the complete DOT output, including escaped labels.
-The other tests exercise graph queries, path and cycle handling, quoting, and
-focus operations. These are **three successful upstream package-test
-invocations**. The unit checks, compiler-only cases, build commands, and vet
-commands are excluded from that count.
-
-## Reproduction
-
-Put the repository's built toolchain first on `PATH`, set `GOROOT` to the
-checkout, and use pristine Go 1.27.4 for `GOROOT_BOOTSTRAP`. The recorded runs
-use linux/amd64, `GOTOOLCHAIN=local`, one package worker, and at most two Go
-execution threads. These limits do not filter test cases.
-
-From `src/`, the package gates are:
-
-```sh
-GOROOT_BOOTSTRAP=/path/to/pristine/go1.27.4 ./make.bash
-
-go test -p=1 -count=1 -short -timeout=30m \
-  cmd/compile/internal/logos \
-  cmd/compile/internal/importer \
-  cmd/compile/internal/noder \
-  cmd/compile/internal/logos/lint cmd/compile/internal/types2
-
-go vet -p=1 cmd/compile/internal/logos \
-  cmd/compile/internal/importer cmd/compile/internal/noder \
-  cmd/compile/internal/logos/lint cmd/compile/internal/types2
-```
-
-The dedicated retry used `go vet -p=1 cmd/compile/internal/ssa`, followed by
-`go test -p=1 -count=1 -short -timeout=30m cmd/compile/internal/noder`.
-
-The focused attack command is:
-
-```sh
-go test -p=1 -count=1 -short cmd/compile/internal/logos \
-  -run '^Test(CompileImportedLocalType|FactScopeLeavesCompilerSymbolsLazy)$'
-```
-
-From the repository root, verify frozen tests and production input with:
+From the repository root, verify the committed inputs and records:
 
 ```sh
 sha256sum -c logos-doc/validation/imported-local-types/frozen-tests.sha256
 sha256sum -c logos-doc/validation/imported-local-types/production.sha256
+sha256sum -c logos-doc/validation/imported-local-types/evidence.sha256
 ```
 
-Replay the upstream runtime check with a new output directory and prepared
-module/build caches:
-
-```sh
-uv run --no-project python \
-  logos-doc/validation/imported-local-types/replay_digraph.py \
-  --oracle /path/to/pristine/go1.27.4/bin/go \
-  --candidate "$PWD/bin/go" --logos "$PWD/bin/logos" \
-  --module-cache /path/to/module-cache --cache-root /path/to/build-caches \
-  --tmpdir /path/to/temp --out /path/to/new-output
-```
-
-The replay passed Ruff 0.17.5 formatting/lint checks and `ty` 0.0.104
-[typechecking](replay-checks.log). The [file manifest](files.sha256) covers the
-preserved evidence and replay script.
-
-## Scope
-
-The repair is confined to imported fact and overlay traversal. These checks
-do not claim a full upstream `run.bash` pass or a performance improvement.
-The earlier lint repairs and runtime campaign retain their separate
-[compiler evidence](../dogfood-lint/README.md) and
-[runtime evidence](../../../misc/logos-dogfood/evidence/2026-11-16/runtime/README.md).
+A fresh merged `make.bash`, complete affected compiler-package tests and vet,
+and the configured upstream regression gate remain required. Existing CI owns
+those gates. This report does not claim a merged installed-compiler pass,
+complete external-corpus pass, or full upstream `run.bash` pass.

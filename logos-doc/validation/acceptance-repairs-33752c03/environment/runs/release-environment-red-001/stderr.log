@@ -1,0 +1,64 @@
+test_acceptance_does_not_inherit_build_limits (__main__.BootstrapEnvironmentTests.test_acceptance_does_not_inherit_build_limits) ... 
+  test_acceptance_does_not_inherit_build_limits (__main__.BootstrapEnvironmentTests.test_acceptance_does_not_inherit_build_limits) (name='GOMAXPROCS') ... FAIL
+  test_acceptance_does_not_inherit_build_limits (__main__.BootstrapEnvironmentTests.test_acceptance_does_not_inherit_build_limits) (name='GOGC') ... FAIL
+  test_acceptance_does_not_inherit_build_limits (__main__.BootstrapEnvironmentTests.test_acceptance_does_not_inherit_build_limits) (name='GOMEMLIMIT') ... FAIL
+  test_acceptance_does_not_inherit_build_limits (__main__.BootstrapEnvironmentTests.test_acceptance_does_not_inherit_build_limits) (name='GOFLAGS') ... FAIL
+test_c_and_cxx_compilers_have_matching_lto_versions (__main__.BootstrapEnvironmentTests.test_c_and_cxx_compilers_have_matching_lto_versions) ... FAIL
+test_go_test_temp_files_are_inside_the_local_temp_boundary (__main__.BootstrapEnvironmentTests.test_go_test_temp_files_are_inside_the_local_temp_boundary) ... FAIL
+test_make_is_bounded_and_acceptance_uses_a_new_cache (__main__.BootstrapEnvironmentTests.test_make_is_bounded_and_acceptance_uses_a_new_cache) ... ok
+
+======================================================================
+FAIL: test_acceptance_does_not_inherit_build_limits (__main__.BootstrapEnvironmentTests.test_acceptance_does_not_inherit_build_limits) (name='GOMAXPROCS')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/9949907ca71e/logos-release-env-fix/logos-doc/validation/release-acceptance/test_bootstrap_environment.py", line 140, in test_acceptance_does_not_inherit_build_limits
+    self.assertNotIn(
+AssertionError: 'GOMAXPROCS' unexpectedly found in mappingproxy({'GOMAXPROCS': '2', 'GOGC': '50', 'GOMEMLIMIT': '2GiB', 'GOFLAGS': '-p=2', 'TMPDIR': '/tmp/logos-bootstrap-contract-ev01qay1/runner/job/tmp', 'GOTMPDIR': '/tmp/logos-bootstrap-contract-ev01qay1/runner/job/go-tmp', 'GOCACHE': '/tmp/logos-bootstrap-contract-ev01qay1/runner/job/postbuild-cache', 'CC': '/tmp/logos-bootstrap-contract-ev01qay1/commands/gcc-14', 'PATH': '/tmp/logos-bootstrap-contract-ev01qay1/runner/job/c23:/tmp/logos-bootstrap-contract-ev01qay1/repo/bin:/tmp/logos-bootstrap-contract-ev01qay1/repo/lib/wasm:/tmp/logos-bootstrap-contract-ev01qay1/runner/go1.27.4-ci/bin:/tmp/logos-bootstrap-contract-ev01qay1/runner/node-v26.13.1-ci/bin:/tmp/logos-bootstrap-contract-ev01qay1/commands'}) : make-only GOMAXPROCS reaches the acceptance environment
+
+======================================================================
+FAIL: test_acceptance_does_not_inherit_build_limits (__main__.BootstrapEnvironmentTests.test_acceptance_does_not_inherit_build_limits) (name='GOGC')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/9949907ca71e/logos-release-env-fix/logos-doc/validation/release-acceptance/test_bootstrap_environment.py", line 140, in test_acceptance_does_not_inherit_build_limits
+    self.assertNotIn(
+AssertionError: 'GOGC' unexpectedly found in mappingproxy({'GOMAXPROCS': '2', 'GOGC': '50', 'GOMEMLIMIT': '2GiB', 'GOFLAGS': '-p=2', 'TMPDIR': '/tmp/logos-bootstrap-contract-ev01qay1/runner/job/tmp', 'GOTMPDIR': '/tmp/logos-bootstrap-contract-ev01qay1/runner/job/go-tmp', 'GOCACHE': '/tmp/logos-bootstrap-contract-ev01qay1/runner/job/postbuild-cache', 'CC': '/tmp/logos-bootstrap-contract-ev01qay1/commands/gcc-14', 'PATH': '/tmp/logos-bootstrap-contract-ev01qay1/runner/job/c23:/tmp/logos-bootstrap-contract-ev01qay1/repo/bin:/tmp/logos-bootstrap-contract-ev01qay1/repo/lib/wasm:/tmp/logos-bootstrap-contract-ev01qay1/runner/go1.27.4-ci/bin:/tmp/logos-bootstrap-contract-ev01qay1/runner/node-v26.13.1-ci/bin:/tmp/logos-bootstrap-contract-ev01qay1/commands'}) : make-only GOGC reaches the acceptance environment
+
+======================================================================
+FAIL: test_acceptance_does_not_inherit_build_limits (__main__.BootstrapEnvironmentTests.test_acceptance_does_not_inherit_build_limits) (name='GOMEMLIMIT')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/9949907ca71e/logos-release-env-fix/logos-doc/validation/release-acceptance/test_bootstrap_environment.py", line 140, in test_acceptance_does_not_inherit_build_limits
+    self.assertNotIn(
+AssertionError: 'GOMEMLIMIT' unexpectedly found in mappingproxy({'GOMAXPROCS': '2', 'GOGC': '50', 'GOMEMLIMIT': '2GiB', 'GOFLAGS': '-p=2', 'TMPDIR': '/tmp/logos-bootstrap-contract-ev01qay1/runner/job/tmp', 'GOTMPDIR': '/tmp/logos-bootstrap-contract-ev01qay1/runner/job/go-tmp', 'GOCACHE': '/tmp/logos-bootstrap-contract-ev01qay1/runner/job/postbuild-cache', 'CC': '/tmp/logos-bootstrap-contract-ev01qay1/commands/gcc-14', 'PATH': '/tmp/logos-bootstrap-contract-ev01qay1/runner/job/c23:/tmp/logos-bootstrap-contract-ev01qay1/repo/bin:/tmp/logos-bootstrap-contract-ev01qay1/repo/lib/wasm:/tmp/logos-bootstrap-contract-ev01qay1/runner/go1.27.4-ci/bin:/tmp/logos-bootstrap-contract-ev01qay1/runner/node-v26.13.1-ci/bin:/tmp/logos-bootstrap-contract-ev01qay1/commands'}) : make-only GOMEMLIMIT reaches the acceptance environment
+
+======================================================================
+FAIL: test_acceptance_does_not_inherit_build_limits (__main__.BootstrapEnvironmentTests.test_acceptance_does_not_inherit_build_limits) (name='GOFLAGS')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/9949907ca71e/logos-release-env-fix/logos-doc/validation/release-acceptance/test_bootstrap_environment.py", line 140, in test_acceptance_does_not_inherit_build_limits
+    self.assertNotIn(
+AssertionError: 'GOFLAGS' unexpectedly found in mappingproxy({'GOMAXPROCS': '2', 'GOGC': '50', 'GOMEMLIMIT': '2GiB', 'GOFLAGS': '-p=2', 'TMPDIR': '/tmp/logos-bootstrap-contract-ev01qay1/runner/job/tmp', 'GOTMPDIR': '/tmp/logos-bootstrap-contract-ev01qay1/runner/job/go-tmp', 'GOCACHE': '/tmp/logos-bootstrap-contract-ev01qay1/runner/job/postbuild-cache', 'CC': '/tmp/logos-bootstrap-contract-ev01qay1/commands/gcc-14', 'PATH': '/tmp/logos-bootstrap-contract-ev01qay1/runner/job/c23:/tmp/logos-bootstrap-contract-ev01qay1/repo/bin:/tmp/logos-bootstrap-contract-ev01qay1/repo/lib/wasm:/tmp/logos-bootstrap-contract-ev01qay1/runner/go1.27.4-ci/bin:/tmp/logos-bootstrap-contract-ev01qay1/runner/node-v26.13.1-ci/bin:/tmp/logos-bootstrap-contract-ev01qay1/commands'}) : make-only GOFLAGS reaches the acceptance environment
+
+======================================================================
+FAIL: test_c_and_cxx_compilers_have_matching_lto_versions (__main__.BootstrapEnvironmentTests.test_c_and_cxx_compilers_have_matching_lto_versions)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/9949907ca71e/logos-release-env-fix/logos-doc/validation/release-acceptance/test_bootstrap_environment.py", line 160, in test_c_and_cxx_compilers_have_matching_lto_versions
+    self.assertEqual(versions["CC"], versions["CXX"],
+AssertionError: '14.2.0' != '13.1.0'
+- 14.2.0
++ 13.1.0
+ : C and C++ LTO versions differ: {'CC': '14.2.0', 'CXX': '13.1.0'}
+
+======================================================================
+FAIL: test_go_test_temp_files_are_inside_the_local_temp_boundary (__main__.BootstrapEnvironmentTests.test_go_test_temp_files_are_inside_the_local_temp_boundary)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/9949907ca71e/logos-release-env-fix/logos-doc/validation/release-acceptance/test_bootstrap_environment.py", line 169, in test_go_test_temp_files_are_inside_the_local_temp_boundary
+    self.assertTrue(
+AssertionError: False is not true : GOTMPDIR fixture /tmp/logos-bootstrap-contract-ev01qay1/runner/job/go-tmp/tmp77gf90yr/linker-input.o lies outside local TMPDIR /tmp/logos-bootstrap-contract-ev01qay1/runner/job/tmp
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.020s
+
+FAILED (failures=6)

@@ -407,61 +407,10 @@ func GOGOARCH() (name, value string) {
 }
 
 func gogoarchTags() []string {
-	switch GOARCH {
-	case "386":
-		return []string{GOARCH + "." + GO386}
-	case "amd64":
-		var list []string
-		for i := 1; i <= GOAMD64; i++ {
-			list = append(list, fmt.Sprintf("%s.v%d", GOARCH, i))
-		}
-		return list
-	case "arm":
-		var list []string
-		for i := 5; i <= GOARM.Version; i++ {
-			list = append(list, fmt.Sprintf("%s.%d", GOARCH, i))
-		}
-		return list
-	case "arm64":
-		var list []string
-		major := int(GOARM64.Version[1] - '0')
-		minor := int(GOARM64.Version[3] - '0')
-		for i := 0; i <= minor; i++ {
-			list = append(list, fmt.Sprintf("%s.v%d.%d", GOARCH, major, i))
-		}
-		// ARM64 v9.x also includes support of v8.x+5 (i.e. v9.1 includes v8.(1+5) = v8.6).
-		if major == 9 {
-			for i := 0; i <= minor+5 && i <= 9; i++ {
-				list = append(list, fmt.Sprintf("%s.v%d.%d", GOARCH, 8, i))
-			}
-		}
-		return list
-	case "mips", "mipsle":
-		return []string{GOARCH + "." + GOMIPS}
-	case "mips64", "mips64le":
-		return []string{GOARCH + "." + GOMIPS64}
-	case "ppc64", "ppc64le":
-		var list []string
-		for i := 8; i <= GOPPC64; i++ {
-			list = append(list, fmt.Sprintf("%s.power%d", GOARCH, i))
-		}
-		return list
-	case "riscv64":
-		list := []string{GOARCH + "." + "rva20u64"}
-		if GORISCV64 >= 22 {
-			list = append(list, GOARCH+"."+"rva22u64")
-		}
-		if GORISCV64 >= 23 {
-			list = append(list, GOARCH+"."+"rva23u64")
-		}
-		return list
-	case "wasm":
-		var list []string
-		// SatConv is always enabled
-		list = append(list, GOARCH+".satconv")
-		// SignExt is always enabled
-		list = append(list, GOARCH+".signext")
-		return list
+	_, value := GOGOARCH()
+	tags, err := gogoarchTagsFor(GOARCH, value, false)
+	if err != nil {
+		panic(err) // Settings other than raw GO386 have already been parsed.
 	}
-	return nil
+	return tags
 }

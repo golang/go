@@ -1,0 +1,5 @@
+{
+  "Replace": {
+    "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/cmd/go/internal/logos/eject/variant_features_test.go": "/workspace/scratch/9949907ca71e/hosted-evidence/runtime/lint-followup/cleanup-mutant/variant_features_test.go"
+  }
+}

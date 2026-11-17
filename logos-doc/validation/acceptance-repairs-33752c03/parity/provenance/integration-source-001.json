@@ -1,0 +1,41 @@
+{
+  "base": "2535486fe9596a9212d525a5007963ef9e8682f0",
+  "groups": {
+    "alias": {
+      "source": "logos-alias-fix",
+      "files_sha256": {
+        "src/cmd/go/internal/load/logos.go": "acabbbe1e6581770d383a1dc9d301ffe70f33968e974eb50703882813b46674c",
+        "src/cmd/go/internal/modindex/logos.go": "178e61d77f6b0665bb29c4af7f6595935b52e7fbf4a4aeb6a21ddfdbca076e8e",
+        "src/go/build/logos.go": "addc9448a772b9d27f8545fb5347d8530ca000572e74e3dde84ef93ebf22edfc",
+        "src/internal/logosfile/logosfile.go": "852bcabc847f6eecfe60e02acd7ac71e13aac46d1e62879ff1d200c9b3520b39",
+        "src/cmd/go/internal/load/logos_census_test.go": "3a07ac609dc04cd1b0b250b0a366ae535ac25138dfb425365e67e101f992e19f"
+      }
+    },
+    "projection": {
+      "source": "logos-types-projection-fix",
+      "files_sha256": {
+        "src/cmd/compile/internal/types2/builtins.go": "5b77424183490de7e8cfd7368a87f4ecb33cc86d3ba64b29427f256e64fc4718",
+        "src/cmd/compile/internal/types2/narrow_logos.go": "cb00158cf2ac405ca931705de43e7c6ac0c390d880c3ed9eb5f0ffeabc3962af",
+        "src/go/types/generate_test.go": "6885172a41d17d13de5e7ab442d6abea0233e9377040d951d04129fc5d068c5c"
+      }
+    },
+    "environment": {
+      "source": "logos-release-env-fix",
+      "files_sha256": {
+        ".github/scripts/release-acceptance.sh": "168c566d73748dba15535ea57d333581df74e469e2adb0893240d8aa059ec3b5",
+        "logos-doc/validation/release-acceptance/test_bootstrap_environment.py": "7474040278eb8e00e7861678fb0698d16380092312090b8b700c6fae40dab942"
+      }
+    },
+    "parity": {
+      "source": "logos-parity-execution-fix",
+      "files_sha256": {
+        "src/cmd/internal/goparity/parity_test.go": "d4e7045af9f45037ceb9670a192617915571847bf816b23fd4b2f7fa7f92e6c9",
+        "src/cmd/internal/goparity/execution_queue_test.go": "6c13e3b083cd289ca38aa5c9c9cfe0f8d9eaee9ea6f2654cc7aaa7668b53cc07"
+      }
+    }
+  },
+  "index_tree": "098de80a4ddf1e59b2750c1306ef495414f42d1e",
+  "source_tree": "33752c03819ed5afcb37f87633a3cac668e181a8",
+  "source_only_stage_matches_worktree": true,
+  "boundary": "Uncommitted integration snapshot of four independently frozen repair candidates. Component tests are complete; installed and full acceptance are pending."
+}

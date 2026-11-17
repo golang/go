@@ -1,0 +1,306 @@
+{
+  "reviewed_utc": "2026-11-16T21:56:05.555764+00:00",
+  "boundary": "One file-only snapshot of available completed receipts. No Go execution, polling loop, source edit, or alteration of sealed evidence. No claim for gates without a result receipt.",
+  "build_result_sha256": "535382e7564ba3b0aa2a3373ab27d326e237e4fe412e56331c7f3a4532a5ff07",
+  "make_log_sha256": "8935955e56399013a5c3989faf84c7b1893dd54ddb38861af602e10d51e3bf6e",
+  "make_exit_code": 0,
+  "make_duration_seconds": 480.027,
+  "source_before_after_equal": true,
+  "live_index_tree": "098de80a4ddf1e59b2750c1306ef495414f42d1e",
+  "live_source_tree": "33752c03819ed5afcb37f87633a3cac668e181a8",
+  "installed_tool_hashes_verified": {
+    "bin/go": "c8a2b1c7fc3f7d710af1ad3d0bfb077acf9254f2b3caa8cb9a4a50d4e722f77a",
+    "bin/logos": "c8a2b1c7fc3f7d710af1ad3d0bfb077acf9254f2b3caa8cb9a4a50d4e722f77a",
+    "pkg/tool/linux_amd64/compile": "873de794fdbfb5ebd900838e2a238f178a653aa7d7e56d3b1ae1c8afcf717c1c",
+    "pkg/tool/linux_amd64/link": "763e0ca95ec545e4eaf650cc3016999ea9c6712162fdc8e367fc3e43ca8fe1d8",
+    "pkg/tool/linux_amd64/asm": "7c37238bcfb4e4e06fbe64ef7e910d12b1b21173e299bac6f8e2d176b2bfcdfd",
+    "pkg/tool/linux_amd64/cgo": "78e6f8b3b230bb3a426240cd976107d3759516f25210a371bf493e2428e34e38"
+  },
+  "sampled_oom_counters": {
+    "global_oom_kill_counter": [
+      12
+    ]
+  },
+  "raw_log_byte_marker_fix_verified": true,
+  "runner_sha256": "e9c29d157b54448d80472f383aef3ce86edbc88ccb58cfccfd580fe1e75ab780",
+  "completed_gates": [
+    {
+      "gate": "alias-race-001",
+      "inputs_sha256": "1c2094edfd5d19adf350cf9e38e45a33dfc2baab0d8911fc2facdeb9111762fe",
+      "result_sha256": "a627592a6f97dd11eba957fd75dd8962ef17d040128229ca322843facaa292b4",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 69.663,
+      "completed_utc": "2026-11-16T21:54:58.273693+00:00",
+      "required_markers": {
+        "--- PASS: TestScanModuleKindsDuplicateSiblings/canonical_alias": true,
+        "--- PASS: TestScanModuleKindsDuplicateSiblings/alias_alias": true,
+        "--- PASS: TestScanModuleKindsDuplicateSiblings/variation_alias": true,
+        "--- PASS: TestScanModuleKindsDuplicateSiblings/external_test_alias": true,
+        "--- PASS: TestScanModuleKindsDuplicateSiblings/duplicate_kind_still_mixes_module": true,
+        "--- PASS: TestScanModuleKindsDuplicateSiblings/malformed_header_still_fails": true,
+        "--- PASS: TestScanModuleKindsDuplicateSiblings/mixed_package_still_fails": true,
+        "--- PASS: TestScanModuleKindsDuplicateSiblings/plain_go_ignores_alias_siblings": true
+      },
+      "forbidden_markers": {
+        "--- FAIL:": false,
+        "--- SKIP:": false,
+        "[build failed]": false
+      },
+      "passed_test_events": [
+        "TestScanModuleKindsDuplicateSiblings",
+        "TestScanModuleKindsDuplicateSiblings/canonical_alias",
+        "TestScanModuleKindsDuplicateSiblings/alias_alias",
+        "TestScanModuleKindsDuplicateSiblings/variation_alias",
+        "TestScanModuleKindsDuplicateSiblings/external_test_alias",
+        "TestScanModuleKindsDuplicateSiblings/duplicate_kind_still_mixes_module",
+        "TestScanModuleKindsDuplicateSiblings/malformed_header_still_fails",
+        "TestScanModuleKindsDuplicateSiblings/mixed_package_still_fails",
+        "TestScanModuleKindsDuplicateSiblings/plain_go_ignores_alias_siblings"
+      ],
+      "skipped_test_events": [],
+      "failed_test_events": [],
+      "source_tools_and_frozen_inputs_verified": true,
+      "stdout_sha256": "3be0ba2112490d2cc1a7e03594d6331e715fd768d07ea4d231a3ac920de30d89",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 1358,
+      "stderr_bytes": 0,
+      "produced_files_sha256": {}
+    },
+    {
+      "gate": "cgo-type-const-001",
+      "inputs_sha256": "a52d8d64a00b79047358cb61d28a5a2406b9987b109c57b3f8c46611acfdd9a7",
+      "result_sha256": "b82de162b0e08ac453da81cd22d1ca22076e2c46ddee1e990eeff4a4ebb7f8e1",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 8.343,
+      "completed_utc": "2026-11-16T21:55:21.197515+00:00",
+      "required_markers": {
+        "--- PASS: TestLogosCgoConstTypes": true
+      },
+      "forbidden_markers": {
+        "--- FAIL:": false,
+        "--- SKIP:": false,
+        "[build failed]": false
+      },
+      "passed_test_events": [
+        "TestLogosCgoConstTypes",
+        "TestLogosCgoConstTypes/map/slice",
+        "TestLogosCgoConstTypes/map/array",
+        "TestLogosCgoConstTypes/map/local",
+        "TestLogosCgoConstTypes/map/overflow",
+        "TestLogosCgoConstTypes/syntax/slice",
+        "TestLogosCgoConstTypes/syntax/array",
+        "TestLogosCgoConstTypes/syntax/local",
+        "TestLogosCgoConstTypes/syntax/overflow"
+      ],
+      "skipped_test_events": [],
+      "failed_test_events": [],
+      "source_tools_and_frozen_inputs_verified": true,
+      "stdout_sha256": "eaeeefcb96da016910ada35b2360cfc6313ff45edd3c82c89624a7ecb57ed1ad",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 939,
+      "stderr_bytes": 0,
+      "produced_files_sha256": {}
+    },
+    {
+      "gate": "driver-go-help-001",
+      "inputs_sha256": "a2e3a8b401d3c77bca8ddccc63d7d5dab1cf4460e3f7bb43966625c89aa2fc37",
+      "result_sha256": "30c8dc58b808f452342bf3d9c7d7976312a391e4e126773b97178f2295e2b42e",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 0.24,
+      "completed_utc": "2026-11-16T21:53:17.561212+00:00",
+      "required_markers": {
+        "go <command> [arguments]": true
+      },
+      "forbidden_markers": {},
+      "passed_test_events": [],
+      "skipped_test_events": [],
+      "failed_test_events": [],
+      "source_tools_and_frozen_inputs_verified": true,
+      "stdout_sha256": "2657f4d2bdc0e1dc961eb7340cd870a2e77af780b600401029b997743a17f1f5",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 1869,
+      "stderr_bytes": 0,
+      "produced_files_sha256": {}
+    },
+    {
+      "gate": "driver-logos-help-001",
+      "inputs_sha256": "491c78cf583cbf347f06fc378f8434144e6e72544f02c4c968dca343f3e227fa",
+      "result_sha256": "93084cde6ebd11e370774c4ea8f811b29eae116f68d2c3156175e22096d0afd0",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 0.192,
+      "completed_utc": "2026-11-16T21:53:18.014033+00:00",
+      "required_markers": {
+        "logos <command> [arguments]": true
+      },
+      "forbidden_markers": {},
+      "passed_test_events": [],
+      "skipped_test_events": [],
+      "failed_test_events": [],
+      "source_tools_and_frozen_inputs_verified": true,
+      "stdout_sha256": "881d8579012c2059c2f69ac6d2930d8621852a26bc3200a908dfdf69e3929a1f",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 2125,
+      "stderr_bytes": 0,
+      "produced_files_sha256": {}
+    },
+    {
+      "gate": "gofmt-001",
+      "inputs_sha256": "a64e16aec2d8917f71a6b9ac782c12a0029f6fa55117854e9ce1d1d5b37c31a6",
+      "result_sha256": "56b729a127958ac551f9f68a85c594eabab8545df1443b12040e304be3772a98",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 0.294,
+      "completed_utc": "2026-11-16T21:53:18.562318+00:00",
+      "required_markers": {},
+      "forbidden_markers": {},
+      "passed_test_events": [],
+      "skipped_test_events": [],
+      "failed_test_events": [],
+      "source_tools_and_frozen_inputs_verified": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 0,
+      "stderr_bytes": 0,
+      "produced_files_sha256": {}
+    },
+    {
+      "gate": "panic-compile-001",
+      "inputs_sha256": "c204855b74c0e9d837ea6699f8007eb0d1b1c0000000c1097a9efcbb643b6b12",
+      "result_sha256": "1e087dff05a1d1798653b058a5f3115f945f30f4a235a65991a8e429218ab996",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 13.373,
+      "completed_utc": "2026-11-16T21:55:11.898296+00:00",
+      "required_markers": {},
+      "forbidden_markers": {
+        "--- FAIL:": false,
+        "--- SKIP:": false,
+        "[build failed]": false
+      },
+      "passed_test_events": [],
+      "skipped_test_events": [],
+      "failed_test_events": [],
+      "source_tools_and_frozen_inputs_verified": true,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 0,
+      "stderr_bytes": 0,
+      "produced_files_sha256": {
+        "/workspace/scratch/9949907ca71e/recovery-evidence/installed-repair-33752c03/binaries/panic-lint.test": "3d647542dc92bfd64257f30e8bc458e69a30c0da8fa7408c8636dd4483b05874"
+      }
+    },
+    {
+      "gate": "panic-native-001",
+      "inputs_sha256": "3f37f995c076ca5031363482f29ba9778aaef5eac057d232cc3b14ad7518ada5",
+      "result_sha256": "4b630547148848da7ee8bbad590e044cf5b418c3d8396f17e5763694823993c5",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 0.329,
+      "completed_utc": "2026-11-16T21:55:12.613503+00:00",
+      "required_markers": {
+        "--- PASS: TestCompilePanicNarrowing/builtin ": true,
+        "--- PASS: TestCompilePanicNarrowing/parenthesized_builtin ": true,
+        "--- PASS: TestCompilePanicNarrowing/shadowed_function ": true,
+        "--- PASS: TestCompilePanicNarrowing/shadowed_variable ": true,
+        "--- PASS: TestCompilePanicNarrowing/parenthesized_shadow ": true,
+        "--- PASS: TestCompilePanicNarrowingVoid/builtin ": true,
+        "--- PASS: TestCompilePanicNarrowingVoid/parenthesized_builtin ": true,
+        "--- PASS: TestCompilePanicNarrowingVoid/shadowed_function ": true,
+        "--- PASS: TestCompilePanicNarrowingVoid/shadowed_variable ": true
+      },
+      "forbidden_markers": {
+        "--- FAIL:": false,
+        "--- SKIP:": false,
+        "[build failed]": false
+      },
+      "passed_test_events": [
+        "TestCompilePanicNarrowing",
+        "TestCompilePanicNarrowing/builtin",
+        "TestCompilePanicNarrowing/parenthesized_builtin",
+        "TestCompilePanicNarrowing/shadowed_function",
+        "TestCompilePanicNarrowing/shadowed_variable",
+        "TestCompilePanicNarrowing/parenthesized_shadow",
+        "TestCompilePanicNarrowingVoid",
+        "TestCompilePanicNarrowingVoid/builtin",
+        "TestCompilePanicNarrowingVoid/parenthesized_builtin",
+        "TestCompilePanicNarrowingVoid/shadowed_function",
+        "TestCompilePanicNarrowingVoid/shadowed_variable"
+      ],
+      "skipped_test_events": [],
+      "failed_test_events": [],
+      "source_tools_and_frozen_inputs_verified": true,
+      "stdout_sha256": "fdc5277655186fdcb4050d5d59cfd5d8766b789700d58d72bec352e6876fe35c",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 1267,
+      "stderr_bytes": 0,
+      "produced_files_sha256": {}
+    },
+    {
+      "gate": "projection-generate-001",
+      "inputs_sha256": "c1fefd022c96cfafa9b473654538f292cedcaa5b6040d56f46c01e5370f3f044",
+      "result_sha256": "ec7468e8280cb1ddf962fc599c9676ba8e80d1b628261ce023247925643b4683",
+      "exit_code": 0,
+      "expected_outcome_matched": true,
+      "duration_seconds": 29.531,
+      "completed_utc": "2026-11-16T21:53:48.354809+00:00",
+      "required_markers": {
+        "--- PASS: TestGenerate": true,
+        "ok  \tgo/types": true
+      },
+      "forbidden_markers": {
+        "--- FAIL:": false,
+        "--- SKIP:": false,
+        "[build failed]": false
+      },
+      "passed_test_events": [
+        "TestGenerate"
+      ],
+      "skipped_test_events": [],
+      "failed_test_events": [],
+      "source_tools_and_frozen_inputs_verified": true,
+      "stdout_sha256": "e8483f711299b9be53347cfb5fc543041ea8d32c62b8121a55488a2674b7bd9a",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_bytes": 80,
+      "stderr_bytes": 0,
+      "produced_files_sha256": {}
+    }
+  ],
+  "specified_gates_without_receipt_at_snapshot": [
+    "alias-scripts-race-001",
+    "cgo-ejection-jsonv2-race-001",
+    "cgo-quoted-nojsonv2-race-001",
+    "loader-packages-race-001",
+    "normal-vet-001",
+    "panic-restored-001",
+    "parity-short-race-001",
+    "projection-scripts-race-001",
+    "types-packages-001",
+    "void-hook-probe-001",
+    "void-mutant-compile-001"
+  ],
+  "public_go_types_projection_unchanged": {
+    "src/go/types/builtins.go": "5a85992f8539b3f64fd99efd827d5a6a518ffd379a8f75f3e5cc5f1efc0fe240",
+    "src/go/types/typestring.go": "c757b6ad9a4c3a6940a52b341377b646afbcc38fc0cd5dafb3128c7451af8c52"
+  },
+  "panic_compiled_binary_binding": {
+    "available": true,
+    "binary_sha256": "3d647542dc92bfd64257f30e8bc458e69a30c0da8fa7408c8636dd4483b05874",
+    "compile_receipt_sha256": "1e087dff05a1d1798653b058a5f3115f945f30f4a235a65991a8e429218ab996",
+    "nine_cells": [
+      "TestCompilePanicNarrowing/builtin",
+      "TestCompilePanicNarrowing/parenthesized_builtin",
+      "TestCompilePanicNarrowing/shadowed_function",
+      "TestCompilePanicNarrowing/shadowed_variable",
+      "TestCompilePanicNarrowing/parenthesized_shadow",
+      "TestCompilePanicNarrowingVoid/builtin",
+      "TestCompilePanicNarrowingVoid/parenthesized_builtin",
+      "TestCompilePanicNarrowingVoid/shadowed_function",
+      "TestCompilePanicNarrowingVoid/shadowed_variable"
+    ]
+  },
+  "issues": []
+}

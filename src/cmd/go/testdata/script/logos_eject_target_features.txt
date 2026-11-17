@@ -1,0 +1,86 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOOS=linux
+env GOARCH=amd64
+env GOAMD64=v1
+env GOARM64=v8.0
+env CGO_ENABLED=0
+
+cd features
+logos build -tags=keep --emit-go=out
+exists out/baseline.go
+exists out/high.go
+exists out/cross.go
+exists out/armlevel.go
+cd out
+exec env -u GOROOT $UPROOT1272/bin/go build -tags=keep ./...
+env GOAMD64=v3
+exec env -u GOROOT $UPROOT1272/bin/go build -tags=keep ./...
+env GOARCH=arm64
+exec env -u GOROOT $UPROOT1272/bin/go build -tags=keep ./...
+env GOARM64=v9.1
+exec env -u GOROOT $UPROOT1272/bin/go build -tags=keep ./...
+cd ../..
+
+# No real target can imply v3 while omitting v2. Eject must reject
+# this constraint instead of inventing a user tag and compiling v1.
+env GOARCH=amd64
+env GOAMD64=v1
+cd impossible
+! logos eject -o out
+stderr 'no build context selects inactive file .*impossible.lgo'
+
+-- features/go.mod --
+module example.com/features
+
+go 1.27
+
+-- features/main.lgo --
+package features
+
+func Value() int { return 42 }
+
+-- features/baseline.lgo --
+//go:build amd64 && !amd64.v2 && keep
+
+package features
+
+func Baseline() int { return 1 }
+
+-- features/high.lgo --
+//go:build amd64 && amd64.v3 && !amd64.v4 && keep
+
+package features
+
+func High() int { return 3 }
+
+-- features/cross.lgo --
+//go:build arm64 && !amd64.v1 && keep
+
+package features
+
+func Cross() int { return 64 }
+
+-- features/armlevel.lgo --
+//go:build arm64 && arm64.v9.1 && arm64.v8.6 && keep
+
+package features
+
+func ArmLevel() int { return 91 }
+
+-- impossible/go.mod --
+module example.com/impossible
+
+go 1.27
+
+-- impossible/main.lgo --
+package impossible
+
+func Value() int { return 1 }
+
+-- impossible/impossible.lgo --
+//go:build amd64 && amd64.v3 && !amd64.v2
+
+package impossible
+
+func CannotExist() int { return 3 }

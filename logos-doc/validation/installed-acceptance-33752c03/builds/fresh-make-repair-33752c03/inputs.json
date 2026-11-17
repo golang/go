@@ -1,0 +1,75 @@
+{
+  "recorded_utc": "2026-11-16T21:22:49.839475+00:00",
+  "source": {
+    "head": "2535486fe9596a9212d525a5007963ef9e8682f0",
+    "tree": "098de80a4ddf1e59b2750c1306ef495414f42d1e",
+    "src_tree": "33752c03819ed5afcb37f87633a3cac668e181a8",
+    "status_porcelain": "M  .github/scripts/release-acceptance.sh\nA  logos-doc/validation/release-acceptance/test_bootstrap_environment.py\nM  src/cmd/compile/internal/types2/builtins.go\nM  src/cmd/compile/internal/types2/narrow_logos.go\nM  src/cmd/go/internal/load/logos.go\nA  src/cmd/go/internal/load/logos_census_test.go\nM  src/cmd/go/internal/modindex/logos.go\nA  src/cmd/internal/goparity/execution_queue_test.go\nM  src/cmd/internal/goparity/parity_test.go\nM  src/go/build/logos.go\nM  src/go/types/generate_test.go\nM  src/internal/logosfile/logosfile.go"
+  },
+  "source_boundary": "Reviewed uncommitted integration snapshot. Git index tree and exact working bytes are frozen; this is not a clean published-tip release gate.",
+  "integration_manifest_sha256": "a40044c2f21180f6a46e6fd9ae56668181ff6cb1fe197bdbda144e9ae3dd5b23",
+  "source_file_sha256": {
+    "VERSION": "28ff77ac2178f2faca8a4f535e60b1738e397c9086b3ecfc18c9955abe75634a",
+    "src/make.bash": "c76c903c68b0a3848a55c46cdbe044d0d383b4206c9302d7f8f5512395d849db",
+    "src/cmd/dist/main.go": "41819817bc33ca1f87b2bf472ef0025c08af885604db6d0b3ce3515f49d5547b",
+    "src/cmd/dist/util.go": "2298d8570bd51bbae04c4d3527e3eb15868252e451473bc75ec4aab8962b2e7e",
+    "src/cmd/dist/build.go": "1b92c61d9db43730c004093712318b9f420f11fa84a0eb0be416be25d3c26436",
+    "src/cmd/dist/buildtool.go": "2ab040542d72cd2f9aa283bb3e83b1df60854c510b3d8d751b29dbf0b4691845",
+    "src/cmd/go/internal/cfg/cfg.go": "2c2dc05155e96bea38e686f4aa6a0e26782cc5f3a5faa54df1110623f7483f5b",
+    "src/cmd/go/internal/work/gc.go": "0276984b702c7e3f4ab9ade432eff44088062be3c30f61383ccc9c1410132d36",
+    "src/cmd/compile/internal/base/flag.go": "2f8634e1251d7e0d4146357c2662a8870b53c95980a77604d03e089b44fbaffb",
+    "src/cmd/compile/default.pgo": "eaa042c52378bb04ee46e03c71c67c8d2b19704aefc07e9048b80c6f3ea59d5a"
+  },
+  "bootstrap_version": "go version go1.27.4 linux/amd64",
+  "restored_toolchain_manifest_sha256": "5f8090dc3d69a17f1e31cc7663294866d9f40d97c9c4a0d2268fd58e8e167031",
+  "wrapper_sha256": "126758bb02142eb4ffd42eba466ea4be1e8b6550cb7c8f175c332d0e3c6b1141",
+  "command": [
+    "./make.bash"
+  ],
+  "working_directory": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src",
+  "selected_environment": {
+    "GOROOT_BOOTSTRAP": "/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci",
+    "GOMAXPROCS": "1",
+    "GOGC": "20",
+    "GOMEMLIMIT": "512MiB",
+    "GOFLAGS": "-p=1",
+    "BOOT_GO_GCFLAGS": "-c=1",
+    "GO_GCFLAGS": "-c=1",
+    "GOEXPERIMENT": "",
+    "GOENV": "off",
+    "GOWORK": "off",
+    "GOTOOLCHAIN": "local",
+    "GOPROXY": "off",
+    "GOCACHE": "/workspace/scratch/9949907ca71e/repair-build-cache",
+    "GOTMPDIR": "/workspace/scratch/9949907ca71e/repair-build-tmp",
+    "TMPDIR": "/workspace/scratch/9949907ca71e/repair-build-tmp",
+    "GOPATH": "/workspace/scratch/9949907ca71e/repair-build-gopath",
+    "CC": "/usr/bin/gcc-14",
+    "CXX": "/usr/bin/g++-14",
+    "PATH": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/bin:/workspace/scratch/9949907ca71e/toolchains/node-v26.13.1-ci/bin:/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+  },
+  "resources": {
+    "MemTotal": 10451423232,
+    "MemAvailable": 7006277632,
+    "SwapTotal": 0,
+    "Shmem": 1894244352,
+    "workspace_available_bytes": 6153773056,
+    "global_oom_kill_counter": 12
+  },
+  "minimum_memory_available_bytes": 2684354560,
+  "minimum_workspace_available_bytes": 4294967296,
+  "eligible": true,
+  "concurrency_contract": "GOMAXPROCS=1 bounds both cmd/go package concurrency and the dist direct scheduler to one. make and dist clear GOFLAGS; -p=1 is recorded but is not the dist cap. Initial upstream compiler defaults also follow GOMAXPROCS=1.",
+  "compiler_flags_contract": "BOOT_GO_GCFLAGS supplies -c=1 to dist direct bootstrap compilation. GO_GCFLAGS supplies -c=1 after go_bootstrap. The initial upstream toolchain build does not consume BOOT_GO_GCFLAGS.",
+  "pgo_contract": "Normal dist behavior: toolchain1 omits its profile, toolchain2 uses -pgo=off, final toolchain3 uses the checked-in default.pgo with ordinary optimization.",
+  "cache_contract": "All build temp/cache files are task-owned workspace paths. Dist keeps normal private-cache cleanup. repair-postbuild-cache is empty and reserved for acceptance tests.",
+  "monitor_contract": "Memory/disk samples are observations. No build is killed solely because a soft resource threshold is crossed.",
+  "resources_immediately_before_launch": {
+    "MemTotal": 10451423232,
+    "MemAvailable": 7005577216,
+    "SwapTotal": 0,
+    "Shmem": 1894244352,
+    "workspace_available_bytes": 6153764864,
+    "global_oom_kill_counter": 12
+  }
+}

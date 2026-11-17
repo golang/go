@@ -77,3 +77,15 @@ func main() {
 	}
 	fmt.Println("assert-only-ok")
 }
+
+-- ao/go.work --
+go 1.27
+
+use (
+	.
+	./g
+)
+-- ao/g/go.mod --
+module example.com/ao/g
+
+go 1.27

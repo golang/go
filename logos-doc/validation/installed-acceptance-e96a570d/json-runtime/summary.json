@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "error": null,
+  "identities_unchanged": true,
+  "source_commit": "e96a570da271c43a80e23bb1a188aac054acff25",
+  "profiles": [
+    "jsonv2",
+    "nojsonv2"
+  ],
+  "scope": "full JSON runtime race suites and normal runtime vet; explicit quoted-C race test in both profiles",
+  "overlays": false,
+  "new_mutations": false,
+  "remaining_scope": "broader hosted frontend/fixture/script profile workflow and full release gates are separate"
+}

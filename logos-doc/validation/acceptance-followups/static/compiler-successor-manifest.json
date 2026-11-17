@@ -1,0 +1,15 @@
+{
+  "command": [
+    "sha256sum",
+    "--check",
+    "--strict",
+    "logos-doc/validation/compiler-stability/frozen-tests-v2.sha256"
+  ],
+  "cwd": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes",
+  "status": 0,
+  "signal": null,
+  "error": "",
+  "seconds": 0.008,
+  "stdoutSHA256": "9dbc10ef937768de21cfcc3b58ef94f2bd4b83684082ac9db53154535c0c79e8",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

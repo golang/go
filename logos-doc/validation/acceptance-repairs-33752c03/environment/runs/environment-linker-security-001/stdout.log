@@ -1,0 +1,16 @@
+=== RUN   TestCheckLinkerFlags
+--- PASS: TestCheckLinkerFlags (0.00s)
+=== RUN   TestCheckLinkerSysrootFlags
+--- PASS: TestCheckLinkerSysrootFlags (0.00s)
+=== RUN   TestCheckGCCSpecFiles
+--- PASS: TestCheckGCCSpecFiles (0.00s)
+=== RUN   TestCheckLinkerWlFlags
+--- PASS: TestCheckLinkerWlFlags (0.00s)
+=== RUN   TestCheckLinkerInputFiles
+--- PASS: TestCheckLinkerInputFiles (0.00s)
+=== RUN   TestCheckLinkerCOFFDrectve
+--- PASS: TestCheckLinkerCOFFDrectve (0.00s)
+=== RUN   TestCheckLinkerObjectSections
+--- PASS: TestCheckLinkerObjectSections (0.00s)
+PASS
+ok  	cmd/go/internal/work	0.020s

@@ -307,7 +307,10 @@ func (e *evaluator) execAssign(fr *frame, s *syntax.AssignStmt) error {
 		if err != nil {
 			return err
 		}
-		v := p.get()
+		v, err := p.get()
+		if err != nil {
+			return err
+		}
 		one := unitValue(v.typ)
 		var r Value
 		if s.Op == syntax.Add {
@@ -318,174 +321,119 @@ func (e *evaluator) execAssign(fr *frame, s *syntax.AssignStmt) error {
 		if err != nil {
 			return err
 		}
-		p.set(r)
-		return nil
+		return p.set(r)
 	}
 	lhs := unpackList(s.Lhs)
-	if len(lhs) == 2 {
-		if done, err := e.execMapCommaOk(fr, s, lhs); err != nil {
-			return err
-		} else if done {
-			return nil
-		}
-	}
-	rhs, err := e.evalList(fr, s.Rhs)
-	if err != nil {
-		return err
-	}
-	if len(rhs) == 1 && len(lhs) > 1 {
-		return e.fail(posOf(s), "single value in multi-name assignment")
-	}
-	if len(rhs) != len(lhs) {
-		return e.fail(posOf(s), "assignment mismatch in const evaluation")
-	}
 	type pending struct {
 		pl      place
 		val     Value
 		newName string
-		isNew   bool
 		discard bool
 	}
 	pend := make([]pending, len(lhs))
 	curScope := fr.scopes[len(fr.scopes)-1]
+	// Capture destination operands before evaluating the right side. A map or
+	// slice place owns the evaluated header; an array or struct place denotes
+	// variable storage, which an earlier store may replace.
 	for i, le := range lhs {
-		v := rhs[i]
-		if s.Op != 0 && s.Op != syntax.Def {
-			if nm, ok := nameOf(le); ok && nm == "_" {
-				pend[i] = pending{discard: true}
-				continue
-			}
-			p, err := e.resolvePlace(fr, le)
-			if err != nil {
-				return err
-			}
-			v, err = e.applyOp(s.Op, p.get(), v, posOf(s))
-			if err != nil {
-				return err
-			}
-			dest := p.get().typ
-			if dest != nil {
-				v, err = e.convert(v, dest, posOf(le))
-				if err != nil {
-					return err
-				}
-			}
-			pend[i] = pending{pl: p, val: withVar(copyValue(v))}
+		nm, isName := nameOf(le)
+		if isName && nm == "_" {
+			pend[i].discard = true
 			continue
 		}
 		if isDefine(s) {
-			nm, isName := nameOf(le)
-			if isName && nm == "_" {
-				pend[i] = pending{discard: true}
+			if !isName {
+				return e.fail(posOf(le), "cannot define non-variable in const evaluation")
+			}
+			if _, exists := curScope[nm]; !exists {
+				pend[i].newName = nm
 				continue
 			}
-			if isName {
-				if _, exists := curScope[nm]; exists {
-					p, err := e.resolvePlace(fr, le)
-					if err != nil {
-						return err
-					}
-					dest := p.get().typ
-					if dest != nil {
-						var err error
-						v, err = e.convert(v, dest, posOf(le))
-						if err != nil {
-							return err
-						}
-					}
-					pend[i] = pending{pl: p, val: withVar(copyValue(v))}
-					continue
-				}
-				pend[i] = pending{newName: nm, val: withVar(copyValue(defaulted(v))), isNew: true}
-				continue
-			}
-			return e.fail(posOf(le), "cannot define non-variable in const evaluation")
-		}
-		if nm, ok := nameOf(le); ok && nm == "_" {
-			pend[i] = pending{discard: true}
-			continue
 		}
 		p, err := e.resolvePlace(fr, le)
 		if err != nil {
 			return err
 		}
-		dest := p.get().typ
-		if dest != nil {
-			var err error
-			v, err = e.convert(v, dest, posOf(le))
+		pend[i].pl = p
+	}
+	rhs, err := e.evalAssignValues(fr, s.Rhs, len(lhs))
+	if err != nil {
+		return err
+	}
+	if len(rhs) != len(lhs) {
+		return e.fail(posOf(s), "assignment mismatch in const evaluation")
+	}
+	for i, v := range rhs {
+		pd := &pend[i]
+		if pd.discard {
+			continue
+		}
+		if s.Op != 0 && s.Op != syntax.Def {
+			old, err := pd.pl.get()
+			if err != nil {
+				return err
+			}
+			v, err = e.applyOp(s.Op, old, v, posOf(s))
 			if err != nil {
 				return err
 			}
 		}
-		pend[i] = pending{pl: p, val: withVar(copyValue(v))}
+		if pd.newName != "" {
+			v = defaulted(v)
+		} else if pd.pl.typ != nil {
+			v, err = e.convert(v, pd.pl.typ, posOf(lhs[i]))
+			if err != nil {
+				return err
+			}
+		}
+		pd.val = withVar(copyValue(v))
 	}
+	// All values and destinations are fixed. Stores alone remain, in source
+	// order, including any bounds or nil-map failure at the store itself.
 	for _, pd := range pend {
 		if pd.discard {
 			continue
 		}
-		if pd.isNew {
+		if pd.newName != "" {
 			curScope[pd.newName] = pd.val
 			continue
 		}
-		pd.pl.set(pd.val)
+		if err := pd.pl.set(pd.val); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-func (e *evaluator) execMapCommaOk(fr *frame, s *syntax.AssignStmt, lhs []syntax.Expr) (bool, error) {
-	ix, ok := syntax.Unparen(s.Rhs).(*syntax.IndexExpr)
-	if !ok {
-		return false, nil
+func (e *evaluator) evalAssignValues(fr *frame, rhs syntax.Expr, count int) ([]Value, error) {
+	ix, ok := syntax.Unparen(rhs).(*syntax.IndexExpr)
+	if count != 2 || !ok {
+		return e.evalList(fr, rhs)
 	}
 	base, err := e.evalExpr(fr, ix.X)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
-	if base.mval == nil {
-		return false, nil
+	if base.typ == nil || base.typ.Kind != KMap {
+		return nil, e.fail(posOf(rhs), "single value in multi-name assignment")
 	}
 	key, err := e.evalExpr(fr, ix.Index)
 	if err != nil {
-		return false, err
+		return nil, err
+	}
+	key, err = e.convertElem(key, base.typ.Key, posOf(ix.Index))
+	if err != nil {
+		return nil, err
 	}
 	val, present, err := e.mapLookup(base, key, posOf(ix))
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 	okVal := Value{typ: UntypedBool(), constant: false, bval: present}
 	if !present {
 		val = zeroValue(base.typ.Elem)
 	}
-	if isDefine(s) {
-		cur := fr.scopes[len(fr.scopes)-1]
-		for i, le := range lhs {
-			nm, isName := nameOf(le)
-			if !isName || nm == "_" {
-				continue
-			}
-			if i == 0 {
-				cur[nm] = withVar(copyValue(val))
-			} else {
-				cur[nm] = withVar(copyValue(okVal))
-			}
-		}
-		return true, nil
-	}
-	for i, le := range lhs {
-		if nm, ok := nameOf(le); ok && nm == "_" {
-			continue
-		}
-		p, err := e.resolvePlace(fr, le)
-		if err != nil {
-			return false, err
-		}
-		if i == 0 {
-			p.set(withVar(copyValue(val)))
-		} else {
-			p.set(withVar(copyValue(okVal)))
-		}
-	}
-	return true, nil
+	return []Value{val, okVal}, nil
 }
 
 func isDefine(s *syntax.AssignStmt) bool {
@@ -513,8 +461,9 @@ func withVar(v Value) Value {
 }
 
 type place struct {
-	get func() Value
-	set func(Value)
+	typ *Type
+	get func() (Value, error)
+	set func(Value) error
 }
 
 func (e *evaluator) resolvePlace(fr *frame, lhs syntax.Expr) (place, error) {
@@ -525,8 +474,12 @@ func (e *evaluator) resolvePlace(fr *frame, lhs syntax.Expr) (place, error) {
 				idx := i
 				name := lhs.Value
 				return place{
-					get: func() Value { return fr.scopes[idx][name] },
-					set: func(v Value) { fr.scopes[idx][name] = v },
+					typ: fr.scopes[idx][name].typ,
+					get: func() (Value, error) { return fr.scopes[idx][name], nil },
+					set: func(v Value) error {
+						fr.scopes[idx][name] = storeValue(fr.scopes[idx][name], v)
+						return nil
+					},
 				}, nil
 			}
 		}

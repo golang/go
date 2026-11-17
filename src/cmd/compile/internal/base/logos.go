@@ -12,6 +12,8 @@ import (
 
 var LogosEject string
 
+var LogosCgoEject bool
+
 var Logos bool
 
 var LogosMode string
@@ -64,6 +66,7 @@ func logosRegisterFlags() {
 	flag.BoolVar(&LogosAllocFacts, "logos.allocfacts", false, "record per-function heap allocations and write AllocFree facts")
 	flag.BoolVar(&LogosGoFacts, "logos.gofacts", false, "record per-parameter mutation facts for Go packages")
 	flag.StringVar(&LogosEject, "logos.eject", "", "write ejected Go sources to `directory`")
+	flag.BoolVar(&LogosCgoEject, "logos.cgoeject", false, "check and eject original cgo sources without emitting an object")
 	flag.StringVar(&LogosMode, "logos.mode", "", "run a logos helper mode (`next`, `context`, or `hints`)")
 	flag.StringVar(&LogosHintsOut, "logos.hintsout", "", "write the logos editor hints of the package to `file`")
 	flag.StringVar(&LogosNextOut, "logos.nextout", "", "append logos next scan results to `file`")

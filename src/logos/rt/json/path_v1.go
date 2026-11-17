@@ -14,6 +14,25 @@ import (
 
 const indexedFieldPaths = false
 
+func fallbackStructName(inner, root string) string {
+	if inner != "" {
+		return inner
+	}
+	return root
+}
+
+// QuotedNull consumes a string containing null under the active profile's
+// ,string pointer rule. Other values remain for the typed scalar decoder.
+func (s *Scanner) QuotedNull() bool {
+	pos := s.pos
+	item, st := s.readQuoted()
+	if st == quotedContent && item == "null" {
+		return true
+	}
+	s.pos = pos
+	return false
+}
+
 func (s *Scanner) rejectQuotedBare(typ reflect.Type) {
 	s.save(tagUnquoted(typ))
 }
@@ -96,30 +115,33 @@ func QuotedJSONPtr[E any, T interface {
 	}
 }
 
-func QuotedText[T encoding.TextUnmarshaler](s *Scanner, dst T) {
+func QuotedText[E any, T interface {
+	*E
+	encoding.TextUnmarshaler
+}](s *Scanner, dst T) {
 	item, st := s.readQuoted()
 	switch st {
 	case quotedBare:
-		s.save(tagUnquoted(reflect.TypeOf(dst).Elem()))
+		s.save(tagUnquoted(reflect.TypeFor[E]()))
 	case quotedContent:
 		if item == "" {
-			s.save(tagMismatch(item, reflect.TypeOf(dst).Elem()))
+			s.save(tagMismatch(item, reflect.TypeFor[E]()))
 			return
 		}
 		if item[0] == 'n' {
 			if item == "null" {
 				return
 			}
-			s.save(tagMismatch(item, reflect.TypeOf(dst).Elem()))
+			s.save(tagMismatch(item, reflect.TypeFor[E]()))
 			return
 		}
 		if item[0] != '"' {
-			s.save(tagMismatch(item, reflect.TypeOf(dst).Elem()))
+			s.save(tagMismatch(item, reflect.TypeFor[E]()))
 			return
 		}
 		unq, ok := unquoteLiteralBytes(item)
 		if !ok {
-			s.fatal(tagMismatch(item, reflect.TypeOf(dst).Elem()))
+			s.fatal(tagMismatch(item, reflect.TypeFor[E]()))
 			return
 		}
 		s.fatalMethodError(dst.UnmarshalText(unq))

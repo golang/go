@@ -1,0 +1,152 @@
+﻿2026-11-16T16:32:50.7512392Z Current runner version: '2.338.2'
+2026-11-16T16:32:50.7532606Z ##[group]Runner Image Provisioner
+2026-11-16T16:32:50.7533418Z Hosted Compute Agent
+2026-11-16T16:32:50.7533963Z Version: 20261103.629
+2026-11-16T16:32:50.7534540Z Commit: 15dbd9ccb5dbf34fae002b6ed1a2670f52df37bc
+2026-11-16T16:32:50.7535423Z Build Date: 2026-11-03T17:26:59Z
+2026-11-16T16:32:50.7535997Z Worker ID: {ef9cdc87-2ddd-4510-83e7-c49511cdec41}
+2026-11-16T16:32:50.7536642Z Region: westus2
+2026-11-16T16:32:50.7537146Z Cloud: Azure
+2026-11-16T16:32:50.7537665Z ##[endgroup]
+2026-11-16T16:32:50.7538872Z ##[group]Operating System
+2026-11-16T16:32:50.7539401Z Ubuntu
+2026-11-16T16:32:50.7539917Z 24.04.5
+2026-11-16T16:32:50.7540400Z LTS
+2026-11-16T16:32:50.7540830Z ##[endgroup]
+2026-11-16T16:32:50.7541363Z ##[group]Runner Image
+2026-11-16T16:32:50.7541873Z Image: ubuntu-24.04
+2026-11-16T16:32:50.7542381Z Version: 20261111.370.1
+2026-11-16T16:32:50.7543486Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261111.370/images/ubuntu/Ubuntu2404-Readme.md
+2026-11-16T16:32:50.7544775Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261111.370
+2026-11-16T16:32:50.7545726Z ##[endgroup]
+2026-11-16T16:32:50.7546754Z ##[group]GITHUB_TOKEN Permissions
+2026-11-16T16:32:50.7548496Z Contents: read
+2026-11-16T16:32:50.7549107Z Metadata: read
+2026-11-16T16:32:50.7549592Z ##[endgroup]
+2026-11-16T16:32:50.7551258Z Secret source: Actions
+2026-11-16T16:32:50.7552130Z Cache mode: write
+2026-11-16T16:32:50.7552992Z Prepare workflow directory
+2026-11-16T16:32:50.7869633Z Prepare all required actions
+2026-11-16T16:32:50.7938835Z Complete job name: runtime-ubuntu-24.04-logosarena,nogreenteagc
+2026-11-16T16:32:50.8866786Z ##[group]Run git init --quiet .
+2026-11-16T16:32:50.8867304Z [36;1mgit init --quiet .[0m
+2026-11-16T16:32:50.8867879Z [36;1mgit remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"[0m
+2026-11-16T16:32:50.8868750Z [36;1mgit -c protocol.version=2 fetch --no-tags --depth=1 origin "$GITHUB_SHA"[0m
+2026-11-16T16:32:50.8869522Z [36;1mgit -c advice.detachedHead=false checkout --detach FETCH_HEAD[0m
+2026-11-16T16:32:50.8870143Z [36;1mtest "$(git rev-parse HEAD)" = "$GITHUB_SHA"[0m
+2026-11-16T16:32:50.9042416Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:32:50.9043240Z env:
+2026-11-16T16:32:50.9043587Z   GOMAXPROCS: 4
+2026-11-16T16:32:50.9043974Z   GOFLAGS: -p=2
+2026-11-16T16:32:50.9044330Z   GOMEMLIMIT: 2GiB
+2026-11-16T16:32:50.9044690Z ##[endgroup]
+2026-11-16T16:32:55.7026174Z From https://github.com/gosuda/LoGOs
+2026-11-16T16:32:55.7026994Z  * branch              f2ad58be8742b8ec350db8f06d9dc794ea3302e4 -> FETCH_HEAD
+2026-11-16T16:32:56.6358191Z HEAD is now at f2ad58be Merge 45c29ff215477f7e403188d7452fc79aef05d791 into 13a968f350564e739bf700df698a9a635dcdddcd
+2026-11-16T16:32:56.6498122Z ##[group]Run bash ../.github/scripts/install-ci-tool.sh go
+2026-11-16T16:32:56.6498527Z [36;1mbash ../.github/scripts/install-ci-tool.sh go[0m
+2026-11-16T16:32:56.6516782Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:32:56.6517125Z env:
+2026-11-16T16:32:56.6517328Z   GOMAXPROCS: 4
+2026-11-16T16:32:56.6517544Z   GOFLAGS: -p=2
+2026-11-16T16:32:56.6517757Z   GOMEMLIMIT: 2GiB
+2026-11-16T16:32:56.6517971Z ##[endgroup]
+2026-11-16T16:32:57.1119731Z /home/runner/work/_temp/go1.27.4.linux-amd64.tar.gz: OK
+2026-11-16T16:32:58.5993583Z go version go1.27.4 linux/amd64
+2026-11-16T16:32:58.6089966Z ##[group]Run GOROOT_BOOTSTRAP=$(go env GOROOT)
+2026-11-16T16:32:58.6090357Z [36;1mGOROOT_BOOTSTRAP=$(go env GOROOT)[0m
+2026-11-16T16:32:58.6090667Z [36;1mexport GOROOT_BOOTSTRAP[0m
+2026-11-16T16:32:58.6090938Z [36;1mGOEXPERIMENT="" ./make.bash[0m
+2026-11-16T16:32:58.6091256Z [36;1mprintf '%s\n' "$GITHUB_WORKSPACE/bin" >> "$GITHUB_PATH"[0m
+2026-11-16T16:32:58.6111071Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:32:58.6111412Z env:
+2026-11-16T16:32:58.6111623Z   GOMAXPROCS: 4
+2026-11-16T16:32:58.6111840Z   GOFLAGS: -p=2
+2026-11-16T16:32:58.6112286Z   GOMEMLIMIT: 2GiB
+2026-11-16T16:32:58.6112496Z ##[endgroup]
+2026-11-16T16:32:58.6322979Z Building Go cmd/dist using /home/runner/work/_temp/go1.27.4-ci. (go1.27.4 linux/amd64)
+2026-11-16T16:33:04.5653158Z Building Go toolchain1 using /home/runner/work/_temp/go1.27.4-ci.
+2026-11-16T16:33:38.9655096Z Building Go bootstrap cmd/go (go_bootstrap) using Go toolchain1.
+2026-11-16T16:33:55.0245157Z Building Go toolchain2 using go_bootstrap and Go toolchain1.
+2026-11-16T16:34:31.2765465Z Building Go toolchain3 using go_bootstrap and Go toolchain2.
+2026-11-16T16:35:16.9550088Z Building packages and commands for linux/amd64.
+2026-11-16T16:36:42.0047224Z ---
+2026-11-16T16:36:42.0048118Z Installed Go for linux/amd64 in /home/runner/work/LoGOs/LoGOs
+2026-11-16T16:36:42.0048904Z Installed commands in /home/runner/work/LoGOs/LoGOs/bin
+2026-11-16T16:36:42.0050050Z *** You need to add /home/runner/work/LoGOs/LoGOs/bin to your PATH.
+2026-11-16T16:36:43.8711425Z ##[group]Run files=(
+2026-11-16T16:36:43.8711682Z [36;1mfiles=([0m
+2026-11-16T16:36:43.8711870Z [36;1m  runtime/arena_logos.go[0m
+2026-11-16T16:36:43.8712090Z [36;1m  runtime/region_logos.go[0m
+2026-11-16T16:36:43.8712313Z [36;1m  runtime/logos_arena_test.go[0m
+2026-11-16T16:36:43.8712569Z [36;1m  runtime/export_logos_gc_stability_test.go[0m
+2026-11-16T16:36:43.8712855Z [36;1m  runtime/logos_gc_stability_test.go[0m
+2026-11-16T16:36:43.8713113Z [36;1m  runtime/export_logos_gcscan_bounds_test.go[0m
+2026-11-16T16:36:43.8713382Z [36;1m  runtime/logos_gcscan_bounds_test.go[0m
+2026-11-16T16:36:43.8713603Z [36;1m)[0m
+2026-11-16T16:36:43.8713777Z [36;1mgofmt -d "${files[@]}"[0m
+2026-11-16T16:36:43.8714011Z [36;1mtest -z "$(gofmt -l "${files[@]}")"[0m
+2026-11-16T16:36:43.8714252Z [36;1mgo vet runtime runtime/metrics[0m
+2026-11-16T16:36:43.8732311Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:36:43.8732585Z env:
+2026-11-16T16:36:43.8732782Z   GOMAXPROCS: 4
+2026-11-16T16:36:43.8732954Z   GOFLAGS: -p=2
+2026-11-16T16:36:43.8733131Z   GOMEMLIMIT: 2GiB
+2026-11-16T16:36:43.8733320Z   GOEXPERIMENT: logosarena,nogreenteagc
+2026-11-16T16:36:43.8733540Z ##[endgroup]
+2026-11-16T16:37:02.9969115Z ##[group]Run go test -count=1 -short -timeout=30m runtime runtime/metrics runtime/pprof runtime/trace
+2026-11-16T16:37:02.9969727Z [36;1mgo test -count=1 -short -timeout=30m runtime runtime/metrics runtime/pprof runtime/trace[0m
+2026-11-16T16:37:02.9987677Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:37:02.9987950Z env:
+2026-11-16T16:37:02.9988114Z   GOMAXPROCS: 4
+2026-11-16T16:37:02.9988321Z   GOFLAGS: -p=2
+2026-11-16T16:37:02.9988531Z   GOMEMLIMIT: 2GiB
+2026-11-16T16:37:02.9988721Z   GOEXPERIMENT: logosarena,nogreenteagc
+2026-11-16T16:37:02.9988958Z ##[endgroup]
+2026-11-16T16:38:19.2831361Z ok  	runtime	70.647s
+2026-11-16T16:38:19.2831881Z ok  	runtime/metrics	0.004s
+2026-11-16T16:38:19.2832146Z ok  	runtime/pprof	17.875s
+2026-11-16T16:38:19.2832341Z ok  	runtime/trace	6.138s
+2026-11-16T16:38:19.3837397Z ##[group]Run go test -count=1 -short -race -timeout=30m runtime -run '^TestLogos(Arena|Region|GC)'
+2026-11-16T16:38:19.3837952Z [36;1mgo test -count=1 -short -race -timeout=30m runtime -run '^TestLogos(Arena|Region|GC)'[0m
+2026-11-16T16:38:19.3855937Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:38:19.3856205Z env:
+2026-11-16T16:38:19.3856367Z   GOMAXPROCS: 4
+2026-11-16T16:38:19.3856541Z   GOFLAGS: -p=2
+2026-11-16T16:38:19.3856713Z   GOMEMLIMIT: 2GiB
+2026-11-16T16:38:19.3856909Z   GOEXPERIMENT: logosarena,nogreenteagc
+2026-11-16T16:38:19.3857141Z ##[endgroup]
+2026-11-16T16:38:43.3441280Z ok  	runtime	2.238s
+2026-11-16T16:38:43.3940298Z ##[group]Run go test -count=10 -short -cpu=1,2,4 -timeout=30m runtime -run '^(TestLogosRegionReleaseOwnership|TestLogosGCHeapGraphLiveness|TestLogosGCScanLayoutBounds)$'
+2026-11-16T16:38:43.3941218Z [36;1mgo test -count=10 -short -cpu=1,2,4 -timeout=30m runtime -run '^(TestLogosRegionReleaseOwnership|TestLogosGCHeapGraphLiveness|TestLogosGCScanLayoutBounds)$'[0m
+2026-11-16T16:38:43.3959448Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:38:43.3959718Z env:
+2026-11-16T16:38:43.3959887Z   GOMAXPROCS: 4
+2026-11-16T16:38:43.3960061Z   GOFLAGS: -p=2
+2026-11-16T16:38:43.3960240Z   GOMEMLIMIT: 2GiB
+2026-11-16T16:38:43.3960433Z   GOEXPERIMENT: logosarena,nogreenteagc
+2026-11-16T16:38:43.3960660Z ##[endgroup]
+2026-11-16T16:38:44.6646407Z ok  	runtime	0.801s
+2026-11-16T16:38:44.6748587Z ##[group]Run go test -count=10 -short -gcflags=runtime=-l -timeout=30m runtime -run '^TestLogosRegionReleaseOwnership$'
+2026-11-16T16:38:44.6749257Z [36;1mgo test -count=10 -short -gcflags=runtime=-l -timeout=30m runtime -run '^TestLogosRegionReleaseOwnership$'[0m
+2026-11-16T16:38:44.6767882Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:38:44.6768167Z env:
+2026-11-16T16:38:44.6768330Z   GOMAXPROCS: 4
+2026-11-16T16:38:44.6768503Z   GOFLAGS: -p=2
+2026-11-16T16:38:44.6768669Z   GOMEMLIMIT: 2GiB
+2026-11-16T16:38:44.6768882Z   GOEXPERIMENT: logosarena,nogreenteagc
+2026-11-16T16:38:44.6769142Z   GODEBUG: asyncpreemptoff=1
+2026-11-16T16:38:44.6769345Z ##[endgroup]
+2026-11-16T16:38:59.4127138Z ok  	runtime	0.186s
+2026-11-16T16:38:59.4532743Z ##[group]Run go test -count=10 -short -timeout=30m runtime -run '^(TestLogosGCScanExternalPointers|TestLogosGCHeapGraphLiveness)$'
+2026-11-16T16:38:59.4533467Z [36;1mgo test -count=10 -short -timeout=30m runtime -run '^(TestLogosGCScanExternalPointers|TestLogosGCHeapGraphLiveness)$'[0m
+2026-11-16T16:38:59.4551787Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-16T16:38:59.4552059Z env:
+2026-11-16T16:38:59.4552219Z   GOMAXPROCS: 4
+2026-11-16T16:38:59.4552392Z   GOFLAGS: -p=2
+2026-11-16T16:38:59.4552561Z   GOMEMLIMIT: 2GiB
+2026-11-16T16:38:59.4552756Z   GOEXPERIMENT: logosarena,nogreenteagc
+2026-11-16T16:38:59.4552990Z   GODEBUG: gccheckmark=1
+2026-11-16T16:38:59.4553186Z ##[endgroup]
+2026-11-16T16:39:00.0560681Z ok  	runtime	0.072s
+2026-11-16T16:39:00.0729088Z Cleaning up orphan processes

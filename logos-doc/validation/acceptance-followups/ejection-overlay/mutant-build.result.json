@@ -1,0 +1,1 @@
+{"command":"go test -c -race -overlay=mutation/overlay.json cmd/go/internal/logos/eject","startedUTC":"2026-11-16T18:18:52Z","exit":0,"wallSeconds":6,"timeoutSeconds":300,"killAfterSeconds":10,"mutation":"one fsys.ReadFile(path) call becomes os.ReadFile(path)"}

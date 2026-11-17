@@ -1,0 +1,94 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cp $GOROOT/test/logos/run/defer_generic_receiver.lgo behavior/main.lgo
+cp behavior/main.lgo original.lgo.txt
+cd behavior
+logos run .
+cmp stdout $GOROOT/test/logos/run/defer_generic_receiver.out
+logos eject -o ../behavior-out
+cmp main.lgo ../original.lgo.txt
+cd ../behavior-out
+grep -count=1 'generic-type-comment' main.go
+go run .
+cmp stdout $GOROOT/test/logos/run/defer_generic_receiver.out
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/defer_generic_receiver.out
+exec env -u GOROOT $UPROOT1273/bin/go run .
+cmp stdout $GOROOT/test/logos/run/defer_generic_receiver.out
+cd ../private
+cp want.txt $WORK/private-want.txt
+logos run .
+cmp stdout $WORK/private-want.txt
+logos eject -o ../private-out
+cd ../private-out
+go run .
+cmp stdout $WORK/private-want.txt
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $WORK/private-want.txt
+exec env -u GOROOT $UPROOT1273/bin/go run .
+cmp stdout $WORK/private-want.txt
+
+-- behavior/go.mod --
+module example.com/genericreceiver
+
+go 1.27
+
+-- private/go.mod --
+module example.com/privatereceiver
+
+go 1.27
+
+require example.com/hidden v1.0.0
+
+replace example.com/hidden => ../hidden
+
+-- private/main.lgo --
+package main
+
+import (
+	"errors"
+	"fmt"
+
+	"example.com/hidden"
+)
+
+type box struct {
+	tag string
+}
+
+func (b box) echo[T, U any](v U) U {
+	fmt.Println(b.tag, v)
+	return v
+}
+
+func run() error {
+	b := box{tag: "before"}
+	errdefer b.echo[int](hidden.New())
+	b.tag = "after"
+	return errors.New("failure")
+}
+
+func main() {
+	if err := run(); err == nil {
+		panic("missing primary error")
+	}
+}
+
+-- private/want.txt --
+before hidden
+-- hidden/go.mod --
+module example.com/hidden
+
+go 1.27
+
+-- hidden/hidden.go --
+package hidden
+
+type value struct{}
+
+// String identifies the private value.
+func (value) String() string { return "hidden" }
+
+// New returns a value whose concrete type cannot be named by callers.
+func New() value { return value{} }

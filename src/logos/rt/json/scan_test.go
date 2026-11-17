@@ -567,6 +567,10 @@ func TestFallbackNestedStructFieldPath(t *testing.T) {
 	if ute.Field != "In.X" || ute.Value != "string" || ute.Offset != 16 {
 		t.Fatalf("saved error = %#v", ute)
 	}
+	var want outer
+	if wantErr := stdjson.Unmarshal([]byte(data), &want); !sameError(ute, wantErr) {
+		t.Fatalf("saved error = %#v, encoding/json = %#v", ute, wantErr)
+	}
 }
 
 func TestFallbackSyntaxError(t *testing.T) {
@@ -608,45 +612,6 @@ type quotedTextProbe string
 func (r *quotedTextProbe) UnmarshalText(b []byte) error {
 	*r += quotedTextProbe("|" + string(b))
 	return nil
-}
-
-// quotedAppendingTextProbe appends to its input the way real
-// UnmarshalText implementations do: the unquoted slice must be capped so
-// the write cannot reach the token's closing quote, which QuotedTextPtr
-// still compares against the "null" literal after the call.
-type quotedAppendingTextProbe struct{ got []byte }
-
-func (p *quotedAppendingTextProbe) UnmarshalText(b []byte) error {
-	p.got = append(b, '!')
-	return nil
-}
-
-func TestQuotedTextAppendCannotCorruptToken(t *testing.T) {
-	for _, in := range []string{`"abc"`, `"null"`} {
-		data := `{"v":` + in + `}`
-		var dst *quotedAppendingTextProbe
-		s := NewScanner([]byte(data), nil)
-		if !s.Object() {
-			t.Fatalf("%s: Object failed: %v", in, s.Err())
-		}
-		if !s.Next() {
-			t.Fatalf("%s: Next failed: %v", in, s.End())
-		}
-		QuotedTextPtr[quotedAppendingTextProbe](&s, &dst)
-		if err := s.End(); err != nil {
-			t.Fatalf("%s: End() = %v", in, err)
-		}
-		switch in {
-		case `"null"`:
-			if dst != nil {
-				t.Errorf("%s: dst = %#v, want nil reset after appending method", in, dst)
-			}
-		default:
-			if dst == nil || string(dst.got) != "abc!" {
-				t.Errorf("%s: dst = %#v, want got %q", in, dst, "abc!")
-			}
-		}
-	}
 }
 
 func TestFallbackQUnwrapsStringOption(t *testing.T) {

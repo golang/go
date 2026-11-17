@@ -1,0 +1,10 @@
+{
+  "boundary": "Static coverage contract only. No hosted job or runtime was executed.",
+  "failures": [],
+  "input_sha256": {
+    ".github/scripts/release-acceptance.sh": "168c566d73748dba15535ea57d333581df74e469e2adb0893240d8aa059ec3b5",
+    ".github/workflows/release-acceptance.yml": "1c935efb8007e2206c405917b9b9a34f3dc9681186883d8343b14672b2ee4f2a",
+    "logos-doc/validation/release-acceptance-request.json": "c130f0e4e04ec838417ffbe15b2eb33628f6b133c6a73d5730c1140f0f5f206b"
+  },
+  "passed": true
+}

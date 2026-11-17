@@ -164,6 +164,9 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 		args = append(args, "-asmhdr", objdir+"go_asm.h")
 	}
 
+	if output, err := logosEjectCgo(sh, a, args, gofiles); err != nil {
+		return "", output, err
+	}
 	for _, f := range gofiles {
 		f := mkAbs(p.Dir, f)
 

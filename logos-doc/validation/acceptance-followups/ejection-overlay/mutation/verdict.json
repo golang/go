@@ -1,0 +1,8 @@
+{
+  "caught": true,
+  "observedExit": 1,
+  "mechanism": "The physical read cannot open the overlay-inserted source. The frozen test catches the regression through its isolated child.",
+  "oneCallChanged": true,
+  "frozenInputsUnchanged": true,
+  "sourceTreeUnmodified": true
+}

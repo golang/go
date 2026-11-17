@@ -1,0 +1,91 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOFLAGS=-buildvcs=false
+env CGO_ENABLED=0
+
+cd m
+
+# Deleted invalid sources must stay absent. Inactive replacements and inserted
+# sources must be selected from their effective contents in every helper.
+logos build -overlay=overlay.json --emit-go=out .
+exists out/main.go
+exists out/variant.go
+exists out/inserted.go
+! exists out/removed.go
+! exists out/ignored.go
+! exists out/.overlay/variant.go
+! exists out/.overlay/inserted.go
+! exists out/.overlay/ignored.go
+! grep 'physicalOnly|missing' out/variant.go
+grep 'Variant' out/variant.go
+grep 'Inserted' out/inserted.go
+
+cd out
+go run -tags=overlay_extra .
+stderr '^overlay ok$'
+
+-- m/go.mod --
+module example.com/overlay
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+func main() { println("overlay ok") }
+
+-- m/removed.lgo --
+package main
+
+func Broken() { missing() }
+
+-- m/variant.lgo --
+//go:build physicalOnly
+
+package main
+
+func BrokenVariant() { missing() }
+
+-- m/ignored.lgo --
+//go:build physicalOnly
+
+package main
+
+func BrokenIgnored() { missing() }
+
+-- m/overlay.json --
+{
+	"Replace": {
+		"removed.lgo": "",
+		"variant.lgo": ".overlay/variant.lgo",
+		"ignored.lgo": ".overlay/ignored.lgo",
+		"inserted.lgo": ".overlay/inserted.lgo"
+	}
+}
+
+-- m/.overlay/variant.lgo --
+//go:build overlay_extra
+
+package main
+
+func Variant() int {
+	var value int? = 42
+	return value ?? 0
+}
+
+-- m/.overlay/inserted.lgo --
+//go:build overlay_extra
+
+package main
+
+func Inserted() int {
+	var value int? = 7
+	return value ?? 0
+}
+
+-- m/.overlay/ignored.lgo --
+//go:build ignore
+
+package main
+
+func Ignored() { missing() }

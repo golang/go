@@ -1,0 +1,19 @@
+kind: runtime
+file: src/runtime/logos_fastcall.go
+expect: at17m_both_plain_seq
+config: K20
+-- old --
+	errno := asmcgocall(fn, arg)
+
+	gp.nocgocallback = false
+-- new --
+	errno := asmcgocall(fn, arg)
+
+kind: cgo
+file: src/cmd/cgo/out.go
+expect: at17m_both_plain_seq
+config: K20
+-- old --
+	noCallback := p.noCallbacks[n.C] && !logosStableFastCall(p, n)
+-- new --
+	noCallback := p.noCallbacks[n.C]

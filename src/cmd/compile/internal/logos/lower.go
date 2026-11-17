@@ -67,6 +67,7 @@ func Lower(pkg *types2.Package, info *types2.Info, files []*syntax.File, src map
 	base.ClearLogosCtClones(pkg.Path())
 	shared.ctExp = newCfExpander(shared, files, src) // comptime generics of every file, registered before any file lowers.
 	edits := make(map[*syntax.File][]Edit)
+	tupleFiles := make(map[string]int)
 	changed := false
 	for _, file := range files {
 		data, ok := src[file]
@@ -80,6 +81,7 @@ func Lower(pkg *types2.Package, info *types2.Info, files []*syntax.File, src map
 			src:           buf,
 			orig:          len(buf),
 			base:          file.Pos().FileBase(),
+			cgoSource:     hasCImport(file),
 			start:         lineStarts(buf),
 			loweredChains: make(map[*syntax.CallExpr]bool),
 			compositeDone: make(map[syntax.Expr]bool),
@@ -88,6 +90,8 @@ func Lower(pkg *types2.Package, info *types2.Info, files []*syntax.File, src map
 			wrapOwner:     make(map[syntax.Expr]int),
 		}
 		fl.baseName = filepath.Base(fl.base.Filename())
+		fl.tupleFile = tupleFiles[fl.baseName]
+		tupleFiles[fl.baseName]++
 		fl.srcMap = origBuf(buf)
 		fl.lowerFile()
 		if fl.changed {
@@ -168,6 +172,7 @@ type fileLower struct {
 	start        []int
 	base         *syntax.PosBase
 	baseName     string
+	cgoSource    bool
 	splices      []splice
 	regions      []*cfRegion
 	hosts        []*cfHost
@@ -221,6 +226,8 @@ type fileLower struct {
 	erasedConst map[*syntax.ConstType]bool
 	tupleArity  int
 	tupleScope  syntax.Node
+	tupleFile   int
+	tupleSeq    int
 	propEmitted map[int]bool
 	stmtLimit   map[syntax.Stmt]int
 	// funcHeadOffs caches the offsets of `func` keywords in source

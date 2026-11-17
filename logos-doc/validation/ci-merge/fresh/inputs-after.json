@@ -1,0 +1,17 @@
+{
+  "command": [
+    "sha256sum",
+    "--check",
+    "/workspace/scratch/9949907ca71e/language-evidence/ci-merge/fresh/validated-inputs.sha256"
+  ],
+  "cwd": "/workspace/scratch/9949907ca71e/logos-json-integration",
+  "sourceHead": "e82c916ff4d8c2befc6f1891decb0f623401a94b",
+  "mergeHead": "13a968f350564e739bf700df698a9a635dcdddcd",
+  "status": 0,
+  "signal": null,
+  "error": "",
+  "seconds": 0.016,
+  "stdoutSha256": "7af0c62be3aa799eb37f7753b6bfd456de028e722d5867daf5e93cee036b9f07",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "provenance": "fresh validation after exact input reconstruction"
+}

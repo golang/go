@@ -1,0 +1,10 @@
+=== RUN   TestMemoryLimit
+    crash_test.go:195: running /workspace/scratch/9949907ca71e/logos-final-acceptance/bin/go build -o /home/agent/logos-release-env-validation/tmp/go-build899711015/testprog.exe
+    gc_test.go:780: building testprog []: chdir testdata/testprog: no such file or directory
+        
+--- FAIL: TestMemoryLimit (0.01s)
+=== RUN   TestMemoryLimitNoGCPercent
+    gc_test.go:794: building testprog []: chdir testdata/testprog: no such file or directory
+        
+--- FAIL: TestMemoryLimitNoGCPercent (0.00s)
+FAIL

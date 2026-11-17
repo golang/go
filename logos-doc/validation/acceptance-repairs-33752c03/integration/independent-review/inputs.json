@@ -1,0 +1,141 @@
+{
+  "frozen_utc": "2026-11-16T22:23:40.485029+00:00",
+  "repository": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes",
+  "head": "0a8eef6bab7d85e89e8e3efd0b933d73e78dff79",
+  "head_tree": "1b7206610fee4f2ff3f6d7d73e34d4ba7aa0f721",
+  "head_src_tree": "33752c03819ed5afcb37f87633a3cac668e181a8",
+  "status": " M logos-doc/validation/release-acceptance-request.json\n M logos-doc/validation/stabilization-candidate.md\n?? logos-doc/validation/acceptance-repairs-33752c03/README.md\n?? logos-doc/validation/installed-acceptance-33752c03/",
+  "tracked_diff_names": "M\tlogos-doc/validation/release-acceptance-request.json\nM\tlogos-doc/validation/stabilization-candidate.md",
+  "request_src_tree": "33752c03819ed5afcb37f87633a3cac668e181a8",
+  "files": {
+    "AGENTS.md": {
+      "sha256": "2ac3e20747de292c9c180aeb38c1d9e7b9bf722c6080fe3440f4eaf5df33dcb4",
+      "bytes": 3316
+    },
+    "logos-doc/IMPLEMENTATION.md": {
+      "sha256": "ecb0505ef7ecac86578d4644f6a3afdeba163b18dcd5c557747fd09ae6c841ca",
+      "bytes": 741626
+    },
+    "logos-doc/SPEC.md": {
+      "sha256": "a55e00c7d1a0d1a0fac763e6cd093bf25c05da92148a34db72f9037e2ae20d75",
+      "bytes": 193112
+    },
+    "logos-doc/REDTEAM.md": {
+      "sha256": "4e74823745e9e217d6de8e185b8a2cc30b4087c4ee0ebb125750a2cf5ffd3a12",
+      "bytes": 136015
+    },
+    "tasks/autoplan-ledger.jsonl": {
+      "sha256": "e8d2b7c8c762d1b9135ac783b24f8a56d866607e6011ceffd58c87f70f71ec6d",
+      "bytes": 30015
+    },
+    "logos-doc/blocked/M6-S3b.patch": {
+      "sha256": "3d1bd84ac779294170db7d8e5e3d6403d005be31b94a634f5f9e4a16ae37d012",
+      "bytes": 42676
+    },
+    "logos-doc/validation/stabilization-candidate.md": {
+      "sha256": "a287e283b4ee462204dca306bb798d954c438b3421c3bfb7e5215341932f64b4",
+      "bytes": 23676
+    },
+    "logos-doc/validation/release-acceptance-request.json": {
+      "sha256": "c130f0e4e04ec838417ffbe15b2eb33628f6b133c6a73d5730c1140f0f5f206b",
+      "bytes": 920
+    },
+    "logos-doc/validation/acceptance-repairs-33752c03/README.md": {
+      "sha256": "e78ded5f418cf4ddb43d4d16a667c1f797496a53b39734bbddb859153bc6162c",
+      "bytes": 3232
+    },
+    "logos-doc/validation/installed-acceptance-33752c03/README.md": {
+      "sha256": "e634df5ffe297bb1d439a1c1aab3f130e056527023a1ad935d4f087adc5b65b2",
+      "bytes": 7877
+    },
+    "logos-doc/validation/installed-acceptance-33752c03/manifest.json": {
+      "sha256": "6e4ce2e3a1fe0c13b66fd18b7493989d4c3829d128557b9a24c312dffeeb07aa",
+      "bytes": 24224
+    },
+    "logos-doc/validation/release-acceptance/INTEGRATION.md": {
+      "sha256": "696c7e47830b5d4ee7d6a61ecbd827b8a14f35bd38bdebaedea679204f0570d9",
+      "bytes": 5813
+    },
+    "logos-doc/validation/release-acceptance/check_release_contract.py": {
+      "sha256": "c46d9cc8569ca80659a999ab11a5208de5afecd8c4e337817af0de81bde20b26",
+      "bytes": 10792
+    },
+    "logos-doc/validation/release-acceptance/frozen-checker.sha256": {
+      "sha256": "7a900a9a99a92a38abb966ddca8bced393351ee15d35e1ef08052cac4bb25cfc",
+      "bytes": 176
+    },
+    ".github/scripts/release-acceptance.sh": {
+      "sha256": "168c566d73748dba15535ea57d333581df74e469e2adb0893240d8aa059ec3b5",
+      "bytes": 15662
+    },
+    "src/cmd/internal/goparity/redteam_ledger_test.go": {
+      "sha256": "4871b7713e5c22d2f3ca8b2512060c8ce4da8d508fffbc4d2eb3b2db3dfdc3d6",
+      "bytes": 2611
+    },
+    ".github/workflows/compiler-stability.yml": {
+      "sha256": "dceb27ba9a17814cb6bc199a2c80a9f9b62c5cc79f91f4091bea9fab31fbcbfe",
+      "bytes": 5676
+    },
+    ".github/workflows/deferred-callees.yml": {
+      "sha256": "5e1aa6b7732499c8b11fe2ba26d04538049449ce922252770d9b43f1b6cf756d",
+      "bytes": 3807
+    },
+    ".github/workflows/gc-stability.yml": {
+      "sha256": "0d0fdf9c35fdfdf079aa5f3c45eb49ee62ff9656799cccee46e43c8e2dc3fc09",
+      "bytes": 5672
+    },
+    ".github/workflows/generic-type-arguments.yml": {
+      "sha256": "0735adaa8ec190fd5dac351326a682b5662d94ed866b3ccd9fc4da8471d39e12",
+      "bytes": 5435
+    },
+    ".github/workflows/json-profile-gates.yml": {
+      "sha256": "65941fef041205675f932c8fa6e603093f1aebf8fe8551e2583247c735b26bb2",
+      "bytes": 2828
+    },
+    ".github/workflows/logos.yml": {
+      "sha256": "a357e27af0d0c657540d7f972460cfc40d59fe520dbf926ec38370d35405d1c1",
+      "bytes": 7335
+    },
+    ".github/workflows/release-acceptance.yml": {
+      "sha256": "1c935efb8007e2206c405917b9b9a34f3dc9681186883d8343b14672b2ee4f2a",
+      "bytes": 8077
+    },
+    ".github/workflows/simd-host-gates.yml": {
+      "sha256": "3cfd0ae07dadc05598959d9d22e9d3b9b0a6db508b353af10a0a0a8fe7f1914d",
+      "bytes": 3004
+    },
+    "logos-doc/validation/acceptance-repairs-33752c03/parity/manifest.json": {
+      "sha256": "a1dbb3029f692f2251154177cd86d38806a63048ddd06d6b75b1c15e555c2017",
+      "bytes": 27995
+    },
+    "logos-doc/validation/acceptance-repairs-33752c03/projection/manifest.json": {
+      "sha256": "bafabf4fe30d9b60f53a9ee0354a12785ff49719b744acc2e02cc8d9146144ca",
+      "bytes": 14143
+    },
+    "src/cmd/go/testdata/script/logos_redteam_80.txt": {
+      "sha256": "3f0acf124680db65a8eb71b72d0e68b8779b778fa64bffc00ddd9afb42b9aeef",
+      "bytes": 5531
+    },
+    "src/cmd/go/testdata/script/logos_repro.txt": {
+      "sha256": "7ac2ce11b2c16cab25fb7adc1b701de3ed3dc516fb9b2032dbb6943c55e6ba37",
+      "bytes": 8445
+    },
+    "src/cmd/go/testdata/script/logos_eject_example.txt": {
+      "sha256": "9e50e946976217cc6054223c4b04fdf8fb9acd1a7097e9001c67d623ae364f6a",
+      "bytes": 1140
+    },
+    "src/cmd/go/testdata/script/logos_lsp.txt": {
+      "sha256": "f7919d0d47cbf4d50d6af0bbb1ed578111f3b85715df6a7212e8b5f65a8b8a0c",
+      "bytes": 12034
+    },
+    "src/cmd/go/testdata/script/logos_sum_crossarch.txt": {
+      "sha256": "7b5ffb83bceecf552577cf056132f9a86ca2518d86faa231f8e6d6f88adad167",
+      "bytes": 1582
+    },
+    "test/logos/example/order_service.lgo": {
+      "sha256": "3ffb014e7aa3417391c84d1f451e1393fbdd974149cce5c1b5733ae5aeeca130",
+      "bytes": 8893
+    }
+  },
+  "scope": "Read-only final metadata/evidence audit; no Go execution and no source repair."
+}

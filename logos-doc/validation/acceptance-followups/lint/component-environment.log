@@ -1,0 +1,14 @@
+{
+	"CC": "/usr/bin/gcc-14",
+	"CGO_ENABLED": "1",
+	"GOCACHE": "/workspace/scratch/9949907ca71e/postbuild-cache",
+	"GOEXPERIMENT": "",
+	"GOFLAGS": "-p=1",
+	"GOPATH": "/workspace/scratch/9949907ca71e/acceptance-gopath",
+	"GOROOT": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes",
+	"GOTMPDIR": "/workspace/scratch/9949907ca71e/lint-build-tmp",
+	"GOTOOLDIR": "/workspace/scratch/9949907ca71e/logos-acceptance-fixes/pkg/tool/linux_amd64"
+}
+compile version go1.27.4 buildID=YJ4MX5IM-92b5eAn3Hrp/e0pmKY_gvjuY25-MQryr/5LOz2N5VyBy8pcBeS-8v/BYok7ZqSwgNrvEPIpg11
+/workspace/scratch/9949907ca71e/logos-acceptance-fixes/src/cmd/go/internal/logos/eject
+golangci-lint has version 2.15.0 built with go1.27.0 from 25c5369a on 2026-10-16T11:03:09Z

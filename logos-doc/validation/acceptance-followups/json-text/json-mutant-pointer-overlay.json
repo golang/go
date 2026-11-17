@@ -1,0 +1,6 @@
+{
+  "Replace": {
+    "/workspace/scratch/9949907ca71e/logos-json-integration/src/logos/rt/json/stream_v2_test.go": "/workspace/scratch/9949907ca71e/recovery-evidence/upstream-e5b95a2e-comparison/frozen-json-tests-corrected/stream_v2_test.go",
+    "/workspace/scratch/9949907ca71e/logos-json-integration/src/logos/rt/json/path_v2.go": "/workspace/scratch/9949907ca71e/recovery-evidence/upstream-e5b95a2e-comparison/mutant-runtime/path_v2.go"
+  }
+}

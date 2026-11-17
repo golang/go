@@ -1,0 +1,147 @@
+{
+  "recorded_utc": "2026-11-16T17:01:29.651660+00:00",
+  "source_temp": "/home/agent/logos-acceptance-9949907ca71e-s_3bta3t",
+  "source_temp_real_directory": true,
+  "fixture_sha256": "4cd169dc2ab9b2fd0e5c751b75bdd4f68ad55ba72a4df63a446d214372b3aab0",
+  "source_head": "45c29ff215477f7e403188d7452fc79aef05d791",
+  "comparisons": [
+    {
+      "label": "old-workspace",
+      "started_utc": "2026-11-16T17:01:29.255797+00:00",
+      "duration_seconds": 0.049,
+      "command": [
+        "/workspace/scratch/9949907ca71e/logos-json-integration/bin/logos",
+        "build",
+        "-o",
+        "/workspace/scratch/9949907ca71e/acceptance-tmp/vcs-control-1794848489249745647/control.exe",
+        "./control"
+      ],
+      "cwd": "/workspace/scratch/9949907ca71e/acceptance-tmp/vcs-control-1794848489249745647",
+      "resolved_cwd": "/workspace/scratch/9949907ca71e/acceptance-tmp/vcs-control-1794848489249745647",
+      "source_device": 27,
+      "environment": {
+        "GOROOT": "/workspace/scratch/9949907ca71e/logos-json-integration",
+        "GOMAXPROCS": "1",
+        "GOFLAGS": "-p=1",
+        "GOGC": "20",
+        "GOMEMLIMIT": "512MiB",
+        "GOTOOLCHAIN": "local",
+        "GOENV": "off",
+        "GOWORK": "off",
+        "GOPROXY": "off",
+        "GOEXPERIMENT": "",
+        "GOCACHE": "/workspace/scratch/9949907ca71e/postbuild-cache",
+        "GOPATH": "/workspace/scratch/9949907ca71e/acceptance-gopath",
+        "GOTMPDIR": "/workspace/scratch/9949907ca71e/acceptance-tmp",
+        "TMPDIR": "/home/agent/logos-acceptance-9949907ca71e-s_3bta3t",
+        "UPROOT1272": "/workspace/scratch/9949907ca71e/toolchains/go1.27.2",
+        "UPROOT1273": "/workspace/scratch/9949907ca71e/toolchains/go1.27.3",
+        "UPROOT1274": "/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci",
+        "CC": "/usr/bin/cc",
+        "PATH": "/workspace/scratch/9949907ca71e/logos-json-integration/bin:/workspace/scratch/9949907ca71e/logos-json-integration/lib/wasm:/workspace/scratch/9949907ca71e/toolchains/node-v26.13.1-ci/bin:/workspace/scratch/9949907ca71e/toolchains/qemu-10.0.13/usr/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/home/agent/.codex/tmp/arg0-linux/codex-arg0pouDth:/opt/codex/codex-path:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+      },
+      "exit_code": 1,
+      "output": "error obtaining VCS status: exit status 128\n\tUse -buildvcs=false to disable VCS stamping.\n",
+      "git_probes": [
+        {
+          "command": [
+            "git",
+            "rev-parse",
+            "--show-toplevel"
+          ],
+          "exit_code": 128,
+          "stdout": "",
+          "stderr": "fatal: not a git repository (or any parent up to mount point /)\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).\n"
+        },
+        {
+          "command": [
+            "git",
+            "status",
+            "--porcelain"
+          ],
+          "exit_code": 128,
+          "stdout": "",
+          "stderr": "fatal: not a git repository (or any parent up to mount point /)\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).\n"
+        }
+      ],
+      "ancestor_vcs_markers": [
+        {
+          "ancestor": "/workspace",
+          "git_marker_type": "directory",
+          "ancestor_device": 27
+        }
+      ],
+      "source_sha256": {
+        "go.mod": "3003bdfd0af94072be8b9909a11e5034c856be7919f6a4f3fd0dce9321fe731a",
+        "control/main.lgo": "c09e48e49f37f81266fb68d7922551d876a54e00420b537d7b592b150f39dfec"
+      },
+      "raw_log_sha256": "b508597d5aeb9815ee3655a0f7896215a96e60771442e69f6fbb10771197e90c"
+    },
+    {
+      "label": "new-home",
+      "started_utc": "2026-11-16T17:01:29.311031+00:00",
+      "duration_seconds": 0.34,
+      "command": [
+        "/workspace/scratch/9949907ca71e/logos-json-integration/bin/logos",
+        "build",
+        "-o",
+        "/home/agent/logos-acceptance-9949907ca71e-s_3bta3t/control-probe/control.exe",
+        "./control"
+      ],
+      "cwd": "/home/agent/logos-acceptance-9949907ca71e-s_3bta3t/control-probe",
+      "resolved_cwd": "/home/agent/logos-acceptance-9949907ca71e-s_3bta3t/control-probe",
+      "source_device": 41,
+      "environment": {
+        "GOROOT": "/workspace/scratch/9949907ca71e/logos-json-integration",
+        "GOMAXPROCS": "1",
+        "GOFLAGS": "-p=1",
+        "GOGC": "20",
+        "GOMEMLIMIT": "512MiB",
+        "GOTOOLCHAIN": "local",
+        "GOENV": "off",
+        "GOWORK": "off",
+        "GOPROXY": "off",
+        "GOEXPERIMENT": "",
+        "GOCACHE": "/workspace/scratch/9949907ca71e/postbuild-cache",
+        "GOPATH": "/workspace/scratch/9949907ca71e/acceptance-gopath",
+        "GOTMPDIR": "/workspace/scratch/9949907ca71e/acceptance-tmp",
+        "TMPDIR": "/home/agent/logos-acceptance-9949907ca71e-s_3bta3t",
+        "UPROOT1272": "/workspace/scratch/9949907ca71e/toolchains/go1.27.2",
+        "UPROOT1273": "/workspace/scratch/9949907ca71e/toolchains/go1.27.3",
+        "UPROOT1274": "/workspace/scratch/9949907ca71e/toolchains/go1.27.4-ci",
+        "CC": "/usr/bin/cc",
+        "PATH": "/workspace/scratch/9949907ca71e/logos-json-integration/bin:/workspace/scratch/9949907ca71e/logos-json-integration/lib/wasm:/workspace/scratch/9949907ca71e/toolchains/node-v26.13.1-ci/bin:/workspace/scratch/9949907ca71e/toolchains/qemu-10.0.13/usr/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/home/agent/.codex/tmp/arg0-linux/codex-arg0pouDth:/opt/codex/codex-path:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/override:/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin:/opt/codex/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/agent/.local/bin:/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback"
+      },
+      "exit_code": 0,
+      "output": "",
+      "git_probes": [
+        {
+          "command": [
+            "git",
+            "rev-parse",
+            "--show-toplevel"
+          ],
+          "exit_code": 128,
+          "stdout": "",
+          "stderr": "fatal: not a git repository (or any parent up to mount point /home)\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).\n"
+        },
+        {
+          "command": [
+            "git",
+            "status",
+            "--porcelain"
+          ],
+          "exit_code": 128,
+          "stdout": "",
+          "stderr": "fatal: not a git repository (or any parent up to mount point /home)\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).\n"
+        }
+      ],
+      "ancestor_vcs_markers": [],
+      "source_sha256": {
+        "go.mod": "3003bdfd0af94072be8b9909a11e5034c856be7919f6a4f3fd0dce9321fe731a",
+        "control/main.lgo": "c09e48e49f37f81266fb68d7922551d876a54e00420b537d7b592b150f39dfec"
+      },
+      "raw_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

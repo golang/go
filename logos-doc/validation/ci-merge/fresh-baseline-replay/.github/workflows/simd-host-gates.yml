@@ -1,0 +1,75 @@
+name: "SIMD feature guards"
+
+"on":
+  pull_request:
+    paths:
+      - ".github/scripts/install-ci-tool.sh"
+      - ".github/scripts/install-upstream-oracles.sh"
+      - ".github/workflows/simd-host-gates.yml"
+      - "src/cmd/go/scriptconds_test.go"
+      - "src/cmd/go/scriptconds_simd_logos_test.go"
+      - "src/cmd/go/internal/logos/config/targetcpu*"
+      - "src/cmd/compile/internal/ssa/**"
+      - "src/cmd/go/testdata/script/logos_simd_feature_gate.txt"
+      - "src/cmd/go/testdata/script/logos_simd_gate_avx512.txt"
+      - "src/cmd/go/testdata/script/logos_simd_gate_branch.txt"
+      - "src/cmd/go/testdata/script/logos_simd_nested_guard.txt"
+      - "src/cmd/go/testdata/script/logos_simd_zero_dominance.txt"
+      - "src/cmd/go/testdata/script/logos_eject_simd_slice.txt"
+  workflow_dispatch:
+
+permissions:
+  contents: "read"
+
+concurrency:
+  group: "simd-host-gates-${{ github.ref }}"
+  cancel-in-progress: true
+
+env:
+  GOMAXPROCS: "4"
+  GOFLAGS: "-p=2"
+  GOMEMLIMIT: "2GiB"
+  GOAMD64: "v1"
+
+jobs:
+  scripts:
+    runs-on: "ubuntu-24.04"
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: "bash"
+        working-directory: "src"
+    steps:
+      - name: "Check out the tested revision"
+        working-directory: "${{ github.workspace }}"
+        run: |
+          git init --quiet .
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          git -c protocol.version=2 fetch --no-tags --depth=1 origin "$GITHUB_SHA"
+          git -c advice.detachedHead=false checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - name: "Install the pinned Go bootstrap"
+        run: bash ../.github/scripts/install-ci-tool.sh go
+      - name: "Install upstream ejection toolchains"
+        run: bash ../.github/scripts/install-upstream-oracles.sh
+      - name: "Build the default toolchain"
+        run: |
+          GOROOT_BOOTSTRAP=$(go env GOROOT)
+          export GOROOT_BOOTSTRAP
+          GOEXPERIMENT="" ./make.bash
+          printf '%s\n' "$GITHUB_WORKSPACE/bin" >> "$GITHUB_PATH"
+      - name: "Check formatting and vet"
+        run: |
+          files="cmd/go/scriptconds_test.go cmd/go/scriptconds_simd_logos_test.go cmd/compile/internal/ssa/zcse.go cmd/compile/internal/ssa/branchelim.go cmd/compile/internal/ssa/*logos*.go"
+          gofmt -d $files
+          test -z "$(gofmt -l $files)"
+          go vet cmd/go cmd/compile/internal/ssa
+      - name: "Verify SIMD dominance and scalar controls"
+        run: |
+          go test -count=1 -short cmd/compile/internal/ssa
+      - name: "Run host-ISA fixture gates under the race detector"
+        env:
+          GOAMD64: "v1"
+          GOEXPERIMENT: ""
+        run: |
+          go test -count=1 -race -timeout=40m -v cmd/go -run '^(TestLogosHostAMD64Condition|TestScript)$/(README|logos_simd_(feature_gate|gate_avx512|gate_branch|nested_guard|zero_dominance)|logos_eject_simd_slice)$'

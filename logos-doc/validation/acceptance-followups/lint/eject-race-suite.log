@@ -1,0 +1,202 @@
+=== RUN   TestEmitPackagePlatformFiles
+--- PASS: TestEmitPackagePlatformFiles (0.00s)
+=== RUN   TestFindVariantContextPlatformLogosSyntax
+--- PASS: TestFindVariantContextPlatformLogosSyntax (0.00s)
+=== RUN   TestGofmtBinaryUsesToolExeSuffix
+--- PASS: TestGofmtBinaryUsesToolExeSuffix (0.00s)
+=== RUN   TestRunEjectGofmtBatchesUnderArgLimit
+=== RUN   TestRunEjectGofmtBatchesUnderArgLimit/1318
+=== RUN   TestRunEjectGofmtBatchesUnderArgLimit/1319
+=== RUN   TestRunEjectGofmtBatchesUnderArgLimit/1320
+--- PASS: TestRunEjectGofmtBatchesUnderArgLimit (3.54s)
+    --- PASS: TestRunEjectGofmtBatchesUnderArgLimit/1318 (1.18s)
+    --- PASS: TestRunEjectGofmtBatchesUnderArgLimit/1319 (1.25s)
+    --- PASS: TestRunEjectGofmtBatchesUnderArgLimit/1320 (1.10s)
+=== RUN   TestInactiveVariantsFormatEachOutputOnce
+--- PASS: TestInactiveVariantsFormatEachOutputOnce (0.03s)
+=== RUN   TestInactiveOwnedDeclarationUsesLoadedVariant
+--- PASS: TestInactiveOwnedDeclarationUsesLoadedVariant (0.00s)
+=== RUN   TestInactiveOwnedRequestPackageName
+=== RUN   TestInactiveOwnedRequestPackageName/windowsowner
+=== RUN   TestInactiveOwnedRequestPackageName/invented
+--- PASS: TestInactiveOwnedRequestPackageName (0.02s)
+    --- PASS: TestInactiveOwnedRequestPackageName/windowsowner (0.02s)
+    --- PASS: TestInactiveOwnedRequestPackageName/invented (0.00s)
+=== RUN   TestInactiveOwnedGroupsPackageNames
+=== RUN   TestInactiveOwnedGroupsPackageNames/distinct
+=== RUN   TestInactiveOwnedGroupsPackageNames/same
+--- PASS: TestInactiveOwnedGroupsPackageNames (0.02s)
+    --- PASS: TestInactiveOwnedGroupsPackageNames/distinct (0.02s)
+    --- PASS: TestInactiveOwnedGroupsPackageNames/same (0.00s)
+=== RUN   TestInactiveCensusKeepsLoaderBoundaries
+--- PASS: TestInactiveCensusKeepsLoaderBoundaries (0.00s)
+=== RUN   TestInactiveCensusIncludesUnloadedPackages
+--- PASS: TestInactiveCensusIncludesUnloadedPackages (0.00s)
+=== RUN   TestInactiveCensusHandlesNoHostPackages
+--- PASS: TestInactiveCensusHandlesNoHostPackages (0.00s)
+=== RUN   TestDedupeOwnedDeterministic
+--- PASS: TestDedupeOwnedDeterministic (0.00s)
+=== RUN   TestDedupeKeepsDistinctProvenance
+--- PASS: TestDedupeKeepsDistinctProvenance (0.00s)
+=== RUN   TestGatherOwnedRequests
+--- PASS: TestGatherOwnedRequests (0.00s)
+=== RUN   TestEmitOwnedHelperMainModule
+--- PASS: TestEmitOwnedHelperMainModule (0.05s)
+=== RUN   TestEmitOwnedCollisions
+=== RUN   TestEmitOwnedCollisions/source
+=== RUN   TestEmitOwnedCollisions/generated
+=== RUN   TestEmitOwnedCollisions/source_generated_prefix
+=== RUN   TestEmitOwnedCollisions/external_test_namespace
+--- PASS: TestEmitOwnedCollisions (0.05s)
+    --- PASS: TestEmitOwnedCollisions/source (0.00s)
+    --- PASS: TestEmitOwnedCollisions/generated (0.01s)
+    --- PASS: TestEmitOwnedCollisions/source_generated_prefix (0.01s)
+    --- PASS: TestEmitOwnedCollisions/external_test_namespace (0.02s)
+=== RUN   TestEmitOwnedRejectsStdlib
+--- PASS: TestEmitOwnedRejectsStdlib (0.00s)
+=== RUN   TestEmitOwnedOutsideModule
+--- PASS: TestEmitOwnedOutsideModule (0.00s)
+=== RUN   TestOwnedDeclNamesDuplicates
+--- PASS: TestOwnedDeclNamesDuplicates (0.00s)
+=== RUN   TestOwnedCheckDir
+--- PASS: TestOwnedCheckDir (0.00s)
+=== RUN   TestFindOwnedOwnerPrefersRealPackage
+--- PASS: TestFindOwnedOwnerPrefersRealPackage (0.00s)
+=== RUN   TestEmitOwnedIncludesDepModule
+--- PASS: TestEmitOwnedIncludesDepModule (0.04s)
+=== RUN   TestEmitOwnedExplicitProvenance
+--- PASS: TestEmitOwnedExplicitProvenance (0.07s)
+=== RUN   TestEmitOwnedDistinctDeclarationAlternatives
+--- PASS: TestEmitOwnedDistinctDeclarationAlternatives (0.05s)
+=== RUN   TestEmitOwnedPlatformFilenameTags
+--- PASS: TestEmitOwnedPlatformFilenameTags (0.04s)
+=== RUN   TestEmitOwnedCrossOwnerRefs
+--- PASS: TestEmitOwnedCrossOwnerRefs (0.04s)
+=== RUN   TestEmitOwnedTestOnly
+--- PASS: TestEmitOwnedTestOnly (0.04s)
+=== RUN   TestEmitOwnedLogosAliasExtension
+--- PASS: TestEmitOwnedLogosAliasExtension (0.03s)
+=== RUN   TestEmitOwnedMixedProdTestGroupKeepsProduction
+--- PASS: TestEmitOwnedMixedProdTestGroupKeepsProduction (0.03s)
+=== RUN   TestEmitOwnedMixedDistinctConditions
+--- PASS: TestEmitOwnedMixedDistinctConditions (0.03s)
+=== RUN   TestEmitOwnedNilOr
+--- PASS: TestEmitOwnedNilOr (0.02s)
+=== RUN   TestEmitOwnedMissingUnselected
+=== RUN   TestEmitOwnedMissingUnselected/missing_file
+=== RUN   TestEmitOwnedMissingUnselected/unselected_file
+=== RUN   TestEmitOwnedMissingUnselected/ignored_file
+=== RUN   TestEmitOwnedMissingUnselected/generated_cgo
+=== RUN   TestEmitOwnedMissingUnselected/unknown_owner
+=== RUN   TestEmitOwnedMissingUnselected/empty_inventory
+=== RUN   TestEmitOwnedMissingUnselected/same_hash_different_provenance_merges
+--- PASS: TestEmitOwnedMissingUnselected (0.18s)
+    --- PASS: TestEmitOwnedMissingUnselected/missing_file (0.00s)
+    --- PASS: TestEmitOwnedMissingUnselected/unselected_file (0.01s)
+    --- PASS: TestEmitOwnedMissingUnselected/ignored_file (0.01s)
+    --- PASS: TestEmitOwnedMissingUnselected/generated_cgo (0.01s)
+    --- PASS: TestEmitOwnedMissingUnselected/unknown_owner (0.02s)
+    --- PASS: TestEmitOwnedMissingUnselected/empty_inventory (0.08s)
+    --- PASS: TestEmitOwnedMissingUnselected/same_hash_different_provenance_merges (0.05s)
+=== RUN   TestEmitOwnedBuildCondition
+--- PASS: TestEmitOwnedBuildCondition (0.11s)
+=== RUN   TestEmitOwnedCgoCondition
+--- PASS: TestEmitOwnedCgoCondition (0.09s)
+=== RUN   TestEmitOwnedLogosHeaderCondition
+--- PASS: TestEmitOwnedLogosHeaderCondition (0.05s)
+=== RUN   TestOwnedHelperNameHashesFormattedOutput
+--- PASS: TestOwnedHelperNameHashesFormattedOutput (0.15s)
+=== RUN   TestVariantFeaturesCannotBeInvented
+=== RUN   TestVariantFeaturesCannotBeInvented/amd64_&&_amd64.v3_&&_!amd64.v2
+=== RUN   TestVariantFeaturesCannotBeInvented/amd64_&&_amd64.v5
+=== RUN   TestVariantFeaturesCannotBeInvented/arm64_&&_arm64.v9.1_&&_!arm64.v8.6
+=== RUN   TestVariantFeaturesCannotBeInvented/arm64_&&_arm64.v9.6
+=== RUN   TestVariantFeaturesCannotBeInvented/arm64_&&_amd64.v1
+=== RUN   TestVariantFeaturesCannotBeInvented/386_&&_goexperiment.regabiargs
+=== RUN   TestVariantFeaturesCannotBeInvented/gccgo
+=== RUN   TestVariantFeaturesCannotBeInvented/go1.99
+=== RUN   TestVariantFeaturesCannotBeInvented/goexperiment.unknown
+--- PASS: TestVariantFeaturesCannotBeInvented (0.45s)
+    --- PASS: TestVariantFeaturesCannotBeInvented/amd64_&&_amd64.v3_&&_!amd64.v2 (0.07s)
+    --- PASS: TestVariantFeaturesCannotBeInvented/amd64_&&_amd64.v5 (0.02s)
+    --- PASS: TestVariantFeaturesCannotBeInvented/arm64_&&_arm64.v9.1_&&_!arm64.v8.6 (0.05s)
+    --- PASS: TestVariantFeaturesCannotBeInvented/arm64_&&_arm64.v9.6 (0.04s)
+    --- PASS: TestVariantFeaturesCannotBeInvented/arm64_&&_amd64.v1 (0.06s)
+    --- PASS: TestVariantFeaturesCannotBeInvented/386_&&_goexperiment.regabiargs (0.05s)
+    --- PASS: TestVariantFeaturesCannotBeInvented/gccgo (0.08s)
+    --- PASS: TestVariantFeaturesCannotBeInvented/go1.99 (0.04s)
+    --- PASS: TestVariantFeaturesCannotBeInvented/goexperiment.unknown (0.03s)
+=== RUN   TestVariantFeatureSelectionReachesHelper
+=== RUN   TestVariantFeatureSelectionReachesHelper/amd64_&&_amd64.v3_&&_!amd64.v4_&&_keep
+=== RUN   TestVariantFeatureSelectionReachesHelper/amd64_&&_!amd64.v2_&&_keep
+=== RUN   TestVariantFeatureSelectionReachesHelper/arm64_&&_arm64.v9.1_&&_!amd64.v1_&&_keep
+=== RUN   TestVariantFeatureSelectionReachesHelper/386_&&_!goexperiment.regabiargs_&&_keep
+--- PASS: TestVariantFeatureSelectionReachesHelper (4.58s)
+    --- PASS: TestVariantFeatureSelectionReachesHelper/amd64_&&_amd64.v3_&&_!amd64.v4_&&_keep (1.10s)
+    --- PASS: TestVariantFeatureSelectionReachesHelper/amd64_&&_!amd64.v2_&&_keep (1.16s)
+    --- PASS: TestVariantFeatureSelectionReachesHelper/arm64_&&_arm64.v9.1_&&_!amd64.v1_&&_keep (1.15s)
+    --- PASS: TestVariantFeatureSelectionReachesHelper/386_&&_!goexperiment.regabiargs_&&_keep (1.17s)
+=== RUN   TestVariantFeaturesPreserveExplicitUserTags
+--- PASS: TestVariantFeaturesPreserveExplicitUserTags (0.00s)
+=== RUN   TestFindVariantContextKeepsValidHostAssignment
+=== RUN   TestFindVariantContextKeepsValidHostAssignment/windows_&&_(a_||_b)
+=== RUN   TestFindVariantContextKeepsValidHostAssignment/windows_&&_(!a_||_b)
+=== RUN   TestFindVariantContextKeepsValidHostAssignment/windows_&&_(a_||_!b)
+--- PASS: TestFindVariantContextKeepsValidHostAssignment (0.01s)
+    --- PASS: TestFindVariantContextKeepsValidHostAssignment/windows_&&_(a_||_b) (0.00s)
+    --- PASS: TestFindVariantContextKeepsValidHostAssignment/windows_&&_(!a_||_b) (0.00s)
+    --- PASS: TestFindVariantContextKeepsValidHostAssignment/windows_&&_(a_||_!b) (0.00s)
+=== RUN   TestFindVariantContextTagCounts
+=== RUN   TestFindVariantContextTagCounts/63
+=== RUN   TestFindVariantContextTagCounts/64
+=== RUN   TestFindVariantContextTagCounts/65
+=== RUN   TestFindVariantContextTagCounts/128
+--- PASS: TestFindVariantContextTagCounts (0.03s)
+    --- PASS: TestFindVariantContextTagCounts/63 (0.01s)
+    --- PASS: TestFindVariantContextTagCounts/64 (0.01s)
+    --- PASS: TestFindVariantContextTagCounts/65 (0.00s)
+    --- PASS: TestFindVariantContextTagCounts/128 (0.00s)
+=== RUN   TestFindVariantContextConstraintReadCount
+--- PASS: TestFindVariantContextConstraintReadCount (0.00s)
+=== RUN   TestFindVariantContextCanUnsetHostTags
+=== RUN   TestFindVariantContextCanUnsetHostTags/!selected
+=== RUN   TestFindVariantContextCanUnsetHostTags/!selected_&&_alternate
+--- PASS: TestFindVariantContextCanUnsetHostTags (0.00s)
+    --- PASS: TestFindVariantContextCanUnsetHostTags/!selected (0.00s)
+    --- PASS: TestFindVariantContextCanUnsetHostTags/!selected_&&_alternate (0.00s)
+=== RUN   TestFindVariantContextConstraintOracle
+=== RUN   TestFindVariantContextConstraintOracle/a
+=== RUN   TestFindVariantContextConstraintOracle/!a
+=== RUN   TestFindVariantContextConstraintOracle/!(!a)
+=== RUN   TestFindVariantContextConstraintOracle/a_&&_!a
+=== RUN   TestFindVariantContextConstraintOracle/a_||_!a
+=== RUN   TestFindVariantContextConstraintOracle/(a_||_b)_&&_!a
+=== RUN   TestFindVariantContextConstraintOracle/(a_||_b)_&&_(!a_||_c)_&&_!b
+=== RUN   TestFindVariantContextConstraintOracle/!((a_&&_b)_||_(!a_&&_c))_&&_(b_||_c)
+=== RUN   TestFindVariantContextConstraintOracle/(a_||_b)_&&_(!a_||_b)_&&_(a_||_!b)_&&_(!a_||_!b)
+=== RUN   TestFindVariantContextConstraintOracle/a_&&_(b_||_c)_&&_!(a_&&_b)
+--- PASS: TestFindVariantContextConstraintOracle (0.05s)
+    --- PASS: TestFindVariantContextConstraintOracle/a (0.00s)
+    --- PASS: TestFindVariantContextConstraintOracle/!a (0.00s)
+    --- PASS: TestFindVariantContextConstraintOracle/!(!a) (0.00s)
+    --- PASS: TestFindVariantContextConstraintOracle/a_&&_!a (0.02s)
+    --- PASS: TestFindVariantContextConstraintOracle/a_||_!a (0.00s)
+    --- PASS: TestFindVariantContextConstraintOracle/(a_||_b)_&&_!a (0.00s)
+    --- PASS: TestFindVariantContextConstraintOracle/(a_||_b)_&&_(!a_||_c)_&&_!b (0.00s)
+    --- PASS: TestFindVariantContextConstraintOracle/!((a_&&_b)_||_(!a_&&_c))_&&_(b_||_c) (0.01s)
+    --- PASS: TestFindVariantContextConstraintOracle/(a_||_b)_&&_(!a_||_b)_&&_(a_||_!b)_&&_(!a_||_!b) (0.02s)
+    --- PASS: TestFindVariantContextConstraintOracle/a_&&_(b_||_c)_&&_!(a_&&_b) (0.00s)
+=== RUN   TestFindVariantContextFixedTags
+=== RUN   TestFindVariantContextFixedTags/linux_&&_windows
+=== RUN   TestFindVariantContextFixedTags/cgo_&&_!cgo
+=== RUN   TestFindVariantContextFixedTags/!go1.1
+=== RUN   TestFindVariantContextFixedTags/go1.999
+=== RUN   TestFindVariantContextFixedTags/goexperiment.unavailable
+--- PASS: TestFindVariantContextFixedTags (0.09s)
+    --- PASS: TestFindVariantContextFixedTags/linux_&&_windows (0.01s)
+    --- PASS: TestFindVariantContextFixedTags/cgo_&&_!cgo (0.02s)
+    --- PASS: TestFindVariantContextFixedTags/!go1.1 (0.01s)
+    --- PASS: TestFindVariantContextFixedTags/go1.999 (0.02s)
+    --- PASS: TestFindVariantContextFixedTags/goexperiment.unavailable (0.02s)
+PASS
+elapsed_seconds=11.047 user_seconds=1.583 sys_seconds=0.668

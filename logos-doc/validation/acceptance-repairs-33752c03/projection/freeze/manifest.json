@@ -1,0 +1,212 @@
+{
+  "schema": 1,
+  "created_utc": "2026-11-16T20:55:29.712312+00:00",
+  "worktree": "/workspace/scratch/9949907ca71e/logos-types-projection-fix",
+  "head": "2535486fe9596a9212d525a5007963ef9e8682f0",
+  "tree": "5dba686458510aab15094739f8cde6b173425709",
+  "source_tree": "e237c399aae8f8065b724e8a0e27585686c7da18",
+  "initial_worktree_clean": true,
+  "reference_worktree": "/workspace/scratch/9949907ca71e/logos-final-acceptance",
+  "reference_source_tree": "e237c399aae8f8065b724e8a0e27585686c7da18",
+  "all_frozen_bytes_match_reference_and_commit": true,
+  "protected_files": [
+    {
+      "path": "src/go/types/builtins.go",
+      "snapshot": "protected/src/go/types/builtins.go",
+      "bytes": 31918,
+      "sha256": "5a85992f8539b3f64fd99efd827d5a6a518ffd379a8f75f3e5cc5f1efc0fe240"
+    },
+    {
+      "path": "src/go/types/typestring.go",
+      "snapshot": "protected/src/go/types/typestring.go",
+      "bytes": 12791,
+      "sha256": "c757b6ad9a4c3a6940a52b341377b646afbcc38fc0cd5dafb3128c7451af8c52"
+    },
+    {
+      "path": "src/cmd/compile/internal/types2/typestring.go",
+      "snapshot": "protected/src/cmd/compile/internal/types2/typestring.go",
+      "bytes": 13648,
+      "sha256": "571887b57d2bcf37b2b21080996a3411d75aa1b13bca8e046a4724c26384bff0"
+    },
+    {
+      "path": "src/cmd/compile/internal/types2/cgo_logos.go",
+      "snapshot": "protected/src/cmd/compile/internal/types2/cgo_logos.go",
+      "bytes": 1280,
+      "sha256": "136f39112d7739721ccc8ddb769ce27b357ad004b762a28517fb5143570e670d"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/lint/compile_panic_identity_test.go",
+      "snapshot": "protected/src/cmd/compile/internal/logos/lint/compile_panic_identity_test.go",
+      "bytes": 1485,
+      "sha256": "d8b8697eccb8bf2c68091cd899aa1158b4cdb66f024df0d76be1490cd3b09327"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/lint/compile_panic_void_identity_test.go",
+      "snapshot": "protected/src/cmd/compile/internal/logos/lint/compile_panic_void_identity_test.go",
+      "bytes": 1411,
+      "sha256": "6f71b6d0098dd666dc1fd67ad3852a7841e81ff584b963dc69d1d82c1177f362"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/lint/compile_test.go",
+      "snapshot": "protected/src/cmd/compile/internal/logos/lint/compile_test.go",
+      "bytes": 5503,
+      "sha256": "badbda80d31fd9165c125f72b7aec0eb299a96ec826dd71fd7c0996335ac8451"
+    },
+    {
+      "path": "src/cmd/go/testdata/script/logos_chains_panic_close.txt",
+      "snapshot": "protected/src/cmd/go/testdata/script/logos_chains_panic_close.txt",
+      "bytes": 631,
+      "sha256": "bf77aa85d09dc08387f3be0af022d184f550b6f57bcb752eec5c8a5c4336a7be"
+    },
+    {
+      "path": "test/logos/run/chains_panic_close.lgo",
+      "snapshot": "protected/test/logos/run/chains_panic_close.lgo",
+      "bytes": 2966,
+      "sha256": "d9e0274d446a0b3f37d36e7ce7305d01ba3cbe46a4d4642d74f2193b0d0189a6"
+    },
+    {
+      "path": "test/logos/run/chains_panic_close.out",
+      "snapshot": "protected/test/logos/run/chains_panic_close.out",
+      "bytes": 80,
+      "sha256": "a6d903072c0abe6d75726ba761e292beab0b2e8506def867c19813e98608b72c"
+    },
+    {
+      "path": "src/cmd/compile/internal/types2/ctfe_cgo_logos_test.go",
+      "snapshot": "protected/src/cmd/compile/internal/types2/ctfe_cgo_logos_test.go",
+      "bytes": 2591,
+      "sha256": "cee87b0f86a539124919ddfff52746b2a0721d898e48c0ddf65f60250c1b6187"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/eject_cgo_fastcall_test.go",
+      "snapshot": "protected/src/cmd/compile/internal/logos/eject_cgo_fastcall_test.go",
+      "bytes": 2120,
+      "sha256": "5fe520db1e9ec00257c6d145bf6422689b4b859750e71d7570e1acafb238cd26"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/eject_cgo_test.go",
+      "snapshot": "protected/src/cmd/compile/internal/logos/eject_cgo_test.go",
+      "bytes": 3043,
+      "sha256": "ecfadc83a0ab2cb5e1b6a847c95fe6c5ec563dea103be9f23662f801687096b0"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/eject_cgo_owned_test.go",
+      "snapshot": "protected/src/cmd/compile/internal/logos/eject_cgo_owned_test.go",
+      "bytes": 2403,
+      "sha256": "75be4756e7db38e7ee285d337745fd14c53898759fb8606623b351c94c0ceed9"
+    },
+    {
+      "path": "src/cmd/compile/internal/logos/json_cgo_quoted_test.go",
+      "snapshot": "protected/src/cmd/compile/internal/logos/json_cgo_quoted_test.go",
+      "bytes": 3978,
+      "sha256": "bc1903980a8fa11ad0724c8eada997d0b5bdbfb5713efbe46d27cffdacac3084"
+    },
+    {
+      "path": "src/cmd/go/testdata/script/logos_cgo_lgo.txt",
+      "snapshot": "protected/src/cmd/go/testdata/script/logos_cgo_lgo.txt",
+      "bytes": 13812,
+      "sha256": "b23f88a2a13aed210eb25b7daa68c44b573eb19edd6d53484b0ba65913ed143a"
+    },
+    {
+      "path": "src/cmd/go/testdata/script/logos_eject_cgo.txt",
+      "snapshot": "protected/src/cmd/go/testdata/script/logos_eject_cgo.txt",
+      "bytes": 5189,
+      "sha256": "0e02421bc39733668e1197f7e03815a99f9fda96ee046701d1d03561091a82e7"
+    },
+    {
+      "path": "src/cmd/go/testdata/script/logos_eject_cgo_types.txt",
+      "snapshot": "protected/src/cmd/go/testdata/script/logos_eject_cgo_types.txt",
+      "bytes": 902,
+      "sha256": "beb5c0bd4b82daa3dd78385e0988891a365d5f770e6831a2b10513cd94114f9c"
+    },
+    {
+      "path": "src/cmd/go/testdata/script/logos_eject_cgo_mode.txt",
+      "snapshot": "protected/src/cmd/go/testdata/script/logos_eject_cgo_mode.txt",
+      "bytes": 1177,
+      "sha256": "a1487fff0d835e4d24806752287d4933fefa91a4b519b42afcbdb0120c7c574c"
+    },
+    {
+      "path": "src/cmd/go/testdata/script/logos_eject_cgo_paths.txt",
+      "snapshot": "protected/src/cmd/go/testdata/script/logos_eject_cgo_paths.txt",
+      "bytes": 2785,
+      "sha256": "f0b038b4cfbccee4cd329670c8ea2b7f1335609d190195236e99267db71e9988"
+    },
+    {
+      "path": "src/cmd/go/testdata/script/logos_eject_cgo_codegen.txt",
+      "snapshot": "protected/src/cmd/go/testdata/script/logos_eject_cgo_codegen.txt",
+      "bytes": 1739,
+      "sha256": "5fad974a888d363a56c06eb3d741f65af9f6d0050f05bf0f86b0a6fbed4d5a6e"
+    },
+    {
+      "path": "src/cmd/go/testdata/script/logos_eject_cgo_codegen_edges.txt",
+      "snapshot": "protected/src/cmd/go/testdata/script/logos_eject_cgo_codegen_edges.txt",
+      "bytes": 2142,
+      "sha256": "4d1c79a7dce6089ce49596fa8e6ba7821b85455ae247c8ffccfd7d99e898949b"
+    },
+    {
+      "path": "src/cmd/go/testdata/script/logos_eject_cgo_owned.txt",
+      "snapshot": "protected/src/cmd/go/testdata/script/logos_eject_cgo_owned.txt",
+      "bytes": 879,
+      "sha256": "13a8ea9781bdaa263fdeaf837d877463408ee258bec5c1b4f2c389805ff0b63e"
+    }
+  ],
+  "protected_function_bodies": [
+    {
+      "path": "src/go/types/generate_test.go",
+      "function": "TestGenerate",
+      "snapshot": "TestGenerate.body.go.txt",
+      "byte_offset": 883,
+      "bytes": 476,
+      "sha256": "e09b1f826723aa896f78c6c9cf879e64fdd974bddfeb01befd1c3ba6bf82057b"
+    },
+    {
+      "path": "src/go/types/generate_test.go",
+      "function": "generate",
+      "snapshot": "generate.body.go.txt",
+      "byte_offset": 1360,
+      "bytes": 1527,
+      "sha256": "6c6c5bb2e9588b6954471d3c43e4252f169aeb6e545ad4e5bcf60e652e91c328"
+    }
+  ],
+  "baseline_implementation_files_allowed_to_change_only_in_authorized_candidate": [
+    {
+      "path": "src/go/types/generate_test.go",
+      "snapshot": "baseline-implementation/src/go/types/generate_test.go",
+      "bytes": 32208,
+      "sha256": "8963b51a08c2487d55d1dfa3214f4171c236e07a5860a655ec1cf3a72a8c5a89"
+    },
+    {
+      "path": "src/cmd/compile/internal/types2/builtins.go",
+      "snapshot": "baseline-implementation/src/cmd/compile/internal/types2/builtins.go",
+      "bytes": 32402,
+      "sha256": "75ea76f93d132e940f84a4025dedb8479292091bf255a365f1fb51304bf8aefa"
+    },
+    {
+      "path": "src/cmd/compile/internal/types2/narrow_logos.go",
+      "snapshot": "baseline-implementation/src/cmd/compile/internal/types2/narrow_logos.go",
+      "bytes": 35532,
+      "sha256": "cb56d25a49447469d1ab022cb7f48f1603f685bbb97119309b345b372cdbc1ca"
+    }
+  ],
+  "baseline_red": {
+    "exit_code": 1,
+    "duration_seconds": 4.765,
+    "expected_semantic_red": true,
+    "files": [
+      {
+        "path": "/workspace/scratch/9949907ca71e/recovery-evidence/acceptance-failure-repairs/baseline-001/go-types-generate/inputs.json",
+        "bytes": 4672,
+        "sha256": "2a2afbeda588486632a634eb7a677d2df4d666981d60d6b8ba5dfda5ef11ccf1"
+      },
+      {
+        "path": "/workspace/scratch/9949907ca71e/recovery-evidence/acceptance-failure-repairs/baseline-001/go-types-generate/result.json",
+        "bytes": 2814,
+        "sha256": "ef71bf1397499b73fd3ee407db191b659fbe26b569d17bd9c8f2fa831684650d"
+      },
+      {
+        "path": "/workspace/scratch/9949907ca71e/recovery-evidence/acceptance-failure-repairs/baseline-001/go-types-generate/stdout.log",
+        "bytes": 2724,
+        "sha256": "f1020f844b122b5a414930131d396282b87766c941fe496e47e94ad46eab3a0d"
+      }
+    ]
+  }
+}

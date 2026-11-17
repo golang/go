@@ -1,0 +1,19 @@
+=== RUN   TestQuotedTextAppendCannotCorruptToken
+--- PASS: TestQuotedTextAppendCannotCorruptToken (0.00s)
+=== RUN   TestQuotedTextPermissiveUnquoteMatchesEncodingJSON
+    stream_v2_test.go:330: "\ud800": End() = json: cannot unmarshal number into Go struct field streamTarget[logos/rt/json.streamUnsupportedTextProbe].v of type json.streamUnsupportedTextProbe: JSON value must be string type, encoding/json = <nil>
+    stream_v2_test.go:330: "\ud800": value = json.streamTarget[logos/rt/json.streamUnsupportedTextProbe]{V:"", After:17}, encoding/json = json.streamTarget[logos/rt/json.streamUnsupportedTextProbe]{V:"|text:ï¿½", After:17}
+    stream_v2_test.go:331: "\ud800": End() = json: cannot unmarshal number into Go struct field streamTarget[*logos/rt/json.streamUnsupportedTextProbe].v of type json.streamUnsupportedTextProbe: JSON value must be string type, encoding/json = <nil>
+    stream_v2_test.go:331: "\ud800": value = json.streamTarget[*logos/rt/json.streamUnsupportedTextProbe]{V:(*json.streamUnsupportedTextProbe)(0xc000032b60), After:17}, encoding/json = json.streamTarget[*logos/rt/json.streamUnsupportedTextProbe]{V:(*json.streamUnsupportedTextProbe)(0xc000032b70), After:17}
+    stream_v2_test.go:330: "ÿ": End() = json: cannot unmarshal number into Go struct field streamTarget[logos/rt/json.streamUnsupportedTextProbe].v of type json.streamUnsupportedTextProbe: JSON value must be string type, encoding/json = <nil>
+    stream_v2_test.go:330: "ÿ": value = json.streamTarget[logos/rt/json.streamUnsupportedTextProbe]{V:"", After:17}, encoding/json = json.streamTarget[logos/rt/json.streamUnsupportedTextProbe]{V:"|text:ï¿½", After:17}
+    stream_v2_test.go:331: "ÿ": End() = json: cannot unmarshal number into Go struct field streamTarget[*logos/rt/json.streamUnsupportedTextProbe].v of type json.streamUnsupportedTextProbe: JSON value must be string type, encoding/json = <nil>
+    stream_v2_test.go:331: "ÿ": value = json.streamTarget[*logos/rt/json.streamUnsupportedTextProbe]{V:(*json.streamUnsupportedTextProbe)(0xc000032cc0), After:17}, encoding/json = json.streamTarget[*logos/rt/json.streamUnsupportedTextProbe]{V:(*json.streamUnsupportedTextProbe)(0xc000032cd0), After:17}
+    stream_v2_test.go:330: "x\ud800y": End() = json: cannot unmarshal number into Go struct field streamTarget[logos/rt/json.streamUnsupportedTextProbe].v of type json.streamUnsupportedTextProbe: JSON value must be string type, encoding/json = <nil>
+    stream_v2_test.go:330: "x\ud800y": value = json.streamTarget[logos/rt/json.streamUnsupportedTextProbe]{V:"", After:17}, encoding/json = json.streamTarget[logos/rt/json.streamUnsupportedTextProbe]{V:"|text:xï¿½y", After:17}
+    stream_v2_test.go:331: "x\ud800y": End() = json: cannot unmarshal number into Go struct field streamTarget[*logos/rt/json.streamUnsupportedTextProbe].v of type json.streamUnsupportedTextProbe: JSON value must be string type, encoding/json = <nil>
+    stream_v2_test.go:331: "x\ud800y": value = json.streamTarget[*logos/rt/json.streamUnsupportedTextProbe]{V:(*json.streamUnsupportedTextProbe)(0xc000032dc0), After:17}, encoding/json = json.streamTarget[*logos/rt/json.streamUnsupportedTextProbe]{V:(*json.streamUnsupportedTextProbe)(0xc000032dd0), After:17}
+--- FAIL: TestQuotedTextPermissiveUnquoteMatchesEncodingJSON (0.00s)
+FAIL
+FAIL	logos/rt/json	0.015s
+FAIL

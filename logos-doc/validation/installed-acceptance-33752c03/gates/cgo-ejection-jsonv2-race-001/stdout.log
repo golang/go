@@ -1,0 +1,44 @@
+=== RUN   TestEjectCgoFastcall
+=== RUN   TestEjectCgoFastcall/block
+=== RUN   TestEjectCgoFastcall/line
+=== RUN   TestEjectCgoFastcall/group
+=== RUN   TestEjectCgoFastcall/split_block
+=== RUN   TestEjectCgoFastcall/split_line
+=== RUN   TestEjectCgoFastcall/carriage_return
+=== RUN   TestEjectCgoFastcall/ordinary_comment
+=== RUN   TestEjectCgoFastcall/detached
+=== RUN   TestEjectCgoFastcall/malformed
+=== RUN   TestEjectCgoFastcall/joined_suffix
+--- PASS: TestEjectCgoFastcall (0.01s)
+    --- PASS: TestEjectCgoFastcall/block (0.00s)
+    --- PASS: TestEjectCgoFastcall/line (0.00s)
+    --- PASS: TestEjectCgoFastcall/group (0.00s)
+    --- PASS: TestEjectCgoFastcall/split_block (0.00s)
+    --- PASS: TestEjectCgoFastcall/split_line (0.00s)
+    --- PASS: TestEjectCgoFastcall/carriage_return (0.00s)
+    --- PASS: TestEjectCgoFastcall/ordinary_comment (0.00s)
+    --- PASS: TestEjectCgoFastcall/detached (0.00s)
+    --- PASS: TestEjectCgoFastcall/malformed (0.00s)
+    --- PASS: TestEjectCgoFastcall/joined_suffix (0.00s)
+=== RUN   TestEjectCgoOwnedTypes
+=== RUN   TestEjectCgoOwnedTypes/original
+=== RUN   TestEjectCgoOwnedTypes/ordinary
+--- PASS: TestEjectCgoOwnedTypes (0.00s)
+    --- PASS: TestEjectCgoOwnedTypes/original (0.00s)
+    --- PASS: TestEjectCgoOwnedTypes/ordinary (0.00s)
+=== RUN   TestEjectCgoPreamble
+=== RUN   TestEjectCgoPreamble/block
+=== RUN   TestEjectCgoPreamble/line
+=== RUN   TestEjectCgoPreamble/group
+=== RUN   TestEjectCgoPreamble/group_decl
+=== RUN   TestEjectCgoPreamble/empty
+--- PASS: TestEjectCgoPreamble (0.01s)
+    --- PASS: TestEjectCgoPreamble/block (0.00s)
+    --- PASS: TestEjectCgoPreamble/line (0.00s)
+    --- PASS: TestEjectCgoPreamble/group (0.00s)
+    --- PASS: TestEjectCgoPreamble/group_decl (0.00s)
+    --- PASS: TestEjectCgoPreamble/empty (0.00s)
+=== RUN   TestEjectQuotedCgoTypes
+--- PASS: TestEjectQuotedCgoTypes (6.54s)
+PASS
+ok  	cmd/compile/internal/logos	7.580s

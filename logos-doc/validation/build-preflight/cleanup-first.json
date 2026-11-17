@@ -1,0 +1,22 @@
+{
+  "completed_utc": "2026-11-16T15:40:20.386330+00:00",
+  "manifest": "/workspace/scratch/9949907ca71e/cgo-eject-evidence/build-resource-cleanup-manifest.json",
+  "manifest_sha256": "b828b465be8c86f7bc063bd7f5155323f0eae428a47575425a461d0cc00194b1",
+  "resources_before_removal": {
+    "workspace_available_bytes": 1465352192,
+    "home_available_bytes": 1697955840,
+    "MemAvailable": 1569001472,
+    "Shmem": 6972149760
+  },
+  "resources_after_removal": {
+    "workspace_available_bytes": 4172087296,
+    "home_available_bytes": 2612002816,
+    "MemAvailable": 2474803200,
+    "Shmem": 6052958208
+  },
+  "archives_removed": 4,
+  "archive_allocated_bytes_removed": 914046976,
+  "cache_items_removed": 5496,
+  "cache_allocated_bytes_removed": 2708541440,
+  "protected_items_unchanged": 38413
+}

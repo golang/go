@@ -1,0 +1,378 @@
+{
+  "schema": 1,
+  "created_utc": "2026-11-16T21:04:39.264105+00:00",
+  "worktree": "/workspace/scratch/9949907ca71e/logos-parity-execution-fix",
+  "head": "2535486fe9596a9212d525a5007963ef9e8682f0",
+  "tree": "5dba686458510aab15094739f8cde6b173425709",
+  "source_tree": "e237c399aae8f8065b724e8a0e27585686c7da18",
+  "initial_worktree_clean": true,
+  "all_bytes_match_immutable_final_e96": true,
+  "freeze_scope": "All existing tracked files in cmd/internal/goparity, including harness budgets/configurations, complete run/fail corpora, and mutant inputs. The test-only preparation changes none of them.",
+  "files": [
+    {
+      "path": "src/cmd/internal/goparity/parity_kill_other.go",
+      "bytes": 700,
+      "sha256": "95754693a33ff909d63fbdd11347e12d8a8131819ae779cda4a6dc37384deed5"
+    },
+    {
+      "path": "src/cmd/internal/goparity/parity_kill_unix.go",
+      "bytes": 1061,
+      "sha256": "7c152c49a84896c36eb42d3ed2890b5370b45fd6f9e5dbf201daef765b2fe8e6"
+    },
+    {
+      "path": "src/cmd/internal/goparity/parity_test.go",
+      "bytes": 87423,
+      "sha256": "1be848e4e5f94f76d3484e12b253d4eaad81990a89635a59cf59f86fa1149bb4"
+    },
+    {
+      "path": "src/cmd/internal/goparity/redteam_ledger_test.go",
+      "bytes": 2611,
+      "sha256": "4871b7713e5c22d2f3ca8b2512060c8ce4da8d508fffbc4d2eb3b2db3dfdc3d6"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/fail/at14_coalesce.go",
+      "bytes": 231,
+      "sha256": "f08352ca4d7138a1c0894b0142ff0d7b02f00e8d0f9a3a1638f90da67462165c"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/fail/at14_const_for.go",
+      "bytes": 225,
+      "sha256": "040f16f5bb49f7f00e9b10bc1372737290ed972e336c1b3f6d028cb54f060bdb"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/fail/at14_const_func.go",
+      "bytes": 208,
+      "sha256": "4f25badb72c4cd0051fc676e6ed1027068b68dbada9c18f9310870bc60638d2f"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/fail/at14_errdefer.go",
+      "bytes": 217,
+      "sha256": "5534c2b92a940af4ff764557d22daa04da5c50ad56d38a260871ebc06d8dd814"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/fail/at14_field_default.go",
+      "bytes": 244,
+      "sha256": "70025629053d26de6cf44c8cf3c86c601866201242e67c17f338de99abbc476e"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/fail/at14_go_group_block.go",
+      "bytes": 293,
+      "sha256": "646fbcdd617383596ba66a7b9413476d95ff98e2f8851900677008fba209708d"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/fail/at14_interp.go",
+      "bytes": 238,
+      "sha256": "7aa35888d68d7d29347ad01249a772d912f62a37fd416f5e68d0b800bac596f9"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/fail/at14_lambda.go",
+      "bytes": 222,
+      "sha256": "735a1e13d8a410691cef728b727aaa17c3f48977ad4c22553d1ad8c7236d62a0"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/fail/at14_leading_dot.go",
+      "bytes": 275,
+      "sha256": "546855bf5f69e111252ee790956a020abfcc0335238a74815c7e260e2f74b6d6"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/fail/at14_option_type.go",
+      "bytes": 209,
+      "sha256": "24032dc1d02c9938fce34d3fb85c97689cf673e64992ca10297d4a0205dede46"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/fail/at14_property.go",
+      "bytes": 255,
+      "sha256": "313158c593146cd2bf1b89b614249a14d8f11c6ea77ff5800d44a23fcc13ec04"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/fail/at14_question_dot.go",
+      "bytes": 265,
+      "sha256": "8d1771a71642e8cbe03188331cf1f5fd09faf12901425a65fef8a8a9e639acdc"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/fail/at14_question_postfix.go",
+      "bytes": 255,
+      "sha256": "a68278d1ef1f4c5cdf7ae43efa0e3de502875e3c2f960b6fa087c94008dcc6da"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/fail/at14_scope_defer.go",
+      "bytes": 220,
+      "sha256": "829ac8350e0216fbc60289f4b7d3b3b2367beb1f09ef19ba106f4ef236416836"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/fail/at14_spread.go",
+      "bytes": 264,
+      "sha256": "2936d73c56dc68cc0cee55e39cf17ff7a4e59d4300aa0c77956f76ba5b4217cc"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/fail/at14_tuple_type.go",
+      "bytes": 218,
+      "sha256": "10d21a3d01428fc8f69ce7f892f1828d8c0637d9c1b1ae0c620beb8b4f8354a8"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/fail/at14_union_decl.go",
+      "bytes": 271,
+      "sha256": "40cea56634a44670482dbebce97527269c133507505e3fcd619ebee96ef4905b"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/fail/at14_yield_stmt.go",
+      "bytes": 199,
+      "sha256": "53fca31a65add465da982b3a9d0f90e76def571586cf5e84bcb25bb73451a011"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/mutants/at01.txt",
+      "bytes": 210,
+      "sha256": "23cbb356c5859015d015d4c3aa195a8e998519572306a9a214e49eaeab2f65a1"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/mutants/at02.txt",
+      "bytes": 216,
+      "sha256": "6bc46c1afc87c5db12b009ca653934698e7493f8a219200bc10b0a1d9accbd2b"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/mutants/at03.txt",
+      "bytes": 355,
+      "sha256": "b58bad000ab4d5f152c40ee4f81a4e612a810b0a52bbecc229c3164934730214"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/mutants/at04.txt",
+      "bytes": 131,
+      "sha256": "40cf8f0277fa38c39ff393e72fc6d4f810087eb1dc41b84924d65bbae0589d83"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/mutants/at05.txt",
+      "bytes": 201,
+      "sha256": "8af8de74b2e447e7a34968c385b6fd59339d4339f4b8a0ddab654fddc4b7a8bf"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/mutants/at06.txt",
+      "bytes": 231,
+      "sha256": "9d5ab72c5db6bbe8f0a317cfaf6da55dc3d008d073b8a09967baf6e461a6344e"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/mutants/at07.txt",
+      "bytes": 266,
+      "sha256": "1fea980b764fd7e78d863172a10b844ac9090cf9f75aaa7db1111b8924e4f906"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/mutants/at08.txt",
+      "bytes": 257,
+      "sha256": "7e432078f7cc2a48ac4d5baaedc6f920485f2a42041a67eb83292fdff5e6db99"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/mutants/at09.txt",
+      "bytes": 159,
+      "sha256": "ef9f545d01aca7d2a9e6867cd954ce1292c3ec841add10e8fe290297ebf74ce3"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/mutants/at10.txt",
+      "bytes": 200,
+      "sha256": "751d7699c0b522786ea743c4f563e15b38e0d31788c76160d96d58a116fd7009"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/mutants/at11.txt",
+      "bytes": 277,
+      "sha256": "bbc80761031bbc27c57f1e21eb09283f5e5542ee1a3cf07b5746d77a5520d8a7"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/mutants/at12.txt",
+      "bytes": 227,
+      "sha256": "a74e0c8b02afd02bb9663cff4f3daff836eae764d94693415639a8c88945c7b4"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/mutants/at14.txt",
+      "bytes": 461,
+      "sha256": "ef019593a5e21d219df10478fd0c86a73c5a42db1da2efe3e501a2ecb81b9f9d"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/mutants/at16.txt",
+      "bytes": 169,
+      "sha256": "4d3e61ccfe83b837d042d24a29464bbae27486469bad5468499779cab0ce4d08"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/mutants/at17.txt",
+      "bytes": 393,
+      "sha256": "9598a10356b39e047f32bedaf1fe727f9ed8d5b08c182f94ba91972dcd5223b4"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/mutants/at21.txt",
+      "bytes": 213,
+      "sha256": "945ba6a4f8097a9226284895356278069ee056d4f1cdb296436d2077d619f37d"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/mutants/at22.txt",
+      "bytes": 189,
+      "sha256": "4c7140f41d1053742bd2863d2b2a6b49657579a9443f8e15dc22854c49fa800a"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/run/at01_arena_escape/main.go",
+      "bytes": 3957,
+      "sha256": "0c1b656a850751fc1b4930d63849aca8c7117a5317308e56b211b07a02fb37cf"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/run/at02_loop_restore_depth/main.go",
+      "bytes": 870,
+      "sha256": "b33a7b06c4a9b35838cd26acd02e915d3350c70e89f6b111000b5d9e722d3bbe"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/run/at03_consent_chain/main.go",
+      "bytes": 888,
+      "sha256": "e8b91fcde049522055b22a948f658eb4da7d04e2e5773559889ffe61ae129a70"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/run/at04_arena_park/main.go",
+      "bytes": 2071,
+      "sha256": "6a20fa47533dbe5abfb1b03983e99a7489ffa396323a16c27e2bb7819957ac5b"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/run/at05_arena_gc/main.go",
+      "bytes": 1292,
+      "sha256": "e03cd34c28863f84654d5cf74dabfef3470bb624c124634a70dcc7c9d9c34c3d"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/run/at06_finalizer_make/main.go",
+      "bytes": 1420,
+      "sha256": "619803d88bebacdaa6937e9a22270fb701e5b385964f7732d8ee1a00e2900142"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/run/at07_append_laws/gen.go",
+      "bytes": 10332,
+      "sha256": "5b90ec5798ad999ca1832e8b82c5c290156d279f9fb675f491b566af92392de8"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/run/at08_recursion_bound/main.go",
+      "bytes": 1410,
+      "sha256": "e1aa8d47d3fe4ddc0d43be98ec361c1ad2dcf9ca8711f1feaa49afc2081bc359"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/run/at09_defer_recover_frames/main.go",
+      "bytes": 4896,
+      "sha256": "e46f6c24072802be354cb4cc065ed01f7a3812864ad88cfea465e2b7c1248b16"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/run/at10_rotate_const/gen.go",
+      "bytes": 6111,
+      "sha256": "1bcdacca3e0c16a6e2692cf9728372b26b3a5ec7517239e3f39a26ae2b755729"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/run/at11_float_rounding/level-dependent.txt",
+      "bytes": 12,
+      "sha256": "a7b80a134ee944d3adb4f7fb6ed426e08e4b68d88538afe0d2c7d4d7ed43b099"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/run/at11_float_rounding/main.go",
+      "bytes": 5448,
+      "sha256": "387dcf5990da2262cde013a16d89fd53385141d6c1d2187a5334d96a618985fe"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/run/at12_symbol_names/main.go",
+      "bytes": 2842,
+      "sha256": "0718697cc6409957c2f1e6a7ce5ac5d54bff77935ef7d06d1450d815ece238a6"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/run/at16_xpkg_escape/a/a.go",
+      "bytes": 1421,
+      "sha256": "f1b3a1a342b84045d52ad4bf43de9e4dbe964194c55bf909686258b135c9df7a"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/run/at16_xpkg_escape/main.go",
+      "bytes": 2574,
+      "sha256": "267f78ead41cd4a930cef1b310198dbb00da3c4e334010d295da987361c29a27"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/run/at17a_none_plain_seq/main.go",
+      "bytes": 827,
+      "sha256": "05db814482f0a628edb97ce7e4718a13dd27944177930570bc33db6c40e8732a"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/run/at17b_none_plain_par/main.go",
+      "bytes": 900,
+      "sha256": "ce46a8e0a315fe9c3fdbf047fd0f5abb144d3e63ada94082aed7f543599ab3ea"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/run/at17c_none_cb_seq/main.go",
+      "bytes": 873,
+      "sha256": "0ebc13597f93dcda8bdf9f08722cb0caad72d4861247dad27725c1253a48c24b"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/run/at17d_none_cb_par/main.go",
+      "bytes": 1082,
+      "sha256": "ea5a6ff1b72df832cce8c8b2aa312ca1bc79ffa59dde81e110f86f3f989df07c"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/run/at17e_noescape_plain_seq/main.go",
+      "bytes": 857,
+      "sha256": "a2eeafbcca25931743286895a3ee33f491a358de2193b978f6c7ab1974605113"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/run/at17f_noescape_plain_par/main.go",
+      "bytes": 930,
+      "sha256": "253efc67b8afde29ee0e014483b20c3d761a5e0a87caf6e45bbf4ac7b9c4e76f"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/run/at17g_noescape_cb_seq/main.go",
+      "bytes": 903,
+      "sha256": "a8fc333efb527116d48bdf10be4779238d75e7765e77453812e883f114763961"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/run/at17h_noescape_cb_par/main.go",
+      "bytes": 1112,
+      "sha256": "cfac8761bb1ddef2bd6f7e1e25b53f04fd8e3e6f2edc955fb2bdb3497e6b23ef"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/run/at17i_nocallback_plain_seq/main.go",
+      "bytes": 863,
+      "sha256": "d78a6d3db840f739c57e4838d14a09886c8189a68f2ee7e246b323848a19d738"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/run/at17j_nocallback_plain_par/main.go",
+      "bytes": 936,
+      "sha256": "0b69e04c7873ac8720fe056d5d1f8c1e6b84e2643d5d9fe90cec5fa3544a434b"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/run/at17k_nocallback_forbid_seq/main.go",
+      "bytes": 1522,
+      "sha256": "91351041f7f4c6cfe28e957afe935457b307011a59c62df76a453f990f77fa04"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/run/at17l_nocallback_forbid_par/main.go",
+      "bytes": 1709,
+      "sha256": "0693422afbd87f4cc1a32627a906dedc73c51aef65ecb25c9306050901d9a980"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/run/at17m_both_plain_seq/main.go",
+      "bytes": 872,
+      "sha256": "e01cfe2a634efd43483be7b626702a73970cbf084e346b5e9cdbd620ca53b7d0"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/run/at17n_both_plain_par/main.go",
+      "bytes": 945,
+      "sha256": "b07cf4af06b1f99d89ed1d45334f894fa8da4fda97e6e5b1d9b6c26c9c13208c"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/run/at17o_both_forbid_seq/main.go",
+      "bytes": 1879,
+      "sha256": "1a837ebf87bab2e2f8eb3203b0836448234a43ab5322103fb10446c4a0eadaaf"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/run/at17p_both_forbid_par/main.go",
+      "bytes": 2114,
+      "sha256": "c0841c3e38cd3667e7acb6690de43fe9159593ce3664964e62a0084e4dfb354c"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/run/at21_learned_stacks/main.go",
+      "bytes": 1727,
+      "sha256": "dcaec708198125c23e227a02338b84d162f59525dc6b5c7880aedca5f271ab11"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/run/at22_gc_churn/main.go",
+      "bytes": 7263,
+      "sha256": "d96f2dc0281f3cf2d907dc6f805763e75f9308fa6092a39684a7d8f9a2722ace"
+    },
+    {
+      "path": "src/cmd/internal/goparity/testdata/toolexec/main.go",
+      "bytes": 927,
+      "sha256": "e1d0dd936455cb61a92fb6cb33ac8c6642bfd57575b74c783ad382dc58c4a00a"
+    }
+  ]
+}

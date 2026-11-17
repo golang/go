@@ -1,0 +1,5 @@
+src/cmd/go/internal/logos/eject/variant_features_test.go: OK
+src/cmd/go/testdata/script/logos_eject_target_features.txt: OK
+src/internal/buildcfg/feature_tags_logos_test.go: OK
+src/cmd/go/testdata/script/logos_eject_target_env_compat.txt: OK
+src/cmd/go/internal/logos/eject/eject_test.go: OK

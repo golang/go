@@ -1,0 +1,12 @@
+{
+  "failures": [
+    "dedicated release workflow is absent",
+    "release executor is absent",
+    "explicit source-tree request is absent",
+    "six explicit no-short go/logos O1/O2/O3 std/cmd cells are absent",
+    "complete unfiltered parity release/stamp job is absent",
+    "two independent reproducibility hosts and digest comparison are absent",
+    "mandatory real gopls/QEMU/Wasm execution gate is absent"
+  ],
+  "passed": false
+}

@@ -1,0 +1,76 @@
+{
+  "schema": 1,
+  "created_utc": "2026-11-16T21:07:23.574405+00:00",
+  "worktree": "/workspace/scratch/9949907ca71e/logos-parity-execution-fix",
+  "base_head": "2535486fe9596a9212d525a5007963ef9e8682f0",
+  "base_tree": "5dba686458510aab15094739f8cde6b173425709",
+  "base_source_tree": "e237c399aae8f8065b724e8a0e27585686c7da18",
+  "freeze_manifest": "/workspace/scratch/9949907ca71e/recovery-evidence/parity-execution-limiter/freeze/manifest.json",
+  "freeze_manifest_sha256": "0fb9448d50cb6d8ee73065f65b1e05a6d0fa98d663ee5d47ad3bdfcad05ef92f",
+  "all_73_existing_package_files_unchanged": true,
+  "new_test": {
+    "path": "src/cmd/internal/goparity/execution_queue_test.go",
+    "bytes": 10411,
+    "sha256": "6c13e3b083cd289ca38aa5c9c9cfe0f8d9eaee9ea6f2654cc7aaa7668b53cc07"
+  },
+  "patch": {
+    "path": "/workspace/scratch/9949907ca71e/recovery-evidence/parity-execution-limiter/prepared-tests.patch",
+    "bytes": 10974,
+    "sha256": "8f0a945223d5be5bd3338c371968e73cd92097cdc1ab4f9712c867e2271bc664"
+  },
+  "embedded_helper": {
+    "path": "/workspace/scratch/9949907ca71e/recovery-evidence/parity-execution-limiter/helper-source.go.txt",
+    "bytes": 974,
+    "sha256": "10eb860f6288ef93040c633f64a55685ca0397f08d954f7fa37c0153300d1fc8"
+  },
+  "scenarios": [
+    {
+      "name": "shared_queue_budget",
+      "baseline_expectation": "semantic RED: third call returns while both independent runAll rows still hold their slots",
+      "contract": "capacity 2 at N-1, N, N+1; successful calls return permits; package-wide admission spans separate rows and direct calls; 3s queue wait does not consume the 2s child budget"
+    },
+    {
+      "name": "start_error_release",
+      "baseline_expectation": "GREEN preservation control",
+      "contract": "N+1 missing executables retain wrapped file-not-found errors; the following healthy child runs"
+    },
+    {
+      "name": "timeout_release",
+      "baseline_expectation": "GREEN preservation control",
+      "contract": "N+1 children each publish readiness before an actual 2s timeout; the following healthy child runs; existing Unix process-group check confirms termination"
+    }
+  ],
+  "planned_command": [
+    "go",
+    "test",
+    "-p=1",
+    "-count=1",
+    "-parallel=1",
+    "-short",
+    "-timeout=10m",
+    "-v",
+    "cmd/internal/goparity",
+    "-run",
+    "^TestRunBinaryExecutionQueue$"
+  ],
+  "environment_requirement": "Run the enclosing test with real task-owned source TMPDIR and GOTMPDIR outside /workspace; retain installed final tools and separate fork cache. Each scenario subprocess explicitly sets GOMAXPROCS=2 before initialization; runBinaryTimeout still sets each helper GOMAXPROCS=4.",
+  "subprocess_flags": [
+    "-test.run=^TestRunBinaryExecutionQueue$",
+    "-test.count=1",
+    "-test.parallel=1",
+    "-test.timeout=40s",
+    "-test.v"
+  ],
+  "outer_subprocess_watchdog_seconds": 45,
+  "no_release_or_stamp_flags_forwarded": true,
+  "implementation_edits": [],
+  "go_commands_executed": [],
+  "formatting_status": "prepared; root will run gofmt before semantic RED",
+  "whitespace_check": {
+    "command": "git diff --no-index --check /dev/null src/cmd/internal/goparity/execution_queue_test.go",
+    "exit_code": 1,
+    "stdout": "",
+    "stderr": "",
+    "meaning": "new-file difference, no whitespace diagnostics"
+  }
+}

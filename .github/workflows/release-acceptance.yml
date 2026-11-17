@@ -1,0 +1,205 @@
+name: "release-acceptance"
+run-name: "M22 acceptance ${{ inputs.revision || github.event.pull_request.head.sha || github.sha }}"
+
+"on":
+  pull_request:
+    paths:
+      - ".github/workflows/release-acceptance.yml"
+      - ".github/scripts/release-acceptance.sh"
+      - "logos-doc/validation/release-acceptance-request.json"
+      - "logos-doc/REDTEAM.md"
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: "Exact 40-character commit, or empty for this workflow's commit"
+        required: false
+        type: string
+
+permissions:
+  contents: "read"
+
+# Each run records one immutable tip. A later push must not erase its proof.
+concurrency:
+  group: "release-acceptance-${{ github.event.pull_request.number || github.ref }}"
+  cancel-in-progress: false
+
+env:
+  TESTED_REVISION: "${{ inputs.revision || github.event.pull_request.head.sha || github.sha }}"
+
+defaults:
+  run:
+    shell: "bash"
+
+jobs:
+  optimization:
+    name: "std-cmd-${{ matrix.driver }}-O${{ matrix.level }}"
+    runs-on: "ubuntu-24.04"
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        driver: ["go", "logos"]
+        level: ["1", "2", "3"]
+    steps:
+      - name: "Check out the exact clean candidate tip"
+        run: |
+          [[ $TESTED_REVISION =~ ^[0-9a-f]{40}$ ]]
+          git init --quiet .
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          git -c protocol.version=2 fetch --no-tags --depth=1 origin "$TESTED_REVISION"
+          git -c advice.detachedHead=false checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$TESTED_REVISION"
+      - name: "Build and execute the complete no-short cell"
+        env:
+          MATRIX_DRIVER: "${{ matrix.driver }}"
+          MATRIX_LEVEL: "${{ matrix.level }}"
+        run: bash .github/scripts/release-acceptance.sh matrix "$MATRIX_DRIVER" "$MATRIX_LEVEL"
+      - name: "Retain source identities and recoverable raw evidence"
+        if: always()
+        run: |
+          if test -f .github/scripts/release-acceptance.sh; then
+            bash .github/scripts/release-acceptance.sh retain
+          fi
+
+  parity:
+    name: "complete-clean-tip-parity"
+    runs-on: "ubuntu-24.04"
+    timeout-minutes: 300
+    steps:
+      - name: "Check out the exact clean candidate tip"
+        run: |
+          [[ $TESTED_REVISION =~ ^[0-9a-f]{40}$ ]]
+          git init --quiet .
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          git -c protocol.version=2 fetch --no-tags --depth=1 origin "$TESTED_REVISION"
+          git -c advice.detachedHead=false checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$TESTED_REVISION"
+      - name: "Build, run all parity tiers and verify the release stamp"
+        run: bash .github/scripts/release-acceptance.sh parity
+      - name: "Retain source identities and recoverable raw evidence"
+        if: always()
+        run: |
+          if test -f .github/scripts/release-acceptance.sh; then
+            bash .github/scripts/release-acceptance.sh retain
+          fi
+
+  repro-a:
+    name: "repro-host-ubuntu24"
+    runs-on: "ubuntu-24.04"
+    timeout-minutes: 180
+    outputs:
+      result: "${{ steps.repro.outputs.result }}"
+    steps:
+      - name: "Check out the exact clean candidate tip"
+        run: |
+          [[ $TESTED_REVISION =~ ^[0-9a-f]{40}$ ]]
+          git init --quiet .
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          git -c protocol.version=2 fetch --no-tags --depth=1 origin "$TESTED_REVISION"
+          git -c advice.detachedHead=false checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$TESTED_REVISION"
+      - name: "Build and record both deterministic programs on host A"
+        id: repro
+        run: bash .github/scripts/release-acceptance.sh repro
+      - name: "Retain source identities and recoverable raw evidence"
+        if: always()
+        run: |
+          if test -f .github/scripts/release-acceptance.sh; then
+            bash .github/scripts/release-acceptance.sh retain
+          fi
+
+  repro-b:
+    name: "repro-host-ubuntu-current"
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 180
+    outputs:
+      result: "${{ steps.repro.outputs.result }}"
+    steps:
+      - name: "Check out the exact clean candidate tip"
+        run: |
+          [[ $TESTED_REVISION =~ ^[0-9a-f]{40}$ ]]
+          git init --quiet .
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          git -c protocol.version=2 fetch --no-tags --depth=1 origin "$TESTED_REVISION"
+          git -c advice.detachedHead=false checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$TESTED_REVISION"
+      - name: "Build and record both deterministic programs on host B"
+        id: repro
+        run: bash .github/scripts/release-acceptance.sh repro
+      - name: "Retain source identities and recoverable raw evidence"
+        if: always()
+        run: |
+          if test -f .github/scripts/release-acceptance.sh; then
+            bash .github/scripts/release-acceptance.sh retain
+          fi
+
+  repro-compare:
+    name: "compare-independent-host-digests"
+    needs: ["repro-a", "repro-b"]
+    runs-on: "ubuntu-24.04"
+    timeout-minutes: 10
+    steps:
+      - name: "Check out the exact clean candidate tip"
+        run: |
+          [[ $TESTED_REVISION =~ ^[0-9a-f]{40}$ ]]
+          git init --quiet .
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          git -c protocol.version=2 fetch --no-tags --depth=1 origin "$TESTED_REVISION"
+          git -c advice.detachedHead=false checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$TESTED_REVISION"
+      - name: "Require distinct hosts and identical source, recipe and digests"
+        env:
+          REPRO_A: "${{ needs.repro-a.outputs.result }}"
+          REPRO_B: "${{ needs.repro-b.outputs.result }}"
+        run: bash .github/scripts/release-acceptance.sh compare
+      - name: "Retain comparison evidence"
+        if: always()
+        run: |
+          if test -f .github/scripts/release-acceptance.sh; then
+            bash .github/scripts/release-acceptance.sh retain
+          fi
+
+  runtimes:
+    name: "real-gopls-qemu-wasm"
+    runs-on: "ubuntu-24.04"
+    timeout-minutes: 240
+    steps:
+      - name: "Check out the exact clean candidate tip"
+        run: |
+          [[ $TESTED_REVISION =~ ^[0-9a-f]{40}$ ]]
+          git init --quiet .
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          git -c protocol.version=2 fetch --no-tags --depth=1 origin "$TESTED_REVISION"
+          git -c advice.detachedHead=false checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$TESTED_REVISION"
+      - name: "Build and execute all guarded runtime legs"
+        run: bash .github/scripts/release-acceptance.sh runtimes
+      - name: "Retain runtime identities and recoverable raw evidence"
+        if: always()
+        run: |
+          if test -f .github/scripts/release-acceptance.sh; then
+            bash .github/scripts/release-acceptance.sh retain
+          fi
+
+  closure:
+    name: "M22-scope-closure"
+    runs-on: "ubuntu-24.04"
+    timeout-minutes: 10
+    steps:
+      - name: "Check out the exact clean candidate tip"
+        run: |
+          [[ $TESTED_REVISION =~ ^[0-9a-f]{40}$ ]]
+          git init --quiet .
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          git -c protocol.version=2 fetch --no-tags --depth=1 origin "$TESTED_REVISION"
+          git -c advice.detachedHead=false checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$TESTED_REVISION"
+      - name: "Report unresolved language closure without suppressing independent gates"
+        run: bash .github/scripts/release-acceptance.sh closure
+      - name: "Retain closure evidence"
+        if: always()
+        run: |
+          if test -f .github/scripts/release-acceptance.sh; then
+            bash .github/scripts/release-acceptance.sh retain
+          fi

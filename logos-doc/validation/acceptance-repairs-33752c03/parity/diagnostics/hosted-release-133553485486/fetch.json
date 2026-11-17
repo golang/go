@@ -1,0 +1,13 @@
+{
+  "observed_utc": "2026-11-16T20:32:09.590Z",
+  "repository": "gosuda/LoGOs",
+  "run_id": 43939662630,
+  "job_id": 133553485486,
+  "job_name": "complete-clean-tip-parity",
+  "status": "completed",
+  "conclusion": "failure",
+  "provider": "github_fetch_workflow_job_logs structuredContent.content",
+  "expectedCharacters": 36934,
+  "bytes": 36936,
+  "sha256": "e868b565b33413d51266fa3471ad84e3456dcbb6cb5f65576c0b8228b0b6273a"
+}

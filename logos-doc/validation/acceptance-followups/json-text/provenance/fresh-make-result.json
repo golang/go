@@ -1,0 +1,35 @@
+{
+  "started_utc": "2026-11-16T16:27:10.968159+00:00",
+  "completed_utc": "2026-11-16T16:50:41.092811+00:00",
+  "duration_seconds": 1410.125,
+  "make_exit_code": 0,
+  "source_before": {
+    "head": "45c29ff215477f7e403188d7452fc79aef05d791",
+    "tree": "32b96f3a7c289c987bc021fe5a5adbf35cfe226b",
+    "src_tree": "099367e1031585fa553ef7987b199288df36256a",
+    "status_porcelain": ""
+  },
+  "source_after": {
+    "head": "45c29ff215477f7e403188d7452fc79aef05d791",
+    "tree": "32b96f3a7c289c987bc021fe5a5adbf35cfe226b",
+    "src_tree": "099367e1031585fa553ef7987b199288df36256a",
+    "status_porcelain": ""
+  },
+  "raw_log": "/workspace/scratch/9949907ca71e/recovery-evidence/fresh-make-45c29ff2/make.log",
+  "raw_log_sha256": "ebda4525ecb7c630e4831d955512e4a41ea14375f128c25f808daa17c3a68263",
+  "postbuild_cache_still_empty": true,
+  "installed_binary_sha256": {
+    "bin/go": "987052b593c41cf60390eec80d98b01b89f9536d6d87b4e73672ab6e7a4eb2ef",
+    "bin/logos": "987052b593c41cf60390eec80d98b01b89f9536d6d87b4e73672ab6e7a4eb2ef",
+    "pkg/tool/linux_amd64/compile": "61749f8f2b2242d26e613993270f654cf47c750739a22b223f94eedd5370bba9",
+    "pkg/tool/linux_amd64/link": "8de04dd6ee98e46757ad12a6e11d968a4a75594d3c863319cca18833b6f9ca9f",
+    "pkg/tool/linux_amd64/asm": "ba74e1169103009e33cc3ed0516fe41ab05f71455c562b2866e1d91a02e7f92c",
+    "pkg/tool/linux_amd64/cgo": "aa3c7182db2db4b139400223d4d1c413d14cd2e1e194d4aa77b7ecd0e056b755"
+  },
+  "installed_versions": {
+    "go_version": "go version go1.27.4 linux/amd64",
+    "logos_version": "logos version go1.27.4 linux/amd64",
+    "compiler_version": "compile version go1.27.4 buildID=YJ4MX5IM-92b5eAn3Hrp/e0pmKY_gvjuY25-MQryr/5LOz2N5VyBy8pcBeS-8v/BYok7ZqSwgNrvEPIpg11",
+    "inferred_goroot": "/workspace/scratch/9949907ca71e/logos-json-integration"
+  }
+}

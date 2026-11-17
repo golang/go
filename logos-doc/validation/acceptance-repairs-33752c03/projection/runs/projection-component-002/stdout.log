@@ -1,0 +1,4 @@
+=== RUN   TestGenerate
+--- PASS: TestGenerate (0.09s)
+PASS
+ok  	go/types	0.091s
