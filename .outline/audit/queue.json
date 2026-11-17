@@ -1,0 +1,67 @@
+{
+ "queue": [
+  {
+   "id": "L-ICE-1",
+   "severity": "critical",
+   "status": "fixed",
+   "title": "Compiler ICE importing packages with local types inside generic functions",
+   "detail": "logos.reachableFuncFactObjects and the overlay-clone scope walks iterated pkg.Scope().Names() skipping only dotted names. Lazily-imported scopes also carry hoisted local types with vargen names (T\u00b7N); forcing their lookup reaches object dicts with implicit type parameters that the simplified importer cannot materialize: base.Fatalf \"unexpected object with N implicit type parameter(s)\". Any Go package with a local type inside a generic func (e.g. creachadair/mds slice.LCSFunc seq) made dependents uncompilable: go build, go vet, logos lint, gglint all ICE'd.",
+   "files": [
+    "src/cmd/compile/internal/logos/optfacts.go"
+   ],
+   "fix": "Added importedDeclNames() filtering vargen-suffixed (T\u00b7N) and dotted (T.M) names via types.SplitVargenSuffix, applied to all four imported-scope iterations in optfacts.go \u2014 matching gcimporter's promoted-name filters.",
+   "test": "src/cmd/go/testdata/script/logos_import_hoisted_local_type.txt reproduces the ICE on the unfixed compile and passes fixed.",
+   "found_via": "dogfooding corpus: gglint/logos lint rc=3 on tailscale (transitively imports creachadair/mds/mdiff)"
+  },
+  {
+   "id": "L-TRIAGE-1",
+   "severity": "info",
+   "status": "triaged",
+   "title": "Corpus harness residual signals classified \u2014 no further bugs",
+   "detail": "Post-fix harness re-run: tailscale gglint rc=1 (was rc=3 ICE), golang-petname logos rc=0 verified clean via injected discarded-error probe (lint runs, just no findings), adversarial-lgo gglint rc=3 is expected upstream go vet semantics ('matched no packages' \u2014 .lgo-only module has no Go packages; logos lint covers .lgo, rc=1 with findings). All gglint 'crash' signals (panic:/goroutine /SIGSEGV/fatal error:) are substring matches inside lint finding text and missing-system-header diagnostics (pcap.h), not tool crashes. All logos lint 'nondeterminism' is ordering-only: byte-identical sorted diagnostic sets across runs (documented nondeterministic ORDER, deterministic SET)."
+  },
+  {
+   "id": "L-TRIAGE-2",
+   "severity": "info",
+   "status": "triaged",
+   "title": "Expanded cross-platform corpus pass \u2014 all anomalies benign",
+   "detail": "Corpus grown to 34 active entries across GitHub, GitLab, Codeberg, Gitea.com, SourceHut (famous/clean/dirty/modernc/cgo tiers) plus synthetic adversarial Go module (linkname pulls, reentrant-lock/sync misuse, resource lifecycle, unsafe ptr, cgo flag violations, generic-local-type importers) and adversarial-lgo (edge subpackage). Full pass: every buildable entry lints rc=1 on both gglint and logos lint with real findings; adversarial-lgo gglint rc=3 is correct go vet semantics; gopacket 'fatal error:' = missing optional pfring.h; all 'panic:/goroutine' signals are finding-text substrings; all nondet flags are ordering-only (deterministic diagnostic set, documented). raylib needed system headers (wayland/xkbcommon/EGL) \u2014 env gap, not a tool bug; gitaly needed go:embed binary stubs \u2014 repo build prerequisite. No new tool defects found: the L-ICE-1 fix holds under 34-repo load including its advimporter adversarial sibling."
+  },
+  {
+   "id": "L-TRIAGE-3",
+   "severity": "info",
+   "status": "triaged",
+   "title": "Round-3 deep dogfood: lsp/context/eject verified; lint phase-gating documented",
+   "detail": "logos lsp (gopls proxy) verified end-to-end on .lgo: didSave publishes 'undefined: undefinedFunction' mapped to the .lgo URI. logos context resolves std/dep/.lgo/generic symbols correctly. logos eject lowers ?, errdefer, go group, and yield generators to stock Go that vets clean and runs correctly. Key lint semantics verified: deny-severity diagnostics are compiler-stage errors flushed before ExitIfErrors, which gates the type-dependent registry checks (unbounded_channel_op, defer_erases_errdefer_state) \u2014 a file/package with any compiler-stage deny gets only those findings until fixed and re-linted (phased reporting, matches irgen ExitIfErrors design). logos lint silently skips the toolchain's own cmd module because cmd/... packages classify Standard with nil Module (same boundary as std). gglint self-dogfood on src/cmd (2244 findings, 33 analyzers, zero crashes). New corpus coverage: adversarial-lgo/{denied,checks} split attacks by phase so all rule families get exercised."
+  },
+  {
+   "id": "L-GAP-1",
+   "severity": "low",
+   "status": "fixed",
+   "title": "logos lint never lints _test.go files (coverage gap vs go vet)",
+   "detail": "work/lintActor compiles only p.GoFiles (work/logos_lint.go:78); TestGoFiles/XTestGoFiles are never linted. A package of only _test.go gets rc=0 silently, and violations inside _test.go of a normal package never surface \u2014 gglint flags them (goroutine leak in test caught on the same probe). go vet covers test files. The SPEC _test.go exemption in pedantic::unsafe_outside_unsafe_file (Sec 1.2) implies test files were meant to be linted. Candidate design gap: either extend LintAction to test variants or document the exclusion.",
+   "files": [
+    "src/cmd/go/internal/work/logos_lint.go"
+   ],
+   "found_via": "extreme-scenario grill: test-only package probe",
+   "fix": "runLint now builds test variants via load.TestPackagesFor (like go vet): ptest linted in place of p (GoFiles+TestGoFiles), pxtest linted for external test packages. Broken test variant reports the error and still lints non-test files.",
+   "fix_pr": "https://github.com/gosuda/LoGOs/pull/78",
+   "test": "src/cmd/go/testdata/script/logos_lint_testfiles.txt covers internal, external, test-only, and broken-import cases."
+  },
+  {
+   "id": "L-GAP-2",
+   "severity": "low",
+   "status": "triaged",
+   "title": "-json-diagnostics mixes raw-text errors with JSON diagnostics on stderr",
+   "detail": "Scanner/loader-level errors (illegal UTF-8 encoding, build constraints exclude all files, import cycle, ambiguous import) print as raw 'file:line: message' text on the same stderr stream as -json-diagnostics output. A consumer parsing line-delimited JSON chokes on these lines. Options: wrap them in the diagnostic envelope or document that the stream is JSON-per-line only for lint findings.",
+   "found_via": "extreme-scenario grill: invalid-UTF-8 .lgo probe"
+  },
+  {
+   "id": "L-TRIAGE-4",
+   "severity": "info",
+   "status": "triaged",
+   "title": "Extreme-scenario grill: all else clean",
+   "detail": "Verified: 8-way concurrent logos lint and gglint on same module (byte-identical outputs, no cache races), lint+build race clean, go.work workspace linting (GOWORK=off gives descriptive error), cross-GOOS lint (windows file linted only under GOOS=windows), mixed .go+.lgo package -> correctness::mixed_package, CRLF/BOM .lgo linted with correct positions, invalid UTF-8 -> descriptive error, import cycle / ambiguous stdlib-collision import / bad replace / future go directive -> descriptive errors, cgo-only and asm packages linted, 3814-line file with 3004-line function + 150-deep nesting linted fine (cognitive score 11325), recursive interface types rejected, SIGINT mid-lint exits rc=1 with no cache corruption."
+  }
+ ]
+}

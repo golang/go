@@ -1,0 +1,40 @@
+env GOTOOLCHAIN=local
+
+go build ./...
+go run .
+stdout '^ok$'
+
+-- go.mod --
+module example.com/hoistlocal
+
+go 1.27
+
+-- lib/lib.go --
+package lib
+
+// A local defined type inside a generic function is hoisted into
+// export data with a vargen suffix (seq·1). Importing the package
+// must not let the facts overlay force a lookup of it: the simplified
+// importer cannot materialize its implicit type parameters.
+func LCS[T any, Slice ~[]T](as, bs Slice) Slice {
+	type seq struct {
+		i, j int
+		x    T
+	}
+	_ = seq{0, 0, *new(T)}
+	return as
+}
+
+-- main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/hoistlocal/lib"
+)
+
+func main() {
+	_ = lib.LCS([]int{1}, []int{2})
+	fmt.Println("ok")
+}
