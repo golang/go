@@ -6,6 +6,7 @@ package capabilities
 
 import (
 	"cmp"
+	"encoding/json"
 	"fmt"
 	"path"
 	"slices"
@@ -174,4 +175,64 @@ func FormatViolation(v Violation) string {
 
 func FormatWarning(v Violation) string {
 	return "go: warning: " + FormatViolation(v)
+}
+
+// jsonRecord mirrors the Sec 14 diagnostics schema emitted by
+// cmd/compile under -logos.json, so load-time diagnostics stay
+// line-compatible with compiler diagnostics.
+type jsonSpan struct {
+	StartLine  int `json:"start_line"`
+	StartCol   int `json:"start_col"`
+	EndLine    int `json:"end_line"`
+	EndCol     int `json:"end_col"`
+	ByteOffset int `json:"byte_offset"`
+	ByteLen    int `json:"byte_len"`
+}
+
+type jsonProvenance struct {
+	OriginExpr   string `json:"origin_expr"`
+	OriginLine   int    `json:"origin_line"`
+	InferredType string `json:"inferred_type"`
+}
+
+type jsonRecord struct {
+	SchemaVersion     string         `json:"schema_version"`
+	Severity          string         `json:"severity"`
+	RuleID            string         `json:"rule_id"`
+	File              string         `json:"file"`
+	Span              jsonSpan       `json:"span"`
+	Message           string         `json:"message"`
+	Note              string         `json:"note,omitzero"`
+	Provenance        jsonProvenance `json:"provenance"`
+	AutofixCandidates []any          `json:"autofix_candidates"`
+}
+
+// FormatJSON renders one violation as a single-line Sec 14 JSON record.
+// severity is "deny", "forbid", or "warn". file is the chain-head
+// package's source path; an import path is not a document and cannot
+// anchor an editor diagnostic.
+func FormatJSON(v Violation, severity, file string) string {
+	var note strings.Builder
+	for i, frame := range v.Chain {
+		if i == 0 {
+			fmt.Fprintf(&note, "%d. %s\n", i+1, frame)
+			continue
+		}
+		fmt.Fprintf(&note, "%d.   -> %s\n", i+1, frame)
+	}
+	fmt.Fprintf(&note, " = Help: Remove the dependency or explicitly authorize \"%s/**\" under 'transitive_unsafe_allowlist' in logos.toml.", v.Dep)
+	rec := jsonRecord{
+		SchemaVersion:     "1.0",
+		Severity:          severity,
+		RuleID:            "capabilities::" + v.Rule,
+		File:              file,
+		Message:           fmt.Sprintf("Transitive dependency '%s' %s", v.Dep, ruleDetail[v.Rule]),
+		Note:              note.String(),
+		AutofixCandidates: []any{},
+	}
+	b, err := json.Marshal(rec)
+	if err != nil {
+		return ""
+	}
+	return string(b)
 }

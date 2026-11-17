@@ -18,6 +18,7 @@ import (
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/logos/capabilities"
+	"cmd/go/internal/logos/settings"
 	"cmd/go/internal/modload"
 )
 
@@ -76,20 +77,100 @@ func checkLogosCapabilities(ld *modload.Loader, all []*Package) {
 	if len(violations) == 0 {
 		return
 	}
+	byPath := make(map[string]*Package, len(all))
+	for _, p := range all {
+		if _, ok := byPath[p.ImportPath]; !ok {
+			byPath[p.ImportPath] = p
+		}
+	}
+	jsonOut := settings.Current().JSON
 	if sev == capabilities.Warn {
 		for _, v := range violations {
-			fmt.Fprintln(os.Stderr, capabilities.FormatWarning(v))
+			if jsonOut {
+				fmt.Fprintln(os.Stderr, capabilities.FormatJSON(v, "warn", capSourceFile(byPath[firstChain(v)])))
+			} else {
+				fmt.Fprintln(os.Stderr, capabilities.FormatWarning(v))
+			}
 		}
 		return
 	}
-	var msgs []string
+	msgsByCarrier := make(map[*Package][]string)
 	for _, v := range violations {
-		msgs = append(msgs, capabilities.FormatViolation(v))
+		if jsonOut {
+			fmt.Fprintln(os.Stderr, capabilities.FormatJSON(v, "deny", capSourceFile(byPath[firstChain(v)])))
+		}
+		// Blame the first chain package that does not already carry a
+		// diagnostic, not the first package alphabetically; a package
+		// with an existing error keeps it.
+		var carrier *Package
+		for _, path := range v.Chain {
+			cand := byPath[path]
+			if cand == nil {
+				continue
+			}
+			if carrier == nil {
+				carrier = cand
+			}
+			if cand.Error == nil {
+				carrier = cand
+				break
+			}
+		}
+		if carrier == nil {
+			carrier = firstMainPackage(all)
+		}
+		if carrier != nil && carrier.Error != nil {
+			// A package that already failed load keeps its diagnostic;
+			// report this violation inline so it is not hidden.
+			if !jsonOut {
+				fmt.Fprintln(os.Stderr, capabilities.FormatViolation(v))
+			}
+			continue
+		}
+		if carrier != nil {
+			msgsByCarrier[carrier] = append(msgsByCarrier[carrier], capabilities.FormatViolation(v))
+		}
 	}
-	if carrier := firstMainPackage(all); carrier != nil {
-		carrier.Error = &PackageError{Err: fmt.Errorf("%s", strings.Join(msgs, "\n"))}
+	for carrier, msgs := range msgsByCarrier {
+		text := strings.Join(msgs, "\n")
+		if jsonOut {
+			// JSON consumers get the record lines above; the package
+			// error stays one line so the chain/help block never
+			// leaks into the JSON stream.
+			if i := strings.IndexByte(text, '\n'); i >= 0 {
+				text = text[:i]
+			}
+		}
+		// A command-line package has an empty ImportStack, so
+		// PackageError would drop the path prefix; put it in the
+		// message instead.
+		carrier.Error = &PackageError{Err: fmt.Errorf("%s: %s", carrier.ImportPath, text)}
 		carrier.Incomplete = true
 	}
+}
+
+// firstChain names the main-module package heading a violation's
+// import chain, or "" for an empty chain.
+func firstChain(v capabilities.Violation) string {
+	if len(v.Chain) == 0 {
+		return ""
+	}
+	return v.Chain[0]
+}
+
+// capSourceFile resolves p to a real source path for the Sec 14
+// diagnostics schema: the first source file in Dir, or Dir itself when
+// the package has none.
+func capSourceFile(p *Package) string {
+	if p == nil {
+		return ""
+	}
+	for _, files := range [][]string{p.GoFiles, p.CgoFiles, p.TestGoFiles, p.XTestGoFiles} {
+		if len(files) > 0 {
+			return filepath.Join(p.Dir, files[0])
+		}
+	}
+	return p.Dir
 }
 
 func capNode(p *Package) capabilities.Node {

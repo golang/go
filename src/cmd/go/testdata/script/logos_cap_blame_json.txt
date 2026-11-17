@@ -1,0 +1,45 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd main
+! logos build ./z/importer
+stderr 'example\.com/capblame/z/importer: ERROR \[capabilities::unauthorized_unsafe\]'
+! stderr 'example\.com/capblame/a/leaf: ERROR'
+
+! logos lint --json-diagnostics ./z/importer
+stderr '"schema_version":"1\.0"'
+stderr '"rule_id":"capabilities::unauthorized_unsafe"'
+stderr '"severity":"deny"'
+! stderr 'Import chain \(cmd/go capabilities audit\)'
+
+-- extunsafe/go.mod --
+module example.com/extunsafe
+
+go 1.27
+-- extunsafe/u.go --
+package extunsafe
+
+import "unsafe"
+
+func Size() uintptr { return unsafe.Sizeof(uintptr(0)) }
+-- main/go.mod --
+module example.com/capblame
+
+go 1.27
+
+require example.com/extunsafe v0.0.0
+
+replace example.com/extunsafe => ../extunsafe
+-- main/a/leaf/leaf.go --
+package leaf
+
+func Value() int { return 1 }
+-- main/z/importer/importer.go --
+package importer
+
+import (
+	"example.com/capblame/a/leaf"
+	"example.com/extunsafe"
+)
+
+func Total() int { return leaf.Value() + int(extunsafe.Size()) }
