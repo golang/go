@@ -565,11 +565,13 @@ func (r *Rewriter) generateForSize(fileAST *syntax.File, k int, newDecls []synta
 // emits one synthetic init-proxy declaration (@simdinit<size>@<target>)
 // per SIMD configuration immediately before the original variable, and rewrites
 // the original non-blank variable's initializer to reference the last proxy so
-// that types2 preserves its inferred type. The pre-rewrite dummy initializers
-// are dropped from info.InitOrder after types2 re-checks the rewritten AST.
-// The unified IR writer omits proxy declarations from pkgDecl, and the unified
-// IR reader rewrites each proxy initializer into a conditional assignment
-// directly to the real variable (or blank).
+// that types2 preserves its inferred type. After types2 re-checks the rewritten
+// AST, InitOrderPlan.Apply drops the pre-rewrite dummy initializers and restores
+// the exact pre-midway Go-spec initialization order with each declaration's
+// specialized declarations grouped atomically. The unified IR writer omits proxy
+// declarations from pkgDecl, and the unified IR reader rewrites each proxy
+// initializer into a conditional assignment directly to the real variable (or
+// blank).
 func (r *Rewriter) rewriteTopLevelVarDecl(d *syntax.VarDecl) ([]syntax.Decl, bool) {
 	// Package simd's own var initializers run before simd's init() sets
 	// emulated/maxVectorSize, so SIMD-guarded package-var initializers cannot
@@ -906,38 +908,42 @@ func (a *Analyzer) originals() []string {
 }
 
 // RewriteWrapper applies the midway rewrite to files, which are the type
-// checked files of pkg. It reports whether it changed files, in which case
-// the caller must type check them again.
+// checked files of pkg.
+//
+// If any rewriting was performed, it returns a non-nil InitOrderPlan capturing
+// the pre-rewrite Go-spec initialization order, which the caller must Apply to
+// the re-checked types2.Info after typechecking finishes.
 //
 // It also returns the names of the package-level declarations that are
 // originals (see the comment at the top of this file). Every method of an
 // original type is also an original.
-func RewriteWrapper(pkg *types2.Package, info *types2.Info, files []*syntax.File) (originals []string, changed bool) {
+func RewriteWrapper(pkg *types2.Package, info *types2.Info, files []*syntax.File) (originals []string, initOrderPlan *InitOrderPlan) {
 	if !buildcfg.Experiment.SIMDStable {
-		return nil, false
+		return nil, nil
 	}
 
 	switch buildcfg.GOARCH {
 	case "wasm", "amd64", "arm64":
 	default:
-		return nil, false
+		return nil, nil
 	}
 
 	sizes := rewriteSizes()
 	if len(sizes) == 0 {
-		return nil, false
+		return nil, nil
 	}
 	analyzer := NewAnalyzer(pkg, info)
 	if !analyzer.Analyze(files) {
-		return nil, false
+		return nil, nil
 	}
 
 	CheckPositions(files, "before midway")
 
+	plan := saveInitOrder(info)
 	rewriter := NewRewriter(pkg, info, analyzer, sizes)
 	rewriter.Rewrite(files)
 
 	CheckPositions(files, "after midway")
 
-	return analyzer.originals(), true
+	return analyzer.originals(), plan
 }

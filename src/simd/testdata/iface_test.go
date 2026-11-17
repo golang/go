@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"simd"
 	"simd/testdata/iface"
+	"slices"
 	"testing"
 	"unsafe"
 )
@@ -586,6 +587,47 @@ func TestPackageVarDiverseTypes(t *testing.T) {
 	iface.HoistedGeneric2.Second.Data().Store(s)
 	if s[0] != 3 {
 		t.Errorf("expected HoistedGeneric2.Second.Data()[0] == 3, got %f", s[0])
+	}
+}
+
+// TestPackageVarInitOrder validates that midway's InitOrderPlan preserves exact
+// Go-spec package-variable initialization order after AST expansion (including
+// under non-default SIMD configurations such as GODEBUG=simd=0):
+//   - InitTrace / Order*: interleaving of plain vars, SIMD-initialized vars,
+//     single and multi-return blank ("_") side-effect vars, and a reverse-
+//     declared chain depending on a later SIMD-typed var (OrderRevVec).
+//     OrderMiddle must initialize before OrderRevVec, after which OrderRevMid
+//     and OrderRevAfter unblock ahead of OrderAfter.
+//   - C1Trace / C1*: atomic placement of per-size specializations when a
+//     SIMD-typed var (C1V) is declared after multiple dependents (C1A -> C1X ->
+//     C1V and C1Y -> C1V); C1A sets shared state read by C1Y, so non-default
+//     specializations of C1Y must not run before C1A.
+//   - C1DTrace / C1D*: same atomic-order invariant when the earlier dependent
+//     (C1DX) reaches the SIMD-typed var (C1DV) indirectly through a clean-
+//     signature dispatcher function (c1dGetVLen) while C1DY references C1DV
+//     directly.
+func TestPackageVarInitOrder(t *testing.T) {
+	n8 := (simd.Int8s{}).Len()
+
+	wantTrace := []string{"before", "simdInit", "blank1", "blank2", "blankPair", "middle", "revVec", "revMid", "revAfter", "after"}
+	if !slices.Equal(iface.InitTrace, wantTrace) {
+		t.Errorf("expected InitTrace == %v, got %v", wantTrace, iface.InitTrace)
+	}
+	if iface.OrderBefore != 1 || iface.OrderSimdInit != n8 || iface.OrderMiddle != 2 || iface.OrderRevMid != n8 || iface.OrderRevAfter != n8+1 || iface.OrderAfter != 3 {
+		t.Errorf("unexpected Order* values: before=%d simdInit=%d middle=%d revMid=%d revAfter=%d after=%d",
+			iface.OrderBefore, iface.OrderSimdInit, iface.OrderMiddle, iface.OrderRevMid, iface.OrderRevAfter, iface.OrderAfter)
+	}
+
+	wantC1Trace := []string{"V", "X", "A", "Y"}
+	if !slices.Equal(iface.C1Trace, wantC1Trace) || iface.C1X != n8 || iface.C1A != n8 || iface.C1Y != 100+n8 {
+		t.Errorf("C1 init order mismatch: trace=%v (want %v) X=%d A=%d Y=%d (want Y=%d)",
+			iface.C1Trace, wantC1Trace, iface.C1X, iface.C1A, iface.C1Y, 100+n8)
+	}
+
+	wantC1DTrace := []string{"V", "X", "Y"}
+	if !slices.Equal(iface.C1DTrace, wantC1DTrace) || iface.C1DX != n8 || iface.C1DY != 100+n8 {
+		t.Errorf("C1D init order mismatch: trace=%v (want %v) X=%d Y=%d (want Y=%d)",
+			iface.C1DTrace, wantC1DTrace, iface.C1DX, iface.C1DY, 100+n8)
 	}
 }
 

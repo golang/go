@@ -51,8 +51,8 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info, map[*
 	}
 
 	didMidway := false
-	midwayRewrote := false
 	var midwayOriginals []string
+	var initOrderPlan *midway.InitOrderPlan
 
 recheck:
 	// typechecking
@@ -195,8 +195,9 @@ recheck:
 	if buildcfg.Experiment.SIMDStable && !didMidway && simdReachable {
 		didMidway = true
 		// Perform midway transformation on AST directly
-		midwayOriginals, midwayRewrote = midway.RewriteWrapper(pkg, info, files)
-		if midwayRewrote {
+		var plan *midway.InitOrderPlan
+		if midwayOriginals, plan = midway.RewriteWrapper(pkg, info, files); plan != nil {
+			initOrderPlan = plan
 			// midway made changes; type checking must be repeated.
 			if len(base.Debug.AstDump) > 0 {
 				// TODO how should this interact with -W and textual dumps
@@ -211,8 +212,12 @@ recheck:
 			goto recheck
 		}
 	}
-	if midwayRewrote {
-		midway.DropPreSimdInits(info)
+	if initOrderPlan != nil {
+		// Midway's rewrite may have split initializers into several new ones.
+		// Those can wind up in the wrong place in the recomputed init order.
+		// Use the pre-midway init order to put the split initializers where
+		// the original initializers were.
+		initOrderPlan.Apply(info)
 	}
 
 	if len(base.Debug.AstDump) > 0 {

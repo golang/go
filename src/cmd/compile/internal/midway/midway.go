@@ -5,7 +5,10 @@
 package midway
 
 import (
+	"cmd/compile/internal/base"
+	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types2"
+	"cmp"
 	"fmt"
 	"internal/buildcfg"
 	"slices"
@@ -135,6 +138,41 @@ func parseVecSize(s string) (vecSize int, ok bool) {
 	return n, true
 }
 
+// InitOrderPlan records the pre-midway Go-spec package variable initialization
+// order so it can be restored after midway specializes top-level variable
+// declarations and types2 re-checks the rewritten AST.
+//
+// Splitting a package variable into per-size declarations allows types2 to
+// interleave specializations of one variable with unrelated declarations during
+// re-check (for example, when a non-SIMD var depends only on the last proxy),
+// which can violate Go-spec side-effect ordering under non-default SIMD configs.
+type InitOrderPlan struct {
+	numSlots   int
+	slotByName map[string]int     // records order of named initialized variables
+	slotByPos  map[syntax.Pos]int // records order of "_" targets of initializations, identified by their position.
+}
+
+func saveInitOrder(info *types2.Info) *InitOrderPlan {
+	p := &InitOrderPlan{
+		numSlots:   len(info.InitOrder),
+		slotByName: make(map[string]int, len(info.InitOrder)),
+		slotByPos:  make(map[syntax.Pos]int),
+	}
+	for i, init := range info.InitOrder {
+		hasNamed := false
+		for _, v := range init.Lhs {
+			if v.Name() != "_" {
+				p.slotByName[v.Name()] = i
+				hasNamed = true
+			}
+		}
+		if !hasNamed && len(init.Lhs) > 0 {
+			p.slotByPos[init.Lhs[0].Pos()] = i
+		}
+	}
+	return p
+}
+
 // isPreSimdInit reports whether init is the original (pre-rewrite) package-level
 // variable initializer for a declaration that midway specialized into "@simd..."
 // variables or "@simdinit..." conditional init proxies. Midway retains the
@@ -157,10 +195,90 @@ func isPreSimdInit(init *types2.Initializer) bool {
 	return false
 }
 
-// DropPreSimdInits removes pre-rewrite dummy initializers from info.InitOrder
-// after types2 re-checks the rewritten AST.
-func DropPreSimdInits(info *types2.Info) {
-	info.InitOrder = slices.DeleteFunc(info.InitOrder, isPreSimdInit)
+// Apply filters out pre-rewrite dummy initializers from info.InitOrder and
+// reorders all remaining initializers so that every declaration's specialized
+// initializers execute atomically at the exact Go-spec position of its original
+// declaration.
+func (p *InitOrderPlan) Apply(info *types2.Info) {
+	if p == nil {
+		return
+	}
+
+	type slotEntry struct {
+		init    *types2.Initializer
+		vecSize int
+	}
+	slots := make([][]slotEntry, p.numSlots)
+	var extras []*types2.Initializer
+
+	for _, init := range info.InitOrder {
+		if isPreSimdInit(init) {
+			continue
+		}
+		slot := -1
+		vecSize := -1
+		blankOnly := true
+		for _, v := range init.Lhs {
+			name := v.Name()
+			baseName := name
+			if bn, sz, ok := ParseSimdInitProxy(name); ok {
+				baseName = bn
+				vecSize = sz
+			} else if bn, sz, ok := ParseSimdSuffix(name); ok {
+				baseName = bn
+				vecSize = sz
+			}
+			// Figure out the slot (index in the init order) from
+			// the first named variable on the LHS.
+			if slot < 0 && baseName != "_" {
+				if s, ok := p.slotByName[baseName]; ok {
+					slot = s
+					blankOnly = false
+				}
+			}
+		}
+		// If there were no named variables,
+		// use the first "_" variable's position to determine the slot.
+		if slot < 0 && len(init.Lhs) > 0 {
+			if s, ok := p.slotByPos[init.Lhs[0].Pos()]; ok {
+				slot = s
+			}
+		}
+		if slot >= 0 {
+			slots[slot] = append(slots[slot], slotEntry{init: init, vecSize: vecSize})
+		} else {
+			// Any variable without a slot was introduced as part of a midway rewrite.
+			// These should have only package-import-correctness side-effects, not
+			// data flow side effects.
+			if !blankOnly {
+				base.Fatalf("Non-blank initialized variable added by midway rewriting")
+			}
+			extras = append(extras, init)
+		}
+	}
+
+	// each element of slots is either
+	//   a singleton, for a variable that was not rewritten for simd,
+	//   or a slice of simd-size-specialized variables,
+	//   or a slice of simd-size-specialized conditional-initialization proxies.
+	//
+	// Each slice must be sorted for determinism, and all the initializations
+	// must be appended into a new order consistent that by construction will be
+	// consistent with the original order.
+
+	result := make([]*types2.Initializer, 0, len(info.InitOrder))
+	for _, entries := range slots {
+		if len(entries) > 1 {
+			slices.SortFunc(entries, func(a, b slotEntry) int {
+				return cmp.Compare(a.vecSize, b.vecSize)
+			})
+		}
+		for _, e := range entries {
+			result = append(result, e.init)
+		}
+	}
+	result = append(result, extras...)
+	info.InitOrder = result
 }
 
 func isSimdTypeName(s string) bool {

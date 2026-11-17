@@ -40,10 +40,93 @@ func pairIntFunc() (int, int) {
 
 var PairIntA, PairIntB = pairIntFunc()
 
+// Go-spec initialization-order trace across plain vars, SIMD-initialized
+// vars, single/multi-return blank ("_") side-effect vars, and a reverse-
+// declared chain waiting on a later SIMD-typed var (OrderRevVec).
+var InitTrace []string
+
+func recordInit(tag string, v int) int {
+	InitTrace = append(InitTrace, tag)
+	return v
+}
+
+func pairIntSideEffect() (int, int) {
+	return recordInit("blankPair", simd.Int8s{}.Len()), 0
+}
+
+var OrderBefore = recordInit("before", 1)
+var OrderSimdInit = recordInit("simdInit", simd.Int8s{}.Len())
+var _ = recordInit("blank1", Generic[MyInt8s](0))
+var _ = recordInit("blank2", simd.Int8s{}.Len())
+var _, _ = pairIntSideEffect()
+var OrderRevAfter = recordInit("revAfter", OrderRevMid+1)
+var OrderRevMid = recordInit("revMid", OrderRevVec.Len())
+var OrderMiddle = recordInit("middle", 2)
+var OrderRevVec = makeOrderRevVec()
+var OrderAfter = recordInit("after", 3)
+
+func makeOrderRevVec() simd.Int8s {
+	recordInit("revVec", 0)
+	return simd.Int8s{}
+}
+
 // Non-SIMD-typed package variables initialized with a SIMD-using closure
 // or a boxed SIMD value.
 var SimdClosure = func() int { return simd.Int8s{}.Len() }
 var SimdAsHasLen haslen = simd.Int8s{}
+
+// Regression tests for atomic Go-spec init order when a SIMD-typed var is
+// declared after multiple vars that depend on it (directly or via dispatchers).
+var c1State int
+var C1Trace []string
+
+func c1Rec(tag string, v int) int {
+	C1Trace = append(C1Trace, tag)
+	return v
+}
+
+func c1SetState(v int) int {
+	c1State = 100
+	C1Trace = append(C1Trace, "A")
+	return v
+}
+
+var C1A = c1SetState(C1X)
+var C1X = c1Rec("X", C1V.Len())
+var C1Y = c1Rec("Y", c1State+C1V.Len())
+var C1V = c1MakeV()
+
+func c1MakeV() simd.Int8s {
+	C1Trace = append(C1Trace, "V")
+	return simd.Int8s{}
+}
+
+// Dispatcher-indirect variant: C1DX depends on C1DV through clean-signature
+// c1dGetVLen while C1DY references C1DV directly.
+var c1dState int
+var C1DTrace []string
+
+func c1dGetVLen() int { return C1DV.Len() }
+
+func c1dRecX() int {
+	c1dState = 100
+	C1DTrace = append(C1DTrace, "X")
+	return c1dGetVLen()
+}
+
+func c1dRecY(v int) int {
+	C1DTrace = append(C1DTrace, "Y")
+	return c1dState + v
+}
+
+var C1DX = c1dRecX()
+var C1DY = c1dRecY(C1DV.Len())
+var C1DV = c1dMakeV()
+
+func c1dMakeV() simd.Int8s {
+	C1DTrace = append(C1DTrace, "V")
+	return simd.Int8s{}
+}
 
 // Regression test for cloneExpr on a shared type expression containing a
 // FuncLit with a short variable declaration (AssignStmt).
