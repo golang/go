@@ -1,0 +1,66 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd probe
+logos test .
+logos eject -o $WORK/ejected
+cd $WORK/ejected
+exists $UPROOT1272/bin/go
+exec env -u GOROOT $UPROOT1272/bin/go test -count=1 -v ./...
+stdout '^--- PASS: TestFields '
+stdout '^--- PASS: TestExternalFields '
+! stdout '^--- FAIL'
+
+-- probe/go.mod --
+module example.com/comptimetest
+
+go 1.27
+-- probe/fields_test.lgo --
+package comptimetest
+
+import (
+	"comptime"
+	"testing"
+)
+
+type Pair struct {
+	A int
+	B string
+}
+
+func TestFields(t *testing.T) {
+	n := 0
+	var v Pair
+	const for _, f := range comptime.Fields[Pair]() {
+		_ = v.[f]
+		n++
+	}
+	if n != 2 {
+		t.Fatalf("got %d fields, want 2", n)
+	}
+}
+-- probe/xfields_test.lgo --
+package comptimetest_test
+
+import (
+	"comptime"
+	"testing"
+)
+
+type Triple struct {
+	A int
+	B string
+	C bool
+}
+
+func TestExternalFields(t *testing.T) {
+	n := 0
+	var v Triple
+	const for _, f := range comptime.Fields[Triple]() {
+		_ = v.[f]
+		n++
+	}
+	if n != 3 {
+		t.Fatalf("got %d fields, want 3", n)
+	}
+}

@@ -117,6 +117,9 @@ func TestPackagesAndErrors(ld *modload.Loader, ctx context.Context, done func(),
 	rawTestImports := str.StringList(p.TestImports)
 
 	for i, path := range p.TestImports {
+		if logosSkipVirtualImport(path) { // logos M7 hook: the virtual comptime package has no files; keep the raw path so TestImports stays aligned with rawTestImports.
+			continue
+		}
 		p1, err := loadImport(ld, ctx, opts, pre, path, p.Dir, p, &stk, p.Internal.Build.TestImportPos[path], ResolveImport)
 		if err != nil && ptestErr == nil {
 			ptestErr = err
@@ -161,6 +164,9 @@ func TestPackagesAndErrors(ld *modload.Loader, ctx context.Context, done func(),
 	rawXTestImports := str.StringList(p.XTestImports)
 
 	for i, path := range p.XTestImports {
+		if logosSkipVirtualImport(path) { // logos M7 hook: the virtual comptime package has no files; keep the raw path so XTestImports stays aligned with rawXTestImports.
+			continue
+		}
 		p1, err := loadImport(ld, ctx, opts, pre, path, p.Dir, p, &stk, p.Internal.Build.XTestImportPos[path], ResolveImport)
 		if err != nil && pxtestErr == nil {
 			pxtestErr = err
