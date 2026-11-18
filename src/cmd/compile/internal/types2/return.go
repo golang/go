@@ -59,6 +59,18 @@ func (check *Checker) isTerminating(s syntax.Stmt, label string) bool {
 	case *syntax.ConstSwitchStmt:
 		return check.logosTerminatingConstSwitch(s) // logos M7-S4 hook.
 
+	case *syntax.GroupStmt:
+		return check.logosTerminatingGroup(s) // logos M8-S2 hook.
+
+	case *syntax.GroupChild:
+		// A group child is a separate function body and cannot terminate the
+		// enclosing statement.
+
+	case *syntax.ConstForStmt:
+		// The const for body runs inline once per field, so the statement
+		// terminates when its body does.
+		return check.isTerminatingList(s.Body.List, "")
+
 	case *syntax.SelectStmt:
 		for _, cc := range s.Body {
 			if !check.isTerminatingList(cc.Body, "") || hasBreakList(cc.Body, label, true) {
@@ -155,6 +167,17 @@ func hasBreak(s syntax.Stmt, label string, implicit bool) bool {
 
 	case *syntax.ConstSwitchStmt: // logos M7-S4 hook.
 		return logosHasBreakConstSwitch(s, label, implicit)
+
+	case *syntax.GroupStmt: // logos M8-S2 hook.
+		return logosHasBreakGroup(s, label, implicit)
+
+	case *syntax.GroupChild:
+		// Branches cannot leave a group child; its body never breaks out.
+
+	case *syntax.ConstForStmt: // logos M7-S2 hook.
+		// The const for body keeps the enclosing label namespace, so an
+		// unlabeled break inside it exits the enclosing breakable statement.
+		return hasBreak(s.Body, label, implicit)
 
 	case *syntax.SelectStmt:
 		if label != "" && hasBreakCommList(s.Body, label, false) {

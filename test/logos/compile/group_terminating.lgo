@@ -1,0 +1,55 @@
+// errorcheck
+
+package p
+
+import (
+	"comptime"
+	"context"
+)
+
+// A break in the group body targets the enclosing loop, so the loop is not
+// terminating and the function has no return.
+func groupBreakMissingReturn(ctx context.Context) error {
+	for {
+		go group (ctx) {
+			break
+		}
+	}
+} // ERROR "missing return"
+
+// The same shape with a return after the loop is fine: the break leaves the
+// loop and the return is reached.
+func groupBreakThenReturn(ctx context.Context) error {
+	for {
+		go group (ctx) {
+			break
+		}
+	}
+	return nil
+}
+
+type Cfg struct {
+	Host string
+	Port int
+}
+
+// break inside a const for body exits the enclosing loop, so the loop is
+// not terminating and the function has no return.
+func constForBreakMissingReturn() int {
+	for {
+		const for _, f := range comptime.Fields[Cfg]() {
+			_ = f.Name
+			break
+		}
+	}
+} // ERROR "missing return"
+
+func constForBreakThenReturn() int {
+	for {
+		const for _, f := range comptime.Fields[Cfg]() {
+			_ = f.Name
+			break
+		}
+	}
+	return 7
+}

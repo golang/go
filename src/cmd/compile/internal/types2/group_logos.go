@@ -158,3 +158,17 @@ func LogosErrorResults(t Type) (int, bool) {
 func (check *Checker) logosGroupBranches(all *Scope, parent *block, lstmt *syntax.LabeledStmt, s *syntax.GroupStmt) []*syntax.BranchStmt {
 	return check.blockBranches(all, parent, lstmt, s.Body.List)
 }
+
+// logosTerminatingGroup reports whether a go group statement is terminating:
+// the parent body runs inline, so the group terminates exactly when its own
+// body does; child bodies are separate function bodies and never count.
+func (check *Checker) logosTerminatingGroup(s *syntax.GroupStmt) bool {
+	return check.isTerminatingList(s.Body.List, "")
+}
+
+// logosHasBreakGroup searches the group parent body for a break targeting
+// the enclosing breakable statement; child bodies have their own label
+// namespace, so hasBreak never enters a GroupChild (SPEC 2.6).
+func logosHasBreakGroup(s *syntax.GroupStmt, label string, implicit bool) bool {
+	return hasBreakList(s.Body.List, label, implicit)
+}

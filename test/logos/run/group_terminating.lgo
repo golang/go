@@ -1,0 +1,161 @@
+// run
+
+package main
+
+import (
+	"comptime"
+	"context"
+	"errors"
+	"fmt"
+	"iter"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func work() error { return nil }
+
+// The group statement sits inside an infinite loop whose exit is a return
+// in the loop body; the terminating analysis must see through the group
+// body without entering the child bodies.
+func groupInLoop(ctx context.Context, n int) error {
+	for {
+		go group (ctx) {
+			go { work()? }
+		}
+		if n <= 0 {
+			return nil
+		}
+		n--
+	}
+}
+
+// A bounded variant of the same shape: the group is the last statement of
+// the loop body and a labeled break in the group body leaves the loop.
+func groupBreak(ctx context.Context) (int, error) {
+	i := 0
+outer:
+	for i < 3 {
+		go group (ctx) {
+			go { work()? }
+			break outer
+		}
+		i++
+	}
+	return i, nil
+}
+
+// An unlabeled break in the group body leaves the loop and the return after
+// it is reached.
+var errReached = errors.New("reached")
+
+func groupUnlabeledBreak(ctx context.Context) error {
+	for {
+		go group (ctx) {
+			break
+		}
+	}
+	return errReached
+}
+
+type Cfg struct {
+	Host string
+	Port int
+}
+
+// break inside a const for body exits the enclosing loop, so the loop is
+// not terminating and the return after it is reached.
+func constForBreak() int {
+	for {
+		const for _, f := range comptime.Fields[Cfg]() {
+			_ = f.Name
+			break
+		}
+	}
+	return 0
+}
+
+// const if and const switch bodies share the enclosing label namespace.
+func constIfBreak() int {
+	for {
+		const if true {
+			break
+		}
+	}
+	return 0
+}
+
+func constSwitchBreak[T any]() int {
+outer:
+	for {
+		const switch T {
+		case int:
+			break outer
+		}
+	}
+	return 0
+}
+
+// yield, errdefer and scope defer inside an infinite loop must not panic
+// the terminating analysis.
+func yieldLoop() iter.Seq[int] {
+	for {
+		const for _, f := range comptime.Fields[Cfg]() {
+			_ = f.Name
+		}
+		yield 1
+	}
+}
+
+func groupForms(ctx context.Context, n int) (err error) {
+	for {
+		scope defer func() { _ = ctx }()
+		errdefer func() { err = work() }()
+		go group (ctx) {
+			go { work()? }
+		}
+		if n <= 0 {
+			return nil
+		}
+		n--
+	}
+}
+
+func main() {
+	ctx := context.Background()
+	err := groupInLoop(ctx, 3)
+	check("group-in-loop", err == nil, err, nil)
+	got, gerr := groupBreak(ctx)
+	if gerr != nil {
+		check("group-break", false, gerr, nil)
+	} else {
+		check("group-break", got == 0, got, 0)
+	}
+	berr := groupUnlabeledBreak(ctx)
+	check("group-unlabeled-break", berr == errReached, berr, errReached)
+	check("const-for-break", constForBreak() == 0, constForBreak(), 0)
+	check("const-if-break", constIfBreak() == 0, constIfBreak(), 0)
+	check("const-switch-break", constSwitchBreak[int]() == 0, constSwitchBreak[int](), 0)
+	count := 0
+	for range yieldLoop() {
+		count++
+		if count == 3 {
+			break
+		}
+	}
+	check("yield-loop", count == 3, count, 3)
+	ferr := groupForms(ctx, 2)
+	check("group-forms", ferr == nil, ferr, nil)
+	if failed {
+		os.Exit(1)
+	}
+}
