@@ -180,6 +180,34 @@ func TestTempDirGOTMPDIR(t *testing.T) {
 	}
 }
 
+func TestTempDirStatError(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		gotmp, err := os.MkdirTemp("", "gotmpdir")
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("GOTMPDIR", gotmp)
+		t.TempDir()
+		if err := os.RemoveAll(gotmp); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(gotmp, nil, 0o666); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() {
+			defer os.Remove(gotmp)
+			t.TempDir()
+		})
+		t.TempDir()
+		return
+	}
+
+	out := string(runTest(t, "TestTempDirStatError"))
+	if n := strings.Count(out, "TempDir: "); n != 2 {
+		t.Errorf("got %d TempDir errors, want 2:\n%s", n, out)
+	}
+}
+
 func TestSetenv(t *testing.T) {
 	tests := []struct {
 		name               string
