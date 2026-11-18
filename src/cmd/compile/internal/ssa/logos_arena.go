@@ -7,9 +7,11 @@ package ssa
 import "internal/goarch"
 
 // Offset of runtime.g.logosArena: stack(2P) + stackguard0(P) + stackguard1(P)
-// + _panic(P) + _defer(P) + m(P) + sched gobuf(6P). The arena block sits
-// after sched so upstream prefix offsets are preserved.
-const logosArenaGOffset = 13 * goarch.PtrSize
+// + _panic(P) + _defer(P) + m(P) + sched gobuf(6P) + syscallsp..stktopsp(4P)
+// + param(P) + atomicstatus(4B) + stackLock(4B) + goid(8B). The arena block
+// sits after goid so every upstream offset through goid is preserved for
+// third-party assembly (e.g. gVisor reads goid at 152 on 64-bit).
+const logosArenaGOffset = 18*goarch.PtrSize + 16
 const LogosArenaGOffset = logosArenaGOffset
 
 const (

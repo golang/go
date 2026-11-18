@@ -485,25 +485,10 @@ type g struct {
 	m      *m      // current m
 	sched  gobuf
 
-	// The four arena/region fields live after sched so the upstream
-	// Go 1.27 prefix offsets (_panic, _defer, m, sched) stay intact for
-	// third-party assembly that addresses g fields numerically.
-	// logosArena is the newest chunk of the loGo/s arena chain leased to
-	// this goroutine (M18-S1); older chunks hang off sideStackChunk.next.
-	// Nil when the goroutine holds no arena chunk.
-	// offset known to cmd/compile (logosArena bump)
-	logosArena *sideStackChunk
-	// logosArenaRetOK is the one-shot consent token a caller sets right
-	// before a static call to a function that may allocate its returned
-	// objects in the caller's arena region. The callee takes it (reads and
-	// clears it) as its first action; see logosArenaRetSet.
-	logosArenaRetOK bool
-	logosRegions    *logosRegion
-	logosRegionFree *logosRegion
-	syscallsp       uintptr // if status==Gsyscall, syscallsp = sched.sp to use during gc
-	syscallpc       uintptr // if status==Gsyscall, syscallpc = sched.pc to use during gc
-	syscallbp       uintptr // if status==Gsyscall, syscallbp = sched.bp to use in fpTraceback
-	stktopsp        uintptr // expected sp at top of stack, to check in traceback
+	syscallsp uintptr // if status==Gsyscall, syscallsp = sched.sp to use during gc
+	syscallpc uintptr // if status==Gsyscall, syscallpc = sched.pc to use during gc
+	syscallbp uintptr // if status==Gsyscall, syscallbp = sched.bp to use in fpTraceback
+	stktopsp  uintptr // expected sp at top of stack, to check in traceback
 	// param is a generic pointer parameter field used to pass
 	// values in particular contexts where other storage for the
 	// parameter would be difficult to find. It is currently used
@@ -521,9 +506,27 @@ type g struct {
 	atomicstatus atomic.Uint32
 	stackLock    uint32 // sigprof/scang lock; TODO: fold in to atomicstatus
 	goid         uint64
-	schedlink    guintptr
-	waitsince    int64      // approx time when the g become blocked
-	waitreason   waitReason // if status==Gwaiting
+
+	// The four arena/region fields live after goid so every upstream
+	// Go 1.27 offset through goid (stack..param, atomicstatus, stackLock)
+	// stays intact for third-party assembly that addresses g fields
+	// numerically (e.g. gVisor/gvx read goid at 152 on 64-bit).
+	// logosArena is the newest chunk of the loGo/s arena chain leased to
+	// this goroutine (M18-S1); older chunks hang off sideStackChunk.next.
+	// Nil when the goroutine holds no arena chunk.
+	// offset known to cmd/compile (logosArena bump)
+	logosArena *sideStackChunk
+	// logosArenaRetOK is the one-shot consent token a caller sets right
+	// before a static call to a function that may allocate its returned
+	// objects in the caller's arena region. The callee takes it (reads and
+	// clears it) as its first action; see logosArenaRetSet.
+	logosArenaRetOK bool
+	logosRegions    *logosRegion
+	logosRegionFree *logosRegion
+
+	schedlink  guintptr
+	waitsince  int64      // approx time when the g become blocked
+	waitreason waitReason // if status==Gwaiting
 
 	preempt       bool // preemption signal, duplicates stackguard0 = stackpreempt
 	preemptStop   bool // transition to _Gpreempted on preemption; otherwise, just deschedule

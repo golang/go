@@ -85,17 +85,21 @@ func TestLogosRuntimeNoNewPadding(t *testing.T) {
 	if tail := runtime.LogosGSize - runtime.LogosGSiteOff; tail != wantGTail {
 		t.Fatalf("g tail = %d, want %d", tail, wantGTail)
 	}
-	// The upstream Go 1.27 g prefix must stay intact: third-party assembly
-	// (e.g. gVisor VDSO stubs) addresses g.m and g.sched numerically.
-	// The fork's arena/region fields therefore live after sched.
+	// The upstream Go 1.27 g layout must stay intact through goid:
+	// third-party assembly (e.g. gVisor VDSO stubs and goid readers)
+	// addresses g.m, g.sched and g.goid numerically. The fork's
+	// arena/region fields therefore live after goid.
 	if off := runtime.LogosGMOff; off != 6*ptr {
 		t.Fatalf("g.m offset = %d, want %d", off, 6*ptr)
 	}
 	if off := runtime.LogosGSchedOff; off != 7*ptr {
 		t.Fatalf("g.sched offset = %d, want %d", off, 7*ptr)
 	}
-	if off := runtime.LogosGArenaOff; off != 13*ptr {
-		t.Fatalf("g.logosArena offset = %d, want %d", off, 13*ptr)
+	if off := runtime.LogosGGoidOff; off != 18*ptr+8 {
+		t.Fatalf("g.goid offset = %d, want %d", off, 18*ptr+8)
+	}
+	if off := runtime.LogosGArenaOff; off != 18*ptr+16 {
+		t.Fatalf("g.logosArena offset = %d, want %d", off, 18*ptr+16)
 	}
 	if d := runtime.LogosGRetOKOff - runtime.LogosGArenaOff; d != ptr {
 		t.Fatalf("g retok-arena gap = %d, want %d", d, ptr)
