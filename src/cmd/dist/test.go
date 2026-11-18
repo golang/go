@@ -791,6 +791,12 @@ func (t *tester) registerTests() {
 			})
 		}
 	}
+	// Test the other implementations of the simd package that this
+	// machine can run. This runs the test binary to find out what they
+	// are.
+	if !t.compileOnly {
+		t.registerSimdGODEBUGTests()
+	}
 
 	// Test ios/amd64 for the iOS simulator.
 	if goos == "darwin" && goarch == "amd64" && t.cgoEnabled {
@@ -1026,6 +1032,64 @@ func (t *tester) registerTests() {
 				runOnHost: true,
 			},
 		)
+	}
+}
+
+// registerSimdGODEBUGTests registers a test of the simd package under each
+// GODEBUG setting that the simd test binary's -list-godebugs flag prints,
+// named like "simd:GODEBUG=simd=128".
+//
+// The simd package selects an implementation based on the CPU, such as the
+// largest vector size the CPU supports, so by default its tests only test
+// that one. Each of these settings selects another implementation that this
+// CPU can run, such as a smaller vector size, which is what programs use on
+// CPUs with fewer features. Which settings work depends on the CPU, so dist
+// asks for the possible settings from the test binary itself.
+func (t *tester) registerSimdGODEBUGTests() {
+	const prefix = "simd:GODEBUG="
+	if len(t.runNames) > 0 && !slices.ContainsFunc(t.runNames, func(name string) bool { return strings.HasPrefix(name, prefix) }) {
+		// The caller named the tests to run, as the builders do, and
+		// none of them is one of these, so don't spend time finding
+		// out what they are.
+		return
+	}
+	// Like the simd tests above, turn on the simd experiment if it isn't
+	// on already.
+	var env []string
+	heading := "go test simd"
+	if !slices.Contains(strings.Split(goexperiment, ","), "simd") {
+		env = []string{"GOEXPERIMENT=" + goexperiments("simd")}
+		heading = "GOEXPERIMENT=simd " + heading
+	}
+	// go test only shows what the test binary prints if it fails or if
+	// -v is set.
+	cmd := exec.Command(gorootBinGo, "test", "-v", "simd", "-list-godebugs")
+	setDir(cmd, filepath.Join(goroot, "src"))
+	for _, kv := range env {
+		k, v, _ := strings.Cut(kv, "=")
+		setEnv(cmd, k, v)
+	}
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		// Most likely the simd tests don't build. Report that as a
+		// failing test, rather than failing to register any tests.
+		t.addTest("simd:list-godebugs", heading+" -list-godebugs", func(*distTest) error {
+			return fmt.Errorf("%v: %v\n%s", cmd, err, out)
+		})
+		return
+	}
+	// Each setting is a line of the form GODEBUG=something. The other
+	// lines are from go test.
+	for _, line := range strings.Split(string(out), "\n") {
+		setting := strings.TrimSpace(line)
+		if !strings.HasPrefix(setting, "GODEBUG=") {
+			continue
+		}
+		t.registerTest(setting+" "+heading, &goTest{
+			variant: setting,
+			env:     append(env[:len(env):len(env)], setting),
+			pkg:     "simd",
+		})
 	}
 }
 
