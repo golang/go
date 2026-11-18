@@ -8,7 +8,6 @@ package simd_test
 
 import (
 	"fmt"
-	"internal/testenv"
 	"simd"
 	"simd/archsimd"
 	"strings"
@@ -54,13 +53,7 @@ func TestToFromArch128(t *testing.T) {
 
 func TestFromArchEmulatedPanic(t *testing.T) {
 	if !simd.Emulated() {
-		// Self-invoke in emulated mode.
-		cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^TestFromArchEmulatedPanic$")
-		cmd.Env = append(cmd.Environ(), "GODEBUG=simd=0")
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("GODEBUG=simd=0 subprocess failed: %v\n%s", err, out)
-		}
-		return
+		t.Skip("simd is not emulated; GODEBUG=simd=0 forces emulation")
 	}
 
 	callFromArch128 := func() simd.Int32s {

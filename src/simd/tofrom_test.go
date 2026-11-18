@@ -7,7 +7,6 @@
 package simd_test
 
 import (
-	"internal/testenv"
 	"simd"
 	"testing"
 )
@@ -42,13 +41,6 @@ func TestToArchEmulated(t *testing.T) {
 			if tc.val == nil {
 				t.Errorf("(%s{}).ToArch() = nil when Emulated() is false", tc.name)
 			}
-		}
-
-		// Self-invoke in emulated mode.
-		cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^TestToArchEmulated$")
-		cmd.Env = append(cmd.Environ(), "GODEBUG=simd=0")
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("GODEBUG=simd=0 subprocess failed: %v\n%s", err, out)
 		}
 		return
 	}

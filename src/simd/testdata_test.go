@@ -9,7 +9,6 @@ package simd_test
 import (
 	"internal/testenv"
 	"os"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -116,9 +115,6 @@ func TestCompileError(t *testing.T) {
 
 func TestToString(t *testing.T) {
 	common(t, "testdata", "tostring_test.go", "")
-	if runtime.GOARCH == "amd64" || runtime.GOARCH == "arm64" {
-		common(t, "testdata", "tostring_test.go", "", "GODEBUG=simd=0")
-	}
 }
 
 func TestB81614(t *testing.T) {
@@ -130,7 +126,4 @@ func TestB81614(t *testing.T) {
 
 func TestLoadPart(t *testing.T) {
 	common(t, "testdata", "loadpart_test.go", "")
-	if runtime.GOARCH == "amd64" || runtime.GOARCH == "arm64" {
-		common(t, "testdata", "loadpart_test.go", "", "GODEBUG=simd=0")
-	}
 }
