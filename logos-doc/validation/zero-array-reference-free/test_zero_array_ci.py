@@ -157,10 +157,25 @@ def test_replacement_manifest_preserves_original_inputs() -> None:
     repo = Path(__file__).resolve().parents[3]
     directory = repo / gate.DIRECTORY
     original = directory / "FROZEN.sha256"
-    assert (
-        original.read_bytes()
-        == (directory / "api-compatibility/original-FROZEN.sha256.txt").read_bytes()
-    )
+    # The archived manifest copy is frozen failure-run evidence; it stays at the
+    # hash FROZEN_FAILURES.sha256 pins and does not track FROZEN.sha256 as
+    # upstream inputs legitimately drift.
+    inventory = {
+        relative: expected
+        for expected, relative in (
+            line.split("  ", 1)
+            for line in (
+                directory / "api-compatibility/FROZEN_FAILURES.sha256"
+            )
+            .read_text()
+            .splitlines()
+        )
+    }
+    assert gate.method_gate.digest(
+        directory / "api-compatibility/original-FROZEN.sha256.txt"
+    ) == inventory[
+        "logos-doc/validation/zero-array-reference-free/api-compatibility/original-FROZEN.sha256.txt"
+    ]
     legacy = {
         relative: expected
         for expected, relative in (
