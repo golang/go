@@ -28,7 +28,13 @@ func (fl *fileLower) hasSpread(c *syntax.CompositeLit) bool {
 }
 
 func (fl *fileLower) spreadChildren(n syntax.Node) {
-	v := reflect.ValueOf(n).Elem()
+	fl.spreadStructFields(reflect.ValueOf(n).Elem())
+}
+
+// spreadStructFields walks the exported fields of a node — or of a
+// non-node container a node holds, like a ConstSwitchCase — so spread
+// literals nested inside them are lowered too.
+func (fl *fileLower) spreadStructFields(v reflect.Value) {
 	typ := v.Type()
 	for i := range v.NumField() {
 		if typ.Field(i).IsExported() {
@@ -49,6 +55,12 @@ func (fl *fileLower) spreadField(f reflect.Value) {
 		}
 		if n, ok := f.Interface().(syntax.Node); ok {
 			fl.spreadNode(f, n)
+			return
+		}
+		// A non-node container (e.g. *syntax.ConstSwitchCase) is still
+		// descended: its exported fields may hold node slices.
+		if e := f.Elem(); e.Kind() == reflect.Struct {
+			fl.spreadStructFields(e)
 		}
 	}
 }
@@ -83,8 +95,10 @@ func (fl *fileLower) spreadValue(e syntax.Expr) syntax.Expr {
 		}
 	}
 	fl.spreadChildren(e)
-	if c, ok := e.(*syntax.CompositeLit); ok && fl.hasSpread(c) {
-		return fl.retyped(e, fl.spreadValueComposite(c))
+	if c, ok := e.(*syntax.CompositeLit); ok {
+		if fl.hasSpread(c) {
+			return fl.retyped(e, fl.spreadValueComposite(c))
+		}
 	}
 	return e
 }

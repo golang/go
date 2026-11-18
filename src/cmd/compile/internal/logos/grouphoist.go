@@ -551,6 +551,9 @@ func (fl *fileLower) groupClosingEnd(open int) int {
 }
 
 func (fl *fileLower) groupOperandEnd(e syntax.Expr) int {
+	if ws, ok := fl.wrapSpan[syntax.Unparen(e)]; ok {
+		return ws.end
+	}
 	if closure := fl.groupClosureCall(e); closure != nil {
 		return closure.source.end
 	}

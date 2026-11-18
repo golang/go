@@ -47,10 +47,15 @@ func (check *Checker) validType0(pos syntax.Pos, typ Type, nest, path []*Named) 
 		}
 
 	case *Array:
-		return check.validType0(pos, t.elem, nest, path)
+		if !check.ifaceWord(t.elem) {
+			return check.validType0(pos, t.elem, nest, path)
+		}
 
 	case *Struct:
 		for _, f := range t.fields {
+			if check.ifaceWord(f.typ) {
+				continue
+			}
 			if !check.validType0(pos, f.typ, nest, path) {
 				return false
 			}
@@ -162,6 +167,9 @@ func (check *Checker) validType0(pos syntax.Pos, typ Type, nest, path []*Named) 
 				// match in length but be careful in case of errors.
 				if t == tparam && i < inst.TypeArgs().Len() {
 					targ := inst.TypeArgs().At(i)
+					if check.ifaceWord(targ) {
+						return true
+					}
 					// The type argument must be valid in the enclosing
 					// type (where inst was instantiated), hence we must
 					// check targ's validity in the type nest excluding
@@ -180,6 +188,31 @@ func (check *Checker) validType0(pos syntax.Pos, typ Type, nest, path []*Named) 
 	}
 
 	return true
+}
+
+// ifaceWord reports whether a value of type t is stored as a fixed-size
+// interface word under LoGOs value-union lowering (SPEC 1.2 lowers a
+// value-used closed union to a methods-only interface). A field,
+// element, or type argument of such a type does not nest the memory of
+// the members its type set admits, so a union member may hold the union
+// itself by value (say, a tree node) without creating an
+// infinitely-sized type. Interface-typed subterms are left out of the
+// memory nest; a type's own declaration still checks the type's
+// internal (type-set) cycles. It applies only when value unions are
+// enabled; a plain Go package keeps the upstream recursive-type rule
+// exactly.
+func (check *Checker) ifaceWord(t Type) bool {
+	if !check.conf.LogosUnions {
+		return false
+	}
+	switch t := Unalias(t).(type) {
+	case *Named:
+		_, ok := t.Underlying().(*Interface)
+		return ok
+	case *Interface:
+		return true
+	}
+	return false
 }
 
 // makeObjList returns the list of type name objects for the given

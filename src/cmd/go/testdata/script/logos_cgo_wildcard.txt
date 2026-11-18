@@ -2,6 +2,7 @@ env GOPROXY=off
 env GOTOOLCHAIN=local
 
 env CC=
+env CGO_ENABLED=0
 
 # No logos.toml: the default cgo policy forbids cgo, and ./... must
 # reject the cgo-only package instead of silently dropping it.
@@ -46,6 +47,7 @@ cd ..
 
 # A restricted policy with an empty allowlist denies every cgo package.
 # These blocks compile C, so they only run where cgo works.
+env CGO_ENABLED=1
 [cgo] cd restricted
 [cgo] ! logos build ./...
 [cgo] stderr '\[restriction::cgo_usage\]'

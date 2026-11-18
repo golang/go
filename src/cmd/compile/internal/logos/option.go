@@ -933,6 +933,63 @@ func (fl *fileLower) drainBoundaries(vs span) (head, tail otext) {
 	return fl.drainBoundariesSince(vs, 1)
 }
 
+// drainEnclosing pulls the owned boundary inserts of wraps that enclose vs —
+// a `??` closure's head and `}()` tail — so an inner construct's own wrap of
+// vs fuses inside the enclosure rather than after its closing text. An owned
+// boundary insert is enclosing only when its owner also holds an insert
+// outside vs; an insert whose wrap lies wholly inside vs (like a narrowed
+// operand's `.Value` suffix) stays pending so it lands inside the inner
+// construct's text where it belongs.
+func (fl *fileLower) drainEnclosing(vs span) (head, tail otext) {
+	ls := fl.ownerOfInsertion(vs.start)
+	le := fl.ownerOfInsertion(vs.end)
+	outside := map[int]bool{}
+	mark := func(list *[]splice) {
+		for _, sp := range *list {
+			if sp.owner != 0 && (sp.start < vs.start || sp.end > vs.end) {
+				outside[sp.owner] = true
+			}
+		}
+	}
+	mark(ls)
+	if le != ls {
+		mark(le)
+	}
+	if len(outside) == 0 {
+		return head, tail
+	}
+	take := func(list *[]splice, off int) otext {
+		var text otext
+		var rest []splice
+		for _, sp := range *list {
+			if sp.start != sp.end || sp.start != off || !outside[sp.owner] {
+				rest = append(rest, sp)
+				continue
+			}
+			text = cat(text, otext{s: sp.text, chunks: sp.chunks})
+		}
+		*list = rest
+		return text
+	}
+	if ls != le {
+		return take(ls, vs.start), take(le, vs.end)
+	}
+	var rest []splice
+	for _, sp := range *ls {
+		if sp.start != sp.end || !outside[sp.owner] || (sp.start != vs.start && sp.start != vs.end) {
+			rest = append(rest, sp)
+			continue
+		}
+		if sp.start == vs.start {
+			head = cat(head, otext{s: sp.text, chunks: sp.chunks})
+		} else {
+			tail = cat(tail, otext{s: sp.text, chunks: sp.chunks})
+		}
+	}
+	*ls = rest
+	return head, tail
+}
+
 func (fl *fileLower) drainBoundariesSince(vs span, since int) (head, tail otext) {
 	take := func(off int) otext {
 		list := fl.ownerOfInsertion(off)

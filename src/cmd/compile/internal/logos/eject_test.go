@@ -56,7 +56,8 @@ func ejectCheck(t *testing.T, file *syntax.File) (*types2.Package, *types2.Info)
 			}
 			errs = append(errs, err)
 		},
-		Logos: true,
+		Logos:       true,
+		LogosUnions: true,
 	}
 	pkg, _ := conf.Check("main", []*syntax.File{file}, info)
 	for _, err := range errs {

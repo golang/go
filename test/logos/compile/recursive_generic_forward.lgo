@@ -1,0 +1,12 @@
+// errorcheck
+
+package p
+
+// A's RHS instantiates A itself, so a field that forces A[B]'s
+// underlying before the delayed recursive-type check runs must still
+// terminate and report the cycle instead of hanging.
+type A[P any] A[int] // ERROR "invalid recursive type"
+
+type B struct {
+	f [4]A[B]
+}

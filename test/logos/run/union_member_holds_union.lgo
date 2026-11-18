@@ -1,0 +1,44 @@
+// run
+
+package main
+
+import "fmt"
+
+// A closed union used in a value position lowers to a fixed-size
+// interface word, so a member may hold the union itself by value
+// (or an option of it) without forming an invalid recursive type.
+type Node interface{ Leaf | Wrap | OptWrap | ArrWrap | GenWrap }
+
+type Leaf struct{ S string }
+
+type Wrap struct{ Inner Node }
+
+type OptWrap struct{ Fallback Node? }
+
+// The element type of an array field is a value position too.
+type ArrWrap struct{ Kids [2]Node }
+
+// A member may hold the union through a type argument as well.
+type Box[T any] struct{ V T }
+
+type GenWrap struct{ B Box[Node] }
+
+func main() {
+	var n Node = Wrap{Inner: Leaf{S: "x"}}
+	fmt.Println(n != nil)
+
+	var m Node = Wrap{Inner: Wrap{Inner: Leaf{S: "y"}}}
+	w, ok := m.(Wrap).Inner.(Wrap)
+	fmt.Println(ok && w.Inner == Leaf{S: "y"})
+
+	var o Node = OptWrap{}
+	fmt.Println(o != nil)
+
+	fmt.Println(Wrap{} == Wrap{Inner: Leaf{S: "x"}})
+
+	var a Node = ArrWrap{Kids: [2]Node{Leaf{S: "a"}, Leaf{S: "b"}}}
+	fmt.Println(a.(ArrWrap).Kids[1] == Leaf{S: "b"})
+
+	var g Node = GenWrap{B: Box[Node]{V: Leaf{S: "g"}}}
+	fmt.Println(g.(GenWrap).B.V == Leaf{S: "g"})
+}

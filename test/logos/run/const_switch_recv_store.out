@@ -1,0 +1,12 @@
+ok const-index-operand-not-run
+ok const-index-store
+ok shadowed-local-type
+ok local-alias
+ok grouped-decl-alias
+ok clause-local-alias
+ok nested-clause-decl
+ok generic-alias-arg
+ok same-spell-siblings
+ok wrap-frozen-operand
+ok opt-fallback-store
+ok opt-fallback-selector

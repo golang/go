@@ -194,7 +194,8 @@ func checkLoweredClean(t *testing.T, imp *testImporter, path string) {
 			}
 			cerrs = append(cerrs, err)
 		},
-		Logos: true,
+		Logos:       true,
+		LogosUnions: true,
 	}
 	files := []*syntax.File{f}
 	src := map[*syntax.File][]byte{f: data}

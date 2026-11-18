@@ -1,0 +1,305 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+	"unsafe"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type Word struct{ S string }
+
+func (w Word) M() string { return "m:" + w.S }
+
+var seq []string
+
+// The index operand of a receive-store target is a compile-time
+// expression: unsafe.Sizeof never evaluates its argument, so the call
+// inside it must not materialize as a frozen temp.
+var flags = make([]bool, 64)
+var buf = []int{1, 2, 3}
+
+func nextIdx() int { seq = append(seq, "next"); return 0 }
+
+func constIndex[T any](ch chan T) {
+	const switch T {
+	case interface{ M() string }:
+		var p interface{ M() string }
+		select {
+		case p, flags[unsafe.Sizeof(buf[nextIdx()])] = <-ch:
+			_ = p
+		default:
+		}
+	}
+}
+
+// A type declared in the case body may be shadowed inside a nested
+// block; the store's conversion must still name the type.
+func shadowType[T any](ch chan T, out *bool) {
+	const switch T {
+	case interface{ M() string }:
+		var p interface{ M() string }
+		type St bool
+		var ok St
+		{
+			St := func(b bool) bool { return b }
+			_ = St
+			select {
+			case p, ok = <-ch:
+				_ = p
+			default:
+			}
+		}
+		*out = bool(ok)
+	}
+}
+
+// A case-local alias names the same destination.
+func localAlias[T any](ch chan T, out *bool) {
+	const switch T {
+	case interface{ M() string }:
+		var p interface{ M() string }
+		type Status = bool
+		var ok Status
+		select {
+		case p, ok = <-ch:
+			_ = p
+		default:
+		}
+		*out = bool(ok)
+	}
+}
+
+// A grouped declaration's pinned alias lands past the closing paren,
+// not inside the group.
+func groupedDecl[T any](ch chan T, out *bool) {
+	const switch T {
+	case interface{ M() string }:
+		var p interface{ M() string }
+		type (
+			Status = bool
+		)
+		var ok Status
+		select {
+		case p, ok = <-ch:
+			_ = p
+		default:
+		}
+		*out = bool(ok)
+	}
+}
+
+// A declaration inside a comm-clause body scopes over later selects in
+// that body; its pinned alias still lands even when the clause records
+// no conversions.
+func clauseLocal[T any](ch chan T, out *bool) {
+	const switch T {
+	case interface{ M() string }:
+		select {
+		case p, ok := <-ch:
+			_, _ = p, ok
+			type Status = bool
+			var ok3 Status
+			var q interface{ M() string }
+			select {
+			case q, ok3 = <-ch:
+				*out = ok3 && q.M() != ""
+			default:
+			}
+		default:
+		}
+	}
+}
+
+// A matched selector on a switched-value receiver holds a frozen
+// operand inside the any(...) cast.
+var mboxPtr bool
+
+type MBox struct{}
+
+func (m MBox) M() *bool { return &mboxPtr }
+
+var selPtr bool
+
+type MBox2 struct{}
+
+func (m MBox2) M() *bool { return &selPtr }
+
+func k() int { seq = append(seq, "k"); return 0 }
+
+func wrapFrozen[T any](ch chan T, s []T) {
+	const switch T {
+	case interface{ M() *bool }:
+		var p interface{ M() *bool }
+		select {
+		case p, *s[k()].M() = <-ch:
+			_ = p
+		default:
+		}
+	}
+}
+
+// A type declared inside a nested switch's clause body is registered
+// for alias pinning even though clause bodies are bare statement
+// lists, not BlockStmt nodes.
+func nestedClauseDecl[T any](ch chan T, out *bool) {
+	const switch T {
+	case interface{ M() string }:
+		var p interface{ M() string }
+		switch {
+		default:
+			type St bool
+			var ok St
+			select {
+			case p, ok = <-ch:
+				_ = p
+			default:
+			}
+			*out = bool(ok)
+		}
+	}
+}
+
+// A generic alias whose argument is a case-local type pins the alias
+// spelling past that declaration; TypeArgs on Alias must be walked.
+type Flag[A any] bool
+
+type Status[A any] = Flag[A]
+
+func genericAliasArg[T any](ch chan T, out *bool) {
+	const switch T {
+	case interface{ M() string }:
+		var p interface{ M() string }
+		type Marker int
+		var ok Status[Marker]
+		select {
+		case p, ok = <-ch:
+			_ = p
+		default:
+		}
+		*out = bool(ok)
+	}
+}
+
+// Two sibling blocks each declaring a same-named type keep distinct
+// aliases: the spell cache is keyed by type, not by printed name.
+func sameSpellSiblings[T any](ch chan T, out *bool) {
+	const switch T {
+	case interface{ M() string }:
+		var p interface{ M() string }
+		{
+			type St bool
+			var ok St
+			select {
+			case p, ok = <-ch:
+				_ = p
+			default:
+			}
+			*out = bool(ok)
+		}
+		{
+			type St bool
+			var ok2 St
+			var p2 interface{ M() string }
+			select {
+			case p2, ok2 = <-ch:
+				_ = p2
+			default:
+			}
+			*out = *out && bool(ok2)
+		}
+	}
+}
+
+// A direct pointer fallback in a receive target keeps its `??`
+// lowering in the emitted store text instead of overlapping the
+// replacement, and the store reaches the fallback pointer.
+// A selector applied to an option fallback folds the `??` lowering
+// into the receiver cast, and the store reaches the selected pointer.
+func optWrapFrozenSel[T any](ch chan T, o T?, z T) {
+	const switch T {
+	case interface{ M() *bool }:
+		var p interface{ M() *bool }
+		select {
+		case p, *(o ?? z).M() = <-ch:
+			_ = p
+		default:
+		}
+	}
+}
+
+func optWrapFrozen[T any](ch chan T, o (*bool)?, w *bool) {
+	const switch T {
+	case interface{ M() *bool }:
+		var p interface{ M() *bool }
+		select {
+		case p, *(o ?? w) = <-ch:
+			_ = p
+		default:
+		}
+	}
+}
+
+func main() {
+	ch := make(chan Word, 16)
+	for i := 0; i < 12; i++ {
+		select {
+		case ch <- Word{S: "w"}:
+		default:
+		}
+	}
+	ch2 := make(chan MBox, 8)
+	select {
+	case ch2 <- MBox{}:
+	default:
+	}
+	var ok2, ok3, ok4, ok5, ok6, ok7, ok8 bool
+	constIndex[Word](ch)
+	shadowType[Word](ch, &ok2)
+	localAlias[Word](ch, &ok3)
+	groupedDecl[Word](ch, &ok4)
+	clauseLocal[Word](ch, &ok5)
+	nestedClauseDecl[Word](ch, &ok6)
+	genericAliasArg[Word](ch, &ok7)
+	sameSpellSiblings[Word](ch, &ok8)
+	wrapFrozen[MBox](ch2, []MBox{{}})
+	select {
+	case ch2 <- MBox{}:
+	default:
+	}
+	var optHit bool
+	optWrapFrozen[MBox](ch2, nil, &optHit)
+	ch3 := make(chan MBox2, 4)
+	select {
+	case ch3 <- MBox2{}:
+	default:
+	}
+	optWrapFrozenSel[MBox2](ch3, nil, MBox2{})
+	check("const-index-operand-not-run", len(seq) == 1 && seq[0] == "k", seq, []string{"k"})
+	check("const-index-store", flags[unsafe.Sizeof(buf[0])], flags[unsafe.Sizeof(buf[0])], true)
+	check("shadowed-local-type", ok2, ok2, true)
+	check("local-alias", ok3, ok3, true)
+	check("grouped-decl-alias", ok4, ok4, true)
+	check("clause-local-alias", ok5, ok5, true)
+	check("nested-clause-decl", ok6, ok6, true)
+	check("generic-alias-arg", ok7, ok7, true)
+	check("same-spell-siblings", ok8, ok8, true)
+	check("wrap-frozen-operand", mboxPtr, mboxPtr, true)
+	check("opt-fallback-store", optHit, optHit, true)
+	check("opt-fallback-selector", selPtr, selPtr, true)
+	if failed {
+		os.Exit(1)
+	}
+}

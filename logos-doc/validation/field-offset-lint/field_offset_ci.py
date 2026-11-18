@@ -15,7 +15,7 @@ method_gate = native_gate.method_gate
 DIRECTORY = "logos-doc/validation/field-offset-lint"
 PRODUCTION = "src/cmd/compile/internal/logos/lint/rule_arena_pointer_escape.go"
 PACKAGE = "cmd/compile/internal/logos/lint"
-MANIFEST_SHA256 = "40fa23ddbefabafa4a55f8a58132f2eb311c95a8a49fbb46d424677396cba499"
+MANIFEST_SHA256 = "568802a0e9a595c2c7b889fa1ed9366508de3820b2591aa76f15ca30430f2c0a"
 
 
 def frozen(repo: Path) -> tuple[tuple[str, ...], frozenset[str], str, str]:
@@ -38,8 +38,8 @@ def frozen(repo: Path) -> tuple[tuple[str, ...], frozenset[str], str, str]:
         paths.append(relative)
     recorded_names = cast(list[object], names)
     required = frozenset(method_gate.string(name) for name in recorded_names)
-    if len(required) != 50 or len(recorded_names) != 50:
-        raise ValueError("expected exactly 50 distinct named tests")
+    if len(required) != 52 or len(recorded_names) != 52:
+        raise ValueError("expected exactly 52 distinct named tests")
     return (
         tuple(paths),
         required,

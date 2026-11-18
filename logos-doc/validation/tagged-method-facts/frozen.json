@@ -16,7 +16,7 @@
     },
     {
       "path": "src/cmd/compile/internal/logos/compile_method_tagged_facts_test.go",
-      "sha256": "16ac4b0eb928d29b23dfe12d7bb11311db4c8b6f7bdf4d6e805983c59366cf5c"
+      "sha256": "20e32e0004b9cdf17f3a036ebbda844199f145a98a85c9ae715a5a48b4e22b96"
     }
   ],
   "existing_package_controls": [

@@ -374,7 +374,7 @@ func (fl *fileLower) flushInterpImports(needConv, needUnsafe bool) {
 	pos := fl.file.Pos()
 	var decls []syntax.Decl
 	var text string
-	if needConv && !fl.needRT {
+	if needConv && !fl.rtDeclEmitted {
 		decls = append(decls, rtImport(pos))
 		if !fl.needRTText {
 			text += "\n\nimport " + rtAlias + " " + fmt.Sprintf("%q", rtImportPath)

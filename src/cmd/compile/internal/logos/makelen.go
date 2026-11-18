@@ -27,7 +27,7 @@ func (fl *fileLower) lowerMakeLen() {
 	}
 	syntax.Inspect(fl.file, func(n syntax.Node) bool {
 		if n != nil {
-			replaceMulLenFields(n, set)
+			fl.replaceMulLenFields(n, set)
 		}
 		return true
 	})
@@ -85,28 +85,51 @@ func isIntegerType(t types2.Type) bool {
 	return ok && b.Info()&types2.IsInteger != 0
 }
 
+// spliceMakeLen wraps the product in _logos_rt.MulLen without covering the
+// operands: three boundary edits leave [start, opOff) and [yStart, yEnd) as
+// untouched source, so splices a later lowering records inside either operand
+// — a lambda, a property, a frozen operand — are still applied. A single
+// covering splice would drop them as orphans.
+//
+// The edits fuse with any wrap lowered around the operand: drainBoundaries
+// pulls a pending wrap's owned boundary inserts — a `??` closure's head and
+// `}()` tail — so `MulLen(` lands inside its return slot rather than after
+// its closing text, and the narrowest move holding the operand gets the
+// edits as inner splices for the same reason (an insert routed by its own
+// offset stays outside a moved region's end boundary).
 func (fl *fileLower) spliceMakeLen(op *syntax.Operation) {
 	start := fl.off(syntax.StartPos(op))
 	opOff := fl.off(op.Pos())
 	yStart := fl.off(syntax.StartPos(op.Y))
 	yEnd := fl.operandEnd(yStart)
-	x := fl.textOf(span{start, opOff})
-	y := fl.textOf(span{opOff + len("*"), yEnd})
-	fl.addT(start, yEnd, cat(
-		gen("_logos_rt.MulLen("), x, gen(", "), y, gen(", "+strconv.Quote(renderExpr(op))+")")))
+	m := fl.narrowestMove(span{start: start, end: yEnd}, false)
+	head, tail := fl.drainEnclosing(span{start: start, end: yEnd})
+	put := func(start, end int, t otext) {
+		fl.placeSplice(splice{start: start, end: end, text: t.s, chunks: t.chunks}, m)
+	}
+	put(start, start, cat(head, gen("_logos_rt.MulLen(")))
+	put(opOff, opOff+len("*"), gen(","))
+	// The trailer closes MulLen's argument list, so it lands after every
+	// operand-internal suffix insert at the operand end — a fresh-address
+	// rewrite's closing paren recorded by the later lowerAddrFresh pass, a
+	// narrowed name's .Value — which placementAfterExpression sorts last at
+	// one offset.
+	trailer := cat(gen(", "+strconv.Quote(renderExpr(op))+")"), tail)
+	fl.placeSplice(splice{start: yEnd, end: yEnd, text: trailer.s, chunks: trailer.chunks,
+		placement: placementAfterExpression}, m)
 }
 
 func (fl *fileLower) operandEnd(from int) int {
-	end := len(fl.src)
+	end := from
 	scan := operandScan{prefix: true}
 	scanSegment(fl.src, from, len(fl.src), func(t tok) bool {
 		if t.comment {
 			return true
 		}
 		if scan.ends(t) {
-			end = t.start
 			return false
 		}
+		end = t.end
 		return true
 	})
 	return end
@@ -159,7 +182,7 @@ func stopOp(k token.Token) bool {
 	return false
 }
 
-func replaceMulLenFields(n syntax.Node, set map[syntax.Expr]bool) {
+func (fl *fileLower) replaceMulLenFields(n syntax.Node, set map[syntax.Expr]bool) {
 	v := reflect.ValueOf(n)
 	if v.Kind() != reflect.Pointer || v.IsNil() {
 		return
@@ -171,29 +194,34 @@ func replaceMulLenFields(n syntax.Node, set map[syntax.Expr]bool) {
 	t := v.Type()
 	for i := range v.NumField() {
 		if t.Field(i).IsExported() {
-			replaceMulLenField(v.Field(i), set)
+			fl.replaceMulLenField(v.Field(i), set)
 		}
 	}
 }
 
-func replaceMulLenField(f reflect.Value, set map[syntax.Expr]bool) {
+func (fl *fileLower) replaceMulLenField(f reflect.Value, set map[syntax.Expr]bool) {
 	switch f.Kind() {
 	case reflect.Interface:
 		if f.IsNil() || !f.CanSet() {
 			return
 		}
 		if op, ok := f.Elem().Interface().(*syntax.Operation); ok && set[op] {
-			f.Set(reflect.ValueOf(mulLenCall(op)))
+			f.Set(reflect.ValueOf(fl.mulLenCall(op)))
 		}
 	case reflect.Slice, reflect.Array:
 		for i := range f.Len() {
-			replaceMulLenField(f.Index(i), set)
+			fl.replaceMulLenField(f.Index(i), set)
 		}
 	}
 }
 
-func mulLenCall(op *syntax.Operation) syntax.Expr {
+func (fl *fileLower) mulLenCall(op *syntax.Operation) syntax.Expr {
 	pos := op.Pos()
 	msg := litOf(pos, strconv.Quote(renderExpr(op)), syntax.StringLit)
-	return callOf(pos, rtSel(pos, "MulLen"), []syntax.Expr{op.X, op.Y, msg})
+	call := callOf(pos, rtSel(pos, "MulLen"), []syntax.Expr{op.X, op.Y, msg})
+	// The synthetic call carries no source parens: pin the product's
+	// own span so source-extent walks — a group child's hoisted
+	// operand, a chain boundary — see `n*m`, not a call at `*`.
+	fl.wrapSpan[call] = span{fl.off(syntax.StartPos(op)), fl.off(syntax.EndPos(op))}
+	return call
 }

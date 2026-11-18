@@ -20,7 +20,7 @@ from typing import NoReturn, cast
 DIRECTORY = "logos-doc/validation/upstream-host"
 WRAPPER = ".github/scripts/logos-test-env.sh"
 PACKAGE = "cmd/compile/internal/logos"
-MANIFEST_SHA256 = "356f9b5dfb1c0905ac8412796398393fb253e497f0a0b5da15aa8d7d19b8209b"
+MANIFEST_SHA256 = "9d6314cef3d9f2156c8ebd1dc0b413afd0405b01517c0b8a13a04773ffe545ea"
 NAMES = frozenset(
     (
         "TestWasmProgramRunsUnderNode",

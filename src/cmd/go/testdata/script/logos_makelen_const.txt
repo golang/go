@@ -16,6 +16,13 @@ logos eject -o out
 grep 'MulLen\(len\(make\(\[\]struct\{\}, _logos_rt\.MulLen\(a, b,' out/main.go
 grep 'MulLen\(.*\), c,' out/main.go
 grep 'make\(\[\]struct\{\}, n, _logos_rt\.MulLen\(a, b,' out/main.go
+# The MulLen wrap lands inside the ?? closure's return slot, not after it,
+# also when a space separates the operand from the closing parenthesis.
+grep 'return _logos_rt\.MulLen\(n, m, "n \* m"\)' out/main.go
+# A narrowed operand's .Value suffix stays inside MulLen's argument list.
+grep '_logos_rt\.MulLen\(n, o\.Value, "n \* o\.Value"\)' out/main.go
+# So does a fresh-address operand's new(...) closing paren.
+grep '_logos_rt\.MulLen\(n, \*new\(value\(\)\), "n \* \*&value\(\)"\)' out/main.go
 
 -- m/go.mod --
 module example.com/makelenconst
@@ -89,6 +96,27 @@ func capacity(n, a, b int) (int, int) {
 	return len(x), cap(x)
 }
 
+func coalesced(opt int?, n, m int) int {
+	return len(make([]int, opt ?? n*m))
+}
+
+func coalescedSpaced(opt int?, n, m int) int {
+	return len(make([]int, opt ?? n*m ))
+}
+
+func narrowed(o int?, n int) int {
+	if o != nil {
+		return len(make([]int, n*o))
+	}
+	return 0
+}
+
+func value() int { return 3 }
+
+func freshAddr(n int) int {
+	return len(make([]int, n* *&value()))
+}
+
 func expectPanic(f func(), want string) {
 	defer func() {
 		if got := recover(); got != want {
@@ -109,5 +137,17 @@ func main() {
 	expectPanic(func() { nested(max, 2, 1) }, "logos: make length overflow: a * b")
 	expectPanic(func() { nested(1, max, 2) }, "logos: make length overflow: len(make([]struct{}, a * b)) * c")
 	expectPanic(func() { capacity(1, max, 2) }, "logos: make length overflow: a * b")
+	if coalesced(3, 2, 2) != 3 || coalesced(nil, 2, 2) != 4 {
+		panic("coalesced")
+	}
+	if coalescedSpaced(3, 2, 2) != 3 || coalescedSpaced(nil, 2, 2) != 4 {
+		panic("coalescedSpaced")
+	}
+	if narrowed(3, 2) != 6 || narrowed(nil, 2) != 0 {
+		panic("narrowed")
+	}
+	if freshAddr(2) != 6 {
+		panic("freshAddr")
+	}
 	fmt.Println("ok mullen-nested-and-capacity")
 }

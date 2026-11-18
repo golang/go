@@ -635,10 +635,11 @@ func (t *Named) String() string { return TypeString(t, nil) }
 func (n *Named) resolveUnderlying() {
 	assert(n.stateHas(lazyLoaded | unpacked))
 
-	var seen map[*Named]bool // for debugging only
-	if debug {
-		seen = make(map[*Named]bool)
-	}
+	// seen guards against forwarding chains that revisit a type through
+	// instantiation (say type A[P any] A[int]): the delayed recursive-type
+	// check may not have invalidated them yet, and resolving must still
+	// terminate.
+	seen := make(map[*Named]bool)
 
 	var path []*Named
 	var u Type
@@ -648,19 +649,19 @@ func (n *Named) resolveUnderlying() {
 			rhs = unalias(t)
 
 		case *Named:
-			if debug {
-				assert(!seen[t])
-				seen[t] = true
-			}
-
 			// don't recalculate the underlying
 			if t.stateHas(hasUnder) {
 				u = t.underlying
 				break
 			}
 
-			if debug {
-				seen[t] = true
+			// A repeat means the chain loops; the types on it are invalid
+			// recursive types, so resolve them to invalid.
+			if orig := t.Origin(); seen[orig] {
+				u = Typ[Invalid]
+				break
+			} else {
+				seen[orig] = true
 			}
 			path = append(path, t)
 

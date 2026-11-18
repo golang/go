@@ -10,7 +10,7 @@ retains the frame address described by the diagnostic.
 ## Frozen proof boundary
 
 The new test file is frozen before the production edit. It has 44 rule
-cases in Go and loGo/s and four installed compiler cases, with 50 named
+cases in Go and loGo/s and six installed compiler cases, with 52 named
 runs including both roots. The original Go and loGo/s escape fixtures
 remain byte-identical. `frozen.json` binds all of those inputs and the
 original rule, real source, license, diagnostic lines, and complete raw
@@ -22,16 +22,20 @@ unsafe.Pointer conversions of direct field addresses on the same checker
 variable of struct-value type qualifies. Parentheses and type aliases
 preserve the proof. The named variable must be local, each selection must
 be direct and non-indirect, and neither operand may contain an index,
-call, pointer alias, adjusted address, mask, or scale. Different objects
-and addition remain findings. A proven delta combined with another frame
-address still reports that separate address.
+call, pointer alias, adjusted address, mask, or scale. Different objects,
+addition, and a proven delta combined with another frame address stay
+silent: they are integer-only arithmetic, which the production rule no
+longer reports. The negative control replays only the pinned
+protobuf_field_delta case under the archived old rule; the other silent
+controls are asserted against the production rule alone.
 
 The rule cases include both exact Protobuf expression shapes, reversed
 and identical fields, named conversions, returned and stored offsets,
 and adversarial controls for every excluded operand. Installed compiler
 cases require empty output and no object for a safe lint-only compile;
-the address controls require exit 2, one exact rule diagnostic, and no
-object in both languages.
+only the pointer reconstruction control requires exit 2, one exact rule
+diagnostic, and no object, in both languages.
+
 
 ## Execution status
 

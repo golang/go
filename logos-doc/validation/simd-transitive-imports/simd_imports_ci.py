@@ -12,7 +12,7 @@ import native_frozen_gate as native_gate
 
 method_gate = native_gate.method_gate
 DIRECTORY = "logos-doc/validation/simd-transitive-imports"
-MANIFEST_SHA256 = "1d49081a8f4d89f90e845f27ebed9524fb06becf27b43cbe01160a6bcecce888"
+MANIFEST_SHA256 = "6b2eecdbd386c1a31fc40193d9978d82c72f7b1402ae1cfa6475c15f75fd776a"
 PRODUCTION = (
     "src/cmd/go/internal/work/logos_importcfg.go",
     "src/cmd/compile/internal/midway/rewrite.go",

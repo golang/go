@@ -18,19 +18,19 @@
   "files": [
     {
       "path": "src/cmd/compile/internal/logos/lint/rule_field_offset_test.go",
-      "sha256": "3158f66c66b406ca9f5b2e659e250d60ff807e5b6f39e35aa268959785573cad"
+      "sha256": "991940e4bd224809c99d12a1806a3c3881416214f1e41d3f48faa3c5ad1faa1b"
     },
     {
       "path": "test/logos/lint/arena_pointer_escape_go.go",
-      "sha256": "7d219db66aaa216b95058c1e9d3b02e1a6b6e6dcc93319ae44ce34d833fe27b4"
+      "sha256": "f1f5355eb686d0c9dfa094822fbdce3c2420d9dee47417821e8d110c56f3ce58"
     },
     {
       "path": "test/logos/lint/arena_pointer_escape.lgo",
-      "sha256": "1c1f44432f169ed04890da55aa0fa237db08797d8b859069f447d03909a75db3"
+      "sha256": "f1f5355eb686d0c9dfa094822fbdce3c2420d9dee47417821e8d110c56f3ce58"
     },
     {
       "path": "logos-doc/validation/field-offset-lint/old-rule.go.txt",
-      "sha256": "cdd0e3ac901cb4ac9a8f0669cbaccd686029eb717ccac7b187f1addb507cfad7"
+      "sha256": "fdec7e5956f63190ecf0556f2acd2a5b4c9721cb5c0264254e121dc4ec9f1890"
     },
     {
       "path": "logos-doc/validation/field-offset-lint/protobuf-presence.go.txt",
@@ -94,9 +94,11 @@
     "TestCompileArenaFieldOffset",
     "TestCompileArenaFieldOffset/offset_unsafe.go/address",
     "TestCompileArenaFieldOffset/offset_unsafe.go/delta",
+    "TestCompileArenaFieldOffset/offset_unsafe.go/reconstruction",
     "TestCompileArenaFieldOffset/offset_unsafe.lgo/address",
-    "TestCompileArenaFieldOffset/offset_unsafe.lgo/delta"
+    "TestCompileArenaFieldOffset/offset_unsafe.lgo/delta",
+    "TestCompileArenaFieldOffset/offset_unsafe.lgo/reconstruction"
   ],
   "negative_name": "TestArenaFieldOffset/offset_unsafe.go/protobuf_field_delta",
-  "negative_diagnostic": "relative field offset reports a retained frame address"
+  "negative_diagnostic": "integer-only address arithmetic reported: [{Rule:correctness::arena_pointer_escape Severity:deny Pos:offset_unsafe.go:19:77 End:offset_unsafe.go:19:110 Message:uintptr(unsafe.Pointer(&frame.a)) keeps the address of a frame object as an integer the compiler cannot track; keep an unsafe.Pointer Note: Provenance:{OriginExpr: OriginLine:0 InferredType:} Fixes:[]}]"
 }

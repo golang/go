@@ -17,11 +17,11 @@
     },
     {
       "path": "src/cmd/compile/internal/logos/compile_simd_imports_test.go",
-      "sha256": "c263124907b547db3fe8045828ea04243ec94cff1e62edc952f9651e395f567d"
+      "sha256": "99cacaa7e1b9e056ded9b338286c8ecf8c38b113eeb963f28f6eee55b7c93cd1"
     },
     {
       "path": "src/cmd/compile/internal/logos/compile_method_tagged_facts_test.go",
-      "sha256": "16ac4b0eb928d29b23dfe12d7bb11311db4c8b6f7bdf4d6e805983c59366cf5c"
+      "sha256": "20e32e0004b9cdf17f3a036ebbda844199f145a98a85c9ae715a5a48b4e22b96"
     },
     {
       "path": "src/simd/testdata/iface/iface.go",

@@ -370,18 +370,6 @@ func (s *frameScan) frameRoot(x syntax.Expr) *types2.Var {
 	return nil
 }
 
-func underOrNil(t types2.Type) types2.Type {
-	if t == nil {
-		return nil
-	}
-	return t.Underlying()
-}
-
-func hasBasicKind(t types2.Type, k types2.BasicKind) bool {
-	b, ok := underOrNil(t).(*types2.Basic)
-	return ok && b.Kind() == k
-}
-
 func isArithmetic(op syntax.Operator) bool {
 	switch op {
 	case syntax.Add, syntax.Sub, syntax.Mul, syntax.Div, syntax.Rem,

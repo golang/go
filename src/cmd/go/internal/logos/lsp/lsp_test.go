@@ -1651,7 +1651,7 @@ func runFakeWrap(logPath string) int {
 		fmt.Fprintln(os.Stderr, "fake wrap: "+fakeWrapToolEnv+" is unset")
 		return 2
 	}
-	cmd := exec.Command(tool, os.Args[1:]...)
+	cmd := exec.CommandContext(context.Background(), tool, os.Args[1:]...)
 	if goroot := os.Getenv(fakeWrapGorootEnv); goroot != "" {
 		cmd.Env = append(os.Environ(), "GOROOT="+goroot)
 	}

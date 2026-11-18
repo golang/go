@@ -771,6 +771,8 @@ A listed member that lacks a declared method MUST fail with `[correctness::union
 
 A closed union MUST be allowed in value positions in `.lgo` code (variables, parameters, results, fields, elements, keys, and values). [T-203.1]
 
+A member type MAY hold the union itself by value in a field, element, or type-argument position: the value position stores a fixed-size interface word, so holding the union is not an invalid recursive type. [T-203.1]
+
 A union with `~` terms or an unbounded set MUST fail with `[correctness::open_union_value]`. [T-203.1]
 
 A conversion MUST be allowed when the source type is a member or a closed union of members. [T-203.1]

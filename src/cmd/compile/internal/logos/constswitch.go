@@ -41,15 +41,14 @@ type cswCase struct {
 }
 
 type cswLower struct {
-	fc     *funcLower
-	fl     *fileLower
-	info   *types2.Info
-	stmt   *syntax.ConstSwitchStmt
-	start  int
-	end    int
-	tag    types2.Type
-	cases  []cswCase
-
+	fc    *funcLower
+	fl    *fileLower
+	info  *types2.Info
+	stmt  *syntax.ConstSwitchStmt
+	start int
+	end   int
+	tag   types2.Type
+	cases []cswCase
 }
 
 type cswRebind struct {
@@ -344,8 +343,8 @@ func (c *cswLower) caseBody(cs *cswCase, done string) ([]syntax.Stmt, otext) {
 		headText = gen("type " + cs.alias + " = " + cs.spell.s + "\n")
 	}
 	if cs.kind == cswIface {
-		c.wrapSelectors(cs.syn.Body, cs)
-		decls, dtext := c.wrapConvs(cs.syn.Body, cs)
+		selWraps := c.wrapSelectors(cs.syn.Body, cs)
+		decls, dtext := c.wrapConvs(cs.syn.Body, cs, selWraps)
 		head = append(head, decls...)
 		headText = cat(headText, dtext)
 	} else if cs.sub.Target != nil {
@@ -617,7 +616,13 @@ func (c *cswLower) fixReboundDef(cs *cswCase, targets map[types2.Object]cswTarge
 		*pl = append(*pl, nil)
 		copy((*pl)[idx+1:], (*pl)[idx:])
 		(*pl)[idx] = decl
-		c.fl.addT(c.fl.off(head.Pos()), c.fl.off(head.Pos()), gen("var "+name+" "+spell+"\n"))
+		// An AssignStmt's Pos is its operator token, not its left side:
+		// splice before the statement's first token instead.
+		start := head.Pos()
+		if as, ok := head.(*syntax.AssignStmt); ok {
+			start = as.Lhs.Pos()
+		}
+		c.fl.addT(c.fl.off(start), c.fl.off(start), gen("var "+name+" "+spell+"\n"))
 	}
 
 	defToAssign := func(lo, hi int) {
@@ -811,7 +816,7 @@ func (w cswWalker) replaceName(f reflect.Value, x *syntax.Name) {
 // widens to the case interface where the checker admitted it (SPEC Sec 2.5).
 // A recorded expression nested inside another one is composed inside the
 // outer replacement so the splices never overlap.
-func (c *cswLower) wrapConvs(body []syntax.Stmt, cs *cswCase) ([]syntax.Stmt, otext) {
+func (c *cswLower) wrapConvs(body []syntax.Stmt, cs *cswCase, selWraps []span) ([]syntax.Stmt, otext) {
 	var decls []syntax.Stmt
 	var dtext otext
 	type rec struct {
@@ -857,25 +862,161 @@ func (c *cswLower) wrapConvs(body []syntax.Stmt, cs *cswCase) ([]syntax.Stmt, ot
 	for _, r := range recs {
 		recOf[r.e] = r
 	}
+	// localDecls maps the name position of each type declared inside the
+	// case body to the offset just past its declaration and to the list
+	// holding it. A spell that resolves to such a type can't go in a
+	// case-top alias — the alias would precede the declaration — and a
+	// bare spell at the use site could re-resolve to a nested block's
+	// shadow of the name. Its alias is instead spliced right after the
+	// declaration it spells: after the name is in scope, before every
+	// use that the declaration permits, and past any shadow of either
+	// name.
+	type localTypeDecl struct {
+		end  int
+		list *[]syntax.Stmt
+		stmt *syntax.DeclStmt
+	}
+	localDecls := map[int]localTypeDecl{}
+	var scanTypeDecls func(list *[]syntax.Stmt)
+	scanTypeDecls = func(list *[]syntax.Stmt) {
+		for _, s := range *list {
+			if d, ok := s.(*syntax.DeclStmt); ok {
+				// stmtEnd scans past balanced brackets to the declaration's
+				// line end: EndPos stops at a grouped declaration's closing
+				// token or a generic alias's last type argument on some
+				// shapes, and exprEndNested stops at an alias `=` — the later
+				// offset is the one past the whole declaration.
+				end := max(stmtEnd(c.fl.src, c.fl.off(syntax.StartPos(d))), c.fl.off(syntax.EndPos(d)))
+				for _, decl := range d.DeclList {
+					if td, ok := decl.(*syntax.TypeDecl); ok && td.Name != nil {
+						localDecls[c.fl.off(td.Name.Pos())] = localTypeDecl{end, list, d}
+					}
+				}
+			}
+			syntax.Inspect(s, func(n syntax.Node) bool {
+				switch x := n.(type) {
+				case *syntax.BlockStmt:
+					scanTypeDecls(&x.List)
+				case *syntax.CaseClause:
+					scanTypeDecls(&x.Body)
+				case *syntax.CommClause:
+					scanTypeDecls(&x.Body)
+				default:
+					return true
+				}
+				return false
+			})
+		}
+	}
+	scanTypeDecls(&cs.syn.Body)
+	// localTypeOf reports the last case-body declaration that any object
+	// inside t names, by object identity — a same-named declaration of
+	// another scope never matches, so a package type shadowed inside the
+	// case body still gets the ordinary case-top alias.
+	localTypeOf := func(t types2.Type) (localTypeDecl, bool) {
+		var out localTypeDecl
+		found := false
+		seen := map[types2.Type]bool{}
+		var walk func(t types2.Type)
+		walk = func(t types2.Type) {
+			if t == nil || seen[t] {
+				return
+			}
+			seen[t] = true
+			var obj *types2.TypeName
+			switch x := t.(type) {
+			case *types2.Alias:
+				obj = x.Obj()
+				if args := x.TypeArgs(); args != nil {
+					for i := 0; i < args.Len(); i++ {
+						walk(args.At(i))
+					}
+				}
+			case *types2.Named:
+				obj = x.Obj()
+				if args := x.TypeArgs(); args != nil {
+					for i := 0; i < args.Len(); i++ {
+						walk(args.At(i))
+					}
+				}
+			case *types2.Pointer:
+				walk(x.Elem())
+			case *types2.Slice:
+				walk(x.Elem())
+			case *types2.Array:
+				walk(x.Elem())
+			case *types2.Map:
+				walk(x.Key())
+				walk(x.Elem())
+			case *types2.Chan:
+				walk(x.Elem())
+			case *types2.Struct:
+				for i := 0; i < x.NumFields(); i++ {
+					walk(x.Field(i).Type())
+				}
+			case *types2.Tuple:
+				for i := 0; i < x.Len(); i++ {
+					walk(x.At(i).Type())
+				}
+			case *types2.Signature:
+				walk(x.Params())
+				walk(x.Results())
+			case *types2.Interface:
+				for i := 0; i < x.NumEmbeddeds(); i++ {
+					walk(x.EmbeddedType(i))
+				}
+				for i := 0; i < x.NumMethods(); i++ {
+					walk(x.Method(i).Type())
+				}
+			}
+			if obj != nil && obj.Pos().IsKnown() &&
+				obj.Pos().FileBase() == c.fl.file.Pos().FileBase() {
+				if lt, ok := localDecls[c.fl.off(obj.Pos())]; ok && (!found || lt.end > out.end) {
+					out, found = lt, true
+				}
+			}
+		}
+		walk(t)
+		return out, found
+	}
 	// spellFor names each destination type through a case-body alias: a
 	// declared or inferred type may spell an identifier a nested block
 	// shadows, and aliases mint lazily so assignments needing no rewrite
-	// never spell an unimported type.
-	secAlias := map[string]string{}
+	// never spell an unimported type. A spell naming a type declared
+	// inside the case body gets its alias right after that declaration
+	// instead of at the case top.
+	// Pinned aliases are emitted after the body walk: inserting a node
+	// into a statement list mid-walk shifts the slice the walk iterates.
+	type pinnedAlias struct {
+		d    *syntax.DeclStmt
+		list *[]syntax.Stmt
+		stmt *syntax.DeclStmt
+		end  int
+		text string
+	}
+	var pinned []pinnedAlias
+	// secAlias dedupes by type, not spell: two types can spell the same
+	// name when a nested declaration shadows a package name.
+	secAlias := map[types2.Type]string{}
 	spellFor := func(t types2.Type) string {
 		s := c.cswSpell(t)
-		if a, ok := secAlias[s]; ok {
+		if a, ok := secAlias[t]; ok {
 			return a
 		}
 		a := c.fl.cswName("caseV")
-		secAlias[s] = a
+		secAlias[t] = a
 		typ, ok := parseExprAt(s, cs.syn.Case)
 		if !ok {
 			base.Fatalf("logos: const switch conv type %s at %s cannot be respelled", s, cs.syn.Case.String())
 		}
-		decls = append(decls, at(&syntax.DeclStmt{DeclList: []syntax.Decl{
+		d := at(&syntax.DeclStmt{DeclList: []syntax.Decl{
 			at(&syntax.TypeDecl{Name: nameOf(cs.syn.Case, a), Alias: true, Type: typ}, cs.syn.Case),
-		}}, cs.syn.Case))
+		}}, cs.syn.Case)
+		if lt, ok := localTypeOf(t); ok {
+			pinned = append(pinned, pinnedAlias{d, lt.list, lt.stmt, lt.end, "\ntype " + a + " = " + s})
+			return a
+		}
+		decls = append(decls, d)
 		dtext = cat(dtext, gen("type "+a+" = "+s+"\n"))
 		return a
 	}
@@ -1094,10 +1235,8 @@ func (c *cswLower) wrapConvs(body []syntax.Stmt, cs *cswCase) ([]syntax.Stmt, ot
 			name       string
 		}
 		lhsSubs := map[syntax.Expr][]lhsSub{}
-		// freeze emits `t := <src of [start,end)>` early and returns t.
-		freeze := func(e syntax.Expr, start, end int) string {
-			t := fmt.Sprintf("%s_lv%d", svbase, freezeN)
-			freezeN++
+		// freeze emits `t := <src of [start,end)>` early.
+		freeze := func(e syntax.Expr, start, end int, t string) {
 			var src string
 			if r, ok := recOf[e]; ok {
 				src = render(r)
@@ -1110,25 +1249,25 @@ func (c *cswLower) wrapConvs(body []syntax.Stmt, cs *cswCase) ([]syntax.Stmt, ot
 			}
 			freezeStmts = append(freezeStmts, at(&syntax.AssignStmt{Op: syntax.Def, Lhs: nameOf(e.Pos(), t), Rhs: rhs}, e.Pos()))
 			freezeText.WriteString("\n" + t + " := " + src)
-			return t
 		}
 		if len(elems) > 1 {
 			for _, l := range elems {
-				syntax.Inspect(l, func(n syntax.Node) bool {
+				// Candidates are collected as the walk goes so a frozen X's
+				// replacement name prunes the reads nested inside it; the
+				// statements are emitted in source order afterwards because
+				// a left-hand operand evaluates left to right (m[i()][j()]
+				// reads i() before j()).
+				type cand struct {
+					e          syntax.Expr
+					start, end int
+					name       string
+				}
+				var cands []cand
+				var visit func(syntax.Node) bool
+				visit = func(n syntax.Node) bool {
 					ix, ok := n.(*syntax.IndexExpr)
 					if !ok {
 						return true
-					}
-					if ix.Index != nil {
-						if _, lit := syntax.Unparen(ix.Index).(*syntax.BasicLit); !lit {
-							// The index operand ends where the parent's ']'
-							// closes at nesting depth zero.
-							st := c.fl.off(leftmostOf(ix.Index))
-							en := c.fl.exprEndNested(st)
-							t := freeze(ix.Index, st, en)
-							lhsSubs[l] = append(lhsSubs[l], lhsSub{st, en, t})
-							ix.Index = nameOf(ix.Index.Pos(), t)
-						}
 					}
 					if ix.X != nil {
 						frozen := false
@@ -1151,15 +1290,58 @@ func (c *cswLower) wrapConvs(body []syntax.Stmt, cs *cswCase) ([]syntax.Stmt, ot
 							// would swallow the index brackets.
 							st := c.fl.off(leftmostOf(ix.X))
 							en := c.fl.off(ix.Pos())
-							t := freeze(ix.X, st, en)
+							t := fmt.Sprintf("%s_lv%d", svbase, freezeN)
+							freezeN++
+							cands = append(cands, cand{ix.X, st, en, t})
 							lhsSubs[l] = append(lhsSubs[l], lhsSub{st, en, t})
-							ix.X = nameOf(ix.X.Pos(), t)
+							// The temp takes X's leftmost position so the
+							// element's recomputed start still reaches it —
+							// a selector's own Pos sits on the field name.
+							ix.X = nameOf(leftmostOf(ix.X), t)
 						}
 					}
-					// Keep descending: an unfrozen X on the address path may
-					// hold another index whose operand still needs freezing.
-					return true
-				})
+					if ix.Index != nil {
+						// Literals, constants, and type arguments are not
+						// runtime reads: leaving them keeps the map's own
+						// key conversion and never freezes a type as a value.
+						idx := syntax.Unparen(ix.Index)
+						_, lit := idx.(*syntax.BasicLit)
+						tv := c.info.Types[idx]
+						freezable := !lit && !tv.IsType() && tv.Value == nil
+						if freezable {
+							if name, ok := idx.(*syntax.Name); ok {
+								switch c.info.ObjectOf(name).(type) {
+								case *types2.TypeName, *types2.Const:
+									freezable = false
+								}
+							}
+						}
+						if freezable {
+							// The index operand ends where the parent's ']'
+							// closes at nesting depth zero.
+							st := c.fl.off(leftmostOf(ix.Index))
+							en := c.fl.exprEndNested(st)
+							t := fmt.Sprintf("%s_lv%d", svbase, freezeN)
+							freezeN++
+							cands = append(cands, cand{ix.Index, st, en, t})
+							lhsSubs[l] = append(lhsSubs[l], lhsSub{st, en, t})
+							ix.Index = nameOf(leftmostOf(ix.Index), t)
+						}
+					}
+					// Keep descending into X: an unfrozen X on the address path
+					// may hold another index whose operand still needs freezing,
+					// and a frozen X was already replaced by its temp name. A
+					// skipped index operand is a compile-time expression whose
+					// calls never run — unsafe.Sizeof does not evaluate its
+					// argument — so the walk must not descend into it.
+					syntax.Inspect(ix.X, visit)
+					return false
+				}
+				syntax.Inspect(l, visit)
+				slices.SortFunc(cands, func(a, b cand) int { return a.start - b.start })
+				for _, cd := range cands {
+					freeze(cd.e, cd.start, cd.end, cd.name)
+				}
 			}
 		}
 		var assigns []syntax.Stmt
@@ -1173,6 +1355,76 @@ func (c *cswLower) wrapConvs(body []syntax.Stmt, cs *cswCase) ([]syntax.Stmt, ot
 			lend := c.fl.exprEndNested(lstart)
 			lhsText := c.fl.srcUser(lstart, lend)
 			subs := lhsSubs[l]
+			// A matched-selector rewrite inside a surviving part of the
+			// target folds into the store text here: leaving it as a splice
+			// would overlap the receive-target replacement. A rewrite
+			// inside a frozen operand's span already reached the emitted
+			// temp through expand's textOf.
+			for _, w := range selWraps {
+				if w.start < lstart || w.end > lend {
+					continue
+				}
+				inside := false
+				var inner []lhsSub
+				for _, s := range subs {
+					if w.start >= s.start && w.end <= s.end {
+						inside = true
+						break
+					}
+					if w.start <= s.start && s.end <= w.end {
+						inner = append(inner, s)
+					}
+				}
+				if inside {
+					continue
+				}
+				if len(inner) == 0 {
+					subs = append(subs, lhsSub{w.start, w.end, c.fl.textOf(w).s})
+					continue
+				}
+				// The wrapped receiver holds frozen operands: drain the
+				// pending splice and rebuild the cast around the text the
+				// inner subs spell, so the temps — not the original operands
+				// — appear inside any(...). Each gap between subs is read
+				// through textOf so a splice recorded inside it — an option
+				// fallback, a conversion — survives in its lowered form
+				// instead of leaking logos-only syntax into the store text.
+				c.fl.textOf(w)
+				slices.SortFunc(inner, func(a, b lhsSub) int { return a.start - b.start })
+				innerText := ""
+				cur := w.start
+				for _, s := range inner {
+					innerText += c.fl.textOf(span{cur, s.start}).s + s.name
+					cur = s.end
+				}
+				innerText += c.fl.textOf(span{cur, w.end}).s
+				kept := subs[:0]
+				for _, s := range subs {
+					if !(w.start <= s.start && s.end <= w.end) {
+						kept = append(kept, s)
+					}
+				}
+				subs = append(kept, lhsSub{w.start, w.end, "any(" + innerText + ").(" + cs.alias + ")"})
+			}
+			// Other pending splices inside the target — an option
+			// fallback's `??` lowering — would overlap the receive
+			// replacement that covers it, so drain and fold them into
+			// the store text. Inside a covering splice, a frozen
+			// operand's span still spells its temp: the splice's text
+			// holds the original expression, which would be evaluated a
+			// second time.
+			for _, sp := range c.fl.drainInner(span{lstart, lend}) {
+				text := sp.text
+				var kept []lhsSub
+				for _, s := range subs {
+					if sp.start <= s.start && s.end <= sp.end {
+						text = text[:s.start-sp.start] + s.name + text[s.end-sp.start:]
+						continue
+					}
+					kept = append(kept, s)
+				}
+				subs = append(kept, lhsSub{sp.start, sp.end, text})
+			}
 			slices.SortFunc(subs, func(a, b lhsSub) int { return b.start - a.start })
 			for _, s := range subs {
 				if s.start-lstart < 0 || s.end-lstart > len(lhsText.s) {
@@ -1194,6 +1446,11 @@ func (c *cswLower) wrapConvs(body []syntax.Stmt, cs *cswCase) ([]syntax.Stmt, ot
 		cc.Body = append(append(freezeStmts, assigns...), cc.Body...)
 		lhsStart := c.fl.off(leftmostOf(as.Lhs))
 		recvStart := c.fl.off(leftmostOf(as.Rhs))
+		// The temps declaration replaces the whole receive target,
+		// including the gaps between elements that no per-element
+		// drain reaches (a wrap crossing an element boundary). Any
+		// splice still inside the span is dead text.
+		c.fl.dropInner(span{lhsStart, recvStart})
 		var tempsText strings.Builder
 		for i, t := range tempNames {
 			if i > 0 {
@@ -1206,7 +1463,18 @@ func (c *cswLower) wrapConvs(body []syntax.Stmt, cs *cswCase) ([]syntax.Stmt, ot
 		texts.WriteString("\n")
 		c.fl.addT(c.fl.off(cc.Colon)+1, c.fl.off(cc.Colon)+1, gen(freezeText.String()+texts.String()))
 	}
+	// Pinned aliases are emitted after the store walk: inserting a node
+	// into a statement list mid-walk shifts the slice the walk iterates.
+	emitPinned := func() {
+		for _, p := range pinned {
+			c.fl.addT(p.end, p.end, gen(p.text))
+			if i := slices.Index(*p.list, syntax.Stmt(p.stmt)); i >= 0 {
+				*p.list = slices.Insert(*p.list, i+1, syntax.Stmt(p.d))
+			}
+		}
+	}
 	if len(conv) == 0 {
+		emitPinned()
 		return decls, dtext
 	}
 	w := cswWalker{
@@ -1219,10 +1487,16 @@ func (c *cswLower) wrapConvs(body []syntax.Stmt, cs *cswCase) ([]syntax.Stmt, ot
 		},
 	}
 	w.list(body)
+	emitPinned()
 	return decls, dtext
 }
 
-func (c *cswLower) wrapSelectors(body []syntax.Stmt, cs *cswCase) {
+// wrapSelectors rewrites a matched selector's receiver to
+// any(x).(caseT) and returns each replaced receiver span so the
+// select-receive rewrite can fold the same edit into a replaced target's
+// store text instead of overlapping it.
+func (c *cswLower) wrapSelectors(body []syntax.Stmt, cs *cswCase) []span {
+	var wraps []span
 	for _, s := range body {
 		syntax.Inspect(s, func(n syntax.Node) bool {
 			sel, ok := n.(*syntax.SelectorExpr)
@@ -1249,9 +1523,11 @@ func (c *cswLower) wrapSelectors(body []syntax.Stmt, cs *cswCase) {
 				Type: iface,
 			}, xpos)
 			c.fl.addT(xspan.start, xspan.end, cat(gen("any("), xtext, gen(").("), gen(cs.alias), gen(")")))
+			wraps = append(wraps, xspan)
 			return true
 		})
 	}
+	return wraps
 }
 
 func parseExprAt(text string, pos syntax.Pos) (syntax.Expr, bool) {

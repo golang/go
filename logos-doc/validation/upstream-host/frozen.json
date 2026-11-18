@@ -6,7 +6,7 @@
   "files": [
     {
       "path": "src/cmd/compile/internal/logos/wasm_test.go",
-      "sha256": "64e2c6a45ee50bc43e1a3340f567571009871df1fbc57a1d739a92556d8221c1"
+      "sha256": "da67b3d0404bfcab1326cc80f895614c8e9ccad86f61c7b57c25dc5026b7464e"
     },
     {
       "path": "lib/wasm/wasm_exec.js",
