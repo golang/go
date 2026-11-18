@@ -1006,8 +1006,8 @@ Every configuration can be tested fully and practically: amd64 including
 AVX512 on the gotip-linux-amd64 gomote, NEON on the gotip-linux-arm64
 gomote (or `qemu-aarch64 -cpu neoverse-n1`), SVE with `qemu-aarch64 -cpu
 neoverse-n2` (128-bit) and `-cpu neoverse-v1` (256-bit), and wasm with `node`.
-See "Testing on other platforms" in [README.md](README.md) for the per-builder
-feature tables, commands, and known emulator limitations.
+See "Testing on other platforms" in [the simd README](../../README.md) for the
+per-builder feature tables, commands, and known emulator limitations.
 
 Emulation is fast enough for the conformance suite: each package's conformance
 tests take seconds under `qemu-aarch64`. `qemu-aarch64 -cpu neoverse-n1` is

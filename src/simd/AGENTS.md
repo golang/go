@@ -1,8 +1,9 @@
 # Working in the SIMD packages
 
 What these packages are, how the generators fit together, how to run them is in
-[archsimd/_gen/README.md](archsimd/_gen/README.md). This file is only about not
-burning your context window.
+[archsimd/_gen/README.md](archsimd/_gen/README.md). How to test them is in
+[README.md](README.md). This file is only about not burning your context
+window.
 
 ## Most of this tree, by volume, is generated — and some of it is enormous
 
