@@ -19,7 +19,7 @@ import (
 // generations of CPUs with AVX-512.
 //
 // To make carryless multiply available whenever its vector type is, each
-// CarrylessMultiply method uses the instruction for its own vector type if the
+// CarrylessMul method uses the instruction for its own vector type if the
 // CPU supports it, and otherwise applies the Uint64x2 instruction to each
 // 128-bit part of its operands. On the rare CPU that has AVX but lacks
 // PCLMULQDQ, it falls back to software.
@@ -32,7 +32,7 @@ import (
 // for it to compile to a single instruction, so each method spells out its
 // immediate rather than sharing these steps through helper methods.
 
-// CarrylessMultiplyEven computes the elementwise carryless multiplication of
+// CarrylessMulEven computes the elementwise carryless multiplication of
 // even-indexed elements of x and y. The result of each carryless multiply is
 // twice the width of the input elements. The high bits are stored in elements
 // z[2*i+1] and the low bits are stored in elements z[2*i].
@@ -60,31 +60,31 @@ import (
 //	= (x^6 + x^5 + x^1)
 //
 // Asm: VPCLMULQDQ if CPU feature AVXCLMUL, Emulated otherwise, CPU Feature: AVX
-func (x Uint64x2) CarrylessMultiplyEven(y Uint64x2) (z Uint64x2) {
+func (x Uint64x2) CarrylessMulEven(y Uint64x2) (z Uint64x2) {
 	if cpu.X86.HasPCLMULQDQ {
 		return x.carrylessMultiply(0x00, y)
 	}
 	return x.carrylessMultiplySoft(0x00, y)
 }
 
-// CarrylessMultiplyOdd computes the elementwise carryless multiplication of
+// CarrylessMulOdd computes the elementwise carryless multiplication of
 // odd-indexed elements of x and y. The result of each carryless multiply is
 // twice the width of the input elements. The high bits are stored in elements
 // z[2*i+1] and the low bits are stored in elements z[2*i].
 //
 //	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i+1])
 //
-// See [CarrylessMultiplyEven] for details about carryless multiply.
+// See [CarrylessMulEven] for details about carryless multiply.
 //
 // Asm: VPCLMULQDQ if CPU feature AVXCLMUL, Emulated otherwise, CPU Feature: AVX
-func (x Uint64x2) CarrylessMultiplyOdd(y Uint64x2) (z Uint64x2) {
+func (x Uint64x2) CarrylessMulOdd(y Uint64x2) (z Uint64x2) {
 	if cpu.X86.HasPCLMULQDQ {
 		return x.carrylessMultiply(0x11, y)
 	}
 	return x.carrylessMultiplySoft(0x11, y)
 }
 
-// CarrylessMultiplyOddEven computes the elementwise carryless multiplication of
+// CarrylessMulOddEven computes the elementwise carryless multiplication of
 // odd-indexed elements of x and even-indexed elements of y. The result of each
 // carryless multiply is twice the width of the input elements. The high bits
 // are stored in elements z[2*i+1] and the low bits are stored in elements
@@ -92,17 +92,17 @@ func (x Uint64x2) CarrylessMultiplyOdd(y Uint64x2) (z Uint64x2) {
 //
 //	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i])
 //
-// See [CarrylessMultiplyEven] for details about carryless multiply.
+// See [CarrylessMulEven] for details about carryless multiply.
 //
 // Asm: VPCLMULQDQ if CPU feature AVXCLMUL, Emulated otherwise, CPU Feature: AVX
-func (x Uint64x2) CarrylessMultiplyOddEven(y Uint64x2) (z Uint64x2) {
+func (x Uint64x2) CarrylessMulOddEven(y Uint64x2) (z Uint64x2) {
 	if cpu.X86.HasPCLMULQDQ {
 		return x.carrylessMultiply(0x01, y)
 	}
 	return x.carrylessMultiplySoft(0x01, y)
 }
 
-// CarrylessMultiplyEvenOdd computes the elementwise carryless multiplication of
+// CarrylessMulEvenOdd computes the elementwise carryless multiplication of
 // even-indexed elements of x and odd-indexed elements of y. The result of each
 // carryless multiply is twice the width of the input elements. The high bits
 // are stored in elements z[2*i+1] and the low bits are stored in elements
@@ -110,17 +110,17 @@ func (x Uint64x2) CarrylessMultiplyOddEven(y Uint64x2) (z Uint64x2) {
 //
 //	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i+1])
 //
-// See [CarrylessMultiplyEven] for details about carryless multiply.
+// See [CarrylessMulEven] for details about carryless multiply.
 //
 // Asm: VPCLMULQDQ if CPU feature AVXCLMUL, Emulated otherwise, CPU Feature: AVX
-func (x Uint64x2) CarrylessMultiplyEvenOdd(y Uint64x2) (z Uint64x2) {
+func (x Uint64x2) CarrylessMulEvenOdd(y Uint64x2) (z Uint64x2) {
 	if cpu.X86.HasPCLMULQDQ {
 		return x.carrylessMultiply(0x10, y)
 	}
 	return x.carrylessMultiplySoft(0x10, y)
 }
 
-// CarrylessMultiplyEven computes the elementwise carryless multiplication of
+// CarrylessMulEven computes the elementwise carryless multiplication of
 // even-indexed elements of x and y. The result of each carryless multiply is
 // twice the width of the input elements. The high bits are stored in elements
 // z[2*i+1] and the low bits are stored in elements z[2*i].
@@ -148,7 +148,7 @@ func (x Uint64x2) CarrylessMultiplyEvenOdd(y Uint64x2) (z Uint64x2) {
 //	= (x^6 + x^5 + x^1)
 //
 // Asm: VPCLMULQDQ if CPU feature AVX2CLMUL, Emulated otherwise, CPU Feature: AVX2
-func (x Uint64x4) CarrylessMultiplyEven(y Uint64x4) (z Uint64x4) {
+func (x Uint64x4) CarrylessMulEven(y Uint64x4) (z Uint64x4) {
 	if cpu.X86.HasVPCLMULQDQ {
 		return x.carrylessMultiply(0x00, y)
 	}
@@ -160,17 +160,17 @@ func (x Uint64x4) CarrylessMultiplyEven(y Uint64x4) (z Uint64x4) {
 	return x.carrylessMultiplySoft(0x00, y)
 }
 
-// CarrylessMultiplyOdd computes the elementwise carryless multiplication of
+// CarrylessMulOdd computes the elementwise carryless multiplication of
 // odd-indexed elements of x and y. The result of each carryless multiply is
 // twice the width of the input elements. The high bits are stored in elements
 // z[2*i+1] and the low bits are stored in elements z[2*i].
 //
 //	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i+1])
 //
-// See [CarrylessMultiplyEven] for details about carryless multiply.
+// See [CarrylessMulEven] for details about carryless multiply.
 //
 // Asm: VPCLMULQDQ if CPU feature AVX2CLMUL, Emulated otherwise, CPU Feature: AVX2
-func (x Uint64x4) CarrylessMultiplyOdd(y Uint64x4) (z Uint64x4) {
+func (x Uint64x4) CarrylessMulOdd(y Uint64x4) (z Uint64x4) {
 	if cpu.X86.HasVPCLMULQDQ {
 		return x.carrylessMultiply(0x11, y)
 	}
@@ -182,7 +182,7 @@ func (x Uint64x4) CarrylessMultiplyOdd(y Uint64x4) (z Uint64x4) {
 	return x.carrylessMultiplySoft(0x11, y)
 }
 
-// CarrylessMultiplyOddEven computes the elementwise carryless multiplication of
+// CarrylessMulOddEven computes the elementwise carryless multiplication of
 // odd-indexed elements of x and even-indexed elements of y. The result of each
 // carryless multiply is twice the width of the input elements. The high bits
 // are stored in elements z[2*i+1] and the low bits are stored in elements
@@ -190,10 +190,10 @@ func (x Uint64x4) CarrylessMultiplyOdd(y Uint64x4) (z Uint64x4) {
 //
 //	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i])
 //
-// See [CarrylessMultiplyEven] for details about carryless multiply.
+// See [CarrylessMulEven] for details about carryless multiply.
 //
 // Asm: VPCLMULQDQ if CPU feature AVX2CLMUL, Emulated otherwise, CPU Feature: AVX2
-func (x Uint64x4) CarrylessMultiplyOddEven(y Uint64x4) (z Uint64x4) {
+func (x Uint64x4) CarrylessMulOddEven(y Uint64x4) (z Uint64x4) {
 	if cpu.X86.HasVPCLMULQDQ {
 		return x.carrylessMultiply(0x01, y)
 	}
@@ -205,7 +205,7 @@ func (x Uint64x4) CarrylessMultiplyOddEven(y Uint64x4) (z Uint64x4) {
 	return x.carrylessMultiplySoft(0x01, y)
 }
 
-// CarrylessMultiplyEvenOdd computes the elementwise carryless multiplication of
+// CarrylessMulEvenOdd computes the elementwise carryless multiplication of
 // even-indexed elements of x and odd-indexed elements of y. The result of each
 // carryless multiply is twice the width of the input elements. The high bits
 // are stored in elements z[2*i+1] and the low bits are stored in elements
@@ -213,10 +213,10 @@ func (x Uint64x4) CarrylessMultiplyOddEven(y Uint64x4) (z Uint64x4) {
 //
 //	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i+1])
 //
-// See [CarrylessMultiplyEven] for details about carryless multiply.
+// See [CarrylessMulEven] for details about carryless multiply.
 //
 // Asm: VPCLMULQDQ if CPU feature AVX2CLMUL, Emulated otherwise, CPU Feature: AVX2
-func (x Uint64x4) CarrylessMultiplyEvenOdd(y Uint64x4) (z Uint64x4) {
+func (x Uint64x4) CarrylessMulEvenOdd(y Uint64x4) (z Uint64x4) {
 	if cpu.X86.HasVPCLMULQDQ {
 		return x.carrylessMultiply(0x10, y)
 	}
@@ -228,7 +228,7 @@ func (x Uint64x4) CarrylessMultiplyEvenOdd(y Uint64x4) (z Uint64x4) {
 	return x.carrylessMultiplySoft(0x10, y)
 }
 
-// CarrylessMultiplyEven computes the elementwise carryless multiplication of
+// CarrylessMulEven computes the elementwise carryless multiplication of
 // even-indexed elements of x and y. The result of each carryless multiply is
 // twice the width of the input elements. The high bits are stored in elements
 // z[2*i+1] and the low bits are stored in elements z[2*i].
@@ -256,7 +256,7 @@ func (x Uint64x4) CarrylessMultiplyEvenOdd(y Uint64x4) (z Uint64x4) {
 //	= (x^6 + x^5 + x^1)
 //
 // Asm: VPCLMULQDQ if CPU feature AVX512CLMUL, Emulated otherwise, CPU Feature: AVX512
-func (x Uint64x8) CarrylessMultiplyEven(y Uint64x8) (z Uint64x8) {
+func (x Uint64x8) CarrylessMulEven(y Uint64x8) (z Uint64x8) {
 	if cpu.X86.HasAVX512VPCLMULQDQ {
 		return x.carrylessMultiply(0x00, y)
 	}
@@ -273,17 +273,17 @@ func (x Uint64x8) CarrylessMultiplyEven(y Uint64x8) (z Uint64x8) {
 	return x.carrylessMultiplySoft(0x00, y)
 }
 
-// CarrylessMultiplyOdd computes the elementwise carryless multiplication of
+// CarrylessMulOdd computes the elementwise carryless multiplication of
 // odd-indexed elements of x and y. The result of each carryless multiply is
 // twice the width of the input elements. The high bits are stored in elements
 // z[2*i+1] and the low bits are stored in elements z[2*i].
 //
 //	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i+1])
 //
-// See [CarrylessMultiplyEven] for details about carryless multiply.
+// See [CarrylessMulEven] for details about carryless multiply.
 //
 // Asm: VPCLMULQDQ if CPU feature AVX512CLMUL, Emulated otherwise, CPU Feature: AVX512
-func (x Uint64x8) CarrylessMultiplyOdd(y Uint64x8) (z Uint64x8) {
+func (x Uint64x8) CarrylessMulOdd(y Uint64x8) (z Uint64x8) {
 	if cpu.X86.HasAVX512VPCLMULQDQ {
 		return x.carrylessMultiply(0x11, y)
 	}
@@ -298,7 +298,7 @@ func (x Uint64x8) CarrylessMultiplyOdd(y Uint64x8) (z Uint64x8) {
 	return x.carrylessMultiplySoft(0x11, y)
 }
 
-// CarrylessMultiplyOddEven computes the elementwise carryless multiplication of
+// CarrylessMulOddEven computes the elementwise carryless multiplication of
 // odd-indexed elements of x and even-indexed elements of y. The result of each
 // carryless multiply is twice the width of the input elements. The high bits
 // are stored in elements z[2*i+1] and the low bits are stored in elements
@@ -306,10 +306,10 @@ func (x Uint64x8) CarrylessMultiplyOdd(y Uint64x8) (z Uint64x8) {
 //
 //	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i])
 //
-// See [CarrylessMultiplyEven] for details about carryless multiply.
+// See [CarrylessMulEven] for details about carryless multiply.
 //
 // Asm: VPCLMULQDQ if CPU feature AVX512CLMUL, Emulated otherwise, CPU Feature: AVX512
-func (x Uint64x8) CarrylessMultiplyOddEven(y Uint64x8) (z Uint64x8) {
+func (x Uint64x8) CarrylessMulOddEven(y Uint64x8) (z Uint64x8) {
 	if cpu.X86.HasAVX512VPCLMULQDQ {
 		return x.carrylessMultiply(0x01, y)
 	}
@@ -324,7 +324,7 @@ func (x Uint64x8) CarrylessMultiplyOddEven(y Uint64x8) (z Uint64x8) {
 	return x.carrylessMultiplySoft(0x01, y)
 }
 
-// CarrylessMultiplyEvenOdd computes the elementwise carryless multiplication of
+// CarrylessMulEvenOdd computes the elementwise carryless multiplication of
 // even-indexed elements of x and odd-indexed elements of y. The result of each
 // carryless multiply is twice the width of the input elements. The high bits
 // are stored in elements z[2*i+1] and the low bits are stored in elements
@@ -332,10 +332,10 @@ func (x Uint64x8) CarrylessMultiplyOddEven(y Uint64x8) (z Uint64x8) {
 //
 //	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i+1])
 //
-// See [CarrylessMultiplyEven] for details about carryless multiply.
+// See [CarrylessMulEven] for details about carryless multiply.
 //
 // Asm: VPCLMULQDQ if CPU feature AVX512CLMUL, Emulated otherwise, CPU Feature: AVX512
-func (x Uint64x8) CarrylessMultiplyEvenOdd(y Uint64x8) (z Uint64x8) {
+func (x Uint64x8) CarrylessMulEvenOdd(y Uint64x8) (z Uint64x8) {
 	if cpu.X86.HasAVX512VPCLMULQDQ {
 		return x.carrylessMultiply(0x10, y)
 	}
@@ -351,7 +351,7 @@ func (x Uint64x8) CarrylessMultiplyEvenOdd(y Uint64x8) (z Uint64x8) {
 }
 
 // The carrylessMultiplySoft methods are all marked "//go:noinline" to ensure
-// that the hardware fast paths of the CarrylessMultiply* methods are small
+// that the hardware fast paths of the CarrylessMul* methods are small
 // enough to inline.
 
 // carrylessMultiplySoft is a software implementation of x.carrylessMultiply(xyHiLo, y).

@@ -32,7 +32,7 @@ import (
 type MethodSet map[string]*ast.FuncDecl
 type TypeMethods map[string]MethodSet
 
-// clmulNote is the implementation note for the CarrylessMultiply methods.
+// clmulNote is the implementation note for the CarrylessMul methods.
 const clmulNote = `Performance: If the CPU has no carryless multiply instruction at the vector
 size in use, this is implemented with narrower instructions, or with
 software if it has none at all. That is slower than the instruction, and
@@ -43,10 +43,10 @@ can be the case even when [Emulated] returns false.`
 // the rest of the doc comment, so each of these must start with an
 // implementation note prefix, such as "Performance:".
 var implementationNotes = map[string]string{
-	"CarrylessMultiplyEven":    clmulNote,
-	"CarrylessMultiplyOdd":     clmulNote,
-	"CarrylessMultiplyEvenOdd": clmulNote,
-	"CarrylessMultiplyOddEven": clmulNote,
+	"CarrylessMulEven":    clmulNote,
+	"CarrylessMulOdd":     clmulNote,
+	"CarrylessMulEvenOdd": clmulNote,
+	"CarrylessMulOddEven": clmulNote,
 }
 
 var genFlags = gentools.RegisterFlags(nil)

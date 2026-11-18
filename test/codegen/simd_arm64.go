@@ -197,8 +197,8 @@ func foldGetHiSetHiMuls(a, b archsimd.Uint16x8) archsimd.Uint16x8 {
 }
 
 func carrylessMultiplies(x, y archsimd.Uint64x2) archsimd.Uint64x2 {
-	lo := x.CarrylessMultiplyEven(y)                   // arm64:`VPMULL V` -`VPMULL2`
-	hi := x.HiToLo().CarrylessMultiplyEven(y.HiToLo()) // arm64:`VPMULL2 V` -`VPMULL `
+	lo := x.CarrylessMulEven(y)                   // arm64:`VPMULL V` -`VPMULL2`
+	hi := x.HiToLo().CarrylessMulEven(y.HiToLo()) // arm64:`VPMULL2 V` -`VPMULL `
 	return lo.Xor(hi)
 }
 

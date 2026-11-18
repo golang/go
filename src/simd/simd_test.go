@@ -355,8 +355,8 @@ func TestUint64s(t *testing.T) {
 	test_helpers.TestVV2Me(t, values, load, simd.Uint64s.Greater, test_helpers.Greater)
 	test_helpers.TestVV2Me(t, values, load, simd.Uint64s.GreaterEqual, test_helpers.GreaterEqual)
 
-	// TODO: untested methods: BitsToFloat64, BitsToInt64, CarrylessMultiplyEven,
-	// CarrylessMultiplyOdd, ConvertToInt64, IfElse, Len, Masked, Not,
+	// TODO: untested methods: BitsToFloat64, BitsToInt64, CarrylessMulEven,
+	// CarrylessMulOdd, ConvertToInt64, IfElse, Len, Masked, Not,
 	// ReshapeToUint16s, ReshapeToUint32s, ReshapeToUint8s, Store, StorePart,
 	// String.
 }

@@ -1484,7 +1484,7 @@ func (x Uint64s) BitsToFloat64() (z Float64s)
 // BitsToInt64 reinterprets the bits of each element of x as type int64.
 func (x Uint64s) BitsToInt64() (z Int64s)
 
-// CarrylessMultiplyEven computes the elementwise carryless multiplication of
+// CarrylessMulEven computes the elementwise carryless multiplication of
 // even-indexed elements of x and y. The result of each carryless multiply is
 // twice the width of the input elements. The high bits are stored in elements
 // z[2*i+1] and the low bits are stored in elements z[2*i].
@@ -1515,9 +1515,9 @@ func (x Uint64s) BitsToInt64() (z Int64s)
 // size in use, this is implemented with narrower instructions, or with
 // software if it has none at all. That is slower than the instruction, and
 // can be the case even when [Emulated] returns false.
-func (x Uint64s) CarrylessMultiplyEven(y Uint64s) (z Uint64s)
+func (x Uint64s) CarrylessMulEven(y Uint64s) (z Uint64s)
 
-// CarrylessMultiplyEvenOdd computes the elementwise carryless multiplication of
+// CarrylessMulEvenOdd computes the elementwise carryless multiplication of
 // even-indexed elements of x and odd-indexed elements of y. The result of each
 // carryless multiply is twice the width of the input elements. The high bits
 // are stored in elements z[2*i+1] and the low bits are stored in elements
@@ -1525,30 +1525,30 @@ func (x Uint64s) CarrylessMultiplyEven(y Uint64s) (z Uint64s)
 //
 //	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i+1])
 //
-// See [CarrylessMultiplyEven] for details about carryless multiply.
+// See [CarrylessMulEven] for details about carryless multiply.
 //
 // Performance: If the CPU has no carryless multiply instruction at the vector
 // size in use, this is implemented with narrower instructions, or with
 // software if it has none at all. That is slower than the instruction, and
 // can be the case even when [Emulated] returns false.
-func (x Uint64s) CarrylessMultiplyEvenOdd(y Uint64s) (z Uint64s)
+func (x Uint64s) CarrylessMulEvenOdd(y Uint64s) (z Uint64s)
 
-// CarrylessMultiplyOdd computes the elementwise carryless multiplication of
+// CarrylessMulOdd computes the elementwise carryless multiplication of
 // odd-indexed elements of x and y. The result of each carryless multiply is
 // twice the width of the input elements. The high bits are stored in elements
 // z[2*i+1] and the low bits are stored in elements z[2*i].
 //
 //	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i+1])
 //
-// See [CarrylessMultiplyEven] for details about carryless multiply.
+// See [CarrylessMulEven] for details about carryless multiply.
 //
 // Performance: If the CPU has no carryless multiply instruction at the vector
 // size in use, this is implemented with narrower instructions, or with
 // software if it has none at all. That is slower than the instruction, and
 // can be the case even when [Emulated] returns false.
-func (x Uint64s) CarrylessMultiplyOdd(y Uint64s) (z Uint64s)
+func (x Uint64s) CarrylessMulOdd(y Uint64s) (z Uint64s)
 
-// CarrylessMultiplyOddEven computes the elementwise carryless multiplication of
+// CarrylessMulOddEven computes the elementwise carryless multiplication of
 // odd-indexed elements of x and even-indexed elements of y. The result of each
 // carryless multiply is twice the width of the input elements. The high bits
 // are stored in elements z[2*i+1] and the low bits are stored in elements
@@ -1556,13 +1556,13 @@ func (x Uint64s) CarrylessMultiplyOdd(y Uint64s) (z Uint64s)
 //
 //	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i])
 //
-// See [CarrylessMultiplyEven] for details about carryless multiply.
+// See [CarrylessMulEven] for details about carryless multiply.
 //
 // Performance: If the CPU has no carryless multiply instruction at the vector
 // size in use, this is implemented with narrower instructions, or with
 // software if it has none at all. That is slower than the instruction, and
 // can be the case even when [Emulated] returns false.
-func (x Uint64s) CarrylessMultiplyOddEven(y Uint64s) (z Uint64s)
+func (x Uint64s) CarrylessMulOddEven(y Uint64s) (z Uint64s)
 
 // ConvertToInt64 converts each element of x to int64.
 //

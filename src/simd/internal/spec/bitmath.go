@@ -92,7 +92,7 @@ func TrailingZerosMask[E MaskElt, W Width](x Vec[E, W]) int {
 	return i
 }
 
-// CarrylessMultiplyEven computes the elementwise carryless multiplication of
+// CarrylessMulEven computes the elementwise carryless multiplication of
 // even-indexed elements of x and y. The result of each carryless multiply is
 // twice the width of the input elements. The high bits are stored in elements
 // z[2*i+1] and the low bits are stored in elements z[2*i].
@@ -120,11 +120,11 @@ func TrailingZerosMask[E MaskElt, W Width](x Vec[E, W]) int {
 //	= (x^6 + x^5 + x^1)
 //
 //specgen:commutative
-func CarrylessMultiplyEven[E Uints, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
+func CarrylessMulEven[E Uints, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
 	return carrylessMultiplyPair(x, y, false, false)
 }
 
-// CarrylessMultiplyEvenOdd computes the elementwise carryless multiplication of
+// CarrylessMulEvenOdd computes the elementwise carryless multiplication of
 // even-indexed elements of x and odd-indexed elements of y. The result of each
 // carryless multiply is twice the width of the input elements. The high bits
 // are stored in elements z[2*i+1] and the low bits are stored in elements
@@ -132,28 +132,28 @@ func CarrylessMultiplyEven[E Uints, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
 //
 //	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i+1])
 //
-// See [CarrylessMultiplyEven] for details about carryless multiply.
+// See [CarrylessMulEven] for details about carryless multiply.
 //
 //specgen:commutative
-func CarrylessMultiplyEvenOdd[E Uints, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
+func CarrylessMulEvenOdd[E Uints, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
 	return carrylessMultiplyPair(x, y, false, true)
 }
 
-// CarrylessMultiplyOdd computes the elementwise carryless multiplication of
+// CarrylessMulOdd computes the elementwise carryless multiplication of
 // odd-indexed elements of x and y. The result of each carryless multiply is
 // twice the width of the input elements. The high bits are stored in elements
 // z[2*i+1] and the low bits are stored in elements z[2*i].
 //
 //	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i+1])
 //
-// See [CarrylessMultiplyEven] for details about carryless multiply.
+// See [CarrylessMulEven] for details about carryless multiply.
 //
 //specgen:commutative
-func CarrylessMultiplyOdd[E Uints, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
+func CarrylessMulOdd[E Uints, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
 	return carrylessMultiplyPair(x, y, true, true)
 }
 
-// CarrylessMultiplyOddEven computes the elementwise carryless multiplication of
+// CarrylessMulOddEven computes the elementwise carryless multiplication of
 // odd-indexed elements of x and even-indexed elements of y. The result of each
 // carryless multiply is twice the width of the input elements. The high bits
 // are stored in elements z[2*i+1] and the low bits are stored in elements
@@ -161,10 +161,10 @@ func CarrylessMultiplyOdd[E Uints, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
 //
 //	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i])
 //
-// See [CarrylessMultiplyEven] for details about carryless multiply.
+// See [CarrylessMulEven] for details about carryless multiply.
 //
 //specgen:commutative
-func CarrylessMultiplyOddEven[E Uints, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
+func CarrylessMulOddEven[E Uints, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
 	return carrylessMultiplyPair(x, y, true, false)
 }
 

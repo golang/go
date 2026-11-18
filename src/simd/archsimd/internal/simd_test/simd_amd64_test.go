@@ -1251,11 +1251,11 @@ func TestClMul(t *testing.T) {
 		checkSlices[uint64](t, r, s)
 	}
 
-	foo(x.CarrylessMultiplyEven(y), []uint64{3, 0})
-	foo(x.CarrylessMultiplyEvenOdd(y), []uint64{9, 0})
-	foo(x.CarrylessMultiplyOddEven(y), []uint64{15, 0})
-	foo(x.CarrylessMultiplyOdd(y), []uint64{45, 0})
-	foo(y.CarrylessMultiplyEven(y), []uint64{5, 0})
+	foo(x.CarrylessMulEven(y), []uint64{3, 0})
+	foo(x.CarrylessMulEvenOdd(y), []uint64{9, 0})
+	foo(x.CarrylessMulOddEven(y), []uint64{15, 0})
+	foo(x.CarrylessMulOdd(y), []uint64{45, 0})
+	foo(y.CarrylessMulEven(y), []uint64{5, 0})
 
 }
 
@@ -1272,10 +1272,10 @@ func TestClMul256(t *testing.T) {
 		v.Store(got[:])
 		checkSlices(t, got[:], want)
 	}
-	check(x.CarrylessMultiplyEven(y), []uint64{3, 0, 0, 1})
-	check(x.CarrylessMultiplyEvenOdd(y), []uint64{9, 0, 1 << 63, 4})
-	check(x.CarrylessMultiplyOddEven(y), []uint64{15, 0, 10, 0})
-	check(x.CarrylessMultiplyOdd(y), []uint64{45, 0, 45, 0})
+	check(x.CarrylessMulEven(y), []uint64{3, 0, 0, 1})
+	check(x.CarrylessMulEvenOdd(y), []uint64{9, 0, 1 << 63, 4})
+	check(x.CarrylessMulOddEven(y), []uint64{15, 0, 10, 0})
+	check(x.CarrylessMulOdd(y), []uint64{45, 0, 45, 0})
 }
 
 // forceCLMUL limits the carryless multiply CPU features that archsimd sees to
@@ -1306,44 +1306,44 @@ func forceCLMUL(tb testing.TB, level string) {
 	}
 }
 
-func TestCarrylessMultiply(t *testing.T) {
+func TestCarrylessMul(t *testing.T) {
 	for _, level := range []string{"Native", "128", "Software"} {
 		t.Run(level, func(t *testing.T) {
 			forceCLMUL(t, level)
 			t.Run("Uint64x2", func(t *testing.T) {
-				testUint64x2Binary(t, archsimd.Uint64x2.CarrylessMultiplyEven, clmulSlice(0, 0))
-				testUint64x2Binary(t, archsimd.Uint64x2.CarrylessMultiplyOdd, clmulSlice(1, 1))
-				testUint64x2Binary(t, archsimd.Uint64x2.CarrylessMultiplyEvenOdd, clmulSlice(0, 1))
-				testUint64x2Binary(t, archsimd.Uint64x2.CarrylessMultiplyOddEven, clmulSlice(1, 0))
+				testUint64x2Binary(t, archsimd.Uint64x2.CarrylessMulEven, clmulSlice(0, 0))
+				testUint64x2Binary(t, archsimd.Uint64x2.CarrylessMulOdd, clmulSlice(1, 1))
+				testUint64x2Binary(t, archsimd.Uint64x2.CarrylessMulEvenOdd, clmulSlice(0, 1))
+				testUint64x2Binary(t, archsimd.Uint64x2.CarrylessMulOddEven, clmulSlice(1, 0))
 			})
 			t.Run("Uint64x4", func(t *testing.T) {
 				if !archsimd.X86.AVX2() {
 					t.Skip("Test requires X86.AVX2, not available on this hardware")
 				}
-				testUint64x4Binary(t, archsimd.Uint64x4.CarrylessMultiplyEven, clmulSlice(0, 0))
-				testUint64x4Binary(t, archsimd.Uint64x4.CarrylessMultiplyOdd, clmulSlice(1, 1))
-				testUint64x4Binary(t, archsimd.Uint64x4.CarrylessMultiplyEvenOdd, clmulSlice(0, 1))
-				testUint64x4Binary(t, archsimd.Uint64x4.CarrylessMultiplyOddEven, clmulSlice(1, 0))
+				testUint64x4Binary(t, archsimd.Uint64x4.CarrylessMulEven, clmulSlice(0, 0))
+				testUint64x4Binary(t, archsimd.Uint64x4.CarrylessMulOdd, clmulSlice(1, 1))
+				testUint64x4Binary(t, archsimd.Uint64x4.CarrylessMulEvenOdd, clmulSlice(0, 1))
+				testUint64x4Binary(t, archsimd.Uint64x4.CarrylessMulOddEven, clmulSlice(1, 0))
 			})
 			t.Run("Uint64x8", func(t *testing.T) {
 				if !archsimd.X86.AVX512() {
 					t.Skip("Test requires X86.AVX512, not available on this hardware")
 				}
-				testUint64x8Binary(t, archsimd.Uint64x8.CarrylessMultiplyEven, clmulSlice(0, 0))
-				testUint64x8Binary(t, archsimd.Uint64x8.CarrylessMultiplyOdd, clmulSlice(1, 1))
-				testUint64x8Binary(t, archsimd.Uint64x8.CarrylessMultiplyEvenOdd, clmulSlice(0, 1))
-				testUint64x8Binary(t, archsimd.Uint64x8.CarrylessMultiplyOddEven, clmulSlice(1, 0))
+				testUint64x8Binary(t, archsimd.Uint64x8.CarrylessMulEven, clmulSlice(0, 0))
+				testUint64x8Binary(t, archsimd.Uint64x8.CarrylessMulOdd, clmulSlice(1, 1))
+				testUint64x8Binary(t, archsimd.Uint64x8.CarrylessMulEvenOdd, clmulSlice(0, 1))
+				testUint64x8Binary(t, archsimd.Uint64x8.CarrylessMulOddEven, clmulSlice(1, 0))
 			})
 		})
 	}
 }
 
-// BenchmarkCarrylessMultiply measures the latency of one multiply.
+// BenchmarkCarrylessMul measures the latency of one multiply.
 //
 // It uses b.N rather than b.Loop because the compiler keeps variables assigned
 // in a b.Loop body alive on the stack, which would add a store and a load to
 // the dependency chain being measured.
-func BenchmarkCarrylessMultiply(b *testing.B) {
+func BenchmarkCarrylessMul(b *testing.B) {
 	for _, level := range []string{"Native", "128", "Software"} {
 		b.Run(level, func(b *testing.B) {
 			b.Run("Uint64x2", func(b *testing.B) {
@@ -1351,7 +1351,7 @@ func BenchmarkCarrylessMultiply(b *testing.B) {
 				x := archsimd.LoadUint64x2([]uint64{0x0123456789abcdef, 0xfedcba9876543210})
 				y := archsimd.LoadUint64x2([]uint64{0x66b32838754f59a3, 0xaeba319ab2418c50})
 				for range b.N {
-					x = x.CarrylessMultiplyEven(y).Xor(y)
+					x = x.CarrylessMulEven(y).Xor(y)
 				}
 				sinkUint64x2 = x
 			})
@@ -1363,7 +1363,7 @@ func BenchmarkCarrylessMultiply(b *testing.B) {
 				x := archsimd.LoadUint64x4([]uint64{0x0123456789abcdef, 0xfedcba9876543210, 1, 2})
 				y := archsimd.LoadUint64x4([]uint64{0x66b32838754f59a3, 0xaeba319ab2418c50, 3, 4})
 				for range b.N {
-					x = x.CarrylessMultiplyEven(y).Xor(y)
+					x = x.CarrylessMulEven(y).Xor(y)
 				}
 				sinkUint64x4 = x
 			})
@@ -1375,7 +1375,7 @@ func BenchmarkCarrylessMultiply(b *testing.B) {
 				x := archsimd.LoadUint64x8([]uint64{0x0123456789abcdef, 0xfedcba9876543210, 1, 2, 3, 4, 5, 6})
 				y := archsimd.LoadUint64x8([]uint64{0x66b32838754f59a3, 0xaeba319ab2418c50, 7, 8, 9, 10, 11, 12})
 				for range b.N {
-					x = x.CarrylessMultiplyEven(y).Xor(y)
+					x = x.CarrylessMulEven(y).Xor(y)
 				}
 				sinkUint64x8 = x
 			})

@@ -8,12 +8,12 @@ package archsimd
 
 // The 64-bit polynomial multiply instruction (PMULL with a 1Q arrangement)
 // requires FEAT_PMULL, which is optional. Most arm64 CPUs have it, but some
-// don't, notably the Raspberry Pi 4 and earlier. The CarrylessMultiply methods
+// don't, notably the Raspberry Pi 4 and earlier. The CarrylessMul methods
 // use that instruction if it's available, and otherwise fall back to
 // carrylessMultiplyP8, which builds the 64-bit multiply out of the 8-bit
 // polynomial multiply that is part of baseline Advanced SIMD.
 
-// CarrylessMultiplyEven computes the elementwise carryless multiplication of
+// CarrylessMulEven computes the elementwise carryless multiplication of
 // even-indexed elements of x and y. The result of each carryless multiply is
 // twice the width of the input elements. The high bits are stored in elements
 // z[2*i+1] and the low bits are stored in elements z[2*i].
@@ -41,31 +41,31 @@ package archsimd
 //	= (x^6 + x^5 + x^1)
 //
 // Asm: PMULL if CPU feature PMULL, Emulated otherwise
-func (x Uint64x2) CarrylessMultiplyEven(y Uint64x2) (z Uint64x2) {
+func (x Uint64x2) CarrylessMulEven(y Uint64x2) (z Uint64x2) {
 	if ARM64.PMULL() {
 		return x.carrylessMultiplyWidenLo(y)
 	}
 	return carrylessMultiplyP8(x.InterleaveLo(x), y.InterleaveLo(y))
 }
 
-// CarrylessMultiplyOdd computes the elementwise carryless multiplication of
+// CarrylessMulOdd computes the elementwise carryless multiplication of
 // odd-indexed elements of x and y. The result of each carryless multiply is
 // twice the width of the input elements. The high bits are stored in elements
 // z[2*i+1] and the low bits are stored in elements z[2*i].
 //
 //	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i+1])
 //
-// See [CarrylessMultiplyEven] for details about carryless multiply.
+// See [CarrylessMulEven] for details about carryless multiply.
 //
 // Asm: PMULL if CPU feature PMULL, Emulated otherwise
-func (x Uint64x2) CarrylessMultiplyOdd(y Uint64x2) (z Uint64x2) {
+func (x Uint64x2) CarrylessMulOdd(y Uint64x2) (z Uint64x2) {
 	if ARM64.PMULL() {
 		return x.HiToLo().carrylessMultiplyWidenLo(y.HiToLo())
 	}
 	return carrylessMultiplyP8(x.InterleaveHi(x), y.InterleaveHi(y))
 }
 
-// CarrylessMultiplyOddEven computes the elementwise carryless multiplication of
+// CarrylessMulOddEven computes the elementwise carryless multiplication of
 // odd-indexed elements of x and even-indexed elements of y. The result of each
 // carryless multiply is twice the width of the input elements. The high bits
 // are stored in elements z[2*i+1] and the low bits are stored in elements
@@ -73,17 +73,17 @@ func (x Uint64x2) CarrylessMultiplyOdd(y Uint64x2) (z Uint64x2) {
 //
 //	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i])
 //
-// See [CarrylessMultiplyEven] for details about carryless multiply.
+// See [CarrylessMulEven] for details about carryless multiply.
 //
 // Asm: PMULL if CPU feature PMULL, Emulated otherwise
-func (x Uint64x2) CarrylessMultiplyOddEven(y Uint64x2) (z Uint64x2) {
+func (x Uint64x2) CarrylessMulOddEven(y Uint64x2) (z Uint64x2) {
 	if ARM64.PMULL() {
 		return x.HiToLo().carrylessMultiplyWidenLo(y)
 	}
 	return carrylessMultiplyP8(x.InterleaveHi(x), y.InterleaveLo(y))
 }
 
-// CarrylessMultiplyEvenOdd computes the elementwise carryless multiplication of
+// CarrylessMulEvenOdd computes the elementwise carryless multiplication of
 // even-indexed elements of x and odd-indexed elements of y. The result of each
 // carryless multiply is twice the width of the input elements. The high bits
 // are stored in elements z[2*i+1] and the low bits are stored in elements
@@ -91,10 +91,10 @@ func (x Uint64x2) CarrylessMultiplyOddEven(y Uint64x2) (z Uint64x2) {
 //
 //	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i+1])
 //
-// See [CarrylessMultiplyEven] for details about carryless multiply.
+// See [CarrylessMulEven] for details about carryless multiply.
 //
 // Asm: PMULL if CPU feature PMULL, Emulated otherwise
-func (x Uint64x2) CarrylessMultiplyEvenOdd(y Uint64x2) (z Uint64x2) {
+func (x Uint64x2) CarrylessMulEvenOdd(y Uint64x2) (z Uint64x2) {
 	if ARM64.PMULL() {
 		return x.carrylessMultiplyWidenLo(y.HiToLo())
 	}
@@ -136,7 +136,7 @@ const ___ = 0xff
 // table lookups.
 //
 // It's about 45 instructions, so it's not inlined: that keeps the
-// CarrylessMultiply methods, and their fast paths, small enough to inline.
+// CarrylessMul methods, and their fast paths, small enough to inline.
 //
 //go:noinline
 func carrylessMultiplyP8(a64, b64 Uint64x2) Uint64x2 {

@@ -97,3 +97,43 @@ func (x Uint64x2) GetElem(i uint8) (z uint64) {
 func (x Float64x2) GetElem(i uint8) (z float64) {
 	return x.Elem(i)
 }
+
+// CarrylessMultiplyEven computes the carryless multiplication of
+// the even-indexed elements of x and y.
+//
+// Deprecated: use x.CarrylessMulEven(y) instead.
+//
+//go:fix inline
+func (x Uint64x2) CarrylessMultiplyEven(y Uint64x2) (z Uint64x2) {
+	return x.CarrylessMulEven(y)
+}
+
+// CarrylessMultiplyOdd computes the carryless multiplication of
+// the odd-indexed elements of x and y.
+//
+// Deprecated: use x.CarrylessMulOdd(y) instead.
+//
+//go:fix inline
+func (x Uint64x2) CarrylessMultiplyOdd(y Uint64x2) (z Uint64x2) {
+	return x.CarrylessMulOdd(y)
+}
+
+// CarrylessMultiplyEvenOdd computes the carryless multiplication of
+// the even-indexed elements of x and the odd-indexed elements of y.
+//
+// Deprecated: use x.CarrylessMulEvenOdd(y) instead.
+//
+//go:fix inline
+func (x Uint64x2) CarrylessMultiplyEvenOdd(y Uint64x2) (z Uint64x2) {
+	return x.CarrylessMulEvenOdd(y)
+}
+
+// CarrylessMultiplyOddEven computes the carryless multiplication of
+// the odd-indexed elements of x and the even-indexed elements of y.
+//
+// Deprecated: use x.CarrylessMulOddEven(y) instead.
+//
+//go:fix inline
+func (x Uint64x2) CarrylessMultiplyOddEven(y Uint64x2) (z Uint64x2) {
+	return x.CarrylessMulOddEven(y)
+}

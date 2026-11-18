@@ -111,14 +111,14 @@ func get(v simd.Uint64s) (lo, hi uint64) {
 // vpsumd3 returns the 128-bit result of
 // clmul(xlo,ylo)^clmul(xhi,yhi)
 // using the supplied simd operation
-// CarrylessMultiplyEven.
+// CarrylessMulEven.
 func vpsumd3(xlo, xhi, ylo, yhi uint64) (lo, hi uint64) {
 	lx := set0(xlo)
 	ly := set0(ylo)
 	hx := set0(xhi)
 	hy := set0(yhi)
 
-	z := (lx.CarrylessMultiplyEven(ly)).Xor(hx.CarrylessMultiplyEven(hy))
+	z := (lx.CarrylessMulEven(ly)).Xor(hx.CarrylessMulEven(hy))
 
 	return get(z)
 }
@@ -128,7 +128,7 @@ func vpsumd3(xlo, xhi, ylo, yhi uint64) (lo, hi uint64) {
 //	clmul(xlo,ylo)^clmul(xhi,yhi)
 //
 // using the supplied simd operation
-// CarrylessMultiplyEven
+// CarrylessMulEven
 func em3(xlo, xhi, ylo, yhi uint64) string {
 	lo, hi := vpsumd3(xlo, xhi, ylo, yhi)
 	return fmt.Sprintf("0x%08x%08x", hi, lo)
@@ -139,14 +139,14 @@ func em3(xlo, xhi, ylo, yhi uint64) string {
 //	clmul(xlo,ylo)^clmul(xhi,yhi)
 //
 // using the supplied simd operation
-// CarrylessMultiplyOdd
+// CarrylessMulOdd
 func em4(xlo, xhi, ylo, yhi uint64) string {
 	lx := set1(xlo)
 	ly := set1(ylo)
 	hx := set1(xhi)
 	hy := set1(yhi)
 
-	z := (lx.CarrylessMultiplyOdd(ly)).Xor(hx.CarrylessMultiplyOdd(hy))
+	z := (lx.CarrylessMulOdd(ly)).Xor(hx.CarrylessMulOdd(hy))
 
 	lo, hi := get(z)
 	return fmt.Sprintf("0x%08x%08x", hi, lo)
@@ -157,9 +157,9 @@ func em4(xlo, xhi, ylo, yhi uint64) string {
 //	clmul(xlo,ylo)^clmul(xhi,yhi)
 //
 // using the supplied simd operation
-// CarrylessMultiplyEvenOdd
+// CarrylessMulEvenOdd
 func em5(xlo, xhi, ylo, yhi uint64) string {
-	z := set0(xlo).CarrylessMultiplyEvenOdd(set1(ylo)).Xor(set0(xhi).CarrylessMultiplyEvenOdd(set1(yhi)))
+	z := set0(xlo).CarrylessMulEvenOdd(set1(ylo)).Xor(set0(xhi).CarrylessMulEvenOdd(set1(yhi)))
 	lo, hi := get(z)
 	return fmt.Sprintf("0x%08x%08x", hi, lo)
 }
@@ -169,9 +169,9 @@ func em5(xlo, xhi, ylo, yhi uint64) string {
 //	clmul(xlo,ylo)^clmul(xhi,yhi)
 //
 // using the supplied simd operation
-// CarrylessMultiplyOddEven
+// CarrylessMulOddEven
 func em6(xlo, xhi, ylo, yhi uint64) string {
-	z := set1(xlo).CarrylessMultiplyOddEven(set0(ylo)).Xor(set1(xhi).CarrylessMultiplyOddEven(set0(yhi)))
+	z := set1(xlo).CarrylessMulOddEven(set0(ylo)).Xor(set1(xhi).CarrylessMulOddEven(set0(yhi)))
 	lo, hi := get(z)
 	return fmt.Sprintf("0x%08x%08x", hi, lo)
 }
@@ -228,10 +228,10 @@ func TestClMul(t *testing.T) {
 
 	f("Simple scalar clmul emulation", em1)
 	f("Clever emulated vector clmul emulation", em2)
-	f("CarrylessMultiplyEven", em3)
-	f("CarrylessMultiplyOdd", em4)
-	f("CarrylessMultiplyEvenOdd", em5)
-	f("CarrylessMultiplyOddEven", em6)
+	f("CarrylessMulEven", em3)
+	f("CarrylessMulOdd", em4)
+	f("CarrylessMulEvenOdd", em5)
+	f("CarrylessMulOddEven", em6)
 
 	for i := range 10000 {
 		a, b, c, d := rand.Uint64(), rand.Uint64(), rand.Uint64(), rand.Uint64()
@@ -278,10 +278,10 @@ func testClMulAllElements(t *testing.T) {
 			xs[i], ys[i] = rand.Uint64(), rand.Uint64()
 		}
 		x, y := simd.LoadUint64s(xs), simd.LoadUint64s(ys)
-		check("CarrylessMultiplyEven", x.CarrylessMultiplyEven(y), 0, 0)
-		check("CarrylessMultiplyOdd", x.CarrylessMultiplyOdd(y), 1, 1)
-		check("CarrylessMultiplyEvenOdd", x.CarrylessMultiplyEvenOdd(y), 0, 1)
-		check("CarrylessMultiplyOddEven", x.CarrylessMultiplyOddEven(y), 1, 0)
+		check("CarrylessMulEven", x.CarrylessMulEven(y), 0, 0)
+		check("CarrylessMulOdd", x.CarrylessMulOdd(y), 1, 1)
+		check("CarrylessMulEvenOdd", x.CarrylessMulEvenOdd(y), 0, 1)
+		check("CarrylessMulOddEven", x.CarrylessMulOddEven(y), 1, 0)
 	}
 }
 

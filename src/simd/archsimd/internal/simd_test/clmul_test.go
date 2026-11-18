@@ -19,7 +19,7 @@ func clmul64(a, b uint64) (lo, hi uint64) {
 	return lo, hi
 }
 
-// clmulSlice returns a slice simulation of the CarrylessMultiply method that,
+// clmulSlice returns a slice simulation of the CarrylessMul method that,
 // for each pair of elements, multiplies element i of the pair of x by element
 // j of the pair of y.
 func clmulSlice(i, j int) func(x, y []uint64) []uint64 {

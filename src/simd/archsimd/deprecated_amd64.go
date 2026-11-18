@@ -1302,3 +1302,147 @@ func (x Uint64x4) GetLo() (z Uint64x2) {
 func (x Uint64x8) GetLo() (z Uint64x4) {
 	return x.Lo()
 }
+
+// CarrylessMultiplyEven computes the carryless multiplication of
+// the even-indexed elements of x and y.
+//
+// Asm: VPCLMULQDQ if CPU feature AVXCLMUL, Emulated otherwise, CPU Feature: AVX
+//
+// Deprecated: use x.CarrylessMulEven(y) instead.
+//
+//go:fix inline
+func (x Uint64x2) CarrylessMultiplyEven(y Uint64x2) (z Uint64x2) {
+	return x.CarrylessMulEven(y)
+}
+
+// CarrylessMultiplyOdd computes the carryless multiplication of
+// the odd-indexed elements of x and y.
+//
+// Asm: VPCLMULQDQ if CPU feature AVXCLMUL, Emulated otherwise, CPU Feature: AVX
+//
+// Deprecated: use x.CarrylessMulOdd(y) instead.
+//
+//go:fix inline
+func (x Uint64x2) CarrylessMultiplyOdd(y Uint64x2) (z Uint64x2) {
+	return x.CarrylessMulOdd(y)
+}
+
+// CarrylessMultiplyOddEven computes the carryless multiplication of
+// the odd-indexed elements of x and the even-indexed elements of y.
+//
+// Asm: VPCLMULQDQ if CPU feature AVXCLMUL, Emulated otherwise, CPU Feature: AVX
+//
+// Deprecated: use x.CarrylessMulOddEven(y) instead.
+//
+//go:fix inline
+func (x Uint64x2) CarrylessMultiplyOddEven(y Uint64x2) (z Uint64x2) {
+	return x.CarrylessMulOddEven(y)
+}
+
+// CarrylessMultiplyEvenOdd computes the carryless multiplication of
+// the even-indexed elements of x and the odd-indexed elements of y.
+//
+// Asm: VPCLMULQDQ if CPU feature AVXCLMUL, Emulated otherwise, CPU Feature: AVX
+//
+// Deprecated: use x.CarrylessMulEvenOdd(y) instead.
+//
+//go:fix inline
+func (x Uint64x2) CarrylessMultiplyEvenOdd(y Uint64x2) (z Uint64x2) {
+	return x.CarrylessMulEvenOdd(y)
+}
+
+// CarrylessMultiplyEven computes the carryless multiplication of
+// the even-indexed elements of x and y.
+//
+// Asm: VPCLMULQDQ if CPU feature AVX2CLMUL, Emulated otherwise, CPU Feature: AVX2
+//
+// Deprecated: use x.CarrylessMulEven(y) instead.
+//
+//go:fix inline
+func (x Uint64x4) CarrylessMultiplyEven(y Uint64x4) (z Uint64x4) {
+	return x.CarrylessMulEven(y)
+}
+
+// CarrylessMultiplyOdd computes the carryless multiplication of
+// the odd-indexed elements of x and y.
+//
+// Asm: VPCLMULQDQ if CPU feature AVX2CLMUL, Emulated otherwise, CPU Feature: AVX2
+//
+// Deprecated: use x.CarrylessMulOdd(y) instead.
+//
+//go:fix inline
+func (x Uint64x4) CarrylessMultiplyOdd(y Uint64x4) (z Uint64x4) {
+	return x.CarrylessMulOdd(y)
+}
+
+// CarrylessMultiplyOddEven computes the carryless multiplication of
+// the odd-indexed elements of x and the even-indexed elements of y.
+//
+// Asm: VPCLMULQDQ if CPU feature AVX2CLMUL, Emulated otherwise, CPU Feature: AVX2
+//
+// Deprecated: use x.CarrylessMulOddEven(y) instead.
+//
+//go:fix inline
+func (x Uint64x4) CarrylessMultiplyOddEven(y Uint64x4) (z Uint64x4) {
+	return x.CarrylessMulOddEven(y)
+}
+
+// CarrylessMultiplyEvenOdd computes the carryless multiplication of
+// the even-indexed elements of x and the odd-indexed elements of y.
+//
+// Asm: VPCLMULQDQ if CPU feature AVX2CLMUL, Emulated otherwise, CPU Feature: AVX2
+//
+// Deprecated: use x.CarrylessMulEvenOdd(y) instead.
+//
+//go:fix inline
+func (x Uint64x4) CarrylessMultiplyEvenOdd(y Uint64x4) (z Uint64x4) {
+	return x.CarrylessMulEvenOdd(y)
+}
+
+// CarrylessMultiplyEven computes the carryless multiplication of
+// the even-indexed elements of x and y.
+//
+// Asm: VPCLMULQDQ if CPU feature AVX512CLMUL, Emulated otherwise, CPU Feature: AVX512
+//
+// Deprecated: use x.CarrylessMulEven(y) instead.
+//
+//go:fix inline
+func (x Uint64x8) CarrylessMultiplyEven(y Uint64x8) (z Uint64x8) {
+	return x.CarrylessMulEven(y)
+}
+
+// CarrylessMultiplyOdd computes the carryless multiplication of
+// the odd-indexed elements of x and y.
+//
+// Asm: VPCLMULQDQ if CPU feature AVX512CLMUL, Emulated otherwise, CPU Feature: AVX512
+//
+// Deprecated: use x.CarrylessMulOdd(y) instead.
+//
+//go:fix inline
+func (x Uint64x8) CarrylessMultiplyOdd(y Uint64x8) (z Uint64x8) {
+	return x.CarrylessMulOdd(y)
+}
+
+// CarrylessMultiplyOddEven computes the carryless multiplication of
+// the odd-indexed elements of x and the even-indexed elements of y.
+//
+// Asm: VPCLMULQDQ if CPU feature AVX512CLMUL, Emulated otherwise, CPU Feature: AVX512
+//
+// Deprecated: use x.CarrylessMulOddEven(y) instead.
+//
+//go:fix inline
+func (x Uint64x8) CarrylessMultiplyOddEven(y Uint64x8) (z Uint64x8) {
+	return x.CarrylessMulOddEven(y)
+}
+
+// CarrylessMultiplyEvenOdd computes the carryless multiplication of
+// the even-indexed elements of x and the odd-indexed elements of y.
+//
+// Asm: VPCLMULQDQ if CPU feature AVX512CLMUL, Emulated otherwise, CPU Feature: AVX512
+//
+// Deprecated: use x.CarrylessMulEvenOdd(y) instead.
+//
+//go:fix inline
+func (x Uint64x8) CarrylessMultiplyEvenOdd(y Uint64x8) (z Uint64x8) {
+	return x.CarrylessMulEvenOdd(y)
+}
