@@ -1,0 +1,28 @@
+// errorcheck
+
+package p
+
+import "comptime"
+
+type Cfg struct {
+	Port int
+	Name string
+}
+
+func Load[T any](out T) T {
+	const for _, f := range comptime.Fields[T]() {
+		Parse[f.Type](&out.[f])
+	}
+	return out
+}
+
+func Parse[F any](dst *F) {
+	const switch F {
+	case int:
+		*dst = 7
+		return
+	}
+	comptime.Error("unsupported")
+}
+
+var _ = Load[Cfg](Cfg{}) // ERROR "unsupported"

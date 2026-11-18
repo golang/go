@@ -1,0 +1,46 @@
+// run
+package main
+
+import (
+	"comptime"
+	"fmt"
+	"os"
+)
+
+type Cfg struct {
+	Port int
+	Name string
+}
+
+func Load[T any](out T) T {
+	const for _, f := range comptime.Fields[T]() {
+		parse[f.Type](&out.[f])
+	}
+	return out
+}
+
+func parse[F any](dst *F) {
+	const if comptime.IsStruct[F]() {
+		fmt.Println("struct")
+	} else {
+		fmt.Println("leaf")
+	}
+}
+
+var failed bool
+
+func check(name, got, want string) {
+	if got != want {
+		fmt.Println("FAIL", name, "got", got, "want", want)
+		failed = true
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func main() {
+	check("nested-call-leaf", fmt.Sprint(Load[Cfg](Cfg{})), "{0 }")
+	if failed {
+		os.Exit(1)
+	}
+}

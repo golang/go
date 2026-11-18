@@ -1468,10 +1468,59 @@ func (c *cfLeaf) subCall(n *syntax.CallExpr) bool {
 		c.add(s, e, keepComments(ctx.buf.b, s, e, "struct{}{}"))
 		return false
 	}
+	if c.subComptimeError(n, sites) {
+		return false
+	}
+	s, e := cfCallSpan(ctx, n)
+	if insideAny(span{start: s, end: e}, c.covered) {
+		return true
+	}
 	if s, e, text, ok := c.fl.cfNestedSite(n, c.active, c.run); ok {
 		c.add(s, e, text)
 	}
 	return true
+}
+
+// subComptimeError answers a live comptime.Error call of an expansion:
+// the message is a compile-time constant per instantiation, so the
+// lowering reports it here and removes the call from the copy. It
+// reports whether n was such a call.
+func (c *cfLeaf) subComptimeError(n *syntax.CallExpr, sites *cfSites) bool {
+	sel, ok := n.Fun.(*syntax.SelectorExpr)
+	if !ok || sel.Sel.Value != "Error" || len(n.ArgList) != 1 {
+		return false
+	}
+	qn, ok := sel.X.(*syntax.Name)
+	if !ok || sites == nil || qn.Value != sites.comptimeName {
+		return false
+	}
+	s, e := cfCallSpan(c.run.ctx, n)
+	if insideAny(span{start: s, end: e}, c.covered) {
+		return false
+	}
+	msg, ok := c.fl.cfComptimeErrorMsg(n.ArgList[0])
+	if !ok {
+		c.fl.cfError(c.run.sites.at(n.ArgList[0].Pos()), "[comptime::error_not_constant] comptime.Error needs a constant message")
+	} else {
+		c.fl.cfError(c.run.sites.at(n.ArgList[0].Pos()), "[comptime::error] %s", msg)
+	}
+	c.add(s, e, "")
+	return true
+}
+
+// cfComptimeErrorMsg evaluates the comptime.Error message argument: a
+// recorded constant string, or a string literal when the check left no
+// record (copies re-check without one).
+func (fl *fileLower) cfComptimeErrorMsg(e syntax.Expr) (string, bool) {
+	if tv, ok := fl.pkg.info.Types[e]; ok && tv.Value != nil && tv.Value.Kind() == constant.String {
+		return constant.StringVal(tv.Value), true
+	}
+	if lit, ok := syntax.Unparen(e).(*syntax.BasicLit); ok && lit.Kind == syntax.StringLit {
+		if msg, err := strconv.Unquote(lit.Value); err == nil {
+			return msg, true
+		}
+	}
+	return "", false
 }
 
 func (c *cfLeaf) subName(n *syntax.Name) {

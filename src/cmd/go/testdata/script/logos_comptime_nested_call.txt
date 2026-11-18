@@ -1,0 +1,73 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd w
+logos build ./...
+logos run ./main
+stdout '^nested-ok 7 7$'
+stdout '^nested-str leaf$'
+cd ..
+
+-- w/go.mod --
+module example.com/nestedtest
+
+go 1.27
+
+-- w/parse/parse.lgo --
+package parse
+
+import "comptime"
+
+type Cfg struct {
+	Port int
+	DB   DBCfg
+}
+
+type DBCfg struct {
+	Max int
+}
+
+func Load[T any](out T) T {
+	const for _, f := range comptime.Fields[T]() {
+		Set[f.Type](&out.[f])
+	}
+	return out
+}
+
+func Set[F any](dst *F) {
+	const if comptime.IsStruct[F]() {
+		const for _, g := range comptime.Fields[F]() {
+			Set[g.Type](&dst.[g])
+		}
+	} else {
+		const switch F {
+		case int:
+			*dst = 7
+		}
+	}
+}
+
+func Kind[F any]() string {
+	const if comptime.IsStruct[F]() {
+		return "struct"
+	}
+	return "leaf"
+}
+
+-- w/main/main.lgo --
+package main
+
+import (
+	"example.com/nestedtest/parse"
+	"fmt"
+)
+
+func main() {
+	cfg := parse.Load[parse.Cfg](parse.Cfg{})
+	if cfg.Port != 7 || cfg.DB.Max != 7 {
+		fmt.Println("BAD", cfg.Port, cfg.DB.Max)
+		return
+	}
+	fmt.Println("nested-ok", cfg.Port, cfg.DB.Max)
+	fmt.Println("nested-str", parse.Kind[string]())
+}
