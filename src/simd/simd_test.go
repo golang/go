@@ -700,3 +700,65 @@ func TestDotProductPairs(t *testing.T) {
 		t.Fatalf("DotProductPairs overflow(%v, %v) = %v, want %v", x, y, got, want)
 	}
 }
+
+func testTwoInputShuffles[E ~int8 | ~int16 | ~int32 | ~int64 | ~uint8 | ~uint16 | ~uint32 | ~uint64, V interface {
+	Len() int
+	Store([]E)
+	InterleaveLo(V) V
+	InterleaveHi(V) V
+	ConcatEven(V) V
+	ConcatOdd(V) V
+}](t *testing.T, name string, load func([]E) V) {
+	t.Helper()
+	var zero V
+	n := zero.Len()
+	half := n / 2
+	xs := make([]E, n)
+	ys := make([]E, n)
+	for i := range n {
+		xs[i] = E(i + 1)
+		ys[i] = E(n + i + 1)
+	}
+	xv := load(xs)
+	yv := load(ys)
+
+	check := func(op string, gotV V, want []E) {
+		t.Helper()
+		got := make([]E, n)
+		gotV.Store(got)
+		if !slices.Equal(got, want) {
+			t.Errorf("%s.%s: got %v, want %v", name, op, got, want)
+		}
+	}
+
+	wantLo := make([]E, n)
+	wantHi := make([]E, n)
+	wantEven := make([]E, n)
+	wantOdd := make([]E, n)
+	for i := range half {
+		wantLo[2*i] = xs[i]
+		wantLo[2*i+1] = ys[i]
+		wantHi[2*i] = xs[half+i]
+		wantHi[2*i+1] = ys[half+i]
+		wantEven[i] = xs[2*i]
+		wantEven[half+i] = ys[2*i]
+		wantOdd[i] = xs[2*i+1]
+		wantOdd[half+i] = ys[2*i+1]
+	}
+
+	check("InterleaveLo", xv.InterleaveLo(yv), wantLo)
+	check("InterleaveHi", xv.InterleaveHi(yv), wantHi)
+	check("ConcatEven", xv.ConcatEven(yv), wantEven)
+	check("ConcatOdd", xv.ConcatOdd(yv), wantOdd)
+}
+
+func TestTwoInputShuffles(t *testing.T) {
+	testTwoInputShuffles(t, "Int8s", simd.LoadInt8s)
+	testTwoInputShuffles(t, "Int16s", simd.LoadInt16s)
+	testTwoInputShuffles(t, "Int32s", simd.LoadInt32s)
+	testTwoInputShuffles(t, "Int64s", simd.LoadInt64s)
+	testTwoInputShuffles(t, "Uint8s", simd.LoadUint8s)
+	testTwoInputShuffles(t, "Uint16s", simd.LoadUint16s)
+	testTwoInputShuffles(t, "Uint32s", simd.LoadUint32s)
+	testTwoInputShuffles(t, "Uint64s", simd.LoadUint64s)
+}

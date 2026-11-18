@@ -41,6 +41,16 @@ func (x Int8s) And(y Int8s) (z Int8s)
 //	z[i] = x[i] &^ y[i]
 func (x Int8s) AndNot(y Int8s) (z Int8s)
 
+// ConcatEven concatenates the even-indexed elements of x and y.
+//
+//	z = {x[0], x[2], ..., x[n-2], y[0], y[2], ..., y[n-2]}, where n = x.Len()
+func (x Int8s) ConcatEven(y Int8s) (z Int8s)
+
+// ConcatOdd concatenates the odd-indexed elements of x and y.
+//
+//	z = {x[1], x[3], ..., x[n-1], y[1], y[3], ..., y[n-1]}, where n = x.Len()
+func (x Int8s) ConcatOdd(y Int8s) (z Int8s)
+
 // ConvertToUint8 converts each element of x to uint8.
 //
 //	z[i] = uint8(x[i])
@@ -83,6 +93,16 @@ func (x Int8s) HiToLo() (z Int8s)
 //
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Int8s) IfElse(mask Mask8s, y Int8s) (z Int8s)
+
+// InterleaveHi interleaves the elements of the high halves of x and y.
+//
+//	z = {x[n/2], y[n/2], x[n/2+1], y[n/2+1], ..., x[n-1], y[n-1]}, where n = x.Len()
+func (x Int8s) InterleaveHi(y Int8s) (z Int8s)
+
+// InterleaveLo interleaves the elements of the low halves of x and y.
+//
+//	z = {x[0], y[0], x[1], y[1], ..., x[n/2-1], y[n/2-1]}, where n = x.Len()
+func (x Int8s) InterleaveLo(y Int8s) (z Int8s)
 
 // Len returns the number of elements in x.
 func (x Int8s) Len() int
@@ -237,6 +257,16 @@ func (x Int16s) And(y Int16s) (z Int16s)
 //	z[i] = x[i] &^ y[i]
 func (x Int16s) AndNot(y Int16s) (z Int16s)
 
+// ConcatEven concatenates the even-indexed elements of x and y.
+//
+//	z = {x[0], x[2], ..., x[n-2], y[0], y[2], ..., y[n-2]}, where n = x.Len()
+func (x Int16s) ConcatEven(y Int16s) (z Int16s)
+
+// ConcatOdd concatenates the odd-indexed elements of x and y.
+//
+//	z = {x[1], x[3], ..., x[n-1], y[1], y[3], ..., y[n-1]}, where n = x.Len()
+func (x Int16s) ConcatOdd(y Int16s) (z Int16s)
+
 // ConvertToUint16 converts each element of x to uint16.
 //
 //	z[i] = uint16(x[i])
@@ -291,6 +321,16 @@ func (x Int16s) HiToLo() (z Int16s)
 //
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Int16s) IfElse(mask Mask16s, y Int16s) (z Int16s)
+
+// InterleaveHi interleaves the elements of the high halves of x and y.
+//
+//	z = {x[n/2], y[n/2], x[n/2+1], y[n/2+1], ..., x[n-1], y[n-1]}, where n = x.Len()
+func (x Int16s) InterleaveHi(y Int16s) (z Int16s)
+
+// InterleaveLo interleaves the elements of the low halves of x and y.
+//
+//	z = {x[0], y[0], x[1], y[1], ..., x[n/2-1], y[n/2-1]}, where n = x.Len()
+func (x Int16s) InterleaveLo(y Int16s) (z Int16s)
 
 // Len returns the number of elements in x.
 func (x Int16s) Len() int
@@ -466,6 +506,16 @@ func (x Int32s) And(y Int32s) (z Int32s)
 //	z[i] = x[i] &^ y[i]
 func (x Int32s) AndNot(y Int32s) (z Int32s)
 
+// ConcatEven concatenates the even-indexed elements of x and y.
+//
+//	z = {x[0], x[2], ..., x[n-2], y[0], y[2], ..., y[n-2]}, where n = x.Len()
+func (x Int32s) ConcatEven(y Int32s) (z Int32s)
+
+// ConcatOdd concatenates the odd-indexed elements of x and y.
+//
+//	z = {x[1], x[3], ..., x[n-1], y[1], y[3], ..., y[n-1]}, where n = x.Len()
+func (x Int32s) ConcatOdd(y Int32s) (z Int32s)
+
 // ConvertToFloat32 converts each element of x to float32.
 //
 //	z[i] = float32(x[i])
@@ -521,6 +571,16 @@ func (x Int32s) HiToLo() (z Int32s)
 //
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Int32s) IfElse(mask Mask32s, y Int32s) (z Int32s)
+
+// InterleaveHi interleaves the elements of the high halves of x and y.
+//
+//	z = {x[n/2], y[n/2], x[n/2+1], y[n/2+1], ..., x[n-1], y[n-1]}, where n = x.Len()
+func (x Int32s) InterleaveHi(y Int32s) (z Int32s)
+
+// InterleaveLo interleaves the elements of the low halves of x and y.
+//
+//	z = {x[0], y[0], x[1], y[1], ..., x[n/2-1], y[n/2-1]}, where n = x.Len()
+func (x Int32s) InterleaveLo(y Int32s) (z Int32s)
 
 // Len returns the number of elements in x.
 func (x Int32s) Len() int
@@ -691,6 +751,16 @@ func (x Int64s) And(y Int64s) (z Int64s)
 //	z[i] = x[i] &^ y[i]
 func (x Int64s) AndNot(y Int64s) (z Int64s)
 
+// ConcatEven concatenates the even-indexed elements of x and y.
+//
+//	z = {x[0], x[2], ..., x[n-2], y[0], y[2], ..., y[n-2]}, where n = x.Len()
+func (x Int64s) ConcatEven(y Int64s) (z Int64s)
+
+// ConcatOdd concatenates the odd-indexed elements of x and y.
+//
+//	z = {x[1], x[3], ..., x[n-1], y[1], y[3], ..., y[n-1]}, where n = x.Len()
+func (x Int64s) ConcatOdd(y Int64s) (z Int64s)
+
 // ConvertToUint64 converts each element of x to uint64.
 //
 //	z[i] = uint64(x[i])
@@ -725,6 +795,16 @@ func (x Int64s) HiToLo() (z Int64s)
 //
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Int64s) IfElse(mask Mask64s, y Int64s) (z Int64s)
+
+// InterleaveHi interleaves the elements of the high halves of x and y.
+//
+//	z = {x[n/2], y[n/2], x[n/2+1], y[n/2+1], ..., x[n-1], y[n-1]}, where n = x.Len()
+func (x Int64s) InterleaveHi(y Int64s) (z Int64s)
+
+// InterleaveLo interleaves the elements of the low halves of x and y.
+//
+//	z = {x[0], y[0], x[1], y[1], ..., x[n/2-1], y[n/2-1]}, where n = x.Len()
+func (x Int64s) InterleaveLo(y Int64s) (z Int64s)
 
 // Len returns the number of elements in x.
 func (x Int64s) Len() int
@@ -885,6 +965,16 @@ func (x Uint8s) Average(y Uint8s) (z Uint8s)
 // BitsToInt8 reinterprets the bits of each element of x as type int8.
 func (x Uint8s) BitsToInt8() (z Int8s)
 
+// ConcatEven concatenates the even-indexed elements of x and y.
+//
+//	z = {x[0], x[2], ..., x[n-2], y[0], y[2], ..., y[n-2]}, where n = x.Len()
+func (x Uint8s) ConcatEven(y Uint8s) (z Uint8s)
+
+// ConcatOdd concatenates the odd-indexed elements of x and y.
+//
+//	z = {x[1], x[3], ..., x[n-1], y[1], y[3], ..., y[n-1]}, where n = x.Len()
+func (x Uint8s) ConcatOdd(y Uint8s) (z Uint8s)
+
 // ConvertToInt8 converts each element of x to int8.
 //
 //	z[i] = int8(x[i])
@@ -927,6 +1017,16 @@ func (x Uint8s) HiToLo() (z Uint8s)
 //
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Uint8s) IfElse(mask Mask8s, y Uint8s) (z Uint8s)
+
+// InterleaveHi interleaves the elements of the high halves of x and y.
+//
+//	z = {x[n/2], y[n/2], x[n/2+1], y[n/2+1], ..., x[n-1], y[n-1]}, where n = x.Len()
+func (x Uint8s) InterleaveHi(y Uint8s) (z Uint8s)
+
+// InterleaveLo interleaves the elements of the low halves of x and y.
+//
+//	z = {x[0], y[0], x[1], y[1], ..., x[n/2-1], y[n/2-1]}, where n = x.Len()
+func (x Uint8s) InterleaveLo(y Uint8s) (z Uint8s)
 
 // Len returns the number of elements in x.
 func (x Uint8s) Len() int
@@ -1106,6 +1206,16 @@ func (x Uint16s) Average(y Uint16s) (z Uint16s)
 // BitsToInt16 reinterprets the bits of each element of x as type int16.
 func (x Uint16s) BitsToInt16() (z Int16s)
 
+// ConcatEven concatenates the even-indexed elements of x and y.
+//
+//	z = {x[0], x[2], ..., x[n-2], y[0], y[2], ..., y[n-2]}, where n = x.Len()
+func (x Uint16s) ConcatEven(y Uint16s) (z Uint16s)
+
+// ConcatOdd concatenates the odd-indexed elements of x and y.
+//
+//	z = {x[1], x[3], ..., x[n-1], y[1], y[3], ..., y[n-1]}, where n = x.Len()
+func (x Uint16s) ConcatOdd(y Uint16s) (z Uint16s)
+
 // ConvertToInt16 converts each element of x to int16.
 //
 //	z[i] = int16(x[i])
@@ -1148,6 +1258,16 @@ func (x Uint16s) HiToLo() (z Uint16s)
 //
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Uint16s) IfElse(mask Mask16s, y Uint16s) (z Uint16s)
+
+// InterleaveHi interleaves the elements of the high halves of x and y.
+//
+//	z = {x[n/2], y[n/2], x[n/2+1], y[n/2+1], ..., x[n-1], y[n-1]}, where n = x.Len()
+func (x Uint16s) InterleaveHi(y Uint16s) (z Uint16s)
+
+// InterleaveLo interleaves the elements of the low halves of x and y.
+//
+//	z = {x[0], y[0], x[1], y[1], ..., x[n/2-1], y[n/2-1]}, where n = x.Len()
+func (x Uint16s) InterleaveLo(y Uint16s) (z Uint16s)
 
 // Len returns the number of elements in x.
 func (x Uint16s) Len() int
@@ -1347,6 +1467,16 @@ func (x Uint32s) BitsToFloat32() (z Float32s)
 // BitsToInt32 reinterprets the bits of each element of x as type int32.
 func (x Uint32s) BitsToInt32() (z Int32s)
 
+// ConcatEven concatenates the even-indexed elements of x and y.
+//
+//	z = {x[0], x[2], ..., x[n-2], y[0], y[2], ..., y[n-2]}, where n = x.Len()
+func (x Uint32s) ConcatEven(y Uint32s) (z Uint32s)
+
+// ConcatOdd concatenates the odd-indexed elements of x and y.
+//
+//	z = {x[1], x[3], ..., x[n-1], y[1], y[3], ..., y[n-1]}, where n = x.Len()
+func (x Uint32s) ConcatOdd(y Uint32s) (z Uint32s)
+
 // ConvertToInt32 converts each element of x to int32.
 //
 //	z[i] = int32(x[i])
@@ -1389,6 +1519,16 @@ func (x Uint32s) HiToLo() (z Uint32s)
 //
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Uint32s) IfElse(mask Mask32s, y Uint32s) (z Uint32s)
+
+// InterleaveHi interleaves the elements of the high halves of x and y.
+//
+//	z = {x[n/2], y[n/2], x[n/2+1], y[n/2+1], ..., x[n-1], y[n-1]}, where n = x.Len()
+func (x Uint32s) InterleaveHi(y Uint32s) (z Uint32s)
+
+// InterleaveLo interleaves the elements of the low halves of x and y.
+//
+//	z = {x[0], y[0], x[1], y[1], ..., x[n/2-1], y[n/2-1]}, where n = x.Len()
+func (x Uint32s) InterleaveLo(y Uint32s) (z Uint32s)
 
 // Len returns the number of elements in x.
 func (x Uint32s) Len() int
@@ -1663,6 +1803,16 @@ func (x Uint64s) CarrylessMulOdd(y Uint64s) (z Uint64s)
 // can be the case even when [Emulated] returns false.
 func (x Uint64s) CarrylessMulOddEven(y Uint64s) (z Uint64s)
 
+// ConcatEven concatenates the even-indexed elements of x and y.
+//
+//	z = {x[0], x[2], ..., x[n-2], y[0], y[2], ..., y[n-2]}, where n = x.Len()
+func (x Uint64s) ConcatEven(y Uint64s) (z Uint64s)
+
+// ConcatOdd concatenates the odd-indexed elements of x and y.
+//
+//	z = {x[1], x[3], ..., x[n-1], y[1], y[3], ..., y[n-1]}, where n = x.Len()
+func (x Uint64s) ConcatOdd(y Uint64s) (z Uint64s)
+
 // ConvertToInt64 converts each element of x to int64.
 //
 //	z[i] = int64(x[i])
@@ -1697,6 +1847,16 @@ func (x Uint64s) HiToLo() (z Uint64s)
 //
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Uint64s) IfElse(mask Mask64s, y Uint64s) (z Uint64s)
+
+// InterleaveHi interleaves the elements of the high halves of x and y.
+//
+//	z = {x[n/2], y[n/2], x[n/2+1], y[n/2+1], ..., x[n-1], y[n-1]}, where n = x.Len()
+func (x Uint64s) InterleaveHi(y Uint64s) (z Uint64s)
+
+// InterleaveLo interleaves the elements of the low halves of x and y.
+//
+//	z = {x[0], y[0], x[1], y[1], ..., x[n/2-1], y[n/2-1]}, where n = x.Len()
+func (x Uint64s) InterleaveLo(y Uint64s) (z Uint64s)
 
 // Len returns the number of elements in x.
 func (x Uint64s) Len() int

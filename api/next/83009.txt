@@ -141,6 +141,8 @@ pkg simd, method (Int16s) Add(Int16s) Int16s #83009
 pkg simd, method (Int16s) AddSaturated(Int16s) Int16s #83009
 pkg simd, method (Int16s) And(Int16s) Int16s #83009
 pkg simd, method (Int16s) AndNot(Int16s) Int16s #83009
+pkg simd, method (Int16s) ConcatEven(Int16s) Int16s #83009
+pkg simd, method (Int16s) ConcatOdd(Int16s) Int16s #83009
 pkg simd, method (Int16s) ConvertToUint16() Uint16s #83009
 pkg simd, method (Int16s) DotProductPairs(Int16s) Int32s #83009
 pkg simd, method (Int16s) Equal(Int16s) Mask16s #83009
@@ -149,6 +151,8 @@ pkg simd, method (Int16s) Greater(Int16s) Mask16s #83009
 pkg simd, method (Int16s) GreaterEqual(Int16s) Mask16s #83009
 pkg simd, method (Int16s) HiToLo() Int16s #83009
 pkg simd, method (Int16s) IfElse(Mask16s, Int16s) Int16s #83009
+pkg simd, method (Int16s) InterleaveHi(Int16s) Int16s #83009
+pkg simd, method (Int16s) InterleaveLo(Int16s) Int16s #83009
 pkg simd, method (Int16s) Len() int #83009
 pkg simd, method (Int16s) Less(Int16s) Mask16s #83009
 pkg simd, method (Int16s) LessEqual(Int16s) Mask16s #83009
@@ -181,6 +185,8 @@ pkg simd, method (Int32s) Abs() Uint32s #83009
 pkg simd, method (Int32s) Add(Int32s) Int32s #83009
 pkg simd, method (Int32s) And(Int32s) Int32s #83009
 pkg simd, method (Int32s) AndNot(Int32s) Int32s #83009
+pkg simd, method (Int32s) ConcatEven(Int32s) Int32s #83009
+pkg simd, method (Int32s) ConcatOdd(Int32s) Int32s #83009
 pkg simd, method (Int32s) ConvertToFloat32() Float32s #83009
 pkg simd, method (Int32s) ConvertToFloat64() Float64s #83009
 pkg simd, method (Int32s) ConvertToUint32() Uint32s #83009
@@ -190,6 +196,8 @@ pkg simd, method (Int32s) Greater(Int32s) Mask32s #83009
 pkg simd, method (Int32s) GreaterEqual(Int32s) Mask32s #83009
 pkg simd, method (Int32s) HiToLo() Int32s #83009
 pkg simd, method (Int32s) IfElse(Mask32s, Int32s) Int32s #83009
+pkg simd, method (Int32s) InterleaveHi(Int32s) Int32s #83009
+pkg simd, method (Int32s) InterleaveLo(Int32s) Int32s #83009
 pkg simd, method (Int32s) Len() int #83009
 pkg simd, method (Int32s) Less(Int32s) Mask32s #83009
 pkg simd, method (Int32s) LessEqual(Int32s) Mask32s #83009
@@ -221,12 +229,16 @@ pkg simd, method (Int64s) Abs() Uint64s #83009
 pkg simd, method (Int64s) Add(Int64s) Int64s #83009
 pkg simd, method (Int64s) And(Int64s) Int64s #83009
 pkg simd, method (Int64s) AndNot(Int64s) Int64s #83009
+pkg simd, method (Int64s) ConcatEven(Int64s) Int64s #83009
+pkg simd, method (Int64s) ConcatOdd(Int64s) Int64s #83009
 pkg simd, method (Int64s) ConvertToUint64() Uint64s #83009
 pkg simd, method (Int64s) Equal(Int64s) Mask64s #83009
 pkg simd, method (Int64s) Greater(Int64s) Mask64s #83009
 pkg simd, method (Int64s) GreaterEqual(Int64s) Mask64s #83009
 pkg simd, method (Int64s) HiToLo() Int64s #83009
 pkg simd, method (Int64s) IfElse(Mask64s, Int64s) Int64s #83009
+pkg simd, method (Int64s) InterleaveHi(Int64s) Int64s #83009
+pkg simd, method (Int64s) InterleaveLo(Int64s) Int64s #83009
 pkg simd, method (Int64s) Len() int #83009
 pkg simd, method (Int64s) Less(Int64s) Mask64s #83009
 pkg simd, method (Int64s) LessEqual(Int64s) Mask64s #83009
@@ -255,6 +267,8 @@ pkg simd, method (Int8s) Add(Int8s) Int8s #83009
 pkg simd, method (Int8s) AddSaturated(Int8s) Int8s #83009
 pkg simd, method (Int8s) And(Int8s) Int8s #83009
 pkg simd, method (Int8s) AndNot(Int8s) Int8s #83009
+pkg simd, method (Int8s) ConcatEven(Int8s) Int8s #83009
+pkg simd, method (Int8s) ConcatOdd(Int8s) Int8s #83009
 pkg simd, method (Int8s) ConvertToUint8() Uint8s #83009
 pkg simd, method (Int8s) Equal(Int8s) Mask8s #83009
 pkg simd, method (Int8s) ExtendToInt16() Int16s #83009
@@ -262,6 +276,8 @@ pkg simd, method (Int8s) Greater(Int8s) Mask8s #83009
 pkg simd, method (Int8s) GreaterEqual(Int8s) Mask8s #83009
 pkg simd, method (Int8s) HiToLo() Int8s #83009
 pkg simd, method (Int8s) IfElse(Mask8s, Int8s) Int8s #83009
+pkg simd, method (Int8s) InterleaveHi(Int8s) Int8s #83009
+pkg simd, method (Int8s) InterleaveLo(Int8s) Int8s #83009
 pkg simd, method (Int8s) Len() int #83009
 pkg simd, method (Int8s) Less(Int8s) Mask8s #83009
 pkg simd, method (Int8s) LessEqual(Int8s) Mask8s #83009
@@ -341,6 +357,8 @@ pkg simd, method (Uint16s) And(Uint16s) Uint16s #83009
 pkg simd, method (Uint16s) AndNot(Uint16s) Uint16s #83009
 pkg simd, method (Uint16s) Average(Uint16s) Uint16s #83009
 pkg simd, method (Uint16s) BitsToInt16() Int16s #83009
+pkg simd, method (Uint16s) ConcatEven(Uint16s) Uint16s #83009
+pkg simd, method (Uint16s) ConcatOdd(Uint16s) Uint16s #83009
 pkg simd, method (Uint16s) ConvertToInt16() Int16s #83009
 pkg simd, method (Uint16s) Equal(Uint16s) Mask16s #83009
 pkg simd, method (Uint16s) ExtendToUint32() Uint32s #83009
@@ -348,6 +366,8 @@ pkg simd, method (Uint16s) Greater(Uint16s) Mask16s #83009
 pkg simd, method (Uint16s) GreaterEqual(Uint16s) Mask16s #83009
 pkg simd, method (Uint16s) HiToLo() Uint16s #83009
 pkg simd, method (Uint16s) IfElse(Mask16s, Uint16s) Uint16s #83009
+pkg simd, method (Uint16s) InterleaveHi(Uint16s) Uint16s #83009
+pkg simd, method (Uint16s) InterleaveLo(Uint16s) Uint16s #83009
 pkg simd, method (Uint16s) Len() int #83009
 pkg simd, method (Uint16s) Less(Uint16s) Mask16s #83009
 pkg simd, method (Uint16s) LessEqual(Uint16s) Mask16s #83009
@@ -382,6 +402,8 @@ pkg simd, method (Uint32s) And(Uint32s) Uint32s #83009
 pkg simd, method (Uint32s) AndNot(Uint32s) Uint32s #83009
 pkg simd, method (Uint32s) BitsToFloat32() Float32s #83009
 pkg simd, method (Uint32s) BitsToInt32() Int32s #83009
+pkg simd, method (Uint32s) ConcatEven(Uint32s) Uint32s #83009
+pkg simd, method (Uint32s) ConcatOdd(Uint32s) Uint32s #83009
 pkg simd, method (Uint32s) ConvertToInt32() Int32s #83009
 pkg simd, method (Uint32s) Equal(Uint32s) Mask32s #83009
 pkg simd, method (Uint32s) ExtendToUint64() Uint64s #83009
@@ -389,6 +411,8 @@ pkg simd, method (Uint32s) Greater(Uint32s) Mask32s #83009
 pkg simd, method (Uint32s) GreaterEqual(Uint32s) Mask32s #83009
 pkg simd, method (Uint32s) HiToLo() Uint32s #83009
 pkg simd, method (Uint32s) IfElse(Mask32s, Uint32s) Uint32s #83009
+pkg simd, method (Uint32s) InterleaveHi(Uint32s) Uint32s #83009
+pkg simd, method (Uint32s) InterleaveLo(Uint32s) Uint32s #83009
 pkg simd, method (Uint32s) Len() int #83009
 pkg simd, method (Uint32s) Less(Uint32s) Mask32s #83009
 pkg simd, method (Uint32s) LessEqual(Uint32s) Mask32s #83009
@@ -426,12 +450,16 @@ pkg simd, method (Uint64s) CarrylessMulEven(Uint64s) Uint64s #83009
 pkg simd, method (Uint64s) CarrylessMulEvenOdd(Uint64s) Uint64s #83009
 pkg simd, method (Uint64s) CarrylessMulOdd(Uint64s) Uint64s #83009
 pkg simd, method (Uint64s) CarrylessMulOddEven(Uint64s) Uint64s #83009
+pkg simd, method (Uint64s) ConcatEven(Uint64s) Uint64s #83009
+pkg simd, method (Uint64s) ConcatOdd(Uint64s) Uint64s #83009
 pkg simd, method (Uint64s) ConvertToInt64() Int64s #83009
 pkg simd, method (Uint64s) Equal(Uint64s) Mask64s #83009
 pkg simd, method (Uint64s) Greater(Uint64s) Mask64s #83009
 pkg simd, method (Uint64s) GreaterEqual(Uint64s) Mask64s #83009
 pkg simd, method (Uint64s) HiToLo() Uint64s #83009
 pkg simd, method (Uint64s) IfElse(Mask64s, Uint64s) Uint64s #83009
+pkg simd, method (Uint64s) InterleaveHi(Uint64s) Uint64s #83009
+pkg simd, method (Uint64s) InterleaveLo(Uint64s) Uint64s #83009
 pkg simd, method (Uint64s) Len() int #83009
 pkg simd, method (Uint64s) Less(Uint64s) Mask64s #83009
 pkg simd, method (Uint64s) LessEqual(Uint64s) Mask64s #83009
@@ -462,6 +490,8 @@ pkg simd, method (Uint8s) And(Uint8s) Uint8s #83009
 pkg simd, method (Uint8s) AndNot(Uint8s) Uint8s #83009
 pkg simd, method (Uint8s) Average(Uint8s) Uint8s #83009
 pkg simd, method (Uint8s) BitsToInt8() Int8s #83009
+pkg simd, method (Uint8s) ConcatEven(Uint8s) Uint8s #83009
+pkg simd, method (Uint8s) ConcatOdd(Uint8s) Uint8s #83009
 pkg simd, method (Uint8s) ConvertToInt8() Int8s #83009
 pkg simd, method (Uint8s) Equal(Uint8s) Mask8s #83009
 pkg simd, method (Uint8s) ExtendToUint16() Uint16s #83009
@@ -469,6 +499,8 @@ pkg simd, method (Uint8s) Greater(Uint8s) Mask8s #83009
 pkg simd, method (Uint8s) GreaterEqual(Uint8s) Mask8s #83009
 pkg simd, method (Uint8s) HiToLo() Uint8s #83009
 pkg simd, method (Uint8s) IfElse(Mask8s, Uint8s) Uint8s #83009
+pkg simd, method (Uint8s) InterleaveHi(Uint8s) Uint8s #83009
+pkg simd, method (Uint8s) InterleaveLo(Uint8s) Uint8s #83009
 pkg simd, method (Uint8s) Len() int #83009
 pkg simd, method (Uint8s) Less(Uint8s) Mask8s #83009
 pkg simd, method (Uint8s) LessEqual(Uint8s) Mask8s #83009
@@ -644,7 +676,9 @@ pkg simd/archsimd (GOARCH=amd64), method (Float32x16) Abs() Float32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x16) Add(Float32x16) Float32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x16) Ceil() Float32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x16) Compress(Mask32x16) Float32x16 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Float32x16) ConcatEven(Float32x16) Float32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x16) ConcatLookupMod(Float32x16, Uint32x16) Float32x16 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Float32x16) ConcatOdd(Float32x16) Float32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x16) ConvertToFloat64() Float64x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x16) ConvertToInt32() Int32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x16) ConvertToInt64() Int64x8 #83009
@@ -659,6 +693,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Float32x16) GreaterEqual(Float32x16) M
 pkg simd/archsimd (GOARCH=amd64), method (Float32x16) Hi() Float32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x16) HiToLo() Float32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x16) IfElse(Mask32x16, Float32x16) Float32x16 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Float32x16) InterleaveHi(Float32x16) Float32x16 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Float32x16) InterleaveLo(Float32x16) Float32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x16) IsNaN() Mask32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x16) Len() int #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x16) Less(Float32x16) Mask32x16 #83009
@@ -690,7 +726,9 @@ pkg simd/archsimd (GOARCH=amd64), method (Float32x4) Add(Float32x4) Float32x4 #8
 pkg simd/archsimd (GOARCH=amd64), method (Float32x4) Ceil() Float32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x4) Compress(Mask32x4) Float32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x4) ConcatAddPairs(Float32x4) Float32x4 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Float32x4) ConcatEven(Float32x4) Float32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x4) ConcatLookupMod(Float32x4, Uint32x4) Float32x4 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Float32x4) ConcatOdd(Float32x4) Float32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x4) ConcatSubPairs(Float32x4) Float32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x4) ConvertToFloat64() Float64x2 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x4) ConvertToInt32() Int32x4 #83009
@@ -707,6 +745,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Float32x4) Greater(Float32x4) Mask32x4
 pkg simd/archsimd (GOARCH=amd64), method (Float32x4) GreaterEqual(Float32x4) Mask32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x4) HiToLo() Float32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x4) IfElse(Mask32x4, Float32x4) Float32x4 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Float32x4) InterleaveHi(Float32x4) Float32x4 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Float32x4) InterleaveLo(Float32x4) Float32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x4) IsNaN() Mask32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x4) Len() int #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x4) Less(Float32x4) Mask32x4 #83009
@@ -735,7 +775,9 @@ pkg simd/archsimd (GOARCH=amd64), method (Float32x8) Add(Float32x8) Float32x8 #8
 pkg simd/archsimd (GOARCH=amd64), method (Float32x8) Ceil() Float32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x8) Compress(Mask32x8) Float32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x8) ConcatAddPairsGrouped(Float32x8) Float32x8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Float32x8) ConcatEven(Float32x8) Float32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x8) ConcatLookupMod(Float32x8, Uint32x8) Float32x8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Float32x8) ConcatOdd(Float32x8) Float32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x8) ConcatSubPairsGrouped(Float32x8) Float32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x8) ConvertToFloat64() Float64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x8) ConvertToInt32() Int32x8 #83009
@@ -752,6 +794,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Float32x8) GreaterEqual(Float32x8) Mas
 pkg simd/archsimd (GOARCH=amd64), method (Float32x8) Hi() Float32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x8) HiToLo() Float32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x8) IfElse(Mask32x8, Float32x8) Float32x8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Float32x8) InterleaveHi(Float32x8) Float32x8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Float32x8) InterleaveLo(Float32x8) Float32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x8) IsNaN() Mask32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x8) Len() int #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x8) Less(Float32x8) Mask32x8 #83009
@@ -783,7 +827,9 @@ pkg simd/archsimd (GOARCH=amd64), method (Float64x2) Add(Float64x2) Float64x2 #8
 pkg simd/archsimd (GOARCH=amd64), method (Float64x2) Ceil() Float64x2 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x2) Compress(Mask64x2) Float64x2 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x2) ConcatAddPairs(Float64x2) Float64x2 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Float64x2) ConcatEven(Float64x2) Float64x2 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x2) ConcatLookupMod(Float64x2, Uint64x2) Float64x2 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Float64x2) ConcatOdd(Float64x2) Float64x2 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x2) ConcatSubPairs(Float64x2) Float64x2 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x2) ConvertToFloat32() Float32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x2) ConvertToInt32() Int32x4 #83009
@@ -800,6 +846,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Float64x2) Greater(Float64x2) Mask64x2
 pkg simd/archsimd (GOARCH=amd64), method (Float64x2) GreaterEqual(Float64x2) Mask64x2 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x2) HiToLo() Float64x2 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x2) IfElse(Mask64x2, Float64x2) Float64x2 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Float64x2) InterleaveHi(Float64x2) Float64x2 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Float64x2) InterleaveLo(Float64x2) Float64x2 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x2) IsNaN() Mask64x2 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x2) Len() int #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x2) Less(Float64x2) Mask64x2 #83009
@@ -828,7 +876,9 @@ pkg simd/archsimd (GOARCH=amd64), method (Float64x4) Add(Float64x4) Float64x4 #8
 pkg simd/archsimd (GOARCH=amd64), method (Float64x4) Ceil() Float64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x4) Compress(Mask64x4) Float64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x4) ConcatAddPairsGrouped(Float64x4) Float64x4 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Float64x4) ConcatEven(Float64x4) Float64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x4) ConcatLookupMod(Float64x4, Uint64x4) Float64x4 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Float64x4) ConcatOdd(Float64x4) Float64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x4) ConcatSubPairsGrouped(Float64x4) Float64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x4) ConvertToFloat32() Float32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x4) ConvertToInt32() Int32x8 #83009
@@ -845,6 +895,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Float64x4) GreaterEqual(Float64x4) Mas
 pkg simd/archsimd (GOARCH=amd64), method (Float64x4) Hi() Float64x2 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x4) HiToLo() Float64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x4) IfElse(Mask64x4, Float64x4) Float64x4 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Float64x4) InterleaveHi(Float64x4) Float64x4 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Float64x4) InterleaveLo(Float64x4) Float64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x4) IsNaN() Mask64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x4) Len() int #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x4) Less(Float64x4) Mask64x4 #83009
@@ -875,7 +927,9 @@ pkg simd/archsimd (GOARCH=amd64), method (Float64x8) Abs() Float64x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x8) Add(Float64x8) Float64x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x8) Ceil() Float64x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x8) Compress(Mask64x8) Float64x8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Float64x8) ConcatEven(Float64x8) Float64x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x8) ConcatLookupMod(Float64x8, Uint64x8) Float64x8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Float64x8) ConcatOdd(Float64x8) Float64x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x8) ConvertToFloat32() Float32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x8) ConvertToInt32() Int32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x8) ConvertToInt64() Int64x8 #83009
@@ -890,6 +944,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Float64x8) GreaterEqual(Float64x8) Mas
 pkg simd/archsimd (GOARCH=amd64), method (Float64x8) Hi() Float64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x8) HiToLo() Float64x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x8) IfElse(Mask64x8, Float64x8) Float64x8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Float64x8) InterleaveHi(Float64x8) Float64x8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Float64x8) InterleaveLo(Float64x8) Float64x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x8) IsNaN() Mask64x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x8) Len() int #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x8) Less(Float64x8) Mask64x8 #83009
@@ -924,7 +980,9 @@ pkg simd/archsimd (GOARCH=amd64), method (Int16x16) AndNot(Int16x16) Int16x16 #8
 pkg simd/archsimd (GOARCH=amd64), method (Int16x16) Compress(Mask16x16) Int16x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x16) ConcatAddPairsGrouped(Int16x16) Int16x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x16) ConcatAddPairsSaturatedGrouped(Int16x16) Int16x16 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int16x16) ConcatEven(Int16x16) Int16x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x16) ConcatLookupMod(Int16x16, Uint16x16) Int16x16 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int16x16) ConcatOdd(Int16x16) Int16x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x16) ConcatSubPairsGrouped(Int16x16) Int16x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x16) ConcatSubPairsSaturatedGrouped(Int16x16) Int16x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x16) ConvertToUint16() Uint16x16 #83009
@@ -939,6 +997,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Int16x16) GreaterEqual(Int16x16) Mask1
 pkg simd/archsimd (GOARCH=amd64), method (Int16x16) Hi() Int16x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x16) HiToLo() Int16x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x16) IfElse(Mask16x16, Int16x16) Int16x16 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int16x16) InterleaveHi(Int16x16) Int16x16 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int16x16) InterleaveLo(Int16x16) Int16x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x16) IsZero() bool #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x16) Len() int #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x16) Less(Int16x16) Mask16x16 #83009
@@ -981,7 +1041,9 @@ pkg simd/archsimd (GOARCH=amd64), method (Int16x32) AddSaturated(Int16x32) Int16
 pkg simd/archsimd (GOARCH=amd64), method (Int16x32) And(Int16x32) Int16x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x32) AndNot(Int16x32) Int16x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x32) Compress(Mask16x32) Int16x32 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int16x32) ConcatEven(Int16x32) Int16x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x32) ConcatLookupMod(Int16x32, Uint16x32) Int16x32 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int16x32) ConcatOdd(Int16x32) Int16x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x32) ConvertToUint16() Uint16x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x32) DotProductPairs(Int16x32) Int32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x32) Equal(Int16x32) Mask16x32 #83009
@@ -993,6 +1055,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Int16x32) GreaterEqual(Int16x32) Mask1
 pkg simd/archsimd (GOARCH=amd64), method (Int16x32) Hi() Int16x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x32) HiToLo() Int16x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x32) IfElse(Mask16x32, Int16x32) Int16x32 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int16x32) InterleaveHi(Int16x32) Int16x32 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int16x32) InterleaveLo(Int16x32) Int16x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x32) Len() int #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x32) Less(Int16x32) Mask16x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x32) LessEqual(Int16x32) Mask16x32 #83009
@@ -1037,7 +1101,9 @@ pkg simd/archsimd (GOARCH=amd64), method (Int16x8) AndNot(Int16x8) Int16x8 #8300
 pkg simd/archsimd (GOARCH=amd64), method (Int16x8) Compress(Mask16x8) Int16x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x8) ConcatAddPairs(Int16x8) Int16x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x8) ConcatAddPairsSaturated(Int16x8) Int16x8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int16x8) ConcatEven(Int16x8) Int16x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x8) ConcatLookupMod(Int16x8, Uint16x8) Int16x8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int16x8) ConcatOdd(Int16x8) Int16x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x8) ConcatSubPairs(Int16x8) Int16x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x8) ConcatSubPairsSaturated(Int16x8) Int16x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x8) ConvertToUint16() Uint16x8 #83009
@@ -1093,7 +1159,9 @@ pkg simd/archsimd (GOARCH=amd64), method (Int32x16) Add(Int32x16) Int32x16 #8300
 pkg simd/archsimd (GOARCH=amd64), method (Int32x16) And(Int32x16) Int32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x16) AndNot(Int32x16) Int32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x16) Compress(Mask32x16) Int32x16 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int32x16) ConcatEven(Int32x16) Int32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x16) ConcatLookupMod(Int32x16, Uint32x16) Int32x16 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int32x16) ConcatOdd(Int32x16) Int32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x16) ConcatSaturateToInt16Grouped(Int32x16) Int16x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x16) ConcatSaturateToUint16Grouped(Int32x16) Uint16x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x16) ConvertToFloat32() Float32x16 #83009
@@ -1107,6 +1175,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Int32x16) GreaterEqual(Int32x16) Mask3
 pkg simd/archsimd (GOARCH=amd64), method (Int32x16) Hi() Int32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x16) HiToLo() Int32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x16) IfElse(Mask32x16, Int32x16) Int32x16 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int32x16) InterleaveHi(Int32x16) Int32x16 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int32x16) InterleaveLo(Int32x16) Int32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x16) LeadingZeros() Int32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x16) Len() int #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x16) Less(Int32x16) Mask32x16 #83009
@@ -1152,7 +1222,9 @@ pkg simd/archsimd (GOARCH=amd64), method (Int32x4) And(Int32x4) Int32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x4) AndNot(Int32x4) Int32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x4) Compress(Mask32x4) Int32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x4) ConcatAddPairs(Int32x4) Int32x4 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int32x4) ConcatEven(Int32x4) Int32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x4) ConcatLookupMod(Int32x4, Uint32x4) Int32x4 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int32x4) ConcatOdd(Int32x4) Int32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x4) ConcatSaturateToInt16(Int32x4) Int16x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x4) ConcatSaturateToUint16(Int32x4) Uint16x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x4) ConcatSubPairs(Int32x4) Int32x4 #83009
@@ -1213,7 +1285,9 @@ pkg simd/archsimd (GOARCH=amd64), method (Int32x8) And(Int32x8) Int32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x8) AndNot(Int32x8) Int32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x8) Compress(Mask32x8) Int32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x8) ConcatAddPairsGrouped(Int32x8) Int32x8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int32x8) ConcatEven(Int32x8) Int32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x8) ConcatLookupMod(Int32x8, Uint32x8) Int32x8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int32x8) ConcatOdd(Int32x8) Int32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x8) ConcatSaturateToInt16Grouped(Int32x8) Int16x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x8) ConcatSaturateToUint16Grouped(Int32x8) Uint16x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x8) ConcatSubPairsGrouped(Int32x8) Int32x8 #83009
@@ -1229,6 +1303,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Int32x8) GreaterEqual(Int32x8) Mask32x
 pkg simd/archsimd (GOARCH=amd64), method (Int32x8) Hi() Int32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x8) HiToLo() Int32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x8) IfElse(Mask32x8, Int32x8) Int32x8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int32x8) InterleaveHi(Int32x8) Int32x8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int32x8) InterleaveLo(Int32x8) Int32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x8) IsZero() bool #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x8) LeadingZeros() Int32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x8) Len() int #83009
@@ -1274,7 +1350,9 @@ pkg simd/archsimd (GOARCH=amd64), method (Int64x2) Add(Int64x2) Int64x2 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x2) And(Int64x2) Int64x2 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x2) AndNot(Int64x2) Int64x2 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x2) Compress(Mask64x2) Int64x2 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int64x2) ConcatEven(Int64x2) Int64x2 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x2) ConcatLookupMod(Int64x2, Uint64x2) Int64x2 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int64x2) ConcatOdd(Int64x2) Int64x2 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x2) ConvertToFloat32() Float32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x2) ConvertToFloat64() Float64x2 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x2) ConvertToUint64() Uint64x2 #83009
@@ -1332,7 +1410,9 @@ pkg simd/archsimd (GOARCH=amd64), method (Int64x4) Add(Int64x4) Int64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x4) And(Int64x4) Int64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x4) AndNot(Int64x4) Int64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x4) Compress(Mask64x4) Int64x4 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int64x4) ConcatEven(Int64x4) Int64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x4) ConcatLookupMod(Int64x4, Uint64x4) Int64x4 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int64x4) ConcatOdd(Int64x4) Int64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x4) ConvertToFloat32() Float32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x4) ConvertToFloat64() Float64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x4) ConvertToUint64() Uint64x4 #83009
@@ -1344,6 +1424,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Int64x4) GreaterEqual(Int64x4) Mask64x
 pkg simd/archsimd (GOARCH=amd64), method (Int64x4) Hi() Int64x2 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x4) HiToLo() Int64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x4) IfElse(Mask64x4, Int64x4) Int64x4 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int64x4) InterleaveHi(Int64x4) Int64x4 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int64x4) InterleaveLo(Int64x4) Int64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x4) IsZero() bool #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x4) LeadingZeros() Int64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x4) Len() int #83009
@@ -1391,7 +1473,9 @@ pkg simd/archsimd (GOARCH=amd64), method (Int64x8) Add(Int64x8) Int64x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x8) And(Int64x8) Int64x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x8) AndNot(Int64x8) Int64x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x8) Compress(Mask64x8) Int64x8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int64x8) ConcatEven(Int64x8) Int64x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x8) ConcatLookupMod(Int64x8, Uint64x8) Int64x8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int64x8) ConcatOdd(Int64x8) Int64x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x8) ConvertToFloat32() Float32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x8) ConvertToFloat64() Float64x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x8) ConvertToUint64() Uint64x8 #83009
@@ -1402,6 +1486,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Int64x8) GreaterEqual(Int64x8) Mask64x
 pkg simd/archsimd (GOARCH=amd64), method (Int64x8) Hi() Int64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x8) HiToLo() Int64x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x8) IfElse(Mask64x8, Int64x8) Int64x8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int64x8) InterleaveHi(Int64x8) Int64x8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int64x8) InterleaveLo(Int64x8) Int64x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x8) LeadingZeros() Int64x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x8) Len() int #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x8) Less(Int64x8) Mask64x8 #83009
@@ -1449,7 +1535,9 @@ pkg simd/archsimd (GOARCH=amd64), method (Int8x16) AddSaturated(Int8x16) Int8x16
 pkg simd/archsimd (GOARCH=amd64), method (Int8x16) And(Int8x16) Int8x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x16) AndNot(Int8x16) Int8x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x16) Compress(Mask8x16) Int8x16 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int8x16) ConcatEven(Int8x16) Int8x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x16) ConcatLookupMod(Int8x16, Uint8x16) Int8x16 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int8x16) ConcatOdd(Int8x16) Int8x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x16) ConvertToUint8() Uint8x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x16) Elem(uint8) int8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x16) Enlarge() Int8x32 #83009
@@ -1499,7 +1587,9 @@ pkg simd/archsimd (GOARCH=amd64), method (Int8x32) AddSaturated(Int8x32) Int8x32
 pkg simd/archsimd (GOARCH=amd64), method (Int8x32) And(Int8x32) Int8x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x32) AndNot(Int8x32) Int8x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x32) Compress(Mask8x32) Int8x32 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int8x32) ConcatEven(Int8x32) Int8x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x32) ConcatLookupMod(Int8x32, Uint8x32) Int8x32 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int8x32) ConcatOdd(Int8x32) Int8x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x32) ConvertToUint8() Uint8x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x32) Enlarge() Int8x64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x32) Equal(Int8x32) Mask8x32 #83009
@@ -1512,6 +1602,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Int8x32) GreaterEqual(Int8x32) Mask8x3
 pkg simd/archsimd (GOARCH=amd64), method (Int8x32) Hi() Int8x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x32) HiToLo() Int8x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x32) IfElse(Mask8x32, Int8x32) Int8x32 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int8x32) InterleaveHi(Int8x32) Int8x32 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int8x32) InterleaveLo(Int8x32) Int8x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x32) IsZero() bool #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x32) Len() int #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x32) Less(Int8x32) Mask8x32 #83009
@@ -1549,7 +1641,9 @@ pkg simd/archsimd (GOARCH=amd64), method (Int8x64) AddSaturated(Int8x64) Int8x64
 pkg simd/archsimd (GOARCH=amd64), method (Int8x64) And(Int8x64) Int8x64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x64) AndNot(Int8x64) Int8x64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x64) Compress(Mask8x64) Int8x64 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int8x64) ConcatEven(Int8x64) Int8x64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x64) ConcatLookupMod(Int8x64, Uint8x64) Int8x64 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int8x64) ConcatOdd(Int8x64) Int8x64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x64) ConvertToUint8() Uint8x64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x64) Equal(Int8x64) Mask8x64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x64) Expand(Mask8x64) Int8x64 #83009
@@ -1561,6 +1655,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Int8x64) GreaterEqual(Int8x64) Mask8x6
 pkg simd/archsimd (GOARCH=amd64), method (Int8x64) Hi() Int8x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x64) HiToLo() Int8x64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x64) IfElse(Mask8x64, Int8x64) Int8x64 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int8x64) InterleaveHi(Int8x64) Int8x64 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int8x64) InterleaveLo(Int8x64) Int8x64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x64) Len() int #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x64) Less(Int8x64) Mask8x64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x64) LessEqual(Int8x64) Mask8x64 #83009
@@ -1744,7 +1840,9 @@ pkg simd/archsimd (GOARCH=amd64), method (Uint16x16) Average(Uint16x16) Uint16x1
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x16) BitsToInt16() Int16x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x16) Compress(Mask16x16) Uint16x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x16) ConcatAddPairsGrouped(Uint16x16) Uint16x16 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint16x16) ConcatEven(Uint16x16) Uint16x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x16) ConcatLookupMod(Uint16x16, Uint16x16) Uint16x16 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint16x16) ConcatOdd(Uint16x16) Uint16x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x16) ConcatSubPairsGrouped(Uint16x16) Uint16x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x16) ConvertToInt16() Int16x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x16) Enlarge() Uint16x32 #83009
@@ -1757,6 +1855,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Uint16x16) GreaterEqual(Uint16x16) Mas
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x16) Hi() Uint16x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x16) HiToLo() Uint16x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x16) IfElse(Mask16x16, Uint16x16) Uint16x16 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint16x16) InterleaveHi(Uint16x16) Uint16x16 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint16x16) InterleaveLo(Uint16x16) Uint16x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x16) IsZero() bool #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x16) Len() int #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x16) Less(Uint16x16) Mask16x16 #83009
@@ -1801,7 +1901,9 @@ pkg simd/archsimd (GOARCH=amd64), method (Uint16x32) AndNot(Uint16x32) Uint16x32
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x32) Average(Uint16x32) Uint16x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x32) BitsToInt16() Int16x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x32) Compress(Mask16x32) Uint16x32 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint16x32) ConcatEven(Uint16x32) Uint16x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x32) ConcatLookupMod(Uint16x32, Uint16x32) Uint16x32 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint16x32) ConcatOdd(Uint16x32) Uint16x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x32) ConvertToInt16() Int16x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x32) Equal(Uint16x32) Mask16x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x32) Expand(Mask16x32) Uint16x32 #83009
@@ -1812,6 +1914,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Uint16x32) GreaterEqual(Uint16x32) Mas
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x32) Hi() Uint16x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x32) HiToLo() Uint16x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x32) IfElse(Mask16x32, Uint16x32) Uint16x32 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint16x32) InterleaveHi(Uint16x32) Uint16x32 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint16x32) InterleaveLo(Uint16x32) Uint16x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x32) Len() int #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x32) Less(Uint16x32) Mask16x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x32) LessEqual(Uint16x32) Mask16x32 #83009
@@ -1857,7 +1961,9 @@ pkg simd/archsimd (GOARCH=amd64), method (Uint16x8) Average(Uint16x8) Uint16x8 #
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x8) BitsToInt16() Int16x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x8) Compress(Mask16x8) Uint16x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x8) ConcatAddPairs(Uint16x8) Uint16x8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint16x8) ConcatEven(Uint16x8) Uint16x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x8) ConcatLookupMod(Uint16x8, Uint16x8) Uint16x8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint16x8) ConcatOdd(Uint16x8) Uint16x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x8) ConcatSubPairs(Uint16x8) Uint16x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x8) ConvertToInt16() Int16x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x8) Elem(uint8) uint16 #83009
@@ -1913,7 +2019,9 @@ pkg simd/archsimd (GOARCH=amd64), method (Uint32x16) AndNot(Uint32x16) Uint32x16
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x16) BitsToFloat32() Float32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x16) BitsToInt32() Int32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x16) Compress(Mask32x16) Uint32x16 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint32x16) ConcatEven(Uint32x16) Uint32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x16) ConcatLookupMod(Uint32x16, Uint32x16) Uint32x16 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint32x16) ConcatOdd(Uint32x16) Uint32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x16) ConvertToFloat32() Float32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x16) ConvertToFloat64() Float64x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x16) ConvertToInt32() Int32x16 #83009
@@ -1925,6 +2033,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Uint32x16) GreaterEqual(Uint32x16) Mas
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x16) Hi() Uint32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x16) HiToLo() Uint32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x16) IfElse(Mask32x16, Uint32x16) Uint32x16 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint32x16) InterleaveHi(Uint32x16) Uint32x16 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint32x16) InterleaveLo(Uint32x16) Uint32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x16) LeadingZeros() Uint32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x16) Len() int #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x16) Less(Uint32x16) Mask32x16 #83009
@@ -1973,7 +2083,9 @@ pkg simd/archsimd (GOARCH=amd64), method (Uint32x4) BitsToFloat32() Float32x4 #8
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x4) BitsToInt32() Int32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x4) Compress(Mask32x4) Uint32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x4) ConcatAddPairs(Uint32x4) Uint32x4 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint32x4) ConcatEven(Uint32x4) Uint32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x4) ConcatLookupMod(Uint32x4, Uint32x4) Uint32x4 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint32x4) ConcatOdd(Uint32x4) Uint32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x4) ConcatSubPairs(Uint32x4) Uint32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x4) ConvertToFloat32() Float32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x4) ConvertToFloat64() Float64x2 #83009
@@ -2035,7 +2147,9 @@ pkg simd/archsimd (GOARCH=amd64), method (Uint32x8) BitsToFloat32() Float32x8 #8
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x8) BitsToInt32() Int32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x8) Compress(Mask32x8) Uint32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x8) ConcatAddPairsGrouped(Uint32x8) Uint32x8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint32x8) ConcatEven(Uint32x8) Uint32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x8) ConcatLookupMod(Uint32x8, Uint32x8) Uint32x8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint32x8) ConcatOdd(Uint32x8) Uint32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x8) ConcatSubPairsGrouped(Uint32x8) Uint32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x8) ConvertToFloat32() Float32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x8) ConvertToFloat64() Float64x4 #83009
@@ -2049,6 +2163,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Uint32x8) GreaterEqual(Uint32x8) Mask3
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x8) Hi() Uint32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x8) HiToLo() Uint32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x8) IfElse(Mask32x8, Uint32x8) Uint32x8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint32x8) InterleaveHi(Uint32x8) Uint32x8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint32x8) InterleaveLo(Uint32x8) Uint32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x8) IsZero() bool #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x8) LeadingZeros() Uint32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x8) Len() int #83009
@@ -2101,7 +2217,9 @@ pkg simd/archsimd (GOARCH=amd64), method (Uint64x2) CarrylessMulEvenOdd(Uint64x2
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x2) CarrylessMulOdd(Uint64x2) Uint64x2 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x2) CarrylessMulOddEven(Uint64x2) Uint64x2 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x2) Compress(Mask64x2) Uint64x2 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint64x2) ConcatEven(Uint64x2) Uint64x2 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x2) ConcatLookupMod(Uint64x2, Uint64x2) Uint64x2 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint64x2) ConcatOdd(Uint64x2) Uint64x2 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x2) ConvertToFloat32() Float32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x2) ConvertToFloat64() Float64x2 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x2) ConvertToInt64() Int64x2 #83009
@@ -2165,7 +2283,9 @@ pkg simd/archsimd (GOARCH=amd64), method (Uint64x4) CarrylessMulEvenOdd(Uint64x4
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x4) CarrylessMulOdd(Uint64x4) Uint64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x4) CarrylessMulOddEven(Uint64x4) Uint64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x4) Compress(Mask64x4) Uint64x4 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint64x4) ConcatEven(Uint64x4) Uint64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x4) ConcatLookupMod(Uint64x4, Uint64x4) Uint64x4 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint64x4) ConcatOdd(Uint64x4) Uint64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x4) ConvertToFloat32() Float32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x4) ConvertToFloat64() Float64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x4) ConvertToInt64() Int64x4 #83009
@@ -2177,6 +2297,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Uint64x4) GreaterEqual(Uint64x4) Mask6
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x4) Hi() Uint64x2 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x4) HiToLo() Uint64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x4) IfElse(Mask64x4, Uint64x4) Uint64x4 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint64x4) InterleaveHi(Uint64x4) Uint64x4 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint64x4) InterleaveLo(Uint64x4) Uint64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x4) IsZero() bool #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x4) LeadingZeros() Uint64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x4) Len() int #83009
@@ -2230,7 +2352,9 @@ pkg simd/archsimd (GOARCH=amd64), method (Uint64x8) CarrylessMulEvenOdd(Uint64x8
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x8) CarrylessMulOdd(Uint64x8) Uint64x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x8) CarrylessMulOddEven(Uint64x8) Uint64x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x8) Compress(Mask64x8) Uint64x8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint64x8) ConcatEven(Uint64x8) Uint64x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x8) ConcatLookupMod(Uint64x8, Uint64x8) Uint64x8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint64x8) ConcatOdd(Uint64x8) Uint64x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x8) ConvertToFloat32() Float32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x8) ConvertToFloat64() Float64x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x8) ConvertToInt64() Int64x8 #83009
@@ -2241,6 +2365,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Uint64x8) GreaterEqual(Uint64x8) Mask6
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x8) Hi() Uint64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x8) HiToLo() Uint64x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x8) IfElse(Mask64x8, Uint64x8) Uint64x8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint64x8) InterleaveHi(Uint64x8) Uint64x8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint64x8) InterleaveLo(Uint64x8) Uint64x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x8) LeadingZeros() Uint64x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x8) Len() int #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x8) Less(Uint64x8) Mask64x8 #83009
@@ -2290,7 +2416,9 @@ pkg simd/archsimd (GOARCH=amd64), method (Uint8x16) AndNot(Uint8x16) Uint8x16 #8
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x16) Average(Uint8x16) Uint8x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x16) BitsToInt8() Int8x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x16) Compress(Mask8x16) Uint8x16 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint8x16) ConcatEven(Uint8x16) Uint8x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x16) ConcatLookupMod(Uint8x16, Uint8x16) Uint8x16 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint8x16) ConcatOdd(Uint8x16) Uint8x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x16) ConcatWindow(Uint8x16, uint8) Uint8x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x16) ConvertToInt8() Int8x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x16) DotProductPairsSaturated(Int8x16) Int16x8 #83009
@@ -2344,7 +2472,9 @@ pkg simd/archsimd (GOARCH=amd64), method (Uint8x32) AndNot(Uint8x32) Uint8x32 #8
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x32) Average(Uint8x32) Uint8x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x32) BitsToInt8() Int8x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x32) Compress(Mask8x32) Uint8x32 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint8x32) ConcatEven(Uint8x32) Uint8x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x32) ConcatLookupMod(Uint8x32, Uint8x32) Uint8x32 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint8x32) ConcatOdd(Uint8x32) Uint8x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x32) ConcatWindowGrouped(Uint8x32, uint8) Uint8x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x32) ConvertToInt8() Int8x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x32) DotProductPairsSaturated(Int8x32) Int16x16 #83009
@@ -2359,6 +2489,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Uint8x32) GreaterEqual(Uint8x32) Mask8
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x32) Hi() Uint8x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x32) HiToLo() Uint8x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x32) IfElse(Mask8x32, Uint8x32) Uint8x32 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint8x32) InterleaveHi(Uint8x32) Uint8x32 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint8x32) InterleaveLo(Uint8x32) Uint8x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x32) IsZero() bool #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x32) Len() int #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x32) Less(Uint8x32) Mask8x32 #83009
@@ -2398,7 +2530,9 @@ pkg simd/archsimd (GOARCH=amd64), method (Uint8x64) AndNot(Uint8x64) Uint8x64 #8
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x64) Average(Uint8x64) Uint8x64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x64) BitsToInt8() Int8x64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x64) Compress(Mask8x64) Uint8x64 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint8x64) ConcatEven(Uint8x64) Uint8x64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x64) ConcatLookupMod(Uint8x64, Uint8x64) Uint8x64 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint8x64) ConcatOdd(Uint8x64) Uint8x64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x64) ConcatWindowGrouped(Uint8x64, uint8) Uint8x64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x64) ConvertToInt8() Int8x64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x64) DotProductPairsSaturated(Int8x64) Int16x32 #83009
@@ -2412,6 +2546,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Uint8x64) GreaterEqual(Uint8x64) Mask8
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x64) Hi() Uint8x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x64) HiToLo() Uint8x64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x64) IfElse(Mask8x64, Uint8x64) Uint8x64 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint8x64) InterleaveHi(Uint8x64) Uint8x64 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint8x64) InterleaveLo(Uint8x64) Uint8x64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x64) Len() int #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x64) Less(Uint8x64) Mask8x64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x64) LessEqual(Uint8x64) Mask8x64 #83009

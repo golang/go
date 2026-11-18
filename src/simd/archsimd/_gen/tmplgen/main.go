@@ -1605,6 +1605,7 @@ func main() {
 	op := flag.String("op", SIMD+"other_gen_amd64.go", "file name for other operations")
 	ush := flag.String("ush", SIMD+"unsafe_helpers.go", "file name for unsafe helpers")
 	nc := flag.String("nc", SIMD+"converts_gen_amd64.go", "file name for emulated narrowing conversions")
+	shf := flag.String("shf", SIMD+"shuffles_gen_amd64.go", "file name for emulated shuffles")
 	bh := flag.String("bh", TD+"binary_helpers_%W_test.go", "file name for binary test helpers")
 	uh := flag.String("uh", TD+"unary_helpers_%W_test.go", "file name for unary test helpers")
 	cvh := flag.String("cvh", TD+"convert_helpers_%W_test.go", "file name for conversion test helpers")
@@ -1675,6 +1676,9 @@ func main() {
 	}
 	if *nc != "" {
 		narrowConversions(*nc)
+	}
+	if *shf != "" {
+		emulatedShuffles(*shf)
 	}
 	if *ush != "" {
 		one(*ush, unsafePrologue, unsafePATemplate)
