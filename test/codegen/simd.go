@@ -487,3 +487,64 @@ func zeroFirstInput512(y archsimd.Int32x16) archsimd.Int32x16 {
 	// amd64:`VPSUBD Z[0-9]+, Z15, Z[0-9]+` -`VMOVDQU`
 	return archsimd.Int32x16{}.Sub(y)
 }
+
+// Merged memory operands for VPTERNLOGD/VPTERNLOGQ (issue #82745).
+
+var (
+	ternD128A, ternD128B, ternD128C [4]int32
+	ternD256A, ternD256B, ternD256C [8]int32
+	ternD512A, ternD512B, ternD512C [16]int32
+	ternQ128A, ternQ128B, ternQ128C [2]int64
+	ternQ256A, ternQ256B, ternQ256C [4]int64
+	ternQ512A, ternQ512B, ternQ512C [8]int64
+)
+
+func ternlogD128Load() {
+	if archsimd.X86.AVX512() {
+		a, b, c := archsimd.LoadInt32x4Array(&ternD128A), archsimd.LoadInt32x4Array(&ternD128B), archsimd.LoadInt32x4Array(&ternD128C)
+		// amd64:`VPTERNLOGD \$150, .*\(SB\), X[0-9]+, X[0-9]+`
+		a.Xor(b).Xor(c).StoreArray(&ternD128A)
+	}
+}
+
+func ternlogD256Load() {
+	if archsimd.X86.AVX512() {
+		a, b, c := archsimd.LoadInt32x8Array(&ternD256A), archsimd.LoadInt32x8Array(&ternD256B), archsimd.LoadInt32x8Array(&ternD256C)
+		// amd64:`VPTERNLOGD \$150, .*\(SB\), Y[0-9]+, Y[0-9]+`
+		a.Xor(b).Xor(c).StoreArray(&ternD256A)
+	}
+}
+
+func ternlogD512Load() {
+	a, b, c := archsimd.LoadInt32x16Array(&ternD512A), archsimd.LoadInt32x16Array(&ternD512B), archsimd.LoadInt32x16Array(&ternD512C)
+	// amd64:`VPTERNLOGD \$150, .*\(SB\), Z[0-9]+, Z[0-9]+`
+	a.Xor(b).Xor(c).StoreArray(&ternD512A)
+}
+
+func ternlogD512LoadPtr(x, y, z *[16]int32) archsimd.Int32x16 {
+	a, b, c := archsimd.LoadInt32x16Array(x), archsimd.LoadInt32x16Array(y), archsimd.LoadInt32x16Array(z)
+	// amd64:`VPTERNLOGD \$[0-9]+, \([A-Z0-9]+\), Z[0-9]+, Z[0-9]+`
+	return a.AndNot(b).Xor(c)
+}
+
+func ternlogQ128Load() {
+	if archsimd.X86.AVX512() {
+		a, b, c := archsimd.LoadInt64x2Array(&ternQ128A), archsimd.LoadInt64x2Array(&ternQ128B), archsimd.LoadInt64x2Array(&ternQ128C)
+		// amd64:`VPTERNLOGQ \$150, .*\(SB\), X[0-9]+, X[0-9]+`
+		a.Xor(b).Xor(c).StoreArray(&ternQ128A)
+	}
+}
+
+func ternlogQ256Load() {
+	if archsimd.X86.AVX512() {
+		a, b, c := archsimd.LoadInt64x4Array(&ternQ256A), archsimd.LoadInt64x4Array(&ternQ256B), archsimd.LoadInt64x4Array(&ternQ256C)
+		// amd64:`VPTERNLOGQ \$150, .*\(SB\), Y[0-9]+, Y[0-9]+`
+		a.Xor(b).Xor(c).StoreArray(&ternQ256A)
+	}
+}
+
+func ternlogQ512Load() {
+	a, b, c := archsimd.LoadInt64x8Array(&ternQ512A), archsimd.LoadInt64x8Array(&ternQ512B), archsimd.LoadInt64x8Array(&ternQ512C)
+	// amd64:`VPTERNLOGQ \$150, .*\(SB\), Z[0-9]+, Z[0-9]+`
+	a.Xor(b).Xor(c).StoreArray(&ternQ512A)
+}

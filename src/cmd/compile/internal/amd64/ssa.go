@@ -2350,8 +2350,8 @@ func simdV31ResultInArg0Imm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
 }
 
 // v31loadResultInArg0Imm8
-// Example instruction:
-// for (VPTERNLOGD128load {sym} [makeValAndOff(int32(int8(c)),off)]  x y ptr mem)
+// Example instruction: VPTERNLOGD $150, (SI), X1, X0
+// for (VPTERNLOGD128load {sym} [makeValAndOff(int32(uint8(c)),off)]  x y ptr mem)
 func simdV31loadResultInArg0Imm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	sc := v.AuxValAndOff()
 	p := s.Prog(v.Op.Asm())
@@ -2364,6 +2364,8 @@ func simdV31loadResultInArg0Imm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	p.AddRestSource(m)
 
 	p.AddRestSourceReg(simdReg(v.Args[1]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
 	return p
 }
 
