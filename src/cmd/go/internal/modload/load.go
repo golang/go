@@ -98,7 +98,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"go/build"
 	"internal/diff"
 	"io/fs"
 	"maps"
@@ -113,6 +112,7 @@ import (
 	"sync/atomic"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/build"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fips140"
 	"cmd/go/internal/fsys"

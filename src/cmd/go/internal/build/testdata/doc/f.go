@@ -1,0 +1,2 @@
+// Correct
+package doc

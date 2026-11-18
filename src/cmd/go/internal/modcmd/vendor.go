@@ -9,7 +9,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"go/build"
 	"io"
 	"io/fs"
 	"os"
@@ -19,6 +18,7 @@ import (
 	"strings"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/build"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/gover"

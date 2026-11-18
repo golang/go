@@ -6,13 +6,13 @@ package modindex
 
 import (
 	"cmd/go/internal/base"
+	"cmd/go/internal/build"
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/str"
 	"cmd/internal/par"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"go/build"
 	"go/doc"
 	"go/scanner"
 	"go/token"

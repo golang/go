@@ -8,7 +8,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"go/build"
 	"io/fs"
 	"os"
 	pathpkg "path"
@@ -16,6 +15,7 @@ import (
 	"sort"
 	"strings"
 
+	"cmd/go/internal/build"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/gover"

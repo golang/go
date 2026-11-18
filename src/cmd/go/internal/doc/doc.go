@@ -10,7 +10,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"go/build"
 	"go/token"
 	"io"
 	"log"
@@ -21,6 +20,7 @@ import (
 	"strings"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/build"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"

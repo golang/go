@@ -9,11 +9,11 @@ package modindex
 
 import (
 	"bytes"
+	"cmd/go/internal/build"
 	"cmd/go/internal/fsys"
 	"errors"
 	"fmt"
 	"go/ast"
-	"go/build"
 	"go/build/constraint"
 	"go/token"
 	"internal/syslist"

@@ -5,7 +5,7 @@
 package list
 
 import (
-	"go/build"
+	"cmd/go/internal/build"
 )
 
 type Context struct {

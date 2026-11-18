@@ -7,11 +7,11 @@ package run
 
 import (
 	"context"
-	"go/build"
 	"path/filepath"
 	"strings"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/build"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"

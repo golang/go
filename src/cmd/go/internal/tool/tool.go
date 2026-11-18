@@ -12,7 +12,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"go/build"
 	"go/parser"
 	"go/token"
 	"internal/platform"
@@ -28,6 +27,7 @@ import (
 	"time"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/build"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/modindex"

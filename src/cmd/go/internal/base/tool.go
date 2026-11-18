@@ -6,10 +6,10 @@ package base
 
 import (
 	"fmt"
-	"go/build"
 	"os"
 	"path/filepath"
 
+	"cmd/go/internal/build"
 	"cmd/go/internal/cfg"
 	"cmd/internal/par"
 )

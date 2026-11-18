@@ -43,6 +43,7 @@ var bootstrapDirs = []string{
 	"cmd/go",
 	"cmd/go/internal/base",
 	"cmd/go/internal/bug",
+	"cmd/go/internal/build",
 	"cmd/go/internal/cache",
 	"cmd/go/internal/cacheprog",
 	"cmd/go/internal/cfg",

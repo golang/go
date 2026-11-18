@@ -6,6 +6,7 @@ package search
 
 import (
 	"cmd/go/internal/base"
+	"cmd/go/internal/build"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/imports"
@@ -14,7 +15,6 @@ import (
 	"cmd/internal/pkgpattern"
 	"errors"
 	"fmt"
-	"go/build"
 	"io/fs"
 	"os"
 	"path"

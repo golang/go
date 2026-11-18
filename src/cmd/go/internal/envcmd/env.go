@@ -10,7 +10,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"go/build"
 	"internal/buildcfg"
 	"io"
 	"os"
@@ -23,6 +22,7 @@ import (
 	"unicode/utf8"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/build"
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"

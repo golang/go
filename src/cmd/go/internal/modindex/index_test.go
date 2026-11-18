@@ -7,12 +7,13 @@ package modindex
 import (
 	"encoding/hex"
 	"encoding/json"
-	"go/build"
 	"internal/diff"
 	"path/filepath"
 	"reflect"
 	"runtime"
 	"testing"
+
+	"cmd/go/internal/build"
 )
 
 func init() {

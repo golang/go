@@ -10,7 +10,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"go/build"
 	"internal/buildcfg"
 	"internal/cfg"
 	"internal/platform"
@@ -23,6 +22,7 @@ import (
 	"sync"
 	"time"
 
+	"cmd/go/internal/build"
 	"cmd/go/internal/fsys"
 	"cmd/internal/pathcache"
 )

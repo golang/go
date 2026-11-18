@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
-	"go/build"
 	"go/doc"
 	"go/parser"
 	"go/token"
@@ -25,6 +24,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"cmd/go/internal/build"
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/str"

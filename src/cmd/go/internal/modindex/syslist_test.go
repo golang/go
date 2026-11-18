@@ -7,9 +7,10 @@
 package modindex
 
 import (
-	"go/build"
 	"runtime"
 	"testing"
+
+	"cmd/go/internal/build"
 )
 
 var (

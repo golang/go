@@ -13,7 +13,6 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
-	"go/build"
 	"go/parser"
 	"go/scanner"
 	"go/token"
@@ -22,6 +21,8 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"cmd/go/internal/build"
 )
 
 type importReader struct {

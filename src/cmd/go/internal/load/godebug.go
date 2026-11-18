@@ -7,13 +7,13 @@ package load
 import (
 	"errors"
 	"fmt"
-	"go/build"
 	"internal/godebugs"
 	"maps"
 	"sort"
 	"strconv"
 	"strings"
 
+	"cmd/go/internal/build"
 	"cmd/go/internal/fips140"
 	"cmd/go/internal/gover"
 	"cmd/go/internal/modload"
