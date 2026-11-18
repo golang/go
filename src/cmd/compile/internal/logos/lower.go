@@ -1039,14 +1039,42 @@ func (fc *funcLower) renameResult(sp *resultSpec, spelling string) {
 	}
 	sp.name = nameOf(pos, spelling)
 	sp.field.Name = sp.name
-	typeOff := fc.fl.off(leftmostOf(sp.typeExpr))
+	typeOff := fc.resultTypeHead(sp.typeExpr)
 	if len(fc.specs) > 1 || openParenBefore(fc.fl.src, typeOff) {
-		fc.fl.add(typeOff, typeOff, spelling+" ")
+		fc.fl.addFirst(typeOff, spelling+" ")
 		return
 	}
 	braceOff := fc.fl.off(fc.body.Pos())
-	fc.fl.add(typeOff, typeOff, "("+spelling+" ")
+	fc.fl.addFirst(typeOff, "("+spelling+" ")
 	fc.fl.add(braceOff, braceOff, ") ")
+}
+
+// resultTypeHead returns the offset of the first byte of a result type.
+// An option type T? has its position at the question mark, and so does
+// the rt.Option[T] expression it lowers to, so the head of either is the
+// head of its element, where the option wrapper text also starts; the
+// name is inserted first there and so precedes the wrapper.
+func (fc *funcLower) resultTypeHead(e syntax.Expr) int {
+	switch t := syntax.Unparen(e).(type) {
+	case *syntax.OptionType:
+		return fc.fl.optTypeHead(t.Elem)
+	case *syntax.IndexExpr:
+		if isRTOption(t.X) {
+			return fc.fl.optTypeHead(t.Index)
+		}
+	}
+	return fc.fl.off(leftmostOf(e))
+}
+
+// isRTOption reports whether e is the selector rt.Option that an option
+// type lowers to.
+func isRTOption(e syntax.Expr) bool {
+	sel, ok := e.(*syntax.SelectorExpr)
+	if !ok || sel.Sel.Value != "Option" {
+		return false
+	}
+	pkg, ok := sel.X.(*syntax.Name)
+	return ok && pkg.Value == rtAlias
 }
 
 // openParenBefore reports whether the previous token before off is "(".

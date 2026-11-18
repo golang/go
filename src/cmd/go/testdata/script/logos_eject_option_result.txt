@@ -1,0 +1,112 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+
+logos run .
+cp stdout $WORK/native.txt
+
+# A function with an unnamed option result and a defer? or an errdefer
+# gets synthetic result names. The name must precede the lowered option
+# type in the ejected text, for an ordinary function, for a copy of a
+# comptime generic, and for a pointer payload.
+logos eject -o $WORK/out
+cd $WORK/out
+grep '\(_logos_r0 _logos_rt\.Option\[int64\], _logos_err error\)' main.go
+! grep 'Option\[int64_logos_r0' main.go
+go run .
+cmp stdout $WORK/native.txt
+
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec env -u GOROOT GOEXPERIMENT= $UPROOT1272/bin/go run .
+cmp stdout $WORK/native.txt
+
+-- m/go.mod --
+module example.com/optresult
+
+go 1.27
+-- m/gen/gen.lgo --
+// Package gen holds a comptime generic whose result is an option.
+package gen
+
+import "comptime"
+
+// Closer stands for a resource with a fallible close.
+type Closer struct{}
+
+// Close never fails.
+func (Closer) Close() error { return nil }
+
+// First returns the zero value of T as a present option.
+func First[T any](c Closer) (T?, error) {
+	defer c.Close()?
+	var out T?
+	const if comptime.IsStruct[T]() {
+		return out, nil
+	}
+	var v T
+	out = v
+	return out, nil
+}
+-- m/main.lgo --
+// Command optresult exercises synthetic result names next to option
+// results under eject.
+package main
+
+import (
+	"errors"
+	"fmt"
+
+	"example.com/optresult/gen"
+)
+
+func plain(c gen.Closer) (int64?, error) {
+	defer c.Close()?
+	var out int64?
+	out = 7
+	return out, nil
+}
+
+func pointer(c gen.Closer, n *int64) (*int64?, error) {
+	defer c.Close()?
+	return n, nil
+}
+
+func undone(log *[]string) (int64?, error) {
+	errdefer note(log)?
+	return nil, errors.New("failed")
+}
+
+func note(log *[]string) error {
+	*log = append(*log, "errdefer ran")
+	return nil
+}
+
+func main() {
+	c := gen.Closer{}
+	v, err := plain(c)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println(v ?? -1)
+	n := int64(9)
+	p, err := pointer(c, &n)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	if p != nil {
+		fmt.Println(*p)
+	}
+	g, err := gen.First[int64](c)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println(g ?? -1)
+	var log []string
+	_, err = undone(&log)
+	fmt.Println(err, log)
+}
