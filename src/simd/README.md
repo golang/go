@@ -12,15 +12,58 @@ generators behind them.
 
 The rest of this file is about testing.
 
+## Testing every configuration
+
+The `simd` package picks an implementation when the program starts, based on
+the CPU: emulation if the CPU has no SIMD that the package can use, and
+otherwise the largest vector size the CPU supports. By default, `go test simd`
+only tests the one it picks on your machine, but this behavior can be
+overridden with `GODEBUG` settings. To test every configuration your machine
+can run, use:
+
+```sh
+# From $GOROOT/src. The package has to come before the flag.
+GOEXPERIMENT=simd go test simd -run-godebugs
+```
+
+`-run-godebugs` runs the tests once in each configuration: first under the
+`GODEBUG` setting it was started with, and then under each setting that selects
+another implementation that this CPU can run, such as `GODEBUG=simd=128` for a
+smaller vector size or `GODEBUG=simd=0` for emulation. It prints
+`# GODEBUG=...` before each run, and it passes the other test flags, like
+`-run` and `-v`, on to each run. To list those other settings without running
+anything:
+
+```sh
+GOEXPERIMENT=simd go test -v simd -list-godebugs
+```
+
+To reproduce a failure under one of them, set it yourself, as in
+`GOEXPERIMENT=simd GODEBUG=simd=128 go test simd`.
+
+`go tool dist test`, and so `all.bash` and the builders, also runs the tests
+under each of these settings. Each is a dist test of its own, named like
+`simd:GODEBUG=simd=128`, so `go tool dist test -run '^simd:GODEBUG='` runs just
+these.
+
+These settings can only select what the CPU at hand can run. A machine without
+AVX-512 can't test 512-bit vectors this way, for example. For the CPUs and
+platforms you don't have, see the next section.
+
 ## Testing on other platforms
 
 Every target can be tested from a linux/amd64 workstation except AVX512, which
 needs real hardware. The commands below run from `$GOROOT/src` and test the
-packages with that exercise SIMD operations.
+packages that exercise SIMD operations.
 
 `IN_QEMU=1` tells the tests that they are running under QEMU (some Go builders
 set it, too), so they skip the checks that QEMU is known to fail; see the known
 limitations below.
+
+`-run-godebugs`, and the tests that run the test binary again themselves, start
+it directly rather than with the `-exec` program. An amd64 test binary on an
+amd64 host then runs on the host's CPU, not the emulated one. To test a
+`GODEBUG` setting under an emulator, set it on the command line instead.
 
 ```sh
 # amd64 AVX2 without AVX512 (the same features as the gotip-linux-amd64 builder)
@@ -46,9 +89,6 @@ PATH=$(go env GOROOT)/lib/wasm:$PATH GOEXPERIMENT=simd GOOS=js GOARCH=wasm go te
 
 # wasm under wazero (the default WASI runtime is wasmtime)
 PATH=$(go env GOROOT)/lib/wasm:$PATH GOWASIRUNTIME=wazero GOEXPERIMENT=simd GOOS=wasip1 GOARCH=wasm go test simd simd/archsimd/internal/simd_test
-
-# Pure Go emulation of portable simd
-GOEXPERIMENT=simd GODEBUG=simd=0 go test simd
 ```
 
 To run one build under several CPU models, build the test binary once with
