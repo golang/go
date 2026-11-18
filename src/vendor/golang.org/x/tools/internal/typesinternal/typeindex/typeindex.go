@@ -17,7 +17,6 @@ import (
 	"golang.org/x/tools/go/ast/edge"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
-	"golang.org/x/tools/internal/cursorutil"
 	"golang.org/x/tools/internal/typesinternal"
 )
 
@@ -229,16 +228,16 @@ func (ix *Index) Calls(callee types.Object) iter.Seq[inspector.Cursor] {
 			// Avoiding Enclosing is also significantly faster.
 
 			// inverse unparen: f -> (f)
-			cur = cursorutil.UnparenEnclosing(cur)
+			cur = cur.UnparenEnclosing()
 
 			// ascend selector (or qualified identifier): f -> x.f
 			if cur.ParentEdgeKind() == edge.SelectorExpr_Sel {
-				cur = cursorutil.UnparenEnclosing(cur.Parent())
+				cur = cur.Parent().UnparenEnclosing()
 			}
 
 			// ascend typeparams: f -> f[T]; f -> f[T1, T2]
 			if ek := cur.ParentEdgeKind(); ek == edge.IndexExpr_X || ek == edge.IndexListExpr_X {
-				cur = cursorutil.UnparenEnclosing(cur.Parent())
+				cur = cur.Parent().UnparenEnclosing()
 			}
 
 			// ascend from f or x.f to call

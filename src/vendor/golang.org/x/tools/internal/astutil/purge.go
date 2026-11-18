@@ -26,6 +26,10 @@ import (
 // PurgeFuncBodies may result in a different tree due to its effects
 // on parser error recovery.
 func PurgeFuncBodies(src []byte) []byte {
+	if len(src) == 0 {
+		return nil
+	}
+
 	// Destroy the content of any {...}-bracketed regions that are
 	// not immediately preceded by a "struct" or "interface" token,
 	// and that are not the body of a length-elided array literal.
@@ -34,14 +38,16 @@ func PurgeFuncBodies(src []byte) []byte {
 	// don't have return statements, which of course is a type error,
 	// but that's ok.
 
-	var out bytes.Buffer
 	file := token.NewFileSet().AddFile("", -1, len(src))
+	// Allocate the scanner's line table once, at its final size.
+	file.SetLines(make([]int, 1, 1+bytes.Count(src, []byte("\n"))))
 	var sc scanner.Scanner
 	sc.Init(file, src, nil, 0)
 	var prev token.Token
-	var cursor int         // last consumed src offset
 	var braces []token.Pos // stack of unclosed braces, or -1 for a region we preserve
 	var ellipsis bool      // saw "[...]" not yet consumed by a literal-body "{"
+	var cuts []int         // start and end offsets of each deleted region
+	deleted := 0           // total length of deleted regions
 	for {
 		pos, tok, _ := sc.Scan()
 		if tok == token.EOF {
@@ -79,15 +85,23 @@ func PurgeFuncBodies(src []byte) []byte {
 					// preserve
 				} else if len(braces) == 0 { // toplevel only
 					// Delete {...} body.
-					start := file.Offset(top)
+					start := file.Offset(top) + len("{")
 					end := file.Offset(pos)
-					out.Write(src[cursor : start+len("{")])
-					cursor = end
+					cuts = append(cuts, start, end)
+					deleted += end - start
 				}
 			}
 		}
 		prev = tok
 	}
-	out.Write(src[cursor:])
-	return out.Bytes()
+
+	// Copy the kept regions into a slice of the exact size,
+	// so we avoid growth-by-doubling for these long-lived arrays.
+	out := make([]byte, 0, len(src)-deleted)
+	cursor := 0 // last consumed src offset
+	for i := 0; i < len(cuts); i += 2 {
+		out = append(out, src[cursor:cuts[i]]...)
+		cursor = cuts[i+1]
+	}
+	return append(out, src[cursor:]...)
 }

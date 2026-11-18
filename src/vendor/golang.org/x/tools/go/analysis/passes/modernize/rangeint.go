@@ -276,6 +276,9 @@ func rangeint(pass *analysis.Pass) (any, error) {
 									}
 								}
 							}
+							if beforeLimit != "" && hasCgoType(tVar) {
+								continue nextLoop
+							}
 						}
 
 						pass.Report(analysis.Diagnostic{

@@ -14,13 +14,13 @@
 // The runtime may know about them.
 
 TEXT ·Syscall(SB),NOSPLIT,$0-56
-	MOVD	$syscall·Syscall(SB), R31
-	MOVD	R31, CTR
+	MOVD	$syscall·Syscall(SB), R12
+	MOVD	R12, CTR
 	JMP	(CTR)
 
 TEXT ·Syscall6(SB),NOSPLIT,$0-80
-	MOVD	$syscall·Syscall6(SB), R31
-	MOVD	R31, CTR
+	MOVD	$syscall·Syscall6(SB), R12
+	MOVD	R12, CTR
 	JMP	(CTR)
 
 TEXT ·SyscallNoError(SB),NOSPLIT,$0-48
@@ -39,13 +39,13 @@ TEXT ·SyscallNoError(SB),NOSPLIT,$0-48
 	RET
 
 TEXT ·RawSyscall(SB),NOSPLIT,$0-56
-	MOVD	$syscall·RawSyscall(SB), R31
-	MOVD	R31, CTR
+	MOVD	$syscall·RawSyscall(SB), R12
+	MOVD	R12, CTR
 	JMP	(CTR)
 
 TEXT ·RawSyscall6(SB),NOSPLIT,$0-80
-	MOVD	$syscall·RawSyscall6(SB), R31
-	MOVD	R31, CTR
+	MOVD	$syscall·RawSyscall6(SB), R12
+	MOVD	R12, CTR
 	JMP	(CTR)
 
 TEXT ·RawSyscallNoError(SB),NOSPLIT,$0-48

@@ -23,6 +23,12 @@ func IoctlGetUint32(fd int, req uint) (uint32, error) {
 	return value, err
 }
 
+func IoctlGetUint64(fd int, req uint) (uint64, error) {
+	var value uint64
+	err := ioctlPtr(fd, req, unsafe.Pointer(&value))
+	return value, err
+}
+
 func IoctlGetRTCTime(fd int) (*RTCTime, error) {
 	var value RTCTime
 	err := ioctlPtr(fd, RTC_RD_TIME, unsafe.Pointer(&value))

@@ -51,48 +51,48 @@ var (
 
 func regCreateKeyEx(key syscall.Handle, subkey *uint16, reserved uint32, class *uint16, options uint32, desired uint32, sa *syscall.SecurityAttributes, result *syscall.Handle, disposition *uint32) (regerrno error) {
 	r0, _, _ := syscall.SyscallN(procRegCreateKeyExW.Addr(), uintptr(key), uintptr(unsafe.Pointer(subkey)), uintptr(reserved), uintptr(unsafe.Pointer(class)), uintptr(options), uintptr(desired), uintptr(unsafe.Pointer(sa)), uintptr(unsafe.Pointer(result)), uintptr(unsafe.Pointer(disposition)))
-	if r0 != 0 {
-		regerrno = syscall.Errno(r0)
+	if uint32(r0) != 0 {
+		regerrno = syscall.Errno(uint32(r0))
 	}
 	return
 }
 
 func regDeleteKey(key syscall.Handle, subkey *uint16) (regerrno error) {
 	r0, _, _ := syscall.SyscallN(procRegDeleteKeyW.Addr(), uintptr(key), uintptr(unsafe.Pointer(subkey)))
-	if r0 != 0 {
-		regerrno = syscall.Errno(r0)
+	if uint32(r0) != 0 {
+		regerrno = syscall.Errno(uint32(r0))
 	}
 	return
 }
 
 func regDeleteValue(key syscall.Handle, name *uint16) (regerrno error) {
 	r0, _, _ := syscall.SyscallN(procRegDeleteValueW.Addr(), uintptr(key), uintptr(unsafe.Pointer(name)))
-	if r0 != 0 {
-		regerrno = syscall.Errno(r0)
+	if uint32(r0) != 0 {
+		regerrno = syscall.Errno(uint32(r0))
 	}
 	return
 }
 
 func regEnumValue(key syscall.Handle, index uint32, name *uint16, nameLen *uint32, reserved *uint32, valtype *uint32, buf *byte, buflen *uint32) (regerrno error) {
 	r0, _, _ := syscall.SyscallN(procRegEnumValueW.Addr(), uintptr(key), uintptr(index), uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(nameLen)), uintptr(unsafe.Pointer(reserved)), uintptr(unsafe.Pointer(valtype)), uintptr(unsafe.Pointer(buf)), uintptr(unsafe.Pointer(buflen)))
-	if r0 != 0 {
-		regerrno = syscall.Errno(r0)
+	if uint32(r0) != 0 {
+		regerrno = syscall.Errno(uint32(r0))
 	}
 	return
 }
 
 func regLoadMUIString(key syscall.Handle, name *uint16, buf *uint16, buflen uint32, buflenCopied *uint32, flags uint32, dir *uint16) (regerrno error) {
 	r0, _, _ := syscall.SyscallN(procRegLoadMUIStringW.Addr(), uintptr(key), uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(buf)), uintptr(buflen), uintptr(unsafe.Pointer(buflenCopied)), uintptr(flags), uintptr(unsafe.Pointer(dir)))
-	if r0 != 0 {
-		regerrno = syscall.Errno(r0)
+	if uint32(r0) != 0 {
+		regerrno = syscall.Errno(uint32(r0))
 	}
 	return
 }
 
 func regSetValueEx(key syscall.Handle, valueName *uint16, reserved uint32, vtype uint32, buf *byte, bufsize uint32) (regerrno error) {
 	r0, _, _ := syscall.SyscallN(procRegSetValueExW.Addr(), uintptr(key), uintptr(unsafe.Pointer(valueName)), uintptr(reserved), uintptr(vtype), uintptr(unsafe.Pointer(buf)), uintptr(bufsize))
-	if r0 != 0 {
-		regerrno = syscall.Errno(r0)
+	if uint32(r0) != 0 {
+		regerrno = syscall.Errno(uint32(r0))
 	}
 	return
 }

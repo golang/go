@@ -114,7 +114,7 @@
 // (*exportWriter).value for details.
 //
 //
-// There are twelve kinds of type descriptors, distinguished by an itag:
+// There are several kinds of type descriptors, distinguished by an itag:
 //
 //     type DefinedType struct {
 //         Tag     itag // definedType
@@ -182,6 +182,19 @@
 //         }
 //     }
 //
+//     // Reference to a struct or interface literal of another
+//     // package (shallow mode only; see typepath.go).
+//     type ExternalType struct {
+//         Tag  itag // externalType
+//         Ref  LiteralRef
+//     }
+//
+//     type LiteralRef struct {
+//         PkgPath stringOff
+//         Root    stringOff // name of exported package-level object
+//         Steps   []uvarint // component indices; see typePath
+//     }
+//
 //     // Reference to a type param declaration
 //     type TypeParamType struct {
 //         Tag     itag // typeParamType
@@ -240,8 +253,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-
-	"golang.org/x/tools/go/types/objectpath"
 	// This package is dependency-restricted; see x/tools/go/gcexportdata.TestDeps.
 )
 
@@ -298,8 +309,6 @@ func IExportShallow(fset *token.FileSet, pkg *types.Package, reportf ReportFunc)
 //
 // If the provided reportf func is non-nil, it will be used for reporting bugs
 // encountered during import.
-// TODO(rfindley): remove reportf when we are confident enough in the new
-// objectpath encoding.
 func IImportShallow(fset *token.FileSet, getPackages GetPackagesFunc, data []byte, path string, reportf ReportFunc) (*types.Package, error) {
 	const shallow = true
 	pkgs, err := iimportCommon(fset, getPackages, data, path, shallow, reportf)
@@ -353,6 +362,7 @@ func iexportCommon(out io.Writer, fset *token.FileSet, shallow bool, version int
 		tparamNames: map[types.Object]string{},
 		typIndex:    map[types.Type]uint64{},
 		localpkg:    pkgs[0],
+		reportf:     reportf,
 	}
 
 	for i, pt := range predeclared() {
@@ -535,9 +545,10 @@ type iexporter struct {
 	fset    *token.FileSet
 	version int
 
-	shallow    bool                // don't put types from other packages in the index
-	objEncoder *objectpath.Encoder // encodes objects from other packages in shallow mode; lazily allocated
-	localpkg   *types.Package
+	shallow     bool                                       // don't encode types from other packages; refer to them by name (or typePath)
+	typeIndexes map[*types.Package]map[types.Type]typePath // paths to literals of other packages in shallow mode; lazily populated
+	localpkg    *types.Package
+	reportf     ReportFunc // if non-nil, used to report bugs
 
 	// allPkgs tracks all packages that have been referenced by
 	// the export data, so we can ensure to include them in the
@@ -575,17 +586,6 @@ func (p *iexporter) trace(format string, args ...any) {
 		return
 	}
 	fmt.Printf(strings.Repeat("..", p.indent)+format+"\n", args...)
-}
-
-// objectpathEncoder returns the lazily allocated objectpath.Encoder to use
-// when encoding objects in other packages during shallow export.
-//
-// Using a shared Encoder amortizes some of cost of objectpath search.
-func (p *iexporter) objectpathEncoder() *objectpath.Encoder {
-	if p.objEncoder == nil {
-		p.objEncoder = new(objectpath.Encoder)
-	}
-	return p.objEncoder
 }
 
 // stringOff returns the offset of s within the string section.
@@ -1046,6 +1046,12 @@ func (w *exportWriter) doTyp(t types.Type, pkg *types.Package) {
 		w.signature(t)
 
 	case *types.Struct:
+		// In shallow mode, a literal of another package is
+		// encoded as a reference to it (see typepath.go).
+		if w.p.shallow && w.externalLiteral(t) {
+			return
+		}
+
 		w.startType(structType)
 		n := t.NumFields()
 		// Even for struct{} we must emit some qualifying package, because that's
@@ -1076,9 +1082,6 @@ func (w *exportWriter) doTyp(t types.Type, pkg *types.Package) {
 
 		for i := range n {
 			f := t.Field(i)
-			if w.p.shallow {
-				w.objectPath(f)
-			}
 			w.pos(f.Pos())
 			w.string(f.Name()) // unexported fields implicitly qualified by prior setPkg
 			w.typ(f.Type(), fieldPkg)
@@ -1087,8 +1090,20 @@ func (w *exportWriter) doTyp(t types.Type, pkg *types.Package) {
 		}
 
 	case *types.Interface:
+		// (See comment for case *types.Struct.)
+		if w.p.shallow && w.externalLiteral(t) {
+			return
+		}
+
 		w.startType(interfaceType)
-		w.pkg(pkg) // qualifies unexported method funcs
+		methodPkg := pkg
+		for i := range t.NumExplicitMethods() {
+			if mp := t.ExplicitMethod(i).Pkg(); mp != nil {
+				methodPkg = mp
+				break
+			}
+		}
+		w.pkg(methodPkg) // qualifies unexported method funcs
 
 		n := t.NumEmbeddeds()
 		w.uint64(uint64(n))
@@ -1103,16 +1118,10 @@ func (w *exportWriter) doTyp(t types.Type, pkg *types.Package) {
 			w.typ(ft, pkg)
 		}
 
-		// See comment for struct fields. In shallow mode we change the encoding
-		// for interface methods that are promoted from other packages.
-
 		n = t.NumExplicitMethods()
 		w.uint64(uint64(n))
 		for i := 0; i < n; i++ {
 			m := t.ExplicitMethod(i)
-			if w.p.shallow {
-				w.objectPath(m)
-			}
 			w.pos(m.Pos())
 			w.string(m.Name())
 			sig := m.Type().(*types.Signature)
@@ -1134,61 +1143,70 @@ func (w *exportWriter) doTyp(t types.Type, pkg *types.Package) {
 	}
 }
 
-// objectPath writes the package and objectPath to use to look up obj in a
-// different package, when encoding in "shallow" mode.
+// externalLiteral reports whether t, a struct or interface literal,
+// should be encoded in shallow mode as a reference to a literal of
+// another package, and if so, writes the reference.
 //
-// When doing a shallow import, the importer creates only the local package,
-// and requests package symbols for dependencies from the client.
-// However, certain types defined in the local package may hold objects defined
-// (perhaps deeply) within another package.
-//
-// For example, consider the following:
-//
-//	package a
-//	func F() chan * map[string] struct { X int }
-//
-//	package b
-//	import "a"
-//	var B = a.F()
-//
-// In this example, the type of b.B holds fields defined in package a.
-// In order to have the correct canonical objects for the field defined in the
-// type of B, they are encoded as objectPaths and later looked up in the
-// importer. The same problem applies to interface methods.
-func (w *exportWriter) objectPath(obj types.Object) {
-	if obj.Pkg() == nil || obj.Pkg() == w.p.localpkg {
-		// obj.Pkg() may be nil for the builtin error.Error.
-		// In this case, or if obj is declared in the local package, no need to
-		// encode.
-		w.string("")
-		return
+// If t has members (fields or explicit methods) declared in a package
+// other than the local one, and t is reachable from the API of that
+// package, externalLiteral writes a reference to it (see typepath.go),
+// so that the importer uses the canonical literal and members. It
+// reports an internal error if t cannot be reached: the importer will
+// create fresh member objects, which is a bug unless the package is
+// ill-typed.
+func (w *exportWriter) externalLiteral(t types.Type) bool {
+	p := w.p
+
+	// TODO(golang/go#61674): a literal created by instantiation (such
+	// as the underlying type of B in "type B a.A[int]") is not
+	// reachable from the API of a, so it is encoded in full, and the
+	// importer creates fresh member objects: even members that the
+	// instance shares with its origin, whose types do not depend on
+	// type parameters, lose their identity, and the fresh members do
+	// not record their origin. We plan to fix this once the real
+	// implementation of this codec lives in the standard library,
+	// where the importer can set Var.Origin and Func.Origin.
+	var pkg *types.Package // package of first member
+	for m := range literalMembers(t) {
+		if pkg == nil {
+			pkg = m.Pkg()
+			if pkg == nil || pkg == p.localpkg {
+				return false // local literal (or ill-typed)
+			}
+		}
+		if origin(m) != m {
+			return false // instance
+		}
 	}
-	objectPath, err := w.p.objectpathEncoder().For(obj)
-	if err != nil {
-		// Fall back to the empty string, which will cause the importer to create a
-		// new object, which matches earlier behavior. Creating a new object is
-		// sufficient for many purposes (such as type checking), but causes certain
-		// references algorithms to fail (golang/go#60819). However, we didn't
-		// notice this problem during months of gopls@v0.12.0 testing.
-		//
-		// TODO(golang/go#61674): this workaround is insufficient, as in the case
-		// where the field forwarded from an instantiated type that may not appear
-		// in the export data of the original package:
-		//
-		//  // package a
-		//  type A[P any] struct{ F P }
-		//
-		//  // package b
-		//  type B a.A[int]
-		//
-		// We need to update references algorithms not to depend on this
-		// de-duplication, at which point we may want to simply remove the
-		// workaround here.
-		w.string("")
-		return
+	if pkg == nil {
+		return false // no member objects whose identity must be preserved
 	}
-	w.string(string(objectPath))
-	w.pkg(obj.Pkg())
+
+	// Memoize each package's newTypeIndex traversal.
+	ix := p.typeIndexes[pkg]
+	if ix == nil {
+		ix = newTypeIndex(pkg)
+		if p.typeIndexes == nil {
+			p.typeIndexes = make(map[*types.Package]map[types.Type]typePath)
+		}
+		p.typeIndexes[pkg] = ix
+	}
+	path, ok := ix[t]
+	if !ok {
+		if p.reportf != nil {
+			p.reportf("shallow export: no path to %s (a literal of package %s)", t, pkg.Path())
+		}
+		return false
+	}
+
+	w.startType(externalType)
+	w.pkg(pkg)
+	w.string(path.root)
+	w.uint64(uint64(len(path.steps)))
+	for _, i := range path.steps {
+		w.uint64(uint64(i))
+	}
+	return true
 }
 
 func (w *exportWriter) signature(sig *types.Signature) {

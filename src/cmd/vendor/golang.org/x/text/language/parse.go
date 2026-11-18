@@ -166,7 +166,9 @@ func ParseAcceptLanguage(s string) (tag []Tag, q []float32, err error) {
 		}
 	}()
 
-	if strings.Count(s, "-") > 1000 {
+	// The BCP 47 scanner aliases '_' to '-' in scanner.init
+	// (internal/language/parse.go); the guard must count both.
+	if strings.Count(s, "-")+strings.Count(s, "_") > 1000 {
 		return nil, nil, errTagListTooLarge
 	}
 

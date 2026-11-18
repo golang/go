@@ -160,16 +160,6 @@ func bloop(pass *analysis.Pass) (any, error) {
 	return nil, nil
 }
 
-// uses reports whether the subtree cur contains a use of obj.
-func uses(index *typeindex.Index, cur inspector.Cursor, obj types.Object) bool {
-	for use := range index.Uses(obj) {
-		if cur.Contains(use) {
-			return true
-		}
-	}
-	return false
-}
-
 // enclosingFunc returns the cursor for the innermost Func{Decl,Lit}
 // that encloses c, if any.
 func enclosingFunc(c inspector.Cursor) (inspector.Cursor, bool) {

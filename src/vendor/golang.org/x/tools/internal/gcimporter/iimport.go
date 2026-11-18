@@ -19,8 +19,6 @@ import (
 	"slices"
 	"sort"
 	"strings"
-
-	"golang.org/x/tools/go/types/objectpath"
 	// This package is dependency-restricted; see x/tools/go/gcexportdata.TestDeps.
 )
 
@@ -86,6 +84,7 @@ const (
 	instanceType
 	unionType
 	aliasType
+	externalType // shallow mode only
 )
 
 // Object tags
@@ -201,6 +200,9 @@ func iimportCommon(fset *token.FileSet, getPackages GetPackagesFunc, data []byte
 	declData := data[whence+sLen+fLen : whence+sLen+fLen+dLen]
 	r.Seek(sLen+fLen+dLen, io.SeekCurrent)
 
+	if reportf == nil {
+		reportf = func(string, ...any) {}
+	}
 	p := iimporter{
 		version: int(version),
 		ipath:   path,
@@ -599,7 +601,7 @@ func (r *importReader) obj(pkg *types.Package, name string) {
 				if r.p.version >= iexportVersionGenericMethods && r.bool() {
 					tpars = r.tparamList()
 				}
-				recv := r.param(pkg)
+				recv := r.param(pkg, types.RecvVar)
 
 				// If the receiver has any targs, set those as the
 				// rparams of the method (since those are the
@@ -939,28 +941,16 @@ func (r *importReader) doType(base *types.Named) (res types.Type) {
 		fields := make([]*types.Var, r.uint64())
 		tags := make([]string, len(fields))
 		for i := range fields {
-			var field *types.Var
-			if r.p.shallow {
-				field, _ = r.objectPathObject().(*types.Var)
-			}
-
 			fpos := r.pos()
 			fname := r.ident()
 			ftyp := r.typ()
 			emb := r.bool()
 			tag := r.string()
 
-			// Either this is not a shallow import, the field is local, or the
-			// encoded objectPath failed to produce an object (a bug).
-			//
-			// Even in this last, buggy case, fall back on creating a new field. As
-			// discussed in iexport.go, this is not correct, but mostly works and is
-			// preferable to failing (for now at least).
-			if field == nil {
-				field = types.NewField(fpos, fieldPkg, fname, ftyp, emb)
-			}
-
-			fields[i] = field
+			// TODO(golang/go#61674): fields of instances of literals of
+			// other packages should preserve identity (or Origin); see
+			// exportWriter.externalLiteral.
+			fields[i] = types.NewField(fpos, fieldPkg, fname, ftyp, emb)
 			tags[i] = tag
 		}
 		return types.NewStruct(fields, tags)
@@ -976,11 +966,6 @@ func (r *importReader) doType(base *types.Named) (res types.Type) {
 
 		methods := make([]*types.Func, r.uint64())
 		for i := range methods {
-			var method *types.Func
-			if r.p.shallow {
-				method, _ = r.objectPathObject().(*types.Func)
-			}
-
 			mpos := r.pos()
 			mname := r.ident()
 
@@ -989,13 +974,12 @@ func (r *importReader) doType(base *types.Named) (res types.Type) {
 			var recv *types.Var
 			if base != nil {
 				recv = types.NewVar(token.NoPos, methodPkg, "", base)
+				recv.SetKind(types.RecvVar)
 			}
 			msig := r.signature(methodPkg, recv, nil, nil)
 
-			if method == nil {
-				method = types.NewFunc(mpos, methodPkg, mname, msig)
-			}
-			methods[i] = method
+			// TODO(golang/go#61674): as for struct fields.
+			methods[i] = types.NewFunc(mpos, methodPkg, mname, msig)
 		}
 
 		typ := types.NewInterfaceType(methods, embeddeds)
@@ -1047,6 +1031,18 @@ func (r *importReader) doType(base *types.Named) (res types.Type) {
 			terms[i] = types.NewTerm(r.bool(), r.typ())
 		}
 		return types.NewUnion(terms)
+
+	case externalType:
+		if !r.p.shallow {
+			errorf("unexpected external type in deep export data")
+		}
+		t := r.literalRef()
+		switch t.(type) {
+		case *types.Struct, *types.Interface:
+		default:
+			errorf("external type %v is not a struct or interface literal", t)
+		}
+		return t
 	}
 }
 
@@ -1054,29 +1050,21 @@ func (r *importReader) kind() itag {
 	return itag(r.uint64())
 }
 
-// objectPathObject is the inverse of exportWriter.objectPath.
-//
-// In shallow mode, certain fields and methods may need to be looked up in an
-// imported package. See the doc for exportWriter.objectPath for a full
-// explanation.
-func (r *importReader) objectPathObject() types.Object {
-	objPath := objectpath.Path(r.string())
-	if objPath == "" {
-		return nil
-	}
+// literalRef decodes a reference to a struct or interface literal
+// of another package, written by [exportWriter.externalLiteral].
+func (r *importReader) literalRef() types.Type {
 	pkg := r.pkg()
-	obj, err := objectpath.Object(pkg, objPath)
-	if err != nil {
-		if r.p.reportf != nil {
-			r.p.reportf("failed to find object for objectPath %q: %v", objPath, err)
-		}
+	path := typePath{root: r.string()}
+	path.steps = make([]int, r.uint64())
+	for i := range path.steps {
+		path.steps[i] = int(r.uint64())
 	}
-	return obj
+	return resolveTypePath(pkg, path)
 }
 
 func (r *importReader) signature(paramPkg *types.Package, recv *types.Var, rparams []*types.TypeParam, tparams []*types.TypeParam) *types.Signature {
-	params := r.paramList(paramPkg)
-	results := r.paramList(paramPkg)
+	params := r.paramList(paramPkg, types.ParamVar)
+	results := r.paramList(paramPkg, types.ResultVar)
 	variadic := params.Len() > 0 && r.bool()
 	return types.NewSignatureType(recv, rparams, tparams, params, results, variadic)
 }
@@ -1095,19 +1083,21 @@ func (r *importReader) tparamList() []*types.TypeParam {
 	return xs
 }
 
-func (r *importReader) paramList(pkg *types.Package) *types.Tuple {
+func (r *importReader) paramList(pkg *types.Package, kind types.VarKind) *types.Tuple {
 	xs := make([]*types.Var, r.uint64())
 	for i := range xs {
-		xs[i] = r.param(pkg)
+		xs[i] = r.param(pkg, kind)
 	}
 	return types.NewTuple(xs...)
 }
 
-func (r *importReader) param(pkg *types.Package) *types.Var {
+func (r *importReader) param(pkg *types.Package, kind types.VarKind) *types.Var {
 	pos := r.pos()
 	name := r.ident()
 	typ := r.typ()
-	return types.NewParam(pos, pkg, name, typ)
+	param := types.NewParam(pos, pkg, name, typ)
+	param.SetKind(kind) // ∈ {Recv,Param,Result}Var
+	return param
 }
 
 func (r *importReader) bool() bool {

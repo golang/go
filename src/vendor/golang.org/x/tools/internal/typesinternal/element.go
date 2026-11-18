@@ -9,8 +9,9 @@ import (
 	"go/types"
 )
 
-// ForEachElement calls f for type T and each type reachable from its
-// type through reflection. It does this by recursively stripping off
+// ForEachElement calls f for the unaliased type T and each unaliased
+// type reachable from it through reflection.
+// It does this by recursively stripping off
 // type constructors; in addition, for each named type N, the type *N
 // is added to the result as it may have additional methods.
 //
@@ -26,6 +27,20 @@ import (
 func ForEachElement(methodSetOf func(types.Type) *types.MethodSet, T types.Type, f func(T types.Type, access bool) bool) {
 	var visit func(T types.Type, access bool)
 	visit = func(T types.Type, access bool) {
+		// Unalias before calling f (emulating pre-Alias behavior),
+		// rather than as a *types.Alias case in the switch below.
+		// Callers deduplicate in f using types.Identical (via
+		// typeutil.Map), so given:
+		//
+		//	type S struct{ x int }
+		//	func (*S) M() {}
+		//	type A = S
+		//
+		// calling f(A) first would record A as seen, causing a
+		// recursive visit(types.Unalias(A)) to prune S at f(S)
+		// before reaching the switch to visit *S (for (*S).M) and
+		// S's field type int.
+		T = types.Unalias(T)
 		if f(T, access) {
 			return // duplicate; prune descent
 		}
@@ -67,9 +82,6 @@ func ForEachElement(methodSetOf func(types.Type) *types.MethodSet, T types.Type,
 		}
 
 		switch T := T.(type) {
-		case *types.Alias:
-			visit(types.Unalias(T), access) // emulates the pre-Alias behavior
-
 		case *types.Basic:
 			// nop
 

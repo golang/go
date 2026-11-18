@@ -52,6 +52,7 @@ type asmArch struct {
 	bigEndian bool
 	stack     string
 	lr        bool
+	retPCSize int // size of the return-PC slot; defaults to intSize
 	// retRegs is a list of registers for return value in register ABI (ABIInternal).
 	// For now, as we only check whether we write to any result, here we only need to
 	// include the first integer register and first floating-point register. Accessing
@@ -60,10 +61,9 @@ type asmArch struct {
 	// writeResult is a list of instructions that will change result register implicitly.
 	writeResult []string
 	// calculated during initialization
-	sizes    types.Sizes
-	intSize  int
-	ptrSize  int
-	maxAlign int
+	sizes   types.Sizes
+	intSize int
+	ptrSize int
 }
 
 // An asmFunc describes the expected variables for a function on a given architecture.
@@ -98,6 +98,7 @@ var (
 	asmArchRISCV64  = asmArch{name: "riscv64", bigEndian: false, stack: "SP", lr: true, retRegs: []string{"X10", "F10"}, writeResult: []string{"ECALL"}}
 	asmArchS390X    = asmArch{name: "s390x", bigEndian: true, stack: "R15", lr: true}
 	asmArchWasm     = asmArch{name: "wasm", bigEndian: false, stack: "SP", lr: false}
+	asmArchWasm32   = asmArch{name: "wasm32", bigEndian: false, stack: "SP", lr: false, retPCSize: 8}
 	asmArchLoong64  = asmArch{name: "loong64", bigEndian: false, stack: "R3", lr: true, retRegs: []string{"R4", "F0"}, writeResult: []string{"SYSCALL"}}
 
 	arches = []*asmArch{
@@ -114,13 +115,23 @@ var (
 		&asmArchRISCV64,
 		&asmArchS390X,
 		&asmArchWasm,
+		&asmArchWasm32,
 		&asmArchLoong64,
 	}
 )
 
+func isWasm(arch string) bool {
+	return arch == "wasm" || arch == "wasm32"
+}
+
 func init() {
 	for _, arch := range arches {
 		arch.sizes = types.SizesFor("gc", arch.name)
+		if arch.sizes == nil && arch.name == "wasm32" {
+			// Go 1.27 and earlier do not know wasm32. Its data layout matches
+			// amd64p32: 4-byte pointers and ints with a maximum alignment of 8 bytes.
+			arch.sizes = types.SizesFor("gc", "amd64p32")
+		}
 		if arch.sizes == nil {
 			// TODO(adonovan): fix: now that asmdecl is not in the standard
 			// library we cannot assume types.SizesFor is consistent with arches.
@@ -133,21 +144,24 @@ func init() {
 		}
 		arch.intSize = int(arch.sizes.Sizeof(types.Typ[types.Int]))
 		arch.ptrSize = int(arch.sizes.Sizeof(types.Typ[types.UnsafePointer]))
-		arch.maxAlign = int(arch.sizes.Alignof(types.Typ[types.Int64]))
+		if arch.retPCSize == 0 {
+			arch.retPCSize = arch.intSize
+		}
 	}
 }
 
 var (
-	re           = regexp.MustCompile
-	asmPlusBuild = re(`//\s+\+build\s+([^\n]+)`)
-	asmTEXT      = re(`\bTEXT\b(.*)·([^\(]+)\(SB\)(?:\s*,\s*([0-9A-Z|+()]+))?(?:\s*,\s*\$(-?[0-9]+)(?:-([0-9]+))?)?`)
-	asmDATA      = re(`\b(DATA|GLOBL)\b`)
-	asmNamedFP   = re(`\$?([a-zA-Z0-9_\xFF-\x{10FFFF}]+)(?:\+([0-9]+))\(FP\)`)
-	asmUnnamedFP = re(`[^+\-0-9](([0-9]+)\(FP\))`)
-	asmSP        = re(`[^+\-0-9](([0-9]+)\(([A-Z0-9]+)\))`)
-	asmOpcode    = re(`^\s*(?:[A-Z0-9a-z_]+:)?\s*([A-Z]+)\s*([^,]*)(?:,\s*(.*))?`)
-	ppc64Suff    = re(`([BHWD])(ZU|Z|U|BR)?$`)
-	abiSuff      = re(`^(.+)<(ABI.+)>$`)
+	re            = regexp.MustCompile
+	asmPlusBuild  = re(`//\s+\+build\s+([^\n]+)`)
+	asmTEXT       = re(`\bTEXT\b(.*)·([^\(]+)\(SB\)(?:\s*,\s*([0-9A-Z|+()]+))?(?:\s*,\s*\$(-?[0-9]+)(?:-([0-9]+))?)?`)
+	asmDATA       = re(`\b(DATA|GLOBL)\b`)
+	asmNamedFP    = re(`\$?([a-zA-Z0-9_\xFF-\x{10FFFF}]+)(?:\+([0-9]+))\(FP\)`)
+	asmUnnamedFP  = re(`[^+\-0-9](([0-9]+)\(FP\))`)
+	asmSP         = re(`[^+\-0-9](([0-9]+)\(([A-Z0-9]+)\))`)
+	asmOpcode     = re(`^\s*(?:[A-Z0-9a-z_]+:)?\s*([A-Z]+)\s*([^,]*)(?:,\s*(.*))?`)
+	asmWasmOpcode = re(`^\s*(?:[A-Z0-9a-z_]+:)?\s*([A-Za-z][A-Za-z0-9]*)\s*([^,]*)(?:,\s*(.*))?`) // some opcodes include lowercase, e.g. I32Load
+	ppc64Suff     = re(`([BHWD])(ZU|Z|U|BR)?$`)
+	abiSuff       = re(`^(.+)<(ABI.+)>$`)
 )
 
 func run(pass *analysis.Pass) (any, error) {
@@ -303,7 +317,7 @@ Files:
 					}
 				}
 				localSize, _ = strconv.Atoi(m[4])
-				localSize += archDef.intSize
+				localSize += archDef.retPCSize
 				if archDef.lr && !strings.Contains(flag, "NOFRAME") {
 					// Account for caller's saved LR
 					localSize += archDef.intSize
@@ -347,7 +361,7 @@ Files:
 				continue
 			}
 
-			if arch == "wasm" && strings.Contains(line, "CallImport") {
+			if isWasm(arch) && strings.Contains(line, "CallImport") {
 				// CallImport is a call out to magic that can write the result.
 				haveRetArg = true
 			}
@@ -635,7 +649,7 @@ func asmParseDecl(pass *analysis.Pass, decl *ast.FuncDecl) map[string]*asmFunc {
 		offset = 0
 		addParams(decl.Type.Params.List, false)
 		if decl.Type.Results != nil && len(decl.Type.Results.List) > 0 {
-			offset += -offset & (arch.maxAlign - 1)
+			offset += -offset & (arch.ptrSize - 1)
 			addParams(decl.Type.Results.List, true)
 		}
 		fn.size = offset
@@ -647,7 +661,11 @@ func asmParseDecl(pass *analysis.Pass, decl *ast.FuncDecl) map[string]*asmFunc {
 
 // asmCheckVar checks a single variable reference.
 func asmCheckVar(badf func(string, ...any), fn *asmFunc, line, expr string, off int, v *asmVar, archDef *asmArch) {
-	m := asmOpcode.FindStringSubmatch(line)
+	opcode := asmOpcode
+	if isWasm(fn.arch.name) {
+		opcode = asmWasmOpcode
+	}
+	m := opcode.FindStringSubmatch(line)
 	if m == nil {
 		if !strings.HasPrefix(strings.TrimSpace(line), "//") {
 			badf("cannot find assembly opcode")
@@ -762,6 +780,17 @@ func asmCheckVar(badf func(string, ...any), fn *asmFunc, line, expr string, off 
 			case "MOVW", "MOVWZ", "FMOVS":
 				src = 4
 			case "MOVD", "FMOVD":
+				src = 8
+			}
+		case "wasm", "wasm32":
+			switch op {
+			case "MOVB", "I32Load8S", "I32Load8U", "I64Load8S", "I64Load8U", "I32Store8", "I64Store8":
+				src = 1
+			case "MOVH", "I32Load16S", "I32Load16U", "I64Load16S", "I64Load16U", "I32Store16", "I64Store16":
+				src = 2
+			case "MOVW", "I32Load", "I64Load32S", "I64Load32U", "F32Load", "I32Store", "I64Store32", "F32Store":
+				src = 4
+			case "MOVD", "I64Load", "F64Load", "I64Store", "F64Store":
 				src = 8
 			}
 		}

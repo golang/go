@@ -11,6 +11,7 @@ import (
 
 	"golang.org/x/tools/go/ast/edge"
 	"golang.org/x/tools/go/ast/inspector"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 // IsAssignedOrAddressTaken reports whether the expression cur denotes a
@@ -20,11 +21,12 @@ import (
 // These examples cause IsAssignedOrAddressTaken on the identifier for x to
 // return true:
 //
-//		x = 1
-//		x++
-//		x[i] = 1	   (assume x is an array)
-//		x.a[i] = 1	 (assume x.a is a non-pointer struct field)
-//	  use(&x)
+//	x = 1
+//	x++
+//	x[i] = 1	 (assume x is an array)
+//	x.a[i] = 1	 (assume x.a is a non-pointer struct field)
+//	use(&x)
+//	use(x[i:j])	 (assume x is an array; the slice aliases x)
 //
 // whereas these cause it to return false:
 //
@@ -44,7 +46,8 @@ import (
 //	var x int     => IsAssignedOrAddressTaken(x) = false
 //	x := 1        => IsAssignedOrAddressTaken(x) = false
 //
-// In the absence of type information, we conservatively return true.
+// For some ill-formed code, such as a non-identifier on the LHS of :=, or when
+// the type of x in x[i] or x[i:j] is unknown, we conservatively return true.
 //
 // TODO(adonovan): revisit the surprising behavior for declarations.
 func IsAssignedOrAddressTaken(info *types.Info, cur inspector.Cursor) bool {
@@ -52,9 +55,12 @@ func IsAssignedOrAddressTaken(info *types.Info, cur inspector.Cursor) bool {
 	// as it is always true for a variable even when that variable is
 	// used only as an r-value. So we must inspect enclosing syntax.
 outer:
-	// Ascend to outermost aggregate of which
-	// original cur is a part:
-	//    x -> (x) | x.f | x[i] | x[i:j]
+	// Ascend to the outermost expression that denotes the
+	// same variable as the original cur, or part of it:
+	//    x -> (x) | x.f | x[i]
+	// where x.f does not go through a pointer and x[i] indexes an array.
+	// Other forms (array slices x[i:j], method selections, pointer
+	// indirections) are decided immediately within the loop.
 	for cur = range cur.Enclosing() {
 		switch cur.ParentEdgeKind() {
 		case edge.ParenExpr_X:
@@ -89,14 +95,20 @@ outer:
 				}
 			}
 		case edge.IndexExpr_X, edge.SliceExpr_X:
-			// If x[i] or x[i:j] is an lvalue,
-			// then x is an lvalue iff x is an array.
+			// x[i] and x[i:j] refer to x's own memory only if x is an
+			// array; for slices, maps, strings, and pointers to arrays,
+			// they go through a reference and do not involve x itself.
+			// If x is a type parameter, it may be instantiated with an
+			// array if any type in its type set is an array.
 			t := info.TypeOf(cur.Node().(ast.Expr))
 			if t == nil || t == types.Typ[types.Invalid] {
 				return true // no type information (ill-typed code); be conservative
 			}
-			if !is[*types.Array](t.Underlying()) {
+			if !mayBeArray(t) {
 				return false
+			}
+			if cur.ParentEdgeKind() == edge.SliceExpr_X {
+				return true // x[i:j] on an array implicitly takes &x
 			}
 		default:
 			break outer
@@ -108,7 +120,10 @@ outer:
 		if assign.Tok != token.DEFINE {
 			return true // x = j or x += j
 		}
-		id := cur.Node().(*ast.Ident)
+		id, ok := cur.Node().(*ast.Ident)
+		if !ok {
+			return true // ill-formed, e.g. (x) := 1; be conservative
+		}
 		// Re-assigned identifiers are recorded in the Uses map.
 		if _, ok := info.Uses[id]; ok {
 			return true // reassignment of x (x, y := 1, 2)
@@ -123,6 +138,28 @@ outer:
 	case edge.UnaryExpr_X:
 		if cur.Parent().Node().(*ast.UnaryExpr).Op == token.AND {
 			return true // &x
+		}
+	}
+	return false
+}
+
+// mayBeArray reports whether t is an array type, or a type parameter
+// (or other interface) whose type set includes an array type.
+//
+// It conservatively returns true if the type set has no specific
+// types, since such an operand cannot be indexed or sliced in
+// well-typed code.
+func mayBeArray(t types.Type) bool {
+	if !types.IsInterface(t) { // common case: not a type parameter
+		return is[*types.Array](t.Underlying())
+	}
+	tset := typeparams.TypeSetOf(t)
+	if tset.Unrestricted() {
+		return true // ill-typed code; be conservative
+	}
+	for u := range tset.UnderlyingTypes() {
+		if is[*types.Array](u) {
+			return true
 		}
 	}
 	return false

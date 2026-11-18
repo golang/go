@@ -12,7 +12,6 @@ package cursorutil
 import (
 	"go/ast"
 
-	"golang.org/x/tools/go/ast/edge"
 	"golang.org/x/tools/go/ast/inspector"
 	// no dependencies other than those of Cursor!
 )
@@ -45,39 +44,4 @@ func FirstEnclosing[N ast.Node](cur inspector.Cursor) (N, inspector.Cursor) {
 		return cur.Node().(N), cur
 	}
 	return typ, inspector.Cursor{}
-}
-
-// Unparen returns the cursor for an expression with any
-// enclosing parentheses removed, similar to [ast.Unparen].
-// It is often prudent to call this before switching on the
-// type of cur.Node().
-//
-// See also [UnparenEnclosing].
-//
-// TODO(adonovan): promote to Cursor.Unparen method (go.dev/issue/78995).
-func Unparen(cur inspector.Cursor) inspector.Cursor {
-	for is[*ast.ParenExpr](cur) {
-		cur, _ = cur.FirstChild()
-	}
-	return cur
-}
-
-// UnparenEnclosing returns the first element of
-// the [Cursor.Enclosing] sequence that is not itself enclosed
-// in parens. It is often prudent to call this before switching on
-// cur.ParentEdge().
-//
-// See also [Unparen].
-//
-// TODO(adonovan): promote to Cursor.UnparenEnclosing method (go.dev/issue/78995).
-func UnparenEnclosing(cur inspector.Cursor) inspector.Cursor {
-	for cur.ParentEdgeKind() == edge.ParenExpr_X {
-		cur = cur.Parent()
-	}
-	return cur
-}
-
-func is[T any](x any) bool {
-	_, ok := x.(T)
-	return ok
 }

@@ -98,6 +98,10 @@ func errorsastype(pass *analysis.Pass) (any, error) {
 			panic("no Ident for errors.As")
 		}
 
+		if hasCgoType(v.Type()) {
+			continue
+		}
+
 		// Format the type as valid Go syntax.
 		// TODO(adonovan): fix: FileQualifier needs to respect
 		// visibility at the current point, and either fail

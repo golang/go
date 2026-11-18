@@ -43,6 +43,6 @@ var (
 
 func isProcessorFeaturePresent(ProcessorFeature uint32) (ret bool) {
 	r0, _, _ := syscall.SyscallN(procIsProcessorFeaturePresent.Addr(), uintptr(ProcessorFeature))
-	ret = r0 != 0
+	ret = uint32(r0) != 0
 	return
 }

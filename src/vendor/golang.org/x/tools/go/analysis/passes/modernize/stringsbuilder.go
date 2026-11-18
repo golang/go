@@ -22,7 +22,6 @@ import (
 	"golang.org/x/tools/internal/analysis/analyzerutil"
 	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
 	"golang.org/x/tools/internal/astutil"
-	"golang.org/x/tools/internal/cursorutil"
 	"golang.org/x/tools/internal/refactor"
 	"golang.org/x/tools/internal/typesinternal/typeindex"
 )
@@ -129,12 +128,21 @@ nextcand:
 				continue
 			}
 
+			// Declaring the Builder before the initializer would shadow any
+			// references to the outer object with the same name. Empty string
+			// initializers are discarded, so their bindings do not matter.
+			empty := isEmptyString(info, assign.Rhs[0])
+			rhsScope := def.Parent().Child(assign.Rhs[0])
+			if !empty && uses(index, rhsScope, lookup(info, def, v.Name())) {
+				continue
+			}
+
 			// Add strings import.
 			prefix, importEdits := refactor.AddImport(
 				info, astutil.EnclosingFile(def), "strings", "strings", "Builder", v.Pos())
 			edits = append(edits, importEdits...)
 
-			if isEmptyString(info, assign.Rhs[0]) {
+			if empty {
 				// s := ""
 				// ---------------------
 				// var s strings.Builder
@@ -179,13 +187,22 @@ nextcand:
 			// of comments and vertical space.
 			// We expect this to be rare.
 
+			spec := def.Parent().Node().(*ast.ValueSpec)
+			decl := def.Parent().Parent().Node().(*ast.GenDecl)
+
+			// As above, preserve the initializer's name resolution.
+			needsInit := len(spec.Values) > 0 && !isEmptyString(info, spec.Values[0])
+			if needsInit {
+				rhsScope := def.Parent().Child(spec.Values[0])
+				if uses(index, rhsScope, lookup(info, def, v.Name())) {
+					continue
+				}
+			}
+
 			// Add strings import.
 			prefix, importEdits := refactor.AddImport(
 				info, astutil.EnclosingFile(def), "strings", "strings", "Builder", v.Pos())
 			edits = append(edits, importEdits...)
-
-			spec := def.Parent().Node().(*ast.ValueSpec)
-			decl := def.Parent().Parent().Node().(*ast.GenDecl)
 
 			init := spec.Names[0].End() // start of " = expr"
 			if spec.Type != nil {
@@ -203,7 +220,7 @@ nextcand:
 				NewText: fmt.Appendf(nil, " %sBuilder", prefix),
 			})
 
-			if len(spec.Values) > 0 && !isEmptyString(info, spec.Values[0]) {
+			if needsInit {
 				if decl.Rparen.IsValid() {
 					// var decl with explicit parens:
 					//
@@ -283,7 +300,7 @@ nextcand:
 		)
 		for curUse := range index.Uses(v) {
 			// Strip enclosing parens around Ident.
-			curUse = cursorutil.UnparenEnclosing(curUse)
+			curUse = curUse.UnparenEnclosing()
 			ek := curUse.ParentEdgeKind()
 
 			// intervening reports whether cur has an ancestor of

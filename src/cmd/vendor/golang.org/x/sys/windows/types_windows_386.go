@@ -33,3 +33,13 @@ type JOBOBJECT_BASIC_LIMIT_INFORMATION struct {
 	SchedulingClass         uint32
 	_                       uint32 // pad to 8 byte boundary
 }
+
+type MemoryBasicInformation struct {
+	BaseAddress       uintptr
+	AllocationBase    uintptr
+	AllocationProtect uint32
+	RegionSize        uintptr
+	State             uint32
+	Protect           uint32
+	Type              uint32
+}

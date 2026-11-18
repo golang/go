@@ -387,8 +387,17 @@ func (st *falconState) fieldTypes(fields *ast.FieldList) {
 // redundant constraints than to avoid them.
 func (st *falconState) expr(e ast.Expr) (res any) { // = types.TypeAndValue | ast.Expr
 	tv := st.info.Types[e]
-	if tv.Value != nil {
-		// A constant value overrides any other result.
+	// A constant value overrides any other result.
+	//
+	// However, an untyped constant converted to a type
+	// parameter (e.g. the 1 in 1<<n+x, where x is of type T)
+	// is recorded as a constant of type T, which has no
+	// falcon type. Such constants are treated as non-constant,
+	// as are conversions T(x); the cases below all yield nil
+	// for them. (This means we do not detect e.g. overflow in T.
+	// A more precise treatment would emit a constraint for each
+	// type in T's type set.) See go.dev/issue/83129.
+	if tv.Value != nil && is[*types.Basic](tv.Type.Underlying()) {
 		defer func() { res = tv }()
 	}
 

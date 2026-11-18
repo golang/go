@@ -14,7 +14,6 @@ import (
 	"golang.org/x/tools/internal/analysis/analyzerutil"
 	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
 	"golang.org/x/tools/internal/astutil"
-	"golang.org/x/tools/internal/cursorutil"
 	"golang.org/x/tools/internal/refactor"
 	"golang.org/x/tools/internal/typesinternal"
 	"golang.org/x/tools/internal/typesinternal/typeindex"
@@ -57,7 +56,7 @@ func reflecttypeassert(pass *analysis.Pass) (any, error) {
 
 		// The call must be the operand of a type assertion
 		// (not a type switch, whose Type field is nil).
-		curOperand := cursorutil.UnparenEnclosing(curCall)
+		curOperand := curCall.UnparenEnclosing()
 		if curOperand.ParentEdgeKind() != edge.TypeAssertExpr_X {
 			continue
 		}
@@ -71,7 +70,7 @@ func reflecttypeassert(pass *analysis.Pass) (any, error) {
 		// assignment, x, ok := v.Interface().(T), so that the
 		// rewrite preserves the "commaOK" semantics; a single-valued
 		// assertion panics on failure whereas TypeAssert does not.
-		curRhs := cursorutil.UnparenEnclosing(curAssert)
+		curRhs := curAssert.UnparenEnclosing()
 		if curRhs.ParentEdgeKind() != edge.AssignStmt_Rhs {
 			continue
 		}

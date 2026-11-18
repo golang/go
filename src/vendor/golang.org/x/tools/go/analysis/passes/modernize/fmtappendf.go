@@ -61,7 +61,11 @@ func fmtappendf(pass *analysis.Pass) (any, error) {
 					// should skip these cases.
 					if fn.Name() == "Sprint" || fn.Name() == "Sprintf" {
 						format := info.Types[call.Args[0]].Value
-						if format != nil && mayFormatEmpty(constant.StringVal(format)) {
+						// Sprint's first operand need not be a string (e.g. fmt.Sprint(42)), and
+						// constant.StringVal panics on non-string constants. Only constant string
+						// operands are checked for possibly-empty output; all other operands
+						// (non-string constants and non-constants) are rewritten as usual.
+						if format != nil && format.Kind() == constant.String && mayFormatEmpty(constant.StringVal(format)) {
 							continue
 						}
 					}

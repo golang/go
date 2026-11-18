@@ -644,7 +644,7 @@ var depsRules = `
 	# x/tools
 	# These are the only allowed dependencies of gcexportdata. Any change here
 	# must be mirrored in x/tools/go/gcexportdata/deps_test.go.
-	FMT, STR, crypto/md5, encoding/binary, encoding/json, go/build, go/token, go/types
+	FMT, STR, crypto/md5, encoding/binary, encoding/json, go/analysis, go/build, go/token, go/types
 	< golang.org/x/tools/go/types/objectpath,
 	  golang.org/x/tools/internal/pkgbits
 	< golang.org/x/tools/internal/gcimporter

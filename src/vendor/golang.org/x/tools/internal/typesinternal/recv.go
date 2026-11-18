@@ -17,7 +17,8 @@ import (
 // brackets. T is called the receiver base type."
 //
 // The named result is nil if fn is not a method, or if its receiver
-// is an anonymous interface or struct type, as in interface{ f() }.
+// is an anonymous interface or struct type, as in interface{ f() },
+// or invalid.
 //
 // TODO(adonovan): go.dev/issue/81715 proposes this as a method of *types.Func.
 func RecvBase(fn *types.Func) (isPtr bool, named *types.Named) {

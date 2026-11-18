@@ -14,10 +14,12 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/ast/edge"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
 	"golang.org/x/tools/internal/analysis/analyzerutil"
 	"golang.org/x/tools/internal/astutil"
+	"golang.org/x/tools/internal/moreiters"
 	"golang.org/x/tools/internal/versions"
 )
 
@@ -149,7 +151,6 @@ func run(pass *analysis.Pass) (any, error) {
 			var targ types.Type
 			{
 				arg := call.Args[0]
-				tvarg := info.Types[arg]
 
 				// A composite literal whose type is inferred from
 				// the parameter (go1.28) cannot be an operand of new,
@@ -158,26 +159,39 @@ func run(pass *analysis.Pass) (any, error) {
 					continue
 				}
 
-				// Constants: we must work around the type checker
+				// CheckExpr (below) would add the scope of a func type
+				// in arg to the package's scope tree, racing with other
+				// analyzers that read it (go.dev/issue/83063).
+				//
+				// TODO(golang/go#83063): remove this workaround once
+				// CheckExpr no longer modifies the package's scope tree.
+				// Other callers of CheckExpr have the same problem.
+				curArg := curCall.ChildAt(edge.CallExpr_Args, 0)
+				if !moreiters.Empty(curArg.Preorder((*ast.FuncType)(nil))) {
+					continue
+				}
+
+				// Untyped expressions: we must work around the type checker
 				// bug that causes info.Types to wrongly report the
 				// "typed" type for an untyped constant.
 				// (See "historical reasons" in issue go.dev/issue/70638.)
+				// Similarly, an untyped non-constant expression such as
+				// 1<<n or a<b takes its type from the parameter, but
+				// would have its default type as the operand of new
+				// (go.dev/issue/83039).
 				//
 				// We don't have a reliable way to do this but we can attempt
-				// to re-typecheck the constant expression on its own, in
+				// to re-typecheck the argument expression on its own, in
 				// the original lexical environment but not as a part of some
 				// larger expression that implies a conversion to some "typed" type.
 				// (For the genesis of this idea see (*state).arguments
 				// in ../../../../internal/refactor/inline/inline.go.)
-				if tvarg.Value != nil {
-					info2 := &types.Info{Types: make(map[ast.Expr]types.TypeAndValue)}
-					if err := types.CheckExpr(token.NewFileSet(), pass.Pkg, token.NoPos, arg, info2); err != nil {
-						continue // unexpected error
-					}
-					tvarg = info2.Types[arg]
+				info2 := &types.Info{Types: make(map[ast.Expr]types.TypeAndValue)}
+				if err := types.CheckExpr(pass.Fset, pass.Pkg, call.Pos(), arg, info2); err != nil {
+					continue // unexpected error
 				}
 
-				targ = types.Default(tvarg.Type)
+				targ = types.Default(info2.Types[arg].Type)
 			}
 			if !types.Identical(types.NewPointer(targ), info.TypeOf(call)) {
 				continue

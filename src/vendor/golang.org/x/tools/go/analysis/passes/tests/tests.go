@@ -236,13 +236,13 @@ func validateFuzzArgs(pass *analysis.Pass, params *types.Tuple, expr ast.Expr) b
 	for i := 1; i < params.Len(); i++ {
 		if !isAcceptedFuzzType(params.At(i).Type()) {
 			if isFuncLit {
-				curr := 0
-				for _, field := range fLit.Type.Params.List {
-					curr += len(field.Names)
-					if i < curr {
+				j := 0
+				for _, field := range astutil.Fields(fLit.Type.Params) {
+					if j == i {
 						exprRange = field.Type
 						break
 					}
+					j++
 				}
 			}
 			pass.ReportRangef(exprRange, "fuzzing arguments can only have the following types: %s", formatAcceptedFuzzType())

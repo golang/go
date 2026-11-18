@@ -32,3 +32,14 @@ type JOBOBJECT_BASIC_LIMIT_INFORMATION struct {
 	PriorityClass           uint32
 	SchedulingClass         uint32
 }
+
+type MemoryBasicInformation struct {
+	BaseAddress       uintptr
+	AllocationBase    uintptr
+	AllocationProtect uint32
+	PartitionId       uint16
+	RegionSize        uintptr
+	State             uint32
+	Protect           uint32
+	Type              uint32
+}
