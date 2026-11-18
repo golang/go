@@ -739,50 +739,76 @@ func (x Float64x2) Elem(i uint8) (z float64)
 
 // Equal returns a mask indicating which elements of x and y are equal.
 //
+//	z[i] = x[i] == y[i]
+//
 // Asm: I8x16Eq
 func (x Int8x16) Equal(y Int8x16) (z Mask8x16)
 
 // Equal returns a mask indicating which elements of x and y are equal.
+//
+//	z[i] = x[i] == y[i]
 //
 // Asm: I8x16Eq
 func (x Uint8x16) Equal(y Uint8x16) (z Mask8x16)
 
 // Equal returns a mask indicating which elements of x and y are equal.
 //
+//	z[i] = x[i] == y[i]
+//
 // Asm: I16x8Eq
 func (x Int16x8) Equal(y Int16x8) (z Mask16x8)
 
 // Equal returns a mask indicating which elements of x and y are equal.
+//
+//	z[i] = x[i] == y[i]
 //
 // Asm: I16x8Eq
 func (x Uint16x8) Equal(y Uint16x8) (z Mask16x8)
 
 // Equal returns a mask indicating which elements of x and y are equal.
 //
+//	z[i] = x[i] == y[i]
+//
 // Asm: I32x4Eq
 func (x Int32x4) Equal(y Int32x4) (z Mask32x4)
 
 // Equal returns a mask indicating which elements of x and y are equal.
+//
+//	z[i] = x[i] == y[i]
 //
 // Asm: I32x4Eq
 func (x Uint32x4) Equal(y Uint32x4) (z Mask32x4)
 
 // Equal returns a mask indicating which elements of x and y are equal.
 //
+//	z[i] = x[i] == y[i]
+//
+// Like Go's == operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
+//
 // Asm: F32x4Eq
 func (x Float32x4) Equal(y Float32x4) (z Mask32x4)
 
 // Equal returns a mask indicating which elements of x and y are equal.
+//
+//	z[i] = x[i] == y[i]
 //
 // Asm: I64x2Eq
 func (x Int64x2) Equal(y Int64x2) (z Mask64x2)
 
 // Equal returns a mask indicating which elements of x and y are equal.
 //
+//	z[i] = x[i] == y[i]
+//
 // Asm: I64x2Eq
 func (x Uint64x2) Equal(y Uint64x2) (z Mask64x2)
 
 // Equal returns a mask indicating which elements of x and y are equal.
+//
+//	z[i] = x[i] == y[i]
+//
+// Like Go's == operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
 //
 // Asm: F64x2Eq
 func (x Float64x2) Equal(y Float64x2) (z Mask64x2)
@@ -915,6 +941,9 @@ func (x Uint32x4) Greater(y Uint32x4) (z Mask32x4)
 //
 //	z[i] = x[i] > y[i]
 //
+// Like Go's > operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
+//
 // Asm: F32x4Gt
 func (x Float32x4) Greater(y Float32x4) (z Mask32x4)
 
@@ -928,6 +957,9 @@ func (x Int64x2) Greater(y Int64x2) (z Mask64x2)
 // Greater returns a mask indicating which elements of x are greater than y.
 //
 //	z[i] = x[i] > y[i]
+//
+// Like Go's > operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
 //
 // Asm: F64x2Gt
 func (x Float64x2) Greater(y Float64x2) (z Mask64x2)
@@ -985,6 +1017,9 @@ func (x Uint32x4) GreaterEqual(y Uint32x4) (z Mask32x4)
 //
 //	z[i] = x[i] >= y[i]
 //
+// Like Go's >= operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
+//
 // Asm: F32x4Ge
 func (x Float32x4) GreaterEqual(y Float32x4) (z Mask32x4)
 
@@ -1000,6 +1035,9 @@ func (x Int64x2) GreaterEqual(y Int64x2) (z Mask64x2)
 // or equal to y.
 //
 //	z[i] = x[i] >= y[i]
+//
+// Like Go's >= operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
 //
 // Asm: F64x2Ge
 func (x Float64x2) GreaterEqual(y Float64x2) (z Mask64x2)
@@ -1162,6 +1200,9 @@ func (x Uint32x4) Less(y Uint32x4) (z Mask32x4)
 //
 //	z[i] = x[i] < y[i]
 //
+// Like Go's < operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
+//
 // Asm: F32x4Lt
 func (x Float32x4) Less(y Float32x4) (z Mask32x4)
 
@@ -1175,6 +1216,9 @@ func (x Int64x2) Less(y Int64x2) (z Mask64x2)
 // Less returns a mask indicating which elements of x are less than y.
 //
 //	z[i] = x[i] < y[i]
+//
+// Like Go's < operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
 //
 // Asm: F64x2Lt
 func (x Float64x2) Less(y Float64x2) (z Mask64x2)
@@ -1232,6 +1276,9 @@ func (x Uint32x4) LessEqual(y Uint32x4) (z Mask32x4)
 //
 //	z[i] = x[i] <= y[i]
 //
+// Like Go's <= operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
+//
 // Asm: F32x4Le
 func (x Float32x4) LessEqual(y Float32x4) (z Mask32x4)
 
@@ -1247,6 +1294,9 @@ func (x Int64x2) LessEqual(y Int64x2) (z Mask64x2)
 // equal to y.
 //
 //	z[i] = x[i] <= y[i]
+//
+// Like Go's <= operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
 //
 // Asm: F64x2Le
 func (x Float64x2) LessEqual(y Float64x2) (z Mask64x2)
@@ -1766,50 +1816,76 @@ func (x Mask64x2) Not() (z Mask64x2)
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
 //
+//	z[i] = x[i] != y[i]
+//
 // Asm: I8x16Ne
 func (x Int8x16) NotEqual(y Int8x16) (z Mask8x16)
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
 //
 // Asm: I8x16Ne
 func (x Uint8x16) NotEqual(y Uint8x16) (z Mask8x16)
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
 //
+//	z[i] = x[i] != y[i]
+//
 // Asm: I16x8Ne
 func (x Int16x8) NotEqual(y Int16x8) (z Mask16x8)
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
 //
 // Asm: I16x8Ne
 func (x Uint16x8) NotEqual(y Uint16x8) (z Mask16x8)
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
 //
+//	z[i] = x[i] != y[i]
+//
 // Asm: I32x4Ne
 func (x Int32x4) NotEqual(y Int32x4) (z Mask32x4)
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
 //
 // Asm: I32x4Ne
 func (x Uint32x4) NotEqual(y Uint32x4) (z Mask32x4)
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
 //
+//	z[i] = x[i] != y[i]
+//
+// Like Go's != operator on floating-point values, this follows IEEE 754: the
+// result is true if either element is NaN, and +0 equals -0.
+//
 // Asm: F32x4Ne
 func (x Float32x4) NotEqual(y Float32x4) (z Mask32x4)
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
 //
 // Asm: I64x2Ne
 func (x Int64x2) NotEqual(y Int64x2) (z Mask64x2)
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
 //
+//	z[i] = x[i] != y[i]
+//
 // Asm: I64x2Ne
 func (x Uint64x2) NotEqual(y Uint64x2) (z Mask64x2)
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
+//
+// Like Go's != operator on floating-point values, this follows IEEE 754: the
+// result is true if either element is NaN, and +0 equals -0.
 //
 // Asm: F64x2Ne
 func (x Float64x2) NotEqual(y Float64x2) (z Mask64x2)

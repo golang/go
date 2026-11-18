@@ -3214,150 +3214,228 @@ func (x Uint64x4) Enlarge() (z Uint64x8)
 
 // Equal returns a mask indicating which elements of x and y are equal.
 //
+//	z[i] = x[i] == y[i]
+//
 // Asm: VPCMPEQB, CPU Feature: AVX
 func (x Int8x16) Equal(y Int8x16) (z Mask8x16)
 
 // Equal returns a mask indicating which elements of x and y are equal.
+//
+//	z[i] = x[i] == y[i]
 //
 // Asm: VPCMPEQB, CPU Feature: AVX2
 func (x Int8x32) Equal(y Int8x32) (z Mask8x32)
 
 // Equal returns a mask indicating which elements of x and y are equal.
 //
+//	z[i] = x[i] == y[i]
+//
 // Asm: VPCMPEQB, CPU Feature: AVX512
 func (x Int8x64) Equal(y Int8x64) (z Mask8x64)
 
 // Equal returns a mask indicating which elements of x and y are equal.
+//
+//	z[i] = x[i] == y[i]
 //
 // Asm: VPCMPEQW, CPU Feature: AVX
 func (x Int16x8) Equal(y Int16x8) (z Mask16x8)
 
 // Equal returns a mask indicating which elements of x and y are equal.
 //
+//	z[i] = x[i] == y[i]
+//
 // Asm: VPCMPEQW, CPU Feature: AVX2
 func (x Int16x16) Equal(y Int16x16) (z Mask16x16)
 
 // Equal returns a mask indicating which elements of x and y are equal.
+//
+//	z[i] = x[i] == y[i]
 //
 // Asm: VPCMPEQW, CPU Feature: AVX512
 func (x Int16x32) Equal(y Int16x32) (z Mask16x32)
 
 // Equal returns a mask indicating which elements of x and y are equal.
 //
+//	z[i] = x[i] == y[i]
+//
 // Asm: VPCMPEQD, CPU Feature: AVX
 func (x Int32x4) Equal(y Int32x4) (z Mask32x4)
 
 // Equal returns a mask indicating which elements of x and y are equal.
+//
+//	z[i] = x[i] == y[i]
 //
 // Asm: VPCMPEQD, CPU Feature: AVX2
 func (x Int32x8) Equal(y Int32x8) (z Mask32x8)
 
 // Equal returns a mask indicating which elements of x and y are equal.
 //
+//	z[i] = x[i] == y[i]
+//
 // Asm: VPCMPEQD, CPU Feature: AVX512
 func (x Int32x16) Equal(y Int32x16) (z Mask32x16)
 
 // Equal returns a mask indicating which elements of x and y are equal.
+//
+//	z[i] = x[i] == y[i]
 //
 // Asm: VPCMPEQQ, CPU Feature: AVX
 func (x Int64x2) Equal(y Int64x2) (z Mask64x2)
 
 // Equal returns a mask indicating which elements of x and y are equal.
 //
+//	z[i] = x[i] == y[i]
+//
 // Asm: VPCMPEQQ, CPU Feature: AVX2
 func (x Int64x4) Equal(y Int64x4) (z Mask64x4)
 
 // Equal returns a mask indicating which elements of x and y are equal.
+//
+//	z[i] = x[i] == y[i]
 //
 // Asm: VPCMPEQQ, CPU Feature: AVX512
 func (x Int64x8) Equal(y Int64x8) (z Mask64x8)
 
 // Equal returns a mask indicating which elements of x and y are equal.
 //
+//	z[i] = x[i] == y[i]
+//
 // Asm: VPCMPEQB, CPU Feature: AVX
 func (x Uint8x16) Equal(y Uint8x16) (z Mask8x16)
 
 // Equal returns a mask indicating which elements of x and y are equal.
+//
+//	z[i] = x[i] == y[i]
 //
 // Asm: VPCMPEQB, CPU Feature: AVX2
 func (x Uint8x32) Equal(y Uint8x32) (z Mask8x32)
 
 // Equal returns a mask indicating which elements of x and y are equal.
 //
+//	z[i] = x[i] == y[i]
+//
 // Asm: VPCMPEQB, CPU Feature: AVX512
 func (x Uint8x64) Equal(y Uint8x64) (z Mask8x64)
 
 // Equal returns a mask indicating which elements of x and y are equal.
+//
+//	z[i] = x[i] == y[i]
 //
 // Asm: VPCMPEQW, CPU Feature: AVX
 func (x Uint16x8) Equal(y Uint16x8) (z Mask16x8)
 
 // Equal returns a mask indicating which elements of x and y are equal.
 //
+//	z[i] = x[i] == y[i]
+//
 // Asm: VPCMPEQW, CPU Feature: AVX2
 func (x Uint16x16) Equal(y Uint16x16) (z Mask16x16)
 
 // Equal returns a mask indicating which elements of x and y are equal.
+//
+//	z[i] = x[i] == y[i]
 //
 // Asm: VPCMPEQW, CPU Feature: AVX512
 func (x Uint16x32) Equal(y Uint16x32) (z Mask16x32)
 
 // Equal returns a mask indicating which elements of x and y are equal.
 //
+//	z[i] = x[i] == y[i]
+//
 // Asm: VPCMPEQD, CPU Feature: AVX
 func (x Uint32x4) Equal(y Uint32x4) (z Mask32x4)
 
 // Equal returns a mask indicating which elements of x and y are equal.
+//
+//	z[i] = x[i] == y[i]
 //
 // Asm: VPCMPEQD, CPU Feature: AVX2
 func (x Uint32x8) Equal(y Uint32x8) (z Mask32x8)
 
 // Equal returns a mask indicating which elements of x and y are equal.
 //
+//	z[i] = x[i] == y[i]
+//
 // Asm: VPCMPEQD, CPU Feature: AVX512
 func (x Uint32x16) Equal(y Uint32x16) (z Mask32x16)
 
 // Equal returns a mask indicating which elements of x and y are equal.
+//
+//	z[i] = x[i] == y[i]
 //
 // Asm: VPCMPEQQ, CPU Feature: AVX
 func (x Uint64x2) Equal(y Uint64x2) (z Mask64x2)
 
 // Equal returns a mask indicating which elements of x and y are equal.
 //
+//	z[i] = x[i] == y[i]
+//
 // Asm: VPCMPEQQ, CPU Feature: AVX2
 func (x Uint64x4) Equal(y Uint64x4) (z Mask64x4)
 
 // Equal returns a mask indicating which elements of x and y are equal.
+//
+//	z[i] = x[i] == y[i]
 //
 // Asm: VPCMPEQQ, CPU Feature: AVX512
 func (x Uint64x8) Equal(y Uint64x8) (z Mask64x8)
 
 // Equal returns a mask indicating which elements of x and y are equal.
 //
+//	z[i] = x[i] == y[i]
+//
+// Like Go's == operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
+//
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) Equal(y Float32x4) (z Mask32x4)
 
 // Equal returns a mask indicating which elements of x and y are equal.
+//
+//	z[i] = x[i] == y[i]
+//
+// Like Go's == operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) Equal(y Float32x8) (z Mask32x8)
 
 // Equal returns a mask indicating which elements of x and y are equal.
 //
+//	z[i] = x[i] == y[i]
+//
+// Like Go's == operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
+//
 // Asm: VCMPPS, CPU Feature: AVX512
 func (x Float32x16) Equal(y Float32x16) (z Mask32x16)
 
 // Equal returns a mask indicating which elements of x and y are equal.
+//
+//	z[i] = x[i] == y[i]
+//
+// Like Go's == operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) Equal(y Float64x2) (z Mask64x2)
 
 // Equal returns a mask indicating which elements of x and y are equal.
 //
+//	z[i] = x[i] == y[i]
+//
+// Like Go's == operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
+//
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) Equal(y Float64x4) (z Mask64x4)
 
 // Equal returns a mask indicating which elements of x and y are equal.
+//
+//	z[i] = x[i] == y[i]
+//
+// Like Go's == operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
 //
 // Asm: VCMPPD, CPU Feature: AVX512
 func (x Float64x8) Equal(y Float64x8) (z Mask64x8)
@@ -4513,12 +4591,18 @@ func (x Int64x8) Greater(y Int64x8) (z Mask64x8)
 //
 //	z[i] = x[i] > y[i]
 //
+// Like Go's > operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
+//
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) Greater(y Float32x4) (z Mask32x4)
 
 // Greater returns a mask indicating which elements of x are greater than y.
 //
 //	z[i] = x[i] > y[i]
+//
+// Like Go's > operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) Greater(y Float32x8) (z Mask32x8)
@@ -4527,12 +4611,18 @@ func (x Float32x8) Greater(y Float32x8) (z Mask32x8)
 //
 //	z[i] = x[i] > y[i]
 //
+// Like Go's > operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
+//
 // Asm: VCMPPS, CPU Feature: AVX512
 func (x Float32x16) Greater(y Float32x16) (z Mask32x16)
 
 // Greater returns a mask indicating which elements of x are greater than y.
 //
 //	z[i] = x[i] > y[i]
+//
+// Like Go's > operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) Greater(y Float64x2) (z Mask64x2)
@@ -4541,12 +4631,18 @@ func (x Float64x2) Greater(y Float64x2) (z Mask64x2)
 //
 //	z[i] = x[i] > y[i]
 //
+// Like Go's > operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
+//
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) Greater(y Float64x4) (z Mask64x4)
 
 // Greater returns a mask indicating which elements of x are greater than y.
 //
 //	z[i] = x[i] > y[i]
+//
+// Like Go's > operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
 //
 // Asm: VCMPPD, CPU Feature: AVX512
 func (x Float64x8) Greater(y Float64x8) (z Mask64x8)
@@ -4586,6 +4682,9 @@ func (x Uint64x8) Greater(y Uint64x8) (z Mask64x8)
 //
 //	z[i] = x[i] >= y[i]
 //
+// Like Go's >= operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
+//
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) GreaterEqual(y Float32x4) (z Mask32x4)
 
@@ -4593,6 +4692,9 @@ func (x Float32x4) GreaterEqual(y Float32x4) (z Mask32x4)
 // or equal to y.
 //
 //	z[i] = x[i] >= y[i]
+//
+// Like Go's >= operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) GreaterEqual(y Float32x8) (z Mask32x8)
@@ -4602,6 +4704,9 @@ func (x Float32x8) GreaterEqual(y Float32x8) (z Mask32x8)
 //
 //	z[i] = x[i] >= y[i]
 //
+// Like Go's >= operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
+//
 // Asm: VCMPPS, CPU Feature: AVX512
 func (x Float32x16) GreaterEqual(y Float32x16) (z Mask32x16)
 
@@ -4609,6 +4714,9 @@ func (x Float32x16) GreaterEqual(y Float32x16) (z Mask32x16)
 // or equal to y.
 //
 //	z[i] = x[i] >= y[i]
+//
+// Like Go's >= operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) GreaterEqual(y Float64x2) (z Mask64x2)
@@ -4618,6 +4726,9 @@ func (x Float64x2) GreaterEqual(y Float64x2) (z Mask64x2)
 //
 //	z[i] = x[i] >= y[i]
 //
+// Like Go's >= operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
+//
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) GreaterEqual(y Float64x4) (z Mask64x4)
 
@@ -4625,6 +4736,9 @@ func (x Float64x4) GreaterEqual(y Float64x4) (z Mask64x4)
 // or equal to y.
 //
 //	z[i] = x[i] >= y[i]
+//
+// Like Go's >= operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
 //
 // Asm: VCMPPD, CPU Feature: AVX512
 func (x Float64x8) GreaterEqual(y Float64x8) (z Mask64x8)
@@ -5231,12 +5345,18 @@ func (x Uint64x8) LeadingZeros() (z Uint64x8)
 //
 //	z[i] = x[i] < y[i]
 //
+// Like Go's < operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
+//
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) Less(y Float32x4) (z Mask32x4)
 
 // Less returns a mask indicating which elements of x are less than y.
 //
 //	z[i] = x[i] < y[i]
+//
+// Like Go's < operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) Less(y Float32x8) (z Mask32x8)
@@ -5245,12 +5365,18 @@ func (x Float32x8) Less(y Float32x8) (z Mask32x8)
 //
 //	z[i] = x[i] < y[i]
 //
+// Like Go's < operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
+//
 // Asm: VCMPPS, CPU Feature: AVX512
 func (x Float32x16) Less(y Float32x16) (z Mask32x16)
 
 // Less returns a mask indicating which elements of x are less than y.
 //
 //	z[i] = x[i] < y[i]
+//
+// Like Go's < operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) Less(y Float64x2) (z Mask64x2)
@@ -5259,12 +5385,18 @@ func (x Float64x2) Less(y Float64x2) (z Mask64x2)
 //
 //	z[i] = x[i] < y[i]
 //
+// Like Go's < operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
+//
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) Less(y Float64x4) (z Mask64x4)
 
 // Less returns a mask indicating which elements of x are less than y.
 //
 //	z[i] = x[i] < y[i]
+//
+// Like Go's < operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
 //
 // Asm: VCMPPD, CPU Feature: AVX512
 func (x Float64x8) Less(y Float64x8) (z Mask64x8)
@@ -5332,6 +5464,9 @@ func (x Uint64x8) Less(y Uint64x8) (z Mask64x8)
 //
 //	z[i] = x[i] <= y[i]
 //
+// Like Go's <= operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
+//
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) LessEqual(y Float32x4) (z Mask32x4)
 
@@ -5339,6 +5474,9 @@ func (x Float32x4) LessEqual(y Float32x4) (z Mask32x4)
 // equal to y.
 //
 //	z[i] = x[i] <= y[i]
+//
+// Like Go's <= operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) LessEqual(y Float32x8) (z Mask32x8)
@@ -5348,6 +5486,9 @@ func (x Float32x8) LessEqual(y Float32x8) (z Mask32x8)
 //
 //	z[i] = x[i] <= y[i]
 //
+// Like Go's <= operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
+//
 // Asm: VCMPPS, CPU Feature: AVX512
 func (x Float32x16) LessEqual(y Float32x16) (z Mask32x16)
 
@@ -5355,6 +5496,9 @@ func (x Float32x16) LessEqual(y Float32x16) (z Mask32x16)
 // equal to y.
 //
 //	z[i] = x[i] <= y[i]
+//
+// Like Go's <= operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) LessEqual(y Float64x2) (z Mask64x2)
@@ -5364,6 +5508,9 @@ func (x Float64x2) LessEqual(y Float64x2) (z Mask64x2)
 //
 //	z[i] = x[i] <= y[i]
 //
+// Like Go's <= operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
+//
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) LessEqual(y Float64x4) (z Mask64x4)
 
@@ -5371,6 +5518,9 @@ func (x Float64x4) LessEqual(y Float64x4) (z Mask64x4)
 // equal to y.
 //
 //	z[i] = x[i] <= y[i]
+//
+// Like Go's <= operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
 //
 // Asm: VCMPPD, CPU Feature: AVX512
 func (x Float64x8) LessEqual(y Float64x8) (z Mask64x8)
@@ -7053,70 +7203,116 @@ func (x Uint32x8) MulWidenEven(y Uint32x8) (z Uint64x4)
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
 //
+//	z[i] = x[i] != y[i]
+//
+// Like Go's != operator on floating-point values, this follows IEEE 754: the
+// result is true if either element is NaN, and +0 equals -0.
+//
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) NotEqual(y Float32x4) (z Mask32x4)
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
+//
+// Like Go's != operator on floating-point values, this follows IEEE 754: the
+// result is true if either element is NaN, and +0 equals -0.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) NotEqual(y Float32x8) (z Mask32x8)
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
 //
+//	z[i] = x[i] != y[i]
+//
+// Like Go's != operator on floating-point values, this follows IEEE 754: the
+// result is true if either element is NaN, and +0 equals -0.
+//
 // Asm: VCMPPS, CPU Feature: AVX512
 func (x Float32x16) NotEqual(y Float32x16) (z Mask32x16)
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
+//
+// Like Go's != operator on floating-point values, this follows IEEE 754: the
+// result is true if either element is NaN, and +0 equals -0.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) NotEqual(y Float64x2) (z Mask64x2)
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
 //
+//	z[i] = x[i] != y[i]
+//
+// Like Go's != operator on floating-point values, this follows IEEE 754: the
+// result is true if either element is NaN, and +0 equals -0.
+//
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) NotEqual(y Float64x4) (z Mask64x4)
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
+//
+// Like Go's != operator on floating-point values, this follows IEEE 754: the
+// result is true if either element is NaN, and +0 equals -0.
 //
 // Asm: VCMPPD, CPU Feature: AVX512
 func (x Float64x8) NotEqual(y Float64x8) (z Mask64x8)
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
 //
+//	z[i] = x[i] != y[i]
+//
 // Asm: VPCMPB, CPU Feature: AVX512
 func (x Int8x64) NotEqual(y Int8x64) (z Mask8x64)
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
 //
 // Asm: VPCMPW, CPU Feature: AVX512
 func (x Int16x32) NotEqual(y Int16x32) (z Mask16x32)
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
 //
+//	z[i] = x[i] != y[i]
+//
 // Asm: VPCMPD, CPU Feature: AVX512
 func (x Int32x16) NotEqual(y Int32x16) (z Mask32x16)
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
 //
 // Asm: VPCMPQ, CPU Feature: AVX512
 func (x Int64x8) NotEqual(y Int64x8) (z Mask64x8)
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
 //
+//	z[i] = x[i] != y[i]
+//
 // Asm: VPCMPUB, CPU Feature: AVX512
 func (x Uint8x64) NotEqual(y Uint8x64) (z Mask8x64)
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
 //
 // Asm: VPCMPUW, CPU Feature: AVX512
 func (x Uint16x32) NotEqual(y Uint16x32) (z Mask16x32)
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
 //
+//	z[i] = x[i] != y[i]
+//
 // Asm: VPCMPUD, CPU Feature: AVX512
 func (x Uint32x16) NotEqual(y Uint32x16) (z Mask32x16)
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512
 func (x Uint64x8) NotEqual(y Uint64x8) (z Mask64x8)

@@ -515,50 +515,76 @@ func (x Uint64s) Div(y Uint64s) (z Uint64s)
 
 // Equal returns a mask indicating which elements of x and y are equal.
 //
+//	z[i] = x[i] == y[i]
+//
+// Like Go's == operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
+//
 // Asm: ZFCMEQ, CPU Feature: SVE
 func (x Float32s) Equal(y Float32s) (z Mask32s)
 
 // Equal returns a mask indicating which elements of x and y are equal.
+//
+//	z[i] = x[i] == y[i]
+//
+// Like Go's == operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
 //
 // Asm: ZFCMEQ, CPU Feature: SVE
 func (x Float64s) Equal(y Float64s) (z Mask64s)
 
 // Equal returns a mask indicating which elements of x and y are equal.
 //
+//	z[i] = x[i] == y[i]
+//
 // Asm: ZCMPEQ, CPU Feature: SVE
 func (x Int8s) Equal(y Int8s) (z Mask8s)
 
 // Equal returns a mask indicating which elements of x and y are equal.
+//
+//	z[i] = x[i] == y[i]
 //
 // Asm: ZCMPEQ, CPU Feature: SVE
 func (x Int16s) Equal(y Int16s) (z Mask16s)
 
 // Equal returns a mask indicating which elements of x and y are equal.
 //
+//	z[i] = x[i] == y[i]
+//
 // Asm: ZCMPEQ, CPU Feature: SVE
 func (x Int32s) Equal(y Int32s) (z Mask32s)
 
 // Equal returns a mask indicating which elements of x and y are equal.
+//
+//	z[i] = x[i] == y[i]
 //
 // Asm: ZCMPEQ, CPU Feature: SVE
 func (x Int64s) Equal(y Int64s) (z Mask64s)
 
 // Equal returns a mask indicating which elements of x and y are equal.
 //
+//	z[i] = x[i] == y[i]
+//
 // Asm: ZCMPEQ, CPU Feature: SVE
 func (x Uint8s) Equal(y Uint8s) (z Mask8s)
 
 // Equal returns a mask indicating which elements of x and y are equal.
+//
+//	z[i] = x[i] == y[i]
 //
 // Asm: ZCMPEQ, CPU Feature: SVE
 func (x Uint16s) Equal(y Uint16s) (z Mask16s)
 
 // Equal returns a mask indicating which elements of x and y are equal.
 //
+//	z[i] = x[i] == y[i]
+//
 // Asm: ZCMPEQ, CPU Feature: SVE
 func (x Uint32s) Equal(y Uint32s) (z Mask32s)
 
 // Equal returns a mask indicating which elements of x and y are equal.
+//
+//	z[i] = x[i] == y[i]
 //
 // Asm: ZCMPEQ, CPU Feature: SVE
 func (x Uint64s) Equal(y Uint64s) (z Mask64s)
@@ -593,12 +619,18 @@ func (x Float64s) Floor() (z Float64s)
 //
 //	z[i] = x[i] > y[i]
 //
+// Like Go's > operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
+//
 // Asm: ZFCMGT, CPU Feature: SVE
 func (x Float32s) Greater(y Float32s) (z Mask32s)
 
 // Greater returns a mask indicating which elements of x are greater than y.
 //
 //	z[i] = x[i] > y[i]
+//
+// Like Go's > operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
 //
 // Asm: ZFCMGT, CPU Feature: SVE
 func (x Float64s) Greater(y Float64s) (z Mask64s)
@@ -666,6 +698,9 @@ func (x Uint64s) Greater(y Uint64s) (z Mask64s)
 //
 //	z[i] = x[i] >= y[i]
 //
+// Like Go's >= operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
+//
 // Asm: ZFCMGE, CPU Feature: SVE
 func (x Float32s) GreaterEqual(y Float32s) (z Mask32s)
 
@@ -673,6 +708,9 @@ func (x Float32s) GreaterEqual(y Float32s) (z Mask32s)
 // or equal to y.
 //
 //	z[i] = x[i] >= y[i]
+//
+// Like Go's >= operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
 //
 // Asm: ZFCMGE, CPU Feature: SVE
 func (x Float64s) GreaterEqual(y Float64s) (z Mask64s)
@@ -1405,50 +1443,76 @@ func (x Uint64s) Not() (z Uint64s)
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
 //
+//	z[i] = x[i] != y[i]
+//
+// Like Go's != operator on floating-point values, this follows IEEE 754: the
+// result is true if either element is NaN, and +0 equals -0.
+//
 // Asm: ZFCMNE, CPU Feature: SVE
 func (x Float32s) NotEqual(y Float32s) (z Mask32s)
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
+//
+// Like Go's != operator on floating-point values, this follows IEEE 754: the
+// result is true if either element is NaN, and +0 equals -0.
 //
 // Asm: ZFCMNE, CPU Feature: SVE
 func (x Float64s) NotEqual(y Float64s) (z Mask64s)
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
 //
+//	z[i] = x[i] != y[i]
+//
 // Asm: ZCMPNE, CPU Feature: SVE
 func (x Int8s) NotEqual(y Int8s) (z Mask8s)
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
 //
 // Asm: ZCMPNE, CPU Feature: SVE
 func (x Int16s) NotEqual(y Int16s) (z Mask16s)
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
 //
+//	z[i] = x[i] != y[i]
+//
 // Asm: ZCMPNE, CPU Feature: SVE
 func (x Int32s) NotEqual(y Int32s) (z Mask32s)
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
 //
 // Asm: ZCMPNE, CPU Feature: SVE
 func (x Int64s) NotEqual(y Int64s) (z Mask64s)
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
 //
+//	z[i] = x[i] != y[i]
+//
 // Asm: ZCMPNE, CPU Feature: SVE
 func (x Uint8s) NotEqual(y Uint8s) (z Mask8s)
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
 //
 // Asm: ZCMPNE, CPU Feature: SVE
 func (x Uint16s) NotEqual(y Uint16s) (z Mask16s)
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
 //
+//	z[i] = x[i] != y[i]
+//
 // Asm: ZCMPNE, CPU Feature: SVE
 func (x Uint32s) NotEqual(y Uint32s) (z Mask32s)
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
 //
 // Asm: ZCMPNE, CPU Feature: SVE
 func (x Uint64s) NotEqual(y Uint64s) (z Mask64s)

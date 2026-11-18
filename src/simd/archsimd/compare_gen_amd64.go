@@ -35,6 +35,8 @@ func (x Int8x16) LessEqual(y Int8x16) (z Mask8x16) {
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
 //
+//	z[i] = x[i] != y[i]
+//
 // Emulated, CPU Feature: AVX
 func (x Int8x16) NotEqual(y Int8x16) (z Mask8x16) {
 	return x.Equal(y).ToInt8x16().Not().asMask()
@@ -70,6 +72,8 @@ func (x Int16x8) LessEqual(y Int16x8) (z Mask16x8) {
 }
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
 //
 // Emulated, CPU Feature: AVX
 func (x Int16x8) NotEqual(y Int16x8) (z Mask16x8) {
@@ -107,6 +111,8 @@ func (x Int32x4) LessEqual(y Int32x4) (z Mask32x4) {
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
 //
+//	z[i] = x[i] != y[i]
+//
 // Emulated, CPU Feature: AVX
 func (x Int32x4) NotEqual(y Int32x4) (z Mask32x4) {
 	return x.Equal(y).ToInt32x4().Not().asMask()
@@ -142,6 +148,8 @@ func (x Int64x2) LessEqual(y Int64x2) (z Mask64x2) {
 }
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
 //
 // Emulated, CPU Feature: AVX
 func (x Int64x2) NotEqual(y Int64x2) (z Mask64x2) {
@@ -179,6 +187,8 @@ func (x Int8x32) LessEqual(y Int8x32) (z Mask8x32) {
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
 //
+//	z[i] = x[i] != y[i]
+//
 // Emulated, CPU Feature: AVX2
 func (x Int8x32) NotEqual(y Int8x32) (z Mask8x32) {
 	return x.Equal(y).ToInt8x32().Not().asMask()
@@ -214,6 +224,8 @@ func (x Int16x16) LessEqual(y Int16x16) (z Mask16x16) {
 }
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
 //
 // Emulated, CPU Feature: AVX2
 func (x Int16x16) NotEqual(y Int16x16) (z Mask16x16) {
@@ -251,6 +263,8 @@ func (x Int32x8) LessEqual(y Int32x8) (z Mask32x8) {
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
 //
+//	z[i] = x[i] != y[i]
+//
 // Emulated, CPU Feature: AVX2
 func (x Int32x8) NotEqual(y Int32x8) (z Mask32x8) {
 	return x.Equal(y).ToInt32x8().Not().asMask()
@@ -286,6 +300,8 @@ func (x Int64x4) LessEqual(y Int64x4) (z Mask64x4) {
 }
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
 //
 // Emulated, CPU Feature: AVX2
 func (x Int64x4) NotEqual(y Int64x4) (z Mask64x4) {
@@ -331,6 +347,8 @@ func (x Uint8x16) LessEqual(y Uint8x16) (z Mask8x16) {
 }
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
 //
 // Emulated, CPU Feature: AVX
 func (x Uint8x16) NotEqual(y Uint8x16) (z Mask8x16) {
@@ -379,6 +397,8 @@ func (x Uint16x8) LessEqual(y Uint16x8) (z Mask16x8) {
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
 //
+//	z[i] = x[i] != y[i]
+//
 // Emulated, CPU Feature: AVX
 func (x Uint16x8) NotEqual(y Uint16x8) (z Mask16x8) {
 	a, b := x.AsInt16x8(), y.AsInt16x8()
@@ -425,6 +445,8 @@ func (x Uint32x4) LessEqual(y Uint32x4) (z Mask32x4) {
 }
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
 //
 // Emulated, CPU Feature: AVX
 func (x Uint32x4) NotEqual(y Uint32x4) (z Mask32x4) {
@@ -485,6 +507,8 @@ func (x Uint64x2) LessEqual(y Uint64x2) (z Mask64x2) {
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
 //
+//	z[i] = x[i] != y[i]
+//
 // Emulated, CPU Feature: AVX
 func (x Uint64x2) NotEqual(y Uint64x2) (z Mask64x2) {
 	a, b := x.AsInt64x2(), y.AsInt64x2()
@@ -531,6 +555,8 @@ func (x Uint8x32) LessEqual(y Uint8x32) (z Mask8x32) {
 }
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
 //
 // Emulated, CPU Feature: AVX2
 func (x Uint8x32) NotEqual(y Uint8x32) (z Mask8x32) {
@@ -579,6 +605,8 @@ func (x Uint16x16) LessEqual(y Uint16x16) (z Mask16x16) {
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
 //
+//	z[i] = x[i] != y[i]
+//
 // Emulated, CPU Feature: AVX2
 func (x Uint16x16) NotEqual(y Uint16x16) (z Mask16x16) {
 	a, b := x.AsInt16x16(), y.AsInt16x16()
@@ -625,6 +653,8 @@ func (x Uint32x8) LessEqual(y Uint32x8) (z Mask32x8) {
 }
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
 //
 // Emulated, CPU Feature: AVX2
 func (x Uint32x8) NotEqual(y Uint32x8) (z Mask32x8) {
@@ -684,6 +714,8 @@ func (x Uint64x4) LessEqual(y Uint64x4) (z Mask64x4) {
 }
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
 //
 // Emulated, CPU Feature: AVX2
 func (x Uint64x4) NotEqual(y Uint64x4) (z Mask64x4) {

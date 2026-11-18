@@ -109,6 +109,8 @@ func (x Int8s) AndNot(y Int8s) (z Int8s) {
 }
 
 // Equal returns a mask indicating which elements of x and y are equal.
+//
+//	z[i] = x[i] == y[i]
 func (x Int8s) Equal(y Int8s) (z Mask8s) {
 	var res Mask8s
 	for i := 0; i < 16; i++ {
@@ -183,6 +185,8 @@ func (x Int8s) LessEqual(y Int8s) (z Mask8s) {
 }
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
 func (x Int8s) NotEqual(y Int8s) (z Mask8s) {
 	var res Mask8s
 	for i := 0; i < 16; i++ {
@@ -510,6 +514,8 @@ func (x Int16s) AndNot(y Int16s) (z Int16s) {
 }
 
 // Equal returns a mask indicating which elements of x and y are equal.
+//
+//	z[i] = x[i] == y[i]
 func (x Int16s) Equal(y Int16s) (z Mask16s) {
 	var res Mask16s
 	for i := 0; i < 8; i++ {
@@ -584,6 +590,8 @@ func (x Int16s) LessEqual(y Int16s) (z Mask16s) {
 }
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
 func (x Int16s) NotEqual(y Int16s) (z Mask16s) {
 	var res Mask16s
 	for i := 0; i < 8; i++ {
@@ -910,6 +918,8 @@ func (x Int32s) ConvertToFloat32() (z Float32s) {
 }
 
 // Equal returns a mask indicating which elements of x and y are equal.
+//
+//	z[i] = x[i] == y[i]
 func (x Int32s) Equal(y Int32s) (z Mask32s) {
 	var res Mask32s
 	for i := 0; i < 4; i++ {
@@ -984,6 +994,8 @@ func (x Int32s) LessEqual(y Int32s) (z Mask32s) {
 }
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
 func (x Int32s) NotEqual(y Int32s) (z Mask32s) {
 	var res Mask32s
 	for i := 0; i < 4; i++ {
@@ -1280,6 +1292,8 @@ func (x Int64s) AndNot(y Int64s) (z Int64s) {
 }
 
 // Equal returns a mask indicating which elements of x and y are equal.
+//
+//	z[i] = x[i] == y[i]
 func (x Int64s) Equal(y Int64s) (z Mask64s) {
 	for i := range x.v {
 		z.set(i, x.v[i] == y.v[i])
@@ -1339,6 +1353,8 @@ func (x Int64s) LessEqual(y Int64s) (z Mask64s) {
 }
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
 func (x Int64s) NotEqual(y Int64s) (z Mask64s) {
 	for i := range x.v {
 		z.set(i, x.v[i] != y.v[i])
@@ -1580,6 +1596,8 @@ func (x Uint8s) Average(y Uint8s) (z Uint8s) {
 }
 
 // Equal returns a mask indicating which elements of x and y are equal.
+//
+//	z[i] = x[i] == y[i]
 func (x Uint8s) Equal(y Uint8s) (z Mask8s) {
 	var res Mask8s
 	for i := 0; i < 16; i++ {
@@ -1654,6 +1672,8 @@ func (x Uint8s) LessEqual(y Uint8s) (z Mask8s) {
 }
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
 func (x Uint8s) NotEqual(y Uint8s) (z Mask8s) {
 	var res Mask8s
 	for i := 0; i < 16; i++ {
@@ -1975,6 +1995,8 @@ func (x Uint16s) Average(y Uint16s) (z Uint16s) {
 }
 
 // Equal returns a mask indicating which elements of x and y are equal.
+//
+//	z[i] = x[i] == y[i]
 func (x Uint16s) Equal(y Uint16s) (z Mask16s) {
 	var res Mask16s
 	for i := 0; i < 8; i++ {
@@ -2049,6 +2071,8 @@ func (x Uint16s) LessEqual(y Uint16s) (z Mask16s) {
 }
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
 func (x Uint16s) NotEqual(y Uint16s) (z Mask16s) {
 	var res Mask16s
 	for i := 0; i < 8; i++ {
@@ -2395,6 +2419,8 @@ func (x Uint32s) AndNot(y Uint32s) (z Uint32s) {
 }
 
 // Equal returns a mask indicating which elements of x and y are equal.
+//
+//	z[i] = x[i] == y[i]
 func (x Uint32s) Equal(y Uint32s) (z Mask32s) {
 	var res Mask32s
 	for i := 0; i < 4; i++ {
@@ -2469,6 +2495,8 @@ func (x Uint32s) LessEqual(y Uint32s) (z Mask32s) {
 }
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
 func (x Uint32s) NotEqual(y Uint32s) (z Mask32s) {
 	var res Mask32s
 	for i := 0; i < 4; i++ {
@@ -2805,6 +2833,8 @@ func (x Uint64s) AndNot(y Uint64s) (z Uint64s) {
 }
 
 // Equal returns a mask indicating which elements of x and y are equal.
+//
+//	z[i] = x[i] == y[i]
 func (x Uint64s) Equal(y Uint64s) (z Mask64s) {
 	for i := range x.v {
 		z.set(i, x.v[i] == y.v[i])
@@ -2876,6 +2906,8 @@ func (x Uint64s) LessEqual(y Uint64s) (z Mask64s) {
 }
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
 func (x Uint64s) NotEqual(y Uint64s) (z Mask64s) {
 	for i := range x.v {
 		z.set(i, x.v[i] != y.v[i])
@@ -3177,6 +3209,11 @@ func (x Float32s) Div(y Float32s) (z Float32s) {
 }
 
 // Equal returns a mask indicating which elements of x and y are equal.
+//
+//	z[i] = x[i] == y[i]
+//
+// Like Go's == operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
 func (x Float32s) Equal(y Float32s) (z Mask32s) {
 	var res Mask32s
 	for i := 0; i < 4; i++ {
@@ -3205,6 +3242,9 @@ func (x Float32s) Floor() (z Float32s) {
 // Greater returns a mask indicating which elements of x are greater than y.
 //
 //	z[i] = x[i] > y[i]
+//
+// Like Go's > operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
 func (x Float32s) Greater(y Float32s) (z Mask32s) {
 	var res Mask32s
 	for i := 0; i < 4; i++ {
@@ -3219,6 +3259,9 @@ func (x Float32s) Greater(y Float32s) (z Mask32s) {
 // or equal to y.
 //
 //	z[i] = x[i] >= y[i]
+//
+// Like Go's >= operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
 func (x Float32s) GreaterEqual(y Float32s) (z Mask32s) {
 	var res Mask32s
 	for i := 0; i < 4; i++ {
@@ -3246,6 +3289,9 @@ func (x Float32s) Len() int {
 // Less returns a mask indicating which elements of x are less than y.
 //
 //	z[i] = x[i] < y[i]
+//
+// Like Go's < operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
 func (x Float32s) Less(y Float32s) (z Mask32s) {
 	var res Mask32s
 	for i := 0; i < 4; i++ {
@@ -3260,6 +3306,9 @@ func (x Float32s) Less(y Float32s) (z Mask32s) {
 // equal to y.
 //
 //	z[i] = x[i] <= y[i]
+//
+// Like Go's <= operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
 func (x Float32s) LessEqual(y Float32s) (z Mask32s) {
 	var res Mask32s
 	for i := 0; i < 4; i++ {
@@ -3397,6 +3446,11 @@ func (x Float32s) Neg() (z Float32s) {
 }
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
+//
+// Like Go's != operator on floating-point values, this follows IEEE 754: the
+// result is true if either element is NaN, and +0 equals -0.
 func (x Float32s) NotEqual(y Float32s) (z Mask32s) {
 	var res Mask32s
 	for i := 0; i < 4; i++ {
@@ -3578,6 +3632,11 @@ func (x Float64s) Div(y Float64s) (z Float64s) {
 }
 
 // Equal returns a mask indicating which elements of x and y are equal.
+//
+//	z[i] = x[i] == y[i]
+//
+// Like Go's == operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
 func (x Float64s) Equal(y Float64s) (z Mask64s) {
 	for i := range x.v {
 		z.set(i, x.v[i] == y.v[i])
@@ -3602,6 +3661,9 @@ func (x Float64s) Floor() (z Float64s) {
 // Greater returns a mask indicating which elements of x are greater than y.
 //
 //	z[i] = x[i] > y[i]
+//
+// Like Go's > operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
 func (x Float64s) Greater(y Float64s) (z Mask64s) {
 	for i := range x.v {
 		z.set(i, x.v[i] > y.v[i])
@@ -3613,6 +3675,9 @@ func (x Float64s) Greater(y Float64s) (z Mask64s) {
 // or equal to y.
 //
 //	z[i] = x[i] >= y[i]
+//
+// Like Go's >= operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
 func (x Float64s) GreaterEqual(y Float64s) (z Mask64s) {
 	for i := range x.v {
 		z.set(i, x.v[i] >= y.v[i])
@@ -3637,6 +3702,9 @@ func (x Float64s) Len() int {
 // Less returns a mask indicating which elements of x are less than y.
 //
 //	z[i] = x[i] < y[i]
+//
+// Like Go's < operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
 func (x Float64s) Less(y Float64s) (z Mask64s) {
 	for i := range x.v {
 		z.set(i, x.v[i] < y.v[i])
@@ -3648,6 +3716,9 @@ func (x Float64s) Less(y Float64s) (z Mask64s) {
 // equal to y.
 //
 //	z[i] = x[i] <= y[i]
+//
+// Like Go's <= operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
 func (x Float64s) LessEqual(y Float64s) (z Mask64s) {
 	for i := range x.v {
 		z.set(i, x.v[i] <= y.v[i])
@@ -3779,6 +3850,11 @@ func (x Float64s) Neg() (z Float64s) {
 }
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
+//
+// Like Go's != operator on floating-point values, this follows IEEE 754: the
+// result is true if either element is NaN, and +0 equals -0.
 func (x Float64s) NotEqual(y Float64s) (z Mask64s) {
 	for i := range x.v {
 		z.set(i, x.v[i] != y.v[i])

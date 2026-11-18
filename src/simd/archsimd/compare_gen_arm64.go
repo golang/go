@@ -63,6 +63,9 @@ func (x Uint64x2) Less(y Uint64x2) (z Mask64x2) {
 // Less returns a mask indicating which elements of x are less than y.
 //
 //	z[i] = x[i] < y[i]
+//
+// Like Go's < operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
 func (x Float32x4) Less(y Float32x4) (z Mask32x4) {
 	return y.Greater(x)
 }
@@ -70,6 +73,9 @@ func (x Float32x4) Less(y Float32x4) (z Mask32x4) {
 // Less returns a mask indicating which elements of x are less than y.
 //
 //	z[i] = x[i] < y[i]
+//
+// Like Go's < operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
 func (x Float64x2) Less(y Float64x2) (z Mask64x2) {
 	return y.Greater(x)
 }
@@ -142,6 +148,9 @@ func (x Uint64x2) LessEqual(y Uint64x2) (z Mask64x2) {
 // equal to y.
 //
 //	z[i] = x[i] <= y[i]
+//
+// Like Go's <= operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
 func (x Float32x4) LessEqual(y Float32x4) (z Mask32x4) {
 	return y.GreaterEqual(x)
 }
@@ -150,56 +159,85 @@ func (x Float32x4) LessEqual(y Float32x4) (z Mask32x4) {
 // equal to y.
 //
 //	z[i] = x[i] <= y[i]
+//
+// Like Go's <= operator on floating-point values, this follows IEEE 754: the
+// result is false if either element is NaN, and +0 equals -0.
 func (x Float64x2) LessEqual(y Float64x2) (z Mask64x2) {
 	return y.GreaterEqual(x)
 }
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
 func (x Int8x16) NotEqual(y Int8x16) (z Mask8x16) {
 	return x.Equal(y).Not()
 }
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
 func (x Int16x8) NotEqual(y Int16x8) (z Mask16x8) {
 	return x.Equal(y).Not()
 }
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
 func (x Int32x4) NotEqual(y Int32x4) (z Mask32x4) {
 	return x.Equal(y).Not()
 }
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
 func (x Int64x2) NotEqual(y Int64x2) (z Mask64x2) {
 	return x.Equal(y).Not()
 }
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
 func (x Uint8x16) NotEqual(y Uint8x16) (z Mask8x16) {
 	return x.Equal(y).Not()
 }
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
 func (x Uint16x8) NotEqual(y Uint16x8) (z Mask16x8) {
 	return x.Equal(y).Not()
 }
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
 func (x Uint32x4) NotEqual(y Uint32x4) (z Mask32x4) {
 	return x.Equal(y).Not()
 }
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
 func (x Uint64x2) NotEqual(y Uint64x2) (z Mask64x2) {
 	return x.Equal(y).Not()
 }
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
+//
+// Like Go's != operator on floating-point values, this follows IEEE 754: the
+// result is true if either element is NaN, and +0 equals -0.
 func (x Float32x4) NotEqual(y Float32x4) (z Mask32x4) {
 	return x.Equal(y).Not()
 }
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
+//
+//	z[i] = x[i] != y[i]
+//
+// Like Go's != operator on floating-point values, this follows IEEE 754: the
+// result is true if either element is NaN, and +0 equals -0.
 func (x Float64x2) NotEqual(y Float64x2) (z Mask64x2) {
 	return x.Equal(y).Not()
 }
