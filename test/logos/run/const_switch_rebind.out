@@ -1,0 +1,30 @@
+ok tilde-rebind
+ok tilde-nested
+ok tilde-nested-store
+ok iface-box
+start:b
+start:b
+ok writeback
+ok mask
+ok goto-writeback
+ok nested-box
+start:c
+start:d
+start:d
+start:c
+ok rebound-index
+ok shadow-alias
+ok closure-return
+ok select-recv
+ok named-bool
+start:f
+ok redecl
+ok nested-lookup
+start:d
+ok closure-switch
+ok recv-order
+ok send-clause
+ok def-reads
+ok len-mismatch
+ok shadow-status
+ok nil-box

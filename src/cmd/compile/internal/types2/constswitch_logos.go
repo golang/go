@@ -39,6 +39,7 @@ type LogosConstCase struct {
 type logosIfaceCase struct {
 	recv  Type
 	iface *Interface
+	typ   Type
 	syn   *syntax.ConstSwitchCase
 }
 
@@ -276,12 +277,12 @@ func (check *Checker) logosConstCaseBody(ctxt stmtContext, c *syntax.ConstSwitch
 	}
 	ctxt &= ^(breakOk | continueOk)
 	if info.kind == logosCaseIface {
-		check.logosCSwitch = append(check.logosCSwitch, logosIfaceCase{recv: tag, iface: info.iface(), syn: c})
+		check.logosCSwitch = append(check.logosCSwitch, logosIfaceCase{recv: tag, iface: info.iface(), typ: info.typ, syn: c})
 		defer func() { check.logosCSwitch = check.logosCSwitch[:len(check.logosCSwitch)-1] }()
 	}
 	check.openScope(c.Type, "const switch case")
 	defer check.closeScope()
-	if tpar, ok := tag.(*TypeParam); ok && info.kind == logosCaseExact {
+	if tpar, ok := tag.(*TypeParam); ok && info.kind != logosCaseIface {
 		check.logosShadowConstTarget(tpar, info)
 	}
 	check.stmtList(ctxt, c.Body)
@@ -328,31 +329,77 @@ func logosHasBreakConstSwitch(s *syntax.ConstSwitchStmt, label string, implicit 
 
 func (check *Checker) logosShadowConstTarget(tpar *TypeParam, info *logosCaseInfo) {
 	pos := info.syn.Type.Pos()
-	shadow := NewTypeName(pos, check.pkg, tpar.Obj().Name(), info.typ)
+	bind := info.typ
+	var shadow *TypeName
+	if info.kind == logosCaseTilde {
+		// Inside a ~B case the switched type keeps its identity — a nested
+		// const switch still dispatches on the actual type argument — but
+		// gains the constraint ~B, so a value of a numeric type can be
+		// converted to it and variables naming it keep their spelling.
+		shadow = NewTypeName(pos, check.pkg, tpar.Obj().Name(), nil)
+		bind = NewTypeParam(shadow, NewInterfaceType(nil, []Type{NewUnion([]*Term{NewTerm(true, info.typ)})}))
+	} else {
+		shadow = NewTypeName(pos, check.pkg, tpar.Obj().Name(), bind)
+	}
 	check.scope.Insert(shadow)
 	rec := LogosConstCase{Target: shadow, Vars: make(map[*Var]Type)}
+	seen := make(map[string]bool)
 	for sc := check.scope.Parent(); sc != nil; sc = sc.Parent() {
 		for _, objName := range sc.Names() {
+			if seen[objName] {
+				// A nearer scope already binds this name, so uses inside the
+				// case resolve to that object, not to an outer variable.
+				continue
+			}
+			seen[objName] = true
 			v, ok := sc.Lookup(objName).(*Var)
 			if !ok {
 				continue
 			}
-			sub := check.subst(pos, v.Type(), makeSubstMap([]*TypeParam{tpar}, []Type{info.typ}), nil, check.context())
+			sub := check.subst(pos, v.Type(), makeSubstMap([]*TypeParam{tpar}, []Type{bind}), nil, check.context())
 			if sub == v.Type() {
 				continue
+			}
+			emit := sub
+			if info.kind == logosCaseTilde {
+				// The lowered code spells the rebound variable with the
+				// basic case type (int, not the narrowed parameter), so the
+				// rebinding puns the storage; the tilde match guarantees
+				// identical layouts.
+				emit = check.subst(pos, v.Type(), makeSubstMap([]*TypeParam{tpar}, []Type{info.typ}), nil, check.context())
 			}
 			shadowVar := NewVar(v.Pos(), v.Pkg(), v.Name(), sub)
 			if alt := check.scope.Insert(shadowVar); alt != nil {
 				continue
 			}
 			check.usedVars[shadowVar] = true
-			rec.Vars[shadowVar] = sub
+			rec.Vars[shadowVar] = emit
 		}
 	}
 	if check.Info.LogosConstCases == nil {
 		check.Info.LogosConstCases = make(map[*syntax.ConstSwitchCase]LogosConstCase)
 	}
 	check.Info.LogosConstCases[info.syn] = rec
+}
+
+// logosConstIfaceAssign admits a value of the switched type where the active
+// interface case's type is required: inside `case I:` a value of type T keeps
+// its concrete layout and gains I's method set, so it can be stored or passed
+// as I (SPEC Sec 2.5). The operand is recorded so the lowerer boxes it as
+// rt.Box[I](x) at the use site; the type name T itself is not rebound.
+func (check *Checker) logosConstIfaceAssign(x *operand, T Type) bool {
+	if !check.conf.Logos || len(check.logosCSwitch) == 0 || x.expr == nil {
+		return false
+	}
+	top := check.logosCSwitch[len(check.logosCSwitch)-1]
+	if x.typ() != top.recv || !Identical(T, top.typ) {
+		return false
+	}
+	if check.Info.LogosConstConv == nil {
+		check.Info.LogosConstConv = make(map[syntax.Expr]*syntax.ConstSwitchCase)
+	}
+	check.Info.LogosConstConv[x.expr] = top.syn
+	return true
 }
 
 func (check *Checker) logosConstIfaceSelect(x *operand, e *syntax.SelectorExpr, sel string) bool {

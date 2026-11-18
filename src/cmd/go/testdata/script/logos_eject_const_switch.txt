@@ -38,12 +38,14 @@ cp $GOROOT/test/logos/run/const_switch.lgo n/main.lgo
 cp $GOROOT/test/logos/run/const_switch_order.lgo o/main.lgo
 cp $GOROOT/test/logos/run/const_switch_nomatch.lgo k/main.lgo
 cp $GOROOT/test/logos/run/const_switch_jumps.lgo b/main.lgo
+cp $GOROOT/test/logos/run/const_switch_rebind.lgo r/main.lgo
 
 # The run fixtures of the run-time form print the same lines when ejected:
 # a case chosen by the type argument alone, an interface type argument,
 # shared storage for a rebound slice, map and pointer, an interface method
-# run on the value, first match, no match, and a break, continue or labeled
-# jump that sits inside or leaves a case.
+# run on the value, first match, no match, a break, continue or labeled
+# jump that sits inside or leaves a case, and tilde or interface
+# rebinding of a switched variable.
 cd n
 logos run .
 cmp stdout $GOROOT/test/logos/run/const_switch.out
@@ -78,6 +80,15 @@ logos eject -o out
 cd out
 exec env -u GOROOT $UPROOT1272/bin/go run .
 cmp stdout $GOROOT/test/logos/run/const_switch_jumps.out
+cd ../..
+
+cd r
+logos run .
+cmp stdout $GOROOT/test/logos/run/const_switch_rebind.out
+logos eject -o out
+cd out
+exec env -u GOROOT $UPROOT1272/bin/go run .
+cmp stdout $GOROOT/test/logos/run/const_switch_rebind.out
 cd ../..
 
 -- m/go.mod --
@@ -209,5 +220,10 @@ go 1.27
 
 -- k/go.mod --
 module example.com/ejectconstswitchkeep
+
+go 1.27
+
+-- r/go.mod --
+module example.com/ejectconstswitchrebind
 
 go 1.27

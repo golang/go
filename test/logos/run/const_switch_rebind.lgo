@@ -1,0 +1,435 @@
+// run
+
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"strconv"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type Port int
+
+// set converts a parsed value under a ~int case: F must admit conversion from
+// the basic case type while keeping its identity (SPEC Sec 2.5).
+func set[F any](raw string, dst *F) error {
+	const switch F {
+	case ~int:
+		n := strconv.ParseInt(raw, 10, 64)?
+		*dst = F(n)
+		return nil
+	}
+	return nil
+}
+
+// inner still dispatches on the real type argument inside a ~int case: a
+// defined int kind must hit the inner ~int case, not an exact int case.
+func inner[F any](dst *F) string {
+	out := ""
+	const switch F {
+	case ~int:
+		*dst = F(7)
+		const switch F {
+		case int:
+			out += "int;"
+		case ~int:
+			out += "tilde;"
+		}
+	}
+	return out + "end"
+}
+
+type Part interface{ Start(ctx context.Context) error }
+
+type W struct{ S string }
+
+func (w W) Start(ctx context.Context) error {
+	fmt.Println("start:" + w.S)
+	return nil
+}
+
+// keep stores a value of the switched type into the interface under a Part
+// case: the value keeps its concrete layout and gains the method set.
+func keep[F any](parts []Part, field F, f2 F) []Part {
+	const switch F {
+	case Part:
+		field = f2 // F stays concrete: assignment back to F must compile
+		var p Part = field
+		parts = append(parts, field, p)
+	}
+	return parts
+}
+
+// bump writes to a rebound value variable under a ~int case: the write must
+// be stored back so it is visible after the switch.
+func bump[F any](field F) F {
+	const switch F {
+	case ~int:
+		field = F(9)
+	}
+	return field
+}
+
+// mask keeps a nearer binding of the same name from being rebound: inside the
+// case, v resolves to the block's own v, not the parameter.
+func mask[F any](v F) int {
+	out := 0
+	{
+		v := 7
+		const switch F {
+		case ~int:
+			out = v
+		}
+	}
+	return out
+}
+
+// swap returns its second argument; boxing both the call and its Part
+// parameter composes the nested boxes instead of overlapping them.
+func swap[F any](p Part, v F) F {
+	_ = p
+	return v
+}
+
+// gotoOut writes a rebound variable and leaves the case early through a
+// labeled jump: the write still reaches the caller's storage.
+func gotoOut[F any](v F) F {
+	const switch F {
+	case ~int:
+		v = F(9)
+		goto done
+	}
+done:
+	return v
+}
+
+// gather mixes interface boxing, nested boxing, and a two-result map read
+// kept through the closure rewrite.
+func gather[F any](parts []Part, field F, m map[string]F) []Part {
+	const switch F {
+	case Part:
+		parts = append(parts, swap(field, field))
+		if v, ok := m["k"]; ok {
+			parts = append(parts, v)
+		}
+		var p Part
+		var ok bool
+		p, ok = m["k"]
+		if ok {
+			parts = append(parts, p)
+		}
+		p, ok = m["missing"]
+		if !ok {
+			parts = append(parts, field)
+		}
+	}
+	return parts
+}
+
+// idx reads through a rebound variable: the emitted dereference must bind
+// the indexing, and len of the case array must stay a constant expression.
+func idx[F any](v F) int {
+	const switch F {
+	case [3]int:
+		const n = len(v)
+		return v[0] + n
+	}
+	return -1
+}
+
+// shadow keeps rebound reads working when an inner block redeclares the case
+// type's name: the respelled type resolves through the case-body alias,
+// including a read taken while the shadow is still visible.
+func shadow[F any](v F) int {
+	const switch F {
+	case int:
+		{
+			type int = float64
+			x := v
+			_ = int(0)
+			_ = x
+		}
+		return v + 1
+	}
+	return -1
+}
+
+// closureResult judges `return` by the innermost function's arity: a
+// one-result literal inside the two-result parent boxes its value singly.
+func closureResult[F any](field F) (Part, bool) {
+	const switch F {
+	case Part:
+		fn := func() Part {
+			return field
+		}
+		return fn(), true
+	}
+	return nil, false
+}
+
+// selRecv receives a value of the switched type through a select: the comm
+// clause cannot name a call, so it receives into temporaries and assigns
+// the boxed values in the clause body.
+func selRecv[F any](p Part, ch chan F) bool {
+	const switch F {
+	case Part:
+		var ok bool
+		select {
+		case p, ok = <-ch:
+			_ = p
+		default:
+			return false
+		}
+		return ok
+	}
+	return false
+}
+
+type MyBool bool
+
+// namedOk keeps the left side's declared boolean type on the second result
+// through the two-result closure rewrite.
+func namedOk[F any](m map[string]F) (Part, MyBool) {
+	const switch F {
+	case Part:
+		var p Part
+		var ok MyBool
+		p, ok = m["k"]
+		return p, ok
+	}
+	return nil, false
+}
+
+// redecl reuses a rebound name in a short declaration: the `:=` left side
+// declares a fresh variable instead of dereferencing the rebound pointer.
+func redecl[F any](v F) int {
+	const switch F {
+	case int:
+		v, n := 5, 6
+		return v + n
+	}
+	return -1
+}
+
+// nestedLookup boxes a call whose literal has its own comma-ok map read: the
+// inner lookup keeps both values through the composed rewrite.
+func nestedLookup[F any](m map[string]F, field F) []Part {
+	const switch F {
+	case Part:
+		var p Part
+		p = func() Part {
+			var ok bool
+			p, ok = m["k"]
+			if ok {
+				return p
+			}
+			return field
+		}()
+		return []Part{p}
+	}
+	return nil
+}
+
+// keepNil boxes a nil value of an interface-typed argument without panicking.
+func keepNil[J Part](parts []Part, field J) []Part {
+	const switch J {
+	case Part:
+		parts = append(parts, field)
+	}
+	return parts
+}
+
+// closureSwitch keeps nested const switches' aliases unique across function
+// literals: the inner switch's case alias must not reuse the enclosing
+// case's, or captured rebound reads punt to the wrong type.
+func closureSwitch[F, U any](v F, u U) int {
+	r := 0
+	const switch F {
+	case ~int:
+		r = int(v)
+		func() {
+			const switch U {
+			case ~string:
+				r += len(u)
+			}
+		}()
+		r += int(v)
+	}
+	return r
+}
+
+// recvOrder keeps Go's two-phase assignment for a multi-target receive:
+// the map index's key reads the target's value from before the first store.
+func recvOrder[F any](p Part, m map[Part]bool, ch chan F) {
+	const switch F {
+	case Part:
+		select {
+		case p, m[p] = <-ch:
+		default:
+		}
+	}
+}
+
+// sendClause boxes a sent value in place: a send's value is an ordinary
+// operand, not a receive target.
+func ident[F any](v F) F { return v }
+
+func sendClause[F any](out chan Part, field F) bool {
+	const switch F {
+	case Part:
+		select {
+		case out <- field:
+		default:
+		}
+		select {
+		case out <- ident(field):
+			return true
+		default:
+		}
+	}
+	return false
+}
+
+// defReads keeps a redeclared initializer's reads on the outer variable: the
+// hoisted var must not shadow the name the initializer reads.
+func defReads[F any](v F) int {
+	n := 7
+	const switch F {
+	case ~int:
+		{
+			v, n := n + 1, n + 2
+			return v + n
+		}
+	}
+	return n
+}
+
+// lenMismatch spells a rebound array variable's own substituted type, not the
+// case type: the array length may differ.
+func lenMismatch[F any](w [4]F) int {
+	const switch F {
+	case ~int:
+		return len(w)
+	}
+	return -1
+}
+
+// shadowStatus names the second result's declared type through a case-body
+// alias: inside a block that shadows the name the conversion must still
+// resolve to the declared type.
+func shadowStatus[F any](m map[string]F) MyBool {
+	const switch F {
+	case Part:
+		var p Part
+		var ok MyBool
+		{
+			type MyBool = int8
+			p, ok = m["k"]
+			_ = p
+		}
+		return ok
+	}
+	return false
+}
+
+func main() {
+	var p Port
+	if err := set[Port]("41", &p); err != nil {
+		fmt.Println("set err:", err)
+		failed = true
+	}
+	check("tilde-rebind", p == 41, p, 41)
+
+	got := inner[Port](new(Port))
+	check("tilde-nested", got == "tilde;end", got, "tilde;end")
+	var pi Port
+	inner[Port](&pi)
+	check("tilde-nested-store", pi == 7, pi, 7)
+
+	parts := keep[W](nil, W{S: "a"}, W{S: "b"})
+	check("iface-box", len(parts) == 2, len(parts), 2)
+	for _, part := range parts {
+		if err := part.Start(context.Background()); err != nil {
+			fmt.Println("start err:", err)
+			failed = true
+		}
+	}
+
+	check("writeback", bump[Port](Port(1)) == 9, bump[Port](Port(1)), 9)
+	check("mask", mask[int](1) == 7, mask[int](1), 7)
+	check("goto-writeback", gotoOut[Port](Port(1)) == 9, gotoOut[Port](Port(1)), 9)
+
+	more := gather[W](nil, W{S: "c"}, map[string]W{"k": {S: "d"}})
+	check("nested-box", len(more) == 4, len(more), 4)
+	for _, part := range more {
+		if err := part.Start(context.Background()); err != nil {
+			fmt.Println("map err:", err)
+			failed = true
+		}
+	}
+
+	checks2()
+
+	nilParts := keepNil[Part](nil, nil)
+	check("nil-box", len(nilParts) == 1 && nilParts[0] == nil, len(nilParts), 1)
+
+	if failed {
+		os.Exit(1)
+	}
+}
+
+// checks2 exercises the rebind and boxing edge cases kept out of main for
+// the cognitive-complexity budget.
+func checks2() {
+	check("rebound-index", idx[[3]int]([3]int{5, 0, 0}) == 8, idx[[3]int]([3]int{5, 0, 0}), 8)
+	check("shadow-alias", shadow[int](41) == 42, shadow[int](41), 42)
+	cp, cok := closureResult[W](W{S: "e"})
+	check("closure-return", cok && cp != nil, cok, true)
+	ch := make(chan W, 1)
+	ch <- W{S: "s"}
+	check("select-recv", selRecv[W](nil, ch) == true, selRecv[W](nil, ch), true)
+	np, nb := namedOk[W](map[string]W{"k": {S: "f"}})
+	check("named-bool", bool(nb) && np != nil, nb, true)
+	if np != nil {
+		if err := np.Start(context.Background()); err != nil {
+			fmt.Println("np err:", err)
+			failed = true
+		}
+	}
+	check("redecl", redecl[int](1) == 11, redecl[int](1), 11)
+	nlp := nestedLookup[W](map[string]W{"k": {S: "d"}}, W{S: "g"})
+	check("nested-lookup", len(nlp) == 1 && nlp[0] != nil, len(nlp), 1)
+	if len(nlp) == 1 && nlp[0] != nil {
+		if err := nlp[0].Start(context.Background()); err != nil {
+			fmt.Println("nlp err:", err)
+			failed = true
+		}
+	}
+	check("closure-switch", closureSwitch[Port, string](Port(5), "abcd") == 14, closureSwitch[Port, string](Port(5), "abcd"), 14)
+	oldP := Part(W{S: "old"})
+	m2 := map[Part]bool{oldP: true}
+	ch2 := make(chan W, 1)
+	ch2 <- W{S: "new"}
+	recvOrder[W](oldP, m2, ch2)
+	check("recv-order", len(m2) == 1, len(m2), 1)
+	sc := make(chan Part, 2)
+	check("send-clause", sendClause[W](sc, W{S: "x"}) && <-sc != nil, true, true)
+	check("def-reads", defReads[Port](Port(0)) == 17, defReads[Port](Port(0)), 17)
+	check("len-mismatch", lenMismatch[Port]([4]Port{1, 2, 3, 4}) == 4, lenMismatch[Port]([4]Port{1, 2, 3, 4}), 4)
+	ss := shadowStatus[W](map[string]W{"k": {S: "x"}})
+	check("shadow-status", bool(ss), ss, MyBool(true))
+}
+
+
