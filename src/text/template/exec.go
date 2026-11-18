@@ -11,6 +11,7 @@ import (
 	"io"
 	"reflect"
 	"runtime"
+	"strconv"
 	"strings"
 	"text/template/parse"
 )
@@ -1033,6 +1034,16 @@ func (s *state) evalFloat(typ reflect.Type, n parse.Node) reflect.Value {
 	if n, ok := n.(*parse.NumberNode); ok && n.IsFloat {
 		value := reflect.New(typ).Elem()
 		value.SetFloat(n.Float64)
+		if typ.Kind() == reflect.Float32 && float64(float32(n.Float64)) != n.Float64 {
+			// ParseFloat reads 017 as decimal and rejects 0x1e.
+			if f, err := strconv.ParseFloat(n.Text, 32); err == nil && strings.ContainsAny(n.Text, ".eEpP") {
+				value.SetFloat(f)
+			} else if n.IsInt {
+				value.SetFloat(float64(float32(n.Int64)))
+			} else if n.IsUint {
+				value.SetFloat(float64(float32(n.Uint64)))
+			}
+		}
 		return value
 	}
 	s.errorf("expected float; found %s", n)
@@ -1043,6 +1054,11 @@ func (s *state) evalComplex(typ reflect.Type, n parse.Node) reflect.Value {
 	if n, ok := n.(*parse.NumberNode); ok && n.IsComplex {
 		value := reflect.New(typ).Elem()
 		value.SetComplex(n.Complex128)
+		if typ.Kind() == reflect.Complex64 && complex128(complex64(n.Complex128)) != n.Complex128 {
+			if c, err := strconv.ParseComplex(n.Text, 64); err == nil || errors.Is(err, strconv.ErrRange) {
+				value.SetComplex(c)
+			}
+		}
 		return value
 	}
 	s.errorf("expected complex; found %s", n)
