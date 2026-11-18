@@ -816,6 +816,12 @@ type InlMark struct {
 	id int32
 }
 
+// Prog returns the instruction anchoring the inline call site.
+func (m InlMark) Prog() *Prog { return m.p }
+
+// Index returns the inline tree index of the callee.
+func (m InlMark) Index() int32 { return m.id }
+
 // Mark p as the instruction to set as the pc when
 // "unwinding" the inlining global frame id. Usually it should be
 // instruction with a file:line at the callsite, and occur

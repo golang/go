@@ -245,10 +245,20 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 		}
 	}
 
-	// Recover zero-sized variables eliminated by the stackframe pass.
+	// Recover declarations eliminated by the stackframe pass. Inlined
+	// declarations still belong to their concrete inline instance even when
+	// optimization has removed all of their named values.
 	if debug != nil {
 		for _, n := range debug.OptDcl {
-			if seen[n] {
+			if seen[n] || !shouldEmitDwarfVar(n) {
+				continue
+			}
+			// There is no allocated stack slot for these declarations. Do not
+			// use createSimpleVar, which would invent a location for them.
+			if n.InlLocal() || n.InlFormal() {
+				decls = append(decls, n)
+				vars = append(vars, createConservativeVar(fnsym, fn, n, closureVars))
+				seen[n] = true
 				continue
 			}
 			if n.Class != ir.PAUTO {

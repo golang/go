@@ -9,6 +9,14 @@ import (
 	"testing"
 )
 
+func TestMergeRangesNested(t *testing.T) {
+	// An inline anchor inside an existing range must not truncate its end.
+	outer, inner := []Range{{10, 30}}, []Range{{15, 20}}
+	if got := MergeRanges(outer, inner); !reflect.DeepEqual(got, outer) {
+		t.Fatalf("MergeRanges(%v, %v) = %v, want %v", outer, inner, got, outer)
+	}
+}
+
 func TestSevenBitEnc128(t *testing.T) {
 	t.Run("unsigned", func(t *testing.T) {
 		for v := int64(-255); v < 255; v++ {

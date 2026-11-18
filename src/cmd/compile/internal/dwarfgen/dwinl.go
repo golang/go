@@ -5,7 +5,9 @@
 package dwarfgen
 
 import (
+	"cmp"
 	"fmt"
+	"slices"
 	"strings"
 
 	"cmd/compile/internal/base"
@@ -47,6 +49,12 @@ func assembleInlines(fnsym *obj.LSym, dwVars []*dwarf.Var) dwarf.InlCalls {
 			insertInlCall(&inlcalls, ii, imap)
 		}
 		prevpos = p.Pos
+	}
+
+	// A call-site marker has a position in the caller, not the callee. An
+	// otherwise empty callee therefore cannot be discovered from positions.
+	for _, mark := range fnsym.Func().InlMarks {
+		insertInlCall(&inlcalls, int(mark.Index()), imap)
 	}
 
 	// This is used to partition DWARF vars by inline index. Vars not
@@ -178,6 +186,50 @@ func assembleInlines(fnsym *obj.LSym, dwVars []*dwarf.Var) dwarf.InlCalls {
 	for k, c := range inlcalls.Calls {
 		if c.Root {
 			unifyCallRanges(inlcalls, k)
+		}
+	}
+
+	// Only after including descendants' ranges can we tell whether a body
+	// really has no executable code. Discovery in imap alone is insufficient:
+	// positions on zero-width instructions can discover a range-less inline.
+	// Give such bodies the range of their retained call-site instruction.
+	// Leave surviving bodies' ranges alone.
+	empty := make([]bool, len(inlcalls.Calls))
+	for i, c := range inlcalls.Calls {
+		empty[i] = len(c.Ranges) == 0
+	}
+	addedAnchor := false
+	for _, mark := range fnsym.Func().InlMarks {
+		idx := imap[int(mark.Index())]
+		if !empty[idx] {
+			continue
+		}
+		p := mark.Prog()
+		end := fnsym.Size
+		for q := p.Link; q != nil; q = q.Link {
+			if q.Pc > p.Pc {
+				end = q.Pc
+				break
+			}
+		}
+		if end > p.Pc {
+			inlcalls.Calls[idx].Ranges = append(inlcalls.Calls[idx].Ranges,
+				dwarf.Range{Start: p.Pc, End: end})
+			addedAnchor = true
+		}
+	}
+	if addedAnchor {
+		for i := range inlcalls.Calls {
+			ranges := inlcalls.Calls[i].Ranges
+			slices.SortFunc(ranges, func(a, b dwarf.Range) int {
+				return cmp.Compare(a.Start, b.Start)
+			})
+			inlcalls.Calls[i].Ranges = dwarf.MergeRanges(ranges, nil)
+		}
+		for k, c := range inlcalls.Calls {
+			if c.Root {
+				unifyCallRanges(inlcalls, k)
+			}
 		}
 	}
 

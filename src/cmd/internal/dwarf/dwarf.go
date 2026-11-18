@@ -106,7 +106,8 @@ func EnableLogging(doit bool) {
 }
 
 // MergeRanges creates a new range list by merging the ranges from
-// its two arguments, then returns the new list.
+// its two arguments, then returns the new list. Both inputs must
+// be sorted by Start.
 func MergeRanges(in1, in2 []Range) []Range {
 	out := make([]Range, 0, len(in1)+len(in2))
 	i, j := 0, 0
@@ -131,7 +132,7 @@ func MergeRanges(in1, in2 []Range) []Range {
 		}
 
 		if n := len(out); n > 0 && cur.Start <= out[n-1].End {
-			out[n-1].End = cur.End
+			out[n-1].End = max(out[n-1].End, cur.End)
 		} else {
 			out = append(out, cur)
 		}
