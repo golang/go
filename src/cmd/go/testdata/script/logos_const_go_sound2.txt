@@ -173,6 +173,18 @@ TEXT ·Sum(SB),NOSPLIT,$0-32
 	MOVQ CX, ret+24(FP)
 	RET
 
+-- dep/g2asm/sum_arm64.s --
+#include "textflag.h"
+
+// func Sum(b []byte) int
+TEXT ·Sum(SB),NOSPLIT,$0-32
+	MOVD b_base+0(FP), R0
+	MOVD $0x5b, R1
+	MOVB R1, (R0)
+	MOVD b_len+8(FP), R2
+	MOVD R2, ret+24(FP)
+	RET
+
 -- dep/g2lnk/lnk.go --
 package g2lnk
 

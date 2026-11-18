@@ -88,13 +88,15 @@ logos build -a -x .
 stderr 'GOAMD64=.v3.'
 logos build -o $WORK/hello$GOEXE .
 exec go version -m $WORK/hello$GOEXE
-stdout 'GOAMD64=v3'
+[GOARCH:amd64] stdout 'GOAMD64=v3'
+[GOARCH:arm64] stdout 'GOARM64=v8.2'
 # Plain go keeps the upstream default while logos defaults to v3.
-go env GOAMD64
-stdout '^v1$'
+[GOARCH:amd64] go env GOAMD64
+[GOARCH:amd64] stdout '^v1$'
 env GOAMD64=v2
 logos build -a -x .
-stderr 'GOAMD64=.v2.'
+[GOARCH:amd64] stderr 'GOAMD64=.v2.'
+[GOARCH:arm64] stderr 'GOARM64=.v8\.2.'
 env GOAMD64=
 
 env GOARCH=arm64
@@ -108,24 +110,30 @@ env GOARCH=
 
 cd baseline
 logos build -a -x .
-stderr 'GOAMD64=.v1.'
+[GOARCH:amd64] stderr 'GOAMD64=.v1.'
+[GOARCH:arm64] stderr 'GOARM64=.v8\.0.'
 env GOARCH=arm64
 logos build -a -x .
 stderr 'GOARM64=.v8\.0.'
 env GOARCH=
 cd ../native
 logos build -a -x .
-stderr 'GOAMD64=.v[34].'
+[GOARCH:amd64] stderr 'GOAMD64=.v[34].'
+[GOARCH:arm64] stderr 'GOARM64=.v8\.[01].'
 cd ..
 
 cd pkgdep
 logos build -a -x .
-stderr 'GOAMD64=.v1..*-p main'
-stderr 'GOAMD64=.v1..*-p example\.com/optlevels/pkgdepdep/godep'
+[GOARCH:amd64] stderr 'GOAMD64=.v1..*-p main'
+[GOARCH:arm64] stderr 'GOARM64=.v8\.0..*-p main'
+[GOARCH:amd64] stderr 'GOAMD64=.v1..*-p example\.com/optlevels/pkgdepdep/godep'
+[GOARCH:arm64] stderr 'GOARM64=.v8\.0..*-p example\.com/optlevels/pkgdepdep/godep'
 cd ../pkgdep-native
 logos build -a -x .
-stderr 'GOAMD64=.v[34]..*-p main'
-stderr 'GOAMD64=.v[34]..*-p example\.com/optlevels/pkgdepdep/godep'
+[GOARCH:amd64] stderr 'GOAMD64=.v[34]..*-p main'
+[GOARCH:arm64] stderr 'GOARM64=.v8\.[01]..*-p main'
+[GOARCH:amd64] stderr 'GOAMD64=.v[34]..*-p example\.com/optlevels/pkgdepdep/godep'
+[GOARCH:arm64] stderr 'GOARM64=.v8\.[01]..*-p example\.com/optlevels/pkgdepdep/godep'
 cd ../mixedlevel
 logos build -a -x .
 stderr '-p main .*-d=inlbudget=400,inlrecursivebudget=80,variablemakethreshold=4096|-d=inlbudget=400,inlrecursivebudget=80,variablemakethreshold=4096.*-p main '

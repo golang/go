@@ -1,6 +1,7 @@
 env GOPROXY=off
 env GOTOOLCHAIN=local
 env GOEXPERIMENT=logosarena
+[!GOARCH:amd64] skip 'arena lowering is amd64-only'
 go test -v -count=1 -run 'TestLogosArenaPanicUnwindRecovery' runtime
 stdout '--- PASS: TestLogosArenaPanicUnwindRecovery'
 stdout '^ok\s+runtime'

@@ -98,6 +98,7 @@ logos build -o $WORK/amd64.exe .
 go tool objdump -s '^main\.dotLane$' $WORK/amd64.exe
 ! stdout 'VFN?M(ADD|SUB)'
 
+env GOOS=
 env GOARCH=
 env GOAMD64=
 cd ../q

@@ -19,6 +19,7 @@ go tool pack p $WORK/af-wasm.a __.LOGOS
 stdout '^fn F AssertTP=1,AssertRTP=0$'
 env GOOS=
 env GOARCH=
+env GOOS=
 cd af
 logos build -O=0 -o $WORK/af-o0.a .
 cd ..
@@ -29,6 +30,7 @@ logos build -O=3 -o $WORK/af-o3.a .
 cd ..
 go tool pack p $WORK/af-o3.a __.LOGOS
 stdout '^fn F AssertTP=1,AssertRTP=0$'
+env GOOS=linux
 env GOARCH=386
 cd af
 logos build -o $WORK/af-386.a .

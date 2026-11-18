@@ -15,7 +15,8 @@ env GOTOOLCHAIN=local
 [cgo] mv $WORK/logos.toml.bak logos.toml
 [cgo] go build -o $WORK/plain_cpu$GOEXE ./sub
 [cgo] exec go version -m $WORK/plain_cpu$GOEXE
-[cgo] stdout 'GOAMD64=v1'
+[cgo] [GOARCH:amd64] stdout 'GOAMD64=v1'
+[cgo] [GOARCH:arm64] stdout 'GOARM64=v8.0'
 
 env GOARCH=arm64
 env CGO_ENABLED=0

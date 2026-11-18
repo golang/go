@@ -4,6 +4,7 @@ env GOPROXY=off
 env GOTOOLCHAIN=local
 env GOEXPERIMENT=logosarena
 env CGO_ENABLED=0
+env GOOS=linux
 env GOARCH=386
 
 cd m

@@ -1,5 +1,6 @@
 env GOPROXY=off
 env GOTOOLCHAIN=local
+[!GOARCH:amd64] skip 'relocation names and inline budgets are amd64-specific'
 
 # SPEC 1.5 [T-105]: O3 sets inline budget 400 with 80 inside recursive
 # cycles, so a recursive function above 80 keeps its calls while the

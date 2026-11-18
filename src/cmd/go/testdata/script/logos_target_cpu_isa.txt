@@ -1,5 +1,6 @@
 env GOPROXY=off
 env GOTOOLCHAIN=local
+[!GOARCH:amd64] skip 'amd64 ISA check'
 
 cd m
 logos build -o $WORK/hello$GOEXE .

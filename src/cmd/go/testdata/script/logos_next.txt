@@ -61,7 +61,7 @@ exists convert_test.lgo
 ! exists tail.go
 ! exists convert_test.go
 
-grep '^//go:build linux$' main.lgo
+grep '^//go:build unix$' main.lgo
 grep 'Command nextdemo exercises logos next migration patterns' main.lgo
 grep 'clean input' convert.lgo
 grep 'fall back handled below' convert.lgo
@@ -133,7 +133,7 @@ require example.com/dep v0.0.0
 replace example.com/dep v0.0.0 => ../dep
 
 -- m/main.go --
-//go:build linux
+//go:build unix
 
 // Command nextdemo exercises logos next migration patterns.
 package main
@@ -359,7 +359,7 @@ func TestCountNeg(t *testing.T) {
 }
 
 -- want/main.lgo --
-//go:build linux
+//go:build unix
 
 // Command nextdemo exercises logos next migration patterns.
 package main

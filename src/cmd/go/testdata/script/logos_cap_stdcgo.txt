@@ -8,7 +8,8 @@ cd main
 logos build -o $WORK/bin/stdcgo$GOEXE ./cmd
 ! stderr 'capabilities'
 go tool nm $WORK/bin/stdcgo$GOEXE
-stdout '_C2?func_getaddrinfo'
+[!GOOS:darwin] stdout '_C2?func_getaddrinfo'
+[GOOS:darwin] stdout '_getaddrinfo'
 exec $WORK/bin/stdcgo$GOEXE
 stdout '^ok$'
 

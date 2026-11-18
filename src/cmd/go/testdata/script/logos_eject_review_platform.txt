@@ -1,5 +1,6 @@
 env GOPROXY=off
 env GOTOOLCHAIN=local
+[!GOOS:linux] [!GOOS:windows] skip 'platform fixture only defines linux and windows files'
 
 cd plat_variants
 

@@ -60,9 +60,11 @@ cd ..
 mkdir $WORK/withfacts/example.com
 cp $WORK/dep.a $WORK/withfacts/example.com/gopdep.a
 env GOAMD64=v3
+env GOARM64=v8.2,lse
 env GOEXPERIMENT=logosarena
 go tool compile -I $WORK/withfacts -p example.com/absentuse -o $WORK/absentuse-facts.a absent/use.lgo
 env GOAMD64=
+env GOARM64=
 env GOEXPERIMENT=
 mkdir $WORK/nofacts/example.com
 cd dep

@@ -1,22 +1,25 @@
 env GOPROXY=off
 env GOTOOLCHAIN=local
-env CGO_ENABLED=
+env CGO_ENABLED=0
 
 logos list -f '{{.ImportPath}} {{len .CgoFiles}}' net
 stdout '^net 0$'
 logos list -f '{{.ImportPath}} {{len .CgoFiles}}' os/user
 stdout '^os/user 0$'
 logos list -f '{{join .GoFiles " "}}' net
-stdout 'cgo_stub.go'
+[GOOS:darwin] stdout 'cgo_darwin.go'
+[!GOOS:darwin] stdout 'cgo_stub.go'
 logos list -f '{{join .GoFiles " "}}' os/user
 stdout 'lookup_unix.go'
-! stdout 'cgo_lookup_unix.go'
+[!GOOS:darwin] ! stdout 'cgo_lookup_unix.go'
 
 [cgo] env CGO_ENABLED=1
 [cgo] go list -f '{{.ImportPath}} {{len .CgoFiles}}' net
-[cgo] stdout '^net [1-9][0-9]*$'
+[cgo] [!GOOS:darwin] stdout '^net [1-9][0-9]*$'
+[cgo] [GOOS:darwin] stdout '^net 0$'
 [cgo] go list -f '{{.ImportPath}} {{len .CgoFiles}}' os/user
-[cgo] stdout '^os/user [1-9][0-9]*$'
+[cgo] [!GOOS:darwin] stdout '^os/user [1-9][0-9]*$'
+[cgo] [GOOS:darwin] stdout '^os/user 0$'
 -- go.mod --
 module example.com/purego
 

@@ -25,7 +25,8 @@ stderr 'GOAMD64=.*v1.*helper'
 
 logos build -o $WORK/base$GOEXE .
 go version -m $WORK/base$GOEXE
-stdout 'GOAMD64=v1'
+[GOARCH:amd64] stdout 'GOAMD64=v1'
+[GOARCH:arm64] stdout 'GOARM64=v8.0'
 cd ..
 
 -- go.mod --

@@ -9,6 +9,8 @@ env CGO_ENABLED=0
 cp $GOROOT/test/logos/run/comptime_layout_forms.lgo a/main.lgo
 cd a
 
+[GOOS:darwin] skip 'cannot exec foreign-arch binaries'
+[!GOARCH:amd64] skip 'cannot exec foreign-arch binaries'
 env GOARCH=amd64
 logos run .
 cmp stdout $GOROOT/test/logos/run/comptime_layout_forms.out

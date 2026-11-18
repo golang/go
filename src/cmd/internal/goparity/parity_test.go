@@ -1570,6 +1570,11 @@ func TestForkConfigsReachTheCompiler(t *testing.T) {
 	fork := forkTool(t)
 	for _, c := range activeForkConfigs() {
 		t.Run(c.id, func(t *testing.T) {
+			if runtime.GOARCH != "amd64" && slices.ContainsFunc(c.env, func(e string) bool {
+				return strings.HasPrefix(e, "GOAMD64=")
+			}) {
+				t.Skipf("%s: GOAMD64 is inert off-amd64", c.id)
+			}
 			for _, p := range compileProblems(c, dryBuild(t, fork, c)) {
 				t.Error(p)
 			}

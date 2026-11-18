@@ -397,6 +397,8 @@ The available conditions are:
 	when CGO_ENABLED=1|0 was set in make.bash
 [exec:*]
 	<suffix> names an executable in the test binary's PATH
+[expstamp]
+	installed go driver was built with experiments and reports a -X: stamp
 [fuzz]
 	GOOS/GOARCH supports -fuzz
 [fuzz-instrumented]

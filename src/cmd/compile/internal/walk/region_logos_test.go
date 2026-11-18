@@ -121,6 +121,9 @@ func regionLower(t *testing.T, fn *ir.Func) {
 }
 
 func TestLogosRegionBumpNew(t *testing.T) {
+	if buildcfg.GOARCH != "amd64" {
+		t.Skip("bump lowering is amd64-only")
+	}
 	enableLogosRegion(t)
 	fn := regionTestFn()
 	openCall, openAs, r := regionTestOpen(fn)
@@ -441,9 +444,13 @@ func TestLogosRegionMakeEntries(t *testing.T) {
 			makeAs.SetTypecheck(1)
 			fn.Body = ir.Nodes{regionTestBlock(openAs, makeAs)}
 			logosRegionLower(fn)
+			want := tc.first
+			if want == "logosRegionBump" && buildcfg.GOARCH != "amd64" {
+				want = "logosRegionMakeSliceNoscan"
+			}
 			allocAs := makeAs.Init()[0].(*ir.AssignStmt)
-			if got := regionCallName(allocAs.Y); got != tc.first {
-				t.Fatalf("make lowers through %q, want %q", got, tc.first)
+			if got := regionCallName(allocAs.Y); got != want {
+				t.Fatalf("make lowers through %q, want %q", got, want)
 			}
 		})
 	}

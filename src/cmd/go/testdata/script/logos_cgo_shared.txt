@@ -12,6 +12,7 @@ logos build -buildvcs=false -buildmode=c-shared -o $WORK/liblogos.so ./lib
 
 exists $WORK/liblogos.so
 exists $WORK/liblogos.h
+[GOOS:darwin] exec install_name_tool -id @rpath/liblogos.so $WORK/liblogos.so
 
 exec sh c/compile.sh $WORK
 exec $WORK/consumer

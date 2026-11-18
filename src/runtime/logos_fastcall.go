@@ -15,6 +15,11 @@ var logosFastcallOffHook func(fn, arg unsafe.Pointer) int32
 //go:linkname logosCgocallFast
 //go:nosplit
 func logosCgocallFast(fn, arg unsafe.Pointer) int32 {
+	if !goexperiment.LogosFastCgo {
+		if logosFastcallOffHook != nil {
+			return logosFastcallOffHook(fn, arg)
+		}
+	}
 	if !iscgo && GOOS != "solaris" && GOOS != "illumos" && GOOS != "windows" {
 		throw("cgocall unavailable")
 	}
@@ -26,9 +31,6 @@ func logosCgocallFast(fn, arg unsafe.Pointer) int32 {
 		panic("runtime: unexpected setting cgoNoCallback")
 	}
 	if !goexperiment.LogosFastCgo {
-		if logosFastcallOffHook != nil {
-			return logosFastcallOffHook(fn, arg)
-		}
 		return cgocall(fn, arg)
 	}
 	gp.nocgocallback = true

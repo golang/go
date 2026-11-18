@@ -6,6 +6,9 @@ env GOPROXY=off
 env GOTOOLCHAIN=local
 env CGO_ENABLED=0
 
+[GOOS:darwin] skip 'cannot exec foreign-arch binaries'
+[!GOARCH:amd64] skip 'cannot exec foreign-arch binaries'
+
 cd m
 
 env GOARCH=amd64

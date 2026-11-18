@@ -70,7 +70,7 @@ jobs:
         id: "frozen"
         run: |
           cat > "$RUNNER_TEMP/simd-zero-evidence/attacks.sha256" <<'FROZEN'
-          c0eba294bdac97d1058b40ab07c4c626da02d839940383d4fb0f48c9565e280f  cmd/compile/internal/ssa/zcse_simd_logos_test.go
+          6814eeeae4f396e103f1178eb211f41406c421f226e1de4d5efc8a96d7a66b97  cmd/compile/internal/ssa/zcse_simd_logos_test.go
           7cdbc8e5243c835e234617fd77a97f9184f799054bb33edbade4db5978c7b323  ../test/logos/run/simd_zero_guard.go
           fd4f67d871fd0578854e61d239ff21353899fb0440daa94316c8a8ec3d234bdb  ../test/logos/run/simd_zero_guard.out
           FROZEN
@@ -232,7 +232,7 @@ jobs:
         if: "!cancelled() && steps.build.outcome == 'success'"
         run: |
           test "$(go env GOROOT)" = "$GITHUB_WORKSPACE"
-          GOEXPERIMENT=simd GOAMD64=v1 go test -count=1 -timeout 30m std 2>&1 | tee "$RUNNER_TEMP/simd-zero-evidence/simd-std.txt"
+          env -u GOMEMLIMIT GOEXPERIMENT=simd GOAMD64=v1 go test -count=1 -timeout 30m std 2>&1 | tee "$RUNNER_TEMP/simd-zero-evidence/simd-std.txt"
       - uses: "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9" # v7.0.2
         if: "always()"
         with:

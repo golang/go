@@ -10,6 +10,10 @@ static unsigned long long do_spin(unsigned long long iters) {
 	unsigned long long x = 0;
 	for (unsigned long long i = 0; i < iters; i++) {
 		x += i * 6364136223846793005ULL + 1442695040888963407ULL;
+		// Keep the loop observable to the CPU profiler: clang folds the
+		// affine accumulation into a closed form otherwise, so cbusyf
+		// returns without spending cycles.
+		__asm__ __volatile__("" : "+r" (x));
 	}
 	return x;
 }

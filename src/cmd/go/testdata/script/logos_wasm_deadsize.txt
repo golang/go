@@ -13,6 +13,8 @@ go build -o $WORK/reach-wasi-go.wasm ./reach
 go build -o $WORK/noreach-wasi-go.wasm ./noreach
 env GOOS=linux
 env GOARCH=amd64
+env GOOS=$TESTGO_GOHOSTOS
+env GOARCH=$TESTGO_GOHOSTARCH
 go run ./sizecheck $WORK/reach-js-logos.wasm $WORK/noreach-js-logos.wasm 8000
 stdout '^ok diff='
 go run ./sizecheck $WORK/reach-js-go.wasm $WORK/noreach-js-go.wasm 8000
