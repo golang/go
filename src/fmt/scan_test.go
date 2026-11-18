@@ -174,6 +174,7 @@ var scanTests = []ScanTest{
 	{"2.3p+66\n", &float64Val, 2.3 * (1 << 66)},
 	{"2.3p-66\n", &float64Val, 2.3 / (1 << 66)},
 	{"0x2.3p-66\n", &float64Val, float64(0x23) / (1 << 70)},
+	{"4926590943298463p-179\n", &float32Val, float32(4926590943298463.0 / (1 << 179))},
 	{"2_3.4_5\n", &float64Val, 23.45},
 	{"2.35\n", &stringVal, "2.35"},
 	{"2345678\n", &bytesVal, []byte("2345678")},
@@ -185,6 +186,7 @@ var scanTests = []ScanTest{
 	{"-0x1p1-0x1p2i\n", &complex128Val, complex128(-2 - 4i)},
 	{"-0x1ep-1-0x1p2i\n", &complex128Val, complex128(-15 - 4i)},
 	{"-0x1_Ep-1-0x1p0_2i\n", &complex128Val, complex128(-15 - 4i)},
+	{"4926590943298463p-179+1i\n", &complex64Val, complex64(4926590943298463.0/(1<<179) + 1i)},
 	{"hello\n", &stringVal, "hello"},
 
 	// Carriage-return followed by newline. (We treat \r\n as \n always.)

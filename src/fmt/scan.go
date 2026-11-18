@@ -794,7 +794,14 @@ func (s *ss) convertFloat(str string, n int) float64 {
 			}
 			s.error(err)
 		}
-		return math.Ldexp(f, m)
+		f = math.Ldexp(f, m)
+		if n == 32 && math.Abs(f) < 0x1p-126 {
+			// A float32 denormal would be rounded twice,
+			// so start again from a float64 mantissa.
+			f, _ = strconv.ParseFloat(str[:p], 64)
+			f = math.Ldexp(f, m)
+		}
+		return f
 	}
 	f, err := strconv.ParseFloat(str, n)
 	if err != nil {
