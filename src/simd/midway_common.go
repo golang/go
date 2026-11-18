@@ -7,7 +7,6 @@
 package simd
 
 import (
-	"fmt"
 	"internal/godebug"
 	"strconv"
 )
@@ -21,10 +20,11 @@ import (
 // Users can also control emulation and vector length with the 'simd' GODEBUG
 // setting.  GODEBUG=simd=0 requests emulation, not hardware SIMD, even if
 // hardware is available.  On platforms that may support multiple vector
-// lengths, GODEBUG=simd=N (N=128, 256, or 512) requests a specific vector
-// length.  If the request cannot be satisfied, the simd package panics
-// informatively.  GODEBUG=simd=1 requests the default behavior, the same as
-// leaving it unset.
+// lengths, GODEBUG=simd=N (N=128, 256, or 512) limits the vector length to
+// at most N.  If N is larger than the hardware supports, the simd package
+// uses the longest length the hardware supports.  GODEBUG=simd=1 requests the
+// default behavior, the same as leaving it unset, as does any value not
+// listed here.
 //
 // The package only uses SIMD hardware that has a baseline of features, and
 // emulates every operation otherwise.  On amd64, the baseline is AVX and FMA.
@@ -67,25 +67,18 @@ func configure(hwMax int, gosimd string) (maxVectorSize int, emulated bool) {
 		return 128, true
 	}
 
-	var val int
 	switch gosimd {
-	case "", "1":
-		// Use the largest vector size the hardware supports.
-		return hwMax, false
 	case "0":
 		// user-requested emulation
 		return 128, true
 	case "128":
-		val = 128
+		return min(128, hwMax), false
 	case "256":
-		val = 256
+		return min(256, hwMax), false
 	case "512":
-		val = 512
-	default:
-		panic(fmt.Errorf("requested GODEBUG=simd=%s is not supported (want 0, 1, 128, 256, or 512)", gosimd))
+		return min(512, hwMax), false
 	}
-	if val > hwMax {
-		panic(fmt.Errorf("requested GODEBUG=simd=%d is larger than the SIMD length (%d) supported on this CPU", val, hwMax))
-	}
-	return val, false
+	// By default, including for "1" and for values this doesn't recognize,
+	// use the largest vector size the hardware supports.
+	return hwMax, false
 }
