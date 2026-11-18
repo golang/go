@@ -2,6 +2,7 @@ name: "Feature gates"
 
 "on":
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - ".github/scripts/install-ci-tool.sh"
       - ".github/scripts/install-upstream-oracles.sh"
@@ -24,7 +25,7 @@ permissions:
   contents: "read"
 
 concurrency:
-  group: "feature-gates-${{ github.ref }}"
+  group: "feature-gates-${{ github.event.pull_request.number || github.ref }}"
   cancel-in-progress: true
 
 env:
@@ -35,6 +36,7 @@ env:
 jobs:
   changes:
     name: "Route changed files to gates"
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: "ubuntu-24.04"
     timeout-minutes: 10
     outputs:

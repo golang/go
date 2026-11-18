@@ -2,6 +2,7 @@ name: cgo validation
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - ".github/workflows/cgo.yml"
       - "misc/cgo/**"
@@ -10,7 +11,6 @@ on:
       - "src/internal/goexperiment/**"
       - "src/internal/buildcfg/**"
       - "src/cmd/go/internal/logos/settings/**"
-      - "logos-doc/**"
   push:
     branches: [release-branch.go1.27]
     paths:
@@ -21,13 +21,12 @@ on:
       - "src/internal/goexperiment/**"
       - "src/internal/buildcfg/**"
       - "src/cmd/go/internal/logos/settings/**"
-      - "logos-doc/**"
 
 permissions:
   contents: read
 
 concurrency:
-  group: cgo-${{ github.ref }}
+  group: cgo-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 defaults:
@@ -37,6 +36,7 @@ defaults:
 jobs:
   focused:
     name: cgo focused and probes
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-26.04
     timeout-minutes: 120
     steps:
@@ -93,6 +93,10 @@ jobs:
 
   full:
     name: cgo full default-short dist (${{ matrix.setting }})
+    if: github.event_name != 'pull_request'
+    concurrency:
+      group: logos-heavy-ci
+      queue: max
     needs: focused
     runs-on: ubuntu-26.04
     timeout-minutes: 180
@@ -183,6 +187,10 @@ jobs:
 
   benchmark:
     name: cgo benchmark per row
+    if: github.event_name != 'pull_request'
+    concurrency:
+      group: logos-heavy-ci
+      queue: max
     needs: focused
     runs-on: ubuntu-26.04
     timeout-minutes: 120

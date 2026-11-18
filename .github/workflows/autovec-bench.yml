@@ -18,6 +18,9 @@ concurrency:
 jobs:
   benchmark:
     name: "autovec benchmark ${{ matrix.arch }}"
+    concurrency:
+      group: logos-heavy-ci
+      queue: max
     runs-on: "${{ matrix.runner }}"
     timeout-minutes: 90
     strategy:

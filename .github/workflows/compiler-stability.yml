@@ -2,6 +2,7 @@ name: "compiler-stability"
 
 "on":
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - ".github/scripts/install-ci-tool.sh"
       - ".github/scripts/install-upstream-oracles.sh"
@@ -10,14 +11,13 @@ name: "compiler-stability"
       - "src/cmd/go/**"
       - "src/internal/buildcfg/**"
       - "test/logos/**"
-      - "logos-doc/**"
   workflow_dispatch:
 
 permissions:
   contents: "read"
 
 concurrency:
-  group: "compiler-stability-${{ github.ref }}"
+  group: "compiler-stability-${{ github.event.pull_request.number || github.ref }}"
   cancel-in-progress: true
 
 env:
@@ -28,10 +28,14 @@ env:
 jobs:
   compiler:
     name: "compiler-${{ matrix.suite }}"
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    concurrency:
+      group: logos-heavy-ci
+      queue: max
     strategy:
       fail-fast: false
       matrix:
-        suite: ["focused", "upstream"]
+        suite: ${{ github.event_name == 'pull_request' && fromJSON('["focused"]') || fromJSON('["focused", "upstream"]') }}
     runs-on: "ubuntu-24.04"
     timeout-minutes: 120
     defaults:

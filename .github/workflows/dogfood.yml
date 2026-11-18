@@ -2,6 +2,7 @@ name: Pinned dogfood corpus
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - .github/workflows/dogfood.yml
       - misc/logos-dogfood/**
@@ -17,8 +18,12 @@ concurrency:
 
 jobs:
   corpus:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-24.04
-    timeout-minutes: 180
+    timeout-minutes: 90
+    concurrency:
+      group: logos-heavy-ci
+      queue: max
     defaults:
       run:
         shell: bash
