@@ -161,7 +161,6 @@ func init() {
 		gpspsbg    = gpspg.union(buildReg("SB"))
 		fp         = buildReg("F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31")
 		pred       = buildReg("P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15")
-		pred07     = buildReg("P0 P1 P2 P3 P4 P5 P6 P7")
 		callerSave = gp.union(fp).union(pred).union(buildReg("g")) // runtime.setg (and anything calling it) may clobber g
 		r25        = buildReg("R25")
 		r24to25    = buildReg("R24 R25")
@@ -209,10 +208,9 @@ func init() {
 		fp1flags       = regInfo{inputs: []regMask{fp}}
 		pred1fp        = regInfo{inputs: []regMask{pred}, outputs: []regMask{fp}}
 		fp1predfp      = regInfo{inputs: []regMask{fp, pred}, outputs: []regMask{fp}}
-		fpgppred07fp   = regInfo{inputs: []regMask{fp, gp, pred07}, outputs: []regMask{fp}}
+		fpgppredfp     = regInfo{inputs: []regMask{fp, gp, pred}, outputs: []regMask{fp}}
 		fp2predpred    = regInfo{inputs: []regMask{fp, fp, pred}, outputs: []regMask{pred}}
 		fp2predfp      = regInfo{inputs: []regMask{fp, fp, pred}, outputs: []regMask{fp}}
-		fp2pred07fp    = regInfo{inputs: []regMask{fp, fp, pred07}, outputs: []regMask{fp}}
 		fp3predfp      = regInfo{inputs: []regMask{fp, fp, fp, pred}, outputs: []regMask{fp}}
 		predload       = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{pred}}
 		predstore      = regInfo{inputs: []regMask{gpspsbg, pred}}
@@ -222,8 +220,8 @@ func init() {
 		fpstore        = regInfo{inputs: []regMask{gpspsbg, fp}}
 		fpstoreidx     = regInfo{inputs: []regMask{gpspsbg, gpg, fp}}
 		gp2pred        = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{pred}}
-		fppred07load   = regInfo{inputs: []regMask{gpspsbg, pred07}, outputs: []regMask{fp}}
-		fppred07store  = regInfo{inputs: []regMask{gpspsbg, fp, pred07}}
+		fppredload     = regInfo{inputs: []regMask{gpspsbg, pred}, outputs: []regMask{fp}}
+		fppredstore    = regInfo{inputs: []regMask{gpspsbg, fp, pred}}
 		fpstore2       = regInfo{inputs: []regMask{gpspsbg, fp, fp}}
 		readflags      = regInfo{inputs: nil, outputs: []regMask{gp}}
 		prefreg        = regInfo{inputs: []regMask{gpspsbg}}
@@ -905,26 +903,26 @@ func init() {
 		{name: "ZCPYMergingDconst", argLength: 2, aux: "Int8", reg: fp1predfp, asm: "ZCPY", typ: "Vec256", resultInArg0: true}, // arg0=else, arg1=predicate, auxint=imm
 		// ZCPYMerging{B,H,S,D} broadcasts a general register to the selected lanes
 		// of arg0, keeping arg0 on the inactive lanes (Pg/M).
-		{name: "ZCPYMergingB", argLength: 3, reg: fpgppred07fp, asm: "ZCPYW", typ: "Vec256", resultInArg0: true}, // arg0=else, arg1=scalar, arg2=predicate
-		{name: "ZCPYMergingH", argLength: 3, reg: fpgppred07fp, asm: "ZCPYW", typ: "Vec256", resultInArg0: true}, // arg0=else, arg1=scalar, arg2=predicate
-		{name: "ZCPYMergingS", argLength: 3, reg: fpgppred07fp, asm: "ZCPYW", typ: "Vec256", resultInArg0: true}, // arg0=else, arg1=scalar, arg2=predicate
-		{name: "ZCPYMergingD", argLength: 3, reg: fpgppred07fp, asm: "ZCPY", typ: "Vec256", resultInArg0: true},  // arg0=else, arg1=scalar, arg2=predicate
+		{name: "ZCPYMergingB", argLength: 3, reg: fpgppredfp, asm: "ZCPYW", typ: "Vec256", resultInArg0: true}, // arg0=else, arg1=scalar, arg2=predicate
+		{name: "ZCPYMergingH", argLength: 3, reg: fpgppredfp, asm: "ZCPYW", typ: "Vec256", resultInArg0: true}, // arg0=else, arg1=scalar, arg2=predicate
+		{name: "ZCPYMergingS", argLength: 3, reg: fpgppredfp, asm: "ZCPYW", typ: "Vec256", resultInArg0: true}, // arg0=else, arg1=scalar, arg2=predicate
+		{name: "ZCPYMergingD", argLength: 3, reg: fpgppredfp, asm: "ZCPY", typ: "Vec256", resultInArg0: true},  // arg0=else, arg1=scalar, arg2=predicate
 		// ZCPYIMerging{B,H,S,D} broadcasts element 0 of a vector/FP register to
 		// the selected lanes of arg0, keeping arg0 on the inactive lanes (Pg/M).
-		{name: "ZCPYIMergingB", argLength: 3, reg: fp2pred07fp, asm: "ZCPYB", typ: "Vec256", resultInArg0: true}, // arg0=else, arg1=scalar, arg2=predicate
-		{name: "ZCPYIMergingH", argLength: 3, reg: fp2pred07fp, asm: "ZCPYH", typ: "Vec256", resultInArg0: true}, // arg0=else, arg1=scalar, arg2=predicate
-		{name: "ZCPYIMergingS", argLength: 3, reg: fp2pred07fp, asm: "ZCPYS", typ: "Vec256", resultInArg0: true}, // arg0=else, arg1=scalar, arg2=predicate
-		{name: "ZCPYIMergingD", argLength: 3, reg: fp2pred07fp, asm: "ZCPYD", typ: "Vec256", resultInArg0: true}, // arg0=else, arg1=scalar, arg2=predicate
+		{name: "ZCPYIMergingB", argLength: 3, reg: fp2predfp, asm: "ZCPYB", typ: "Vec256", resultInArg0: true}, // arg0=else, arg1=scalar, arg2=predicate
+		{name: "ZCPYIMergingH", argLength: 3, reg: fp2predfp, asm: "ZCPYH", typ: "Vec256", resultInArg0: true}, // arg0=else, arg1=scalar, arg2=predicate
+		{name: "ZCPYIMergingS", argLength: 3, reg: fp2predfp, asm: "ZCPYS", typ: "Vec256", resultInArg0: true}, // arg0=else, arg1=scalar, arg2=predicate
+		{name: "ZCPYIMergingD", argLength: 3, reg: fp2predfp, asm: "ZCPYD", typ: "Vec256", resultInArg0: true}, // arg0=else, arg1=scalar, arg2=predicate
 		// RDVL reads the architecture vector length in bytes (aux = scale). Used
 		// at package init to verify the hardware VL fits the fixed 256-bit model.
 		{name: "RDVL", argLength: 0, aux: "Int64", reg: gp01, asm: "RDVL", typ: "Int64"},
 
-		{name: "PWHILELTB", argLength: 2, reg: gp2pred, asm: "PWHILELT", typ: "(Mask,Flags)"},                                                         // arg0=lo, arg1=hi; predicate enabling byte (.B) lanes [lo,hi).
-		{name: "PWHILELTH", argLength: 2, reg: gp2pred, asm: "PWHILELT", typ: "(Mask,Flags)"},                                                         // as PWHILELTB but for .H (16-bit) lanes.
-		{name: "PWHILELTS", argLength: 2, reg: gp2pred, asm: "PWHILELT", typ: "(Mask,Flags)"},                                                         // as PWHILELTB but for .S (32-bit) lanes.
-		{name: "PWHILELTD", argLength: 2, reg: gp2pred, asm: "PWHILELT", typ: "(Mask,Flags)"},                                                         // as PWHILELTB but for .D (64-bit) lanes.
-		{name: "ZLD1BPredload", argLength: 3, reg: fppred07load, aux: "SymOff", asm: "ZLD1B", typ: "Vec256", faultOnNilArg0: true, symEffect: "Read"}, // predicated load from arg0+auxInt+aux governed by arg1; arg2=mem.
-		{name: "ZST1BPredstore", argLength: 4, reg: fppred07store, aux: "SymOff", asm: "ZST1B", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // predicated store of arg1 to arg0+auxInt+aux governed by arg2; arg3=mem.
+		{name: "PWHILELTB", argLength: 2, reg: gp2pred, asm: "PWHILELT", typ: "(Mask,Flags)"},                                                       // arg0=lo, arg1=hi; predicate enabling byte (.B) lanes [lo,hi).
+		{name: "PWHILELTH", argLength: 2, reg: gp2pred, asm: "PWHILELT", typ: "(Mask,Flags)"},                                                       // as PWHILELTB but for .H (16-bit) lanes.
+		{name: "PWHILELTS", argLength: 2, reg: gp2pred, asm: "PWHILELT", typ: "(Mask,Flags)"},                                                       // as PWHILELTB but for .S (32-bit) lanes.
+		{name: "PWHILELTD", argLength: 2, reg: gp2pred, asm: "PWHILELT", typ: "(Mask,Flags)"},                                                       // as PWHILELTB but for .D (64-bit) lanes.
+		{name: "ZLD1BPredload", argLength: 3, reg: fppredload, aux: "SymOff", asm: "ZLD1B", typ: "Vec256", faultOnNilArg0: true, symEffect: "Read"}, // predicated load from arg0+auxInt+aux governed by arg1; arg2=mem.
+		{name: "ZST1BPredstore", argLength: 4, reg: fppredstore, aux: "SymOff", asm: "ZST1B", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // predicated store of arg1 to arg0+auxInt+aux governed by arg2; arg3=mem.
 	}
 
 	blocks := []blockData{
