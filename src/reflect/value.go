@@ -3349,7 +3349,9 @@ func convertOp(dst, src *abi.Type) func(Value, Type) Value {
 		switch Kind(dst.Kind()) {
 		case Int, Int8, Int16, Int32, Int64, Uint, Uint8, Uint16, Uint32, Uint64, Uintptr:
 			return cvtInt
-		case Float32, Float64:
+		case Float32:
+			return cvtIntFloat32
+		case Float64:
 			return cvtIntFloat
 		case String:
 			return cvtIntString
@@ -3359,7 +3361,9 @@ func convertOp(dst, src *abi.Type) func(Value, Type) Value {
 		switch Kind(dst.Kind()) {
 		case Int, Int8, Int16, Int32, Int64, Uint, Uint8, Uint16, Uint32, Uint64, Uintptr:
 			return cvtUint
-		case Float32, Float64:
+		case Float32:
+			return cvtUintFloat32
+		case Float64:
 			return cvtUintFloat
 		case String:
 			return cvtUintString
@@ -3539,14 +3543,25 @@ func cvtFloatUint(v Value, t Type) Value {
 	return makeInt(v.flag.ro(), uint64(v.Float()), t)
 }
 
-// convertOp: intXX -> floatXX
+// convertOp: intXX -> float64
 func cvtIntFloat(v Value, t Type) Value {
 	return makeFloat(v.flag.ro(), float64(v.Int()), t)
 }
 
-// convertOp: uintXX -> floatXX
+// convertOp: uintXX -> float64
 func cvtUintFloat(v Value, t Type) Value {
 	return makeFloat(v.flag.ro(), float64(v.Uint()), t)
+}
+
+// convertOp: intXX -> float32
+func cvtIntFloat32(v Value, t Type) Value {
+	// Convert directly, as converting through float64 rounds twice.
+	return makeFloat32(v.flag.ro(), float32(v.Int()), t)
+}
+
+// convertOp: uintXX -> float32
+func cvtUintFloat32(v Value, t Type) Value {
+	return makeFloat32(v.flag.ro(), float32(v.Uint()), t)
 }
 
 // convertOp: floatXX -> floatXX
