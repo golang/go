@@ -47,9 +47,10 @@ func siteDisplay(pos syntax.Pos, base string, line uint) (string, uint) {
 // may rewrite. Files without an entry in src are left alone. Lower mutates
 // the files in place and reports whether anything changed. A true result
 // also covers a semantic-only change: const views that live purely in
-// checker info (rt.Freeze results, with no ConstType node to erase)
-// still need the plain recheck, so the export writer and the backend only
-// ever see Go-facing types. A surviving
+// checker info (rt.Freeze results, with no ConstType node to erase) and
+// one-value map reads whose bare option keeps its Go form still need the
+// plain recheck, so the export writer and the backend only ever see
+// Go-facing types. A surviving
 // loGo/s node (TryExpr, ErrdeferStmt, SwitchExpr, ArmClause,
 // AssertedStruct, OptionType, CoalesceExpr, OptSelectExpr, ConstType,
 // YieldStmt, ScopeDeferStmt, or InterpExpr) is an internal error.

@@ -1,0 +1,77 @@
+// run
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+type E struct{ n int }
+
+var failed = false
+
+func eq(name string, got, want int) {
+	if got != want {
+		fmt.Printf("FAIL %s: got %d want %d\n", name, got, want)
+		failed = true
+		return
+	}
+	fmt.Printf("ok %s\n", name)
+}
+
+func bs(name string, got, want bool) {
+	if got != want {
+		fmt.Printf("FAIL %s: got %v want %v\n", name, got, want)
+		failed = true
+		return
+	}
+	fmt.Printf("ok %s\n", name)
+}
+
+func main() {
+	m := map[string]*E{"a": &E{n: 1}, "b": &E{n: 2}}
+
+	e := m["a"]
+	bs("present-key-non-nil", e != nil, true)
+	if e != nil {
+		eq("present-narrowed-field", e.n, 1)
+	}
+
+	z := m["zz"]
+	bs("absent-key-nil", z == nil, true)
+	if z != nil {
+		fmt.Println("FAIL absent-key-narrowing: got present")
+		failed = true
+	} else {
+		fmt.Println("ok absent-key-narrowing")
+	}
+
+	if e := m["b"]; e != nil {
+		eq("if-init-present-field", e.n, 2)
+	} else {
+		fmt.Println("FAIL if-init-present: got absent")
+		failed = true
+	}
+
+	v, ok := m["a"]
+	bs("comma-ok-present", ok && v != nil, true)
+	eq("comma-ok-field", v.n, 1)
+	v2, ok2 := m["zz"]
+	bs("comma-ok-absent", !ok2 && v2 == nil, true)
+
+	nested := map[string]map[string]*E{"x": map[string]*E{"y": &E{n: 7}}}
+	inner, found := nested["x"]
+	if !found {
+		fmt.Println("FAIL nested-outer-present: got absent")
+		failed = true
+	} else if e := inner["y"]; e != nil {
+		eq("nested-inner-bare-field", e.n, 7)
+	} else {
+		fmt.Println("FAIL nested-inner-present: got absent")
+		failed = true
+	}
+
+	if failed {
+		os.Exit(1)
+	}
+}

@@ -1000,7 +1000,15 @@ func (fl *fileLower) lowerMapIndex(e *syntax.IndexExpr) syntax.Expr {
 		return fl.lowerConstMapRead(e, g)
 	}
 	opt := fl.asOption(fl.optType(e))
-	if !fl.isMapRead(e) || opt == nil || types2.LogosOptionIsBare(opt.Elem) || fl.isTypeExpr(e) {
+	oneValue := fl.isMapRead(e) && opt != nil && !fl.isTypeExpr(e)
+	if oneValue && types2.LogosOptionIsBare(opt.Elem) {
+		// A bare read keeps its Go form, so nothing is spliced, but the
+		// check recorded an option type for it. Mark the semantic-only
+		// change: the plain recheck re-infers the element type, and the
+		// export writer accepts Go-facing types only.
+		fl.changed = true
+	}
+	if !oneValue || types2.LogosOptionIsBare(opt.Elem) {
 		e.X = fl.lowerOptExpr(e.X)
 		e.Index = fl.lowerOptExpr(e.Index)
 		return e
