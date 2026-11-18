@@ -1664,7 +1664,7 @@ func (x Float64x4) HiToLo() (z Float64x4) {
 // Emulated, CPU Feature: AVX512
 func (x Int8x64) HiToLo() (z Int8x64) {
 	var zero Int8x64
-	return zero.SetLo(x.GetHi())
+	return zero.SetLo(x.Hi())
 }
 
 // HiToLo returns a vector whose low half is the high half of x and whose high
@@ -1675,7 +1675,7 @@ func (x Int8x64) HiToLo() (z Int8x64) {
 // Emulated, CPU Feature: AVX512
 func (x Int16x32) HiToLo() (z Int16x32) {
 	var zero Int16x32
-	return zero.SetLo(x.GetHi())
+	return zero.SetLo(x.Hi())
 }
 
 // HiToLo returns a vector whose low half is the high half of x and whose high
@@ -1686,7 +1686,7 @@ func (x Int16x32) HiToLo() (z Int16x32) {
 // Emulated, CPU Feature: AVX512
 func (x Int32x16) HiToLo() (z Int32x16) {
 	var zero Int32x16
-	return zero.SetLo(x.GetHi())
+	return zero.SetLo(x.Hi())
 }
 
 // HiToLo returns a vector whose low half is the high half of x and whose high
@@ -1697,7 +1697,7 @@ func (x Int32x16) HiToLo() (z Int32x16) {
 // Emulated, CPU Feature: AVX512
 func (x Int64x8) HiToLo() (z Int64x8) {
 	var zero Int64x8
-	return zero.SetLo(x.GetHi())
+	return zero.SetLo(x.Hi())
 }
 
 // HiToLo returns a vector whose low half is the high half of x and whose high
@@ -1708,7 +1708,7 @@ func (x Int64x8) HiToLo() (z Int64x8) {
 // Emulated, CPU Feature: AVX512
 func (x Uint8x64) HiToLo() (z Uint8x64) {
 	var zero Uint8x64
-	return zero.SetLo(x.GetHi())
+	return zero.SetLo(x.Hi())
 }
 
 // HiToLo returns a vector whose low half is the high half of x and whose high
@@ -1719,7 +1719,7 @@ func (x Uint8x64) HiToLo() (z Uint8x64) {
 // Emulated, CPU Feature: AVX512
 func (x Uint16x32) HiToLo() (z Uint16x32) {
 	var zero Uint16x32
-	return zero.SetLo(x.GetHi())
+	return zero.SetLo(x.Hi())
 }
 
 // HiToLo returns a vector whose low half is the high half of x and whose high
@@ -1730,7 +1730,7 @@ func (x Uint16x32) HiToLo() (z Uint16x32) {
 // Emulated, CPU Feature: AVX512
 func (x Uint32x16) HiToLo() (z Uint32x16) {
 	var zero Uint32x16
-	return zero.SetLo(x.GetHi())
+	return zero.SetLo(x.Hi())
 }
 
 // HiToLo returns a vector whose low half is the high half of x and whose high
@@ -1741,7 +1741,7 @@ func (x Uint32x16) HiToLo() (z Uint32x16) {
 // Emulated, CPU Feature: AVX512
 func (x Uint64x8) HiToLo() (z Uint64x8) {
 	var zero Uint64x8
-	return zero.SetLo(x.GetHi())
+	return zero.SetLo(x.Hi())
 }
 
 // HiToLo returns a vector whose low half is the high half of x and whose high
@@ -1752,7 +1752,7 @@ func (x Uint64x8) HiToLo() (z Uint64x8) {
 // Emulated, CPU Feature: AVX512
 func (x Float32x16) HiToLo() (z Float32x16) {
 	var zero Float32x16
-	return zero.SetLo(x.GetHi())
+	return zero.SetLo(x.Hi())
 }
 
 // HiToLo returns a vector whose low half is the high half of x and whose high
@@ -1763,5 +1763,5 @@ func (x Float32x16) HiToLo() (z Float32x16) {
 // Emulated, CPU Feature: AVX512
 func (x Float64x8) HiToLo() (z Float64x8) {
 	var zero Float64x8
-	return zero.SetLo(x.GetHi())
+	return zero.SetLo(x.Hi())
 }

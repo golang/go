@@ -16,12 +16,12 @@ func sum(x simd.Float32s) float32 {
 	case archsimd.Float32x8:
 		a = a.ConcatAddPairsGrouped(a)
 		a = a.ConcatAddPairsGrouped(a)
-		return a.GetLo().GetElem(0) + a.GetHi().GetElem(0)
+		return a.Lo().Elem(0) + a.Hi().Elem(0)
 	case archsimd.Float32x16:
-		b := a.GetLo().Add(a.GetHi())
+		b := a.Lo().Add(a.Hi())
 		b = b.ConcatAddPairsGrouped(b)
 		b = b.ConcatAddPairsGrouped(b)
-		return b.GetLo().GetElem(0) + b.GetHi().GetElem(0)
+		return b.Lo().Elem(0) + b.Hi().Elem(0)
 	case archsimd.Float32x4:
 		return boringSum(simd.Float32sFromArch(a))
 	default:

@@ -84,10 +84,10 @@ func (x Int8x32) StorePart(s []int8) (n int) {
 		return 0
 	}
 	if l > 16 {
-		x.GetLo().Store(s)
-		x.GetHi().StorePart(s[16:])
+		x.Lo().Store(s)
+		x.Hi().StorePart(s[16:])
 	} else { // fits in one
-		x.GetLo().StorePart(s)
+		x.Lo().StorePart(s)
 	}
 	return l
 }
@@ -103,10 +103,10 @@ func (x Int16x16) StorePart(s []int16) (n int) {
 		return 0
 	}
 	if l > 8 {
-		x.GetLo().Store(s)
-		x.GetHi().StorePart(s[8:])
+		x.Lo().Store(s)
+		x.Hi().StorePart(s[8:])
 	} else { // fits in one
-		x.GetLo().StorePart(s)
+		x.Lo().StorePart(s)
 	}
 	return l
 }

@@ -1303,18 +1303,18 @@ const hiToLo128TemplateText = `
 func (x {{.VType}}) HiToLo() {{.VType}} {
 	var v {{.VType}}
 {{- if and (eq .Base "Float") (eq .EWidth 64)}}
-	return v.SetElem(0, x.GetElem(1))
+	return v.SetElem(0, x.Elem(1))
 {{- else if (eq .EWidth 64)}}
 {{-  if (eq .Base "Uint")}}
-	return v.BitsToFloat64().SetElem(0, x.BitsToFloat64().GetElem(1)).ToBits()
+	return v.BitsToFloat64().SetElem(0, x.BitsToFloat64().Elem(1)).ToBits()
 {{-  else}}
-	return v.ToBits().BitsToFloat64().SetElem(0, x.ToBits().BitsToFloat64().GetElem(1)).ToBits().BitsTo{{.Base}}{{.EWidth}}()
+	return v.ToBits().BitsToFloat64().SetElem(0, x.ToBits().BitsToFloat64().Elem(1)).ToBits().BitsTo{{.Base}}{{.EWidth}}()
 {{-  end}}
 {{- else}}
 {{-  if (eq .Base "Uint")}}
-	return v.ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint{{.EWidth}}s()
+	return v.ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ReshapeToUint64s().BitsToFloat64().Elem(1)).ToBits().ReshapeToUint{{.EWidth}}s()
 {{-  else}}
-	return v.ToBits().ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ToBits().ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint{{.EWidth}}s().BitsTo{{.Base}}{{.EWidth}}()
+	return v.ToBits().ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ToBits().ReshapeToUint64s().BitsToFloat64().Elem(1)).ToBits().ReshapeToUint{{.EWidth}}s().BitsTo{{.Base}}{{.EWidth}}()
 {{-  end}}
 {{- end}}
 }
@@ -1365,7 +1365,7 @@ func (x {{.VType}}) HiToLo() {{.VType}} {
 	return x.ConcatPermute128Scalars(1, 2, zero)
 {{- else}}
 	var zero {{.VType}}
-	return zero.SetLo(x.GetHi())
+	return zero.SetLo(x.Hi())
 {{- end}}
 }
 `)
@@ -1399,7 +1399,7 @@ var reduceSumTemplateArm64 = shapedTemplateOf(arm64ReduceIntegerShapes, "arm64_R
 //
 // Emulated
 func (x {{.VType}}) ReduceSum() {{.Etype}} {
-	return x.reduceSum().GetElem(0)
+	return x.reduceSum().Elem(0)
 }
 `)
 
@@ -1408,14 +1408,14 @@ var reduceMinMaxTemplateArm64 = shapedTemplateOf(arm64ReduceMinMaxShapes, "arm64
 //
 // Emulated
 func (x {{.VType}}) ReduceMax() {{.Etype}} {
-	return x.reduceMax().GetElem(0)
+	return x.reduceMax().Elem(0)
 }
 
 // ReduceMin reduces x by taking the minimum of all elements.
 //
 // Emulated
 func (x {{.VType}}) ReduceMin() {{.Etype}} {
-	return x.reduceMin().GetElem(0)
+	return x.reduceMin().Elem(0)
 }
 `)
 
@@ -1424,7 +1424,7 @@ var reduceSum64TemplateArm64 = shapedTemplateOf(arm64ReduceSum64Shapes, "arm64_6
 //
 // Emulated
 func (x {{.VType}}) ReduceSum() {{.Etype}} {
-	return x.ConcatAddPairs(x).GetElem(0)
+	return x.ConcatAddPairs(x).Elem(0)
 }
 `)
 
@@ -1433,14 +1433,14 @@ var reduceMinMax64TemplateArm64 = shapedTemplateOf(arm64ReduceMinMax64Shapes, "a
 //
 // Emulated
 func (x {{.VType}}) ReduceMax() {{.Etype}} {
-	return x.ConcatMaxPairs(x).GetElem(0)
+	return x.ConcatMaxPairs(x).Elem(0)
 }
 
 // ReduceMin reduces x by taking the minimum of all elements.
 //
 // Emulated
 func (x {{.VType}}) ReduceMin() {{.Etype}} {
-	return x.ConcatMinPairs(x).GetElem(0)
+	return x.ConcatMinPairs(x).Elem(0)
 }
 `)
 

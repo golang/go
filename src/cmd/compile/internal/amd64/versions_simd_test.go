@@ -15,7 +15,7 @@ func testLoop2(n int, x float64) float64 {
 		if archsimd.X86.AVX2() {
 			v := archsimd.BroadcastFloat64x2(x)
 			v = v.Mul(v)
-			r += v.GetElem(0)
+			r += v.Elem(0)
 		}
 	}
 	return r
@@ -30,7 +30,7 @@ func testLoop3(n int, x float64) float64 {
 	for range n {
 		v := archsimd.BroadcastFloat64x2(x)
 		v = v.Mul(v)
-		r += v.GetElem(0)
+		r += v.Elem(0)
 	}
 	return r
 }

@@ -143,42 +143,42 @@ func (x Uint8x16) StorePart(s []uint8) (n int) {
 		return 0
 	}
 	if l >= 8 { // 8-15
-		*uint64atP8(&s[0]) = x.ReshapeToUint64s().GetElem(0)
+		*uint64atP8(&s[0]) = x.ReshapeToUint64s().Elem(0)
 		if l >= 12 { // 12, 13, 14, 15
-			*uint32atP8(&s[8]) = x.ReshapeToUint32s().GetElem(8 / 4)
+			*uint32atP8(&s[8]) = x.ReshapeToUint32s().Elem(8 / 4)
 			if l >= 14 {
-				*uint16atP8(&s[12]) = x.ReshapeToUint16s().GetElem(12 / 2)
+				*uint16atP8(&s[12]) = x.ReshapeToUint16s().Elem(12 / 2)
 				if l == 15 {
-					s[14] = x.GetElem(14)
+					s[14] = x.Elem(14)
 				}
 			} else if l == 13 {
-				s[12] = x.GetElem(12)
+				s[12] = x.Elem(12)
 			}
 		} else if l >= 10 { // 10, 11
-			*uint16atP8(&s[8]) = x.ReshapeToUint16s().GetElem(8 / 2)
+			*uint16atP8(&s[8]) = x.ReshapeToUint16s().Elem(8 / 2)
 			if l == 11 {
-				s[10] = x.GetElem(10)
+				s[10] = x.Elem(10)
 			}
 		} else if l == 9 {
-			s[8] = x.GetElem(8)
+			s[8] = x.Elem(8)
 		}
 	} else if l >= 4 { // 4-7
-		*uint32atP8(&s[0]) = x.ReshapeToUint32s().GetElem(0)
+		*uint32atP8(&s[0]) = x.ReshapeToUint32s().Elem(0)
 		if l >= 6 {
-			*uint16atP8(&s[4]) = x.ReshapeToUint16s().GetElem(4 / 2)
+			*uint16atP8(&s[4]) = x.ReshapeToUint16s().Elem(4 / 2)
 			if l == 7 {
-				s[6] = x.GetElem(6)
+				s[6] = x.Elem(6)
 			}
 		} else if l == 5 {
-			s[4] = x.GetElem(4)
+			s[4] = x.Elem(4)
 		}
 	} else if l >= 2 { // 2,3
-		*uint16atP8(&s[0]) = x.ReshapeToUint16s().GetElem(0)
+		*uint16atP8(&s[0]) = x.ReshapeToUint16s().Elem(0)
 		if l == 3 {
-			s[2] = x.GetElem(2)
+			s[2] = x.Elem(2)
 		}
 	} else { // l == 1
-		s[0] = x.GetElem(0)
+		s[0] = x.Elem(0)
 	}
 	return l
 }
@@ -227,22 +227,22 @@ func (x Uint16x8) StorePart(s []uint16) (n int) {
 		return 0
 	}
 	if l >= 4 { // 4-7
-		*uint64atP16(&s[0]) = x.ReshapeToUint64s().GetElem(0)
+		*uint64atP16(&s[0]) = x.ReshapeToUint64s().Elem(0)
 		if l >= 6 {
-			*uint32atP16(&s[4]) = x.ReshapeToUint32s().GetElem(4 / 2)
+			*uint32atP16(&s[4]) = x.ReshapeToUint32s().Elem(4 / 2)
 			if l == 7 {
-				s[6] = x.GetElem(6)
+				s[6] = x.Elem(6)
 			}
 		} else if l == 5 {
-			s[4] = x.GetElem(4)
+			s[4] = x.Elem(4)
 		}
 	} else if l >= 2 { // 2,3
-		*uint32atP16(&s[0]) = x.ReshapeToUint32s().GetElem(0)
+		*uint32atP16(&s[0]) = x.ReshapeToUint32s().Elem(0)
 		if l == 3 {
-			s[2] = x.GetElem(2)
+			s[2] = x.Elem(2)
 		}
 	} else { // l == 1
-		s[0] = x.GetElem(0)
+		s[0] = x.Elem(0)
 	}
 	return l
 }

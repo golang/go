@@ -47,7 +47,7 @@ func (x Uint64x2) mwl(y Uint64x2) Uint64x2 {
 	//
 	// swap 64-bit halves of ad0_ad1_bc0_bc1
 	// to get   bc0_bc1_ad0_ad1
-	bc0_bc1_ad0_ad1 := Uint64x2{}.SetElem(0, ad0_ad1_bc0_bc1.GetElem(1)).SetElem(1, ad0_ad1_bc0_bc1.GetElem(0))
+	bc0_bc1_ad0_ad1 := Uint64x2{}.SetElem(0, ad0_ad1_bc0_bc1.Elem(1)).SetElem(1, ad0_ad1_bc0_bc1.Elem(0))
 
 	// added to ad0_ad1_bc0_bc1 yields
 	//   bc0+ad0, bc1+ad1, bc0+ad0, bc1+ad1

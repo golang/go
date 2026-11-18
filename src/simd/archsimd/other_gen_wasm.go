@@ -10,7 +10,7 @@ package archsimd
 //	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = 16
 func (x Int8x16) HiToLo() (z Int8x16) {
 	var v Int8x16
-	return v.ToBits().ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ToBits().ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint8s().BitsToInt8()
+	return v.ToBits().ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ToBits().ReshapeToUint64s().BitsToFloat64().Elem(1)).ToBits().ReshapeToUint8s().BitsToInt8()
 }
 
 // HiToLo returns a vector whose low half is the high half of x and whose high
@@ -19,7 +19,7 @@ func (x Int8x16) HiToLo() (z Int8x16) {
 //	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = 8
 func (x Int16x8) HiToLo() (z Int16x8) {
 	var v Int16x8
-	return v.ToBits().ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ToBits().ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint16s().BitsToInt16()
+	return v.ToBits().ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ToBits().ReshapeToUint64s().BitsToFloat64().Elem(1)).ToBits().ReshapeToUint16s().BitsToInt16()
 }
 
 // HiToLo returns a vector whose low half is the high half of x and whose high
@@ -28,7 +28,7 @@ func (x Int16x8) HiToLo() (z Int16x8) {
 //	z = {x[2], x[3], 0, 0}
 func (x Int32x4) HiToLo() (z Int32x4) {
 	var v Int32x4
-	return v.ToBits().ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ToBits().ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint32s().BitsToInt32()
+	return v.ToBits().ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ToBits().ReshapeToUint64s().BitsToFloat64().Elem(1)).ToBits().ReshapeToUint32s().BitsToInt32()
 }
 
 // HiToLo returns a vector whose low half is the high half of x and whose high
@@ -37,7 +37,7 @@ func (x Int32x4) HiToLo() (z Int32x4) {
 //	z = {x[1], 0}
 func (x Int64x2) HiToLo() (z Int64x2) {
 	var v Int64x2
-	return v.ToBits().BitsToFloat64().SetElem(0, x.ToBits().BitsToFloat64().GetElem(1)).ToBits().BitsToInt64()
+	return v.ToBits().BitsToFloat64().SetElem(0, x.ToBits().BitsToFloat64().Elem(1)).ToBits().BitsToInt64()
 }
 
 // HiToLo returns a vector whose low half is the high half of x and whose high
@@ -46,7 +46,7 @@ func (x Int64x2) HiToLo() (z Int64x2) {
 //	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = 16
 func (x Uint8x16) HiToLo() (z Uint8x16) {
 	var v Uint8x16
-	return v.ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint8s()
+	return v.ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ReshapeToUint64s().BitsToFloat64().Elem(1)).ToBits().ReshapeToUint8s()
 }
 
 // HiToLo returns a vector whose low half is the high half of x and whose high
@@ -55,7 +55,7 @@ func (x Uint8x16) HiToLo() (z Uint8x16) {
 //	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = 8
 func (x Uint16x8) HiToLo() (z Uint16x8) {
 	var v Uint16x8
-	return v.ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint16s()
+	return v.ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ReshapeToUint64s().BitsToFloat64().Elem(1)).ToBits().ReshapeToUint16s()
 }
 
 // HiToLo returns a vector whose low half is the high half of x and whose high
@@ -64,7 +64,7 @@ func (x Uint16x8) HiToLo() (z Uint16x8) {
 //	z = {x[2], x[3], 0, 0}
 func (x Uint32x4) HiToLo() (z Uint32x4) {
 	var v Uint32x4
-	return v.ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint32s()
+	return v.ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ReshapeToUint64s().BitsToFloat64().Elem(1)).ToBits().ReshapeToUint32s()
 }
 
 // HiToLo returns a vector whose low half is the high half of x and whose high
@@ -73,7 +73,7 @@ func (x Uint32x4) HiToLo() (z Uint32x4) {
 //	z = {x[1], 0}
 func (x Uint64x2) HiToLo() (z Uint64x2) {
 	var v Uint64x2
-	return v.BitsToFloat64().SetElem(0, x.BitsToFloat64().GetElem(1)).ToBits()
+	return v.BitsToFloat64().SetElem(0, x.BitsToFloat64().Elem(1)).ToBits()
 }
 
 // HiToLo returns a vector whose low half is the high half of x and whose high
@@ -82,7 +82,7 @@ func (x Uint64x2) HiToLo() (z Uint64x2) {
 //	z = {x[2], x[3], 0, 0}
 func (x Float32x4) HiToLo() (z Float32x4) {
 	var v Float32x4
-	return v.ToBits().ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ToBits().ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint32s().BitsToFloat32()
+	return v.ToBits().ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ToBits().ReshapeToUint64s().BitsToFloat64().Elem(1)).ToBits().ReshapeToUint32s().BitsToFloat32()
 }
 
 // HiToLo returns a vector whose low half is the high half of x and whose high
@@ -91,5 +91,5 @@ func (x Float32x4) HiToLo() (z Float32x4) {
 //	z = {x[1], 0}
 func (x Float64x2) HiToLo() (z Float64x2) {
 	var v Float64x2
-	return v.SetElem(0, x.GetElem(1))
+	return v.SetElem(0, x.Elem(1))
 }

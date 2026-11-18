@@ -17,7 +17,7 @@ func f(k bool, v archsimd.Int32x4) int32 {
 		n = 1
 	}
 	if archsimd.X86.AVX() {
-		n += v.GetElem(0)
+		n += v.Elem(0)
 	}
 	return n
 }

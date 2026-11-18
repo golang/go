@@ -140,80 +140,80 @@ func TestGetElem(t *testing.T) {
 	{
 		a := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 		v := archsimd.LoadInt8x16(a)
-		if e := v.GetElem(2); e != a[2] {
-			t.Errorf("Int8x16.GetElem(2) = %d, want %d", e, a[2])
+		if e := v.Elem(2); e != a[2] {
+			t.Errorf("Int8x16.Elem(2) = %d, want %d", e, a[2])
 		}
 	}
 	// Int16x8
 	{
 		a := []int16{10, 20, 30, 40, 50, 60, 70, 80}
 		v := archsimd.LoadInt16x8(a)
-		if e := v.GetElem(3); e != a[3] {
-			t.Errorf("Int16x8.GetElem(3) = %d, want %d", e, a[3])
+		if e := v.Elem(3); e != a[3] {
+			t.Errorf("Int16x8.Elem(3) = %d, want %d", e, a[3])
 		}
 	}
 	// Int32x4
 	{
 		a := []int32{100, 200, 300, 400}
 		v := archsimd.LoadInt32x4(a)
-		if e := v.GetElem(1); e != a[1] {
-			t.Errorf("Int32x4.GetElem(1) = %d, want %d", e, a[1])
+		if e := v.Elem(1); e != a[1] {
+			t.Errorf("Int32x4.Elem(1) = %d, want %d", e, a[1])
 		}
 	}
 	// Int64x2
 	{
 		a := []int64{1000, 2000}
 		v := archsimd.LoadInt64x2(a)
-		if e := v.GetElem(0); e != a[0] {
-			t.Errorf("Int64x2.GetElem(0) = %d, want %d", e, a[0])
+		if e := v.Elem(0); e != a[0] {
+			t.Errorf("Int64x2.Elem(0) = %d, want %d", e, a[0])
 		}
 	}
 	// Uint8x16
 	{
 		a := []uint8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 		v := archsimd.LoadUint8x16(a)
-		if e := v.GetElem(5); e != a[5] {
-			t.Errorf("Uint8x16.GetElem(5) = %d, want %d", e, a[5])
+		if e := v.Elem(5); e != a[5] {
+			t.Errorf("Uint8x16.Elem(5) = %d, want %d", e, a[5])
 		}
 	}
 	// Uint16x8
 	{
 		a := []uint16{100, 200, 300, 400, 500, 600, 700, 800}
 		v := archsimd.LoadUint16x8(a)
-		if e := v.GetElem(7); e != a[7] {
-			t.Errorf("Uint16x8.GetElem(7) = %d, want %d", e, a[7])
+		if e := v.Elem(7); e != a[7] {
+			t.Errorf("Uint16x8.Elem(7) = %d, want %d", e, a[7])
 		}
 	}
 	// Uint32x4
 	{
 		a := []uint32{1000, 2000, 3000, 4000}
 		v := archsimd.LoadUint32x4(a)
-		if e := v.GetElem(2); e != a[2] {
-			t.Errorf("Uint32x4.GetElem(2) = %d, want %d", e, a[2])
+		if e := v.Elem(2); e != a[2] {
+			t.Errorf("Uint32x4.Elem(2) = %d, want %d", e, a[2])
 		}
 	}
 	// Uint64x2
 	{
 		a := []uint64{10000, 20000}
 		v := archsimd.LoadUint64x2(a)
-		if e := v.GetElem(1); e != a[1] {
-			t.Errorf("Uint64x2.GetElem(1) = %d, want %d", e, a[1])
+		if e := v.Elem(1); e != a[1] {
+			t.Errorf("Uint64x2.Elem(1) = %d, want %d", e, a[1])
 		}
 	}
 	// Float32x4
 	{
 		a := []float32{1.0, 2.0, 3.0, 4.0}
 		v := archsimd.LoadFloat32x4(a)
-		if e := v.GetElem(3); e != a[3] {
-			t.Errorf("Float32x4.GetElem(3) = %f, want %f", e, a[3])
+		if e := v.Elem(3); e != a[3] {
+			t.Errorf("Float32x4.Elem(3) = %f, want %f", e, a[3])
 		}
 	}
 	// Float64x2
 	{
 		a := []float64{10.5, 20.5}
 		v := archsimd.LoadFloat64x2(a)
-		if e := v.GetElem(0); e != a[0] {
-			t.Errorf("Float64x2.GetElem(0) = %f, want %f", e, a[0])
+		if e := v.Elem(0); e != a[0] {
+			t.Errorf("Float64x2.Elem(0) = %f, want %f", e, a[0])
 		}
 	}
 }

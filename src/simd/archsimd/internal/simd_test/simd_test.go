@@ -282,9 +282,9 @@ func TestSlicesInt8GetElem(t *testing.T) {
 	a := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
 		17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
 	v := archsimd.LoadInt8x16(a)
-	e := v.GetElem(2)
+	e := v.Elem(2)
 	if e != a[2] {
-		t.Errorf("GetElem(2) = %d != a[2] = %d", e, a[2])
+		t.Errorf("Elem(2) = %d != a[2] = %d", e, a[2])
 	}
 
 }
@@ -301,7 +301,7 @@ func TestSlicesInt8GetElem16(t *testing.T) {
 	}()
 	a := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 	v := archsimd.LoadInt8x16(a)
-	e := v.GetElem(seventeen - 1)
+	e := v.Elem(seventeen - 1)
 	t.Errorf("Should have panicked, e=%v", e)
 }
 
@@ -315,25 +315,25 @@ func TestSlicesInt8GetElem16const(t *testing.T) {
 	}()
 	a := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 	v := archsimd.LoadInt8x16(a)
-	e := v.GetElem(16)
+	e := v.Elem(16)
 	t.Errorf("Should have panicked, e=%v", e)
 }
 
 func TestSlicesInt8GetElem15(t *testing.T) {
 	a := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 	v := archsimd.LoadInt8x16(a)
-	e := v.GetElem(seventeen - 2)
+	e := v.Elem(seventeen - 2)
 	if e != a[15] {
-		t.Errorf("GetElem(15) = %d != a[15] = %d", e, a[15])
+		t.Errorf("Elem(15) = %d != a[15] = %d", e, a[15])
 	}
 }
 
 func TestSlicesInt8GetElem15const(t *testing.T) {
 	a := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 	v := archsimd.LoadInt8x16(a)
-	e := v.GetElem(15)
+	e := v.Elem(15)
 	if e != a[15] {
-		t.Errorf("GetElem(15) = %d != a[15] = %d", e, a[15])
+		t.Errorf("Elem(15) = %d != a[15] = %d", e, a[15])
 	}
 }
 
@@ -347,7 +347,7 @@ func TestSlicesInt8SetElem17(t *testing.T) {
 	}()
 	a := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 	v := archsimd.LoadInt8x16(a)
-	e := v.SetElem(seventeen, 18).GetElem(2)
+	e := v.SetElem(seventeen, 18).Elem(2)
 	t.Errorf("Should have panicked, e=%v", e)
 }
 
@@ -361,7 +361,7 @@ func TestSlicesInt8SetElem17const(t *testing.T) {
 	}()
 	a := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 	v := archsimd.LoadInt8x16(a)
-	e := v.SetElem(17, 18).GetElem(2)
+	e := v.SetElem(17, 18).Elem(2)
 	t.Errorf("Should have panicked, e=%v", e)
 }
 

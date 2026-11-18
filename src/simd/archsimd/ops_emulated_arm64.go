@@ -17,5 +17,5 @@ package archsimd
 func (x Float32x4) ReduceSum() (z float32) {
 	x = x.ConcatAddPairs(x) // [x0+x1, x2+x3, x0+x1, x2+x3]
 	x = x.ConcatAddPairs(x) // [(x0+x1)+(x2+x3), ...]
-	return x.GetElem(0)
+	return x.Elem(0)
 }

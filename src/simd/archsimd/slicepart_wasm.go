@@ -42,12 +42,12 @@ func (x Uint32x4) StorePart(s []uint32) (n int) {
 		return 0
 	}
 	if l >= 2 { // 2,3
-		*uint64atP32(&s[0]) = x.ReshapeToUint64s().GetElem(0)
+		*uint64atP32(&s[0]) = x.ReshapeToUint64s().Elem(0)
 		if l == 3 {
-			s[2] = x.GetElem(2)
+			s[2] = x.Elem(2)
 		}
 	} else { // l == 1
-		s[0] = x.GetElem(0)
+		s[0] = x.Elem(0)
 	}
 	return l
 }
@@ -80,7 +80,7 @@ func (x Uint64x2) StorePart(s []uint64) (n int) {
 		return 0
 	}
 	// l == 1
-	s[0] = x.GetElem(0)
+	s[0] = x.Elem(0)
 	return 1
 }
 
@@ -162,12 +162,12 @@ func (x Float32x4) StorePart(s []float32) (n int) {
 		return 0
 	}
 	if l >= 2 { // 2,3(
-		*float64atP32(&s[0]) = x.ToBits().ReshapeToUint64s().BitsToFloat64().GetElem(0)
+		*float64atP32(&s[0]) = x.ToBits().ReshapeToUint64s().BitsToFloat64().Elem(0)
 		if l == 3 {
-			s[2] = x.GetElem(2)
+			s[2] = x.Elem(2)
 		}
 	} else { // l == 1
-		s[0] = x.GetElem(0)
+		s[0] = x.Elem(0)
 	}
 	return l
 }
@@ -200,6 +200,6 @@ func (x Float64x2) StorePart(s []float64) (n int) {
 		return 0
 	}
 	// l == 1
-	s[0] = x.GetElem(0)
+	s[0] = x.Elem(0)
 	return l
 }

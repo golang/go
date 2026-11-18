@@ -23,7 +23,7 @@ func memHash32AES(k uint32, seed uintptr) uintptr {
 		AESEncryptOneRound(archsimd.LoadUint32x4Array((*[4]uint32)(unsafe.Pointer(&aeskeysched[16])))).
 		AESEncryptOneRound(archsimd.LoadUint32x4Array((*[4]uint32)(unsafe.Pointer(&aeskeysched[32])))).
 		AsUint64x2().
-		GetElem(0)
+		Elem(0)
 	return uintptr(hash)
 }
 
@@ -37,7 +37,7 @@ func memHash64AES(k uint64, seed uintptr) uintptr {
 		AESEncryptOneRound(archsimd.LoadUint32x4Array((*[4]uint32)(unsafe.Pointer(&aeskeysched[16])))).
 		AESEncryptOneRound(archsimd.LoadUint32x4Array((*[4]uint32)(unsafe.Pointer(&aeskeysched[32])))).
 		AsUint64x2().
-		GetElem(0)
+		Elem(0)
 	return uintptr(hash)
 }
 

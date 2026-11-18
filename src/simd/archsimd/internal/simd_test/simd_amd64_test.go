@@ -1871,15 +1871,15 @@ func TestEnlarge(t *testing.T) {
 	{
 		var got [8]float32
 		y := archsimd.LoadFloat32x8([]float32{1, 2, 3, 4, 5, 6, 7, 8})
-		y.GetLo().Enlarge().Store(got[:])
+		y.Lo().Enlarge().Store(got[:])
 		checkSlices(t, got[:], []float32{1, 2, 3, 4, 0, 0, 0, 0})
-		y.GetHi().Enlarge().Store(got[:])
+		y.Hi().Enlarge().Store(got[:])
 		checkSlices(t, got[:], []float32{5, 6, 7, 8, 0, 0, 0, 0})
 	}
 	if archsimd.X86.AVX2() {
 		var got [8]int32
 		y := archsimd.LoadInt32x8([]int32{1, 2, 3, 4, 5, 6, 7, 8})
-		y.GetLo().Enlarge().Store(got[:])
+		y.Lo().Enlarge().Store(got[:])
 		checkSlices(t, got[:], []int32{1, 2, 3, 4, 0, 0, 0, 0})
 	}
 
@@ -1908,7 +1908,7 @@ func testEnlarge512(t *testing.T) {
 		for i := range src {
 			src[i] = uint8(i + 1)
 		}
-		archsimd.LoadUint8x64(src[:]).GetLo().Enlarge().Store(got[:])
+		archsimd.LoadUint8x64(src[:]).Lo().Enlarge().Store(got[:])
 		want := make([]uint8, 64)
 		copy(want, src[:32])
 		checkSlices(t, got[:], want)

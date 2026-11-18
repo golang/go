@@ -130,7 +130,7 @@ func setHiUint32(x, lo archsimd.Uint32x4) {
 
 func setHiFloat64(x, lo archsimd.Float64x2) {
 	// arm64:`VMOV V1.D\[0\], V0.D\[1\]`
-	sinkF64 = x.SetElem(1, lo.GetElem(0))
+	sinkF64 = x.SetElem(1, lo.Elem(0))
 }
 
 func getHiFloat32(x archsimd.Float32x4) {
@@ -145,25 +145,25 @@ func getHiFloat64(x archsimd.Float64x2) {
 
 func getElemExtFold(x8 archsimd.Int8x16, u8 archsimd.Uint8x16, x16 archsimd.Int16x8, x32 archsimd.Int32x4, u16 archsimd.Uint16x8, u32 archsimd.Uint32x4) {
 	// arm64:`VSMOV V0.B\[3\],` -`MOVB`
-	sinkI64a = int64(x8.GetElem(3))
+	sinkI64a = int64(x8.Elem(3))
 	// arm64:`VSMOV V0.B\[5\],`
-	sinkScalarI8 = x8.GetElem(5)
+	sinkScalarI8 = x8.Elem(5)
 	// arm64:`VSMOV V[0-9]+.H\[5\],` -`MOVH`
-	sinkI64b = int64(x16.GetElem(5))
+	sinkI64b = int64(x16.Elem(5))
 	// arm64:`VSMOV V[0-9]+.S\[2\],` -`MOVW`
-	sinkI64c = int64(x32.GetElem(2))
+	sinkI64c = int64(x32.Elem(2))
 	// arm64:`VMOV V1.B\[7\],` -`MOVBU`
-	sinkScalarU64 = uint64(u8.GetElem(7))
+	sinkScalarU64 = uint64(u8.Elem(7))
 	// arm64:`VMOV V[0-9]+.H\[3\],` -`MOVHU`
-	sinkU64b = uint64(u16.GetElem(3))
+	sinkU64b = uint64(u16.Elem(3))
 	// arm64:`VMOV V[0-9]+.S\[1\],` -`MOVWU`
-	sinkU64c = uint64(u32.GetElem(1))
+	sinkU64c = uint64(u32.Elem(1))
 	// arm64:`VSMOV V1.B\[7\],` -`MOVB`
-	sinkI64d = int64(int8(u8.GetElem(7)))
+	sinkI64d = int64(int8(u8.Elem(7)))
 	// arm64:`VMOV V0.B\[6\],` -`VSMOV`
-	sinkU64d = uint64(uint8(x8.GetElem(6)))
+	sinkU64d = uint64(uint8(x8.Elem(6)))
 	// arm64:`VSMOV V0.B\[4\],`
-	e := x8.GetElem(4)
+	e := x8.Elem(4)
 	sinkScalarI64 = int64(e)
 	sinkScalarI8b = e
 }
@@ -219,7 +219,7 @@ func mergeWithNotMask(x, y archsimd.Int8x16, mask archsimd.Mask8x16, f1, f2 arch
 // It routes through Float64x2 to stay in the FP/SIMD register file,
 // avoiding a round-trip through a GP register.
 func loToHiUint32Vec(x, lo archsimd.Uint32x4) archsimd.Uint32x4 {
-	return x.ReshapeToUint64s().BitsToFloat64().SetElem(1, lo.ReshapeToUint64s().BitsToFloat64().GetElem(0)).ToBits().ReshapeToUint32s()
+	return x.ReshapeToUint64s().BitsToFloat64().SetElem(1, lo.ReshapeToUint64s().BitsToFloat64().Elem(0)).ToBits().ReshapeToUint32s()
 }
 
 // loToHiUint16Vec returns a vector with the lower 64 bits of x preserved and
@@ -227,7 +227,7 @@ func loToHiUint32Vec(x, lo archsimd.Uint32x4) archsimd.Uint32x4 {
 // It routes through Float64x2 to stay in the FP/SIMD register file,
 // avoiding a round-trip through a GP register.
 func loToHiUint16Vec(x, lo archsimd.Uint16x8) archsimd.Uint16x8 {
-	return x.ReshapeToUint64s().BitsToFloat64().SetElem(1, lo.ReshapeToUint64s().BitsToFloat64().GetElem(0)).ToBits().ReshapeToUint16s()
+	return x.ReshapeToUint64s().BitsToFloat64().SetElem(1, lo.ReshapeToUint64s().BitsToFloat64().Elem(0)).ToBits().ReshapeToUint16s()
 }
 
 // --- SVE predication peepholes ---
