@@ -889,7 +889,7 @@ package simd
 	vw := files.NewGoFile("internal/simd/variants/variants.go")
 	vw.Write(variantBytes)
 
-	generateBridgeEmulated()
+	generateBridgeEmulated(specIdx)
 
 	if minorProblem {
 		pw("The logged warnings did not prevent generation of the midway API files, but the API is flawed (lacks emulations, documentation, etc).\n")
@@ -898,10 +898,23 @@ package simd
 
 // generatedBridgeEmulated generates internal/bridge/simd_emulated.go from
 // simd_emulated.go.
-func generateBridgeEmulated() {
-	b, err := genFlags.ReadFile("simd/simd_emulated.go")
+//
+// simd_emulated.go is hand-written, and cmd/specfill fills its doc comments
+// from spec. To keep this output independent of whether specfill has run since
+// spec last changed, fill the doc comments here, too, before transforming the
+// file.
+func generateBridgeEmulated(specIdx *specgen.Index) {
+	const path = "simd/simd_emulated.go"
+	b, err := genFlags.ReadFile(path)
 	if err != nil {
-		log.Fatalf("reading simd/simd_emulated.go: %v", err)
+		log.Fatalf("reading %s: %v", path, err)
+	}
+	b, err = specdoc.Fill(b, specIdx, specdoc.Options{
+		Filename:        "src/" + path,
+		AllowDocRewrite: true,
+	})
+	if err != nil {
+		log.Fatalf("filling %s: %v", path, err)
 	}
 	lines := strings.Split(string(b), "\n")
 	var sawBuild, sawPackage bool
