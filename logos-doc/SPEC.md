@@ -322,6 +322,7 @@ A struct field default MUST have form `F T = constExpr` before the tag [T-104.5]
 A default MUST be checked in its declaration's lexical scope and MUST be assignable to the field type, even when no composite literal constructs that type [T-104.5]. A later local type specification in the same declaration group MUST NOT change a default's bindings [T-104.5].
 A default MUST be a constant expression or a composite literal whose values and map keys recursively satisfy this rule [T-104.5].
 Defaults MUST apply in composite literals of the type, including address forms and partial literals [T-104.5].
+An empty composite literal whose type's underlying kind is not a struct, an array, a slice, or a map MUST evaluate to the type's zero value [T-104.5].
 A Go struct literal of an exported LoGOs struct MUST get zero values and MUST NOT get the field defaults; this is a documented hole [T-104.5][R-U2][A-GOBOUNDARY].
 `var x T` and `new(T)` MUST trigger `suspicious::unapplied_struct_default` [T-104.5].
 A non-constant default MUST fail with `correctness::default_not_constant` [T-104.5].

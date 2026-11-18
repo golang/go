@@ -1,0 +1,34 @@
+// run
+
+// T{} inside a comptime generic: in the concrete copy it becomes Cfg{} and
+// picks up the struct field defaults (SPEC 1.4, 2.5); in a plain generic
+// it is the zero value of T.
+
+package main
+
+import (
+	"comptime"
+	"fmt"
+)
+
+type Cfg struct {
+	Port int = 8080
+}
+
+func Load[T any]() T {
+	out := T{}
+	const for _, f := range comptime.Fields[T]() {
+		_ = out.[f]
+	}
+	return out
+}
+
+// Plain generic: T{} is the zero value of T.
+func plain[T any]() T {
+	return T{}
+}
+
+func main() {
+	fmt.Println(Load[Cfg]())
+	fmt.Println(plain[int]())
+}

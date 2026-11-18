@@ -218,7 +218,7 @@ func (fl *fileLower) buildJSONStruct(name string, st *types2.Struct, fields []*t
 		js.fields = append(js.fields, f)
 	}
 	for _, d := range fl.pkg.info.LogosFieldDefaults[st] {
-		js.defaults = append(js.defaults, fmt.Sprintf("%s.%s = %s", jsonRecv, d.Field, renderExpr(d.Default)))
+		js.defaults = append(js.defaults, fmt.Sprintf("%s.%s = %s", jsonRecv, d.Field, fl.renderDefault(d.Default)))
 	}
 	return js
 }

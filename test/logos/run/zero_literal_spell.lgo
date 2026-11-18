@@ -1,0 +1,45 @@
+// run
+
+// Zero-literal respell coverage: every empty composite literal admitted by
+// the checker as a zero value (SPEC T-104.5) must lower to a valid form.
+
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+)
+
+type ID[T any] int
+
+type Def struct {
+	Ns  []int = []int{int{}} `json:"ns"`
+	One int   = int{}       `json:"one"`
+}
+
+// T{} respells without leaving the literal's brace behind.
+func plain[T any]() T { return T{} }
+
+// A named scalar type with type arguments keeps its `]`.
+func scalar() ID[int] { return ID[int]{} }
+
+// The checked type of int{} drives the option wrap on the way out.
+func opt() int? { return int{} }
+
+// A declaration of `new` must not capture the emitted *new.
+func shadow(new int) int { return int{} + new }
+
+func main() {
+	fmt.Println(plain[int]())
+	fmt.Println(scalar())
+	fmt.Println(opt() ?? -1)
+	fmt.Println(shadow(2))
+	d := Def{One: 9}
+	fmt.Println(d.Ns)
+	fmt.Println(Def{}.Ns)
+	var j Def
+	if err := json.Unmarshal([]byte(`{"one":4}`), &j); err != nil {
+		panic(err)
+	}
+	fmt.Println(j.Ns, j.One)
+}

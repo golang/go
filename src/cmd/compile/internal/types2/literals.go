@@ -149,6 +149,10 @@ func (check *Checker) compositeLit(x *operand, e *syntax.CompositeLit, hint Type
 		return
 	}
 
+	if check.logosZeroLitAdmit(x, e, typ, base) { // logos M3-S3 hook: a non-composite empty literal spells the zero value.
+		return
+	}
+
 	switch u, _ := commonUnder(base, nil); utyp := u.(type) {
 	case *Struct:
 		if len(e.ElemList) == 0 {

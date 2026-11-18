@@ -15,6 +15,10 @@ import (
 )
 
 func (fl *fileLower) lowerStructDefaults() {
+	// Respell marked zero literals first: the walk reaches literals inside
+	// field defaults before stripFieldDefaults orphans them, and fill/
+	// factory text then renders the respelled form on its own.
+	fl.lowerTypeParamLits()
 	stripped := make(map[*syntax.FieldDefault]bool)
 	typeNames := fl.defaultTypeNames()
 	syntax.Inspect(fl.file, func(n syntax.Node) bool {
@@ -26,6 +30,92 @@ func (fl *fileLower) lowerStructDefaults() {
 		}
 		return true
 	})
+}
+
+// lowerTypeParamLits respells an empty composite literal the checker admitted
+// as a zero value — T{} for a type parameter, int{}, or an elided {} element —
+// as *new(T): a concrete substitution in a comptime copy carries the real
+// literal, while a plain generic emits the equivalent allocation.
+func (fl *fileLower) lowerTypeParamLits() {
+	conv := make(map[syntax.Expr]syntax.Expr)
+	texts := make(map[syntax.Expr]string)
+	syntax.Inspect(fl.file, func(n syntax.Node) bool {
+		lit, ok := n.(*syntax.CompositeLit)
+		if !ok || len(lit.ElemList) != 0 || !fl.pkg.info.LogosZeroLit[lit] {
+			return true
+		}
+		text := fl.zeroLitSpell(lit)
+		node, ok := parseExprAt(text, lit.Pos())
+		if !ok {
+			base.Fatalf("logos: type parameter literal at %s cannot be respelled", lit.Pos().String())
+		}
+		fl.carryType(node, lit)
+		conv[lit] = node
+		texts[lit] = text
+		return true
+	})
+	if len(conv) == 0 {
+		return
+	}
+	w := cswWalker{
+		info: fl.pkg.info,
+		conv: conv,
+		wrap: func(x, r syntax.Expr) {
+			start := fl.off(leftmostOf(x))
+			// EndPos of a composite literal is its `}` position, so +1 to
+			// cover it.
+			fl.addT(start, fl.off(syntax.EndPos(x))+1, gen(texts[x]))
+		},
+	}
+	w.node(fl.file)
+}
+
+// zeroLitSpell renders the source form a marked zero literal rewrites to:
+// *new(T), or [1](T){}[0] when a declaration in the file shadows the
+// builtin new (the array-index form names no identifier).
+func (fl *fileLower) zeroLitSpell(lit *syntax.CompositeLit) string {
+	var spell string
+	if lit.Type != nil {
+		start := fl.off(syntax.StartPos(lit.Type))
+		// The type ends at the last token before the literal's brace;
+		// EndPos of an index type drops its `]`.
+		spell = fl.textOf(span{start, lastTokenEnd(fl.src, start, fl.literalBrace(lit))}).s
+	} else {
+		spell = fl.typeSpell(fl.pkg.info.TypeOf(lit))
+	}
+	if fl.newShadowed() {
+		return "[1](" + spell + "){}[0]"
+	}
+	return "*new(" + spell + ")"
+}
+
+// newShadowed reports whether the file declares `new`: the builtin name
+// then resolves to the declaration inside its scope, so an emitted
+// *new(T) would call the declaration.
+func (fl *fileLower) newShadowed() bool {
+	for n := range fl.pkg.info.Defs {
+		if n.Value == "new" {
+			return true
+		}
+	}
+	return false
+}
+
+// renderDefault renders a field default expression, respelling a literal the
+// checker admitted as a zero value to its *new(T) form so generated factory
+// and fill text never carries a bare T{} to the noder.
+func (fl *fileLower) renderDefault(e syntax.Expr) string {
+	lit, ok := e.(*syntax.CompositeLit)
+	if !ok || !fl.pkg.info.LogosZeroLit[lit] {
+		return renderExpr(e)
+	}
+	return fl.zeroLitSpell(lit)
+}
+
+// typeSpell renders a checked type with the file's import qualification, for
+// emitted code that must name it.
+func (fl *fileLower) typeSpell(typ types2.Type) string {
+	return types2.TypeString(typ, fl.typeQualifier())
 }
 
 // defaultTypeNames maps each package-level named struct type declaration in
@@ -250,7 +340,7 @@ func (fl *fileLower) stripFieldDefaults(st *syntax.StructType, stripped map[*syn
 			continue
 		}
 		text := "func " + fname + tparams +
-			"() " + renderExpr(fd.Type) + " {\n\treturn " + renderExpr(fd.Default) + "\n}\n"
+			"() " + renderExpr(fd.Type) + " {\n\treturn " + fl.renderDefault(fd.Default) + "\n}\n"
 		fl.addGeneratedDecls(fd.Pos(), text)
 	}
 }
@@ -372,7 +462,7 @@ func (fl *fileLower) structDefaultsFor(lit *syntax.CompositeLit) ([]string, []st
 	call := func(d types2.LogosFieldDefault) string {
 		fname := plan[d.Owner+"."+d.Field]
 		if fname == "" {
-			return renderExpr(d.Default)
+			return fl.renderDefault(d.Default)
 		}
 		// The factory's type parameters belong to the owner type. A literal
 		// naming the owner itself supplies matching type arguments; a type

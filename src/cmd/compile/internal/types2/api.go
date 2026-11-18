@@ -376,6 +376,8 @@ type Info struct {
 
 	LogosConstCov map[syntax.Expr]Type // original const-slice arguments mapped to target interface elements
 
+	LogosZeroLit map[syntax.Expr]bool // logos hook: empty composite literals admitted as the zero value (T{}, int{}), for lowering to respell as *new(T)
+
 	// LogosConstFuncs carries the first check's CTFE proof for
 	// same-package functions, keyed by object name (SPEC Sec 2.1,
 	// T-201). Each entry records the checked body for transitive

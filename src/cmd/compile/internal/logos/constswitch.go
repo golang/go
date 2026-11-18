@@ -710,17 +710,7 @@ func (c *cswLower) rebound(cs *cswCase) []cswRebind {
 }
 
 func (c *cswLower) cswSpell(typ types2.Type) string {
-	names := c.fl.importNames()
-	return types2.TypeString(typ, func(p *types2.Package) string {
-		if p == c.fl.pkg.tpkg {
-			return ""
-		}
-		q, ok := names[p]
-		if !ok {
-			base.Fatalf("logos: const switch rebinding of type %s needs package %s, which the file does not import", types2.TypeString(typ, nil), p.Path())
-		}
-		return q
-	})
+	return c.fl.typeSpell(typ)
 }
 
 // cswTarget is one name the walker rewrites: the AST replacement for the

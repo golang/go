@@ -129,6 +129,32 @@ func (check *Checker) logosZeroDecl(obj *Var) {
 	}
 }
 
+// logosZeroLitAdmit admits an empty composite literal with a
+// non-composite underlying — T{} for a type parameter, int{}, an elided
+// {} element — as the zero value of the type, recording it in
+// Info.LogosZeroLit so the lowering respells it as *new(T). Composite
+// kinds (struct/array/slice/map) keep the ordinary literal path: T ~map,
+// T ~struct, or a concrete Cfg{} builds a real default-applied literal.
+// A comptime generic copy re-checks the substituted text as the concrete
+// type argument.
+func (check *Checker) logosZeroLitAdmit(x *operand, e *syntax.CompositeLit, typ, base Type) bool {
+	if !check.conf.Logos || len(e.ElemList) != 0 {
+		return false
+	}
+	u, _ := commonUnder(base, nil)
+	switch u.(type) {
+	case *Struct, *Array, *Slice, *Map:
+		return false
+	}
+	x.mode_ = value
+	x.typ_ = typ
+	if check.Info.LogosZeroLit == nil {
+		check.Info.LogosZeroLit = make(map[syntax.Expr]bool)
+	}
+	check.Info.LogosZeroLit[e] = true
+	return true
+}
+
 // logosZeroLiteral rejects a struct composite literal that leaves a
 // non-nil pointer field empty. Positional forms are left to the upstream
 // arity check. Errors report at the literal.
