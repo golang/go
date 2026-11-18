@@ -1065,9 +1065,9 @@ func propMustSpan(fl *fileLower, e syntax.Expr) span {
 func (fl *fileLower) propOperandText(e syntax.Expr, c *propCollect) otext {
 	sp := propMustSpan(fl, e)
 	if propNeedleWithin(c.needles, sp) {
-		return fl.drainBodyWrapper(e, fl.textOf(sp))
+		return fl.drainBodyWrapper(e, fl.textOf(sp), sp)
 	}
-	return fl.drainBodyWrapper(e, fl.lazyText(sp))
+	return fl.drainBodyWrapper(e, fl.lazyText(sp), sp)
 }
 
 func propNeedleWithin(needles []propNeedle, sp span) bool {

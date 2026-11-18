@@ -37,14 +37,41 @@ func (fl *fileLower) lowerStructDefaults() {
 // as *new(T): a concrete substitution in a comptime copy carries the real
 // literal, while a plain generic emits the equivalent allocation.
 func (fl *fileLower) lowerTypeParamLits() {
+	// Field defaults never emit their source: stripFieldDefaults erases
+	// the ` = default` span and renderDefault respells marked literals
+	// for the generated text. Respelling one in place would only corrupt
+	// the default node's end position for that erasure.
+	defaults := map[syntax.Node]bool{}
+	// A marked literal under a unary & needs the pointer form: indexing an
+	// array literal by value is not addressable.
+	underAddr := map[*syntax.CompositeLit]bool{}
+	syntax.Inspect(fl.file, func(n syntax.Node) bool {
+		if fd, ok := n.(*syntax.FieldDefault); ok && fd.Default != nil {
+			defaults[fd.Default] = true
+		}
+		if op, ok := n.(*syntax.Operation); ok && op.Op == syntax.And && op.Y == nil {
+			if lit, ok := syntax.Unparen(op.X).(*syntax.CompositeLit); ok {
+				underAddr[lit] = true
+			}
+		}
+		return true
+	})
 	conv := make(map[syntax.Expr]syntax.Expr)
 	texts := make(map[syntax.Expr]string)
 	syntax.Inspect(fl.file, func(n syntax.Node) bool {
+		if defaults[n] {
+			// The default node itself is erased whole; descending still
+			// respells a marked literal nested inside it ([]int{int{}}), and
+			// its recorded edit inside the erased span is dropped by
+			// stripFieldDefaults while the swapped node renders through
+			// renderExpr for the generated factory and fill text.
+			return true
+		}
 		lit, ok := n.(*syntax.CompositeLit)
 		if !ok || len(lit.ElemList) != 0 || !fl.pkg.info.LogosZeroLit[lit] {
 			return true
 		}
-		text := fl.zeroLitSpell(lit)
+		text := fl.zeroLitSpell(lit, underAddr[lit])
 		node, ok := parseExprAt(text, lit.Pos())
 		if !ok {
 			base.Fatalf("logos: type parameter literal at %s cannot be respelled", lit.Pos().String())
@@ -52,6 +79,13 @@ func (fl *fileLower) lowerTypeParamLits() {
 		fl.carryType(node, lit)
 		conv[lit] = node
 		texts[lit] = text
+		// The respelled node's positions all equal the literal's, so span
+		// walks (option wrap, group extents) would miscompute its extent;
+		// pin the literal's real span so a later wrap covers the whole
+		// respell and drains its splice into the wrap's fused text.
+		litSpan := span{fl.off(syntax.StartPos(lit)), fl.off(syntax.EndPos(lit)) + 1}
+		fl.wrapSpan[lit] = litSpan
+		fl.wrapSpan[node] = litSpan
 		return true
 	})
 	if len(conv) == 0 {
@@ -71,9 +105,12 @@ func (fl *fileLower) lowerTypeParamLits() {
 }
 
 // zeroLitSpell renders the source form a marked zero literal rewrites to:
-// *new(T), or [1](T){}[0] when a declaration in the file shadows the
-// builtin new (the array-index form names no identifier).
-func (fl *fileLower) zeroLitSpell(lit *syntax.CompositeLit) string {
+// *new(T), or an array-index form when a declaration in the file shadows
+// the builtin new (the index names no identifier). The value form
+// ([1](T){})[0] never takes the array's address, so a large element stays
+// on the stack; under a surrounding & the addressable array-pointer form
+// is required.
+func (fl *fileLower) zeroLitSpell(lit *syntax.CompositeLit, addr bool) string {
 	var spell string
 	if lit.Type != nil {
 		start := fl.off(syntax.StartPos(lit.Type))
@@ -84,7 +121,13 @@ func (fl *fileLower) zeroLitSpell(lit *syntax.CompositeLit) string {
 		spell = fl.typeSpell(fl.pkg.info.TypeOf(lit))
 	}
 	if fl.newShadowed() {
-		return "[1](" + spell + "){}[0]"
+		if addr {
+			// Indexing an array pointer yields an addressable element, so
+			// this form still works under a surrounding & (a plain array
+			// literal's element does not).
+			return "(&[1](" + spell + "){})[0]"
+		}
+		return "([1](" + spell + "){})[0]"
 	}
 	return "*new(" + spell + ")"
 }
@@ -109,7 +152,7 @@ func (fl *fileLower) renderDefault(e syntax.Expr) string {
 	if !ok || !fl.pkg.info.LogosZeroLit[lit] {
 		return renderExpr(e)
 	}
-	return fl.zeroLitSpell(lit)
+	return fl.zeroLitSpell(lit, false)
 }
 
 // typeSpell renders a checked type with the file's import qualification, for
@@ -328,7 +371,13 @@ func (fl *fileLower) stripFieldDefaults(st *syntax.StructType, stripped map[*syn
 		if !stripped[fd] {
 			stripped[fd] = true
 			typeEnd := fl.exprEndNested(fl.off(syntax.StartPos(fd.Type)))
-			fl.add(typeEnd, fl.fieldDefaultEnd(st, i, fd, typeEnd), "")
+			end := fl.fieldDefaultEnd(st, i, fd, typeEnd)
+			// The default's source span is gone: an edit recorded inside
+			// it — the respell of a marked zero literal like `= int{}` —
+			// would overlap the erasure. The respelled form still reaches
+			// generated factory text through renderDefault.
+			fl.dropInner(span{typeEnd, end})
+			fl.add(typeEnd, end, "")
 		}
 		if td == nil || td.Name == nil || f.Name == nil || f.Name.Value == "_" {
 			continue

@@ -4,12 +4,13 @@ env GOTOOLCHAIN=local
 # A field default is removed from the declaration whatever it ends in: a
 # composite literal, a parenthesis, an operator expression, a string holding
 # closers, a raw string over two lines, or a literal followed by a struct
-# tag or a line comment. The module runs natively, ejects, and the ejected
+# tag or a line comment. An &int{} in a function body exercises the
+# addressable spell. The module runs natively, ejects, and the ejected
 # module builds and runs with go and with go1.27.2 from $UPROOT1272 and
 # prints the same output.
 cd m
 logos run .
-stdout '^a\)\}// \[1 2\] \{3\} map\[k:\[1\]\] 5 14 \[x \)\] 3 8080$'
+stdout '^a\)\}// \[1 2\] \{3\} map\[k:\[1\]\] 5 14 \[x \)\] 3 8080 0 \[0 2\] 0$'
 cp stdout $WORK/native.txt
 logos eject -o out
 exists out/main.go
@@ -23,6 +24,25 @@ stdout '^go version go1\.27\.2 '
 exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream$GOEXE .
 exec $WORK/upstream$GOEXE
 cmp stdout $WORK/native.txt
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ..
+
+# A file declaring its own `new` emits array-index zero spells: the value
+# form for a plain or nested literal and the array-pointer form under &.
+cd m2
+logos run .
+stdout '^0 \[0 2\] 0$'
+cp stdout $WORK/native2.txt
+logos eject -o out
+exists out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $WORK/native2.txt
+exec env -u GOROOT $UPROOT1272/bin/go build -o $WORK/upstream2$GOEXE .
+exec $WORK/upstream2$GOEXE
+cmp stdout $WORK/native2.txt
 exec $GOROOT/bin/gofmt -l .
 ! stdout .
 cd ..
@@ -50,9 +70,39 @@ type Cfg struct {
 	Raw   string = `r
 )`
 	Port int32 = 8080 `json:"port"`
+
+	Num   int   = int{}
+	Elems []int = []int{int{}, 2}
 }
+
+func zero() *int { return &int{} }
 
 func main() {
 	c := Cfg{}
-	fmt.Println(c.Name, c.Items, c.One, c.Gen, c.Last, c.Calc, c.Arr, len(c.Raw), c.Port)
+	fmt.Println(c.Name, c.Items, c.One, c.Gen, c.Last, c.Calc, c.Arr, len(c.Raw), c.Port, c.Num, c.Elems, *zero())
+}
+
+-- m2/go.mod --
+module example.com/structdefaultshadow
+
+go 1.27
+
+-- m2/main.lgo --
+package main
+
+import "fmt"
+
+// Declaring new shadows the builtin in this file.
+func new(v int) int { return v }
+
+type Cfg struct {
+	Num   int   = int{}
+	Elems []int = []int{int{}, 2}
+}
+
+func zero() *int { return &int{} }
+
+func main() {
+	c := Cfg{}
+	fmt.Println(c.Num, c.Elems, *zero())
 }

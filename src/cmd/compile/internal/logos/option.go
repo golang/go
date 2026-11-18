@@ -1008,7 +1008,11 @@ func (fl *fileLower) drainBoundariesSince(vs span, since int) (head, tail otext)
 	return take(vs.start), take(vs.end)
 }
 
-func (fl *fileLower) drainBodyWrapper(body syntax.Node, text otext) otext {
+// drainBodyWrapper fuses the boundary inserts of the wrapper that owns
+// body around the copied text. An insert strictly inside copied already
+// composes with the region's own bytes; draining it around the copy
+// would apply that wrapper text twice.
+func (fl *fileLower) drainBodyWrapper(body syntax.Node, text otext, copied span) otext {
 	expr, ok := body.(syntax.Expr)
 	if !ok {
 		return text
@@ -1025,7 +1029,25 @@ func (fl *fileLower) drainBodyWrapper(body syntax.Node, text otext) otext {
 	if !ok {
 		return text
 	}
-	head, tail := fl.drainBoundaries(vs)
+	var head, tail otext
+	for _, e := range []struct {
+		off int
+		dst *otext
+	}{{vs.start, &head}, {vs.end, &tail}} {
+		if copied.start < e.off && e.off < copied.end {
+			continue
+		}
+		list := fl.ownerOfInsertion(e.off)
+		var rest []splice
+		for _, sp := range *list {
+			if sp.owner == 0 || sp.start != sp.end || sp.start != e.off {
+				rest = append(rest, sp)
+				continue
+			}
+			*e.dst = cat(*e.dst, otext{s: sp.text, chunks: sp.chunks})
+		}
+		*list = rest
+	}
 	return cat(head, text, tail)
 }
 

@@ -54,17 +54,25 @@ func tokenEnd(seg []byte, off int, kind token.Token, lit string) int {
 }
 
 func scanSegment(src []byte, from, to int, visit func(tok) bool) {
-	seg := src[from:to]
+	// The Go scanner knows nothing of $"..." literals: it pairs each
+	// quote inside an interpolation hole as a string edge, and a rune,
+	// comment, or raw string it opens there can run past the literal's
+	// true end and swallow the real tokens that follow. Mask every
+	// interp literal into a same-length raw string — the one Go token
+	// that may span lines — so the scanner reads a single STRING token
+	// for it and never sees the hole text. Masking preserves every
+	// byte offset, newline, and the literal's semicolon insertion.
+	seg := maskInterpLiterals(src[from:to])
 	fset := token.NewFileSet()
 	file := fset.AddFile("", fset.Base(), len(seg))
 	var s scanner.Scanner
 	s.Init(file, seg, nil, scanner.ScanComments)
 	for {
-		pos, kind, lit := s.Scan()
+		p, kind, lit := s.Scan()
 		if kind == token.EOF {
 			return
 		}
-		off := file.Offset(pos)
+		off := file.Offset(p)
 		t := tok{kind: kind, comment: kind == token.COMMENT}
 		if kind == token.SEMICOLON && lit == "\n" {
 			t.auto = true
@@ -76,6 +84,127 @@ func scanSegment(src []byte, from, to int, visit func(tok) bool) {
 			return
 		}
 	}
+}
+
+// maskInterpLiterals rewrites each $"..." or $`...` literal of seg as a
+// raw string of the same length. Go literals and comments are skipped
+// first, so a $ inside one is never mistaken for an interp opener.
+func maskInterpLiterals(seg []byte) []byte {
+	var out []byte
+	for i := 0; i+1 < len(seg); i++ {
+		if seg[i] != '$' || (seg[i+1] != '"' && seg[i+1] != '`') {
+			i = skipGoLit(seg, i)
+			continue
+		}
+		end := interpLitEnd(seg, i+1)
+		if out == nil {
+			out = append([]byte(nil), seg...)
+		}
+		out[i] = '`'
+		for j := i + 1; j < end-1; j++ {
+			if out[j] != '\n' {
+				out[j] = ' '
+			}
+		}
+		out[end-1] = '`'
+		i = end - 1
+	}
+	if out == nil {
+		return seg
+	}
+	return out
+}
+
+// skipGoLit returns the offset before the end of the Go literal or
+// comment starting at seg[i], or i when seg[i] starts neither.
+func skipGoLit(seg []byte, i int) int {
+	switch seg[i] {
+	case '"', '\'', '`':
+		return goLitEnd(seg, i) - 1
+	case '/':
+		return commentEnd(seg, i) - 1
+	}
+	return i
+}
+
+// interpLitEnd returns the offset just past the $"..." or $`...`
+// literal whose quote is seg[off]. {expr} holes nest and hold ordinary
+// Go literals and comments of their own; {{ and }} escape literal
+// braces outside holes; quoted escapes apply except in raw form.
+func interpLitEnd(seg []byte, off int) int {
+	q := seg[off]
+	depth := 0
+	for i := off + 1; i < len(seg); {
+		switch c := seg[i]; {
+		case depth == 0 && c == '\\' && q != '`':
+			i += 2
+		case depth == 0 && c == q:
+			return i + 1
+		case depth == 0 && c == '{' && i+1 < len(seg) && seg[i+1] == '{':
+			i += 2
+		case depth == 0 && c == '}':
+			i++
+			if i < len(seg) && seg[i] == '}' {
+				i++
+			}
+		case c == '{':
+			depth++
+			i++
+		case depth > 0 && c == '}':
+			depth--
+			i++
+		case depth > 0 && (c == '"' || c == '\'' || c == '`'):
+			i = goLitEnd(seg, i)
+		case depth > 0 && c == '/':
+			i = commentEnd(seg, i)
+		default:
+			i++
+		}
+	}
+	return len(seg)
+}
+
+// commentEnd returns the offset just past the comment starting at
+// seg[off], or off+1 when seg[off] does not start one.
+func commentEnd(seg []byte, off int) int {
+	if off+1 >= len(seg) {
+		return off + 1
+	}
+	switch seg[off+1] {
+	case '/':
+		for i := off + 2; i < len(seg); i++ {
+			if seg[i] == '\n' {
+				return i
+			}
+		}
+	case '*':
+		for i := off + 2; i+1 < len(seg); i++ {
+			if seg[i] == '*' && seg[i+1] == '/' {
+				return i + 2
+			}
+		}
+		return len(seg)
+	default:
+		return off + 1
+	}
+	return len(seg)
+}
+
+// goLitEnd returns the offset just past an ordinary Go string, rune, or
+// raw literal starting at seg[off].
+func goLitEnd(seg []byte, off int) int {
+	q := seg[off]
+	for i := off + 1; i < len(seg); {
+		switch c := seg[i]; {
+		case c == '\\' && q != '`':
+			i += 2
+		case c == q:
+			return i + 1
+		default:
+			i++
+		}
+	}
+	return len(seg)
 }
 
 func commentsIn(src []byte, from, to int) []span {

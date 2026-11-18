@@ -20,7 +20,7 @@ exists out/go.mod
 exists out/_logos_deps/rt/go.mod
 exists out/_logos_deps/example.com/dep@v0.0.0/greet/greet.go
 
-exec find out -name '*.gen.go'
+find out -name '*.gen.go'
 ! stdout .
 ! grep '^//go:build !logos' out/main.go
 ! grep '^//go:build !logos' out/_logos_deps/example.com/dep@v0.0.0/greet/greet.go
@@ -49,7 +49,7 @@ grep 'func scrollName' scroll.go
 grep 'func boltName' bolt.go
 grep 'func gopherName' gopher.go
 cd ..
-exec find out ( -name '*.lgo' -o -name '*.📜' -o -name '*.⚡' -o -name '*.ʕ◔ϖ◔ʔ' )
+find out ( -name '*.lgo' -o -name '*.📜' -o -name '*.⚡' -o -name '*.ʕ◔ϖ◔ʔ' )
 ! stdout .
 
 grep 'Command ejectdemo' out/main.go

@@ -5,7 +5,7 @@ env GOTOOLCHAIN=local
 cd plat_variants
 
 logos run .
-stdout '^host-ok:linux-plat:notag-ok$'
+stdout '^host-ok:(linux|windows)-plat:notag-ok$'
 cp stdout $WORK/plat-want.txt
 
 env GOOS=windows

@@ -148,6 +148,17 @@ func (fl *fileLower) callBodySpan(call *syntax.CallExpr) span {
 	return span{fl.off(leftmostOf(call)), split.end}
 }
 
+// callBodySpanOr is callBodySpan without the fatal exit: it reports false
+// when call.Pos() does not name a source-level call open, which happens for
+// generated calls (e.g. a lowered ?? chain) carrying an operand position.
+func (fl *fileLower) callBodySpanOr(call *syntax.CallExpr) (span, bool) {
+	split, ok := splitCall(fl.src, fl.off(call.Pos()))
+	if !ok {
+		return span{}, false
+	}
+	return span{fl.off(leftmostOf(call)), split.end}, true
+}
+
 func (fl *fileLower) lambdaCaptureSpan(lam *syntax.LambdaExpr, body syntax.Expr) span {
 	if stashed, ok := fl.optBodySpan[lam]; ok && stashed.end > stashed.start {
 		switch syntax.Unparen(body).(type) {
@@ -174,7 +185,7 @@ func (fl *fileLower) lambdaBody(lam *syntax.LambdaExpr, sig *types2.Signature, p
 		return fl.lambdaTryBody(sig, pos, t)
 	}
 	espan := fl.lambdaCaptureSpan(lam, expr)
-	text := fl.drainBodyWrapper(expr, fl.lazyText(espan))
+	text := fl.drainBodyWrapper(expr, fl.lazyText(espan), espan)
 	if native, done := fl.stagedReplacements[expr]; done {
 		expr = native
 	}

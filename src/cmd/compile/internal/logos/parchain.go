@@ -401,7 +401,7 @@ func (cg *chainGen) parClosure(name string, op chainOp, in, out types2.Type) ote
 		base.Fatalf("logos: group stage lambda at %s has no expression body", op.lam.Pos().String())
 	}
 	pre := fc.parHoist(body)
-	return cat(gen(head+" "), pre, gen("return "), fl.drainBodyWrapper(body, fl.textOf(op.bodySpan)), gen(", nil }"))
+	return cat(gen(head+" "), pre, gen("return "), fl.drainBodyWrapper(body, fl.textOf(op.bodySpan), op.bodySpan), gen(", nil }"))
 }
 
 func (fl *fileLower) parFuncLower(res types2.Type) *funcLower {

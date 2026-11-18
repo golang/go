@@ -5,6 +5,7 @@ cd m
 logos run .
 stdout '^n1$'
 stdout '^m1$'
+stdout '^https://example\.com/a 2 it.sb$'
 cp stdout $WORK/eject-stdout.txt
 
 logos eject -o out
@@ -43,4 +44,9 @@ func conv(g func(int) string) string { return g(1) }
 func main() {
 	fmt.Println(conv(x => $"n{x}"))
 	fmt.Println(conv(x => { return $"m{x}" }))
+	// A quoted URL inside an interpolation hole must not end the
+	// literal early and swallow the elements that follow it, nor an
+	// apostrophe or backtick inside a hole's nested literals.
+	t, n := ($"{"https://example.com/a"}", 2)
+	fmt.Println(t, n, $"{conv(x => "it's")}"+$"{`b`}")
 }

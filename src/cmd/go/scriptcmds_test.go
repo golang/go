@@ -29,7 +29,8 @@ func scriptCommands(interrupt os.Signal, waitDelay time.Duration) map[string]scr
 	}
 
 	cmdExec := script.Exec(cancel, waitDelay)
-	cmds["exec"] = cmdExec
+	cmds["exec"] = scriptExecEnvU(cmdExec, cancel, waitDelay)
+	cmds["exists"] = scriptExists(cmds["exists"])
 
 	add := func(name string, cmd script.Cmd) {
 		if _, ok := cmds[name]; ok {
@@ -39,6 +40,7 @@ func scriptCommands(interrupt os.Signal, waitDelay time.Duration) map[string]scr
 	}
 
 	add("cc", scriptCC(cmdExec))
+	add("find", scriptFind())
 	cmdGo := scriptGo(cancel, waitDelay)
 	add("go", cmdGo)
 	add("logos", scriptGoNamed(testLogos, cancel, waitDelay))
