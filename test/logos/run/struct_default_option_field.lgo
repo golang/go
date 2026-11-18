@@ -1,0 +1,255 @@
+// run
+
+package main
+
+import (
+	"bytes"
+	"encoding/binary"
+	"encoding/json"
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func checkBytes(name string, got, want []byte) {
+	check(name, bytes.Equal(got, want), string(got), string(want))
+}
+
+// A struct with a field default triggers static JSON and binary generation
+// (SPEC 10.1: "For each .lgo struct type with json tags, defaults, or
+// non-nil pointer fields ... the lowering MUST generate a value-receiver
+// MarshalJSON method"). Policy also has defaults, so the generated static
+// code for Policy must encode its option-of-struct field Retry through the
+// option: byte-identical to encoding/json for the same value (SPEC 10.1).
+type Retry struct {
+	Attempts int = 3
+}
+
+type Policy struct {
+	Timeout int = 10
+	Retry   Retry?
+}
+
+// Retry *Retry? lowers to a bare *Retry (SPEC T-202: options over a
+// non-nil *T lower to the bare pointer), so Link has no envelope.
+type PtrPolicy struct {
+	Timeout int = 10
+	Link    *Retry?
+}
+
+// Two levels of optional struct, each payload carrying defaults.
+type Leaf struct {
+	N int = 7
+}
+
+type Mid struct {
+	M    int = 2
+	Leaf Leaf?
+}
+
+type Top struct {
+	T   int = 1
+	Mid Mid?
+}
+
+// A struct without its own defaults gets no static methods, so json.Marshal
+// takes the reflective encoder, which must call Retry's generated
+// MarshalJSON for the option payload (SPEC 10.1 fallback).
+type Plain struct {
+	Name  string
+	Retry Retry?
+}
+
+func checkValues() {
+	p := Policy{}
+	check("empty timeout", p.Timeout == 10, p.Timeout, 10)
+	check("empty retry absent", p.Retry == nil, p.Retry, nil)
+	q := Policy{Retry: Retry{}}
+	check("present attempts default", (q.Retry?.Attempts ?? -1) == 3, q.Retry?.Attempts, 3)
+	r := Policy{Timeout: 1, Retry: Retry{Attempts: 5}}
+	check("present attempts explicit", (r.Retry?.Attempts ?? -1) == 5, r.Retry?.Attempts, 5)
+	h := PtrPolicy{}
+	check("pointer option absent", h.Link == nil, h.Link, nil)
+	h2 := PtrPolicy{Link: &Retry{}}
+	check("pointer option default", (h2.Link?.Attempts ?? -1) == 3, h2.Link?.Attempts, 3)
+	t := Top{}
+	check("nested absent", t.Mid == nil, t.Mid, nil)
+	t2 := Top{Mid: Mid{}}
+	check("nested mid default", (t2.Mid?.M ?? -1) == 2, t2.Mid?.M, 2)
+	check("nested leaf absent", t2.Mid?.Leaf == nil, t2.Mid?.Leaf, nil)
+	t3 := Top{Mid: Mid{Leaf: Leaf{}}}
+	check("nested leaf default", (t3.Mid?.Leaf?.N ?? -1) == 7, t3.Mid?.Leaf?.N, 7)
+}
+
+func checkJSON() {
+	p := Policy{}
+	// JSON: absent option of struct keeps the {Value, Present} envelope of
+	// the lowered rt.Option[Retry] (byte-identical to encoding/json, SPEC
+	// 10.1); the absent retry payload is the zero Retry, not its default.
+	emptyJSON := `{"Timeout":10,"Retry":{"Value":{"Attempts":0},"Present":false}}`
+	pb := mustJSON(p.MarshalJSON())
+	pj := mustJSON(json.Marshal(p))
+	checkBytes("json static empty", pb, []byte(emptyJSON))
+	checkBytes("json reflective empty", pj, []byte(emptyJSON))
+
+	// A present option payload that is a composite literal applies its own
+	// field defaults (attempts 3), inside the envelope.
+	presentJSON := `{"Timeout":10,"Retry":{"Value":{"Attempts":3},"Present":true}}`
+	q := Policy{Retry: Retry{}}
+	qb := mustJSON(q.MarshalJSON())
+	qj := mustJSON(json.Marshal(q))
+	checkBytes("json static present", qb, []byte(presentJSON))
+	checkBytes("json reflective present", qj, []byte(presentJSON))
+
+	// Unmarshal round-trips both values; an explicit zero payload overrides
+	// the payload defaults, an empty payload gets them, and decoding fills
+	// defaults first and then parses (SPEC 10.2), so every case below
+	// compares the decoded value against a hand-written expected value.
+	pbBack := Policy{}
+	check("json unmarshal empty", json.Unmarshal(pb, &pbBack) == nil, pbBack, p)
+	check("json unmarshal empty timeout", pbBack.Timeout == 10, pbBack.Timeout, 10)
+	check("json unmarshal empty retry absent", pbBack.Retry == nil, pbBack.Retry, nil)
+	qbBack := Policy{}
+	check("json unmarshal present", json.Unmarshal(qb, &qbBack) == nil, qbBack, q)
+	check("json unmarshal present attempts", (qbBack.Retry?.Attempts ?? -1) == 3, qbBack.Retry?.Attempts, 3)
+	zeroBack := Policy{}
+	check("json unmarshal explicit zero", json.Unmarshal([]byte(`{"Retry":{"Value":{"Attempts":0},"Present":true}}`), &zeroBack) == nil && (zeroBack.Retry?.Attempts ?? -1) == 0, zeroBack.Retry?.Attempts, 0)
+	defBack := Policy{}
+	check("json unmarshal empty payload default", json.Unmarshal([]byte(`{"Retry":{"Value":{},"Present":true}}`), &defBack) == nil && (defBack.Retry?.Attempts ?? -1) == 3, defBack.Retry?.Attempts, 3)
+	// The literal supplies Timeout explicitly, so the 10 the case demands can
+	// only come from decoding filling the outer default.
+	outerDef := Policy{Timeout: 0}
+	check("json unmarshal outer default", json.Unmarshal([]byte(`{}`), &outerDef) == nil && outerDef.Timeout == 10, outerDef.Timeout, 10)
+}
+
+func checkBinary() {
+	p := Policy{}
+	q := Policy{Retry: Retry{}}
+	// Binary: an option field encodes 0x00 when absent, 0x01 plus payload
+	// when present (SPEC 10.3); integers are 8 bytes little-endian.
+	var wantEmpty []byte
+	wantEmpty = append(wantEmpty, 1)
+	wantEmpty = binary.LittleEndian.AppendUint64(wantEmpty, 10)
+	wantEmpty = append(wantEmpty, 0)
+	pe, perr := p.MarshalBinary()
+	if perr != nil {
+		panic(perr)
+	}
+	checkBytes("binary empty bytes", pe, wantEmpty)
+	var wantPresent []byte
+	wantPresent = append(wantPresent, 1)
+	wantPresent = binary.LittleEndian.AppendUint64(wantPresent, 10)
+	wantPresent = append(wantPresent, 1)
+	wantPresent = binary.LittleEndian.AppendUint64(wantPresent, 3)
+	qe, qerr := q.MarshalBinary()
+	if qerr != nil {
+		panic(qerr)
+	}
+	checkBytes("binary present bytes", qe, wantPresent)
+	peBack := Policy{}
+	check("binary unmarshal empty", peBack.UnmarshalBinary(pe) == nil, peBack, p)
+	check("binary unmarshal empty retry absent", peBack.Retry == nil, peBack.Retry, nil)
+	check("binary unmarshal empty timeout", peBack.Timeout == 10, peBack.Timeout, 10)
+	qeBack := Policy{}
+	check("binary unmarshal present", qeBack.UnmarshalBinary(qe) == nil, qeBack, q)
+	check("binary unmarshal present attempts", (qeBack.Retry?.Attempts ?? -1) == 3, qeBack.Retry?.Attempts, 3)
+}
+
+func checkPointer() {
+	h := PtrPolicy{}
+	h2 := PtrPolicy{Link: &Retry{}}
+	// Retry *Retry? lowers to a bare *Retry, so Link encodes null when nil
+	// and the plain Retry object when set, with the default applied.
+	hEmpty := `{"Timeout":10,"Link":null}`
+	hPresent := `{"Timeout":10,"Link":{"Attempts":3}}`
+	hb := mustJSON(h.MarshalJSON())
+	hj := mustJSON(json.Marshal(h))
+	checkBytes("json pointer empty", hb, []byte(hEmpty))
+	checkBytes("json pointer reflective empty", hj, []byte(hEmpty))
+	h2b := mustJSON(h2.MarshalJSON())
+	checkBytes("json pointer present", h2b, []byte(hPresent))
+	hbBack := PtrPolicy{}
+	check("json pointer unmarshal", json.Unmarshal(h2b, &hbBack) == nil, hbBack, h2)
+	hbEmpty := PtrPolicy{}
+	check("json pointer unmarshal absent", json.Unmarshal([]byte(hEmpty), &hbEmpty) == nil && hbEmpty.Link == nil, hbEmpty.Link, nil)
+	var he []byte
+	he = append(he, 1)
+	he = binary.LittleEndian.AppendUint64(he, 10)
+	he = append(he, 0)
+	hpe, hperr := h.MarshalBinary()
+	if hperr != nil {
+		panic(hperr)
+	}
+	checkBytes("binary pointer empty", hpe, he)
+	hpeBack := PtrPolicy{}
+	check("binary pointer unmarshal empty", hpeBack.UnmarshalBinary(hpe) == nil && hpeBack.Link == nil, hpeBack.Link, nil)
+}
+
+func checkNested() {
+	t := Top{}
+	t2 := Top{Mid: Mid{}}
+	t3 := Top{Mid: Mid{Leaf: Leaf{}}}
+	// Two levels of optional struct: each absent level keeps its envelope;
+	// the deepest present payload applies defaults only at composite
+	// literals, so an absent leaf keeps the zero payload.
+	tEmpty := `{"T":1,"Mid":{"Value":{"M":0,"Leaf":{"Value":{"N":0},"Present":false}},"Present":false}}`
+	tMid := `{"T":1,"Mid":{"Value":{"M":2,"Leaf":{"Value":{"N":0},"Present":false}},"Present":true}}`
+	tLeaf := `{"T":1,"Mid":{"Value":{"M":2,"Leaf":{"Value":{"N":7},"Present":true}},"Present":true}}`
+	tb := mustJSON(t.MarshalJSON())
+	t2b := mustJSON(t2.MarshalJSON())
+	t3b := mustJSON(t3.MarshalJSON())
+	checkBytes("json nested absent", tb, []byte(tEmpty))
+	checkBytes("json nested mid", t2b, []byte(tMid))
+	checkBytes("json nested leaf", t3b, []byte(tLeaf))
+	t3Back := Top{}
+	check("json nested unmarshal", json.Unmarshal(t3b, &t3Back) == nil, t3Back, t3)
+	check("json nested unmarshal leaf", (t3Back.Mid?.Leaf?.N ?? -1) == 7, t3Back.Mid?.Leaf?.N, 7)
+	t2Back := Top{}
+	check("json nested unmarshal mid", json.Unmarshal(t2b, &t2Back) == nil && (t2Back.Mid?.M ?? -1) == 2 && t2Back.Mid?.Leaf == nil, t2Back.Mid?.M, 2)
+}
+
+func checkPlain() {
+	// A struct without its own defaults takes the reflective encoder; it
+	// must still route the option payload through Retry's generated
+	// MarshalJSON and UnmarshalJSON (SPEC 10.1 fallback).
+	plainEmpty := `{"Name":"","Retry":{"Value":{"Attempts":0},"Present":false}}`
+	plainSet := Plain{Name: "x", Retry: Retry{Attempts: 8}}
+	plainSetJSON := `{"Name":"x","Retry":{"Value":{"Attempts":8},"Present":true}}`
+	ple := mustJSON(json.Marshal(Plain{}))
+	checkBytes("json plain empty reflective", ple, []byte(plainEmpty))
+	pls := mustJSON(json.Marshal(plainSet))
+	checkBytes("json plain present reflective", pls, []byte(plainSetJSON))
+	var plainBack Plain
+	check("json plain unmarshal", json.Unmarshal(pls, &plainBack) == nil, plainBack, plainSet)
+	var plainEmptyBack Plain
+	check("json plain unmarshal empty", json.Unmarshal(ple, &plainEmptyBack) == nil && plainEmptyBack.Retry == nil, plainEmptyBack.Retry, nil)
+}
+
+func main() {
+	checkValues()
+	checkJSON()
+	checkBinary()
+	checkPointer()
+	checkNested()
+	checkPlain()
+	if failed {
+		os.Exit(1)
+	}
+}
+
+func mustJSON(b []byte, err error) []byte {
+	if err != nil {
+		panic(err)
+	}
+	return b
+}

@@ -1,0 +1,46 @@
+ok empty timeout
+ok empty retry absent
+ok present attempts default
+ok present attempts explicit
+ok pointer option absent
+ok pointer option default
+ok nested absent
+ok nested mid default
+ok nested leaf absent
+ok nested leaf default
+ok json static empty
+ok json reflective empty
+ok json static present
+ok json reflective present
+ok json unmarshal empty
+ok json unmarshal empty timeout
+ok json unmarshal empty retry absent
+ok json unmarshal present
+ok json unmarshal present attempts
+ok json unmarshal explicit zero
+ok json unmarshal empty payload default
+ok json unmarshal outer default
+ok binary empty bytes
+ok binary present bytes
+ok binary unmarshal empty
+ok binary unmarshal empty retry absent
+ok binary unmarshal empty timeout
+ok binary unmarshal present
+ok binary unmarshal present attempts
+ok json pointer empty
+ok json pointer reflective empty
+ok json pointer present
+ok json pointer unmarshal
+ok json pointer unmarshal absent
+ok binary pointer empty
+ok binary pointer unmarshal empty
+ok json nested absent
+ok json nested mid
+ok json nested leaf
+ok json nested unmarshal
+ok json nested unmarshal leaf
+ok json nested unmarshal mid
+ok json plain empty reflective
+ok json plain present reflective
+ok json plain unmarshal
+ok json plain unmarshal empty

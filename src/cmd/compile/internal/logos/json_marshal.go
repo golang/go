@@ -608,6 +608,11 @@ func (fl *fileLower) jsonEdgeOf(t types2.Type) jsonEdge {
 	if fl.classifyJSONField(t).kind != shapeFallback {
 		return edgeLegacy
 	}
+	if o := fl.asOption(t); o != nil && !types2.LogosOptionIsBare(o.Elem) {
+		if key, _, _ := fl.helperModelFor(jsonEdgeCore(fl, t)); key != "" {
+			return edgeEncode
+		}
+	}
 	core := jsonEdgeCore(fl, t)
 	if p, ok := core.(*types2.Pointer); ok {
 		if key, _, _ := fl.helperModelFor(p.Elem()); key != "" {
