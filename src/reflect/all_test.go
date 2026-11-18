@@ -4401,6 +4401,11 @@ var convertTests = []struct {
 	{V(float64(168)), V(float32(168))},
 	{V(float64(169)), V(float64(169))},
 
+	// rounding to float32
+	{V(int64(1<<60 + 1<<36 + 1)), V(float32(1<<60 + 1<<36 + 1))},
+	{V(int64(-1<<60 - 1<<36 - 1)), V(float32(-1<<60 - 1<<36 - 1))},
+	{V(uint64(1<<63 + 1<<39 + 1)), V(float32(1<<63 + 1<<39 + 1))},
+
 	// truncation
 	{V(float64(1.5)), V(int(1))},
 
@@ -4897,6 +4902,37 @@ func TestConvertNaNs(t *testing.T) {
 	z := y.Interface().(float32)
 	if got := math.Float32bits(z); got != snan {
 		t.Errorf("signaling nan conversion got %x, want %x", got, snan)
+	}
+}
+
+func TestConvertIntFloat32(t *testing.T) {
+	type myFloat32 float32
+	r := rand.New(rand.NewSource(1))
+	for k := 25; k < 64; k++ {
+		// x rounds up as a float32, but to a tie as a float64.
+		x := uint64(1)<<k | uint64(1)<<(k-24) | 1
+		for _, u := range []uint64{x, x | uint64(1)<<(k-23), r.Uint64() >> (63 - k)} {
+			i := int64(u)
+			tests := []struct {
+				in   Value
+				want float32
+			}{
+				{V(i), float32(i)},
+				{V(-i), float32(-i)},
+				{V(int(i)), float32(int(i))},
+				{V(u), float32(u)},
+				{V(uint(u)), float32(uint(u))},
+				{V(uintptr(u)), float32(uintptr(u))},
+			}
+			for _, tt := range tests {
+				for _, typ := range []Type{TypeOf(float32(0)), TypeOf(myFloat32(0))} {
+					got := float32(tt.in.Convert(typ).Float())
+					if math.Float32bits(got) != math.Float32bits(tt.want) {
+						t.Errorf("ValueOf(%T(%v)).Convert(%s) = %v, want %v", tt.in.Interface(), tt.in, typ, got, tt.want)
+					}
+				}
+			}
+		}
 	}
 }
 
