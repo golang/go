@@ -1,0 +1,96 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"time"
+)
+
+type CVPoint struct {
+	X int64
+	Y int64
+}
+
+func (p CVPoint) Sum() int64 { return p.X + p.Y }
+
+func cvSliceEq(xs const []CVPoint) bool { return xs[0] == xs[1] }
+
+func cvSliceEqPlain(xs const []CVPoint, p CVPoint) bool { return xs[0] == p }
+
+func cvSliceField(xs const []CVPoint) int64 { return xs[0].X }
+
+func cvSliceMethod(xs const []CVPoint) int64 { return xs[0].Sum() }
+
+func cvSliceCopy(xs const []CVPoint) CVPoint { return xs[0] }
+
+func cvRangeMethod(xs const []CVPoint) int64 {
+	total := int64(0)
+	for _, p := range xs {
+		total += p.Sum()
+	}
+	return total
+}
+
+type CVInner struct{ V int64 }
+
+type CVOuter struct {
+	V  int64
+	In CVInner?
+}
+
+func cvPlainChain(m map[string]CVOuter) int64 { return m["a"]?.In?.V ?? 0 }
+
+func cvConstChain(m const map[string]CVOuter) int64 { return m["a"]?.In?.V ?? 0 }
+
+func cvConstChainAbsent(m const map[string]CVOuter) int64 { return m["zz"]?.In?.V ?? 0 }
+
+func cvMapEq(m const map[string]CVPoint, p CVPoint) bool {
+	had, ok := m["a"]
+	return ok && had == p
+}
+
+func cvMapMethod(m const map[string]CVPoint) int64 {
+	had, _ := m["a"]
+	return had.Sum()
+}
+
+func cvMapOptField(m const map[string]CVPoint) int64 { return m["a"]?.X ?? 0 }
+
+func cvMapOptMethod(m const map[string]CVPoint) int64 { return m["a"]?.Sum() ?? 0 }
+
+func cvTimeSliceEq(xs const []time.Time, ys const []time.Time) bool { return xs[0] == ys[0] }
+
+func cvTimeSliceEqPlain(xs const []time.Time, v time.Time) bool { return xs[0] == v }
+
+func cvTimeMapEq(m const map[string]time.Time, v time.Time) bool {
+	had, ok := m["a"]
+	return ok && had == v
+}
+
+func cvTimeRangeEq(xs const []time.Time) bool {
+	for _, p := range xs {
+		if p == xs[0] {
+			return true
+		}
+	}
+	return false
+}
+
+func main() {
+	pts := []CVPoint{{1, 2}, {3, 4}}
+	mp := map[string]CVPoint{"a": {1, 2}}
+	base := time.Unix(0, 0)
+	ts := []time.Time{base, time.Unix(100, 0)}
+	mt := map[string]time.Time{"a": base}
+	fmt.Println(cvSliceEq(pts), cvSliceEqPlain(pts, CVPoint{1, 2}))
+	fmt.Println(cvSliceField(pts), cvSliceMethod(pts), cvRangeMethod(pts))
+	fmt.Println(cvSliceCopy(pts))
+	fmt.Println(cvMapEq(mp, CVPoint{1, 2}), cvMapMethod(mp))
+	fmt.Println(cvMapOptField(mp), cvMapOptMethod(mp))
+	fmt.Println(cvTimeSliceEq(ts, ts), cvTimeSliceEqPlain(ts, base))
+	fmt.Println(cvTimeMapEq(mt, base), cvTimeRangeEq(ts))
+	var cin CVInner? = CVInner{V: 5}
+	mo := map[string]CVOuter{"a": {V: 2, In: cin}}
+	fmt.Println(cvPlainChain(mo), cvConstChain(mo), cvConstChainAbsent(mo))
+}

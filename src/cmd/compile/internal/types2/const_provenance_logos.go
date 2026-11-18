@@ -244,6 +244,17 @@ func (check *Checker) logosObservedOperand(x *operand) {
 	}
 }
 
+func (check *Checker) logosComparisonReadonly(x, y *operand, op syntax.Operator) {
+	if !check.conf.Logos || op != syntax.Eql && op != syntax.Neq {
+		return
+	}
+	for _, o := range []*operand{x, y} {
+		if base, _, _ := logosReadonlyBase(o.typ()); base != o.typ() {
+			o.typ_ = base
+		}
+	}
+}
+
 func (check *Checker) logosReadonlyBuiltinArg(a *operand, id builtinId) bool {
 	if !logosContainsReadonlyDescendants(a.typ()) {
 		return true

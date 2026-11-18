@@ -1300,9 +1300,9 @@ func (fl *fileLower) lowerOptSelect(e *syntax.OptSelectExpr) syntax.Expr {
 	nx := fl.lowerOptReceiver(e.X)
 	bareRecv := types2.LogosOptionIsBare(ox.Elem)
 	accessRec := ro.Elem
-	obj, _, _ := types2.LookupFieldOrMethod(ox.Elem, true, fl.pkg.tpkg, fl.optSelectName(e))
+	obj, _, _ := types2.LookupFieldOrMethod(optElemBase(ox.Elem), true, fl.pkg.tpkg, fl.optSelectName(e))
 	if obj == nil {
-		obj, _, _ = types2.LookupFieldOrMethod(tupleUnderlying(ox.Elem).Underlying(), true, fl.pkg.tpkg, fl.optSelectName(e))
+		obj, _, _ = types2.LookupFieldOrMethod(tupleUnderlying(optElemBase(ox.Elem)).Underlying(), true, fl.pkg.tpkg, fl.optSelectName(e))
 	}
 	if obj != nil && fl.asOption(obj.Type()) != nil {
 		accessRec = ro
@@ -1751,8 +1751,18 @@ func (fl *fileLower) markOptDeferGo(s *syntax.CallStmt) bool {
 	return true
 }
 
+func optElemBase(t types2.Type) types2.Type {
+	if r, ok := types2.Unalias(t).(*types2.ReadonlyDescendants); ok {
+		t = r.Elem
+	}
+	if c, ok := types2.Unalias(t).(*types2.ConstView); ok {
+		t = c.Elem
+	}
+	return t
+}
+
 func (fl *fileLower) optCallSig(ox *types2.Option, name string) *types2.Signature {
-	obj, _, _ := types2.LookupFieldOrMethod(ox.Elem, true, fl.pkg.tpkg, name)
+	obj, _, _ := types2.LookupFieldOrMethod(optElemBase(ox.Elem), true, fl.pkg.tpkg, name)
 	if obj == nil {
 		return nil
 	}

@@ -1397,7 +1397,7 @@ func (check *Checker) logosReadonlySelect(x *operand, e *syntax.SelectorExpr, na
 			return false
 		}
 		if !logosReferenceFree(sig.Recv().Type()) && !check.logosReceiverReadonly(obj) {
-			check.errorf(e.Sel, IncompatibleAssign, "%s cannot call %s through readonly descendants", logosConstEscape, name)
+			check.errorf(e.Sel, IncompatibleAssign, "%s cannot call %s through readonly descendants", logosConstMutation, name)
 			x.invalidate()
 			return true
 		}

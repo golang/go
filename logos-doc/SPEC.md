@@ -592,6 +592,12 @@ A plain value MUST be assignable to its constant view. [T-201]
 
 A `for _, v := range` loop over a constant slice MUST yield constant elements. [T-201]
 
+The equality operators `==` and `!=` MUST be defined on operands whose types carry a const-view or readonly-descendants qualification whenever the unqualified operand types are comparable and one unqualified operand type is assignable to the other. A comparison reads its operands; it MUST NOT be reported as a mutation through the view or as a qualification-erasing escape. [T-201]
+
+A `?.` selector on an element reached through a constant view MUST resolve the field or method on the unqualified element type; a selected field keeps the element's qualification, and a selected method follows the receiver rules of this section. [T-201]
+
+A method call on a readonly-descendants value that fails the reference-free or readonly proof of this section MUST fail with `[correctness::const_view_mutation]`, the same diagnostic as the same call through the enclosing constant view. [T-201]
+
 Converting `string` to `const []byte` MUST be zero-copy and MUST allocate nothing. [T-201]
 
 Converting `const []byte` to `string` MUST be zero-copy when provenance is a string or a constant composite. [T-201]

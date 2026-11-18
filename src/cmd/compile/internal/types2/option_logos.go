@@ -257,15 +257,16 @@ func (check *Checker) logosOptSelect(x *operand, e *syntax.OptSelectExpr) exprKi
 		x.expr = e
 		return expression
 	}
-	obj, _, _ := lookupFieldOrMethod(opt.Elem, rx.mode() == variable, check.pkg, e.Sel.Value, false)
+	elem, _, _ := logosReadonlyBase(opt.Elem)
+	obj, _, _ := lookupFieldOrMethod(elem, rx.mode() == variable, check.pkg, e.Sel.Value, false)
 	if obj == nil {
-		if f := logosTupleField(opt.Elem, e.Sel.Value); f != nil {
+		if f := logosTupleField(elem, e.Sel.Value); f != nil {
 			obj = f
 		}
 	}
 	if obj == nil {
-		alt, _, _ := lookupFieldOrMethod(opt.Elem, rx.mode() == variable, check.pkg, e.Sel.Value, true)
-		why := check.lookupError(opt.Elem, e.Sel.Value, alt, false)
+		alt, _, _ := lookupFieldOrMethod(elem, rx.mode() == variable, check.pkg, e.Sel.Value, true)
+		why := check.lookupError(elem, e.Sel.Value, alt, false)
 		check.errorf(e.Sel, MissingFieldOrMethod, "%s?.%s undefined (%s)", e.X, e.Sel.Value, why)
 		x.invalidate()
 		x.expr = e
@@ -276,11 +277,22 @@ func (check *Checker) logosOptSelect(x *operand, e *syntax.OptSelectExpr) exprKi
 	case *Var:
 		base, _, _ := logosReadonlyBase(opt.Elem)
 		_, throughReference := base.Underlying().(*Pointer)
-		rt = logosReadonlyProject(opt.Elem, obj.typ, throughReference)
+		if o := logosAsOption(obj.typ); o != nil {
+			// Rebuild the option only when the projection adds a qualification;
+			// an unchanged element keeps obj.typ so a named option preserves its
+			// identity and method set.
+			if projected := logosReadonlyProject(opt.Elem, o.Elem, false); projected != o.Elem {
+				rt = &Option{Elem: projected}
+			} else {
+				rt = obj.typ
+			}
+		} else {
+			rt = logosReadonlyProject(opt.Elem, obj.typ, throughReference)
+		}
 	case *Func:
 		check.objDecl(obj)
 		if _, descendants, readonly := logosReadonlyBase(opt.Elem); (descendants || readonly) && !check.logosReceiverReadonly(obj) {
-			check.errorf(e.Sel, InvalidMethodExpr, "%s cannot call mutating method %s through %s", logosConstEscape, e.Sel.Value, opt.Elem)
+			check.errorf(e.Sel, InvalidMethodExpr, "%s cannot call mutating method %s through %s", logosConstMutation, e.Sel.Value, opt.Elem)
 			x.invalidate()
 			x.expr = e
 			return expression

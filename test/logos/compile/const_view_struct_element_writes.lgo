@@ -1,0 +1,44 @@
+// errorcheck
+
+package p
+
+import "time"
+
+type WPoint struct {
+	X int64
+	Y int64
+}
+
+func rejectSliceWrite(xs const []WPoint) {
+	xs[0] = WPoint{} // ERROR "const_view_mutation"
+}
+
+func rejectMapWrite(m const map[string]WPoint) {
+	m["a"] = WPoint{} // ERROR "const_view_mutation"
+}
+
+func rejectTimeSliceMethod(xs const []time.Time) {
+	_ = xs[0].IsZero() // ERROR "const_view_mutation"
+}
+
+func rejectTimeMapMethod(m const map[string]time.Time) {
+	had, _ := m["a"]
+	_ = had.IsZero() // ERROR "const_view_mutation"
+}
+
+func rejectTimeRangeMethod(xs const []time.Time) bool {
+	for _, p := range xs {
+		if p.IsZero() { // ERROR "const_view_mutation"
+			return true
+		}
+	}
+	return false
+}
+
+func rejectTimeOptMethod(m const map[string]time.Time) {
+	_ = m["a"]?.IsZero() // ERROR "const_view_mutation"
+}
+
+func rejectTimeCopy(xs const []time.Time) time.Time {
+	return xs[0] // ERROR "const_view_escape"
+}

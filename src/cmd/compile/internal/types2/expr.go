@@ -516,6 +516,7 @@ func (check *Checker) comparison(x, y *operand, op syntax.Operator, switchCase b
 	if switchCase {
 		op = syntax.Eql
 	}
+	check.logosComparisonReadonly(x, y, op) // logos M5-S1 hook: == and != read through const views.
 
 	errOp := x  // operand for which error is reported, if any
 	cause := "" // specific error cause, if any
