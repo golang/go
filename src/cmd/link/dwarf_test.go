@@ -287,9 +287,13 @@ func TestDWARFiOS(t *testing.T) {
 		t.Skipf("iOS SDK not detected.")
 	}
 	cc := "CC=" + runtime.GOROOT() + "/misc/ios/clangwrap.sh"
-	// On iOS, split DWARF is emitted in a .dSYM file.
+	// iOS doesn't allow unmapped segments, and split DWARF is off by default for executables.
 	t.Run("exe", func(t *testing.T) {
-		testDWARF(t, "", true, cc, "CGO_ENABLED=1", "GOOS=ios", "GOARCH=arm64")
+		testDWARF(t, "", false, cc, "CGO_ENABLED=1", "GOOS=ios", "GOARCH=arm64")
+	})
+	// With -splitdwarf, split DWARF is emitted in a .dSYM file.
+	t.Run("exe-splitdwarf", func(t *testing.T) {
+		testDWARF(t, "", true, cc, "CGO_ENABLED=1", "GOOS=ios", "GOARCH=arm64", "GOFLAGS=-ldflags=-splitdwarf")
 	})
 	// c-archive iOS objects have embedded DWARF.
 	t.Run("c-archive", func(t *testing.T) {

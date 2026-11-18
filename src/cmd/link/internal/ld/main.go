@@ -61,6 +61,7 @@ func init() {
 	flag.Var(&macOS, "macos", "mac OS version to write in build info (only used in internal linking)")
 	flag.Var(&macSDK, "macsdk", "mac SDK version to write in build info (only used in internal linking)")
 	flag.Var(&rpath, "r", "set the ELF dynamic linker search `path` to dir1:dir2:...")
+	flag.Var(&flagSplitDWARF, "splitdwarf", "emit DWARF in a separate file (darwin only)")
 	flag.Var(&flagW, "w", "disable DWARF generation")
 }
 
@@ -119,7 +120,9 @@ var (
 	memprofilerate    = flag.Int64("memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
 	benchmarkFlag     = flag.String("benchmark", "", "set to 'mem' or 'cpu' to enable phase benchmarking")
 	benchmarkFileFlag = flag.String("benchmarkprofile", "", "emit phase profiles to `base`_phase.{cpu,mem}prof")
-	FlagSplitDWARF    = flag.Bool("splitdwarf", true, "emit DWARF in a separate file (darwin only)")
+
+	flagSplitDWARF ternaryFlag
+	FlagSplitDWARF = new(bool) // the -splitdwarf flag, computed in main from flagSplitDWARF
 
 	flagW ternaryFlag
 	FlagW = new(bool) // the -w flag, computed in main from flagW
@@ -267,18 +270,6 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	checkStrictDups = *FlagStrictDups
 
-	switch flagW {
-	case ternaryFlagFalse:
-		*FlagW = false
-	case ternaryFlagTrue:
-		*FlagW = true
-	case ternaryFlagUnset:
-		*FlagW = *FlagS // -s implies -w if not explicitly set
-		if ctxt.IsDarwin() && ctxt.BuildMode == BuildModeCShared && !*FlagSplitDWARF {
-			*FlagW = true // default to -w in c-shared mode on darwin when not splitting DWARF, see #61229
-		}
-	}
-
 	if !buildcfg.Experiment.RegabiWrappers {
 		abiInternalVer = 0
 	}
@@ -303,7 +294,32 @@ func Main(arch *sys.Arch, theArch Arch) {
 		}
 	}
 
-	if !ctxt.IsDarwin() || ctxt.BuildMode == BuildModeCArchive || *FlagW || *flagOutfile == os.DevNull {
+	switch flagSplitDWARF {
+	case ternaryFlagFalse:
+		*FlagSplitDWARF = false
+	case ternaryFlagTrue:
+		*FlagSplitDWARF = true
+	case ternaryFlagUnset:
+		// On Darwin, enable split DWARF by default only for non-executable
+		// build modes (c-shared, plugin). See #82729.
+		*FlagSplitDWARF = ctxt.IsDarwin() && !ctxt.IsExe() && !ctxt.IsPIE()
+	}
+	if !ctxt.IsDarwin() || ctxt.BuildMode == BuildModeCArchive || *flagOutfile == os.DevNull {
+		*FlagSplitDWARF = false
+	}
+
+	switch flagW {
+	case ternaryFlagFalse:
+		*FlagW = false
+	case ternaryFlagTrue:
+		*FlagW = true
+	case ternaryFlagUnset:
+		*FlagW = *FlagS // -s implies -w if not explicitly set
+		if ctxt.IsDarwin() && ctxt.BuildMode == BuildModeCShared && !*FlagSplitDWARF {
+			*FlagW = true // default to -w in c-shared mode on darwin when not splitting DWARF, see #61229
+		}
+	}
+	if *FlagW {
 		*FlagSplitDWARF = false
 	}
 

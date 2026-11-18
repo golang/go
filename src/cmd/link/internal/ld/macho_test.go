@@ -175,77 +175,110 @@ func TestMachoSplitDWARF(t *testing.T) {
 		return nil
 	}
 
-	for _, linkmode := range []string{"internal", "external"} {
-		for _, split := range []bool{true, false} {
-			name := fmt.Sprintf("%s_split_%v", linkmode, split)
-			t.Run(name, func(t *testing.T) {
-				t.Parallel()
-				if linkmode == "internal" {
-					testenv.MustInternalLink(t, testenv.SpecialBuildTypes{})
-				} else {
-					testenv.MustHaveCGO(t)
-				}
+	tests := []struct {
+		name      string
+		buildmode string
+		linkmode  string
+		ldflags   string
+		wantSplit bool
+		wantDWARF bool
+	}{
+		{"internal_default", "", "internal", "", false, true},
+		{"internal_split", "", "internal", "-splitdwarf=true", true, true},
+		{"internal_nosplit", "", "internal", "-splitdwarf=false", false, true},
+		{"external_default", "", "external", "", false, true},
+		{"external_split", "", "external", "-splitdwarf=true", true, true},
+		{"external_nosplit", "", "external", "-splitdwarf=false", false, true},
+		{"cshared_default", "c-shared", "external", "", true, true},
+		{"cshared_nosplit", "c-shared", "external", "-splitdwarf=false", false, false},
+		{"plugin_default", "plugin", "external", "", true, true},
+		{"plugin_nosplit", "plugin", "external", "-splitdwarf=false", false, true},
+	}
 
-				dir := t.TempDir()
-				src := filepath.Join(dir, "main.go")
-				if err := os.WriteFile(src, []byte(prog), 0666); err != nil {
-					t.Fatal(err)
-				}
-				binFile := filepath.Join(dir, "main")
-				ldflags := fmt.Sprintf("-linkmode=%s -splitdwarf=%v", linkmode, split)
-				cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", binFile, "-ldflags", ldflags, src)
-				if out, err := cmd.CombinedOutput(); err != nil {
-					t.Fatalf("build failed: %v\n%s", err, out)
-				}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			if test.buildmode != "" {
+				testenv.MustHaveBuildMode(t, test.buildmode)
+			}
+			if test.linkmode == "internal" {
+				testenv.MustInternalLink(t, testenv.SpecialBuildTypes{})
+			} else {
+				testenv.MustHaveCGO(t)
+			}
 
-				mf, err := macho.Open(binFile)
+			dir := t.TempDir()
+			src := filepath.Join(dir, "main.go")
+			if err := os.WriteFile(src, []byte(prog), 0666); err != nil {
+				t.Fatal(err)
+			}
+			binFile := filepath.Join(dir, "main")
+			ldflags := "-linkmode=" + test.linkmode
+			if test.ldflags != "" {
+				ldflags += " " + test.ldflags
+			}
+			args := []string{"build", "-o", binFile, "-ldflags", ldflags}
+			if test.buildmode != "" {
+				args = append(args, "-buildmode="+test.buildmode)
+			}
+			args = append(args, src)
+			cmd := testenv.Command(t, testenv.GoToolPath(t), args...)
+			if out, err := cmd.CombinedOutput(); err != nil {
+				t.Fatalf("build failed: %v\n%s", err, out)
+			}
+
+			mf, err := macho.Open(binFile)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer mf.Close()
+
+			_, dwarfErr := mf.DWARF()
+			if test.wantDWARF && dwarfErr != nil {
+				t.Errorf("expected DWARF from output (or its dSYM), got error: %v", dwarfErr)
+			} else if !test.wantDWARF && dwarfErr == nil {
+				t.Errorf("expected no DWARF, but got DWARF")
+			}
+
+			hasDWARFSeg := mf.Segment("__DWARF") != nil
+			dsymPath := filepath.Join(binFile+".dSYM", "Contents", "Resources", "DWARF", filepath.Base(binFile))
+			_, dsymStatErr := os.Stat(dsymPath)
+
+			if test.wantSplit {
+				if hasDWARFSeg {
+					t.Errorf("expected no __DWARF segment in output, but found one")
+				}
+				if dsymStatErr != nil {
+					t.Fatalf("expected dSYM file at %s, got error: %v", dsymPath, dsymStatErr)
+				}
+				df, err := macho.Open(dsymPath)
 				if err != nil {
-					t.Fatal(err)
+					t.Fatalf("failed to open dSYM file: %v", err)
 				}
-				defer mf.Close()
-
-				if _, err := mf.DWARF(); err != nil {
-					t.Errorf("expected DWARF from executable (or its dSYM), got error: %v", err)
+				defer df.Close()
+				u1, u2 := uuid(mf), uuid(df)
+				if len(u1) == 0 || !bytes.Equal(u1, u2) {
+					t.Errorf("UUID mismatch: output=%x, dSYM=%x", u1, u2)
 				}
-
-				hasDWARFSeg := mf.Segment("__DWARF") != nil
-				dsymPath := filepath.Join(binFile+".dSYM", "Contents", "Resources", "DWARF", filepath.Base(binFile))
-				_, dsymStatErr := os.Stat(dsymPath)
-
-				if split {
-					if hasDWARFSeg {
-						t.Errorf("expected no __DWARF segment in executable, but found one")
-					}
-					if dsymStatErr != nil {
-						t.Fatalf("expected dSYM file at %s, got error: %v", dsymPath, dsymStatErr)
-					}
-					df, err := macho.Open(dsymPath)
-					if err != nil {
-						t.Fatalf("failed to open dSYM file: %v", err)
-					}
-					defer df.Close()
-					u1, u2 := uuid(mf), uuid(df)
-					if len(u1) == 0 || !bytes.Equal(u1, u2) {
-						t.Errorf("UUID mismatch: executable=%x, dSYM=%x", u1, u2)
-					}
-					if _, err := df.DWARF(); err != nil {
-						t.Errorf("expected DWARF in dSYM file, got error: %v", err)
-					}
-					if df.Symtab == nil || len(df.Symtab.Syms) == 0 {
-						t.Errorf("expected symbol table in dSYM file")
-					}
-					if df.Section("__zdebug_aranges") == nil && df.Section("__debug_aranges") == nil {
-						t.Errorf("expected debug_aranges section in dSYM file")
-					}
-				} else {
-					if !hasDWARFSeg {
-						t.Errorf("expected __DWARF segment in executable with -splitdwarf=false, but found none")
-					}
-					if !os.IsNotExist(dsymStatErr) {
-						t.Errorf("expected no dSYM file with -splitdwarf=false, but stat returned: %v", dsymStatErr)
-					}
+				if _, err := df.DWARF(); err != nil {
+					t.Errorf("expected DWARF in dSYM file, got error: %v", err)
 				}
-			})
-		}
+				if df.Symtab == nil || len(df.Symtab.Syms) == 0 {
+					t.Errorf("expected symbol table in dSYM file")
+				}
+				if df.Section("__zdebug_aranges") == nil && df.Section("__debug_aranges") == nil {
+					t.Errorf("expected debug_aranges section in dSYM file")
+				}
+			} else {
+				if test.wantDWARF && !hasDWARFSeg {
+					t.Errorf("expected __DWARF segment in output, but found none")
+				} else if !test.wantDWARF && hasDWARFSeg {
+					t.Errorf("expected no __DWARF segment in output, but found one")
+				}
+				if !os.IsNotExist(dsymStatErr) {
+					t.Errorf("expected no dSYM file, but stat returned: %v", dsymStatErr)
+				}
+			}
+		})
 	}
 }
