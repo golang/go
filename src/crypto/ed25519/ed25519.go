@@ -174,7 +174,7 @@ func GenerateKey(random io.Reader) (PublicKey, PrivateKey, error) {
 		}
 	}
 
-	if fips140only.Enforced() && !fips140only.ApprovedRandomReader(random) {
+	if fips140only.Enforced() && !rand.IsDefaultReader(random) {
 		return nil, nil, errors.New("crypto/ed25519: only crypto/rand.Reader is allowed in FIPS 140-only mode")
 	}
 

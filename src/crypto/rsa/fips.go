@@ -94,7 +94,7 @@ func SignPSS(random io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte
 	if fips140only.Enforced() && !fips140only.ApprovedHash(h) {
 		return nil, errors.New("crypto/rsa: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
 	}
-	if fips140only.Enforced() && !fips140only.ApprovedRandomReader(random) {
+	if fips140only.Enforced() && !rand.IsDefaultReader(random) {
 		return nil, errors.New("crypto/rsa: only crypto/rand.Reader is allowed in FIPS 140-only mode")
 	}
 
@@ -257,7 +257,7 @@ func encryptOAEP(hash hash.Hash, mgfHash hash.Hash, random io.Reader, pub *Publi
 		if !fips140only.ApprovedHash(hash) || !fips140only.ApprovedHash(mgfHash) {
 			return nil, errors.New("crypto/rsa: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
 		}
-		if !fips140only.ApprovedRandomReader(random) {
+		if !rand.IsDefaultReader(random) {
 			return nil, errors.New("crypto/rsa: only crypto/rand.Reader is allowed in FIPS 140-only mode")
 		}
 	}

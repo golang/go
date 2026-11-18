@@ -30,8 +30,8 @@ func main() {
 `
 
 // TestLinker ensures that using crypto/hmac with one hash does not bring the
-// other hashes into the binary. In particular, the approved hash check must
-// not pull in SHA-3.
+// other hashes or the DRBG into the binary. In particular, the approved hash
+// check must not pull in SHA-3, and nothing must pull in the DRBG.
 func TestLinker(t *testing.T) {
 	if testing.Short() {
 		t.Skip("test requires running 'go build'")
@@ -71,7 +71,8 @@ func TestLinker(t *testing.T) {
 		if pkg == "hmac" {
 			consistent = true
 		}
-		if pkg == "sha3" || pkg == "sha512" {
+		switch pkg {
+		case "sha3", "sha512", "drbg":
 			t.Errorf("unexpected symbol in program using only HMAC-SHA-256: %s", symbol)
 		}
 	}

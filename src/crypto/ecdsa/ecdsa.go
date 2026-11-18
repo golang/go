@@ -375,14 +375,14 @@ func GenerateKey(c elliptic.Curve, r io.Reader) (*PrivateKey, error) {
 	}
 }
 
-func generateFIPS[P ecdsa.Point[P]](curve elliptic.Curve, c *ecdsa.Curve[P], rand io.Reader) (*PrivateKey, error) {
-	if fips140only.Enforced() && !fips140only.ApprovedRandomReader(rand) {
+func generateFIPS[P ecdsa.Point[P]](curve elliptic.Curve, c *ecdsa.Curve[P], r io.Reader) (*PrivateKey, error) {
+	if fips140only.Enforced() && !rand.IsDefaultReader(r) {
 		return nil, errors.New("crypto/ecdsa: only crypto/rand.Reader is allowed in FIPS 140-only mode")
 	}
 	var privkey *ecdsa.PrivateKey
 	var err error
 	subtle.WithDataIndependentTiming(func() {
-		privkey, err = ecdsa.GenerateKey(c, rand)
+		privkey, err = ecdsa.GenerateKey(c, r)
 	})
 	if err != nil {
 		return nil, err
@@ -432,8 +432,8 @@ func SignASN1(r io.Reader, priv *PrivateKey, hash []byte) ([]byte, error) {
 	}
 }
 
-func signFIPS[P ecdsa.Point[P]](c *ecdsa.Curve[P], priv *PrivateKey, rand io.Reader, hash []byte) ([]byte, error) {
-	if fips140only.Enforced() && !fips140only.ApprovedRandomReader(rand) {
+func signFIPS[P ecdsa.Point[P]](c *ecdsa.Curve[P], priv *PrivateKey, r io.Reader, hash []byte) ([]byte, error) {
+	if fips140only.Enforced() && !rand.IsDefaultReader(r) {
 		return nil, errors.New("crypto/ecdsa: only crypto/rand.Reader is allowed in FIPS 140-only mode")
 	}
 	k, err := privateKeyToFIPS(c, priv)
@@ -445,7 +445,7 @@ func signFIPS[P ecdsa.Point[P]](c *ecdsa.Curve[P], priv *PrivateKey, rand io.Rea
 	// our API we don't get to know what it was, and this has no security impact.
 	var sig *ecdsa.Signature
 	subtle.WithDataIndependentTiming(func() {
-		sig, err = ecdsa.Sign(c, sha512.New, k, rand, hash)
+		sig, err = ecdsa.Sign(c, sha512.New, k, r, hash)
 	})
 	if err != nil {
 		return nil, err
