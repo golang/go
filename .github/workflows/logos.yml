@@ -94,6 +94,9 @@ jobs:
           tar -xzf "$archive" -C "$runner" --strip-components=1
           printf '%s\n' "$runner" >> "$GITHUB_PATH"
           printf 'PYTHONDONTWRITEBYTECODE=1\nPYTEST_DISABLE_PLUGIN_AUTOLOAD=1\n' >> "$GITHUB_ENV"
+      - name: "Install the Python 3.12 interpreter"
+        if: "matrix.suite == 'unit' || matrix.suite == 'upstream'"
+        run: uv python install 3.12
       - name: "Build the toolchain"
         run: |
           GOROOT_BOOTSTRAP=$(go env GOROOT)

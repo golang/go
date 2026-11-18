@@ -118,7 +118,7 @@ func liveValues(f *Func, reachable []bool) (live []bool, liveOrderStmts []*Value
 				}
 			}
 			if v.Op == OpInlMark {
-				if !liveInlIdx[int(v.AuxInt)] {
+				if !f.Config.KeepAllInlMarks && !liveInlIdx[int(v.AuxInt)] {
 					// We don't need marks for bodies that
 					// have been completely optimized away.
 					// TODO: save marks only for bodies which

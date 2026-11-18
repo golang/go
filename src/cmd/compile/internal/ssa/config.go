@@ -51,6 +51,10 @@ type Config struct {
 	haveBswap16    bool      // architecture implements Bswap16
 	haveCondSelect bool      // architecture implements CondSelect
 
+	// KeepAllInlMarks keeps inline marks whose bodies were fully
+	// optimized away, so the link-time capability audit can see them.
+	KeepAllInlMarks bool
+
 	// mulRecipes[x] = function to build v * x from v.
 	mulRecipes map[int64]mulRecipe
 }

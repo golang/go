@@ -103,6 +103,7 @@ func InitConfig() {
 	types.NewPtrCacheEnabled = false
 	ssaConfig = ssa.NewConfig(base.Ctxt.Arch.Name, *types_, base.Ctxt, base.Flag.N == 0, Arch.SoftFloat)
 	ssaConfig.Race = base.Flag.Race
+	ssaConfig.KeepAllInlMarks = base.LogosAllocFacts
 	ssaCaches = make([]ssa.Cache, base.Flag.LowerC)
 
 	// Set up some runtime functions we'll need to call.
