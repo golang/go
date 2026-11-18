@@ -792,7 +792,7 @@ func (fl *fileLower) cfBuildCopy(site *cfSite, rec *cfRecord, copyName string) (
 	if len(errs) > 0 || fn == nil {
 		base.Fatalf("logos: cannot parse comptime source of %s: %v", rec.name, errs)
 	}
-	run := &cfRun{ctx: cfCtx{buf: srcBuf{b: src, chunks: buf.chunks}, starts: lineStarts(src), stamp: site.pos}, fieldsOf: fl.cfFieldsResolver(sites), sites: sites}
+	run := &cfRun{ctx: cfCtx{buf: srcBuf{b: src, chunks: buf.chunks}, starts: lineStarts(src), stamp: site.pos}, fieldsOf: fl.cfFieldsResolver(sites), sites: sites, funcBody: fn.Body}
 	out, err := applyChunks(buf, fl.cfCopySplices(fn, copyName, run))
 	if err != nil {
 		base.Fatalf("logos: overlapping comptime copy %s: %v", copyName, err)

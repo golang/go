@@ -1,0 +1,316 @@
+// run
+
+package main
+
+import (
+	"comptime"
+	"debug/elf"
+	"fmt"
+	"os"
+)
+
+// A const switch over f.Type selects the matching case for each
+// field's concrete type, bound or unbound to a generic.
+type App struct {
+	Name string
+	Age  int
+}
+
+func tags[T any]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		const switch f.Type {
+		case int:
+			out = append(out, f.Name+":int")
+		case string:
+			out = append(out, f.Name+":str")
+		}
+	}
+	return out
+}
+
+// An interface case collects only the fields that implement it;
+// root.[f] names the field itself inside the case body.
+type Part interface{ Start() error }
+
+type Step struct {
+	Name  string
+	Start func() error
+}
+
+func Steps[T any](root *T) []Step {
+	var steps []Step
+	const for _, f := range comptime.Fields[T]() {
+		const switch f.Type {
+		case Part:
+			steps = append(steps, Step{Name: f.Name, Start: root.[f].Start})
+		}
+	}
+	return steps
+}
+
+type Engine struct{}
+
+func (Engine) Start() error { return nil }
+
+type Rig struct {
+	Motor Engine
+	Label string
+}
+
+// An option field's type is the option type, never the bare
+// element: *int? must not run case *int.
+type Opt struct {
+	P *int?
+	N int
+}
+
+func opts[T any]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		const switch f.Type {
+		case *int:
+			out = append(out, f.Name+":pint")
+		case int:
+			out = append(out, f.Name+":int")
+		}
+	}
+	return out
+}
+
+// The first matching case wins; a later overlapping case is dead for
+// that field, so even a comptime.Error in it never fires.
+type Two struct {
+	A int
+	B float64
+}
+
+func firstMatch[T any]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		const switch f.Type {
+		case int:
+			out = append(out, f.Name+":exact")
+		case ~int:
+			comptime.Error("an exact int field must not reach the tilde case")
+		case float64:
+			out = append(out, f.Name+":f64")
+		case complex128:
+			comptime.Error("no complex field exists")
+		}
+	}
+	return out
+}
+
+// Inside a case the field type is narrowed to the case type, so
+// root.[f] assigns to that type without a conversion.
+func narrow[T any](root *T) []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		const switch f.Type {
+		case string:
+			var s string = root.[f]
+			out = append(out, f.Name+"="+s)
+		case int:
+			var i int = root.[f]
+			out = append(out, f.Name+"="+fmt.Sprint(i+1))
+		}
+	}
+	return out
+}
+
+// A const switch over the OUTER field's type inside an inner const
+// for still resolves the outer binding.
+func nested[O, I any]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[O]() {
+		const for _, g := range comptime.Fields[I]() {
+			const switch f.Type {
+			case int:
+				out = append(out, f.Name+"."+g.Name)
+			}
+		}
+	}
+	return out
+}
+
+// The same shape concretely: the ~int case trails cases that cover
+// every field of App, so it is dead on every iteration and its
+// comptime.Error must never evaluate.
+func nestedConcrete() []string {
+	var out []string
+	const for _, f := range comptime.Fields[App]() {
+		const for _, g := range comptime.Fields[Opt]() {
+			const switch f.Type {
+			case int:
+				out = append(out, f.Name+"."+g.Name)
+			case string:
+				out = append(out, f.Name+">"+g.Name)
+			case ~int:
+				comptime.Error("dead tilde case evaluated")
+			}
+		}
+	}
+	return out
+}
+
+// An unbound f.Type case is per-iteration, so it does not statically
+// cover a later concrete case.
+func pend[T any]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		const for _, g := range comptime.Fields[T]() {
+			const switch g.Type {
+			case f.Type:
+				out = append(out, f.Name+"~"+g.Name)
+			case string:
+				out = append(out, f.Name+">"+g.Name)
+			}
+		}
+	}
+	return out
+}
+
+// A body-local type declaration shadows the package-level name for a
+// case: the fold resolves it, so a package Sh field never matches a
+// local Sh.
+type Sh float64
+
+type Shadow struct {
+	V Sh
+}
+
+func localDecl[T any]() []string {
+	type Sh int
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		const switch f.Type {
+		case Sh:
+			out = append(out, f.Name+":local")
+		case string:
+			out = append(out, f.Name+":str")
+		}
+	}
+	return out
+}
+
+// A body-local type alias stands for its target.
+func localAlias[T any]() []string {
+	type MyInt = int
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		const switch f.Type {
+		case MyInt:
+			out = append(out, f.Name+":int")
+		}
+	}
+	return out
+}
+
+// An outer-bound f.Type case resolves to a concrete type each
+// iteration: when it cannot match the inner field it is dead for that
+// iteration and its body is never checked or run.
+type OnlyInt struct {
+	P int
+	Q int
+}
+
+type Str struct {
+	X string
+}
+
+func outerVary() []string {
+	var out []string
+	const for _, f := range comptime.Fields[OnlyInt]() {
+		const for _, g := range comptime.Fields[Str]() {
+			const switch g.Type {
+			case f.Type:
+				out = append(out, f.Name+">"+g.Name)
+			case string:
+				out = append(out, "s"+g.Name)
+			}
+		}
+	}
+	return out
+}
+
+// A local named field type matches its local case name: the fold
+// resolves the name through the checked declaration, not a fresh type.
+func localNamed() []string {
+	type Sh int
+	type Local struct{ V Sh }
+	var out []string
+	const for _, f := range comptime.Fields[Local]() {
+		const switch f.Type {
+		case Sh:
+			out = append(out, f.Name+":sh")
+		}
+	}
+	return out
+}
+
+// Under ~T an unbound field projects as a parameter bounded by ~T:
+// conversions to T check, and the copy still sees the field's own type.
+type MyI int
+
+type Holder struct{ V MyI }
+
+func tildeConv[T any](root *T) int {
+	n := 0
+	const for _, f := range comptime.Fields[T]() {
+		const switch f.Type {
+		case ~int:
+			n += int(root.[f])
+		}
+	}
+	return n
+}
+
+// A package-qualified case ending in .Type is an ordinary named
+// type, not a field projection: it folds by its resolved type, and
+// ~pkg.Type matches every field whose basic underlying it names.
+type Elf struct {
+	T elf.Type
+	U uint16
+}
+
+func pkgQualified() []string {
+	var out []string
+	const for _, f := range comptime.Fields[Elf]() {
+		const switch f.Type {
+		case elf.Type:
+			out = append(out, f.Name+":elf")
+		case ~elf.Type:
+			out = append(out, f.Name+":~elf")
+		case float64:
+			comptime.Error("no float64 field exists")
+		}
+	}
+	return out
+}
+
+func main() {
+	fmt.Println(tags[App]())
+	var r Rig
+	for _, s := range Steps(&r) {
+		fmt.Println(s.Name, s.Start() == nil)
+	}
+	if len(Steps(&r)) != 1 {
+		os.Exit(1)
+	}
+	fmt.Println(opts[Opt]())
+	fmt.Println(firstMatch[Two]())
+	var a App
+	fmt.Println(narrow(&a))
+	fmt.Println(nested[App, Opt]())
+	fmt.Println(nestedConcrete())
+	fmt.Println(pend[Opt]())
+	fmt.Println(localDecl[Shadow]())
+	fmt.Println(localAlias[App]())
+	fmt.Println(outerVary())
+	fmt.Println(localNamed())
+	var h Holder
+	h.V = 9
+	fmt.Println(tildeConv(&h))
+	fmt.Println(pkgQualified())
+}

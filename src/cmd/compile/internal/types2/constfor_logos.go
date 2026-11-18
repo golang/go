@@ -449,14 +449,56 @@ func (check *Checker) logosFieldTypeType(e *syntax.SelectorExpr, x *operand) boo
 	check.recordUse(name, obj)
 	check.usedVars[v] = true
 	x.expr = e
-	if b := check.logosFieldBind; b != nil && check.logosFieldVars[v] == b.info {
-		x.mode_ = typexpr
-		x.typ_ = b.field.Type()
-		return true
+	owner := check.logosFieldVars[v]
+	// The owning loop is recorded for bound and unbound f.Type alike so
+	// a case or tag can tell an outer loop's field (still varying per
+	// outer iteration) from the innermost loop's (concrete now).
+	if check.logosFieldTypeOwner == nil {
+		check.logosFieldTypeOwner = make(map[syntax.Expr]*LogosConstFor)
+	}
+	check.logosFieldTypeOwner[e] = owner
+	for b := check.logosFieldBind; b != nil; b = b.outer {
+		if owner == b.info {
+			x.mode_ = typexpr
+			x.typ_ = b.field.Type()
+			if check.logosFieldBound == nil {
+				check.logosFieldBound = make(map[syntax.Expr]bool)
+			}
+			check.logosFieldBound[e] = true
+			return true
+		}
 	}
 	x.mode_ = typexpr
 	x.typ_ = logosComptimeAny
 	return true
+}
+
+// logosFieldTypePend reports whether a type read through owner's field
+// variable is unknown to this check: owner has no binding on the stack
+// (the generic single check). Any bound field — of the innermost loop
+// or of an outer one — resolves to a concrete type for this iteration.
+func (check *Checker) logosFieldTypePend(owner *LogosConstFor) bool {
+	if owner == nil {
+		return false
+	}
+	for b := check.logosFieldBind; b != nil; b = b.outer {
+		if owner == b.info {
+			return false
+		}
+	}
+	return true
+}
+
+// logosFieldTypeVary reports whether a bound field variable belongs to
+// an outer loop of the switch being checked: its type is concrete for
+// this iteration but varies across outer iterations, so static case
+// coverage defers to each iteration while dead-case detection may use
+// the concrete type on hand.
+func (check *Checker) logosFieldTypeVary(owner *LogosConstFor) bool {
+	if owner == nil || check.logosFieldBind == nil {
+		return false
+	}
+	return owner != check.logosFieldBind.info
 }
 
 func (check *Checker) logosFieldProjExpr(x *operand, e *syntax.FieldProjExpr) {
@@ -489,7 +531,7 @@ func (check *Checker) logosFieldProjExpr(x *operand, e *syntax.FieldProjExpr) {
 	if _, ok := xt.(*TypeParam); ok {
 		if info.Generic {
 			x.mode_ = mode
-			x.typ_ = logosComptimeAny
+			x.typ_ = check.logosFieldNarrowOr(info)
 			return
 		}
 		check.errorf(e.Pos(), MissingFieldOrMethod, "[comptime::const_for_projection] cannot project a field of %s", xop.typ())
@@ -501,14 +543,29 @@ func (check *Checker) logosFieldProjExpr(x *operand, e *syntax.FieldProjExpr) {
 		return
 	}
 	x.mode_ = mode
-	if b := check.logosFieldBind; b != nil && info == b.info {
-		x.typ_ = b.field.Type()
-		return
+	for b := check.logosFieldBind; b != nil; b = b.outer {
+		if info == b.info {
+			x.typ_ = b.field.Type()
+			return
+		}
 	}
-	x.typ_ = check.logosFieldProjType(info)
+	x.typ_ = check.logosFieldNarrowOr(info)
+}
+
+// logosFieldNarrowOr answers the field's type as narrowed by the
+// const-switch case under check, or the loop's shared field type when no
+// case narrowed it.
+func (check *Checker) logosFieldNarrowOr(info *LogosConstFor) Type {
+	if n, ok := check.logosFieldNarrow[info]; ok && n != nil {
+		return n
+	}
+	return check.logosFieldProjType(info)
 }
 
 func (check *Checker) logosFieldProjType(info *LogosConstFor) Type {
+	if info.Struct == nil {
+		return logosComptimeAny
+	}
 	var shared Type
 	for i := range info.Struct.NumFields() {
 		t := info.Struct.Field(i).Type()

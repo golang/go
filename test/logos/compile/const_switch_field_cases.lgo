@@ -1,0 +1,29 @@
+// errorcheck
+
+package p
+
+import "comptime"
+
+type App struct {
+	Name string
+	Age  int
+}
+
+// A concrete const for still reports cases shadowed for every
+// iteration, field tag or not.
+func dup() {
+	const for _, f := range comptime.Fields[App]() {
+		const switch f.Type {
+		case int:
+		case int: // ERROR "\[comptime::unreachable_case\] const switch case is shadowed by an earlier case"
+		}
+		_ = f
+	}
+}
+
+// A plain any tag can satisfy no case.
+func anyTag() {
+	const switch any {
+	case int: // ERROR "\[comptime::unreachable_case\] const switch case is shadowed by an earlier case"
+	}
+}
