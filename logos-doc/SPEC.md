@@ -1060,6 +1060,10 @@ Copies MUST be memoized per type-argument list. [T-205]
 
 An exported comptime generic MUST travel as source text in `__.LOGOS`. [T-205]
 
+An exported comptime generic that names an unexported package-level identifier of its own package MUST fail with `[comptime::unexported_in_exported]` at that identifier in the defining package. [T-205]
+
+The rule applies to every package that can be imported; `main` is exempt because it cannot be imported. [T-205]
+
 A `const for` range MUST be `comptime.Fields[T]()` over a struct type. [T-205]
 
 Any other range operand, and a non-struct `T`, MUST fail with `[comptime::const_for_fields]`. [T-205]

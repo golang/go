@@ -1,0 +1,95 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd w
+# The defining package fails on the unexported identifiers its exported
+# comptime generic names; the importer must never see undefined: names.
+! logos build ./...
+stderr 'comptime::unexported_in_exported'
+stderr 'unexported type named'
+stderr 'unexported func collect'
+! stderr 'undefined: app'
+
+cd ../m
+# Package main cannot be imported, so its exported comptime generic may
+# name an unexported function of the package; the program runs.
+logos run .
+stdout '^2$'
+
+-- w/go.mod --
+module example.com/cfrepro
+
+go 1.27
+
+-- w/app/app.lgo --
+package app
+
+import "comptime"
+
+type named struct {
+	name string
+}
+
+func collect[F any](parts []named, name string, field F) []named {
+	return parts
+}
+
+func Run[T any](root *T) int {
+	var parts []named
+	var out []named
+	const for _, f := range comptime.Fields[T]() {
+		out = append(out, collect[[]byte](parts, f.Name, nil)...)
+	}
+	return len(out)
+}
+
+-- w/main/main.lgo --
+package main
+
+import (
+	"example.com/cfrepro/app"
+	"fmt"
+)
+
+type Root struct {
+	Port int
+	Host string
+}
+
+func main() {
+	fmt.Println(app.Run[Root](&Root{}))
+}
+
+-- m/go.mod --
+module example.com/cfmain
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import (
+	"comptime"
+	"fmt"
+)
+
+type pair struct {
+	A int
+	B int
+}
+
+func parse(i int) int {
+	return i * 2
+}
+
+func Load[T any]() int {
+	sum := 0
+	const for _, f := range comptime.Fields[T]() {
+		sum += parse(f.Index)
+	}
+	return sum
+}
+
+func main() {
+	fmt.Println(Load[pair]())
+}

@@ -7,6 +7,7 @@ package logos
 import (
 	"errors"
 	"fmt"
+	"go/constant"
 	"go/token"
 	"slices"
 	"strconv"
@@ -274,6 +275,9 @@ func (fl *fileLower) cfRecordText(def *cfGenericDef, qualifier string) *cfRecord
 	if err != nil {
 		base.Fatalf("logos: overlapping comptime record at %s", def.decl.Pos().String())
 	}
+	if qualifier == "" && def.obj != nil && def.obj.Exported() && fl.pkg.tpkg.Name() != "main" {
+		fl.cfCheckExportedRecord(def)
+	}
 	return &cfRecord{
 		name:    def.decl.Name.Value,
 		tparams: len(def.decl.TParamList),
@@ -282,6 +286,88 @@ func (fl *fileLower) cfRecordText(def *cfGenericDef, qualifier string) *cfRecord
 		source:  out.s,
 		sourceO: out,
 	}
+}
+
+// cfCheckExportedRecord reports each package-level unexported identifier
+// an exported comptime generic names. The record travels as source text
+// to importing packages, where an unexported name cannot resolve; package
+// main cannot be imported, so the caller skips it. It
+// walks the declaration the way cfRecordBuilder.visit does: a const if
+// condition that folds to a literal never reaches the record, so a
+// constant condition's names are not checked while a non-constant
+// condition's are, and a name without a file position belongs to a
+// synthesized node that has no source to report.
+func (fl *fileLower) cfCheckExportedRecord(def *cfGenericDef) {
+	var visit func(n syntax.Node) bool
+	visit = func(n syntax.Node) bool {
+		if s, ok := n.(*syntax.ConstIfStmt); ok {
+			fl.cfCheckCond(s.Cond, visit)
+			syntax.Inspect(s.Then, visit)
+			if s.Else != nil {
+				syntax.Inspect(s.Else, visit)
+			}
+			return false
+		}
+		name, ok := n.(*syntax.Name)
+		if !ok {
+			return true
+		}
+		if name.Pos().Base() == nil {
+			return true
+		}
+		obj, ok := fl.pkg.info.Uses[name].(types2.Object)
+		if !ok || obj == nil || obj.Exported() || !cfPackageLevel(fl, obj) {
+			return true
+		}
+		fl.cfError(name.Pos(), "[comptime::unexported_in_exported] exported comptime generic %s names unexported %s %s of its package", def.decl.Name.Value, cfObjKind(obj), obj.Name())
+		return true
+	}
+	syntax.Inspect(def.decl, visit)
+}
+
+// cfCheckCond walks a const if condition the way cfRecordBuilder.foldCond
+// does: an operand that folds to a constant bool is replaced by a literal
+// in the record, so its names are skipped, while the names of every
+// remaining operand reach the record and are checked.
+func (fl *fileLower) cfCheckCond(e syntax.Expr, visit func(syntax.Node) bool) {
+	if val, ok := typeConst(fl.pkg.info, e); ok && val.Kind() == constant.Bool {
+		return
+	}
+	switch e := e.(type) {
+	case *syntax.ParenExpr:
+		fl.cfCheckCond(e.X, visit)
+	case *syntax.Operation:
+		fl.cfCheckCond(e.X, visit)
+		if e.Y != nil {
+			fl.cfCheckCond(e.Y, visit)
+		}
+	default:
+		syntax.Inspect(e, visit)
+	}
+}
+
+func cfPackageLevel(fl *fileLower, obj types2.Object) bool {
+	pkg := fl.pkg.tpkg
+	return obj.Pkg() == pkg && pkg.Scope().Lookup(obj.Name()) == obj
+}
+
+func cfObjKind(obj types2.Object) string {
+	switch obj := obj.(type) {
+	case *types2.TypeName:
+		if obj.IsAlias() {
+			return "type alias"
+		}
+		return "type"
+	case *types2.Func:
+		return "func"
+	case *types2.Var:
+		return "var"
+	case *types2.Const:
+		return "const"
+	case *types2.PkgName:
+		return "package"
+	}
+	return "name"
 }
 
 func (b *cfRecordBuilder) visit(n syntax.Node) bool {

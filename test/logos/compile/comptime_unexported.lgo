@@ -1,0 +1,92 @@
+// errorcheck
+
+// An exported comptime generic travels as source text to importing
+// packages, so every package-level identifier its body or signature
+// names must be exported. Unexported names fail in the defining
+// package, at the identifier, with [comptime::unexported_in_exported].
+
+package p
+
+import "comptime"
+
+type hidden struct {
+	name string
+}
+
+type Visible struct {
+	Port int
+}
+
+func bump(n int) int { return n + 1 }
+
+func describe(v Visible) int { return v.Port }
+
+func Sum[F any](parts []F, name string) []F { return parts }
+
+func Collect[F any](parts []Visible, name string, field F) []Visible {
+	return parts
+}
+
+var hiddenCount = 1
+
+func RunUnexportedType[T any](root *T, seed hidden) int { // ERROR "comptime::unexported_in_exported"
+	_ = seed
+	n := 0
+	const for _, f := range comptime.Fields[T]() {
+		_ = f.Name
+		n++
+	}
+	return n
+}
+
+func RunUnexportedFunc[T any](root *T) int {
+	n := bump(0) // ERROR "comptime::unexported_in_exported"
+	const for _, f := range comptime.Fields[T]() {
+		_ = f.Name
+		n += n
+	}
+	return n
+}
+
+func RunUnexportedValue[T any](root *T) int {
+	n := hiddenCount // ERROR "comptime::unexported_in_exported"
+	const for _, f := range comptime.Fields[T]() {
+		_ = f.Name
+		n += n
+	}
+	return n
+}
+
+func runHelper[F any](v Visible) int { return describe(v) }
+
+func RunUnexportedGeneric[T any](root *T) int {
+	n := runHelper[Visible](Visible{}) // ERROR "comptime::unexported_in_exported"
+	const for _, f := range comptime.Fields[T]() {
+		_ = f.Name
+		n += n
+	}
+	return n
+}
+
+func RunExported[T any](root *T) int {
+	n := 0
+	const for _, f := range comptime.Fields[T]() {
+		parts := []Visible{}
+		_ = Collect[Visible](parts, f.Name, Visible{})
+		_ = Sum[Visible](parts, f.Name)
+		_ = DescribeExported(Visible{})
+		n++
+	}
+	return n
+}
+
+func DescribeExported(v Visible) int { return v.Port }
+
+func runLocal[T any](root *T) int {
+	n := bump(0)
+	const for _, f := range comptime.Fields[T]() {
+		_ = f.Name
+		n += n
+	}
+	return n
+}
