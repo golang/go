@@ -1,0 +1,87 @@
+// run
+
+package main
+
+import "fmt"
+
+func pick[V comparable](got V?, want V) bool {
+	if got == nil {
+		return false
+	}
+	return (got ?? want) == want
+}
+
+func some[V any](got V?) bool {
+	return got != nil
+}
+
+func ptrSome[V any](got *V?) bool {
+	return got != nil
+}
+
+type Box[V any] struct{ val V }
+
+func (b *Box[V]) Has(got V?) bool {
+	return got != nil
+}
+
+type R struct{ n int }
+
+func (r R) Has[V any](x V?) bool {
+	return x != nil
+}
+
+func inner[W any](y W?) bool {
+	return y != nil
+}
+
+func outer[V any](x V?) bool {
+	return inner(x)
+}
+
+func main() {
+	var present int?
+	present = 5
+	var absent int?
+
+	fmt.Println("inferred-present:", pick(present, 5))
+	fmt.Println("inferred-absent:", pick(absent, 5))
+	fmt.Println("inferred-nil:", pick(nil, 5))
+	fmt.Println("explicit-present:", pick[int](present, 5))
+	fmt.Println("explicit-absent:", pick[int](absent, 5))
+	fmt.Println("some-present:", some(present))
+	fmt.Println("some-absent:", some(absent))
+	fmt.Println("outer-present:", outer(present))
+	fmt.Println("outer-absent:", outer(absent))
+
+	q := new(int)
+	var pp *int?
+	pp = q
+	var pe *int?
+	fmt.Println("ptr-present:", ptrSome(pp))
+	fmt.Println("ptr-absent:", ptrSome(pe))
+
+	b := Box[int]{val: 1}
+	fmt.Println("method-present:", b.Has(present))
+	fmt.Println("method-absent:", b.Has(absent))
+
+	var spresent string?
+	spresent = "x"
+	var sabsent string?
+	fmt.Println("string-present:", pick(spresent, "x"))
+	fmt.Println("string-absent:", pick(sabsent, "x"))
+
+	r := R{n: 1}
+	fmt.Println("gmeth-value-present:", r.Has(present))
+	fmt.Println("gmeth-value-absent:", r.Has(absent))
+	fmt.Println("gmeth-value-nil:", r.Has[int](nil))
+	fmt.Println("gmeth-value-explicit-present:", r.Has[int](present))
+	fmt.Println("gmeth-value-explicit-absent:", r.Has[int](absent))
+	fmt.Println("gmeth-value-plain:", r.Has[int](5))
+	fmt.Println("gmeth-expr-present:", R.Has(r, present))
+	fmt.Println("gmeth-expr-absent:", R.Has(r, absent))
+	fmt.Println("gmeth-expr-explicit-present:", R.Has[int](r, present))
+	fmt.Println("gmeth-expr-explicit-absent:", R.Has[int](r, absent))
+	fmt.Println("gmeth-expr-explicit-plain:", R.Has[int](r, 5))
+	fmt.Println("gmeth-expr-explicit-nil:", R.Has[int](r, nil))
+}
