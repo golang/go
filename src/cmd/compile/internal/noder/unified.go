@@ -550,7 +550,7 @@ func writeUnifiedExport(out io.Writer) {
 	//    with the local package's exported declarations and all objects they
 	//    transitively reference. If any of those referenced objects belong to
 	//    "simd" or "simd/internal/bridge", re-export the full "simd" and
-	//    "simd/internal/bridge" definitions and inline bodies from
+	//    "simd/internal/bridge" definitions, and all inline bodies, from
 	//    simdPkgReader so that any package importing this one receives them too.
 	var extraPkgReader *pkgReader
 	if base.Ctxt.Pkgpath == midway.SimdPkg {
@@ -595,8 +595,21 @@ func writeUnifiedExport(out io.Writer) {
 
 			r.Sync(pkgbits.SyncEOF)
 		}
-		// Also copy any inlinable function/method bodies for "simd" and
-		// "simd/internal/bridge" into l.bodies for the private root below.
+		// Also copy every inlinable function body from pr into l.bodies, so
+		// they're written to this package's export data and importers can
+		// inline them. (Export data has a "public root", which lists the
+		// exported declarations, and a "private root", which indexes the
+		// inlinable function bodies. This copies the latter.)
+		//
+		// This includes bodies from every package, not just "simd" and
+		// "simd/internal/bridge". The bridge inlines functions from other
+		// packages, notably "simd/archsimd" and, in its emulated fallbacks,
+		// "math". A package normally re-exports the body of any function it
+		// inlines, but on architectures with SIMD support, "simd" is only
+		// stubs, so it would otherwise not inline these functions itself
+		// and exportBody wouldn't export their bodies. Packages that import
+		// "simd" need not import these other packages, so this is the only
+		// way they get these bodies.
 		{
 			r := pr.NewDecoder(pkgbits.SectionMeta, pkgbits.PrivateRootIdx, pkgbits.SyncPrivate)
 
@@ -607,11 +620,9 @@ func writeUnifiedExport(out io.Writer) {
 				name := r.String()
 				idx := r.Reloc(pkgbits.SectionBody)
 
-				if path == midway.SimdPkg || path == midway.SimdBridgePkg {
-					sym := types.NewPkg(path, "").Lookup(name)
-					if _, ok := l.bodies[sym]; !ok {
-						l.bodies[sym] = l.relocIdx(pr, pkgbits.SectionBody, idx)
-					}
+				sym := types.NewPkg(path, "").Lookup(name)
+				if _, ok := l.bodies[sym]; !ok {
+					l.bodies[sym] = l.relocIdx(pr, pkgbits.SectionBody, idx)
 				}
 			}
 
