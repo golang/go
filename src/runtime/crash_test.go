@@ -144,6 +144,7 @@ func buildTestProg(t *testing.T, binary string, flags ...string) (string, error)
 	if testprog.dir == "" {
 		dir, err := os.MkdirTemp("", "go-build")
 		if err != nil {
+			testprog.Unlock()
 			t.Fatalf("failed to create temp directory: %v", err)
 		}
 		testprog.dir = dir
