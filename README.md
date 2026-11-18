@@ -160,7 +160,7 @@ by the same branch, and propagates constants through bit-count intrinsics
 and conditional selections. These analyses can remove runtime work while
 preserving integer overflow, side effects, and required panics.
 
-The extra analysis has fixed work bounds and applies to both Go and loGo/s
+The extra analysis has fixed work bounds and applies to both Go and LoGOs
 packages. Lower tiers keep their existing behavior. See the
 [20-technique comparison and implementation contract](logos-doc/SCALAR-OPTIMIZATION.md)
 for the selected scope and measurement limits.
@@ -556,7 +556,7 @@ Limits:
 
 ### Automatic loop vectorization
 
-Ordinary Go and loGo/s integer loops can use SIMD without an import or annotation:
+Ordinary Go and LoGOs integer loops can use SIMD without an import or annotation:
 
 ```go
 func add(dst []int32, delta int32) {

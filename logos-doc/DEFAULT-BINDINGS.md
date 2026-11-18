@@ -462,7 +462,7 @@ slice default, and a two-entry map default. A noinline function constructs,
 mutates, and reads the value locally, then returns only an integer checksum.
 `testing.AllocsPerRun(10000, ...)` measures that work; printing is outside the
 measured closure. The probe uses two-result map indexing, as required for
-ordinary value reads in loGo/s. An initial one-result-map diagnostic was
+ordinary value reads in LoGOs. An initial one-result-map diagnostic was
 corrected before recording the measurement.
 
 The command exited 0 with:

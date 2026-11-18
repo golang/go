@@ -84,7 +84,7 @@ The follow-up closes three gaps in the existing analysis:
 | Rebuilt, uncached full SSA short suite | Passed, 125.325 seconds |
 | Scalar runtime wrapper, both flag values and SSA checking | Passed |
 | Direct native scalar fixture, both flag values | Passed |
-| Go and loGo/s scalar source codegen | Passed on all declared targets: amd64 v1-v4, arm64 v8.0/v8.1, 386 softfloat/sse2, and both Power10 endian targets |
+| Go and LoGOs scalar source codegen | Passed on all declared targets: amd64 v1-v4, arm64 v8.0/v8.1, 386 softfloat/sse2, and both Power10 endian targets |
 | 386 and wasm scalar fixture compilation with SSA checking | Passed |
 | Actual 386 fixture execution | Unavailable locally: exec-format error and no i386 emulator; both flag values are now selected in CI |
 | Native/ejected scalar smoke | Existing scalar script passed; this is not execution of ejected copies of the three new fixtures |

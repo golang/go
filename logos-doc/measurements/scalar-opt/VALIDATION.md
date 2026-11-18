@@ -16,7 +16,7 @@ The public [validation.json](validation.json) retains outcomes, hashes, probe re
 | Work package with matching temporary roots | Passed, 0.041 s | `green-work-final.log` |
 | Runtime test, both flag values with SSA checking | Passed, 1.872 s | `green-runtime-final.log` |
 | Disabled-feature codegen control | Expected behavioral RED, 187.529 s | `red-codegen-corrected.log` |
-| Enabled-feature codegen, Go and loGo/s | Passed, 1.660 s; all declared amd64 v1–v4 and arm64 v8.0/v8.1 targets | `green-codegen-final.log` |
+| Enabled-feature codegen, Go and LoGOs | Passed, 1.660 s; all declared amd64 v1–v4 and arm64 v8.0/v8.1 targets | `green-codegen-final.log` |
 | Optimization scripts | All five selected scripts passed, 229.432 s | `green-script-final.log` |
 | Selected standard packages with feature enabled | All nine passed with `-gcflags=all=-d=logosopt=1` | `green-stdlib-opt.log` |
 | SCCP source probes with SSA checking | Compilation passed for linux/386, linux/arm64 and js/wasm | `green-sccp-386.log`, `green-sccp-arm64.log`, `green-sccp-wasm.log` |

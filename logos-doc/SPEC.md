@@ -190,7 +190,7 @@ A default build MUST stay silent for the pedantic group [T-102].
 `logos lint ./...` MUST report findings without building binaries [T-102].
 The compiler MUST enforce `correctness::nil_deref_unproven` as `forbid` against use of a nullable value before its guard [T-102].
 The compiler MUST enforce `correctness::typed_nil_return` as `forbid` against return of a concrete nil pointer as an interface or `error` result without a dominating nil check [T-102].
-`logos lint` MUST enforce `correctness::arena_pointer_escape` at default `deny` on Go and loGo/s packages against invalid `uintptr` reconstruction as `unsafe.Pointer` and standalone `reflect.SliceHeader` or `reflect.StringHeader` value misuse [T-102][R-U1].
+`logos lint` MUST enforce `correctness::arena_pointer_escape` at default `deny` on Go and LoGOs packages against invalid `uintptr` reconstruction as `unsafe.Pointer` and standalone `reflect.SliceHeader` or `reflect.StringHeader` value misuse [T-102][R-U1].
 The rule ID MUST remain unchanged so existing `//logos:allow(correctness::arena_pointer_escape)` directives keep their meaning [T-102].
 The check MUST resolve conversions and reflection types by their checked types. It MUST accept immediate pointer-to-integer-to-pointer conversions with valid `+`, `-`, or `&^` arithmetic, including an offset on either side of `+`, and immediate conversions of the real `reflect.Value.Pointer` or `reflect.Value.UnsafeAddr` result [T-102].
 Returning or storing an `unsafe.Pointer`, or using a converted address only as an integer, MUST NOT trigger this rule [T-102].
@@ -427,7 +427,7 @@ A function in a recursive call-graph cycle MUST keep the upstream variable-make 
 A standard-library-provenance package (a standard library package or its external test package) MUST keep the default variable-make buffer of 32 bytes at every opt level; non-standard packages MUST use 256 bytes at O2 and 4096 bytes at O3 [T-105][T-302].
 Os MUST set inline budget 15 [T-105].
 O3 MUST add no escape-analysis or prove-pass work budget [T-105].
-O3 MUST enable bounded scalar constant analysis for Go and loGo/s packages [T-105.1][R-U1].
+O3 MUST enable bounded scalar constant analysis for Go and LoGOs packages [T-105.1][R-U1].
 O0, O1, O2, and Os MUST keep their existing scalar-analysis behavior [T-105.1].
 The analysis MUST preserve defined integer overflow at each target width [T-105.1].
 The analysis MUST preserve required calls, memory effects, nil and bounds checks, and panic behavior [T-105.1].
@@ -1503,7 +1503,7 @@ External heap and stack pointers MUST retain their existing tracing behavior. Sc
 
 The cgo optimizer MUST specialize the shared cgo pipeline independently of
 fast-cgo trampoline selection. It MUST apply to Go packages built by `go` or
-`logos` and to loGo/s packages built by `logos`. It MUST preserve Go semantics,
+`logos` and to LoGOs packages built by `logos`. It MUST preserve Go semantics,
 the C ABI, and the cgo pointer rules. [T-306]
 
 #### 3.6.1 Stable return frames
@@ -2059,7 +2059,7 @@ The long-loop preemption rules are stated in Sec 3.3 (RFC-303: Hardware backend 
 
 ### 13.4 Automatic loop vectorization
 
-Automatic vectorization MUST apply to ordinary Go and loGo/s loops through the shared compiler backend, without a source annotation or an explicit SIMD import. [T-303.AV][R-U1]
+Automatic vectorization MUST apply to ordinary Go and LoGOs loops through the shared compiler backend, without a source annotation or an explicit SIMD import. [T-303.AV][R-U1]
 The initial implementation MUST require `GOEXPERIMENT=simd`, enabled compiler optimization, and either amd64 with `GOAMD64=v3` or `v4`, or arm64. [T-303.AV]
 Other targets and builds with SIMD disabled, `-N`, race detection, MSan, or ASan MUST keep the scalar loop. [T-303.AV]
 Functions marked `//go:nosplit` MUST keep the scalar loop, because a fault-policy query requires a valid goroutine and an ordinary call budget. [T-303.AV]

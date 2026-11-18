@@ -2,7 +2,7 @@
 
 Issue: [#24](https://github.com/gosuda/LoGOs/issues/24).
 Baseline: `b0bbbc05d5a7dee54e6501415163e78290f72231`.
-Scope: generated-program performance at explicit `-O=3`, for Go and loGo/s.
+Scope: generated-program performance at explicit `-O=3`, for Go and LoGOs.
 
 ## Decision
 
