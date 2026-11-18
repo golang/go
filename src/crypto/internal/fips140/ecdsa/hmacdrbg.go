@@ -117,6 +117,14 @@ func newDRBG[H hash.Hash](hash func() H, entropy, nonce []byte, s personalizatio
 	return d
 }
 
+// uninstantiate erases the internal state, per SP 800-90A Rev. 1, Section 9.4.
+// This is for compliance with SP 800-90C, Section 2.7, item 1.
+func (d *hmacDRBG) uninstantiate() {
+	clear(d.V)
+	*d.hK = hmac.HMAC{}
+	*d = hmacDRBG{}
+}
+
 // TestingOnlyNewDRBG creates an SP 800-90A Rev. 1 HMAC_DRBG with a plain
 // personalization string.
 //

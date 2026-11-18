@@ -82,6 +82,7 @@ func (c *Counter) update(seed *[SeedSize]byte) {
 		panic(err)
 	}
 	c.c = *aes.NewCTR(cipher, V)
+	clear(temp)
 }
 
 func increment(v *[aes.BlockSize]byte) {
@@ -101,6 +102,7 @@ func (c *Counter) Reseed(entropy, additionalInput *[SeedSize]byte) {
 	subtle.XORBytes(seed[:], entropy[:], additionalInput[:])
 	c.update(&seed)
 	c.reseedCounter = 1
+	clear(seed[:])
 }
 
 // Generate produces at most maxRequestSize bytes of random data in out.

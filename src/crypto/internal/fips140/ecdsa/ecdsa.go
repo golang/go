@@ -308,7 +308,13 @@ func Sign[P Point[P], H hash.Hash](c *Curve[P], h func() H, priv *PrivateKey, ra
 	// information.
 	drbg := newDRBG(h, Z, nil, blockAlignedPersonalizationString{priv.d, bits2octets(c, hash)})
 
-	return sign(c, priv, drbg, hash)
+	sig, err := sign(c, priv, drbg, hash)
+
+	// This is for compliance with SP 800-90C, Section 2.7, item 1.
+	drbg.uninstantiate()
+	clear(Z)
+
+	return sig, err
 }
 
 // SignDeterministic signs a hash (which shall be the result of hashing a

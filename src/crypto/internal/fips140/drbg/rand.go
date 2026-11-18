@@ -104,7 +104,9 @@ func Read(b []byte) {
 	s := acquireSlot()
 	defer s.Unlock()
 	if s.drbg == nil {
-		s.drbg = NewCounter(getEntropy())
+		seed := getEntropy()
+		s.drbg = NewCounter(seed)
+		clear(seed[:])
 	}
 
 	for len(b) > 0 {
@@ -114,11 +116,17 @@ func Read(b []byte) {
 			// Section 9.3.2: if Generate reports a reseed is required, the
 			// additional input is passed to Reseed along with the entropy and
 			// then nulled before the next Generate call.
-			s.drbg.Reseed(getEntropy(), additionalInput)
+			seed := getEntropy()
+			s.drbg.Reseed(seed, additionalInput)
+			clear(seed[:])
+			clear(additionalInput[:])
 			additionalInput = nil
 			continue
 		}
 		b = b[size:]
+	}
+	if additionalInput != nil {
+		clear(additionalInput[:])
 	}
 }
 
