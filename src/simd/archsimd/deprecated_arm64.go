@@ -111,3 +111,93 @@ func (x Float32x4) ConvertLo2ToFloat64() (z Float64x2) {
 func (x Uint8x16) ConcatShiftBytesRight(y Uint8x16, shift uint64) Uint8x16 {
 	return y.ConcatWindow(x, uint8(shift))
 }
+
+// GetElem returns the i'th element of x.
+//
+// Deprecated: use x.Elem(i) instead.
+//
+//go:fix inline
+func (x Float32x4) GetElem(i uint8) (z float32) {
+	return x.Elem(i)
+}
+
+// GetElem returns the i'th element of x.
+//
+// Deprecated: use x.Elem(i) instead.
+//
+//go:fix inline
+func (x Float64x2) GetElem(i uint8) (z float64) {
+	return x.Elem(i)
+}
+
+// GetElem returns the i'th element of x.
+//
+// Deprecated: use x.Elem(i) instead.
+//
+//go:fix inline
+func (x Int8x16) GetElem(i uint8) (z int8) {
+	return x.Elem(i)
+}
+
+// GetElem returns the i'th element of x.
+//
+// Deprecated: use x.Elem(i) instead.
+//
+//go:fix inline
+func (x Int16x8) GetElem(i uint8) (z int16) {
+	return x.Elem(i)
+}
+
+// GetElem returns the i'th element of x.
+//
+// Deprecated: use x.Elem(i) instead.
+//
+//go:fix inline
+func (x Int32x4) GetElem(i uint8) (z int32) {
+	return x.Elem(i)
+}
+
+// GetElem returns the i'th element of x.
+//
+// Deprecated: use x.Elem(i) instead.
+//
+//go:fix inline
+func (x Int64x2) GetElem(i uint8) (z int64) {
+	return x.Elem(i)
+}
+
+// GetElem returns the i'th element of x.
+//
+// Deprecated: use x.Elem(i) instead.
+//
+//go:fix inline
+func (x Uint8x16) GetElem(i uint8) (z uint8) {
+	return x.Elem(i)
+}
+
+// GetElem returns the i'th element of x.
+//
+// Deprecated: use x.Elem(i) instead.
+//
+//go:fix inline
+func (x Uint16x8) GetElem(i uint8) (z uint16) {
+	return x.Elem(i)
+}
+
+// GetElem returns the i'th element of x.
+//
+// Deprecated: use x.Elem(i) instead.
+//
+//go:fix inline
+func (x Uint32x4) GetElem(i uint8) (z uint32) {
+	return x.Elem(i)
+}
+
+// GetElem returns the i'th element of x.
+//
+// Deprecated: use x.Elem(i) instead.
+//
+//go:fix inline
+func (x Uint64x2) GetElem(i uint8) (z uint64) {
+	return x.Elem(i)
+}

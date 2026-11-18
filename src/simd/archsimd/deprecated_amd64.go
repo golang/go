@@ -852,3 +852,453 @@ func (x Uint8x32) ConcatShiftBytesRightGrouped(y Uint8x32, shift uint64) Uint8x3
 func (x Uint8x64) ConcatShiftBytesRightGrouped(y Uint8x64, shift uint64) Uint8x64 {
 	return y.ConcatWindowGrouped(x, uint8(shift))
 }
+
+// GetElem returns the i'th element of x.
+//
+// Deprecated: use x.Elem(i) instead.
+//
+//go:fix inline
+func (x Float32x4) GetElem(i uint8) (z float32) {
+	return x.Elem(i)
+}
+
+// GetElem returns the i'th element of x.
+//
+// Deprecated: use x.Elem(i) instead.
+//
+//go:fix inline
+func (x Float64x2) GetElem(i uint8) (z float64) {
+	return x.Elem(i)
+}
+
+// GetElem returns the i'th element of x.
+//
+// Deprecated: use x.Elem(i) instead.
+//
+//go:fix inline
+func (x Int8x16) GetElem(i uint8) (z int8) {
+	return x.Elem(i)
+}
+
+// GetElem returns the i'th element of x.
+//
+// Deprecated: use x.Elem(i) instead.
+//
+//go:fix inline
+func (x Int16x8) GetElem(i uint8) (z int16) {
+	return x.Elem(i)
+}
+
+// GetElem returns the i'th element of x.
+//
+// Deprecated: use x.Elem(i) instead.
+//
+//go:fix inline
+func (x Int32x4) GetElem(i uint8) (z int32) {
+	return x.Elem(i)
+}
+
+// GetElem returns the i'th element of x.
+//
+// Deprecated: use x.Elem(i) instead.
+//
+//go:fix inline
+func (x Int64x2) GetElem(i uint8) (z int64) {
+	return x.Elem(i)
+}
+
+// GetElem returns the i'th element of x.
+//
+// Deprecated: use x.Elem(i) instead.
+//
+//go:fix inline
+func (x Uint8x16) GetElem(i uint8) (z uint8) {
+	return x.Elem(i)
+}
+
+// GetElem returns the i'th element of x.
+//
+// Deprecated: use x.Elem(i) instead.
+//
+//go:fix inline
+func (x Uint16x8) GetElem(i uint8) (z uint16) {
+	return x.Elem(i)
+}
+
+// GetElem returns the i'th element of x.
+//
+// Deprecated: use x.Elem(i) instead.
+//
+//go:fix inline
+func (x Uint32x4) GetElem(i uint8) (z uint32) {
+	return x.Elem(i)
+}
+
+// GetElem returns the i'th element of x.
+//
+// Deprecated: use x.Elem(i) instead.
+//
+//go:fix inline
+func (x Uint64x2) GetElem(i uint8) (z uint64) {
+	return x.Elem(i)
+}
+
+// GetHi returns the upper half of x.
+//
+// Deprecated: use x.Hi() instead.
+//
+//go:fix inline
+func (x Float32x8) GetHi() (z Float32x4) {
+	return x.Hi()
+}
+
+// GetHi returns the upper half of x.
+//
+// Deprecated: use x.Hi() instead.
+//
+//go:fix inline
+func (x Float32x16) GetHi() (z Float32x8) {
+	return x.Hi()
+}
+
+// GetHi returns the upper half of x.
+//
+// Deprecated: use x.Hi() instead.
+//
+//go:fix inline
+func (x Float64x4) GetHi() (z Float64x2) {
+	return x.Hi()
+}
+
+// GetHi returns the upper half of x.
+//
+// Deprecated: use x.Hi() instead.
+//
+//go:fix inline
+func (x Float64x8) GetHi() (z Float64x4) {
+	return x.Hi()
+}
+
+// GetHi returns the upper half of x.
+//
+// Deprecated: use x.Hi() instead.
+//
+//go:fix inline
+func (x Int8x32) GetHi() (z Int8x16) {
+	return x.Hi()
+}
+
+// GetHi returns the upper half of x.
+//
+// Deprecated: use x.Hi() instead.
+//
+//go:fix inline
+func (x Int8x64) GetHi() (z Int8x32) {
+	return x.Hi()
+}
+
+// GetHi returns the upper half of x.
+//
+// Deprecated: use x.Hi() instead.
+//
+//go:fix inline
+func (x Int16x16) GetHi() (z Int16x8) {
+	return x.Hi()
+}
+
+// GetHi returns the upper half of x.
+//
+// Deprecated: use x.Hi() instead.
+//
+//go:fix inline
+func (x Int16x32) GetHi() (z Int16x16) {
+	return x.Hi()
+}
+
+// GetHi returns the upper half of x.
+//
+// Deprecated: use x.Hi() instead.
+//
+//go:fix inline
+func (x Int32x8) GetHi() (z Int32x4) {
+	return x.Hi()
+}
+
+// GetHi returns the upper half of x.
+//
+// Deprecated: use x.Hi() instead.
+//
+//go:fix inline
+func (x Int32x16) GetHi() (z Int32x8) {
+	return x.Hi()
+}
+
+// GetHi returns the upper half of x.
+//
+// Deprecated: use x.Hi() instead.
+//
+//go:fix inline
+func (x Int64x4) GetHi() (z Int64x2) {
+	return x.Hi()
+}
+
+// GetHi returns the upper half of x.
+//
+// Deprecated: use x.Hi() instead.
+//
+//go:fix inline
+func (x Int64x8) GetHi() (z Int64x4) {
+	return x.Hi()
+}
+
+// GetHi returns the upper half of x.
+//
+// Deprecated: use x.Hi() instead.
+//
+//go:fix inline
+func (x Uint8x32) GetHi() (z Uint8x16) {
+	return x.Hi()
+}
+
+// GetHi returns the upper half of x.
+//
+// Deprecated: use x.Hi() instead.
+//
+//go:fix inline
+func (x Uint8x64) GetHi() (z Uint8x32) {
+	return x.Hi()
+}
+
+// GetHi returns the upper half of x.
+//
+// Deprecated: use x.Hi() instead.
+//
+//go:fix inline
+func (x Uint16x16) GetHi() (z Uint16x8) {
+	return x.Hi()
+}
+
+// GetHi returns the upper half of x.
+//
+// Deprecated: use x.Hi() instead.
+//
+//go:fix inline
+func (x Uint16x32) GetHi() (z Uint16x16) {
+	return x.Hi()
+}
+
+// GetHi returns the upper half of x.
+//
+// Deprecated: use x.Hi() instead.
+//
+//go:fix inline
+func (x Uint32x8) GetHi() (z Uint32x4) {
+	return x.Hi()
+}
+
+// GetHi returns the upper half of x.
+//
+// Deprecated: use x.Hi() instead.
+//
+//go:fix inline
+func (x Uint32x16) GetHi() (z Uint32x8) {
+	return x.Hi()
+}
+
+// GetHi returns the upper half of x.
+//
+// Deprecated: use x.Hi() instead.
+//
+//go:fix inline
+func (x Uint64x4) GetHi() (z Uint64x2) {
+	return x.Hi()
+}
+
+// GetHi returns the upper half of x.
+//
+// Deprecated: use x.Hi() instead.
+//
+//go:fix inline
+func (x Uint64x8) GetHi() (z Uint64x4) {
+	return x.Hi()
+}
+
+// GetLo returns the lower half of x.
+//
+// Deprecated: use x.Lo() instead.
+//
+//go:fix inline
+func (x Float32x8) GetLo() (z Float32x4) {
+	return x.Lo()
+}
+
+// GetLo returns the lower half of x.
+//
+// Deprecated: use x.Lo() instead.
+//
+//go:fix inline
+func (x Float32x16) GetLo() (z Float32x8) {
+	return x.Lo()
+}
+
+// GetLo returns the lower half of x.
+//
+// Deprecated: use x.Lo() instead.
+//
+//go:fix inline
+func (x Float64x4) GetLo() (z Float64x2) {
+	return x.Lo()
+}
+
+// GetLo returns the lower half of x.
+//
+// Deprecated: use x.Lo() instead.
+//
+//go:fix inline
+func (x Float64x8) GetLo() (z Float64x4) {
+	return x.Lo()
+}
+
+// GetLo returns the lower half of x.
+//
+// Deprecated: use x.Lo() instead.
+//
+//go:fix inline
+func (x Int8x32) GetLo() (z Int8x16) {
+	return x.Lo()
+}
+
+// GetLo returns the lower half of x.
+//
+// Deprecated: use x.Lo() instead.
+//
+//go:fix inline
+func (x Int8x64) GetLo() (z Int8x32) {
+	return x.Lo()
+}
+
+// GetLo returns the lower half of x.
+//
+// Deprecated: use x.Lo() instead.
+//
+//go:fix inline
+func (x Int16x16) GetLo() (z Int16x8) {
+	return x.Lo()
+}
+
+// GetLo returns the lower half of x.
+//
+// Deprecated: use x.Lo() instead.
+//
+//go:fix inline
+func (x Int16x32) GetLo() (z Int16x16) {
+	return x.Lo()
+}
+
+// GetLo returns the lower half of x.
+//
+// Deprecated: use x.Lo() instead.
+//
+//go:fix inline
+func (x Int32x8) GetLo() (z Int32x4) {
+	return x.Lo()
+}
+
+// GetLo returns the lower half of x.
+//
+// Deprecated: use x.Lo() instead.
+//
+//go:fix inline
+func (x Int32x16) GetLo() (z Int32x8) {
+	return x.Lo()
+}
+
+// GetLo returns the lower half of x.
+//
+// Deprecated: use x.Lo() instead.
+//
+//go:fix inline
+func (x Int64x4) GetLo() (z Int64x2) {
+	return x.Lo()
+}
+
+// GetLo returns the lower half of x.
+//
+// Deprecated: use x.Lo() instead.
+//
+//go:fix inline
+func (x Int64x8) GetLo() (z Int64x4) {
+	return x.Lo()
+}
+
+// GetLo returns the lower half of x.
+//
+// Deprecated: use x.Lo() instead.
+//
+//go:fix inline
+func (x Uint8x32) GetLo() (z Uint8x16) {
+	return x.Lo()
+}
+
+// GetLo returns the lower half of x.
+//
+// Deprecated: use x.Lo() instead.
+//
+//go:fix inline
+func (x Uint8x64) GetLo() (z Uint8x32) {
+	return x.Lo()
+}
+
+// GetLo returns the lower half of x.
+//
+// Deprecated: use x.Lo() instead.
+//
+//go:fix inline
+func (x Uint16x16) GetLo() (z Uint16x8) {
+	return x.Lo()
+}
+
+// GetLo returns the lower half of x.
+//
+// Deprecated: use x.Lo() instead.
+//
+//go:fix inline
+func (x Uint16x32) GetLo() (z Uint16x16) {
+	return x.Lo()
+}
+
+// GetLo returns the lower half of x.
+//
+// Deprecated: use x.Lo() instead.
+//
+//go:fix inline
+func (x Uint32x8) GetLo() (z Uint32x4) {
+	return x.Lo()
+}
+
+// GetLo returns the lower half of x.
+//
+// Deprecated: use x.Lo() instead.
+//
+//go:fix inline
+func (x Uint32x16) GetLo() (z Uint32x8) {
+	return x.Lo()
+}
+
+// GetLo returns the lower half of x.
+//
+// Deprecated: use x.Lo() instead.
+//
+//go:fix inline
+func (x Uint64x4) GetLo() (z Uint64x2) {
+	return x.Lo()
+}
+
+// GetLo returns the lower half of x.
+//
+// Deprecated: use x.Lo() instead.
+//
+//go:fix inline
+func (x Uint64x8) GetLo() (z Uint64x4) {
+	return x.Lo()
+}

@@ -39,10 +39,10 @@ func Len[E EltOrMask, W Width](x Vec[E, W]) int {
 	return x.len()
 }
 
-// GetElem returns the i'th element x. If i >= {{lanes .x "x"}}, it panics.
+// Elem returns the i'th element x. If i >= {{lanes .x "x"}}, it panics.
 //
 //	z = x[i]
-func GetElem[E Elt, W Width](x Vec[E, W], i uint8) (z E) {
+func Elem[E Elt, W Width](x Vec[E, W], i uint8) (z E) {
 	return x[i]
 }
 
@@ -57,7 +57,7 @@ func SetElem[E Elt, W Width](x Vec[E, W], i uint8, y E) (z Vec[E, W]) {
 	return z
 }
 
-// GetLo returns the lower half of x.
+// Lo returns the lower half of x.
 //
 // {{if eq .xL 4}}
 //
@@ -72,13 +72,13 @@ func SetElem[E Elt, W Width](x Vec[E, W], i uint8, y E) (z Vec[E, W]) {
 // See also [Enlarge].
 //
 //specgen:require z={xB}{xN}x{xL/2}
-func GetLo[E Elt, W SplittableWidth, zW Width](x Vec[E, W]) (z Vec[E, zW]) {
+func Lo[E Elt, W SplittableWidth, zW Width](x Vec[E, W]) (z Vec[E, zW]) {
 	z = makeVec[E, zW]()
 	copy(z, x[:x.len()/2])
 	return z
 }
 
-// GetHi returns the upper half of x.
+// Hi returns the upper half of x.
 //
 // {{if eq .xL 4}}
 //
@@ -91,7 +91,7 @@ func GetLo[E Elt, W SplittableWidth, zW Width](x Vec[E, W]) (z Vec[E, zW]) {
 // {{end}}
 //
 //specgen:require z={xB}{xN}x{xL/2}
-func GetHi[E Elt, W SplittableWidth, zW Width](x Vec[E, W]) (z Vec[E, zW]) {
+func Hi[E Elt, W SplittableWidth, zW Width](x Vec[E, W]) (z Vec[E, zW]) {
 	z = makeVec[E, zW]()
 	copy(z, x[x.len()/2:])
 	return z
@@ -140,7 +140,7 @@ func SetHi[E Elt, W SplittableWidth, yW Width](x Vec[E, W], y Vec[E, yW]) (z Vec
 }
 
 // Enlarge returns x with twice as many elements, with the upper half zeroed.
-// [GetLo] reverses this: x.Enlarge().GetLo() returns x.
+// [Lo] reverses this: x.Enlarge().Lo() returns x.
 //
 // {{if eq .xL 2}}
 //

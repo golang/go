@@ -880,6 +880,98 @@ func (x Float32x4) Div(y Float32x4) (z Float32x4)
 // Asm: VFDIV
 func (x Float64x2) Div(y Float64x2) (z Float64x2)
 
+/* Elem */
+
+// Elem returns the i'th element x. If i >= 4, it panics.
+//
+//	z = x[i]
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
+//
+// Asm: VDUP
+func (x Float32x4) Elem(i uint8) (z float32)
+
+// Elem returns the i'th element x. If i >= 2, it panics.
+//
+//	z = x[i]
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
+//
+// Asm: VDUP
+func (x Float64x2) Elem(i uint8) (z float64)
+
+// Elem returns the i'th element x. If i >= 16, it panics.
+//
+//	z = x[i]
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
+//
+// Asm: VSMOV
+func (x Int8x16) Elem(i uint8) (z int8)
+
+// Elem returns the i'th element x. If i >= 8, it panics.
+//
+//	z = x[i]
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
+//
+// Asm: VSMOV
+func (x Int16x8) Elem(i uint8) (z int16)
+
+// Elem returns the i'th element x. If i >= 4, it panics.
+//
+//	z = x[i]
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
+//
+// Asm: VSMOV
+func (x Int32x4) Elem(i uint8) (z int32)
+
+// Elem returns the i'th element x. If i >= 2, it panics.
+//
+//	z = x[i]
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
+//
+// Asm: VMOV
+func (x Int64x2) Elem(i uint8) (z int64)
+
+// Elem returns the i'th element x. If i >= 16, it panics.
+//
+//	z = x[i]
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
+//
+// Asm: VMOV
+func (x Uint8x16) Elem(i uint8) (z uint8)
+
+// Elem returns the i'th element x. If i >= 8, it panics.
+//
+//	z = x[i]
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
+//
+// Asm: VMOV
+func (x Uint16x8) Elem(i uint8) (z uint16)
+
+// Elem returns the i'th element x. If i >= 4, it panics.
+//
+//	z = x[i]
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
+//
+// Asm: VMOV
+func (x Uint32x4) Elem(i uint8) (z uint32)
+
+// Elem returns the i'th element x. If i >= 2, it panics.
+//
+//	z = x[i]
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
+//
+// Asm: VMOV
+func (x Uint64x2) Elem(i uint8) (z uint64)
+
 /* Equal */
 
 // Equal returns a mask indicating which elements of x and y are equal.
@@ -1027,98 +1119,6 @@ func (x Float32x4) Floor() (z Float32x4)
 //
 // Asm: VFRINTM
 func (x Float64x2) Floor() (z Float64x2)
-
-/* GetElem */
-
-// GetElem returns the i'th element x. If i >= 4, it panics.
-//
-//	z = x[i]
-//
-// Performance: A non-constant value of i may result in significantly worse performance for this operation.
-//
-// Asm: VDUP
-func (x Float32x4) GetElem(i uint8) (z float32)
-
-// GetElem returns the i'th element x. If i >= 2, it panics.
-//
-//	z = x[i]
-//
-// Performance: A non-constant value of i may result in significantly worse performance for this operation.
-//
-// Asm: VDUP
-func (x Float64x2) GetElem(i uint8) (z float64)
-
-// GetElem returns the i'th element x. If i >= 16, it panics.
-//
-//	z = x[i]
-//
-// Performance: A non-constant value of i may result in significantly worse performance for this operation.
-//
-// Asm: VSMOV
-func (x Int8x16) GetElem(i uint8) (z int8)
-
-// GetElem returns the i'th element x. If i >= 8, it panics.
-//
-//	z = x[i]
-//
-// Performance: A non-constant value of i may result in significantly worse performance for this operation.
-//
-// Asm: VSMOV
-func (x Int16x8) GetElem(i uint8) (z int16)
-
-// GetElem returns the i'th element x. If i >= 4, it panics.
-//
-//	z = x[i]
-//
-// Performance: A non-constant value of i may result in significantly worse performance for this operation.
-//
-// Asm: VSMOV
-func (x Int32x4) GetElem(i uint8) (z int32)
-
-// GetElem returns the i'th element x. If i >= 2, it panics.
-//
-//	z = x[i]
-//
-// Performance: A non-constant value of i may result in significantly worse performance for this operation.
-//
-// Asm: VMOV
-func (x Int64x2) GetElem(i uint8) (z int64)
-
-// GetElem returns the i'th element x. If i >= 16, it panics.
-//
-//	z = x[i]
-//
-// Performance: A non-constant value of i may result in significantly worse performance for this operation.
-//
-// Asm: VMOV
-func (x Uint8x16) GetElem(i uint8) (z uint8)
-
-// GetElem returns the i'th element x. If i >= 8, it panics.
-//
-//	z = x[i]
-//
-// Performance: A non-constant value of i may result in significantly worse performance for this operation.
-//
-// Asm: VMOV
-func (x Uint16x8) GetElem(i uint8) (z uint16)
-
-// GetElem returns the i'th element x. If i >= 4, it panics.
-//
-//	z = x[i]
-//
-// Performance: A non-constant value of i may result in significantly worse performance for this operation.
-//
-// Asm: VMOV
-func (x Uint32x4) GetElem(i uint8) (z uint32)
-
-// GetElem returns the i'th element x. If i >= 2, it panics.
-//
-//	z = x[i]
-//
-// Performance: A non-constant value of i may result in significantly worse performance for this operation.
-//
-// Asm: VMOV
-func (x Uint64x2) GetElem(i uint8) (z uint64)
 
 /* Greater */
 

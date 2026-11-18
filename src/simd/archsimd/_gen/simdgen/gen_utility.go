@@ -434,12 +434,12 @@ func (op *Operation) adjustAsm() {
 // goNormalType returns the Go type name for the result of an Op that
 // does not return a vector, i.e., that returns a result in a general
 // register.  Currently there's only one family of Ops in Go's simd library
-// that does this (GetElem), and so this is specialized to work for that,
+// that does this (Elem), and so this is specialized to work for that,
 // but the problem (mismatch between hardware register width and Go type
 // width) seems likely to recur if there are any other cases.
 func (op Operation) goNormalType() string {
-	if op.Go == "GetElem" {
-		// GetElem returns an element of the vector into a general register
+	if op.Go == "Elem" {
+		// Elem returns an element of the vector into a general register
 		// but as far as the hardware is concerned, that result is either 32
 		// or 64 bits wide, no matter what the vector element width is.
 		// This is not "wrong" but it is not the right answer for Go source code.
@@ -888,7 +888,7 @@ func overwrite(ops []Operation) error {
 				panic(fmt.Errorf("simdgen: [Class] overwrite must be overwriting [Class] from vreg: %v", op[idx]))
 			}
 			// The low lane of vreg (with other lanes zeroed) also represents a regular floating point greg.
-			// This is supposed to be used only by special instructions like float GetElem
+			// This is supposed to be used only by special instructions like float Elem
 			// and floating point vector reduction across-lanes to lane 0 like FMINNMV.
 			hasClassOverwrite = true
 			*op[idx].Base = oBase

@@ -1352,7 +1352,7 @@ func (t templateData) FromUint64s() string {
 }
 
 // hiToLoTemplateAMD64 implements HiToLo for amd64 vectors of all widths. It
-// relies on amd64-only operations (ConcatPermute128Scalars, and GetHi/SetLo),
+// relies on amd64-only operations (ConcatPermute128Scalars, and Hi/SetLo),
 // so it is only used for amd64.
 var hiToLoTemplateAMD64 = templateOf("amd64 HiToLo methods", `
 // Emulated, CPU Feature: {{.CPUfeature}}

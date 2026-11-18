@@ -95,7 +95,7 @@
   out:
   - *t
 
-- go: GetElem # VPEXTRB 128 bit
+- go: Elem # VPEXTRB 128 bit
   asm: VPEXTRB
   in:
   - class: immediate
@@ -112,7 +112,7 @@
       class: greg
       overwriteBits: 8 # The XED data specification is wrong, correct it to the right bits
 
-- go: GetElem # VPEXTRW 128 bit
+- go: Elem # VPEXTRW 128 bit
   asm: VPEXTRW
   in:
   - class: immediate
@@ -129,7 +129,7 @@
       class: greg
       overwriteBits: 16 # The XED data specification is wrong, correct it to the right bits
 
-- go: GetElem
+- go: Elem
   asm: "VPEXTRD"
   in:
   - class: immediate
@@ -144,7 +144,7 @@
     base: $b
     bits: $e
 
-- go: GetElem
+- go: Elem
   asm: "VPEXTRQ"
   in:
   - class: immediate
@@ -159,7 +159,7 @@
     base: $b
     bits: $e
 
-- go: GetElem
+- go: Elem
   asm: "VPEXTRD"
   in:
   - class: immediate
@@ -176,7 +176,7 @@
     bits: $e
     overwriteBase: float
 
-- go: GetElem
+- go: Elem
   asm: "VPEXTRQ"
   in:
   - class: immediate
@@ -213,7 +213,7 @@
   out:
   - *i8x2N
 
-- go: "GetHi|GetLo"
+- go: "Hi|Lo"
   asm: "VEXTRACTI128|VEXTRACTI64X4"
   regexpTag: "move"
   inVariant: []
@@ -240,7 +240,7 @@
   out:
   - *i16x2N
 
-- go: "GetHi|GetLo"
+- go: "Hi|Lo"
   regexpTag: "move"
   asm: "VEXTRACTI128|VEXTRACTI64X4"
   inVariant: []
@@ -267,7 +267,7 @@
   out:
   - *i32x2N
 
-- go: "GetHi|GetLo"
+- go: "Hi|Lo"
   regexpTag: "move"
   asm: "VEXTRACTI128|VEXTRACTI64X4"
   inVariant: []
@@ -294,7 +294,7 @@
   out:
   - *i64x2N
 
-- go: "GetHi|GetLo"
+- go: "Hi|Lo"
   regexpTag: "move"
   asm: "VEXTRACTI128|VEXTRACTI64X4"
   inVariant: []
@@ -321,7 +321,7 @@
   out:
   - *f32x2N
 
-- go: "GetHi|GetLo"
+- go: "Hi|Lo"
   regexpTag: "move"
   asm: "VEXTRACTF128|VEXTRACTF64X4"
   inVariant: []
@@ -348,7 +348,7 @@
   out:
   - *f64x2N
 
-- go: "GetHi|GetLo"
+- go: "Hi|Lo"
   regexpTag: "move"
   asm: "VEXTRACTF128|VEXTRACTF64X4"
   inVariant: []

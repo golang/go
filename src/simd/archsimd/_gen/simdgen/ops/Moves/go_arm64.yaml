@@ -1,7 +1,7 @@
 !sum
 
-# GetElem VSMOV (SMOV, signed narrow lanes): sign-extending extract
-- go: GetElem
+# Elem VSMOV (SMOV, signed narrow lanes): sign-extending extract
+- go: Elem
   asm: "VSMOV"
   ssaVariant: "extr"
   peepholeRules:
@@ -21,8 +21,8 @@
   - &scalar
     class: greg
 
-# GetElem VMOV (UMOV, unsigned lanes)
-- go: GetElem
+# Elem VMOV (UMOV, unsigned lanes)
+- go: Elem
   asm: "VMOV"
   ssaVariant: "extr"
   in:
@@ -32,8 +32,8 @@
   out:
   - *scalar
 
-# GetElem VMOV (UMOV, D lanes)
-- go: GetElem
+# Elem VMOV (UMOV, D lanes)
+- go: Elem
   asm: "VMOV"
   ssaVariant: "extr"
   in:
@@ -44,8 +44,8 @@
   out:
   - *scalar
 
-# GetElem VDUP (duplicate element into scalar float in vreg)
-- go: GetElem
+# Elem VDUP (duplicate element into scalar float in vreg)
+- go: Elem
   asm: "VDUP"
   ssaVariant: "extr"
   in:

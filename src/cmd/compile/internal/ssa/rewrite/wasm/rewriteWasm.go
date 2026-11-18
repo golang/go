@@ -412,6 +412,36 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpDotProductPairsInt16x8:
 		v.Op = ssaop.OpWasmI32x4DotI16x8S
 		return true
+	case ssaop.OpElemFloat32x4:
+		v.Op = ssaop.OpWasmF32x4ExtractLane
+		return true
+	case ssaop.OpElemFloat64x2:
+		v.Op = ssaop.OpWasmF64x2ExtractLane
+		return true
+	case ssaop.OpElemInt16x8:
+		v.Op = ssaop.OpWasmI16x8ExtractLaneS
+		return true
+	case ssaop.OpElemInt32x4:
+		v.Op = ssaop.OpWasmI32x4ExtractLane
+		return true
+	case ssaop.OpElemInt64x2:
+		v.Op = ssaop.OpWasmI64x2ExtractLane
+		return true
+	case ssaop.OpElemInt8x16:
+		v.Op = ssaop.OpWasmI8x16ExtractLaneS
+		return true
+	case ssaop.OpElemUint16x8:
+		v.Op = ssaop.OpWasmI16x8ExtractLaneU
+		return true
+	case ssaop.OpElemUint32x4:
+		v.Op = ssaop.OpWasmI32x4ExtractLane
+		return true
+	case ssaop.OpElemUint64x2:
+		v.Op = ssaop.OpWasmI64x2ExtractLane
+		return true
+	case ssaop.OpElemUint8x16:
+		v.Op = ssaop.OpWasmI8x16ExtractLaneU
+		return true
 	case ssaop.OpEq16:
 		return rewriteValue_OpEq16(v)
 	case ssaop.OpEq32:
@@ -503,36 +533,6 @@ func RewriteValue(v *ssa.Value) bool {
 		return true
 	case ssaop.OpGetClosurePtr:
 		v.Op = ssaop.OpWasmLoweredGetClosurePtr
-		return true
-	case ssaop.OpGetElemFloat32x4:
-		v.Op = ssaop.OpWasmF32x4ExtractLane
-		return true
-	case ssaop.OpGetElemFloat64x2:
-		v.Op = ssaop.OpWasmF64x2ExtractLane
-		return true
-	case ssaop.OpGetElemInt16x8:
-		v.Op = ssaop.OpWasmI16x8ExtractLaneS
-		return true
-	case ssaop.OpGetElemInt32x4:
-		v.Op = ssaop.OpWasmI32x4ExtractLane
-		return true
-	case ssaop.OpGetElemInt64x2:
-		v.Op = ssaop.OpWasmI64x2ExtractLane
-		return true
-	case ssaop.OpGetElemInt8x16:
-		v.Op = ssaop.OpWasmI8x16ExtractLaneS
-		return true
-	case ssaop.OpGetElemUint16x8:
-		v.Op = ssaop.OpWasmI16x8ExtractLaneU
-		return true
-	case ssaop.OpGetElemUint32x4:
-		v.Op = ssaop.OpWasmI32x4ExtractLane
-		return true
-	case ssaop.OpGetElemUint64x2:
-		v.Op = ssaop.OpWasmI64x2ExtractLane
-		return true
-	case ssaop.OpGetElemUint8x16:
-		v.Op = ssaop.OpWasmI8x16ExtractLaneU
 		return true
 	case ssaop.OpGreaterEqualFloat32x4:
 		v.Op = ssaop.OpWasmF32x4Ge

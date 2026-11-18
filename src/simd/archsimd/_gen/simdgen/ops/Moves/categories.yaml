@@ -3,7 +3,7 @@
   commutative: false
   documentation: !string |-
     // NAME returns x with the index'th element set to y.
-- go: GetElem
+- go: Elem
   commutative: false
   documentation: !string |-
     // NAME returns the index'th element of x.
@@ -12,7 +12,7 @@
   constImm: 0
   documentation: !string |-
     // NAME returns x with its lower half set to y.
-- go: GetLo
+- go: Lo
   commutative: false
   constImm: 0
   documentation: !string |-
@@ -22,7 +22,7 @@
   constImm: 1
   documentation: !string |-
     // NAME returns x with its upper half set to y.
-- go: GetHi
+- go: Hi
   commutative: false
   constImm: 1
   documentation: !string |-

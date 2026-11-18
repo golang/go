@@ -449,7 +449,7 @@ func simdVfpvResultInArg0ImmOutIn1(s *ssagen.State, v *ssa.Value, arrangement in
 	return p
 }
 
-// simdVgpImmIn1 generates vector GetElem instruction VMOV V1.S[2], R0
+// simdVgpImmIn1 generates vector Elem instruction VMOV V1.S[2], R0
 // The arrangement parameter specifies the vector element arrangement (e.g., S, D)
 func simdVgpImmIn1(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
 	p := s.Prog(v.Op.Asm())

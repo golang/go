@@ -808,9 +808,9 @@ var (
 		"relaxed_madd": "-",
 		"shl":          "ShiftAllLeft",
 
-		"extract_lane":   "GetElem",
-		"extract_lane_s": "GetElem",
-		"extract_lane_u": "GetElem",
+		"extract_lane":   "Elem",
+		"extract_lane_s": "Elem",
+		"extract_lane_u": "Elem",
 
 		"replace_lane": "SetElem",
 
@@ -1315,7 +1315,7 @@ var docForOp map[string]string = map[string]string{
 	"Floor":            " returns the elementwise floor of x.",
 	"Trunc":            " returns the elementwise truncation of x.",
 	"BitSelect":        " returns the bitwise selection if mask[i] then x[i] else y[i]",
-	"GetElem":          " gets the lane value at the given index.",
+	"Elem":             " gets the lane value at the given index.",
 	"SetElem":          " sets the lane at the given index to y.",
 	"TruncSatS":        " returns the elementwise saturating signed conversion to integer.",
 	"TruncSatU":        " returns the elementwise saturating unsigned conversion to integer.",

@@ -12,7 +12,7 @@ import "math"
 // same, so the result has a different number of elements than x. A narrowing
 // conversion stores its results in the low elements of the result and zeroes
 // the rest. A widening conversion converts only the low elements of x and
-// ignores the rest. For fixed-width vectors, this composes with GetLo to
+// ignores the rest. For fixed-width vectors, this composes with Lo to
 // produce a narrower vector, and with HiToLo to convert the high elements.
 // Because the receiver and result types imply the lane counts, the names of
 // these conversions don't include one (ExtendToInt32, not ExtendLo4ToInt32),

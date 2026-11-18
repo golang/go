@@ -1397,6 +1397,36 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpDivUint32s(v)
 	case ssaop.OpDivUint64s:
 		return rewriteValue_OpDivUint64s(v)
+	case ssaop.OpElemFloat32x4:
+		v.Op = ssaop.OpARM64VDUPSextr
+		return true
+	case ssaop.OpElemFloat64x2:
+		v.Op = ssaop.OpARM64VDUPDextr
+		return true
+	case ssaop.OpElemInt16x8:
+		v.Op = ssaop.OpARM64VSMOVHextr
+		return true
+	case ssaop.OpElemInt32x4:
+		v.Op = ssaop.OpARM64VSMOVSextr
+		return true
+	case ssaop.OpElemInt64x2:
+		v.Op = ssaop.OpARM64VMOVDextr
+		return true
+	case ssaop.OpElemInt8x16:
+		v.Op = ssaop.OpARM64VSMOVBextr
+		return true
+	case ssaop.OpElemUint16x8:
+		v.Op = ssaop.OpARM64VMOVHextr
+		return true
+	case ssaop.OpElemUint32x4:
+		v.Op = ssaop.OpARM64VMOVSextr
+		return true
+	case ssaop.OpElemUint64x2:
+		v.Op = ssaop.OpARM64VMOVDextr
+		return true
+	case ssaop.OpElemUint8x16:
+		v.Op = ssaop.OpARM64VMOVBextr
+		return true
 	case ssaop.OpEq16:
 		return rewriteValue_OpEq16(v)
 	case ssaop.OpEq32:
@@ -1512,36 +1542,6 @@ func RewriteValue(v *ssa.Value) bool {
 		return true
 	case ssaop.OpGetClosurePtr:
 		v.Op = ssaop.OpARM64LoweredGetClosurePtr
-		return true
-	case ssaop.OpGetElemFloat32x4:
-		v.Op = ssaop.OpARM64VDUPSextr
-		return true
-	case ssaop.OpGetElemFloat64x2:
-		v.Op = ssaop.OpARM64VDUPDextr
-		return true
-	case ssaop.OpGetElemInt16x8:
-		v.Op = ssaop.OpARM64VSMOVHextr
-		return true
-	case ssaop.OpGetElemInt32x4:
-		v.Op = ssaop.OpARM64VSMOVSextr
-		return true
-	case ssaop.OpGetElemInt64x2:
-		v.Op = ssaop.OpARM64VMOVDextr
-		return true
-	case ssaop.OpGetElemInt8x16:
-		v.Op = ssaop.OpARM64VSMOVBextr
-		return true
-	case ssaop.OpGetElemUint16x8:
-		v.Op = ssaop.OpARM64VMOVHextr
-		return true
-	case ssaop.OpGetElemUint32x4:
-		v.Op = ssaop.OpARM64VMOVSextr
-		return true
-	case ssaop.OpGetElemUint64x2:
-		v.Op = ssaop.OpARM64VMOVDextr
-		return true
-	case ssaop.OpGetElemUint8x16:
-		v.Op = ssaop.OpARM64VMOVBextr
 		return true
 	case ssaop.OpGreaterEqualFloat32s:
 		return rewriteValue_OpGreaterEqualFloat32s(v)

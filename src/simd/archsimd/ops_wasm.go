@@ -667,6 +667,76 @@ func (x Float64x2) Div(y Float64x2) (z Float64x2)
 // Asm: I32x4DotI16x8S
 func (x Int16x8) DotProductPairs(y Int16x8) (z Int32x4)
 
+// Elem returns the i'th element x. If i >= 16, it panics.
+//
+//	z = x[i]
+//
+// Asm: I8x16ExtractLaneS
+func (x Int8x16) Elem(i uint8) (z int8)
+
+// Elem returns the i'th element x. If i >= 16, it panics.
+//
+//	z = x[i]
+//
+// Asm: I8x16ExtractLaneU
+func (x Uint8x16) Elem(i uint8) (z uint8)
+
+// Elem returns the i'th element x. If i >= 8, it panics.
+//
+//	z = x[i]
+//
+// Asm: I16x8ExtractLaneS
+func (x Int16x8) Elem(i uint8) (z int16)
+
+// Elem returns the i'th element x. If i >= 8, it panics.
+//
+//	z = x[i]
+//
+// Asm: I16x8ExtractLaneU
+func (x Uint16x8) Elem(i uint8) (z uint16)
+
+// Elem returns the i'th element x. If i >= 4, it panics.
+//
+//	z = x[i]
+//
+// Asm: I32x4ExtractLane
+func (x Int32x4) Elem(i uint8) (z int32)
+
+// Elem returns the i'th element x. If i >= 4, it panics.
+//
+//	z = x[i]
+//
+// Asm: I32x4ExtractLane
+func (x Uint32x4) Elem(i uint8) (z uint32)
+
+// Elem returns the i'th element x. If i >= 4, it panics.
+//
+//	z = x[i]
+//
+// Asm: F32x4ExtractLane
+func (x Float32x4) Elem(i uint8) (z float32)
+
+// Elem returns the i'th element x. If i >= 2, it panics.
+//
+//	z = x[i]
+//
+// Asm: I64x2ExtractLane
+func (x Int64x2) Elem(i uint8) (z int64)
+
+// Elem returns the i'th element x. If i >= 2, it panics.
+//
+//	z = x[i]
+//
+// Asm: I64x2ExtractLane
+func (x Uint64x2) Elem(i uint8) (z uint64)
+
+// Elem returns the i'th element x. If i >= 2, it panics.
+//
+//	z = x[i]
+//
+// Asm: F64x2ExtractLane
+func (x Float64x2) Elem(i uint8) (z float64)
+
 // Equal returns a mask indicating which elements of x and y are equal.
 //
 // Asm: I8x16Eq
@@ -798,76 +868,6 @@ func (x Float32x4) Floor() (z Float32x4)
 //
 // Asm: F64x2Floor
 func (x Float64x2) Floor() (z Float64x2)
-
-// GetElem returns the i'th element x. If i >= 16, it panics.
-//
-//	z = x[i]
-//
-// Asm: I8x16ExtractLaneS
-func (x Int8x16) GetElem(i uint8) (z int8)
-
-// GetElem returns the i'th element x. If i >= 16, it panics.
-//
-//	z = x[i]
-//
-// Asm: I8x16ExtractLaneU
-func (x Uint8x16) GetElem(i uint8) (z uint8)
-
-// GetElem returns the i'th element x. If i >= 8, it panics.
-//
-//	z = x[i]
-//
-// Asm: I16x8ExtractLaneS
-func (x Int16x8) GetElem(i uint8) (z int16)
-
-// GetElem returns the i'th element x. If i >= 8, it panics.
-//
-//	z = x[i]
-//
-// Asm: I16x8ExtractLaneU
-func (x Uint16x8) GetElem(i uint8) (z uint16)
-
-// GetElem returns the i'th element x. If i >= 4, it panics.
-//
-//	z = x[i]
-//
-// Asm: I32x4ExtractLane
-func (x Int32x4) GetElem(i uint8) (z int32)
-
-// GetElem returns the i'th element x. If i >= 4, it panics.
-//
-//	z = x[i]
-//
-// Asm: I32x4ExtractLane
-func (x Uint32x4) GetElem(i uint8) (z uint32)
-
-// GetElem returns the i'th element x. If i >= 4, it panics.
-//
-//	z = x[i]
-//
-// Asm: F32x4ExtractLane
-func (x Float32x4) GetElem(i uint8) (z float32)
-
-// GetElem returns the i'th element x. If i >= 2, it panics.
-//
-//	z = x[i]
-//
-// Asm: I64x2ExtractLane
-func (x Int64x2) GetElem(i uint8) (z int64)
-
-// GetElem returns the i'th element x. If i >= 2, it panics.
-//
-//	z = x[i]
-//
-// Asm: I64x2ExtractLane
-func (x Uint64x2) GetElem(i uint8) (z uint64)
-
-// GetElem returns the i'th element x. If i >= 2, it panics.
-//
-//	z = x[i]
-//
-// Asm: F64x2ExtractLane
-func (x Float64x2) GetElem(i uint8) (z float64)
 
 // Greater returns a mask indicating which elements of x are greater than y.
 //
