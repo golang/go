@@ -1034,6 +1034,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		paren := p.exprLev < 0 && isTypeName(x.Type)
 		if paren {
 			p.print(token.LPAREN)
+			p.exprLev++
 		}
 		// composite literal elements that are composite literals themselves may have the type omitted
 		if x.Type != nil {
@@ -1061,6 +1062,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		p.print(token.RBRACE, mode)
 		p.level--
 		if paren {
+			p.exprLev--
 			p.print(token.RPAREN)
 		}
 
@@ -1266,18 +1268,15 @@ func (p *printer) block(b *ast.BlockStmt, nindent int) {
 	p.print(token.RBRACE)
 }
 
-// isTypeName reports whether x is a possibly qualified
-// and possibly instantiated type name.
+// isTypeName reports whether x has the form of a possibly qualified
+// and possibly instantiated type name. Like the parser, it doesn't
+// check the operands of selector and index expressions: the parser
+// accepts a composite literal such as f().T{} and leaves it to the
+// type checker to report the invalid type.
 func isTypeName(x ast.Expr) bool {
-	switch t := x.(type) {
-	case *ast.Ident:
+	switch x.(type) {
+	case *ast.BadExpr, *ast.Ident, *ast.SelectorExpr, *ast.IndexExpr, *ast.IndexListExpr:
 		return true
-	case *ast.SelectorExpr:
-		return isTypeName(t.X)
-	case *ast.IndexExpr:
-		return isTypeName(t.X)
-	case *ast.IndexListExpr:
-		return isTypeName(t.X)
 	}
 	return false
 }

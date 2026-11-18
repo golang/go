@@ -873,6 +873,14 @@ func TestCompositeLitInControlClause(t *testing.T) { // issue 43598
 		{"T{}.m()", "(T{}).m()"},
 		{"T{1, 2}[i]", "(T{1, 2})[i]"},
 
+		// parentheses required: the parser accepts these invalid
+		// composite literal types and so must the printer
+		{"f().T{}", "(f().T{})"},
+		{"x == f().T{}", "x == (f().T{})"},
+		{"x == a[i].T[int]{}", "x == (a[i].T[int]{})"},
+		{"T{}.U{}", "(T{}.U{})"},
+		{"T{}.U[V{}]{}", "(T{}.U[V{}]{})"},
+
 		// no parentheses required
 		{"(T{})", "(T{})"},
 		{"(x == T{})", "(x == T{})"},

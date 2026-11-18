@@ -346,6 +346,13 @@ func _() {
 	switch (T[int]{}) {}
 	for _ = range (T[int]{}) {}
 
+	// leave parentheses - invalid composite literals accepted by the parser
+	if (f().T{}) {}
+	if (x == a[i].T{}) {}
+	for (f().T[int]{}) {}
+	switch (f().T{}) {}
+	for _ = range (f().T{}) {}
+
 	if x == (T{42}[0]) {}
 	if (x == T{42}[0]) {}
 	if (x == (T{42}[0])) {}
