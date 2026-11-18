@@ -18,7 +18,7 @@ func common(t *testing.T, dir, what, failWith string, moreEnv ...string) {
 	t.Helper()
 	t.Logf("subprocess test in testdata")
 	testenv.MustHaveGoRun(t)
-	args := []string{"test", "-C", dir, "-a"}
+	args := []string{"test", "-C", dir}
 	if testing.Verbose() {
 		args = append(args, "-v")
 	}
