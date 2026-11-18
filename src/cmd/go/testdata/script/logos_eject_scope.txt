@@ -1,0 +1,162 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+[symlink] symlink linked/go.mod -> ../other/go.mod
+
+logos run .
+cp stdout $WORK/native.txt
+
+
+logos eject -o out
+
+exists out/main.go
+exists out/go.mod
+exists out/assets/z.txt
+exists out/testdata/keep.txt
+
+# Dot and underscore trees are not packages, but they are module files:
+# //go:embed can reach them, so they must be copied.
+exists out/.cache/x.txt
+exists out/_scratch/y.txt
+exists out/.hidden.txt
+exists out/_data.txt
+exists out/static/.well-known/x.txt
+
+# A directory holding its own go.mod is another module and stays out,
+# including one nested under testdata, unless the main go.mod replaces
+# a module at that local path: the ejected tree must keep it so the
+# replace still resolves. A replaced module below a foreign one is
+# kept while the foreign module's own files stay out.
+exists out/replaced/go.mod
+exists out/replaced/replaced.go
+exists out/outer/inner/go.mod
+exists out/outer/inner/inner.go
+! exists out/outer/go.mod
+! exists out/outer/outer.go
+! exists out/other
+! exists out/other/go.mod
+! exists out/testdata/nested
+! exists out/.git
+
+# Only a go.mod file marks a module, as in the go command. A directory
+# named go.mod is plain data, so it and the files beside it are copied.
+# A go.mod that is a symlink to a file still marks a module.
+exists out/fixtures/go.mod/inside.txt
+exists out/fixtures/beside.txt
+[symlink] ! exists out/linked
+
+cd out
+go build ./...
+go run .
+cp stdout $WORK/ejected.txt
+cmp $WORK/native.txt $WORK/ejected.txt
+exists $UPROOT1272/bin/go
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+
+-- m/go.mod --
+module example.com/ejectscope
+
+go 1.27
+
+require (
+	example.com/inner v0.0.0
+	example.com/replaced v0.0.0
+)
+
+replace example.com/replaced => ./replaced
+
+replace example.com/inner => ./outer/inner
+-- m/main.lgo --
+// Command ejectscope exercises eject over a module tree that holds
+// foreign directories.
+package main
+
+import (
+	_ "embed"
+	"fmt"
+
+	"example.com/inner"
+	"example.com/replaced"
+)
+
+//go:embed _data.txt
+var data string
+
+//go:embed .hidden.txt
+var hidden string
+
+//go:embed all:static
+var static string
+
+func main() {
+	fmt.Print(data)
+	fmt.Print(hidden)
+	fmt.Print(static)
+	fmt.Println(replaced.Msg())
+	fmt.Println(inner.Msg())
+	fmt.Println("scoped eject")
+}
+-- m/_data.txt --
+underscore data
+
+-- m/.hidden.txt --
+hidden data
+
+-- m/static/.well-known/x.txt --
+well-known
+
+-- m/other/go.mod --
+module example.com/foreign
+
+go 1.27
+-- m/other/foreign.go --
+package foreign
+-- m/.cache/x.txt --
+cache
+-- m/_scratch/y.txt --
+scratch
+-- m/assets/z.txt --
+asset
+-- m/testdata/keep.txt --
+kept
+-- m/fixtures/go.mod/inside.txt --
+inside
+-- m/fixtures/beside.txt --
+beside
+-- m/linked/linked.go --
+package linked
+-- m/testdata/nested/go.mod --
+module example.com/testdata-nested
+
+go 1.27
+-- m/testdata/nested/inner.go --
+package inner
+-- m/replaced/go.mod --
+module example.com/replaced
+
+go 1.27
+-- m/replaced/replaced.go --
+package replaced
+
+// Msg reports the replaced nested module string.
+func Msg() string {
+	return "replaced-ok"
+}
+-- m/outer/go.mod --
+module example.com/outer
+
+go 1.27
+-- m/outer/outer.go --
+package outer
+-- m/outer/inner/go.mod --
+module example.com/inner
+
+go 1.27
+-- m/outer/inner/inner.go --
+package inner
+
+// Msg reports the string of a replaced module below a foreign one.
+func Msg() string {
+	return "inner-ok"
+}

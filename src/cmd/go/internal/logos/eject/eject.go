@@ -1134,13 +1134,21 @@ func ejectSkipDir(modDir, outAbs, out string) string {
 
 // copyModuleTree copies the non-loGo/s files of one module: every
 // regular file except .git contents, logos.toml files, loGo/s sources
-// (emitted separately), and the skip subtree (the destination when it
-// sits inside the module). Symlinks and special files stay out, so a
-// link can never pull outside bytes into the tree. It reports whether
-// any copied Go file imports the loGo/s support packages, which the
-// copy remapped to the shared support module.
+// (emitted separately), the skip subtree (the destination when it
+// sits inside the module), and files whose nearest enclosing nested
+// module (a directory below the root that holds its own go.mod file) is
+// not a local replace target of this module's go.mod. A foreign
+// nested module is still walked when a kept one lies below it. As in
+// the go command, a directory named go.mod marks no module, and a
+// go.mod that is a symlink to a file does.
+// Symlinks and special files stay out, so a link can never pull
+// outside bytes into the tree. It reports whether any copied Go file
+// imports the loGo/s support packages, which the copy remapped to
+// the shared support module.
 func copyModuleTree(srcRoot, dstRoot, skip string) bool {
 	uses := false
+	keep := localReplaceDirs(srcRoot)
+	nested := map[string]bool{}
 	err := filepath.WalkDir(srcRoot, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -1167,6 +1175,17 @@ func copyModuleTree(srcRoot, dstRoot, skip string) bool {
 			}
 		}
 		if d.IsDir() {
+			if fi, err := os.Stat(filepath.Join(path, "go.mod")); err == nil && !fi.IsDir() {
+				if !keep[rel] && !holdsKept(keep, rel) {
+					return filepath.SkipDir
+				}
+				nested[rel] = keep[rel]
+			}
+		}
+		if !inCopiedModule(nested, rel) {
+			return nil
+		}
+		if d.IsDir() {
 			return os.MkdirAll(filepath.Join(dstRoot, rel), 0777)
 		}
 		if !d.Type().IsRegular() {
@@ -1186,6 +1205,28 @@ func copyModuleTree(srcRoot, dstRoot, skip string) bool {
 		base.Fatalf("logos eject: %v", err)
 	}
 	return uses
+}
+
+// holdsKept reports whether a kept nested module lies below dir.
+func holdsKept(keep map[string]bool, dir string) bool {
+	for k := range keep {
+		if strings.HasPrefix(k, dir+string(filepath.Separator)) {
+			return true
+		}
+	}
+	return false
+}
+
+// inCopiedModule reports whether rel belongs to the copied module:
+// its nearest enclosing nested module, if any, is a kept one. nested
+// maps each nested module directory seen so far to whether it is kept.
+func inCopiedModule(nested map[string]bool, rel string) bool {
+	for p := rel; p != "."; p = filepath.Dir(p) {
+		if kept, ok := nested[p]; ok {
+			return kept
+		}
+	}
+	return true
 }
 
 // copyDataFile copies one non-loGo/s file. Go files that still parse
@@ -1696,6 +1737,28 @@ func ejectedPaths(out string, plan *ejectPlan) map[string]string {
 		m[dep.path] = filepath.Join(out, "_logos_deps", dep.path+"@"+dep.version)
 	}
 	return m
+}
+
+// localReplaceDirs returns the module-relative directories inside
+// modDir that the local replaces of its go.mod name, so the module
+// copy keeps the nested modules those replaces need.
+func localReplaceDirs(modDir string) map[string]bool {
+	f := parseGoModFile(filepath.Join(modDir, "go.mod"))
+	absMod, err := filepath.Abs(modDir)
+	if err != nil {
+		base.Fatalf("logos eject: %v", err)
+	}
+	dirs := map[string]bool{}
+	for _, r := range f.Replace {
+		if r.New.Version != "" || r.New.Path == "" || filepath.IsAbs(r.New.Path) {
+			continue
+		}
+		target := filepath.Join(absMod, filepath.FromSlash(r.New.Path))
+		if rel, err := filepath.Rel(absMod, target); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			dirs[filepath.Clean(rel)] = true
+		}
+	}
+	return dirs
 }
 
 func rebaseLocalReplaces(f *modfile.File, origDir, dstDir string, ejected map[string]string) {
