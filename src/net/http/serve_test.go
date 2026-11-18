@@ -685,6 +685,54 @@ func TestMuxNoSlash405WithTrailingSlash(t *testing.T) {
 	}
 }
 
+func TestServeMuxEscapedSlash(t *testing.T) {
+	// An escaped slash is a path segment, not a trailing slash (issue 83130).
+	mux := NewServeMux()
+	for _, pattern := range []string{"GET /x/{v}", "GET /x/{v}/tail", "GET /y/{v}/"} {
+		mux.HandleFunc(pattern, func(w ResponseWriter, r *Request) {
+			fmt.Fprint(w, r.PathValue("v"))
+		})
+	}
+	for _, test := range []struct {
+		method, path string
+		wantCode     int
+		wantValue    string
+		wantAllow    string
+		wantLocation string
+	}{
+		{"GET", "/x/a%2F", 200, "a/", "", ""},
+		{"GET", "/x/%2F", 200, "/", "", ""},
+		{"GET", "/x/%2f", 200, "/", "", ""},
+		{"GET", "/x/%252F", 200, "%2F", "", ""},
+		{"GET", "/x/%2F/tail", 200, "/", "", ""},
+		{"GET", "/x/%2f/tail", 200, "/", "", ""},
+		{"GET", "/x/", 404, "", "", ""},
+		{"GET", "/x/%2F/", 404, "", "", ""},
+		{"POST", "/x/%2F", 405, "", "GET, HEAD", ""},
+		{"POST", "/x/%2f", 405, "", "GET, HEAD", ""},
+		{"POST", "/x/", 404, "", "", ""},
+		{"GET", "/y/%2F", 307, "", "", "/y/%2F/"},
+		{"GET", "/y/%2f/", 200, "/", "", ""},
+	} {
+		t.Run(test.method+" "+test.path, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			mux.ServeHTTP(w, httptest.NewRequest(test.method, test.path, nil))
+			if w.Code != test.wantCode {
+				t.Errorf("status = %d, want %d", w.Code, test.wantCode)
+			}
+			if test.wantCode == 200 && w.Body.String() != test.wantValue {
+				t.Errorf("PathValue = %q, want %q", w.Body.String(), test.wantValue)
+			}
+			if got := w.Header().Get("Allow"); got != test.wantAllow {
+				t.Errorf("Allow = %q, want %q", got, test.wantAllow)
+			}
+			if got := w.Header().Get("Location"); got != test.wantLocation {
+				t.Errorf("Location = %q, want %q", got, test.wantLocation)
+			}
+		})
+	}
+}
+
 func TestShouldRedirectConcurrency(t *testing.T) { runSynctest(t, testShouldRedirectConcurrency) }
 func testShouldRedirectConcurrency(t *testing.T, mode testMode) {
 	mux := NewServeMux()
