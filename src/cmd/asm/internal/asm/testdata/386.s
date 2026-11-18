@@ -95,4 +95,5 @@ loop:
 
 // LTYPE0 nonnon	{ outcode(int($1), &$2); }
 	RET
+	FMOVF	$(1.000000059604644775390625000001), F0 // FMOVF $(1.0000001192092896), F0
 	RET	foo(SB)

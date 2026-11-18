@@ -641,6 +641,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	// float constants
 	FMOVD $(0.0), F1                // f0210cd0
 	FMOVD $(-0.0), F1               // f0210cd0fc200850
+	FMOVS $(1.000000059604644775390625000001), F1 // FMOVS $(1.0000001192092896), F1
 
 	FMOVD 8(R3), F1                 // c8230008
 	FMOVD (R3)(R4), F1              // 7c241cae

@@ -2273,7 +2273,7 @@ start:
 	MOVF	$(0.0), F3				// d30100f0
 
 	// Converted to load of symbol (AUIPC + FLW)
-	MOVF	$(709.78271289338397), F3		// 970f000087a10f00
+	MOVF	$(709.78271289338397), F3		// MOVF	$(709.78271484375), F3	// 970f000087a10f00
 
 	MOVD	4(X5), F0				// 07b04200
 	MOVD	F0, 4(X5)				// 27b20200

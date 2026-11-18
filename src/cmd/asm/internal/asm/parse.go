@@ -48,6 +48,7 @@ type Parser struct {
 	lastProg      *obj.Prog
 	dataAddr      map[string]int64 // Most recent address for DATA for this symbol.
 	isJump        bool             // Instruction being assembled is a jump.
+	isFloat32     bool             // Floating-point constants are single precision.
 	allowABI      bool             // Whether ABI selectors are allowed.
 	pkgPrefix     string           // Prefix to add to local symbols.
 	errorWriter   io.Writer
@@ -278,6 +279,7 @@ next:
 func (p *Parser) instruction(op obj.As, word, cond string, operands [][]lex.Token) {
 	p.addr = p.addr[0:0]
 	p.isJump = p.arch.IsJump(word)
+	p.isFloat32 = arch.IsFloat32(op)
 	for _, op := range operands {
 		addr := p.address(op)
 		if !p.isJump && addr.Reg < 0 { // Jumps refer to PC, a pseudo.
@@ -1653,7 +1655,11 @@ func (p *Parser) atoi(str string) uint64 {
 }
 
 func (p *Parser) atof(str string) float64 {
-	value, err := strconv.ParseFloat(str, 64)
+	bitSize := 64
+	if p.isFloat32 {
+		bitSize = 32
+	}
+	value, err := strconv.ParseFloat(str, bitSize)
 	if err != nil {
 		p.errorf("%s", err)
 	}

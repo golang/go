@@ -105,6 +105,24 @@ func jumpWasm(word string) bool {
 	return word == "JMP" || word == "CALL" || word == "Call" || word == "Br" || word == "BrIf"
 }
 
+// IsFloat32 reports whether the op takes single-precision float constants.
+func IsFloat32(op obj.As) bool {
+	switch op {
+	case arm.AMOVF,
+		arm64.AFMOVS,
+		loong64.AMOVF,
+		mips.AMOVF,
+		ppc64.AFMOVS,
+		riscv.AMOVF, riscv.AFLIS,
+		s390x.AFMOVS,
+		wasm.AF32Const,
+		x86.AMOVSS, x86.AVMOVSS, x86.AADDSS, x86.ASUBSS, x86.AMULSS, x86.ADIVSS, x86.ACOMISS, x86.AUCOMISS,
+		x86.AFMOVF, x86.AFADDF, x86.AFSUBF, x86.AFSUBRF, x86.AFMULF, x86.AFDIVF, x86.AFDIVRF, x86.AFCOMF, x86.AFCOMFP:
+		return true
+	}
+	return false
+}
+
 func archX86(linkArch *obj.LinkArch) *Arch {
 	register := make(map[string]int16)
 	// Create maps for easy lookup of instruction names etc.

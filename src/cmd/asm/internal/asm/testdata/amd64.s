@@ -143,6 +143,9 @@ loop:
 	MOVB	foo+32(SP)(CX*4), AH		// 8a648c20
 	MOVB	foo+32323(SP)(CX*8), R9		// 448a8ccc437e0000
 
+// Tests for float32 constants.
+	MOVSS	$1.000000059604644775390625000001, X1	// MOVSS $(1.0000001192092896), X1
+
 // Tests for TLS reference.
 	MOVQ	(TLS), AX
 	MOVQ	8(TLS), DX

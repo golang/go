@@ -392,6 +392,7 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	FMOVD	$(0.1796875), F2                // 02f0681e
 	FMOVS	$(0.96875), F3                  // 03f02d1e
 	FMOVD	$(28.0), F4                     // 0490671e
+	FMOVS	$(1.000000059604644775390625000001), F5 // FMOVS $(1.0000001192092896), F5
 	FMOVD	$0, F0                          // e003679e
 	FMOVS	$0, F0                          // e003271e
 	FMOVD	ZR, F0                          // e003679e

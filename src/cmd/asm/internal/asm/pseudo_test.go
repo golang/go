@@ -47,6 +47,8 @@ func TestErroneous(t *testing.T) {
 		{"DATA", "@B(SB)/4,0", "expected '(', found B"}, // Issue 23580.
 		{"DATA", "·A(SB)/4,0", "DATA value must be an immediate constant or address"},
 		{"DATA", "·B(SB)/4,$0", ""},
+		{"DATA", "·H(SB)/4,$1e39", "strconv.ParseFloat: parsing \"1e39\": value out of range"},
+		{"DATA", "·I(SB)/8,$1e39", ""},
 		{"DATA", "·C(SB)/5,$0", "bad int size for DATA argument: 5"},
 		{"DATA", "·D(SB)/5,$0.0", "bad float size for DATA argument: 5"},
 		{"DATA", "·E(SB)/4,$·A(SB)", "bad addr size for DATA argument: 4"},
