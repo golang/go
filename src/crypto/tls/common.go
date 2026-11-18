@@ -429,7 +429,8 @@ const (
 	// EdDSA algorithms.
 	Ed25519 SignatureScheme = 0x0807
 
-	// ML-DSA algorithms.
+	// ML-DSA algorithms. Only supported in TLS 1.3. The tlsmldsa GODEBUG
+	// setting controls whether they are advertised and accepted by default.
 	MLDSA44 SignatureScheme = 0x0904
 	MLDSA65 SignatureScheme = 0x0905
 	MLDSA87 SignatureScheme = 0x0906
@@ -1802,6 +1803,9 @@ func isDisabledSignatureAlgorithm(version uint16, s SignatureScheme, isCert bool
 
 	switch s {
 	case MLDSA44, MLDSA65, MLDSA87:
+		// tlsmldsa=0 is applied in defaultSupportedSignatureAlgorithms, not
+		// here, so a local ML-DSA certificate stays usable if the peer allows it.
+		//
 		// ML-DSA is not available in FIPS 140-3 module v1.0.0.
 		if fips140.Version() == "v1.0.0" {
 			return true
