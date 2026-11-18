@@ -308,6 +308,12 @@ func Sign[P Point[P], H hash.Hash](c *Curve[P], h func() H, priv *PrivateKey, ra
 	// information.
 	drbg := newDRBG(h, Z, nil, blockAlignedPersonalizationString{priv.d, bits2octets(c, hash)})
 
+	// HMAC_DRBG with a hash shorter than 256 bits is not allowed in SP 800-90C
+	// RBG constructions, per FIPS 140-3 IG D.T. V is as long as the hash.
+	if len(drbg.V) < 256/8 {
+		fips140.RecordNonApproved()
+	}
+
 	sig, err := sign(c, priv, drbg, hash)
 
 	// This is for compliance with SP 800-90C, Section 2.7, item 1.

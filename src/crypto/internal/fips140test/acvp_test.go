@@ -1033,7 +1033,9 @@ func signEcdsa[P ecdsa.Point[P], H hash.Hash](c *ecdsa.Curve[P], h func() H, sig
 	var sig *ecdsa.Signature
 	switch sigType {
 	case ecdsaSigTypeNormal:
-		sig, err = ecdsa.Sign(c, h, priv, rand.Reader, digest)
+		// Like crypto/ecdsa, always use SHA-512 for the hedged signing DRBG,
+		// regardless of the hash that computed the digest.
+		sig, err = ecdsa.Sign(c, sha512.New, priv, rand.Reader, digest)
 	case ecdsaSigTypeDeterministic:
 		sig, err = ecdsa.SignDeterministic(c, h, priv, digest)
 	default:
