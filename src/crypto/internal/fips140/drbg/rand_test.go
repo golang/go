@@ -10,19 +10,21 @@ import (
 	"testing"
 )
 
-// withEmptySlots enables FIPS 140-3 mode and empties the set of slots for the
-// duration of the test.
+// withEmptySlots enables FIPS 140-3 mode, empties the set of slots, and unseeds
+// the root DRBG for the duration of the test.
 func withEmptySlots(t *testing.T) {
 	if err := fips140.Supported(); err != nil {
 		t.Skipf("test requires FIPS 140-3 mode: %v", err)
 	}
-	oldEnabled, oldSlots := fips140.Enabled, slots.all.Load()
+	oldEnabled, oldSlots, oldRoot := fips140.Enabled, slots.all.Load(), root.drbg
 	t.Cleanup(func() {
 		fips140.Enabled = oldEnabled
 		slots.all.Store(oldSlots)
+		root.drbg = oldRoot
 	})
 	fips140.Enabled = true
 	slots.all.Store(nil)
+	root.drbg = nil
 }
 
 // checkSlots returns the slots, after checking that they are all unlocked.
@@ -40,6 +42,15 @@ func checkSlots(t *testing.T) []*slot {
 		s.Unlock()
 	}
 	return all
+}
+
+func TestRootSeededAtInit(t *testing.T) {
+	if !fips140.Enabled {
+		t.Skip("test requires FIPS 140-3 mode to be enabled at init time")
+	}
+	if root.drbg == nil {
+		t.Error("root DRBG was not seeded at init time")
+	}
 }
 
 func TestSlots(t *testing.T) {
@@ -68,9 +79,9 @@ func TestSlots(t *testing.T) {
 		t.Errorf("got %d slots after a call with one slot in use, want 2", len(all))
 	}
 
-	// Each slot is seeded once.
-	if seedings != 2 {
-		t.Errorf("the entropy source was used %d times, want 2", seedings)
+	// The entropy source is only used to seed the root.
+	if seedings != 1 {
+		t.Errorf("the entropy source was used %d times, want 1", seedings)
 	}
 }
 
