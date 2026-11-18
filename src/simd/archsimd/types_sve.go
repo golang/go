@@ -119,7 +119,8 @@ func (x Float32s) Masked(mask Mask32s) (z Float32s) {
 // Asm: ZDUP, CPU Feature: SVE
 func BroadcastFloat32s(x float32) (z Float32s)
 
-// String returns x in the form "{x[0],x[1],...}".
+// String returns x in the form "{x[0],x[1],...}". Each element is formatted
+// like the %v format specifier.
 func (x Float32s) String() string {
 	var s [8]float32
 	n := x.Len()
@@ -222,7 +223,8 @@ func (x Float64s) Masked(mask Mask64s) (z Float64s) {
 // Asm: ZDUP, CPU Feature: SVE
 func BroadcastFloat64s(x float64) (z Float64s)
 
-// String returns x in the form "{x[0],x[1],...}".
+// String returns x in the form "{x[0],x[1],...}". Each element is formatted
+// like the %v format specifier.
 func (x Float64s) String() string {
 	var s [4]float64
 	n := x.Len()
@@ -333,7 +335,8 @@ func (x Int8s) ToMask() (z Mask8s) {
 	return x.NotEqual(Int8s{})
 }
 
-// String returns x in the form "{x[0],x[1],...}".
+// String returns x in the form "{x[0],x[1],...}". Each element is formatted
+// like the %v format specifier.
 func (x Int8s) String() string {
 	var s [32]int8
 	n := x.Len()
@@ -444,7 +447,8 @@ func (x Int16s) ToMask() (z Mask16s) {
 	return x.NotEqual(Int16s{})
 }
 
-// String returns x in the form "{x[0],x[1],...}".
+// String returns x in the form "{x[0],x[1],...}". Each element is formatted
+// like the %v format specifier.
 func (x Int16s) String() string {
 	var s [16]int16
 	n := x.Len()
@@ -555,7 +559,8 @@ func (x Int32s) ToMask() (z Mask32s) {
 	return x.NotEqual(Int32s{})
 }
 
-// String returns x in the form "{x[0],x[1],...}".
+// String returns x in the form "{x[0],x[1],...}". Each element is formatted
+// like the %v format specifier.
 func (x Int32s) String() string {
 	var s [8]int32
 	n := x.Len()
@@ -666,7 +671,8 @@ func (x Int64s) ToMask() (z Mask64s) {
 	return x.NotEqual(Int64s{})
 }
 
-// String returns x in the form "{x[0],x[1],...}".
+// String returns x in the form "{x[0],x[1],...}". Each element is formatted
+// like the %v format specifier.
 func (x Int64s) String() string {
 	var s [4]int64
 	n := x.Len()
@@ -768,7 +774,8 @@ func (x Uint8s) Masked(mask Mask8s) (z Uint8s) {
 // Asm: ZDUP, CPU Feature: SVE
 func BroadcastUint8s(x uint8) (z Uint8s)
 
-// String returns x in the form "{x[0],x[1],...}".
+// String returns x in the form "{x[0],x[1],...}". Each element is formatted
+// like the %v format specifier.
 func (x Uint8s) String() string {
 	var s [32]uint8
 	n := x.Len()
@@ -870,7 +877,8 @@ func (x Uint16s) Masked(mask Mask16s) (z Uint16s) {
 // Asm: ZDUP, CPU Feature: SVE
 func BroadcastUint16s(x uint16) (z Uint16s)
 
-// String returns x in the form "{x[0],x[1],...}".
+// String returns x in the form "{x[0],x[1],...}". Each element is formatted
+// like the %v format specifier.
 func (x Uint16s) String() string {
 	var s [16]uint16
 	n := x.Len()
@@ -972,7 +980,8 @@ func (x Uint32s) Masked(mask Mask32s) (z Uint32s) {
 // Asm: ZDUP, CPU Feature: SVE
 func BroadcastUint32s(x uint32) (z Uint32s)
 
-// String returns x in the form "{x[0],x[1],...}".
+// String returns x in the form "{x[0],x[1],...}". Each element is formatted
+// like the %v format specifier.
 func (x Uint32s) String() string {
 	var s [8]uint32
 	n := x.Len()
@@ -1074,7 +1083,8 @@ func (x Uint64s) Masked(mask Mask64s) (z Uint64s) {
 // Asm: ZDUP, CPU Feature: SVE
 func BroadcastUint64s(x uint64) (z Uint64s)
 
-// String returns x in the form "{x[0],x[1],...}".
+// String returns x in the form "{x[0],x[1],...}". Each element is formatted
+// like the %v format specifier.
 func (x Uint64s) String() string {
 	var s [4]uint64
 	n := x.Len()

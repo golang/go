@@ -348,7 +348,8 @@ func (x Int8s) StorePart(s []int8) (n int) {
 	return copy(s, x.v[:])
 }
 
-// String returns x in the form "{x[0],x[1],...}".
+// String returns x in the form "{x[0],x[1],...}". Each element is formatted
+// like the %v format specifier.
 func (x Int8s) String() string {
 	var parts [16]int8
 	for i := 0; i < 16; i++ {
@@ -761,7 +762,8 @@ func (x Int16s) StorePart(s []int16) (n int) {
 	return copy(s, x.v[:])
 }
 
-// String returns x in the form "{x[0],x[1],...}".
+// String returns x in the form "{x[0],x[1],...}". Each element is formatted
+// like the %v format specifier.
 func (x Int16s) String() string {
 	var parts [8]int16
 	for i := 0; i < 8; i++ {
@@ -1167,7 +1169,8 @@ func (x Int32s) StorePart(s []int32) (n int) {
 	return copy(s, x.v[:])
 }
 
-// String returns x in the form "{x[0],x[1],...}".
+// String returns x in the form "{x[0],x[1],...}". Each element is formatted
+// like the %v format specifier.
 func (x Int32s) String() string {
 	var parts [4]int32
 	for i := 0; i < 4; i++ {
@@ -1467,7 +1470,8 @@ func (x Int64s) StorePart(s []int64) (n int) {
 	return copy(s, x.v[:])
 }
 
-// String returns x in the form "{x[0],x[1],...}".
+// String returns x in the form "{x[0],x[1],...}". Each element is formatted
+// like the %v format specifier.
 func (x Int64s) String() string {
 	return simdfmt.SliceToString(x.v[:])
 }
@@ -1812,7 +1816,8 @@ func (x Uint8s) StorePart(s []uint8) (n int) {
 	return copy(s, x.v[:])
 }
 
-// String returns x in the form "{x[0],x[1],...}".
+// String returns x in the form "{x[0],x[1],...}". Each element is formatted
+// like the %v format specifier.
 func (x Uint8s) String() string {
 	var parts [16]uint8
 	for i := 0; i < 16; i++ {
@@ -2265,7 +2270,8 @@ func (x Uint16s) StorePart(s []uint16) (n int) {
 	return copy(s, x.v[:])
 }
 
-// String returns x in the form "{x[0],x[1],...}".
+// String returns x in the form "{x[0],x[1],...}". Each element is formatted
+// like the %v format specifier.
 func (x Uint16s) String() string {
 	var parts [8]uint16
 	for i := 0; i < 8; i++ {
@@ -2691,7 +2697,8 @@ func (x Uint32s) StorePart(s []uint32) (n int) {
 	return copy(s, x.v[:])
 }
 
-// String returns x in the form "{x[0],x[1],...}".
+// String returns x in the form "{x[0],x[1],...}". Each element is formatted
+// like the %v format specifier.
 func (x Uint32s) String() string {
 	var parts [4]uint32
 	for i := 0; i < 4; i++ {
@@ -3035,7 +3042,8 @@ func (x Uint64s) StorePart(s []uint64) (n int) {
 	return copy(s, x.v[:])
 }
 
-// String returns x in the form "{x[0],x[1],...}".
+// String returns x in the form "{x[0],x[1],...}". Each element is formatted
+// like the %v format specifier.
 func (x Uint64s) String() string {
 	return simdfmt.SliceToString(x.v[:])
 }
@@ -3529,7 +3537,8 @@ func (x Float32s) StorePart(s []float32) (n int) {
 	return copy(s, x.v[:])
 }
 
-// String returns x in the form "{x[0],x[1],...}".
+// String returns x in the form "{x[0],x[1],...}". Each element is formatted
+// like the %v format specifier.
 func (x Float32s) String() string {
 	var parts [4]float32
 	for i := 0; i < 4; i++ {
@@ -3926,7 +3935,8 @@ func (x Float64s) StorePart(s []float64) (n int) {
 	return copy(s, x.v[:])
 }
 
-// String returns x in the form "{x[0],x[1],...}".
+// String returns x in the form "{x[0],x[1],...}". Each element is formatted
+// like the %v format specifier.
 func (x Float64s) String() string {
 	return simdfmt.SliceToString([]float64{x.get(0), x.get(1)})
 }

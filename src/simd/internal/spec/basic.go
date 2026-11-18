@@ -159,7 +159,8 @@ func Enlarge[E Elt, W DoublableWidth, zW Width](x Vec[E, W]) (z Vec[E, zW]) {
 	return z
 }
 
-// String returns x in the form "{x[0],x[1],...}".
+// String returns x in the form "{x[0],x[1],...}". Each element is formatted
+// like the %v format specifier.
 func String[E Nums, W Width](x Vec[E, W]) string {
 	var buf strings.Builder
 	buf.WriteByte('{')
