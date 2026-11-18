@@ -1596,6 +1596,7 @@ func (c *common) makeTempDir() (string, error) {
 		_, err := os.Stat(c.tempDir)
 		nonExistent = os.IsNotExist(err)
 		if err != nil && !nonExistent {
+			c.tempDirMu.Unlock()
 			return "", err
 		}
 	}
