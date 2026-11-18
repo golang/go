@@ -102,6 +102,9 @@ type (
 	recursiveMap     map[string]recursiveMap
 	recursiveSlice   []recursiveSlice
 	recursivePointer struct{ P *recursivePointer }
+	selfPointer      *selfPointer
+	mutualPointerA   *mutualPointerB
+	mutualPointerB   *mutualPointerA
 
 	structEmpty       struct{}
 	structConflicting struct {
@@ -3248,6 +3251,24 @@ func TestMarshal(t *testing.T) {
 		}(),
 		want:    strings.Repeat(`{"P":`, startDetectingCyclesAfter) + `{"P"`,
 		wantErr: EM(internal.ErrCycle).withPos(strings.Repeat(`{"P":`, startDetectingCyclesAfter+1), jsontext.Pointer(strings.Repeat("/P", startDetectingCyclesAfter+1))).withType(0, T[*recursivePointer]()),
+	}, {
+		name: jsontest.Name("Pointers/SelfPointer"),
+		in: func() selfPointer {
+			var p selfPointer
+			p = &p
+			return p
+		}(),
+		wantErr: EM(internal.ErrCycle).withType(0, T[selfPointer]()),
+	}, {
+		name: jsontest.Name("Pointers/MutualPointer"),
+		in: func() mutualPointerA {
+			var a mutualPointerA
+			var b mutualPointerB
+			a = &b
+			b = &a
+			return a
+		}(),
+		wantErr: EM(internal.ErrCycle).withType(0, T[mutualPointerB]()),
 	}, {
 		name: jsontest.Name("Pointers/IgnoreInvalidFormat"),
 		opts: []Options{invalidFormatOption},
