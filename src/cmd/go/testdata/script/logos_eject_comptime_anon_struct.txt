@@ -1,0 +1,88 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+
+logos run .
+stdout '^anon 1 1 1 1$'
+stdout '^nested 3$'
+stdout '^empty 0 0 1$'
+cp stdout $WORK/native.txt
+
+mkdir $WORK/orig
+cp main.lgo $WORK/orig/main.lgo
+
+logos eject -o out
+exists out/main.go
+! grep '"comptime"' out/main.go
+! grep 'col:' out/main.go
+
+cd out
+go run .
+cmp stdout $WORK/native.txt
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+go vet ./...
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ..
+
+cmp main.lgo $WORK/orig/main.lgo
+
+-- m/go.mod --
+module example.com/ejectctas
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import (
+	"comptime"
+	"fmt"
+)
+
+type Row struct {
+	N int64 `row:"n"`
+}
+
+func Count[T any]() int {
+	n := 0
+	const for _, f := range comptime.Fields[T]() {
+		_ = f.Name
+		n++
+	}
+	return n
+}
+
+func main() {
+	fmt.Println("anon",
+		Count[struct {
+			N int64 `col:"n"`
+		}](),
+		Count[struct{ M int64 `col:"m"` }](),
+		Count[struct {
+			K int64
+		}](),
+		Count[Row]())
+	fmt.Println("nested",
+		Count[struct {
+			Rows []struct {
+				N int64 `col:"n"`
+			}
+			By map[string]struct {
+				K int `col:"k"`
+			}
+			Ptr *struct {
+				Q int `col:"q"`
+			}
+		}]())
+	fmt.Println("empty",
+		Count[struct{}](),
+		Count[struct {
+		}](),
+		Count[struct{ Unit struct{} }]())
+}
