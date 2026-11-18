@@ -4,8 +4,14 @@
 
 #include <time.h>
 #include <errno.h>
+#include <stdint.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <poll.h>
 #include <unistd.h>
+#endif
 
 int
 fast_add(int a, int b)
@@ -28,10 +34,16 @@ slow_nocallback(int a, int b)
 static int
 do_sleep(int micros)
 {
+#ifdef _WIN32
+	if (micros > 0) {
+		Sleep((DWORD)((micros + 999) / 1000));
+	}
+#else
 	struct timespec ts;
 	ts.tv_sec = micros / 1000000;
 	ts.tv_nsec = (long)(micros % 1000000) * 1000L;
 	nanosleep(&ts, 0);
+#endif
 	return micros;
 }
 
@@ -89,19 +101,70 @@ plain_spin(unsigned long long iters)
 	return do_spin(iters);
 }
 
+#ifdef _WIN32
+
+// Windows anonymous pipes are not waitable handles, so the gate polls
+// PeekNamedPipe on a 10 ms tick against the same 30-second deadline the POSIX
+// side gives poll.
+static int
+gate_signal_and_await(uintptr_t ready_h, uintptr_t gate_h)
+{
+	char c = 0;
+	DWORD n;
+	if (!WriteFile((HANDLE)ready_h, &c, 1, &n, 0) || n != 1) {
+		return 1;
+	}
+	ULONGLONG deadline = GetTickCount64() + 30000;
+	for (;;) {
+		DWORD avail = 0;
+		if (PeekNamedPipe((HANDLE)gate_h, 0, 0, 0, &avail, 0) && avail > 0) {
+			break;
+		}
+		if (GetTickCount64() >= deadline) {
+			return 2;
+		}
+		Sleep(10);
+	}
+	if (!ReadFile((HANDLE)gate_h, &c, 1, &n, 0) || n != 1) {
+		return 3;
+	}
+	return 0;
+}
+
 int
-gate_wait(int ready_fd, int gate_fd)
+gate_wait(uintptr_t ready_fd, uintptr_t gate_fd)
+{
+	return gate_signal_and_await(ready_fd, gate_fd);
+}
+
+int
+gate_watch(uintptr_t ready_fd, uintptr_t gate_fd, unsigned char *p, unsigned char want)
+{
+	int r = gate_signal_and_await(ready_fd, gate_fd);
+	if (r != 0) {
+		return r;
+	}
+	if (*p != want) {
+		return 4;
+	}
+	return 0;
+}
+
+#else
+
+int
+gate_wait(uintptr_t ready_fd, uintptr_t gate_fd)
 {
 	char c = 0;
 	ssize_t n;
 	do {
-		n = write(ready_fd, &c, 1);
+		n = write((int)ready_fd, &c, 1);
 	} while (n < 0 && errno == EINTR);
 	if (n != 1) {
 		return 1;
 	}
 	struct pollfd pfd;
-	pfd.fd = gate_fd;
+	pfd.fd = (int)gate_fd;
 	pfd.events = POLLIN;
 	int r;
 	do {
@@ -111,7 +174,7 @@ gate_wait(int ready_fd, int gate_fd)
 		return 2;
 	}
 	do {
-		n = read(gate_fd, &c, 1);
+		n = read((int)gate_fd, &c, 1);
 	} while (n < 0 && errno == EINTR);
 	if (n != 1) {
 		return 3;
@@ -120,18 +183,18 @@ gate_wait(int ready_fd, int gate_fd)
 }
 
 int
-gate_watch(int ready_fd, int gate_fd, unsigned char *p, unsigned char want)
+gate_watch(uintptr_t ready_fd, uintptr_t gate_fd, unsigned char *p, unsigned char want)
 {
 	char c = 0;
 	ssize_t n;
 	do {
-		n = write(ready_fd, &c, 1);
+		n = write((int)ready_fd, &c, 1);
 	} while (n < 0 && errno == EINTR);
 	if (n != 1) {
 		return 1;
 	}
 	struct pollfd pfd;
-	pfd.fd = gate_fd;
+	pfd.fd = (int)gate_fd;
 	pfd.events = POLLIN;
 	int r;
 	do {
@@ -141,7 +204,7 @@ gate_watch(int ready_fd, int gate_fd, unsigned char *p, unsigned char want)
 		return 2;
 	}
 	do {
-		n = read(gate_fd, &c, 1);
+		n = read((int)gate_fd, &c, 1);
 	} while (n < 0 && errno == EINTR);
 	if (n != 1) {
 		return 3;
@@ -151,3 +214,5 @@ gate_watch(int ready_fd, int gate_fd, unsigned char *p, unsigned char want)
 	}
 	return 0;
 }
+
+#endif

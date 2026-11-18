@@ -20,6 +20,16 @@ import (
 	"time"
 )
 
+// exeName keeps helper program names executable on Windows, where spawnable
+// files need the .exe suffix; marker files derive from the spawned path so
+// every derived name carries the suffix with it.
+func exeName(name string) string {
+	if runtime.GOOS == "windows" {
+		return name + ".exe"
+	}
+	return name
+}
+
 // Each scenario starts a new test process so GOMAXPROCS is set before package
 // initialization. The tests observe only the existing execution helpers.
 func TestRunBinaryExecutionQueue(t *testing.T) {
@@ -49,7 +59,7 @@ func TestRunBinaryExecutionQueue(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(buildDir, "main.go"), []byte(executionQueueHelper), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	helper := filepath.Join(buildDir, "helper")
+	helper := filepath.Join(buildDir, exeName("helper"))
 	if out, err := goBuild(fork.bin, buildDir, []string{"build", "-o", helper, "."}, baseEnv(forkCache(), fork.goroot), 5*time.Minute); err != nil {
 		t.Fatalf("building execution queue helper: %v\n%s", err, out)
 	}
@@ -62,13 +72,13 @@ func TestRunBinaryExecutionQueue(t *testing.T) {
 			dir := t.TempDir()
 			programs := []string{"holder0", "holder1", "control", "queued", "probe", "timeout0", "timeout1", "timeout2"}
 			for _, name := range programs {
-				cloneBinary(t, helper, filepath.Join(dir, name))
+				cloneBinary(t, helper, filepath.Join(dir, exeName(name)))
 			}
 			t.Cleanup(func() {
 				// Release surviving helpers even if the scenario process hit its
 				// watchdog before its own cleanup could run.
 				for _, name := range programs {
-					if err := os.WriteFile(filepath.Join(dir, name+".release"), nil, 0o600); err != nil {
+					if err := os.WriteFile(filepath.Join(dir, exeName(name)+".release"), nil, 0o600); err != nil {
 						t.Errorf("releasing %s: %v", name, err)
 					}
 				}
@@ -105,7 +115,7 @@ func testExecutionQueueBudget(t *testing.T, dir string) {
 	var wg sync.WaitGroup
 	t.Cleanup(func() {
 		for _, name := range []string{"holder0", "holder1"} {
-			if err := os.WriteFile(filepath.Join(dir, name+".release"), nil, 0o600); err != nil {
+			if err := os.WriteFile(filepath.Join(dir, exeName(name)+".release"), nil, 0o600); err != nil {
 				t.Errorf("releasing %s: %v", name, err)
 			}
 		}
@@ -114,8 +124,8 @@ func testExecutionQueueBudget(t *testing.T, dir string) {
 	startRow := func(name string) <-chan executionQueueResult {
 		done := make(chan executionQueueResult, 1)
 		wg.Go(func() {
-			rows, err := runAll(buildResult{outDir: dir, progs: []string{name}}, "4", nil)
-			obs, ok := rows[name]
+			rows, err := runAll(buildResult{outDir: dir, progs: []string{exeName(name)}}, "4", nil)
+			obs, ok := rows[exeName(name)]
 			if err == nil && (!ok || len(rows) != 1) {
 				err = fmt.Errorf("row %s returned %d observations, named observation present: %t", name, len(rows), ok)
 			}
@@ -125,19 +135,19 @@ func testExecutionQueueBudget(t *testing.T, dir string) {
 	}
 
 	row0 := startRow("holder0")
-	executionQueueReady(t, filepath.Join(dir, "holder0"), row0)
-	obs, err := runBinaryTimeout(filepath.Join(dir, "control"), "4", 2*time.Second, corpusNorm)
+	executionQueueReady(t, filepath.Join(dir, exeName("holder0")), row0)
+	obs, err := runBinaryTimeout(filepath.Join(dir, exeName("control")), "4", 2*time.Second, corpusNorm)
 	executionQueueOK(t, "control with one holder", executionQueueResult{obs, err})
 	t.Log("capacity N-1: one holder leaves one runnable slot")
 
 	row1 := startRow("holder1")
-	executionQueueReady(t, filepath.Join(dir, "holder1"), row1)
+	executionQueueReady(t, filepath.Join(dir, exeName("holder1")), row1)
 	t.Log("capacity N: two independent runAll rows are ready")
 	queued := make(chan executionQueueResult, 1)
 	submitted := make(chan struct{})
 	wg.Go(func() {
 		close(submitted)
-		obs, err := runBinaryTimeout(filepath.Join(dir, "queued"), "4", 2*time.Second, corpusNorm)
+		obs, err := runBinaryTimeout(filepath.Join(dir, exeName("queued")), "4", 2*time.Second, corpusNorm)
 		queued <- executionQueueResult{obs, err}
 	})
 	<-submitted
@@ -152,33 +162,33 @@ func testExecutionQueueBudget(t *testing.T, dir string) {
 		t.Fatalf("second holder returned before release: observation=%+v error=%v", got.obs, got.err)
 	case <-hold.C:
 	}
-	if _, err := os.Stat(filepath.Join(dir, "queued.ready")); !errors.Is(err, fs.ErrNotExist) {
+	if _, err := os.Stat(filepath.Join(dir, exeName("queued")+".ready")); !errors.Is(err, fs.ErrNotExist) {
 		t.Fatalf("third child started before a slot was released: marker stat = %v", err)
 	}
 	t.Log("capacity N+1: third call remained queued longer than its two-second child budget")
-	if err := os.WriteFile(filepath.Join(dir, "holder0.release"), nil, 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, exeName("holder0")+".release"), nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	executionQueueOK(t, "first released row", executionQueueReceive(t, row0))
 	executionQueueOK(t, "queued call after release", executionQueueReceive(t, queued))
-	executionQueueReady(t, filepath.Join(dir, "queued"), nil)
-	if err := os.WriteFile(filepath.Join(dir, "holder1.release"), nil, 0o600); err != nil {
+	executionQueueReady(t, filepath.Join(dir, exeName("queued")), nil)
+	if err := os.WriteFile(filepath.Join(dir, exeName("holder1")+".release"), nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	executionQueueOK(t, "second released row", executionQueueReceive(t, row1))
-	obs, err = runBinaryTimeout(filepath.Join(dir, "probe"), "4", 2*time.Second, corpusNorm)
+	obs, err = runBinaryTimeout(filepath.Join(dir, exeName("probe")), "4", 2*time.Second, corpusNorm)
 	executionQueueOK(t, "call after successful rows", executionQueueResult{obs, err})
 }
 
 func testExecutionQueueStartError(t *testing.T, dir string) {
 	for i := range 3 {
-		_, err := runBinaryTimeout(filepath.Join(dir, fmt.Sprintf("missing%d", i)), "4", 2*time.Second, corpusNorm)
-		if !errors.Is(err, fs.ErrNotExist) {
+		_, err := runBinaryTimeout(filepath.Join(dir, exeName(fmt.Sprintf("missing%d", i))), "4", 2*time.Second, corpusNorm)
+		if !errors.Is(err, fs.ErrNotExist) && !errors.Is(err, exec.ErrNotFound) {
 			t.Fatalf("missing executable %d: got %v, want file-not-found error", i, err)
 		}
 		t.Logf("start failure %d returned its file-not-found error", i)
 	}
-	obs, err := runBinaryTimeout(filepath.Join(dir, "probe"), "4", 2*time.Second, corpusNorm)
+	obs, err := runBinaryTimeout(filepath.Join(dir, exeName("probe")), "4", 2*time.Second, corpusNorm)
 	executionQueueOK(t, "call after N+1 start failures", executionQueueResult{obs, err})
 }
 
@@ -186,14 +196,14 @@ func testExecutionQueueTimeout(t *testing.T, dir string) {
 	var wg sync.WaitGroup
 	t.Cleanup(func() {
 		for i := range 3 {
-			if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf("timeout%d.release", i)), nil, 0o600); err != nil {
+			if err := os.WriteFile(filepath.Join(dir, exeName(fmt.Sprintf("timeout%d", i))+".release"), nil, 0o600); err != nil {
 				t.Errorf("releasing timeout child %d: %v", i, err)
 			}
 		}
 		wg.Wait()
 	})
 	for i := range 3 {
-		path := filepath.Join(dir, fmt.Sprintf("timeout%d", i))
+		path := filepath.Join(dir, exeName(fmt.Sprintf("timeout%d", i)))
 		done := make(chan executionQueueResult, 1)
 		wg.Go(func() {
 			obs, err := runBinaryTimeout(path, "4", 2*time.Second, corpusNorm)
@@ -212,7 +222,7 @@ func testExecutionQueueTimeout(t *testing.T, dir string) {
 		}
 		t.Logf("timeout %d returned after child readiness", i)
 	}
-	obs, err := runBinaryTimeout(filepath.Join(dir, "probe"), "4", 2*time.Second, corpusNorm)
+	obs, err := runBinaryTimeout(filepath.Join(dir, exeName("probe")), "4", 2*time.Second, corpusNorm)
 	executionQueueOK(t, "call after N+1 real child timeouts", executionQueueResult{obs, err})
 }
 
@@ -292,7 +302,7 @@ func main() {
 	if err := os.Rename(ready+".tmp", ready); err != nil {
 		fail(err)
 	}
-	name := filepath.Base(path)
+	name := strings.TrimSuffix(filepath.Base(path), ".exe")
 	if strings.HasPrefix(name, "holder") || strings.HasPrefix(name, "timeout") {
 		deadline := time.Now().Add(30 * time.Second)
 		for {

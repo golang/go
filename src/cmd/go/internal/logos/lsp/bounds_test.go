@@ -7,6 +7,7 @@ package lsp
 import (
 	"errors"
 	"io"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -206,7 +207,9 @@ func TestSlowFailingLoweringAnswersRequestFailed(t *testing.T) {
 }
 
 func TestEditedDocumentDropsDiagnosticsOfTheOldLowering(t *testing.T) {
-	const path = "/w/a/a.lgo"
+	// uriPath normalizes separators per platform, so the path keeps its
+	// slash spelling in the URI while staying a native path in the maps.
+	path := filepath.FromSlash("/w/a/a.lgo")
 	uri := pathURI(path)
 	low, edits, ok := lowerQuestion([]byte(aLgo))
 	if !ok {

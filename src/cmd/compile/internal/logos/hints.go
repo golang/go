@@ -130,7 +130,7 @@ func newHintFile(name string, src []byte) *hintFile {
 
 func hintFileKey(name string) string {
 	if filepath.IsAbs(name) {
-		return name
+		return filepath.Clean(name)
 	}
 	if abs, err := filepath.Abs(name); err == nil {
 		return abs

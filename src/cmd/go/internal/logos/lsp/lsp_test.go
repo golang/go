@@ -18,6 +18,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -30,6 +31,16 @@ const (
 	fakeEnv = "LOGOS_LSP_FAKE_GOPLS"
 
 	fakeLogEnv = "LOGOS_LSP_FAKE_LOG"
+
+	fakeProbeEnv = "LOGOS_LSP_FAKE_PROBE"
+
+	fakeWrapLogEnv = "LOGOS_LSP_FAKE_WRAP_LOG"
+
+	fakeWrapToolEnv = "LOGOS_LSP_FAKE_WRAP_TOOL"
+
+	fakeWrapGorootEnv = "LOGOS_LSP_FAKE_WRAP_GOROOT"
+
+	fakeFailEnv = "LOGOS_LSP_FAKE_FAIL"
 
 	waitLimit = 30 * time.Second
 )
@@ -76,10 +87,21 @@ func TestMain(m *testing.M) {
 	if os.Getenv(fakeEnv) != "" {
 		os.Exit(runFakeGopls())
 	}
+	if os.Getenv(fakeFailEnv) != "" {
+		fmt.Fprintln(os.Stderr, "go: writing build cache: no space left on device")
+		os.Exit(1)
+	}
+	if log := os.Getenv(fakeWrapLogEnv); log != "" {
+		os.Exit(runFakeWrap(log))
+	}
 	os.Exit(m.Run())
 }
 
 func runFakeGopls() int {
+	if dir := os.Getenv(fakeProbeEnv); dir != "" {
+		_ = os.WriteFile(filepath.Join(dir, "path.log"), []byte(os.Getenv("PATH")), 0o666)
+		_ = os.WriteFile(filepath.Join(dir, "args.log"), []byte(strings.Join(os.Args[1:], " ")), 0o666)
+	}
 	var script fakeScript
 	data, err := os.ReadFile(os.Getenv(fakeEnv))
 	if err == nil {
@@ -1606,21 +1628,90 @@ func lspHandshake(t *testing.T, stdin io.WriteCloser) {
 	}
 }
 
-func probeGoplsThroughLogos(t *testing.T, logosBin, fakeDir string) ([]string, string) {
+// runFakeWrap logs the joined argv then delegates to the real tool, the way
+// the wrap.sh fixture does on Unix. The delegate is a copy of the go tool
+// named logos so argv[0] enables logos mode; on Unix the shell fixture got
+// the same effect from `exec -a logos`.
+func runFakeWrap(logPath string) int {
+	f, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o666)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "fake wrap:", err)
+		return 2
+	}
+	if _, err := fmt.Fprintln(f, strings.Join(os.Args[1:], " ")); err != nil {
+		fmt.Fprintln(os.Stderr, "fake wrap logging argv:", err)
+		return 2
+	}
+	if err := f.Close(); err != nil {
+		fmt.Fprintln(os.Stderr, "fake wrap closing log:", err)
+		return 2
+	}
+	tool := os.Getenv(fakeWrapToolEnv)
+	if tool == "" {
+		fmt.Fprintln(os.Stderr, "fake wrap: "+fakeWrapToolEnv+" is unset")
+		return 2
+	}
+	cmd := exec.Command(tool, os.Args[1:]...)
+	if goroot := os.Getenv(fakeWrapGorootEnv); goroot != "" {
+		cmd.Env = append(os.Environ(), "GOROOT="+goroot)
+	}
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			return exitErr.ExitCode()
+		}
+		fmt.Fprintln(os.Stderr, "fake wrap:", err)
+		return 2
+	}
+	return 0
+}
+
+// writeFakeTool installs the test binary under name in dir so TestMain's
+// env-driven fakes serve as that tool, and returns the installed path. On
+// Windows only a real executable resolves through exec.LookPath, so the
+// shell wrapper used on Unix becomes a copy of the test binary under the
+// PATHEXT name.
+func writeFakeTool(t *testing.T, dir, name string) string {
 	t.Helper()
 	exe, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
 	}
+	if runtime.GOOS == "windows" {
+		name += ".exe"
+	}
+	dst := filepath.Join(dir, name)
+	if err := os.Link(exe, dst); err == nil {
+		return dst
+	}
+	data, err := os.ReadFile(exe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(dst, data, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return dst
+}
+
+// writeFakeGopls installs the test binary as gopls in dir.
+func writeFakeGopls(t *testing.T, dir string) {
+	t.Helper()
+	writeFakeTool(t, dir, "gopls")
+}
+
+func probeGoplsThroughLogos(t *testing.T, logosBin, fakeDir string) ([]string, string) {
+	t.Helper()
 	if err := os.MkdirAll(fakeDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	pathLog := filepath.Join(t.TempDir(), "path.log")
-	argsLog := filepath.Join(t.TempDir(), "args.log")
-	wrapper := "#!/bin/sh\necho \"$PATH\" >> \"" + pathLog + "\"\necho \"$@\" >> \"" + argsLog + "\"\nexec \"" + exe + "\" \"$@\"\n"
-	if err := os.WriteFile(filepath.Join(fakeDir, "gopls"), []byte(wrapper), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	writeFakeGopls(t, fakeDir)
+	probeDir := t.TempDir()
+	pathLog := filepath.Join(probeDir, "path.log")
+	argsLog := filepath.Join(probeDir, "args.log")
 	scriptPath := filepath.Join(t.TempDir(), "script.json")
 	if err := os.WriteFile(scriptPath, []byte(`{}`), 0o666); err != nil {
 		t.Fatal(err)
@@ -1630,6 +1721,7 @@ func probeGoplsThroughLogos(t *testing.T, logosBin, fakeDir string) ([]string, s
 	cmd.Env = append(os.Environ(),
 		"PATH="+fakeDir+sep+"/usr/bin"+sep+"/bin",
 		fakeEnv+"="+scriptPath,
+		fakeProbeEnv+"="+probeDir,
 		fakeLogEnv+"="+filepath.Join(t.TempDir(), "gopls.log"))
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -1662,6 +1754,9 @@ func TestLogosLspGoplsDiscovery(t *testing.T) {
 	t.Setenv("GOTOOLCHAIN", "local")
 	t.Setenv("GOPROXY", "off")
 	logosBin := filepath.Join(filepath.Dir(testenv.GoToolPath(t)), "logos")
+	if runtime.GOOS == "windows" {
+		logosBin += ".exe"
+	}
 	if _, err := os.Stat(logosBin); err != nil {
 		t.Fatalf("logos binary not present: build the tree first: %v", err)
 	}
@@ -1735,20 +1830,16 @@ func TestLogosLspStdioWiring(t *testing.T) {
 	t.Setenv("GOTOOLCHAIN", "local")
 	t.Setenv("GOPROXY", "off")
 	logosBin := filepath.Join(filepath.Dir(testenv.GoToolPath(t)), "logos")
+	if runtime.GOOS == "windows" {
+		logosBin += ".exe"
+	}
 	if _, err := os.Stat(logosBin); err != nil {
 		t.Fatalf("logos binary not present: build the tree first: %v", err)
 	}
-	exe, err := os.Executable()
-	if err != nil {
-		t.Fatal(err)
-	}
 	fakeDir := t.TempDir()
+	writeFakeGopls(t, fakeDir)
 	scriptPath := filepath.Join(t.TempDir(), "script.json")
 	if err := os.WriteFile(scriptPath, []byte(`{}`), 0o666); err != nil {
-		t.Fatal(err)
-	}
-	wrapper := "#!/bin/sh\nexec \"" + exe + "\" \"$@\"\n"
-	if err := os.WriteFile(filepath.Join(fakeDir, "gopls"), []byte(wrapper), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	cmd := exec.CommandContext(t.Context(), logosBin, "lsp")

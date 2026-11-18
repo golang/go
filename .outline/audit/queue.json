@@ -1,104 +1,257 @@
 {
-  "queue": [
-    {
-      "id": "L-ICE-1",
-      "severity": "critical",
-      "status": "fixed",
-      "title": "Compiler ICE importing packages with local types inside generic functions",
-      "detail": "logos.reachableFuncFactObjects and the overlay-clone scope walks iterated pkg.Scope().Names() skipping only dotted names. Lazily-imported scopes also carry hoisted local types with vargen names (T\u00b7N); forcing their lookup reaches object dicts with implicit type parameters that the simplified importer cannot materialize: base.Fatalf \"unexpected object with N implicit type parameter(s)\". Any Go package with a local type inside a generic func (e.g. creachadair/mds slice.LCSFunc seq) made dependents uncompilable: go build, go vet, logos lint, gglint all ICE'd.",
-      "files": [
-        "src/cmd/compile/internal/logos/optfacts.go"
-      ],
-      "fix": "Added importedDeclNames() filtering vargen-suffixed (T\u00b7N) and dotted (T.M) names via types.SplitVargenSuffix, applied to all four imported-scope iterations in optfacts.go \u2014 matching gcimporter's promoted-name filters.",
-      "test": "src/cmd/go/testdata/script/logos_import_hoisted_local_type.txt reproduces the ICE on the unfixed compile and passes fixed.",
-      "found_via": "dogfooding corpus: gglint/logos lint rc=3 on tailscale (transitively imports creachadair/mds/mdiff)"
-    },
-    {
-      "id": "L-TRIAGE-1",
-      "severity": "info",
-      "status": "triaged",
-      "title": "Corpus harness residual signals classified \u2014 no further bugs",
-      "detail": "Post-fix harness re-run: tailscale gglint rc=1 (was rc=3 ICE), golang-petname logos rc=0 verified clean via injected discarded-error probe (lint runs, just no findings), adversarial-lgo gglint rc=3 is expected upstream go vet semantics ('matched no packages' \u2014 .lgo-only module has no Go packages; logos lint covers .lgo, rc=1 with findings). All gglint 'crash' signals (panic:/goroutine /SIGSEGV/fatal error:) are substring matches inside lint finding text and missing-system-header diagnostics (pcap.h), not tool crashes. All logos lint 'nondeterminism' is ordering-only: byte-identical sorted diagnostic sets across runs (documented nondeterministic ORDER, deterministic SET)."
-    },
-    {
-      "id": "L-TRIAGE-2",
-      "severity": "info",
-      "status": "triaged",
-      "title": "Expanded cross-platform corpus pass \u2014 all anomalies benign",
-      "detail": "Corpus grown to 34 active entries across GitHub, GitLab, Codeberg, Gitea.com, SourceHut (famous/clean/dirty/modernc/cgo tiers) plus synthetic adversarial Go module (linkname pulls, reentrant-lock/sync misuse, resource lifecycle, unsafe ptr, cgo flag violations, generic-local-type importers) and adversarial-lgo (edge subpackage). Full pass: every buildable entry lints rc=1 on both gglint and logos lint with real findings; adversarial-lgo gglint rc=3 is correct go vet semantics; gopacket 'fatal error:' = missing optional pfring.h; all 'panic:/goroutine' signals are finding-text substrings; all nondet flags are ordering-only (deterministic diagnostic set, documented). raylib needed system headers (wayland/xkbcommon/EGL) \u2014 env gap, not a tool bug; gitaly needed go:embed binary stubs \u2014 repo build prerequisite. No new tool defects found: the L-ICE-1 fix holds under 34-repo load including its advimporter adversarial sibling."
-    },
-    {
-      "id": "L-TRIAGE-3",
-      "severity": "info",
-      "status": "triaged",
-      "title": "Round-3 deep dogfood: lsp/context/eject verified; lint phase-gating documented",
-      "detail": "logos lsp (gopls proxy) verified end-to-end on .lgo: didSave publishes 'undefined: undefinedFunction' mapped to the .lgo URI. logos context resolves std/dep/.lgo/generic symbols correctly. logos eject lowers ?, errdefer, go group, and yield generators to stock Go that vets clean and runs correctly. Key lint semantics verified: deny-severity diagnostics are compiler-stage errors flushed before ExitIfErrors, which gates the type-dependent registry checks (unbounded_channel_op, defer_erases_errdefer_state) \u2014 a file/package with any compiler-stage deny gets only those findings until fixed and re-linted (phased reporting, matches irgen ExitIfErrors design). logos lint silently skips the toolchain's own cmd module because cmd/... packages classify Standard with nil Module (same boundary as std). gglint self-dogfood on src/cmd (2244 findings, 33 analyzers, zero crashes). New corpus coverage: adversarial-lgo/{denied,checks} split attacks by phase so all rule families get exercised."
-    },
-    {
-      "id": "L-GAP-1",
-      "severity": "low",
-      "status": "fixed",
-      "title": "logos lint never lints _test.go files (coverage gap vs go vet)",
-      "detail": "work/lintActor compiles only p.GoFiles (work/logos_lint.go:78); TestGoFiles/XTestGoFiles are never linted. A package of only _test.go gets rc=0 silently, and violations inside _test.go of a normal package never surface \u2014 gglint flags them (goroutine leak in test caught on the same probe). go vet covers test files. The SPEC _test.go exemption in pedantic::unsafe_outside_unsafe_file (Sec 1.2) implies test files were meant to be linted. Candidate design gap: either extend LintAction to test variants or document the exclusion.",
-      "files": [
-        "src/cmd/go/internal/work/logos_lint.go"
-      ],
-      "found_via": "extreme-scenario grill: test-only package probe",
-      "fix": "runLint now builds test variants via load.TestPackagesFor (like go vet): ptest linted in place of p (GoFiles+TestGoFiles), pxtest linted for external test packages. Broken test variant reports the error and still lints non-test files.",
-      "fix_pr": "https://github.com/gosuda/LoGOs/pull/78",
-      "test": "src/cmd/go/testdata/script/logos_lint_testfiles.txt covers internal, external, test-only, and broken-import cases."
-    },
-    {
-      "id": "L-GAP-2",
-      "severity": "low",
-      "status": "triaged",
-      "title": "-json-diagnostics mixes raw-text errors with JSON diagnostics on stderr",
-      "detail": "Scanner/loader-level errors (illegal UTF-8 encoding, build constraints exclude all files, import cycle, ambiguous import) print as raw 'file:line: message' text on the same stderr stream as -json-diagnostics output. A consumer parsing line-delimited JSON chokes on these lines. Options: wrap them in the diagnostic envelope or document that the stream is JSON-per-line only for lint findings.",
-      "found_via": "extreme-scenario grill: invalid-UTF-8 .lgo probe"
-    },
-    {
-      "id": "L-TRIAGE-4",
-      "severity": "info",
-      "status": "triaged",
-      "title": "Extreme-scenario grill: all else clean",
-      "detail": "Verified: 8-way concurrent logos lint and gglint on same module (byte-identical outputs, no cache races), lint+build race clean, go.work workspace linting (GOWORK=off gives descriptive error), cross-GOOS lint (windows file linted only under GOOS=windows), mixed .go+.lgo package -> correctness::mixed_package, CRLF/BOM .lgo linted with correct positions, invalid UTF-8 -> descriptive error, import cycle / ambiguous stdlib-collision import / bad replace / future go directive -> descriptive errors, cgo-only and asm packages linted, 3814-line file with 3004-line function + 150-deep nesting linted fine (cognitive score 11325), recursive interface types rejected, SIGINT mid-lint exits rc=1 with no cache corruption."
-    },
-    {
-      "id": "L-MAC-1",
-      "severity": "high",
-      "status": "fixed",
-      "title": "linkname-mismatch rule skipped linkname targets in transitively-reached packages",
-      "detail": "Packages reached only through another package's export data are shells carrying just the objects the intermediate package references; linkedSymbol returned nil for linkname targets living in them, so rule_linkname_mismatch silently skipped (TestLinknameMismatchTransitiveImport red at HEAD).",
-      "files": [
-        "src/cmd/compile/internal/logos/lint/rule.go",
-        "src/cmd/compile/internal/logos/lint/rule_linkname_mismatch.go",
-        "src/cmd/compile/internal/noder/logos_lint.go",
-        "src/cmd/compile/internal/noder/irgen.go"
-      ],
-      "fix": "Added optional Input.Importer; on a nil target the rule re-imports the package in full and retries the lookup.",
-      "test": "go test -count=1 -short cmd/compile/internal/logos/lint cmd/compile/internal/noder",
-      "found_via": "macOS audit: TestLinknameMismatchTransitiveImport failed at HEAD"
-    },
-    {
-      "id": "L-MAC-2",
-      "severity": "high",
-      "status": "fixed",
-      "title": "Importer.Import retry on an unresolved transitive package aborts on pkg1.Direct invariant",
-      "detail": "readImportFileImpl set pkg1.Direct = true and appended to target.Imports before the import could fail. types.NewPkg caches *types.Pkg per path, so a failed import left Direct set while packages[path] stayed incomplete; a later import of the same path hit the 'unexpected Direct package' invariant (base.Fatalf).",
-      "files": [
-        "src/cmd/compile/internal/noder/import_logos.go"
-      ],
-      "fix": "On every post-Direct error return, roll back pkg1.Direct and remove pkg1's own target.Imports entry (not the tail: recursive imports may have appended completed dependencies after it) when packages[path] never completed; keep both when it did.",
-      "test": "go test -count=1 -short cmd/compile/internal/logos/lint cmd/compile/internal/noder",
-      "found_via": "Devin Review finding on the L-MAC-1 fix"
-    },
-    {
-      "id": "audit-cap-chains-lgo-dep-fold",
-      "severity": "medium",
-      "status": "open",
-      "summary": "logos_cap_chains rl/b,c,d: capability audit finds nothing when a .lgo dep calls reflect.TypeOf(0) \u2014 the call is comptime-folded so no runtime reach exists; fixture cannot pass on any platform until the dep uses a non-constant sink call (e.g. reflect.TypeOf(param)).",
-      "file": "src/cmd/go/testdata/script/logos_cap_chains.txt",
-      "platform": "all (observed darwin/arm64)"
-    }
-  ]
+ "queue": [
+  {
+   "id": "L-ICE-1",
+   "severity": "critical",
+   "status": "fixed",
+   "title": "Compiler ICE importing packages with local types inside generic functions",
+   "detail": "logos.reachableFuncFactObjects and the overlay-clone scope walks iterated pkg.Scope().Names() skipping only dotted names. Lazily-imported scopes also carry hoisted local types with vargen names (T·N); forcing their lookup reaches object dicts with implicit type parameters that the simplified importer cannot materialize: base.Fatalf \"unexpected object with N implicit type parameter(s)\". Any Go package with a local type inside a generic func (e.g. creachadair/mds slice.LCSFunc seq) made dependents uncompilable: go build, go vet, logos lint, gglint all ICE'd.",
+   "files": [
+    "src/cmd/compile/internal/logos/optfacts.go"
+   ],
+   "fix": "Added importedDeclNames() filtering vargen-suffixed (T·N) and dotted (T.M) names via types.SplitVargenSuffix, applied to all four imported-scope iterations in optfacts.go — matching gcimporter's promoted-name filters.",
+   "test": "src/cmd/go/testdata/script/logos_import_hoisted_local_type.txt reproduces the ICE on the unfixed compile and passes fixed.",
+   "found_via": "dogfooding corpus: gglint/logos lint rc=3 on tailscale (transitively imports creachadair/mds/mdiff)"
+  },
+  {
+   "id": "L-TRIAGE-1",
+   "severity": "info",
+   "status": "triaged",
+   "title": "Corpus harness residual signals classified — no further bugs",
+   "detail": "Post-fix harness re-run: tailscale gglint rc=1 (was rc=3 ICE), golang-petname logos rc=0 verified clean via injected discarded-error probe (lint runs, just no findings), adversarial-lgo gglint rc=3 is expected upstream go vet semantics ('matched no packages' — .lgo-only module has no Go packages; logos lint covers .lgo, rc=1 with findings). All gglint 'crash' signals (panic:/goroutine /SIGSEGV/fatal error:) are substring matches inside lint finding text and missing-system-header diagnostics (pcap.h), not tool crashes. All logos lint 'nondeterminism' is ordering-only: byte-identical sorted diagnostic sets across runs (documented nondeterministic ORDER, deterministic SET)."
+  },
+  {
+   "id": "L-TRIAGE-2",
+   "severity": "info",
+   "status": "triaged",
+   "title": "Expanded cross-platform corpus pass — all anomalies benign",
+   "detail": "Corpus grown to 34 active entries across GitHub, GitLab, Codeberg, Gitea.com, SourceHut (famous/clean/dirty/modernc/cgo tiers) plus synthetic adversarial Go module (linkname pulls, reentrant-lock/sync misuse, resource lifecycle, unsafe ptr, cgo flag violations, generic-local-type importers) and adversarial-lgo (edge subpackage). Full pass: every buildable entry lints rc=1 on both gglint and logos lint with real findings; adversarial-lgo gglint rc=3 is correct go vet semantics; gopacket 'fatal error:' = missing optional pfring.h; all 'panic:/goroutine' signals are finding-text substrings; all nondet flags are ordering-only (deterministic diagnostic set, documented). raylib needed system headers (wayland/xkbcommon/EGL) — env gap, not a tool bug; gitaly needed go:embed binary stubs — repo build prerequisite. No new tool defects found: the L-ICE-1 fix holds under 34-repo load including its advimporter adversarial sibling."
+  },
+  {
+   "id": "L-TRIAGE-3",
+   "severity": "info",
+   "status": "triaged",
+   "title": "Round-3 deep dogfood: lsp/context/eject verified; lint phase-gating documented",
+   "detail": "logos lsp (gopls proxy) verified end-to-end on .lgo: didSave publishes 'undefined: undefinedFunction' mapped to the .lgo URI. logos context resolves std/dep/.lgo/generic symbols correctly. logos eject lowers ?, errdefer, go group, and yield generators to stock Go that vets clean and runs correctly. Key lint semantics verified: deny-severity diagnostics are compiler-stage errors flushed before ExitIfErrors, which gates the type-dependent registry checks (unbounded_channel_op, defer_erases_errdefer_state) — a file/package with any compiler-stage deny gets only those findings until fixed and re-linted (phased reporting, matches irgen ExitIfErrors design). logos lint silently skips the toolchain's own cmd module because cmd/... packages classify Standard with nil Module (same boundary as std). gglint self-dogfood on src/cmd (2244 findings, 33 analyzers, zero crashes). New corpus coverage: adversarial-lgo/{denied,checks} split attacks by phase so all rule families get exercised."
+  },
+  {
+   "id": "L-GAP-1",
+   "severity": "low",
+   "status": "fixed",
+   "title": "logos lint never lints _test.go files (coverage gap vs go vet)",
+   "detail": "work/lintActor compiles only p.GoFiles (work/logos_lint.go:78); TestGoFiles/XTestGoFiles are never linted. A package of only _test.go gets rc=0 silently, and violations inside _test.go of a normal package never surface — gglint flags them (goroutine leak in test caught on the same probe). go vet covers test files. The SPEC _test.go exemption in pedantic::unsafe_outside_unsafe_file (Sec 1.2) implies test files were meant to be linted. Candidate design gap: either extend LintAction to test variants or document the exclusion.",
+   "files": [
+    "src/cmd/go/internal/work/logos_lint.go"
+   ],
+   "found_via": "extreme-scenario grill: test-only package probe",
+   "fix": "runLint now builds test variants via load.TestPackagesFor (like go vet): ptest linted in place of p (GoFiles+TestGoFiles), pxtest linted for external test packages. Broken test variant reports the error and still lints non-test files.",
+   "fix_pr": "https://github.com/gosuda/LoGOs/pull/78",
+   "test": "src/cmd/go/testdata/script/logos_lint_testfiles.txt covers internal, external, test-only, and broken-import cases."
+  },
+  {
+   "id": "L-GAP-2",
+   "severity": "low",
+   "status": "triaged",
+   "title": "-json-diagnostics mixes raw-text errors with JSON diagnostics on stderr",
+   "detail": "Scanner/loader-level errors (illegal UTF-8 encoding, build constraints exclude all files, import cycle, ambiguous import) print as raw 'file:line: message' text on the same stderr stream as -json-diagnostics output. A consumer parsing line-delimited JSON chokes on these lines. Options: wrap them in the diagnostic envelope or document that the stream is JSON-per-line only for lint findings.",
+   "found_via": "extreme-scenario grill: invalid-UTF-8 .lgo probe"
+  },
+  {
+   "id": "L-TRIAGE-4",
+   "severity": "info",
+   "status": "triaged",
+   "title": "Extreme-scenario grill: all else clean",
+   "detail": "Verified: 8-way concurrent logos lint and gglint on same module (byte-identical outputs, no cache races), lint+build race clean, go.work workspace linting (GOWORK=off gives descriptive error), cross-GOOS lint (windows file linted only under GOOS=windows), mixed .go+.lgo package -> correctness::mixed_package, CRLF/BOM .lgo linted with correct positions, invalid UTF-8 -> descriptive error, import cycle / ambiguous stdlib-collision import / bad replace / future go directive -> descriptive errors, cgo-only and asm packages linted, 3814-line file with 3004-line function + 150-deep nesting linted fine (cognitive score 11325), recursive interface types rejected, SIGINT mid-lint exits rc=1 with no cache corruption."
+  },
+  {
+   "id": "L-MAC-1",
+   "severity": "high",
+   "status": "fixed",
+   "title": "linkname-mismatch rule skipped linkname targets in transitively-reached packages",
+   "detail": "Packages reached only through another package's export data are shells carrying just the objects the intermediate package references; linkedSymbol returned nil for linkname targets living in them, so rule_linkname_mismatch silently skipped (TestLinknameMismatchTransitiveImport red at HEAD).",
+   "files": [
+    "src/cmd/compile/internal/logos/lint/rule.go",
+    "src/cmd/compile/internal/logos/lint/rule_linkname_mismatch.go",
+    "src/cmd/compile/internal/noder/logos_lint.go",
+    "src/cmd/compile/internal/noder/irgen.go"
+   ],
+   "fix": "Added optional Input.Importer; on a nil target the rule re-imports the package in full and retries the lookup.",
+   "test": "go test -count=1 -short cmd/compile/internal/logos/lint cmd/compile/internal/noder",
+   "found_via": "macOS audit: TestLinknameMismatchTransitiveImport failed at HEAD"
+  },
+  {
+   "id": "L-MAC-2",
+   "severity": "high",
+   "status": "fixed",
+   "title": "Importer.Import retry on an unresolved transitive package aborts on pkg1.Direct invariant",
+   "detail": "readImportFileImpl set pkg1.Direct = true and appended to target.Imports before the import could fail. types.NewPkg caches *types.Pkg per path, so a failed import left Direct set while packages[path] stayed incomplete; a later import of the same path hit the 'unexpected Direct package' invariant (base.Fatalf).",
+   "files": [
+    "src/cmd/compile/internal/noder/import_logos.go"
+   ],
+   "fix": "On every post-Direct error return, roll back pkg1.Direct and remove pkg1's own target.Imports entry (not the tail: recursive imports may have appended completed dependencies after it) when packages[path] never completed; keep both when it did.",
+   "test": "go test -count=1 -short cmd/compile/internal/logos/lint cmd/compile/internal/noder",
+   "found_via": "Devin Review finding on the L-MAC-1 fix"
+  },
+  {
+   "id": "audit-cap-chains-lgo-dep-fold",
+   "severity": "medium",
+   "status": "open",
+   "summary": "logos_cap_chains rl/b,c,d: capability audit finds nothing when a .lgo dep calls reflect.TypeOf(0) — the call is comptime-folded so no runtime reach exists; fixture cannot pass on any platform until the dep uses a non-constant sink call (e.g. reflect.TypeOf(param)).",
+   "file": "src/cmd/go/testdata/script/logos_cap_chains.txt",
+   "platform": "all (observed darwin/arm64)"
+  },
+  {
+   "id": "L-WIN-1",
+   "severity": "high",
+   "status": "fixed",
+   "title": "hintFileKey misses every file on Windows: escape-hint pipeline silent",
+   "detail": "hintFileKey's IsAbs branch stored pos.RelFilename() forward-slash absolute paths verbatim while callers keyed with filepath.Abs-cleaned backslash paths, so byName never matched and allocs stayed empty on Windows.",
+   "files": [
+    "src/cmd/compile/internal/logos/hints.go"
+   ],
+   "fix": "filepath.Clean(name) in the IsAbs branch of hintFileKey.",
+   "test": "TestCompileHintsRelativeFileName; TestProxyHintsGoPackageAlloc (LSP end-to-end) green after toolchain rebuild.",
+   "found_via": "native Windows test run: TestProxyHintsGoPackageAlloc 'no allocation badge'"
+  },
+  {
+   "id": "L-WIN-2",
+   "severity": "high",
+   "status": "fixed",
+   "title": "goparity execution-queue markers/argv0 mismatch on Windows",
+   "detail": "Helper clones are .exe files spawned via extensionless paths; argv0-derived .ready/.release markers landed at holder0.ready while the test waited for holder0.exe.ready. Missing-executable launch returns exec.ErrNotFound, not fs.ErrNotExist, on Windows.",
+   "files": [
+    "src/cmd/internal/goparity/execution_queue_test.go"
+   ],
+   "fix": "exeName() applied to cloned names, marker paths, and the runAll prog/row key; accept exec.ErrNotFound alongside fs.ErrNotExist; helper name check trims .exe.",
+   "test": "TestRunBinaryExecutionQueue (all three scenarios) green.",
+   "found_via": "native Windows test run: 'holder0.exe did not write its readiness marker'"
+  },
+  {
+   "id": "L-WIN-3",
+   "severity": "high",
+   "status": "fixed",
+   "title": "cgo parity lanes unbuildable on Windows",
+   "detail": "Go defaults CC=gcc (absent). After forcing clang, the stripped child env still failed: clang needs its dir on PATH plus ProgramFiles*/ProgramData/SystemRoot for MSVC/SDK auto-detection and TMP/TEMP for temp files.",
+   "files": [
+    "src/cmd/internal/goparity/parity_test.go"
+   ],
+   "fix": "appendEnv injects CC=clang on CGO_ENABLED=1 lanes lacking CC, prepends clang's dir to the child PATH, and forwards the detection/temp env vars.",
+   "test": "TestParity K1/K5 cgo lanes green.",
+   "found_via": "native Windows test run: gcc not found; stdlib.h not found; unable to make temporary file"
+  },
+  {
+   "id": "L-WIN-4",
+   "severity": "medium",
+   "status": "fixed",
+   "title": "LSP/goparity fake toolchains were shell-script only",
+   "detail": "wrap.sh, gopls and version stub scripts cannot run on Windows. Replaced with the established fake-tool pattern: os.Executable() cloned under a fake name, env vars select the mode in TestMain, delegate exit codes propagate. A copied go.exe renamed logos.exe loses GOROOT self-discovery, so the wrap fake forwards GOROOT explicitly (argv0 logos[.exe] keeps cfg.Logos detection).",
+   "files": [
+    "src/cmd/go/internal/logos/lsp/lsp_test.go",
+    "src/cmd/go/internal/logos/lsp/toolchain_test.go",
+    "src/cmd/go/internal/logos/lsp/stock_client_test.go",
+    "src/cmd/internal/goparity/parity_test.go"
+   ],
+   "fix": "writeFakeTool via os.Link+copy fallback; LOGOS_LSP_FAKE_* env modes; GOROOT env for relocated binaries; GOPARITY_FAKE_VERSION mode.",
+   "test": "toolchain wrap/failing, stock-client and parity version tests green.",
+   "found_via": "native Windows test run"
+  },
+  {
+   "id": "L-WIN-5",
+   "severity": "medium",
+   "status": "fixed",
+   "title": "LSP path/normalization assertions were POSIX-shaped",
+   "detail": "uriPath normalizes separators per platform, so the seeded /w/a/a.lgo never matched on Windows; overlay owner-only mode bits do not exist under Windows ACLs.",
+   "files": [
+    "src/cmd/go/internal/logos/lsp/bounds_test.go",
+    "src/cmd/go/internal/logos/lsp/overlay_perms_test.go"
+   ],
+   "fix": "filepath.FromSlash on the fixture path; perm assertion gated to non-windows (access control is ACL-based).",
+   "test": "TestEditedDocumentDropsDiagnosticsOfTheOldLowering; TestOverlayBuffersStayOwnerOnly green.",
+   "found_via": "native Windows test run"
+  },
+  {
+   "id": "L-WIN-6",
+   "severity": "medium",
+   "status": "fixed",
+   "title": "fastcall C fixtures were POSIX-only",
+   "detail": "gate_wait/gate_watch used poll/write/read on int fds and stress_usleep used usleep; int32(Fd()) also truncated 64-bit HANDLEs.",
+   "files": [
+    "src/cmd/cgo/internal/testlogos/fastcall_c.c",
+    "src/cmd/cgo/internal/testlogos/fastcall_stress_c.c",
+    "src/cmd/cgo/internal/testlogos/fastcall.go",
+    "src/cmd/cgo/internal/testlogos/fastcall_test.go"
+   ],
+   "fix": "uintptr_t params end-to-end (Fd() is uintptr); Windows impls via WriteFile/PeekNamedPipe-with-deadline/ReadFile/Sleep keeping the same 30s gate semantics; call sites pass Fd() unwrapped.",
+   "test": "package builds with CGO_ENABLED=1 CC=clang; gate tests run natively.",
+   "found_via": "native Windows build"
+  },
+  {
+   "id": "L-WIN-7",
+   "severity": "medium",
+   "status": "deferred",
+   "title": "go tool nm/objdump cannot read symbols from lld-linked Windows PE",
+   "detail": "Externally linked PE executables carry no COFF symbol table, so nm reports 'no symbols' and objdump -s never matches (dumping the whole binary until watchdog). Tool limitation upstream of the tests.",
+   "files": [
+    "src/cmd/cgo/internal/testlogos/fastcall_test.go"
+   ],
+   "fix": "nmLines/objdumpFunc skip on windows with the tool-limitation reason; every assertion still runs where the tools can read symbols.",
+   "test": "t.Skip recorded; deferred upstream tooling work.",
+   "found_via": "native Windows test run"
+  },
+  {
+   "id": "L-WIN-8",
+   "severity": "medium",
+   "status": "deferred",
+   "title": "CPU profiles collect zero samples during cgo calls on Windows",
+   "detail": "The pure-Go in-process canary does collect samples, but every profile taken while work happens inside cgo calls (plain busy loop in the test binary and the fixture's own profile) comes back with 0 samples on native Windows: the runtime profiler does not attribute time to threads suspended in cgo calls.",
+   "files": [
+    "src/cmd/cgo/internal/testlogos/fastcall_test.go"
+   ],
+   "fix": "TestFastcallSigprofSurvives, TestFastcallProfileAttribution and TestFastcallLogosProfileParity skip on windows pending the runtime investigation.",
+   "test": "deferred runtime item.",
+   "found_via": "native Windows test run: lgo caller 0 of 0 samples, plain caller 0 of 0, canary >0"
+  },
+  {
+   "id": "L-WIN-9",
+   "severity": "low",
+   "status": "deferred",
+   "title": "-fsanitize=undefined cannot link via lld on Windows",
+   "detail": "compiler-rt's sanitizer_win.cpp references MSVC-runtime symbols lld does not wire in this configuration.",
+   "files": [
+    "src/cmd/cgo/internal/testlogos/fastcall_shapes_test.go"
+   ],
+   "fix": "TestFastcallShapesUbsan skips on windows; tsan/race/plain lanes still run.",
+   "test": "deferred toolchain item.",
+   "found_via": "native Windows test run: lld-link undefined symbols"
+  },
+  {
+   "id": "L-WIN-10",
+   "severity": "low",
+   "status": "fixed",
+   "title": "Stale fixtures and ledger defect on Windows run",
+   "detail": "mutant at08 needle predated the upstream '|| Nosplit' clause; REDTEAM.md carried two #440 rows (e96 re-validation appended instead of merged); simd_slice_tail.lgo ran without its unix constraint; assorted test binaries lacked .exe.",
+   "files": [
+    "src/cmd/internal/goparity/testdata/mutants/at08.txt",
+    "logos-doc/REDTEAM.md",
+    "test/logos/run/simd_slice_tail.lgo",
+    "src/cmd/compile/internal/logos/*_test.go"
+   ],
+   "fix": "needle updated to current source shape; #440 rows merged into the richer validated text; //go:build unix added; .exe names on spawned binaries.",
+   "test": "TestParityMutantProbesDefined; TestRedteamLedgerRows green.",
+   "found_via": "native Windows test run"
+  },
+  {
+   "id": "L-WIN-11",
+   "severity": "medium",
+   "status": "fixed",
+   "title": "cgoopt fixture compared cgo errno against syscall.EINVAL",
+   "detail": "syscall.EINVAL on Windows is an invented APPLICATION_ERROR value (>=1<<29), while cgo returns the raw C errno (22). The check failed for both the go and logos builds.",
+   "files": [
+    "src/cmd/cgo/internal/testlogos/testdata/cgoopt/main.go"
+   ],
+   "fix": "compare against syscall.Errno(C.EINVAL) - the raw C errno value on every platform.",
+   "test": "TestCgoOptRuntime green in all four build variants.",
+   "found_via": "native Windows test run: errno result = -1 for -1"
+  }
+ ]
 }

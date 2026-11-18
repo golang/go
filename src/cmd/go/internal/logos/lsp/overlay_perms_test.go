@@ -7,6 +7,7 @@ package lsp
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -30,7 +31,7 @@ func TestOverlayBuffersStayOwnerOnly(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if fi.Mode().Perm()&0o077 != 0 {
+		if runtime.GOOS != "windows" && fi.Mode().Perm()&0o077 != 0 {
 			t.Errorf("overlay path %s mode %o grants group or other access", p, fi.Mode().Perm())
 		}
 	}

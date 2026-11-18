@@ -17,8 +17,8 @@ int read_int(int *p);
 int sum_bytes(unsigned char *p, int n);
 unsigned long long busy_spin(unsigned long long iters);
 unsigned long long plain_spin(unsigned long long iters);
-int gate_wait(int ready_fd, int gate_fd);
-int gate_watch(int ready_fd, int gate_fd, unsigned char *p, unsigned char want);
+int gate_wait(uintptr_t ready_fd, uintptr_t gate_fd);
+int gate_watch(uintptr_t ready_fd, uintptr_t gate_fd, unsigned char *p, unsigned char want);
 
 #cgo noescape fast_add
 #cgo nocallback fast_add
@@ -74,10 +74,10 @@ func callFastBusy(iters uint64) uint64 { return uint64(C.busy_spin(C.ulonglong(i
 
 func callPlainBusy(iters uint64) uint64 { return uint64(C.plain_spin(C.ulonglong(iters))) }
 
-func callFastGateWait(readyFD, gateFD int32) int32 {
-	return int32(C.gate_wait(C.int(readyFD), C.int(gateFD)))
+func callFastGateWait(readyFD, gateFD uintptr) int32 {
+	return int32(C.gate_wait(C.uintptr_t(readyFD), C.uintptr_t(gateFD)))
 }
 
-func callFastGateWatch(readyFD, gateFD int32, p *byte, want byte) int32 {
-	return int32(C.gate_watch(C.int(readyFD), C.int(gateFD), (*C.uchar)(unsafe.Pointer(p)), C.uchar(want)))
+func callFastGateWatch(readyFD, gateFD uintptr, p *byte, want byte) int32 {
+	return int32(C.gate_watch(C.uintptr_t(readyFD), C.uintptr_t(gateFD), (*C.uchar)(unsafe.Pointer(p)), C.uchar(want)))
 }

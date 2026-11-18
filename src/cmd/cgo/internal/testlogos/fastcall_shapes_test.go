@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -846,6 +847,9 @@ func TestFastcallShapesRace(t *testing.T) {
 }
 
 func TestFastcallShapesUbsan(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("lld-link cannot link -fsanitize=undefined on Windows: compiler-rt's MSVC runtime wiring leaves unresolved symbols")
+	}
 	bin := shapesBuildUbsan(t)
 	out, err := shapesRunCmd(t, "", nil, bin)
 	if err != nil {

@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -55,6 +56,9 @@ func TestConstForNestedExpansionTripsFast(t *testing.T) {
 	dir := t.TempDir()
 	writeNestedProbe(t, dir, 10, 9)
 	logos := filepath.Join(testenv.GOROOT(t), "bin", "logos")
+	if runtime.GOOS == "windows" {
+		logos += ".exe"
+	}
 	backstop := 180 * time.Second
 	backstopErr := errors.New("nested expansion backstop elapsed")
 	ctx, cancel := context.WithTimeoutCause(t.Context(), backstop, backstopErr)

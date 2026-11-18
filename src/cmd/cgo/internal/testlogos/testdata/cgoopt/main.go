@@ -99,7 +99,7 @@ func checkResults() {
 			value = -1
 		}
 		got, err := C.opt_errno(value)
-		if got != value || value < 0 && err != syscall.EINVAL || value >= 0 && err != nil {
+		if got != value || value < 0 && err != syscall.Errno(C.EINVAL) || value >= 0 && err != nil {
 			panic(fmt.Sprintf("errno result = %d, %v for %d", got, err, value))
 		}
 	}

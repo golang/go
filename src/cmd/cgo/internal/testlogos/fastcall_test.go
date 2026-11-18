@@ -450,6 +450,9 @@ func selfTestBin(t *testing.T) string {
 
 func nmLines(t *testing.T, binary string) []string {
 	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("go tool nm reads the COFF symbol table, which externally linked Windows PE binaries do not carry")
+	}
 	out, err := runCmd(t, "", goBin(t), "tool", "nm", binary)
 	if err != nil {
 		t.Fatalf("go tool nm: %v\n%s", err, out)
@@ -489,6 +492,9 @@ func TestFastcallOneTrampoline(t *testing.T) {
 
 func objdumpFunc(t *testing.T, binary, symbol string) string {
 	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("go tool objdump -s needs Go symbols, which externally linked Windows PE binaries do not carry")
+	}
 	out, err := runCmd(t, "", goBin(t), "tool", "objdump", "-s", symbol, binary)
 	if err != nil {
 		t.Fatalf("go tool objdump -s %s: %v\n%s", symbol, err, out)
@@ -545,7 +551,7 @@ func TestFastcallBlockingParity(t *testing.T) {
 	defer gateW.Close()
 	done := make(chan int32, 1)
 	go func() {
-		done <- callFastGateWait(int32(readyW.Fd()), int32(gateR.Fd()))
+		done <- callFastGateWait(readyW.Fd(), gateR.Fd())
 	}()
 	type readyRes struct {
 		n    int
@@ -597,6 +603,9 @@ func TestFastcallBlockingParity(t *testing.T) {
 
 func TestFastcallSigprofSurvives(t *testing.T) {
 	requireCgo(t)
+	if runtime.GOOS == "windows" {
+		t.Skip("CPU profiles collect no samples on Windows yet (runtime sigprof gap)")
+	}
 	prof := filepath.Join(t.TempDir(), "cpu.prof")
 	const floor = 50
 	const maxIters = 2000000000
@@ -814,6 +823,9 @@ func locationMentions(loc *profile.Location, caller, leaf string) (bool, bool) {
 
 func TestFastcallProfileAttribution(t *testing.T) {
 	requireCgo(t)
+	if runtime.GOOS == "windows" {
+		t.Skip("CPU profiles collect no samples on Windows yet (runtime sigprof gap)")
+	}
 	self, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
@@ -1030,11 +1042,11 @@ func TestFastcallPinUnderCollection(t *testing.T) {
 	defer gateW.Close()
 	done := make(chan int32, 1)
 	pinnedCh := make(chan weak.Pointer[watchHeap], 1)
-	go func(readyFD, gateFD int32) {
+	go func(readyFD, gateFD uintptr) {
 		watchPtr, watchOwner := gateWatchHeap()
 		pinnedCh <- weak.Make(watchOwner)
 		done <- callFastGateWatch(readyFD, gateFD, watchPtr, 42)
-	}(int32(readyW.Fd()), int32(gateR.Fd()))
+	}(readyW.Fd(), gateR.Fd())
 	pinned := <-pinnedCh
 	type readyRes struct {
 		n    int
@@ -1101,12 +1113,12 @@ func TestFastcallPinStackUnderCollection(t *testing.T) {
 	defer gateR.Close()
 	defer gateW.Close()
 	done := make(chan int32, 1)
-	go func(readyFD, gateFD int32) {
+	go func(readyFD, gateFD uintptr) {
 		growStack(4000)
 		var buf [8192]byte
 		buf[0] = 42
 		done <- callFastGateWatch(readyFD, gateFD, &buf[0], 42)
-	}(int32(readyW.Fd()), int32(gateR.Fd()))
+	}(readyW.Fd(), gateR.Fd())
 	type readyRes struct {
 		n    int
 		rerr error
@@ -1230,6 +1242,9 @@ func TestFastcallLogosCallbackParity(t *testing.T) {
 }
 
 func TestFastcallLogosProfileParity(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("windows CPU profiler does not attribute samples to threads in cgo calls")
+	}
 	requireCgo(t)
 	self, err := os.Executable()
 	if err != nil {

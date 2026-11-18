@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -215,15 +216,8 @@ func TestStockClientThroughRealProxy(t *testing.T) {
 	if err := os.WriteFile(lgoPath, []byte(stockLgo), 0o666); err != nil {
 		t.Fatal(err)
 	}
-	exe, err := os.Executable()
-	if err != nil {
-		t.Fatal(err)
-	}
 	fakeDir := t.TempDir()
-	wrapper := "#!/bin/sh\nexec \"" + exe + "\" \"$@\"\n"
-	if err := os.WriteFile(filepath.Join(fakeDir, "gopls"), []byte(wrapper), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	writeFakeGopls(t, fakeDir)
 	script, err := jsonv2.Marshal(fakeScript{Echo: true})
 	if err != nil {
 		t.Fatal(err)
@@ -235,6 +229,9 @@ func TestStockClientThroughRealProxy(t *testing.T) {
 	}
 	logPath := filepath.Join(scratch, "stock.log")
 	logosBin := filepath.Join(filepath.Dir(testenv.GoToolPath(t)), "logos")
+	if runtime.GOOS == "windows" {
+		logosBin += ".exe"
+	}
 	if _, err := os.Stat(logosBin); err != nil {
 		t.Skipf("logos binary not present: %v", err)
 	}

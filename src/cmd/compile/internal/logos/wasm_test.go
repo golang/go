@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -154,6 +155,9 @@ func wasmNode(tb testing.TB) string {
 func wasmLogos(tb testing.TB) string {
 	tb.Helper()
 	p := filepath.Join(filepath.Dir(testenv.GoToolPath(tb)), "logos")
+	if runtime.GOOS == "windows" {
+		p += ".exe"
+	}
 	if _, err := os.Stat(p); err != nil {
 		tb.Skipf("logos binary not found beside the go tool: %v", err)
 	}

@@ -6,10 +6,10 @@ package lsp
 
 import (
 	"encoding/json"
-	"fmt"
 	"internal/testenv"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -250,16 +250,37 @@ func TestToolchainHints(t *testing.T) {
 	}
 }
 
-func TestToolchainOneRunYieldsAllOutputs(t *testing.T) {
-	root, _ := realWorkspace(t)
+// wrappingToolchain points the toolchain at the test binary's fake wrap,
+// which appends the joined argv to the returned log path before delegating
+// to a logos-named copy of the go tool.
+func wrappingToolchain(t *testing.T) (*toolchain, string) {
+	t.Helper()
 	scratch := t.TempDir()
 	logPath := filepath.Join(scratch, "argv.log")
-	wrapper := filepath.Join(scratch, "wrap.sh")
-	script := fmt.Sprintf("#!/bin/bash\nprintf '%%s\\n' \"$*\" >>%q\nexec -a logos %q \"$@\"\n", logPath, testenv.GoToolPath(t))
-	if err := os.WriteFile(wrapper, []byte(script), 0o777); err != nil {
-		t.Fatal(err)
+	wrap := writeFakeTool(t, scratch, "wrap")
+	logosTool := filepath.Join(scratch, "logos")
+	if runtime.GOOS == "windows" {
+		logosTool += ".exe"
 	}
-	tc := newToolchain(wrapper)
+	goTool := testenv.GoToolPath(t)
+	if err := os.Link(goTool, logosTool); err != nil {
+		data, err := os.ReadFile(goTool)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(logosTool, data, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv(fakeWrapLogEnv, logPath)
+	t.Setenv(fakeWrapToolEnv, logosTool)
+	t.Setenv(fakeWrapGorootEnv, filepath.Clean(filepath.Join(goTool, "..", "..")))
+	return newToolchain(wrap), logPath
+}
+
+func TestToolchainOneRunYieldsAllOutputs(t *testing.T) {
+	root, _ := realWorkspace(t)
+	tc, logPath := wrappingToolchain(t)
 	ctx := t.Context()
 	pkgDir := filepath.Join(root, "lmod", "a")
 	low, err := tc.Lower(ctx, pkgDir, nil)
@@ -302,14 +323,7 @@ func TestToolchainOneRunYieldsAllOutputs(t *testing.T) {
 
 func TestToolchainDiskChangedRefreshesDiagnostics(t *testing.T) {
 	root, _ := realWorkspace(t)
-	scratch := t.TempDir()
-	logPath := filepath.Join(scratch, "argv.log")
-	wrapper := filepath.Join(scratch, "wrap.sh")
-	script := fmt.Sprintf("#!/bin/bash\nprintf '%%s\\n' \"$*\" >>%q\nexec -a logos %q \"$@\"\n", logPath, testenv.GoToolPath(t))
-	if err := os.WriteFile(wrapper, []byte(script), 0o777); err != nil {
-		t.Fatal(err)
-	}
-	tc := newToolchain(wrapper)
+	tc, logPath := wrappingToolchain(t)
 	dir := filepath.Join(root, "gomod", "plain")
 	buffers := map[string][]byte{
 		filepath.Join(dir, "p.go"): []byte("package plain\n\nfunc F() int { return 1 }\n"),
@@ -387,12 +401,9 @@ func TestWatchedFilesInvalidateCompilerRun(t *testing.T) {
 
 func failingToolchain(t *testing.T) *toolchain {
 	t.Helper()
-	wrapper := filepath.Join(t.TempDir(), "failing-logos")
-	script := "#!/bin/sh\necho 'go: writing build cache: no space left on device' >&2\nexit 1\n"
-	if err := os.WriteFile(wrapper, []byte(script), 0o777); err != nil {
-		t.Fatal(err)
-	}
-	return newToolchain(wrapper)
+	tool := writeFakeTool(t, t.TempDir(), "failing-logos")
+	t.Setenv(fakeFailEnv, "1")
+	return newToolchain(tool)
 }
 
 func TestToolchainReportsAFailedRun(t *testing.T) {

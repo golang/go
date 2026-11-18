@@ -253,7 +253,15 @@ func runTier(m *testing.M, req tierRequest) int {
 	return 0
 }
 
+// fakeVersionEnv marks a copy of the test binary that stands in for a go
+// tool and answers `env GOVERSION` with the version the fixture recorded.
+const fakeVersionEnv = "GOPARITY_FAKE_VERSION"
+
 func TestMain(m *testing.M) {
+	if v := os.Getenv(fakeVersionEnv); v != "" {
+		fmt.Println(v)
+		os.Exit(0)
+	}
 	flag.Parse()
 	os.Exit(runTier(m, tierRequest{
 		release:  *releaseFlag,
@@ -383,6 +391,9 @@ type buildResult struct {
 func toolVersion(bin, goroot string) (string, error) {
 	cmd := exec.Command(bin, "env", "GOVERSION")
 	cmd.Env = []string{"PATH=/usr/bin:/bin", "HOME=" + os.TempDir(), "GOROOT=" + goroot, "GOENV=off", "GOTOOLCHAIN=local"}
+	if v := os.Getenv(fakeVersionEnv); v != "" {
+		cmd.Env = append(cmd.Env, fakeVersionEnv+"="+v)
+	}
 	out, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("%s env GOVERSION: %w", bin, err)
@@ -399,10 +410,16 @@ func fakeToolchain(t *testing.T, fileVersion, binVersion string) (goroot, bin st
 	if err := os.WriteFile(filepath.Join(goroot, "VERSION"), []byte(fileVersion+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	bin = filepath.Join(goroot, "bin", "go")
-	if err := os.WriteFile(bin, []byte("#!/bin/sh\necho "+binVersion+"\n"), 0o755); err != nil {
+	t.Setenv(fakeVersionEnv, binVersion)
+	exe, err := os.Executable()
+	if err != nil {
 		t.Fatal(err)
 	}
+	bin = filepath.Join(goroot, "bin", "go")
+	if runtime.GOOS == "windows" {
+		bin += ".exe"
+	}
+	cloneBinary(t, exe, bin)
 	return goroot, bin
 }
 
@@ -420,7 +437,11 @@ func TestToolVersionComesFromTheBinary(t *testing.T) {
 
 func TestForkToolIgnoresAStaleLogosBinary(t *testing.T) {
 	goroot, bin := fakeToolchain(t, forkVersionPin, forkVersionPin)
-	if err := os.WriteFile(filepath.Join(goroot, "bin", "logos"), []byte("#!/bin/sh\necho stale\n"), 0o755); err != nil {
+	stale := filepath.Join(goroot, "bin", "logos")
+	if runtime.GOOS == "windows" {
+		stale += ".exe"
+	}
+	if err := os.WriteFile(stale, []byte("stale\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("GOROOT", goroot)
@@ -449,6 +470,9 @@ func forkTool(t *testing.T) toolchain {
 		t.Fatal("GOROOT is not set")
 	}
 	bin := filepath.Join(goroot, "bin", "go")
+	if runtime.GOOS == "windows" {
+		bin += ".exe"
+	}
 	if _, err := os.Stat(bin); err != nil {
 		t.Fatalf("fork go binary missing: %v", err)
 	}
@@ -463,6 +487,9 @@ func forkTool(t *testing.T) toolchain {
 		t.Fatalf("fork version skew not audited: got %s want %s; re-run `git diff --stat %s <oracle> -- src test` and update the pin in parity_test.go", v, forkVersionPin, forkVersionPin)
 	}
 	logos := filepath.Join(t.TempDir(), "logos")
+	if runtime.GOOS == "windows" {
+		logos += ".exe"
+	}
 	cloneBinary(t, bin, logos)
 	return toolchain{bin: bin, logos: logos, goroot: goroot}
 }
@@ -493,6 +520,9 @@ func upstreamTool(t *testing.T) (toolchain, bool) {
 			t.Fatalf("upstream oracle missing: $UPROOT1274 is not set (pass -goparity.upstream=off to run the metamorphic tier only)")
 		}
 		bin = filepath.Join(goroot, "bin", "go")
+		if runtime.GOOS == "windows" {
+			bin += ".exe"
+		}
 	}
 	if _, err := os.Stat(bin); err != nil {
 		t.Fatalf("upstream oracle %s missing: %v (pass -goparity.upstream=off to run the metamorphic tier only)", bin, err)
@@ -530,7 +560,31 @@ func baseEnv(cacheDir, goroot string) []string {
 
 func appendEnv(env []string, kv ...string) []string {
 	out := slices.Clone(env)
-	return append(out, kv...)
+	out = append(out, kv...)
+	// Windows go builds default CC to gcc, which does not exist on MSVC/clang
+	// hosts; a cgo lane without an explicit CC falls back to clang. The spawned
+	// env's PATH is POSIX-only, so clang's directory must be added for the
+	// delegate build to resolve it, and clang's MSVC/SDK auto-detection needs
+	// the ambient ProgramFiles/ProgramData/SystemRoot vars it expands.
+	if runtime.GOOS == "windows" && slices.Contains(out, "CGO_ENABLED=1") {
+		if !slices.ContainsFunc(out, func(e string) bool { return strings.HasPrefix(e, "CC=") }) {
+			if clang, err := exec.LookPath("clang"); err == nil {
+				for i, e := range out {
+					if strings.HasPrefix(e, "PATH=") {
+						out[i] = "PATH=" + filepath.Dir(clang) + ";" + strings.TrimPrefix(e, "PATH=")
+						break
+					}
+				}
+				for _, v := range []string{"SystemRoot", "ProgramFiles", "ProgramFiles(x86)", "ProgramFiles(Arm)", "ProgramData", "ProgramW6432", "TMP", "TEMP"} {
+					if val := os.Getenv(v); val != "" {
+						out = append(out, v+"="+val)
+					}
+				}
+			}
+			out = append(out, "CC=clang")
+		}
+	}
+	return out
 }
 
 func forkCache() string { return filepath.Join(os.TempDir(), "goparity-fork-gocache") }

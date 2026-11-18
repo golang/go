@@ -11,6 +11,7 @@ import (
 	"internal/testenv"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -21,6 +22,9 @@ func TestCompileSIMDTransitiveImports(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	goTool := testenv.GoToolPath(t)
 	logosTool := filepath.Join(filepath.Dir(goTool), "logos")
+	if runtime.GOOS == "windows" {
+		logosTool += ".exe"
+	}
 	if _, err := os.Stat(logosTool); err != nil {
 		t.Fatal(err)
 	}

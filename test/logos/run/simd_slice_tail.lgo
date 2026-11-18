@@ -1,3 +1,5 @@
+//go:build linux || darwin
+
 // run -goexperiment simd
 
 package main
