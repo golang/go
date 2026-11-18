@@ -39,10 +39,12 @@ func ScaleSaturated[E Ints | Uints, W Width](x Vec[E, W], scale Vec[int8, W]) (z
 
 // {{if eq .xB "int" -}}
 // ShiftAllRight arithmetically shifts each element of x right by shift bits.
-// If shift is greater than the element width, the result is 0 or -1.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0 or -1, depending on the sign of the element.
 // {{- else -}}
 // ShiftAllRight logically shifts each element of x right by shift bits.
-// If shift is greater than the element width, the result is 0.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0.
 // {{- end}}
 //
 //	z[i] = x[i] >> shift
@@ -53,7 +55,8 @@ func ShiftAllRight[E Ints | Uints, W Width](x Vec[E, W], shift uint64) (z Vec[E,
 }
 
 // ShiftAllLeft shifts each element of x left by shift bits.
-// If shift is greater than the element width, the result is 0.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift
 func ShiftAllLeft[E Ints | Uints, W Width](x Vec[E, W], shift uint64) (z Vec[E, W]) {
@@ -64,10 +67,12 @@ func ShiftAllLeft[E Ints | Uints, W Width](x Vec[E, W], shift uint64) (z Vec[E, 
 
 // {{if eq .xB "int" -}}
 // ShiftRight arithmetically shifts x[i] right by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0 or -1.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0 or -1, depending on the sign of the element.
 // {{- else -}}
 // ShiftRight logically shifts x[i] right by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
 // {{- end}}
 //
 //	z[i] = x[i] >> shift[i]
@@ -82,7 +87,8 @@ func ShiftRight[E Ints | Uints, W Width, yE Uints](x Vec[E, W], shift Vec[yE, W]
 }
 
 // ShiftLeft shifts x[i] left by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift[i]
 //

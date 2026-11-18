@@ -8772,7 +8772,8 @@ func (x Uint64x8) SetLo(y Uint64x4) (z Uint64x8)
 /* ShiftAllLeft */
 
 // ShiftAllLeft shifts each element of x left by shift bits.
-// If shift is greater than the element width, the result is 0.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift
 //
@@ -8780,7 +8781,8 @@ func (x Uint64x8) SetLo(y Uint64x4) (z Uint64x8)
 func (x Int16x8) ShiftAllLeft(shift uint64) (z Int16x8)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
-// If shift is greater than the element width, the result is 0.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift
 //
@@ -8788,7 +8790,8 @@ func (x Int16x8) ShiftAllLeft(shift uint64) (z Int16x8)
 func (x Int16x16) ShiftAllLeft(shift uint64) (z Int16x16)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
-// If shift is greater than the element width, the result is 0.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift
 //
@@ -8796,7 +8799,8 @@ func (x Int16x16) ShiftAllLeft(shift uint64) (z Int16x16)
 func (x Int16x32) ShiftAllLeft(shift uint64) (z Int16x32)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
-// If shift is greater than the element width, the result is 0.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift
 //
@@ -8804,7 +8808,8 @@ func (x Int16x32) ShiftAllLeft(shift uint64) (z Int16x32)
 func (x Int32x4) ShiftAllLeft(shift uint64) (z Int32x4)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
-// If shift is greater than the element width, the result is 0.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift
 //
@@ -8812,7 +8817,8 @@ func (x Int32x4) ShiftAllLeft(shift uint64) (z Int32x4)
 func (x Int32x8) ShiftAllLeft(shift uint64) (z Int32x8)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
-// If shift is greater than the element width, the result is 0.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift
 //
@@ -8820,7 +8826,8 @@ func (x Int32x8) ShiftAllLeft(shift uint64) (z Int32x8)
 func (x Int32x16) ShiftAllLeft(shift uint64) (z Int32x16)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
-// If shift is greater than the element width, the result is 0.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift
 //
@@ -8828,7 +8835,8 @@ func (x Int32x16) ShiftAllLeft(shift uint64) (z Int32x16)
 func (x Int64x2) ShiftAllLeft(shift uint64) (z Int64x2)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
-// If shift is greater than the element width, the result is 0.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift
 //
@@ -8836,7 +8844,8 @@ func (x Int64x2) ShiftAllLeft(shift uint64) (z Int64x2)
 func (x Int64x4) ShiftAllLeft(shift uint64) (z Int64x4)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
-// If shift is greater than the element width, the result is 0.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift
 //
@@ -8844,7 +8853,8 @@ func (x Int64x4) ShiftAllLeft(shift uint64) (z Int64x4)
 func (x Int64x8) ShiftAllLeft(shift uint64) (z Int64x8)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
-// If shift is greater than the element width, the result is 0.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift
 //
@@ -8852,7 +8862,8 @@ func (x Int64x8) ShiftAllLeft(shift uint64) (z Int64x8)
 func (x Uint16x8) ShiftAllLeft(shift uint64) (z Uint16x8)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
-// If shift is greater than the element width, the result is 0.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift
 //
@@ -8860,7 +8871,8 @@ func (x Uint16x8) ShiftAllLeft(shift uint64) (z Uint16x8)
 func (x Uint16x16) ShiftAllLeft(shift uint64) (z Uint16x16)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
-// If shift is greater than the element width, the result is 0.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift
 //
@@ -8868,7 +8880,8 @@ func (x Uint16x16) ShiftAllLeft(shift uint64) (z Uint16x16)
 func (x Uint16x32) ShiftAllLeft(shift uint64) (z Uint16x32)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
-// If shift is greater than the element width, the result is 0.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift
 //
@@ -8876,7 +8889,8 @@ func (x Uint16x32) ShiftAllLeft(shift uint64) (z Uint16x32)
 func (x Uint32x4) ShiftAllLeft(shift uint64) (z Uint32x4)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
-// If shift is greater than the element width, the result is 0.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift
 //
@@ -8884,7 +8898,8 @@ func (x Uint32x4) ShiftAllLeft(shift uint64) (z Uint32x4)
 func (x Uint32x8) ShiftAllLeft(shift uint64) (z Uint32x8)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
-// If shift is greater than the element width, the result is 0.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift
 //
@@ -8892,7 +8907,8 @@ func (x Uint32x8) ShiftAllLeft(shift uint64) (z Uint32x8)
 func (x Uint32x16) ShiftAllLeft(shift uint64) (z Uint32x16)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
-// If shift is greater than the element width, the result is 0.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift
 //
@@ -8900,7 +8916,8 @@ func (x Uint32x16) ShiftAllLeft(shift uint64) (z Uint32x16)
 func (x Uint64x2) ShiftAllLeft(shift uint64) (z Uint64x2)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
-// If shift is greater than the element width, the result is 0.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift
 //
@@ -8908,7 +8925,8 @@ func (x Uint64x2) ShiftAllLeft(shift uint64) (z Uint64x2)
 func (x Uint64x4) ShiftAllLeft(shift uint64) (z Uint64x4)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
-// If shift is greater than the element width, the result is 0.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift
 //
@@ -9104,7 +9122,8 @@ func (x Uint64x8) ShiftAllLeftConcatMod64(y Uint64x8, shift uint64) Uint64x8
 /* ShiftAllRight */
 
 // ShiftAllRight arithmetically shifts each element of x right by shift bits.
-// If shift is greater than the element width, the result is 0 or -1.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0 or -1, depending on the sign of the element.
 //
 //	z[i] = x[i] >> shift
 //
@@ -9112,7 +9131,8 @@ func (x Uint64x8) ShiftAllLeftConcatMod64(y Uint64x8, shift uint64) Uint64x8
 func (x Int16x8) ShiftAllRight(shift uint64) (z Int16x8)
 
 // ShiftAllRight arithmetically shifts each element of x right by shift bits.
-// If shift is greater than the element width, the result is 0 or -1.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0 or -1, depending on the sign of the element.
 //
 //	z[i] = x[i] >> shift
 //
@@ -9120,7 +9140,8 @@ func (x Int16x8) ShiftAllRight(shift uint64) (z Int16x8)
 func (x Int16x16) ShiftAllRight(shift uint64) (z Int16x16)
 
 // ShiftAllRight arithmetically shifts each element of x right by shift bits.
-// If shift is greater than the element width, the result is 0 or -1.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0 or -1, depending on the sign of the element.
 //
 //	z[i] = x[i] >> shift
 //
@@ -9128,7 +9149,8 @@ func (x Int16x16) ShiftAllRight(shift uint64) (z Int16x16)
 func (x Int16x32) ShiftAllRight(shift uint64) (z Int16x32)
 
 // ShiftAllRight arithmetically shifts each element of x right by shift bits.
-// If shift is greater than the element width, the result is 0 or -1.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0 or -1, depending on the sign of the element.
 //
 //	z[i] = x[i] >> shift
 //
@@ -9136,7 +9158,8 @@ func (x Int16x32) ShiftAllRight(shift uint64) (z Int16x32)
 func (x Int32x4) ShiftAllRight(shift uint64) (z Int32x4)
 
 // ShiftAllRight arithmetically shifts each element of x right by shift bits.
-// If shift is greater than the element width, the result is 0 or -1.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0 or -1, depending on the sign of the element.
 //
 //	z[i] = x[i] >> shift
 //
@@ -9144,7 +9167,8 @@ func (x Int32x4) ShiftAllRight(shift uint64) (z Int32x4)
 func (x Int32x8) ShiftAllRight(shift uint64) (z Int32x8)
 
 // ShiftAllRight arithmetically shifts each element of x right by shift bits.
-// If shift is greater than the element width, the result is 0 or -1.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0 or -1, depending on the sign of the element.
 //
 //	z[i] = x[i] >> shift
 //
@@ -9152,7 +9176,8 @@ func (x Int32x8) ShiftAllRight(shift uint64) (z Int32x8)
 func (x Int32x16) ShiftAllRight(shift uint64) (z Int32x16)
 
 // ShiftAllRight arithmetically shifts each element of x right by shift bits.
-// If shift is greater than the element width, the result is 0 or -1.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0 or -1, depending on the sign of the element.
 //
 //	z[i] = x[i] >> shift
 //
@@ -9160,7 +9185,8 @@ func (x Int32x16) ShiftAllRight(shift uint64) (z Int32x16)
 func (x Int64x8) ShiftAllRight(shift uint64) (z Int64x8)
 
 // ShiftAllRight logically shifts each element of x right by shift bits.
-// If shift is greater than the element width, the result is 0.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] >> shift
 //
@@ -9168,7 +9194,8 @@ func (x Int64x8) ShiftAllRight(shift uint64) (z Int64x8)
 func (x Uint16x8) ShiftAllRight(shift uint64) (z Uint16x8)
 
 // ShiftAllRight logically shifts each element of x right by shift bits.
-// If shift is greater than the element width, the result is 0.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] >> shift
 //
@@ -9176,7 +9203,8 @@ func (x Uint16x8) ShiftAllRight(shift uint64) (z Uint16x8)
 func (x Uint16x16) ShiftAllRight(shift uint64) (z Uint16x16)
 
 // ShiftAllRight logically shifts each element of x right by shift bits.
-// If shift is greater than the element width, the result is 0.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] >> shift
 //
@@ -9184,7 +9212,8 @@ func (x Uint16x16) ShiftAllRight(shift uint64) (z Uint16x16)
 func (x Uint16x32) ShiftAllRight(shift uint64) (z Uint16x32)
 
 // ShiftAllRight logically shifts each element of x right by shift bits.
-// If shift is greater than the element width, the result is 0.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] >> shift
 //
@@ -9192,7 +9221,8 @@ func (x Uint16x32) ShiftAllRight(shift uint64) (z Uint16x32)
 func (x Uint32x4) ShiftAllRight(shift uint64) (z Uint32x4)
 
 // ShiftAllRight logically shifts each element of x right by shift bits.
-// If shift is greater than the element width, the result is 0.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] >> shift
 //
@@ -9200,7 +9230,8 @@ func (x Uint32x4) ShiftAllRight(shift uint64) (z Uint32x4)
 func (x Uint32x8) ShiftAllRight(shift uint64) (z Uint32x8)
 
 // ShiftAllRight logically shifts each element of x right by shift bits.
-// If shift is greater than the element width, the result is 0.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] >> shift
 //
@@ -9208,7 +9239,8 @@ func (x Uint32x8) ShiftAllRight(shift uint64) (z Uint32x8)
 func (x Uint32x16) ShiftAllRight(shift uint64) (z Uint32x16)
 
 // ShiftAllRight logically shifts each element of x right by shift bits.
-// If shift is greater than the element width, the result is 0.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] >> shift
 //
@@ -9216,7 +9248,8 @@ func (x Uint32x16) ShiftAllRight(shift uint64) (z Uint32x16)
 func (x Uint64x2) ShiftAllRight(shift uint64) (z Uint64x2)
 
 // ShiftAllRight logically shifts each element of x right by shift bits.
-// If shift is greater than the element width, the result is 0.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] >> shift
 //
@@ -9224,7 +9257,8 @@ func (x Uint64x2) ShiftAllRight(shift uint64) (z Uint64x2)
 func (x Uint64x4) ShiftAllRight(shift uint64) (z Uint64x4)
 
 // ShiftAllRight logically shifts each element of x right by shift bits.
-// If shift is greater than the element width, the result is 0.
+// As in Go, if shift is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] >> shift
 //
@@ -9420,7 +9454,8 @@ func (x Uint64x8) ShiftAllRightConcatMod64(y Uint64x8, shift uint64) Uint64x8
 /* ShiftLeft */
 
 // ShiftLeft shifts x[i] left by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift[i]
 //
@@ -9428,7 +9463,8 @@ func (x Uint64x8) ShiftAllRightConcatMod64(y Uint64x8, shift uint64) Uint64x8
 func (x Int16x8) ShiftLeft(shift Uint16x8) (z Int16x8)
 
 // ShiftLeft shifts x[i] left by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift[i]
 //
@@ -9436,7 +9472,8 @@ func (x Int16x8) ShiftLeft(shift Uint16x8) (z Int16x8)
 func (x Int16x16) ShiftLeft(shift Uint16x16) (z Int16x16)
 
 // ShiftLeft shifts x[i] left by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift[i]
 //
@@ -9444,7 +9481,8 @@ func (x Int16x16) ShiftLeft(shift Uint16x16) (z Int16x16)
 func (x Int16x32) ShiftLeft(shift Uint16x32) (z Int16x32)
 
 // ShiftLeft shifts x[i] left by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift[i]
 //
@@ -9452,7 +9490,8 @@ func (x Int16x32) ShiftLeft(shift Uint16x32) (z Int16x32)
 func (x Int32x4) ShiftLeft(shift Uint32x4) (z Int32x4)
 
 // ShiftLeft shifts x[i] left by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift[i]
 //
@@ -9460,7 +9499,8 @@ func (x Int32x4) ShiftLeft(shift Uint32x4) (z Int32x4)
 func (x Int32x8) ShiftLeft(shift Uint32x8) (z Int32x8)
 
 // ShiftLeft shifts x[i] left by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift[i]
 //
@@ -9468,7 +9508,8 @@ func (x Int32x8) ShiftLeft(shift Uint32x8) (z Int32x8)
 func (x Int32x16) ShiftLeft(shift Uint32x16) (z Int32x16)
 
 // ShiftLeft shifts x[i] left by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift[i]
 //
@@ -9476,7 +9517,8 @@ func (x Int32x16) ShiftLeft(shift Uint32x16) (z Int32x16)
 func (x Int64x2) ShiftLeft(shift Uint64x2) (z Int64x2)
 
 // ShiftLeft shifts x[i] left by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift[i]
 //
@@ -9484,7 +9526,8 @@ func (x Int64x2) ShiftLeft(shift Uint64x2) (z Int64x2)
 func (x Int64x4) ShiftLeft(shift Uint64x4) (z Int64x4)
 
 // ShiftLeft shifts x[i] left by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift[i]
 //
@@ -9492,7 +9535,8 @@ func (x Int64x4) ShiftLeft(shift Uint64x4) (z Int64x4)
 func (x Int64x8) ShiftLeft(shift Uint64x8) (z Int64x8)
 
 // ShiftLeft shifts x[i] left by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift[i]
 //
@@ -9500,7 +9544,8 @@ func (x Int64x8) ShiftLeft(shift Uint64x8) (z Int64x8)
 func (x Uint16x8) ShiftLeft(shift Uint16x8) (z Uint16x8)
 
 // ShiftLeft shifts x[i] left by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift[i]
 //
@@ -9508,7 +9553,8 @@ func (x Uint16x8) ShiftLeft(shift Uint16x8) (z Uint16x8)
 func (x Uint16x16) ShiftLeft(shift Uint16x16) (z Uint16x16)
 
 // ShiftLeft shifts x[i] left by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift[i]
 //
@@ -9516,7 +9562,8 @@ func (x Uint16x16) ShiftLeft(shift Uint16x16) (z Uint16x16)
 func (x Uint16x32) ShiftLeft(shift Uint16x32) (z Uint16x32)
 
 // ShiftLeft shifts x[i] left by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift[i]
 //
@@ -9524,7 +9571,8 @@ func (x Uint16x32) ShiftLeft(shift Uint16x32) (z Uint16x32)
 func (x Uint32x4) ShiftLeft(shift Uint32x4) (z Uint32x4)
 
 // ShiftLeft shifts x[i] left by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift[i]
 //
@@ -9532,7 +9580,8 @@ func (x Uint32x4) ShiftLeft(shift Uint32x4) (z Uint32x4)
 func (x Uint32x8) ShiftLeft(shift Uint32x8) (z Uint32x8)
 
 // ShiftLeft shifts x[i] left by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift[i]
 //
@@ -9540,7 +9589,8 @@ func (x Uint32x8) ShiftLeft(shift Uint32x8) (z Uint32x8)
 func (x Uint32x16) ShiftLeft(shift Uint32x16) (z Uint32x16)
 
 // ShiftLeft shifts x[i] left by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift[i]
 //
@@ -9548,7 +9598,8 @@ func (x Uint32x16) ShiftLeft(shift Uint32x16) (z Uint32x16)
 func (x Uint64x2) ShiftLeft(shift Uint64x2) (z Uint64x2)
 
 // ShiftLeft shifts x[i] left by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift[i]
 //
@@ -9556,7 +9607,8 @@ func (x Uint64x2) ShiftLeft(shift Uint64x2) (z Uint64x2)
 func (x Uint64x4) ShiftLeft(shift Uint64x4) (z Uint64x4)
 
 // ShiftLeft shifts x[i] left by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] << shift[i]
 //
@@ -9716,7 +9768,8 @@ func (x Uint64x8) ShiftLeftConcatMod64(y Uint64x8, shift Uint64x8) Uint64x8
 /* ShiftRight */
 
 // ShiftRight arithmetically shifts x[i] right by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0 or -1.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0 or -1, depending on the sign of the element.
 //
 //	z[i] = x[i] >> shift[i]
 //
@@ -9724,7 +9777,8 @@ func (x Uint64x8) ShiftLeftConcatMod64(y Uint64x8, shift Uint64x8) Uint64x8
 func (x Int16x8) ShiftRight(shift Uint16x8) (z Int16x8)
 
 // ShiftRight arithmetically shifts x[i] right by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0 or -1.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0 or -1, depending on the sign of the element.
 //
 //	z[i] = x[i] >> shift[i]
 //
@@ -9732,7 +9786,8 @@ func (x Int16x8) ShiftRight(shift Uint16x8) (z Int16x8)
 func (x Int16x16) ShiftRight(shift Uint16x16) (z Int16x16)
 
 // ShiftRight arithmetically shifts x[i] right by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0 or -1.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0 or -1, depending on the sign of the element.
 //
 //	z[i] = x[i] >> shift[i]
 //
@@ -9740,7 +9795,8 @@ func (x Int16x16) ShiftRight(shift Uint16x16) (z Int16x16)
 func (x Int16x32) ShiftRight(shift Uint16x32) (z Int16x32)
 
 // ShiftRight arithmetically shifts x[i] right by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0 or -1.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0 or -1, depending on the sign of the element.
 //
 //	z[i] = x[i] >> shift[i]
 //
@@ -9748,7 +9804,8 @@ func (x Int16x32) ShiftRight(shift Uint16x32) (z Int16x32)
 func (x Int32x4) ShiftRight(shift Uint32x4) (z Int32x4)
 
 // ShiftRight arithmetically shifts x[i] right by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0 or -1.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0 or -1, depending on the sign of the element.
 //
 //	z[i] = x[i] >> shift[i]
 //
@@ -9756,7 +9813,8 @@ func (x Int32x4) ShiftRight(shift Uint32x4) (z Int32x4)
 func (x Int32x8) ShiftRight(shift Uint32x8) (z Int32x8)
 
 // ShiftRight arithmetically shifts x[i] right by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0 or -1.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0 or -1, depending on the sign of the element.
 //
 //	z[i] = x[i] >> shift[i]
 //
@@ -9764,7 +9822,8 @@ func (x Int32x8) ShiftRight(shift Uint32x8) (z Int32x8)
 func (x Int32x16) ShiftRight(shift Uint32x16) (z Int32x16)
 
 // ShiftRight arithmetically shifts x[i] right by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0 or -1.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0 or -1, depending on the sign of the element.
 //
 //	z[i] = x[i] >> shift[i]
 //
@@ -9772,7 +9831,8 @@ func (x Int32x16) ShiftRight(shift Uint32x16) (z Int32x16)
 func (x Int64x2) ShiftRight(shift Uint64x2) (z Int64x2)
 
 // ShiftRight arithmetically shifts x[i] right by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0 or -1.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0 or -1, depending on the sign of the element.
 //
 //	z[i] = x[i] >> shift[i]
 //
@@ -9780,7 +9840,8 @@ func (x Int64x2) ShiftRight(shift Uint64x2) (z Int64x2)
 func (x Int64x4) ShiftRight(shift Uint64x4) (z Int64x4)
 
 // ShiftRight arithmetically shifts x[i] right by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0 or -1.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0 or -1, depending on the sign of the element.
 //
 //	z[i] = x[i] >> shift[i]
 //
@@ -9788,7 +9849,8 @@ func (x Int64x4) ShiftRight(shift Uint64x4) (z Int64x4)
 func (x Int64x8) ShiftRight(shift Uint64x8) (z Int64x8)
 
 // ShiftRight logically shifts x[i] right by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] >> shift[i]
 //
@@ -9796,7 +9858,8 @@ func (x Int64x8) ShiftRight(shift Uint64x8) (z Int64x8)
 func (x Uint16x8) ShiftRight(shift Uint16x8) (z Uint16x8)
 
 // ShiftRight logically shifts x[i] right by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] >> shift[i]
 //
@@ -9804,7 +9867,8 @@ func (x Uint16x8) ShiftRight(shift Uint16x8) (z Uint16x8)
 func (x Uint16x16) ShiftRight(shift Uint16x16) (z Uint16x16)
 
 // ShiftRight logically shifts x[i] right by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] >> shift[i]
 //
@@ -9812,7 +9876,8 @@ func (x Uint16x16) ShiftRight(shift Uint16x16) (z Uint16x16)
 func (x Uint16x32) ShiftRight(shift Uint16x32) (z Uint16x32)
 
 // ShiftRight logically shifts x[i] right by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] >> shift[i]
 //
@@ -9820,7 +9885,8 @@ func (x Uint16x32) ShiftRight(shift Uint16x32) (z Uint16x32)
 func (x Uint32x4) ShiftRight(shift Uint32x4) (z Uint32x4)
 
 // ShiftRight logically shifts x[i] right by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] >> shift[i]
 //
@@ -9828,7 +9894,8 @@ func (x Uint32x4) ShiftRight(shift Uint32x4) (z Uint32x4)
 func (x Uint32x8) ShiftRight(shift Uint32x8) (z Uint32x8)
 
 // ShiftRight logically shifts x[i] right by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] >> shift[i]
 //
@@ -9836,7 +9903,8 @@ func (x Uint32x8) ShiftRight(shift Uint32x8) (z Uint32x8)
 func (x Uint32x16) ShiftRight(shift Uint32x16) (z Uint32x16)
 
 // ShiftRight logically shifts x[i] right by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] >> shift[i]
 //
@@ -9844,7 +9912,8 @@ func (x Uint32x16) ShiftRight(shift Uint32x16) (z Uint32x16)
 func (x Uint64x2) ShiftRight(shift Uint64x2) (z Uint64x2)
 
 // ShiftRight logically shifts x[i] right by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] >> shift[i]
 //
@@ -9852,7 +9921,8 @@ func (x Uint64x2) ShiftRight(shift Uint64x2) (z Uint64x2)
 func (x Uint64x4) ShiftRight(shift Uint64x4) (z Uint64x4)
 
 // ShiftRight logically shifts x[i] right by shift[i] bits.
-// If shift[i] is greater than the element width, the result is 0.
+// As in Go, if shift[i] is greater than or equal to the element width, the
+// result is 0.
 //
 //	z[i] = x[i] >> shift[i]
 //
