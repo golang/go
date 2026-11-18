@@ -110,7 +110,11 @@ copy128:
 	CMP	$96, count
 	BLS	copy96
 	FLDPQ	-64(srcend), (G_q, H_q)
+	FSTPQ	(A_q, B_q), (dstin)
+	FSTPQ	(E_q, F_q), 32(dstin)
 	FSTPQ	(G_q, H_q), -64(dstend)
+	FSTPQ	(C_q, D_q), -32(dstend)
+	RET
 
 copy96:
 	FSTPQ	(A_q, B_q), (dstin)
