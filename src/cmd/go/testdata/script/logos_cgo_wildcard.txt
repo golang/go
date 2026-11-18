@@ -1,0 +1,173 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+env CC=
+
+# No logos.toml: the default cgo policy forbids cgo, and ./... must
+# reject the cgo-only package instead of silently dropping it.
+# The denial happens at load, so these cases run without a C compiler.
+! logos build ./...
+stderr '\[restriction::cgo_usage\]'
+! logos lint ./...
+stderr '\[restriction::cgo_usage\]'
+
+# An explicit forbid in logos.toml is the same policy.
+cd forbid
+! logos build ./...
+stderr '\[restriction::cgo_usage\]'
+! logos lint ./...
+stderr '\[restriction::cgo_usage\]'
+cd ..
+
+# A package whose cgo file is excluded by an unset build tag is not
+# part of this build: ./... must keep skipping it in silence.
+cd tagged
+logos build ./...
+! stderr '\[restriction::cgo_usage\]'
+logos lint ./...
+! stderr '\[restriction::cgo_usage\]'
+
+# An explicit path reaches logosCgoHidden. A `cgo && spira_custom` file
+# with spira_custom unset must report the unmet constraints, not a cgo
+# denial: enabling cgo alone would not admit the file.
+! logos build ./c2
+stderr 'build constraints exclude'
+! stderr '\[restriction::cgo_usage\]'
+# With the tag set the only thing hiding the package is cgo.
+! logos build -tags=spira_custom ./c2
+stderr '\[restriction::cgo_usage\]'
+
+# A `package documentation` file is never admitted by ImportDir, so an
+# explicit path reports the missing sources rather than a cgo denial.
+! logos build ./docs
+stderr 'build constraints exclude'
+! stderr '\[restriction::cgo_usage\]'
+cd ..
+
+# A restricted policy with an empty allowlist denies every cgo package.
+# These blocks compile C, so they only run where cgo works.
+[cgo] cd restricted
+[cgo] ! logos build ./...
+[cgo] stderr '\[restriction::cgo_usage\]'
+[cgo] ! logos lint ./...
+[cgo] stderr '\[restriction::cgo_usage\]'
+[cgo] cd ..
+
+# Control: an allowlisted package still builds under ./...
+# with the restricted policy.
+[cgo] cd restricted
+[cgo] logos build ./allowed
+[cgo] cd ..
+
+-- go.mod --
+module example.com/f06
+
+go 1.27
+
+-- main.lgo --
+package main
+
+func main() {}
+
+-- c/c.lgo --
+package c
+
+// int one(void) { return 1; }
+import "C"
+
+func One() int { return int(C.one()) }
+
+-- forbid/go.mod --
+module example.com/f06forbid
+
+go 1.27
+
+-- forbid/logos.toml --
+[build]
+cgo = "forbid"
+
+-- forbid/main.lgo --
+package main
+
+func main() {}
+
+-- forbid/c/c.lgo --
+package c
+
+// int one(void) { return 1; }
+import "C"
+
+func One() int { return int(C.one()) }
+
+-- tagged/go.mod --
+module example.com/f06tagged
+
+go 1.27
+
+-- tagged/logos.toml --
+[build]
+cgo = "forbid"
+
+-- tagged/main.lgo --
+package main
+
+func main() {}
+
+-- tagged/c/c.lgo --
+//go:build spira_never_set
+
+package c
+
+// int one(void) { return 1; }
+import "C"
+
+func One() int { return int(C.one()) }
+
+-- tagged/c2/c2.lgo --
+//go:build cgo && spira_custom
+
+package c2
+
+// int two(void) { return 2; }
+import "C"
+
+func Two() int { return int(C.two()) }
+
+-- tagged/docs/d.lgo --
+package documentation
+
+// int three(void) { return 3; }
+import "C"
+
+-- restricted/go.mod --
+module example.com/f06restricted
+
+go 1.27
+
+-- restricted/logos.toml --
+[build]
+cgo = "restricted"
+cgo_allowlist = ["example.com/f06restricted/allowed/**"]
+
+-- restricted/main.lgo --
+package main
+
+func main() {}
+
+-- restricted/c/c.lgo --
+package c
+
+// int one(void) { return 1; }
+import "C"
+
+func One() int { return int(C.one()) }
+
+-- restricted/allowed/allowed.lgo --
+package allowed
+
+/*
+int one(void) { return 1; }
+*/
+import "C"
+
+func One() int { return int(C.one()) }

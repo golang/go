@@ -1,0 +1,94 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env CC=
+env CGO_ENABLED=0
+
+# The wildcard cgo keep must judge a file by the content the build sees,
+# not the content on disk. MatchFile reads overlaid replacements through
+# cmd/go/internal/fsys; the import "C" probe must read them the same way.
+
+# An overlay that removes import "C" while keeping the never-satisfied cgo
+# constraint: the effective package uses no cgo, so ./... must skip it in
+# silence, as the go command does for the overlaid content.
+cd drop
+logos build -overlay=overlay.json ./...
+! stderr '\[restriction::cgo_usage\]'
+# The explicit path reports the excluded file like plain go does, not a
+# cgo denial read from the replaced disk file.
+! logos build -overlay=overlay.json ./c
+stderr 'build constraints exclude all Go files'
+cd ..
+
+# The reverse: the overlay adds import "C" to an otherwise plain file. The
+# effective package uses cgo, so ./... must deny it exactly like the
+# explicit package path does.
+cd add
+! logos build -overlay=overlay.json ./...
+stderr '\[restriction::cgo_usage\]'
+! logos build -overlay=overlay.json ./c
+stderr '\[restriction::cgo_usage\]'
+cd ..
+
+-- drop/go.mod --
+module example.com/f06drop
+
+go 1.27
+
+-- drop/main.lgo --
+package main
+
+func main() {}
+
+-- drop/c/c.lgo --
+//go:build cgo
+
+package c
+
+// int one(void) { return 1; }
+import "C"
+
+func One() int { return int(C.one()) }
+
+-- drop/overlay.json --
+{
+	"Replace": {
+		"c/c.lgo": "../repl/drop-c.lgo"
+	}
+}
+
+-- add/go.mod --
+module example.com/f06add
+
+go 1.27
+
+-- add/main.lgo --
+package main
+
+func main() {}
+
+-- add/c/c.lgo --
+package c
+
+func One() int { return 1 }
+
+-- add/overlay.json --
+{
+	"Replace": {
+		"c/c.lgo": "../repl/add-c.lgo"
+	}
+}
+
+-- repl/drop-c.lgo --
+//go:build cgo
+
+package c
+
+func One() int { return 1 }
+
+-- repl/add-c.lgo --
+package c
+
+// int one(void) { return 1; }
+import "C"
+
+func One() int { return int(C.one()) }

@@ -185,8 +185,11 @@ func (m *Match) MatchPackages() {
 			if err != nil {
 				if _, noGo := err.(*build.NoGoError); noGo {
 					// The package does not actually exist, so record neither the package
-					// nor the error.
-					return nil
+					// nor the error. A cgo-only loGo/s package is the exception: its
+					// files sit in IgnoredGoFiles until loading denies it, so keep it.
+					if !logosKeepCgoOnly(pkg) {
+						return nil
+					}
 				}
 				// There was an error importing path, but not matching it,
 				// which is all that Match promises to do.
@@ -406,8 +409,11 @@ func (m *Match) MatchDirs(modRoots []string) {
 		if p, err := cfg.BuildContext.ImportDir(path, 0); err != nil && (p == nil || len(p.InvalidGoFiles) == 0) {
 			if _, noGo := err.(*build.NoGoError); noGo {
 				// The package does not actually exist, so record neither the package
-				// nor the error.
-				return nil
+				// nor the error. A cgo-only loGo/s package is the exception: its
+				// files sit in IgnoredGoFiles until loading denies it, so keep it.
+				if !logosKeepCgoOnly(p) {
+					return nil
+				}
 			}
 			// There was an error importing path, but not matching it,
 			// which is all that Match promises to do.
