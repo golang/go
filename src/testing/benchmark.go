@@ -1004,6 +1004,8 @@ func (b *B) SetParallelism(p int) {
 //
 // If f depends on testing flags, then [Init] must be used to register
 // those flags before calling Benchmark and before calling [flag.Parse].
+// Logging and reporting benchmark failures depend on testing flags, including
+// failures reported by checks in [B.Loop].
 //
 // If f calls Run, the result will be an estimate of running all its
 // subbenchmarks that don't call Run in sequence in a single benchmark.
