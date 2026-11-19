@@ -17,6 +17,7 @@ import (
 )
 
 // OpenInRoot opens the file name in the directory dir.
+// The name must be a path relative to dir.
 // It is equivalent to OpenRoot(dir) followed by opening the file in the root.
 //
 // OpenInRoot returns an error if any component of the name
@@ -35,6 +36,8 @@ func OpenInRoot(dir, name string) (*File, error) {
 // Root may be used to only access files within a single directory tree.
 //
 // Methods on Root can only access files and directories beneath a root directory.
+// File names passed to these methods must be relative to the root.
+// Absolute paths are not permitted, even if they name a file within the root.
 // If any component of a file name passed to a method of Root references a location
 // outside the root, the method returns an error.
 // File names may reference the directory itself (.).
