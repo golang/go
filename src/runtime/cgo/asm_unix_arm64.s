@@ -11,10 +11,11 @@
 // cgoCallTrampoline is called by runtime.asmcgocall (or runtime.cgocall)
 // using the AAPCS64 C ABI with R0 pointing to a cgoCallFrame.
 TEXT ·cgoCallTrampoline(SB),NOSPLIT|NOFRAME,$0-0
-	SUB	$32, RSP
-	STP	(R29, R30), 0(RSP)
-	MOVD	RSP, R29
-	MOVD	R19, 16(RSP)
+	// Go unwinders expect the saved LR at SP as soon as SP changes.
+	// The C frame pointer needs a separate (FP, LR) record.
+	STP.W	(R30, R19), -32(RSP)
+	STP	(R29, R30), 16(RSP)
+	ADD	$16, RSP, R29
 	MOVD	R0, R19
 	MOVD	cgoCallFrame_fn(R0), R9
 	MOVD	cgoCallFrame_a1(R0), R1
@@ -26,9 +27,8 @@ TEXT ·cgoCallTrampoline(SB),NOSPLIT|NOFRAME,$0-0
 	BL	(R9)
 	MOVD	R0, cgoCallFrame_r1(R19)
 	MOVD	$0, R0
-	MOVD	16(RSP), R19
-	LDP	0(RSP), (R29, R30)
-	ADD	$32, RSP
+	MOVD	16(RSP), R29
+	LDP.P	32(RSP), (R30, R19)
 	RET
 
 #define CGO_PROLOGUE \

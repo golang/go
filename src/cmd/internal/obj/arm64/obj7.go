@@ -909,6 +909,16 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				}
 			}
 
+		case ASTP:
+			if p.To.Reg == REGSP && (p.Scond == C_XPRE || p.Scond == C_XPOST) {
+				p.Spadj = int32(-p.To.Offset)
+			}
+
+		case ALDP:
+			if p.From.Reg == REGSP && (p.Scond == C_XPRE || p.Scond == C_XPOST) {
+				p.Spadj = int32(-p.From.Offset)
+			}
+
 		case AZSTR, APSTR:
 			p = c.sveStackAddr(p, &p.To)
 

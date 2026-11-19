@@ -16,7 +16,7 @@ TEXT ·cgoCallTrampoline(SB),NOSPLIT|NOFRAME,$0-0
 	PUSHQ	BP
 	MOVQ	SP, BP
 	PUSHQ	BX
-	SUBQ	$8, SP		// keep SP 16-byte aligned before CALL
+	ADJSP	$8		// align SP before CALL and record the change for unwinding
 	MOVQ	DI, BX
 	MOVQ	cgoCallFrame_fn(DI), R11
 	MOVQ	cgoCallFrame_a1(DI), SI
@@ -29,7 +29,7 @@ TEXT ·cgoCallTrampoline(SB),NOSPLIT|NOFRAME,$0-0
 	CALL	R11
 	MOVQ	AX, cgoCallFrame_r1(BX)
 	XORL	AX, AX
-	ADDQ	$8, SP
+	ADJSP	$-8
 	POPQ	BX
 	POPQ	BP
 	RET
