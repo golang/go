@@ -361,43 +361,42 @@ func initMetrics() {
 			deps: makeStatDepSet(heapStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
-				out.scalar = uint64(in.heapStats.committed - in.heapStats.inHeap -
-					in.heapStats.inStacks - in.heapStats.inWorkBufs)
+				out.scalar = in.memoryClassHeapFree()
 			},
 		},
 		"/memory/classes/heap/objects:bytes": {
 			deps: makeStatDepSet(heapStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
-				out.scalar = in.heapStats.inObjects
+				out.scalar = in.memoryClassHeapObjects()
 			},
 		},
 		"/memory/classes/heap/released:bytes": {
 			deps: makeStatDepSet(heapStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
-				out.scalar = uint64(in.heapStats.released)
+				out.scalar = in.memoryClassHeapReleased()
 			},
 		},
 		"/memory/classes/heap/stacks:bytes": {
 			deps: makeStatDepSet(heapStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
-				out.scalar = uint64(in.heapStats.inStacks)
+				out.scalar = in.memoryClassHeapStacks()
 			},
 		},
 		"/memory/classes/heap/unused:bytes": {
 			deps: makeStatDepSet(heapStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
-				out.scalar = uint64(in.heapStats.inHeap) - in.heapStats.inObjects
+				out.scalar = in.memoryClassHeapUnused()
 			},
 		},
 		"/memory/classes/metadata/mcache/free:bytes": {
 			deps: makeStatDepSet(sysStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
-				out.scalar = in.sysStats.mCacheSys - in.sysStats.mCacheInUse
+				out.scalar = in.memoryClassMetadataMCacheFree()
 			},
 		},
 		"/memory/classes/metadata/mcache/inuse:bytes": {
@@ -411,7 +410,7 @@ func initMetrics() {
 			deps: makeStatDepSet(sysStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
-				out.scalar = in.sysStats.mSpanSys - in.sysStats.mSpanInUse
+				out.scalar = in.memoryClassMetadataMSpanFree()
 			},
 		},
 		"/memory/classes/metadata/mspan/inuse:bytes": {
@@ -425,7 +424,7 @@ func initMetrics() {
 			deps: makeStatDepSet(heapStatsDep, sysStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
-				out.scalar = uint64(in.heapStats.inWorkBufs) + in.sysStats.gcMiscSys
+				out.scalar = in.memoryClassMetadataOther()
 			},
 		},
 		"/memory/classes/os-stacks:bytes": {
@@ -453,10 +452,7 @@ func initMetrics() {
 			deps: makeStatDepSet(heapStatsDep, sysStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
-				out.scalar = uint64(in.heapStats.committed+in.heapStats.released) +
-					in.sysStats.stacksSys + in.sysStats.mSpanSys +
-					in.sysStats.mCacheSys + in.sysStats.buckHashSys +
-					in.sysStats.gcMiscSys + in.sysStats.otherSys
+				out.scalar = in.memoryClassTotal()
 			},
 		},
 		"/sched/gomaxprocs:threads": {
@@ -678,7 +674,11 @@ type heapStatsAggregate struct {
 // compute populates the heapStatsAggregate with values from the runtime.
 func (a *heapStatsAggregate) compute() {
 	memstats.heapStats.read(&a.heapStatsDelta)
+	a.computeDerived()
+}
 
+// computeDerived populates the derived fields of a from its heapStatsDelta.
+func (a *heapStatsAggregate) computeDerived() {
 	// Calculate derived stats.
 	a.totalAllocs = a.largeAllocCount
 	a.totalFrees = a.largeFreeCount
@@ -735,6 +735,45 @@ func (a *sysStatsAggregate) compute() {
 		a.mCacheInUse = uint64(mheap_.cachealloc.inuse)
 		unlock(&mheap_.lock)
 	})
+}
+
+func (a *statAggregate) memoryClassHeapFree() uint64 {
+	return uint64(a.heapStats.committed - a.heapStats.inHeap - a.heapStats.inStacks - a.heapStats.inWorkBufs)
+}
+
+func (a *statAggregate) memoryClassHeapObjects() uint64 {
+	return a.heapStats.inObjects
+}
+
+func (a *statAggregate) memoryClassHeapReleased() uint64 {
+	return uint64(a.heapStats.released)
+}
+
+func (a *statAggregate) memoryClassHeapStacks() uint64 {
+	return uint64(a.heapStats.inStacks)
+}
+
+func (a *statAggregate) memoryClassHeapUnused() uint64 {
+	return uint64(a.heapStats.inHeap) - a.heapStats.inObjects
+}
+
+func (a *statAggregate) memoryClassMetadataMCacheFree() uint64 {
+	return a.sysStats.mCacheSys - a.sysStats.mCacheInUse
+}
+
+func (a *statAggregate) memoryClassMetadataMSpanFree() uint64 {
+	return a.sysStats.mSpanSys - a.sysStats.mSpanInUse
+}
+
+func (a *statAggregate) memoryClassMetadataOther() uint64 {
+	return uint64(a.heapStats.inWorkBufs) + a.sysStats.gcMiscSys
+}
+
+func (a *statAggregate) memoryClassTotal() uint64 {
+	return uint64(a.heapStats.committed+a.heapStats.released) +
+		a.sysStats.stacksSys + a.sysStats.mSpanSys +
+		a.sysStats.mCacheSys + a.sysStats.buckHashSys +
+		a.sysStats.gcMiscSys + a.sysStats.otherSys
 }
 
 // cpuStatsAggregate represents CPU stats obtained from the runtime
