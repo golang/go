@@ -7,12 +7,19 @@ package cache
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"internal/testenv"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 	"time"
+
+	"cmd/go/internal/base"
+	"cmd/go/internal/lockedfile"
 )
 
 func init() {
@@ -135,11 +142,21 @@ func dummyID(x int) [HashSize]byte {
 }
 
 func TestCacheTrim(t *testing.T) {
+	for _, trimBuildCache := range []bool{false, true} {
+		t.Run(fmt.Sprintf("trimBuildCache=%v", trimBuildCache), func(t *testing.T) {
+			testCacheTrim(t, trimBuildCache)
+		})
+	}
+}
+
+func testCacheTrim(t *testing.T, trimBuildCache bool) {
 	dir := t.TempDir()
 	c, err := Open(dir)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
+	c.trimBuildCache = trimBuildCache
+	c.sampleAcc.Store(0)
 	const start = 1000000000
 	now := int64(start)
 	c.now = func() time.Time { return time.Unix(now, 0) }
@@ -261,4 +278,326 @@ func TestCacheTrim(t *testing.T) {
 	if _, err := c.Get(dummyID(1)); err == nil {
 		t.Fatal("Trim did not remove dummyID(1)")
 	}
+}
+
+const testStart = 1020000000
+
+type testCache struct {
+	*DiskCache
+	t            *testing.T
+	start, clock time.Time
+	outs         map[int]OutputID
+}
+
+func skipIfLockUnsupported(t *testing.T) {
+	t.Helper()
+	f, err := lockedfile.Edit(filepath.Join(t.TempDir(), "lockprobe"))
+	if err != nil {
+		if testenv.SyscallIsNotSupported(err) {
+			t.Skipf("skipping: file locking unsupported (%v)", err)
+		}
+		t.Fatal(err)
+	}
+	f.Close()
+}
+
+func newTestCache(t *testing.T, dir string, stride, u int64) *testCache {
+	t.Helper()
+	d, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := &testCache{DiskCache: d, t: t, start: time.Unix(testStart, 0), outs: map[int]OutputID{}}
+	c.clock = c.start
+	d.now = func() time.Time { return c.clock }
+	d.trimBuildCache, d.sizeSample = true, stride
+	d.sampleAcc.Store(u)
+	return c
+}
+
+func (c *testCache) must(err error) {
+	c.t.Helper()
+	if err != nil {
+		c.t.Fatal(err)
+	}
+}
+
+func payload(n, size int) []byte {
+	b := bytes.Repeat([]byte{'.'}, size)
+	copy(b, fmt.Sprint(n, ":"))
+	return b
+}
+
+// put and putExe store entries of total logical size (output + entrySize).
+// A total of 0 stores an empty output.
+func (c *testCache) put(n, total int) {
+	c.t.Helper()
+	out, _, err := c.Put(dummyID(n), bytes.NewReader(payload(n, max(0, total-entrySize))))
+	c.must(err)
+	c.outs[n] = out
+}
+
+func (c *testCache) putExe(n, total int) {
+	c.t.Helper()
+	out, _, err := c.PutExecutable(dummyID(n), "prog", bytes.NewReader(payload(n, max(0, total-entrySize))))
+	c.must(err)
+	c.outs[n] = out
+}
+
+func (c *testCache) trimMidScan(fn func()) {
+	c.t.Helper()
+	orig, calls := c.now, 0
+	c.now = func() time.Time {
+		calls++
+		if calls == 2 {
+			fn()
+		}
+		return c.clock
+	}
+	defer func() { c.now = orig }()
+	c.must(c.Trim())
+	if calls < 2 {
+		c.t.Fatalf("Trim did not walk (calls=%d)", calls)
+	}
+}
+
+func (c *testCache) wantEntries(present ...int) {
+	c.t.Helper()
+	live := map[OutputID]bool{}
+	for _, n := range present {
+		live[c.outs[n]] = true
+	}
+	for n, out := range c.outs {
+		if _, err := os.Stat(c.fileName(dummyID(n), "a")); (err == nil) != slices.Contains(present, n) {
+			c.t.Errorf("entry %d (-a): err=%v, want %v", n, err, slices.Contains(present, n))
+		}
+		if _, err := os.Stat(c.fileName(out, "d")); (err == nil) != live[out] {
+			c.t.Errorf("entry %d (-d): err=%v, want %v", n, err, live[out])
+		}
+	}
+}
+
+func writeFile(t *testing.T, dir, name, data string) {
+	t.Helper()
+	if err := os.WriteFile(filepath.Join(dir, name), []byte(data), 0o666); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func wantFile(t *testing.T, dir, name, want string) {
+	t.Helper()
+	if got, err := os.ReadFile(filepath.Join(dir, name)); err != nil || string(got) != want {
+		t.Errorf("%s = %q, %v; want %q", name, got, err, want)
+	}
+}
+
+func wantNoFiles(t *testing.T, dir string, names ...string) {
+	t.Helper()
+	for _, name := range names {
+		if _, err := os.Stat(filepath.Join(dir, name)); !errors.Is(err, fs.ErrNotExist) {
+			t.Errorf("stat %s: %v, want not exist", name, err)
+		}
+	}
+}
+
+func TestCacheSize(t *testing.T) {
+	skipIfLockUnsupported(t)
+	t.Parallel()
+
+	dir := t.TempDir()
+	c := newTestCache(t, dir, 1000, 0)
+
+	// A flush below the stride creates nothing. The first Trim records the
+	// measured size, and crossing a stride carries the remainder.
+	c.put(1, 600)
+	c.flush()
+	wantNoFiles(t, dir, "size.txt", "trim.txt")
+
+	c.must(c.Trim())
+	wantFile(t, dir, "size.txt", "estimated 600\n")
+	wantFile(t, dir, "trim.txt", fmt.Sprint(c.clock.Unix()))
+
+	c.put(2, 600) // 600+600=1200 -> flush 1000, carry 200
+	c.flush()
+	wantFile(t, dir, "size.txt", "estimated 1600\n")
+	if got := c.sampleAcc.Load(); got != 200 {
+		t.Errorf("carry = %d, want 200", got)
+	}
+
+	// Only newly added bytes count: dup=0, shared=entrySize, truncated=size-oldSize.
+	delta := func(want int64, fn func()) {
+		t.Helper()
+		b0 := c.sampleAcc.Load()
+		fn()
+		if got := c.sampleAcc.Load() - b0; got != want {
+			t.Errorf("added %d, want %d", got, want)
+		}
+	}
+	delta(0, func() { c.put(2, 600) })
+	delta(entrySize, func() {
+		out, _, err := c.Put(dummyID(3), bytes.NewReader(payload(2, 600-entrySize)))
+		c.must(err)
+		c.outs[3] = out
+	})
+	delta(600-entrySize-50, func() {
+		c.must(os.WriteFile(c.fileName(c.outs[2], "d"), payload(0, 50), 0o666))
+		c.put(2, 600)
+	})
+
+	// Trim drops expired entries, ignores stray files, counts executables by
+	// contents, and replaces the estimate with the measured size.
+	c.clock = c.start.Add(6 * 24 * time.Hour)
+	c.put(4, 500)
+	c.putExe(5, 800)
+	stray := filepath.Join(dir, "00", "stray.tmp")
+	writeFile(t, dir, filepath.Join("00", "stray.tmp"), strings.Repeat("x", 500))
+	c.must(os.Chtimes(stray, c.start, c.start))
+	writeFile(t, dir, "size.txt", "estimated 999999\nunknown 1\n")
+	c.must(c.Trim())
+	c.wantEntries(4, 5)
+	if _, err := os.Stat(stray); err != nil {
+		t.Errorf("stray removed: %v", err)
+	}
+	wantFile(t, dir, "size.txt", "estimated 1300\n")
+
+	// Unbiased sampling across all offsets u in [0, stride), and split flushes
+	// produce the same total as a single flush.
+	const stride = 64
+	c.sizeSample = stride
+	for _, b := range []int64{0, 1, 17, 130} {
+		var sum int64
+		for u := range int64(stride) {
+			c.sampleAcc.Store(u)
+			c.addBytes(b)
+			single := c.takeSampledAdded()
+			sum += single
+
+			c.sampleAcc.Store(u)
+			var split int64
+			for range b {
+				c.addBytes(1)
+				split += c.takeSampledAdded()
+			}
+			if split != single {
+				t.Fatalf("u=%d B=%d: split=%d, want %d", u, b, split, single)
+			}
+		}
+		if sum != b*stride {
+			t.Errorf("B=%d: sum=%d, want %d", b, sum, b*stride)
+		}
+	}
+
+	// trimDue handles corrupt data, exact 24h interval, and 1h future clock skew.
+	now := c.clock
+	for _, tc := range []struct {
+		data string
+		want bool
+	}{
+		{"bad", true},
+		{fmt.Sprint(now.Add(-24*time.Hour + time.Second).Unix()), false},
+		{fmt.Sprint(now.Add(-24 * time.Hour).Unix()), true},
+		{fmt.Sprint(now.Add(59 * time.Minute).Unix()), false},
+		{fmt.Sprint(now.Add(time.Hour).Unix()), true},
+	} {
+		if got := trimDue([]byte(tc.data), now, 24*time.Hour); got != tc.want {
+			t.Errorf("trimDue(%q) = %v, want %v", tc.data, got, tc.want)
+		}
+	}
+}
+
+func TestCacheSizeFile(t *testing.T) {
+	skipIfLockUnsupported(t)
+	t.Parallel()
+
+	dir := t.TempDir()
+	c := newTestCache(t, dir, 1000, 0)
+	for _, tc := range []struct {
+		in, want string // want "" means unchanged
+	}{
+		{in: "estimated 5000\ntorn", want: "estimated 6000\n"},
+		{in: "estimated -42\nestimated abc\nestimated 99999999999999999999\nestimated 5000 extra\nestimated 999"},
+		{in: "estimated abc\nestimated   7000  \nestimated 9000\nfuture 1\n", want: "estimated 8000\n"},
+		{in: "estimated 9223372036854775807\n", want: fmt.Sprintf("estimated %d\n", maxSizeBound)},
+	} {
+		writeFile(t, dir, "size.txt", tc.in)
+		c.sampleAcc.Store(1000)
+		c.flush()
+		want := tc.want
+		if want == "" {
+			want = tc.in
+		}
+		wantFile(t, dir, "size.txt", want)
+	}
+}
+
+func TestCleanCache(t *testing.T) {
+	skipIfLockUnsupported(t)
+	t.Parallel()
+
+	empty := t.TempDir()
+	CleanCache(empty)
+	wantNoFiles(t, empty, "size.txt", "trim.txt")
+
+	dir := t.TempDir()
+	writeFile(t, dir, "size.txt", "estimated 9876543210\nfuture 1\n")
+	writeFile(t, dir, "trim.txt", "1234567890")
+	before, err := os.Stat(filepath.Join(dir, "size.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	CleanCache(dir)
+	if after, err := os.Stat(filepath.Join(dir, "size.txt")); err != nil || !os.SameFile(before, after) {
+		t.Errorf("CleanCache replaced size.txt (%v)", err)
+	}
+	wantNoFiles(t, dir, "00")
+	wantFile(t, dir, "size.txt", "estimated 0\n")
+	wantFile(t, dir, "trim.txt", "")
+}
+
+func TestCacheTrimDuringScan(t *testing.T) {
+	skipIfLockUnsupported(t)
+	t.Parallel()
+
+	// (a) A flush during a scan survives the post-scan size update.
+	dir := t.TempDir()
+	c := newTestCache(t, dir, 1<<40, 0)
+	other := newTestCache(t, dir, 1000, 1000)
+	c.put(1, 500)
+	writeFile(t, dir, "size.txt", "estimated 0\n")
+	c.trimMidScan(func() {
+		other.flush()
+		c.clock = c.clock.Add(2 * time.Second)
+	})
+	wantFile(t, dir, "size.txt", "estimated 1500\n")
+	wantFile(t, dir, "trim.txt", fmt.Sprint(c.clock.Unix()))
+
+	// (b) CleanCache during a scan discards stale scan results.
+	dir2 := t.TempDir()
+	c2 := newTestCache(t, dir2, 1<<40, 0)
+	c2.put(1, 500)
+	writeFile(t, dir2, "size.txt", "estimated 5000\n")
+	c2.trimMidScan(func() { CleanCache(dir2) })
+	wantFile(t, dir2, "size.txt", "estimated 0\n")
+	wantFile(t, dir2, "trim.txt", "")
+}
+
+func TestDefaultCacheAtExit(t *testing.T) {
+	if os.Getenv("TEST_CACHE_ATEXIT") != "" {
+		Default()
+		c := defaultDiskCache.Load()
+		c.trimBuildCache, c.sizeSample = true, 1000
+		c.sampleAcc.Store(1000)
+		base.Exit()
+	}
+	skipIfLockUnsupported(t)
+	t.Parallel()
+
+	dir := t.TempDir()
+	writeFile(t, dir, "size.txt", "estimated 100\n")
+	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^"+t.Name()+"$")
+	cmd.Env = append(os.Environ(), "GOCACHE="+dir, "GOCACHEPROG=", "GOENV=off", "TEST_CACHE_ATEXIT=1")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("subprocess: %v\n%s", err, out)
+	}
+	wantFile(t, dir, "size.txt", "estimated 1100\n")
 }

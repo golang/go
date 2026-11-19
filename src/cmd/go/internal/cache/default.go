@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
@@ -21,6 +22,20 @@ func Default() Cache {
 }
 
 var initDefaultCacheOnce = sync.OnceValue(initDefaultCache)
+
+// defaultDiskCache is the default DiskCache once opened (nil when GOCACHEPROG is set).
+var defaultDiskCache atomic.Pointer[DiskCache]
+
+func init() {
+	// Flush sampled cache size updates even if Close is not called (for example, by
+	// 'go list -export' or a failed build). Register in init because the default cache
+	// may be opened concurrently, and base.AtExit is not safe for concurrent use.
+	base.AtExit(func() {
+		if c := defaultDiskCache.Load(); c != nil {
+			c.flush()
+		}
+	})
+}
 
 // cacheREADME is a message stored in a README in the cache directory.
 // Because the cache lives outside the normal Go trees, we leave the
@@ -58,6 +73,7 @@ func initDefaultCache() Cache {
 		return startCacheProg(cfg.GOCACHEPROG, diskCache)
 	}
 
+	defaultDiskCache.Store(diskCache)
 	return diskCache
 }
 

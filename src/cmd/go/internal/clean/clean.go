@@ -180,6 +180,10 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 				printedErrors = true
 				base.Error(err)
 			}
+
+			if !cfg.BuildN && cfg.Experiment != nil && cfg.Experiment.TrimBuildCache {
+				cache.CleanCache(dir)
+			}
 		}
 	}
 
