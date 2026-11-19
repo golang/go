@@ -211,6 +211,8 @@ func ParseExprFrom(fset *token.FileSet, filename string, src any, mode Mode) (ex
 		return nil, err
 	}
 
+	file := fset.AddFile(filename, -1, len(text))
+
 	var p parser
 	defer func() {
 		if e := recover(); e != nil {
@@ -222,12 +224,16 @@ func ParseExprFrom(fset *token.FileSet, filename string, src any, mode Mode) (ex
 				p.errors.Add(p.file.Position(bail.pos), bail.msg)
 			}
 		}
+		if expr == nil {
+			// Parsing bailed out before assigning a result. Satisfy the
+			// ParseExprFrom API by returning a node for the invalid source.
+			expr = &ast.BadExpr{From: file.Pos(0), To: file.End()}
+		}
 		p.errors.Sort()
 		err = p.errors.Err()
 	}()
 
 	// parse expr
-	file := fset.AddFile(filename, -1, len(text))
 	p.init(file, text, mode)
 	expr = p.parseRhs()
 
