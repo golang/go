@@ -1,0 +1,34 @@
+// Copyright 2010 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+//go:build !goexperiment.runtimecgopurego || msan || tsan
+
+package cgo
+
+/*
+
+#cgo darwin,!arm64 LDFLAGS: -lpthread
+#cgo dragonfly LDFLAGS: -lpthread
+#cgo freebsd LDFLAGS: -lpthread
+#cgo android LDFLAGS: -llog
+#cgo !android,linux LDFLAGS: -lpthread
+#cgo netbsd LDFLAGS: -lpthread
+#cgo openbsd LDFLAGS: -lpthread
+#cgo aix LDFLAGS: -Wl,-berok
+
+// Use -fno-stack-protector to avoid problems locating the
+// proper support functions. See issues #52919, #54313, #58385.
+// Use -Wdeclaration-after-statement because some CI builds use it.
+#cgo CFLAGS: -Wall -Werror -fno-stack-protector -Wdeclaration-after-statement
+
+// Use -std=gnu90 to maintain portability;
+// we don't use c90 because that doesn't permit C++ line comments,
+// which is just too painful.
+// We don't do it on windows-386 because it causes test failures.
+#cgo (!windows||!386) CFLAGS: -std=gnu90
+
+#cgo solaris CPPFLAGS: -D_POSIX_PTHREAD_SEMANTICS
+
+*/
+import "C"
