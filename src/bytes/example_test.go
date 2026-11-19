@@ -510,11 +510,15 @@ func ExampleSplit() {
 	fmt.Printf("%q\n", bytes.Split([]byte("a man a plan a canal panama"), []byte("a ")))
 	fmt.Printf("%q\n", bytes.Split([]byte(" xyz "), []byte("")))
 	fmt.Printf("%q\n", bytes.Split([]byte(""), []byte("Bernardo O'Higgins")))
+	fmt.Printf("%q\n", bytes.Split([]byte(",a,"), []byte(",")))
+	fmt.Printf("%q\n", bytes.Split(nil, nil))
 	// Output:
 	// ["a" "b" "c"]
 	// ["" "man " "plan " "canal panama"]
 	// [" " "x" "y" "z" " "]
 	// [""]
+	// ["" "a" ""]
+	// []
 }
 
 func ExampleSplitN() {
