@@ -556,6 +556,20 @@ func mach_vm_region(address, region_size *uint64, info unsafe.Pointer) int32 {
 }
 func mach_vm_region_trampoline()
 
+func task_info(flavor machTaskFlavour, info *machTaskBasicInfo, count machMsgTypeNumber) int32 {
+	args := struct {
+		flavor machTaskFlavour
+		info   *machTaskBasicInfo
+		count  *machMsgTypeNumber
+	}{
+		flavor: flavor,
+		info:   info,
+		count:  &count,
+	}
+	return libcCall(unsafe.Pointer(abi.FuncPCABI0(task_info_trampoline)), unsafe.Pointer(&args))
+}
+func task_info_trampoline()
+
 //go:linkname proc_regionfilename runtime/pprof.proc_regionfilename
 func proc_regionfilename(pid int, address uint64, buf *byte, buflen int64) int32 {
 	args := struct {
@@ -601,6 +615,7 @@ func proc_regionfilename_trampoline()
 //go:cgo_import_dynamic libc_proc_regionfilename proc_regionfilename "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_mach_task_self_ mach_task_self_ "/usr/lib/libSystem.B.dylib""
 //go:cgo_import_dynamic libc_mach_vm_region mach_vm_region "/usr/lib/libSystem.B.dylib""
+//go:cgo_import_dynamic libc_task_info task_info "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_mach_timebase_info mach_timebase_info "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_mach_absolute_time mach_absolute_time "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_clock_gettime clock_gettime "/usr/lib/libSystem.B.dylib"

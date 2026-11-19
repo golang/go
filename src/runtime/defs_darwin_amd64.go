@@ -109,6 +109,9 @@ const (
 
 	_VM_REGION_BASIC_INFO_COUNT_64 = 0x9
 	_VM_REGION_BASIC_INFO_64       = 0x9
+
+	_MACH_TASK_BASIC_INFO       = 0x14
+	_MACH_TASK_BASIC_INFO_COUNT = 0xc
 )
 
 type stackt struct {
@@ -380,7 +383,18 @@ type machTimebaseInfo struct {
 	denom uint32
 }
 
+type machTaskBasicInfo struct {
+	virtual_size      uint64
+	resident_size     uint64
+	resident_size_max uint64
+	user_time         [2]int32
+	system_time       [2]int32
+	policy            int32
+	suspend_count     int32
+}
+
 type machPort uint32
+type machTaskFlavour uint32
 type machVMMapRead uint32
 type machVMAddress uint64
 type machVMSize uint64

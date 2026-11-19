@@ -698,6 +698,17 @@ TEXT runtime·mach_vm_region_trampoline(SB),NOSPLIT,$0
 	BL	libc_mach_vm_region(SB)
 	RET
 
+// task_info_trampoline calls task_info from libc for mach_task_self_.
+// The args struct is {flavor int32; info unsafe.Pointer; count *uint32}.
+TEXT runtime·task_info_trampoline(SB),NOSPLIT,$0
+	MOVW	0(R0), R1	// flavor
+	MOVD	8(R0), R2	// info
+	MOVD	16(R0), R3	// count
+	MOVD	$libc_mach_task_self_(SB), R0
+	MOVW	0(R0), R0	// target_task = mach_task_self_
+	BL	libc_task_info(SB)
+	RET
+
 // proc_regionfilename_trampoline calls proc_regionfilename for
 // the current process.
 TEXT runtime·proc_regionfilename_trampoline(SB),NOSPLIT,$0

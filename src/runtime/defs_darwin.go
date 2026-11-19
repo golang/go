@@ -15,6 +15,7 @@ package runtime
 /*
 #define __DARWIN_UNIX03 0
 #include <mach/mach_time.h>
+#include <mach/task_info.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <errno.h>
@@ -130,6 +131,9 @@ const (
 
 	VM_REGION_BASIC_INFO_COUNT_64 = C.VM_REGION_BASIC_INFO_COUNT_64
 	VM_REGION_BASIC_INFO_64       = C.VM_REGION_BASIC_INFO_64
+
+	MACH_TASK_BASIC_INFO       = C.MACH_TASK_BASIC_INFO
+	MACH_TASK_BASIC_INFO_COUNT = C.MACH_TASK_BASIC_INFO_COUNT
 )
 
 type StackT C.struct_sigaltstack
@@ -171,8 +175,10 @@ type PthreadCond C.pthread_cond_t
 type PthreadCondAttr C.pthread_condattr_t
 
 type MachTimebaseInfo C.mach_timebase_info_data_t
+type MachTaskBasicInfo C.mach_task_basic_info_data_t
 
 type MachPort C.mach_port_t
+type MachTaskFlavour C.task_flavor_t
 type MachVMMapRead C.vm_map_read_t
 type MachVMAddress C.mach_vm_address_t
 type MachVMSize C.mach_vm_size_t
