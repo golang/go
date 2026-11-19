@@ -724,6 +724,35 @@ func _() {
 	_ = (func() func() func())(nil)
 }
 
+// Function types whose unparenthesized result is extended by the following token.
+// For instance, func()(T)[x] would become func() T[x]; the former is accepted
+// by the parser but invalid Go code, the latter is potentially valid Go code.
+func _() {
+	_ = (func() T)[x]
+	_ = (func() T)[x:y]
+	_ = (func() p.T)[x]
+	_ = (func() T).m
+	_ = (func() T).(U)
+	_ = (func() *T).m
+	_ = (func())[x]
+	_ = (func()) * x
+	_ = (func() func() T)[x]
+	_ = ([]func() T)[x]
+	_ = (chan func())(x)
+	(func()) <- x
+	_ = (x * func()) * y
+	_ = x + (x*func())*y
+
+	// no parentheses required
+	_ = func() p.T.m
+	_ = func() p.T.(U)
+	_ = func() T[int][x]
+	_ = func() struct{}[x]
+	_ = func() (T, U)[x]
+	_ = func() T * x
+	_ = []func() T(x)
+}
+
 func _() {
 	_ = f().
 		f(func() {
