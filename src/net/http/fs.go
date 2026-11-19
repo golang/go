@@ -338,12 +338,20 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, 
 		return
 	}
 
-	if sumRangesSize(ranges) > size {
+	if rangesSizeExceeds(ranges, size) {
 		// The total number of bytes in all the ranges
 		// is larger than the size of the file by
 		// itself, so this is probably an attack, or a
 		// dumb client. Ignore the range request.
 		ranges = nil
+	}
+	if len(ranges) > 1 {
+		sendSize = rangesMIMESize(ranges, ctype, size)
+		if sendSize < 0 {
+			// The multipart framing cannot be represented by Content-Length.
+			ranges = nil
+			sendSize = size
+		}
 	}
 	switch {
 	case len(ranges) == 1:
@@ -367,7 +375,6 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, 
 		code = StatusPartialContent
 		w.Header().Set("Content-Range", ra.contentRange(size))
 	case len(ranges) > 1:
-		sendSize = rangesMIMESize(ranges, ctype, size)
 		code = StatusPartialContent
 
 		pr, pw := io.Pipe()
@@ -1131,22 +1138,31 @@ func (w *countingWriter) Write(p []byte) (n int, err error) {
 }
 
 // rangesMIMESize returns the number of bytes it takes to encode the
-// provided ranges as a multipart response.
+// provided ranges as a multipart response, or -1 if the size overflows int64.
 func rangesMIMESize(ranges []httpRange, contentType string, contentSize int64) (encSize int64) {
 	var w countingWriter
 	mw := multipart.NewWriter(&w)
 	for _, ra := range ranges {
+		if ra.length > math.MaxInt64-encSize {
+			return -1
+		}
 		mw.CreatePart(ra.mimeHeader(contentType, contentSize))
 		encSize += ra.length
 	}
 	mw.Close()
+	if int64(w) > math.MaxInt64-encSize {
+		return -1
+	}
 	encSize += int64(w)
 	return
 }
 
-func sumRangesSize(ranges []httpRange) (size int64) {
+func rangesSizeExceeds(ranges []httpRange, size int64) bool {
 	for _, ra := range ranges {
-		size += ra.length
+		if ra.length > size {
+			return true
+		}
+		size -= ra.length
 	}
-	return
+	return false
 }
