@@ -2114,6 +2114,18 @@ func asmbElf(ctxt *Link) {
 		ph.Flags = elf.PF_W + elf.PF_R
 	}
 
+	if s := ldr.Lookup(".eh_frame_hdr", 0); s != 0 && ldr.AttrReachable(s) {
+		sh := elfshname(".eh_frame_hdr")
+		sh.Type = uint32(elf.SHT_PROGBITS)
+		sh.Flags = uint64(elf.SHF_ALLOC)
+		sh.Addralign = 4
+		shsym(sh, ldr, s)
+		ph := newElfPhdr()
+		ph.Type = elf.PT_GNU_EH_FRAME
+		ph.Flags = elf.PF_R
+		phsh(ph, sh)
+	}
+
 elfobj:
 	if ctxt.IsMIPS() {
 		sh := elfshname(".MIPS.abiflags")

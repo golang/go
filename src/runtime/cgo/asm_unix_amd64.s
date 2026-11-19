@@ -44,15 +44,36 @@ TEXT _cgo_wait_runtime_init_done(SB),NOSPLIT|NOFRAME,$0-0
 	LEAQ	·cgo_context_function(SB), AX
 	MOVQ	(AX), AX
 	TESTQ	AX, AX
-	JNE	slow
+	JNZ	callctx
 	RET
 slow:
 	PUSH_REGS_HOST_TO_ABI0()
 	ADJSP	$8
-	CALL	·cgoWaitRuntimeInitDone(SB)
+	CALL	·cgoWaitRuntimeInit(SB)
 	MOVQ	0(SP), AX
 	ADJSP	$-8
 	POP_REGS_HOST_TO_ABI0()
+	TESTQ	AX, AX
+	JNZ	callctx
+	RET
+callctx:
+	JMP	·x_cgo_call_context(SB)
+
+// x_cgo_call_context calls the registered cgo context function (passed in AX).
+// cmd/link emits static unwind info matching the standard frame-pointer prologue
+// so callbacks using _Unwind_Backtrace unwind cleanly into the C caller.
+TEXT ·x_cgo_call_context(SB),NOSPLIT|NOFRAME,$0-0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	SUBQ	$16, SP
+
+	MOVQ	$0, 0(SP)	// arg.context = 0
+	MOVQ	SP, DI		// &arg
+	CALL	AX
+
+	MOVQ	0(SP), AX	// return arg.context
+	MOVQ	BP, SP
+	POPQ	BP
 	RET
 
 TEXT _cgo_release_context(SB),NOSPLIT|NOFRAME,$0-0
@@ -104,3 +125,36 @@ TEXT x_cgo_init<>(SB),NOSPLIT|NOFRAME,$0-0
 
 GLOBL _cgo_init(SB), NOPTR, $8
 DATA _cgo_init+0(SB)/8, $x_cgo_init<>(SB)
+
+// x_cgo_callers is jumped to from runtime.cgoSigtramp on the signal stack.
+// cmd/link emits static unwind info matching the standard frame-pointer prologue
+// so traceback callbacks unwind cleanly into the OS signal trampoline.
+TEXT ·x_cgo_callers(SB),NOSPLIT|NOFRAME,$0-0
+	PUSHQ	BP
+	MOVQ	SP, BP
+	SUBQ	$64, SP
+
+	MOVQ	$0, 0(SP)	// arg.context = 0
+	MOVQ	DX, 8(SP)	// arg.sigContext = context
+	MOVQ	R8, 16(SP)	// arg.buf = cgoCallers
+	MOVQ	$32, 24(SP)	// arg.max = 32
+
+	MOVQ	DI, 32(SP)	// save sig
+	MOVQ	SI, 40(SP)	// save info
+	MOVQ	DX, 48(SP)	// save context
+	MOVQ	R9, 56(SP)	// save sigtramp
+
+	MOVQ	SP, DI		// &arg
+	CALL	CX		// (*cgoTraceback)(&arg)
+
+	MOVQ	32(SP), DI	// restore sig
+	MOVQ	40(SP), SI	// restore info
+	MOVQ	48(SP), DX	// restore context
+	MOVQ	56(SP), AX	// restore sigtramp
+
+	MOVQ	BP, SP
+	POPQ	BP
+	JMP	AX		// sigtramp(sig, info, context)
+
+GLOBL _cgo_callers(SB), NOPTR, $8
+DATA _cgo_callers+0(SB)/8, $·x_cgo_callers(SB)

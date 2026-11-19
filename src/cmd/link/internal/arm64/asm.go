@@ -548,6 +548,11 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 		out.Write64(uint64(r.Xadd))
 		out.Write64(uint64(sectoff + 4))
 		out.Write64(uint64(elf.R_AARCH64_LD64_GOT_LO12_NC) | uint64(elfsym)<<32)
+	case objabi.R_PCREL:
+		if siz != 4 {
+			return false
+		}
+		out.Write64(uint64(elf.R_AARCH64_PREL32) | uint64(elfsym)<<32)
 	case objabi.R_CALLARM64:
 		if siz != 4 {
 			return false

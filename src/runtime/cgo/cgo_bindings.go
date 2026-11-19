@@ -172,7 +172,7 @@ var (
 //go:nosplit
 //go:norace
 //go:nocheckptr
-func cgoWaitRuntimeInitDone() uintptr {
+func cgoWaitRuntimeInit() uintptr {
 	if atomic.Load(&runtime_init_done) != 2 {
 		for atomic.Load(&runtime_init_done) == 0 {
 			cgoYieldWaitRuntimeInit()
@@ -188,7 +188,14 @@ func cgoWaitRuntimeInitDone() uintptr {
 	// initialization to be complete anyhow, later, by waiting for
 	// main_init_done to be closed in cgocallbackg1. We should wait here
 	// instead. See also issue #15943.
-	if pfn := atomic.Loaduintptr(&cgo_context_function); pfn != 0 {
+	return atomic.Loaduintptr(&cgo_context_function)
+}
+
+//go:nosplit
+//go:norace
+//go:nocheckptr
+func cgoWaitRuntimeInitDone() uintptr {
+	if pfn := cgoWaitRuntimeInit(); pfn != 0 {
 		var arg cgoContextArg
 		msanUnpoisonNoG(unsafe.Pointer(&arg), unsafe.Sizeof(arg))
 		fn := pfn

@@ -238,8 +238,96 @@ nog:
 
 	RET
 
-TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
-	JMP	runtime·sigtramp(SB)
+// Called from c-abi, R0: sig, R1: info, R2: ctx
+TEXT runtime·sigprofNonGoWrapper<>(SB),NOSPLIT,$176
+	// Save callee-save registers because it's a callback from C code.
+	SAVE_R19_TO_R28(8*4)
+	SAVE_F8_TO_F15(8*14)
+	MOVD	ZR, g
+
+	// R0, R1 and R2 already contain sig, info and ctx, respectively.
+	CALL	runtime·sigprofNonGo<ABIInternal>(SB)
+
+	// Restore callee-save registers.
+	RESTORE_R19_TO_R28(8*4)
+	RESTORE_F8_TO_F15(8*14)
+	RET
+
+// Called from c-abi, R0: sig, R1: info, R2: ctx
+TEXT runtime·cgoSigtramp(SB),NOSPLIT|NOFRAME,$0
+	// The stack unwinder may not be able to handle a Go frame, so this
+	// function is NOFRAME and saves/restores LR manually.
+	MOVD	LR, R10
+	// Save R27 and g because load_g and global accesses clobber them.
+	MOVD	R27, R11
+	MOVD	g, R12
+
+	// If no traceback function, do usual sigtramp.
+	MOVD	runtime·cgoTraceback(SB), R6
+	CBZ	R6, sigtramp
+
+	// If no traceback support function, do usual sigtramp.
+	MOVD	_cgo_callers(SB), R7
+	CBZ	R7, sigtramp
+
+	// Figure out if we are currently in a cgo call.
+	// Save R0 because runtime·load_g clobbers it.
+	MOVD	R0, R8
+	CALL	runtime·load_g(SB)
+	MOVD	R8, R0
+
+	CBZ	g, sigtrampnog		// g == nil
+	MOVD	g_m(g), R6
+	CBZ	R6, sigtramp		// g.m == nil
+	MOVW	m_ncgo(R6), R7
+	CBZW	R7, sigtramp		// g.m.ncgo == 0
+	MOVD	m_curg(R6), R8
+	CBZ	R8, sigtramp		// g.m.curg == nil
+	MOVD	g_syscallsp(R8), R7
+	CBZ	R7, sigtramp		// g.m.curg.syscallsp == 0
+	MOVD	m_cgoCallers(R6), R4	// R4 is the fifth arg in C calling convention.
+	CBZ	R4, sigtramp		// g.m.cgoCallers == nil
+	MOVW	m_cgoCallersUse(R6), R8
+	CBNZW	R8, sigtramp		// g.m.cgoCallersUse != 0
+
+	// Jump to runtime/cgo.x_cgo_callers, which has static unwind info,
+	// calls the user's traceback function, and jumps back to sigtramp.
+	MOVD	runtime·cgoTraceback(SB), R3
+	MOVD	$runtime·sigtramp(SB), R5
+	MOVD	_cgo_callers(SB), R13
+	MOVD	R10, LR
+	MOVD	R11, R27
+	MOVD	R12, g
+	B	(R13)
+
+sigtramp:
+	MOVD	R10, LR
+	MOVD	R11, R27
+	MOVD	R12, g
+	B	runtime·sigtramp(SB)
+
+sigtrampnog:
+	// Signal arrived on a non-Go thread. If this is SIGPROF, get a stack trace.
+	CMPW	$27, R0 // 27 == SIGPROF
+	BNE	sigtramp
+
+	// Lock sigprofCallersUse (cas from 0 to 1).
+	MOVW	$1, R7
+	MOVD	$runtime·sigprofCallersUse(SB), R8
+load_store_loop:
+	LDAXRW	(R8), R9
+	CBNZW	R9, sigtramp // Skip stack trace if already locked.
+	STLXRW	R7, (R8), R9
+	CBNZ	R9, load_store_loop
+
+	MOVD	runtime·cgoTraceback(SB), R3
+	MOVD	$runtime·sigprofCallers(SB), R4
+	MOVD	$runtime·sigprofNonGoWrapper<>(SB), R5
+	MOVD	_cgo_callers(SB), R13
+	MOVD	R10, LR
+	MOVD	R11, R27
+	MOVD	R12, g
+	B	(R13)
 
 TEXT runtime·sigprocmask_trampoline(SB),NOSPLIT,$0
 	MOVD	8(R0), R1	// arg 2 new

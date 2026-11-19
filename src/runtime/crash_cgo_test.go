@@ -9,7 +9,6 @@ package runtime_test
 import (
 	"fmt"
 	"internal/asan"
-	"internal/goexperiment"
 	"internal/goos"
 	"internal/msan"
 	"internal/race"
@@ -344,14 +343,12 @@ func TestCgoPprofCallback(t *testing.T) {
 }
 
 func TestCgoCrashTraceback(t *testing.T) {
-	if goexperiment.RuntimeCgoPurego {
-		t.Skip("SetCgoTraceback disabled under GOEXPERIMENT=runtimecgopurego")
-	}
 	t.Parallel()
 	switch platform := runtime.GOOS + "/" + runtime.GOARCH; platform {
 	case "android/amd64":
 	case "android/arm64":
 	case "darwin/amd64":
+	case "darwin/arm64":
 	case "linux/amd64":
 	case "linux/arm64":
 	case "linux/loong64":
@@ -374,12 +371,41 @@ func TestCgoCrashTraceback(t *testing.T) {
 	}
 }
 
+func TestCgoCrashTracebackUnwind(t *testing.T) {
+	t.Parallel()
+	switch platform := runtime.GOOS + "/" + runtime.GOARCH; platform {
+	case "darwin/amd64":
+	case "darwin/arm64":
+	case "linux/amd64":
+	case "linux/arm64":
+	default:
+		t.Skipf("not yet supported on %s", platform)
+	}
+	if asan.Enabled || msan.Enabled {
+		t.Skip("skipping test on ASAN/MSAN: triggers SIGSEGV in sanitizer runtime")
+	}
+	got := runTestProg(t, "testprogcgo", "CrashTracebackUnwind")
+	var prev int
+	for _, i := range []int{3, 2, 1} {
+		want := fmt.Sprintf("cgo unwind:%d", i)
+		idx := strings.Index(got, want)
+		if idx < 0 {
+			t.Errorf("missing %s in %s", want, got)
+		} else if idx < prev {
+			t.Errorf("out-of-order %s in %s", want, got)
+		} else {
+			prev = idx
+		}
+	}
+}
+
 func TestCgoCrashTracebackGo(t *testing.T) {
 	t.Parallel()
 	switch platform := runtime.GOOS + "/" + runtime.GOARCH; platform {
 	case "android/amd64":
 	case "android/arm64":
 	case "darwin/amd64":
+	case "darwin/arm64":
 	case "linux/amd64":
 	case "linux/arm64":
 	case "linux/loong64":
@@ -401,9 +427,6 @@ func TestCgoCrashTracebackGo(t *testing.T) {
 }
 
 func TestCgoTracebackContext(t *testing.T) {
-	if goexperiment.RuntimeCgoPurego {
-		t.Skip("SetCgoTraceback disabled under GOEXPERIMENT=runtimecgopurego")
-	}
 	t.Parallel()
 	if runtime.GOOS == "freebsd" && race.Enabled {
 		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
@@ -415,10 +438,24 @@ func TestCgoTracebackContext(t *testing.T) {
 	}
 }
 
-func TestCgoTracebackContextPreemption(t *testing.T) {
-	if goexperiment.RuntimeCgoPurego {
-		t.Skip("SetCgoTraceback disabled under GOEXPERIMENT=runtimecgopurego")
+func TestCgoTracebackContextUnwind(t *testing.T) {
+	t.Parallel()
+	switch platform := runtime.GOOS + "/" + runtime.GOARCH; platform {
+	case "darwin/amd64":
+	case "darwin/arm64":
+	case "linux/amd64":
+	case "linux/arm64":
+	default:
+		t.Skipf("not yet supported on %s", platform)
 	}
+	got := runTestProg(t, "testprogcgo", "TracebackContextUnwind")
+	want := "OK\n"
+	if got != want {
+		t.Errorf("expected %q got %v", want, got)
+	}
+}
+
+func TestCgoTracebackContextPreemption(t *testing.T) {
 	t.Parallel()
 	if runtime.GOOS == "freebsd" && race.Enabled {
 		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
@@ -431,9 +468,6 @@ func TestCgoTracebackContextPreemption(t *testing.T) {
 }
 
 func TestCgoTracebackContextProfile(t *testing.T) {
-	if goexperiment.RuntimeCgoPurego {
-		t.Skip("SetCgoTraceback disabled under GOEXPERIMENT=runtimecgopurego")
-	}
 	t.Parallel()
 	if runtime.GOOS == "freebsd" && race.Enabled {
 		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
@@ -516,16 +550,10 @@ func testCgoPprof(t *testing.T, buildArg, runArg, top, bottom string) {
 }
 
 func TestCgoPprof(t *testing.T) {
-	if goexperiment.RuntimeCgoPurego {
-		t.Skip("SetCgoTraceback disabled under GOEXPERIMENT=runtimecgopurego")
-	}
 	testCgoPprof(t, "", "CgoPprof", "cpuHog", "runtime.main")
 }
 
 func TestCgoPprofPIE(t *testing.T) {
-	if goexperiment.RuntimeCgoPurego {
-		t.Skip("SetCgoTraceback disabled under GOEXPERIMENT=runtimecgopurego")
-	}
 	if race.Enabled {
 		t.Skip("skipping test: -race + PIE not supported")
 	}
@@ -533,9 +561,6 @@ func TestCgoPprofPIE(t *testing.T) {
 }
 
 func TestCgoPprofThread(t *testing.T) {
-	if goexperiment.RuntimeCgoPurego {
-		t.Skip("SetCgoTraceback disabled under GOEXPERIMENT=runtimecgopurego")
-	}
 	testCgoPprof(t, "", "CgoPprofThread", "cpuHogThread", "cpuHogThread2")
 }
 
@@ -544,9 +569,6 @@ func TestCgoPprofThreadNoTraceback(t *testing.T) {
 }
 
 func TestRaceProf(t *testing.T) {
-	if goexperiment.RuntimeCgoPurego {
-		t.Skip("SetCgoTraceback disabled under GOEXPERIMENT=runtimecgopurego")
-	}
 	if !race.Enabled {
 		t.Skip("skipping: race detector not enabled")
 	}
@@ -987,9 +1009,6 @@ func TestCgoEscapeWithMultiplePointers(t *testing.T) {
 }
 
 func TestCgoTracebackGoroutineProfile(t *testing.T) {
-	if goexperiment.RuntimeCgoPurego {
-		t.Skip("SetCgoTraceback disabled under GOEXPERIMENT=runtimecgopurego")
-	}
 	if runtime.GOOS == "freebsd" && race.Enabled {
 		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
 	}

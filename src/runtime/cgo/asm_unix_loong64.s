@@ -103,3 +103,37 @@ TEXT x_cgo_init<>(SB),NOSPLIT|NOFRAME,$0-0
 	RET
 GLOBL _cgo_init(SB), NOPTR, $8
 DATA _cgo_init+0(SB)/8, $x_cgo_init<>(SB)
+
+// x_cgo_callers is jumped to from runtime.cgoSigtramp on the signal stack.
+TEXT ·x_cgo_callers(SB),NOSPLIT|NOFRAME,$0
+	ADDV	$-80, R3
+	MOVV	g, 64(R3)		// save fp (R22/g)
+	MOVV	R1, 72(R3)
+	ADDV	$80, R3, g
+
+	MOVV	R0, 0(R3)		// arg.context = 0
+	MOVV	R6, 8(R3)		// arg.sigContext = context
+	MOVV	R8, 16(R3)		// arg.buf = cgoCallers
+	MOVV	$32, R12
+	MOVV	R12, 24(R3)		// arg.max = 32
+
+	MOVV	R4, 32(R3)		// save sig
+	MOVV	R5, 40(R3)		// save info
+	MOVV	R6, 48(R3)		// save context
+	MOVV	R9, 56(R3)		// save sigtramp
+
+	MOVV	R3, R4			// &arg
+	JAL	(R7)			// (*cgoTraceback)(&arg)
+
+	MOVV	32(R3), R4		// restore sig
+	MOVV	40(R3), R5		// restore info
+	MOVV	48(R3), R6		// restore context
+	MOVV	56(R3), R12		// restore sigtramp
+
+	MOVV	64(R3), g
+	MOVV	72(R3), R1
+	ADDV	$80, R3
+	JMP	(R12)			// sigtramp(sig, info, context)
+
+GLOBL _cgo_callers(SB), NOPTR, $8
+DATA _cgo_callers+0(SB)/8, $·x_cgo_callers(SB)

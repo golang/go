@@ -630,6 +630,12 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *sym.Section, segname string) 
 		msect.segname = "__LLVM"
 	}
 
+	if sect.Name == ".compact_unwind" {
+		msect.name = "__compact_unwind"
+		msect.segname = "__LD"
+		msect.flag = S_ATTR_DEBUG
+	}
+
 	if segname == "__DWARF" {
 		msect.flag |= S_ATTR_DEBUG
 	}

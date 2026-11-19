@@ -9,6 +9,7 @@ import (
 	"internal/bytealg"
 	"internal/goarch"
 	"internal/goexperiment"
+	"internal/runtime/atomic"
 	"internal/runtime/pprof/label"
 	"internal/runtime/sys"
 	"internal/stringslite"
@@ -1710,16 +1711,9 @@ func isSystemGoroutine(gp *g, fixed bool) bool {
 // to Go will not show a traceback for the C portion of the call stack.
 //
 // SetCgoTraceback should be called only once, ideally from an init function.
-//
-// SetCgoTraceback does not have any effect when the runtimecgopurego
-// GOEXPERIMENT is enabled.
 func SetCgoTraceback(version int, traceback, context, symbolizer unsafe.Pointer) {
 	if version != 0 {
 		panic("unsupported version")
-	}
-
-	if goexperiment.RuntimeCgoPurego && _cgo_set_traceback_functions == nil {
-		return
 	}
 
 	if cgoTraceback != nil && cgoTraceback != traceback ||
@@ -1728,9 +1722,12 @@ func SetCgoTraceback(version int, traceback, context, symbolizer unsafe.Pointer)
 		panic("call SetCgoTraceback only once")
 	}
 
-	cgoTraceback = traceback
 	cgoContext = context
 	cgoSymbolizer = symbolizer
+	// Publish cgoTraceback with a release store after cgoContext and
+	// cgoSymbolizer; cgoSigtramp reads it without synchronization from a
+	// signal handler.
+	atomic.StorepNoWB(unsafe.Pointer(&cgoTraceback), traceback)
 
 	if goexperiment.RuntimeCgoPurego && cgoSetContextFunction != nil {
 		cgoSetContextFunction(uintptr(context))

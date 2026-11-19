@@ -62,15 +62,36 @@ TEXT _cgo_wait_runtime_init_done(SB),NOSPLIT|NOFRAME,$0-0
 	BNE	slow
 	MOVD	$·cgo_context_function(SB), R0
 	LDAR	(R0), R0
-	CBNZ	R0, slow
 	MOVD	R9, R27
+	CBNZ	R0, callctx
 	RET
 slow:
 	MOVD	R9, R27
 	CGO_PROLOGUE
-	CALL_GO(·cgoWaitRuntimeInitDone)
+	CALL_GO(·cgoWaitRuntimeInit)
 	MOVD	8(RSP), R0
 	CGO_EPILOGUE
+	CBNZ	R0, callctx
+	RET
+callctx:
+	B	·x_cgo_call_context(SB)
+
+// x_cgo_call_context calls the registered cgo context function (passed in R0).
+// cmd/link emits static unwind info matching the standard frame-pointer prologue
+// so callbacks using _Unwind_Backtrace unwind cleanly into the C caller.
+TEXT ·x_cgo_call_context(SB),NOSPLIT|NOFRAME,$0
+	STP.W	(R29, R30), -16(RSP)
+	MOVD	RSP, R29
+	SUB	$16, RSP
+
+	MOVD	R0, R9		// pfn
+	MOVD	ZR, 0(RSP)	// arg.context = 0
+	MOVD	RSP, R0		// &arg
+	BL	(R9)
+
+	MOVD	0(RSP), R0	// return arg.context
+	MOVD	R29, RSP
+	LDP.P	16(RSP), (R29, R30)
 	RET
 
 TEXT _cgo_release_context(SB),NOSPLIT|NOFRAME,$0-0
@@ -105,3 +126,31 @@ TEXT x_cgo_init<>(SB),NOSPLIT|NOFRAME,$0-0
 
 GLOBL _cgo_init(SB), NOPTR, $8
 DATA _cgo_init+0(SB)/8, $x_cgo_init<>(SB)
+
+// x_cgo_callers is jumped to from runtime.cgoSigtramp on the signal stack.
+// cmd/link emits static unwind info matching the standard frame-pointer prologue
+// so traceback callbacks unwind cleanly into the OS signal trampoline.
+TEXT ·x_cgo_callers(SB),NOSPLIT|NOFRAME,$0
+	STP.W	(R29, R30), -16(RSP)
+	MOVD	RSP, R29
+	SUB	$64, RSP
+
+	STP	(ZR, R2), 0(RSP)	// arg.context = 0, arg.sigContext = context
+	MOVD	$32, R6
+	STP	(R4, R6), 16(RSP)	// arg.buf = cgoCallers, arg.max = 32
+
+	STP	(R0, R1), 32(RSP)	// save sig, info
+	STP	(R2, R5), 48(RSP)	// save context, sigtramp
+
+	MOVD	RSP, R0			// &arg
+	BL	(R3)			// (*cgoTraceback)(&arg)
+
+	LDP	32(RSP), (R0, R1)	// restore sig, info
+	LDP	48(RSP), (R2, R5)	// restore context, sigtramp
+
+	MOVD	R29, RSP
+	LDP.P	16(RSP), (R29, R30)
+	B	(R5)			// sigtramp(sig, info, context)
+
+GLOBL _cgo_callers(SB), NOPTR, $8
+DATA _cgo_callers+0(SB)/8, $·x_cgo_callers(SB)

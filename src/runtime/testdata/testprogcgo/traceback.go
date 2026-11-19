@@ -10,12 +10,15 @@ package main
 
 /*
 #cgo CFLAGS: -g -O0
+#cgo darwin,amd64 darwin,arm64 linux,amd64 linux,arm64 CFLAGS: -fasynchronous-unwind-tables
 
 // Defined in traceback_c.c.
 extern int crashInGo;
 int tracebackF1(void);
 void cgoTraceback(void* parg);
 void cgoSymbolizer(void* parg);
+void cgoUnwindTraceback(void* parg);
+void cgoUnwindSymbolizer(void* parg);
 */
 import "C"
 
@@ -27,6 +30,7 @@ import (
 func init() {
 	register("CrashTraceback", CrashTraceback)
 	register("CrashTracebackGo", CrashTracebackGo)
+	register("CrashTracebackUnwind", CrashTracebackUnwind)
 }
 
 func CrashTraceback() {
@@ -37,6 +41,11 @@ func CrashTraceback() {
 func CrashTracebackGo() {
 	C.crashInGo = 1
 	CrashTraceback()
+}
+
+func CrashTracebackUnwind() {
+	runtime.SetCgoTraceback(0, unsafe.Pointer(C.cgoUnwindTraceback), nil, unsafe.Pointer(C.cgoUnwindSymbolizer))
+	C.tracebackF1()
 }
 
 //export h1

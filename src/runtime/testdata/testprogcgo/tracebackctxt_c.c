@@ -8,9 +8,15 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+#if defined(__APPLE__) || defined(__linux__)
+#include <unwind.h>
+#endif
+
 // Functions exported from Go.
 extern void G1(void);
 extern void G2(void);
+extern void G1Unwind(void);
+extern void G2Unwind(void);
 extern void TracebackContextPreemptionGoFunction(int);
 extern void TracebackContextProfileGoFunction(void);
 
@@ -105,4 +111,127 @@ void TracebackContextPreemptionCallGo(int i) {
 
 void TracebackContextProfileCallGo(void) {
 	TracebackContextProfileGoFunction();
+}
+
+static uintptr_t ctxUnwindPC1, ctxUnwindPC2;
+static volatile int ctxUnwindSink;
+
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((noinline))
+#endif
+static void C1UnwindInner(void) {
+#if defined(__APPLE__) || defined(__linux__)
+	ctxUnwindPC1 = (uintptr_t)__builtin_extract_return_addr(__builtin_return_address(0));
+#endif
+	G1Unwind();
+	ctxUnwindSink++;
+}
+
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((noinline))
+#endif
+void C1Unwind(void) {
+	C1UnwindInner();
+	ctxUnwindSink++;
+}
+
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((noinline))
+#endif
+static void C2UnwindInner(void) {
+#if defined(__APPLE__) || defined(__linux__)
+	ctxUnwindPC2 = (uintptr_t)__builtin_extract_return_addr(__builtin_return_address(0));
+#endif
+	G2Unwind();
+	ctxUnwindSink++;
+}
+
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((noinline))
+#endif
+void C2Unwind(void) {
+	C2UnwindInner();
+	ctxUnwindSink++;
+}
+
+#define MAX_CTX_SLOTS 4
+#define MAX_CTX_PCS 32
+static uintptr_t ctxPCs[MAX_CTX_SLOTS][MAX_CTX_PCS];
+
+#if defined(__APPLE__) || defined(__linux__)
+struct ctxUnwindState {
+	uintptr_t* buf;
+	uintptr_t  max;
+	uintptr_t  n;
+};
+
+static _Unwind_Reason_Code ctxUnwindCallback(struct _Unwind_Context* ctx, void* arg) {
+	struct ctxUnwindState* st = (struct ctxUnwindState*)(arg);
+	uintptr_t pc = _Unwind_GetIP(ctx);
+	if (pc != 0 && st->n + 1 < st->max) {
+		st->buf[st->n++] = pc;
+	}
+	return _URC_NO_REASON;
+}
+#endif
+
+void tcUnwindContext(void* parg) {
+	struct cgoContextArg* arg = (struct cgoContextArg*)(parg);
+	if (arg->context == 0) {
+		int slot = __sync_add_and_fetch(&contextCount, 1);
+		if (slot < 1 || slot > MAX_CTX_SLOTS) {
+			abort();
+		}
+		arg->context = slot;
+#if defined(__APPLE__) || defined(__linux__)
+		struct ctxUnwindState st = { ctxPCs[slot - 1], MAX_CTX_PCS, 0 };
+		_Unwind_Backtrace(ctxUnwindCallback, &st);
+		ctxPCs[slot - 1][st.n] = 0;
+#else
+		ctxPCs[slot - 1][0] = 0;
+#endif
+	} else {
+		if (arg->context != __sync_add_and_fetch(&contextCount, 0)) {
+			abort();
+		}
+		__sync_sub_and_fetch(&contextCount, 1);
+	}
+}
+
+void tcUnwindTraceback(void* parg) {
+	struct cgoTracebackArg* arg = (struct cgoTracebackArg*)(parg);
+	if (arg->context < 1 || arg->context > MAX_CTX_SLOTS) {
+		arg->buf[0] = 0;
+		return;
+	}
+	uintptr_t* src = ctxPCs[arg->context - 1];
+	uintptr_t i;
+	for (i = 0; i + 1 < arg->max && src[i] != 0; i++) {
+		arg->buf[i] = src[i];
+	}
+	arg->buf[i] = 0;
+}
+
+static int matchCtxPC(uintptr_t pc, uintptr_t target) {
+	return target != 0 && (pc == target || pc + 1 == target || pc == target + 1);
+}
+
+void tcUnwindSymbolizer(void* parg) {
+	struct cgoSymbolizerArg* arg = (struct cgoSymbolizerArg*)(parg);
+	arg->file = NULL;
+	arg->func = NULL;
+	arg->lineno = 0;
+	arg->more = 0;
+	if (arg->pc == 0) {
+		return;
+	}
+	if (matchCtxPC(arg->pc, ctxUnwindPC2)) {
+		arg->func = "C2Unwind";
+		arg->file = "tracebackctxt_c.c";
+		arg->lineno = 2;
+	} else if (matchCtxPC(arg->pc, ctxUnwindPC1)) {
+		arg->func = "C1Unwind";
+		arg->file = "tracebackctxt_c.c";
+		arg->lineno = 1;
+	}
 }

@@ -2870,6 +2870,7 @@ func (ctxt *Link) textaddress() {
 		// that we have final addresses for the text symbols.
 		collectSEH(ctxt)
 	}
+	collectCgoUnwind(ctxt)
 }
 
 // assigns address for a text symbol, returns (possibly new) section, its number, and the address.

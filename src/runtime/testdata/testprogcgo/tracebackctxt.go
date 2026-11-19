@@ -11,10 +11,15 @@ package main
 // Defined in tracebackctxt_c.c.
 extern void C1(void);
 extern void C2(void);
+extern void C1Unwind(void);
+extern void C2Unwind(void);
 extern void tcContext(void*);
 extern void tcContextSimple(void*);
 extern void tcTraceback(void*);
 extern void tcSymbolizer(void*);
+extern void tcUnwindContext(void*);
+extern void tcUnwindTraceback(void*);
+extern void tcUnwindSymbolizer(void*);
 extern int getContextCount(void);
 extern void TracebackContextPreemptionCallGo(int);
 extern void TracebackContextProfileCallGo(void);
@@ -33,6 +38,7 @@ import (
 
 func init() {
 	register("TracebackContext", TracebackContext)
+	register("TracebackContextUnwind", TracebackContextUnwind)
 	register("TracebackContextPreemption", TracebackContextPreemption)
 	register("TracebackContextProfile", TracebackContextProfile)
 }
@@ -100,6 +106,69 @@ wantLoop:
 			}
 		}
 		fmt.Printf("did not find function %s in\n", w.function)
+		for _, f := range frames {
+			fmt.Println(f)
+		}
+		ok = false
+		break
+	}
+	tracebackOK = ok
+	if got := C.getContextCount(); got != 2 {
+		fmt.Printf("at bottom contextCount == %d, expected 2\n", got)
+		tracebackOK = false
+	}
+}
+
+func TracebackContextUnwind() {
+	runtime.SetCgoTraceback(0, unsafe.Pointer(C.tcUnwindTraceback), unsafe.Pointer(C.tcUnwindContext), unsafe.Pointer(C.tcUnwindSymbolizer))
+	C.C1Unwind()
+	if got := C.getContextCount(); got != 0 {
+		fmt.Printf("at end contextCount == %d, expected 0\n", got)
+		tracebackOK = false
+	}
+	if tracebackOK {
+		fmt.Println("OK")
+	}
+}
+
+//export G1Unwind
+func G1Unwind() {
+	C.C2Unwind()
+}
+
+//export G2Unwind
+func G2Unwind() {
+	pc := make([]uintptr, 64)
+	n := runtime.Callers(0, pc)
+	cf := runtime.CallersFrames(pc[:n])
+	var frames []runtime.Frame
+	for {
+		frame, more := cf.Next()
+		frames = append(frames, frame)
+		if !more {
+			break
+		}
+	}
+
+	want := []string{
+		"main.G2Unwind",
+		"C2Unwind",
+		"main.G1Unwind",
+		"C1Unwind",
+		"main.TracebackContextUnwind",
+	}
+
+	ok := true
+	i := 0
+wantLoop:
+	for _, w := range want {
+		for ; i < len(frames); i++ {
+			if frames[i].Function == w {
+				i++
+				continue wantLoop
+			}
+		}
+		fmt.Printf("did not find function %s in\n", w)
 		for _, f := range frames {
 			fmt.Println(f)
 		}
