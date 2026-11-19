@@ -229,5 +229,9 @@ func simdWasmOps(vload, vstore, v11, v21, v31, v11gp, v11fp32, v11fp64, v1gpv, v
 		{name: "I8x16NarrowI16x8S", argLength: 2, reg: v21, asm: "I8x16NarrowI16x8S", typ: "Vec128"},
 		{name: "I16x8NarrowI32x4U", argLength: 2, reg: v21, asm: "I16x8NarrowI32x4U", typ: "Vec128"},
 		{name: "I8x16NarrowI16x8U", argLength: 2, reg: v21, asm: "I8x16NarrowI16x8U", typ: "Vec128"},
+		{name: "I8x16Swap16", argLength: 2, reg: v21, asm: "I8x16Shuffle16", typ: "Vec128"},
+		{name: "I8x16Swap32", argLength: 2, reg: v21, asm: "I8x16Shuffle16", typ: "Vec128"},
+		{name: "I8x16Swap64", argLength: 2, reg: v21, asm: "I8x16Shuffle16", typ: "Vec128"},
+		{name: "I8x16Swap8", argLength: 2, reg: v21, asm: "I8x16Shuffle16", typ: "Vec128"},
 	}
 }

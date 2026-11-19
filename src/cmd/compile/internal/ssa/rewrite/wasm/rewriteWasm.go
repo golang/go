@@ -1553,6 +1553,14 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpconcatSaturateToUint8Int16x8:
 		v.Op = ssaop.OpWasmI8x16NarrowI16x8U
 		return true
+	case ssaop.Opswap16Uint8x16:
+		return rewriteValue_Opswap16Uint8x16(v)
+	case ssaop.Opswap32Uint8x16:
+		return rewriteValue_Opswap32Uint8x16(v)
+	case ssaop.Opswap64Uint8x16:
+		return rewriteValue_Opswap64Uint8x16(v)
+	case ssaop.Opswap8Uint8x16:
+		return rewriteValue_Opswap8Uint8x16(v)
 	}
 	return false
 }
@@ -8126,6 +8134,50 @@ func rewriteValue_OpZeroExt8to64(v *ssa.Value) bool {
 		v0 := b.NewValue0(v.Pos, ssaop.OpWasmI64Const, typ.Int64)
 		v0.AuxInt = ssa.Int64ToAuxInt(0xff)
 		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValue_Opswap16Uint8x16(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	// match: (swap16Uint8x16 x)
+	// result: (I8x16Swap16 x x)
+	for {
+		x := v_0
+		v.Reset(ssaop.OpWasmI8x16Swap16)
+		v.AddArg2(x, x)
+		return true
+	}
+}
+func rewriteValue_Opswap32Uint8x16(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	// match: (swap32Uint8x16 x)
+	// result: (I8x16Swap32 x x)
+	for {
+		x := v_0
+		v.Reset(ssaop.OpWasmI8x16Swap32)
+		v.AddArg2(x, x)
+		return true
+	}
+}
+func rewriteValue_Opswap64Uint8x16(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	// match: (swap64Uint8x16 x)
+	// result: (I8x16Swap64 x x)
+	for {
+		x := v_0
+		v.Reset(ssaop.OpWasmI8x16Swap64)
+		v.AddArg2(x, x)
+		return true
+	}
+}
+func rewriteValue_Opswap8Uint8x16(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	// match: (swap8Uint8x16 x)
+	// result: (I8x16Swap8 x x)
+	for {
+		x := v_0
+		v.Reset(ssaop.OpWasmI8x16Swap8)
+		v.AddArg2(x, x)
 		return true
 	}
 }

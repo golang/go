@@ -282,5 +282,9 @@ func init() {
 		{name: "concatSaturateToInt16Int32x4", argLength: 2},
 		{name: "concatSaturateToUint8Int16x8", argLength: 2},
 		{name: "concatSaturateToUint16Int32x4", argLength: 2},
+		{name: "swap8Uint8x16", argLength: 1},
+		{name: "swap16Uint8x16", argLength: 1},
+		{name: "swap32Uint8x16", argLength: 1},
+		{name: "swap64Uint8x16", argLength: 1},
 	}
 }

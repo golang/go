@@ -208,11 +208,13 @@ const (
 	IsTest
 	IsExtract // Returns element type
 	IsCommutative
-	IsConversion   // "Wasm type" is result type, "Go method type" is input time
-	NameHasFormat  //
-	NonSigned      // Same bitwise operation whether signed or unsigned.  E.g. 2's complement addition.
-	EmulatedRule   // Emulation occurs at rule expansion.
-	IsSynthShuffle // Synthesized operation implemented via i8x16.shuffle
+	IsConversion  // "Wasm type" is result type, "Go method type" is input time
+	NameHasFormat //
+	NonSigned     // Same bitwise operation whether signed or unsigned.  E.g. 2's complement addition.
+	EmulatedRule  // Emulation occurs at rule expansion.
+	// Fixed permutation synthesized from i8x16.shuffle. Can take 1 or 2 args.
+	// If 1 arg, the arg is duplicated to both inputs.
+	IsSynthShuffle
 )
 
 func (o OpFlags) OneString() string {
@@ -419,6 +421,11 @@ func (o *wasmOp) SsaResultType() string {
 func (o *wasmOp) RegInfo() string {
 	if o.argType == "" || (o.argType[0] >= 'A' && o.argType[0] <= 'Z') {
 		if o.resultType == "" || (o.resultType[0] >= 'A' && o.resultType[0] <= 'Z') {
+			if o.Flag(IsSynthShuffle) && o.argCount == 1 {
+				// i8x16.shuffle always takes two v128 operands on the wasm stack;
+				// unary synth shuffles duplicate their single argument in the SSA rule.
+				return "v21"
+			}
 			switch o.argCount {
 			case 1:
 				return "v11"
@@ -650,6 +657,18 @@ func (o *wasmOp) ShuffleImm() (from, to uint64) {
 		case "ConcatOdd":
 			srcVec = k / half
 			srcElem = 2*(k%half) + 1
+		case "swap64":
+			srcVec = 0
+			srcElem = k ^ 8
+		case "swap32":
+			srcVec = 0
+			srcElem = k ^ 4
+		case "swap16":
+			srcVec = 0
+			srcElem = k ^ 2
+		case "swap8":
+			srcVec = 0
+			srcElem = k ^ 1
 		default:
 			panic("unexpected shuffle op: " + o.String())
 		}
@@ -773,8 +792,9 @@ var (
 	// has an immediate operand, and an element type operand
 	n_x = []string{"replace_lane"}
 
-	rotates  = []string{"RotateAllLeft", "RotateAllRight"}
-	shuffles = []string{"InterleaveLo", "InterleaveHi", "ConcatEven", "ConcatOdd"}
+	rotates      = []string{"RotateAllLeft", "RotateAllRight"}
+	shuffles     = []string{"InterleaveLo", "InterleaveHi", "ConcatEven", "ConcatOdd"}
+	swapShuffles = []string{"swap64", "swap32", "swap16", "swap8"}
 
 	// N1xM1.narrow_N2xM2_{s,u}
 	// N1xM1 is the result type.  There are two N2xM2 inputs, where N1 = N2/2 and M1 = M2*2
@@ -888,6 +908,12 @@ var (
 
 		"swizzle": "LookupOrZero",
 		"splat":   "Broadcast",
+
+		// Internal 1-argument butterfly-swap shuffles used by reductions.
+		"swap64": "swap64",
+		"swap32": "swap32",
+		"swap16": "swap16",
+		"swap8":  "swap8",
 	}
 )
 
@@ -1131,6 +1157,9 @@ func initWasmOps() {
 		return IsSynthShuffle
 	}
 	addWasmOps(ints, shuffles, 2, synthShuffle)
+	addWasmOps([]*simdType{vu8}, swapShuffles, 1, func(string, *simdType) OpFlags {
+		return IsSynthShuffle
+	})
 
 	slices.SortFunc(wasmOps, compareWasmOps)
 
@@ -1373,6 +1402,10 @@ var docForOp map[string]string = map[string]string{
 //	}`,
 	"RelaxedSwizzle":    "",
 	"RelaxedLaneselect": "",
+	"swap64":            " swaps the two 64-bit halves of x.",
+	"swap32":            " swaps adjacent 32-bit lanes within each 64-bit half of x.",
+	"swap16":            " swaps adjacent 16-bit lanes within each 32-bit group of x.",
+	"swap8":             " swaps adjacent 8-bit lanes within each 16-bit group of x.",
 }
 
 func (w *wasmOp) DocRest() string {
@@ -1652,14 +1685,19 @@ func genSSAOps(f *bytes.Buffer) {
 		}
 		var toPrint string
 		ssaWasmOp := op.SsaWasmOp()
+		argLen := op.ArgCount()
+		if op.Flag(IsSynthShuffle) {
+			// The SSA op always takes two arguments. The lowering rule dups 1-argument uses.
+			argLen = 2
+		}
 		// TODO also incorporate immediate operands.
 		if op.ImmRange() > 0 {
 			// These are currently not commutative
-			toPrint = fmt.Sprintf("\t\t{name: \"%s\", argLength: %d, reg: %s, asm: \"%s\", aux: \"UInt8\", typ: \"%s\"},\n", ssaWasmOp, op.ArgCount(), op.RegInfo(), op.AsmOp(), op.SsaResultType())
+			toPrint = fmt.Sprintf("\t\t{name: \"%s\", argLength: %d, reg: %s, asm: \"%s\", aux: \"UInt8\", typ: \"%s\"},\n", ssaWasmOp, argLen, op.RegInfo(), op.AsmOp(), op.SsaResultType())
 		} else if op.Flag(IsCommutative) {
-			toPrint = fmt.Sprintf("\t\t{name: \"%s\", argLength: %d, reg: %s, asm: \"%s\", commutative: true, typ: \"%s\"},\n", ssaWasmOp, op.ArgCount(), op.RegInfo(), op.AsmOp(), op.SsaResultType())
+			toPrint = fmt.Sprintf("\t\t{name: \"%s\", argLength: %d, reg: %s, asm: \"%s\", commutative: true, typ: \"%s\"},\n", ssaWasmOp, argLen, op.RegInfo(), op.AsmOp(), op.SsaResultType())
 		} else {
-			toPrint = fmt.Sprintf("\t\t{name: \"%s\", argLength: %d, reg: %s, asm: \"%s\", typ: \"%s\"},\n", ssaWasmOp, op.ArgCount(), op.RegInfo(), op.AsmOp(), op.SsaResultType())
+			toPrint = fmt.Sprintf("\t\t{name: \"%s\", argLength: %d, reg: %s, asm: \"%s\", typ: \"%s\"},\n", ssaWasmOp, argLen, op.RegInfo(), op.AsmOp(), op.SsaResultType())
 		}
 		if old := done[ssaWasmOp]; old != "" {
 			if old != toPrint {
@@ -1728,6 +1766,10 @@ func genSSARules(f *bytes.Buffer) {
 			if op.Flag(NonSigned) {
 				// hop over to the non-signed version of the type and use that method.
 				wasmOp = op.T().IntShaped.Methods[op.op].SsaWasmOp()
+			}
+			if op.Flag(IsSynthShuffle) && op.ArgCount() == 1 {
+				fmt.Fprintf(f, "(%s x) => (%s x x)\n", g, wasmOp)
+				continue
 			}
 			fmt.Fprintf(f, "(%s ...) => (%s ...)\n", g, wasmOp)
 			continue
@@ -1839,6 +1881,9 @@ func genWasmSSA(f *bytes.Buffer) {
 		} else {
 			switch op.ArgCount() {
 			case 1:
+				if op.Flag(IsSynthShuffle) {
+					return SHUFFLE
+				}
 				if op.Flag(IsSplat) {
 					switch op.ArgType() {
 					case "int8", "int16", "int32":

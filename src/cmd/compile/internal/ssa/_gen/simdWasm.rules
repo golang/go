@@ -326,6 +326,10 @@
 (concatSaturateToInt8Int16x8 ...) => (I8x16NarrowI16x8S ...)
 (concatSaturateToUint16Int32x4 ...) => (I16x8NarrowI32x4U ...)
 (concatSaturateToUint8Int16x8 ...) => (I8x16NarrowI16x8U ...)
+(swap16Uint8x16 x) => (I8x16Swap16 x x)
+(swap32Uint8x16 x) => (I8x16Swap32 x x)
+(swap64Uint8x16 x) => (I8x16Swap64 x x)
+(swap8Uint8x16 x) => (I8x16Swap8 x x)
 
 // x.HiToLo().ExtendTo*() => extend_high
 (I16x8ExtendLowI8x16S (F64x2ReplaceLane [0] _ (F64x2ExtractLane [1] x))) => (I16x8ExtendHighI8x16S x)

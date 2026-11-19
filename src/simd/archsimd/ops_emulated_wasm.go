@@ -424,3 +424,267 @@ func (x Int8x16) ReduceSum() (z int8) {
 func (x Uint8x16) ReduceSum() (z uint8) {
 	return uint8(x.ExtendToUint16().Add(x.HiToLo().ExtendToUint16()).ReduceSum())
 }
+
+func (x Int8x16) reduceMaxVec() Int8x16 {
+	m := x.Max(x.ToBits().swap64().BitsToInt8())
+	m = m.Max(m.ToBits().swap32().BitsToInt8())
+	m = m.Max(m.ToBits().swap16().BitsToInt8())
+	return m.Max(m.ToBits().swap8().BitsToInt8())
+}
+
+func (x Int8x16) reduceMinVec() Int8x16 {
+	m := x.Min(x.ToBits().swap64().BitsToInt8())
+	m = m.Min(m.ToBits().swap32().BitsToInt8())
+	m = m.Min(m.ToBits().swap16().BitsToInt8())
+	return m.Min(m.ToBits().swap8().BitsToInt8())
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Emulated
+func (x Int8x16) ReduceMax() (z int8) {
+	return x.reduceMaxVec().Elem(0)
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Emulated
+func (x Int8x16) ReduceMin() (z int8) {
+	return x.reduceMinVec().Elem(0)
+}
+
+func (x Uint8x16) reduceMaxVec() Uint8x16 {
+	m := x.Max(x.swap64())
+	m = m.Max(m.swap32())
+	m = m.Max(m.swap16())
+	return m.Max(m.swap8())
+}
+
+func (x Uint8x16) reduceMinVec() Uint8x16 {
+	m := x.Min(x.swap64())
+	m = m.Min(m.swap32())
+	m = m.Min(m.swap16())
+	return m.Min(m.swap8())
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Emulated
+func (x Uint8x16) ReduceMax() (z uint8) {
+	return x.reduceMaxVec().Elem(0)
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Emulated
+func (x Uint8x16) ReduceMin() (z uint8) {
+	return x.reduceMinVec().Elem(0)
+}
+
+func (x Int16x8) reduceMaxVec() Int16x8 {
+	m := x.Max(x.ToBits().ReshapeToUint8s().swap64().ReshapeToUint16s().BitsToInt16())
+	m = m.Max(m.ToBits().ReshapeToUint8s().swap32().ReshapeToUint16s().BitsToInt16())
+	return m.Max(m.ToBits().ReshapeToUint8s().swap16().ReshapeToUint16s().BitsToInt16())
+}
+
+func (x Int16x8) reduceMinVec() Int16x8 {
+	m := x.Min(x.ToBits().ReshapeToUint8s().swap64().ReshapeToUint16s().BitsToInt16())
+	m = m.Min(m.ToBits().ReshapeToUint8s().swap32().ReshapeToUint16s().BitsToInt16())
+	return m.Min(m.ToBits().ReshapeToUint8s().swap16().ReshapeToUint16s().BitsToInt16())
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Emulated
+func (x Int16x8) ReduceMax() (z int16) {
+	return x.reduceMaxVec().Elem(0)
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Emulated
+func (x Int16x8) ReduceMin() (z int16) {
+	return x.reduceMinVec().Elem(0)
+}
+
+func (x Uint16x8) reduceMaxVec() Uint16x8 {
+	m := x.Max(x.ReshapeToUint8s().swap64().ReshapeToUint16s())
+	m = m.Max(m.ReshapeToUint8s().swap32().ReshapeToUint16s())
+	return m.Max(m.ReshapeToUint8s().swap16().ReshapeToUint16s())
+}
+
+func (x Uint16x8) reduceMinVec() Uint16x8 {
+	m := x.Min(x.ReshapeToUint8s().swap64().ReshapeToUint16s())
+	m = m.Min(m.ReshapeToUint8s().swap32().ReshapeToUint16s())
+	return m.Min(m.ReshapeToUint8s().swap16().ReshapeToUint16s())
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Emulated
+func (x Uint16x8) ReduceMax() (z uint16) {
+	return x.reduceMaxVec().Elem(0)
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Emulated
+func (x Uint16x8) ReduceMin() (z uint16) {
+	return x.reduceMinVec().Elem(0)
+}
+
+func (x Int32x4) reduceMaxVec() Int32x4 {
+	m := x.Max(x.ToBits().ReshapeToUint8s().swap64().ReshapeToUint32s().BitsToInt32())
+	return m.Max(m.ToBits().ReshapeToUint8s().swap32().ReshapeToUint32s().BitsToInt32())
+}
+
+func (x Int32x4) reduceMinVec() Int32x4 {
+	m := x.Min(x.ToBits().ReshapeToUint8s().swap64().ReshapeToUint32s().BitsToInt32())
+	return m.Min(m.ToBits().ReshapeToUint8s().swap32().ReshapeToUint32s().BitsToInt32())
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Emulated
+func (x Int32x4) ReduceMax() (z int32) {
+	return x.reduceMaxVec().Elem(0)
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Emulated
+func (x Int32x4) ReduceMin() (z int32) {
+	return x.reduceMinVec().Elem(0)
+}
+
+func (x Uint32x4) reduceMaxVec() Uint32x4 {
+	m := x.Max(x.ReshapeToUint8s().swap64().ReshapeToUint32s())
+	return m.Max(m.ReshapeToUint8s().swap32().ReshapeToUint32s())
+}
+
+func (x Uint32x4) reduceMinVec() Uint32x4 {
+	m := x.Min(x.ReshapeToUint8s().swap64().ReshapeToUint32s())
+	return m.Min(m.ReshapeToUint8s().swap32().ReshapeToUint32s())
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Emulated
+func (x Uint32x4) ReduceMax() (z uint32) {
+	return x.reduceMaxVec().Elem(0)
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Emulated
+func (x Uint32x4) ReduceMin() (z uint32) {
+	return x.reduceMinVec().Elem(0)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Emulated
+func (x Int64x2) ReduceMax() (z int64) {
+	return max(x.Elem(0), x.Elem(1))
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Emulated
+func (x Int64x2) ReduceMin() (z int64) {
+	return min(x.Elem(0), x.Elem(1))
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Emulated
+func (x Uint64x2) ReduceMax() (z uint64) {
+	return max(x.Elem(0), x.Elem(1))
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Emulated
+func (x Uint64x2) ReduceMin() (z uint64) {
+	return min(x.Elem(0), x.Elem(1))
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// The handling of NaN and signed zeroes is platform-dependent. See [Max].
+//
+// Emulated
+func (x Float32x4) ReduceMax() (z float32) {
+	m := x.Max(x.ToBits().ReshapeToUint8s().swap64().ReshapeToUint32s().BitsToFloat32())
+	m = m.Max(m.ToBits().ReshapeToUint8s().swap32().ReshapeToUint32s().BitsToFloat32())
+	return m.Elem(0)
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// The handling of NaN and signed zeroes is platform-dependent. See [Min].
+//
+// Emulated
+func (x Float32x4) ReduceMin() (z float32) {
+	m := x.Min(x.ToBits().ReshapeToUint8s().swap64().ReshapeToUint32s().BitsToFloat32())
+	m = m.Min(m.ToBits().ReshapeToUint8s().swap32().ReshapeToUint32s().BitsToFloat32())
+	return m.Elem(0)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// The handling of NaN and signed zeroes is platform-dependent. See [Max].
+//
+// Emulated
+func (x Float64x2) ReduceMax() (z float64) {
+	return max(x.Elem(0), x.Elem(1))
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// The handling of NaN and signed zeroes is platform-dependent. See [Min].
+//
+// Emulated
+func (x Float64x2) ReduceMin() (z float64) {
+	return min(x.Elem(0), x.Elem(1))
+}

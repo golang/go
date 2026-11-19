@@ -2467,6 +2467,26 @@ func (x Int32x4) concatSaturateToUint16(y Int32x4) Uint16x8
 // Asm: I8x16NarrowI16x8U
 func (x Int16x8) concatSaturateToUint8(y Int16x8) Uint8x16
 
+// swap16 swaps adjacent 16-bit lanes within each 32-bit group of x.
+//
+// Asm: I8x16Shuffle16
+func (x Uint8x16) swap16() Uint8x16
+
+// swap32 swaps adjacent 32-bit lanes within each 64-bit half of x.
+//
+// Asm: I8x16Shuffle16
+func (x Uint8x16) swap32() Uint8x16
+
+// swap64 swaps the two 64-bit halves of x.
+//
+// Asm: I8x16Shuffle16
+func (x Uint8x16) swap64() Uint8x16
+
+// swap8 swaps adjacent 8-bit lanes within each 16-bit group of x.
+//
+// Asm: I8x16Shuffle16
+func (x Uint8x16) swap8() Uint8x16
+
 // ToMask returns a mask indicating which elements of x are non-zero.
 //
 //	z[i] = x[i] != 0

@@ -126,7 +126,8 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value, extend bool) bool {
 		ssaop.OpWasmI32x4ConcatOdd, ssaop.OpWasmI64x2ConcatOdd, ssaop.OpWasmI8x16InterleaveHi,
 		ssaop.OpWasmI16x8InterleaveHi, ssaop.OpWasmI32x4InterleaveHi, ssaop.OpWasmI64x2InterleaveHi,
 		ssaop.OpWasmI8x16InterleaveLo, ssaop.OpWasmI16x8InterleaveLo, ssaop.OpWasmI32x4InterleaveLo,
-		ssaop.OpWasmI64x2InterleaveLo:
+		ssaop.OpWasmI64x2InterleaveLo, ssaop.OpWasmI8x16Swap16, ssaop.OpWasmI8x16Swap32,
+		ssaop.OpWasmI8x16Swap64, ssaop.OpWasmI8x16Swap8:
 		getValue128(s, v.Args[0])
 		getValue128(s, v.Args[1])
 		p := s.Prog(v.Op.Asm())
@@ -169,4 +170,8 @@ var shuffleByOp = map[ssaop.Op][2]int64{
 	ssaop.OpWasmI16x8InterleaveLo: {0x1312030211100100, 0x1716070615140504},
 	ssaop.OpWasmI32x4InterleaveLo: {0x1312111003020100, 0x1716151407060504},
 	ssaop.OpWasmI64x2InterleaveLo: {0x0706050403020100, 0x1716151413121110},
+	ssaop.OpWasmI8x16Swap16:       {0x0504070601000302, 0x0d0c0f0e09080b0a},
+	ssaop.OpWasmI8x16Swap32:       {0x0302010007060504, 0x0b0a09080f0e0d0c},
+	ssaop.OpWasmI8x16Swap64:       {0x0f0e0d0c0b0a0908, 0x0706050403020100},
+	ssaop.OpWasmI8x16Swap8:        {0x0607040502030001, 0x0e0f0c0d0a0b0809},
 }

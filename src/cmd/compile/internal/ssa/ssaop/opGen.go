@@ -7077,6 +7077,10 @@ const (
 	OpWasmI8x16NarrowI16x8S
 	OpWasmI16x8NarrowI32x4U
 	OpWasmI8x16NarrowI16x8U
+	OpWasmI8x16Swap16
+	OpWasmI8x16Swap32
+	OpWasmI8x16Swap64
+	OpWasmI8x16Swap8
 
 	OpLast
 	OpAdd8
@@ -9496,6 +9500,10 @@ const (
 	OpsaturateToUint8MaskedUint16x8
 	OpsaturateToUint8Uint16x16
 	OpsaturateToUint8Uint16x8
+	Opswap16Uint8x16
+	Opswap32Uint8x16
+	Opswap64Uint8x16
+	Opswap8Uint8x16
 	OpternInt32x16
 	OpternInt32x4
 	OpternInt32x8
@@ -119400,6 +119408,62 @@ var OpcodeTable = [...]OpInfo{
 			},
 		},
 	},
+	{
+		Name:   "I8x16Swap16",
+		ArgLen: 2,
+		asm:    wasm.AI8x16Shuffle16,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+				{1, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+			},
+		},
+	},
+	{
+		Name:   "I8x16Swap32",
+		ArgLen: 2,
+		asm:    wasm.AI8x16Shuffle16,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+				{1, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+			},
+		},
+	},
+	{
+		Name:   "I8x16Swap64",
+		ArgLen: 2,
+		asm:    wasm.AI8x16Shuffle16,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+				{1, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+			},
+		},
+	},
+	{
+		Name:   "I8x16Swap8",
+		ArgLen: 2,
+		asm:    wasm.AI8x16Shuffle16,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+				{1, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+			},
+		},
+	},
 
 	{
 		Name:    "Last",
@@ -132463,6 +132527,26 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:    "saturateToUint8Uint16x8",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "swap16Uint8x16",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "swap32Uint8x16",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "swap64Uint8x16",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "swap8Uint8x16",
 		ArgLen:  1,
 		Generic: true,
 	},
