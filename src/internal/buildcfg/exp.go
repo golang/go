@@ -78,6 +78,15 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 	// things like .debug_addr (needed for DWARF 5).
 	dwarf5Supported := (goos != "darwin" && goos != "ios" && goos != "aix")
 
+	var runtimeCgoPuregoSupported bool
+	switch goos {
+	case "linux", "darwin":
+		runtimeCgoPuregoSupported = goarch == "amd64" || goarch == "arm64"
+	case "windows":
+		runtimeCgoPuregoSupported = goarch == "amd64"
+	}
+	cgoBindingsSupported := runtimeCgoPuregoSupported
+
 	baseline := goexperiment.Flags{
 		RegabiWrappers:        regabiSupported,
 		RegabiArgs:            regabiSupported,
@@ -87,6 +96,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 		JSONv2:                true,
 		MapSplitGroup:         true,
 		GoListExportNewFormat: true,
+		RuntimeCgoPurego:      runtimeCgoPuregoSupported,
 	}
 	flags := &ExperimentFlags{
 		Flags:    baseline,
@@ -160,6 +170,17 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 	// Check regabi dependencies.
 	if flags.RegabiArgs && !flags.RegabiWrappers {
 		return nil, fmt.Errorf("GOEXPERIMENT regabiargs requires regabiwrappers")
+	}
+	// runtimecgopurego and cgobindings are only supported on linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, and windows/amd64.
+	if !runtimeCgoPuregoSupported {
+		flags.RuntimeCgoPurego = false
+	}
+	if !cgoBindingsSupported {
+		flags.CgoBindings = false
+	}
+	// Check cgobindings dependencies.
+	if flags.CgoBindings && !flags.RuntimeCgoPurego {
+		return nil, fmt.Errorf("GOEXPERIMENT cgobindings requires runtimecgopurego")
 	}
 	// simd enables all of the SIMD API, including the simdstable subset, so
 	// simd implies simdstable (but isn't an alias for it).

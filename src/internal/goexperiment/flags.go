@@ -137,10 +137,14 @@ type Flags struct {
 	GoListExportNewFormat bool
 
 	// CgoBindings enables specifying cgo bindings using the go types they bind to.
+	// Requires RuntimeCgoPurego
 	CgoBindings bool
 
 	// VetFiles causes go test to execute, in addition to the
 	// usual cmd/vet suite, analyzers defined by go.vet files in
 	// the workspace; see https://go.dev/issue/82464.
 	VetFiles bool
+
+	// RuntimeCgoPurego enables the pure Go and assembly implementation of runtime/cgo.
+	RuntimeCgoPurego bool
 }
