@@ -119,8 +119,7 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpCtz16:
 		return rewriteValue_OpCtz16(v)
 	case ssaop.OpCtz16NonZero:
-		v.Op = ssaop.OpCtz32
-		return true
+		return rewriteValue_OpCtz16NonZero(v)
 	case ssaop.OpCtz32:
 		return rewriteValue_OpCtz32(v)
 	case ssaop.OpCtz32NonZero:
@@ -129,8 +128,7 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpCtz8:
 		return rewriteValue_OpCtz8(v)
 	case ssaop.OpCtz8NonZero:
-		v.Op = ssaop.OpCtz32
-		return true
+		return rewriteValue_OpCtz8NonZero(v)
 	case ssaop.OpCvt32Fto32:
 		v.Op = ssaop.OpMIPSTRUNCFW
 		return true
@@ -982,6 +980,21 @@ func rewriteValue_OpCtz16(v *ssa.Value) bool {
 		return true
 	}
 }
+func rewriteValue_OpCtz16NonZero(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Ctz16NonZero x)
+	// result: (Ctz32 (ZeroExt16to32 x))
+	for {
+		x := v_0
+		v.Reset(ssaop.OpCtz32)
+		v0 := b.NewValue0(v.Pos, ssaop.OpZeroExt16to32, typ.UInt32)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
 func rewriteValue_OpCtz32(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1020,6 +1033,21 @@ func rewriteValue_OpCtz8(v *ssa.Value) bool {
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWconst, typ.UInt32)
 		v1.AuxInt = ssa.Int32ToAuxInt(1 << 8)
 		v0.AddArg2(x, v1)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpCtz8NonZero(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Ctz8NonZero x)
+	// result: (Ctz32 (ZeroExt8to32 x))
+	for {
+		x := v_0
+		v.Reset(ssaop.OpCtz32)
+		v0 := b.NewValue0(v.Pos, ssaop.OpZeroExt8to32, typ.UInt32)
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}

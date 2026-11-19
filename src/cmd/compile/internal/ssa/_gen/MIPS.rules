@@ -132,7 +132,9 @@
 (Sqrt ...) => (SQRTD ...)
 (Sqrt32 ...) => (SQRTF ...)
 
-(Ctz(32|16|8)NonZero ...) => (Ctz32 ...)
+(Ctz32NonZero ...) => (Ctz32 ...)
+// Extend argument to ensure subsequent calculations have 32 correct bits.
+(Ctz(16|8)NonZero x) => (Ctz32 (ZeroExt(16|8)to32 x))
 
 // count trailing zero
 // 32 - CLZ(x&-x - 1)

@@ -268,7 +268,9 @@
 (MOVDaddr {sym} [n] p:(ADD x y)) && sym == nil && n == 0 => p
 (MOVDaddr {sym} [n] ptr) && sym == nil && n == 0 && (ptr.Op == ssaop.OpArgIntReg || ptr.Op == ssaop.OpPhi) => ptr
 
-(Ctz(64|32|16|8)NonZero ...) => (Ctz64 ...)
+(Ctz64NonZero ...) => (Ctz64 ...)
+// Extend argument to ensure subsequent calculations have 64 correct bits.
+(Ctz(32|16|8)NonZero x) => (Ctz64 (ZeroExt(32|16|8)to64 x))
 
 (Ctz64 x) && buildcfg.GOPPC64 <= 8 => (POPCNTD (ANDN <typ.Int64> (ADDconst <typ.Int64> [-1] x) x))
 (Ctz32 x) && buildcfg.GOPPC64 <= 8 => (POPCNTW (MOVWZreg (ANDN <typ.UInt32> (ADDconst <typ.UInt32> [-1] x) x)))

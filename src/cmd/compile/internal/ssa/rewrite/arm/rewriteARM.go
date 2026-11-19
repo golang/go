@@ -517,8 +517,7 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpCtz16:
 		return rewriteValue_OpCtz16(v)
 	case ssaop.OpCtz16NonZero:
-		v.Op = ssaop.OpCtz32
-		return true
+		return rewriteValue_OpCtz16NonZero(v)
 	case ssaop.OpCtz32:
 		return rewriteValue_OpCtz32(v)
 	case ssaop.OpCtz32NonZero:
@@ -527,8 +526,7 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpCtz8:
 		return rewriteValue_OpCtz8(v)
 	case ssaop.OpCtz8NonZero:
-		v.Op = ssaop.OpCtz32
-		return true
+		return rewriteValue_OpCtz8NonZero(v)
 	case ssaop.OpCvt32Fto32:
 		v.Op = ssaop.OpARMMOVFW
 		return true
@@ -13390,7 +13388,7 @@ func rewriteValue_OpCtz16(v *ssa.Value) bool {
 	typ := &b.Func.Config.Types
 	// match: (Ctz16 <t> x)
 	// cond: buildcfg.GOARM.Version<=6
-	// result: (RSBconst [32] (CLZ <t> (SUBconst <typ.UInt32> (AND <typ.UInt32> (ORconst <typ.UInt32> [0x10000] x) (RSBconst <typ.UInt32> [0] (ORconst <typ.UInt32> [0x10000] x))) [1])))
+	// result: (RSBconst [32] (CLZ <t> (SUBconst <typ.UInt32> (AND <typ.UInt32> y:(ORconst <typ.UInt32> [0x10000] x) (RSBconst <typ.UInt32> [0] y)) [1])))
 	for {
 		t := v.Type
 		x := v_0
@@ -13403,13 +13401,13 @@ func rewriteValue_OpCtz16(v *ssa.Value) bool {
 		v1 := b.NewValue0(v.Pos, ssaop.OpARMSUBconst, typ.UInt32)
 		v1.AuxInt = ssa.Int32ToAuxInt(1)
 		v2 := b.NewValue0(v.Pos, ssaop.OpARMAND, typ.UInt32)
-		v3 := b.NewValue0(v.Pos, ssaop.OpARMORconst, typ.UInt32)
-		v3.AuxInt = ssa.Int32ToAuxInt(0x10000)
-		v3.AddArg(x)
+		y := b.NewValue0(v.Pos, ssaop.OpARMORconst, typ.UInt32)
+		y.AuxInt = ssa.Int32ToAuxInt(0x10000)
+		y.AddArg(x)
 		v4 := b.NewValue0(v.Pos, ssaop.OpARMRSBconst, typ.UInt32)
 		v4.AuxInt = ssa.Int32ToAuxInt(0)
-		v4.AddArg(v3)
-		v2.AddArg2(v3, v4)
+		v4.AddArg(y)
+		v2.AddArg2(y, v4)
 		v1.AddArg(v2)
 		v0.AddArg(v1)
 		v.AddArg(v0)
@@ -13435,6 +13433,21 @@ func rewriteValue_OpCtz16(v *ssa.Value) bool {
 		return true
 	}
 	return false
+}
+func rewriteValue_OpCtz16NonZero(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Ctz16NonZero x)
+	// result: (Ctz32 (ZeroExt16to32 x))
+	for {
+		x := v_0
+		v.Reset(ssaop.OpCtz32)
+		v0 := b.NewValue0(v.Pos, ssaop.OpZeroExt16to32, typ.UInt32)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
 }
 func rewriteValue_OpCtz32(v *ssa.Value) bool {
 	v_0 := v.Args[0]
@@ -13487,7 +13500,7 @@ func rewriteValue_OpCtz8(v *ssa.Value) bool {
 	typ := &b.Func.Config.Types
 	// match: (Ctz8 <t> x)
 	// cond: buildcfg.GOARM.Version<=6
-	// result: (RSBconst [32] (CLZ <t> (SUBconst <typ.UInt32> (AND <typ.UInt32> (ORconst <typ.UInt32> [0x100] x) (RSBconst <typ.UInt32> [0] (ORconst <typ.UInt32> [0x100] x))) [1])))
+	// result: (RSBconst [32] (CLZ <t> (SUBconst <typ.UInt32> (AND <typ.UInt32> y:(ORconst <typ.UInt32> [0x100] x) (RSBconst <typ.UInt32> [0] y)) [1])))
 	for {
 		t := v.Type
 		x := v_0
@@ -13500,13 +13513,13 @@ func rewriteValue_OpCtz8(v *ssa.Value) bool {
 		v1 := b.NewValue0(v.Pos, ssaop.OpARMSUBconst, typ.UInt32)
 		v1.AuxInt = ssa.Int32ToAuxInt(1)
 		v2 := b.NewValue0(v.Pos, ssaop.OpARMAND, typ.UInt32)
-		v3 := b.NewValue0(v.Pos, ssaop.OpARMORconst, typ.UInt32)
-		v3.AuxInt = ssa.Int32ToAuxInt(0x100)
-		v3.AddArg(x)
+		y := b.NewValue0(v.Pos, ssaop.OpARMORconst, typ.UInt32)
+		y.AuxInt = ssa.Int32ToAuxInt(0x100)
+		y.AddArg(x)
 		v4 := b.NewValue0(v.Pos, ssaop.OpARMRSBconst, typ.UInt32)
 		v4.AuxInt = ssa.Int32ToAuxInt(0)
-		v4.AddArg(v3)
-		v2.AddArg2(v3, v4)
+		v4.AddArg(y)
+		v2.AddArg2(y, v4)
 		v1.AddArg(v2)
 		v0.AddArg(v1)
 		v.AddArg(v0)
@@ -13532,6 +13545,21 @@ func rewriteValue_OpCtz8(v *ssa.Value) bool {
 		return true
 	}
 	return false
+}
+func rewriteValue_OpCtz8NonZero(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Ctz8NonZero x)
+	// result: (Ctz32 (ZeroExt8to32 x))
+	for {
+		x := v_0
+		v.Reset(ssaop.OpCtz32)
+		v0 := b.NewValue0(v.Pos, ssaop.OpZeroExt8to32, typ.UInt32)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
 }
 func rewriteValue_OpDiv16(v *ssa.Value) bool {
 	v_1 := v.Args[1]

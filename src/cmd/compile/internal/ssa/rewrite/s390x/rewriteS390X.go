@@ -145,13 +145,11 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpCtz16:
 		return rewriteValue_OpCtz16(v)
 	case ssaop.OpCtz16NonZero:
-		v.Op = ssaop.OpCtz64
-		return true
+		return rewriteValue_OpCtz16NonZero(v)
 	case ssaop.OpCtz32:
 		return rewriteValue_OpCtz32(v)
 	case ssaop.OpCtz32NonZero:
-		v.Op = ssaop.OpCtz64
-		return true
+		return rewriteValue_OpCtz32NonZero(v)
 	case ssaop.OpCtz64:
 		return rewriteValue_OpCtz64(v)
 	case ssaop.OpCtz64NonZero:
@@ -160,8 +158,7 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpCtz8:
 		return rewriteValue_OpCtz8(v)
 	case ssaop.OpCtz8NonZero:
-		v.Op = ssaop.OpCtz64
-		return true
+		return rewriteValue_OpCtz8NonZero(v)
 	case ssaop.OpCvt32Fto32:
 		v.Op = ssaop.OpS390XCFEBRA
 		return true
@@ -1503,6 +1500,21 @@ func rewriteValue_OpCtz16(v *ssa.Value) bool {
 		return true
 	}
 }
+func rewriteValue_OpCtz16NonZero(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Ctz16NonZero x)
+	// result: (Ctz64 (ZeroExt16to64 x))
+	for {
+		x := v_0
+		v.Reset(ssaop.OpCtz64)
+		v0 := b.NewValue0(v.Pos, ssaop.OpZeroExt16to64, typ.UInt64)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
 func rewriteValue_OpCtz32(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1526,6 +1538,21 @@ func rewriteValue_OpCtz32(v *ssa.Value) bool {
 		v2.AddArg(v3)
 		v1.AddArg(v2)
 		v.AddArg2(v0, v1)
+		return true
+	}
+}
+func rewriteValue_OpCtz32NonZero(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Ctz32NonZero x)
+	// result: (Ctz64 (ZeroExt32to64 x))
+	for {
+		x := v_0
+		v.Reset(ssaop.OpCtz64)
+		v0 := b.NewValue0(v.Pos, ssaop.OpZeroExt32to64, typ.UInt64)
+		v0.AddArg(x)
+		v.AddArg(v0)
 		return true
 	}
 }
@@ -1567,6 +1594,21 @@ func rewriteValue_OpCtz8(v *ssa.Value) bool {
 		v1 := b.NewValue0(v.Pos, ssaop.OpS390XMOVDconst, typ.UInt64)
 		v1.AuxInt = ssa.Int64ToAuxInt(1 << 8)
 		v0.AddArg2(x, v1)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpCtz8NonZero(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Ctz8NonZero x)
+	// result: (Ctz64 (ZeroExt8to64 x))
+	for {
+		x := v_0
+		v.Reset(ssaop.OpCtz64)
+		v0 := b.NewValue0(v.Pos, ssaop.OpZeroExt8to64, typ.UInt64)
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
