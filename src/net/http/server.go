@@ -2114,14 +2114,6 @@ func (c *conn) serve(ctx context.Context) {
 
 	// HTTP/1.x or unencrypted HTTP/2.
 
-	// Set Request.TLS if the conn is not a *tls.Conn, but implements ConnectionState.
-	if c.tlsState == nil {
-		if tc, ok := c.rwc.(connectionStater); ok {
-			c.tlsState = new(tls.ConnectionState)
-			*c.tlsState = tc.ConnectionState()
-		}
-	}
-
 	// HTTP/2 may outlive this goroutine, so it gets the uncancelable ctx.
 	connCtx := ctx
 
