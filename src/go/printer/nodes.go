@@ -781,7 +781,7 @@ func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1, cutoff, depth int) {
 	printBlank := prec < cutoff
 
 	ws := indent
-	p.expr1(x.X, prec, depth+diffPrec(x.X, prec))
+	p.operand(x.X, x.Op, prec, depth+diffPrec(x.X, prec))
 	if printBlank {
 		p.print(blank)
 	}
@@ -903,7 +903,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		p.selectorExpr(x, depth, false)
 
 	case *ast.TypeAssertExpr:
-		p.expr1(x.X, token.HighestPrec, depth)
+		p.operand(x.X, token.PERIOD, token.HighestPrec, depth)
 		p.print(token.PERIOD)
 		p.setPos(x.Lparen)
 		p.print(token.LPAREN)
@@ -917,7 +917,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 
 	case *ast.IndexExpr:
 		// TODO(gri): should treat[] like parentheses and undo one level of depth
-		p.expr1(x.X, token.HighestPrec, 1)
+		p.operand(x.X, token.LBRACK, token.HighestPrec, 1)
 		p.setPos(x.Lbrack)
 		p.print(token.LBRACK)
 		p.exprLev++
@@ -929,7 +929,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 	case *ast.IndexListExpr:
 		// TODO(gri): as for IndexExpr, should treat [] like parentheses and undo
 		// one level of depth
-		p.expr1(x.X, token.HighestPrec, 1)
+		p.operand(x.X, token.LBRACK, token.HighestPrec, 1)
 		p.setPos(x.Lbrack)
 		p.print(token.LBRACK)
 		p.exprLev++
@@ -940,7 +940,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 
 	case *ast.SliceExpr:
 		// TODO(gri): should treat[] like parentheses and undo one level of depth
-		p.expr1(x.X, token.HighestPrec, 1)
+		p.operand(x.X, token.LBRACK, token.HighestPrec, 1)
 		p.setPos(x.Lbrack)
 		p.print(token.LBRACK)
 		p.exprLev++
@@ -997,6 +997,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		case *ast.ChanType:
 			paren = t.Dir == ast.RECV
 		}
+		paren = paren || continuesResult(x.Fun, token.LPAREN)
 		if paren {
 			p.print(token.LPAREN)
 		}
@@ -1190,7 +1191,7 @@ func (p *printer) possibleSelectorExpr(expr ast.Expr, prec1, depth int) bool {
 // selectorExpr handles an *ast.SelectorExpr node and reports whether x spans
 // multiple lines.
 func (p *printer) selectorExpr(x *ast.SelectorExpr, depth int, isMethod bool) bool {
-	p.expr1(x.X, token.HighestPrec, depth)
+	p.operand(x.X, token.PERIOD, token.HighestPrec, depth)
 	p.print(token.PERIOD)
 	if line := p.lineFor(x.Sel.Pos()); p.pos.IsValid() && p.pos.Line < line {
 		p.print(indent, newline)
@@ -1204,6 +1205,58 @@ func (p *printer) selectorExpr(x *ast.SelectorExpr, depth int, isMethod bool) bo
 	p.setPos(x.Sel.Pos())
 	p.print(x.Sel)
 	return false
+}
+
+// operand is like expr1 but parenthesizes x if continuesResult(x, tok).
+func (p *printer) operand(x ast.Expr, tok token.Token, prec1, depth int) {
+	if !continuesResult(x, tok) {
+		p.expr1(x, prec1, depth)
+		return
+	}
+	p.print(token.LPAREN)
+	p.exprLev++
+	p.expr0(x, reduceDepth(depth))
+	p.exprLev--
+	p.print(token.RPAREN)
+}
+
+// continuesResult reports whether tok after x would extend a function
+// result type that signature prints without parentheses.
+func continuesResult(x ast.Expr, tok token.Token) bool {
+	inResult := false
+	for {
+		switch t := x.(type) {
+		case *ast.Ident:
+			return inResult && (tok == token.PERIOD || tok == token.LBRACK)
+		case *ast.SelectorExpr:
+			return inResult && tok == token.LBRACK
+		case *ast.UnaryExpr:
+			x = t.X
+		case *ast.StarExpr:
+			x = t.X
+		case *ast.BinaryExpr:
+			x = t.Y
+		case *ast.ArrayType:
+			x = t.Elt
+		case *ast.MapType:
+			x = t.Value
+		case *ast.ChanType:
+			x = t.Value
+		case *ast.FuncType:
+			res := t.Results
+			switch n := res.NumFields(); {
+			case n == 0:
+				return tok == token.LBRACK || tok == token.LPAREN || tok == token.MUL || tok == token.ARROW
+			case n == 1 && res.List[0].Names == nil:
+				x = stripParensAlways(res.List[0].Type)
+				inResult = true
+			default:
+				return false
+			}
+		default:
+			return false
+		}
+	}
 }
 
 func (p *printer) expr0(x ast.Expr, depth int) {
@@ -1442,7 +1495,7 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool) {
 
 	case *ast.SendStmt:
 		const depth = 1
-		p.expr0(s.Chan, depth)
+		p.operand(s.Chan, token.ARROW, token.LowestPrec, depth)
 		p.print(blank)
 		p.setPos(s.Arrow)
 		p.print(token.ARROW, blank)

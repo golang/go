@@ -724,6 +724,30 @@ func _() {
 	_ = (func() func() func())(nil)
 }
 
+// Function types whose unparenthesized result a following token extends.
+func _() {
+	_ = (func() T)[x]
+	_ = (func() T)[x:y]
+	_ = (func() p.T)[x]
+	_ = (func() T).m
+	_ = (func() T).(U)
+	_ = (func() *T).m
+	_ = (func())[x]
+	_ = (func()) * x
+	_ = (func() func() T)[x]
+	_ = ([]func() T)[x]
+	_ = (chan func())(x)
+	(func()) <- x
+
+	// no parentheses required
+	_ = func() p.T.m
+	_ = func() T[int][x]
+	_ = func() struct{}[x]
+	_ = func() (T, U)[x]
+	_ = func() T * x
+	_ = []func() T(x)
+}
+
 func _() {
 	_ = f().
 		f(func() {
