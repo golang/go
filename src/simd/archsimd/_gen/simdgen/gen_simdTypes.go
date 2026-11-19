@@ -1279,14 +1279,12 @@ func writeSIMDFeatures(files map[phase]*bytes.Buffer, ops []Operation, specIdx *
 	// requires it.
 	featurePhase := make(map[featureKey]phase)
 	for _, op := range ops {
-		p := opPhase(op, specIdx)
-		// Generate a feature check for each independant feature in a
-		// composite feature.
-		for feature := range strings.SplitSeq(op.CPUFeature, ",") {
-			feature = strings.TrimSpace(feature)
-			k := featureKey{op.GOARCH, feature}
-			featurePhase[k] = max(featurePhase[k], p)
+		if op.CPUFeature == "" {
+			continue
 		}
+		p := opPhase(op, specIdx)
+		k := featureKey{op.GOARCH, op.CPUFeature}
+		featurePhase[k] = max(featurePhase[k], p)
 	}
 	featureKeys := slices.SortedFunc(maps.Keys(featurePhase), func(a, b featureKey) int {
 		if c := cmp.Compare(a.GoArch, b.GoArch); c != 0 {
