@@ -24,6 +24,12 @@ There are also simd "mask" types that abstract the mask registers
 present in some architectures, otherwise these will be implemented
 as bit masks.
 
+The size of a SIMD value depends on the vector width, which is only
+known at run time (see [VectorBits]). So unsafe.Sizeof of a simd type
+is not a constant: it cannot be used in a constant expression, such as
+an array length. For a vector type, the size in bytes is Len() times
+the size of its element type.
+
 # Obtaining SIMD values
 
 The zero value of a SIMD vector type is valid and represents a zero vector.
