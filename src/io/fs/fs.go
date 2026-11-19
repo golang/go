@@ -51,8 +51,9 @@ type FS interface {
 	Open(name string) (File, error)
 }
 
-// ValidPath reports whether the given path name
-// is valid for use in a call to Open.
+// ValidPath reports whether the given path name has the syntax required by [FS.Open].
+// Individual file system implementations may impose additional restrictions,
+// such as rejecting names not supported by the host operating system.
 //
 // Note that paths are slash-separated on all systems, even Windows.
 // Paths containing other characters such as backslash and colon
