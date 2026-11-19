@@ -72,7 +72,7 @@ func cgoInitTLSQ(tlsg *uintptr) (bool, string) {
 //go:norace
 //go:nocheckptr
 func cgoInitTLSKey(tlsg *uintptr, tlsbase, magic1 uintptr) string {
-	var k pthreadKey
+	var k uint32 // Bionic pthread_key_t is int
 	err := int32(asmcgocallNoG(uintptr(libc_pthread_key_create), uintptr(unsafe.Pointer(&k)), 0, 0, 0, 0, 0))
 	if err != 0 {
 		return "runtime/cgo: pthread_key_create failed\n\x00"

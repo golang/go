@@ -53,11 +53,7 @@ func cgoSigaction(signum uintptr, goact, oldgoact *goSigaction, noG bool) int32 
 	// See the comment on fixSigactionForCgo.
 	const _SA_RESTORER = 0x4000000
 
-	if noG {
-		tsanAcquireNoG()
-	} else {
-		tsanAcquire()
-	}
+	tsanAcquireMode(noG)
 
 	var oldact cSigaction
 	var actPtr, oldactPtr uintptr
@@ -80,11 +76,7 @@ func cgoSigaction(signum uintptr, goact, oldgoact *goSigaction, noG bool) int32 
 		// runtime.rt_sigaction expects _cgo_sigaction to return errno on error.
 		errnoPtr := sigactionCall(noG, uintptr(libc_errno_location), 0, 0, 0)
 		errno := *(*int32)(unsafe.Pointer(errnoPtr))
-		if noG {
-			tsanReleaseNoG()
-		} else {
-			tsanRelease()
-		}
+		tsanReleaseMode(noG)
 		return errno
 	}
 
@@ -98,10 +90,6 @@ func cgoSigaction(signum uintptr, goact, oldgoact *goSigaction, noG bool) int32 
 		msanUnpoisonMode(noG, unsafe.Pointer(oldgoact), unsafe.Sizeof(*oldgoact))
 	}
 
-	if noG {
-		tsanReleaseNoG()
-	} else {
-		tsanRelease()
-	}
+	tsanReleaseMode(noG)
 	return ret
 }

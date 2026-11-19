@@ -18,20 +18,6 @@ const (
 	_PTHREAD_CREATE_DETACHED = 1
 )
 
-type pthreadKey uint32
-
-//go:linkname _cgo_libc_pthread_attr_getstacksize _cgo_libc_pthread_attr_getstacksize
-var _cgo_libc_pthread_attr_getstacksize byte
-var libc_pthread_attr_getstacksize = unsafe.Pointer(&_cgo_libc_pthread_attr_getstacksize)
-
-//go:linkname _cgo_libc_pthread_getattr_np _cgo_libc_pthread_getattr_np
-var _cgo_libc_pthread_getattr_np byte
-var libc_pthread_getattr_np = unsafe.Pointer(&_cgo_libc_pthread_getattr_np)
-
-//go:linkname _cgo_libc_pthread_attr_getstack _cgo_libc_pthread_attr_getstack
-var _cgo_libc_pthread_attr_getstack byte
-var libc_pthread_attr_getstack = unsafe.Pointer(&_cgo_libc_pthread_attr_getstack)
-
 //go:linkname _cgo_libc_errno_location _cgo_libc_errno_location
 var _cgo_libc_errno_location byte
 var libc_errno_location = unsafe.Pointer(&_cgo_libc_errno_location)
@@ -127,36 +113,4 @@ func cUint32Arg(x uintptr) uintptr {
 		return uintptr(int32(x))
 	}
 	return uintptr(uint32(x))
-}
-
-//go:nosplit
-//go:norace
-//go:nocheckptr
-func cgoThreadStackSize(attr *pthreadAttr) uintptr {
-	var size uintptr
-	asmcgocall(uintptr(libc_pthread_attr_getstacksize), uintptr(unsafe.Pointer(attr)), uintptr(unsafe.Pointer(&size)), 0, 0, 0, 0)
-	return size
-}
-
-// cgoGetStackBound returns the current OS thread's stack bounds [lo, hi).
-// It must be called while pinned to the M (or on a system/C stack) so
-// pthread_self refers to a fixed OS thread.
-//
-//go:nosplit
-//go:norace
-//go:nocheckptr
-func cgoGetStackBound() (uintptr, uintptr) {
-	var attr pthreadAttr
-	var addr, size uintptr
-
-	// Needed before pthread_getattr_np, too, since before glibc 2.32
-	// it did not call pthread_attr_init in all cases (see #65625).
-	asmcgocallNoG(uintptr(libc_pthread_attr_init), uintptr(unsafe.Pointer(&attr)), 0, 0, 0, 0, 0)
-	self := asmcgocallNoG(uintptr(libc_pthread_self), 0, 0, 0, 0, 0, 0)
-	if int32(asmcgocallNoG(uintptr(libc_pthread_getattr_np), self, uintptr(unsafe.Pointer(&attr)), 0, 0, 0, 0)) == 0 {
-		asmcgocallNoG(uintptr(libc_pthread_attr_getstack), uintptr(unsafe.Pointer(&attr)), uintptr(unsafe.Pointer(&addr)), uintptr(unsafe.Pointer(&size)), 0, 0, 0)
-	}
-	asmcgocallNoG(uintptr(libc_pthread_attr_destroy), uintptr(unsafe.Pointer(&attr)), 0, 0, 0, 0, 0)
-
-	return addr, addr + size
 }

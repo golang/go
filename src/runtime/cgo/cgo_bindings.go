@@ -92,6 +92,15 @@ func asmcgocallNoG(fn, a0, a1, a2, a3, a4, a5 uintptr) uintptr {
 	return f.r1
 }
 
+//go:nosplit
+//go:norace
+func asmcgocallMode(noG bool, fn, a0, a1, a2, a3, a4, a5 uintptr) uintptr {
+	if noG {
+		return asmcgocallNoG(fn, a0, a1, a2, a3, a4, a5)
+	}
+	return asmcgocall(fn, a0, a1, a2, a3, a4, a5)
+}
+
 // cgocall calls a C function pointer fn with up to 6 integer/pointer
 // arguments via runtime.cgocall, entering and exiting the scheduler.
 //
@@ -127,11 +136,19 @@ func tsanAcquireNoG() {}
 
 //go:nosplit
 //go:norace
+func tsanAcquireMode(noG bool) {}
+
+//go:nosplit
+//go:norace
 func tsanRelease() {}
 
 //go:nosplit
 //go:norace
 func tsanReleaseNoG() {}
+
+//go:nosplit
+//go:norace
+func tsanReleaseMode(noG bool) {}
 
 //go:nosplit
 //go:norace

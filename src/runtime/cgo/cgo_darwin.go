@@ -6,52 +6,11 @@
 
 package cgo
 
-import "unsafe"
-
 const (
 	_SIG_SETMASK             = 3
 	_EAGAIN                  = 35
 	_PTHREAD_CREATE_DETACHED = 2
 )
-
-type pthreadKey uintptr
-
-//go:linkname _cgo_libc_pthread_attr_setstacksize _cgo_libc_pthread_attr_setstacksize
-var _cgo_libc_pthread_attr_setstacksize byte
-var libc_pthread_attr_setstacksize = unsafe.Pointer(&_cgo_libc_pthread_attr_setstacksize)
-
-//go:linkname _cgo_libc_pthread_get_stackaddr_np _cgo_libc_pthread_get_stackaddr_np
-var _cgo_libc_pthread_get_stackaddr_np byte
-var libc_pthread_get_stackaddr_np = unsafe.Pointer(&_cgo_libc_pthread_get_stackaddr_np)
-
-//go:linkname _cgo_libc_pthread_get_stacksize_np _cgo_libc_pthread_get_stacksize_np
-var _cgo_libc_pthread_get_stacksize_np byte
-var libc_pthread_get_stacksize_np = unsafe.Pointer(&_cgo_libc_pthread_get_stacksize_np)
-
-//go:nosplit
-//go:norace
-//go:nocheckptr
-func cgoThreadStackSize(attr *pthreadAttr) uintptr {
-	// Copy stack size from parent thread instead of using the
-	// non-main thread default stack size.
-	self := asmcgocall(uintptr(libc_pthread_self), 0, 0, 0, 0, 0, 0)
-	size := asmcgocall(uintptr(libc_pthread_get_stacksize_np), self, 0, 0, 0, 0, 0)
-	asmcgocall(uintptr(libc_pthread_attr_setstacksize), uintptr(unsafe.Pointer(attr)), size, 0, 0, 0, 0)
-	return size
-}
-
-// cgoGetStackBound returns the current OS thread's stack bounds [lo, hi).
-// It must be called while pinned to the M (or on a system/C stack) so
-// pthread_self refers to a fixed OS thread.
-//
-//go:nosplit
-//go:norace
-func cgoGetStackBound() (uintptr, uintptr) {
-	self := asmcgocallNoG(uintptr(libc_pthread_self), 0, 0, 0, 0, 0, 0)
-	high := asmcgocallNoG(uintptr(libc_pthread_get_stackaddr_np), self, 0, 0, 0, 0, 0)
-	size := asmcgocallNoG(uintptr(libc_pthread_get_stacksize_np), self, 0, 0, 0, 0, 0)
-	return high - size, high
-}
 
 //go:cgo_import_dynamic _cgo_libc_setenv setenv "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic _cgo_libc_unsetenv unsetenv "/usr/lib/libSystem.B.dylib"
