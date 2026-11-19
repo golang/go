@@ -360,6 +360,11 @@ func newMapType(name string) *mapType {
 func (m *mapType) init(key, elem gobType) {
 	// Set our type id before evaluating the element's, in case it's our own.
 	setTypeId(m)
+	// The element can be a slice still being constructed through a recursive
+	// struct field. Give it an id before recording the map's element type.
+	if elem.id() == 0 {
+		setTypeId(elem)
+	}
 	m.Key = key.id()
 	m.Elem = elem.id()
 }
