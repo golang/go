@@ -171,6 +171,23 @@ var (
 	buckhash atomic.UnsafePointer // *buckhashArray
 
 	mProfCycle mProfCycleHolder
+
+	// mProfMetrics are snapshots of runtime memory statistics, collected
+	// during mark termination. We follow the same cycle-based bookkeeping
+	// as heap profiling, where runtime metrics collected during mark
+	// termination are credited to the next cycle and published after the
+	// subsequent sweep phase is complete.
+	mProfMetrics [len(memRecord{}.future)]profilerecord.MemProfileMetrics
+
+	// mProfMCacheAllocBytes accumulates the bytes allocated from stale
+	// mcaches, which are missing from the heap stats that mProf_AdvanceCycle
+	// snapshots during mark termination stop-the-world. Stale mcaches are
+	// flushed on many Ps after the world restarts, so this has to be
+	// global state. It is reset in mProf_AdvanceCycle and consumed by
+	// captureMProfMetrics within the same mark termination, and mark
+	// terminations never overlap, so unlike mProfMetrics it doesn't need
+	// per-cycle slots.
+	mProfMCacheAllocBytes atomic.Uint64
 )
 
 type buckhashArray [buckHashSize]atomic.UnsafePointer // *bucket
@@ -209,8 +226,8 @@ func (c *mProfCycleHolder) read() uint32 {
 }
 
 // shouldPublish reports whether cycle is the next cycle in publication order.
-// The caller must ensure that all events for cycle have been recorded before
-// publishing it. The caller must hold profMemActiveLock.
+// The caller must ensure that all events for the cycle have been recorded and
+// runtime metrics for the cycle have been collected, and must hold profMemActiveLock.
 func (c *mProfCycleHolder) shouldPublish(cycle uint32) bool {
 	assertLockHeld(&profMemActiveLock)
 	return mProfCycleNext(c.published) == cycle
@@ -367,14 +384,32 @@ func eqslice(x, y []uintptr) bool {
 
 // mProf_AdvanceCycle advances the heap profile cycle and creates a
 // fresh heap profile cycle. This operation is fast and can be done
-// during STW. The caller must call mProf_Publish before calling
-// mProf_AdvanceCycle again.
+// during STW. The caller must collect runtime metrics and call mProf_Publish
+// before calling mProf_AdvanceCycle again.
 //
-// This is called by mark termination during STW so allocations and
-// frees after the world is started again count towards a new heap
-// profiling cycle.
-func mProf_AdvanceCycle() {
+// This is called by mark termination during STW so allocations and frees after
+// the world is started again count towards a new heap profiling cycle.
+// mProf_AdvanceCycle also adds a snapshot of the heap stats to heapStats, which
+// must be zero.
+func mProf_AdvanceCycle(heapStats *heapStatsDelta) {
+	if disableMemoryProfiling {
+		// This isn't a ton of work, but given that the world is
+		// stopped, we may as well skip it if the program won't make use
+		// of it.
+		return
+	}
+
+	// After incrementing the profile cycle, allocations since the previous
+	// mark termination and frees from the upcoming sweep end up in the same
+	// bucket and get published together in the next cycle. The heap stats
+	// we collect here will accompany the profile from that cycle. The
+	// current cycle, which is now ready to publish, describes the previous
+	// mark termination.
 	mProfCycle.increment()
+	memstats.heapStats.unsafeRead(heapStats)
+	// Mark termination will flush stale mcaches after we return, so we need
+	// to reset this counter here.
+	mProfMCacheAllocBytes.Store(0)
 }
 
 // mProf_Publish publishes the events from the current heap profiling
@@ -393,10 +428,53 @@ func mProf_Publish() {
 	unlock(&profMemActiveLock)
 }
 
+// captureMProfMetrics reads a fresh snapshot of the runtime metrics associated
+// with the heap profile into out. Heap-related fields of out are derived from
+// the provided heapStats and mcacheStats collected during mark termination.
+func captureMProfMetrics(out *profilerecord.MemProfileMetrics, heapStats *heapStatsDelta, mcacheStats uint64) {
+	*out = profilerecord.MemProfileMetrics{}
+
+	if rss, ok := sysRSS(); ok {
+		out.RSS = rss
+	}
+
+	// /gc/heap/live:bytes. heapMarked is updated at mark termination and
+	// stable until the next mark termination, so a plain uint64 read is fine.
+	out.HeapLive = gcController.heapMarked
+
+	var stats statAggregate
+	stats.heapStats.heapStatsDelta = *heapStats
+	stats.heapStats.computeDerived()
+	// We capture most of the heap stats during mark termination's
+	// stop-the-world pause, but the mcache allocation statistics leading up
+	// to that point aren't up-to-date until after the stop-the-world pause,
+	// so we add them here.
+	stats.heapStats.inObjects += mcacheStats
+	stats.sysStats.compute()
+
+	out.MemoryClassesHeapFree = stats.memoryClassHeapFree()
+	out.MemoryClassesHeapObjects = stats.memoryClassHeapObjects()
+	out.MemoryClassesHeapReleased = stats.memoryClassHeapReleased()
+	out.MemoryClassesHeapStacks = stats.memoryClassHeapStacks()
+	out.MemoryClassesHeapUnused = stats.memoryClassHeapUnused()
+	out.MemoryClassesOSStacks = stats.sysStats.stacksSys
+	out.MemoryClassesOther = stats.sysStats.otherSys
+	out.MemoryClassesProfilingBuckets = stats.sysStats.buckHashSys
+	out.MemoryClassesMetadataOther = stats.memoryClassMetadataOther()
+	out.MemoryClassesMetadataMCacheFree = stats.memoryClassMetadataMCacheFree()
+	out.MemoryClassesMetadataMCacheInuse = stats.sysStats.mCacheInUse
+	out.MemoryClassesMetadataMSpanFree = stats.memoryClassMetadataMSpanFree()
+	out.MemoryClassesMetadataMSpanInuse = stats.sysStats.mSpanInUse
+	out.MemoryClassesTotal = stats.memoryClassTotal()
+}
+
 // mProf_PublishLocked accumulates the profile events from cycle into the active
 // profile. It zeroes the cycle's alloc count so the slot can be reused for
 // allocations in the next cycle, but retains the cycle's frees until the next
 // publication. It also clears the previously published cycle's retained frees.
+//
+// The caller must ensure that all events for the cycle have been recorded and
+// runtime metrics for the cycle have been collected, and must hold profMemActiveLock.
 func mProf_PublishLocked(cycle uint32) {
 	assertLockHeld(&profMemActiveLock)
 	if !mProfCycle.shouldPublish(cycle) {
@@ -943,12 +1021,13 @@ func MemProfile(p []MemProfileRecord, inuseZero bool) (n int, ok bool) {
 	return memProfileInternal(len(p), inuseZero, func(r profilerecord.MemProfileRecord) {
 		copyMemProfileRecord(&p[0], r)
 		p = p[1:]
-	})
+	}, nil)
 }
 
 // memProfileInternal returns the number of records n in the profile. If there
 // are less than size records, copyFn is invoked for each record, and ok returns
-// true.
+// true. If metricsOut is non-nil, it is populated with runtime metrics
+// collected at the mark termination represented in the profile.
 //
 // The linker set disableMemoryProfiling to true to disable memory profiling
 // if this function is not reachable. Mark it noinline to ensure the symbol exists.
@@ -956,7 +1035,7 @@ func MemProfile(p []MemProfileRecord, inuseZero bool) (n int, ok bool) {
 // See also disableMemoryProfiling above and cmd/link/internal/ld/lib.go:linksetup.
 //
 //go:noinline
-func memProfileInternal(size int, inuseZero bool, copyFn func(profilerecord.MemProfileRecord)) (n int, ok bool) {
+func memProfileInternal(size int, inuseZero bool, copyFn func(profilerecord.MemProfileRecord), metricsOut *profilerecord.MemProfileMetrics) (n int, ok bool) {
 	lock(&profMemActiveLock)
 	cycle := mProfCycle.read()
 	// If we're between mProf_AdvanceCycle and mProf_Publish, flush to the
@@ -993,6 +1072,21 @@ func memProfileInternal(size int, inuseZero bool, copyFn func(profilerecord.MemP
 				n++
 			}
 		}
+		// NB: assuming there are now non-zero active allocs, we'll only
+		// collect runtime metrics once, meaning that until the cycle advances
+		// we're going to keep reporting whatever RSS and runtime
+		// metrics we collect here. See go.dev/issue/81967.
+		metrics := &mProfMetrics[mProfCycle.published%uint32(len(memRecord{}.future))]
+		captureMProfMetrics(metrics, &heapStatsDelta{}, 0)
+		// After the first GC, we don't yet have heap metrics (those are
+		// collected for the next cycle) but we will have a HeapLive
+		// value from the first GC. Force the HeapLive value to be 0.
+		// Otherwise, we'll run into an error later when validating heap
+		// metrics. We'll still at least approximate the live heap using
+		// whatever samples we accumulated above. See also
+		// go.dev/issue/82938 which describes related issues around
+		// profiles collected between the first and second GC.
+		metrics.HeapLive = 0
 	}
 	if n <= size {
 		ok = true
@@ -1008,6 +1102,9 @@ func memProfileInternal(size int, inuseZero bool, copyFn func(profilerecord.MemP
 				copyFn(r)
 			}
 		}
+	}
+	if metricsOut != nil {
+		*metricsOut = mProfMetrics[mProfCycle.published%uint32(len(memRecord{}.future))]
 	}
 	unlock(&profMemActiveLock)
 	return
@@ -1031,12 +1128,16 @@ func copyMemProfileRecord(dst *MemProfileRecord, src profilerecord.MemProfileRec
 	clear(dst.Stack0[i:])
 }
 
-//go:linkname pprof_memProfileInternal
-func pprof_memProfileInternal(p []profilerecord.MemProfileRecord, inuseZero bool) (n int, ok bool) {
+// pprof_memProfileInternal is the runtime/pprof entry point into
+// memProfileInternal. If metrics is non-nil, it is populated with runtime
+// metrics collected at the moment the active heap profile was last published.
+//
+//go:linknamestd pprof_memProfileInternal runtime/pprof.pprof_memProfileInternal
+func pprof_memProfileInternal(p []profilerecord.MemProfileRecord, inuseZero bool, metrics *profilerecord.MemProfileMetrics) (n int, ok bool) {
 	return memProfileInternal(len(p), inuseZero, func(r profilerecord.MemProfileRecord) {
 		p[0] = r
 		p = p[1:]
-	})
+	}, metrics)
 }
 
 func iterate_memprof(fn func(*bucket, uintptr, *uintptr, uintptr, uintptr, uintptr)) {

@@ -293,6 +293,7 @@ func (c *mcache) releaseAll() {
 	c.scanAlloc = 0
 
 	sg := mheap_.sweepgen
+	var allocBytes uint64
 	dHeapLive := int64(0)
 	for i := range c.alloc {
 		s := c.alloc[i]
@@ -307,7 +308,9 @@ func (c *mcache) releaseAll() {
 
 			// Adjust the actual allocs in inconsistent, internal stats.
 			// We assumed earlier that the full span gets allocated.
-			gcController.totalAlloc.Add(slotsUsed * int64(s.elemsize))
+			bytesAllocated := slotsUsed * int64(s.elemsize)
+			gcController.totalAlloc.Add(bytesAllocated)
+			allocBytes += uint64(bytesAllocated)
 
 			if s.sweepgen != sg+1 {
 				// refill conservatively counted unallocated slots in gcController.heapLive.
@@ -339,6 +342,22 @@ func (c *mcache) releaseAll() {
 	// TODO(thepudds): consider having debug logging of a non-empty reusable lists getting cleared,
 	// maybe based on the existing debugReusableLog.
 	clear(c.reusableNoscan[:])
+
+	// If flushGen != sg, this mcache is stale, meaning it has not yet been
+	// prepared for the current sweep generation. That means the bytes
+	// accounted for above are not included in the heap statistics snapshot
+	// the memory profiler collects during mark termination stop-the-world,
+	// so we collect them here.
+	if !disableMemoryProfiling && allocBytes != 0 && c.flushGen.Load() != sg {
+		// If we see a stale mcache, it means mark termination is
+		// ongoing and we're past the stop-the-world where
+		// mProfMCacheAllocBytes was reset and the sweep generation was
+		// updated. gcMarkTermination flushes all stale mcaches before
+		// it consumes mProfMCacheAllocBytes, and the next GC can't
+		// start until then, so this always counts towards the current
+		// mark termination.
+		mProfMCacheAllocBytes.Add(int64(allocBytes))
+	}
 
 	// Update heapLive and heapScan.
 	gcController.update(dHeapLive, scanAlloc)
