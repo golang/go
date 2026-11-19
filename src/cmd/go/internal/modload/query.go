@@ -435,7 +435,9 @@ func newQueryMatcher(path string, query, current string, allowed AllowedFunc) (*
 		if !ok {
 			return false
 		}
-		return module.CheckPathMajor(v, pathMajor) == nil
+		// Check the major version itself: CheckPathMajor otherwise accepts a
+		// mismatched major on an unsuffixed path when v ends in +incompatible.
+		return module.CheckPathMajor(strings.TrimSuffix(v, "+incompatible"), pathMajor) == nil
 	}
 
 	qm := &queryMatcher{
