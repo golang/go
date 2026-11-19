@@ -63,7 +63,7 @@ var xRegAlloc struct {
 func xRegInitAlloc() {
 	lockInit(&xRegAlloc.lock, lockRankXRegAlloc)
 	xRegAlloc.alloc.init(unsafe.Sizeof(xRegState{}), nil, nil, &memstats.other_sys)
-	// xRegSave overwrites all parts of the block that xRegScan will scan.
+	// xRegSave overwrites the whole block before the GC can see it.
 	xRegAlloc.alloc.zero = false
 }
 
@@ -93,7 +93,11 @@ func xRegSave(gp *g) {
 	}
 
 	// Copy state saved in the scratchpad to dest.
-	dest.regs.copyFrom(&pp.xRegs.scratch)
+	//
+	// If we ever need to save less state (e.g., avoid saving vector registers
+	// that aren't in use), we could have multiple allocation pools for
+	// different size states and copy only the registers we need.
+	dest.regs = pp.xRegs.scratch
 
 	// Save on the G.
 	gp.xRegs.state = dest
@@ -150,8 +154,8 @@ func xRegScan(gp *g, gcw *gcWork, state *stackScanState) {
 		println("runtime: gp=", gp, ", goid=", gp.goid)
 		throw("gp.xRegs.state == nil on a scanstack attempt during async preemption")
 	}
-	off, n := gp.xRegs.state.regs.scanRange()
-	b := uintptr(unsafe.Pointer(&gp.xRegs.state.regs)) + off
+	b := uintptr(unsafe.Pointer(&gp.xRegs.state.regs))
+	n := uintptr(unsafe.Sizeof(gp.xRegs.state.regs))
 	if debugScanConservative {
 		print("begin scan xRegs of goroutine ", gp.goid, " at [", hex(b), ",", hex(b+n), ")\n")
 	}

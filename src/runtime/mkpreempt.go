@@ -152,39 +152,16 @@ func (g *gen) label(l string) {
 	fmt.Fprintf(g.w, "%s\n", l)
 }
 
-// raw writes a multi-line assembly block verbatim, trimming a single leading
-// newline so backtick literals can begin on the next line.
-func (g *gen) raw(f string, args ...any) {
-	s := strings.TrimPrefix(f, "\n")
-	if len(args) > 0 {
-		s = fmt.Sprintf(s, args...)
-	}
-	io.WriteString(g.w, s)
-}
-
-// writeXRegsFile formats and writes preempt_<arch>.go with the given Go body
-// (after the generated header and package declaration).
-func writeXRegsFile(arch, body string) {
+// writeXRegs writes an architecture xregs file.
+func writeXRegs(arch string, l *layout) {
 	var code bytes.Buffer
 	g := gen{&code, arch}
 	g.commonHeader()
-	fmt.Fprintf(g.w, "package runtime\n\n%s", body)
+	fmt.Fprintf(g.w, `
+package runtime
 
-	path := fmt.Sprintf("preempt_%s.go", arch)
-	b, err := format.Source(code.Bytes())
-	if err != nil {
-		log.Fatalf("formatting %s: %s", path, err)
-	}
-	if err := os.WriteFile(path, b, 0666); err != nil {
-		log.Fatal(err)
-	}
-}
-
-// writeXRegs writes an architecture xregs file.
-func writeXRegs(arch string, l *layout) {
-	var body bytes.Buffer
-	fmt.Fprintf(&body, "import \"unsafe\"\n\n")
-	fmt.Fprintf(&body, "type xRegs struct {\n")
+type xRegs struct {
+`)
 	pos := 0
 	for _, seq := range l.regs {
 		for _, r := range seq.regs {
@@ -198,21 +175,20 @@ func writeXRegs(arch string, l *layout) {
 			case r.size == 8 && r.pos%8 == 0:
 				typ = "uint64"
 			}
-			fmt.Fprintf(&body, "\t%s %s\n", r.name, typ)
+			fmt.Fprintf(g.w, "\t%s %s\n", r.name, typ)
 			pos += r.size
 		}
 	}
-	fmt.Fprintf(&body, `}
+	fmt.Fprintf(g.w, "}\n")
 
-func (dst *xRegs) copyFrom(src *xRegs) {
-	*dst = *src
-}
-
-func (x *xRegs) scanRange() (off, size uintptr) {
-	return 0, unsafe.Sizeof(*x)
-}
-`)
-	writeXRegsFile(arch, body.String())
+	path := fmt.Sprintf("preempt_%s.go", arch)
+	b, err := format.Source(code.Bytes())
+	if err != nil {
+		log.Fatalf("formatting %s: %s", path, err)
+	}
+	if err := os.WriteFile(path, b, 0666); err != nil {
+		log.Fatal(err)
+	}
 }
 
 type layout struct {
@@ -409,9 +385,9 @@ func gen386(g *gen) {
 }
 
 func genAMD64(g *gen) {
-	const xReg = "AX" // *xRegState / packed data cursor
+	const xReg = "AX" // *xRegState
 
-	p, raw := g.p, g.raw
+	p, label := g.p, g.label
 
 	// Assign stack offsets.
 	var l = layout{sp: "SP"}
@@ -423,82 +399,47 @@ func genAMD64(g *gen) {
 			l.add("MOVQ", reg, 8)
 		}
 	}
-	// Create layouts for X, Y, Z, and K registers. All offsets start at 0
-	// relative to the advancing data pointer in xReg.
+	// Create layouts for X, Y, and Z registers.
 	const (
 		numXRegs = 16
 		numZRegs = 32
 		numKRegs = 8
 	)
-	lXRegs, lYRegs, lZLoRegs := layout{sp: xReg}, layout{sp: xReg}, layout{sp: xReg}
-	for i := range numXRegs {
-		lXRegs.add("MOVUPS", fmt.Sprintf("X%d", i), 128/8)
-		lYRegs.add("VMOVDQU", fmt.Sprintf("Y%d", i), 256/8)
-		lZLoRegs.add("VMOVDQU64", fmt.Sprintf("Z%d", i), 512/8)
+	lZRegs := layout{sp: xReg} // Non-GP registers
+	lXRegs, lYRegs := lZRegs, lZRegs
+	for i := range numZRegs {
+		lZRegs.add("VMOVDQU64", fmt.Sprintf("Z%d", i), 512/8)
+		if i < numXRegs {
+			// Use SSE-only instructions for X registers.
+			lXRegs.add("MOVUPS", fmt.Sprintf("X%d", i), 128/8)
+			lYRegs.add("VMOVDQU", fmt.Sprintf("Y%d", i), 256/8)
+		}
 	}
-	lZHiRegs := layout{sp: xReg}
-	for i := numXRegs; i < numZRegs; i++ {
-		lZHiRegs.add("VMOVDQU64", fmt.Sprintf("Z%d", i), 512/8)
-	}
-	lKRegs := layout{sp: xReg}
 	for i := range numKRegs {
-		lKRegs.add("KMOVQ", fmt.Sprintf("K%d", i), 8)
+		lZRegs.add("KMOVQ", fmt.Sprintf("K%d", i), 8)
 	}
-	writeXRegsFile(g.goarch, `import "unsafe"
+	// The Z layout is the most general, so we line up the others with that one.
+	// We don't have to do this, but it results in a nice Go type. If we split
+	// this into multiple types, we probably should stop doing this.
+	for i := range lXRegs.regs {
+		for j := range lXRegs.regs[i].regs {
+			lXRegs.regs[i].regs[j].pos = lZRegs.regs[i].regs[j].pos
+			lYRegs.regs[i].regs[j].pos = lZRegs.regs[i].regs[j].pos
+		}
 
-type xRegs struct {
-	XINUSE uint64
-	// data holds contiguously packed SSE/AVX/AVX-512 vector and opmask register
-	// state, laid out according to XINUSE:
-	//   - if XINUSE&xcr0_AX_ZMM_Hi256 != 0: [16][64]byte for Z0-Z15
-	//     else if XINUSE&xcr0_AX_YMM != 0:  [16][32]byte for Y0-Y15
-	//     else:                             [16][16]byte for X0-X15
-	//   - if XINUSE&xcr0_AX_Hi16_ZMM != 0:  [16][64]byte for Z16-Z31
-	//   - if XINUSE&xcr0_AX_OpMask != 0:    [8][8]byte for K0-K7
-	data [16*64 + 16*64 + 8*8]byte
-}
-
-func (x *xRegs) activeSizes() (scanSize, totalSize uintptr) {
-	switch {
-	case x.XINUSE&xcr0_AX_ZMM_Hi256 != 0:
-		scanSize = 16 * 64 // Z0-Z15
-	case x.XINUSE&xcr0_AX_YMM != 0:
-		scanSize = 16 * 32 // Y0-Y15
-	default:
-		scanSize = 16 * 16 // X0-X15
 	}
-	if x.XINUSE&xcr0_AX_Hi16_ZMM != 0 {
-		scanSize += 16 * 64 // Z16-Z31
-	}
-	totalSize = scanSize
-	if x.XINUSE&xcr0_AX_OpMask != 0 {
-		totalSize += 8 * 8 // K0-K7
-	}
-	return scanSize, totalSize
-}
+	writeXRegs(g.goarch, &lZRegs)
 
-func (dst *xRegs) copyFrom(src *xRegs) {
-	_, totalSize := src.activeSizes()
-	memmove(unsafe.Pointer(dst), unsafe.Pointer(src), unsafe.Offsetof(src.data)+totalSize)
-}
+	p("PUSHQ BP")
+	p("MOVQ SP, BP")
+	p("// Save flags before clobbering them")
+	p("PUSHFQ")
+	p("// obj doesn't understand ADD/SUB on SP, but does understand ADJSP")
+	p("ADJSP $%d", l.stack)
+	p("// But vet doesn't know ADJSP, so suppress vet stack checking")
+	p("NOP SP")
 
-func (x *xRegs) scanRange() (off, size uintptr) {
-	scanSize, _ := x.activeSizes()
-	return unsafe.Offsetof(x.data), scanSize
-}
-`)
-
-	raw(`
-	PUSHQ BP
-	MOVQ SP, BP
-	// Save flags before clobbering them
-	PUSHFQ
-	// obj doesn't understand ADD/SUB on SP, but does understand ADJSP
-	ADJSP $%d
-	// But vet doesn't know ADJSP, so suppress vet stack checking
-	NOP SP
-	// Save GPs
-`, l.stack)
+	p("// Save GPs")
 	l.save(g)
 
 	// In general, the limitations on asynchronous preemption mean we only
@@ -508,230 +449,69 @@ func (x *xRegs) scanRange() (off, size uintptr) {
 	// to avoid ever landing in ABI0, but it's easy to just make this code not
 	// sensitive to the ABI we're preempting. The CALL to asyncPreempt2 will
 	// ensure we're in ABIInternal register state.
-	raw(`
-	// Determine which extended registers are in use via XGETBV(ECX=1),
-	// which returns the XINUSE bitmap in EAX using the xcr0_AX_* bits:
-	//   xcr0_AX_SSE:       X0-X15 (always saved unconditionally)
-	//   xcr0_AX_YMM:       upper 128 bits of Y0-Y15
-	//   xcr0_AX_OpMask:    K0-K7
-	//   xcr0_AX_ZMM_Hi256: upper 256 bits of Z0-Z15
-	//   xcr0_AX_Hi16_ZMM:  Z16-Z31 (any width X16/Y16/Z16)
-	XORL BX, BX
-	CMPB internal∕cpu·X86+const_offsetX86HasAVX(SB), $1
-	JNE saveXRegs
-	CMPB internal∕cpu·X86+const_offsetX86HasXGETBV1(SB), $1
-	JNE noXGETBV1
-	MOVL $1, CX
-	XGETBV
-	MOVL AX, BX
-	// Keep only xcr0_AX_YMM if Go has disabled AVX-512 (e.g. via GODEBUG
-	// or missing subset flags) so we never execute EVEX/opmask instructions.
-	CMPB internal∕cpu·X86+const_offsetX86HasAVX512(SB), $1
-	JEQ saveXRegs
-	ANDL $const_xcr0_AX_YMM, BX
-	JMP saveXRegs
-noXGETBV1:
-	// On CPUs without XGETBV(ECX=1) (or with GODEBUG=cpu.xgetbv1=off),
-	// standard non-SIMD Go code never holds live YMM/ZMM/K registers at
-	// preemption safe points, so only assume upper registers are dirty
-	// when GOEXPERIMENT_simd is enabled.
-	#ifdef GOEXPERIMENT_simd
-	CMPB internal∕cpu·X86+const_offsetX86HasAVX512(SB), $1
-	JNE useAVX
-	MOVL $(const_xcr0_AX_YMM|const_xcr0_AX_OpMask|const_xcr0_AX_ZMM_Hi256|const_xcr0_AX_Hi16_ZMM), BX
-	JMP saveXRegs
-useAVX:
-	MOVL $const_xcr0_AX_YMM, BX
-	#endif
-saveXRegs:
-	// Save extended register state to p.xRegs.scratch
-	// Don't make assumptions about ABI register state. See mkpreempt.go
-	get_tls(CX)
-	MOVQ g(CX), R14
-	MOVQ g_m(R14), %[1]s
-	MOVQ m_p(%[1]s), %[1]s
-	LEAQ (p_xRegs+xRegPerP_scratch)(%[1]s), %[1]s
-	MOVQ BX, xRegs_XINUSE(%[1]s)
-    // Advance %[1]s to point at the byte block. We'll continue advancing %[1]s as we pack data into it.
-	ADDQ $xRegs_data, %[1]s
-	TESTL $const_xcr0_AX_ZMM_Hi256, BX
-	JNZ saveZLo
-	TESTL $const_xcr0_AX_YMM, BX
-	JNZ saveAVX
-saveSSE:
-`, xReg)
-	// Neither ZMM_Hi256 nor YMM_Hi128 is in use; save X0-X15 with SSE.
+	p("// Save extended register state to p.xRegs.scratch")
+	p("// Don't make assumptions about ABI register state. See mkpreempt.go")
+	p("get_tls(CX)")
+	p("MOVQ g(CX), R14")
+	p("MOVQ g_m(R14), %s", xReg)
+	p("MOVQ m_p(%s), %s", xReg, xReg)
+	p("LEAQ (p_xRegs+xRegPerP_scratch)(%s), %s", xReg, xReg)
+
+	// Which registers do we need to save?
+	p("#ifdef GOEXPERIMENT_simd")
+	p("CMPB internal∕cpu·X86+const_offsetX86HasAVX512(SB), $1")
+	p("JE saveAVX512")
+	p("CMPB internal∕cpu·X86+const_offsetX86HasAVX(SB), $1")
+	p("JE saveAVX")
+	p("#endif")
+
+	// No features. Assume only SSE.
+	label("saveSSE:")
 	lXRegs.save(g)
-	raw(`
-	ADDQ $%d, %s
-	// Z16-Z31 (including 128-bit X16-X31) and K0-K7 are tracked
-	// independently of Y0-Y15/Z0-Z15 and may still be dirty here.
-	TESTL $(const_xcr0_AX_Hi16_ZMM|const_xcr0_AX_OpMask), BX
-	JZ preempt
-	JMP saveZHiCheck
-saveAVX:
-`, lXRegs.stack, xReg)
+	p("JMP preempt")
+
+	label("saveAVX:")
 	lYRegs.save(g)
-	raw(`
-	ADDQ $%d, %s
-	JMP saveZHiCheck
-saveZLo:
-`, lYRegs.stack, xReg)
-	lZLoRegs.save(g)
-	raw(`
-	ADDQ $%d, %s
-saveZHiCheck:
-	TESTL $const_xcr0_AX_Hi16_ZMM, BX
-	JZ saveKCheck
-`, lZLoRegs.stack, xReg)
-	lZHiRegs.save(g)
-	raw(`
-	ADDQ $%d, %s
-	// Zero Z16-Z31 after saving so xcr0_AX_Hi16_ZMM returns to INIT state (0)
-	// while running the runtime/scheduler and other goroutines on this M.
-	// Using 128-bit EVEX self-XOR (VPXORQ Xn, Xn, Xn) zeroes all 512 bits of Zn,
-	// is recognized by hardware as a zeroing idiom, avoids touching Z0-Z15,
-	// and avoids requesting a 512-bit execution license.
-`, lZHiRegs.stack, xReg)
-	for i := numXRegs; i < numZRegs; i++ {
-		p("VPXORQ X%d, X%d, X%d", i, i, i)
-	}
-	raw(`
-saveKCheck:
-	TESTL $const_xcr0_AX_OpMask, BX
-	JZ saveVzeroCheck
-`)
-	lKRegs.save(g)
-	raw(`
-	// Zero K0-K7 via self-XOR zeroing idioms so xcr0_AX_OpMask returns
-	// to INIT state (0); VZEROUPPER does not clear opmask state.
-`)
-	for i := range numKRegs {
-		p("KXORQ K%d, K%d, K%d", i, i, i)
-	}
-	raw(`
-	// End of the byte block, so we don't need to advance AX
-saveVzeroCheck:
-	TESTL $(const_xcr0_AX_YMM|const_xcr0_AX_ZMM_Hi256), BX
-	JZ preempt
-	// Reset xcr0_AX_YMM and xcr0_AX_ZMM_Hi256 to INIT state (0) and
-	// avoid AVX-to-SSE transition penalties in runtime code.
-	VZEROUPPER
-preempt:
-	CALL ·asyncPreempt2(SB)
-	// Read current XINUSE into DX before restoring. While this goroutine was
-	// parked, other goroutines or runtime code on this M (or on a new M after
-	// migration) may have dirtied register banks that were clean (0 in saved BX)
-	// when this goroutine was preempted. Any bank with BX bit == 0 and DX bit == 1
-	// must be explicitly zeroed back to INIT state so we neither leak another
-	// goroutine's register values nor leave XINUSE bits set.
-	XORL DX, DX
-	CMPB internal∕cpu·X86+const_offsetX86HasAVX(SB), $1
-	JNE restoreXRegs
-	CMPB internal∕cpu·X86+const_offsetX86HasXGETBV1(SB), $1
-	JNE restoreNoXGETBV1
-	MOVL $1, CX
-	XGETBV
-	MOVL AX, DX
-	CMPB internal∕cpu·X86+const_offsetX86HasAVX512(SB), $1
-	JEQ restoreXRegs
-	ANDL $const_xcr0_AX_YMM, DX
-	JMP restoreXRegs
-restoreNoXGETBV1:
-	#ifdef GOEXPERIMENT_simd
-	CMPB internal∕cpu·X86+const_offsetX86HasAVX512(SB), $1
-	JNE restoreUseAVX
-	MOVL $(const_xcr0_AX_YMM|const_xcr0_AX_OpMask|const_xcr0_AX_ZMM_Hi256|const_xcr0_AX_Hi16_ZMM), DX
-	JMP restoreXRegs
-restoreUseAVX:
-	MOVL $const_xcr0_AX_YMM, DX
-	#endif
-restoreXRegs:
-	// Restore non-GPs from *p.xRegs.cache
-	MOVQ g_m(R14), %[1]s
-	MOVQ m_p(%[1]s), %[1]s
-	MOVQ (p_xRegs+xRegPerP_cache)(%[1]s), %[1]s
-	MOVQ (xRegState_regs+xRegs_XINUSE)(%[1]s), BX
-	ADDQ $(xRegState_regs+xRegs_data), %[1]s
-	TESTL $const_xcr0_AX_ZMM_Hi256, BX
-	JNZ restoreZLo
-	TESTL $const_xcr0_AX_YMM, BX
-	JNZ restoreAVXCheckZ
-	// Upper Y0-Y15 and Z0-Z15 were clean when preempted; clear them if dirty
-	// before restoring X0-X15 with legacy SSE MOVUPS (which preserves upper bits).
-	TESTL $(const_xcr0_AX_YMM|const_xcr0_AX_ZMM_Hi256), DX
-	JZ restoreSSE
-	VZEROUPPER
-restoreSSE:
-`, xReg)
-	lXRegs.restoreDirect(g)
-	raw(`
-	ADDQ $%d, %s
-	MOVL BX, CX
-	ORL DX, CX
-	TESTL $(const_xcr0_AX_Hi16_ZMM|const_xcr0_AX_OpMask), CX
-	JZ restoreGPs
-	JMP restoreZHiCheck
-restoreAVXCheckZ:
-	// xcr0_AX_ZMM_Hi256 was clean when preempted; if currently dirty,
-	// transition out of 512-bit upper state before 256-bit VEX loads.
-	TESTL $const_xcr0_AX_ZMM_Hi256, DX
-	JZ restoreAVX
-	VZEROUPPER
-restoreAVX:
-`, lXRegs.stack, xReg)
-	lYRegs.restoreDirect(g)
-	raw(`
-	ADDQ $%d, %s
-	JMP restoreZHiCheck
-restoreZLo:
-`, lYRegs.stack, xReg)
-	lZLoRegs.restoreDirect(g)
-	raw(`
-	ADDQ $%d, %s
-restoreZHiCheck:
-	TESTL $const_xcr0_AX_Hi16_ZMM, BX
-	JZ restoreZHiCleanCheck
-`, lZLoRegs.stack, xReg)
-	lZHiRegs.restoreDirect(g)
-	raw(`
-	ADDQ $%d, %s
-	JMP restoreKCheck
-restoreZHiCleanCheck:
-	// Z16-Z31 were clean when preempted; zero them if currently dirty on this M.
-	TESTL $const_xcr0_AX_Hi16_ZMM, DX
-	JZ restoreKCheck
-`, lZHiRegs.stack, xReg)
-	for i := numXRegs; i < numZRegs; i++ {
-		p("VPXORQ X%d, X%d, X%d", i, i, i)
-	}
-	raw(`
-restoreKCheck:
-	TESTL $const_xcr0_AX_OpMask, BX
-	JZ restoreKCleanCheck
-`)
-	lKRegs.restoreDirect(g)
-	raw(`
-	JMP restoreGPs
-restoreKCleanCheck:
-	// K0-K7 were clean when preempted; zero them if currently dirty on this M.
-	TESTL $const_xcr0_AX_OpMask, DX
-	JZ restoreGPs
-`)
-	for i := range numKRegs {
-		p("KXORQ K%d, K%d, K%d", i, i, i)
-	}
-	raw(`
-restoreGPs:
-	// Restore GPs
-`)
+	p("JMP preempt")
+
+	label("saveAVX512:")
+	lZRegs.save(g)
+	p("JMP preempt")
+
+	label("preempt:")
+	p("CALL ·asyncPreempt2(SB)")
+
+	p("// Restore non-GPs from *p.xRegs.cache")
+	p("MOVQ g_m(R14), %s", xReg)
+	p("MOVQ m_p(%s), %s", xReg, xReg)
+	p("MOVQ (p_xRegs+xRegPerP_cache)(%s), %s", xReg, xReg)
+
+	p("#ifdef GOEXPERIMENT_simd")
+	p("CMPB internal∕cpu·X86+const_offsetX86HasAVX512(SB), $1")
+	p("JE restoreAVX512")
+	p("CMPB internal∕cpu·X86+const_offsetX86HasAVX(SB), $1")
+	p("JE restoreAVX")
+	p("#endif")
+
+	label("restoreSSE:")
+	lXRegs.restore(g)
+	p("JMP restoreGPs")
+
+	label("restoreAVX:")
+	lYRegs.restore(g)
+	p("JMP restoreGPs")
+
+	label("restoreAVX512:")
+	lZRegs.restore(g)
+	p("JMP restoreGPs")
+
+	label("restoreGPs:")
+	p("// Restore GPs")
 	l.restore(g)
-	raw(`
-	ADJSP $%d
-	POPFQ
-	POPQ BP
-	RET
-`, -l.stack)
+	p("ADJSP $%d", -l.stack)
+	p("POPFQ")
+	p("POPQ BP")
+	p("RET")
 }
 
 func genARM(g *gen) {
