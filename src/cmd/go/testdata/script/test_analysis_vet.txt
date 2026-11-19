@@ -1,0 +1,138 @@
+# Tests of go test's analysis driver, which replaces its use of cmd/vet
+# (enabled by GOEXPERIMENT=vetfiles).
+
+[short] skip 'builds and runs an analysis tool'
+[!compiler:gc] skip
+
+env GOEXPERIMENT=vetfiles
+
+# The default vet checks run, via the analysis tool, not cmd/vet.
+! go test -x ./bad
+stderr 'bad.go:5:39: fmt.Sprintf format %d has arg "x" of wrong type string'
+stdout '^FAIL\s+example.com/m/bad \[build failed\]$'
+! stderr '[/\\]vet(\.exe)? .*vet\.cfg'
+
+# A package with no problems passes.
+go test ./good
+stdout '^ok\s+example.com/m/good'
+
+# -vet=off runs no analysis.
+go test -vet=off ./bad
+stdout '^ok\s+example.com/m/bad'
+
+# -vet selects analyzers by name: printf is not among these.
+go test -vet=bools,nilfunc ./bad
+stdout '^ok\s+example.com/m/bad'
+
+# -vet=all runs every analyzer of the suite, including those not in
+# go test's default list (here, unusedresult).
+go test ./unused
+! go test -vet=all ./unused
+stderr 'unused.go:5:12: result of fmt.Sprint call not used'
+# Every analyzer of the vet suite passes the driver's validation.
+! stderr '\(via |suite element|suite contains'
+
+# go test -c runs no analysis.
+go test -c -o=$WORK/bad.test ./bad
+exists $WORK/bad.test
+
+# The tool is built in this process, in the tests' build configuration,
+# whatever their build flags: here, -tags, -cover (whose generated
+# files are in the build directory), and -race.
+! go test -x -tags=x ./bad
+stderr 'analysistool .*analysis\.cfg'
+stderr 'bad.go:5:39: fmt.Sprintf format %d has arg "x" of wrong type string'
+! go test -cover ./bad
+stderr 'bad.go:5:\d+: fmt.Sprintf format %d has arg "x" of wrong type string'
+[race] ! go test -race ./bad
+[race] stderr 'bad.go:5:39: fmt.Sprintf format %d has arg "x" of wrong type string'
+
+# A type error (here, because -gcflags overrides the language version
+# for the compiler but not for analysis) is reported once, not once
+# per analyzer.
+cd old
+! go test -gcflags=-lang=go1.26 .
+stderr -count=1 'new\(1\) requires go1\.26 or later'
+cd ..
+
+# Under an exec wrapper, which may run the tests in an emulator or a
+# sandbox, go test does not run the tool on the host: it uses cmd/vet.
+! go test -x -exec=echo ./bad
+stderr '[/\\]vet(\.exe)? .*vet\.cfg'
+! stderr 'analysistool'
+stderr 'bad.go:5:39: fmt.Sprintf format %d has arg "x" of wrong type string'
+
+# The tool is built for the tests' platform and runs on the host, so
+# when the tests are cross-compiled without an exec wrapper, it cannot
+# run (nor can the tests).
+[GOOS:linux] env GOOS=windows
+[!GOOS:linux] env GOOS=linux
+env GOARCH=amd64 # a valid pair with either GOOS, whatever the host's GOARCH
+! go test ./good
+stderr '^running analysis tool built for (linux|windows)/amd64: '
+stderr '^\(to run the tests on another platform, use -exec; to disable analysis, use -vet=off\)$'
+
+# With an exec wrapper, cross-compiled tests are checked by cmd/vet.
+! go test -exec=echo ./bad
+stderr 'bad.go:5:39: fmt.Sprintf format %d has arg "x" of wrong type string'
+env GOOS=
+env GOARCH=
+
+# go test -n shows the tool's metadata query and, for each root
+# package, a placeholder for its analysis (which cannot be planned
+# without the metadata).
+go test -n ./good
+stderr 'analysistool -describe='
+stderr 'analysistool \$WORK[/\\]b\d+[/\\]analysis\.cfg # analyzers determined by -describe$'
+
+# -vet accepts the legacy analyzer names that cmd/vet accepts.
+go test -vet=bool,buildtags,methods,rangeloops ./good
+
+-- go.mod --
+module example.com/m
+
+go 1.28
+-- bad/bad.go --
+package bad
+
+import "fmt"
+
+func F() string { return fmt.Sprintf("%d", "x") }
+-- bad/bad_test.go --
+package bad
+
+import "testing"
+
+func TestF(t *testing.T) { F() }
+-- good/good.go --
+package good
+
+func F() int { return 1 }
+-- good/good_test.go --
+package good
+
+import "testing"
+
+func TestF(t *testing.T) { F() }
+-- old/go.mod --
+module example.com/old
+
+go 1.21
+-- old/old.go --
+package old
+
+func F() *int { return new(1) }
+-- old/old_test.go --
+package old
+-- unused/unused.go --
+package unused
+
+import "fmt"
+
+func F() { fmt.Sprint("x") }
+-- unused/unused_test.go --
+package unused
+
+import "testing"
+
+func TestF(t *testing.T) { F() }

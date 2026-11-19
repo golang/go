@@ -119,8 +119,6 @@ type Action struct {
 	FixArchive string     // the created .zip file containing fixes (if needFix)
 	output     []byte     // output redirect buffer (nil means use b.Print)
 
-	analysis *analysisAction // Mode=="analysisvet" only; see analysis.go
-
 	sh *Shell // lazily created per-Action shell; see Builder.Shell
 
 	// Execution state.

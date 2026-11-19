@@ -699,14 +699,6 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	pkgArgs, testArgs = testFlags(args)
 	moduleLoader.InitWorkfile() // The test command does custom flag processing; initialize workspaces after that.
 
-	if cfg.Experiment.VetFiles {
-		if runAnalysisToolChild(ctx, moduleLoader) {
-			// This process is 'go test' running as a child of 'go test'
-			// in a special mode to build the analysis tool for its parent.
-			return
-		}
-	}
-
 	if cfg.DebugTrace != "" {
 		var close func() error
 		var err error
@@ -1403,7 +1395,7 @@ func addTestVet(ld *modload.Loader, b *work.Builder, p *load.Package, runAction,
 	if testVet.off {
 		return
 	}
-	if cfg.Experiment.VetFiles {
+	if cfg.Experiment.VetFiles && !analysisUsesCmdVet() {
 		// Use the analysis driver instead of cmd/vet (see analysis.go).
 		addTestAnalysis(ld, b, p, runAction, installAction)
 		return
