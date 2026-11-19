@@ -3063,7 +3063,7 @@ func (x Float32x4) Enlarge() (z Float32x8)
 //
 //	z = concat(x, {0, ..., 0})
 //
-// Asm: VMOVAPS, CPU Feature: AVX
+// Asm: VMOVAPS, CPU Feature: AVX512
 func (x Float32x8) Enlarge() (z Float32x16)
 
 // Enlarge returns x with twice as many elements, with the upper half zeroed.
@@ -3079,7 +3079,7 @@ func (x Float64x2) Enlarge() (z Float64x4)
 //
 //	z = concat(x, {0, ..., 0})
 //
-// Asm: VMOVAPD, CPU Feature: AVX
+// Asm: VMOVAPD, CPU Feature: AVX512
 func (x Float64x4) Enlarge() (z Float64x8)
 
 // Enlarge returns x with twice as many elements, with the upper half zeroed.
@@ -3095,7 +3095,7 @@ func (x Int8x16) Enlarge() (z Int8x32)
 //
 //	z = concat(x, {0, ..., 0})
 //
-// Asm: VMOVDQA, CPU Feature: AVX
+// Asm: VMOVDQA, CPU Feature: AVX512
 func (x Int8x32) Enlarge() (z Int8x64)
 
 // Enlarge returns x with twice as many elements, with the upper half zeroed.
@@ -3111,7 +3111,7 @@ func (x Int16x8) Enlarge() (z Int16x16)
 //
 //	z = concat(x, {0, ..., 0})
 //
-// Asm: VMOVDQA, CPU Feature: AVX
+// Asm: VMOVDQA, CPU Feature: AVX512
 func (x Int16x16) Enlarge() (z Int16x32)
 
 // Enlarge returns x with twice as many elements, with the upper half zeroed.
@@ -3127,7 +3127,7 @@ func (x Int32x4) Enlarge() (z Int32x8)
 //
 //	z = concat(x, {0, ..., 0})
 //
-// Asm: VMOVDQA, CPU Feature: AVX
+// Asm: VMOVDQA, CPU Feature: AVX512
 func (x Int32x8) Enlarge() (z Int32x16)
 
 // Enlarge returns x with twice as many elements, with the upper half zeroed.
@@ -3143,7 +3143,7 @@ func (x Int64x2) Enlarge() (z Int64x4)
 //
 //	z = concat(x, {0, ..., 0})
 //
-// Asm: VMOVDQA, CPU Feature: AVX
+// Asm: VMOVDQA, CPU Feature: AVX512
 func (x Int64x4) Enlarge() (z Int64x8)
 
 // Enlarge returns x with twice as many elements, with the upper half zeroed.
@@ -3159,7 +3159,7 @@ func (x Uint8x16) Enlarge() (z Uint8x32)
 //
 //	z = concat(x, {0, ..., 0})
 //
-// Asm: VMOVDQA, CPU Feature: AVX
+// Asm: VMOVDQA, CPU Feature: AVX512
 func (x Uint8x32) Enlarge() (z Uint8x64)
 
 // Enlarge returns x with twice as many elements, with the upper half zeroed.
@@ -3175,7 +3175,7 @@ func (x Uint16x8) Enlarge() (z Uint16x16)
 //
 //	z = concat(x, {0, ..., 0})
 //
-// Asm: VMOVDQA, CPU Feature: AVX
+// Asm: VMOVDQA, CPU Feature: AVX512
 func (x Uint16x16) Enlarge() (z Uint16x32)
 
 // Enlarge returns x with twice as many elements, with the upper half zeroed.
@@ -3191,7 +3191,7 @@ func (x Uint32x4) Enlarge() (z Uint32x8)
 //
 //	z = concat(x, {0, ..., 0})
 //
-// Asm: VMOVDQA, CPU Feature: AVX
+// Asm: VMOVDQA, CPU Feature: AVX512
 func (x Uint32x8) Enlarge() (z Uint32x16)
 
 // Enlarge returns x with twice as many elements, with the upper half zeroed.
@@ -3207,7 +3207,7 @@ func (x Uint64x2) Enlarge() (z Uint64x4)
 //
 //	z = concat(x, {0, ..., 0})
 //
-// Asm: VMOVDQA, CPU Feature: AVX
+// Asm: VMOVDQA, CPU Feature: AVX512
 func (x Uint64x4) Enlarge() (z Uint64x8)
 
 /* Equal */

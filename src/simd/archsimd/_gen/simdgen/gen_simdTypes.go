@@ -1200,7 +1200,7 @@ func registerFeatureInfo(goArch string, features goarchFeatures) {
 	goarchFeatureInfo[goArch] = features
 }
 
-func featureImplies(goarch string, base string) string {
+func featureImpliesList(goarch string, base string) []string {
 	// Compute the transitive closure of base, in dependency order.
 	var list []string
 	seen := map[string]bool{base: true}
@@ -1215,7 +1215,31 @@ func featureImplies(goarch string, base string) string {
 		}
 	}
 	visit(base)
-	return andList(list)
+	return list
+}
+
+func featureImplies(goarch string, base string) string {
+	return andList(featureImpliesList(goarch, base))
+}
+
+// combineCPUFeatures returns the minimal set of CPU features for goarch that
+// implies every feature in sets, dropping any feature implied by another.
+func combineCPUFeatures(goarch string, sets ...[]string) []string {
+	var all []string
+	for _, set := range sets {
+		for _, f := range set {
+			if !slices.Contains(all, f) {
+				all = append(all, f)
+			}
+		}
+	}
+	implied := make(map[string]bool)
+	for _, f := range all {
+		for _, dep := range featureImpliesList(goarch, f) {
+			implied[dep] = true
+		}
+	}
+	return slices.DeleteFunc(all, func(f string) bool { return implied[f] })
 }
 
 // featureCPUIDDoc returns a sentence documenting the CPUID features checked by

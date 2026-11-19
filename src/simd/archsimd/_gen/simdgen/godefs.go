@@ -48,6 +48,15 @@ type Operation struct {
 	// For masked operations, this will have the mask operand appended.
 	In []types.Operand
 
+	// CPUFeature is the CPU feature required to call the Go method.
+	//
+	// It starts as rawOperation.CPUFeature (the instruction's CPU feature)
+	// and may be adjusted where the Go API's requirements differ from the
+	// instruction's (for example, 512-bit Go types on VEX instructions, or
+	// compiler fallbacks). Use rawOperation.CPUFeature for properties of
+	// the instruction encoding itself.
+	CPUFeature string
+
 	// Sftimm, AsmRules, LowerRules, and PeepholeRules are the extra SSA
 	// rewrite rules for this operation. See [types.RawOperation].
 	Sftimm                              bool
@@ -165,6 +174,7 @@ func (o *Operation) DecodeUnified(v *unify.Value) error {
 	if !CurrentArch().isSVE() {
 		o.In = append(o.rawOperation.In, o.rawOperation.InVariant...)
 	}
+	o.CPUFeature = o.rawOperation.CPUFeature
 
 	if o.rawOperation.Sftimm != nil {
 		o.Sftimm = *o.rawOperation.Sftimm
@@ -730,6 +740,7 @@ func writeGoDefs(cl unify.Closure) error {
 	}
 	reportXEDInconsistency(deduped)
 	relabelAVXBroadcasts(deduped)
+	addOperandCPUFeatures(deduped)
 
 	// Sorting again, just in case.
 	slices.SortFunc(deduped, compareOperations)
@@ -803,5 +814,42 @@ func relabelAVXBroadcasts(ops []Operation) {
 		}
 		op.CPUFeature = "AVX"
 		op.Documentation += "\n//\n// Without AVX2, the compiler implements this with an AVX shuffle."
+	}
+}
+
+// addOperandCPUFeatures raises each operation's CPUFeature to include any CPU
+// feature required by its Go vector or mask types.
+func addOperandCPUFeatures(ops []Operation) {
+	// An operation's instruction may use narrower registers than its Go
+	// types (via goBits), as when Enlarge produces a 512-bit vector with a
+	// 256-bit VEX move. On amd64, using a 512-bit vector still requires
+	// AVX512. 128- and 256-bit vectors only require AVX, even for integer
+	// element types, since VEX moves, loads, and stores work at 256 bits
+	// with AVX.
+	for i := range ops {
+		op := &ops[i]
+		if op.GOARCH != "amd64" {
+			continue
+		}
+		var extra []string
+		for _, args := range [][]types.Operand{op.In, op.Out} {
+			for _, arg := range args {
+				if (arg.Class == "vreg" || arg.Class == "mask") && !arg.GoWidth().Scalable && arg.GoWidth().N() == 512 {
+					extra = append(extra, "AVX512")
+				}
+			}
+		}
+		if len(extra) == 0 {
+			continue
+		}
+		var cur []string
+		if op.CPUFeature != "" {
+			cur = []string{op.CPUFeature}
+		}
+		feats := combineCPUFeatures(op.GOARCH, cur, extra)
+		if len(feats) != 1 {
+			panic(fmt.Errorf("operation %s requires multiple incomparable CPU features: %v", op.Go, feats))
+		}
+		op.CPUFeature = feats[0]
 	}
 }

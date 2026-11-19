@@ -181,8 +181,12 @@ func writeSIMDMachineOps(buffer *bytes.Buffer, ops []Operation) {
 			if regInfo == "v01load" {
 				regInfo = "vload"
 			}
-			// Makes AVX512 operations use upper registers
-			if strings.Contains(op.CPUFeature, "AVX512") {
+			// Makes AVX512 instructions (which are EVEX-encoded) use upper registers.
+			// Check rawOperation.CPUFeature rather than op.CPUFeature: a VEX
+			// instruction like Enlarge's VMOVDQA may require AVX512 at the Go API
+			// level because its result is a 512-bit vector, while still needing
+			// X0-X15 for VEX encoding.
+			if strings.Contains(op.rawOperation.CPUFeature, "AVX512") {
 				regInfo = strings.ReplaceAll(regInfo, "v", "w")
 			}
 			if _, ok := regInfoSet[regInfo]; !ok {
