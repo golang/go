@@ -833,7 +833,7 @@ func TestGdbInfCallstack(t *testing.T) {
 		`crosscall1`,
 		`threadentry`,
 	}
-	if goexperiment.CgoBindings && (runtime.GOOS == "linux" || runtime.GOOS == "darwin") {
+	if goexperiment.RuntimeCgoPurego && (runtime.GOOS == "linux" || runtime.GOOS == "darwin") {
 		// 'runtime.setg' is hit on the newly created pthread inside threadentry.
 		breakSym = "'runtime.setg'"
 		bt = []string{

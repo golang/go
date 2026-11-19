@@ -360,8 +360,8 @@ func TestMapping(t *testing.T) {
 	// Go+C includes C symbols that runtime will not symbolize.
 	for _, traceback := range []string{"GoOnly", "Go+C"} {
 		t.Run("traceback"+traceback, func(t *testing.T) {
-			if traceback != "GoOnly" && goexperiment.CgoBindings {
-				t.Skip("SetCgoTraceback disabled under GOEXPERIMENT=cgobindings")
+			if traceback != "GoOnly" && goexperiment.RuntimeCgoPurego {
+				t.Skip("SetCgoTraceback disabled under GOEXPERIMENT=runtimecgopurego")
 			}
 			cmd := exec.Command(testenv.GoToolPath(t), "run", prog)
 			if traceback != "GoOnly" {

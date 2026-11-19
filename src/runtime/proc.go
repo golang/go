@@ -230,17 +230,17 @@ func main() {
 		}
 
 		if GOOS != "windows" {
-			if _cgo_thread_start == nil && (!goexperiment.CgoBindings || cgoThreadStart == nil) {
+			if _cgo_thread_start == nil && (!goexperiment.RuntimeCgoPurego || cgoThreadStart == nil) {
 				throw("_cgo_thread_start missing")
 			}
-			if _cgo_setenv == nil && (!goexperiment.CgoBindings || cgoSetenv == nil) {
+			if _cgo_setenv == nil && (!goexperiment.RuntimeCgoPurego || cgoSetenv == nil) {
 				throw("_cgo_setenv missing")
 			}
-			if _cgo_unsetenv == nil && (!goexperiment.CgoBindings || cgoUnsetenv == nil) {
+			if _cgo_unsetenv == nil && (!goexperiment.RuntimeCgoPurego || cgoUnsetenv == nil) {
 				throw("_cgo_unsetenv missing")
 			}
 		}
-		if _cgo_notify_runtime_init_done == nil && (!goexperiment.CgoBindings || cgoNotifyRuntimeInitDone == nil) {
+		if _cgo_notify_runtime_init_done == nil && (!goexperiment.RuntimeCgoPurego || cgoNotifyRuntimeInitDone == nil) {
 			throw("_cgo_notify_runtime_init_done missing")
 		}
 
@@ -253,7 +253,7 @@ func main() {
 		// Start the template thread in case we enter Go from
 		// a C-created thread and need to create a new thread.
 		startTemplateThread()
-		if goexperiment.CgoBindings && cgoNotifyRuntimeInitDone != nil {
+		if goexperiment.RuntimeCgoPurego && cgoNotifyRuntimeInitDone != nil {
 			cgoNotifyRuntimeInitDone()
 		} else {
 			cgocall(_cgo_notify_runtime_init_done, nil)
@@ -2726,7 +2726,7 @@ func bindm() {
 	if g.m.g0 != g {
 		fatal("the current g is not g0")
 	}
-	if goexperiment.CgoBindings && cgoBindM != nil {
+	if goexperiment.RuntimeCgoPurego && cgoBindM != nil {
 		cgoBindM(uintptr(unsafe.Pointer(g)))
 	} else if _cgo_bindm != nil {
 		asmcgocall(_cgo_bindm, unsafe.Pointer(g))
@@ -2937,7 +2937,7 @@ func newm(fn func(), pp *p, id int64) {
 
 func newm1(mp *m) {
 	if iscgo {
-		if goexperiment.CgoBindings && cgoThreadStart != nil {
+		if goexperiment.RuntimeCgoPurego && cgoThreadStart != nil {
 			execLock.rlock() // Prevent process clone.
 			systemstack(func() {
 				if errno, msg := cgoThreadStart(mp.g0); errno != 0 {

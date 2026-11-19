@@ -39,7 +39,7 @@ func libInit() {
 
 	// Asynchronous initialization.
 	// Prefer creating a thread via cgo if it is available.
-	if goexperiment.CgoBindings && cgoSysThreadCreate != nil {
+	if goexperiment.RuntimeCgoPurego && cgoSysThreadCreate != nil {
 		if cgoSysThreadCreate(noescape(fn)) != 0 {
 			writeErrStr(failthreadcreate)
 			exit(1)

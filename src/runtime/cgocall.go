@@ -114,7 +114,7 @@ var cgoSyscall func(fn unsafe.Pointer, a0, a1, a2 uintptr) uintptr
 //go:nosplit
 //go:uintptrescapes
 func syscall_cgocaller(fn unsafe.Pointer, args ...uintptr) uintptr {
-	if goexperiment.CgoBindings && cgoSyscall != nil {
+	if goexperiment.RuntimeCgoPurego && cgoSyscall != nil {
 		var a0, a1, a2 uintptr
 		if len(args) > 0 {
 			a0 = args[0]
@@ -300,14 +300,14 @@ func callbackUpdateSystemStack(mp *m, sp uintptr, signal bool) {
 	g0.stackguard0 = g0.stack.lo + stackGuard
 	g0.stackguard1 = g0.stackguard0
 	mp.g0StackAccurate = false
-	if !signal && ((goexperiment.CgoBindings && cgoGetStackBound != nil) || _cgo_getstackbound != nil) {
+	if !signal && ((goexperiment.RuntimeCgoPurego && cgoGetStackBound != nil) || _cgo_getstackbound != nil) {
 		// Don't adjust if called from the signal handler.
 		// We are on the signal stack, not the pthread stack.
 		// (We could get the stack bounds from sigaltstack, but
 		// we're getting out of the signal handler very soon
 		// anyway. Not worth it.)
 		var bounds [2]uintptr
-		if goexperiment.CgoBindings && cgoGetStackBound != nil {
+		if goexperiment.RuntimeCgoPurego && cgoGetStackBound != nil {
 			bounds[0], bounds[1] = cgoGetStackBound()
 		} else {
 			asmcgocall(_cgo_getstackbound, unsafe.Pointer(&bounds))

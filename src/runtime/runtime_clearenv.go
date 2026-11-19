@@ -21,7 +21,7 @@ var cgoClearenv func()
 
 // Clear the C environment if cgo is loaded.
 func clearenv_c() {
-	if goexperiment.CgoBindings && cgoClearenv != nil {
+	if goexperiment.RuntimeCgoPurego && cgoClearenv != nil {
 		cgoClearenv()
 		return
 	}

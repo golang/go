@@ -78,7 +78,7 @@ var cgoUnsetenv func(k unsafe.Pointer)
 
 // Update the C environment if cgo is loaded.
 func setenv_c(k string, v string) {
-	if goexperiment.CgoBindings && cgoSetenv != nil {
+	if goexperiment.RuntimeCgoPurego && cgoSetenv != nil {
 		kc, vc := cstring(k), cstring(v)
 		cgoSetenv(noescape(kc), noescape(vc))
 		KeepAlive(kc)
@@ -94,7 +94,7 @@ func setenv_c(k string, v string) {
 
 // Update the C environment if cgo is loaded.
 func unsetenv_c(k string) {
-	if goexperiment.CgoBindings && cgoUnsetenv != nil {
+	if goexperiment.RuntimeCgoPurego && cgoUnsetenv != nil {
 		kc := cstring(k)
 		cgoUnsetenv(noescape(kc))
 		KeepAlive(kc)

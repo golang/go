@@ -65,8 +65,8 @@ func TestMSAN(t *testing.T) {
 	for _, tc := range cases {
 		name := strings.TrimSuffix(tc.src, ".go")
 		t.Run(name, func(t *testing.T) {
-			if tc.src == "msan8.go" && goexperiment.CgoBindings {
-				t.Skip("SetCgoTraceback disabled under GOEXPERIMENT=cgobindings")
+			if tc.src == "msan8.go" && goexperiment.RuntimeCgoPurego {
+				t.Skip("SetCgoTraceback disabled under GOEXPERIMENT=runtimecgopurego")
 			}
 			t.Parallel()
 

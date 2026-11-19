@@ -41,7 +41,7 @@ var cgoMunmap func(addr unsafe.Pointer, n uintptr) int32
 //
 //go:nosplit
 func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (unsafe.Pointer, int) {
-	if (goexperiment.CgoBindings && cgoMmap != nil) || _cgo_mmap != nil {
+	if (goexperiment.RuntimeCgoPurego && cgoMmap != nil) || _cgo_mmap != nil {
 		// Make ret a uintptr so that writing to it in the
 		// function literal does not trigger a write barrier.
 		// A write barrier here could break because of the way
@@ -49,7 +49,7 @@ func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (un
 		// an errno value.
 		var ret uintptr
 		systemstack(func() {
-			if goexperiment.CgoBindings && cgoMmap != nil {
+			if goexperiment.RuntimeCgoPurego && cgoMmap != nil {
 				ret = cgoMmap(addr, n, prot, flags, fd, off)
 			} else {
 				ret = callCgoMmap(addr, n, prot, flags, fd, off)
@@ -64,9 +64,9 @@ func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (un
 }
 
 func munmap(addr unsafe.Pointer, n uintptr) {
-	if (goexperiment.CgoBindings && cgoMunmap != nil) || _cgo_munmap != nil {
+	if (goexperiment.RuntimeCgoPurego && cgoMunmap != nil) || _cgo_munmap != nil {
 		systemstack(func() {
-			if goexperiment.CgoBindings && cgoMunmap != nil {
+			if goexperiment.RuntimeCgoPurego && cgoMunmap != nil {
 				if cgoMunmap(addr, n) < 0 {
 					// The Go runtime is not prepared for munmap to fail.
 					throw("cgo munmap")

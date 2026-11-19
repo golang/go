@@ -202,8 +202,8 @@ func instrumentInit() {
 		base.SetExitStatus(2)
 		base.Exit()
 	}
-	if cfg.BuildMSan && cfg.Experiment != nil && cfg.Experiment.CgoBindings {
-		fmt.Fprintf(os.Stderr, "go: -msan is not supported with GOEXPERIMENT=cgobindings\n")
+	if cfg.BuildMSan && cfg.Experiment != nil && cfg.Experiment.RuntimeCgoPurego {
+		fmt.Fprintf(os.Stderr, "go: -msan is not supported with GOEXPERIMENT=runtimecgopurego\n")
 		base.SetExitStatus(2)
 		base.Exit()
 	}

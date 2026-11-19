@@ -1711,14 +1711,14 @@ func isSystemGoroutine(gp *g, fixed bool) bool {
 //
 // SetCgoTraceback should be called only once, ideally from an init function.
 //
-// SetCgoTraceback does not have any effect when the cgobindings
+// SetCgoTraceback does not have any effect when the runtimecgopurego
 // GOEXPERIMENT is enabled.
 func SetCgoTraceback(version int, traceback, context, symbolizer unsafe.Pointer) {
 	if version != 0 {
 		panic("unsupported version")
 	}
 
-	if goexperiment.CgoBindings {
+	if goexperiment.RuntimeCgoPurego {
 		return
 	}
 
@@ -1732,7 +1732,7 @@ func SetCgoTraceback(version int, traceback, context, symbolizer unsafe.Pointer)
 	cgoContext = context
 	cgoSymbolizer = symbolizer
 
-	if goexperiment.CgoBindings && cgoSetContextFunction != nil {
+	if goexperiment.RuntimeCgoPurego && cgoSetContextFunction != nil {
 		cgoSetContextFunction(uintptr(context))
 	} else if _cgo_set_traceback_functions != nil {
 		type cgoSetTracebackFunctionsArg struct {
@@ -1756,15 +1756,15 @@ var cgoSymbolizer unsafe.Pointer
 func cgoTracebackAvailable() bool {
 	// - The traceback function must be registered via SetCgoTraceback.
 	// - This must be a cgo binary (providing _cgo_call_traceback_function,
-	//   or iscgo when using CgoBindings).
-	return cgoTraceback != nil && (_cgo_call_traceback_function != nil || (goexperiment.CgoBindings && iscgo))
+	//   or iscgo when using RuntimeCgoPurego).
+	return cgoTraceback != nil && (_cgo_call_traceback_function != nil || (goexperiment.RuntimeCgoPurego && iscgo))
 }
 
 func cgoSymbolizerAvailable() bool {
 	// - The symbolizer function must be registered via SetCgoTraceback.
 	// - This must be a cgo binary (providing _cgo_call_symbolizer_function,
-	//   or iscgo when using CgoBindings).
-	return cgoSymbolizer != nil && (_cgo_call_symbolizer_function != nil || (goexperiment.CgoBindings && iscgo))
+	//   or iscgo when using RuntimeCgoPurego).
+	return cgoSymbolizer != nil && (_cgo_call_symbolizer_function != nil || (goexperiment.RuntimeCgoPurego && iscgo))
 }
 
 // cgoTracebackArg is the type passed to cgoTraceback.
@@ -1866,8 +1866,8 @@ func callCgoSymbolizer(arg *cgoSymbolizerArg) {
 		asanwrite(unsafe.Pointer(arg), unsafe.Sizeof(cgoSymbolizerArg{}))
 	}
 	fn := _cgo_call_symbolizer_function
-	if goexperiment.CgoBindings && fn == nil {
-		// TODO: wrap with TSAN acquire/release when TSAN support is added for cgobindings.
+	if goexperiment.RuntimeCgoPurego && fn == nil {
+		// TODO: wrap with TSAN acquire/release when TSAN support is added for runtimecgopurego.
 		fn = cgoSymbolizer
 	}
 	call(fn, noescape(unsafe.Pointer(arg)))
@@ -1895,8 +1895,8 @@ func cgoContextPCs(ctxt uintptr, buf []uintptr) {
 		asanwrite(unsafe.Pointer(&arg), unsafe.Sizeof(arg))
 	}
 	fn := _cgo_call_traceback_function
-	if goexperiment.CgoBindings && fn == nil {
-		// TODO: wrap with TSAN acquire/release when TSAN support is added for cgobindings.
+	if goexperiment.RuntimeCgoPurego && fn == nil {
+		// TODO: wrap with TSAN acquire/release when TSAN support is added for runtimecgopurego.
 		fn = cgoTraceback
 	}
 	call(fn, noescape(unsafe.Pointer(&arg)))
