@@ -86,6 +86,17 @@ func (r *Reader) Read(p []byte) (n int, err error) {
 				return n, r.rerr
 			}
 			r.line, r.rerr = r.br.ReadSlice('\n')
+			if r.rerr == bufio.ErrBufferFull {
+				// ReadSlice's buffer limit is not a quoted-printable line limit.
+				// Keep the whole line so escapes and trailing whitespace crossing
+				// a buffer boundary are interpreted in context.
+				line := append([]byte(nil), r.line...)
+				for r.rerr == bufio.ErrBufferFull {
+					r.line, r.rerr = r.br.ReadSlice('\n')
+					line = append(line, r.line...)
+				}
+				r.line = line
+			}
 
 			// Does the line end in CRLF instead of just LF?
 			hasLF := bytes.HasSuffix(r.line, lf)
