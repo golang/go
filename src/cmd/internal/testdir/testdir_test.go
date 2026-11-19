@@ -1040,7 +1040,7 @@ func (t test) run() error {
 		if err != nil {
 			return err
 		}
-		cmd = []string{"./a.exe"}
+		cmd = append(findExecCmd(), "./a.exe")
 		out, err := runcmd(append(cmd, args...)...)
 		if err != nil {
 			return err
