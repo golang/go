@@ -251,12 +251,10 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 		}
 
 		// We need to be able to reference dynimport symbols when linking against
-		// shared libraries, and AIX, Darwin, OpenBSD and Solaris always need it.
-		// Linux needs it when linking against shared libraries without a C toolchain.
-		if !target.IsAIX() && !target.IsDarwin() && !target.IsLinux() && !target.IsSolaris() && !target.IsOpenbsd() && rs != 0 && rst == sym.SDYNIMPORT && !target.IsDynlinkingGo() && !ldr.AttrSubSymbol(rs) {
-			if !(target.IsPPC64() && target.IsExternal() && ldr.SymName(rs) == ".TOC.") {
-				st.err.Errorf(s, "unhandled relocation for %s (type %d (%s) rtype %d (%s))", ldr.SymName(rs), rst, rst, rt, sym.RelocName(target.Arch, rt))
-			}
+		// shared libraries, and dynamic-linking platforms (AIX, Darwin, ELF, Windows)
+		// reference libc/DLL imports directly from runtime and runtime/cgo.
+		if !target.IsAIX() && !target.IsDarwin() && !target.IsElf() && !target.IsWindows() && rs != 0 && rst == sym.SDYNIMPORT && !target.IsDynlinkingGo() && !ldr.AttrSubSymbol(rs) {
+			st.err.Errorf(s, "unhandled relocation for %s (type %d (%s) rtype %d (%s))", ldr.SymName(rs), rst, rst, rt, sym.RelocName(target.Arch, rt))
 		}
 		if rs != 0 && rst != sym.STLSBSS && !weak && rt != objabi.R_METHODOFF && !ldr.AttrReachable(rs) {
 			st.err.Errorf(s, "unreachable sym in relocation: %s", ldr.SymName(rs))
