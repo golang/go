@@ -2003,13 +2003,16 @@ type Conn struct {
 // grabConn takes a context to implement stmtConnGrabber
 // but the context is not used.
 func (c *Conn) grabConn(context.Context) (*driverConn, releaseConn, error) {
+	// closemu.RLock must come before the check for done to prevent the Conn from
+	// closing while a query is executing.
+	c.closemu.RLock()
 	if c.done.Load() {
+		c.closemu.RUnlock()
 		return nil, nil, ErrConnDone
 	}
 	c.releaseConnOnce.Do(func() {
 		c.releaseConnCache = c.closemuRUnlockCondReleaseConn
 	})
-	c.closemu.RLock()
 	return c.dc, c.releaseConnCache, nil
 }
 

@@ -1586,6 +1586,39 @@ func testConnQuery(t *testing.T, db *DB) {
 	}
 }
 
+func TestConnGrabConnClose(t *testing.T) {
+	testDatabase(t, testConnGrabConnClose)
+}
+func testConnGrabConnClose(t *testing.T, db *DB) {
+	conn, err := db.Conn(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Block grabConn until Close has marked the connection done.
+	conn.closemu.Lock()
+	go func() {
+		_, release, err := conn.grabConn(t.Context())
+		if err == nil {
+			release(nil)
+		}
+		if err != ErrConnDone {
+			t.Errorf("grabConn: got %v, want %v", err, ErrConnDone)
+		}
+	}()
+	synctest.Wait()
+
+	go func() {
+		if err := conn.Close(); err != nil {
+			t.Errorf("Close: %v", err)
+		}
+	}()
+	synctest.Wait()
+
+	conn.closemu.Unlock()
+	synctest.Wait()
+}
+
 func TestConnRaw(t *testing.T) {
 	testDatabase(t, testConnRaw)
 }
