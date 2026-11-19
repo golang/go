@@ -91,7 +91,7 @@ func (check *Checker) recordBuiltinType(f syntax.Expr, sig *Signature) {
 func (check *Checker) recordCommaOkTypes(x syntax.Expr, a []*operand) {
 	assert(x != nil)
 	assert(len(a) == 2)
-	if a[0].mode() == invalid {
+	if !a[0].isValid() {
 		return
 	}
 	t0, t1 := a[0].typ(), a[1].typ()

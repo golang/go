@@ -130,7 +130,7 @@ func (check *Checker) f(x *operand, e syntax.Expr, /* addition arguments, if any
 The result of typechecking expression `e` is returned via the operand `x`
 (which sometimes also serves as incoming argument).
 If an error occurred the function f will report the error and try to continue
-as best as it can, but it may return an invalid operand (`x.mode == invalid`).
+as best as it can, but it may return an invalid operand (`!x.isValid()`).
 Callers may need to explicitly check for invalid operands.
 
 

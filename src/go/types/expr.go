@@ -24,7 +24,7 @@ are generally of the form:
 
 where e is the expression to be checked, T is the target type for e if
 e appears in an assignment context, and x is the result of the check.
-The check performed by f may fail in which case x.mode_ == invalid, and
+The check performed by f may fail in which case !x.isValid(), and
 related error messages will have been issued by f.
 
 If T is not nil, it represents the target type expected by the context, such as

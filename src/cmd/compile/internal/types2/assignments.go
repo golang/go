@@ -444,7 +444,7 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnStmt sy
 		}
 		// Only record comma-ok expression if both initializations succeeded
 		// (go.dev/issue/59371).
-		if commaOk && rhs[0].mode() != invalid && rhs[1].mode() != invalid {
+		if commaOk && rhs[0].isValid() && rhs[1].isValid() {
 			check.recordCommaOkTypes(orig_rhs[0], rhs)
 		}
 		return
@@ -452,7 +452,7 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnStmt sy
 
 	// In all other cases we have an assignment mismatch.
 	// Only report a mismatch error if there are no other errors on the rhs.
-	if rhs[0].mode() != invalid {
+	if rhs[0].isValid() {
 		if returnStmt != nil {
 			check.returnError(returnStmt, lhs, rhs)
 		} else {
@@ -513,7 +513,7 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
 		}
 		// Only record comma-ok expression if both assignments succeeded
 		// (go.dev/issue/59371).
-		if commaOk && rhs[0].mode() != invalid && rhs[1].mode() != invalid {
+		if commaOk && rhs[0].isValid() && rhs[1].isValid() {
 			check.recordCommaOkTypes(orig_rhs[0], rhs)
 		}
 		return
@@ -521,7 +521,7 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
 
 	// In all other cases we have an assignment mismatch.
 	// Only report a mismatch error if there are no other errors on the rhs.
-	if rhs[0].mode() != invalid {
+	if rhs[0].isValid() {
 		check.assignError(orig_rhs, l, r)
 	}
 	check.useLHS(lhs...)
