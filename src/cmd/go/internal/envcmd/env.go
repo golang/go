@@ -173,7 +173,7 @@ func MkEnv() []cfg.EnvVar {
 	env = append(env, cfg.EnvVar{Name: "CC", Value: cc, Changed: ccChanged})
 	env = append(env, cfg.EnvVar{Name: "CXX", Value: cxx, Changed: cxxChanged})
 
-	if cfg.BuildContext.CgoEnabled {
+	if cfg.BuildContext.CgoEnabled == build.CgoEnabled {
 		env = append(env, cfg.EnvVar{Name: "CGO_ENABLED", Value: "1", Changed: cfg.CGOChanged})
 	} else {
 		env = append(env, cfg.EnvVar{Name: "CGO_ENABLED", Value: "0", Changed: cfg.CGOChanged})

@@ -747,7 +747,7 @@ func TestMissingImportErrorRepetition(t *testing.T) {
 // Verifies golang.org/issue/35946.
 func TestCgoImportsIgnored(t *testing.T) {
 	ctxt := Default
-	ctxt.CgoEnabled = false
+	ctxt.CgoEnabled = CgoDisabled
 	p, err := ctxt.ImportDir("testdata/cgo_disabled", 0)
 	if err != nil {
 		t.Fatal(err)

@@ -9,6 +9,7 @@ package work
 import (
 	"bytes"
 	"cmd/go/internal/base"
+	"cmd/go/internal/build"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/modload"
@@ -131,7 +132,7 @@ func fuzzInstrumentFlags() []string {
 }
 
 func instrumentInit() {
-	if cfg.BuildContext.CgoEnabled && cgoTSanEnabled() {
+	if cfg.BuildContext.CgoEnabled == build.CgoEnabled && cgoTSanEnabled() {
 		cfg.BuildContext.ToolTags = append(cfg.BuildContext.ToolTags, "tsan")
 	}
 	if !cfg.BuildRace && !cfg.BuildMSan && !cfg.BuildASan {
@@ -196,7 +197,7 @@ func instrumentInit() {
 
 	// Check that cgo is enabled.
 	// Note: On macOS, -race does not require cgo. -asan and -msan still do.
-	if !cfg.BuildContext.CgoEnabled && (cfg.Goos != "darwin" || cfg.BuildASan || cfg.BuildMSan) {
+	if cfg.BuildContext.CgoEnabled != build.CgoEnabled && (cfg.Goos != "darwin" || cfg.BuildASan || cfg.BuildMSan) {
 		if runtime.GOOS != cfg.Goos || runtime.GOARCH != cfg.Goarch {
 			fmt.Fprintf(os.Stderr, "go: %s requires cgo\n", modeFlag)
 		} else {

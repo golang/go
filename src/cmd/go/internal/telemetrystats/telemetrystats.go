@@ -8,6 +8,7 @@ package telemetrystats
 
 import (
 	"cmd/go/internal/base"
+	"cmd/go/internal/build"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/modload"
 	"cmd/internal/telemetry/counter"
@@ -33,7 +34,7 @@ func incrementConfig() {
 		counter.Inc("go/mode:module")
 	}
 
-	if cfg.BuildContext.CgoEnabled {
+	if cfg.BuildContext.CgoEnabled == build.CgoEnabled {
 		counter.Inc("go/cgo:enabled")
 	} else {
 		counter.Inc("go/cgo:disabled")

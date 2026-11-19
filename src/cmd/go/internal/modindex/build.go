@@ -42,7 +42,7 @@ type Context struct {
 	// be absolute.
 	Dir string
 
-	CgoEnabled  bool   // whether cgo files are included
+	CgoEnabled  build.CgoMode // whether and how cgo files are included
 	UseAllFiles bool   // use files regardless of //go:build lines, file names
 	Compiler    string // compiler to assume when computing target paths
 
@@ -674,7 +674,7 @@ func (ctxt *Context) matchTag(name string, allTags map[string]bool) bool {
 	}
 
 	// special tags
-	if ctxt.CgoEnabled && name == "cgo" {
+	if ctxt.CgoEnabled == build.CgoEnabled && name == "cgo" {
 		return true
 	}
 	if name == ctxt.GOOS || name == ctxt.GOARCH || name == ctxt.Compiler {

@@ -2054,7 +2054,7 @@ func (p *Package) load(ld *modload.Loader, ctx context.Context, opts PackageOpts
 
 	// If cgo is not enabled, ignore cgo supporting sources
 	// just as we ignore go files containing import "C".
-	if !cfg.BuildContext.CgoEnabled {
+	if cfg.BuildContext.CgoEnabled != build.CgoEnabled {
 		p.CFiles = nil
 		p.CXXFiles = nil
 		p.MFiles = nil
@@ -2465,7 +2465,7 @@ func (p *Package) setBuildInfo(ctx context.Context, f *modfetch.Fetcher, autoVCS
 		appendSetting("DefaultGODEBUG", p.DefaultGODEBUG)
 	}
 	cgo := "0"
-	if cfg.BuildContext.CgoEnabled {
+	if cfg.BuildContext.CgoEnabled == build.CgoEnabled {
 		cgo = "1"
 	}
 	appendSetting("CGO_ENABLED", cgo)
@@ -2476,7 +2476,7 @@ func (p *Package) setBuildInfo(ctx context.Context, f *modfetch.Fetcher, autoVCS
 	//
 	// TODO(bcmills): perhaps we could at least parse the flags and stamp the
 	// subset of flags that are known not to be paths?
-	if cfg.BuildContext.CgoEnabled && !cfg.BuildTrimpath {
+	if cfg.BuildContext.CgoEnabled == build.CgoEnabled && !cfg.BuildTrimpath {
 		for _, name := range []string{"CGO_CFLAGS", "CGO_CPPFLAGS", "CGO_CXXFLAGS", "CGO_LDFLAGS"} {
 			appendSetting(name, cfg.Getenv(name))
 		}
@@ -2653,7 +2653,7 @@ func LinkerDeps(s *modload.Loader, p *Package) ([]string, error) {
 
 	// External linking mode forces an import of runtime/cgo.
 	if what := externalLinkingReason(s, p); what != "" && cfg.BuildContext.Compiler != "gccgo" {
-		if !cfg.BuildContext.CgoEnabled {
+		if cfg.BuildContext.CgoEnabled == build.CgoDisabled {
 			return nil, fmt.Errorf("%s requires external (cgo) linking, but cgo is not enabled", what)
 		}
 		deps = append(deps, "runtime/cgo")

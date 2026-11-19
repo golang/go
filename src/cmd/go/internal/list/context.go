@@ -28,7 +28,7 @@ func newContext(c *build.Context) *Context {
 		GOOS:          c.GOOS,
 		GOROOT:        c.GOROOT,
 		GOPATH:        c.GOPATH,
-		CgoEnabled:    c.CgoEnabled,
+		CgoEnabled:    c.CgoEnabled == build.CgoEnabled,
 		UseAllFiles:   c.UseAllFiles,
 		Compiler:      c.Compiler,
 		BuildTags:     c.BuildTags,

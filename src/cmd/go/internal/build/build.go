@@ -33,6 +33,14 @@ import (
 	_ "unsafe" // for linkname
 )
 
+// A CgoMode specifies whether and how cgo files are included.
+type CgoMode uint8
+
+const (
+	CgoDisabled CgoMode = iota // cgo files are ignored
+	CgoEnabled                 // cgo files are included
+)
+
 // A Context specifies the supporting context for a build.
 type Context struct {
 	GOARCH string // target architecture
@@ -48,7 +56,7 @@ type Context struct {
 	// be absolute.
 	Dir string
 
-	CgoEnabled  bool   // whether cgo files are included
+	CgoEnabled  CgoMode // whether and how cgo files are included
 	UseAllFiles bool   // use files regardless of go:build lines, file names
 	Compiler    string // compiler to assume when computing target paths
 
@@ -363,16 +371,18 @@ func defaultContext() Context {
 	}
 	switch env {
 	case "1":
-		c.CgoEnabled = true
+		c.CgoEnabled = CgoEnabled
 	case "0":
-		c.CgoEnabled = false
+		c.CgoEnabled = CgoDisabled
 	default:
 		// cgo must be explicitly enabled for cross compilation builds
 		if runtime.GOARCH == c.GOARCH && runtime.GOOS == c.GOOS {
-			c.CgoEnabled = platform.CgoSupported(c.GOOS, c.GOARCH)
+			if platform.CgoSupported(c.GOOS, c.GOARCH) {
+				c.CgoEnabled = CgoEnabled
+			}
 			break
 		}
-		c.CgoEnabled = false
+		c.CgoEnabled = CgoDisabled
 	}
 
 	return c
@@ -1008,7 +1018,7 @@ Found:
 		switch {
 		case isCgo:
 			allTags["cgo"] = true
-			if ctxt.CgoEnabled {
+			if ctxt.CgoEnabled == CgoEnabled {
 				fileList = &p.CgoFiles
 				importMap = importPos
 				embedMap = embedPos
@@ -1242,7 +1252,7 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode) 
 	cmd.Stderr = &stderr
 
 	cgo := "0"
-	if ctxt.CgoEnabled {
+	if ctxt.CgoEnabled == CgoEnabled {
 		cgo = "1"
 	}
 	cmd.Env = append(cmd.Environ(),
@@ -1950,7 +1960,7 @@ func (ctxt *Context) matchTag(name string, allTags map[string]bool) bool {
 	}
 
 	// special tags
-	if ctxt.CgoEnabled && name == "cgo" {
+	if ctxt.CgoEnabled == CgoEnabled && name == "cgo" {
 		return true
 	}
 	if name == ctxt.GOOS || name == ctxt.GOARCH || name == ctxt.Compiler {

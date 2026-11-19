@@ -146,12 +146,14 @@ func defaultContext() build.Context {
 	// Recreate that logic here with the new GOOS/GOARCH setting.
 	// We need to run steps 2 and 3 to determine what the default value
 	// of CgoEnabled would be for computing CGOChanged.
-	defaultCgoEnabled := false
+	defaultCgoEnabled := build.CgoDisabled
 	if buildcfg.DefaultCGO_ENABLED == "1" {
-		defaultCgoEnabled = true
+		defaultCgoEnabled = build.CgoEnabled
 	} else if buildcfg.DefaultCGO_ENABLED == "0" {
 	} else if runtime.GOARCH == ctxt.GOARCH && runtime.GOOS == ctxt.GOOS {
-		defaultCgoEnabled = platform.CgoSupported(ctxt.GOOS, ctxt.GOARCH)
+		if platform.CgoSupported(ctxt.GOOS, ctxt.GOARCH) {
+			defaultCgoEnabled = build.CgoEnabled
+		}
 		// Use built-in default cgo setting for GOOS/GOARCH.
 		// Note that ctxt.GOOS/GOARCH are derived from the preference list
 		// (1) environment, (2) go/env file, (3) runtime constants,
@@ -173,18 +175,21 @@ func defaultContext() build.Context {
 		// we automatically default cgo to off.
 		// This makes go builds work automatically on systems
 		// without a C compiler installed.
-		if ctxt.CgoEnabled {
+		if ctxt.CgoEnabled == build.CgoEnabled {
 			if os.Getenv("CC") == "" {
 				cc := DefaultCC(ctxt.GOOS, ctxt.GOARCH)
 				if _, err := pathcache.LookPath(cc); err != nil {
-					defaultCgoEnabled = false
+					defaultCgoEnabled = build.CgoDisabled
 				}
 			}
 		}
 	}
 	ctxt.CgoEnabled = defaultCgoEnabled
-	if v := Getenv("CGO_ENABLED"); v == "0" || v == "1" {
-		ctxt.CgoEnabled = v[0] == '1'
+	switch Getenv("CGO_ENABLED") {
+	case "0":
+		ctxt.CgoEnabled = build.CgoDisabled
+	case "1":
+		ctxt.CgoEnabled = build.CgoEnabled
 	}
 	CGOChanged = ctxt.CgoEnabled != defaultCgoEnabled
 

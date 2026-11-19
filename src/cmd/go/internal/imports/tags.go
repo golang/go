@@ -5,6 +5,7 @@
 package imports
 
 import (
+	"cmd/go/internal/build"
 	"cmd/go/internal/cfg"
 	"sync"
 )
@@ -24,7 +25,7 @@ func loadTags() map[string]bool {
 		cfg.BuildContext.GOARCH:   true,
 		cfg.BuildContext.Compiler: true,
 	}
-	if cfg.BuildContext.CgoEnabled {
+	if cfg.BuildContext.CgoEnabled == build.CgoEnabled {
 		tags["cgo"] = true
 	}
 	for _, tag := range cfg.BuildContext.BuildTags {

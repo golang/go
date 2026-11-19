@@ -17,6 +17,7 @@ import (
 	"strings"
 	"sync"
 
+	"cmd/go/internal/build"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/gover"
@@ -63,7 +64,7 @@ func matchPackages(ld *Loader, ctx context.Context, m *search.Match, tags map[st
 		m.Pkgs = append(m.Pkgs, p)
 		mu.Unlock()
 	}
-	if !cfg.BuildContext.CgoEnabled {
+	if cfg.BuildContext.CgoEnabled == build.CgoDisabled {
 		have["runtime/cgo"] = true // ignore during walk
 	}
 

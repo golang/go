@@ -605,7 +605,7 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 		switch {
 		case isCgo:
 			allTags["cgo"] = true
-			if ctxt.CgoEnabled {
+			if ctxt.CgoEnabled == build.CgoEnabled {
 				fileList = &p.CgoFiles
 				importMap = importPos
 				embedMap = embedPos
