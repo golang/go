@@ -58,6 +58,28 @@ func TestParseExprFrom(t *testing.T) {
 	}
 }
 
+func TestParseExprBailout(t *testing.T) {
+	src := "func() {\n" + strings.Repeat("func() { var a }\n", 13) + "}()"
+	for _, mode := range []Mode{0, SkipObjectResolution | ParseComments, AllErrors} {
+		fset := token.NewFileSet()
+		expr, err := ParseExprFrom(fset, "test.go", src, mode)
+		if err == nil {
+			t.Errorf("mode %v: expected syntax errors", mode)
+		}
+		if expr == nil {
+			t.Errorf("mode %v: got no partial result", mode)
+			continue
+		}
+		file := fset.File(expr.Pos())
+		if file == nil || expr.End() < expr.Pos() || expr.End() > file.End() {
+			t.Errorf("mode %v: invalid expression span [%v, %v)", mode, expr.Pos(), expr.End())
+		}
+	}
+	if expr, err := ParseExpr(src); expr == nil || err == nil {
+		t.Errorf("ParseExpr returned (%v, %v), want a partial result and an error", expr, err)
+	}
+}
+
 func TestParseDir(t *testing.T) {
 	path := "."
 	pkgs, err := ParseDir(token.NewFileSet(), path, dirFilter, 0)
