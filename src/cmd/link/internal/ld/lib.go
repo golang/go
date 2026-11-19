@@ -1196,6 +1196,7 @@ var internalpkg = []string{
 	"crypto/internal/boring",
 	"crypto/internal/boring/syso",
 	"crypto/x509",
+	"internal/runtime/cgobench", // for cmd/go tests
 	"net",
 	"os/user",
 	"runtime/cgo",

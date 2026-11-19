@@ -1,38 +1,38 @@
-# golang.org/issue/46347: a stale runtime/cgo should only force a single rebuild
+# golang.org/issue/46347: a stale stdlib cgo package should only force a single rebuild
 
 [!cgo] skip
 
 
-# If we set a unique CGO_CFLAGS, the installed copy of runtime/cgo
+# If we set a unique CGO_CFLAGS, the cached copy of internal/runtime/cgobench
 # should be reported as stale.
 
 env CGO_CFLAGS=-DTestScript_cgo_stale=true
-stale runtime/cgo
+stale internal/runtime/cgobench
 
 
-# If we then build a package that uses cgo, runtime/cgo should be rebuilt and
-# cached with the new flag, but not installed to GOROOT.
+# If we then build a package that imports internal/runtime/cgobench, it should
+# be rebuilt and cached with the new flag, but not installed to GOROOT.
 # It has no install target, and thus is never stale.
 
 env GOCACHE=$WORK/cache  # Use a fresh cache to avoid interference between runs.
 
 go build -x .
-stderr '[/\\]cgo'$GOEXE'["]? .* -importpath runtime/cgo'
-! stale runtime/cgo
+stderr '[/\\]cgo'$GOEXE'["]? .* -importpath internal/runtime/cgobench'
+! stale internal/runtime/cgobench
 
 
-# After runtime/cgo has been rebuilt and cached, it should not be rebuilt again.
+# After internal/runtime/cgobench has been rebuilt and cached, it should not be rebuilt again.
 
 go build -x .
-! stderr '[/\\]cgo'$GOEXE'["]? .* -importpath runtime/cgo'
-! stale runtime/cgo
+! stderr '[/\\]cgo'$GOEXE'["]? .* -importpath internal/runtime/cgobench'
+! stale internal/runtime/cgobench
 
 
 -- go.mod --
-module example.com/m
+module bootstrap/m
 
 go 1.17
 -- m.go --
 package m
 
-import "C"
+import _ "internal/runtime/cgobench"

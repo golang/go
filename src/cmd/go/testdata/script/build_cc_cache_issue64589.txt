@@ -36,15 +36,15 @@ env CGO_ENABLED=1
 env GOCACHE=$WORK${/}.cache
 mkdir $GOCACHE
 
-go build -x runtime/cgo
+go build -x internal/runtime/cgobench
 
 	# Tell our fake clang to stop working.
-	# Previously, 'go build -x runtime/cgo' would continue to
+	# Previously, 'go build -x internal/runtime/cgobench' would continue to
 	# succeed because both the broken clang and the non-broken one
 	# resulted in a cache key with no clang version information.
 env GO_BREAK_CLANG=1
-! go build -x runtime/cgo
-stderr '# runtime/cgo\nGO_BREAK_CLANG is set'
+! go build -x internal/runtime/cgobench
+stderr '# internal/runtime/cgobench\nGO_BREAK_CLANG is set'
 
 -- go.mod --
 module example/issue64589

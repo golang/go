@@ -9,10 +9,10 @@
 [mustlinkext] skip 'test expects internal linking for non-cgo programs'
 
 # Here we build three program: one with explicit CGO use, one with no
-# CGO use, and one that uses a stdlib package ("runtime/cgo") that has
+# CGO use, and one that uses a stdlib package ("internal/runtime/cgobench") that has
 # CGO in it. It used to be that only the explicit use of CGO would
 # trigger external linking, and that the program that only used
-# "runtime/cgo" would always be handled with internal linking. This caused
+# "internal/runtime/cgobench" would always be handled with internal linking. This caused
 # issues when users included odd/unusual flags (ex: -fplugin, -flto)
 # in CGO_CFLAGS, causing the Go linker to have to read and interpret
 # non-standard host objects.
@@ -29,7 +29,7 @@
 #-----------------------
 
 # Use a fresh GOCACHE for these next steps, so as to have the real
-# actions for the runtime/cgo package appear in the "-n -x" output.
+# actions for the internal/runtime/cgobench package appear in the "-n -x" output.
 env GOCACHE=$WORK/gocache
 mkdir $GOCACHE
 
@@ -139,10 +139,10 @@ mkdir tmp5
 # First build: no external linking expected
 go build -ldflags=-tmpdir=tmp1 -o $devnull ./noUseOfCgo &
 
-# Second build: using only "runtime/cgo", expect internal linking.
+# Second build: using only "internal/runtime/cgobench", expect internal linking.
 go build -ldflags=-tmpdir=tmp2 -o $devnull ./usesInternalCgo &
 
-# Third build: program uses only "runtime/cgo", so we would normally
+# Third build: program uses only "internal/runtime/cgobench", so we would normally
 # expect internal linking, except that cflags contain suspicious entries
 # (in this case, a flag that does not appear on the allow list).
 env CGO_CFLAGS=-fmerge-all-constants
@@ -167,7 +167,7 @@ wait
 # Check first build: no external linking expected
 ! exists tmp1/go.o
 
-# Check second build: using only "runtime/cgo", expect internal linking.
+# Check second build: using only "internal/runtime/cgobench", expect internal linking.
 [!cgolinkext] ! exists tmp2/go.o
 [cgolinkext] exists tmp2/go.o
 
@@ -186,7 +186,7 @@ go tool nm p.a
 
 -- go.mod --
 
-module cgo.example
+module bootstrap/cgo.example
 
 go 1.20
 
@@ -203,13 +203,11 @@ func main() {
 package main
 
 import (
-	"runtime/cgo"
+	"internal/runtime/cgobench"
 )
 
 func main() {
-	q := "hello"
-	h := cgo.NewHandle(q)
-	h.Delete()
+	cgobench.EmptyC()
 }
 
 -- usesExplicitCgo/main.go --

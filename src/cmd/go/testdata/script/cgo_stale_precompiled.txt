@@ -4,7 +4,7 @@
 
 [!cgo] skip
 
-# This test may start with the runtime/cgo package already stale.
+# This test may start with the internal/runtime/cgobench package already stale.
 # Explicitly rebuild it to ensure that it is cached.
 # (See https://go.dev/issue/50892.)
 #
@@ -13,8 +13,8 @@
 
 [!short] env GOCACHE=$WORK/cache
 [!short] env CGO_CFLAGS=-DTestScript_cgo_stale_precompiled=true
-go build -x runtime/cgo
-[!short] stderr '[/\\]cgo'$GOEXE'["]? .* -importpath runtime/cgo'
+go build -x internal/runtime/cgobench
+[!short] stderr '[/\\]cgo'$GOEXE'["]? .* -importpath internal/runtime/cgobench'
 
 # https://go.dev/issue/47215: a missing $(go env CC) caused the precompiled net
 # to be stale. But as of https://go.dev/cl/452457 the precompiled libraries are
@@ -28,5 +28,5 @@ env CGO_ENABLED=1
 env CC=''
 [!GOOS:plan9] env PATH=''  # Guaranteed not to include $(go env CC)!
 [GOOS:plan9] env path=''
-! go build -x runtime/cgo
+! go build -x internal/runtime/cgobench
 stderr 'C compiler .* not found'
