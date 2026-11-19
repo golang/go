@@ -89,6 +89,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 		GoListExportNewFormat: true,
 		RuntimeCgoPurego:      true,
 		SIMDStable:            true,
+		TrimBuildCache:        true,
 	}
 	flags := &ExperimentFlags{
 		Flags:    baseline,

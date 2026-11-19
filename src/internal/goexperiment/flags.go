@@ -149,4 +149,8 @@ type Flags struct {
 
 	// RuntimeCgoPurego enables the pure Go and assembly implementation of runtime/cgo.
 	RuntimeCgoPurego bool
+
+	// TrimBuildCache enables automatic sized-based trimming of the cmd/go build cache.
+	// See https://go.dev/issue/29561.
+	TrimBuildCache bool
 }
