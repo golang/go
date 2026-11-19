@@ -1426,6 +1426,8 @@ func (o *orderState) expr1(walkstate *walkState, n, lhs ir.Node) ir.Node {
 		if isAppendOfMake(n) {
 			n.Args[0] = o.expr(walkstate, n.Args[0], nil) // order x
 			mk := n.Args[1].(*ir.MakeExpr)
+			// Preserve make([]T, y) init, see #83209.
+			o.init(walkstate, mk)
 			mk.Len = o.expr(walkstate, mk.Len, nil) // order y
 		} else {
 			o.exprList(walkstate, n.Args)
