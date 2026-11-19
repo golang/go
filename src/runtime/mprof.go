@@ -139,7 +139,10 @@ type memRecord struct {
 	//
 	// We store cycle C here because there's a window between when
 	// C becomes the active cycle and when we've flushed it to
-	// active.
+	// active. After publishing, the cycle's frees remain here,
+	// protected by profMemActiveLock, until the next cycle is
+	// published. Publishing that cycle also clears the previous
+	// cycle's retained frees, before the slot is reused for frees.
 	future [3]memRecordCycle
 }
 
@@ -174,47 +177,52 @@ type buckhashArray [buckHashSize]atomic.UnsafePointer // *bucket
 
 const mProfCycleWrap = uint32(len(memRecord{}.future)) * (2 << 24)
 
-// mProfCycleHolder holds the global heap profile cycle number (wrapped at
-// mProfCycleWrap, stored starting at bit 1), and a flag (stored at bit 0) to
-// indicate whether future[cycle] in all buckets has been queued to flush into
-// the active profile.
 type mProfCycleHolder struct {
-	value atomic.Uint32
+	// current holds the global heap profile cycle number, wrapped at
+	// mProfCycleWrap. It is atomic because it is read without profMemActiveLock
+	// when recording sampled allocations and their frees.
+	current atomic.Uint32
+
+	// published is the newest heap profile cycle that has been
+	// accumulated into memRecord.active in all buckets. Its frees
+	// are retained in memRecord.future until the next publication.
+	//
+	// Protected by profMemActiveLock.
+	published uint32
 }
 
-// read returns the current cycle count.
-func (c *mProfCycleHolder) read() (cycle uint32) {
-	v := c.value.Load()
-	cycle = v >> 1
+// mProfCycleNext returns the memory profiling cycle after the given cycle,
+// wrapping at mProfCycleWrap.
+func mProfCycleNext(cycle uint32) uint32 {
+	cycle++
+	// Explicitly wrap rather than depending on uint wraparound because the
+	// memRecord.future ring does not itself wrap at a power of two.
+	if cycle == mProfCycleWrap {
+		cycle = 0
+	}
 	return cycle
 }
 
-// setFlushed sets the flushed flag. It returns the current cycle count and the
-// previous value of the flushed flag.
-func (c *mProfCycleHolder) setFlushed() (cycle uint32, alreadyFlushed bool) {
-	for {
-		prev := c.value.Load()
-		cycle = prev >> 1
-		alreadyFlushed = (prev & 0x1) != 0
-		next := prev | 0x1
-		if c.value.CompareAndSwap(prev, next) {
-			return cycle, alreadyFlushed
-		}
-	}
+// read returns the current cycle count.
+func (c *mProfCycleHolder) read() uint32 {
+	return c.current.Load()
+}
+
+// shouldPublish reports whether cycle is the next cycle in publication order.
+// The caller must ensure that all events for cycle have been recorded before
+// publishing it. The caller must hold profMemActiveLock.
+func (c *mProfCycleHolder) shouldPublish(cycle uint32) bool {
+	assertLockHeld(&profMemActiveLock)
+	return mProfCycleNext(c.published) == cycle
 }
 
 // increment increases the cycle count by one, wrapping the value at
-// mProfCycleWrap. It clears the flushed flag.
+// mProfCycleWrap.
 func (c *mProfCycleHolder) increment() {
-	// We explicitly wrap mProfCycle rather than depending on
-	// uint wraparound because the memRecord.future ring does not
-	// itself wrap at a power of two.
 	for {
-		prev := c.value.Load()
-		cycle := prev >> 1
-		cycle = (cycle + 1) % mProfCycleWrap
-		next := cycle << 1
-		if c.value.CompareAndSwap(prev, next) {
+		prev := c.current.Load()
+		next := mProfCycleNext(prev)
+		if c.current.CompareAndSwap(prev, next) {
 			break
 		}
 	}
@@ -357,56 +365,63 @@ func eqslice(x, y []uintptr) bool {
 	return true
 }
 
-// mProf_NextCycle publishes the next heap profile cycle and creates a
+// mProf_AdvanceCycle advances the heap profile cycle and creates a
 // fresh heap profile cycle. This operation is fast and can be done
-// during STW. The caller must call mProf_Flush before calling
-// mProf_NextCycle again.
+// during STW. The caller must call mProf_Publish before calling
+// mProf_AdvanceCycle again.
 //
 // This is called by mark termination during STW so allocations and
 // frees after the world is started again count towards a new heap
 // profiling cycle.
-func mProf_NextCycle() {
+func mProf_AdvanceCycle() {
 	mProfCycle.increment()
 }
 
-// mProf_Flush flushes the events from the current heap profiling
+// mProf_Publish publishes the events from the current heap profiling
 // cycle into the active profile. After this it is safe to start a new
-// heap profiling cycle with mProf_NextCycle.
+// heap profiling cycle with mProf_AdvanceCycle.
 //
 // This is called by GC after mark termination starts the world. In
-// contrast with mProf_NextCycle, this is somewhat expensive, but safe
+// contrast with mProf_AdvanceCycle, this is somewhat expensive, but safe
 // to do concurrently.
-func mProf_Flush() {
-	cycle, alreadyFlushed := mProfCycle.setFlushed()
-	if alreadyFlushed {
-		return
-	}
-
-	index := cycle % uint32(len(memRecord{}.future))
+func mProf_Publish() {
 	lock(&profMemActiveLock)
-	lock(&profMemFutureLock[index])
-	mProf_FlushLocked(index)
-	unlock(&profMemFutureLock[index])
+	cycle := mProfCycle.read()
+	if mProfCycle.shouldPublish(cycle) {
+		mProf_PublishLocked(cycle)
+	}
 	unlock(&profMemActiveLock)
 }
 
-// mProf_FlushLocked flushes the events from the heap profiling cycle at index
-// into the active profile. The caller must hold the lock for the active profile
-// (profMemActiveLock) and for the profiling cycle at index
-// (profMemFutureLock[index]).
-func mProf_FlushLocked(index uint32) {
+// mProf_PublishLocked accumulates the profile events from cycle into the active
+// profile. It zeroes the cycle's alloc count so the slot can be reused for
+// allocations in the next cycle, but retains the cycle's frees until the next
+// publication. It also clears the previously published cycle's retained frees.
+func mProf_PublishLocked(cycle uint32) {
 	assertLockHeld(&profMemActiveLock)
-	assertLockHeld(&profMemFutureLock[index])
+	if !mProfCycle.shouldPublish(cycle) {
+		throw("mProf_PublishLocked: cycle out of order")
+	}
+
+	slots := uint32(len(memRecord{}.future))
+	index := cycle % slots
+	previousIndex := (index + slots - 1) % slots
+	lock(&profMemFutureLock[index])
 	head := (*bucket)(mbuckets.Load())
 	for b := head; b != nil; b = b.allnext {
 		mp := b.mp()
-
-		// Flush cycle C into the published profile and clear
-		// it for reuse.
 		mpc := &mp.future[index]
 		mp.active.add(mpc)
-		*mpc = memRecordCycle{}
+		mpc.allocs = 0
+		// Clear the frees we saved from the previous cycle so its slot can
+		// be reused for future frees. This cannot race with writes to frees:
+		// if the previous cycle is P, its slot next receives frees when the
+		// current cycle reaches P+2, but we publish P+1 while the current
+		// cycle is at most P+1.
+		mp.future[previousIndex].frees = 0
 	}
+	unlock(&profMemFutureLock[index])
+	mProfCycle.published = cycle
 }
 
 // mProf_PostSweep records that all sweep frees for this GC cycle have
@@ -419,13 +434,14 @@ func mProf_PostSweep() {
 	// the cycle, since we're still accumulating allocs in cycle
 	// C+2, which have to become C+1 in the next mark termination
 	// and so on.
-	cycle := mProfCycle.read() + 1
-
-	index := cycle % uint32(len(memRecord{}.future))
 	lock(&profMemActiveLock)
-	lock(&profMemFutureLock[index])
-	mProf_FlushLocked(index)
-	unlock(&profMemFutureLock[index])
+	// With current cycle C, sweep frees are recorded in C+1. Now that
+	// sweeping is complete, we can publish C+1 without waiting for the
+	// next mark termination to advance the counter.
+	cycle := mProfCycleNext(mProfCycle.read())
+	if mProfCycle.shouldPublish(cycle) {
+		mProf_PublishLocked(cycle)
+	}
 	unlock(&profMemActiveLock)
 }
 
@@ -941,15 +957,13 @@ func MemProfile(p []MemProfileRecord, inuseZero bool) (n int, ok bool) {
 //
 //go:noinline
 func memProfileInternal(size int, inuseZero bool, copyFn func(profilerecord.MemProfileRecord)) (n int, ok bool) {
-	cycle := mProfCycle.read()
-	// If we're between mProf_NextCycle and mProf_Flush, take care
-	// of flushing to the active profile so we only have to look
-	// at the active profile below.
-	index := cycle % uint32(len(memRecord{}.future))
 	lock(&profMemActiveLock)
-	lock(&profMemFutureLock[index])
-	mProf_FlushLocked(index)
-	unlock(&profMemFutureLock[index])
+	cycle := mProfCycle.read()
+	// If we're between mProf_AdvanceCycle and mProf_Publish, flush to the
+	// active profile so we only have to look at the active profile below.
+	if mProfCycle.shouldPublish(cycle) {
+		mProf_PublishLocked(cycle)
+	}
 	clear := true
 	head := (*bucket)(mbuckets.Load())
 	for b := head; b != nil; b = b.allnext {
