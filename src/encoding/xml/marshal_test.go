@@ -19,6 +19,45 @@ import (
 
 type DriveType int
 
+func TestEmbeddedXMLNameValue(t *testing.T) {
+	type Base struct {
+		XMLName Name
+	}
+	type Outer struct {
+		Prefix string `xml:"-"`
+		Base
+	}
+	type Nested struct {
+		*Outer
+	}
+	name := Name{Space: "urn:test", Local: "root"}
+	base := Base{XMLName: name}
+	for _, value := range []any{&Outer{Base: base}, &Nested{Outer: &Outer{Base: base}}, &base} {
+		data, err := Marshal(value)
+		if err != nil {
+			t.Errorf("Marshal(%T): %v", value, err)
+			continue
+		}
+		if want := `<root xmlns="urn:test"></root>`; string(data) != want {
+			t.Errorf("Marshal(%T) = %s, want %s", value, data, want)
+		}
+		decoded := reflect.New(reflect.TypeOf(value).Elem())
+		if err := Unmarshal([]byte(`<root xmlns="urn:test"></root>`), decoded.Interface()); err != nil {
+			t.Errorf("Unmarshal(%T): %v", value, err)
+			continue
+		}
+		field, _ := decoded.Elem().Type().FieldByName("XMLName")
+		got, err := decoded.Elem().FieldByIndexErr(field.Index)
+		if err != nil {
+			t.Errorf("Unmarshal(%T) did not initialize XMLName: %v", value, err)
+			continue
+		}
+		if got := got.Interface().(Name); got != name {
+			t.Errorf("Unmarshal(%T) XMLName = %v, want %v", value, got, name)
+		}
+	}
+}
+
 const (
 	HyperDrive DriveType = iota
 	ImprobabilityDrive
@@ -1254,7 +1293,7 @@ var marshalTests = []struct {
 	},
 	{
 		ExpectXML: `<outer xmlns="testns" int="10"></outer>`,
-		Value:     &OuterStruct{IntAttr: 10},
+		Value:     &OuterStruct{InnerStruct: InnerStruct{XMLName: Name{Space: "testns", Local: "outer"}}, IntAttr: 10},
 	},
 	{
 		ExpectXML: `<test xmlns="outerns" int="10"></test>`,
@@ -1266,7 +1305,7 @@ var marshalTests = []struct {
 	},
 	{
 		ExpectXML: `<outer xmlns="testns" int="10"></outer>`,
-		Value:     &OuterOuterStruct{OuterStruct{IntAttr: 10}},
+		Value:     &OuterOuterStruct{OuterStruct{InnerStruct: InnerStruct{XMLName: Name{Space: "testns", Local: "outer"}}, IntAttr: 10}},
 	},
 	{
 		ExpectXML: `<NestedAndChardata><A><B></B><B></B></A>test</NestedAndChardata>`,
