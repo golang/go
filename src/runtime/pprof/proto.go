@@ -39,8 +39,11 @@ type profileBuilder struct {
 	stringMap map[string]int
 	locs      map[uintptr]locInfo // list of locInfo starting with the given PC.
 	funcs     map[string]int      // Package path-qualified function name to Function.ID
-	mem       []memMap
-	deck      pcDeck
+	// IDs may be reserved for virtual locations and functions before real stacks are processed.
+	nextLocID  uint64
+	nextFuncID uint64
+	mem        []memMap
+	deck       pcDeck
 }
 
 type memMap struct {
@@ -259,16 +262,30 @@ type locInfo struct {
 func newProfileBuilder(w io.Writer) *profileBuilder {
 	zw, _ := gzip.NewWriterLevel(w, gzip.BestSpeed)
 	b := &profileBuilder{
-		w:         w,
-		zw:        zw,
-		start:     time.Now(),
-		strings:   []string{""},
-		stringMap: map[string]int{"": 0},
-		locs:      map[uintptr]locInfo{},
-		funcs:     map[string]int{},
+		w:          w,
+		zw:         zw,
+		start:      time.Now(),
+		strings:    []string{""},
+		stringMap:  map[string]int{"": 0},
+		locs:       map[uintptr]locInfo{},
+		funcs:      map[string]int{},
+		nextLocID:  1,
+		nextFuncID: 1,
 	}
 	b.readMapping()
 	return b
+}
+
+func (b *profileBuilder) reserveLocID() uint64 {
+	id := b.nextLocID
+	b.nextLocID++
+	return id
+}
+
+func (b *profileBuilder) reserveFuncID() uint64 {
+	id := b.nextFuncID
+	b.nextFuncID++
+	return id
 }
 
 // addCPUData adds the CPU profiling data to the profile.
@@ -605,7 +622,7 @@ func (b *profileBuilder) emitLocation() uint64 {
 	}
 	newFuncs := make([]newFunc, 0, 8)
 
-	id := uint64(len(b.locs)) + 1
+	id := b.reserveLocID()
 	b.locs[addr] = locInfo{
 		id:                     id,
 		pcs:                    append([]uintptr{}, b.deck.pcs...),
@@ -621,7 +638,7 @@ func (b *profileBuilder) emitLocation() uint64 {
 		funcName := runtime_FrameSymbolName(&frame)
 		funcID := uint64(b.funcs[funcName])
 		if funcID == 0 {
-			funcID = uint64(len(b.funcs)) + 1
+			funcID = b.reserveFuncID()
 			b.funcs[funcName] = int(funcID)
 			newFuncs = append(newFuncs, newFunc{
 				id:        funcID,

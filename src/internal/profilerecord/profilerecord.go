@@ -13,9 +13,20 @@ type StackRecord struct {
 }
 
 type MemProfileRecord struct {
-	ObjectSize                int64
+	ObjectSize int64
+
+	// AllocObjects and FreeObjects count, respectively, the cumulative
+	// number of allocated and freed objects over the lifetime of the
+	// record. AllocObjects - FreeObjects is the number of live objects
+	// observed in the most recent mark phase.
 	AllocObjects, FreeObjects int64
-	Stack                     []uintptr
+
+	// FreedLastGC is the number of sampled objects from this allocation
+	// site freed in the GC cycle that produced this record.
+	// TODO: clean up/clarify
+	FreedLastGC int64
+
+	Stack []uintptr
 }
 
 func (r *MemProfileRecord) InUseBytes() int64   { return r.InUseObjects() * r.ObjectSize }

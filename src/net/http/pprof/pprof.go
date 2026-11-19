@@ -259,7 +259,7 @@ func (name handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	gc, _ := strconv.Atoi(r.FormValue("gc"))
-	if name == "heap" && gc > 0 {
+	if (name == "heap" || name == "memory") && gc > 0 {
 		runtime.GC()
 	}
 	debug, _ := strconv.Atoi(r.FormValue("debug"))
@@ -268,6 +268,10 @@ func (name handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	} else {
 		w.Header().Set("Content-Type", "application/octet-stream")
 		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, name))
+	}
+	if string(name) == "memory" && debug > 0 {
+		serveError(w, http.StatusBadRequest, "memory profile: only debug=0 is supported")
+		return
 	}
 	p.WriteTo(w, debug)
 }
@@ -366,6 +370,7 @@ var profileDescriptions = map[string]string{
 	"cmdline":       "The command line invocation of the current program",
 	"goroutine":     "Stack traces of all current goroutines. Use debug=2 as a query parameter to export in the same format as an unrecovered panic.",
 	"heap":          "A sampling of memory allocations of live objects. You can specify the gc GET parameter to run GC before taking the heap sample.",
+	"memory":        "A breakdown of process memory usage at the most recently completed garbage collection.",
 	"mutex":         "Stack traces of holders of contended mutexes",
 	"profile":       "CPU profile. You can specify the duration in the seconds GET parameter. After you get the profile file, use the go tool pprof command to investigate the profile.",
 	"symbol":        "Maps given program counters to function names. Counters can be specified in a GET raw query or POST body, multiple counters are separated by '+'.",

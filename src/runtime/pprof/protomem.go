@@ -28,28 +28,7 @@ func writeHeapProto(w io.Writer, p []profilerecord.MemProfileRecord, rate int64,
 	values := []int64{0, 0, 0, 0}
 	var locs []uint64
 	for _, r := range p {
-		hideRuntime := true
-		for tries := 0; tries < 2; tries++ {
-			stk := r.Stack
-			// For heap profiles, all stack
-			// addresses are return PCs, which is
-			// what appendLocsForStack expects.
-			if hideRuntime {
-				for i, addr := range stk {
-					if f := runtime.FuncForPC(addr); f != nil && (strings.HasPrefix(f.Name(), "runtime.") || strings.HasPrefix(f.Name(), "internal/runtime/")) {
-						continue
-					}
-					// Found non-runtime. Show any runtime uses above it.
-					stk = stk[i:]
-					break
-				}
-			}
-			locs = b.appendLocsForStack(locs[:0], stk)
-			if len(locs) > 0 {
-				break
-			}
-			hideRuntime = false // try again, and show all frames next time.
-		}
+		locs = b.appendLocsForStackWithoutRuntime(locs[:0], r.Stack)
 
 		values[0], values[1] = scaleHeapSample(r.AllocObjects, r.ObjectSize, rate)
 		values[2], values[3] = scaleHeapSample(r.InUseObjects(), r.ObjectSize, rate)
@@ -58,6 +37,27 @@ func writeHeapProto(w io.Writer, p []profilerecord.MemProfileRecord, rate int64,
 		})
 	}
 	return b.build()
+}
+
+// appendLocsForStackWithoutRuntime appends locations for a stack, hiding
+// runtime leaf frames unless the stack contains only runtime frames.
+func (b *profileBuilder) appendLocsForStackWithoutRuntime(locs []uint64, stk []uintptr) []uint64 {
+	origStk := stk
+	for i, addr := range stk {
+		if f := runtime.FuncForPC(addr); f != nil && (strings.HasPrefix(f.Name(), "runtime.") || strings.HasPrefix(f.Name(), "internal/runtime/")) {
+			continue
+		}
+		stk = stk[i:]
+		break
+	}
+	n := len(locs)
+	locs = b.appendLocsForStack(locs, stk)
+	if len(locs) == n {
+		// The stack was empty after filtering out runtime leaf frames,
+		// so just add the original stack
+		locs = b.appendLocsForStack(locs, origStk)
+	}
+	return locs
 }
 
 // scaleHeapSample adjusts the data from a heap Sample to

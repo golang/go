@@ -109,6 +109,7 @@ import (
 //	goroutineleak  - stack traces of all leaked goroutines
 //	allocs         - a sampling of all past memory allocations
 //	heap           - a sampling of memory allocations of live objects
+//	memory         - a breakdown of process memory usage at the last completed GC
 //	threadcreate   - stack traces that led to the creation of new OS threads
 //	block          - stack traces that led to blocking on synchronization primitives
 //	mutex          - stack traces of holders of contended mutexes
@@ -140,6 +141,21 @@ import (
 // The allocs profile is the same as the heap profile but changes the default
 // pprof display to -alloc_space, the total number of bytes allocated since
 // the program began (including garbage-collected bytes).
+//
+// # Memory profile
+//
+// The memory profile is a superset of the inuse_space heap profile. It breaks
+// down the process's resident set size (RSS) into Go and non-Go memory. Go
+// memory is further split into the heap, stacks, and runtime metadata, using
+// the runtime's memory metrics (see [runtime/metrics]). The heap includes the
+// same live object samples as the heap profile, as well as dead objects the
+// most recently completed garbage collection found unreachable. Both are
+// attributed to the allocation stacks of sampled objects, scaled to match the
+// runtime's heap metrics.
+//
+// Non-Go memory, such as memory allocated by C libraries, is estimated as RSS
+// minus Go memory, and is only reported where RSS is available (currently
+// Linux and Darwin). Prefer this profile to the heap profile.
 //
 // # Block profile
 //
@@ -262,6 +278,7 @@ func lockProfiles() {
 			"allocs":        allocsProfile,
 			"block":         blockProfile,
 			"mutex":         mutexProfile,
+			"memory":        memoryProfile,
 			"goroutineleak": goroutineLeakProfile,
 		}
 	}

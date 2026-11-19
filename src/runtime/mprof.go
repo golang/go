@@ -1090,6 +1090,11 @@ func memProfileInternal(size int, inuseZero bool, copyFn func(profilerecord.MemP
 	}
 	if n <= size {
 		ok = true
+		// Read the frees saved from the last published cycle for FreedLastGC.
+		// No new frees are being recorded in this slot, and profMemActiveLock
+		// prevents the next publication from clearing them, so we don't need
+		// to hold profMemFutureLock to read them.
+		publishedIndex := mProfCycle.published % uint32(len(memRecord{}.future))
 		for b := head; b != nil; b = b.allnext {
 			mp := b.mp()
 			if inuseZero || mp.active.allocs != mp.active.frees {
@@ -1097,6 +1102,7 @@ func memProfileInternal(size int, inuseZero bool, copyFn func(profilerecord.MemP
 					ObjectSize:   int64(b.size),
 					AllocObjects: int64(mp.active.allocs),
 					FreeObjects:  int64(mp.active.frees),
+					FreedLastGC:  int64(mp.future[publishedIndex].frees),
 					Stack:        b.stk(),
 				}
 				copyFn(r)
