@@ -1740,6 +1740,8 @@ func (db *DB) execDC(ctx context.Context, dc *driverConn, release func(error), q
 // QueryContext executes a query that returns rows, typically a SELECT.
 // The args are for any placeholder parameters in the query.
 // The caller must call [Rows.Close] when finished with the returned rows.
+// The context remains in effect until the returned [Rows] are closed,
+// including while [Rows.Next] advances through the results.
 func (db *DB) QueryContext(ctx context.Context, query string, args ...any) (*Rows, error) {
 	var rows *Rows
 	var err error
@@ -2044,6 +2046,8 @@ func (c *Conn) ExecContext(ctx context.Context, query string, args ...any) (Resu
 // QueryContext executes a query that returns rows, typically a SELECT.
 // The args are for any placeholder parameters in the query.
 // The caller must call [Rows.Close] when finished with the returned rows.
+// The context remains in effect until the returned [Rows] are closed,
+// including while [Rows.Next] advances through the results.
 func (c *Conn) QueryContext(ctx context.Context, query string, args ...any) (*Rows, error) {
 	dc, release, err := c.grabConn(ctx)
 	if err != nil {
@@ -2571,6 +2575,8 @@ func (tx *Tx) Exec(query string, args ...any) (Result, error) {
 
 // QueryContext executes a query that returns rows, typically a SELECT.
 // The caller must call [Rows.Close] when finished with the returned rows.
+// The context remains in effect until the returned [Rows] are closed,
+// including while [Rows.Next] advances through the results.
 func (tx *Tx) QueryContext(ctx context.Context, query string, args ...any) (*Rows, error) {
 	dc, release, err := tx.grabConn(ctx)
 	if err != nil {
@@ -2829,6 +2835,8 @@ func (s *Stmt) prepareOnConnLocked(ctx context.Context, dc *driverConn) (*driver
 // QueryContext executes a prepared query statement with the given arguments
 // and returns the query results as a [*Rows].
 // The caller must call [Rows.Close] when finished with the returned rows.
+// The context remains in effect until the returned Rows are closed,
+// including while [Rows.Next] advances through the results.
 func (s *Stmt) QueryContext(ctx context.Context, args ...any) (*Rows, error) {
 	s.closemu.RLock()
 	defer s.closemu.RUnlock()
@@ -3085,6 +3093,8 @@ func (rs *Rows) awaitDone(ctx, txctx, closectx context.Context) {
 // the two cases.
 //
 // Every call to [Rows.Scan], even the first one, must be preceded by a call to [Rows.Next].
+// The context passed to the query remains in effect during iteration and must
+// remain valid until the Rows are closed.
 func (rs *Rows) Next() bool {
 	// If the user's calling Next, they're done with their previous row's Scan
 	// results (any RawBytes memory), so we can release the read lock that would
