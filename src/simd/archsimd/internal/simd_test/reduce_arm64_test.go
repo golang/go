@@ -30,6 +30,8 @@ func TestReduceMax(t *testing.T) {
 	testUint8x16Reduce(t, archsimd.Uint8x16.ReduceMax, func(x []uint8) uint8 { return reduceSlice(x, max_[uint8]) })
 	testUint16x8Reduce(t, archsimd.Uint16x8.ReduceMax, func(x []uint16) uint16 { return reduceSlice(x, max_[uint16]) })
 	testUint32x4Reduce(t, archsimd.Uint32x4.ReduceMax, func(x []uint32) uint32 { return reduceSlice(x, max_[uint32]) })
+	testInt64x2Reduce(t, archsimd.Int64x2.ReduceMax, func(x []int64) int64 { return reduceSlice(x, max_[int64]) })
+	testUint64x2Reduce(t, archsimd.Uint64x2.ReduceMax, func(x []uint64) uint64 { return reduceSlice(x, max_[uint64]) })
 	testFloat32x4Reduce(t, archsimd.Float32x4.ReduceMax, func(x []float32) float32 { return reduceSlice(x, max_[float32]) })
 	testFloat64x2Reduce(t, archsimd.Float64x2.ReduceMax, func(x []float64) float64 { return reduceSlice(x, max_[float64]) })
 }
@@ -41,6 +43,8 @@ func TestReduceMin(t *testing.T) {
 	testUint8x16Reduce(t, archsimd.Uint8x16.ReduceMin, func(x []uint8) uint8 { return reduceSlice(x, min_[uint8]) })
 	testUint16x8Reduce(t, archsimd.Uint16x8.ReduceMin, func(x []uint16) uint16 { return reduceSlice(x, min_[uint16]) })
 	testUint32x4Reduce(t, archsimd.Uint32x4.ReduceMin, func(x []uint32) uint32 { return reduceSlice(x, min_[uint32]) })
+	testInt64x2Reduce(t, archsimd.Int64x2.ReduceMin, func(x []int64) int64 { return reduceSlice(x, min_[int64]) })
+	testUint64x2Reduce(t, archsimd.Uint64x2.ReduceMin, func(x []uint64) uint64 { return reduceSlice(x, min_[uint64]) })
 	testFloat32x4Reduce(t, archsimd.Float32x4.ReduceMin, func(x []float32) float32 { return reduceSlice(x, min_[float32]) })
 	testFloat64x2Reduce(t, archsimd.Float64x2.ReduceMin, func(x []float64) float64 { return reduceSlice(x, min_[float64]) })
 }
