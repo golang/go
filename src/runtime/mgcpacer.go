@@ -60,8 +60,8 @@ const (
 		(1-goexperiment.HeapMinimum512KiBInt)*(4<<20)
 
 	// maxStackScanSlack is the bytes of stack space allocated or freed
-	// that can accumulate on a P before updating gcController.stackSize.
-	maxStackScanSlack = 8 << 10
+	// that can accumulate on a P before updating gcController.maxStackScan.
+	maxStackScanSlack = 64 << 10
 
 	// memoryLimitMinHeapGoalHeadroom is the minimum amount of headroom the
 	// pacer gives to the heap goal when operating in the memory-limited regime.
