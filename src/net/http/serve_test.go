@@ -6126,9 +6126,9 @@ func TestServerCloseDeadlock(t *testing.T) {
 }
 
 // Issue 17717: tests that Server.SetKeepAlivesEnabled is respected by
-// both HTTP/1 and HTTP/2.
+// HTTP/1, HTTP/2, and HTTP/3.
 func TestServerKeepAlivesEnabled(t *testing.T) {
-	runSynctest(t, testServerKeepAlivesEnabled, http3SkippedMode)
+	runSynctest(t, testServerKeepAlivesEnabled)
 }
 func testServerKeepAlivesEnabled(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {}))

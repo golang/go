@@ -3992,6 +3992,9 @@ func (s *Server) shuttingDown() bool {
 // resource-constrained environments or servers in the process of
 // shutting down should disable them.
 func (s *Server) SetKeepAlivesEnabled(v bool) {
+	if s.h3Server != nil {
+		s.h3Server.SetKeepAlivesEnabled(v)
+	}
 	if v {
 		s.disableKeepAlives.Store(false)
 		return

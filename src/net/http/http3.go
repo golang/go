@@ -40,6 +40,7 @@ type http3Transport interface {
 type http3Server interface {
 	ServeHTTP3(context.Context, net.PacketConn, *tls.Config) error
 	Shutdown(ctx context.Context) error
+	SetKeepAlivesEnabled(bool)
 }
 
 func (s *Server) setHTTP3Server(h3 http3Server) {
@@ -47,6 +48,9 @@ func (s *Server) setHTTP3Server(h3 http3Server) {
 		panic("http: HTTP/3 Server already registered")
 	}
 	s.h3Server = h3
+	if s.disableKeepAlives.Load() {
+		h3.SetKeepAlivesEnabled(false)
+	}
 }
 
 // http3PacketConn is a net.Listener we pass to Server.BaseContext for HTTP/3 ports.

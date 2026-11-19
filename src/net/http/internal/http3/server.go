@@ -18,6 +18,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"net/http/internal"
@@ -30,7 +31,9 @@ import (
 // A server is an HTTP/3 server.
 // The zero value for server is a valid server.
 type server struct {
-	srv1 *http.Server
+	srv1              *http.Server
+	disableKeepAlives atomic.Bool // reflects srv1's unexported disableKeepAlives
+
 	opts ServerOpts
 
 	initOnce sync.Once
@@ -71,6 +74,11 @@ func (s netHTTPServer) ServeHTTP3(ctx context.Context, conn net.PacketConn, tlsC
 func (s netHTTPServer) Shutdown(ctx context.Context) error {
 	s.shutdown(ctx)
 	return nil
+}
+
+// SetKeepAlivesEnabled controls whether HTTP keep-alives are enabled.
+func (s netHTTPServer) SetKeepAlivesEnabled(v bool) {
+	s.disableKeepAlives.Store(!v)
 }
 
 type ServerOpts struct {
@@ -232,11 +240,14 @@ type serverConn struct {
 	maxHeaderBytes      int64
 	maxHeaderValueCount int64
 
+	mu sync.Mutex
+
 	// For handling shutdown.
 	controlStream       *stream
-	mu                  sync.Mutex // Guards everything below.
-	nextRequestStreamID int64
+	nextRequestStreamID int64 // Guarded by mu here and below.
 	goawaySent          bool
+
+	activeRequests int // Guarded by mu.
 }
 
 // newServerConn handles a new connection.
@@ -537,6 +548,27 @@ func (sc *serverConn) requestShouldGoaway(st *stream) bool {
 	}
 }
 
+// startRequest and endRequest keep track of the requests being handled.
+func (sc *serverConn) startRequest() {
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+	sc.activeRequests++
+}
+
+func (sc *serverConn) endRequest() {
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+	sc.activeRequests--
+	if sc.activeRequests > 0 {
+		return
+	}
+	// The connection is now idle. Send GOAWAY to indicate to client that it
+	// should close the connection.
+	if sc.srv.disableKeepAlives.Load() {
+		go sc.sendGoaway()
+	}
+}
+
 func (sc *serverConn) newResponseWriter(st *stream, hasBody bool) *responseWriter {
 	return &responseWriter{
 		st:             st,
@@ -561,6 +593,8 @@ func (sc *serverConn) handleRequestStream(st *stream) error {
 			message: "GOAWAY request with equal or lower ID than the stream has been sent",
 		}
 	}
+	sc.startRequest()
+	defer sc.endRequest()
 
 	readStartTime := time.Now()
 	if t := sc.srv.readHeaderTimeout(); t > 0 {
