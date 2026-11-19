@@ -2,6 +2,11 @@
 
 ### Go command {#go-command}
 
+<!-- go.dev/issue/81250 -->
+The `GOFIPS140=certified` alias now selects v1.26.0 of the
+[FIPS 140-3 Go Cryptographic Module](/doc/security/fips140), which obtained
+[CMVP Certificate #5581](https://csrc.nist.gov/projects/cryptographic-module-validation-program/certificate/5581).
+
 ### Cgo {#cgo}
 
 ### Vet {#vet}
