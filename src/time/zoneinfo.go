@@ -345,23 +345,26 @@ func tzset(s string, lastTxSec, sec int64) (name string, offset int, start, end 
 	// inconsistent with the goal.
 	if endSec < startSec {
 		startSec, endSec = endSec, startSec
+		startRule, endRule = endRule, startRule
 		stdName, dstName = dstName, stdName
 		stdOffset, dstOffset = dstOffset, stdOffset
 		stdIsDST, dstIsDST = dstIsDST, stdIsDST
 	}
 
-	// The start and end values that we return are accurate
-	// close to a daylight savings transition, but are otherwise
-	// just the start and end of the year. That suffices for
-	// the callers that care about it, Date and Time.ZoneBounds.
 	if ysec < startSec {
-		return stdName, stdOffset, ystart, startSec + ystart, stdIsDST, true
+		prevStart := ystart - 365*secondsPerDay
+		if isLeap(year - 1) {
+			prevStart -= secondsPerDay
+		}
+		start := prevStart + int64(tzruleTime(year-1, endRule, dstOffset))
+		return stdName, stdOffset, start, startSec + ystart, stdIsDST, true
 	} else if ysec >= endSec {
 		yend := ystart + 365*secondsPerDay
 		if isLeap(year) {
 			yend += secondsPerDay
 		}
-		return stdName, stdOffset, endSec + ystart, yend, stdIsDST, true
+		end := yend + int64(tzruleTime(year+1, startRule, stdOffset))
+		return stdName, stdOffset, endSec + ystart, end, stdIsDST, true
 	} else {
 		return dstName, dstOffset, startSec + ystart, endSec + ystart, dstIsDST, true
 	}
