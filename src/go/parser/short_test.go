@@ -114,6 +114,29 @@ var valids = []string{
 	`package p; type I1[T any] interface{}; type I2[T any] interface{ I1[T] }`,
 	`package p; type _ interface { N[T] }`,
 	`package p; type T[P any] = T0`,
+
+	// go.dev/issue/83203: accepted by the parser, but mostly not valid Go
+	`package p; var _ = func()(T)[x]`,
+	`package p; var _ = func()(T)[x:y]`,
+	`package p; var _ = func()(p.T)[x]`,
+	`package p; var _ = func()(T).m`,
+	`package p; var _ = func()(T).(U)`,
+	`package p; var _ = func()(*T).m`,
+	`package p; var _ = func()()[x]`,
+	`package p; var _ = func()() * x`,
+	`package p; var _ = func() func()(T)[x]`,
+	`package p; var _ = []func()(T)[x]`,
+	`package p; var _ = chan func()()(x)`,
+	`package p; func _() { func()() <- x }`,
+	`package p; var _ = x * func()() * y`,
+	`package p; var _ = x + x * func()() * y`,
+	`package p; var _ = func()(p.T).m`,
+	`package p; var _ = func()(p.T).(U)`,
+	`package p; var _ = func()(T[int])[x]`,
+	`package p; var _ = func()(struct{})[x]`,
+	`package p; var _ = func()(T, U)[x]`,
+	`package p; var _ = func()(T) * x`,
+	`package p; var _ = []func()(T)(x)`,
 }
 
 func TestValid(t *testing.T) {

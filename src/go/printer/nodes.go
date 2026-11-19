@@ -654,7 +654,8 @@ func walkBinary(e *ast.BinaryExpr) (has4, has5 bool, maxProblem int) {
 		has5 = true
 	}
 
-	switch l := e.X.(type) {
+	// Look at e.X as binaryExpr prints it, possibly parenthesized.
+	switch l := parenIfContinued(e.X, e.Op).(type) {
 	case *ast.BinaryExpr:
 		if l.Op.Precedence() < e.Op.Precedence() {
 			// parens will be inserted.
@@ -781,7 +782,8 @@ func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1, cutoff, depth int) {
 	printBlank := prec < cutoff
 
 	ws := indent
-	p.operand(x.X, x.Op, prec, depth+diffPrec(x.X, prec))
+	l := parenIfContinued(x.X, x.Op)
+	p.expr1(l, prec, depth+diffPrec(l, prec))
 	if printBlank {
 		p.print(blank)
 	}
@@ -903,7 +905,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		p.selectorExpr(x, depth, false)
 
 	case *ast.TypeAssertExpr:
-		p.operand(x.X, token.PERIOD, token.HighestPrec, depth)
+		p.expr1(parenIfContinued(x.X, token.PERIOD), token.HighestPrec, depth)
 		p.print(token.PERIOD)
 		p.setPos(x.Lparen)
 		p.print(token.LPAREN)
@@ -917,7 +919,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 
 	case *ast.IndexExpr:
 		// TODO(gri): should treat[] like parentheses and undo one level of depth
-		p.operand(x.X, token.LBRACK, token.HighestPrec, 1)
+		p.expr1(parenIfContinued(x.X, token.LBRACK), token.HighestPrec, 1)
 		p.setPos(x.Lbrack)
 		p.print(token.LBRACK)
 		p.exprLev++
@@ -929,7 +931,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 	case *ast.IndexListExpr:
 		// TODO(gri): as for IndexExpr, should treat [] like parentheses and undo
 		// one level of depth
-		p.operand(x.X, token.LBRACK, token.HighestPrec, 1)
+		p.expr1(parenIfContinued(x.X, token.LBRACK), token.HighestPrec, 1)
 		p.setPos(x.Lbrack)
 		p.print(token.LBRACK)
 		p.exprLev++
@@ -940,7 +942,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 
 	case *ast.SliceExpr:
 		// TODO(gri): should treat[] like parentheses and undo one level of depth
-		p.operand(x.X, token.LBRACK, token.HighestPrec, 1)
+		p.expr1(parenIfContinued(x.X, token.LBRACK), token.HighestPrec, 1)
 		p.setPos(x.Lbrack)
 		p.print(token.LBRACK)
 		p.exprLev++
@@ -1191,7 +1193,7 @@ func (p *printer) possibleSelectorExpr(expr ast.Expr, prec1, depth int) bool {
 // selectorExpr handles an *ast.SelectorExpr node and reports whether x spans
 // multiple lines.
 func (p *printer) selectorExpr(x *ast.SelectorExpr, depth int, isMethod bool) bool {
-	p.operand(x.X, token.PERIOD, token.HighestPrec, depth)
+	p.expr1(parenIfContinued(x.X, token.PERIOD), token.HighestPrec, depth)
 	p.print(token.PERIOD)
 	if line := p.lineFor(x.Sel.Pos()); p.pos.IsValid() && p.pos.Line < line {
 		p.print(indent, newline)
@@ -1207,17 +1209,13 @@ func (p *printer) selectorExpr(x *ast.SelectorExpr, depth int, isMethod bool) bo
 	return false
 }
 
-// operand is like expr1 but parenthesizes x if continuesResult(x, tok).
-func (p *printer) operand(x ast.Expr, tok token.Token, prec1, depth int) {
-	if !continuesResult(x, tok) {
-		p.expr1(x, prec1, depth)
-		return
+// parenIfContinued returns x wrapped in an *ast.ParenExpr if
+// continuesResult(x, tok), and x otherwise.
+func parenIfContinued(x ast.Expr, tok token.Token) ast.Expr {
+	if continuesResult(x, tok) {
+		return &ast.ParenExpr{X: x}
 	}
-	p.print(token.LPAREN)
-	p.exprLev++
-	p.expr0(x, reduceDepth(depth))
-	p.exprLev--
-	p.print(token.RPAREN)
+	return x
 }
 
 // continuesResult reports whether tok after x would extend a function
@@ -1227,8 +1225,10 @@ func continuesResult(x ast.Expr, tok token.Token) bool {
 	for {
 		switch t := x.(type) {
 		case *ast.Ident:
+			// func()(T).m => (func() T).m
 			return inResult && (tok == token.PERIOD || tok == token.LBRACK)
 		case *ast.SelectorExpr:
+			// Unlike T, p.T cannot be qualified any further.
 			return inResult && tok == token.LBRACK
 		case *ast.UnaryExpr:
 			x = t.X
@@ -1246,11 +1246,14 @@ func continuesResult(x ast.Expr, tok token.Token) bool {
 			res := t.Results
 			switch n := res.NumFields(); {
 			case n == 0:
+				// func(...)()[x] => (func(...))[x], and likewise for (, * and <-.
+				// The parser accepts these, but most are not valid Go.
 				return tok == token.LBRACK || tok == token.LPAREN || tok == token.MUL || tok == token.ARROW
 			case n == 1 && res.List[0].Names == nil:
 				x = stripParensAlways(res.List[0].Type)
 				inResult = true
 			default:
+				// More than one result or a named result; parentheses are always printed.
 				return false
 			}
 		default:
@@ -1495,7 +1498,7 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool) {
 
 	case *ast.SendStmt:
 		const depth = 1
-		p.operand(s.Chan, token.ARROW, token.LowestPrec, depth)
+		p.expr0(parenIfContinued(s.Chan, token.ARROW), depth)
 		p.print(blank)
 		p.setPos(s.Arrow)
 		p.print(token.ARROW, blank)
