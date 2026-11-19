@@ -2091,7 +2091,7 @@ func (cc *contextCounter) Read() (live int64) {
 }
 
 func TestTransportPersistConnContextLeakMaxConnsPerHost(t *testing.T) {
-	runSynctest(t, testTransportPersistConnContextLeakMaxConnsPerHost, http3SkippedMode)
+	runSynctest(t, testTransportPersistConnContextLeakMaxConnsPerHost)
 }
 func testTransportPersistConnContextLeakMaxConnsPerHost(t *testing.T, mode testMode) {
 	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -2117,10 +2117,12 @@ func testTransportPersistConnContextLeakMaxConnsPerHost(t *testing.T, mode testM
 					t.Error(err)
 				}
 
-				_, err = c.Do(req.WithContext(ctx))
+				res, err := c.Do(req.WithContext(ctx))
 				if err != nil {
 					t.Errorf("Do failed with error: %v", err)
+					return
 				}
+				res.Body.Close()
 			}()
 		}
 		wg.Wait()

@@ -610,6 +610,7 @@ func (s *Stream) StopSending(code uint64) error {
 	s.inbufoff = 0
 	s.inbufmu.Unlock()
 	s.in.discardBefore(s.in.end)
+	s.insendmax.clear()
 	s.inUnlock()
 	s.conn.handleStreamBytesReadOffLoop(discarded) // must be done with ingate unlocked
 	return nil
@@ -696,6 +697,11 @@ func (s *Stream) connHasClosed() {
 	if !s.inset.isrange(0, s.insize) && s.inresetcode == -1 {
 		if localClose {
 			s.inclosed.set()
+			s.inbufmu.Lock()
+			s.inbuf = nil
+			s.inbufoff = 0
+			s.inbufmu.Unlock()
+			s.in.discardBefore(s.in.end)
 		} else {
 			s.inresetcode = streamResetByConnClose
 		}
@@ -737,7 +743,7 @@ func (s *Stream) inUnlockNoQueue() streamState {
 		state = streamInDone
 	case s.inresetcode != -1: // reset by peer
 		fallthrough
-	case s.in.start == s.insize: // all data received and read
+	case s.in.start == s.insize && s.inset.isrange(0, s.insize): // all data received and read
 		// We don't increase MAX_STREAMS until the user calls ReadClose or Close,
 		// so the receive side is not finished until inclosed is set.
 		if s.inclosed.isSet() {
@@ -820,16 +826,31 @@ func (s *Stream) handleData(off int64, b []byte, fin bool) error {
 	if err := s.checkStreamBounds(end, fin); err != nil {
 		return err
 	}
-	if s.inclosed.isSet() || s.inresetcode != -1 {
-		// The user read-closed the stream, or the peer reset it.
-		// Either way, we can discard this frame.
+	if s.inresetcode != -1 {
+		// The peer reset the stream, so we can discard this frame.
 		return nil
 	}
+	var added int64
 	if s.insize == -1 && end > s.in.end {
-		added := end - s.in.end
+		added = end - s.in.end
 		if err := s.conn.handleStreamBytesReceived(added); err != nil {
 			return err
 		}
+	}
+	if s.inclosed.isSet() {
+		// We read-closed the stream: discard data without buffering,
+		// but keep tracking flow control and ranges so FIN can retire it.
+		if added > 0 {
+			s.conn.handleStreamBytesReadOnLoop(added)
+			// Read-closed streams are guaranteed to hold no buffered data.
+			// Just move s.in past the discarded bytes, no need to clear s.inbuf.
+			s.in.discardBefore(end)
+		}
+		s.inset.add(off, end)
+		if fin {
+			s.insize = end
+		}
+		return nil
 	}
 	if len(s.inset) > 0 && s.inset[0].contains(off) {
 		// We've received at least some of this data,
