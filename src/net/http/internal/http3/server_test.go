@@ -736,7 +736,7 @@ func TestServerShutdownGoaway(t *testing.T) {
 			ts.s.shutdown(t.Context())
 			shutdownComplete <- struct{}{}
 		}()
-		control.wantGoaway((requestCount - 1) * 4) // Request stream ID goes from 0, 4, 8, ...
+		control.wantGoaway(requestCount * 4) // Request stream ID goes from 0, 4, 8, ...
 		<-shutdownComplete
 	})
 }

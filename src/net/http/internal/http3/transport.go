@@ -222,6 +222,7 @@ type clientConn struct {
 	reserved int
 	active   int
 	closed   bool
+	goaway   bool // received GOAWAY frame from server.
 
 	stateHook func() error
 }
@@ -303,6 +304,9 @@ func (cc *clientConn) Err() error {
 	if cc.closed {
 		return errors.New("connection closed")
 	}
+	if cc.goaway {
+		return errGoaway
+	}
 	return nil
 }
 
@@ -311,6 +315,9 @@ func (cc *clientConn) Reserve() error {
 	defer cc.mu.Unlock()
 	if cc.closed {
 		return errors.New("connection closed")
+	}
+	if cc.goaway {
+		return errGoaway
 	}
 	cc.reserved++
 	return nil
@@ -329,7 +336,7 @@ func (cc *clientConn) Release() {
 func (cc *clientConn) Available() int {
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
-	if cc.closed {
+	if cc.closed || cc.goaway {
 		return 0
 	}
 	// The general recommendation for HTTP/3 is to reuse the same connection
@@ -397,6 +404,7 @@ func (cc *clientConn) handleControlStream(st *stream) error {
 		return err
 	}
 
+	lastGoawayID := int64(math.MaxInt64)
 	for {
 		ftype, err := st.readFrameHeader()
 		if err != nil {
@@ -413,9 +421,35 @@ func (cc *clientConn) handleControlStream(st *stream) error {
 				message: "CANCEL_PUSH received when no MAX_PUSH_ID has been sent",
 			}
 		case frameTypeGoaway:
-			// TODO: Wait for requests to complete before closing connection.
-			// TODO: Mark connection as unavailable / reject new reservations.
-			return errH3NoError
+			// TODO: Abort requests on streams at or above this ID with
+			// errRequestRejected, so they are retried even if the server
+			// doesn't reset them. For now, we rely on the server rejecting
+			// them with H3_REQUEST_REJECTED.
+			id, err := st.readVarint()
+			if err != nil {
+				return err
+			}
+			if err := st.endFrame(); err != nil {
+				return err
+			}
+			// "A client MUST treat receipt of a GOAWAY frame containing a stream ID
+			// of any other type as a connection error of type H3_ID_ERROR."
+			// https://www.rfc-editor.org/rfc/rfc9114.html#section-7.2.6-3
+			//
+			// "Receiving a GOAWAY containing a larger identifier than previously
+			// received MUST be treated as a connection error of type H3_ID_ERROR."
+			// https://www.rfc-editor.org/rfc/rfc9114.html#section-5.2-7
+			if id%4 != 0 || id > lastGoawayID {
+				return &connectionError{
+					code:    errH3IDError,
+					message: "invalid stream ID in GOAWAY",
+				}
+			}
+			lastGoawayID = id
+			cc.mu.Lock()
+			cc.goaway = true
+			cc.mu.Unlock()
+			cc.maybeCallStateHook()
 		default:
 			// Unknown frames are ignored.
 			if err := st.discardUnknownFrame(ftype); err != nil {

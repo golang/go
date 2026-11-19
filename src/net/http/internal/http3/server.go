@@ -233,10 +233,10 @@ type serverConn struct {
 	maxHeaderValueCount int64
 
 	// For handling shutdown.
-	controlStream      *stream
-	mu                 sync.Mutex // Guards everything below.
-	maxRequestStreamID int64
-	goawaySent         bool
+	controlStream       *stream
+	mu                  sync.Mutex // Guards everything below.
+	nextRequestStreamID int64
+	goawaySent          bool
 }
 
 // newServerConn handles a new connection.
@@ -517,10 +517,10 @@ func (sc *serverConn) sendGoaway() {
 	sc.mu.Unlock()
 
 	// No lock in this section in case writing to stream blocks. This is safe
-	// since sc.maxRequestStreamID is only updated when sc.goawaySent is false.
+	// since sc.nextRequestStreamID is only updated when sc.goawaySent is false.
 	sc.controlStream.writeVarint(int64(frameTypeGoaway))
-	sc.controlStream.writeVarint(int64(sizeVarint(uint64(sc.maxRequestStreamID))))
-	sc.controlStream.writeVarint(sc.maxRequestStreamID)
+	sc.controlStream.writeVarint(int64(sizeVarint(uint64(sc.nextRequestStreamID))))
+	sc.controlStream.writeVarint(sc.nextRequestStreamID)
 	sc.controlStream.Flush()
 }
 
@@ -530,9 +530,9 @@ func (sc *serverConn) requestShouldGoaway(st *stream) bool {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
 	if sc.goawaySent {
-		return st.stream.ID() >= sc.maxRequestStreamID
+		return st.stream.ID() >= sc.nextRequestStreamID
 	} else {
-		sc.maxRequestStreamID = max(sc.maxRequestStreamID, st.stream.ID())
+		sc.nextRequestStreamID = max(sc.nextRequestStreamID, st.stream.ID()+4)
 		return false
 	}
 }

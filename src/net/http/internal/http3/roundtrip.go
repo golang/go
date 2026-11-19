@@ -140,6 +140,11 @@ func (rt *roundTripState) maybeCallWait100Continue() {
 	rt.trace.Wait100Continue()
 }
 
+var (
+	errGoaway          = internal.RetryableError{Err: "http3: server sent GOAWAY", Backoff: true}
+	errRequestRejected = internal.RetryableError{Err: "http3: server rejected request", Backoff: true}
+)
+
 // RoundTrip sends a request on the connection.
 func (cc *clientConn) RoundTrip(req *http.Request) (_ *http.Response, err error) {
 	cc.mu.Lock()
@@ -147,6 +152,13 @@ func (cc *clientConn) RoundTrip(req *http.Request) (_ *http.Response, err error)
 	if cc.reserved > 0 {
 		cc.reserved--
 		wasReserved = true
+	}
+	if cc.goaway {
+		cc.mu.Unlock()
+		if wasReserved {
+			cc.maybeCallStateHook()
+		}
+		return nil, errGoaway
 	}
 	cc.active++
 	cc.mu.Unlock()
@@ -178,6 +190,9 @@ func (cc *clientConn) RoundTrip(req *http.Request) (_ *http.Response, err error)
 	defer func() {
 		if err != nil {
 			err = rt.abort(err)
+			if errors.Is(err, quic.StreamError(errH3RequestRejected)) {
+				err = errRequestRejected
+			}
 
 			// Close the request body, and wait for writeBodyAndTrailer to
 			// finish with it, before returning.

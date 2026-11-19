@@ -720,7 +720,7 @@ func (t *Transport) roundTrip(req *Request) (_ *Response, err error) {
 		if !backoff {
 			continue
 		}
-		if pconn.cc.Proto() == 2 && retry > 0 {
+		if pconn.cc.Proto() >= 2 && retry > 0 {
 			// After the first retry, do exponential backoff with 10% jitter.
 			backoff := float64(uint(1) << (uint(retry) - 1))
 			backoff += backoff * (0.1 * rand.Float64())

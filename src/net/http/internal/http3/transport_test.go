@@ -215,6 +215,125 @@ func TestClientConnMethods(t *testing.T) {
 	})
 }
 
+func TestClientConnGoaway(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		hookCalled := false
+		tc := newTestClientConnWithHook(t, func() error {
+			hookCalled = true
+			return nil
+		})
+		tc.greet()
+
+		req1, _ := http.NewRequest("GET", "https://example.com/1", nil)
+		rt1 := tc.roundTrip(req1)
+		st1 := tc.wantStream(streamTypeRequest)
+		st1.wantHeaders(nil)
+
+		req2, _ := http.NewRequest("GET", "https://example.com/2", nil)
+		rt2 := tc.roundTrip(req2)
+		st2 := tc.wantStream(streamTypeRequest)
+		st2.wantHeaders(nil)
+
+		// Server processes the first request (stream 0), but not the second one (stream 4).
+		tc.control.writeGoaway(4)
+		synctest.Wait()
+		if !hookCalled {
+			t.Errorf("state hook was not called after GOAWAY")
+		}
+		if err := tc.cc.Err(); err == nil {
+			t.Errorf("after GOAWAY, cc.Err() = nil, want error")
+		}
+		if avail := tc.cc.Available(); avail != 0 {
+			t.Errorf("after GOAWAY, cc.Available() = %v, want 0", avail)
+		}
+		req3, _ := http.NewRequest("GET", "https://example.com/3", nil)
+		if _, err := tc.cc.RoundTrip(req3); !errors.Is(err, errGoaway) {
+			t.Errorf("after GOAWAY, cc.RoundTrip() = %v, want %v", err, errGoaway)
+		}
+
+		st2.Reset(uint64(errH3RequestRejected))
+		if err := rt2.err(); !errors.Is(err, errRequestRejected) {
+			t.Errorf("rejected request: RoundTrip error = %v, want %v", err, errRequestRejected)
+		}
+
+		st1.writeHeaders(http.Header{":status": {"200"}})
+		rt1.wantStatus(200)
+	})
+}
+
+func TestClientConnGoawayInvalidID(t *testing.T) {
+	for _, tt := range []struct {
+		name       string
+		streamIDs  []int64
+		wantClosed bool
+	}{{
+		name:       "server-initiated stream",
+		streamIDs:  []int64{1},
+		wantClosed: true,
+	}, {
+		name:       "unidirectional stream",
+		streamIDs:  []int64{2},
+		wantClosed: true,
+	}, {
+		name:      "decreasing ID",
+		streamIDs: []int64{8, 4},
+	}, {
+		name:       "increasing ID",
+		streamIDs:  []int64{4, 8},
+		wantClosed: true,
+	}} {
+		synctest.Subtest(t, tt.name, func(t *testing.T) {
+			tc := newTestClientConn(t)
+			tc.greet()
+			for _, id := range tt.streamIDs {
+				tc.control.writeGoaway(id)
+			}
+			if tt.wantClosed {
+				tc.wantClosed("after GOAWAY with invalid stream ID", errH3IDError)
+			} else {
+				tc.wantNotClosed("after GOAWAY with valid stream IDs")
+			}
+		})
+	}
+}
+
+func TestClientConnGoawayConsumesReservation(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		called := false
+		tc := newTestClientConnWithHook(t, func() error {
+			called = true
+			return nil
+		})
+		tc.greet()
+
+		// The pool reserves the conn, then GOAWAY arrives before RoundTrip.
+		if err := tc.cc.Reserve(); err != nil {
+			t.Fatalf("cc.Reserve() = %v", err)
+		}
+		tc.control.writeGoaway(0)
+		synctest.Wait()
+		if !called {
+			t.Fatalf("state hook not called after GOAWAY")
+		}
+		if got := tc.cc.InFlight(); got != 1 {
+			t.Fatalf("after GOAWAY, cc.InFlight() = %v, want 1", got)
+		}
+
+		called = false
+		req, _ := http.NewRequest("GET", "https://example.com/", nil)
+		if _, err := tc.cc.RoundTrip(req); !errors.Is(err, errGoaway) {
+			t.Fatalf("cc.RoundTrip() = %v, want %v", err, errGoaway)
+		}
+		if got := tc.cc.InFlight(); got != 0 {
+			t.Fatalf("after RoundTrip, cc.InFlight() = %v, want 0", got)
+		}
+		// The pool must learn that the drained conn is now idle.
+		if !called {
+			t.Errorf("state hook not called after RoundTrip consumed the reservation and returned errGoaway")
+		}
+	})
+}
+
 // A testQUICConn wraps a *quic.Conn and provides methods for inspecting it.
 type testQUICConn struct {
 	t       testing.TB
@@ -575,6 +694,14 @@ func (ts *testQUICStream) wantGoaway(wantID int64) {
 	if gotID != wantID {
 		ts.t.Fatalf("got stream ID %v from GOAWAY frame, want %v stream ID", gotID, wantID)
 	}
+}
+
+func (ts *testQUICStream) writeGoaway(id int64) {
+	ts.t.Helper()
+	ts.writeVarint(int64(frameTypeGoaway))
+	ts.writeVarint(int64(sizeVarint(uint64(id))))
+	ts.writeVarint(id)
+	ts.Flush()
 }
 
 func (ts *testQUICStream) writePushPromise(pushID int64, h http.Header) {
