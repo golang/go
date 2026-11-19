@@ -262,7 +262,7 @@ func (s *CertPool) AppendCertsFromPEM(pemCerts []byte) (ok bool) {
 func (s *CertPool) Subjects() [][]byte {
 	res := make([][]byte, s.len())
 	for i, lc := range s.lazyCerts {
-		res[i] = lc.rawSubject
+		res[i] = bytes.Clone(lc.rawSubject)
 	}
 	return res
 }

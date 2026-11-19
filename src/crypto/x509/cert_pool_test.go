@@ -4,7 +4,24 @@
 
 package x509
 
-import "testing"
+import (
+	"bytes"
+	"testing"
+)
+
+func TestCertPoolSubjectsCopies(t *testing.T) {
+	subject := []byte{1, 2, 3}
+	pool := NewCertPool()
+	pool.AddCert(&Certificate{Raw: []byte{4, 5, 6}, RawSubject: bytes.Clone(subject)})
+	clone := pool.Clone()
+	returned := pool.Subjects()
+	returned[0][0] ^= 0xff
+	for _, p := range []*CertPool{pool, clone} {
+		if got := p.Subjects(); len(got) != 1 || !bytes.Equal(got[0], subject) {
+			t.Errorf("mutating returned subjects changed the pool: %x", got)
+		}
+	}
+}
 
 func TestCertPoolEqual(t *testing.T) {
 	tc := &Certificate{Raw: []byte{1, 2, 3}, RawSubject: []byte{2}}
