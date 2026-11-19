@@ -122,7 +122,9 @@ func (s *server) serve(ctx context.Context, e *quic.Endpoint) error {
 		if err != nil {
 			return err
 		}
-		go s.newServerConn(s.connContext(ctx, qconn), qconn)
+		connCtx := s.connContext(ctx, qconn)
+		s.connState(qconn, http.StateNew) // before serve can return
+		go s.newServerConn(connCtx, qconn)
 	}
 }
 
@@ -236,6 +238,12 @@ func (s *server) connContext(ctx context.Context, qconn *quic.Conn) context.Cont
 	return s.srv1.ConnContext(ctx, quicNetConn{qconn})
 }
 
+func (s *server) connState(qconn *quic.Conn, state http.ConnState) {
+	if s.srv1 != nil && s.srv1.ConnState != nil {
+		s.srv1.ConnState(quicNetConn{qconn}, state)
+	}
+}
+
 type serverConn struct {
 	qconn    *quic.Conn
 	srv      *server
@@ -256,7 +264,8 @@ type serverConn struct {
 	nextRequestStreamID int64 // Guarded by mu here and below.
 	goawaySent          bool
 
-	activeRequests int // Guarded by mu.
+	activeRequests int // Guarded by mu here and below.
+	state          http.ConnState
 }
 
 // newServerConn handles a new connection.
@@ -276,6 +285,7 @@ func (s *server) newServerConn(baseCtx context.Context, qconn *quic.Conn) {
 		maxHeaderBytes:      int64(s.srv1.MaxHeaderBytes),
 		maxHeaderValueCount: int64(s.srv1.MaxHeaderValueCount),
 	}
+	defer sc.setState(http.StateClosed)
 
 	// Should we permit disabling these limits? For now, we do not.
 	if sc.maxHeaderBytes <= 0 {
@@ -557,11 +567,15 @@ func (sc *serverConn) requestShouldGoaway(st *stream) bool {
 	}
 }
 
-// startRequest and endRequest keep track of the requests being handled.
+// startRequest and endRequest keep track of the requests being handled,
+// and update the connection state accordingly.
 func (sc *serverConn) startRequest() {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
 	sc.activeRequests++
+	if sc.activeRequests == 1 {
+		sc.setStateLocked(http.StateActive)
+	}
 }
 
 func (sc *serverConn) endRequest() {
@@ -571,11 +585,31 @@ func (sc *serverConn) endRequest() {
 	if sc.activeRequests > 0 {
 		return
 	}
+	sc.setStateLocked(http.StateIdle)
 	// The connection is now idle. Send GOAWAY to indicate to client that it
 	// should close the connection.
 	if sc.srv.disableKeepAlives.Load() {
 		go sc.sendGoaway()
 	}
+}
+
+// setState sets the state of the connection, and reports it to the
+// Server.ConnState hook.
+func (sc *serverConn) setState(state http.ConnState) {
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+	sc.setStateLocked(state)
+}
+
+// setStateLocked is like setState, but sc.mu must be held.
+func (sc *serverConn) setStateLocked(state http.ConnState) {
+	if sc.state == http.StateClosed {
+		// Request handlers can still be running after the connection
+		// has closed, but StateClosed is final.
+		return
+	}
+	sc.state = state
+	sc.srv.connState(sc.qconn, state)
 }
 
 func (sc *serverConn) newResponseWriter(st *stream, hasBody bool) *responseWriter {

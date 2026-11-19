@@ -131,17 +131,6 @@ func (s *Server) ExportAllConnsIdle() bool {
 	return true
 }
 
-func (s *Server) ExportAllConnsByState() map[ConnState]int {
-	states := map[ConnState]int{}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for c := range s.activeConn {
-		st, _ := c.getState()
-		states[st] += 1
-	}
-	return states
-}
-
 func (r *Request) WithT(t *testing.T) *Request {
 	return r.WithContext(context.WithValue(r.Context(), tLogKey{}, t.Logf))
 }

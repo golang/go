@@ -6011,13 +6011,21 @@ func testServerShutdown(t *testing.T, mode testMode) {
 	var cst *clientServerTest
 
 	var once sync.Once
+	var connStatesMu sync.Mutex
+	connStates := map[net.Conn]ConnState{}
 	statesRes := make(chan map[ConnState]int, 1)
 	shutdownRes := make(chan error, 1)
 	gotOnShutdown := make(chan struct{})
 	handler := HandlerFunc(func(w ResponseWriter, r *Request) {
 		first := false
 		once.Do(func() {
-			statesRes <- cst.ts.Config.ExportAllConnsByState()
+			states := map[ConnState]int{}
+			connStatesMu.Lock()
+			for _, st := range connStates {
+				states[st]++
+			}
+			connStatesMu.Unlock()
+			statesRes <- states
 			go func() {
 				shutdownRes <- cst.ts.Config.Shutdown(context.Background())
 			}()
@@ -6054,6 +6062,11 @@ func testServerShutdown(t *testing.T, mode testMode) {
 
 	cst = newClientServerTest(t, mode, handler, optRealNet, func(srv *httptest.Server) {
 		srv.Config.RegisterOnShutdown(func() { close(gotOnShutdown) })
+		srv.Config.ConnState = func(c net.Conn, st ConnState) {
+			connStatesMu.Lock()
+			defer connStatesMu.Unlock()
+			connStates[c] = st
+		}
 	})
 
 	out := get(t, cst.c, cst.ts.URL) // calls t.Fail on failure
@@ -6064,8 +6077,7 @@ func testServerShutdown(t *testing.T, mode testMode) {
 	}
 	<-gotOnShutdown // Will hang if RegisterOnShutdown is broken.
 
-	// TODO: Support Server.ConnState in HTTP/3.
-	if states := <-statesRes; mode != http3Mode && states[StateActive] != 1 {
+	if states := <-statesRes; states[StateActive] != 1 {
 		t.Errorf("connection in wrong state, %v", states)
 	}
 }
