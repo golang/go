@@ -235,11 +235,8 @@ var SECURITY_NT_AUTHORITY = SID_IDENTIFIER_AUTHORITY{
 //sys	getSidIdentifierAuthority(sid *syscall.SID) (idauth uintptr) = advapi32.GetSidIdentifierAuthority
 //sys	getSidSubAuthority(sid *syscall.SID, subAuthorityIdx uint32) (subAuth uintptr) = advapi32.GetSidSubAuthority
 //sys	getSidSubAuthorityCount(sid *syscall.SID) (count uintptr) = advapi32.GetSidSubAuthorityCount
-//sys	freeSid(sid *syscall.SID) (rsid *syscall.SID) = advapi32.FreeSid
-//sys	createAppContainerProfile(appContainerName *uint16, displayName *uint16, description *uint16, capabilities *syscall.SIDAndAttributes, capabilityCount uint32, appContainerSid **syscall.SID) (ret error) = userenv.CreateAppContainerProfile
-//sys	DeleteAppContainerProfile(appContainerName *uint16) (ret error) = userenv.DeleteAppContainerProfile
 
-// The following GetSid* and FreeSid functions are marked as //go:nocheckptr because checkptr
+// The following GetSid* functions are marked as //go:nocheckptr because checkptr
 // instrumentation can't see that the pointer returned by the syscall is pointing
 // into the sid's memory, which is normally allocated on the Go heap. Therefore,
 // the checkptr instrumentation would incorrectly flag the pointer dereference
@@ -264,16 +261,4 @@ func GetSidSubAuthority(sid *syscall.SID, subAuthorityIdx uint32) uint32 {
 func GetSidSubAuthorityCount(sid *syscall.SID) uint8 {
 	defer runtime.KeepAlive(sid)
 	return *(*uint8)(unsafe.Pointer(getSidSubAuthorityCount(sid)))
-}
-
-//go:nocheckptr
-func FreeSid(sid *syscall.SID) *syscall.SID {
-	defer runtime.KeepAlive(sid)
-	return freeSid(sid)
-}
-
-//go:nocheckptr
-func CreateAppContainerProfile(appContainerName *uint16, displayName *uint16, description *uint16, capabilities *syscall.SIDAndAttributes, capabilityCount uint32, appContainerSid **syscall.SID) (ret error) {
-	defer runtime.KeepAlive(appContainerSid)
-	return createAppContainerProfile(appContainerName, displayName, description, capabilities, capabilityCount, appContainerSid)
 }

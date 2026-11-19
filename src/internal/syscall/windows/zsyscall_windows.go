@@ -49,7 +49,6 @@ var (
 
 	procAdjustTokenPrivileges             = modadvapi32.NewProc("AdjustTokenPrivileges")
 	procDuplicateTokenEx                  = modadvapi32.NewProc("DuplicateTokenEx")
-	procFreeSid                           = modadvapi32.NewProc("FreeSid")
 	procGetSidIdentifierAuthority         = modadvapi32.NewProc("GetSidIdentifierAuthority")
 	procGetSidSubAuthority                = modadvapi32.NewProc("GetSidSubAuthority")
 	procGetSidSubAuthorityCount           = modadvapi32.NewProc("GetSidSubAuthorityCount")
@@ -71,7 +70,6 @@ var (
 	procCancelSynchronousIo               = modkernel32.NewProc("CancelSynchronousIo")
 	procCreateEventW                      = modkernel32.NewProc("CreateEventW")
 	procCreateIoCompletionPort            = modkernel32.NewProc("CreateIoCompletionPort")
-	procCreateJobObjectW                  = modkernel32.NewProc("CreateJobObjectW")
 	procCreateNamedPipeW                  = modkernel32.NewProc("CreateNamedPipeW")
 	procGetACP                            = modkernel32.NewProc("GetACP")
 	procGetComputerNameExW                = modkernel32.NewProc("GetComputerNameExW")
@@ -96,7 +94,6 @@ var (
 	procRtlLookupFunctionEntry            = modkernel32.NewProc("RtlLookupFunctionEntry")
 	procRtlVirtualUnwind                  = modkernel32.NewProc("RtlVirtualUnwind")
 	procSetFileInformationByHandle        = modkernel32.NewProc("SetFileInformationByHandle")
-	procSetInformationJobObject           = modkernel32.NewProc("SetInformationJobObject")
 	procUnlockFileEx                      = modkernel32.NewProc("UnlockFileEx")
 	procVirtualQuery                      = modkernel32.NewProc("VirtualQuery")
 	procNetShareAdd                       = modnetapi32.NewProc("NetShareAdd")
@@ -112,9 +109,7 @@ var (
 	procRtlIsDosDeviceName_U              = modntdll.NewProc("RtlIsDosDeviceName_U")
 	procRtlNtStatusToDosErrorNoTeb        = modntdll.NewProc("RtlNtStatusToDosErrorNoTeb")
 	procGetProcessMemoryInfo              = modpsapi.NewProc("GetProcessMemoryInfo")
-	procCreateAppContainerProfile         = moduserenv.NewProc("CreateAppContainerProfile")
 	procCreateEnvironmentBlock            = moduserenv.NewProc("CreateEnvironmentBlock")
-	procDeleteAppContainerProfile         = moduserenv.NewProc("DeleteAppContainerProfile")
 	procDestroyEnvironmentBlock           = moduserenv.NewProc("DestroyEnvironmentBlock")
 	procGetProfilesDirectoryW             = moduserenv.NewProc("GetProfilesDirectoryW")
 	procWSADuplicateSocketW               = modws2_32.NewProc("WSADuplicateSocketW")
@@ -140,12 +135,6 @@ func DuplicateTokenEx(hExistingToken syscall.Token, dwDesiredAccess uint32, lpTo
 	if uint32(r1) == 0 {
 		err = errnoErr(e1)
 	}
-	return
-}
-
-func freeSid(sid *syscall.SID) (rsid *syscall.SID) {
-	r0, _, _ := syscall.SyscallN(procFreeSid.Addr(), uintptr(unsafe.Pointer(sid)))
-	rsid = (*syscall.SID)(unsafe.Pointer(r0))
 	return
 }
 
@@ -323,15 +312,6 @@ func CreateEvent(eventAttrs *SecurityAttributes, manualReset uint32, initialStat
 
 func CreateIoCompletionPort(filehandle syscall.Handle, cphandle syscall.Handle, key uintptr, threadcnt uint32) (handle syscall.Handle, err error) {
 	r0, _, e1 := syscall.SyscallN(procCreateIoCompletionPort.Addr(), uintptr(filehandle), uintptr(cphandle), uintptr(key), uintptr(threadcnt))
-	handle = syscall.Handle(r0)
-	if handle == 0 {
-		err = errnoErr(e1)
-	}
-	return
-}
-
-func CreateJobObject(jobAttrs *syscall.SecurityAttributes, name *uint16) (handle syscall.Handle, err error) {
-	r0, _, e1 := syscall.SyscallN(procCreateJobObjectW.Addr(), uintptr(unsafe.Pointer(jobAttrs)), uintptr(unsafe.Pointer(name)))
 	handle = syscall.Handle(r0)
 	if handle == 0 {
 		err = errnoErr(e1)
@@ -533,14 +513,6 @@ func SetFileInformationByHandle(handle syscall.Handle, fileInformationClass uint
 	return
 }
 
-func SetInformationJobObject(job syscall.Handle, infoclass uint32, info uintptr, infolien uint32) (err error) {
-	r1, _, e1 := syscall.SyscallN(procSetInformationJobObject.Addr(), uintptr(job), uintptr(infoclass), uintptr(info), uintptr(infolien))
-	if r1 == 0 {
-		err = errnoErr(e1)
-	}
-	return
-}
-
 func UnlockFileEx(file syscall.Handle, reserved uint32, bytesLow uint32, bytesHigh uint32, overlapped *syscall.Overlapped) (err error) {
 	r1, _, e1 := syscall.SyscallN(procUnlockFileEx.Addr(), uintptr(file), uintptr(reserved), uintptr(bytesLow), uintptr(bytesHigh), uintptr(unsafe.Pointer(overlapped)))
 	if uint32(r1) == 0 {
@@ -654,14 +626,6 @@ func GetProcessMemoryInfo(handle syscall.Handle, memCounters *PROCESS_MEMORY_COU
 	return
 }
 
-func createAppContainerProfile(appContainerName *uint16, displayName *uint16, description *uint16, capabilities *syscall.SIDAndAttributes, capabilityCount uint32, appContainerSid **syscall.SID) (ret error) {
-	r0, _, _ := syscall.SyscallN(procCreateAppContainerProfile.Addr(), uintptr(unsafe.Pointer(appContainerName)), uintptr(unsafe.Pointer(displayName)), uintptr(unsafe.Pointer(description)), uintptr(unsafe.Pointer(capabilities)), uintptr(capabilityCount), uintptr(unsafe.Pointer(appContainerSid)))
-	if r0 != 0 {
-		ret = syscall.Errno(r0)
-	}
-	return
-}
-
 func CreateEnvironmentBlock(block **uint16, token syscall.Token, inheritExisting bool) (err error) {
 	var _p0 uint32
 	if inheritExisting {
@@ -670,14 +634,6 @@ func CreateEnvironmentBlock(block **uint16, token syscall.Token, inheritExisting
 	r1, _, e1 := syscall.SyscallN(procCreateEnvironmentBlock.Addr(), uintptr(unsafe.Pointer(block)), uintptr(token), uintptr(_p0))
 	if uint32(r1) == 0 {
 		err = errnoErr(e1)
-	}
-	return
-}
-
-func DeleteAppContainerProfile(appContainerName *uint16) (ret error) {
-	r0, _, _ := syscall.SyscallN(procDeleteAppContainerProfile.Addr(), uintptr(unsafe.Pointer(appContainerName)))
-	if r0 != 0 {
-		ret = syscall.Errno(r0)
 	}
 	return
 }
