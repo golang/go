@@ -40,6 +40,16 @@
 (SBBQ x y (FlagEQ)) => (SUBQborrow x y)
 (SBBQconst x [c] (FlagEQ)) => (SUBQconstborrow x [c])
 (SUBQborrow x (MOVQconst [c])) && ssa.Is32Bit(c) => (SUBQconstborrow x [int32(c)])
+// Constant carry/borrow in. With the carry clear, use the carry-less ops.
+// With the carry set, materialize it: NEGL of a nonzero value sets CF.
+(ADCQ x y (Flag(LT_UGT|GT_UGT))) => (ADDQcarry x y)
+(ADCQconst x [c] (Flag(LT_UGT|GT_UGT))) => (ADDQconstcarry x [c])
+(SBBQ x y (Flag(LT_UGT|GT_UGT))) => (SUBQborrow x y)
+(SBBQconst x [c] (Flag(LT_UGT|GT_UGT))) => (SUBQconstborrow x [c])
+(ADCQ x y (Flag(LT_ULT|GT_ULT))) => (ADCQ x y (Select1 <types.TypeFlags> (NEGLflags (MOVLconst [1]))))
+(ADCQconst x [c] (Flag(LT_ULT|GT_ULT))) => (ADCQconst x [c] (Select1 <types.TypeFlags> (NEGLflags (MOVLconst [1]))))
+(SBBQ x y (Flag(LT_ULT|GT_ULT))) => (SBBQ x y (Select1 <types.TypeFlags> (NEGLflags (MOVLconst [1]))))
+(SBBQconst x [c] (Flag(LT_ULT|GT_ULT))) => (SBBQconst x [c] (Select1 <types.TypeFlags> (NEGLflags (MOVLconst [1]))))
 (Select1 (NEGLflags (MOVQconst [0]))) => (FlagEQ)
 (Select1 (NEGLflags (MOVBQZX (SETB x)))) => x
 // Absorb InvertFlags into ADCQ/SBBQ: CF(InvertFlags(f)) = SETA(f), so

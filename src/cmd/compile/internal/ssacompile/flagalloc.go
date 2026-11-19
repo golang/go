@@ -112,9 +112,50 @@ func flagalloc(f *ssa.Func) {
 		}
 	}
 
-	// Add flag spill and recomputation where they are needed.
+	// Recomputing a flag value also recomputes any flags or tuple
+	// values it takes as arguments (see copyFlags). Those arguments
+	// are copied just like the flag value itself, so they are subject
+	// to the same restrictions; mark them as well.
+	var markArgs func(v *ssa.Value)
+	markArgs = func(v *ssa.Value) {
+		for _, a := range v.Args {
+			if (a.Type.IsFlags() || a.Type.IsTuple()) && !spill[a.ID] {
+				spill[a.ID] = true
+				markArgs(a)
+			}
+		}
+	}
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			if spill[v.ID] {
+				markArgs(v)
+			}
+		}
+	}
+
+	// If a value will be recomputed, and it uses memory, then we must
+	// split it into a load + a flag generator. Do this for all such
+	// values before recomputing anything, so that no copy is made of
+	// an unsplit value, regardless of the order in which we visit blocks.
 	var remove []*ssa.Value // values that should be checked for possible removal
 	var oldSched []*ssa.Value
+	for _, b := range f.Blocks {
+		oldSched = append(oldSched[:0], b.Values...)
+		b.Values = b.Values[:0]
+		for _, v := range oldSched {
+			if spill[v.ID] && v.MemoryArg() != nil {
+				remove = append(remove, v)
+				// SplitLoad appends the new load to b.Values,
+				// which places it just before v.
+				if !f.Config.SplitLoad(v) {
+					f.Fatalf("can't split flag generator: %s", v.LongString())
+				}
+			}
+			b.Values = append(b.Values, v)
+		}
+	}
+
+	// Add flag spill and recomputation where they are needed.
 	for _, b := range f.Blocks {
 		oldSched = append(oldSched[:0], b.Values...)
 		b.Values = b.Values[:0]
@@ -133,15 +174,6 @@ func flagalloc(f *ssa.Func) {
 		for _, v := range oldSched {
 			if v.Op == ssaop.OpPhi && v.Type.IsFlags() {
 				f.Fatalf("phi of flags not supported: %s", v.LongString())
-			}
-
-			// If v will be spilled, and v uses memory, then we must split it
-			// into a load + a flag generator.
-			if spill[v.ID] && v.MemoryArg() != nil {
-				remove = append(remove, v)
-				if !f.Config.SplitLoad(v) {
-					f.Fatalf("can't split flag generator: %s", v.LongString())
-				}
 			}
 
 			// Make sure any flag arg of v is in the flags register.
