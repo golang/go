@@ -22,7 +22,7 @@ var parseTests = []struct {
 	body   string
 }{
 	{
-		// RFC 5322, Appendix A.1.1
+		// Comments and folding whitespace in addr-spec (RFC 5322, Appendix A.5).
 		in: `From: John Doe <jdoe@machine.example>
 To: Mary Smith <mary@example.net>
 Subject: Saying Hello
@@ -429,6 +429,23 @@ func TestAddressParsing(t *testing.T) {
 			[]*Address{{
 				Address: "jdoe@machine.example",
 			}},
+		},
+		// RFC 5322, Appendix A.1.1
+		{
+			`Pete(A nice \) chap) <pete(his account)@silly.test(his host)>`,
+			[]*Address{{Name: "Pete", Address: "pete@silly.test"}},
+		},
+		{
+			`< (local) "pete" (account) @ (host) silly.test (domain) >`,
+			[]*Address{{Address: "pete@silly.test"}},
+		},
+		{
+			`pete(account)@(host)silly.test (Pete)`,
+			[]*Address{{Name: "Pete", Address: "pete@silly.test"}},
+		},
+		{
+			`Pete <pete@(host)[127.0.0.1](address)>`,
+			[]*Address{{Name: "Pete", Address: "pete@[127.0.0.1]"}},
 		},
 		// RFC 5322, Appendix A.1.1
 		{
