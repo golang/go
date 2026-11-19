@@ -41,9 +41,10 @@ type server struct {
 	// connClosed is used to signal that a connection has been unregistered
 	// from activeConns. That way, when shutting down gracefully, the server
 	// can avoid busy-waiting for activeConns to be empty.
-	connClosed  chan any
-	mu          sync.Mutex // Guards fields below.
-	activeConns map[*serverConn]struct{}
+	connClosed   chan any
+	mu           sync.Mutex // Guards fields below.
+	activeConns  map[*serverConn]struct{}
+	shuttingDown bool
 }
 
 // netHTTPServer implements the net/http.http3Server interface,
@@ -137,6 +138,7 @@ func (s *server) shutdown(ctx context.Context) {
 	// Send GOAWAY frames to all active connections to give a chance for them
 	// to gracefully terminate.
 	s.mu.Lock()
+	s.shuttingDown = true
 	for sc := range s.activeConns {
 		// TODO: Modify x/net/quic stream API so that write errors from context
 		// deadline are sticky.
@@ -176,6 +178,13 @@ func (s *server) shutdown(ctx context.Context) {
 func (s *server) registerConn(sc *serverConn) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.shuttingDown {
+		sc.abort(&connectionError{
+			code:    errH3NoError,
+			message: "server is shutting down",
+		})
+		return
+	}
 	s.activeConns[sc] = struct{}{}
 }
 

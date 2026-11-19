@@ -6006,7 +6006,7 @@ func TestServerSetKeepAlivesEnabledClosesConns(t *testing.T) {
 	})
 }
 
-func TestServerShutdown(t *testing.T) { runNoSynctest(t, testServerShutdown, http3SkippedMode) }
+func TestServerShutdown(t *testing.T) { runNoSynctest(t, testServerShutdown) }
 func testServerShutdown(t *testing.T, mode testMode) {
 	var cst *clientServerTest
 
@@ -6031,6 +6031,8 @@ func testServerShutdown(t *testing.T, mode testMode) {
 			<-gotOnShutdown
 			// TODO(#59038): The HTTP/2 server empirically does not always reject new
 			// requests. As a workaround, loop until we see a failure.
+			// TODO(#70914): The HTTP/3 server also has the same quirk as the
+			// HTTP/2 server.
 			for !t.Failed() {
 				res, err := cst.c.Get(cst.ts.URL)
 				if err != nil {
@@ -6038,7 +6040,7 @@ func testServerShutdown(t *testing.T, mode testMode) {
 				}
 				out, _ := io.ReadAll(res.Body)
 				res.Body.Close()
-				if mode == http2Mode {
+				if mode == http2Mode || mode == http3Mode {
 					t.Logf("%v: unexpected success (%q). Listener should be closed before OnShutdown is called.", cst.ts.URL, out)
 					t.Logf("Retrying to work around https://go.dev/issue/59038.")
 					continue
@@ -6062,7 +6064,8 @@ func testServerShutdown(t *testing.T, mode testMode) {
 	}
 	<-gotOnShutdown // Will hang if RegisterOnShutdown is broken.
 
-	if states := <-statesRes; states[StateActive] != 1 {
+	// TODO: Support Server.ConnState in HTTP/3.
+	if states := <-statesRes; mode != http3Mode && states[StateActive] != 1 {
 		t.Errorf("connection in wrong state, %v", states)
 	}
 }
