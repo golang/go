@@ -94,6 +94,29 @@ go test -vet=bool,buildtags,methods,rangeloops ./good
 [cgo] ! go test -cover ./cgobad
 [cgo] stderr 'cgobad\.go:8:.*fmt\.Sprintf format %d has arg "x" of wrong type string'
 
+# The positions of diagnostics are those of overlay files, even if
+# overlays of the same content at different paths were analyzed before.
+! go test -overlay=ov1.json ./good
+stderr 'o1[/\\]good\.go:5:39: fmt\.Sprintf format %d has arg "x" of wrong type string'
+! go test -overlay=ov2.json ./good
+stderr 'o2[/\\]good\.go:5:39: fmt\.Sprintf format %d has arg "x" of wrong type string'
+
+-- ov1.json --
+{"Replace":{"good/good.go":"o1/good.go"}}
+-- ov2.json --
+{"Replace":{"good/good.go":"o2/good.go"}}
+-- o1/good.go --
+package good
+
+import "fmt"
+
+func F() string { return fmt.Sprintf("%d", "x") }
+-- o2/good.go --
+package good
+
+import "fmt"
+
+func F() string { return fmt.Sprintf("%d", "x") }
 -- go.mod --
 module example.com/m
 

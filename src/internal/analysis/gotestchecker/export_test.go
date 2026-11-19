@@ -17,10 +17,6 @@ func Analyzers(vars []Var) []*analysis.Analyzer {
 	return newGraph(vars).analyzers
 }
 
-// FuncPkgPath returns the import path of the package that declares
-// the function with the specified symbol name.
-func FuncPkgPath(name string) string { return funcPkgPath(name) }
-
 // A FactSet is the set of facts visible to the analysis of a package.
 type FactSet = factSet
 

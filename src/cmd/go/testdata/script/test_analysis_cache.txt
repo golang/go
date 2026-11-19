@@ -1,0 +1,284 @@
+# Tests of the caching of go test's analysis (GOEXPERIMENT=vetfiles),
+# whose results are cached per (package, analyzer). Each line of -x
+# output that runs the tool on an analysis.cfg file analyzes one
+# package; we count them to see which packages were re-analyzed.
+#
+# The cache is shared with other tests, so counts are checked only
+# after a run that has populated it with the results of the standard
+# library.
+
+[short] skip 'builds and runs an analysis tool'
+[!compiler:gc] skip
+
+env GOEXPERIMENT=vetfiles
+
+# a calls the printf wrapper lib.Logf with a bad argument. printf
+# learns that Logf is a wrapper from a fact about lib, so it reports
+# the call in a. lib's own diagnostic is not reported, as lib is not
+# a root package.
+! go test ./a
+stderr 'a.go:10:12: example.com/cache/lib.Logf format %d has arg "x" of wrong type string'
+! stderr 'lib.go'
+
+# A second run uses cached results: the tool analyzes no packages,
+# and its metadata query is not executed. The cached diagnostic is
+# reported again.
+! go test -x ./a
+stderr 'a.go:10:12: example.com/cache/lib.Logf format %d has arg "x" of wrong type string'
+! stderr 'analysistool.* .*analysis\.cfg'
+! stderr 'analysistool.* -describe='
+
+# A change to lib that preserves its types and facts re-analyzes lib
+# but not a (early cutoff).
+cp lib_body.go.txt lib/lib.go
+! go test -x ./a
+stderr 'a.go:10:12: example.com/cache/lib.Logf format %d has arg "x" of wrong type string'
+stderr -count=1 'analysistool.* .*analysis\.cfg'
+
+# A change to lib that preserves its types but changes its facts
+# (Logf is no longer a printf wrapper) re-analyzes both lib and a, and
+# the diagnostic goes away.
+cp lib_nowrap.go.txt lib/lib.go
+go test -x ./a
+stdout '^ok\s+example.com/cache/a'
+! stderr 'Logf format'
+stderr -count=2 'analysistool.* .*analysis\.cfg'
+
+# Restoring lib restores the facts on which a's earlier results were
+# keyed, so both are found in the cache.
+cp lib.go.txt lib/lib.go
+! go test -x ./a
+stderr 'a.go:10:12: example.com/cache/lib.Logf format %d has arg "x" of wrong type string'
+! stderr 'analysistool.* .*analysis\.cfg'
+
+# lib was analyzed above by printf only for its facts, as a dependency
+# of a, so its diagnostics were not computed. Vetting lib itself with
+# printf, whose diagnostics are reported, re-analyzes lib (but not a)
+# and reports them. (lib's test is external, so the root package is
+# lib itself, not a variant of it; the other package analyzed is
+# lib_test.) The facts of lib's results are unchanged, so a's results
+# remain valid, and vetting both analyzes nothing.
+! go test -x -vet=printf ./lib
+stderr 'lib.go:10:41: fmt.Sprintf format %d has arg "lib" of wrong type string'
+stderr -count=2 'analysistool.* .*analysis\.cfg'
+! go test -x -vet=printf ./a ./lib
+stderr 'a.go:10:12: example.com/cache/lib.Logf format %d has arg "x" of wrong type string'
+stderr 'lib.go:10:41: fmt.Sprintf format %d has arg "lib" of wrong type string'
+! stderr 'analysistool.* .*analysis\.cfg'
+
+# Results are cached per analyzer: printf alone, a subset of the
+# default analyzers, is found in the cache.
+! go test -x -vet=printf ./a
+stderr 'a.go:10:12: example.com/cache/lib.Logf format %d has arg "x" of wrong type string'
+! stderr 'analysistool.* .*analysis\.cfg'
+
+# Adding unusedresult, which is not among the defaults, re-analyzes a.
+# unusedresult uses no facts, so lib need not be re-analyzed.
+! go test -x -vet=printf,unusedresult ./a
+stderr 'a.go:10:12: example.com/cache/lib.Logf format %d has arg "x" of wrong type string'
+stderr 'a.go:11:2: result of fmt.Sprint call not used'
+stderr -count=1 'analysistool.* .*analysis\.cfg'
+! go test -x -vet=printf,unusedresult ./a
+stderr 'a.go:11:2: result of fmt.Sprint call not used'
+! stderr 'analysistool.* .*analysis\.cfg'
+
+# The build configuration is among the inputs: a build tag that adds a
+# file to a yields its diagnostics, and removing the tag drops them.
+! go test -tags=extra ./a
+stderr 'extra.go:7:39: fmt.Sprintf format %s has arg 1 of wrong type int'
+! go test ./a
+! stderr 'extra.go'
+
+# The target configuration is among the inputs: the same file yields a
+# shift diagnostic only where uint has 32 bits. (The tool is built for
+# the target and runs on the host, so this requires a host that can
+# run 386 executables. The package also has a printf diagnostic, so
+# that the analysis fails and the test binary does not run.)
+[GOOS:linux] [GOARCH:amd64] env GOARCH=386
+[GOOS:linux] [GOARCH:amd64] ! go test -vet=printf,shift ./shift
+[GOOS:linux] [GOARCH:amd64] stderr 'shift.go:7:24: x \(32 bits\) too small for shift of 40'
+[GOOS:linux] [GOARCH:amd64] stderr 'shift.go:9:39: fmt.Sprintf format %d has arg "x" of wrong type string'
+env GOARCH=
+! go test -vet=printf,shift ./shift
+! stderr 'too small for shift'
+stderr 'shift.go:9:39: fmt.Sprintf format %d has arg "x" of wrong type string'
+
+# The key of a pass includes the facts of every analyzer in the
+# Requires closure, not just those of the analyzer itself. lostcancel
+# uses no facts, but its prerequisite ctrlflow does: a fact that
+# exit.Fatal never returns makes the return statement after the call
+# to it unreachable, so c's cancel function is used on all paths. A
+# change to exit that preserves its types but not that fact
+# re-analyzes exit and c, yielding a diagnostic; restoring exit
+# analyzes nothing.
+go test -vet=lostcancel ./c
+cp exit_returns.go.txt exit/exit.go
+! go test -x -vet=lostcancel ./c
+stderr 'c.go:10:2: the cancel function is not used on all paths \(possible context leak\)'
+stderr -count=2 'analysistool.* .*analysis\.cfg'
+cp exit.go.txt exit/exit.go
+go test -x -vet=lostcancel ./c
+! stderr 'possible context leak'
+! stderr 'analysistool.* .*analysis\.cfg'
+
+# TODO: test these aspects of the identity of an analyzer once custom
+# analyzers can be configured (go.vet files outside std):
+#   - An edit to a package imported, directly or indirectly, by the
+#     package of a variable from which an analyzer is reachable
+#     invalidates that analyzer's results, but not those of analyzers
+#     reachable only from other variables.
+#   - An analyzer declared in one package whose Run function is in
+#     another (for example, a shared Run function configured by the
+#     analyzer's fields): an edit to the declaring package invalidates
+#     its results.
+#   - An analyzer reachable from different sets of variables in
+#     different invocations (for example, named directly in one and
+#     as a suite member in another) has a different identity in each:
+#     results are correct but not shared between them.
+#   - Which analyzers, not just which packages, were re-analyzed: for
+#     example, that an edit to one analyzer leaves the results of
+#     another on the same package cached. (Counting the tool's
+#     executions observes only packages.)
+
+-- go.mod --
+module example.com/cache
+
+go 1.28
+-- lib/lib.go --
+package lib
+
+import "fmt"
+
+// Logf is a printf wrapper.
+func Logf(format string, args ...any) { fmt.Printf(format, args...) }
+
+func helper() int { return 1 }
+
+func bad() string { return fmt.Sprintf("%d", "lib") }
+-- lib.go.txt --
+package lib
+
+import "fmt"
+
+// Logf is a printf wrapper.
+func Logf(format string, args ...any) { fmt.Printf(format, args...) }
+
+func helper() int { return 1 }
+
+func bad() string { return fmt.Sprintf("%d", "lib") }
+-- lib_body.go.txt --
+package lib
+
+import "fmt"
+
+// Logf is a printf wrapper.
+func Logf(format string, args ...any) { fmt.Printf(format, args...) }
+
+func helper() int { return 2 }
+
+func bad() string { return fmt.Sprintf("%d", "lib") }
+-- lib_nowrap.go.txt --
+package lib
+
+import "fmt"
+
+// Logf is not a printf wrapper.
+func Logf(format string, args ...any) { fmt.Println(format, args) }
+
+func helper() int { return 1 }
+
+func bad() string { return fmt.Sprintf("%d", "lib") }
+-- lib/lib_test.go --
+package lib_test
+
+import "testing"
+
+func TestLib(t *testing.T) {}
+-- a/a.go --
+package a
+
+import (
+	"fmt"
+
+	"example.com/cache/lib"
+)
+
+func F() {
+	lib.Logf("%d", "x")
+	fmt.Sprint("y")
+}
+-- a/extra.go --
+//go:build extra
+
+package a
+
+import "fmt"
+
+func G() string { return fmt.Sprintf("%s", 1) }
+-- shift/shift.go --
+package shift
+
+import "fmt"
+
+var x uint
+
+func F() uint { return x << 40 }
+
+func G() string { return fmt.Sprintf("%d", "x") }
+-- shift/shift_test.go --
+package shift
+
+import "testing"
+
+func TestF(t *testing.T) {}
+-- exit/exit.go --
+package exit
+
+import "os"
+
+// Fatal does not return.
+func Fatal() { os.Exit(1) }
+-- exit.go.txt --
+package exit
+
+import "os"
+
+// Fatal does not return.
+func Fatal() { os.Exit(1) }
+-- exit_returns.go.txt --
+package exit
+
+import "os"
+
+// Fatal returns.
+func Fatal() { _ = os.Args }
+-- c/c.go --
+package c
+
+import (
+	"context"
+
+	"example.com/cache/exit"
+)
+
+func F(ok bool) {
+	ctx, cancel := context.WithCancel(context.Background())
+	if !ok {
+		exit.Fatal()
+		return
+	}
+	defer cancel()
+	_ = ctx
+}
+-- c/c_test.go --
+package c
+
+import "testing"
+
+func TestF(t *testing.T) {}
+-- a/a_test.go --
+package a
+
+import "testing"
+
+func TestF(t *testing.T) {}

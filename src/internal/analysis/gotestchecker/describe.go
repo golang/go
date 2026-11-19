@@ -13,7 +13,6 @@ import (
 	"go/analysis"
 	"internal/analysis/gotestchecker/protocol"
 	"log"
-	"net/url"
 	"os"
 	"reflect"
 	"runtime"
@@ -37,7 +36,6 @@ func writeMetadata(filename string, vars []Var) error {
 			Doc:      a.Doc,
 			URL:      a.URL,
 			RunFunc:  run,
-			PkgPath:  funcPkgPath(run),
 			Requires: requires,
 			Facts:    len(a.FactTypes) > 0,
 		})
@@ -255,50 +253,6 @@ func validate(root *analysis.Analyzer) string {
 // runFunc returns the symbol name of the analyzer's Run function.
 func runFunc(a *analysis.Analyzer) string {
 	return runtime.FuncForPC(reflect.ValueOf(a.Run).Pointer()).Name()
-}
-
-// funcPkgPath returns the import path of the package that declares
-// the function with the specified symbol name (see runtime.Func.Name),
-// such as "example.com/a%2eb.(*T).f" (of package "example.com/a.b").
-//
-// It parses the name as does the unexported runtime.funcpkgpath (used
-// by GODEBUG=inittrace): the import path ends at the first dot after
-// the last slash. This is sound because the linker escapes the dots
-// in the last segment of the import path (see
-// [cmd/internal/objabi.PathToPrefix]), and because the function part
-// of the name contains no slash: Func.Name abbreviates the type
-// arguments of generic functions, which may contain slashes, as
-// "[...]".
-//
-// Unlike runtime.funcpkgpath, it then reverses the linker's
-// escaping, defined by [cmd/internal/objabi.PathToPrefix], which
-// replaces with "%xx" each byte of the import path that is a dot in
-// the last segment, '%', '"', a space or control character, or
-// non-ASCII. Since every escaped byte has the form "%xx" and '%'
-// itself is escaped, [url.PathUnescape], which decodes each "%xx" and
-// nothing else, is its inverse.
-//
-// The result may not be the import path of a linked package: the
-// symbol of a function may be chosen by //go:linkname, and the
-// compiler escapes the import path twice in the symbol of a closure
-// within a function inlined from another package (for example,
-// "example.com/a%252eb.F.func1").
-func funcPkgPath(name string) string {
-	// The import path ends at the first dot after the last slash.
-	// (This is equivalent to the loops of runtime.funcpkgpath.)
-	path := name
-	slash := strings.LastIndexByte(path, '/')
-	if dot := strings.IndexByte(path[slash+1:], '.'); dot >= 0 {
-		path = path[:slash+1+dot]
-	}
-
-	// Reverse the escaping of [cmd/internal/objabi.PathToPrefix].
-	// If any escape is malformed (which the linker never produces),
-	// the path is returned as is.
-	if p, err := url.PathUnescape(path); err == nil {
-		path = p
-	}
-	return path
 }
 
 func validIdent(name string) bool {

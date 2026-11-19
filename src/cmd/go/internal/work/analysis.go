@@ -39,7 +39,9 @@ package work
 // Within the tool, analyzers are identified by pointer; in the
 // protocol, they are identified by their index in the tool's
 // metadata, a topological order that is deterministic for a given
-// tool.
+// tool. Across tools, an analyzer is identified (for caching) by its
+// Name and Run function and the variables from which it is
+// reachable; see [Builder.analyzerIDs].
 //
 // Each analysisvet action produces, for each needed analyzer, one
 // pass file containing that analyzer's facts (if it uses facts) and,
@@ -49,13 +51,37 @@ package work
 // failure, which prevents dependent passes and is reported at each
 // affected root package.
 //
-// For now, analysis results are not cached: the tool runs on every
-// package in the closure of the root packages, writing its outputs
-// to the action's object directory.
+// Analysis results are cached not per tool but per (package,
+// analyzer), so that results are shared across invocations even
+// though their tools differ:
+//
+//   - the types of package P are keyed by the inputs of P, including
+//     the types of its direct imports and the target configuration,
+//     and the dependency identity of the driver package;
+//   - the pass file of analyzer A on P is keyed by the inputs of P,
+//     the identity of A, whether A's diagnostics are reported,
+//     and the facts IDs of the pass files, for each direct import of P,
+//     of each analyzer that uses facts in A's Requires closure.
+//     (The facts ID of a pass file excludes its diagnostics, which
+//     depend on whether they are reported, so that the pass files of
+//     a package are shared by invocations that do and do not vet
+//     its dependencies.)
+//
+// The dependency identity of a package is a Merkle hash over its
+// import graph that covers the content IDs of the compiled packages
+// in its import closure. The identity of an analyzer is the hash of
+// its Name and Run function (by run-time symbol name), the dependency
+// identity of the driver package, and the dependency identities of
+// the packages that declare the linked variables from which the
+// analyzer is reachable. It does not depend on which other analyzers
+// are linked into the tool.
+// Analyzers linked into the same tool are assumed not to interfere
+// with one another.
 
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -67,9 +93,11 @@ import (
 	"slices"
 	"strings"
 
+	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
+	"cmd/go/internal/str"
 )
 
 // analysisResult records the outputs of an analysisvet action.
@@ -80,10 +108,12 @@ type analysisResult struct {
 	passes   map[int]analysisOutput // analyzer index -> pass file
 }
 
-// An analysisOutput is an output file of the analysis tool plus, for
-// a pass file, information read from it (see readPassInfo).
+// An analysisOutput is a file in the cache and its output ID, plus,
+// for a pass file, information read from it (see readPassInfo).
 type analysisOutput struct {
 	file    string
+	id      cache.OutputID
+	factsID cache.OutputID    // for pass files of analyzers that use facts
 	trivial bool              // pass file has no facts, no failure, and was not skipped
 	failure *protocol.Failure // failure of the pass
 }
@@ -107,7 +137,9 @@ type analysisState struct {
 	tool       *Action                          // link action for the tool
 	meta       *Action                          // analysismeta action
 
-	toolPath string // the executable of the tool
+	// toolPath is the executable of the tool. toolID identifies
+	// the executable for caching its metadata ("" if not cacheable).
+	toolPath, toolID string
 
 	// plan is set by the analysismeta action, before any
 	// analysisvet action runs, if the metadata is available.
@@ -118,6 +150,7 @@ type analysisState struct {
 // (by index) and the plan derived from it.
 type analysisPlan struct {
 	analyzers []analyzerInfo                        // index -> analyzer
+	driverID  cache.ActionID                        // dependency identity of the driver package
 	need      map[*Action][]int                     // analysisvet action -> sorted indexes of needed pass files
 	reported  map[*Action]map[int]*reportedAnalyzer // root analysisvet action -> index -> analyzer whose diagnostics are reported
 	refErrs   map[*Action][]string                  // root analysisvet action -> errors in its references
@@ -126,8 +159,9 @@ type analysisPlan struct {
 // An analyzerInfo holds the metadata of one of the analysis tool's
 // analyzers and information derived from it.
 type analyzerInfo struct {
-	*protocol.Analyzer       // metadata (Name, Requires, Facts, etc.)
-	reqClosure         []int // sorted indexes of Requires closure (inclusive)
+	*protocol.Analyzer                // metadata (Name, Requires, Facts, etc.)
+	reqClosure         []int          // sorted indexes of Requires closure (inclusive)
+	id                 cache.ActionID // identity
 }
 
 // A reportedAnalyzer describes an analyzer whose diagnostics are
@@ -257,6 +291,7 @@ func (b *Builder) HasAnalysisActions() bool { return len(b.analysis.actions) > 0
 func (b *Builder) analysisMeta(ctx context.Context, a *Action) error {
 	st := &b.analysis
 	st.toolPath = st.tool.BuiltTarget()
+	st.toolID = st.tool.buildID
 	data, err := b.analysisMetadata(a)
 	if err != nil || data == nil {
 		return err // (data is nil with -n)
@@ -265,14 +300,27 @@ func (b *Builder) analysisMeta(ctx context.Context, a *Action) error {
 	if err := json.Unmarshal(data, md); err != nil {
 		return fmt.Errorf("decoding analysis tool metadata: %v", err)
 	}
-	b.planAnalysis(md)
+	driverID, ids := b.analyzerIDs(md)
+	b.planAnalysis(md, driverID, ids)
 	return nil
 }
 
-// analysisMetadata runs the tool's metadata query and returns its
-// result. It returns nil with -n.
+// analysisMetadata returns the result of the tool's metadata query,
+// running the tool if necessary. The metadata is cached, keyed by
+// the tool's build ID, so a warm run need not execute the tool.
+// It returns nil with -n.
 func (b *Builder) analysisMetadata(a *Action) ([]byte, error) {
 	st := &b.analysis
+	c := cache.Default()
+	h := cache.NewHash("analysis metadata")
+	fmt.Fprintf(h, "tool %s\n", st.toolID)
+	key := h.Sum()
+
+	if !cfg.BuildA && st.toolID != "" {
+		if data, _, err := cache.GetBytes(c, key); err == nil {
+			return data, nil
+		}
+	}
 	sh := b.Shell(a)
 	if err := sh.Mkdir(a.Objdir); err != nil {
 		return nil, err
@@ -289,13 +337,173 @@ func (b *Builder) analysisMetadata(a *Action) ([]byte, error) {
 	if cfg.BuildN {
 		return nil, nil
 	}
-	return os.ReadFile(file)
+	data, err := os.ReadFile(file)
+	if err != nil {
+		return nil, err
+	}
+	if st.toolID != "" {
+		if err := cache.PutBytes(c, key, data); err != nil {
+			return nil, err
+		}
+	}
+	return data, nil
+}
+
+// analyzerIDs computes the dependency identity of the driver package
+// and the identity of each analyzer of the metadata from the compiled
+// packages linked into the tool.
+//
+// The identity of an analyzer derives from its Name and Run function
+// (by run-time symbol name), and from the dependency identities of
+// the packages that declare the linked variables from which it is
+// reachable, as a member or by Requires edges. Their import closures
+// contain all the code of the analyzer, wherever it is declared.
+// The identity depends on which linked variables reach the analyzer,
+// but not on what else is linked into the tool, so that results are
+// shared by tools that link different sets of variables, and by all
+// the roots that require an analyzer. (An edit to any member of a
+// suite changes the identities of all its members, but such edits
+// are rare except for the author of the suite.)
+//
+// Distinct analyzers with the same Name and Run function ("twins")
+// reachable from the same variables have the same identity. The tool
+// rejects twins within the Requires closure of one member; twins in
+// different closures are not detected (unsound, but they do not arise
+// by accident).
+func (b *Builder) analyzerIDs(md *protocol.Metadata) (driverID cache.ActionID, ids []cache.ActionID) {
+	st := &b.analysis
+	compiled := make(map[string]*Action) // import path -> compile action
+	for _, a1 := range st.tool.Deps {
+		if a1.Package != nil {
+			compiled[a1.Package.ImportPath] = a1
+		}
+	}
+	// merkle returns the dependency identity of package p: a
+	// Merkle hash over its import graph, combining the content ID
+	// of p's compiled package with the dependency identities of
+	// its direct imports. It thus covers the content IDs of all
+	// the compiled packages in the import closure of p. It is
+	// memoized per package, so the closures of different
+	// packages, which overlap heavily, are each visited once.
+	depsMemo := make(map[*load.Package]cache.ActionID)
+	var merkle func(p *load.Package) cache.ActionID
+	merkle = func(p *load.Package) cache.ActionID {
+		if id, ok := depsMemo[p]; ok {
+			return id
+		}
+		h := cache.NewHash("analysis deps")
+		fmt.Fprintf(h, "package %q\n", p.ImportPath)
+		// Built-in packages such as unsafe
+		// have no compile action.
+		if a1 := compiled[p.ImportPath]; a1 != nil {
+			fmt.Fprintf(h, "content %s\n", a1.BuildContentID())
+		}
+		// Combine the identities of the direct imports by
+		// addition (mod 2^256), which is independent of their
+		// order (p.Internal.Imports is not necessarily sorted).
+		// XOR would also be, but a test variant's Imports may
+		// list a package twice (once from the test files), and
+		// XOR would cancel the pair.
+		var imports cache.ActionID
+		for _, imp := range p.Internal.Imports {
+			addActionID(&imports, merkle(imp))
+		}
+		fmt.Fprintf(h, "imports %x\n", imports)
+		id := h.Sum()
+		depsMemo[p] = id
+		return id
+	}
+	// The driver package is always linked into the tool, since the
+	// synthesized main package imports it.
+	driverID = merkle(compiled[load.AnalysisToolDriver].Package)
+
+	// varPkgs[h] is the set of packages that declare a linked
+	// variable from whose members analyzer h is reachable by
+	// Requires edges.
+	//
+	// We assume that a variable's value, and everything reachable
+	// from it (its analyzers, their prerequisites, their Run
+	// functions, and the code those call), is determined by code
+	// within the import closure of the variable's package, so that
+	// the closures of these packages contain all the code of the
+	// analyzer, wherever it is declared. The assumption fails only
+	// if code outside the closure modifies the variable (for
+	// example, a checker package that registers itself from an
+	// init function in a registry variable that it imports). Such
+	// code is linked into the tool only if the package of another
+	// variable imports it, so a failure implies interference
+	// between variables, which we already exclude (see the package
+	// comment). See also the addendum on analyzer identity in the
+	// design doc for go.dev/issue/82464.
+	varPkgs := make([]map[string]bool, len(md.Analyzers))
+	for _, v := range md.Vars {
+		if v.Error != "" {
+			continue // Members undefined
+		}
+		pkg := v.Symbol[:strings.LastIndexByte(v.Symbol, '.')]
+		var visit func(h int)
+		visit = func(h int) {
+			if varPkgs[h] == nil {
+				varPkgs[h] = make(map[string]bool)
+			}
+			if !varPkgs[h][pkg] {
+				varPkgs[h][pkg] = true
+				for _, req := range md.Analyzers[h].Requires {
+					visit(req)
+				}
+			}
+		}
+		for _, m := range v.Members {
+			if m.Analyzer >= 0 {
+				visit(m.Analyzer)
+			}
+		}
+	}
+
+	ids = make([]cache.ActionID, len(md.Analyzers))
+	for h, an := range md.Analyzers {
+		hash := cache.NewHash("analyzer")
+		fmt.Fprintf(hash, "name %q\nrun %q\ndriver %x\n", an.Name, an.RunFunc, driverID)
+		// Combine the dependency identities of the packages
+		// of varPkgs[h] by addition (see merkle).
+		var vars cache.ActionID
+		linked := len(varPkgs[h]) > 0
+		for pkg := range varPkgs[h] {
+			if a1 := compiled[pkg]; a1 != nil {
+				addActionID(&vars, merkle(a1.Package))
+			} else {
+				linked = false
+			}
+		}
+		fmt.Fprintf(hash, "vars %x\n", vars)
+		if !linked {
+			// The packages of the variables are not
+			// known. Use the identity of the tool, which
+			// is sound but defeats sharing.
+			fmt.Fprintf(hash, "tool %s\n", st.tool.buildID)
+		}
+		ids[h] = hash.Sum()
+	}
+	return driverID, ids
+}
+
+// addActionID sets *sum to *sum + id, treating both as 256-bit
+// little-endian integers and discarding the carry out.
+func addActionID(sum *cache.ActionID, id cache.ActionID) {
+	var carry uint16
+	for i := range sum {
+		s := uint16(sum[i]) + uint16(id[i]) + carry
+		sum[i] = byte(s)
+		carry = s >> 8
+	}
 }
 
 // planAnalysis performs the dynamic stage of resolution, computing
 // the analyzers reported for each root package and the set of pass
 // files needed from each analysisvet action. It sets st.plan.
-func (b *Builder) planAnalysis(md *protocol.Metadata) {
+// driverID and ids are the identities of the driver package and of each
+// analyzer (see analyzerIDs).
+func (b *Builder) planAnalysis(md *protocol.Metadata, driverID cache.ActionID, ids []cache.ActionID) {
 	st := &b.analysis
 
 	// Index the metadata. Analyzers are identified by their index
@@ -303,6 +511,7 @@ func (b *Builder) planAnalysis(md *protocol.Metadata) {
 	// first).
 	plan := &analysisPlan{
 		analyzers: make([]analyzerInfo, len(md.Analyzers)),
+		driverID:  driverID,
 		reported:  make(map[*Action]map[int]*reportedAnalyzer),
 		refErrs:   make(map[*Action][]string),
 	}
@@ -316,6 +525,7 @@ func (b *Builder) planAnalysis(md *protocol.Metadata) {
 		plan.analyzers[i] = analyzerInfo{
 			Analyzer:   an,
 			reqClosure: slices.Sorted(maps.Keys(set)),
+			id:         ids[i],
 		}
 	}
 
@@ -560,87 +770,214 @@ func (b *Builder) analysisVet(ctx context.Context, a *Action) error {
 		ignoredFiles = absFiles(vcfg0.IgnoredFiles)
 	)
 
-	// Run the tool.
-	areq := &protocol.AnalyzeRequest{
-		ID:           vcfg0.ID,
-		ImportPath:   vcfg0.ImportPath,
-		Dir:          vcfg0.Dir,
-		GoFiles:      goFiles,
-		NonGoFiles:   nonGoFiles,
-		IgnoredFiles: ignoredFiles,
-		ImportMap:    vcfg0.ImportMap,
-		GoVersion:    vcfg0.GoVersion,
-		GOARCH:       cfg.Goarch,
-		Module:       protocolModule(vcfg0.Module),
-		TypeImports:  make(map[string]string),
-		TypeExport:   a.Objdir + "types",
-		TypeErrors:   a.Objdir + "typeerrors",
-		Facts:        make(map[int]map[string]string),
-		Outputs:      make(map[int]string),
-		Report:       []int{},
-	}
-	for _, a1 := range deps {
-		areq.TypeImports[a1.Package.ImportPath] = analysisResultOf(a1).types.file
-	}
-	for i, index := range plan.need[a] {
-		areq.Outputs[index] = fmt.Sprintf("%spass%d", a.Objdir, i)
-		if reported(index) {
-			areq.Report = append(areq.Report, index)
+	// Compute a key for the package's inputs. (We don't use the
+	// compile action ID, which depends on incidental details of the
+	// action graph, such as whether a tested package is also
+	// imported by another tested package.) The types of the direct
+	// imports are represented by their output IDs, giving early
+	// cutoff when a dependency changes but its API does not.
+	pkgID := func() cache.ActionID {
+		h := cache.NewHash("analysis pkg " + a.Package.ImportPath)
+		fmt.Fprintf(h, "id %q\nimportpath %q\ngoversion %q\n", vcfg0.ID, vcfg0.ImportPath, vcfg0.GoVersion)
+		// The target configuration.
+		fmt.Fprintf(h, "goos %q\ngoarch %q\ntags %q\ntooltags %q\n", cfg.Goos, cfg.Goarch, cfg.BuildContext.BuildTags, cfg.BuildContext.ToolTags)
+		if m := vcfg0.Module; m != nil {
+			fmt.Fprintf(h, "module %q %q %q\n", m.Path, m.Version, m.GoVersion)
 		}
-		for _, h2 := range plan.analyzers[index].reqClosure {
-			if plan.analyzers[h2].Facts && areq.Facts[h2] == nil {
-				files := make(map[string]string)
-				for _, a1 := range deps {
-					// A trivial pass file need not be read:
-					// a missing entry denotes no facts.
-					if out, ok := analysisResultOf(a1).passes[h2]; ok && !out.trivial {
-						files[a1.Package.ImportPath] = out.file
-					}
+		// Files are identified by name and content. The name
+		// appears in positions, so it must be the actual name
+		// (which may be that of an overlay replacement), except
+		// for files generated (by cgo or -cover) in the work
+		// directory, whose name varies from run to run, and which
+		// are identified by base name.
+		fmt.Fprintf(h, "dir %q\n", vcfg0.Dir)
+		for _, files := range [][]string{goFiles, nonGoFiles, ignoredFiles} {
+			for _, file := range files {
+				name := file
+				if str.HasFilePathPrefix(file, b.WorkDir) {
+					name = filepath.Base(file)
 				}
-				areq.Facts[h2] = files
+				fmt.Fprintf(h, "file %q %s\n", name, b.fileHash(file))
+			}
+			fmt.Fprintf(h, "\n")
+		}
+		// Hash only the import mappings that refer to actual
+		// imports: the vet config may contain spurious ones
+		// (e.g. a self-mapping added when a tested package is
+		// also imported by another tested package).
+		depPaths := map[string]bool{"unsafe": true}
+		for _, a1 := range deps {
+			depPaths[a1.Package.ImportPath] = true
+		}
+		for _, k := range slices.Sorted(maps.Keys(vcfg0.ImportMap)) {
+			if v := vcfg0.ImportMap[k]; depPaths[v] {
+				fmt.Fprintf(h, "importmap %q %q\n", k, v)
 			}
 		}
+		for _, a1 := range deps {
+			fmt.Fprintf(h, "dep %q %x\n", a1.Package.ImportPath, analysisResultOf(a1).types.id)
+		}
+		return h.Sum()
+	}()
+
+	// Compute the cache keys.
+	typesKey := func() cache.ActionID {
+		h := cache.NewHash("analysis types " + a.Package.ImportPath)
+		fmt.Fprintf(h, "pkg %x\ndriver %x\n", pkgID, plan.driverID)
+		return h.Sum()
+	}()
+	typeErrsKey := func() cache.ActionID {
+		h := cache.NewHash("analysis type errors " + a.Package.ImportPath)
+		fmt.Fprintf(h, "types %x\n", typesKey)
+		return h.Sum()
+	}()
+	passKey := func(index int) cache.ActionID {
+		h := cache.NewHash("analysis pass " + a.Package.ImportPath)
+		fmt.Fprintf(h, "pkg %x\nanalyzer %x\nreport %t\n", pkgID, plan.analyzers[index].id, reported(index))
+		for _, h2 := range plan.analyzers[index].reqClosure {
+			if plan.analyzers[h2].Facts {
+				for _, a1 := range deps {
+					fmt.Fprintf(h, "dep %q %x %x\n", a1.Package.ImportPath, plan.analyzers[h2].id, analysisResultOf(a1).passes[h2].factsID)
+				}
+			}
+		}
+		return h.Sum()
 	}
 
-	sh := b.Shell(a)
-	js, err := json.Marshal(areq)
-	if err != nil {
-		return fmt.Errorf("internal error marshaling analysis config: %v", err)
+	// Look up each entry; note the missing ones.
+	c := cache.Default()
+	get := func(key cache.ActionID) (analysisOutput, bool) {
+		if !cfg.BuildA {
+			if file, entry, err := cache.GetFile(c, key); err == nil {
+				return analysisOutput{file: file, id: entry.OutputID}, true
+			}
+		}
+		return analysisOutput{}, false
 	}
-	if err := sh.Mkdir(a.Objdir); err != nil {
-		return err
-	}
-	if err := sh.writeFile(a.Objdir+"analysis.cfg", js); err != nil {
-		return err
-	}
-	p := a.Package
-	if err := sh.run(p.Dir, p.ImportPath, b.cCompilerEnv(), cfg.BuildToolexec, st.toolPath, a.Objdir+"analysis.cfg"); err != nil {
-		return err
-	}
-
-	// Read the outputs.
 	res := &analysisResult{passes: make(map[int]analysisOutput)}
-	data, err := os.ReadFile(areq.TypeErrors)
-	if err != nil {
-		return err
+	// The types and type errors are produced together.
+	if out, ok := get(typesKey); ok {
+		if data, _, err := cache.GetBytes(c, typeErrsKey); err == nil && json.Unmarshal(data, &res.typeErrs) == nil {
+			res.types = out
+		}
 	}
-	if err := json.Unmarshal(data, &res.typeErrs); err != nil {
-		return fmt.Errorf("decoding type errors of %s: %v", vcfg0.ID, err)
-	}
-	res.types = analysisOutput{file: areq.TypeExport}
+	needTypes := res.types.file == ""
+	var missing []int
 	for _, index := range plan.need[a] {
-		out := analysisOutput{file: areq.Outputs[index]}
-		if err := out.readPassInfo(); err != nil {
+		if out, ok := get(passKey(index)); ok && out.readPassInfo() == nil {
+			res.passes[index] = out
+		} else {
+			missing = append(missing, index)
+		}
+	}
+
+	// Run the tool, if necessary.
+	if len(missing) > 0 || needTypes {
+		areq := &protocol.AnalyzeRequest{
+			ID:           vcfg0.ID,
+			ImportPath:   vcfg0.ImportPath,
+			Dir:          vcfg0.Dir,
+			GoFiles:      goFiles,
+			NonGoFiles:   nonGoFiles,
+			IgnoredFiles: ignoredFiles,
+			ImportMap:    vcfg0.ImportMap,
+			GoVersion:    vcfg0.GoVersion,
+			GOARCH:       cfg.Goarch,
+			Module:       protocolModule(vcfg0.Module),
+			TypeImports:  make(map[string]string),
+			Facts:        make(map[int]map[string]string),
+			Outputs:      make(map[int]string),
+			Report:       []int{},
+		}
+		for _, a1 := range deps {
+			areq.TypeImports[a1.Package.ImportPath] = analysisResultOf(a1).types.file
+		}
+		if needTypes {
+			areq.TypeExport = a.Objdir + "types"
+			areq.TypeErrors = a.Objdir + "typeerrors"
+		}
+		for i, index := range missing {
+			areq.Outputs[index] = fmt.Sprintf("%spass%d", a.Objdir, i)
+			if reported(index) {
+				areq.Report = append(areq.Report, index)
+			}
+			for _, h2 := range plan.analyzers[index].reqClosure {
+				if plan.analyzers[h2].Facts && areq.Facts[h2] == nil {
+					files := make(map[string]string)
+					for _, a1 := range deps {
+						// A trivial pass file need not be read:
+						// a missing entry denotes no facts.
+						if out, ok := analysisResultOf(a1).passes[h2]; ok && !out.trivial {
+							files[a1.Package.ImportPath] = out.file
+						}
+					}
+					areq.Facts[h2] = files
+				}
+			}
+		}
+
+		sh := b.Shell(a)
+		js, err := json.Marshal(areq)
+		if err != nil {
+			return fmt.Errorf("internal error marshaling analysis config: %v", err)
+		}
+		if err := sh.Mkdir(a.Objdir); err != nil {
 			return err
 		}
-		res.passes[index] = out
+		if err := sh.writeFile(a.Objdir+"analysis.cfg", js); err != nil {
+			return err
+		}
+		p := a.Package
+		if err := sh.run(p.Dir, p.ImportPath, b.cCompilerEnv(), cfg.BuildToolexec, st.toolPath, a.Objdir+"analysis.cfg"); err != nil {
+			return err
+		}
+
+		// Save the outputs in the cache.
+		put := func(key cache.ActionID, file string) (analysisOutput, error) {
+			f, err := os.Open(file)
+			if err != nil {
+				return analysisOutput{}, err
+			}
+			defer f.Close()
+			id, _, err := c.Put(key, f)
+			if err != nil {
+				return analysisOutput{}, err
+			}
+			return analysisOutput{file: c.OutputFile(id), id: id}, nil
+		}
+		if needTypes {
+			data, err := os.ReadFile(areq.TypeErrors)
+			if err != nil {
+				return err
+			}
+			if err := json.Unmarshal(data, &res.typeErrs); err != nil {
+				return fmt.Errorf("decoding type errors of %s: %v", vcfg0.ID, err)
+			}
+			if err := cache.PutBytes(c, typeErrsKey, data); err != nil {
+				return err
+			}
+			res.types, err = put(typesKey, areq.TypeExport)
+			if err != nil {
+				return err
+			}
+		}
+		for _, index := range missing {
+			out, err := put(passKey(index), areq.Outputs[index])
+			if err != nil {
+				return err
+			}
+			if err := out.readPassInfo(); err != nil {
+				return err
+			}
+			res.passes[index] = out
+		}
 	}
 	a.Provider = res
 
-	// Report the type errors of this package and
-	// the failures of analyzers on it. Each is
-	// reported once, here; the passes skipped because
-	// of it (here and in importers) are not.
+	// Report the type errors of this package and the failures of
+	// analyzers on it, whether computed or cached. Each is
+	// reported once, here; the passes skipped because of it (here
+	// and in importers) are not.
 	var buf bytes.Buffer
 	for _, msg := range res.typeErrs {
 		fmt.Fprintf(&buf, "%s\n", msg)
@@ -726,6 +1063,10 @@ func (b *Builder) analysisReport(ctx context.Context, r *Action) error {
 // readPassInfo reads the pass file out.file, written by the analysis
 // tool, and sets the other fields of out from it.
 //
+// factsID is the hash of the parts of the pass file other than its
+// diagnostics: its facts, its failure, and whether it was skipped. It
+// is the part of the pass file on which dependent passes depend.
+//
 // trivial reports whether the pass file has no facts, no failure, and
 // was not skipped. The analysis of an importer need not read a
 // trivial pass file.
@@ -734,6 +1075,14 @@ func (out *analysisOutput) readPassInfo() error {
 	if err != nil {
 		return err
 	}
+	h := sha256.New()
+	fmt.Fprintf(h, "facts %d\n", len(pf.Facts))
+	h.Write(pf.Facts)
+	if f := pf.Failure; f != nil {
+		fmt.Fprintf(h, "failure %q %q %q\n", f.Package, f.Analyzer, f.Message)
+	}
+	fmt.Fprintf(h, "skipped %t\n", pf.Skipped)
+	h.Sum(out.factsID[:0])
 	out.trivial = len(pf.Facts) == 0 && pf.Failure == nil && !pf.Skipped
 	out.failure = pf.Failure
 	return nil

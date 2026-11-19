@@ -6,11 +6,7 @@ package gotestchecker_test
 
 import (
 	"go/analysis"
-	"net/url"
-	"reflect"
-	"runtime"
 	"slices"
-	"strings"
 	"testing"
 
 	"internal/analysis/gotestchecker"
@@ -105,46 +101,3 @@ func newAnalyzer(name string, requires ...*analysis.Analyzer) *analysis.Analyzer
 type nonPointerFact struct{}
 
 func (nonPointerFact) AFact() {}
-
-// TestFuncPkgPath checks the parsing of the import path from the
-// symbol name of a function.
-func TestFuncPkgPath(t *testing.T) {
-	for _, test := range []struct{ name, want string }{
-		{"main.main", "main"},
-		{"main.main.func1", "main"},
-		{"strings.Cut", "strings"},
-		{"slices.Index[...]", "slices"},
-		{"golang.org/x/tools/go/analysis/passes/printf.run", "golang.org/x/tools/go/analysis/passes/printf"},
-		{"example.com/a%2eb.F", "example.com/a.b"},
-		{"example.com/a%2eb.(*T[...]).M-fm", "example.com/a.b"},
-		{"example.com/a%2eb.G[...].func1", "example.com/a.b"},
-		{"example.com/x.y/a%2eb%2ev2.init.0", "example.com/x.y/a.b.v2"},
-		{"example.com/%25%22%c3%a9.F", `example.com/%"é`},
-		{"a.b/c.F", "a.b/c"},
-		{"example.com/bad%zz.F", "example.com/bad%zz"}, // malformed escape
-		{"example.com/bad%2", "example.com/bad%2"},     // truncated escape
-	} {
-		if got := gotestchecker.FuncPkgPath(test.name); got != test.want {
-			t.Errorf("FuncPkgPath(%q) = %q, want %q", test.name, got, test.want)
-		}
-	}
-
-	// Check real symbol names, from runtime.Func.Name.
-	const thisPkg = "internal/analysis/gotestchecker_test"
-	for _, test := range []struct {
-		f    any
-		want string
-	}{
-		{TestFuncPkgPath, thisPkg},
-		{func() {}, thisPkg},
-		{nonPointerFact{}.AFact, thisPkg},
-		{strings.Cut, "strings"},
-		{slices.Index[[]*url.URL, *url.URL], "slices"},
-		{(*url.URL).String, "net/url"},
-	} {
-		name := runtime.FuncForPC(reflect.ValueOf(test.f).Pointer()).Name()
-		if got := gotestchecker.FuncPkgPath(name); got != test.want {
-			t.Errorf("FuncPkgPath(%q) = %q, want %q", name, got, test.want)
-		}
-	}
-}

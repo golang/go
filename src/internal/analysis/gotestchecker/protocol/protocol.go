@@ -98,7 +98,6 @@ type Analyzer struct {
 	Doc      string
 	URL      string `json:",omitempty"`
 	RunFunc  string // run-time symbol name of the Run function (see runtime.Func.Name)
-	PkgPath  string // import path of the package that declares the Run function, as parsed from RunFunc
 	Requires []int  // indexes
 	Facts    bool   // whether this analyzer (not its prerequisites) uses facts
 }
