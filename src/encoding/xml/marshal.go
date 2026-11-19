@@ -479,6 +479,13 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 
 	// Slices and arrays iterate over the elements. They do not have an enclosing tag.
 	if (kind == reflect.Slice || kind == reflect.Array) && typ.Elem().Kind() != reflect.Uint8 {
+		if finfo != nil && finfo.flags&fOmitEmpty != 0 {
+			// omitempty applies to the field, not to individual elements.
+			// Field information is cached, so leave the original unchanged.
+			elementInfo := *finfo
+			elementInfo.flags &^= fOmitEmpty
+			finfo = &elementInfo
+		}
 		for i, n := 0, val.Len(); i < n; i++ {
 			if err := p.marshalValue(val.Index(i), finfo, startTemplate); err != nil {
 				return err

@@ -2571,6 +2571,42 @@ var closeTests = []struct {
 	want: `<!foo>`,
 }}
 
+func TestOmitEmptySliceElements(t *testing.T) {
+	value := struct {
+		XMLName Name  `xml:"root"`
+		Items   []int `xml:"item,omitempty"`
+	}{Items: []int{0}}
+	if out, err := Marshal(value); err != nil || string(out) != "<root><item>0</item></root>" {
+		t.Fatalf("Marshal slice field = %s, %v", out, err)
+	}
+	for _, tt := range []struct {
+		name  string
+		value any
+		want  string
+	}{
+		{"integers", []int{1, 0, 2}, "<root><item>1</item><item>0</item><item>2</item></root>"},
+		{"strings", []string{"a", "", "b"}, "<root><item>a</item><item></item><item>b</item></root>"},
+		{"booleans", []bool{false, true}, "<root><item>false</item><item>true</item></root>"},
+		{"array", [2]int{}, "<root><item>0</item><item>0</item></root>"},
+		{"empty slice", []int{}, "<root></root>"},
+		{"nil slice", []int(nil), "<root></root>"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			value := struct {
+				XMLName Name `xml:"root"`
+				Items   any  `xml:"item,omitempty"`
+			}{Items: tt.value}
+			out, err := Marshal(value)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(out) != tt.want {
+				t.Errorf("Marshal = %s, want %s", out, tt.want)
+			}
+		})
+	}
+}
+
 func TestClose(t *testing.T) {
 	for _, tt := range closeTests {
 		t.Run(tt.desc, func(t *testing.T) {
