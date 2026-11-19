@@ -29,18 +29,6 @@ var libc_pthread_getattr_np = unsafe.Pointer(&_libc_pthread_getattr_np)
 var _libc_pthread_attr_getstack byte
 var libc_pthread_attr_getstack = unsafe.Pointer(&_libc_pthread_attr_getstack)
 
-//go:linkname _libc_mmap libc_mmap
-var _libc_mmap byte
-var libc_mmap = unsafe.Pointer(&_libc_mmap)
-
-//go:linkname _libc_munmap libc_munmap
-var _libc_munmap byte
-var libc_munmap = unsafe.Pointer(&_libc_munmap)
-
-//go:linkname _libc_sigaction libc_sigaction
-var _libc_sigaction byte
-var libc_sigaction = unsafe.Pointer(&_libc_sigaction)
-
 //go:linkname _libc_errno_location libc_errno_location
 var _libc_errno_location byte
 var libc_errno_location = unsafe.Pointer(&_libc_errno_location)
@@ -93,116 +81,6 @@ var cgo_libc_setreuid = unsafe.Pointer(&_libc_setreuid)
 //go:linkname cgo_libc_setuid syscall.cgo_libc_setuid
 var _libc_setuid byte
 var cgo_libc_setuid = unsafe.Pointer(&_libc_setuid)
-
-//go:linknamestd _cgoMmap runtime.cgoMmap
-var _cgoMmap = cgoMmap
-
-//go:nosplit
-//go:norace
-//go:nocheckptr
-func cgoMmap(addr unsafe.Pointer, length uintptr, prot, flags, fd int32, offset uint32) uintptr {
-	tsanAcquire()
-	p := asmcgocall(uintptr(libc_mmap), uintptr(addr), length, uintptr(uint32(prot)), uintptr(uint32(flags)), uintptr(fd), uintptr(offset))
-	if int(p) == -1 {
-		errnoPtr := asmcgocall(uintptr(libc_errno_location), 0, 0, 0, 0, 0, 0)
-		errno := uintptr(*(*int32)(unsafe.Pointer(errnoPtr)))
-		tsanRelease()
-		return errno
-	}
-	tsanRelease()
-	return p
-}
-
-//go:linknamestd _cgoMunmap runtime.cgoMunmap
-var _cgoMunmap = cgoMunmap
-
-//go:nosplit
-//go:norace
-func cgoMunmap(addr unsafe.Pointer, length uintptr) int32 {
-	tsanAcquire()
-	r := int32(asmcgocall(uintptr(libc_munmap), uintptr(addr), length, 0, 0, 0, 0))
-	tsanRelease()
-	return r
-}
-
-// goSigaction matches runtime.sigactiont on linux/amd64 and linux/arm64.
-type goSigaction struct {
-	handler  uintptr
-	flags    uint64
-	restorer uintptr
-	mask     uint64
-}
-
-//go:linknamestd _cgoSigaction runtime.cgoSigaction
-var _cgoSigaction = cgoSigaction
-
-//go:nosplit
-//go:norace
-func sigactionCall(noG bool, fn, a0, a1, a2 uintptr) uintptr {
-	if noG {
-		return asmcgocallNoG(fn, a0, a1, a2, 0, 0, 0)
-	}
-	return asmcgocall(fn, a0, a1, a2, 0, 0, 0)
-}
-
-//go:nosplit
-//go:norace
-//go:nocheckptr
-func cgoSigaction(signum uintptr, goact, oldgoact *goSigaction, noG bool) int32 {
-	// SA_RESTORER is part of the kernel interface.
-	// This is Linux i386/amd64 specific.
-	// See the comment on fixSigactionForCgo.
-	const SA_RESTORER = 0x4000000
-
-	if noG {
-		tsanAcquireNoG()
-	} else {
-		tsanAcquire()
-	}
-
-	var oldact cSigaction
-	var actPtr, oldactPtr uintptr
-
-	if goact != nil {
-		var act cSigaction
-		act.handler = goact.handler
-		sigactionCall(noG, uintptr(libc_sigfillset), uintptr(unsafe.Pointer(&act.mask)), 0, 0)
-		act.mask[0] &= uintptr(goact.mask)
-		act.flags = int32(goact.flags &^ SA_RESTORER)
-		msanUnpoisonMode(noG, unsafe.Pointer(&act), unsafe.Sizeof(act))
-		actPtr = uintptr(unsafe.Pointer(&act))
-	}
-	if oldgoact != nil {
-		oldactPtr = uintptr(unsafe.Pointer(&oldact))
-	}
-
-	ret := int32(sigactionCall(noG, uintptr(libc_sigaction), uintptr(int32(signum)), actPtr, oldactPtr))
-	if ret == -1 {
-		// runtime.rt_sigaction expects _cgo_sigaction to return errno on error.
-		errnoPtr := sigactionCall(noG, uintptr(libc_errno_location), 0, 0, 0)
-		errno := *(*int32)(unsafe.Pointer(errnoPtr))
-		if noG {
-			tsanReleaseNoG()
-		} else {
-			tsanRelease()
-		}
-		return errno
-	}
-
-	if oldgoact != nil {
-		oldgoact.handler = oldact.handler
-		oldgoact.mask = uint64(oldact.mask[0])
-		oldgoact.flags = uint64(int64(oldact.flags))
-		msanUnpoisonMode(noG, unsafe.Pointer(oldgoact), unsafe.Sizeof(*oldgoact))
-	}
-
-	if noG {
-		tsanReleaseNoG()
-	} else {
-		tsanRelease()
-	}
-	return ret
-}
 
 //go:linknamestd _cgoClearenv runtime.cgoClearenv
 var _cgoClearenv = cgoClearenv
