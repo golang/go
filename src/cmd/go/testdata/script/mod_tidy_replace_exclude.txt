@@ -1,0 +1,33 @@
+# Prefer the highest non-excluded replacement even when the proxy has a
+# newer version of the module.
+go mod tidy
+grep '^require example.com/deprecated/b v1.0.0$' go.mod
+go build ./...
+go mod tidy -diff
+
+# When only the excluded replacement remains, use the proxy instead.
+go mod edit -droprequire=example.com/deprecated/b -dropreplace=example.com/deprecated/b@v1.0.0
+go mod tidy
+grep '^require example.com/deprecated/b v1.9.0$' go.mod
+go build ./...
+go mod tidy -diff
+
+-- go.mod --
+module example.com/app
+
+go 1.27
+
+replace (
+	example.com/deprecated/b v1.0.0 => ./fork
+	example.com/deprecated/b v1.1.0 => ./fork
+)
+exclude example.com/deprecated/b v1.1.0
+-- app.go --
+package app
+import _ "example.com/deprecated/b"
+-- fork/go.mod --
+module example.com/deprecated/b
+
+go 1.27
+-- fork/b.go --
+package b

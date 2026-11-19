@@ -527,21 +527,19 @@ func queryImport(ld *Loader, ctx context.Context, path string, rs *Requirements)
 	// module (golang.org/issue/26241).
 	var mods []module.Version
 	if ld.MainModules != nil { // TODO(#48912): Ensure MainModules exists at this point, and remove the check.
-		for mp, mv := range ld.MainModules.HighestReplaced() {
+		for mp, versions := range ld.MainModules.replacedVersions {
 			if !maybeInModule(path, mp) {
 				continue
 			}
-			if mv == "" {
-				// The only replacement is a wildcard that doesn't specify a version, so
-				// synthesize a pseudo-version with an appropriate major version and a
-				// timestamp below any real timestamp. That way, if the main module is
-				// used from within some other module, the user will be able to upgrade
-				// the requirement to any real version they choose.
-				if _, pathMajor, ok := module.SplitPathVersion(mp); ok && len(pathMajor) > 0 {
-					mv = module.ZeroPseudoVersion(pathMajor[1:])
-				} else {
-					mv = module.ZeroPseudoVersion("v0")
+			var mv string
+			for _, v := range versions {
+				if ld.CheckExclusions(ctx, module.Version{Path: mp, Version: v}) == nil {
+					mv = v
+					break
 				}
+			}
+			if mv == "" {
+				continue
 			}
 			mg, err := rs.Graph(ld, ctx)
 			if err != nil {
