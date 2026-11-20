@@ -677,6 +677,68 @@ some body`,
 	},
 
 	{
+		// RFC 9112 6.3.4: a response whose final transfer coding is not
+		// chunked is read until the connection closes.
+		"HTTP/1.1 unsupported T-E",
+
+		"HTTP/1.1 200 OK\r\n" +
+			"Transfer-Encoding: bogus\r\n" +
+			"\r\n" +
+			"Body here\n",
+
+		"HTTP/1.1 200 OK\r\n" +
+			"Connection: close\r\n" +
+			"\r\n" +
+			"Body here\n",
+
+		Response{
+			Status:           "200 OK",
+			StatusCode:       200,
+			Proto:            "HTTP/1.1",
+			ProtoMajor:       1,
+			ProtoMinor:       1,
+			Request:          dummyReq("GET"),
+			Header:           Header{},
+			TransferEncoding: []string{"bogus"},
+			Close:            true,
+			ContentLength:    -1,
+		},
+
+		"Body here\n",
+	},
+
+	{
+		// RFC 9112 6.3.3: Transfer-Encoding overrides Content-Length.
+		"HTTP/1.1 unsupported T-E with C-L",
+
+		"HTTP/1.1 200 OK\r\n" +
+			"Transfer-Encoding: gzip, bogus\r\n" +
+			"Content-Length: 2\r\n" +
+			"\r\n" +
+			"Body here\n",
+
+		"HTTP/1.1 200 OK\r\n" +
+			"Connection: close\r\n" +
+			"\r\n" +
+			"Body here\n",
+
+		Response{
+			Status:           "200 OK",
+			StatusCode:       200,
+			Proto:            "HTTP/1.1",
+			ProtoMajor:       1,
+			ProtoMinor:       1,
+			Request:          dummyReq("GET"),
+			Header:           Header{},
+			TransferEncoding: []string{"gzip, bogus"},
+			Close:            true,
+			ContentLength:    -1,
+		},
+
+		"Body here\n",
+	},
+
+	{
 		"keep-alive timeout",
 
 		"HTTP/1.1 200 OK\r\n" +

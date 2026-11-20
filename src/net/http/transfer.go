@@ -459,6 +459,9 @@ type transferReader struct {
 	Chunked        bool
 	Close          bool
 	Trailer        Header
+	// TransferEncoding holds the codings of a response whose final
+	// transfer coding is not chunked. Its body is left coded.
+	TransferEncoding []string
 }
 
 func (t *transferReader) protoAtLeast(m, n int) bool {
@@ -570,6 +573,8 @@ func readTransfer(msg any, r *bufio.Reader, maxTrailerHeaders int64) (err error)
 		rr.ContentLength = t.ContentLength
 		if t.Chunked {
 			rr.TransferEncoding = []string{"chunked"}
+		} else if t.TransferEncoding != nil {
+			rr.TransferEncoding = t.TransferEncoding
 		}
 		rr.Close = t.Close
 		rr.Trailer = t.Trailer
@@ -580,6 +585,12 @@ func readTransfer(msg any, r *bufio.Reader, maxTrailerHeaders int64) (err error)
 
 // Checks whether chunked is part of the encodings stack.
 func chunked(te []string) bool { return len(te) > 0 && te[0] == "chunked" }
+
+// finalCodingIsChunked reports whether chunked is the last coding listed in
+// a Transfer-Encoding field value.
+func finalCodingIsChunked(te string) bool {
+	return ascii.EqualFold(textproto.TrimString(te[strings.LastIndexByte(te, ',')+1:]), "chunked")
+}
 
 // Checks whether the encoding is explicitly "identity".
 func isIdentity(te []string) bool { return len(te) == 1 && te[0] == "identity" }
@@ -640,7 +651,14 @@ func (t *transferReader) determineBodyLength(isResponse bool) error {
 			return errTooManyTransferEncodings
 		}
 		if !ascii.EqualFold(transferEncoding[0], "chunked") {
-			return errUnsupportedTransferEncoding
+			// The one exception is a response whose final transfer coding
+			// is not chunked: it is read until the connection closes
+			// (rule 4 below), and the connection is not reused, so there
+			// is nothing left on it to desynchronize.
+			if isRequest || finalCodingIsChunked(transferEncoding[0]) {
+				return errUnsupportedTransferEncoding
+			}
+			t.TransferEncoding = transferEncoding
 		}
 	}
 	// parsedContentLength >= 0 indicates a valid Content-Length header,
@@ -663,7 +681,7 @@ func (t *transferReader) determineBodyLength(isResponse bool) error {
 	if isResponse && t.RequestMethod == "HEAD" {
 		t.RealBodyLength = 0
 		if hasTransferEncoding {
-			t.Chunked = true
+			t.Chunked = t.TransferEncoding == nil
 			t.ContentLength = -1
 		} else if parsedContentLength >= 0 {
 			t.Header["Content-Length"] = contentLength
@@ -684,7 +702,7 @@ func (t *transferReader) determineBodyLength(isResponse bool) error {
 		t.RealBodyLength = 0
 		t.ContentLength = 0
 		if hasTransferEncoding {
-			t.Chunked = true // sets Transfer-Encoding header
+			t.Chunked = t.TransferEncoding == nil // sets Transfer-Encoding header
 		} else if parsedContentLength >= 0 {
 			t.Header["Content-Length"] = contentLength
 		}
@@ -735,11 +753,20 @@ func (t *transferReader) determineBodyLength(isResponse bool) error {
 	//     encoding, the message body length is determined by reading
 	//     and decoding the chunked data until the transfer coding
 	//     indicates the data is complete."
+	//
+	//    "If a Transfer-Encoding header field is present in a response
+	//     and the chunked transfer coding is not the final encoding, the
+	//     message body length is determined by reading the connection
+	//     until it is closed by the server."
 	if hasTransferEncoding {
-		// We verified above that the header contains a single value, "chunked".
-		t.Chunked = true
+		// We verified above that the header contains a single value:
+		// "chunked", or a response coding list not ending in chunked.
+		t.Chunked = t.TransferEncoding == nil
 		t.RealBodyLength = -1
 		t.ContentLength = -1
+		if !t.Chunked {
+			t.Close = true
+		}
 		return nil
 	}
 
