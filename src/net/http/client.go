@@ -843,6 +843,8 @@ func defaultCheckRedirect(req *Request, via []*Request) error {
 
 // Post issues a POST to the specified URL.
 //
+// Any returned error will be of type [*url.Error].
+//
 // Caller should close resp.Body when done reading from it.
 //
 // If the provided body is an [io.Closer], it is closed after the
@@ -862,6 +864,8 @@ func Post(url, contentType string, body io.Reader) (resp *Response, err error) {
 }
 
 // Post issues a POST to the specified URL.
+//
+// Any returned error will be of type [*url.Error].
 //
 // Caller should close resp.Body when done reading from it.
 //
@@ -887,6 +891,8 @@ func (c *Client) Post(url, contentType string, body io.Reader) (resp *Response, 
 // PostForm issues a POST to the specified URL, with data's keys and
 // values URL-encoded as the request body.
 //
+// Any returned error will be of type [*url.Error].
+//
 // The Content-Type header is set to application/x-www-form-urlencoded.
 // To set other headers, use [NewRequest] and DefaultClient.Do.
 //
@@ -906,6 +912,8 @@ func PostForm(url string, data url.Values) (resp *Response, err error) {
 
 // PostForm issues a POST to the specified URL,
 // with data's keys and values URL-encoded as the request body.
+//
+// Any returned error will be of type [*url.Error].
 //
 // The Content-Type header is set to application/x-www-form-urlencoded.
 // To set other headers, use [NewRequest] and [Client.Do].
@@ -932,6 +940,8 @@ func (c *Client) PostForm(url string, data url.Values) (resp *Response, err erro
 //	307 (Temporary Redirect)
 //	308 (Permanent Redirect)
 //
+// Any returned error will be of type [*url.Error].
+//
 // Head is a wrapper around DefaultClient.Head.
 //
 // To make a request with a specified [context.Context], use [NewRequestWithContext]
@@ -949,6 +959,8 @@ func Head(url string) (resp *Response, err error) {
 //	303 (See Other)
 //	307 (Temporary Redirect)
 //	308 (Permanent Redirect)
+//
+// Any returned error will be of type [*url.Error].
 //
 // To make a request with a specified [context.Context], use [NewRequestWithContext]
 // and [Client.Do].
