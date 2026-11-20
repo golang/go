@@ -59,7 +59,7 @@ func (x {{.VType}}) TruncTo{{.OBase}}{{.OEWidth}}() (z {{.OVType}}) {
 {{- else if eq .Vwidth 128}}
 {{-  if eq .EWidth 64}}
 	var zero Uint32x4
-	return x.ReshapeToUint32s().ConcatPermuteScalars(0, 2, 4, 4, zero)
+	return x.ReshapeToUint32s().concatSelectedConstant(0b00_00_10_00 /* =cscimm4(0, 2, 0, 0) */, zero)
 {{-  else}}
 	return x.ReshapeToUint8s().LookupModOrZero(LoadInt8x16Array(&trunc{{.EWidth}}To{{.OEWidth}}Idx)){{if ne .OEWidth 8}}.ReshapeToUint{{.OEWidth}}s(){{end}}
 {{-  end}}
@@ -69,7 +69,7 @@ func (x {{.VType}}) TruncTo{{.OBase}}{{.OEWidth}}() (z {{.OVType}}) {
 	}
 {{-  if eq .EWidth 64}}
 	var zero Uint32x8
-	g := x.ReshapeToUint32s().ConcatPermuteScalarsGrouped(0, 2, 4, 4, zero)
+	g := x.ReshapeToUint32s().concatSelectedConstantGrouped(0b00_00_10_00 /* =cscimm4(0, 2, 0, 0) */, zero)
 {{-  else}}
 	g := x.ReshapeToUint8s().LookupModOrZeroGrouped(LoadInt8x32Array(&trunc{{.EWidth}}To{{.OEWidth}}GroupedIdx))
 {{-  end}}

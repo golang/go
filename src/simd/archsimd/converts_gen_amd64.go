@@ -80,7 +80,7 @@ func (x Int64x2) TruncToInt32() (z Int32x4) {
 // Emulated, CPU Feature: AVX
 func (x Uint64x2) TruncToUint32() (z Uint32x4) {
 	var zero Uint32x4
-	return x.ReshapeToUint32s().ConcatPermuteScalars(0, 2, 4, 4, zero)
+	return x.ReshapeToUint32s().concatSelectedConstant(0b00_00_10_00 /* =cscimm4(0, 2, 0, 0) */, zero)
 }
 
 // TruncToInt8 converts each element of x to int8 by discarding its high
@@ -170,7 +170,7 @@ func (x Uint64x4) TruncToUint32() (z Uint32x8) {
 		return x.truncToUint32()
 	}
 	var zero Uint32x8
-	g := x.ReshapeToUint32s().ConcatPermuteScalarsGrouped(0, 2, 4, 4, zero)
+	g := x.ReshapeToUint32s().concatSelectedConstantGrouped(0b00_00_10_00 /* =cscimm4(0, 2, 0, 0) */, zero)
 	return gatherLo64(g.ReshapeToUint64s()).ReshapeToUint32s()
 }
 
