@@ -35,7 +35,11 @@ func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEn
 		}
 		dir, call, errno := f.pfd.OpenDir()
 		if errno != nil {
-			return nil, nil, nil, &PathError{Op: call, Path: f.name, Err: errno}
+			if call == "" {
+				// OpenDir reports no system call when the file is closed.
+				call = "readdir"
+			}
+			return nil, nil, nil, f.wrapErr(call, errno)
 		}
 		d = &dirInfo{dir: dir}
 		if f.dirinfo.CompareAndSwap(nil, d) {
