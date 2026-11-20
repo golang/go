@@ -363,7 +363,12 @@ type resolverConfig struct {
 	dnsConfig atomic.Pointer[dnsConfig] // parsed resolv.conf structure used in lookups
 }
 
-var resolvConf resolverConfig
+// ch is created here rather than in init: a channel created inside a synctest
+// bubble stays associated with it, and operating on such a channel from
+// outside the bubble is a fatal error.
+var resolvConf = resolverConfig{
+	ch: make(chan struct{}, 1),
+}
 
 func getSystemDNSConfig() *dnsConfig {
 	return getSystemDNSConfigNamed("/etc/resolv.conf")
@@ -380,10 +385,6 @@ func (conf *resolverConfig) init() {
 	// resolv.conf twice the first time.
 	conf.dnsConfig.Store(dnsReadConfig("/etc/resolv.conf"))
 	conf.lastChecked = time.Now()
-
-	// Prepare ch so that only one update of resolverConfig may
-	// run at once.
-	conf.ch = make(chan struct{}, 1)
 }
 
 // distantFuture is a sentinel time used for tests to signal that
