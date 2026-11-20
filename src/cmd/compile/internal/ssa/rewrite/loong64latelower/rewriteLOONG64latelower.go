@@ -83,6 +83,24 @@ func rewriteValue_OpLOONG64ANDconst(v *ssa.Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (ANDconst [c] (SRLVconst [sc] x))
+	// cond: c != -1 && ssa.IsContiguousOnes(uint64(c)) && ssa.GetContiguousOnesLSB(uint64(c)) == 0 && sc + ssa.Log64u(uint64(c)+1) <= 64
+	// result: (BSTRPICKV [ssa.GetLoong64BSTRPICKVAuxInt(uint64(c) << uint64(sc))] x)
+	for {
+		c := ssa.AuxIntToInt64(v.AuxInt)
+		if v_0.Op != ssaop.OpLOONG64SRLVconst {
+			break
+		}
+		sc := ssa.AuxIntToInt64(v_0.AuxInt)
+		x := v_0.Args[0]
+		if !(c != -1 && ssa.IsContiguousOnes(uint64(c)) && ssa.GetContiguousOnesLSB(uint64(c)) == 0 && sc+ssa.Log64u(uint64(c)+1) <= 64) {
+			break
+		}
+		v.Reset(ssaop.OpLOONG64BSTRPICKV)
+		v.AuxInt = ssa.Int64ToAuxInt(ssa.GetLoong64BSTRPICKVAuxInt(uint64(c) << uint64(sc)))
+		v.AddArg(x)
+		return true
+	}
 	return false
 }
 func rewriteValue_OpLOONG64MOVBUreg(v *ssa.Value) bool {

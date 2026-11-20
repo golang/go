@@ -70,7 +70,7 @@ func bfi2(x, y uint64) uint64 {
 // bfxil
 func bfxil1(x, y uint64) uint64 {
 	// arm64:"BFXIL [$]5, R[0-9]+, [$]12" -"LSL" -"LSR" -"AND"
-	// loong64:"SRLV" "AND" "BSTRINSV [$]11," "OR"
+	// loong64:"BSTRPICKV [$]16, R[0-9]+, [$]5" "BSTRINSV [$]11," "OR" -"SRLV" -"AND"
 	return ((x >> 5) & 0xfff) | (y & 0xfffffffffffff000)
 }
 

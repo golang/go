@@ -83,3 +83,8 @@
 
 (ANDconst [c] x) && !ssa.IsU12Bit(c) && ssa.IsContiguousOnes(uint64(c)) && ssa.GetContiguousOnesLSB(uint64(c)) == 0 =>
 	(BSTRPICKV [ssa.GetLoong64BSTRPICKVAuxInt(uint64(c))] x)
+
+(ANDconst [c] (SRLVconst [sc] x)) && c != -1 &&
+	ssa.IsContiguousOnes(uint64(c)) && ssa.GetContiguousOnesLSB(uint64(c)) == 0 &&
+	sc + ssa.Log64u(uint64(c)+1) <= 64 =>
+	(BSTRPICKV [ssa.GetLoong64BSTRPICKVAuxInt(uint64(c) << uint64(sc))] x)

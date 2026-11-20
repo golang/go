@@ -65,7 +65,7 @@ func bitsCheckConstRightShiftU64(a [8]uint64) (n int) {
 	}
 	// amd64:"BTQ [$]60,"
 	// arm64:"TBZ [$]60," -"LSR"
-	// loong64:"SRLV [$]60," "AND [$]1," "BEQ"
+	// loong64:"BSTRPICKV [$]60, R[0-9]+, [$]60" -"SRLV" -"AND" "BEQ"
 	// riscv64/rva20u64:"SRLI [$]60," "ANDI [$]1," "BEQZ"
 	// riscv64/rva22u64:"SRLI [$]60," "ANDI [$]1," "BEQZ"
 	// riscv64/rva23u64:"BEXTI [$]60," "BEQZ" -"SRLI" -"ANDI"
@@ -74,7 +74,7 @@ func bitsCheckConstRightShiftU64(a [8]uint64) (n int) {
 	}
 	// amd64:"BTL [$]1,"
 	// arm64:"TBZ [$]1," -"LSR"
-	// loong64:"SRLV [$]1," "AND [$]1," "BEQ"
+	// loong64:"BSTRPICKV [$]1, R[0-9]+, [$]1" -"SRLV" -"AND" "BEQ"
 	// riscv64:"ANDI [$]2," "BEQZ" -"SRLI"
 	if (a[4]>>1)&1 == 0 {
 		return 1
