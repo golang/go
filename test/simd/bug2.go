@@ -34,7 +34,7 @@ func PackComplex2(x0 uint16, src [][4]float32, b, b2 bool) {
 				px := &src[y]
 				if b {
 					var indices [4]uint32
-					fu := archsimd.LoadFloat32x4Array(px).AsUint32x4()
+					fu := archsimd.LoadFloat32x4Array(px).ToBits()
 					fu.ShiftAllRight(0).StoreArray(&indices)
 					entry := archsimd.LoadUint32x4Array(&[4]uint32{
 						toSrgbTable[indices[0]],

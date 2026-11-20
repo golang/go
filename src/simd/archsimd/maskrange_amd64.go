@@ -35,21 +35,21 @@ func (x Mask8x16) None() bool {
 //
 // Emulated, CPU Feature: AVX
 func (x Mask16x8) All() bool {
-	return x.ToInt16x8().AsInt8x16().asMask().ToBits()&0x5555 == 0x5555
+	return x.ToInt16x8().ToBits().ReshapeToUint8s().BitsToInt8().asMask().ToBits()&0x5555 == 0x5555
 }
 
 // Any returns true when any position in mask x is true.
 //
 // Emulated, CPU Feature: AVX
 func (x Mask16x8) Any() bool {
-	return x.ToInt16x8().AsInt8x16().asMask().ToBits()&0x5555 != 0
+	return x.ToInt16x8().ToBits().ReshapeToUint8s().BitsToInt8().asMask().ToBits()&0x5555 != 0
 }
 
 // None returns true when no positions in mask x are set.
 //
 // Emulated, CPU Feature: AVX
 func (x Mask16x8) None() bool {
-	return x.ToInt16x8().AsInt8x16().asMask().ToBits()&0x5555 == 0
+	return x.ToInt16x8().ToBits().ReshapeToUint8s().BitsToInt8().asMask().ToBits()&0x5555 == 0
 }
 
 // All returns true when all positions in mask x are true.
@@ -121,21 +121,21 @@ func (x Mask8x32) None() bool {
 //
 // Emulated, CPU Feature: AVX2
 func (x Mask16x16) All() bool {
-	return x.ToInt16x16().AsInt8x32().asMask().ToBits()&0x55555555 == 0x55555555
+	return x.ToInt16x16().ToBits().ReshapeToUint8s().BitsToInt8().asMask().ToBits()&0x55555555 == 0x55555555
 }
 
 // Any returns true when any position in mask x is true.
 //
 // Emulated, CPU Feature: AVX2
 func (x Mask16x16) Any() bool {
-	return x.ToInt16x16().AsInt8x32().asMask().ToBits()&0x55555555 != 0
+	return x.ToInt16x16().ToBits().ReshapeToUint8s().BitsToInt8().asMask().ToBits()&0x55555555 != 0
 }
 
 // None returns true when no positions in mask x are set.
 //
 // Emulated, CPU Feature: AVX2
 func (x Mask16x16) None() bool {
-	return x.ToInt16x16().AsInt8x32().asMask().ToBits()&0x55555555 == 0
+	return x.ToInt16x16().ToBits().ReshapeToUint8s().BitsToInt8().asMask().ToBits()&0x55555555 == 0
 }
 
 // All returns true when all positions in mask x are true.
@@ -310,7 +310,7 @@ func (x Mask8x64) TrailingZeros() int {
 //
 // Emulated, CPU Feature: AVX
 func (x Mask16x8) TrailingZeros() int {
-	word := uint64(x.ToInt16x8().AsInt8x16().asMask().ToBits() & 0x5555)
+	word := uint64(x.ToInt16x8().ToBits().ReshapeToUint8s().BitsToInt8().asMask().ToBits() & 0x5555)
 	lane := bits.TrailingZeros64(word) >> 1
 	if lane >= 8 {
 		return 8
@@ -323,7 +323,7 @@ func (x Mask16x8) TrailingZeros() int {
 //
 // Emulated, CPU Feature: AVX2
 func (x Mask16x16) TrailingZeros() int {
-	word := uint64(x.ToInt16x16().AsInt8x32().asMask().ToBits() & 0x55555555)
+	word := uint64(x.ToInt16x16().ToBits().ReshapeToUint8s().BitsToInt8().asMask().ToBits() & 0x55555555)
 	lane := bits.TrailingZeros64(word) >> 1
 	if lane >= 16 {
 		return 16

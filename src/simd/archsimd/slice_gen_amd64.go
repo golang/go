@@ -998,7 +998,7 @@ func LoadUint8x32Part(s []uint8) (z Uint8x32, n int) {
 	}
 	t := unsafe.Slice((*int8)(unsafe.Pointer(&s[0])), len(s))
 	v, l := LoadInt8x32Part(t)
-	return v.AsUint8x32(), l
+	return v.ToBits(), l
 }
 
 // StorePart stores n=min(len(s), 32) elements of x into s and returns n.
@@ -1007,7 +1007,7 @@ func (x Uint8x32) StorePart(s []uint8) (n int) {
 		return 0
 	}
 	t := unsafe.Slice((*int8)(unsafe.Pointer(&s[0])), len(s))
-	return x.AsInt8x32().StorePart(t)
+	return x.BitsToInt8().StorePart(t)
 }
 
 // LoadUint16x16Part loads n=min(len(s), 16) elements from slice s as a
@@ -1020,7 +1020,7 @@ func LoadUint16x16Part(s []uint16) (z Uint16x16, n int) {
 	}
 	t := unsafe.Slice((*int16)(unsafe.Pointer(&s[0])), len(s))
 	v, l := LoadInt16x16Part(t)
-	return v.AsUint16x16(), l
+	return v.ToBits(), l
 }
 
 // StorePart stores n=min(len(s), 16) elements of x into s and returns n.
@@ -1029,5 +1029,5 @@ func (x Uint16x16) StorePart(s []uint16) (n int) {
 		return 0
 	}
 	t := unsafe.Slice((*int16)(unsafe.Pointer(&s[0])), len(s))
-	return x.AsInt16x16().StorePart(t)
+	return x.BitsToInt16().StorePart(t)
 }

@@ -352,7 +352,7 @@ func (x Uint8x16) LessEqual(y Uint8x16) (z Mask8x16) {
 //
 // Emulated, CPU Feature: AVX
 func (x Uint8x16) NotEqual(y Uint8x16) (z Mask8x16) {
-	a, b := x.AsInt8x16(), y.AsInt8x16()
+	a, b := x.BitsToInt8(), y.BitsToInt8()
 	ones := x.Equal(x).ToInt8x16()
 	return a.Equal(b).ToInt8x16().Xor(ones).asMask()
 }
@@ -401,7 +401,7 @@ func (x Uint16x8) LessEqual(y Uint16x8) (z Mask16x8) {
 //
 // Emulated, CPU Feature: AVX
 func (x Uint16x8) NotEqual(y Uint16x8) (z Mask16x8) {
-	a, b := x.AsInt16x8(), y.AsInt16x8()
+	a, b := x.BitsToInt16(), y.BitsToInt16()
 	ones := x.Equal(x).ToInt16x8()
 	return a.Equal(b).ToInt16x8().Xor(ones).asMask()
 }
@@ -450,7 +450,7 @@ func (x Uint32x4) LessEqual(y Uint32x4) (z Mask32x4) {
 //
 // Emulated, CPU Feature: AVX
 func (x Uint32x4) NotEqual(y Uint32x4) (z Mask32x4) {
-	a, b := x.AsInt32x4(), y.AsInt32x4()
+	a, b := x.BitsToInt32(), y.BitsToInt32()
 	ones := x.Equal(x).ToInt32x4()
 	return a.Equal(b).ToInt32x4().Xor(ones).asMask()
 }
@@ -461,7 +461,7 @@ func (x Uint32x4) NotEqual(y Uint32x4) (z Mask32x4) {
 //
 // Emulated, CPU Feature: AVX
 func (x Uint64x2) Greater(y Uint64x2) (z Mask64x2) {
-	a, b := x.AsInt64x2(), y.AsInt64x2()
+	a, b := x.BitsToInt64(), y.BitsToInt64()
 	ones := x.Equal(x).ToInt64x2()
 	signs := ones.ShiftAllLeft(64 - 1)
 	return a.Xor(signs).Greater(b.Xor(signs))
@@ -473,7 +473,7 @@ func (x Uint64x2) Greater(y Uint64x2) (z Mask64x2) {
 //
 // Emulated, CPU Feature: AVX
 func (x Uint64x2) Less(y Uint64x2) (z Mask64x2) {
-	a, b := x.AsInt64x2(), y.AsInt64x2()
+	a, b := x.BitsToInt64(), y.BitsToInt64()
 	ones := x.Equal(x).ToInt64x2()
 	signs := ones.ShiftAllLeft(64 - 1)
 	return b.Xor(signs).Greater(a.Xor(signs))
@@ -486,7 +486,7 @@ func (x Uint64x2) Less(y Uint64x2) (z Mask64x2) {
 //
 // Emulated, CPU Feature: AVX
 func (x Uint64x2) GreaterEqual(y Uint64x2) (z Mask64x2) {
-	a, b := x.AsInt64x2(), y.AsInt64x2()
+	a, b := x.BitsToInt64(), y.BitsToInt64()
 	ones := x.Equal(x).ToInt64x2()
 	signs := ones.ShiftAllLeft(64 - 1)
 	return b.Xor(signs).Greater(a.Xor(signs)).ToInt64x2().Xor(ones).asMask()
@@ -499,7 +499,7 @@ func (x Uint64x2) GreaterEqual(y Uint64x2) (z Mask64x2) {
 //
 // Emulated, CPU Feature: AVX
 func (x Uint64x2) LessEqual(y Uint64x2) (z Mask64x2) {
-	a, b := x.AsInt64x2(), y.AsInt64x2()
+	a, b := x.BitsToInt64(), y.BitsToInt64()
 	ones := x.Equal(x).ToInt64x2()
 	signs := ones.ShiftAllLeft(64 - 1)
 	return a.Xor(signs).Greater(b.Xor(signs)).ToInt64x2().Xor(ones).asMask()
@@ -511,7 +511,7 @@ func (x Uint64x2) LessEqual(y Uint64x2) (z Mask64x2) {
 //
 // Emulated, CPU Feature: AVX
 func (x Uint64x2) NotEqual(y Uint64x2) (z Mask64x2) {
-	a, b := x.AsInt64x2(), y.AsInt64x2()
+	a, b := x.BitsToInt64(), y.BitsToInt64()
 	ones := x.Equal(x).ToInt64x2()
 	return a.Equal(b).ToInt64x2().Xor(ones).asMask()
 }
@@ -560,7 +560,7 @@ func (x Uint8x32) LessEqual(y Uint8x32) (z Mask8x32) {
 //
 // Emulated, CPU Feature: AVX2
 func (x Uint8x32) NotEqual(y Uint8x32) (z Mask8x32) {
-	a, b := x.AsInt8x32(), y.AsInt8x32()
+	a, b := x.BitsToInt8(), y.BitsToInt8()
 	ones := x.Equal(x).ToInt8x32()
 	return a.Equal(b).ToInt8x32().Xor(ones).asMask()
 }
@@ -609,7 +609,7 @@ func (x Uint16x16) LessEqual(y Uint16x16) (z Mask16x16) {
 //
 // Emulated, CPU Feature: AVX2
 func (x Uint16x16) NotEqual(y Uint16x16) (z Mask16x16) {
-	a, b := x.AsInt16x16(), y.AsInt16x16()
+	a, b := x.BitsToInt16(), y.BitsToInt16()
 	ones := x.Equal(x).ToInt16x16()
 	return a.Equal(b).ToInt16x16().Xor(ones).asMask()
 }
@@ -658,7 +658,7 @@ func (x Uint32x8) LessEqual(y Uint32x8) (z Mask32x8) {
 //
 // Emulated, CPU Feature: AVX2
 func (x Uint32x8) NotEqual(y Uint32x8) (z Mask32x8) {
-	a, b := x.AsInt32x8(), y.AsInt32x8()
+	a, b := x.BitsToInt32(), y.BitsToInt32()
 	ones := x.Equal(x).ToInt32x8()
 	return a.Equal(b).ToInt32x8().Xor(ones).asMask()
 }
@@ -669,7 +669,7 @@ func (x Uint32x8) NotEqual(y Uint32x8) (z Mask32x8) {
 //
 // Emulated, CPU Feature: AVX2
 func (x Uint64x4) Greater(y Uint64x4) (z Mask64x4) {
-	a, b := x.AsInt64x4(), y.AsInt64x4()
+	a, b := x.BitsToInt64(), y.BitsToInt64()
 	ones := x.Equal(x).ToInt64x4()
 	signs := ones.ShiftAllLeft(64 - 1)
 	return a.Xor(signs).Greater(b.Xor(signs))
@@ -681,7 +681,7 @@ func (x Uint64x4) Greater(y Uint64x4) (z Mask64x4) {
 //
 // Emulated, CPU Feature: AVX2
 func (x Uint64x4) Less(y Uint64x4) (z Mask64x4) {
-	a, b := x.AsInt64x4(), y.AsInt64x4()
+	a, b := x.BitsToInt64(), y.BitsToInt64()
 	ones := x.Equal(x).ToInt64x4()
 	signs := ones.ShiftAllLeft(64 - 1)
 	return b.Xor(signs).Greater(a.Xor(signs))
@@ -694,7 +694,7 @@ func (x Uint64x4) Less(y Uint64x4) (z Mask64x4) {
 //
 // Emulated, CPU Feature: AVX2
 func (x Uint64x4) GreaterEqual(y Uint64x4) (z Mask64x4) {
-	a, b := x.AsInt64x4(), y.AsInt64x4()
+	a, b := x.BitsToInt64(), y.BitsToInt64()
 	ones := x.Equal(x).ToInt64x4()
 	signs := ones.ShiftAllLeft(64 - 1)
 	return b.Xor(signs).Greater(a.Xor(signs)).ToInt64x4().Xor(ones).asMask()
@@ -707,7 +707,7 @@ func (x Uint64x4) GreaterEqual(y Uint64x4) (z Mask64x4) {
 //
 // Emulated, CPU Feature: AVX2
 func (x Uint64x4) LessEqual(y Uint64x4) (z Mask64x4) {
-	a, b := x.AsInt64x4(), y.AsInt64x4()
+	a, b := x.BitsToInt64(), y.BitsToInt64()
 	ones := x.Equal(x).ToInt64x4()
 	signs := ones.ShiftAllLeft(64 - 1)
 	return a.Xor(signs).Greater(b.Xor(signs)).ToInt64x4().Xor(ones).asMask()
@@ -719,7 +719,7 @@ func (x Uint64x4) LessEqual(y Uint64x4) (z Mask64x4) {
 //
 // Emulated, CPU Feature: AVX2
 func (x Uint64x4) NotEqual(y Uint64x4) (z Mask64x4) {
-	a, b := x.AsInt64x4(), y.AsInt64x4()
+	a, b := x.BitsToInt64(), y.BitsToInt64()
 	ones := x.Equal(x).ToInt64x4()
 	return a.Equal(b).ToInt64x4().Xor(ones).asMask()
 }

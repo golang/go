@@ -702,7 +702,7 @@ func (x Mask64x8) Not() (z Mask64x8) {
 //
 // Emulated, CPU Feature: AVX
 func (x Uint8x16) Not() (z Uint8x16) {
-	return x.Xor(x.Equal(x).ToInt8x16().AsUint8x16())
+	return x.Xor(x.Equal(x).ToInt8x16().ToBits())
 }
 
 // Not returns the bitwise negation of x.
@@ -711,7 +711,7 @@ func (x Uint8x16) Not() (z Uint8x16) {
 //
 // Emulated, CPU Feature: AVX
 func (x Uint16x8) Not() (z Uint16x8) {
-	return x.Xor(x.Equal(x).ToInt16x8().AsUint16x8())
+	return x.Xor(x.Equal(x).ToInt16x8().ToBits())
 }
 
 // Not returns the bitwise negation of x.
@@ -720,7 +720,7 @@ func (x Uint16x8) Not() (z Uint16x8) {
 //
 // Emulated, CPU Feature: AVX
 func (x Uint32x4) Not() (z Uint32x4) {
-	return x.Xor(x.Equal(x).ToInt32x4().AsUint32x4())
+	return x.Xor(x.Equal(x).ToInt32x4().ToBits())
 }
 
 // Not returns the bitwise negation of x.
@@ -729,7 +729,7 @@ func (x Uint32x4) Not() (z Uint32x4) {
 //
 // Emulated, CPU Feature: AVX
 func (x Uint64x2) Not() (z Uint64x2) {
-	return x.Xor(x.Equal(x).ToInt64x2().AsUint64x2())
+	return x.Xor(x.Equal(x).ToInt64x2().ToBits())
 }
 
 // Not returns the bitwise negation of x.
@@ -738,7 +738,7 @@ func (x Uint64x2) Not() (z Uint64x2) {
 //
 // Emulated, CPU Feature: AVX2
 func (x Uint8x32) Not() (z Uint8x32) {
-	return x.Xor(x.Equal(x).ToInt8x32().AsUint8x32())
+	return x.Xor(x.Equal(x).ToInt8x32().ToBits())
 }
 
 // Not returns the bitwise negation of x.
@@ -747,7 +747,7 @@ func (x Uint8x32) Not() (z Uint8x32) {
 //
 // Emulated, CPU Feature: AVX2
 func (x Uint16x16) Not() (z Uint16x16) {
-	return x.Xor(x.Equal(x).ToInt16x16().AsUint16x16())
+	return x.Xor(x.Equal(x).ToInt16x16().ToBits())
 }
 
 // Not returns the bitwise negation of x.
@@ -756,7 +756,7 @@ func (x Uint16x16) Not() (z Uint16x16) {
 //
 // Emulated, CPU Feature: AVX2
 func (x Uint32x8) Not() (z Uint32x8) {
-	return x.Xor(x.Equal(x).ToInt32x8().AsUint32x8())
+	return x.Xor(x.Equal(x).ToInt32x8().ToBits())
 }
 
 // Not returns the bitwise negation of x.
@@ -765,7 +765,7 @@ func (x Uint32x8) Not() (z Uint32x8) {
 //
 // Emulated, CPU Feature: AVX2
 func (x Uint64x4) Not() (z Uint64x4) {
-	return x.Xor(x.Equal(x).ToInt64x4().AsUint64x4())
+	return x.Xor(x.Equal(x).ToInt64x4().ToBits())
 }
 
 // Not returns the bitwise negation of x.
@@ -774,7 +774,7 @@ func (x Uint64x4) Not() (z Uint64x4) {
 //
 // Emulated, CPU Feature: AVX512
 func (x Uint8x64) Not() (z Uint8x64) {
-	return x.Xor(x.Equal(x).ToInt8x64().AsUint8x64())
+	return x.Xor(x.Equal(x).ToInt8x64().ToBits())
 }
 
 // Not returns the bitwise negation of x.
@@ -783,7 +783,7 @@ func (x Uint8x64) Not() (z Uint8x64) {
 //
 // Emulated, CPU Feature: AVX512
 func (x Uint16x32) Not() (z Uint16x32) {
-	return x.Xor(x.Equal(x).ToInt16x32().AsUint16x32())
+	return x.Xor(x.Equal(x).ToInt16x32().ToBits())
 }
 
 // Not returns the bitwise negation of x.
@@ -792,7 +792,7 @@ func (x Uint16x32) Not() (z Uint16x32) {
 //
 // Emulated, CPU Feature: AVX512
 func (x Uint32x16) Not() (z Uint32x16) {
-	return x.Xor(x.Equal(x).ToInt32x16().AsUint32x16())
+	return x.Xor(x.Equal(x).ToInt32x16().ToBits())
 }
 
 // Not returns the bitwise negation of x.
@@ -801,7 +801,7 @@ func (x Uint32x16) Not() (z Uint32x16) {
 //
 // Emulated, CPU Feature: AVX512
 func (x Uint64x8) Not() (z Uint64x8) {
-	return x.Xor(x.Equal(x).ToInt64x8().AsUint64x8())
+	return x.Xor(x.Equal(x).ToInt64x8().ToBits())
 }
 
 // String returns x in the form "{x[0],x[1],...}". Each element is formatted
