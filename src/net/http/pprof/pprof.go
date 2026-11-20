@@ -25,8 +25,12 @@
 // By default, all the profiles listed in [runtime/pprof.Profile] are
 // available (via [Handler]), in addition to the [Cmdline], [Profile], [Symbol],
 // and [Trace] profiles defined in this package.
-// If you are not using DefaultServeMux, you will have to register handlers
-// with the mux you are using.
+//
+// If you are not using DefaultServeMux, you can register the pprof handlers
+// using the `AttachHandlers` function:
+//
+//	mux := http.NewServeMux()
+//	pprof.AttachHandlers("", mux)
 //
 // # Parameters
 //
@@ -93,15 +97,21 @@ import (
 )
 
 func init() {
+	AttachHandlers(http.DefaultServeMux)
+}
+
+// AttachHandlers attaches all known pprof handlers to the provided mux.
+func AttachHandlers(mux *http.ServeMux) {
 	prefix := ""
 	if godebug.New("httpmuxgo121").Value() != "1" {
 		prefix = "GET "
 	}
-	http.HandleFunc(prefix+"/debug/pprof/", Index)
-	http.HandleFunc(prefix+"/debug/pprof/cmdline", Cmdline)
-	http.HandleFunc(prefix+"/debug/pprof/profile", Profile)
-	http.HandleFunc(prefix+"/debug/pprof/symbol", Symbol)
-	http.HandleFunc(prefix+"/debug/pprof/trace", Trace)
+
+	mux.HandleFunc(prefix+"/debug/pprof/", Index)
+	mux.HandleFunc(prefix+"/debug/pprof/cmdline", Cmdline)
+	mux.HandleFunc(prefix+"/debug/pprof/profile", Profile)
+	mux.HandleFunc(prefix+"/debug/pprof/symbol", Symbol)
+	mux.HandleFunc(prefix+"/debug/pprof/trace", Trace)
 }
 
 // Cmdline responds with the running program's
