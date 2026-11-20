@@ -1,0 +1,24 @@
+# Regression test for https://go.dev/issue/52263.
+# When the module is in a git repository with no commits yet,
+# 'go build -v' should not print git's misleading message
+# "fatal: your current branch '...' does not have any commits yet".
+
+[short] skip 'builds and links a binary'
+[!git] skip
+
+exec git init
+exec git config user.email gopher@golang.org
+exec git config user.name 'J.R. Gopher'
+
+go build -v
+stderr example.com/test
+! stderr 'fatal:.*does not have any commits yet'
+
+-- go.mod --
+module example.com/test
+
+go 1.18
+-- main.go --
+package main
+
+func main() {}
