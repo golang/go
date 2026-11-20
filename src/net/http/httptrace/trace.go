@@ -9,6 +9,7 @@ package httptrace
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"internal/nettrace"
 	"net"
 	"net/textproto"
@@ -29,7 +30,8 @@ func ContextClientTrace(ctx context.Context) *ClientTrace {
 // ctx. HTTP client requests made with the returned context will use
 // the provided trace hooks, in addition to any previous hooks
 // registered with ctx. Any hooks defined in the provided trace will
-// be called first.
+// be called first. If multiple Got1xxResponse hooks return errors, their
+// errors are joined.
 func WithClientTrace(ctx context.Context, trace *ClientTrace) context.Context {
 	if trace == nil {
 		panic("nil trace")
@@ -230,16 +232,23 @@ func compose2to0[F func(A, B), A, B any](f1, f2 F) F {
 	}
 }
 
-func compose2to1[F func(A, B) R, A, B, R any](f1, f2 F) F {
+func compose2to1[F func(A, B) error, A, B any](f1, f2 F) F {
 	if f1 == nil {
 		return f2
 	}
 	if f2 == nil {
 		return f1
 	}
-	return func(a A, b B) R {
-		f1(a, b)
-		return f2(a, b)
+	return func(a A, b B) error {
+		err1 := f1(a, b)
+		err2 := f2(a, b)
+		if err1 == nil {
+			return err2
+		}
+		if err2 == nil {
+			return err1
+		}
+		return errors.Join(err1, err2)
 	}
 }
 

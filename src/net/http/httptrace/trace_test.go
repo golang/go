@@ -6,6 +6,8 @@ package httptrace
 
 import (
 	"context"
+	"errors"
+	"net/textproto"
 	"strings"
 	"testing"
 )
@@ -33,6 +35,37 @@ func TestWithClientTrace(t *testing.T) {
 	trace.ConnectStart("net", "addr")
 	if got, want := buf.String(), "NO"; got != want {
 		t.Errorf("got %q; want %q", got, want)
+	}
+}
+
+func TestComposeGot1xxErrors(t *testing.T) {
+	newErr, oldErr := errors.New("new hook"), errors.New("old hook")
+	for _, errs := range [][2]error{{nil, nil}, {newErr, nil}, {nil, oldErr}, {newErr, oldErr}} {
+		var calls strings.Builder
+		ctx := WithClientTrace(context.Background(), &ClientTrace{
+			Got1xxResponse: func(int, textproto.MIMEHeader) error {
+				calls.WriteByte('O')
+				return errs[1]
+			},
+		})
+		ctx = WithClientTrace(ctx, &ClientTrace{
+			Got1xxResponse: func(int, textproto.MIMEHeader) error {
+				calls.WriteByte('N')
+				return errs[0]
+			},
+		})
+		err := ContextClientTrace(ctx).Got1xxResponse(103, nil)
+		if (err == nil) != (errs[0] == nil && errs[1] == nil) {
+			t.Errorf("hooks %v returned %v", errs, err)
+		}
+		for _, want := range errs {
+			if want != nil && !errors.Is(err, want) {
+				t.Errorf("hooks %v returned %v, want error containing %v", errs, err, want)
+			}
+		}
+		if got := calls.String(); got != "NO" {
+			t.Errorf("hook order = %q, want NO", got)
+		}
 	}
 }
 
