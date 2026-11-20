@@ -2451,6 +2451,70 @@ func (x Uint64x2) Xor(y Uint64x2) (z Uint64x2)
 // Asm: V128Xor
 func (x Mask64x2) Xor(y Mask64x2) (z Mask64x2)
 
+// bitSelect is an unexported duplicate of BitSelect, which isn't
+// generally available, for use in generally available methods such as IfElse.
+// It can be removed once the generally available methods that use it have
+// moved to exported generally available APIs.
+//
+// Asm: V128Bitselect
+func (x Int8x16) bitSelect(y Int8x16, cond Uint8x16) Int8x16
+
+// bitSelect is an unexported duplicate of BitSelect, which isn't
+// generally available, for use in generally available methods such as IfElse.
+// It can be removed once the generally available methods that use it have
+// moved to exported generally available APIs.
+//
+// Asm: V128Bitselect
+func (x Uint8x16) bitSelect(y Uint8x16, cond Uint8x16) Uint8x16
+
+// bitSelect is an unexported duplicate of BitSelect, which isn't
+// generally available, for use in generally available methods such as IfElse.
+// It can be removed once the generally available methods that use it have
+// moved to exported generally available APIs.
+//
+// Asm: V128Bitselect
+func (x Int16x8) bitSelect(y Int16x8, cond Uint16x8) Int16x8
+
+// bitSelect is an unexported duplicate of BitSelect, which isn't
+// generally available, for use in generally available methods such as IfElse.
+// It can be removed once the generally available methods that use it have
+// moved to exported generally available APIs.
+//
+// Asm: V128Bitselect
+func (x Uint16x8) bitSelect(y Uint16x8, cond Uint16x8) Uint16x8
+
+// bitSelect is an unexported duplicate of BitSelect, which isn't
+// generally available, for use in generally available methods such as IfElse.
+// It can be removed once the generally available methods that use it have
+// moved to exported generally available APIs.
+//
+// Asm: V128Bitselect
+func (x Int32x4) bitSelect(y Int32x4, cond Uint32x4) Int32x4
+
+// bitSelect is an unexported duplicate of BitSelect, which isn't
+// generally available, for use in generally available methods such as IfElse.
+// It can be removed once the generally available methods that use it have
+// moved to exported generally available APIs.
+//
+// Asm: V128Bitselect
+func (x Uint32x4) bitSelect(y Uint32x4, cond Uint32x4) Uint32x4
+
+// bitSelect is an unexported duplicate of BitSelect, which isn't
+// generally available, for use in generally available methods such as IfElse.
+// It can be removed once the generally available methods that use it have
+// moved to exported generally available APIs.
+//
+// Asm: V128Bitselect
+func (x Int64x2) bitSelect(y Int64x2, cond Uint64x2) Int64x2
+
+// bitSelect is an unexported duplicate of BitSelect, which isn't
+// generally available, for use in generally available methods such as IfElse.
+// It can be removed once the generally available methods that use it have
+// moved to exported generally available APIs.
+//
+// Asm: V128Bitselect
+func (x Uint64x2) bitSelect(y Uint64x2, cond Uint64x2) Uint64x2
+
 // concatSaturateToInt16 converts the elements of x and y to int16 with signed
 // saturation and packs them into the low and high halves of the result.
 //
@@ -2526,7 +2590,7 @@ func (x Int8x16) Masked(mask Mask8x16) (z Int8x16) {
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Int8x16) IfElse(mask Mask8x16, y Int8x16) (z Int8x16) {
 	im := mask.ToInt8x16().ToBits()
-	return x.BitSelect(y, im)
+	return x.bitSelect(y, im)
 }
 
 // Masked returns a vector with elements from x where mask is true, and zero
@@ -2544,7 +2608,7 @@ func (x Int16x8) Masked(mask Mask16x8) (z Int16x8) {
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Int16x8) IfElse(mask Mask16x8, y Int16x8) (z Int16x8) {
 	im := mask.ToInt16x8().ToBits()
-	return x.BitSelect(y, im)
+	return x.bitSelect(y, im)
 }
 
 // Masked returns a vector with elements from x where mask is true, and zero
@@ -2562,7 +2626,7 @@ func (x Int32x4) Masked(mask Mask32x4) (z Int32x4) {
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Int32x4) IfElse(mask Mask32x4, y Int32x4) (z Int32x4) {
 	im := mask.ToInt32x4().ToBits()
-	return x.BitSelect(y, im)
+	return x.bitSelect(y, im)
 }
 
 // Masked returns a vector with elements from x where mask is true, and zero
@@ -2580,7 +2644,7 @@ func (x Int64x2) Masked(mask Mask64x2) (z Int64x2) {
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Int64x2) IfElse(mask Mask64x2, y Int64x2) (z Int64x2) {
 	im := mask.ToInt64x2().ToBits()
-	return x.BitSelect(y, im)
+	return x.bitSelect(y, im)
 }
 
 // Masked returns a vector with elements from x where mask is true, and zero
@@ -2598,7 +2662,7 @@ func (x Uint8x16) Masked(mask Mask8x16) (z Uint8x16) {
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Uint8x16) IfElse(mask Mask8x16, y Uint8x16) (z Uint8x16) {
 	im := mask.ToInt8x16().ToBits()
-	return x.BitSelect(y, im)
+	return x.bitSelect(y, im)
 }
 
 // Masked returns a vector with elements from x where mask is true, and zero
@@ -2616,7 +2680,7 @@ func (x Uint16x8) Masked(mask Mask16x8) (z Uint16x8) {
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Uint16x8) IfElse(mask Mask16x8, y Uint16x8) (z Uint16x8) {
 	im := mask.ToInt16x8().ToBits()
-	return x.BitSelect(y, im)
+	return x.bitSelect(y, im)
 }
 
 // Masked returns a vector with elements from x where mask is true, and zero
@@ -2634,7 +2698,7 @@ func (x Uint32x4) Masked(mask Mask32x4) (z Uint32x4) {
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Uint32x4) IfElse(mask Mask32x4, y Uint32x4) (z Uint32x4) {
 	im := mask.ToInt32x4().ToBits()
-	return x.BitSelect(y, im)
+	return x.bitSelect(y, im)
 }
 
 // Masked returns a vector with elements from x where mask is true, and zero
@@ -2652,7 +2716,7 @@ func (x Uint64x2) Masked(mask Mask64x2) (z Uint64x2) {
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Uint64x2) IfElse(mask Mask64x2, y Uint64x2) (z Uint64x2) {
 	im := mask.ToInt64x2().ToBits()
-	return x.BitSelect(y, im)
+	return x.bitSelect(y, im)
 }
 
 // Masked returns a vector with elements from x where mask is true, and zero
@@ -2672,7 +2736,7 @@ func (x Float32x4) IfElse(mask Mask32x4, y Float32x4) (z Float32x4) {
 	im := mask.ToInt32x4().ToBits()
 	ix := x.ToBits()
 	iy := y.ToBits()
-	return ix.BitSelect(iy, im).BitsToFloat32()
+	return ix.bitSelect(iy, im).BitsToFloat32()
 }
 
 // Masked returns a vector with elements from x where mask is true, and zero
@@ -2692,7 +2756,7 @@ func (x Float64x2) IfElse(mask Mask64x2, y Float64x2) (z Float64x2) {
 	im := mask.ToInt64x2().ToBits()
 	ix := x.ToBits()
 	iy := y.ToBits()
-	return ix.BitSelect(iy, im).BitsToFloat64()
+	return ix.bitSelect(iy, im).BitsToFloat64()
 }
 
 // String returns x in the form "{x[0],x[1],...}". Each element is formatted

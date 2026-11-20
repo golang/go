@@ -9157,8 +9157,15 @@ const (
 	OpXorUint8x16
 	OpXorUint8x32
 	OpXorUint8x64
+	OpbitSelectInt16x8
+	OpbitSelectInt32x4
+	OpbitSelectInt64x2
 	OpbitSelectInt8x16
 	OpbitSelectNotInt8x16
+	OpbitSelectUint16x8
+	OpbitSelectUint32x4
+	OpbitSelectUint64x2
+	OpbitSelectUint8x16
 	Opbroadcast1To16Float32x4
 	Opbroadcast1To16Int16x8
 	Opbroadcast1To16Int32x4
@@ -129726,12 +129733,47 @@ var OpcodeTable = [...]OpInfo{
 		Generic:     true,
 	},
 	{
+		Name:    "bitSelectInt16x8",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "bitSelectInt32x4",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "bitSelectInt64x2",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
 		Name:    "bitSelectInt8x16",
 		ArgLen:  3,
 		Generic: true,
 	},
 	{
 		Name:    "bitSelectNotInt8x16",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "bitSelectUint16x8",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "bitSelectUint32x4",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "bitSelectUint64x2",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "bitSelectUint8x16",
 		ArgLen:  3,
 		Generic: true,
 	},

@@ -206,8 +206,8 @@ const (
 	IsTest
 	IsExtract // Returns element type
 	IsCommutative
-	IsConversion  // "Wasm type" is result type, "Go method type" is input time
-	NameHasFormat //
+	IsConversion   // "Wasm type" is result type, "Go method type" is input time
+	NameHasFormat  //
 	NonSigned      // Same bitwise operation whether signed or unsigned.  E.g. 2's complement addition.
 	EmulatedRule   // Emulation occurs at rule expansion.
 	IsSynthShuffle // Synthesized operation implemented via i8x16.shuffle
@@ -295,6 +295,8 @@ type wasmOp struct {
 	arg1Name string // The 1st (non-immediate) arg name. Arg1Name() defaults to "y"
 	arg2Name string // The 2nd (non-immediate) arg name. Arg2Name() defaults to "z"
 	arg2Type string // The 2nd (non-immediate) arg type. Arg2Type() defaults to t.Name
+
+	name string // The Go method name, if not the default. See Method().
 }
 
 func (o *wasmOp) String() string {
@@ -376,6 +378,9 @@ func (o *wasmOp) T() *simdType {
 // Sub, AddSaturated
 // this appears in the Go API declaration files and in the intrinsic registration files.
 func (o *wasmOp) Method() string {
+	if o.name != "" {
+		return o.name
+	}
 	goname := gonames[o.op]
 	if len(goname) == 1 {
 		// it's something like "-" or "?" or "!"
@@ -954,6 +959,16 @@ func initWasmOps() {
 	addWasmOps(ints, iv_1, 1, isBitwise)  // because reasons, not floats
 	addWasmOps(ints, iv_2, 2, binBitwise) // because reasons, not floats
 	addWasmOpsDetail(ints, v_3, 3, bitSelect)
+	// bitSelect is an unexported duplicate of BitSelect, which isn't
+	// generally available, for use in generally available methods such as
+	// IfElse. It can be removed once the generally available methods that
+	// use it have moved to exported generally available APIs. It isn't in
+	// t.Methods, which is keyed by op, since it has the same op as BitSelect.
+	for _, t := range ints {
+		op := &wasmOp{t: t, op: "bitSelect", argCount: 3, name: "bitSelect"}
+		bitSelect(op)
+		wasmOps = append(wasmOps, op)
+	}
 	addWasmOps(allTypes, v_t, 1, isTest)
 	addWasmOps(signed, s_1, 1, unShape)
 	addWasmOpsDetail(signed, su_1, 1, func(op *wasmOp) {
@@ -1287,36 +1302,40 @@ func genTypes(f *bytes.Buffer) {
 }
 
 var docForOp map[string]string = map[string]string{
-	"Add":              " returns the result of adding x and y, elementwise.",
-	"Sub":              " returns the result of subtracting y from x, elementwise.",
-	"Mul":              " returns the result of multiplying x and y, elementwise.",
-	"Div":              " returns the result of dividing x by y, elementwise.",
-	"Neg":              " returns the elementwise negation of x.",
-	"Abs":              " returns the elementwise absolute value of x.",
-	"Sqrt":             " returns the elementwise square root of x.",
-	"Not":              " returns the bitwise NOT of x.",
-	"And":              " returns the bitwise AND of x and y.",
-	"Or":               " returns the bitwise OR of x and y.",
-	"Xor":              " returns the bitwise XOR of x and y.",
-	"AndNot":           " returns the bitwise AND NOT of x and y (x & ^y).",
-	"Min":              " returns the elementwise minimum of x and y.",
-	"Max":              " returns the elementwise maximum of x and y.",
-	"Round":            " returns the elementwise nearest integer, rounding ties to even.",
-	"OnesCount":        " returns the elementwise population count (number of bits set).",
-	"Average":          " returns the elementwise average of unsigned integers in x and y.",
-	"Equal":            " returns true if x equals y, elementwise.",
-	"NotEqual":         " returns true if x does not equal y, elementwise.",
-	"Less":             " returns true if x is less than y, elementwise.",
-	"Greater":          " returns true if x is greater than y, elementwise.",
-	"LessEqual":        " returns true if x is less than or equal to y, elementwise.",
-	"GreaterEqual":     " returns true if x is greater than or equal to y, elementwise.",
-	"MulAdd":           " returns the elementwise multiply-add of x, y, and z.",
-	"ShiftAllLeft":     " returns the elementwise left shift of x by shift bits.",
-	"ShiftAllRight":    " returns the elementwise right shift of x by shift bits.",
-	"Ceil":             " returns the elementwise ceiling of x.",
-	"Floor":            " returns the elementwise floor of x.",
-	"Trunc":            " returns the elementwise truncation of x.",
-	"BitSelect":        " returns the bitwise selection if mask[i] then x[i] else y[i]",
+	"Add":           " returns the result of adding x and y, elementwise.",
+	"Sub":           " returns the result of subtracting y from x, elementwise.",
+	"Mul":           " returns the result of multiplying x and y, elementwise.",
+	"Div":           " returns the result of dividing x by y, elementwise.",
+	"Neg":           " returns the elementwise negation of x.",
+	"Abs":           " returns the elementwise absolute value of x.",
+	"Sqrt":          " returns the elementwise square root of x.",
+	"Not":           " returns the bitwise NOT of x.",
+	"And":           " returns the bitwise AND of x and y.",
+	"Or":            " returns the bitwise OR of x and y.",
+	"Xor":           " returns the bitwise XOR of x and y.",
+	"AndNot":        " returns the bitwise AND NOT of x and y (x & ^y).",
+	"Min":           " returns the elementwise minimum of x and y.",
+	"Max":           " returns the elementwise maximum of x and y.",
+	"Round":         " returns the elementwise nearest integer, rounding ties to even.",
+	"OnesCount":     " returns the elementwise population count (number of bits set).",
+	"Average":       " returns the elementwise average of unsigned integers in x and y.",
+	"Equal":         " returns true if x equals y, elementwise.",
+	"NotEqual":      " returns true if x does not equal y, elementwise.",
+	"Less":          " returns true if x is less than y, elementwise.",
+	"Greater":       " returns true if x is greater than y, elementwise.",
+	"LessEqual":     " returns true if x is less than or equal to y, elementwise.",
+	"GreaterEqual":  " returns true if x is greater than or equal to y, elementwise.",
+	"MulAdd":        " returns the elementwise multiply-add of x, y, and z.",
+	"ShiftAllLeft":  " returns the elementwise left shift of x by shift bits.",
+	"ShiftAllRight": " returns the elementwise right shift of x by shift bits.",
+	"Ceil":          " returns the elementwise ceiling of x.",
+	"Floor":         " returns the elementwise floor of x.",
+	"Trunc":         " returns the elementwise truncation of x.",
+	"BitSelect":     " returns the bitwise selection if mask[i] then x[i] else y[i]",
+	"bitSelect": ` is an unexported duplicate of BitSelect, which isn't
+// generally available, for use in generally available methods such as IfElse.
+// It can be removed once the generally available methods that use it have
+// moved to exported generally available APIs.`,
 	"Elem":             " gets the lane value at the given index.",
 	"SetElem":          " sets the lane at the given index to y.",
 	"TruncSatS":        " returns the elementwise saturating signed conversion to integer.",
@@ -1424,7 +1443,7 @@ func (x {{.Name}}) Masked(mask Mask{{.ElemSize}}x{{.Count}}) {{.Name}} {
 // IfElse returns x but with elements set to y where mask is false.
 func (x {{.Name}}) IfElse(mask Mask{{.ElemSize}}x{{.Count}}, y {{.Name}}) {{.Name}} {
 	im := mask.ToInt{{.ElemSize}}x{{.Count}}().ToBits()
-	return x.BitSelect(y, im)
+	return x.bitSelect(y, im)
 }
 `)
 
@@ -1440,7 +1459,7 @@ func (x {{.Name}}) IfElse(mask Mask{{.ElemSize}}x{{.Count}}, y {{.Name}}) {{.Nam
 	im := mask.ToInt{{.ElemSize}}x{{.Count}}().ToBits()
 	ix := x.ToBits()
 	iy := y.ToBits()
-	return ix.BitSelect(iy, im).BitsToFloat{{.ElemSize}}()
+	return ix.bitSelect(iy, im).BitsToFloat{{.ElemSize}}()
 }
 `)
 
@@ -1454,7 +1473,7 @@ func (x {{.Name}}) Masked(mask Mask{{.ElemSize}}x{{.Count}}) {{.Name}} {
 // IfElse returns x but with elements set to y where mask is false.
 func (x {{.Name}}) IfElse(mask Mask{{.ElemSize}}x{{.Count}}, y {{.Name}}) {{.Name}} {
 	im := mask.ToInt{{.ElemSize}}x{{.Count}}().ToBits()
-	return x.BitSelect(y, im)
+	return x.bitSelect(y, im)
 }
 `)
 

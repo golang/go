@@ -1517,6 +1517,30 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpZeroSIMD:
 		v.Op = ssaop.OpWasmV128Zero
 		return true
+	case ssaop.OpbitSelectInt16x8:
+		v.Op = ssaop.OpWasmV128Bitselect
+		return true
+	case ssaop.OpbitSelectInt32x4:
+		v.Op = ssaop.OpWasmV128Bitselect
+		return true
+	case ssaop.OpbitSelectInt64x2:
+		v.Op = ssaop.OpWasmV128Bitselect
+		return true
+	case ssaop.OpbitSelectInt8x16:
+		v.Op = ssaop.OpWasmV128Bitselect
+		return true
+	case ssaop.OpbitSelectUint16x8:
+		v.Op = ssaop.OpWasmV128Bitselect
+		return true
+	case ssaop.OpbitSelectUint32x4:
+		v.Op = ssaop.OpWasmV128Bitselect
+		return true
+	case ssaop.OpbitSelectUint64x2:
+		v.Op = ssaop.OpWasmV128Bitselect
+		return true
+	case ssaop.OpbitSelectUint8x16:
+		v.Op = ssaop.OpWasmV128Bitselect
+		return true
 	case ssaop.OpconcatSaturateToInt16Int32x4:
 		v.Op = ssaop.OpWasmI16x8NarrowI32x4S
 		return true
