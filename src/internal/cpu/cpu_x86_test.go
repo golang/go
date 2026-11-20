@@ -9,6 +9,11 @@ package cpu_test
 import (
 	. "internal/cpu"
 	"internal/godebug"
+	"internal/testenv"
+	"os"
+	"os/exec"
+	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -62,6 +67,37 @@ func TestX86VPCLMULQDQImplications(t *testing.T) {
 	}
 	if X86.HasAVX512VPCLMULQDQ && !(X86.HasAVX512 && X86.HasVPCLMULQDQ) {
 		t.Errorf("HasAVX512VPCLMULQDQ is true, but HasAVX512=%v, HasVPCLMULQDQ=%v", X86.HasAVX512, X86.HasVPCLMULQDQ)
+	}
+}
+
+// TestAVX512VPCLMULQDQDebugOption checks that GODEBUG=cpu.avx512vpclmulqdq=off,
+// the name golang.org/x/sys/cpu uses for 512-bit VPCLMULQDQ, is accepted and
+// turns off only the 512-bit flag.
+func TestAVX512VPCLMULQDQDebugOption(t *testing.T) {
+	MustHaveDebugOptionsSupport(t)
+
+	const wantEnv = "GO_CPU_TEST_WANT_VPCLMULQDQ"
+	if godebug.New("#cpu.avx512vpclmulqdq").Value() == "off" {
+		// This is the child process, or the test was run with the
+		// setting.
+		if X86.HasAVX512VPCLMULQDQ {
+			t.Errorf("X86.HasAVX512VPCLMULQDQ expected false, got true")
+		}
+		if want := os.Getenv(wantEnv); want != "" && strconv.FormatBool(X86.HasVPCLMULQDQ) != want {
+			t.Errorf("X86.HasVPCLMULQDQ expected %s, got %v", want, X86.HasVPCLMULQDQ)
+		}
+		return
+	}
+
+	cmd := exec.Command(testenv.Executable(t), "-test.run=^TestAVX512VPCLMULQDQDebugOption$")
+	cmd.Env = append(cmd.Env, "GODEBUG=cpu.avx512vpclmulqdq=off", wantEnv+"="+strconv.FormatBool(X86.HasVPCLMULQDQ))
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("with GODEBUG=cpu.avx512vpclmulqdq=off: %v\n%s", err, out)
+	}
+	// The package reports options it doesn't know as it initializes.
+	if strings.Contains(string(out), "unknown cpu feature") {
+		t.Errorf("with GODEBUG=cpu.avx512vpclmulqdq=off, the package complained about the setting:\n%s", out)
 	}
 }
 

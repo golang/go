@@ -57,8 +57,8 @@ const (
 	cpuid_AVX512_VBMI      = 1 << 1
 	cpuid_AVX512_VBMI2     = 1 << 6
 	cpuid_GFNI             = 1 << 8
-	cpuid_VPCLMULQDQ       = 1 << 10 // applies to not just AVX512
-	cpuid_AVX512VPCLMULQDQ = 1 << 10
+	cpuid_VPCLMULQDQ       = 1 << 10 // && AVX => 256-bit VPCLMULQDQ
+	cpuid_AVX512VPCLMULQDQ = 1 << 10 // && AVX512 => 512-bit VPCLMULQDQ
 	cpuid_AVX512_BITALG    = 1 << 12
 
 	// edx bits
@@ -76,6 +76,7 @@ func doinit() {
 	options = []option{
 		{Name: "adx", Feature: &X86.HasADX},
 		{Name: "aes", Feature: &X86.HasAES},
+		{Name: "avx512vpclmulqdq", Feature: &X86.HasAVX512VPCLMULQDQ},
 		{Name: "erms", Feature: &X86.HasERMS},
 		{Name: "fsrm", Feature: &X86.HasFSRM},
 		{Name: "pclmulqdq", Feature: &X86.HasPCLMULQDQ},
