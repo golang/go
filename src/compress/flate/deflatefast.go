@@ -32,6 +32,15 @@ const (
 
 	// bufferReset is the buffer offset at which the history is reset.
 	bufferReset = (1 << 31) - allocHistory - maxStoreBlockSize - 1
+
+	// inputMargin is the number of bytes the encoders must be able to read
+	// past the last position they look for a match at.
+	inputMargin = 12 - 1
+
+	// minNonLiteralBlockSize is the smallest block encode will emit tokens for.
+	// Smaller blocks are only added to the history and must be written by the
+	// caller.
+	minNonLiteralBlockSize = 1 + 1 + inputMargin
 )
 
 // fastEncL1 to fastEncL6 provides specialized encoders for levels 1-6
@@ -52,6 +61,8 @@ type fastEnc interface {
 	encode(dst *tokens, src []byte)
 	// reset the encoder so matches are not made with previous data.
 	reset()
+	// hasHistory reports whether there is previous data to match against.
+	hasHistory() bool
 }
 
 // newFastEnc returns a fastEnc encoder for the given compression level (1-6).
@@ -131,6 +142,8 @@ func (e *fastGen) reset() {
 	}
 	e.hist = e.hist[:0]
 }
+
+func (e *fastGen) hasHistory() bool { return len(e.hist) > 0 }
 
 func (f *fastGen) getFastGen() *fastGen { return f }
 
