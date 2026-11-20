@@ -1481,17 +1481,6 @@ type asConversion struct {
 	Article  string
 }
 
-func forAllAsConversions(f func(from, to *simdType)) {
-	for _, from := range allTypes {
-		for _, to := range allTypes {
-			if from == to {
-				continue
-			}
-			f(from, to)
-		}
-	}
-}
-
 func fromUnsignedToFloats(f func(from, to *simdType)) {
 	for _, to := range floats {
 		from := to.UintFor()
@@ -2182,12 +2171,6 @@ func initWasmSIMD() {
 		fmt.Fprintf(f, "\taddWasmSIMD(\"%s\", \"%s\", simdBroadcast(ssaop.OpBroadcast%s))\n", pkg, "Broadcast"+t.Name, u.Name)
 		fmt.Fprintf(f, "\taddWasmSIMD(\"%s\", \"%s\", simdStore())\n", pkg, t.Name+".StoreArray")
 	}
-
-	// As conversions
-	forAllAsConversions(func(from, to *simdType) {
-		fullname := from.Name + ".As" + to.Name
-		fmt.Fprintf(f, "\taddWasmSIMD(\"%s\", \"%s\",makeAsOp())\n", pkg, fullname)
-	})
 
 	var WasmTypeDotMethodIntrinsic = templateOf("wasm bit pun intrinsic", `addWasmSIMD("`+pkg+`", "{{.TypeDotMethod}}", makeAsOp())
 	`)

@@ -131,8 +131,6 @@ func simd{{GetSIMDTag}}Intrinsics(addF func(pkg, fn string, b intrinsicBuilder, 
 	var maskedIfElse = templateNamed("maskedIfElse", `	addF(simdPackage, "{{.Name}}.Masked", opLen2(ssaop.OpMasked{{.MaskedOpSuffix}}, types.TypeVec{{.Size}}), sys.AMD64)
 	addF(simdPackage, "{{.Name}}.IfElse", opLen3(ssaop.OpIfElse{{.MaskedOpSuffix}}, types.TypeVec{{.Size}}), sys.AMD64)`)
 
-	var vectorConversion = templateNamed("vectorConversion", `	addF(simdPackage, "{{.Tsrc.Name}}.As{{.Tdst.Name}}", func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value { return args[0] }, {{GetSysArch}})`)
-
 	var footer = `}`
 
 	slices.SortFunc(ops, compareOperations)
@@ -189,9 +187,7 @@ func simd{{GetSIMDTag}}Intrinsics(addF func(pkg, fn string, b intrinsicBuilder, 
 	`, "arm64 type dot method intrinsics")
 
 	for _, conv := range vConvertFromTypeMap(typeMap) {
-		// Old As intrinsic
 		from, to := &conv.Tsrc, &conv.Tdst
-		doTemplate(vectorConversion, conv)
 
 		// New style factored conversion intrinsics always involve at least one unsigned type
 		if from.Name()[0] != 'U' && to.Name()[0] != 'U' {
