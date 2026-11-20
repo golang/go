@@ -24,7 +24,7 @@ func TestNotInHeapDeref(t *testing.T) {
 	// See issue 48399.
 	v := ValueOf((*nih)(nil))
 	v.Elem()
-	shouldPanic("reflect: call of reflect.Value.Field on zero Value", func() { v.Elem().Field(0) })
+	shouldPanic("reflect: call of reflect.Value.Field with zero Value", func() { v.Elem().Field(0) })
 
 	v = ValueOf(&global_nih)
 	if got := v.Elem().Field(1).Int(); got != 7 {
