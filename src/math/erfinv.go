@@ -91,23 +91,9 @@ func Erfinv(x float64) float64 {
 
 	var ans float64
 	if x <= 0.85 { // |x| <= 0.85
-		r := 0.180625 - 0.25*x*x
-		z1 := ((((((a7*r+a6)*r+a5)*r+a4)*r+a3)*r+a2)*r+a1)*r + a0
-		z2 := ((((((b7*r+b6)*r+b5)*r+b4)*r+b3)*r+b2)*r+b1)*r + b0
-		ans = (x * z1) / z2
+		ans = erfinvCentral(x)
 	} else {
-		var z1, z2 float64
-		r := Sqrt(Ln2 - Log(1.0-x))
-		if r <= 5.0 {
-			r -= 1.6
-			z1 = ((((((c7*r+c6)*r+c5)*r+c4)*r+c3)*r+c2)*r+c1)*r + c0
-			z2 = ((((((d7*r+d6)*r+d5)*r+d4)*r+d3)*r+d2)*r+d1)*r + d0
-		} else {
-			r -= 5.0
-			z1 = ((((((e7*r+e6)*r+e5)*r+e4)*r+e3)*r+e2)*r+e1)*r + e0
-			z2 = ((((((f7*r+f6)*r+f5)*r+f4)*r+f3)*r+f2)*r+f1)*r + f0
-		}
-		ans = z1 / z2
+		ans = erfinvTail(1.0 - x)
 	}
 
 	if sign {
@@ -125,5 +111,61 @@ func Erfinv(x float64) float64 {
 //	Erfcinv(x) = NaN if x < 0 or x > 2
 //	Erfcinv(NaN) = NaN
 func Erfcinv(x float64) float64 {
-	return Erfinv(1 - x)
+	// special cases
+	if IsNaN(x) || x <= 0 || x >= 2 {
+		if x == 0 {
+			return Inf(1)
+		}
+		if x == 2 {
+			return Inf(-1)
+		}
+		return NaN()
+	}
+
+	// Erfcinv(x) = -Erfcinv(2-x). 2-x is exact for 1 < x < 2.
+	sign := false
+	if x > 1 {
+		x = 2 - x
+		sign = true
+	}
+
+	// Now 0 < x <= 1, and Erfcinv(x) = Erfinv(1-x).
+	// Computing 1-x loses precision for small x,
+	// so the tail approximation uses x directly.
+	var ans float64
+	if x >= 0.15 { // 1-x <= 0.85
+		ans = erfinvCentral(1 - x)
+	} else {
+		ans = erfinvTail(x)
+	}
+
+	if sign {
+		return -ans
+	}
+	return ans
+}
+
+// erfinvCentral returns Erfinv(x) for 0 <= x <= 0.85.
+func erfinvCentral(x float64) float64 {
+	r := 0.180625 - 0.25*x*x
+	z1 := ((((((a7*r+a6)*r+a5)*r+a4)*r+a3)*r+a2)*r+a1)*r + a0
+	z2 := ((((((b7*r+b6)*r+b5)*r+b4)*r+b3)*r+b2)*r+b1)*r + b0
+	return (x * z1) / z2
+}
+
+// erfinvTail returns Erfinv(1-q), which is equal to Erfcinv(q),
+// for 0 < q < 0.15.
+func erfinvTail(q float64) float64 {
+	var z1, z2 float64
+	r := Sqrt(Ln2 - Log(q))
+	if r <= 5.0 {
+		r -= 1.6
+		z1 = ((((((c7*r+c6)*r+c5)*r+c4)*r+c3)*r+c2)*r+c1)*r + c0
+		z2 = ((((((d7*r+d6)*r+d5)*r+d4)*r+d3)*r+d2)*r+d1)*r + d0
+	} else {
+		r -= 5.0
+		z1 = ((((((e7*r+e6)*r+e5)*r+e4)*r+e3)*r+e2)*r+e1)*r + e0
+		z2 = ((((((f7*r+f6)*r+f5)*r+f4)*r+f3)*r+f2)*r+f1)*r + f0
+	}
+	return z1 / z2
 }
