@@ -10046,3 +10046,120 @@ func TestNilPanic(t *testing.T) {
 	checkPanic("UnmarshalRead", "nil io.Reader", func() { UnmarshalRead(nil, new(any)) })
 	checkPanic("UnmarshalDecode", "nil jsontext.Decoder", func() { UnmarshalDecode(nil, new(any)) })
 }
+
+type funcMarshalInner int
+type funcMarshalOuter int
+
+func TestEncoderResetNestedMarshalToFunc(t *testing.T) {
+	enc := jsontext.NewEncoder(&bytes.Buffer{})
+	opts := WithMarshalers(JoinMarshalers(
+		MarshalToFunc(func(e *jsontext.Encoder, _ funcMarshalInner) error {
+			return e.WriteValue(jsontext.Value("null"))
+		}),
+		MarshalToFunc(func(e *jsontext.Encoder, _ funcMarshalOuter) error {
+			if err := MarshalEncode(e, funcMarshalInner(0)); err != nil {
+				return err
+			}
+			e.Reset(&bytes.Buffer{})
+			return nil
+		}),
+	))
+	defer func() {
+		if recover() == nil {
+			t.Fatal("Reset did not panic inside outer MarshalToFunc")
+		}
+	}()
+	if err := MarshalEncode(enc, funcMarshalOuter(0), opts); err != nil {
+		t.Fatal(err)
+	}
+}
+
+type funcUnmarshalInner int
+type funcUnmarshalOuter int
+
+func TestDecoderResetNestedUnmarshalFromFunc(t *testing.T) {
+	dec := jsontext.NewDecoder(strings.NewReader(`null`))
+	opts := WithUnmarshalers(JoinUnmarshalers(
+		UnmarshalFromFunc(func(d *jsontext.Decoder, _ *funcUnmarshalInner) error {
+			_, err := d.ReadValue()
+			return err
+		}),
+		UnmarshalFromFunc(func(d *jsontext.Decoder, _ *funcUnmarshalOuter) error {
+			if err := UnmarshalDecode(d, new(funcUnmarshalInner)); err != nil {
+				return err
+			}
+			d.Reset(strings.NewReader(`null`))
+			return nil
+		}),
+	))
+	defer func() {
+		if recover() == nil {
+			t.Fatal("Reset did not panic inside outer UnmarshalFromFunc")
+		}
+	}()
+	var out funcUnmarshalOuter
+	if err := UnmarshalDecode(dec, &out, opts); err != nil {
+		t.Fatal(err)
+	}
+}
+
+type methodMarshalInner struct{}
+
+func (methodMarshalInner) MarshalJSONTo(enc *jsontext.Encoder) error {
+	return enc.WriteValue(jsontext.Value("null"))
+}
+
+type methodMarshalOuter struct {
+	enc *jsontext.Encoder
+}
+
+func (m methodMarshalOuter) MarshalJSONTo(enc *jsontext.Encoder) error {
+	if err := MarshalEncode(enc, methodMarshalInner{}); err != nil {
+		return err
+	}
+	m.enc.Reset(&bytes.Buffer{})
+	return nil
+}
+
+func TestEncoderResetNestedMarshalerTo(t *testing.T) {
+	enc := jsontext.NewEncoder(&bytes.Buffer{})
+	defer func() {
+		if recover() == nil {
+			t.Fatal("Reset did not panic inside outer MarshalerTo")
+		}
+	}()
+	if err := MarshalEncode(enc, methodMarshalOuter{enc}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+type methodUnmarshalInner struct{}
+
+type methodUnmarshalOuter struct {
+	dec *jsontext.Decoder
+}
+
+func (*methodUnmarshalInner) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	_, err := dec.ReadValue()
+	return err
+}
+
+func (u *methodUnmarshalOuter) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	if err := UnmarshalDecode(dec, new(methodUnmarshalInner)); err != nil {
+		return err
+	}
+	u.dec.Reset(strings.NewReader(`null`))
+	return nil
+}
+
+func TestDecoderResetNestedUnmarshalerFrom(t *testing.T) {
+	dec := jsontext.NewDecoder(strings.NewReader(`null`))
+	defer func() {
+		if recover() == nil {
+			t.Fatal("Reset did not panic inside outer UnmarshalerFrom")
+		}
+	}()
+	if err := UnmarshalDecode(dec, &methodUnmarshalOuter{dec}); err != nil {
+		t.Fatal(err)
+	}
+}

@@ -789,3 +789,40 @@ func runTestOrBench(tb testing.TB, name string, numBytes int64, run func(tb test
 		})
 	}
 }
+
+type benchmarkMarshalToFuncValue int
+
+func BenchmarkMarshalToFuncDispatch(b *testing.B) {
+	opts := jsonv2.WithMarshalers(jsonv2.MarshalToFunc(
+		func(enc *jsontext.Encoder, _ benchmarkMarshalToFuncValue) error {
+			return enc.WriteToken(jsontext.String("method"))
+		},
+	))
+
+	b.ReportAllocs()
+	for b.Loop() {
+		_, _ = jsonv2.Marshal(benchmarkMarshalToFuncValue(1), opts)
+	}
+}
+
+type benchmarkUnmarshalFromFuncValue int
+
+func BenchmarkUnmarshalFromFuncDispatch(b *testing.B) {
+	opts := jsonv2.WithUnmarshalers(jsonv2.UnmarshalFromFunc(
+		func(dec *jsontext.Decoder, out *benchmarkUnmarshalFromFuncValue) error {
+			value, err := dec.ReadValue()
+			if err != nil {
+				return err
+			}
+			*out = benchmarkUnmarshalFromFuncValue(len(value))
+			return nil
+		},
+	))
+	input := []byte(`"method"`)
+
+	b.ReportAllocs()
+	for b.Loop() {
+		var out benchmarkUnmarshalFromFuncValue
+		_ = jsonv2.Unmarshal(input, &out, opts)
+	}
+}
