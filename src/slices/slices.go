@@ -254,6 +254,17 @@ func DeleteFunc[S ~[]E, E any](s S, del func(E) bool) S {
 	return s[:i]
 }
 
+// SwapDelete removes the element at index i from s, returning the modified slice.
+// Unlike [Delete], it does not preserve order: the last element is moved into
+// position i in O(1). It panics if i is not in the range [0, len(s)).
+func SwapDelete[S ~[]E, E any](s S, i int) S {
+	_ = s[i] // bounds check
+	last := len(s) - 1
+	s[i] = s[last]
+	clear(s[last:])
+	return s[:last]
+}
+
 // Replace modifies s in place by replacing the elements s[i:j] with the given v,
 // and returns the modified slice.
 // Replace panics if j > len(s) or s[i:j] is not a valid slice of s.
