@@ -33,6 +33,7 @@ func FormatMediaType(t string, param map[string]string) string {
 		b.WriteByte('/')
 		b.WriteString(strings.ToLower(sub))
 	}
+	mediatype := b.String()
 
 	seenAttrs := make(map[string]struct{}, len(param))
 	for _, attribute := range slices.Sorted(maps.Keys(param)) {
@@ -50,6 +51,9 @@ func FormatMediaType(t string, param map[string]string) string {
 		b.WriteString(attribute)
 
 		needEnc := needsEncoding(value)
+		if needEnc && ignoresExtendedParam(mediatype, attribute) {
+			return ""
+		}
 		if needEnc {
 			// RFC 2231 section 4
 			b.WriteByte('*')
@@ -180,15 +184,7 @@ func ParseMediaType(v string) (mediatype string, params map[string]string, err e
 
 		pmap := params
 		if baseName, _, ok := strings.Cut(key, "*"); ok {
-			if strings.HasPrefix(mediatype, "multipart/") ||
-				baseName == "charset" ||
-				baseName == "boundary" {
-				// Continuations/non-ASCII values are not permitted in multipart
-				// Content-Type headers.
-				//
-				// Also ignore *-encoded parameters for charset (always ASCII)
-				// and any boundary field, which are only useful for creating
-				// parser differentials.
+			if ignoresExtendedParam(mediatype, baseName) {
 				v = rest
 				continue
 			}
@@ -253,6 +249,20 @@ func ParseMediaType(v string) (mediatype string, params map[string]string, err e
 }
 
 var errDuplicateParamName = errors.New("mime: duplicate parameter name")
+
+// ignoresExtendedParam reports whether the RFC 2231 extended form of
+// attribute is ignored in a value of media type mediatype.
+func ignoresExtendedParam(mediatype, attribute string) bool {
+	// Continuations/non-ASCII values are not permitted in multipart
+	// Content-Type headers.
+	//
+	// Also ignore *-encoded parameters for charset (always ASCII)
+	// and any boundary field, which are only useful for creating
+	// parser differentials.
+	return strings.HasPrefix(mediatype, "multipart/") ||
+		attribute == "charset" ||
+		attribute == "boundary"
+}
 
 func decode2231Enc(v string) (string, bool) {
 	charset, v, ok := strings.Cut(v, "'")
