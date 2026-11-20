@@ -201,6 +201,24 @@ func TestLineAline(t *testing.T) {
 	}
 }
 
+func TestStartLine(t *testing.T) {
+	dotest(t)
+	defer endtest()
+
+	f, tab := crack(pclinetestBinary, t)
+	defer f.Close()
+
+	sym := tab.LookupFunc("main.main")
+	wantLine := 6
+	if sym == nil {
+		t.Fatal("no main.main")
+	}
+
+	if sym.StartLine != wantLine {
+		t.Fatalf("StartLine = %d, want %d", sym.StartLine, wantLine)
+	}
+}
+
 func TestPCLine(t *testing.T) {
 	dotest(t)
 	defer endtest()
