@@ -22,12 +22,18 @@ import (
 func runPktSyslog(c net.PacketConn, done chan<- string) {
 	var buf [4096]byte
 	var rcvd string
+	received := false
 	ct := 0
 	for {
 		var n int
 		var err error
 
-		c.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+		// Wait for the first packet for as long as it takes: on a slow
+		// machine the client may not even have dialed yet. Once
+		// something has arrived, stop after a short idle period.
+		if received {
+			c.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+		}
 		n, _, err = c.ReadFrom(buf[:])
 		rcvd += string(buf[:n])
 		if err != nil {
@@ -39,6 +45,7 @@ func runPktSyslog(c net.PacketConn, done chan<- string) {
 			}
 			break
 		}
+		received = true
 	}
 	c.Close()
 	done <- rcvd
@@ -148,7 +155,9 @@ func TestWithSimulated(t *testing.T) {
 		t.Run(tr, func(t *testing.T) {
 			t.Parallel()
 
-			done := make(chan string)
+			// Buffered so that the server can exit (and srvWG.Wait
+			// return) even if the test fails before receiving.
+			done := make(chan string, 1)
 			addr, sock, srvWG := startServer(t, tr, "", done)
 			defer srvWG.Wait()
 			defer sock.Close()
@@ -316,7 +325,7 @@ func TestWrite(t *testing.T) {
 		t.Fatalf("Error retrieving hostname")
 	} else {
 		for _, test := range tests {
-			done := make(chan string)
+			done := make(chan string, 1)
 			addr, sock, srvWG := startServer(t, "udp", "", done)
 			defer srvWG.Wait()
 			defer sock.Close()
