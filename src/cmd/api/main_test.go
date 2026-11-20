@@ -166,9 +166,7 @@ func qualifyFeature(f string, present map[string]bool, scanned []*build.Context,
 // applied on top of the baseline experiments when scanning the API. It
 // lets cmd/api check the API of an experiment before the experiment
 // becomes part of the baseline.
-//
-// TODO: set to "" once simdstable is part of the baseline.
-const apiExperiments = "simdstable"
+const apiExperiments = ""
 
 func contextName(c *build.Context) string {
 	s := c.GOOS + "-" + c.GOARCH

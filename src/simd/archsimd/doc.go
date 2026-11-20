@@ -9,11 +9,10 @@
 // This is a low-level package that exposes hardware-specific functionality.
 // It currently supports amd64, arm64 Neon, and WebAssembly SIMD.
 //
-// The generally available API exists when building with the
-// GOEXPERIMENT=simdstable environment variable set. Additional experimental
-// API, including all arm64 SVE support, exists only when building with
-// GOEXPERIMENT=simd, which implies GOEXPERIMENT=simdstable. This package is
-// not yet subject to the Go 1 compatibility promise.
+// Some of its API is experimental, including all arm64 SVE support. The
+// experimental API exists only when building with the GOEXPERIMENT=simd
+// environment variable set, and it alone is not subject to the Go 1
+// compatibility promise. The rest of the package is.
 //
 // # Vector types and operations
 //

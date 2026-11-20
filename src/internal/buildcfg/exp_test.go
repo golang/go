@@ -13,12 +13,17 @@ func TestSIMDImpliesSIMDStable(t *testing.T) {
 		simdStable bool
 		err        bool
 	}{
-		{goexp: ""},
+		{goexp: "", simdStable: true},
 		{goexp: "simdstable", simdStable: true},
 		{goexp: "simd", simd: true, simdStable: true},
 		{goexp: "simd,simdstable", simd: true, simdStable: true},
 		{goexp: "simdstable,nosimd", simdStable: true},
-		{goexp: "simd,nosimd"},
+		{goexp: "simd,nosimd", simdStable: true},
+		{goexp: "nosimd", simdStable: true},
+		{goexp: "nosimdstable"},
+		{goexp: "nosimdstable,simdstable", simdStable: true},
+		{goexp: "nosimdstable,nosimd"},
+		{goexp: "none"},
 		{goexp: "simd,nosimdstable", err: true},
 		{goexp: "nosimdstable,simd", err: true},
 		{goexp: "nosimdstable,none,simd", simd: true, simdStable: true},

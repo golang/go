@@ -122,7 +122,9 @@ type Flags struct {
 	SIMD bool
 
 	// SIMDStable enables the subset of the simd and simd/archsimd
-	// packages that is slated for general availability.
+	// packages that is covered by the Go 1 compatibility promise,
+	// and the compiler support for it. It is enabled by default;
+	// GOEXPERIMENT=nosimdstable disables it.
 	SIMDStable bool
 
 	// RuntimeSecret enables the runtime/secret package.

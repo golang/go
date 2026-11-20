@@ -113,6 +113,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 		MapSplitGroup:         true,
 		GoListExportNewFormat: true,
 		RuntimeCgoPurego:      runtimeCgoPuregoSupported,
+		SIMDStable:            true,
 	}
 	flags := &ExperimentFlags{
 		Flags:    baseline,
