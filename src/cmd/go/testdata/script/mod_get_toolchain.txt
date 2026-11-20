@@ -105,6 +105,17 @@ grep 'toolchain go1.23.9' go.mod
 
 # Bug fixes.
 
+# go get go@version should not write a language version as the toolchain when
+# preserving the original go line's implied toolchain.
+cp go.mod.oldlang go.mod
+go get go@1.22.9
+stderr '^go: downgraded go 1.23 => 1.22.9$'
+stderr '^go: upgraded toolchain go1.22.9 => go1.23.0$'
+grep '^go 1.22.9$' go.mod
+grep '^toolchain go1.23.0$' go.mod
+! grep '^toolchain go1.23$' go.mod
+cp go.mod.latest go.mod
+
 # go get go@garbage should fail but not crash
 ! go get go@garbage
 ! stderr panic
@@ -134,3 +145,17 @@ grep 'go 1.21$' go.mod
 module m
 
 go 1.21
+
+-- go.mod.oldlang --
+module m
+
+go 1.23
+
+toolchain go1.22.9
+
+-- go.mod.latest --
+module m
+
+go 1.21
+
+toolchain go1.23.9
