@@ -17,7 +17,6 @@ go install cmd/compile
 
 # Tests
 # Set the GOEXPERIMENT explicitly.
-GOEXPERIMENT=simd GOARCH=amd64 go run -C ../../../../simd/archsimd/testdata .
 GOEXPERIMENT=simd GOARCH=amd64 go test -v ../../../../simd/archsimd
 GOEXPERIMENT=simd GOARCH=amd64 go test go/doc go/build
 GOEXPERIMENT=simd GOARCH=amd64 go test cmd/api -v -check -run ^TestCheck$
