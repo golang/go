@@ -16,6 +16,7 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -488,6 +489,136 @@ func TestDumpResponse(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("%d.\nDumpResponse got:\n%s\n\nWant:\n%s\n", i, got, tt.want)
 		}
+	}
+}
+
+// Issue 77463: the body the Dump functions leave behind should report
+// http.ErrBodyReadAfterClose once closed, as a real body does.
+func TestDumpBodyReadAfterClose(t *testing.T) {
+	const body = "hello body"
+
+	newReq := func() *http.Request {
+		req, err := http.NewRequest("POST", "http://example.com/", strings.NewReader(body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return req
+	}
+
+	tests := []struct {
+		name string
+		dump func() (io.ReadCloser, error)
+	}{
+		{"DumpRequest", func() (io.ReadCloser, error) {
+			req := newReq()
+			_, err := DumpRequest(req, true)
+			return req.Body, err
+		}},
+		{"DumpRequestOut", func() (io.ReadCloser, error) {
+			req := newReq()
+			_, err := DumpRequestOut(req, true)
+			return req.Body, err
+		}},
+		{"DumpResponse", func() (io.ReadCloser, error) {
+			res := &http.Response{
+				StatusCode:    200,
+				ProtoMajor:    1,
+				ProtoMinor:    1,
+				ContentLength: int64(len(body)),
+				Body:          io.NopCloser(strings.NewReader(body)),
+			}
+			_, err := DumpResponse(res, true)
+			return res.Body, err
+		}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b, err := tt.dump()
+			if err != nil {
+				t.Fatalf("%s: %v", tt.name, err)
+			}
+			// The body is still readable until it is closed.
+			got, err := io.ReadAll(b)
+			if err != nil {
+				t.Fatalf("ReadAll before Close: %v", err)
+			}
+			if string(got) != body {
+				t.Errorf("body before Close = %q, want %q", got, body)
+			}
+			if err := b.Close(); err != nil {
+				t.Fatalf("Close: %v", err)
+			}
+			n, err := b.Read(make([]byte, 1))
+			if n != 0 || err != http.ErrBodyReadAfterClose {
+				t.Errorf("Read after Close = (%v, %v), want (0, %v)", n, err, http.ErrBodyReadAfterClose)
+			}
+		})
+	}
+}
+
+// http.Request.Body requires that Close may be called concurrently with
+// Read, so the body left behind by the Dump functions must allow it too.
+// Run under -race to be meaningful.
+func TestDumpBodyConcurrentReadClose(t *testing.T) {
+	req, err := http.NewRequest("POST", "http://example.com/", strings.NewReader(strings.Repeat("x", 4096)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := DumpRequest(req, true); err != nil {
+		t.Fatal(err)
+	}
+	body := req.Body
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		buf := make([]byte, 16)
+		for {
+			if _, err := body.Read(buf); err != nil {
+				return
+			}
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		body.Close()
+	}()
+	wg.Wait()
+}
+
+// The body left behind by the Dump functions should still implement
+// io.WriterTo, as the io.NopCloser it replaced did, so that copying from
+// it does not need an intermediate buffer.
+func TestDumpBodyWriterTo(t *testing.T) {
+	const body = "hello body"
+	req, err := http.NewRequest("POST", "http://example.com/", strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := DumpRequest(req, true); err != nil {
+		t.Fatal(err)
+	}
+
+	wt, ok := req.Body.(io.WriterTo)
+	if !ok {
+		t.Fatalf("dumped body %T does not implement io.WriterTo", req.Body)
+	}
+	var buf bytes.Buffer
+	if _, err := wt.WriteTo(&buf); err != nil {
+		t.Fatalf("WriteTo: %v", err)
+	}
+	if buf.String() != body {
+		t.Errorf("WriteTo wrote %q, want %q", buf.String(), body)
+	}
+
+	// Once closed, WriteTo reports the same error as Read.
+	if err := req.Body.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	if _, err := wt.WriteTo(io.Discard); err != http.ErrBodyReadAfterClose {
+		t.Errorf("WriteTo after Close = %v, want %v", err, http.ErrBodyReadAfterClose)
 	}
 }
 
