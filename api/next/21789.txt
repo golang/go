@@ -1,0 +1,2 @@
+pkg crypto/x509, type Certificate struct, SRVNames []string #21789
+pkg crypto/x509, type CertificateRequest struct, SRVNames []string #21789
