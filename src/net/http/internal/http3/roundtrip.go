@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"golang.org/x/net/http/httpguts"
 	"golang.org/x/net/quic"
@@ -38,11 +39,10 @@ type roundTripState struct {
 	headerSize  int64
 	trailerSize int64
 
-	mu               sync.Mutex
-	active           bool
-	done             roundTripDone
-	hasUnsent100Body bool
-	err              error
+	mu     sync.Mutex
+	active bool
+	done   roundTripDone
+	err    error
 }
 
 // abort terminates the RoundTrip.
@@ -84,6 +84,7 @@ type roundTripDone uint8
 const (
 	roundTripReadDone roundTripDone = 1 << iota
 	roundTripWriteDone
+	roundTripWriteSkipped // final response arrived before the request body started
 )
 
 func (rt *roundTripState) finish(done roundTripDone) {
@@ -97,7 +98,7 @@ func (rt *roundTripState) finish(done roundTripDone) {
 		if rt.active && rt.done&all == all {
 			finished = true
 			rt.active = false
-			unsent100 = rt.hasUnsent100Body
+			unsent100 = rt.done&roundTripWriteSkipped != 0
 		}
 	}()
 	if !finished {
@@ -175,8 +176,18 @@ func (cc *clientConn) RoundTrip(req *http.Request) (_ *http.Response, err error)
 	}
 	// wg tracks the writeBodyAndTrailer goroutine, if we start one.
 	var wg sync.WaitGroup
+	startBody := func() {
+		wg.Go(func() { cc.writeBodyAndTrailer(rt, req) })
+	}
+	var continueTimer *time.Timer
+	var continueOnce sync.Once // start or skip the body, exactly once
 	defer func() {
 		if err != nil {
+			if continueTimer != nil {
+				// Prevent a timer callback from starting the writer
+				// after we wait for it below.
+				continueOnce.Do(func() {})
+			}
 			err = rt.abort(err)
 
 			// Close the request body, and wait for writeBodyAndTrailer to
@@ -229,22 +240,26 @@ func (cc *clientConn) RoundTrip(req *http.Request) (_ *http.Response, err error)
 	st.Write(headers)
 
 	is100ContinueReq := httpguts.HeaderValuesContainsToken(req.Header["Expect"], "100-continue")
+	continueTimeout := cc.tr.tr1.ExpectContinueTimeout
 	switch {
 	case rt.reqBody == http.NoBody && len(req.Trailer) == 0:
 		st.CloseWrite()
 		// rt.done is normally synchronized via rt.mu, but nothing else can touch it yet.
 		rt.done |= roundTripWriteDone
-	case is100ContinueReq:
+	case is100ContinueReq && continueTimeout != 0:
 		if err := st.Flush(); err != nil {
 			return nil, err
 		}
-		rt.hasUnsent100Body = true
 		rt.maybeCallWait100Continue()
+		continueTimer = time.AfterFunc(continueTimeout, func() {
+			continueOnce.Do(startBody)
+		})
+		defer continueTimer.Stop()
 	default:
 		if err := st.Flush(); err != nil {
 			return nil, err
 		}
-		wg.Go(func() { cc.writeBodyAndTrailer(rt, req) })
+		startBody()
 	}
 
 	// Read the response headers.
@@ -269,18 +284,20 @@ func (cc *clientConn) RoundTrip(req *http.Request) (_ *http.Response, err error)
 				}
 				if statusCode == 100 {
 					rt.maybeCallGot100Continue()
-					if rt.hasUnsent100Body {
-						rt.hasUnsent100Body = false
-						wg.Go(func() { cc.writeBodyAndTrailer(rt, req) })
+					if continueTimer != nil {
+						continueOnce.Do(startBody)
+						continueTimer.Stop()
 					}
 				}
 				continue
 			}
 
-			if rt.hasUnsent100Body {
-				// We're never going to send the body.
-				rt.closeReqBody()
-				rt.finish(roundTripWriteDone)
+			if continueTimer != nil {
+				continueOnce.Do(func() {
+					// The final response arrived before we started sending the body.
+					rt.closeReqBody()
+					rt.finish(roundTripWriteDone | roundTripWriteSkipped)
+				})
 			}
 
 			// We have the response headers.

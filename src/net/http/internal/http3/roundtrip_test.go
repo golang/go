@@ -18,6 +18,7 @@ import (
 	"strings"
 	"testing"
 	"testing/synctest"
+	"time"
 
 	"golang.org/x/net/quic"
 )
@@ -456,6 +457,7 @@ func TestRoundTripClosesRequestBodyOnError(t *testing.T) {
 	}} {
 		synctestSubtest(t, tt.name, func(t *testing.T) {
 			tc := newTestClientConn(t)
+			tc.tr.tr1.ExpectContinueTimeout = time.Second
 			tc.greet()
 
 			body := newTestRequestBody()
@@ -495,6 +497,7 @@ func TestRoundTripExpect100Continue(t *testing.T) {
 		}
 
 		tc := newTestClientConn(t)
+		tc.tr.tr1.ExpectContinueTimeout = time.Second
 		tc.greet()
 		clientBody := []byte("client's body that will be sent later")
 		serverBody := []byte("server's body")
@@ -535,6 +538,37 @@ func TestRoundTripExpect100Continue(t *testing.T) {
 	})
 }
 
+func TestRoundTripExpect100ContinueTimeout(t *testing.T) {
+	for _, timeout := range []time.Duration{0, time.Second} {
+		synctestSubtest(t, timeout.String(), func(t *testing.T) {
+			tc := newTestClientConn(t)
+			tc.tr.tr1.ExpectContinueTimeout = timeout
+			tc.greet()
+
+			body := []byte("request payload")
+			req, _ := http.NewRequest("POST", "https://example.tld/", bytes.NewReader(body))
+			req.Header.Set("Expect", "100-continue")
+			rt := tc.roundTrip(req)
+			st := tc.wantStream(streamTypeRequest)
+			st.wantHeaders(nil)
+
+			if timeout > 0 {
+				time.Sleep(timeout / 2)
+				st.writeHeaders(http.Header{":status": {"103"}})
+				st.wantIdle("client waits for 100 Continue before the timeout")
+				time.Sleep(timeout / 2)
+			}
+			// Do not wait past the configured timeout for the DATA frame.
+			st.stream.stream.SetReadContext(canceledCtx)
+			st.wantData(body)
+			st.wantClosed("body was sent exactly once")
+			st.writeHeaders(http.Header{":status": {"200"}, "content-length": {"0"}})
+			st.CloseWrite()
+			rt.wantStatus(200)
+		})
+	}
+}
+
 // TestRoundTripInformationalHeaders verifies that informational 1xx statuses
 // are never treated as the final status of a response.
 func TestRoundTripInformationalHeaders(t *testing.T) {
@@ -566,6 +600,7 @@ func TestRoundTripInformationalHeaders(t *testing.T) {
 	} {
 		synctestSubtest(t, tt.name, func(t *testing.T) {
 			tc := newTestClientConn(t)
+			tc.tr.tr1.ExpectContinueTimeout = time.Second
 			tc.greet()
 
 			body := []byte("request payload")
@@ -624,6 +659,7 @@ func TestRoundTripExpect100ContinueRejected(t *testing.T) {
 		}
 
 		tc := newTestClientConn(t)
+		tc.tr.tr1.ExpectContinueTimeout = time.Second
 		tc.greet()
 
 		// Client sends an Expect: 100-continue request.
@@ -640,6 +676,7 @@ func TestRoundTripExpect100ContinueRejected(t *testing.T) {
 		st.writeHeaders(http.Header{
 			":status": []string{"200"},
 		})
+		time.Sleep(2 * time.Second)
 		st.wantIdle("client does not send its body without getting status 100")
 		serverBody := []byte("server's body")
 		st.writeData(serverBody)
