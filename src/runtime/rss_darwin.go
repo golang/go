@@ -7,11 +7,12 @@ package runtime
 func sysRSSInit() {}
 
 // sysRSS returns the current resident set size of this process in bytes,
-// including pages shared with other processes.
-func sysRSS() (uint64, bool) {
+// including pages shared with other processes. It does not break out the
+// shared portion. A zero RSS means it is unavailable.
+func sysRSS() (rss, shared uint64, hasShared bool) {
 	var info machTaskBasicInfo
 	if task_info(_MACH_TASK_BASIC_INFO, &info, _MACH_TASK_BASIC_INFO_COUNT) != 0 {
-		return 0, false
+		return 0, 0, false
 	}
-	return info.resident_size, true
+	return info.resident_size, 0, false
 }

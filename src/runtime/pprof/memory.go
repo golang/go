@@ -21,6 +21,8 @@ type rssVirtualFrame string
 const (
 	rssFrameGoMemory         rssVirtualFrame = "[Go Memory]"
 	rssFrameNonGoMemory      rssVirtualFrame = "[Non-Go Memory]"
+	rssFrameFileShared       rssVirtualFrame = "[File & Shared]"
+	rssFrameAnonymous        rssVirtualFrame = "[Anonymous]"
 	rssFrameStacks           rssVirtualFrame = "[Stacks]"
 	rssFrameGoroutineStacks  rssVirtualFrame = "[Goroutine Stacks]"
 	rssFrameOSStacks         rssVirtualFrame = "[OS Stacks]"
@@ -117,7 +119,7 @@ func writeMemoryProto(w io.Writer, p []profilerecord.MemProfileRecord, rate int6
 	}
 
 	frames := []rssVirtualFrame{
-		rssFrameGoMemory, rssFrameNonGoMemory,
+		rssFrameGoMemory, rssFrameNonGoMemory, rssFrameFileShared, rssFrameAnonymous,
 		rssFrameStacks, rssFrameGoroutineStacks, rssFrameOSStacks,
 		rssFrameRuntime, rssFrameMetadata,
 		rssFrameMSpan, rssFrameInUseMSpans, rssFrameFreeMSpans,
@@ -246,9 +248,23 @@ func writeMemoryProto(w io.Writer, p []profilerecord.MemProfileRecord, rate int6
 	switch {
 	case m.RSS == 0:
 		b.pb.int64(tagProfile_Comment, b.stringIndex("RSS is unavailable on this system"))
-	case m.RSS <= goMemory:
-		b.pb.int64(tagProfile_Comment, b.stringIndex(fmt.Sprintf("RSS (%d bytes) is less than or equal to total Go memory (%d bytes)", m.RSS, goMemory)))
-	case m.RSS > goMemory:
+	case m.RSSHasShared:
+		// File-backed and shared memory pages are measured directly and
+		// are never Go memory, so we always report them in full.
+		// Anonymous non-Go memory is only an estimate: anonymous RSS
+		// minus Go memory. Go memory includes memory the runtime has
+		// mapped but that may not be resident, so the estimate can come
+		// out negative. As in the RSS < goMemory case below, we leave a
+		// comment rather than shrink measured values to fit RSS.
+		emitSample(int64(m.RSSShared), []rssVirtualFrame{rssFrameNonGoMemory, rssFrameFileShared}, nil, 0)
+		if anon := m.RSS - m.RSSShared; anon >= goMemory {
+			emitSample(int64(anon-goMemory), []rssVirtualFrame{rssFrameNonGoMemory, rssFrameAnonymous}, nil, 0)
+		} else {
+			b.pb.int64(tagProfile_Comment, b.stringIndex(fmt.Sprintf("Some Go Memory is not resident: Go Memory (%d bytes) > Anonymous RSS (%d bytes). Anonymous Non-Go Memory not shown.", goMemory, anon)))
+		}
+	case m.RSS < goMemory:
+		b.pb.int64(tagProfile_Comment, b.stringIndex(fmt.Sprintf("Some Go Memory is not resident: Go Memory (%d bytes) > RSS (%d bytes). Non-Go Memory not shown.", goMemory, m.RSS)))
+	default:
 		emitSample(int64(m.RSS-goMemory), []rssVirtualFrame{rssFrameNonGoMemory}, nil, 0)
 	}
 	return b.build()

@@ -9,4 +9,4 @@ package runtime
 func sysRSSInit() {}
 
 // sysRSS is unavailable on this platform.
-func sysRSS() (uint64, bool) { return 0, false }
+func sysRSS() (rss, shared uint64, hasShared bool) { return 0, 0, false }

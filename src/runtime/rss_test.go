@@ -25,19 +25,22 @@ func requireSysRSS(t *testing.T) {
 
 func TestSysRSS(t *testing.T) {
 	requireSysRSS(t)
-	bytes, ok := runtime.SysRSS()
-	if !ok {
+	bytes, shared, hasShared := runtime.SysRSS()
+	if bytes == 0 {
 		t.Fatalf("SysRSS unavailable on supported platform %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
-	if bytes == 0 {
-		t.Errorf("SysRSS returned ok=true but bytes=0")
+	if runtime.GOOS == "linux" && !hasShared {
+		t.Error("SysRSS did not report shared RSS on Linux")
 	}
-	t.Logf("SysRSS = %d bytes (%d MiB)", bytes, bytes>>20)
+	if shared > bytes || !hasShared && shared != 0 {
+		t.Errorf("SysRSS returned inconsistent counts: rss=%d, shared=%d, hasShared=%t", bytes, shared, hasShared)
+	}
+	t.Logf("SysRSS = %d bytes (%d MiB), shared = %d bytes", bytes, bytes>>20, shared)
 }
 
 func TestSysRSSNoAlloc(t *testing.T) {
 	requireSysRSS(t)
-	if _, ok := runtime.SysRSS(); !ok {
+	if rss, _, _ := runtime.SysRSS(); rss == 0 {
 		t.Fatalf("SysRSS unavailable on supported platform %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
 	allocs := testing.AllocsPerRun(100, func() {

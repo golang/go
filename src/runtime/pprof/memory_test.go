@@ -7,8 +7,10 @@ package pprof
 import (
 	"bytes"
 	"internal/profile"
+	"internal/profilerecord"
 	"internal/testenv"
 	"io"
+	"maps"
 	"os"
 	"runtime"
 	"runtime/debug"
@@ -105,7 +107,13 @@ func TestMemoryProfileStructure(t *testing.T) {
 		rssPath(rssFrameGoMemory, rssFrameHeap, rssFrameDeadHeap),
 		rssPath(rssFrameGoMemory, rssFrameHeap, rssFrameUnusedHeap),
 		rssPath(rssFrameGoMemory, rssFrameHeap, rssFrameFreeHeap),
-		rssPath(rssFrameNonGoMemory),
+	}
+	if runtime.GOOS == "linux" {
+		virtualPrefixes = append(virtualPrefixes,
+			rssPath(rssFrameNonGoMemory, rssFrameFileShared),
+			rssPath(rssFrameNonGoMemory, rssFrameAnonymous))
+	} else {
+		virtualPrefixes = append(virtualPrefixes, rssPath(rssFrameNonGoMemory))
 	}
 
 	livePrefix := rssPath(rssFrameGoMemory, rssFrameHeap, rssFrameLiveHeap)
@@ -336,6 +344,93 @@ func rssSampleHasFrame(sample *profile.Sample, name string) bool {
 		}
 	}
 	return false
+}
+
+func TestMemoryProfileNonGoBreakdown(t *testing.T) {
+	// Go memory is 100 bytes: 60 bytes of heap objects (40 live, 20 dead)
+	// and 40 bytes of other runtime memory.
+	goMetrics := profilerecord.MemProfileMetrics{
+		HeapLive:                 40,
+		MemoryClassesHeapObjects: 60,
+		MemoryClassesOther:       40,
+		MemoryClassesTotal:       100,
+	}
+	fileShared := rssPath(rssFrameNonGoMemory, rssFrameFileShared)
+	anonymous := rssPath(rssFrameNonGoMemory, rssFrameAnonymous)
+	nonGo := rssPath(rssFrameNonGoMemory)
+
+	for _, tc := range []struct {
+		name        string
+		rss         uint64
+		shared      uint64
+		hasShared   bool
+		want        map[string]int64 // non-Go traceback -> bytes
+		wantComment string
+	}{
+		{
+			name: "split", rss: 150, shared: 30, hasShared: true,
+			want: map[string]int64{fileShared: 30, anonymous: 20},
+		},
+		{
+			name: "anonymous below Go memory", rss: 150, shared: 70, hasShared: true,
+			want:        map[string]int64{fileShared: 70},
+			wantComment: "Some Go Memory is not resident: Go Memory (100 bytes) > Anonymous RSS (80 bytes). Anonymous Non-Go Memory not shown.",
+		},
+		{
+			name: "RSS below Go memory", rss: 90, shared: 10, hasShared: true,
+			want:        map[string]int64{fileShared: 10},
+			wantComment: "Some Go Memory is not resident: Go Memory (100 bytes) > Anonymous RSS (80 bytes). Anonymous Non-Go Memory not shown.",
+		},
+		{
+			name: "anonymous equals Go memory", rss: 150, shared: 50, hasShared: true,
+			want: map[string]int64{fileShared: 50},
+		},
+		{
+			name: "no breakdown", rss: 150,
+			want: map[string]int64{nonGo: 50},
+		},
+		{
+			name: "no breakdown, RSS equals Go memory", rss: 100,
+			want: map[string]int64{},
+		},
+		{
+			name: "no breakdown, RSS below Go memory", rss: 90,
+			want:        map[string]int64{},
+			wantComment: "Some Go Memory is not resident: Go Memory (100 bytes) > RSS (90 bytes). Non-Go Memory not shown.",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			m := goMetrics
+			m.RSS, m.RSSShared, m.RSSHasShared = tc.rss, tc.shared, tc.hasShared
+			var buf bytes.Buffer
+			if err := writeMemoryProto(&buf, nil, 1, &m); err != nil {
+				t.Fatalf("writing memory profile: %v", err)
+			}
+			p, err := profile.Parse(&buf)
+			if err != nil {
+				t.Fatalf("parsing memory profile: %v", err)
+			}
+			got := make(map[string]int64)
+			for _, s := range p.Sample {
+				var frames []string
+				for _, loc := range slices.Backward(s.Location) {
+					frames = append(frames, loc.Line[0].Function.Name)
+				}
+				if traceback := strings.Join(frames, ";"); strings.HasPrefix(traceback, nonGo) {
+					got[traceback] += s.Value[0]
+				}
+			}
+			if !maps.Equal(got, tc.want) {
+				t.Errorf("non-Go samples = %v, want %v", got, tc.want)
+			}
+			if tc.wantComment == "" && len(p.Comments) != 0 {
+				t.Errorf("comments = %q, want none", p.Comments)
+			}
+			if tc.wantComment != "" && !slices.Contains(p.Comments, tc.wantComment) {
+				t.Errorf("comments = %q, want %q", p.Comments, tc.wantComment)
+			}
+		})
+	}
 }
 
 func rssPath(frames ...rssVirtualFrame) string {

@@ -53,6 +53,12 @@ type MemProfileMetrics struct {
 	// other processes. Zero means RSS was unavailable.
 	RSS uint64
 
+	// RSSShared is the portion of RSS attributed to file-backed and
+	// shared-memory pages on Linux. RSSHasShared reports whether this
+	// breakdown is available.
+	RSSShared    uint64
+	RSSHasShared bool
+
 	// HeapLive corresponds to /gc/heap/live:bytes: the bytes marked
 	// live by the most recent GC.
 	HeapLive uint64

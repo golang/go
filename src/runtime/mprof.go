@@ -440,9 +440,7 @@ func captureMProfMetrics(out *profilerecord.MemProfileMetrics, heapStats *heapSt
 	}
 	*out = profilerecord.MemProfileMetrics{}
 
-	if rss, ok := sysRSS(); ok {
-		out.RSS = rss
-	}
+	out.RSS, out.RSSShared, out.RSSHasShared = sysRSS()
 
 	// /gc/heap/live:bytes. heapMarked is updated at mark termination and
 	// stable until the next mark termination, so a plain uint64 read is fine.
