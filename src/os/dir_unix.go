@@ -12,6 +12,7 @@ import (
 	"io"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"unsafe"
 )
@@ -19,9 +20,10 @@ import (
 // Auxiliary information if the File describes a directory
 type dirInfo struct {
 	mu   sync.Mutex
-	buf  *[]byte // buffer for directory I/O
-	nbuf int     // length of buf; return value from Getdirentries
-	bufp int     // location of next record in buf.
+	refs atomic.Int32 // see acquire
+	buf  *[]byte      // buffer for directory I/O
+	nbuf int          // length of buf; return value from Getdirentries
+	bufp int          // location of next record in buf.
 }
 
 const (
@@ -45,21 +47,35 @@ func (d *dirInfo) close() {
 }
 
 func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEntry, infos []FileInfo, err error) {
+	// A closed File must not return directory entries, not even buffered ones.
+	if err := f.pfd.RawControl(func(uintptr) {}); err != nil {
+		return nil, nil, nil, f.wrapErr("readdir", err)
+	}
+
 	// If this file has no dirInfo, create one.
 	var d *dirInfo
 	for {
 		d = f.dirinfo.Load()
-		if d != nil {
-			break
-		}
-		newD := new(dirInfo)
-		if f.dirinfo.CompareAndSwap(nil, newD) {
+		if d == nil {
+			newD := new(dirInfo)
+			newD.refs.Store(1) // the File's reference
+			if !f.dirinfo.CompareAndSwap(nil, newD) {
+				continue
+			}
 			d = newD
+		}
+		if !d.acquire() {
+			continue // Close or Seek released d.
+		}
+		d.mu.Lock()
+		if f.dirinfo.Load() == d {
 			break
 		}
+		// Close or Seek detached d while we were waiting for the lock.
+		d.mu.Unlock()
+		d.release()
 	}
-
-	d.mu.Lock()
+	defer d.release()
 	defer d.mu.Unlock()
 	if d.buf == nil {
 		d.buf = dirBufPool.Get().(*[]byte)

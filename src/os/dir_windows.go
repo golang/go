@@ -10,13 +10,15 @@ import (
 	"io/fs"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"unsafe"
 )
 
 // Auxiliary information if the File describes a directory
 type dirInfo struct {
-	mu sync.Mutex
+	mu   sync.Mutex
+	refs atomic.Int32 // see acquire
 	// buf is a slice pointer so the slice header
 	// does not escape to the heap when returning
 	// buf to dirBufPool.
@@ -94,22 +96,37 @@ func (d *dirInfo) init(h syscall.Handle) {
 }
 
 func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEntry, infos []FileInfo, err error) {
+	// A closed File must not return directory entries, not even buffered ones.
+	if err := file.pfd.RawControl(func(uintptr) {}); err != nil {
+		return nil, nil, nil, file.wrapErr("readdir", err)
+	}
+
 	// If this file has no dirInfo, create one.
 	var d *dirInfo
 	for {
 		d = file.dirinfo.Load()
-		if d != nil {
+		if d == nil {
+			d = new(dirInfo)
+			d.init(file.pfd.Sysfd)
+			d.refs.Store(1) // the File's reference
+			if !file.dirinfo.CompareAndSwap(nil, d) {
+				// We lost the race: try again.
+				d.close()
+				continue
+			}
+		}
+		if !d.acquire() {
+			continue // Close or Seek released d.
+		}
+		d.mu.Lock()
+		if file.dirinfo.Load() == d {
 			break
 		}
-		d = new(dirInfo)
-		d.init(file.pfd.Sysfd)
-		if file.dirinfo.CompareAndSwap(nil, d) {
-			break
-		}
-		// We lost the race: try again.
-		d.close()
+		// Close or Seek detached d while we were waiting for the lock.
+		d.mu.Unlock()
+		d.release()
 	}
-	d.mu.Lock()
+	defer d.release()
 	defer d.mu.Unlock()
 	if d.buf == nil {
 		d.buf = dirBufPool.Get().(*[]byte)

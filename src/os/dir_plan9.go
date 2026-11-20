@@ -11,6 +11,10 @@ import (
 )
 
 func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEntry, infos []FileInfo, err error) {
+	// A closed File must not return directory entries, not even buffered ones.
+	if err := file.checkValid("readdir"); err != nil {
+		return nil, nil, nil, err
+	}
 	var d *dirInfo
 	for {
 		d = file.dirinfo.Load()

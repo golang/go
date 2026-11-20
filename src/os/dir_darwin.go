@@ -8,13 +8,17 @@ import (
 	"errors"
 	"io"
 	"runtime"
+	"sync"
+	"sync/atomic"
 	"syscall"
 	"unsafe"
 )
 
 // Auxiliary information if the File describes a directory
 type dirInfo struct {
-	dir uintptr // Pointer to DIR structure from dirent.h
+	mu   sync.Mutex
+	refs atomic.Int32 // see acquire
+	dir  uintptr      // Pointer to DIR structure from dirent.h
 }
 
 func (d *dirInfo) close() {
@@ -26,24 +30,42 @@ func (d *dirInfo) close() {
 }
 
 func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEntry, infos []FileInfo, err error) {
+	// A closed File must not return directory entries, not even buffered ones.
+	if err := f.pfd.RawControl(func(uintptr) {}); err != nil {
+		return nil, nil, nil, f.wrapErr("readdir", err)
+	}
+
 	// If this file has no dirinfo, create one.
 	var d *dirInfo
 	for {
 		d = f.dirinfo.Load()
 		if d != nil {
-			break
+			if !d.acquire() {
+				continue // Close or Seek released d.
+			}
+			d.mu.Lock()
+			if f.dirinfo.Load() == d {
+				break
+			}
+			// Close or Seek detached d while we were waiting for the lock.
+			d.mu.Unlock()
+			d.release()
+			continue
 		}
 		dir, call, errno := f.pfd.OpenDir()
 		if errno != nil {
 			return nil, nil, nil, &PathError{Op: call, Path: f.name, Err: errno}
 		}
 		d = &dirInfo{dir: dir}
+		d.refs.Store(1) // the File's reference
 		if f.dirinfo.CompareAndSwap(nil, d) {
-			break
+			continue
 		}
 		// We lost the race: try again.
 		d.close()
 	}
+	defer d.release()
+	defer d.mu.Unlock()
 
 	size := n
 	if size <= 0 {
