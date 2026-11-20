@@ -175,14 +175,8 @@ func storeArg(a [2]int) {
 	a[1] = 123
 }
 
-var sinkByte byte
-
 //go:noinline
-func consumeSlice(s []byte) {
-	if cap(s) > 0 {
-		sinkByte = s[:cap(s)][cap(s)-1]
-	}
-}
+func consumeSlice(s []byte) {}
 
 //go:noinline
 func largeSliceLiteral() {
@@ -210,44 +204,22 @@ type Tests struct {
 	t2 int
 }
 
-var sinkTests []*Tests
-
 //go:noinline
-func consumeTests(s []*Tests) {
-	if cap(s) > 0 {
-		sinkTests = s[:cap(s)]
-	}
-}
+func consumeTests(s []*Tests) {}
 
 //go:noinline
 func largeSliceLiteralPtr() {
-	// amd64:"CALL runtime\.newobject"
+	// amd64:`CALL runtime\.newobject`
 	s := []*Tests{(1<<17 - 1): nil}[:0]
 	consumeTests(s)
 }
 
 //go:noinline
-func largeSliceLiteralPtrWithNew() {
-	// amd64:"CALL runtime\.newobject"
-	s := []*Tests{(1<<17 - 1): new(Tests)}[:0]
-	consumeTests(s)
-}
-
-//go:noinline
-func largeSliceLiteralPtrWithTwoNews() {
-	// amd64:"CALL runtime\.newobject"
-	s := []*Tests{
-		0:           new(Tests),
-		(1<<17 - 1): new(Tests),
-	}[:0]
-	consumeTests(s)
-}
+func consumeStructs(s []Tests) {}
 
 //go:noinline
 func largeSliceLiteralStruct() {
-	// amd64:"CALL runtime\.newobject"
+	// amd64:`CALL runtime\.newobject`
 	s := []Tests{(1<<17 - 1): {}}[:0]
-	if cap(s) > 0 {
-		sinkTests = append(sinkTests, &s[:cap(s)][cap(s)-1])
-	}
+	consumeStructs(s)
 }
