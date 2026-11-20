@@ -479,7 +479,7 @@ func (p *printer) isOneLineFieldList(list []*ast.Field) bool {
 	const maxSize = 30 // adjust as appropriate, this is an approximate value
 	namesSize := identListSize(f.Names, maxSize)
 	if namesSize > 0 {
-		namesSize = 1 // blank between names and types
+		namesSize += 1 // blank between names and types
 	}
 	typeSize := p.nodeSize(f.Type, maxSize)
 	return namesSize+typeSize <= maxSize
