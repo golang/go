@@ -2056,28 +2056,28 @@ func emitCDATA(w io.Writer, s []byte) error {
 func procInst(param, s string) string {
 	// TODO: this parsing is somewhat lame and not exact.
 	// It works for all actual cases, though.
-	param = param + "="
-	lenp := len(param)
-	i := 0
-	var sep byte
-	for i < len(s) {
-		sub := s[i:]
-		k := strings.Index(sub, param)
-		if k < 0 || lenp+k >= len(sub) {
+	for {
+		k := strings.Index(s, param)
+		if k < 0 {
 			return ""
 		}
-		i += lenp + k + 1
-		if c := sub[lenp+k]; c == '\'' || c == '"' {
-			sep = c
-			break
+		s = s[k+len(param):]
+		// White space is allowed around the "=" (production [25] Eq).
+		v := strings.TrimLeft(s, " \t\r\n")
+		if !strings.HasPrefix(v, "=") {
+			continue
+		}
+		v = strings.TrimLeft(v[1:], " \t\r\n")
+		if v == "" {
+			return ""
+		}
+		if sep := v[0]; sep == '\'' || sep == '"' {
+			v = v[1:]
+			j := strings.IndexByte(v, sep)
+			if j < 0 {
+				return ""
+			}
+			return v[:j]
 		}
 	}
-	if sep == 0 {
-		return ""
-	}
-	j := strings.IndexByte(s[i:], sep)
-	if j < 0 {
-		return ""
-	}
-	return s[i : i+j]
 }
