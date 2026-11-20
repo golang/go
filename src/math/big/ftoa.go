@@ -176,17 +176,18 @@ func roundShortest(d *decimal, x *Float) {
 		return
 	}
 
-	// Approach: All numbers in the interval [x - 1/2ulp, x + 1/2ulp]
+	// Approach: All numbers in the interval [x - 1/2ulp, x + 1/2ulp], or
+	// [x - 1/4ulp, x + 1/2ulp] if the mantissa of x is a power of two,
 	// (possibly exclusive) round to x for the given precision of x.
 	// Compute the lower and upper bound in decimal form and find the
 	// shortest decimal number d such that lower <= d <= upper.
 
 	// 1) Compute normalized mantissa mant and exponent exp for x such
-	// that the lsb of mant corresponds to 1/2 ulp for the precision of
-	// x (i.e., for mant we want x.prec + 1 bits).
+	// that the lsb of mant corresponds to 1/4 ulp for the precision of
+	// x (i.e., for mant we want x.prec + 2 bits).
 	mant := nat(nil).set(x.mant)
 	exp := int(x.exp) - mant.bitLen()
-	s := mant.bitLen() - int(x.prec+1)
+	s := mant.bitLen() - int(x.prec) - 2
 	switch {
 	case s < 0:
 		mant = mant.lsh(mant, uint(-s))
@@ -194,21 +195,27 @@ func roundShortest(d *decimal, x *Float) {
 		mant = mant.rsh(mant, uint(+s))
 	}
 	exp += s
-	// x = mant * 2**exp with lsb(mant) == 1/2 ulp of x.prec
+	// x = mant * 2**exp with lsb(mant) == 1/4 ulp of x.prec
 
-	// 2) Compute lower bound by subtracting 1/2 ulp.
+	// 2) Compute lower bound by subtracting 1/2 ulp. If x is a power
+	// of two, the floats below it are half as far apart, and the lower
+	// bound is only 1/4 ulp away.
 	var lower decimal
 	var tmp nat
-	lower.init(tmp.sub(mant, natOne), exp)
+	if mant.trailingZeroBits() == uint(mant.bitLen()-1) {
+		lower.init(tmp.sub(mant, natOne), exp)
+	} else {
+		lower.init(tmp.sub(mant, natTwo), exp)
+	}
 
 	// 3) Compute upper bound by adding 1/2 ulp.
 	var upper decimal
-	upper.init(tmp.add(mant, natOne), exp)
+	upper.init(tmp.add(mant, natTwo), exp)
 
 	// The upper and lower bounds are possible outputs only if
 	// the original mantissa is even, so that ToNearestEven rounding
 	// would round to the original mantissa and not the neighbors.
-	inclusive := mant[0]&2 == 0 // test bit 1 since original mantissa was shifted by 1
+	inclusive := mant[0]&4 == 0 // test bit 2 since original mantissa was shifted by 2
 
 	// Now we can figure out the minimum number of digits required.
 	// Walk along until d has distinguished itself from upper and lower.
