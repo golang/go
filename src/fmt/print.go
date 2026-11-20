@@ -1141,10 +1141,10 @@ formatLoop:
 		i += size
 
 		switch {
-		case verb == '%': // Percent does not absorb operands and ignores f.wid and f.prec.
-			p.buf.writeByte('%')
 		case !p.goodArgNum:
 			p.badArgNum(verb)
+		case verb == '%': // Percent does not absorb operands and ignores f.wid and f.prec.
+			p.buf.writeByte('%')
 		case argNum >= len(a): // No argument left over to print for the current verb.
 			p.missingArg(verb)
 		case verb == 'w':
