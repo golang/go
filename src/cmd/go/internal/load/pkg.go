@@ -694,8 +694,9 @@ func LoadPackage(ld *modload.Loader, ctx context.Context, opts PackageOpts, path
 // but possibly a local import path (an absolute file system path or one beginning
 // with ./ or ../). A local relative path is interpreted relative to srcDir.
 // It returns a *Package describing the package found in that directory.
-// loadImport does not set tool flags and should only be used by
-// this package, as part of a bigger load operation.
+// loadImport sets the tool flags of each package it loads for the first time,
+// once the package's metadata (such as Dir and Standard) is known,
+// and should only be used by this package, as part of a bigger load operation.
 // The returned PackageError, if any, describes why parent is not allowed
 // to import the named package, with the error referring to importPos.
 // The PackageError can only be non-nil when parent is not nil.
@@ -765,12 +766,15 @@ func loadImport(ld *modload.Loader, ctx context.Context, opts PackageOpts, pre *
 		ld.PackageCache()[importPath] = p
 
 		setCmdline(p)
-		setToolFlags(ld, p)
 
 		// Load package.
 		// loadPackageData may return bp != nil even if an error occurs,
 		// in order to return partial information.
 		p.load(ld, ctx, opts, path, stk, importPos, bp, err)
+
+		// The std, cmd and relative-path patterns match on p.Standard and p.Dir,
+		// which p.load sets.
+		setPackageToolFlags(ld, p)
 
 		if !cfg.ModulesEnabled && path != cleanImport(path) {
 			p.Error = &PackageError{
@@ -3234,11 +3238,15 @@ func (e *mainPackageError) ImportPath() string {
 
 func setToolFlags(ld *modload.Loader, pkgs ...*Package) {
 	for _, p := range PackageList(pkgs) {
-		p.Internal.Asmflags = BuildAsmflags.For(ld, p)
-		p.Internal.Gcflags = BuildGcflags.For(ld, p)
-		p.Internal.Ldflags = BuildLdflags.For(ld, p)
-		p.Internal.Gccgoflags = BuildGccgoflags.For(ld, p)
+		setPackageToolFlags(ld, p)
 	}
+}
+
+func setPackageToolFlags(ld *modload.Loader, p *Package) {
+	p.Internal.Asmflags = BuildAsmflags.For(ld, p)
+	p.Internal.Gcflags = BuildGcflags.For(ld, p)
+	p.Internal.Ldflags = BuildLdflags.For(ld, p)
+	p.Internal.Gccgoflags = BuildGccgoflags.For(ld, p)
 }
 
 var errFileNotFound = errors.New("file not found")
