@@ -602,6 +602,12 @@ var marshalTests = []struct {
 		ExpectXML:     `<Data Attr=""><Bytes></Bytes><Custom></Custom></Data>`,
 		UnmarshalOnly: true,
 	},
+	// Check attribute value normalization (issue 20614).
+	{
+		Value:         &Data{Bytes: []byte{}, Custom: MyBytes{}, Attr: []byte(" a b c d")},
+		ExpectXML:     "<Data Attr='\na\r\nb\tc\rd'><Bytes></Bytes><Custom></Custom></Data>",
+		UnmarshalOnly: true,
+	},
 
 	// Check that []byte works, including named []byte types.
 	{
