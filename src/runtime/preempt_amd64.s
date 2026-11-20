@@ -36,7 +36,7 @@ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
 	MOVQ g_m(R14), AX
 	MOVQ m_p(AX), AX
 	LEAQ (p_xRegs+xRegPerP_scratch)(AX), AX
-	#ifdef GOEXPERIMENT_simd
+	#ifdef GOEXPERIMENT_simdstable
 	CMPB internal∕cpu·X86+const_offsetX86HasAVX512(SB), $1
 	JE saveAVX512
 	CMPB internal∕cpu·X86+const_offsetX86HasAVX(SB), $1
@@ -126,7 +126,7 @@ preempt:
 	MOVQ g_m(R14), AX
 	MOVQ m_p(AX), AX
 	MOVQ (p_xRegs+xRegPerP_cache)(AX), AX
-	#ifdef GOEXPERIMENT_simd
+	#ifdef GOEXPERIMENT_simdstable
 	CMPB internal∕cpu·X86+const_offsetX86HasAVX512(SB), $1
 	JE restoreAVX512
 	CMPB internal∕cpu·X86+const_offsetX86HasAVX(SB), $1

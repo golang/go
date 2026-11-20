@@ -458,7 +458,11 @@ func genAMD64(g *gen) {
 	p("LEAQ (p_xRegs+xRegPerP_scratch)(%s), %s", xReg, xReg)
 
 	// Which registers do we need to save?
-	p("#ifdef GOEXPERIMENT_simd")
+	//
+	// Y, Z and K registers are only live in code that uses the fixed-width
+	// vector types in simd/archsimd, which are available with
+	// GOEXPERIMENT=simdstable (implied by GOEXPERIMENT=simd).
+	p("#ifdef GOEXPERIMENT_simdstable")
 	p("CMPB internal∕cpu·X86+const_offsetX86HasAVX512(SB), $1")
 	p("JE saveAVX512")
 	p("CMPB internal∕cpu·X86+const_offsetX86HasAVX(SB), $1")
@@ -486,7 +490,7 @@ func genAMD64(g *gen) {
 	p("MOVQ m_p(%s), %s", xReg, xReg)
 	p("MOVQ (p_xRegs+xRegPerP_cache)(%s), %s", xReg, xReg)
 
-	p("#ifdef GOEXPERIMENT_simd")
+	p("#ifdef GOEXPERIMENT_simdstable")
 	p("CMPB internal∕cpu·X86+const_offsetX86HasAVX512(SB), $1")
 	p("JE restoreAVX512")
 	p("CMPB internal∕cpu·X86+const_offsetX86HasAVX(SB), $1")
