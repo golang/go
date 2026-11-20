@@ -310,3 +310,78 @@ func TestCheck(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	Check(t)
 }
+
+func TestQualifyFeature(t *testing.T) {
+	ctxts := []*build.Context{
+		{GOOS: "linux", GOARCH: "amd64", CgoEnabled: true},
+		{GOOS: "linux", GOARCH: "amd64"},
+		{GOOS: "windows", GOARCH: "amd64"},
+		{GOOS: "darwin", GOARCH: "arm64"},
+		{GOOS: "linux", GOARCH: "arm64"},
+		{GOOS: "js", GOARCH: "wasm"},
+	}
+	const f = "pkg p, func F()"
+	for _, test := range []struct {
+		name     string
+		present  []string
+		byGOARCH bool
+		want     []string
+	}{
+		{
+			name:     "all contexts",
+			present:  []string{"linux-amd64-cgo", "linux-amd64", "windows-amd64", "darwin-arm64", "linux-arm64", "js-wasm"},
+			byGOARCH: true,
+			want:     []string{"pkg p, func F()"},
+		},
+		{
+			name:     "whole GOARCH",
+			present:  []string{"linux-amd64-cgo", "linux-amd64", "windows-amd64"},
+			byGOARCH: true,
+			want:     []string{"pkg p (GOARCH=amd64), func F()"},
+		},
+		{
+			name:     "whole GOARCHes",
+			present:  []string{"darwin-arm64", "linux-arm64", "js-wasm"},
+			byGOARCH: true,
+			want:     []string{"pkg p (GOARCH=arm64), func F()", "pkg p (GOARCH=wasm), func F()"},
+		},
+		{
+			name:     "partial GOARCH",
+			present:  []string{"linux-amd64-cgo", "linux-amd64", "linux-arm64"},
+			byGOARCH: true,
+			want:     []string{"pkg p (linux-amd64-cgo), func F()", "pkg p (linux-amd64), func F()", "pkg p (linux-arm64), func F()"},
+		},
+		{
+			name:     "whole and partial GOARCH",
+			present:  []string{"linux-amd64-cgo", "linux-amd64", "windows-amd64", "darwin-arm64"},
+			byGOARCH: true,
+			want:     []string{"pkg p (GOARCH=amd64), func F()", "pkg p (darwin-arm64), func F()"},
+		},
+		{
+			name:    "not by GOARCH",
+			present: []string{"linux-amd64-cgo", "linux-amd64", "windows-amd64"},
+			want:    []string{"pkg p (linux-amd64-cgo), func F()", "pkg p (linux-amd64), func F()", "pkg p (windows-amd64), func F()"},
+		},
+		{
+			name:    "not by GOARCH, all contexts",
+			present: []string{"linux-amd64-cgo", "linux-amd64", "windows-amd64", "darwin-arm64", "linux-arm64", "js-wasm"},
+			want:    []string{"pkg p, func F()"},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			present := make(map[string]bool)
+			for _, name := range test.present {
+				present[name] = true
+			}
+			got := qualifyFeature(f, present, ctxts, test.byGOARCH)
+			if !slices.Equal(got, test.want) {
+				t.Errorf("got %q, want %q", got, test.want)
+			}
+			for _, line := range got {
+				if featureWithoutContext(line) != f {
+					t.Errorf("featureWithoutContext(%q) = %q, want %q", line, featureWithoutContext(line), f)
+				}
+			}
+		})
+	}
+}

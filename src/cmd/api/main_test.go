@@ -85,6 +85,91 @@ var contexts = []*build.Context{
 	{GOOS: "openbsd", GOARCH: "amd64"},
 }
 
+// simdContexts are additional contexts in which only the simd packages
+// are scanned. They cover architectures where we want to capture the
+// SIMD API, but whose contexts are not listed above. Simply adding them
+// to contexts would scan all of std and would turn many existing
+// unqualified features into per-context ones.
+var simdContexts = []*build.Context{
+	{GOOS: "js", GOARCH: "wasm"},
+	{GOOS: "linux", GOARCH: "arm64"},
+}
+
+// isSimdPkg reports whether path is one of the simd packages, which are
+// scanned in simdContexts as well as contexts.
+//
+// The API of these packages is qualified by GOARCH rather than by
+// context where possible (see qualifyFeature): their build constraints
+// depend only on GOARCH by design, and listing each architecture's large
+// API once per context would multiply the size of the API files.
+func isSimdPkg(path string) bool {
+	return path == "simd" || strings.HasPrefix(path, "simd/")
+}
+
+// qualifyFeature returns the API lines for feature f (of the form
+// "pkg P, ..."), given the names of the contexts in which f is present
+// and the contexts that scan P.
+//
+// A feature present in every context that scans its package is
+// unqualified.
+//
+// Otherwise, by default, the feature is qualified by every
+// GOOS-GOARCH[-cgo] context in which it is present, as in
+// {"pkg P (linux-amd64), ...", "pkg P (darwin-arm64), ..."}.
+//
+// If byGOARCH is set, the feature is instead qualified just by GOARCH
+// for each GOARCH in whose every context it is present, as in
+// "pkg P (GOARCH=amd64), ...". Such a line means that the feature is
+// present in every context cmd/api checks with that GOARCH; like an
+// unqualified feature, it is re-checked against the current context
+// list. The feature is still qualified by context for the contexts of
+// GOARCHes in which it is only partly present.
+func qualifyFeature(f string, present map[string]bool, scanned []*build.Context, byGOARCH bool) []string {
+	if len(present) == len(scanned) {
+		// Present in every context that scans the package.
+		return []string{f}
+	}
+	pkg, rest, _ := strings.Cut(f, ",")
+	line := func(qual string) string {
+		return fmt.Sprintf("%s (%s),%s", pkg, qual, rest)
+	}
+	var lines []string
+	goarchCovered := make(map[string]bool)
+	if byGOARCH {
+		var goarches []string
+		all := make(map[string]bool) // GOARCH -> present in all its contexts
+		for _, c := range scanned {
+			if _, ok := all[c.GOARCH]; !ok {
+				goarches = append(goarches, c.GOARCH)
+				all[c.GOARCH] = true
+			}
+			if !present[contextName(c)] {
+				all[c.GOARCH] = false
+			}
+		}
+		for _, goarch := range goarches {
+			if all[goarch] {
+				lines = append(lines, line("GOARCH="+goarch))
+				goarchCovered[goarch] = true
+			}
+		}
+	}
+	for _, c := range scanned {
+		if name := contextName(c); present[name] && !goarchCovered[c.GOARCH] {
+			lines = append(lines, line(name))
+		}
+	}
+	return lines
+}
+
+// apiExperiments is a comma-separated GOEXPERIMENT string that is
+// applied on top of the baseline experiments when scanning the API. It
+// lets cmd/api check the API of an experiment before the experiment
+// becomes part of the baseline.
+//
+// TODO: set to "" once simdstable is part of the baseline.
+const apiExperiments = "simdstable"
+
 func contextName(c *build.Context) string {
 	s := c.GOOS + "-" + c.GOARCH
 	if c.CgoEnabled {
@@ -115,33 +200,50 @@ func Check(t *testing.T) {
 		nextFiles = next
 	}
 
+	// An apiContext is a build context together with a filter for the
+	// packages to scan in it.
+	type apiContext struct {
+		*build.Context
+		pkgFilter func(pkgPath string) bool
+	}
+	var allContexts []apiContext
 	for _, c := range contexts {
+		allContexts = append(allContexts, apiContext{c, func(string) bool { return true }})
+	}
+	for _, c := range simdContexts {
+		allContexts = append(allContexts, apiContext{c, isSimdPkg})
+	}
+	for _, c := range allContexts {
 		c.Compiler = build.Default.Compiler
 
-		// Include baseline goexperiment.* tool tags.
-		baseline, err := buildcfg.ParseGOEXPERIMENT(c.GOOS, c.GOARCH, "")
+		// Include baseline goexperiment.* tool tags, plus apiExperiments.
+		exps, err := buildcfg.ParseGOEXPERIMENT(c.GOOS, c.GOARCH, apiExperiments)
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, exp := range baseline.Enabled() {
+		for _, exp := range exps.Enabled() {
 			c.ToolTags = append(c.ToolTags, "goexperiment."+exp)
 		}
 	}
 
-	walkers := make([]*Walker, len(contexts))
+	walkers := make([]*Walker, len(allContexts))
 	var wg sync.WaitGroup
-	for i, context := range contexts {
+	for i, c := range allContexts {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			walkers[i] = NewWalker(context, filepath.Join(testenv.GOROOT(t), "src"))
+			walkers[i] = NewWalker(c.Context, filepath.Join(testenv.GOROOT(t), "src"))
 		}()
 	}
 	wg.Wait()
 
 	var featureCtx = make(map[string]map[string]bool) // feature -> context name -> true
-	for _, w := range walkers {
+	for i, w := range walkers {
+		context := allContexts[i]
 		for _, name := range w.stdPackages {
+			if !context.pkgFilter(name) {
+				continue
+			}
 			pkg, err := w.import_(name)
 			if _, nogo := err.(*build.NoGoError); nogo {
 				continue
@@ -161,17 +263,20 @@ func Check(t *testing.T) {
 		}
 	}
 
+	scanned := make(map[string][]*build.Context) // package -> contexts that scan it
 	var features []string
 	for f, cmap := range featureCtx {
-		if len(cmap) == len(contexts) {
-			features = append(features, f)
-			continue
+		pkg, _, _ := strings.Cut(strings.TrimPrefix(f, "pkg "), ",")
+		if _, ok := scanned[pkg]; !ok {
+			for _, c := range allContexts {
+				if c.pkgFilter(pkg) {
+					scanned[pkg] = append(scanned[pkg], c.Context)
+				}
+			}
 		}
-		comma := strings.Index(f, ",")
-		for cname := range cmap {
-			f2 := fmt.Sprintf("%s (%s)%s", f[:comma], cname, f[comma:])
-			features = append(features, f2)
-		}
+		// SIMD packages are sensitive to GOARCH, but not GOOS or cgo.
+		byGOARCH := isSimdPkg(pkg)
+		features = append(features, qualifyFeature(f, cmap, scanned[pkg], byGOARCH)...)
 	}
 
 	bw := bufio.NewWriter(os.Stdout)
@@ -573,6 +678,15 @@ func listEnv(c *build.Context) []string {
 		environ = append(environ, "CGO_ENABLED=1")
 	} else {
 		environ = append(environ, "CGO_ENABLED=0")
+	}
+	// Enable apiExperiments, so that go list reports the dependencies
+	// of the packages they enable.
+	if apiExperiments != "" {
+		goexp := os.Getenv("GOEXPERIMENT")
+		if goexp != "" {
+			goexp += ","
+		}
+		environ = append(environ, "GOEXPERIMENT="+goexp+apiExperiments)
 	}
 	return environ
 }
