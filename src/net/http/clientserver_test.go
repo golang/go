@@ -1809,7 +1809,7 @@ func testWriteHeaderAfterWrite(t *testing.T, mode testMode, hijack bool) {
 }
 
 func TestBidiStreamReverseProxy(t *testing.T) {
-	runSynctest(t, testBidiStreamReverseProxy, []testMode{http2Mode})
+	runSynctest(t, testBidiStreamReverseProxy, []testMode{http2Mode, http3Mode})
 }
 func testBidiStreamReverseProxy(t *testing.T, mode testMode) {
 	backend := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {

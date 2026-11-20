@@ -1546,7 +1546,7 @@ func TestScanETag(t *testing.T) {
 // Issue 40940: Ensure that we only accept non-negative suffix-lengths
 // in "Range": "bytes=-N", and should reject "bytes=--2".
 func TestServeFileRejectsInvalidSuffixLengths(t *testing.T) {
-	runNoSynctest(t, testServeFileRejectsInvalidSuffixLengths, []testMode{http1Mode, https1Mode, http2Mode})
+	runNoSynctest(t, testServeFileRejectsInvalidSuffixLengths, testAddMode{https1Mode})
 }
 func testServeFileRejectsInvalidSuffixLengths(t *testing.T, mode testMode) {
 	tests := []struct {

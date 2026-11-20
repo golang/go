@@ -62,7 +62,7 @@ func pedanticReadAll(r io.Reader) (b []byte, err error) {
 }
 
 func TestClient(t *testing.T) {
-	runSynctest(t, testClient, []testMode{http1Mode, https1Mode, http2UnencryptedMode, http2Mode})
+	runSynctest(t, testClient, testAddMode{https1Mode, http2UnencryptedMode})
 }
 func testClient(t *testing.T, mode testMode) {
 	ts := newClientServerTest(t, mode, robotsTxtHandler).ts
@@ -993,7 +993,7 @@ func testClientWithIncorrectTLSServerName(t *testing.T, mode testMode) {
 //
 // The httptest.Server has a cert with "example.com" as its name.
 func TestTransportUsesTLSConfigServerName(t *testing.T) {
-	runSynctest(t, testTransportUsesTLSConfigServerName, []testMode{https1Mode, http2Mode})
+	runSynctest(t, testTransportUsesTLSConfigServerName, []testMode{https1Mode, http2Mode, http3Mode})
 }
 func testTransportUsesTLSConfigServerName(t *testing.T, mode testMode) {
 	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
