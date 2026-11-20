@@ -7,7 +7,10 @@
 package http
 
 import (
+	"bufio"
 	"fmt"
+	"io"
+	"net"
 	"net/url"
 	"regexp"
 	"testing"
@@ -304,4 +307,39 @@ func BenchmarkServerMatch(b *testing.B) {
 		}
 	}
 	b.StopTimer()
+}
+
+// TestHijackFailureLeavesConnWithServer checks that a hijack whose
+// Peek for the background read's byte fails leaves the connection
+// with the server, which closes it and reports its state, rather
+// than marked hijacked with no owner.
+func TestHijackFailureLeavesConnWithServer(t *testing.T) {
+	client, server := net.Pipe()
+	defer client.Close()
+	defer server.Close()
+
+	c := &conn{server: &Server{}, rwc: server}
+	c.r = &connReader{conn: c, rwc: server}
+	c.r.setInfiniteReadLimit()
+	c.bufr = bufio.NewReaderSize(c.r, 16)
+	c.bufw = bufio.NewWriter(io.Discard)
+
+	// Fill the buffer completely and leave the background read's byte
+	// pending: the hijack must then Peek one byte more than the buffer
+	// holds, which fails.
+	go client.Write(make([]byte, 16))
+	if _, err := c.bufr.Peek(16); err != nil {
+		t.Fatal(err)
+	}
+	c.r.hasByte = true
+
+	c.mu.Lock()
+	_, _, err := c.hijackLocked()
+	c.mu.Unlock()
+	if err == nil {
+		t.Fatal("hijack succeeded, want it to fail on the buffered byte")
+	}
+	if c.hijacked() {
+		t.Fatal("a failed hijack left the connection marked hijacked")
+	}
 }

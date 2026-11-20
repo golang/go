@@ -327,15 +327,18 @@ func (c *conn) hijackLocked() (rwc net.Conn, buf *bufio.ReadWriter, err error) {
 	}
 	c.r.abortPendingRead()
 
-	c.hijackedv = true
-	rwc = c.rwc
-	rwc.SetDeadline(time.Time{})
-
 	if c.r.hasByte {
 		if _, err := c.bufr.Peek(c.bufr.Buffered() + 1); err != nil {
+			// The connection stays with the server, which will
+			// close it; marking it hijacked here would leave it
+			// with no owner.
 			return nil, nil, fmt.Errorf("unexpected Peek failure reading buffered byte: %v", err)
 		}
 	}
+
+	c.hijackedv = true
+	rwc = c.rwc
+	rwc.SetDeadline(time.Time{})
 	c.bufw.Reset(rwc)
 	buf = bufio.NewReadWriter(c.bufr, c.bufw)
 
